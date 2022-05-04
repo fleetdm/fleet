@@ -2,8 +2,7 @@ import React from "react";
 import { Link } from "react-router";
 import ReactTooltip from "react-tooltip";
 
-// TODO: Enable after backend has been updated to provide last_opened_at
-// import distanceInWordsToNow from "date-fns/distance_in_words_to_now";
+import { formatDistanceToNow } from "date-fns";
 
 import { ISoftware } from "interfaces/software";
 
@@ -207,34 +206,33 @@ const generateSoftwareTableHeaders = (deviceUser = false): IDataColumn[] => {
         );
       },
     },
-    // TODO: Enable after backend has been updated to provide last_opened_at
-    // {
-    //   title: "Last used",
-    //   Header: (cellProps) => (
-    //     <HeaderCell
-    //       value={cellProps.column.title}
-    //       isSortedDesc={cellProps.column.isSortedDesc}
-    //     />
-    //   ),
-    //   accessor: "last_opened_at",
-    //   Cell: (cellProps) => {
-    //     const lastUsed = isNaN(Date.parse(cellProps.cell.value))
-    //       ? "Unavailable"
-    //       : `${distanceInWordsToNow(Date.parse(cellProps.cell.value))} ago`;
-    //     return (
-    //       <span
-    //         className={
-    //           lastUsed === "Unavailable"
-    //             ? "software-last-used-muted"
-    //             : "software-last-used"
-    //         }
-    //       >
-    //         {lastUsed}
-    //       </span>
-    //     );
-    //   },
-    //   sortType: "dateStrings",
-    // },
+    {
+      title: "Last used",
+      Header: (cellProps) => (
+        <HeaderCell
+          value={cellProps.column.title}
+          isSortedDesc={cellProps.column.isSortedDesc}
+        />
+      ),
+      accessor: "last_opened_at",
+      Cell: (cellProps: IStringCellProps) => {
+        const lastUsed = isNaN(Date.parse(cellProps.cell.value))
+          ? "Unavailable"
+          : `${formatDistanceToNow(Date.parse(cellProps.cell.value))} ago`;
+        return (
+          <span
+            className={
+              lastUsed === "Unavailable"
+                ? "software-last-used-muted"
+                : "software-last-used"
+            }
+          >
+            {lastUsed}
+          </span>
+        );
+      },
+      sortType: "dateStrings",
+    },
     {
       title: "",
       Header: "",
