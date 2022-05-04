@@ -60,6 +60,7 @@ func TestLabels(t *testing.T) {
 		{"QueriesForCentOSHost", testLabelsQueriesForCentOSHost},
 		{"RecordNonExistentQueryLabelExecution", testLabelsRecordNonexistentQueryLabelExecution},
 		{"DeleteLabel", testDeleteLabel},
+		{"LabelsSummary", testLabelsSummary},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -779,4 +780,21 @@ func testDeleteLabel(t *testing.T, db *Datastore) {
 	require.Empty(t, newP.Labels)
 
 	require.NoError(t, db.DeletePack(context.Background(), newP.Name))
+}
+
+func testLabelsSummary(t *testing.T, db *Datastore) {
+	require.Nil(t, db.MigrateData(context.Background()))
+	ls, err := db.LabelsSummary(context.Background())
+	require.NoError(t, err)
+	require.Len(t, ls, 7)
+
+	_, err = db.NewLabel(context.Background(), &fleet.Label{
+		Name:  t.Name(),
+		Query: "query1",
+	})
+	require.NoError(t, err)
+
+	ls, err = db.LabelsSummary(context.Background())
+	require.NoError(t, err)
+	require.Len(t, ls, 8)
 }
