@@ -204,7 +204,7 @@ describe("Premium tier - Team observer/maintainer user", () => {
       cy.visit("/hosts/manage");
     });
     describe("Manage hosts page", () => {
-      it("should render elements according to role-based access controls", () => {
+      it.only("should render elements according to role-based access controls", () => {
         // Hosts table includes teams column
         cy.getAttached(".data-table__table th")
           .contains("Team")
@@ -215,6 +215,9 @@ describe("Premium tier - Team observer/maintainer user", () => {
         cy.getAttached(".manage-hosts__header").within(() => {
           cy.contains("Apples").click({ force: true });
           cy.contains("Oranges").click({ force: true });
+        });
+        cy.getAttached(".team_name__cell").within(() => {
+          cy.findByText(/oranges/i).should("exist");
         });
         cy.contains(/oranges/i);
         cy.getAttached(".button-wrap")
