@@ -6,6 +6,7 @@ require (
 	cloud.google.com/go/pubsub v1.16.0
 	github.com/AbGuthrie/goquery/v2 v2.0.1
 	github.com/DATA-DOG/go-sqlmock v1.5.0
+	github.com/Masterminds/semver v1.5.0 // indirect
 	github.com/OneOfOne/xxhash v1.2.8 // indirect
 	github.com/PuerkitoBio/goquery v1.8.0 // indirect
 	github.com/VividCortex/gohistogram v1.0.0 // indirect

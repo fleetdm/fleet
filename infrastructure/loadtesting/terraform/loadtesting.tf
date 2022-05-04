@@ -3,7 +3,7 @@ resource "aws_ecs_service" "loadtest" {
   launch_type                        = "FARGATE"
   cluster                            = aws_ecs_cluster.fleet.id
   task_definition                    = aws_ecs_task_definition.loadtest.arn
-  desired_count                      = var.scale_down ? 0 : var.loadtest_containers
+  desired_count                      = var.loadtest_containers
   deployment_minimum_healthy_percent = 100
   deployment_maximum_percent         = 200
 
@@ -52,7 +52,7 @@ resource "aws_ecs_task_definition" "loadtest" {
           "go", "run", "/go/fleet/cmd/osquery-perf/agent.go",
           "-enroll_secret", data.aws_secretsmanager_secret_version.enroll_secret.secret_string,
           "-host_count", "5000",
-          "-server_url", "http://${data.terraform_remote_state.shared.outputs.alb-internal.dns_name}",
+          "-server_url", "http://${aws_lb.internal.dns_name}",
           "-node_key_file", "nodekeys",
           "--policy_pass_prob", "0.5",
           "--start_period", "5m",

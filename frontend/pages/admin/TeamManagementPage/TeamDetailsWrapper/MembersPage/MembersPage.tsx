@@ -14,7 +14,7 @@ import teamsAPI from "services/entities/teams";
 
 import Button from "components/buttons/Button";
 import TableContainer from "components/TableContainer";
-import TableDataError from "components/TableDataError";
+import TableDataError from "components/DataError";
 import CreateUserModal from "pages/admin/UserManagementPage/components/CreateUserModal";
 import { DEFAULT_CREATE_USER_ERRORS } from "utilities/constants";
 import EditUserModal from "../../../UserManagementPage/components/EditUserModal";

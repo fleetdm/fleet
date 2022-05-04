@@ -49,6 +49,11 @@ jobs:
     # > Turns out there's a similar issue with how eslint plugins are looked up, so we
     # > delete the top level .eslintrc file too.
     - run: rm -f .eslintrc.js
+    # > And, as a change to the top-level fleetdm/fleet .gitignore on May 2, 2022 revealed,
+    # > we also need to delete the top level .gitignore file too, so that its rules don't
+    # > interfere with the committing and force-pushing we're doing as part of our deploy
+    # > script here.  For more info, see: https://github.com/fleetdm/fleet/pull/5549
+    - run: rm -f .gitignore
 
     # Download dependencies (including dev deps)
     - run: cd website/ && npm install

@@ -1,6 +1,3 @@
-//go:build darwin || windows
-// +build darwin windows
-
 package main
 
 import (
@@ -17,12 +14,15 @@ import (
 	"github.com/getlantern/systray"
 )
 
+var version = "unknown"
+
 func main() {
 	// Our TUF provided targets must support launching with "--help".
 	if len(os.Args) > 1 && os.Args[1] == "--help" {
 		fmt.Println("Fleet Desktop application executable")
 		return
 	}
+	log.Printf("fleet-desktop version=%s\n", version)
 
 	devURL := os.Getenv("FLEET_DESKTOP_DEVICE_URL")
 	if devURL == "" {

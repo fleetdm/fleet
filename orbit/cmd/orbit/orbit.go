@@ -229,6 +229,8 @@ func main() {
 				opt.Targets["desktop"] = update.DesktopMacOSTarget
 			case "windows":
 				opt.Targets["desktop"] = update.DesktopWindowsTarget
+			case "linux":
+				opt.Targets["desktop"] = update.DesktopLinuxTarget
 			default:
 				log.Fatal().Str("GOOS", runtime.GOOS).Msg("unsupported GOOS for desktop target")
 			}
@@ -321,7 +323,7 @@ func main() {
 
 		if !c.Bool("disable-updates") {
 			targets := []string{"orbit", "osqueryd"}
-			if c.Bool("fleet-desktop") && (runtime.GOOS == "darwin" || runtime.GOOS == "windows") {
+			if c.Bool("fleet-desktop") {
 				targets = append(targets, "desktop")
 			}
 			updateRunner, err := update.NewRunner(updater, update.RunnerOptions{
@@ -483,7 +485,7 @@ func main() {
 		}))
 		g.Add(ext.Execute, ext.Interrupt)
 
-		if c.Bool("fleet-desktop") && (runtime.GOOS == "darwin" || runtime.GOOS == "windows") {
+		if c.Bool("fleet-desktop") {
 			desktopRunner := newDesktopRunner(desktopPath, fleetURL, deviceAuthToken, c.Bool("insecure"))
 			g.Add(desktopRunner.actor())
 		}
@@ -557,7 +559,7 @@ func (d *desktopRunner) execute() error {
 
 	for {
 		// First retry logic to start fleet-desktop.
-		if done := retry(30*time.Second, d.interruptCh, func() bool {
+		if done := retry(30*time.Second, false, d.interruptCh, func() bool {
 			// Orbit runs as root user on Unix and as SYSTEM (Windows Service) user on Windows.
 			// To be able to run the desktop application (mostly to register the icon in the system tray)
 			// we need to run the application as the login user.
@@ -572,7 +574,8 @@ func (d *desktopRunner) execute() error {
 		}
 
 		// Second retry logic to monitor fleet-desktop.
-		if done := retry(30*time.Second, d.interruptCh, func() bool {
+		// Call with waitFirst=true to give some time for the process to start.
+		if done := retry(30*time.Second, true, d.interruptCh, func() bool {
 			switch _, err := getProcessByName(constant.DesktopAppExecName); {
 			case err == nil:
 				return true // all good, process is running, retry.
@@ -589,14 +592,17 @@ func (d *desktopRunner) execute() error {
 	}
 }
 
-func retry(d time.Duration, done chan struct{}, fn func() bool) bool {
+func retry(d time.Duration, waitFirst bool, done chan struct{}, fn func() bool) bool {
 	ticker := time.NewTicker(d)
 	defer ticker.Stop()
 
 	for {
-		if retry := fn(); !retry {
-			return false
+		if !waitFirst {
+			if retry := fn(); !retry {
+				return false
+			}
 		}
+		waitFirst = false
 		select {
 		case <-done:
 			return true
