@@ -237,6 +237,7 @@ describe("Premium tier - Team Admin user", () => {
       cy.findByText(/advanced/i).should("not.exist");
     });
     it("creates a new team scheduled query", () => {
+      cy.getAttached(".no-schedule__cta-buttons").should("exist");
       cy.getAttached(".no-schedule__schedule-button").click();
       cy.getAttached(".schedule-editor-modal__form").within(() => {
         cy.findByText(/select query/i).click();
@@ -271,6 +272,8 @@ describe("Premium tier - Team Admin user", () => {
           cy.findByText(/6 hours/i).should("exist");
           cy.getAttached(".Select-placeholder").within(() => {
             cy.findByText(/action/i).click();
+          });
+          cy.getAttached(".Select-menu").within(() => {
             cy.findByText(/remove/i).click();
           });
         });
