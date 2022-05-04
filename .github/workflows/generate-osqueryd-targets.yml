@@ -44,8 +44,8 @@ jobs:
 
       - name: Download and extract osqueryd for linux
         run: |
-          curl https://pkg.osquery.io/linux/osquery-$(OSQUERY_VERSION)_1.linux_x86_64.tar.gz --output osquery-$(OSQUERY_VERSION)_1.linux_x86_64.tar.gz
-          tar xf osquery-$(OSQUERY_VERSION)_1.linux_x86_64.tar.gz
+          curl https://pkg.osquery.io/linux/osquery-${{ env.OSQUERY_VERSION }}_1.linux_x86_64.tar.gz --output osquery-${{ env.OSQUERY_VERSION }}_1.linux_x86_64.tar.gz
+          tar xf osquery-${{ env.OSQUERY_VERSION }}_1.linux_x86_64.tar.gz
 
       - name: Upload osqueryd for linux
         uses: actions/upload-artifact@6673cd052c4cd6fcf4b4e6e60ea986c889389535 # v2
@@ -62,12 +62,11 @@ jobs:
       - name: Download osquery msi for Windows
         shell: bash
         run: |
-          curl -L https://pkg.osquery.io/windows/osquery-$(OSQUERY_VERSION).msi --output
-          osquery-$(OSQUERY_VERSION).msi
+          curl -L https://pkg.osquery.io/windows/osquery-${{ env.OSQUERY_VERSION }}.msi --output osquery-${{ env.OSQUERY_VERSION }}.msi
 
       - name: Extract osqueryd.exe for Windows
         run: |
-          msiexec /a osquery-5.2.2.msi /qb TARGETDIR=C:\temp
+          msiexec /a osquery-${{ env.OSQUERY_VERSION }}.msi /qb TARGETDIR=C:\temp
 
       - name: Upload osqueryd for Windows
         uses: actions/upload-artifact@6673cd052c4cd6fcf4b4e6e60ea986c889389535 # v2
