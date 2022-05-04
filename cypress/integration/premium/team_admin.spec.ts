@@ -269,8 +269,10 @@ describe("Premium tier - Team Admin user", () => {
         .should("have.length", 1)
         .within(() => {
           cy.findByText(/6 hours/i).should("exist");
-          cy.findByText(/action/i).click();
-          cy.findByText(/remove/i).click();
+          cy.getAttached(".Select-placeholder").within(() => {
+            cy.findByText(/action/i).click();
+            cy.findByText(/remove/i).click();
+          });
         });
       cy.getAttached(".remove-scheduled-query-modal .modal-cta-wrap").within(
         () => {
