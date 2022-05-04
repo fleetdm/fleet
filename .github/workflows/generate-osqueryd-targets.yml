@@ -44,7 +44,7 @@ jobs:
 
       - name: Download and extract osqueryd for linux
         run: |
-          curl https://pkg.osquery.io/linux/osquery-${{ env.OSQUERY_VERSION }}_1.linux_x86_64.tar.gz --output osquery-${{ env.OSQUERY_VERSION }}_1.linux_x86_64.tar.gz
+          curl -L https://pkg.osquery.io/linux/osquery-${{ env.OSQUERY_VERSION }}_1.linux_x86_64.tar.gz --output osquery-${{ env.OSQUERY_VERSION }}_1.linux_x86_64.tar.gz
           tar xf osquery-${{ env.OSQUERY_VERSION }}_1.linux_x86_64.tar.gz
 
       - name: Upload osqueryd for linux
