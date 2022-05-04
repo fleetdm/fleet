@@ -40,6 +40,12 @@ func buildNFPM(opt Options, pkger nfpm.Packager) (string, error) {
 	updateOpt.RootDirectory = orbitRoot
 	updateOpt.Targets = update.LinuxTargets
 
+	if opt.Desktop {
+		updateOpt.Targets["desktop"] = update.DesktopLinuxTarget
+		// Override default channel with the provided value.
+		updateOpt.Targets.SetTargetChannel("desktop", opt.DesktopChannel)
+	}
+
 	// Override default channels with the provided values.
 	updateOpt.Targets.SetTargetChannel("orbit", opt.OrbitChannel)
 	updateOpt.Targets.SetTargetChannel("osqueryd", opt.OsquerydChannel)
@@ -235,6 +241,10 @@ ORBIT_UPDATE_URL={{ .UpdateURL }}
 ORBIT_ORBIT_CHANNEL={{ .OrbitChannel }}
 ORBIT_OSQUERYD_CHANNEL={{ .OsquerydChannel }}
 ORBIT_UPDATE_INTERVAL={{ .OrbitUpdateInterval }}
+{{ if .Desktop }}
+ORBIT_FLEET_DESKTOP=true
+ORBIT_DESKTOP_CHANNEL={{ .DesktopChannel }}
+{{ end }}
 {{ if .Insecure }}ORBIT_INSECURE=true{{ end }}
 {{ if .DisableUpdates }}ORBIT_DISABLE_UPDATES=true{{ end }}
 {{ if .FleetURL }}ORBIT_FLEET_URL={{.FleetURL}}{{ end }}
@@ -295,12 +305,13 @@ func writePostInstall(opt Options, path string) error {
 }
 
 func writePreRemove(opt Options, path string) error {
+	// We add `|| true` in case the service is not running
+	// or has been manually disabled already. Otherwise,
+	// uninstallation fails.
 	if err := ioutil.WriteFile(path, []byte(`#!/bin/sh
 
-set -e
-
-systemctl stop orbit.service
-systemctl disable orbit.service
+systemctl stop orbit.service || true
+systemctl disable orbit.service || true
 `), constant.DefaultFileMode); err != nil {
 		return fmt.Errorf("write file: %w", err)
 	}
