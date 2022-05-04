@@ -374,16 +374,7 @@ func selectSoftwareSQL(hostID *uint, opts fleet.SoftwareListOptions) (string, []
 		"s.vendor",
 		"s.arch",
 		goqu.COALESCE(goqu.I("scp.cpe"), "").As("generated_cpe"),
-	)
-
-	if !opts.SkipLoadingCVEs {
-		ds = ds.SelectAppend(
-			"scv.cve",
-			"c.cvss_score",
-			"c.epss_probability",
-			"c.cisa_known_exploit",
-		)
-	}
+	).Distinct()
 
 	if hostID != nil || opts.TeamID != nil {
 		ds = ds.
@@ -396,7 +387,9 @@ func selectSoftwareSQL(hostID *uint, opts fleet.SoftwareListOptions) (string, []
 	}
 
 	if hostID != nil {
-		ds = ds.Where(goqu.I("hs.host_id").Eq(hostID))
+		ds = ds.
+			SelectAppend("hs.last_opened_at").
+			Where(goqu.I("hs.host_id").Eq(hostID))
 	}
 
 	if opts.TeamID != nil {
@@ -436,22 +429,13 @@ func selectSoftwareSQL(hostID *uint, opts fleet.SoftwareListOptions) (string, []
 			)
 	}
 
-	if !opts.SkipLoadingCVEs {
-		ds = ds.
-			LeftJoin(
-				goqu.I("cves").As("c"),
-				goqu.On(goqu.I("c.cve").Eq(goqu.I("scv.cve"))),
-			)
-	}
-
 	if match := opts.MatchQuery; match != "" {
 		match = likePattern(match)
-		ds = ds.Where(
-			goqu.Or(
-				goqu.I("s.name").ILike(match),
-				goqu.I("s.version").ILike(match),
-				goqu.I("scv.cve").ILike(match),
-			),
+		ds = ds.Where(goqu.Or(
+			goqu.I("s.name").ILike(match),
+			goqu.I("s.version").ILike(match),
+			goqu.I("scv.cve").ILike(match),
+		),
 		)
 	}
 
@@ -474,7 +458,60 @@ func selectSoftwareSQL(hostID *uint, opts fleet.SoftwareListOptions) (string, []
 		}
 	}
 
+	if opts.SkipLoadingCVEs {
+		ds = appendListOptionsToSelect(ds, opts.ListOptions)
+		return ds.ToSQL()
+	}
+
+	// for later joins to get cves
+	ds = ds.SelectAppend(
+		"scv.cpe_id",
+	)
+
+	// need to apply pagination before doing any further left joins, otherwise
+	// we would be paginating on cves rather than software
 	ds = appendListOptionsToSelect(ds, opts.ListOptions)
+
+	ds = dialect.From(ds.As("s")).
+		Select(
+			"s.id",
+			"s.name",
+			"s.version",
+			"s.source",
+			"s.bundle_identifier",
+			"s.release",
+			"s.vendor",
+			"s.arch",
+			"s.generated_cpe",
+			// omit s.cpe_id
+			"scv.cve",
+			"c.cvss_score",
+			"c.epss_probability",
+			"c.cisa_known_exploit",
+		).
+		LeftJoin(
+			goqu.I("software_cve").As("scv"),
+			goqu.On(goqu.I("scv.cpe_id").Eq(goqu.I("s.cpe_id"))),
+		).
+		LeftJoin(
+			goqu.I("cves").As("c"),
+			goqu.On(goqu.I("c.cve").Eq(goqu.I("scv.cve"))),
+		)
+
+	// select optional columns
+	if hostID != nil {
+		ds = ds.SelectAppend(
+			goqu.I("s.last_opened_at"),
+		)
+	}
+	if opts.WithHostCounts {
+		ds = ds.SelectAppend(
+			goqu.I("s.hosts_count"),
+			goqu.I("s.counts_updated_at"),
+		)
+	}
+
+	ds = appendOrderByToSelect(ds, opts.ListOptions)
 
 	return ds.ToSQL()
 }
@@ -587,7 +624,7 @@ func (ds *Datastore) InsertCVEForCPE(ctx context.Context, cve string, cpes []str
 	var totalCount int64
 	for _, cpe := range cpes {
 		var ids []uint
-		err := sqlx.Select(ds.writer, &ids, `SELECT id FROM software_cpe WHERE cpe=?`, cpe)
+		err := sqlx.Select(ds.writer, &ids, `SELECT id FROM software_cpe WHERE cpe = ?`, cpe)
 		if err != nil {
 			return 0, err
 		}
@@ -626,12 +663,18 @@ func (ds *Datastore) ListVulnerableSoftwareBySource(ctx context.Context, source 
 		CVEs string `db:"cves"`
 	}
 	if err := sqlx.SelectContext(ctx, ds.reader, &softwareCVEs, `
-		SELECT s.*, scv.cpe_id, GROUP_CONCAT(scv.cve SEPARATOR ',') as cves
-		FROM software s
-		JOIN software_cpe scp ON (s.id=scp.software_id)
-		JOIN software_cve scv ON (scp.id=scv.cpe_id)
-		WHERE s.source = ?
-		GROUP BY scv.cpe_id
+SELECT
+    s.*,
+    scv.cpe_id,
+    GROUP_CONCAT(scv.cve SEPARATOR ',') as cves
+FROM
+    software s
+    JOIN software_cpe scp ON scp.software_id = s.id
+    JOIN software_cve scv ON scv.cpe_id = scp.id
+WHERE
+    s.source = ?
+GROUP BY
+    scv.cpe_id
 	`, source); err != nil {
 		return nil, ctxerr.Wrapf(ctx, err, "listing vulnerable software by source")
 	}
@@ -681,10 +724,10 @@ SELECT
     s.release,
     s.vendor,
     s.arch,
-    c.cve,
+    scv.cve,
     c.cvss_score,
     c.epss_probability,
-    c.cisa_known_exploit,
+    c.cisa_known_exploit
 FROM
     software s
     LEFT JOIN software_cpe scp ON scp.software_id = s.id

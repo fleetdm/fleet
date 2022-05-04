@@ -586,6 +586,12 @@ func sanitizeColumn(col string) string {
 //
 // NOTE: This is a copy of appendListOptionsToSQL that uses the goqu package.
 func appendListOptionsToSelect(ds *goqu.SelectDataset, opts fleet.ListOptions) *goqu.SelectDataset {
+	ds = appendOrderByToSelect(ds, opts)
+	ds = appendLimitOffsetToSelect(ds, opts)
+	return ds
+}
+
+func appendOrderByToSelect(ds *goqu.SelectDataset, opts fleet.ListOptions) *goqu.SelectDataset {
 	if opts.OrderKey != "" {
 		ordersKeys := strings.Split(opts.OrderKey, ",")
 		var orderedExps []exp.OrderedExpression
@@ -602,6 +608,10 @@ func appendListOptionsToSelect(ds *goqu.SelectDataset, opts fleet.ListOptions) *
 		ds = ds.Order(orderedExps...)
 	}
 
+	return ds
+}
+
+func appendLimitOffsetToSelect(ds *goqu.SelectDataset, opts fleet.ListOptions) *goqu.SelectDataset {
 	perPage := opts.PerPage
 	// If caller doesn't supply a limit apply a reasonably large default limit
 	// to insure that an unbounded query with many results doesn't consume too

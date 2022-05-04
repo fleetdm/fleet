@@ -610,7 +610,7 @@ func TestGetSoftware(t *testing.T) {
 
 	foo001 := fleet.Software{
 		Name: "foo", Version: "0.0.1", Source: "chrome_extensions", GenerateCPE: "somecpe",
-		Vulnerabilities: fleet.VulnerabilitiesSlice{
+		Vulnerabilities: fleet.Vulnerabilities{
 			{CVE: "cve-321-432-543", DetailsLink: "https://nvd.nist.gov/vuln/detail/cve-321-432-543"},
 			{CVE: "cve-333-444-555", DetailsLink: "https://nvd.nist.gov/vuln/detail/cve-333-444-555"},
 		},
@@ -651,8 +651,14 @@ spec:
   vulnerabilities:
   - cve: cve-321-432-543
     details_link: https://nvd.nist.gov/vuln/detail/cve-321-432-543
+    cvss_score: null
+    epss_probability: null
+    cisa_known_exploit: null
   - cve: cve-333-444-555
     details_link: https://nvd.nist.gov/vuln/detail/cve-333-444-555
+    cvss_score: null
+    epss_probability: null
+    cisa_known_exploit: null
 - generated_cpe: ""
   id: 0
   name: foo
@@ -673,12 +679,67 @@ spec:
   version: 0.0.3
   vulnerabilities: null
 `
-	expectedJson := `{"kind":"software","apiVersion":"1","spec":[{"id":0,"name":"foo","version":"0.0.1","source":"chrome_extensions","generated_cpe":"somecpe","vulnerabilities":[{"cve":"cve-321-432-543","details_link":"https://nvd.nist.gov/vuln/detail/cve-321-432-543"},{"cve":"cve-333-444-555","details_link":"https://nvd.nist.gov/vuln/detail/cve-333-444-555"}]},{"id":0,"name":"foo","version":"0.0.2","source":"chrome_extensions","generated_cpe":"","vulnerabilities":null},{"id":0,"name":"foo","version":"0.0.3","source":"chrome_extensions","generated_cpe":"someothercpewithoutvulns","vulnerabilities":null},{"id":0,"name":"bar","version":"0.0.3","bundle_identifier":"bundle","source":"deb_packages","generated_cpe":"","vulnerabilities":null}]}
+
+	expectedJson := `
+{
+  "kind": "software",
+  "apiVersion": "1",
+  "spec": [
+    {
+      "id": 0,
+      "name": "foo",
+      "version": "0.0.1",
+      "source": "chrome_extensions",
+      "generated_cpe": "somecpe",
+      "vulnerabilities": [
+        {
+          "cve": "cve-321-432-543",
+          "details_link": "https://nvd.nist.gov/vuln/detail/cve-321-432-543",
+          "cvss_score": null,
+          "epss_probability": null,
+          "cisa_known_exploit": null
+        },
+        {
+          "cve": "cve-333-444-555",
+          "details_link": "https://nvd.nist.gov/vuln/detail/cve-333-444-555",
+          "cvss_score": null,
+          "epss_probability": null,
+          "cisa_known_exploit": null
+        }
+      ]
+    },
+    {
+      "id": 0,
+      "name": "foo",
+      "version": "0.0.2",
+      "source": "chrome_extensions",
+      "generated_cpe": "",
+      "vulnerabilities": null
+    },
+    {
+      "id": 0,
+      "name": "foo",
+      "version": "0.0.3",
+      "source": "chrome_extensions",
+      "generated_cpe": "someothercpewithoutvulns",
+      "vulnerabilities": null
+    },
+    {
+      "id": 0,
+      "name": "bar",
+      "version": "0.0.3",
+      "bundle_identifier": "bundle",
+      "source": "deb_packages",
+      "generated_cpe": "",
+      "vulnerabilities": null
+    }
+  ]
+}
 `
 
 	assert.Equal(t, expected, runAppForTest(t, []string{"get", "software"}))
-	assert.Equal(t, expectedYaml, runAppForTest(t, []string{"get", "software", "--yaml"}))
-	assert.Equal(t, expectedJson, runAppForTest(t, []string{"get", "software", "--json"}))
+	assert.YAMLEq(t, expectedYaml, runAppForTest(t, []string{"get", "software", "--yaml"}))
+	assert.JSONEq(t, expectedJson, runAppForTest(t, []string{"get", "software", "--json"}))
 
 	runAppForTest(t, []string{"get", "software", "--json", "--team", "999"})
 	require.NotNil(t, gotTeamID)

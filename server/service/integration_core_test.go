@@ -489,7 +489,10 @@ func (s *integrationTestSuite) TestVulnerableSoftware() {
         "vulnerabilities": [
           {
             "cve": "cve-123-123-132",
-            "details_link": "https://nvd.nist.gov/vuln/detail/cve-123-123-132"
+            "details_link": "https://nvd.nist.gov/vuln/detail/cve-123-123-132",
+            "cvss_score": null,
+            "epss_probability": null,
+            "cisa_known_exploit": null
           }
         ]`
 	expectedJSONSoft1 := `"name": "foo",

@@ -18,7 +18,7 @@ INSERT INTO cves (
     epss_probability,
     cisa_known_exploit
 )
-VALUES (?, ?, ?, ?, ?)
+VALUES (?, ?, ?, ?)
 `
 	_, err := db.Exec(query, "CVE-2022-29464", 9.8, 0.63387, true)
 	require.NoError(t, err)
