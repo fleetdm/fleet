@@ -3,9 +3,9 @@ package vuln_centos
 import (
 	"context"
 	"database/sql"
-	"os"
 	"testing"
 
+	"github.com/fleetdm/fleet/v4/pkg/nettest"
 	"github.com/go-kit/kit/log"
 	_ "github.com/mattn/go-sqlite3"
 	"github.com/stretchr/testify/require"
@@ -49,9 +49,7 @@ func TestCentOSPkgSetAdd(t *testing.T) {
 }
 
 func TestParseCentOSRepository(t *testing.T) {
-	if os.Getenv("NETWORK_TEST") == "" {
-		t.Skip("set environment variable NETWORK_TEST=1 to run")
-	}
+	nettest.RunSerial(t)
 
 	// Parse a subset of the CentOS repository.
 	pkgs, err := ParseCentOSRepository(WithRoot("/centos/7/os/x86_64/repodata/"))

@@ -16,6 +16,7 @@ import (
 	"github.com/dnaeon/go-vcr/v2/recorder"
 	"github.com/facebookincubator/nvdtools/cpedict"
 	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
+	"github.com/fleetdm/fleet/v4/pkg/nettest"
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mock"
@@ -54,9 +55,7 @@ func TestCpeFromSoftware(t *testing.T) {
 }
 
 func TestSyncCPEDatabase(t *testing.T) {
-	if os.Getenv("NETWORK_TEST") == "" {
-		t.Skip("set environment variable NETWORK_TEST=1 to run")
-	}
+	nettest.RunSerial(t)
 
 	client := fleethttp.NewClient()
 	// Disabling vcr because the resulting file exceeds the 100mb limit for github
@@ -102,7 +101,7 @@ func TestSyncCPEDatabase(t *testing.T) {
 	require.Error(t, err)
 
 	// and we make the db older than the release
-	newTime := time.Date(2000, 01, 01, 01, 01, 01, 01, time.UTC)
+	newTime := time.Date(2000, 0o1, 0o1, 0o1, 0o1, 0o1, 0o1, time.UTC)
 	err = os.Chtimes(dbPath, newTime, newTime)
 	require.NoError(t, err)
 
@@ -155,9 +154,7 @@ func (f *fakeSoftwareIterator) Err() error   { return nil }
 func (f *fakeSoftwareIterator) Close() error { f.closed = true; return nil }
 
 func TestTranslateSoftwareToCPE(t *testing.T) {
-	if os.Getenv("NETWORK_TEST") == "" {
-		t.Skip("set environment variable NETWORK_TEST=1 to run")
-	}
+	nettest.RunSerial(t)
 
 	tempDir, err := os.MkdirTemp(os.TempDir(), "TestTranslateSoftwareToCPE-*")
 	require.NoError(t, err)
