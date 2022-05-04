@@ -180,7 +180,7 @@ We use these prefixes to organize the Fleet Slack:
 ## Performance feedback
 At Fleet, performance feedback is a continuous process. We give feedback (particularly negative) as soon as possible. Most feedback will happen during 1:1 meetings, if not sooner.
 
-We evaluate and update compensation decisions yearly, shortly after the anniversary of a team member's start date.
+Founders evaluate and update compensation decisions yearly, shortly after the anniversary of a team member's start date.
 
 ## Growing the team
 
