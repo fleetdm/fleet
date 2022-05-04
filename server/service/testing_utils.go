@@ -26,11 +26,11 @@ import (
 	"github.com/throttled/throttled/v2/store/memstore"
 )
 
-func newTestService(t *testing.T, ds fleet.Datastore, rs fleet.QueryResultStore, lq fleet.LiveQueryStore, opts ...TestServerOpts) fleet.Service {
+func newTestService(t *testing.T, ds fleet.Datastore, rs fleet.QueryResultStore, lq fleet.LiveQueryStore, opts ...*TestServerOpts) fleet.Service {
 	return newTestServiceWithConfig(t, ds, config.TestConfig(), rs, lq, opts...)
 }
 
-func newTestServiceWithConfig(t *testing.T, ds fleet.Datastore, fleetConfig config.FleetConfig, rs fleet.QueryResultStore, lq fleet.LiveQueryStore, opts ...TestServerOpts) fleet.Service {
+func newTestServiceWithConfig(t *testing.T, ds fleet.Datastore, fleetConfig config.FleetConfig, rs fleet.QueryResultStore, lq fleet.LiveQueryStore, opts ...*TestServerOpts) fleet.Service {
 	mailer := &mockMailService{SendEmailFn: func(e fleet.Email) error { return nil }}
 	license := &fleet.LicenseInfo{Tier: fleet.TierFree}
 	writer, err := logging.NewFilesystemLogWriter(
@@ -49,6 +49,12 @@ func newTestServiceWithConfig(t *testing.T, ds fleet.Datastore, fleetConfig conf
 
 	var failingPolicySet fleet.FailingPolicySet = NewMemFailingPolicySet()
 	var c clock.Clock = clock.C
+
+	task := &async.Task{
+		Datastore:    ds,
+		AsyncEnabled: false,
+	}
+
 	if len(opts) > 0 {
 		if opts[0].Logger != nil {
 			logger = opts[0].Logger
@@ -65,11 +71,13 @@ func newTestServiceWithConfig(t *testing.T, ds fleet.Datastore, fleetConfig conf
 		if opts[0].Clock != nil {
 			c = opts[0].Clock
 		}
+		if opts[0].Task != nil {
+			task = opts[0].Task
+		} else {
+			opts[0].Task = task
+		}
 	}
-	task := &async.Task{
-		Datastore:    ds,
-		AsyncEnabled: false,
-	}
+
 	svc, err := NewService(context.Background(), ds, task, rs, logger, osqlogger, fleetConfig, mailer, c, ssoStore, lq, ds, *license, failingPolicySet, &fleet.NoOpGeoIP{})
 	if err != nil {
 		panic(err)
@@ -85,7 +93,7 @@ func newTestServiceWithConfig(t *testing.T, ds fleet.Datastore, fleetConfig conf
 
 func newTestServiceWithClock(t *testing.T, ds fleet.Datastore, rs fleet.QueryResultStore, lq fleet.LiveQueryStore, c clock.Clock) fleet.Service {
 	testConfig := config.TestConfig()
-	svc := newTestServiceWithConfig(t, ds, testConfig, rs, lq, TestServerOpts{
+	svc := newTestServiceWithConfig(t, ds, testConfig, rs, lq, &TestServerOpts{
 		Clock: c,
 	})
 	return svc
@@ -156,9 +164,10 @@ type TestServerOpts struct {
 	Pool                fleet.RedisPool
 	FailingPolicySet    fleet.FailingPolicySet
 	Clock               clock.Clock
+	Task                *async.Task
 }
 
-func RunServerForTestsWithDS(t *testing.T, ds fleet.Datastore, opts ...TestServerOpts) (map[string]fleet.User, *httptest.Server) {
+func RunServerForTestsWithDS(t *testing.T, ds fleet.Datastore, opts ...*TestServerOpts) (map[string]fleet.User, *httptest.Server) {
 	var rs fleet.QueryResultStore
 	if len(opts) > 0 && opts[0].Rs != nil {
 		rs = opts[0].Rs

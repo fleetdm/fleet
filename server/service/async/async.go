@@ -30,6 +30,8 @@ type Task struct {
 	RedisPopCount      int
 	RedisScanKeysCount int
 	CollectorInterval  time.Duration
+
+	seenHostSet seenHostSet
 }
 
 // Collect runs the various collectors as distinct background goroutines if

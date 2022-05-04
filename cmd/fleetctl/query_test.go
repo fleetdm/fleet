@@ -23,7 +23,7 @@ func TestLiveQuery(t *testing.T) {
 	logger := kitlog.NewJSONLogger(os.Stdout)
 	logger = level.NewFilter(logger, level.AllowDebug())
 
-	_, ds := runServerWithMockedDS(t, service.TestServerOpts{
+	_, ds := runServerWithMockedDS(t, &service.TestServerOpts{
 		Rs:     rs,
 		Lq:     lq,
 		Logger: logger,

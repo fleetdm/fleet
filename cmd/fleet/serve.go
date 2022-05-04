@@ -360,16 +360,18 @@ the way that the Fleet server works.
 			cancelBackground := runCrons(ds, task, kitlog.With(logger, "component", "crons"), config, license, failingPolicySet)
 
 			// Flush seen hosts every second
-			go func() {
-				for range time.Tick(time.Duration(rand.Intn(10)+1) * time.Second) {
-					if err := svc.FlushSeenHosts(context.Background()); err != nil {
-						level.Info(logger).Log(
-							"err", err,
-							"msg", "failed to update host seen times",
-						)
+			if !task.AsyncEnabled {
+				go func() {
+					for range time.Tick(time.Duration(rand.Intn(10)+1) * time.Second) {
+						if err := task.FlushHostsLastSeen(context.Background(), clock.C.Now()); err != nil {
+							level.Info(logger).Log(
+								"err", err,
+								"msg", "failed to update host seen times",
+							)
+						}
 					}
-				}
-			}()
+				}()
+			}
 
 			fieldKeys := []string{"method", "error"}
 			requestCount := kitprometheus.NewCounterFrom(prometheus.CounterOpts{
