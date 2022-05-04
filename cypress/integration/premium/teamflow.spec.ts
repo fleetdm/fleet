@@ -4,6 +4,7 @@ describe("Teams flow (empty)", () => {
     cy.setup();
     cy.loginWithCySession();
     cy.viewport(1200, 660);
+    cy.seedQueries();
   });
   after(() => {
     cy.logout();
@@ -87,7 +88,6 @@ describe("Teams flow (seeded)", () => {
     beforeEach(() => {
       cy.loginWithCySession();
       cy.visit("/schedule/manage");
-      cy.seedQueries();
     });
     it("adds a query to team schedule", () => {
       cy.getAttached(".manage-schedule-page__header").within(() => {
