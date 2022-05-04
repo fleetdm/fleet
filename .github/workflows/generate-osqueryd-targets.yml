@@ -67,6 +67,7 @@ jobs:
           curl -L https://pkg.osquery.io/windows/osquery-${{ env.OSQUERY_VERSION }}.msi --output osquery-${{ env.OSQUERY_VERSION }}.msi
 
       - name: Extract osqueryd.exe for Windows
+        shell: cmd
         run: |
           msiexec /a osquery-${{ env.OSQUERY_VERSION }}.msi /qb TARGETDIR=C:\temp
           C:\temp\osquery\osqueryd\osqueryd.exe --version
