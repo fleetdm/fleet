@@ -60,6 +60,9 @@ type Options struct {
 	Desktop bool
 	// OrbitUpdateInterval is the interval that Orbit will use to check for updates.
 	OrbitUpdateInterval time.Duration
+	// LegacyVarLibSymlink indicates whether Orbit is legacy (< 0.0.11),
+	// which assumes it is installed under /var/lib.
+	LegacyVarLibSymlink bool
 }
 
 func initializeTempDir() (string, error) {

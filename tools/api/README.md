@@ -43,7 +43,7 @@ export FLEET_ENV_PATH=/Users/victor/fleet_env
 2
 
 # create a query
-./tools/api/fleet/queries/create 'system_info' 'select * from system_info;'
+./tools/api/fleet/queries/create 'system_info' 'SELECT * FROM system_info;'
 {
   "query": {
     "created_at": "0001-01-01T00:00:00Z",
@@ -51,7 +51,7 @@ export FLEET_ENV_PATH=/Users/victor/fleet_env
     "id": 4,
     "name": "system_info",
     "description": "",
-    "query": "select * from system_info;",
+    "query": "SELECT * FROM system_info;",
     "saved": true,
     "author_id": 1,
     "author_name": "admin",
