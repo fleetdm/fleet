@@ -432,7 +432,8 @@ The following table lists the People group's rituals, frequency, and Directly Re
 | Monthly accounting | Monthly | Use the monthly accounting template in GitHub to go through the process of validating Fleet's books. | Nathanael Holliday |
 | US contractor payroll | Monthly | Sync contractor hours to payments in Gusto and run payroll for the month. | Charlie Chance |
 | OKR planning | Quarterly | Plan the next quarter's OKRs. | Mike Thomas |
-| 550C update | Annually | File California 550C. | Charlie Chance | 
+| 550C update | Annually | File California 550C. | Charlie Chance |
+| Workiversaries | Weekly/PRN | People Operations posts in #g-people and tags @mikermcneil about any upcoming workiversaries | Charlie Chance |
 
 ## Slack channels
 
