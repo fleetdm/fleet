@@ -71,7 +71,18 @@ func (t *Task) StartCollectors(ctx context.Context, jitterPct int, logger kitlog
 		errHandler:   collectorErrHandler,
 	}
 
-	colls := []*collector{labelColl, policyColl}
+	lastSeenColl := &collector{
+		name:         "collect_last_seen",
+		pool:         t.Pool,
+		ds:           t.Datastore,
+		execInterval: t.CollectorInterval,
+		jitterPct:    jitterPct,
+		lockTimeout:  t.LockTimeout,
+		handler:      t.collectHostsLastSeen,
+		errHandler:   collectorErrHandler,
+	}
+
+	colls := []*collector{labelColl, policyColl, lastSeenColl}
 	for _, coll := range colls {
 		go coll.Start(ctx)
 	}
