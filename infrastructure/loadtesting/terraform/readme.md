@@ -6,7 +6,10 @@ If you require changes beyond whats described here, contact @zwinnerman-fleetdm.
 ### Deploying your code to the loadtesting environment
 1. Push your branch to https://github.com/fleetdm/fleet and wait for the build to complete (https://github.com/fleetdm/fleet/actions)
 1. Initialize your terraform environment with `terraform init`
+1. Select a workspace for your test: `terraform workspace new WORKSPACE_NAME; terraform workspace select WORKSPACE_NAME`
 1. Apply terraform with your branch name with `terraform apply -var tag=BRANCH_NAME`
+1. Perform your tests
+1. Clean up the environment with `terraform destroy`
 
 ### Running migrations
 After applying terraform with the commands above:
