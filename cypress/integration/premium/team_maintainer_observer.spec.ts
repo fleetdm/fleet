@@ -204,7 +204,7 @@ describe("Premium tier - Team observer/maintainer user", () => {
       cy.visit("/hosts/manage");
     });
     describe("Manage hosts page", () => {
-      it.only("should render elements according to role-based access controls", () => {
+      it("should render elements according to role-based access controls", () => {
         // Hosts table includes teams column
         cy.getAttached(".data-table__table th")
           .contains("Team")
