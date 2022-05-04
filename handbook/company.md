@@ -283,6 +283,19 @@ Zach partnered with our CEO, Mike McNeil, to found a new, independent company: F
 | Weekly update reminder | Weekly | On Thursday, Charlie starts a thread in the `#help-manage` channel and ask managers to reply to the thread with a summary of what their team did in the past week. | Charlie Chance |
 | Weekly update | Weekly | On Friday, Charlie updates the KPIs in the ["🌈 Weekly updates" spreadsheet](https://docs.google.com/spreadsheets/d/1Hso0LxqwrRVINCyW_n436bNHmoqhoLhC8bcbvLPOs9A/edit#gid=0), combines the updates from managers into a single message, and adds any hiring announcements. Charlie posts the company update in the `#general` channel. | Charlie Chance |
 
+## GitHub Labels
+
+We use special characters to define different types of GitHub labels. By combining labels, we
+organize and categorize GitHub issues. This reduces the total number of labels required while
+maintaining an expressive labelling system. For example, instead of a label called
+`platform-dev-backend` we use `#platform :dev ~backend`.
+
+| Special character | Label type  | Rules        | Examples                            |
+|:------------------|:------------|:-------------|:------------------------------------|
+| `#`               | Noun        | One only     | `#platform`, `#interface`, `#agent`
+| `:`               | Verb        | One or more  | `:dev`, `:research`, `:design`
+| `~`               | Adjective   | One or more  | `~blocked`, `~frontend`, `~backend`
+| `!`               | OKR         | One only     | `!vuln`, `!desktop`, `!upgrade`
 ## Slack channels
 
 The following [Slack channels are maintained](https://fleetdm.com/handbook/company#group-slack-channels) by Fleet's founders and executive collaborators:
@@ -298,17 +311,5 @@ The following [Slack channels are maintained](https://fleetdm.com/handbook/compa
 | `#general`                  | N/A _(announce something company-wide)_
 | `#thanks`                   | N/A _(say thank you)_
 | `#random`                   | N/A _(be random)_
-
-
-## Labels
-
-We use special characters to define label types.
-
-| Special character | Label type  | Rules        | Examples                            |
-|:------------------|:------------|:-------------|:------------------------------------|
-| `#`               | Noun        | One only     | `#platform`, `#interface`, `#agent`
-| `:`               | Verb        | One or more  | `:dev`, `:research`, `:design`
-| `~`               | Adjective   | One or more  | `~blocked`, `~frontend`, `~backend`
-| `!`               | OKR         | One only     | `!vuln`, `!desktop`, `!upgrade`
 
 <meta name="maintainedBy" value="mikermcneil">
