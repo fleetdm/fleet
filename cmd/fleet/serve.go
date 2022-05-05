@@ -614,30 +614,6 @@ const (
 	lockKeyWorker                  = "worker"
 )
 
-func trySendStatistics(ctx context.Context, ds fleet.Datastore, frequency time.Duration, url string, license *fleet.LicenseInfo) error {
-	ac, err := ds.AppConfig(ctx)
-	if err != nil {
-		return err
-	}
-	if !ac.ServerSettings.EnableAnalytics {
-		return nil
-	}
-
-	stats, shouldSend, err := ds.ShouldSendStatistics(ctx, frequency, license)
-	if err != nil {
-		return err
-	}
-	if !shouldSend {
-		return nil
-	}
-
-	err = server.PostJSONWithTimeout(ctx, url, stats)
-	if err != nil {
-		return err
-	}
-	return ds.RecordStatisticsSent(ctx)
-}
-
 func runSchedules(
 	ctx context.Context,
 	ds fleet.Datastore,
@@ -662,9 +638,9 @@ func runSchedules(
 		fmt.Println("Error creating webhooks schedule: ", err)
 		sentry.CaptureException(err)
 	}
-	webhooks.SetConfigCheck(schedule.SetWebhooksConfigCheck(ctx, ds, webhooksLogger))
+	webhooks.SetConfigCheck(SetWebhooksConfigCheck(ctx, ds, webhooksLogger))
 	webhooks.AddJob("cron_webhooks", func(ctx context.Context) (interface{}, error) {
-		return schedule.DoWebhooks(ctx, ds, webhooksLogger, failingPoliciesSet)
+		return cronWebhooks(ctx, ds, webhooksLogger, failingPoliciesSet)
 	}, func(interface{}, error) {})
 
 	cleanupsLogger := kitlog.With(logger, "cron", "cleanups")
@@ -673,7 +649,7 @@ func runSchedules(
 		fmt.Println("Error creating cleanups schedule: ", err)
 	}
 	cleanups.AddJob("cron_cleanups", func(ctx context.Context) (interface{}, error) {
-		return schedule.DoCleanups(ctx, ds, cleanupsLogger, license)
+		return cronDB(ctx, ds, cleanupsLogger, license)
 	}, func(interface{}, error) {})
 
 	vulnerabilitiesLogger := kitlog.With(logger, "cron", "vulnerabilities")
@@ -683,7 +659,7 @@ func runSchedules(
 	}
 	vulnerabilities.SetPreflightCheck(func() bool { return config.Vulnerabilities.CurrentInstanceChecks == "auto" })
 	vulnerabilities.AddJob("cron_vulnerabilities", func(ctx context.Context) (interface{}, error) {
-		return schedule.DoVulnProcessing(ctx, ds, vulnerabilitiesLogger, config)
+		return cronVulnerabilities(ctx, ds, vulnerabilitiesLogger, config)
 	}, func(interface{}, error) {})
 
 	return
@@ -701,10 +677,6 @@ func runCrons(ds fleet.Datastore, task *async.Task, logger kitlog.Logger, config
 		initFatal(errors.New("Error generating random instance identifier"), "")
 	}
 
-	// go cronDB(ctx, ds, kitlog.With(logger, "cron", "cleanups"), ourIdentifier, license)
-	// go cronVulnerabilities(
-	// 	ctx, ds, kitlog.With(logger, "cron", "vulnerabilities"), ourIdentifier, config)
-	// go cronWebhooks(ctx, ds, kitlog.With(logger, "cron", "webhooks"), ourIdentifier, failingPoliciesSet, 1*time.Hour)
 	go cronWorker(ctx, ds, kitlog.With(logger, "cron", "worker"), ourIdentifier)
 
 	return cancelBackground
