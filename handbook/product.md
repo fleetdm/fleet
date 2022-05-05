@@ -160,7 +160,7 @@ What happens during priority drafting?
 
 - The estimation process to use is up to the EM of each group (with buy-in from the PM), with the goal of delivering estimated issues within the group's timeframe, which is set for each group by the Head of Product. No matter the group, only work that is slated to be released into the hands of users within ≤6 weeks will be estimated. Estimation is run by each group's EM, and occurs in the Planning board. Some groups may choose to use "timeboxes" rather than estimates.
 
-- Prioritization will now occur at the point of intake, by the PM of the group. Besides the 20% "engineering initiatives", only issues prioritized by the group PM will be estimated or worked on. On the first day of each release, all estimated issues are moved into the relevant section of the new "#g-engineering" board, which has a kanban view per-group. 
+- Prioritization will now occur at the point of intake, by the PM of the group. Besides the 20% "engineering initiatives", only issues prioritized by the group PM will be estimated or worked on. On the first day of each release, all estimated issues are moved into the relevant section of the new "Release" board, which has a kanban view per-group. 
 
 - Work that does not "fit" into the scheduled release (due to lack of capacity or otherwise) remains in the "Estimated" column of the product board, and is removed from that board if it is not prioritized in the following release.
 
