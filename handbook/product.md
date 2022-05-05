@@ -183,6 +183,7 @@ These are effectively internal SLAs. We moved away from the term "SLA" to avoid 
 #### Prioritization
 
 ≤5 business days from when the initial request is weighed by PM, requestor has heard back from the group PM whether the request will be prioritized.
+
 #### Release
 
 ≤6 weeks from when initial request is weighed by PM, this is released into the hands of the Fleet community, generally available (no feature flags or limitations except as originally specced or as adjusted if necessary).
