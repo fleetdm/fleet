@@ -180,7 +180,7 @@ We use these prefixes to organize the Fleet Slack:
 ## Performance feedback
 At Fleet, performance feedback is a continuous process. We give feedback (particularly negative) as soon as possible. Most feedback will happen during 1:1 meetings, if not sooner.
 
-We evaluate and update compensation decisions yearly, shortly after the anniversary of a team member's start date.
+Founders evaluate and update compensation decisions yearly, shortly after the anniversary of a team member's start date.
 
 ## Growing the team
 
@@ -426,13 +426,14 @@ The following table lists the People group's rituals, frequency, and Directly Re
 | AP invoice monitoring | Daily | Look for new accounts payable invoices and ensure that Fleet's suppliers are paid. | Nathanael Holliday |
 | Weekly department updates | Weekly | Updates from managers on what their departments accomplished for the week are logged in the cloud and disseminated on Slack. | Charlie Chance | 
 | Hours update | Weekly | Screenshots of contractor hours as shown in Gusto are sent via Slack to each contractor's manager with no further action necessary if everything appears normal. | Charlie Chance |
-| Prepare Mike and Sid's 1:1 Doc | Bi-weekly | Run through the document preparation GitHub issue for Mike's call with Sid. | Nathanael Holliday |
+| Prepare Mike and Sid's 1:1 doc | Bi-weekly | Run through the document preparation GitHub issue for Mike's call with Sid. | Nathanael Holliday |
 | OKR review | Every three weeks | Review the status of each OKR. | Mike Thomas |
 | Brex reconciliation | Monthly | Make sure all company-issued credit card transactions include memos. | Nathanael Holliday |
 | Monthly accounting | Monthly | Use the monthly accounting template in GitHub to go through the process of validating Fleet's books. | Nathanael Holliday |
 | US contractor payroll | Monthly | Sync contractor hours to payments in Gusto and run payroll for the month. | Charlie Chance |
 | OKR planning | Quarterly | Plan the next quarter's OKRs. | Mike Thomas |
-| 550C update | Annually | File California 550C. | Charlie Chance | 
+| 550C update | Annually | File California 550C. | Charlie Chance |
+| Workiversaries | Weekly/PRN | People Operations posts in #g-people and tags @mikermcneil about any upcoming workiversaries | Charlie Chance |
 
 ## Slack channels
 
