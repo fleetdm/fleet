@@ -89,6 +89,19 @@ function create_repository() {
       rm fleet-desktop.exe
     fi
 
+    # Add Fleet Desktop application on  (if enabled).
+    if [[ $system == "linux" && -n "$FLEET_DESKTOP" ]]; then
+      FLEET_DESKTOP_VERSION=42.0.0 \
+      make desktop-linux
+      ./build/fleetctl updates add \
+        --path $TUF_PATH \
+        --target desktop.tar.gz \
+        --platform linux \
+        --name desktop \
+        --version 42.0.0 -t 42.0 -t 42 -t stable
+      rm desktop.tar.gz
+    fi
+
   done
 
   # Generate and add osqueryd .app bundle for macos-app.
@@ -140,28 +153,33 @@ if [ -n "$GENERATE_PKGS" ]; then
     --debug \
     --update-roots="$root_keys" \
     --update-interval=10s \
+    --disable-open-folder \
     --update-url=http://$PKG_HOSTNAME:8081
 
   echo "Generating deb..."
   ./build/fleetctl package \
     --type=deb \
+    ${FLEET_DESKTOP:+--fleet-desktop} \
     --fleet-url=https://$DEB_HOSTNAME:8080 \
     --enroll-secret=$ENROLL_SECRET \
     --insecure \
     --debug \
     --update-roots="$root_keys" \
     --update-interval=10s \
+    --disable-open-folder \
     --update-url=http://$DEB_HOSTNAME:8081
 
   echo "Generating rpm..."
   ./build/fleetctl package \
     --type=rpm \
+    ${FLEET_DESKTOP:+--fleet-desktop} \
     --fleet-url=https://$RPM_HOSTNAME:8080 \
     --enroll-secret=$ENROLL_SECRET \
     --insecure \
     --debug \
     --update-roots="$root_keys" \
     --update-interval=10s \
+    --disable-open-folder \
     --update-url=http://$RPM_HOSTNAME:8081
 
   echo "Generating msi..."
@@ -174,6 +192,7 @@ if [ -n "$GENERATE_PKGS" ]; then
     --debug \
     --update-roots="$root_keys" \
     --update-interval=10s \
+    --disable-open-folder \
     --update-url=http://$MSI_HOSTNAME:8081
 
   echo "Packages generated"

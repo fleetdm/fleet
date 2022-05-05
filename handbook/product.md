@@ -378,11 +378,11 @@ At Fleet, features are advertised as "beta" if there are concerns that the featu
 deployments. For example, these concerns could be related to the feature's performance in Fleet
 deployments with hundreds of thousands of hosts.
 
-The following highlights should be considered when deciding if we promote a as "beta:"
+The following highlights should be considered when deciding if we promote a feature as "beta:"
 
-- The feature will not be advertised as "beta" permanently. This means that the individual who is directly
-  responsible (DRI) that a feature is advertised as "beta" is responsible for creating an issue that
-  explains why the feature is advertised as "beta" and tracks the feature's progress towards advertising the feature as "stable."
+- The feature will not be advertised as "beta" permanently. This means that the Directly
+  Responsible Individual (DRI) who decides a feature is advertised as "beta" is also responsible for creating an issue that
+  explains why the feature is advertised as "beta" and tracking the feature's progress towards advertising the feature as "stable."
 - The feature will be advertised as "beta" in the documentation on fleetdm.com/docs, release notes, release blog posts, and Twitter.
 
 ## Feature flags
@@ -392,8 +392,8 @@ At Fleet, features are placed behind feature flags if the changes could affect F
 The following highlights should be considered when deciding if we should leverage feature flags:
 
 - The feature flag must be disabled by default.
-- The feature flag will not be permanent. This means that the individual who is directly responsible
- (DRI) that a feature flag should be introduced is responsible for creating an issue to track the
+- The feature flag will not be permanent. This means that the Directly Responsible Individual
+ (DRI) who decides a feature flag should be introduced is also responsible for creating an issue to track the
   feature's progress towards removing the feature flag and including the feature in a stable
   release.
 - The feature flag will not be advertised. For example, advertising in the documentation on fleetdm.com/docs, release notes, release blog posts, and Twitter.
@@ -403,6 +403,47 @@ Fleet's feature flag guidelines was borrowed from GitLab's ["When to use feature
 ## Competition
 
 We track competitors' capabilities and adjacent (or commonly integrated) products in this [Google Doc](https://docs.google.com/document/d/1Bqdui6oQthdv5XtD5l7EZVB-duNRcqVRg7NVA4lCXeI/edit) (private).
+
+### Intake process
+
+Intake for new product ideas (requests) happens at the 🗣 Product office hours meeting.
+
+At the 🗣 Product office hours meeting, the product team weighs all requests. When the team weighs a request, it is prioritized or put to the side.
+
+The team prioritizes a request when the business perceives it as an immediate priority. When this happens, the team sets the request to be estimated or deferred within 5 business days.
+
+The team puts a request to the side when the business perceives competing priorities as more pressing in the immediate moment.
+
+#### Why this way?
+
+At Fleet, we use objectives and key results (OKRs) to align the organization with measurable goals.
+These OKRs fill up a large portion, but not all, of planning (drafting, wireframing, spec'ing, etc.)
+and engineering capacity. 
+
+This means there is always some capacity to prioritize requests advocated for by customers, Fleet team members, and members of the
+greater Fleet community.
+
+> Note Fleet always prioritizes bugs.
+
+At Fleet, we tell the requestor whether their
+request is prioritized or put to the side within one business day from when the team weighs the request.
+
+The 🗣 Product office hours meeting is a recurring ritual to make sure that the team weighs all requests.
+
+#### Making a request
+
+To make a request or advocate for a request from a customer or community member,  Fleet asks all members of the organization to add their name and a description of the request to the list in the [🗣 Product office hours Google
+doc](https://docs.google.com/document/d/1mwu5WfdWBWwJ2C3zFDOMSUC9QCyYuKP4LssO_sIHDd0/edit#heading=h.zahrflvvks7q).
+Then attend the next scheduled 🗣 Product office hours meeting.
+
+All members of the Fleet organization are welcome to attend the 🗣 Product office hours meeting. Requests will be
+weighed from top to bottom while prioritizing attendee requests. 
+
+This means that if the individual that added a feature request is not in attendance, the feature request will be discussed towards the end of the call if there's time.
+
+All 🗣 Product office hours meetings are recorded and uploaded to the [🗣 Product office hours
+folder](https://drive.google.com/drive/folders/1nsjqDyX5WDQ0HJhg_2yOaqBu4J-hqRIW) in the shared
+Google drive.
 
 ## Rituals
 

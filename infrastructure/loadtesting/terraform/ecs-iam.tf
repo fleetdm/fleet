@@ -47,7 +47,7 @@ data "aws_iam_policy_document" "fleet" {
       "kms:GenerateDataKey*",
       "kms:Describe*"
     ]
-    resources = [aws_kms_key.main.arn]
+    resources = [aws_kms_key.main.arn, data.terraform_remote_state.shared.outputs.ecr-kms.arn]
   }
 }
 
@@ -63,7 +63,7 @@ data "aws_iam_policy_document" "assume_role" {
 }
 
 resource "aws_iam_role" "main" {
-  name               = "fleetdm-role"
+  name               = "${local.prefix}-role"
   assume_role_policy = data.aws_iam_policy_document.assume_role.json
 }
 
@@ -73,7 +73,7 @@ resource "aws_iam_role_policy_attachment" "role_attachment" {
 }
 
 resource "aws_iam_policy" "main" {
-  name   = "fleet-iam-policy"
+  name   = "${local.prefix}-iam-policy"
   policy = data.aws_iam_policy_document.fleet.json
 }
 

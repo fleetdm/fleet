@@ -61,7 +61,7 @@ describe("Pack flow (seeded)", () => {
       )
         .click()
         .type("50");
-      cy.getAttached(".pack-query-editor-modal__btn-wrap")
+      cy.getAttached(".pack-query-editor-modal .modal-cta-wrap")
         .contains("button", /add query/i)
         .click();
       cy.findByText(/get authorized/i).should("exist");
@@ -69,7 +69,7 @@ describe("Pack flow (seeded)", () => {
     it("removes a query from an existing pack", () => {
       cy.getAttached(".fleet-checkbox__input").check({ force: true });
       cy.findByRole("button", { name: /remove/i }).click();
-      cy.getAttached(".remove-pack-query-modal__btn-wrap")
+      cy.getAttached(".remove-pack-query-modal .modal-cta-wrap")
         .contains("button", /remove/i)
         .click();
     });
@@ -95,7 +95,7 @@ describe("Pack flow (seeded)", () => {
           });
       });
       cy.findByRole("button", { name: /delete/i }).click();
-      cy.getAttached(".remove-pack-modal__btn-wrap > .button--alert")
+      cy.getAttached(".remove-pack-modal .modal-cta-wrap > .button--alert")
         .contains("button", /delete/i)
         .click({ force: true });
       cy.findByText(/successfully deleted/i).should("be.visible");

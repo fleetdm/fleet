@@ -64,11 +64,6 @@ type VulnerabilitiesSlice []SoftwareCVE
 type HostSoftware struct {
 	// Software is the software information.
 	Software []Software `json:"software,omitempty" csv:"-"`
-	// Modified is a boolean indicating whether this has been modified since
-	// loading. If Modified is true, datastore implementations should save the
-	// data. We track this here because saving the software set is likely to be
-	// an expensive operation.
-	Modified bool `json:"-" csv:"-"`
 }
 
 type SoftwareIterator interface {

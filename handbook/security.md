@@ -1,5 +1,31 @@
 # Security
 
+## Account recovery process
+
+As an all-remote company, we do not have the luxury of seeing each other or are able to ask for help in person. Instead, we require live video confirmation of someone's identity before performing recovery and this applies to all Fleet company accounts, from internal systems to SaaS accounts.
+
+| Participant | Role                                                                                                                                                 |
+| ----------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Requester   | Requests recovery for their own account                                                                |
+| Recoverer   | Person with access to perform the recovery who monitors *#help-login*                                                                                                                               |
+| Identifier  | Person that visually identifies the requester in a video call. The identifier can be the recoverer or a person the recoverer can recognize visually |
+
+
+Here are the steps we take for the recovery process:
+
+
+1. If the requester still has access to Slack, they ask for help in *#help-login*. If they do not have access to Slack, they can contact their manager or a teammate over the phone via voice or texting, and they will post in *#help-login* for the requester.
+2. A recoverer acknowledges the request in #help-login using the "eyes" emoji 👀.
+3. The recoverer identifies the requester through a live video call.
+* If the recoverer does not know the requester well enough to positively identify them visually, the
+  recoverer can ask a colleague whom they recognize to act as the identifier. **All three must be
+  live on a video call at the same time.**
+*  For example, if the recoverer does not recognize Guillaume but can recognize Zach, they should ask Zach to identify Guillaume. Using the requester's manager or a direct teammate is recommended, as it increases the chances they see each other on video frequently.
+4. If the recoverer recognizes the requester, or has the identity confirmed by the person acting as
+   the identifier, they can perform the recovery and update the thread in *#help-login*.
+* If the recoverer is not 100% satisfied with identification, they do **NOT** proceed, and post to #g-security to engage the security team immediately.
+
+
 ## How we protect end-user devices
 
 At Fleet, we believe that a good user experience empowers contributors.
@@ -270,7 +296,7 @@ is kept up to date.
 
 If you do not already have a pair of hardware security keys, order [YubiKey 5C NFC security
 keys](https://www.yubico.com/ca/product/yubikey-5c-nfc-pack-of-2/) with your company card, or ask
-BizOps to get you one if you do not have a company card.
+for help in [#help-login](https://fleetdm.com/handbook/security#slack-channels) to get you one if you do not have a company card.
 
 ### Are they YubiKeys or security keys?
 
@@ -282,7 +308,7 @@ security keys.
 
 Security keys are **strongly recommended** for everyone and **required** for team members with elevated privilege access. 
 
-Because they are the only type of Two-Factor Authentication (2FA) that prevents credentials from
+Because they are the only type of Two-Factor Authentication (2FA) that protects credentials from
 phishing, we will make them **mandatory for everyone** soon. 
 
 See the [Google Workspace security
@@ -324,7 +350,7 @@ identified" warning.
    website](https://www.yubico.com/support/download/yubikey-manager/#h-downloads).
 2. Open the YubiKey manager with one of your keys connected.
 3. Go to the **Interfaces** tab.
-4. Uncheck the **OTP** checkboxes under **USB** and **NFC** and click *Save Interfaces*.
+4. Uncheck the **OTP** checkboxes under **USB** and click *Save Interfaces*.
 5. Unplug your key and connect your 2nd one to repeat the process.
 
 
