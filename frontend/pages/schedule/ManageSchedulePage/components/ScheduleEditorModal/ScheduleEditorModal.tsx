@@ -1,6 +1,6 @@
 /* This component is used for creating and editing both global and team scheduled queries */
 
-import React, { useState, useCallback, useContext } from "react";
+import React, { useState, useCallback, useContext, useEffect } from "react";
 import { pull } from "lodash";
 import { AppContext } from "context/app";
 
@@ -95,7 +95,7 @@ const ScheduleEditorModal = ({
 }: IScheduleEditorModalProps): JSX.Element => {
   const { config } = useContext(AppContext);
 
-  const loggingConfig = config?.result.plugin || "unknown";
+  const loggingConfig = config?.logging.result.plugin || "unknown";
 
   const [showAdvancedOptions, setShowAdvancedOptions] = useState<boolean>(
     false
@@ -220,13 +220,26 @@ const ScheduleEditorModal = ({
     );
   };
 
+  useEffect(() => {
+    const listener = (event: KeyboardEvent) => {
+      if (event.code === "Enter" || event.code === "NumpadEnter") {
+        event.preventDefault();
+        onFormSubmit();
+      }
+    };
+    document.addEventListener("keydown", listener);
+    return () => {
+      document.removeEventListener("keydown", listener);
+    };
+  }, [onFormSubmit]);
+
   if (showPreviewDataModal) {
     return <PreviewDataModal onCancel={togglePreviewDataModal} />;
   }
 
   return (
     <Modal
-      title={editQuery?.name || "Schedule editor"}
+      title={editQuery?.query_name || "Schedule editor"}
       onExit={onCancel}
       className={baseClass}
     >
@@ -329,16 +342,11 @@ const ScheduleEditorModal = ({
               Preview data
             </Button>
           </div>
-          <div className={`${baseClass}__cta-btn-wrap`}>
-            <Button
-              className={`${baseClass}__btn`}
-              onClick={onCancel}
-              variant="inverse"
-            >
+          <div className="modal-cta-wrap">
+            <Button onClick={onCancel} variant="inverse">
               Cancel
             </Button>
             <Button
-              className={`${baseClass}__btn`}
               type="button"
               variant="brand"
               onClick={onFormSubmit}

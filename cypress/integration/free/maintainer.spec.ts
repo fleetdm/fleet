@@ -187,42 +187,15 @@ describe(
       });
     });
     describe("Manage software page", () => {
-      beforeEach(() => {
-        cy.loginWithCySession("mary@organization.com", "user123#");
-        cy.visit("/software/manage");
-      });
-      it("allows maintainer to click 'Manage automations' button", () => {
-        it("manages software automations when all teams selected", () => {
-          cy.getAttached(".manage-software-page__header-wrap").within(() => {
-            cy.getAttached(".Select").within(() => {
-              cy.findByText(/all teams/i).should("exist");
-            });
-            cy.findByRole("button", { name: /manage automations/i }).click();
-            cy.findByRole("button", { name: /cancel/i }).click();
-          });
-        });
-        it("hides manage automations button when all teams not selected", () => {
-          cy.getAttached(".manage-software-page__header-wrap").within(() => {
-            cy.getAttached(".Select").within(() => {
-              cy.getAttached(".Select-control").click();
-              cy.getAttached(".Select-menu-outer").within(() => {
-                cy.findByText(/apples/i).should("exist");
-              });
-              cy.findByRole("button", {
-                name: /manage automations/i,
-              }).should("not.exist");
-            });
-          });
-        });
+      beforeEach(() => cy.visit("/software/manage"));
+      it("should restrict global maintainer from 'Manage automations' button", () => {
+        cy.findByText(/manage automations/).should("not.exist");
       });
     });
     describe("Query pages", () => {
       beforeEach(() => {
         cy.loginWithCySession("mary@organization.com", "user123#");
         cy.visit("/queries/manage");
-      });
-      it("displays the 'Observer can run' column on the queries table", () => {
-        cy.contains(/observer can run/i);
       });
       it("allows maintainer to add a new query", () => {
         cy.findByRole("button", { name: /new query/i }).click();
@@ -277,9 +250,13 @@ describe(
         cy.loginWithCySession("mary@organization.com", "user123#");
         cy.visit("/policies/manage");
       });
-      it("allows maintainer to manage automations", () => {
-        cy.findByRole("button", { name: /manage automations/i }).click();
-        cy.findByRole("button", { name: /cancel/i }).click();
+      it("hides manage automations from maintainer", () => {
+        cy.getAttached(".button-wrap").within(() => {
+          cy.findByRole("button", { name: /add a policy/i }).should("exist");
+          cy.findByRole("button", { name: /manage automations/i }).should(
+            "not.exist"
+          );
+        });
       });
       it("allows maintainer to add a policy", () => {
         cy.findByRole("button", { name: /add a policy/i }).click();
@@ -342,11 +319,8 @@ describe(
               cy.getAttached(".fleet-checkbox__input").check({ force: true });
             });
         });
-        // cy.get(".fleet-checkbox__input").check({ force: true });
         cy.findByRole("button", { name: /delete/i }).click();
-        // Can't figure out how attach findByRole onto modal button
-        // Can't use findByText because delete button under modal
-        cy.get(".remove-pack-modal__btn-wrap > .button--alert")
+        cy.get(".remove-pack-modal .modal-cta-wrap")
           .contains("button", /delete/i)
           .click();
         cy.findByText(/successfully deleted/i).should("be.visible");

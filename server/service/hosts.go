@@ -7,7 +7,6 @@ import (
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/authz"
-	authz_ctx "github.com/fleetdm/fleet/v4/server/contexts/authz"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/contexts/logging"
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
@@ -275,7 +274,7 @@ func getHostEndpoint(ctx context.Context, request interface{}, svc fleet.Service
 }
 
 func (svc *Service) GetHost(ctx context.Context, id uint) (*fleet.HostDetail, error) {
-	alreadyAuthd := svc.authz.IsAuthenticatedWith(ctx, authz_ctx.AuthnDeviceToken)
+	alreadyAuthd := svc.authz.IsAuthenticatedWith(ctx, authz.AuthnDeviceToken)
 	if !alreadyAuthd {
 		// First ensure the user has access to list hosts, then check the specific
 		// host once team_id is loaded.
@@ -560,7 +559,7 @@ func refetchHostEndpoint(ctx context.Context, request interface{}, svc fleet.Ser
 }
 
 func (svc *Service) RefetchHost(ctx context.Context, id uint) error {
-	if !svc.authz.IsAuthenticatedWith(ctx, authz_ctx.AuthnDeviceToken) {
+	if !svc.authz.IsAuthenticatedWith(ctx, authz.AuthnDeviceToken) {
 		if err := svc.authz.Authorize(ctx, &fleet.Host{}, fleet.ActionList); err != nil {
 			return err
 		}
@@ -676,7 +675,7 @@ func listHostDeviceMappingEndpoint(ctx context.Context, request interface{}, svc
 }
 
 func (svc *Service) ListHostDeviceMapping(ctx context.Context, id uint) ([]*fleet.HostDeviceMapping, error) {
-	if !svc.authz.IsAuthenticatedWith(ctx, authz_ctx.AuthnDeviceToken) {
+	if !svc.authz.IsAuthenticatedWith(ctx, authz.AuthnDeviceToken) {
 		if err := svc.authz.Authorize(ctx, &fleet.Host{}, fleet.ActionList); err != nil {
 			return nil, err
 		}
@@ -720,7 +719,7 @@ func getMacadminsDataEndpoint(ctx context.Context, request interface{}, svc flee
 }
 
 func (svc *Service) MacadminsData(ctx context.Context, id uint) (*fleet.MacadminsData, error) {
-	if !svc.authz.IsAuthenticatedWith(ctx, authz_ctx.AuthnDeviceToken) {
+	if !svc.authz.IsAuthenticatedWith(ctx, authz.AuthnDeviceToken) {
 		if err := svc.authz.Authorize(ctx, &fleet.Host{}, fleet.ActionList); err != nil {
 			return nil, err
 		}
@@ -892,4 +891,55 @@ func hostsReportEndpoint(ctx context.Context, request interface{}, svc fleet.Ser
 		return hostsReportResponse{Err: err}, nil
 	}
 	return hostsReportResponse{Hosts: hosts}, nil
+}
+
+type osVersionsRequest struct {
+	TeamID   *uint   `query:"team_id,optional"`
+	Platform *string `query:"platform,optional"`
+}
+
+type osVersionsResponse struct {
+	CountsUpdatedAt *time.Time        `json:"counts_updated_at"`
+	OSVersions      []fleet.OSVersion `json:"os_versions"`
+	Err             error             `json:"error,omitempty"`
+}
+
+func (r osVersionsResponse) error() error { return r.Err }
+
+func osVersionsEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
+	req := request.(*osVersionsRequest)
+
+	osVersions, err := svc.OSVersions(ctx, req.TeamID, req.Platform)
+	if err != nil {
+		return &osVersionsResponse{Err: err}, nil
+	}
+
+	return &osVersionsResponse{
+		CountsUpdatedAt: &osVersions.CountsUpdatedAt,
+		OSVersions:      osVersions.OSVersions,
+	}, nil
+}
+
+func (svc *Service) OSVersions(ctx context.Context, teamID *uint, platform *string) (*fleet.OSVersions, error) {
+	if err := svc.authz.Authorize(ctx, &fleet.Host{TeamID: teamID}, fleet.ActionList); err != nil {
+		return nil, err
+	}
+
+	osVersions, err := svc.ds.OSVersions(ctx, teamID, platform)
+	if err != nil && fleet.IsNotFound(err) {
+		// differentiate case where team was added after UpdateOSVersions last ran
+		if teamID != nil {
+			// most of the time, team should exist so checking here saves unnecessary db calls
+			_, err := svc.ds.Team(ctx, *teamID)
+			if err != nil {
+				return nil, err
+			}
+		}
+		// if team exists but stats have not yet been gathered, return empty JSON array
+		osVersions = &fleet.OSVersions{}
+	} else if err != nil {
+		return nil, err
+	}
+
+	return osVersions, nil
 }

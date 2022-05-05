@@ -40,6 +40,7 @@ interface IDataColumn {
     | ((props: IDropdownCellProps) => JSX.Element);
   disableHidden?: boolean;
   disableSortBy?: boolean;
+  sortType?: string;
 }
 
 export interface IMembersTableData {
@@ -61,16 +62,8 @@ const generateTableHeaders = (
       title: "Name",
       Header: "Name",
       disableSortBy: true,
+      sortType: "caseInsensitive",
       accessor: "name",
-      Cell: (cellProps: ICellProps) => (
-        <TextCell value={cellProps.cell.value} />
-      ),
-    },
-    {
-      title: "Email",
-      Header: "Email",
-      disableSortBy: true,
-      accessor: "email",
       Cell: (cellProps: ICellProps) => (
         <TextCell value={cellProps.cell.value} />
       ),
@@ -85,8 +78,17 @@ const generateTableHeaders = (
       ),
     },
     {
+      title: "Email",
+      Header: "Email",
+      disableSortBy: true,
+      accessor: "email",
+      Cell: (cellProps: ICellProps) => (
+        <TextCell classes="w400" value={cellProps.cell.value} />
+      ),
+    },
+    {
       title: "Actions",
-      Header: "Actions",
+      Header: "",
       disableSortBy: true,
       accessor: "actions",
       Cell: (cellProps: IDropdownCellProps) => (

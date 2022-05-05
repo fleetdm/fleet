@@ -15,7 +15,9 @@ import (
 	"strings"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/orbit/pkg/build"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/constant"
+	"github.com/fleetdm/fleet/v4/orbit/pkg/execuser"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/insecure"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/osquery"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table"
@@ -23,7 +25,6 @@ import (
 	"github.com/fleetdm/fleet/v4/orbit/pkg/update/filestore"
 	"github.com/fleetdm/fleet/v4/pkg/certificate"
 	"github.com/fleetdm/fleet/v4/pkg/file"
-	"github.com/fleetdm/fleet/v4/pkg/open"
 	"github.com/fleetdm/fleet/v4/pkg/secure"
 	"github.com/google/uuid"
 	"github.com/oklog/run"
@@ -34,14 +35,8 @@ import (
 	"gopkg.in/natefinch/lumberjack.v2"
 )
 
-var (
-	// Flags set by goreleaser during build
-	version = ""
-	commit  = ""
-	date    = ""
-)
-
 func main() {
+
 	app := cli.NewApp()
 	app.Name = "Orbit osquery"
 	app.Usage = "A powered-up, (near) drop-in replacement for osquery"
@@ -53,7 +48,7 @@ func main() {
 		&cli.StringFlag{
 			Name:    "root-dir",
 			Usage:   "Root directory for Orbit state",
-			Value:   update.DefaultOptions.RootDirectory,
+			Value:   "", // need to check if explicitly set
 			EnvVars: []string{"ORBIT_ROOT_DIR"},
 		},
 		&cli.BoolFlag{
@@ -105,6 +100,12 @@ func main() {
 			Value:   "stable",
 			EnvVars: []string{"ORBIT_DESKTOP_CHANNEL"},
 		},
+		&cli.DurationFlag{
+			Name:    "update-interval",
+			Usage:   "How often to check for updates",
+			Value:   15 * time.Minute,
+			EnvVars: []string{"ORBIT_UPDATE_INTERVAL"},
+		},
 		&cli.BoolFlag{
 			Name:    "disable-updates",
 			Usage:   "Disables auto updates",
@@ -129,10 +130,6 @@ func main() {
 			Usage: "Log to this file path in addition to stderr",
 		},
 		&cli.BoolFlag{
-			Name:  "dev-darwin-legacy-targets",
-			Usage: "Use darwin legacy target (flag only used on darwin)",
-		},
-		&cli.BoolFlag{
 			Name:    "fleet-desktop",
 			Usage:   "Launch Fleet Desktop application (flag currently only used on darwin)",
 			EnvVars: []string{"ORBIT_FLEET_DESKTOP"},
@@ -140,8 +137,22 @@ func main() {
 	}
 	app.Action = func(c *cli.Context) error {
 		if c.Bool("version") {
-			fmt.Println("orbit " + version)
+			fmt.Println("orbit " + build.Version)
 			return nil
+		}
+
+		// handle old installations, which had default root dir set to /var/lib/orbit
+		if c.String("root-dir") == "" {
+			rootDir := update.DefaultOptions.RootDirectory
+
+			executable, err := os.Executable()
+			if err != nil {
+				return fmt.Errorf("failed to get orbit executable: %w", err)
+			}
+			if strings.HasPrefix(executable, "/var/lib/orbit") {
+				rootDir = "/var/lib/orbit"
+			}
+			c.Set("root-dir", rootDir)
 		}
 
 		var logFile io.Writer
@@ -212,12 +223,17 @@ func main() {
 
 		opt := update.DefaultOptions
 
-		if runtime.GOOS == "darwin" && c.Bool("dev-darwin-legacy-targets") {
-			opt.Targets = update.DarwinLegacyTargets
-		}
-
-		if runtime.GOOS == "darwin" && c.Bool("fleet-desktop") {
-			opt.Targets["desktop"] = update.DesktopMacOSTarget
+		if c.Bool("fleet-desktop") {
+			switch runtime.GOOS {
+			case "darwin":
+				opt.Targets["desktop"] = update.DesktopMacOSTarget
+			case "windows":
+				opt.Targets["desktop"] = update.DesktopWindowsTarget
+			case "linux":
+				opt.Targets["desktop"] = update.DesktopLinuxTarget
+			default:
+				log.Fatal().Str("GOOS", runtime.GOOS).Msg("unsupported GOOS for desktop target")
+			}
 			// Override default channel with the provided value.
 			opt.Targets.SetTargetChannel("desktop", c.String("desktop-channel"))
 		}
@@ -232,9 +248,9 @@ func main() {
 		opt.InsecureTransport = c.Bool("insecure")
 
 		var (
-			updater        *update.Updater
-			osquerydPath   string
-			desktopAppPath string
+			updater      *update.Updater
+			osquerydPath string
+			desktopPath  string
 		)
 
 		// NOTE: When running in dev-mode, even if `disable-updates` is set,
@@ -252,12 +268,16 @@ func main() {
 				return fmt.Errorf("get osqueryd target: %w", err)
 			}
 			osquerydPath = osquerydLocalTarget.ExecPath
-			if runtime.GOOS == "darwin" && c.Bool("fleet-desktop") {
+			if c.Bool("fleet-desktop") {
 				fleetDesktopLocalTarget, err := updater.Get("desktop")
 				if err != nil {
 					return fmt.Errorf("get desktop target: %w", err)
 				}
-				desktopAppPath = fleetDesktopLocalTarget.DirPath
+				if runtime.GOOS == "darwin" {
+					desktopPath = fleetDesktopLocalTarget.DirPath
+				} else {
+					desktopPath = fleetDesktopLocalTarget.ExecPath
+				}
 			}
 		} else {
 			log.Info().Msg("running with auto updates disabled")
@@ -266,10 +286,17 @@ func main() {
 			if err != nil {
 				log.Fatal().Err(err).Msg("locate osqueryd")
 			}
-			if runtime.GOOS == "darwin" && c.Bool("fleet-desktop") {
-				desktopAppPath, err = updater.DirLocalPath("desktop")
-				if err != nil {
-					return fmt.Errorf("get desktop target: %w", err)
+			if c.Bool("fleet-desktop") {
+				if runtime.GOOS == "darwin" {
+					desktopPath, err = updater.DirLocalPath("desktop")
+					if err != nil {
+						return fmt.Errorf("get desktop target: %w", err)
+					}
+				} else {
+					desktopPath, err = updater.ExecutableLocalPath("desktop")
+					if err != nil {
+						return fmt.Errorf("get desktop target: %w", err)
+					}
 				}
 			}
 		}
@@ -296,11 +323,11 @@ func main() {
 
 		if !c.Bool("disable-updates") {
 			targets := []string{"orbit", "osqueryd"}
-			if runtime.GOOS == "darwin" && c.Bool("fleet-desktop") {
+			if c.Bool("fleet-desktop") {
 				targets = append(targets, "desktop")
 			}
 			updateRunner, err := update.NewRunner(updater, update.RunnerOptions{
-				CheckInterval: 10 * time.Second,
+				CheckInterval: c.Duration("update-interval"),
 				Targets:       targets,
 			})
 			if err != nil {
@@ -458,8 +485,8 @@ func main() {
 		}))
 		g.Add(ext.Execute, ext.Interrupt)
 
-		if runtime.GOOS == "darwin" && c.Bool("fleet-desktop") {
-			desktopRunner := newDesktopRunner(desktopAppPath, fleetURL, deviceAuthToken, c.Bool("insecure"))
+		if c.Bool("fleet-desktop") {
+			desktopRunner := newDesktopRunner(desktopPath, fleetURL, deviceAuthToken, c.Bool("insecure"))
 			g.Add(desktopRunner.actor())
 		}
 
@@ -481,20 +508,22 @@ func main() {
 }
 
 type desktopRunner struct {
-	appPath         string
+	desktopPath     string
 	fleetURL        string
 	deviceAuthToken string
 	insecure        bool
-	done            chan struct{}
+	interruptCh     chan struct{} // closed when interrupt is triggered
+	executeDoneCh   chan struct{} // closed when execute returns
 }
 
-func newDesktopRunner(appPath, fleetURL, deviceAuthToken string, insecure bool) *desktopRunner {
+func newDesktopRunner(desktopPath, fleetURL, deviceAuthToken string, insecure bool) *desktopRunner {
 	return &desktopRunner{
-		appPath:         appPath,
+		desktopPath:     desktopPath,
 		fleetURL:        fleetURL,
 		deviceAuthToken: deviceAuthToken,
 		insecure:        insecure,
-		done:            make(chan struct{}),
+		interruptCh:     make(chan struct{}),
+		executeDoneCh:   make(chan struct{}),
 	}
 }
 
@@ -502,43 +531,92 @@ func (d *desktopRunner) actor() (func() error, func(error)) {
 	return d.execute, d.interrupt
 }
 
+// execute makes sure the fleet-desktop application is running.
+//
+// We have to support the scenario where the user closes its sessions (log out).
+// To support this, we add retries to execuser.Run. Basically retry execuser.Run until it succeeds,
+// which will happen when the user logs in.
+// Once fleet-desktop is started, the process is monitored (user processes get killed when the user
+// closes all its sessions).
+//
+// NOTE(lucas): This logic could be improved to detect if there's a valid session or not first.
 func (d *desktopRunner) execute() error {
-	log.Info().Str("path", d.appPath).Msg("opening")
+	defer close(d.executeDoneCh)
+
+	log.Info().Str("path", d.desktopPath).Msg("opening")
 	url, err := url.Parse(d.fleetURL)
 	if err != nil {
 		return fmt.Errorf("invalid fleet-url: %w", err)
 	}
 	url.Path = path.Join(url.Path, "device", d.deviceAuthToken)
-	opts := []open.AppOption{
-		open.AppWithEnv("FLEET_DESKTOP_DEVICE_URL", url.String()),
-		open.AppWithEnv("FLEET_DESKTOP_DEVICE_API_TEST_PATH", path.Join("api", "latest", "fleet", "device", d.deviceAuthToken)),
+	opts := []execuser.Option{
+		execuser.WithEnv("FLEET_DESKTOP_DEVICE_URL", url.String()),
+		execuser.WithEnv("FLEET_DESKTOP_DEVICE_API_TEST_PATH", path.Join("api", "latest", "fleet", "device", d.deviceAuthToken)),
 	}
 	if d.insecure {
-		opts = append(opts, open.AppWithEnv("FLEET_DESKTOP_INSECURE", "1"))
-	}
-	if err := open.App(d.appPath, opts...); err != nil {
-		return fmt.Errorf("open desktop app: %w", err)
+		opts = append(opts, execuser.WithEnv("FLEET_DESKTOP_INSECURE", "1"))
 	}
 
-	// Monitor the fleet-desktop application.
-	ticker := time.NewTicker(10 * time.Second)
-	defer ticker.Stop()
 	for {
-		select {
-		case <-d.done:
-			return nil
-		case <-ticker.C:
-			if _, err := getProcessByName(constant.DesktopAppExecName); err != nil {
-				log.Err(err).Msg("desktopRunner.execute exit")
-				return fmt.Errorf("get desktop process: %w", err)
+		// First retry logic to start fleet-desktop.
+		if done := retry(30*time.Second, false, d.interruptCh, func() bool {
+			// Orbit runs as root user on Unix and as SYSTEM (Windows Service) user on Windows.
+			// To be able to run the desktop application (mostly to register the icon in the system tray)
+			// we need to run the application as the login user.
+			// Package execuser provides multi-platform support for this.
+			if err := execuser.Run(d.desktopPath, opts...); err != nil {
+				log.Debug().Err(err).Msg("execuser.Run")
+				return true
 			}
+			return false
+		}); done {
+			return nil
+		}
+
+		// Second retry logic to monitor fleet-desktop.
+		// Call with waitFirst=true to give some time for the process to start.
+		if done := retry(30*time.Second, true, d.interruptCh, func() bool {
+			switch _, err := getProcessByName(constant.DesktopAppExecName); {
+			case err == nil:
+				return true // all good, process is running, retry.
+			case errors.Is(err, errProcessNotFound):
+				log.Debug().Msgf("%s process not running", constant.DesktopAppExecName)
+				return false // process is not running, do not retry.
+			default:
+				log.Debug().Err(err).Msg("getProcessByName")
+				return true // failed to get process by name, retry.
+			}
+		}); done {
+			return nil
+		}
+	}
+}
+
+func retry(d time.Duration, waitFirst bool, done chan struct{}, fn func() bool) bool {
+	ticker := time.NewTicker(d)
+	defer ticker.Stop()
+
+	for {
+		if !waitFirst {
+			if retry := fn(); !retry {
+				return false
+			}
+		}
+		waitFirst = false
+		select {
+		case <-done:
+			return true
+		case <-ticker.C:
+			// OK
 		}
 	}
 }
 
 func (d *desktopRunner) interrupt(err error) {
 	log.Debug().Err(err).Msg("interrupt desktopRunner")
-	defer close(d.done)
+
+	close(d.interruptCh) // Signal execute to return.
+	<-d.executeDoneCh    // Wait for execute to return.
 
 	if err := killProcessByName(constant.DesktopAppExecName); err != nil {
 		log.Error().Err(err).Msg("killProcess")
@@ -590,7 +668,7 @@ func getProcessByName(name string) (*gopsutil_process.Process, error) {
 			log.Debug().Err(err).Int32("pid", process.Pid).Msg("get process name")
 			continue
 		}
-		if processName == name {
+		if strings.HasPrefix(processName, name) {
 			foundProcess = process
 			break
 		}
@@ -606,9 +684,9 @@ var versionCommand = &cli.Command{
 	Usage: "Get the orbit version",
 	Flags: []cli.Flag{},
 	Action: func(c *cli.Context) error {
-		fmt.Println("orbit " + version)
-		fmt.Println("commit - " + commit)
-		fmt.Println("date - " + date)
+		fmt.Println("orbit " + build.Version)
+		fmt.Println("commit - " + build.Commit)
+		fmt.Println("date - " + build.Date)
 		return nil
 	},
 }

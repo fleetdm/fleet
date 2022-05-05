@@ -1,13 +1,15 @@
-import React from "react";
+import React, { useContext } from "react";
+import { AppContext } from "context/app";
 import { noop } from "lodash";
 import paths from "router/paths";
 
 import { IPolicyStats } from "interfaces/policy";
 import { ITeamSummary } from "interfaces/team";
+
+import Button from "components/buttons/Button";
 import Spinner from "components/Spinner";
 import TableContainer from "components/TableContainer";
 import { generateTableHeaders, generateDataSet } from "./PoliciesTableConfig";
-// @ts-ignore
 import policySvg from "../../../../../../assets/images/no-policy-323x138@2x.png";
 
 const baseClass = "policies-list-wrapper";
@@ -22,6 +24,7 @@ const TAGGED_TEMPLATES = {
 interface IPoliciesListWrapperProps {
   policiesList: IPolicyStats[];
   isLoading: boolean;
+  onAddPolicyClick?: () => void;
   onRemovePoliciesClick: (selectedTableIds: number[]) => void;
   resultsTitle?: string;
   canAddOrRemovePolicy?: boolean;
@@ -33,6 +36,7 @@ interface IPoliciesListWrapperProps {
 const PoliciesListWrapper = ({
   policiesList,
   isLoading,
+  onAddPolicyClick,
   onRemovePoliciesClick,
   resultsTitle,
   canAddOrRemovePolicy,
@@ -41,6 +45,8 @@ const PoliciesListWrapper = ({
   currentAutomatedPolicies,
 }: IPoliciesListWrapperProps): JSX.Element => {
   const { MANAGE_HOSTS } = paths;
+
+  const { config } = useContext(AppContext);
 
   const NoPolicies = () => {
     return (
@@ -83,6 +89,17 @@ const PoliciesListWrapper = ({
                 changes.
               </p>
             </div>
+            {canAddOrRemovePolicy && (
+              <div className={`${baseClass}__action-button-container`}>
+                <Button
+                  variant="brand"
+                  className={`${baseClass}__select-policy-button`}
+                  onClick={onAddPolicyClick}
+                >
+                  Add a policy
+                </Button>
+              </div>
+            )}
           </div>
         </div>
       </div>
@@ -105,7 +122,11 @@ const PoliciesListWrapper = ({
             canAddOrRemovePolicy,
             tableType,
           })}
-          data={generateDataSet(policiesList, currentAutomatedPolicies)}
+          data={generateDataSet(
+            policiesList,
+            currentAutomatedPolicies,
+            config?.update_interval.osquery_policy
+          )}
           isLoading={isLoading}
           defaultSortHeader={"name"}
           defaultSortDirection={"asc"}

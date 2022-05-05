@@ -1,33 +1,35 @@
 import React from "react";
-import { mount } from "enzyme";
+import { fireEvent, render, screen } from "@testing-library/react";
 
 import Checkbox from "./Checkbox";
 
 describe("Checkbox - component", () => {
   it("renders", () => {
-    expect(mount(<Checkbox />)).toBeTruthy();
+    expect(render(<Checkbox />).container).not.toBeNull();
   });
 
-  it('calls the "onChange" handler when changed', () => {
+  it('calls the "onChange" handler when changed', async () => {
     const onCheckedComponentChangeSpy = jest.fn();
     const onUncheckedComponentChangeSpy = jest.fn();
 
-    const checkedComponent = mount(
+    const { rerender } = render(
       <Checkbox name="checkbox" onChange={onCheckedComponentChangeSpy} value />
-    ).find("input");
+    );
 
-    const uncheckedComponent = mount(
+    fireEvent.click(screen.getByRole("checkbox"));
+
+    expect(onCheckedComponentChangeSpy).toHaveBeenCalledWith(false);
+
+    rerender(
       <Checkbox
         name="checkbox"
         onChange={onUncheckedComponentChangeSpy}
         value={false}
       />
-    ).find("input");
+    );
 
-    checkedComponent.simulate("change");
-    uncheckedComponent.simulate("change");
+    fireEvent.click(screen.getByRole("checkbox"));
 
-    expect(onCheckedComponentChangeSpy).toHaveBeenCalledWith(false);
     expect(onUncheckedComponentChangeSpy).toHaveBeenCalledWith(true);
   });
 });

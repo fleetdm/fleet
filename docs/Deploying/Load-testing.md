@@ -14,18 +14,18 @@ A test is deemed successful when the Fleet server is able to receive and make re
 
 ## Results
 
-### 1,000 hosts
+### 2,500 hosts
 
-With the following infrastructure, 1,000 hosts successfully communicate with Fleet. The Fleet server is able to run live queries against all hosts.
+With the following infrastructure, 2,500 hosts successfully communicate with Fleet. The Fleet server is able to run live queries against all hosts.
 
 |Fleet instances| CPU Units       |RAM             |
 |-------|-------------------------|----------------|
-| 1 Fargate task | 256 CPU Units  |512 MB of memory|
+| 1 Fargate task | 512 CPU Units  | 4GB of memory |
 
 |&#8203;| Version                 |Instance type |
 |-------|-------------------------|--------------|
-| Redis | 5.0.6                   |cache.m5.large|
-| MySQL | 5.7.mysql_aurora.2.10.0 | db.t4g.medium|
+| Redis | 5.0.6                   | cache.t4g.medium |
+| MySQL | 5.7.mysql_aurora.2.10.0 | db.t4g.small |
 
 ### 150,000 hosts
 
@@ -33,14 +33,16 @@ With the infrastructure listed below, 150,000 hosts successfully communicate wit
 
 |Fleet instance | CPU Units       |RAM             |
 |-------|-------------------------|----------------|
-| 25 Fargate tasks | 1024 CPU units  |2048 MB of memory|
+| 20 Fargate tasks | 1024 CPU units  | 4GB of memory |
 
-|&#8203;| Version                 |Instance type |
-|-------|-------------------------|--------------|
-| Redis | 5.0.6                   |cache.m5.large|
-| MySQL | 5.7.mysql_aurora.2.10.0 | db.t4g.medium|
+|&#8203;| Version                 |Instance type   |
+|-------|-------------------------|----------------|
+| Redis | 5.0.6                   | cache.m6g.large |
+| MySQL | 5.7.mysql_aurora.2.10.0 | db.r6g.4xlarge |
 
-The above setup auto scaled based on CPU usage. After a while, the task count ended up in 25 instances even while live querying or adding a new label.
+In the above setup, the read replica was the same size as the writer node.
+
+The above setup auto scaled based on CPU usage. After a while, the task count ended up at 25 instances even while live querying or adding a new label.
 
 ## How we are simulating osquery
 
@@ -56,18 +58,16 @@ After the hosts have been enrolled, you can add `-only_already_enrolled` to make
 
 ## Infrastructure setup
 
-The deployment of Fleet was done through the example [terraform provided in the repo](https://github.com/fleetdm/fleet/tree/main/tools/terraform) with the following command:
+The deployment of Fleet was done through the loadtesting [terraform maintained in the repo](https://github.com/fleetdm/fleet/tree/main/tools/loadtesting/terraform) with the following command:
 
 ```bash
-terraform apply \ 
-  -var domain_fleetctl=<your domain here> \
-  -var domain_fleetdm=<alternative domain here> \ 
-  -var s3_bucket=<log bucket name> \
-  -var fleet_image="fleetdm/fleet:<tag targeted>" \
-  -var vulnerabilities_path="" \
-  -var fleet_max_capacity=100 \ 
-  -var fleet_min_capacity=5
+terraform apply -var tag=<your tag here>
 ```
+
+Scaling differences were done by directly modifying the code and reapplying.
+
+Infrastructure for the loadtest is provided in the loadtesting code (via an ECS Fargate service and an internal load balancer for cost savins). Each instance of the ECS service corresponds to 5000 hosts.
+They are sized to be the smallest that Fargate allows, so it is still cost effective to run 30+ instances of the service.
 
 ## Limitations
 

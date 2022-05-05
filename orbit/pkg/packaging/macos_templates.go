@@ -33,8 +33,12 @@ var macosDistributionTemplate = template.Must(template.New("").Option("missingke
 var macosPostinstallTemplate = template.Must(template.New("").Option("missingkey=error").Parse(
 	`#!/bin/bash
 
-ln -sf /var/lib/orbit/bin/orbit/macos/{{.OrbitChannel}}/orbit /var/lib/orbit/bin/orbit/orbit
-ln -sf /var/lib/orbit/bin/orbit/orbit /usr/local/bin/orbit
+ln -sf /opt/orbit/bin/orbit/macos/{{.OrbitChannel}}/orbit /opt/orbit/bin/orbit/orbit
+ln -sf /opt/orbit/bin/orbit/orbit /usr/local/bin/orbit
+{{ if .LegacyVarLibSymlink }}
+# Symlink needed to support old versions of orbit.
+ln -sf /opt/orbit /var/lib/orbit
+{{- end }}
 
 {{ if .StartService -}}
 DAEMON_LABEL="com.fleetdm.orbit"
@@ -74,11 +78,11 @@ var macosLaunchdTemplate = template.Must(template.New("").Option("missingkey=err
 		{{- end }}
 		{{- if .FleetCertificate }}
 		<key>ORBIT_FLEET_CERTIFICATE</key>
-		<string>/var/lib/orbit/fleet.pem</string>
+		<string>/opt/orbit/fleet.pem</string>
 		{{- end }}
 		{{- if .EnrollSecret }}
 		<key>ORBIT_ENROLL_SECRET_PATH</key>
-		<string>/var/lib/orbit/secret.txt</string>
+		<string>/opt/orbit/secret.txt</string>
 		{{- end }}
 		{{- if .FleetURL }}
 		<key>ORBIT_FLEET_URL</key>
@@ -100,6 +104,8 @@ var macosLaunchdTemplate = template.Must(template.New("").Option("missingkey=err
 		<key>ORBIT_DESKTOP_CHANNEL</key>
 		<string>{{ .DesktopChannel }}</string>
 		{{- end }}
+		<key>ORBIT_UPDATE_INTERVAL</key>
+		<string>{{ .OrbitUpdateInterval }}</string>
 	</dict>
 	<key>KeepAlive</key>
 	<true/>
@@ -107,7 +113,7 @@ var macosLaunchdTemplate = template.Must(template.New("").Option("missingkey=err
 	<string>com.fleetdm.orbit</string>
 	<key>ProgramArguments</key>
 	<array>
-		<string>/var/lib/orbit/bin/orbit/orbit</string>
+		<string>/opt/orbit/bin/orbit/orbit</string>
 	</array>
 	<key>RunAtLoad</key>
 	<true/>

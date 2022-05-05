@@ -71,8 +71,8 @@
 
   &__load-activities-button {
     color: $core-vibrant-blue;
-    height: 20px;
     vertical-align: bottom;
+    padding: 6px;
 
     .fleeticon-chevronleft,
     .fleeticon-chevronright {
@@ -94,6 +94,11 @@
 
     &:first-of-type {
       margin-right: $pad-large;
+    }
+
+    &:hover,
+    &:focus {
+      background-color: $ui-vibrant-blue-10;
     }
   }
 

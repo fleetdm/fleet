@@ -52,7 +52,7 @@ func (q *DetailQuery) RunsForPlatform(platform string) bool {
 // fleet.Host data model. This map should not be modified at runtime.
 var detailQueries = map[string]DetailQuery{
 	"network_interface": {
-		Query: `select address, mac
+		Query: `select ia.address, id.mac, id.interface
                         from interface_details id join interface_addresses ia
                                on ia.interface = id.interface where length(mac) > 0
                                order by (ibytes + obytes) desc`,
@@ -74,6 +74,13 @@ var detailQueries = map[string]DetailQuery{
 
 				// Skip link-local and loopback interfaces
 				if ip.IsLinkLocalUnicast() || ip.IsLoopback() {
+					continue
+				}
+
+				// Skip docker interfaces as these are sometimes heavily
+				// trafficked, but rarely the interface that Fleet users want to
+				// see. https://github.com/fleetdm/fleet/issues/4754.
+				if strings.Contains(row["interface"], "docker") {
 					continue
 				}
 
@@ -309,7 +316,7 @@ FROM logical_drives WHERE file_system = 'NTFS' LIMIT 1;`,
 		Platforms:        []string{"darwin"},
 	},
 	"google_chrome_profiles": {
-		Query:            `SELECT email FROM google_chrome_profiles WHERE NOT ephemeral`,
+		Query:            `SELECT email FROM google_chrome_profiles WHERE NOT ephemeral AND email <> ''`,
 		DirectIngestFunc: directIngestChromeProfiles,
 		Discovery:        discoveryTable("google_chrome_profiles"),
 	},
@@ -338,7 +345,8 @@ SELECT
   bundle_short_version AS version,
   'Application (macOS)' AS type,
   bundle_identifier AS bundle_identifier,
-  'apps' AS source
+  'apps' AS source,
+  last_opened_time AS last_opened_at
 FROM apps
 UNION
 SELECT
@@ -346,7 +354,8 @@ SELECT
   version AS version,
   'Package (Python)' AS type,
   '' AS bundle_identifier,
-  'python_packages' AS source
+  'python_packages' AS source,
+  0 AS last_opened_at
 FROM python_packages
 UNION
 SELECT
@@ -354,7 +363,8 @@ SELECT
   version AS version,
   'Browser plugin (Chrome)' AS type,
   '' AS bundle_identifier,
-  'chrome_extensions' AS source
+  'chrome_extensions' AS source,
+  0 AS last_opened_at
 FROM cached_users CROSS JOIN chrome_extensions USING (uid)
 UNION
 SELECT
@@ -362,7 +372,8 @@ SELECT
   version AS version,
   'Browser plugin (Firefox)' AS type,
   '' AS bundle_identifier,
-  'firefox_addons' AS source
+  'firefox_addons' AS source,
+  0 AS last_opened_at
 FROM cached_users CROSS JOIN firefox_addons USING (uid)
 UNION
 SELECT
@@ -370,7 +381,8 @@ SELECT
   version AS version,
   'Browser plugin (Safari)' AS type,
   '' AS bundle_identifier,
-  'safari_extensions' AS source
+  'safari_extensions' AS source,
+  0 AS last_opened_at
 FROM cached_users CROSS JOIN safari_extensions USING (uid)
 UNION
 SELECT
@@ -378,7 +390,8 @@ SELECT
   version AS version,
   'Package (Atom)' AS type,
   '' AS bundle_identifier,
-  'atom_packages' AS source
+  'atom_packages' AS source,
+  0 AS last_opened_at
 FROM cached_users CROSS JOIN atom_packages USING (uid)
 UNION
 SELECT
@@ -386,7 +399,8 @@ SELECT
   version AS version,
   'Package (Homebrew)' AS type,
   '' AS bundle_identifier,
-  'homebrew_packages' AS source
+  'homebrew_packages' AS source,
+  0 AS last_opened_at
 FROM homebrew_packages;
 `,
 	Platforms:        []string{"darwin"},
@@ -490,7 +504,7 @@ FROM python_packages;
 
 var softwareWindows = DetailQuery{
 	Query: `
-WITH cached_users AS (SELECT * FROM users)
+WITH cached_users AS (SELECT * FROM users WHERE directory <> '')
 SELECT
   name AS name,
   version AS version,
@@ -701,6 +715,21 @@ func directIngestSoftware(ctx context.Context, logger log.Logger, host *fleet.Ho
 			continue
 		}
 
+		var lastOpenedAt time.Time
+		if lastOpenedRaw := row["last_opened_at"]; lastOpenedRaw != "" {
+			if lastOpenedEpoch, err := strconv.ParseFloat(lastOpenedRaw, 64); err != nil {
+				level.Debug(logger).Log(
+					"msg", "host reported software with invalid last opened timestamp",
+					"host", host.Hostname,
+					"version", version,
+					"name", name,
+					"last_opened_at", lastOpenedRaw,
+				)
+			} else if lastOpenedEpoch > 0 {
+				lastOpenedAt = time.Unix(int64(lastOpenedEpoch), 0).UTC()
+			}
+		}
+
 		s := fleet.Software{
 			Name:             name,
 			Version:          version,
@@ -710,6 +739,9 @@ func directIngestSoftware(ctx context.Context, logger log.Logger, host *fleet.Ho
 			Release: row["release"],
 			Vendor:  row["vendor"],
 			Arch:    row["arch"],
+		}
+		if !lastOpenedAt.IsZero() {
+			s.LastOpenedAt = &lastOpenedAt
 		}
 		software = append(software, s)
 	}

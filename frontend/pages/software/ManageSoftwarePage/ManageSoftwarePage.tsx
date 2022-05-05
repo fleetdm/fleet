@@ -1,16 +1,13 @@
 import React, { useCallback, useContext, useEffect, useState } from "react";
 import { useQuery } from "react-query";
-import { useDispatch } from "react-redux";
 import { InjectedRouter } from "react-router/lib/Router";
-import { useDebouncedCallback } from "use-debounce/lib";
+import { useDebouncedCallback } from "use-debounce";
 
 import { AppContext } from "context/app";
-import { IConfig, IConfigNested } from "interfaces/config";
+import { NotificationContext } from "context/notification";
+import { IConfig } from "interfaces/config";
+import { IJiraIntegration } from "interfaces/integration";
 import { IWebhookSoftwareVulnerabilities } from "interfaces/webhook";
-// @ts-ignore
-import { getConfig } from "redux/nodes/app/actions";
-// @ts-ignore
-import { renderFlash } from "redux/nodes/notifications/actions";
 import configAPI from "services/entities/config";
 import softwareAPI, {
   ISoftwareResponse,
@@ -27,7 +24,7 @@ import Dropdown from "components/forms/fields/Dropdown";
 // @ts-ignore
 import Spinner from "components/Spinner";
 import TableContainer, { ITableQueryData } from "components/TableContainer";
-import TableDataError from "components/TableDataError";
+import TableDataError from "components/DataError";
 import TeamsDropdownHeader, {
   ITeamsDropdownState,
 } from "components/PageHeader/TeamsDropdownHeader";
@@ -46,6 +43,15 @@ interface IManageSoftwarePageProps {
     search: string;
   };
 }
+
+interface ISoftwareAutomations {
+  webhook_settings: {
+    vulnerabilities_webhook: IWebhookSoftwareVulnerabilities;
+  };
+  integrations: {
+    jira: IJiraIntegration[];
+  };
+}
 interface IHeaderButtonsState extends ITeamsDropdownState {
   isLoading: boolean;
 }
@@ -59,16 +65,24 @@ const ManageSoftwarePage = ({
   router,
   location,
 }: IManageSoftwarePageProps): JSX.Element => {
-  const dispatch = useDispatch();
   const {
     availableTeams,
     currentTeam,
-    setConfig,
     isGlobalAdmin,
     isGlobalMaintainer,
+    isOnGlobalTeam,
   } = useContext(AppContext);
+  const { renderFlash } = useContext(NotificationContext);
 
   const [isSoftwareEnabled, setIsSoftwareEnabled] = useState<boolean>();
+  const [
+    isVulnerabilityAutomationsEnabled,
+    setIsVulnerabilityAutomationsEnabled,
+  ] = useState<boolean>();
+  const [
+    recentVulnerabilityMaxAge,
+    setRecentVulnerabilityMaxAge,
+  ] = useState<number>();
   const [filterVuln, setFilterVuln] = useState(
     location?.query?.vulnerable || false
   );
@@ -91,6 +105,24 @@ const ManageSoftwarePage = ({
   const { data: config } = useQuery(["config"], configAPI.loadAll, {
     onSuccess: (data) => {
       setIsSoftwareEnabled(data?.host_settings?.enable_software_inventory);
+      let jiraIntegrationEnabled = false;
+      if (data.integrations.jira) {
+        jiraIntegrationEnabled = data?.integrations.jira.some(
+          (integration: any) => {
+            return integration.enable_software_vulnerabilities;
+          }
+        );
+      }
+      setIsVulnerabilityAutomationsEnabled(
+        data?.webhook_settings?.vulnerabilities_webhook
+          .enable_vulnerabilities_webhook || jiraIntegrationEnabled
+      );
+      // Convert from nanosecond to nearest day
+      setRecentVulnerabilityMaxAge(
+        Math.round(
+          data?.vulnerabilities?.recent_vulnerability_max_age / 86400000000000
+        )
+      );
     },
   });
 
@@ -130,6 +162,9 @@ const ManageSoftwarePage = ({
       return softwareAPI.load(params);
     },
     {
+      enabled:
+        isOnGlobalTeam ||
+        !!availableTeams?.find((t) => t.id === currentTeam?.id),
       keepPreviousData: true,
       staleTime: 30000, // stale time can be adjusted if fresher data is desired based on software inventory interval
     }
@@ -158,6 +193,9 @@ const ManageSoftwarePage = ({
       });
     },
     {
+      enabled:
+        isOnGlobalTeam ||
+        !!availableTeams?.find((t) => t.id === currentTeam?.id),
       keepPreviousData: true,
       staleTime: 30000, // stale time can be adjusted if fresher data is desired based on software inventory interval
       refetchOnWindowFocus: false,
@@ -172,13 +210,12 @@ const ManageSoftwarePage = ({
     data: softwareVulnerabilitiesWebhook,
     isLoading: isLoadingSoftwareVulnerabilitiesWebhook,
     refetch: refetchSoftwareVulnerabilitiesWebhook,
-  } = useQuery<IConfigNested, Error, IWebhookSoftwareVulnerabilities>(
+  } = useQuery<IConfig, Error, IWebhookSoftwareVulnerabilities>(
     ["config"],
     () => configAPI.loadAll(),
     {
       enabled: canAddOrRemoveSoftwareWebhook,
-      select: (data: IConfigNested) =>
-        data.webhook_settings.vulnerabilities_webhook,
+      select: (data: IConfig) => data.webhook_settings.vulnerabilities_webhook,
     }
   );
 
@@ -213,43 +250,25 @@ const ManageSoftwarePage = ({
     toggleManageAutomationsModal();
   };
 
-  const onCreateWebhookSubmit = async ({
-    destination_url,
-    enable_vulnerabilities_webhook,
-  }: IWebhookSoftwareVulnerabilities) => {
+  const onCreateWebhookSubmit = async (
+    configSoftwareAutomations: ISoftwareAutomations
+  ) => {
     try {
-      const request = configAPI.update({
-        webhook_settings: {
-          vulnerabilities_webhook: {
-            destination_url,
-            enable_vulnerabilities_webhook,
-          },
-        },
-      });
+      const request = configAPI.update(configSoftwareAutomations);
       await request.then(() => {
-        dispatch(
-          renderFlash(
-            "success",
-            "Successfully updated vulnerability automations."
-          )
+        renderFlash(
+          "success",
+          "Successfully updated vulnerability automations."
         );
       });
     } catch {
-      dispatch(
-        renderFlash(
-          "error",
-          "Could not update vulnerability automations. Please try again."
-        )
+      renderFlash(
+        "error",
+        "Could not update vulnerability automations. Please try again."
       );
     } finally {
       toggleManageAutomationsModal();
       refetchSoftwareVulnerabilitiesWebhook();
-      // Config must be updated in both Redux and AppContext
-      dispatch(getConfig())
-        .then((configState: IConfig) => {
-          setConfig(configState);
-        })
-        .catch(() => false);
     }
   };
 
@@ -261,7 +280,8 @@ const ManageSoftwarePage = ({
     state: IHeaderButtonsState
   ): JSX.Element | null => {
     if (
-      (state.isGlobalAdmin || state.isGlobalMaintainer) &&
+      !softwareError &&
+      state.isGlobalAdmin &&
       (!state.isPremiumTier || state.teamId === 0) &&
       !state.isLoading
     ) {
@@ -391,7 +411,7 @@ const ManageSoftwarePage = ({
     return (
       <Dropdown
         value={filterVuln}
-        className={`${baseClass}__status_dropdown`}
+        className={`${baseClass}__vuln_dropdown`}
         options={VULNERABLE_DROPDOWN_OPTIONS}
         searchable={false}
         onChange={onVulnFilterChange}
@@ -435,49 +455,54 @@ const ManageSoftwarePage = ({
     <div className={baseClass}>
       <div className={`${baseClass}__wrapper body-wrap`}>
         {renderHeader()}
-        {softwareError && !isFetchingSoftware ? (
-          <TableDataError />
-        ) : (
-          <TableContainer
-            columns={softwareTableHeaders}
-            data={(isSoftwareEnabled && software?.software) || []}
-            isLoading={isFetchingSoftware || isFetchingCount}
-            resultsTitle={"software items"}
-            emptyComponent={() =>
-              EmptySoftware(
-                (!isSoftwareEnabled && "disabled") ||
-                  (isCollectingInventory && "collecting") ||
-                  "default"
-              )
-            }
-            defaultSortHeader={"hosts_count"}
-            defaultSortDirection={"desc"}
-            manualSortBy
-            pageSize={PAGE_SIZE}
-            showMarkAllPages={false}
-            isAllPagesSelected={false}
-            disableNextPage={isLastPage}
-            searchable
-            inputPlaceHolder="Search software by name or vulnerabilities (CVEs)"
-            onQueryChange={onQueryChange}
-            additionalQueries={filterVuln ? "vulnerable" : ""} // additionalQueries serves as a trigger
-            // for the useDeepEffect hook to fire onQueryChange for events happeing outside of
-            // the TableContainer
-            customControl={renderVulnFilterDropdown}
-            renderCount={renderSoftwareCount}
-            renderFooter={renderTableFooter}
-            disableActionButton
-            hideActionButton
-            highlightOnHover
-          />
-        )}
-
+        <div className={`${baseClass}__table`}>
+          {softwareError && !isFetchingSoftware ? (
+            <TableDataError />
+          ) : (
+            <TableContainer
+              columns={softwareTableHeaders}
+              data={(isSoftwareEnabled && software?.software) || []}
+              isLoading={isFetchingSoftware || isFetchingCount}
+              resultsTitle={"software items"}
+              emptyComponent={() =>
+                EmptySoftware(
+                  (!isSoftwareEnabled && "disabled") ||
+                    (isCollectingInventory && "collecting") ||
+                    "default"
+                )
+              }
+              defaultSortHeader={"hosts_count"}
+              defaultSortDirection={"desc"}
+              manualSortBy
+              pageSize={PAGE_SIZE}
+              showMarkAllPages={false}
+              isAllPagesSelected={false}
+              disableNextPage={isLastPage}
+              searchable
+              inputPlaceHolder="Search software by name or vulnerabilities (CVEs)"
+              onQueryChange={onQueryChange}
+              additionalQueries={filterVuln ? "vulnerable" : ""} // additionalQueries serves as a trigger
+              // for the useDeepEffect hook to fire onQueryChange for events happeing outside of
+              // the TableContainer
+              customControl={renderVulnFilterDropdown}
+              stackControls
+              renderCount={renderSoftwareCount}
+              renderFooter={renderTableFooter}
+              disableActionButton
+              hideActionButton
+              highlightOnHover
+            />
+          )}
+        </div>
         {showManageAutomationsModal && (
           <ManageAutomationsModal
             onCancel={toggleManageAutomationsModal}
             onCreateWebhookSubmit={onCreateWebhookSubmit}
             togglePreviewPayloadModal={togglePreviewPayloadModal}
             showPreviewPayloadModal={showPreviewPayloadModal}
+            softwareVulnerabilityAutomationEnabled={
+              isVulnerabilityAutomationsEnabled
+            }
             softwareVulnerabilityWebhookEnabled={
               softwareVulnerabilitiesWebhook &&
               softwareVulnerabilitiesWebhook.enable_vulnerabilities_webhook
@@ -487,6 +512,7 @@ const ManageSoftwarePage = ({
                 softwareVulnerabilitiesWebhook.destination_url) ||
               ""
             }
+            recentVulnerabilityMaxAge={recentVulnerabilityMaxAge}
           />
         )}
       </div>

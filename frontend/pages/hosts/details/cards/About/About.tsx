@@ -3,7 +3,7 @@ import React from "react";
 import ReactTooltip from "react-tooltip";
 
 import { IMDMData, IMunkiData, IDeviceUser } from "interfaces/host";
-import { humanHostUptime, humanHostEnrolled } from "fleet/helpers";
+import { humanHostUptime, humanHostEnrolled } from "utilities/helpers";
 
 const baseClass = "host-summary";
 
@@ -33,7 +33,7 @@ const About = ({
           <span className="info-grid__data">{aboutData.hardware_serial}</span>
         </div>
         <div className="info-grid__block">
-          <span className="info-grid__header">Internal IP address</span>
+          <span className="info-grid__header">Private IP address</span>
           <span className="info-grid__data">{aboutData.primary_ip}</span>
         </div>
         <div className="info-grid__block">
@@ -176,7 +176,7 @@ const About = ({
       <p className="section__header">About</p>
       <div className="info-grid">
         <div className="info-grid__block">
-          <span className="info-grid__header">First enrolled</span>
+          <span className="info-grid__header">Added to Fleet</span>
           <span className="info-grid__data">
             {wrapFleetHelper(humanHostEnrolled, aboutData.last_enrolled_at)}
           </span>

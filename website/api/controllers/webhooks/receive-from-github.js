@@ -54,6 +54,9 @@ module.exports = {
       'charlottechance',
       'timmy-k',
       'zwinnerman-fleetdm',
+      'hollidayn',
+      'juan-fdz-hawa',
+      'roperzh',
     ];
     let GITHUB_USERNAME_OF_DRI_FOR_LABELS = 'noahtalerman';// « Used below
 
@@ -121,7 +124,7 @@ module.exports = {
       //     `For help with questions about Sails, [click here](http://sailsjs.com/support).\n`;
       //   }
       // } else {
-      //   let wasReopenedByBot = GITHUB_USERNAMES_OF_BOTS_AND_MAINTAINERS.includes(sender.login);
+      //   let wasReopenedByBot = GITHUB_USERNAMES_OF_BOTS_AND_MAINTAINERS.includes(sender.login.toLowerCase());
       //   if (wasReopenedByBot) {
       //     newBotComment = '';// « checked below
       //   } else {
@@ -199,24 +202,37 @@ module.exports = {
         let isAutoApproved = await sails.helpers.flow.build(async()=>{
 
           let isSenderDRIForAllChangedPaths = false;
+          let isSenderMaintainer = GITHUB_USERNAMES_OF_BOTS_AND_MAINTAINERS.includes(sender.login.toLowerCase());
           let DRI_BY_PATH = {
             'README.md': 'mike-j-thomas',// (github brandfront)
-            'handbook': 'mikermcneil',// (default for handbook)
-            'handbook/README.md': 'mikermcneil',
+
+            'handbook': ['desmi-dizney', 'mike-j-thomas', 'mikermcneil'],// (default for handbook)
             'handbook/company.md': 'mikermcneil',
-            'handbook/people.md': 'eashaw',
+            'handbook/people.md': ['eashaw', 'mike-j-thomas'],
             'handbook/engineering.md': 'zwass',
             'handbook/product.md': 'noahtalerman',
             'handbook/security.md': 'guillaumeross',
+            'handbook/security-policies.md': 'guillaumeross',
             'handbook/brand.md': 'mike-j-thomas',
+            'handbook/growth.md': 'timmy-k',
             'handbook/customers.md': 'tgauda',
-            'handbook/community.md': 'mike-j-thomas',
-            'handbook/handbook.md': 'mike-j-thomas',
+            'handbook/community.md': ['dominuskelvin', 'ksatter'],
+            'handbook/README.md': '*',// (any fleetie can update this page)
+
             'website': 'mikermcneil',// (default for website)
             'website/views': 'eashaw',
             'website/assets': 'eashaw',
-            'website/config/routes.js': 'mike-j-thomas',
-            'docs': 'mike-j-thomas',
+            'website/config/routes.js': ['eashaw', 'mike-j-thomas'],// (for managing website URLs)
+
+            'docs': 'zwass',// (default for docs)
+            'docs/images': ['noahtalerman', 'eashaw', 'mike-j-thomas'],
+            'docs/Using-Fleet/REST-API.md': 'lukeheath',
+            'docs/Contributing/API-for-contributors.md': 'lukeheath',
+            'docs/Deploying/FAQ.md': ['ksatter', 'dominuskelvin'],
+            'docs/Contributing/FAQ.md': ['ksatter', 'dominuskelvin'],
+            'docs/Using-Fleet/FAQ.md': ['ksatter', 'dominuskelvin'],
+
+            'docs/01-Using-Fleet/standard-query-library/standard-query-library.yml': 'guillaumeross',// (standard query library)
           };
 
           // [?] https://docs.github.com/en/rest/reference/pulls#list-pull-requests-files
@@ -230,16 +246,19 @@ module.exports = {
 
             require('assert')(sender.login !== undefined);
             sails.log.verbose(`…checking DRI of changed path "${changedPath}"`);
-            if (sender.login === DRI_BY_PATH[changedPath]) {
+
+            let selfMergers = DRI_BY_PATH[changedPath] ? [].concat(DRI_BY_PATH[changedPath]) : [];// « ensure array
+            if (selfMergers.includes(sender.login.toLowerCase()) || (isSenderMaintainer && selfMergers.includes('*'))) {
               return true;
-            }
+            }//•
             let numRemainingPathsToCheck = changedPath.split('/').length;
             while (numRemainingPathsToCheck > 0) {
               let ancestralPath = changedPath.split('/').slice(0, -1 * numRemainingPathsToCheck).join('/');
               sails.log.verbose(`…checking DRI of ancestral path "${ancestralPath}" for changed path`);
-              if (sender.login === DRI_BY_PATH[ancestralPath]) {
+              let selfMergers = DRI_BY_PATH[ancestralPath] ? [].concat(DRI_BY_PATH[ancestralPath]) : [];// « ensure array
+              if (selfMergers.includes(sender.login.toLowerCase()) || (isSenderMaintainer && selfMergers.includes('*'))) {
                 return true;
-              }
+              }//•
               numRemainingPathsToCheck--;
             }//∞
           });//∞
@@ -251,13 +270,42 @@ module.exports = {
           }
         });
 
-        // Now, if appropriate, auto-approve the PR.
+        // Now, if appropriate, auto-approve the change.
         if (isAutoApproved) {
           // [?] https://docs.github.com/en/rest/reference/pulls#create-a-review-for-a-pull-request
           await sails.helpers.http.post(`https://api.github.com/repos/${owner}/${repo}/pulls/${prNumber}/reviews`, {
             event: 'APPROVE'
           }, baseHeaders);
         }
+
+        // And also unfreeze and re-freeze to temporarily allow merging.
+        // [?] https://github.com/fleetdm/fleet/issues/5179
+        // // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+        // > Temporarily disable re-freeze logic to troubleshoot website caching issues on 2022-05-03.
+        // > (very unlikely this is a culprit, but ruling out race conditions)
+        // > ~mikermcneil
+        // // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+        // if (isAutoApproved) {
+        //
+        //   let mergeFreezeReport = await sails.helpers.http.get('https://www.mergefreeze.com/api/branches/fleetdm/fleet/main', { access_token: sails.config.custom.mergeFreezeAccessToken });//eslint-disable-line camelcase
+        //   if (mergeFreezeReport.frozen) {
+        //     await sails.helpers.http.post('https://www.mergefreeze.com/api/branches/fleetdm/fleet/main', { frozen: false, access_token: sails.config.custom.mergeFreezeAccessToken, user_name: 'fleet-release' });//eslint-disable-line camelcase
+        //
+        //     // Then, in the background, 2 minutes later...
+        //     setTimeout(()=>{
+        //       sails.helpers.http.post('https://www.mergefreeze.com/api/branches/fleetdm/fleet/main', { frozen: true, access_token: sails.config.custom.mergeFreezeAccessToken, user_name: 'fleet-release' })//eslint-disable-line camelcase
+        //       .exec((err)=>{
+        //         if (err) {
+        //           sails.log.error('Background instruction failed: Unexpected error re-freezing repo (see https://github.com/fleetdm/fleet/issues/5179 for background):', err);
+        //         }
+        //         sails.log.info('Re-freeze completed successfully.');
+        //       });//_∏_
+        //     }, 2*60*1000);//_∏_
+        //   }//ﬁ
+        //
+        // }//ﬁ
+        // // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+
       }
     } else if (ghNoun === 'issue_comment' && ['created'].includes(action) && (issueOrPr&&issueOrPr.state === 'open')) {
       //   ██████╗ ██████╗ ███╗   ███╗███╗   ███╗███████╗███╗   ██╗████████╗
@@ -279,7 +327,7 @@ module.exports = {
       let repo = repository.name;
       let issueNumber = issueOrPr.number;
 
-      let wasPostedByBot = GITHUB_USERNAMES_OF_BOTS_AND_MAINTAINERS.includes(sender.login);
+      let wasPostedByBot = GITHUB_USERNAMES_OF_BOTS_AND_MAINTAINERS.includes(sender.login.toLowerCase());
       if (!wasPostedByBot) {
         let greenLabels = _.filter(issueOrPr.labels, ({color}) => color === GREEN_LABEL_COLOR);
         await sails.helpers.flow.simultaneouslyForEach(greenLabels, async(greenLabel)=>{
@@ -289,8 +337,8 @@ module.exports = {
     } else if (
       (ghNoun === 'issue_comment' && ['deleted'].includes(action) && !GITHUB_USERNAMES_OF_BOTS_AND_MAINTAINERS.includes(comment.user.login))||
       (ghNoun === 'commit_comment' && ['created'].includes(action) && !GITHUB_USERNAMES_OF_BOTS_AND_MAINTAINERS.includes(comment.user.login))||
-      (ghNoun === 'label' && ['created','edited','deleted'].includes(action) && GITHUB_USERNAME_OF_DRI_FOR_LABELS !== sender.login)||//« exempt label changes made by the directly responsible individual for labels, because otherwise when process changes/fiddlings happen, they can otherwise end up making too much noise in Slack
-      (ghNoun === 'issue_comment' && ['created'].includes(action) && issueOrPr.state !== 'open' && (issueOrPr.closed_at) && ((new Date(issueOrPr.closed_at)).getTime() < Date.now() - 7*24*60*60*1000 ) && !GITHUB_USERNAMES_OF_BOTS_AND_MAINTAINERS.includes(sender.login) )
+      (ghNoun === 'label' && false /* label change notifications temporarily disabled until digital experience team has time to clean up labels.  FUTURE: turn this back on after doing that cleanup to facilitate gradual ongoing maintenance and education rather than herculean cleanup efforts and retraining */ && ['created','edited','deleted'].includes(action) && GITHUB_USERNAME_OF_DRI_FOR_LABELS !== sender.login.toLowerCase())||//« exempt label changes made by the directly responsible individual for labels, because otherwise when process changes/fiddlings happen, they can otherwise end up making too much noise in Slack
+      (ghNoun === 'issue_comment' && ['created'].includes(action) && issueOrPr.state !== 'open' && (issueOrPr.closed_at) && ((new Date(issueOrPr.closed_at)).getTime() < Date.now() - 7*24*60*60*1000 ) && !GITHUB_USERNAMES_OF_BOTS_AND_MAINTAINERS.includes(sender.login.toLowerCase()) )
     ) {
       //  ██╗███╗   ██╗███████╗ ██████╗ ██████╗ ███╗   ███╗    ██╗   ██╗███████╗
       //  ██║████╗  ██║██╔════╝██╔═══██╗██╔══██╗████╗ ████║    ██║   ██║██╔════╝

@@ -7,6 +7,7 @@ import (
 	"io/ioutil"
 	"path/filepath"
 	"runtime"
+	"time"
 
 	"github.com/fleetdm/fleet/v4/orbit/pkg/packaging"
 	"github.com/rs/zerolog"
@@ -15,7 +16,10 @@ import (
 	"github.com/urfave/cli/v2"
 )
 
-var opt packaging.Options
+var (
+	opt               packaging.Options
+	disableOpenFolder bool
+)
 
 func packageCommand() *cli.Command {
 	return &cli.Command{
@@ -129,6 +133,17 @@ func packageCommand() *cli.Command {
 				Usage:       "Include the Fleet Desktop Application in the package",
 				Destination: &opt.Desktop,
 			},
+			&cli.DurationFlag{
+				Name:        "update-interval",
+				Usage:       "Interval that Orbit will use to check for new updates (10s, 1h, etc.)",
+				Value:       15 * time.Minute,
+				Destination: &opt.OrbitUpdateInterval,
+			},
+			&cli.BoolFlag{
+				Name:        "disable-open-folder",
+				Usage:       "Disable opening the folder at the end",
+				Destination: &disableOpenFolder,
+			},
 		},
 		Action: func(c *cli.Context) error {
 			if opt.FleetURL != "" || opt.EnrollSecret != "" {
@@ -184,7 +199,9 @@ To add this device to Fleet, double-click to open your installer.
 
 To add other devices to Fleet, distribute this installer using Chef, Ansible, Jamf, or Puppet. Learn how: https://fleetdm.com/docs/using-fleet/adding-hosts
 `, path)
-			open.Start(filepath.Dir(path))
+			if !disableOpenFolder {
+				open.Start(filepath.Dir(path))
+			}
 			return nil
 		},
 	}

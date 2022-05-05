@@ -7,7 +7,10 @@ go.mod @fleetdm/go
 /cmd/ @fleetdm/go
 
 # Infra/terraform
-*.tf @edwardsb
+*.tf @edwardsb @zwinnerman-fleetdm
+/infrastructure/ @zwinnerman-fleetdm @edwardsb
 
 # GitHub settings + actions
 /.github/ @zwass
+
+CHANGELOG.md @noahtalerman

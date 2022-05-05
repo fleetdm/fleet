@@ -1,6 +1,6 @@
 import React, { Component } from "react";
 import PropTypes from "prop-types";
-import { difference } from "lodash";
+import { difference, isEqual } from "lodash";
 import Select from "react-select";
 import "react-select/dist/react-select.css";
 import { v4 as uuidv4 } from "uuid";
@@ -22,6 +22,43 @@ class SelectTargetsInput extends Component {
     selectedTargets: PropTypes.arrayOf(targetInterface),
     targets: PropTypes.arrayOf(targetInterface),
   };
+
+  constructor(props) {
+    super(props);
+
+    this.state = {
+      uuidTargets: props.targets,
+      uuidSelectedTargets: props.selectedTargets,
+    };
+  }
+
+  // disable the eslint rule because it's the best way we can
+  // fix #4905 without rewriting code that will be replaced
+  // by the newer SelectTargets component soon.
+  /* eslint-disable react/no-did-update-set-state */
+  componentDidUpdate(prevProps) {
+    const { targets, selectedTargets } = this.props;
+
+    if (!isEqual(prevProps.targets, targets)) {
+      // must have unique key to select correctly
+      const uuidTargets = targets.map((target) => ({
+        ...target,
+        uuid: uuidv4(),
+      }));
+
+      this.setState({ uuidTargets });
+    }
+
+    if (!isEqual(prevProps.selectedTargets, selectedTargets)) {
+      // must have unique key to deselect correctly
+      const uuidSelectedTargets = selectedTargets.map((target) => ({
+        ...target,
+        uuid: uuidv4(),
+      }));
+
+      this.setState({ uuidSelectedTargets });
+    }
+  }
 
   filterOptions = (options) => {
     const { selectedTargets } = this.props;
@@ -47,23 +84,9 @@ class SelectTargetsInput extends Component {
       onOpen,
       onFocus,
       onTargetSelect,
-      selectedTargets,
-      targets,
     } = this.props;
-
+    const { uuidTargets, uuidSelectedTargets } = this.state;
     const { handleInputChange } = this;
-
-    // must have unique key to select correctly
-    const uuidTargets = targets.map((target) => ({
-      ...target,
-      uuid: uuidv4(),
-    }));
-
-    // must have unique key to deselect correctly
-    const uuidSelectedTargets = selectedTargets.map((target) => ({
-      ...target,
-      uuid: uuidv4(),
-    }));
 
     return (
       <Select
@@ -81,7 +104,7 @@ class SelectTargetsInput extends Component {
         onOpen={onOpen}
         onFocus={onFocus}
         onInputChange={handleInputChange}
-        placeholder="Label name, host name, IP address, etc."
+        placeholder="Label name, host name, private IP address, etc."
         resetValue={[]}
         scrollMenuIntoView={false}
         tabSelectsValue={false}

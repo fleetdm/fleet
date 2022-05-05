@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"encoding/pem"
 	"errors"
+	"fmt"
 	"io"
 	"net"
 	"net/url"
@@ -71,9 +72,6 @@ func getAppConfigEndpoint(ctx context.Context, request interface{}, svc fleet.Se
 	// only admin can see smtp, sso, and host expiry settings
 	if vc.User.GlobalRole != nil && *vc.User.GlobalRole == fleet.RoleAdmin {
 		smtpSettings = config.SMTPSettings
-		if smtpSettings.SMTPPassword != "" {
-			smtpSettings.SMTPPassword = "********"
-		}
 		ssoSettings = config.SSOSettings
 		hostExpirySettings = config.HostExpirySettings
 		agentOptions = config.AgentOptions
@@ -92,6 +90,7 @@ func getAppConfigEndpoint(ctx context.Context, request interface{}, svc fleet.Se
 			AgentOptions:       agentOptions,
 
 			WebhookSettings: config.WebhookSettings,
+			Integrations:    config.Integrations,
 		},
 		UpdateInterval:  updateIntervalConfig,
 		Vulnerabilities: vulnConfig,
@@ -108,7 +107,24 @@ func (svc *Service) AppConfig(ctx context.Context) (*fleet.AppConfig, error) {
 		}
 	}
 
-	return svc.ds.AppConfig(ctx)
+	ac, err := svc.ds.AppConfig(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	if ac.SMTPSettings.SMTPPassword != "" {
+		ac.SMTPSettings.SMTPPassword = "********"
+	}
+
+	for _, jiraIntegration := range ac.Integrations.Jira {
+		jiraIntegration.APIToken = "********"
+	}
+
+	for _, zdIntegration := range ac.Integrations.Zendesk {
+		zdIntegration.APIToken = "********"
+	}
+
+	return ac, nil
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -150,12 +166,38 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte) (*fleet.AppCo
 		return nil, err
 	}
 
-	appConfig, err := svc.AppConfig(ctx)
+	// we need the config from the datastore because API tokens are obfuscated at the service layer
+	// we will retrieve the obfuscated config before we return
+	appConfig, err := svc.ds.AppConfig(ctx)
 	if err != nil {
 		return nil, err
 	}
 
 	oldSmtpSettings := appConfig.SMTPSettings
+
+	storedJira := appConfig.Integrations.Jira
+	storedJiraByProjectKey := make(map[string]fleet.JiraIntegration)
+	if len(storedJira) > 0 {
+		for _, settings := range storedJira {
+			if _, ok := storedJiraByProjectKey[settings.ProjectKey]; ok {
+				// each jira integration must have unique project key
+				return nil, ctxerr.Wrap(ctx, fmt.Errorf("duplicate Jira integration for project key %s", settings.ProjectKey))
+			}
+			storedJiraByProjectKey[settings.ProjectKey] = *settings
+		}
+	}
+
+	storedZendesk := appConfig.Integrations.Zendesk
+	storedZendeskByGroupID := make(map[int64]fleet.ZendeskIntegration)
+	if len(storedZendesk) > 0 {
+		for _, settings := range storedZendesk {
+			if _, ok := storedZendeskByGroupID[settings.GroupID]; ok {
+				// each zendesk integration must have unique group id
+				return nil, ctxerr.Wrap(ctx, fmt.Errorf("duplicate Zendesk integration for group id %v", settings.GroupID))
+			}
+			storedZendeskByGroupID[settings.GroupID] = *settings
+		}
+	}
 
 	// TODO(mna): this ports the validations from the old validationMiddleware
 	// correctly, but this could be optimized so that we don't unmarshal the
@@ -165,6 +207,7 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte) (*fleet.AppCo
 	if err := json.Unmarshal(p, &newAppConfig); err != nil {
 		return nil, ctxerr.Wrap(ctx, err)
 	}
+
 	validateSSOSettings(newAppConfig, appConfig, invalid)
 	if invalid.HasErrors() {
 		return nil, ctxerr.Wrap(ctx, invalid)
@@ -174,7 +217,12 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte) (*fleet.AppCo
 	decoder := json.NewDecoder(bytes.NewReader(p))
 	decoder.DisallowUnknownFields()
 	if err := decoder.Decode(&appConfig); err != nil {
-		return nil, &badRequestError{message: err.Error()}
+		return nil, ctxerr.Wrap(ctx, &badRequestError{message: err.Error()})
+	}
+
+	validateVulnerabilitiesAutomation(appConfig, invalid)
+	if invalid.HasErrors() {
+		return nil, ctxerr.Wrap(ctx, invalid)
 	}
 
 	// ignore the values for SMTPEnabled and SMTPConfigured
@@ -185,7 +233,7 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte) (*fleet.AppCo
 	if appConfig.SMTPSettings.SMTPEnabled {
 		if oldSmtpSettings != appConfig.SMTPSettings || !appConfig.SMTPSettings.SMTPConfigured {
 			if err = svc.sendTestEmail(ctx, appConfig); err != nil {
-				return nil, err
+				return nil, ctxerr.Wrap(ctx, err)
 			}
 		}
 		appConfig.SMTPSettings.SMTPConfigured = true
@@ -193,10 +241,81 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte) (*fleet.AppCo
 		appConfig.SMTPSettings.SMTPConfigured = false
 	}
 
+	// if Jira integration settings are modified or added, test it.
+	var newJiraConfig []*fleet.JiraIntegration
+	newJiraByProjectKey := make(map[string]*fleet.JiraIntegration)
+	for i, new := range newAppConfig.Integrations.Jira {
+		// first check for project key uniqueness
+		if _, ok := newJiraByProjectKey[new.ProjectKey]; ok {
+			return nil, ctxerr.Wrap(ctx, &badRequestError{message: fmt.Sprintf("duplicate Jira integration for project key %s", new.ProjectKey)})
+		}
+		newJiraByProjectKey[new.ProjectKey] = new
+
+		// check if existing integration is being edited
+		if old, ok := storedJiraByProjectKey[new.ProjectKey]; ok {
+			if old == *new {
+				newJiraConfig = append(newJiraConfig, &old)
+				// no further validation for unchanged integration
+				continue
+			}
+			// use stored API token if request does not contain new token
+			if new.APIToken == "" || new.APIToken == "********" {
+				new.APIToken = old.APIToken
+			}
+		}
+
+		// new or updated, test it
+		if err := svc.makeTestJiraRequest(ctx, new); err != nil {
+			return nil, ctxerr.Wrapf(ctx, err, "Jira integration at index %d", i)
+		}
+		newJiraConfig = append(newJiraConfig, new)
+	}
+	appConfig.Integrations.Jira = newJiraConfig
+
+	// if Zendesk integration settings are modified or added, test it.
+	var newZendeskConfig []*fleet.ZendeskIntegration
+	newZendeskByGroupID := make(map[int64]*fleet.ZendeskIntegration)
+	for i, new := range newAppConfig.Integrations.Zendesk {
+		// first check for group id uniqueness
+		if _, ok := newZendeskByGroupID[new.GroupID]; ok {
+			return nil, ctxerr.Wrap(ctx, &badRequestError{message: fmt.Sprintf("duplicate Zendesk integration for group id %v", new.GroupID)})
+		}
+		newZendeskByGroupID[new.GroupID] = new
+
+		// check if existing integration is being edited
+		if old, ok := storedZendeskByGroupID[new.GroupID]; ok {
+			if old == *new {
+				newZendeskConfig = append(newZendeskConfig, &old)
+				// no further validation for unchanged integration
+				continue
+			}
+			// use stored API token if request does not contain new token
+			// intended only as a short-term accommodation for the frontend
+			// will be redesigned in dedicated endpoint for integration config
+			if new.APIToken == "" || new.APIToken == "********" {
+				new.APIToken = old.APIToken
+			}
+		}
+
+		// new or updated, test it
+		if err := svc.makeTestZendeskRequest(ctx, new); err != nil {
+			return nil, ctxerr.Wrapf(ctx, err, "Zendesk integration at index %d", i)
+		}
+		newZendeskConfig = append(newZendeskConfig, new)
+	}
+	appConfig.Integrations.Zendesk = newZendeskConfig
+
 	if err := svc.ds.SaveAppConfig(ctx, appConfig); err != nil {
 		return nil, err
 	}
-	return appConfig, nil
+
+	// retrieve new app config with obfuscated secrets
+	obfuscatedConfig, err := svc.AppConfig(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	return obfuscatedConfig, nil
 }
 
 func validateSSOSettings(p fleet.AppConfig, existing *fleet.AppConfig, invalid *fleet.InvalidArgumentError) {
@@ -223,6 +342,35 @@ func validateSSOSettings(p fleet.AppConfig, existing *fleet.AppConfig, invalid *
 				invalid.Append("idp_name", "required")
 			}
 		}
+	}
+}
+
+func validateVulnerabilitiesAutomation(merged *fleet.AppConfig, invalid *fleet.InvalidArgumentError) {
+	webhookEnabled := merged.WebhookSettings.VulnerabilitiesWebhook.Enable
+	var jiraEnabledCount int
+	for _, jira := range merged.Integrations.Jira {
+		if jira.EnableSoftwareVulnerabilities {
+			jiraEnabledCount++
+		}
+	}
+	var zendeskEnabledCount int
+	for _, zendesk := range merged.Integrations.Zendesk {
+		if zendesk.EnableSoftwareVulnerabilities {
+			zendeskEnabledCount++
+		}
+	}
+
+	if webhookEnabled && (jiraEnabledCount > 0 || zendeskEnabledCount > 0) {
+		invalid.Append("vulnerabilities", "cannot enable both webhook vulnerabilities and integration automations")
+	}
+	if jiraEnabledCount > 0 && zendeskEnabledCount > 0 {
+		invalid.Append("vulnerabilities", "cannot enable both jira integration and zendesk automations")
+	}
+	if jiraEnabledCount > 1 {
+		invalid.Append("vulnerabilities", "cannot enable more than one jira integration")
+	}
+	if zendeskEnabledCount > 1 {
+		invalid.Append("vulnerabilities", "cannot enable more than one zendesk integration")
 	}
 }
 

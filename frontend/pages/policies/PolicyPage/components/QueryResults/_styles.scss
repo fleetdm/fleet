@@ -45,11 +45,13 @@
       height: 13px;
       margin-left: 8px;
       position: relative;
-      top: -2px;
+      bottom: 2px;
     }
   }
 
   .table-container {
+    margin-top: 0;
+
     &__header {
       display: none;
     }
@@ -59,7 +61,7 @@
     overflow-x: scroll;
   }
 
-  .data-table-container .data-table thead th {
+  .data-table-block .data-table thead th {
     min-width: 140px;
     padding-left: 0px;
     padding-right: $pad-large;
@@ -70,7 +72,7 @@
     }
   }
 
-  .data-table-container .data-table tbody td {
+  .data-table-block .data-table tbody td {
     padding-left: 0px;
     padding-right: $pad-large;
 
@@ -79,10 +81,17 @@
     }
   }
 
+  &__results-table-header,
+  &__errors-table-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: $pad-xlarge;
+  }
+
   &__results-count,
   &__error-count {
     font-size: $x-small;
     font-weight: $bold;
-    margin-right: $pad-medium;
   }
 }

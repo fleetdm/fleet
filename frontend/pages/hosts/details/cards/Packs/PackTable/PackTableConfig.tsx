@@ -6,7 +6,7 @@ import {
   humanQueryLastRun,
   performanceIndicator,
   secondsToHms,
-} from "fleet/helpers";
+} from "utilities/helpers";
 
 import TextCell from "components/TableContainer/DataTable/TextCell";
 import PillCell from "components/TableContainer/DataTable/PillCell";
@@ -48,7 +48,7 @@ interface IDataColumn {
   disableSortBy?: boolean;
 }
 
-interface IPackTable extends IQueryStats {
+interface IPackTable extends Partial<IQueryStats> {
   frequency: string;
   last_run: string;
   performance: (string | number)[];
@@ -59,8 +59,8 @@ interface IPackTable extends IQueryStats {
 const generatePackTableHeaders = (): IDataColumn[] => {
   return [
     {
-      title: "Query name",
-      Header: "Query name",
+      title: "Query",
+      Header: "Query",
       disableSortBy: true,
       accessor: "query_name",
       Cell: (cellProps: ICellProps) => (
@@ -121,13 +121,7 @@ const enhancePackData = (query_stats: IQueryStats[]): IPackTable[] => {
       total_executions: query.executions,
     };
     return {
-      scheduled_query_name: query.scheduled_query_name,
-      scheduled_query_id: query.scheduled_query_id,
       query_name: query.query_name,
-      pack_name: query.pack_name,
-      pack_id: query.pack_id,
-      description: query.description,
-      interval: query.interval,
       last_executed: query.last_executed,
       frequency: secondsToHms(query.interval),
       last_run: humanQueryLastRun(query.last_executed),
@@ -135,17 +129,11 @@ const enhancePackData = (query_stats: IQueryStats[]): IPackTable[] => {
         performanceIndicator(scheduledQueryPerformance),
         query.scheduled_query_id || uniqueId(),
       ],
-      average_memory: query.average_memory,
-      denylisted: query.denylisted,
-      executions: query.executions,
-      system_time: query.system_time,
-      user_time: query.user_time,
     };
   });
 };
 
 const generatePackDataSet = (query_stats: IQueryStats[]): IPackTable[] => {
-  // Cannot pass undefined to enhancePackData
   if (!query_stats) {
     return query_stats;
   }

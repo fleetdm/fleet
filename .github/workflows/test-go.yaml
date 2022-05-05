@@ -14,13 +14,16 @@ on:
   schedule:
     - cron: '0 4 * * *'
 
+permissions:
+  contents: read
+
 jobs:
   test-go:
     strategy:
       matrix:
         os: [ubuntu-latest]
         go-version: ['^1.17.8']
-        mysql: ["mysql:5.7", "mysql:8"]
+        mysql: ["mysql:5.7.21", "mysql:8.0.28"]
     runs-on: ${{ matrix.os }}
 
     env:
@@ -29,7 +32,7 @@ jobs:
 
     steps:
     - name: Install Go
-      uses: actions/setup-go@bfdd3570ce990073878bf10f6b2d79082de49492 # v2
+      uses: actions/setup-go@f6164bd8c8acb4a71fb2791a8b6c4024ff038dab # v2
       with:
         go-version: ${{ matrix.go-version }}
 
@@ -61,7 +64,7 @@ jobs:
         NETWORK_TEST=1 REDIS_TEST=1 MYSQL_TEST=1 RACE_ENABLED=$RACE_ENABLED GO_TEST_TIMEOUT=$GO_TEST_TIMEOUT make test-go
 
     - name: Upload to Codecov
-      uses: codecov/codecov-action@f32b3a3741e1053eb607407145bc9619351dc93b # v2
+      uses: codecov/codecov-action@e3c560433a6cc60aec8812599b7844a7b4fa0d71
       with:
         files: coverage.txt
 
@@ -83,5 +86,5 @@ jobs:
             ]
           }
       env:
-        SLACK_WEBHOOK_URL: ${{ secrets.SLACK_CORE_ENGINEERING_WEBHOOK_URL }}
+        SLACK_WEBHOOK_URL: ${{ secrets.SLACK_G_PLATFORM_WEBHOOK_URL }}
         SLACK_WEBHOOK_TYPE: INCOMING_WEBHOOK

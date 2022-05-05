@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { useDeepEffect } from "utilities/hooks";
+import useDeepEffect from "hooks/useDeepEffect";
 
 import Button from "components/buttons/Button";
 

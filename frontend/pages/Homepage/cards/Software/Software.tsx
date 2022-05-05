@@ -1,17 +1,19 @@
-import React, { useState } from "react";
+import React, { useContext, useState } from "react";
 import { useQuery } from "react-query";
 import { Tab, Tabs, TabList, TabPanel } from "react-tabs";
 
+import { AppContext } from "context/app";
 import paths from "router/paths";
+import configAPI from "services/entities/config";
 import softwareAPI, { ISoftwareResponse } from "services/entities/software";
 
 import TabsWrapper from "components/TabsWrapper";
 import TableContainer, { ITableQueryData } from "components/TableContainer";
-import TableDataError from "components/TableDataError"; // TODO how do we handle errors? UI just keeps spinning?
-// @ts-ignore
+import TableDataError from "components/DataError"; // TODO how do we handle errors? UI just keeps spinning?
 import Spinner from "components/Spinner";
 import renderLastUpdatedText from "components/LastUpdatedText/LastUpdatedText";
 import generateTableHeaders from "./SoftwareTableConfig";
+import EmptySoftware from "../../../software/components/EmptySoftware";
 
 interface ISoftwareCardProps {
   currentTeamId?: number;
@@ -26,31 +28,6 @@ const DEFAULT_SORT_HEADER = "hosts_count";
 const PAGE_SIZE = 8;
 const baseClass = "home-software";
 
-const EmptySoftware = (message: string): JSX.Element => {
-  return (
-    <div className={`${baseClass}__empty-software`}>
-      <h1>
-        No installed software{" "}
-        {message === "vulnerable"
-          ? "with detected vulnerabilities"
-          : "detected"}
-        .
-      </h1>
-      <p>
-        Expecting to see software? Check out the Fleet documentation on{" "}
-        <a
-          href="https://fleetdm.com/docs/using-fleet/vulnerability-processing#configuration"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          how to configure software inventory
-        </a>
-        .
-      </p>
-    </div>
-  );
-};
-
 const Software = ({
   currentTeamId,
   showSoftwareUI,
@@ -60,6 +37,17 @@ const Software = ({
 }: ISoftwareCardProps): JSX.Element => {
   const [navTabIndex, setNavTabIndex] = useState<number>(0);
   const [pageIndex, setPageIndex] = useState<number>(0);
+  const [isSoftwareEnabled, setIsSoftwareEnabled] = useState<boolean>();
+
+  const { availableTeams, currentTeam, isOnGlobalTeam } = useContext(
+    AppContext
+  );
+
+  const { data: config } = useQuery(["config"], configAPI.loadAll, {
+    onSuccess: (data) => {
+      setIsSoftwareEnabled(data?.host_settings?.enable_software_inventory);
+    },
+  });
 
   const {
     data: software,
@@ -87,17 +75,34 @@ const Software = ({
         teamId: currentTeamId,
       }),
     {
+      enabled:
+        isOnGlobalTeam ||
+        !!availableTeams?.find((t) => t.id === currentTeam?.id),
       keepPreviousData: true,
-      staleTime: 30000, // TODO: Discuss a reasonable staleTime given that counts are only updated infrequently?
+      staleTime: 30000, // stale time can be adjusted if fresher data is desired based on software inventory interval
       onSuccess: (data) => {
         setShowSoftwareUI(true);
-        setTitleDetail &&
-          setTitleDetail(
-            renderLastUpdatedText(data.counts_updated_at, "software")
-          );
+        if (isSoftwareEnabled && data.software?.length !== 0) {
+          setTitleDetail &&
+            setTitleDetail(
+              renderLastUpdatedText(data.counts_updated_at, "software")
+            );
+        }
       },
     }
   );
+
+  // TODO: Rework after backend is adjusted to differentiate empty search/filter results from
+  // collecting inventory
+  const isCollectingInventory =
+    !currentTeamId &&
+    !pageIndex &&
+    !software?.software &&
+    software?.counts_updated_at === null;
+
+  if (isCollectingInventory) {
+    setTitleDetail && setTitleDetail("");
+  }
 
   // NOTE: this is called once on the initial rendering. The initial render of
   // the TableContainer child component will call this handler.
@@ -149,7 +154,13 @@ const Software = ({
                   defaultSortDirection={DEFAULT_SORT_DIRECTION}
                   hideActionButton
                   resultsTitle={"software"}
-                  emptyComponent={EmptySoftware}
+                  emptyComponent={() =>
+                    EmptySoftware(
+                      (!isSoftwareEnabled && "disabled") ||
+                        (isCollectingInventory && "collecting") ||
+                        "default"
+                    )
+                  }
                   showMarkAllPages={false}
                   isAllPagesSelected={false}
                   disableCount
@@ -160,22 +171,32 @@ const Software = ({
               )}
             </TabPanel>
             <TabPanel>
-              <TableContainer
-                columns={tableHeaders}
-                data={software?.software || []}
-                isLoading={isSoftwareFetching}
-                defaultSortHeader={DEFAULT_SORT_HEADER}
-                defaultSortDirection={DEFAULT_SORT_DIRECTION}
-                hideActionButton
-                resultsTitle={"software"}
-                emptyComponent={() => EmptySoftware("vulnerable")}
-                showMarkAllPages={false}
-                isAllPagesSelected={false}
-                disableCount
-                disableActionButton
-                pageSize={PAGE_SIZE}
-                onQueryChange={onQueryChange}
-              />
+              {!isSoftwareFetching && errorSoftware ? (
+                <TableDataError />
+              ) : (
+                <TableContainer
+                  columns={tableHeaders}
+                  data={software?.software || []}
+                  isLoading={isSoftwareFetching}
+                  defaultSortHeader={DEFAULT_SORT_HEADER}
+                  defaultSortDirection={DEFAULT_SORT_DIRECTION}
+                  hideActionButton
+                  resultsTitle={"software"}
+                  emptyComponent={() =>
+                    EmptySoftware(
+                      (!isSoftwareEnabled && "disabled") ||
+                        (isCollectingInventory && "collecting") ||
+                        "default"
+                    )
+                  }
+                  showMarkAllPages={false}
+                  isAllPagesSelected={false}
+                  disableCount
+                  disableActionButton
+                  pageSize={PAGE_SIZE}
+                  onQueryChange={onQueryChange}
+                />
+              )}
             </TabPanel>
           </Tabs>
         </TabsWrapper>

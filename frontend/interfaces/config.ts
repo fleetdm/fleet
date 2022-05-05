@@ -6,6 +6,7 @@ import {
   IWebhookSoftwareVulnerabilities,
 } from "interfaces/webhook";
 import PropTypes from "prop-types";
+import { IIntegrations } from "./integration";
 
 export default PropTypes.shape({
   org_name: PropTypes.string,
@@ -71,73 +72,6 @@ export default PropTypes.shape({
   }),
 });
 
-export interface IConfig {
-  org_name: string;
-  org_logo_url: string;
-  server_url: string;
-  live_query_disabled: boolean;
-  enable_analytics: boolean;
-  enable_smtp: boolean;
-  configured: boolean;
-  sender_address: string;
-  server: string;
-  port: number;
-  authentication_type: string;
-  user_name: string;
-  password: string;
-  enable_ssl_tls: boolean;
-  authentication_method: string;
-  domain: string;
-  verify_sll_certs: boolean;
-  enable_start_tls: boolean;
-  entity_id: string;
-  issuer_uri: string;
-  idp_image_url: string;
-  metadata: string;
-  metadata_url: string;
-  idp_name: string;
-  enable_sso: boolean;
-  enable_sso_idp_login: boolean;
-  host_expiry_enabled: boolean;
-  host_expiry_window: number;
-  agent_options: string;
-  osquery_detail: number;
-  osquery_policy: number;
-  tier: string;
-  organization: string;
-  device_count: number;
-  expiration: string;
-  note: string;
-  // vulnerability_settings: any; TODO
-  enable_host_status_webhook: boolean;
-  destination_url: string;
-  host_percentage: number;
-  days_count: number;
-  debug: boolean;
-  json: boolean;
-  result: {
-    plugin: string;
-    config: {
-      status_log_file: string;
-      result_log_file: string;
-      enable_log_rotation: boolean;
-      enable_log_compression: boolean;
-    };
-  };
-  status: {
-    plugin: string;
-    config: {
-      status_log_file: string;
-      result_log_file: string;
-      enable_log_rotation: boolean;
-      enable_log_compression: boolean;
-    };
-  };
-  webhook_settings: {
-    failing_policies_webhook: IWebhookFailingPolicies;
-  };
-}
-
 export interface IConfigFormData {
   smtpAuthenticationMethod: string;
   smtpAuthenticationType: string;
@@ -173,7 +107,7 @@ export interface IConfigFormData {
   enableUsageStatistics: boolean;
 }
 
-export interface IConfigNested {
+export interface IConfig {
   org_info: {
     org_name: string;
     org_logo_url: string;
@@ -235,6 +169,7 @@ export interface IConfigNested {
     cve_feed_prefix_url: string;
     current_instance_checks: string;
     disable_data_sync: boolean;
+    recent_vulnerability_max_age: number;
   };
   // Note: `vulnerability_settings` is deprecated and should not be used
   // vulnerability_settings: {
@@ -245,6 +180,7 @@ export interface IConfigNested {
     failing_policies_webhook: IWebhookFailingPolicies;
     vulnerabilities_webhook: IWebhookSoftwareVulnerabilities;
   };
+  integrations: IIntegrations;
   logging: {
     debug: boolean;
     json: boolean;

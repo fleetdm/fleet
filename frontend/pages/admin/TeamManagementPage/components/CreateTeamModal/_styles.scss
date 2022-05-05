@@ -6,14 +6,4 @@
   &__info-header {
     font-weight: $bold;
   }
-
-  &__btn-wrap {
-    display: flex;
-    flex-direction: row-reverse;
-    margin-top: $pad-xxlarge;
-  }
-
-  &__btn {
-    margin-left: 12px;
-  }
 }

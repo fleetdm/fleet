@@ -336,7 +336,8 @@ func newCluster(conf PoolConfig) (*redisc.Cluster, error) {
 }
 
 func isClusterDisabled(err error) bool {
-	return strings.Contains(err.Error(), "ERR This instance has cluster support disabled")
+	return strings.Contains(err.Error(), "ERR This instance has cluster support disabled") ||
+		strings.Contains(err.Error(), "NOPERM this user has no permissions to run the 'cluster' command")
 }
 
 // On GCP Memorystore the CLUSTER command is entirely unavailable and fails with

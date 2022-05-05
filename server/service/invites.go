@@ -191,16 +191,12 @@ func (svc *Service) UpdateInvite(ctx context.Context, id uint, payload fleet.Inv
 		return nil, err
 	}
 
-	if err := fleet.ValidateRole(payload.GlobalRole.Ptr(), payload.Teams); err != nil {
-		return nil, err
-	}
-
 	invite, err := svc.ds.Invite(ctx, id)
 	if err != nil {
 		return nil, err
 	}
 
-	if payload.Email != nil {
+	if payload.Email != nil && *payload.Email != invite.Email {
 		switch _, err := svc.ds.UserByEmail(ctx, *payload.Email); {
 		case err == nil:
 			return nil, ctxerr.Wrap(ctx, alreadyExistsError{})
@@ -230,8 +226,14 @@ func (svc *Service) UpdateInvite(ctx context.Context, id uint, payload fleet.Inv
 	if payload.SSOEnabled != nil {
 		invite.SSOEnabled = *payload.SSOEnabled
 	}
-	invite.GlobalRole = payload.GlobalRole
-	invite.Teams = payload.Teams
+
+	if payload.GlobalRole.Valid || len(payload.Teams) > 0 {
+		if err := fleet.ValidateRole(payload.GlobalRole.Ptr(), payload.Teams); err != nil {
+			return nil, err
+		}
+		invite.GlobalRole = payload.GlobalRole
+		invite.Teams = payload.Teams
+	}
 
 	return svc.ds.UpdateInvite(ctx, id, invite)
 }
