@@ -1,7 +1,5 @@
 package oval_parsed
 
-import "fmt"
-
 type DpkgInfoTest struct {
 	Objects       []string               `json:"os"`
 	States        []ObjectStateEvrString `json:"ss"`
@@ -38,7 +36,6 @@ func (t *DpkgInfoTest) matches(packages []HostPackage) (int, int) {
 				for _, s := range t.States {
 					r = append(r, s.Eval(p.Version, Rpmvercmp))
 				}
-				fmt.Println(r)
 				if t.StateOperator.Eval(r...) {
 					nState++
 				}
