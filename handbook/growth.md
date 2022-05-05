@@ -25,7 +25,7 @@ Posting to social media should follow a [personable tone](https://fleetdm.com/ha
 
 In keeping with our tone, use hashtags in line and only when it feels natural. If it feels forced, don’t include any.
 
-Self-promotional tweets are not ideal(Same goes for, to varying degrees, Reddit, HN, Quora, StackOverflow, LinkedIn, Slack, and almost anywhere else).  Also see: https://www.audible.com/pd/The-Impact-Equation-Audiobook/B00AR1VFBU
+Self-promotional tweets are not ideal(Same goes for, to varying degrees, Reddit, HN, Quora, StackOverflow, LinkedIn, Slack, and almost anywhere else).  Also see: [The Impact Equation](https://www.audible.com/pd/The-Impact-Equation-Audiobook/B00AR1VFBU) by Chris Brogan and Julien Smith.
 
 Great brands are [magnanimous](https://en.wikipedia.org/wiki/Magnanimity).
 
@@ -47,11 +47,11 @@ Once a blog post has been written, approved, and published, ensure that it is pr
 
 ## Press releases
 
-If we are doing a press release, we are probably pitching it to one or more reporters as an exclusive story if they choose to take it.  Consider not sharing or publicizing any information related to the upcoming press release before the announcement.  Also see: https://www.quora.com/What-is-a-press-exclusive-and-how-does-it-work
+If we are doing a press release, we are probably pitching it to one or more reporters as an exclusive story if they choose to take it.  Consider not sharing or publicizing any information related to the upcoming press release before the announcement.  Also see: [What is a press exclusive and how does it work](https://www.quora.com/What-is-a-press-exclusive-and-how-does-it-work) on Quora.
 
 ### Press release boilerplate
 
-Fleet gives teams fast, reliable access to data about the production servers, employee laptops, and other devices they manage - no matter the operating system. Users can search for any device data using SQL queries, making it faster to respond to incidents and automate IT. Fleet is also used to monitor vulnerabilities, battery health, and software. It can even monitor EDR and MDM tools like Crowdstrike, Munki, Jamf, and Carbon Black, to help confirm that those platforms are working how administrators think they are. Fleet is open source software. It's easy to get started quickly, easy to deploy, and it even comes with an enterprise-friendly free tier available under the MIT license.
+Fleet gives teams fast, reliable access to data about the production servers, employee laptops, and other devices they manage - no matter the operating system. Users can search for any device data using SQL queries, making it faster to respond to incidents and automate IT. Fleet is also used to monitor vulnerabilities, battery health, and software. It can even monitor endpoint detection and response and mobile device management tools like Crowdstrike, Munki, Jamf, and Carbon Black, to help confirm that those platforms are working how administrators think they are. Fleet is open source software. It's easy to get started quickly, easy to deploy, and it even comes with an enterprise-friendly free tier available under the MIT license.
 
 IT and security teams love Fleet because of its flexibility and conventions. Instead of secretly collecting as much data as possible, Fleet defaults to privacy and transparency, capturing only the data your organization needs to meet its compliance, security, and management goals, with clearly-defined, flexible limits.   
 
