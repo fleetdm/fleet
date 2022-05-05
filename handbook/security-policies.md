@@ -43,6 +43,22 @@ Fleet requires all workforce members to comply with the following acceptable use
 
 13. The use of Fleet company accounts on "shared" computers, such as hotel kiosk systems, is strictly prohibited.
 
+### Risk management policy
+*Created from [JupiterOne/security-policy-templates](https://github.com/JupiterOne/security-policy-templates). [CC BY-SA 4 license](https://creativecommons.org/licenses/by-sa/4.0/)*
+
+| Policy owner   | Effective date |
+| -------------- | -------------- |
+| @GuillaumeRoss | 2022-06-01     |
+
+Fleet policy requires that:
+
+1. A thorough risk assessment must be conducted to evaluate potential threats and vulnerabilities to the confidentiality, integrity, and availability of sensitive, confidential and proprietary electronic information Fleet stores, transmits, and/or processes.
+
+2. Risk assessments must be performed with any major change to Fleet's business or technical operations and/or supporting infrastructure, no less than once per year.
+
+3. Strategies shall be developed to mitigate or accept the risks identified in the risk assessment process.
+
+
 ### Secure software development and product security policy 
 *Created from [JupiterOne/security-policy-templates](https://github.com/JupiterOne/security-policy-templates). [CC BY-SA 4 license](https://creativecommons.org/licenses/by-sa/4.0/)*
 
@@ -200,6 +216,5 @@ Fleet policy requires that:
 1. automation with service accounts must be used to configure production systems when technically feasible.
 
 2. use of high privilege accounts must only be performed when absolutely necessary.
-
 
 <meta name="maintainedBy" value="guillaumeross">
