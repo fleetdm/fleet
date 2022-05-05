@@ -8,7 +8,7 @@ Internet/Intranet/Extranet-related systems, including but not limited to compute
 
 Effective security is a team effort involving the participation and support of every Fleet Device Management Inc employee or contractor who deals with information and/or information systems. It is the responsibility of every team member to read and understand this policy and conduct their activities accordingly.
 
-### Acceptable Use of End-user Computing
+### Acceptable use of end-user computing
 *Created from [JupiterOne/security-policy-templates](https://github.com/JupiterOne/security-policy-templates). [CC BY-SA 4 license](https://creativecommons.org/licenses/by-sa/4.0/)*
 
 | Policy owner   | Effective date |
@@ -43,6 +43,88 @@ Fleet requires all workforce members to comply with the following acceptable use
 
 13. The use of Fleet company accounts on "shared" computers, such as hotel kiosk systems, is strictly prohibited.
 
+### Risk management policy
+*Created from [JupiterOne/security-policy-templates](https://github.com/JupiterOne/security-policy-templates). [CC BY-SA 4 license](https://creativecommons.org/licenses/by-sa/4.0/)*
+
+| Policy owner   | Effective date |
+| -------------- | -------------- |
+| @GuillaumeRoss | 2022-06-01     |
+
+Fleet policy requires that:
+
+1. A thorough risk assessment must be conducted to evaluate potential threats and vulnerabilities to the confidentiality, integrity, and availability of sensitive, confidential and proprietary electronic information Fleet stores, transmits, and/or processes.
+
+2. Risk assessments must be performed with any major change to Fleet's business or technical operations and/or supporting infrastructure, no less than once per year.
+
+3. Strategies shall be developed to mitigate or accept the risks identified in the risk assessment process.
+
+
+### Secure software development and product security policy 
+*Created from [JupiterOne/security-policy-templates](https://github.com/JupiterOne/security-policy-templates). [CC BY-SA 4 license](https://creativecommons.org/licenses/by-sa/4.0/)*
+
+Fleet policy requires that:
+
+1. Fleet software engineering and product development is required to follow security best practices. Product should be "Secure by Design" and "Secure by Default".
+
+2. Quality assurance activities will be performed.  This may include
+
+  * peer code reviews prior to merging new code into the main development branch
+    (e.g. master branch); and
+  * thorough product testing before releasing to production (e.g. unit testing
+    and integration testing).
+
+3. Risk assessment activities (i.e. threat modeling) must be performed for a new product or major changes to an existing product.
+
+4. Security requirements must be defined, tracked, and implemented.
+
+5. Security analysis must be performed for any open source software and/or third-party components and dependencies included in Fleet software products.
+
+6. Static application security testing (SAST) must be performed throughout development and prior to each release.
+
+7. Dynamic application security testing (DAST) must be performed prior to each release.
+
+8. All critical or high severity security findings must be remediated prior to each release.
+
+9. All critical or high severity vulnerabilities discovered post release must be remediated in the next release or as per the Fleet vulnerability management policy SLAs, whichever is sooner.
+
+10. Any exception to the remediation of a finding must be documented and approved by the security team or CTO.
+
+### Human resources security policy
+*Created from [JupiterOne/security-policy-templates](https://github.com/JupiterOne/security-policy-templates). [CC BY-SA 4 license](https://creativecommons.org/licenses/by-sa/4.0/)*
+
+| Policy owner   | Effective date |
+| -------------- | -------------- |
+| @GuillaumeRoss | 2022-06-01     |
+
+
+Fleet is committed to ensuring all workforce members participate in security and compliance in their roles at Fleet. We encourage self-management and reward the right behaviors. 
+
+Fleet policy requires all workforce members to comply with the HR Security Policy.
+
+Fleet policy requires that:
+
+1. Background verification checks on candidates for employees and contractors with production access to the Fleet automatic updater service must be carried out in accordance with relevant laws, regulations and ethics, and proportional to the business requirements, the classification of the information to be accessed, and the perceived risk.
+
+2. Employees, contractors and third-party users must agree and sign the terms and conditions of their employment contract and comply with acceptable use.
+
+3. Employees will perform an onboarding process that familiarizes them with the environments, systems, security requirements, and procedures Fleet has in place. Employees will also have ongoing security awareness training that is audited.
+
+4. Employee offboarding will include reiterating any duties and responsibilities still valid after terminations, verifying that access to any Fleet systems has been removed, and ensuring that all company-owned assets are returned.
+
+5. Fleet and its employees will take reasonable measures to ensure no sensitive data is transmitted via digital communications such as email or posted on social media outlets.
+
+6. Fleet will maintain a list of prohibited activities that will be part of onboarding procedures and have training available if/when the list of those activities changes.
+
+7. A fair disciplinary process will be used for employees that are suspected of committing breaches of security. Multiple factors will be considered when deciding the response, such as whether or not this was a first offense, training, business contracts, etc. Fleet reserves the right to terminate employees in the case of serious cases of misconduct.
+
+8. Fleet will maintain a reporting structure that aligns with the organization's business lines and/or individual's functional roles. The list of employees and reporting structure must be available to [all employees](https://docs.google.com/spreadsheets/d/1OSLn-ZCbGSjPusHPiR5dwQhheH1K8-xqyZdsOe9y7qc/edit#gid=0).
+
+9. Employees will receive regular feedback and acknowledgment from their managers and peers. Managers will give constant feedback on performance, including but not limited to during regular one-on-one meetings.
+
+10. Fleet will publish job descriptions for available positions and conducts interviews to assess a candidate's technical skills as well as soft skills prior to hiring.
+
+11. Background checks of an employee or contractor must be performed by operations and/or the hiring team prior to the start date of employment.
+ 
 ### Encryption policy
 *Created from [JupiterOne/security-policy-templates](https://github.com/JupiterOne/security-policy-templates). [CC BY-SA 4 license](https://creativecommons.org/licenses/by-sa/4.0/)*
 
@@ -134,6 +216,5 @@ Fleet policy requires that:
 1. automation with service accounts must be used to configure production systems when technically feasible.
 
 2. use of high privilege accounts must only be performed when absolutely necessary.
-
 
 <meta name="maintainedBy" value="guillaumeross">

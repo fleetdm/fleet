@@ -82,6 +82,8 @@ const IntegrationsPage = (): JSX.Element => {
             return { ...integration, index };
           });
           setIntegrationsIndexed(addIndex);
+        } else {
+          setIntegrationsIndexed([]);
         }
       },
     }
@@ -195,6 +197,7 @@ const IntegrationsPage = (): JSX.Element => {
               Successfully deleted <b>{integrationEditing.url}</b>
             </>
           );
+          refetchIntegrations();
         })
         .catch(() => {
           renderFlash(
@@ -206,7 +209,6 @@ const IntegrationsPage = (): JSX.Element => {
           );
         })
         .finally(() => {
-          refetchIntegrations();
           toggleDeleteIntegrationModal();
         });
     }
