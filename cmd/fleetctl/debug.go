@@ -356,7 +356,7 @@ func debugArchiveCommand() *cli.Command {
 			fmt.Fprintf(os.Stderr, "################################################################################\n"+
 				"# WARNING:\n"+
 				"#   The files in the generated archive may contain sensitive data.\n"+
-				"#   Please redact them before sharing.\n"+
+				"#   Please review them before sharing.\n"+
 				"#\n"+
 				"#   Archive written to: %s\n"+
 				"################################################################################\n",
@@ -585,7 +585,7 @@ func debugErrorsCommand() *cli.Command {
 				fmt.Fprintf(os.Stderr, "################################################################################\n"+
 					"# WARNING:\n"+
 					"#   The generated file may contain sensitive data.\n"+
-					"#   Please redact the file before sharing.\n"+
+					"#   Please review the file before sharing.\n"+
 					"#\n"+
 					"#   Output written to: %s\n"+
 					"################################################################################\n",
