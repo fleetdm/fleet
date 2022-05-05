@@ -43,10 +43,6 @@ const Sso = ({ appConfig, handleSubmit }: IAppConfigFormProps): JSX.Element => {
     setFormData({ ...formData, [name]: value });
   };
 
-  useEffect(() => {
-    validateForm();
-  }, [enableSSO]);
-
   const validateForm = () => {
     const errors: IAppConfigFormErrors = {};
 
@@ -74,6 +70,10 @@ const Sso = ({ appConfig, handleSubmit }: IAppConfigFormProps): JSX.Element => {
 
     setFormErrors(errors);
   };
+
+  useEffect(() => {
+    validateForm();
+  }, [enableSSO]);
 
   const onFormSubmit = (evt: React.MouseEvent<HTMLFormElement>) => {
     evt.preventDefault();

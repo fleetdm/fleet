@@ -54,10 +54,6 @@ const Smtp = ({
     setFormData({ ...formData, [name]: value });
   };
 
-  useEffect(() => {
-    validateForm();
-  }, [smtpAuthenticationType]);
-
   const validateForm = () => {
     const errors: IAppConfigFormErrors = {};
 
@@ -91,6 +87,10 @@ const Smtp = ({
 
     setFormErrors(errors);
   };
+
+  useEffect(() => {
+    validateForm();
+  }, [smtpAuthenticationType]);
 
   const onFormSubmit = (evt: React.MouseEvent<HTMLFormElement>) => {
     evt.preventDefault();

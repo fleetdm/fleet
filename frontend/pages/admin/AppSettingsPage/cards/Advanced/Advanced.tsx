@@ -42,10 +42,6 @@ const Advanced = ({
     setFormData({ ...formData, [name]: value });
   };
 
-  useEffect(() => {
-    validateForm();
-  }, [enableHostExpiry]);
-
   const validateForm = () => {
     const errors: IAppConfigFormErrors = {};
 
@@ -58,6 +54,10 @@ const Advanced = ({
 
     setFormErrors(errors);
   };
+
+  useEffect(() => {
+    validateForm();
+  }, [enableHostExpiry]);
 
   const onFormSubmit = (evt: React.MouseEvent<HTMLFormElement>) => {
     evt.preventDefault();
