@@ -34,7 +34,7 @@ func (s *schedule) getConfigInterval() time.Duration {
 	return s.configInterval
 }
 
-func (s *schedule) setConfigInterval(interval time.Duration) {
+func (s *schedule) SetConfigInterval(interval time.Duration) {
 	s.muChecks.Lock()
 	defer s.muChecks.Unlock()
 	s.configInterval = interval
@@ -176,7 +176,6 @@ func (s *schedule) run() {
 				}
 
 				newInterval, err := s.configCheck(currStart, currWait)
-
 				if err != nil {
 					level.Error(s.Logger).Log("config", "could not check for updates to schedule interval", "err", err)
 					sentry.CaptureException(err)

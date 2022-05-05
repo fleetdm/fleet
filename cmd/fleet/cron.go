@@ -2,12 +2,14 @@ package main
 
 import (
 	"context"
-	"errors"
+	"encoding/json"
+	"fmt"
 	"os"
 	"strconv"
 	"strings"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/server"
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/service/externalsvc"
@@ -19,105 +21,128 @@ import (
 	"github.com/go-kit/kit/log/level"
 )
 
-func cronDB(ctx context.Context, ds fleet.Datastore, logger kitlog.Logger, identifier string, license *fleet.LicenseInfo) {
-	logger = kitlog.With(logger, "cron", lockKeyLeader)
-
-	ticker := time.NewTicker(10 * time.Second)
-	for {
-		level.Debug(logger).Log("waiting", "on ticker")
-		select {
-		case <-ticker.C:
-			level.Debug(logger).Log("waiting", "done")
-			ticker.Reset(1 * time.Hour)
-		case <-ctx.Done():
-			level.Debug(logger).Log("exit", "done with cron.")
-			return
-		}
-
-		if locked, err := ds.Lock(ctx, lockKeyLeader, identifier, 1*time.Hour); err != nil {
-			level.Error(logger).Log("msg", "Error acquiring lock", "err", err)
-			continue
-		} else if !locked {
-			level.Debug(logger).Log("msg", "Not the leader. Skipping...")
-			continue
-		}
-
-		_, err := ds.CleanupDistributedQueryCampaigns(ctx, time.Now())
-		if err != nil {
-			level.Error(logger).Log("err", "cleaning distributed query campaigns", "details", err)
-			sentry.CaptureException(err)
-		}
-		err = ds.CleanupIncomingHosts(ctx, time.Now())
-		if err != nil {
-			level.Error(logger).Log("err", "cleaning incoming hosts", "details", err)
-			sentry.CaptureException(err)
-		}
-		_, err = ds.CleanupCarves(ctx, time.Now())
-		if err != nil {
-			level.Error(logger).Log("err", "cleaning carves", "details", err)
-			sentry.CaptureException(err)
-		}
-		err = ds.UpdateQueryAggregatedStats(ctx)
-		if err != nil {
-			level.Error(logger).Log("err", "aggregating query stats", "details", err)
-			sentry.CaptureException(err)
-		}
-		err = ds.UpdateScheduledQueryAggregatedStats(ctx)
-		if err != nil {
-			level.Error(logger).Log("err", "aggregating scheduled query stats", "details", err)
-			sentry.CaptureException(err)
-		}
-		err = ds.CleanupExpiredHosts(ctx)
-		if err != nil {
-			level.Error(logger).Log("err", "cleaning expired hosts", "details", err)
-			sentry.CaptureException(err)
-		}
-		err = ds.GenerateAggregatedMunkiAndMDM(ctx)
-		if err != nil {
-			level.Error(logger).Log("err", "aggregating munki and mdm data", "details", err)
-			sentry.CaptureException(err)
-		}
-		err = ds.CleanupPolicyMembership(ctx, time.Now())
-		if err != nil {
-			level.Error(logger).Log("err", "cleanup policy membership", "details", err)
-			sentry.CaptureException(err)
-		}
-		err = ds.UpdateOSVersions(ctx)
-		if err != nil {
-			level.Error(logger).Log("err", "update os versions", "details", err)
-			sentry.CaptureException(err)
-		}
-
-		// NOTE(mna): this is not a route from the fleet server (not in server/service/handler.go) so it
-		// will not automatically support the /latest/ versioning. Leaving it as /v1/ for that reason.
-		err = trySendStatistics(ctx, ds, fleet.StatisticsFrequency, "https://fleetdm.com/api/v1/webhooks/receive-usage-analytics", license)
-		if err != nil {
-			level.Error(logger).Log("err", "sending statistics", "details", err)
-			sentry.CaptureException(err)
-		}
-
-		level.Debug(logger).Log("loop", "done")
-	}
+type cleanupsJobStats struct {
+	StartedAt        time.Time `json:"started_at" db:"started_at"`
+	CompletedAt      time.Time `json:"completed_at" db:"completed_at"`
+	TotalRunTime     string    `json:"total_run_time" db:"total_run_time"`
+	ExpiredCampaigns uint      `json:"expired_campaigns" db:"expired_campaigns"`
+	ExpiredCarves    int       `json:"expired_carves" db:"expired_carves"`
 }
 
-func cronVulnerabilities(
-	ctx context.Context,
-	ds fleet.Datastore,
-	logger kitlog.Logger,
-	identifier string,
-	config config.FleetConfig,
-) {
-	logger = kitlog.With(logger, "cron", lockKeyVulnerabilities)
+func cronDB(ctx context.Context, ds fleet.Datastore, logger kitlog.Logger, license *fleet.LicenseInfo) (interface{}, error) {
+	stats := make(map[string]string)
+	startedAt := time.Now()
+
+	expiredCampaigns, err := ds.CleanupDistributedQueryCampaigns(ctx, time.Now())
+	if err != nil {
+		level.Error(logger).Log("err", "cleaning distributed query campaigns", "details", err)
+		sentry.CaptureException(err)
+	}
+	err = ds.CleanupIncomingHosts(ctx, time.Now())
+	if err != nil {
+		level.Error(logger).Log("err", "cleaning incoming hosts", "details", err)
+		sentry.CaptureException(err)
+	}
+	expiredCarves, err := ds.CleanupCarves(ctx, time.Now())
+	if err != nil {
+		level.Error(logger).Log("err", "cleaning carves", "details", err)
+		sentry.CaptureException(err)
+	}
+	err = ds.UpdateQueryAggregatedStats(ctx)
+	if err != nil {
+		level.Error(logger).Log("err", "aggregating query stats", "details", err)
+		sentry.CaptureException(err)
+	}
+	err = ds.UpdateScheduledQueryAggregatedStats(ctx)
+	if err != nil {
+		level.Error(logger).Log("err", "aggregating scheduled query stats", "details", err)
+		sentry.CaptureException(err)
+	}
+	err = ds.CleanupExpiredHosts(ctx)
+	if err != nil {
+		level.Error(logger).Log("err", "cleaning expired hosts", "details", err)
+		sentry.CaptureException(err)
+	}
+	err = ds.GenerateAggregatedMunkiAndMDM(ctx)
+	if err != nil {
+		level.Error(logger).Log("err", "aggregating munki and mdm data", "details", err)
+		sentry.CaptureException(err)
+	}
+	err = ds.CleanupPolicyMembership(ctx, time.Now())
+	if err != nil {
+		level.Error(logger).Log("err", "cleanup policy membership", "details", err)
+		sentry.CaptureException(err)
+	}
+
+	err = trySendStatistics(ctx, ds, fleet.StatisticsFrequency, "https://fleetdm.com/api/v1/webhooks/receive-usage-analytics", license)
+	if err != nil {
+		level.Error(logger).Log("err", "sending statistics", "details", err)
+		sentry.CaptureException(err)
+	}
+
+	level.Debug(logger).Log("loop", "done")
+
+	jobStats := &cleanupsJobStats{
+		StartedAt:        startedAt,
+		CompletedAt:      time.Now(),
+		TotalRunTime:     fmt.Sprint(time.Now().Sub(startedAt)),
+		ExpiredCampaigns: expiredCampaigns,
+		ExpiredCarves:    expiredCarves,
+	}
+	statsData, err := json.Marshal(jobStats)
+	if err != nil {
+		level.Error(logger).Log("msg", "marshalling cleanups job stats", "err", err)
+		sentry.CaptureException(err)
+	}
+	stats["do_cleanups"] = string(statsData)
+
+	return stats, nil // TODO: how should we handle stats/errors here?
+}
+
+func trySendStatistics(ctx context.Context, ds fleet.Datastore, frequency time.Duration, url string, license *fleet.LicenseInfo) error {
+	ac, err := ds.AppConfig(ctx)
+	if err != nil {
+		return err
+	}
+	if !ac.ServerSettings.EnableAnalytics {
+		return nil
+	}
+
+	stats, shouldSend, err := ds.ShouldSendStatistics(ctx, frequency, license)
+	if err != nil {
+		return err
+	}
+	if !shouldSend {
+		return nil
+	}
+
+	err = server.PostJSONWithTimeout(ctx, url, stats)
+	if err != nil {
+		return err
+	}
+
+	return ds.RecordStatisticsSent(ctx)
+}
+
+type vulnerabilitiesJobStats struct {
+	StartedAt    time.Time `json:"started_at" db:"started_at"`
+	CompletedAt  time.Time `json:"completed_at" db:"completed_at"`
+	TotalRunTime string    `json:"total_run_time" db:"total_run_time"`
+}
+
+func cronVulnerabilities(ctx context.Context, ds fleet.Datastore, logger kitlog.Logger, config config.FleetConfig) (interface{}, error) {
+	stats := make(map[string]string)
+	startedAt := time.Now()
 
 	if config.Vulnerabilities.CurrentInstanceChecks == "no" || config.Vulnerabilities.CurrentInstanceChecks == "0" {
 		level.Info(logger).Log("vulnerability scanning", "host not configured to check for vulnerabilities")
-		return
+		return stats, nil // TODO: how should we handle stats/errors here?
 	}
 
 	appConfig, err := ds.AppConfig(ctx)
 	if err != nil {
 		level.Error(logger).Log("config", "couldn't read app config", "err", err)
-		return
+		return stats, nil // TODO: how should we handle stats/errors here?
 	}
 
 	vulnDisabled := false
@@ -128,7 +153,7 @@ func cronVulnerabilities(
 	}
 	if !appConfig.HostSettings.EnableSoftwareInventory {
 		level.Info(logger).Log("software inventory", "not configured")
-		return
+		return stats, nil // TODO: how should we handle stats/errors here?
 	}
 
 	vulnPath := appConfig.VulnerabilitySettings.DatabasesPath
@@ -153,142 +178,60 @@ func cronVulnerabilities(
 			err := os.MkdirAll(vulnPath, 0o755)
 			if err != nil {
 				level.Error(logger).Log("databases-path", "creation failed, returning", "err", err)
-				return
+				sentry.CaptureException(err)
+				return stats, err // TODO: how should we handle stats/errors here?
 			}
 		}
 	}
 
-	ticker := time.NewTicker(10 * time.Second)
-	for {
-		level.Debug(logger).Log("waiting", "on ticker")
-		select {
-		case <-ticker.C:
-			level.Debug(logger).Log("waiting", "done")
-			ticker.Reset(config.Vulnerabilities.Periodicity)
-		case <-ctx.Done():
-			level.Debug(logger).Log("exit", "done with cron.")
-			return
-		}
-		if config.Vulnerabilities.CurrentInstanceChecks == "auto" {
-			if locked, err := ds.Lock(ctx, lockKeyVulnerabilities, identifier, 1*time.Hour); err != nil {
-				level.Error(logger).Log("msg", "Error acquiring lock", "err", err)
+	if !vulnDisabled {
+		level.Debug(logger).Log("vulnerabilities", "checking for recent vulnerabilities")
+		level.Debug(logger).Log("vuln-path", vulnPath)
+		recentVulns := checkVulnerabilities(ctx, ds, logger, vulnPath, config, appConfig.WebhookSettings.VulnerabilitiesWebhook)
+		if len(recentVulns) > 0 {
+			if err := webhooks.TriggerVulnerabilitiesWebhook(ctx, ds, kitlog.With(logger, "webhook", "vulnerabilities"),
+				recentVulns, appConfig, time.Now()); err != nil {
+
+				level.Error(logger).Log("err", "triggering vulnerabilities webhook", "details", err)
 				sentry.CaptureException(err)
-				continue
-			} else if !locked {
-				level.Debug(logger).Log("msg", "Not the leader. Skipping...")
-				continue
 			}
 		}
+	}
 
-		if !vulnDisabled {
-			// refresh app config to check if webhook or any jira integration is
-			// enabled, as this can be changed dynamically.
-			if freshAppConfig, err := ds.AppConfig(ctx); err != nil {
-				level.Error(logger).Log("config", "couldn't refresh app config", "err", err)
-				sentry.CaptureException(err)
-				// continue with stale app config
-			} else {
-				appConfig = freshAppConfig
-			}
+	if err := ds.CalculateHostsPerSoftware(ctx, time.Now()); err != nil {
+		level.Error(logger).Log("msg", "calculating hosts count per software", "err", err)
+		sentry.CaptureException(err)
+	}
 
-			var vulnAutomationEnabled string
-
-			// only one vuln automation (i.e. webhook or integration) can be enabled at a
-			// time, enforced when updating the appconfig.
-			if appConfig.WebhookSettings.VulnerabilitiesWebhook.Enable {
-				vulnAutomationEnabled = "webhook"
-			}
-			// check for jira integrations
-			for _, j := range appConfig.Integrations.Jira {
-				if j.EnableSoftwareVulnerabilities {
-					if vulnAutomationEnabled != "" {
-						err := errors.New("more than one automation enabled: jira check")
-						level.Error(logger).Log("err", err)
-						sentry.CaptureException(err)
-					}
-					vulnAutomationEnabled = "jira"
-					break
-				}
-			}
-			// check for zendesk integrations
-			for _, z := range appConfig.Integrations.Zendesk {
-				if z.EnableSoftwareVulnerabilities {
-					if vulnAutomationEnabled != "" {
-						err := errors.New("more than one automation enabled: zendesk check")
-						level.Error(logger).Log("err", err)
-						sentry.CaptureException(err)
-					}
-					vulnAutomationEnabled = "zendesk"
-					break
-				}
-			}
-			level.Debug(logger).Log("vulnAutomationEnabled", vulnAutomationEnabled)
-
-			recentVulns := checkVulnerabilities(ctx, ds, logger, vulnPath, config, (vulnAutomationEnabled != ""))
-			if len(recentVulns) > 0 {
-				switch vulnAutomationEnabled {
-				case "webhook":
-					// send recent vulnerabilities via webhook
-					if err := webhooks.TriggerVulnerabilitiesWebhook(ctx, ds, kitlog.With(logger, "webhook", "vulnerabilities"),
-						recentVulns, appConfig, time.Now()); err != nil {
-
-						level.Error(logger).Log("err", "triggering vulnerabilities webhook", "details", err)
-						sentry.CaptureException(err)
-					}
-
-				case "jira":
-					// queue job to create jira issues
-					if err := worker.QueueJiraJobs(
-						ctx,
-						ds,
-						kitlog.With(logger, "jira", "vulnerabilities"),
-						recentVulns,
-					); err != nil {
-						level.Error(logger).Log("err", "queueing vulnerabilities to jira", "details", err)
-						sentry.CaptureException(err)
-					}
-
-				case "zendesk":
-					// queue job to create zendesk ticket
-					if err := worker.QueueZendeskJobs(
-						ctx,
-						ds,
-						kitlog.With(logger, "zendesk", "vulnerabilities"),
-						recentVulns,
-					); err != nil {
-						level.Error(logger).Log("err", "queueing vulnerabilities to zendesk", "details", err)
-						sentry.CaptureException(err)
-					}
-
-				default:
-					err = errors.New("no vuln automations enabled")
-					level.Error(logger).Log("err", "attempting to process vuln automations", err)
-					sentry.CaptureException(err)
-				}
-			}
-		}
-
-		if err := ds.CalculateHostsPerSoftware(ctx, time.Now()); err != nil {
-			level.Error(logger).Log("msg", "calculating hosts count per software", "err", err)
+	// It's important vulnerabilities.PostProcess runs after ds.CalculateHostsPerSoftware
+	// because it cleans up any software that's not installed on the fleet (e.g. hosts removal,
+	// or software being uninstalled on hosts).
+	if !vulnDisabled {
+		if err := vulnerabilities.PostProcess(ctx, ds, vulnPath, logger, config); err != nil {
+			level.Error(logger).Log("msg", "post processing CVEs", "err", err)
 			sentry.CaptureException(err)
 		}
-
-		// It's important vulnerabilities.PostProcess runs after ds.CalculateHostsPerSoftware
-		// because it cleans up any software that's not installed on the fleet (e.g. hosts removal,
-		// or software being uninstalled on hosts).
-		if !vulnDisabled {
-			if err := vulnerabilities.PostProcess(ctx, ds, vulnPath, logger, config); err != nil {
-				level.Error(logger).Log("msg", "post processing CVEs", "err", err)
-				sentry.CaptureException(err)
-			}
-		}
-
-		level.Debug(logger).Log("loop", "done")
 	}
+
+	level.Debug(logger).Log("vulnerabilities", "done")
+
+	jobStats := &vulnerabilitiesJobStats{
+		StartedAt:    startedAt,
+		CompletedAt:  time.Now(),
+		TotalRunTime: fmt.Sprint(time.Now().Sub(startedAt)),
+	}
+	statsData, err := json.Marshal(jobStats)
+	if err != nil {
+		level.Error(logger).Log("msg", "marshalling asyncVuln job stats", "err", err)
+		sentry.CaptureException(err)
+	}
+	stats["do_async_vuln"] = string(statsData)
+
+	return stats, nil // TODO: how should we handle stats/errors here?
 }
 
 func checkVulnerabilities(ctx context.Context, ds fleet.Datastore, logger kitlog.Logger,
-	vulnPath string, config config.FleetConfig, collectRecentVulns bool,
+	vulnPath string, config config.FleetConfig, vulnWebhookCfg fleet.VulnerabilitiesWebhookSettings,
 ) map[string][]string {
 	err := vulnerabilities.TranslateSoftwareToCPE(ctx, ds, vulnPath, logger, config)
 	if err != nil {
@@ -297,7 +240,7 @@ func checkVulnerabilities(ctx context.Context, ds fleet.Datastore, logger kitlog
 		return nil
 	}
 
-	recentVulns, err := vulnerabilities.TranslateCPEToCVE(ctx, ds, vulnPath, logger, config, collectRecentVulns)
+	recentVulns, err := vulnerabilities.TranslateCPEToCVE(ctx, ds, vulnPath, logger, config, vulnWebhookCfg.Enable)
 	if err != nil {
 		level.Error(logger).Log("msg", "analyzing vulnerable software: CPE->CVE", "err", err)
 		sentry.CaptureException(err)
@@ -310,56 +253,33 @@ func cronWebhooks(
 	ctx context.Context,
 	ds fleet.Datastore,
 	logger kitlog.Logger,
-	identifier string,
 	failingPoliciesSet fleet.FailingPolicySet,
-	intervalReload time.Duration,
-) {
+) (interface{}, error) {
+	stats := make(map[string]string)
+
 	appConfig, err := ds.AppConfig(ctx)
 	if err != nil {
 		level.Error(logger).Log("config", "couldn't read app config", "err", err)
-		return
+		return nil, err // TODO: how should we handle stats/errors here?
 	}
 
-	interval := appConfig.WebhookSettings.Interval.ValueOr(24 * time.Hour)
-	level.Debug(logger).Log("interval", interval.String())
-	ticker := time.NewTicker(interval)
-	start := time.Now()
-	for {
-		level.Debug(logger).Log("waiting", "on ticker")
-		select {
-		case <-ticker.C:
-			level.Debug(logger).Log("waiting", "done")
-		case <-ctx.Done():
-			level.Debug(logger).Log("exit", "done with cron.")
-			return
-		case <-time.After(intervalReload):
-			// Reload interval and check if it has been reduced.
-			appConfig, err := ds.AppConfig(ctx)
-			if err != nil {
-				level.Error(logger).Log("config", "couldn't read app config", "err", err)
-				continue
-			}
-			if currInterval := appConfig.WebhookSettings.Interval.ValueOr(24 * time.Hour); time.Since(start) < currInterval {
-				continue
-			}
-		}
+	maybeTriggerHostStatus(ctx, ds, logger, appConfig)
+	maybeTriggerFailingPoliciesWebhook(ctx, ds, logger, appConfig, failingPoliciesSet)
+	level.Debug(logger).Log("webhooks", "done")
 
-		// Reread app config to be able to read latest data used by the webhook
-		// and update the ticker for the next run.
-		appConfig, err = ds.AppConfig(ctx)
+	return stats, nil // TODO: how should we handle stats/errors here?
+}
+
+func SetWebhooksConfigCheck(ctx context.Context, ds fleet.Datastore, logger kitlog.Logger) func(start time.Time, prevInterval time.Duration) (*time.Duration, error) {
+	return func(time.Time, time.Duration) (*time.Duration, error) {
+		appConfig, err := ds.AppConfig(ctx)
 		if err != nil {
 			level.Error(logger).Log("config", "couldn't read app config", "err", err)
-			sentry.CaptureException(err)
-		} else {
-			ticker.Reset(appConfig.WebhookSettings.Interval.ValueOr(24 * time.Hour))
-			start = time.Now()
+			return nil, err
 		}
+		newInterval := appConfig.WebhookSettings.Interval.ValueOr(24 * time.Hour)
 
-		// We set the db lock durations to match the intervalReload.
-		maybeTriggerHostStatus(ctx, ds, logger, identifier, appConfig, intervalReload)
-		maybeTriggerFailingPoliciesWebhook(ctx, ds, logger, identifier, appConfig, intervalReload, failingPoliciesSet)
-
-		level.Debug(logger).Log("loop", "done")
+		return &newInterval, nil
 	}
 }
 
@@ -367,19 +287,9 @@ func maybeTriggerHostStatus(
 	ctx context.Context,
 	ds fleet.Datastore,
 	logger kitlog.Logger,
-	identifier string,
 	appConfig *fleet.AppConfig,
-	lockDuration time.Duration,
 ) {
-	logger = kitlog.With(logger, "cron", lockKeyWebhooksHostStatus)
-
-	if locked, err := ds.Lock(ctx, lockKeyWebhooksHostStatus, identifier, lockDuration); err != nil {
-		level.Error(logger).Log("msg", "Error acquiring lock", "err", err)
-		return
-	} else if !locked {
-		level.Debug(logger).Log("msg", "Not the leader. Skipping...")
-		return
-	}
+	level.Debug(logger).Log("webhook_host_status", "maybe trigger webhook...")
 
 	if err := webhooks.TriggerHostStatusWebhook(
 		ctx, ds, kitlog.With(logger, "webhook", "host_status"), appConfig,
@@ -393,20 +303,10 @@ func maybeTriggerFailingPoliciesWebhook(
 	ctx context.Context,
 	ds fleet.Datastore,
 	logger kitlog.Logger,
-	identifier string,
 	appConfig *fleet.AppConfig,
-	lockDuration time.Duration,
 	failingPoliciesSet fleet.FailingPolicySet,
 ) {
-	logger = kitlog.With(logger, "cron", lockKeyWebhooksFailingPolicies)
-
-	if locked, err := ds.Lock(ctx, lockKeyWebhooksFailingPolicies, identifier, lockDuration); err != nil {
-		level.Error(logger).Log("msg", "Error acquiring lock", "err", err)
-		return
-	} else if !locked {
-		level.Debug(logger).Log("msg", "Not the leader. Skipping...")
-		return
-	}
+	level.Debug(logger).Log("webhook_failing_policies", "maybe trigger webhook...")
 
 	if err := webhooks.TriggerFailingPoliciesWebhook(
 		ctx, ds, kitlog.With(logger, "webhook", "failing_policies"), appConfig, failingPoliciesSet, time.Now(),
