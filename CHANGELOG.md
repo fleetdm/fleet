@@ -1,3 +1,43 @@
+## Fleet 4.14.0 (May 5, 2022)
+
+* Add beta support for Jira and Zendesk integrations. This allows users to configure Fleet to
+  automatically create a Jira issue  or Zendesk ticket when a new vulnerability (CVE) is detected on
+  your hosts.
+
+* Add a "Show query" button on the live query results page. This allows users to double-check the
+  syntax used and compare this to their results without leaving the current view.
+
+* Add a [Postman
+  collection](https://www.postman.com/fleetdm/workspace/fleet/collection/18010889-c5604fe6-7f6c-44bf-a60c-46650d358dde?ctx=documentation)
+  for the Fleet API. This allows users to easily interact with Fleet's API routes so that they can
+  build and test integrations.
+
+* Add beta support for Fleet Desktop on Linux. Fleet Desktop allows the device user to see
+information about their device. To add Fleet Desktop to a Linux device, first add the
+`--fleet-desktop` flag to the `fleectl package` command to generate a Fleet-osquery installer that
+includes Fleet Desktop. Then, open this installer on the device.
+
+* Improve error message retuned when running `fleetctl query` command with missing or misspelled hosts.
+
+* Improve the **Settings** pages in the the Fleet UI.
+
+* Improve the empty states and forms on the **Policies** page, **Queries** page, and **Host details** page in the Fleet UI.
+
+- All duration settings returned by `fleetctl get config --include-server-config` were changed from
+nanoseconds to an easy to read format.
+
+* Fix a bug in which the Fleet UI would render an empty Google Chrome profiles on the **Host details** page.
+
+* Fix a bug in which the Fleet UI would error when entering the "@" characters in the **Search targets** field.
+
+* Fix a bug in which a scheduled query would display the incorrect name when editing the query on
+  the **Schedule** page.
+
+* Fix a bug in which a deprecation warning would be displayed when generating a `deb` or `rpm`
+  Fleet-osquery package when running the `fleetctl package` command.
+
+* Fix a bug that caused panic errors when running the `fleet serve --debug` command.
+
 ## Fleet 4.13.2 (Apr 25, 2022)
 
 * Fix a bug with os versions not being updated. Affected deployments using MySQL < 5.7.22 or equivalent AWS RDS Aurora < 2.10.1.
