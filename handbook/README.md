@@ -139,6 +139,8 @@ The Fleet handbook is the central guide for how we run the company. As part of o
 
 [Performance feedback](./people.md#performance-feedback)
 
+[Creating a new position](./people.md#creating-a-new-position)
+
 [Hiring a new team member](./people.md#hiring-a-new-team-member)
 
 [Interviewing at Fleet](./people.md#interviewing-at-Fleet)

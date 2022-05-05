@@ -220,9 +220,19 @@ type JiraIntegration struct {
 	EnableSoftwareVulnerabilities bool   `json:"enable_software_vulnerabilities"`
 }
 
+// ZendeskIntegration configures an instance of an integration with the external Zendesk service.
+type ZendeskIntegration struct {
+	URL                           string `json:"url"`
+	Email                         string `json:"email"`
+	APIToken                      string `json:"api_token"`
+	GroupID                       int64  `json:"group_id"`
+	EnableSoftwareVulnerabilities bool   `json:"enable_software_vulnerabilities"`
+}
+
 // Integrations configures the integrations with external systems.
 type Integrations struct {
-	Jira []*JiraIntegration `json:"jira"`
+	Jira    []*JiraIntegration    `json:"jira"`
+	Zendesk []*ZendeskIntegration `json:"zendesk"`
 }
 
 func (c *AppConfig) ApplyDefaultsForNewInstalls() {

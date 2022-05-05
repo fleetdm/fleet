@@ -39,6 +39,7 @@ const (
 	osquerydChannel         = "osqueryd-channel"
 	updateURL               = "update-url"
 	updateRootKeys          = "update-roots"
+	stdQueryLibFilePath     = "std-query-lib-file-path"
 )
 
 func previewCommand() *cli.Command {
@@ -94,6 +95,11 @@ Use the stop and reset subcommands to manage the server and dependencies once st
 			&cli.StringFlag{
 				Name:  updateRootKeys,
 				Usage: "Use custom update TUF root keys",
+				Value: "",
+			},
+			&cli.StringFlag{
+				Name:  stdQueryLibFilePath,
+				Usage: "Use custom standard query library yml file",
 				Value: "",
 			},
 		},
@@ -228,9 +234,19 @@ Use the stop and reset subcommands to manage the server and dependencies once st
 			client.SetToken(token)
 
 			fmt.Println("Loading standard query library...")
-			buf, err := downloadStandardQueryLibrary()
-			if err != nil {
-				return fmt.Errorf("failed to download standard query library: %w", err)
+			var buf []byte
+			if fp := c.String(stdQueryLibFilePath); fp != "" {
+				var err error
+				buf, err = ioutil.ReadFile(fp)
+				if err != nil {
+					return fmt.Errorf("failed to read standard query library file %q: %w", fp, err)
+				}
+			} else {
+				var err error
+				buf, err = downloadStandardQueryLibrary()
+				if err != nil {
+					return fmt.Errorf("failed to download standard query library: %w", err)
+				}
 			}
 
 			err = applyYamlBytes(c, buf, client)
@@ -385,9 +401,6 @@ func unzip(r *zip.Reader, branch string) error {
 		path := f.Name
 		path = strings.Replace(path, replacePath, previewDir, 1)
 
-		// We don't need to check for directory traversal as we are already
-		// trusting the validity of this ZIP file.
-
 		if f.FileInfo().IsDir() {
 			if err := os.MkdirAll(path, f.Mode()); err != nil {
 				return err
@@ -411,6 +424,10 @@ func unzip(r *zip.Reader, branch string) error {
 	}
 
 	for _, f := range r.File {
+		// Prevent zip-slip attack.
+		if strings.Contains(f.Name, "..") {
+			return fmt.Errorf("invalid path in zip: %q", f.Name)
+		}
 		err := extractAndWriteFile(f)
 		if err != nil {
 			return err

@@ -58,4 +58,96 @@ Fleet policy requires that:
 
 3. Strategies shall be developed to mitigate or accept the risks identified in the risk assessment process.
 
+### Encryption policy
+*Created from [JupiterOne/security-policy-templates](https://github.com/JupiterOne/security-policy-templates). [CC BY-SA 4 license](https://creativecommons.org/licenses/by-sa/4.0/)*
+
+| Policy owner   | Effective date |
+| -------------- | -------------- |
+| @GuillaumeRoss | 2022-06-01     |
+
+Fleet requires all workforce members to comply with the encryption policy, such that:
+
+1. The storage drives of all Fleet-owned workstations must be encrypted, enforced by the IT and/or security team.
+
+2. Confidential data must be stored in a manner that supports user access logs.
+
+3. All Production Data at rest is stored on encrypted volumes.
+
+4. Volume encryption keys and machines that generate volume encryption keys are protected from unauthorized access. Volume encryption key material is protected with access controls such that the key material is only accessible by privileged accounts.
+
+5. Encrypted volumes use strong cipher algorithms, key strength, and key management process as defined below.
+
+6. Data is protected in transit using recent TLS versions with ciphers recognized as secure.
+
+#### Local disk/volume encryption
+
+Encryption and key management for local disk encryption of end-user devices follow the defined best practices for Windows, macOS, and Linux/Unix operating systems, such as Bitlocker and FileVault. 
+
+#### Protecting data in transit
+
+1. All external data transmission is encrypted end-to-end. This includes, but is not limited to, cloud infrastructure and third party vendors and applications.
+
+2. Transmission encryption keys and systems that generate keys are protected from unauthorized access. Transmission encryption key materials are protected with access controls, and may only be accessed by privileged accounts.
+
+3. TLS endpoints must score at least an "A" on SSLLabs.com.
+
+4. Transmission encryption keys are limited to use for one year and then must be regenerated.
+
+### Access control policy
+*Created from [JupiterOne/security-policy-templates](https://github.com/JupiterOne/security-policy-templates). [CC BY-SA 4 license](https://creativecommons.org/licenses/by-sa/4.0/)*
+
+| Policy owner   | Effective date |
+| -------------- | -------------- |
+| @GuillaumeRoss | 2022-06-01     |
+
+Fleet requires all workforce members to comply with the following acceptable use requirements and procedures, such that:
+
+1. Access to all computing resources, including servers, end-user computing devices, network equipment, services and applications, must be protected by strong authentication, authorization, and auditing.
+
+2. Interactive user access to production systems must be associated to an account or login unique to each user.
+
+3. All credentials, including user passwords, service accounts, and access keys, must meet the length, complexity, age, and rotation requirements defined in Fleet security standards.
+
+4. Use strong password and two-factor authentication (2FA) whenever possible to authenticate to all computing resources (including both devices and applications).
+
+5. 2FA is required to access any critical system or resource, including but not limited to resources in Fleet production environments.
+
+6. Unused accounts, passwords, access keys must be removed within 30 days.
+
+7. A unique access key or service account must be used for different application or user access.
+
+8. Authenticated sessions must time out after a defined period of inactivity.
+
+#### Access authorization and termination
+
+Fleet policy requires that
+
+1. Access authorization shall be implemented using role-based access control (RBAC) or similar mechanism.
+
+2. Standard access based on a user's job role may be pre-provisioned during employee onboarding. All subsequent access requests to computing resources must be approved by the requestor’s manager, prior to granting and provisioning of access.
+
+3. Access to critical resources, such as production environments, must be approved by the security team in addition to the requestor’s manager.
+
+4. Access must be reviewed on a regular basis and revoked if no longer needed.
+
+5. Upon termination of employment, all system access must be revoked and user accounts terminated within 24 hours or one business day, whichever is shorter.
+
+6. All system access must be reviewed at least annually and whenever a user's job role changes.
+
+#### Shared secrets management
+
+Fleet policy requires that
+
+1. Use of shared credentials/secrets must be minimized.
+
+2. If required by business operations, secrets/credentials must be shared securely and stored in encrypted vaults that meet the Fleet data encryption standards.
+
+#### Privileged access management
+
+Fleet policy requires that
+
+1. Automation with service accounts must be used to configure production systems when technically feasible.
+
+2. Use of high privilege accounts must only be performed when absolutely necessary.
+
 <meta name="maintainedBy" value="guillaumeross">

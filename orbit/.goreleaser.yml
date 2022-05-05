@@ -19,7 +19,9 @@ builds:
     flags:
       - -trimpath
     ldflags:
-      - -X main.version={{.Version}} -X main.commit={{.Commit}} -X main.date={{.Date}} -X main.builtBy=goreleaser
+      - -X github.com/fleetdm/fleet/v4/orbit/pkg/build.Version={{.Version}}
+      - -X github.com/fleetdm/fleet/v4/orbit/pkg/build.Commit={{.Commit}}
+      - -X github.com/fleetdm/fleet/v4/orbit/pkg/build.Date={{.Date}}
     hooks:
       post: ./orbit/tools/build/sign-macos.sh {{ .Path }}
 

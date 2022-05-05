@@ -82,6 +82,9 @@ func (svc *Service) sendTestEmail(ctx context.Context, config *fleet.AppConfig) 
 }
 
 func (svc *Service) makeTestJiraRequest(ctx context.Context, jiraSettings *fleet.JiraIntegration) error {
+	if jiraSettings.APIToken == "" || jiraSettings.APIToken == "********" {
+		return &badRequestError{message: fmt.Sprintf("jira integration request failed: missing or invalid API token")}
+	}
 	client, err := externalsvc.NewJiraClient(&externalsvc.JiraOptions{
 		BaseURL:           jiraSettings.URL,
 		BasicAuthUsername: jiraSettings.Username,
@@ -93,6 +96,29 @@ func (svc *Service) makeTestJiraRequest(ctx context.Context, jiraSettings *fleet
 	}
 	if _, err := client.GetProject(ctx); err != nil {
 		return &badRequestError{message: fmt.Sprintf("jira integration request failed: %s", err.Error())}
+	}
+	return nil
+}
+
+func (svc *Service) makeTestZendeskRequest(ctx context.Context, zendeskSettings *fleet.ZendeskIntegration) error {
+	if zendeskSettings.APIToken == "" || zendeskSettings.APIToken == "********" {
+		return &badRequestError{message: fmt.Sprintf("zendesk integration request failed: missing or invalid API token")}
+	}
+	client, err := externalsvc.NewZendeskClient(&externalsvc.ZendeskOptions{
+		URL:      zendeskSettings.URL,
+		Email:    zendeskSettings.Email,
+		APIToken: zendeskSettings.APIToken,
+		GroupID:  zendeskSettings.GroupID,
+	})
+	if err != nil {
+		return &badRequestError{message: fmt.Sprintf("zendesk integration request failed: %s", err.Error())}
+	}
+	grp, err := client.GetGroup(ctx)
+	if err != nil {
+		return &badRequestError{message: fmt.Sprintf("zendesk integration request failed: %s", err.Error())}
+	}
+	if grp.ID != zendeskSettings.GroupID {
+		return &badRequestError{message: fmt.Sprint("zendesk integration request failed: no matching group id", grp.ID, zendeskSettings.GroupID)}
 	}
 	return nil
 }

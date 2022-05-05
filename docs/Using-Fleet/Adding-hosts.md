@@ -222,15 +222,18 @@ On a system with osquery installed via the Fleet osquery installer (Orbit), obta
 `CodeRequirement` of Orbit by running:
 
 ```
-codesign -dr - /private/var/lib/orbit/bin/orbit/macos/edge/orbit
+codesign -dr - /opt/orbit/bin/orbit/macos/edge/orbit
 ```
 
-The output should be similar or identical to: 
+The output should be similar or identical to:
 
 ```
-Executable=/private/var/lib/orbit/bin/orbit/macos/edge/orbit
+Executable=/opt/orbit/bin/orbit/macos/edge/orbit
 designated => identifier "com.fleetdm.orbit" and anchor apple generic and certificate 1[field.1.2.840.113635.100.6.2.6] /* exists */ and certificate leaf[field.1.2.840.113635.100.6.1.13] /* exists */ and certificate leaf[subject.OU] = "8VBZ3948LU"
 ```
+
+> **NOTE:** Depending on the version of `fleetctl` used to package and install Orbit, the executable path may be different.
+> Fleetctl versions <= 4.13.2 would install orbit to `/var/lib/orbit` instead of `/opt/orbit`.
 
 Note down the **executable path** and the entire **identifier**.
 
@@ -240,7 +243,7 @@ Osqueryd will inherit the privileges from Orbit and does not need explicit permi
 Depending on your MDM, this might be possible in the UI or require a custom profile. If your MDM has a feature to configure *Policy Preferences*, follow these steps:
 
 1. Configure the identifier type to “path”
-2. Paste the full path to Orbit as the identifier. 
+2. Paste the full path to Orbit as the identifier.
 3. Paste the full code signing identifier into the code requirement field.
 4. Allow “Access all files”. Access to Downloads, Documents etc is inherited from this.
 

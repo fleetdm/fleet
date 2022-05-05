@@ -22,7 +22,7 @@ import Button from "components/buttons/Button";
 // @ts-ignore
 import Dropdown from "components/forms/fields/Dropdown";
 import Spinner from "components/Spinner";
-import TableDataError from "components/TableDataError";
+import TableDataError from "components/DataError";
 import QueriesListWrapper from "./components/QueriesListWrapper";
 import RemoveQueryModal from "./components/RemoveQueryModal";
 
