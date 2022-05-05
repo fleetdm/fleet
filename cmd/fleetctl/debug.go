@@ -542,6 +542,7 @@ func debugErrorsCommand() *cli.Command {
 			configFlag(),
 			contextFlag(),
 			debugFlag(),
+			stdoutFlag(),
 		},
 		Action: func(c *cli.Context) error {
 			fleet, err := clientFromCLI(c)
