@@ -134,7 +134,7 @@ Fleet policy requires that:
 
 Fleet requires all workforce members to comply with the encryption policy, such that:
 
-1. The storage drives of all Fleet-owned workstations must be encrypted, enforced by the IT and/or security team.
+1. The storage drives of all Fleet-owned workstations must be encrypted, and enforced by the IT and/or security team.
 
 2. Confidential data must be stored in a manner that supports user access logs.
 
@@ -152,9 +152,9 @@ Encryption and key management for local disk encryption of end-user devices foll
 
 #### Protecting data in transit
 
-1. All external data transmission is encrypted end-to-end. This includes, but is not limited to, cloud infrastructure and third party vendors and applications.
+1. All external data transmission is encrypted end-to-end. This includes, but is not limited to, cloud infrastructure and third-party vendors and applications.
 
-2. Transmission encryption keys and systems that generate keys are protected from unauthorized access. Transmission encryption key materials are protected with access controls, and may only be accessed by privileged accounts.
+2. Transmission encryption keys and systems that generate keys are protected from unauthorized access. Transmission encryption key materials are protected with access controls and may only be accessed by privileged accounts.
 
 3. TLS endpoints must score at least an "A" on SSLLabs.com.
 
