@@ -2343,7 +2343,7 @@ After supplying the above information, the IDP will generate an issuer URI and a
 
 A Fleet user must be assigned the Admin role to configure Fleet for SSO. In Fleet, SSO configuration settings are located in **Settings > Organization settings > SAML single sign on options**.
 
-If your IDP supports dynamic configuration, like Okta, you only need to provide an _identity provider name_ and _entity ID_, then paste a link in the metadata URL field.
+If your IDP supports dynamic configuration, like Okta, you only need to provide an _identity provider name_ and _entity ID_, then paste a link in the metadata URL field. Ensure that you create the SSO application within your IDP before configuring it in Fleet.
 
 Otherwise, the following values are required:
 
@@ -2380,6 +2380,12 @@ As an admin, you can enable SSO for existing users in Fleet. To do this, go to t
 #### Okta IDP configuration
 
 ![Example Okta IDP Configuration](https://raw.githubusercontent.com/fleetdm/fleet/main/docs/images/okta-idp-setup.png)
+
+Once configured, you will need to retrieve the Issuer URI from the `View Setup Instructions` and metadata URL from the `Identity Provider metadata` link within the application `Sign on` settings. See below on where to find them:
+
+![Where to find SSO links for Fleet](../images/okta-retrieve-links.png)
+
+> The Proivder Sign-on URL within the `View Setup Instructions` has a similar format as the Provider SAML Metadata URL, but this link does provides a redirect to _sign-in_ the application, not the metadata necessary for dynamic configuration.
 
 > The names of the items required to configure an identity provider may vary from provider to provider and may not conform to the SAML spec.
 
