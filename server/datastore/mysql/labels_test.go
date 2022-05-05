@@ -783,18 +783,59 @@ func testDeleteLabel(t *testing.T, db *Datastore) {
 }
 
 func testLabelsSummary(t *testing.T, db *Datastore) {
-	require.Nil(t, db.MigrateData(context.Background()))
+	test.AddAllHostsLabel(t, db)
+
+	// Only 'All Hosts' label should be returned
+	labels, err := db.ListLabels(context.Background(), fleet.TeamFilter{}, fleet.ListOptions{})
+	require.NoError(t, err)
+	require.Len(t, labels, 1)
+
+	newLabels := []*fleet.LabelSpec{
+		{
+			Name:     "foo",
+			Query:    "query foo",
+			Platform: "platform",
+		},
+		{
+			Name:     "bar",
+			Query:    "query bar",
+			Platform: "platform",
+		},
+		{
+			Name:        "baz",
+			Query:       "query baz",
+			Description: "description baz",
+			Platform:    "darwin",
+		},
+	}
+	err = db.ApplyLabelSpecs(context.Background(), newLabels)
+	require.Nil(t, err)
+
+	labels, err = db.ListLabels(context.Background(), fleet.TeamFilter{}, fleet.ListOptions{})
+	require.NoError(t, err)
+	require.Len(t, labels, 4)
+	labelsByID := make(map[uint]*fleet.Label)
+	for _, l := range labels {
+		labelsByID[l.ID] = l
+	}
+
 	ls, err := db.LabelsSummary(context.Background())
 	require.NoError(t, err)
-	require.Len(t, ls, 7)
+	require.Len(t, ls, 4)
+	for _, l := range ls {
+		assert.NotNil(t, labelsByID[l.ID])
+		assert.Equal(t, labelsByID[l.ID].Name, l.Name)
+		assert.Equal(t, labelsByID[l.ID].Description, l.Description)
+		assert.Equal(t, labelsByID[l.ID].LabelType, l.LabelType)
+	}
 
 	_, err = db.NewLabel(context.Background(), &fleet.Label{
-		Name:  t.Name(),
-		Query: "query1",
+		Name:  "bing",
+		Query: "query bing",
 	})
 	require.NoError(t, err)
 
 	ls, err = db.LabelsSummary(context.Background())
 	require.NoError(t, err)
-	require.Len(t, ls, 8)
+	require.Len(t, ls, 5)
 }
