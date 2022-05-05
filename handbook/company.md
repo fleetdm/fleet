@@ -262,7 +262,7 @@ Groups are organized around goals. Connecting people with the same goals helps t
 Every group at Fleet maintains specific Slack channels, which all group members join and keep unmuted.  Everyone else at Fleet is encouraged to mute these channels, using them only as needed.  Each channel has a directly responsible individual responsible for keeping up with all new messages, even if they aren't explicitly mentioned (`@`).
 
 
-## Development Groups
+## Development groups
 
 Development groups are organized by their goals, and include members from Design, Engineering, and Product.
 
