@@ -22,6 +22,7 @@ import (
 	"github.com/urfave/cli/v2"
 )
 
+// Defining here for testing purposes
 var nowFn = time.Now
 
 func debugCommand() *cli.Command {
