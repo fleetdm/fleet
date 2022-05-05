@@ -24,6 +24,8 @@ module.exports = {
 
     let GitHub = require('machinepack-github');
 
+    let IS_FROZEN = false;// « Set this to `true` whenever a freeze is in effect, then set it back to `false`.
+
     let GREEN_LABEL_COLOR = 'C2E0C6';// « Used in multiple places below.
     let GITHUB_USERNAMES_OF_BOTS_AND_MAINTAINERS = [// « Used in multiple places below.
       'sailsbot',
@@ -197,8 +199,6 @@ module.exports = {
           'User-Agent': 'Fleetie pie',
           'Authorization': `token ${sails.config.custom.githubAccessToken}`
         };
-
-        let IS_FROZEN = false;// « Set this to `true` whenever a freeze is in effect, then set it back to `false`.
 
         // Check whether auto-approval is warranted.
         let isAutoApproved = await sails.helpers.flow.build(async()=>{
