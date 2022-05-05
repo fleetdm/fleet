@@ -49,7 +49,7 @@ func TestCentOSPkgSetAdd(t *testing.T) {
 }
 
 func TestParseCentOSRepository(t *testing.T) {
-	nettest.RunSerial(t)
+	nettest.Run(t)
 
 	// Parse a subset of the CentOS repository.
 	pkgs, err := ParseCentOSRepository(WithRoot("/centos/7/os/x86_64/repodata/"))

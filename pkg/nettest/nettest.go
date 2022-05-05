@@ -2,29 +2,67 @@
 package nettest
 
 import (
+	"errors"
+	"net"
 	"os"
-	"sync"
+	"runtime"
+	"strings"
 	"testing"
+	"time"
 )
 
-var m sync.Mutex
+func lock(lockFilePath string) {
+	for {
+		outFile, err := os.OpenFile(lockFilePath, os.O_CREATE|os.O_EXCL, 0o600)
+		if err == nil {
+			outFile.Close()
+			return
+		}
+		time.Sleep(5 * time.Second)
+	}
+}
 
-func runSerial(t *testing.T) {
-	m.Lock()
+func unlock(lockFilePath string) {
+	os.Remove(lockFilePath)
+}
+
+func runSerial(t *testing.T, lockFilePath string) {
+	lock(lockFilePath)
 	t.Logf("network test start: %s", t.Name())
 
 	t.Cleanup(func() {
 		t.Logf("network test done: %s", t.Name())
-		m.Unlock()
+		unlock(lockFilePath)
 	})
 }
 
-// RunSerial makes sure a caller test runs serially (accross packages).
-func RunSerial(t *testing.T) {
+// Run can be used by test that access the public network.
+func Run(t *testing.T) {
 	if os.Getenv("NETWORK_TEST") == "" {
 		t.Skip("set environment variable NETWORK_TEST=1 to run")
 		return
 	}
 
-	runSerial(t)
+	if runtime.GOOS != "darwin" && runtime.GOOS != "linux" {
+		return
+	}
+
+	if lockFilePath := os.Getenv("TEST_LOCK_FILE_PATH"); lockFilePath != "" {
+		runSerial(t, lockFilePath)
+	}
+}
+
+// Retryable returns whether the error warrants a retry.
+func Retryable(err error) bool {
+	var netErr net.Error
+	if errors.As(err, &netErr) {
+		if netErr.Temporary() || netErr.Timeout() {
+			return true
+		}
+	}
+	// https://github.com/golang/go/blob/a5d61be040ed20b5774bff1b6b578c6d393ab332/src/net/http/serve_test.go
+	if errStr := err.Error(); strings.Contains(errStr, "timeout") && strings.Contains(errStr, "TLS handshake") {
+		return true
+	}
+	return false
 }

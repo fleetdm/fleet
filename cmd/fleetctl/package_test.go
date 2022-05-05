@@ -14,7 +14,7 @@ import (
 )
 
 func TestPackage(t *testing.T) {
-	nettest.RunSerial(t)
+	nettest.Run(t)
 
 	updateOpt := update.DefaultOptions
 	updateOpt.RootDirectory = t.TempDir()
@@ -39,14 +39,14 @@ func TestPackage(t *testing.T) {
 	runAppCheckErr(t, []string{"package", "--type=deb", fmt.Sprintf("--fleet-certificate=%s", fleetCertificate)}, fmt.Sprintf("failed to read certificate %q: invalid PEM file", fleetCertificate))
 
 	t.Run("deb", func(t *testing.T) {
-		runAppForTest(t, []string{"package", "--type=deb", "--insecure"})
+		runAppForTest(t, []string{"package", "--type=deb", "--insecure", "--disable-open-folder"})
 		info, err := os.Stat(fmt.Sprintf("fleet-osquery_%s_amd64.deb", updatesData.OrbitVersion))
 		require.NoError(t, err)
 		require.Greater(t, info.Size(), int64(0)) // TODO verify contents
 	})
 
 	t.Run("rpm", func(t *testing.T) {
-		runAppForTest(t, []string{"package", "--type=rpm", "--insecure"})
+		runAppForTest(t, []string{"package", "--type=rpm", "--insecure", "--disable-open-folder"})
 		info, err := os.Stat(fmt.Sprintf("fleet-osquery-%s.x86_64.rpm", updatesData.OrbitVersion))
 		require.NoError(t, err)
 		require.Greater(t, info.Size(), int64(0)) // TODO verify contents

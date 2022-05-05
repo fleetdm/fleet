@@ -55,7 +55,7 @@ func TestCpeFromSoftware(t *testing.T) {
 }
 
 func TestSyncCPEDatabase(t *testing.T) {
-	nettest.RunSerial(t)
+	nettest.Run(t)
 
 	client := fleethttp.NewClient()
 	// Disabling vcr because the resulting file exceeds the 100mb limit for github
@@ -154,7 +154,7 @@ func (f *fakeSoftwareIterator) Err() error   { return nil }
 func (f *fakeSoftwareIterator) Close() error { f.closed = true; return nil }
 
 func TestTranslateSoftwareToCPE(t *testing.T) {
-	nettest.RunSerial(t)
+	nettest.Run(t)
 
 	tempDir, err := os.MkdirTemp(os.TempDir(), "TestTranslateSoftwareToCPE-*")
 	require.NoError(t, err)

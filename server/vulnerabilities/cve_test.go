@@ -62,7 +62,7 @@ func (d *threadSafeDSMock) InsertCVEForCPE(ctx context.Context, cve string, cpes
 }
 
 func TestTranslateCPEToCVE(t *testing.T) {
-	nettest.RunSerial(t)
+	nettest.Run(t)
 
 	tempDir := t.TempDir()
 
@@ -93,8 +93,14 @@ func TestTranslateCPEToCVE(t *testing.T) {
 				return 0, nil
 			}
 
-			_, err := TranslateCPEToCVE(ctx, ds, tempDir, kitlog.NewLogfmtLogger(os.Stdout), cfg, false)
-			require.NoError(t, err)
+			for {
+				_, err := TranslateCPEToCVE(ctx, ds, tempDir, kitlog.NewLogfmtLogger(os.Stdout), cfg, false)
+				if err != nil && nettest.Retryable(err) {
+					continue
+				}
+				require.NoError(t, err)
+				break
+			}
 
 			printMemUsage()
 
