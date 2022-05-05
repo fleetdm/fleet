@@ -347,7 +347,14 @@ func debugArchiveCommand() *cli.Command {
 				}
 			}
 
-			fmt.Fprintf(os.Stderr, "Archive written to %s\n", outfile)
+			fmt.Fprintf(os.Stderr, "################################################################################\n"+
+				"# WARNING:\n"+
+				"#   The files in the generated archive may contain sensitive data.\n"+
+				"#   Please redact them before sharing.\n"+
+				"#\n"+
+				"#   Archive written to: %s\n"+
+				"################################################################################\n",
+				outfile)
 
 			return nil
 		},
