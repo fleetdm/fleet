@@ -256,7 +256,7 @@ The following rituals are engaged in by the  directly responsible individual (DR
 
 [🚀 Release](https://github.com/orgs/fleetdm/projects/40) - The current release (daily go-to board) for engineers.
 
-[🔮 Planning](https://github.com/orgs/fleetdm/projects/41) - Planning for the next release (shared with product).
+[⚗️ Roadmap](https://github.com/orgs/fleetdm/projects/41) - Planning for the next release (shared with product).
 
 ## Slack channels
 
