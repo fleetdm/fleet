@@ -1270,6 +1270,7 @@ func (s *integrationTestSuite) TestGetHostSummary() {
 	s.DoJSON("GET", "/api/latest/fleet/host_summary", nil, http.StatusOK, &resp, "team_id", fmt.Sprint(team2.ID))
 	require.Equal(t, resp.TotalsHostsCount, uint(0))
 	require.Len(t, resp.Platforms, 0)
+	require.Equal(t, uint(0), resp.AllLinuxCount)
 	require.Equal(t, team2.ID, *resp.TeamID)
 
 	// team filter, one host
@@ -1278,18 +1279,22 @@ func (s *integrationTestSuite) TestGetHostSummary() {
 	require.Len(t, resp.Platforms, 1)
 	require.Equal(t, "debian", resp.Platforms[0].Platform)
 	require.Equal(t, uint(1), resp.Platforms[0].HostsCount)
+	require.Equal(t, uint(1), resp.AllLinuxCount)
 	require.Equal(t, team1.ID, *resp.TeamID)
 
 	s.DoJSON("GET", "/api/latest/fleet/host_summary", nil, http.StatusOK, &resp, "team_id", fmt.Sprint(team1.ID), "platform", "linux")
 	require.Equal(t, resp.TotalsHostsCount, uint(1))
 	require.Equal(t, "debian", resp.Platforms[0].Platform)
+	require.Equal(t, uint(1), resp.AllLinuxCount)
 
 	s.DoJSON("GET", "/api/latest/fleet/host_summary", nil, http.StatusOK, &resp, "platform", "rhel")
 	require.Equal(t, resp.TotalsHostsCount, uint(1))
 	require.Equal(t, "rhel", resp.Platforms[0].Platform)
+	require.Equal(t, uint(1), resp.AllLinuxCount)
 
 	s.DoJSON("GET", "/api/latest/fleet/host_summary", nil, http.StatusOK, &resp, "platform", "linux")
 	require.Equal(t, resp.TotalsHostsCount, uint(3))
+	require.Equal(t, uint(3), resp.AllLinuxCount)
 	require.Len(t, resp.Platforms, 3)
 	for i, p := range resp.Platforms {
 		gotPlatforms[i] = p.Platform
@@ -1300,6 +1305,7 @@ func (s *integrationTestSuite) TestGetHostSummary() {
 
 	s.DoJSON("GET", "/api/latest/fleet/host_summary", nil, http.StatusOK, &resp, "platform", "darwin")
 	require.Equal(t, resp.TotalsHostsCount, uint(0))
+	require.Equal(t, resp.AllLinuxCount, uint(0))
 	require.Len(t, resp.Platforms, 0)
 }
 
