@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 
 import Button from "components/buttons/Button";
 import Checkbox from "components/forms/fields/Checkbox";
@@ -42,6 +42,10 @@ const Sso = ({ appConfig, handleSubmit }: IAppConfigFormProps): JSX.Element => {
   const handleInputChange = ({ name, value }: IFormField) => {
     setFormData({ ...formData, [name]: value });
   };
+
+  useEffect(() => {
+    validateForm();
+  }, [enableSSO]);
 
   const validateForm = () => {
     const errors: IAppConfigFormErrors = {};
