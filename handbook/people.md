@@ -228,7 +228,7 @@ If you've been invited to "book with us" you'll have a Zoom meeting with the hir
 
 ### Hiring a new team member
 
-> Fleet is unable to hire team members in some countries. See [this internal document)](https://docs.google.com/document/d/1jHHJqShIyvlVwzx1C-FB9GC74Di_Rfdgmhpai1SPC0g/edit) for the list.
+> Fleet is unable to hire team members in some countries. See [this internal document](https://docs.google.com/document/d/1jHHJqShIyvlVwzx1C-FB9GC74Di_Rfdgmhpai1SPC0g/edit) for the list.
 
 1. At-mention People Operations in the `#hiring-xxxxx-2022` channel and indicate that you would like to make an offer to the candidate.  Include the candidate's name, personal email address, where the candidate would be working, and any other important considerations about the candidate (the timeframe for their start date, their status to work legally in their country of residence, etc.)
 
