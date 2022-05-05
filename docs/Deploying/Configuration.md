@@ -2374,6 +2374,7 @@ It is strongly recommended that at least one admin user is set up to use the tra
 based log in so that there is a fallback method for logging into Fleet in the event of SSO
 configuration problems.
 
+> Individual users must also be setup on the IDP before they can sign in to Fleet.
 ### Enabling SSO for existing users in Fleet
 As an admin, you can enable SSO for existing users in Fleet. To do this, go to the Settings page, then click on the Users tab. Locate the user you want to enable SSO for and on the actions dropdown menu for that user, click on "Enable single sign on".
 
@@ -2388,8 +2389,6 @@ Once configured, you will need to retrieve the Issuer URI from the `View Setup I
 > The Proivder Sign-on URL within the `View Setup Instructions` has a similar format as the Provider SAML Metadata URL, but this link does provides a redirect to _sign-in_ the application, not the metadata necessary for dynamic configuration.
 
 > The names of the items required to configure an identity provider may vary from provider to provider and may not conform to the SAML spec.
-
-> Individual users must also be setup on the IDP before they can sign in to Fleet.
 
 #### Google Workspace IDP Configuration
 
