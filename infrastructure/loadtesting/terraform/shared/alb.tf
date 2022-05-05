@@ -19,7 +19,7 @@ resource "aws_alb_listener" "https-fleetdm" {
     type = "fixed-response"
     fixed_response {
       content_type = "text/plain"
-      message_body = "moved to subdomains, try https://default.loadtesting.fleetdm.com"
+      message_body = "moved to subdomains, try https://default.loadtest.fleetdm.com"
       status_code  = "404"
     }
   }

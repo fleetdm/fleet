@@ -319,6 +319,7 @@ The following table lists the Community group's rituals, frequency, and Directly
 | Documentation update | Weekly | Turn questions answered from Fleet and osquery Slack into FAQs in Fleet’s docs. | Kathy Satterlee |
 | StackOverflow  | Weekly | Search StackOverflow for “osquery,” answer questions with Grammarly, and find a way to prominently feature Fleet in your StackOverflow profile. | Rotation: Community team |
 
+
 ## Slack channels
 
 This group maintains the following [Slack channels](https://fleetdm.com/handbook/company#group-slack-channels):
