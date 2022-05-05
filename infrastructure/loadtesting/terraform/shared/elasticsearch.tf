@@ -69,11 +69,11 @@ resource "aws_security_group_rule" "es-egress" {
 
 resource "aws_autoscaling_group" "elasticstack" {
   name                      = "${local.prefix}-elasticstack"
-  max_size                  = var.scale_down ? 0 : 1
-  min_size                  = var.scale_down ? 0 : 1
+  max_size                  = 1
+  min_size                  = 1
   health_check_grace_period = 3000
   health_check_type         = "ELB"
-  desired_capacity          = var.scale_down ? 0 : 1
+  desired_capacity          = 1
   force_delete              = true
   vpc_zone_identifier       = module.vpc.private_subnets
   target_group_arns         = [aws_lb_target_group.elasticsearch.arn, aws_lb_target_group.elasticapm.arn, aws_lb_target_group.kibana.arn]
@@ -104,7 +104,7 @@ resource "aws_autoscaling_group" "elasticstack" {
 
   tag {
     key                 = "ansible_playbook_path"
-    value               = "tools/loadtesting/terraform/elasticsearch_ansible"
+    value               = "infrastructure/loadtesting/terraform/shared/elasticsearch_ansible"
     propagate_at_launch = true
   }
 
@@ -213,7 +213,7 @@ resource "aws_alb_listener" "elasticsearch" {
   port              = 9200
   protocol          = "HTTPS"
   ssl_policy        = "ELBSecurityPolicy-FS-1-2-Res-2019-08"
-  certificate_arn   = aws_acm_certificate_validation.dogfood_fleetdm_com.certificate_arn
+  certificate_arn   = aws_acm_certificate_validation.fleetdm_com.certificate_arn
 
   default_action {
     target_group_arn = aws_lb_target_group.elasticsearch.arn
@@ -236,7 +236,7 @@ resource "aws_alb_listener" "elasticapm" {
   port              = 8200
   protocol          = "HTTPS"
   ssl_policy        = "ELBSecurityPolicy-FS-1-2-Res-2019-08"
-  certificate_arn   = aws_acm_certificate_validation.dogfood_fleetdm_com.certificate_arn
+  certificate_arn   = aws_acm_certificate_validation.fleetdm_com.certificate_arn
 
   default_action {
     target_group_arn = aws_lb_target_group.elasticapm.arn
@@ -256,7 +256,7 @@ resource "aws_alb_listener" "kibana" {
   port              = 5601
   protocol          = "HTTPS"
   ssl_policy        = "ELBSecurityPolicy-FS-1-2-Res-2019-08"
-  certificate_arn   = aws_acm_certificate_validation.dogfood_fleetdm_com.certificate_arn
+  certificate_arn   = aws_acm_certificate_validation.fleetdm_com.certificate_arn
 
   default_action {
     target_group_arn = aws_lb_target_group.kibana.arn

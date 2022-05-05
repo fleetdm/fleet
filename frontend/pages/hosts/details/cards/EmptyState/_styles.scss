@@ -44,6 +44,12 @@
     }
   }
 
+  &__empty-list {
+    h1 {
+      font-size: $small;
+    }
+  }
+
   &__empty-filter-results {
     display: flex;
     flex-direction: column;
