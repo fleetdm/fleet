@@ -551,32 +551,45 @@ func debugErrorsCommand() *cli.Command {
 			}
 
 			outfile := getOutfile(c)
-			if outfile == "" {
-				outfile = outfileName(name)
+			stdout := getStdout(c)
+
+			if stdout && outfile != "" {
+				return errors.New("-stdout and -outfile must not be specified together")
 			}
 
-			f, err := os.OpenFile(outfile, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, defaultFileMode)
-			if err != nil {
+			out := os.Stdout
+
+			if !stdout {
+				if outfile == "" {
+					outfile = outfileNameWithExt(name, "json")
+				}
+
+				f, err := os.OpenFile(outfile, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, defaultFileMode)
+				if err != nil {
+					return err
+				}
+				defer f.Close()
+				out = f
+			}
+
+			if err := fleet.DebugErrors(out); err != nil {
 				return err
 			}
-			defer f.Close()
 
-			if err := fleet.DebugErrors(f); err != nil {
-				return err
+			if !stdout {
+				if err := out.Close(); err != nil {
+					return fmt.Errorf("write errors to file: %w", err)
+				}
+
+				fmt.Fprintf(os.Stderr, "################################################################################\n"+
+					"# WARNING:\n"+
+					"#   The generated file may contain sensitive data.\n"+
+					"#   Please redact the file before sharing.\n"+
+					"#\n"+
+					"#   Output written to: %s\n"+
+					"################################################################################\n",
+					outfile)
 			}
-			if err := f.Close(); err != nil {
-
-				return fmt.Errorf("write errors to file: %w", err)
-			}
-
-			fmt.Fprintf(os.Stderr, "################################################################################\n"+
-				"# WARNING:\n"+
-				"#   The generated file may contain sensitive data.\n"+
-				"#   Please redact the file before sharing.\n"+
-				"#\n"+
-				"#   Output written to: %s\n"+
-				"################################################################################\n",
-				outfile)
 
 			return nil
 		},
