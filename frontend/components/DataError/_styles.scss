@@ -1,8 +1,8 @@
-.page-error {
+.data-error {
   display: flex;
   flex-direction: column;
   align-items: center;
-  margin-top: $pad-xxxlarge;
+  margin: $pad-xxxlarge 0;
 
   #error-icon {
     height: 12px;

@@ -11,7 +11,7 @@ import PATHS from "router/paths";
 
 // @ts-ignore
 import Button from "components/buttons/Button";
-import TableDataError from "components/TableDataError";
+import TableDataError from "components/DataError";
 import Spinner from "components/Spinner";
 import PacksListWrapper from "./components/PacksListWrapper";
 import RemovePackModal from "./components/RemovePackModal";

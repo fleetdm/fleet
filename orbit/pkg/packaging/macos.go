@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"runtime"
 
+	"github.com/Masterminds/semver"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/constant"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/update"
 	"github.com/fleetdm/fleet/v4/pkg/file"
@@ -68,6 +69,13 @@ func BuildPkg(opt Options) (string, error) {
 		// We set the package version to orbit's latest version.
 		opt.Version = updatesData.OrbitVersion
 	}
+
+	if orbitSemVer, err := semver.NewVersion(updatesData.OrbitVersion); err == nil {
+		if orbitSemVer.LessThan(semver.MustParse("0.0.11")) {
+			opt.LegacyVarLibSymlink = true
+		}
+	}
+	// If err != nil we assume non-legacy Orbit.
 
 	// Write files
 
