@@ -552,9 +552,18 @@ func debugErrorsCommand() *cli.Command {
 				return err
 			}
 			if err := f.Close(); err != nil {
+
 				return fmt.Errorf("write errors to file: %w", err)
 			}
-			fmt.Fprintf(os.Stderr, "Output written to %s\n", outfile)
+
+			fmt.Fprintf(os.Stderr, "################################################################################\n"+
+				"# WARNING:\n"+
+				"#   The generated file may contain sensitive data.\n"+
+				"#   Please redact the file before sharing.\n"+
+				"#\n"+
+				"#   Output written to: %s\n"+
+				"################################################################################\n",
+				outfile)
 
 			return nil
 		},
