@@ -296,6 +296,7 @@ maintaining an expressive labelling system. For example, instead of a label call
 | `:`               | Verb        | One or more  | `:dev`, `:research`, `:design`
 | `~`               | Adjective   | One or more  | `~blocked`, `~frontend`, `~backend`
 | `!`               | OKR         | One only     | `!vuln`, `!desktop`, `!upgrade`
+
 ## Slack channels
 
 The following [Slack channels are maintained](https://fleetdm.com/handbook/company#group-slack-channels) by Fleet's founders and executive collaborators:
