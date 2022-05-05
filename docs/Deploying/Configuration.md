@@ -2384,7 +2384,7 @@ As an admin, you can enable SSO for existing users in Fleet. To do this, go to t
 
 Once configured, you will need to retrieve the Issuer URI from the `View Setup Instructions` and metadata URL from the `Identity Provider metadata` link within the application `Sign on` settings. See below on where to find them:
 
-![Where to find SSO links for Fleet](../images/okta-retrieve-links.png)
+![Where to find SSO links for Fleet](https://raw.githubusercontent.com/fleetdm/fleet/main/docs/images/okta-retrieve-links.png)
 
 > The Proivder Sign-on URL within the `View Setup Instructions` has a similar format as the Provider SAML Metadata URL, but this link does provides a redirect to _sign-in_ the application, not the metadata necessary for dynamic configuration.
 
