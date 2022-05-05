@@ -43,6 +43,36 @@ Fleet requires all workforce members to comply with the following acceptable use
 
 13. The use of Fleet company accounts on "shared" computers, such as hotel kiosk systems, is strictly prohibited.
 
+### Secure software development and product security policy 
+*Created from [JupiterOne/security-policy-templates](https://github.com/JupiterOne/security-policy-templates). [CC BY-SA 4 license](https://creativecommons.org/licenses/by-sa/4.0/)*
+
+Fleet policy requires that:
+
+1. Fleet software engineering and product development is required to follow security best practices. Product should be "Secure by Design" and "Secure by Default".
+
+2. Quality assurance activities will be performed.  This may include
+
+  * peer code reviews prior to merging new code into the main development branch
+    (e.g. master branch); and
+  * thorough product testing before releasing to production (e.g. unit testing
+    and integration testing).
+
+3. Risk assessment activities (i.e. threat modeling) must be performed for a new product or major changes to an existing product.
+
+4. Security requirements must be defined, tracked, and implemented.
+
+5. Security analysis must be performed for any open source software and/or third-party components and dependencies included in Fleet software products.
+
+6. Static application security testing (SAST) must be performed throughout development and prior to each release.
+
+7. Dynamic application security testing (DAST) must be performed prior to each release.
+
+8. All critical or high severity security findings must be remediated prior to each release.
+
+9. All critical or high severity vulnerabilities discovered post release must be remediated in the next release or as per the Fleet vulnerability management policy SLAs, whichever is sooner.
+
+10. Any exception to the remediation of a finding must be documented and approved by the security team or CTO.
+
 ### Human resources security policy
 *Created from [JupiterOne/security-policy-templates](https://github.com/JupiterOne/security-policy-templates). [CC BY-SA 4 license](https://creativecommons.org/licenses/by-sa/4.0/)*
 
