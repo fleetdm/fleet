@@ -150,12 +150,12 @@ will be disabled and/or hidden in the UI.
               sails.log.info('Redirecting GET request from `'+req.hostname+'` to configured expected host (`'+configuredBaseHostname+'`)...');
               return res.redirect(sails.config.custom.baseUrl+req.url);
             }//•
-            
+
             // Prevent the browser from caching logged-in users' pages.
             // (including w/ the Chrome back button)
             // > • https://mixmax.com/blog/chrome-back-button-cache-no-store
             // > • https://madhatted.com/2013/6/16/you-do-not-understand-browser-history
-            // 
+            //
             // This also prevents an issue where webpages may be cached by browsers, and thus
             // reference an old bundle file (e.g. dist/production.min.js or dist/production.min.css),
             // which might have a different hash encoded in its filename.  This way, by preventing caching
