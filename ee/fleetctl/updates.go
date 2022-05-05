@@ -251,6 +251,9 @@ func updatesAddFunc(c *cli.Context) error {
 		case name == "desktop" && platform == "windows":
 			// This is a special case for the desktop target on Windows.
 			dstPath = filepath.Join(filepath.Dir(dstPath), constant.DesktopAppExecName+".exe")
+		case name == "desktop" && platform == "linux":
+			// This is a special case for the desktop target on Linux.
+			dstPath += ".tar.gz"
 		case strings.HasSuffix(target, ".exe"):
 			dstPath += ".exe"
 		case strings.HasSuffix(target, ".app.tar.gz"):

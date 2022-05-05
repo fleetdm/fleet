@@ -15,13 +15,8 @@ import (
 	"github.com/go-kit/kit/log/level"
 )
 
-const (
-	// jiraName is the name of the job as registered in the worker.
-	jiraName = "jira"
-	// nvdCVEURL is the base link to a CVE on the NVD website, only the CVE code
-	// needs to be appended to make it a valid link.
-	nvdCVEURL = "https://nvd.nist.gov/vuln/detail/"
-)
+// jiraName is the name of the job as registered in the worker.
+const jiraName = "jira"
 
 var jiraSummaryTmpl = template.Must(template.New("").Parse(
 	`Vulnerability {{ .CVE }} detected on {{ len .Hosts }} host(s)`,
@@ -117,7 +112,7 @@ func (j *Jira) Run(ctx context.Context, argsJSON json.RawMessage) error {
 	issue := &jira.Issue{
 		Fields: &jira.IssueFields{
 			Type: jira.IssueType{
-				Name: "Bug",
+				Name: "Task",
 			},
 			Summary:     summary,
 			Description: description,
