@@ -153,7 +153,13 @@ will be disabled and/or hidden in the UI.
 
             // No session? Proceed as usual.
             // (e.g. request for a static asset)
-            if (!req.session) { return next(); }
+            // Setting headers for production assets in the `/dist` folder to disable caching
+            if (!req.session) {
+              if(req.url.startsWith('/dist')) {
+                res.setHeader('Cache-Control', 'no-cache, no-store');
+              }
+              return next();
+            }
 
             // Not logged in? Proceed as usual.
             if (!req.session.userId) { return next(); }
