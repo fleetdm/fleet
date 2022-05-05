@@ -2,7 +2,7 @@
 // disable this rule as it was throwing an error in Header and Cell component
 // definitions for the selection row for some reason when we dont really need it.
 import React from "react";
-import { performanceIndicator, secondsToDhms } from "fleet/helpers";
+import { performanceIndicator, secondsToDhms } from "utilities/helpers";
 
 // @ts-ignore
 import Checkbox from "components/forms/fields/Checkbox";
@@ -121,7 +121,7 @@ const generateTableHeaders = (
       disableSortBy: true,
       accessor: "query_name",
       Cell: (cellProps: ICellProps): JSX.Element => (
-        <TextCell value={cellProps.cell.value} />
+        <TextCell classes="w400" value={cellProps.cell.value} />
       ),
     },
     {
@@ -137,18 +137,16 @@ const generateTableHeaders = (
       title: "Performance impact",
       Header: () => {
         return (
-          <div className="column-with-tooltip">
-            <span className="queries-table__performance-impact-header">
-              <TooltipWrapper
-                tipContent={`
+          <div>
+            <TooltipWrapper
+              tipContent={`
                 This is the average <br />
                 performance impact <br />
                 across all hosts where this <br />
                 query was scheduled.`}
-              >
-                Performance impact
-              </TooltipWrapper>
-            </span>
+            >
+              Performance impact
+            </TooltipWrapper>
           </div>
         );
       },

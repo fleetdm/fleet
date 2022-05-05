@@ -18,6 +18,18 @@
 - [Why my host is not updating a policy's response.](#why-my-host-is-not-updating-a-policys-response)
 - [What should I do if my computer is showing up as an offline host?](#what-should-i-do-if-my-computer-is-showing-up-as-an-offline-host)
 - [How does Fleet deal with IP duplication?](#how-does-fleet-deal-with-ip-duplication)
+- [Can Orbit run alongside osquery?](#can-orbit-run-alongside-osquery)
+- [Can I disable auto updates for Orbit?](#can-i-disable-auto-updates-for-orbit)
+- [Can I bundle osquery extensions into Orbit?](#can-i-bundle-osquery-extensions-into-orbit)
+- [How does Fleet work with osquery extensions?](#how-does-fleet-work-with-osquery-extensions)
+- [Why am I seeing "unknown certificate error" when adding hosts to my dev server?](#why-am-i-seeing-"unknown-certificate-error"-when-adding-hosts-to-my-dev-server)
+- [Can I hide known vulnerabilities that I feel are insignificant?](#can-i-hide-known-vulnerabilities-that-i-feel-are-insignificant)
+- [Can I create reports based on historical data in Fleet?](#can-i-create-reports-based-on-historical-data-in-fleet)
+- [Why can't I run queries with `fleetctl` using a new API-only user?](#why-cant-i-run-queries-with-fleetctl-using-a-new-api-only-user)
+- [Why am I getting an error about self-signed certificates when running `fleetctl preview`?](#why-am-i-getting-an-error-about-self-signed-certificates-when-running-fleetctl-preview)
+- [Can I audit actions taken in Fleet?](#can-i-audit-actions-taken-in-fleet)
+- [How often is the software inventory updated?](#how-often-is-the-software-inventory-updated)
+- [Can I group results from multiple hosts?](#can-i-group-results-from-multiple-hosts)
 
 ## What do I need to do to switch from Kolide Fleet to FleetDM Fleet?
 
@@ -27,7 +39,7 @@ Minor version upgrades in Kolide Fleet often included database migrations and th
 
 To migrate from `kolide/fleet` to the new Fleet, please follow the steps outlined in the [Upgrading Fleet section](../Deploying/Upgrading-Fleet.md) of the documentation.
 
-## Has anyone stress tested Fleet? How many clients can the Fleet server handle?
+## Has anyone stress tested Fleet? How many hosts can the Fleet server handle?
 
 Fleet has been stress tested to 150,000 online hosts and 400,000 total enrolled hosts. Production deployments exist with over 100,000 hosts and numerous production deployments manage tens of thousands of hosts.
 
@@ -115,13 +127,17 @@ Both queries will run as scheduled on applicable hosts. If there are any hosts t
 
 Live query results are never logged to the filesystem of the Fleet server. See [Where are my query results?](#where-are-my-query-results).
 
+## Why does my query work locally with osquery but not in Fleet?
+
+If you're seeing query results using `osqueryi` but not through Fleet, the most likely culprit is a permissions issue. Check out the [osquery docs](https://osquery.readthedocs.io/en/stable/deployment/process-auditing/#full-disk-access) for more details and instructions for setting up Full Disk Access. 
+
 ## Can I use the Fleet API to fetch results from a scheduled query pack?
 
 You cannot. Scheduled query results are logged to whatever logging plugin you have configured and are not stored in the Fleet DB.
 
 However, the Fleet API exposes a significant amount of host information via the [`api/v1/fleet/hosts`](./REST-API.md#list-hosts) and the [`api/v1/fleet/hosts/{id}`](./REST-API.md#get-host) API endpoints. The `api/v1/fleet/hosts` [can even be configured to return additional host information](https://github.com/fleetdm/fleet/blob/9fb9da31f5462fa7dda4819a114bbdbc0252c347/docs/1-Using-Fleet/2-fleetctl-CLI.md#fleet-configuration-options).
 
-As an example, let's say you want to retrieve a host's OS version, installed software, and kernel version:
+For example, let's say you want to retrieve a host's OS version, installed software, and kernel version:
 
 Each host’s OS version is available using the `api/v1/fleet/hosts` API endpoint. [Check out the API documentation for this endpoint](./REST-API.md#list-hosts).
 
@@ -129,7 +145,7 @@ The ability to view each host’s installed software was released behind a featu
 
 Once the Software inventory feature is turned on, a list of a specific host’s installed software is available using the `api/v1/fleet/hosts/{id}` endpoint. [Check out the documentation for this endpoint](./REST-API.md#get-host).
 
-It’s possible in Fleet to retrieve each host’s kernel version, using the Fleet API, through `additional_queries`. The Fleet configuration options yaml file includes an `additional_queries` property that allows you to append custom query results to the host details returned by the `api/v1/fleet/hosts` endpoint. [Check out an example configuration file with the additional_queries field](./fleetctl-CLI.md#fleet-configuration-options).
+It’s possible in Fleet to retrieve each host’s kernel version, using the Fleet API, through `additional_queries`. The Fleet configuration options YAML file includes an `additional_queries` property that allows you to append custom query results to the host details returned by the `api/v1/fleet/hosts` endpoint. [Check out an example configuration file with the additional_queries field](./fleetctl-CLI.md#fleet-configuration-options).
 
 ## How do I automatically add hosts to packs when the hosts enroll to Fleet?
 
@@ -161,7 +177,7 @@ If your device is showing up as an offline host in the Fleet instance, and you'r
 
 ## Fleet preview fails with Invalid interpolation. What should I do?
 
-If you tried running fleet preview and you get the following error:
+If you tried running `fleetctl preview` and you get the following error:
 
 ```
 fleetctl preview
@@ -182,6 +198,79 @@ Fleet relies on UUIDs so any overlap with host IP addresses should not cause a p
 
 Yes, Orbit can be run alongside osquery. The osquery instance that Orbit runs uses its own database directory that is stored within the Orbit directory.
 
+## Can I disable auto-updates for Orbit?
+
+Yes, auto-updates can be disabled by passing `--disable-updates` as a flag when running `fleetctl package` to generate your installer (easy) or by deploying a modified systemd file to your hosts (more complicated). We'd recommend the flag:
+
+```
+fleetctl package --fleetctl package --type=deb --fleet-url=https://localhost:8080 --enroll-secret=superRandomSecret --disable-updates
+```
+## Can I bundle osquery extensions into Orbit?
+
+This isn't supported yet, but we're working on it! 
+
 ## What happens to osquery logs if my Fleet server or my logging destination is offline?
 
 If Fleet can't send logs to the destination, it will return an error to osquery. This causes osquery to retry sending the logs. The logs will then be stored in osquery's internal buffer until they are sent successfully, or they get expired if the `buffered_log_max`(defaults to 1,000,000 logs) is exceeded. Check out the [Remote logging buffering section](https://osquery.readthedocs.io/en/latest/deployment/remote/#remote-logging-buffering) on the osquery docs for more on this behavior.
+
+## How does Fleet work with osquery extensions?
+
+Any extension table available in a host enrolled to Fleet can be queried by Fleet. Note that the "compatible with" message may show an error because it won't know your extension table, but the query will still work, and Fleet will gracefully ignore errors from any incompatible hosts.
+
+## Why do I see "Unknown Certificate Error" when adding hosts to my dev server?
+
+If you are using a self-signed certificate on `localhost`, add the  `--insecure` flag when building your installation packages:
+
+```
+fleetctl package --fleetctl package --type=deb --fleet-url=https://localhost:8080 --enroll-secret=superRandomSecret --insecure
+```
+
+## Can I hide known vulnerabilities that I feel are insignificant?
+
+This isn't currently supported, but we're working on it! You can track that issue [here](https://github.com/fleetdm/fleet/issues/3152).
+
+## Can I create reports based on historical data in Fleet?
+
+Currently, Fleet only stores the current state of your hosts (when they last communicated with Fleet). The best way at the moment to maintain historical data would be to use the [REST API](./REST-API.md) or the [`fleetctl` CLI](./fleetctl-CLI.md) to retrieve it manually. Then save the data you need to your schedule. 
+
+## When do I need fleetctl vs the REST API vs the Fleet UI?
+
+[fleetctl](https://fleetdm.com/docs/using-fleet/fleetctl-cli) is great for users that like to do things in a terminal (like iTerm on a Mac). Lots of tech folks are real power users of the terminal. It is also helpful for automating things like deployments.
+
+The [REST API](https://fleetdm.com/docs/using-fleet/rest-api) is somewhat similar to fleetctl, but it tends to be used more by other computer programs rather than human users (although humans can use it too). For example, our [Fleet UI](https://fleetdm.com/docs/using-fleet/rest-api) talks to the server via the REST API. Folks can also use the REST API if they want to build their own programs that talk to the Fleet server.
+
+The [Fleet UI](https://fleetdm.com/docs/using-fleet/fleet-ui) is built for human users to make interfacing with the Fleet server user-friendly and visually appealing. It also makes things simpler and more accessible to a broader range of users. 
+
+## Why can't I run queries with `fleetctl` using a new API-only user?
+
+In versions prior to Fleet 4.13, a password reset is needed before a new API-only user can perform queries. You can find detailed instructions for setting that up [here](https://github.com/fleetdm/fleet/blob/a1eba3d5b945cb3339004dd1181526c137dc901c/docs/Using-Fleet/fleetctl-CLI.md#reset-the-password).
+
+## Why am I getting an error about self-signed certificates when running `fleetctl preview`?
+
+If you are trying to run `fleetctl preview` and seeing errors about self-signed certificates, the most likely culprit is that you're behind a corporate proxy server and need to [add the proxy settings to Docker](https://docs.docker.com/network/proxy/) so that the container created by `fleetctl preview` is able to connect properly. 
+
+## Can I audit actions taken in Fleet?
+
+The [REST API `activities` endpoint](./REST-API.md#activities) provides a full breakdown of actions taken on packs, queries, policies, and teams (Available in Fleet Premium) through the UI, the REST API, or `fleetctl`.  
+
+## How often is the software inventory updated?
+
+By default, Fleet will query hosts for software inventory hourly. If you'd like to set a different interval, you can update the [periodicity](../Deploying/Configuration.md#periodicity) in your vulnerabilities configuration. 
+
+## Can I group results from multiple hosts?
+
+There are a few ways you can go about getting counts of hosts that meet specific criteria using the REST API. You can use [`GET /api/v1/fleet/hosts`](./REST-API.md#list-hosts) or the [`fleetctl` CLI](./fleetctl-CLI.md#available-commands) to gather a list of all hosts and then work with that data however you'd like. For example, you could retrieve all hosts using `fleetctl get hosts` and then use `jq` to pull out the data you need. The following example would give you a count of hosts by their OS version:
+
+```
+$ fleetctl get hosts --json | jq '.spec .os_version' | sort | uniq -c
+
+   1 "CentOS Stream 8.0.0"
+   2 "Ubuntu 20.4.0"
+   1 "macOS 11.5.2"
+   1 "macOS 11.6.3"
+   1 "macOS 12.1.0"
+   3 "macOS 12.2.1"
+   3 "macOS 12.3.0"
+   6 "macOS 12.3.1"
+```
+

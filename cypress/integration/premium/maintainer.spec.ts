@@ -146,10 +146,10 @@ describe("Premium tier - Maintainer user", () => {
         cy.getAttached(".enroll-secret-modal__add-secret")
           .contains("button", /add secret/i)
           .click();
-        cy.getAttached(".secret-editor-modal__button-wrap")
+        cy.getAttached(".secret-editor-modal .modal-cta-wrap")
           .contains("button", /save/i)
           .click();
-        cy.getAttached(".enroll-secret-modal__button-wrap")
+        cy.getAttached(".enroll-secret-modal .modal-cta-wrap")
           .contains("button", /done/i)
           .click();
       });
@@ -168,7 +168,7 @@ describe("Premium tier - Maintainer user", () => {
           cy.findByText(/apples/i).should("exist");
           cy.findByText(/oranges/i).click();
         });
-        cy.getAttached(".transfer-host-modal__button-wrap")
+        cy.getAttached(".transfer-host-modal .modal-cta-wrap")
           .contains("button", /transfer/i)
           .click();
         cy.findByText(/transferred to oranges/i).should("exist");
@@ -201,29 +201,8 @@ describe("Premium tier - Maintainer user", () => {
     });
     describe("Manage software page", () => {
       beforeEach(() => cy.visit("/software/manage"));
-      it("allows global maintainer to click 'Manage automations' button", () => {
-        it("manages software automations when all teams selected", () => {
-          cy.getAttached(".manage-software-page__header-wrap").within(() => {
-            cy.getAttached(".Select").within(() => {
-              cy.findByText(/all teams/i).should("exist");
-            });
-            cy.findByRole("button", { name: /manage automations/i }).click();
-            cy.findByRole("button", { name: /cancel/i }).click();
-          });
-        });
-        it("hides manage automations button when all teams not selected", () => {
-          cy.getAttached(".manage-software-page__header-wrap").within(() => {
-            cy.getAttached(".Select").within(() => {
-              cy.getAttached(".Select-control").click();
-              cy.getAttached(".Select-menu-outer").within(() => {
-                cy.findByText(/apples/i).should("exist");
-              });
-              cy.findByRole("button", {
-                name: /manage automations/i,
-              }).should("not.exist");
-            });
-          });
-        });
+      it("hides 'Manage automations' button from global maintainer", () => {
+        cy.findByText(/manage automations/i).should("not.exist");
       });
     });
     describe("Query pages", () => {
@@ -247,15 +226,12 @@ describe("Premium tier - Maintainer user", () => {
     });
     describe("Manage policies page", () => {
       beforeEach(() => cy.visit("/policies/manage"));
-      it("allows global maintainer to click 'Manage automations' button", () => {
-        cy.getAttached(".button-wrap")
-          .findByRole("button", { name: /manage automations/i })
-          .click();
-        cy.findByRole("button", { name: /cancel/i }).click();
+      it("hides manage automations button", () => {
+        cy.findByText(/manage hosts/i).should("not.exist");
       });
       it("allows global maintainer to add a new policy", () => {
-        cy.getAttached(".button-wrap")
-          .findByRole("button", { name: /add a polic/i })
+        cy.getAttached(".policies-list-wrapper__action-button-container")
+          .findByRole("button", { name: /add a policy/i })
           .click();
         // Add a default policy
         cy.findByText(/gatekeeper enabled/i).click();

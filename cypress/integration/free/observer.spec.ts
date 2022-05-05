@@ -185,11 +185,6 @@ describe("Free tier - Observer user", () => {
       cy.loginWithCySession("oliver@organization.com", "user123#");
       cy.visit("/queries/manage");
     });
-    it("hides 'Observer can run' column", () => {
-      cy.getAttached("thead").within(() => {
-        cy.findByText(/observer can run/i).should("not.exist");
-      });
-    });
     it("hides create a query button", () => {
       cy.findByRole("button", { name: /create new query/i }).should(
         "not.exist"
@@ -214,12 +209,10 @@ describe("Free tier - Observer user", () => {
       cy.visit("/policies/manage");
     });
     it("hides manage automations button", () => {
-      cy.findByRole("button", { name: /manage automations/i }).should(
-        "not.exist"
-      );
+      cy.findByText(/manage automations/i).should("not.exist");
     });
     it("hides add a policy button", () => {
-      cy.findByRole("button", { name: /add a policy/i }).should("not.exist");
+      cy.findByText(/add a policy/).should("not.exist");
     });
     it("hides run, edit, or delete a policy", () => {
       cy.getAttached("tbody").within(() => {

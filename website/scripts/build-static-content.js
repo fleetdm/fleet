@@ -50,8 +50,8 @@ module.exports = {
               let formattedTags = [];
               for (let tag of tagsToFormat) {
                 if(tag !== '') {// « Ignoring any blank tags caused by trailing commas in the YAML.
-                  // Formatting tags in sentence case, and removing any extra whitespace.
-                  formattedTags.push(_.capitalize(_.trim(tag)));
+                  // Removing any extra whitespace from tags and changing them to be in lower case.
+                  formattedTags.push(_.trim(tag.toLowerCase()));
                 }
               }
               // Removing any duplicate tags.
@@ -131,7 +131,8 @@ module.exports = {
 
         let SECTION_INFOS_BY_SECTION_REPO_PATHS = {
           'docs/':     { urlPrefix: '/docs', },
-          'handbook/': { urlPrefix: '/handbook', }
+          'handbook/': { urlPrefix: '/handbook', },
+          'articles/': { urlPrefix: '/articles', }
         };
         let rootRelativeUrlPathsSeen = [];
         for (let sectionRepoPath of Object.keys(SECTION_INFOS_BY_SECTION_REPO_PATHS)) {// FUTURE: run this in parallel
@@ -334,6 +335,56 @@ module.exports = {
                   // If the page is not a Readme or a FAQ, we'll throw an error if its missing a pageOrderInSection meta tag.
                   throw new Error(`Failed compiling markdown content: A Non FAQ or README Documentation page is missing a pageOrderInSection meta tag (<meta name="pageOrderInSection" value="">) at "${path.join(topLvlRepoPath, pageSourcePath)}".  To resolve, add a meta tag with a number higher than 0.`);
                 }
+              }
+
+              // Checking the metadata on /articles pages, and adding the category to the each article's URL.
+              if(sectionRepoPath === 'articles/') {
+                if(!embeddedMetadata.authorGitHubUsername) {
+                  // Throwing an error if the article doesn't have a authorGitHubUsername meta tag
+                  throw new Error(`Failed compiling markdown content: An article page is missing a authorGitHubUsername meta tag (<meta name="authorGitHubUsername" value="">) at "${path.join(topLvlRepoPath, pageSourcePath)}".  To resolve, add a meta tag with the authors GitHub username.`);
+                }
+                if(!embeddedMetadata.authorFullName) {
+                  // Throwing an error if the article doesn't have a authorFullName meta tag
+                  throw new Error(`Failed compiling markdown content: An article page is missing a authorFullName meta tag (<meta name="authorFullName" value="">) at "${path.join(topLvlRepoPath, pageSourcePath)}".  To resolve, add a meta tag with the authors GitHub username.`);
+                }
+                if(!embeddedMetadata.articleTitle) {
+                  // Throwing an error if the article doesn't have a articleTitle meta tag
+                  throw new Error(`Failed compiling markdown content: An article page is missing a articleTitle meta tag (<meta name="articleTitle" value="">) at "${path.join(topLvlRepoPath, pageSourcePath)}".  To resolve, add a meta tag with the title of the article.`);
+                }
+                if(embeddedMetadata.publishedOn) {
+                  if(!embeddedMetadata.publishedOn.match(/^([0-9]{4})-(1[0-2]|0[1-9])-(3[01]|0[1-9]|[12][0-9])$/g)){
+                    // Throwing an error if an article page's publishedOn meta value is an invalid ISO date string
+                    throw new Error(`Failed compiling markdown content: An article page has an invalid publishedOn value (<meta name="publishedOn" value="${embeddedMetadata.publishedOn}">) at "${path.join(topLvlRepoPath, pageSourcePath)}".  To resolve, add a meta tag with the ISO formatted date the article was published on`);
+                  }
+                } else {
+                  // Throwing an error if the article is missing a 'publishedOn' meta tag
+                  throw new Error(`Failed compiling markdown content: An article page is missing a publishedOn meta tag (<meta name="publishedOn" value="2022-04-19">) at "${path.join(topLvlRepoPath, pageSourcePath)}".  To resolve, add a meta tag with the ISO formatted date the article was published on`);
+                }
+                if(embeddedMetadata.category) {
+                  // Throwing an error if the article has an invalid category.
+                  embeddedMetadata.category = embeddedMetadata.category.toLowerCase();
+                  let validArticleCategories = ['product', 'security', 'engineering', 'success stories', 'announcements', 'guides', 'releases' ];
+                  if(!validArticleCategories.includes(embeddedMetadata.category)) {
+                    throw new Error(`Failed compiling markdown content: An article page has an invalid category meta tag (<meta name="category" value="${embeddedMetadata.category}">) at "${path.join(topLvlRepoPath, pageSourcePath)}". To resolve, change the meta tag to a valid category, one of: ${validArticleCategories}`);
+                  }
+                } else {
+                  // throwing an error if the article is missing a category meta tag
+                  throw new Error(`Failed compiling markdown content: An article page is missing a category meta tag (<meta name="category" value="guides">) at "${path.join(topLvlRepoPath, pageSourcePath)}".  To resolve, add a meta tag with the category of the article`);
+                }
+                if(embeddedMetadata.articleImageUrl) {
+                  // Checking the value of `articleImageUrl` meta tags, and throwing an error if it is not a link to an image.
+                  let isValidImageUrl = embeddedMetadata.articleImageUrl.match(/^https?:\/\/(.+)(\.png|\.jpg|\.jpeg)$/g);
+                  if(!isValidImageUrl) {
+                    throw new Error(`Failed compiling markdown content: An article page has an invalid a articleImageUrl meta tag (<meta name="articleImageUrl" value="${embeddedMetadata.articleImageUrl}">) at "${path.join(topLvlRepoPath, pageSourcePath)}".  To resolve, change the value of the meta tag to be a URL`);
+                  }
+                }
+                // For article pages, we'll attach the category to the `rootRelativeUrlPath`.
+                // If the article is categorized as 'product' we'll replace the category with 'use-cases', or if it is categorized as 'success story' we'll replace it with 'device-management'
+                rootRelativeUrlPath = (
+                  '/' +
+                  (embeddedMetadata.category === 'product' ? 'use-cases' : embeddedMetadata.category === 'success stories' ? 'device-management' : embeddedMetadata.category === 'security' ? 'securing' : embeddedMetadata.category) + '/' +
+                  (pageUnextensionedLowercasedRelPath.split(/\//).map((fileOrFolderName) => encodeURIComponent(fileOrFolderName.replace(/^[0-9]+[\-]+/,''))).join('/'))
+                );
               }
 
               // Determine unique HTML id

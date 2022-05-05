@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { useDebouncedCallback } from "use-debounce/lib";
+import { useDebouncedCallback } from "use-debounce";
 
 import { ISoftware } from "interfaces/software";
 import { VULNERABLE_DROPDOWN_OPTIONS } from "utilities/constants";
@@ -8,38 +8,54 @@ import { VULNERABLE_DROPDOWN_OPTIONS } from "utilities/constants";
 import Dropdown from "components/forms/fields/Dropdown";
 import TableContainer from "components/TableContainer";
 
-import EmptySoftware from "./EmptySoftware";
+import EmptyState from "../EmptyState";
 import SoftwareVulnCount from "./SoftwareVulnCount";
 
 import generateSoftwareTableHeaders from "./SoftwareTableConfig";
 
 const baseClass = "host-details";
 
+export interface ITableSoftware extends Omit<ISoftware, "vulnerabilities"> {
+  vulnerabilities: string[]; // for client-side search purposes, we only want an array of cve strings
+}
+
 interface ISoftwareTableProps {
   isLoading: boolean;
   software: ISoftware[];
   deviceUser?: boolean;
+  softwareInventoryEnabled?: boolean;
 }
 
 const SoftwareTable = ({
   isLoading,
   software,
   deviceUser,
+  softwareInventoryEnabled,
 }: ISoftwareTableProps): JSX.Element => {
-  const [filterName, setFilterName] = useState("");
+  const tableSoftware: ITableSoftware[] = software.map((s) => {
+    return {
+      ...s,
+      vulnerabilities:
+        s.vulnerabilities?.map((v) => {
+          return v.cve;
+        }) || [],
+    };
+  });
+
+  const [searchString, setSearchString] = useState("");
   const [filterVuln, setFilterVuln] = useState(false);
   const [filters, setFilters] = useState({
-    name: filterName,
+    global: searchString,
     vulnerabilities: filterVuln,
   });
 
   useEffect(() => {
-    setFilters({ name: filterName, vulnerabilities: filterVuln });
-  }, [filterName, filterVuln]);
+    setFilters({ global: searchString, vulnerabilities: filterVuln });
+  }, [searchString, filterVuln]);
 
   const onQueryChange = useDebouncedCallback(
     ({ searchQuery }: { searchQuery: string }) => {
-      setFilterName(searchQuery);
+      setSearchString(searchQuery);
     },
     300
   );
@@ -62,6 +78,19 @@ const SoftwareTable = ({
 
   const tableHeaders = generateSoftwareTableHeaders(deviceUser);
 
+  const EmptySoftwareSearch = () => (
+    <EmptyState title="software" reason="empty-search" />
+  );
+
+  if (!softwareInventoryEnabled) {
+    return (
+      <div className="section section--software">
+        <p className="section__header">Software</p>
+        <EmptyState title="software" reason="disabled" />
+      </div>
+    );
+  }
+
   return (
     <div className="section section--software">
       <p className="section__header">Software</p>
@@ -77,15 +106,17 @@ const SoftwareTable = ({
           {software && (
             <TableContainer
               columns={tableHeaders}
-              data={software}
+              data={tableSoftware}
               filters={filters}
               isLoading={isLoading}
               defaultSortHeader={"name"}
               defaultSortDirection={"asc"}
-              inputPlaceHolder={"Filter software"}
+              inputPlaceHolder={
+                "Search software by name or vulnerabilities (CVEs)"
+              }
               onQueryChange={onQueryChange}
               resultsTitle={"software items"}
-              emptyComponent={EmptySoftware}
+              emptyComponent={EmptySoftwareSearch}
               showMarkAllPages={false}
               isAllPagesSelected={false}
               searchable
@@ -97,15 +128,7 @@ const SoftwareTable = ({
           )}
         </>
       ) : (
-        <div className="results">
-          <p className="results__header">
-            No installed software detected on this host.
-          </p>
-          <p className="results__data">
-            Expecting to see software? Try again in a few seconds as the system
-            catches up.
-          </p>
-        </div>
+        <EmptyState title="software" />
       )}
     </div>
   );

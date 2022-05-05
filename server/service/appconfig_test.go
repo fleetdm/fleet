@@ -275,3 +275,65 @@ func TestMissingMetadata(t *testing.T) {
 	assert.Contains(t, invalid.Error(), "metadata")
 	assert.Contains(t, invalid.Error(), "either metadata or metadata_url must be defined")
 }
+
+func TestAppConfigSecretsObfuscated(t *testing.T) {
+	ds := new(mock.Store)
+	svc := newTestService(t, ds, nil, nil)
+
+	// start a TLS server and use its URL as the server URL in the app config,
+	// required by the CertificateChain service call.
+	srv := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {}))
+	defer srv.Close()
+
+	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+		return &fleet.AppConfig{
+			SMTPSettings: fleet.SMTPSettings{SMTPPassword: "smtppassword"},
+			Integrations: fleet.Integrations{Jira: []*fleet.JiraIntegration{{APIToken: "jiratoken"}}, Zendesk: []*fleet.ZendeskIntegration{{APIToken: "zendesktoken"}}},
+		}, nil
+	}
+
+	testCases := []struct {
+		name string
+		user *fleet.User
+	}{
+		{
+			"global admin",
+			&fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)},
+		},
+		{
+			"global maintainer",
+			&fleet.User{GlobalRole: ptr.String(fleet.RoleMaintainer)},
+		},
+		{
+			"global observer",
+			&fleet.User{GlobalRole: ptr.String(fleet.RoleObserver)},
+		},
+		{
+			"team admin",
+			&fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 1}, Role: fleet.RoleAdmin}}},
+		},
+		{
+			"team maintainer",
+			&fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 1}, Role: fleet.RoleMaintainer}}},
+		},
+		{
+			"team observer",
+			&fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 1}, Role: fleet.RoleObserver}}},
+		},
+		{
+			"user",
+			&fleet.User{ID: 777},
+		},
+	}
+	for _, tt := range testCases {
+		t.Run(tt.name, func(t *testing.T) {
+			ctx := viewer.NewContext(context.Background(), viewer.Viewer{User: tt.user})
+
+			ac, err := svc.AppConfig(ctx)
+			require.NoError(t, err)
+			require.Equal(t, ac.SMTPSettings.SMTPPassword, "********")
+			require.Equal(t, ac.Integrations.Jira[0].APIToken, "********")
+			require.Equal(t, ac.Integrations.Zendesk[0].APIToken, "********")
+		})
+	}
+}

@@ -1,18 +1,20 @@
-import React, { FormEvent, useState, useEffect } from "react";
+import React, { FormEvent, useState, useEffect, useContext } from "react";
 import { Link } from "react-router";
 import PATHS from "router/paths";
-import { useDispatch } from "react-redux";
 
+import { NotificationContext } from "context/notification";
 import { ITeam } from "interfaces/team";
-import { IUserFormErrors } from "interfaces/user"; // @ts-ignore
-import { renderFlash } from "redux/nodes/notifications/actions";
-// ignore TS error for now until these are rewritten in ts.
+import { IUserFormErrors } from "interfaces/user";
+
 import Button from "components/buttons/Button";
 import validatePresence from "components/forms/validators/validate_presence";
-import validEmail from "components/forms/validators/valid_email"; // @ts-ignore
-import validPassword from "components/forms/validators/valid_password"; // @ts-ignore
+import validEmail from "components/forms/validators/valid_email";
+// @ts-ignore
+import validPassword from "components/forms/validators/valid_password";
+// @ts-ignore
 import InputField from "components/forms/fields/InputField";
-import Checkbox from "components/forms/fields/Checkbox"; // @ts-ignore
+import Checkbox from "components/forms/fields/Checkbox";
+// @ts-ignore
 import Dropdown from "components/forms/fields/Dropdown";
 import Radio from "components/forms/fields/Radio";
 import InfoBanner from "components/InfoBanner/InfoBanner";
@@ -107,7 +109,7 @@ const UserForm = ({
   serverErrors,
   createOrEditUserErrors,
 }: ICreateUserFormProps): JSX.Element => {
-  const dispatch = useDispatch();
+  const { renderFlash } = useContext(NotificationContext);
 
   const [errors, setErrors] = useState<any>(createOrEditUserErrors);
   const [formData, setFormData] = useState<any>({
@@ -122,7 +124,7 @@ const UserForm = ({
   });
 
   const [isGlobalUser, setIsGlobalUser] = useState<boolean>(
-    defaultGlobalRole !== null
+    !!defaultGlobalRole
   );
 
   useEffect(() => {
@@ -264,9 +266,7 @@ const UserForm = ({
     }
 
     if (!formData.global_role && !formData.teams.length) {
-      dispatch(
-        renderFlash("error", `Please select at least one team for this user.`)
-      );
+      renderFlash("error", `Please select at least one team for this user.`);
       return false;
     }
 
@@ -439,12 +439,12 @@ const UserForm = ({
           disabled={!canUseSso}
           wrapperClassName={`${baseClass}__invite-admin`}
           tooltip={`
-              Enabling single sign on for a user requires that SSO is first enabled for the organization.
+              Enabling single sign-on for a user requires that SSO is first enabled for the organization.
               <br /><br />
               Users with Admin role can configure SSO in <strong>Settings &gt; Organization settings</strong>.
             `}
         >
-          Enable single sign on
+          Enable single sign-on
         </Checkbox>
         <p className={`${baseClass}__sso-input sublabel`}>
           Password authentication will be disabled for this user.

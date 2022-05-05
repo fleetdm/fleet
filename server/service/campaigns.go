@@ -146,6 +146,12 @@ func (svc *Service) NewDistributedQueryCampaign(ctx context.Context, queryString
 		return nil, ctxerr.Wrap(ctx, err, "get target IDs")
 	}
 
+	if len(hostIDs) == 0 {
+		return nil, &badRequestError{
+			message: "no hosts targeted",
+		}
+	}
+
 	err = svc.liveQueryStore.RunQuery(strconv.Itoa(int(campaign.ID)), queryString, hostIDs)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "run query")

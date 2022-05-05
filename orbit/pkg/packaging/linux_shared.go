@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"text/template"
 
+	"github.com/Masterminds/semver"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/constant"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/update"
 	"github.com/fleetdm/fleet/v4/pkg/secure"
@@ -24,11 +25,11 @@ func buildNFPM(opt Options, pkger nfpm.Packager) (string, error) {
 	}
 	defer os.RemoveAll(tmpDir)
 
-	filesystemRoot := filepath.Join(tmpDir, "root")
-	if err := secure.MkdirAll(filesystemRoot, constant.DefaultDirMode); err != nil {
+	rootDir := filepath.Join(tmpDir, "root")
+	if err := secure.MkdirAll(rootDir, constant.DefaultDirMode); err != nil {
 		return "", fmt.Errorf("create root dir: %w", err)
 	}
-	orbitRoot := filepath.Join(filesystemRoot, "var", "lib", "orbit")
+	orbitRoot := filepath.Join(rootDir, "opt", "orbit")
 	if err := secure.MkdirAll(orbitRoot, constant.DefaultDirMode); err != nil {
 		return "", fmt.Errorf("create orbit dir: %w", err)
 	}
@@ -38,6 +39,12 @@ func buildNFPM(opt Options, pkger nfpm.Packager) (string, error) {
 
 	updateOpt.RootDirectory = orbitRoot
 	updateOpt.Targets = update.LinuxTargets
+
+	if opt.Desktop {
+		updateOpt.Targets["desktop"] = update.DesktopLinuxTarget
+		// Override default channel with the provided value.
+		updateOpt.Targets.SetTargetChannel("desktop", opt.DesktopChannel)
+	}
 
 	// Override default channels with the provided values.
 	updateOpt.Targets.SetTargetChannel("orbit", opt.OrbitChannel)
@@ -58,13 +65,21 @@ func buildNFPM(opt Options, pkger nfpm.Packager) (string, error) {
 		opt.Version = updatesData.OrbitVersion
 	}
 
+	varLibSymlink := false
+	if orbitSemVer, err := semver.NewVersion(updatesData.OrbitVersion); err == nil {
+		if orbitSemVer.LessThan(semver.MustParse("0.0.11")) {
+			varLibSymlink = true
+		}
+	}
+	// If err != nil we assume non-legacy Orbit.
+
 	// Write files
 
-	if err := writeSystemdUnit(opt, filesystemRoot); err != nil {
+	if err := writeSystemdUnit(opt, rootDir); err != nil {
 		return "", fmt.Errorf("write systemd unit: %w", err)
 	}
 
-	if err := writeEnvFile(opt, filesystemRoot); err != nil {
+	if err := writeEnvFile(opt, rootDir); err != nil {
 		return "", fmt.Errorf("write env file: %w", err)
 	}
 
@@ -80,6 +95,14 @@ func buildNFPM(opt Options, pkger nfpm.Packager) (string, error) {
 	if err := writePostInstall(opt, postInstallPath); err != nil {
 		return "", fmt.Errorf("write postinstall script: %w", err)
 	}
+	preRemovePath := filepath.Join(tmpDir, "preremove.sh")
+	if err := writePreRemove(opt, preRemovePath); err != nil {
+		return "", fmt.Errorf("write preremove script: %w", err)
+	}
+	postRemovePath := filepath.Join(tmpDir, "postremove.sh")
+	if err := writePostRemove(opt, postRemovePath); err != nil {
+		return "", fmt.Errorf("write postremove script: %w", err)
+	}
 
 	if opt.FleetCertificate != "" {
 		if err := writeCertificate(opt, orbitRoot); err != nil {
@@ -91,13 +114,13 @@ func buildNFPM(opt Options, pkger nfpm.Packager) (string, error) {
 
 	contents := files.Contents{
 		&files.Content{
-			Source:      filepath.Join(filesystemRoot, "**"),
+			Source:      filepath.Join(rootDir, "**"),
 			Destination: "/",
 		},
-		// Symlink current into /var/lib/orbit/bin/orbit/orbit
+		// Symlink current into /opt/orbit/bin/orbit/orbit
 		&files.Content{
-			Source:      "/var/lib/orbit/bin/orbit/linux/" + opt.OrbitChannel + "/orbit",
-			Destination: "/var/lib/orbit/bin/orbit/orbit",
+			Source:      "/opt/orbit/bin/orbit/linux/" + opt.OrbitChannel + "/orbit",
+			Destination: "/opt/orbit/bin/orbit/orbit",
 			Type:        "symlink",
 			FileInfo: &files.ContentFileInfo{
 				Mode: constant.DefaultExecutableMode | os.ModeSymlink,
@@ -105,7 +128,7 @@ func buildNFPM(opt Options, pkger nfpm.Packager) (string, error) {
 		},
 		// Symlink current into /usr/local/bin
 		&files.Content{
-			Source:      "/var/lib/orbit/bin/orbit/orbit",
+			Source:      "/opt/orbit/bin/orbit/orbit",
 			Destination: "/usr/local/bin/orbit",
 			Type:        "symlink",
 			FileInfo: &files.ContentFileInfo{
@@ -113,6 +136,28 @@ func buildNFPM(opt Options, pkger nfpm.Packager) (string, error) {
 			},
 		},
 	}
+
+	// Add empty folders to be created.
+	for _, emptyFolder := range []string{"/var/log/osquery", "/var/log/orbit"} {
+		contents = append(contents, (&files.Content{
+			Destination: emptyFolder,
+			Type:        "dir",
+		}).WithFileInfoDefaults())
+	}
+
+	if varLibSymlink {
+		contents = append(contents,
+			// Symlink needed to support old versions of orbit.
+			&files.Content{
+				Source:      "/opt/orbit",
+				Destination: "/var/lib/orbit",
+				Type:        "symlink",
+				FileInfo: &files.ContentFileInfo{
+					Mode: os.ModeSymlink,
+				},
+			})
+	}
+
 	contents, err = files.ExpandContentGlobs(contents, false)
 	if err != nil {
 		return "", fmt.Errorf("glob contents: %w", err)
@@ -122,7 +167,6 @@ func buildNFPM(opt Options, pkger nfpm.Packager) (string, error) {
 	}
 
 	// Build package
-
 	info := &nfpm.Info{
 		Name:        "fleet-osquery",
 		Version:     opt.Version,
@@ -132,12 +176,10 @@ func buildNFPM(opt Options, pkger nfpm.Packager) (string, error) {
 		Homepage:    "https://fleetdm.com",
 		Overridables: nfpm.Overridables{
 			Contents: contents,
-			EmptyFolders: []string{
-				"/var/log/osquery",
-				"/var/log/orbit",
-			},
 			Scripts: nfpm.Scripts{
 				PostInstall: postInstallPath,
+				PreRemove:   preRemovePath,
+				PostRemove:  postRemovePath,
 			},
 		},
 	}
@@ -176,7 +218,7 @@ StartLimitIntervalSec=0
 [Service]
 TimeoutStartSec=0
 EnvironmentFile=/etc/default/orbit
-ExecStart=/var/lib/orbit/bin/orbit/orbit
+ExecStart=/opt/orbit/bin/orbit/orbit
 Restart=always
 RestartSec=1
 KillMode=control-group
@@ -198,10 +240,15 @@ var envTemplate = template.Must(template.New("env").Parse(`
 ORBIT_UPDATE_URL={{ .UpdateURL }}
 ORBIT_ORBIT_CHANNEL={{ .OrbitChannel }}
 ORBIT_OSQUERYD_CHANNEL={{ .OsquerydChannel }}
+ORBIT_UPDATE_INTERVAL={{ .OrbitUpdateInterval }}
+{{ if .Desktop }}
+ORBIT_FLEET_DESKTOP=true
+ORBIT_DESKTOP_CHANNEL={{ .DesktopChannel }}
+{{ end }}
 {{ if .Insecure }}ORBIT_INSECURE=true{{ end }}
 {{ if .DisableUpdates }}ORBIT_DISABLE_UPDATES=true{{ end }}
 {{ if .FleetURL }}ORBIT_FLEET_URL={{.FleetURL}}{{ end }}
-{{ if .FleetCertificate }}ORBIT_FLEET_CERTIFICATE=/var/lib/orbit/fleet.pem{{ end }}
+{{ if .FleetCertificate }}ORBIT_FLEET_CERTIFICATE=/opt/orbit/fleet.pem{{ end }}
 {{ if .EnrollSecret }}ORBIT_ENROLL_SECRET={{.EnrollSecret}}{{ end }}
 {{ if .Debug }}ORBIT_DEBUG=true{{ end }}
 `))
@@ -251,6 +298,32 @@ func writePostInstall(opt Options, path string) error {
 	}
 
 	if err := ioutil.WriteFile(path, contents.Bytes(), constant.DefaultFileMode); err != nil {
+		return fmt.Errorf("write file: %w", err)
+	}
+
+	return nil
+}
+
+func writePreRemove(opt Options, path string) error {
+	// We add `|| true` in case the service is not running
+	// or has been manually disabled already. Otherwise,
+	// uninstallation fails.
+	if err := ioutil.WriteFile(path, []byte(`#!/bin/sh
+
+systemctl stop orbit.service || true
+systemctl disable orbit.service || true
+`), constant.DefaultFileMode); err != nil {
+		return fmt.Errorf("write file: %w", err)
+	}
+
+	return nil
+}
+
+func writePostRemove(opt Options, path string) error {
+	if err := ioutil.WriteFile(path, []byte(`#!/bin/sh
+
+rm -rf /var/lib/orbit /var/log/orbit /usr/local/bin/orbit /etc/default/orbit /usr/lib/systemd/system/orbit.service /opt/orbit
+`), constant.DefaultFileMode); err != nil {
 		return fmt.Errorf("write file: %w", err)
 	}
 

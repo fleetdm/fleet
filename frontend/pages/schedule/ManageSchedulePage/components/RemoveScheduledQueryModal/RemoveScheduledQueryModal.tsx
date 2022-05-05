@@ -35,21 +35,12 @@ const RemoveScheduledQueryModal = ({
     >
       <div className={baseClass}>
         Are you sure you want to remove the selected queries from the schedule?
-        <div className={`${baseClass}__btn-wrap`}>
-          <Button
-            className={`${baseClass}__btn`}
-            type="button"
-            variant="alert"
-            onClick={onSubmit}
-          >
-            Remove
-          </Button>
-          <Button
-            className={`${baseClass}__btn`}
-            onClick={onCancel}
-            variant="inverse-alert"
-          >
+        <div className="modal-cta-wrap">
+          <Button onClick={onCancel} variant="inverse-alert">
             Cancel
+          </Button>
+          <Button type="button" variant="alert" onClick={onSubmit}>
+            Remove
           </Button>
         </div>
       </div>

@@ -138,6 +138,12 @@ type AuthzTyper interface {
 	AuthzType() string
 }
 
+// ExtraAuthzer is the interface to implement extra fields for the policy.
+type ExtraAuthzer interface {
+	// ExtraAuthz returns the extra key/value pairs for the type.
+	ExtraAuthz() (map[string]interface{}, error)
+}
+
 // jsonToInterface turns any type that can be JSON (un)marshaled into an
 // map[string]interface{} for evaluation by the OPA engine. Nil is returned as nil.
 func jsonToInterface(in interface{}) (interface{}, error) {
@@ -168,6 +174,19 @@ func jsonToInterface(in interface{}) (interface{}, error) {
 	// Add the `type` property if the AuthzTyper interface is implemented.
 	if typer, ok := in.(AuthzTyper); ok {
 		out["type"] = typer.AuthzType()
+	}
+	// Add any extra key/values defined by the type.
+	if extra, ok := in.(ExtraAuthzer); ok {
+		extraKVs, err := extra.ExtraAuthz()
+		if err != nil {
+			return nil, fmt.Errorf("extra authz: %w", err)
+		}
+		for k, v := range extraKVs {
+			if _, ok := out[k]; ok {
+				return nil, fmt.Errorf("existing authz value: %s", k)
+			}
+			out[k] = v
+		}
 	}
 
 	return out, nil

@@ -1,5 +1,4 @@
-import React, { useState, useCallback } from "react";
-import { useDispatch } from "react-redux";
+import React, { useState, useContext, useCallback } from "react";
 import { Params } from "react-router/lib/Router";
 import { useQuery } from "react-query";
 import { useErrorHandler } from "react-error-boundary";
@@ -8,18 +7,17 @@ import { Tab, Tabs, TabList, TabPanel } from "react-tabs";
 import classnames from "classnames";
 import { pick } from "lodash";
 
+import { NotificationContext } from "context/notification";
 import deviceUserAPI from "services/entities/device_user";
 import { IHost, IDeviceMappingResponse } from "interfaces/host";
 import { ISoftware } from "interfaces/software";
-// @ts-ignore
-import { renderFlash } from "redux/nodes/notifications/actions";
-import PageError from "components/PageError";
+import PageError from "components/DataError";
 // @ts-ignore
 import OrgLogoIcon from "components/icons/OrgLogoIcon";
 import Spinner from "components/Spinner";
 import Button from "components/buttons/Button";
 import TabsWrapper from "components/TabsWrapper";
-import { normalizeEmptyValues, wrapFleetHelper } from "fleet/helpers";
+import { normalizeEmptyValues, wrapFleetHelper } from "utilities/helpers";
 
 import HostSummaryCard from "../cards/HostSummary";
 import AboutCard from "../cards/About";
@@ -44,7 +42,7 @@ const DeviceUserPage = ({
   params: { device_auth_token },
 }: IDeviceUserPageProps): JSX.Element => {
   const deviceAuthToken = device_auth_token;
-  const dispatch = useDispatch();
+  const { renderFlash } = useContext(NotificationContext);
   const handlePageError = useErrorHandler();
 
   const [showInfoModal, setShowInfoModal] = useState<boolean>(false);
@@ -65,11 +63,7 @@ const DeviceUserPage = ({
       refetchOnReconnect: false,
       refetchOnWindowFocus: false,
       retry: false,
-      select: (data: IDeviceMappingResponse) =>
-        data.device_mapping &&
-        data.device_mapping.filter(
-          (deviceUser) => deviceUser.email && deviceUser.email.length
-        ),
+      select: (data: IDeviceMappingResponse) => data.device_mapping,
     }
   );
 
@@ -121,20 +115,16 @@ const DeviceUserPage = ({
                   refetchExtensions();
                 }, 1000);
               } else {
-                dispatch(
-                  renderFlash(
-                    "error",
-                    `This host is offline. Please try refetching host vitals later.`
-                  )
+                renderFlash(
+                  "error",
+                  `This host is offline. Please try refetching host vitals later.`
                 );
                 setShowRefetchSpinner(false);
               }
             } else {
-              dispatch(
-                renderFlash(
-                  "error",
-                  `We're having trouble fetching fresh vitals for this host. Please try again later.`
-                )
+              renderFlash(
+                "error",
+                `We're having trouble fetching fresh vitals for this host. Please try again later.`
               );
               setShowRefetchSpinner(false);
             }
@@ -196,7 +186,7 @@ const DeviceUserPage = ({
         });
       } catch (error) {
         console.log(error);
-        dispatch(renderFlash("error", `Host "${host.hostname}" refetch error`));
+        renderFlash("error", `Host "${host.hostname}" refetch error`);
         setShowRefetchSpinner(false);
       }
     }

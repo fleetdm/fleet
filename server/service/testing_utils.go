@@ -22,6 +22,7 @@ import (
 	kitlog "github.com/go-kit/kit/log"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/throttled/throttled/v2"
 	"github.com/throttled/throttled/v2/store/memstore"
 )
 
@@ -92,12 +93,14 @@ func newTestServiceWithClock(t *testing.T, ds fleet.Datastore, rs fleet.QueryRes
 
 func createTestUsers(t *testing.T, ds fleet.Datastore) map[string]fleet.User {
 	users := make(map[string]fleet.User)
+	userID := uint(1)
 	for _, u := range testUsers {
 		role := fleet.RoleObserver
 		if strings.Contains(u.Email, "admin") {
 			role = fleet.RoleAdmin
 		}
 		user := &fleet.User{
+			ID:         userID,
 			Name:       "Test Name " + u.Email,
 			Email:      u.Email,
 			GlobalRole: &role,
@@ -107,6 +110,7 @@ func createTestUsers(t *testing.T, ds fleet.Datastore) map[string]fleet.User {
 		user, err = ds.NewUser(context.Background(), user)
 		require.Nil(t, err)
 		users[user.Email] = *user
+		userID++
 	}
 	return users
 }
@@ -174,7 +178,7 @@ func RunServerForTestsWithDS(t *testing.T, ds fleet.Datastore, opts ...TestServe
 	}
 
 	limitStore, _ := memstore.New(0)
-	r := MakeHandler(svc, config.FleetConfig{}, logger, limitStore)
+	r := MakeHandler(svc, config.FleetConfig{}, logger, limitStore, WithLoginRateLimit(throttled.PerMin(100)))
 	server := httptest.NewServer(r)
 	t.Cleanup(func() {
 		server.Close()

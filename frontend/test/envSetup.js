@@ -2,8 +2,6 @@
 import "core-js/stable";
 import "regenerator-runtime/runtime";
 
-import { configure } from "enzyme";
-import Adapter from "enzyme-adapter-react-16";
 import nock from "nock";
 
 // for testing-library utils
@@ -32,7 +30,7 @@ nock.emitter.on("no match", (req) => {
 
 nock("http://localhost:8080")
   .persist()
-  .post("/api/v1/fleet/targets")
+  .post("/api/latest/fleet/targets")
   .reply(200, {
     targets_count: 1234,
     targets: [
@@ -48,12 +46,12 @@ nock("http://localhost:8080")
 
 nock("http://localhost:8080")
   .persist()
-  .get("/api/v1/fleet/status/live_query")
+  .get("/api/latest/fleet/status/live_query")
   .reply(200, {});
 
 nock("http://localhost:8080")
   .persist()
-  .get("/api/v1/fleet/version")
+  .get("/api/latest/fleet/version")
   .reply(200, {
     version: "3.10.0",
     branch: "master",
@@ -62,8 +60,6 @@ nock("http://localhost:8080")
     build_date: "2021-03-31T20:05:51Z",
     build_user: "zwass",
   });
-
-configure({ adapter: new Adapter() });
 
 global.document.queryCommandEnabled = jest.fn();
 global.document.execCommand = jest.fn();

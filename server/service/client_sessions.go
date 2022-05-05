@@ -14,9 +14,9 @@ func (c *Client) Login(email, password string) (string, error) {
 		Password: password,
 	}
 
-	response, err := c.Do("POST", "/api/v1/fleet/login", "", params)
+	response, err := c.Do("POST", "/api/latest/fleet/login", "", params)
 	if err != nil {
-		return "", fmt.Errorf("POST /api/v1/fleet/login: %w", err)
+		return "", fmt.Errorf("POST /api/latest/fleet/login: %w", err)
 	}
 	defer response.Body.Close()
 
@@ -47,7 +47,7 @@ func (c *Client) Login(email, password string) (string, error) {
 
 // Logout attempts to logout to the current Fleet instance.
 func (c *Client) Logout() error {
-	verb, path := "POST", "/api/v1/fleet/logout"
+	verb, path := "POST", "/api/latest/fleet/logout"
 	var responseBody logoutResponse
 	return c.authenticatedRequest(nil, verb, path, &responseBody)
 }

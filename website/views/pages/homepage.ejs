@@ -1,8 +1,8 @@
 <div id="homepage" v-cloak>
 
   <div style="max-height: 1096px;">
-    <div style="padding-top: 114px" class="hero-banner">
-      <div class="hero-clouds">
+    <div style="padding-top: 114px" purpose="hero-banner">
+      <div purpose="hero-clouds">
         <div class="container-lg">
           <div class="container-fluid text-center pt-3 pt-sm-5">
             <h1>
@@ -10,35 +10,14 @@
               device management.
             </h1>
             <h6 style="max-width: 580px;" class="mx-auto mt-3 mb-0">
-              Quickly deploy <a target="_blank" style="color: white; text-decoration-line: underline;" href="https://osquery.io/">osquery</a> and scale your fleet to 100,000+ devices on top of a stable core technology.
+              Quickly deploy <a target="_blank" style="color: white; text-decoration-line: underline;" href="https://osquery.io/">osquery</a> and secure 300,000+ devices on top of a stable core technology.
             </h6>
-            <div purpose="demo-cta-container" class="mx-auto pb-5 pb-sm-2" style="padding-top: 32px;">
-              <ajax-form action="deliverDemoSignup" :form-errors.sync="formErrors" :form-data="formData" :form-rules="formRules" :syncing.sync="syncing" :cloud-error.sync="cloudError" @submitted="submittedForm()" v-if="!cloudSuccess">
-                <div purpose="demo-cta" class="flex-row row justify-content-between align-items-center mx-auto">
-                  <div purpose="demo-cta-text" class="pl-0 pr-3 text-left">
-                    <span style="font-size: 32px; vertical-align: middle;">💡</span>
-                    <p class="d-inline-block">
-                      <strong>Live Q&A session</strong>
-                      <br class="d-lg-none d-block">
-                      March 29th, 2022 2:30pm (CST)
-                    </p>
-                  </div>
-                  <div purpose="demo-cta-form" class="flex-grow-1 col-12 col-sm-auto px-0 pt-sm-0">
-                    <div class="form-control d-inline-flex" :class="[formErrors.emailAddress ? 'is-invalid' : '']">
-                      <input class="float-left pr-1" v-model.trim="formData.emailAddress" placeholder="Enter your email">
-                      <ajax-button purpose="register-button" spinner="true" :syncing="syncing" type="submit" class="btn btn-sm btn-info float-right">Register</ajax-button>
-                    </div>
-                    <div purpose="demo-cta-error-message" v-if="formErrors.emailAddress">
-                      Please enter a valid email address e.g., example@email.com
-                    </div>
-                  </div>
-                </div>
-              </ajax-form>
-              <div purpose="demo-cta-success-message" class="mx-auto" v-else>
-                <p class="text-center">Thank you for registering.<br class="d-sm-none d-block"> Please check your inbox for event details.</p>
-              </div>
+            <div style="max-width: 500px;" class="mt-5 mx-auto mb-0 d-sm-flex justify-content-center">
+              <a purpose="top-try-it-out-btn" class="d-sm-flex align-items-center justify-content-center btn btn-block btn-primary mx-auto mx-sm-0" href="/get-started">Try it out</a>
+              <a style="max-width: 220px;" class="btn btn-lg btn-white pl-4 mx-auto mx-sm-0" purpose="animated-arrow-button-white" target="_blank" href="https://calendly.com/fleetdm/demo?utm_source=homepage+demo+top">Schedule a demo
+              </a>
             </div>
-            <img alt="Fleet ctl terminal and Fleet UI" src="/images/fleetctl-687x506@2x.png" style="max-width: 810px; height: auto;" class="w-100 py-3 py-sm-5 mx-auto" />
+            <img alt="Fleet ctl terminal and Fleet UI" src="/images/fleetctl-687x506@2x.png" style="max-width: 810px; height: auto;" class="w-100 py-3 py-sm-5 mx-auto"/>
           </div>
         </div>
       </div>
@@ -83,9 +62,7 @@
       </div>
       <div class="container d-flex flex-wrap flex-lg-nowrap justify-content-center justify-content-lg-between align-items-center px-0 pt-3 pb-5 mb-lg-4">
         <div class="container text-center text-lg-left px-0 pb-5 pb-lg-0 m-0">
-            <h3>
-              Deploy anywhere
-            </h3>
+            <h3>Deploy anywhere</h3>
             <p class="pb-4 mb-0">
               Fleet is self-hosted and self-managed, and can be run within your own data centers or in the cloud.
             </p>
@@ -113,55 +90,46 @@
           Automate scheduled queries to integrate alerts and dashboards across your enterprise.
         </p>
       </div>
-      <div class="log-destination-grid container d-flex flex-wrap justify-content-center p-0 pt-4 mx-auto">
-        <div class="log-destination d-flex mx-1 mx-sm-2 mb-4">
+      <div purpose="log-destination-grid" class="container d-flex flex-wrap justify-content-center p-0 pt-4 mx-auto">
+        <div purpose="log-destination" class="d-flex mx-1 mx-sm-2 mb-4">
           <img alt="filesystem icon" src="/images/icon-log-destination-filesystem-48x48@2x.png"/>
           <p class="font-weight-bold m-0 ml-3">Filesystem</p>
         </div>
-        <div class="log-destination d-flex mx-1 mx-sm-2 mb-4">
+        <div purpose="log-destination" class="d-flex mx-1 mx-sm-2 mb-4">
           <img alt="Splunk logo" src="/images/icon-log-destination-splunk-48x48@2x.png"/>
           <p class="font-weight-bold m-0 ml-3">Splunk</p>
         </div>
-        <div class="log-destination d-flex mx-1 mx-sm-2 mb-4">
+        <div purpose="log-destination" class="d-flex mx-1 mx-sm-2 mb-4">
           <img alt="AWS Kinesis logo" src="/images/icon-log-destination-firehose-40x48@2x.png"/>
           <p class="font-weight-bold m-0 ml-3">AWS Kinesis</p>
         </div>
-        <div class="log-destination d-flex mx-1 mx-sm-2 mb-4">
+        <div purpose="log-destination" class="d-flex mx-1 mx-sm-2 mb-4">
           <img alt="Google Cloud Platform PubSub logo" src="/images/icon-log-destination-pubsub-53x48@2x.png"/>
           <p class="font-weight-bold m-0 ml-3">GCP PubSub</p>
         </div>
-        <div class="log-destination d-flex mx-1 mx-sm-2 mb-4">
+        <div purpose="log-destination" class="d-flex mx-1 mx-sm-2 mb-4">
           <img alt="AWS Lambda logo" src="/images/icon-log-destination-lambda-48x48@2x.png"/>
           <p class="font-weight-bold m-0 ml-3">AWS Lambda</p>
         </div>
-        <div class="log-destination d-flex mx-1 mx-sm-2 mb-4">
+        <div purpose="log-destination" class="d-flex mx-1 mx-sm-2 mb-4">
           <img alt="Elastic logo" src="/images/icon-log-destination-elastic-48x48@2x.png"/>
           <p class="font-weight-bold m-0 ml-3">Elastic</p>
         </div>
-        <div class="log-destination d-flex mx-1 mx-sm-2 mb-4">
+        <div purpose="log-destination" class="d-flex mx-1 mx-sm-2 mb-4">
           <img alt="Sumo Logic logo" src="/images/icon-log-destination-sumo-48x48@2x.png"/>
           <p class="font-weight-bold m-0 ml-3">Sumo Logic</p>
         </div>
-        <div class="log-destination d-flex mx-1 mx-sm-2 mb-4">
+        <div purpose="log-destination" class="d-flex mx-1 mx-sm-2 mb-4">
           <img alt="Graylog logo" src="/images/icon-log-destination-graylog-48x48@2x.png"/>
           <p class="font-weight-bold m-0 ml-3">Graylog</p>
         </div>
       </div>
       <div class="btn-toolbar justify-content-center px-5 px-sm-0 pt-3 pb-5">
-        <a
-          style="max-width: 220px"
-          class="btn btn-block btn-md btn-primary mx-4"
-          href="/get-started?tryitnow"
-        >
+        <a style="max-width: 220px" class="btn btn-block btn-md btn-primary mx-4" href="/get-started?tryitnow">
           Try it out
         </a>
-        <a
-          style="max-width: 220px"
-          class="btn btn-block btn-lg btn-white pl-0 m-0"
-          purpose="animated-arrow-button"
-          target="_blank"
-          href="https://calendly.com/fleetdm/demo?utm_source=homepage+demo+top"
-          >Schedule a demo
+        <a style="max-width: 220px" class="btn btn-block btn-lg btn-white pl-0 m-0" purpose="animated-arrow-button-red" target="_blank" href="https://calendly.com/fleetdm/demo?utm_source=homepage+demo+top">
+          Schedule a demo
         </a>
       </div>
     </div>
@@ -174,7 +142,7 @@
         That’s good news, since it means there are lots of other developers and security practitioners talking about Fleet, dreaming up features, and contributing patches.
       </p>
       <div purpose="tweets" class="d-flex card-deck justify-content-center pt-5 mx-auto">
-        <div purpose="tweet-card" class="card ">
+        <div purpose="tweet-card" class="card">
           <div class="mb-4">
             <a href="https://twitter.com/osquery"><img width="140" height="36" alt="osquery logo" src="/images/social-proof-logo-osquery-140x36@2x.png"/></a>
           </div>
@@ -199,19 +167,19 @@
               </div>
           </div>
         </div>
-        <div purpose="tweet-card" class="card ">
+        <div purpose="tweet-card" class="card">
           <div class="mb-4">
-            <a href="https://twitter.com/SnowflakeDB"><img width="153" height="38" alt="Snowflake logo" src="/images/social-proof-logo-snowflake-153x38@2x.png"/></a>
+            <a href="https://twitter.com/comcast"><img width="107" height="38" alt="Comcast logo" src="/images/social-proof-logo-comcast-107x38.png"/></a>
           </div>
-          <p class="pb-2 mb-1">My DevOps team members got Fleet set up this week, w/ data streaming via firehose to S3 buckets. This is pretty dang amazing being able to stream real data this fast. I’m very excited to see what we can build out with this. Enrolled a few boxes & streaming that sweet data.</p>
+          <p class="pb-2 mb-1">With the power of osquery, you need a scalable & resilient platform to manage your workloads. Fleet is the "just right" open-source, enterprise grade solution.</p>
           <div class="row px-3 pt-2">
             <div>
-              <p class="font-weight-bold m-0">Tom Larkin</p>
-              <p class="m-0">IT Engineering <a href="https://twitter.com/SnowflakeDB">@Snowflake</a></p>
+              <p class="font-weight-bold m-0">Abubakar Yousafzai</p>
+              <p class="m-0">Security Software Development & Engineering <a href="https://twitter.com/comcast">@Comcast</a></p>
             </div>
           </div>
         </div>
-        <div purpose="tweet-card" class="card ">
+        <div purpose="tweet-card" class="card">
           <div class="mb-4">
             <a href="https://twitter.com/Uber"><img width="87" height="38" alt="Uber logo" src="/images/social-proof-logo-uber-87x38@2x.png"/></a>
           </div>
@@ -235,7 +203,7 @@
             </div>
           </div>
         </div>
-        <div purpose="tweet-card" class="card ">
+        <div purpose="tweet-card" class="card">
           <div class="mb-4">
             <a href="https://twitter.com/atlassian"><img width="162" height="20" alt="Atlassian logo" src="/images/social-proof-logo-atlassian-162x20@2x.png"/></a>
           </div>
@@ -247,19 +215,7 @@
             </div>
           </div>
         </div>
-        <div purpose="tweet-card-bottom-row" class="card ">
-          <div class="mb-4">
-            <a href="https://twitter.com/comcast"><img width="107" height="38" alt="Comcast logo" src="/images/social-proof-logo-comcast-107x38.png"/></a>
-          </div>
-          <p class="pb-2 mb-1">With the power of osquery, you need a scalable & resilient platform to manage your workloads. Fleet is the "just right" open-source, enterprise grade solution.</p>
-          <div class="row px-3 pt-2">
-            <div>
-              <p class="font-weight-bold m-0">Abubakar Yousafzai</p>
-              <p class="m-0">Security Software Development & Engineering <a href="https://twitter.com/comcast">@Comcast</a></p>
-            </div>
-          </div>
-        </div>
-        <div purpose="tweet-card-bottom-row" class="card ">
+        <div purpose="tweet-card" class="card">
           <div class="mb-4">
             <a href="https://twitter.com/grupoversia"><img width="90" height="38" alt="Versia logo" src="/images/social-proof-logo-versia-90x38@2x.png"/></a>
           </div>
@@ -271,29 +227,18 @@
             </div>
           </div>
         </div>
-
       </div>
-
       <div>
         <h3 class="px-4 mb-3">From small businesses to large enterprises.</h3>
         <p class="px-4">
           Teams use osquery with Fleet every day to stay secure and compliant.
         </p>
         <div class="btn-toolbar justify-content-center px-5 px-sm-0 pt-3 pb-5 mb-md-5">
-          <a
-            style="max-width: 220px"
-            class="btn btn-block btn-md btn-primary mx-4"
-            href="/get-started?tryitnow"
-          >
+          <a style="max-width: 220px" class="btn btn-block btn-md btn-primary mx-4" href="/get-started?tryitnow">
             Try it out
           </a>
-          <a
-            style="max-width: 220px"
-            class="btn btn-block btn-lg btn-white pl-0 m-0"
-            purpose="animated-arrow-button"
-            target="_blank"
-            href="https://calendly.com/fleetdm/demo?utm_source=homepage+demo+bottom"
-            >Schedule a demo
+          <a style="max-width: 220px" class="btn btn-block btn-lg btn-white pl-0 m-0" purpose="animated-arrow-button-red" target="_blank" href="https://calendly.com/fleetdm/demo?utm_source=homepage+demo+bottom">
+            Schedule a demo
           </a>
         </div>
       </div>

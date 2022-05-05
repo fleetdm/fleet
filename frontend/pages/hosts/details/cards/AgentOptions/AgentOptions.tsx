@@ -1,6 +1,6 @@
 import React from "react";
 
-import { secondsToHms } from "fleet/helpers";
+import { secondsToHms } from "utilities/helpers";
 
 interface IAgentOptionsProps {
   osqueryData: { [key: string]: any };

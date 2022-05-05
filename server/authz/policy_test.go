@@ -115,7 +115,7 @@ func TestAuthorizeUser(t *testing.T) {
 		{user: nil, object: user, action: changePwd, allow: false},
 		{user: nil, object: newUser, action: write, allow: false},
 
-		// Admin can read/write all and create new
+		// Global admin can read/write all and create new.
 		{user: test.UserAdmin, object: user, action: read, allow: true},
 		{user: test.UserAdmin, object: user, action: write, allow: true},
 		{user: test.UserAdmin, object: user, action: writeRole, allow: true},
@@ -126,48 +126,60 @@ func TestAuthorizeUser(t *testing.T) {
 		{user: test.UserAdmin, object: test.UserAdmin, action: writeRole, allow: true},
 		{user: test.UserAdmin, object: test.UserAdmin, action: changePwd, allow: true},
 
-		// Regular users can read all users and write self (besides roles), but not create
-		{user: test.UserMaintainer, object: user, action: read, allow: true},
+		// Global maintainers cannot read/write users.
+		{user: test.UserMaintainer, object: user, action: read, allow: false},
 		{user: test.UserMaintainer, object: user, action: write, allow: false},
 		{user: test.UserMaintainer, object: user, action: writeRole, allow: false},
 		{user: test.UserMaintainer, object: user, action: changePwd, allow: false},
+		// Global maintainers cannot create users.
 		{user: test.UserMaintainer, object: newUser, action: write, allow: false},
+		// Global maintainers can read/write itself (besides roles).
 		{user: test.UserMaintainer, object: test.UserMaintainer, action: read, allow: true},
 		{user: test.UserMaintainer, object: test.UserMaintainer, action: write, allow: true},
 		{user: test.UserMaintainer, object: test.UserMaintainer, action: writeRole, allow: false},
 		{user: test.UserMaintainer, object: test.UserMaintainer, action: changePwd, allow: true},
 
-		{user: test.UserNoRoles, object: user, action: read, allow: true},
+		// Users without roles cannot read/write users.
+		{user: test.UserNoRoles, object: user, action: read, allow: false},
 		{user: test.UserNoRoles, object: user, action: write, allow: false},
 		{user: test.UserNoRoles, object: user, action: writeRole, allow: false},
 		{user: test.UserNoRoles, object: user, action: changePwd, allow: false},
+		// User without roles cannot add new users.
 		{user: test.UserNoRoles, object: newUser, action: write, allow: false},
+		// User without roles can read/write itself (besides roles).
 		{user: test.UserNoRoles, object: test.UserNoRoles, action: read, allow: true},
 		{user: test.UserNoRoles, object: test.UserNoRoles, action: write, allow: true},
 		{user: test.UserNoRoles, object: test.UserNoRoles, action: writeRole, allow: false},
 		{user: test.UserNoRoles, object: test.UserNoRoles, action: changePwd, allow: true},
 
-		{user: test.UserObserver, object: user, action: read, allow: true},
+		// Global observers cannot read/write users.
+		{user: test.UserObserver, object: user, action: read, allow: false},
 		{user: test.UserObserver, object: user, action: write, allow: false},
 		{user: test.UserObserver, object: user, action: writeRole, allow: false},
 		{user: test.UserObserver, object: user, action: changePwd, allow: false},
+		// Global observers cannot create users.
 		{user: test.UserObserver, object: newUser, action: write, allow: false},
+		// Global observers can read/write itself (besides roles).
 		{user: test.UserObserver, object: test.UserObserver, action: read, allow: true},
 		{user: test.UserObserver, object: test.UserObserver, action: write, allow: true},
 		{user: test.UserObserver, object: test.UserObserver, action: writeRole, allow: false},
 		{user: test.UserObserver, object: test.UserObserver, action: changePwd, allow: true},
 
-		// Team Admin can create/write/write role of any team user, but not change password
-		{user: teamAdmin, object: user, action: read, allow: true},
+		// Team admins cannot read/write global users.
+		{user: teamAdmin, object: user, action: read, allow: false},
 		{user: teamAdmin, object: user, action: write, allow: false},
 		{user: teamAdmin, object: user, action: writeRole, allow: false},
 		{user: teamAdmin, object: user, action: changePwd, allow: false},
+		// Team admins cannot create new global users.
 		{user: teamAdmin, object: newUser, action: write, allow: false},
+		// Team admins can read/write team users (except change their password).
 		{user: teamAdmin, object: teamObserver, action: read, allow: true},
 		{user: teamAdmin, object: teamObserver, action: write, allow: true},
 		{user: teamAdmin, object: teamObserver, action: writeRole, allow: true},
 		{user: teamAdmin, object: teamObserver, action: changePwd, allow: false},
+		// Team admins can add new users to the team.
 		{user: teamAdmin, object: newTeamUser, action: write, allow: true},
+		// Team admins can read/write itself.
 		{user: teamAdmin, object: teamAdmin, action: read, allow: true},
 		{user: teamAdmin, object: teamAdmin, action: write, allow: true},
 		{user: teamAdmin, object: teamAdmin, action: writeRole, allow: true},
@@ -622,25 +634,25 @@ func TestAuthorizeTeamPacks(t *testing.T) {
 		{
 			user: test.UserTeamMaintainerTeam1,
 			object: &fleet.Pack{
-				TeamIDs: []uint{1},
+				Type: ptr.String("team-1"),
 			},
 			action: read,
 			allow:  true,
 		},
-		// Team observer cannot read packs of the team.
+		// Team observer can read packs of the team.
 		{
 			user: test.UserTeamObserverTeam1TeamAdminTeam2,
 			object: &fleet.Pack{
-				TeamIDs: []uint{1},
+				Type: ptr.String("team-1"),
 			},
 			action: read,
-			allow:  false,
+			allow:  true,
 		},
 		// Team observer cannot write packs of the team.
 		{
 			user: test.UserTeamObserverTeam1TeamAdminTeam2,
 			object: &fleet.Pack{
-				TeamIDs: []uint{1},
+				Type: ptr.String("team-1"),
 			},
 			action: write,
 			allow:  false,
@@ -649,7 +661,7 @@ func TestAuthorizeTeamPacks(t *testing.T) {
 		{
 			user: test.UserTeamAdminTeam1,
 			object: &fleet.Pack{
-				TeamIDs: []uint{2},
+				Type: ptr.String("team-2"),
 			},
 			action: read,
 			allow:  false,
@@ -658,24 +670,24 @@ func TestAuthorizeTeamPacks(t *testing.T) {
 		{
 			user: test.UserTeamAdminTeam1,
 			object: &fleet.Pack{
-				TeamIDs: []uint{2},
+				Type: ptr.String("team-2"),
 			},
 			action: read,
 			allow:  false,
 		},
-		// Team maintainers can read global packs.
+		// Team maintainers cannot read global packs.
 		{
 			user:   test.UserTeamMaintainerTeam1,
 			object: &fleet.Pack{},
 			action: read,
-			allow:  true,
+			allow:  false,
 		},
-		// Team admins can read global packs.
+		// Team admins cannot read global packs.
 		{
 			user:   test.UserTeamAdminTeam1,
 			object: &fleet.Pack{},
 			action: read,
-			allow:  true,
+			allow:  false,
 		},
 		// Team admins cannot write global packs.
 		{

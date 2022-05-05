@@ -50,7 +50,7 @@ kind: query
 spec:
   name: docker_processes
   description: The docker containers processes that are running on a system.
-  query: select * from docker_container_processes;
+  query: SELECT * FROM docker_container_processes;
 ```
 
 To define multiple queries in a file, concatenate multiple `query` resources together in a single file with `---`. For example, consider a file that you might store at `queries/osquery_monitoring.yml`:
@@ -131,7 +131,7 @@ kind: label
 spec:
   name: slack_not_running
   query: >
-    SELECT * from system_info
+    SELECT * FROM system_info
     WHERE NOT EXISTS (
       SELECT *
       FROM processes
@@ -191,7 +191,7 @@ spec:
           distributed_plugin: tls
           distributed_tls_max_attempts: 3
           logger_plugin: tls
-          logger_tls_endpoint: /api/v1/osquery/log
+          logger_tls_endpoint: /api/osquery/log
           logger_tls_period: 10
           pack_delimiter: /
       overrides: {}
@@ -218,10 +218,10 @@ spec:
         distributed_interval: 10
         distributed_plugin: tls
         distributed_tls_max_attempts: 3
-        distributed_tls_read_endpoint: /api/v1/osquery/distributed/read
-        distributed_tls_write_endpoint: /api/v1/osquery/distributed/write
+        distributed_tls_read_endpoint: /api/osquery/distributed/read
+        distributed_tls_write_endpoint: /api/osquery/distributed/write
         logger_plugin: tls
-        logger_tls_endpoint: /api/v1/osquery/log
+        logger_tls_endpoint: /api/osquery/log
         logger_tls_period: 10
         pack_delimiter: /
     overrides: {}
@@ -235,8 +235,8 @@ spec:
     # must take care to keep the data returned by these queries small in
     # order to mitigate potential performance impacts on the Fleet server.
     additional_queries:
-      time: select * from time
-      macs: select mac from interface_details
+      time: SELECT * FROM time
+      macs: SELECT mac FROM interface_details
   org_info:
     org_logo_url: "https://example.org/logo.png"
     org_name: Example Org
@@ -266,7 +266,7 @@ spec:
     failing_policies_webhook:
       enable_failing_policies_webhook: true
       destination_url": https://server.com
-      policy_ids: 
+      policy_ids:
         - 1
         - 2
         - 3
@@ -304,7 +304,7 @@ spec:
         distributed_interval: 3
         distributed_tls_max_attempts: 3
         logger_plugin: tls
-        logger_tls_endpoint: /api/v1/osquery/log
+        logger_tls_endpoint: /api/osquery/log
         logger_tls_period: 10
       decorators:
         load:
@@ -327,7 +327,7 @@ spec:
             distributed_interval: 10
             distributed_tls_max_attempts: 10
             logger_plugin: tls
-            logger_tls_endpoint: /api/v1/osquery/log
+            logger_tls_endpoint: /api/osquery/log
             logger_tls_period: 300
             disable_tables: chrome_extensions
             docker_socket: /var/run/docker.sock
@@ -343,7 +343,7 @@ spec:
             distributed_interval: 10
             distributed_tls_max_attempts: 3
             logger_plugin: tls
-            logger_tls_endpoint: /api/v1/osquery/log
+            logger_tls_endpoint: /api/osquery/log
             logger_tls_period: 60
             schedule_timeout: 60
             docker_socket: /etc/run/docker.sock
@@ -389,7 +389,7 @@ spec:
         darwin:
           auto_table_construction:
             tcc_system_entries:
-              query: "select service, client, allowed, prompt_count, last_modified from access"
+              query: "SELECT service, client, allowed, prompt_count, last_modified FROM access"
               path: "/Library/Application Support/com.apple.TCC/TCC.db"
               columns:
                 - "service"

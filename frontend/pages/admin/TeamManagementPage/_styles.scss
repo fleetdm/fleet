@@ -6,22 +6,43 @@
     @include sticky-settings-description;
     padding-bottom: $pad-medium;
   }
-}
+  .data-table-block {
+    .data-table__table {
+      thead {
+        .name__header {
+          width: $col-md;
+        }
 
-.team-details__team-details {
-  .form-field--dropdown {
-    margin-bottom: 0;
-  }
-}
+        .host_count__header {
+          width: $col-md;
+          border-right: none;
+        }
 
-.team-details.team-select-open {
-  .component__tabs-wrapper {
-    position: relative;
-    z-index: 2;
-  }
-  .members {
-    position: relative;
-    z-index: 1;
+        .actions__header {
+          width: auto;
+        }
+
+        @media (min-width: $break-990) {
+          .host_count__header {
+            border-right: 1px solid $ui-fleet-blue-15;
+          }
+        }
+      }
+
+      tbody {
+        .name__cell {
+          max-width: $col-md;
+        }
+
+        .host_count__cell {
+          max-width: $col-md;
+        }
+
+        .actions__cell {
+          width: auto;
+        }
+      }
+    }
   }
 }
 

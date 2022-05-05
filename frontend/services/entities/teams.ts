@@ -1,6 +1,6 @@
 /* eslint-disable  @typescript-eslint/explicit-module-boundary-types */
 import sendRequest from "services";
-import endpoints from "fleet/endpoints";
+import endpoints from "utilities/endpoints";
 import { INewMembersBody, IRemoveMembersBody } from "interfaces/team";
 import { ICreateTeamFormData } from "pages/admin/TeamManagementPage/components/CreateTeamModal/CreateTeamModal";
 import { IEnrollSecret } from "interfaces/enroll_secret";
@@ -11,9 +11,17 @@ interface ITeamSearchOptions {
   globalFilter?: string;
 }
 
-interface IEditTeamFormData {
+interface ITeamName {
   name: string;
 }
+
+interface ITeamWebhooks {
+  webhook_settings: {
+    [key: string]: any;
+  };
+}
+
+type ITeamEditData = ITeamName | ITeamWebhooks;
 
 export default {
   create: (formData: ICreateTeamFormData) => {
@@ -26,6 +34,12 @@ export default {
     const path = `${TEAMS}/${teamId}`;
 
     return sendRequest("DELETE", path);
+  },
+  load: (teamId: number) => {
+    const { TEAMS } = endpoints;
+    const path = `${TEAMS}/${teamId}`;
+
+    return sendRequest("GET", path);
   },
   loadAll: ({
     page = 0,
@@ -46,7 +60,14 @@ export default {
 
     return sendRequest("GET", path);
   },
-  update: (teamId: number, updateParams: IEditTeamFormData) => {
+  update: (updateParams: ITeamEditData, teamId?: number) => {
+    // we are grouping this update with the config api update function
+    // on the ManagePoliciesPage to streamline updating the
+    // webhook settings globally or for a team - see ManagePoliciesPage line 208
+    if (typeof teamId === "undefined") {
+      return Promise.reject();
+    }
+
     const { TEAMS } = endpoints;
     const path = `${TEAMS}/${teamId}`;
 

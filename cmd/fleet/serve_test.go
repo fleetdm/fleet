@@ -242,7 +242,7 @@ func TestCronVulnerabilitiesAcceptsExistingDbPath(t *testing.T) {
 	cancelFunc()
 	cronVulnerabilities(ctx, ds, logger, "AAA", fleetConfig)
 
-	require.Contains(t, buf.String(), `{"level":"debug","waiting":"on ticker"}`)
+	require.Contains(t, buf.String(), `"waiting":"on ticker"`)
 }
 
 func TestCronVulnerabilitiesQuitsIfErrorVulnPath(t *testing.T) {
@@ -433,5 +433,125 @@ func TestCronWebhooksIntervalChange(t *testing.T) {
 	case <-lockCalled:
 	case <-time.After(5 * time.Second):
 		t.Fatal("timeout: interval change did not trigger lock call")
+	}
+}
+
+func TestBasicAuthHandler(t *testing.T) {
+	for _, tc := range []struct {
+		name           string
+		username       string
+		password       string
+		passes         bool
+		noBasicAuthSet bool
+	}{
+		{
+			name:     "good-credentials",
+			username: "foo",
+			password: "bar",
+			passes:   true,
+		},
+		{
+			name:     "empty-credentials",
+			username: "",
+			password: "",
+			passes:   false,
+		},
+		{
+			name:           "no-basic-auth-set",
+			username:       "",
+			password:       "",
+			noBasicAuthSet: true,
+			passes:         false,
+		},
+		{
+			name:     "wrong-username",
+			username: "foo1",
+			password: "bar",
+			passes:   false,
+		},
+		{
+			name:     "wrong-password",
+			username: "foo",
+			password: "bar1",
+			passes:   false,
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			pass := false
+			h := basicAuthHandler("foo", "bar", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				pass = true
+				w.WriteHeader(http.StatusOK)
+			}))
+
+			r, err := http.NewRequest("GET", "", nil)
+			require.NoError(t, err)
+
+			if !tc.noBasicAuthSet {
+				r.SetBasicAuth(tc.username, tc.password)
+			}
+
+			var w httptest.ResponseRecorder
+			h.ServeHTTP(&w, r)
+
+			if pass != tc.passes {
+				t.Fatal("unexpected pass")
+			}
+
+			expStatusCode := http.StatusUnauthorized
+			if pass {
+				expStatusCode = http.StatusOK
+			}
+			require.Equal(t, w.Result().StatusCode, expStatusCode)
+		})
+	}
+}
+
+func TestDebugMux(t *testing.T) {
+	h1 := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { w.WriteHeader(200) })
+	h2 := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { w.WriteHeader(400) })
+
+	cases := []struct {
+		desc string
+		mux  debugMux
+		tok  string
+		want int
+	}{
+		{
+			"only fleet auth handler, no token",
+			debugMux{fleetAuthenticatedHandler: h1},
+			"",
+			200,
+		},
+		{
+			"only fleet auth handler, with token",
+			debugMux{fleetAuthenticatedHandler: h1},
+			"token",
+			200,
+		},
+		{
+			"both handlers, no token",
+			debugMux{fleetAuthenticatedHandler: h1, tokenAuthenticatedHandler: h2},
+			"",
+			200,
+		},
+		{
+			"both handlers, with token",
+			debugMux{fleetAuthenticatedHandler: h1, tokenAuthenticatedHandler: h2},
+			"token",
+			400,
+		},
+	}
+
+	for _, c := range cases {
+		t.Run(c.desc, func(t *testing.T) {
+			path := "/debug/pprof"
+			if c.tok != "" {
+				path += "?token=" + c.tok
+			}
+			req := httptest.NewRequest("GET", path, nil)
+			res := httptest.NewRecorder()
+			c.mux.ServeHTTP(res, req)
+			require.Equal(t, c.want, res.Code)
+		})
 	}
 }

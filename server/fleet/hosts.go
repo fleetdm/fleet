@@ -35,6 +35,9 @@ const (
 type HostListOptions struct {
 	ListOptions
 
+	// DeviceMapping joins device user email mapping for each host if available
+	DeviceMapping bool
+
 	// AdditionalFilters selects which host additional fields should be
 	// populated.
 	AdditionalFilters []string
@@ -53,10 +56,6 @@ type HostListOptions struct {
 
 func (h HostListOptions) Empty() bool {
 	return h.ListOptions.Empty() && len(h.AdditionalFilters) == 0 && h.StatusFilter == "" && h.TeamFilter == nil && h.PolicyIDFilter == nil && h.PolicyResponseFilter == nil
-}
-
-func (l ListOptions) Empty() bool {
-	return l.Page == 0 && l.PerPage == 0 && l.OrderKey == "" && l.OrderDirection == 0 && l.MatchQuery == ""
 }
 
 type HostUser struct {
@@ -132,7 +131,7 @@ type Host struct {
 
 	HostIssues `json:"issues,omitempty" csv:"-"`
 
-	Modified bool `json:"-" csv:"-"`
+	DeviceMapping *json.RawMessage `json:"device_mapping,omitempty" db:"device_mapping" csv:"device_mapping"`
 }
 
 type HostIssues struct {
@@ -305,9 +304,19 @@ type AggregatedMacadminsData struct {
 	MDMStatus       AggregatedMDMStatus      `json:"mobile_device_management_enrollment_status"`
 }
 
-// CPEHost is a minimal host representation returned when querying hosts by
-// CPE.
-type CPEHost struct {
+// HostShort is a minimal host representation returned when querying hosts.
+type HostShort struct {
 	ID       uint   `json:"id" db:"id"`
 	Hostname string `json:"hostname" db:"hostname"`
+}
+
+type OSVersions struct {
+	CountsUpdatedAt time.Time   `json:"counts_updated_at"`
+	OSVersions      []OSVersion `json:"os_versions"`
+}
+
+type OSVersion struct {
+	HostsCount int    `json:"hosts_count"`
+	Name       string `json:"name"`
+	Platform   string `json:"platform"`
 }

@@ -1,5 +1,5 @@
 FROM alpine
-MAINTAINER Fleet Developers <hello@fleetdm.com>
+LABEL maintainer="Fleet Developers <hello@fleetdm.com>"
 
 RUN apk --update add ca-certificates
 

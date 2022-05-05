@@ -43,9 +43,8 @@ const PoliciesListWrapper = ({
         columns={generateTableHeaders()}
         data={generateDataSet(policyHostsList)}
         isLoading={isLoading}
-        defaultSortHeader={"name"}
+        defaultSortHeader={"query_results"}
         defaultSortDirection={"asc"}
-        manualSortBy
         showMarkAllPages={false}
         isAllPagesSelected={false}
         disablePagination

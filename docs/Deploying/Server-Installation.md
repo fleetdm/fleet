@@ -225,18 +225,18 @@ sudo /usr/bin/osqueryd \
   --tls_server_certs=/var/osquery/server.pem \
   --tls_hostname=localhost:8080 \
   --host_identifier=instance \
-  --enroll_tls_endpoint=/api/v1/osquery/enroll \
+  --enroll_tls_endpoint=/api/osquery/enroll \
   --config_plugin=tls \
-  --config_tls_endpoint=/api/v1/osquery/config \
+  --config_tls_endpoint=/api/osquery/config \
   --config_refresh=10 \
   --disable_distributed=false \
   --distributed_plugin=tls \
   --distributed_interval=3 \
   --distributed_tls_max_attempts=3 \
-  --distributed_tls_read_endpoint=/api/v1/osquery/distributed/read \
-  --distributed_tls_write_endpoint=/api/v1/osquery/distributed/write \
+  --distributed_tls_read_endpoint=/api/osquery/distributed/read \
+  --distributed_tls_write_endpoint=/api/osquery/distributed/write \
   --logger_plugin=tls \
-  --logger_tls_endpoint=/api/v1/osquery/log \
+  --logger_tls_endpoint=/api/osquery/log \
   --logger_tls_period=10
 ```
 
@@ -398,18 +398,18 @@ sudo /usr/bin/osqueryd \
   --tls_server_certs=/var/osquery/server.pem \
   --tls_hostname=localhost:8080 \
   --host_identifier=instance \
-  --enroll_tls_endpoint=/api/v1/osquery/enroll \
+  --enroll_tls_endpoint=/api/osquery/enroll \
   --config_plugin=tls \
-  --config_tls_endpoint=/api/v1/osquery/config \
+  --config_tls_endpoint=/api/osquery/config \
   --config_refresh=10 \
   --disable_distributed=false \
   --distributed_plugin=tls \
   --distributed_interval=3 \
   --distributed_tls_max_attempts=3 \
-  --distributed_tls_read_endpoint=/api/v1/osquery/distributed/read \
-  --distributed_tls_write_endpoint=/api/v1/osquery/distributed/write \
+  --distributed_tls_read_endpoint=/api/osquery/distributed/read \
+  --distributed_tls_write_endpoint=/api/osquery/distributed/write \
   --logger_plugin=tls \
-  --logger_tls_endpoint=/api/v1/osquery/log \
+  --logger_tls_endpoint=/api/osquery/log \
   --logger_tls_period=10
 ```
 
@@ -561,25 +561,25 @@ Once you have the public IP address for the load balancer, create an A record in
 
 ## Deploying Fleet on AWS ECS
 
-Terraform reference architecture can be found [here](https://github.com/fleetdm/fleet/tree/main/tools/terraform)
+Terraform reference architecture can be found [here](https://github.com/fleetdm/fleet/tree/main/infrastructure/dogfood/terraform/aws)
 
 ### Infrastructure dependencies
 
 #### MySQL
 
-In AWS we recommend running Aurora with MySQL Engine, see [here for terraform details](https://github.com/fleetdm/fleet/blob/589e11ebca40949fb568b2b68928450eecb718bf/tools/terraform/rds.tf#L62).
+In AWS we recommend running Aurora with MySQL Engine, see [here for terraform details](https://github.com/fleetdm/fleet/blob/589e11ebca40949fb568b2b68928450eecb718bf/infrastructure/dogfood/terraform/aws/rds.tf#L62).
 
 #### Redis
 
-In AWS we recommend running ElastiCache (Redis Engine) see [here for terraform details](https://github.com/fleetdm/fleet/blob/589e11ebca40949fb568b2b68928450eecb718bf/tools/terraform/redis.tf#L13)
+In AWS we recommend running ElastiCache (Redis Engine) see [here for terraform details](https://github.com/fleetdm/fleet/blob/589e11ebca40949fb568b2b68928450eecb718bf/infrastructure/dogfood/terraform/aws/redis.tf#L13)
 
 #### Fleet server
 
-Running Fleet in ECS consists of two main components the [ECS Service](https://github.com/fleetdm/fleet/blob/589e11ebca40949fb568b2b68928450eecb718bf/tools/terraform/ecs.tf#L79) & [Load Balancer](https://github.com/fleetdm/fleet/blob/589e11ebca40949fb568b2b68928450eecb718bf/tools/terraform/ecs.tf#L41). In our example the ALB is [handling TLS termination](https://github.com/fleetdm/fleet/blob/589e11ebca40949fb568b2b68928450eecb718bf/tools/terraform/ecs.tf#L46)
+Running Fleet in ECS consists of two main components the [ECS Service](https://github.com/fleetdm/fleet/blob/589e11ebca40949fb568b2b68928450eecb718bf/infrastructure/dogfood/terraform/aws/ecs.tf#L79) & [Load Balancer](https://github.com/fleetdm/fleet/blob/589e11ebca40949fb568b2b68928450eecb718bf/infrastructure/dogfood/terraform/aws/ecs.tf#L41). In our example the ALB is [handling TLS termination](https://github.com/fleetdm/fleet/blob/589e11ebca40949fb568b2b68928450eecb718bf/infrastructure/dogfood/terraform/aws/ecs.tf#L46)
 
 #### Fleet migrations
 
-Migrations in ECS can be achieved (and is recommended) by running [dedicated ECS tasks](https://github.com/fleetdm/fleet/tree/main/tools/terraform#migrating-the-db) that run the `fleet prepare --no-prompt=true db` command. See [terraform for more details](https://github.com/fleetdm/fleet/blob/589e11ebca40949fb568b2b68928450eecb718bf/tools/terraform/ecs.tf#L229)
+Migrations in ECS can be achieved (and is recommended) by running [dedicated ECS tasks](https://github.com/fleetdm/fleet/tree/main/infrastructure/dogfood/terraform/aws#migrating-the-db) that run the `fleet prepare --no-prompt=true db` command. See [terraform for more details](https://github.com/fleetdm/fleet/blob/589e11ebca40949fb568b2b68928450eecb718bf/infrastructure/dogfood/terraform/aws/ecs.tf#L229)
 
 Alternatively you can bake the prepare command into the same task definition see [here for a discussion](https://github.com/fleetdm/fleet/pull/1761#discussion_r697599457), but this not recommended for production environments.
 

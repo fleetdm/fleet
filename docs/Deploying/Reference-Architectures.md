@@ -1,7 +1,7 @@
 # Reference architectures
 
 You can easily run Fleet on a single VPS that would be capable of supporting hundreds if not thousands of hosts, but
-this page details an [opinionated view](https://github.com/fleetdm/fleet/tree/main/tools/terraform) of running Fleet in a production environment, as
+this page details an [opinionated view](https://github.com/fleetdm/fleet/tree/main/infrastructure/dogfood/terraform/aws) of running Fleet in a production environment, as
 well as different configuration strategies to enable High Availability (HA).
 
 ## Availability components
@@ -16,7 +16,7 @@ Fleet recommends RDS Aurora MySQL when running on AWS. More details about backup
 [here](https://docs.aws.amazon.com/AmazonRDS/latest/AuroraUserGuide/Aurora.Managing.Backups.html). It is also
 possible to dynamically scale read replicas to increase performance and [enable database fail-over](https://docs.aws.amazon.com/AmazonRDS/latest/AuroraUserGuide/Concepts.AuroraHighAvailability.html).
 It is also possible to use [Aurora Global](https://docs.aws.amazon.com/AmazonRDS/latest/AuroraUserGuide/aurora-global-database.html) to
-span multiple regions for more advanced configurations(_not included in the [reference terraform](https://github.com/fleetdm/fleet/tree/main/tools/terraform)_).
+span multiple regions for more advanced configurations(_not included in the [reference terraform](https://github.com/fleetdm/fleet/tree/main/infrastructure/dogfood/terraform/aws)_).
 
 In some cases adding a read replica can increase database performance for specific access patterns. In scenarios when automating the API or with `fleetctl`
 there can be benefits to read performance.
@@ -26,10 +26,14 @@ Load balancing enables distributing request traffic over many instances of the b
 Load Balancer can also [offload SSL termination](https://docs.aws.amazon.com/elasticloadbalancing/latest/application/create-https-listener.html), freeing Fleet to spend the majority of it's allocated compute dedicated 
 to its core functionality. More details about ALB can be found [here](https://docs.aws.amazon.com/elasticloadbalancing/latest/application/introduction.html).
 
-_**Note if using [terraform reference architecture](https://github.com/fleetdm/fleet/tree/main/tools/terraform#terraform) all configurations can dynamically scale based on load(cpu/memory) and all configurations
+_**Note if using [terraform reference architecture](https://github.com/fleetdm/fleet/tree/main/infrastructure/dogfood/terraform/aws#terraform) all configurations can dynamically scale based on load(cpu/memory) and all configurations
 assume On-Demand pricing (savings are available through Reserved Instances). Calculations do not take into account NAT gateway charges or other networking related ingress/egress costs.**_
 
-### Example configuration breakpoints
+## Cloud providers
+
+### AWS
+
+#### Example configuration breakpoints
 #### [Up to 1000 hosts](https://calculator.aws/#/estimate?id=ae7d7ddec64bb979f3f6611d23616b1dff0e8dbd)
 
 | Fleet instances | CPU Units     | RAM |
@@ -43,33 +47,39 @@ assume On-Demand pricing (savings are available through Reserved Instances). Cal
 
 #### [Up to 25000 hosts](https://calculator.aws/#/estimate?id=4a3e3168275967d1e79a3d1fcfedc5b17d67a271)
 
-| Fleet instances | CPU Units     | RAM |
-|-----------------|---------------|-----|
-| 10 Fargate task  | 1024 CPU Units | 4GB |
+| Fleet instances | CPU Units      | RAM |
+|-----------------|----------------|-----|
+| 10 Fargate task | 1024 CPU Units | 4GB |
 
 | Dependencies | Version                 | Instance type |
 |--------------|-------------------------|---------------|
-| Redis        | 6                       |  m6g.large    |
+| Redis        | 6                       | m6g.large     |
 | MySQL        | 5.7.mysql_aurora.2.10.0 | db.r6g.large  |
 
 
-#### [Up to 150000 hosts](https://calculator.aws/#/estimate?id=6a852ef873c0902f0c953045dec3e29fcd32aef8)
+#### [Up to 150000 hosts](https://calculator.aws/#/estimate?id=1d8fdd63f01e71027e9d898ed05f4a07299a7000)
 
 | Fleet instances | CPU Units      | RAM |
 |-----------------|----------------|-----|
-| 30 Fargate task | 1024 CPU Units | 4GB |
+| 20 Fargate task | 1024 CPU Units | 4GB |
 
 | Dependencies | Version                 | Instance type  | Nodes |
 |--------------|-------------------------|----------------|-------|
 | Redis        | 6                       | m6g.large      | 3     |
-| MySQL        | 5.7.mysql_aurora.2.10.0 | db.m6g.8xlarge | 1     |
+| MySQL        | 5.7.mysql_aurora.2.10.0 | db.r6g.4xlarge | 1     |
 
+#### [Up to 300000 hosts](https://calculator.aws/#/estimate?id=f3da0597a172c6a0a3683023e2700a6df6d42c0b)
 
-## Cloud providers
+| Fleet instances | CPU Units      | RAM |
+|-----------------|----------------|-----|
+| 20 Fargate task | 1024 CPU Units | 4GB |
 
-### AWS
+| Dependencies | Version                 | Instance type   | Nodes |
+|--------------|-------------------------|-----------------|-------|
+| Redis        | 6                       | m6g.large       | 3     |
+| MySQL        | 5.7.mysql_aurora.2.10.0 | db.r6g.16xlarge | 2     |
 
-AWS reference architecture can be found [here](https://github.com/fleetdm/fleet/tree/main/tools/terraform). This configuration includes:
+AWS reference architecture can be found [here](https://github.com/fleetdm/fleet/tree/main/infrastructure/dogfood/terraform/aws). This configuration includes:
 
 - VPC
   - Subnets
@@ -83,7 +93,7 @@ AWS reference architecture can be found [here](https://github.com/fleetdm/fleet/
 - Elasticache Redis Engine
 - Firehose osquery log destination
   - S3 bucket sync to allow further ingestion/processing
-- [Monitoring via Cloudwatch alarms](https://github.com/fleetdm/fleet/tree/main/tools/terraform/monitoring)
+- [Monitoring via Cloudwatch alarms](https://github.com/fleetdm/fleet/tree/main/infrastructure/dogfood/terraform/aws/monitoring)
 
 Some AWS services used in the provider reference architecture are billed as pay-per-use such as Firehose. This means that osquery scheduled query frequency can have
 a direct correlation to how much these services cost, something to keep in mind when configuring Fleet in AWS.
@@ -134,7 +144,46 @@ The following permissions are the minimum required to apply AWS terraform resour
 
 ### GCP
 
-Coming soon
+GCP reference architecture can be found [here](https://github.com/fleetdm/fleet/tree/main/tools/terraform/gcp). This configuration includes:
+
+- Cloud Run (Fleet backend)
+- Cloud SQL MySQL 5.7 (Fleet database)
+- Memorystore Redis (Fleet cache & live query orchestrator)
+
+#### Example configuration breakpoints
+#### [Up to 1000 hosts](https://cloud.google.com/products/calculator/#id=59670518-9af4-4044-af4a-cc100a9bed2f)
+
+| Fleet instances | CPU | RAM |
+|-----------------|-----|-----|
+| 2 Cloud Run     | 1   | 2GB |
+
+| Dependencies | Version                 | Instance type |
+|--------------|-------------------------|---------------|
+| Redis        | MemoryStore Redis 6     | M1 Basic      |
+| MySQL        | Cloud SQL for MySQL 5.7 | db-standard-1 |        
+
+#### [Up to 25000 hosts](https://cloud.google.com/products/calculator/#id=fadbb96c-967c-4397-9921-743d75b98d42)
+
+| Fleet instances | CPU | RAM |
+|-----------------|-----|-----|
+| 10 Cloud Run    | 1   | 2GB |
+
+| Dependencies | Version                 | Instance type |
+|--------------|-------------------------|---------------|
+| Redis        | MemoryStore Redis 6     | M1 2GB        |
+| MySQL        | Cloud SQL for MySQL 5.7 | db-standard-4 |
+
+
+#### [Up to 150000 hosts](https://cloud.google.com/products/calculator/#id=baff774c-d294-491f-a9da-dd97bbfa8ef2)
+
+| Fleet instances | CPU   | RAM |
+|-----------------|-------|-----|
+| 30 Cloud Run    | 1 CPU | 2GB |
+
+| Dependencies | Version                 | Instance type | Nodes |
+|--------------|-------------------------|---------------|-------|
+| Redis        | MemoryStore Redis 6     | M1 4GB        | 1     |
+| MySQL        | Cloud SQL for MySQL 5.7 | db-highmem-16 | 1     |
 
 ### Azure
 

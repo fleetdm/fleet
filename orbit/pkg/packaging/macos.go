@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"runtime"
 
+	"github.com/Masterminds/semver"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/constant"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/update"
 	"github.com/fleetdm/fleet/v4/pkg/file"
@@ -28,11 +29,11 @@ func BuildPkg(opt Options) (string, error) {
 	}
 	defer os.RemoveAll(tmpDir)
 
-	filesystemRoot := filepath.Join(tmpDir, "root")
-	if err := secure.MkdirAll(filesystemRoot, constant.DefaultDirMode); err != nil {
+	rootDir := filepath.Join(tmpDir, "root")
+	if err := secure.MkdirAll(rootDir, constant.DefaultDirMode); err != nil {
 		return "", fmt.Errorf("create root dir: %w", err)
 	}
-	orbitRoot := filepath.Join(filesystemRoot, "var", "lib", "orbit")
+	orbitRoot := filepath.Join(rootDir, "opt", "orbit")
 	if err := secure.MkdirAll(orbitRoot, constant.DefaultDirMode); err != nil {
 		return "", fmt.Errorf("create orbit dir: %w", err)
 	}
@@ -69,6 +70,13 @@ func BuildPkg(opt Options) (string, error) {
 		opt.Version = updatesData.OrbitVersion
 	}
 
+	if orbitSemVer, err := semver.NewVersion(updatesData.OrbitVersion); err == nil {
+		if orbitSemVer.LessThan(semver.MustParse("0.0.11")) {
+			opt.LegacyVarLibSymlink = true
+		}
+	}
+	// If err != nil we assume non-legacy Orbit.
+
 	// Write files
 
 	if err := writePackageInfo(opt, tmpDir); err != nil {
@@ -91,7 +99,7 @@ func BuildPkg(opt Options) (string, error) {
 	}
 
 	if opt.StartService {
-		if err := writeLaunchd(opt, filesystemRoot); err != nil {
+		if err := writeLaunchd(opt, rootDir); err != nil {
 			return "", fmt.Errorf("write launchd: %w", err)
 		}
 	}

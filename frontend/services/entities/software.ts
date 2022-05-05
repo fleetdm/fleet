@@ -1,7 +1,7 @@
 import { snakeCase } from "lodash";
 
 import sendRequest from "services";
-import endpoints from "fleet/endpoints";
+import endpoints from "utilities/endpoints";
 import { ISoftware } from "interfaces/software";
 
 interface IGetSoftwareProps {

@@ -9,7 +9,7 @@ export default PropTypes.shape({
   build_user: PropTypes.string,
 });
 
-export interface IInvite {
+export interface IVersionData {
   version: string;
   branch: string;
   revision: string;

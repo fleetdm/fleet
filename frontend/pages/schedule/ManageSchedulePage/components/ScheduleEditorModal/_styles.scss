@@ -26,14 +26,11 @@
   &__btn-wrap {
     display: flex;
     justify-content: space-between;
+    align-items: center;
   }
 
-  &__cta-btn-wrap {
-    flex-direction: row-reverse;
-  }
-
-  &__btn {
-    margin-left: 12px;
+  .modal-cta-wrap {
+    margin-top: 0;
   }
 
   .Select-value-label {

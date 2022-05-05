@@ -17,7 +17,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
-	"github.com/throttled/throttled/v2"
 )
 
 type withDS struct {
@@ -46,7 +45,6 @@ type withServer struct {
 func (ts *withServer) SetupSuite(dbName string) {
 	ts.withDS.SetupSuite(dbName)
 
-	loginRateLimit = throttled.PerMin(100)
 	rs := pubsub.NewInmemQueryResults()
 	users, server := RunServerForTestsWithDS(ts.s.T(), ts.ds, TestServerOpts{Rs: rs})
 	ts.server = server
@@ -144,12 +142,12 @@ func (ts *withServer) getTestToken(email string, password string) string {
 	require.NoError(ts.s.T(), err)
 
 	requestBody := io.NopCloser(bytes.NewBuffer(j))
-	resp, err := http.Post(ts.server.URL+"/api/v1/fleet/login", "application/json", requestBody)
+	resp, err := http.Post(ts.server.URL+"/api/latest/fleet/login", "application/json", requestBody)
 	require.NoError(ts.s.T(), err)
 	defer resp.Body.Close()
 	assert.Equal(ts.s.T(), http.StatusOK, resp.StatusCode)
 
-	var jsn = struct {
+	jsn := struct {
 		User  *fleet.User         `json:"user"`
 		Token string              `json:"token"`
 		Err   []map[string]string `json:"errors,omitempty"`
@@ -166,11 +164,11 @@ func (ts *withServer) applyConfig(spec []byte) {
 	err := yaml.Unmarshal(spec, &appConfigSpec)
 	require.NoError(ts.s.T(), err)
 
-	ts.Do("PATCH", "/api/v1/fleet/config", appConfigSpec, http.StatusOK)
+	ts.Do("PATCH", "/api/latest/fleet/config", appConfigSpec, http.StatusOK)
 }
 
 func (ts *withServer) getConfig() *appConfigResponse {
 	var responseBody *appConfigResponse
-	ts.DoJSON("GET", "/api/v1/fleet/config", nil, http.StatusOK, &responseBody)
+	ts.DoJSON("GET", "/api/latest/fleet/config", nil, http.StatusOK, &responseBody)
 	return responseBody
 }

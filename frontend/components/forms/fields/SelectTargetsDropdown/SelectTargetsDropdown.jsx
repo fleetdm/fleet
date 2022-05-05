@@ -3,9 +3,9 @@ import PropTypes from "prop-types";
 import classnames from "classnames";
 import { isEqual, noop } from "lodash";
 
-import Fleet from "fleet";
+import targetsAPI from "services/entities/targets";
 import targetInterface from "interfaces/target";
-import { formatSelectedTargetsForApi } from "fleet/helpers";
+import { formatSelectedTargetsForApi } from "utilities/helpers";
 import Input from "./SelectTargetsInput";
 import Menu from "./SelectTargetsMenu";
 
@@ -134,8 +134,12 @@ class SelectTargetsDropdown extends Component {
 
     this.setState({ isLoadingTargets: true, query });
 
-    return Fleet.targets
-      .loadAll(query, queryId, formatSelectedTargetsForApi(selectedTargets))
+    return targetsAPI
+      .DEPRECATED_loadAll(
+        query,
+        queryId,
+        formatSelectedTargetsForApi(selectedTargets)
+      )
       .then((response) => {
         const { targets } = response;
         const isEmpty = targets.length === 0;

@@ -5,6 +5,7 @@
 build
 vendor
 node_modules
+dist
 
 # generated artifacts
 assets/bundle*.*
@@ -59,6 +60,7 @@ terraform.tfstate*
 # generated installers
 fleet-osquery*
 desktop.app.tar.gz
+desktop.tar.gz
 
 # residual files when running the cpe command
 cmd/cpe/etagenv

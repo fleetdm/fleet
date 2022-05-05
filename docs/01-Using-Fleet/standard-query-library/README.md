@@ -1,6 +1,6 @@
 # Standard query library
 
-Fleet's standard query library includes a growing collection of useful queries for organizations deploying Fleet and osquery.
+Fleet's [standard query library](https://fleetdm.com/queries) includes a growing collection of useful policies and miscellaneous queries for organizations deploying Fleet and osquery.
 
 ## Importing the queries in Fleet
 
@@ -13,28 +13,28 @@ fleetctl apply -f docs/01-Using-Fleet/standard-query-library/standard-query-libr
 
 Want to add your own query?
 
-1. Please copy the following yaml section and paste it at the bottom of the [`standard-query-library.yml`](./standard-query-library.yml) file.
+1. Please copy the following YAML section and paste it at the bottom of the [`standard-query-library.yml`](./standard-query-library.yml) file.
 
   ```yaml
   ---
   apiVersion: v1
   kind: query
   spec:
-    name: What is your query called? Please use a human readable query name.
+    name: What is your query called? Please use a human-readable query name.
     platforms: What operating systems support your query? This can usually be determined by the osquery tables included in your query. Heading to the https://osquery.io/schema webpage to see which operating systems are supported by the tables you include.
-    description: Describe your query. What does information does your query reveal?
+    description: Describe your query. What information does your query reveal? (optional)
     query: Insert query here
     purpose: What is the goal of running your query? Ex. Detection
     remediation: Are there any remediation steps to resolve the detection triggered by your query? If not, insert "N/A."
     contributors: zwass,mike-j-thomas
-    tags: Keywords that can help users find other relevant queries, each tag should be seperated by a comma. (e.g., "foo,bar")
+    tags: Keywords that can help users find other relevant queries; each tag should be separated by a comma. (e.g., "foo,bar")
   ```
 
 2. Replace each field and submit a pull request to the fleetdm/fleet GitHub repository.
 
 3. If you want to contribute multiple queries, please open one pull request that includes all your queries.
 
-For instructions on submitting pull requests to Fleet check out [the Committing Changes
+For instructions on submitting pull requests to Fleet, check out [the Committing Changes
 section](../../Contributing/Committing-Changes.md#committing-changes) in the Contributors
 documentation.
 

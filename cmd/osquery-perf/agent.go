@@ -174,7 +174,9 @@ type entityCount struct {
 
 type softwareEntityCount struct {
 	entityCount
-	vulnerable int
+	vulnerable     int
+	withLastOpened int
+	lastOpenedProb float64
 }
 
 func newAgent(
@@ -238,10 +240,8 @@ func (a *agent) runLoop(i int, onlyAlreadyEnrolled bool) {
 			resp, err := a.DistributedRead()
 			if err != nil {
 				log.Println(err)
-			} else {
-				if len(resp.Queries) > 0 {
-					a.DistributedWrite(resp.Queries)
-				}
+			} else if len(resp.Queries) > 0 {
+				a.DistributedWrite(resp.Queries)
 			}
 		}
 	}
@@ -279,7 +279,7 @@ func (a *agent) enroll(i int, onlyAlreadyEnrolled bool) error {
 	req.Header.SetMethod("POST")
 	req.Header.SetContentType("application/json")
 	req.Header.Add("User-Agent", "osquery/4.6.0")
-	req.SetRequestURI(a.serverAddress + "/api/v1/osquery/enroll")
+	req.SetRequestURI(a.serverAddress + "/api/osquery/enroll")
 	res := fasthttp.AcquireResponse()
 
 	a.waitingDo(req, res)
@@ -314,7 +314,7 @@ func (a *agent) config() {
 	req.Header.SetMethod("POST")
 	req.Header.SetContentType("application/json")
 	req.Header.Add("User-Agent", "osquery/4.6.0")
-	req.SetRequestURI(a.serverAddress + "/api/v1/osquery/config")
+	req.SetRequestURI(a.serverAddress + "/api/osquery/config")
 	res := fasthttp.AcquireResponse()
 
 	a.waitingDo(req, res)
@@ -399,6 +399,7 @@ func (a *agent) HostUsersMacOS() []fleet.HostUser {
 }
 
 func (a *agent) SoftwareMacOS() []fleet.Software {
+	var lastOpenedCount int
 	commonSoftware := make([]fleet.Software, a.softwareCount.common)
 	for i := 0; i < len(commonSoftware); i++ {
 		commonSoftware[i] = fleet.Software{
@@ -406,6 +407,7 @@ func (a *agent) SoftwareMacOS() []fleet.Software {
 			Version:          "0.0.1",
 			BundleIdentifier: "com.fleetdm.osquery-perf",
 			Source:           "osquery-perf",
+			LastOpenedAt:     a.genLastOpenedAt(&lastOpenedCount),
 		}
 	}
 	uniqueSoftware := make([]fleet.Software, a.softwareCount.unique)
@@ -415,11 +417,14 @@ func (a *agent) SoftwareMacOS() []fleet.Software {
 			Version:          "1.1.1",
 			BundleIdentifier: "com.fleetdm.osquery-perf",
 			Source:           "osquery-perf",
+			LastOpenedAt:     a.genLastOpenedAt(&lastOpenedCount),
 		}
 	}
 	randomVulnerableSoftware := make([]fleet.Software, a.softwareCount.vulnerable)
 	for i := 0; i < len(randomVulnerableSoftware); i++ {
-		randomVulnerableSoftware[i] = vulnerableSoftware[rand.Intn(len(vulnerableSoftware))]
+		sw := vulnerableSoftware[rand.Intn(len(vulnerableSoftware))]
+		sw.LastOpenedAt = a.genLastOpenedAt(&lastOpenedCount)
+		randomVulnerableSoftware[i] = sw
 	}
 	software := append(commonSoftware, uniqueSoftware...)
 	software = append(software, randomVulnerableSoftware...)
@@ -435,7 +440,7 @@ func (a *agent) DistributedRead() (*distributedReadResponse, error) {
 	req.Header.SetMethod("POST")
 	req.Header.SetContentType("application/json")
 	req.Header.Add("User-Agent", "osquery/4.6.0")
-	req.SetRequestURI(a.serverAddress + "/api/v1/osquery/distributed/read")
+	req.SetRequestURI(a.serverAddress + "/api/osquery/distributed/read")
 	res := fasthttp.AcquireResponse()
 
 	a.waitingDo(req, res)
@@ -454,6 +459,18 @@ func (a *agent) DistributedRead() (*distributedReadResponse, error) {
 
 var defaultQueryResult = []map[string]string{
 	{"foo": "bar"},
+}
+
+func (a *agent) genLastOpenedAt(count *int) *time.Time {
+	if *count >= a.softwareCount.withLastOpened {
+		return nil
+	}
+	*count++
+	if rand.Float64() <= a.softwareCount.lastOpenedProb {
+		now := time.Now()
+		return &now
+	}
+	return nil
 }
 
 func (a *agent) runPolicy(query string) []map[string]string {
@@ -587,7 +604,7 @@ func (a *agent) DistributedWrite(queries map[string]string) {
 	req.Header.SetMethod("POST")
 	req.Header.SetContentType("application/json")
 	req.Header.Add("User-Agent", "osquery/5.0.1")
-	req.SetRequestURI(a.serverAddress + "/api/v1/osquery/distributed/write")
+	req.SetRequestURI(a.serverAddress + "/api/osquery/distributed/write")
 	res := fasthttp.AcquireResponse()
 
 	a.waitingDo(req, res)
@@ -609,9 +626,11 @@ func main() {
 	queryInterval := flag.Duration("query_interval", 10*time.Second, "Interval for live query requests")
 	onlyAlreadyEnrolled := flag.Bool("only_already_enrolled", false, "Only start agents that are already enrolled")
 	nodeKeyFile := flag.String("node_key_file", "", "File with node keys to use")
-	commonSoftwareCount := flag.Int("common_software_count", 10, "Number of common of installed applications reported to fleet")
+	commonSoftwareCount := flag.Int("common_software_count", 10, "Number of common installed applications reported to fleet")
 	uniqueSoftwareCount := flag.Int("unique_software_count", 10, "Number of unique installed applications reported to fleet")
 	vulnerableSoftwareCount := flag.Int("vulnerable_software_count", 10, "Number of vulnerable installed applications reported to fleet")
+	withLastOpenedSoftwareCount := flag.Int("with_last_opened_software_count", 10, "Number of applications that may report a last opened timestamp to fleet")
+	lastOpenedChangeProb := flag.Float64("last_opened_change_prob", 0.1, "Probability of last opened timestamp to be reported as changed [0, 1]")
 	commonUserCount := flag.Int("common_user_count", 10, "Number of common host users reported to fleet")
 	uniqueUserCount := flag.Int("unique_user_count", 10, "Number of unique host users reported to fleet")
 	policyPassProb := flag.Float64("policy_pass_prob", 1.0, "Probability of policies to pass [0, 1]")
@@ -644,7 +663,9 @@ func main() {
 				common: *commonSoftwareCount,
 				unique: *uniqueSoftwareCount,
 			},
-			vulnerable: *vulnerableSoftwareCount,
+			vulnerable:     *vulnerableSoftwareCount,
+			withLastOpened: *withLastOpenedSoftwareCount,
+			lastOpenedProb: *lastOpenedChangeProb,
 		}, entityCount{
 			common: *commonUserCount,
 			unique: *uniqueUserCount,
