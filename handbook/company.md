@@ -283,7 +283,7 @@ Zach partnered with our CEO, Mike McNeil, to found a new, independent company: F
 | Weekly update reminder | Weekly | On Thursday, Charlie starts a thread in the `#help-manage` channel and ask managers to reply to the thread with a summary of what their team did in the past week. | Charlie Chance |
 | Weekly update | Weekly | On Friday, Charlie updates the KPIs in the ["🌈 Weekly updates" spreadsheet](https://docs.google.com/spreadsheets/d/1Hso0LxqwrRVINCyW_n436bNHmoqhoLhC8bcbvLPOs9A/edit#gid=0), combines the updates from managers into a single message, and adds any hiring announcements. Charlie posts the company update in the `#general` channel. | Charlie Chance |
 
-## GitHub Labels
+## GitHub labels
 
 We use special characters to define different types of GitHub labels. By combining labels, we
 organize and categorize GitHub issues. This reduces the total number of labels required while
