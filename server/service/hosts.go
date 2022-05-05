@@ -357,7 +357,7 @@ func (svc *Service) GetHostSummary(ctx context.Context, teamID *uint, platform *
 		return nil, err
 	}
 
-	var linuxCount uint
+	linuxCount := uint(0)
 	for _, p := range hostSummary.Platforms {
 		if fleet.IsLinux(p.Platform) {
 			linuxCount += p.HostsCount
