@@ -19,6 +19,7 @@ import (
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
@@ -199,4 +200,22 @@ func TestDebugResolveHostname(t *testing.T) {
 
 	err = resolveHostname(context.Background(), timeout, noSuchHost)
 	require.Error(t, err)
+}
+
+func TestFilenameFunctions(t *testing.T) {
+	nowFn = func() time.Time {
+		now, _ := time.Parse(time.RFC3339, "1969-06-19T21:44:05Z")
+		return now
+	}
+	defer func() { nowFn = time.Now }()
+
+	t.Run("outfileName builds a file name using the name provided + current time ", func(t *testing.T) {
+		name := outfileName("test")
+		assert.Equal(t, name, "fleet-test-1969-06-19T21:44:05Z")
+	})
+
+	t.Run("outfileNameWithExt builds a file name using the name and extension provided + current time ", func(t *testing.T) {
+		name := outfileNameWithExt("test", "go")
+		assert.Equal(t, name, "fleet-test-1969-06-19T21:44:05Z.go")
+	})
 }

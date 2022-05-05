@@ -22,6 +22,8 @@ import (
 	"github.com/urfave/cli/v2"
 )
 
+var nowFn = time.Now
+
 func debugCommand() *cli.Command {
 	return &cli.Command{
 		Name:  "debug",
@@ -58,7 +60,11 @@ func writeFile(filename string, bytes []byte, mode os.FileMode) error {
 }
 
 func outfileName(name string) string {
-	return fmt.Sprintf("fleet-%s-%s", name, time.Now().Format(time.RFC3339))
+	return fmt.Sprintf("fleet-%s-%s", name, nowFn().Format(time.RFC3339))
+}
+
+func outfileNameWithExt(name string, ext string) string {
+	return fmt.Sprintf("%s.%s", outfileName(name), ext)
 }
 
 func debugProfileCommand() *cli.Command {
@@ -285,11 +291,10 @@ func debugArchiveCommand() *cli.Command {
 				"db-process-list",
 			}
 
-			outpath := getOutfile(c)
-			if outpath == "" {
-				outpath = outfileName("profiles-archive")
+			outfile := getOutfile(c)
+			if outfile == "" {
+				outfile = outfileNameWithExt("profiles-archive", "tar.gz")
 			}
-			outfile := outpath + ".tar.gz"
 
 			f, err := secure.OpenFile(outfile, os.O_CREATE|os.O_WRONLY, defaultFileMode)
 			if err != nil {
@@ -334,7 +339,7 @@ func debugArchiveCommand() *cli.Command {
 
 				if err := tarwriter.WriteHeader(
 					&tar.Header{
-						Name: outpath + "/" + profile,
+						Name: outfile + "/" + profile,
 						Size: int64(len(res)),
 						Mode: defaultFileMode,
 					},
