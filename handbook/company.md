@@ -282,7 +282,7 @@ interim product manager):
 
 - Interface PM: Noah Talerman
 - Platform PM: Zach Wasserman
-- Agent PM: TBD (Mo Zhu?)
+- Agent PM: Mo Zhu
 
 Each group is associated with an engineering manager (EM), who, with their group of engineers, form the engineering members of the group.
 
