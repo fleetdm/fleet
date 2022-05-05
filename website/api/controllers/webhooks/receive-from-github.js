@@ -198,6 +198,8 @@ module.exports = {
           'Authorization': `token ${sails.config.custom.githubAccessToken}`
         };
 
+        let IS_FROZEN = false;// « Set this to `true` whenever a freeze is in effect, then set it back to `false`.
+
         // Check whether auto-approval is warranted.
         let isAutoApproved = await sails.helpers.flow.build(async()=>{
 
@@ -275,6 +277,12 @@ module.exports = {
           // [?] https://docs.github.com/en/rest/reference/pulls#create-a-review-for-a-pull-request
           await sails.helpers.http.post(`https://api.github.com/repos/${owner}/${repo}/pulls/${prNumber}/reviews`, {
             event: 'APPROVE'
+          }, baseHeaders);
+        } else if (IS_FROZEN) {
+          // [?] https://docs.github.com/en/rest/reference/pulls#create-a-review-for-a-pull-request
+          await sails.helpers.http.post(`https://api.github.com/repos/${owner}/${repo}/pulls/${prNumber}/reviews`, {
+            event: 'REQUEST_CHANGES',
+            body: 'The repository is currently frozen for an upcoming release.  Please do not merge this change.  To check again later after the freeze has ended, edit your PR description, hit the spacebar a few times, then submit.  In case of emergency, you can dismiss this review.'
           }, baseHeaders);
         }
 
