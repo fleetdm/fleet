@@ -104,7 +104,7 @@ resource "aws_autoscaling_group" "elasticstack" {
 
   tag {
     key                 = "ansible_playbook_path"
-    value               = "tools/loadtesting/terraform/shared/elasticsearch_ansible"
+    value               = "infrastructure/loadtesting/terraform/shared/elasticsearch_ansible"
     propagate_at_launch = true
   }
 

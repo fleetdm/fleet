@@ -285,7 +285,7 @@ Zach partnered with our CEO, Mike McNeil, to found a new, independent company: F
 
 ## Slack channels
 
-The following [Slack channels are maintained](https://fleetdm.com/handbook/company#group-slack-channels) by Fleet's founders and executive collaborators:
+The following Slack channels are maintained by Fleet's founders and executive collaborators:
 
 | Slack channel               | [DRI](https://fleetdm.com/handbook/company#group-slack-channels)    |
 |:----------------------------|:--------------------------------------------------------------------|

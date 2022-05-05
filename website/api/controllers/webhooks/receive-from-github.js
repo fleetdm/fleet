@@ -212,6 +212,7 @@ module.exports = {
             'handbook/engineering.md': 'zwass',
             'handbook/product.md': 'noahtalerman',
             'handbook/security.md': 'guillaumeross',
+            'handbook/security-policies.md': 'guillaumeross',
             'handbook/brand.md': 'mike-j-thomas',
             'handbook/growth.md': 'timmy-k',
             'handbook/customers.md': 'tgauda',
