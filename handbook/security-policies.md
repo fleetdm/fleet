@@ -95,10 +95,6 @@ Fleet policy requires that
 
 2. Use of high privilege accounts must only be performed when absolutely necessary.
 
-
-
-
-
 ## Asset management policy
 *Created from [JupiterOne/security-policy-templates](https://github.com/JupiterOne/security-policy-templates). [CC BY-SA 4 license](https://creativecommons.org/licenses/by-sa/4.0/)*
 
@@ -127,31 +123,11 @@ The Fleet business continuity and disaster recovery plan establishes procedures 
 
 Fleet policy requires that:
 
-
 1. A plan and process for business continuity and disaster recovery (BCDR), including the backup and recovery of critical systems and data, will be defined and documented.
 
 2. BCDR shall be simulated and tested at least once a year. 
 
 3. Security controls and requirements will be maintained during all BCDR activities.
-
-## Incident response plan
-*Created from [JupiterOne/security-policy-templates](https://github.com/JupiterOne/security-policy-templates). [CC BY-SA 4 license](https://creativecommons.org/licenses/by-sa/4.0/)*
-
-| Policy owner   | Effective date |
-| -------------- | -------------- |
-| @GuillaumeRoss | 2022-06-01     |
-
-Fleet implements an incident response process that covers all incidents, including security incidents. This process is used to detect, respond, and report incidents, minimize loss and destruction, mitigate the exploited vulnerabilities, and restore information system functionality and business continuity as soon as possible.
-
-Fleet policy requires that:
-
-1. All computing environments and systems must be monitored in accordance Fleet policy.
-
-2. Alerts must be reviewed to identify security incidents.
-
-3. Incident response procedures are invoked upon discovery of a valid security incident.
-
-4. Incident response team and management must comply with any additional requests by law enforcement in the event of criminal investigation or national security, including but not limited to warranted data requests, subpoenas, and breach notifications. 
 
 ## Information security roles and responsibilities
 *Created from [Vanta](https://www.vanta.com/) policy templates.*
