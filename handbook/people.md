@@ -35,6 +35,7 @@ DRIs help us collaborate efficiently by knowing exactly who is responsible and c
 | Publishing release blog post, and promoting releases | Mike Thomas |
 | fleetdm.com | Mike Thomas |
 | Self-service Fleet Premium license dispenser | Mike Thomas |
+| Security disclosure and policy | Guillaume Ross | 
 
 *Luke Heath is backup 
 
@@ -180,7 +181,7 @@ We use these prefixes to organize the Fleet Slack:
 ## Performance feedback
 At Fleet, performance feedback is a continuous process. We give feedback (particularly negative) as soon as possible. Most feedback will happen during 1:1 meetings, if not sooner.
 
-We evaluate and update compensation decisions yearly, shortly after the anniversary of a team member's start date.
+Founders evaluate and update compensation decisions yearly, shortly after the anniversary of a team member's start date.
 
 ## Growing the team
 
@@ -227,6 +228,8 @@ Here are some of the things you can anticipate throughout this process:
 If you've been invited to "book with us" you'll have a Zoom meeting with the hiring team to discuss next steps. 
 
 ### Hiring a new team member
+
+> Fleet is unable to hire team members in some countries. See [this internal document](https://docs.google.com/document/d/1jHHJqShIyvlVwzx1C-FB9GC74Di_Rfdgmhpai1SPC0g/edit) for the list.
 
 1. At-mention People Operations in the `#hiring-xxxxx-2022` channel and indicate that you would like to make an offer to the candidate.  Include the candidate's name, personal email address, where the candidate would be working, and any other important considerations about the candidate (the timeframe for their start date, their status to work legally in their country of residence, etc.)
 
@@ -299,7 +302,7 @@ The CEO will then post a message in the `#hiring-xxxxx-2022` Slack channel to in
    In CorpNet, select "place an order for an existing business" we’ll need to have Foreign Registration and Payroll Tax Registration done.
    - You can have CorpNet do this by emailing the account rep "Subject: Fleet Device Management: State - Foreign Registration and Payroll Tax Registration" (this takes about two weeks).
    - You can do this between you and CorpNet by selecting "Foreign Qualification," place the order, and email the confirmation to the rep for Payroll registration (this is a short turnaround).
-   - You can do this on your own by visting the state's "Secretary of State" website and check that the company name is available. To register online you'll need: the EIN, business address, information about the owners and their percentages, first date of business, sales within the state, and the business type (usually get an email right away for approval ~24-48 hrs). 
+   - You can do this on your own by visiting the state's "Secretary of State" website and checking that the company name is available. To register online you'll need the EIN, business address, information about the owners and their percentages, the first date of business, sales within the state, and the business type (usually get an email right away for approval ~24-48 hrs). 
 
 ## Team member onboarding
 
@@ -426,13 +429,14 @@ The following table lists the People group's rituals, frequency, and Directly Re
 | AP invoice monitoring | Daily | Look for new accounts payable invoices and ensure that Fleet's suppliers are paid. | Nathanael Holliday |
 | Weekly department updates | Weekly | Updates from managers on what their departments accomplished for the week are logged in the cloud and disseminated on Slack. | Charlie Chance | 
 | Hours update | Weekly | Screenshots of contractor hours as shown in Gusto are sent via Slack to each contractor's manager with no further action necessary if everything appears normal. | Charlie Chance |
-| Prepare Mike and Sid's 1:1 Doc | Bi-weekly | Run through the document preparation GitHub issue for Mike's call with Sid. | Nathanael Holliday |
+| Prepare Mike and Sid's 1:1 doc | Bi-weekly | Run through the document preparation GitHub issue for Mike's call with Sid. | Nathanael Holliday |
 | OKR review | Every three weeks | Review the status of each OKR. | Mike Thomas |
 | Brex reconciliation | Monthly | Make sure all company-issued credit card transactions include memos. | Nathanael Holliday |
 | Monthly accounting | Monthly | Use the monthly accounting template in GitHub to go through the process of validating Fleet's books. | Nathanael Holliday |
 | US contractor payroll | Monthly | Sync contractor hours to payments in Gusto and run payroll for the month. | Charlie Chance |
 | OKR planning | Quarterly | Plan the next quarter's OKRs. | Mike Thomas |
-| 550C update | Annually | File California 550C. | Charlie Chance | 
+| 550C update | Annually | File California 550C. | Charlie Chance |
+| Workiversaries | Weekly/PRN | People Operations posts in #g-people and tags @mikermcneil about any upcoming workiversaries | Charlie Chance |
 
 ## Slack channels
 
