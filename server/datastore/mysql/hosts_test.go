@@ -799,6 +799,31 @@ func testHostsListQuery(t *testing.T, ds *Datastore) {
 	gotIDs := []uint{gotHosts[0].ID, gotHosts[1].ID, gotHosts[2].ID}
 	wantIDs := []uint{hosts[0].ID, hosts[2].ID, hosts[5].ID}
 	require.ElementsMatch(t, wantIDs, gotIDs)
+
+	// device mapping not included because missing optional param
+	require.Nil(t, gotHosts[0].DeviceMapping)
+	require.Nil(t, gotHosts[1].DeviceMapping)
+	require.Nil(t, gotHosts[2].DeviceMapping)
+
+	// add optional param to include host device mapping
+	gotHosts = listHostsCheckCount(t, ds, filter, fleet.HostListOptions{ListOptions: fleet.ListOptions{MatchQuery: "a@b.c"}, DeviceMapping: true}, 3)
+	require.NotNil(t, gotHosts[0].DeviceMapping)
+	require.NotNil(t, gotHosts[1].DeviceMapping)
+	require.NotNil(t, gotHosts[2].DeviceMapping) // json "null" rather than nil
+
+	var dm []*fleet.HostDeviceMapping
+
+	err = json.Unmarshal(*gotHosts[0].DeviceMapping, &dm)
+	require.NoError(t, err)
+	require.Len(t, dm, 2)
+
+	err = json.Unmarshal(*gotHosts[1].DeviceMapping, &dm)
+	require.NoError(t, err)
+	require.Len(t, dm, 1)
+
+	err = json.Unmarshal(*gotHosts[2].DeviceMapping, &dm)
+	require.NoError(t, err)
+	require.Nil(t, dm)
 }
 
 func testHostsEnroll(t *testing.T, ds *Datastore) {
@@ -3287,10 +3312,10 @@ func testHostDeviceMapping(t *testing.T, ds *Datastore) {
 		{Email: "b@b.c", Source: "src1"},
 	})
 
-	// non-existent host should have empty device mapping
-	dms, err = ds.ListHostDeviceMapping(ctx, h.ID+1)
+	// device mapping is not included in basic method for host by id
+	host, err := ds.Host(ctx, h.ID, false)
 	require.NoError(t, err)
-	require.Len(t, dms, 0)
+	require.Nil(t, host.DeviceMapping)
 
 	// create additional hosts to test device mapping of multiple hosts in ListHosts results
 	h2, err := ds.NewHost(ctx, &fleet.Host{
@@ -3324,7 +3349,13 @@ func testHostDeviceMapping(t *testing.T, ds *Datastore) {
 	})
 	require.NoError(t, err)
 
-	hosts := listHostsCheckCount(t, ds, fleet.TeamFilter{User: test.UserAdmin}, fleet.HostListOptions{DeviceMapping: true}, 3)
+	// device mapping not included in list hosts unless optional param is set to true
+	hosts := listHostsCheckCount(t, ds, fleet.TeamFilter{User: test.UserAdmin}, fleet.HostListOptions{}, 3)
+	require.Nil(t, hosts[0].DeviceMapping)
+	require.Nil(t, hosts[1].DeviceMapping)
+	require.Nil(t, hosts[2].DeviceMapping)
+
+	hosts = listHostsCheckCount(t, ds, fleet.TeamFilter{User: test.UserAdmin}, fleet.HostListOptions{DeviceMapping: true}, 3)
 
 	hostsByID := make(map[uint]*fleet.Host)
 	for _, hst := range hosts {
@@ -3334,7 +3365,7 @@ func testHostDeviceMapping(t *testing.T, ds *Datastore) {
 	var dm []*fleet.HostDeviceMapping
 
 	// device mapping for host 1
-	require.NotNil(t, *hostsByID[1].DeviceMapping)
+	require.NotNil(t, hostsByID[1].DeviceMapping)
 	err = json.Unmarshal(*hostsByID[1].DeviceMapping, &dm)
 	require.NoError(t, err)
 	var emails []string
@@ -3355,7 +3386,10 @@ func testHostDeviceMapping(t *testing.T, ds *Datastore) {
 	assert.Equal(t, "src2", dm[0].Source)
 
 	// no device mapping for host 3
-	assert.Nil(t, hostsByID[3].DeviceMapping)
+	require.NotNil(t, hostsByID[3].DeviceMapping) // json "null" rather than nil
+	err = json.Unmarshal(*hostsByID[3].DeviceMapping, &dm)
+	require.NoError(t, err)
+	assert.Nil(t, dm)
 }
 
 func testHostsReplaceHostDeviceMapping(t *testing.T, ds *Datastore) {
