@@ -6340,7 +6340,7 @@ The Fleet server exposes a handful of API endpoints to retrieve debug informatio
 
 ### Get a summary of errors
 
-Returns a set of all the errors that happened in the server during the interval of time defined by the [logging_error_retention_period](https://fleetdm.com/docs/deploying/configuration#logging-error-retention-period) configuration.
+Returns a set of all the errors that happened in the server during the interval of time defined by the [logging_error_retention_period](../Deploying/Configuration.md#logging-error-retention-period) configuration.
 
 The server only stores and returns a single instance of each error.
 
