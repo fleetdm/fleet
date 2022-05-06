@@ -22,4 +22,4 @@ Read this guide on adding fake data to your development instance.
 Get to grips with Fleet API routes. This documentation is helpful for developing or contributing to Fleet.
 
 ### [FAQ](./FAQ.md) 
-read for commonly asked questions and answers about contributing to Fleet as part of the Fleet community.
+Read for commonly asked questions and answers about contributing to Fleet as part of the Fleet community.
