@@ -11,6 +11,7 @@ import (
 
 	"github.com/doug-martin/goqu/v9"
 	_ "github.com/doug-martin/goqu/v9/dialect/mysql"
+	"github.com/doug-martin/goqu/v9/exp"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/jmoiron/sqlx"
@@ -395,17 +396,23 @@ type softwareCVE struct {
 }
 
 func selectSoftwareSQL(hostID *uint, opts fleet.SoftwareListOptions) (string, []interface{}, error) {
-	ds := dialect.From(goqu.I("software").As("s")).Select(
-		"s.id",
-		"s.name",
-		"s.version",
-		"s.source",
-		"s.bundle_identifier",
-		"s.release",
-		"s.vendor",
-		"s.arch",
-		goqu.COALESCE(goqu.I("scp.cpe"), "").As("generated_cpe"),
-	).Distinct()
+	ds := dialect.
+		From(goqu.I("software").As("s")).
+		Select(
+			"s.id",
+			"s.name",
+			"s.version",
+			"s.source",
+			"s.bundle_identifier",
+			"s.release",
+			"s.vendor",
+			"s.arch",
+			"scv.cpe_id", // for join on sub query
+			goqu.COALESCE(goqu.I("scp.cpe"), "").As("generated_cpe"),
+			goqu.MAX("c.cvss_score").As("max_cvss_score"),                 // for ordering
+			goqu.MAX("c.epss_probability").As("max_epss_probability"),     // for ordering
+			goqu.MAX("c.cisa_known_exploit").As("max_cisa_known_exploit"), // for ordering
+		)
 
 	if hostID != nil || opts.TeamID != nil {
 		ds = ds.
@@ -460,13 +467,20 @@ func selectSoftwareSQL(hostID *uint, opts fleet.SoftwareListOptions) (string, []
 			)
 	}
 
+	ds = ds.
+		LeftJoin(
+			goqu.I("cves").As("c"),
+			goqu.On(goqu.I("c.cve").Eq(goqu.I("scv.cve"))),
+		)
+
 	if match := opts.MatchQuery; match != "" {
 		match = likePattern(match)
-		ds = ds.Where(goqu.Or(
-			goqu.I("s.name").ILike(match),
-			goqu.I("s.version").ILike(match),
-			goqu.I("scv.cve").ILike(match),
-		),
+		ds = ds.Where(
+			goqu.Or(
+				goqu.I("s.name").ILike(match),
+				goqu.I("s.version").ILike(match),
+				goqu.I("scv.cve").ILike(match),
+			),
 		)
 	}
 
@@ -489,20 +503,47 @@ func selectSoftwareSQL(hostID *uint, opts fleet.SoftwareListOptions) (string, []
 		}
 	}
 
-	if opts.SkipLoadingCVEs {
-		ds = appendListOptionsToSelect(ds, opts.ListOptions)
-		return ds.ToSQL()
-	}
-
-	// for later joins to get cves
-	ds = ds.SelectAppend(
+	ds = ds.GroupBy(
+		"s.id",
 		"scv.cpe_id",
+		"generated_cpe",
 	)
 
-	// need to apply pagination before doing any further left joins, otherwise
-	// we would be paginating on cves rather than software
-	ds = appendListOptionsToSelect(ds, opts.ListOptions)
+	// Pagination is a bit more complex here due to left join with software_cve table and aggregated columns from cves table.
 
+	// appendOrder is similar to appendOrderByToSelect, but handles aggregated columns from cves table
+	appendOrder := func(ds *goqu.SelectDataset, opts fleet.ListOptions) *goqu.SelectDataset {
+		aggregatedKeys := map[string]struct{}{
+			"cvss_score":         {},
+			"epss_probability":   {},
+			"cisa_known_exploit": {},
+		}
+		if opts.OrderKey != "" {
+			ordersKeys := strings.Split(opts.OrderKey, ",")
+			for _, key := range ordersKeys {
+				var orderable exp.Orderable
+				if _, ok := aggregatedKeys[key]; ok {
+					orderable = goqu.I("max_" + key)
+				} else {
+					orderable = goqu.I(key)
+				}
+
+				var orderedExpr exp.OrderedExpression
+				if opts.OrderDirection == fleet.OrderDescending {
+					orderedExpr = orderable.Desc()
+				} else {
+					orderedExpr = orderable.Asc()
+				}
+
+				ds = ds.OrderAppend(orderedExpr)
+			}
+		}
+		return ds
+	}
+	ds = appendOrder(ds, opts.ListOptions)
+	ds = appendLimitOffsetToSelect(ds, opts.ListOptions)
+
+	// join on software_cve and cves after pagination using a sub-query
 	ds = dialect.From(ds.As("s")).
 		Select(
 			"s.id",
@@ -535,6 +576,7 @@ func selectSoftwareSQL(hostID *uint, opts fleet.SoftwareListOptions) (string, []
 			goqu.I("s.last_opened_at"),
 		)
 	}
+
 	if opts.WithHostCounts {
 		ds = ds.SelectAppend(
 			goqu.I("s.hosts_count"),
@@ -542,7 +584,7 @@ func selectSoftwareSQL(hostID *uint, opts fleet.SoftwareListOptions) (string, []
 		)
 	}
 
-	ds = appendOrderByToSelect(ds, opts.ListOptions)
+	ds = appendOrder(ds, opts.ListOptions)
 
 	return ds.ToSQL()
 }
@@ -564,10 +606,12 @@ func countSoftwareDB(
 
 	sql = `
 SELECT
-    COUNT(DISTINCT s.id)
+    COUNT(*)
 FROM (
 ` + sql + `
-) s
+) AS s
+GROUP BY
+    s.id
 `
 
 	var count int

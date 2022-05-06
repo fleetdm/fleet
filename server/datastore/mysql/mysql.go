@@ -594,18 +594,18 @@ func appendListOptionsToSelect(ds *goqu.SelectDataset, opts fleet.ListOptions) *
 func appendOrderByToSelect(ds *goqu.SelectDataset, opts fleet.ListOptions) *goqu.SelectDataset {
 	if opts.OrderKey != "" {
 		ordersKeys := strings.Split(opts.OrderKey, ",")
-		var orderedExps []exp.OrderedExpression
 		for _, key := range ordersKeys {
-			var orderedExp exp.OrderedExpression
-			ident := goqu.I(sanitizeColumn(key))
+			orderable := exp.Orderable(goqu.I(key))
+
+			var orderedExpr exp.OrderedExpression
 			if opts.OrderDirection == fleet.OrderDescending {
-				orderedExp = ident.Desc()
+				orderedExpr = orderable.Desc()
 			} else {
-				orderedExp = ident.Asc()
+				orderedExpr = orderable.Asc()
 			}
-			orderedExps = append(orderedExps, orderedExp)
+
+			ds = ds.OrderAppend(orderedExpr)
 		}
-		ds = ds.Order(orderedExps...)
 	}
 
 	return ds
