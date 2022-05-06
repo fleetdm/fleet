@@ -103,11 +103,11 @@ Fleet policy requires all workforce members to comply with the HR Security Polic
 
 Fleet policy requires that:
 
-1. Background verification checks on candidates for employees and contractors with production access to the Fleet automatic updater service must be carried out in accordance with relevant laws, regulations and ethics, and proportional to the business requirements, the classification of the information to be accessed, and the perceived risk.
+1. Background verification checks on candidates for employees and contractors with production access to the Fleet automatic updater service must be carried out in accordance with relevant laws, regulations, and ethics. These checks should be proportional to the business requirements, the classification of the information to be accessed, and the perceived risk.
 
-2. Employees, contractors and third-party users must agree and sign the terms and conditions of their employment contract and comply with acceptable use.
+2. Employees, contractors, and third-party users must agree to and sign the terms and conditions of their employment contract and comply with acceptable use.
 
-3. Employees will perform an onboarding process that familiarizes them with the environments, systems, security requirements, and procedures Fleet has in place. Employees will also have ongoing security awareness training that is audited.
+3. Employees will perform an onboarding process that familiarizes them with the environments, systems, security requirements, and procedures that Fleet already has in place. Employees will also have ongoing security awareness training that is audited.
 
 4. Employee offboarding will include reiterating any duties and responsibilities still valid after terminations, verifying that access to any Fleet systems has been removed, and ensuring that all company-owned assets are returned.
 
@@ -115,13 +115,13 @@ Fleet policy requires that:
 
 6. Fleet will maintain a list of prohibited activities that will be part of onboarding procedures and have training available if/when the list of those activities changes.
 
-7. A fair disciplinary process will be used for employees that are suspected of committing breaches of security. Multiple factors will be considered when deciding the response, such as whether or not this was a first offense, training, business contracts, etc. Fleet reserves the right to terminate employees in the case of serious cases of misconduct.
+7. A fair disciplinary process will be used for employees suspected of committing breaches of security. Fleet will consider multiple factors when deciding the response, such as whether or not this was a first offense, training, business contracts, etc. Fleet reserves the right to terminate employees in the case of severe cases of misconduct.
 
 8. Fleet will maintain a reporting structure that aligns with the organization's business lines and/or individual's functional roles. The list of employees and reporting structure must be available to [all employees](https://docs.google.com/spreadsheets/d/1OSLn-ZCbGSjPusHPiR5dwQhheH1K8-xqyZdsOe9y7qc/edit#gid=0).
 
 9. Employees will receive regular feedback and acknowledgment from their managers and peers. Managers will give constant feedback on performance, including but not limited to during regular one-on-one meetings.
 
-10. Fleet will publish job descriptions for available positions and conducts interviews to assess a candidate's technical skills as well as soft skills prior to hiring.
+10. Fleet will publish job descriptions for available positions and conduct interviews to assess a candidate's technical skills as well as soft skills prior to hiring.
 
 11. Background checks of an employee or contractor must be performed by operations and/or the hiring team prior to the start date of employment.
  
