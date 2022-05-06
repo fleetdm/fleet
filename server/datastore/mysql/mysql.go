@@ -577,6 +577,7 @@ func (ds *Datastore) Close() error {
 	return err
 }
 
+// sanitizeColumn is used to sanitize column names which can't be passed as placeholders when executing sql queries
 func sanitizeColumn(col string) string {
 	return columnCharsRegexp.ReplaceAllString(col, "")
 }
