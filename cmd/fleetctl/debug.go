@@ -538,7 +538,7 @@ func debugErrorsCommand() *cli.Command {
 				EnvVars:     []string{"FLUSH"},
 				Value:       false,
 				Destination: &flush,
-				Usage:       "clear errors from Redis after reading them",
+				Usage:       "Clear errors from Redis after reading them",
 			},
 		},
 		Action: func(c *cli.Context) error {
