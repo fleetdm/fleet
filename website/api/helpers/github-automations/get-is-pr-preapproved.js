@@ -25,11 +25,10 @@ module.exports = {
   },
 
 
-  fn: async function ({prNumber, githubUserToCheck}) {
+  fn: async function ({prNumber, githubUserToCheck, isGithubUserMaintainerOrDoesntMatter}) {
 
-    let assert = require('assert');
-    assert(sails.config.custom.githubRepoDRIByPath);
-    assert(sails.config.custom.githubAccessToken);
+    require('assert')(sails.config.custom.githubRepoDRIByPath);
+    require('assert')(sails.config.custom.githubAccessToken);
 
     let DRI_BY_PATH = sails.config.custom.githubRepoDRIByPath;
     let owner = 'fleetdm';
@@ -38,8 +37,6 @@ module.exports = {
       'User-Agent': 'sails run freeze-open-pull-requests',
       'Authorization': `token ${sails.config.custom.githubAccessToken}`
     };
-
-    let isGithubUserMaintainerOrDoesntMatter = true;// « doesn't matter here because no auto-approval is happening.  Worst case, a community PR to an area with a "*" in the DRI mapping remains unfrozen.
 
     // Check the PR's author versus the intersection of DRIs for all changed files.
     return await sails.helpers.flow.build(async()=>{
@@ -54,7 +51,6 @@ module.exports = {
       isDRIForAllChangedPathsStill = _.all(changedPaths, (changedPath)=>{
         changedPath = changedPath.replace(/\/+$/,'');// « trim trailing slashes, just in case (b/c otherwise could loop forever)
 
-        require('assert')(githubUserToCheck !== undefined);
         // sails.log.verbose(`…checking DRI of changed path "${changedPath}"`);
 
         let selfMergers = DRI_BY_PATH[changedPath] ? [].concat(DRI_BY_PATH[changedPath]) : [];// « ensure array

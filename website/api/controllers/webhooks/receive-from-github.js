@@ -207,45 +207,13 @@ module.exports = {
           'Authorization': `token ${sails.config.custom.githubAccessToken}`
         };
 
+        require('assert')(sender.login !== undefined);
+
         // Check whether auto-approval is warranted.
-        let isAutoApproved = await sails.helpers.flow.build(async()=>{
-
-          let isSenderDRIForAllChangedPaths = false;
-          let isSenderMaintainer = GITHUB_USERNAMES_OF_BOTS_AND_MAINTAINERS.includes(sender.login.toLowerCase());
-
-          // [?] https://docs.github.com/en/rest/reference/pulls#list-pull-requests-files
-          let changedPaths = _.pluck(await sails.helpers.http.get(`https://api.github.com/repos/${owner}/${repo}/pulls/${prNumber}/files`, {
-            per_page: 100,//eslint-disable-line camelcase
-          }, baseHeaders).retry(), 'filename');// (don't worry, it's the whole path, not the filename)
-          sails.log.verbose(`Received notice that a new PR (#${prNumber}) was opened that changes the following paths:`, changedPaths);
-
-          isSenderDRIForAllChangedPaths = _.all(changedPaths, (changedPath)=>{
-            changedPath = changedPath.replace(/\/+$/,'');// « trim trailing slashes, just in case (b/c otherwise could loop forever)
-
-            require('assert')(sender.login !== undefined);
-            sails.log.verbose(`…checking DRI of changed path "${changedPath}"`);
-
-            let selfMergers = DRI_BY_PATH[changedPath] ? [].concat(DRI_BY_PATH[changedPath]) : [];// « ensure array
-            if (selfMergers.includes(sender.login.toLowerCase()) || (isSenderMaintainer && selfMergers.includes('*'))) {
-              return true;
-            }//•
-            let numRemainingPathsToCheck = changedPath.split('/').length;
-            while (numRemainingPathsToCheck > 0) {
-              let ancestralPath = changedPath.split('/').slice(0, -1 * numRemainingPathsToCheck).join('/');
-              sails.log.verbose(`…checking DRI of ancestral path "${ancestralPath}" for changed path`);
-              let selfMergers = DRI_BY_PATH[ancestralPath] ? [].concat(DRI_BY_PATH[ancestralPath]) : [];// « ensure array
-              if (selfMergers.includes(sender.login.toLowerCase()) || (isSenderMaintainer && selfMergers.includes('*'))) {
-                return true;
-              }//•
-              numRemainingPathsToCheck--;
-            }//∞
-          });//∞
-
-          if (isSenderDRIForAllChangedPaths && changedPaths.length < 100) {
-            return true;
-          } else {
-            return false;
-          }
+        let isAutoApproved = await sails.helpers.githubAutomations.getIsPrPreapproved.with({
+          prNumber: prNumber,
+          githubUserToCheck: sender.login,
+          isGithubUserMaintainerOrDoesntMatter: GITHUB_USERNAMES_OF_BOTS_AND_MAINTAINERS.includes(sender.login.toLowerCase())
         });
 
         // Now, if appropriate, auto-approve the change.

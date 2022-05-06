@@ -39,6 +39,7 @@ module.exports = {
 
       let prNumber = pullRequest.number;
       let prAuthor = pullRequest.user.login;
+      require('assert')(prAuthor !== undefined);
 
       // Freeze, if appropriate.
       // (Check the PR's author versus the intersection of DRIs for all changed files.)
