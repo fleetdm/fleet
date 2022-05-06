@@ -5,7 +5,7 @@
 
 The recommended way to install osquery and add your host to Fleet is with an osquery installer. Fleet provides the tools to generate an osquery installer with the `fleetctl package` command.
 
-To use the `fleetctl package` command, you must first install the `fleetctl` command-line tool. Instructions for installing `fleetctl` can be found on [here](https://fleetdm.com/get-started)
+To use the `fleetctl package` command, you must first install the [fleetctl](https://fleetdm.com/docs/using-fleet/fleetctl-cli) command-line tool. Instructions for installing `fleetctl` can be found on [here](https://fleetdm.com/get-started)
 
 
 ## Osquery installer
@@ -93,9 +93,10 @@ The following command-line flags allow you to further configure an osquery insta
 | --help, -h    |             show help (default: `false`) |
 
 
-Fleet supports other methods for adding your hosts to Fleet such as the [plain osquery binaries](#plain-osquery) or [Kolide Osquery Launcher](https://github.com/kolide/launcher/blob/master/docs/launcher.md#connecting-to-fleet).
 
 ## Plain osquery
+
+Fleet supports other methods for adding your hosts to Fleet such as the [plain osquery binaries](#plain-osquery) or [Kolide Osquery Launcher](https://github.com/kolide/launcher/blob/master/docs/launcher.md#connecting-to-fleet).
 
 > If you'd like to use the native osqueryd binaries to connect to Fleet, this is enabled by using osquery's TLS API plugins that are principally documented on the official osquery wiki: http://osquery.readthedocs.io/en/stable/deployment/remote/. These plugins are very customizable and thus have a large configuration surface. Configuring osqueryd to communicate with Fleet is documented below in the "Native Osquery TLS Plugins" section.
 
