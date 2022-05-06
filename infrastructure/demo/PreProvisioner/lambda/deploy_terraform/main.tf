@@ -82,22 +82,27 @@ resource "helm_release" "main" {
   version    = "todo" # TODO
 
   set {
-    name  = "db_username"
-    value = random_string.db.id
+    name  = "fleetName"
+    value = random_pet.main.id
   }
 
   set {
-    name  = "db_password"
+    name  = "createNamespace"
+    value = false
+  }
+
+  set {
+    name  = "mysql.password"
     value = random_password.db.id
   }
 
   set {
-    name  = "db_endpoint"
-    value = jsondecode(data.aws_secretsmanager_secret_version.mysql.secret_string)["endpoint"]
+    name  = "mysql.username"
+    value = random_string.db.id
   }
 
   set {
-    name  = "name"
-    value = random_pet.main.id
+    name  = "mysql.endpoint"
+    value = jsondecode(data.aws_secretsmanager_secret_version.mysql.secret_string)["endpoint"]
   }
 }
