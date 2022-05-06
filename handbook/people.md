@@ -35,6 +35,7 @@ DRIs help us collaborate efficiently by knowing exactly who is responsible and c
 | Publishing release blog post, and promoting releases | Mike Thomas |
 | fleetdm.com | Mike Thomas |
 | Self-service Fleet Premium license dispenser | Mike Thomas |
+| Security disclosure and policy | Guillaume Ross | 
 
 *Luke Heath is backup 
 
