@@ -6348,9 +6348,9 @@ The server only stores and returns a single instance of each error.
 
 #### Parameters
 
-| Name  | Type    | In    | Description                                                    |
-| ----- | ------- | ----- | -------------------------------------------------------------- |
-| flush | boolean | query | Whether or not clear the errors from Redis after reading them. |
+| Name  | Type    | In    | Description                                                                       |
+| ----- | ------- | ----- | --------------------------------------------------------------------------------- |
+| flush | boolean | query | Whether or not clear the errors from Redis after reading them. Default is `false` |
 
 #### Example
 
