@@ -56,10 +56,9 @@ module.exports = {
       require('assert')(prAuthor !== undefined);
 
       // Freeze, if appropriate.
-      // (Check the PR's author versus the intersection of DRIs for all changed files.)
+      // (Check versus the intersection of DRIs for all changed files to make sure SOMEONE is preapproved for all of them.)
       let isAuthorPreapproved = await sails.helpers.githubAutomations.getIsPrPreapproved.with({
         prNumber: prNumber,
-        githubUserToCheck: prAuthor,
         isGithubUserMaintainerOrDoesntMatter: true// « doesn't matter here because no auto-approval is happening.  Worst case, a community PR to an area with a "*" in the DRI mapping remains unfrozen.
       });
 

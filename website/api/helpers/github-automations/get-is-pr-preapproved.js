@@ -9,7 +9,7 @@ module.exports = {
 
   inputs: {
     prNumber: { type: 'number', example: 382, required: true },
-    githubUserToCheck: { type: 'string', example: 'mikermcneil', required: true },
+    githubUserToCheck: { type: 'string', example: 'mikermcneil', description: 'If excluded, then this returns `true` if all of the PRs changed paths are preapproved for SOMEONE.' },
     isGithubUserMaintainerOrDoesntMatter: { type: 'boolean', required: true, description: 'Whether (a) the user is a maintainer, or (b) it even matters for this check whether the user is a maintainer.' },// FUTURE: « this could be replaced with an extra GitHub API call herein, but doesn't seem worth it
   },
 
@@ -54,7 +54,10 @@ module.exports = {
         // sails.log.verbose(`…checking DRI of changed path "${changedPath}"`);
 
         let selfMergers = DRI_BY_PATH[changedPath] ? [].concat(DRI_BY_PATH[changedPath]) : [];// « ensure array
-        if (selfMergers.includes(githubUserToCheck.toLowerCase()) || (isGithubUserMaintainerOrDoesntMatter && selfMergers.includes('*'))) {
+        if (!githubUserToCheck && selfMergers.length >= 1) {// « not checking a user, so just make sure all these paths are preapproved for SOMEONE
+          return true;
+        }
+        if (githubUserToCheck && (selfMergers.includes(githubUserToCheck.toLowerCase()) || (isGithubUserMaintainerOrDoesntMatter && selfMergers.includes('*')))) {
           return true;
         }//•
         let numRemainingPathsToCheck = changedPath.split('/').length;
@@ -62,7 +65,10 @@ module.exports = {
           let ancestralPath = changedPath.split('/').slice(0, -1 * numRemainingPathsToCheck).join('/');
           // sails.log.verbose(`…checking DRI of ancestral path "${ancestralPath}" for changed path`);
           let selfMergers = DRI_BY_PATH[ancestralPath] ? [].concat(DRI_BY_PATH[ancestralPath]) : [];// « ensure array
-          if (selfMergers.includes(githubUserToCheck.toLowerCase()) || (isGithubUserMaintainerOrDoesntMatter && selfMergers.includes('*'))) {
+          if (!githubUserToCheck && selfMergers.length >= 1) {// « not checking a user, so just make sure all these paths are preapproved for SOMEONE
+            return true;
+          }
+          if (githubUserToCheck && (selfMergers.includes(githubUserToCheck.toLowerCase()) || (isGithubUserMaintainerOrDoesntMatter && selfMergers.includes('*')))) {
             return true;
           }//•
           numRemainingPathsToCheck--;
