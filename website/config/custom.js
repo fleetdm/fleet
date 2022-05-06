@@ -14,7 +14,7 @@ module.exports.custom = {
   *                                                                         *
   * The base URL to use during development.                                 *
   *                                                                         *
-  * • No trailing slash at the end                                          *
+  * • No trailing slash at the end                                          *
   * • `http://` or `https://` at the beginning.                             *
   *                                                                         *
   * > This is for use in custom logic that builds URLs.                     *
