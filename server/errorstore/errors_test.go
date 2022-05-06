@@ -256,6 +256,10 @@ func testErrorHandlerCollectsErrors(t *testing.T, pool fleet.RedisPool, wd strin
 		require.NoError(t, err)
 		assert.Len(t, errors, 1)
 	}
+
+	// ensure we clear errors before returning
+	_, err = eh.Retrieve(true)
+	require.NoError(t, err)
 }
 
 func testErrorHandlerCollectsDifferentErrors(t *testing.T, pool fleet.RedisPool, wd string, flush bool) {
@@ -322,49 +326,96 @@ func testErrorHandlerCollectsDifferentErrors(t *testing.T, pool fleet.RedisPool,
   \}`, wd)), jsonErr)
 		}
 	}
+
+	// ensure we clear errors before returning
+	_, err = eh.Retrieve(true)
+	require.NoError(t, err)
 }
 
 func TestHttpHandler(t *testing.T) {
-	pool := redistest.SetupRedis(t, "error:", false, false, false)
-	ctx, cancelFunc := context.WithCancel(context.Background())
-	defer cancelFunc()
+	setupTest := func() *Handler {
+		pool := redistest.SetupRedis(t, "error:", false, false, false)
+		ctx, cancelFunc := context.WithCancel(context.Background())
+		defer cancelFunc()
 
-	var storeCalls int32 = 2
+		var storeCalls int32 = 2
 
-	chGo, chDone := make(chan struct{}), make(chan struct{})
-	testOnStart := func() {
-		close(chGo)
-	}
-	testOnStore := func(err error) {
-		require.NoError(t, err)
-		if atomic.AddInt32(&storeCalls, -1) == 0 {
-			close(chDone)
+		chGo, chDone := make(chan struct{}), make(chan struct{})
+		testOnStart := func() {
+			close(chGo)
 		}
+		testOnStore := func(err error) {
+			require.NoError(t, err)
+			if atomic.AddInt32(&storeCalls, -1) == 0 {
+				close(chDone)
+			}
+		}
+
+		eh := newTestHandler(ctx, pool, kitlog.NewNopLogger(), time.Minute, testOnStart, testOnStore)
+
+		<-chGo
+		// store two errors
+		alwaysNewError(eh)
+		alwaysNewErrorTwo(eh)
+		<-chDone
+
+		return eh
 	}
 
-	eh := newTestHandler(ctx, pool, kitlog.NewNopLogger(), time.Minute, testOnStart, testOnStore)
+	t.Run("retrieves errors", func(t *testing.T) {
+		eh := setupTest()
+		req := httptest.NewRequest("GET", "/", nil)
+		res := httptest.NewRecorder()
+		eh.ServeHTTP(res, req)
 
-	<-chGo
-	// store two errors
-	alwaysNewError(eh)
-	alwaysNewErrorTwo(eh)
-	<-chDone
-
-	req := httptest.NewRequest("GET", "/", nil)
-	res := httptest.NewRecorder()
-	eh.ServeHTTP(res, req)
-
-	require.Equal(t, res.Code, 200)
-	var errs []struct {
-		Root struct {
-			Message string
+		require.Equal(t, res.Code, 200)
+		var errs []struct {
+			Root struct {
+				Message string
+			}
+			Wrap []struct {
+				Message string
+			}
 		}
-		Wrap []struct {
-			Message string
+		require.NoError(t, json.Unmarshal(res.Body.Bytes(), &errs))
+		require.Len(t, errs, 2)
+		require.NotEmpty(t, errs[0].Root.Message)
+		require.NotEmpty(t, errs[1].Root.Message)
+	})
+
+	t.Run("flushes errors after retrieving if the flush flag is true", func(t *testing.T) {
+		eh := setupTest()
+		req := httptest.NewRequest("GET", "/?flush=true", nil)
+		res := httptest.NewRecorder()
+		eh.ServeHTTP(res, req)
+
+		require.Equal(t, res.Code, 200)
+		var errs []struct {
+			Root struct {
+				Message string
+			}
+			Wrap []struct {
+				Message string
+			}
 		}
-	}
-	require.NoError(t, json.Unmarshal(res.Body.Bytes(), &errs))
-	require.Len(t, errs, 2)
-	require.NotEmpty(t, errs[0].Root.Message)
-	require.NotEmpty(t, errs[1].Root.Message)
+		require.NoError(t, json.Unmarshal(res.Body.Bytes(), &errs))
+		require.Len(t, errs, 2)
+		require.NotEmpty(t, errs[0].Root.Message)
+		require.NotEmpty(t, errs[1].Root.Message)
+
+		req = httptest.NewRequest("GET", "/?flush=true", nil)
+		res = httptest.NewRecorder()
+		eh.ServeHTTP(res, req)
+		require.NoError(t, json.Unmarshal(res.Body.Bytes(), &errs))
+		require.Len(t, errs, 0)
+	})
+
+	t.Run("fails with correct status code if the flush flag is invalid", func(t *testing.T) {
+		eh := setupTest()
+		req := httptest.NewRequest("GET", "/?flush=invalid", nil)
+		res := httptest.NewRecorder()
+		eh.ServeHTTP(res, req)
+
+		require.Equal(t, res.Code, 400)
+	})
 }
