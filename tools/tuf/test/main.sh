@@ -8,8 +8,8 @@ export FLEET_SNAPSHOT_PASSPHRASE=p4ssphr4s3
 export FLEET_TIMESTAMP_PASSPHRASE=p4ssphr4s3
 export TUF_PATH=test_tuf
 
-if [ -n "$GENERATE_PKGS" ] && [ -z "$ENROLL_SECRET" ]; then
-  echo "Error: To generate package you must set ENROLL_SECRET variable."
+if ( [ -n "$GENERATE_PKG" ] || [ -n "$GENERATE_DEB" ] || [ -n "$GENERATE_RPM" ] || [ -n "$GENERATE_MSI" ] ) && [ -z "$ENROLL_SECRET" ]; then
+  echo "Error: To generate packages you must set ENROLL_SECRET variable."
   exit 1
 fi
 
@@ -26,6 +26,6 @@ echo "#########"
 
 ./tools/tuf/test/run_server.sh
 
-if [ -n "$GENERATE_PKGS" ]; then
+if [ -n "$GENERATE_PKG" ] || [ -n "$GENERATE_DEB" ] || [ -n "$GENERATE_RPM" ] || [ -n "$GENERATE_MSI" ]; then
   ./tools/tuf/test/gen_pkgs.sh
 fi

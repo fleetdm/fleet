@@ -16,13 +16,16 @@ RPM_FLEET_URL=https://172.16.132.1:8080 \
 RPM_TUF_URL=http://172.16.132.1:8081 \
 MSI_FLEET_URL=https://172.16.132.1:8080 \
 MSI_TUF_URL=http://172.16.132.1:8081 \
-GENERATE_PKGS=1 \
+GENERATE_PKG=1 \
+GENERATE_DEB=1 \
+GENERATE_RPM=1 \
+GENERATE_MSI=1 \
 ENROLL_SECRET=6/EzU/+jPkxfTamWnRv1+IJsO4T9Etju \
 FLEET_DESKTOP=1 \
 ./tools/tuf/test/main.sh
 ```
 
-`*_FLEET_URL` and `*_TUF_URL` variables are needed for each package to support different setups.
+Separate `*_FLEET_URL` and `*_TUF_URL` variables are needed for each package to support different setups.
 E.g. The values shown above assume:
 1. The script is executed on a macOS host.
 2. Fleet server also running on the same macOS host.
