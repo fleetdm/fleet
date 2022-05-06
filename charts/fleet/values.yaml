@@ -1,10 +1,15 @@
 ## Section: Kubernetes
 # All settings related to how Fleet is deployed in Kubernetes
+# The name used for deployment/role/sa/etc.  Useful for when deploying multiple separate
+# fleet instances into the same Namespace.
+fleetName: fleet
 hostName: fleet.localhost
 replicas: 3 # The number of Fleet instances to deploy
 imageTag: v4.12.0 # Version of Fleet to deploy
+createNamespace: false # Whether or not to automatically create the Namespace
 createIngress: true # Whether or not to automatically create an Ingress
 ingressAnnotations: {} # Additional annotation to add to the Ingress
+podLabels: {} # Additional labels to add to the Fleet pod
 podAnnotations: {} # Additional annotations to add to the Fleet pod
 serviceAccountAnnotations: {} # Additional annotations to add to the Fleet service account
 resources:
@@ -129,11 +134,14 @@ osquery:
 ## Section: MySQL
 # All of the connection settings for MySQL
 mysql:
+  createSecret: false
   # Name of the Secret resource containing MySQL password and TLS secrets
   secretName: mysql
   address: 127.0.0.1:3306
   database: fleet
   username: fleet
+  # Only needed if creating secret.
+  password: default
   passwordKey: mysql-password
   maxOpenConns: 50
   maxIdleConns: 50
@@ -149,10 +157,13 @@ mysql:
 ## Section: Redis
 # All of the connection settings for Redis
 redis:
+  createSecret: false
   address: 127.0.0.1:6379
   database: "0"
   usePassword: false
   secretName: redis
+  # Only needed if creating secret.
+  password: default
   passwordKey: redis-password
 
 ## Section: GKE
