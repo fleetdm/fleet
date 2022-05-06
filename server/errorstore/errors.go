@@ -86,7 +86,7 @@ func runHandler(ctx context.Context, eh *Handler) {
 // Retrieve retrieves all stored errors from Redis and returns them as a slice
 // of JSON-encoded strings.
 //
-// If flush is provied performs a destructive read - the errors are removed
+// If flush is `true`, performs a destructive read - the errors are removed
 // from Redis on return.
 func (h *Handler) Retrieve(flush bool) ([]string, error) {
 	errorKeys, err := redis.ScanKeys(h.pool, "error:*", 100)
