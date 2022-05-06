@@ -61,8 +61,7 @@ jobs:
 
     - name: Run Go Tests
       run: |
-        # Changing below values to test if the PR helps with the flaky tests.
-        TEST_LOCK_FILE_PATH=$(pwd)/lock NETWORK_TEST=1 REDIS_TEST=1 MYSQL_TEST=1 RACE_ENABLED=true GO_TEST_TIMEOUT=1h make test-go
+        TEST_LOCK_FILE_PATH=$(pwd)/lock NETWORK_TEST=1 REDIS_TEST=1 MYSQL_TEST=1 RACE_ENABLED=$RACE_ENABLED GO_TEST_TIMEOUT=$GO_TEST_TIMEOUT make test-go
 
     - name: Upload to Codecov
       uses: codecov/codecov-action@e3c560433a6cc60aec8812599b7844a7b4fa0d71
