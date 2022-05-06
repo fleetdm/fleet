@@ -6344,7 +6344,7 @@ Returns a set of all the errors that happened in the server during the interval 
 
 The server only stores and returns a single instance of each error.
 
-`GET /api/v1/fleet/debug/errors`
+`GET /debug/errors`
 
 #### Parameters
 
