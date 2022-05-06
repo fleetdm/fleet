@@ -7,6 +7,9 @@ module.exports = {
   description: 'Receive webhook requests and/or incoming auth redirects from GitHub.',
 
 
+  extendedDescription: 'Useful for automation, visibility of changes, and abuse monitoring.',
+
+
   inputs: {
     botSignature: { type: 'string', },
     action: { type: 'string', example: 'opened', defaultsTo: 'ping', moreInfoUrl: 'https://developer.github.com/v3/activity/events/types' },
