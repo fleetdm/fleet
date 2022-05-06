@@ -152,19 +152,67 @@ What happens during priority drafting?
 3. UI changes are reviewed, and the UI changes are brought back to the engineering team to continue
   the development task.
 
+## Planning
+
+- The intake process for a given group (how new issues are received from a given requestor and estimated within the group's timeframe) is up to each group's PM. For example, the Interface group's intake process consists of attending Interface PM's office hours and making a case, at which time a decision about whether to draft and estimate will be made on the spot.
+
+- New unestimated issues are created in the Planning board, which is shared by each group.
+
+- The estimation process to use is up to the EM of each group (with buy-in from the PM), with the goal of delivering estimated issues within the group's timeframe, which is set for each group by the Head of Product. No matter the group, only work that is slated to be released into the hands of users within ≤6 weeks will be estimated. Estimation is run by each group's EM, and occurs in the Planning board. Some groups may choose to use "timeboxes" rather than estimates.
+
+- Prioritization will now occur at the point of intake, by the PM of the group. Besides the 20% "engineering initiatives", only issues prioritized by the group PM will be estimated or worked on. On the first day of each release, all estimated issues are moved into the relevant section of the new "Release" board, which has a kanban view per-group. 
+
+- Work that does not "fit" into the scheduled release (due to lack of capacity or otherwise) remains in the "Estimated" column of the product board, and is removed from that board if it is not prioritized in the following release.
+
+### Process
+
+1. **Intake:** Each group has a "time til estimated" timeframe, which measures the time from when an idea is first received until it is written up as an estimated issue and the requestor notified exactly which aspects are scheduled for release. How intake works, and the estimation timeframe, vary per group, but every group has an estimation timeframe.
+
+2. **Estimation:** The estimation process varies per-group. In the Interface group, it consists of drafting, API design, and either planning poker or a quick timebox decided by the group EM. When the Interface group relies on the Platform group for part of an issue, only the Interface group's work is estimated. It is up to the Interface PM to obtain estimated Platform issues for any needed work, and thus ensure it is scheduled in the appropriate release. It is up to the Platform PM to get those specced (in consultation with Engineering), then up to the Engineering to estimate and communicate promptly if issues arise. We avoid having more estimated issues than capacity in the next release. If the team is fully allocated, no more issues will be estimated, or the PM will decide whether to swap anything out. Once estimated, an issue is scheduled for release. 
+
+3. **Development:** Development starts on the first day of the new release. Only estimated issues are scheduled for release.
+
+4. **Quality assurance (QA):** Everyone in each group is responsible for quality: engineers, PM, and the EM. The QA process varies per group, and is set by the group's PM. For example, in the Interface group, every issue is QA'd (i.e. a per-change basis), as well as a holistic "smoke test" during the last few days of each release.
+
+5. **Release:** Release dates are time-based and happen even if all features are not complete (± a day or two sometimes, if there's an emergency. Either way, the next release cycle starts on time). If anything is not finished, or can only be finished with changes, the PM finds out immediately, and notifies the requestor right away.
+
+### Timeframes
+
+These are effectively internal SLAs. We moved away from the term "SLA" to avoid potential confusion with future, contractual Service Level Agreements Fleet might sign with its customers.
+
+#### Prioritization
+
+≤5 business days from when the initial request is weighed by PM, requestor has heard back from the group PM whether the request will be prioritized.
+
+#### Release
+
+≤6 weeks from when initial request is weighed by PM, this is released into the hands of the Fleet community, generally available (no feature flags or limitations except as originally specced or as adjusted if necessary).
+
+Work that is prioritized by the group PM should be released in the 6 week timeframe (2 releases). Work that is too large for this timeframe should be split up.
+
+#### Estimation
+
+≤5 business days from initial request, an issue is created with a summary of the purpose, the goal, and the plan to achieve it. The level of detail in that plan is up to the PM of the product group. The issue also has an estimation, expressed in story points, which is either determined through planning poker or a "timebox".
+
+For the Interface group "estimated" means UI wireframes and API design are completed and the work to implement them has been estimated.
+
+#### Adjustment
+
+≤1 business day from discovering some blocker or change necessary to already prioritized and estimated work. The group PM decides how the usage/UI will be changed and notifies original requestor of changes to spec.
+
 ## Product quality
 
 Fleet uses a human-oriented quality assurance (QA) process to ensure the product meets the standards of users and organizations.
 
 To try Fleet locally for QA purposes, run `fleetctl preview`, which defaults to running the latest stable release.
 
-To target a different version of Fleet, use the `--tag` flag to target any tag in [Docker Hub](https://hub.docker.com/r/fleetdm/fleet/tags?page=1&ordering=last_updated), including any git commit hash or branch name.  For example, to QA the latest code on the `main` branch of fleetdm/fleet, you can run: `fleetctl preview --tag=main`
+To target a different version of Fleet, use the `--tag` flag to target any tag in [Docker Hub](https://hub.docker.com/r/fleetdm/fleet/tags?page=1&ordering=last_updated), including any git commit hash or branch name. For example, to QA the latest code on the `main` branch of fleetdm/fleet, you can run: `fleetctl preview --tag=main`
 
 To start preview without starting the simulated hosts, use the `--no-hosts` flag (e.g. `fleetctl preview --no-hosts`).
 
 ### Why human-oriented QA?
 
-Automated tests are important, but they can't catch everything.  Many issues are hard to notice until a human looks empathetically at the user experience, whether in the user interface, the REST API, or the command line.
+Automated tests are important, but they can't catch everything. Many issues are hard to notice until a human looks empathetically at the user experience, whether in the user interface, the REST API, or the command line.
 
 The goal of quality assurance is to catch unexpected behavior before release:
 - Bugs
@@ -182,7 +230,7 @@ The goal of quality assurance is to catch unexpected behavior before release:
 
 ### Collecting bugs
 
-All QA steps should be possible using `fleetctl preview`.  Please refer to [docs/Contributing/Testing.md](https://fleetdm.com/docs/contributing/testing) for flows that cannot be completed using `fleetctl preview`.
+All QA steps should be possible using `fleetctl preview`. Please refer to [docs/Contributing/Testing.md](https://fleetdm.com/docs/contributing/testing) for flows that cannot be completed using `fleetctl preview`.
 
 Please start the manual QA process by creating a blank GitHub issue. As you complete each of the
 flows, record a list of the bugs you encounter in this new issue. Each item in this list should
@@ -306,13 +354,13 @@ Logout of your current user and log in with the newly created user.
 ### Communicating design changes to the engineering team.
 Something NEW that has been added to [Figma Fleet EE (current, dev-ready)](https://www.figma.com/file/qpdty1e2n22uZntKUZKEJl/?node-id=0%3A1):
 1. Create a new [GitHub issue](https://github.com/fleetdm/fleet/issues/new)
-2. Detail the required changes (including page links to the relevant layouts), then assign the issue to the __“Initiatives”__ project.
+2. Detail the required changes (including page links to the relevant layouts), then assign the issue to the __"Initiatives"__ project.
 
 <img src="https://user-images.githubusercontent.com/78363703/129840932-67d55b5b-8e0e-4fb9-9300-5d458e1b91e4.png" alt="Assign to Initiatives project"/>
 
-> ___NOTE:___ Artwork and layouts in Figma Fleet EE (current) are final assets, ready for implementation. Therefore, it’s important NOT to use the “idea” label, as designs in this document are more than ideas - they are something that WILL be implemented.
+> ___NOTE:___ Artwork and layouts in Figma Fleet EE (current) are final assets, ready for implementation. Therefore, it’s important NOT to use the "idea" label, as designs in this document are more than ideas - they are something that WILL be implemented.
 
-3. Navigate to the [Initiatives project](https://github.com/orgs/fleetdm/projects/8), hit “+ Add cards,” pick the new issue, and drag it into the “🤩Inspire me” column. 
+3. Navigate to the [Initiatives project](https://github.com/orgs/fleetdm/projects/8), hit "+ Add cards," pick the new issue, and drag it into the "🤩Inspire me" column. 
 
 <img src="https://user-images.githubusercontent.com/78363703/129840496-54ea4301-be20-46c2-9138-b70bff7198d0.png" alt="Add cards"/>
 
