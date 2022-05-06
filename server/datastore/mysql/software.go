@@ -119,6 +119,37 @@ func nothingChanged(current, incoming []fleet.Software, minLastOpenedAtDiff time
 	return true
 }
 
+func listSoftwareByHostIDShort(
+	ctx context.Context,
+	db sqlx.QueryerContext,
+	hostID uint,
+) ([]fleet.Software, error) {
+	q := `
+SELECT
+    s.id,
+    s.name,
+    s.version,
+    s.source,
+    s.bundle_identifier,
+    s.release,
+    s.version,
+    s.arch,
+    hs.last_opened_at
+FROM
+    software s
+    JOIN host_software hs ON hs.software_id = s.id
+WHERE
+    hs.host_id = ?
+`
+	var softwares []fleet.Software
+	err := sqlx.SelectContext(ctx, db, &softwares, q, hostID)
+	if err != nil {
+		return nil, err
+	}
+
+	return softwares, nil
+}
+
 func applyChangesForNewSoftwareDB(
 	ctx context.Context,
 	tx sqlx.ExtContext,
@@ -126,16 +157,16 @@ func applyChangesForNewSoftwareDB(
 	software []fleet.Software,
 	minLastOpenedAtDiff time.Duration,
 ) error {
-	storedCurrentSoftware, err := listSoftwareDB(ctx, tx, &hostID, fleet.SoftwareListOptions{SkipLoadingCVEs: true})
+	currentSoftware, err := listSoftwareByHostIDShort(ctx, tx, hostID)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "loading current software for host")
 	}
 
-	if nothingChanged(storedCurrentSoftware, software, minLastOpenedAtDiff) {
+	if nothingChanged(currentSoftware, software, minLastOpenedAtDiff) {
 		return nil
 	}
 
-	current := softwareSliceToMap(storedCurrentSoftware)
+	current := softwareSliceToMap(currentSoftware)
 	incoming := softwareSliceToMap(software)
 
 	if err = deleteUninstalledHostSoftwareDB(ctx, tx, hostID, current, incoming); err != nil {

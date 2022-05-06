@@ -82,8 +82,6 @@ type SoftwareListOptions struct {
 	TeamID         *uint `query:"team_id,optional"`
 	VulnerableOnly bool  `query:"vulnerable,optional"`
 
-	SkipLoadingCVEs bool
-
 	// WithHostCounts indicates that the list of software should include the
 	// counts of hosts per software, and include only those software that have
 	// a count of hosts > 0.
