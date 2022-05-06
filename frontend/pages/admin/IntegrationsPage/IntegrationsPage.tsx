@@ -148,17 +148,11 @@ const IntegrationsPage = (): JSX.Element => {
             <>
               Successfully added{" "}
               <b>
-                {
-                  jiraIntegrationSubmitData[
-                    jiraIntegrationSubmitData.length - 1
-                  ].url
-                }{" "}
-                -{" "}
-                {
-                  jiraIntegrationSubmitData[
-                    jiraIntegrationSubmitData.length - 1
-                  ].project_key
-                }
+                {integrationSubmitData[integrationSubmitData.length - 1].url} -{" "}
+                {integrationSubmitData[integrationSubmitData.length - 1]
+                  .project_key ||
+                  integrationSubmitData[integrationSubmitData.length - 1]
+                    .group_id}
               </b>
             </>
           );
@@ -181,16 +175,14 @@ const IntegrationsPage = (): JSX.Element => {
                   Could not add add{" "}
                   <b>
                     {
-                      jiraIntegrationSubmitData[
-                        jiraIntegrationSubmitData.length - 1
-                      ].url
+                      integrationSubmitData[integrationSubmitData.length - 1]
+                        .url
                     }{" "}
                     -{" "}
-                    {
-                      jiraIntegrationSubmitData[
-                        jiraIntegrationSubmitData.length - 1
-                      ].project_key
-                    }
+                    {integrationSubmitData[integrationSubmitData.length - 1]
+                      .project_key ||
+                      integrationSubmitData[integrationSubmitData.length - 1]
+                        .group_id}
                   </b>
                   . This integration already exists
                 </>
@@ -249,7 +241,9 @@ const IntegrationsPage = (): JSX.Element => {
             <>
               Successfully deleted{" "}
               <b>
-                {integrationEditing.url} - {integrationEditing.project_key}
+                {integrationEditing.url} -{" "}
+                {integrationEditing.projectKey ||
+                  integrationEditing.groupId?.toString()}
               </b>
             </>
           );
@@ -261,7 +255,9 @@ const IntegrationsPage = (): JSX.Element => {
             <>
               Could not delete{" "}
               <b>
-                {integrationEditing.url} - {integrationEditing.project_key}
+                {integrationEditing.url} -{" "}
+                {integrationEditing.projectKey ||
+                  integrationEditing.groupId?.toString()}
               </b>
               . Please try again.
             </>
@@ -302,11 +298,12 @@ const IntegrationsPage = (): JSX.Element => {
               <>
                 Successfully edited{" "}
                 <b>
-                  {jiraIntegrationSubmitData[integrationEditing?.index].url} -{" "}
-                  {
-                    jiraIntegrationSubmitData[integrationEditing?.index]
-                      .project_key
-                  }
+                  {integrationSubmitData[integrationEditing?.originalIndex].url}{" "}
+                  -{" "}
+                  {integrationSubmitData[integrationEditing?.originalIndex]
+                    .project_key ||
+                    integrationSubmitData[integrationEditing?.originalIndex]
+                      .group_id}
                 </b>
               </>
             );
@@ -331,7 +328,8 @@ const IntegrationsPage = (): JSX.Element => {
                   Could not edit{" "}
                   <b>
                     {integrationEditing?.url} -{" "}
-                    {integrationEditing?.project_key}
+                    {integrationEditing?.projectKey ||
+                      integrationEditing?.groupId?.toString()}
                   </b>
                   . Please try again.
                 </>
@@ -439,7 +437,11 @@ const IntegrationsPage = (): JSX.Element => {
           onCancel={toggleDeleteIntegrationModal}
           onSubmit={onDeleteSubmit}
           url={integrationEditing?.url || ""}
-          projectKey={integrationEditing?.project_key || ""}
+          projectKey={
+            integrationEditing?.projectKey ||
+            integrationEditing?.groupId?.toString() ||
+            ""
+          }
         />
       )}
       {showEditIntegrationModal && integrations && (
