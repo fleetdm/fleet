@@ -14,16 +14,17 @@ resource "aws_secretsmanager_secret_version" "database_password_secret_version" 
 }
 
 // if you want to use RDS Serverless option prefer the following commented block
-//module "aurora_mysql_serverless" {
+//module "aurora_mysql_serverlessv2" {
 //  source  = "terraform-aws-modules/rds-aurora/aws"
-//  version = "5.2.0"
+//  version = "7.1.0"
 //
 //  name                   = "${local.name}-mysql"
 //  engine                 = "aurora-mysql"
-//  engine_mode            = "serverless"
+//  engine_mode            = "provisioned"
+//  engine_version         = "8.0.mysql_aurora.3.02.0"
 //  storage_encrypted      = true
-//  username               = "fleet"
-//  password               = random_password.database_password.result
+//  master_username        = "fleet"
+//  master_password        = random_password.database_password.result
 //  create_random_password = false
 //  database_name          = "fleet"
 //  enable_http_endpoint   = true
@@ -33,9 +34,6 @@ resource "aws_secretsmanager_secret_version" "database_password_secret_version" 
 //  create_security_group = true
 //  allowed_cidr_blocks   = module.vpc.private_subnets_cidr_blocks
 //
-//  replica_scale_enabled = false
-//  replica_count         = 0
-//
 //  monitoring_interval = 60
 //
 //  apply_immediately   = true
@@ -44,12 +42,15 @@ resource "aws_secretsmanager_secret_version" "database_password_secret_version" 
 //  db_parameter_group_name         = aws_db_parameter_group.example_mysql.id
 //  db_cluster_parameter_group_name = aws_rds_cluster_parameter_group.example_mysql.id
 //
-//  scaling_configuration = {
-//    auto_pause               = true
-//    min_capacity             = 2
-//    max_capacity             = 16
-//    seconds_until_auto_pause = 300
-//    timeout_action           = "ForceApplyCapacityChange"
+//  serverlessv2_scaling_configuration = {
+//    min_capacity = 0.5
+//    max_capacity = 16.0
+//  }
+//
+//  instance_class = "db.serverless"
+//  instances = {
+//    1 = {}
+//    # 2 = {}
 //  }
 //}
 
