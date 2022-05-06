@@ -313,7 +313,7 @@ Subcontractors, and Contracted Developers.
 
 5. Additional vendor agreements are obtained as required by applicable regulatory compliance requirements.
 
-## Security policy management
+## Security policy management policy
 *Created from [JupiterOne/security-policy-templates](https://github.com/JupiterOne/security-policy-templates). [CC BY-SA 4 license](https://creativecommons.org/licenses/by-sa/4.0/)*
 
 | Policy owner   | Effective date |
