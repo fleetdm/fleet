@@ -221,7 +221,7 @@ module.exports = {
             'handbook/growth.md': 'timmy-k',
             'handbook/customers.md': 'tgauda',
             'handbook/community.md': ['dominuskelvin', 'ksatter'],
-            'handbook/README.md': '*',// (any fleetie can update this page)
+            'handbook/README.md': '*',// (any fleetie can update this page and merge their change without waiting for their change to be approved)
 
             'website': 'mikermcneil',// (default for website)
             'website/views': 'eashaw',
