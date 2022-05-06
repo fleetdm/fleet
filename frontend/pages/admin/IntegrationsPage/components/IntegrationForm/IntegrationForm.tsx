@@ -246,10 +246,12 @@ const IntegrationForm = ({
           data-tip-disable={
             !(integrationDestination === "jira"
               ? formData.url === "" ||
+                formData.url.slice(0, 8) !== "https://" ||
                 formData.username === "" ||
                 formData.apiToken === "" ||
                 formData.projectKey === ""
               : formData.url === "" ||
+                formData.url.slice(0, 8) !== "https://" ||
                 formData.email === "" ||
                 formData.apiToken === "" ||
                 formData.groupId === 0)

@@ -175,6 +175,10 @@ deps-js:
 
 deps-go:
 	go mod download
+ifeq ($(shell uname -s),Linux)
+	# Dependency required for Linux Fleet Desktop.
+	sudo apt-get install gcc libgtk-3-dev libayatana-appindicator3-dev -y
+endif
 
 migration:
 	go run github.com/fleetdm/goose/cmd/goose -dir server/datastore/mysql/migrations/tables create $(name)
@@ -306,6 +310,8 @@ endif
 #
 # Usage:
 # FLEET_DESKTOP_APPLE_AUTHORITY=foo FLEET_DESKTOP_VERSION=0.0.1 make desktop-app-tar-gz
+#
+# Output: desktop.app.tar.gz
 desktop-app-tar-gz:
 ifneq ($(shell uname), Darwin)
 	@echo "Makefile target desktop-app-tar-gz is only supported on macOS"
@@ -313,12 +319,37 @@ ifneq ($(shell uname), Darwin)
 endif
 	go run ./tools/desktop macos
 
+FLEET_DESKTOP_VERSION ?= unknown
+
 # Build desktop executable for Windows.
 #
 # Usage:
 # FLEET_DESKTOP_VERSION=0.0.1 make desktop-windows
+#
+# Output: fleet-desktop.exe
 desktop-windows:
-	GOOS=windows GOARCH=amd64 go build -ldflags "-H=windowsgui" -o fleet-desktop.exe ./orbit/cmd/desktop
+	GOOS=windows GOARCH=amd64 go build -ldflags "-H=windowsgui -X=main.version=$(FLEET_DESKTOP_VERSION)" -o fleet-desktop.exe ./orbit/cmd/desktop
+
+# Build desktop executable for Linux.
+#
+# Usage:
+# FLEET_DESKTOP_VERSION=0.0.1 make desktop-linux
+#
+# Output: desktop.tar.gz
+desktop-linux:
+	docker build -f Dockerfile-desktop-linux -t desktop-linux-builder .
+	docker run --rm -v $(shell pwd):/output desktop-linux-builder /bin/bash -c "\
+		mkdir /output/fleet-desktop && \
+		go build -o /output/fleet-desktop/fleet-desktop -ldflags "-X=main.version=$(FLEET_DESKTOP_VERSION)" /usr/src/fleet/orbit/cmd/desktop && \
+		cp /usr/lib/x86_64-linux-gnu/libayatana-appindicator3.so.1 \
+		/usr/lib/x86_64-linux-gnu/libayatana-ido3-0.4.so.0 \
+		/usr/lib/x86_64-linux-gnu/libayatana-indicator3.so.7 \
+		/lib/x86_64-linux-gnu/libm.so.6 \
+		/usr/lib/x86_64-linux-gnu/libdbusmenu-gtk3.so.4 \
+		/usr/lib/x86_64-linux-gnu/libdbusmenu-glib.so.4 \
+		/output/fleet-desktop && cd /output && \
+		tar czf desktop.tar.gz fleet-desktop && \
+		rm -r fleet-desktop"
 
 # db-replica-setup setups one main and one read replica MySQL instance for dev/testing.
 #	- Assumes the docker containers are already running (tools/mysql-replica-testing/docker-compose.yml)

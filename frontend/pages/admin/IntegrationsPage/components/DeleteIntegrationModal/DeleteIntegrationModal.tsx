@@ -6,13 +6,15 @@ import Button from "components/buttons/Button";
 const baseClass = "delete-integration-modal";
 
 interface IDeleteIntegrationModalProps {
-  name: string;
+  url: string;
+  projectKey: string;
   onSubmit: () => void;
   onCancel: () => void;
 }
 
 const DeleteIntegrationModal = ({
-  name,
+  url,
+  projectKey,
   onSubmit,
   onCancel,
 }: IDeleteIntegrationModalProps): JSX.Element => {
@@ -34,7 +36,10 @@ const DeleteIntegrationModal = ({
       <form className={`${baseClass}__form`}>
         <p>
           This action will delete the{" "}
-          <span className={`${baseClass}__url`}>{name}</span> integration.
+          <span className={`${baseClass}__url`}>
+            {url} - {projectKey}
+          </span>{" "}
+          integration.
         </p>
         <p>The automations that use this integration will be turned off.</p>
         <div className="modal-cta-wrap">

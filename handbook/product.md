@@ -152,19 +152,67 @@ What happens during priority drafting?
 3. UI changes are reviewed, and the UI changes are brought back to the engineering team to continue
   the development task.
 
+## Planning
+
+- The intake process for a given group (how new issues are received from a given requestor and estimated within the group's timeframe) is up to each group's PM. For example, the Interface group's intake process consists of attending Interface PM's office hours and making a case, at which time a decision about whether to draft and estimate will be made on the spot.
+
+- New unestimated issues are created in the Planning board, which is shared by each group.
+
+- The estimation process to use is up to the EM of each group (with buy-in from the PM), with the goal of delivering estimated issues within the group's timeframe, which is set for each group by the Head of Product. No matter the group, only work that is slated to be released into the hands of users within ≤6 weeks will be estimated. Estimation is run by each group's EM, and occurs in the Planning board. Some groups may choose to use "timeboxes" rather than estimates.
+
+- Prioritization will now occur at the point of intake, by the PM of the group. Besides the 20% "engineering initiatives", only issues prioritized by the group PM will be estimated or worked on. On the first day of each release, all estimated issues are moved into the relevant section of the new "Release" board, which has a kanban view per-group. 
+
+- Work that does not "fit" into the scheduled release (due to lack of capacity or otherwise) remains in the "Estimated" column of the product board, and is removed from that board if it is not prioritized in the following release.
+
+### Process
+
+1. **Intake:** Each group has a "time til estimated" timeframe, which measures the time from when an idea is first received until it is written up as an estimated issue and the requestor notified exactly which aspects are scheduled for release. How intake works, and the estimation timeframe, vary per group, but every group has an estimation timeframe.
+
+2. **Estimation:** The estimation process varies per-group. In the Interface group, it consists of drafting, API design, and either planning poker or a quick timebox decided by the group EM. When the Interface group relies on the Platform group for part of an issue, only the Interface group's work is estimated. It is up to the Interface PM to obtain estimated Platform issues for any needed work, and thus ensure it is scheduled in the appropriate release. It is up to the Platform PM to get those specced (in consultation with Engineering), then up to the Engineering to estimate and communicate promptly if issues arise. We avoid having more estimated issues than capacity in the next release. If the team is fully allocated, no more issues will be estimated, or the PM will decide whether to swap anything out. Once estimated, an issue is scheduled for release. 
+
+3. **Development:** Development starts on the first day of the new release. Only estimated issues are scheduled for release.
+
+4. **Quality assurance (QA):** Everyone in each group is responsible for quality: engineers, PM, and the EM. The QA process varies per group, and is set by the group's PM. For example, in the Interface group, every issue is QA'd (i.e. a per-change basis), as well as a holistic "smoke test" during the last few days of each release.
+
+5. **Release:** Release dates are time-based and happen even if all features are not complete (± a day or two sometimes, if there's an emergency. Either way, the next release cycle starts on time). If anything is not finished, or can only be finished with changes, the PM finds out immediately, and notifies the requestor right away.
+
+### Timeframes
+
+These are effectively internal SLAs. We moved away from the term "SLA" to avoid potential confusion with future, contractual Service Level Agreements Fleet might sign with its customers.
+
+#### Prioritization
+
+≤5 business days from when the initial request is weighed by PM, requestor has heard back from the group PM whether the request will be prioritized.
+
+#### Release
+
+≤6 weeks from when initial request is weighed by PM, this is released into the hands of the Fleet community, generally available (no feature flags or limitations except as originally specced or as adjusted if necessary).
+
+Work that is prioritized by the group PM should be released in the 6 week timeframe (2 releases). Work that is too large for this timeframe should be split up.
+
+#### Estimation
+
+≤5 business days from initial request, an issue is created with a summary of the purpose, the goal, and the plan to achieve it. The level of detail in that plan is up to the PM of the product group. The issue also has an estimation, expressed in story points, which is either determined through planning poker or a "timebox".
+
+For the Interface group "estimated" means UI wireframes and API design are completed and the work to implement them has been estimated.
+
+#### Adjustment
+
+≤1 business day from discovering some blocker or change necessary to already prioritized and estimated work. The group PM decides how the usage/UI will be changed and notifies original requestor of changes to spec.
+
 ## Product quality
 
 Fleet uses a human-oriented quality assurance (QA) process to ensure the product meets the standards of users and organizations.
 
 To try Fleet locally for QA purposes, run `fleetctl preview`, which defaults to running the latest stable release.
 
-To target a different version of Fleet, use the `--tag` flag to target any tag in [Docker Hub](https://hub.docker.com/r/fleetdm/fleet/tags?page=1&ordering=last_updated), including any git commit hash or branch name.  For example, to QA the latest code on the `main` branch of fleetdm/fleet, you can run: `fleetctl preview --tag=main`
+To target a different version of Fleet, use the `--tag` flag to target any tag in [Docker Hub](https://hub.docker.com/r/fleetdm/fleet/tags?page=1&ordering=last_updated), including any git commit hash or branch name. For example, to QA the latest code on the `main` branch of fleetdm/fleet, you can run: `fleetctl preview --tag=main`
 
 To start preview without starting the simulated hosts, use the `--no-hosts` flag (e.g. `fleetctl preview --no-hosts`).
 
 ### Why human-oriented QA?
 
-Automated tests are important, but they can't catch everything.  Many issues are hard to notice until a human looks empathetically at the user experience, whether in the user interface, the REST API, or the command line.
+Automated tests are important, but they can't catch everything. Many issues are hard to notice until a human looks empathetically at the user experience, whether in the user interface, the REST API, or the command line.
 
 The goal of quality assurance is to catch unexpected behavior before release:
 - Bugs
@@ -182,7 +230,7 @@ The goal of quality assurance is to catch unexpected behavior before release:
 
 ### Collecting bugs
 
-All QA steps should be possible using `fleetctl preview`.  Please refer to [docs/Contributing/Testing.md](https://fleetdm.com/docs/contributing/testing) for flows that cannot be completed using `fleetctl preview`.
+All QA steps should be possible using `fleetctl preview`. Please refer to [docs/Contributing/Testing.md](https://fleetdm.com/docs/contributing/testing) for flows that cannot be completed using `fleetctl preview`.
 
 Please start the manual QA process by creating a blank GitHub issue. As you complete each of the
 flows, record a list of the bugs you encounter in this new issue. Each item in this list should
@@ -306,13 +354,13 @@ Logout of your current user and log in with the newly created user.
 ### Communicating design changes to the engineering team.
 Something NEW that has been added to [Figma Fleet EE (current, dev-ready)](https://www.figma.com/file/qpdty1e2n22uZntKUZKEJl/?node-id=0%3A1):
 1. Create a new [GitHub issue](https://github.com/fleetdm/fleet/issues/new)
-2. Detail the required changes (including page links to the relevant layouts), then assign the issue to the __“Initiatives”__ project.
+2. Detail the required changes (including page links to the relevant layouts), then assign the issue to the __"Initiatives"__ project.
 
 <img src="https://user-images.githubusercontent.com/78363703/129840932-67d55b5b-8e0e-4fb9-9300-5d458e1b91e4.png" alt="Assign to Initiatives project"/>
 
-> ___NOTE:___ Artwork and layouts in Figma Fleet EE (current) are final assets, ready for implementation. Therefore, it’s important NOT to use the “idea” label, as designs in this document are more than ideas - they are something that WILL be implemented.
+> ___NOTE:___ Artwork and layouts in Figma Fleet EE (current) are final assets, ready for implementation. Therefore, it’s important NOT to use the "idea" label, as designs in this document are more than ideas - they are something that WILL be implemented.
 
-3. Navigate to the [Initiatives project](https://github.com/orgs/fleetdm/projects/8), hit “+ Add cards,” pick the new issue, and drag it into the “🤩Inspire me” column. 
+3. Navigate to the [Initiatives project](https://github.com/orgs/fleetdm/projects/8), hit "+ Add cards," pick the new issue, and drag it into the "🤩Inspire me" column. 
 
 <img src="https://user-images.githubusercontent.com/78363703/129840496-54ea4301-be20-46c2-9138-b70bff7198d0.png" alt="Add cards"/>
 
@@ -404,6 +452,47 @@ Fleet's feature flag guidelines was borrowed from GitLab's ["When to use feature
 
 We track competitors' capabilities and adjacent (or commonly integrated) products in this [Google Doc](https://docs.google.com/document/d/1Bqdui6oQthdv5XtD5l7EZVB-duNRcqVRg7NVA4lCXeI/edit) (private).
 
+### Intake process
+
+Intake for new product ideas (requests) happens at the 🗣 Product office hours meeting.
+
+At the 🗣 Product office hours meeting, the product team weighs all requests. When the team weighs a request, it is prioritized or put to the side.
+
+The team prioritizes a request when the business perceives it as an immediate priority. When this happens, the team sets the request to be estimated or deferred within 5 business days.
+
+The team puts a request to the side when the business perceives competing priorities as more pressing in the immediate moment.
+
+#### Why this way?
+
+At Fleet, we use objectives and key results (OKRs) to align the organization with measurable goals.
+These OKRs fill up a large portion, but not all, of planning (drafting, wireframing, spec'ing, etc.)
+and engineering capacity. 
+
+This means there is always some capacity to prioritize requests advocated for by customers, Fleet team members, and members of the
+greater Fleet community.
+
+> Note Fleet always prioritizes bugs.
+
+At Fleet, we tell the requestor whether their
+request is prioritized or put to the side within one business day from when the team weighs the request.
+
+The 🗣 Product office hours meeting is a recurring ritual to make sure that the team weighs all requests.
+
+#### Making a request
+
+To make a request or advocate for a request from a customer or community member,  Fleet asks all members of the organization to add their name and a description of the request to the list in the [🗣 Product office hours Google
+doc](https://docs.google.com/document/d/1mwu5WfdWBWwJ2C3zFDOMSUC9QCyYuKP4LssO_sIHDd0/edit#heading=h.zahrflvvks7q).
+Then attend the next scheduled 🗣 Product office hours meeting.
+
+All members of the Fleet organization are welcome to attend the 🗣 Product office hours meeting. Requests will be
+weighed from top to bottom while prioritizing attendee requests. 
+
+This means that if the individual that added a feature request is not in attendance, the feature request will be discussed towards the end of the call if there's time.
+
+All 🗣 Product office hours meetings are recorded and uploaded to the [🗣 Product office hours
+folder](https://drive.google.com/drive/folders/1nsjqDyX5WDQ0HJhg_2yOaqBu4J-hqRIW) in the shared
+Google drive.
+
 ## Rituals
 
 Directly Responsible Individuals (DRI) engage in the ritual(s) below at the frequency specified.
@@ -416,46 +505,6 @@ Directly Responsible Individuals (DRI) engage in the ritual(s) below at the freq
 | ✨ Product design review  | Weekly (Thursdays) | The Product team discusses "ready for review" items and makes the decision on whether the UI changes are ready for engineering specification and later implementation. | Noah Talerman |
 | 👀 Product review      | Every three weeks | Fleeties present features and improvements in the upcoming release. A discussion is held about bugs, fixes and changes to be made prior to release.  | Noah Talerman |
 
-### Intake process
-
-Intake for new product ideas (requests) happens at the 🗣 Product office hours meeting.
-
-At the 🗣 Product office hours meeting, all requests are weighed. When a request is weighed, it is prioritized or ejected.
-
-A request is prioritized when perceived as an important near-term priority by the business. When this happens, the request is set to be estimated or deferred within the next 5 business days.
-
-A request is ejected when competing priorities are perceived as a more important near-term priority by the business.
-
-#### Why this way?
-
-At Fleet, we use objectives and key results (OKRs) to align the organization with measurable goals.
-These OKRs fill up a large portion, but not all, of planning (drafting, wireframing, spec'ing, etc.)
-and engineering capacity. 
-
-This means that there is always some capacity to prioritize requests advocated for by customers, Fleet team members, and members of the
-greater Fleet community.
-
-> Note that bugs are always prioritized.
-
-At Fleet, the requestor is told whether their
-request is prioritized or ejected within 1 business day from when the request is weighed.
-
-The 🗣 Product office hours meeting is a recurring ritual to make sure that all requests are weighed.
-
-#### Making a request
-
-To make a request, or advocate for a request from a customer or community member, all members of the Fleet organization are asked to add their name and a description of the request to the list in the [🗣 Product office hours Google
-doc](https://docs.google.com/document/d/1mwu5WfdWBWwJ2C3zFDOMSUC9QCyYuKP4LssO_sIHDd0/edit#heading=h.zahrflvvks7q),
-then attend the next scheduled 🗣 Product office hours meeting.
-
-All members of the Fleet organization are welcome to attend the 🗣 Product office hours meeting. Requests will be
-weighed from top to bottom while prioritizing attendee requests. 
-
-This means that, if the individual that added a feature request is not in attendance, the feature request will discussed towards the end of the call if there's time.
-
-All 🗣 Product office hours meetings are recorded and uploaded to the [🗣 Product office hours
-folder](https://drive.google.com/drive/folders/1nsjqDyX5WDQ0HJhg_2yOaqBu4J-hqRIW) in the shared
-Google drive.
 
 ## Slack channels
 
