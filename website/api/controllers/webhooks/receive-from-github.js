@@ -26,7 +26,6 @@ module.exports = {
 
     let IS_FROZEN = true;// « Set this to `true` whenever a freeze is in effect, then set it back to `false` when the freeze ends.
 
-    let GREEN_LABEL_COLOR = 'C2E0C6';// « Used in multiple places below.
     let GITHUB_USERNAMES_OF_BOTS_AND_MAINTAINERS = [// « Used in multiple places below.
       'sailsbot',
       'fleet-release',
@@ -60,7 +59,10 @@ module.exports = {
       'juan-fdz-hawa',
       'roperzh',
     ];
-    let GITHUB_USERNAME_OF_DRI_FOR_LABELS = 'noahtalerman';// « Used below
+
+    let GREEN_LABEL_COLOR = 'C2E0C6';// « Used in multiple places below.  (FUTURE: Use the "+" prefix for this instead of color.  2022-05-05)
+
+    let GITHUB_USERNAME_OF_DRI_FOR_LABELS = 'noahtalerman';// « Used below (FUTURE: Remove this capability as Fleet has outgrown it.  2022-05-05)
 
     if (!sails.config.custom.slackWebhookUrlForGithubBot) {
       throw new Error('No Slack webhook URL configured for the GitHub bot to notify with alerts!  (Please set `sails.config.custom.slackWebhookUrlForGithubBot`.)');
@@ -205,7 +207,7 @@ module.exports = {
 
           let isSenderDRIForAllChangedPaths = false;
           let isSenderMaintainer = GITHUB_USERNAMES_OF_BOTS_AND_MAINTAINERS.includes(sender.login.toLowerCase());
-          let DRI_BY_PATH = {
+          let DRI_BY_PATH = {// « used below
             'README.md': 'mike-j-thomas',// (github brandfront)
 
             'handbook': ['desmi-dizney', 'mike-j-thomas', 'mikermcneil'],// (default for handbook)
