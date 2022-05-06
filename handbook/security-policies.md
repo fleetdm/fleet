@@ -64,16 +64,16 @@ Fleet policy requires that:
 
 Fleet policy requires that:
 
-1. Fleet software engineering and product development is required to follow security best practices. Product should be "Secure by Design" and "Secure by Default".
+1. Fleet software engineering and product development are required to follow security best practices. The product should be "Secure by Design" and "Secure by Default."
 
-2. Quality assurance activities will be performed.  This may include
+2. Fleet performs quality assurance activities. This may include:
 
   * peer code reviews prior to merging new code into the main development branch
-    (e.g. master branch); and
-  * thorough product testing before releasing to production (e.g. unit testing
+    (e.g., master branch).
+  * thorough product testing before releasing it to production (e.g., unit testing
     and integration testing).
 
-3. Risk assessment activities (i.e. threat modeling) must be performed for a new product or major changes to an existing product.
+3. Risk assessment activities (i.e., threat modeling) must be performed for a new product or major changes to an existing product.
 
 4. Security requirements must be defined, tracked, and implemented.
 
@@ -85,7 +85,7 @@ Fleet policy requires that:
 
 8. All critical or high severity security findings must be remediated prior to each release.
 
-9. All critical or high severity vulnerabilities discovered post release must be remediated in the next release or as per the Fleet vulnerability management policy SLAs, whichever is sooner.
+9. All critical or high severity vulnerabilities discovered post-release must be remediated in the next release or as per the Fleet vulnerability management policy SLAs, whichever is sooner.
 
 10. Any exception to the remediation of a finding must be documented and approved by the security team or CTO.
 
