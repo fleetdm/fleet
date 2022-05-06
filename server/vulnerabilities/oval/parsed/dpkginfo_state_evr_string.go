@@ -6,7 +6,7 @@ import (
 )
 
 // This is just one possible children of <dpkginfo_state>, that said
-// all deb package tests are written againts evr strings
+// all deb package tests are written against evr strings
 // see: https://oval.mitre.org/language/version5.10.1/ovaldefinition/documentation/oval-definitions-schema.html#EntityStateEVRStringType
 
 // op|value
