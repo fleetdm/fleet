@@ -197,18 +197,18 @@ func TestErrorHandler(t *testing.T) {
 
 	t.Run("standalone", func(t *testing.T) {
 		pool := redistest.SetupRedis(t, "error:", false, false, false)
-		t.Run("collects errors", func(t *testing.T) { testErrorHandlerCollectsErrors(t, pool, wd) })
-		t.Run("collects different errors", func(t *testing.T) { testErrorHandlerCollectsDifferentErrors(t, pool, wd) })
+		t.Run("collects errors", func(t *testing.T) { testErrorHandlerCollectsErrors(t, pool, wd, false) })
+		t.Run("collects different errors", func(t *testing.T) { testErrorHandlerCollectsDifferentErrors(t, pool, wd, false) })
 	})
 
 	t.Run("cluster", func(t *testing.T) {
 		pool := redistest.SetupRedis(t, "error:", true, true, false)
-		t.Run("collects errors", func(t *testing.T) { testErrorHandlerCollectsErrors(t, pool, wd) })
-		t.Run("collects different errors", func(t *testing.T) { testErrorHandlerCollectsDifferentErrors(t, pool, wd) })
+		t.Run("collects errors", func(t *testing.T) { testErrorHandlerCollectsErrors(t, pool, wd, false) })
+		t.Run("collects different errors", func(t *testing.T) { testErrorHandlerCollectsDifferentErrors(t, pool, wd, false) })
 	})
 }
 
-func testErrorHandlerCollectsErrors(t *testing.T, pool fleet.RedisPool, wd string) {
+func testErrorHandlerCollectsErrors(t *testing.T, pool fleet.RedisPool, wd string, flush bool) {
 	ctx, cancelFunc := context.WithCancel(context.Background())
 	defer cancelFunc()
 
@@ -234,7 +234,7 @@ func testErrorHandlerCollectsErrors(t *testing.T, pool fleet.RedisPool, wd strin
 
 	<-chDone
 
-	errors, err := eh.Flush()
+	errors, err := eh.Retrieve(flush)
 	require.NoError(t, err)
 	require.Len(t, errors, 1)
 
@@ -248,13 +248,17 @@ func testErrorHandlerCollectsErrors(t *testing.T, pool fleet.RedisPool, wd strin
     \]
   \}`, wd, wd)), errors[0])
 
-	// and then errors are gone
-	errors, err = eh.Flush()
-	require.NoError(t, err)
-	assert.Len(t, errors, 0)
+	errors, err = eh.Retrieve(flush)
+	if flush {
+		require.NoError(t, err)
+		assert.Len(t, errors, 0)
+	} else {
+		require.NoError(t, err)
+		assert.Len(t, errors, 1)
+	}
 }
 
-func testErrorHandlerCollectsDifferentErrors(t *testing.T, pool fleet.RedisPool, wd string) {
+func testErrorHandlerCollectsDifferentErrors(t *testing.T, pool fleet.RedisPool, wd string, flush bool) {
 	ctx, cancelFunc := context.WithCancel(context.Background())
 	defer cancelFunc()
 
@@ -290,7 +294,7 @@ func testErrorHandlerCollectsDifferentErrors(t *testing.T, pool fleet.RedisPool,
 
 	<-chDone
 
-	errors, err := eh.Flush()
+	errors, err := eh.Retrieve(flush)
 	require.NoError(t, err)
 	require.Len(t, errors, 4)
 

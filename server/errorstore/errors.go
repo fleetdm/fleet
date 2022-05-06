@@ -15,6 +15,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"strconv"
 	"strings"
 	"sync/atomic"
 	"time"
@@ -97,7 +98,7 @@ func (h *Handler) Retrieve(flush bool) ([]string, error) {
 	var errors []string
 	for _, qkeys := range keysBySlot {
 		if len(qkeys) > 0 {
-			gotErrors, err := h.collectBatchErrors(qkeys)
+			gotErrors, err := h.collectBatchErrors(qkeys, flush)
 			if err != nil {
 				return nil, err
 			}
@@ -107,7 +108,7 @@ func (h *Handler) Retrieve(flush bool) ([]string, error) {
 	return errors, nil
 }
 
-func (h *Handler) collectBatchErrors(errorKeys []string) ([]string, error) {
+func (h *Handler) collectBatchErrors(errorKeys []string, flush bool) ([]string, error) {
 	conn := redis.ConfigureDoer(h.pool, h.pool.Get())
 	defer conn.Close()
 
@@ -118,8 +119,10 @@ func (h *Handler) collectBatchErrors(errorKeys []string) ([]string, error) {
 		return nil, err
 	}
 
-	if _, err := conn.Do("DEL", args...); err != nil {
-		return nil, err
+	if flush {
+		if _, err := conn.Do("DEL", args...); err != nil {
+			return nil, err
+		}
 	}
 
 	return errorList, nil
@@ -291,7 +294,20 @@ func (h *Handler) Store(err error) {
 // ServeHTTP implements an http.Handler that retrieves the errors stored
 // by the Handler and returns them in the response as JSON.
 func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	errors, err := h.Retrieve(false)
+	var flush bool
+	opts := r.URL.Query()
+
+	if opts.Has("flush") {
+		var err error
+		flush, err = strconv.ParseBool(opts.Get("flush"))
+
+		if err != nil {
+			w.WriteHeader(http.StatusBadRequest)
+			return
+		}
+	}
+
+	errors, err := h.Retrieve(flush)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		return
