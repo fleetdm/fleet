@@ -11,7 +11,6 @@ import (
 
 	"github.com/doug-martin/goqu/v9"
 	_ "github.com/doug-martin/goqu/v9/dialect/mysql"
-	"github.com/doug-martin/goqu/v9/exp"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/jmoiron/sqlx"
@@ -409,9 +408,9 @@ func selectSoftwareSQL(hostID *uint, opts fleet.SoftwareListOptions) (string, []
 			"s.arch",
 			"scv.cpe_id", // for join on sub query
 			goqu.COALESCE(goqu.I("scp.cpe"), "").As("generated_cpe"),
-			goqu.MAX("c.cvss_score").As("max_cvss_score"),                 // for ordering
-			goqu.MAX("c.epss_probability").As("max_epss_probability"),     // for ordering
-			goqu.MAX("c.cisa_known_exploit").As("max_cisa_known_exploit"), // for ordering
+			goqu.MAX("c.cvss_score").As("cvss_score"),                 // for ordering
+			goqu.MAX("c.epss_probability").As("epss_probability"),     // for ordering
+			goqu.MAX("c.cisa_known_exploit").As("cisa_known_exploit"), // for ordering
 		)
 
 	if hostID != nil || opts.TeamID != nil {
@@ -506,42 +505,12 @@ func selectSoftwareSQL(hostID *uint, opts fleet.SoftwareListOptions) (string, []
 	ds = ds.GroupBy(
 		"s.id",
 		"scv.cpe_id",
-		"generated_cpe",
+		"s.generated_cpe",
 	)
 
 	// Pagination is a bit more complex here due to left join with software_cve table and aggregated columns from cves table.
-
-	// appendOrder is similar to appendOrderByToSelect, but handles aggregated columns from cves table
-	appendOrder := func(ds *goqu.SelectDataset, opts fleet.ListOptions) *goqu.SelectDataset {
-		aggregatedKeys := map[string]struct{}{
-			"cvss_score":         {},
-			"epss_probability":   {},
-			"cisa_known_exploit": {},
-		}
-		if opts.OrderKey != "" {
-			ordersKeys := strings.Split(opts.OrderKey, ",")
-			for _, key := range ordersKeys {
-				var orderable exp.Orderable
-				if _, ok := aggregatedKeys[key]; ok {
-					orderable = goqu.I("max_" + key)
-				} else {
-					orderable = goqu.I(key)
-				}
-
-				var orderedExpr exp.OrderedExpression
-				if opts.OrderDirection == fleet.OrderDescending {
-					orderedExpr = orderable.Desc()
-				} else {
-					orderedExpr = orderable.Asc()
-				}
-
-				ds = ds.OrderAppend(orderedExpr)
-			}
-		}
-		return ds
-	}
-	ds = appendOrder(ds, opts.ListOptions)
-	ds = appendLimitOffsetToSelect(ds, opts.ListOptions)
+	// Apply order by again after joining on sub query
+	ds = appendListOptionsToSelect(ds, opts.ListOptions)
 
 	// join on software_cve and cves after pagination using a sub-query
 	ds = dialect.From(ds.As("s")).
@@ -584,7 +553,7 @@ func selectSoftwareSQL(hostID *uint, opts fleet.SoftwareListOptions) (string, []
 		)
 	}
 
-	ds = appendOrder(ds, opts.ListOptions)
+	ds = appendOrderByToSelect(ds, opts.ListOptions)
 
 	return ds.ToSQL()
 }
