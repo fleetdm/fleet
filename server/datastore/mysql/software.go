@@ -505,7 +505,7 @@ func selectSoftwareSQL(hostID *uint, opts fleet.SoftwareListOptions) (string, []
 	ds = ds.GroupBy(
 		"s.id",
 		"scv.cpe_id",
-		"s.generated_cpe",
+		"generated_cpe",
 	)
 
 	// Pagination is a bit more complex here due to left join with software_cve table and aggregated columns from cves table.
@@ -573,15 +573,7 @@ func countSoftwareDB(
 		return 0, ctxerr.Wrap(ctx, err, "sql build")
 	}
 
-	sql = `
-SELECT
-    COUNT(*)
-FROM (
-` + sql + `
-) AS s
-GROUP BY
-    s.id
-`
+	sql = `SELECT COUNT(DISTINCT s.id) FROM (` + sql + `) AS s`
 
 	var count int
 	if err := sqlx.GetContext(ctx, q, &count, sql, args...); err != nil {
