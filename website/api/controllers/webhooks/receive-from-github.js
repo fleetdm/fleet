@@ -64,6 +64,8 @@ module.exports = {
 
     let GITHUB_USERNAME_OF_DRI_FOR_LABELS = 'noahtalerman';// « Used below (FUTURE: Remove this capability as Fleet has outgrown it.  2022-05-05)
 
+    let DRI_BY_PATH = sails.config.custom.githubRepoDRIByPath;// « used below
+
     if (!sails.config.custom.slackWebhookUrlForGithubBot) {
       throw new Error('No Slack webhook URL configured for the GitHub bot to notify with alerts!  (Please set `sails.config.custom.slackWebhookUrlForGithubBot`.)');
     }//•
@@ -207,37 +209,6 @@ module.exports = {
 
           let isSenderDRIForAllChangedPaths = false;
           let isSenderMaintainer = GITHUB_USERNAMES_OF_BOTS_AND_MAINTAINERS.includes(sender.login.toLowerCase());
-          let DRI_BY_PATH = {// « used below
-            'README.md': 'mike-j-thomas',// (github brandfront)
-
-            'handbook': ['desmi-dizney', 'mike-j-thomas', 'mikermcneil'],// (default for handbook)
-            'handbook/company.md': 'mikermcneil',
-            'handbook/people.md': ['eashaw', 'mike-j-thomas'],
-            'handbook/engineering.md': 'zwass',
-            'handbook/product.md': 'noahtalerman',
-            'handbook/security.md': 'guillaumeross',
-            'handbook/security-policies.md': 'guillaumeross',
-            'handbook/brand.md': 'mike-j-thomas',
-            'handbook/growth.md': 'timmy-k',
-            'handbook/customers.md': 'tgauda',
-            'handbook/community.md': ['dominuskelvin', 'ksatter'],
-            'handbook/README.md': '*',// (any fleetie can update this page and merge their change without waiting for their change to be approved)
-
-            'website': 'mikermcneil',// (default for website)
-            'website/views': 'eashaw',
-            'website/assets': 'eashaw',
-            'website/config/routes.js': ['eashaw', 'mike-j-thomas'],// (for managing website URLs)
-
-            'docs': 'zwass',// (default for docs)
-            'docs/images': ['noahtalerman', 'eashaw', 'mike-j-thomas'],
-            'docs/Using-Fleet/REST-API.md': 'lukeheath',
-            'docs/Contributing/API-for-contributors.md': 'lukeheath',
-            'docs/Deploying/FAQ.md': ['ksatter', 'dominuskelvin'],
-            'docs/Contributing/FAQ.md': ['ksatter', 'dominuskelvin'],
-            'docs/Using-Fleet/FAQ.md': ['ksatter', 'dominuskelvin'],
-
-            'docs/01-Using-Fleet/standard-query-library/standard-query-library.yml': 'guillaumeross',// (standard query library)
-          };
 
           // [?] https://docs.github.com/en/rest/reference/pulls#list-pull-requests-files
           let changedPaths = _.pluck(await sails.helpers.http.get(`https://api.github.com/repos/${owner}/${repo}/pulls/${prNumber}/files`, {
