@@ -226,7 +226,7 @@ module.exports = {
           // [?] https://docs.github.com/en/rest/reference/pulls#create-a-review-for-a-pull-request
           await sails.helpers.http.post(`https://api.github.com/repos/${owner}/${repo}/pulls/${prNumber}/reviews`, {
             event: 'REQUEST_CHANGES',
-            body: 'The repository is currently frozen for an upcoming release.  Please do not merge this change yet.  After the freeze has ended, please come back, edit your PR description, hit the spacebar a few times to make an arbitrary change, then save your PR.  You will then be able to merge your change!  In case of emergency, you can dismiss this review.'
+            body: 'The repository is currently frozen for an upcoming release.  \n> After the freeze has ended, please dismiss this review.  \n\nIn case of emergency, you can dismiss this review and merge now.'
           }, baseHeaders);
         }
 
