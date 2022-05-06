@@ -56,12 +56,6 @@ func NewHandler(ctx context.Context, pool fleet.RedisPool, logger kitlog.Logger,
 		runHandler(ctx, eh)
 	}
 
-	// Clear out any records that exist.
-	// Temporary mitigation for #3065.
-	if _, err := eh.Retrieve(false); err != nil {
-		level.Error(eh.logger).Log("err", err, "msg", "failed to flush redis errors")
-	}
-
 	return eh
 }
 
