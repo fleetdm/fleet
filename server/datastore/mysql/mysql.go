@@ -65,6 +65,10 @@ type Datastore struct {
 	// nil if no read replica
 	readReplicaConfig *config.MysqlConfig
 
+	// minimum interval between software last_opened_at timestamp to update the
+	// database (see file software.go).
+	minLastOpenedAtDiff time.Duration
+
 	writeCh chan itemToWrite
 
 	// stmtCacheMu protects access to stmtCache.
@@ -113,6 +117,8 @@ var (
 	usersTable    = entity{"users"}
 )
 
+var doRetryErr = errors.New("fleet datastore retry")
+
 // retryableError determines whether a MySQL error can be retried. By default
 // errors are considered non-retryable. Only errors that we know have a
 // possibility of succeeding on a retry should return true in this function.
@@ -124,6 +130,9 @@ func retryableError(err error) bool {
 		case mysqlerr.ER_LOCK_DEADLOCK, mysqlerr.ER_LOCK_WAIT_TIMEOUT:
 			return true
 		}
+	}
+	if errors.Is(err, doRetryErr) {
+		return true
 	}
 
 	return false
@@ -213,8 +222,9 @@ func (ds *Datastore) withTx(ctx context.Context, fn txFn) (err error) {
 // New creates an MySQL datastore.
 func New(config config.MysqlConfig, c clock.Clock, opts ...DBOption) (*Datastore, error) {
 	options := &dbOptions{
-		maxAttempts: defaultMaxAttempts,
-		logger:      log.NewNopLogger(),
+		minLastOpenedAtDiff: defaultMinLastOpenedAtDiff,
+		maxAttempts:         defaultMaxAttempts,
+		logger:              log.NewNopLogger(),
 	}
 
 	for _, setOpt := range opts {
@@ -245,14 +255,15 @@ func New(config config.MysqlConfig, c clock.Clock, opts ...DBOption) (*Datastore
 	}
 
 	ds := &Datastore{
-		writer:            dbWriter,
-		reader:            dbReader,
-		logger:            options.logger,
-		clock:             c,
-		config:            config,
-		readReplicaConfig: options.replicaConfig,
-		writeCh:           make(chan itemToWrite),
-		stmtCache:         make(map[string]*sqlx.Stmt),
+		writer:              dbWriter,
+		reader:              dbReader,
+		logger:              options.logger,
+		clock:               c,
+		config:              config,
+		readReplicaConfig:   options.replicaConfig,
+		writeCh:             make(chan itemToWrite),
+		stmtCache:           make(map[string]*sqlx.Stmt),
+		minLastOpenedAtDiff: options.minLastOpenedAtDiff,
 	}
 
 	go ds.writeChanLoop()

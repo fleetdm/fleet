@@ -50,7 +50,7 @@ jobs:
 
     # Download fleet and fleetctl binaries from last successful build on main
     - name: Download binaries
-      uses: dawidd6/action-download-artifact@09385b76de790122f4da9c82b17bccf858b9557c #v2.16.0
+      uses: dawidd6/action-download-artifact@b2abf1705491048a2d7074f7d90513044fd25d39 #v2.16.0
       with:
         workflow: build-binaries.yaml
         branch: main
@@ -80,6 +80,27 @@ jobs:
         ./build/fleetctl get hosts
         echo "Success! $EXPECTED hosts enrolled."
 
+    - name: Slack Notification
+      if: failure()
+      uses: slackapi/slack-github-action@16b6c78ee73689a627b65332b34e5d409c7299da # v1.18.0
+      with:
+        payload: |
+          {
+            "text": "${{ job.status }}\n${{ github.event.pull_request.html_url || github.event.head.html_url }}",
+            "blocks": [
+              {
+                "type": "section",
+                "text": {
+                  "type": "mrkdwn",
+                  "text": "Integration test result: ${{ job.status }}\nhttps://github.com/fleetdm/fleet/actions/runs/${{  github.run_id }}\n${{ github.event.pull_request.html_url || github.event.head.html_url }}"
+                }
+              }
+            ]
+          }
+      env:
+        SLACK_WEBHOOK_URL: ${{ secrets.SLACK_G_PLATFORM_WEBHOOK_URL }}
+        SLACK_WEBHOOK_TYPE: INCOMING_WEBHOOK
+
     - name: Cleanup tunnel
       if: always()
       run: cloudflared tunnel --origincert cert.pem delete --force ${{ needs.gen.outputs.subdomain }}    
@@ -92,7 +113,7 @@ jobs:
    steps:
     # Download fleet and fleetctl binaries from last successful build on main
     - name: Download binaries
-      uses: dawidd6/action-download-artifact@09385b76de790122f4da9c82b17bccf858b9557c #v2.16.0
+      uses: dawidd6/action-download-artifact@b2abf1705491048a2d7074f7d90513044fd25d39 #v2.16.0
       with:
         workflow: build-binaries.yaml
         branch: main
@@ -124,6 +145,9 @@ jobs:
     runs-on: macos-latest
     needs: [gen, login]
     steps:
+    - name: Checkout Code
+      uses: actions/checkout@629c2de402a417ea7690ca6ce3f33229e27606a5 # v2
+
     - name: Install dependencies
       run: |
         npm install -g fleetctl
@@ -137,13 +161,31 @@ jobs:
         SECRET=$(echo $SECRET_JSON | jq -r '.spec.secrets[0].secret')
         echo "Secret: $SECRET"
         echo "Hostname: $(hostname -s)"
-        fleetctl package --type pkg --fleet-url=${{ needs.gen.outputs.address }} --enroll-secret=$SECRET --orbit-channel=${{ matrix.orbit-channel }} --osqueryd-channel=${{ matrix.osqueryd-channel }}
+        fleetctl package --type pkg --fleet-url=${{ needs.gen.outputs.address }} --enroll-secret=$SECRET --orbit-channel=${{ matrix.orbit-channel }} --osqueryd-channel=${{ matrix.osqueryd-channel }} --fleet-desktop
         sudo installer -pkg fleet-osquery.pkg -target /
         until fleetctl get hosts | grep -iF $(hostname -s);
         do
           echo "Awaiting enrollment..."
-          sleep 1
+          sleep 10
         done
+
+    - name: Collect orbit logs
+      if: always()
+      run: |
+        mkdir orbit-logs
+        sudo cp /var/log/orbit/* orbit-logs/
+
+    - name: Upload Orbit logs
+      if: always()
+      uses: actions/upload-artifact@6673cd052c4cd6fcf4b4e6e60ea986c889389535 # v2
+      with:
+        name: orbit-macos-${{ matrix.orbit-channel }}-${{ matrix.osqueryd-channel }}-logs
+        path: |
+          orbit-logs
+
+    - name: Uninstall Orbit
+      run: |
+        ./orbit/tools/cleanup/cleanup_macos.sh
 
   orbit-ubuntu:
     timeout-minutes: 15
@@ -159,14 +201,16 @@ jobs:
         npm install -g fleetctl
         fleetctl config set --address ${{ needs.gen.outputs.address }} --token ${{ needs.login.outputs.token }}
 
-    - name: Download binaries
-      uses: dawidd6/action-download-artifact@09385b76de790122f4da9c82b17bccf858b9557c #v2.16.0
+    - name: Install Go
+      uses: actions/setup-go@f6164bd8c8acb4a71fb2791a8b6c4024ff038dab # v2
       with:
-        workflow: build-binaries.yaml
-        branch: main
-        name: build
-        path: build
-        check_artifacts: true
+        go-version: ${{ matrix.go-version }}
+
+    - name: Checkout Code
+      uses: actions/checkout@629c2de402a417ea7690ca6ce3f33229e27606a5 # v2
+
+    - name: Build Fleetctl
+      run: make fleetctl
 
     - name: Install Orbit
       run: |
@@ -183,8 +227,25 @@ jobs:
         do
           echo "Awaiting enrollment..."
           sudo systemctl status orbit.service || true
-          sleep 1
+          sleep 10
         done
+
+    - name: Collect orbit logs
+      if: always()
+      run: |
+        sudo journalctl -u orbit.service > orbit-logs
+
+    - name: Upload Orbit logs
+      if: always()
+      uses: actions/upload-artifact@6673cd052c4cd6fcf4b4e6e60ea986c889389535 # v2
+      with:
+        name: orbit-ubuntu-${{ matrix.orbit-channel }}-${{ matrix.osqueryd-channel }}-logs
+        path: |
+          orbit-logs
+
+    - name: Uninstall Orbit
+      run: |
+        sudo apt remove fleet-osquery -y
 
   orbit-windows-build:
     timeout-minutes: 15
@@ -208,11 +269,11 @@ jobs:
         SECRET=$(echo $SECRET_JSON | jq -r '.spec.secrets[0].secret')
         echo "Secret: $SECRET"
         echo "Hostname: $(hostname -s)"
-        fleetctl package --type msi --fleet-url=${{ needs.gen.outputs.address }} --enroll-secret=$SECRET  --orbit-channel=${{ matrix.orbit-channel }} --osqueryd-channel=${{ matrix.osqueryd-channel }}
+        fleetctl package --type msi --fleet-url=${{ needs.gen.outputs.address }} --enroll-secret=$SECRET --orbit-channel=${{ matrix.orbit-channel }} --osqueryd-channel=${{ matrix.osqueryd-channel }} --fleet-desktop
         mv fleet-osquery.msi orbit-${{ matrix.orbit-channel }}-osqueryd-${{ matrix.osqueryd-channel }}.msi
 
     - name: Upload MSI
-      uses: actions/upload-artifact@82c141cc518b40d92cc801eee768e7aafc9c2fa2 # v2
+      uses: actions/upload-artifact@6673cd052c4cd6fcf4b4e6e60ea986c889389535 # v2
       with:
         name: orbit-${{ matrix.orbit-channel }}-osqueryd-${{ matrix.osqueryd-channel }}.msi
         path: orbit-${{ matrix.orbit-channel }}-osqueryd-${{ matrix.osqueryd-channel }}.msi
@@ -238,7 +299,7 @@ jobs:
 
     - name: Download MSI
       id: download
-      uses: actions/download-artifact@f023be2c48cc18debc3bacd34cb396e0295e2869 # v2
+      uses: actions/download-artifact@fb598a63ae348fa914e94cd0ff38f362e927b741 # v2
       with:
         name: orbit-${{ matrix.orbit-channel }}-osqueryd-${{ matrix.osqueryd-channel }}.msi
     
@@ -251,3 +312,11 @@ jobs:
     # We can't very accurately check the install on these Windows hosts since the hostnames tend to
     # overlap and we can't control the hostnames. Instead we just return and have the run-server job
     # wait until the expected number of hosts enroll.
+
+    - name: Upload Orbit logs
+      if: always()
+      uses: actions/upload-artifact@6673cd052c4cd6fcf4b4e6e60ea986c889389535 # v2
+      with:
+        name: orbit-windows-${{ matrix.orbit-channel }}-${{ matrix.osqueryd-channel }}-logs
+        path: |
+          C:\Windows\system32\config\systemprofile\AppData\Local\FleetDM\Orbit\Logs\orbit-osquery.log

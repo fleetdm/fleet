@@ -4,7 +4,7 @@ import { InjectedRouter } from "react-router";
 import paths from "router/paths";
 import { AppContext } from "context/app";
 import { RoutingContext } from "context/routing";
-import { useDeepEffect } from "utilities/hooks";
+import useDeepEffect from "hooks/useDeepEffect";
 import { authToken } from "utilities/local";
 
 interface IAppProps {

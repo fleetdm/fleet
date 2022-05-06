@@ -36,7 +36,8 @@ interface ISettingsWrapperProp {
 
 const getTabIndex = (path: string): number => {
   return settingsSubNav.findIndex((navItem) => {
-    return navItem.pathname.includes(path);
+    // tab stays highlighted for paths that start with same pathname
+    return path.startsWith(navItem.pathname);
   });
 };
 

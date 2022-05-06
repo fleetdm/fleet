@@ -209,12 +209,10 @@ describe("Free tier - Observer user", () => {
       cy.visit("/policies/manage");
     });
     it("hides manage automations button", () => {
-      cy.findByRole("button", { name: /manage automations/i }).should(
-        "not.exist"
-      );
+      cy.findByText(/manage automations/i).should("not.exist");
     });
     it("hides add a policy button", () => {
-      cy.findByRole("button", { name: /add a policy/i }).should("not.exist");
+      cy.findByText(/add a policy/).should("not.exist");
     });
     it("hides run, edit, or delete a policy", () => {
       cy.getAttached("tbody").within(() => {

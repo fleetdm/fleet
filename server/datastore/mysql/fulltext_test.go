@@ -16,6 +16,7 @@ func TestTransformQuery(t *testing.T) {
 		{"f%5", "f%5*"},
 		{"f-o-o-b-a-r", "f o o b a r*"},
 		{"f-o+o-b--+a-r+", "f o o b a r*"},
+		{"gandalf@the_white.com", "gandalf the_white.com*"},
 	}
 
 	for _, tt := range testCases {

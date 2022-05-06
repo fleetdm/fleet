@@ -18,7 +18,7 @@ import { DEFAULT_CREATE_INTEGRATION_ERRORS } from "utilities/constants";
 import configAPI from "services/entities/config";
 
 import TableContainer from "components/TableContainer";
-import TableDataError from "components/TableDataError";
+import TableDataError from "components/DataError";
 import AddIntegrationModal from "./components/CreateIntegrationModal";
 import DeleteIntegrationModal from "./components/DeleteIntegrationModal";
 import EditIntegrationModal from "./components/EditIntegrationModal";
@@ -82,6 +82,8 @@ const IntegrationsPage = (): JSX.Element => {
             return { ...integration, index };
           });
           setIntegrationsIndexed(addIndex);
+        } else {
+          setIntegrationsIndexed([]);
         }
       },
     }
@@ -195,6 +197,7 @@ const IntegrationsPage = (): JSX.Element => {
               Successfully deleted <b>{integrationEditing.url}</b>
             </>
           );
+          refetchIntegrations();
         })
         .catch(() => {
           renderFlash(
@@ -206,7 +209,6 @@ const IntegrationsPage = (): JSX.Element => {
           );
         })
         .finally(() => {
-          refetchIntegrations();
           toggleDeleteIntegrationModal();
         });
     }

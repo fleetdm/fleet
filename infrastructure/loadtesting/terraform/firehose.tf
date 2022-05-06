@@ -1,5 +1,5 @@
 resource "aws_s3_bucket" "osquery-results" { #tfsec:ignore:aws-s3-encryption-customer-key tfsec:ignore:aws-s3-enable-bucket-logging tfsec:ignore:aws-s3-enable-versioning
-  bucket = "fleet-loadtest-osquery-logs-archive"
+  bucket = "${local.prefix}-loadtest-osquery-logs-archive"
   acl    = "private"
 
   lifecycle_rule {
@@ -31,7 +31,7 @@ resource "aws_s3_bucket_public_access_block" "osquery-results" {
 }
 
 resource "aws_s3_bucket" "osquery-status" { #tfsec:ignore:aws-s3-encryption-customer-key tfsec:ignore:aws-s3-enable-bucket-logging tfsec:ignore:aws-s3-enable-versioning
-  bucket = "fleet-loadtest-osquery-status-archive"
+  bucket = "${local.prefix}-loadtest-osquery-status-archive"
   acl    = "private"
 
   lifecycle_rule {
@@ -90,12 +90,12 @@ data "aws_iam_policy_document" "osquery_status_policy_doc" {
 }
 
 resource "aws_iam_policy" "firehose-results" {
-  name   = "osquery_results_firehose_policy"
+  name   = "${local.prefix}-osquery_results_firehose_policy"
   policy = data.aws_iam_policy_document.osquery_results_policy_doc.json
 }
 
 resource "aws_iam_policy" "firehose-status" {
-  name   = "osquery_status_firehose_policy"
+  name   = "${local.prefix}-osquery_status_firehose_policy"
   policy = data.aws_iam_policy_document.osquery_status_policy_doc.json
 }
 
@@ -129,7 +129,7 @@ data "aws_iam_policy_document" "osquery_firehose_assume_role" {
 }
 
 resource "aws_kinesis_firehose_delivery_stream" "osquery_results" {
-  name        = "osquery_results"
+  name        = "${local.prefix}-osquery_results"
   destination = "s3"
 
   s3_configuration {
@@ -139,7 +139,7 @@ resource "aws_kinesis_firehose_delivery_stream" "osquery_results" {
 }
 
 resource "aws_kinesis_firehose_delivery_stream" "osquery_status" {
-  name        = "osquery_status"
+  name        = "${local.prefix}-osquery_status"
   destination = "s3"
 
   s3_configuration {

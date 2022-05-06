@@ -1197,6 +1197,19 @@ Applies only when `osquery_enable_async_host_processing` is enabled. Order of ma
   	async_host_redis_scan_keys_count: 100
   ```
 
+##### osquery_min_software_last_opened_at_diff
+
+The minimum time difference between the software's "last opened at" timestamp reported by osquery and the last timestamp saved for that software on that host helps minimize the number of updates required when a host reports its installed software information, resulting in less load on the database. If there is no existing timestamp for the software on that host (or if the software was not installed on that host previously), the new timestamp is automatically saved.
+
+- Default value: 1h
+- Environment variable: `FLEET_OSQUERY_MIN_SOFTWARE_LAST_OPENED_AT_DIFF`
+- Config file format:
+
+  ```
+  osquery:
+  	min_software_last_opened_at_diff: 4h
+  ```
+
 ##### Example YAML
 
 ```yaml
@@ -2187,7 +2200,7 @@ Maximum age of a vulnerability (a CVE) to be considered "recent". The age is cal
 
   ```
   vulnerabilities:
-  	recent_vulnerability_max_age: 48h
+       recent_vulnerability_max_age: 48h
   ```
 
 ##### Example YAML
@@ -2200,7 +2213,6 @@ spec:
     databases_path: /some/path
     current_instance_checks: yes
     disable_data_sync: true
-
 ```
 
 #### GeoIP
@@ -2313,10 +2325,10 @@ _**Note that the email being used in the SAML Assertion must match a user that a
 Setting up the service provider (Fleet) with an identity provider generally requires the following information:
 
 - _Assertion Consumer Service_ - This is the call back URL that the identity provider
-  will use to send security assertions to Fleet. In Okta, this field is called _Single sign on URL_. On Google it is "ACS URL". The value that you supply will be a fully qualified URL consisting of your Fleet web address and the callback path `/api/latest/fleet/sso/callback`. For example, if your Fleet web address is https://fleet.example.com, then the value you would use in the identity provider configuration would be:
+  will use to send security assertions to Fleet. In Okta, this field is called _single sign on URL_. On Google it is "ACS URL." The value that you supply will be a fully qualified URL consisting of your Fleet web address and the callback path `/api/v1/fleet/sso/callback`. For example, if your Fleet web address is https://fleet.example.com, then the value you would use in the identity provider configuration would be:
 
   ```
-  https://fleet.example.com/api/latest/fleet/sso/callback
+  https://fleet.example.com/api/v1/fleet/sso/callback
   ```
 
 - _Entity ID_ - This value is an identifier that you choose. It identifies your Fleet instance as the service provider that issues authorization requests. The value must exactly match the Entity ID that you define in the Fleet SSO configuration.
@@ -2404,7 +2416,7 @@ Follow these steps to configure Fleet SSO with Google Workspace. This will requi
 
 5. In Google Workspace, configure the _Service provider details_.
 
-  - For _ACS URL_, use `https://<your_fleet_url>/api/latest/fleet/sso/callback` (eg. `https://fleet.example.com/api/latest/fleet/sso/callback`).
+  - For _ACS URL_, use `https://<your_fleet_url>/api/v1/fleet/sso/callback` (eg. `https://fleet.example.com/api/v1/fleet/sso/callback`).
   - For Entity ID, use **the same unique identifier from step 4** (eg. `fleet.example.com`).
   - For _Name ID format_ choose `EMAIL`.
   - For _Name ID_ choose `Basic Information > Primary email`.

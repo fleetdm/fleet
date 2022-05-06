@@ -229,10 +229,10 @@ describe("Premium tier - Team observer/maintainer user", () => {
         cy.getAttached(".enroll-secret-modal__add-secret")
           .contains("button", /add secret/i)
           .click();
-        cy.getAttached(".secret-editor-modal__button-wrap")
+        cy.getAttached(".secret-editor-modal .modal-cta-wrap")
           .contains("button", /save/i)
           .click();
-        cy.getAttached(".enroll-secret-modal__button-wrap")
+        cy.getAttached(".enroll-secret-modal .modal-cta-wrap")
           .contains("button", /done/i)
           .click();
       });
@@ -276,8 +276,8 @@ describe("Premium tier - Team observer/maintainer user", () => {
         cy.findByText(/apples/i).click();
         cy.findByText(/oranges/i).click();
 
-        // On maintaining team, should see the "Manage automations" button
-        cy.findByText(/manage automations/i).should("exist");
+        // On maintaining team, should not see the "Manage automations" button
+        cy.findByText(/manage automations/i).should("not.exist");
         // On maintaining team, should see "add a policy" and "save" a policy
         cy.findByText(/add a policy/i).click();
 

@@ -27,7 +27,7 @@ Unlike the [Fleet REST API documentation](../Using-Fleet/REST-API.md), the API r
 
 Returns a list of all queries in the Fleet instance. Each item returned includes the name, description, and SQL of the query.
 
-`GET /api/latest/fleet/spec/queries`
+`GET /api/v1/fleet/spec/queries`
 
 #### Parameters
 
@@ -35,7 +35,7 @@ None.
 
 #### Example
 
-`GET /api/latest/fleet/spec/queries`
+`GET /api/v1/fleet/spec/queries`
 
 ##### Default response
 
@@ -52,9 +52,9 @@ None.
     {
       "name": "osquery_schedule",
       "description": "Report performance stats for each file in the query schedule.",
-      "query": "select name, interval, executions, output_size, wall_time, (user_time/executions) as avg_user_time, (system_time/executions) as avg_system_time, average_memory, last_executed from osquery_schedule;"
+      "query": "SELECT name, interval, executions, output_size, wall_time, (user_time/executions) AS avg_user_time, (system_time/executions) AS avg_system_time, average_memory, last_executed FROM osquery_schedule;"
     }
-  ]
+]
 }
 ```
 
@@ -62,7 +62,7 @@ None.
 
 Returns the name, description, and SQL of the query specified by name.
 
-`GET /api/latest/fleet/spec/queries/{name}`
+`GET /api/v1/fleet/spec/queries/{name}`
 
 #### Parameters
 
@@ -72,7 +72,7 @@ Returns the name, description, and SQL of the query specified by name.
 
 #### Example
 
-`GET /api/latest/fleet/spec/queries/query1`
+`GET /api/v1/fleet/spec/queries/query1`
 
 ##### Default response
 
@@ -92,7 +92,7 @@ Returns the name, description, and SQL of the query specified by name.
 
 Creates and/or modifies the queries included in the specs list. To modify an existing query, the name of the query included in `specs` must already be used by an existing query. If a query with the specified name doesn't exist in Fleet, a new query will be created.
 
-`POST /api/latest/fleet/spec/queries`
+`POST /api/v1/fleet/spec/queries`
 
 #### Parameters
 
@@ -102,7 +102,7 @@ Creates and/or modifies the queries included in the specs list. To modify an exi
 
 #### Example
 
-`POST /api/latest/fleet/spec/queries`
+`POST /api/v1/fleet/spec/queries`
 
 ##### Request body
 
@@ -131,11 +131,11 @@ Creates and/or modifies the queries included in the specs list. To modify an exi
 
 Returns the specs for all packs in the Fleet instance.
 
-`GET /api/latest/fleet/spec/packs`
+`GET /api/v1/fleet/spec/packs`
 
 #### Example
 
-`GET /api/latest/fleet/spec/packs`
+`GET /api/v1/fleet/spec/packs`
 
 ##### Default response
 
@@ -247,7 +247,7 @@ Returns the specs for all packs in the Fleet instance.
 
 Returns the specs for all packs in the Fleet instance.
 
-`POST /api/latest/fleet/spec/packs`
+`POST /api/v1/fleet/spec/packs`
 
 #### Parameters
 
@@ -257,7 +257,7 @@ Returns the specs for all packs in the Fleet instance.
 
 #### Example
 
-`POST /api/latest/fleet/spec/packs`
+`POST /api/v1/fleet/spec/packs`
 
 ##### Request body
 
@@ -356,7 +356,7 @@ Returns the specs for all packs in the Fleet instance.
 
 Returns the spec for the specified pack by pack name.
 
-`GET /api/latest/fleet/spec/packs/{name}`
+`GET /api/v1/fleet/spec/packs/{name}`
 
 #### Parameters
 
@@ -366,7 +366,7 @@ Returns the spec for the specified pack by pack name.
 
 #### Example
 
-`GET /api/latest/fleet/spec/packs/pack_1`
+`GET /api/v1/fleet/spec/packs/pack_1`
 
 ##### Default response
 
@@ -447,19 +447,19 @@ If the `name` specified is associated with an existing team, this API route, com
 
 If the `name` is not already associated with an existing team, this API route creates a new team with the specified `name`, `agent_options`, and `secrets`.
 
-`POST /api/latest/fleet/spec/teams`
+`POST /api/v1/fleet/spec/teams`
 
 #### Parameters
 
 | Name          | Type   | In   | Description                                                                                                                                                                                                                                             |
 | ------------- | ------ | ---- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | name          | string | body | **Required.** The team's name.                                                                                                                                                                                                                          |
-| agent_options | string | body | **Required.** The agent options spec that is applied to the hosts assigned to the specified to team. These agent agent options completely override the global agent options specified in the [`GET /api/latest/fleet/config API route`](#get-configuration) |
-| secrets       | list   | body | **Required.** A list of plain text strings used as the enroll secrets.                                                                                                                                                                                  |
+| agent_options | string | body | **Required.** The agent options spec that is applied to the hosts assigned to the specified to team. These agent agent options completely override the global agent options specified in the [`GET /api/v1/fleet/config API route`](#get-configuration)  |
+| secrets       | list   | body | **Required.** A list of plain text strings is used as the enroll secrets.                                                                                                                                                                                  |
 
 #### Example
 
-`POST /api/latest/fleet/spec/teams`
+`POST /api/v1/fleet/spec/teams`
 
 ##### Request body
 
@@ -477,7 +477,7 @@ If the `name` is not already associated with an existing team, this API route cr
               "logger_tls_period": 10,
               "distributed_plugin": "tls",
               "disable_distributed": false,
-              "logger_tls_endpoint": "/api/osquery/log",
+              "logger_tls_endpoint": "/api/v1/osquery/log",
               "distributed_interval": 10,
               "distributed_tls_max_attempts": 3
             },
@@ -516,7 +516,7 @@ If the `label_membership_type` is set to `dynamic`, the `query` property must al
 
 If the `label_membership_type` is set to `manual`, the `hosts` property must also be specified with the value set to a list of hostnames.
 
-`POST /api/latest/fleet/spec/labels`
+`POST /api/v1/fleet/spec/labels`
 
 #### Parameters
 
@@ -526,7 +526,7 @@ If the `label_membership_type` is set to `manual`, the `hosts` property must als
 
 #### Example
 
-`POST /api/latest/fleet/spec/labels`
+`POST /api/v1/fleet/spec/labels`
 
 ##### Request body
 
@@ -536,7 +536,7 @@ If the `label_membership_type` is set to `manual`, the `hosts` property must als
     {
       "name": "Ubuntu",
       "description": "Filters ubuntu hosts",
-      "query": "select 1 from os_version where platform = 'ubuntu';",
+      "query": "SELECT 1 FROM os_version WHERE platform = 'ubuntu';",
       "label_membership_type": "dynamic"
     },
     {
@@ -555,7 +555,7 @@ If the `label_membership_type` is set to `manual`, the `hosts` property must als
 
 ### Get labels spec
 
-`GET /api/latest/fleet/spec/labels`
+`GET /api/v1/fleet/spec/labels`
 
 #### Parameters
 
@@ -563,7 +563,7 @@ None.
 
 #### Example
 
-`GET /api/latest/fleet/spec/labels`
+`GET /api/v1/fleet/spec/labels`
 
 ##### Default response
 
@@ -576,7 +576,7 @@ None.
       "id": 6,
       "name": "All Hosts",
       "description": "All hosts which have enrolled in Fleet",
-      "query": "select 1;",
+      "query": "SELECT 1;",
       "label_type": "builtin",
       "label_membership_type": "dynamic"
     },
@@ -584,7 +584,7 @@ None.
       "id": 7,
       "name": "macOS",
       "description": "All macOS hosts",
-      "query": "select 1 from os_version where platform = 'darwin';",
+      "query": "SELECT 1 FROM os_version WHERE platform = 'darwin';",
       "platform": "darwin",
       "label_type": "builtin",
       "label_membership_type": "dynamic"
@@ -593,7 +593,7 @@ None.
       "id": 8,
       "name": "Ubuntu Linux",
       "description": "All Ubuntu hosts",
-      "query": "select 1 from os_version where platform = 'ubuntu';",
+      "query": "SELECT 1 FROM os_version WHERE platform = 'ubuntu';",
       "platform": "ubuntu",
       "label_type": "builtin",
       "label_membership_type": "dynamic"
@@ -602,7 +602,7 @@ None.
       "id": 9,
       "name": "CentOS Linux",
       "description": "All CentOS hosts",
-      "query": "select 1 from os_version where platform = 'centos' or name like '%centos%'",
+      "query": "SELECT 1 FROM os_version WHERE platform = 'centos' OR name LIKE '%centos%'",
       "label_type": "builtin",
       "label_membership_type": "dynamic"
     },
@@ -610,7 +610,7 @@ None.
       "id": 10,
       "name": "MS Windows",
       "description": "All Windows hosts",
-      "query": "select 1 from os_version where platform = 'windows';",
+      "query": "SELECT 1 FROM os_version WHERE platform = 'windows';",
       "platform": "windows",
       "label_type": "builtin",
       "label_membership_type": "dynamic"
@@ -619,7 +619,7 @@ None.
       "id": 11,
       "name": "Ubuntu",
       "description": "Filters ubuntu hosts",
-      "query": "select 1 from os_version where platform = 'ubuntu';",
+      "query": "SELECT 1 FROM os_version WHERE platform = 'ubuntu';",
       "label_membership_type": "dynamic"
     }
   ]
@@ -630,7 +630,7 @@ None.
 
 Returns the spec for the label specified by name.
 
-`GET /api/latest/fleet/spec/labels/{name}`
+`GET /api/v1/fleet/spec/labels/{name}`
 
 #### Parameters
 
@@ -638,7 +638,7 @@ None.
 
 #### Example
 
-`GET /api/latest/fleet/spec/labels/local_machine`
+`GET /api/v1/fleet/spec/labels/local_machine`
 
 ##### Default response
 
@@ -660,7 +660,7 @@ None.
 
 Returns the valid global enroll secrets.
 
-`GET /api/latest/fleet/spec/enroll_secret`
+`GET /api/v1/fleet/spec/enroll_secret`
 
 #### Parameters
 
@@ -668,7 +668,7 @@ None.
 
 #### Example
 
-`GET /api/latest/fleet/spec/enroll_secret`
+`GET /api/v1/fleet/spec/enroll_secret`
 
 ##### Default response
 
@@ -695,7 +695,7 @@ None.
 
 Replaces the active global enroll secrets with the secrets specified.
 
-`POST /api/latest/fleet/spec/enroll_secret`
+`POST /api/v1/fleet/spec/enroll_secret`
 
 #### Parameters
 
@@ -719,7 +719,7 @@ Replaces the active global enroll secrets with the secrets specified.
 }
 ```
 
-`POST /api/latest/fleet/spec/enroll_secret`
+`POST /api/v1/fleet/spec/enroll_secret`
 
 ##### Default response
 
@@ -729,7 +729,7 @@ Replaces the active global enroll secrets with the secrets specified.
 
 Checks the status of the Fleet's ability to run a live query. If an error is present in the response, Fleet won't be able to successfully run a live query. This endpoint is used by the Fleet UI to make sure that the Fleet instance is correctly configured to run live queries.
 
-`GET /api/latest/fleet/status/live_query`
+`GET /api/v1/fleet/status/live_query`
 
 #### Parameters
 
@@ -737,7 +737,7 @@ None.
 
 #### Example
 
-`GET /api/latest/fleet/status/live_query`
+`GET /api/v1/fleet/status/live_query`
 
 ##### Default response
 
@@ -747,7 +747,7 @@ None.
 
 Checks the status of the Fleet's result store. If an error is present in the response, Fleet won't be able to successfully run a live query. This endpoint is used by the Fleet UI to make sure that the Fleet instance is correctly configured to run live queries.
 
-`GET /api/latest/fleet/status/result_store`
+`GET /api/v1/fleet/status/result_store`
 
 #### Parameters
 
@@ -755,7 +755,7 @@ None.
 
 #### Example
 
-`GET /api/latest/fleet/status/result_store`
+`GET /api/v1/fleet/status/result_store`
 
 ##### Default response
 
@@ -767,7 +767,7 @@ Runs the specified query as a live query on the specified hosts or group of host
 
 After the query has been initiated, [get results via WebSocket](#retrieve-live-query-results-standard-websocket-api).
 
-`POST /api/latest/fleet/queries/run`
+`POST /api/v1/fleet/queries/run`
 
 #### Parameters
 
@@ -781,13 +781,13 @@ One of `query` and `query_id` must be specified.
 
 #### Example with one host targeted by ID
 
-`POST /api/latest/fleet/queries/run`
+`POST /api/v1/fleet/queries/run`
 
 ##### Request body
 
 ```json
 {
-  "query": "select instance_id from system_info",
+  "query": "SELECT instance_id FROM system_info",
   "selected": {
     "hosts": [171]
   }
@@ -820,13 +820,13 @@ One of `query` and `query_id` must be specified.
 
 #### Example with multiple hosts targeted by label ID
 
-`POST /api/latest/fleet/queries/run`
+`POST /api/v1/fleet/queries/run`
 
 ##### Request body
 
 ```json
 {
-  "query": "select instance_id from system_info;",
+  "query": "SELECT instance_id FROM system_info;",
   "selected": {
     "labels": [7]
   }
@@ -863,7 +863,7 @@ Runs the specified saved query as a live query on the specified targets. Returns
 
 After the query has been initiated, [get results via WebSocket](#retrieve-live-query-results-standard-websocket-api).
 
-`POST /api/latest/fleet/queries/run_by_names`
+`POST /api/v1/fleet/queries/run_by_names`
 
 #### Parameters
 
@@ -877,7 +877,7 @@ One of `query` and `query_id` must be specified.
 
 #### Example with one host targeted by hostname
 
-`POST /api/latest/fleet/queries/run_by_names`
+`POST /api/v1/fleet/queries/run_by_names`
 
 ##### Request body
 
@@ -916,13 +916,13 @@ One of `query` and `query_id` must be specified.
 
 #### Example with multiple hosts targeted by label name
 
-`POST /api/latest/fleet/queries/run_by_names`
+`POST /api/v1/fleet/queries/run_by_names`
 
 ##### Request body
 
 ```json
 {
-  "query": "select instance_id from system_info",
+  "query": "SELECT instance_id FROM system_info",
   "selected": {
     "labels": ["All Hosts"]
   }
@@ -975,7 +975,7 @@ Note that live queries are automatically cancelled if this method is not called 
 #### Example script to handle request and response
 
 ```
-const socket = new WebSocket('wss://<your-base-url>/api/v1/fleet/results/websocket');
+const socket = new WebSocket('wss://<your-base-url>/api/v1/fleet/results/websockets');
 
 socket.onopen = () => {
   socket.send(JSON.stringify({ type: 'auth', data: { token: <auth-token> } }));
@@ -1238,7 +1238,7 @@ Creates and/or modifies the policies included in the specs list. To modify an ex
 
 NOTE: when updating a policy, team and platform will be ignored.
 
-`POST /api/latest/fleet/spec/policies`
+`POST /api/v1/fleet/spec/policies`
 
 #### Parameters
 
@@ -1248,7 +1248,7 @@ NOTE: when updating a policy, team and platform will be ignored.
 
 #### Example
 
-`POST /api/latest/fleet/spec/policies`
+`POST /api/v1/fleet/spec/policies`
 
 ##### Request body
 

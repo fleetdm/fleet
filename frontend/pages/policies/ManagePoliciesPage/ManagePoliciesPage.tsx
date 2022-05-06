@@ -17,20 +17,19 @@ import configAPI from "services/entities/config";
 import globalPoliciesAPI from "services/entities/global_policies";
 import teamPoliciesAPI from "services/entities/team_policies";
 import teamsAPI from "services/entities/teams";
-import usersAPI, { IGetMeResponse } from "services/entities/users";
 
 import Button from "components/buttons/Button";
 import RevealButton from "components/buttons/RevealButton";
 import Spinner from "components/Spinner";
 import TeamsDropdown from "components/TeamsDropdown";
-import TableDataError from "components/TableDataError";
+import TableDataError from "components/DataError";
 import PoliciesListWrapper from "./components/PoliciesListWrapper";
 import ManageAutomationsModal from "./components/ManageAutomationsModal";
 import AddPolicyModal from "./components/AddPolicyModal";
 import RemovePoliciesModal from "./components/RemovePoliciesModal";
 
 interface IManagePoliciesPageProps {
-  router: InjectedRouter; // v3
+  router: InjectedRouter;
   location: {
     action: string;
     hash: string;
@@ -97,13 +96,6 @@ const ManagePolicyPage = ({
     setLastEditedQueryPlatform(null);
   }, []);
 
-  useQuery(["me"], () => usersAPI.me(), {
-    onSuccess: ({ user, available_teams }: IGetMeResponse) => {
-      setCurrentUser(user);
-      setAvailableTeams(available_teams);
-    },
-  });
-
   const {
     data: globalPolicies,
     error: globalPoliciesError,
@@ -138,6 +130,7 @@ const ManagePolicyPage = ({
 
   const canAddOrRemovePolicy =
     isGlobalAdmin || isGlobalMaintainer || isTeamMaintainer || isTeamAdmin;
+  const canManageAutomations = isGlobalAdmin || isTeamAdmin;
 
   const { isLoading: isLoadingWebhooks, refetch: refetchWebhooks } = useQuery<
     IConfig | ILoadTeamResponse,
@@ -335,6 +328,9 @@ const ManagePolicyPage = ({
     }
   }, [availableTeams]);
 
+  const showCtaButtons =
+    (!!teamId && teamPolicies) || (!teamId && globalPolicies);
+
   return !availableTeams ? (
     <Spinner />
   ) : (
@@ -363,30 +359,32 @@ const ManagePolicyPage = ({
               </div>
             </div>
           </div>
-          <div className={`${baseClass} button-wrap`}>
-            {canAddOrRemovePolicy &&
-              !isLoadingWebhooks &&
-              !isLoadingGlobalPolicies && (
-                <Button
-                  onClick={toggleManageAutomationsModal}
-                  className={`${baseClass}__manage-automations button`}
-                  variant="inverse"
-                >
-                  <span>Manage automations</span>
-                </Button>
+          {showCtaButtons && (
+            <div className={`${baseClass} button-wrap`}>
+              {canManageAutomations &&
+                !isLoadingWebhooks &&
+                !isLoadingGlobalPolicies && (
+                  <Button
+                    onClick={toggleManageAutomationsModal}
+                    className={`${baseClass}__manage-automations button`}
+                    variant="inverse"
+                  >
+                    <span>Manage automations</span>
+                  </Button>
+                )}
+              {canAddOrRemovePolicy && (
+                <div className={`${baseClass}__action-button-container`}>
+                  <Button
+                    variant="brand"
+                    className={`${baseClass}__select-policy-button`}
+                    onClick={onAddPolicyClick}
+                  >
+                    Add a policy
+                  </Button>
+                </div>
               )}
-            {canAddOrRemovePolicy && (
-              <div className={`${baseClass}__action-button-container`}>
-                <Button
-                  variant="brand"
-                  className={`${baseClass}__select-policy-button`}
-                  onClick={onAddPolicyClick}
-                >
-                  Add a policy
-                </Button>
-              </div>
-            )}
-          </div>
+            </div>
+          )}
         </div>
         <div className={`${baseClass}__description`}>
           {showTeamDescription ? (
@@ -411,6 +409,7 @@ const ManagePolicyPage = ({
               <PoliciesListWrapper
                 policiesList={teamPolicies || []}
                 isLoading={isLoadingTeamPolicies && isLoadingWebhooks}
+                onAddPolicyClick={onAddPolicyClick}
                 onRemovePoliciesClick={onRemovePoliciesClick}
                 canAddOrRemovePolicy={canAddOrRemovePolicy}
                 currentTeam={currentTeam}
@@ -426,6 +425,7 @@ const ManagePolicyPage = ({
               <PoliciesListWrapper
                 policiesList={globalPolicies || []}
                 isLoading={isLoadingGlobalPolicies && isLoadingWebhooks}
+                onAddPolicyClick={onAddPolicyClick}
                 onRemovePoliciesClick={onRemovePoliciesClick}
                 canAddOrRemovePolicy={canAddOrRemovePolicy}
                 currentTeam={currentTeam}

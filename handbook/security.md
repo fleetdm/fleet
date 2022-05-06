@@ -1,37 +1,63 @@
 # Security
 
+## Account recovery process
+
+As an all-remote company, we do not have the luxury of seeing each other or are able to ask for help in person. Instead, we require live video confirmation of someone's identity before performing recovery and this applies to all Fleet company accounts, from internal systems to SaaS accounts.
+
+| Participant | Role                                                                                                                                                 |
+| ----------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Requester   | Requests recovery for their own account                                                                |
+| Recoverer   | Person with access to perform the recovery who monitors *#help-login*                                                                                                                               |
+| Identifier  | Person that visually identifies the requester in a video call. The identifier can be the recoverer or a person the recoverer can recognize visually |
+
+
+Here are the steps we take for the recovery process:
+
+
+1. If the requester still has access to Slack, they ask for help in *#help-login*. If they do not have access to Slack, they can contact their manager or a teammate over the phone via voice or texting, and they will post in *#help-login* for the requester.
+2. A recoverer acknowledges the request in #help-login using the "eyes" emoji 👀.
+3. The recoverer identifies the requester through a live video call.
+* If the recoverer does not know the requester well enough to positively identify them visually, the
+  recoverer can ask a colleague whom they recognize to act as the identifier. **All three must be
+  live on a video call at the same time.**
+*  For example, if the recoverer does not recognize Guillaume but can recognize Zach, they should ask Zach to identify Guillaume. Using the requester's manager or a direct teammate is recommended, as it increases the chances they see each other on video frequently.
+4. If the recoverer recognizes the requester, or has the identity confirmed by the person acting as
+   the identifier, they can perform the recovery and update the thread in *#help-login*.
+* If the recoverer is not 100% satisfied with identification, they do **NOT** proceed, and post to #g-security to engage the security team immediately.
+
+
 ## How we protect end-user devices
 
 At Fleet, we believe that a good user experience empowers contributors.
 
-We follow the guiding principles below to secure our company-owned devices:
+We follow the guiding principles below to secure our company-owned devices.
 
 * Our devices should give contributors the freedom to work from anywhere.
 * To allow maximum freedom in where and how we work, we assume that "Safe" networks do not exist. Contributors should be able to work on a coffee shop's Wi-Fi as if it were their home or work network.
-* To limit the impact on user experience, we do not dictate security configurations unless the security benefit is significant; only if it dramatically reduces risk for the company, customers, or open source users.
+* To limit the impact on user experience, we do not dictate security configurations unless the security benefit is significant (only if it dramatically reduces risk for the company, customers, or open source users).
 * By using techniques such as Two-Factor Authentication (2FA), code reviews, and more, we can further empower contributors to work comfortably from any location - on any network.
 
 
 ### macOS devices
 > *Find more information about the process of implementing security on the Fleet blog. The first [Tales from Fleet security: securing the startup](https://blog.fleetdm.com/tales-from-fleet-security-securing-the-startup-448ea590ea3a) article covers the process of securing our laptops.*
 
-We use configuration profiles to standardize security settings for our Mac devices. We use [CIS Benchmark for macOS 12](https://www.cisecurity.org/benchmark/apple_os), as our configuration baseline, and adapt it to:
-* Suit a remote team
-* Balance the need for productivity and security
-* Limit the impact on the daily use of our devices
+We use configuration profiles to standardize security settings for our Mac devices. We use [CIS Benchmark for macOS 12](https://www.cisecurity.org/benchmark/apple_os) as our configuration baseline and adapt it to:
+* suit a remote team.
+* balance the need for productivity and security.
+* limit the impact on the daily use of our devices.
 
 > *Note: Details of your Mac’s configuration profile can be viewed anytime from the **Profiles** app under **System Preferences**.*
 
 
 
-Our policy, which applies to Fleet owned laptops purchased via Apple's DEP (Device Enrollment Program), and which will retroactively be applied to every company owned Mac consists of: 
+Our policy applies to Fleet-owned laptops purchased via Apple's DEP (Device Enrollment Program) which will retroactively be applied to every company-owned Mac consists of the below. 
 
 #### Enabling automatic updates
 
 | #   | Setting                                                                                |
 | --- | -------------------------------------------------------------------------------------- |
 | 1.1 | Ensure all Apple-provided software is current                                          |
-| 1.2 | Ensure auto update is enabled                                                          |
+| 1.2 | Ensure auto-update is enabled                                                          |
 | 1.4 | Ensure installation of app updates is enabled                                          |
 | 1.5 | Ensure system data files and security updates are downloaded automatically is enabled |
 | 1.6 | Ensure install of macOS updates is enabled                             |
@@ -42,20 +68,20 @@ Our policy, which applies to Fleet owned laptops purchased via Apple's DEP (Devi
 
 Keeping software up-to-date helps to improve the resilience of our Mac fleet. Software updates include security updates that fix vulnerabilities that could otherwise be exploited. Browsers, for example, are often exposed to untrusted code, have a significant attack surface, and are frequently attacked.
 
-macOS includes [malware protection tools](https://support.apple.com/en-ca/guide/security/sec469d47bd8/web) such as *Xprotect*, which is antivirus technology based on [YARA](https://github.com/VirusTotal/yara), and MRT (Malware Removal Tool), which is a tool built by Apple to remove common malware from systems that are infected.
-By enabling these settings we:
+macOS includes [malware protection tools](https://support.apple.com/en-ca/guide/security/sec469d47bd8/web) such as *Xprotect*. This is an antivirus technology based on [YARA](https://github.com/VirusTotal/yara), and MRT (Malware Removal Tool), a tool built by Apple to remove common malware from systems that are infected.
+By enabling these settings, we:
 
 * Ensure the operating system is kept up to date.
-* Ensure XProtect and MRT are as up to date as possible.
+* Ensure XProtect and MRT are as up-to-date as possible.
 * Ensure that Safari is kept up to date. 
 
 This improves the resilience of our Mac fleet. 
 
-**User experience impact**
+**User experience impacts**
 
 * Updates are required, which can be disruptive. For this reason, we allow the user to **postpone the installation 5 times**.
-* Critical security updates are automatically downloaded, which could result in bandwidth use on slow or expensive links. For this reason, we limit automatic downloads to critical security updates only, while feature updates, that are typically larger, are downloaded at the time of installation selected by the user.
-* Enforced updates **do not** include major macOS releases (e.g., 11➡️12). Those updates are tracked and enforced separately, as the impact can be more significant. We require installation of the latest macOS version within 3 months of release, or when known vulnerabilities have remained unpatched on the older version.
+* Critical security updates are automatically downloaded, which could result in bandwidth use on slow or expensive links. For this reason, we limit automatic downloads to critical security updates only, while feature updates, which are typically larger, are downloaded at the time of installation selected by the user.
+* Enforced updates **do not** include significant macOS releases (e.g., 11➡️12). Those updates are tracked and enforced separately, as the impact can be more significant. We require installing the latest macOS version within 3 months of release or when known vulnerabilities remain unpatched on the older version.
 
 #### Time and date
 
@@ -65,8 +91,8 @@ This improves the resilience of our Mac fleet.
 
 **Why?**
 
-Accurate time is important for two main reasons:
-1. Authentication. Many authentication systems like [Kerberos](https://en.wikipedia.org/wiki/Kerberos_(protocol)) and [SAML](https://en.wikipedia.org/wiki/Security_Assertion_Markup_Language) require the time between clients and servers to be [close](http://web.mit.edu/Kerberos/krb5-1.5/krb5-1.5.4/doc/krb5-admin/Clock-Skew.html). Keeping accurate time allows those protocols to prevent attacks that would leverage old authentication sessions. 
+An accurate time is important for two main reasons
+1. Authentication. Many authentication systems like [Kerberos](https://en.wikipedia.org/wiki/Kerberos_(protocol)) and [SAML](https://en.wikipedia.org/wiki/Security_Assertion_Markup_Language) require the time between clients and servers to be [close](http://web.mit.edu/Kerberos/krb5-1.5/krb5-1.5.4/doc/krb5-admin/Clock-Skew.html). Keeping accurate time allows those protocols to prevent attacks that leverage old authentication sessions. 
 2. Logging. Performing troubleshooting or incident response is much easier when all the logs involved have close to perfectly synchronized timestamps.
 
 **User experience impact**
@@ -83,15 +109,15 @@ Accurate time is important for two main reasons:
 
 **Why?**
 
-This category of settings is special because there are more settings that we do *not* configure than ones we do.
+This category of settings is special because there are more settings that we do *not* configure than those we do.
 
-We follow the CIS benchmark where it makes sense, and in this case, take guidance from [NIST SP800-63B - Digital Identity Guidelines](https://pages.nist.gov/800-63-3/sp800-63b.html), especially [Appendix A -Strength of Memorized Secrets](https://pages.nist.gov/800-63-3/sp800-63b.html#appA).
+We follow the CIS benchmark where it makes sense and in this case, take guidance from [NIST SP800-63B - Digital Identity Guidelines](https://pages.nist.gov/800-63-3/sp800-63b.html), especially [Appendix A -Strength of Memorized Secrets](https://pages.nist.gov/800-63-3/sp800-63b.html#appA).
 
 * We do NOT enforce special complexity beyond requiring letters to be in the password.
 
 Length is the most important factor when determining a secure password; while enforcing password expiration, special characters and other restrictive patterns are not as effective as previously believed and provide little benefit at the cost of hurting the user experience.
 
-* We do NOT enforce extremely long passwords. 
+* We do NOT enforce exceptionally long passwords. 
 
 As we use recent Macs with T2 chips or Apple Silicon, brute-force attacks against the hardware are [mitigated](https://www.apple.com/mideast/mac/docs/Apple_T2_Security_Chip_Overview.pdf).
 
@@ -122,12 +148,12 @@ Since we can't eliminate the risk of passwords being cracked remotely, we requir
 * Laptops with tunnels connecting to internal systems (TLS tunnel, SSH tunnel, VPN.) or multiple network interfaces could be turned into a bridge and exposed to an attack if internet sharing is enabled. 
 * Guest access to shared data could lead to accidental exposure of confidential work files.
 
-**User experience impact**
+**User experience impacts**
 
-* Inability to use the computer as a server to share internet access, printers, content caching of macOS and iOS updates, and streaming iTunes media to devices on the local network.
+* The inability to use the computer as a server to share internet access, printers, content caching of macOS and iOS updates, and streaming iTunes media to devices on the local network.
 * File shares require an account.
 
-#### Encryption, Gatekeeper and firewall
+#### Encryption, Gatekeeper, and firewall
 
 | #       | Setting                                           |
 | ------- | ------------------------------------------------- |
@@ -141,13 +167,13 @@ Since we can't eliminate the risk of passwords being cracked remotely, we requir
 
 * Using FileVault protects the data on our laptops, including confidential data and session material (browser cookies), SSH keys, and more. Using FileVault ensures a lost laptop is a minor inconvenience and not an incident. We escrow the keys to be sure we can recover the data if needed.
 * [Gatekeeper](https://support.apple.com/en-ca/HT202491) is a macOS feature that ensures users can safely open software on their Mac. With Gatekeeper enabled, users may execute only trustworthy apps (signed by the software developer and/or checked for malicious software by Apple). This is a useful first line of defense to have.
-* Using the firewall will ensure that we limit the exposure to our devices, while Stealth mode makes them more difficult to discover. 
+* Using the firewall will ensure that we limit the exposure to our devices, while stealth mode makes them more challeging to discover. 
 * Firewall logging allows us to troubleshoot and investigate whether the firewall blocks applications or connections.
 
-**User experience impact**
+**User experience impacts**
 
 * Due to FileVault's encryption process, a password is needed as soon as the laptop is turned on, instead of once it has booted.
-* No performance impact - macOS encrypts the system drive by default. 
+* There is no performance impact macOS encrypts the system drive by default. 
 * With Gatekeeper enabled, unsigned or unnotarized (not checked for malware by Apple) applications require extra steps to execute.
 * With the firewall enabled, unsigned applications cannot open a firewall port for inbound connections.
 
@@ -155,26 +181,26 @@ Since we can't eliminate the risk of passwords being cracked remotely, we requir
 
 | #     | Setting                                                                             |
 | ----- | ----------------------------------------------------------------------------------- |
-| 2.3.1 | Ensure an inactivity interval of 20 minutes or less for the screen saver is enabled |
+| 2.3.1 | Ensure an inactivity interval of 20 minutes or less for the screen saver to be enabled |
 | 6.1.2 | Ensure show password hint is disabled                                              |
 | 6.1.3 | Ensure guest account is disabled                                                    |
-| NA    | Prevent the use of automatic logon                                                  |
+| NA    | Prevent the use of automatic login                                                  |
 
 **Why?**
 
 * Fleet contributors are free to work from wherever they choose. If a laptop is lost or forgotten, automatic login exposes sensitive company data and poses a critical security risk. 
 * Password hints can sometimes be easier to guess than the password itself. Since we support contributors remotely via MDM and do not require users to change passwords frequently, we eliminate the need for passwords hints and their associated risk.
-* Since company laptops are issued primarily for work, and tied to a single contributor's identity, guest accounts are not permitted.
-* Automatic logon would defeat the purpose of even requiring passwords to unlock computers.
+* Since company laptops are issued primarily for work and tied to a single contributor's identity, guest accounts are not permitted.
+* Automatic login would defeat the purpose of even requiring passwords to unlock computers.
 
-**User experience impact**
+**User experience impacts**
 
 * Laptops lock after 20 minutes of inactivity. To voluntarily pause this, a [hot corner](https://support.apple.com/en-mo/guide/mac-help/mchlp3000/mac) can be configured to disable the screen saver. This is useful if you are, for example, watching an online meeting without moving the mouse and want to be sure the laptop will not lock.
-* Forgotten passwords can be fixed via MDM, instead of relying on potentially dangerous hints.
+* Forgotten passwords can be fixed via MDM instead of relying on potentially dangerous hints.
 * Guest accounts are not available.
 
 #### iCloud
-We do not apply ultra restrictive Data Loss Prevention style policies to our devices. Instead, by using our company Google Drive, we ensure that the most critical company data never reaches our laptops, so it can remain secure, while our laptops can remain productive.
+We do not apply ultra restrictive Data Loss Prevention style policies to our devices. Instead, by using our company Google Drive, we ensure that the most critical company data never reaches our laptops, so it can remain secure while our laptops can remain productive.
 
 
 | #       | Setting                                                   |
@@ -186,7 +212,7 @@ We do not apply ultra restrictive Data Loss Prevention style policies to our dev
 
 **User experience impact**
 
-* iCloud remains allowed, but the Desktop and Documents folders will not be synchronized. Ensure you put your documents in our Google Drive, so you do not lose them if your laptop has an issue.
+* iCloud remains permitted, but the Desktop and Documents folders will not be synchronized. Ensure you put your documents in our Google Drive so you do not lose them if your laptop has an issue.
 
 #### Miscellaneous security settings
 
@@ -199,10 +225,10 @@ We do not apply ultra restrictive Data Loss Prevention style policies to our dev
 
 **Why?**
 
-* Limiting ad tracking has privacy benefits, and no downside.
+* Limiting ad tracking has privacy benefits and no downside.
 * Protecting keyboard entry into Terminal.app could prevent malicious applications or non-malicious but inappropriate applications from receiving passwords.
 * Library validation ensures that an attacker can't trick applications into loading a software library in a different location, leaving it open to abuse.
-* Safari opening files automatically can lead to negative scenarios where files are downloaded and automatically opened in another application. Though the setting relates to files deemed "safe", it includes PDFs and other file formats where malicious documents exploiting vulnerabilities have been seen before.
+* Safari opening files automatically can lead to negative scenarios where files are downloaded and automatically opened in another application. Though the setting relates to files deemed "safe," it includes PDFs and other file formats where malicious documents exploiting vulnerabilities have been seen before.
 
 **User experience impact**
 
@@ -218,16 +244,16 @@ We do not apply ultra restrictive Data Loss Prevention style policies to our dev
 **Why?**
 
 * We assume that no network is "safe." Therefore, DNS queries could be exposed and leak private data. An attacker on the same wireless network could see DNS queries, determine who your employer is, or even intercept them and [respond with malicious answers](https://github.com/iphelix/dnschef). Using DoH protects the DNS queries from eavesdropping and tampering.
-* We use Cloudflare's DoH servers with basic malware blocking. No censorship should be applied on these servers, except towards destinations known as malware related.
+* We use Cloudflare's DoH servers with basic malware blocking. No censorship should be applied on these servers, except towards destinations known as malware-related.
 
 
-**User experience impact**
+**User experience impacts**
 
-* Some misconfigured "captive portals", typically used in hotels and airports, might be unusable with DoH due to how they are configured. This can be worked around by using the hotspot on your phone, and if you really have to use this network for an extended period of time, there are usually workarounds that can be performed to connect to them. Navigating to http://1.1.1.1 often resolves the issue.
-* If you are trying to reach a site, and you believe it is being blocked accidentally, please submit it to Cloudflare. This should be extremely rare. If it is not, please let the security team know.
-* If your ISP's DNS service goes down, you'll be able to continue working 😎
+* Some misconfigured "captive portals," typically used in hotels and airports, might be unusable with DoH due to how they are configured. This can be worked around by using the hotspot on your phone, and if you have to use this network for an extended period of time, there are usually workarounds to preform to connect to them. Navigating to http://1.1.1.1 often resolves the issue.
+* If you are trying to reach a site and believe it is being blocked accidentally, please submit it to Cloudflare. This should be extremely rare. If it is not, please let the security team know.
+* If your ISP's DNS service goes down, you'll be able to continue working. 😎
 
-*Note: If you from another organization, reading this to help create your own configuration, remember that implementing DoH in an office environment where other network controls are in place has different downsides than doing it for a remote company. In those cases, **disabling** DoH makes more sense, so network controls can retain visibility. Please evaluate your situation before implementing any of our recommendations at your organization, especially DoH.*
+*Note: If you are from another organization, reading this to help create your own configuration, remember implementing DoH in an office environment where other network controls are in place has other downsides than it would for a remote company. In those cases, **disabling** DoH makes more sense, so network controls can retain visibility. Please evaluate your situation before implementing any of our recommendations at your organization, especially DoH.*
 
 #### Deploy osquery
 | #  | Setting                |
@@ -236,7 +262,7 @@ We do not apply ultra restrictive Data Loss Prevention style policies to our dev
 
 ***Why?***
 
-We use osquery and Fleet to monitor our own devices. This is used for vulnerability detection, security posture tracking, and can be used for incident response when necessary.
+We use osquery and Fleet to monitor our own devices. This is used for vulnerability detection, security posture tracking, and for incident response when necessary.
 
 
 ### Chrome configuration
@@ -270,7 +296,7 @@ is kept up to date.
 
 If you do not already have a pair of hardware security keys, order [YubiKey 5C NFC security
 keys](https://www.yubico.com/ca/product/yubikey-5c-nfc-pack-of-2/) with your company card, or ask
-BizOps to get you one if you do not have a company card.
+for help in [#help-login](https://fleetdm.com/handbook/security#slack-channels) to get you one if you do not have a company card.
 
 ### Are they YubiKeys or security keys?
 
@@ -282,7 +308,7 @@ security keys.
 
 Security keys are **strongly recommended** for everyone and **required** for team members with elevated privilege access. 
 
-Because they are the only type of Two-Factor Authentication (2FA) that prevents credentials from
+Because they are the only type of Two-Factor Authentication (2FA) that protects credentials from
 phishing, we will make them **mandatory for everyone** soon. 
 
 See the [Google Workspace security
@@ -324,7 +350,7 @@ identified" warning.
    website](https://www.yubico.com/support/download/yubikey-manager/#h-downloads).
 2. Open the YubiKey manager with one of your keys connected.
 3. Go to the **Interfaces** tab.
-4. Uncheck the **OTP** checkboxes under **USB** and **NFC** and click *Save Interfaces*.
+4. Uncheck the **OTP** checkboxes under **USB** and click *Save Interfaces*.
 5. Unplug your key and connect your 2nd one to repeat the process.
 
 
@@ -383,7 +409,7 @@ security keys to generate a temporary code for the device that does not.
 **Answer**: No. Using them does not make sessions shorter. For example, if using the GMail app on
 mobile, you'd need the keys to set up the app only.
 
-## GitHub Security
+## GitHub security
 Since Fleet makes open source software, we need to host and collaborate on code. We do this using GitHub.
 
 This section covers our GitHub configuration. Like everything we do, we aim for the right level of security and productivity.
@@ -420,7 +446,7 @@ charges a [4x premium](https://sso.tax/) for this feature.
 | Dependabot alerts                  | Automatically enable for new repositories + enabled for all        | We want to be alerted if any dependency is vulnerable.                       |
 | Dependabot security updates        | Automatically enable for new repositories                          | This automatically creates PRs to fix vulnerable dependencies when possible. |
 
-### Member Privileges
+### Member privileges
 
 | Member privileges feature | Setting | Note                                                                                                                         |
 | ------------------------- | ------- | ---------------------------------------------------------------------------------------------------------------------------- |
@@ -440,11 +466,11 @@ charges a [4x premium](https://sso.tax/) for this feature.
 | Allow users with read access to create discussions                         | 🚫                   | We do not currently use discussions and want people to use issues as much as possible.                                                                                       |
 | Allow members to create teams                                              | 🚫                   | We automate the management of GitHub teams with the [GitHub Terraform provider](https://github.com/integrations/terraform-provider-github).                            |
 
-### Team Discussions
+### Team discussions
 We do not use team discussions and therefore have disabled them. This is simply to avoid discussions
 located in too many places and not security-related.
 
-### Repository Security
+### Repository security
 
 #### Branch protection
 Branch protection is one of the most important settings to configure and the main reason we should not have members with administrative privileges on the repositories.
@@ -525,7 +551,7 @@ Google's name for Two-Factor Authentication (2FA) or Multi-Factor Authentication
 | App-based push notifications                                                  | Harder to phish than TOTP, but by sending a lot of prompts to a phone, a user might accidentally accept a nefarious notification.       |
 | Hardware security keys                                                        | [Most secure](https://krebsonsecurity.com/2018/07/google-security-keys-neutralized-employee-phishing/) but requires extra hardware or a recent smartphone. Configure this as soon as you receive your Fleet YubiKeys                                                                |
 
-**2-Step Verification in Google Workspace**
+##### 2-Step verification in Google Workspace
 
 We apply the following settings to *Security/2-Step Verification* to all users as the minimum baseline.
 
@@ -537,7 +563,7 @@ We apply the following settings to *Security/2-Step Verification* to all users a
 | Frequency: Allow user to trust the device  | Off                                                |
 | Methods                                    | Any except verification codes via text, phone call |
 
-**Hardware security keys**
+##### Hardware security keys
 
 We strongly recommend using hardware security keys. 
 
@@ -587,7 +613,7 @@ We apply the following settings to *Security/Less Secure Apps* to all users as t
 | ------------------------------------------------------------------------------------------------------- | ------------------------------------------------ |
 | Control user access to apps that use less secure sign-in technology and make accounts more vulnerable.  | Disable access to less secure apps (Recommended) |
 
-#### API Access
+#### API access
 Google Workspace makes it easy for users to add tools to their workflows while having these tools authenticate to their Google applications and data via OAuth. We mark all Google services as *restricted* but do allow the use of OAuth for simple authentication and the use of less dangerous privileges on Gmail and Drive. We then approve applications that require more privileges on a case-by-case basis.
 
 This level of security allows users to authenticate to web applications with their Google accounts. This exposes little information beyond what they would provide in a form to create an account, and it protects confidential data while keeping everything managed.
@@ -791,6 +817,26 @@ Fleet remediates vulnerabilities related to vulnerable dependencies, but we do n
 We use [Dependabot](https://github.com/dependabot) to create pull requests to update vulnerable dependencies. You can find these PRs by filtering on the [*Dependabot*](https://github.com/fleetdm/fleet/pulls?q=is%3Apr+author%3Aapp%2Fdependabot+) author in the repository.
 
 We ensure the fixes to vulnerable dependencies are also performed according to our remediation timeline. We fix as many dependencies as possible in a single release.
+
+## Rituals
+
+The following table lists the Security group's rituals, frequency, and Directly Responsible Individual (DRI).
+
+| Ritual                       | Frequency                | Description                                         | DRI               |
+|:-----------------------------|:-----------------------------|:----------------------------------------------------|-------------------|
+| Security notifications check | Daily | Check Slack, Google, Vanta, and Fleet dogfood for security-related notifications. | Guillaume Ross |
+| GitHub check | Weekly | Check GitHub security issues for anything pending analysis or prioritization. | Guillaume Ross |
+| Iteration planning | Every three weeks | Prioritize issues in the GitHub security project for the next iteration. | Guillaume Ross |
+| YubiKey adoption | Monthly | Track YubiKey adoption in Google workspace and follow up with those that aren't using it. | Guillaume Ross |
+| Dogfood policy update | Monthly | Edit Fleet dogfood policies that check for Chrome, Docker, and macOS version numbers. | Guillaume Ross |
+| Security blog post | Monthly | Publish a security-related blog post to Fleet's blog. | Guillaume Ross |
+| Security lunch & learn | Monthly | Educational live stream session on cybersecurity for Fleet employees, sessions are later shared for public consumption on YouTube. | Guillaume Ross |
+| MDM device enrollment | Quarterly | Provide export of MDM enrolled devices to ops team. | Guillaume Ross |
+| Access revalidation | Quarterly | Review critical access groups to make sure they contain only relevant people. | Guillaume Ross |
+| Snyk scan | Quarterly | Scan Fleet repo with Snyk to identify important vulnerabilities that GitHub did not identify. | Guillaume Ross |
+| Security conference review | Quarterly | Look at upcoming security conferences and work with the growth team to determine whether Fleet should submit to attend. | Guillaume Ross |
+| Security policy update | Annually | Update security policies and have them approved by the CEO. | Guillaume Ross |
+
 
 ## Slack channels
 

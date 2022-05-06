@@ -16,7 +16,7 @@ import {
   humanHostLastSeen,
   humanHostDetailUpdated,
   hostTeamName,
-} from "fleet/helpers";
+} from "utilities/helpers";
 import { IConfig } from "interfaces/config";
 import { ITeamSummary } from "interfaces/team";
 import { IUser } from "interfaces/user";

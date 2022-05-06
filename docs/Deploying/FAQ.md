@@ -11,7 +11,7 @@
 - [I upgraded my database, but Fleet is still running slowly. What could be going on?](#i-upgraded-my-database-but-fleet-is-still-running-slowly-what-could-be-going-on)
 - [Why am I receiving a database connection error when attempting to "prepare" the database?](#why-am-i-receiving-a-database-connection-error-when-attempting-to-prepare-the-database)
 - [Is Fleet available as a SaaS product?](#is-fleet-available-as-a-saas-product)
-- [Is Fleet compatible with X flavor of MySQL?](#is-fleet-compatible-with-x-flavor-of-mysql)
+- [What MySQL versions are supported?](#what-mysql-versions-are-supported)
 - [What are the MySQL user access requirements?](#what-are-the-mysql-user-requirements)
 - [Does Fleet support MySQL replication?](#does-fleet-support-mysql-replication)
 - [What is duplicate enrollment and how do I fix it?](#what-is-duplicate-enrollment-and-how-do-i-fix-it)
@@ -19,7 +19,7 @@
 - [Should I use multiple enroll secrets?](#should-i-use-multiple-enroll-secrets)
 - [How can enroll secrets be rotated?](#how-can-enroll-secrets-be-rotated)
 - [What API endpoints should I expose to the public internet?](#what-api-endpoints-should-i-expose-to-the-public-internet)
-
+- [Will my older version of Fleet work with Redis 6?](#will-my-older-version-of-fleet-work-with-redis-6)
 
 ## How do I get support for working with Fleet?
 
@@ -79,6 +79,7 @@ NODE_TLS_REJECT_UNAUTHORIZED=0 sails console
 Redis has an internal buffer limit for pubsub that Fleet uses to communicate query results. If this buffer is filled, extra data is dropped. To fix this, we recommend disabling the buffer size limit. Most installs of Redis should have plenty of spare memory to not run into issues. More info about this limit can be found [here](https://redis.io/topics/clients#:~:text=Pub%2FSub%20clients%20have%20a,64%20megabyte%20per%2060%20second.) and [here](https://raw.githubusercontent.com/redis/redis/unstable/redis.conf) (search for client-output-buffer-limit).
 
 We recommend a config like the following:
+
 ```
 client-output-buffer-limit pubsub 0 0 60
 ```
@@ -129,9 +130,9 @@ fleet prepare db \
 
 No. Currently, Fleet is only available for self-hosting on premises or in the cloud.
 
-## Is Fleet compatible with X flavor of MySQL?
+## What MySQL versions are supported?
 
-Fleet is built to run on MySQL 5.7 or above. However, particularly with AWS Aurora, we recommend 2.10.0 and above, as we've seen issues with anything below that.
+Fleet is tested with MySQL 5.7.21 and 8.0.28. Newer versions of MySQL 5.7 and MySQL 8 typically work well. AWS Aurora requires at least version 2.10.0. Fleet has been known to run successfully on MariaDB and other MySQL flavors but is not officially supported.
 
 ## What are the MySQL user requirements?
 
@@ -172,10 +173,10 @@ auto-enroll hosts into a specific team (Fleet Premium).
 
 Rotating enroll secrets follows this process:
 
-1) Add a new secret.
-2) Transition existing clients to the new secret. Note that existing clients may not need to be
+1. Add a new secret.
+2. Transition existing clients to the new secret. Note that existing clients may not need to be
    updated, as the enroll secret is not used by already enrolled clients.
-3) Remove the old secret.
+3. Remove the old secret.
 
 To do this with `fleetctl` (assuming the existing secret is `oldsecret` and the new secret is `newsecret`):
 
@@ -244,4 +245,9 @@ If you would like to manage hosts that can travel outside your VPN or intranet w
 Fleet requires at least MySQL version 5.7.
 
 ## How do I migrate from Fleet Free to Fleet Premium?
+
 To migrate from Fleet Free to Fleet Premium, once you get a Fleet license, set it as a parameter to `fleet serve` either as an environment variable using `FLEET_LICENSE_KEY` or in the Fleet's config file. See [here](https://fleetdm.com/docs/deploying/configuration#license) for more details. Note: You don't need to redeploy Fleet after the migration.
+
+## Will my older version of Fleet work with Redis 6?
+
+Most likely, yes! While we'd definitely recommend keeping Fleet up to date in order to take advantage of new features and bug patches, most legacy versions should work with Redis 6. Just keep in mind that we likely haven't tested your particular combination so that you may run into some unforeseen hiccups. 

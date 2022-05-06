@@ -1,7 +1,7 @@
 import React from "react";
 import { IUser } from "interfaces/user";
 import { ITeam } from "interfaces/team";
-import { getSortedTeamOptions } from "fleet/helpers";
+import { getSortedTeamOptions } from "utilities/helpers";
 
 import PATHS from "router/paths";
 

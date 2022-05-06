@@ -7,6 +7,9 @@ module.exports = {
   description: 'Receive webhook requests and/or incoming auth redirects from GitHub.',
 
 
+  extendedDescription: 'Useful for automation, visibility of changes, and abuse monitoring.',
+
+
   inputs: {
     botSignature: { type: 'string', },
     action: { type: 'string', example: 'opened', defaultsTo: 'ping', moreInfoUrl: 'https://developer.github.com/v3/activity/events/types' },
@@ -24,7 +27,8 @@ module.exports = {
 
     let GitHub = require('machinepack-github');
 
-    let GREEN_LABEL_COLOR = 'C2E0C6';// « Used in multiple places below.
+    let IS_FROZEN = true;// « Set this to `true` whenever a freeze is in effect, then set it back to `false` when the freeze ends.
+
     let GITHUB_USERNAMES_OF_BOTS_AND_MAINTAINERS = [// « Used in multiple places below.
       'sailsbot',
       'fleet-release',
@@ -55,8 +59,13 @@ module.exports = {
       'timmy-k',
       'zwinnerman-fleetdm',
       'hollidayn',
+      'juan-fdz-hawa',
+      'roperzh',
     ];
-    let GITHUB_USERNAME_OF_DRI_FOR_LABELS = 'noahtalerman';// « Used below
+
+    let GREEN_LABEL_COLOR = 'C2E0C6';// « Used in multiple places below.  (FUTURE: Use the "+" prefix for this instead of color.  2022-05-05)
+
+    let GITHUB_USERNAME_OF_DRI_FOR_LABELS = 'noahtalerman';// « Used below (FUTURE: Remove this capability as Fleet has outgrown it.  2022-05-05)
 
     if (!sails.config.custom.slackWebhookUrlForGithubBot) {
       throw new Error('No Slack webhook URL configured for the GitHub bot to notify with alerts!  (Please set `sails.config.custom.slackWebhookUrlForGithubBot`.)');
@@ -122,7 +131,7 @@ module.exports = {
       //     `For help with questions about Sails, [click here](http://sailsjs.com/support).\n`;
       //   }
       // } else {
-      //   let wasReopenedByBot = GITHUB_USERNAMES_OF_BOTS_AND_MAINTAINERS.includes(sender.login);
+      //   let wasReopenedByBot = GITHUB_USERNAMES_OF_BOTS_AND_MAINTAINERS.includes(sender.login.toLowerCase());
       //   if (wasReopenedByBot) {
       //     newBotComment = '';// « checked below
       //   } else {
@@ -196,75 +205,13 @@ module.exports = {
           'Authorization': `token ${sails.config.custom.githubAccessToken}`
         };
 
+        require('assert')(sender.login !== undefined);
+
         // Check whether auto-approval is warranted.
-        let isAutoApproved = await sails.helpers.flow.build(async()=>{
-
-          let isSenderDRIForAllChangedPaths = false;
-          let isSenderMaintainer = GITHUB_USERNAMES_OF_BOTS_AND_MAINTAINERS.includes(sender.login);
-          let DRI_BY_PATH = {
-            'README.md': 'mike-j-thomas',// (github brandfront)
-
-            'handbook': ['desmi-dizney', 'mike-j-thomas', 'mikermcneil'],// (default for handbook)
-            'handbook/company.md': 'mikermcneil',
-            'handbook/people.md': ['eashaw', 'mike-j-thomas'],
-            'handbook/engineering.md': 'zwass',
-            'handbook/product.md': 'noahtalerman',
-            'handbook/security.md': 'guillaumeross',
-            'handbook/brand.md': 'mike-j-thomas',
-            'handbook/growth.md': 'timmy-k',
-            'handbook/customers.md': 'tgauda',
-            'handbook/community.md': ['dominuskelvin', 'ksatter'],
-            'handbook/README.md': '*',// (any fleetie can update this page)
-
-            'website': 'mikermcneil',// (default for website)
-            'website/views': 'eashaw',
-            'website/assets': 'eashaw',
-            'website/config/routes.js': ['eashaw', 'mike-j-thomas'],// (for managing website URLs)
-
-            'docs': 'zwass',// (default for docs)
-            'docs/images': ['noahtalerman', 'eashaw', 'mike-j-thomas'],
-            'docs/Using-Fleet/REST-API.md': 'lukeheath',
-            'docs/Contributing/API-for-contributors.md': 'lukeheath',
-            'docs/Deploying/FAQ.md': ['ksatter', 'dominuskelvin'],
-            'docs/Contributing/FAQ.md': ['ksatter', 'dominuskelvin'],
-            'docs/Using-Fleet/FAQ.md': ['ksatter', 'dominuskelvin'],
-
-            'docs/01-Using-Fleet/standard-query-library/standard-query-library.yml': 'guillaumeross',// (standard query library)
-          };
-
-          // [?] https://docs.github.com/en/rest/reference/pulls#list-pull-requests-files
-          let changedPaths = _.pluck(await sails.helpers.http.get(`https://api.github.com/repos/${owner}/${repo}/pulls/${prNumber}/files`, {
-            per_page: 100,//eslint-disable-line camelcase
-          }, baseHeaders).retry(), 'filename');// (don't worry, it's the whole path, not the filename)
-          sails.log.verbose(`Received notice that a new PR (#${prNumber}) was opened that changes the following paths:`, changedPaths);
-
-          isSenderDRIForAllChangedPaths = _.all(changedPaths, (changedPath)=>{
-            changedPath = changedPath.replace(/\/+$/,'');// « trim trailing slashes, just in case (b/c otherwise could loop forever)
-
-            require('assert')(sender.login !== undefined);
-            sails.log.verbose(`…checking DRI of changed path "${changedPath}"`);
-
-            let selfMergers = DRI_BY_PATH[changedPath] ? [].concat(DRI_BY_PATH[changedPath]) : [];// « ensure array
-            if (selfMergers.includes(sender.login) || (isSenderMaintainer && selfMergers.includes('*'))) {
-              return true;
-            }//•
-            let numRemainingPathsToCheck = changedPath.split('/').length;
-            while (numRemainingPathsToCheck > 0) {
-              let ancestralPath = changedPath.split('/').slice(0, -1 * numRemainingPathsToCheck).join('/');
-              sails.log.verbose(`…checking DRI of ancestral path "${ancestralPath}" for changed path`);
-              let selfMergers = DRI_BY_PATH[ancestralPath] ? [].concat(DRI_BY_PATH[ancestralPath]) : [];// « ensure array
-              if (selfMergers.includes(sender.login) || (isSenderMaintainer && selfMergers.includes('*'))) {
-                return true;
-              }//•
-              numRemainingPathsToCheck--;
-            }//∞
-          });//∞
-
-          if (isSenderDRIForAllChangedPaths && changedPaths.length < 100) {
-            return true;
-          } else {
-            return false;
-          }
+        let isAutoApproved = await sails.helpers.githubAutomations.getIsPrPreapproved.with({
+          prNumber: prNumber,
+          githubUserToCheck: sender.login,
+          isGithubUserMaintainerOrDoesntMatter: GITHUB_USERNAMES_OF_BOTS_AND_MAINTAINERS.includes(sender.login.toLowerCase())
         });
 
         // Now, if appropriate, auto-approve the change.
@@ -273,7 +220,14 @@ module.exports = {
           await sails.helpers.http.post(`https://api.github.com/repos/${owner}/${repo}/pulls/${prNumber}/reviews`, {
             event: 'APPROVE'
           }, baseHeaders);
+        } else if (IS_FROZEN) {
+          // [?] https://docs.github.com/en/rest/reference/pulls#create-a-review-for-a-pull-request
+          await sails.helpers.http.post(`https://api.github.com/repos/${owner}/${repo}/pulls/${prNumber}/reviews`, {
+            event: 'REQUEST_CHANGES',
+            body: 'The repository is currently frozen for an upcoming release.  \n> After the freeze has ended, please dismiss this review.  \n\nIn case of emergency, you can dismiss this review and merge now.'
+          }, baseHeaders);
         }
+
       }
     } else if (ghNoun === 'issue_comment' && ['created'].includes(action) && (issueOrPr&&issueOrPr.state === 'open')) {
       //   ██████╗ ██████╗ ███╗   ███╗███╗   ███╗███████╗███╗   ██╗████████╗
@@ -295,7 +249,7 @@ module.exports = {
       let repo = repository.name;
       let issueNumber = issueOrPr.number;
 
-      let wasPostedByBot = GITHUB_USERNAMES_OF_BOTS_AND_MAINTAINERS.includes(sender.login);
+      let wasPostedByBot = GITHUB_USERNAMES_OF_BOTS_AND_MAINTAINERS.includes(sender.login.toLowerCase());
       if (!wasPostedByBot) {
         let greenLabels = _.filter(issueOrPr.labels, ({color}) => color === GREEN_LABEL_COLOR);
         await sails.helpers.flow.simultaneouslyForEach(greenLabels, async(greenLabel)=>{
@@ -305,8 +259,8 @@ module.exports = {
     } else if (
       (ghNoun === 'issue_comment' && ['deleted'].includes(action) && !GITHUB_USERNAMES_OF_BOTS_AND_MAINTAINERS.includes(comment.user.login))||
       (ghNoun === 'commit_comment' && ['created'].includes(action) && !GITHUB_USERNAMES_OF_BOTS_AND_MAINTAINERS.includes(comment.user.login))||
-      (ghNoun === 'label' && false /* label change notifications temporarily disabled until digital experience team has time to clean up labels.  FUTURE: turn this back on after doing that cleanup to facilitate gradual ongoing maintenance and education rather than herculean cleanup efforts and retraining */ && ['created','edited','deleted'].includes(action) && GITHUB_USERNAME_OF_DRI_FOR_LABELS !== sender.login)||//« exempt label changes made by the directly responsible individual for labels, because otherwise when process changes/fiddlings happen, they can otherwise end up making too much noise in Slack
-      (ghNoun === 'issue_comment' && ['created'].includes(action) && issueOrPr.state !== 'open' && (issueOrPr.closed_at) && ((new Date(issueOrPr.closed_at)).getTime() < Date.now() - 7*24*60*60*1000 ) && !GITHUB_USERNAMES_OF_BOTS_AND_MAINTAINERS.includes(sender.login) )
+      (ghNoun === 'label' && false /* label change notifications temporarily disabled until digital experience team has time to clean up labels.  FUTURE: turn this back on after doing that cleanup to facilitate gradual ongoing maintenance and education rather than herculean cleanup efforts and retraining */ && ['created','edited','deleted'].includes(action) && GITHUB_USERNAME_OF_DRI_FOR_LABELS !== sender.login.toLowerCase())||//« exempt label changes made by the directly responsible individual for labels, because otherwise when process changes/fiddlings happen, they can otherwise end up making too much noise in Slack
+      (ghNoun === 'issue_comment' && ['created'].includes(action) && issueOrPr.state !== 'open' && (issueOrPr.closed_at) && ((new Date(issueOrPr.closed_at)).getTime() < Date.now() - 7*24*60*60*1000 ) && !GITHUB_USERNAMES_OF_BOTS_AND_MAINTAINERS.includes(sender.login.toLowerCase()) )
     ) {
       //  ██╗███╗   ██╗███████╗ ██████╗ ██████╗ ███╗   ███╗    ██╗   ██╗███████╗
       //  ██║████╗  ██║██╔════╝██╔═══██╗██╔══██╗████╗ ████║    ██║   ██║██╔════╝

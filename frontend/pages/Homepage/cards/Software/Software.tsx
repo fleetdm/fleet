@@ -1,15 +1,15 @@
-import React, { useState } from "react";
+import React, { useContext, useState } from "react";
 import { useQuery } from "react-query";
 import { Tab, Tabs, TabList, TabPanel } from "react-tabs";
 
+import { AppContext } from "context/app";
 import paths from "router/paths";
 import configAPI from "services/entities/config";
 import softwareAPI, { ISoftwareResponse } from "services/entities/software";
 
 import TabsWrapper from "components/TabsWrapper";
 import TableContainer, { ITableQueryData } from "components/TableContainer";
-import TableDataError from "components/TableDataError"; // TODO how do we handle errors? UI just keeps spinning?
-// @ts-ignore
+import TableDataError from "components/DataError"; // TODO how do we handle errors? UI just keeps spinning?
 import Spinner from "components/Spinner";
 import renderLastUpdatedText from "components/LastUpdatedText/LastUpdatedText";
 import generateTableHeaders from "./SoftwareTableConfig";
@@ -38,6 +38,10 @@ const Software = ({
   const [navTabIndex, setNavTabIndex] = useState<number>(0);
   const [pageIndex, setPageIndex] = useState<number>(0);
   const [isSoftwareEnabled, setIsSoftwareEnabled] = useState<boolean>();
+
+  const { availableTeams, currentTeam, isOnGlobalTeam } = useContext(
+    AppContext
+  );
 
   const { data: config } = useQuery(["config"], configAPI.loadAll, {
     onSuccess: (data) => {
@@ -71,8 +75,11 @@ const Software = ({
         teamId: currentTeamId,
       }),
     {
+      enabled:
+        isOnGlobalTeam ||
+        !!availableTeams?.find((t) => t.id === currentTeam?.id),
       keepPreviousData: true,
-      staleTime: 30000, // TODO: Discuss a reasonable staleTime given that counts are only updated infrequently?
+      staleTime: 30000, // stale time can be adjusted if fresher data is desired based on software inventory interval
       onSuccess: (data) => {
         setShowSoftwareUI(true);
         if (isSoftwareEnabled && data.software?.length !== 0) {
@@ -164,28 +171,32 @@ const Software = ({
               )}
             </TabPanel>
             <TabPanel>
-              <TableContainer
-                columns={tableHeaders}
-                data={software?.software || []}
-                isLoading={isSoftwareFetching}
-                defaultSortHeader={DEFAULT_SORT_HEADER}
-                defaultSortDirection={DEFAULT_SORT_DIRECTION}
-                hideActionButton
-                resultsTitle={"software"}
-                emptyComponent={() =>
-                  EmptySoftware(
-                    (!isSoftwareEnabled && "disabled") ||
-                      (isCollectingInventory && "collecting") ||
-                      "default"
-                  )
-                }
-                showMarkAllPages={false}
-                isAllPagesSelected={false}
-                disableCount
-                disableActionButton
-                pageSize={PAGE_SIZE}
-                onQueryChange={onQueryChange}
-              />
+              {!isSoftwareFetching && errorSoftware ? (
+                <TableDataError />
+              ) : (
+                <TableContainer
+                  columns={tableHeaders}
+                  data={software?.software || []}
+                  isLoading={isSoftwareFetching}
+                  defaultSortHeader={DEFAULT_SORT_HEADER}
+                  defaultSortDirection={DEFAULT_SORT_DIRECTION}
+                  hideActionButton
+                  resultsTitle={"software"}
+                  emptyComponent={() =>
+                    EmptySoftware(
+                      (!isSoftwareEnabled && "disabled") ||
+                        (isCollectingInventory && "collecting") ||
+                        "default"
+                    )
+                  }
+                  showMarkAllPages={false}
+                  isAllPagesSelected={false}
+                  disableCount
+                  disableActionButton
+                  pageSize={PAGE_SIZE}
+                  onQueryChange={onQueryChange}
+                />
+              )}
             </TabPanel>
           </Tabs>
         </TabsWrapper>

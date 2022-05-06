@@ -31,7 +31,7 @@ const RemovePackModal = ({
     <Modal title={"Delete pack"} onExit={onCancel} className={baseClass}>
       <div className={baseClass}>
         Are you sure you want to delete the selected packs?
-        <div className={`${baseClass}__btn-wrap`}>
+        <div className="modal-cta-wrap">
           <Button
             className={`${baseClass}__btn`}
             onClick={onCancel}

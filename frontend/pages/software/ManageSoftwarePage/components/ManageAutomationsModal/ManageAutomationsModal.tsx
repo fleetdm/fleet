@@ -22,7 +22,7 @@ import Radio from "components/forms/fields/Radio";
 import InputField from "components/forms/fields/InputField";
 
 import { IWebhookSoftwareVulnerabilities } from "interfaces/webhook";
-import { useDeepEffect } from "utilities/hooks";
+import useDeepEffect from "hooks/useDeepEffect";
 import _, { size } from "lodash";
 
 import PreviewPayloadModal from "../PreviewPayloadModal";
@@ -88,6 +88,11 @@ const ManageAutomationsModal = ({
     selectedIntegration,
     setSelectedIntegration,
   ] = useState<IJiraIntegration>();
+  useDeepEffect(() => {
+    setSoftwareAutomationsEnabled(
+      softwareVulnerabilityAutomationEnabled || false
+    );
+  }, [softwareVulnerabilityAutomationEnabled]);
 
   useDeepEffect(() => {
     if (destinationUrl) {
@@ -349,7 +354,7 @@ const ManageAutomationsModal = ({
             <div className={`${baseClass}__overlay`} />
           )}
         </div>
-        <div className={`${baseClass}__button-wrap`}>
+        <div className="modal-cta-wrap">
           <Button
             className={`${baseClass}__btn`}
             onClick={onReturnToApp}

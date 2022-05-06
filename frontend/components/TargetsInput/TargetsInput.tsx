@@ -5,11 +5,11 @@ import { IHost } from "interfaces/host";
 import { ITarget } from "interfaces/target";
 import { filter, isEmpty, pullAllBy } from "lodash";
 
+import DataError from "components/DataError";
 // @ts-ignore
 import Input from "components/forms/fields/InputFieldWithIcon";
 import TableContainer from "components/TableContainer";
 import { generateTableHeaders } from "./TargetsInputHostsTableConfig";
-import ExternalURLIcon from "../../../assets/images/icon-external-url-12x12@2x.png";
 
 interface ITargetsInputProps {
   tabIndex: number;
@@ -56,7 +56,7 @@ const TargetsInput = ({
         tabIndex={tabIndex}
         iconPosition="start"
         label="Target specific hosts"
-        placeholder="Search hosts by hostname, UUID, MAC address"
+        placeholder="Search hosts by hostname, UUID, MAC address, or private IP address"
         onChange={setSearchText}
       />
       {isActiveSearch && (
@@ -88,23 +88,7 @@ const TargetsInput = ({
       )}
       {isSearchError && (
         <div className={`${baseClass}__hosts-search-dropdown`}>
-          <div className="error-search">
-            <div className="error-search__inner">
-              <h4>Something&apos;s gone wrong.</h4>
-              <p>Refresh the page or log in again.</p>
-              <p>
-                If this keeps happening please{" "}
-                <a
-                  className="file-issue-link"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  href="https://github.com/fleetdm/fleet/issues/new/choose"
-                >
-                  file an issue <img alt="" src={ExternalURLIcon} />
-                </a>
-              </p>
-            </div>
-          </div>
+          <DataError />
         </div>
       )}
       <div className={`${baseClass}__hosts-selected-table`}>
