@@ -112,7 +112,7 @@ Fleet policy requires that:
 
 3. All company-owned computer purchases must be tracked.
 
-## Business continuity and disaster recovery plan
+## Business continuity and disaster recovery policy
 *Created from [JupiterOne/security-policy-templates](https://github.com/JupiterOne/security-policy-templates). [CC BY-SA 4 license](https://creativecommons.org/licenses/by-sa/4.0/)*
 
 | Policy owner   | Effective date |
