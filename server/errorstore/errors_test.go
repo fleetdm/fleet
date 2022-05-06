@@ -249,11 +249,10 @@ func testErrorHandlerCollectsErrors(t *testing.T, pool fleet.RedisPool, wd strin
   \}`, wd, wd)), errors[0])
 
 	errors, err = eh.Retrieve(flush)
+	require.NoError(t, err)
 	if flush {
-		require.NoError(t, err)
 		assert.Len(t, errors, 0)
 	} else {
-		require.NoError(t, err)
 		assert.Len(t, errors, 1)
 	}
 
