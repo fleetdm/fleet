@@ -1,9 +1,10 @@
 // Package errorstore implements a Handler type that can be used to store
 // deduplicated instances of errors in an ephemeral storage, and provides a
-// Flush method to retrieve the list of errors while clearing it at the same
-// time. It provides a foundation to facilitate troubleshooting and building
-// tooling for support while trying to keep the impact of storage to a minimum
-// (ephemeral data, deduplication, flush on read).
+// Retrieve method to retrieve the list of errors with the option of clearing
+// them at the same time. It provides a foundation to facilitate
+// troubleshooting and building tooling for support while trying to keep the
+// impact of storage to a minimum (ephemeral data, deduplication, flush on
+// read).
 package errorstore
 
 import (
@@ -27,8 +28,8 @@ import (
 )
 
 // Handler defines an error handler. Call Handler.Store to handle an error, and
-// Handler.Flush to retrieve all stored errors and clear them from the store.
-// It is safe to call those methods concurrently.
+// Handler.Retrieve to retrieve all stored errors and optionally clear them
+// from the store. It is safe to call those methods concurrently.
 type Handler struct {
 	pool    fleet.RedisPool
 	logger  kitlog.Logger
@@ -57,7 +58,7 @@ func NewHandler(ctx context.Context, pool fleet.RedisPool, logger kitlog.Logger,
 
 	// Clear out any records that exist.
 	// Temporary mitigation for #3065.
-	if _, err := eh.Flush(); err != nil {
+	if _, err := eh.Retrieve(false); err != nil {
 		level.Error(eh.logger).Log("err", err, "msg", "failed to flush redis errors")
 	}
 
@@ -87,10 +88,12 @@ func runHandler(ctx context.Context, eh *Handler) {
 	go eh.handleErrors(ctx)
 }
 
-// Flush retrieves all stored errors from Redis and returns them as a slice of
-// JSON-encoded strings. It is a destructive read - the errors are removed from
-// Redis on return.
-func (h *Handler) Flush() ([]string, error) {
+// Retrieve retrieves all stored errors from Redis and returns them as a slice
+// of JSON-encoded strings.
+//
+// If flush is provied performs a destructive read - the errors are removed
+// from Redis on return.
+func (h *Handler) Retrieve(flush bool) ([]string, error) {
 	errorKeys, err := redis.ScanKeys(h.pool, "error:*", 100)
 	if err != nil {
 		return nil, err
@@ -291,16 +294,16 @@ func (h *Handler) Store(err error) {
 	}
 }
 
-// ServeHTTP implements an http.Handler that flushes the errors stored
+// ServeHTTP implements an http.Handler that retrieves the errors stored
 // by the Handler and returns them in the response as JSON.
 func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	errors, err := h.Flush()
+	errors, err := h.Retrieve(false)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
 
-	// each string returned by eh.Flush is already JSON-encoded, so to prevent
+	// each string returned by eh.Retrieve is already JSON-encoded, so to prevent
 	// double-marshaling while still marshaling the list of errors as a JSON
 	// array, treat them as raw json messages.
 	raw := make([]json.RawMessage, len(errors))
