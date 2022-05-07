@@ -115,6 +115,14 @@ func WithStderr(w io.Writer) Option {
 	}
 }
 
+// WithStdout sets the runner's cmd's stdout to the given writer.
+func WithStdout(w io.writer) Option {
+	return func(r *Runner) error {
+		r.cmd.Stdout = w
+		return nil
+	}
+}
+
 func WithLogPath(path string) Option {
 	return func(r *Runner) error {
 		if err := secure.MkdirAll(path, constant.DefaultDirMode); err != nil {
