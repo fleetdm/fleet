@@ -116,7 +116,7 @@ func WithStderr(w io.Writer) Option {
 }
 
 // WithStdout sets the runner's cmd's stdout to the given writer.
-func WithStdout(w io.writer) Option {
+func WithStdout(w io.Writer) Option {
 	return func(r *Runner) error {
 		r.cmd.Stdout = w
 		return nil
