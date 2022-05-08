@@ -1,4 +1,7 @@
 # Tales from Fleet security: securing 1Password
+
+![Securing 1Password](http://fleetdm.com/images/articles/securing-1password-1600x900@2x)
+
 No matter how much we wish SaaS tools had support for Single Sign-On (SSO), there are still so many
 websites and other resources that require individual passwords. Running a company without providing
 employees with a password manager is downright dangerous.
@@ -58,6 +61,7 @@ warns everyone and confirms they have identified the requester.
 
 ## Item sharing
 Item sharing is one of these features where we can't recommend a setting. More restrictive is more secure unless you need to often share secrets with third parties. We simply recommend picking what makes the most sense for you.
+
 ## Effort and conclusion
 We feel our 1Password environment is safer than the defaults with these settings. Applying these settings takes a matter of minutes and will require users to enable 2FA.
 
@@ -74,3 +78,4 @@ Stay tuned for our next article in the Tales from Fleet security series!
 <meta name="authorGitHubUsername" value="GuillaumeRoss">
 <meta name="publishedOn" value="2022-05-06">
 <meta name="articleTitle" value="Tales from Fleet security: securing 1Password">
+<meta name="articleImageUrl" value="http://fleetdm.com/images/articles/securing-1password-1600x900@2x">
