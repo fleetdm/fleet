@@ -2,14 +2,13 @@
 
 ## Why do we need to version the API?
 
-The API is a product, just like fleetctl, and the web UI. It has its users, mostly fleetctl and the web UI but there are
-also third party developers working with it.
+The API is a product, just like fleetctl and the web UI. It has its users, mostly fleetctl and the web UI, but third-party developers also work with it.
 
-Evolving a product inherently needs versioning. Most products create a new version with any addition to the product, but 
-the API will work differently in that regard as new additions to the API won't increase the version.
+An evolving product inherently needs versioning. Most products create a new version with any addition to the product, but 
+the API will work differently in that regard, as new additions to the API won't increase the version.
 
-New versions will be used for breaking changes and deprecating APIs. Only when a breaking change is introduced we will 
-release a new version of the API.
+Fleet will use new versions for breaking changes and deprecating APIs. We 
+release a new version of the API only when a breaking change is introduced.
 
 ## What kind of versioning will we use for the API?
 
@@ -23,15 +22,15 @@ The date is chosen based on the month the breaking change was introduced.
 
 ## Why is v1 still available at the time of this writing?
 
-`v1` is the first version of the API. It existed before this text, and so it doesn't follow the versioning schema 
+`v1` is the first version of the API. It existed before this text, so it doesn't follow the versioning schema 
 explained here. We still need to support it for a few months (see below on deprecation). So it'll be treated as an 
 exception in the logic in the Go code while it exists.
 
 ## Why not semantic versioning?
 
 Semantic versioning is great and we are using it in Fleet itself. However, it doesn't necessarily work for APIs since we 
-are not going to be releasing a new version with every addition, just with breaking changes. So it doesn't align with our 
-needs in the API level.
+will not be releasing a new version with every addition, just with breaking changes. So it doesn't align with our 
+needs at the API level.
 
 ## How are API releases aligned with regular Fleet releases?
 
