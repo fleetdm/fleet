@@ -39,11 +39,22 @@ const IntegrationForm = ({
     enableSoftwareVulnerabilities:
       integrationEditing?.enable_software_vulnerabilities || false,
   });
+  const [urlError, setUrlError] = useState<string | null>(null);
 
   const { url, username, apiToken, projectKey } = formData;
 
   const onInputChange = ({ name, value }: IFormField) => {
     setFormData({ ...formData, [name]: value });
+  };
+
+  const validateForm = () => {
+    let error = null;
+
+    if (url.slice(0, 8) !== "https://") {
+      error = "URL must begin with https://";
+    }
+
+    setUrlError(error);
   };
 
   // IntegrationForm component can be used to create a new jira integration or edit an existing jira integration so submitData will be assembled accordingly
@@ -94,6 +105,8 @@ const IntegrationForm = ({
         placeholder="https://jira.example.com"
         parseTarget
         value={url}
+        error={urlError}
+        onBlur={validateForm}
       />
       <InputField
         name="username"
@@ -139,6 +152,7 @@ const IntegrationForm = ({
           data-tip-disable={
             !(
               formData.url === "" ||
+              formData.url.slice(0, 8) !== "https://" ||
               formData.username === "" ||
               formData.apiToken === "" ||
               formData.projectKey === ""
@@ -151,6 +165,7 @@ const IntegrationForm = ({
             variant="brand"
             disabled={
               formData.url === "" ||
+              formData.url.slice(0, 8) !== "https://" ||
               formData.username === "" ||
               formData.apiToken === "" ||
               formData.projectKey === ""

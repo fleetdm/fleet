@@ -227,8 +227,8 @@ The following table lists the Brand group's rituals, frequency, and Directly Res
 
 | Ritual                       | Frequency                | Description                                         | DRI               |
 |:-----------------------------|:-----------------------------|:----------------------------------------------------|-------------------|
-| Documentation quality | Daily | Review pull requests to the docs for spelling, punctuation and grammar. | Desmi Dizney |
-| Handbook quality | Daily | Review pull requests to the handbook for spelling, punctuation and grammar. | Desmi Dizney |
+| Documentation quality | Daily | Review pull requests to the docs for spelling, punctuation, and grammar. | Desmi Dizney |
+| Handbook quality | Daily | Review pull requests to the handbook for spelling, punctuation, and grammar. | Desmi Dizney |
 | Tweet review | Daily | Review tweets for tone and brand consistency. | Mike Thomas |
 | Article review | Weekly | Review articles for tone and brand consistency. | Mike Thomas |
 | Article graphic | Weekly | Create a graphic for the weekly article | Mike Thomas |
@@ -245,12 +245,12 @@ These groups maintain the following [Slack channels](https://fleetdm.com/handboo
 
 | Slack channel               | [DRI](https://fleetdm.com/handbook/company#group-slack-channels)    |
 |:----------------------------|:--------------------------------------------------------------------|
-| `#g-digital-experience`     | Mike Thomas
+| `#g-digital-experience`     | Mike Thomas and Eric Shaw _(multiple DRIs, for the sake of timezones)_
 | `#oooh-websites`            | Mike Thomas
 | `#oooh-automation`          | Mike McNeil
-| `#g-people`                 | Eric Shaw
-| `#help-onboarding`          | Eric Shaw
-| `#help-finance`             | Eric Shaw
+| `#g-people`                 | Charlie Chance
+| `#help-onboarding`          | Charlie Chance
+| `#help-finance`             | Nathan Holliday
 | `#help-brex-memos`          | Nathan Holliday
 
 

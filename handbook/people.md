@@ -35,6 +35,7 @@ DRIs help us collaborate efficiently by knowing exactly who is responsible and c
 | Publishing release blog post, and promoting releases | Mike Thomas |
 | fleetdm.com | Mike Thomas |
 | Self-service Fleet Premium license dispenser | Mike Thomas |
+| Security disclosure and policy | Guillaume Ross | 
 
 *Luke Heath is backup 
 
@@ -228,6 +229,8 @@ If you've been invited to "book with us" you'll have a Zoom meeting with the hir
 
 ### Hiring a new team member
 
+> Fleet is unable to hire team members in some countries. See [this internal document](https://docs.google.com/document/d/1jHHJqShIyvlVwzx1C-FB9GC74Di_Rfdgmhpai1SPC0g/edit) for the list.
+
 1. At-mention People Operations in the `#hiring-xxxxx-2022` channel and indicate that you would like to make an offer to the candidate.  Include the candidate's name, personal email address, where the candidate would be working, and any other important considerations about the candidate (the timeframe for their start date, their status to work legally in their country of residence, etc.)
 
 2. People Operations will check compensation using [Pave](https://www.pave.com), making sure to adjust for the cost of living where the candidate will do the work.  *If unsure of your findings, ask for help from the CEO.*  People Ops will then document this decision in the [compensation decisions document](https://docs.google.com/document/d/1NQ-IjcOTbyFluCWqsFLMfP4SvnopoXDcX0civ-STS5c/edit) for future reference.
@@ -299,7 +302,7 @@ The CEO will then post a message in the `#hiring-xxxxx-2022` Slack channel to in
    In CorpNet, select "place an order for an existing business" we’ll need to have Foreign Registration and Payroll Tax Registration done.
    - You can have CorpNet do this by emailing the account rep "Subject: Fleet Device Management: State - Foreign Registration and Payroll Tax Registration" (this takes about two weeks).
    - You can do this between you and CorpNet by selecting "Foreign Qualification," place the order, and email the confirmation to the rep for Payroll registration (this is a short turnaround).
-   - You can do this on your own by visting the state's "Secretary of State" website and check that the company name is available. To register online you'll need: the EIN, business address, information about the owners and their percentages, first date of business, sales within the state, and the business type (usually get an email right away for approval ~24-48 hrs). 
+   - You can do this on your own by visiting the state's "Secretary of State" website and checking that the company name is available. To register online you'll need the EIN, business address, information about the owners and their percentages, the first date of business, sales within the state, and the business type (usually get an email right away for approval ~24-48 hrs). 
 
 ## Team member onboarding
 
