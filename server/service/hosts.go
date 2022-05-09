@@ -1,9 +1,12 @@
 package service
 
 import (
+	"bytes"
 	"context"
+	"encoding/csv"
 	"fmt"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/authz"
@@ -19,10 +22,10 @@ import (
 // rendering in the UI.
 type HostResponse struct {
 	*fleet.Host
-	Status      fleet.HostStatus   `json:"status"`
-	DisplayText string             `json:"display_text"`
-	Labels      []fleet.Label      `json:"labels,omitempty"`
-	Geolocation *fleet.GeoLocation `json:"geolocation,omitempty"`
+	Status      fleet.HostStatus   `json:"status" csv:"status"`
+	DisplayText string             `json:"display_text" csv:"display_text"`
+	Labels      []fleet.Label      `json:"labels,omitempty" csv:"-"`
+	Geolocation *fleet.GeoLocation `json:"geolocation,omitempty" csv:"-"`
 }
 
 func hostResponseForHost(ctx context.Context, svc fleet.Service, host *fleet.Host) (*HostResponse, error) {
@@ -837,20 +840,59 @@ type hostsReportRequest struct {
 	Opts    fleet.HostListOptions `url:"host_options"`
 	LabelID *uint                 `query:"label_id,optional"`
 	Format  string                `query:"format"`
+	Columns string                `query:"columns,optional"`
 }
 
 type hostsReportResponse struct {
-	Hosts []*fleet.Host `json:"-"` // they get rendered explicitly, in csv
-	Err   error         `json:"error,omitempty"`
+	Columns []string        `json:"-"` // used to control the generated csv
+	Hosts   []*HostResponse `json:"-"` // they get rendered explicitly, in csv
+	Err     error           `json:"error,omitempty"`
 }
 
 func (r hostsReportResponse) error() error { return r.Err }
 
 func (r hostsReportResponse) hijackRender(ctx context.Context, w http.ResponseWriter) {
+	var buf bytes.Buffer
+	if err := gocsv.Marshal(r.Hosts, &buf); err != nil {
+		logging.WithErr(ctx, err)
+		w.WriteHeader(http.StatusInternalServerError)
+		fmt.Fprint(w, "Failed to generate CSV file")
+		return
+	}
+
+	// read back the CSV to filter out any unwanted columns
+	recs, err := csv.NewReader(&buf).ReadAll()
+	if err != nil {
+		logging.WithErr(ctx, err)
+		w.WriteHeader(http.StatusInternalServerError)
+		fmt.Fprint(w, "Failed to generate CSV file")
+		return
+	}
+
+	var outRows [][]string
+	if len(recs) > 0 {
+		// map the header names to their field index
+		hdrs := make(map[string]int, len(recs))
+		for i, hdr := range recs[0] {
+			hdrs[hdr] = i
+		}
+
+		outRows = make([][]string, len(recs))
+		for i, rec := range recs {
+			for _, col := range r.Columns {
+				colIx, ok := hdrs[col]
+				if !ok {
+					continue
+				}
+				outRows[i] = append(outRows[i], rec[colIx])
+			}
+		}
+	}
+
 	w.Header().Add("Content-Disposition", fmt.Sprintf(`attachment; filename="Hosts %s.csv"`, time.Now().Format("2006-01-02")))
 	w.Header().Set("Content-Type", "text/csv")
 	w.WriteHeader(http.StatusOK)
-	if err := gocsv.Marshal(r.Hosts, w); err != nil {
+	if err := csv.NewWriter(w).WriteAll(outRows); err != nil {
 		logging.WithErr(ctx, err)
 	}
 }
@@ -890,7 +932,17 @@ func hostsReportEndpoint(ctx context.Context, request interface{}, svc fleet.Ser
 	if err != nil {
 		return hostsReportResponse{Err: err}, nil
 	}
-	return hostsReportResponse{Hosts: hosts}, nil
+
+	hostResps := make([]*HostResponse, len(hosts))
+	for i, h := range hosts {
+		hr, err := hostResponseForHost(ctx, svc, h)
+		if err != nil {
+			return hostsReportResponse{Err: err}, nil
+		}
+		hostResps[i] = hr
+	}
+	cols := strings.Split(req.Columns, ",")
+	return hostsReportResponse{Columns: cols, Hosts: hostResps}, nil
 }
 
 type osVersionsRequest struct {

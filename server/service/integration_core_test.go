@@ -4759,8 +4759,16 @@ func (s *integrationTestSuite) TestHostsReportDownload() {
 	require.Len(t, errs.Errors, 1)
 	assert.Equal(t, "format", errs.Errors[0].Name)
 
+	// valid format, no column specified
 	res = s.DoRaw("GET", "/api/latest/fleet/hosts/report", nil, http.StatusOK, "format", "csv")
 	rows, err := csv.NewReader(res.Body).ReadAll()
+	res.Body.Close()
+	require.NoError(t, err)
+	require.Len(t, rows, 0)
+
+	// valid format, some columns
+	res = s.DoRaw("GET", "/api/latest/fleet/hosts/report", nil, http.StatusOK, "format", "csv", "columns", "hostname")
+	rows, err = csv.NewReader(res.Body).ReadAll()
 	res.Body.Close()
 	require.NoError(t, err)
 	require.Len(t, rows, len(hosts)+1)
@@ -4771,14 +4779,14 @@ func (s *integrationTestSuite) TestHostsReportDownload() {
 	require.Contains(t, res.Header.Get("Content-Type"), "text/csv")
 
 	// pagination does not apply to this endpoint, it returns the complete list of hosts
-	res = s.DoRaw("GET", "/api/latest/fleet/hosts/report", nil, http.StatusOK, "format", "csv", "page", "1", "per_page", "2")
+	res = s.DoRaw("GET", "/api/latest/fleet/hosts/report", nil, http.StatusOK, "format", "csv", "page", "1", "per_page", "2", "columns", "hostname")
 	rows, err = csv.NewReader(res.Body).ReadAll()
 	res.Body.Close()
 	require.NoError(t, err)
 	require.Len(t, rows, len(hosts)+1)
 
 	// search criteria are applied
-	res = s.DoRaw("GET", "/api/latest/fleet/hosts/report", nil, http.StatusOK, "format", "csv", "query", "local0")
+	res = s.DoRaw("GET", "/api/latest/fleet/hosts/report", nil, http.StatusOK, "format", "csv", "query", "local0", "columns", "hostname")
 	rows, err = csv.NewReader(res.Body).ReadAll()
 	res.Body.Close()
 	require.NoError(t, err)
@@ -4786,12 +4794,21 @@ func (s *integrationTestSuite) TestHostsReportDownload() {
 	require.Contains(t, rows[1], hosts[0].Hostname)
 
 	// with a label id
-	res = s.DoRaw("GET", "/api/latest/fleet/hosts/report", nil, http.StatusOK, "format", "csv", "label_id", fmt.Sprintf("%d", customLabelID))
+	res = s.DoRaw("GET", "/api/latest/fleet/hosts/report", nil, http.StatusOK, "format", "csv", "columns", "hostname", "label_id", fmt.Sprintf("%d", customLabelID))
 	rows, err = csv.NewReader(res.Body).ReadAll()
 	res.Body.Close()
 	require.NoError(t, err)
 	require.Len(t, rows, 2) // headers + member host
 	require.Contains(t, rows[1], hosts[2].Hostname)
+
+	// valid format, some columns, unknown columns are ignored, order is respected
+	res = s.DoRaw("GET", "/api/latest/fleet/hosts/report", nil, http.StatusOK, "format", "csv", "columns", "memory,hostname,status,nosuchcolumn")
+	rows, err = csv.NewReader(res.Body).ReadAll()
+	res.Body.Close()
+	require.NoError(t, err)
+	require.Len(t, rows, len(hosts)+1)
+	require.Equal(t, []string{"memory", "hostname", "status"}, rows[0]) // first row contains headers
+	t.Log(rows)
 }
 
 // this test can be deleted once the "v1" version is removed.
