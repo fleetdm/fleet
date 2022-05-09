@@ -27,7 +27,7 @@ module.exports = {
 
     let GitHub = require('machinepack-github');
 
-    let IS_FROZEN = true;// « Set this to `true` whenever a freeze is in effect, then set it back to `false` when the freeze ends.
+    let IS_FROZEN = false;// « Set this to `true` whenever a freeze is in effect, then set it back to `false` when the freeze ends.
 
     let GITHUB_USERNAMES_OF_BOTS_AND_MAINTAINERS = [// « Used in multiple places below.
       'sailsbot',
