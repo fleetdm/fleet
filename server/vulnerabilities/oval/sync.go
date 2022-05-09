@@ -85,11 +85,18 @@ func removeOldDefs(date time.Time, path string) (map[string]bool, error) {
 	return upToDate, nil
 }
 
-// Syncs the oval definitions for one or more platforms
+// Syncs the oval definitions for one or more platforms.
+// If 'platform' is nil, then all supported platforms will be synched.
 func Sync(client *http.Client, dstDir string, platforms []Platform) error {
 	sources, err := getOvalSources(ghNvdFileGetter(client))
 	if err != nil {
 		return err
+	}
+
+	if platforms == nil {
+		for s := range sources {
+			platforms = append(platforms, s)
+		}
 	}
 
 	dwn := downloadDecompressed(client)
