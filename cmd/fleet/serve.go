@@ -305,6 +305,7 @@ the way that the Fleet server works.
 			task := &async.Task{
 				Datastore:          ds,
 				Pool:               redisPool,
+				Clock:              clock.C,
 				AsyncEnabled:       config.Osquery.EnableAsyncHostProcessing,
 				LockTimeout:        config.Osquery.AsyncHostCollectLockTimeout,
 				LogStatsInterval:   config.Osquery.AsyncHostCollectLogStatsInterval,

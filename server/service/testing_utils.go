@@ -78,6 +78,7 @@ func newTestServiceWithConfig(t *testing.T, ds fleet.Datastore, fleetConfig conf
 		}
 	}
 
+	task.Clock = c
 	svc, err := NewService(context.Background(), ds, task, rs, logger, osqlogger, fleetConfig, mailer, c, ssoStore, lq, ds, *license, failingPolicySet, &fleet.NoOpGeoIP{})
 	if err != nil {
 		panic(err)

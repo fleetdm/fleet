@@ -2,6 +2,7 @@ package async
 
 import (
 	"context"
+	"sort"
 	"sync"
 	"time"
 
@@ -49,7 +50,7 @@ func (t *Task) RecordHostLastSeen(ctx context.Context, hostID uint) error {
 		return ctxerr.Wrap(ctx, err, "bind redis connection")
 	}
 
-	if _, err := script.Do(conn, hostSeenRecordedHostIDsKey, int(ttl.Seconds())); err != nil {
+	if _, err := script.Do(conn, hostSeenRecordedHostIDsKey, hostID, int(ttl.Seconds())); err != nil {
 		return ctxerr.Wrap(ctx, err, "run redis script")
 	}
 	return nil
@@ -71,124 +72,44 @@ func (t *Task) FlushHostsLastSeen(ctx context.Context, now time.Time) error {
 }
 
 func (t *Task) collectHostsLastSeen(ctx context.Context, ds fleet.Datastore, pool fleet.RedisPool, stats *collectorExecStats) error {
-	hostIDs, err := t.loadSeenHostsIDs(ctx)
+	hostIDs, err := t.loadSeenHostsIDs(ctx, pool)
 	if err != nil {
 		return err
 	}
 	stats.RedisCmds++ // the script to load seen hosts
 	stats.Keys = 2    // the reported and processing set keys
 	stats.Items = len(hostIDs)
-	if err := t.Datastore.MarkHostsSeen(ctx, hostIDs, time.Now()); err != nil {
-		return err
-	}
-	// TODO: cannot really increment INSERTs or UPDATEs, maybe an UPSERT count?
 
-	conn := t.Pool.Get()
+	// process in batches, as there could be many thousand host IDs
+	if len(hostIDs) > 0 {
+		// globally sort the host IDs so they are sent ordered as batches to MarkHostsSeen
+		sort.Slice(hostIDs, func(i, j int) bool { return hostIDs[i] < hostIDs[j] })
+
+		ts := t.Clock.Now()
+		batch := make([]uint, t.InsertBatch)
+		for {
+			n := copy(batch, hostIDs)
+			if n == 0 {
+				break
+			}
+			if err := ds.MarkHostsSeen(ctx, batch[:n], ts); err != nil {
+				return err
+			}
+			stats.Inserts++
+			hostIDs = hostIDs[n:]
+		}
+	}
+
+	conn := pool.Get()
 	defer conn.Close()
 	if _, err := conn.Do("DEL", hostSeenProcessingHostIDsKey); err != nil {
 		return ctxerr.Wrap(ctx, err, "delete processing set key")
 	}
 
 	return nil
-
-	/*
-		// Based on those pages, the best approach appears to be INSERT with multiple
-		// rows in the VALUES section (short of doing LOAD FILE, which we can't):
-		// https://www.databasejournal.com/features/mysql/optimize-mysql-inserts-using-batch-processing.html
-		// https://dev.mysql.com/doc/refman/5.7/en/insert-optimization.html
-		// https://dev.mysql.com/doc/refman/5.7/en/optimizing-innodb-bulk-data-loading.html
-		//
-		// Given that there are no UNIQUE constraints in label_membership (well,
-		// apart from the primary key columns), no AUTO_INC column and no FOREIGN
-		// KEY, there is no obvious setting to tweak (based on the recommendations of
-		// the third link above).
-		//
-		// However, in label_membership, updated_at defaults to the current timestamp
-		// both on INSERT and when UPDATEd, so it does not need to be provided.
-
-		runInsertBatch := func(batch [][2]uint) error {
-			stats.Inserts++
-			return ds.AsyncBatchInsertLabelMembership(ctx, batch)
-		}
-
-		runDeleteBatch := func(batch [][2]uint) error {
-			stats.Deletes++
-			return ds.AsyncBatchDeleteLabelMembership(ctx, batch)
-		}
-
-		runUpdateBatch := func(ids []uint, ts time.Time) error {
-			stats.Updates++
-			return ds.AsyncBatchUpdateLabelTimestamp(ctx, ids, ts)
-		}
-
-		insertBatch := make([][2]uint, 0, t.InsertBatch)
-		deleteBatch := make([][2]uint, 0, t.DeleteBatch)
-		for _, host := range hosts {
-			hid := host.HostID
-			ins, del, err := getKeyTuples(hid)
-			if err != nil {
-				return err
-			}
-			insertBatch = append(insertBatch, ins...)
-			deleteBatch = append(deleteBatch, del...)
-
-			if len(insertBatch) >= t.InsertBatch {
-				if err := runInsertBatch(insertBatch); err != nil {
-					return err
-				}
-				insertBatch = insertBatch[:0]
-			}
-			if len(deleteBatch) >= t.DeleteBatch {
-				if err := runDeleteBatch(deleteBatch); err != nil {
-					return err
-				}
-				deleteBatch = deleteBatch[:0]
-			}
-		}
-
-		// process any remaining batch that did not reach the batchSize limit in the
-		// loop.
-		if len(insertBatch) > 0 {
-			if err := runInsertBatch(insertBatch); err != nil {
-				return err
-			}
-		}
-		if len(deleteBatch) > 0 {
-			if err := runDeleteBatch(deleteBatch); err != nil {
-				return err
-			}
-		}
-		if len(hosts) > 0 {
-			hostIDs := make([]uint, len(hosts))
-			for i, host := range hosts {
-				hostIDs[i] = host.HostID
-			}
-
-			ts := time.Now()
-			updateBatch := make([]uint, t.UpdateBatch)
-			for {
-				n := copy(updateBatch, hostIDs)
-				if n == 0 {
-					break
-				}
-				if err := runUpdateBatch(updateBatch[:n], ts); err != nil {
-					return err
-				}
-				hostIDs = hostIDs[n:]
-			}
-
-			// batch-remove any host ID from the active set that still has its score to
-			// the initial value, so that the active set does not keep all (potentially
-			// 100K+) host IDs to process at all times - only those with reported
-			// results to process.
-			if _, err := removeProcessedHostIDs(pool, labelMembershipActiveHostIDsKey, hosts); err != nil {
-				return ctxerr.Wrap(ctx, err, "remove processed host ids")
-			}
-		}
-	*/
 }
 
-func (t *Task) loadSeenHostsIDs(ctx context.Context) ([]uint, error) {
+func (t *Task) loadSeenHostsIDs(ctx context.Context, pool fleet.RedisPool) ([]uint, error) {
 	// compute the TTL for the processing key just as we do for the storage key,
 	// in case the collection fails before removing the working key, we don't
 	// want it to stick around forever.
@@ -207,9 +128,9 @@ func (t *Task) loadSeenHostsIDs(ctx context.Context) ([]uint, error) {
     return redis.call('EXPIRE', KEYS[2], ARGV[1])
   `)
 
-	conn := t.Pool.Get()
+	conn := pool.Get()
 	defer conn.Close()
-	if err := redis.BindConn(t.Pool, conn, hostSeenRecordedHostIDsKey, hostSeenProcessingHostIDsKey); err != nil {
+	if err := redis.BindConn(pool, conn, hostSeenRecordedHostIDsKey, hostSeenProcessingHostIDsKey); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "bind redis connection")
 	}
 

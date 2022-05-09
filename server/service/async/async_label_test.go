@@ -6,6 +6,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/WatchBeam/clock"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
 	"github.com/fleetdm/fleet/v4/server/datastore/redis"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -204,6 +205,7 @@ func testCollectLabelQueryExecutions(t *testing.T, ds *mysql.Datastore, pool fle
 			// run the collection
 			var stats collectorExecStats
 			task := Task{
+				Clock:              clock.C,
 				InsertBatch:        batchSizes,
 				UpdateBatch:        batchSizes,
 				DeleteBatch:        batchSizes,
@@ -251,6 +253,7 @@ func testCollectLabelQueryExecutions(t *testing.T, ds *mysql.Datastore, pool fle
 	setupTest(t, map[int]map[int]bool{1: {1: true}})
 	var stats collectorExecStats
 	task := Task{
+		Clock:              clock.C,
 		InsertBatch:        batchSizes,
 		UpdateBatch:        batchSizes,
 		DeleteBatch:        batchSizes,
@@ -288,6 +291,7 @@ func testRecordLabelQueryExecutionsSync(t *testing.T, ds *mock.Store, pool fleet
 	task := Task{
 		Datastore:    ds,
 		Pool:         pool,
+		Clock:        clock.C,
 		AsyncEnabled: false,
 	}
 
@@ -335,6 +339,7 @@ func testRecordLabelQueryExecutionsAsync(t *testing.T, ds *mock.Store, pool flee
 	task := Task{
 		Datastore:    ds,
 		Pool:         pool,
+		Clock:        clock.C,
 		AsyncEnabled: true,
 
 		InsertBatch:        3,

@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/WatchBeam/clock"
 	"github.com/fleetdm/fleet/v4/server/datastore/redis"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/getsentry/sentry-go"
@@ -18,6 +19,7 @@ const collectorLockKey = "locks:async_collector:{%s}"
 type Task struct {
 	Datastore fleet.Datastore
 	Pool      fleet.RedisPool
+	Clock     clock.Clock
 	// AsyncEnabled indicates if async processing is enabled in the
 	// configuration. Note that Pool can be nil if this is false.
 	AsyncEnabled bool
