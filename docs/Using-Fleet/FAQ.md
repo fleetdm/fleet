@@ -274,7 +274,7 @@ $ fleetctl get hosts --json | jq '.spec .os_version' | sort | uniq -c
    6 "macOS 12.3.1"
 ```
 
-## Will updating fleetctl lead to loss of data in preview?
+## Will updating fleetctl lead to loss of data in Preview?
 
 No, you won't experience any loss of data whenenver you update fleetctl. Note that you can run `fleetctl preview --tag v#.#.#`(replace # with the version numbers you are interested in) if you want to run preview on a previous version.
 
