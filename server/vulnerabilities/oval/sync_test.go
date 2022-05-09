@@ -11,84 +11,90 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestRemoveOldDefsEmptyDir(t *testing.T) {
-	path := os.TempDir()
-	date := time.Now()
+func TestSync(t *testing.T) {
+	t.Run("#removeOldDefs", func(t *testing.T) {
+		t.Run("with empty dir", func(t *testing.T) {
+			path, err := ioutil.TempDir("", "oval_test")
+			defer os.RemoveAll(path)
+			require.NoError(t, err)
+			date := time.Now()
 
-	result, err := removeOldDefs(date, path)
-	require.Empty(t, result)
-	require.Nil(t, err)
-}
+			result, err := removeOldDefs(date, path)
+			require.Empty(t, result)
+			require.Nil(t, err)
+		})
 
-func TestRemoveOldDefsWithOldDefinitions(t *testing.T) {
-	hostPlatform := "ubuntu"
-	hostOsVersion := "Ubuntu 20.4.0"
-	ovalPlatform := NewPlatform(hostPlatform, hostOsVersion)
+		t.Run("with old definitions", func(t *testing.T) {
+			hostPlatform := "ubuntu"
+			hostOsVersion := "Ubuntu 20.4.0"
+			ovalPlatform := NewPlatform(hostPlatform, hostOsVersion)
 
-	today := time.Now()
-	yesterday := today.Add(-24 * time.Hour)
+			today := time.Now()
+			yesterday := today.Add(-24 * time.Hour)
 
-	path, err := ioutil.TempDir("", "oval_test")
-	defer os.RemoveAll(path)
-	require.NoError(t, err)
+			path, err := ioutil.TempDir("", "oval_test")
+			defer os.RemoveAll(path)
+			require.NoError(t, err)
 
-	otherFile1 := filepath.Join(path, "my_lyrics.json")
-	newDef := filepath.Join(path, ovalPlatform.ToFilename(today, "json"))
-	oldDef := filepath.Join(path, ovalPlatform.ToFilename(yesterday, "json"))
+			otherFile1 := filepath.Join(path, "my_lyrics.json")
+			newDef := filepath.Join(path, ovalPlatform.ToFilename(today, "json"))
+			oldDef := filepath.Join(path, ovalPlatform.ToFilename(yesterday, "json"))
 
-	f1, err := os.Create(newDef)
-	require.NoError(t, err)
-	f1.Close()
+			f1, err := os.Create(newDef)
+			require.NoError(t, err)
+			f1.Close()
 
-	f2, err := os.Create(oldDef)
-	require.NoError(t, err)
-	f2.Close()
+			f2, err := os.Create(oldDef)
+			require.NoError(t, err)
+			f2.Close()
 
-	f3, err := os.Create(otherFile1)
-	require.NoError(t, err)
-	f3.Close()
+			f3, err := os.Create(otherFile1)
+			require.NoError(t, err)
+			f3.Close()
 
-	r, err := removeOldDefs(today, path)
-	require.NoError(t, err)
-	require.Contains(t, r, newDef)
+			r, err := removeOldDefs(today, path)
+			require.NoError(t, err)
+			require.Contains(t, r, newDef)
 
-	_, err = os.Stat(oldDef)
-	require.True(t, os.IsNotExist(err))
+			_, err = os.Stat(oldDef)
+			require.True(t, os.IsNotExist(err))
 
-	_, err = os.Stat(otherFile1)
-	require.NoError(t, err)
-}
+			_, err = os.Stat(otherFile1)
+			require.NoError(t, err)
+		})
+	})
 
-func TestWhatToDownload(t *testing.T) {
-	today := time.Now()
+	t.Run("#whatToDownload", func(t *testing.T) {
+		today := time.Now()
 
-	osVersions := fleet.OSVersions{
-		CountsUpdatedAt: time.Now(),
-		OSVersions: []fleet.OSVersion{
-			{
-				HostsCount: 1,
-				Platform:   "ubuntu",
-				Name:       "Ubuntu 20.4.0",
+		osVersions := fleet.OSVersions{
+			CountsUpdatedAt: time.Now(),
+			OSVersions: []fleet.OSVersion{
+				{
+					HostsCount: 1,
+					Platform:   "ubuntu",
+					Name:       "Ubuntu 20.4.0",
+				},
+				{
+					HostsCount: 1,
+					Platform:   "ubuntu",
+					Name:       "Ubuntu 18.4.0",
+				},
+				{
+					HostsCount: 1,
+					Platform:   "rhle",
+					Name:       "CentOS Linux 8.3.2011",
+				},
 			},
-			{
-				HostsCount: 1,
-				Platform:   "ubuntu",
-				Name:       "Ubuntu 18.4.0",
-			},
-			{
-				HostsCount: 1,
-				Platform:   "rhle",
-				Name:       "CentOS Linux 8.3.2011",
-			},
-		},
-	}
+		}
 
-	existing := map[string]bool{
-		NewPlatform("ubuntu", "Ubuntu 20.4.0").ToFilename(today, "json"): true,
-	}
+		existing := map[string]bool{
+			NewPlatform("ubuntu", "Ubuntu 20.4.0").ToFilename(today, "json"): true,
+		}
 
-	r := whatToDownload(&osVersions, existing, today)
-	require.Len(t, r, 1)
-	require.Contains(t, r, NewPlatform("ubuntu", "Ubuntu 18.4.0"))
-	require.NotContains(t, r, NewPlatform("rhle", "CentOS Linux 8.3.2011"))
+		r := whatToDownload(&osVersions, existing, today)
+		require.Len(t, r, 1)
+		require.Contains(t, r, NewPlatform("ubuntu", "Ubuntu 18.4.0"))
+		require.NotContains(t, r, NewPlatform("rhle", "CentOS Linux 8.3.2011"))
+	})
 }

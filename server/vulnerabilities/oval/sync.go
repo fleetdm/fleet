@@ -62,7 +62,7 @@ func whatToDownload(osVers *fleet.OSVersions, existing map[string]bool, date tim
 // Walks 'path' removing any old oval definitions, returns a set containing
 // definitions that are up to date according to 'date'
 func removeOldDefs(date time.Time, path string) (map[string]bool, error) {
-	dateSuffix := fmt.Sprintf("_%d-%d-%d.json", date.Year(), date.Month(), date.Day())
+	dateSuffix := fmt.Sprintf("_%d-%02d-%02d.json", date.Year(), date.Month(), date.Day())
 	upToDate := make(map[string]bool)
 
 	err := filepath.WalkDir(path, func(path string, d os.DirEntry, err error) error {
