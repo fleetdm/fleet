@@ -8,7 +8,7 @@
   syntax used and compare this to their results without leaving the current view.
 
 * Add a [Postman
-  collection](https://www.postman.com/fleetdm/workspace/fleet/collection/18010889-c5604fe6-7f6c-44bf-a60c-46650d358dde?ctx=documentation)
+  Collection](https://www.postman.com/fleetdm/workspace/fleet/collection/18010889-c5604fe6-7f6c-44bf-a60c-46650d358dde?ctx=documentation)
   for the Fleet API. This allows users to easily interact with Fleet's API routes so that they can
   build and test integrations.
 
@@ -17,9 +17,11 @@ information about their device. To add Fleet Desktop to a Linux device, first ad
 `--fleet-desktop` flag to the `fleectl package` command to generate a Fleet-osquery installer that
 includes Fleet Desktop. Then, open this installer on the device.
 
-* Improve error message retuned when running `fleetctl query` command with missing or misspelled hosts.
+* Add `last_opened_at` property, for macOS software, to the **Host details** API route (`GET /hosts/{id}`).
 
 * Improve the **Settings** pages in the the Fleet UI.
+
+* Improve error message retuned when running `fleetctl query` command with missing or misspelled hosts.
 
 * Improve the empty states and forms on the **Policies** page, **Queries** page, and **Host details** page in the Fleet UI.
 
