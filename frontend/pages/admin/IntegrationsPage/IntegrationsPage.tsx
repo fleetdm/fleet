@@ -18,7 +18,7 @@ import { DEFAULT_CREATE_INTEGRATION_ERRORS } from "utilities/constants";
 import configAPI from "services/entities/config";
 
 import TableContainer from "components/TableContainer";
-import TableDataError from "components/TableDataError";
+import TableDataError from "components/DataError";
 import AddIntegrationModal from "./components/CreateIntegrationModal";
 import DeleteIntegrationModal from "./components/DeleteIntegrationModal";
 import EditIntegrationModal from "./components/EditIntegrationModal";
@@ -82,6 +82,8 @@ const IntegrationsPage = (): JSX.Element => {
             return { ...integration, index };
           });
           setIntegrationsIndexed(addIndex);
+        } else {
+          setIntegrationsIndexed([]);
         }
       },
     }
@@ -141,6 +143,12 @@ const IntegrationsPage = (): JSX.Element => {
                   jiraIntegrationSubmitData[
                     jiraIntegrationSubmitData.length - 1
                   ].url
+                }{" "}
+                -{" "}
+                {
+                  jiraIntegrationSubmitData[
+                    jiraIntegrationSubmitData.length - 1
+                  ].project_key
                 }
               </b>
             </>
@@ -152,11 +160,36 @@ const IntegrationsPage = (): JSX.Element => {
         .catch((createError: { data: IApiError }) => {
           if (createError.data.message.includes("Validation Failed")) {
             renderFlash("error", VALIDATION_FAILED_ERROR);
-          }
-          if (createError.data.message.includes("Bad request")) {
-            renderFlash("error", BAD_REQUEST_ERROR);
-          }
-          if (createError.data.message.includes("Unknown Error")) {
+          } else if (createError.data.message.includes("Bad request")) {
+            if (
+              createError.data.errors[0].reason.includes(
+                "duplicate Jira integration for project key"
+              )
+            ) {
+              renderFlash(
+                "error",
+                <>
+                  Could not add add{" "}
+                  <b>
+                    {
+                      jiraIntegrationSubmitData[
+                        jiraIntegrationSubmitData.length - 1
+                      ].url
+                    }{" "}
+                    -{" "}
+                    {
+                      jiraIntegrationSubmitData[
+                        jiraIntegrationSubmitData.length - 1
+                      ].project_key
+                    }
+                  </b>
+                  . This integration already exists
+                </>
+              );
+            } else {
+              renderFlash("error", BAD_REQUEST_ERROR);
+            }
+          } else if (createError.data.message.includes("Unknown Error")) {
             renderFlash("error", UNKNOWN_ERROR);
           } else {
             renderFlash(
@@ -192,21 +225,27 @@ const IntegrationsPage = (): JSX.Element => {
           renderFlash(
             "success",
             <>
-              Successfully deleted <b>{integrationEditing.url}</b>
+              Successfully deleted{" "}
+              <b>
+                {integrationEditing.url} - {integrationEditing.project_key}
+              </b>
             </>
           );
+          refetchIntegrations();
         })
         .catch(() => {
           renderFlash(
             "error",
             <>
-              Could not delete <b>{integrationEditing.url}</b>. Please try
-              again.
+              Could not delete{" "}
+              <b>
+                {integrationEditing.url} - {integrationEditing.project_key}
+              </b>
+              . Please try again.
             </>
           );
         })
         .finally(() => {
-          refetchIntegrations();
           toggleDeleteIntegrationModal();
         });
     }
@@ -224,7 +263,11 @@ const IntegrationsPage = (): JSX.Element => {
               <>
                 Successfully edited{" "}
                 <b>
-                  {jiraIntegrationSubmitData[integrationEditing?.index].url}
+                  {jiraIntegrationSubmitData[integrationEditing?.index].url} -{" "}
+                  {
+                    jiraIntegrationSubmitData[integrationEditing?.index]
+                      .project_key
+                  }
                 </b>
               </>
             );
@@ -246,8 +289,12 @@ const IntegrationsPage = (): JSX.Element => {
               renderFlash(
                 "error",
                 <>
-                  Could not edit <b>{integrationEditing?.url}</b>. Please try
-                  again.
+                  Could not edit{" "}
+                  <b>
+                    {integrationEditing?.url} -{" "}
+                    {integrationEditing?.project_key}
+                  </b>
+                  . Please try again.
                 </>
               );
             }
@@ -354,6 +401,7 @@ const IntegrationsPage = (): JSX.Element => {
           onCancel={toggleDeleteIntegrationModal}
           onSubmit={onDeleteSubmit}
           url={integrationEditing?.url || ""}
+          projectKey={integrationEditing?.project_key || ""}
         />
       )}
       {showEditIntegrationModal && (

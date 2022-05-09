@@ -19,7 +19,7 @@ resource "aws_alb_listener" "https-fleetdm" {
     type = "fixed-response"
     fixed_response {
       content_type = "text/plain"
-      message_body = "moved to subdomains, try https://default.loadtesting.fleetdm.com"
+      message_body = "moved to subdomains, try https://default.loadtest.fleetdm.com"
       status_code  = "404"
     }
   }
@@ -37,31 +37,6 @@ resource "aws_alb_listener" "http" {
       port        = "443"
       protocol    = "HTTPS"
       status_code = "HTTP_301"
-    }
-  }
-}
-
-resource "aws_alb" "internal" {
-  name                       = "fleetdm-internal"
-  internal                   = true
-  security_groups            = [aws_security_group.lb.id]
-  subnets                    = module.vpc.private_subnets
-  idle_timeout               = 600
-  drop_invalid_header_fields = true
-  #checkov:skip=CKV_AWS_150:don't like it
-}
-
-resource "aws_alb_listener" "https-fleetdm-internal" {
-  load_balancer_arn = aws_alb.internal.arn
-  port              = 80
-  protocol          = "HTTP" #tfsec:ignore:aws-elb-http-not-used
-
-  default_action {
-    type = "fixed-response"
-    fixed_response {
-      content_type = "text/plain"
-      message_body = "moved to subdomains, try https://default.loadtesting.fleetdm.com"
-      status_code  = "404"
     }
   }
 }

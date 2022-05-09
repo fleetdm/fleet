@@ -131,7 +131,7 @@ type Host struct {
 
 	HostIssues `json:"issues,omitempty" csv:"-"`
 
-	DeviceMapping *json.RawMessage `json:"device_mapping" db:"device_mapping" csv:"device_mapping"`
+	DeviceMapping *json.RawMessage `json:"device_mapping,omitempty" db:"device_mapping" csv:"device_mapping"`
 }
 
 type HostIssues struct {
