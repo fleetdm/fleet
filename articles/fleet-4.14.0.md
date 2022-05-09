@@ -16,7 +16,16 @@ For update instructions, see our [upgrade guide](https://fleetdm.com/docs/deploy
 
 ![Jira integration](http://fleetdm.com/images/articles/jira-integration-1600x900@2x.png)
 
-You can now configure Fleet to automatically create a Jira issue when a new vulnerability (CVE) is found on your hosts. No need to create tickets or spend time configuring a webhook manually. 
+You can now configure Fleet to automatically create a Jira issue (ticket) when a new vulnerability (CVE) is
+found on your hosts. No need to create tickets or spend time configuring a webhook manually.
+
+To configure Jira as a ticket destination:
+1. On the top bar, on the right, select the avatar and select **Settings**.
+2. Select **Integrations** and **Add integration**.
+3. Enter your Jira instance's **URL** **Username** **API token** and **Project key**.
+4. On the top bar, select **Policies** and, on the right, select **Manage automations**.
+5. Select **Enable vulnerability automations** and choose **Ticket**.
+6. Choose your Jira instance in **Integration** and select **Save**.
 
 ## Improved live query experience
 **Available in Fleet Free & Fleet Premium**
