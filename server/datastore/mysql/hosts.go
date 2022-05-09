@@ -769,8 +769,6 @@ func (ds *Datastore) MarkHostsSeen(ctx context.Context, hostIDs []uint, t time.T
 			insertArgs = append(insertArgs, hostID, t)
 		}
 		insertValues := strings.TrimSuffix(strings.Repeat("(?, ?),", len(hostIDs)), ",")
-		// TODO(mna): would that help to do UPDATE first, and INSERT only if update fails,
-		// as recommended in our performance gotchas document?
 		query := fmt.Sprintf(`
 			INSERT INTO host_seen_times (host_id, seen_time) VALUES %s
 			ON DUPLICATE KEY UPDATE seen_time = VALUES(seen_time)`,
