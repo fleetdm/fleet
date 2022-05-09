@@ -44,3 +44,7 @@ func Time(x time.Time) *time.Time {
 func RawMessage(x json.RawMessage) *json.RawMessage {
 	return &x
 }
+
+func Float64(x float64) *float64 {
+	return &x
+}

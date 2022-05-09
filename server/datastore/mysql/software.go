@@ -960,6 +960,7 @@ func (ds *Datastore) HostsByCPEs(ctx context.Context, cpes []string) ([]*fleet.H
 	}
 	var hosts []*fleet.HostShort
 	if err := sqlx.SelectContext(ctx, ds.reader, &hosts, stmt, args...); err != nil {
+
 		return nil, ctxerr.Wrap(ctx, err, "select hosts by cpes")
 	}
 	return hosts, nil
@@ -985,4 +986,23 @@ ORDER BY
 		return nil, ctxerr.Wrap(ctx, err, "select hosts by cves")
 	}
 	return hosts, nil
+}
+
+func (ds *Datastore) NewCVE(ctx context.Context, cve *fleet.CVE) (*fleet.CVE, error) {
+	query := `
+INSERT INTO cves (
+    cve,
+    cvss_score,
+    epss_probability,
+    cisa_known_exploit
+)
+VALUES
+    (?, ?, ?, ?)
+`
+
+	_, err := ds.writer.ExecContext(ctx, query, cve.CVE, cve.CVSSScore, cve.EPSSProbability, cve.CISAKnownExploit)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "create new cve")
+	}
+	return cve, nil
 }

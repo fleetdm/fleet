@@ -12,7 +12,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/test"
-	"github.com/jmoiron/sqlx"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -409,12 +408,7 @@ func testSoftwareLoadSupportsTonsOfCVEs(t *testing.T, ds *Datastore) {
 
 	require.NoError(t, ds.AddCPEForSoftware(context.Background(), host.Software[1], "someothercpewithoutvulns"))
 
-	var somecpeID uint
-	err := ds.withTx(context.Background(), func(tx sqlx.ExtContext) error {
-		var err error
-		somecpeID, err = addCPEForSoftwareDB(context.Background(), tx, host.Software[0], "somecpe")
-		return err
-	})
+	somecpeID, err := addCPEForSoftwareDB(context.Background(), ds.writer, host.Software[0], "somecpe")
 	require.NoError(t, err)
 
 	var cves []fleet.CVE
@@ -464,6 +458,7 @@ func testSoftwareLoadSupportsTonsOfCVEs(t *testing.T, ds *Datastore) {
 func testSoftwareList(t *testing.T, ds *Datastore) {
 	host1 := test.NewHost(t, ds, "host1", "", "host1key", "host1uuid", time.Now())
 	host2 := test.NewHost(t, ds, "host2", "", "host2key", "host2uuid", time.Now())
+	host3 := test.NewHost(t, ds, "host3", "", "host3key", "host3uuid", time.Now())
 
 	software1 := []fleet.Software{
 		{Name: "foo", Version: "0.0.1", Source: "chrome_extensions"},
@@ -474,55 +469,107 @@ func testSoftwareList(t *testing.T, ds *Datastore) {
 		{Name: "foo", Version: "0.0.3", Source: "chrome_extensions"},
 		{Name: "bar", Version: "0.0.3", Source: "deb_packages"},
 	}
+	software3 := []fleet.Software{
+		{Name: "baz", Version: "0.0.1", Source: "deb_packages"},
+	}
 
 	require.NoError(t, ds.UpdateHostSoftware(context.Background(), host1.ID, software1))
 	require.NoError(t, ds.UpdateHostSoftware(context.Background(), host2.ID, software2))
+	require.NoError(t, ds.UpdateHostSoftware(context.Background(), host3.ID, software3))
 	require.NoError(t, ds.LoadHostSoftware(context.Background(), host1))
 	require.NoError(t, ds.LoadHostSoftware(context.Background(), host2))
+	require.NoError(t, ds.LoadHostSoftware(context.Background(), host3))
 
 	sort.Slice(host1.Software, func(i, j int) bool {
 		return host1.Software[i].Name+host1.Software[i].Version < host1.Software[j].Name+host1.Software[j].Version
 	})
 	require.NoError(t, ds.AddCPEForSoftware(context.Background(), host1.Software[0], "somecpe"))
 	require.NoError(t, ds.AddCPEForSoftware(context.Background(), host1.Software[1], "someothercpewithoutvulns"))
+	require.NoError(t, ds.AddCPEForSoftware(context.Background(), host3.Software[0], "somecpe2"))
+
 	_, err := ds.InsertCVEForCPE(context.Background(), "CVE-2022-0001", []string{"somecpe"})
 	require.NoError(t, err)
 	_, err = ds.InsertCVEForCPE(context.Background(), "CVE-2022-0002", []string{"somecpe"})
 	require.NoError(t, err)
+	_, err = ds.InsertCVEForCPE(context.Background(), "CVE-2022-0003", []string{"somecpe2"})
+	require.NoError(t, err)
+
+	cve1 := fleet.CVE{
+		CVE:             "CVE-2022-0001",
+		CVSSScore:       ptr.Float64(2.0),
+		EPSSProbability: ptr.Float64(0.01),
+	}
+	cve2 := fleet.CVE{
+		CVE:             "CVE-2022-0002",
+		CVSSScore:       ptr.Float64(1.0),
+		EPSSProbability: ptr.Float64(0.99),
+	}
+	cve3 := fleet.CVE{
+		CVE:              "CVE-2022-0003",
+		CVSSScore:        ptr.Float64(3.0),
+		EPSSProbability:  ptr.Float64(0.98),
+		CISAKnownExploit: ptr.Bool(true),
+	}
+	_, err = ds.NewCVE(context.Background(), &cve1)
+	require.NoError(t, err)
+	_, err = ds.NewCVE(context.Background(), &cve2)
+	require.NoError(t, err)
+	_, err = ds.NewCVE(context.Background(), &cve3)
+	require.NoError(t, err)
 
 	foo001 := fleet.Software{
-		Name: "foo", Version: "0.0.1", Source: "chrome_extensions", GenerateCPE: "somecpe",
+		Name:        "foo",
+		Version:     "0.0.1",
+		Source:      "chrome_extensions",
+		GenerateCPE: "somecpe",
 		Vulnerabilities: fleet.Vulnerabilities{
-			{CVE: "CVE-2022-0001", DetailsLink: "https://nvd.nist.gov/vuln/detail/CVE-2022-0001"},
-			{CVE: "CVE-2022-0002", DetailsLink: "https://nvd.nist.gov/vuln/detail/CVE-2022-0002"},
+			{
+				CVE:             "CVE-2022-0001",
+				DetailsLink:     "https://nvd.nist.gov/vuln/detail/CVE-2022-0001",
+				CVSSScore:       ptr.Float64(2.0),
+				EPSSProbability: ptr.Float64(0.01),
+			},
+			{
+				CVE:             "CVE-2022-0002",
+				DetailsLink:     "https://nvd.nist.gov/vuln/detail/CVE-2022-0002",
+				CVSSScore:       ptr.Float64(1.0),
+				EPSSProbability: ptr.Float64(0.99),
+			},
 		},
 	}
 	foo002 := fleet.Software{Name: "foo", Version: "v0.0.2", Source: "chrome_extensions"}
 	foo003 := fleet.Software{Name: "foo", Version: "0.0.3", Source: "chrome_extensions", GenerateCPE: "someothercpewithoutvulns"}
 	bar003 := fleet.Software{Name: "bar", Version: "0.0.3", Source: "deb_packages"}
+	baz001 := fleet.Software{
+		Name:        "baz",
+		Version:     "0.0.1",
+		Source:      "deb_packages",
+		GenerateCPE: "somecpe2",
+		Vulnerabilities: fleet.Vulnerabilities{
+			{
+				CVE:              "CVE-2022-0003",
+				DetailsLink:      "https://nvd.nist.gov/vuln/detail/CVE-2022-0003",
+				CVSSScore:        ptr.Float64(3.0),
+				EPSSProbability:  ptr.Float64(0.98),
+				CISAKnownExploit: ptr.Bool(true),
+			},
+		},
+	}
 
 	t.Run("lists everything", func(t *testing.T) {
-		software := listSoftwareCheckCount(t, ds, 4, 4, fleet.SoftwareListOptions{}, true)
-		expected := []fleet.Software{bar003, foo001, foo003, foo002}
-		test.ElementsMatchSkipID(t, software, expected)
-	})
-
-	t.Run("limits the results", func(t *testing.T) {
-		software := listSoftwareCheckCount(t, ds, 1, 4, fleet.SoftwareListOptions{ListOptions: fleet.ListOptions{PerPage: 1, OrderKey: "version"}}, true)
-		expected := []fleet.Software{foo001}
-		test.ElementsMatchSkipID(t, software, expected)
+		listSoftwareCheckCount(t, ds, 5, 5, fleet.SoftwareListOptions{}, true)
 	})
 
 	t.Run("paginates", func(t *testing.T) {
-		software := listSoftwareCheckCount(t, ds, 1, 4, fleet.SoftwareListOptions{ListOptions: fleet.ListOptions{Page: 1, PerPage: 1, OrderKey: "version"}}, true)
+		software := listSoftwareCheckCount(t, ds, 1, 5, fleet.SoftwareListOptions{ListOptions: fleet.ListOptions{Page: 1, PerPage: 1, OrderKey: "version"}}, true)
 		require.Len(t, software, 1)
 		var expected []fleet.Software
-		// Both foo003 and bar003 have the same version, thus we check which one the database picked
+		// Both foo001 and baz001 have the same version, thus we check which one the database picked
 		// for the second page.
 		if software[0].Name == "foo" {
-			expected = []fleet.Software{foo003}
+			expected = []fleet.Software{foo001}
 		} else {
-			expected = []fleet.Software{bar003}
+			expected = []fleet.Software{baz001}
 		}
 		test.ElementsMatchSkipID(t, software, expected)
 	})
@@ -555,8 +602,8 @@ func testSoftwareList(t *testing.T, ds *Datastore) {
 	})
 
 	t.Run("filters vulnerable software", func(t *testing.T) {
-		software := listSoftwareCheckCount(t, ds, 1, 1, fleet.SoftwareListOptions{VulnerableOnly: true}, true)
-		expected := []fleet.Software{foo001}
+		software := listSoftwareCheckCount(t, ds, 2, 2, fleet.SoftwareListOptions{ListOptions: fleet.ListOptions{OrderKey: "name"}, VulnerableOnly: true}, true)
+		expected := []fleet.Software{foo001, baz001}
 		test.ElementsMatchSkipID(t, software, expected)
 	})
 
@@ -575,7 +622,7 @@ func testSoftwareList(t *testing.T, ds *Datastore) {
 		test.ElementsMatchSkipID(t, software, expected)
 
 		// unknown CVE
-		listSoftwareCheckCount(t, ds, 0, 0, fleet.SoftwareListOptions{ListOptions: fleet.ListOptions{MatchQuery: "CVE-2022-0003"}}, true)
+		listSoftwareCheckCount(t, ds, 0, 0, fleet.SoftwareListOptions{ListOptions: fleet.ListOptions{MatchQuery: "CVE-2022-0000"}}, true)
 	})
 
 	t.Run("filters by query", func(t *testing.T) {
@@ -593,27 +640,68 @@ func testSoftwareList(t *testing.T, ds *Datastore) {
 		test.ElementsMatchSkipID(t, software, expected)
 	})
 
-	t.Run("can order by name and id", func(t *testing.T) {
-		software := listSoftwareCheckCount(t, ds, 4, 4, fleet.SoftwareListOptions{ListOptions: fleet.ListOptions{OrderKey: "name,id", OrderDirection: fleet.OrderAscending}}, false)
+	t.Run("order by name and id", func(t *testing.T) {
+		software := listSoftwareCheckCount(t, ds, 5, 5, fleet.SoftwareListOptions{ListOptions: fleet.ListOptions{OrderKey: "name,id", OrderDirection: fleet.OrderAscending}}, false)
 		assert.Equal(t, bar003.Name, software[0].Name)
 		assert.Equal(t, bar003.Version, software[0].Version)
-		assert.Equal(t, bar003.Source, software[0].Source)
 
-		// it's ordered by id, descending
-		assert.Greater(t, software[2].ID, software[1].ID)
+		assert.Equal(t, baz001.Name, software[1].Name)
+		assert.Equal(t, baz001.Version, software[1].Version)
+
+		// foo's ordered by id, descending
 		assert.Greater(t, software[3].ID, software[2].ID)
+		assert.Greater(t, software[4].ID, software[3].ID)
 	})
 
-	t.Run("hosts count", func(t *testing.T) {
+	t.Run("order by hosts_count", func(t *testing.T) {
 		defer TruncateTables(t, ds, "software_host_counts")
 		listSoftwareCheckCount(t, ds, 0, 0, fleet.SoftwareListOptions{WithHostCounts: true}, false)
 
 		// create the counts for those software and re-run
 		require.NoError(t, ds.CalculateHostsPerSoftware(context.Background(), time.Now()))
-		software := listSoftwareCheckCount(t, ds, 4, 4, fleet.SoftwareListOptions{ListOptions: fleet.ListOptions{OrderKey: "hosts_count", OrderDirection: fleet.OrderDescending}, WithHostCounts: true}, false)
+		software := listSoftwareCheckCount(t, ds, 5, 5, fleet.SoftwareListOptions{ListOptions: fleet.ListOptions{OrderKey: "hosts_count", OrderDirection: fleet.OrderDescending}, WithHostCounts: true}, false)
 		// ordered by counts descending, so foo003 is first
 		assert.Equal(t, foo003.Name, software[0].Name)
 		assert.Equal(t, 2, software[0].HostsCount)
+	})
+
+	t.Run("order by epss_probability", func(t *testing.T) {
+		opts := fleet.SoftwareListOptions{
+			ListOptions: fleet.ListOptions{
+				OrderKey:       "epss_probability",
+				OrderDirection: fleet.OrderDescending,
+			},
+		}
+
+		software := listSoftwareCheckCount(t, ds, 5, 5, opts, false)
+		assert.Equal(t, foo001.Name, software[0].Name)
+		assert.Equal(t, foo001.Version, software[0].Version)
+	})
+
+	t.Run("order by cvss_score", func(t *testing.T) {
+		opts := fleet.SoftwareListOptions{
+			ListOptions: fleet.ListOptions{
+				OrderKey:       "cvss_score",
+				OrderDirection: fleet.OrderDescending,
+			},
+		}
+
+		software := listSoftwareCheckCount(t, ds, 5, 5, opts, false)
+		assert.Equal(t, baz001.Name, software[0].Name)
+		assert.Equal(t, baz001.Version, software[0].Version)
+	})
+
+	t.Run("order by cisa_known_exploit", func(t *testing.T) {
+		opts := fleet.SoftwareListOptions{
+			ListOptions: fleet.ListOptions{
+				OrderKey:       "cisa_known_exploit",
+				OrderDirection: fleet.OrderDescending,
+			},
+		}
+
+		software := listSoftwareCheckCount(t, ds, 5, 5, opts, false)
+		assert.Equal(t, baz001.Name, software[0].Name)
+		assert.Equal(t, baz001.Version, software[0].Version)
 	})
 }
 
