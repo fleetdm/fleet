@@ -229,6 +229,8 @@ If you've been invited to "book with us" you'll have a Zoom meeting with the hir
 
 ### Hiring a new team member
 
+> Fleet is unable to hire team members in some countries. See [this internal document](https://docs.google.com/document/d/1jHHJqShIyvlVwzx1C-FB9GC74Di_Rfdgmhpai1SPC0g/edit) for the list.
+
 1. **Manager:** At-mention People Operations in the `#hiring-xxxxx-2022` channel and indicate that you would like for Fleet to make an offer to the candidate.  Include the candidate's name, personal email address, the timeframe for their start date, and the country where they will be working. 
 
 2. **People Ops:** People Operations will research compensation using [Pave](https://www.pave.com), making sure to adjust for the cost of living where the candidate will do the work.  _If People Ops is unsure of their findings, ask for help from the CEO._  People Ops will then document this decision in the [compensation decisions document](https://docs.google.com/document/d/1NQ-IjcOTbyFluCWqsFLMfP4SvnopoXDcX0civ-STS5c/edit) for future reference.
