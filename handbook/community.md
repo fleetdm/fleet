@@ -108,6 +108,14 @@ Keep headings brief, organized, and in a logical order:
 
 Try to stay within 3 or 4 heading levels. Complicated documents may use more, but pages with a simpler structure are easier to read.
 
+### SQL statements
+
+When adding SQL statements, all SQL reserved words should be uppercase, and all identifiers (such as tables and columns) should be lowercase. Here is an example:
+
+```sql
+   SELECT days, hours, total_seconds FROM uptime;
+```
+
 ### Adding a link to the Fleet docs
 
 You can link documentation pages to each other using relative paths. For example, in `docs/Using-Fleet/Fleet-UI.md`, you can link to `docs/Using-Fleet/Permissions.md` by writing `[permissions](./Permissions.md)`. This will automatically be transformed into the appropriate URL for `fleetdm.com/docs`.
