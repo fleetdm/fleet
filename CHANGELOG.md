@@ -1,4 +1,4 @@
-## Fleet 4.14.0 (May 5, 2022)
+## Fleet 4.14.0 (May 9, 2022)
 
 * Add beta support for Jira and Zendesk integrations. This allows users to configure Fleet to
   automatically create a Jira issue  or Zendesk ticket when a new vulnerability (CVE) is detected on
@@ -25,6 +25,9 @@ includes Fleet Desktop. Then, open this installer on the device.
 
 - All duration settings returned by `fleetctl get config --include-server-config` were changed from
 nanoseconds to an easy to read format.
+
+* Fix a bug in which the "Bundle identifier" tooltips displayed on **Host details > Software** did not
+  render correctly.
 
 * Fix a bug in which the Fleet UI would render an empty Google Chrome profiles on the **Host details** page.
 
