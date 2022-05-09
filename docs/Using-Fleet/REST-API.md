@@ -1232,6 +1232,7 @@ Replaces all existing global enroll secrets.
 | Name      | Type    | In   | Description                                                        |
 | --------- | ------- | ---- | ------------------------------------------------------------------ |
 | spec      | object  | body | **Required**. Attribute "secrets" must be a list of enroll secrets |
+
 #### Example
 
 Replace all global enroll secrets with a new enroll secret.
