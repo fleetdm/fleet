@@ -12,21 +12,21 @@ For update instructions, see our [upgrade guide](https://fleetdm.com/docs/deploy
 - Postman Collection
 
 ## Jira integration
-**Available to all Fleet users.**
+**Available in Fleet Free & Fleet Premium**
 
 ![Jira integration](http://fleetdm.com/images/articles/jira-integration-1600x900@2x.png)
 
-You can now configure Fleet to automatically create a Jira ticket when a new vulnerability (CVE) is detected on your hosts. No need to create tickets or spend time configuring a webhook manually. 
+You can now configure Fleet to automatically create a Jira issue when a new vulnerability (CVE) is found on your hosts. No need to create tickets or spend time configuring a webhook manually. 
 
 ## Improved live query experience
-**Available to all Fleet users.**
+**Available in Fleet Free & Fleet Premium**
 
 ![Improved live query experience](http://fleetdm.com/images/articles/show-query-1600x900@2x.png)
 
 We added a “Show query” option to the live query results view. You can now double-check the syntax you used and compare that to your results without leaving the current view.
 
 ## Postman Collection
-**Available to all Fleet users.**
+**Available in Fleet Free & Fleet Premium**
 
 ![Postman Collection](http://fleetdm.com/images/articles/postman-collection-1600x900@2x.png)
 
@@ -36,20 +36,23 @@ Fleet users can easily interact with Fleet's API routes using the new Postman Co
 
 In 4.14.0, we also:
 
-- fixed deprecation warning message on `fleetctl package` for deb/rpm.
-- added support for using a custom TUF server with `fleetctl preview`.
+- Added a `last_opened_at` property, for macOS software, to the **Host details** API route (`GET /hosts/{id}`).
+- Added `osquery.min_software_last_opened_at_diff` configuration option.
+- Improved the **Settings** pages in the Fleet UI.
+- Improved error messaging for `fleetctl query`.
+- Improved empty state messaging in the Fleet UI.
 - made the duration values returned by `fleetctl` more human-friendly to read.
-- improved error messaging for `fleetctl query`.
-- improved the “Organizational settings” flow in the Fleet UI.
-- improved “empty state” messaging in the Fleet UI.
-- added "last opened at" information for software to the “host details” API endpoint (macOS only).
-- added “optional” to hints for appropriate fields when creating new queries and policies in the Fleet UI. 
-- fixed a bug with SAML SSO authentication.
-- fixed a bug affecting “name” display for scheduled queries in the Fleet UI. 
-- fixed a bug that caused panic errors when running `fleet –debug`. 
-- fixed a bug affecting queries containing the `@` symbol.
-- removed use of JSON_ARRAYAGG in SQL queries to support newer versions of MySQL and AWS RDS Aurora.
-- added `osquery.min_software_last_opened_at_diff` configuration option.
+- added “optional” to hints for appropriate fields when creating new queries and policies in the
+  Fleet UI. 
+- Fixed a bug in which the "Bundle identifier" tooltips displayed on **Host details > Software** did
+  not render correctly.
+- Fix a bug in which the Fleet UI would render an empty Google Chrome profiles on the **Host
+  details** page. 
+- Fix a bug in which the Fleet UI would error when entering the "@" characters in the **Search
+  targets** field.
+- Fixed a bug affecting “name” display for scheduled queries in the Fleet UI. 
+- Fixed a bug that caused panic errors when running `fleet –debug`. 
+- Fixed deprecation warning message on `fleetctl package` for deb/rpm.
 
 ---
 
