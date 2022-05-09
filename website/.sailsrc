@@ -5,5 +5,1563 @@
   "_generatedWith": {
     "sails": "1.2.5",
     "sails-generate": "2.0.0"
+  },
+  "builtStaticContent": {
+    "queries": [
+      {
+        "name": "Get OpenSSL versions",
+        "platforms": "Linux",
+        "description": "Retrieves the OpenSSL version.",
+        "query": "SELECT name AS name, version AS version, 'deb_packages' AS source FROM deb_packages WHERE name LIKE 'openssl%' UNION SELECT name AS name, version AS version, 'apt_sources' AS source FROM apt_sources WHERE name LIKE 'openssl%' UNION SELECT name AS name, version AS version, 'rpm_packages' AS source FROM rpm_packages WHERE name LIKE 'openssl%';",
+        "purpose": "Informational",
+        "tags": [
+          "inventory"
+        ],
+        "contributors": "zwass",
+        "kind": "query",
+        "slug": "get-open-ssl-versions",
+        "resolution": "N/A"
+      },
+      {
+        "name": "Get authorized SSH keys",
+        "platforms": "macOS, Linux",
+        "description": "Presence of authorized SSH keys may be unusual on laptops. Could be completely normal on servers, but may be worth auditing for unusual keys and/or changes.",
+        "query": "SELECT username, authorized_keys. * FROM users CROSS JOIN authorized_keys USING (uid);",
+        "purpose": "Informational",
+        "remediation": "Check out the linked table (https://github.com/fleetdm/fleet/blob/32b4d53e7f1428ce43b0f9fa52838cbe7b413eed/handbook/queries/detect-hosts-with-high-severity-vulnerable-versions-of-openssl.md#table-of-vulnerable-openssl-versions) to determine if the installed version is a high severity vulnerability and view the corresponding CVE(s)",
+        "tags": [
+          "built-in",
+          "ssh"
+        ],
+        "contributors": "mike-j-thomas",
+        "kind": "query",
+        "slug": "get-authorized-ssh-keys",
+        "resolution": "N/A"
+      },
+      {
+        "name": "Get authorized keys for Domain Joined Accounts",
+        "platforms": "macOS, Linux",
+        "description": "List authorized_keys for each user on the system.",
+        "query": "SELECT *  FROM users CROSS JOIN  authorized_keys USING(uid) WHERE  username IN (SELECT distinct(username) FROM last);",
+        "purpose": "Informational",
+        "tags": [
+          "active directory",
+          "ssh"
+        ],
+        "contributors": "anelshaer",
+        "kind": "query",
+        "slug": "get-authorized-keys-for-domain-joined-accounts",
+        "resolution": "N/A"
+      },
+      {
+        "name": "Get crashes",
+        "platforms": "macOS",
+        "description": "Retrieve application, system, and mobile app crash logs.",
+        "query": "SELECT uid, datetime, responsible, exception_type, identifier, version, crash_path FROM users CROSS JOIN crashes USING (uid);",
+        "purpose": "Informational",
+        "tags": [
+          "troubleshooting"
+        ],
+        "contributors": "zwass",
+        "kind": "query",
+        "slug": "get-crashes",
+        "resolution": "N/A"
+      },
+      {
+        "name": "Get installed Chrome Extensions",
+        "platforms": "macOS, Linux, Windows, FreeBSD",
+        "description": "List installed Chrome Extensions for all users.",
+        "query": "SELECT * FROM users CROSS JOIN chrome_extensions USING (uid);",
+        "purpose": "Informational",
+        "tags": [
+          "browser",
+          "built-in",
+          "inventory"
+        ],
+        "contributors": "zwass",
+        "kind": "query",
+        "slug": "get-installed-chrome-extensions",
+        "resolution": "N/A"
+      },
+      {
+        "name": "Get installed FreeBSD software",
+        "platforms": "FreeBSD",
+        "description": "Get all software installed on a FreeBSD computer, including browser plugins and installed packages. Note that this does not include other running processes in the processes table.",
+        "query": "SELECT name AS name, version AS version, 'Browser plugin (Chrome)' AS type, 'chrome_extensions' AS source FROM chrome_extensions UNION SELECT name AS name, version AS version, 'Browser plugin (Firefox)' AS type, 'firefox_addons' AS source FROM firefox_addons UNION SELECT name AS name, version AS version, 'Package (Atom)' AS type, 'atom_packages' AS source FROM atom_packages UNION SELECT name AS name, version AS version, 'Package (Python)' AS type, 'python_packages' AS source FROM python_packages UNION SELECT name AS name, version AS version, 'Package (pkg)' AS type, 'pkg_packages' AS source FROM pkg_packages;",
+        "purpose": "Informational",
+        "tags": [
+          "inventory"
+        ],
+        "contributors": "zwass",
+        "kind": "query",
+        "slug": "get-installed-free-bsd-software",
+        "resolution": "N/A"
+      },
+      {
+        "name": "Get installed Linux software",
+        "platforms": "Linux",
+        "description": "Get all software installed on a Linux computer, including browser plugins and installed packages. Note that this does not include other running processes in the processes table.",
+        "query": "SELECT name AS name, version AS version, 'Package (APT)' AS type, 'apt_sources' AS source FROM apt_sources UNION SELECT name AS name, version AS version, 'Package (deb)' AS type, 'deb_packages' AS source FROM deb_packages UNION SELECT package AS name, version AS version, 'Package (Portage)' AS type, 'portage_packages' AS source FROM portage_packages UNION SELECT name AS name, version AS version, 'Package (RPM)' AS type, 'rpm_packages' AS source FROM rpm_packages UNION SELECT name AS name, '' AS version, 'Package (YUM)' AS type, 'yum_sources' AS source FROM yum_sources UNION SELECT name AS name, version AS version, 'Package (NPM)' AS type, 'npm_packages' AS source FROM npm_packages UNION SELECT name AS name, version AS version, 'Package (Atom)' AS type, 'atom_packages' AS source FROM atom_packages UNION SELECT name AS name, version AS version, 'Package (Python)' AS type, 'python_packages' AS source FROM python_packages;",
+        "purpose": "Informational",
+        "tags": [
+          "inventory",
+          "built-in"
+        ],
+        "contributors": "zwass",
+        "kind": "query",
+        "slug": "get-installed-linux-software",
+        "resolution": "N/A"
+      },
+      {
+        "name": "Get installed macOS software",
+        "platforms": "macOS",
+        "description": "Get all software installed on a macOS computer, including apps, browser plugins, and installed packages. Note that this does not include other running processes in the processes table.",
+        "query": "SELECT name AS name, bundle_short_version AS version, 'Application (macOS)' AS type, 'apps' AS source FROM apps UNION SELECT name AS name, version AS version, 'Package (Python)' AS type, 'python_packages' AS source FROM python_packages UNION SELECT name AS name, version AS version, 'Browser plugin (Chrome)' AS type, 'chrome_extensions' AS source FROM chrome_extensions UNION SELECT name AS name, version AS version, 'Browser plugin (Firefox)' AS type, 'firefox_addons' AS source FROM firefox_addons UNION SELECT name As name, version AS version, 'Browser plugin (Safari)' AS type, 'safari_extensions' AS source FROM safari_extensions UNION SELECT name AS name, version AS version, 'Package (Homebrew)' AS type, 'homebrew_packages' AS source FROM homebrew_packages;",
+        "purpose": "Informational",
+        "tags": [
+          "inventory",
+          "built-in"
+        ],
+        "contributors": "zwass",
+        "kind": "query",
+        "slug": "get-installed-mac-os-software",
+        "resolution": "N/A"
+      },
+      {
+        "name": "Get installed Safari extensions",
+        "platforms": "macOS",
+        "description": "Retrieves the list of installed Safari Extensions for all users in the target system.",
+        "query": "SELECT safari_extensions.* FROM users join safari_extensions USING (uid);",
+        "purpose": "Informational",
+        "tags": [
+          "browser",
+          "built-in",
+          "inventory"
+        ],
+        "contributors": "zwass",
+        "kind": "query",
+        "slug": "get-installed-safari-extensions",
+        "resolution": "N/A"
+      },
+      {
+        "name": "Get installed Windows software",
+        "platforms": "Windows",
+        "description": "Get all software installed on a Windows computer, including programs, browser plugins, and installed packages. Note that this does not include other running processes in the processes table.",
+        "query": "SELECT name AS name, version AS version, 'Program (Windows)' AS type, 'programs' AS source FROM programs UNION SELECT name AS name, version AS version, 'Package (Python)' AS type, 'python_packages' AS source FROM python_packages UNION SELECT name AS name, version AS version, 'Browser plugin (IE)' AS type, 'ie_extensions' AS source FROM ie_extensions UNION SELECT name AS name, version AS version, 'Browser plugin (Chrome)' AS type, 'chrome_extensions' AS source FROM chrome_extensions UNION SELECT name AS name, version AS version, 'Browser plugin (Firefox)' AS type, 'firefox_addons' AS source FROM firefox_addons UNION SELECT name AS name, version AS version, 'Package (Chocolatey)' AS type, 'chocolatey_packages' AS source FROM chocolatey_packages UNION SELECT name AS name, version AS version, 'Package (Atom)' AS type, 'atom_packages' AS source FROM atom_packages;",
+        "purpose": "Informational",
+        "tags": [
+          "inventory",
+          "built-in"
+        ],
+        "contributors": "zwass",
+        "kind": "query",
+        "slug": "get-installed-windows-software",
+        "resolution": "N/A"
+      },
+      {
+        "name": "Get laptops with failing batteries",
+        "platforms": "macOS",
+        "description": "Lists all laptops with under-performing or failing batteries.",
+        "query": "SELECT * FROM battery WHERE health != 'Good' AND condition NOT IN ('', 'Normal');",
+        "purpose": "Informational",
+        "tags": [
+          "troubleshooting",
+          "hardware",
+          "inventory"
+        ],
+        "contributors": "zwass",
+        "kind": "query",
+        "slug": "get-laptops-with-failing-batteries",
+        "resolution": "N/A"
+      },
+      {
+        "name": "Get current users with active shell/console on the system",
+        "platforms": "macOS, Linux, Windows, FreeBSD",
+        "description": "Get current users with active shell/console on the system and associated process",
+        "query": "SELECT user,host,time, p.name, p.cmdline, p.cwd, p.root FROM logged_in_users liu, processes p WHERE liu.pid = p.pid and liu.type='user' and liu.user <> '' ORDER BY time;",
+        "purpose": "Informational",
+        "tags": [
+          "hunting",
+          "built-in"
+        ],
+        "contributors": "anelshaer",
+        "kind": "query",
+        "slug": "get-current-users-with-active-shell-console-on-the-system",
+        "resolution": "N/A"
+      },
+      {
+        "name": "Get unencrypted SSH keys for local accounts",
+        "platforms": "macOS, Linux, Windows, FreeBSD",
+        "description": "Identify SSH keys created without a passphrase which can be used in Lateral Movement (MITRE. TA0008)",
+        "query": "SELECT uid, username, description, path, encrypted FROM users CROSS JOIN user_ssh_keys using (uid) WHERE encrypted=0;",
+        "purpose": "Informational",
+        "tags": [
+          "inventory",
+          "compliance",
+          "ssh",
+          "built-in"
+        ],
+        "remediation": "First, make the user aware about the impact of SSH keys.  Then rotate the unencrypted keys detected.",
+        "contributors": "anelshaer",
+        "kind": "query",
+        "slug": "get-unencrypted-ssh-keys-for-local-accounts",
+        "resolution": "N/A"
+      },
+      {
+        "name": "Get unencrypted SSH keys for domain-joined accounts",
+        "platforms": "macOS, Linux, Windows, FreeBSD",
+        "description": "Identify SSH keys created without a passphrase which can be used in Lateral Movement (MITRE. TA0008)",
+        "query": "SELECT uid, username, description, path, encrypted FROM users CROSS JOIN user_ssh_keys using (uid) WHERE encrypted=0 and username in (SELECT distinct(username) FROM last);",
+        "purpose": "Informational",
+        "tags": [
+          "inventory",
+          "compliance",
+          "ssh",
+          "active directory"
+        ],
+        "remediation": "First, make the user aware about the impact of SSH keys.  Then rotate the unencrypted keys detected.",
+        "contributors": "anelshaer",
+        "kind": "query",
+        "slug": "get-unencrypted-ssh-keys-for-domain-joined-accounts",
+        "resolution": "N/A"
+      },
+      {
+        "name": "Get dynamic linker hijacking on Linux (MITRE. T1574.006)",
+        "platforms": "Linux",
+        "description": "Detect any processes that run with LD_PRELOAD environment variable",
+        "query": "SELECT env.pid, env.key, env.value, p.name,p.path, p.cmdline, p.cwd FROM process_envs env join processes p USING (pid) WHERE key='LD_PRELOAD';",
+        "purpose": "Informational",
+        "tags": [
+          "hunting",
+          "attack",
+          "t1574"
+        ],
+        "remediation": "Identify the process/binary detected and confirm with the system's owner.",
+        "contributors": "anelshaer",
+        "kind": "query",
+        "slug": "get-dynamic-linker-hijacking-on-linux-mitre-t-1574-006",
+        "resolution": "N/A"
+      },
+      {
+        "name": "Get dynamic linker hijacking on macOS (MITRE. T1574.006)",
+        "platforms": "macOS",
+        "description": "Detect any processes that run with DYLD_INSERT_LIBRARIES environment variable",
+        "query": "SELECT env.pid, env.key, env.value, p.name,p.path, p.cmdline, p.cwd FROM process_envs env join processes p USING (pid) WHERE key='DYLD_INSERT_LIBRARIES';",
+        "purpose": "Informational",
+        "tags": [
+          "hunting",
+          "attack",
+          "t1574"
+        ],
+        "remediation": "Identify the process/binary detected and confirm with the system's owner.",
+        "contributors": "anelshaer",
+        "kind": "query",
+        "slug": "get-dynamic-linker-hijacking-on-mac-os-mitre-t-1574-006",
+        "resolution": "N/A"
+      },
+      {
+        "name": "Get etc hosts entries",
+        "platforms": "macOS, Linux",
+        "description": "Line-parsed /etc/hosts",
+        "query": "SELECT * FROM etc_hosts WHERE address not in ('127.0.0.1', '::1');",
+        "purpose": "informational",
+        "tags": [
+          "hunting",
+          "inventory"
+        ],
+        "contributors": "anelshaer",
+        "kind": "query",
+        "slug": "get-etc-hosts-entries",
+        "resolution": "N/A"
+      },
+      {
+        "name": "Get network interfaces",
+        "platforms": "macOS, Linux, Windows, FreeBSD",
+        "description": "Network interfaces MAC address",
+        "query": "SELECT a.interface, a.address, d.mac FROM interface_addresses a JOIN interface_details d USING (interface) WHERE address not in ('127.0.0.1', '::1');",
+        "purpose": "informational",
+        "tags": [
+          "hunting",
+          "inventory"
+        ],
+        "contributors": "anelshaer",
+        "kind": "query",
+        "slug": "get-network-interfaces",
+        "resolution": "N/A"
+      },
+      {
+        "name": "Get local user accounts",
+        "platforms": "macOS, Linux, Windows, FreeBSD",
+        "description": "Local user accounts (including domain accounts that have logged on locally (Windows)).",
+        "query": "SELECT uid, gid, username, description, directory, shell FROM users;",
+        "purpose": "informational",
+        "tags": [
+          "hunting",
+          "inventory"
+        ],
+        "contributors": "anelshaer",
+        "kind": "query",
+        "slug": "get-local-user-accounts",
+        "resolution": "N/A"
+      },
+      {
+        "name": "Get active user accounts on servers",
+        "platforms": "Linux",
+        "description": "Domain Joined environments normally have root or other service only account and users are SSH-ing using their Domain Accounts.",
+        "query": "SELECT * FROM shadow WHERE password_status='active' and username!='root';",
+        "purpose": "informational",
+        "tags": [
+          "hunting",
+          "inventory",
+          "active directory"
+        ],
+        "contributors": "anelshaer",
+        "kind": "query",
+        "slug": "get-active-user-accounts-on-servers",
+        "resolution": "N/A"
+      },
+      {
+        "name": "Get Nmap scanner",
+        "platforms": "macOS, Linux, Windows, FreeBSD",
+        "description": "Get Nmap scanner process, as well as its user, parent, and process details.",
+        "query": "SELECT p.pid, name, p.path, cmdline, cwd, start_time, parent, (SELECT name FROM processes WHERE pid=p.parent) AS parent_name, (SELECT username FROM users WHERE uid=p.uid) AS username FROM processes as p WHERE cmdline like 'nmap%';",
+        "purpose": "Informational",
+        "tags": [
+          "hunting",
+          "attack",
+          "t1046"
+        ],
+        "contributors": "anelshaer",
+        "kind": "query",
+        "slug": "get-nmap-scanner",
+        "resolution": "N/A"
+      },
+      {
+        "name": "Get Docker contained processes on a system",
+        "platforms": "macOS, Linux",
+        "description": "Docker containers Processes, can be used on normal system or a kubenode.",
+        "query": "SELECT c.id, c.name, c.image, c.image_id, c.command, c.created, c.state, c.status, p.cmdline  FROM docker_containers c CROSS JOIN docker_container_processes p using(id);",
+        "purpose": "Informational",
+        "tags": [
+          "built-in",
+          "containers",
+          "inventory"
+        ],
+        "contributors": "anelshaer",
+        "kind": "query",
+        "slug": "get-docker-contained-processes-on-a-system",
+        "resolution": "N/A"
+      },
+      {
+        "name": "Get Windows print spooler remote code execution vulnerability",
+        "platforms": "Windows",
+        "description": "Detects devices that are potentially vulnerable to CVE-2021-1675 because the print spooler service is not disabled.",
+        "query": "SELECT CASE cnt WHEN 2 THEN \"TRUE\" ELSE \"FALSE\" END \"Vulnerable\" FROM (SELECT name start_type, COUNT(name) AS cnt FROM services WHERE name = 'NTDS' or (name = 'Spooler' and start_type <> 'DISABLED')) WHERE cnt = 2;",
+        "purpose": "Informational",
+        "tags": [
+          "vulnerability"
+        ],
+        "contributors": "maravedi",
+        "kind": "query",
+        "slug": "get-windows-print-spooler-remote-code-execution-vulnerability",
+        "resolution": "N/A"
+      },
+      {
+        "name": "Get local users and their privileges",
+        "platforms": "macOS, Linux, Windows",
+        "description": "Collects the local user accounts and their respective user group.",
+        "query": "SELECT uid, username, type, groupname FROM users u JOIN groups g ON g.gid = u.gid;",
+        "purpose": "informational",
+        "tags": [
+          "inventory"
+        ],
+        "contributors": "noahtalerman",
+        "kind": "query",
+        "slug": "get-local-users-and-their-privileges",
+        "resolution": "N/A"
+      },
+      {
+        "name": "Get processes that no longer exist on disk",
+        "platforms": "Linux, macOS, Windows",
+        "description": "Lists all processes of which the binary which launched them no longer exists on disk. Attackers often delete files from disk after launching process to mask presence.",
+        "query": "SELECT name, path, pid FROM processes WHERE on_disk = 0;",
+        "purpose": "Incident response",
+        "tags": [
+          "hunting",
+          "built-in"
+        ],
+        "contributors": "alphabrevity",
+        "kind": "query",
+        "slug": "get-processes-that-no-longer-exist-on-disk",
+        "resolution": "N/A"
+      },
+      {
+        "name": "Get user files matching a specific hash",
+        "platforms": "macOS, Linux",
+        "description": "Looks for specific hash in the Users/ directories for files that are less than 50MB (osquery file size limitation.)",
+        "query": "SELECT path, sha256 FROM hash WHERE path IN (SELECT path FROM file WHERE size < 50000000 AND path LIKE '/Users/%/Documents/%%') AND sha256 = '16d28cd1d78b823c4f961a6da78d67a8975d66cde68581798778ed1f98a56d75';",
+        "purpose": "Informational",
+        "tags": [
+          "hunting",
+          "built-in"
+        ],
+        "contributors": "alphabrevity",
+        "kind": "query",
+        "slug": "get-user-files-matching-a-specific-hash",
+        "resolution": "N/A"
+      },
+      {
+        "name": "Get local administrator accounts on macOS",
+        "platforms": "macOS",
+        "description": "The query allows you to check macOS systems for local administrator accounts.",
+        "query": "SELECT uid, username, type, group name FROM users u JOIN groups g ON g.gid = u.gid;",
+        "purpose": "Informational",
+        "tags": [
+          "hunting",
+          "inventory"
+        ],
+        "contributors": "alphabrevity",
+        "kind": "query",
+        "slug": "get-local-administrator-accounts-on-mac-os",
+        "resolution": "N/A"
+      },
+      {
+        "name": "Get all listening ports, by process",
+        "platforms": "Linux, macOS, Windows",
+        "description": "List ports that are listening on all interfaces, along with the process to which they are attached.",
+        "query": "SELECT lp.address, lp.pid, lp.port, lp.protocol, p.name, p.path, p.cmdline FROM listening_ports lp JOIN processes p ON lp.pid = p.pid WHERE lp.address = \"0.0.0.0\";",
+        "purpose": "Informational",
+        "tags": [
+          "hunting",
+          "network"
+        ],
+        "contributors": "alphabrevity",
+        "kind": "query",
+        "slug": "get-all-listening-ports-by-process",
+        "resolution": "N/A"
+      },
+      {
+        "name": "Get whether TeamViewer is installed/running",
+        "platforms": "Windows",
+        "description": "Looks for the TeamViewer service running on machines. This is often used when attackers gain access to a machine, running TeamViewer to allow them to access a machine.",
+        "query": "SELECT display_name,status,s.pid,p.path FROM services AS s JOIN processes AS p USING(pid) WHERE s.name LIKE \"%teamviewer%\";",
+        "purpose": "Informational",
+        "tags": [
+          "hunting",
+          "inventory"
+        ],
+        "contributors": "alphabrevity",
+        "kind": "query",
+        "slug": "get-whether-team-viewer-is-installed-running",
+        "resolution": "N/A"
+      },
+      {
+        "name": "Get malicious Python backdoors",
+        "platforms": "macOS, Linux, Windows",
+        "description": "Watches for the backdoored Python packages installed on the system. See (http://www.nbu.gov.sk/skcsirt-sa-20170909-pypi/index.html)",
+        "query": "SELECT CASE cnt WHEN 0 THEN \"NONE_INSTALLED\" ELSE \"INSTALLED\" END AS \"Malicious Python Packages\", package_name, package_version FROM (SELECT COUNT(name) AS cnt, name AS package_name, version AS package_version, path AS package_path FROM python_packages WHERE package_name IN ('acqusition', 'apidev-coop', 'bzip', 'crypt', 'django-server', 'pwd', 'setup-tools', 'telnet', 'urlib3', 'urllib'));",
+        "purpose": "Informational",
+        "tags": [
+          "hunting",
+          "inventory",
+          "malware"
+        ],
+        "contributors": "alphabrevity",
+        "kind": "query",
+        "slug": "get-malicious-python-backdoors",
+        "resolution": "N/A"
+      },
+      {
+        "name": "Check for artifacts of the Floxif trojan",
+        "platforms": "Windows",
+        "description": "Checks for artifacts from the Floxif trojan on Windows machines.",
+        "query": "SELECT * FROM registry WHERE path LIKE 'HKEY_LOCAL_MACHINE\\\\SOFTWARE\\\\Piriform\\\\Agomo%';",
+        "purpose": "Informational",
+        "tags": [
+          "hunting",
+          "malware"
+        ],
+        "contributors": "micheal-o",
+        "kind": "query",
+        "slug": "check-for-artifacts-of-the-floxif-trojan",
+        "resolution": "N/A"
+      },
+      {
+        "name": "Get Shimcache table",
+        "platforms": "Windows",
+        "description": "Returns forensic data showing evidence of likely file execution, in addition to the last modified timestamp of the file, order of execution, full file path order of execution, and the order in which files were executed.",
+        "query": "select * from Shimcache",
+        "purpose": "Informational",
+        "tags": [
+          "hunting"
+        ],
+        "contributors": "puffyCid",
+        "kind": "query",
+        "slug": "get-shimcache-table",
+        "resolution": "N/A"
+      },
+      {
+        "name": "Get running docker containers",
+        "platforms": "macOS, Linux",
+        "description": "Returns the running Docker containers",
+        "query": "SELECT id, name, image, image_id, state, status FROM docker_containers WHERE state = \"running\";",
+        "purpose": "Informational",
+        "tags": [
+          "containers",
+          "inventory"
+        ],
+        "contributors": "DominusKelvin",
+        "kind": "query",
+        "slug": "get-running-docker-containers",
+        "resolution": "N/A"
+      },
+      {
+        "name": "Get applications hogging memory",
+        "platforms": "macOS, Linux, Windows",
+        "description": "Returns top 10 applications or processes hogging memory the most.",
+        "query": "SELECT pid, name, ROUND((total_size * '10e-7'), 2) AS memory_used FROM processes ORDER BY total_size DESC LIMIT 10;",
+        "purpose": "Informational",
+        "tags": [
+          "troubleshooting"
+        ],
+        "contributors": "DominusKelvin",
+        "kind": "query",
+        "slug": "get-applications-hogging-memory",
+        "resolution": "N/A"
+      },
+      {
+        "name": "Get servers with root login in the last 24 hours",
+        "platforms": "macOS, Linux, Windows",
+        "description": "Returns servers with root login in the last 24 hours and the time the users where logged in.",
+        "query": "SELECT * FROM last WHERE username = \"root\" AND time > (( SELECT unix_time FROM time ) - 86400 );",
+        "purpose": "Informational",
+        "tags": [
+          "hunting"
+        ],
+        "contributors": "DominusKelvin",
+        "kind": "query",
+        "slug": "get-servers-with-root-login-in-the-last-24-hours",
+        "resolution": "N/A"
+      },
+      {
+        "name": "Detect active processes with Log4j running",
+        "platforms": "macOS, Linux",
+        "description": "Returns a list of active processes and the Jar paths which are using Log4j. Version numbers are usually within the Jar filename. Note: This query is resource intensive and has caused problems on systems with limited swap space. Test on some systems before running this widely.",
+        "query": "WITH target_jars AS (\n  SELECT DISTINCT path\n  FROM (\n      WITH split(word, str) AS(\n        SELECT '', cmdline || ' '\n        FROM processes\n        UNION ALL\n        SELECT substr(str, 0, instr(str, ' ')), substr(str, instr(str, ' ') + 1)\n        FROM split\n        WHERE str != '')\n      SELECT word AS path\n      FROM split\n      WHERE word LIKE '%.jar'\n    UNION ALL\n      SELECT path\n      FROM process_open_files\n      WHERE path LIKE '%.jar'\n  )\n)\nSELECT path, matches\nFROM yara\nWHERE path IN (SELECT path FROM target_jars)\n  AND count > 0\n  AND sigrule IN (\n    'rule log4jJndiLookup {\n      strings:\n        $jndilookup = \"JndiLookup\"\n      condition:\n        $jndilookup\n    }',\n    'rule log4jJavaClass {\n      strings:\n        $javaclass = \"org/apache/logging/log4j\"\n      condition:\n        $javaclass\n    }'\n  );\n",
+        "purpose": "Detection",
+        "tags": [
+          "vulnerability"
+        ],
+        "contributors": "zwass,tgauda",
+        "kind": "query",
+        "slug": "detect-active-processes-with-log-4-j-running",
+        "resolution": "N/A"
+      },
+      {
+        "name": "Get applications that were opened within the last 24 hours",
+        "platforms": "macOS",
+        "description": "Returns applications that were opened within the last 24 hours starting with the last opened application.",
+        "query": "SELECT * FROM apps WHERE last_opened_time > (( SELECT unix_time FROM time ) - 86400 ) ORDER BY last_opened_time DESC;",
+        "purpose": "Informational",
+        "tags": [
+          "inventory"
+        ],
+        "contributors": "DominusKelvin",
+        "kind": "query",
+        "slug": "get-applications-that-were-opened-within-the-last-24-hours",
+        "resolution": "N/A"
+      },
+      {
+        "name": "Get applications that are not in the Applications directory",
+        "platforms": "macOS",
+        "description": "Returns applications that are not in the `/Applications` directory",
+        "query": "SELECT * FROM apps WHERE path NOT LIKE '/Applications/%';",
+        "purpose": "Informational",
+        "tags": [
+          "hunting",
+          "inventory"
+        ],
+        "contributors": "DominusKelvin",
+        "kind": "query",
+        "slug": "get-applications-that-are-not-in-the-applications-directory",
+        "resolution": "N/A"
+      },
+      {
+        "name": "Get subscription-based applications that have not been opened for the last 30 days",
+        "platforms": "macOS",
+        "description": "Returns applications that are subscription-based and have not been opened for the last 30 days. You can replace the list of applications with those specific to your use case.",
+        "query": "SELECT * FROM apps WHERE path LIKE '/Applications/%' AND name IN (\"Photoshop.app\", \"Adobe XD.app\", \"Sketch.app\", \"Illustrator.app\") AND last_opened_time < (( SELECT unix_time FROM time ) - 2592000000000 );",
+        "purpose": "Informational",
+        "tags": [
+          "inventory"
+        ],
+        "contributors": "DominusKelvin",
+        "kind": "query",
+        "slug": "get-subscription-based-applications-that-have-not-been-opened-for-the-last-30-days",
+        "resolution": "N/A"
+      },
+      {
+        "name": "Gatekeeper enabled (macOS)",
+        "query": "SELECT 1 FROM gatekeeper WHERE assessments_enabled = 1;",
+        "description": "Checks to make sure that the Gatekeeper feature is enabled on macOS devices. Gatekeeper tries to ensure only trusted software is run on a mac machine.",
+        "resolution": "To enable Gatekeeper, on the failing device, run the following command in the Terminal app: /usr/sbin/spctl --master-enable.",
+        "platforms": "macOS",
+        "tags": [
+          "compliance",
+          "hardening",
+          "built-in"
+        ],
+        "platform": "darwin",
+        "contributors": "groob",
+        "kind": "policy",
+        "slug": "gatekeeper-enabled-mac-os"
+      },
+      {
+        "name": "Full disk encryption enabled (Windows)",
+        "query": "SELECT 1 FROM bitlocker_info where protection_status = 1;",
+        "description": "Checks to make sure that full disk encryption is enabled on Windows devices.",
+        "resolution": "To get additional information, run the following osquery query on the failing device: SELECT * FROM bitlocker_info. In the query results, if protection_status is 2, then the status cannot be determined. If it is 0, it is considered unprotected. Use the additional results (percent_encrypted, conversion_status, etc.) to help narrow down the specific reason why Windows considers the volume unprotected.",
+        "platforms": "Windows",
+        "platform": "windows",
+        "tags": [
+          "compliance",
+          "hardening",
+          "built-in"
+        ],
+        "contributors": "defensivedepth",
+        "kind": "policy",
+        "slug": "full-disk-encryption-enabled-windows"
+      },
+      {
+        "name": "Full disk encryption enabled (macOS)",
+        "query": "SELECT 1 FROM disk_encryption WHERE user_uuid IS NOT \"\" AND filevault_status = 'on' LIMIT 1;",
+        "description": "Checks to make sure that full disk encryption (FileVault) is enabled on macOS devices.",
+        "resolution": "To enable full disk encryption, on the failing device, select System Preferences > Security & Privacy > FileVault > Turn On FileVault.",
+        "platforms": "macOS",
+        "tags": [
+          "compliance",
+          "hardening",
+          "built-in"
+        ],
+        "platform": "darwin",
+        "contributors": "groob",
+        "kind": "policy",
+        "slug": "full-disk-encryption-enabled-mac-os"
+      },
+      {
+        "name": "Full disk encryption enabled (Linux)",
+        "query": "SELECT 1 FROM disk_encryption WHERE encrypted=1 AND name LIKE '/dev/dm-1';",
+        "description": "Checks if the root drive is encrypted. There are many ways to encrypt Linux systems. This is the default on distributions such as Ubuntu.",
+        "resolution": "Ensure the image deployed to your Linux workstation includes full disk encryption.",
+        "platforms": "Linux",
+        "platform": "linux",
+        "tags": [
+          "compliance",
+          "hardening",
+          "built-in"
+        ],
+        "contributors": "GuillaumeRoss",
+        "kind": "policy",
+        "slug": "full-disk-encryption-enabled-linux"
+      },
+      {
+        "name": "System Integrity Protection enabled (macOS)",
+        "query": "SELECT 1 FROM sip_config WHERE config_flag = 'sip' AND enabled = 1;",
+        "description": "Checks to make sure that the System Integrity Protection feature is enabled.",
+        "resolution": "To enable System Integrity Protection, on the failing device, run the following command in the Terminal app: /usr/sbin/spctl --master-enable.",
+        "platforms": "macOS",
+        "tags": [
+          "compliance",
+          "malware",
+          "hardening",
+          "built-in"
+        ],
+        "platform": "darwin",
+        "contributors": "groob",
+        "kind": "policy",
+        "slug": "system-integrity-protection-enabled-mac-os"
+      },
+      {
+        "name": "Automatic login disabled (macOS)",
+        "query": "SELECT 1 FROM managed_policies WHERE domain = 'com.apple.loginwindow' AND name = 'com.apple.login.mcx.DisableAutoLoginClient' AND value = 1 LIMIT 1;",
+        "description": "Required: You’re already enforcing a policy via Moble Device Management (MDM). Checks to make sure that the device user cannot log in to the device without a password.",
+        "resolution": "The following example profile includes a setting to disable automatic login: https://github.com/gregneagle/profiles/blob/fecc73d66fa17b6fa78b782904cb47cdc1913aeb/loginwindow.mobileconfig#L64-L65.",
+        "platforms": "macOS",
+        "tags": [
+          "compliance",
+          "hardening",
+          "built-in"
+        ],
+        "platform": "darwin",
+        "contributors": "groob",
+        "kind": "policy",
+        "slug": "automatic-login-disabled-mac-os"
+      },
+      {
+        "name": "Guest users disabled (macOS)",
+        "query": "SELECT 1 FROM managed_policies WHERE domain = 'com.apple.loginwindow' AND name = 'DisableGuestAccount' AND value = 1 LIMIT 1;",
+        "description": "Required: You’re already enforcing a policy via Moble Device Management (MDM). Checks to make sure that guest accounts cannot be used to log in to the device without a password.",
+        "resolution": "The following example profile includes a setting to disable guest users: https://github.com/gregneagle/profiles/blob/fecc73d66fa17b6fa78b782904cb47cdc1913aeb/loginwindow.mobileconfig#L68-L71.",
+        "platforms": "macOS",
+        "tags": [
+          "compliance",
+          "hardening",
+          "built-in"
+        ],
+        "platform": "darwin",
+        "contributors": "groob",
+        "kind": "policy",
+        "slug": "guest-users-disabled-mac-os"
+      },
+      {
+        "name": "Secure keyboard entry for Terminal.app enabled (macOS)",
+        "query": "SELECT 1 FROM managed_policies WHERE domain = 'com.apple.Terminal' AND name = 'SecureKeyboardEntry' AND value = 1 LIMIT 1;",
+        "description": "Required: You’re already enforcing a policy via Moble Device Management (MDM). Checks to make sure that the Secure Keyboard Entry setting is enabled.",
+        "platforms": "macOS",
+        "tags": [
+          "compliance",
+          "hardening",
+          "built-in"
+        ],
+        "platform": "darwin",
+        "contributors": "groob",
+        "kind": "policy",
+        "slug": "secure-keyboard-entry-for-terminal-app-enabled-mac-os",
+        "resolution": "N/A"
+      },
+      {
+        "name": "Get built-in antivirus status on macOS",
+        "platforms": "macOS",
+        "query": "SELECT path, value AS version FROM plist WHERE (key = 'CFBundleShortVersionString' AND path = '/Library/Apple/System/Library/CoreServices/MRT.app/Contents/Info.plist') OR (key = 'CFBundleShortVersionString' AND path = '/Library/Apple/System/Library/CoreServices/XProtect.bundle/Contents/Info.plist');",
+        "description": "Reads the version numbers from the Malware Removal Tool (MRT) and built-in antivirus (XProtect) plists",
+        "purpose": "Informational",
+        "tags": [
+          "compliance",
+          "malware",
+          "hardening",
+          "built-in"
+        ],
+        "contributors": "GuillaumeRoss",
+        "kind": "query",
+        "slug": "get-built-in-antivirus-status-on-mac-os",
+        "resolution": "N/A"
+      },
+      {
+        "name": "Get antivirus status from the Windows Security Center",
+        "platforms": "Windows",
+        "query": "SELECT antivirus, signatures_up_to_date from windows_security_center CROSS JOIN windows_security_products WHERE type = 'Antivirus';",
+        "description": "Selects the antivirus and signatures status from Windows Security Center.",
+        "purpose": "Informational",
+        "tags": [
+          "compliance",
+          "malware",
+          "hardening",
+          "built-in"
+        ],
+        "contributors": "GuillaumeRoss",
+        "kind": "query",
+        "slug": "get-antivirus-status-from-the-windows-security-center",
+        "resolution": "N/A"
+      },
+      {
+        "name": "Get antivirus (ClamAV/clamd) and updater (freshclam) process status",
+        "platforms": "Linux",
+        "query": "SELECT pid, state, cmdline, name FROM processes WHERE name='clamd' OR name='freshclam';",
+        "description": "Selects the clamd and freshclam processes to ensure AV and its updater are running",
+        "purpose": "Informational",
+        "tags": [
+          "compliance",
+          "malware",
+          "hardening",
+          "built-in"
+        ],
+        "contributors": "GuillaumeRoss",
+        "kind": "query",
+        "slug": "get-antivirus-clam-av-clamd-and-updater-freshclam-process-status",
+        "resolution": "N/A"
+      },
+      {
+        "name": "Antivirus healthy (macOS)",
+        "query": "SELECT score FROM (SELECT case when COUNT(*) = 2 then 1 ELSE 0 END AS score FROM plist WHERE (key = 'CFBundleShortVersionString' AND path = '/Library/Apple/System/Library/CoreServices/XProtect.bundle/Contents/Info.plist' AND value>=2155) OR (key = 'CFBundleShortVersionString' AND path = '/Library/Apple/System/Library/CoreServices/MRT.app/Contents/Info.plist' and value>=1.88)) WHERE score == 1;",
+        "description": "Checks the version of Malware Removal Tool (MRT) and the built-in macOS AV (Xprotect). Replace version numbers with latest version regularly.",
+        "resolution": "To enable automatic security definition updates, on the failing device, select System Preferences > Software Update > Advanced > Turn on Install system data files and security updates.",
+        "platforms": "macOS",
+        "tags": [
+          "compliance",
+          "malware",
+          "hardening",
+          "built-in"
+        ],
+        "platform": "darwin",
+        "contributors": "GuillaumeRoss",
+        "kind": "policy",
+        "slug": "antivirus-healthy-mac-os"
+      },
+      {
+        "name": "Antivirus healthy (Windows)",
+        "query": "SELECT 1 from windows_security_center wsc CROSS JOIN windows_security_products wsp WHERE antivirus = 'Good' AND type = 'Antivirus' AND signatures_up_to_date=1;",
+        "description": "Checks the status of antivirus and signature updates from the Windows Security Center.",
+        "resolution": "Ensure Windows Defender or your third-party antivirus is running, up to date, and visible in the Windows Security Center.",
+        "platforms": "Windows",
+        "tags": [
+          "compliance",
+          "malware",
+          "hardening",
+          "built-in"
+        ],
+        "platform": "windows",
+        "contributors": "GuillaumeRoss",
+        "kind": "policy",
+        "slug": "antivirus-healthy-windows"
+      },
+      {
+        "name": "Antivirus healthy (Linux)",
+        "query": "SELECT score FROM (SELECT case when COUNT(*) = 2 then 1 ELSE 0 END AS score FROM processes WHERE (name = 'clamd') OR (name = 'freshclam')) WHERE score == 1;",
+        "description": "Checks that both ClamAV's daemon and its updater service (freshclam) are running.",
+        "resolution": "Ensure ClamAV and Freshclam are installed and running.",
+        "platforms": "Linux",
+        "tags": [
+          "compliance",
+          "malware",
+          "hardening",
+          "built-in"
+        ],
+        "platform": "linux",
+        "contributors": "GuillaumeRoss",
+        "kind": "policy",
+        "slug": "antivirus-healthy-linux"
+      },
+      {
+        "name": "MDM Enrolled (macOS)",
+        "query": "SELECT 1 from mdm WHERE enrolled='true';",
+        "description": "Required: osquery deployed with Orbit, or manual installation of macadmins/osquery-extension. Checks that a mac is enrolled to MDM. Add a AND on identity_certificate_uuid to check for a specific MDM.",
+        "resolution": "Enroll device to MDM",
+        "platforms": "macOS",
+        "tags": [
+          "compliance",
+          "hardening",
+          "built-in"
+        ],
+        "platform": "darwin",
+        "contributors": "GuillaumeRoss",
+        "kind": "policy",
+        "slug": "mdm-enrolled-mac-os"
+      },
+      {
+        "name": "Application is up to date or not present (macOS)",
+        "query": "SELECT 1 WHERE EXISTS (SELECT 1 FROM apps a1 WHERE a1.bundle_identifier = 'com.electron.dockerdesktop' AND a1.bundle_short_version>='4.6.1') OR NOT EXISTS (SELECT 1 FROM apps a2 WHERE a2.bundle_identifier = 'com.electron.dockerdesktop');",
+        "description": "Checks if the application (Docker Desktop example) is installed and up to date, or not installed. Fails if the application is installed and on a lower version. You can copy this query and replace the bundle_identifier and bundle_version values to apply the same type of policy to other applications.",
+        "resolution": "Update Docker or remove it if not used.",
+        "platforms": "macOS",
+        "tags": [
+          "inventory",
+          "vulnerability",
+          "built-in"
+        ],
+        "platform": "darwin",
+        "contributors": "GuillaumeRoss",
+        "kind": "policy",
+        "slug": "application-is-up-to-date-or-not-present-mac-os"
+      },
+      {
+        "name": "SSH keys encrypted",
+        "query": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM users CROSS JOIN user_ssh_keys USING (uid) WHERE encrypted='0');",
+        "description": "Required: osquery must have Full Disk Access. Policy passes if all keys are encrypted, including if no keys are present.",
+        "resolution": "Use this command to encrypt existing SSH keys by providing the path to the file: ssh-keygen -o -p -f /path/to/file",
+        "platforms": "macOS, Linux, Windows",
+        "tags": [
+          "compliance",
+          "ssh",
+          "built-in"
+        ],
+        "contributors": "GuillaumeRoss",
+        "platform": "darwin,linux,windows",
+        "kind": "policy",
+        "slug": "ssh-keys-encrypted"
+      }
+    ],
+    "queryLibraryYmlRepoPath": "docs/01-Using-Fleet/standard-query-library/standard-query-library.yml",
+    "markdownPages": [
+      {
+        "url": "/docs",
+        "title": "Readme.md",
+        "lastModifiedAt": 1646430671000,
+        "htmlId": "docs--readme--d4d0ed3801",
+        "sectionRelativeRepoPath": "README.md",
+        "meta": {}
+      },
+      {
+        "url": "/docs/deploying/faq",
+        "title": "FAQ",
+        "lastModifiedAt": 1651602643000,
+        "htmlId": "docs--faq--e6a49377d8",
+        "sectionRelativeRepoPath": "Deploying/FAQ.md",
+        "meta": {}
+      },
+      {
+        "url": "/docs/deploying/configuration",
+        "title": "Configuration",
+        "lastModifiedAt": 1651241930000,
+        "htmlId": "docs--configuration--63e9bdb4d1",
+        "pageOrderInSectionPath": 300,
+        "sectionRelativeRepoPath": "Deploying/Configuration.md",
+        "meta": {}
+      },
+      {
+        "url": "/docs/deploying/introduction",
+        "title": "Introduction",
+        "lastModifiedAt": 1650974310000,
+        "htmlId": "docs--introduction--dce8037bac",
+        "pageOrderInSectionPath": 100,
+        "sectionRelativeRepoPath": "Deploying/Introduction.md",
+        "meta": {}
+      },
+      {
+        "url": "/docs/deploying/load-testing",
+        "title": "Load testing",
+        "lastModifiedAt": 1648661196000,
+        "htmlId": "docs--load-testing--895dc1b307",
+        "pageOrderInSectionPath": 500,
+        "sectionRelativeRepoPath": "Deploying/Load-testing.md",
+        "meta": {}
+      },
+      {
+        "url": "/docs/deploying",
+        "title": "Deploying",
+        "lastModifiedAt": 1645753714000,
+        "htmlId": "docs--readme--cef095c44f",
+        "sectionRelativeRepoPath": "Deploying/README.md",
+        "meta": {}
+      },
+      {
+        "url": "/docs/deploying/reference-architectures",
+        "title": "Reference architectures",
+        "lastModifiedAt": 1649782140000,
+        "htmlId": "docs--reference-architectu--c851d9b8d9",
+        "pageOrderInSectionPath": 600,
+        "sectionRelativeRepoPath": "Deploying/Reference-Architectures.md",
+        "meta": {}
+      },
+      {
+        "url": "/docs/deploying/server-installation",
+        "title": "Server installation",
+        "lastModifiedAt": 1652112311000,
+        "htmlId": "docs--server-installation--d70fd66679",
+        "pageOrderInSectionPath": 200,
+        "sectionRelativeRepoPath": "Deploying/Server-Installation.md",
+        "meta": {}
+      },
+      {
+        "url": "/docs/deploying/upgrading-fleet",
+        "title": "Upgrading Fleet",
+        "lastModifiedAt": 1645640275000,
+        "htmlId": "docs--upgrading-fleet--01831098c4",
+        "pageOrderInSectionPath": 700,
+        "sectionRelativeRepoPath": "Deploying/Upgrading-Fleet.md",
+        "meta": {}
+      },
+      {
+        "url": "/docs/deploying/fleetctl-agent-updates",
+        "title": "Fleetctl agent updates",
+        "lastModifiedAt": 1645640275000,
+        "htmlId": "docs--fleetctl-agent-updat--ce2d683e4b",
+        "pageOrderInSectionPath": 400,
+        "sectionRelativeRepoPath": "Deploying/fleetctl-agent-updates.md",
+        "meta": {}
+      },
+      {
+        "url": "/docs/contributing/api-versioning",
+        "title": "API versioning",
+        "lastModifiedAt": 1649707478000,
+        "htmlId": "docs--api-versioning--2341219a46",
+        "pageOrderInSectionPath": 900,
+        "sectionRelativeRepoPath": "Contributing/API-Versioning.md",
+        "meta": {}
+      },
+      {
+        "url": "/docs/contributing/building-fleet",
+        "title": "Building Fleet",
+        "lastModifiedAt": 1645640275000,
+        "htmlId": "docs--building-fleet--b00aa34b5e",
+        "pageOrderInSectionPath": 100,
+        "sectionRelativeRepoPath": "Contributing/Building-Fleet.md",
+        "meta": {}
+      },
+      {
+        "url": "/docs/contributing/api-for-contributors",
+        "title": "API for contributors",
+        "lastModifiedAt": 1651589251000,
+        "htmlId": "docs--api-for-contributors--0dcb753429",
+        "pageOrderInSectionPath": 800,
+        "sectionRelativeRepoPath": "Contributing/API-for-contributors.md",
+        "meta": {}
+      },
+      {
+        "url": "/docs/contributing/migrations",
+        "title": "Migrations",
+        "lastModifiedAt": 1645640275000,
+        "htmlId": "docs--migrations--8448dfda45",
+        "pageOrderInSectionPath": 300,
+        "sectionRelativeRepoPath": "Contributing/Migrations.md",
+        "meta": {}
+      },
+      {
+        "url": "/docs/contributing/committing-changes",
+        "title": "Committing changes",
+        "lastModifiedAt": 1645640275000,
+        "htmlId": "docs--committing-changes--4114c11b57",
+        "pageOrderInSectionPath": 400,
+        "sectionRelativeRepoPath": "Contributing/Committing-Changes.md",
+        "meta": {}
+      },
+      {
+        "url": "/docs/contributing/faq",
+        "title": "FAQ",
+        "lastModifiedAt": 1645640275000,
+        "htmlId": "docs--faq--222ba8f72d",
+        "sectionRelativeRepoPath": "Contributing/FAQ.md",
+        "meta": {}
+      },
+      {
+        "url": "/docs/contributing",
+        "title": "Contributing",
+        "lastModifiedAt": 1652111795000,
+        "htmlId": "docs--readme--7b8164db6f",
+        "sectionRelativeRepoPath": "Contributing/README.md",
+        "meta": {}
+      },
+      {
+        "url": "/docs/contributing/releasing-fleet",
+        "title": "Releasing Fleet",
+        "lastModifiedAt": 1652112311000,
+        "htmlId": "docs--releasing-fleet--48b8a718de",
+        "pageOrderInSectionPath": 500,
+        "sectionRelativeRepoPath": "Contributing/Releasing-Fleet.md",
+        "meta": {}
+      },
+      {
+        "url": "/docs/contributing/testing",
+        "title": "Testing",
+        "lastModifiedAt": 1647984761000,
+        "htmlId": "docs--testing--fbe4d62c36",
+        "pageOrderInSectionPath": 200,
+        "sectionRelativeRepoPath": "Contributing/Testing.md",
+        "meta": {}
+      },
+      {
+        "url": "/docs/contributing/seeding-data",
+        "title": "Seeding data",
+        "lastModifiedAt": 1651602521000,
+        "htmlId": "docs--seeding-data--1b4b7e90f7",
+        "pageOrderInSectionPath": 600,
+        "sectionRelativeRepoPath": "Contributing/Seeding-Data.md",
+        "meta": {}
+      },
+      {
+        "url": "/docs/using-fleet/automations",
+        "title": "Automations",
+        "lastModifiedAt": 1649789295000,
+        "htmlId": "docs--automations--8d9ab458dd",
+        "pageOrderInSectionPath": 1300,
+        "sectionRelativeRepoPath": "Using-Fleet/Automations.md",
+        "meta": {}
+      },
+      {
+        "url": "/docs/using-fleet/faq",
+        "title": "FAQ",
+        "lastModifiedAt": 1651602418000,
+        "htmlId": "docs--faq--993a4c5b01",
+        "sectionRelativeRepoPath": "Using-Fleet/FAQ.md",
+        "meta": {}
+      },
+      {
+        "url": "/docs/using-fleet/adding-hosts",
+        "title": "Adding hosts",
+        "lastModifiedAt": 1651589251000,
+        "htmlId": "docs--adding-hosts--33b0f5990b",
+        "pageOrderInSectionPath": 500,
+        "sectionRelativeRepoPath": "Using-Fleet/Adding-hosts.md",
+        "meta": {}
+      },
+      {
+        "url": "/docs/using-fleet/fleet-ui",
+        "title": "Fleet UI",
+        "lastModifiedAt": 1645640275000,
+        "htmlId": "docs--fleet-ui--47a0caf412",
+        "pageOrderInSectionPath": 200,
+        "sectionRelativeRepoPath": "Using-Fleet/Fleet-UI.md",
+        "meta": {}
+      },
+      {
+        "url": "/docs/using-fleet/learn-how-to-use-fleet",
+        "title": "Learn how to use Fleet",
+        "lastModifiedAt": 1648740364000,
+        "htmlId": "docs--learn-how-to-use-fle--d08691cefb",
+        "pageOrderInSectionPath": 100,
+        "sectionRelativeRepoPath": "Using-Fleet/Learn-how-to-use-Fleet.md",
+        "meta": {}
+      },
+      {
+        "url": "/docs/using-fleet/monitoring-fleet",
+        "title": "Monitoring Fleet",
+        "lastModifiedAt": 1645640275000,
+        "htmlId": "docs--monitoring-fleet--21ba3fbc56",
+        "pageOrderInSectionPath": 700,
+        "sectionRelativeRepoPath": "Using-Fleet/Monitoring-Fleet.md",
+        "meta": {}
+      },
+      {
+        "url": "/docs/using-fleet/osquery-logs",
+        "title": "Osquery logs",
+        "lastModifiedAt": 1649782140000,
+        "htmlId": "docs--osquery-logs--145b9f3dbe",
+        "pageOrderInSectionPath": 600,
+        "sectionRelativeRepoPath": "Using-Fleet/Osquery-logs.md",
+        "meta": {}
+      },
+      {
+        "url": "/docs/using-fleet",
+        "title": "Using Fleet",
+        "lastModifiedAt": 1645640275000,
+        "htmlId": "docs--readme--5edfba10da",
+        "sectionRelativeRepoPath": "Using-Fleet/README.md",
+        "meta": {}
+      },
+      {
+        "url": "/docs/using-fleet/permissions",
+        "title": "Permissions",
+        "lastModifiedAt": 1650298233000,
+        "htmlId": "docs--permissions--5a441c658f",
+        "pageOrderInSectionPath": 900,
+        "sectionRelativeRepoPath": "Using-Fleet/Permissions.md",
+        "meta": {}
+      },
+      {
+        "url": "/docs/using-fleet/security-audits",
+        "title": "Security audits",
+        "lastModifiedAt": 1648658738000,
+        "htmlId": "docs--security-audits--0fd3650375",
+        "pageOrderInSectionPath": 790,
+        "sectionRelativeRepoPath": "Using-Fleet/Security-audits.md",
+        "meta": {}
+      },
+      {
+        "url": "/docs/using-fleet/rest-api",
+        "title": "REST API",
+        "lastModifiedAt": 1651589251000,
+        "htmlId": "docs--rest-api--c448ea22cb",
+        "pageOrderInSectionPath": 400,
+        "sectionRelativeRepoPath": "Using-Fleet/REST-API.md",
+        "meta": {}
+      },
+      {
+        "url": "/docs/using-fleet/security-best-practices",
+        "title": "Security best practices",
+        "lastModifiedAt": 1646243785000,
+        "htmlId": "docs--security-best-practi--efd7006c97",
+        "pageOrderInSectionPath": 800,
+        "sectionRelativeRepoPath": "Using-Fleet/Security-best-practices.md",
+        "meta": {}
+      },
+      {
+        "url": "/docs/using-fleet/supported-browsers",
+        "title": "Supported browsers",
+        "lastModifiedAt": 1645640275000,
+        "htmlId": "docs--supported-browsers--a72dc53619",
+        "pageOrderInSectionPath": 1200,
+        "sectionRelativeRepoPath": "Using-Fleet/Supported-browsers.md",
+        "meta": {}
+      },
+      {
+        "url": "/docs/using-fleet/supported-host-operating-systems",
+        "title": "Supported host operating systems",
+        "lastModifiedAt": 1647883352000,
+        "htmlId": "docs--supported-host-opera--4768f909f4",
+        "pageOrderInSectionPath": 1200,
+        "sectionRelativeRepoPath": "Using-Fleet/Supported-host-operating-systems.md",
+        "meta": {}
+      },
+      {
+        "url": "/docs/using-fleet/teams",
+        "title": "Teams",
+        "lastModifiedAt": 1645640275000,
+        "htmlId": "docs--teams--44c53f5f0a",
+        "pageOrderInSectionPath": 1000,
+        "sectionRelativeRepoPath": "Using-Fleet/Teams.md",
+        "meta": {}
+      },
+      {
+        "url": "/docs/using-fleet/vulnerability-processing",
+        "title": "Vulnerability processing",
+        "lastModifiedAt": 1651589251000,
+        "htmlId": "docs--vulnerability-proces--d70cfb7861",
+        "pageOrderInSectionPath": 1300,
+        "sectionRelativeRepoPath": "Using-Fleet/Vulnerability-Processing.md",
+        "meta": {}
+      },
+      {
+        "url": "/docs/using-fleet/fleetctl-cli",
+        "title": "Fleetctl CLI",
+        "lastModifiedAt": 1651589251000,
+        "htmlId": "docs--fleetctl-cli--2af4ee6c46",
+        "pageOrderInSectionPath": 300,
+        "sectionRelativeRepoPath": "Using-Fleet/fleetctl-CLI.md",
+        "meta": {}
+      },
+      {
+        "url": "/docs/using-fleet/usage-statistics",
+        "title": "Usage statistics",
+        "lastModifiedAt": 1645640275000,
+        "htmlId": "docs--usage-statistics--2adb2b8a66",
+        "pageOrderInSectionPath": 1100,
+        "sectionRelativeRepoPath": "Using-Fleet/Usage-statistics.md",
+        "meta": {}
+      },
+      {
+        "url": "/docs/using-fleet/standard-query-library",
+        "title": "Standard query library",
+        "lastModifiedAt": 1651241893000,
+        "htmlId": "docs--readme--e3a5f3bf9e",
+        "sectionRelativeRepoPath": "01-Using-Fleet/standard-query-library/README.md",
+        "meta": {}
+      },
+      {
+        "url": "/docs/using-fleet/configuration-files",
+        "title": "Configuration files",
+        "lastModifiedAt": 1651589251000,
+        "htmlId": "docs--readme--c0c90374d5",
+        "sectionRelativeRepoPath": "Using-Fleet/configuration-files/README.md",
+        "meta": {}
+      },
+      {
+        "url": "/handbook",
+        "title": "Readme.md",
+        "lastModifiedAt": 1651597069000,
+        "htmlId": "handbook--readme--7ba179a8c2",
+        "sectionRelativeRepoPath": "README.md",
+        "meta": {
+          "maintainedBy": "mikermcneil"
+        }
+      },
+      {
+        "url": "/handbook/community",
+        "title": "Community",
+        "lastModifiedAt": 1652112533000,
+        "htmlId": "handbook--community--11fd0bc2ec",
+        "sectionRelativeRepoPath": "community.md",
+        "meta": {
+          "maintainedBy": "ksatter"
+        }
+      },
+      {
+        "url": "/handbook/company",
+        "title": "Company",
+        "lastModifiedAt": 1651857351000,
+        "htmlId": "handbook--company--d8f434bbf9",
+        "sectionRelativeRepoPath": "company.md",
+        "meta": {
+          "maintainedBy": "mikermcneil"
+        }
+      },
+      {
+        "url": "/handbook/brand",
+        "title": "Brand",
+        "lastModifiedAt": 1651798173000,
+        "htmlId": "handbook--brand--fb49e112f5",
+        "sectionRelativeRepoPath": "brand.md",
+        "meta": {
+          "maintainedBy": "mike-j-thomas"
+        }
+      },
+      {
+        "url": "/handbook/customers",
+        "title": "Customers",
+        "lastModifiedAt": 1651846384000,
+        "htmlId": "handbook--customers--cd23c0d4dc",
+        "sectionRelativeRepoPath": "customers.md",
+        "meta": {
+          "maintainedBy": "tgauda"
+        }
+      },
+      {
+        "url": "/handbook/engineering",
+        "title": "Engineering",
+        "lastModifiedAt": 1651766481000,
+        "htmlId": "handbook--engineering--4f859a494b",
+        "sectionRelativeRepoPath": "engineering.md",
+        "meta": {
+          "maintainedBy": "zwass"
+        }
+      },
+      {
+        "url": "/handbook/growth",
+        "title": "Growth",
+        "lastModifiedAt": 1651861828000,
+        "htmlId": "handbook--growth--1904b14202",
+        "sectionRelativeRepoPath": "growth.md",
+        "meta": {
+          "maintainedBy": "timmy-k"
+        }
+      },
+      {
+        "url": "/handbook/handbook",
+        "title": "Handbook",
+        "lastModifiedAt": 1650424829000,
+        "htmlId": "handbook--handbook--16db0e7b8f",
+        "sectionRelativeRepoPath": "handbook.md",
+        "meta": {
+          "maintainedBy": "mike-j-thomas"
+        }
+      },
+      {
+        "url": "/handbook/people",
+        "title": "People",
+        "lastModifiedAt": 1651814367000,
+        "htmlId": "handbook--people--01a4520dcc",
+        "sectionRelativeRepoPath": "people.md",
+        "meta": {
+          "maintainedBy": "eashaw"
+        }
+      },
+      {
+        "url": "/handbook/product",
+        "title": "Product",
+        "lastModifiedAt": 1651766481000,
+        "htmlId": "handbook--product--3a39e108e5",
+        "sectionRelativeRepoPath": "product.md",
+        "meta": {
+          "maintainedBy": "noahtalerman"
+        }
+      },
+      {
+        "url": "/handbook/security-policies",
+        "title": "Security policies",
+        "lastModifiedAt": 1651861576000,
+        "htmlId": "handbook--security-policies--65f024456b",
+        "sectionRelativeRepoPath": "security-policies.md",
+        "meta": {
+          "maintainedBy": "guillaumeross"
+        }
+      },
+      {
+        "url": "/handbook/security",
+        "title": "Security",
+        "lastModifiedAt": 1651153035000,
+        "htmlId": "handbook--security--c671c594a2",
+        "sectionRelativeRepoPath": "security.md",
+        "meta": {
+          "maintainedBy": "guillaumeross"
+        }
+      },
+      {
+        "url": "/guides/deploying-fleet-on-aws-with-terraform",
+        "title": "Deploying Fleet on aws with terraform",
+        "lastModifiedAt": 1651126567000,
+        "htmlId": "articles--deploying-fleet-on-a--179f5a79fc",
+        "sectionRelativeRepoPath": "deploying-fleet-on-aws-with-terraform.md",
+        "meta": {
+          "category": "guides",
+          "authorGitHubUsername": "edwardsb",
+          "authorFullName": "Ben Edwards",
+          "publishedOn": "2021-11-30",
+          "articleTitle": "Deploying Fleet on AWS with Terraform",
+          "articleImageUrl": "https://miro.medium.com/1*IzLHvDlUTDj3SXzLUQqPYA.png"
+        }
+      },
+      {
+        "url": "/releases/fleet-4.13.0",
+        "title": "Fleet 4.13.0",
+        "lastModifiedAt": 1651126567000,
+        "htmlId": "articles--fleet-4130--47ef058863",
+        "sectionRelativeRepoPath": "fleet-4.13.0.md",
+        "meta": {
+          "category": "releases",
+          "authorFullName": "Fleet",
+          "authorGitHubUsername": "fleetdm",
+          "publishedOn": "2022-04-19",
+          "articleTitle": "Fleet 4.13.0 | Security fixes, policy automations for teams, and aggregated macOS versions for MacAdmins.",
+          "articleImageUrl": "https://miro.medium.com/max/1400/1*8uH_y1m3XZFX5rWtieMV7A.png"
+        }
+      },
+      {
+        "url": "/guides/deploying-fleet-on-render",
+        "title": "Deploying Fleet on render",
+        "lastModifiedAt": 1651126567000,
+        "htmlId": "articles--deploying-fleet-on-r--f258133a80",
+        "sectionRelativeRepoPath": "deploying-fleet-on-render.md",
+        "meta": {
+          "category": "guides",
+          "authorGitHubUsername": "edwardsb",
+          "authorFullName": "Ben Edwards",
+          "publishedOn": "2021-09-21",
+          "articleTitle": "Deploying Fleet on Render",
+          "articleImageUrl": "https://miro.medium.com/1*Ai8I3fIS8p0afb8dBWqS-A.jpeg"
+        }
+      },
+      {
+        "url": "/device-management/fleet-user-stories-f100",
+        "title": "Fleet user stories f100",
+        "lastModifiedAt": 1651126567000,
+        "htmlId": "articles--fleet-user-stories-f--81e2cb16ab",
+        "sectionRelativeRepoPath": "fleet-user-stories-f100.md",
+        "meta": {
+          "category": "success stories",
+          "authorGitHubUsername": "mike-j-thomas",
+          "authorFullName": "Mike Thomas",
+          "publishedOn": "2021-09-29",
+          "articleTitle": "Fleet user stories — F100",
+          "articleImageUrl": "https://miro.medium.com/1*7BTPQ_RRbL9h9YkxT8caDQ.jpeg"
+        }
+      },
+      {
+        "url": "/announcements/a-new-fleet",
+        "title": "A new Fleet",
+        "lastModifiedAt": 1651126567000,
+        "htmlId": "articles--a-new-fleet--c8c387395e",
+        "sectionRelativeRepoPath": "a-new-fleet.md",
+        "meta": {
+          "category": "announcements",
+          "authorGitHubUsername": "zwass",
+          "authorFullName": "Zach Wasserman",
+          "publishedOn": "2020-01-05",
+          "articleTitle": "A new Fleet",
+          "articleImageUrl": "https://miro.medium.com/max/1400/1*Lr6moo5NCy4Sm49NL6EswQ.jpeg"
+        }
+      },
+      {
+        "url": "/device-management/fleet-user-stories-schrodinger",
+        "title": "Fleet user stories schrodinger",
+        "lastModifiedAt": 1651126567000,
+        "htmlId": "articles--fleet-user-stories-s--3a19dacb28",
+        "sectionRelativeRepoPath": "fleet-user-stories-schrodinger.md",
+        "meta": {
+          "category": "success stories",
+          "authorGitHubUsername": "mike-j-thomas",
+          "authorFullName": "Mike Thomas",
+          "publishedOn": "2021-09-10",
+          "articleTitle": "Fleet user stories — Schrödinger",
+          "articleImageUrl": "https://miro.medium.com/1*uAZ-YhsFJIhNCl1Cz-lVxQ.jpeg"
+        }
+      },
+      {
+        "url": "/device-management/fleet-user-stories-wayfair",
+        "title": "Fleet user stories wayfair",
+        "lastModifiedAt": 1651126567000,
+        "htmlId": "articles--fleet-user-stories-w--1a0bf367cd",
+        "sectionRelativeRepoPath": "fleet-user-stories-wayfair.md",
+        "meta": {
+          "category": "success stories",
+          "authorGitHubUsername": "mike-j-thomas",
+          "authorFullName": "Mike Thomas",
+          "publishedOn": "2021-08-20",
+          "articleTitle": "Fleet user stories — Wayfair",
+          "articleImageUrl": "https://miro.medium.com/1*7BTPQ_RRbL9h9YkxT8caDQ.jpeg"
+        }
+      },
+      {
+        "url": "/announcements/from-osquery-to-fleet-planting-the-seed",
+        "title": "From osquery to Fleet planting the seed",
+        "lastModifiedAt": 1651126567000,
+        "htmlId": "articles--from-osquery-to-flee--1030a2d38e",
+        "sectionRelativeRepoPath": "from-osquery-to-fleet-planting-the-seed.md",
+        "meta": {
+          "category": "announcements",
+          "authorGitHubUsername": "zwass",
+          "authorFullName": "Zach Wasserman",
+          "publishedOn": "2022-01-20",
+          "articleTitle": "The next step for Fleet: our $5M seed round 🌱",
+          "articleImageUrl": "https://miro.medium.com/max/1400/1*bKfNH5xP8B6AZUms7KchGg.png"
+        }
+      },
+      {
+        "url": "/announcements/happy-1st-anniversary-fleet",
+        "title": "Happy 1st anniversary Fleet",
+        "lastModifiedAt": 1651126567000,
+        "htmlId": "articles--happy-1st-anniversar--947359a8db",
+        "sectionRelativeRepoPath": "happy-1st-anniversary-fleet.md",
+        "meta": {
+          "category": "announcements",
+          "authorGitHubUsername": "mike-j-thomas",
+          "authorFullName": "Mike Thomas",
+          "publishedOn": "2021-10-08",
+          "articleTitle": "Happy 1st anniversary, Fleet.",
+          "articleImageUrl": "https://miro.medium.com/max/1400/1*zCLe1aP9ytZ-Ea7b22_dbA.png"
+        }
+      },
+      {
+        "url": "/use-cases/osquery-a-tool-to-easily-ask-questions-about-operating-systems",
+        "title": "Osquery a tool to easily ask questions about operating systems",
+        "lastModifiedAt": 1651126567000,
+        "htmlId": "articles--osquery-a-tool-to-ea--cfbef750e3",
+        "sectionRelativeRepoPath": "osquery-a-tool-to-easily-ask-questions-about-operating-systems.md",
+        "meta": {
+          "category": "product",
+          "authorGitHubUsername": "dominuskelvin",
+          "authorFullName": "Kelvin Omereshone",
+          "publishedOn": "2022-04-04",
+          "articleTitle": "Osquery: a tool to easily ask questions about operating systems",
+          "articleImageUrl": "https://miro.medium.com/1*0iCxml_BJkCwz8w1VXvi3A.png"
+        }
+      },
+      {
+        "url": "/engineering/saving-over-100x-on-egress-switching-from-aws-to-hetzner",
+        "title": "Saving over 100x on egress switching from aws to hetzner",
+        "lastModifiedAt": 1651126567000,
+        "htmlId": "articles--saving-over-100x-on---247c0b6538",
+        "sectionRelativeRepoPath": "saving-over-100x-on-egress-switching-from-aws-to-hetzner.md",
+        "meta": {
+          "category": "engineering",
+          "authorGitHubUsername": "zwass",
+          "authorFullName": "Zach Wasserman",
+          "publishedOn": "2022-01-25",
+          "articleTitle": "Saving over 100x on egress switching from AWS to Hetzner",
+          "articleImageUrl": "https://miro.medium.com/max/1400/1*xBA8pOc7jKmj8YjwxGnaEg.jpeg"
+        }
+      },
+      {
+        "url": "/securing/security-testing-at-fleet-orbit-auto-updater-audit",
+        "title": "Security testing at Fleet orbit auto updater audit",
+        "lastModifiedAt": 1651126567000,
+        "htmlId": "articles--security-testing-at---89347152f9",
+        "sectionRelativeRepoPath": "security-testing-at-fleet-orbit-auto-updater-audit.md",
+        "meta": {
+          "category": "security",
+          "authorGitHubUsername": "GuillaumeRoss",
+          "authorFullName": "Guillaume Ross",
+          "publishedOn": "2022-03-30",
+          "articleTitle": "Security testing at Fleet/Orbit auto-updater audit"
+        }
+      },
+      {
+        "url": "/securing/tales-from-fleet-security-securing-1password",
+        "title": "Tales from Fleet security securing 1password",
+        "lastModifiedAt": 1652111857000,
+        "htmlId": "articles--tales-from-fleet-sec--82568fa898",
+        "sectionRelativeRepoPath": "tales-from-fleet-security-securing-1password.md",
+        "meta": {
+          "category": "security",
+          "authorFullName": "Guillaume Ross",
+          "authorGitHubUsername": "GuillaumeRoss",
+          "publishedOn": "2022-05-06",
+          "articleTitle": "Tales from Fleet security: securing 1Password",
+          "articleImageUrl": "/images/articles/securing-1password-1600x900@2x.png"
+        }
+      },
+      {
+        "url": "/securing/tales-from-fleet-security-securing-google-workspace",
+        "title": "Tales from Fleet security securing google workspace",
+        "lastModifiedAt": 1651126567000,
+        "htmlId": "articles--tales-from-fleet-sec--a1f57683ff",
+        "sectionRelativeRepoPath": "tales-from-fleet-security-securing-google-workspace.md",
+        "meta": {
+          "category": "security",
+          "authorFullName": "Guillaume Ross",
+          "authorGitHubUsername": "GuillaumeRoss",
+          "publishedOn": "2022-03-25",
+          "articleTitle": "Tales from Fleet security: securing Google Workspace"
+        }
+      }
+    ],
+    "compiledPagePartialsAppPath": "views/partials/built-from-markdown"
   }
 }
