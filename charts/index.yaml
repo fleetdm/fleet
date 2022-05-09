@@ -2,6 +2,21 @@ apiVersion: v1
 entries:
   fleet:
   - apiVersion: v1
+    appVersion: v4.14.0
+    created: "2022-05-09T21:37:47.898908031Z"
+    description: A Helm chart for Fleet
+    digest: b5d1e8423798b7e3ff13d21eafb86226f2404cba0d19074f2edd8d8231c417ab
+    home: https://github.com/fleetdm/fleet
+    keywords:
+    - fleet
+    - osquery
+    name: fleet
+    sources:
+    - https://github.com/fleetdm/fleet.git
+    urls:
+    - https://fleetdm.github.io/fleet/charts/fleet-v4.14.0.tgz
+    version: v4.14.0
+  - apiVersion: v1
     appVersion: v4.13.2
     created: "2022-04-25T21:49:56.870232132Z"
     description: A Helm chart for Fleet
@@ -556,4 +571,4 @@ entries:
     urls:
     - https://fleetdm.github.io/fleet/charts/fleet-3.9.0.tgz
     version: 3.9.0
-generated: "2022-04-25T21:49:56.854229474Z"
+generated: "2022-05-09T21:37:47.897247541Z"
