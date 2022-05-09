@@ -19,10 +19,10 @@ For update instructions, see our [upgrade guide](https://fleetdm.com/docs/deploy
 You can now configure Fleet to automatically create a Jira issue (ticket) when a new vulnerability (CVE) is
 found on your hosts. No need to create tickets or spend time configuring a webhook manually.
 
-To configure Jira as a ticket destination:
-1. On the top bar, on the right, select the avatar and select **Settings**.
+Follow the steps below to configure Jira as a ticket destination:
+1. Navigate to the right-hand side of the top bar. Select the avatar and then **Settings**.
 2. Select **Integrations** and **Add integration**.
-3. Enter your Jira instance's **URL** **Username** **API token** and **Project key**.
+3. Enter your Jira instance's **URL**, **Username**, **API token**, and **Project key**.
 4. On the top bar, select **Policies** and, on the right, select **Manage automations**.
 5. Select **Enable vulnerability automations** and choose **Ticket**.
 6. Choose your Jira instance in **Integration** and select **Save**.
@@ -48,20 +48,20 @@ In 4.14.0, we also:
 - Added a `last_opened_at` property, for macOS software, to the **Host details** API route (`GET /hosts/{id}`).
 - Added `osquery.min_software_last_opened_at_diff` configuration option.
 - Improved the **Settings** pages in the Fleet UI.
-- Improved error messaging for `fleetctl query`.
-- Improved empty state messaging in the Fleet UI.
-- made the duration values returned by `fleetctl` more human-friendly to read.
-- added “optional” to hints for appropriate fields when creating new queries and policies in the
+- Improved the error messaging for `fleetctl query`.
+- Improved the empty state messaging in the Fleet UI.
+- Made the duration values returned by `fleetctl` more human-friendly to read.
+- Added “optional” to hints for appropriate fields when creating new queries and policies in the
   Fleet UI. 
-- Fixed a bug in which the "Bundle identifier" tooltips displayed on **Host details > Software** did
+- Fixed a bug where the "Bundle identifier" tooltips displayed on **Host details > Software** did
   not render correctly.
-- Fix a bug in which the Fleet UI would render an empty Google Chrome profiles on the **Host
+- Fixed a bug where the Fleet UI would render empty Google Chrome profiles on the **Host
   details** page. 
-- Fix a bug in which the Fleet UI would error when entering the "@" characters in the **Search
+- Fixed a bug where the Fleet UI would error when entering the "@" characters in the **Search
   targets** field.
-- Fixed a bug affecting “name” display for scheduled queries in the Fleet UI. 
+- Fixed a bug affecting the “name” display for scheduled queries in the Fleet UI. 
 - Fixed a bug that caused panic errors when running `fleet –debug`. 
-- Fixed deprecation warning message on `fleetctl package` for deb/rpm.
+- Fixed a deprecation warning message on `fleetctl package` for deb/rpm.
 
 ---
 
