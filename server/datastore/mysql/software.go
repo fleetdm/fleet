@@ -372,11 +372,13 @@ func listSoftwareDB(
 		if result.CVE != nil {
 			cveID := *result.CVE
 			cve := fleet.CVE{
-				CVE:              cveID,
-				DetailsLink:      fmt.Sprintf("https://nvd.nist.gov/vuln/detail/%s", cveID),
-				CVSSScore:        result.CVSSScore,
-				EPSSProbability:  result.EPSSProbability,
-				CISAKnownExploit: result.CISAKnownExploit,
+				CVE:             cveID,
+				DetailsLink:     fmt.Sprintf("https://nvd.nist.gov/vuln/detail/%s", cveID),
+				CVSSScore:       result.CVSSScore,
+				EPSSProbability: result.EPSSProbability,
+			}
+			if result.CISAKnownExploit != nil {
+				cve.CISAKnownExploit = *result.CISAKnownExploit
 			}
 			softwares[idx].Vulnerabilities = append(softwares[idx].Vulnerabilities, cve)
 		}
@@ -792,13 +794,16 @@ WHERE
 
 		if result.CVE != nil {
 			cveID := *result.CVE
-			software.Vulnerabilities = append(software.Vulnerabilities, fleet.CVE{
-				CVE:              cveID,
-				DetailsLink:      fmt.Sprintf("https://nvd.nist.gov/vuln/detail/%s", cveID),
-				CVSSScore:        result.CVSSScore,
-				EPSSProbability:  result.EPSSProbability,
-				CISAKnownExploit: result.CISAKnownExploit,
-			})
+			cve := fleet.CVE{
+				CVE:             cveID,
+				DetailsLink:     fmt.Sprintf("https://nvd.nist.gov/vuln/detail/%s", cveID),
+				CVSSScore:       result.CVSSScore,
+				EPSSProbability: result.EPSSProbability,
+			}
+			if result.CISAKnownExploit != nil {
+				cve.CISAKnownExploit = *result.CISAKnownExploit
+			}
+			software.Vulnerabilities = append(software.Vulnerabilities, cve)
 		}
 	}
 

@@ -7,7 +7,7 @@ type CVE struct {
 	DetailsLink      string   `json:"details_link" db:"-"`
 	CVSSScore        *float64 `json:"cvss_score" db:"cvss_score"`
 	EPSSProbability  *float64 `json:"epss_probability" db:"epss_probability"`
-	CISAKnownExploit *bool    `json:"cisa_known_exploit" db:"cisa_known_exploit"`
+	CISAKnownExploit bool     `json:"cisa_known_exploit" db:"cisa_known_exploit"`
 }
 
 // Software is a named and versioned piece of software installed on a device.

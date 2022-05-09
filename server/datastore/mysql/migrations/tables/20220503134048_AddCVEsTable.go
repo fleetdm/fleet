@@ -16,7 +16,7 @@ CREATE TABLE cves (
     cve varchar(20) PRIMARY KEY,
     cvss_score double(4,2),
     epss_probability double(6,5),
-    cisa_known_exploit boolean
+    cisa_known_exploit boolean NOT NULL DEFAULT FALSE
 )
 	`)
 	if err != nil {

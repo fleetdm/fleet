@@ -389,7 +389,7 @@ func generateCVE(n int) fleet.CVE {
 		CVE:              CVEID,
 		CVSSScore:        &cvssScore,
 		EPSSProbability:  &epssProbability,
-		CISAKnownExploit: &cisaKnownExploit,
+		CISAKnownExploit: cisaKnownExploit,
 	}
 }
 
@@ -508,7 +508,7 @@ func testSoftwareList(t *testing.T, ds *Datastore) {
 		CVE:              "CVE-2022-0003",
 		CVSSScore:        ptr.Float64(3.0),
 		EPSSProbability:  ptr.Float64(0.98),
-		CISAKnownExploit: ptr.Bool(true),
+		CISAKnownExploit: true,
 	}
 	_, err = ds.NewCVE(context.Background(), &cve1)
 	require.NoError(t, err)
@@ -551,7 +551,7 @@ func testSoftwareList(t *testing.T, ds *Datastore) {
 				DetailsLink:      "https://nvd.nist.gov/vuln/detail/CVE-2022-0003",
 				CVSSScore:        ptr.Float64(3.0),
 				EPSSProbability:  ptr.Float64(0.98),
-				CISAKnownExploit: ptr.Bool(true),
+				CISAKnownExploit: true,
 			},
 		},
 	}

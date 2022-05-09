@@ -75,7 +75,7 @@ CREATE TABLE `cves` (
   `cve` varchar(20) NOT NULL,
   `cvss_score` double(4,2) DEFAULT NULL,
   `epss_probability` double(6,5) DEFAULT NULL,
-  `cisa_known_exploit` tinyint(1) DEFAULT NULL,
+  `cisa_known_exploit` tinyint(1) NOT NULL DEFAULT '0',
   PRIMARY KEY (`cve`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 /*!40101 SET character_set_client = @saved_cs_client */;
