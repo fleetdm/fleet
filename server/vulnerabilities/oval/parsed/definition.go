@@ -1,14 +1,14 @@
 package oval_parsed
 
 type Criteria struct {
-	Operator   OperatorType `json:"o"`
-	Criteriums []int        `json:"co"`
-	Criterias  []*Criteria  `json:"cr"`
+	Operator   OperatorType
+	Criteriums []int
+	Criterias  []*Criteria
 }
 
 type Definition struct {
-	Criteria        *Criteria `json:"c"`
-	Vulnerabilities []string  `json:"v"`
+	Criteria        *Criteria
+	Vulnerabilities []string
 }
 
 func (r Definition) Eval(testResults map[int]bool) bool {

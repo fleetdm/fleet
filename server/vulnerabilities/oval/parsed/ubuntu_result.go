@@ -1,8 +1,8 @@
 package oval_parsed
 
 type UbuntuResult struct {
-	Definitions  []Definition          `json:"d"`
-	PackageTests map[int]*DpkgInfoTest `json:"p"`
+	Definitions  []Definition
+	PackageTests map[int]*DpkgInfoTest
 }
 
 func NewResult() *UbuntuResult {

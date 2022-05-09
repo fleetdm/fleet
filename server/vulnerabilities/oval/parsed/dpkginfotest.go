@@ -1,11 +1,11 @@
 package oval_parsed
 
 type DpkgInfoTest struct {
-	Objects       []string               `json:"os"`
-	States        []ObjectStateEvrString `json:"ss"`
-	StateOperator OperatorType           `json:"so"`
-	ObjectMatch   ObjectMatchType        `json:"om"`
-	StateMatch    StateMatchType         `json:"sm"`
+	Objects       []string
+	States        []ObjectStateEvrString
+	StateOperator OperatorType
+	ObjectMatch   ObjectMatchType
+	StateMatch    StateMatchType
 }
 
 func (t *DpkgInfoTest) Eval(packages []HostPackage) bool {
