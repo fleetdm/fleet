@@ -231,42 +231,41 @@ If you've been invited to "book with us" you'll have a Zoom meeting with the hir
 
 > Fleet is unable to hire team members in some countries. See [this internal document](https://docs.google.com/document/d/1jHHJqShIyvlVwzx1C-FB9GC74Di_Rfdgmhpai1SPC0g/edit) for the list.
 
-1. At-mention People Operations in the `#hiring-xxxxx-2022` channel and indicate that you would like to make an offer to the candidate.  Include the candidate's name, personal email address, where the candidate would be working, and any other important considerations about the candidate (the timeframe for their start date, their status to work legally in their country of residence, etc.)
+1. **Manager:** At-mention People Operations in the `#hiring-xxxxx-2022` channel and indicate that you would like for Fleet to make an offer to the candidate.  Include the candidate's name, personal email address, the timeframe for their start date, and the country where they will be working. 
 
-2. People Operations will check compensation using [Pave](https://www.pave.com), making sure to adjust for the cost of living where the candidate will do the work.  *If unsure of your findings, ask for help from the CEO.*  People Ops will then document this decision in the [compensation decisions document](https://docs.google.com/document/d/1NQ-IjcOTbyFluCWqsFLMfP4SvnopoXDcX0civ-STS5c/edit) for future reference.
+2. **People Ops:** People Operations will research compensation using [Pave](https://www.pave.com), making sure to adjust for the cost of living where the candidate will do the work.  _If People Ops is unsure of their findings, ask for help from the CEO._  People Ops will then document this decision in the [compensation decisions document](https://docs.google.com/document/d/1NQ-IjcOTbyFluCWqsFLMfP4SvnopoXDcX0civ-STS5c/edit) for future reference.
 
-3. After you have determined compensation, People Ops will make copies of two different documents and customize them for this candidate based on these templates:
-
+3. **People Ops:** After you have determined compensation, make copies of these two templates and customize them for this candidate:
    - [Exit scenarios (template)](https://docs.google.com/spreadsheets/d/1k2TzsFYR0QxlD-KGPxuhuvvlJMrCvLPo2z8s8oGChT0/copy)
    - [Informal offer email (template)](https://docs.google.com/document/d/1zpNN2LWzAj-dVBC8iOg9jLurNlSe7XWKU69j7ntWtbY/copy)
 
-People Ops will change the name of the documents accordingly (e.g., "[candidate's name]'s a copy of exit scenarios") and link to the exit scenarios spreadsheet from the offer email.
+Change the name of the copied documents accordingly (e.g., "[candidate's name]'s a copy of exit scenarios") and link to the exit scenarios spreadsheet from the offer email.
 
-4. People Ops will prepare the informal offer email with help from the CEO.  Post in the `#g-people` Slack channel and at-mention the CEO for assistance with determining the number of shares.  You'll need to add the following information to the template: 
+4. **People Ops:** Next, prepare the informal offer email: Post in the `#g-people` Slack channel and at-mention the CEO for assistance with determining the number of shares.  You'll then need to add the following information to the template: 
    - Candidate's name and email address
    - Candidate's start date
    - Candidate's compensation
    - Candidate's manager (the person they report to)
-   - Equity offered to the candidate (make this information a link to the candidate's exit scenarios spreadsheet)
+   - Equity offered to the candidate (specify a number of shares, and highlight it with a link to the candidate's exit scenarios spreadsheet)
    - Benefits (determined by the candidate's location)
 
-5. Prepare the exit scenarios spreadsheet. Enter the number of shares offered to the candidate, and the spreadsheet will update to reflect this. 
+5. **People Ops:** Prepare the exit scenarios spreadsheet. Enter the number of shares offered to the candidate, and the spreadsheet will update to reflect this. 
    
    >**_Note:_** *Don't play with numbers in the exit scenarios spreadsheet. The revision history is visible to the candidate, and they might misunderstand.*
 
-6. Once both documents are complete, People Ops will share the offer email draft, exit scenarios copy, and a link to the compensation decision with the CEO for approval before sending the offer email out.
+6. **People Ops:** Once both documents are complete, share the offer email draft, exit scenarios copy, and a link to the compensation decision with the CEO for approval by mentioning @mikermcneil in #g-people.
 
-The CEO will confirm:
+7. **CEO:** Confirm:
   - The compensation decision has been documented sufficiently and adjusted for the cost of living.
   - The equity plan and budget are up to date with the actual offer that is about to be sent.
   - The Fleeties doc now reflects the actual start date from the offer email, as well as the candidate's name, LinkedIn URL, and preferred pronoun.
   - It still makes business sense to make this offer by reviewing the budget and equity plan.
 
-The CEO will then post a message in the `#hiring-xxxxx-2022` Slack channel to indicate that the offer is approved.
+The CEO will then reply in `#g-people` to indicate that the offer is approved.
 
    >**_Note:_** *When hiring an international employee, Pilot.co recommends starting the hiring process a month before the new employee's start date.*
 
-7. After obtaining CEO approval, People Ops will confirm everything is correct and loop in either the CEO or CTO, who will send the offer email.
+8. **People Ops:** After obtaining CEO approval, confirm everything is correct one more time, then mention either the CEO or CTO, who will send the offer email.
   - The offer email is copied directly from Google Drive into Gmail before being sent to the candidate.
   - When sending the offer, the CEO or CTO will edit the permissions of the exit scenarios sheet, so it is accessible to the candidate.
   - People Ops is cc'd on the offer email, but will not participate in the email thread until after the offer is accepted.
@@ -274,28 +273,28 @@ The CEO will then post a message in the `#hiring-xxxxx-2022` Slack channel to in
 
 ### Steps after an offer is accepted
 
-1. Once an offer is accepted in writing, reply to the candidate, CCing Eric via his Fleet email address to introduce the candidate to him.
+1. Once an offer is accepted in writing, People Ops replies to the candidate.
 
-2. Eric creates a [hiring issue](https://github.com/fleetdm/confidential/blob/main/.github/ISSUE_TEMPLATE/hiring.md) for the new team member in the [fleetdm/confidential](https://github.com/fleetdm/confidential/issues) repo. Eric will use this issue to keep track of the hiring tasks for the new team member.
+2. People Ops creates a [hiring issue](https://github.com/fleetdm/confidential/blob/main/.github/ISSUE_TEMPLATE/hiring.md) for the new team member in the [fleetdm/confidential](https://github.com/fleetdm/confidential/issues) repo. People Ops will use this issue to keep track of the hiring tasks for the new team member.
 
-3. Eric reaches out to the new team member via email to get any information he will need to prepare an agreement and add them to our payroll system.
+3. People Ops reaches out to the new team member via email to get any information they will need to prepare an agreement and add them to our payroll system.
 
-   - **US team members**: Eric will send the new team member's agreement through [DocuSign](https://www.docusign.com/).
-  After signing and storing an in the correct Google Drive folder, Eric will invite the new team member to onboard in [Gusto](https://www.gusto.com/). Eric will reach out to them if the new team member is a W-2 employee and schedule an I-9 verification meeting.
+   - **US team members**: People Ops will send the new team member's agreement through [DocuSign](https://www.docusign.com/).
+  After signing and storing an in the correct Google Drive folder, People Ops will invite the new team member to onboard in [Gusto](https://www.gusto.com/). People Ops will reach out to them if the new team member is a W-2 employee and schedule an I-9 verification meeting.
 
    >*If we're hiring in a new state, we'll have to register for state taxes and unemployment. This process can usually be handled by Gusto.*
 
-   - **For international team members:** Eric enters the new team member's information into [Pilot](https://pilot.co/) to kick off their hiring process. Pilot creates an agreement for the new team member, and Eric reviews it to ensure that everything looks correct. After Eric confirms the information about the new hire, Pilot invites the new team member to enter the rest of their information and informs Eric via email when the agreement has been signed.
+   - **For international team members:** People Ops enters the new team member's information into [Pilot](https://pilot.co/) to kick off their hiring process. Pilot creates an agreement for the new team member, and People Ops reviews it to ensure that everything looks correct. After People Ops confirms the information about the new hire, Pilot invites the new team member to enter the rest of their information and informs People Ops via email when the agreement has been signed.
 
-4. **As soon as we have a signed agreement with a new team member:** Eric reaches out to the new team member to provide them with a [work device](#purchasing-a-company-issued-device) and a pair of [YubiKeys](./security.md#hardware-security-keys). The new team member will be asked to send Eric a screenshot or link to their preferred device and configuration. Eric orders their device and Yubikeys using his Brex card and has them shipped directly to the new team member.
+4. **As soon as we have a signed agreement with a new team member:** People Ops reaches out to the new team member to provide them with a [work device](#purchasing-a-company-issued-device) and a pair of [YubiKeys](./security.md#hardware-security-keys). The new team member will be asked to send People Ops a screenshot or link to their preferred device and configuration. People Ops orders their device and Yubikeys using his Brex card and has them shipped directly to the new team member.
 
    >*If the new team member is in the US and requests a MacBook, It will be purchased using our Apple business account. MacBooks purchased with this account will ship pre-configured and will be enrolled in our MDM.*
 
-5. **Two weeks before their first day at Fleet:** Eric creates a [Google Workspace account](https://admin.google.com/ac/users) for the new team member and invites them to join the [FleetDM](https://github.com/fleetdm) GitHub organization. 
+5. **Two weeks before their first day at Fleet:** People Ops creates a [Google Workspace account](https://admin.google.com/ac/users) for the new team member and invites them to join the [FleetDM](https://github.com/fleetdm) GitHub organization. 
 
-   When the new team member's work email is active, Eric will send invitations to join Fleet's Slack and to create Fleet-managed 1Password and Zoom accounts with their Fleet email. Eric sends the sign-in instructions to the new team member, accompanied by a brief explanation of the invitations sent.
+   When the new team member's work email is active, People Ops will send invitations to join Fleet's Slack and to create Fleet-managed 1Password and Zoom accounts with their Fleet email. People Ops sends the sign-in instructions to the new team member, accompanied by a brief explanation of the invitations sent.
 
-6. **Before a new team member's first day:** Eric creates an onboarding issue in the [fleetdm/confidential](https://github.com/fleetdm/confidential/issues) GitHub repo for the new team member. Before creating the issue, Eric will go through it and comment on any steps that the new team member will not have to complete.
+6. **Before a new team member's first day:** People Ops creates an onboarding issue in the [fleetdm/confidential](https://github.com/fleetdm/confidential/issues) GitHub repo for the new team member. Before creating the issue, People Ops will go through it and comment on any steps that the new team member will not have to complete.
 
 ### CorpNet state registration process
 
@@ -350,8 +349,7 @@ Once the agreement is sent, add a new row to the [advisory board spreadsheet](ht
 
    >**_Note:_** *Be sure to mark any columns that haven't been completed yet as "TODO"*
 
-When the agreement is completed, make sure it is in the correct Google Drive folder, and ask the new
-advisor to add us on [Linkedin](https://www.linkedin.com/company/71111416), [Crunchbase](https://www.crunchbase.com/organization/fleet-device-management), and [Angellist](https://angel.co/company/fleetdm).
+When the agreement is completed, make sure it is in the correct Google Drive folder, update the [advisory board spreadsheet](https://docs.google.com/spreadsheets/d/15knBE2-PrQ1Ad-QcIk0mxCN-xFsATKK9hcifqrm0qFQ/edit#gid=1803674483) to show that the agreement has been signed, and ask the new advisor to add us on [Linkedin](https://www.linkedin.com/company/71111416), [Crunchbase](https://www.crunchbase.com/organization/fleet-device-management), and [Angellist](https://angel.co/company/fleetdm).
 
 ## Onboarding a new consultant
 
