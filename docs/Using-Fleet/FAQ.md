@@ -276,7 +276,7 @@ $ fleetctl get hosts --json | jq '.spec .os_version' | sort | uniq -c
 
 ## Will updating fleetctl lead to loss of data in Preview?
 
-No, you won't experience any loss of data whenenver you update fleetctl. Note that you can run `fleetctl preview --tag v#.#.#`(replace # with the version numbers you are interested in) if you want to run preview on a previous version.
+No, you won't experience data loss when you update fleetctl. Note that you can run `fleetctl preview --tag v#.#.#` if you want to run Preview on a previous version. Just replace # with the version numbers of interest.
 
 
 
