@@ -284,9 +284,9 @@ module.exports = {
                   let referencedPageSourcePath = path.resolve(path.join(topLvlRepoPath, sectionRepoPath, pageRelSourcePath), '../', oldRelPath);
                   // If the relative link goes to the image is in the website's assets folder (`website/assets/`) we'll modify the relative link
                   // to work on fleetdm.com e.g. ('../website/assets/images/articles/foo-300x900@2x.png' -> '/images/articles/foo-200x300@2x.png')
-                  let isWebsiteAsset = referencedPageSourcePath.match(/(?<=\/website\/assets)(\/images\/(.+))/g);
+                  let isWebsiteAsset = referencedPageSourcePath.match(/(?<=\/website\/assets)(\/images\/(.+))/g)[0];
                   if(!isWebsiteAsset) {
-                    // throw an error if the image lives outside of the website/assets folder
+                    // throw an error if this image is outside of the website/assets folder
                     throw new Error(`Failed compiling markdown content: An article page has an invalid Image link ${srcString} at "${path.join(topLvlRepoPath, pageSourcePath)}".  To resolve, ensure this image has been added to 'website/assets/images/articles/' and link to it using a relative link e.g. '../website/assets/images/articles/foo-200x300@2x.png' OR a link to the image on fleetdm.com e.g. 'https://fleetdm.com/images/articles/foo-200x300@2x.png`);
                   } else {
                     return '="'+isWebsiteAsset+'"';
@@ -404,14 +404,21 @@ module.exports = {
                   if(!isValidImage) {
                     throw new Error(`Failed compiling markdown content: An article page has an invalid a articleImageUrl meta tag (<meta name="articleImageUrl" value="${embeddedMetadata.articleImageUrl}">) at "${path.join(topLvlRepoPath, pageSourcePath)}".  To resolve, change the value of the meta tag to be a URL or repo relative link to an image`);
                   }
+                  let isURL = embeddedMetadata.articleImageUrl.match(/https?:\/\/(.+)/g);
                   let isExternal = ! embeddedMetadata.articleImageUrl.match(/https?:\/\/([^\.|blog]+\.)*fleetdm\.com/g);
-                  // if the image is hosted on fleetdm.com, we'll modify the meta value to reference the file directly in the `website/assets/` folder
-                  if (!isExternal) {
-                    embeddedMetadata.articleImageUrl = embeddedMetadata.articleImageUrl.replace(/https?:\/\//, '').replace(/^fleetdm\.com/, '');
-                  } else { // If the image is not hosted on fleetdm.com we'll leave it as-is.
-                    // TODO: uncomment this error once all of our Medium articles have been migrated and the assets live on fleetdm.com
-
-                    // throw new Error(`Failed compiling markdown content: An article page has an invalid a articleImageUrl meta tag (<meta name="articleImageUrl" value="${embeddedMetadata.articleImageUrl}">) at "${path.join(topLvlRepoPath, pageSourcePath)}".  To resolve, change the value of the meta tag to be an image that will be hosted on fleetdm.com`);
+                  let isWebsiteAsset = embeddedMetadata.articleImageUrl.match(/(?<=\.\.\/website\/assets)(\/images\/(.+))/g);
+                  // Modifying the value of the `articleImageUrl` meta tag
+                  if (isURL) {
+                    if (!isExternal) { // If the image is hosted on fleetdm.com, we'll modify the meta value to reference the file directly in the `website/assets/` folder
+                      embeddedMetadata.articleImageUrl = embeddedMetadata.articleImageUrl.replace(/https?:\/\//, '').replace(/^fleetdm\.com/, '');
+                    } else { // If the value is a link to an image that is not hosted on fleetdm.com, we won't modify it.
+                      // TODO: Enable this error once our Medium articles have been fully migrated.
+                      // throw new Error(`Failed compiling markdown content: An article page has an invalid a articleImageUrl meta tag (<meta name="articleImageUrl" value="${embeddedMetadata.articleImageUrl}">) at "${path.join(topLvlRepoPath, pageSourcePath)}".  To resolve, change the value of the meta tag to be an image that will be hosted on fleetdm.com`);
+                    }
+                  } else if(isWebsiteAsset) { // If the `articleImageUrl` value is a relative link to the `website/assets/` folder, we'll modify the value to link directly to that folder.
+                    embeddedMetadata.articleImageUrl = embeddedMetadata.articleImageUrl.replace(/^\.\.\/website\/assets/g, '');
+                  } else { // If the value is not a url, and the relative link does not go to the 'website/assets/' folder, we'll throw an error.
+                    throw new Error(`Failed compiling markdown content: An article page has an invalid a articleImageUrl meta tag (<meta name="articleImageUrl" value="${embeddedMetadata.articleImageUrl}">) at "${path.join(topLvlRepoPath, pageSourcePath)}".  To resolve, change the value of the meta tag to be a URL or repo relative link to an image in the 'website/assets/images' folder`);
                   }
                 }
                 // For article pages, we'll attach the category to the `rootRelativeUrlPath`.
