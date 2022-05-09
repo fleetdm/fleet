@@ -82,7 +82,7 @@ const SoftwareTable = ({
     <EmptyState title="software" reason="empty-search" />
   );
 
-  if (!softwareInventoryEnabled) {
+  if (softwareInventoryEnabled === false) {
     return (
       <div className="section section--software">
         <p className="section__header">Software</p>
