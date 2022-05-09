@@ -33,7 +33,7 @@ func NewPlatform(hostPlatform, hostOsVersion string) Platform {
 }
 
 func (op Platform) ToFilename(date time.Time, extension string) string {
-	return fmt.Sprintf("%s_%s_%d-%d-%d.%s", OvalFilePrefix, op, date.Year(), date.Month(), date.Day(), extension)
+	return fmt.Sprintf("%s_%s_%d-%02d-%02d.%s", OvalFilePrefix, op, date.Year(), date.Month(), date.Day(), extension)
 }
 
 func (op Platform) IsSupported() bool {
