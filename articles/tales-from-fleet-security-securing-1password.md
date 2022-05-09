@@ -4,14 +4,18 @@
 
 No matter how much we wish SaaS tools had support for Single Sign-On (SSO), there are still so many
 websites and other resources that require individual passwords. Running a company without providing
-employees with a password manager is downright dangerous.
+employees with a password manager is setting them up for failure. Of course people will use the same
+asswords on multiple sites if they do not have a way to manage different ones. That being said,
+password managers do centralize a lot of the security eggs in the same basket, which is why the
+manager itself must be as well protected as possible and why hardware security keys should be used
+on high-value systems.
 
-At Fleet, we use 1Password. While configuring 1Password is relatively straightforward, here are a few things we do that can help you secure your 1P instance.
+At Fleet, we use 1Password. While configuring 1Password is relatively straightforward, here are a few things we do that can help you secure your 1Password instance.
 
-## Enforce 2FA
-By setting the Account Password Policy to Strong, we gained the ability to support and then enforce 2FA.
+## Require 2FA
+By setting the Account Password Policy to Strong, we gained the ability to support and then require 2FA.
 
-When enabling 2FA, we ensured we also enforced it, as otherwise, there would always be some users without it.
+When enabling 2FA, we ensured we also required it, as otherwise, there would always be some users without it.
 
 ## 2FA methods
 We highly recommend that all of our users configure security keys as a 2FA method, but
