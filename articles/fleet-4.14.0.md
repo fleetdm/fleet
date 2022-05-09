@@ -7,14 +7,14 @@ Fleet 4.14.0 has arrived. Check out the full [changelog](https://github.com/flee
 For update instructions, see our [upgrade guide](https://fleetdm.com/docs/deploying/upgrading-fleet) in the Fleet docs.
 
 ## Highlights
-- Jira integrations
+- Jira integration
 - Improved live query experience
 - Postman Collection
 
-## Jira integrations
+## Jira integration
 **Available to all Fleet users.**
 
-![Jira integrations](http://fleetdm.com/images/articles/jira-integration-1600x900@2x.png)
+![Jira integration](http://fleetdm.com/images/articles/jira-integration-1600x900@2x.png)
 
 You can now configure Fleet to automatically create a Jira ticket when a new vulnerability (CVE) is detected on your hosts. No need to create tickets or spend time configuring a webhook manually. 
 
