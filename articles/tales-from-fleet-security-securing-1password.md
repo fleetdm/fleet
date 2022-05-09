@@ -1,6 +1,6 @@
 # Tales from Fleet security: securing 1Password
 
-![Securing 1Password](http://fleetdm.com/images/articles/securing-1password-1600x900@2x)
+![Securing 1Password](http://fleetdm.com/images/articles/securing-1password-1600x900@2x.png)
 
 No matter how much we wish SaaS tools had support for Single Sign-On (SSO), there are still so many
 websites and other resources that require individual passwords. Running a company without providing
@@ -78,4 +78,4 @@ Stay tuned for our next article in the Tales from Fleet security series!
 <meta name="authorGitHubUsername" value="GuillaumeRoss">
 <meta name="publishedOn" value="2022-05-06">
 <meta name="articleTitle" value="Tales from Fleet security: securing 1Password">
-<meta name="articleImageUrl" value="http://fleetdm.com/images/articles/securing-1password-1600x900@2x">
+<meta name="articleImageUrl" value="http://fleetdm.com/images/articles/securing-1password-1600x900@2x.png">
