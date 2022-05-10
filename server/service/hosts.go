@@ -845,7 +845,7 @@ type hostsReportRequest struct {
 }
 
 type hostsReportResponse struct {
-	Columns []string        `json:"-"` // used to control the generated csv
+	Columns []string        `json:"-"` // used to control the generated csv, see the hijackRender method
 	Hosts   []*HostResponse `json:"-"` // they get rendered explicitly, in csv
 	Err     error           `json:"error,omitempty"`
 }
