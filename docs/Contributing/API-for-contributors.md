@@ -1266,7 +1266,7 @@ NOTE: when updating a policy, team and platform will be ignored.
       "query": "SELECT 1 FROM disk_encryption WHERE user_uuid IS NOT “” AND filevault_status = ‘on’ LIMIT 1;",
       "description": "Checks to make sure that the FileVault feature is enabled on macOS devices.",
       "resolution": "Choose Apple menu > System Preferences, then click Security & Privacy. Click the FileVault tab. Click the Lock icon, then enter an administrator name and password. Click Turn On FileVault.",
-      "platform": "darwin"
+      "platform": "darwin" 
     }
   ]
 }
