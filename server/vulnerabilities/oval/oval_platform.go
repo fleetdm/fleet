@@ -47,7 +47,3 @@ func (op Platform) IsSupported() bool {
 	}
 	return false
 }
-
-func SupportedPlatforms() []string {
-	return []string{"ubuntu"}
-}
