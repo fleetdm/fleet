@@ -417,6 +417,12 @@ We're happy you've ventured a trip around the sun with Fleet. Let's celebrate!
 
 - Each Friday, if there are any upcoming workiversaries in the next seven days, People Operations posts about them in #g-people and tags @mikermcneil to let them know.
 
+### Weekly updates
+
+We like to celebrate our acheivements weekly in `#general`.
+  - Every Thursday night Charlie creates a thread in #help-manage requesting weekly updates and managers will reply to the thread with their weekly updates.
+  - On Friday afternoon, Charlie updates the KPIs in the weekly updates spreadsheet and on Friday night, Charlie will post the updates in #general.
+
 
 ## Rituals
 

@@ -215,6 +215,136 @@ Fleet policy requires that:
 
 1. automation with service accounts must be used to configure production systems when technically feasible.
 
+## Asset management policy
+*Created from [JupiterOne/security-policy-templates](https://github.com/JupiterOne/security-policy-templates). [CC BY-SA 4 license](https://creativecommons.org/licenses/by-sa/4.0/)*
+
+| Policy owner   | Effective date |
+| -------------- | -------------- |
+| @GuillaumeRoss | 2022-06-01     |
+
+You can't protect what you can't see. Therefore, Fleet must maintain an accurate and up-to-date inventory of its physical and digital assets.
+
+Fleet policy requires that:
+
+1. IT and/or security must maintain an inventory of all critical company assets, both physical and logical.
+
+2. All assets should have identified owners and be tagged with a risk/data classification.
+
+3. All company-owned computer purchases must be tracked.
+
+## Business continuity and disaster recovery policy
+*Created from [JupiterOne/security-policy-templates](https://github.com/JupiterOne/security-policy-templates). [CC BY-SA 4 license](https://creativecommons.org/licenses/by-sa/4.0/)*
+
+| Policy owner   | Effective date |
+| -------------- | -------------- |
+| @GuillaumeRoss | 2022-06-01     |
+
+The Fleet business continuity and disaster recovery plan establishes procedures to recover Fleet following a disruption resulting from a disaster. 
+
+Fleet policy requires that:
+
+1. A plan and process for business continuity and disaster recovery (BCDR), including the backup and recovery of critical systems and data, will be defined and documented.
+
+2. BCDR shall be simulated and tested at least once a year. 
+
+3. Security controls and requirements will be maintained during all BCDR activities.
+
+## Information security roles and responsibilities
+*Created from [Vanta](https://www.vanta.com/) policy templates.*
+
+| Policy owner   | Effective date |
+| -------------- | -------------- |
+| @GuillaumeRoss | 2022-06-01     |
+
+Fleet Device Management is committed to conducting business in compliance with all applicable laws, regulations, and company policies. Fleet has adopted this policy to outline the security measures required to protect electronic information systems and related equipment from unauthorized use.
+
+| Role                                            | Responsibilities                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
+| ----------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Board of directors                              | Oversight over risk and internal control for information security, privacy and compliance<br/> Consults with executive leadership and head of security to understand Fleet's security mission and risks and provides guidance to bring them into alignment                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           |
+| Executive leadership                            | Approves capital expenditures for information security<br/> Oversight over the execution of the information security risk management program<br/> Communication path to Fleet's board of directors<br/> Aligns information security policy and posture based on Fleet's mission, strategic objectives and risk appetite                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
+CTO                                             | Oversight over information security in the software development process<br/>  Responsible for the design, development, implementation, operation, maintenance and monitoring of development and commercial cloud hosting security controls<br/> Responsible for oversight over policy development <br/>Responsible for implementing risk management in the development process                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
+| Head of security                                | Oversight over the implementation of information security controls for infrastructure and IT processes<br/>  Responsible for the design, development, implementation, operation, maintenance and monitoring of IT security controls<br/> Communicate information security risks to executive leadership<br/> Report information security risks annually to Fleet's leadership and gains approvals to bring risks to acceptable levels<br/>  Coordinate the development and maintenance of information security policies and standards<br/> Work with applicable executive leadership to establish an information security framework and awareness program<br/>  Serve as liaison to the board of directors, law enforcement and legal department.<br/>  Oversight over identity management and access control processes |
+| System owners                                   | Manage the confidentiality, integrity and availability of the information systems for which they are responsible in compliance with Fleet policies on information security and privacy.<br/>  Approve of technical access and change requests for non-standard access                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
+| Employees, contractors, temporary workers, etc. | Acting at all times in a manner which does not place at risk the security of themselves, colleagues, and of the information and resources they have use of<br/>  Helping to identify areas where risk management practices should be adopted<br/>  Adhering to company policies and standards of conduct Reporting incidents and observed anomalies or weaknesses                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
+| Head of people operations                       | Ensuring employees and contractors are qualified and competent for their roles<br/>  Ensuring appropriate testing and background checks are completed<br/>  Ensuring that employees and relevant contractors are presented with company policies <br/>  Ensuring that employee performance and adherence to values is evaluated<br/>  Ensuring that employees receive appropriate security training                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
+| Head of business operations                     | Responsible for oversight over third-party risk management process Responsible for review of vendor service contracts                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       |
+
+## Operations security and change management policy
+*Created from [JupiterOne/security-policy-templates](https://github.com/JupiterOne/security-policy-templates). [CC BY-SA 4 license](https://creativecommons.org/licenses/by-sa/4.0/)*
+
+| Policy owner   | Effective date |
+| -------------- | -------------- |
+| @GuillaumeRoss | 2022-06-01     |
+
+Fleet policy requires that:
+
+1. All production changes, including but not limited to software deployment, feature toggle enablement, network infrastructure changes, and access control authorization updates, must be invoked through approved change management process.
+
+2. Each production change must maintain complete traceability to fully document the request, including requestor, date/time of change, actions taken and results.
+
+3. Each production change must include proper approval.
+
+  * The approvers are determined based on the type of change.
+  * Approvers must be someone other than the author/executor of the change, unless they are the DRI for that system.
+  * Approvals may be automatically granted if certain criteria is met.
+    The auto-approval criteria must be pre-approved by the Security Officer and
+    fully documented and validated for each request.
+
+
+## Third-party management policy
+*Created from [JupiterOne/security-policy-templates](https://github.com/JupiterOne/security-policy-templates). [CC BY-SA 4 license](https://creativecommons.org/licenses/by-sa/4.0/)*
+
+| Policy owner   | Effective date |
+| -------------- | -------------- |
+| @GuillaumeRoss | 2022-06-01     |
+
+Fleet makes every effort to assure all third party organizations are
+compliant and do not compromise the integrity, security, and privacy of Fleet
+or Fleet Customer data. Third Parties include Vendors, Customers, Partners,
+Subcontractors, and Contracted Developers.
+
+1. A list of approved vendors/partners must be maintained and reviewed annually.
+
+2. Approval from management, procurement and security must be in place before onboarding any new vendor or contractor with impacton on Fleet production systems. Additionally, all changes to existing contract agreements must be reviewed and approved before implementation.
+
+3. For any technology solution that needs to be integrated with Fleet production environment or operations, a Vendor Technology Review must be performed by the security team to understand and approve the risk.  Periodic compliance assessment and SLA review may be required.
+
+4. Fleet Customers or Partners should not be allowed access outside of their own environment, meaning they cannot access, modify, or delete any data belonging to other 3rd parties.
+
+5. Additional vendor agreements are obtained as required by applicable regulatory compliance requirements.
+
+## Security policy management policy
+*Created from [JupiterOne/security-policy-templates](https://github.com/JupiterOne/security-policy-templates). [CC BY-SA 4 license](https://creativecommons.org/licenses/by-sa/4.0/)*
+
+| Policy owner   | Effective date |
+| -------------- | -------------- |
+| @GuillaumeRoss | 2022-06-01     |
+
+Fleet policy requires that:
+
+1. Fleet policies must be developed and maintained to meet all applicable compliance requirements adhere to security best practices, including but not limited to:
+
+- SOC 2
+
+2. All policies must be reviewed at least annually.
+
+3. All policy changes must be approved by Fleet's head of security. Additionally,
+
+  * Major changes may require approval by Fleet CEO or designee;
+  * Changes to policies and procedures related to product development may
+    require approval by the CTO.
+
+3. All policy documents must be maintained with version control.
+
+4. Policy exceptions are handled on a case-by-case basis.
+
+  * All exceptions must be fully documented with business purpose and reasons
+    why the policy requirement cannot be met.
+  * All policy exceptions must be approved by both Fleet Security Officer and CEO.
+  * An exception must have an expiration date no longer than one year from date
+    of exception approval and it must be reviewed and re-evaluated on or before
+    the expiration date.
+=======
 2. use of high privilege accounts must only be performed when absolutely necessary.
 
 <meta name="maintainedBy" value="guillaumeross">
