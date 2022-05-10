@@ -1,1 +1,0 @@
-* Fix a panic when running `fleet serve --debug` due to duplicate registration of `/debug/` paths.

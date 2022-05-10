@@ -55,7 +55,6 @@
       "failing_policies_count":0
     },
     "status":"mia",
-    "device_mapping":null,
     "display_text":"test_host"
   }
 }
@@ -108,7 +107,6 @@
       "failing_policies_count":0
     },
     "status":"mia",
-    "device_mapping":null,
     "display_text":"test_host2"
   }
 }

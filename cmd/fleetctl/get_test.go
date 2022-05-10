@@ -605,7 +605,7 @@ spec:
 	})
 }
 
-func TestGetSoftawre(t *testing.T) {
+func TestGetSoftware(t *testing.T) {
 	_, ds := runServerWithMockedDS(t)
 
 	foo001 := fleet.Software{
