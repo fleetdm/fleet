@@ -406,7 +406,7 @@ module.exports = {
                   }
                   let isURL = embeddedMetadata.articleImageUrl.match(/https?:\/\/(.+)/g);
                   let isExternal = ! embeddedMetadata.articleImageUrl.match(/https?:\/\/([^\.|blog]+\.)*fleetdm\.com/g);
-                  let isWebsiteAsset = embeddedMetadata.articleImageUrl.match(/(?<=\.\.\/website\/assets)(\/images\/(.+))/g);
+                  let inWebsiteAssetFolder = embeddedMetadata.articleImageUrl.match(/(?<=\.\.\/website\/assets)(\/images\/(.+))/g);
                   // Modifying the value of the `articleImageUrl` meta tag
                   if (isURL) {
                     if (!isExternal) { // If the image is hosted on fleetdm.com, we'll modify the meta value to reference the file directly in the `website/assets/` folder
@@ -415,7 +415,7 @@ module.exports = {
                       // TODO: Enable this error once our Medium articles and their assets have been fully migrated.
                       // throw new Error(`Failed compiling markdown content: An article page has an invalid a articleImageUrl meta tag (<meta name="articleImageUrl" value="${embeddedMetadata.articleImageUrl}">) at "${path.join(topLvlRepoPath, pageSourcePath)}".  To resolve, change the value of the meta tag to be an image that will be hosted on fleetdm.com`);
                     }
-                  } else if(isWebsiteAsset) { // If the `articleImageUrl` value is a relative link to the `website/assets/` folder, we'll modify the value to link directly to that folder.
+                  } else if(inWebsiteAssetFolder) { // If the `articleImageUrl` value is a relative link to the `website/assets/` folder, we'll modify the value to link directly to that folder.
                     embeddedMetadata.articleImageUrl = embeddedMetadata.articleImageUrl.replace(/^\.\.\/website\/assets/g, '');
                   } else { // If the value is not a url and the relative link does not go to the 'website/assets/' folder, we'll throw an error.
                     throw new Error(`Failed compiling markdown content: An article page has an invalid a articleImageUrl meta tag (<meta name="articleImageUrl" value="${embeddedMetadata.articleImageUrl}">) at "${path.join(topLvlRepoPath, pageSourcePath)}".  To resolve, change the value of the meta tag to be a URL or repo relative link to an image in the 'website/assets/images' folder`);
