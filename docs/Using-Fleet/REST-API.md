@@ -186,7 +186,7 @@ Sends a password reset email to the specified email. Requires that SMTP is confi
   "errors": [
     {
       "name": "base",
-      "reason": "email not configured",
+      "reason": "email not configured"
     }
   ]
 }
@@ -1245,7 +1245,7 @@ Replace all global enroll secrets with a new enroll secret.
     "spec": {
         "secrets": [
             {
-                "secret": "KuSkYFsHBQVlaFtqOLwoUIWniHhpvEhP",
+                "secret": "KuSkYFsHBQVlaFtqOLwoUIWniHhpvEhP"
             }
         ]
     }
@@ -1340,7 +1340,7 @@ Replace all of a team's existing enroll secrets with a new enroll secret
 {
   "secrets": [
     {
-      "secret": "n07v32y53c237734m3n201153c237",
+      "secret": "n07v32y53c237734m3n201153c237"
     }
   ]
 }
@@ -1355,7 +1355,7 @@ Replace all of a team's existing enroll secrets with a new enroll secret
   "secrets": [
     {
       "secret": "n07v32y53c237734m3n201153c237",
-      "created_at": "0001-01-01T00:00:00Z",
+      "created_at": "0001-01-01T00:00:00Z"
     }
   ]
 }
@@ -1750,7 +1750,7 @@ If `additional_info_filters` is not specified, no `additional` information will 
 {
   "page": 0,
   "per_page": 100,
-  "order_key": "hostname",
+  "order_key": "hostname"
 }
 ```
 
@@ -1842,7 +1842,7 @@ If `additional_info_filters` is not specified, no `additional` information will 
 {
   "page": 0,
   "per_page": 100,
-  "order_key": "hostname",
+  "order_key": "hostname"
 }
 ```
 
@@ -2152,7 +2152,7 @@ Returns the information of the host specified using the `uuid`, `osquery_host_id
     "team_name": null,
     "gigs_disk_space_available": 45.86,
     "percent_disk_space_available": 73,
-    "pack_stats": null,
+    "pack_stats": null
   }
 }
 ```
@@ -2993,7 +2993,7 @@ Deletes the label specified by ID.
     "label_ids": [
       6
     ],
-    "team_ids": [],
+    "team_ids": []
   }
 }
 ```
@@ -3137,7 +3137,7 @@ Deletes the label specified by ID.
       "label_ids": [
         6
       ],
-      "team_ids": [],
+      "team_ids": []
     },
   ]
 }
@@ -3254,7 +3254,7 @@ Delete pack by name.
       "version": "4.6.0",
       "shard": null,
       "denylist": null
-    },
+    }
   ]
 }
 ```
@@ -3355,7 +3355,7 @@ Delete pack by name.
     "platform": "windows",
     "version": "4.5.0",
     "shard": 10,
-    "denylist": null,
+    "denylist": null
   }
 }
 ```
@@ -3384,7 +3384,7 @@ Delete pack by name.
 
 ```json
 {
-  "platform": "",
+  "platform": ""
 }
 ```
 
@@ -4570,7 +4570,7 @@ None.
 
 ```json
 {
-  "interval": 604800,
+  "interval": 604800
 }
 ```
 
@@ -4733,7 +4733,7 @@ This allows you to easily configure scheduled queries that will impact a whole t
 {
   "interval": 86400,
   "query_id": 2,
-  "snapshot": true,
+  "snapshot": true
 }
 ```
 
@@ -4786,7 +4786,7 @@ This allows you to easily configure scheduled queries that will impact a whole t
 
 ```json
 {
-  "interval": 604800,
+  "interval": 604800
 }
 ```
 
@@ -5433,7 +5433,7 @@ _Available in Fleet Premium_
 
 ```json
 {
-  "user_ids": [1, 17, 22, 32],
+  "user_ids": [1, 17, 22, 32]
 }
 ```
 
@@ -5493,7 +5493,7 @@ _Available in Fleet Premium_
 
 ```json
 {
-  "host_ids": [3, 6, 7, 8, 9, 20, 32, 44],
+  "host_ids": [3, 6, 7, 8, 9, 20, 32, 44]
 }
 ```
 
@@ -5735,7 +5735,7 @@ Transforms a host name into a host id. For example, the Fleet UI use this endpoi
         "identifier": "host-ABC",
         "id": 45
       }
-    },
+    }
   ]
 }
 ```
