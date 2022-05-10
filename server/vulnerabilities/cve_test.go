@@ -15,6 +15,7 @@ import (
 	"time"
 
 	"github.com/WatchBeam/clock"
+	"github.com/fleetdm/fleet/v4/pkg/nettest"
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/mock"
 	kitlog "github.com/go-kit/kit/log"
@@ -61,9 +62,7 @@ func (d *threadSafeDSMock) InsertCVEForCPE(ctx context.Context, cve string, cpes
 }
 
 func TestTranslateCPEToCVE(t *testing.T) {
-	if os.Getenv("NETWORK_TEST") == "" {
-		t.Skip("set environment variable NETWORK_TEST=1 to run")
-	}
+	nettest.Run(t)
 
 	tempDir := t.TempDir()
 
@@ -94,8 +93,14 @@ func TestTranslateCPEToCVE(t *testing.T) {
 				return 0, nil
 			}
 
-			_, err := TranslateCPEToCVE(ctx, ds, tempDir, kitlog.NewLogfmtLogger(os.Stdout), cfg, false)
-			require.NoError(t, err)
+			for {
+				_, err := TranslateCPEToCVE(ctx, ds, tempDir, kitlog.NewLogfmtLogger(os.Stdout), cfg, false)
+				if err != nil && nettest.Retryable(err) {
+					continue
+				}
+				require.NoError(t, err)
+				break
+			}
 
 			printMemUsage()
 
@@ -110,7 +115,7 @@ func TestTranslateCPEToCVE(t *testing.T) {
 		curlCPE := "cpe:2.3:a:haxx:curl:-:*:*:*:*:*:*:*"
 
 		// consider recent vulnerabilities to be anything published in 2018
-		theClock = clock.NewMockClock(time.Date(2019, 01, 01, 0, 0, 0, 0, time.UTC))
+		theClock = clock.NewMockClock(time.Date(2019, 1, 1, 0, 0, 0, 0, time.UTC))
 		defer func() { theClock = clock.C }()
 
 		safeDS := &threadSafeDSMock{Store: ds}
