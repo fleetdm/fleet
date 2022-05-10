@@ -856,7 +856,7 @@ func (r hostsReportResponse) hijackRender(ctx context.Context, w http.ResponseWr
 	var buf bytes.Buffer
 	if err := gocsv.Marshal(r.Hosts, &buf); err != nil {
 		logging.WithErr(ctx, err)
-		http.Error(w, "Failed to generate CSV file", http.StatusInternalServerError)
+		encodeError(ctx, ctxerr.New(ctx, "failed to generate CSV file"), w)
 		return
 	}
 
@@ -868,7 +868,7 @@ func (r hostsReportResponse) hijackRender(ctx context.Context, w http.ResponseWr
 		recs, err := csv.NewReader(&buf).ReadAll()
 		if err != nil {
 			logging.WithErr(ctx, err)
-			http.Error(w, "Failed to generate CSV file", http.StatusInternalServerError)
+			encodeError(ctx, ctxerr.New(ctx, "failed to generate CSV file"), w)
 			return
 		}
 
@@ -884,7 +884,13 @@ func (r hostsReportResponse) hijackRender(ctx context.Context, w http.ResponseWr
 				for _, col := range r.Columns {
 					colIx, ok := hdrs[col]
 					if !ok {
-						continue
+						// invalid column name - it would be nice to catch this in the
+						// endpoint before processing the results, but it would require
+						// duplicating the list of columns from the Host's struct tags to a
+						// map and keep this in sync, for what is essentially a programmer
+						// mistake that should be caught and corrected early.
+						encodeError(ctx, &badRequestError{message: fmt.Sprintf("invalid column name: %q", col)}, w)
+						return
 					}
 					outRows[i] = append(outRows[i], rec[colIx])
 				}
