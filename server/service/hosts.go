@@ -870,20 +870,25 @@ func (r hostsReportResponse) hijackRender(ctx context.Context, w http.ResponseWr
 
 	var outRows [][]string
 	if len(recs) > 0 {
-		// map the header names to their field index
-		hdrs := make(map[string]int, len(recs))
-		for i, hdr := range recs[0] {
-			hdrs[hdr] = i
-		}
+		if len(r.Columns) == 0 {
+			// return all fields if none is specified
+			outRows = recs
+		} else {
+			// map the header names to their field index
+			hdrs := make(map[string]int, len(recs))
+			for i, hdr := range recs[0] {
+				hdrs[hdr] = i
+			}
 
-		outRows = make([][]string, len(recs))
-		for i, rec := range recs {
-			for _, col := range r.Columns {
-				colIx, ok := hdrs[col]
-				if !ok {
-					continue
+			outRows = make([][]string, len(recs))
+			for i, rec := range recs {
+				for _, col := range r.Columns {
+					colIx, ok := hdrs[col]
+					if !ok {
+						continue
+					}
+					outRows[i] = append(outRows[i], rec[colIx])
 				}
-				outRows[i] = append(outRows[i], rec[colIx])
 			}
 		}
 	}
@@ -940,7 +945,13 @@ func hostsReportEndpoint(ctx context.Context, request interface{}, svc fleet.Ser
 		}
 		hostResps[i] = hr
 	}
-	cols := strings.Split(req.Columns, ",")
+	rawCols := strings.Split(req.Columns, ",")
+	var cols []string
+	for _, rawCol := range rawCols {
+		if rawCol = strings.TrimSpace(rawCol); rawCol != "" {
+			cols = append(cols, rawCol)
+		}
+	}
 	return hostsReportResponse{Columns: cols, Hosts: hostResps}, nil
 }
 

@@ -4759,12 +4759,14 @@ func (s *integrationTestSuite) TestHostsReportDownload() {
 	require.Len(t, errs.Errors, 1)
 	assert.Equal(t, "format", errs.Errors[0].Name)
 
-	// valid format, no column specified
+	// valid format, no column specified so all columns returned
 	res = s.DoRaw("GET", "/api/latest/fleet/hosts/report", nil, http.StatusOK, "format", "csv")
 	rows, err := csv.NewReader(res.Body).ReadAll()
 	res.Body.Close()
 	require.NoError(t, err)
-	require.Len(t, rows, 0)
+	require.Len(t, rows, len(hosts)+1) // all hosts + header row
+	require.Len(t, rows[0], 43)        // total number of cols
+	t.Log(rows[0])
 
 	// valid format, some columns
 	res = s.DoRaw("GET", "/api/latest/fleet/hosts/report", nil, http.StatusOK, "format", "csv", "columns", "hostname")
@@ -4815,6 +4817,7 @@ func (s *integrationTestSuite) TestHostsReportDownload() {
 	require.Equal(t, []string{"0", "TestIntegrations/TestHostsReportDownloadfoo.local1"}, rows[2][:2])
 	require.Len(t, rows[3], 3)
 	require.Equal(t, []string{"0", "TestIntegrations/TestHostsReportDownloadfoo.local0"}, rows[3][:2])
+	t.Log(rows)
 }
 
 // this test can be deleted once the "v1" version is removed.
