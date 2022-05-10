@@ -11,11 +11,11 @@ Effective market positioning is crucial to the growth of any software product. F
 
 Growth's goal is to increase usage of the product. We value users of all sizes adopting Fleet Free or Fleet Premium. Companies purchasing under 100 device licenses should sign up [self service](https://fleetdm.com/pricing/). Companies who would enroll more than 100 devices should [schedule a demo](https://fleetdm.com/). When these companies attend a demo Fleet considers them marketing qualified opportunities (MQOs).
 
-## Lead Enrichment
+## Lead enrichment
 
 Fleet's lead enrichment process can be found in this [Google Doc](https://docs.google.com/document/d/1zOv39O989bPRNTIcLNNE4ESUI5Ry2XII3XuRpJqNN7g/edit?usp=sharing) (private).
 
-## Outreach One-pager
+## Outreach one-pager
 
 Our one-pager offers a summary of what Fleet does; it will used for sales outreach. It can also help stakeholders become familiar with the company and product. Fleet's outreach one-pager can be found in this [Google Doc](https://drive.google.com/file/d/1o0gHCVonNbjjsk8iI-mgVw5O-o-AhJ5t/view?usp=sharing).
 
@@ -89,7 +89,7 @@ Once a relevant sponsorship opportunity and its prospectus are reviewed:
  
 7. Once the above steps are completed, use the [Speaking events issue template](https://github.com/fleetdm/confidential/issues/new?assignees=mike-j-thomas&labels=&template=6-speaking-event.md&title=Speaking+event) to prepare speakers and participants for the event.
 
-## Growth rituals
+## Rituals
 
 The following table lists the Growth group's rituals, frequency, and Directly Responsible Individual (DRI).
 
