@@ -12,6 +12,8 @@ type Platform string
 // OvalFilePrefix is the file prefix used when saving an OVAL artifact.
 const OvalFilePrefix = "fleet_oval"
 
+var SupportedPlatforms = []string{"ubuntu"}
+
 // getMajorRelease returns the major version of an 'os_version'.
 // ex: 'Ubuntu 20.4.0' => '20'
 func getMajorRelease(osVersion string) string {
@@ -40,7 +42,7 @@ func (op Platform) ToFilename(date time.Time, extension string) string {
 
 // IsSupported returns whether the given platform is currently supported or not.
 func (op Platform) IsSupported() bool {
-	for _, p := range SupportedPlatforms() {
+	for _, p := range SupportedPlatforms {
 		if strings.HasPrefix(string(op), p) {
 			return true
 		}
