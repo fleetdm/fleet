@@ -93,6 +93,8 @@ the way that the Fleet server works.
 `,
 		Run: func(cmd *cobra.Command, args []string) {
 			config := configManager.LoadConfig()
+			fmt.Println(">>>>>>>> ", config.Osquery.EnableAsyncHostProcessing)
+			fmt.Println(">>>>>>>> ", config.Logging.Debug)
 
 			if dev {
 				applyDevFlags(&config)
@@ -306,7 +308,7 @@ the way that the Fleet server works.
 				Datastore:          ds,
 				Pool:               redisPool,
 				Clock:              clock.C,
-				AsyncEnabled:       config.Osquery.EnableAsyncHostProcessing,
+				AsyncEnabled:       config.Osquery.EnableAsyncHostProcessing == "true", // TODO(mna): just for now
 				LockTimeout:        config.Osquery.AsyncHostCollectLockTimeout,
 				LogStatsInterval:   config.Osquery.AsyncHostCollectLogStatsInterval,
 				InsertBatch:        config.Osquery.AsyncHostInsertBatch,

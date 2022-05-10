@@ -9,6 +9,7 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"strconv"
 	"strings"
 	"time"
 
@@ -116,10 +117,10 @@ type OsqueryConfig struct {
 	ResultLogFile                    string        `yaml:"result_log_file"`
 	EnableLogRotation                bool          `yaml:"enable_log_rotation"`
 	MaxJitterPercent                 int           `yaml:"max_jitter_percent"`
-	EnableAsyncHostProcessing        bool          `yaml:"enable_async_host_processing"`
-	AsyncHostCollectInterval         time.Duration `yaml:"async_host_collect_interval"`
+	EnableAsyncHostProcessing        string        `yaml:"enable_async_host_processing"` // true/false or per-task
+	AsyncHostCollectInterval         time.Duration `yaml:"async_host_collect_interval"`  // duration or per-task
 	AsyncHostCollectMaxJitterPercent int           `yaml:"async_host_collect_max_jitter_percent"`
-	AsyncHostCollectLockTimeout      time.Duration `yaml:"async_host_collect_lock_timeout"`
+	AsyncHostCollectLockTimeout      time.Duration `yaml:"async_host_collect_lock_timeout"` // duration or per-task
 	AsyncHostCollectLogStatsInterval time.Duration `yaml:"async_host_collect_log_stats_interval"`
 	AsyncHostInsertBatch             int           `yaml:"async_host_insert_batch"`
 	AsyncHostDeleteBatch             int           `yaml:"async_host_delete_batch"`
@@ -127,6 +128,45 @@ type OsqueryConfig struct {
 	AsyncHostRedisPopCount           int           `yaml:"async_host_redis_pop_count"`
 	AsyncHostRedisScanKeysCount      int           `yaml:"async_host_redis_scan_keys_count"`
 	MinSoftwareLastOpenedAtDiff      time.Duration `yaml:"min_software_last_opened_at_diff"`
+}
+
+var knownAsyncTasks = map[string]struct{}{
+	"label_membership":  {},
+	"policy_membership": {},
+	"host_last_seen":    {},
+}
+
+// AsyncConfigForTask returns the applicable configuration for the specified
+// async task.
+func (o OsqueryConfig) AsyncConfigForTask(name string) AsyncProcessingConfig {
+	if _, ok := knownAsyncTasks[name]; !ok {
+		return AsyncProcessingConfig{}
+	}
+	return AsyncProcessingConfig{
+		Enabled:                 configForKeyOrBool(name, o.EnableAsyncHostProcessing, false),
+		CollectInterval:         configForKeyOrDuration(name, o.AsyncHostCollectInterval),
+		CollectMaxJitterPercent: o.AsyncHostCollectMaxJitterPercent,
+		CollectLockTimeout:      configForKeyOrDuration(name, o.AsyncHostCollectLockTimeout),
+		CollectLogStatsInterval: o.AsyncHostCollectLogStatsInterval,
+		InsertBatch:             o.AsyncHostInsertBatch,
+		DeleteBatch:             o.AsyncHostDeleteBatch,
+		UpdateBatch:             o.AsyncHostUpdateBatch,
+		RedisPopCount:           o.AsyncHostRedisPopCount,
+		RedisScanKeysCount:      o.AsyncHostRedisScanKeysCount,
+	}
+}
+
+type AsyncProcessingConfig struct {
+	Enabled                 bool
+	CollectInterval         time.Duration
+	CollectMaxJitterPercent int
+	CollectLockTimeout      time.Duration
+	CollectLogStatsInterval time.Duration
+	InsertBatch             int
+	DeleteBatch             int
+	UpdateBatch             int
+	RedisPopCount           int
+	RedisScanKeysCount      int
 }
 
 // LoggingConfig defines configs related to logging
@@ -446,8 +486,8 @@ func (man Manager) addConfigs() {
 		"(DEPRECATED: Use filesystem.enable_log_rotation) Enable automatic rotation for osquery log files")
 	man.addConfigInt("osquery.max_jitter_percent", 10,
 		"Maximum percentage of the interval to add as jitter")
-	man.addConfigBool("osquery.enable_async_host_processing", false,
-		"Enable asynchronous processing of host-reported query results")
+	man.addConfigString("osquery.enable_async_host_processing", "false",
+		"Enable asynchronous processing of host-reported query results (either 'true'/'false' or set per task, e.g. 'label_membership=true;policy_membership=true')")
 	man.addConfigDuration("osquery.async_host_collect_interval", 30*time.Second,
 		"Interval to collect asynchronous host-reported query results (i.e. 30s)")
 	man.addConfigInt("osquery.async_host_collect_max_jitter_percent", 10,
@@ -613,7 +653,7 @@ func (man Manager) LoadConfig() FleetConfig {
 		}
 	}
 
-	return FleetConfig{
+	cfg := FleetConfig{
 		Mysql:            loadMysqlConfig("mysql"),
 		MysqlReadReplica: loadMysqlConfig("mysql_read_replica"),
 		Redis: RedisConfig{
@@ -675,7 +715,7 @@ func (man Manager) LoadConfig() FleetConfig {
 			DetailUpdateInterval:             man.getConfigDuration("osquery.detail_update_interval"),
 			EnableLogRotation:                man.getConfigBool("osquery.enable_log_rotation"),
 			MaxJitterPercent:                 man.getConfigInt("osquery.max_jitter_percent"),
-			EnableAsyncHostProcessing:        man.getConfigBool("osquery.enable_async_host_processing"),
+			EnableAsyncHostProcessing:        man.getConfigString("osquery.enable_async_host_processing"),
 			AsyncHostCollectInterval:         man.getConfigDuration("osquery.async_host_collect_interval"),
 			AsyncHostCollectMaxJitterPercent: man.getConfigInt("osquery.async_host_collect_max_jitter_percent"),
 			AsyncHostCollectLockTimeout:      man.getConfigDuration("osquery.async_host_collect_lock_timeout"),
@@ -779,6 +819,7 @@ func (man Manager) LoadConfig() FleetConfig {
 			},
 		},
 	}
+	return cfg
 }
 
 // IsSet determines whether a given config key has been explicitly set by any
@@ -949,6 +990,40 @@ func (man Manager) getConfigDuration(key string) time.Duration {
 	}
 
 	return durationVal
+}
+
+// panics if the config is invalid, this is handled by Viper (this is how
+// all getConfigT helpers indicate errors).
+func configForKeyOrBool(key, val string, def bool) bool {
+	parseVal := func(v string) bool {
+		b, err := strconv.ParseBool(v)
+		if err != nil {
+			// TODO: this hsould be the config key name, not the task
+			panic("Unable to cast to bool for key " + key + ": " + err.Error())
+		}
+		return b
+	}
+
+	if !strings.Contains(val, "=") {
+		// simple case, val is a bool
+		return parseVal(val)
+	}
+
+	parts := strings.Split(val, ";")
+	for _, part := range parts {
+		if kv := strings.SplitN(part, "=", 2); len(kv) == 2 {
+			k, v := strings.ToLower(strings.TrimSpace(kv[0])), strings.TrimSpace(kv[1])
+			if k == key {
+				return parseVal(v)
+			}
+		}
+	}
+	return def
+}
+
+// panics if the config is invalid, this is handled by Viper (this is how
+// all getConfigT helpers indicate errors).
+func configForKeyOrDuration(key, val string) time.Duration {
 }
 
 // loadConfigFile handles the loading of the config file.
