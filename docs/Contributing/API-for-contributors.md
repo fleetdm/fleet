@@ -594,7 +594,7 @@ None.
       "name": "Ubuntu Linux",
       "description": "All Ubuntu hosts",
       "query": "SELECT 1 FROM os_version WHERE platform = 'ubuntu';",
-      "platform": "Ubuntu",
+      "platform": "ubuntu",
       "label_type": "builtin",
       "label_membership_type": "dynamic"
     },
