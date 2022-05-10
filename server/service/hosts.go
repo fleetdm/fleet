@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/csv"
 	"fmt"
+	"io"
 	"net/http"
 	"strings"
 	"time"
@@ -859,21 +860,19 @@ func (r hostsReportResponse) hijackRender(ctx context.Context, w http.ResponseWr
 		return
 	}
 
-	// read back the CSV to filter out any unwanted columns
-	recs, err := csv.NewReader(&buf).ReadAll()
-	if err != nil {
-		logging.WithErr(ctx, err)
-		w.WriteHeader(http.StatusInternalServerError)
-		fmt.Fprint(w, "Failed to generate CSV file")
-		return
-	}
+	returnAll := len(r.Columns) == 0
 
 	var outRows [][]string
-	if len(recs) > 0 {
-		if len(r.Columns) == 0 {
-			// return all fields if none is specified
-			outRows = recs
-		} else {
+	if !returnAll {
+		// read back the CSV to filter out any unwanted columns
+		recs, err := csv.NewReader(&buf).ReadAll()
+		if err != nil {
+			logging.WithErr(ctx, err)
+			http.Error(w, "Failed to generate CSV file", http.StatusInternalServerError)
+			return
+		}
+
+		if len(recs) > 0 {
 			// map the header names to their field index
 			hdrs := make(map[string]int, len(recs))
 			for i, hdr := range recs[0] {
@@ -896,7 +895,14 @@ func (r hostsReportResponse) hijackRender(ctx context.Context, w http.ResponseWr
 	w.Header().Add("Content-Disposition", fmt.Sprintf(`attachment; filename="Hosts %s.csv"`, time.Now().Format("2006-01-02")))
 	w.Header().Set("Content-Type", "text/csv")
 	w.WriteHeader(http.StatusOK)
-	if err := csv.NewWriter(w).WriteAll(outRows); err != nil {
+
+	var err error
+	if returnAll {
+		_, err = io.Copy(w, &buf)
+	} else {
+		err = csv.NewWriter(w).WriteAll(outRows)
+	}
+	if err != nil {
 		logging.WithErr(ctx, err)
 	}
 }
