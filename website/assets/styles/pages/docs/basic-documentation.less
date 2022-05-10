@@ -538,12 +538,29 @@
         }
 
       }
+      [purpose='breadcrumbs-and-search'] {
+        position: sticky;
+        background-color: #FFF;
+        top: 94px;
+        transition-property: all;
+        transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+        transition-duration: 500ms;
+        z-index: 2
+      }
+
+      [purpose='left-sidebar'] {
+        position: sticky;
+        top: 188px;
+        height: fit-content;
+        max-height: 90vh;
+        overflow-y: auto;
+      }
 
       [purpose='right-sidebar'] {
         min-width: 190px;
         max-width: 210px;
         position: sticky;
-        top: 94px;
+        top: 188px;
         height: fit-content;
         [purpose='subtopics'] {
           max-height: calc(~'80vh - 90px'); //To prevent the sidenav being anchored to the bottom of the page if it has overflow.
