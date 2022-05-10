@@ -12,11 +12,8 @@ import (
 	"time"
 
 	"github.com/fleetdm/fleet/v4/pkg/download"
-	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/fleet"
-	kitlog "github.com/go-kit/kit/log"
 
-	"github.com/go-kit/kit/log/level"
 	"github.com/google/go-github/v37/github"
 )
 
@@ -59,7 +56,7 @@ func whatToDownload(osVers *fleet.OSVersions, existing map[string]bool, date tim
 	return r
 }
 
-// Walks 'path' removing any old oval definitions, returns a set containing
+// removeOldDefs walks 'path' removing any old oval definitions, returns a set containing
 // definitions that are up to date according to 'date'
 func removeOldDefs(date time.Time, path string) (map[string]bool, error) {
 	dateSuffix := fmt.Sprintf("_%d-%02d-%02d.json", date.Year(), date.Month(), date.Day())
@@ -85,8 +82,8 @@ func removeOldDefs(date time.Time, path string) (map[string]bool, error) {
 	return upToDate, nil
 }
 
-// Syncs the oval definitions for one or more platforms.
-// If 'platform' is nil, then all supported platforms will be synched.
+// Sync syncs the oval definitions for one or more platforms.
+// If 'platforms' is nil, then all supported platforms will be synched.
 func Sync(client *http.Client, dstDir string, platforms []Platform) error {
 	sources, err := getOvalSources(ghNvdFileGetter(client))
 	if err != nil {
@@ -121,40 +118,27 @@ func Sync(client *http.Client, dstDir string, platforms []Platform) error {
 	return nil
 }
 
-// Called from 'cron', updates the oval definitions if data sync is enabled.
-// OVAL files will only be updated once per day.
-// Running this will delete out of date oval definitions.
-func AutoSync(
+// Refresh checks all local OVAL artifacts contained in 'vulnPath' deleting the old and downloading
+// any missing definitions based on today's date and all the hosts' platforms/os versions contained in 'osVersions'.
+// Returns a slice of Platforms of the newly downloaded OVAL files.
+func Refresh(
 	ctx context.Context,
 	client *http.Client,
-	ds fleet.Datastore,
-	logger kitlog.Logger,
+	osVersions *fleet.OSVersions,
 	vulnPath string,
-	config config.FleetConfig,
-) error {
-	if config.Vulnerabilities.DisableDataSync {
-		return nil
-	}
-
+) ([]Platform, error) {
 	today := time.Now()
+
 	existing, err := removeOldDefs(today, vulnPath)
 	if err != nil {
-		return err
+		return nil, err
 	}
-
-	osVersions, err := ds.OSVersions(ctx, nil, nil)
-	if err != nil {
-		return err
-	}
-	level.Debug(logger).Log("oval-updating", "Found OS Versions", len(osVersions.OSVersions))
 
 	toDownload := whatToDownload(osVersions, existing, today)
-	level.Debug(logger).Log("oval-updating", "Downloading new definitions", len(toDownload))
-
 	err = Sync(client, vulnPath, toDownload)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
-	return nil
+	return toDownload, nil
 }

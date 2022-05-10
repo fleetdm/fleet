@@ -300,11 +300,29 @@ func checkOvalVulnerabilities(
 	vulnPath string,
 	config config.FleetConfig,
 ) {
-	client := fleethttp.NewClient()
-	err := oval.AutoSync(ctx, client, ds, logger, vulnPath, config)
+	if config.Vulnerabilities.DisableDataSync {
+		return
+	}
+
+	versions, err := ds.OSVersions(ctx, nil, nil)
 	if err != nil {
 		level.Error(logger).Log("msg", "updating oval definitions", "err", err)
 		sentry.CaptureException(err)
+		return
+	}
+	for _, os := range versions.OSVersions {
+		level.Debug(logger).Log("oval-updating", "Found OS Versions", os)
+	}
+
+	client := fleethttp.NewClient()
+	downloaded, err := oval.Refresh(ctx, client, versions, vulnPath)
+	if err != nil {
+		level.Error(logger).Log("msg", "updating oval definitions", "err", err)
+		sentry.CaptureException(err)
+		return
+	}
+	for _, d := range downloaded {
+		level.Debug(logger).Log("oval-updating", "Downloaded new definitions", d)
 	}
 }
 
