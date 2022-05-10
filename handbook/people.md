@@ -221,11 +221,11 @@ After getting CEO approval, create a position in Breezy.
 We're glad you're interested in joining the team! 
 
 Here are some of the things you can anticipate throughout this process:
-  - We try to reply by email within 1 business day from the time when the application arrives.
-  - You may receieve a rejection email (Bummer, consider applying again in the future).
+  - We try to reply by email within one business day from the time when the application arrives.
+  - You may receive a rejection email (Bummer, consider applying again in the future).
   - You may receive an invitation to "book with us."
 
-If you've been invited to "book with us" you'll have a Zoom meeting with the hiring team to discuss next steps. 
+If you've been invited to "book with us," you'll have a Zoom meeting with the hiring team to discuss the next steps. 
 
 ### Hiring a new team member
 
