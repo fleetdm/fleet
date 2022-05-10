@@ -299,11 +299,13 @@
             var scrollTop = window.pageYOffset || document.documentElement.scrollTop
             var fleetLogo = header.querySelector('img')
             var hamburgerMenuIcon = header.querySelector('.btn.btn-link > img')
+
             if(scrollTop == 0 && header.classList.contains('homepage-header')) {
                 header.classList.remove('sticky')
                 fleetLogo.src = '/images/logo-white-118x48@2x.png'
                 fleetLogo.style = 'width: 118px; height: 48px;'
                 hamburgerMenuIcon.src = '/images/icon-hamburger-16x14@2x.png'
+
                 return;
             }
             if (scrollTop > lastScrollTop && scrollTop > window.innerHeight * 1.5) {
