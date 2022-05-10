@@ -400,6 +400,14 @@ At the end of the quarter and key points throughout the quarter (every three wee
 - Finalized OKRs are shared company-wide and at the "All hands" meeting and, at least to some degree, become public.
 - Throughout the quarter, Mike and Zach have OKR preplanning meetings (every three weeks) to prepare OKRs for the upcoming quarter. 
 
+### Weekly update
+
+Every Thursday afternoon Charlie will create a new thread in the #help-manage channel, and ask managers to reply with a short summary of what their team did in the past week.
+On Friday afternoon Charlie updates the KPIs in the weekly updates spreadsheet (https://docs.google.com/spreadsheets/d/1Hso0LxqwrRVINCyW_n436bNHmoqhoLhC8bcbvLPOs9A/edit#gid=0)
+On Friday evening Charlie will combine the manager's updates into one message and format the content.
+If there are any new team members joining Fleet, Charlie will add an announcement to the update.
+Charlie will post the update in #general and include a link to the Weekly updates spreadsheet (https://docs.google.com/spreadsheets/d/1Hso0LxqwrRVINCyW_n436bNHmoqhoLhC8bcbvLPOs9A/edit#gid=0)
+
 ### 1:1 Mike:Sid Document Preparation
 
 Every two weeks, our CEO Mike has a 1:1 meeting with our Investor Sid. The Digital Experience Team completes four parts while constructing the associated document. 
@@ -431,7 +439,7 @@ The following table lists the People group's rituals, frequency, and Directly Re
 | Ritual                       | Frequency                | Description                                         | DRI               |
 |:-----------------------------|:-----------------------------|:----------------------------------------------------|-------------------|
 | AP invoice monitoring | Daily | Look for new accounts payable invoices and ensure that Fleet's suppliers are paid. | Nathanael Holliday |
-| Weekly department updates | Weekly | Updates from managers on what their departments accomplished for the week are logged in the cloud and disseminated on Slack. | Charlie Chance | 
+| Weekly update | Weekly | Updates from managers on what their departments accomplished for the week are logged in the cloud and disseminated on Slack. Update the ops KPIs in the ["🌈 Weekly updates" spreadsheet](https://docs.google.com/spreadsheets/d/1Hso0LxqwrRVINCyW_n436bNHmoqhoLhC8bcbvLPOs9A/edit#gid=0).| Charlie Chance | 
 | Hours update | Weekly | Screenshots of contractor hours as shown in Gusto are sent via Slack to each contractor's manager with no further action necessary if everything appears normal. | Charlie Chance |
 | Prepare Mike and Sid's 1:1 doc | Bi-weekly | Run through the document preparation GitHub issue for Mike's call with Sid. | Nathanael Holliday |
 | OKR review | Every three weeks | Review the status of each OKR. | Mike Thomas |
