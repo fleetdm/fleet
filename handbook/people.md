@@ -427,9 +427,9 @@ We're happy you've ventured a trip around the sun with Fleet. Let's celebrate!
 
 ### Weekly updates
 
-We like to celebrate our acheivements weekly in `#general`.
-  - Every Thursday night Charlie creates a thread in #help-manage requesting weekly updates and managers will reply to the thread with their weekly updates.
-  - On Friday afternoon, Charlie updates the KPIs in the weekly updates spreadsheet and on Friday night, Charlie will post the updates in #general.
+We like to celebrate our achievements weekly in `#general`.
+  - Every Thursday night, Charlie creates a thread in #help-manage requesting weekly updates, and managers will reply to the thread with their weekly updates.
+  - On Friday afternoon, Charlie updates the KPIs in the weekly updates spreadsheet, and on Friday night, Charlie will post the updates in #general.
 
 
 ## Rituals
