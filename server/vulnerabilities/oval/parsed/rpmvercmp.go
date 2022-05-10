@@ -6,7 +6,7 @@ import (
 	"unicode"
 )
 
-// Compares two evr strings (EPOCH:VERSION-RELEASE) by looking at each part in order:
+// Rpmvercmp Compares two evr strings (EPOCH:VERSION-RELEASE) by looking at each part in order:
 //  - EPOCHs are compared based on their numeric values, if missing then '0' is assumed,
 //  if equal then VERSIONs are compared.
 //  - VERSIONS are compared according to librpm's rpmvercmp algo

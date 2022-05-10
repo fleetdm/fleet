@@ -14,9 +14,10 @@ const (
 	ovalSourcesFileName = "oval_sources.json"
 )
 
-// platform => web url
+// OvalSources represents a platform => web url dictionary
 type OvalSources map[Platform]string
 
+// getOvalSources gets the 'oval sources' file.
 // The 'oval sources' is a metadata file hosted in the NVD repo, it contains
 // where to find the OVAL definitions for a given 'platform-major release' combination.
 func getOvalSources(getter func(string) (io.ReadCloser, error)) (OvalSources, error) {
@@ -40,7 +41,7 @@ func getOvalSources(getter func(string) (io.ReadCloser, error)) (OvalSources, er
 	return sources, nil
 }
 
-// Downloads the OVAL definitions for a given 'platform-major os version'.
+// downloadDefinitions downloads the OVAL definitions for a given 'platform-major os version'.
 // Returns the filepath to the downloaded oval definitions.
 func downloadDefinitions(
 	sources OvalSources,

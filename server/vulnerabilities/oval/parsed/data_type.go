@@ -1,8 +1,5 @@
 package oval_parsed
 
-// Encodes a 'SimpleDataTypeEnumeration' into an int see:
-// https://oval.mitre.org/language/version5.10.1/ovaldefinition/documentation/oval-common-schema.html#SimpleDatatypeEnumeration
-
 type DataType int
 
 const (
@@ -19,6 +16,8 @@ const (
 	Version
 )
 
+// NewDataType encodes a 'SimpleDataTypeEnumeration' into an int.
+// See: https://oval.mitre.org/language/version5.10.1/ovaldefinition/documentation/oval-common-schema.html#SimpleDatatypeEnumeration
 func NewDataType(val string) DataType {
 	switch val {
 	case "binary":

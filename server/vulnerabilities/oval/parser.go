@@ -42,7 +42,7 @@ func parseDefinitions(inputFile string, outputFile string) error {
 }
 
 func mapResult(xmlResult *oval_input.UbuntuResultXML) (*oval_parsed.UbuntuResult, error) {
-	r := oval_parsed.NewResult()
+	r := oval_parsed.NewUbuntuResult()
 
 	staToTst := make(map[string][]int)
 	objToTst := make(map[string][]int)

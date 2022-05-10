@@ -1,7 +1,5 @@
 package oval_parsed
 
-// Encodes a 'ExistenceEnumeration' value (used in tests for object assertions) into an int, see:
-// https://oval.mitre.org/language/version5.10.1/ovaldefinition/documentation/oval-common-schema.html#ExistenceEnumeration
 type ObjectMatchType int
 
 const (
@@ -12,6 +10,8 @@ const (
 	OnlyOneExists
 )
 
+// NewObjectMatchType encodes a 'ExistenceEnumeration' value (used in tests for object assertions) into an int.
+// See https://oval.mitre.org/language/version5.10.1/ovaldefinition/documentation/oval-common-schema.html#ExistenceEnumeration.
 func NewObjectMatchType(val string) ObjectMatchType {
 	switch val {
 	case "all_exist":
@@ -29,6 +29,8 @@ func NewObjectMatchType(val string) ObjectMatchType {
 	}
 }
 
+// Eval evalutes the given object match type according to the rules outlined in the OVAL spec.
+// See https://oval.mitre.org/language/version5.10.1/ovaldefinition/documentation/oval-common-schema.html#ExistenceEnumeration.
 func (op ObjectMatchType) Eval(matches int, total int) bool {
 	switch op {
 	case AllExist:

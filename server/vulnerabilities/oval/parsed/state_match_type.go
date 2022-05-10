@@ -1,7 +1,5 @@
 package oval_parsed
 
-// Encodes an 'CheckEnumeration' see:
-// https://oval.mitre.org/language/version5.10.1/ovaldefinition/documentation/oval-common-schema.html#CheckEnumeration
 type StateMatchType int
 
 const (
@@ -11,6 +9,8 @@ const (
 	OnlyOne
 )
 
+// NewStateMatchType encodes an 'CheckEnumeration' into an int.
+// See https://oval.mitre.org/language/version5.10.1/ovaldefinition/documentation/oval-common-schema.html#CheckEnumeration
 func NewStateMatchType(val string) StateMatchType {
 	switch val {
 	case "all":
@@ -26,9 +26,8 @@ func NewStateMatchType(val string) StateMatchType {
 	}
 }
 
-// Checks how many of the matching objects (nObjects)
-// satisfy the matching rule by checking the number
-// of objects that match the desired state (nState)
+// Eval checks how many of the matching objects (nObjects) satisfy the matching rule by checking the
+// number of objects that match the desired state (nState).
 func (op StateMatchType) Eval(nObjects int, nState int) bool {
 	switch op {
 	case All:

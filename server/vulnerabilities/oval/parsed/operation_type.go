@@ -1,8 +1,5 @@
 package oval_parsed
 
-// Encodes an 'OperationEnumeration' see:
-// https://oval.mitre.org/language/version5.10.1/ovaldefinition/documentation/oval-common-schema.html#OperationEnumeration
-
 type OperationType int
 
 const (
@@ -21,6 +18,8 @@ const (
 	SupersetOf
 )
 
+// NewOperationType encodes an 'OperationEnumeration' into an int.
+// See https://oval.mitre.org/language/version5.10.1/ovaldefinition/documentation/oval-common-schema.html#OperationEnumeration
 func NewOperationType(val string) OperationType {
 	switch val {
 	case "equals":

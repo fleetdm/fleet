@@ -1,7 +1,5 @@
 package oval_parsed
 
-// Encodes an 'OperatorEnumeration' see:
-// https://oval.mitre.org/language/version5.10.1/ovaldefinition/documentation/oval-common-schema.html#OperatorEnumeration
 type OperatorType int
 
 const (
@@ -15,6 +13,8 @@ const (
 	NotXor
 )
 
+// NewOperatorType encodes an 'OperatorEnumeration' into an int.
+// See https://oval.mitre.org/language/version5.10.1/ovaldefinition/documentation/oval-common-schema.html#OperatorEnumeration
 func NewOperatorType(val string) OperatorType {
 	switch val {
 	case "AND", "and":
@@ -30,6 +30,8 @@ func NewOperatorType(val string) OperatorType {
 	}
 }
 
+// Negate negates the current operator.
+// Ex: Negate(And) => NotAnd
 func (op OperatorType) Negate(neg string) OperatorType {
 	if neg == "true" {
 		switch op {
@@ -48,6 +50,7 @@ func (op OperatorType) Negate(neg string) OperatorType {
 	return op
 }
 
+// Eval evaluates one or more boolean values according to the truth table of the given operator.
 func (op OperatorType) Eval(vals ...bool) bool {
 	if len(vals) == 0 {
 		return false

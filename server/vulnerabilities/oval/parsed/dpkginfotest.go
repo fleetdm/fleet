@@ -1,5 +1,7 @@
 package oval_parsed
 
+// DpkgInfoTest encapsulates a Dpkg info test.
+// see https://oval.mitre.org/language/version5.10.1/ovaldefinition/documentation/linux-definitions-schema.html#dpkginfo_test
 type DpkgInfoTest struct {
 	Objects       []string
 	States        []ObjectStateEvrString
@@ -8,6 +10,7 @@ type DpkgInfoTest struct {
 	StateMatch    StateMatchType
 }
 
+// Eval evaluates the given dpkg info test againts a host's installed packages.
 func (t *DpkgInfoTest) Eval(packages []HostPackage) bool {
 	if len(packages) == 0 {
 		return false
