@@ -62,6 +62,14 @@
             ]
         },
         {
+            "name": "Attach to a running Fleet server",
+            "type": "go",
+            "request": "attach",
+            "mode": "remote",
+            "port": 61179,
+            "host": "127.0.0.1",
+        },
+        {
             "type": "pwa-chrome",
             "name": "Fleet UI (Chrome)",
             "request": "launch",
