@@ -585,7 +585,7 @@ None.
       "name": "macOS",
       "description": "All macOS hosts",
       "query": "SELECT 1 FROM os_version WHERE platform = 'darwin';",
-      "platform": "Darwin",
+      "platform": "darwin",
       "label_type": "builtin",
       "label_membership_type": "dynamic"
     },
