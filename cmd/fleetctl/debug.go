@@ -313,7 +313,7 @@ func debugArchiveCommand() *cli.Command {
 				switch profile {
 				case "errors":
 					var buf bytes.Buffer
-					err = fleet.DebugErrors(&buf)
+					err = fleet.DebugErrors(&buf, false)
 					if err == nil {
 						res = buf.Bytes()
 					}
@@ -533,7 +533,10 @@ Such migrations can be applied via "fleet prepare db" before running "fleet serv
 }
 
 func debugErrorsCommand() *cli.Command {
-	name := "errors"
+	var (
+		name  string = "errors"
+		flush bool
+	)
 	return &cli.Command{
 		Name:      name,
 		Usage:     "Save the recorded fleet server errors to a file.",
@@ -544,6 +547,13 @@ func debugErrorsCommand() *cli.Command {
 			contextFlag(),
 			debugFlag(),
 			stdoutFlag(),
+			&cli.BoolFlag{
+				Name:        "flush",
+				EnvVars:     []string{"FLUSH"},
+				Value:       false,
+				Destination: &flush,
+				Usage:       "Clear errors from Redis after reading them",
+			},
 		},
 		Action: func(c *cli.Context) error {
 			fleet, err := clientFromCLI(c)
@@ -573,7 +583,7 @@ func debugErrorsCommand() *cli.Command {
 				out = f
 			}
 
-			if err := fleet.DebugErrors(out); err != nil {
+			if err := fleet.DebugErrors(out, flush); err != nil {
 				return err
 			}
 
