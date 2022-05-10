@@ -611,7 +611,7 @@ None.
       "name": "MS Windows",
       "description": "All Windows hosts",
       "query": "SELECT 1 FROM os_version WHERE platform = 'windows';",
-      "platform": "Windows",
+      "platform": "windows",
       "label_type": "builtin",
       "label_membership_type": "dynamic"
     },
