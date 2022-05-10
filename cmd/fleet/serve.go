@@ -44,6 +44,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/service/redis_policy_set"
 	"github.com/fleetdm/fleet/v4/server/service/schedule"
 	"github.com/fleetdm/fleet/v4/server/sso"
+	"github.com/fleetdm/fleet/v4/server/webhooks"
 	"github.com/getsentry/sentry-go"
 	kitlog "github.com/go-kit/kit/log"
 	"github.com/go-kit/kit/log/level"
@@ -360,7 +361,9 @@ the way that the Fleet server works.
 
 			// TODO: gather all the different contexts and use just one
 			cancelBackground := runCrons(ds, task, kitlog.With(logger, "component", "crons"), config, license, failingPolicySet)
-			runSchedules(ctx, ds, logger, config, license, failingPolicySet)
+			if err := startSchedules(ctx, ds, logger, config, license, failingPolicySet); err != nil {
+				initFatal(err, "failed to register schedules")
+			}
 
 			// Flush seen hosts every second
 			go func() {
@@ -606,65 +609,141 @@ func basicAuthHandler(username, password string, next http.Handler) http.Handler
 	}
 }
 
-const (
-	lockKeyLeader                  = "leader"
-	lockKeyVulnerabilities         = "vulnerabilities"
-	lockKeyWebhooksHostStatus      = "webhooks" // keeping this name for backwards compatibility.
-	lockKeyWebhooksFailingPolicies = "webhooks:global_failing_policies"
-	lockKeyWorker                  = "worker"
-)
-
-func runSchedules(
+func startSchedules(
 	ctx context.Context,
 	ds fleet.Datastore,
 	logger kitlog.Logger,
 	config config.FleetConfig,
 	license *fleet.LicenseInfo,
 	failingPoliciesSet fleet.FailingPolicySet,
-) {
+) error {
 	instanceID, err := server.GenerateRandomText(64)
 	if err != nil {
-		initFatal(errors.New("Error generating random instance identifier"), "")
+		return fmt.Errorf("generating random instance identifier: %w", err)
 	}
 	appConfig, err := ds.AppConfig(ctx)
 	if err != nil {
-		initFatal(errors.New("Error reading app config"), "")
+		return fmt.Errorf("reading app config: %w", err)
 	}
 
 	webhooksLogger := kitlog.With(logger, "cron", "webhooks")
-	webhooksInterval := appConfig.WebhookSettings.Interval.ValueOr(24 * time.Hour)
-	webhooks, err := schedule.New(ctx, "webhooks", instanceID, webhooksInterval, ds, webhooksLogger)
-	if err != nil {
-		initFatal(errors.New("Error creating schedule for cron webhooks"), "")
-	}
-	webhooks.SetConfigCheck(SetWebhooksConfigCheck(ctx, ds, webhooksLogger))
-	webhooks.AddJob("cron_webhooks", func(ctx context.Context) (interface{}, error) {
-		return cronWebhooks(ctx, ds, webhooksLogger, failingPoliciesSet)
-	}, func(interface{}, error) {})
+	schedule.New(
+		ctx, "webhooks", instanceID, appConfig.WebhookSettings.Interval.ValueOr(24*time.Hour), ds,
+		schedule.WithLogger(webhooksLogger),
+		schedule.WithReloadInterval(func(ctx context.Context) (time.Duration, error) {
+			appConfig, err := ds.AppConfig(ctx)
+			if err != nil {
+				level.Error(logger).Log("config", "couldn't read app config", "err", err)
+				return 0, err
+			}
+			newInterval := appConfig.WebhookSettings.Interval.ValueOr(24 * time.Hour)
+			return newInterval, nil
+		}),
+		schedule.WithJob(
+			"maybe_trigger_host_status",
+			func(ctx context.Context) error {
+				return webhooks.TriggerHostStatusWebhook(
+					ctx, ds, kitlog.With(logger, "webhook", "host_status"), appConfig,
+				)
+			},
+		),
+		schedule.WithJob(
+			"maybe_trigger_failing_policies",
+			func(ctx context.Context) error {
+				return webhooks.TriggerFailingPoliciesWebhook(
+					ctx, ds, kitlog.With(logger, "webhook", "failing_policies"), appConfig, failingPoliciesSet, time.Now(),
+				)
+			},
+		),
+	).Start()
 
-	cleanupsLogger := kitlog.With(logger, "cron", "cleanups")
-	cleanups, err := schedule.New(ctx, "cleanups", instanceID, config.Vulnerabilities.Periodicity, ds, cleanupsLogger)
-	if err != nil {
-		initFatal(errors.New("Error creating schedule for cron cleanups"), "")
-	}
-	cleanups.AddJob("cron_cleanups", func(ctx context.Context) (interface{}, error) {
-		return cronDB(ctx, ds, cleanupsLogger, license)
-	}, func(interface{}, error) {})
+	schedule.New(
+		ctx, "cleanups", instanceID, 1*time.Hour, ds,
+		schedule.WithLogger(kitlog.With(logger, "cron", "cleanups")),
+		schedule.WithJob(
+			"distributed_query_campaings",
+			func(ctx context.Context) error {
+				_, err := ds.CleanupDistributedQueryCampaigns(ctx, time.Now())
+				return err
+			},
+		),
+		schedule.WithJob(
+			"incoming_hosts",
+			func(ctx context.Context) error {
+				return ds.CleanupIncomingHosts(ctx, time.Now())
+			},
+		),
+		schedule.WithJob(
+			"carves",
+			func(ctx context.Context) error {
+				_, err := ds.CleanupCarves(ctx, time.Now())
+				return err
+			},
+		),
+		schedule.WithJob(
+			"expired_hosts",
+			func(ctx context.Context) error {
+				return ds.CleanupExpiredHosts(ctx)
+			},
+		),
+		schedule.WithJob(
+			"policy_membership",
+			func(ctx context.Context) error {
+				return ds.CleanupPolicyMembership(ctx, time.Now())
+			},
+		),
+	).Start()
+
+	schedule.New(
+		ctx, "stats", instanceID, 1*time.Hour, ds,
+		schedule.WithLogger(kitlog.With(logger, "cron", "stats")),
+		schedule.WithJob(
+			"try_send_statistics",
+			func(ctx context.Context) error {
+				return trySendStatistics(ctx, ds, fleet.StatisticsFrequency, "https://fleetdm.com/api/v1/webhooks/receive-usage-analytics", license)
+			},
+		),
+	).Start()
+
+	schedule.New(
+		ctx, "aggregation", instanceID, 1*time.Hour, ds,
+		schedule.WithLogger(kitlog.With(logger, "cron", "aggregation")),
+		schedule.WithJob(
+			"query_aggregated_stats",
+			func(ctx context.Context) error {
+				return ds.UpdateQueryAggregatedStats(ctx)
+			},
+		),
+		schedule.WithJob(
+			"scheduled_query_aggregated_stats",
+			func(ctx context.Context) error {
+				return ds.UpdateScheduledQueryAggregatedStats(ctx)
+			},
+		),
+		schedule.WithJob(
+			"aggregated_munki_and_mdm",
+			func(ctx context.Context) error {
+				return ds.GenerateAggregatedMunkiAndMDM(ctx)
+			},
+		),
+	).Start()
 
 	vulnerabilitiesLogger := kitlog.With(logger, "cron", "vulnerabilities")
-	vulnerabilities, err := schedule.New(ctx, "vulnerabilities", instanceID, config.Vulnerabilities.Periodicity, ds, vulnerabilitiesLogger)
-	if err != nil {
-		initFatal(errors.New("Error creating schedule for cron vulnerabilities"), "")
-	}
-	vulnerabilities.SetPreflightCheck(func() bool { return config.Vulnerabilities.CurrentInstanceChecks == "auto" })
-	vulnerabilities.AddJob("cron_vulnerabilities", func(ctx context.Context) (interface{}, error) {
-		return cronVulnerabilities(ctx, ds, vulnerabilitiesLogger, config)
-	}, func(interface{}, error) {})
+	schedule.New(
+		ctx, "vulnerabilities", instanceID, config.Vulnerabilities.Periodicity, ds,
+		schedule.WithLogger(vulnerabilitiesLogger),
+		schedule.WithJob(
+			"cron_vulnerabilities",
+			func(ctx context.Context) error {
+				// TODO(lucas): Decouple cronVulnerabilities into multiple jobs.
+				return cronVulnerabilities(ctx, ds, vulnerabilitiesLogger, config)
+			},
+		),
+	).Start()
 
-	return
+	return nil
 }
 
-// TODO: double check no recent changes that need to be ported
 func runCrons(ds fleet.Datastore, task *async.Task, logger kitlog.Logger, config config.FleetConfig, license *fleet.LicenseInfo, failingPoliciesSet fleet.FailingPolicySet) context.CancelFunc {
 	ctx, cancelBackground := context.WithCancel(context.Background())
 
@@ -676,7 +755,7 @@ func runCrons(ds fleet.Datastore, task *async.Task, logger kitlog.Logger, config
 		initFatal(errors.New("Error generating random instance identifier"), "")
 	}
 
-	go cronWorker(ctx, ds, kitlog.With(logger, "cron", "worker"), ourIdentifier)
+	go cronIntegrations(ctx, ds, kitlog.With(logger, "cron", "worker"), ourIdentifier)
 
 	return cancelBackground
 }

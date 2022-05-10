@@ -1,3 +1,7 @@
+// Package schedule allows periodic run of a list of jobs.
+//
+// Type Schedule allows grouping a set of Jobs to run at specific intervals.
+// Each Job is executed serially in the order they were added to the Schedule.
 package schedule
 
 import (
@@ -11,95 +15,113 @@ import (
 	"github.com/go-kit/log/level"
 )
 
-type schedule struct {
+// ReloadInterval reloads and returns a new interval.
+type ReloadInterval func(ctx context.Context) (time.Duration, error)
+
+// Schedule runs a list of jobs serially at a given schedule.
+//
+// Each job is executed one after the other in the order they were added.
+// If one of the job fails, an error is logged and the scheduler
+// continues with the next.
+type Schedule struct {
 	ctx        context.Context
 	name       string
 	instanceID string
-	Logger     kitlog.Logger
+	logger     kitlog.Logger
 
-	muChecks       sync.Mutex
+	muChecks       sync.Mutex // protects configInterval and schedInterval.
 	configInterval time.Duration
 	schedInterval  time.Duration
+
+	reloadInterval ReloadInterval
 	locker         Locker
-	configCheck    func(start time.Time, wait time.Duration) (*time.Duration, error)
-	preflightCheck func() bool
 
-	muJobs sync.Mutex
-	jobs   map[string]job
+	jobs []Job
 }
 
-func (s *schedule) getConfigInterval() time.Duration {
-	s.muChecks.Lock()
-	defer s.muChecks.Unlock()
-	return s.configInterval
+// JobFn is the signature of a Job.
+type JobFn func(context.Context) error
+
+// Job represents a job that can be added to Scheduler.
+type Job struct {
+	// ID is the unique identifier for the job.
+	ID string
+	// Fn is the job itself.
+	Fn func(context.Context) error
 }
 
-func (s *schedule) SetConfigInterval(interval time.Duration) {
-	s.muChecks.Lock()
-	defer s.muChecks.Unlock()
-	s.configInterval = interval
-}
-
-func (s *schedule) getSchedInterval() time.Duration {
-	s.muChecks.Lock()
-	defer s.muChecks.Unlock()
-	return s.schedInterval
-}
-
-func (s *schedule) setSchedInterval(interval time.Duration) {
-	s.muChecks.Lock()
-	defer s.muChecks.Unlock()
-	s.schedInterval = interval
-}
-
-func (s *schedule) SetPreflightCheck(fn func() bool) {
-	s.muChecks.Lock()
-	defer s.muChecks.Unlock()
-	s.preflightCheck = fn
-}
-
-func (s *schedule) SetConfigCheck(fn func(start time.Time, wait time.Duration) (*time.Duration, error)) {
-	s.muChecks.Lock()
-	defer s.muChecks.Unlock()
-	s.configCheck = fn
-}
-
-type job struct {
-	run          func(context.Context) (interface{}, error)
-	statsHandler func(interface{}, error)
-}
-
+// Locker allows a Schedule to acquire and release a lock before running jobs.
 type Locker interface {
 	Lock(ctx context.Context, name string, owner string, expiration time.Duration) (bool, error)
 	Unlock(ctx context.Context, name string, owner string) error
 }
 
-func New(ctx context.Context, name string, instanceID string, interval time.Duration, locker Locker, logger kitlog.Logger) (sched *schedule, err error) {
-	sch := &schedule{
+// Option allows configuring a Schedule.
+type Option func(*Schedule)
+
+// WithLogger sets a logger for the Schedule.
+func WithLogger(l kitlog.Logger) Option {
+	return func(s *Schedule) {
+		s.logger = l
+	}
+}
+
+// WithReloadInterval allows setting a reload interval function,
+// that will allow updating the interval of a running schedule.
+//
+// If not set, then the schedule performs no interval reloading.
+func WithReloadInterval(fn ReloadInterval) Option {
+	return func(s *Schedule) {
+		s.reloadInterval = fn
+	}
+}
+
+// WithJob adds a job to the Schedule.
+//
+// Each job is executed in the order they are added.
+func WithJob(id string, fn JobFn) Option {
+	return func(s *Schedule) {
+		s.jobs = append(s.jobs, Job{
+			ID: id,
+			Fn: fn,
+		})
+	}
+}
+
+// New creates and returns a Schedule.
+// Jobs are added with the WithJob Option.
+//
+// The jobs are executed serially in order at the provided interval.
+//
+// The provided locker is used to acquire/release a lock before running the jobs.
+// The provided name and instanceID of the Schedule is used as the locking identifier.
+func New(
+	ctx context.Context,
+	name string,
+	instanceID string,
+	interval time.Duration,
+	locker Locker,
+	opts ...Option,
+) *Schedule {
+	sch := &Schedule{
 		ctx:        ctx,
 		name:       name,
 		instanceID: instanceID,
-		Logger:     logger,
 
 		configInterval: 1 * time.Hour, // by default we will check for updated config once per hour
 		schedInterval:  interval,
 		locker:         locker,
-
-		jobs: make(map[string]job),
 	}
-	sch.run()
-	return sch, nil
+	for _, fn := range opts {
+		fn(sch)
+	}
+	return sch
 }
 
-func (s *schedule) AddJob(id string, newJob func(ctx context.Context) (interface{}, error), statsHandler func(interface{}, error)) {
-	s.muJobs.Lock()
-	defer s.muJobs.Unlock()
-	// TODO: guard for job id uniqueness?
-	s.jobs[id] = job{run: newJob, statsHandler: statsHandler}
-}
-
-// each schedule runs in its own go routine
-func (s *schedule) run() {
+// Start starts running the added jobs.
+//
+// All jobs must be added before calling Start.
+func (s *Schedule) Start() {
 	currentStart := time.Now()
 	currentWait := 10 * time.Second
 
@@ -125,15 +147,15 @@ func (s *schedule) run() {
 	go func() {
 		for {
 			_, currWait := getWaitTimes()
-			level.Debug(s.Logger).Log("waiting", fmt.Sprint("current wait time... ", currWait))
+			level.Debug(s.logger).Log("waiting", fmt.Sprint("current wait time... ", currWait))
 
 			select {
 			case <-s.ctx.Done():
-				level.Debug(s.Logger).Log("exit", fmt.Sprint("done with ", s.name))
+				level.Debug(s.logger).Log("exit", fmt.Sprint("done with ", s.name))
 				return
 
 			case <-schedTicker.C:
-				level.Debug(s.Logger).Log("waiting", "done")
+				level.Debug(s.logger).Log("waiting", "done")
 
 				schedInterval := s.getSchedInterval()
 				schedTicker.Reset(schedInterval)
@@ -142,16 +164,17 @@ func (s *schedule) run() {
 				newWait := schedInterval
 				setWaitTimes(newStart, newWait)
 
-				if ok := s.runScheduleChecks(); !ok {
+				if ok := s.acquireLock(); !ok {
 					continue
 				}
 
-				s.muJobs.Lock()
-				for id, job := range s.jobs {
-					level.Debug(s.Logger).Log(s.name, fmt.Sprint("starting job... ", id))
-					job.statsHandler(job.run(s.ctx))
+				for _, job := range s.jobs {
+					level.Debug(s.logger).Log(s.name, fmt.Sprint("starting job... ", job.ID))
+					if err := job.Fn(s.ctx); err != nil {
+						level.Error(s.logger).Log("job", job.ID, "err", err)
+						sentry.CaptureException(err)
+					}
 				}
-				s.muJobs.Unlock()
 			}
 		}
 	}()
@@ -162,57 +185,67 @@ func (s *schedule) run() {
 		for {
 			select {
 			case <-configTicker.C:
-				level.Debug(s.Logger).Log(s.name, "config check...")
+				level.Debug(s.logger).Log(s.name, "config check...")
 
-				configInterval := s.getConfigInterval()
-				configTicker.Reset(configInterval)
+				configTicker.Reset(s.configInterval)
 
 				schedInterval := s.getSchedInterval()
-				currStart, currWait := getWaitTimes()
+				currStart, _ := getWaitTimes()
 
-				if s.configCheck == nil {
-					level.Debug(s.Logger).Log(s.name, "config check function has not been set... skipping...")
+				if s.reloadInterval == nil {
+					level.Debug(s.logger).Log(s.name, "config check function has not been set... skipping...")
 					continue
 				}
 
-				newInterval, err := s.configCheck(currStart, currWait)
+				newInterval, err := s.reloadInterval(s.ctx)
 				if err != nil {
-					level.Error(s.Logger).Log("config", "could not check for updates to schedule interval", "err", err)
+					level.Error(s.logger).Log("config", "could not check for updates to schedule interval", "err", err)
 					sentry.CaptureException(err)
 					continue
 				}
-				if schedInterval == *newInterval {
-					level.Debug(s.Logger).Log(s.name, "schedule interval unchanged")
+				if schedInterval == newInterval {
+					level.Debug(s.logger).Log(s.name, "schedule interval unchanged")
 					continue
 				}
-				s.setSchedInterval(*newInterval)
+				s.setSchedInterval(newInterval)
 
 				newWait := 10 * time.Millisecond
-				if time.Since(currStart) < *newInterval {
-					newWait = *newInterval - time.Since(currStart)
+				if time.Since(currStart) < newInterval {
+					newWait = newInterval - time.Since(currStart)
 				}
 				setWaitTimes(currStart, newWait)
 				schedTicker.Reset(newWait)
 
-				level.Debug(s.Logger).Log(s.name, fmt.Sprint("new schedule interval: ", *newInterval))
-				level.Debug(s.Logger).Log(s.name, fmt.Sprint("wait time until next job run: ", newWait))
+				level.Debug(s.logger).Log("schedule", s.name, "new schedule interval", newInterval, "wait time until next job run: ", newWait)
 			}
 		}
 	}()
 }
 
-func (s *schedule) runScheduleChecks() bool {
+func (s *Schedule) getSchedInterval() time.Duration {
 	s.muChecks.Lock()
 	defer s.muChecks.Unlock()
-	if s.preflightCheck != nil {
-		if ok := s.preflightCheck(); !ok {
-			level.Debug(s.Logger).Log(s.name, "preflight check failed... skipping...")
-			return false
-		}
-	}
-	if locked, err := s.locker.Lock(s.ctx, s.name, s.instanceID, s.schedInterval); err != nil || !locked {
-		level.Debug(s.Logger).Log(s.name, "not the lock leader... Skipping...")
+
+	return s.schedInterval
+}
+
+func (s *Schedule) setSchedInterval(interval time.Duration) {
+	s.muChecks.Lock()
+	defer s.muChecks.Unlock()
+
+	s.schedInterval = interval
+}
+
+func (s *Schedule) acquireLock() bool {
+	locked, err := s.locker.Lock(s.ctx, s.name, s.instanceID, s.schedInterval)
+	if err != nil {
+		level.Error(s.logger).Log("schedule", s.name, "err", err)
+		sentry.CaptureException(err)
 		return false
 	}
-	return true
+	if locked {
+		return true
+	}
+	level.Debug(s.logger).Log(s.name, "not the lock leader... Skipping...")
+	return false
 }
