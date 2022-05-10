@@ -272,7 +272,7 @@ type AllSoftwareWithoutCPEIteratorFunc func(ctx context.Context) (fleet.Software
 
 type AddCPEForSoftwareFunc func(ctx context.Context, software fleet.Software, cpe string) error
 
-type AllCPEsFunc func(ctx context.Context) ([]string, error)
+type AllCPEsFunc func(ctx context.Context, excludedPlatforms []string) ([]string, error)
 
 type InsertCVEForCPEFunc func(ctx context.Context, cve string, cpes []string) (int64, error)
 
@@ -1624,9 +1624,9 @@ func (s *DataStore) AddCPEForSoftware(ctx context.Context, software fleet.Softwa
 	return s.AddCPEForSoftwareFunc(ctx, software, cpe)
 }
 
-func (s *DataStore) AllCPEs(ctx context.Context) ([]string, error) {
+func (s *DataStore) AllCPEs(ctx context.Context, excludedPlatforms []string) ([]string, error) {
 	s.AllCPEsFuncInvoked = true
-	return s.AllCPEsFunc(ctx)
+	return s.AllCPEsFunc(ctx, excludedPlatforms)
 }
 
 func (s *DataStore) InsertCVEForCPE(ctx context.Context, cve string, cpes []string) (int64, error) {

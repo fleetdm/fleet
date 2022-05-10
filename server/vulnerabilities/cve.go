@@ -97,7 +97,7 @@ func TranslateCPEToCVE(
 		return nil, nil
 	}
 
-	cpeList, err := ds.AllCPEs(ctx)
+	cpeList, err := ds.AllCPEs(ctx, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -138,7 +138,6 @@ func checkCVEs(
 	recentVulns map[string][]string,
 	recentVulnMaxAge time.Duration,
 ) error {
-
 	dict, err := cvefeed.LoadJSONDictionary(file)
 	if err != nil {
 		return err

@@ -286,22 +286,45 @@ func testSoftwareLoadVulnerabilities(t *testing.T, ds *Datastore) {
 }
 
 func testSoftwareAllCPEs(t *testing.T, ds *Datastore) {
-	host := test.NewHost(t, ds, "host1", "", "host1key", "host1uuid", time.Now())
+	ctx := context.Background()
+
+	debian := test.NewHost(t, ds, "host3", "", "host3key", "host3uuid", time.Now())
+	debian.Platform = "debian"
+	ds.UpdateHost(ctx, debian)
+
+	ubuntu := test.NewHost(t, ds, "host4", "", "host4key", "host4uuid", time.Now())
+	ubuntu.Platform = "ubuntu"
+	ds.UpdateHost(ctx, ubuntu)
 
 	software := []fleet.Software{
 		{Name: "foo", Version: "0.0.1", Source: "chrome_extensions"},
 		{Name: "bar", Version: "0.0.3", Source: "apps"},
-		{Name: "blah", Version: "1.0", Source: "apps"},
+		{Name: "biz", Version: "0.0.1", Source: "deb_packages"},
+		{Name: "baz", Version: "0.0.3", Source: "deb_packages"},
 	}
-	require.NoError(t, ds.UpdateHostSoftware(context.Background(), host.ID, software))
-	require.NoError(t, ds.LoadHostSoftware(context.Background(), host))
+	require.NoError(t, ds.UpdateHostSoftware(ctx, debian.ID, software[:2]))
+	require.NoError(t, ds.LoadHostSoftware(ctx, debian))
 
-	require.NoError(t, ds.AddCPEForSoftware(context.Background(), host.Software[0], "somecpe"))
-	require.NoError(t, ds.AddCPEForSoftware(context.Background(), host.Software[1], "someothercpewithoutvulns"))
+	require.NoError(t, ds.UpdateHostSoftware(ctx, ubuntu.ID, software[2:]))
+	require.NoError(t, ds.LoadHostSoftware(ctx, ubuntu))
 
-	cpes, err := ds.AllCPEs(context.Background())
-	require.NoError(t, err)
-	assert.ElementsMatch(t, cpes, []string{"somecpe", "someothercpewithoutvulns"})
+	require.NoError(t, ds.AddCPEForSoftware(ctx, debian.Software[0], "cpe1"))
+	require.NoError(t, ds.AddCPEForSoftware(ctx, debian.Software[1], "cpe2"))
+
+	require.NoError(t, ds.AddCPEForSoftware(ctx, ubuntu.Software[0], "cpe3"))
+	require.NoError(t, ds.AddCPEForSoftware(ctx, ubuntu.Software[1], "cpe4"))
+
+	t.Run("without excludedPlatforms", func(t *testing.T) {
+		cpes, err := ds.AllCPEs(ctx, nil)
+		require.NoError(t, err)
+		assert.ElementsMatch(t, cpes, []string{"cpe1", "cpe2", "cpe3", "cpe4"})
+	})
+
+	t.Run("with excludedPlatforms", func(t *testing.T) {
+		cpes, err := ds.AllCPEs(ctx, []string{"ubuntu"})
+		require.NoError(t, err)
+		assert.ElementsMatch(t, cpes, []string{"cpe1", "cpe2"})
+	})
 }
 
 func testSoftwareNothingChanged(t *testing.T, ds *Datastore) {
