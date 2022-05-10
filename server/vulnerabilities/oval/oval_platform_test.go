@@ -8,26 +8,27 @@ import (
 )
 
 func TestOvalPlatform(t *testing.T) {
-	t.Run("getMajorRelease", func(t *testing.T) {
+	t.Run("NewPlatform", func(t *testing.T) {
 		cases := []struct {
+			platform  string
 			osVersion string
 			expected  string
 		}{
-			{"CentOS Linux 8.3.2011", "8"},
-			{"Ubuntu 20.4.0", "20"},
-			{"CentOS 6.10.0", "6"},
-			{"Debian GNU/Linux 9.0.0", "9"},
-			{"Debian GNU/Linux 10.0.0", "10"},
-			{"CentOS Linux 7.9.2009", "7"},
-			{"Ubuntu 16.4.0", "16"},
-			{"Ubuntu 18.4.0", "18"},
-			{"Ubuntu 18.4", "18"},
-			{"Ubuntu 18", "18"},
-			{"", ""},
+			{"centos", "CentOS Linux 8.3.2011", "centos-8"},
+			{"ubuntu", "Ubuntu 20.4.0", "ubuntu-20"},
+			{"centos", "CentOS 6.10.0", "centos-6"},
+			{"debian", "Debian GNU/Linux 9.0.0", "debian-9"},
+			{"debian", "Debian GNU/Linux 10.0.0", "debian-10"},
+			{"centos", "CentOS Linux 7.9.2009", "centos-7"},
+			{"ubuntu", "Ubuntu 16.4.0", "ubuntu-16"},
+			{"ubuntu", "Ubuntu 18.4.0", "ubuntu-18"},
+			{"ubuntu", "Ubuntu 18.4", "ubuntu-18"},
+			{"ubuntu", "Ubuntu 18", "ubuntu-18"},
+			{"", "", "-"},
 		}
 
 		for _, c := range cases {
-			require.Equal(t, c.expected, getMajorRelease(c.osVersion))
+			require.Equal(t, c.expected, string(NewPlatform(c.platform, c.osVersion)))
 		}
 	})
 
