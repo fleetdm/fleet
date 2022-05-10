@@ -161,7 +161,7 @@ Returns the specs for all packs in the Fleet instance.
           "interval": 456,
           "snapshot": false,
           "removed": true,
-          "platform": "Windows",
+          "platform": "windows",
           "version": "4.5.0"
         },
         {
