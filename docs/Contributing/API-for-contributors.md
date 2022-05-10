@@ -340,7 +340,7 @@ The following returns the specs for all packs in the Fleet instance.
           "interval": 333,
           "snapshot": false,
           "removed": true,
-          "platform": "Windows"
+          "platform": "windows"
         }
       ]
     }
