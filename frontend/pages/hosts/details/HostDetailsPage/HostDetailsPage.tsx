@@ -540,6 +540,8 @@ const HostDetailsPage = ({
 
   const statusClassName = classnames("status", `status--${host?.status}`);
 
+  console.log("host: ", host);
+
   return (
     <div className={`${baseClass} body-wrap`}>
       <div>
@@ -596,6 +598,7 @@ const HostDetailsPage = ({
               isLoading={isLoadingHost}
               software={hostSoftware}
               softwareInventoryEnabled={hostSettings?.enable_software_inventory}
+              deviceType={host?.platform === "darwin" ? "macos" : ""}
             />
           </TabPanel>
           <TabPanel>

@@ -2,8 +2,7 @@ import React from "react";
 import { Link } from "react-router";
 import ReactTooltip from "react-tooltip";
 
-// TODO: Enable after backend has been updated to provide last_opened_at
-// import distanceInWordsToNow from "date-fns/distance_in_words_to_now";
+import { formatDistanceToNow } from "date-fns";
 
 import { ISoftware } from "interfaces/software";
 
@@ -25,6 +24,7 @@ interface ICellProps {
   };
   row: {
     original: ISoftware;
+    index: number;
   };
 }
 
@@ -37,6 +37,12 @@ interface IStringCellProps extends ICellProps {
 interface IVulnCellProps extends ICellProps {
   cell: {
     value: string[];
+  };
+}
+
+interface ILastUsedCellProps extends ICellProps {
+  cell: {
+    value: string;
   };
 }
 
@@ -207,34 +213,55 @@ const generateSoftwareTableHeaders = (deviceUser = false): IDataColumn[] => {
         );
       },
     },
-    // TODO: Enable after backend has been updated to provide last_opened_at
-    // {
-    //   title: "Last used",
-    //   Header: (cellProps) => (
-    //     <HeaderCell
-    //       value={cellProps.column.title}
-    //       isSortedDesc={cellProps.column.isSortedDesc}
-    //     />
-    //   ),
-    //   accessor: "last_opened_at",
-    //   Cell: (cellProps) => {
-    //     const lastUsed = isNaN(Date.parse(cellProps.cell.value))
-    //       ? "Unavailable"
-    //       : `${distanceInWordsToNow(Date.parse(cellProps.cell.value))} ago`;
-    //     return (
-    //       <span
-    //         className={
-    //           lastUsed === "Unavailable"
-    //             ? "software-last-used-muted"
-    //             : "software-last-used"
-    //         }
-    //       >
-    //         {lastUsed}
-    //       </span>
-    //     );
-    //   },
-    //   sortType: "dateStrings",
-    // },
+    {
+      title: "Last used",
+      Header: (cellProps) => (
+        <HeaderCell
+          value={cellProps.column.title}
+          isSortedDesc={cellProps.column.isSortedDesc}
+        />
+      ),
+      accessor: "last_opened_at",
+      Cell: (cellProps: ILastUsedCellProps): JSX.Element => {
+        const lastUsed = cellProps.cell.value
+          ? `${formatDistanceToNow(Date.parse(cellProps.cell.value))} ago`
+          : "Unavailable";
+        const hasLastUsed = lastUsed !== "Unavailable";
+        return (
+          <>
+            <span
+              className={`last-used ${
+                lastUsed === "Unavailable" ? "text-muted" : ""
+              }`}
+              data-tip
+              data-for={`last_used__${cellProps.row.index}`}
+              data-tip-disable={hasLastUsed}
+            >
+              {lastUsed}
+            </span>
+            {!hasLastUsed && (
+              <ReactTooltip
+                place="top"
+                type="dark"
+                effect="solid"
+                backgroundColor="#3e4771"
+                id={`last_used__${cellProps.row.index}`}
+                className="last_used_tooltip"
+                data-html
+              >
+                <span className={`last_used tooltip__tooltip-text`}>
+                  Last used information <br />
+                  is only available for the <br />
+                  Application (macOS) <br />
+                  software type.
+                </span>
+              </ReactTooltip>
+            )}
+          </>
+        );
+      },
+      sortType: "dateStrings",
+    },
     {
       title: "",
       Header: "",
