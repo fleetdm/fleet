@@ -71,7 +71,7 @@ type collectorExecStats struct {
 	Inserts   int
 	Updates   int
 	Deletes   int
-	RedisCmds int // does not include scan keys iteration commands
+	RedisCmds int // script counts as 1, does not include ZSCAN of active hosts iteration commands
 	Failed    bool
 }
 

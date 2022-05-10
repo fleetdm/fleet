@@ -195,7 +195,7 @@ func (t *Task) collectPolicyQueryExecutions(ctx context.Context, ds fleet.Datast
 			hostIDs[i] = host.HostID
 		}
 
-		ts := time.Now()
+		ts := t.Clock.Now()
 		updateBatch := make([]uint, t.UpdateBatch)
 		for {
 			n := copy(updateBatch, hostIDs)

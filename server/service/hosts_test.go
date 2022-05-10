@@ -218,7 +218,7 @@ func TestHostAuth(t *testing.T) {
 		})
 	}
 
-	// List, GetHostSummary, FlushSeenHost work for all
+	// List, GetHostSummary work for all
 }
 
 func TestListHosts(t *testing.T) {

@@ -200,7 +200,7 @@ func (t *Task) collectLabelQueryExecutions(ctx context.Context, ds fleet.Datasto
 			hostIDs[i] = host.HostID
 		}
 
-		ts := time.Now()
+		ts := t.Clock.Now()
 		updateBatch := make([]uint, t.UpdateBatch)
 		for {
 			n := copy(updateBatch, hostIDs)

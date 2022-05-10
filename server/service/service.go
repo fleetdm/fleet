@@ -38,8 +38,6 @@ type Service struct {
 	mailService     fleet.MailService
 	ssoSessionStore sso.SessionStore
 
-	seenHostSet *seenHostSet
-
 	failingPolicySet fleet.FailingPolicySet
 
 	authz *authz.Authorizer
@@ -89,7 +87,6 @@ func NewService(
 		osqueryLogWriter: osqueryLogger,
 		mailService:      mailService,
 		ssoSessionStore:  sso,
-		seenHostSet:      newSeenHostSet(),
 		license:          license,
 		failingPolicySet: failingPolicySet,
 		authz:            authorizer,
@@ -113,37 +110,4 @@ type validationMiddleware struct {
 // getAssetURL simply returns the base url used for retrieving image assets from fleetdm.com.
 func getAssetURL() template.URL {
 	return template.URL("https://fleetdm.com/images/permanent")
-}
-
-// seenHostSet implements synchronized storage for the set of seen hosts.
-type seenHostSet struct {
-	mutex   sync.Mutex
-	hostIDs map[uint]bool
-}
-
-func newSeenHostSet() *seenHostSet {
-	return &seenHostSet{
-		mutex:   sync.Mutex{},
-		hostIDs: make(map[uint]bool),
-	}
-}
-
-// addHostID adds the host identified by ID to the set
-func (m *seenHostSet) addHostID(id uint) {
-	m.mutex.Lock()
-	defer m.mutex.Unlock()
-	m.hostIDs[id] = true
-}
-
-// getAndClearHostIDs gets the list of unique host IDs from the set and empties
-// the set.
-func (m *seenHostSet) getAndClearHostIDs() []uint {
-	m.mutex.Lock()
-	defer m.mutex.Unlock()
-	var ids []uint
-	for id := range m.hostIDs {
-		ids = append(ids, id)
-	}
-	m.hostIDs = make(map[uint]bool)
-	return ids
 }
