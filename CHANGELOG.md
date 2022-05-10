@@ -1,6 +1,6 @@
 ## Fleet 4.14.0 (May 9, 2022)
 
-* Add beta support for Jira integrations. This allows users to configure Fleet to
+* Add beta support for Jira integration. This allows users to configure Fleet to
   automatically create a Jira issue when a new vulnerability (CVE) is detected on
   your hosts.
 
