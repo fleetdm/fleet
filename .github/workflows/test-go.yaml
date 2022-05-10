@@ -64,7 +64,7 @@ jobs:
         TEST_LOCK_FILE_PATH=$(pwd)/lock NETWORK_TEST=1 REDIS_TEST=1 MYSQL_TEST=1 RACE_ENABLED=$RACE_ENABLED GO_TEST_TIMEOUT=$GO_TEST_TIMEOUT make test-go
 
     - name: Upload to Codecov
-      uses: codecov/codecov-action@e3c560433a6cc60aec8812599b7844a7b4fa0d71
+      uses: codecov/codecov-action@81cd2dc8148241f03f5839d295e000b8f761e378
       with:
         files: coverage.txt
 
