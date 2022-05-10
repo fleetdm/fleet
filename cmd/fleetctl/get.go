@@ -24,7 +24,6 @@ const (
 	jsonFlagName                = "json"
 	withQueriesFlagName         = "with-queries"
 	expiredFlagName             = "expired"
-	stdoutFlagName              = "stdout"
 	includeServerConfigFlagName = "include-server-config"
 )
 
@@ -753,10 +752,7 @@ func getCarveCommand() *cli.Command {
 		Name:  "carve",
 		Usage: "Retrieve details for a carve by ID",
 		Flags: []cli.Flag{
-			&cli.BoolFlag{
-				Name:  stdoutFlagName,
-				Usage: "Print carve contents to stdout",
-			},
+			stdoutFlag(),
 			configFlag(),
 			contextFlag(),
 			outfileFlag(),
