@@ -855,8 +855,7 @@ func (r hostsReportResponse) hijackRender(ctx context.Context, w http.ResponseWr
 	var buf bytes.Buffer
 	if err := gocsv.Marshal(r.Hosts, &buf); err != nil {
 		logging.WithErr(ctx, err)
-		w.WriteHeader(http.StatusInternalServerError)
-		fmt.Fprint(w, "Failed to generate CSV file")
+		http.Error(w, "Failed to generate CSV file", http.StatusInternalServerError)
 		return
 	}
 
