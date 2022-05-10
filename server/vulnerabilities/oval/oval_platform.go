@@ -40,5 +40,14 @@ func (op Platform) ToFilename(date time.Time, extension string) string {
 
 // IsSupported returns whether the given platform is currently supported or not.
 func (op Platform) IsSupported() bool {
-	return strings.HasPrefix(string(op), "ubuntu")
+	for _, p := range SupportedPlatforms() {
+		if strings.HasPrefix(string(op), p) {
+			return true
+		}
+	}
+	return false
+}
+
+func SupportedPlatforms() []string {
+	return []string{"ubuntu"}
 }

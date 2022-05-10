@@ -20,6 +20,7 @@ import (
 	"github.com/facebookincubator/nvdtools/wfn"
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/vulnerabilities/oval"
 	kitlog "github.com/go-kit/kit/log"
 	"github.com/go-kit/kit/log/level"
 )
@@ -97,7 +98,7 @@ func TranslateCPEToCVE(
 		return nil, nil
 	}
 
-	cpeList, err := ds.AllCPEs(ctx, nil)
+	cpeList, err := ds.AllCPEs(ctx, oval.SupportedPlatforms())
 	if err != nil {
 		return nil, err
 	}
