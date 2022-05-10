@@ -4801,14 +4801,20 @@ func (s *integrationTestSuite) TestHostsReportDownload() {
 	require.Len(t, rows, 2) // headers + member host
 	require.Contains(t, rows[1], hosts[2].Hostname)
 
-	// valid format, some columns, unknown columns are ignored, order is respected
-	res = s.DoRaw("GET", "/api/latest/fleet/hosts/report", nil, http.StatusOK, "format", "csv", "columns", "memory,hostname,status,nosuchcolumn")
+	// valid format, some columns, unknown columns are ignored, order is respected, sorted
+	res = s.DoRaw("GET", "/api/latest/fleet/hosts/report", nil, http.StatusOK, "format", "csv", "order_key", "hostname", "order_direction", "desc", "columns", "memory,hostname,status,nosuchcolumn")
 	rows, err = csv.NewReader(res.Body).ReadAll()
 	res.Body.Close()
 	require.NoError(t, err)
 	require.Len(t, rows, len(hosts)+1)
 	require.Equal(t, []string{"memory", "hostname", "status"}, rows[0]) // first row contains headers
-	t.Log(rows)
+	require.Len(t, rows[1], 3)
+	// status is timing-dependent, ignore in the assertion
+	require.Equal(t, []string{"0", "TestIntegrations/TestHostsReportDownloadfoo.local2"}, rows[1][:2])
+	require.Len(t, rows[2], 3)
+	require.Equal(t, []string{"0", "TestIntegrations/TestHostsReportDownloadfoo.local1"}, rows[2][:2])
+	require.Len(t, rows[3], 3)
+	require.Equal(t, []string{"0", "TestIntegrations/TestHostsReportDownloadfoo.local0"}, rows[3][:2])
 }
 
 // this test can be deleted once the "v1" version is removed.
