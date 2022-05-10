@@ -1,22 +1,27 @@
 package main
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io/ioutil"
 	"os"
+	"sort"
 	"strings"
 	"time"
 
 	"github.com/briandowns/spinner"
+	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/jmoiron/sqlx"
+	_ "github.com/mattn/go-sqlite3"
 	"github.com/urfave/cli/v2"
 )
 
 func queryCommand() *cli.Command {
 	var (
-		flHosts, flLabels, flQuery, flQueryName string
-		flQuiet, flExit, flPretty               bool
-		flTimeout                               time.Duration
+		flHosts, flLabels, flQuery, flQueryName, flResultsQuery string
+		flQuiet, flExit, flPretty                               bool
+		flTimeout                                               time.Duration
 	)
 	return &cli.Command{
 		Name:      "query",
@@ -63,6 +68,11 @@ func queryCommand() *cli.Command {
 				Destination: &flQueryName,
 				Usage:       "Name of saved query to run",
 			},
+			&cli.StringFlag{
+				Name:        "results-query",
+				Destination: &flResultsQuery,
+				Usage:       "Query to run on results of query",
+			},
 			&cli.BoolFlag{
 				Name:        "pretty",
 				EnvVars:     []string{"PRETTY"},
@@ -80,7 +90,7 @@ func queryCommand() *cli.Command {
 			debugFlag(),
 		},
 		Action: func(c *cli.Context) error {
-			fleet, err := clientFromCLI(c)
+			client, err := clientFromCLI(c)
 			if err != nil {
 				return err
 			}
@@ -94,7 +104,7 @@ func queryCommand() *cli.Command {
 			}
 
 			if flQueryName != "" {
-				q, err := fleet.GetQuery(flQueryName)
+				q, err := client.GetQuery(flQueryName)
 				if err != nil {
 					return fmt.Errorf("Query '%s' not found", flQueryName)
 				}
@@ -105,17 +115,17 @@ func queryCommand() *cli.Command {
 				return errors.New("Query must be specified with --query or --query-name")
 			}
 
-			var output outputWriter
+			var writer outputWriter
 			if flPretty {
-				output = newPrettyWriter()
+				writer = newPrettyWriter()
 			} else {
-				output = newJsonWriter(c.App.Writer)
+				writer = newJsonWriter(c.App.Writer)
 			}
 
 			hosts := strings.Split(flHosts, ",")
 			labels := strings.Split(flLabels, ",")
 
-			res, err := fleet.LiveQuery(flQuery, labels, hosts)
+			res, err := client.LiveQuery(flQuery, labels, hosts)
 			if err != nil {
 				return err
 			}
@@ -135,20 +145,20 @@ func queryCommand() *cli.Command {
 			var timeoutChan <-chan time.Time
 			if flTimeout > 0 {
 				timeoutChan = time.After(flTimeout)
-			} else {
-				// Channel that never fires (so that we can
-				// read from the channel in the below select
-				// statement without panicking)
-				timeoutChan = make(chan time.Time)
 			}
 
+			// collect results
+			var results []fleet.DistributedQueryResult
+
+		OUTER:
 			for {
 				select {
 				// Print a result
-				case hostResult := <-res.Results():
+				case result := <-res.Results():
+					results = append(results, result)
 					s.Stop()
 
-					if err := output.WriteResult(hostResult); err != nil {
+					if err := writer.WriteResult(result); err != nil {
 						fmt.Fprintf(os.Stderr, "Error writing result: %s\n", err)
 					}
 
@@ -177,7 +187,7 @@ func queryCommand() *cli.Command {
 					}
 
 					if responded >= online && flExit {
-						return nil
+						break OUTER
 					}
 
 					msg := fmt.Sprintf(" %.f%% responded (%.f%% online) | %d/%d targeted hosts (%d/%d online)", percentTotal, percentOnline, responded, total, responded, online)
@@ -191,7 +201,7 @@ func queryCommand() *cli.Command {
 						if !flQuiet {
 							fmt.Fprintln(os.Stderr, msg)
 						}
-						return nil
+						break OUTER
 					}
 
 				// Check for timeout expiring
@@ -200,9 +210,94 @@ func queryCommand() *cli.Command {
 					if !flQuiet {
 						fmt.Fprintln(os.Stderr, s.Suffix+"\nStopped by timeout")
 					}
-					return nil
+					break OUTER
 				}
 			}
+
+			// run a query on the results
+			if flResultsQuery != "" {
+				db, err := sqlx.Open("sqlite3", ":memory:")
+				if err != nil {
+					return err
+				}
+
+				// create a table for results
+				row := results[0].Rows[0]
+
+				var columns []string
+				for column, _ := range row {
+					columns = append(columns, column)
+				}
+				sort.Strings(columns)
+
+				sql := `CREATE TABLE results (host_id TEXT, `
+				for i, column := range columns {
+					if i > 0 {
+						sql += ` TEXT, `
+					}
+					sql += column
+				}
+				sql += ` TEXT)`
+
+				_, err = db.Exec(sql)
+				if err != nil {
+					return err
+				}
+
+				// insert the results
+				sql = `INSERT INTO results (host_id, `
+				sql += strings.Join(columns, ", ")
+				sql += `) VALUES `
+
+				placeholders := `(` + strings.Repeat("?, ", len(columns)+1)
+				placeholders = placeholders[:len(placeholders)-2] + ")"
+
+				var args []interface{}
+				for i, result := range results {
+					for j, row := range result.Rows {
+						if i+j > 0 {
+							sql += `, `
+						}
+						sql += placeholders
+						args = append(args, result.Host.ID)
+						for _, column := range columns {
+							args = append(args, row[column])
+						}
+					}
+				}
+
+				_, err = db.Exec(sql, args...)
+				if err != nil {
+					return err
+				}
+
+				fmt.Println("--------")
+
+				// finally run the query on results
+				rows, err := db.Queryx(flResultsQuery)
+				if err != nil {
+					return err
+				}
+				defer rows.Close()
+
+				for rows.Next() {
+					results := make(map[string]interface{})
+					err := rows.MapScan(results)
+					if err != nil {
+						return err
+					}
+					resultsJSON, err := json.Marshal(results)
+					if err != nil {
+						return err
+					}
+					fmt.Println(string(resultsJSON))
+				}
+				if err := rows.Err(); err != nil {
+					return err
+				}
+			}
+
+			return nil
 		},
 	}
 }
