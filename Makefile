@@ -175,10 +175,6 @@ deps-js:
 
 deps-go:
 	go mod download
-ifeq ($(shell uname -s),Linux)
-	# Dependency required for Linux Fleet Desktop.
-	command -v apt-get && sudo apt-get install gcc libgtk-3-dev libayatana-appindicator3-dev -y || true
-endif
 
 migration:
 	go run github.com/fleetdm/goose/cmd/goose -dir server/datastore/mysql/migrations/tables create $(name)
@@ -330,13 +326,19 @@ FLEET_DESKTOP_VERSION ?= unknown
 desktop-windows:
 	GOOS=windows GOARCH=amd64 go build -ldflags "-H=windowsgui -X=main.version=$(FLEET_DESKTOP_VERSION)" -o fleet-desktop.exe ./orbit/cmd/desktop
 
+deps-desktop-linux:
+ifeq ($(shell uname -s),Linux)
+	# Dependency required for Linux Fleet Desktop.
+	command -v apt-get && sudo apt-get install gcc libgtk-3-dev libayatana-appindicator3-dev -y || true
+endif
+
 # Build desktop executable for Linux.
 #
 # Usage:
 # FLEET_DESKTOP_VERSION=0.0.1 make desktop-linux
 #
 # Output: desktop.tar.gz
-desktop-linux:
+desktop-linux: deps-desktop-linux
 	docker build -f Dockerfile-desktop-linux -t desktop-linux-builder .
 	docker run --rm -v $(shell pwd):/output desktop-linux-builder /bin/bash -c "\
 		mkdir /output/fleet-desktop && \
