@@ -6332,6 +6332,53 @@ Deletes the selected user's sessions in Fleet. Also deletes the user's API token
 
 `Status: 200`
 
+## Debug
+
+- [Get a summary of errors](#get-a-summary-of-errors)
+
+The Fleet server exposes a handful of API endpoints to retrieve debug information about the server itself in order to help troubleshooting. All the following endpoints require prior authentication meaning you must first log in successfully before calling any of the endpoints documented below.
+
+### Get a summary of errors
+
+Returns a set of all the errors that happened in the server during the interval of time defined by the [logging_error_retention_period](../Deploying/Configuration.md#logging-error-retention-period) configuration.
+
+The server only stores and returns a single instance of each error.
+
+`GET /debug/errors`
+
+#### Parameters
+
+| Name  | Type    | In    | Description                                                                       |
+| ----- | ------- | ----- | --------------------------------------------------------------------------------- |
+| flush | boolean | query | Whether or not clear the errors from Redis after reading them. Default is `false` |
+
+#### Example
+
+`GET /debug/errors?flush=true`
+
+##### Default response
+
+`Status: 200`
+
+```json
+[
+  {
+    "external": "example error",
+    "root": {
+      "message": "timestamp: 2022-05-06T11:40:32-03:00",
+      "stack": [
+        "http.initALPNRequest.ServeHTTP:/usr/local/Cellar/go/1.17.6/libexec/src/net/http/server.go:3480",
+        "http.serverHandler.ServeHTTP:/usr/local/Cellar/go/1.17.6/libexec/src/net/http/server.go:2879",
+        "service.(*authEndpointer).makeEndpoint.func1:/Users/robertodip/projects/fleet/server/service/endpoint_utils.go:439",
+        "...",
+        "service.listSoftwareEndpoint:/Users/robertodip/projects/fleet/server/service/software.go:30",
+        "ctxerr.New:/Users/robertodip/projects/fleet/server/contexts/ctxerr/ctxerr.go:67",
+        "ctxerr.ensureCommonMetadata:/Users/robertodip/projects/fleet/server/contexts/ctxerr/ctxerr.go:112"
+      ]
+    }
+  }
+]
+```
 
 ---
 <meta name="pageOrderInSection" value="400">

@@ -175,4 +175,35 @@ dlv debug --build-flags '-tags=full' ./cmd/fleet -- serve --dev
 
 It is important to pass the `-tags=full` build flag, otherwise the server will not have access to the asset files.
 
+### Attaching a debugger to a running server
+
+You can also run delve in headless mode, which allows you to attach your preferred debugger client and reuse the same session without having to restart the server:
+
+```
+dlv debug --build-flags '-tags=full' --headless \
+  --api-version=2 --accept-multiclient --continue \
+  --listen=127.0.0.1:61179 ./cmd/fleet -- serve --dev
+```
+
+- If you're using Visual Studio Code, there's a launch configuration in the repo.
+- If you're using vim with `vimspector`, you can use the following config:
+
+```
+{
+  "configurations": {
+    "Go: Attach to Fleet server": {
+      "adapter": "multi-session",
+      "variables": {
+        "port": 61179,
+        "host": "127.0.0.1"
+      },
+      "configuration": {
+        "request": "attach",
+        "mode": "remote"
+      }
+    }
+  }
+}
+```
+
 <meta name="pageOrderInSection" value="100">

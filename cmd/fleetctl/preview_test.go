@@ -7,13 +7,12 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/fleetdm/fleet/v4/pkg/nettest"
 	"github.com/stretchr/testify/require"
 )
 
 func TestPreview(t *testing.T) {
-	if os.Getenv("NETWORK_TEST") == "" {
-		t.Skip("set environment variable NETWORK_TEST=1 to run")
-	}
+	nettest.Run(t)
 
 	os.Setenv("FLEET_SERVER_ADDRESS", "https://localhost:8412")
 	testOverridePreviewDirectory = t.TempDir()
@@ -24,7 +23,7 @@ func TestPreview(t *testing.T) {
 		require.Equal(t, "", runAppForTest(t, []string{"preview", "--config", configPath, "stop"}))
 	})
 
-	output := runAppForTest(t, []string{"preview", "--config", configPath, "--tag", "main"})
+	output := runAppForTest(t, []string{"preview", "--config", configPath, "--tag", "main", "--disable-open-browser"})
 
 	queriesRe := regexp.MustCompile(`applied ([0-9]+) queries`)
 	policiesRe := regexp.MustCompile(`applied ([0-9]+) policies`)

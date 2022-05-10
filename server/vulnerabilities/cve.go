@@ -48,7 +48,12 @@ func SyncCVEData(vulnPath string, config config.FleetConfig) error {
 		LocalDir: vulnPath,
 	}
 
-	ctx, cancelFunc := context.WithTimeout(context.Background(), 5*time.Minute)
+	syncTimeout := 5 * time.Minute
+	if os.Getenv("NETWORK_TEST") != "" {
+		syncTimeout = 10 * time.Minute
+	}
+
+	ctx, cancelFunc := context.WithTimeout(context.Background(), syncTimeout)
 	defer cancelFunc()
 
 	return dfs.Do(ctx)
@@ -138,7 +143,6 @@ func checkCVEs(
 	recentVulns map[string][]string,
 	recentVulnMaxAge time.Duration,
 ) error {
-
 	dict, err := cvefeed.LoadJSONDictionary(file)
 	if err != nil {
 		return err
