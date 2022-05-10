@@ -346,11 +346,35 @@ func (svc *Service) GetHostSummary(ctx context.Context, teamID *uint, platform *
 	}
 	filter := fleet.TeamFilter{User: vc.User, IncludeObserver: true, TeamID: teamID}
 
-	summary, err := svc.ds.GenerateHostStatusStatistics(ctx, filter, svc.clock.Now(), platform)
+	hostSummary, err := svc.ds.GenerateHostStatusStatistics(ctx, filter, svc.clock.Now(), platform)
 	if err != nil {
 		return nil, err
 	}
-	return summary, nil
+
+	linuxCount := uint(0)
+	for _, p := range hostSummary.Platforms {
+		if fleet.IsLinux(p.Platform) {
+			linuxCount += p.HostsCount
+		}
+	}
+	hostSummary.AllLinuxCount = linuxCount
+
+	labelsSummary, err := svc.ds.LabelsSummary(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	// TODO: should query for "All linux" label be updated to use `platform` from `os_version` table
+	// so that the label tracks the way platforms are handled here in the host summary?
+	var builtinLabels []*fleet.LabelSummary
+	for _, l := range labelsSummary {
+		if l.LabelType == fleet.LabelTypeBuiltIn {
+			builtinLabels = append(builtinLabels, l)
+		}
+	}
+	hostSummary.BuiltinLabels = builtinLabels
+
+	return hostSummary, nil
 }
 
 ////////////////////////////////////////////////////////////////////////////////

@@ -1881,6 +1881,55 @@ Returns the count of all hosts organized by status. `online_count` includes all 
 {
   "team_id": 1,
   "totals_hosts_count": 2408,
+  "online_count": 2267,
+  "offline_count": 141,
+  "mia_count": 0,
+  "new_count": 0,
+  "all_linux_count": 1204,
+  "builtin_labels": [
+    {
+      "id": 6,
+      "name": "All Hosts",
+      "description": "All hosts which have enrolled in Fleet",
+      "label_type": "builtin"
+    },
+    {
+      "id": 7,
+      "name": "macOS",
+      "description": "All macOS hosts",
+      "label_type": "builtin"
+    },
+    {
+      "id": 8,
+      "name": "Ubuntu Linux",
+      "description": "All Ubuntu hosts",
+      "label_type": "builtin"
+    },
+    {
+      "id": 9,
+      "name": "CentOS Linux",
+      "description": "All CentOS hosts",
+      "label_type": "builtin"
+    },
+    {
+      "id": 10,
+      "name": "MS Windows",
+      "description": "All Windows hosts",
+      "label_type": "builtin"
+    },
+    {
+      "id": 11,
+      "name": "Red Hat Linux",
+      "description": "All Red Hat Enterprise Linux hosts",
+      "label_type": "builtin"
+    },
+    {
+      "id": 12,
+      "name": "All Linux",
+      "description": "All Linux distributions",
+      "label_type": "builtin"
+    }
+  ], 
   "platforms": [
     {
       "platform": "linux",
@@ -1891,10 +1940,6 @@ Returns the count of all hosts organized by status. `online_count` includes all 
       "hosts_count": 1204
     }
   ],
-  "online_count": 2267,
-  "offline_count": 141,
-  "mia_count": 0,
-  "new_count": 0
 }
 ```
 
