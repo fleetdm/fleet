@@ -54,6 +54,7 @@ func TestVersionParts(t *testing.T) {
 	}
 }
 
+// Based on https://github.com/knqyf263/go-rpm-version/blob/master/version_test.go
 func TestRpmvercmp(t *testing.T) {
 	const (
 		LESS    = -1
