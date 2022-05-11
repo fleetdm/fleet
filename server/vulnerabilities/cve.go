@@ -98,7 +98,7 @@ func TranslateCPEToCVE(
 		return nil, nil
 	}
 
-	cpeList, err := ds.AllCPEs(ctx, oval.SupportedPlatforms)
+	cpeList, err := ds.AllCPEs(ctx, oval.SupportedHostPlatforms)
 	if err != nil {
 		return nil, err
 	}
