@@ -11,15 +11,6 @@ func String(x string) *string {
 	return &x
 }
 
-// StringValueOrZero returns the string value.
-// Returns empty string if x is nil.
-func StringValueOrZero(x *string) string {
-	if x == nil {
-		return ""
-	}
-	return *x
-}
-
 // Int returns a pointer to the provided int.
 func Int(x int) *int {
 	return &x
@@ -33,6 +24,11 @@ func Uint(x uint) *uint {
 // Bool returns a pointer to the provided bool.
 func Bool(x bool) *bool {
 	return &x
+}
+
+func BoolPtr(x bool) **bool {
+	p := Bool(x)
+	return &p
 }
 
 // Time returns a pointer to the provided time.Time.

@@ -3,11 +3,12 @@ package fleet
 import "time"
 
 type CVE struct {
-	CVE              string   `json:"cve" db:"cve"`
-	DetailsLink      string   `json:"details_link" db:"-"`
-	CVSSScore        *float64 `json:"cvss_score" db:"cvss_score"`
-	EPSSProbability  *float64 `json:"epss_probability" db:"epss_probability"`
-	CISAKnownExploit *bool    `json:"cisa_known_exploit" db:"cisa_known_exploit"`
+	CVE         string `json:"cve" db:"cve"`
+	DetailsLink string `json:"details_link" db:"-"`
+	// These are double pointers so that we can omit them AND return nulls when needed.
+	CVSSScore        **float64 `json:"cvss_score,omitempty" db:"cvss_score"`
+	EPSSProbability  **float64 `json:"epss_probability,omitempty" db:"epss_probability"`
+	CISAKnownExploit **bool    `json:"cisa_known_exploit,omitempty" db:"cisa_known_exploit"`
 }
 
 // Software is a named and versioned piece of software installed on a device.

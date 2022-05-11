@@ -74,18 +74,21 @@ func (r listHostsResponse) error() error { return r.Err }
 
 func listHostsEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
 	req := request.(*listHostsRequest)
-	hosts, err := svc.ListHosts(ctx, req.Opts)
-	if err != nil {
-		return listHostsResponse{Err: err}, nil
-	}
 
 	var software *fleet.Software
 	if req.Opts.SoftwareIDFilter != nil {
+		var err error
 		software, err = svc.SoftwareByID(ctx, *req.Opts.SoftwareIDFilter)
 		if err != nil {
 			return listHostsResponse{Err: err}, nil
 		}
 	}
+
+	hosts, err := svc.ListHosts(ctx, req.Opts)
+	if err != nil {
+		return listHostsResponse{Err: err}, nil
+	}
+
 	hostResponses := make([]HostResponse, len(hosts))
 	for i, host := range hosts {
 		h, err := hostResponseForHost(ctx, svc, host)
@@ -110,14 +113,6 @@ func (svc *Service) ListHosts(ctx context.Context, opt fleet.HostListOptions) ([
 	filter := fleet.TeamFilter{User: vc.User, IncludeObserver: true}
 
 	return svc.ds.ListHosts(ctx, filter, opt)
-}
-
-func (svc *Service) SoftwareByID(ctx context.Context, id uint) (*fleet.Software, error) {
-	if err := svc.authz.Authorize(ctx, &fleet.Host{}, fleet.ActionList); err != nil {
-		return nil, err
-	}
-
-	return svc.ds.SoftwareByID(ctx, id)
 }
 
 /////////////////////////////////////////////////////////////////////////////////
@@ -293,7 +288,23 @@ func (svc *Service) GetHost(ctx context.Context, id uint) (*fleet.HostDetail, er
 		}
 	}
 
-	return svc.getHostDetails(ctx, host)
+	hostDetails, err := svc.getHostDetails(ctx, host)
+	if err != nil {
+		return nil, err
+	}
+
+	// don't return cve scores for free tier
+	for i := range hostDetails.Software {
+		software := &host.Software[i]
+		for j := range software.Vulnerabilities {
+			vulnerability := &software.Vulnerabilities[j]
+			vulnerability.CVSSScore = nil
+			vulnerability.EPSSProbability = nil
+			vulnerability.CISAKnownExploit = nil
+		}
+	}
+
+	return hostDetails, nil
 }
 
 func (svc *Service) checkWriteForHostIDs(ctx context.Context, ids []uint) error {
@@ -421,7 +432,23 @@ func (svc *Service) HostByIdentifier(ctx context.Context, identifier string) (*f
 		return nil, err
 	}
 
-	return svc.getHostDetails(ctx, host)
+	hostDetails, err := svc.getHostDetails(ctx, host)
+	if err != nil {
+		return nil, err
+	}
+
+	// don't return cve scores for free tier
+	for i := range hostDetails.Software {
+		software := &host.Software[i]
+		for j := range software.Vulnerabilities {
+			vulnerability := &software.Vulnerabilities[j]
+			vulnerability.CVSSScore = nil
+			vulnerability.EPSSProbability = nil
+			vulnerability.CISAKnownExploit = nil
+		}
+	}
+
+	return hostDetails, nil
 }
 
 ////////////////////////////////////////////////////////////////////////////////

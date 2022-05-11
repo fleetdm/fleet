@@ -361,6 +361,8 @@ func listSoftwareDB(
 	var softwares []fleet.Software
 	ids := make(map[uint]int) // map of ids to index into softwares
 	for _, result := range results {
+		result := result // create a copy because we need to take the address to fields below
+
 		idx, ok := ids[result.ID]
 		if !ok {
 			idx = len(softwares)
@@ -374,9 +376,9 @@ func listSoftwareDB(
 			cve := fleet.CVE{
 				CVE:              cveID,
 				DetailsLink:      fmt.Sprintf("https://nvd.nist.gov/vuln/detail/%s", cveID),
-				CVSSScore:        result.CVSSScore,
-				EPSSProbability:  result.EPSSProbability,
-				CISAKnownExploit: result.CISAKnownExploit,
+				CVSSScore:        &result.CVSSScore,
+				EPSSProbability:  &result.EPSSProbability,
+				CISAKnownExploit: &result.CISAKnownExploit,
 			}
 			softwares[idx].Vulnerabilities = append(softwares[idx].Vulnerabilities, cve)
 		}
@@ -795,9 +797,9 @@ WHERE
 			software.Vulnerabilities = append(software.Vulnerabilities, fleet.CVE{
 				CVE:              cveID,
 				DetailsLink:      fmt.Sprintf("https://nvd.nist.gov/vuln/detail/%s", cveID),
-				CVSSScore:        result.CVSSScore,
-				EPSSProbability:  result.EPSSProbability,
-				CISAKnownExploit: result.CISAKnownExploit,
+				CVSSScore:        &result.CVSSScore,
+				EPSSProbability:  &result.EPSSProbability,
+				CISAKnownExploit: &result.CISAKnownExploit,
 			})
 		}
 	}

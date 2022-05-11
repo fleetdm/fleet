@@ -30,6 +30,7 @@ func listSoftwareEndpoint(ctx context.Context, request interface{}, svc fleet.Se
 		return listSoftwareResponse{Err: err}, nil
 	}
 
+	// calculate the latest counts_updated_at
 	var latest time.Time
 	for _, sw := range resp {
 		if !sw.CountsUpdatedAt.IsZero() && sw.CountsUpdatedAt.After(latest) {
@@ -40,6 +41,7 @@ func listSoftwareEndpoint(ctx context.Context, request interface{}, svc fleet.Se
 	if !latest.IsZero() {
 		listResp.CountsUpdatedAt = &latest
 	}
+
 	return listResp, nil
 }
 
@@ -56,7 +58,24 @@ func (svc Service) ListSoftware(ctx context.Context, opt fleet.SoftwareListOptio
 		opt.OrderDirection = fleet.OrderDescending
 	}
 	opt.WithHostCounts = true
-	return svc.ds.ListSoftware(ctx, opt)
+
+	softwares, err := svc.ds.ListSoftware(ctx, opt)
+	if err != nil {
+		return nil, err
+	}
+
+	// don't return cve scores for free tier
+	for i := range softwares {
+		software := &softwares[i]
+		for j := range software.Vulnerabilities {
+			vulnerability := &software.Vulnerabilities[j]
+			vulnerability.CVSSScore = nil
+			vulnerability.EPSSProbability = nil
+			vulnerability.CISAKnownExploit = nil
+		}
+	}
+
+	return softwares, nil
 }
 
 /////////////////////////////////////////////////////////////////////////////////
@@ -83,6 +102,27 @@ func getSoftwareEndpoint(ctx context.Context, request interface{}, svc fleet.Ser
 	}
 
 	return getSoftwareResponse{Software: software}, nil
+}
+
+func (svc *Service) SoftwareByID(ctx context.Context, id uint) (*fleet.Software, error) {
+	if err := svc.authz.Authorize(ctx, &fleet.Host{}, fleet.ActionList); err != nil {
+		return nil, err
+	}
+
+	software, err := svc.ds.SoftwareByID(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+
+	// don't return cve scores for free tier
+	for i := range software.Vulnerabilities {
+		vulnerability := &software.Vulnerabilities[i]
+		vulnerability.CVSSScore = nil
+		vulnerability.EPSSProbability = nil
+		vulnerability.CISAKnownExploit = nil
+	}
+
+	return software, nil
 }
 
 /////////////////////////////////////////////////////////////////////////////////
