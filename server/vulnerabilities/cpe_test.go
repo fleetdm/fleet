@@ -74,7 +74,7 @@ func TestSyncCPEDatabase(t *testing.T) {
 	}
 
 	// first time, db doesn't exist, so it downloads
-	err = SyncCPEDatabase(client, dbPath)
+	err = DownloadCPEDatabase(client, dbPath)
 	require.NoError(t, err)
 
 	db, err := sqliteDB(dbPath)
@@ -106,7 +106,7 @@ func TestSyncCPEDatabase(t *testing.T) {
 	require.NoError(t, err)
 
 	// then it will download
-	err = SyncCPEDatabase(client, dbPath)
+	err = DownloadCPEDatabase(client, dbPath)
 	require.NoError(t, err)
 
 	// let's register the mtime for the db
@@ -127,7 +127,7 @@ func TestSyncCPEDatabase(t *testing.T) {
 	time.Sleep(2 * time.Second)
 
 	// let's check it doesn't download because it's new enough
-	err = SyncCPEDatabase(client, dbPath)
+	err = DownloadCPEDatabase(client, dbPath)
 	require.NoError(t, err)
 	stat, err = os.Stat(dbPath)
 	require.NoError(t, err)
@@ -221,7 +221,7 @@ func TestSyncsCPEFromURL(t *testing.T) {
 	tempDir := t.TempDir()
 	dbPath := path.Join(tempDir, "cpe.sqlite")
 
-	err := SyncCPEDatabase(
+	err := DownloadCPEDatabase(
 		client, dbPath, WithCPEURL(ts.URL+"/hello-world.gz"))
 	require.NoError(t, err)
 

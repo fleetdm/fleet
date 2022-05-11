@@ -14,7 +14,6 @@ import (
 	"fmt"
 	"io/fs"
 	"io/ioutil"
-	"net/http"
 	"net/url"
 	"os"
 	"path"
@@ -199,7 +198,7 @@ func crawl(root string, localDir string, verbose bool) error {
 		return err
 	}
 
-	var repoMDs []url.URL
+	var repoMDs []*url.URL
 	c.OnHTML("#indexlist .indexcolname a[href]", func(e *colly.HTMLElement) {
 		href := e.Attr("href")
 		// Skip going to parent directory.
@@ -216,7 +215,8 @@ func crawl(root string, localDir string, verbose bool) error {
 			return
 		}
 		if href == "repomd.xml" {
-			u := *e.Request.URL
+			clone := *e.Request.URL
+			u := &clone
 			u.Path = path.Join(u.Path, href)
 			repoMDs = append(repoMDs, u)
 			if verbose {
@@ -294,8 +294,10 @@ func parse(localDir string) (CentOSPkgSet, error) {
 	return allPkgs, nil
 }
 
-func processRepoMD(mdURL url.URL, localDir string, verbose bool) error {
-	resp, err := http.Get(mdURL.String())
+func processRepoMD(mdURL *url.URL, localDir string, verbose bool) error {
+	client := fleethttp.NewClient()
+
+	resp, err := client.Get(mdURL.String())
 	if err != nil {
 		return err
 	}
@@ -324,7 +326,8 @@ func processRepoMD(mdURL url.URL, localDir string, verbose bool) error {
 		if data.Type != "primary_db" && data.Type != "other_db" {
 			continue
 		}
-		sqliteURL := mdURL
+		clone := *mdURL
+		sqliteURL := &clone
 		sqliteURL.Path = strings.TrimSuffix(sqliteURL.Path, "repomd.xml") + strings.TrimPrefix(data.Location.Href, "repodata/")
 		if verbose {
 			fmt.Printf("%s\n", sqliteURL.Path)
@@ -335,7 +338,7 @@ func processRepoMD(mdURL url.URL, localDir string, verbose bool) error {
 		case err == nil:
 			// File already exists, nothing to do.
 		case errors.Is(err, os.ErrNotExist):
-			if err := download.Decompressed(fleethttp.NewClient(), sqliteURL, filePath); err != nil {
+			if err := download.Download(client, sqliteURL, filePath); err != nil {
 				return err
 			}
 		default:
@@ -345,7 +348,7 @@ func processRepoMD(mdURL url.URL, localDir string, verbose bool) error {
 	return nil
 }
 
-func filePathfromURL(dir string, url url.URL) string {
+func filePathfromURL(dir string, url *url.URL) string {
 	filePath := filepath.Join(dir, url.Path)
 	filePath = strings.TrimSuffix(filePath, ".bz2")
 	filePath = strings.TrimSuffix(filePath, ".xz")

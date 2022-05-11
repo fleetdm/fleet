@@ -290,7 +290,14 @@ func cronVulnerabilities(
 func checkVulnerabilities(ctx context.Context, ds fleet.Datastore, logger kitlog.Logger,
 	vulnPath string, config config.FleetConfig, collectRecentVulns bool,
 ) map[string][]string {
-	err := vulnerabilities.TranslateSoftwareToCPE(ctx, ds, vulnPath, logger, config)
+	err := vulnerabilities.Sync(vulnPath, config, ds)
+	if err != nil {
+		level.Error(logger).Log("msg", "syncing vulnerability database", "err", err)
+		sentry.CaptureException(err)
+		// continue if sync failed
+	}
+
+	err = vulnerabilities.TranslateSoftwareToCPE(ctx, ds, vulnPath, logger, config)
 	if err != nil {
 		level.Error(logger).Log("msg", "analyzing vulnerable software: Software->CPE", "err", err)
 		sentry.CaptureException(err)

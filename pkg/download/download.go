@@ -16,10 +16,9 @@ import (
 	"github.com/ulikunitz/xz"
 )
 
-// Decompressed downloads and decompresses a file from a URL to a local path.
-//
-// It supports gz, bz2 and xz compressed files.
-func Decompressed(client *http.Client, u url.URL, path string) error {
+// Download downloads a file from a URL and writes it to path. If the url ends in .gz, .bz2, or .xz,
+// it will be decompressed before writing.
+func Download(client *http.Client, u *url.URL, path string) error {
 
 	// atomically write to file
 	dir, file := filepath.Split(path)
@@ -60,25 +59,29 @@ func Decompressed(client *http.Client, u url.URL, path string) error {
 	}
 	defer resp.Body.Close()
 
-	var decompressor io.Reader
+	r := io.Reader(resp.Body)
+
+	// decompress (optional)
 	switch {
 	case strings.HasSuffix(u.Path, "gz"):
-		decompressor, err = gzip.NewReader(resp.Body)
+		gr, err := gzip.NewReader(resp.Body)
 		if err != nil {
 			return err
 		}
+		r = gr
 	case strings.HasSuffix(u.Path, "bz2"):
-		decompressor = bzip2.NewReader(resp.Body)
+		r = bzip2.NewReader(resp.Body)
 	case strings.HasSuffix(u.Path, "xz"):
-		decompressor, err = xz.NewReader(resp.Body)
+		xzr, err := xz.NewReader(resp.Body)
 		if err != nil {
 			return err
 		}
+		r = xzr
 	default:
-		return fmt.Errorf("unknown extension: %s", u.Path)
+		// don't decompress
 	}
 
-	if _, err := io.Copy(tmpFile, decompressor); err != nil {
+	if _, err := io.Copy(tmpFile, r); err != nil {
 		return err
 	}
 

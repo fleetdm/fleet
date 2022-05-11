@@ -8,12 +8,12 @@ import (
 	"net/url"
 	"os"
 	"path"
+	"path/filepath"
 	"regexp"
 	"strings"
 	"time"
 
 	"github.com/fleetdm/fleet/v4/pkg/download"
-	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -81,21 +81,25 @@ func WithCPEURL(url string) CPESyncOption {
 	}
 }
 
-// SyncCPEDatabase (by default) downloads the CPE database from the
+const cpeDatabaseFilename = "cpe.sqlite"
+
+// DownloadCPEDatabase downloads the CPE database from the
 // latest release of github.com/fleetdm/nvd to the given dbPath.
 // An alternative URL can be set via the WithCPEURL option.
 //
-// It won't sync the database at dbPath has an mtime that happened after the
-// available database release date.
-func SyncCPEDatabase(
+// It won't download the database if the database has already been downloaded and
+// has an mtime after the release date.
+func DownloadCPEDatabase(
+	vulnPath string,
 	client *http.Client,
-	dbPath string,
 	opts ...CPESyncOption,
 ) error {
 	var o syncOpts
 	for _, fn := range opts {
 		fn(&o)
 	}
+
+	dbPath := filepath.Join(vulnPath, cpeDatabaseFilename)
 
 	if o.url == "" {
 		nvdRelease, err := GetLatestNVDRelease(client)
@@ -117,7 +121,7 @@ func SyncCPEDatabase(
 	if err != nil {
 		return err
 	}
-	if err := download.Decompressed(client, *u, dbPath); err != nil {
+	if err := download.Download(client, u, dbPath); err != nil {
 		return err
 	}
 
@@ -222,14 +226,7 @@ func TranslateSoftwareToCPE(
 	logger kitlog.Logger,
 	config config.FleetConfig,
 ) error {
-	dbPath := path.Join(vulnPath, "cpe.sqlite")
-
-	if !config.Vulnerabilities.DisableDataSync {
-		client := fleethttp.NewClient()
-		if err := SyncCPEDatabase(client, dbPath, WithCPEURL(config.Vulnerabilities.CPEDatabaseURL)); err != nil {
-			return ctxerr.Wrap(ctx, err, "sync cpe db")
-		}
-	}
+	dbPath := path.Join(vulnPath, cpeDatabaseFilename)
 
 	iterator, err := ds.AllSoftwareWithoutCPEIterator(ctx)
 	if err != nil {

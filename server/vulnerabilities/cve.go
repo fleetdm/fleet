@@ -24,16 +24,12 @@ import (
 	"github.com/go-kit/kit/log/level"
 )
 
-func SyncCVEData(vulnPath string, config config.FleetConfig) error {
-	if config.Vulnerabilities.DisableDataSync {
-		return nil
-	}
-
+func DownloadNVDCVEFeed(vulnPath string, cveFeedPrefixURL string) error {
 	cve := nvd.SupportedCVE["cve-1.1.json.gz"]
 
 	source := nvd.NewSourceConfig()
-	if config.Vulnerabilities.CVEFeedPrefixURL != "" {
-		parsed, err := url.Parse(config.Vulnerabilities.CVEFeedPrefixURL)
+	if cveFeedPrefixURL != "" {
+		parsed, err := url.Parse(cveFeedPrefixURL)
 		if err != nil {
 			return fmt.Errorf("parsing cve feed url prefix override: %w", err)
 		}
@@ -56,7 +52,11 @@ func SyncCVEData(vulnPath string, config config.FleetConfig) error {
 	ctx, cancelFunc := context.WithTimeout(context.Background(), syncTimeout)
 	defer cancelFunc()
 
-	return dfs.Do(ctx)
+	if err := dfs.Do(ctx); err != nil {
+		return fmt.Errorf("download nvd cve feed: %w", err)
+	}
+
+	return nil
 }
 
 const publishedDateFmt = "2006-01-02T15:04Z" // not quite RFC3339
@@ -68,6 +68,26 @@ var (
 	// to the time functions, e.g. theClock.Now() == time.Now().
 	theClock clock.Clock = clock.C
 )
+
+func getNVDCVEFeedFiles(vulnPath string) ([]string, error) {
+	var files []string
+	err := filepath.Walk(vulnPath, func(path string, info os.FileInfo, err error) error {
+		if info.IsDir() {
+			return nil
+		}
+
+		if match := rxNVDCVEArchive.MatchString(path); !match {
+			return nil
+		}
+		files = append(files, path)
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	return files, nil
+}
 
 // TranslateCPEToCVE maps the CVEs found in NVD archive files in the
 // vulnerabilities database folder to software CPEs in the fleet database.
@@ -81,23 +101,10 @@ func TranslateCPEToCVE(
 	config config.FleetConfig,
 	collectRecentVulns bool,
 ) (map[string][]string, error) {
-	err := SyncCVEData(vulnPath, config)
+	files, err := getNVDCVEFeedFiles(vulnPath)
 	if err != nil {
 		return nil, err
 	}
-
-	var files []string
-	err = filepath.Walk(vulnPath, func(path string, info os.FileInfo, err error) error {
-		if match := rxNVDCVEArchive.MatchString(path); !match {
-			return nil
-		}
-		files = append(files, path)
-		return nil
-	})
-	if err != nil {
-		return nil, err
-	}
-
 	if len(files) == 0 {
 		return nil, nil
 	}
