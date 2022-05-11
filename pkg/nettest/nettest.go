@@ -62,7 +62,8 @@ func Retryable(err error) bool {
 	}
 	// Using the exact same error check used in:
 	// https://github.com/golang/go/blob/a5d61be040ed20b5774bff1b6b578c6d393ab332/src/net/http/serve_test.go#L1417
-	if errStr := err.Error(); strings.Contains(errStr, "timeout") && strings.Contains(errStr, "TLS handshake") {
+	if errStr := err.Error(); (strings.Contains(errStr, "timeout") && strings.Contains(errStr, "TLS handshake")) ||
+		strings.Contains(errStr, "unexpected EOF") {
 		return true
 	}
 	return false

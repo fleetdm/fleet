@@ -61,6 +61,18 @@ func (d *threadSafeDSMock) InsertCVEForCPE(ctx context.Context, cve string, cpes
 	return d.Store.InsertCVEForCPE(ctx, cve, cpes)
 }
 
+func withNetRetry(t *testing.T, fn func() error) error {
+	for {
+		err := fn()
+		if err != nil && nettest.Retryable(err) {
+			time.Sleep(5 * time.Second)
+			t.Logf("%s: retrying error: %s", t.Name(), err)
+			continue
+		}
+		return err
+	}
+}
+
 func TestTranslateCPEToCVE(t *testing.T) {
 	nettest.Run(t)
 
@@ -71,7 +83,9 @@ func TestTranslateCPEToCVE(t *testing.T) {
 
 	// download the CVEs once for all sub-tests, and then disable syncing
 	cfg := config.FleetConfig{}
-	err := SyncCVEData(tempDir, cfg)
+	err := withNetRetry(t, func() error {
+		return SyncCVEData(tempDir, cfg)
+	})
 	require.NoError(t, err)
 	cfg.Vulnerabilities.DisableDataSync = true
 	cfg.Vulnerabilities.RecentVulnerabilityMaxAge = 365 * 24 * time.Hour
@@ -93,14 +107,8 @@ func TestTranslateCPEToCVE(t *testing.T) {
 				return 0, nil
 			}
 
-			for {
-				_, err := TranslateCPEToCVE(ctx, ds, tempDir, kitlog.NewLogfmtLogger(os.Stdout), cfg, false)
-				if err != nil && nettest.Retryable(err) {
-					continue
-				}
-				require.NoError(t, err)
-				break
-			}
+			_, err := TranslateCPEToCVE(ctx, ds, tempDir, kitlog.NewLogfmtLogger(os.Stdout), cfg, false)
+			require.NoError(t, err)
 
 			printMemUsage()
 
