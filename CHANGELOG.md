@@ -1,7 +1,7 @@
 ## Fleet 4.14.0 (May 9, 2022)
 
-* Add beta support for Jira and Zendesk integrations. This allows users to configure Fleet to
-  automatically create a Jira issue  or Zendesk ticket when a new vulnerability (CVE) is detected on
+* Add beta support for Jira integration. This allows users to configure Fleet to
+  automatically create a Jira issue when a new vulnerability (CVE) is detected on
   your hosts.
 
 * Add a "Show query" button on the live query results page. This allows users to double-check the
