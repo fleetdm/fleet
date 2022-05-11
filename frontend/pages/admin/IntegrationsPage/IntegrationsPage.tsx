@@ -36,9 +36,9 @@ const noIntegrationsClass = "no-integrations";
 const VALIDATION_FAILED_ERROR =
   "There was a problem with the information you provided.";
 const BAD_REQUEST_ERROR =
-  "Invalid login credentials or Jira URL. Please correct and try again.";
+  "Invalid login credentials or URL. Please correct and try again.";
 const UNKNOWN_ERROR =
-  "We experienced an error when attempting to connect to Jira. Please try again later.";
+  "We experienced an error when attempting to connect. Please try again later.";
 
 const IntegrationsPage = (): JSX.Element => {
   const { renderFlash } = useContext(NotificationContext);
