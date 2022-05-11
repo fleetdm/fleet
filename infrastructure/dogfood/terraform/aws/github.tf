@@ -57,17 +57,6 @@ data "aws_iam_policy_document" "gha_assume_role" {
 data "aws_iam_policy_document" "gha-permissions" {
   statement {
     effect = "Allow"
-    actions = ["ecr:*"]
-    resources = [data.aws_ecr_repository.test-repo.arn]
-  }
-  statement {
-    effect = "Allow"
-    actions = ["ecr:GetAuthorizationToken"]
-    resources = ["*"]
-  }
-
-  statement {
-    effect = "Allow"
     actions = [
       "ec2:*",
       "cloudwatch:*",
@@ -100,12 +89,4 @@ data "aws_iam_policy_document" "gha-permissions" {
     ]
     resources = ["*"]
   }
-}
-
-data "aws_ecr_repository" "test-repo" {
-  name = "fleet-test"
-}
-
-output "gha-iam-role" {
-  value = aws_iam_role.gha_role.arn
 }
