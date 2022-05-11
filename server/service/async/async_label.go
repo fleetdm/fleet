@@ -230,7 +230,7 @@ func (t *Task) collectLabelQueryExecutions(ctx context.Context, ds fleet.Datasto
 }
 
 func (t *Task) GetHostLabelReportedAt(ctx context.Context, host *fleet.Host) time.Time {
-	cfg := t.taskConfigs[config.AsyncTaskHostLastSeen]
+	cfg := t.taskConfigs[config.AsyncTaskLabelMembership]
 
 	if cfg.Enabled {
 		conn := redis.ConfigureDoer(t.pool, t.pool.Get())

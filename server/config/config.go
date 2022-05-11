@@ -131,6 +131,7 @@ type OsqueryConfig struct {
 	MinSoftwareLastOpenedAtDiff      time.Duration `yaml:"min_software_last_opened_at_diff"`
 }
 
+// List of names for supported async tasks.
 const (
 	AsyncTaskLabelMembership  = "label_membership"
 	AsyncTaskPolicyMembership = "policy_membership"
@@ -160,6 +161,7 @@ func (o OsqueryConfig) AsyncConfigForTask(name string) AsyncProcessingConfig {
 	}
 }
 
+// AsyncProcessingConfig is the configuration for a specific async task.
 type AsyncProcessingConfig struct {
 	Enabled                 bool
 	CollectInterval         time.Duration
