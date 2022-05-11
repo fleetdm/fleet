@@ -48,6 +48,12 @@ func TestConfigRoundtrip(t *testing.T) {
 					// we have to explicitly set value for this key as it will only
 					// accept intermediate or modern
 					key_v.SetString(TLSProfileModern)
+				case "EnableAsyncHostProcessing":
+					// supports a bool or per-task config
+					key_v.SetString("true")
+				case "AsyncHostCollectInterval", "AsyncHostCollectLockTimeout":
+					// supports a duration or per-task config
+					key_v.SetString("30s")
 				default:
 					key_v.SetString(v.Elem().Type().Field(conf_index).Name + "_" + conf_v.Type().Field(key_index).Name)
 				}

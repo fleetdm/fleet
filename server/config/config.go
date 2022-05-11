@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"io/ioutil"
+	"net/url"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -118,9 +119,9 @@ type OsqueryConfig struct {
 	EnableLogRotation                bool          `yaml:"enable_log_rotation"`
 	MaxJitterPercent                 int           `yaml:"max_jitter_percent"`
 	EnableAsyncHostProcessing        string        `yaml:"enable_async_host_processing"` // true/false or per-task
-	AsyncHostCollectInterval         time.Duration `yaml:"async_host_collect_interval"`  // duration or per-task
+	AsyncHostCollectInterval         string        `yaml:"async_host_collect_interval"`  // duration or per-task
 	AsyncHostCollectMaxJitterPercent int           `yaml:"async_host_collect_max_jitter_percent"`
-	AsyncHostCollectLockTimeout      time.Duration `yaml:"async_host_collect_lock_timeout"` // duration or per-task
+	AsyncHostCollectLockTimeout      string        `yaml:"async_host_collect_lock_timeout"` // duration or per-task
 	AsyncHostCollectLogStatsInterval time.Duration `yaml:"async_host_collect_log_stats_interval"`
 	AsyncHostInsertBatch             int           `yaml:"async_host_insert_batch"`
 	AsyncHostDeleteBatch             int           `yaml:"async_host_delete_batch"`
@@ -130,23 +131,26 @@ type OsqueryConfig struct {
 	MinSoftwareLastOpenedAtDiff      time.Duration `yaml:"min_software_last_opened_at_diff"`
 }
 
+const (
+	AsyncTaskLabelMembership  = "label_membership"
+	AsyncTaskPolicyMembership = "policy_membership"
+	AsyncTaskHostLastSeen     = "host_last_seen"
+)
+
 var knownAsyncTasks = map[string]struct{}{
-	"label_membership":  {},
-	"policy_membership": {},
-	"host_last_seen":    {},
+	AsyncTaskLabelMembership:  {},
+	AsyncTaskPolicyMembership: {},
+	AsyncTaskHostLastSeen:     {},
 }
 
 // AsyncConfigForTask returns the applicable configuration for the specified
 // async task.
 func (o OsqueryConfig) AsyncConfigForTask(name string) AsyncProcessingConfig {
-	if _, ok := knownAsyncTasks[name]; !ok {
-		return AsyncProcessingConfig{}
-	}
 	return AsyncProcessingConfig{
-		Enabled:                 configForKeyOrBool(name, o.EnableAsyncHostProcessing, false),
-		CollectInterval:         configForKeyOrDuration(name, o.AsyncHostCollectInterval),
+		Enabled:                 configForKeyOrBool("osquery.enable_async_host_processing", name, o.EnableAsyncHostProcessing, false),
+		CollectInterval:         configForKeyOrDuration("osquery.async_host_collect_interval", name, o.AsyncHostCollectInterval, 0),
 		CollectMaxJitterPercent: o.AsyncHostCollectMaxJitterPercent,
-		CollectLockTimeout:      configForKeyOrDuration(name, o.AsyncHostCollectLockTimeout),
+		CollectLockTimeout:      configForKeyOrDuration("osquery.async_host_collect_lock_timeout", name, o.AsyncHostCollectLockTimeout, 0),
 		CollectLogStatsInterval: o.AsyncHostCollectLogStatsInterval,
 		InsertBatch:             o.AsyncHostInsertBatch,
 		DeleteBatch:             o.AsyncHostDeleteBatch,
@@ -487,13 +491,13 @@ func (man Manager) addConfigs() {
 	man.addConfigInt("osquery.max_jitter_percent", 10,
 		"Maximum percentage of the interval to add as jitter")
 	man.addConfigString("osquery.enable_async_host_processing", "false",
-		"Enable asynchronous processing of host-reported query results (either 'true'/'false' or set per task, e.g. 'label_membership=true;policy_membership=true')")
-	man.addConfigDuration("osquery.async_host_collect_interval", 30*time.Second,
-		"Interval to collect asynchronous host-reported query results (i.e. 30s)")
+		"Enable asynchronous processing of host-reported query results (either 'true'/'false' or set per task, e.g. 'label_membership=true&policy_membership=true')")
+	man.addConfigString("osquery.async_host_collect_interval", (30 * time.Second).String(),
+		"Interval to collect asynchronous host-reported query results (i.e. 30s or set per task, e.g. 'label_membership=10s&policy_membership=1m')")
 	man.addConfigInt("osquery.async_host_collect_max_jitter_percent", 10,
 		"Maximum percentage of the interval to collect asynchronous host results")
-	man.addConfigDuration("osquery.async_host_collect_lock_timeout", 1*time.Minute,
-		"Timeout of the exclusive lock held during async host collection")
+	man.addConfigString("osquery.async_host_collect_lock_timeout", (1 * time.Minute).String(),
+		"Timeout of the exclusive lock held during async host collection (i.e. 30s or set per task, e.g. 'label_membership=10s&policy_membership=1m'")
 	man.addConfigDuration("osquery.async_host_collect_log_stats_interval", 1*time.Minute,
 		"Interval at which async host collection statistics are logged (0 disables logging of stats)")
 	man.addConfigInt("osquery.async_host_insert_batch", 2000,
@@ -716,9 +720,9 @@ func (man Manager) LoadConfig() FleetConfig {
 			EnableLogRotation:                man.getConfigBool("osquery.enable_log_rotation"),
 			MaxJitterPercent:                 man.getConfigInt("osquery.max_jitter_percent"),
 			EnableAsyncHostProcessing:        man.getConfigString("osquery.enable_async_host_processing"),
-			AsyncHostCollectInterval:         man.getConfigDuration("osquery.async_host_collect_interval"),
+			AsyncHostCollectInterval:         man.getConfigString("osquery.async_host_collect_interval"),
 			AsyncHostCollectMaxJitterPercent: man.getConfigInt("osquery.async_host_collect_max_jitter_percent"),
-			AsyncHostCollectLockTimeout:      man.getConfigDuration("osquery.async_host_collect_lock_timeout"),
+			AsyncHostCollectLockTimeout:      man.getConfigString("osquery.async_host_collect_lock_timeout"),
 			AsyncHostCollectLogStatsInterval: man.getConfigDuration("osquery.async_host_collect_log_stats_interval"),
 			AsyncHostInsertBatch:             man.getConfigInt("osquery.async_host_insert_batch"),
 			AsyncHostDeleteBatch:             man.getConfigInt("osquery.async_host_delete_batch"),
@@ -819,6 +823,12 @@ func (man Manager) LoadConfig() FleetConfig {
 			},
 		},
 	}
+
+	// ensure immediately that the async config is valid for all known tasks
+	for task := range knownAsyncTasks {
+		cfg.Osquery.AsyncConfigForTask(task)
+	}
+
 	return cfg
 }
 
@@ -992,13 +1002,20 @@ func (man Manager) getConfigDuration(key string) time.Duration {
 	return durationVal
 }
 
-// panics if the config is invalid, this is handled by Viper (this is how
-// all getConfigT helpers indicate errors).
-func configForKeyOrBool(key, val string, def bool) bool {
+// panics if the config is invalid, this is handled by Viper (this is how all
+// getConfigT helpers indicate errors). The default value is only applied if
+// there is no task-specific config (i.e. no "task=true" config format for that
+// task). If the configuration key was not set at all, it automatically
+// inherited the general default configured for that key (via
+// man.addConfigBool).
+func configForKeyOrBool(key, task, val string, def bool) bool {
 	parseVal := func(v string) bool {
+		if v == "" {
+			return false
+		}
+
 		b, err := strconv.ParseBool(v)
 		if err != nil {
-			// TODO: this hsould be the config key name, not the task
 			panic("Unable to cast to bool for key " + key + ": " + err.Error())
 		}
 		return b
@@ -1009,21 +1026,48 @@ func configForKeyOrBool(key, val string, def bool) bool {
 		return parseVal(val)
 	}
 
-	parts := strings.Split(val, ";")
-	for _, part := range parts {
-		if kv := strings.SplitN(part, "=", 2); len(kv) == 2 {
-			k, v := strings.ToLower(strings.TrimSpace(kv[0])), strings.TrimSpace(kv[1])
-			if k == key {
-				return parseVal(v)
-			}
-		}
+	q, err := url.ParseQuery(val)
+	if err != nil {
+		panic("Invalid query format for key " + key + ": " + err.Error())
+	}
+	if v := q.Get(task); v != "" {
+		return parseVal(val)
 	}
 	return def
 }
 
-// panics if the config is invalid, this is handled by Viper (this is how
-// all getConfigT helpers indicate errors).
-func configForKeyOrDuration(key, val string) time.Duration {
+// panics if the config is invalid, this is handled by Viper (this is how all
+// getConfigT helpers indicate errors). The default value is only applied if
+// there is no task-specific config (i.e. no "task=10s" config format for that
+// task). If the configuration key was not set at all, it automatically
+// inherited the general default configured for that key (via
+// man.addConfigDuration).
+func configForKeyOrDuration(key, task, val string, def time.Duration) time.Duration {
+	parseVal := func(v string) time.Duration {
+		if v == "" {
+			return 0
+		}
+
+		d, err := time.ParseDuration(v)
+		if err != nil {
+			panic("Unable to cast to time.Duration for key " + key + ": " + err.Error())
+		}
+		return d
+	}
+
+	if !strings.Contains(val, "=") {
+		// simple case, val is a duration
+		return parseVal(val)
+	}
+
+	q, err := url.ParseQuery(val)
+	if err != nil {
+		panic("Invalid query format for key " + key + ": " + err.Error())
+	}
+	if v := q.Get(task); v != "" {
+		return parseVal(val)
+	}
+	return def
 }
 
 // loadConfigFile handles the loading of the config file.
