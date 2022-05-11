@@ -148,9 +148,9 @@ var knownAsyncTasks = map[string]struct{}{
 func (o OsqueryConfig) AsyncConfigForTask(name string) AsyncProcessingConfig {
 	return AsyncProcessingConfig{
 		Enabled:                 configForKeyOrBool("osquery.enable_async_host_processing", name, o.EnableAsyncHostProcessing, false),
-		CollectInterval:         configForKeyOrDuration("osquery.async_host_collect_interval", name, o.AsyncHostCollectInterval, 0),
+		CollectInterval:         configForKeyOrDuration("osquery.async_host_collect_interval", name, o.AsyncHostCollectInterval, 30*time.Second),
 		CollectMaxJitterPercent: o.AsyncHostCollectMaxJitterPercent,
-		CollectLockTimeout:      configForKeyOrDuration("osquery.async_host_collect_lock_timeout", name, o.AsyncHostCollectLockTimeout, 0),
+		CollectLockTimeout:      configForKeyOrDuration("osquery.async_host_collect_lock_timeout", name, o.AsyncHostCollectLockTimeout, 1*time.Minute),
 		CollectLogStatsInterval: o.AsyncHostCollectLogStatsInterval,
 		InsertBatch:             o.AsyncHostInsertBatch,
 		DeleteBatch:             o.AsyncHostDeleteBatch,
@@ -1031,7 +1031,7 @@ func configForKeyOrBool(key, task, val string, def bool) bool {
 		panic("Invalid query format for key " + key + ": " + err.Error())
 	}
 	if v := q.Get(task); v != "" {
-		return parseVal(val)
+		return parseVal(v)
 	}
 	return def
 }
@@ -1065,7 +1065,7 @@ func configForKeyOrDuration(key, task, val string, def time.Duration) time.Durat
 		panic("Invalid query format for key " + key + ": " + err.Error())
 	}
 	if v := q.Get(task); v != "" {
-		return parseVal(val)
+		return parseVal(v)
 	}
 	return def
 }
