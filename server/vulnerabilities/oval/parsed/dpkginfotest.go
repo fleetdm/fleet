@@ -1,5 +1,7 @@
 package oval_parsed
 
+import "github.com/fleetdm/fleet/v4/server/fleet"
+
 // DpkgInfoTest encapsulates a Dpkg info test.
 // see https://oval.mitre.org/language/version5.10.1/ovaldefinition/documentation/linux-definitions-schema.html#dpkginfo_test
 type DpkgInfoTest struct {
@@ -11,7 +13,7 @@ type DpkgInfoTest struct {
 }
 
 // Eval evaluates the given dpkg info test againts a host's installed packages.
-func (t *DpkgInfoTest) Eval(packages []HostPackage) bool {
+func (t *DpkgInfoTest) Eval(packages []fleet.Software) bool {
 	if len(packages) == 0 {
 		return false
 	}
@@ -26,7 +28,7 @@ func (t *DpkgInfoTest) Eval(packages []HostPackage) bool {
 // Returns:
 //  nObjects: How many items in the set defined by the OVAL Object set exists in the system.
 //  nStates: How many items in the set defined by the OVAL Object set satisfy the state requirements.
-func (t *DpkgInfoTest) matches(packages []HostPackage) (int, int) {
+func (t *DpkgInfoTest) matches(packages []fleet.Software) (int, int) {
 	var nObjects int
 	var nState int
 

@@ -228,7 +228,6 @@ func cronVulnerabilities(
 
 			recentVulns := checkVulnerabilities(ctx, ds, logger, vulnPath, config, (vulnAutomationEnabled != ""))
 
-			// TODO: merge results
 			checkOvalVulnerabilities(ctx, ds, logger, vulnPath, config)
 
 			if len(recentVulns) > 0 {
@@ -303,7 +302,6 @@ func checkOvalVulnerabilities(
 	if config.Vulnerabilities.DisableDataSync {
 		return
 	}
-
 	versions, err := ds.OSVersions(ctx, nil, nil)
 	if err != nil {
 		level.Error(logger).Log("msg", "updating oval definitions", "err", err)
@@ -314,6 +312,7 @@ func checkOvalVulnerabilities(
 		level.Debug(logger).Log("oval-updating", "Found OS Versions", os)
 	}
 
+	// Sync
 	client := fleethttp.NewClient()
 	downloaded, err := oval.Refresh(ctx, client, versions, vulnPath)
 	if err != nil {
@@ -324,6 +323,9 @@ func checkOvalVulnerabilities(
 	for _, d := range downloaded {
 		level.Debug(logger).Log("oval-updating", "Downloaded new definitions", d)
 	}
+
+	// Analyze
+	oval.Analyze(ctx, ds, versions, vulnPath)
 }
 
 func checkVulnerabilities(
