@@ -146,7 +146,7 @@ The following table lists the Growth group's rituals, frequency, and Directly Re
 | Podcast outreach      | Weekly | Conduct podcast outreach twice a week.     | Drew Baker        |
 | Weekly Update      | Weekly | Update the Growth KPIs in the ["🌈 Weekly updates" spreadsheet](https://docs.google.com/spreadsheets/d/1Hso0LxqwrRVINCyW_n436bNHmoqhoLhC8bcbvLPOs9A/edit#gid=0). | Drew Baker        |
 | Monthly conference checks    | Monthly | Check for conference openings and sponsorship opportunities on the 1st of every month. | Drew Baker|
-| Salesforce contributor experience checkup | Monthly | Make sure all users see a detailed view of contacts, opportunities, accounts, and leads. | Nathan Holliday |
+| [Salesforce contributor experience checkup](./growth.md#salesforcecontributorexperiencecheckups)| Monthly | Make sure all users see a detailed view of contacts, opportunities, accounts, and leads. | Nathan Holliday |
 
 
 ## Slack channels
