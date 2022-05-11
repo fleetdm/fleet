@@ -14,8 +14,8 @@ func Up_20220503134048(tx *sql.Tx) error {
 	_, err := tx.Exec(`
 CREATE TABLE cves (
     cve varchar(20) PRIMARY KEY,
-    cvss_score double(4,2),
-    epss_probability double(6,5),
+    cvss_score double,
+    epss_probability double,
     cisa_known_exploit boolean
 )
 	`)
