@@ -4687,7 +4687,7 @@ func (s *integrationTestSuite) TestModifyUser() {
 	invalidUserPwd := "abc"
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/users/%d", u.ID), fleet.UserPayload{
 		NewPassword: ptr.String(invalidUserPwd),
-	}, http.StatusInternalServerError, &modResp)
+	}, http.StatusUnprocessableEntity, &modResp)
 
 	// login as the user, with the last password successfully set (to confirm it is the current one)
 	var loginResp loginResponse
