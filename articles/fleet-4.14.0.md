@@ -23,7 +23,7 @@ Follow the steps below to configure Jira as a ticket destination:
 1. Navigate to the right-hand side of the top bar. Select the avatar and then **Settings**.
 2. Select **Integrations** and **Add integration**.
 3. Enter your Jira instance's **URL**, **Username**, **API token**, and **Project key**.
-4. On the top bar, select **Policies** and, on the right, select **Manage automations**.
+4. On the top bar, select **Software** and, on the right, select **Manage automations**.
 5. Select **Enable vulnerability automations** and choose **Ticket**.
 6. Choose your Jira instance in **Integration** and select **Save**.
 
