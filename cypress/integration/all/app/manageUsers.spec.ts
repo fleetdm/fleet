@@ -1,7 +1,7 @@
 import CONSTANTS from "../,,/../../../support/constants";
 
 const {
-  TEST_GOOD_PASSWORD,
+  GOOD_PASSWORD,
   BAD_PASSWORD_LENGTH,
   BAD_PASSWORD_NO_NUMBER,
   BAD_PASSWORD_NO_SYMBOL,
@@ -70,7 +70,7 @@ describe("Manage users flow", () => {
       cy.findByText(/password must meet the criteria below/i).should("exist");
       cy.findByLabelText(/password must meet the criteria below/i)
         .clear()
-        .type(TEST_GOOD_PASSWORD);
+        .type(GOOD_PASSWORD);
       cy.getAttached(".create-user-form__btn-wrap")
         .contains("button", /create/i)
         .click();
@@ -108,14 +108,14 @@ describe("Manage users flow", () => {
       cy.findByText(/password must meet the criteria below/i).should("exist");
       cy.findByLabelText(/password must meet the criteria below/i)
         .clear()
-        .type(BAD_PASSWORD_NO_NUMBER);
+        .type(BAD_PASSWORD_NO_SYMBOL);
       cy.getAttached(".create-user-form__btn-wrap")
         .contains("button", /save/i)
         .click();
       cy.findByText(/password must meet the criteria below/i).should("exist");
       cy.findByLabelText(/password must meet the criteria below/i)
         .clear()
-        .type(TEST_GOOD_PASSWORD);
+        .type(GOOD_PASSWORD);
       cy.getAttached(".create-user-form__btn-wrap")
         .contains("button", /save/i)
         .click();

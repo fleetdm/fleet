@@ -1,6 +1,6 @@
 import CONSTANTS from "../../support/constants";
 
-const { TEST_GOOD_PASSWORD } = CONSTANTS;
+const { GOOD_PASSWORD } = CONSTANTS;
 
 describe(
   "Free tier - Maintainer user",
@@ -25,7 +25,7 @@ describe(
 
     describe("Navigation", () => {
       beforeEach(() => {
-        cy.loginWithCySession("mary@organization.com", TEST_GOOD_PASSWORD);
+        cy.loginWithCySession("mary@organization.com", GOOD_PASSWORD);
         cy.visit("/dashboard");
       });
       it("displays intended global maintainer top navigation", () => {
@@ -43,7 +43,7 @@ describe(
     });
     describe("Dashboard", () => {
       beforeEach(() => {
-        cy.loginWithCySession("mary@organization.com", TEST_GOOD_PASSWORD);
+        cy.loginWithCySession("mary@organization.com", GOOD_PASSWORD);
         cy.visit("/dashboard");
       });
       it("displays cards for all platforms", () => {
@@ -142,7 +142,7 @@ describe(
     });
     describe("Manage hosts page", () => {
       beforeEach(() => {
-        cy.loginWithCySession("mary@organization.com", TEST_GOOD_PASSWORD);
+        cy.loginWithCySession("mary@organization.com", GOOD_PASSWORD);
         cy.visit("/hosts/manage");
       });
       it("verifies maintainer is on the Manage Hosts page", () => {
@@ -168,7 +168,7 @@ describe(
     });
     describe("Host details tests", () => {
       beforeEach(() => {
-        cy.loginWithCySession("mary@organization.com", TEST_GOOD_PASSWORD);
+        cy.loginWithCySession("mary@organization.com", GOOD_PASSWORD);
         cy.visit("/hosts/1");
       });
       it("verifies teams is disabled", () => {
@@ -198,7 +198,7 @@ describe(
     });
     describe("Query pages", () => {
       beforeEach(() => {
-        cy.loginWithCySession("mary@organization.com", TEST_GOOD_PASSWORD);
+        cy.loginWithCySession("mary@organization.com", GOOD_PASSWORD);
         cy.visit("/queries/manage");
       });
       it("allows maintainer to add a new query", () => {
@@ -251,7 +251,7 @@ describe(
     });
     describe("Manage policies page", () => {
       beforeEach(() => {
-        cy.loginWithCySession("mary@organization.com", TEST_GOOD_PASSWORD);
+        cy.loginWithCySession("mary@organization.com", GOOD_PASSWORD);
         cy.visit("/policies/manage");
       });
       it("hides manage automations from maintainer", () => {
@@ -303,7 +303,7 @@ describe(
     });
     describe("Manage packs page", () => {
       beforeEach(() => {
-        cy.loginWithCySession("mary@organization.com", TEST_GOOD_PASSWORD);
+        cy.loginWithCySession("mary@organization.com", GOOD_PASSWORD);
         cy.visit("/packs/manage");
       });
       it("allows maintainer to create a pack", () => {
@@ -333,7 +333,7 @@ describe(
     });
     describe("User profile page", () => {
       beforeEach(() => {
-        cy.loginWithCySession("mary@organization.com", TEST_GOOD_PASSWORD);
+        cy.loginWithCySession("mary@organization.com", GOOD_PASSWORD);
         cy.visit("/profile");
       });
       it("verifies teams is disabled for the Profile page", () => {
@@ -360,7 +360,7 @@ describe(
         return false;
       });
       beforeEach(() => {
-        cy.loginWithCySession("mary@organization.com", TEST_GOOD_PASSWORD);
+        cy.loginWithCySession("mary@organization.com", GOOD_PASSWORD);
       });
       it("verifies maintainer does not have access to settings", () => {
         cy.findByText(/settings/i).should("not.exist");

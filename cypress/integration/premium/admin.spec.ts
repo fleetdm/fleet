@@ -1,6 +1,6 @@
 import CONSTANTS from "../../support/constants";
 
-const { TEST_GOOD_PASSWORD } = CONSTANTS;
+const { GOOD_PASSWORD } = CONSTANTS;
 
 const getConfig = {
   org_info: {
@@ -285,7 +285,7 @@ describe("Premium tier - Global Admin user", () => {
   });
 
   beforeEach(() => {
-    cy.loginWithCySession("anna@organization.com", TEST_GOOD_PASSWORD);
+    cy.loginWithCySession("anna@organization.com", GOOD_PASSWORD);
   });
   describe("Navigation", () => {
     beforeEach(() => cy.visit("/dashboard"));

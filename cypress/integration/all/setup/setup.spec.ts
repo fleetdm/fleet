@@ -1,6 +1,6 @@
 import CONSTANTS from "../../../support/constants";
 
-const { TEST_GOOD_PASSWORD } = CONSTANTS;
+const { GOOD_PASSWORD } = CONSTANTS;
 
 describe("Setup", () => {
   // Different than normal beforeEach because we don't run the fleetctl setup.
@@ -24,11 +24,11 @@ describe("Setup", () => {
 
     cy.findByPlaceholderText(/^password/i)
       .first()
-      .type(TEST_GOOD_PASSWORD);
+      .type(GOOD_PASSWORD);
 
     cy.findByPlaceholderText(/confirm password/i)
       .last()
-      .type(TEST_GOOD_PASSWORD);
+      .type(GOOD_PASSWORD);
 
     cy.contains("button:enabled", /next/i).click();
 

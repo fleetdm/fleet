@@ -1,7 +1,7 @@
 import CONSTANTS from "../../../support/constants";
 
 const {
-  TEST_GOOD_PASSWORD,
+  GOOD_PASSWORD,
   BAD_PASSWORD_LENGTH,
   BAD_PASSWORD_NO_NUMBER,
   BAD_PASSWORD_NO_SYMBOL,
@@ -88,15 +88,15 @@ describe("Activate user flow", () => {
       cy.findByText(/password does not meet required criteria/i).should(
         "exist"
       );
-      cy.getAttached("#password").clear().type(TEST_GOOD_PASSWORD);
-      cy.getAttached("#password_confirmation").clear().type(TEST_GOOD_PASSWORD);
+      cy.getAttached("#password").clear().type(GOOD_PASSWORD);
+      cy.getAttached("#password_confirmation").clear().type(GOOD_PASSWORD);
       cy.findByRole("button", { name: /submit/i }).click();
 
       cy.getAttached(".login-form").within(() => {
         cy.findByLabelText(/email/i).clear().type("ash@example.com");
         cy.findByLabelText(/^password$/i)
           .click()
-          .type(TEST_GOOD_PASSWORD);
+          .type(GOOD_PASSWORD);
         cy.findByRole("button", { name: /login/i }).click();
       });
       Cypress.session.clearAllSavedSessions(); // Switch back to admin user
