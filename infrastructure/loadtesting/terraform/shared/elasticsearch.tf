@@ -196,7 +196,7 @@ resource "aws_launch_template" "elasticstack" {
     device_name = "/dev/sdb"
 
     ebs {
-      volume_size           = 50
+      volume_size           = 150
       delete_on_termination = true
     }
   }
