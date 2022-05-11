@@ -60,6 +60,32 @@ func (svc Service) ListSoftware(ctx context.Context, opt fleet.SoftwareListOptio
 }
 
 /////////////////////////////////////////////////////////////////////////////////
+// Get Software
+/////////////////////////////////////////////////////////////////////////////////
+
+type getSoftwareRequest struct {
+	ID uint `url:"id"`
+}
+
+type getSoftwareResponse struct {
+	Software *fleet.Software `json:"software,omitempty"`
+	Err      error           `json:"error,omitempty"`
+}
+
+func (r getSoftwareResponse) error() error { return r.Err }
+
+func getSoftwareEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
+	req := request.(*getSoftwareRequest)
+
+	software, err := svc.SoftwareByID(ctx, req.ID)
+	if err != nil {
+		return getSoftwareResponse{Err: err}, nil
+	}
+
+	return getSoftwareResponse{Software: software}, nil
+}
+
+/////////////////////////////////////////////////////////////////////////////////
 // Count
 /////////////////////////////////////////////////////////////////////////////////
 
