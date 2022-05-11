@@ -30,7 +30,7 @@ describe("validPassword", () => {
 
   it("is valid if the password is at least 12 characters and includes a number and a symbol", () => {
     const validPasswords = [
-      "p@assw0rd12",
+      "p@assw0rd123",
       "This should be v4lid!",
       "admin123.pass",
       "pRZ'bW,6'6o}HnpL62",

@@ -94,8 +94,8 @@ describe("AdminDetails - form", () => {
     expect(onSubmitSpy).toHaveBeenCalledWith({
       email: "hi@gnar.dog",
       name: "Gnar Dog",
-      password: "p@ssw0rd",
-      password_confirmation: "p@ssw0rd",
+      password: "password123#",
+      password_confirmation: "password123#",
     });
   });
 });
