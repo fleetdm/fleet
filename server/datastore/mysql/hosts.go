@@ -1713,3 +1713,37 @@ ON DUPLICATE KEY UPDATE
 
 	return nil
 }
+
+func (ds *Datastore) HostIDsByPlatform(
+	ctx context.Context,
+	platform string,
+	osVersion string,
+) ([]uint, error) {
+	var ids []uint
+	var filters []goqu.Expression
+
+	stmt := dialect.From(goqu.I("hosts")).Select("id")
+
+	if platform != "" {
+		filters = append(filters, goqu.C("platform").Eq(platform))
+	}
+	if osVersion != "" {
+		filters = append(filters, goqu.C("os_version").Eq(osVersion))
+	}
+
+	stmt = stmt.Where(filters...)
+	stmt = stmt.Order(goqu.I("id").Desc())
+
+	sql, args, err := stmt.ToSQL()
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "get host IDs")
+	}
+
+	fmt.Println(sql)
+
+	if err := sqlx.SelectContext(ctx, ds.reader, &ids, sql, args...); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "get host IDs")
+	}
+
+	return ids, nil
+}

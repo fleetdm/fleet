@@ -1,3 +1,7 @@
 package oval_parsed
 
-type Result interface{}
+import "github.com/fleetdm/fleet/v4/server/fleet"
+
+type Result interface {
+	Eval([]fleet.Software)
+}

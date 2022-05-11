@@ -1,5 +1,7 @@
 package oval_parsed
 
+import "github.com/fleetdm/fleet/v4/server/fleet"
+
 type UbuntuResult struct {
 	Definitions  []Definition
 	PackageTests map[int]*DpkgInfoTest
@@ -21,4 +23,8 @@ func (r *UbuntuResult) AddDefinition(def Definition) {
 // AddPackageTest adds a package test to the given result.
 func (r *UbuntuResult) AddPackageTest(id int, tst *DpkgInfoTest) {
 	r.PackageTests[id] = tst
+}
+
+func (r UbuntuResult) Eval(software []fleet.Software) {
+	panic("not implemented")
 }

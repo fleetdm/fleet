@@ -116,6 +116,7 @@ func TestHosts(t *testing.T) {
 		{"SetOrUpdateDeviceAuthToken", testHostsSetOrUpdateDeviceAuthToken},
 		{"OSVersions", testOSVersions},
 		{"DeleteHosts", testHostsDeleteHosts},
+		{"HostIDsByPlatform", testHostIDsByPlatform},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -4164,5 +4165,58 @@ func testHostsDeleteHosts(t *testing.T, ds *Datastore) {
 		err = ds.writer.Get(&ok, fmt.Sprintf("SELECT 1 FROM %s WHERE host_id = ?", hostRef), host.ID)
 		require.True(t, err == nil || errors.Is(err, sql.ErrNoRows), "table: %s", hostRef)
 		require.False(t, ok, "table: %s", hostRef)
+	}
+}
+
+func testHostIDsByPlatform(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+	hosts := make([]*fleet.Host, 10)
+	getPlatform := func(i int) string {
+		if i < 5 {
+			return "ubuntu"
+		}
+		return "centos"
+	}
+	for i := range hosts {
+		h, err := ds.NewHost(context.Background(), &fleet.Host{
+			DetailUpdatedAt: time.Now(),
+			LabelUpdatedAt:  time.Now(),
+			PolicyUpdatedAt: time.Now(),
+			SeenTime:        time.Now(),
+			OsqueryHostID:   fmt.Sprintf("host%d", i),
+			NodeKey:         fmt.Sprintf("%d", i),
+			UUID:            fmt.Sprintf("%d", i),
+			Hostname:        fmt.Sprintf("foo.%d.local", i),
+			Platform:        getPlatform(i),
+			OSVersion:       fmt.Sprintf("20.4.%d", i),
+		})
+		require.NoError(t, err)
+		hosts[i] = h
+	}
+
+	result, err := ds.HostIDsByPlatform(ctx, "", "")
+	require.NoError(t, err)
+	require.Len(t, result, 10)
+
+	result, err = ds.HostIDsByPlatform(ctx, "ubuntu", "")
+	require.NoError(t, err)
+	for _, id := range result {
+		r, err := ds.HostLite(ctx, id)
+		require.NoError(t, err)
+		require.Equal(t, r.Platform, "ubuntu")
+	}
+
+	none, err := ds.HostIDsByPlatform(ctx, "asdfas", "sdfasw")
+	require.NoError(t, err)
+	require.Len(t, none, 0)
+
+	result, err = ds.HostIDsByPlatform(ctx, "ubuntu", "20.4.0")
+	require.NoError(t, err)
+	require.Len(t, result, 1)
+	for _, id := range result {
+		r, err := ds.Host(ctx, id, true)
+		require.NoError(t, err)
+		require.Equal(t, r.Platform, "ubuntu")
+		require.Equal(t, r.OSVersion, "20.4.0")
 	}
 }

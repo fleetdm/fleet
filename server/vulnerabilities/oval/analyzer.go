@@ -22,26 +22,39 @@ func Analyze(
 	versions *fleet.OSVersions,
 	vulnPath string,
 ) error {
-	for _, version := range versions.OSVersions {
-		platform := NewPlatform(version.Platform, version.Name)
+	for _, v := range versions.OSVersions {
+		platform := NewPlatform(v.Platform, v.Name)
 		if !platform.IsSupported() {
 			continue
 		}
 
-		_, err := load(platform, vulnPath)
+		def, err := loadDef(platform, vulnPath)
 		if err != nil {
 			return err
 		}
 
-		// Iterate over host id for platform
-		// Get software for host id
+		ids, err := ds.HostIDsByPlatform(ctx, v.Platform, v.Name)
+		if err != nil {
+			return err
+		}
+
+		for _, id := range ids {
+			// TODO: Unnecessary allocation ... maybe add a
+			// method to datastore to get all software for a given host id?
+			host := fleet.Host{ID: id}
+			err := ds.LoadHostSoftware(ctx, &host)
+			if err != nil {
+				return err
+			}
+			def.Eval(host.Software)
+		}
 	}
 
 	return nil
 }
 
-// load returns the latest oval Definition for the given platform.
-func load(platform Platform, vulnPath string) (oval_parsed.Result, error) {
+// loadDef returns the latest oval Definition for the given platform.
+func loadDef(platform Platform, vulnPath string) (oval_parsed.Result, error) {
 	_, err := os.Stat(vulnPath)
 	if errors.Is(err, fs.ErrNotExist) {
 		return nil, fmt.Errorf("invalid vulnerabity path '%s'", vulnPath)

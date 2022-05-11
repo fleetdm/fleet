@@ -14,7 +14,7 @@ func TestOvalAnalyzer(t *testing.T) {
 	t.Run("#load", func(t *testing.T) {
 		t.Run("invalid vuln path", func(t *testing.T) {
 			platform := NewPlatform("ubuntu", "Ubuntu 20.4.0")
-			_, err := load(platform, "")
+			_, err := loadDef(platform, "")
 			require.Error(t, err, "invalid vulnerabity path")
 		})
 	})
