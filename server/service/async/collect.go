@@ -15,6 +15,7 @@ import (
 )
 
 type collectorHandlerFunc func(context.Context, fleet.Datastore, fleet.RedisPool, *collectorExecStats) error
+
 type collector struct {
 	// immutable after creation
 	name         string
