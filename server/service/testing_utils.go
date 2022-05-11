@@ -19,6 +19,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/service/async"
 	"github.com/fleetdm/fleet/v4/server/sso"
+	"github.com/fleetdm/fleet/v4/server/test"
 	kitlog "github.com/go-kit/kit/log"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -130,17 +131,17 @@ var testUsers = map[string]struct {
 	GlobalRole        *string
 }{
 	"admin1": {
-		PlaintextPassword: "foobarbaz1234!",
+		PlaintextPassword: test.GoodPassword,
 		Email:             "admin1@example.com",
 		GlobalRole:        ptr.String(fleet.RoleAdmin),
 	},
 	"user1": {
-		PlaintextPassword: "foobarbaz1234!",
+		PlaintextPassword: test.GoodPassword,
 		Email:             "user1@example.com",
 		GlobalRole:        ptr.String(fleet.RoleMaintainer),
 	},
 	"user2": {
-		PlaintextPassword: "bazfoo1234!",
+		PlaintextPassword: test.GoodPassword,
 		Email:             "user2@example.com",
 		GlobalRole:        ptr.String(fleet.RoleObserver),
 	},

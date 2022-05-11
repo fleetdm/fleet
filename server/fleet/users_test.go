@@ -9,8 +9,7 @@ import (
 )
 
 func TestValidatePassword(t *testing.T) {
-
-	var passwordTests = []struct {
+	passwordTests := []struct {
 		Password, Email      string
 		Admin, PasswordReset bool
 	}{
@@ -62,6 +61,10 @@ func TestUserPasswordRequirements(t *testing.T) {
 		},
 		{
 			password: "foobarbaz!3",
+			wantErr:  true,
+		},
+		{
+			password: "foobarbaz!3!",
 		},
 	}
 

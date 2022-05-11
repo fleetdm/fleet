@@ -297,6 +297,10 @@ func (u *User) ValidatePassword(password string) error {
 }
 
 func (u *User) SetPassword(plaintext string, keySize, cost int) error {
+	if err := ValidatePasswordRequirements(plaintext); err != nil {
+		return err
+	}
+
 	salt, err := server.GenerateRandomText(keySize)
 	if err != nil {
 		return err
@@ -314,7 +318,7 @@ func (u *User) SetPassword(plaintext string, keySize, cost int) error {
 }
 
 // Requirements for user password:
-// at least 7 character length
+// at least 12 character length
 // at least 1 symbol
 // at least 1 number
 func ValidatePasswordRequirements(password string) error {
@@ -332,11 +336,11 @@ func ValidatePasswordRequirements(password string) error {
 		}
 	}
 
-	if len(password) >= 7 &&
+	if len(password) >= 12 &&
 		number &&
 		symbol {
 		return nil
 	}
 
-	return errors.New("Password does not meet validation requirements")
+	return errors.New("Password does not meet required criteria")
 }

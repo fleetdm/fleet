@@ -1,3 +1,7 @@
+import CONSTANTS from "../../support/constants";
+
+const { TEST_GOOD_PASSWORD } = CONSTANTS;
+
 describe("Free tier - Observer user", () => {
   before(() => {
     Cypress.session.clearAllSavedSessions();
@@ -16,7 +20,7 @@ describe("Free tier - Observer user", () => {
 
   describe("Navigation", () => {
     beforeEach(() => {
-      cy.loginWithCySession("oliver@organization.com", "user123#");
+      cy.loginWithCySession("oliver@organization.com", TEST_GOOD_PASSWORD);
       cy.visit("/dashboard");
     });
     it("displays intended global observer top navigation", () => {
@@ -34,7 +38,7 @@ describe("Free tier - Observer user", () => {
   });
   describe("Dashboard", () => {
     beforeEach(() => {
-      cy.loginWithCySession("oliver@organization.com", "user123#");
+      cy.loginWithCySession("oliver@organization.com", TEST_GOOD_PASSWORD);
       cy.visit("/dashboard");
     });
     it("displays cards for all platforms", () => {
@@ -133,7 +137,7 @@ describe("Free tier - Observer user", () => {
   });
   describe("Manage hosts page", () => {
     beforeEach(() => {
-      cy.loginWithCySession("oliver@organization.com", "user123#");
+      cy.loginWithCySession("oliver@organization.com", TEST_GOOD_PASSWORD);
       cy.visit("/hosts/manage");
     });
     it("verifies teams is disabled on Manage Host page", () => {
@@ -151,7 +155,7 @@ describe("Free tier - Observer user", () => {
   });
   describe("Host details page", () => {
     beforeEach(() => {
-      cy.loginWithCySession("oliver@organization.com", "user123#");
+      cy.loginWithCySession("oliver@organization.com", TEST_GOOD_PASSWORD);
       cy.visit("/hosts/1");
     });
     it("verifies teams is disabled on Host Details page", () => {
@@ -169,7 +173,7 @@ describe("Free tier - Observer user", () => {
   });
   describe("Manage software page", () => {
     beforeEach(() => {
-      cy.loginWithCySession("oliver@organization.com", "user123#");
+      cy.loginWithCySession("oliver@organization.com", TEST_GOOD_PASSWORD);
       cy.visit("/software/manage");
     });
     it("hides manage automations button", () => {
@@ -182,7 +186,7 @@ describe("Free tier - Observer user", () => {
   });
   describe("Query page", () => {
     beforeEach(() => {
-      cy.loginWithCySession("oliver@organization.com", "user123#");
+      cy.loginWithCySession("oliver@organization.com", TEST_GOOD_PASSWORD);
       cy.visit("/queries/manage");
     });
     it("hides create a query button", () => {
@@ -205,7 +209,7 @@ describe("Free tier - Observer user", () => {
   });
   describe("Manage policies page", () => {
     beforeEach(() => {
-      cy.loginWithCySession("oliver@organization.com", "user123#");
+      cy.loginWithCySession("oliver@organization.com", TEST_GOOD_PASSWORD);
       cy.visit("/policies/manage");
     });
     it("hides manage automations button", () => {
@@ -235,7 +239,7 @@ describe("Free tier - Observer user", () => {
   });
   describe("User profile page", () => {
     beforeEach(() => {
-      cy.loginWithCySession("oliver@organization.com", "user123#");
+      cy.loginWithCySession("oliver@organization.com", TEST_GOOD_PASSWORD);
       cy.visit("/profile");
     });
     it("verifies teams is disabled for the Profile page", () => {
@@ -262,7 +266,7 @@ describe("Free tier - Observer user", () => {
       return false;
     });
     beforeEach(() => {
-      cy.loginWithCySession("oliver@organization.com", "user123#");
+      cy.loginWithCySession("oliver@organization.com", TEST_GOOD_PASSWORD);
     });
     it("should restrict navigation according to role-based access controls", () => {
       cy.findByText(/settings/i).should("not.exist");

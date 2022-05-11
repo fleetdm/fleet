@@ -1,5 +1,8 @@
 import "@testing-library/cypress/add-commands";
 import "cypress-wait-until";
+import CONSTANTS from "./constants";
+
+const { TEST_GOOD_PASSWORD } = CONSTANTS;
 
 // ***********************************************
 // This example commands.js shows you how to
@@ -38,7 +41,7 @@ Cypress.Commands.add("setup", () => {
 
 Cypress.Commands.add("login", (email, password) => {
   email ||= "admin@example.com";
-  password ||= "user123#";
+  password ||= TEST_GOOD_PASSWORD;
   cy.request("POST", "/api/latest/fleet/login", { email, password }).then(
     (resp) => {
       window.localStorage.setItem("FLEET::auth_token", resp.body.token);
@@ -48,7 +51,7 @@ Cypress.Commands.add("login", (email, password) => {
 
 Cypress.Commands.add("loginWithCySession", (email, password) => {
   email ||= "admin@example.com";
-  password ||= "user123#";
+  password ||= TEST_GOOD_PASSWORD;
   cy.session([email, password], () => {
     cy.request("POST", "/api/latest/fleet/login", { email, password }).then(
       (resp) => {
@@ -154,6 +157,7 @@ Cypress.Commands.add("seedSchedule", () => {
   });
 });
 
+// @ts-ignore
 Cypress.Commands.add("seedPacks", () => {
   const packs = [
     {
@@ -377,7 +381,7 @@ Cypress.Commands.add("seedFigma", () => {
 
 Cypress.Commands.add("addUser", (options = {}) => {
   let { password, email, globalRole } = options;
-  password ||= "test123#";
+  password ||= TEST_GOOD_PASSWORD;
   email ||= `admin@example.com`;
   globalRole ||= "admin";
 

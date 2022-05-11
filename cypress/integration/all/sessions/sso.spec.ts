@@ -1,3 +1,9 @@
+import CONSTANTS from "../../../support/constants";
+
+const { TEST_GOOD_PASSWORD } = CONSTANTS;
+
+const enable_idp_login = true;
+
 describe("SSO Sessions", () => {
   beforeEach(() => {
     Cypress.session.clearAllSavedSessions();
@@ -5,13 +11,13 @@ describe("SSO Sessions", () => {
   });
   it("non-SSO user can login with username/password", () => {
     cy.login();
-    cy.setupSSO((enable_idp_login = true));
+    cy.setupSSO(enable_idp_login);
     cy.logout();
     cy.visit("/");
     cy.getAttached(".login-form__forgot-link").should("exist");
     // Log in
     cy.getAttached("input").first().type("admin@example.com");
-    cy.getAttached("input").last().type("user123#");
+    cy.getAttached("input").last().type(TEST_GOOD_PASSWORD);
     cy.contains("button", "Login").click();
     // Verify dashboard
     cy.url().should("include", "/dashboard");
@@ -23,7 +29,7 @@ describe("SSO Sessions", () => {
   });
   it("can login via SSO", () => {
     cy.login();
-    cy.setupSSO((enable_idp_login = true));
+    cy.setupSSO(enable_idp_login);
     cy.logout();
     cy.visit("/");
     // Log in

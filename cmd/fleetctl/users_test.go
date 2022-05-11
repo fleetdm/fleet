@@ -65,7 +65,7 @@ func TestUserCreateForcePasswordReset(t *testing.T) {
 		},
 		{
 			name:                            "api-only",
-			args:                            []string{"--email", "bar@example.com", "--password", "p4ssw0rd.", "--name", "bar", "--api-only"},
+			args:                            []string{"--email", "bar@example.com", "--password", DefaultPassword, "--name", "bar", "--api-only"},
 			expectedAdminForcePasswordReset: false,
 		},
 		{
@@ -75,7 +75,7 @@ func TestUserCreateForcePasswordReset(t *testing.T) {
 		},
 		{
 			name:                            "non-sso-non-api-only",
-			args:                            []string{"--email", "zoo@example.com", "--password", "p4ssw0rd.", "--name", "zoo"},
+			args:                            []string{"--email", "zoo@example.com", "--password", DefaultPassword, "--name", "zoo"},
 			expectedAdminForcePasswordReset: true,
 		},
 	} {
