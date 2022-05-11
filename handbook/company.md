@@ -439,4 +439,9 @@ The following Slack channels are maintained by Fleet's founders and executive co
 | `#thanks`                   | N/A _(say thank you)_
 | `#random`                   | N/A _(be random)_
 
+## Email Relays
+
+There are several special email addresses that automatically relay messages to the appropriate people at Fleet.
+ - [Contacting Fleet - Private doc](https://docs.google.com/document/d/1tE-NpNfw1icmU2MjYuBRib0VWBPVAdmq4NiCrpuI0F0/edit)
+
 <meta name="maintainedBy" value="mikermcneil">
