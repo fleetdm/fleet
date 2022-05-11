@@ -9,15 +9,15 @@ Effective market positioning is crucial to the growth of any software product. F
 
 ## Marketing Qualified Opportunities (MQOs)
 
-Growth's goal is to increase usage of the product. We value users of all sizes adopting Fleet Free or Fleet Premium. Companies purchasing under 100 device licenses should sign up [self service](https://fleetdm.com/pricing/). Companies who would enroll more than 100 devices should [schedule a demo](https://fleetdm.com/). When these companies attend a demo Fleet considers them marketing qualified opportunities (MQOs).
+Growth's goal is to increase usage of the product. We value users of all sizes adopting Fleet Free or Fleet Premium. Companies purchasing under 100 device licenses should sign up [self-service](https://fleetdm.com/pricing/). Companies that enroll more than 100 devices should [schedule a demo](https://fleetdm.com/). When these companies attend a demo, Fleet considers them marketing qualified opportunities (MQOs).
 
-## Lead Enrichment
+## Lead enrichment
 
 Fleet's lead enrichment process can be found in this [Google Doc](https://docs.google.com/document/d/1zOv39O989bPRNTIcLNNE4ESUI5Ry2XII3XuRpJqNN7g/edit?usp=sharing) (private).
 
-## Outreach One-pager
+## Outreach one-pager
 
-Our one-pager offers a summary of what Fleet does; it will used for sales outreach. It can also help stakeholders become familiar with the company and product. Fleet's outreach one-pager can be found in this [Google Doc](https://drive.google.com/file/d/1o0gHCVonNbjjsk8iI-mgVw5O-o-AhJ5t/view?usp=sharing).
+Our one-pager offers a summary of what Fleet does. It can help stakeholders become familiar with the company and product while also being a useful tool the Growth team uses for sales outreach. Find Fleet's outreach one-pager in this [Google Doc](https://drive.google.com/file/d/1o0gHCVonNbjjsk8iI-mgVw5O-o-AhJ5t/view?usp=sharing).
 
 ## Posting on social media as Fleet
 
@@ -127,7 +127,7 @@ In order to maintain a consistent contributor experience in Salesforce, we login
 * There should be fields for name, lead source, lead status and rating.
 
 
-## Growth rituals
+## Rituals
 
 The following table lists the Growth group's rituals, frequency, and Directly Responsible Individual (DRI).
 

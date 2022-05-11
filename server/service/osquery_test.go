@@ -28,6 +28,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mock"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/pubsub"
+	"github.com/fleetdm/fleet/v4/server/service/async"
 	"github.com/fleetdm/fleet/v4/server/service/osquery_utils"
 	"github.com/fleetdm/fleet/v4/server/service/redis_policy_set"
 	"github.com/go-kit/kit/log"
@@ -278,7 +279,8 @@ func TestEnrollAgentDetails(t *testing.T) {
 
 func TestAuthenticateHost(t *testing.T) {
 	ds := new(mock.Store)
-	svc := newTestService(t, ds, nil, nil)
+	task := &async.Task{Datastore: ds, AsyncEnabled: false}
+	svc := newTestService(t, ds, nil, nil, &TestServerOpts{Task: task})
 
 	var gotKey string
 	host := fleet.Host{ID: 1, Hostname: "foobar"}
@@ -312,12 +314,13 @@ func TestAuthenticateHost(t *testing.T) {
 	assert.Equal(t, "floobar", gotKey)
 	assert.False(t, ds.MarkHostsSeenFuncInvoked)
 
-	err = svc.FlushSeenHosts(context.Background())
+	err = task.FlushHostsLastSeen(context.Background(), time.Now())
 	require.NoError(t, err)
 	assert.True(t, ds.MarkHostsSeenFuncInvoked)
+	ds.MarkHostsSeenFuncInvoked = false
 	assert.ElementsMatch(t, []uint{1, 7}, gotHostIDs)
 
-	err = svc.FlushSeenHosts(context.Background())
+	err = task.FlushHostsLastSeen(context.Background(), time.Now())
 	require.NoError(t, err)
 	assert.True(t, ds.MarkHostsSeenFuncInvoked)
 	require.Len(t, gotHostIDs, 0)
@@ -2260,7 +2263,7 @@ func TestPolicyWebhooks(t *testing.T) {
 	pool := redistest.SetupRedis(t, t.Name(), false, false, false)
 	failingPolicySet := redis_policy_set.NewFailingTest(t, pool)
 	testConfig := config.TestConfig()
-	svc := newTestServiceWithConfig(t, ds, testConfig, nil, lq, TestServerOpts{
+	svc := newTestServiceWithConfig(t, ds, testConfig, nil, lq, &TestServerOpts{
 		FailingPolicySet: failingPolicySet,
 		Clock:            mockClock,
 	})
@@ -2527,7 +2530,7 @@ func TestLiveQueriesFailing(t *testing.T) {
 	cfg := config.TestConfig()
 	buf := new(bytes.Buffer)
 	logger := log.NewLogfmtLogger(buf)
-	svc := newTestServiceWithConfig(t, ds, cfg, nil, lq, TestServerOpts{
+	svc := newTestServiceWithConfig(t, ds, cfg, nil, lq, &TestServerOpts{
 		Logger: logger,
 	})
 

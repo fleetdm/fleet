@@ -18,7 +18,7 @@ import (
 // runServerWithMockedDS runs the fleet server with several mocked DS methods.
 //
 // NOTE: Assumes the current session is always from the admin user (see ds.SessionByKeyFunc below).
-func runServerWithMockedDS(t *testing.T, opts ...service.TestServerOpts) (*httptest.Server, *mock.Store) {
+func runServerWithMockedDS(t *testing.T, opts ...*service.TestServerOpts) (*httptest.Server, *mock.Store) {
 	ds := new(mock.Store)
 	var users []*fleet.User
 	var admin *fleet.User

@@ -402,6 +402,20 @@ When Kolide's attention shifted away from Fleet and towards their separate, user
 ### 2020: Fleet was incorporated
 Zach partnered with our CEO, Mike McNeil, to found a new, independent company: Fleet Device Management Inc.  In November 2020, we [announced](https://medium.com/fleetdm/a-new-fleet-d4096c7de978) the transition and kicked off the logistics of moving the GitHub repository.
 
+## GitHub labels
+
+We use special characters to define different types of GitHub labels. By combining labels, we
+organize and categorize GitHub issues. This reduces the total number of labels required while
+maintaining an expressive labelling system. For example, instead of a label called
+`platform-dev-backend` we use `#platform :dev ~backend`.
+
+| Special character | Label type  | Rules        | Examples                            |
+|:------------------|:------------|:-------------|:------------------------------------|
+| `#`               | Noun        | One only     | `#platform`, `#interface`, `#agent`
+| `:`               | Verb        | One or more  | `:dev`, `:research`, `:design`
+| `~`               | Adjective   | One or more  | `~blocked`, `~frontend`, `~backend`
+| `!`               | OKR         | One only     | `!vuln`, `!desktop`, `!upgrade`
+
 ## Rituals
 
 |Ritual |Frequency | Description | DRI|
@@ -424,17 +438,5 @@ The following Slack channels are maintained by Fleet's founders and executive co
 | `#general`                  | N/A _(announce something company-wide)_
 | `#thanks`                   | N/A _(say thank you)_
 | `#random`                   | N/A _(be random)_
-
-
-## Labels
-
-We use special characters to define label types.
-
-| Special character | Label type  | Rules        | Examples                            |
-|:------------------|:------------|:-------------|:------------------------------------|
-| `#`               | Noun        | One only     | `#platform`, `#interface`, `#agent`
-| `:`               | Verb        | One or more  | `:dev`, `:research`, `:design`
-| `~`               | Adjective   | One or more  | `~blocked`, `~frontend`, `~backend`
-| `!`               | OKR         | One only     | `!vuln`, `!desktop`, `!upgrade`
 
 <meta name="maintainedBy" value="mikermcneil">

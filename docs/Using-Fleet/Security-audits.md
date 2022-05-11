@@ -1,6 +1,104 @@
 # Security audits
 This page contains explanations of the latest external security audits performed on Fleet software.
 
+## April 2022 penetration testing of Fleet 4.12 
+In April 2022, we worked with [Lares](https://www.lares.com/) to perform penetration testing on our Fleet instance, which was running 4.12 at the time. 
+
+They identified a few issues, the most critical ones we have addressed in 4.13. Other less impactful items remain. These are described below.
+
+As usual, we have made the full report (minus redacted details such as email addresses and tokens) available.
+
+You can find the full report here: [2022-04-29-fleet-penetration-test.pdf](https://github.com/fleetdm/fleet/raw/main/docs/files/2022-04-29-fleet-penetration-test.pdf).
+
+### Findings
+#### 1 - Broken access control & 2 - Insecure direct object reference
+| Type                | Lares Severity |
+| ------------------- | -------------- |
+| Authorization issue | High risk      |
+
+This section contains a few different authorization issues, allowing team members to access APIs out of the scope of their teams. The most significant problem was that a team administrator was able to add themselves to other teams. 
+
+This is resolved in 4.13, and an [advisory](https://github.com/fleetdm/fleet/security/advisories/GHSA-pr2g-j78h-84cr) has been published before this report was made public.
+We are also planning to add [more testing](https://github.com/fleetdm/fleet/issues/5457) to catch potential future mistakes related to authorization.
+
+#### 3 - CSV injection in export functionality
+| Type      | Lares Severity |
+| --------- | -------------- |
+| Injection | Medium risk    |
+
+It is possible to create or rename an existing team with a malicious name, which, once exported to CSV, could trigger code execution in Microsoft Excel. We assume there are other ways that inserting this type of data could have similar effects, including via osquery data. For this reason, we will evaluate the feasibility of [escaping CSV output](https://github.com/fleetdm/fleet/issues/5460).
+
+#### 4 - Insecure storage of authentication tokens
+| Type                   | Lares Severity |
+| ---------------------- | -------------- |
+| Authentication storage | Medium risk    |
+
+This issue is not as straightforward as it may seem. While it is true that Fleet stores authentication tokens in local storage as opposed to cookies, we do not believe the security impact from that is significant. Local storage is immune to CSRF attacks, and cookie protection is not particularly strong. For these reasons, we are not planning to change this at this time, as the changes would bring minimal security improvement, if any, and change always carries the risk of creating new vulnerabilities.
+
+#### 5 - No account lockout
+| Type           | Lares Severity |
+| -------------- | -------------- |
+| Authentication | Medium risk    |
+
+Account lockouts on Fleet are handled as a “leaky bucket” with 10 available slots. Once the bucket is full, a four second timeout must expire before another login attempt is allowed. We will increase this timeout duration to [10 seconds](https://github.com/fleetdm/fleet/issues/5464). We believe that any longer, including full account lockout, could bring user experience issues as well as denial of service issues without improving security, as brute-forcing passwords at a rate of one password per 10 seconds is very unlikely.
+
+#### 6 - Session timeout - insufficient session expiration
+| Type               | Lares Severity |
+| ------------------ | -------------- |
+| Session expiration | Medium risk    |
+
+Fleet sessions are currently [configurable](https://fleetdm.com/docs/deploying/configuration#session-duration). However, the actual behavior, is different than the expected one. We [will switch](https://github.com/fleetdm/fleet/issues/5476) the behavior so the session timeout is based on the length of the session, not on how long it has been idle. The default will remain five days, which will result in users having to log in at least once a week, while the current behavior would allow someone to remain logged in forever. If you have any reason to want a shorter session duration, simply configure it to a lower value.
+
+#### 7 - Weak passwords allowed
+| Type           | Lares Severity |
+| -------------- | -------------- |
+| Weak passwords | Medium risk    |
+
+The default password policy in Fleet requires passwords that are seven characters long. We will [increase this to 12](https://github.com/fleetdm/fleet/issues/5477) while leaving all other requirements the same. As per NIST [SP 800-63B](https://pages.nist.gov/800-63-3/sp800-63b.html), we believe password length is the most important requirement. If you have additional requirements for passwords, we highly recommend implementing them in your identity provider and setting up [SSO](https://fleetdm.com/docs/deploying/configuration#configuring-single-sign-on-sso). 
+
+While it is not mentioned directly in the report, we believe that the lack of 2FA in Fleet is a problem for organizations that can’t use SSO. For this reason, we have opened an issue to gather comments as we consider how this could be implemented.
+
+We also opened an issue a few weeks ago to investigate adding a feature to Fleet to make SSO required for all users in an instance.
+
+#### 8 - User enumeration
+| Type        | Lares Severity |
+| ----------- | -------------- |
+| Enumeration | Low risk       |
+
+User enumeration by a logged-in user is not a critical issue. Still, when it is done by a user with minimal privileges, such as a team observer, it is a leak of information, and depending on why you use teams, it might be a problem. For this reason, we are planning to make only team administrators able to enumerate users, so they can add them to their own teams. Feel free to comment on [this issue](https://github.com/fleetdm/fleet/issues/5657).
+
+#### 9 - Information disclosure via default content
+| Type                   | Lares Severity |
+| ---------------------- | -------------- |
+| Information disclosure | Informational  |
+
+This finding has two distinct issues. 
+
+The first one is the /metrics endpoint, which contains a lot of information that could potentially be leveraged for attacks. We had identified this issue previously, and it was [fixed in 4.13](https://github.com/fleetdm/fleet/issues/2322) by adding authentication in front of it.
+
+The second one is /version. While it provides some minimal information, such as the version of Fleet and go that is used, it is information similar to a TCP banner on a typical network service. For this reason, we are leaving this endpoint available. 
+
+If this endpoint is a concern in your Fleet environment, consider that the information it contains could be gleaned from the HTML and JavaScript delivered on the main page. If you still would like to block it, we recommend using an application load balancer.
+
+#### The GitHub issues that relate to this test are:
+[Security advisory fixed in Fleet 4.13](https://github.com/fleetdm/fleet/security/advisories/GHSA-pr2g-j78h-84cr)
+
+[Add manual and automated test cases for authorization #5457](https://github.com/fleetdm/fleet/issues/5457)
+
+[Evaluate current CSV escaping and feasibility of adding if missing #5460](https://github.com/fleetdm/fleet/issues/5460)
+
+[Increase length of login throttling delay from 4 to 10 seconds #5464](https://github.com/fleetdm/fleet/issues/5464)
+
+[Set session duration to total session length #5476](https://github.com/fleetdm/fleet/issues/5476)
+
+[Increase default minimum password length to 12 #5477](https://github.com/fleetdm/fleet/issues/5477)
+
+[Add basic auth to /metrics endpoint #2322](https://github.com/fleetdm/fleet/issues/2322)
+
+[Ensure only team admins can list other users #5657](https://github.com/fleetdm/fleet/issues/5657)
+
+You can also view them on the [remediation board](https://github.com/fleetdm/fleet/issues/5657).
+
 ## August 2021 security of Orbit auto-updater
 
 Back in 2021, when Orbit was still new, alpha, and likely not used by anyone but us here at Fleet, we contracted Trail of Bits (ToB) to have them review the security of the auto-updater portion of it.

@@ -1881,6 +1881,55 @@ Returns the count of all hosts organized by status. `online_count` includes all 
 {
   "team_id": 1,
   "totals_hosts_count": 2408,
+  "online_count": 2267,
+  "offline_count": 141,
+  "mia_count": 0,
+  "new_count": 0,
+  "all_linux_count": 1204,
+  "builtin_labels": [
+    {
+      "id": 6,
+      "name": "All Hosts",
+      "description": "All hosts which have enrolled in Fleet",
+      "label_type": "builtin"
+    },
+    {
+      "id": 7,
+      "name": "macOS",
+      "description": "All macOS hosts",
+      "label_type": "builtin"
+    },
+    {
+      "id": 8,
+      "name": "Ubuntu Linux",
+      "description": "All Ubuntu hosts",
+      "label_type": "builtin"
+    },
+    {
+      "id": 9,
+      "name": "CentOS Linux",
+      "description": "All CentOS hosts",
+      "label_type": "builtin"
+    },
+    {
+      "id": 10,
+      "name": "MS Windows",
+      "description": "All Windows hosts",
+      "label_type": "builtin"
+    },
+    {
+      "id": 11,
+      "name": "Red Hat Linux",
+      "description": "All Red Hat Enterprise Linux hosts",
+      "label_type": "builtin"
+    },
+    {
+      "id": 12,
+      "name": "All Linux",
+      "description": "All Linux distributions",
+      "label_type": "builtin"
+    }
+  ], 
   "platforms": [
     {
       "platform": "linux",
@@ -1891,10 +1940,6 @@ Returns the count of all hosts organized by status. `online_count` includes all 
       "hosts_count": 1204
     }
   ],
-  "online_count": 2267,
-  "offline_count": 141,
-  "mia_count": 0,
-  "new_count": 0
 }
 ```
 
@@ -2537,6 +2582,7 @@ requested by a web browser.
 | Name                    | Type    | In    | Description                                                                                                                                                                                                                                                                                                                                 |
 | ----------------------- | ------- | ----- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | format                  | string  | query | **Required**, must be "csv" (only supported format for now).                                                                                                                                                                                                                                                                                |
+| columns                 | string  | query | Comma-delimited list of columns to include in the report (returns all columns if none is specified).                                                                                                                                                                                                                                        |
 | order_key               | string  | query | What to order results by. Can be any column in the hosts table.                                                                                                                                                                                                                                                                             |
 | order_direction         | string  | query | **Requires `order_key`**. The direction of the order given the order key. Options include `asc` and `desc`. Default is `asc`.                                                                                                                                                                                                               |
 | status                  | string  | query | Indicates the status of the hosts to return. Can either be `new`, `online`, `offline`, or `mia`.                                                                                                                                                                                                                                            |
@@ -2549,7 +2595,7 @@ requested by a web browser.
 
 #### Example
 
-`GET /api/v1/fleet/hosts/report?software_id=123&format=csv`
+`GET /api/v1/fleet/hosts/report?software_id=123&format=csv&columns=hostname,primary_ip,platform`
 
 ##### Default response
 
@@ -6332,6 +6378,53 @@ Deletes the selected user's sessions in Fleet. Also deletes the user's API token
 
 `Status: 200`
 
+## Debug
+
+- [Get a summary of errors](#get-a-summary-of-errors)
+
+The Fleet server exposes a handful of API endpoints to retrieve debug information about the server itself in order to help troubleshooting. All the following endpoints require prior authentication meaning you must first log in successfully before calling any of the endpoints documented below.
+
+### Get a summary of errors
+
+Returns a set of all the errors that happened in the server during the interval of time defined by the [logging_error_retention_period](../Deploying/Configuration.md#logging-error-retention-period) configuration.
+
+The server only stores and returns a single instance of each error.
+
+`GET /debug/errors`
+
+#### Parameters
+
+| Name  | Type    | In    | Description                                                                       |
+| ----- | ------- | ----- | --------------------------------------------------------------------------------- |
+| flush | boolean | query | Whether or not clear the errors from Redis after reading them. Default is `false` |
+
+#### Example
+
+`GET /debug/errors?flush=true`
+
+##### Default response
+
+`Status: 200`
+
+```json
+[
+  {
+    "external": "example error",
+    "root": {
+      "message": "timestamp: 2022-05-06T11:40:32-03:00",
+      "stack": [
+        "http.initALPNRequest.ServeHTTP:/usr/local/Cellar/go/1.17.6/libexec/src/net/http/server.go:3480",
+        "http.serverHandler.ServeHTTP:/usr/local/Cellar/go/1.17.6/libexec/src/net/http/server.go:2879",
+        "service.(*authEndpointer).makeEndpoint.func1:/Users/robertodip/projects/fleet/server/service/endpoint_utils.go:439",
+        "...",
+        "service.listSoftwareEndpoint:/Users/robertodip/projects/fleet/server/service/software.go:30",
+        "ctxerr.New:/Users/robertodip/projects/fleet/server/contexts/ctxerr/ctxerr.go:67",
+        "ctxerr.ensureCommonMetadata:/Users/robertodip/projects/fleet/server/contexts/ctxerr/ctxerr.go:112"
+      ]
+    }
+  }
+]
+```
 
 ---
 <meta name="pageOrderInSection" value="400">

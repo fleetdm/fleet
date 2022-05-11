@@ -1,2 +1,0 @@
-* Change install path to /opt/orbit. Fixes a permissions issue on platforms with SELinux enabled.
-  See [fleetdm/fleet#4176](https://github.com/fleetdm/fleet/issues/4176) for more details.
