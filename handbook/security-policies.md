@@ -100,6 +100,8 @@ Fleet policy requires that:
 
 1. automation with service accounts must be used to configure production systems when technically feasible.
 
+2. use of high privilege accounts must only be performed when absolutely necessary.
+
 ### Asset management policy
 *Created from [JupiterOne/security-policy-templates](https://github.com/JupiterOne/security-policy-templates). [CC BY-SA 4 license](https://creativecommons.org/licenses/by-sa/4.0/)*
 
@@ -774,17 +776,6 @@ Fleet policy requires that:
   * An exception must have an expiration date no longer than one year from date
     of exception approval and it must be reviewed and re-evaluated on or before
     the expiration date.
-=======
-2. use of high privilege accounts must only be performed when absolutely necessary.
-
-
-
-
-
-
-
-
-
 
 ### Third-party management policy
 *Created from [JupiterOne/security-policy-templates](https://github.com/JupiterOne/security-policy-templates). [CC BY-SA 4 license](https://creativecommons.org/licenses/by-sa/4.0/)*
