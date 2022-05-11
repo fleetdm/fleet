@@ -83,8 +83,11 @@ describe("AdminDetails - form", () => {
       screen.getByRole("textbox", { name: "Email" }),
       "hi@gnar.dog"
     );
-    userEvent.type(screen.getByPlaceholderText("Password"), "p@ssw0rd");
-    userEvent.type(screen.getByPlaceholderText("Confirm password"), "p@ssw0rd");
+    userEvent.type(screen.getByPlaceholderText("Password"), "password123#");
+    userEvent.type(
+      screen.getByPlaceholderText("Confirm password"),
+      "password123#"
+    );
     userEvent.type(
       screen.getByRole("textbox", { name: "Full name" }),
       "Gnar Dog"
