@@ -100,6 +100,8 @@ func getAppConfigEndpoint(ctx context.Context, request interface{}, svc fleet.Se
 	return response, nil
 }
 
+const maskedPassword = "********"
+
 func (svc *Service) AppConfig(ctx context.Context) (*fleet.AppConfig, error) {
 	if !svc.authz.IsAuthenticatedWith(ctx, authz_ctx.AuthnDeviceToken) {
 		if err := svc.authz.Authorize(ctx, &fleet.AppConfig{}, fleet.ActionRead); err != nil {
@@ -113,15 +115,15 @@ func (svc *Service) AppConfig(ctx context.Context) (*fleet.AppConfig, error) {
 	}
 
 	if ac.SMTPSettings.SMTPPassword != "" {
-		ac.SMTPSettings.SMTPPassword = "********"
+		ac.SMTPSettings.SMTPPassword = maskedPassword
 	}
 
 	for _, jiraIntegration := range ac.Integrations.Jira {
-		jiraIntegration.APIToken = "********"
+		jiraIntegration.APIToken = maskedPassword
 	}
 
 	for _, zdIntegration := range ac.Integrations.Zendesk {
-		zdIntegration.APIToken = "********"
+		zdIntegration.APIToken = maskedPassword
 	}
 
 	return ac, nil
@@ -156,7 +158,7 @@ func modifyAppConfigEndpoint(ctx context.Context, request interface{}, svc fleet
 	}
 
 	if response.SMTPSettings.SMTPPassword != "" {
-		response.SMTPSettings.SMTPPassword = "********"
+		response.SMTPSettings.SMTPPassword = maskedPassword
 	}
 	return response, nil
 }
@@ -221,6 +223,7 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte) (*fleet.AppCo
 	}
 
 	validateVulnerabilitiesAutomation(appConfig, invalid)
+	validateFailingPoliciesAutomation(appConfig, invalid)
 	if invalid.HasErrors() {
 		return nil, ctxerr.Wrap(ctx, invalid)
 	}
@@ -259,7 +262,7 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte) (*fleet.AppCo
 				continue
 			}
 			// use stored API token if request does not contain new token
-			if new.APIToken == "" || new.APIToken == "********" {
+			if new.APIToken == "" || new.APIToken == maskedPassword {
 				new.APIToken = old.APIToken
 			}
 		}
@@ -292,7 +295,7 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte) (*fleet.AppCo
 			// use stored API token if request does not contain new token
 			// intended only as a short-term accommodation for the frontend
 			// will be redesigned in dedicated endpoint for integration config
-			if new.APIToken == "" || new.APIToken == "********" {
+			if new.APIToken == "" || new.APIToken == maskedPassword {
 				new.APIToken = old.APIToken
 			}
 		}
@@ -371,6 +374,35 @@ func validateVulnerabilitiesAutomation(merged *fleet.AppConfig, invalid *fleet.I
 	}
 	if zendeskEnabledCount > 1 {
 		invalid.Append("vulnerabilities", "cannot enable more than one zendesk integration")
+	}
+}
+
+func validateFailingPoliciesAutomation(merged *fleet.AppConfig, invalid *fleet.InvalidArgumentError) {
+	webhookEnabled := merged.WebhookSettings.FailingPoliciesWebhook.Enable
+	var jiraEnabledCount int
+	for _, jira := range merged.Integrations.Jira {
+		if jira.EnableFailingPolicies {
+			jiraEnabledCount++
+		}
+	}
+	var zendeskEnabledCount int
+	for _, zendesk := range merged.Integrations.Zendesk {
+		if zendesk.EnableFailingPolicies {
+			zendeskEnabledCount++
+		}
+	}
+
+	if webhookEnabled && (jiraEnabledCount > 0 || zendeskEnabledCount > 0) {
+		invalid.Append("failing policies", "cannot enable both webhook failing policies and integration automations")
+	}
+	if jiraEnabledCount > 0 && zendeskEnabledCount > 0 {
+		invalid.Append("failing policies", "cannot enable both jira and zendesk automations")
+	}
+	if jiraEnabledCount > 1 {
+		invalid.Append("failing policies", "cannot enable more than one jira integration")
+	}
+	if zendeskEnabledCount > 1 {
+		invalid.Append("failing policies", "cannot enable more than one zendesk integration")
 	}
 }
 

@@ -218,6 +218,7 @@ type JiraIntegration struct {
 	APIToken                      string `json:"api_token"`
 	ProjectKey                    string `json:"project_key"`
 	EnableSoftwareVulnerabilities bool   `json:"enable_software_vulnerabilities"`
+	EnableFailingPolicies         bool   `json:"enable_failing_policies"`
 }
 
 // ZendeskIntegration configures an instance of an integration with the external Zendesk service.
@@ -227,6 +228,7 @@ type ZendeskIntegration struct {
 	APIToken                      string `json:"api_token"`
 	GroupID                       int64  `json:"group_id"`
 	EnableSoftwareVulnerabilities bool   `json:"enable_software_vulnerabilities"`
+	EnableFailingPolicies         bool   `json:"enable_failing_policies"`
 }
 
 // Integrations configures the integrations with external systems.
