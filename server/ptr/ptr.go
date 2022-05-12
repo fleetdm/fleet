@@ -26,6 +26,7 @@ func Bool(x bool) *bool {
 	return &x
 }
 
+// BoolPtr returns a double pointer to the provided bool.
 func BoolPtr(x bool) **bool {
 	p := Bool(x)
 	return &p
@@ -41,6 +42,13 @@ func RawMessage(x json.RawMessage) *json.RawMessage {
 	return &x
 }
 
+// Float64 returns a pointer to a float64.
 func Float64(x float64) *float64 {
 	return &x
+}
+
+// Float64Ptr returns a pointer to a *float64.
+func Float64Ptr(x float64) **float64 {
+	p := Float64(x)
+	return &p
 }

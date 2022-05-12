@@ -161,7 +161,7 @@ func applyChangesForNewSoftwareDB(
 	software []fleet.Software,
 	minLastOpenedAtDiff time.Duration,
 ) error {
-	currentSoftware, err := ListSoftwareByHostIDShort(ctx, tx, hostID)
+	currentSoftware, err := listSoftwareByHostIDShort(ctx, tx, hostID)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "loading current software for host")
 	}
