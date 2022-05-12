@@ -239,24 +239,23 @@ const generateSoftwareTableHeaders = (deviceUser = false): IDataColumn[] => {
             >
               {lastUsed}
             </span>
-            {!hasLastUsed && (
-              <ReactTooltip
-                place="top"
-                type="dark"
-                effect="solid"
-                backgroundColor="#3e4771"
-                id={`last_used__${cellProps.row.index}`}
-                className="last_used_tooltip"
-                data-html
-              >
-                <span className={`last_used tooltip__tooltip-text`}>
-                  Last used information <br />
-                  is only available for the <br />
-                  Application (macOS) <br />
-                  software type.
-                </span>
-              </ReactTooltip>
-            )}
+            <ReactTooltip
+              place="top"
+              type="dark"
+              effect="solid"
+              backgroundColor="#3e4771"
+              id={`last_used__${cellProps.row.index}`}
+              className="last_used_tooltip"
+              data-tip-disable={hasLastUsed}
+              data-html
+            >
+              <span className={`last_used tooltip__tooltip-text`}>
+                Last used information <br />
+                is only available for the <br />
+                Application (macOS) <br />
+                software type.
+              </span>
+            </ReactTooltip>
           </>
         );
       },
