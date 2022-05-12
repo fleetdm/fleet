@@ -124,7 +124,7 @@ func Sync(client *http.Client, dstDir string, platforms []Platform) error {
 func Refresh(
 	ctx context.Context,
 	client *http.Client,
-	osVersions *fleet.OSVersions,
+	versions *fleet.OSVersions,
 	vulnPath string,
 ) ([]Platform, error) {
 	today := time.Now()
@@ -134,7 +134,7 @@ func Refresh(
 		return nil, err
 	}
 
-	toDownload := whatToDownload(osVersions, existing, today)
+	toDownload := whatToDownload(versions, existing, today)
 	err = Sync(client, vulnPath, toDownload)
 	if err != nil {
 		return nil, err

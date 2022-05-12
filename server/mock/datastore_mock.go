@@ -268,7 +268,7 @@ type SearchTeamsFunc func(ctx context.Context, filter fleet.TeamFilter, matchQue
 
 type TeamEnrollSecretsFunc func(ctx context.Context, teamID uint) ([]*fleet.EnrollSecret, error)
 
-type ListSoftwareByHostIDFunc func(ctx context.Context, hostID uint) ([]fleet.Software, error)
+type ListSoftwareByHostIDShortFunc func(ctx context.Context, hostID uint) ([]fleet.Software, error)
 
 type LoadHostSoftwareFunc func(ctx context.Context, host *fleet.Host) error
 
@@ -785,8 +785,8 @@ type DataStore struct {
 	TeamEnrollSecretsFunc        TeamEnrollSecretsFunc
 	TeamEnrollSecretsFuncInvoked bool
 
-	ListSoftwareByHostIDFunc        ListSoftwareByHostIDFunc
-	ListSoftwareByHostIDFuncInvoked bool
+	ListSoftwareByHostIDShortFunc        ListSoftwareByHostIDShortFunc
+	ListSoftwareByHostIDShortFuncInvoked bool
 
 	LoadHostSoftwareFunc        LoadHostSoftwareFunc
 	LoadHostSoftwareFuncInvoked bool
@@ -1624,9 +1624,9 @@ func (s *DataStore) TeamEnrollSecrets(ctx context.Context, teamID uint) ([]*flee
 	return s.TeamEnrollSecretsFunc(ctx, teamID)
 }
 
-func (s *DataStore) ListSoftwareByHostID(ctx context.Context, hostID uint) ([]fleet.Software, error) {
-	s.ListSoftwareByHostIDFuncInvoked = true
-	return s.ListSoftwareByHostIDFunc(ctx, hostID)
+func (s *DataStore) ListSoftwareByHostIDShort(ctx context.Context, hostID uint) ([]fleet.Software, error) {
+	s.ListSoftwareByHostIDShortFuncInvoked = true
+	return s.ListSoftwareByHostIDShortFunc(ctx, hostID)
 }
 
 func (s *DataStore) LoadHostSoftware(ctx context.Context, host *fleet.Host) error {

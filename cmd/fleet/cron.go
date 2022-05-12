@@ -302,6 +302,8 @@ func checkOvalVulnerabilities(
 	if config.Vulnerabilities.DisableDataSync {
 		return
 	}
+
+	// Get Platforms/OS Versions
 	versions, err := ds.OSVersions(ctx, nil, nil)
 	if err != nil {
 		level.Error(logger).Log("msg", "updating oval definitions", "err", err)

@@ -25,6 +25,7 @@ func Analyze(
 ) error {
 	for _, v := range versions.OSVersions {
 		platform := NewPlatform(v.Platform, v.Name)
+
 		if !platform.IsSupported() {
 			continue
 		}
@@ -40,7 +41,7 @@ func Analyze(
 		}
 
 		for _, id := range ids {
-			software, err := ds.ListSoftwareByHostID(ctx, id)
+			software, err := ds.ListSoftwareByHostIDShort(ctx, id)
 			if err != nil {
 				return err
 			}

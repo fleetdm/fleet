@@ -915,7 +915,7 @@ ORDER BY
 	return hosts, nil
 }
 
-func (ds *Datastore) ListSoftwareByHostID(ctx context.Context, hostID uint) ([]fleet.Software, error) {
+func (ds *Datastore) ListSoftwareByHostIDShort(ctx context.Context, hostID uint) ([]fleet.Software, error) {
 	return listSoftwareByHostIDShort(ctx, ds.reader, hostID)
 }
 
