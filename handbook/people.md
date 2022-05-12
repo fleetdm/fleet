@@ -221,11 +221,11 @@ After getting CEO approval, create a position in Breezy.
 We're glad you're interested in joining the team! 
 
 Here are some of the things you can anticipate throughout this process:
-  - We try to reply by email within 1 business day from the time when the application arrives.
-  - You may receieve a rejection email (Bummer, consider applying again in the future).
+  - We try to reply by email within one business day from the time when the application arrives.
+  - You may receive a rejection email (Bummer, consider applying again in the future).
   - You may receive an invitation to "book with us."
 
-If you've been invited to "book with us" you'll have a Zoom meeting with the hiring team to discuss next steps. 
+If you've been invited to "book with us," you'll have a Zoom meeting with the hiring team to discuss the next steps. 
 
 ### Hiring a new team member
 
@@ -241,12 +241,12 @@ If you've been invited to "book with us" you'll have a Zoom meeting with the hir
 
 Change the name of the copied documents accordingly (e.g., "[candidate's name]'s a copy of exit scenarios") and link to the exit scenarios spreadsheet from the offer email.
 
-4. **People Ops:** Next, prepare the informal offer email: Post in the `#g-people` Slack channel and at-mention the CEO for assistance with determining the number of shares.  You'll then need to add the following information to the template: 
+4. **People Ops:** Next, prepare the informal offer email. Post in the `#g-people` Slack channel and at-mention the CEO for assistance with determining the number of shares.  You'll then need to add the following information to the template: 
    - Candidate's name and email address
    - Candidate's start date
    - Candidate's compensation
    - Candidate's manager (the person they report to)
-   - Equity offered to the candidate (specify a number of shares, and highlight it with a link to the candidate's exit scenarios spreadsheet)
+   - Equity offered to the candidate (specify the number of shares, and highlight it with a link to the candidate's exit scenarios spreadsheet)
    - Benefits (determined by the candidate's location)
 
 5. **People Ops:** Prepare the exit scenarios spreadsheet. Enter the number of shares offered to the candidate, and the spreadsheet will update to reflect this. 
@@ -265,7 +265,7 @@ The CEO will then reply in `#g-people` to indicate that the offer is approved.
 
    >**_Note:_** *When hiring an international employee, Pilot.co recommends starting the hiring process a month before the new employee's start date.*
 
-8. **People Ops:** After obtaining CEO approval, confirm everything is correct one more time, then mention either the CEO or CTO, who will send the offer email.
+8. **People Ops:** After obtaining CEO approval, confirm everything is correct one more time, then mention the CEO or CTO, who will send the offer email.
   - The offer email is copied directly from Google Drive into Gmail before being sent to the candidate.
   - When sending the offer, the CEO or CTO will edit the permissions of the exit scenarios sheet, so it is accessible to the candidate.
   - People Ops is cc'd on the offer email, but will not participate in the email thread until after the offer is accepted.
@@ -273,7 +273,7 @@ The CEO will then reply in `#g-people` to indicate that the offer is approved.
 
 ### Steps after an offer is accepted
 
-1. Once an offer is accepted in writing, People Ops replies to the candidate.
+1. Once an applicant accepts an offer in writing, People Ops replies to the candidate.
 
 2. People Ops creates a [hiring issue](https://github.com/fleetdm/confidential/blob/main/.github/ISSUE_TEMPLATE/hiring.md) for the new team member in the [fleetdm/confidential](https://github.com/fleetdm/confidential/issues) repo. People Ops will use this issue to keep track of the hiring tasks for the new team member.
 
@@ -284,9 +284,9 @@ The CEO will then reply in `#g-people` to indicate that the offer is approved.
 
    >*If we're hiring in a new state, we'll have to register for state taxes and unemployment. This process can usually be handled by Gusto.*
 
-   - **For international team members:** People Ops enters the new team member's information into [Pilot](https://pilot.co/) to kick off their hiring process. Pilot creates an agreement for the new team member, and People Ops reviews it to ensure that everything looks correct. After People Ops confirms the information about the new hire, Pilot invites the new team member to enter the rest of their information and informs People Ops via email when the agreement has been signed.
+   - **For international team members:** People Ops enters the new team member's information into [Pilot](https://pilot.co/) to kick off their hiring process. Pilot creates an agreement for the new team member, and People Ops reviews it to make sure everything looks correct. After People Ops confirms the information about the new hire, Pilot invites the new team member to enter the rest of their information and informs People Ops via email when a new Fleetie signs their agreement.
 
-4. **As soon as we have a signed agreement with a new team member:** People Ops reaches out to the new team member to provide them with a [work device](#purchasing-a-company-issued-device) and a pair of [YubiKeys](./security.md#hardware-security-keys). The new team member will be asked to send People Ops a screenshot or link to their preferred device and configuration. People Ops orders their device and Yubikeys using his Brex card and has them shipped directly to the new team member.
+4. **As soon as we have a signed agreement with a new team member:** People Ops reaches out to the new team member to provide them with a [work device](#purchasing-a-company-issued-device) and a pair of [YubiKeys](./security.md#hardware-security-keys). People Ops then requests a screenshot or link to the new Fleetie's preferred device and configuration. People Ops orders their device and Yubikeys using his Brex card and has them shipped directly to the new team member.
 
    >*If the new team member is in the US and requests a MacBook, It will be purchased using our Apple business account. MacBooks purchased with this account will ship pre-configured and will be enrolled in our MDM.*
 
@@ -427,9 +427,9 @@ We're happy you've ventured a trip around the sun with Fleet. Let's celebrate!
 
 ### Weekly updates
 
-We like to celebrate our acheivements weekly in `#general`.
-  - Every Thursday night Charlie creates a thread in #help-manage requesting weekly updates and managers will reply to the thread with their weekly updates.
-  - On Friday afternoon, Charlie updates the KPIs in the weekly updates spreadsheet and on Friday night, Charlie will post the updates in #general.
+We like to celebrate our achievements weekly in `#general`.
+  - Every Thursday night, Charlie creates a thread in #help-manage requesting weekly updates, and managers will reply to the thread with their weekly updates.
+  - Friday afternoons, Charlie updates the KPIs in the weekly updates spreadsheet, and Friday nights, Charlie will post the updates in #general.
 
 
 ## Rituals
@@ -439,7 +439,7 @@ The following table lists the People group's rituals, frequency, and Directly Re
 | Ritual                       | Frequency                | Description                                         | DRI               |
 |:-----------------------------|:-----------------------------|:----------------------------------------------------|-------------------|
 | AP invoice monitoring | Daily | Look for new accounts payable invoices and ensure that Fleet's suppliers are paid. | Nathanael Holliday |
-| Weekly update | Weekly | Updates from managers on what their departments accomplished for the week are logged in the cloud and disseminated on Slack. Update the ops KPIs in the ["🌈 Weekly updates" spreadsheet](https://docs.google.com/spreadsheets/d/1Hso0LxqwrRVINCyW_n436bNHmoqhoLhC8bcbvLPOs9A/edit#gid=0).| Charlie Chance | 
+| Weekly update | Weekly | Updates from managers on what their departments accomplished for the week are logged in the cloud and disseminated in Slack. Update the ops KPIs in the ["🌈 Weekly updates" spreadsheet](https://docs.google.com/spreadsheets/d/1Hso0LxqwrRVINCyW_n436bNHmoqhoLhC8bcbvLPOs9A/edit#gid=0).| Charlie Chance | 
 | Hours update | Weekly | Screenshots of contractor hours as shown in Gusto are sent via Slack to each contractor's manager with no further action necessary if everything appears normal. | Charlie Chance |
 | Prepare Mike and Sid's 1:1 doc | Bi-weekly | Run through the document preparation GitHub issue for Mike's call with Sid. | Nathanael Holliday |
 | OKR review | Every three weeks | Review the status of each OKR. | Mike Thomas |

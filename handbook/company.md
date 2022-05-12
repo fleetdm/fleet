@@ -402,13 +402,6 @@ When Kolide's attention shifted away from Fleet and towards their separate, user
 ### 2020: Fleet was incorporated
 Zach partnered with our CEO, Mike McNeil, to found a new, independent company: Fleet Device Management Inc.  In November 2020, we [announced](https://medium.com/fleetdm/a-new-fleet-d4096c7de978) the transition and kicked off the logistics of moving the GitHub repository.
 
-## Rituals
-
-|Ritual |Frequency | Description | DRI|
-|-------|:---------|:------------|:---|
-| Weekly update reminder | Weekly | On Thursday, Charlie starts a thread in the `#help-manage` channel and asks managers to reply to the thread with a summary of what their team did in the past week. | Charlie Chance |
-| Weekly update | Weekly | On Friday, Charlie updates the KPIs in the ["🌈 Weekly updates" spreadsheet](https://docs.google.com/spreadsheets/d/1Hso0LxqwrRVINCyW_n436bNHmoqhoLhC8bcbvLPOs9A/edit#gid=0), combines the updates from managers into a single message, and adds any hiring announcements. Charlie posts the company update in the `#general` channel. | Charlie Chance |
-
 ## GitHub labels
 
 We use special characters to define different types of GitHub labels. By combining labels, we
@@ -422,6 +415,13 @@ maintaining an expressive labelling system. For example, instead of a label call
 | `:`               | Verb        | One or more  | `:dev`, `:research`, `:design`
 | `~`               | Adjective   | One or more  | `~blocked`, `~frontend`, `~backend`
 | `!`               | OKR         | One only     | `!vuln`, `!desktop`, `!upgrade`
+
+## Rituals
+
+|Ritual |Frequency | Description | DRI|
+|-------|:---------|:------------|:---|
+| Weekly update reminder | Weekly | On Thursday, Charlie starts a thread in the `#help-manage` channel and asks managers to reply to the thread with a summary of what their team did in the past week. | Charlie Chance |
+| Weekly update | Weekly | On Friday, Charlie updates the KPIs in the ["🌈 Weekly updates" spreadsheet](https://docs.google.com/spreadsheets/d/1Hso0LxqwrRVINCyW_n436bNHmoqhoLhC8bcbvLPOs9A/edit#gid=0), combines the updates from managers into a single message, and adds any hiring announcements. Charlie posts the company update in the `#general` channel. | Charlie Chance |
 
 ## Slack channels
 
@@ -438,5 +438,9 @@ The following Slack channels are maintained by Fleet's founders and executive co
 | `#general`                  | N/A _(announce something company-wide)_
 | `#thanks`                   | N/A _(say thank you)_
 | `#random`                   | N/A _(be random)_
+
+## Email relays
+
+There are several special email addresses that automatically relay messages to the appropriate people at Fleet.  Each email address meets a minimum response time ("Min RT"), expressed in business hours / days, and has a dedicated directly responsible individual (DRI) who is responsible for reading and replying to emails sent to that address.  You can see a list of those email addresses in [Contacting Fleet (private Google doc)](https://docs.google.com/document/d/1tE-NpNfw1icmU2MjYuBRib0VWBPVAdmq4NiCrpuI0F0/edit#).
 
 <meta name="maintainedBy" value="mikermcneil">
