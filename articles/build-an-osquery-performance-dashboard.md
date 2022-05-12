@@ -1,5 +1,6 @@
-Using Elasticsearch and Kibana to visualize osquery performance
-Build an osquery performance dashboard
+# Using Elasticsearch and Kibana to visualize osquery performance
+
+## Build an osquery performance dashboard
 
 ![Build and osquery performance dashboard](https://miro.medium.com/1*KlbIuTM3nL1-KFg4iihe2w.jpeg)
 

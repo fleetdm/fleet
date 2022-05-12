@@ -1,6 +1,6 @@
 ## Work may be watching, but it might not be as bad as you think.
 
-![A friendly eye of Sauron watching someone work](https://miro.medium.com/1*1LQZxaFX4s313oV3tAY5fQ.png)
+![A friendly eye of Sauron watching someone work](../website/assets/images/articles/work-may-be-watching-cover-800x502@2x.png)
 
 *Transparency and collaboration are becoming the norm for company device monitoring.*
 
@@ -51,4 +51,4 @@ The key takeaways from all of this are that; while it is common for companies to
 <meta name="authorGitHubUsername" value="mike-j-thomas">
 <meta name="publishedOn" value="2021-10-22">
 <meta name="articleTitle" value="Work may be watching, but it might not be as bad as you think.">
-<meta name="articleImageUrl" value="https://miro.medium.com/1*1LQZxaFX4s313oV3tAY5fQ.png">
+<meta name="articleImageUrl" value="../website/assets/images/articles/work-may-be-watching-cover-800x502@2x.png">
