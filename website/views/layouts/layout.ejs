@@ -312,8 +312,8 @@
             if (scrollTop > lastScrollTop && scrollTop > window.innerHeight * 1.5) {
                 header.classList.add('translate-y-0');
                 if(rightNavBar && leftNavBar) {
-                  docsRightNav.classList.add('translate-y-0');
-                  docsLeftNav.classList.add('translate-y-0');
+                  rightNavBar.classList.add('translate-y-0');
+                  leftNavBar.classList.add('translate-y-0');
                 }
              } else {
                 if(header.classList.contains('homepage-header') && scrollTop > header.clientHeight) {
@@ -324,8 +324,8 @@
                 }
                 header.classList.remove('translate-y-0');
                 if(rightNavBar && leftNavBar) {
-                  docsRightNav.classList.remove('translate-y-0');
-                  docsLeftNav.classList.remove('translate-y-0');
+                  rightNavBar.classList.remove('translate-y-0');
+                  leftNavBar.classList.remove('translate-y-0');
                 }
             }
             lastScrollTop = scrollTop
