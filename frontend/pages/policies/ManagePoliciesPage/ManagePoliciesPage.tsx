@@ -74,6 +74,9 @@ const ManagePolicyPage = ({
 
   const { setResetSelectedRows } = useContext(TableContext);
 
+  const [isAutomationsLoading, setIsAutomationsLoading] = useState<boolean>(
+    false
+  );
   const [isRemovingPolicy, setIsRemovingPolicy] = useState<boolean>(false);
   const [selectedPolicyIds, setSelectedPolicyIds] = useState<number[]>([]);
   const [showManageAutomationsModal, setShowManageAutomationsModal] = useState(
@@ -131,7 +134,7 @@ const ManagePolicyPage = ({
     isGlobalAdmin || isGlobalMaintainer || isTeamMaintainer || isTeamAdmin;
   const canManageAutomations = isGlobalAdmin || isTeamAdmin;
 
-  const { isLoading: isLoadingWebhooks, refetch: refetchWebhooks } = useQuery<
+  const { isFetching: isFetchingWebhooks, refetch: refetchWebhooks } = useQuery<
     IConfig | ILoadTeamResponse,
     Error,
     IConfig | ITeam
@@ -209,6 +212,7 @@ const ManagePolicyPage = ({
     policy_ids,
     enable_failing_policies_webhook,
   }: IWebhookFailingPolicies) => {
+    setIsAutomationsLoading(true);
     try {
       const api = teamId ? teamsAPI : configAPI;
       const secondParam = teamId || undefined;
@@ -221,6 +225,7 @@ const ManagePolicyPage = ({
           },
         },
       };
+      setIsAutomationsLoading(true);
 
       const request = api.update(data, secondParam);
       await request.then(() => {
@@ -233,6 +238,7 @@ const ManagePolicyPage = ({
       );
     } finally {
       toggleManageAutomationsModal();
+      setIsAutomationsLoading(false);
       refetchWebhooks();
     }
   };
@@ -363,7 +369,7 @@ const ManagePolicyPage = ({
           {showCtaButtons && (
             <div className={`${baseClass} button-wrap`}>
               {canManageAutomations &&
-                !isLoadingWebhooks &&
+                !isFetchingWebhooks &&
                 !isFetchingGlobalPolicies && (
                   <Button
                     onClick={toggleManageAutomationsModal}
@@ -404,12 +410,12 @@ const ManagePolicyPage = ({
           {!!teamId && teamPoliciesError && <TableDataError />}
           {!!teamId &&
             !teamPoliciesError &&
-            (isFetchingTeamPolicies && isLoadingWebhooks ? (
+            (isFetchingTeamPolicies && isFetchingWebhooks ? (
               <Spinner />
             ) : (
               <PoliciesListWrapper
                 policiesList={teamPolicies || []}
-                isLoading={isFetchingTeamPolicies && isLoadingWebhooks}
+                isLoading={isFetchingTeamPolicies && isFetchingWebhooks}
                 onAddPolicyClick={onAddPolicyClick}
                 onRemovePoliciesClick={onRemovePoliciesClick}
                 canAddOrRemovePolicy={canAddOrRemovePolicy}
@@ -425,7 +431,7 @@ const ManagePolicyPage = ({
             ) : (
               <PoliciesListWrapper
                 policiesList={globalPolicies || []}
-                isLoading={isFetchingGlobalPolicies && isLoadingWebhooks}
+                isLoading={isFetchingGlobalPolicies && isFetchingWebhooks}
                 onAddPolicyClick={onAddPolicyClick}
                 onRemovePoliciesClick={onRemovePoliciesClick}
                 canAddOrRemovePolicy={canAddOrRemovePolicy}
@@ -461,7 +467,7 @@ const ManagePolicyPage = ({
                 <Spinner />
               ) : (
                 <PoliciesListWrapper
-                  isLoading={isFetchingGlobalPolicies && isLoadingWebhooks}
+                  isLoading={isFetchingGlobalPolicies && isFetchingWebhooks}
                   policiesList={globalPolicies || []}
                   onRemovePoliciesClick={noop}
                   resultsTitle="policies"
@@ -491,6 +497,7 @@ const ManagePolicyPage = ({
                 failingPoliciesWebhook.enable_failing_policies_webhook) ||
               false
             }
+            isAutomationsLoading={isAutomationsLoading}
           />
         )}
         {showAddPolicyModal && (
