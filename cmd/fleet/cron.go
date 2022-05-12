@@ -11,6 +11,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/service/externalsvc"
+	"github.com/fleetdm/fleet/v4/server/service/schedule"
 	"github.com/fleetdm/fleet/v4/server/vulnerabilities"
 	"github.com/fleetdm/fleet/v4/server/webhooks"
 	"github.com/fleetdm/fleet/v4/server/worker"
@@ -18,6 +19,134 @@ import (
 	kitlog "github.com/go-kit/kit/log"
 	"github.com/go-kit/kit/log/level"
 )
+
+func startWebhooksSchedule(
+	ctx context.Context, instanceID string, ds fleet.Datastore, appConfig *fleet.AppConfig, failingPoliciesSet fleet.FailingPolicySet, logger kitlog.Logger,
+) {
+	schedule.New(
+		ctx, "webhooks", instanceID, appConfig.WebhookSettings.Interval.ValueOr(24*time.Hour), ds,
+		schedule.WithLogger(kitlog.With(logger, "cron", "webhooks")),
+		schedule.WithConfigReloadInterval(5*time.Minute, func(ctx context.Context) (time.Duration, error) {
+			appConfig, err := ds.AppConfig(ctx)
+			if err != nil {
+				return 0, err
+			}
+			newInterval := appConfig.WebhookSettings.Interval.ValueOr(24 * time.Hour)
+			return newInterval, nil
+		}),
+		schedule.WithJob(
+			"maybe_trigger_host_status",
+			func(ctx context.Context) error {
+				return webhooks.TriggerHostStatusWebhook(
+					ctx, ds, kitlog.With(logger, "webhook", "host_status"), appConfig,
+				)
+			},
+		),
+		schedule.WithJob(
+			"maybe_trigger_failing_policies",
+			func(ctx context.Context) error {
+				return webhooks.TriggerFailingPoliciesWebhook(
+					ctx, ds, kitlog.With(logger, "webhook", "failing_policies"), appConfig, failingPoliciesSet, time.Now(),
+				)
+			},
+		),
+	).Start()
+}
+
+func startCleanupsAndAggregationSchedule(
+	ctx context.Context, instanceID string, ds fleet.Datastore, logger kitlog.Logger,
+) {
+	schedule.New(
+		ctx, "cleanups_then_aggregation", instanceID, 1*time.Hour, ds,
+		// Using leader for the lock to be backwards compatilibity with old deployments.
+		schedule.WithAltLockID("leader"),
+		schedule.WithLogger(kitlog.With(logger, "cron", "cleanups_then_aggregation")),
+		// Run cleanup jobs first.
+		schedule.WithJob(
+			"distributed_query_campaings",
+			func(ctx context.Context) error {
+				_, err := ds.CleanupDistributedQueryCampaigns(ctx, time.Now())
+				return err
+			},
+		),
+		schedule.WithJob(
+			"incoming_hosts",
+			func(ctx context.Context) error {
+				return ds.CleanupIncomingHosts(ctx, time.Now())
+			},
+		),
+		schedule.WithJob(
+			"carves",
+			func(ctx context.Context) error {
+				_, err := ds.CleanupCarves(ctx, time.Now())
+				return err
+			},
+		),
+		schedule.WithJob(
+			"expired_hosts",
+			func(ctx context.Context) error {
+				return ds.CleanupExpiredHosts(ctx)
+			},
+		),
+		schedule.WithJob(
+			"policy_membership",
+			func(ctx context.Context) error {
+				return ds.CleanupPolicyMembership(ctx, time.Now())
+			},
+		),
+		// Run aggregation jobs after cleanups.
+		schedule.WithJob(
+			"query_aggregated_stats",
+			func(ctx context.Context) error {
+				return ds.UpdateQueryAggregatedStats(ctx)
+			},
+		),
+		schedule.WithJob(
+			"scheduled_query_aggregated_stats",
+			func(ctx context.Context) error {
+				return ds.UpdateScheduledQueryAggregatedStats(ctx)
+			},
+		),
+		schedule.WithJob(
+			"aggregated_munki_and_mdm",
+			func(ctx context.Context) error {
+				return ds.GenerateAggregatedMunkiAndMDM(ctx)
+			},
+		),
+	).Start()
+}
+
+func startSendStatsSchedule(ctx context.Context, instanceID string, ds fleet.Datastore, license *fleet.LicenseInfo, logger kitlog.Logger) {
+	schedule.New(
+		ctx, "stats", instanceID, 1*time.Hour, ds,
+		schedule.WithLogger(kitlog.With(logger, "cron", "stats")),
+		schedule.WithJob(
+			"try_send_statistics",
+			func(ctx context.Context) error {
+				return trySendStatistics(ctx, ds, fleet.StatisticsFrequency, "https://fleetdm.com/api/v1/webhooks/receive-usage-analytics", license)
+			},
+		),
+	).Start()
+}
+
+func startVulnerabilitiesSchedule(
+	ctx context.Context, instanceID string, ds fleet.Datastore, config config.FleetConfig, logger kitlog.Logger,
+) *schedule.Schedule {
+	vulnerabilitiesLogger := kitlog.With(logger, "cron", "vulnerabilities")
+	s := schedule.New(
+		ctx, "vulnerabilities", instanceID, config.Vulnerabilities.Periodicity, ds,
+		schedule.WithLogger(vulnerabilitiesLogger),
+		schedule.WithJob(
+			"cron_vulnerabilities",
+			func(ctx context.Context) error {
+				// TODO(lucas): Decouple cronVulnerabilities into multiple jobs.
+				return cronVulnerabilities(ctx, ds, vulnerabilitiesLogger, config)
+			},
+		),
+	)
+	s.Start()
+	return s
+}
 
 func trySendStatistics(ctx context.Context, ds fleet.Datastore, frequency time.Duration, url string, license *fleet.LicenseInfo) error {
 	ac, err := ds.AppConfig(ctx)

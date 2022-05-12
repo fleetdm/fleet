@@ -42,9 +42,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/service"
 	"github.com/fleetdm/fleet/v4/server/service/async"
 	"github.com/fleetdm/fleet/v4/server/service/redis_policy_set"
-	"github.com/fleetdm/fleet/v4/server/service/schedule"
 	"github.com/fleetdm/fleet/v4/server/sso"
-	"github.com/fleetdm/fleet/v4/server/webhooks"
 	"github.com/getsentry/sentry-go"
 	kitlog "github.com/go-kit/kit/log"
 	"github.com/go-kit/kit/log/level"
@@ -626,120 +624,10 @@ func startSchedules(
 		return fmt.Errorf("reading app config: %w", err)
 	}
 
-	webhooksLogger := kitlog.With(logger, "cron", "webhooks")
-	schedule.New(
-		ctx, "webhooks", instanceID, appConfig.WebhookSettings.Interval.ValueOr(24*time.Hour), ds,
-		schedule.WithLogger(webhooksLogger),
-		schedule.WithReloadInterval(func(ctx context.Context) (time.Duration, error) {
-			appConfig, err := ds.AppConfig(ctx)
-			if err != nil {
-				level.Error(logger).Log("config", "couldn't read app config", "err", err)
-				return 0, err
-			}
-			newInterval := appConfig.WebhookSettings.Interval.ValueOr(24 * time.Hour)
-			return newInterval, nil
-		}),
-		schedule.WithJob(
-			"maybe_trigger_host_status",
-			func(ctx context.Context) error {
-				return webhooks.TriggerHostStatusWebhook(
-					ctx, ds, kitlog.With(logger, "webhook", "host_status"), appConfig,
-				)
-			},
-		),
-		schedule.WithJob(
-			"maybe_trigger_failing_policies",
-			func(ctx context.Context) error {
-				return webhooks.TriggerFailingPoliciesWebhook(
-					ctx, ds, kitlog.With(logger, "webhook", "failing_policies"), appConfig, failingPoliciesSet, time.Now(),
-				)
-			},
-		),
-	).Start()
-
-	schedule.New(
-		ctx, "cleanups", instanceID, 1*time.Hour, ds,
-		schedule.WithLogger(kitlog.With(logger, "cron", "cleanups")),
-		schedule.WithJob(
-			"distributed_query_campaings",
-			func(ctx context.Context) error {
-				_, err := ds.CleanupDistributedQueryCampaigns(ctx, time.Now())
-				return err
-			},
-		),
-		schedule.WithJob(
-			"incoming_hosts",
-			func(ctx context.Context) error {
-				return ds.CleanupIncomingHosts(ctx, time.Now())
-			},
-		),
-		schedule.WithJob(
-			"carves",
-			func(ctx context.Context) error {
-				_, err := ds.CleanupCarves(ctx, time.Now())
-				return err
-			},
-		),
-		schedule.WithJob(
-			"expired_hosts",
-			func(ctx context.Context) error {
-				return ds.CleanupExpiredHosts(ctx)
-			},
-		),
-		schedule.WithJob(
-			"policy_membership",
-			func(ctx context.Context) error {
-				return ds.CleanupPolicyMembership(ctx, time.Now())
-			},
-		),
-	).Start()
-
-	schedule.New(
-		ctx, "stats", instanceID, 1*time.Hour, ds,
-		schedule.WithLogger(kitlog.With(logger, "cron", "stats")),
-		schedule.WithJob(
-			"try_send_statistics",
-			func(ctx context.Context) error {
-				return trySendStatistics(ctx, ds, fleet.StatisticsFrequency, "https://fleetdm.com/api/v1/webhooks/receive-usage-analytics", license)
-			},
-		),
-	).Start()
-
-	schedule.New(
-		ctx, "aggregation", instanceID, 1*time.Hour, ds,
-		schedule.WithLogger(kitlog.With(logger, "cron", "aggregation")),
-		schedule.WithJob(
-			"query_aggregated_stats",
-			func(ctx context.Context) error {
-				return ds.UpdateQueryAggregatedStats(ctx)
-			},
-		),
-		schedule.WithJob(
-			"scheduled_query_aggregated_stats",
-			func(ctx context.Context) error {
-				return ds.UpdateScheduledQueryAggregatedStats(ctx)
-			},
-		),
-		schedule.WithJob(
-			"aggregated_munki_and_mdm",
-			func(ctx context.Context) error {
-				return ds.GenerateAggregatedMunkiAndMDM(ctx)
-			},
-		),
-	).Start()
-
-	vulnerabilitiesLogger := kitlog.With(logger, "cron", "vulnerabilities")
-	schedule.New(
-		ctx, "vulnerabilities", instanceID, config.Vulnerabilities.Periodicity, ds,
-		schedule.WithLogger(vulnerabilitiesLogger),
-		schedule.WithJob(
-			"cron_vulnerabilities",
-			func(ctx context.Context) error {
-				// TODO(lucas): Decouple cronVulnerabilities into multiple jobs.
-				return cronVulnerabilities(ctx, ds, vulnerabilitiesLogger, config)
-			},
-		),
-	).Start()
+	startWebhooksSchedule(ctx, instanceID, ds, appConfig, failingPoliciesSet, logger)
+	startCleanupsAndAggregationSchedule(ctx, instanceID, ds, logger)
+	startSendStatsSchedule(ctx, instanceID, ds, license, logger)
+	startVulnerabilitiesSchedule(ctx, instanceID, ds, config, logger)
 
 	return nil
 }

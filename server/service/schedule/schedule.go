@@ -6,12 +6,11 @@ package schedule
 
 import (
 	"context"
-	"fmt"
 	"sync"
 	"time"
 
 	"github.com/getsentry/sentry-go"
-	kitlog "github.com/go-kit/kit/log"
+	"github.com/go-kit/kit/log"
 	"github.com/go-kit/log/level"
 )
 
@@ -27,14 +26,19 @@ type Schedule struct {
 	ctx        context.Context
 	name       string
 	instanceID string
-	logger     kitlog.Logger
+	logger     log.Logger
 
-	muChecks       sync.Mutex // protects configInterval and schedInterval.
-	configInterval time.Duration
-	schedInterval  time.Duration
+	schedIntervalMu sync.Mutex // protects schedInterval.
+	schedInterval   time.Duration
 
-	reloadInterval ReloadInterval
-	locker         Locker
+	done chan struct{}
+
+	configReloadInterval   time.Duration
+	configReloadIntervalFn ReloadInterval
+
+	locker Locker
+
+	altLockName string
 
 	jobs []Job
 }
@@ -50,29 +54,38 @@ type Job struct {
 	Fn func(context.Context) error
 }
 
-// Locker allows a Schedule to acquire and release a lock before running jobs.
+// Locker allows a Schedule to acquire a lock before running jobs.
 type Locker interface {
-	Lock(ctx context.Context, name string, owner string, expiration time.Duration) (bool, error)
-	Unlock(ctx context.Context, name string, owner string) error
+	Lock(ctx context.Context, scheduleName string, scheduleInstanceID string, expiration time.Duration) (bool, error)
 }
 
 // Option allows configuring a Schedule.
 type Option func(*Schedule)
 
 // WithLogger sets a logger for the Schedule.
-func WithLogger(l kitlog.Logger) Option {
+func WithLogger(l log.Logger) Option {
 	return func(s *Schedule) {
-		s.logger = l
+		s.logger = log.With(l, "schedule", s.name)
 	}
 }
 
-// WithReloadInterval allows setting a reload interval function,
+// WithConfigReloadInterval allows setting a reload interval function,
 // that will allow updating the interval of a running schedule.
 //
 // If not set, then the schedule performs no interval reloading.
-func WithReloadInterval(fn ReloadInterval) Option {
+func WithConfigReloadInterval(interval time.Duration, fn ReloadInterval) Option {
 	return func(s *Schedule) {
-		s.reloadInterval = fn
+		s.configReloadInterval = interval
+		s.configReloadIntervalFn = fn
+	}
+}
+
+// WithAltLockID sets an alternative identifier to use when acquiring the lock.
+//
+// If not set, then the Schedule's name is used for acquiring the lock.
+func WithAltLockID(name string) Option {
+	return func(s *Schedule) {
+		s.altLockName = name
 	}
 }
 
@@ -104,13 +117,14 @@ func New(
 	opts ...Option,
 ) *Schedule {
 	sch := &Schedule{
-		ctx:        ctx,
-		name:       name,
-		instanceID: instanceID,
-
-		configInterval: 1 * time.Hour, // by default we will check for updated config once per hour
-		schedInterval:  interval,
-		locker:         locker,
+		ctx:                  ctx,
+		name:                 name,
+		instanceID:           instanceID,
+		logger:               log.NewNopLogger(),
+		done:                 make(chan struct{}),
+		configReloadInterval: 1 * time.Hour, // by default we will check for updated config once per hour
+		schedInterval:        interval,
+		locker:               locker,
 	}
 	for _, fn := range opts {
 		fn(sch)
@@ -122,36 +136,42 @@ func New(
 //
 // All jobs must be added before calling Start.
 func (s *Schedule) Start() {
+	var m sync.Mutex // protects currentStart and currentWait.
 	currentStart := time.Now()
 	currentWait := 10 * time.Second
 
 	getWaitTimes := func() (start time.Time, wait time.Duration) {
-		s.muChecks.Lock()
-		defer s.muChecks.Unlock()
+		m.Lock()
+		defer m.Unlock()
+
 		return currentStart, currentWait
 	}
 
 	setWaitTimes := func(start time.Time, wait time.Duration) {
-		s.muChecks.Lock()
-		defer s.muChecks.Unlock()
+		m.Lock()
+		defer m.Unlock()
+
 		currentStart = start
 		currentWait = wait
 	}
 
-	if i := s.getSchedInterval(); i < currentWait {
-		setWaitTimes(currentStart, i)
+	if schedInterval := s.getSchedInterval(); schedInterval < currentWait {
+		setWaitTimes(currentStart, schedInterval)
 	}
 
-	// this is the main loop for the schedule
+	var g sync.WaitGroup
+
 	schedTicker := time.NewTicker(currentWait)
+	g.Add(+1)
 	go func() {
+		defer g.Done()
+
 		for {
 			_, currWait := getWaitTimes()
-			level.Debug(s.logger).Log("waiting", fmt.Sprint("current wait time... ", currWait))
+			level.Debug(s.logger).Log("msg", "waiting", "current wait time", currWait)
 
 			select {
 			case <-s.ctx.Done():
-				level.Debug(s.logger).Log("exit", fmt.Sprint("done with ", s.name))
 				return
 
 			case <-schedTicker.C:
@@ -169,9 +189,9 @@ func (s *Schedule) Start() {
 				}
 
 				for _, job := range s.jobs {
-					level.Debug(s.logger).Log(s.name, fmt.Sprint("starting job... ", job.ID))
+					level.Debug(s.logger).Log("msg", "starting", "jobID", job.ID)
 					if err := job.Fn(s.ctx); err != nil {
-						level.Error(s.logger).Log("job", job.ID, "err", err)
+						level.Error(s.logger).Log("jobID", job.ID, "err", err)
 						sentry.CaptureException(err)
 					}
 				}
@@ -179,32 +199,37 @@ func (s *Schedule) Start() {
 		}
 	}()
 
-	// this periodically checks for config updates and resets the schedInterval for the main loop
+	// Periodically check for config updates and resets the schedInterval for the previous loop.
 	configTicker := time.NewTicker(200 * time.Millisecond)
+	g.Add(+1)
 	go func() {
+		defer g.Done()
+
 		for {
 			select {
+			case <-s.ctx.Done():
+				return
 			case <-configTicker.C:
-				level.Debug(s.logger).Log(s.name, "config check...")
+				level.Debug(s.logger).Log("msg", "config reload check")
 
-				configTicker.Reset(s.configInterval)
+				configTicker.Reset(s.configReloadInterval)
 
 				schedInterval := s.getSchedInterval()
 				currStart, _ := getWaitTimes()
 
-				if s.reloadInterval == nil {
-					level.Debug(s.logger).Log(s.name, "config check function has not been set... skipping...")
+				if s.configReloadIntervalFn == nil {
+					level.Debug(s.logger).Log("msg", "config reload interval method not set")
 					continue
 				}
 
-				newInterval, err := s.reloadInterval(s.ctx)
+				newInterval, err := s.configReloadIntervalFn(s.ctx)
 				if err != nil {
-					level.Error(s.logger).Log("config", "could not check for updates to schedule interval", "err", err)
+					level.Error(s.logger).Log("msg", "schedule interval config reload failed", "err", err)
 					sentry.CaptureException(err)
 					continue
 				}
 				if schedInterval == newInterval {
-					level.Debug(s.logger).Log(s.name, "schedule interval unchanged")
+					level.Debug(s.logger).Log("msg", "schedule interval unchanged")
 					continue
 				}
 				s.setSchedInterval(newInterval)
@@ -216,36 +241,55 @@ func (s *Schedule) Start() {
 				setWaitTimes(currStart, newWait)
 				schedTicker.Reset(newWait)
 
-				level.Debug(s.logger).Log("schedule", s.name, "new schedule interval", newInterval, "wait time until next job run: ", newWait)
+				level.Debug(s.logger).Log("new schedule interval", newInterval, "new wait", newWait)
 			}
 		}
 	}()
+
+	go func() {
+		g.Wait()
+		level.Debug(s.logger).Log("msg", "done")
+		close(s.done)
+	}()
+}
+
+// Done returns a channel that will be closed when the scheduler's context is done
+// and it has finished running its goroutines.
+func (s *Schedule) Done() <-chan struct{} {
+	s.schedIntervalMu.Lock()
+	defer s.schedIntervalMu.Unlock()
+
+	return s.done
 }
 
 func (s *Schedule) getSchedInterval() time.Duration {
-	s.muChecks.Lock()
-	defer s.muChecks.Unlock()
+	s.schedIntervalMu.Lock()
+	defer s.schedIntervalMu.Unlock()
 
 	return s.schedInterval
 }
 
 func (s *Schedule) setSchedInterval(interval time.Duration) {
-	s.muChecks.Lock()
-	defer s.muChecks.Unlock()
+	s.schedIntervalMu.Lock()
+	defer s.schedIntervalMu.Unlock()
 
 	s.schedInterval = interval
 }
 
 func (s *Schedule) acquireLock() bool {
-	locked, err := s.locker.Lock(s.ctx, s.name, s.instanceID, s.schedInterval)
+	name := s.name
+	if s.altLockName != "" {
+		name = s.altLockName
+	}
+	locked, err := s.locker.Lock(s.ctx, name, s.instanceID, s.getSchedInterval())
 	if err != nil {
-		level.Error(s.logger).Log("schedule", s.name, "err", err)
+		level.Error(s.logger).Log("msg", "lock failed", "err", err)
 		sentry.CaptureException(err)
 		return false
 	}
 	if locked {
 		return true
 	}
-	level.Debug(s.logger).Log(s.name, "not the lock leader... Skipping...")
+	level.Debug(s.logger).Log("msg", "not the lock leader, skipping")
 	return false
 }
