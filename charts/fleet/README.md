@@ -6,7 +6,7 @@ This directory contains a Helm Chart that makes deploying Fleet on Kubernetes ea
 
 #### 1. Create namespace
 
-This Helm chart optionally provisions a Kubernetes namespace. Alternatively, you can add one with `kubectl create namespace <name>` or by creating a YAML file containing the namespace and applying it to your cluster.
+This Helm chart does not provision a Kubernetes namespace. As of Helm 3.2, you can use the `--create-namespace` to have Helm create it for you. Alternatively, you can add one with `kubectl create namespace <name>` or by creating a YAML file containing the namespace and applying it to your cluster.
 
 #### 2. Create the necessary secrets
 
