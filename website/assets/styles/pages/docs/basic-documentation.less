@@ -370,6 +370,9 @@
 
     [purpose='content'] {
 
+      .markdown-heading {
+        scroll-margin-top: 55px;
+      }
       hr {
         margin: 0px;
         padding: 0px;
@@ -538,50 +541,55 @@
         }
 
       }
-      [purpose='breadcrumbs-and-search'] {
+
+      .translate-y-0 { // for scrolling with the sticky header
+        transform: translateY(-60px);
+        max-height: calc(~'100vh - 80px');
+      }
+      [purpose='left-sidebar'] {
         position: sticky;
-        background-color: #FFF;
-        top: 94px;
+        top: 118px;
+        height: fit-content;
+        overflow-y: auto;
         transition-property: all;
         transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
         transition-duration: 500ms;
-        z-index: 2;
-      }
-
-      [purpose='left-sidebar'] {
-        position: sticky;
-        top: 188px;
-        height: fit-content;
-        max-height: 90vh;
-        overflow-y: auto;
+        &:not(.translate-y-0) {
+          max-height: calc(~'100vh - 120px'); //To prevent the sidenav being anchored to the bottom of the page if it has overflow.
+        }
       }
 
       [purpose='right-sidebar'] {
         min-width: 190px;
         max-width: 210px;
         position: sticky;
-        top: 188px;
+        top: 118px;
         height: fit-content;
+        overflow-y: auto;
+        transition-property: all;
+        transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+        transition-duration: 500ms;
+
         [purpose='subtopics'] {
-          max-height: calc(~'80vh - 90px'); //To prevent the sidenav being anchored to the bottom of the page if it has overflow.
+          max-height: 100vh;
           overflow-y: auto;
           color: @core-fleet-black;
           padding-top: 4px;
           padding-bottom: 4px;
           border-left: 1px solid @core-vibrant-blue-25;
-
           a {
             color: @core-fleet-black;
             text-decoration: none;
-
             &:hover {
               color: @core-vibrant-blue;
             }
-
           }
-
         }
-
+        &:not(.translate-y-0) {
+          [purpose='subtopics'] {
+            max-height: calc(~'100vh - 165px'); // To prevent the sidenav being anchored to the bottom of the page if it has overflow.
+          }
+        }
       }
 
       [purpose='content'] {
