@@ -20,7 +20,7 @@ metadata:
     chart: fleet
     heritage: {{ .Release.Service }}
     release: {{ .Release.Name }}
-  name: fleet
+  name: {{ .Values.fleetName }}
   namespace: {{ .Release.Namespace }}
 spec:
   rules:
