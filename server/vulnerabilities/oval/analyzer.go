@@ -16,6 +16,7 @@ import (
 	oval_parsed "github.com/fleetdm/fleet/v4/server/vulnerabilities/oval/parsed"
 )
 
+// Analyze scans all hosts for vulnerabilities based on the OVAL definitions for their platform.
 func Analyze(
 	ctx context.Context,
 	ds fleet.Datastore,
@@ -28,7 +29,7 @@ func Analyze(
 			continue
 		}
 
-		def, err := loadDef(platform, vulnPath)
+		defs, err := loadDef(platform, vulnPath)
 		if err != nil {
 			return err
 		}
@@ -39,14 +40,11 @@ func Analyze(
 		}
 
 		for _, id := range ids {
-			// TODO: Unnecessary allocation ... maybe add a
-			// method to datastore to get all software for a given host id?
-			host := fleet.Host{ID: id}
-			err := ds.LoadHostSoftware(ctx, &host)
+			software, err := ds.ListSoftwareByHostID(ctx, id)
 			if err != nil {
 				return err
 			}
-			def.Eval(host.Software)
+			defs.Eval(software)
 		}
 	}
 
