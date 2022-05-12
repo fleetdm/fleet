@@ -2,15 +2,18 @@ import React, { useEffect } from "react";
 
 import Modal from "components/Modal";
 import Button from "components/buttons/Button";
+import Spinner from "components/Spinner";
 
 const baseClass = "remove-policies-modal";
 
 interface IRemovePoliciesModalProps {
+  isRemovingPolicy: boolean;
   onCancel: () => void;
   onSubmit: () => void;
 }
 
 const RemovePoliciesModal = ({
+  isRemovingPolicy,
   onCancel,
   onSubmit,
 }: IRemovePoliciesModalProps): JSX.Element => {
@@ -29,26 +32,32 @@ const RemovePoliciesModal = ({
 
   return (
     <Modal title={"Delete policies"} onExit={onCancel} className={baseClass}>
-      <div className={baseClass}>
-        Are you sure you want to delete the selected policies?
-        <div className={`${baseClass}__btn-wrap`}>
-          <Button
-            className={`${baseClass}__btn`}
-            type="button"
-            variant="alert"
-            onClick={onSubmit}
-          >
-            Delete
-          </Button>
-          <Button
-            className={`${baseClass}__btn`}
-            onClick={onCancel}
-            variant="inverse-alert"
-          >
-            Cancel
-          </Button>
-        </div>
-      </div>
+      <>
+        {isRemovingPolicy ? (
+          <Spinner />
+        ) : (
+          <div className={baseClass}>
+            Are you sure you want to delete the selected policies?
+            <div className={`${baseClass}__btn-wrap`}>
+              <Button
+                className={`${baseClass}__btn`}
+                type="button"
+                variant="alert"
+                onClick={onSubmit}
+              >
+                Delete
+              </Button>
+              <Button
+                className={`${baseClass}__btn`}
+                onClick={onCancel}
+                variant="inverse-alert"
+              >
+                Cancel
+              </Button>
+            </div>
+          </div>
+        )}
+      </>
     </Modal>
   );
 };

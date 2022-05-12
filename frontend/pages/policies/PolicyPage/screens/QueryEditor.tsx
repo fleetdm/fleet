@@ -67,6 +67,9 @@ const QueryEditor = ({
     }
   }, []);
 
+  const [isCreatingNewPolicy, setIsCreatingNewPolicy] = useState<boolean>(
+    false
+  );
   const [backendValidators, setBackendValidators] = useState<{
     [key: string]: string;
   }>({});
@@ -75,11 +78,12 @@ const QueryEditor = ({
     if (policyTeamId) {
       formData.team_id = policyTeamId;
     }
-
+    setIsCreatingNewPolicy(true);
     try {
       const policy: IPolicy = await createPolicy(formData).then(
         (data) => data.policy
       );
+      setIsCreatingNewPolicy(false);
       router.push(PATHS.EDIT_POLICY(policy));
       renderFlash("success", "Policy created!");
     } catch (createError: any) {
@@ -94,6 +98,8 @@ const QueryEditor = ({
           "Something went wrong creating your policy. Please try again."
         );
       }
+    } finally {
+      setIsCreatingNewPolicy(false);
     }
   });
 
@@ -163,6 +169,7 @@ const QueryEditor = ({
         storedPolicy={storedPolicy}
         policyIdForEdit={policyIdForEdit}
         isStoredPolicyLoading={isStoredPolicyLoading}
+        isCreatingNewPolicy={isCreatingNewPolicy}
         showOpenSchemaActionText={showOpenSchemaActionText}
         onOpenSchemaSidebar={onOpenSchemaSidebar}
         renderLiveQueryWarning={renderLiveQueryWarning}

@@ -56,8 +56,6 @@ const ManagePolicyPage = ({
     isTeamAdmin,
     isTeamMaintainer,
     currentTeam,
-    setAvailableTeams,
-    setCurrentUser,
     setCurrentTeam,
     setConfig,
   } = useContext(AppContext);
@@ -76,6 +74,7 @@ const ManagePolicyPage = ({
 
   const { setResetSelectedRows } = useContext(TableContext);
 
+  const [isRemovingPolicy, setIsRemovingPolicy] = useState<boolean>(false);
   const [selectedPolicyIds, setSelectedPolicyIds] = useState<number[]>([]);
   const [showManageAutomationsModal, setShowManageAutomationsModal] = useState(
     false
@@ -99,7 +98,7 @@ const ManagePolicyPage = ({
   const {
     data: globalPolicies,
     error: globalPoliciesError,
-    isLoading: isLoadingGlobalPolicies,
+    isFetching: isFetchingGlobalPolicies,
     isStale: isStaleGlobalPolicies,
     refetch: refetchGlobalPolicies,
   } = useQuery<ILoadAllPoliciesResponse, Error, IPolicyStats[]>(
@@ -117,7 +116,7 @@ const ManagePolicyPage = ({
   const {
     data: teamPolicies,
     error: teamPoliciesError,
-    isLoading: isLoadingTeamPolicies,
+    isFetching: isFetchingTeamPolicies,
     refetch: refetchTeamPolicies,
   } = useQuery<ILoadAllPoliciesResponse, Error, IPolicyStats[]>(
     ["teamPolicies", teamId],
@@ -252,6 +251,7 @@ const ManagePolicyPage = ({
 
   const onRemovePoliciesSubmit = async () => {
     const id = currentTeam?.id;
+    setIsRemovingPolicy(true);
     try {
       const request = id
         ? teamPoliciesAPI.destroy(id, selectedPolicyIds)
@@ -276,6 +276,7 @@ const ManagePolicyPage = ({
       );
     } finally {
       toggleRemovePoliciesModal();
+      setIsRemovingPolicy(false);
     }
   };
 
@@ -292,9 +293,9 @@ const ManagePolicyPage = ({
 
   const showInheritedPoliciesButton =
     !!teamId &&
-    !isLoadingTeamPolicies &&
+    !isFetchingTeamPolicies &&
     !teamPoliciesError &&
-    !isLoadingGlobalPolicies &&
+    !isFetchingGlobalPolicies &&
     !globalPoliciesError &&
     !!globalPolicies?.length;
 
@@ -363,7 +364,7 @@ const ManagePolicyPage = ({
             <div className={`${baseClass} button-wrap`}>
               {canManageAutomations &&
                 !isLoadingWebhooks &&
-                !isLoadingGlobalPolicies && (
+                !isFetchingGlobalPolicies && (
                   <Button
                     onClick={toggleManageAutomationsModal}
                     className={`${baseClass}__manage-automations button`}
@@ -403,12 +404,12 @@ const ManagePolicyPage = ({
           {!!teamId && teamPoliciesError && <TableDataError />}
           {!!teamId &&
             !teamPoliciesError &&
-            (isLoadingTeamPolicies && isLoadingWebhooks ? (
+            (isFetchingTeamPolicies && isLoadingWebhooks ? (
               <Spinner />
             ) : (
               <PoliciesListWrapper
                 policiesList={teamPolicies || []}
-                isLoading={isLoadingTeamPolicies && isLoadingWebhooks}
+                isLoading={isFetchingTeamPolicies && isLoadingWebhooks}
                 onAddPolicyClick={onAddPolicyClick}
                 onRemovePoliciesClick={onRemovePoliciesClick}
                 canAddOrRemovePolicy={canAddOrRemovePolicy}
@@ -419,12 +420,12 @@ const ManagePolicyPage = ({
           {!teamId && globalPoliciesError && <TableDataError />}
           {!teamId &&
             !globalPoliciesError &&
-            (isLoadingGlobalPolicies ? (
+            (isFetchingGlobalPolicies ? (
               <Spinner />
             ) : (
               <PoliciesListWrapper
                 policiesList={globalPolicies || []}
-                isLoading={isLoadingGlobalPolicies && isLoadingWebhooks}
+                isLoading={isFetchingGlobalPolicies && isLoadingWebhooks}
                 onAddPolicyClick={onAddPolicyClick}
                 onRemovePoliciesClick={onRemovePoliciesClick}
                 canAddOrRemovePolicy={canAddOrRemovePolicy}
@@ -456,11 +457,11 @@ const ManagePolicyPage = ({
           <div className={`${baseClass}__inherited-policies-table`}>
             {globalPoliciesError && <TableDataError />}
             {!globalPoliciesError &&
-              (isLoadingGlobalPolicies ? (
+              (isFetchingGlobalPolicies ? (
                 <Spinner />
               ) : (
                 <PoliciesListWrapper
-                  isLoading={isLoadingGlobalPolicies && isLoadingWebhooks}
+                  isLoading={isFetchingGlobalPolicies && isLoadingWebhooks}
                   policiesList={globalPolicies || []}
                   onRemovePoliciesClick={noop}
                   resultsTitle="policies"
@@ -502,6 +503,7 @@ const ManagePolicyPage = ({
         )}
         {showRemovePoliciesModal && (
           <RemovePoliciesModal
+            isRemovingPolicy={isRemovingPolicy}
             onCancel={toggleRemovePoliciesModal}
             onSubmit={onRemovePoliciesSubmit}
           />
