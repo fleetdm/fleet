@@ -914,3 +914,38 @@ ORDER BY
 	}
 	return hosts, nil
 }
+
+func (ds *Datastore) ListSoftwareByHostID(ctx context.Context, hostID uint) ([]fleet.Software, error) {
+	return listSoftwareByHostIDShort(ctx, ds.reader, hostID)
+}
+
+func listSoftwareByHostIDShort(
+	ctx context.Context,
+	db sqlx.QueryerContext,
+	hostID uint,
+) ([]fleet.Software, error) {
+	q := `
+SELECT
+    s.id,
+    s.name,
+    s.version,
+    s.source,
+    s.bundle_identifier,
+    s.release,
+    s.version,
+    s.arch,
+    hs.last_opened_at
+FROM
+    software s
+    JOIN host_software hs ON hs.software_id = s.id
+WHERE
+    hs.host_id = ?
+`
+	var softwares []fleet.Software
+	err := sqlx.SelectContext(ctx, db, &softwares, q, hostID)
+	if err != nil {
+		return nil, err
+	}
+
+	return softwares, nil
+}

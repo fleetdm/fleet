@@ -50,6 +50,7 @@ func (op Platform) IsSupported() bool {
 	return false
 }
 
+// IsUbuntu checks whether the current Platform targets Ubuntu.
 func (op Platform) IsUbuntu() bool {
 	return strings.HasPrefix(string(op), "ubuntu")
 }

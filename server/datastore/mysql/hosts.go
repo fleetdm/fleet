@@ -1739,8 +1739,6 @@ func (ds *Datastore) HostIDsByPlatform(
 		return nil, ctxerr.Wrap(ctx, err, "get host IDs")
 	}
 
-	fmt.Println(sql)
-
 	if err := sqlx.SelectContext(ctx, ds.reader, &ids, sql, args...); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "get host IDs")
 	}
