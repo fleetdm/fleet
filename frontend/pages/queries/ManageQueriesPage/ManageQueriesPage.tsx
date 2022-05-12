@@ -99,11 +99,12 @@ const ManageQueriesPage = ({
   const [showRemoveQueryModal, setShowRemoveQueryModal] = useState<boolean>(
     false
   );
+  const [queryIsRemoving, setQueryIsRemoving] = useState<boolean>(false);
 
   const {
     data: fleetQueries,
     error: fleetQueriesError,
-    isLoading: isLoadingFleetQueries,
+    isFetching: isFetchingFleetQueries,
     refetch: refetchFleetQueries,
   } = useQuery<IFleetQueriesResponse, Error, IQuery[]>(
     "fleet queries by platform",
@@ -124,10 +125,10 @@ const ManageQueriesPage = ({
   }, [fleetQueries]);
 
   useEffect(() => {
-    if (!isLoadingFleetQueries && enhancedQueriesList) {
+    if (!isFetchingFleetQueries && enhancedQueriesList) {
       setQueriesList(enhancedQueriesList);
     }
-  }, [enhancedQueriesList, isLoadingFleetQueries]);
+  }, [enhancedQueriesList, isFetchingFleetQueries]);
 
   const onCreateQueryClick = () => router.push(PATHS.NEW_QUERY);
 
@@ -142,6 +143,8 @@ const ManageQueriesPage = ({
 
   const onRemoveQuerySubmit = useCallback(async () => {
     const queryOrQueries = selectedQueryIds.length === 1 ? "query" : "queries";
+
+    setQueryIsRemoving(true);
 
     const removeQueries = selectedQueryIds.map((id) =>
       fleetQueriesAPI.destroy(id)
@@ -161,6 +164,7 @@ const ManageQueriesPage = ({
       );
     } finally {
       toggleRemoveQueryModal();
+      setQueryIsRemoving(false);
     }
   }, [refetchFleetQueries, selectedQueryIds, toggleRemoveQueryModal]);
 
@@ -176,7 +180,7 @@ const ManageQueriesPage = ({
     );
   };
 
-  const isTableDataLoading = isLoadingFleetQueries || queriesList === null;
+  const isTableDataLoading = isFetchingFleetQueries || queriesList === null;
 
   return (
     <div className={baseClass}>
@@ -223,6 +227,7 @@ const ManageQueriesPage = ({
         </div>
         {showRemoveQueryModal && (
           <RemoveQueryModal
+            queryIsRemoving={queryIsRemoving}
             onCancel={toggleRemoveQueryModal}
             onSubmit={onRemoveQuerySubmit}
           />

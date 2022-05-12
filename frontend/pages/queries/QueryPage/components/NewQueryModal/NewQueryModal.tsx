@@ -9,10 +9,12 @@ import Checkbox from "components/forms/fields/Checkbox";
 import InputField from "components/forms/fields/InputField";
 import Button from "components/buttons/Button";
 import Modal from "components/Modal";
+import Spinner from "components/Spinner";
 
 export interface INewQueryModalProps {
   baseClass: string;
   queryValue: string;
+  isQuerySaving: boolean;
   onCreateQuery: (formData: IQueryFormData) => void;
   setIsSaveModalOpen: (isOpen: boolean) => void;
   backendValidators: { [key: string]: string };
@@ -32,6 +34,7 @@ const validateQueryName = (name: string) => {
 const NewQueryModal = ({
   baseClass,
   queryValue,
+  isQuerySaving,
   onCreateQuery,
   setIsSaveModalOpen,
   backendValidators,
@@ -74,57 +77,67 @@ const NewQueryModal = ({
 
   return (
     <Modal title={"Save query"} onExit={() => setIsSaveModalOpen(false)}>
-      <form
-        onSubmit={handleUpdate}
-        className={`${baseClass}__save-modal-form`}
-        autoComplete="off"
-      >
-        <InputField
-          name="name"
-          onChange={(value: string) => setName(value)}
-          value={name}
-          error={errors.name}
-          inputClassName={`${baseClass}__query-save-modal-name`}
-          label="Name"
-          placeholder="What is your query called?"
-        />
-        <InputField
-          name="description"
-          onChange={(value: string) => setDescription(value)}
-          value={description}
-          inputClassName={`${baseClass}__query-save-modal-description`}
-          label="Description"
-          type="textarea"
-          placeholder="What information does your query reveal? (optional)"
-        />
-        <Checkbox
-          name="observerCanRun"
-          onChange={setObserverCanRun}
-          value={observerCanRun}
-          wrapperClassName={`${baseClass}__query-save-modal-observer-can-run-wrapper`}
-        >
-          Observers can run
-        </Checkbox>
-        <p>
-          Users with the Observer role will be able to run this query on hosts
-          where they have access.
-        </p>
-        <hr />
-        <div
-          className={`${baseClass}__button-wrap ${baseClass}__button-wrap--modal`}
-        >
-          <Button
-            className={`${baseClass}__btn`}
-            onClick={() => setIsSaveModalOpen(false)}
-            variant="text-link"
+      <>
+        {isQuerySaving ? (
+          <Spinner />
+        ) : (
+          <form
+            onSubmit={handleUpdate}
+            className={`${baseClass}__save-modal-form`}
+            autoComplete="off"
           >
-            Cancel
-          </Button>
-          <Button className={`${baseClass}__btn`} type="submit" variant="brand">
-            Save query
-          </Button>
-        </div>
-      </form>
+            <InputField
+              name="name"
+              onChange={(value: string) => setName(value)}
+              value={name}
+              error={errors.name}
+              inputClassName={`${baseClass}__query-save-modal-name`}
+              label="Name"
+              placeholder="What is your query called?"
+            />
+            <InputField
+              name="description"
+              onChange={(value: string) => setDescription(value)}
+              value={description}
+              inputClassName={`${baseClass}__query-save-modal-description`}
+              label="Description"
+              type="textarea"
+              placeholder="What information does your query reveal? (optional)"
+            />
+            <Checkbox
+              name="observerCanRun"
+              onChange={setObserverCanRun}
+              value={observerCanRun}
+              wrapperClassName={`${baseClass}__query-save-modal-observer-can-run-wrapper`}
+            >
+              Observers can run
+            </Checkbox>
+            <p>
+              Users with the Observer role will be able to run this query on
+              hosts where they have access.
+            </p>
+            <hr />
+            <div
+              className={`${baseClass}__button-wrap ${baseClass}__button-wrap--modal`}
+            >
+              <Button
+                className={`${baseClass}__btn`}
+                onClick={() => setIsSaveModalOpen(false)}
+                variant="text-link"
+              >
+                Cancel
+              </Button>
+              <Button
+                className={`${baseClass}__btn`}
+                type="submit"
+                variant="brand"
+              >
+                Save query
+              </Button>
+            </div>
+          </form>
+        )}
+      </>
     </Modal>
   );
 };
