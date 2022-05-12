@@ -420,7 +420,75 @@ If you go back to [https://localhost:8080/hosts/manage](https://localhost:8080/h
 
 ## Deploying Fleet on Kubernetes
 
-In this guide, we're going to install Fleet and all of its application dependencies on a Kubernetes cluster. Kubernetes is a container orchestration tool that was open sourced by Google in 2014.
+In this guide, we're going to focus on deploying Fleet only on a Kubernetes cluster. Kubernetes is a container orchestration tool that was open sourced by Google in 2014.
+
+We will assume you have `kubectl` and MySQL and Redis are all set up and running. Optionally you have minikube to test your deployment locally on your machine.
+
+To deploy the Fleet server and connect to its dependencies(MySQL and Redis) we will set up a `deployment.yml` file with the following specifications:
+
+```yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: fleet-deployment
+  labels:
+    app: fleet
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: fleet
+  template:
+    metadata:
+      labels:
+        app: fleet
+    spec:
+      containers:
+      - name: fleet
+        image: fleetdm/fleet:4.14.0
+        env:
+          - name: FLEET_MYSQL_ADDRESS
+            valueFrom:
+              secretKeyRef:
+                name: fleet_secrets
+                key: mysql_address
+          - name: FLEET_MYSQL_DATABASE
+            valueFrom:
+              secretKeyRef:
+                name: fleet_secrets
+                key: mysql_database
+          - name: FLEET_MYSQL_PASSWORD
+            valueFrom:
+              secretKeyRef:
+                name: fleet_secrets
+                key: mysql_password
+          - name: FLEET_MYSQL_USERNAME
+            valueFrom:
+              secretKeyRef:
+                name: fleet_secrets
+                key: mysql_username
+          - name: FLEET_REDIS_ADDRESS
+            valueFrom:
+              secretKeyRef:
+                name: fleet_secrets
+                key: redis_address
+        resources:
+          requests:
+            memory: "64Mi"
+            cpu: "250m"
+          limits:
+            memory: "128Mi"
+            cpu: "500m"
+        ports:
+        - containerPort: 3000
+
+```
+Notice we are using secrets to pass in values for Fleet's dependencies' environment variables.
+
+Let's tell Kubernetes to create the cluster by running the below command
+
+`kubectl apply -f ./deployment.yml`
+
 
 ### Installing infrastructure dependencies
 

@@ -88,7 +88,11 @@ describe("Query flow (seeded)", () => {
       cy.findByText(/query updated/i).should("be.visible");
     });
     it("saves an existing query as new query", () => {
-      cy.getAttached(".name__cell .button--text-link").eq(1).click();
+      cy.getAttached(".name__cell .button--text-link")
+        .eq(1)
+        .within(() => {
+          cy.findByText(/get authorized/i).click();
+        });
       cy.findByText(/run query/i).should("exist");
       cy.getAttached(".ace_scroller")
         .click()

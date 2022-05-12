@@ -6,16 +6,8 @@ output "alb" {
   value = aws_alb.main
 }
 
-output "alb-internal" {
-  value = aws_alb.internal
-}
-
 output "alb-listener" {
   value = aws_alb_listener.https-fleetdm
-}
-
-output "alb-listener-internal" {
-  value = aws_alb_listener.https-fleetdm-internal
 }
 
 output "vpc" {

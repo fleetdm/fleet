@@ -237,6 +237,7 @@ describe("Premium tier - Team Admin user", () => {
       cy.findByText(/advanced/i).should("not.exist");
     });
     it("creates a new team scheduled query", () => {
+      cy.getAttached(".no-schedule__cta-buttons").should("exist");
       cy.getAttached(".no-schedule__schedule-button").click();
       cy.getAttached(".schedule-editor-modal__form").within(() => {
         cy.findByText(/select query/i).click();
@@ -248,6 +249,7 @@ describe("Premium tier - Team Admin user", () => {
       cy.findByText(/successfully added/i).should("be.visible");
     });
     it("edit a team's scheduled query successfully", () => {
+      cy.getAttached(".manage-schedule-page");
       cy.getAttached("tbody>tr")
         .should("have.length", 1)
         .within(() => {
@@ -265,12 +267,17 @@ describe("Premium tier - Team Admin user", () => {
       cy.findByText(/successfully updated/i).should("be.visible");
     });
     it("remove a team's scheduled query successfully", () => {
+      cy.getAttached(".manage-schedule-page");
       cy.getAttached("tbody>tr")
         .should("have.length", 1)
         .within(() => {
           cy.findByText(/6 hours/i).should("exist");
-          cy.findByText(/action/i).click();
-          cy.findByText(/remove/i).click();
+          cy.getAttached(".Select-placeholder").within(() => {
+            cy.findByText(/action/i).click();
+          });
+          cy.getAttached(".Select-menu").within(() => {
+            cy.findByText(/remove/i).click();
+          });
         });
       cy.getAttached(".remove-scheduled-query-modal .modal-cta-wrap").within(
         () => {

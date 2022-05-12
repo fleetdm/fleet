@@ -383,8 +383,8 @@ func (ds *Datastore) ListHosts(ctx context.Context, filter fleet.TeamFilter, opt
 	`
 
 	if opt.DeviceMapping {
-		sql += `, 
-			dm.device_mapping
+		sql += `,
+			COALESCE(dm.device_mapping, 'null') as device_mapping
 		`
 	}
 

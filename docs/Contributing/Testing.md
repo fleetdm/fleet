@@ -9,6 +9,7 @@
 - [Database backup/restore](#database-backuprestore)
 - [Seeding Data](./Seeding-Data.md)
 - [MySQL shell](#mysql-shell)
+- [Redis REPL](#redis-repl)
 - [Testing SSO](#testing-sso)
 - [Testing Kinesis Logging](#testing-kinesis-logging)
 
@@ -265,6 +266,14 @@ To connect via Docker:
 
 ```
 docker-compose exec mysql mysql -uroot -ptoor -Dfleet
+```
+
+## Redis REPL
+
+Connect to the `redis-cli` in REPL mode to view and interact directly with the contents stored in Redis.
+
+```
+docker-compose exec redis redis-cli
 ```
 
 ## Testing SSO

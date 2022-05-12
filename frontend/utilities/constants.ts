@@ -340,13 +340,6 @@ export const DEFAULT_CREATE_USER_ERRORS = {
   sso_enabled: null,
 };
 
-export const DEFAULT_CREATE_INTEGRATION_ERRORS = {
-  url: "",
-  username: "",
-  password: "",
-  projectKey: "",
-};
-
 export const DEFAULT_CREATE_LABEL_ERRORS = {
   name: "",
 };

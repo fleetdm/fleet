@@ -40,6 +40,7 @@ const (
 	updateURL               = "update-url"
 	updateRootKeys          = "update-roots"
 	stdQueryLibFilePath     = "std-query-lib-file-path"
+	disableOpenBrowser      = "disable-open-browser"
 )
 
 func previewCommand() *cli.Command {
@@ -101,6 +102,10 @@ Use the stop and reset subcommands to manage the server and dependencies once st
 				Name:  stdQueryLibFilePath,
 				Usage: "Use custom standard query library yml file",
 				Value: "",
+			},
+			&cli.BoolFlag{
+				Name:  disableOpenBrowser,
+				Usage: "Disable opening the browser",
 			},
 		},
 		Action: func(c *cli.Context) error {
@@ -297,8 +302,10 @@ Use the stop and reset subcommands to manage the server and dependencies once st
 					return fmt.Errorf("wait for current host: %w", err)
 				}
 
-				if err := open.Browser("http://localhost:1337/previewlogin"); err != nil {
-					fmt.Println("Automatic browser open failed. Please navigate to http://localhost:1337/previewlogin.")
+				if !c.Bool(disableOpenBrowser) {
+					if err := open.Browser("http://localhost:1337/previewlogin"); err != nil {
+						fmt.Println("Automatic browser open failed. Please navigate to http://localhost:1337/previewlogin.")
+					}
 				}
 
 				fmt.Println("Starting simulated Linux hosts...")
@@ -314,8 +321,10 @@ Use the stop and reset subcommands to manage the server and dependencies once st
 					return errors.New("Failed to run docker-compose")
 				}
 			} else {
-				if err := open.Browser("http://localhost:1337/previewlogin"); err != nil {
-					fmt.Println("Automatic browser open failed. Please navigate to http://localhost:1337/previewlogin.")
+				if !c.Bool(disableOpenBrowser) {
+					if err := open.Browser("http://localhost:1337/previewlogin"); err != nil {
+						fmt.Println("Automatic browser open failed. Please navigate to http://localhost:1337/previewlogin.")
+					}
 				}
 			}
 

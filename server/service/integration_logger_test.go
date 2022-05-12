@@ -42,7 +42,7 @@ func (s *integrationLoggerTestSuite) SetupSuite() {
 	logger := log.NewJSONLogger(s.buf)
 	logger = level.NewFilter(logger, level.AllowDebug())
 
-	users, server := RunServerForTestsWithDS(s.T(), s.ds, TestServerOpts{Logger: logger})
+	users, server := RunServerForTestsWithDS(s.T(), s.ds, &TestServerOpts{Logger: logger})
 	s.server = server
 	s.users = users
 }

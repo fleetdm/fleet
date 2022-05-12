@@ -130,7 +130,7 @@ dump-test-schema:
 	go run ./tools/dbutils ./server/datastore/mysql/schema.sql
 
 test-go: dump-test-schema generate-mock
-	go test -tags full,fts5,netgo -timeout=${GO_TEST_TIMEOUT_VAR} -race=${RACE_ENABLED_VAR} -parallel 8 -coverprofile=coverage.txt -covermode=atomic ./cmd/... ./ee/... ./orbit/... ./pkg/... ./server/... ./tools/...
+	go test -tags full,fts5,netgo -timeout=${GO_TEST_TIMEOUT_VAR} -race=${RACE_ENABLED_VAR} -parallel 8 -coverprofile=coverage.txt -covermode=atomic ./cmd/... ./ee/... ./orbit/pkg/... ./orbit/cmd/orbit ./pkg/... ./server/... ./tools/...
 
 analyze-go:
 	go test -tags full,fts5,netgo -race -cover ./...
@@ -175,10 +175,6 @@ deps-js:
 
 deps-go:
 	go mod download
-ifeq ($(shell uname -s),Linux)
-	# Dependency required for Linux Fleet Desktop.
-	sudo apt-get install gcc libgtk-3-dev libayatana-appindicator3-dev -y
-endif
 
 migration:
 	go run github.com/fleetdm/goose/cmd/goose -dir server/datastore/mysql/migrations/tables create $(name)
