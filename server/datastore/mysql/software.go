@@ -119,6 +119,10 @@ func nothingChanged(current, incoming []fleet.Software, minLastOpenedAtDiff time
 	return true
 }
 
+func (ds *Datastore) ListSoftwareByHostIDShort(ctx context.Context, hostID uint) ([]fleet.Software, error) {
+	return listSoftwareByHostIDShort(ctx, ds.reader, hostID)
+}
+
 func listSoftwareByHostIDShort(
 	ctx context.Context,
 	db sqlx.QueryerContext,
@@ -157,7 +161,7 @@ func applyChangesForNewSoftwareDB(
 	software []fleet.Software,
 	minLastOpenedAtDiff time.Duration,
 ) error {
-	currentSoftware, err := listSoftwareByHostIDShort(ctx, tx, hostID)
+	currentSoftware, err := ListSoftwareByHostIDShort(ctx, tx, hostID)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "loading current software for host")
 	}
