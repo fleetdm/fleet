@@ -115,7 +115,7 @@ func TestGetTeams(t *testing.T) {
 	for _, tt := range testCases {
 		t.Run(tt.name, func(t *testing.T) {
 			license := tt.license
-			_, ds := runServerWithMockedDS(t, service.TestServerOpts{License: license})
+			_, ds := runServerWithMockedDS(t, &service.TestServerOpts{License: license})
 
 			agentOpts := json.RawMessage(`{"config":{"foo":"bar"},"overrides":{"platforms":{"darwin":{"foo":"override"}}}}`)
 			ds.ListTeamsFunc = func(ctx context.Context, filter fleet.TeamFilter, opt fleet.ListOptions) ([]*fleet.Team, error) {
@@ -209,7 +209,7 @@ spec:
 }
 
 func TestGetTeamsByName(t *testing.T) {
-	_, ds := runServerWithMockedDS(t, service.TestServerOpts{License: &fleet.LicenseInfo{Tier: fleet.TierPremium, Expiration: time.Now().Add(24 * time.Hour)}})
+	_, ds := runServerWithMockedDS(t, &service.TestServerOpts{License: &fleet.LicenseInfo{Tier: fleet.TierPremium, Expiration: time.Now().Add(24 * time.Hour)}})
 
 	ds.ListTeamsFunc = func(ctx context.Context, filter fleet.TeamFilter, opt fleet.ListOptions) ([]*fleet.Team, error) {
 		require.Equal(t, "test1", opt.MatchQuery)
@@ -605,7 +605,7 @@ spec:
 	})
 }
 
-func TestGetSoftawre(t *testing.T) {
+func TestGetSoftware(t *testing.T) {
 	_, ds := runServerWithMockedDS(t)
 
 	foo001 := fleet.Software{

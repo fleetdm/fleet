@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 
 import Button from "components/buttons/Button";
 import Checkbox from "components/forms/fields/Checkbox";
@@ -70,6 +70,10 @@ const Sso = ({ appConfig, handleSubmit }: IAppConfigFormProps): JSX.Element => {
 
     setFormErrors(errors);
   };
+
+  useEffect(() => {
+    validateForm();
+  }, [enableSSO]);
 
   const onFormSubmit = (evt: React.MouseEvent<HTMLFormElement>) => {
     evt.preventDefault();

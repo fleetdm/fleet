@@ -102,7 +102,7 @@ spec:
 
 func TestApplyTeamSpecs(t *testing.T) {
 	license := &fleet.LicenseInfo{Tier: fleet.TierPremium, Expiration: time.Now().Add(24 * time.Hour)}
-	_, ds := runServerWithMockedDS(t, service.TestServerOpts{License: license})
+	_, ds := runServerWithMockedDS(t, &service.TestServerOpts{License: license})
 
 	teamsByName := map[string]*fleet.Team{
 		"team1": {

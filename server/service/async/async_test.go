@@ -13,7 +13,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestCollectQueryExecutions(t *testing.T) {
+func TestCollect(t *testing.T) {
 	ds := mysql.CreateMySQLDS(t)
 
 	oldMaxPolicy := maxRedisPolicyResultsPerHost
@@ -49,9 +49,23 @@ func TestCollectQueryExecutions(t *testing.T) {
 			testCollectPolicyQueryExecutions(t, ds, pool)
 		})
 	})
+
+	t.Run("Host Last Seen", func(t *testing.T) {
+		t.Run("standalone", func(t *testing.T) {
+			defer mysql.TruncateTables(t, ds)
+			pool := redistest.SetupRedis(t, "host_last_seen", false, false, false)
+			testCollectHostsLastSeen(t, ds, pool)
+		})
+
+		t.Run("cluster", func(t *testing.T) {
+			defer mysql.TruncateTables(t, ds)
+			pool := redistest.SetupRedis(t, "host_last_seen", true, true, false)
+			testCollectHostsLastSeen(t, ds, pool)
+		})
+	})
 }
 
-func TestRecordQueryExecutions(t *testing.T) {
+func TestRecord(t *testing.T) {
 	ds := new(mock.Store)
 	ds.RecordLabelQueryExecutionsFunc = func(ctx context.Context, host *fleet.Host, results map[uint]*bool, ts time.Time, deferred bool) error {
 		return nil
@@ -94,6 +108,20 @@ func TestRecordQueryExecutions(t *testing.T) {
 			pool := redistest.SetupRedis(t, "policy_pass", true, true, false)
 			t.Run("sync", func(t *testing.T) { testRecordPolicyQueryExecutionsSync(t, ds, pool) })
 			t.Run("async", func(t *testing.T) { testRecordPolicyQueryExecutionsAsync(t, ds, pool) })
+		})
+	})
+
+	t.Run("Host Last Seen", func(t *testing.T) {
+		t.Run("standalone", func(t *testing.T) {
+			pool := redistest.SetupRedis(t, "host_last_seen", false, false, false)
+			t.Run("sync", func(t *testing.T) { testRecordHostLastSeenSync(t, ds, pool) })
+			t.Run("async", func(t *testing.T) { testRecordHostLastSeenAsync(t, ds, pool) })
+		})
+
+		t.Run("cluster", func(t *testing.T) {
+			pool := redistest.SetupRedis(t, "host_last_seen", true, true, false)
+			t.Run("sync", func(t *testing.T) { testRecordHostLastSeenSync(t, ds, pool) })
+			t.Run("async", func(t *testing.T) { testRecordHostLastSeenAsync(t, ds, pool) })
 		})
 	})
 }

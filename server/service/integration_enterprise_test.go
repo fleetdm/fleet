@@ -31,7 +31,7 @@ func (s *integrationEnterpriseTestSuite) SetupSuite() {
 	s.withDS.SetupSuite("integrationEnterpriseTestSuite")
 
 	users, server := RunServerForTestsWithDS(
-		s.T(), s.ds, TestServerOpts{License: &fleet.LicenseInfo{Tier: fleet.TierPremium}})
+		s.T(), s.ds, &TestServerOpts{License: &fleet.LicenseInfo{Tier: fleet.TierPremium}})
 	s.server = server
 	s.users = users
 	s.token = s.getTestAdminToken()

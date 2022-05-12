@@ -44,7 +44,7 @@ func (s *liveQueriesTestSuite) SetupSuite() {
 	lq := new(live_query.MockLiveQuery)
 	s.lq = lq
 
-	users, server := RunServerForTestsWithDS(s.T(), s.ds, TestServerOpts{Lq: lq, Rs: rs})
+	users, server := RunServerForTestsWithDS(s.T(), s.ds, &TestServerOpts{Lq: lq, Rs: rs})
 	s.server = server
 	s.users = users
 	s.token = getTestAdminToken(s.T(), s.server)
