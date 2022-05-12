@@ -298,6 +298,8 @@ module.exports = {
                   let isExternal = ! srcString.match(/=\"https?:\/\/([^\.|blog]+\.)*fleetdm\.com/g);
                   if (!isExternal) {
                     return srcString.replace(/=\"https?:\/\//, '').replace(/^fleetdm\.com/, '="');
+                  } else {
+                    return srcString;
                   }
                 });//∞
 
