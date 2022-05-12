@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 
 import Button from "components/buttons/Button";
 import Checkbox from "components/forms/fields/Checkbox";
@@ -87,6 +87,10 @@ const Smtp = ({
 
     setFormErrors(errors);
   };
+
+  useEffect(() => {
+    validateForm();
+  }, [smtpAuthenticationType]);
 
   const onFormSubmit = (evt: React.MouseEvent<HTMLFormElement>) => {
     evt.preventDefault();

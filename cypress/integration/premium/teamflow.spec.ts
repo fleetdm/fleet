@@ -86,8 +86,8 @@ describe("Teams flow (seeded)", () => {
   describe("Manage schedules page", () => {
     beforeEach(() => {
       cy.loginWithCySession();
-      cy.visit("/schedule/manage");
       cy.seedQueries();
+      cy.visit("/schedule/manage");
     });
     it("adds a query to team schedule", () => {
       cy.getAttached(".manage-schedule-page__header").within(() => {

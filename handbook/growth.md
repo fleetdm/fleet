@@ -7,13 +7,21 @@ contributors. The purpose of the growth team is to own and improve the growth fu
 
 Effective market positioning is crucial to the growth of any software product. Fleet needs to maintain a unique, valuable position in the minds of our users. We keep assertions on our positioning in this [Google Doc](https://docs.google.com/document/d/1sttTxm6B-acvZuQuGt7kkKn-_IVXM0sLwStnjnpIU9Y/edit?usp=sharing) (private). It will be updated quarterly based on the feedback of users, customers, team members, and other stakeholders. Feedback can be provided as a comment in the document or by posting in the `#g-growth` Slack channel. 
 
-## Growth One-pager
+## Marketing qualified opportunities (MQOs)
 
-Fleet's growth one-pager can be found in this [Google Doc](https://drive.google.com/file/d/1o0gHCVonNbjjsk8iI-mgVw5O-o-AhJ5t/view?usp=sharing).
+Growth's goal is to increase usage of the product. We value users of all sizes adopting Fleet Free or Fleet Premium. Companies purchasing under 100 device licenses should sign up [self-service](https://fleetdm.com/pricing/). Companies that enroll more than 100 devices should [schedule a demo](https://fleetdm.com/). When these companies attend a demo, Fleet considers them marketing qualified opportunities (MQOs).
 
-## Lead Enrichment
+## Lead enrichment
 
 Fleet's lead enrichment process can be found in this [Google Doc](https://docs.google.com/document/d/1zOv39O989bPRNTIcLNNE4ESUI5Ry2XII3XuRpJqNN7g/edit?usp=sharing) (private).
+
+## Outreach one-pager
+
+Our one-pager offers a summary of what Fleet does. It can help stakeholders become familiar with the company and product while also being a useful tool the Growth team uses for sales outreach. Find Fleet's outreach one-pager in this [Google Doc](https://drive.google.com/file/d/1o0gHCVonNbjjsk8iI-mgVw5O-o-AhJ5t/view?usp=sharing).
+
+## Intro deck
+
+Fleet's intro deck adds additional detail to our pitch. It can be found in [Google Slides](https://docs.google.com/presentation/d/1sMCld6OPPG-LzJojmoSPxnOt17H-KYYfl5QFbBO29Fk/edit?usp=sharing).
 
 ## Posting on social media as Fleet
 
@@ -85,7 +93,7 @@ Once a relevant sponsorship opportunity and its prospectus are reviewed:
  
 7. Once the above steps are completed, use the [Speaking events issue template](https://github.com/fleetdm/confidential/issues/new?assignees=mike-j-thomas&labels=&template=6-speaking-event.md&title=Speaking+event) to prepare speakers and participants for the event.
 
-## Growth rituals
+## Rituals
 
 The following table lists the Growth group's rituals, frequency, and Directly Responsible Individual (DRI).
 
@@ -99,11 +107,12 @@ The following table lists the Growth group's rituals, frequency, and Directly Re
 | Enrich Salesforce leads       | Weekly | Follow the Salesforce lead enrichment process every Friday.    | Drew Baker        |
 | Outside contributions | Weekly | Check pull requests for outside contributions every Monday. | Drew Baker|
 | Weekly article       | Weekly | Publish an article and promote it on social media. | Drew Baker|
+| Missed Demo Follow up | Weekly | Email all leads who missed a scheduled demo | Andrew Bare |
 | Weekly ins and outs   | Weekly | Track Growth team ins and outs.        | Tim Kern          |
 | Podcast outreach      | Weekly | Conduct podcast outreach twice a week.     | Drew Baker        |
 | Weekly Update      | Weekly | Update the Growth KPIs in the ["🌈 Weekly updates" spreadsheet](https://docs.google.com/spreadsheets/d/1Hso0LxqwrRVINCyW_n436bNHmoqhoLhC8bcbvLPOs9A/edit#gid=0). | Drew Baker        |
 | Monthly conference checks    | Monthly | Check for conference openings and sponsorship opportunities on the 1st of every month. | Drew Baker|
-| Salesforce contributor experience checkup | Monthly | Ensure all users see a detailed view of contacts, opportunities, accounts, and leads. | Nathan Holliday |
+| Salesforce contributor experience checkup | Monthly | Make sure all users see a detailed view of contacts, opportunities, accounts, and leads. | Nathan Holliday |
 
 
 ## Slack channels
