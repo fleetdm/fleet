@@ -4,7 +4,7 @@ With remote work becoming the norm, it’s now common for companies to use Apple
 
 Nothing beats buying a laptop online and having it shipped to a new hire, pre-configured. Awesome, right? It is, but it can get more complicated.
 
-![The shipping time of a new laptop](https://miro.medium.com/1*KOimqnAgGReYHIA9D9mlyQ.png)
+![The shipping time of a new laptop](../website/assets/images/articles/apply-byod-to-soothe-supply-chain-pain-cover-700x393@2x.png)
 
 When employees wait for their laptops, productivity suffers.
 
@@ -82,4 +82,4 @@ Supply chain issues will get better, but they will not disappear. Even if they d
 <meta name="authorFullName" value="Guillaume Ross">
 <meta name="publishedOn" value="2022-02-10">
 <meta name="articleTitle" value="Apply BYOD to soothe supply chain pain">
-<meta name="articleImageUrl" value="https://miro.medium.com/1*KOimqnAgGReYHIA9D9mlyQ.png">
+<meta name="articleImageUrl" value="../website/assets/images/articles/apply-byod-to-soothe-supply-chain-pain-cover-700x393@2x.png">

@@ -1,6 +1,6 @@
 # Get and stay compliant across your devices with Fleet.
 
-![A laptop using Fleet](../website/assets/images/articles/get-and-stay-compliant-cover-700x385@2x.png)
+![A laptop using Fleet](../website/assets/images/articles/get-and-stay-compliant-across-your-devices-with-fleet-cover-700x385@2x.png)
 
 It’s essential for organizations to protect their systems and information — especially when customer data could be exposed. Security and IT teams are required to develop internal processes and controls and comply with specific laws and regulatory standards related to their industry. These controls and standards can often change, as do the threats and vulnerabilities they are serving to protect, so setting up and staying compliant across your devices can be tricky — even more so for organizations with complicated infrastructures, or workforces spread out across the globe.
 
@@ -64,7 +64,7 @@ Whether you’re checking the device status of a small team of devices, or a fle
 
 Fleet policies, built on osquery, are a great way to quickly monitor your compliance goals by asking yes/no questions about your devices. For example, suppose one of your defined controls ensures that all of your Mac devices have the latest version of macOS installed. In that case, a policy can be created to quickly and easily return that information from all your devices — no matter the operating system.
 
-![The policies page of Fleet](../website/assets/images/articles/get-and-stay-compliant-1-700x523@2x.png)
+![The policies page of Fleet](../website/assets/images/articles/get-and-stay-compliant-across-your-devices-with-fleet-1-700x523@2x.jpeg)
 
 At Fleet, we use policies on our own devices to track:
 
@@ -101,4 +101,4 @@ Ready to give Fleet a try? Head over to our [get started page](https://fleetdm.c
 <meta name="authorGitHubUsername" value="DrewBakerfdm">
 <meta name="publishedOn" value="2022-03-09">
 <meta name="articleTitle" value="Get and stay compliant across your devices with Fleet.">
-<meta name="articleImageUrl" value="../website/assets/images/articles/get-and-stay-compliant-cover-700x385@2x.png">
+<meta name="articleImageUrl" value="../website/assets/images/articles/get-and-stay-compliant-across-your-devices-with-fleet-cover-700x385@2x.png">

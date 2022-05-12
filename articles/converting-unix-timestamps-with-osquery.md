@@ -2,9 +2,11 @@
 
 ## Human readable timestamps
 
+![The doctor looking at a unit timestamp in confusion](../website/assets/images/articles/converting-unix-timestamps-with-osquery-cover-800x450@2x.jpeg)
+
 If you are anything like me, and unix timestamps leave you thinking about the mysterious numbers in Lost, you’re going to want to convert them into something more human friendly. Running your timestamp through any number of online converters is one way to go, but it’s a clunky process.
 
-![An animated GIF of numbers changing](https://miro.medium.com/1*J3OXc51qIUcLUryFT38dgQ.gif)
+![An animated GIF of numbers changing](../website/assets/images/articles/converting-unix-timestamps-with-osquery-1-250x140@2x.gif)
 *Hmm… 10800? That’s Thursday, January 1, 1970 3:00:00 AM, if I’m not mistaken.*
 
 Thankfully, we can easily convert unix timestamps directly in osquery:
@@ -42,7 +44,7 @@ FROM
 
 As you can see, we have `start_time` listed in unix time again.
 
-![A screenshot of query results using UNIX timestamps](https://miro.medium.com/1*-Y7YJxCmzhCAFNVWgdU3LQ.jpeg)
+![A screenshot of query results using UNIX timestamps](../website/assets/images/articles/converting-unix-timestamps-with-osquery-2-700x407@2x.jpeg)
 
 So let’s augment our query with the `datetime` line from before to give us a more human friendly output for `start_time`.
 
@@ -54,7 +56,7 @@ FROM
   processes
 ```
 
-![A screenshot of query results using UTC timestamps](https://miro.medium.com/1*W3BH80eEba9vQs9_4vquSw.jpeg)
+![A screenshot of query results using UTC timestamps](../website/assets/images/articles/converting-unix-timestamps-with-osquery-3-700x368@2x.jpeg)
 
 And finally, as before, we can of course output that data as the local time for our host by you guessed it, adding `localtime` to our query.
 
@@ -66,7 +68,7 @@ FROM
   processes
 ```
 
-![A screenshot of query results using localtime timestamps](https://miro.medium.com/max/1400/1*ZM55IE0duKPqSQT-oxWLBQ.jpeg)
+![A screenshot of query results using localtime timestamps](../website/assets/images/articles/converting-unix-timestamps-with-osquery-4-700x368@2x.jpeg)
 
 So there we go. Simple, human readable timestamps with osquery.
 
@@ -79,4 +81,4 @@ Let us know if you can think of any other example scenarios you’d like us to c
 <meta name="authorGitHubUsername" value="mike-j-thomas">
 <meta name="publishedOn" value="2021-06-15">
 <meta name="articleTitle" value="Converting unix timestamps with osquery">
-<meta name="articleImageUrl" value="https://miro.medium.com/1*imjanZovg578Gq91eapdgg.jpeg">
+<meta name="articleImageUrl" value="../website/assets/images/articles/converting-unix-timestamps-with-osquery-cover-800x450@2x.jpeg">

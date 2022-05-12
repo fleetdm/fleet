@@ -2,7 +2,7 @@
 
 ## Build an osquery performance dashboard
 
-![Build and osquery performance dashboard](https://miro.medium.com/1*KlbIuTM3nL1-KFg4iihe2w.jpeg)
+![Build and osquery performance dashboard](../website/assets/images/articles/using-elasticsearch-and-kibana-to-visualize-osquery-performance-cover-700x393@2x.jpeg)
 
 This article was originally written by [Zach Wasserman]()
 
@@ -10,7 +10,7 @@ This article serves as a guide to building an osquery performance dashboard with
 
 Our goal is to build a dashboard like the one pictured below:
 
-![An osquery performance dashboard](https://miro.medium.com/1*iwKAilf8sSYMA6rmwqw1Ow.png)
+![An osquery performance dashboard](../website/assets/images/articles/using-elasticsearch-and-kibana-to-visualize-osquery-performance-1-700x345@2x.png)
 
 - **Unique Hosts Count** — Provides the number of hosts actively logging results.
 - **Blacklisted Queries** — Shows any queries that have been blacklisted and the number of hosts on which the query was blacklisted.
@@ -130,4 +130,4 @@ The dashboard created in this tutorial serves as a great starting point for moni
 <meta name="authorGitHubUsername" value="mike-j-thomas">
 <meta name="publishedOn" value="2021-05-26">
 <meta name="articleTitle" value="Using Elasticsearch and Kibana to visualize osquery performance">
-<meta name="articleImageUrl" value="https://miro.medium.com/1*KlbIuTM3nL1-KFg4iihe2w.jpeg">
+<meta name="articleImageUrl" value="../website/assets/images/articles/using-elasticsearch-and-kibana-to-visualize-osquery-performance-cover-700x393@2x.jpeg">
