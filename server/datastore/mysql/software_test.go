@@ -12,6 +12,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/test"
+	"github.com/google/go-cmp/cmp"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -517,6 +518,7 @@ func testSoftwareList(t *testing.T, ds *Datastore) {
 	_, err = ds.NewCVE(context.Background(), &cve3)
 	require.NoError(t, err)
 
+	var cisaKnownExploit *bool
 	foo001 := fleet.Software{
 		Name:        "foo",
 		Version:     "0.0.1",
@@ -524,16 +526,18 @@ func testSoftwareList(t *testing.T, ds *Datastore) {
 		GenerateCPE: "somecpe",
 		Vulnerabilities: fleet.Vulnerabilities{
 			{
-				CVE:             "CVE-2022-0001",
-				DetailsLink:     "https://nvd.nist.gov/vuln/detail/CVE-2022-0001",
-				CVSSScore:       ptr.Float64Ptr(2.0),
-				EPSSProbability: ptr.Float64Ptr(0.01),
+				CVE:              "CVE-2022-0001",
+				DetailsLink:      "https://nvd.nist.gov/vuln/detail/CVE-2022-0001",
+				CVSSScore:        ptr.Float64Ptr(2.0),
+				EPSSProbability:  ptr.Float64Ptr(0.01),
+				CISAKnownExploit: &cisaKnownExploit,
 			},
 			{
-				CVE:             "CVE-2022-0002",
-				DetailsLink:     "https://nvd.nist.gov/vuln/detail/CVE-2022-0002",
-				CVSSScore:       ptr.Float64Ptr(1.0),
-				EPSSProbability: ptr.Float64Ptr(0.99),
+				CVE:              "CVE-2022-0002",
+				DetailsLink:      "https://nvd.nist.gov/vuln/detail/CVE-2022-0002",
+				CVSSScore:        ptr.Float64Ptr(1.0),
+				EPSSProbability:  ptr.Float64Ptr(0.99),
+				CISAKnownExploit: &cisaKnownExploit,
 			},
 		},
 	}
@@ -619,6 +623,7 @@ func testSoftwareList(t *testing.T, ds *Datastore) {
 		// partial CVE
 		software = listSoftwareCheckCount(t, ds, 1, 1, fleet.SoftwareListOptions{ListOptions: fleet.ListOptions{MatchQuery: "0002"}}, true)
 		expected = []fleet.Software{foo001}
+		fmt.Println(cmp.Diff(expected, software))
 		test.ElementsMatchSkipID(t, software, expected)
 
 		// unknown CVE

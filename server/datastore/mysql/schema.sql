@@ -73,8 +73,8 @@ CREATE TABLE `carve_metadata` (
 /*!40101 SET character_set_client = utf8 */;
 CREATE TABLE `cves` (
   `cve` varchar(20) NOT NULL,
-  `cvss_score` double(4,2) DEFAULT NULL,
-  `epss_probability` double(6,5) DEFAULT NULL,
+  `cvss_score` double DEFAULT NULL,
+  `epss_probability` double DEFAULT NULL,
   `cisa_known_exploit` tinyint(1) DEFAULT NULL,
   PRIMARY KEY (`cve`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
@@ -204,6 +204,7 @@ CREATE TABLE `host_users` (
   `created_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
   `removed_at` timestamp NULL DEFAULT NULL,
   `user_type` varchar(255) DEFAULT NULL,
+  `shell` varchar(255) DEFAULT '',
   PRIMARY KEY (`host_id`,`uid`,`username`),
   UNIQUE KEY `idx_uid_username` (`host_id`,`uid`,`username`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
@@ -442,6 +443,7 @@ CREATE TABLE `policies` (
   `created_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
   `updated_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   `team_id` int(10) unsigned DEFAULT NULL,
+  `resolution` text,
   `name` varchar(255) NOT NULL,
   `query` mediumtext NOT NULL,
   `description` mediumtext NOT NULL,
@@ -552,6 +554,7 @@ CREATE TABLE `software` (
   `name` varchar(255) NOT NULL,
   `version` varchar(255) NOT NULL DEFAULT '',
   `source` varchar(64) NOT NULL,
+  `bundle_identifier` varchar(255) DEFAULT '',
   `release` varchar(64) NOT NULL DEFAULT '',
   `vendor` varchar(32) NOT NULL DEFAULT '',
   `arch` varchar(16) NOT NULL DEFAULT '',
