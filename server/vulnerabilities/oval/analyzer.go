@@ -45,6 +45,7 @@ func Analyze(
 			if err != nil {
 				return err
 			}
+
 			defs.Eval(software)
 		}
 	}
@@ -54,11 +55,6 @@ func Analyze(
 
 // loadDef returns the latest oval Definition for the given platform.
 func loadDef(platform Platform, vulnPath string) (oval_parsed.Result, error) {
-	_, err := os.Stat(vulnPath)
-	if errors.Is(err, fs.ErrNotExist) {
-		return nil, fmt.Errorf("invalid vulnerabity path '%s'", vulnPath)
-	}
-
 	latest, err := latestOvalDefFor(platform, vulnPath, time.Now())
 	if err != nil {
 		return nil, err

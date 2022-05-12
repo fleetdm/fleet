@@ -25,7 +25,7 @@ func (r *UbuntuResult) AddPackageTest(id int, tst *DpkgInfoTest) {
 	r.PackageTests[id] = tst
 }
 
-func (r UbuntuResult) Eval(software []fleet.Software) (map[uint][]string, error) {
+func (r UbuntuResult) Eval(software []fleet.Software) map[uint][]string {
 	// Test Id => Software IDs
 	tResults := make(map[int][]uint)
 	for i, t := range r.PackageTests {
@@ -44,5 +44,5 @@ func (r UbuntuResult) Eval(software []fleet.Software) (map[uint][]string, error)
 		}
 	}
 
-	return vuln, nil
+	return vuln
 }
