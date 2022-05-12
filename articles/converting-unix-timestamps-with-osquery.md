@@ -3,6 +3,7 @@
 ## Human readable timestamps
 
 ![The doctor looking at a unit timestamp in confusion](../website/assets/images/articles/converting-unix-timestamps-with-osquery-cover-800x450@2x.jpeg)
+*Unix timestamps can be confusing for even the smartest Time Lord.*
 
 If you are anything like me, and unix timestamps leave you thinking about the mysterious numbers in Lost, you’re going to want to convert them into something more human friendly. Running your timestamp through any number of online converters is one way to go, but it’s a clunky process.
 

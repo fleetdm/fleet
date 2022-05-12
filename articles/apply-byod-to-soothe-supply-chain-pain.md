@@ -5,6 +5,7 @@ With remote work becoming the norm, it’s now common for companies to use Apple
 Nothing beats buying a laptop online and having it shipped to a new hire, pre-configured. Awesome, right? It is, but it can get more complicated.
 
 ![The shipping time of a new laptop](../website/assets/images/articles/apply-byod-to-soothe-supply-chain-pain-cover-700x393@2x.png)
+*Dreaded 6–8 weeks shipping delay*
 
 When employees wait for their laptops, productivity suffers.
 
