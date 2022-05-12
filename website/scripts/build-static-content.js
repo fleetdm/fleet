@@ -285,11 +285,11 @@ module.exports = {
                   // If the relative link goes to the image is in the website's assets folder (`website/assets/`) we'll modify the relative link
                   // to work on fleetdm.com e.g. ('../website/assets/images/articles/foo-300x900@2x.png' -> '/images/articles/foo-200x300@2x.png')
                   let isWebsiteAsset = referencedPageSourcePath.match(/(?<=\/website\/assets)(\/images\/(.+))/g)[0];
-                  if(!isWebsiteAsset) {
-                    // If the relative link doesn't go to the `website/assets/` folder, we'll throw an error.
-                    throw new Error(`Failed compiling markdown content: An article page has an invalid Image link ${srcString} at "${path.join(topLvlRepoPath, pageSourcePath)}".  To resolve, ensure this image has been added to 'website/assets/images/articles/' and link to it using a relative link e.g. '../website/assets/images/articles/foo-200x300@2x.png' OR a link to the image on fleetdm.com e.g. 'https://fleetdm.com/images/articles/foo-200x300@2x.png`);
-                  } else {
+                  if(isWebsiteAsset) {
                     return '="'+isWebsiteAsset+'"';
+                  } else {
+                    // If the relative link doesn't go to the `website/assets/` folder, we'll throw an error.
+                    throw new Error(`Failed compiling markdown content: An article page has an invalid image link ${srcString} at "${path.join(topLvlRepoPath, pageSourcePath)}".  To resolve, ensure this image has been added to 'website/assets/images/articles/' and link to it using a relative link e.g. '../website/assets/images/articles/foo-200x300@2x.png' OR a link to the image on fleetdm.com e.g. 'https://fleetdm.com/images/articles/foo-200x300@2x.png`);
                   }
                 });//∞
 
