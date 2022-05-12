@@ -420,11 +420,11 @@ If you go back to [https://localhost:8080/hosts/manage](https://localhost:8080/h
 
 ## Deploying Fleet on Kubernetes
 
-In this guide, we're going to focus on deploying Fleet only on a Kubernetes cluster. Kubernetes is a container orchestration tool that was open sourced by Google in 2014.
+In this guide, we will focus on deploying Fleet only on a Kubernetes cluster. Kubernetes is a container orchestration tool that was open sourced by Google in 2014.
 
 We will assume you have `kubectl` and MySQL and Redis are all set up and running. Optionally you have minikube to test your deployment locally on your machine.
 
-To deploy the Fleet server and connect to its dependencies(MySQL and Redis) we will set up a `deployment.yml` file with the following specifications:
+To deploy the Fleet server and connect to its dependencies(MySQL and Redis), we will set up a `deployment.yml` file with the following specifications:
 
 ```yaml
 apiVersion: apps/v1
@@ -485,7 +485,7 @@ spec:
 ```
 Notice we are using secrets to pass in values for Fleet's dependencies' environment variables.
 
-Let's tell Kubernetes to create the cluster by running the below command
+Let's tell Kubernetes to create the cluster by running the below command.
 
 `kubectl apply -f ./deployment.yml`
 
