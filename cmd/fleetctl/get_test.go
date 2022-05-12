@@ -651,14 +651,8 @@ spec:
   vulnerabilities:
   - cve: cve-321-432-543
     details_link: https://nvd.nist.gov/vuln/detail/cve-321-432-543
-    cvss_score: null
-    epss_probability: null
-    cisa_known_exploit: null
   - cve: cve-333-444-555
     details_link: https://nvd.nist.gov/vuln/detail/cve-333-444-555
-    cvss_score: null
-    epss_probability: null
-    cisa_known_exploit: null
 - generated_cpe: ""
   id: 0
   name: foo
@@ -694,17 +688,11 @@ spec:
       "vulnerabilities": [
         {
           "cve": "cve-321-432-543",
-          "details_link": "https://nvd.nist.gov/vuln/detail/cve-321-432-543",
-          "cvss_score": null,
-          "epss_probability": null,
-          "cisa_known_exploit": null
+          "details_link": "https://nvd.nist.gov/vuln/detail/cve-321-432-543"
         },
         {
           "cve": "cve-333-444-555",
-          "details_link": "https://nvd.nist.gov/vuln/detail/cve-333-444-555",
-          "cvss_score": null,
-          "epss_probability": null,
-          "cisa_known_exploit": null
+          "details_link": "https://nvd.nist.gov/vuln/detail/cve-333-444-555"
         }
       ]
     },
