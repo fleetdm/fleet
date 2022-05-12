@@ -270,6 +270,11 @@
 
       &__inner-text {
         width: 485px;
+        img {
+          width: 12px;
+          position: relative;
+          top: 1px;
+        }
       }
     }
   }
