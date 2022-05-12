@@ -12,11 +12,11 @@ func TestDpkgInfoTestEvalNoHostList(t *testing.T) {
 		t.Run("with no packages", func(t *testing.T) {
 			sut := DpkgInfoTest{}
 
-			r, _ := sut.Eval(nil)
-			require.False(t, r)
+			r := sut.Eval(nil)
+			require.Nil(t, r)
 
-			r, _ = sut.Eval(make([]fleet.Software, 0))
-			require.False(t, r)
+			r = sut.Eval(make([]fleet.Software, 0))
+			require.Nil(t, r)
 		})
 
 		t.Run("test matches NObjects", func(t *testing.T) {

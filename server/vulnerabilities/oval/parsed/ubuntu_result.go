@@ -25,15 +25,24 @@ func (r *UbuntuResult) AddPackageTest(id int, tst *DpkgInfoTest) {
 	r.PackageTests[id] = tst
 }
 
-func (r UbuntuResult) Eval(software []fleet.Software) (map[int][]string, error) {
-	testResults := make(map[int]bool)
-	testPacks := make(map[int][]fleet.Software)
-
+func (r UbuntuResult) Eval(software []fleet.Software) (map[uint][]string, error) {
+	// Test Id => Software IDs
+	tResults := make(map[int][]uint)
 	for i, t := range r.PackageTests {
-		r, mPacks := t.Eval(software)
-		testResults[i] = r
-		testPacks[i] = mPacks
+		tResults[i] = t.Eval(software)
 	}
 
-	return nil, nil
+	// Software ID => Vulnerabilities
+	vuln := make(map[uint][]string)
+	for _, d := range r.Definitions {
+		if d.Eval(tResults) {
+			for _, tId := range d.CollectTestIds() {
+				for _, sId := range tResults[tId] {
+					vuln[sId] = append(vuln[sId], d.Vulnerabilities...)
+				}
+			}
+		}
+	}
+
+	return vuln, nil
 }
