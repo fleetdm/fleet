@@ -118,6 +118,8 @@ type LabelFunc func(ctx context.Context, lid uint) (*fleet.Label, error)
 
 type ListLabelsFunc func(ctx context.Context, filter fleet.TeamFilter, opt fleet.ListOptions) ([]*fleet.Label, error)
 
+type LabelsSummaryFunc func(ctx context.Context) ([]*fleet.LabelSummary, error)
+
 type LabelQueriesForHostFunc func(ctx context.Context, host *fleet.Host) (map[string]string, error)
 
 type ListLabelsForHostFunc func(ctx context.Context, hid uint) ([]*fleet.Label, error)
@@ -137,8 +139,6 @@ type AsyncBatchDeleteLabelMembershipFunc func(ctx context.Context, batch [][2]ui
 type AsyncBatchUpdateLabelTimestampFunc func(ctx context.Context, ids []uint, ts time.Time) error
 
 type NewHostFunc func(ctx context.Context, host *fleet.Host) (*fleet.Host, error)
-
-type SaveHostFunc func(ctx context.Context, host *fleet.Host) error
 
 type DeleteHostFunc func(ctx context.Context, hid uint) error
 
@@ -558,6 +558,9 @@ type DataStore struct {
 	ListLabelsFunc        ListLabelsFunc
 	ListLabelsFuncInvoked bool
 
+	LabelsSummaryFunc        LabelsSummaryFunc
+	LabelsSummaryFuncInvoked bool
+
 	LabelQueriesForHostFunc        LabelQueriesForHostFunc
 	LabelQueriesForHostFuncInvoked bool
 
@@ -587,9 +590,6 @@ type DataStore struct {
 
 	NewHostFunc        NewHostFunc
 	NewHostFuncInvoked bool
-
-	SaveHostFunc        SaveHostFunc
-	SaveHostFuncInvoked bool
 
 	DeleteHostFunc        DeleteHostFunc
 	DeleteHostFuncInvoked bool
@@ -1244,6 +1244,11 @@ func (s *DataStore) ListLabels(ctx context.Context, filter fleet.TeamFilter, opt
 	return s.ListLabelsFunc(ctx, filter, opt)
 }
 
+func (s *DataStore) LabelsSummary(ctx context.Context) ([]*fleet.LabelSummary, error) {
+	s.LabelsSummaryFuncInvoked = true
+	return s.LabelsSummaryFunc(ctx)
+}
+
 func (s *DataStore) LabelQueriesForHost(ctx context.Context, host *fleet.Host) (map[string]string, error) {
 	s.LabelQueriesForHostFuncInvoked = true
 	return s.LabelQueriesForHostFunc(ctx, host)
@@ -1292,11 +1297,6 @@ func (s *DataStore) AsyncBatchUpdateLabelTimestamp(ctx context.Context, ids []ui
 func (s *DataStore) NewHost(ctx context.Context, host *fleet.Host) (*fleet.Host, error) {
 	s.NewHostFuncInvoked = true
 	return s.NewHostFunc(ctx, host)
-}
-
-func (s *DataStore) SaveHost(ctx context.Context, host *fleet.Host) error {
-	s.SaveHostFuncInvoked = true
-	return s.SaveHostFunc(ctx, host)
 }
 
 func (s *DataStore) DeleteHost(ctx context.Context, hid uint) error {

@@ -1,33 +1,37 @@
-import React, { useContext, useState } from "react";
+import React, { useContext, useEffect, useState } from "react";
 import { AxiosResponse } from "axios";
 import { InjectedRouter } from "react-router";
 import { QueryClient, QueryClientProvider } from "react-query";
 import classnames from "classnames";
 
-import PATHS from "router/paths";
 import TableProvider from "context/table";
 import QueryProvider from "context/query";
 import PolicyProvider from "context/policy";
 import NotificationProvider from "context/notification";
 import { AppContext } from "context/app";
-import { authToken } from "utilities/local"; // @ts-ignore
-import { useDeepEffect } from "utilities/hooks";
+import local, { authToken } from "utilities/local";
+import useDeepEffect from "hooks/useDeepEffect";
 
 import usersAPI from "services/entities/users";
 import configAPI from "services/entities/config";
 
-import { ErrorBoundary } from "react-error-boundary"; // @ts-ignore
-import Fleet403 from "pages/errors/Fleet403"; // @ts-ignore
-import Fleet404 from "pages/errors/Fleet404"; // @ts-ignore
+import { ErrorBoundary } from "react-error-boundary";
+// @ts-ignore
+import Fleet403 from "pages/errors/Fleet403";
+// @ts-ignore
+import Fleet404 from "pages/errors/Fleet404";
+// @ts-ignore
 import Fleet500 from "pages/errors/Fleet500";
 import Spinner from "components/Spinner";
 
 interface IAppProps {
   children: JSX.Element;
-  location: {
-    pathname: string;
-  };
   router: InjectedRouter;
+  location:
+    | {
+        pathname: string;
+      }
+    | undefined;
 }
 
 const App = ({ children, location, router }: IAppProps): JSX.Element => {
@@ -45,44 +49,40 @@ const App = ({ children, location, router }: IAppProps): JSX.Element => {
 
   const [isLoading, setIsLoading] = useState<boolean>(false);
 
-  useDeepEffect(() => {
-    const fetchCurrentUser = async () => {
-      try {
-        const { user, available_teams } = await usersAPI.me();
-        setCurrentUser(user);
-        setAvailableTeams(available_teams);
-      } catch (error) {
-        console.error(error);
-        if (!location || location?.pathname === "/setup") {
-          localStorage.removeItem("auth_token");
-          return;
-        }
-        router.push(PATHS.LOGIN);
-      }
-    };
+  const fetchConfig = async () => {
+    try {
+      const config = await configAPI.loadAll();
+      setConfig(config);
+    } catch (error) {
+      console.error(error);
+      return false;
+    } finally {
+      setIsLoading(false);
+    }
+    return true;
+  };
 
-    const fetchConfig = async () => {
-      try {
-        const config = await configAPI.loadAll();
-        setConfig(config);
-      } catch (error) {
-        console.error(error);
-        return false;
-      } finally {
-        setIsLoading(false);
+  const fetchCurrentUser = async () => {
+    try {
+      const { user, available_teams } = await usersAPI.me();
+      setCurrentUser(user);
+      setAvailableTeams(available_teams);
+      fetchConfig();
+    } catch (error) {
+      if (!location?.pathname.includes("/login/reset")) {
+        console.log(error);
+        local.removeItem("auth_token");
+        window.location.href = "/login";
       }
-    };
+    }
+    return true;
+  };
 
-    // on page refresh
-    if (!currentUser && authToken()) {
+  useEffect(() => {
+    if (authToken()) {
       fetchCurrentUser();
     }
-
-    if (currentUser) {
-      setIsLoading(true);
-      fetchConfig();
-    }
-  }, [currentUser, location]);
+  }, [location?.pathname]);
 
   useDeepEffect(() => {
     const canGetEnrollSecret =
@@ -107,7 +107,7 @@ const App = ({ children, location, router }: IAppProps): JSX.Element => {
     if (canGetEnrollSecret) {
       getEnrollSecret();
     }
-  }, [currentUser, isGlobalObserver, isOnlyObserver, location]);
+  }, [currentUser, isGlobalObserver, isOnlyObserver]);
 
   // "any" is used on purpose. We are using Axios but this
   // function expects a native React Error type, which is incompatible.

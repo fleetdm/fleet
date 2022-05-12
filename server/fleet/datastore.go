@@ -143,6 +143,7 @@ type Datastore interface {
 	DeleteLabel(ctx context.Context, name string) error
 	Label(ctx context.Context, lid uint) (*Label, error)
 	ListLabels(ctx context.Context, filter TeamFilter, opt ListOptions) ([]*Label, error)
+	LabelsSummary(ctx context.Context) ([]*LabelSummary, error)
 
 	// LabelQueriesForHost returns the label queries that should be executed for the given host.
 	// Results are returned in a map of label id -> query
@@ -173,7 +174,6 @@ type Datastore interface {
 
 	// NewHost is deprecated and will be removed. Hosts should always be enrolled via EnrollHost.
 	NewHost(ctx context.Context, host *Host) (*Host, error)
-	SaveHost(ctx context.Context, host *Host) error
 	DeleteHost(ctx context.Context, hid uint) error
 	Host(ctx context.Context, id uint, skipLoadingExtras bool) (*Host, error)
 	ListHosts(ctx context.Context, filter TeamFilter, opt HostListOptions) ([]*Host, error)

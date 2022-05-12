@@ -5,7 +5,7 @@ import { filter, forEach, isEmpty, remove, unionWith } from "lodash";
 import { useDebouncedCallback } from "use-debounce/lib";
 import { v4 as uuidv4 } from "uuid";
 
-import { formatSelectedTargetsForApi } from "fleet/helpers";
+import { formatSelectedTargetsForApi } from "utilities/helpers";
 import { QueryContext } from "context/query";
 import useQueryTargets, { ITargetsQueryResponse } from "hooks/useQueryTargets";
 import target, {
@@ -21,15 +21,13 @@ import { IHost } from "interfaces/host";
 import targetsAPI, { ITargetsCount } from "services/entities/targets";
 import teamsAPI from "services/entities/teams";
 
-// @ts-ignore
+import PageError from "components/DataError";
 import TargetsInput from "components/TargetsInput";
 import Button from "components/buttons/Button";
 import Spinner from "components/Spinner";
 import TooltipWrapper from "components/TooltipWrapper";
 import PlusIcon from "../../../../../assets/images/icon-plus-purple-32x32@2x.png";
 import CheckIcon from "../../../../../assets/images/icon-check-purple-32x32@2x.png";
-import ExternalURLIcon from "../../../../../assets/images/icon-external-url-12x12@2x.png";
-import ErrorIcon from "../../../../../assets/images/icon-error-16x16@2x.png";
 
 interface ITargetPillSelectorProps {
   entity: ISelectLabel | ISelectTeam;
@@ -416,31 +414,14 @@ const SelectTargets = ({
     );
   }
 
-  // if (isEmpty(searchText) && isTargetsError) {
-  //   return (
-  //     <div className={`${baseClass}__wrapper body-wrap`}>
-  //       <h1>Select targets</h1>
-  //       <div className={`${baseClass}__page-error`}>
-  //         <h4>
-  //           <img alt="" src={ErrorIcon} />
-  //           Something&apos;s gone wrong.
-  //         </h4>
-  //         <p>Refresh the page or log in again.</p>
-  //         <p>
-  //           If this keeps happening please{" "}
-  //           <a
-  //             className="file-issue-link"
-  //             target="_blank"
-  //             rel="noopener noreferrer"
-  //             href="https://github.com/fleetdm/fleet/issues/new/choose"
-  //           >
-  //             file an issue <img alt="" src={ExternalURLIcon} />
-  //           </a>
-  //         </p>
-  //       </div>
-  //     </div>
-  //   );
-  // }
+  if (isEmpty(searchText) && isTargetsError) {
+    return (
+      <div className={`${baseClass}__wrapper body-wrap`}>
+        <h1>Select targets</h1>
+        <PageError />
+      </div>
+    );
+  }
 
   return (
     <div className={`${baseClass}__wrapper body-wrap`}>

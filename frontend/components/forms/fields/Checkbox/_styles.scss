@@ -40,8 +40,7 @@
 
   &__tick {
     @include size(20px);
-    @include position(absolute, 50% null null 0);
-    transform: translateY(-8px);
+    @include position(absolute, 3px null null 0);
     display: inline-block;
 
     &::after {
@@ -83,6 +82,12 @@
   }
 
   &__label {
+    font-size: $x-small;
+    padding-left: $pad-small;
+    display: inline;
+  }
+
+  &__label-tooltip {
     font-size: $x-small;
     padding-left: $pad-small;
     display: inherit;

@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 
 import { IPolicy } from "interfaces/policy";
 import { IWebhookFailingPolicies } from "interfaces/webhook";
-import { useDeepEffect } from "utilities/hooks";
+import useDeepEffect from "hooks/useDeepEffect";
 import { size } from "lodash";
 
 import Modal from "components/Modal";
@@ -240,7 +240,7 @@ const ManageAutomationsModal = ({
             <div className={`${baseClass}__overlay`} />
           )}
         </div>
-        <div className={`${baseClass}__button-wrap`}>
+        <div className="modal-cta-wrap">
           <Button
             className={`${baseClass}__btn`}
             onClick={onReturnToApp}

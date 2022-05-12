@@ -7,6 +7,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/WatchBeam/clock"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
 	"github.com/fleetdm/fleet/v4/server/datastore/redis"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -227,6 +228,7 @@ func testCollectPolicyQueryExecutions(t *testing.T, ds *mysql.Datastore, pool fl
 			// run the collection
 			var stats collectorExecStats
 			task := Task{
+				Clock:              clock.C,
 				InsertBatch:        batchSizes,
 				UpdateBatch:        batchSizes,
 				DeleteBatch:        batchSizes,
@@ -275,6 +277,7 @@ func testCollectPolicyQueryExecutions(t *testing.T, ds *mysql.Datastore, pool fl
 	setupTest(t, map[int]map[int]*bool{1: {1: nil}})
 	var stats collectorExecStats
 	task := Task{
+		Clock:              clock.C,
 		InsertBatch:        batchSizes,
 		UpdateBatch:        batchSizes,
 		DeleteBatch:        batchSizes,
@@ -312,6 +315,7 @@ func testRecordPolicyQueryExecutionsSync(t *testing.T, ds *mock.Store, pool flee
 	task := Task{
 		Datastore:    ds,
 		Pool:         pool,
+		Clock:        clock.C,
 		AsyncEnabled: false,
 	}
 
@@ -359,6 +363,7 @@ func testRecordPolicyQueryExecutionsAsync(t *testing.T, ds *mock.Store, pool fle
 	task := Task{
 		Datastore:    ds,
 		Pool:         pool,
+		Clock:        clock.C,
 		AsyncEnabled: true,
 
 		InsertBatch:        3,

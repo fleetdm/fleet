@@ -76,21 +76,12 @@ const CreateTeamModal = ({
             hosts or volunteers acting as canaries.
           </p>
         </InfoBanner>
-        <div className={`${baseClass}__btn-wrap`}>
-          <Button
-            className={`${baseClass}__btn`}
-            type="submit"
-            variant="brand"
-            disabled={name === ""}
-          >
-            Create
-          </Button>
-          <Button
-            className={`${baseClass}__btn`}
-            onClick={onCancel}
-            variant="inverse"
-          >
+        <div className="modal-cta-wrap">
+          <Button onClick={onCancel} variant="inverse">
             Cancel
+          </Button>
+          <Button type="submit" variant="brand" disabled={name === ""}>
+            Create
           </Button>
         </div>
       </form>

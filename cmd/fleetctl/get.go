@@ -24,7 +24,6 @@ const (
 	jsonFlagName                = "json"
 	withQueriesFlagName         = "with-queries"
 	expiredFlagName             = "expired"
-	stdoutFlagName              = "stdout"
 	includeServerConfigFlagName = "include-server-config"
 )
 
@@ -142,6 +141,40 @@ func printHostDetail(c *cli.Context, host *service.HostDetailResponse) error {
 	}
 
 	return printSpec(c, spec)
+}
+
+type enrichedAppConfigPresenter fleet.EnrichedAppConfig
+
+func (eacp enrichedAppConfigPresenter) MarshalJSON() ([]byte, error) {
+	type UpdateIntervalConfigPresenter struct {
+		OSQueryDetail string `json:"osquery_detail"`
+		OSQueryPolicy string `json:"osquery_policy"`
+		*fleet.UpdateIntervalConfig
+	}
+
+	type VulnerabilitiesConfigPresenter struct {
+		Periodicity               string `json:"periodicity"`
+		RecentVulnerabilityMaxAge string `json:"recent_vulnerability_max_age"`
+		*fleet.VulnerabilitiesConfig
+	}
+
+	return json.Marshal(&struct {
+		fleet.EnrichedAppConfig
+		UpdateInterval  UpdateIntervalConfigPresenter  `json:"update_interval,omitempty"`
+		Vulnerabilities VulnerabilitiesConfigPresenter `json:"vulnerabilities,omitempty"`
+	}{
+		EnrichedAppConfig: fleet.EnrichedAppConfig(eacp),
+		UpdateInterval: UpdateIntervalConfigPresenter{
+			eacp.UpdateInterval.OSQueryDetail.String(),
+			eacp.UpdateInterval.OSQueryPolicy.String(),
+			eacp.UpdateInterval,
+		},
+		Vulnerabilities: VulnerabilitiesConfigPresenter{
+			eacp.Vulnerabilities.Periodicity.String(),
+			eacp.Vulnerabilities.RecentVulnerabilityMaxAge.String(),
+			eacp.Vulnerabilities,
+		},
+	})
 }
 
 func printConfig(c *cli.Context, config interface{}) error {
@@ -310,7 +343,6 @@ func getQueriesCommand() *cli.Command {
 			}
 
 			return nil
-
 		},
 	}
 }
@@ -428,7 +460,6 @@ func getPacksCommand() *cli.Command {
 			}
 
 			return printQueries()
-
 		},
 	}
 }
@@ -498,7 +529,6 @@ func getLabelsCommand() *cli.Command {
 
 			printLabel(c, label)
 			return nil
-
 		},
 	}
 }
@@ -563,7 +593,7 @@ func getAppConfigCommand() *cli.Command {
 			}
 
 			if c.Bool(includeServerConfigFlagName) {
-				err = printConfig(c, config)
+				err = printConfig(c, enrichedAppConfigPresenter(*config))
 			} else {
 				err = printConfig(c, config.AppConfig)
 			}
@@ -722,10 +752,7 @@ func getCarveCommand() *cli.Command {
 		Name:  "carve",
 		Usage: "Retrieve details for a carve by ID",
 		Flags: []cli.Flag{
-			&cli.BoolFlag{
-				Name:  stdoutFlagName,
-				Usage: "Print carve contents to stdout",
-			},
+			stdoutFlag(),
 			configFlag(),
 			contextFlag(),
 			outfileFlag(),

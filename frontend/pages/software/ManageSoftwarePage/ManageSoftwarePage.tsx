@@ -6,7 +6,11 @@ import { useDebouncedCallback } from "use-debounce";
 import { AppContext } from "context/app";
 import { NotificationContext } from "context/notification";
 import { IConfig } from "interfaces/config";
-import { IJiraIntegration } from "interfaces/integration";
+import {
+  IJiraIntegration,
+  IZendeskIntegration,
+  IIntegration,
+} from "interfaces/integration";
 import { IWebhookSoftwareVulnerabilities } from "interfaces/webhook"; // @ts-ignore
 import configAPI from "services/entities/config";
 import softwareAPI, {
@@ -24,7 +28,7 @@ import Dropdown from "components/forms/fields/Dropdown";
 // @ts-ignore
 import Spinner from "components/Spinner";
 import TableContainer, { ITableQueryData } from "components/TableContainer";
-import TableDataError from "components/TableDataError";
+import TableDataError from "components/DataError";
 import TeamsDropdownHeader, {
   ITeamsDropdownState,
 } from "components/PageHeader/TeamsDropdownHeader";
@@ -50,6 +54,7 @@ interface ISoftwareAutomations {
   };
   integrations: {
     jira: IJiraIntegration[];
+    zendesk: IZendeskIntegration[];
   };
 }
 interface IHeaderButtonsState extends ITeamsDropdownState {
@@ -68,9 +73,9 @@ const ManageSoftwarePage = ({
   const {
     availableTeams,
     currentTeam,
-    setConfig,
     isGlobalAdmin,
     isGlobalMaintainer,
+    isOnGlobalTeam,
   } = useContext(AppContext);
   const { renderFlash } = useContext(NotificationContext);
 
@@ -108,14 +113,24 @@ const ManageSoftwarePage = ({
       let jiraIntegrationEnabled = false;
       if (data.integrations.jira) {
         jiraIntegrationEnabled = data?.integrations.jira.some(
-          (integration: any) => {
+          (integration: IIntegration) => {
+            return integration.enable_software_vulnerabilities;
+          }
+        );
+      }
+      let zendeskIntegrationEnabled = false;
+      if (data.integrations.zendesk) {
+        zendeskIntegrationEnabled = data?.integrations.zendesk.some(
+          (integration: IIntegration) => {
             return integration.enable_software_vulnerabilities;
           }
         );
       }
       setIsVulnerabilityAutomationsEnabled(
         data?.webhook_settings?.vulnerabilities_webhook
-          .enable_vulnerabilities_webhook || jiraIntegrationEnabled
+          .enable_vulnerabilities_webhook ||
+          jiraIntegrationEnabled ||
+          zendeskIntegrationEnabled
       );
       // Convert from nanosecond to nearest day
       setRecentVulnerabilityMaxAge(
@@ -162,6 +177,9 @@ const ManageSoftwarePage = ({
       return softwareAPI.load(params);
     },
     {
+      enabled:
+        isOnGlobalTeam ||
+        !!availableTeams?.find((t) => t.id === currentTeam?.id),
       keepPreviousData: true,
       staleTime: 30000, // stale time can be adjusted if fresher data is desired based on software inventory interval
     }
@@ -190,6 +208,9 @@ const ManageSoftwarePage = ({
       });
     },
     {
+      enabled:
+        isOnGlobalTeam ||
+        !!availableTeams?.find((t) => t.id === currentTeam?.id),
       keepPreviousData: true,
       staleTime: 30000, // stale time can be adjusted if fresher data is desired based on software inventory interval
       refetchOnWindowFocus: false,
@@ -254,6 +275,7 @@ const ManageSoftwarePage = ({
           "success",
           "Successfully updated vulnerability automations."
         );
+        refetchSoftwareVulnerabilitiesWebhook();
       });
     } catch {
       renderFlash(
@@ -262,7 +284,6 @@ const ManageSoftwarePage = ({
       );
     } finally {
       toggleManageAutomationsModal();
-      refetchSoftwareVulnerabilitiesWebhook();
     }
   };
 
@@ -274,6 +295,7 @@ const ManageSoftwarePage = ({
     state: IHeaderButtonsState
   ): JSX.Element | null => {
     if (
+      !softwareError &&
       state.isGlobalAdmin &&
       (!state.isPremiumTier || state.teamId === 0) &&
       !state.isLoading

@@ -3,14 +3,13 @@ import { useQuery, useMutation } from "react-query";
 import { InjectedRouter, Params } from "react-router/lib/Router";
 import { useErrorHandler } from "react-error-boundary";
 
-// @ts-ignore
-import Fleet from "fleet";
 import { AppContext } from "context/app";
 import { PolicyContext } from "context/policy";
 import { QUERIES_PAGE_STEPS, DEFAULT_POLICY } from "utilities/constants";
 import globalPoliciesAPI from "services/entities/global_policies";
 import teamPoliciesAPI from "services/entities/team_policies";
 import hostAPI from "services/entities/hosts";
+import statusAPI from "services/entities/status";
 import { IPolicyFormData, IPolicy } from "interfaces/policy";
 import { ITarget } from "interfaces/target";
 import { IHost } from "interfaces/host";
@@ -155,7 +154,7 @@ const PolicyPage = ({
   );
 
   const detectIsFleetQueryRunnable = () => {
-    Fleet.status.live_query().catch(() => {
+    statusAPI.live_query().catch(() => {
       setIsLiveQueryRunnable(false);
     });
   };

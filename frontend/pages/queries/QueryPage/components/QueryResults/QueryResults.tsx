@@ -5,17 +5,18 @@ import { format } from "date-fns";
 import FileSaver from "file-saver";
 import { filter, get } from "lodash";
 
-// @ts-ignore
-import convertToCSV from "utilities/convert_to_csv"; // @ts-ignore
-import { ICampaign, ICampaignQueryResult } from "interfaces/campaign";
+import convertToCSV from "utilities/convert_to_csv";
+import { ICampaign } from "interfaces/campaign";
 import { ITarget } from "interfaces/target";
 
-import Button from "components/buttons/Button"; // @ts-ignore
+import Button from "components/buttons/Button";
 import Spinner from "components/Spinner";
 import TableContainer from "components/TableContainer";
 import TabsWrapper from "components/TabsWrapper";
 import TooltipWrapper from "components/TooltipWrapper";
+import ShowQueryModal from "./ShowQueryModal";
 import DownloadIcon from "../../../../../../assets/images/icon-download-12x12@2x.png";
+import EyeIcon from "../../../../../../assets/images/icon-eye-16x16@2x.png";
 
 import resultsTableHeaders from "./QueryResultsTableConfig";
 
@@ -60,6 +61,7 @@ const QueryResults = ({
     targetsRespondedPercent,
     setTargetsRespondedPercent,
   ] = useState<number>(0);
+  const [showQueryModal, setShowQueryModal] = useState<boolean>(false);
 
   useEffect(() => {
     const calculatePercent =
@@ -119,6 +121,10 @@ const QueryResults = ({
     }
   };
 
+  const onShowQueryModal = () => {
+    setShowQueryModal(!showQueryModal);
+  };
+
   const onQueryDone = () => {
     setSelectedTargets([]);
     goToQueryEditor();
@@ -137,7 +143,7 @@ const QueryResults = ({
     );
   };
 
-  const renderTable = (tableData: ICampaignQueryResult[]) => {
+  const renderTable = (tableData: unknown[]) => {
     return (
       <TableContainer
         columns={resultsTableHeaders(tableData || [])}
@@ -169,18 +175,31 @@ const QueryResults = ({
 
     return (
       <div className={`${baseClass}__results-table-container`}>
-        <span className={`${baseClass}__results-count`}>
-          {totalRowsCount} result{totalRowsCount !== 1 && "s"}
-        </span>
-        <Button
-          className={`${baseClass}__export-btn`}
-          onClick={onExportQueryResults}
-          variant="text-link"
-        >
-          <>
-            Export results <img alt="" src={DownloadIcon} />
-          </>
-        </Button>
+        <div className={`${baseClass}__results-table-header`}>
+          <span className={`${baseClass}__results-count`}>
+            {totalRowsCount} result{totalRowsCount !== 1 && "s"}
+          </span>
+          <div className={`${baseClass}__results-cta`}>
+            <Button
+              className={`${baseClass}__show-query-btn`}
+              onClick={onShowQueryModal}
+              variant="text-link"
+            >
+              <>
+                Show query <img alt="Show query" src={EyeIcon} />
+              </>
+            </Button>
+            <Button
+              className={`${baseClass}__export-btn`}
+              onClick={onExportQueryResults}
+              variant="text-link"
+            >
+              <>
+                Export results <img alt="Export results" src={DownloadIcon} />
+              </>
+            </Button>
+          </div>
+        </div>
         {renderTable(queryResults)}
       </div>
     );
@@ -189,20 +208,33 @@ const QueryResults = ({
   const renderErrorsTable = () => {
     return (
       <div className={`${baseClass}__error-table-container`}>
-        {errors && (
-          <span className={`${baseClass}__error-count`}>
-            {errors.length} error{errors.length !== 1 && "s"}
-          </span>
-        )}
-        <Button
-          className={`${baseClass}__export-btn`}
-          onClick={onExportErrorsResults}
-          variant="text-link"
-        >
-          <>
-            Export errors <img alt="" src={DownloadIcon} />
-          </>
-        </Button>
+        <div className={`${baseClass}__errors-table-header`}>
+          {errors && (
+            <span className={`${baseClass}__error-count`}>
+              {errors.length} error{errors.length !== 1 && "s"}
+            </span>
+          )}
+          <div className={`${baseClass}__errors-cta`}>
+            <Button
+              className={`${baseClass}__show-query-btn`}
+              onClick={onShowQueryModal}
+              variant="text-link"
+            >
+              <>
+                Show query <img alt="Show query" src={EyeIcon} />
+              </>
+            </Button>
+            <Button
+              className={`${baseClass}__export-btn`}
+              onClick={onExportErrorsResults}
+              variant="text-link"
+            >
+              <>
+                Export errors <img alt="" src={DownloadIcon} />
+              </>
+            </Button>
+          </div>
+        </div>
         <div className={`${baseClass}__error-table-wrapper`}>
           {renderTable(errors)}
         </div>
@@ -282,6 +314,7 @@ const QueryResults = ({
           <TabPanel>{renderErrorsTable()}</TabPanel>
         </Tabs>
       </TabsWrapper>
+      {showQueryModal && <ShowQueryModal onCancel={onShowQueryModal} />}
     </div>
   );
 };

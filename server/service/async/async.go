@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/WatchBeam/clock"
 	"github.com/fleetdm/fleet/v4/server/datastore/redis"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/getsentry/sentry-go"
@@ -18,6 +19,7 @@ const collectorLockKey = "locks:async_collector:{%s}"
 type Task struct {
 	Datastore fleet.Datastore
 	Pool      fleet.RedisPool
+	Clock     clock.Clock
 	// AsyncEnabled indicates if async processing is enabled in the
 	// configuration. Note that Pool can be nil if this is false.
 	AsyncEnabled bool
@@ -30,6 +32,8 @@ type Task struct {
 	RedisPopCount      int
 	RedisScanKeysCount int
 	CollectorInterval  time.Duration
+
+	seenHostSet seenHostSet
 }
 
 // Collect runs the various collectors as distinct background goroutines if
@@ -69,7 +73,18 @@ func (t *Task) StartCollectors(ctx context.Context, jitterPct int, logger kitlog
 		errHandler:   collectorErrHandler,
 	}
 
-	colls := []*collector{labelColl, policyColl}
+	lastSeenColl := &collector{
+		name:         "collect_last_seen",
+		pool:         t.Pool,
+		ds:           t.Datastore,
+		execInterval: t.CollectorInterval,
+		jitterPct:    jitterPct,
+		lockTimeout:  t.LockTimeout,
+		handler:      t.collectHostsLastSeen,
+		errHandler:   collectorErrHandler,
+	}
+
+	colls := []*collector{labelColl, policyColl, lastSeenColl}
 	for _, coll := range colls {
 		go coll.Start(ctx)
 	}

@@ -1,13 +1,16 @@
 package service
 
 import (
+	"bytes"
 	"context"
+	"encoding/csv"
 	"fmt"
+	"io"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/authz"
-	authz_ctx "github.com/fleetdm/fleet/v4/server/contexts/authz"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/contexts/logging"
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
@@ -20,10 +23,10 @@ import (
 // rendering in the UI.
 type HostResponse struct {
 	*fleet.Host
-	Status      fleet.HostStatus   `json:"status"`
-	DisplayText string             `json:"display_text"`
-	Labels      []fleet.Label      `json:"labels,omitempty"`
-	Geolocation *fleet.GeoLocation `json:"geolocation,omitempty"`
+	Status      fleet.HostStatus   `json:"status" csv:"status"`
+	DisplayText string             `json:"display_text" csv:"display_text"`
+	Labels      []fleet.Label      `json:"labels,omitempty" csv:"-"`
+	Geolocation *fleet.GeoLocation `json:"geolocation,omitempty" csv:"-"`
 }
 
 func hostResponseForHost(ctx context.Context, svc fleet.Service, host *fleet.Host) (*HostResponse, error) {
@@ -51,12 +54,6 @@ func hostDetailResponseForHost(ctx context.Context, svc fleet.Service, host *fle
 		DisplayText: host.Hostname,
 		Geolocation: svc.LookupGeoIP(ctx, host.PublicIP),
 	}, nil
-}
-
-func (svc *Service) FlushSeenHosts(ctx context.Context) error {
-	// No authorization check because this is used only internally.
-	hostIDs := svc.seenHostSet.getAndClearHostIDs()
-	return svc.ds.MarkHostsSeen(ctx, hostIDs, svc.clock.Now())
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -275,7 +272,7 @@ func getHostEndpoint(ctx context.Context, request interface{}, svc fleet.Service
 }
 
 func (svc *Service) GetHost(ctx context.Context, id uint) (*fleet.HostDetail, error) {
-	alreadyAuthd := svc.authz.IsAuthenticatedWith(ctx, authz_ctx.AuthnDeviceToken)
+	alreadyAuthd := svc.authz.IsAuthenticatedWith(ctx, authz.AuthnDeviceToken)
 	if !alreadyAuthd {
 		// First ensure the user has access to list hosts, then check the specific
 		// host once team_id is loaded.
@@ -353,11 +350,35 @@ func (svc *Service) GetHostSummary(ctx context.Context, teamID *uint, platform *
 	}
 	filter := fleet.TeamFilter{User: vc.User, IncludeObserver: true, TeamID: teamID}
 
-	summary, err := svc.ds.GenerateHostStatusStatistics(ctx, filter, svc.clock.Now(), platform)
+	hostSummary, err := svc.ds.GenerateHostStatusStatistics(ctx, filter, svc.clock.Now(), platform)
 	if err != nil {
 		return nil, err
 	}
-	return summary, nil
+
+	linuxCount := uint(0)
+	for _, p := range hostSummary.Platforms {
+		if fleet.IsLinux(p.Platform) {
+			linuxCount += p.HostsCount
+		}
+	}
+	hostSummary.AllLinuxCount = linuxCount
+
+	labelsSummary, err := svc.ds.LabelsSummary(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	// TODO: should query for "All linux" label be updated to use `platform` from `os_version` table
+	// so that the label tracks the way platforms are handled here in the host summary?
+	var builtinLabels []*fleet.LabelSummary
+	for _, l := range labelsSummary {
+		if l.LabelType == fleet.LabelTypeBuiltIn {
+			builtinLabels = append(builtinLabels, l)
+		}
+	}
+	hostSummary.BuiltinLabels = builtinLabels
+
+	return hostSummary, nil
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -560,7 +581,7 @@ func refetchHostEndpoint(ctx context.Context, request interface{}, svc fleet.Ser
 }
 
 func (svc *Service) RefetchHost(ctx context.Context, id uint) error {
-	if !svc.authz.IsAuthenticatedWith(ctx, authz_ctx.AuthnDeviceToken) {
+	if !svc.authz.IsAuthenticatedWith(ctx, authz.AuthnDeviceToken) {
 		if err := svc.authz.Authorize(ctx, &fleet.Host{}, fleet.ActionList); err != nil {
 			return err
 		}
@@ -676,7 +697,7 @@ func listHostDeviceMappingEndpoint(ctx context.Context, request interface{}, svc
 }
 
 func (svc *Service) ListHostDeviceMapping(ctx context.Context, id uint) ([]*fleet.HostDeviceMapping, error) {
-	if !svc.authz.IsAuthenticatedWith(ctx, authz_ctx.AuthnDeviceToken) {
+	if !svc.authz.IsAuthenticatedWith(ctx, authz.AuthnDeviceToken) {
 		if err := svc.authz.Authorize(ctx, &fleet.Host{}, fleet.ActionList); err != nil {
 			return nil, err
 		}
@@ -720,7 +741,7 @@ func getMacadminsDataEndpoint(ctx context.Context, request interface{}, svc flee
 }
 
 func (svc *Service) MacadminsData(ctx context.Context, id uint) (*fleet.MacadminsData, error) {
-	if !svc.authz.IsAuthenticatedWith(ctx, authz_ctx.AuthnDeviceToken) {
+	if !svc.authz.IsAuthenticatedWith(ctx, authz.AuthnDeviceToken) {
 		if err := svc.authz.Authorize(ctx, &fleet.Host{}, fleet.ActionList); err != nil {
 			return nil, err
 		}
@@ -838,20 +859,74 @@ type hostsReportRequest struct {
 	Opts    fleet.HostListOptions `url:"host_options"`
 	LabelID *uint                 `query:"label_id,optional"`
 	Format  string                `query:"format"`
+	Columns string                `query:"columns,optional"`
 }
 
 type hostsReportResponse struct {
-	Hosts []*fleet.Host `json:"-"` // they get rendered explicitly, in csv
-	Err   error         `json:"error,omitempty"`
+	Columns []string        `json:"-"` // used to control the generated csv, see the hijackRender method
+	Hosts   []*HostResponse `json:"-"` // they get rendered explicitly, in csv
+	Err     error           `json:"error,omitempty"`
 }
 
 func (r hostsReportResponse) error() error { return r.Err }
 
 func (r hostsReportResponse) hijackRender(ctx context.Context, w http.ResponseWriter) {
+	var buf bytes.Buffer
+	if err := gocsv.Marshal(r.Hosts, &buf); err != nil {
+		logging.WithErr(ctx, err)
+		encodeError(ctx, ctxerr.New(ctx, "failed to generate CSV file"), w)
+		return
+	}
+
+	returnAll := len(r.Columns) == 0
+
+	var outRows [][]string
+	if !returnAll {
+		// read back the CSV to filter out any unwanted columns
+		recs, err := csv.NewReader(&buf).ReadAll()
+		if err != nil {
+			logging.WithErr(ctx, err)
+			encodeError(ctx, ctxerr.New(ctx, "failed to generate CSV file"), w)
+			return
+		}
+
+		if len(recs) > 0 {
+			// map the header names to their field index
+			hdrs := make(map[string]int, len(recs))
+			for i, hdr := range recs[0] {
+				hdrs[hdr] = i
+			}
+
+			outRows = make([][]string, len(recs))
+			for i, rec := range recs {
+				for _, col := range r.Columns {
+					colIx, ok := hdrs[col]
+					if !ok {
+						// invalid column name - it would be nice to catch this in the
+						// endpoint before processing the results, but it would require
+						// duplicating the list of columns from the Host's struct tags to a
+						// map and keep this in sync, for what is essentially a programmer
+						// mistake that should be caught and corrected early.
+						encodeError(ctx, &badRequestError{message: fmt.Sprintf("invalid column name: %q", col)}, w)
+						return
+					}
+					outRows[i] = append(outRows[i], rec[colIx])
+				}
+			}
+		}
+	}
+
 	w.Header().Add("Content-Disposition", fmt.Sprintf(`attachment; filename="Hosts %s.csv"`, time.Now().Format("2006-01-02")))
 	w.Header().Set("Content-Type", "text/csv")
 	w.WriteHeader(http.StatusOK)
-	if err := gocsv.Marshal(r.Hosts, w); err != nil {
+
+	var err error
+	if returnAll {
+		_, err = io.Copy(w, &buf)
+	} else {
+		err = csv.NewWriter(w).WriteAll(outRows)
+	}
+	if err != nil {
 		logging.WithErr(ctx, err)
 	}
 }
@@ -891,7 +966,23 @@ func hostsReportEndpoint(ctx context.Context, request interface{}, svc fleet.Ser
 	if err != nil {
 		return hostsReportResponse{Err: err}, nil
 	}
-	return hostsReportResponse{Hosts: hosts}, nil
+
+	hostResps := make([]*HostResponse, len(hosts))
+	for i, h := range hosts {
+		hr, err := hostResponseForHost(ctx, svc, h)
+		if err != nil {
+			return hostsReportResponse{Err: err}, nil
+		}
+		hostResps[i] = hr
+	}
+	rawCols := strings.Split(req.Columns, ",")
+	var cols []string
+	for _, rawCol := range rawCols {
+		if rawCol = strings.TrimSpace(rawCol); rawCol != "" {
+			cols = append(cols, rawCol)
+		}
+	}
+	return hostsReportResponse{Columns: cols, Hosts: hostResps}, nil
 }
 
 type osVersionsRequest struct {
@@ -900,8 +991,8 @@ type osVersionsRequest struct {
 }
 
 type osVersionsResponse struct {
-	CountsUpdatedAt *time.Time        `json:"counts_updated_at,omitempty"`
-	OSVersions      []fleet.OSVersion `json:"os_versions,omitempty"`
+	CountsUpdatedAt *time.Time        `json:"counts_updated_at"`
+	OSVersions      []fleet.OSVersion `json:"os_versions"`
 	Err             error             `json:"error,omitempty"`
 }
 
@@ -927,10 +1018,20 @@ func (svc *Service) OSVersions(ctx context.Context, teamID *uint, platform *stri
 	}
 
 	osVersions, err := svc.ds.OSVersions(ctx, teamID, platform)
-	if err != nil {
+	if err != nil && fleet.IsNotFound(err) {
+		// differentiate case where team was added after UpdateOSVersions last ran
+		if teamID != nil {
+			// most of the time, team should exist so checking here saves unnecessary db calls
+			_, err := svc.ds.Team(ctx, *teamID)
+			if err != nil {
+				return nil, err
+			}
+		}
+		// if team exists but stats have not yet been gathered, return empty JSON array
+		osVersions = &fleet.OSVersions{}
+	} else if err != nil {
 		return nil, err
 	}
 
 	return osVersions, nil
-
 }

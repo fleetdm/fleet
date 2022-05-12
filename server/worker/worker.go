@@ -11,7 +11,12 @@ import (
 	"github.com/go-kit/kit/log/level"
 )
 
-const maxRetries = 5
+const (
+	maxRetries = 5
+	// nvdCVEURL is the base link to a CVE on the NVD website, only the CVE code
+	// needs to be appended to make it a valid link.
+	nvdCVEURL = "https://nvd.nist.gov/vuln/detail/"
+)
 
 // Job defines an interface for jobs that can be run by the Worker
 type Job interface {

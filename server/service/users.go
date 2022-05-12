@@ -11,6 +11,7 @@ import (
 
 	"github.com/fleetdm/fleet/v4/server"
 	"github.com/fleetdm/fleet/v4/server/authz"
+	authz_ctx "github.com/fleetdm/fleet/v4/server/contexts/authz"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -140,7 +141,11 @@ func listUsersEndpoint(ctx context.Context, request interface{}, svc fleet.Servi
 }
 
 func (svc *Service) ListUsers(ctx context.Context, opt fleet.UserListOptions) ([]*fleet.User, error) {
-	if err := svc.authz.Authorize(ctx, &fleet.User{}, fleet.ActionRead); err != nil {
+	user := &fleet.User{}
+	if opt.TeamID != 0 {
+		user.Teams = []fleet.UserTeam{{Team: fleet.Team{ID: opt.TeamID}}}
+	}
+	if err := svc.authz.Authorize(ctx, user, fleet.ActionRead); err != nil {
 		return nil, err
 	}
 
@@ -216,12 +221,27 @@ func getUserEndpoint(ctx context.Context, request interface{}, svc fleet.Service
 	return getUserResponse{User: user, AvailableTeams: availableTeams}, nil
 }
 
+// setAuthCheckedOnPreAuthErr can be used to set the authentication as checked
+// in case of errors that happened before an auth check can be performed.
+// Otherwise the endpoints return a "authentication skipped" error instead of
+// the actual returned error.
+func setAuthCheckedOnPreAuthErr(ctx context.Context) {
+	if az, ok := authz_ctx.FromContext(ctx); ok {
+		az.SetChecked()
+	}
+}
+
 func (svc *Service) User(ctx context.Context, id uint) (*fleet.User, error) {
-	if err := svc.authz.Authorize(ctx, &fleet.User{ID: id}, fleet.ActionRead); err != nil {
-		return nil, err
+	user, err := svc.ds.UserByID(ctx, id)
+	if err != nil {
+		setAuthCheckedOnPreAuthErr(ctx)
+		return nil, ctxerr.Wrap(ctx, err)
 	}
 
-	return svc.ds.UserByID(ctx, id)
+	if err := svc.authz.Authorize(ctx, user, fleet.ActionRead); err != nil {
+		return nil, err
+	}
+	return user, nil
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -251,12 +271,9 @@ func modifyUserEndpoint(ctx context.Context, request interface{}, svc fleet.Serv
 }
 
 func (svc *Service) ModifyUser(ctx context.Context, userID uint, p fleet.UserPayload) (*fleet.User, error) {
-	if err := svc.authz.Authorize(ctx, &fleet.User{}, fleet.ActionRead); err != nil {
-		return nil, err
-	}
-
 	user, err := svc.User(ctx, userID)
 	if err != nil {
+		setAuthCheckedOnPreAuthErr(ctx)
 		return nil, err
 	}
 
@@ -326,7 +343,10 @@ func (svc *Service) ModifyUser(ctx context.Context, userID uint, p fleet.UserPay
 
 	if p.GlobalRole != nil && *p.GlobalRole != "" {
 		if currentUser.GlobalRole == nil {
-			return nil, ctxerr.New(ctx, "Cannot edit global role as a team member")
+			return nil, authz.ForbiddenWithInternal(
+				"cannot edit global role as a team member",
+				currentUser, user, fleet.ActionWriteRole,
+			)
 		}
 
 		if p.Teams != nil && len(*p.Teams) > 0 {
@@ -336,7 +356,10 @@ func (svc *Service) ModifyUser(ctx context.Context, userID uint, p fleet.UserPay
 		user.Teams = []fleet.UserTeam{}
 	} else if p.Teams != nil {
 		if !isAdminOfTheModifiedTeams(currentUser, user.Teams, *p.Teams) {
-			return nil, ctxerr.New(ctx, "Cannot modify teams in that way")
+			return nil, authz.ForbiddenWithInternal(
+				"cannot modify teams in that way",
+				currentUser, user, fleet.ActionWriteRole,
+			)
 		}
 		user.Teams = *p.Teams
 		user.GlobalRole = nil
@@ -379,10 +402,14 @@ func deleteUserEndpoint(ctx context.Context, request interface{}, svc fleet.Serv
 }
 
 func (svc *Service) DeleteUser(ctx context.Context, id uint) error {
-	if err := svc.authz.Authorize(ctx, &fleet.User{ID: id}, fleet.ActionWrite); err != nil {
+	user, err := svc.ds.UserByID(ctx, id)
+	if err != nil {
+		setAuthCheckedOnPreAuthErr(ctx)
+		return ctxerr.Wrap(ctx, err)
+	}
+	if err := svc.authz.Authorize(ctx, user, fleet.ActionWrite); err != nil {
 		return err
 	}
-
 	return svc.ds.DeleteUser(ctx, id)
 }
 
@@ -616,27 +643,42 @@ func (svc *Service) ChangeUserEmail(ctx context.Context, token string) (string, 
 	return svc.ds.ConfirmPendingEmailChange(ctx, vc.UserID(), token)
 }
 
+// isAdminOfTheModifiedTeams checks whether the current user is allowed to modify the user
+// roles in the teams.
+//
+// TODO: End-goal is to move all this logic to policy.rego.
 func isAdminOfTheModifiedTeams(currentUser *fleet.User, originalUserTeams, newUserTeams []fleet.UserTeam) bool {
-	// If the user is of the right global role, then they can modify the teams
-	if currentUser.GlobalRole != nil && (*currentUser.GlobalRole == fleet.RoleAdmin || *currentUser.GlobalRole == fleet.RoleMaintainer) {
+	// Global admins can modify all user teams roles.
+	if currentUser.GlobalRole != nil && *currentUser.GlobalRole == fleet.RoleAdmin {
 		return true
 	}
 
-	// otherwise, gather the resulting teams
-	resultingTeams := make(map[uint]string)
+	// Otherwise, make a map of the original and resulting teams.
+	newTeams := make(map[uint]string)
 	for _, team := range newUserTeams {
-		resultingTeams[team.ID] = team.Role
+		newTeams[team.ID] = team.Role
+	}
+	originalTeams := make(map[uint]struct{})
+	for _, team := range originalUserTeams {
+		originalTeams[team.ID] = struct{}{}
 	}
 
-	// and see which ones were removed or changed from the original
+	// See which ones were removed or changed from the original.
 	teamsAffected := make(map[uint]struct{})
 	for _, team := range originalUserTeams {
-		if resultingTeams[team.ID] != team.Role {
+		if newTeams[team.ID] != team.Role {
 			teamsAffected[team.ID] = struct{}{}
 		}
 	}
 
-	// then gather the teams the current user is admin for
+	// See which ones of the new are not in the original.
+	for _, team := range newUserTeams {
+		if _, ok := originalTeams[team.ID]; !ok {
+			teamsAffected[team.ID] = struct{}{}
+		}
+	}
+
+	// Then gather the teams the current user is admin for.
 	currentUserTeamAdmin := make(map[uint]struct{})
 	for _, team := range currentUser.Teams {
 		if team.Role == fleet.RoleAdmin {
@@ -644,7 +686,8 @@ func isAdminOfTheModifiedTeams(currentUser *fleet.User, originalUserTeams, newUs
 		}
 	}
 
-	// and let's check that the teams that were either removed or changed are also teams this user is an admin of
+	// And finally, let's check that the teams that were either removed
+	// or changed are also teams this user is an admin of.
 	for teamID := range teamsAffected {
 		if _, ok := currentUserTeamAdmin[teamID]; !ok {
 			return false

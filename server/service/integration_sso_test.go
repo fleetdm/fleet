@@ -28,7 +28,7 @@ func (s *integrationSSOTestSuite) SetupSuite() {
 	s.withDS.SetupSuite("integrationSSOTestSuite")
 
 	pool := redistest.SetupRedis(s.T(), "zz", false, false, false)
-	users, server := RunServerForTestsWithDS(s.T(), s.ds, TestServerOpts{Pool: pool})
+	users, server := RunServerForTestsWithDS(s.T(), s.ds, &TestServerOpts{Pool: pool})
 	s.server = server
 	s.users = users
 	s.token = s.getTestAdminToken()
@@ -61,12 +61,12 @@ func (s *integrationSSOTestSuite) TestGetSSOSettings() {
 
 	// double-check the settings
 	var resGet ssoSettingsResponse
-	s.DoJSON("GET", "/api/latest/fleet/sso", nil, http.StatusOK, &resGet)
+	s.DoJSON("GET", "/api/v1/fleet/sso", nil, http.StatusOK, &resGet)
 	require.True(t, resGet.Settings.SSOEnabled)
 
 	// initiate an SSO auth
 	var resIni initiateSSOResponse
-	s.DoJSON("POST", "/api/latest/fleet/sso", map[string]string{}, http.StatusOK, &resIni)
+	s.DoJSON("POST", "/api/v1/fleet/sso", map[string]string{}, http.StatusOK, &resIni)
 	require.NotEmpty(t, resIni.URL)
 
 	parsed, err := url.Parse(resIni.URL)

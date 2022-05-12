@@ -156,10 +156,10 @@ describe("Premium tier - Team Admin user", () => {
       cy.getAttached(".enroll-secret-modal__add-secret")
         .contains("button", /add secret/i)
         .click();
-      cy.getAttached(".secret-editor-modal__button-wrap")
+      cy.getAttached(".secret-editor-modal .modal-cta-wrap")
         .contains("button", /save/i)
         .click();
-      cy.getAttached(".enroll-secret-modal__button-wrap")
+      cy.getAttached(".enroll-secret-modal .modal-cta-wrap")
         .contains("button", /done/i)
         .click();
     });
@@ -192,10 +192,7 @@ describe("Premium tier - Team Admin user", () => {
   });
   describe("Manage software page", () => {
     beforeEach(() => cy.visit("/software/manage"));
-    it("hides manage automations button since all teams not selected", () => {
-      cy.getAttached(".manage-software-page__header-wrap").within(() => {
-        cy.findByText(/apples/i).should("exist");
-      });
+    it("hides manage automations button", () => {
       cy.findByText(/manage automations/i).should("not.exist");
     });
   });
@@ -240,6 +237,7 @@ describe("Premium tier - Team Admin user", () => {
       cy.findByText(/advanced/i).should("not.exist");
     });
     it("creates a new team scheduled query", () => {
+      cy.getAttached(".no-schedule__cta-buttons").should("exist");
       cy.getAttached(".no-schedule__schedule-button").click();
       cy.getAttached(".schedule-editor-modal__form").within(() => {
         cy.findByText(/select query/i).click();
@@ -251,6 +249,7 @@ describe("Premium tier - Team Admin user", () => {
       cy.findByText(/successfully added/i).should("be.visible");
     });
     it("edit a team's scheduled query successfully", () => {
+      cy.getAttached(".manage-schedule-page");
       cy.getAttached("tbody>tr")
         .should("have.length", 1)
         .within(() => {
@@ -268,27 +267,28 @@ describe("Premium tier - Team Admin user", () => {
       cy.findByText(/successfully updated/i).should("be.visible");
     });
     it("remove a team's scheduled query successfully", () => {
+      cy.getAttached(".manage-schedule-page");
       cy.getAttached("tbody>tr")
         .should("have.length", 1)
         .within(() => {
           cy.findByText(/6 hours/i).should("exist");
-          cy.findByText(/action/i).click();
-          cy.findByText(/remove/i).click();
+          cy.getAttached(".Select-placeholder").within(() => {
+            cy.findByText(/action/i).click();
+          });
+          cy.getAttached(".Select-menu").within(() => {
+            cy.findByText(/remove/i).click();
+          });
         });
-      cy.getAttached(".remove-scheduled-query-modal__btn-wrap").within(() => {
-        cy.findByRole("button", { name: /remove/i }).click();
-      });
+      cy.getAttached(".remove-scheduled-query-modal .modal-cta-wrap").within(
+        () => {
+          cy.findByRole("button", { name: /remove/i }).click();
+        }
+      );
       cy.findByText(/successfully removed/i).should("be.visible");
     });
   });
   describe("Manage policies page", () => {
     beforeEach(() => cy.visit("/policies/manage"));
-    it("hides manage automations button when all teams not selected", () => {
-      cy.getAttached(".manage-policies-page__header-wrap").within(() => {
-        cy.findByText(/apples/i).should("exist");
-      });
-      cy.findByText(/manage automations/i).should("not.exist");
-    });
     it("allows team admin to add a new policy", () => {
       cy.getAttached(".button-wrap")
         .findByRole("button", { name: /add a policy/i })
@@ -358,7 +358,7 @@ describe("Premium tier - Team Admin user", () => {
       cy.findByText(/apples/i).should("exist");
     });
     it("displays the team admin controls", () => {
-      cy.findByRole("button", { name: /add member/i }).click();
+      cy.findByRole("button", { name: /create user/i }).click();
       cy.findByRole("button", { name: /cancel/i }).click();
       cy.findByRole("button", { name: /add hosts/i }).click();
       cy.findByRole("button", { name: /done/i }).click();

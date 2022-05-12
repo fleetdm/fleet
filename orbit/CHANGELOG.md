@@ -1,3 +1,20 @@
+## Orbit 0.0.11 (May 10, 2022)
+
+- Change install path to /opt/orbit. Fixes a permissions issue on platforms with SELinux enabled.
+  See [fleetdm/fleet#4176](https://github.com/fleetdm/fleet/issues/4176) for more details.
+
+- Remove support for Orbit to use the legacy osqueryd target on macOS. This has been deprecated since introduction of the app bundle support in Orbit 0.0.8.
+
+## Orbit 0.0.10 (Apr 26, 2022)
+
+- Revert Orbit osquery remote paths to use `v1`.
+
+## Orbit 0.0.9 (Apr 20, 2022)
+
+- Add Fleet Desktop Beta support for Windows.
+
+- Make update interval configurable and increase default from 10s to 15m.
+
 ## Orbit 0.0.8 (Mar 25, 2022)
 
 - Fix `orbit shell` command to successfully run when Orbit is already running as daemon.

@@ -102,7 +102,7 @@ spec:
 
 func TestApplyTeamSpecs(t *testing.T) {
 	license := &fleet.LicenseInfo{Tier: fleet.TierPremium, Expiration: time.Now().Add(24 * time.Hour)}
-	_, ds := runServerWithMockedDS(t, service.TestServerOpts{License: license})
+	_, ds := runServerWithMockedDS(t, &service.TestServerOpts{License: license})
 
 	teamsByName := map[string]*fleet.Team{
 		"team1": {
@@ -451,4 +451,74 @@ spec:
 	require.Len(t, appliedQueries, 1)
 	assert.Equal(t, "app_schemes", appliedQueries[0].Name)
 	assert.Equal(t, "select * from app_schemes;", appliedQueries[0].Query)
+}
+
+func TestCanApplyIntervalsInNanoseconds(t *testing.T) {
+	_, ds := runServerWithMockedDS(t)
+
+	// Stubs
+	ds.ListUsersFunc = func(ctx context.Context, opt fleet.UserListOptions) ([]*fleet.User, error) {
+		return userRoleSpecList, nil
+	}
+	ds.UserByEmailFunc = func(ctx context.Context, email string) (*fleet.User, error) {
+		if email == "admin1@example.com" {
+			return userRoleSpecList[0], nil
+		}
+		return userRoleSpecList[1], nil
+	}
+	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+		return &fleet.AppConfig{}, nil
+	}
+
+	var savedAppConfig *fleet.AppConfig
+	ds.SaveAppConfigFunc = func(ctx context.Context, config *fleet.AppConfig) error {
+		savedAppConfig = config
+		return nil
+	}
+
+	name := writeTmpYml(t, `---
+apiVersion: v1
+kind: config
+spec:
+  webhook_settings:
+    interval: 30000000000
+`)
+
+	assert.Equal(t, "[+] applied fleet config\n", runAppForTest(t, []string{"apply", "-f", name}))
+	require.Equal(t, savedAppConfig.WebhookSettings.Interval.Duration, 30*time.Second)
+}
+
+func TestCanApplyIntervalsUsingDurations(t *testing.T) {
+	_, ds := runServerWithMockedDS(t)
+
+	// Stubs
+	ds.ListUsersFunc = func(ctx context.Context, opt fleet.UserListOptions) ([]*fleet.User, error) {
+		return userRoleSpecList, nil
+	}
+	ds.UserByEmailFunc = func(ctx context.Context, email string) (*fleet.User, error) {
+		if email == "admin1@example.com" {
+			return userRoleSpecList[0], nil
+		}
+		return userRoleSpecList[1], nil
+	}
+	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+		return &fleet.AppConfig{}, nil
+	}
+
+	var savedAppConfig *fleet.AppConfig
+	ds.SaveAppConfigFunc = func(ctx context.Context, config *fleet.AppConfig) error {
+		savedAppConfig = config
+		return nil
+	}
+
+	name := writeTmpYml(t, `---
+apiVersion: v1
+kind: config
+spec:
+  webhook_settings:
+    interval: 30s
+`)
+
+	assert.Equal(t, "[+] applied fleet config\n", runAppForTest(t, []string{"apply", "-f", name}))
+	require.Equal(t, savedAppConfig.WebhookSettings.Interval.Duration, 30*time.Second)
 }
