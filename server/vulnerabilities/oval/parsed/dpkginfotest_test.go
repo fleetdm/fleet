@@ -9,11 +9,14 @@ import (
 
 func TestDpkgInfoTestEvalNoHostList(t *testing.T) {
 	t.Run("#Eval", func(t *testing.T) {
-		t.Run("with no host list", func(t *testing.T) {
+		t.Run("with no packages", func(t *testing.T) {
 			sut := DpkgInfoTest{}
 
-			require.False(t, sut.Eval(nil))
-			require.False(t, sut.Eval(make([]fleet.Software, 0)))
+			r, _ := sut.Eval(nil)
+			require.False(t, r)
+
+			r, _ = sut.Eval(make([]fleet.Software, 0))
+			require.False(t, r)
 		})
 
 		t.Run("test matches NObjects", func(t *testing.T) {
@@ -36,7 +39,7 @@ func TestDpkgInfoTestEvalNoHostList(t *testing.T) {
 				Objects: []string{"firefox", "paint"},
 			}
 
-			nObjects, _ := sut.matches(packages)
+			nObjects, _, _ := sut.matches(packages)
 			require.Equal(t, 2, nObjects)
 		})
 
@@ -66,7 +69,7 @@ func TestDpkgInfoTestEvalNoHostList(t *testing.T) {
 				StateOperator: Or,
 			}
 
-			_, nStates := sut.matches(packages)
+			_, nStates, _ := sut.matches(packages)
 			require.Equal(t, 1, nStates)
 		})
 	})

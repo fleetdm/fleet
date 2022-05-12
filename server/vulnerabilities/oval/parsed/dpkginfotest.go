@@ -13,24 +13,32 @@ type DpkgInfoTest struct {
 }
 
 // Eval evaluates the given dpkg info test againts a host's installed packages.
-func (t *DpkgInfoTest) Eval(packages []fleet.Software) bool {
+// If test evaluates to true, returns all packages involved with the test match, otherwise will
+// return nil for the matched packages.
+func (t *DpkgInfoTest) Eval(packages []fleet.Software) (bool, []fleet.Software) {
 	if len(packages) == 0 {
-		return false
+		return false, nil
 	}
-	no, ns := t.matches(packages)
+	no, ns, matches := t.matches(packages)
 
 	oMatches := t.ObjectMatch.Eval(no, len(t.Objects))
 	sMatches := t.StateMatch.Eval(no, ns)
+	result := oMatches && sMatches
 
-	return oMatches && sMatches
+	if result {
+		return result, matches
+	}
+	return result, nil
 }
 
 // Returns:
 //  nObjects: How many items in the set defined by the OVAL Object set exists in the system.
 //  nStates: How many items in the set defined by the OVAL Object set satisfy the state requirements.
-func (t *DpkgInfoTest) matches(packages []fleet.Software) (int, int) {
+//  Slice with software matching both the object and state criteria.
+func (t *DpkgInfoTest) matches(packages []fleet.Software) (int, int, []fleet.Software) {
 	var nObjects int
 	var nState int
+	var mPackages []fleet.Software
 
 	for _, p := range packages {
 		for _, o := range t.Objects {
@@ -42,11 +50,12 @@ func (t *DpkgInfoTest) matches(packages []fleet.Software) (int, int) {
 					r = append(r, s.Eval(p.Version, Rpmvercmp))
 				}
 				if t.StateOperator.Eval(r...) {
+					mPackages = append(mPackages, p)
 					nState++
 				}
 			}
 		}
 	}
 
-	return nObjects, nState
+	return nObjects, nState, mPackages
 }

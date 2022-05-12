@@ -25,6 +25,15 @@ func (r *UbuntuResult) AddPackageTest(id int, tst *DpkgInfoTest) {
 	r.PackageTests[id] = tst
 }
 
-func (r UbuntuResult) Eval(software []fleet.Software) {
-	panic("not implemented")
+func (r UbuntuResult) Eval(software []fleet.Software) (map[int][]string, error) {
+	testResults := make(map[int]bool)
+	testPacks := make(map[int][]fleet.Software)
+
+	for i, t := range r.PackageTests {
+		r, mPacks := t.Eval(software)
+		testResults[i] = r
+		testPacks[i] = mPacks
+	}
+
+	return nil, nil
 }
