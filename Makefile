@@ -284,7 +284,7 @@ db-backup:
 db-restore:
 	./tools/backup_db/restore.sh
 
-# Generate osqueryd.tar.gz bundle from osquery.io.
+# Generate osqueryd.app.tar.gz bundle from osquery.io.
 #
 # Usage:
 # make osqueryd-app-tar-gz version=5.1.0 out-path=.
@@ -299,6 +299,7 @@ endif
 	rm -rf $(TMP_DIR)/osquery_pkg_payload_expanded
 	mkdir -p $(TMP_DIR)/osquery_pkg_payload_expanded
 	tar xf $(TMP_DIR)/osquery_pkg_expanded/Payload --directory $(TMP_DIR)/osquery_pkg_payload_expanded
+	$(TMP_DIR)/osquery_pkg_payload_expanded/opt/osquery/lib/osquery.app/Contents/MacOS/osqueryd --version
 	tar czf $(out-path)/osqueryd.app.tar.gz -C $(TMP_DIR)/osquery_pkg_payload_expanded/opt/osquery/lib osquery.app
 	rm -r $(TMP_DIR)
 
