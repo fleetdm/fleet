@@ -64,17 +64,6 @@ func (svc Service) ListSoftware(ctx context.Context, opt fleet.SoftwareListOptio
 		return nil, err
 	}
 
-	// don't return cve scores for free tier
-	for i := range softwares {
-		software := &softwares[i]
-		for j := range software.Vulnerabilities {
-			vulnerability := &software.Vulnerabilities[j]
-			vulnerability.CVSSScore = nil
-			vulnerability.EPSSProbability = nil
-			vulnerability.CISAKnownExploit = nil
-		}
-	}
-
 	return softwares, nil
 }
 
@@ -96,7 +85,7 @@ func (r getSoftwareResponse) error() error { return r.Err }
 func getSoftwareEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
 	req := request.(*getSoftwareRequest)
 
-	software, err := svc.SoftwareByID(ctx, req.ID)
+	software, err := svc.SoftwareByID(ctx, req.ID, false)
 	if err != nil {
 		return getSoftwareResponse{Err: err}, nil
 	}
@@ -104,22 +93,14 @@ func getSoftwareEndpoint(ctx context.Context, request interface{}, svc fleet.Ser
 	return getSoftwareResponse{Software: software}, nil
 }
 
-func (svc *Service) SoftwareByID(ctx context.Context, id uint) (*fleet.Software, error) {
+func (svc *Service) SoftwareByID(ctx context.Context, id uint, includeCVEScores bool) (*fleet.Software, error) {
 	if err := svc.authz.Authorize(ctx, &fleet.Host{}, fleet.ActionList); err != nil {
 		return nil, err
 	}
 
-	software, err := svc.ds.SoftwareByID(ctx, id)
+	software, err := svc.ds.SoftwareByID(ctx, id, includeCVEScores)
 	if err != nil {
 		return nil, err
-	}
-
-	// don't return cve scores for free tier
-	for i := range software.Vulnerabilities {
-		vulnerability := &software.Vulnerabilities[i]
-		vulnerability.CVSSScore = nil
-		vulnerability.EPSSProbability = nil
-		vulnerability.CISAKnownExploit = nil
 	}
 
 	return software, nil

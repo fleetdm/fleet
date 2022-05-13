@@ -278,7 +278,7 @@ type AllCPEsFunc func(ctx context.Context) ([]string, error)
 
 type InsertCVEForCPEFunc func(ctx context.Context, cve string, cpes []string) (int64, error)
 
-type SoftwareByIDFunc func(ctx context.Context, id uint) (*fleet.Software, error)
+type SoftwareByIDFunc func(ctx context.Context, id uint, includeCVEScores bool) (*fleet.Software, error)
 
 type ListSoftwareByHostIDShortFunc func(ctx context.Context, hostID uint) ([]fleet.Software, error)
 
@@ -1649,9 +1649,9 @@ func (s *DataStore) InsertCVEForCPE(ctx context.Context, cve string, cpes []stri
 	return s.InsertCVEForCPEFunc(ctx, cve, cpes)
 }
 
-func (s *DataStore) SoftwareByID(ctx context.Context, id uint) (*fleet.Software, error) {
+func (s *DataStore) SoftwareByID(ctx context.Context, id uint, includeCVEScores bool) (*fleet.Software, error) {
 	s.SoftwareByIDFuncInvoked = true
-	return s.SoftwareByIDFunc(ctx, id)
+	return s.SoftwareByIDFunc(ctx, id, includeCVEScores)
 }
 
 func (s *DataStore) ListSoftwareByHostIDShort(ctx context.Context, hostID uint) ([]fleet.Software, error) {

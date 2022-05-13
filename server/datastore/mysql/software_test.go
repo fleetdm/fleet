@@ -68,7 +68,7 @@ func testSoftwareSaveHost(t *testing.T, ds *Datastore) {
 	require.NoError(t, ds.LoadHostSoftware(context.Background(), host1))
 	test.ElementsMatchSkipIDAndHostCount(t, software1, host1.HostSoftware.Software)
 
-	soft1ByID, err := ds.SoftwareByID(context.Background(), host1.HostSoftware.Software[0].ID)
+	soft1ByID, err := ds.SoftwareByID(context.Background(), host1.HostSoftware.Software[0].ID, false)
 	require.NoError(t, err)
 	require.NotNil(t, soft1ByID)
 	assert.Equal(t, host1.HostSoftware.Software[0], *soft1ByID)
@@ -267,7 +267,7 @@ func testSoftwareLoadVulnerabilities(t *testing.T, ds *Datastore) {
 
 	require.NoError(t, ds.LoadHostSoftware(context.Background(), host))
 
-	softByID, err := ds.SoftwareByID(context.Background(), host.HostSoftware.Software[0].ID)
+	softByID, err := ds.SoftwareByID(context.Background(), host.HostSoftware.Software[0].ID, false)
 	require.NoError(t, err)
 	require.NotNil(t, softByID)
 	require.Len(t, softByID.Vulnerabilities, 2)
@@ -565,7 +565,15 @@ func testSoftwareList(t *testing.T, ds *Datastore) {
 	})
 
 	t.Run("paginates", func(t *testing.T) {
-		software := listSoftwareCheckCount(t, ds, 1, 5, fleet.SoftwareListOptions{ListOptions: fleet.ListOptions{Page: 1, PerPage: 1, OrderKey: "version"}}, true)
+		opts := fleet.SoftwareListOptions{
+			ListOptions: fleet.ListOptions{
+				Page:     1,
+				PerPage:  1,
+				OrderKey: "version",
+			},
+			IncludeCVEScores: true,
+		}
+		software := listSoftwareCheckCount(t, ds, 1, 5, opts, true)
 		require.Len(t, software, 1)
 		var expected []fleet.Software
 		// Both foo001 and baz001 have the same version, thus we check which one the database picked
@@ -583,7 +591,14 @@ func testSoftwareList(t *testing.T, ds *Datastore) {
 		require.NoError(t, err)
 		require.NoError(t, ds.AddHostsToTeam(context.Background(), &team1.ID, []uint{host1.ID}))
 
-		software := listSoftwareCheckCount(t, ds, 2, 2, fleet.SoftwareListOptions{ListOptions: fleet.ListOptions{OrderKey: "version"}, TeamID: &team1.ID}, true)
+		opts := fleet.SoftwareListOptions{
+			ListOptions: fleet.ListOptions{
+				OrderKey: "version",
+			},
+			TeamID:           &team1.ID,
+			IncludeCVEScores: true,
+		}
+		software := listSoftwareCheckCount(t, ds, 2, 2, opts, true)
 		expected := []fleet.Software{foo001, foo003}
 		test.ElementsMatchSkipID(t, software, expected)
 	})
@@ -593,60 +608,92 @@ func testSoftwareList(t *testing.T, ds *Datastore) {
 		require.NoError(t, err)
 		require.NoError(t, ds.AddHostsToTeam(context.Background(), &team1.ID, []uint{host1.ID}))
 
-		software := listSoftwareCheckCount(t, ds, 1, 2, fleet.SoftwareListOptions{
+		opts := fleet.SoftwareListOptions{
 			ListOptions: fleet.ListOptions{
 				PerPage:  1,
 				Page:     1,
 				OrderKey: "id",
 			},
 			TeamID: &team1.ID,
-		}, true)
+		}
+		software := listSoftwareCheckCount(t, ds, 1, 2, opts, true)
 		expected := []fleet.Software{foo003}
 		test.ElementsMatchSkipID(t, software, expected)
 	})
 
 	t.Run("filters vulnerable software", func(t *testing.T) {
-		software := listSoftwareCheckCount(t, ds, 2, 2, fleet.SoftwareListOptions{ListOptions: fleet.ListOptions{OrderKey: "name"}, VulnerableOnly: true}, true)
+		opts := fleet.SoftwareListOptions{
+			ListOptions: fleet.ListOptions{
+				OrderKey: "name",
+			},
+			VulnerableOnly:   true,
+			IncludeCVEScores: true,
+		}
+		software := listSoftwareCheckCount(t, ds, 2, 2, opts, true)
 		expected := []fleet.Software{foo001, baz001}
 		test.ElementsMatchSkipID(t, software, expected)
 	})
 
-	t.Run("filters specific CVEs", func(t *testing.T) {
-		software := listSoftwareCheckCount(t, ds, 1, 1, fleet.SoftwareListOptions{ListOptions: fleet.ListOptions{MatchQuery: "CVE-2022-0001"}}, true)
+	t.Run("filters by CVE", func(t *testing.T) {
+		opts := fleet.SoftwareListOptions{
+			ListOptions: fleet.ListOptions{
+				MatchQuery: "CVE-2022-0001",
+			},
+			IncludeCVEScores: true,
+		}
+		software := listSoftwareCheckCount(t, ds, 1, 1, opts, true)
 		expected := []fleet.Software{foo001}
 		test.ElementsMatchSkipID(t, software, expected)
 
-		software = listSoftwareCheckCount(t, ds, 1, 1, fleet.SoftwareListOptions{ListOptions: fleet.ListOptions{MatchQuery: "CVE-2022-0002"}}, true)
+		opts.MatchQuery = "CVE-2022-0002"
+		software = listSoftwareCheckCount(t, ds, 1, 1, opts, true)
 		expected = []fleet.Software{foo001}
 		test.ElementsMatchSkipID(t, software, expected)
 
 		// partial CVE
-		software = listSoftwareCheckCount(t, ds, 1, 1, fleet.SoftwareListOptions{ListOptions: fleet.ListOptions{MatchQuery: "0002"}}, true)
+		opts.MatchQuery = "0002"
+		software = listSoftwareCheckCount(t, ds, 1, 1, opts, true)
 		expected = []fleet.Software{foo001}
 		fmt.Println(cmp.Diff(expected, software))
 		test.ElementsMatchSkipID(t, software, expected)
 
 		// unknown CVE
-		listSoftwareCheckCount(t, ds, 0, 0, fleet.SoftwareListOptions{ListOptions: fleet.ListOptions{MatchQuery: "CVE-2022-0000"}}, true)
+		opts.MatchQuery = "CVE-2022-0000"
+		listSoftwareCheckCount(t, ds, 0, 0, opts, true)
 	})
 
 	t.Run("filters by query", func(t *testing.T) {
 		// query by name (case insensitive)
-		software := listSoftwareCheckCount(t, ds, 1, 1, fleet.SoftwareListOptions{ListOptions: fleet.ListOptions{MatchQuery: "baR"}}, true)
+		opts := fleet.SoftwareListOptions{
+			ListOptions: fleet.ListOptions{
+				MatchQuery: "baR",
+			},
+		}
+		software := listSoftwareCheckCount(t, ds, 1, 1, opts, true)
 		expected := []fleet.Software{bar003}
 		test.ElementsMatchSkipID(t, software, expected)
+
 		// query by version
-		software = listSoftwareCheckCount(t, ds, 2, 2, fleet.SoftwareListOptions{ListOptions: fleet.ListOptions{MatchQuery: "0.0.3"}}, true)
+		opts.MatchQuery = "0.0.3"
+		software = listSoftwareCheckCount(t, ds, 2, 2, opts, true)
 		expected = []fleet.Software{foo003, bar003}
 		test.ElementsMatchSkipID(t, software, expected)
+
 		// query by version (case insensitive)
-		software = listSoftwareCheckCount(t, ds, 1, 1, fleet.SoftwareListOptions{ListOptions: fleet.ListOptions{MatchQuery: "V0.0.2"}}, true)
+		opts.MatchQuery = "V0.0.2"
+		software = listSoftwareCheckCount(t, ds, 1, 1, opts, true)
 		expected = []fleet.Software{foo002}
 		test.ElementsMatchSkipID(t, software, expected)
 	})
 
 	t.Run("order by name and id", func(t *testing.T) {
-		software := listSoftwareCheckCount(t, ds, 5, 5, fleet.SoftwareListOptions{ListOptions: fleet.ListOptions{OrderKey: "name,id", OrderDirection: fleet.OrderAscending}}, false)
+		opts := fleet.SoftwareListOptions{
+			ListOptions: fleet.ListOptions{
+				OrderKey:       "name,id",
+				OrderDirection: fleet.OrderAscending,
+			},
+		}
+		software := listSoftwareCheckCount(t, ds, 5, 5, opts, false)
 		assert.Equal(t, bar003.Name, software[0].Name)
 		assert.Equal(t, bar003.Version, software[0].Version)
 
@@ -676,6 +723,7 @@ func testSoftwareList(t *testing.T, ds *Datastore) {
 				OrderKey:       "epss_probability",
 				OrderDirection: fleet.OrderDescending,
 			},
+			IncludeCVEScores: true,
 		}
 
 		software := listSoftwareCheckCount(t, ds, 5, 5, opts, false)
@@ -689,6 +737,7 @@ func testSoftwareList(t *testing.T, ds *Datastore) {
 				OrderKey:       "cvss_score",
 				OrderDirection: fleet.OrderDescending,
 			},
+			IncludeCVEScores: true,
 		}
 
 		software := listSoftwareCheckCount(t, ds, 5, 5, opts, false)
@@ -702,6 +751,7 @@ func testSoftwareList(t *testing.T, ds *Datastore) {
 				OrderKey:       "cisa_known_exploit",
 				OrderDirection: fleet.OrderDescending,
 			},
+			IncludeCVEScores: true,
 		}
 
 		software := listSoftwareCheckCount(t, ds, 5, 5, opts, false)

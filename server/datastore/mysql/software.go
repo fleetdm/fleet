@@ -349,10 +349,9 @@ var dialect = goqu.Dialect("mysql")
 func listSoftwareDB(
 	ctx context.Context,
 	q sqlx.QueryerContext,
-	hostID *uint,
 	opts fleet.SoftwareListOptions,
 ) ([]fleet.Software, error) {
-	sql, args, err := selectSoftwareSQL(hostID, opts)
+	sql, args, err := selectSoftwareSQL(opts)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "sql build")
 	}
@@ -378,11 +377,13 @@ func listSoftwareDB(
 		if result.CVE != nil {
 			cveID := *result.CVE
 			cve := fleet.CVE{
-				CVE:              cveID,
-				DetailsLink:      fmt.Sprintf("https://nvd.nist.gov/vuln/detail/%s", cveID),
-				CVSSScore:        &result.CVSSScore,
-				EPSSProbability:  &result.EPSSProbability,
-				CISAKnownExploit: &result.CISAKnownExploit,
+				CVE:         cveID,
+				DetailsLink: fmt.Sprintf("https://nvd.nist.gov/vuln/detail/%s", cveID),
+			}
+			if opts.IncludeCVEScores {
+				cve.CVSSScore = &result.CVSSScore
+				cve.EPSSProbability = &result.EPSSProbability
+				cve.CISAKnownExploit = &result.CISAKnownExploit
 			}
 			softwares[idx].Vulnerabilities = append(softwares[idx].Vulnerabilities, cve)
 		}
@@ -400,7 +401,7 @@ type softwareCVE struct {
 	CISAKnownExploit *bool    `db:"cisa_known_exploit"`
 }
 
-func selectSoftwareSQL(hostID *uint, opts fleet.SoftwareListOptions) (string, []interface{}, error) {
+func selectSoftwareSQL(opts fleet.SoftwareListOptions) (string, []interface{}, error) {
 	ds := dialect.
 		From(goqu.I("software").As("s")).
 		Select(
@@ -414,12 +415,9 @@ func selectSoftwareSQL(hostID *uint, opts fleet.SoftwareListOptions) (string, []
 			"s.arch",
 			"scv.cpe_id", // for join on sub query
 			goqu.COALESCE(goqu.I("scp.cpe"), "").As("generated_cpe"),
-			goqu.MAX("c.cvss_score").As("cvss_score"),                 // for ordering
-			goqu.MAX("c.epss_probability").As("epss_probability"),     // for ordering
-			goqu.MAX("c.cisa_known_exploit").As("cisa_known_exploit"), // for ordering
 		)
 
-	if hostID != nil || opts.TeamID != nil {
+	if opts.HostID != nil || opts.TeamID != nil {
 		ds = ds.
 			Join(
 				goqu.I("host_software").As("hs"),
@@ -429,10 +427,10 @@ func selectSoftwareSQL(hostID *uint, opts fleet.SoftwareListOptions) (string, []
 			)
 	}
 
-	if hostID != nil {
+	if opts.HostID != nil {
 		ds = ds.
 			SelectAppend("hs.last_opened_at").
-			Where(goqu.I("hs.host_id").Eq(hostID))
+			Where(goqu.I("hs.host_id").Eq(opts.HostID))
 	}
 
 	if opts.TeamID != nil {
@@ -472,11 +470,18 @@ func selectSoftwareSQL(hostID *uint, opts fleet.SoftwareListOptions) (string, []
 			)
 	}
 
-	ds = ds.
-		LeftJoin(
-			goqu.I("cves").As("c"),
-			goqu.On(goqu.I("c.cve").Eq(goqu.I("scv.cve"))),
-		)
+	if opts.IncludeCVEScores {
+		ds = ds.
+			LeftJoin(
+				goqu.I("cves").As("c"),
+				goqu.On(goqu.I("c.cve").Eq(goqu.I("scv.cve"))),
+			).
+			SelectAppend(
+				goqu.MAX("c.cvss_score").As("cvss_score"),                 // for ordering
+				goqu.MAX("c.epss_probability").As("epss_probability"),     // for ordering
+				goqu.MAX("c.cisa_known_exploit").As("cisa_known_exploit"), // for ordering
+			)
+	}
 
 	if match := opts.MatchQuery; match != "" {
 		match = likePattern(match)
@@ -532,9 +537,6 @@ func selectSoftwareSQL(hostID *uint, opts fleet.SoftwareListOptions) (string, []
 			"s.generated_cpe",
 			// omit s.cpe_id
 			"scv.cve",
-			"c.cvss_score",
-			"c.epss_probability",
-			"c.cisa_known_exploit",
 		).
 		LeftJoin(
 			goqu.I("software_cve").As("scv"),
@@ -546,7 +548,15 @@ func selectSoftwareSQL(hostID *uint, opts fleet.SoftwareListOptions) (string, []
 		)
 
 	// select optional columns
-	if hostID != nil {
+	if opts.IncludeCVEScores {
+		ds = ds.SelectAppend(
+			"c.cvss_score",
+			"c.epss_probability",
+			"c.cisa_known_exploit",
+		)
+	}
+
+	if opts.HostID != nil {
 		ds = ds.SelectAppend(
 			goqu.I("s.last_opened_at"),
 		)
@@ -567,14 +577,13 @@ func selectSoftwareSQL(hostID *uint, opts fleet.SoftwareListOptions) (string, []
 func countSoftwareDB(
 	ctx context.Context,
 	q sqlx.QueryerContext,
-	hostID *uint,
 	opts fleet.SoftwareListOptions,
 ) (int, error) {
 	opts.ListOptions = fleet.ListOptions{
 		MatchQuery: opts.MatchQuery,
 	}
 
-	sql, args, err := selectSoftwareSQL(hostID, opts)
+	sql, args, err := selectSoftwareSQL(opts)
 	if err != nil {
 		return 0, ctxerr.Wrap(ctx, err, "sql build")
 	}
@@ -590,7 +599,7 @@ func countSoftwareDB(
 }
 
 func (ds *Datastore) LoadHostSoftware(ctx context.Context, host *fleet.Host) error {
-	software, err := listSoftwareDB(ctx, ds.reader, &host.ID, fleet.SoftwareListOptions{})
+	software, err := listSoftwareDB(ctx, ds.reader, fleet.SoftwareListOptions{HostID: &host.ID})
 	if err != nil {
 		return err
 	}
@@ -690,11 +699,11 @@ func (ds *Datastore) InsertCVEForCPE(ctx context.Context, cve string, cpes []str
 }
 
 func (ds *Datastore) ListSoftware(ctx context.Context, opt fleet.SoftwareListOptions) ([]fleet.Software, error) {
-	return listSoftwareDB(ctx, ds.reader, nil, opt)
+	return listSoftwareDB(ctx, ds.reader, opt)
 }
 
 func (ds *Datastore) CountSoftware(ctx context.Context, opt fleet.SoftwareListOptions) (int, error) {
-	return countSoftwareDB(ctx, ds.reader, nil, opt)
+	return countSoftwareDB(ctx, ds.reader, opt)
 }
 
 // ListVulnerableSoftwareBySource lists all the vulnerable software that matches the given source.
@@ -723,7 +732,7 @@ GROUP BY
 	software := make([]fleet.SoftwareWithCPE, 0, len(softwareCVEs))
 	for _, sc := range softwareCVEs {
 		for _, cve := range strings.Split(sc.CVEs, ",") {
-			sc.Software.Vulnerabilities = append(sc.Software.Vulnerabilities, fleet.CVE{
+			sc.Vulnerabilities = append(sc.Vulnerabilities, fleet.CVE{
 				CVE: cve,
 			})
 		}
@@ -755,39 +764,58 @@ func (ds *Datastore) DeleteVulnerabilitiesByCPECVE(ctx context.Context, vulnerab
 	return nil
 }
 
-func (ds *Datastore) SoftwareByID(ctx context.Context, id uint) (*fleet.Software, error) {
-	query := `
-SELECT
-    s.id,
-    s.name,
-    s.version,
-    s.source,
-    s.bundle_identifier,
-    s.release,
-    s.vendor,
-    s.arch,
-    scv.cve,
-    c.cvss_score,
-    c.epss_probability,
-    c.cisa_known_exploit
-FROM
-    software s
-    LEFT JOIN software_cpe scp ON scp.software_id = s.id
-    LEFT JOIN software_cve scv ON scv.cpe_id = scp.id
-    LEFT JOIN cves c ON c.cve = scv.cve
-WHERE
-    s.id = ?
-	`
+func (ds *Datastore) SoftwareByID(ctx context.Context, id uint, includeCVEScores bool) (*fleet.Software, error) {
+	q := dialect.From(goqu.I("software").As("s")).
+		Select(
+			"s.id",
+			"s.name",
+			"s.version",
+			"s.source",
+			"s.bundle_identifier",
+			"s.release",
+			"s.vendor",
+			"s.arch",
+			"scv.cve",
+		).
+		LeftJoin(
+			goqu.I("software_cpe").As("scp"),
+			goqu.On(
+				goqu.I("s.id").Eq(goqu.I("scp.software_id")),
+			),
+		).
+		LeftJoin(
+			goqu.I("software_cve").As("scv"),
+			goqu.On(goqu.I("scp.id").Eq(goqu.I("scv.cpe_id"))),
+		)
+
+	if includeCVEScores {
+		q = q.
+			LeftJoin(
+				goqu.I("cves").As("c"),
+				goqu.On(goqu.I("c.cve").Eq(goqu.I("scv.cve"))),
+			).
+			SelectAppend(
+				"c.cvss_score",
+				"c.epss_probability",
+				"c.cisa_known_exploit",
+			)
+	}
+
+	q = q.Where(goqu.I("s.id").Eq(id))
+
+	sql, args, err := q.ToSQL()
+	if err != nil {
+		return nil, err
+	}
 
 	var results []softwareCVE
-	err := sqlx.SelectContext(ctx, ds.reader, &results, query, id)
+	err = sqlx.SelectContext(ctx, ds.reader, &results, sql, args...)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "get software")
 	}
 
 	if len(results) == 0 {
-		// wrap sql.ErrNoRows so that we return a 404
-		return nil, ctxerr.Wrap(ctx, sql.ErrNoRows, "software not found")
+		return nil, ctxerr.Wrap(ctx, notFound("Software").WithID(id))
 	}
 
 	var software fleet.Software
@@ -798,13 +826,16 @@ WHERE
 
 		if result.CVE != nil {
 			cveID := *result.CVE
-			software.Vulnerabilities = append(software.Vulnerabilities, fleet.CVE{
-				CVE:              cveID,
-				DetailsLink:      fmt.Sprintf("https://nvd.nist.gov/vuln/detail/%s", cveID),
-				CVSSScore:        &result.CVSSScore,
-				EPSSProbability:  &result.EPSSProbability,
-				CISAKnownExploit: &result.CISAKnownExploit,
-			})
+			cve := fleet.CVE{
+				CVE:         cveID,
+				DetailsLink: fmt.Sprintf("https://nvd.nist.gov/vuln/detail/%s", cveID),
+			}
+			if includeCVEScores {
+				cve.CVSSScore = &result.CVSSScore
+				cve.EPSSProbability = &result.EPSSProbability
+				cve.CISAKnownExploit = &result.CISAKnownExploit
+			}
+			software.Vulnerabilities = append(software.Vulnerabilities, cve)
 		}
 	}
 

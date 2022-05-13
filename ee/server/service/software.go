@@ -6,32 +6,11 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 )
 
-func (svc Service) ListSoftware(ctx context.Context, opt fleet.SoftwareListOptions) ([]fleet.Software, error) {
-	if err := svc.authz.Authorize(ctx, &fleet.AuthzSoftwareInventory{
-		TeamID: opt.TeamID,
-	}, fleet.ActionRead); err != nil {
-		return nil, err
-	}
-
-	// default sort order to hosts_count descending
-	if opt.OrderKey == "" {
-		opt.OrderKey = "hosts_count"
-		opt.OrderDirection = fleet.OrderDescending
-	}
-	opt.WithHostCounts = true
-
-	softwares, err := svc.ds.ListSoftware(ctx, opt)
-	if err != nil {
-		return nil, err
-	}
-
-	return softwares, nil
+func (svc Service) ListSoftware(ctx context.Context, opts fleet.SoftwareListOptions) ([]fleet.Software, error) {
+	opts.IncludeCVEScores = true
+	return svc.Service.ListSoftware(ctx, opts)
 }
 
-func (svc *Service) SoftwareByID(ctx context.Context, id uint) (*fleet.Software, error) {
-	if err := svc.authz.Authorize(ctx, &fleet.Host{}, fleet.ActionList); err != nil {
-		return nil, err
-	}
-
-	return svc.ds.SoftwareByID(ctx, id)
+func (svc *Service) SoftwareByID(ctx context.Context, id uint, includeCVEScores bool) (*fleet.Software, error) {
+	return svc.Service.SoftwareByID(ctx, id, true)
 }

@@ -343,7 +343,7 @@ type Datastore interface {
 	AddCPEForSoftware(ctx context.Context, software Software, cpe string) error
 	AllCPEs(ctx context.Context) ([]string, error)
 	InsertCVEForCPE(ctx context.Context, cve string, cpes []string) (int64, error)
-	SoftwareByID(ctx context.Context, id uint) (*Software, error)
+	SoftwareByID(ctx context.Context, id uint, includeCVEScores bool) (*Software, error)
 	ListSoftwareByHostIDShort(ctx context.Context, hostID uint) ([]Software, error)
 	// CalculateHostsPerSoftware calculates the number of hosts having each
 	// software installed and stores that information in the software_host_counts
