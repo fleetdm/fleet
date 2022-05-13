@@ -13,87 +13,190 @@ package ctxerr
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"strings"
 	"time"
-
-	"github.com/fleetdm/fleet/v4/server/errorstore"
-	"github.com/rotisserie/eris" //nolint:depguard
+	//nolint:depguard
 )
 
 type key int
 
 const errHandlerKey key = 0
 
+// Defining here for testing purposes
+var nowFn = time.Now
+
+// FleetError is the error implementation used by this package.
+type FleetError struct {
+	msg   string      // error message to be prepended to cause
+	stack StackTracer // stack trace where this error was created
+	cause error       // original error that caused this error if non-nil
+	data  map[string]interface{}
+}
+
+type fleetErrorJSON struct {
+	Message string                 `json:",omitempty"`
+	Data    map[string]interface{} `json:",omitempty"`
+	Stack   []string               `json:",omitempty"`
+}
+
+// Error implements the error interface.
+func (e *FleetError) Error() string {
+	if e.cause == nil {
+		return e.msg
+	}
+	return fmt.Sprintf("%s: %s", e.msg, e.cause.Error())
+}
+
+// Unwrap implements the error Unwrap interface introduced in go1.13.
+func (e *FleetError) Unwrap() error {
+	return e.cause
+}
+
+// MarshalJSON implements the marshaller interface, giving us control on how
+// errors are json-encoded
+func (e *FleetError) MarshalJSON() ([]byte, error) {
+	return json.Marshal(fleetErrorJSON{
+		Message: e.msg,
+		Data:    e.data,
+		Stack:   e.stack.List(),
+	})
+}
+
+// New creates a new error with the given message.
+func New(ctx context.Context, msg string) *FleetError {
+	stack := NewStack(1)
+	err := &FleetError{msg, stack, nil, nil}
+	ensureCommonMetadata(ctx, err)
+	return err
+}
+
+// NewWithData creates a new error with the given message and attaches
+// aditional data to it.
+func NewWithData(ctx context.Context, msg string, data map[string]interface{}) *FleetError {
+	stack := NewStack(1)
+	err := &FleetError{msg, stack, nil, data}
+	ensureCommonMetadata(ctx, err)
+	return err
+}
+
+// Errorf creates a new error with the given message.
+func Errorf(ctx context.Context, format string, args ...interface{}) *FleetError {
+	msg := fmt.Sprintf(format, args...)
+	stack := NewStack(1)
+	err := &FleetError{msg, stack, nil, nil}
+	ensureCommonMetadata(ctx, err)
+	return err
+}
+
+// Wrap creates a new error with the given message, wrapping another error.
+func Wrap(ctx context.Context, cause error, msgs ...string) *FleetError {
+	msg := strings.Join(msgs, " ")
+	stack := NewStack(1)
+	err := &FleetError{msg, stack, cause, map[string]interface{}{}}
+	ensureCommonMetadata(ctx, err)
+	return err
+}
+
+// WrapWithData creates a new error with the given message, wrapping another
+// error and attaching the data provided to it.
+func WrapWithData(ctx context.Context, cause error, msg string, data map[string]interface{}) *FleetError {
+	stack := NewStack(1)
+	err := &FleetError{msg, stack, cause, data}
+	ensureCommonMetadata(ctx, err)
+	return err
+}
+
+// Wrapf creates a new error with the given message, wrapping another error.
+func Wrapf(ctx context.Context, cause error, format string, args ...interface{}) *FleetError {
+	msg := fmt.Sprintf(format, args...)
+	stack := NewStack(1)
+	err := &FleetError{msg, stack, cause, nil}
+	ensureCommonMetadata(ctx, err)
+	return err
+}
+
 // Cause returns the root error in err's chain.
 func Cause(err error) error {
-	// Until we use only ctxerr.Wrap, we have a mix of pkg/errors, fmt.Errorf
-	// and eris.Wrap (via ctxerr.Wrap). pkg/errors.Cause looks for a Cause()
-	// method, while eris.Cause looks for the stdlib-compliant Unwrap(). So
-	// implement a custom Cause that checks for both until a root is found.
-
-	var cerr interface {
-		Cause() error
-	}
 	for {
-		uerr := errors.Unwrap(err)
+		uerr := Unwrap(err)
 		if uerr == nil {
-			if errors.As(err, &cerr) {
-				uerr = cerr.Cause()
-			} else {
-				break
-			}
+			return err
 		}
 		err = uerr
 	}
+}
 
-	return err
+// Unwrap is a wrapper of built-in errors.Unwrap. It returns the result of
+// calling the Unwrap method on err, if err's type contains an Unwrap method
+// returning error. Otherwise, Unwrap returns nil.
+func Unwrap(err error) error {
+	return errors.Unwrap(err)
+}
+
+// MarshallJSON provides a JSON representation of a whole error chain.
+func MarshallJSON(err error) ([]byte, error) {
+	chain := make([]interface{}, 0)
+
+	for err != nil {
+		switch v := err.(type) {
+		case json.Marshaler:
+			chain = append(chain, v)
+		default:
+			chain = append(chain, map[string]interface{}{"Message": err.Error()})
+		}
+
+		err = Unwrap(err)
+	}
+
+	// reverse the chain to present errors in chronological order.
+	for i := len(chain)/2 - 1; i >= 0; i-- {
+		opp := len(chain) - 1 - i
+		chain[i], chain[opp] = chain[opp], chain[i]
+	}
+
+	return json.Marshal(struct {
+		Cause interface{}
+		Wraps []interface{}
+	}{
+		Cause: chain[0],
+		Wraps: chain[1:],
+	})
+}
+
+// Summarize describes a summary of the error chain
+// by returning the cause (the first error in the chain)
+// and a full stack trace containing the stack traces of
+// all the errors in the chain
+func Summarize(err error) (error, []string) {
+	stack := make([]string, 0)
+	cause := Cause(err)
+
+	for err != nil {
+		if ferr, ok := err.(*FleetError); ok {
+			stack = append(stack, ferr.stack.List()...)
+		}
+		err = Unwrap(err)
+	}
+
+	return cause, stack
+}
+
+type handler interface {
+	Store(error)
 }
 
 // NewContext returns a context derived from ctx that contains the provided
 // error handler.
-func NewContext(ctx context.Context, eh *errorstore.Handler) context.Context {
+func NewContext(ctx context.Context, eh handler) context.Context {
 	return context.WithValue(ctx, errHandlerKey, eh)
 }
 
-func fromContext(ctx context.Context) *errorstore.Handler {
-	v, _ := ctx.Value(errHandlerKey).(*errorstore.Handler)
+func fromContext(ctx context.Context) handler {
+	v, _ := ctx.Value(errHandlerKey).(handler)
 	return v
-}
-
-// New creates a new error with the provided error message.
-func New(ctx context.Context, errMsg string) error {
-	return ensureCommonMetadata(ctx, errors.New(errMsg))
-}
-
-// Errorf creates a new error with the formatted message.
-func Errorf(ctx context.Context, fmsg string, args ...interface{}) error {
-	return ensureCommonMetadata(ctx, fmt.Errorf(fmsg, args...))
-}
-
-// Wrap annotates err with the provided message.
-func Wrap(ctx context.Context, err error, msgs ...string) error {
-	err = ensureCommonMetadata(ctx, err)
-	if len(msgs) == 0 || err == nil {
-		return err
-	}
-	// do not wrap with eris.Wrap, as we want only the root error closest to the
-	// actual error condition to capture the stack trace, others just wrap to
-	// annotate the error.
-	return fmt.Errorf("%s: %w", strings.Join(msgs, " "), err)
-}
-
-// Wrapf annotates err with the provided formatted message.
-func Wrapf(ctx context.Context, err error, fmsg string, args ...interface{}) error {
-	err = ensureCommonMetadata(ctx, err)
-	if fmsg == "" || err == nil {
-		return err
-	}
-	// do not wrap with eris.Wrap, as we want only the root error closest to the
-	// actual error condition to capture the stack trace, others just wrap to
-	// annotate the error.
-	return fmt.Errorf("%s: %w", fmt.Sprintf(fmsg, args...), err)
 }
 
 // Handle handles err by passing it to the registered error handler,
@@ -104,12 +207,29 @@ func Handle(ctx context.Context, err error) {
 	}
 }
 
-func ensureCommonMetadata(ctx context.Context, err error) error {
-	var sf interface{ StackFrames() []uintptr }
-	if err != nil && !errors.As(err, &sf) {
-		// no eris error nowhere in the chain, add the common metadata with the stack trace
-		// TODO: more metadata from ctx: user, host, etc.
-		err = eris.Wrapf(err, "timestamp: %s", time.Now().Format(time.RFC3339))
+// ensureCommonMetadata looks for the first FleetError in the chain
+// and ensures common metadata is added to it if it finds one.
+//
+// NOTE: this will override other values with the same keys stored in
+// FleetError.data
+func ensureCommonMetadata(ctx context.Context, err *FleetError) {
+	var ferr = err
+	var aux *FleetError
+	var ok bool
+
+	for {
+		if aux, ok = Unwrap(ferr).(*FleetError); !ok {
+			break
+		}
+		ferr = aux
 	}
-	return err
+
+	if ferr != nil {
+		if ferr.data == nil {
+			ferr.data = map[string]interface{}{}
+		}
+
+		// TODO: add more metadata from ctx
+		ferr.data["Timestamp"] = nowFn().Format(time.RFC3339)
+	}
 }

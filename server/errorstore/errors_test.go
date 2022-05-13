@@ -14,34 +14,42 @@ import (
 	"testing"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/datastore/redis/redistest"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	kitlog "github.com/go-kit/kit/log"
 	pkgErrors "github.com/pkg/errors" //nolint:depguard
-	"github.com/rotisserie/eris"      //nolint:depguard
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
+
+type mockHandler struct{}
+
+func (h mockHandler) Store(err error) {}
+
+var eh = mockHandler{}
+var ctxb = context.Background()
+var ctx = ctxerr.NewContext(ctxb, eh)
 
 func alwaysErrors() error { return pkgErrors.New("always errors") }
 
 func alwaysCallsAlwaysErrors() error { return alwaysErrors() }
 
-func alwaysErisErrors() error { return eris.New("always eris errors") }
+func alwaysFleetErrors() error { return ctxerr.New(ctx, "always fleet errors") }
 
 func alwaysNewError(eh *Handler) error {
-	err := eris.New("always new errors")
+	err := ctxerr.New(ctx, "always new errors")
 	eh.Store(err)
 	return err
 }
 
 func alwaysNewErrorTwo(eh *Handler) error {
-	err := eris.New("always new errors two")
+	err := ctxerr.New(ctx, "always new errors two")
 	eh.Store(err)
 	return err
 }
 
-func alwaysWrappedErr() error { return eris.Wrap(io.EOF, "always EOF") }
+func alwaysWrappedErr() error { return ctxerr.Wrap(ctx, io.EOF, "always EOF") }
 
 func TestHashErr(t *testing.T) {
 	t.Run("without stack trace, same error is same hash", func(t *testing.T) {
@@ -51,15 +59,15 @@ func TestHashErr(t *testing.T) {
 	})
 
 	t.Run("different location, same error is different hash", func(t *testing.T) {
-		err1 := alwaysErisErrors()
-		err2 := alwaysErisErrors()
+		err1 := alwaysFleetErrors()
+		err2 := alwaysFleetErrors()
 		assert.NotEqual(t, hashError(err1), hashError(err2))
 	})
 
 	t.Run("same error, wrapped, same hash", func(t *testing.T) {
-		eris1 := alwaysErisErrors()
+		ferror1 := alwaysFleetErrors()
 
-		w1, w2 := fmt.Errorf("wrap: %w", eris1), pkgErrors.Wrap(eris1, "wrap")
+		w1, w2 := fmt.Errorf("wrap: %w", ferror1), pkgErrors.Wrap(ferror1, "wrap")
 		h1, h2 := hashError(w1), hashError(w2)
 		assert.Equal(t, h1, h2)
 	})
@@ -71,42 +79,29 @@ func TestHashErr(t *testing.T) {
 		res, jsonBytes, err := hashAndMarshalError(generatedErr)
 		require.NoError(t, err)
 		assert.Equal(t, "mWoqz7iS1IPOZXGhpzHLl_DVQOyemWxCmvkpLz8uEZk=", res)
-		assert.True(t, strings.HasPrefix(jsonBytes, `{
-  "external": "some err`))
 		require.NoError(t, json.Unmarshal([]byte(jsonBytes), &m))
 
 		generatedErr2 := pkgErrors.New("some other err")
 		res, jsonBytes, err = hashAndMarshalError(generatedErr2)
 		require.NoError(t, err)
 		assert.Equal(t, "8AXruOzQmQLF4H3SrzLxXSwFQgZ8DcbkoF1owo0RhTs=", res)
-		assert.True(t, strings.HasPrefix(jsonBytes, `{
-  "external": "some other err`))
 		require.NoError(t, json.Unmarshal([]byte(jsonBytes), &m))
 	})
 }
 
-func TestHashErrEris(t *testing.T) {
+func TestHashErrFleetError(t *testing.T) {
 	t.Run("Marshal", func(t *testing.T) {
-		wd, err := os.Getwd()
-		require.NoError(t, err)
+		var m map[string]interface{}
 
-		generatedErr := eris.New("some err")
+		generatedErr := ctxerr.New(ctx, "some err")
 		res, jsonBytes, err := hashAndMarshalError(generatedErr)
 		require.NoError(t, err)
 		assert.NotEmpty(t, res)
-
-		assert.Regexp(t, regexp.MustCompile(fmt.Sprintf(`\{
-  "root": \{
-    "message": "some err",
-    "stack": \[
-      "errorstore.TestHashErrEris\.func\d+:%s/errors_test\.go:\d+"
-    \]
-  \}
-\}`, regexp.QuoteMeta(wd))), jsonBytes)
+		require.NoError(t, json.Unmarshal([]byte(jsonBytes), &m))
 	})
 
 	t.Run("HashWrapped", func(t *testing.T) {
-		// hashing an eris error that wraps a root error hashes to the same
+		// hashing a fleet error that wraps a root error hashes to the same
 		// value if it is from the same location, even if wrapped differently
 		// afterwards.
 		err := alwaysWrappedErr()
@@ -118,20 +113,18 @@ func TestHashErrEris(t *testing.T) {
 	})
 
 	t.Run("HashNew", func(t *testing.T) {
-		err := alwaysErisErrors()
-		werr := eris.Wrap(err, "wrap eris")
-		werr1, werr2 := pkgErrors.Wrap(err, "wrap pkg"), fmt.Errorf("wrap fmt: %w", err)
+		err := alwaysFleetErrors()
+		werr0, werr1 := pkgErrors.Wrap(err, "wrap pkg"), fmt.Errorf("wrap fmt: %w", err)
 		wantHash := hashError(err)
-		h0, h1, h2 := hashError(werr), hashError(werr1), hashError(werr2)
+		h0, h1 := hashError(werr0), hashError(werr1)
 		assert.Equal(t, wantHash, h0)
 		assert.Equal(t, wantHash, h1)
-		assert.Equal(t, wantHash, h2)
 	})
 
 	t.Run("HashSameRootDifferentLocation", func(t *testing.T) {
 		err1 := alwaysWrappedErr()
-		err2 := func() error { return eris.Wrap(io.EOF, "always EOF") }()
-		err3 := func() error { return eris.Wrap(io.EOF, "always EOF") }()
+		err2 := func() error { return ctxerr.Wrap(ctx, io.EOF, "always EOF") }()
+		err3 := func() error { return ctxerr.Wrap(ctx, io.EOF, "always EOF") }()
 		h1, h2, h3 := hashError(err1), hashError(err2), hashError(err3)
 		assert.NotEqual(t, h1, h2)
 		assert.NotEqual(t, h1, h3)
@@ -143,12 +136,12 @@ func TestUnwrapAll(t *testing.T) {
 	root := sql.ErrNoRows
 	werr := pkgErrors.Wrap(root, "pkg wrap")
 	gerr := fmt.Errorf("fmt wrap: %w", werr)
-	eerr := eris.Wrap(gerr, "eris wrap")
-	eerr2 := eris.Wrap(eerr, "eris wrap 2")
+	eerr := ctxerr.Wrap(ctx, gerr, "fleet wrap")
+	eerr2 := ctxerr.Wrap(ctx, eerr, "fleet wrap 2")
 
-	uw := eris.Cause(eerr2)
+	uw := ctxerr.Cause(eerr2)
 	assert.Equal(t, uw, root)
-	assert.Nil(t, eris.Cause(nil))
+	assert.Nil(t, ctxerr.Cause(nil))
 }
 
 func TestErrorHandler(t *testing.T) {
