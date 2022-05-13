@@ -26,6 +26,9 @@ The Fleet handbook is the central guide for how we run the company. As part of o
 
 [Tools we use](./company.md#tools-we-use)
 
+[Email relays](./company.md#email-relays)
+
+
 ### ⛑ Security
 
 [Account recovery process](./security.md#account-recovery-process)
