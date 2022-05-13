@@ -92,7 +92,7 @@ func debugProfileCommand() *cli.Command {
 
 			outfile := getOutfile(c)
 			if outfile == "" {
-				outfile = outfileName("profile")
+				outfile = outfileNameWithExt("profile", "pb")
 			}
 
 			if err := writeFile(outfile, profile, defaultFileMode); err != nil {
@@ -174,7 +174,7 @@ func debugHeapCommand() *cli.Command {
 
 			outfile := getOutfile(c)
 			if outfile == "" {
-				outfile = outfileName(name)
+				outfile = outfileNameWithExt(name, "pb")
 			}
 
 			if err := writeFile(outfile, profile, defaultFileMode); err != nil {
@@ -211,7 +211,7 @@ func debugGoroutineCommand() *cli.Command {
 
 			outfile := getOutfile(c)
 			if outfile == "" {
-				outfile = outfileName(name)
+				outfile = outfileNameWithExt(name, "pb")
 			}
 
 			if err := writeFile(outfile, profile, defaultFileMode); err != nil {
@@ -248,7 +248,7 @@ func debugTraceCommand() *cli.Command {
 
 			outfile := getOutfile(c)
 			if outfile == "" {
-				outfile = outfileName(name)
+				outfile = outfileNameWithExt(name, "pb")
 			}
 
 			if err := writeFile(outfile, profile, defaultFileMode); err != nil {
@@ -309,23 +309,29 @@ func debugArchiveCommand() *cli.Command {
 
 			for _, profile := range profiles {
 				var res []byte
+				var ext string
 
 				switch profile {
 				case "errors":
 					var buf bytes.Buffer
+					ext = "json"
 					err = fleet.DebugErrors(&buf, false)
 					if err == nil {
 						res = buf.Bytes()
 					}
 
 				case "db-locks":
+					ext = "json"
 					res, err = fleet.DebugDBLocks()
 				case "db-innodb-status":
+					ext = "json"
 					res, err = fleet.DebugInnoDBStatus()
 				case "db-process-list":
+					ext = "json"
 					res, err = fleet.DebugProcessList()
 
 				default:
+					ext = "pb"
 					res, err = fleet.DebugPprof(profile)
 				}
 
@@ -338,18 +344,23 @@ func debugArchiveCommand() *cli.Command {
 				}
 				fmt.Fprintf(os.Stderr, "Ran %s\n", profile)
 
+				outname := profile
+				if ext != "" {
+					outname = profile + "." + ext
+				}
+
 				if err := tarwriter.WriteHeader(
 					&tar.Header{
-						Name: outfile + "/" + profile,
+						Name: outfile + "/" + outname,
 						Size: int64(len(res)),
 						Mode: defaultFileMode,
 					},
 				); err != nil {
-					return fmt.Errorf("write %s header: %w", profile, err)
+					return fmt.Errorf("write %s header: %w", outname, err)
 				}
 
 				if _, err := tarwriter.Write(res); err != nil {
-					return fmt.Errorf("write %s contents: %w", profile, err)
+					return fmt.Errorf("write %s contents: %w", outname, err)
 				}
 			}
 

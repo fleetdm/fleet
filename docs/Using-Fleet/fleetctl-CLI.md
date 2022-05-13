@@ -435,4 +435,24 @@ The value must be small enough that HTTP requests do not time out.
 
 Start with a default of 2MiB for MySQL (2097152 bytes), and 5MiB for S3/Minio (5242880 bytes).
 
+## Debugging Fleet
+
+`fleetctl` provides debugging capabilities about the running Fleet server via the `debug` command. To see a complete list of all the options run:
+
+```
+fleetctl debug --help
+```
+
+To generate a full debugging archive, run:
+
+```
+fleetctl debug archive
+```
+
+This will generate a `tar.gz` file with:
+
+- `pb` archives that can be inspected via `go tools pprof <archive_name_here>`.
+- A file containing a set of all the errors that happened in the server during the interval of time defined by the [logging_error_retention_period](../Deploying/Configuration.md#logging-error-retention-period) configuration.
+- Files containing database specific information.
+
 <meta name="pageOrderInSection" value="300">
