@@ -2,7 +2,7 @@
 
 ## Jason Walton — Director of information security @ Schrödinger
 
-![Four speech bubbles and four stars emanating from the Fleet logo](https://miro.medium.com/1*uAZ-YhsFJIhNCl1Cz-lVxQ.jpeg)
+![Four speech bubbles and four stars emanating from the Fleet logo](../website/assets/images/articles/fleet-user-stories-schrodinger-cover-800x450@2x.jpeg)
 
 Jason Walton gives us some insight into how his team uses Fleet and osquery at Schrödinger.
 
@@ -31,4 +31,4 @@ I’ll admit to not liking SQL much. It would be handy to have a query builder f
 <meta name="authorFullName" value="Mike Thomas">
 <meta name="publishedOn" value="2021-09-10">
 <meta name="articleTitle" value="Fleet user stories — Schrödinger">
-<meta name="articleImageUrl" value="https://miro.medium.com/1*uAZ-YhsFJIhNCl1Cz-lVxQ.jpeg">
+<meta name="articleImageUrl" value="../website/assets/images/articles/fleet-user-stories-schrodinger-cover-800x450@2x.jpeg">
