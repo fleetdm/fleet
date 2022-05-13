@@ -4,6 +4,7 @@ import Modal from "components/Modal";
 // @ts-ignore
 import InputField from "components/forms/fields/InputField";
 import Button from "components/buttons/Button";
+import Spinner from "components/Spinner";
 
 const baseClass = "edit-team-modal";
 
@@ -16,6 +17,7 @@ interface IEditTeamModalProps {
   onSubmit: (formData: IEditTeamFormData) => void;
   defaultName: string;
   backendValidators: { [key: string]: string };
+  teamIsEditing: boolean;
 }
 
 const EditTeamModal = ({
@@ -23,6 +25,7 @@ const EditTeamModal = ({
   onSubmit,
   defaultName,
   backendValidators,
+  teamIsEditing,
 }: IEditTeamModalProps): JSX.Element => {
   const [name, setName] = useState(defaultName);
   const [errors, setErrors] = useState<{ [key: string]: string }>(
@@ -48,38 +51,42 @@ const EditTeamModal = ({
 
   return (
     <Modal title={"Edit team"} onExit={onCancel} className={baseClass}>
-      <form
-        className={`${baseClass}__form`}
-        onSubmit={onFormSubmit}
-        autoComplete="off"
-      >
-        <InputField
-          autofocus
-          name="name"
-          onChange={onInputChange}
-          label="Team name"
-          placeholder="Team name"
-          value={name}
-          error={errors.name}
-        />
-        <div className={`${baseClass}__btn-wrap`}>
-          <Button
-            className={`${baseClass}__btn`}
-            type="submit"
-            variant="brand"
-            disabled={name === ""}
-          >
-            Save
-          </Button>
-          <Button
-            className={`${baseClass}__btn`}
-            onClick={onCancel}
-            variant="inverse"
-          >
-            Cancel
-          </Button>
-        </div>
-      </form>
+      {teamIsEditing ? (
+        <Spinner />
+      ) : (
+        <form
+          className={`${baseClass}__form`}
+          onSubmit={onFormSubmit}
+          autoComplete="off"
+        >
+          <InputField
+            autofocus
+            name="name"
+            onChange={onInputChange}
+            label="Team name"
+            placeholder="Team name"
+            value={name}
+            error={errors.name}
+          />
+          <div className={`${baseClass}__btn-wrap`}>
+            <Button
+              className={`${baseClass}__btn`}
+              type="submit"
+              variant="brand"
+              disabled={name === ""}
+            >
+              Save
+            </Button>
+            <Button
+              className={`${baseClass}__btn`}
+              onClick={onCancel}
+              variant="inverse"
+            >
+              Cancel
+            </Button>
+          </div>
+        </form>
+      )}
     </Modal>
   );
 };

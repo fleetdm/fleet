@@ -9,7 +9,7 @@ import configAPI from "services/entities/config";
 import deepDifference from "utilities/deep_difference";
 import { IConfig } from "interfaces/config";
 import { IApiError } from "interfaces/errors";
-
+import Spinner from "components/Spinner";
 import PATHS from "router/paths";
 import Info from "./cards/Info";
 import WebAddress from "./cards/WebAddress";
@@ -135,88 +135,94 @@ const AppSettingsPage = ({
       <p className={`${baseClass}__page-description`}>
         Set your organization information and configure SSO and SMTP
       </p>
-      <div className={`${baseClass}__settings-form`}>
-        <nav>
-          <ul className={`${baseClass}__form-nav-list`}>
-            <li>
-              <Link
-                className={`${baseClass}__nav-link ${isNavItemActive("info")}
+      {isLoadingConfig ? (
+        <Spinner />
+      ) : (
+        <div className={`${baseClass}__settings-form`}>
+          <nav>
+            <ul className={`${baseClass}__form-nav-list`}>
+              <li>
+                <Link
+                  className={`${baseClass}__nav-link ${isNavItemActive("info")}
                 }`}
-                to={PATHS.ADMIN_SETTINGS_INFO}
-              >
-                Organization info
-              </Link>
-            </li>
-            <li>
-              <Link
-                className={`${baseClass}__nav-link ${isNavItemActive(
-                  "webaddress"
-                )}`}
-                to={PATHS.ADMIN_SETTINGS_WEBADDRESS}
-              >
-                Fleet web address
-              </Link>
-            </li>
-            <li>
-              <Link
-                className={`${baseClass}__nav-link ${isNavItemActive("sso")}`}
-                to={PATHS.ADMIN_SETTINGS_SSO}
-              >
-                Single sign-on options
-              </Link>
-            </li>
-            <li>
-              <Link
-                className={`${baseClass}__nav-link$ ${isNavItemActive("smtp")}`}
-                to={PATHS.ADMIN_SETTINGS_SMTP}
-              >
-                SMTP options
-              </Link>
-            </li>
-            <li>
-              <Link
-                className={`${baseClass}__nav-link ${isNavItemActive(
-                  "agents"
-                )}`}
-                to={PATHS.ADMIN_SETTINGS_AGENTS}
-              >
-                Global agent options
-              </Link>
-            </li>
-            <li>
-              <Link
-                className={`${baseClass}__nav-link ${isNavItemActive(
-                  "host-status-webhook"
-                )}`}
-                to={PATHS.ADMIN_SETTINGS_HOST_STATUS_WEBHOOK}
-              >
-                Host status webhook
-              </Link>
-            </li>
-            <li>
-              <Link
-                className={`${baseClass}__nav-link ${isNavItemActive(
-                  "statistics"
-                )}`}
-                to={PATHS.ADMIN_SETTINGS_STATISTICS}
-              >
-                Usage statistics
-              </Link>
-            </li>
-            <li>
-              <Link
-                className={`${baseClass}__nav-link ${isNavItemActive(
-                  "advanced"
-                )}`}
-                to={PATHS.ADMIN_SETTINGS_ADVANCED}
-              >
-                Advanced options
-              </Link>
-            </li>
-          </ul>
-        </nav>
-        {renderSection()}
-      </div>
+                  to={PATHS.ADMIN_SETTINGS_INFO}
+                >
+                  Organization info
+                </Link>
+              </li>
+              <li>
+                <Link
+                  className={`${baseClass}__nav-link ${isNavItemActive(
+                    "webaddress"
+                  )}`}
+                  to={PATHS.ADMIN_SETTINGS_WEBADDRESS}
+                >
+                  Fleet web address
+                </Link>
+              </li>
+              <li>
+                <Link
+                  className={`${baseClass}__nav-link ${isNavItemActive("sso")}`}
+                  to={PATHS.ADMIN_SETTINGS_SSO}
+                >
+                  Single sign-on options
+                </Link>
+              </li>
+              <li>
+                <Link
+                  className={`${baseClass}__nav-link$ ${isNavItemActive(
+                    "smtp"
+                  )}`}
+                  to={PATHS.ADMIN_SETTINGS_SMTP}
+                >
+                  SMTP options
+                </Link>
+              </li>
+              <li>
+                <Link
+                  className={`${baseClass}__nav-link ${isNavItemActive(
+                    "agents"
+                  )}`}
+                  to={PATHS.ADMIN_SETTINGS_AGENTS}
+                >
+                  Global agent options
+                </Link>
+              </li>
+              <li>
+                <Link
+                  className={`${baseClass}__nav-link ${isNavItemActive(
+                    "host-status-webhook"
+                  )}`}
+                  to={PATHS.ADMIN_SETTINGS_HOST_STATUS_WEBHOOK}
+                >
+                  Host status webhook
+                </Link>
+              </li>
+              <li>
+                <Link
+                  className={`${baseClass}__nav-link ${isNavItemActive(
+                    "statistics"
+                  )}`}
+                  to={PATHS.ADMIN_SETTINGS_STATISTICS}
+                >
+                  Usage statistics
+                </Link>
+              </li>
+              <li>
+                <Link
+                  className={`${baseClass}__nav-link ${isNavItemActive(
+                    "advanced"
+                  )}`}
+                  to={PATHS.ADMIN_SETTINGS_ADVANCED}
+                >
+                  Advanced options
+                </Link>
+              </li>
+            </ul>
+          </nav>
+          {renderSection()}
+        </div>
+      )}
     </div>
   );
 };

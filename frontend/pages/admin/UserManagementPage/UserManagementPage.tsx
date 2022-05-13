@@ -71,7 +71,7 @@ const UserManagementPage = ({ router }: IUserManagementProps): JSX.Element => {
   // API CALLS
   const {
     data: teams,
-    isLoading: isLoadingTeams,
+    isFetching: isFetchingTeams,
     error: loadingTeamsError,
   } = useQuery<ITeamsResponse, Error, ITeam[]>(
     ["teams"],
@@ -84,7 +84,7 @@ const UserManagementPage = ({ router }: IUserManagementProps): JSX.Element => {
 
   const {
     data: users,
-    isLoading: isLoadingUsers,
+    isFetching: isFetchingUsers,
     error: loadingUsersError,
     refetch: refetchUsers,
   } = useQuery<IUser[], Error, IUser[]>(
@@ -97,7 +97,7 @@ const UserManagementPage = ({ router }: IUserManagementProps): JSX.Element => {
 
   const {
     data: invites,
-    isLoading: isLoadingInvites,
+    isFetching: isFetchingInvites,
     error: loadingInvitesError,
     refetch: refetchInvites,
   } = useQuery<IInvite[], Error, IInvite[]>(
@@ -528,11 +528,12 @@ const UserManagementPage = ({ router }: IUserManagementProps): JSX.Element => {
     isPremiumTier || false
   );
 
-  const loadingTableData = isLoadingUsers || isLoadingInvites || isLoadingTeams;
+  const loadingTableData =
+    isFetchingUsers || isFetchingInvites || isFetchingTeams;
   const tableDataError =
     loadingUsersError || loadingInvitesError || loadingTeamsError;
 
-  let tableData: any = [];
+  let tableData: unknown = [];
   if (!loadingTableData) {
     tableData = combineUsersAndInvites(users, invites, currentUser?.id);
   }
