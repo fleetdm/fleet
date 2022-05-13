@@ -12,8 +12,8 @@ import Slider from "components/forms/fields/Slider";
 import Checkbox from "components/forms/fields/Checkbox";
 // @ts-ignore
 import InputField from "components/forms/fields/InputField";
-import PreviewPayloadModal from "../PreviewPayloadModal";
 import Spinner from "components/Spinner";
+import PreviewPayloadModal from "../PreviewPayloadModal";
 
 interface IManageAutomationsModalProps {
   onCancel: () => void;
