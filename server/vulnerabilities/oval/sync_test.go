@@ -54,7 +54,7 @@ func TestSync(t *testing.T) {
 
 			r, err := removeOldDefs(today, path)
 			require.NoError(t, err)
-			require.Contains(t, r, newDef)
+			require.Contains(t, r, filepath.Base(newDef))
 
 			_, err = os.Stat(oldDef)
 			require.True(t, os.IsNotExist(err))

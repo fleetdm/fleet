@@ -65,7 +65,7 @@ func removeOldDefs(date time.Time, path string) (map[string]bool, error) {
 	err := filepath.WalkDir(path, func(path string, d os.DirEntry, err error) error {
 		if strings.HasPrefix(filepath.Base(path), OvalFilePrefix) {
 			if strings.HasSuffix(path, dateSuffix) {
-				upToDate[path] = true
+				upToDate[filepath.Base(path)] = true
 			} else {
 				err := os.Remove(path)
 				if err != nil {

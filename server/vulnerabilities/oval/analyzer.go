@@ -47,7 +47,10 @@ func Analyze(
 			}
 
 			for sId, vulns := range defs.Eval(software) {
-				ds.InsertVulnerabilitiesForSoftwareID(ctx, sId, vulns)
+				_, err = ds.InsertVulnerabilitiesForSoftwareID(ctx, sId, vulns)
+				if err != nil {
+					return err
+				}
 			}
 		}
 	}

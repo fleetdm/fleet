@@ -323,11 +323,16 @@ func checkOvalVulnerabilities(
 		return
 	}
 	for _, d := range downloaded {
-		level.Debug(logger).Log("oval-updating", "Downloaded new definitions", string(d))
+		level.Debug(logger).Log("oval-updating", "Downloaded new definitions", d)
 	}
 
 	// Analyze
-	oval.Analyze(ctx, ds, versions, vulnPath)
+	err = oval.Analyze(ctx, ds, versions, vulnPath)
+	if err != nil {
+		level.Error(logger).Log("msg", "analyzing oval definitions", "err", err)
+		sentry.CaptureException(err)
+		return
+	}
 }
 
 func checkVulnerabilities(
