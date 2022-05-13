@@ -453,6 +453,7 @@ const MembersPage = ({
           isSsoEnabled={userEditing?.sso_enabled}
           isModifiedByGlobalAdmin={isGlobalAdmin}
           currentTeam={currentTeam}
+          isEditingUser={isFormSubmitting}
         />
       )}
       {showCreateUserModal && (

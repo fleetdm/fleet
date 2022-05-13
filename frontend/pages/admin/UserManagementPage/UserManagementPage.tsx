@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useContext } from "react";
+import React, { useState, useCallback, useContext, useEffect } from "react";
 import { InjectedRouter } from "react-router";
 import { useQuery } from "react-query";
 import memoize from "memoize-one";
@@ -59,6 +59,7 @@ const UserManagementPage = ({ router }: IUserManagementProps): JSX.Element => {
     false
   );
   const [isFormSubmitting, setIsFormSubmitting] = useState<boolean>(false);
+  const [isEditingUser, setIsEditingUser] = useState<boolean>(false);
   const [userEditing, setUserEditing] = useState<any>(null);
   const [createUserErrors, setCreateUserErrors] = useState<IUserFormErrors>(
     DEFAULT_CREATE_USER_ERRORS
@@ -281,6 +282,7 @@ const UserManagementPage = ({ router }: IUserManagementProps): JSX.Element => {
   const onEditUser = (formData: any) => {
     const userData = getUser(userEditing.type, userEditing.id);
 
+    setIsEditingUser(true);
     if (userEditing.type === "invite") {
       return (
         userData &&
@@ -302,6 +304,9 @@ const UserManagementPage = ({ router }: IUserManagementProps): JSX.Element => {
                 `Could not edit ${userEditing?.name}. Please try again.`
               );
             }
+          })
+          .finally(() => {
+            setIsEditingUser(false);
           })
       );
     }
@@ -461,6 +466,7 @@ const UserManagementPage = ({ router }: IUserManagementProps): JSX.Element => {
             isModifiedByGlobalAdmin
             isInvitePending={userEditing.type === "invite"}
             editUserErrors={editUserErrors}
+            isEditingUser={isEditingUser}
           />
         </>
       </Modal>
