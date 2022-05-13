@@ -256,9 +256,6 @@ func (s *Schedule) Start() {
 // Done returns a channel that will be closed when the scheduler's context is done
 // and it has finished running its goroutines.
 func (s *Schedule) Done() <-chan struct{} {
-	s.schedIntervalMu.Lock()
-	defer s.schedIntervalMu.Unlock()
-
 	return s.done
 }
 
