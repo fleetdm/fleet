@@ -177,6 +177,7 @@ type Datastore interface {
 	DeleteHost(ctx context.Context, hid uint) error
 	Host(ctx context.Context, id uint, skipLoadingExtras bool) (*Host, error)
 	ListHosts(ctx context.Context, filter TeamFilter, opt HostListOptions) ([]*Host, error)
+
 	MarkHostsSeen(ctx context.Context, hostIDs []uint, t time.Time) error
 	SearchHosts(ctx context.Context, filter TeamFilter, query string, omit ...uint) ([]*Host, error)
 	// CleanupIncomingHosts deletes hosts that have enrolled but never updated their status details. This clears dead
