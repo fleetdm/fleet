@@ -25,6 +25,11 @@ import (
 // Defining here for testing purposes
 var nowFn = time.Now
 
+const (
+	profileExtension = "prof"
+	jsonExtension    = "json"
+)
+
 func debugCommand() *cli.Command {
 	return &cli.Command{
 		Name:  "debug",
@@ -92,7 +97,7 @@ func debugProfileCommand() *cli.Command {
 
 			outfile := getOutfile(c)
 			if outfile == "" {
-				outfile = outfileNameWithExt("profile", "pb")
+				outfile = outfileNameWithExt("profile", profileExtension)
 			}
 
 			if err := writeFile(outfile, profile, defaultFileMode); err != nil {
@@ -174,7 +179,7 @@ func debugHeapCommand() *cli.Command {
 
 			outfile := getOutfile(c)
 			if outfile == "" {
-				outfile = outfileNameWithExt(name, "pb")
+				outfile = outfileNameWithExt(name, profileExtension)
 			}
 
 			if err := writeFile(outfile, profile, defaultFileMode); err != nil {
@@ -211,7 +216,7 @@ func debugGoroutineCommand() *cli.Command {
 
 			outfile := getOutfile(c)
 			if outfile == "" {
-				outfile = outfileNameWithExt(name, "pb")
+				outfile = outfileNameWithExt(name, profileExtension)
 			}
 
 			if err := writeFile(outfile, profile, defaultFileMode); err != nil {
@@ -248,7 +253,7 @@ func debugTraceCommand() *cli.Command {
 
 			outfile := getOutfile(c)
 			if outfile == "" {
-				outfile = outfileNameWithExt(name, "pb")
+				outfile = outfileNameWithExt(name, profileExtension)
 			}
 
 			if err := writeFile(outfile, profile, defaultFileMode); err != nil {
@@ -314,24 +319,24 @@ func debugArchiveCommand() *cli.Command {
 				switch profile {
 				case "errors":
 					var buf bytes.Buffer
-					ext = "json"
+					ext = jsonExtension
 					err = fleet.DebugErrors(&buf, false)
 					if err == nil {
 						res = buf.Bytes()
 					}
 
 				case "db-locks":
-					ext = "json"
+					ext = jsonExtension
 					res, err = fleet.DebugDBLocks()
 				case "db-innodb-status":
-					ext = "json"
+					ext = jsonExtension
 					res, err = fleet.DebugInnoDBStatus()
 				case "db-process-list":
-					ext = "json"
+					ext = jsonExtension
 					res, err = fleet.DebugProcessList()
 
 				default:
-					ext = "pb"
+					ext = profileExtension
 					res, err = fleet.DebugPprof(profile)
 				}
 
@@ -583,7 +588,7 @@ func debugErrorsCommand() *cli.Command {
 
 			if !stdout {
 				if outfile == "" {
-					outfile = outfileNameWithExt(name, "json")
+					outfile = outfileNameWithExt(name, jsonExtension)
 				}
 
 				f, err := os.OpenFile(outfile, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, defaultFileMode)
