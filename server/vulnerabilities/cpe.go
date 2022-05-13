@@ -254,7 +254,7 @@ func TranslateSoftwareToCPE(
 			continue
 		}
 		if cpe == "" {
-			continue
+			cpe = fmt.Sprintf("none:%s:%s", software.Name, software.Version)
 		}
 		err = ds.AddCPEForSoftware(ctx, *software, cpe)
 		if err != nil {

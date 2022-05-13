@@ -10,6 +10,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"runtime"
+	"strings"
 	"sync"
 	"time"
 
@@ -105,6 +106,11 @@ func TranslateCPEToCVE(
 
 	cpes := make([]*wfn.Attributes, 0, len(cpeList))
 	for _, uri := range cpeList {
+		// Skip dummy CPEs
+		if strings.HasPrefix(uri, "none") {
+			continue
+		}
+
 		attr, err := wfn.Parse(uri)
 		if err != nil {
 			return nil, err

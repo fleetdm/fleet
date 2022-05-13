@@ -46,7 +46,9 @@ func Analyze(
 				return err
 			}
 
-			defs.Eval(software)
+			for sId, vulns := range defs.Eval(software) {
+				ds.InsertVulnerabilitiesForSoftwareID(ctx, sId, vulns)
+			}
 		}
 	}
 

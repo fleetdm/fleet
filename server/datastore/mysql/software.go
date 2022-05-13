@@ -949,3 +949,44 @@ WHERE
 
 	return softwares, nil
 }
+
+func (ds *Datastore) InsertVulnerabilitiesForSoftwareID(
+	ctx context.Context,
+	softwareID uint,
+	vulns []string,
+) (int64, error) {
+	var totalCount int64
+
+	stmt := dialect.
+		From(goqu.I("software_cpe")).
+		Select("id").
+		Where(goqu.C("software_id").Eq(softwareID))
+
+	sql, args, err := stmt.ToSQL()
+	if err != nil {
+		return totalCount, ctxerr.Wrap(ctx, err, "InsertVulnerabilitiesForSoftwareID")
+	}
+
+	var cpeId int
+	if err := sqlx.SelectContext(ctx, ds.reader, &cpeId, sql, args...); err != nil {
+		return totalCount, ctxerr.Wrap(ctx, err, "InsertVulnerabilitiesForSoftwareID")
+	}
+
+	var vals []interface{}
+	for _, vuln := range vulns {
+		vals = append(vals, goqu.Vals{cpeId, vuln})
+	}
+
+	iStmt, args, err := goqu.
+		Insert("software_cve").
+		Cols("cpe_id", "cve").
+		Vals(vals).ToSQL()
+
+	res, err := ds.writer.ExecContext(ctx, iStmt, args...)
+	if err != nil {
+		return 0, ctxerr.Wrap(ctx, err, "InsertVulnerabilitiesForSoftwareID")
+	}
+
+	count, _ := res.RowsAffected()
+	return count, nil
+}
