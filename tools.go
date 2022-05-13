@@ -8,4 +8,5 @@ import (
 	_ "github.com/goreleaser/goreleaser"
 	_ "github.com/kevinburke/go-bindata"
 	_ "github.com/mitchellh/gon/cmd/gon"
+	_ "golang.org/x/tools/cmd/stringer"
 )

@@ -2,6 +2,8 @@ package main
 
 import (
 	"context"
+	"errors"
+	"fmt"
 	"os"
 	"strconv"
 	"strings"
@@ -225,14 +227,48 @@ func cronVulnerabilities(ctx context.Context, ds fleet.Datastore, logger kitlog.
 	}
 
 	if !vulnDisabled {
-		level.Debug(logger).Log("vulnerabilities", "checking for recent vulnerabilities")
-		level.Debug(logger).Log("vuln-path", vulnPath)
-		recentVulns := checkVulnerabilities(ctx, ds, logger, vulnPath, config, appConfig.WebhookSettings.VulnerabilitiesWebhook)
-		if len(recentVulns) > 0 {
-			if err := webhooks.TriggerVulnerabilitiesWebhook(ctx, ds, kitlog.With(logger, "webhook", "vulnerabilities"),
-				recentVulns, appConfig, time.Now()); err != nil {
+		automation := checkAutomationToRun(appConfig, logger)
+		level.Debug(logger).Log(
+			"vulnerabilities", "checking for recent vulnerabilities",
+			"vuln-path", vulnPath,
+			"vuln-automation", automation,
+		)
 
-				level.Error(logger).Log("err", "triggering vulnerabilities webhook", "details", err)
+		recentVulns := checkVulnerabilities(ctx, ds, logger, vulnPath, config, automation != automation_none)
+		if len(recentVulns) > 0 {
+			switch automation {
+			case automation_none:
+				level.Debug(logger).Log("msg", "no vuln automations enabled")
+			case automation_webhook:
+				if err := webhooks.TriggerVulnerabilitiesWebhook(ctx, ds, kitlog.With(logger, "webhook", "vulnerabilities"),
+					recentVulns, appConfig, time.Now()); err != nil {
+
+					level.Error(logger).Log("err", "triggering vulnerabilities webhook", "details", err)
+					sentry.CaptureException(err)
+				}
+			case automation_jira:
+				if err := worker.QueueJiraJobs(
+					ctx,
+					ds,
+					kitlog.With(logger, "jira", "vulnerabilities"),
+					recentVulns,
+				); err != nil {
+					level.Error(logger).Log("err", "queueing vulnerabilities to jira", "details", err)
+					sentry.CaptureException(err)
+				}
+			case automation_zendesk:
+				if err := worker.QueueZendeskJobs(
+					ctx,
+					ds,
+					kitlog.With(logger, "zendesk", "vulnerabilities"),
+					recentVulns,
+				); err != nil {
+					level.Error(logger).Log("err", "queueing vulnerabilities to zendesk", "details", err)
+					sentry.CaptureException(err)
+				}
+			default:
+				err := fmt.Errorf("unknown automation: %d", automation)
+				level.Error(logger).Log("err", err)
 				sentry.CaptureException(err)
 			}
 		}
@@ -257,8 +293,52 @@ func cronVulnerabilities(ctx context.Context, ds fleet.Datastore, logger kitlog.
 	return nil
 }
 
+//go:generate go run golang.org/x/tools/cmd/stringer -type=automation
+type automation int
+
+const (
+	automation_none automation = iota
+	automation_webhook
+	automation_jira
+	automation_zendesk
+)
+
+// checkAutomationToRun returns the vulnerability automation to run.
+//
+// This method assumes only one vulnerability automation (i.e. webhook or integration)
+// can be enabled at a time, enforced when updating the AppConfig.
+func checkAutomationToRun(appConfig *fleet.AppConfig, logger kitlog.Logger) automation {
+	autom := automation_none
+	if appConfig.WebhookSettings.VulnerabilitiesWebhook.Enable {
+		autom = automation_webhook
+	}
+	for _, j := range appConfig.Integrations.Jira {
+		if j.EnableSoftwareVulnerabilities {
+			if autom != automation_none {
+				err := errors.New("more than one automation enabled: jira check")
+				level.Error(logger).Log("err", err)
+				sentry.CaptureException(err)
+			}
+			autom = automation_jira
+			break
+		}
+	}
+	for _, z := range appConfig.Integrations.Zendesk {
+		if z.EnableSoftwareVulnerabilities {
+			if autom != automation_none {
+				err := errors.New("more than one automation enabled: zendesk check")
+				level.Error(logger).Log("err", err)
+				sentry.CaptureException(err)
+			}
+			autom = automation_zendesk
+			break
+		}
+	}
+	return autom
+}
+
 func checkVulnerabilities(ctx context.Context, ds fleet.Datastore, logger kitlog.Logger,
-	vulnPath string, config config.FleetConfig, vulnWebhookCfg fleet.VulnerabilitiesWebhookSettings,
+	vulnPath string, config config.FleetConfig, vulnEnabled bool,
 ) map[string][]string {
 	err := vulnerabilities.TranslateSoftwareToCPE(ctx, ds, vulnPath, logger, config)
 	if err != nil {
@@ -267,7 +347,7 @@ func checkVulnerabilities(ctx context.Context, ds fleet.Datastore, logger kitlog
 		return nil
 	}
 
-	recentVulns, err := vulnerabilities.TranslateCPEToCVE(ctx, ds, vulnPath, logger, config, vulnWebhookCfg.Enable)
+	recentVulns, err := vulnerabilities.TranslateCPEToCVE(ctx, ds, vulnPath, logger, config, vulnEnabled)
 	if err != nil {
 		level.Error(logger).Log("msg", "analyzing vulnerable software: CPE->CVE", "err", err)
 		sentry.CaptureException(err)
