@@ -22,6 +22,9 @@ import (
 	"github.com/urfave/cli/v2"
 )
 
+// Defining here for testing purposes
+var nowFn = time.Now
+
 func debugCommand() *cli.Command {
 	return &cli.Command{
 		Name:  "debug",
@@ -58,7 +61,11 @@ func writeFile(filename string, bytes []byte, mode os.FileMode) error {
 }
 
 func outfileName(name string) string {
-	return fmt.Sprintf("fleet-%s-%s", name, time.Now().Format(time.RFC3339))
+	return fmt.Sprintf("fleet-%s-%s", name, nowFn().Format(time.RFC3339))
+}
+
+func outfileNameWithExt(name string, ext string) string {
+	return fmt.Sprintf("%s.%s", outfileName(name), ext)
 }
 
 func debugProfileCommand() *cli.Command {
@@ -285,11 +292,10 @@ func debugArchiveCommand() *cli.Command {
 				"db-process-list",
 			}
 
-			outpath := getOutfile(c)
-			if outpath == "" {
-				outpath = outfileName("profiles-archive")
+			outfile := getOutfile(c)
+			if outfile == "" {
+				outfile = outfileNameWithExt("profiles-archive", "tar.gz")
 			}
-			outfile := outpath + ".tar.gz"
 
 			f, err := secure.OpenFile(outfile, os.O_CREATE|os.O_WRONLY, defaultFileMode)
 			if err != nil {
@@ -307,7 +313,7 @@ func debugArchiveCommand() *cli.Command {
 				switch profile {
 				case "errors":
 					var buf bytes.Buffer
-					err = fleet.DebugErrors(&buf)
+					err = fleet.DebugErrors(&buf, false)
 					if err == nil {
 						res = buf.Bytes()
 					}
@@ -334,7 +340,7 @@ func debugArchiveCommand() *cli.Command {
 
 				if err := tarwriter.WriteHeader(
 					&tar.Header{
-						Name: outpath + "/" + profile,
+						Name: outfile + "/" + profile,
 						Size: int64(len(res)),
 						Mode: defaultFileMode,
 					},
@@ -347,7 +353,14 @@ func debugArchiveCommand() *cli.Command {
 				}
 			}
 
-			fmt.Fprintf(os.Stderr, "Archive written to %s\n", outfile)
+			fmt.Fprintf(os.Stderr, "################################################################################\n"+
+				"# WARNING:\n"+
+				"#   The files in the generated archive may contain sensitive data.\n"+
+				"#   Please review them before sharing.\n"+
+				"#\n"+
+				"#   Archive written to: %s\n"+
+				"################################################################################\n",
+				outfile)
 
 			return nil
 		},
@@ -520,7 +533,10 @@ Such migrations can be applied via "fleet prepare db" before running "fleet serv
 }
 
 func debugErrorsCommand() *cli.Command {
-	name := "errors"
+	var (
+		name  string = "errors"
+		flush bool
+	)
 	return &cli.Command{
 		Name:      name,
 		Usage:     "Save the recorded fleet server errors to a file.",
@@ -530,6 +546,14 @@ func debugErrorsCommand() *cli.Command {
 			configFlag(),
 			contextFlag(),
 			debugFlag(),
+			stdoutFlag(),
+			&cli.BoolFlag{
+				Name:        "flush",
+				EnvVars:     []string{"FLUSH"},
+				Value:       false,
+				Destination: &flush,
+				Usage:       "Clear errors from Redis after reading them",
+			},
 		},
 		Action: func(c *cli.Context) error {
 			fleet, err := clientFromCLI(c)
@@ -538,23 +562,45 @@ func debugErrorsCommand() *cli.Command {
 			}
 
 			outfile := getOutfile(c)
-			if outfile == "" {
-				outfile = outfileName(name)
+			stdout := getStdout(c)
+
+			if stdout && outfile != "" {
+				return errors.New("-stdout and -outfile must not be specified together")
 			}
 
-			f, err := os.OpenFile(outfile, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, defaultFileMode)
-			if err != nil {
-				return err
-			}
-			defer f.Close()
+			out := os.Stdout
 
-			if err := fleet.DebugErrors(f); err != nil {
+			if !stdout {
+				if outfile == "" {
+					outfile = outfileNameWithExt(name, "json")
+				}
+
+				f, err := os.OpenFile(outfile, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, defaultFileMode)
+				if err != nil {
+					return err
+				}
+				defer f.Close()
+				out = f
+			}
+
+			if err := fleet.DebugErrors(out, flush); err != nil {
 				return err
 			}
-			if err := f.Close(); err != nil {
-				return fmt.Errorf("write errors to file: %w", err)
+
+			if !stdout {
+				if err := out.Close(); err != nil {
+					return fmt.Errorf("write errors to file: %w", err)
+				}
+
+				fmt.Fprintf(os.Stderr, "################################################################################\n"+
+					"# WARNING:\n"+
+					"#   The generated file may contain sensitive data.\n"+
+					"#   Please review the file before sharing.\n"+
+					"#\n"+
+					"#   Output written to: %s\n"+
+					"################################################################################\n",
+					outfile)
 			}
-			fmt.Fprintf(os.Stderr, "Output written to %s\n", outfile)
 
 			return nil
 		},

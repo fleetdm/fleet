@@ -228,6 +228,7 @@ func cronVulnerabilities(
 
 			recentVulns := checkVulnerabilities(ctx, ds, logger, vulnPath, config, (vulnAutomationEnabled != ""))
 
+			// TODO: merge results
 			checkOvalVulnerabilities(ctx, ds, logger, vulnPath, config)
 
 			if len(recentVulns) > 0 {

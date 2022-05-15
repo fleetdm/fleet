@@ -63,7 +63,6 @@ const HostStatusWebhook = ({
     setFormErrors(errors);
   };
 
-  // Validates forms when certain information is changed
   useEffect(() => {
     validateForm();
   }, [enableHostStatusWebhook]);

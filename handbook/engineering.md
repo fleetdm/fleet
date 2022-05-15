@@ -239,6 +239,12 @@ Every week, the on-call engineer changes. Here are some tips for making this han
    helpful for the former on-call to remain available for any conversations they were deeply involved
    in, so use your judgment on which threads to handoff.
 
+## Project boards
+
+[🚀 Release](https://github.com/orgs/fleetdm/projects/40) - The current release (daily go-to board) for engineers.
+
+[⚗️ Roadmap](https://github.com/orgs/fleetdm/projects/41) - Planning for the next release (shared with product).
+
 ## Rituals
 
 The following rituals are engaged in by the  directly responsible individual (DRI) and at the frequency specified for the ritual.
@@ -251,12 +257,6 @@ The following rituals are engaged in by the  directly responsible individual (DR
 | On-call handoff | Weekly | Handoff the on-call engineering responsibilities to the next on-call engineer. | Zach Wasserman |
 | Release ritual | Every three weeks | Go through the process of releasing the next iteration of Fleet. | Zach Wasserman |
 
-
-## Project boards
-
-[🚀 Release](https://github.com/orgs/fleetdm/projects/40) - The current release (daily go-to board) for engineers.
-
-[⚗️ Roadmap](https://github.com/orgs/fleetdm/projects/41) - Planning for the next release (shared with product).
 
 ## Slack channels
 

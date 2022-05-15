@@ -12,11 +12,20 @@ export interface IHostSummaryPlatforms {
   hosts_count: number;
 }
 
+export interface IHostSummaryLabel {
+  id: number;
+  name: string;
+  description: string;
+  label_type: string;
+}
+
 export interface IHostSummary {
+  all_linux_count: number;
   totals_hosts_count: number;
   platforms: IHostSummaryPlatforms[] | null;
   online_count: number;
   offline_count: number;
   mia_count: number;
   new_count: number;
+  builtin_labels: IHostSummaryLabel[];
 }

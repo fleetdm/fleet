@@ -143,6 +143,7 @@ type Datastore interface {
 	DeleteLabel(ctx context.Context, name string) error
 	Label(ctx context.Context, lid uint) (*Label, error)
 	ListLabels(ctx context.Context, filter TeamFilter, opt ListOptions) ([]*Label, error)
+	LabelsSummary(ctx context.Context) ([]*LabelSummary, error)
 
 	// LabelQueriesForHost returns the label queries that should be executed for the given host.
 	// Results are returned in a map of label id -> query

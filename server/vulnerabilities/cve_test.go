@@ -15,6 +15,7 @@ import (
 	"time"
 
 	"github.com/WatchBeam/clock"
+	"github.com/fleetdm/fleet/v4/pkg/nettest"
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/mock"
 	kitlog "github.com/go-kit/kit/log"
@@ -60,10 +61,20 @@ func (d *threadSafeDSMock) InsertCVEForCPE(ctx context.Context, cve string, cpes
 	return d.Store.InsertCVEForCPE(ctx, cve, cpes)
 }
 
-func TestTranslateCPEToCVE(t *testing.T) {
-	if os.Getenv("NETWORK_TEST") == "" {
-		t.Skip("set environment variable NETWORK_TEST=1 to run")
+func withNetRetry(t *testing.T, fn func() error) error {
+	for {
+		err := fn()
+		if err != nil && nettest.Retryable(err) {
+			time.Sleep(5 * time.Second)
+			t.Logf("%s: retrying error: %s", t.Name(), err)
+			continue
+		}
+		return err
 	}
+}
+
+func TestTranslateCPEToCVE(t *testing.T) {
+	nettest.Run(t)
 
 	tempDir := t.TempDir()
 
@@ -72,7 +83,9 @@ func TestTranslateCPEToCVE(t *testing.T) {
 
 	// download the CVEs once for all sub-tests, and then disable syncing
 	cfg := config.FleetConfig{}
-	err := SyncCVEData(tempDir, cfg)
+	err := withNetRetry(t, func() error {
+		return SyncCVEData(tempDir, cfg)
+	})
 	require.NoError(t, err)
 	cfg.Vulnerabilities.DisableDataSync = true
 	cfg.Vulnerabilities.RecentVulnerabilityMaxAge = 365 * 24 * time.Hour
@@ -110,7 +123,7 @@ func TestTranslateCPEToCVE(t *testing.T) {
 		curlCPE := "cpe:2.3:a:haxx:curl:-:*:*:*:*:*:*:*"
 
 		// consider recent vulnerabilities to be anything published in 2018
-		theClock = clock.NewMockClock(time.Date(2019, 0o1, 0o1, 0, 0, 0, 0, time.UTC))
+		theClock = clock.NewMockClock(time.Date(2019, 1, 1, 0, 0, 0, 0, time.UTC))
 		defer func() { theClock = clock.C }()
 
 		safeDS := &threadSafeDSMock{Store: ds}
