@@ -168,7 +168,7 @@ func (svc *Service) GetLabel(ctx context.Context, id uint) (*fleet.Label, error)
 ////////////////////////////////////////////////////////////////////////////////
 
 type listLabelsRequest struct {
-	ListOptions fleet.ListOptions `url:"list_options"`
+	LabelListOptions fleet.LabelListOptions `url:"label_options"`
 }
 
 type listLabelsResponse struct {
@@ -176,11 +176,25 @@ type listLabelsResponse struct {
 	Err    error           `json:"error,omitempty"`
 }
 
+type listLabelsSummaryResponse struct {
+	Labels []*fleet.LabelSummary `json:"labels"`
+	Err    error                 `json:"error,omitempty"`
+}
+
 func (r listLabelsResponse) error() error { return r.Err }
 
 func listLabelsEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
 	req := request.(*listLabelsRequest)
-	labels, err := svc.ListLabels(ctx, req.ListOptions)
+
+	if req.LabelListOptions.Summary {
+		labels, err := svc.LabelsSummary(ctx)
+		if err != nil {
+			return listLabelsSummaryResponse{Err: err}, nil
+		}
+		return listLabelsSummaryResponse{Labels: labels}, nil
+	}
+
+	labels, err := svc.ListLabels(ctx, req.LabelListOptions.ListOptions)
 	if err != nil {
 		return listLabelsResponse{Err: err}, nil
 	}
@@ -215,6 +229,14 @@ func labelResponseForLabel(ctx context.Context, svc fleet.Service, label *fleet.
 		DisplayText: label.Name,
 		Count:       label.HostCount,
 	}, nil
+}
+
+func (svc *Service) LabelsSummary(ctx context.Context) ([]*fleet.LabelSummary, error) {
+	if err := svc.authz.Authorize(ctx, &fleet.Label{}, fleet.ActionRead); err != nil {
+		return nil, err
+	}
+
+	return svc.ds.LabelsSummary(ctx)
 }
 
 ////////////////////////////////////////////////////////////////////////////////

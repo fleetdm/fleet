@@ -1,5 +1,7 @@
 import React, { useState, useCallback, useEffect } from "react";
 
+import { ITeamFormData } from "services/entities/teams";
+
 import Modal from "components/Modal";
 // @ts-ignore
 import InputField from "components/forms/fields/InputField";
@@ -7,13 +9,9 @@ import Button from "components/buttons/Button";
 
 const baseClass = "edit-team-modal";
 
-export interface IEditTeamFormData {
-  name: string;
-}
-
 interface IEditTeamModalProps {
   onCancel: () => void;
-  onSubmit: (formData: IEditTeamFormData) => void;
+  onSubmit: (formData: ITeamFormData) => void;
   defaultName: string;
   backendValidators: { [key: string]: string };
 }

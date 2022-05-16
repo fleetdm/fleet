@@ -168,6 +168,7 @@ type Service interface {
 	NewLabel(ctx context.Context, p LabelPayload) (label *Label, err error)
 	ModifyLabel(ctx context.Context, id uint, payload ModifyLabelPayload) (*Label, error)
 	ListLabels(ctx context.Context, opt ListOptions) (labels []*Label, err error)
+	LabelsSummary(ctx context.Context) (labels []*LabelSummary, err error)
 	GetLabel(ctx context.Context, id uint) (label *Label, err error)
 
 	DeleteLabel(ctx context.Context, name string) (err error)
@@ -317,7 +318,7 @@ type Service interface {
 	UpdateInvite(ctx context.Context, id uint, payload InvitePayload) (*Invite, error)
 
 	///////////////////////////////////////////////////////////////////////////////
-	// TargetService
+	// TargetService **NOTE: NewSearchTargets will replace legacy SearchTargets in Fleet 5.0**
 
 	// SearchTargets will accept a search query, a slice of IDs of hosts to omit, and a slice of IDs of labels to omit,
 	// and it will return a set of targets (hosts and label) which match the supplied search query. If the query ID is
@@ -326,6 +327,12 @@ type Service interface {
 	SearchTargets(
 		ctx context.Context, searchQuery string, queryID *uint, targets HostTargets,
 	) (*TargetSearchResults, error)
+
+	// NewSearchTargets will accept a search query, a slice of IDs of hosts to omit, and a slice of
+	// IDs of labels and teams to omit, and it will return a set of the first ten hosts that
+	// match the supplied search query. If the query ID is provided and the referenced query allows
+	// observers to run, targets will include hosts for which the user has an observer role.
+	NewSearchTargets(ctx context.Context, matchQuery string, queryID *uint, selectedHostIDs []uint) (*NewTargetSearchResults, error)
 
 	// CountHostsInTargets returns the metrics of the hosts in the provided label and explicit host IDs. If the query ID
 	// is provided and the referenced query allows observers to run, targets will include hosts that the user has

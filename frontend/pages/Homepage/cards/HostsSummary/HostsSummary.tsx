@@ -5,7 +5,7 @@ import paths from "router/paths";
 
 import { PLATFORM_NAME_TO_LABEL_NAME } from "utilities/constants";
 import hostCountAPI from "services/entities/host_count";
-import labelsAPI from "services/entities/labels";
+import labelsAPI, { ILabelsResponse } from "services/entities/labels";
 
 import WindowsIcon from "../../../../../assets/images/icon-windows-48x48@2x.png";
 import LinuxIcon from "../../../../../assets/images/icon-linux-48x48@2x.png";
@@ -22,10 +22,6 @@ interface IHostSummaryProps {
   selectedPlatform: string;
   setTotalCount: (count: string | undefined) => void;
   setActionURL?: (url: string) => void;
-}
-
-interface ILabelsResponse {
-  labels: ILabel[];
 }
 
 interface IHostCountResponse {

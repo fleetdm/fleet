@@ -8,8 +8,8 @@ import { format } from "date-fns";
 import FileSaver from "file-saver";
 
 import enrollSecretsAPI from "services/entities/enroll_secret";
-import labelsAPI from "services/entities/labels";
-import teamsAPI from "services/entities/teams";
+import labelsAPI, { ILabelsResponse } from "services/entities/labels";
+import teamsAPI, { ILoadTeamsResponse } from "services/entities/teams";
 import globalPoliciesAPI from "services/entities/global_policies";
 import teamPoliciesAPI from "services/entities/team_policies";
 import hostsAPI, {
@@ -102,15 +102,8 @@ interface IManageHostsProps {
   location: any; // no type in react-router v3
 }
 
-interface ILabelsResponse {
-  labels: ILabel[];
-}
 interface IPolicyAPIResponse {
   policy: IPolicy;
-}
-
-interface ITeamsResponse {
-  teams: ITeam[];
 }
 
 interface ITableQueryProps {
@@ -332,12 +325,12 @@ const ManageHostsPage = ({
     data: teams,
     isLoading: isLoadingTeams,
     refetch: refetchTeams,
-  } = useQuery<ITeamsResponse, Error, ITeam[]>(
+  } = useQuery<ILoadTeamsResponse, Error, ITeam[]>(
     ["teams"],
     () => teamsAPI.loadAll(),
     {
       enabled: !!isPremiumTier,
-      select: (data: ITeamsResponse) =>
+      select: (data: ILoadTeamsResponse) =>
         data.teams.sort((a, b) => sortUtils.caseInsensitiveAsc(a.name, b.name)),
       onSuccess: (responseTeams: ITeam[]) => {
         if (!currentTeam && !isOnGlobalTeam && responseTeams.length) {

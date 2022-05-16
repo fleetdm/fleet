@@ -4,7 +4,7 @@ import { AppContext } from "context/app";
 import { find } from "lodash";
 
 import hostSummaryAPI from "services/entities/host_summary";
-import teamsAPI from "services/entities/teams";
+import teamsAPI, { ILoadTeamsResponse } from "services/entities/teams";
 import { IHostSummary, IHostSummaryPlatforms } from "interfaces/host_summary";
 import { IOsqueryPlatform } from "interfaces/platform";
 import { ITeam } from "interfaces/team";
@@ -26,10 +26,6 @@ import MDM from "./cards/MDM";
 import Munki from "./cards/Munki";
 import OperatingSystems from "./cards/OperatingSystems";
 import ExternalURLIcon from "../../../assets/images/icon-external-url-12x12@2x.png";
-
-interface ITeamsResponse {
-  teams: ITeam[];
-}
 
 const baseClass = "homepage";
 
@@ -61,12 +57,12 @@ const Homepage = (): JSX.Element => {
   );
   const [showHostsUI, setShowHostsUI] = useState<boolean>(false); // Hides UI on first load only
 
-  const { data: teams } = useQuery<ITeamsResponse, Error, ITeam[]>(
+  const { data: teams } = useQuery<ILoadTeamsResponse, Error, ITeam[]>(
     ["teams"],
     () => teamsAPI.loadAll(),
     {
       enabled: !!isPremiumTier,
-      select: (data: ITeamsResponse) =>
+      select: (data: ILoadTeamsResponse) =>
         data.teams.sort((a, b) => sortUtils.caseInsensitiveAsc(a.name, b.name)),
       onSuccess: (responseTeams) => {
         if (!currentTeam && !isOnGlobalTeam && responseTeams.length) {

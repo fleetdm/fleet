@@ -9,6 +9,7 @@ import queryAPI from "services/entities/queries";
 import campaignHelpers from "utilities/campaign_helpers";
 import debounce from "utilities/debounce";
 import { BASE_URL, DEFAULT_CAMPAIGN_STATE } from "utilities/constants";
+
 import local from "utilities/local";
 import { ICampaign, ICampaignState } from "interfaces/campaign";
 import { IQuery } from "interfaces/query";
@@ -163,24 +164,24 @@ const RunQuery = ({
 
       connectAndRunLiveQuery(returnedCampaign);
     } catch (campaignError: any) {
-      if (campaignError === "resource already created") {
+      const err = campaignError.toString();
+      if (err.includes("no hosts targeted")) {
         renderFlash(
           "error",
           "A campaign with the provided query text has already been created"
         );
-      }
-
-      if ("message" in campaignError) {
-        const { message } = campaignError;
-
-        if (message === "forbidden") {
-          renderFlash(
-            "error",
-            "It seems you do not have the rights to run this query. If you believe this is in error, please contact your administrator."
-          );
-        } else {
-          renderFlash("error", "Something has gone wrong. Please try again.");
-        }
+      } else if (err.includes("resource already created")) {
+        renderFlash(
+          "error",
+          "A campaign with the provided query text has already been created"
+        );
+      } else if (err.includes("forbidden") || err.includes("unauthorized")) {
+        renderFlash(
+          "error",
+          "It seems you do not have the rights to run this query. If you believe this is in error, please contact your administrator."
+        );
+      } else {
+        renderFlash("error", "Something has gone wrong. Please try again.");
       }
 
       return teardownDistributedQuery();

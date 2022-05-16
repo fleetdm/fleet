@@ -11,6 +11,11 @@ type TargetSearchResults struct {
 	Teams  []*Team
 }
 
+// TODO: NewTargetSearchResults will replace legacy TargetSearchResults in Fleet 5.0
+type NewTargetSearchResults struct {
+	Hosts []*Host
+}
+
 // TargetMetrics contains information about the online status of a set of
 // hosts.
 type TargetMetrics struct {

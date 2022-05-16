@@ -1,8 +1,8 @@
 /* eslint-disable  @typescript-eslint/explicit-module-boundary-types */
 import sendRequest from "services";
-import sendMockRequest from "services/mock_service";
+import { IHost } from "interfaces/host";
+import { ISelectedTargets, ITargetsAPIResponse } from "interfaces/target";
 import endpoints from "utilities/endpoints";
-import { ITargetsAPIResponse, ISelectedTargets } from "interfaces/target";
 import appendTargetTypeToTargets from "utilities/append_target_type_to_targets";
 
 interface ITargetsProps {
@@ -17,18 +17,34 @@ const defaultSelected = {
   teams: [],
 };
 
-export interface ITargetsCount {
+export interface ITargetsSearchParams {
+  query_id?: number | null;
+  query: string;
+  selected_host_ids: number[] | null;
+}
+
+export interface ITargetsSearchResponse {
+  targets: {
+    hosts: IHost[];
+  };
+}
+
+export interface ITargetsCountParams {
+  query_id?: number | null;
+  selected: ISelectedTargets | null;
+}
+
+export interface ITargetsCountResponse {
   targets_count: number;
   targets_online: number;
   targets_offline: number;
-  targets_missing_in_action: number;
 }
-// // TODO: deprecated until frontend\components\forms\fields\SelectTargetsDropdown
-// // is fully replaced with frontend\components\TargetsInput
-// const DEPRECATED_defaultSelected = {
-//   hosts: [],
-//   labels: [],
-// };
+// TODO: deprecated until frontend\components\forms\fields\SelectTargetsDropdown
+// is fully replaced with frontend\components\TargetsInput
+const DEPRECATED_defaultSelected = {
+  hosts: [],
+  labels: [],
+};
 
 export default {
   loadAll: ({
@@ -44,51 +60,46 @@ export default {
       selected,
     });
   },
-
-  labels: () => {
-    const { LABELS } = endpoints;
-
-    return sendMockRequest("GET", `${LABELS}?count=false`);
-  },
-
-  search: (query: string) => {
+  search: (params: ITargetsSearchParams): Promise<ITargetsSearchResponse> => {
+    if (!params?.selected_host_ids || !params?.query) {
+      return Promise.reject("Invalid usage: missing required parameter(s)");
+    }
     const { TARGETS } = endpoints;
-    return sendMockRequest("GET", `${TARGETS}?query=${query}`);
-  },
+    const path = `${TARGETS}/search`;
 
-  count: (selected: ISelectedTargets | null): Promise<ITargetsCount> => {
-    if (!selected) {
+    return sendRequest("POST", path, params);
+  },
+  count: (params: ITargetsCountParams): Promise<ITargetsCountResponse> => {
+    if (!params?.selected) {
       return Promise.reject("Invalid usage: no selected targets");
     }
     const { TARGETS } = endpoints;
-    console.log("selected", selected);
+    const path = `${TARGETS}/count`;
 
-    return sendMockRequest("POST", `${TARGETS}/count`, selected);
+    return sendRequest("POST", path, params);
   },
   // TODO: deprecated until frontend\components\forms\fields\SelectTargetsDropdown
   // is fully replaced with frontend\components\TargetsInput
-  // DEPRECATED_loadAll: (
-  //   query = "",
-  //   queryId = null,
-  //   selected = DEPRECATED_defaultSelected
-  // ) => {
-  //   const { TARGETS } = endpoints;
-
-  //   return sendRequest("POST", TARGETS, {
-  //     query,
-  //     query_id: queryId,
-  //     selected,
-  //   }).then((response) => {
-  //     const { targets } = response;
-
-  //     return {
-  //       ...response,
-  //       targets: [
-  //         ...appendTargetTypeToTargets(targets.hosts, "hosts"),
-  //         ...appendTargetTypeToTargets(targets.labels, "labels"),
-  //         ...appendTargetTypeToTargets(targets.teams, "teams"),
-  //       ],
-  //     };
-  //   });
-  // },
+  DEPRECATED_loadAll: (
+    query = "",
+    queryId = null,
+    selected = DEPRECATED_defaultSelected
+  ) => {
+    const { TARGETS } = endpoints;
+    return sendRequest("POST", TARGETS, {
+      query,
+      query_id: queryId,
+      selected,
+    }).then((response) => {
+      const { targets } = response;
+      return {
+        ...response,
+        targets: [
+          ...appendTargetTypeToTargets(targets.hosts, "hosts"),
+          ...appendTargetTypeToTargets(targets.labels, "labels"),
+          ...appendTargetTypeToTargets(targets.teams, "teams"),
+        ],
+      };
+    });
+  },
 };

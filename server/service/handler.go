@@ -265,7 +265,10 @@ func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetC
 	ue.POST("/api/_version_/fleet/change_password", changePasswordEndpoint, changePasswordRequest{})
 
 	ue.GET("/api/_version_/fleet/email/change/{token}", changeEmailEndpoint, changeEmailRequest{})
+	// TODO: newSearchTargetsEndpoint will replace legacy searchTargetsEndpoint in Fleet 5.0
 	ue.POST("/api/_version_/fleet/targets", searchTargetsEndpoint, searchTargetsRequest{})
+	ue.POST("/api/_version_/fleet/targets/search", newSearchTargetsEndpoint, newSearchTargetsRequest{})
+	ue.POST("/api/_version_/fleet/targets/count", countTargetsEndpoint, countTargetsRequest{})
 
 	ue.POST("/api/_version_/fleet/invites", createInviteEndpoint, createInviteRequest{})
 	ue.GET("/api/_version_/fleet/invites", listInvitesEndpoint, listInvitesRequest{})

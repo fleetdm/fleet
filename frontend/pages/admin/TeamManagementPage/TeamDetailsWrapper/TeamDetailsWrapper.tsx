@@ -10,7 +10,10 @@ import { NotificationContext } from "context/notification";
 import { AppContext } from "context/app";
 import PATHS from "router/paths";
 import { ITeam, ITeamSummary } from "interfaces/team";
-import teamsAPI from "services/entities/teams";
+import teamsAPI, {
+  ILoadTeamsResponse,
+  ITeamFormData,
+} from "services/entities/teams";
 import usersAPI, { IGetMeResponse } from "services/entities/users";
 import enrollSecretsAPI from "services/entities/enroll_secret";
 import {
@@ -28,7 +31,6 @@ import TeamsDropdown from "components/TeamsDropdown";
 import { getNextLocationPath } from "pages/admin/UserManagementPage/helpers/userManagementHelpers";
 import DeleteTeamModal from "../components/DeleteTeamModal";
 import EditTeamModal from "../components/EditTeamModal";
-import { IEditTeamFormData } from "../components/EditTeamModal/EditTeamModal";
 import DeleteSecretModal from "../../../../components/DeleteSecretModal";
 import SecretEditorModal from "../../../../components/SecretEditorModal";
 import AddHostsModal from "../../../../components/AddHostsModal";
@@ -57,10 +59,6 @@ const teamDetailsSubNav: ITeamDetailsSubNavItem[] = [
   },
 ];
 
-interface ITeamsResponse {
-  teams: ITeam[];
-}
-
 interface ITeamDetailsPageProps {
   children: JSX.Element;
   params: {
@@ -75,8 +73,8 @@ interface ITeamDetailsPageProps {
 
 const generateUpdateData = (
   currentTeam: ITeamSummary,
-  formData: IEditTeamFormData
-): IEditTeamFormData | null => {
+  formData: ITeamFormData
+): ITeamFormData | null => {
   if (currentTeam.name !== formData.name) {
     return {
       name: formData.name,
@@ -142,11 +140,11 @@ const TeamDetailsWrapper = ({
     data: teams,
     isLoading: isLoadingTeams,
     refetch: refetchTeams,
-  } = useQuery<ITeamsResponse, Error, ITeam[]>(
+  } = useQuery<ILoadTeamsResponse, Error, ITeam[]>(
     ["teams"],
     () => teamsAPI.loadAll(),
     {
-      select: (data: ITeamsResponse) =>
+      select: (data: ILoadTeamsResponse) =>
         data.teams.sort((a, b) => sortUtils.caseInsensitiveAsc(a.name, b.name)),
       onSuccess: (responseTeams: ITeam[]) => {
         const findTeam = responseTeams.find(
@@ -298,7 +296,7 @@ const TeamDetailsWrapper = ({
   }, [toggleDeleteTeamModal, currentTeam?.id]);
 
   const onEditSubmit = useCallback(
-    async (formData: IEditTeamFormData) => {
+    async (formData: ITeamFormData) => {
       const updatedAttrs =
         currentTeam && generateUpdateData(currentTeam, formData);
 

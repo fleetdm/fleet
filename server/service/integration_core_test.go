@@ -4197,6 +4197,7 @@ func (s *integrationTestSuite) TestChangeUserEmail() {
 	s.DoJSON("GET", "/api/latest/fleet/email/change/validtoken", nil, http.StatusNotFound, &changeResp)
 }
 
+// TODO: Replicate TestSearchTargets for NewSearchTargets
 func (s *integrationTestSuite) TestSearchTargets() {
 	t := s.T()
 
@@ -4235,6 +4236,92 @@ func (s *integrationTestSuite) TestSearchTargets() {
 	require.Len(t, searchResp.Targets.Labels, 1)
 	require.Len(t, searchResp.Targets.Teams, 0)
 	require.Contains(t, searchResp.Targets.Hosts[0].Hostname, "foo.local1")
+}
+
+func (s *integrationTestSuite) TestNewSearchTargets() {
+	t := s.T()
+
+	hosts := s.createHosts(t)
+
+	lblIDs, err := s.ds.LabelIDsByName(context.Background(), []string{"All Hosts"})
+	require.NoError(t, err)
+	require.Len(t, lblIDs, 1)
+
+	// no search criteria
+	var searchResp newSearchTargetsResponse
+	s.DoJSON("POST", "/api/latest/fleet/targets/search", newSearchTargetsRequest{}, http.StatusOK, &searchResp)
+	require.Len(t, searchResp.Targets.Hosts, len(hosts)) // the HostTargets.HostIDs are actually host IDs to *omit* from the search
+
+	searchResp = newSearchTargetsResponse{}
+	s.DoJSON("POST", "/api/latest/fleet/targets/search", newSearchTargetsRequest{SelectedHostIDs: []uint{}}, http.StatusOK, &searchResp)
+	require.Len(t, searchResp.Targets.Hosts, len(hosts)) // no omitted host id
+
+	searchResp = newSearchTargetsResponse{}
+	s.DoJSON("POST", "/api/latest/fleet/targets/search", newSearchTargetsRequest{SelectedHostIDs: []uint{hosts[1].ID}}, http.StatusOK, &searchResp)
+	require.Len(t, searchResp.Targets.Hosts, len(hosts)-1) // one omitted host id
+
+	searchResp = newSearchTargetsResponse{}
+	s.DoJSON("POST", "/api/latest/fleet/targets/search", newSearchTargetsRequest{MatchQuery: "foo.local1"}, http.StatusOK, &searchResp)
+	require.Len(t, searchResp.Targets.Hosts, 1)
+	require.Contains(t, searchResp.Targets.Hosts[0].Hostname, "foo.local1")
+}
+
+func (s *integrationTestSuite) TestCountTargets() {
+	t := s.T()
+
+	team, err := s.ds.NewTeam(context.Background(), &fleet.Team{Name: "TestTeam"})
+	require.NoError(t, err)
+	require.Equal(t, "TestTeam", team.Name)
+
+	hosts := s.createHosts(t)
+
+	lblIDs, err := s.ds.LabelIDsByName(context.Background(), []string{"All Hosts"})
+	require.NoError(t, err)
+	require.Len(t, lblIDs, 1)
+
+	for i := range hosts {
+		err = s.ds.RecordLabelQueryExecutions(context.Background(), hosts[i], map[uint]*bool{lblIDs[0]: ptr.Bool(true)}, time.Now(), false)
+		require.NoError(t, err)
+	}
+
+	var hostIDs []uint
+	for _, h := range hosts {
+		hostIDs = append(hostIDs, h.ID)
+	}
+
+	err = s.ds.AddHostsToTeam(context.Background(), ptr.Uint(team.ID), []uint{hostIDs[0]})
+	require.NoError(t, err)
+
+	var countResp countTargetsResponse
+	// sleep to reduce flake in last seen time so that online/offline counts can be tested
+	time.Sleep(1 * time.Second)
+
+	// none selected
+	s.DoJSON("POST", "/api/latest/fleet/targets/count", countTargetsRequest{}, http.StatusOK, &countResp)
+	require.Equal(t, uint(0), countResp.TargetsCount)
+	require.Equal(t, uint(0), countResp.TargetsOnline)
+	require.Equal(t, uint(0), countResp.TargetsOffline)
+
+	// all hosts label selected
+	countResp = countTargetsResponse{}
+	s.DoJSON("POST", "/api/latest/fleet/targets/count", countTargetsRequest{Selected: fleet.HostTargets{LabelIDs: lblIDs}}, http.StatusOK, &countResp)
+	require.Equal(t, uint(3), countResp.TargetsCount)
+	require.Equal(t, uint(1), countResp.TargetsOnline)
+	require.Equal(t, uint(2), countResp.TargetsOffline)
+
+	// team selected
+	countResp = countTargetsResponse{}
+	s.DoJSON("POST", "/api/latest/fleet/targets/count", countTargetsRequest{Selected: fleet.HostTargets{TeamIDs: []uint{team.ID}}}, http.StatusOK, &countResp)
+	require.Equal(t, uint(1), countResp.TargetsCount)
+	require.Equal(t, uint(1), countResp.TargetsOnline)
+	require.Equal(t, uint(0), countResp.TargetsOffline)
+
+	// host id selected
+	countResp = countTargetsResponse{}
+	s.DoJSON("POST", "/api/latest/fleet/targets/count", countTargetsRequest{Selected: fleet.HostTargets{HostIDs: []uint{hosts[1].ID}}}, http.StatusOK, &countResp)
+	require.Equal(t, uint(1), countResp.TargetsCount)
+	require.Equal(t, uint(0), countResp.TargetsOnline)
+	require.Equal(t, uint(1), countResp.TargetsOffline)
 }
 
 func (s *integrationTestSuite) TestStatus() {

@@ -10,7 +10,7 @@ type IResponses = Record<string, Record<string, Record<string, unknown>>>;
 
 const DELAY = 1000;
 
-const ENDPOINT = "/v1/fleet";
+const ENDPOINT = "/latest/fleet";
 
 const WILDCARDS: string[] = [":", "*", "{", "}"];
 
@@ -18,7 +18,7 @@ const REQUEST_RESPONSE_MAPPINGS: IResponses = {
   GET: {
     // response is list of all labels excluding any expensive data operations (UI only needs label
     // name and id for this page)
-    "labels?count=false": RESPONSES.labels,
+    "labels?summary=true": RESPONSES.labels,
     // request query string is hostname, uuid, or mac address; response is host detail excluding any
     // expensive data operations
     "targets?query={*}": RESPONSES.hosts,

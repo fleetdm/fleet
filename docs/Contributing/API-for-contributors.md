@@ -16,6 +16,8 @@ Unlike the [Fleet REST API documentation](../Using-Fleet/REST-API.md), the API r
 - [Get label spec](#get-label-spec)
 - [Get enroll secrets](#get-enroll-secrets)
 - [Modify enroll secrets](#modify-enroll-secrets)
+- [Search targets for live query](#search-targets)
+- [Count targets for live query](#count-targets)
 - [Check live query status](#check-live-query-status)
 - [Check result store status](#check-result-store-status)
 - [Retrieve live query results (standard WebSocket API)](#retrieve-live-query-results-standard-web-socket-api)
@@ -724,6 +726,128 @@ Replaces the active global enroll secrets with the secrets specified.
 ##### Default response
 
 `Status: 200`
+
+### Search targets
+
+Accepts a search query and a list host IDs to omit and returns a set of up to ten matching hosts. If
+a query ID is provided and the referenced query allows observers to run, targets will include hosts
+for which the user has an observer role.
+
+`POST /api/latest/fleet/targets/search`
+
+#### Parameters
+
+| Name              | Type    | In   | Description                                                                                                                                      |
+|-------------------|---------|------|--------------------------------------------------------------------------------------------------------------------------------------------------|
+| query             | string  | body | The search query. Searchable items include a host's hostname or IPv4 address and labels.                                                         |
+| query_id          | integer | body | The saved query (if any) that will be run. The `observer_can_run` property on the query and the user's roles effect which targets are included.  |
+| selected_host_ids | array   | body | The list of selected host ids to omit from the search results                                                                                    |
+
+#### Example
+
+`POST /api/v1/fleet/targets/search`
+
+##### Request body
+
+```json
+{
+  "query": "foo",
+  "query_id": 42,
+  "selected": {
+    "hosts": [],
+    "labels": [],
+    "teams": [1]
+  }
+}
+```
+
+##### Default response
+
+```json
+{
+  "targets": {
+    "hosts": [
+      {
+        "created_at": "2021-02-03T16:11:43Z",
+        "updated_at": "2021-02-03T21:58:19Z",
+        "id": 1337,
+        "detail_updated_at": "2021-02-03T21:58:10Z",
+        "label_updated_at": "2021-02-03T21:58:10Z",
+        "last_enrolled_at": "2021-02-03T16:11:43Z",
+        "seen_time": "2021-02-03T21:58:20Z",
+        "hostname": "foof41482833",
+        "uuid": "a2064cef-0000-0000-afb9-283e3c1d487e",
+        "platform": "rhel",
+        "osquery_version": "4.5.1",
+        "os_version": "CentOS 6.10.0",
+        "build": "",
+        "platform_like": "rhel",
+        "code_name": "",
+        "uptime": 32688000000000,
+        "memory": 2086899712,
+        "cpu_type": "x86_64",
+        "cpu_subtype": "142",
+        "cpu_brand": "Intel(R) Core(TM) i5-8279U CPU @ 2.40GHz",
+        "cpu_physical_cores": 4,
+        "cpu_logical_cores": 4,
+        "hardware_vendor": "",
+        "hardware_model": "",
+        "hardware_version": "",
+        "hardware_serial": "",
+        "computer_name": "foof41482833",
+        "primary_ip": "172.20.0.3",
+        "primary_mac": "02:42:ac:14:00:03",
+        "distributed_interval": 10,
+        "config_tls_refresh": 10,
+        "logger_tls_period": 10,
+        "additional": {},
+        "status": "offline",
+        "display_text": "foof41482833"
+      }
+    ]
+  }
+}
+```
+
+### Count targets
+
+Counts the number of online and offline hosts included in a given set of selected targets.
+
+`POST /api/latest/fleet/targets/count`
+
+#### Parameters
+
+| Name     | Type    | In   | Description                                                                                                                                         |
+|----------|---------|------|-----------------------------------------------------------------------------------------------------------------------------------------------------|
+| query_id | integer | body | The saved query (if any) that will be run. The `observer_can_run` property on the query and the user's roles determine which targets are included.  |
+| selected | object  | body | The object includes lists of selected host IDs, label IDs, and team IDs.                                                                            |
+
+#### Example
+
+`POST /api/latest/fleet/targets/count`
+
+##### Request body
+
+```json
+{
+  "query_id": 1337,
+  "selected": {
+    "hosts": [],
+    "labels": [42],
+    "teams": []
+  }
+}
+```
+
+##### Default response
+
+```json
+{
+  "targets_count": 813,
+  "targets_offline": 813,
+  "targets_online": 0
+}
+```
 
 ### Check live query status
 

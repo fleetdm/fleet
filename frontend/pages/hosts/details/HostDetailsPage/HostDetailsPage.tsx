@@ -12,7 +12,7 @@ import PATHS from "router/paths";
 import configAPI from "services/entities/config";
 import hostAPI from "services/entities/hosts";
 import queryAPI from "services/entities/queries";
-import teamAPI from "services/entities/teams";
+import teamAPI, { ILoadTeamsResponse } from "services/entities/teams";
 import { AppContext } from "context/app";
 import { PolicyContext } from "context/policy";
 import { NotificationContext } from "context/notification";
@@ -68,10 +68,6 @@ interface IHostDetailsProps {
 
 interface IFleetQueriesResponse {
   queries: IQuery[];
-}
-
-interface ITeamsResponse {
-  teams: ITeam[];
 }
 
 interface IHostResponse {
@@ -163,7 +159,7 @@ const HostDetailsPage = ({
     select: (data: IFleetQueriesResponse) => data.queries,
   });
 
-  const { data: teams } = useQuery<ITeamsResponse, Error, ITeam[]>(
+  const { data: teams } = useQuery<ILoadTeamsResponse, Error, ITeam[]>(
     "teams",
     () => teamAPI.loadAll(),
     {
@@ -172,7 +168,7 @@ const HostDetailsPage = ({
       refetchOnReconnect: false,
       refetchOnWindowFocus: false,
       retry: false,
-      select: (data: ITeamsResponse) => data.teams,
+      select: (data: ILoadTeamsResponse) => data.teams,
     }
   );
 

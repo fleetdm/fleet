@@ -236,6 +236,96 @@ func (svc *Service) SearchTargets(ctx context.Context, matchQuery string, queryI
 	return results, nil
 }
 
+////////////////////////////////////////////////////////////////////////////////
+// NOTE: newSearchTargetsEndpoint will replace legacy searchTargetsEndpoint
+// in Fleet 5.0
+////////////////////////////////////////////////////////////////////////////////
+
+type newTargetsData struct {
+	Hosts []hostSearchResult `json:"hosts"`
+}
+
+type newSearchTargetsRequest struct {
+	// MatchQuery is the query SQL
+	MatchQuery string `json:"query"`
+	// QueryID is the ID of a saved query to run (used to determine if this is a
+	// query that observers can run).
+	QueryID *uint `json:"query_id"`
+	// Selected is the list of IDs that are already selected on the caller side
+	// (e.g. the UI), so those are IDs that will be omitted from the returned
+	// payload.
+	SelectedHostIDs []uint `json:"selected_host_ids"`
+}
+
+type newSearchTargetsResponse struct {
+	Targets *newTargetsData `json:"targets,omitempty"`
+	Err     error           `json:"error,omitempty"`
+}
+
+func (r newSearchTargetsResponse) error() error { return r.Err }
+
+func newSearchTargetsEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
+	req := request.(*newSearchTargetsRequest)
+
+	results, err := svc.NewSearchTargets(ctx, req.MatchQuery, req.QueryID, req.SelectedHostIDs)
+	if err != nil {
+		return newSearchTargetsResponse{Err: err}, nil
+	}
+
+	targets := &newTargetsData{
+		Hosts: []hostSearchResult{},
+	}
+
+	for _, host := range results.Hosts {
+		targets.Hosts = append(targets.Hosts,
+			hostSearchResult{
+				HostResponse{
+					Host:   host,
+					Status: host.Status(time.Now()),
+				},
+				host.Hostname,
+			},
+		)
+	}
+
+	return newSearchTargetsResponse{
+		Targets: targets,
+	}, nil
+}
+
+func (svc *Service) NewSearchTargets(ctx context.Context, matchQuery string, queryID *uint, selectedHostIDs []uint) (*fleet.NewTargetSearchResults, error) {
+	if err := svc.authz.Authorize(ctx, &fleet.Target{}, fleet.ActionRead); err != nil {
+		return nil, err
+	}
+
+	vc, ok := viewer.FromContext(ctx)
+	if !ok {
+		return nil, fleet.ErrNoContext
+	}
+
+	includeObserver := false
+	if queryID != nil {
+		query, err := svc.ds.Query(ctx, *queryID)
+		if err != nil {
+			return nil, err
+		}
+		includeObserver = query.ObserverCanRun
+	}
+
+	filter := fleet.TeamFilter{User: vc.User, IncludeObserver: includeObserver}
+
+	results := &fleet.NewTargetSearchResults{}
+
+	hosts, err := svc.ds.SearchHosts(ctx, filter, matchQuery, selectedHostIDs...)
+	if err != nil {
+		return nil, err
+	}
+
+	results.Hosts = append(results.Hosts, hosts...)
+
+	return results, nil
+}
+
 func (svc *Service) CountHostsInTargets(ctx context.Context, queryID *uint, targets fleet.HostTargets) (*fleet.TargetMetrics, error) {
 	if err := svc.authz.Authorize(ctx, &fleet.Target{}, fleet.ActionRead); err != nil {
 		return nil, err
@@ -263,4 +353,33 @@ func (svc *Service) CountHostsInTargets(ctx context.Context, queryID *uint, targ
 	}
 
 	return &metrics, nil
+}
+
+type countTargetsRequest struct {
+	Selected fleet.HostTargets `json:"selected"`
+	QueryID  *uint             `json:"query_id"`
+}
+
+type countTargetsResponse struct {
+	TargetsCount   uint  `json:"targets_count"`
+	TargetsOnline  uint  `json:"targets_online"`
+	TargetsOffline uint  `json:"targets_offline"`
+	Err            error `json:"error,omitempty"`
+}
+
+func (r countTargetsResponse) error() error { return r.Err }
+
+func countTargetsEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
+	req := request.(*countTargetsRequest)
+
+	counts, err := svc.CountHostsInTargets(ctx, req.QueryID, req.Selected)
+	if err != nil {
+		return searchTargetsResponse{Err: err}, nil
+	}
+
+	return countTargetsResponse{
+		TargetsCount:   counts.TotalHosts,
+		TargetsOnline:  counts.OnlineHosts,
+		TargetsOffline: counts.OfflineHosts,
+	}, nil
 }

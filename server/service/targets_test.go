@@ -50,6 +50,10 @@ func TestSearchTargets(t *testing.T) {
 	assert.Equal(t, hosts[0], results.Hosts[0])
 	assert.Equal(t, labels[0], results.Labels[0])
 	assert.Equal(t, teams[0], results.Teams[0])
+
+	newResults, err := svc.NewSearchTargets(ctx, "foo", nil, []uint{})
+	require.NoError(t, err)
+	assert.Equal(t, hosts[0], newResults.Hosts[0])
 }
 
 func TestSearchWithOmit(t *testing.T) {
@@ -76,5 +80,8 @@ func TestSearchWithOmit(t *testing.T) {
 	}
 
 	_, err := svc.SearchTargets(ctx, "foo", nil, fleet.HostTargets{HostIDs: []uint{1, 2}, LabelIDs: []uint{3, 4}, TeamIDs: []uint{5, 6}})
+	require.Nil(t, err)
+
+	_, err = svc.NewSearchTargets(ctx, "foo", nil, []uint{1, 2})
 	require.Nil(t, err)
 }

@@ -312,6 +312,26 @@ func userListOptionsFromRequest(r *http.Request) (fleet.UserListOptions, error) 
 	return uopt, nil
 }
 
+func labelListOptionsFromRequest(r *http.Request) (fleet.LabelListOptions, error) {
+	opt, err := listOptionsFromRequest(r)
+	if err != nil {
+		return fleet.LabelListOptions{}, err
+	}
+
+	lopt := fleet.LabelListOptions{ListOptions: opt}
+
+	summary := r.URL.Query().Get("summary")
+	if summary != "" {
+		boolVal, err := strconv.ParseBool(summary)
+		if err != nil {
+			return lopt, err
+		}
+		lopt.Summary = boolVal
+	}
+
+	return lopt, nil
+}
+
 type getGenericSpecRequest struct {
 	Name string `url:"name"`
 }
