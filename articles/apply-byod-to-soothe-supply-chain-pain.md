@@ -29,7 +29,7 @@ Limit what can be accessed on the web and locally. For example, allow access to 
 
 
 - [Prevent Google Drive sync](https://support.google.com/a/answer/9299541?product_name=UnuFlow&hl=en&visit_id=637798806258647022-3302602769&rd=1&src=supportwidget0&hl=en)
-[Prevent OneDrive sync](https://docs.microsoft.com/en-us/onedrive/use-group-policy)
+- [Prevent OneDrive sync](https://docs.microsoft.com/en-us/onedrive/use-group-policy)
 
 You can do the same for email data by only allowing access to email via web applications such as Gmail itself from personal devices and allowing the use of IMAP only for specific clients, such as the iOS Mail client.
 
