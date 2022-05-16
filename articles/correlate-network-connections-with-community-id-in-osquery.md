@@ -4,7 +4,6 @@
 
 ![Correlate network connections with community ID in osquery](../website/assets/images/articles/correlate-network-connections-with-community-id-in-osquery-cover-800x502@2x.jpeg)
 
-This article was originally written by [Zach Wasserman](https://medium.com/@zachwass)
 
 Interested in correlating events from network monitoring tools to host activity? Support for [Community ID hashing](https://github.com/corelight/community-id-spec) in osquery allows osquery’s endpoint instrumentation to be easily correlated with that of network monitors such as Zeek. Similar strategies can be used to correlate osquery logs with those from other tools that support Community ID. This includes Arkime (formerly Moloch), Suricata, and more.
 
