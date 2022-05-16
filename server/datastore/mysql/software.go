@@ -967,26 +967,62 @@ func (ds *Datastore) InsertVulnerabilitiesForSoftwareID(
 		return totalCount, ctxerr.Wrap(ctx, err, "InsertVulnerabilitiesForSoftwareID")
 	}
 
-	var cpeId int
-	if err := sqlx.SelectContext(ctx, ds.reader, &cpeId, sql, args...); err != nil {
+	var cpeIds []int
+	if err := sqlx.SelectContext(ctx, ds.reader, &cpeIds, sql, args...); err != nil {
 		return totalCount, ctxerr.Wrap(ctx, err, "InsertVulnerabilitiesForSoftwareID")
 	}
 
-	var vals []interface{}
-	for _, vuln := range vulns {
-		vals = append(vals, goqu.Vals{cpeId, vuln})
+	if len(cpeIds) == 0 {
+		return totalCount, fmt.Errorf("InsertVulnerabilitiesForSoftwareID CPE not found for %d", softwareID)
 	}
 
-	iStmt, args, err := goqu.
-		Insert("software_cve").
-		Cols("cpe_id", "cve").
-		Vals(vals).ToSQL()
+	var records []interface{}
+	for _, vuln := range vulns {
+		records = append(records, goqu.Record{"cpe_id": cpeIds[0], "cve": vuln})
+	}
 
-	res, err := ds.writer.ExecContext(ctx, iStmt, args...)
+	iStmt, _, err := dialect.
+		Insert("software_cve").
+		OnConflict(goqu.DoNothing()).
+		Rows(records...).
+		ToSQL()
+	if err != nil {
+		return 0, ctxerr.Wrap(ctx, err, "InsertVulnerabilitiesForSoftwareID")
+	}
+
+	res, err := ds.writer.ExecContext(ctx, iStmt)
 	if err != nil {
 		return 0, ctxerr.Wrap(ctx, err, "InsertVulnerabilitiesForSoftwareID")
 	}
 
 	count, _ := res.RowsAffected()
 	return count, nil
+}
+
+func (ds *Datastore) ListSoftwareVulnerabilities(
+	ctx context.Context,
+	hostID uint,
+) ([]fleet.SoftwareVulnerability, error) {
+	var result []fleet.SoftwareVulnerability
+
+	stmt := dialect.
+		From("software_cve").As("scve").
+		Join(
+			goqu.T("host_software").As("hs"),
+			goqu.On(goqu.Ex{
+				"scve.software_id": goqu.I("hs.software_id"),
+			}),
+		).
+		Where(goqu.C("hs.host_id").Eq(hostID))
+
+	sql, args, err := stmt.ToSQL()
+	if err != nil {
+		return result, ctxerr.Wrap(ctx, err, "ListSoftwareVulnerabilities")
+	}
+
+	if err := sqlx.SelectContext(ctx, ds.reader, &result, sql, args...); err != nil {
+		return result, ctxerr.Wrap(ctx, err, "ListSoftwareVulnerabilities")
+	}
+
+	return result, nil
 }

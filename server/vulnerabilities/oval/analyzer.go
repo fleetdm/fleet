@@ -25,7 +25,6 @@ func Analyze(
 ) error {
 	for _, v := range versions.OSVersions {
 		platform := NewPlatform(v.Platform, v.Name)
-
 		if !platform.IsSupported() {
 			continue
 		}
@@ -35,18 +34,32 @@ func Analyze(
 			return err
 		}
 
-		ids, err := ds.HostIDsByPlatform(ctx, v.Platform, v.Name)
+		hIds, err := ds.HostIDsByPlatform(ctx, v.Platform, v.Name)
 		if err != nil {
 			return err
 		}
 
-		for _, id := range ids {
-			software, err := ds.ListSoftwareByHostIDShort(ctx, id)
+		for _, hId := range hIds {
+			software, err := ds.ListSoftwareByHostIDShort(ctx, hId)
 			if err != nil {
 				return err
 			}
 
-			for sId, vulns := range defs.Eval(software) {
+			found := defs.Eval(software)
+			existing, err := ds.ListSoftwareVulnerabilities(ctx, hId)
+			if err != nil {
+				return err
+			}
+
+			toDelete := vulnsToDelete(found, existing)
+			if err := ds.DeleteVulnerabilitiesByCPECVE(ctx, toDelete); err != nil {
+				return err
+			}
+
+			for sId, vulns := range found {
+				if len(vulns) == 0 {
+					continue
+				}
 				_, err = ds.InsertVulnerabilitiesForSoftwareID(ctx, sId, vulns)
 				if err != nil {
 					return err
@@ -56,6 +69,25 @@ func Analyze(
 	}
 
 	return nil
+}
+
+func vulnsToDelete(found map[uint][]string, existing []fleet.SoftwareVulnerability) []fleet.SoftwareVulnerability {
+	toDelete := make([]fleet.SoftwareVulnerability, 0)
+
+	foundSet := make(map[string]bool)
+	for _, vulns := range found {
+		for _, v := range vulns {
+			foundSet[v] = true
+		}
+	}
+
+	for _, sv := range existing {
+		if _, ok := foundSet[sv.CVE]; !ok {
+			toDelete = append(toDelete, sv)
+		}
+	}
+
+	return toDelete
 }
 
 // loadDef returns the latest oval Definition for the given platform.

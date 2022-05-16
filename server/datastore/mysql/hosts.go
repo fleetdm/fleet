@@ -1722,7 +1722,7 @@ func (ds *Datastore) HostIDsByPlatform(
 	var ids []uint
 	var filters []goqu.Expression
 
-	stmt := dialect.From(goqu.I("hosts")).Select("id")
+	stmt := dialect.From("hosts").Select("id")
 
 	if platform != "" {
 		filters = append(filters, goqu.C("platform").Eq(platform))

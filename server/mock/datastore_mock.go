@@ -272,6 +272,8 @@ type TeamEnrollSecretsFunc func(ctx context.Context, teamID uint) ([]*fleet.Enro
 
 type ListSoftwareByHostIDShortFunc func(ctx context.Context, hostID uint) ([]fleet.Software, error)
 
+type ListSoftwareVulnerabilitiesFunc func(ctx context.Context, hostID uint) ([]fleet.SoftwareVulnerability, error)
+
 type LoadHostSoftwareFunc func(ctx context.Context, host *fleet.Host) error
 
 type AllSoftwareWithoutCPEIteratorFunc func(ctx context.Context) (fleet.SoftwareIterator, error)
@@ -794,6 +796,9 @@ type DataStore struct {
 
 	ListSoftwareByHostIDShortFunc        ListSoftwareByHostIDShortFunc
 	ListSoftwareByHostIDShortFuncInvoked bool
+
+	ListSoftwareVulnerabilitiesFunc        ListSoftwareVulnerabilitiesFunc
+	ListSoftwareVulnerabilitiesFuncInvoked bool
 
 	LoadHostSoftwareFunc        LoadHostSoftwareFunc
 	LoadHostSoftwareFuncInvoked bool
@@ -1642,6 +1647,11 @@ func (s *DataStore) TeamEnrollSecrets(ctx context.Context, teamID uint) ([]*flee
 func (s *DataStore) ListSoftwareByHostIDShort(ctx context.Context, hostID uint) ([]fleet.Software, error) {
 	s.ListSoftwareByHostIDShortFuncInvoked = true
 	return s.ListSoftwareByHostIDShortFunc(ctx, hostID)
+}
+
+func (s *DataStore) ListSoftwareVulnerabilities(ctx context.Context, hostID uint) ([]fleet.SoftwareVulnerability, error) {
+	s.ListSoftwareVulnerabilitiesFuncInvoked = true
+	return s.ListSoftwareVulnerabilitiesFunc(ctx, hostID)
 }
 
 func (s *DataStore) LoadHostSoftware(ctx context.Context, host *fleet.Host) error {

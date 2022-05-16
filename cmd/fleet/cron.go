@@ -321,7 +321,6 @@ func checkOvalVulnerabilities(
 	if err != nil {
 		level.Error(logger).Log("msg", "updating oval definitions", "err", err)
 		sentry.CaptureException(err)
-		return
 	}
 	for _, d := range downloaded {
 		level.Debug(logger).Log("oval-updating", "Downloaded new definitions", d)
@@ -332,7 +331,6 @@ func checkOvalVulnerabilities(
 	if err != nil {
 		level.Error(logger).Log("msg", "analyzing oval definitions", "err", err)
 		sentry.CaptureException(err)
-		return
 	}
 }
 

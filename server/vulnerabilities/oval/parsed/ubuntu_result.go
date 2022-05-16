@@ -1,6 +1,8 @@
 package oval_parsed
 
-import "github.com/fleetdm/fleet/v4/server/fleet"
+import (
+	"github.com/fleetdm/fleet/v4/server/fleet"
+)
 
 type UbuntuResult struct {
 	Definitions  []Definition
