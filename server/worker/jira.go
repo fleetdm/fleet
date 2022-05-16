@@ -71,19 +71,29 @@ func (j *Jira) Name() string {
 	return jiraName
 }
 
-// JiraArgs are the arguments for the Jira integration job.
-type JiraArgs struct {
+// jiraArgs are the arguments for the Jira integration job.
+type jiraArgs struct {
 	CVE           string             `json:"cve,omitempty"`
 	FailingPolicy *failingPolicyArgs `json:"failing_policy,omitempty"`
 }
 
 // Run executes the jira job.
 func (j *Jira) Run(ctx context.Context, argsJSON json.RawMessage) error {
-	var args JiraArgs
+	var args jiraArgs
 	if err := json.Unmarshal(argsJSON, &args); err != nil {
 		return ctxerr.Wrap(ctx, err, "unmarshal args")
 	}
 
+	switch {
+	case args.CVE != "":
+		return j.runVuln(ctx, args)
+	//case args.FailingPolicy != nil:
+	default:
+		return ctxerr.New(ctx, "empty JiraArgs, nothing to process")
+	}
+}
+
+func (j *Jira) runVuln(ctx context.Context, args jiraArgs) error {
 	hosts, err := j.Datastore.HostsByCVE(ctx, args.CVE)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "find hosts by cve")
@@ -151,7 +161,7 @@ func QueueJiraVulnJobs(ctx context.Context, ds fleet.Datastore, logger kitlog.Lo
 	level.Debug(logger).Log("recent_cves", fmt.Sprintf("%v", cves))
 
 	for cve := range recentVulns {
-		job, err := QueueJob(ctx, ds, jiraName, JiraArgs{CVE: cve})
+		job, err := QueueJob(ctx, ds, jiraName, jiraArgs{CVE: cve})
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "queueing job")
 		}

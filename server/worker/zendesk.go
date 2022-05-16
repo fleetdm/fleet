@@ -70,19 +70,29 @@ func (z *Zendesk) Name() string {
 	return zendeskName
 }
 
-// ZendeskArgs are the arguments for the Zendesk integration job.
-type ZendeskArgs struct {
+// zendeskArgs are the arguments for the Zendesk integration job.
+type zendeskArgs struct {
 	CVE           string             `json:"cve,omitempty"`
 	FailingPolicy *failingPolicyArgs `json:"failing_policy,omitempty"`
 }
 
 // Run executes the zendesk job.
 func (z *Zendesk) Run(ctx context.Context, argsJSON json.RawMessage) error {
-	var args ZendeskArgs
+	var args zendeskArgs
 	if err := json.Unmarshal(argsJSON, &args); err != nil {
 		return ctxerr.Wrap(ctx, err, "unmarshal args")
 	}
 
+	switch {
+	case args.CVE != "":
+		return z.runVuln(ctx, args)
+	//case args.FailingPolicy != nil:
+	default:
+		return ctxerr.New(ctx, "empty ZendeskArgs, nothing to process")
+	}
+}
+
+func (z *Zendesk) runVuln(ctx context.Context, args zendeskArgs) error {
 	hosts, err := z.Datastore.HostsByCVE(ctx, args.CVE)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "find hosts by cve")
@@ -142,7 +152,7 @@ func QueueZendeskVulnJobs(ctx context.Context, ds fleet.Datastore, logger kitlog
 	level.Debug(logger).Log("recent_cves", fmt.Sprintf("%v", cves))
 
 	for cve := range recentVulns {
-		job, err := QueueJob(ctx, ds, zendeskName, ZendeskArgs{CVE: cve})
+		job, err := QueueJob(ctx, ds, zendeskName, zendeskArgs{CVE: cve})
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "queueing job")
 		}
