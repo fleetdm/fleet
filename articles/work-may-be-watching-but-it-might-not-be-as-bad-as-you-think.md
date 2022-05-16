@@ -29,7 +29,7 @@ You’ve got valuable company information on it, so it’s best to keep it safe.
 
 Your company relies on your common sense to help prevent viruses. Always be mindful about what you are downloading and opening on your work computer.
 
-## Check your company’s policy before plugging in USB devices and accessories
+### Check your company’s policy before plugging in USB devices and accessories
 
 Some organizations don’t allow the use of USB devices in the workplace.
 
