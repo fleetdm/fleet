@@ -1,1 +1,1 @@
-* Improve the output of `fleetclt debug errors` and add the ability to print the errors to stdout via the `-stdout` flag.
+* Improved the output of `fleetclt debug errors` and added the ability to print the errors to stdout via the `-stdout` flag.
