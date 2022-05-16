@@ -33,7 +33,7 @@ Limit what can be accessed on the web and locally. For example, allow access to 
 
 You can do the same for email data by only allowing access to email via web applications such as Gmail itself from personal devices and allowing the use of IMAP only for specific clients, such as the iOS Mail client.
 
-[Disabling POP/IMAP and OAuth clients on Google Workspace](https://support.google.com/a/answer/105694?product_name=UnuFlow&hl=en&visit_id=637799276035281159-4129883793&rd=1&src=supportwidget0&hl=en)
+- [Disabling POP/IMAP and OAuth clients on Google Workspace](https://support.google.com/a/answer/105694?product_name=UnuFlow&hl=en&visit_id=637799276035281159-4129883793&rd=1&src=supportwidget0&hl=en)
 [Disabling POP/IMAP on Office365](https://docs.microsoft.com/en-us/exchange/clients/pop3-and-imap4/configure-mailbox-access?view=exchserver-2019)
 
 ## Do not blindly trust endpoints
