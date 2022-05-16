@@ -33,8 +33,9 @@ type failingPolicyArgs struct {
 	PolicyID   uint               `json:"policy_id"`
 	PolicyName string             `json:"policy_name"`
 	Hosts      []*fleet.HostShort `json:"hosts"`
-	TeamID     *uint              `json:"team_id,omitempty"`
-	TeamName   string             `json:"team_name,omitempty"`
+	// TODO(mna): if needed, remove otherwise:
+	//TeamID     *uint              `json:"team_id,omitempty"`
+	//TeamName   string             `json:"team_name,omitempty"`
 }
 
 // Worker runs jobs. NOT SAFE FOR CONCURRENT USE.

@@ -69,11 +69,17 @@ This issue was created automatically by your Fleet Jira integration.
 `)),
 }
 
-type jiraVulnTemplateArgs struct {
+type jiraVulnTplArgs struct {
 	NVDURL   string
 	FleetURL string
 	CVE      string
 	Hosts    []*fleet.HostShort
+}
+
+type jiraFailingPoliciesTplArgs struct {
+	FleetURL   string
+	PolicyName string
+	Hosts      []*fleet.HostShort
 }
 
 // JiraClient defines the method required for the client that makes API calls
@@ -111,7 +117,8 @@ func (j *Jira) Run(ctx context.Context, argsJSON json.RawMessage) error {
 	switch {
 	case args.CVE != "":
 		return j.runVuln(ctx, args)
-	//case args.FailingPolicy != nil:
+	case args.FailingPolicy != nil:
+		return j.runFailingPolicies(ctx, args)
 	default:
 		return ctxerr.New(ctx, "empty JiraArgs, nothing to process")
 	}
@@ -123,26 +130,59 @@ func (j *Jira) runVuln(ctx context.Context, args jiraArgs) error {
 		return ctxerr.Wrap(ctx, err, "find hosts by cve")
 	}
 
-	tmplArgs := jiraVulnTemplateArgs{
+	tplArgs := &jiraVulnTplArgs{
 		NVDURL:   nvdCVEURL,
 		FleetURL: j.FleetURL,
 		CVE:      args.CVE,
 		Hosts:    hosts,
 	}
 
+	createdIssue, err := j.createTemplatedIssue(ctx, jiraTemplates.VulnSummary, jiraTemplates.VulnDescription, tplArgs)
+	if err != nil {
+		return err
+	}
+	level.Debug(j.Log).Log(
+		"msg", "created jira issue for cve",
+		"cve", args.CVE,
+		"issue_id", createdIssue.ID,
+		"issue_key", createdIssue.Key,
+	)
+	return nil
+}
+
+func (j *Jira) runFailingPolicies(ctx context.Context, args jiraArgs) error {
+	tplArgs := &jiraFailingPoliciesTplArgs{
+		FleetURL:   j.FleetURL,
+		PolicyName: args.FailingPolicy.PolicyName,
+		Hosts:      args.FailingPolicy.Hosts,
+	}
+
+	createdIssue, err := j.createTemplatedIssue(ctx, jiraTemplates.FailingPolicySummary, jiraTemplates.FailingPolicyDescription, tplArgs)
+	if err != nil {
+		return err
+	}
+	level.Debug(j.Log).Log(
+		"msg", "created jira issue for failing policy",
+		"policy_id", args.FailingPolicy.PolicyID,
+		"policy_name", args.FailingPolicy.PolicyName,
+		"issue_id", createdIssue.ID,
+		"issue_key", createdIssue.Key,
+	)
+	return nil
+}
+
+func (j *Jira) createTemplatedIssue(ctx context.Context, summaryTpl, descTpl *template.Template, args interface{}) (*jira.Issue, error) {
 	var buf bytes.Buffer
-	if err := jiraTemplates.VulnSummary.Execute(&buf, &tmplArgs); err != nil {
-		return ctxerr.Wrap(ctx, err, "execute summary template")
+	if err := summaryTpl.Execute(&buf, args); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "execute summary template")
 	}
 	summary := buf.String()
 
 	buf.Reset() // reuse buffer
-	if err := jiraTemplates.VulnDescription.Execute(&buf, &tmplArgs); err != nil {
-		return ctxerr.Wrap(ctx, err, "execute description template")
+	if err := descTpl.Execute(&buf, args); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "execute description template")
 	}
 	description := buf.String()
-
-	// Note, newlines get automatically escaped in json.
 
 	issue := &jira.Issue{
 		Fields: &jira.IssueFields{
@@ -156,17 +196,9 @@ func (j *Jira) runVuln(ctx context.Context, args jiraArgs) error {
 
 	createdIssue, err := j.JiraClient.CreateJiraIssue(ctx, issue)
 	if err != nil {
-		return ctxerr.Wrap(ctx, err, "create issue")
+		return nil, ctxerr.Wrap(ctx, err, "create issue")
 	}
-
-	level.Debug(j.Log).Log(
-		"msg", "created jira issue for cve",
-		"cve", args.CVE,
-		"issue_id", createdIssue.ID,
-		"issue_key", createdIssue.Key,
-	)
-
-	return nil
+	return createdIssue, nil
 }
 
 // QueueJiraVulnJobs queues the Jira vulnerability jobs to process asynchronously

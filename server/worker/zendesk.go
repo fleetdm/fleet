@@ -68,11 +68,17 @@ This issue was created automatically by your Fleet Zendesk integration.
 `)),
 }
 
-type zendeskVulnTemplateArgs struct {
+type zendeskVulnTplArgs struct {
 	NVDURL   string
 	FleetURL string
 	CVE      string
 	Hosts    []*fleet.HostShort
+}
+
+type zendeskFailingPoliciesTplArgs struct {
+	FleetURL   string
+	PolicyName string
+	Hosts      []*fleet.HostShort
 }
 
 // ZendeskClient defines the method required for the client that makes API calls
@@ -110,7 +116,8 @@ func (z *Zendesk) Run(ctx context.Context, argsJSON json.RawMessage) error {
 	switch {
 	case args.CVE != "":
 		return z.runVuln(ctx, args)
-	//case args.FailingPolicy != nil:
+	case args.FailingPolicy != nil:
+		return z.runFailingPolicies(ctx, args)
 	default:
 		return ctxerr.New(ctx, "empty ZendeskArgs, nothing to process")
 	}
@@ -122,22 +129,55 @@ func (z *Zendesk) runVuln(ctx context.Context, args zendeskArgs) error {
 		return ctxerr.Wrap(ctx, err, "find hosts by cve")
 	}
 
-	tmplArgs := zendeskVulnTemplateArgs{
+	tplArgs := &zendeskVulnTplArgs{
 		NVDURL:   nvdCVEURL,
 		FleetURL: z.FleetURL,
 		CVE:      args.CVE,
 		Hosts:    hosts,
 	}
 
+	createdTicket, err := z.createTemplatedTicket(ctx, zendeskTemplates.VulnSummary, zendeskTemplates.VulnDescription, tplArgs)
+	if err != nil {
+		return err
+	}
+	level.Debug(z.Log).Log(
+		"msg", "created zendesk ticket for cve",
+		"cve", args.CVE,
+		"ticket_id", createdTicket.ID,
+	)
+	return nil
+}
+
+func (z *Zendesk) runFailingPolicies(ctx context.Context, args zendeskArgs) error {
+	tplArgs := &zendeskFailingPoliciesTplArgs{
+		FleetURL:   z.FleetURL,
+		PolicyName: args.FailingPolicy.PolicyName,
+		Hosts:      args.FailingPolicy.Hosts,
+	}
+
+	createdTicket, err := z.createTemplatedTicket(ctx, zendeskTemplates.FailingPolicySummary, zendeskTemplates.FailingPolicyDescription, tplArgs)
+	if err != nil {
+		return err
+	}
+	level.Debug(z.Log).Log(
+		"msg", "created zendesk ticket for failing policy",
+		"policy_id", args.FailingPolicy.PolicyID,
+		"policy_name", args.FailingPolicy.PolicyName,
+		"ticket_id", createdTicket.ID,
+	)
+	return nil
+}
+
+func (z *Zendesk) createTemplatedTicket(ctx context.Context, summaryTpl, descTpl *template.Template, args interface{}) (*zendesk.Ticket, error) {
 	var buf bytes.Buffer
-	if err := zendeskTemplates.VulnSummary.Execute(&buf, &tmplArgs); err != nil {
-		return ctxerr.Wrap(ctx, err, "execute summary template")
+	if err := summaryTpl.Execute(&buf, args); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "execute summary template")
 	}
 	summary := buf.String()
 
 	buf.Reset() // reuse buffer
-	if err := zendeskTemplates.VulnDescription.Execute(&buf, &tmplArgs); err != nil {
-		return ctxerr.Wrap(ctx, err, "execute description template")
+	if err := descTpl.Execute(&buf, args); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "execute description template")
 	}
 	description := buf.String()
 
@@ -148,16 +188,9 @@ func (z *Zendesk) runVuln(ctx context.Context, args zendeskArgs) error {
 
 	createdTicket, err := z.ZendeskClient.CreateZendeskTicket(ctx, ticket)
 	if err != nil {
-		return ctxerr.Wrap(ctx, err, "create ticket")
+		return nil, ctxerr.Wrap(ctx, err, "create ticket")
 	}
-
-	level.Debug(z.Log).Log(
-		"msg", "created zendesk ticket for cve",
-		"cve", args.CVE,
-		"ticket_id", createdTicket.ID,
-	)
-
-	return nil
+	return createdTicket, nil
 }
 
 // QueueZendeskVulnJobs queues the Zendesk vulnerability jobs to process asynchronously
