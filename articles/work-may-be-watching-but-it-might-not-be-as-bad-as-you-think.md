@@ -33,7 +33,7 @@ Your company relies on your common sense to help prevent viruses. Always be mind
 
 Some organizations don’t allow the use of USB devices in the workplace.
 
-## Only use company approved remote access software
+### Only use company approved remote access software
 
 Using non-approved remote access software could put the security of your company’s data at risk.
 
