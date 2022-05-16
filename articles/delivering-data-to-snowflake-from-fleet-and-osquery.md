@@ -116,7 +116,7 @@ data sample:
 
 Now let's really work with the data now that we know we can use the `name` key in the JSON data to filter out the exact data we want to work with. One could also model the data off this raw data table into other tables and views, but that will be a future blog post on data modeling. It is just a bit worth noting now if you are new to working with data. We will use a feature in Snowflake called [flatten](https://docs.snowflake.com/en/sql-reference/functions/flatten.html) to essentially turn the JSON keys and values into something similar to columns and rows in a relational database.
 
-*SQL*
+###SQL
 
 ```
 1 select 
