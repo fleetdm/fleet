@@ -28,6 +28,8 @@ import (
 	"github.com/urfave/cli/v2"
 )
 
+type dockerComposeVersion int
+
 const (
 	downloadUrl             = "https://github.com/fleetdm/osquery-in-a-box/archive/%s.zip"
 	standardQueryLibraryUrl = "https://raw.githubusercontent.com/fleetdm/fleet/main/docs/01-Using-Fleet/standard-query-library/standard-query-library.yml"
@@ -41,6 +43,8 @@ const (
 	updateRootKeys          = "update-roots"
 	stdQueryLibFilePath     = "std-query-lib-file-path"
 	disableOpenBrowser      = "disable-open-browser"
+	dockerComposeV1         = 1
+	dockerComposeV2         = 2
 )
 
 func previewCommand() *cli.Command {
@@ -113,6 +117,11 @@ Use the stop and reset subcommands to manage the server and dependencies once st
 				return err
 			}
 
+			compose, err := newDockerCompose()
+			if err != nil {
+				return err
+			}
+
 			// Download files every time to ensure the user gets the most up to date versions
 			previewDir := previewDirectory()
 			osqueryBranch := c.String(previewConfigFlagName)
@@ -143,19 +152,19 @@ Use the stop and reset subcommands to manage the server and dependencies once st
 			}
 
 			fmt.Println("Pulling Docker dependencies...")
-			out, err := exec.Command("docker-compose", "pull").CombinedOutput()
+			out, err := compose.Command("pull").CombinedOutput()
 			if err != nil {
 				fmt.Println(string(out))
-				return errors.New("Failed to run docker-compose")
+				return fmt.Errorf("Failed to run %s", compose)
 			}
 
 			fmt.Println("Starting Docker containers...")
-			cmd := exec.Command("docker-compose", "up", "-d", "--remove-orphans", "mysql01", "redis01", "fleet01")
+			cmd := compose.Command("up", "-d", "--remove-orphans", "mysql01", "redis01", "fleet01")
 			cmd.Env = append(os.Environ(), "FLEET_LICENSE_KEY="+c.String(licenseKeyFlagName))
 			out, err = cmd.CombinedOutput()
 			if err != nil {
 				fmt.Println(string(out))
-				return errors.New("Failed to run docker-compose")
+				return fmt.Errorf("Failed to run %s", compose)
 			}
 
 			fmt.Println("Waiting for server to start up...")
@@ -166,12 +175,12 @@ Use the stop and reset subcommands to manage the server and dependencies once st
 			// Start fleet02 (UI server) after fleet01 (agent/fleetctl server)
 			// has finished starting up so that there is no conflict with
 			// running database migrations.
-			cmd = exec.Command("docker-compose", "up", "-d", "--remove-orphans", "fleet02")
+			cmd = compose.Command("up", "-d", "--remove-orphans", "fleet02")
 			cmd.Env = append(os.Environ(), "FLEET_LICENSE_KEY="+c.String(licenseKeyFlagName))
 			out, err = cmd.CombinedOutput()
 			if err != nil {
 				fmt.Println(string(out))
-				return errors.New("Failed to run docker-compose")
+				return fmt.Errorf("Failed to run %s", compose)
 			}
 
 			fmt.Println("Initializing server...")
@@ -309,7 +318,7 @@ Use the stop and reset subcommands to manage the server and dependencies once st
 				}
 
 				fmt.Println("Starting simulated Linux hosts...")
-				cmd = exec.Command("docker-compose", "up", "-d", "--remove-orphans")
+				cmd = compose.Command("up", "-d", "--remove-orphans")
 				cmd.Dir = filepath.Join(previewDir, "osquery")
 				cmd.Env = append(os.Environ(),
 					"ENROLL_SECRET="+secrets.Secrets[0].Secret,
@@ -318,7 +327,7 @@ Use the stop and reset subcommands to manage the server and dependencies once st
 				out, err = cmd.CombinedOutput()
 				if err != nil {
 					fmt.Println(string(out))
-					return errors.New("Failed to run docker-compose")
+					return fmt.Errorf("Failed to run %s", compose)
 				}
 			} else {
 				if !c.Bool(disableOpenBrowser) {
@@ -500,9 +509,6 @@ func checkDocker() error {
 	if _, err := exec.LookPath("docker"); err != nil {
 		return errors.New("Docker is required for the fleetctl preview experience.\n\nPlease install Docker (https://docs.docker.com/get-docker/).")
 	}
-	if _, err := exec.LookPath("docker-compose"); err != nil {
-		return errors.New("Docker Compose is required for the fleetctl preview experience.\n\nPlease install Docker Compose (https://docs.docker.com/compose/install/).")
-	}
 
 	// Check running
 	if err := exec.Command("docker", "info").Run(); err != nil {
@@ -510,6 +516,40 @@ func checkDocker() error {
 	}
 
 	return nil
+}
+
+type dockerCompose struct {
+	version dockerComposeVersion
+}
+
+func (d dockerCompose) String() string {
+	if d.version == dockerComposeV1 {
+		return "`docker-compose`"
+	}
+
+	return "`docker compose`"
+}
+
+func (d dockerCompose) Command(arg ...string) *exec.Cmd {
+	if d.version == dockerComposeV1 {
+		return exec.Command("docker-compose", arg...)
+	}
+
+	return exec.Command("docker", append([]string{"compose"}, arg...)...)
+}
+
+func newDockerCompose() (dockerCompose, error) {
+	// first, check if `docker compose` is available
+	if err := exec.Command("docker compose").Run(); err == nil {
+		return dockerCompose{dockerComposeV2}, nil
+	}
+
+	// if not, try to use `docker-compose`
+	if _, err := exec.LookPath("docker-compose"); err == nil {
+		return dockerCompose{dockerComposeV1}, nil
+	}
+
+	return dockerCompose{}, errors.New("`docker compose` is required for the fleetctl preview experience.\n\nPlease install `docker compose` (https://docs.docker.com/compose/install/).")
 }
 
 func previewStopCommand() *cli.Command {
@@ -526,6 +566,11 @@ func previewStopCommand() *cli.Command {
 				return err
 			}
 
+			compose, err := newDockerCompose()
+			if err != nil {
+				return err
+			}
+
 			previewDir := previewDirectory()
 			if err := os.Chdir(previewDir); err != nil {
 				return err
@@ -534,13 +579,13 @@ func previewStopCommand() *cli.Command {
 				return fmt.Errorf("docker-compose file not found in preview directory: %w", err)
 			}
 
-			out, err := exec.Command("docker-compose", "stop").CombinedOutput()
+			out, err := compose.Command("stop").CombinedOutput()
 			if err != nil {
 				fmt.Println(string(out))
-				return errors.New("Failed to run docker-compose stop for Fleet server and dependencies")
+				return fmt.Errorf("Failed to run %s stop for Fleet server and dependencies", compose)
 			}
 
-			cmd := exec.Command("docker-compose", "stop")
+			cmd := compose.Command("stop")
 			cmd.Dir = filepath.Join(previewDir, "osquery")
 			cmd.Env = append(os.Environ(),
 				// Note that these must be set even though they are unused while
@@ -551,7 +596,7 @@ func previewStopCommand() *cli.Command {
 			out, err = cmd.CombinedOutput()
 			if err != nil {
 				fmt.Println(string(out))
-				return errors.New("Failed to run docker-compose stop for simulated hosts")
+				return fmt.Errorf("Failed to run %d stop for simulated hosts", compose)
 			}
 
 			if err := stopOrbit(previewDir); err != nil {
@@ -579,6 +624,11 @@ func previewResetCommand() *cli.Command {
 				return err
 			}
 
+			compose, err := newDockerCompose()
+			if err != nil {
+				return err
+			}
+
 			previewDir := previewDirectory()
 			if err := os.Chdir(previewDir); err != nil {
 				return err
@@ -587,13 +637,13 @@ func previewResetCommand() *cli.Command {
 				return fmt.Errorf("docker-compose file not found in preview directory: %w", err)
 			}
 
-			out, err := exec.Command("docker-compose", "rm", "-sf").CombinedOutput()
+			out, err := compose.Command("rm", "-sf").CombinedOutput()
 			if err != nil {
 				fmt.Println(string(out))
-				return errors.New("Failed to run docker-compose rm -sf for Fleet server and dependencies.")
+				return fmt.Errorf("Failed to run %s rm -sf for Fleet server and dependencies.", compose)
 			}
 
-			cmd := exec.Command("docker-compose", "rm", "-sf")
+			cmd := compose.Command("rm", "-sf")
 			cmd.Dir = filepath.Join(previewDir, "osquery")
 			cmd.Env = append(os.Environ(),
 				// Note that these must be set even though they are unused while
@@ -604,7 +654,7 @@ func previewResetCommand() *cli.Command {
 			out, err = cmd.CombinedOutput()
 			if err != nil {
 				fmt.Println(string(out))
-				return errors.New("Failed to run docker-compose rm -sf for simulated hosts.")
+				return fmt.Errorf("Failed to run %s rm -sf for simulated hosts.", compose)
 			}
 
 			if err := stopOrbit(previewDir); err != nil {
