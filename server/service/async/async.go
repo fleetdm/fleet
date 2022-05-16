@@ -21,13 +21,13 @@ type Task struct {
 	datastore   fleet.Datastore
 	pool        fleet.RedisPool
 	clock       clock.Clock
-	taskConfigs map[string]config.AsyncProcessingConfig
+	taskConfigs map[config.AsyncTaskName]config.AsyncProcessingConfig
 	seenHostSet seenHostSet
 }
 
 // NewTask configures and returns a Task.
 func NewTask(ds fleet.Datastore, pool fleet.RedisPool, clck clock.Clock, conf config.OsqueryConfig) *Task {
-	taskCfgs := make(map[string]config.AsyncProcessingConfig)
+	taskCfgs := make(map[config.AsyncTaskName]config.AsyncProcessingConfig)
 	taskCfgs[config.AsyncTaskLabelMembership] = conf.AsyncConfigForTask(config.AsyncTaskLabelMembership)
 	taskCfgs[config.AsyncTaskPolicyMembership] = conf.AsyncConfigForTask(config.AsyncTaskPolicyMembership)
 	taskCfgs[config.AsyncTaskHostLastSeen] = conf.AsyncConfigForTask(config.AsyncTaskHostLastSeen)
@@ -48,7 +48,7 @@ func (t *Task) StartCollectors(ctx context.Context, logger kitlog.Logger) {
 		sentry.CaptureException(err)
 	}
 
-	handlers := map[string]collectorHandlerFunc{
+	handlers := map[config.AsyncTaskName]collectorHandlerFunc{
 		config.AsyncTaskLabelMembership:  t.collectLabelQueryExecutions,
 		config.AsyncTaskPolicyMembership: t.collectPolicyQueryExecutions,
 		config.AsyncTaskHostLastSeen:     t.collectHostsLastSeen,
@@ -61,7 +61,7 @@ func (t *Task) StartCollectors(ctx context.Context, logger kitlog.Logger) {
 
 		cfg := cfg // shadow as local var to avoid capturing the iteration var
 		coll := &collector{
-			name:         "collect_" + task,
+			name:         "collect_" + string(task),
 			pool:         t.pool,
 			ds:           t.datastore,
 			execInterval: cfg.CollectInterval,

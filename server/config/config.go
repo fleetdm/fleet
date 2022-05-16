@@ -131,14 +131,18 @@ type OsqueryConfig struct {
 	MinSoftwareLastOpenedAtDiff      time.Duration `yaml:"min_software_last_opened_at_diff"`
 }
 
+// AsyncTaskName is the type of names that identify tasks supporting
+// asynchronous execution.
+type AsyncTaskName string
+
 // List of names for supported async tasks.
 const (
-	AsyncTaskLabelMembership  = "label_membership"
-	AsyncTaskPolicyMembership = "policy_membership"
-	AsyncTaskHostLastSeen     = "host_last_seen"
+	AsyncTaskLabelMembership  AsyncTaskName = "label_membership"
+	AsyncTaskPolicyMembership AsyncTaskName = "policy_membership"
+	AsyncTaskHostLastSeen     AsyncTaskName = "host_last_seen"
 )
 
-var knownAsyncTasks = map[string]struct{}{
+var knownAsyncTasks = map[AsyncTaskName]struct{}{
 	AsyncTaskLabelMembership:  {},
 	AsyncTaskPolicyMembership: {},
 	AsyncTaskHostLastSeen:     {},
@@ -146,12 +150,13 @@ var knownAsyncTasks = map[string]struct{}{
 
 // AsyncConfigForTask returns the applicable configuration for the specified
 // async task.
-func (o OsqueryConfig) AsyncConfigForTask(name string) AsyncProcessingConfig {
+func (o OsqueryConfig) AsyncConfigForTask(name AsyncTaskName) AsyncProcessingConfig {
+	strName := string(name)
 	return AsyncProcessingConfig{
-		Enabled:                 configForKeyOrBool("osquery.enable_async_host_processing", name, o.EnableAsyncHostProcessing, false),
-		CollectInterval:         configForKeyOrDuration("osquery.async_host_collect_interval", name, o.AsyncHostCollectInterval, 30*time.Second),
+		Enabled:                 configForKeyOrBool("osquery.enable_async_host_processing", strName, o.EnableAsyncHostProcessing, false),
+		CollectInterval:         configForKeyOrDuration("osquery.async_host_collect_interval", strName, o.AsyncHostCollectInterval, 30*time.Second),
 		CollectMaxJitterPercent: o.AsyncHostCollectMaxJitterPercent,
-		CollectLockTimeout:      configForKeyOrDuration("osquery.async_host_collect_lock_timeout", name, o.AsyncHostCollectLockTimeout, 1*time.Minute),
+		CollectLockTimeout:      configForKeyOrDuration("osquery.async_host_collect_lock_timeout", strName, o.AsyncHostCollectLockTimeout, 1*time.Minute),
 		CollectLogStatsInterval: o.AsyncHostCollectLogStatsInterval,
 		InsertBatch:             o.AsyncHostInsertBatch,
 		DeleteBatch:             o.AsyncHostDeleteBatch,
