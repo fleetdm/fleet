@@ -250,7 +250,6 @@ parasails.registerPage('basic-documentation', {
     },
 
     scrollSideNavigationWithHeader: function () {
-      console.log('scrolled :)')
       var rightNavBar = document.querySelector('div[purpose="right-sidebar"]');
       var leftNavBar = document.querySelector('div[purpose="left-sidebar"]');
       var scrollTop = window.pageYOffset || document.documentElement.scrollTop;
