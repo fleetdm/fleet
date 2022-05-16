@@ -43,8 +43,9 @@ const (
 	updateRootKeys          = "update-roots"
 	stdQueryLibFilePath     = "std-query-lib-file-path"
 	disableOpenBrowser      = "disable-open-browser"
-	dockerComposeV1         = 1
-	dockerComposeV2         = 2
+
+	dockerComposeV1 dockerComposeVersion = 1
+	dockerComposeV2 dockerComposeVersion = 2
 )
 
 type dockerCompose struct {
