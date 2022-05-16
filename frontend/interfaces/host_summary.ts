@@ -16,7 +16,7 @@ export interface IHostSummaryLabel {
   id: number;
   name: string;
   description: string;
-  label_type: string;
+  label_type: "regular" | "builtin";
 }
 
 export interface IHostSummary {
