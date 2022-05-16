@@ -25,7 +25,7 @@ To do so, we leverage security features in our SaaS providers. At Fleet and many
 
 ## Limit local data
 
-Limit what can be accessed on the web and locally.
+Limit what can be accessed on the web and locally. For example, allow access to files on the web but prevent local synchronization on personal computers.
 
 
 [Prevent Google Drive sync](https://support.google.com/a/answer/9299541?product_name=UnuFlow&hl=en&visit_id=637798806258647022-3302602769&rd=1&src=supportwidget0&hl=en)
