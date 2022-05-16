@@ -126,7 +126,7 @@ The dashboard created in this tutorial serves as a great starting point for moni
 
 <meta name="category" value="product">
 <meta name="authorFullName" value="Zach Wasserman">
-<meta name="authorGitHubUsername" value="mike-j-thomas">
+<meta name="authorGitHubUsername" value="zachwass">
 <meta name="publishedOn" value="2021-05-26">
 <meta name="articleTitle" value="Using Elasticsearch and Kibana to visualize osquery performance">
 <meta name="articleImageUrl" value="../website/assets/images/articles/using-elasticsearch-and-kibana-to-visualize-osquery-performance-cover-700x393@2x.jpeg">
