@@ -37,7 +37,7 @@ Some organizations don’t allow the use of USB devices in the workplace.
 
 Using non-approved remote access software could put the security of your company’s data at risk.
 
-## Use the company VPN, if possible, when working from public wi-fi
+### Use the company VPN, if possible when working from public wi-fi
 
 A VPN (virtual private network) helps to protect your company’s data when accessed from public wi-fi.
 
