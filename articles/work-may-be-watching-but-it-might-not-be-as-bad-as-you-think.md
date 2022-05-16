@@ -17,7 +17,7 @@ Your work device belongs to your company, and you may need to give it back at an
 
 Avoid using these types of services for anything non-work related. If you leave your organization, your company may continue to have access to your personal documents and messages.
 
-## Only visit websites and social media that you would be comfortable looking at in the lunchroom
+### Only visit websites and social media that you would be comfortable looking at in the lunchroom
 
 Companies have automated systems that look out for problematic websites. Always remember SFW (safe for work).
 
