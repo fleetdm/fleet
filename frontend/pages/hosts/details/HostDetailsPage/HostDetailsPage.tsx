@@ -592,6 +592,7 @@ const HostDetailsPage = ({
               isLoading={isLoadingHost}
               software={hostSoftware}
               softwareInventoryEnabled={hostSettings?.enable_software_inventory}
+              deviceType={host?.platform === "darwin" ? "macos" : ""}
             />
           </TabPanel>
           <TabPanel>

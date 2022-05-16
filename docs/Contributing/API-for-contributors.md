@@ -2,7 +2,7 @@
 
 This document includes the Fleet API routes that are helpful when developing or contributing to Fleet.
 
-Unlike the [Fleet REST API documentation](../Using-Fleet/REST-API.md), the API routes in this document are only intended for use by the Fleet UI and fleetctl clients.
+Unlike the [Fleet REST API documentation](../Using-Fleet/REST-API.md), the API routes in this document are only intended for use by the Fleet UI and fleetctl clients:
 
 - [Get queries spec](#get-queries-spec)
 - [Get query spec](#get-query-spec)
@@ -247,7 +247,7 @@ Returns the specs for all packs in the Fleet instance.
 
 ### Apply packs spec
 
-Returns the specs for all packs in the Fleet instance.
+The following returns the specs for all packs in the Fleet instance.
 
 `POST /api/v1/fleet/spec/packs`
 
@@ -537,7 +537,7 @@ If the `label_membership_type` is set to `manual`, the `hosts` property must als
   "specs": [
     {
       "name": "Ubuntu",
-      "description": "Filters ubuntu hosts",
+      "description": "Filters Ubuntu hosts",
       "query": "SELECT 1 FROM os_version WHERE platform = 'ubuntu';",
       "label_membership_type": "dynamic"
     },
@@ -620,7 +620,7 @@ None.
     {
       "id": 11,
       "name": "Ubuntu",
-      "description": "Filters ubuntu hosts",
+      "description": "Filters Ubuntu hosts",
       "query": "SELECT 1 FROM os_version WHERE platform = 'ubuntu';",
       "label_membership_type": "dynamic"
     }
@@ -695,7 +695,7 @@ None.
 
 ### Modify enroll secrets
 
-Replaces the active global enroll secrets with the secrets specified.
+This replaces the active global enroll secrets with the secrets specified.
 
 `POST /api/v1/fleet/spec/enroll_secret`
 
@@ -851,7 +851,7 @@ Counts the number of online and offline hosts included in a given set of selecte
 
 ### Check live query status
 
-Checks the status of the Fleet's ability to run a live query. If an error is present in the response, Fleet won't be able to successfully run a live query. This endpoint is used by the Fleet UI to make sure that the Fleet instance is correctly configured to run live queries.
+This checks the status of the Fleet's ability to run a live query. If an error is present in the response, Fleet won't be able to run a live query successfully. The Fleet UI uses this endpoint to make sure that the Fleet instance is correctly configured to run live queries.
 
 `GET /api/v1/fleet/status/live_query`
 
@@ -869,7 +869,7 @@ None.
 
 ### Check result store status
 
-Checks the status of the Fleet's result store. If an error is present in the response, Fleet won't be able to successfully run a live query. This endpoint is used by the Fleet UI to make sure that the Fleet instance is correctly configured to run live queries.
+This checks Fleet's result store status. If an error is present in the response, Fleet won't be able to run a live query successfully. The Fleet UI uses this endpoint to make sure that the Fleet instance is correctly configured to run live queries.
 
 `GET /api/v1/fleet/status/result_store`
 
@@ -1386,11 +1386,11 @@ NOTE: when updating a policy, team and platform will be ignored.
       "resolution": "some resolution steps here"
     },
     {
-      "name": "Is Filevault enabled on macOS devices?",
+      "name": "Is FileVault enabled on macOS devices?",
       "query": "SELECT 1 FROM disk_encryption WHERE user_uuid IS NOT “” AND filevault_status = ‘on’ LIMIT 1;",
-      "description": "Checks to make sure that the Filevault feature is enabled on macOS devices.",
+      "description": "Checks to make sure that the FileVault feature is enabled on macOS devices.",
       "resolution": "Choose Apple menu > System Preferences, then click Security & Privacy. Click the FileVault tab. Click the Lock icon, then enter an administrator name and password. Click Turn On FileVault.",
-      "platform": "darwin"
+      "platform": "darwin" 
     }
   ]
 }

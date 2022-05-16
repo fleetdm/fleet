@@ -1,0 +1,79 @@
+name: Generate osqueryd targets for Orbit
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      # The workflow can be triggered by modifying OSQUERY_VERSION env.
+      - '.github/workflows/generate-osqueryd-targets.yml'
+  pull_request:
+    paths:
+      # The workflow can be triggered by modifying OSQUERY_VERSION env.
+      - '.github/workflows/generate-osqueryd-targets.yml'
+  workflow_dispatch:
+
+env:
+  OSQUERY_VERSION: 5.2.3
+
+permissions:
+  contents: read
+
+jobs:
+  generate-macos:
+    runs-on: macos-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@629c2de402a417ea7690ca6ce3f33229e27606a5 # v2
+
+      - name: Generate osqueryd.app.tar.gz
+        run: |
+          make osqueryd-app-tar-gz out-path=. version=$OSQUERY_VERSION
+
+      - name: Upload osqueryd.app.tar.gz
+        uses: actions/upload-artifact@6673cd052c4cd6fcf4b4e6e60ea986c889389535 # v2
+        with:
+          name: osqueryd.app.tar.gz
+          path: osqueryd.app.tar.gz
+
+  generate-linux:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@629c2de402a417ea7690ca6ce3f33229e27606a5 # v2
+
+      - name: Download and extract osqueryd for linux
+        run: |
+          curl -L https://pkg.osquery.io/linux/osquery-${{ env.OSQUERY_VERSION }}_1.linux_x86_64.tar.gz --output osquery-${{ env.OSQUERY_VERSION }}_1.linux_x86_64.tar.gz
+          tar xf osquery-${{ env.OSQUERY_VERSION }}_1.linux_x86_64.tar.gz
+          chmod +x ./opt/osquery/bin/osqueryd
+          ./opt/osquery/bin/osqueryd --version
+
+      - name: Upload osqueryd for linux
+        uses: actions/upload-artifact@6673cd052c4cd6fcf4b4e6e60ea986c889389535 # v2
+        with:
+          name: osqueryd
+          path: opt/osquery/bin/osqueryd
+
+  generate-windows:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@629c2de402a417ea7690ca6ce3f33229e27606a5 # v2
+
+      - name: Download osquery msi for Windows
+        shell: bash
+        run: |
+          curl -L https://pkg.osquery.io/windows/osquery-${{ env.OSQUERY_VERSION }}.msi --output osquery-${{ env.OSQUERY_VERSION }}.msi
+
+      - name: Extract osqueryd.exe for Windows
+        shell: cmd
+        run: |
+          msiexec /a osquery-${{ env.OSQUERY_VERSION }}.msi /qb TARGETDIR=C:\temp
+          C:\temp\osquery\osqueryd\osqueryd.exe --version
+
+      - name: Upload osqueryd for Windows
+        uses: actions/upload-artifact@6673cd052c4cd6fcf4b4e6e60ea986c889389535 # v2
+        with:
+          name: osqueryd.exe
+          path: C:\temp\osquery\osqueryd\osqueryd.exe

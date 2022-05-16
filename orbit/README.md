@@ -4,7 +4,12 @@
 
 Orbit is an [osquery](https://github.com/osquery/osquery) runtime and autoupdater. With Orbit, it's easy to deploy osquery, manage configurations, and stay up to date. Orbit eases the deployment of osquery connected with a [Fleet server](https://github.com/fleetdm/fleet), and is a (near) drop-in replacement for osquery in a variety of deployment scenarios.
 
-Orbit is the recommended agent for Fleet. But Orbit can be used with or without Fleet, and Fleet can be used with or without Orbit.
+Orbit is the recommended agent for Fleet. But Orbit can be used with or without Fleet, and Fleet can
+be used with or without Orbit.
+
+# Documentation
+
+- [Releasing Orbit](docs/Releasing-Orbit.md)
 
 ## Try Orbit
 
@@ -232,7 +237,16 @@ Use the "Add or remove programs" dialog to remove Orbit.
 
 #### Linux
 
-Run the [cleanup script](./tools/cleanup/cleanup_linux.sh).
+Uninstall the package with the corresponding package manager:
+
+- Ubuntu
+```sh
+sudo apt remove fleet-osquery -y
+```
+- CentOS
+```sh
+sudo rpm -e fleet-osquery-X.Y.Z.x86_64
+```
 
 #### macOS
 
