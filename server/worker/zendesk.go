@@ -19,12 +19,15 @@ import (
 const zendeskName = "zendesk"
 
 var zendeskTemplates = struct {
-	VulnSummary     *template.Template
-	VulnDescription *template.Template
+	VulnSummary              *template.Template
+	VulnDescription          *template.Template
+	FailingPolicySummary     *template.Template
+	FailingPolicyDescription *template.Template
 }{
 	VulnSummary: template.Must(template.New("").Parse(
 		`Vulnerability {{ .CVE }} detected on {{ len .Hosts }} host(s)`,
 	)),
+
 	VulnDescription: template.Must(template.New("").Parse(
 		`See vulnerability (CVE) details in National Vulnerability Database (NVD) here: [{{ .CVE }}]({{ .NVDURL }}{{ .CVE }}).
 
@@ -44,8 +47,25 @@ View the affected software and more affected hosts:
 ----
 
 This ticket was created automatically by your Fleet Zendesk integration.
-`,
+`)),
+
+	FailingPolicySummary: template.Must(template.New("").Parse(
+		`{{ .PolicyName }} policy failed on {{ len .Hosts }} host(s)`,
 	)),
+
+	FailingPolicyDescription: template.Must(template.New("").Parse(
+		`Hosts:
+{{ $end := len .Hosts }}{{ if gt $end 50 }}{{ $end = 50 }}{{ end }}
+{{ range slice .Hosts 0 $end }}
+* [{{ .Hostname }}]({{ $.FleetURL }}/hosts/{{ .ID }})
+{{ end }}
+
+View hosts that failed {{ .PolicyName }} on the [**Hosts**]({{ .FleetURL }}/hosts/manage) page in Fleet.
+
+----
+
+This issue was created automatically by your Fleet Zendesk integration.
+`)),
 }
 
 type zendeskVulnTemplateArgs struct {

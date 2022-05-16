@@ -19,8 +19,10 @@ import (
 const jiraName = "jira"
 
 var jiraTemplates = struct {
-	VulnSummary     *template.Template
-	VulnDescription *template.Template
+	VulnSummary              *template.Template
+	VulnDescription          *template.Template
+	FailingPolicySummary     *template.Template
+	FailingPolicyDescription *template.Template
 }{
 	VulnSummary: template.Must(template.New("").Parse(
 		`Vulnerability {{ .CVE }} detected on {{ len .Hosts }} host(s)`,
@@ -46,8 +48,25 @@ View the affected software and more affected hosts:
 ----
 
 This issue was created automatically by your Fleet Jira integration.
-`,
+`)),
+
+	FailingPolicySummary: template.Must(template.New("").Parse(
+		`{{ .PolicyName }} policy failed on {{ len .Hosts }} host(s)`,
 	)),
+
+	FailingPolicyDescription: template.Must(template.New("").Parse(
+		`Hosts:
+{{ $end := len .Hosts }}{{ if gt $end 50 }}{{ $end = 50 }}{{ end }}
+{{ range slice .Hosts 0 $end }}
+* [{{ .Hostname }}|{{ $.FleetURL }}/hosts/{{ .ID }}]
+{{ end }}
+
+View hosts that failed {{ .PolicyName }} on the [*Hosts*|{{ .FleetURL }}/hosts/manage] page in Fleet.
+
+----
+
+This issue was created automatically by your Fleet Jira integration.
+`)),
 }
 
 type jiraVulnTemplateArgs struct {
