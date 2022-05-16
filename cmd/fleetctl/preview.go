@@ -47,6 +47,40 @@ const (
 	dockerComposeV2         = 2
 )
 
+type dockerCompose struct {
+	version dockerComposeVersion
+}
+
+func (d dockerCompose) String() string {
+	if d.version == dockerComposeV1 {
+		return "`docker-compose`"
+	}
+
+	return "`docker compose`"
+}
+
+func (d dockerCompose) Command(arg ...string) *exec.Cmd {
+	if d.version == dockerComposeV1 {
+		return exec.Command("docker-compose", arg...)
+	}
+
+	return exec.Command("docker", append([]string{"compose"}, arg...)...)
+}
+
+func newDockerCompose() (dockerCompose, error) {
+	// first, check if `docker compose` is available
+	if err := exec.Command("docker composef").Run(); err == nil {
+		return dockerCompose{dockerComposeV2}, nil
+	}
+
+	// if not, try to use `docker-compose`
+	if _, err := exec.LookPath("docker-compose"); err == nil {
+		return dockerCompose{dockerComposeV1}, nil
+	}
+
+	return dockerCompose{}, errors.New("`docker compose` is required for the fleetctl preview experience.\n\nPlease install `docker compose` (https://docs.docker.com/compose/install/).")
+}
+
 func previewCommand() *cli.Command {
 	return &cli.Command{
 		Name:    "preview",
@@ -516,40 +550,6 @@ func checkDocker() error {
 	}
 
 	return nil
-}
-
-type dockerCompose struct {
-	version dockerComposeVersion
-}
-
-func (d dockerCompose) String() string {
-	if d.version == dockerComposeV1 {
-		return "`docker-compose`"
-	}
-
-	return "`docker compose`"
-}
-
-func (d dockerCompose) Command(arg ...string) *exec.Cmd {
-	if d.version == dockerComposeV1 {
-		return exec.Command("docker-compose", arg...)
-	}
-
-	return exec.Command("docker", append([]string{"compose"}, arg...)...)
-}
-
-func newDockerCompose() (dockerCompose, error) {
-	// first, check if `docker compose` is available
-	if err := exec.Command("docker compose").Run(); err == nil {
-		return dockerCompose{dockerComposeV2}, nil
-	}
-
-	// if not, try to use `docker-compose`
-	if _, err := exec.LookPath("docker-compose"); err == nil {
-		return dockerCompose{dockerComposeV1}, nil
-	}
-
-	return dockerCompose{}, errors.New("`docker compose` is required for the fleetctl preview experience.\n\nPlease install `docker compose` (https://docs.docker.com/compose/install/).")
 }
 
 func previewStopCommand() *cli.Command {
