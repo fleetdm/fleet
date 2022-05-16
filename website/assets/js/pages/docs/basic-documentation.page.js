@@ -16,6 +16,7 @@ parasails.registerPage('basic-documentation', {
     pagesBySectionSlug: {},
     subtopics: [],
     relatedTopics: [],
+    scrollDistance: 0,
 
   },
 
@@ -75,6 +76,8 @@ parasails.registerPage('basic-documentation', {
 
       return pagesBySectionSlug;
     })();
+    // Adding scroll event listener for scrolling sidebars with the header
+    window.addEventListener('scroll', this.scrollSideNavigationWithHeader());
   },
 
   mounted: async function() {
@@ -245,6 +248,36 @@ parasails.registerPage('basic-documentation', {
     setSearchString: function () {
       this.searchString = this.inputTextValue;
     },
+
+    scrollSideNavigationWithHeader: function () {
+      console.log('scrolled :)')
+      var rightNavBar = document.querySelector('div[purpose="right-sidebar"]');
+      var leftNavBar = document.querySelector('div[purpose="left-sidebar"]');
+      var scrollTop = window.pageYOffset || document.documentElement.scrollTop;
+      if(rightNavBar) {
+        if (scrollTop > this.scrollDistance && scrollTop > window.innerHeight * 1.5) {
+          rightNavBar.classList.add('header-hidden', 'scrolled');
+        } else {
+          if(scrollTop === 0) {
+            rightNavBar.classList.remove('header-hidden', 'scrolled');
+          } else {
+            rightNavBar.classList.remove('header-hidden');
+          }
+        }
+      }
+      if(leftNavBar) {
+        if (scrollTop > this.scrollDistance && scrollTop > window.innerHeight * 1.5) {
+          leftNavBar.classList.add('header-hidden', 'scrolled');
+        } else {
+          if(scrollTop === 0) {
+            leftNavBar.classList.remove('header-hidden', 'scrolled');
+          } else {
+            leftNavBar.classList.remove('header-hidden');
+          }
+        }
+      }
+      this.scrollDistance = scrollTop;
+    }
 
   }
 

@@ -295,8 +295,6 @@
         window.addEventListener('scroll', windowScrolled)
 
         function windowScrolled() {
-            var rightNavBar = document.querySelector('div[purpose="right-sidebar"]');
-            var leftNavBar = document.querySelector('div[purpose="left-sidebar"]');
             var scrollTop = window.pageYOffset || document.documentElement.scrollTop
             var fleetLogo = header.querySelector('img')
             var hamburgerMenuIcon = header.querySelector('.btn.btn-link > img')
@@ -311,10 +309,6 @@
             }
             if (scrollTop > lastScrollTop && scrollTop > window.innerHeight * 1.5) {
                 header.classList.add('translate-y-0');
-                if(rightNavBar && leftNavBar) {
-                  rightNavBar.classList.add('translate-y-0');
-                  leftNavBar.classList.add('translate-y-0');
-                }
              } else {
                 if(header.classList.contains('homepage-header') && scrollTop > header.clientHeight) {
                     header.classList.add('sticky')
@@ -323,10 +317,6 @@
                     hamburgerMenuIcon.src="/images/icon-hamburger-blue-16x14@2x.png"
                 }
                 header.classList.remove('translate-y-0');
-                if(rightNavBar && leftNavBar) {
-                  rightNavBar.classList.remove('translate-y-0');
-                  leftNavBar.classList.remove('translate-y-0');
-                }
             }
             lastScrollTop = scrollTop
         }
