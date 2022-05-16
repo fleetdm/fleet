@@ -604,8 +604,8 @@ const (
 // SoftwareVulnerability identifies a vulnerability on a specific software (CPE).
 type SoftwareVulnerability struct {
 	// CPEID is the ID of the software CPE in the system.
-	CPEID uint
-	CVE   string
+	CPEID uint   `db:"cpe_id"`
+	CVE   string `db:"cve"`
 }
 
 // String implements fmt.Stringer.

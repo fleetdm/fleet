@@ -1006,14 +1006,24 @@ func (ds *Datastore) ListSoftwareVulnerabilities(
 	var result []fleet.SoftwareVulnerability
 
 	stmt := dialect.
-		From("software_cve").As("scve").
+		From(goqu.T("software_cve").As("cve")).
+		Select(
+			goqu.C("cpe_id"),
+			goqu.C("cve"),
+		).
+		Join(
+			goqu.T("software_cpe").As("cpe"),
+			goqu.On(goqu.Ex{
+				"cve.cpe_id": goqu.I("cpe.id"),
+			}),
+		).
 		Join(
 			goqu.T("host_software").As("hs"),
 			goqu.On(goqu.Ex{
-				"scve.software_id": goqu.I("hs.software_id"),
+				"cpe.software_id": goqu.I("hs.software_id"),
 			}),
 		).
-		Where(goqu.C("hs.host_id").Eq(hostID))
+		Where(goqu.C("host_id").Eq(hostID))
 
 	sql, args, err := stmt.ToSQL()
 	if err != nil {
