@@ -206,12 +206,12 @@ func sendFailingPoliciesBatchedPOSTs(
 		}
 		batch := hosts[i:end]
 
-		failingHosts := make([]FailingHost, len(batch))
+		failingHosts := make([]failingHost, len(batch))
 		for i, host := range batch {
 			failingHosts[i] = makeFailingHost(host, serverURL)
 		}
 
-		payload := FailingPoliciesPayload{
+		payload := failingPoliciesPayload{
 			Timestamp:    now,
 			Policy:       policy,
 			FailingHosts: failingHosts,
@@ -227,22 +227,22 @@ func sendFailingPoliciesBatchedPOSTs(
 	return nil
 }
 
-type FailingPoliciesPayload struct {
+type failingPoliciesPayload struct {
 	Timestamp    time.Time     `json:"timestamp"`
 	Policy       *fleet.Policy `json:"policy"`
-	FailingHosts []FailingHost `json:"hosts"`
+	FailingHosts []failingHost `json:"hosts"`
 }
 
-type FailingHost struct {
+type failingHost struct {
 	ID       uint   `json:"id"`
 	Hostname string `json:"hostname"`
 	URL      string `json:"url"`
 }
 
-func makeFailingHost(host fleet.PolicySetHost, serverURL *url.URL) FailingHost {
+func makeFailingHost(host fleet.PolicySetHost, serverURL *url.URL) failingHost {
 	u := *serverURL
 	u.Path = path.Join(serverURL.Path, "hosts", strconv.FormatUint(uint64(host.ID), 10))
-	return FailingHost{
+	return failingHost{
 		ID:       host.ID,
 		Hostname: host.Hostname,
 		URL:      u.String(),

@@ -298,7 +298,7 @@ func TestSendBatchedPOSTs(t *testing.T) {
 		if err != nil {
 			w.WriteHeader(http.StatusInternalServerError)
 		}
-		var payload FailingPoliciesPayload
+		var payload failingPoliciesPayload
 		err = json.Unmarshal(b, &payload)
 		if err != nil {
 			w.WriteHeader(http.StatusInternalServerError)
