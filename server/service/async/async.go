@@ -59,7 +59,7 @@ func (t *Task) StartCollectors(ctx context.Context, logger kitlog.Logger) {
 			continue
 		}
 
-		cfg := cfg
+		cfg := cfg // shadow as local var to avoid capturing the iteration var
 		coll := &collector{
 			name:         "collect_" + task,
 			pool:         t.pool,

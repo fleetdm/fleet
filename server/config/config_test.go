@@ -310,7 +310,7 @@ osquery:
 
 			// TODO: tried to test command-line flags too by using cmd.SetArgs to
 			// test-case values, but that didn't seem to work, not sure how it can
-			// be done in our particlar setup.
+			// be done in our particular setup.
 
 			// set the environment variables
 			os.Clearenv()

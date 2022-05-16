@@ -495,11 +495,11 @@ func (man Manager) addConfigs() {
 	man.addConfigString("osquery.enable_async_host_processing", "false",
 		"Enable asynchronous processing of host-reported query results (either 'true'/'false' or set per task, e.g. 'label_membership=true&policy_membership=true')")
 	man.addConfigString("osquery.async_host_collect_interval", (30 * time.Second).String(),
-		"Interval to collect asynchronous host-reported query results (i.e. 30s or set per task, e.g. 'label_membership=10s&policy_membership=1m')")
+		"Interval to collect asynchronous host-reported query results (e.g. '30s' or set per task 'label_membership=10s&policy_membership=1m')")
 	man.addConfigInt("osquery.async_host_collect_max_jitter_percent", 10,
 		"Maximum percentage of the interval to collect asynchronous host results")
 	man.addConfigString("osquery.async_host_collect_lock_timeout", (1 * time.Minute).String(),
-		"Timeout of the exclusive lock held during async host collection (i.e. 30s or set per task, e.g. 'label_membership=10s&policy_membership=1m'")
+		"Timeout of the exclusive lock held during async host collection (e.g. '30s' or set per task 'label_membership=10s&policy_membership=1m'")
 	man.addConfigDuration("osquery.async_host_collect_log_stats_interval", 1*time.Minute,
 		"Interval at which async host collection statistics are logged (0 disables logging of stats)")
 	man.addConfigInt("osquery.async_host_insert_batch", 2000,
