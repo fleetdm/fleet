@@ -52,6 +52,61 @@ All of our writers and editors have access to Grammarly, which comes with a hand
 
 Our favorite Grammarly feature is the tone detector. It's excellent for keeping messaging on-brand and helps alleviate the doubt that often comes along for the ride during a writing assignment. Take a look at [their video](https://youtu.be/3Ct5Tgg9Imc) that sums it up better than this.
 
+## Punctuating and capitalizing bullet points
+
+Bullet point lists are a clean and simple way to present information. But sticking to consistent rules for punctuation and capitalization can be tough. Here we lay out the dos and don’ts for writing consistent bullet points.
+
+### How to introduce a list/when to use a colon?
+
+**Do** use a colon if you introduce a list with a complete sentence.
+
+_We follow the guiding principles below to secure our company-owned devices:_
+- _Our devices should give contributors the freedom to work from anywhere._
+- _To allow maximum freedom in where and how we work, we assume that "Safe" networks do not exist. Contributors should be able to work on a coffee shop's Wi-Fi as if it were their home or work network._
+- _By using techniques such as Two-Factor Authentication (2FA), code reviews, and more, we can further empower contributors to work comfortably from any location - on any network._
+
+**Do not** use a colon when combining the introduction and list items to make a complete sentence. (This is called a “fascination” and is a technique used to create engaging lists.)
+
+_This week at Fleet we_
+- _published new security policies._
+- _launched Jira and Zendesk integrations._
+- _drafted improvements to vulnerable software._
+   
+> Note: You do not need to capitalize bullets when combining the introduction and list items to make a complete sentence.
+
+**Do not** use a colon if you start a list straight after a heading.
+
+_Communicating as Fleet_
+- _Sound positive and assume positive intent. A positive tone helps to empower our users and encourages them to succeed with Fleet._
+- _Be relatable, friendly, and sincere. Being relatable reminds our users that they're talking to another human that cares. Use simple words and sentences, especially in technical conversations._
+
+### Should I use terminal punctuation at the end of each bullet point?
+
+**Do** use terminal punctuation if your bullet points are complete sentences.
+	
+- _Project confidence and be informative. Clearly tell users what they need to know, remembering always to stay positive._
+- _Manage risk, not fear. Educate users about security threats positively. Risk management is wise, but focusing on fear can lead to poor decisions. We never use fear as a communication and marketing tactic._
+
+**Do not** use terminal punctuation if your bullet points are sentence fragments, single words, or short phrases.
+
+- _Multiple teams_
+- _Enterprise support_
+- _Self-hosted agent auto-updates_
+ 
+> Note: Remember to be consistent with your lists. Do not mix complete sentences with sentence fragments, single words, or short phrases.
+ 
+### Does Fleet ever use semicolons or commas to end bullet points?
+
+**No**. For consistency, we choose not to. Although not grammatically incorrect, it’s becoming increasingly uncommon to separate list items with semicolons or commas.
+
+### When to capitalize bullet points?
+
+**Do** use a capital letter when your bullet points are complete sentences.
+
+**Do not** use a capital letter when your bullet points are sentence fragments, single words, or short phrases.
+
+**Do not** use a capital letter when combining the introduction and bullet points to make a complete sentence (AKA a “fascination”). 
+
 ## For editors
 
 While we encourage and equip our writers to succeed by themselves in editing quests, tpyos are inevitable. Here's where the Fleet editor steps in.  
@@ -227,8 +282,8 @@ The following table lists the Brand group's rituals, frequency, and Directly Res
 
 | Ritual                       | Frequency                | Description                                         | DRI               |
 |:-----------------------------|:-----------------------------|:----------------------------------------------------|-------------------|
-| Documentation quality | Daily | Review pull requests to the docs for spelling, punctuation and grammar. | Desmi Dizney |
-| Handbook quality | Daily | Review pull requests to the handbook for spelling, punctuation and grammar. | Desmi Dizney |
+| Documentation quality | Daily | Review pull requests to the docs for spelling, punctuation, and grammar. | Desmi Dizney |
+| Handbook quality | Daily | Review pull requests to the handbook for spelling, punctuation, and grammar. | Desmi Dizney |
 | Tweet review | Daily | Review tweets for tone and brand consistency. | Mike Thomas |
 | Article review | Weekly | Review articles for tone and brand consistency. | Mike Thomas |
 | Article graphic | Weekly | Create a graphic for the weekly article | Mike Thomas |
@@ -245,12 +300,12 @@ These groups maintain the following [Slack channels](https://fleetdm.com/handboo
 
 | Slack channel               | [DRI](https://fleetdm.com/handbook/company#group-slack-channels)    |
 |:----------------------------|:--------------------------------------------------------------------|
-| `#g-digital-experience`     | Mike Thomas
+| `#g-digital-experience`     | Mike Thomas and Eric Shaw _(multiple DRIs, for the sake of timezones)_
 | `#oooh-websites`            | Mike Thomas
 | `#oooh-automation`          | Mike McNeil
-| `#g-people`                 | Eric Shaw
-| `#help-onboarding`          | Eric Shaw
-| `#help-finance`             | Eric Shaw
+| `#g-people`                 | Charlie Chance
+| `#help-onboarding`          | Charlie Chance
+| `#help-finance`             | Nathan Holliday
 | `#help-brex-memos`          | Nathan Holliday
 
 

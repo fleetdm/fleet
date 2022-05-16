@@ -186,7 +186,7 @@ Sends a password reset email to the specified email. Requires that SMTP is confi
   "errors": [
     {
       "name": "base",
-      "reason": "email not configured",
+      "reason": "email not configured"
     }
   ]
 }
@@ -1030,6 +1030,11 @@ Modifies the Fleet's configuration with the supplied information.
 | username              | string | body | _integrations.jira[] settings_. The Jira username to use for this Jira integration. |
 | password              | string | body | _integrations.jira[] settings_. The password of the Jira username to use for this Jira integration. |
 | project_key           | string | body | _integrations.jira[] settings_. The Jira project key to use for this integration. Jira tickets will be created in this project. |
+| enable_software_vulnerabilities | boolean | body | _integrations.zendesk[] settings_. Whether or not that Zendesk integration is enabled. Only one vulnerabilities automation can be enabled at a given time (enable_vulnerabilities_webhook and enable_software_vulnerabilities). |
+| url                   | string | body | _integrations.zendesk[] settings_. The URL of the Zendesk server to integrate with. |
+| email              | string | body | _integrations.zendesk[] settings_. The Zendesk user email to use for this Zendesk integration. |
+| api_token              | string | body | _integrations.zendesk[] settings_. The Zendesk API token to use for this Zendesk integration. |
+| group_id           | string | body | _integrations.zendesk[] settings_. The Zendesk group id to use for this integration. Zendesk tickets will be created in this group. |
 | additional_queries    | boolean | body | Whether or not additional queries are enabled on hosts.                                                                                                                                |
 
 #### Example
@@ -1227,6 +1232,7 @@ Replaces all existing global enroll secrets.
 | Name      | Type    | In   | Description                                                        |
 | --------- | ------- | ---- | ------------------------------------------------------------------ |
 | spec      | object  | body | **Required**. Attribute "secrets" must be a list of enroll secrets |
+
 #### Example
 
 Replace all global enroll secrets with a new enroll secret.
@@ -1240,7 +1246,7 @@ Replace all global enroll secrets with a new enroll secret.
     "spec": {
         "secrets": [
             {
-                "secret": "KuSkYFsHBQVlaFtqOLwoUIWniHhpvEhP",
+                "secret": "KuSkYFsHBQVlaFtqOLwoUIWniHhpvEhP"
             }
         ]
     }
@@ -1335,7 +1341,7 @@ Replace all of a team's existing enroll secrets with a new enroll secret
 {
   "secrets": [
     {
-      "secret": "n07v32y53c237734m3n201153c237",
+      "secret": "n07v32y53c237734m3n201153c237"
     }
   ]
 }
@@ -1350,7 +1356,7 @@ Replace all of a team's existing enroll secrets with a new enroll secret
   "secrets": [
     {
       "secret": "n07v32y53c237734m3n201153c237",
-      "created_at": "0001-01-01T00:00:00Z",
+      "created_at": "0001-01-01T00:00:00Z"
     }
   ]
 }
@@ -1728,7 +1734,11 @@ None.
 | policy_id               | integer | query | The ID of the policy to filter hosts by. `policy_response` must also be specified with `policy_id`.                                                                                                                                                                                                                                         |
 | policy_response         | string  | query | Valid options are `passing` or `failing`.  `policy_id` must also be specified with `policy_response`.                                                                                                                                                                                                                                       |
 | software_id             | integer | query | The ID of the software to filter hosts by.                                                                                                                                                                                                                                         |
-
+           |
+| device_mapping          | boolean | query | Indicates whether `device_mapping` should be included
+for each host. See ["Get host's Google Chrome profiles](#get-host's-google-chrome-profiles) for
+more information about this feature.
+### Get host's Google Chrome profiles
 If `additional_info_filters` is not specified, no `additional` information will be returned.
 
 #### Example
@@ -1741,7 +1751,7 @@ If `additional_info_filters` is not specified, no `additional` information will 
 {
   "page": 0,
   "per_page": 100,
-  "order_key": "hostname",
+  "order_key": "hostname"
 }
 ```
 
@@ -1833,7 +1843,7 @@ If `additional_info_filters` is not specified, no `additional` information will 
 {
   "page": 0,
   "per_page": 100,
-  "order_key": "hostname",
+  "order_key": "hostname"
 }
 ```
 
@@ -1872,6 +1882,55 @@ Returns the count of all hosts organized by status. `online_count` includes all 
 {
   "team_id": 1,
   "totals_hosts_count": 2408,
+  "online_count": 2267,
+  "offline_count": 141,
+  "mia_count": 0,
+  "new_count": 0,
+  "all_linux_count": 1204,
+  "builtin_labels": [
+    {
+      "id": 6,
+      "name": "All Hosts",
+      "description": "All hosts which have enrolled in Fleet",
+      "label_type": "builtin"
+    },
+    {
+      "id": 7,
+      "name": "macOS",
+      "description": "All macOS hosts",
+      "label_type": "builtin"
+    },
+    {
+      "id": 8,
+      "name": "Ubuntu Linux",
+      "description": "All Ubuntu hosts",
+      "label_type": "builtin"
+    },
+    {
+      "id": 9,
+      "name": "CentOS Linux",
+      "description": "All CentOS hosts",
+      "label_type": "builtin"
+    },
+    {
+      "id": 10,
+      "name": "MS Windows",
+      "description": "All Windows hosts",
+      "label_type": "builtin"
+    },
+    {
+      "id": 11,
+      "name": "Red Hat Linux",
+      "description": "All Red Hat Enterprise Linux hosts",
+      "label_type": "builtin"
+    },
+    {
+      "id": 12,
+      "name": "All Linux",
+      "description": "All Linux distributions",
+      "label_type": "builtin"
+    }
+  ], 
   "platforms": [
     {
       "platform": "linux",
@@ -1882,10 +1941,6 @@ Returns the count of all hosts organized by status. `online_count` includes all 
       "hosts_count": 1204
     }
   ],
-  "online_count": 2267,
-  "offline_count": 141,
-  "mia_count": 0,
-  "new_count": 0
 }
 ```
 
@@ -2013,7 +2068,7 @@ If the scheduled queries haven't run on the host yet, the stats have zero values
         "id": 6,
         "name": "All Hosts",
         "description": "All hosts which have enrolled in Fleet",
-        "query": "select 1;",
+        "query": "SELECT 1;",
         "platform": "",
         "label_type": "builtin",
         "label_membership_type": "dynamic"
@@ -2024,7 +2079,7 @@ If the scheduled queries haven't run on the host yet, the stats have zero values
         "id": 9,
         "name": "CentOS Linux",
         "description": "All CentOS hosts",
-        "query": "select 1 from os_version where platform = 'centos' or name like '%centos%'",
+        "query": "SELECT 1 FROM os_version WHERE platform = 'centos' OR name LIKE '%centos%'",
         "platform": "",
         "label_type": "builtin",
         "label_membership_type": "dynamic"
@@ -2048,7 +2103,7 @@ If the scheduled queries haven't run on the host yet, the stats have zero values
       {
         "id": 1,
         "name": "SomeQuery",
-        "query": "select * from foo;",
+        "query": "SELECT * FROM foo;",
         "description": "this is a query",
         "resolution": "fix with these steps...",
         "platform": "windows,linux",
@@ -2057,7 +2112,7 @@ If the scheduled queries haven't run on the host yet, the stats have zero values
       {
         "id": 2,
         "name": "SomeQuery2",
-        "query": "select * from bar;",
+        "query": "SELECT * FROM bar;",
         "description": "this is another query",
         "resolution": "fix with these other steps...",
         "platform": "darwin",
@@ -2066,7 +2121,7 @@ If the scheduled queries haven't run on the host yet, the stats have zero values
       {
         "id": 3,
         "name": "SomeQuery3",
-        "query": "select * from baz;",
+        "query": "SELECT * FROM baz;",
         "description": "",
         "resolution": "",
         "platform": "",
@@ -2143,7 +2198,7 @@ Returns the information of the host specified using the `uuid`, `osquery_host_id
     "team_name": null,
     "gigs_disk_space_available": 45.86,
     "percent_disk_space_available": 73,
-    "pack_stats": null,
+    "pack_stats": null
   }
 }
 ```
@@ -2528,6 +2583,7 @@ requested by a web browser.
 | Name                    | Type    | In    | Description                                                                                                                                                                                                                                                                                                                                 |
 | ----------------------- | ------- | ----- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | format                  | string  | query | **Required**, must be "csv" (only supported format for now).                                                                                                                                                                                                                                                                                |
+| columns                 | string  | query | Comma-delimited list of columns to include in the report (returns all columns if none is specified).                                                                                                                                                                                                                                        |
 | order_key               | string  | query | What to order results by. Can be any column in the hosts table.                                                                                                                                                                                                                                                                             |
 | order_direction         | string  | query | **Requires `order_key`**. The direction of the order given the order key. Options include `asc` and `desc`. Default is `asc`.                                                                                                                                                                                                               |
 | status                  | string  | query | Indicates the status of the hosts to return. Can either be `new`, `online`, `offline`, or `mia`.                                                                                                                                                                                                                                            |
@@ -2540,7 +2596,7 @@ requested by a web browser.
 
 #### Example
 
-`GET /api/v1/fleet/hosts/report?software_id=123&format=csv`
+`GET /api/v1/fleet/hosts/report?software_id=123&format=csv&columns=hostname,primary_ip,platform`
 
 ##### Default response
 
@@ -2591,7 +2647,7 @@ Creates a dynamic label.
 {
   "name": "Ubuntu hosts",
   "description": "Filters ubuntu hosts",
-  "query": "select 1 from os_version where platform = 'ubuntu';",
+  "query": "SELECT 1 FROM os_version WHERE platform = 'ubuntu';",
   "platform": ""
 }
 ```
@@ -2608,7 +2664,7 @@ Creates a dynamic label.
     "id": 1,
     "name": "Ubuntu hosts",
     "description": "Filters ubuntu hosts",
-    "query": "select 1 from os_version where platform = 'ubuntu';",
+    "query": "SELECT 1 FROM os_version WHERE platform = 'ubuntu';",
     "label_type": "regular",
     "label_membership_type": "dynamic",
     "display_text": "Ubuntu hosts",
@@ -2658,7 +2714,7 @@ Modifies the specified label. Note: Label queries and platforms are immutable. T
     "id": 1,
     "name": "Ubuntu hosts",
     "description": "Filters ubuntu hosts",
-    "query": "select 1 from os_version where platform = 'ubuntu';",
+    "query": "SELECT 1 FROM os_version WHERE platform = 'ubuntu';",
     "platform": "darwin",
     "label_type": "regular",
     "label_membership_type": "dynamic",
@@ -2697,7 +2753,7 @@ Returns the specified label.
     "id": 12,
     "name": "Ubuntu",
     "description": "Filters ubuntu hosts",
-    "query": "select 1 from os_version where platform = 'ubuntu';",
+    "query": "SELECT 1 FROM os_version WHERE platform = 'ubuntu';",
     "label_type": "regular",
     "label_membership_type": "dynamic",
     "display_text": "Ubuntu",
@@ -2738,7 +2794,7 @@ Returns a list of all the labels in Fleet.
       "id": 6,
       "name": "All Hosts",
       "description": "All hosts which have enrolled in Fleet",
-      "query": "select 1;",
+      "query": "SELECT 1;",
       "label_type": "builtin",
       "label_membership_type": "dynamic",
       "host_count": 7,
@@ -2752,7 +2808,7 @@ Returns a list of all the labels in Fleet.
       "id": 7,
       "name": "macOS",
       "description": "All macOS hosts",
-      "query": "select 1 from os_version where platform = 'darwin';",
+      "query": "SELECT 1 FROM os_version WHERE platform = 'darwin';",
       "platform": "darwin",
       "label_type": "builtin",
       "label_membership_type": "dynamic",
@@ -2767,7 +2823,7 @@ Returns a list of all the labels in Fleet.
       "id": 8,
       "name": "Ubuntu Linux",
       "description": "All Ubuntu hosts",
-      "query": "select 1 from os_version where platform = 'ubuntu';",
+      "query": "SELECT 1 FROM os_version WHERE platform = 'ubuntu';",
       "platform": "ubuntu",
       "label_type": "builtin",
       "label_membership_type": "dynamic",
@@ -2782,7 +2838,7 @@ Returns a list of all the labels in Fleet.
       "id": 9,
       "name": "CentOS Linux",
       "description": "All CentOS hosts",
-      "query": "select 1 from os_version where platform = 'centos' or name like '%centos%'",
+      "query": "SELECT 1 FROM os_version WHERE platform = 'centos' OR name LIKE '%centos%'",
       "label_type": "builtin",
       "label_membership_type": "dynamic",
       "host_count": 3,
@@ -2796,7 +2852,7 @@ Returns a list of all the labels in Fleet.
       "id": 10,
       "name": "MS Windows",
       "description": "All Windows hosts",
-      "query": "select 1 from os_version where platform = 'windows';",
+      "query": "SELECT 1 FROM os_version WHERE platform = 'windows';",
       "platform": "windows",
       "label_type": "builtin",
       "label_membership_type": "dynamic",
@@ -2984,7 +3040,7 @@ Deletes the label specified by ID.
     "label_ids": [
       6
     ],
-    "team_ids": [],
+    "team_ids": []
   }
 }
 ```
@@ -3128,13 +3184,15 @@ Deletes the label specified by ID.
       "label_ids": [
         6
       ],
-      "team_ids": [],
+      "team_ids": []
     },
   ]
 }
 ```
 
 ### Delete pack
+
+Delete pack by name.
 
 `DELETE /api/v1/fleet/packs/{name}`
 
@@ -3235,7 +3293,7 @@ Deletes the label specified by ID.
       "name": "osquery_info",
       "query_id": 22,
       "query_name": "osquery_info",
-      "query": "select i.*, p.resident_size, p.user_time, p.system_time, time.minutes as counter from osquery_info i, processes p, time where p.pid = i.pid;",
+      "query": "SELECT i.*, p.resident_size, p.user_time, p.system_time, time.minutes AS counter FROM osquery_info i, processes p, time WHERE p.pid = i.pid;",
       "interval": 6667,
       "snapshot": true,
       "removed": false,
@@ -3243,7 +3301,7 @@ Deletes the label specified by ID.
       "version": "4.6.0",
       "shard": null,
       "denylist": null
-    },
+    }
   ]
 }
 ```
@@ -3298,7 +3356,7 @@ Deletes the label specified by ID.
     "name": "osquery_events",
     "query_id": 23,
     "query_name": "osquery_events",
-    "query": "select name, publisher, type, subscriptions, events, active from osquery_events;",
+    "query": "SELECT name, publisher, type, subscriptions, events, active FROM osquery_events;",
     "interval": 120,
     "snapshot": false,
     "removed": true,
@@ -3337,14 +3395,14 @@ Deletes the label specified by ID.
     "name": "osquery_events",
     "query_id": 23,
     "query_name": "osquery_events",
-    "query": "select name, publisher, type, subscriptions, events, active from osquery_events;",
+    "query": "SELECT name, publisher, type, subscriptions, events, active FROM osquery_events;",
     "interval": 120,
     "snapshot": false,
     "removed": true,
     "platform": "windows",
     "version": "4.5.0",
     "shard": 10,
-    "denylist": null,
+    "denylist": null
   }
 }
 ```
@@ -3373,7 +3431,7 @@ Deletes the label specified by ID.
 
 ```json
 {
-  "platform": "",
+  "platform": ""
 }
 ```
 
@@ -3391,7 +3449,7 @@ Deletes the label specified by ID.
     "name": "osquery_events",
     "query_id": 23,
     "query_name": "osquery_events",
-    "query": "select name, publisher, type, subscriptions, events, active from osquery_events;",
+    "query": "SELECT name, publisher, type, subscriptions, events, active FROM osquery_events;",
     "interval": 120,
     "snapshot": false,
     "removed": true,
@@ -4559,7 +4617,7 @@ None.
 
 ```json
 {
-  "interval": 604800,
+  "interval": 604800
 }
 ```
 
@@ -4722,7 +4780,7 @@ This allows you to easily configure scheduled queries that will impact a whole t
 {
   "interval": 86400,
   "query_id": 2,
-  "snapshot": true,
+  "snapshot": true
 }
 ```
 
@@ -4775,7 +4833,7 @@ This allows you to easily configure scheduled queries that will impact a whole t
 
 ```json
 {
-  "interval": 604800,
+  "interval": 604800
 }
 ```
 
@@ -5111,7 +5169,7 @@ The returned lists are filtered based on the hosts the requesting user has acces
         "id": 6,
         "name": "All Hosts",
         "description": "All hosts which have enrolled in Fleet",
-        "query": "select 1;",
+        "query": "SELECT 1;",
         "label_type": "builtin",
         "label_membership_type": "dynamic",
         "host_count": 5,
@@ -5372,8 +5430,8 @@ _Available in Fleet Premium_
             },
             "decorators": {
               "load": [
-                "select uuid as host_uuid from system_info;",
-                "select hostname as hostname from system_info;"
+                "SELECT uuid AS host_uuid FROM system_info;",
+                "SELECT hostname AS hostname FROM system_info;"
               ]
             }
           },
@@ -5422,7 +5480,7 @@ _Available in Fleet Premium_
 
 ```json
 {
-  "user_ids": [1, 17, 22, 32],
+  "user_ids": [1, 17, 22, 32]
 }
 ```
 
@@ -5482,7 +5540,7 @@ _Available in Fleet Premium_
 
 ```json
 {
-  "host_ids": [3, 6, 7, 8, 9, 20, 32, 44],
+  "host_ids": [3, 6, 7, 8, 9, 20, 32, 44]
 }
 ```
 
@@ -5724,7 +5782,7 @@ Transforms a host name into a host id. For example, the Fleet UI use this endpoi
         "identifier": "host-ABC",
         "id": 45
       }
-    },
+    }
   ]
 }
 ```
@@ -6321,6 +6379,53 @@ Deletes the selected user's sessions in Fleet. Also deletes the user's API token
 
 `Status: 200`
 
+## Debug
+
+- [Get a summary of errors](#get-a-summary-of-errors)
+
+The Fleet server exposes a handful of API endpoints to retrieve debug information about the server itself in order to help troubleshooting. All the following endpoints require prior authentication meaning you must first log in successfully before calling any of the endpoints documented below.
+
+### Get a summary of errors
+
+Returns a set of all the errors that happened in the server during the interval of time defined by the [logging_error_retention_period](../Deploying/Configuration.md#logging-error-retention-period) configuration.
+
+The server only stores and returns a single instance of each error.
+
+`GET /debug/errors`
+
+#### Parameters
+
+| Name  | Type    | In    | Description                                                                       |
+| ----- | ------- | ----- | --------------------------------------------------------------------------------- |
+| flush | boolean | query | Whether or not clear the errors from Redis after reading them. Default is `false` |
+
+#### Example
+
+`GET /debug/errors?flush=true`
+
+##### Default response
+
+`Status: 200`
+
+```json
+[
+  {
+    "external": "example error",
+    "root": {
+      "message": "timestamp: 2022-05-06T11:40:32-03:00",
+      "stack": [
+        "http.initALPNRequest.ServeHTTP:/usr/local/Cellar/go/1.17.6/libexec/src/net/http/server.go:3480",
+        "http.serverHandler.ServeHTTP:/usr/local/Cellar/go/1.17.6/libexec/src/net/http/server.go:2879",
+        "service.(*authEndpointer).makeEndpoint.func1:/Users/robertodip/projects/fleet/server/service/endpoint_utils.go:439",
+        "...",
+        "service.listSoftwareEndpoint:/Users/robertodip/projects/fleet/server/service/software.go:30",
+        "ctxerr.New:/Users/robertodip/projects/fleet/server/contexts/ctxerr/ctxerr.go:67",
+        "ctxerr.ensureCommonMetadata:/Users/robertodip/projects/fleet/server/contexts/ctxerr/ctxerr.go:112"
+      ]
+    }
+  }
+]
+```
 
 ---
 <meta name="pageOrderInSection" value="400">

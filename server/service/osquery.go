@@ -69,7 +69,9 @@ func (svc *Service) AuthenticateHost(ctx context.Context, nodeKey string) (*flee
 	// updating the seen time for these hosts. This seems to be an acceptable
 	// tradeoff as an online host will continue to check in and quickly be
 	// marked online again.
-	svc.seenHostSet.addHostID(host.ID)
+	if err := svc.task.RecordHostLastSeen(ctx, host.ID); err != nil {
+		logging.WithErr(ctx, ctxerr.Wrap(ctx, err, "record host last seen"))
+	}
 	host.SeenTime = svc.clock.Now()
 
 	return host, svc.debugEnabledForHost(ctx, host.ID), nil

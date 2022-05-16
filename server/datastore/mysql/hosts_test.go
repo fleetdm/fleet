@@ -105,7 +105,7 @@ func TestHosts(t *testing.T) {
 		{"HostsPackStatsForPlatform", testHostsPackStatsForPlatform},
 		{"HostsReadsLessRows", testHostsReadsLessRows},
 		{"HostsNoSeenTime", testHostsNoSeenTime},
-		{"ListHostDeviceMapping", testHostsListHostDeviceMapping},
+		{"HostDeviceMapping", testHostDeviceMapping},
 		{"ReplaceHostDeviceMapping", testHostsReplaceHostDeviceMapping},
 		{"HostMDMAndMunki", testHostMDMAndMunki},
 		{"AggregatedHostMDMAndMunki", testAggregatedHostMDMAndMunki},
@@ -799,6 +799,31 @@ func testHostsListQuery(t *testing.T, ds *Datastore) {
 	gotIDs := []uint{gotHosts[0].ID, gotHosts[1].ID, gotHosts[2].ID}
 	wantIDs := []uint{hosts[0].ID, hosts[2].ID, hosts[5].ID}
 	require.ElementsMatch(t, wantIDs, gotIDs)
+
+	// device mapping not included because missing optional param
+	require.Nil(t, gotHosts[0].DeviceMapping)
+	require.Nil(t, gotHosts[1].DeviceMapping)
+	require.Nil(t, gotHosts[2].DeviceMapping)
+
+	// add optional param to include host device mapping
+	gotHosts = listHostsCheckCount(t, ds, filter, fleet.HostListOptions{ListOptions: fleet.ListOptions{MatchQuery: "a@b.c"}, DeviceMapping: true}, 3)
+	require.NotNil(t, gotHosts[0].DeviceMapping)
+	require.NotNil(t, gotHosts[1].DeviceMapping)
+	require.NotNil(t, gotHosts[2].DeviceMapping) // json "null" rather than nil
+
+	var dm []*fleet.HostDeviceMapping
+
+	err = json.Unmarshal(*gotHosts[0].DeviceMapping, &dm)
+	require.NoError(t, err)
+	require.Len(t, dm, 2)
+
+	err = json.Unmarshal(*gotHosts[1].DeviceMapping, &dm)
+	require.NoError(t, err)
+	require.Len(t, dm, 1)
+
+	err = json.Unmarshal(*gotHosts[2].DeviceMapping, &dm)
+	require.NoError(t, err)
+	require.Nil(t, dm)
 }
 
 func testHostsEnroll(t *testing.T, ds *Datastore) {
@@ -3251,7 +3276,7 @@ func testHostsNoSeenTime(t *testing.T, ds *Datastore) {
 	assert.Equal(t, uint(0), metrics.MissingInActionHosts)
 }
 
-func testHostsListHostDeviceMapping(t *testing.T, ds *Datastore) {
+func testHostDeviceMapping(t *testing.T, ds *Datastore) {
 	ctx := context.Background()
 	h, err := ds.NewHost(ctx, &fleet.Host{
 		ID:              1,
@@ -3266,6 +3291,7 @@ func testHostsListHostDeviceMapping(t *testing.T, ds *Datastore) {
 	})
 	require.NoError(t, err)
 
+	// add device mapping for host
 	ds.writer.ExecContext(ctx, `INSERT INTO host_emails (host_id, email, source) VALUES (?, ?, ?)`,
 		h.ID, "a@b.c", "src1")
 	ds.writer.ExecContext(ctx, `INSERT INTO host_emails (host_id, email, source) VALUES (?, ?, ?)`,
@@ -3273,6 +3299,7 @@ func testHostsListHostDeviceMapping(t *testing.T, ds *Datastore) {
 	ds.writer.ExecContext(ctx, `INSERT INTO host_emails (host_id, email, source) VALUES (?, ?, ?)`,
 		h.ID, "a@b.c", "src2")
 
+	// non-existent host should have empty device mapping
 	dms, err := ds.ListHostDeviceMapping(ctx, h.ID+1)
 	require.NoError(t, err)
 	require.Len(t, dms, 0)
@@ -3284,6 +3311,85 @@ func testHostsListHostDeviceMapping(t *testing.T, ds *Datastore) {
 		{Email: "a@b.c", Source: "src2"},
 		{Email: "b@b.c", Source: "src1"},
 	})
+
+	// device mapping is not included in basic method for host by id
+	host, err := ds.Host(ctx, h.ID, false)
+	require.NoError(t, err)
+	require.Nil(t, host.DeviceMapping)
+
+	// create additional hosts to test device mapping of multiple hosts in ListHosts results
+	h2, err := ds.NewHost(ctx, &fleet.Host{
+		ID:              2,
+		OsqueryHostID:   "2",
+		NodeKey:         "2",
+		Platform:        "linux",
+		Hostname:        "host2",
+		DetailUpdatedAt: time.Now(),
+		LabelUpdatedAt:  time.Now(),
+		PolicyUpdatedAt: time.Now(),
+		SeenTime:        time.Now(),
+	})
+	require.NoError(t, err)
+
+	// add device mapping for second host
+	ds.writer.ExecContext(ctx, `INSERT INTO host_emails (host_id, email, source) VALUES (?, ?, ?)`,
+		h2.ID, "a@b.c", "src2")
+
+	// create third host with no device mapping
+	_, err = ds.NewHost(ctx, &fleet.Host{
+		ID:              3,
+		OsqueryHostID:   "3",
+		NodeKey:         "3",
+		Platform:        "linux",
+		Hostname:        "host3",
+		DetailUpdatedAt: time.Now(),
+		LabelUpdatedAt:  time.Now(),
+		PolicyUpdatedAt: time.Now(),
+		SeenTime:        time.Now(),
+	})
+	require.NoError(t, err)
+
+	// device mapping not included in list hosts unless optional param is set to true
+	hosts := listHostsCheckCount(t, ds, fleet.TeamFilter{User: test.UserAdmin}, fleet.HostListOptions{}, 3)
+	require.Nil(t, hosts[0].DeviceMapping)
+	require.Nil(t, hosts[1].DeviceMapping)
+	require.Nil(t, hosts[2].DeviceMapping)
+
+	hosts = listHostsCheckCount(t, ds, fleet.TeamFilter{User: test.UserAdmin}, fleet.HostListOptions{DeviceMapping: true}, 3)
+
+	hostsByID := make(map[uint]*fleet.Host)
+	for _, hst := range hosts {
+		hostsByID[hst.ID] = hst
+	}
+
+	var dm []*fleet.HostDeviceMapping
+
+	// device mapping for host 1
+	require.NotNil(t, hostsByID[1].DeviceMapping)
+	err = json.Unmarshal(*hostsByID[1].DeviceMapping, &dm)
+	require.NoError(t, err)
+	var emails []string
+	var sources []string
+	for _, e := range dm {
+		emails = append(emails, e.Email)
+		sources = append(sources, e.Source)
+	}
+	assert.ElementsMatch(t, []string{"a@b.c", "b@b.c", "a@b.c"}, emails)
+	assert.ElementsMatch(t, []string{"src1", "src1", "src2"}, sources)
+
+	// device mapping for host 2
+	require.NotNil(t, *hostsByID[2].DeviceMapping)
+	err = json.Unmarshal(*hostsByID[2].DeviceMapping, &dm)
+	require.NoError(t, err)
+	assert.Len(t, dm, 1)
+	assert.Equal(t, "a@b.c", dm[0].Email)
+	assert.Equal(t, "src2", dm[0].Source)
+
+	// no device mapping for host 3
+	require.NotNil(t, hostsByID[3].DeviceMapping) // json "null" rather than nil
+	err = json.Unmarshal(*hostsByID[3].DeviceMapping, &dm)
+	require.NoError(t, err)
+	assert.Nil(t, dm)
 }
 
 func testHostsReplaceHostDeviceMapping(t *testing.T, ds *Datastore) {

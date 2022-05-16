@@ -14,9 +14,17 @@ The Fleet handbook is the central guide for how we run the company. As part of o
 
 [Why this way?](./company.md#why-this-way)
 
+[Development groups](./company.md#development-groups)
+
 [History](./company.md#history)
 
+[GitHub Labels](./company.md#git-hub-labels)
+
+[Rituals](./company.md#rituals)
+
 [Slack channels](./company.md#slack-channels)
+
+[Email relays](./company.md#email-relays)
 
 
 ### ⛑ Security
@@ -35,9 +43,25 @@ The Fleet handbook is the central guide for how we run the company. As part of o
 
 [Rituals](./security.md#rituals)
 
+[Slack channels](./security.md#slack-channels)
+
 ### 📜 Security policies
 
 [Acceptable use policy](./security-policies.md#acceptable-use-policy)
+
+[Information security policy and acceptable use policy](./security-policies.md#information-security-policy-and-acceptable-use-policy)
+
+[Asset management policy](./security-policies.md#asset-management-policy)
+
+[Business continuity and disaster recovery policy](./security-policies.md#business-continuity-and-disaster-recovery-policy)
+
+[Information security roles and responsibilities](./security-policies.md#information-security-roles-and-responsibilities)
+
+[Operations security and change management policy](./security-policies.md#operations-security-and-change-management-policy)
+
+[Third-party management policy](./security-policies.md#third-party-management-policy)
+
+[Security policy management policy](./security-policies.md#security-policy-management-policy)
 
 ### 💓 Brand
 
@@ -57,6 +81,8 @@ The Fleet handbook is the central guide for how we run the company. As part of o
 
 [Rituals](./brand.md#rituals)
 
+[Slack channels](./brand.md#slack-channels)
+
 ### 🪂 Community
 
 [Communities](./community.md#communities)
@@ -71,19 +97,34 @@ The Fleet handbook is the central guide for how we run the company. As part of o
 
 [Rituals](./community.md#rituals)
 
+[Slack channels](./community.md#slack-channels)
+
 ### 🚀 Engineering
+
+
+[Meetings](./engineering.md#meetings)
 
 [Release process](./engineering.md#release-process)
 
 [On-call rotation](./community.md#On-call-rotation) 
 
+[Project boards](./community.md#project-boards) 
+
 [Rituals](./engineering.md#rituals)
+
+[Slack channels](./engineering.md#slack-channels)
 
 ### ⚗️ Product
 
+[Job to be done](./product.md#job-to-be-done)
+
 [Objectives and key results](./product.md#Objectives-and-key-results)
 
+[Q1 2022 product objectives](./product.md#q-1-2022-product-objectives)
+
 [Product design process](./product.md#product-design-process)
+
+[Planning](./product.md#planning)
 
 [Product quality](./product.md#product-quality)
 
@@ -91,13 +132,25 @@ The Fleet handbook is the central guide for how we run the company. As part of o
 
 [Release](./product.md#release)
 
+[Beta features](./product.md#beta-features)
+
 [Feature flags](./product.md#feature-flags)
 
 [Competition](./product.md#competition)
 
 [Rituals](./product.md#rituals)
 
+[Slack channels](./product.md#slack-channels)
+
 ### 🪴 Growth
+
+[Positioning](./growth.md#positioning)
+
+[Marketing Qualified Opportunities (MQOs)](./growth.md#marketing-qualified-opportunities-mq-os)
+
+[Lead enrichment](./growth.md#lead-enrichment)
+
+[Outreach one-pager](./growth.md#outreach-one-pager)
 
 [Posting on social media as Fleet](./growth.md#posting-on-social-media-as-fleet)
 
@@ -108,6 +161,8 @@ The Fleet handbook is the central guide for how we run the company. As part of o
 [Sponsoring events](./growth.md#sponsoring-events)
 
 [Rituals](./growth.md#rituals)
+
+[Slack channels](./growth.md#slack-channels)
 
 ### 🎈 Customers
 
@@ -123,7 +178,11 @@ The Fleet handbook is the central guide for how we run the company. As part of o
 
 [Generating a trial license key](./customers.md#generating-a-trial-license-key)
 
+[Documentation updates](./customers.md#documentation-updates)
+
 [Rituals](./customers.md#rituals)
+
+[Slack channels](./customers.md#slack-channels)
 
 ### 🧑‍🚀 People
 
@@ -139,23 +198,25 @@ The Fleet handbook is the central guide for how we run the company. As part of o
 
 [Performance feedback](./people.md#performance-feedback)
 
-[Hiring a new team member](./people.md#hiring-a-new-team-member)
-
-[Interviewing at Fleet](./people.md#interviewing-at-Fleet)
+[Growing the team](./people.md#growing-the-team)
 
 [Team member onboarding](./people.md#team-member-onboarding)
 
 [Onboarding a new advisor](./people.md#onboarding-a-new-advisor)
 
+[Onboarding a new consultant](./people.md#onboarding-a-new-consultant)
+
+[Updating a consultant's fee](./people.md#pdating-a-consultant-s-fee)
+
 [Zapier and DocuSign](./people.md#zapier-and-docu-sign)
 
-[Workiversaries](./people.md#workiversaries)
+[PeopleOps](./people.md#people-ops)
 
 [Weekly updates](./people.md#weekly-updates)
 
 [Rituals](./people.md#rituals)
 
-
+[Slack channels](./people.md#slack-channels)
 
 ### Handbook
 

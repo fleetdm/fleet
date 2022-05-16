@@ -145,6 +145,9 @@ jobs:
     runs-on: macos-latest
     needs: [gen, login]
     steps:
+    - name: Checkout Code
+      uses: actions/checkout@629c2de402a417ea7690ca6ce3f33229e27606a5 # v2
+
     - name: Install dependencies
       run: |
         npm install -g fleetctl
@@ -163,8 +166,26 @@ jobs:
         until fleetctl get hosts | grep -iF $(hostname -s);
         do
           echo "Awaiting enrollment..."
-          sleep 1
+          sleep 10
         done
+
+    - name: Collect orbit logs
+      if: always()
+      run: |
+        mkdir orbit-logs
+        sudo cp /var/log/orbit/* orbit-logs/
+
+    - name: Upload Orbit logs
+      if: always()
+      uses: actions/upload-artifact@6673cd052c4cd6fcf4b4e6e60ea986c889389535 # v2
+      with:
+        name: orbit-macos-${{ matrix.orbit-channel }}-${{ matrix.osqueryd-channel }}-logs
+        path: |
+          orbit-logs
+
+    - name: Uninstall Orbit
+      run: |
+        ./orbit/tools/cleanup/cleanup_macos.sh
 
   orbit-ubuntu:
     timeout-minutes: 15
@@ -180,14 +201,16 @@ jobs:
         npm install -g fleetctl
         fleetctl config set --address ${{ needs.gen.outputs.address }} --token ${{ needs.login.outputs.token }}
 
-    - name: Download binaries
-      uses: dawidd6/action-download-artifact@b2abf1705491048a2d7074f7d90513044fd25d39 #v2.16.0
+    - name: Install Go
+      uses: actions/setup-go@f6164bd8c8acb4a71fb2791a8b6c4024ff038dab # v2
       with:
-        workflow: build-binaries.yaml
-        branch: main
-        name: build
-        path: build
-        check_artifacts: true
+        go-version: ${{ matrix.go-version }}
+
+    - name: Checkout Code
+      uses: actions/checkout@629c2de402a417ea7690ca6ce3f33229e27606a5 # v2
+
+    - name: Build Fleetctl
+      run: make fleetctl
 
     - name: Install Orbit
       run: |
@@ -204,8 +227,24 @@ jobs:
         do
           echo "Awaiting enrollment..."
           sudo systemctl status orbit.service || true
-          sleep 1
+          sleep 10
         done
+
+    - name: Collect orbit logs
+      if: always()
+      run: |
+        sudo journalctl -u orbit.service > orbit-logs
+
+    - name: Upload Orbit logs
+      if: always()
+      uses: actions/upload-artifact@6673cd052c4cd6fcf4b4e6e60ea986c889389535 # v2
+      with:
+        name: orbit-ubuntu-${{ matrix.orbit-channel }}-${{ matrix.osqueryd-channel }}-logs
+        path: |
+          orbit-logs
+
+    - name: Uninstall Orbit
+      run: |
         sudo apt remove fleet-osquery -y
 
   orbit-windows-build:
@@ -273,3 +312,11 @@ jobs:
     # We can't very accurately check the install on these Windows hosts since the hostnames tend to
     # overlap and we can't control the hostnames. Instead we just return and have the run-server job
     # wait until the expected number of hosts enroll.
+
+    - name: Upload Orbit logs
+      if: always()
+      uses: actions/upload-artifact@6673cd052c4cd6fcf4b4e6e60ea986c889389535 # v2
+      with:
+        name: orbit-windows-${{ matrix.orbit-channel }}-${{ matrix.osqueryd-channel }}-logs
+        path: |
+          C:\Windows\system32\config\systemprofile\AppData\Local\FleetDM\Orbit\Logs\orbit-osquery.log

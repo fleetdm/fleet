@@ -15,14 +15,13 @@ import { ILabel } from "interfaces/label";
 import { ITeam } from "interfaces/team";
 import { IHost } from "interfaces/host";
 
+import PageError from "components/DataError";
 import TargetsInput from "components/TargetsInput";
 import Button from "components/buttons/Button";
 import Spinner from "components/Spinner";
 import TooltipWrapper from "components/TooltipWrapper";
 import PlusIcon from "../../../../../assets/images/icon-plus-purple-32x32@2x.png";
 import CheckIcon from "../../../../../assets/images/icon-check-purple-32x32@2x.png";
-import ExternalURLIcon from "../../../../../assets/images/icon-external-url-12x12@2x.png";
-import ErrorIcon from "../../../../../assets/images/icon-error-16x16@2x.png";
 
 interface ITargetPillSelectorProps {
   entity: ISelectLabel | ISelectTeam;
@@ -251,24 +250,7 @@ const SelectTargets = ({
     return (
       <div className={`${baseClass}__wrapper body-wrap`}>
         <h1>Select targets</h1>
-        <div className={`${baseClass}__page-error`}>
-          <h4>
-            <img alt="" src={ErrorIcon} />
-            Something&apos;s gone wrong.
-          </h4>
-          <p>Refresh the page or log in again.</p>
-          <p>
-            If this keeps happening please{" "}
-            <a
-              className="file-issue-link"
-              target="_blank"
-              rel="noopener noreferrer"
-              href="https://github.com/fleetdm/fleet/issues/new/choose"
-            >
-              file an issue <img alt="" src={ExternalURLIcon} />
-            </a>
-          </p>
-        </div>
+        <PageError />
       </div>
     );
   }

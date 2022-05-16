@@ -23,6 +23,7 @@ interface ISoftwareTableProps {
   isLoading: boolean;
   software: ISoftware[];
   deviceUser?: boolean;
+  deviceType?: string;
   softwareInventoryEnabled?: boolean;
 }
 
@@ -30,6 +31,7 @@ const SoftwareTable = ({
   isLoading,
   software,
   deviceUser,
+  deviceType,
   softwareInventoryEnabled,
 }: ISoftwareTableProps): JSX.Element => {
   const tableSoftware: ITableSoftware[] = software.map((s) => {
@@ -82,7 +84,7 @@ const SoftwareTable = ({
     <EmptyState title="software" reason="empty-search" />
   );
 
-  if (!softwareInventoryEnabled) {
+  if (softwareInventoryEnabled === false) {
     return (
       <div className="section section--software">
         <p className="section__header">Software</p>
@@ -104,27 +106,29 @@ const SoftwareTable = ({
             />
           )}
           {software && (
-            <TableContainer
-              columns={tableHeaders}
-              data={tableSoftware}
-              filters={filters}
-              isLoading={isLoading}
-              defaultSortHeader={"name"}
-              defaultSortDirection={"asc"}
-              inputPlaceHolder={
-                "Search software by name or vulnerabilities (CVEs)"
-              }
-              onQueryChange={onQueryChange}
-              resultsTitle={"software items"}
-              emptyComponent={EmptySoftwareSearch}
-              showMarkAllPages={false}
-              isAllPagesSelected={false}
-              searchable
-              customControl={renderVulnFilterDropdown}
-              isClientSidePagination
-              isClientSideFilter
-              highlightOnHover
-            />
+            <div className={deviceType || ""}>
+              <TableContainer
+                columns={tableHeaders}
+                data={tableSoftware}
+                filters={filters}
+                isLoading={isLoading}
+                defaultSortHeader={"name"}
+                defaultSortDirection={"asc"}
+                inputPlaceHolder={
+                  "Search software by name or vulnerabilities ( CVEs)"
+                }
+                onQueryChange={onQueryChange}
+                resultsTitle={"software items"}
+                emptyComponent={EmptySoftwareSearch}
+                showMarkAllPages={false}
+                isAllPagesSelected={false}
+                searchable
+                customControl={renderVulnFilterDropdown}
+                isClientSidePagination
+                isClientSideFilter
+                highlightOnHover
+              />
+            </div>
           )}
         </>
       ) : (

@@ -118,6 +118,8 @@ type LabelFunc func(ctx context.Context, lid uint) (*fleet.Label, error)
 
 type ListLabelsFunc func(ctx context.Context, filter fleet.TeamFilter, opt fleet.ListOptions) ([]*fleet.Label, error)
 
+type LabelsSummaryFunc func(ctx context.Context) ([]*fleet.LabelSummary, error)
+
 type LabelQueriesForHostFunc func(ctx context.Context, host *fleet.Host) (map[string]string, error)
 
 type ListLabelsForHostFunc func(ctx context.Context, hid uint) ([]*fleet.Label, error)
@@ -555,6 +557,9 @@ type DataStore struct {
 
 	ListLabelsFunc        ListLabelsFunc
 	ListLabelsFuncInvoked bool
+
+	LabelsSummaryFunc        LabelsSummaryFunc
+	LabelsSummaryFuncInvoked bool
 
 	LabelQueriesForHostFunc        LabelQueriesForHostFunc
 	LabelQueriesForHostFuncInvoked bool
@@ -1237,6 +1242,11 @@ func (s *DataStore) Label(ctx context.Context, lid uint) (*fleet.Label, error) {
 func (s *DataStore) ListLabels(ctx context.Context, filter fleet.TeamFilter, opt fleet.ListOptions) ([]*fleet.Label, error) {
 	s.ListLabelsFuncInvoked = true
 	return s.ListLabelsFunc(ctx, filter, opt)
+}
+
+func (s *DataStore) LabelsSummary(ctx context.Context) ([]*fleet.LabelSummary, error) {
+	s.LabelsSummaryFuncInvoked = true
+	return s.LabelsSummaryFunc(ctx)
 }
 
 func (s *DataStore) LabelQueriesForHost(ctx context.Context, host *fleet.Host) (map[string]string, error) {

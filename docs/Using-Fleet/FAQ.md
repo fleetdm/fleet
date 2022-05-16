@@ -127,7 +127,7 @@ Both queries will run as scheduled on applicable hosts. If there are any hosts t
 
 Live query results are never logged to the filesystem of the Fleet server. See [Where are my query results?](#where-are-my-query-results).
 
-## Why does my query work locally with osquery, but not in Fleet?
+## Why does my query work locally with osquery but not in Fleet?
 
 If you're seeing query results using `osqueryi` but not through Fleet, the most likely culprit is a permissions issue. Check out the [osquery docs](https://osquery.readthedocs.io/en/stable/deployment/process-auditing/#full-disk-access) for more details and instructions for setting up Full Disk Access. 
 
@@ -251,7 +251,7 @@ If you are trying to run `fleetctl preview` and seeing errors about self-signed 
 
 ## Can I audit actions taken in Fleet?
 
-The [REST API `activities` endpoint](./REST-API.md#activities) provides a full breakdown of actions taken on packs, queries, policies and teams (Available in Fleet Premium) through the UI, the REST API or `fleetctl`.  
+The [REST API `activities` endpoint](./REST-API.md#activities) provides a full breakdown of actions taken on packs, queries, policies, and teams (Available in Fleet Premium) through the UI, the REST API, or `fleetctl`.  
 
 ## How often is the software inventory updated?
 
@@ -259,7 +259,7 @@ By default, Fleet will query hosts for software inventory hourly. If you'd like 
 
 ## Can I group results from multiple hosts?
 
-There are a few ways you can go about getting counts of hosts that meet a specific criteria using the REST API. You can use [`GET /api/v1/fleet/hosts`](./REST-API.md#list-hosts) or the [`fleetctl` CLI](./fleetctl-CLI.md#available-commands) to gather a list of all hosts and then work with that data however you'd like. For example, you could retreive all hosts using `fleetctl get hosts` and then use `jq` to pull out the data you need. The following example would give you a count of hosts by their OS version:
+There are a few ways you can go about getting counts of hosts that meet specific criteria using the REST API. You can use [`GET /api/v1/fleet/hosts`](./REST-API.md#list-hosts) or the [`fleetctl` CLI](./fleetctl-CLI.md#available-commands) to gather a list of all hosts and then work with that data however you'd like. For example, you could retrieve all hosts using `fleetctl get hosts` and then use `jq` to pull out the data you need. The following example would give you a count of hosts by their OS version:
 
 ```
 $ fleetctl get hosts --json | jq '.spec .os_version' | sort | uniq -c
@@ -273,4 +273,10 @@ $ fleetctl get hosts --json | jq '.spec .os_version' | sort | uniq -c
    3 "macOS 12.3.0"
    6 "macOS 12.3.1"
 ```
+
+## Will updating fleetctl lead to loss of data in Preview?
+
+No, you won't experience data loss when you update fleetctl. Note that you can run `fleetctl preview --tag v#.#.#` if you want to run Preview on a previous version. Just replace # with the version numbers of interest.
+
+
 
