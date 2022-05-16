@@ -26,7 +26,7 @@ Our problem statement will probably be things many of us in IT and Operations fa
 
 MDM typically collects data every 24 hours in most MDM applications out of the box. It is also either a manual process to add inventory data collection into your workflows when you want to collect data on state change, or requires writing a series of data collection scripts. For example, every time your MDM tools install an application, the MDM tool must send that data back to the MDM servers to store that data. This often results in data drift where the data on the actual system and the data in the server-side application do not match. The data will match the next time that the device submits inventory to the MDM service. IT Engineers can sometimes crank up inventory collection, but it is at risk of hitting rate limits, or even DDoS’ing your own MDM service. MDM also does not collect things like Python Packages, `homebrew` binaries installed, web browser plugins, running process info, and more. Osquery can collect much more data at a much higher frequency. Since osquery is a completely separate toolchain, it also has no dependencies on your MDM or your MDM infrastructure.
 
-*MDM Solutions*
+###MDM Solutions
 
 *I have not personally tested every MDM solution out there, so this is an anecdotal summarization of my experiences and an overall generalization. Some MDM tools may be able to collect data faster than every 24 hours. Some MDM solutions do allow for customized data collection, but that is not without labor to build and maintain.*
 
