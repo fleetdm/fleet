@@ -27,6 +27,7 @@ func TestJiraRun(t *testing.T) {
 		}, nil
 	}
 
+	var expectedSummary string
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != "POST" {
 			w.WriteHeader(501)
@@ -39,7 +40,7 @@ func TestJiraRun(t *testing.T) {
 
 		body, err := ioutil.ReadAll(r.Body)
 		require.NoError(t, err)
-		require.Contains(t, string(body), `"summary":"Vulnerability CVE-1234-5678 detected on 1 host(s)"`)
+		require.Contains(t, string(body), expectedSummary)
 
 		w.WriteHeader(http.StatusCreated)
 		w.Write([]byte(`
@@ -67,11 +68,21 @@ func TestJiraRun(t *testing.T) {
 		Log:        kitlog.NewNopLogger(),
 		JiraClient: client,
 	}
-	err = jira.Run(context.Background(), json.RawMessage(`{"cve":"CVE-1234-5678"}`))
-	require.NoError(t, err)
+
+	t.Run("vuln", func(t *testing.T) {
+		expectedSummary = `"summary":"Vulnerability CVE-1234-5678 detected on 1 host(s)"`
+		err = jira.Run(context.Background(), json.RawMessage(`{"cve":"CVE-1234-5678"}`))
+		require.NoError(t, err)
+	})
+
+	t.Run("failing policy", func(t *testing.T) {
+		expectedSummary = `"summary":"test-policy policy failed on 0 host(s)"`
+		err = jira.Run(context.Background(), json.RawMessage(`{"failing_policy":{"policy_id": 1, "policy_name": "test-policy", "hosts": []}}`))
+		require.NoError(t, err)
+	})
 }
 
-func TestJiraQueueJobs(t *testing.T) {
+func TestJiraQueueVulnJobs(t *testing.T) {
 	ds := new(mock.Store)
 	ctx := context.Background()
 	logger := kitlog.NewNopLogger()

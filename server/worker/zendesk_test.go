@@ -27,6 +27,7 @@ func TestZendeskRun(t *testing.T) {
 		}, nil
 	}
 
+	var expectedSubject string
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != "POST" {
 			w.WriteHeader(501)
@@ -39,7 +40,7 @@ func TestZendeskRun(t *testing.T) {
 
 		body, err := ioutil.ReadAll(r.Body)
 		require.NoError(t, err)
-		require.Contains(t, string(body), `"subject":"Vulnerability CVE-1234-5678 detected on 1 host(s)"`)
+		require.Contains(t, string(body), expectedSubject)
 		require.Contains(t, string(body), `"group_id":123`)
 
 		w.WriteHeader(http.StatusCreated)
@@ -57,11 +58,20 @@ func TestZendeskRun(t *testing.T) {
 		ZendeskClient: client,
 	}
 
-	err = zendesk.Run(context.Background(), json.RawMessage(`{"cve":"CVE-1234-5678"}`))
-	require.NoError(t, err)
+	t.Run("vuln", func(t *testing.T) {
+		expectedSubject = `"subject":"Vulnerability CVE-1234-5678 detected on 1 host(s)"`
+		err = zendesk.Run(context.Background(), json.RawMessage(`{"cve":"CVE-1234-5678"}`))
+		require.NoError(t, err)
+	})
+
+	t.Run("failing policy", func(t *testing.T) {
+		expectedSubject = `"subject":"test-policy policy failed on 1 host(s)"`
+		err = zendesk.Run(context.Background(), json.RawMessage(`{"failing_policy":{"policy_id": 1, "policy_name": "test-policy", "hosts": [{"id": 123, "hostname": "host-123"}]}}`))
+		require.NoError(t, err)
+	})
 }
 
-func TestZendeskQueueJobs(t *testing.T) {
+func TestZendeskQueueVulnJobs(t *testing.T) {
 	ds := new(mock.Store)
 	ctx := context.Background()
 	logger := kitlog.NewNopLogger()
