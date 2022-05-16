@@ -36,7 +36,7 @@ Fleet is a centralized management and orchestration tool for osquery. It allows 
 
 The two features I want to focus on for this blog post are the live queries and the scheduled queries. Live queries are probably what you would assume they are. It is a feature where you can run a query from the Fleet application and get near-real-time results back from an endpoint (or many endpoints) very quickly. Scheduled queries run at a set increment of time and those query results can be streamed from the application to cloud storage.
 
-Live Query Interface:
+###Live Query Interface:
 
 ![The queries page in Fleet](../website/assets/images/articles/delivering-data-to-snowflake-from-fleet-and-osquery-1-415x400@2x.png)
 
