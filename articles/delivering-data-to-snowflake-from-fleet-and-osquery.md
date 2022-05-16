@@ -78,7 +78,7 @@ With Snowflake, I can simply run this query to grab the data I need. Remember, w
 
 data sample:
 
-*JSON*
+###JSON
 
 ```
 1 {
