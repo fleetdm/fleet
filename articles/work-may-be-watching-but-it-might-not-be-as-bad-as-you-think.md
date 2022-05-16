@@ -21,7 +21,7 @@ Avoid using these types of services for anything non-work related. If you leave 
 
 Companies have automated systems that look out for problematic websites. Always remember SFW (safe for work).
 
-## Be more careful with your work computer when you’re in public
+### Be more careful with your work computer when you’re in public
 
 You’ve got valuable company information on it, so it’s best to keep it safe.
 
