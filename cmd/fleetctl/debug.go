@@ -354,18 +354,19 @@ func debugArchiveCommand() *cli.Command {
 					outname = profile + "." + ext
 				}
 
+				tarName := outfile + "/" + outname
 				if err := tarwriter.WriteHeader(
 					&tar.Header{
-						Name: outfile + "/" + outname,
+						Name: tarName,
 						Size: int64(len(res)),
 						Mode: defaultFileMode,
 					},
 				); err != nil {
-					return fmt.Errorf("write %s header: %w", outname, err)
+					return fmt.Errorf("write %s header: %w", tarName, err)
 				}
 
 				if _, err := tarwriter.Write(res); err != nil {
-					return fmt.Errorf("write %s contents: %w", outname, err)
+					return fmt.Errorf("write %s contents: %w", tarName, err)
 				}
 			}
 
