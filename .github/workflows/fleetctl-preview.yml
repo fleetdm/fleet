@@ -66,3 +66,32 @@ jobs:
       env:
         SLACK_WEBHOOK_URL: ${{ secrets.SLACK_G_PLATFORM_WEBHOOK_URL }}
         SLACK_WEBHOOK_TYPE: INCOMING_WEBHOOK
+
+    - name: Get fleet logs
+      run: |
+        FLEET_LICENSE_KEY=foo docker compose -f ~/.fleet/preview/docker-compose.yml logs fleet01 fleet02 > fleet-logs.txt
+      shell: bash
+
+    - name: Upload fleet logs
+      if: always()
+      uses: actions/upload-artifact@6673cd052c4cd6fcf4b4e6e60ea986c889389535 # v2
+      with:
+        name: fleet-${{ matrix.os }}-log
+        path: |
+          fleet-logs.txt
+
+    - name: Upload orbit logs
+      if: always()
+      uses: actions/upload-artifact@6673cd052c4cd6fcf4b4e6e60ea986c889389535 # v2
+      with:
+        name: orbit-${{ matrix.os }}-log
+        path: |
+          ~/.fleet/preview/orbit.log
+
+    - name: Upload osquery status and result logs
+      if: always()
+      uses: actions/upload-artifact@6673cd052c4cd6fcf4b4e6e60ea986c889389535 # v2
+      with:
+        name: osquery-status-result-${{ matrix.os }}-log
+        path: |
+          ~/.fleet/preview/logs
