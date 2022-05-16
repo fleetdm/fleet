@@ -54,7 +54,7 @@ Running Fleet in AWS means you can leverage all the great cloud tech that exists
 - Configured Snowpipe to consume data on the event of data being written to S3
 - Exposed a load balance appliance on the edge so clients could communicate to the service securely over the internet
 
-Quick diagram:
+###Quick diagram:
 
 ![A diagram of the tools listed above](../website/assets/images/articles/delivering-data-to-snowflake-from-fleet-and-osquery-3-700x266@2x.png)
 
