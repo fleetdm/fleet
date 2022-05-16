@@ -52,7 +52,7 @@ func previewCommand() *cli.Command {
 		Name:    "preview",
 		Aliases: []string{"sandbox"},
 		Usage:   "Start a sandbox deployment of the Fleet server",
-		Description: `Start a sandbox deployment of the Fleet server using Docker and docker-compose. Docker tools must be available in the environment.
+		Description: `Start a sandbox deployment of the Fleet server using Docker and docker compose. Docker tools must be available in the environment.
 
 Use the stop and reset subcommands to manage the server and dependencies once started.`,
 		Subcommands: []*cli.Command{
