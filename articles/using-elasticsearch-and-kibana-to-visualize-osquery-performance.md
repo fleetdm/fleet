@@ -125,7 +125,7 @@ This will import the Index Pattern that allows Kibana to read the osquery data, 
 The dashboard created in this tutorial serves as a great starting point for monitoring the performance of osquery in your organization. Take the time to determine what your priorities are, and modify the dashboard to suit your needs.
 
 <meta name="category" value="product">
-<meta name="authorFullName" value="Mike Thomas">
+<meta name="authorFullName" value="Zach Wasserman">
 <meta name="authorGitHubUsername" value="mike-j-thomas">
 <meta name="publishedOn" value="2021-05-26">
 <meta name="articleTitle" value="Using Elasticsearch and Kibana to visualize osquery performance">
