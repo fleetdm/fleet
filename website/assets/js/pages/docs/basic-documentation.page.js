@@ -76,8 +76,8 @@ parasails.registerPage('basic-documentation', {
 
       return pagesBySectionSlug;
     })();
-    // Adding scroll event listener for scrolling sidebars with the header
-    window.addEventListener('scroll', this.scrollSideNavigationWithHeader());
+    // Adding scroll event listener for scrolling sidebars with the header.
+    window.addEventListener('scroll', this.scrollSideNavigationWithHeader);
   },
 
   mounted: async function() {
