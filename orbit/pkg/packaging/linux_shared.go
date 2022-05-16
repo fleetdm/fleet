@@ -275,8 +275,7 @@ func writeEnvFile(opt Options, rootPath string) error {
 	return nil
 }
 
-var postInstallTemplate = template.Must(template.New("postinstall").Parse(`
-#!/bin/sh
+var postInstallTemplate = template.Must(template.New("postinstall").Parse(`#!/bin/sh
 
 # Exit on error
 set -e
