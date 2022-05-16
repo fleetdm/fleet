@@ -304,7 +304,6 @@ const UserManagementPage = ({ router }: IUserManagementProps): JSX.Element => {
             refetchInvites();
           })
           .catch((userErrors: { data: IApiError }) => {
-            console.log("userErrors: ", userErrors);
             if (userErrors.data.errors[0].reason.includes("already exists")) {
               setEditUserErrors({
                 email: "A user with this email address already exists",
