@@ -4,7 +4,6 @@
 
 ![Build and osquery performance dashboard](../website/assets/images/articles/using-elasticsearch-and-kibana-to-visualize-osquery-performance-cover-700x393@2x.jpeg)
 
-This article was originally written by [Zach Wasserman]()
 
 This article serves as a guide to building an osquery performance dashboard with Elasticsearch and Kibana.
 
