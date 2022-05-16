@@ -42,7 +42,7 @@ Reducing trust in networks and endpoints has security benefits beyond BYOD, but 
 
 First, authentication must be secured. By ensuring sessions are short, that Multi-Factor Authentication (MFA) is in use, and that the device cannot be trusted permanently, you can mitigate the risk of using SaaS accounts on personal devices.
 
-Google Workspace:
+**Google Workspace:**
 
 - [Deploy 2-Step Verification](https://support.google.com/a/answer/9176657?product_name=UnuFlow&hl=en&visit_id=637798806258647022-3302602769&rd=1&src=supportwidget0&hl=en#zippy=%2Callow-users-to-turn-on--step-verification%2Censure-a-smooth-transition-to-an-enforcement-policy%2Cturn-on-enforcement%2Cchoose-a--step-verification-method-to-enforce)
 - [Set session length for Google services](https://support.google.com/a/answer/7576830?hl=en)
