@@ -49,10 +49,19 @@ func newTestServiceWithConfig(t *testing.T, ds fleet.Datastore, fleetConfig conf
 
 	var failingPolicySet fleet.FailingPolicySet = NewMemFailingPolicySet()
 	var c clock.Clock = clock.C
+	if len(opts) > 0 {
+		if opts[0].Clock != nil {
+			c = opts[0].Clock
+		}
+	}
 
-	task := &async.Task{
-		Datastore:    ds,
-		AsyncEnabled: false,
+	task := async.NewTask(ds, nil, c, config.OsqueryConfig{})
+	if len(opts) > 0 {
+		if opts[0].Task != nil {
+			task = opts[0].Task
+		} else {
+			opts[0].Task = task
+		}
 	}
 
 	if len(opts) > 0 {
@@ -68,17 +77,8 @@ func newTestServiceWithConfig(t *testing.T, ds fleet.Datastore, fleetConfig conf
 		if opts[0].FailingPolicySet != nil {
 			failingPolicySet = opts[0].FailingPolicySet
 		}
-		if opts[0].Clock != nil {
-			c = opts[0].Clock
-		}
-		if opts[0].Task != nil {
-			task = opts[0].Task
-		} else {
-			opts[0].Task = task
-		}
 	}
 
-	task.Clock = c
 	svc, err := NewService(context.Background(), ds, task, rs, logger, osqlogger, fleetConfig, mailer, c, ssoStore, lq, ds, *license, failingPolicySet, &fleet.NoOpGeoIP{})
 	if err != nil {
 		panic(err)
