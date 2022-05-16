@@ -1,1 +1,1 @@
-* Add experimental support for asynchronous saving of hosts' last seen timestamp.
+* Add experimental support for the asynchronous saving of hosts' last seen timestamp.
