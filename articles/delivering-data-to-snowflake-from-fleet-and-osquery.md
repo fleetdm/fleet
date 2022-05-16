@@ -66,7 +66,7 @@ Now that our end-to-end data pipelines were flowing, we needed to ensure we coul
 
 A quick and easy query to test in Fleet with the live query feature to see if I got the results I wanted was simply this:
 
-*SQL*
+###SQL
 
 ```
 1 SELECT * from programs;
