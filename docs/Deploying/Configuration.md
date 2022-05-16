@@ -1067,7 +1067,7 @@ to the amount of time it takes for Fleet to give the host the label queries.
 
 ##### osquery_enable_async_host_processing
 
-**Experimental feature**. Enable asynchronous processing of hosts query results. Currently, only supported for label query execution, policy membership results and hosts' last seen timestamp. This may improve performance and CPU usage of the Fleet instances and MySQL database servers for setups with a large number of hosts, while requiring more resources from Redis server(s).
+**Experimental feature**. Enable asynchronous processing of hosts' query results. Currently, only supported for label query execution, policy membership results, and hosts' last seen timestamp. This may improve the performance and CPU usage of the Fleet instances and MySQL database servers for setups with a large number of hosts while requiring more resources from Redis server(s).
 
 Note that currently, if both the failing policies webhook *and* this `osquery.enable_async_host_processing` option are set, some failing policies webhooks could be missing (some transitions from succeeding to failing or vice-versa could happen without triggering a webhook request).
 
@@ -1196,7 +1196,7 @@ Applies only when `osquery_enable_async_host_processing` is enabled. Maximum num
 
 ##### osquery_async_host_redis_scan_keys_count
 
-Applies only when `osquery_enable_async_host_processing` is enabled. Order of magnitude (e.g. 10, 100, 1000, etc.) of set members to scan in a single ZSCAN/SSCAN request for items to process when collecting host data into the database.
+Applies only when `osquery_enable_async_host_processing` is enabled. Order of magnitude (e.g., 10, 100, 1000, etc.) of set members to scan in a single ZSCAN/SSCAN request for items to process when collecting host data into the database.
 
 - Default value: 1000
 - Environment variable: `FLEET_OSQUERY_ASYNC_HOST_REDIS_SCAN_KEYS_COUNT`
