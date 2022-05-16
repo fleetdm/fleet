@@ -16,7 +16,7 @@ Many of you have probably heard of [osquery](https://osquery.io/), which is soft
 
 My team and I have been evaluating osquery along with a product called [Fleet](https://fleetdm.com) to see what we can accomplish with getting fast and reliable data pipelined to Snowflake. Like all projects, research and development, proofs-of-concept, and so forth one can start by simply stating a problem statement or a story. The data story I used to kick this proof of concept off was simply this:
 
-*Our Data Story*
+###Our Data Story
 
 *As an IT Engineer, I want fast, reliable and robust data from all the systems we manage. While also getting that data as fast as we possibly can at scale.*
 
