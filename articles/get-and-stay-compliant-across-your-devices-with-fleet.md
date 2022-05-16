@@ -93,7 +93,6 @@ Thanks to automation and open source tools like osquery and Fleet, compliance is
 
 ---
 
-Ready to give Fleet a try? Head over to our [get started page](https://fleetdm.com/get-started), and you can be up and running with a sandbox environment in less than 5 minutes. Alternatively, check out the [docs](https://fleetdm.com/docs) to learn how to deploy Fleet across your organization.
 
 
 <meta name="category" value="product">
