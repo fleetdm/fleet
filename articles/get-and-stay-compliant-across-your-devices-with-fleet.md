@@ -81,7 +81,7 @@ At Fleet, we use policies on our own devices to track:
 
 Fleet adds the ability to automate failing host policies. A ticket is automatically created if there is any deviation from compliance. i.e., if the compliance checklist isn’t 100% true for all servers and laptops.
 
-![Manage automations with Fleet](../website/assets/images/articles/get-and-stay-compliant-2-515x400@2x.gif)
+![Manage automations with Fleet](../website/assets/images/articles/get-and-stay-compliant-across-your-devices-with-fleet-2-515x400@2x.gif)
 
 Users can specify a webhook URL to send policy alerts. These alerts include all devices that answered “No” to a policy so that a user can easily create a support ticket and resolve each device.
 
