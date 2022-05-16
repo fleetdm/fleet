@@ -55,7 +55,7 @@ type jiraTemplateArgs struct {
 // JiraClient defines the method required for the client that makes API calls
 // to Jira.
 type JiraClient interface {
-	CreateIssue(ctx context.Context, issue *jira.Issue) (*jira.Issue, error)
+	CreateJiraIssue(ctx context.Context, issue *jira.Issue) (*jira.Issue, error)
 }
 
 // Jira is the job processor for jira integrations.
@@ -73,7 +73,16 @@ func (j *Jira) Name() string {
 
 // JiraArgs are the arguments for the Jira integration job.
 type JiraArgs struct {
-	CVE string `json:"cve"`
+	CVE           string             `json:"cve"`
+	FailingPolicy *failingPolicyArgs `json:"failing_policy,omitempty"`
+}
+
+type failingPolicyArgs struct {
+	PolicyID   uint               `json:"policy_id"`
+	PolicyName string             `json:"policy_name"`
+	Hosts      []*fleet.HostShort `json:"hosts"`
+	TeamID     *uint              `json:"team_id,omitempty"`
+	TeamName   string             `json:"team_name,omitempty"`
 }
 
 // Run executes the jira job.
@@ -119,7 +128,7 @@ func (j *Jira) Run(ctx context.Context, argsJSON json.RawMessage) error {
 		},
 	}
 
-	createdIssue, err := j.JiraClient.CreateIssue(ctx, issue)
+	createdIssue, err := j.JiraClient.CreateJiraIssue(ctx, issue)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "create issue")
 	}
@@ -134,9 +143,9 @@ func (j *Jira) Run(ctx context.Context, argsJSON json.RawMessage) error {
 	return nil
 }
 
-// QueueJiraJobs queues the Jira vulnerability jobs to process asynchronously
+// QueueJiraVulnJobs queues the Jira vulnerability jobs to process asynchronously
 // via the worker.
-func QueueJiraJobs(ctx context.Context, ds fleet.Datastore, logger kitlog.Logger, recentVulns map[string][]string) error {
+func QueueJiraVulnJobs(ctx context.Context, ds fleet.Datastore, logger kitlog.Logger, recentVulns map[string][]string) error {
 	level.Info(logger).Log("enabled", "true", "recentVulns", len(recentVulns))
 
 	// for troubleshooting, log in debug level the CVEs that we will process

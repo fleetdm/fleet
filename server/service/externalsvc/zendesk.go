@@ -76,9 +76,9 @@ func (z *Zendesk) GetGroup(ctx context.Context) (*zendesk.Group, error) {
 	return group, nil
 }
 
-// CreateTicket creates a ticket on the Zendesk server targeted by the Zendesk client.
+// CreateZendeskTicket creates a ticket on the Zendesk server targeted by the Zendesk client.
 // It returns the created ticket or an error.
-func (z *Zendesk) CreateTicket(ctx context.Context, ticket *zendesk.Ticket) (*zendesk.Ticket, error) {
+func (z *Zendesk) CreateZendeskTicket(ctx context.Context, ticket *zendesk.Ticket) (*zendesk.Ticket, error) {
 	ticket.GroupID = z.groupID
 
 	var createdTicket *zendesk.Ticket

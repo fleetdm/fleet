@@ -70,9 +70,9 @@ func (j *Jira) GetProject(ctx context.Context) (*jira.Project, error) {
 	return proj, nil
 }
 
-// CreateIssue creates an issue on the jira server targeted by the Jira client.
+// CreateJiraIssue creates an issue on the jira server targeted by the Jira client.
 // It returns the created issue or an error.
-func (j *Jira) CreateIssue(ctx context.Context, issue *jira.Issue) (*jira.Issue, error) {
+func (j *Jira) CreateJiraIssue(ctx context.Context, issue *jira.Issue) (*jira.Issue, error) {
 	if issue.Fields == nil {
 		issue.Fields = &jira.IssueFields{}
 	}

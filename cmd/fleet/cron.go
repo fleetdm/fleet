@@ -238,7 +238,7 @@ func cronVulnerabilities(
 
 				case "jira":
 					// queue job to create jira issues
-					if err := worker.QueueJiraJobs(
+					if err := worker.QueueJiraVulnJobs(
 						ctx,
 						ds,
 						kitlog.With(logger, "jira", "vulnerabilities"),

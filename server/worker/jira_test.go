@@ -80,7 +80,7 @@ func TestJiraQueueJobs(t *testing.T) {
 		ds.NewJobFunc = func(ctx context.Context, job *fleet.Job) (*fleet.Job, error) {
 			return job, nil
 		}
-		err := QueueJiraJobs(ctx, ds, logger, map[string][]string{"CVE-1234-5678": nil})
+		err := QueueJiraVulnJobs(ctx, ds, logger, map[string][]string{"CVE-1234-5678": nil})
 		require.NoError(t, err)
 		require.True(t, ds.NewJobFuncInvoked)
 	})
@@ -89,7 +89,7 @@ func TestJiraQueueJobs(t *testing.T) {
 		ds.NewJobFunc = func(ctx context.Context, job *fleet.Job) (*fleet.Job, error) {
 			return nil, io.EOF
 		}
-		err := QueueJiraJobs(ctx, ds, logger, map[string][]string{"CVE-1234-5678": nil})
+		err := QueueJiraVulnJobs(ctx, ds, logger, map[string][]string{"CVE-1234-5678": nil})
 		require.Error(t, err)
 		require.ErrorIs(t, err, io.EOF)
 		require.True(t, ds.NewJobFuncInvoked)

@@ -54,7 +54,7 @@ type zendeskTemplateArgs struct {
 // ZendeskClient defines the method required for the client that makes API calls
 // to Zendesk.
 type ZendeskClient interface {
-	CreateTicket(ctx context.Context, ticket *zendesk.Ticket) (*zendesk.Ticket, error)
+	CreateZendeskTicket(ctx context.Context, ticket *zendesk.Ticket) (*zendesk.Ticket, error)
 }
 
 // Zendesk is the job processor for zendesk integrations.
@@ -111,7 +111,7 @@ func (z *Zendesk) Run(ctx context.Context, argsJSON json.RawMessage) error {
 		Comment: &zendesk.TicketComment{Body: description},
 	}
 
-	createdTicket, err := z.ZendeskClient.CreateTicket(ctx, ticket)
+	createdTicket, err := z.ZendeskClient.CreateZendeskTicket(ctx, ticket)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "create ticket")
 	}
