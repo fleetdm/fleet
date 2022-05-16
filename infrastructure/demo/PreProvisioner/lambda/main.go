@@ -9,7 +9,6 @@ import (
 	"github.com/aws/aws-sdk-go/service/dynamodb/dynamodbattribute"
 	"github.com/google/uuid"
 	flags "github.com/jessevdk/go-flags"
-	cp "github.com/otiai10/copy"
 	"log"
 	"os"
 	"os/exec"
@@ -71,11 +70,11 @@ func min(a, b int64) int64 {
 
 func runCmd(args []string) error {
 	cmd := exec.Cmd{
-		Path:   "/terraform",
-		Dir:    "/tmp/deploy_terraform",
+		Path:   "/build/terraform",
+		Dir:    "/build/deploy_terraform",
 		Stdout: os.Stdout,
 		Stderr: os.Stderr,
-		Args:   append([]string{"/terraform"}, args...),
+		Args:   append([]string{"/build/terraform"}, args...),
 	}
 	log.Printf("%+v\n", cmd)
 	return cmd.Run()
@@ -101,15 +100,12 @@ func runTerraform(workspace string) error {
 	err = runCmd([]string{
 		"apply",
 		"-auto-approve",
+		"-no-color",
 	})
 	return err
 }
 
 func handler(ctx context.Context, name NullEvent) error {
-	// Copy terraform files to their proper place
-	if err := cp.Copy("/deploy_terraform", "/tmp/deploy_terraform"); err != nil {
-		return err
-	}
 	// check if we need to do anything
 	totalCount, unclaimedCount, err := getInstancesCount()
 	if err != nil {

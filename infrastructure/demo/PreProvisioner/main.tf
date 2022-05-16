@@ -11,15 +11,34 @@ terraform {
   }
 }
 
+data "aws_region" "current" {}
+
+locals {
+  name      = "preprovisioner"
+  full_name = "${var.prefix}-${local.name}"
+}
+
+resource "aws_cloudwatch_log_group" "main" {
+  name = local.full_name
+}
+
 data "aws_iam_policy_document" "lambda-assume-role" {
   statement {
     actions = ["sts:AssumeRole"]
     principals {
       type        = "Service"
-      identifiers = ["lambda.amazonaws.com"]
+      identifiers = ["lambda.amazonaws.com", "ecs-tasks.amazonaws.com"]
+    }
+  }
+  statement {
+    actions = ["sts:AssumeRole"]
+    principals {
+      type        = "AWS"
+      identifiers = ["arn:aws:iam::917007347864:user/zwinnerman@fleetdm.com"]
     }
   }
 }
+
 
 resource "aws_iam_role_policy_attachment" "lambda" {
   role       = aws_iam_role.lambda.id
@@ -29,6 +48,11 @@ resource "aws_iam_role_policy_attachment" "lambda" {
 resource "aws_iam_role_policy_attachment" "lambda-vpc" {
   role       = aws_iam_role.lambda.id
   policy_arn = "arn:aws:iam::aws:policy/service-role/AWSLambdaVPCAccessExecutionRole"
+}
+
+resource "aws_iam_role_policy_attachment" "lambda-ecs" {
+  role       = aws_iam_role.lambda.id
+  policy_arn = "arn:aws:iam::aws:policy/AmazonEKSFargatePodExecutionRolePolicy"
 }
 
 resource "aws_iam_policy" "lambda" {
@@ -82,14 +106,18 @@ data "aws_iam_policy_document" "lambda" {
 }
 
 resource "aws_iam_role" "lambda" {
-  name = "${var.prefix}-preprovisioner"
+  name = local.full_name
 
   assume_role_policy = data.aws_iam_policy_document.lambda-assume-role.json
 }
 
+output "lambda_role" {
+  value = aws_iam_role.lambda
+}
+
 resource "aws_security_group" "lambda" {
-  name        = "${var.prefix}-preprovisioner"
-  description = "security group for ${var.prefix}-preprovisioner"
+  name        = local.full_name
+  description = "security group for ${local.full_name}"
   vpc_id      = var.vpc_id
 
   ingress {
@@ -115,10 +143,68 @@ data "aws_eks_cluster" "cluster" {
   name = var.eks_cluster.eks_cluster_id
 }
 
+resource "aws_ecs_task_definition" "main" {
+  family                   = local.full_name
+  network_mode             = "awsvpc"
+  requires_compatibilities = ["FARGATE"]
+  execution_role_arn       = aws_iam_role.lambda.arn
+  task_role_arn            = aws_iam_role.lambda.arn
+  cpu                      = 1024
+  memory                   = 4096
+  container_definitions = jsonencode(
+    [
+      {
+        name        = local.name
+        image       = docker_registry_image.main.name
+        mountPoints = []
+        volumesFrom = []
+        essential   = true
+        networkMode = "awsvpc"
+        logConfiguration = {
+          logDriver = "awslogs"
+          options = {
+            awslogs-group         = aws_cloudwatch_log_group.main.name
+            awslogs-region        = data.aws_region.current.name
+            awslogs-stream-prefix = local.full_name
+          }
+        },
+        environment = concat([
+          {
+            name  = "TF_VAR_mysql_secret"
+            value = var.mysql_secret.id
+          },
+          {
+            name  = "TF_VAR_mysql_cluster_name"
+            value = var.eks_cluster.eks_cluster_id
+          },
+          {
+            name  = "TF_VAR_eks_cluster"
+            value = var.eks_cluster.eks_cluster_id
+          },
+          {
+            name  = "DYNAMODB_LIFECYCLE_TABLE"
+            value = var.dynamodb_table.id
+          },
+          {
+            name  = "MAX_INSTANCES"
+            value = "2"
+          },
+          {
+            name  = "QUEUED_INSTANCES"
+            value = "2"
+          },
+        ])
+      }
+  ])
+  lifecycle {
+    create_before_destroy = true
+  }
+}
+
 resource "aws_lambda_function" "main" {
   image_uri                      = docker_registry_image.main.name
   package_type                   = "Image"
-  function_name                  = "${var.prefix}-preprovisioner"
+  function_name                  = local.full_name
   role                           = aws_iam_role.lambda.arn
   reserved_concurrent_executions = -1
   timeout                        = 600

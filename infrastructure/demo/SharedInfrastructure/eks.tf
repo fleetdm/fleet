@@ -54,6 +54,12 @@ module "aws-eks-accelerator-for-terraform" {
       subnet_ids      = var.private_subnets
     }
   }
+
+  map_roles = [for i in var.eks_allowed_roles : {
+    rolearn  = i.arn
+    username = i.id
+    groups   = ["system:masters"]
+  }]
 }
 
 data "aws_eks_cluster" "cluster" {

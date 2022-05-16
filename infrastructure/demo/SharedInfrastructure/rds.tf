@@ -61,6 +61,7 @@ module "main" {
   subnets                         = var.database_subnets
   create_security_group           = true
   allowed_security_groups         = var.allowed_security_groups
+  allowed_cidr_blocks             = ["10.0.0.0/8"]
   kms_key_id                      = aws_kms_key.main.arn
   performance_insights_kms_key_id = aws_kms_key.main.arn
 

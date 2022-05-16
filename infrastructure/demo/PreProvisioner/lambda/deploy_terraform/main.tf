@@ -22,10 +22,14 @@ terraform {
 
 provider "helm" {
   kubernetes {
-    host                   = var.cluster_endpoint
-    cluster_ca_certificate = base64decode(var.cluster_ca_cert)
+    host                   = data.aws_eks_cluster.cluster.endpoint
     token                  = data.aws_eks_cluster_auth.cluster.token
+    cluster_ca_certificate = base64decode(data.aws_eks_cluster.cluster.certificate_authority.0.data)
   }
+}
+
+data "aws_eks_cluster" "cluster" {
+  name = var.eks_cluster
 }
 
 data "aws_eks_cluster_auth" "cluster" {
@@ -40,16 +44,14 @@ provider "mysql" {
 
 variable "mysql_secret" {}
 variable "eks_cluster" {}
-variable "cluster_endpoint" {}
-variable "cluster_ca_cert" {}
 
 resource "mysql_user" "main" {
-  user               = random_string.db.id
+  user               = random_string.main.id
   plaintext_password = random_password.db.id
 }
 
 resource "mysql_database" "main" {
-  name = random_pet.main.id
+  name = random_string.main.id
 }
 
 resource "mysql_grant" "main" {
@@ -62,47 +64,53 @@ data "aws_secretsmanager_secret_version" "mysql" {
   secret_id = var.mysql_secret
 }
 
-resource "random_pet" "main" {
-  length = 3
-}
-
 resource "random_password" "db" {
   length = 24
 }
 
-resource "random_string" "db" {
-  length  = 24
+resource "random_string" "main" {
+  length  = 10
   special = false
+  upper   = false
+  number  = false
 }
 
 resource "helm_release" "main" {
-  name       = random_pet.main.id
-  repository = "todo" # TODO
-  chart      = "todo" # TODO
-  version    = "todo" # TODO
+  name  = random_string.main.id
+  chart = "${path.module}/fleet"
 
   set {
     name  = "fleetName"
-    value = random_pet.main.id
-  }
-
-  set {
-    name  = "createNamespace"
-    value = false
+    value = random_string.main.id
   }
 
   set {
     name  = "mysql.password"
-    value = random_password.db.id
+    value = mysql_user.main.plaintext_password
+  }
+
+  set {
+    name  = "mysql.createSecret"
+    value = true
+  }
+
+  set {
+    name  = "mysql.secretName"
+    value = random_string.main.id
   }
 
   set {
     name  = "mysql.username"
-    value = random_string.db.id
+    value = mysql_user.main.user
   }
 
   set {
-    name  = "mysql.endpoint"
+    name  = "mysql.database"
+    value = random_string.main.id
+  }
+
+  set {
+    name  = "mysql.address"
     value = jsondecode(data.aws_secretsmanager_secret_version.mysql.secret_string)["endpoint"]
   }
 }

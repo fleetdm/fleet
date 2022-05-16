@@ -107,6 +107,7 @@ module "shared-infrastructure" {
   allowed_cidr_blocks     = module.vpc.private_subnets_cidr_blocks
   private_subnets         = module.vpc.private_subnets
   allowed_security_groups = [module.pre-provisioner.lambda_security_group.id]
+  eks_allowed_roles       = [module.pre-provisioner.lambda_role]
 }
 
 module "pre-provisioner" {
