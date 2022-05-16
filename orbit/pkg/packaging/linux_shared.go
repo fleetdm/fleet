@@ -228,7 +228,7 @@ CPUQuota=20%
 [Install]
 WantedBy=multi-user.target
 `),
-		constant.DefaultFileMode,
+		constant.DefaultSystemdUnitMode,
 	); err != nil {
 		return fmt.Errorf("write file: %w", err)
 	}
