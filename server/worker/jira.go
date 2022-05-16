@@ -73,16 +73,8 @@ func (j *Jira) Name() string {
 
 // JiraArgs are the arguments for the Jira integration job.
 type JiraArgs struct {
-	CVE           string             `json:"cve"`
+	CVE           string             `json:"cve,omitempty"`
 	FailingPolicy *failingPolicyArgs `json:"failing_policy,omitempty"`
-}
-
-type failingPolicyArgs struct {
-	PolicyID   uint               `json:"policy_id"`
-	PolicyName string             `json:"policy_name"`
-	Hosts      []*fleet.HostShort `json:"hosts"`
-	TeamID     *uint              `json:"team_id,omitempty"`
-	TeamName   string             `json:"team_name,omitempty"`
 }
 
 // Run executes the jira job.

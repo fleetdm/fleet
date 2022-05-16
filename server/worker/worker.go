@@ -27,6 +27,16 @@ type Job interface {
 	Run(ctx context.Context, argsJSON json.RawMessage) error
 }
 
+// failingPolicyArgs are the args common to all integrations that can process
+// failing policies.
+type failingPolicyArgs struct {
+	PolicyID   uint               `json:"policy_id"`
+	PolicyName string             `json:"policy_name"`
+	Hosts      []*fleet.HostShort `json:"hosts"`
+	TeamID     *uint              `json:"team_id,omitempty"`
+	TeamName   string             `json:"team_name,omitempty"`
+}
+
 // Worker runs jobs. NOT SAFE FOR CONCURRENT USE.
 type Worker struct {
 	ds  fleet.Datastore

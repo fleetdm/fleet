@@ -250,7 +250,7 @@ func cronVulnerabilities(
 
 				case "zendesk":
 					// queue job to create zendesk ticket
-					if err := worker.QueueZendeskJobs(
+					if err := worker.QueueZendeskVulnJobs(
 						ctx,
 						ds,
 						kitlog.With(logger, "zendesk", "vulnerabilities"),

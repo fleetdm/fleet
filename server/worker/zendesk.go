@@ -72,7 +72,8 @@ func (z *Zendesk) Name() string {
 
 // ZendeskArgs are the arguments for the Zendesk integration job.
 type ZendeskArgs struct {
-	CVE string `json:"cve"`
+	CVE           string             `json:"cve,omitempty"`
+	FailingPolicy *failingPolicyArgs `json:"failing_policy,omitempty"`
 }
 
 // Run executes the zendesk job.
@@ -125,9 +126,9 @@ func (z *Zendesk) Run(ctx context.Context, argsJSON json.RawMessage) error {
 	return nil
 }
 
-// QueueZendeskJobs queues the Zendesk vulnerability jobs to process asynchronously
+// QueueZendeskVulnJobs queues the Zendesk vulnerability jobs to process asynchronously
 // via the worker.
-func QueueZendeskJobs(ctx context.Context, ds fleet.Datastore, logger kitlog.Logger, recentVulns map[string][]string) error {
+func QueueZendeskVulnJobs(ctx context.Context, ds fleet.Datastore, logger kitlog.Logger, recentVulns map[string][]string) error {
 	level.Info(logger).Log("enabled", "true", "recentVulns", len(recentVulns))
 
 	// for troubleshooting, log in debug level the CVEs that we will process
