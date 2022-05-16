@@ -5,8 +5,8 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"html/template"
 	"sort"
+	"text/template"
 
 	jira "github.com/andygrunwald/go-jira"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
@@ -18,13 +18,17 @@ import (
 // jiraName is the name of the job as registered in the worker.
 const jiraName = "jira"
 
-var jiraSummaryTmpl = template.Must(template.New("").Parse(
-	`Vulnerability {{ .CVE }} detected on {{ len .Hosts }} host(s)`,
-))
+var jiraTemplates = struct {
+	VulnSummary     *template.Template
+	VulnDescription *template.Template
+}{
+	VulnSummary: template.Must(template.New("").Parse(
+		`Vulnerability {{ .CVE }} detected on {{ len .Hosts }} host(s)`,
+	)),
 
-// Jira uses wiki markup in the v2 api.
-var jiraDescriptionTmpl = template.Must(template.New("").Parse(
-	`See vulnerability (CVE) details in National Vulnerability Database (NVD) here: [{{ .CVE }}|{{ .NVDURL }}{{ .CVE }}].
+	// Jira uses wiki markup in the v2 api.
+	VulnDescription: template.Must(template.New("").Parse(
+		`See vulnerability (CVE) details in National Vulnerability Database (NVD) here: [{{ .CVE }}|{{ .NVDURL }}{{ .CVE }}].
 
 Affected hosts:
 
@@ -43,9 +47,10 @@ View the affected software and more affected hosts:
 
 This issue was created automatically by your Fleet Jira integration.
 `,
-))
+	)),
+}
 
-type jiraTemplateArgs struct {
+type jiraVulnTemplateArgs struct {
 	NVDURL   string
 	FleetURL string
 	CVE      string
@@ -99,7 +104,7 @@ func (j *Jira) runVuln(ctx context.Context, args jiraArgs) error {
 		return ctxerr.Wrap(ctx, err, "find hosts by cve")
 	}
 
-	tmplArgs := jiraTemplateArgs{
+	tmplArgs := jiraVulnTemplateArgs{
 		NVDURL:   nvdCVEURL,
 		FleetURL: j.FleetURL,
 		CVE:      args.CVE,
@@ -107,13 +112,13 @@ func (j *Jira) runVuln(ctx context.Context, args jiraArgs) error {
 	}
 
 	var buf bytes.Buffer
-	if err := jiraSummaryTmpl.Execute(&buf, &tmplArgs); err != nil {
+	if err := jiraTemplates.VulnSummary.Execute(&buf, &tmplArgs); err != nil {
 		return ctxerr.Wrap(ctx, err, "execute summary template")
 	}
 	summary := buf.String()
 
 	buf.Reset() // reuse buffer
-	if err := jiraDescriptionTmpl.Execute(&buf, &tmplArgs); err != nil {
+	if err := jiraTemplates.VulnDescription.Execute(&buf, &tmplArgs); err != nil {
 		return ctxerr.Wrap(ctx, err, "execute description template")
 	}
 	description := buf.String()

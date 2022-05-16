@@ -5,8 +5,8 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"html/template"
 	"sort"
+	"text/template"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -18,12 +18,15 @@ import (
 // zendeskName is the name of the job as registered in the worker.
 const zendeskName = "zendesk"
 
-var zendeskSummaryTmpl = template.Must(template.New("").Parse(
-	`Vulnerability {{ .CVE }} detected on {{ len .Hosts }} host(s)`,
-))
-
-var zendeskDescriptionTmpl = template.Must(template.New("").Parse(
-	`See vulnerability (CVE) details in National Vulnerability Database (NVD) here: [{{ .CVE }}]({{ .NVDURL }}{{ .CVE }}).
+var zendeskTemplates = struct {
+	VulnSummary     *template.Template
+	VulnDescription *template.Template
+}{
+	VulnSummary: template.Must(template.New("").Parse(
+		`Vulnerability {{ .CVE }} detected on {{ len .Hosts }} host(s)`,
+	)),
+	VulnDescription: template.Must(template.New("").Parse(
+		`See vulnerability (CVE) details in National Vulnerability Database (NVD) here: [{{ .CVE }}]({{ .NVDURL }}{{ .CVE }}).
 
 Affected hosts:
 
@@ -42,9 +45,10 @@ View the affected software and more affected hosts:
 
 This ticket was created automatically by your Fleet Zendesk integration.
 `,
-))
+	)),
+}
 
-type zendeskTemplateArgs struct {
+type zendeskVulnTemplateArgs struct {
 	NVDURL   string
 	FleetURL string
 	CVE      string
@@ -98,7 +102,7 @@ func (z *Zendesk) runVuln(ctx context.Context, args zendeskArgs) error {
 		return ctxerr.Wrap(ctx, err, "find hosts by cve")
 	}
 
-	tmplArgs := zendeskTemplateArgs{
+	tmplArgs := zendeskVulnTemplateArgs{
 		NVDURL:   nvdCVEURL,
 		FleetURL: z.FleetURL,
 		CVE:      args.CVE,
@@ -106,13 +110,13 @@ func (z *Zendesk) runVuln(ctx context.Context, args zendeskArgs) error {
 	}
 
 	var buf bytes.Buffer
-	if err := zendeskSummaryTmpl.Execute(&buf, &tmplArgs); err != nil {
+	if err := zendeskTemplates.VulnSummary.Execute(&buf, &tmplArgs); err != nil {
 		return ctxerr.Wrap(ctx, err, "execute summary template")
 	}
 	summary := buf.String()
 
 	buf.Reset() // reuse buffer
-	if err := zendeskDescriptionTmpl.Execute(&buf, &tmplArgs); err != nil {
+	if err := zendeskTemplates.VulnDescription.Execute(&buf, &tmplArgs); err != nil {
 		return ctxerr.Wrap(ctx, err, "execute description template")
 	}
 	description := buf.String()
