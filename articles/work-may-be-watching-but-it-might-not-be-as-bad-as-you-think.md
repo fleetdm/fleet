@@ -13,7 +13,7 @@ It is still important to be vigilant with the personal information that you shar
 
 Your work device belongs to your company, and you may need to give it back at any time. This could result in you losing the data stored on it.
 
-## Only use company software and online services, such as Google Docs or Slack, for work purposes
+### Only use company software and online services, such as Google Docs or Slack, for work purposes
 
 Avoid using these types of services for anything non-work related. If you leave your organization, your company may continue to have access to your personal documents and messages.
 
