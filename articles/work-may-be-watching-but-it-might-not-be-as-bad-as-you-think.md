@@ -43,7 +43,7 @@ A VPN (virtual private network) helps to protect your company’s data when acce
 
 ## Takeaways
 
-The key takeaways from all of this are that; while it is common for companies to collect activity data, in practice it’s rarely looked at manually, and even less so is it collected nefariously. So it’s probably fine to check your social media likes from time to time; your employer is not out to get you. Just remember to use proper judgement, be professional, and avoid sharing your personal information on your work computer.
+While it is common for companies to collect activity data, it’s rarely looked at manually, and even less so is it collected nefariously. So it’s probably OK to check your social media likes from time to time; your employer is not out to get you. Just remember to use proper judgment, be professional, and avoid sharing your personal information on your work computer.
 
 <meta name="category" value="product">
 <meta name="authorFullName" value="Mike Thomas">
