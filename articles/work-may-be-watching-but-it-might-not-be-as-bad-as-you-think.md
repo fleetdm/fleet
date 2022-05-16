@@ -9,7 +9,7 @@ To ensure a healthy workforce, transparency between employers and staff is param
 
 It is still important to be vigilant with the personal information that you share on your work device, and much of that comes down to common sense usage. With remote teams on the rise, and the ongoing pandemic continuing to force staff to work from home, it’s becoming increasingly difficult to separate the blurring lines between our personal and professional lives. So here are some best practices that you can follow — the most important of which being to always look at, and understand your company’s security policy.
 
-## Only store personal files/information on your personal device
+### Only store personal files/information on your personal device
 
 Your work device belongs to your company, and you may need to give it back at any time. This could result in you losing the data stored on it.
 
