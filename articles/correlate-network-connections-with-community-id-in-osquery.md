@@ -116,7 +116,7 @@ On Linux, the `socket_events` table may produce additional utility as it capture
 
 <meta name="category" value="product">
 <meta name="authorFullName" value="Mike Thomas">
-<meta name="authorGitHubUsername" value="mike-j-thomas">
+<meta name="authorGitHubUsername" value="zachwass">
 <meta name="publishedOn" value="2021-06-02">
 <meta name="articleTitle" value="Correlate network connections with community ID in osquery.">
 <meta name="articleImageUrl" value="../website/assets/images/articles/correlate-network-connections-with-community-id-in-osquery-cover-800x502@2x.jpeg">
