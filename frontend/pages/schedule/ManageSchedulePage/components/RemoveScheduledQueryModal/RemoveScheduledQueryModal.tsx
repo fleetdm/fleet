@@ -7,13 +7,13 @@ import Spinner from "components/Spinner";
 const baseClass = "remove-scheduled-query-modal";
 
 interface IRemoveScheduledQueryModalProps {
-  scheduleIsRemoving: boolean;
+  isLoading: boolean;
   onCancel: () => void;
   onSubmit: () => void;
 }
 
 const RemoveScheduledQueryModal = ({
-  scheduleIsRemoving,
+  isLoading,
   onCancel,
   onSubmit,
 }: IRemoveScheduledQueryModalProps): JSX.Element => {
@@ -36,7 +36,7 @@ const RemoveScheduledQueryModal = ({
       onExit={onCancel}
       className={baseClass}
     >
-      {scheduleIsRemoving ? (
+      {isLoading ? (
         <Spinner />
       ) : (
         <div className={baseClass}>

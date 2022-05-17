@@ -24,7 +24,7 @@ interface IEditUserModalProps {
   editUserErrors?: IUserFormErrors;
   isModifiedByGlobalAdmin?: boolean | false;
   isInvitePending?: boolean;
-  isEditingUser: boolean;
+  isLoading: boolean;
 }
 
 const baseClass = "edit-user-modal";
@@ -46,7 +46,7 @@ const EditUserModal = ({
   editUserErrors,
   isModifiedByGlobalAdmin,
   isInvitePending,
-  isEditingUser,
+  isLoading,
 }: IEditUserModalProps): JSX.Element => {
   return (
     <Modal
@@ -54,7 +54,7 @@ const EditUserModal = ({
       onExit={onCancel}
       className={`${baseClass}__edit-user-modal`}
     >
-      {isEditingUser ? (
+      {isLoading ? (
         <Spinner />
       ) : (
         <UserForm

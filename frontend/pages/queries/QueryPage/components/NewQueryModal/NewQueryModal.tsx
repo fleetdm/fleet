@@ -14,7 +14,7 @@ import Spinner from "components/Spinner";
 export interface INewQueryModalProps {
   baseClass: string;
   queryValue: string;
-  isQuerySaving: boolean;
+  isLoading: boolean;
   onCreateQuery: (formData: IQueryFormData) => void;
   setIsSaveModalOpen: (isOpen: boolean) => void;
   backendValidators: { [key: string]: string };
@@ -34,7 +34,7 @@ const validateQueryName = (name: string) => {
 const NewQueryModal = ({
   baseClass,
   queryValue,
-  isQuerySaving,
+  isLoading,
   onCreateQuery,
   setIsSaveModalOpen,
   backendValidators,
@@ -78,7 +78,7 @@ const NewQueryModal = ({
   return (
     <Modal title={"Save query"} onExit={() => setIsSaveModalOpen(false)}>
       <>
-        {isQuerySaving ? (
+        {isLoading ? (
           <Spinner />
         ) : (
           <form

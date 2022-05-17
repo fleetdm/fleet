@@ -34,11 +34,11 @@ const AppSettingsPage = ({
 
   const [activeSection, setActiveSection] = useState<string>("info");
 
-  const {
-    data: appConfig,
-    isLoading: isLoadingConfig,
-    refetch: refetchConfig,
-  } = useQuery<IConfig, Error, IConfig>(["config"], () => configAPI.loadAll(), {
+  const { data: appConfig, isLoading, refetch: refetchConfig } = useQuery<
+    IConfig,
+    Error,
+    IConfig
+  >(["config"], () => configAPI.loadAll(), {
     select: (data: IConfig) => data,
     onSuccess: (data) => {
       setConfig(data);
@@ -93,7 +93,7 @@ const AppSettingsPage = ({
   }, [sectionTitle]);
 
   const renderSection = () => {
-    if (!isLoadingConfig && appConfig) {
+    if (!isLoading && appConfig) {
       return (
         <>
           {activeSection === "info" && (
@@ -135,7 +135,7 @@ const AppSettingsPage = ({
       <p className={`${baseClass}__page-description`}>
         Set your organization information and configure SSO and SMTP
       </p>
-      {isLoadingConfig ? (
+      {isLoading ? (
         <Spinner />
       ) : (
         <div className={`${baseClass}__settings-form`}>

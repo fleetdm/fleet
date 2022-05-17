@@ -7,13 +7,13 @@ import Spinner from "components/Spinner";
 const baseClass = "remove-query-modal";
 
 interface IRemoveQueryModalProps {
-  queryIsRemoving: boolean;
+  isLoading: boolean;
   onCancel: () => void;
   onSubmit: () => void;
 }
 
 const RemoveQueryModal = ({
-  queryIsRemoving,
+  isLoading,
   onCancel,
   onSubmit,
 }: IRemoveQueryModalProps): JSX.Element => {
@@ -33,7 +33,7 @@ const RemoveQueryModal = ({
   return (
     <Modal title={"Delete query"} onExit={onCancel} className={baseClass}>
       <>
-        {queryIsRemoving ? (
+        {isLoading ? (
           <Spinner />
         ) : (
           <div className={baseClass}>

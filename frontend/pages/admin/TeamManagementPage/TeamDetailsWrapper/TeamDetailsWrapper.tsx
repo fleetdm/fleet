@@ -528,7 +528,7 @@ const TeamDetailsWrapper = ({
           onCancel={toggleDeleteTeamModal}
           onSubmit={onDeleteSubmit}
           name={currentTeam.name}
-          teamIsRemoving={teamIsRemoving}
+          isLoading={teamIsRemoving}
         />
       )}
       {showEditTeamModal && (
@@ -537,7 +537,7 @@ const TeamDetailsWrapper = ({
           onSubmit={onEditSubmit}
           defaultName={currentTeam.name}
           backendValidators={backendValidators}
-          teamIsEditing={teamIsEditing}
+          isLoading={teamIsEditing}
         />
       )}
       {children}

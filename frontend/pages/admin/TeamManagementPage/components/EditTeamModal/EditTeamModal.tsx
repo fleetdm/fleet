@@ -17,7 +17,7 @@ interface IEditTeamModalProps {
   onSubmit: (formData: IEditTeamFormData) => void;
   defaultName: string;
   backendValidators: { [key: string]: string };
-  teamIsEditing: boolean;
+  isLoading: boolean;
 }
 
 const EditTeamModal = ({
@@ -25,7 +25,7 @@ const EditTeamModal = ({
   onSubmit,
   defaultName,
   backendValidators,
-  teamIsEditing,
+  isLoading,
 }: IEditTeamModalProps): JSX.Element => {
   const [name, setName] = useState(defaultName);
   const [errors, setErrors] = useState<{ [key: string]: string }>(
@@ -51,7 +51,7 @@ const EditTeamModal = ({
 
   return (
     <Modal title={"Edit team"} onExit={onCancel} className={baseClass}>
-      {teamIsEditing ? (
+      {isLoading ? (
         <Spinner />
       ) : (
         <form

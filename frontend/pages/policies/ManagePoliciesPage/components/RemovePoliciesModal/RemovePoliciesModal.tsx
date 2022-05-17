@@ -7,13 +7,13 @@ import Spinner from "components/Spinner";
 const baseClass = "remove-policies-modal";
 
 interface IRemovePoliciesModalProps {
-  isRemovingPolicy: boolean;
+  isLoading: boolean;
   onCancel: () => void;
   onSubmit: () => void;
 }
 
 const RemovePoliciesModal = ({
-  isRemovingPolicy,
+  isLoading,
   onCancel,
   onSubmit,
 }: IRemovePoliciesModalProps): JSX.Element => {
@@ -33,7 +33,7 @@ const RemovePoliciesModal = ({
   return (
     <Modal title={"Delete policies"} onExit={onCancel} className={baseClass}>
       <>
-        {isRemovingPolicy ? (
+        {isLoading ? (
           <Spinner />
         ) : (
           <div className={baseClass}>

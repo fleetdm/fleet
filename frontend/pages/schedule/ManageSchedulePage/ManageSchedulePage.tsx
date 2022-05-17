@@ -542,14 +542,14 @@ const ManageSchedulePage = ({
             teamId={selectedTeamId}
             togglePreviewDataModal={togglePreviewDataModal}
             showPreviewDataModal={showPreviewDataModal}
-            scheduleIsLoading={scheduleIsLoading}
+            isLoading={scheduleIsLoading}
           />
         )}
         {showRemoveScheduledQueryModal && (
           <RemoveScheduledQueryModal
             onCancel={toggleRemoveScheduledQueryModal}
             onSubmit={onRemoveScheduledQuerySubmit}
-            scheduleIsRemoving={scheduleIsRemoving}
+            isLoading={scheduleIsRemoving}
           />
         )}
       </div>

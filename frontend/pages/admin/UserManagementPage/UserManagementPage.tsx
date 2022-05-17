@@ -58,7 +58,7 @@ const UserManagementPage = ({ router }: IUserManagementProps): JSX.Element => {
   const [showResetSessionsModal, setShowResetSessionsModal] = useState<boolean>(
     false
   );
-  const [isFormSubmitting, setIsFormSubmitting] = useState<boolean>(false);
+  const [isLoading, setIsLoading] = useState<boolean>(false);
   const [isEditingUser, setIsEditingUser] = useState<boolean>(false);
   const [userEditing, setUserEditing] = useState<any>(null);
   const [createUserErrors, setCreateUserErrors] = useState<IUserFormErrors>(
@@ -217,7 +217,7 @@ const UserManagementPage = ({ router }: IUserManagementProps): JSX.Element => {
   };
 
   const onCreateUserSubmit = (formData: any) => {
-    setIsFormSubmitting(true);
+    setIsLoading(true);
 
     if (formData.newUserType === NewUserType.AdminInvited) {
       // Do some data formatting adding `invited_by` for the request to be correct and deleteing uncessary fields
@@ -248,7 +248,7 @@ const UserManagementPage = ({ router }: IUserManagementProps): JSX.Element => {
           }
         })
         .finally(() => {
-          setIsFormSubmitting(false);
+          setIsLoading(false);
         });
     } else {
       // Do some data formatting deleting unnecessary fields
@@ -274,7 +274,7 @@ const UserManagementPage = ({ router }: IUserManagementProps): JSX.Element => {
           }
         })
         .finally(() => {
-          setIsFormSubmitting(false);
+          setIsLoading(false);
         });
     }
   };
@@ -466,7 +466,7 @@ const UserManagementPage = ({ router }: IUserManagementProps): JSX.Element => {
             isModifiedByGlobalAdmin
             isInvitePending={userEditing.type === "invite"}
             editUserErrors={editUserErrors}
-            isEditingUser={isEditingUser}
+            isLoading={isEditingUser}
           />
         </>
       </Modal>
@@ -485,7 +485,7 @@ const UserManagementPage = ({ router }: IUserManagementProps): JSX.Element => {
         isPremiumTier={isPremiumTier || false}
         smtpConfigured={config?.smtp_settings.configured || false}
         canUseSso={config?.sso_settings.enable_sso || false}
-        isFormSubmitting={isFormSubmitting}
+        isLoading={isLoading}
         isModifiedByGlobalAdmin
       />
     );

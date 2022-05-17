@@ -510,7 +510,7 @@ const ManagePolicyPage = ({
         )}
         {showRemovePoliciesModal && (
           <RemovePoliciesModal
-            isRemovingPolicy={isRemovingPolicy}
+            isLoading={isRemovingPolicy}
             onCancel={toggleRemovePoliciesModal}
             onSubmit={onRemovePoliciesSubmit}
           />

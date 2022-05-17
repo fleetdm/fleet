@@ -8,14 +8,14 @@ const baseClass = "delete-team-modal";
 
 interface IDeleteTeamModalProps {
   name: string;
-  teamIsRemoving: boolean;
+  isLoading: boolean;
   onSubmit: () => void;
   onCancel: () => void;
 }
 
 const DeleteTeamModal = ({
   name,
-  teamIsRemoving,
+  isLoading,
   onSubmit,
   onCancel,
 }: IDeleteTeamModalProps): JSX.Element => {
@@ -34,7 +34,7 @@ const DeleteTeamModal = ({
 
   return (
     <Modal title={"Delete team"} onExit={onCancel} className={baseClass}>
-      {teamIsRemoving ? (
+      {isLoading ? (
         <Spinner />
       ) : (
         <form className={`${baseClass}__form`}>

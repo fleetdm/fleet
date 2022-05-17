@@ -17,14 +17,14 @@ interface ICreateTeamModalProps {
   onCancel: () => void;
   onSubmit: (formData: ICreateTeamFormData) => void;
   backendValidators: { [key: string]: string };
-  teamIsLoading: boolean;
+  isLoading: boolean;
 }
 
 const CreateTeamModal = ({
   onCancel,
   onSubmit,
   backendValidators,
-  teamIsLoading,
+  isLoading,
 }: ICreateTeamModalProps): JSX.Element => {
   const [name, setName] = useState("");
   const [errors, setErrors] = useState<{ [key: string]: string }>(
@@ -55,7 +55,7 @@ const CreateTeamModal = ({
 
   return (
     <Modal title={"Create team"} onExit={onCancel} className={baseClass}>
-      {teamIsLoading ? (
+      {isLoading ? (
         <Spinner />
       ) : (
         <form

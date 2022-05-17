@@ -227,7 +227,7 @@ const ManageQueriesPage = ({
         </div>
         {showRemoveQueryModal && (
           <RemoveQueryModal
-            queryIsRemoving={queryIsRemoving}
+            isLoading={queryIsRemoving}
             onCancel={toggleRemoveQueryModal}
             onSubmit={onRemoveQuerySubmit}
           />

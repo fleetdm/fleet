@@ -557,7 +557,7 @@ const QueryForm = ({
           onCreateQuery={onCreateQuery}
           setIsSaveModalOpen={setIsSaveModalOpen}
           backendValidators={backendValidators}
-          isQuerySaving={isQuerySaving}
+          isLoading={isQuerySaving}
         />
       )}
     </>

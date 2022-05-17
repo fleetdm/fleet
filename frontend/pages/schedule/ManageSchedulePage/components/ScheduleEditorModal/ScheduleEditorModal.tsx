@@ -50,7 +50,7 @@ interface IScheduleEditorModalProps {
   teamId?: number;
   togglePreviewDataModal: () => void;
   showPreviewDataModal: boolean;
-  scheduleIsLoading: boolean;
+  isLoading: boolean;
 }
 interface INoQueryOption {
   id: number;
@@ -94,7 +94,7 @@ const ScheduleEditorModal = ({
   teamId,
   togglePreviewDataModal,
   showPreviewDataModal,
-  scheduleIsLoading,
+  isLoading,
 }: IScheduleEditorModalProps): JSX.Element => {
   const { config } = useContext(AppContext);
 
@@ -246,7 +246,7 @@ const ScheduleEditorModal = ({
       onExit={onClose}
       className={baseClass}
     >
-      {scheduleIsLoading ? (
+      {isLoading ? (
         <Spinner />
       ) : (
         <form className={`${baseClass}__form`}>

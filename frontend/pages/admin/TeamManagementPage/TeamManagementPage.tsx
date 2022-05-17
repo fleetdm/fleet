@@ -267,7 +267,7 @@ const TeamManagementPage = (): JSX.Element => {
           onCancel={toggleCreateTeamModal}
           onSubmit={onCreateSubmit}
           backendValidators={backendValidators}
-          teamIsLoading={teamIsLoading}
+          isLoading={teamIsLoading}
         />
       )}
       {showDeleteTeamModal && (
@@ -275,7 +275,7 @@ const TeamManagementPage = (): JSX.Element => {
           onCancel={toggleDeleteTeamModal}
           onSubmit={onDeleteSubmit}
           name={teamEditing?.name || ""}
-          teamIsRemoving={teamIsRemoving}
+          isLoading={teamIsRemoving}
         />
       )}
       {showEditTeamModal && (
@@ -284,7 +284,7 @@ const TeamManagementPage = (): JSX.Element => {
           onSubmit={onEditSubmit}
           defaultName={teamEditing?.name || ""}
           backendValidators={backendValidators}
-          teamIsEditing={teamIsEditing}
+          isLoading={teamIsEditing}
         />
       )}
     </div>
