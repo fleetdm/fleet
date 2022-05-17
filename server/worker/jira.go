@@ -61,7 +61,7 @@ This issue was created automatically by your Fleet Jira integration.
 * [{{ .Hostname }}|{{ $.FleetURL }}/hosts/{{ .ID }}]
 {{ end }}
 
-View hosts that failed {{ .PolicyName }} on the [*Hosts*|{{ .FleetURL }}/hosts/manage] page in Fleet.
+View hosts that failed {{ .PolicyName }} on the [*Hosts*|{{ .FleetURL }}/hosts/manage/?order_key=hostname&order_direction=asc&{{ if .TeamID }}team_id={{ .TeamID }}&{{ end }}policy_id={{ .PolicyID }}&policy_response=failing] page in Fleet.
 
 ----
 
@@ -78,7 +78,9 @@ type jiraVulnTplArgs struct {
 
 type jiraFailingPoliciesTplArgs struct {
 	FleetURL   string
+	PolicyID   uint
 	PolicyName string
+	TeamID     *uint
 	Hosts      []*fleet.HostShort
 }
 
@@ -154,6 +156,8 @@ func (j *Jira) runFailingPolicies(ctx context.Context, args jiraArgs) error {
 	tplArgs := &jiraFailingPoliciesTplArgs{
 		FleetURL:   j.FleetURL,
 		PolicyName: args.FailingPolicy.PolicyName,
+		PolicyID:   args.FailingPolicy.PolicyID,
+		TeamID:     args.FailingPolicy.TeamID,
 		Hosts:      args.FailingPolicy.Hosts,
 	}
 
@@ -161,13 +165,18 @@ func (j *Jira) runFailingPolicies(ctx context.Context, args jiraArgs) error {
 	if err != nil {
 		return err
 	}
-	level.Debug(j.Log).Log(
+
+	attrs := []interface{}{
 		"msg", "created jira issue for failing policy",
 		"policy_id", args.FailingPolicy.PolicyID,
 		"policy_name", args.FailingPolicy.PolicyName,
 		"issue_id", createdIssue.ID,
 		"issue_key", createdIssue.Key,
-	)
+	}
+	if args.FailingPolicy.TeamID != nil {
+		attrs = append(attrs, "team_id", *args.FailingPolicy.TeamID)
+	}
+	level.Debug(j.Log).Log(attrs...)
 	return nil
 }
 

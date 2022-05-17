@@ -60,7 +60,7 @@ This ticket was created automatically by your Fleet Zendesk integration.
 * [{{ .Hostname }}]({{ $.FleetURL }}/hosts/{{ .ID }})
 {{ end }}
 
-View hosts that failed {{ .PolicyName }} on the [**Hosts**]({{ .FleetURL }}/hosts/manage) page in Fleet.
+View hosts that failed {{ .PolicyName }} on the [**Hosts**]({{ .FleetURL }}/hosts/manage/?order_key=hostname&order_direction=asc&{{ if .TeamID }}team_id={{ .TeamID }}&{{ end }}policy_id={{ .PolicyID }}&policy_response=failing) page in Fleet.
 
 ----
 
@@ -77,7 +77,9 @@ type zendeskVulnTplArgs struct {
 
 type zendeskFailingPoliciesTplArgs struct {
 	FleetURL   string
+	PolicyID   uint
 	PolicyName string
+	TeamID     *uint
 	Hosts      []*fleet.HostShort
 }
 
@@ -152,6 +154,8 @@ func (z *Zendesk) runFailingPolicies(ctx context.Context, args zendeskArgs) erro
 	tplArgs := &zendeskFailingPoliciesTplArgs{
 		FleetURL:   z.FleetURL,
 		PolicyName: args.FailingPolicy.PolicyName,
+		PolicyID:   args.FailingPolicy.PolicyID,
+		TeamID:     args.FailingPolicy.TeamID,
 		Hosts:      args.FailingPolicy.Hosts,
 	}
 
@@ -159,12 +163,17 @@ func (z *Zendesk) runFailingPolicies(ctx context.Context, args zendeskArgs) erro
 	if err != nil {
 		return err
 	}
-	level.Debug(z.Log).Log(
+
+	attrs := []interface{}{
 		"msg", "created zendesk ticket for failing policy",
 		"policy_id", args.FailingPolicy.PolicyID,
 		"policy_name", args.FailingPolicy.PolicyName,
 		"ticket_id", createdTicket.ID,
-	)
+	}
+	if args.FailingPolicy.TeamID != nil {
+		attrs = append(attrs, "team_id", *args.FailingPolicy.TeamID)
+	}
+	level.Debug(z.Log).Log(attrs...)
 	return nil
 }
 

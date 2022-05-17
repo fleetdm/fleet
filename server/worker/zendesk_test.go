@@ -27,7 +27,7 @@ func TestZendeskRun(t *testing.T) {
 		}, nil
 	}
 
-	var expectedSubject string
+	var expectedSubject, expectedDescription, expectedNotInDescription string
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != "POST" {
 			w.WriteHeader(501)
@@ -40,8 +40,15 @@ func TestZendeskRun(t *testing.T) {
 
 		body, err := ioutil.ReadAll(r.Body)
 		require.NoError(t, err)
-		require.Contains(t, string(body), expectedSubject)
-		require.Contains(t, string(body), `"group_id":123`)
+		if expectedSubject != "" {
+			require.Contains(t, string(body), expectedSubject)
+		}
+		if expectedDescription != "" {
+			require.Contains(t, string(body), expectedDescription)
+		}
+		if expectedNotInDescription != "" {
+			require.NotContains(t, string(body), expectedNotInDescription)
+		}
 
 		w.WriteHeader(http.StatusCreated)
 		w.Write([]byte(`{}`))
@@ -60,13 +67,25 @@ func TestZendeskRun(t *testing.T) {
 
 	t.Run("vuln", func(t *testing.T) {
 		expectedSubject = `"subject":"Vulnerability CVE-1234-5678 detected on 1 host(s)"`
+		expectedDescription = `"group_id":123`
+		expectedNotInDescription = ""
 		err = zendesk.Run(context.Background(), json.RawMessage(`{"cve":"CVE-1234-5678"}`))
 		require.NoError(t, err)
 	})
 
-	t.Run("failing policy", func(t *testing.T) {
+	t.Run("failing global policy", func(t *testing.T) {
 		expectedSubject = `"subject":"test-policy policy failed on 1 host(s)"`
+		expectedDescription = "\\u0026policy_id=1\\u0026policy_response=failing" // ampersand gets rendered as \u0026 in json string
+		expectedNotInDescription = "\\u0026team_id="
 		err = zendesk.Run(context.Background(), json.RawMessage(`{"failing_policy":{"policy_id": 1, "policy_name": "test-policy", "hosts": [{"id": 123, "hostname": "host-123"}]}}`))
+		require.NoError(t, err)
+	})
+
+	t.Run("failing team policy", func(t *testing.T) {
+		expectedSubject = `"subject":"test-policy-2 policy failed on 2 host(s)"`
+		expectedDescription = "\\u0026team_id=123\\u0026policy_id=2\\u0026policy_response=failing" // ampersand gets rendered as \u0026 in json string
+		expectedNotInDescription = ""
+		err = zendesk.Run(context.Background(), json.RawMessage(`{"failing_policy":{"policy_id": 2, "policy_name": "test-policy-2", "team_id": 123, "hosts": [{"id": 1, "hostname": "host-1"}, {"id": 2, "hostname": "host-2"}]}}`))
 		require.NoError(t, err)
 	})
 }

@@ -27,7 +27,7 @@ func TestJiraRun(t *testing.T) {
 		}, nil
 	}
 
-	var expectedSummary string
+	var expectedSummary, expectedDescription, expectedNotInDescription string
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != "POST" {
 			w.WriteHeader(501)
@@ -38,9 +38,18 @@ func TestJiraRun(t *testing.T) {
 			return
 		}
 
+		// the request body is the JSON payload sent to Jira, i.e. the rendered templates
 		body, err := ioutil.ReadAll(r.Body)
 		require.NoError(t, err)
-		require.Contains(t, string(body), expectedSummary)
+		if expectedSummary != "" {
+			require.Contains(t, string(body), expectedSummary)
+		}
+		if expectedDescription != "" {
+			require.Contains(t, string(body), expectedDescription)
+		}
+		if expectedNotInDescription != "" {
+			require.NotContains(t, string(body), expectedNotInDescription)
+		}
 
 		w.WriteHeader(http.StatusCreated)
 		w.Write([]byte(`
@@ -71,13 +80,24 @@ func TestJiraRun(t *testing.T) {
 
 	t.Run("vuln", func(t *testing.T) {
 		expectedSummary = `"summary":"Vulnerability CVE-1234-5678 detected on 1 host(s)"`
+		expectedDescription, expectedNotInDescription = "", ""
 		err = jira.Run(context.Background(), json.RawMessage(`{"cve":"CVE-1234-5678"}`))
 		require.NoError(t, err)
 	})
 
-	t.Run("failing policy", func(t *testing.T) {
+	t.Run("failing global policy", func(t *testing.T) {
 		expectedSummary = `"summary":"test-policy policy failed on 0 host(s)"`
+		expectedDescription = "\\u0026policy_id=1\\u0026policy_response=failing" // ampersand gets rendered as \u0026 in json string
+		expectedNotInDescription = "\\u0026team_id="
 		err = jira.Run(context.Background(), json.RawMessage(`{"failing_policy":{"policy_id": 1, "policy_name": "test-policy", "hosts": []}}`))
+		require.NoError(t, err)
+	})
+
+	t.Run("failing team policy", func(t *testing.T) {
+		expectedSummary = `"summary":"test-policy-2 policy failed on 2 host(s)"`
+		expectedDescription = "\\u0026team_id=123\\u0026policy_id=2\\u0026policy_response=failing" // ampersand gets rendered as \u0026 in json string
+		expectedNotInDescription = ""
+		err = jira.Run(context.Background(), json.RawMessage(`{"failing_policy":{"policy_id": 2, "policy_name": "test-policy-2", "team_id": 123, "hosts": [{"id": 1, "hostname": "test-1"}, {"id": 2, "hostname": "test-2"}]}}`))
 		require.NoError(t, err)
 	})
 }
