@@ -11,7 +11,7 @@ go.mod @fleetdm/go
 /infrastructure/ @zwinnerman-fleetdm @edwardsb
 
 # GitHub settings + actions
-/.github/ @zwass
+/.github/ @g-platform
 
 # Changelog
 CHANGELOG.md @noahtalerman
