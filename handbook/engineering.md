@@ -103,29 +103,6 @@ CTO + Engineering managers + PMs
 - Identify inter-group dependencies
 - Ensure items are moving through architect/estimation
 
-
-## Release process
-
-This section outlines the release process at Fleet.
-
-The current release cadence is once every 3 weeks and concentrated around Wednesdays.
-
-### Release freeze period
-
-In order to ensure quality releases, Fleet has a freeze period for testing prior to each release. Effective at the start of the freeze period, new feature work will not be merged.
-
-Release blocking bugs are exempt from the freeze period and are defined by the same rules as patch releases, which include:
-1. Regressions
-2. Security concerns
-3. Issues with features targeted for current release
-
-Non-release blocking bugs may include known issues that were not targeted for the current release, or newly documented behaviors that reproduce in older stable versions. These may be addressed during a release period by mutual agreement between the [Product](./product.md) and Engineering teams.
-
-### Release day
-
-Documentation on completing the release process can be found
-[here](../docs/Contributing/Releasing-Fleet.md).
-
 ## On-call rotation
 
 This section outlines the on-call rotation at Fleet.
