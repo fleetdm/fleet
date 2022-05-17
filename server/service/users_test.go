@@ -4,7 +4,6 @@ import (
 	"context"
 	"database/sql"
 	"errors"
-	"fmt"
 	"testing"
 	"time"
 
@@ -511,9 +510,7 @@ func TestModifyUserEmailNoPassword(t *testing.T) {
 	payload := fleet.UserPayload{
 		Email: ptr.String("zip@zap.com"),
 		// NO PASSWORD
-		// Password: &test.DefaultPassword,
 	}
-	fmt.Println(payload)
 	_, err = svc.ModifyUser(ctx, 3, payload)
 	require.NotNil(t, err)
 	var iae *fleet.InvalidArgumentError

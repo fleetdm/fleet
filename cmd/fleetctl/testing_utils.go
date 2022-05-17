@@ -15,8 +15,6 @@ import (
 	"github.com/urfave/cli/v2"
 )
 
-var DefaultPassword = "password123#"
-
 // runServerWithMockedDS runs the fleet server with several mocked DS methods.
 //
 // NOTE: Assumes the current session is always from the admin user (see ds.SessionByKeyFunc below).
