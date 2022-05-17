@@ -149,6 +149,8 @@ const HostSummary = ({
     return <span className="info-flex__data">No data available</span>;
   };
 
+  console.log("titleData: ", titleData);
+
   const renderSummary = () => {
     return (
       <div className="info-flex">
@@ -158,9 +160,7 @@ const HostSummary = ({
             {titleData.status}
           </span>
         </div>
-        {!deviceUser &&
-          titleData.issues?.total_issues_count > 0 &&
-          renderIssues()}
+        {titleData.issues?.total_issues_count > 0 && renderIssues()}
         {!deviceUser && isPremiumTier && renderHostTeam()}
         <div className="info-flex__item info-flex__item--title">
           <span className="info-flex__header">Disk space</span>

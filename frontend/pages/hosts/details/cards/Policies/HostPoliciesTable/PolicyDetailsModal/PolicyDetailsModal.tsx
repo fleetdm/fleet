@@ -26,8 +26,7 @@ const PolicyDetailsModal = ({
         {policy?.resolution && (
           <div className={`${baseClass}__resolution`}>
             <span className={`${baseClass}__resolve-header`}> Resolve:</span>
-            <br />
-            {policy?.resolution}
+            <p>{policy?.resolution}</p>
           </div>
         )}
         <div className={`${baseClass}__btn-wrap`}>

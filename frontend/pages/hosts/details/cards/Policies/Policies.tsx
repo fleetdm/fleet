@@ -36,6 +36,8 @@ const Policies = ({
     );
   }
 
+  console.log("policies: ", policies);
+
   const tableHeaders = generatePolicyTableHeaders(togglePolicyDetailsModal);
   const noResponses: IHostPolicy[] =
     policies.filter(
