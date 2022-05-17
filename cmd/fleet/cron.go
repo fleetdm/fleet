@@ -312,7 +312,7 @@ func checkOvalVulnerabilities(
 		return
 	}
 	for _, os := range versions.OSVersions {
-		level.Debug(logger).Log("oval-updating", "Found OS Versions", os.Platform, os.Name)
+		level.Debug(logger).Log("oval-updating", "Found OS Version", os.Platform, os.Name)
 	}
 
 	// Sync
