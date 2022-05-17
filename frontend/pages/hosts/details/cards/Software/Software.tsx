@@ -8,7 +8,7 @@ import { VULNERABLE_DROPDOWN_OPTIONS } from "utilities/constants";
 import Dropdown from "components/forms/fields/Dropdown";
 import TableContainer from "components/TableContainer";
 
-import EmptySoftware from "./EmptySoftware";
+import EmptyState from "../EmptyState";
 import SoftwareVulnCount from "./SoftwareVulnCount";
 
 import generateSoftwareTableHeaders from "./SoftwareTableConfig";
@@ -23,12 +23,16 @@ interface ISoftwareTableProps {
   isLoading: boolean;
   software: ISoftware[];
   deviceUser?: boolean;
+  deviceType?: string;
+  softwareInventoryEnabled?: boolean;
 }
 
 const SoftwareTable = ({
   isLoading,
   software,
   deviceUser,
+  deviceType,
+  softwareInventoryEnabled,
 }: ISoftwareTableProps): JSX.Element => {
   const tableSoftware: ITableSoftware[] = software.map((s) => {
     return {
@@ -76,6 +80,19 @@ const SoftwareTable = ({
 
   const tableHeaders = generateSoftwareTableHeaders(deviceUser);
 
+  const EmptySoftwareSearch = () => (
+    <EmptyState title="software" reason="empty-search" />
+  );
+
+  if (softwareInventoryEnabled === false) {
+    return (
+      <div className="section section--software">
+        <p className="section__header">Software</p>
+        <EmptyState title="software" reason="disabled" />
+      </div>
+    );
+  }
+
   return (
     <div className="section section--software">
       <p className="section__header">Software</p>
@@ -89,39 +106,33 @@ const SoftwareTable = ({
             />
           )}
           {software && (
-            <TableContainer
-              columns={tableHeaders}
-              data={tableSoftware}
-              filters={filters}
-              isLoading={isLoading}
-              defaultSortHeader={"name"}
-              defaultSortDirection={"asc"}
-              inputPlaceHolder={
-                "Search software by name or vulnerabilities (CVEs)"
-              }
-              onQueryChange={onQueryChange}
-              resultsTitle={"software items"}
-              emptyComponent={EmptySoftware}
-              showMarkAllPages={false}
-              isAllPagesSelected={false}
-              searchable
-              customControl={renderVulnFilterDropdown}
-              isClientSidePagination
-              isClientSideFilter
-              highlightOnHover
-            />
+            <div className={deviceType || ""}>
+              <TableContainer
+                columns={tableHeaders}
+                data={tableSoftware}
+                filters={filters}
+                isLoading={isLoading}
+                defaultSortHeader={"name"}
+                defaultSortDirection={"asc"}
+                inputPlaceHolder={
+                  "Search software by name or vulnerabilities ( CVEs)"
+                }
+                onQueryChange={onQueryChange}
+                resultsTitle={"software items"}
+                emptyComponent={EmptySoftwareSearch}
+                showMarkAllPages={false}
+                isAllPagesSelected={false}
+                searchable
+                customControl={renderVulnFilterDropdown}
+                isClientSidePagination
+                isClientSideFilter
+                highlightOnHover
+              />
+            </div>
           )}
         </>
       ) : (
-        <div className="results">
-          <p className="results__header">
-            No installed software detected on this host.
-          </p>
-          <p className="results__data">
-            Expecting to see software? Try again in a few seconds as the system
-            catches up.
-          </p>
-        </div>
+        <EmptyState title="software" />
       )}
     </div>
   );

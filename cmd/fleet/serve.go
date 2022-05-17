@@ -25,7 +25,7 @@ import (
 	"github.com/fleetdm/fleet/v4/ee/server/licensing"
 	eeservice "github.com/fleetdm/fleet/v4/ee/server/service"
 	"github.com/fleetdm/fleet/v4/server"
-	"github.com/fleetdm/fleet/v4/server/config"
+	configpkg "github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/datastore/cached_mysql"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
@@ -70,7 +70,7 @@ type initializer interface {
 	Initialize() error
 }
 
-func createServeCmd(configManager config.Manager) *cobra.Command {
+func createServeCmd(configManager configpkg.Manager) *cobra.Command {
 	// Whether to enable the debug endpoints
 	debug := false
 	// Whether to enable developer options
@@ -178,7 +178,7 @@ the way that the Fleet server works.
 			var carveStore fleet.CarveStore
 			mailService := mail.NewService()
 
-			opts := []mysql.DBOption{mysql.Logger(logger)}
+			opts := []mysql.DBOption{mysql.Logger(logger), mysql.WithFleetConfig(&config)}
 			if config.MysqlReadReplica.Address != "" {
 				opts = append(opts, mysql.Replica(&config.MysqlReadReplica))
 			}
@@ -302,19 +302,7 @@ the way that the Fleet server works.
 
 			failingPolicySet := redis_policy_set.NewFailing(redisPool)
 
-			task := &async.Task{
-				Datastore:          ds,
-				Pool:               redisPool,
-				AsyncEnabled:       config.Osquery.EnableAsyncHostProcessing,
-				LockTimeout:        config.Osquery.AsyncHostCollectLockTimeout,
-				LogStatsInterval:   config.Osquery.AsyncHostCollectLogStatsInterval,
-				InsertBatch:        config.Osquery.AsyncHostInsertBatch,
-				DeleteBatch:        config.Osquery.AsyncHostDeleteBatch,
-				UpdateBatch:        config.Osquery.AsyncHostUpdateBatch,
-				RedisPopCount:      config.Osquery.AsyncHostRedisPopCount,
-				RedisScanKeysCount: config.Osquery.AsyncHostRedisScanKeysCount,
-				CollectorInterval:  config.Osquery.AsyncHostCollectInterval,
-			}
+			task := async.NewTask(ds, redisPool, clock.C, config.Osquery)
 
 			if config.Sentry.Dsn != "" {
 				v := version.Version()
@@ -360,16 +348,19 @@ the way that the Fleet server works.
 			cancelBackground := runCrons(ds, task, kitlog.With(logger, "component", "crons"), config, license, failingPolicySet)
 
 			// Flush seen hosts every second
-			go func() {
-				for range time.Tick(time.Duration(rand.Intn(10)+1) * time.Second) {
-					if err := svc.FlushSeenHosts(context.Background()); err != nil {
-						level.Info(logger).Log(
-							"err", err,
-							"msg", "failed to update host seen times",
-						)
+			hostsAsyncCfg := config.Osquery.AsyncConfigForTask(configpkg.AsyncTaskHostLastSeen)
+			if !hostsAsyncCfg.Enabled {
+				go func() {
+					for range time.Tick(time.Duration(rand.Intn(10)+1) * time.Second) {
+						if err := task.FlushHostsLastSeen(context.Background(), clock.C.Now()); err != nil {
+							level.Info(logger).Log(
+								"err", err,
+								"msg", "failed to update host seen times",
+							)
+						}
 					}
-				}
-			}()
+				}()
+			}
 
 			fieldKeys := []string{"method", "error"}
 			requestCount := kitprometheus.NewCounterFrom(prometheus.CounterOpts{
@@ -451,7 +442,11 @@ the way that the Fleet server works.
 
 			rootMux.Handle("/api/", apiHandler)
 			rootMux.Handle("/", frontendHandler)
-			rootMux.Handle("/debug/", service.MakeDebugHandler(svc, config, logger, eh, ds))
+
+			debugHandler := &debugMux{
+				fleetAuthenticatedHandler: service.MakeDebugHandler(svc, config, logger, eh, ds),
+			}
+			rootMux.Handle("/debug/", debugHandler)
 
 			if path, ok := os.LookupEnv("FLEET_TEST_PAGE_PATH"); ok {
 				// test that we can load this
@@ -477,7 +472,7 @@ the way that the Fleet server works.
 				if err != nil {
 					initFatal(err, "generating debug token")
 				}
-				rootMux.Handle("/debug/", http.StripPrefix("/debug/", netbug.AuthHandler(debugToken)))
+				debugHandler.tokenAuthenticatedHandler = http.StripPrefix("/debug/", netbug.AuthHandler(debugToken))
 				fmt.Printf("*** Debug mode enabled ***\nAccess the debug endpoints at /debug/?token=%s\n", url.QueryEscape(debugToken))
 			}
 
@@ -635,7 +630,7 @@ func runCrons(
 	ds fleet.Datastore,
 	task *async.Task,
 	logger kitlog.Logger,
-	config config.FleetConfig,
+	config configpkg.FleetConfig,
 	license *fleet.LicenseInfo,
 	failingPoliciesSet fleet.FailingPolicySet,
 ) context.CancelFunc {
@@ -647,7 +642,7 @@ func runCrons(
 	}
 
 	// StartCollectors starts a goroutine per collector, using ctx to cancel.
-	task.StartCollectors(ctx, config.Osquery.AsyncHostCollectMaxJitterPercent, kitlog.With(logger, "cron", "async_task"))
+	task.StartCollectors(ctx, kitlog.With(logger, "cron", "async_task"))
 
 	go cronDB(ctx, ds, kitlog.With(logger, "cron", "cleanups"), ourIdentifier, license)
 	go cronVulnerabilities(
@@ -668,7 +663,7 @@ func getTLSConfig(profile string) *tls.Config {
 	}
 
 	switch profile {
-	case config.TLSProfileModern:
+	case configpkg.TLSProfileModern:
 		cfg.MinVersion = tls.VersionTLS13
 		cfg.CurvePreferences = append(cfg.CurvePreferences,
 			tls.X25519,
@@ -685,7 +680,7 @@ func getTLSConfig(profile string) *tls.Config {
 			tls.TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256,
 			tls.TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256,
 		)
-	case config.TLSProfileIntermediate:
+	case configpkg.TLSProfileIntermediate:
 		cfg.MinVersion = tls.VersionTLS12
 		cfg.CurvePreferences = append(cfg.CurvePreferences,
 			tls.X25519,
@@ -759,4 +754,23 @@ func argsToString(args []driver.NamedValue) string {
 	}
 	allArgs.WriteString("}")
 	return allArgs.String()
+}
+
+// The debugMux directs the request to either the fleet-authenticated handler,
+// which is the standard handler for debug endpoints (using a Fleet
+// authorization bearer token), or to the token-authenticated handler if a
+// query-string token is provided and such a handler is set. The only wayt to
+// set this handler is if the --debug flag was provided to the fleet serve
+// command.
+type debugMux struct {
+	fleetAuthenticatedHandler http.Handler
+	tokenAuthenticatedHandler http.Handler
+}
+
+func (m *debugMux) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	if r.URL.Query().Has("token") && m.tokenAuthenticatedHandler != nil {
+		m.tokenAuthenticatedHandler.ServeHTTP(w, r)
+		return
+	}
+	m.fleetAuthenticatedHandler.ServeHTTP(w, r)
 }

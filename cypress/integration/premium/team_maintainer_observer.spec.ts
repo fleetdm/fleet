@@ -216,7 +216,9 @@ describe("Premium tier - Team observer/maintainer user", () => {
           cy.contains("Apples").click({ force: true });
           cy.contains("Oranges").click({ force: true });
         });
-        cy.contains(/oranges/i);
+        cy.getAttached(".team_name__cell").within(() => {
+          cy.findByText(/oranges/i).should("exist");
+        });
         cy.getAttached(".button-wrap")
           .contains("button", /add hosts/i)
           .click();
@@ -229,10 +231,10 @@ describe("Premium tier - Team observer/maintainer user", () => {
         cy.getAttached(".enroll-secret-modal__add-secret")
           .contains("button", /add secret/i)
           .click();
-        cy.getAttached(".secret-editor-modal__button-wrap")
+        cy.getAttached(".secret-editor-modal .modal-cta-wrap")
           .contains("button", /save/i)
           .click();
-        cy.getAttached(".enroll-secret-modal__button-wrap")
+        cy.getAttached(".enroll-secret-modal .modal-cta-wrap")
           .contains("button", /done/i)
           .click();
       });
@@ -251,10 +253,10 @@ describe("Premium tier - Team observer/maintainer user", () => {
       it("should render elements according to role-based access controls", () => {
         cy.visit("/schedule/manage");
         cy.contains(/oranges/i).should("exist");
-        cy.contains(/advanced/i).should("not.exist");
         cy.getAttached(".no-schedule__cta-buttons").within(() => {
-          cy.findByRole("button", { name: /schedule a query/i }).click();
+          cy.contains(/advanced/i).should("not.exist");
         });
+        cy.getAttached(".no-schedule__schedule-button").click();
         // Schedule a query on maintaining team
         cy.getAttached(".schedule-editor-modal__form").within(() => {
           cy.findByText(/select query/i).click();

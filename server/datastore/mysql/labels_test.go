@@ -60,6 +60,7 @@ func TestLabels(t *testing.T) {
 		{"QueriesForCentOSHost", testLabelsQueriesForCentOSHost},
 		{"RecordNonExistentQueryLabelExecution", testLabelsRecordNonexistentQueryLabelExecution},
 		{"DeleteLabel", testDeleteLabel},
+		{"LabelsSummary", testLabelsSummary},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -79,8 +80,10 @@ func testLabelsAddAllHosts(deferred bool, t *testing.T, db *Datastore) {
 		require.Nil(t, err, "enrollment should succeed")
 		hosts = append(hosts, *host)
 	}
+
 	host.Platform = "darwin"
-	require.NoError(t, db.SaveHost(context.Background(), host))
+	err = db.UpdateHost(context.Background(), host)
+	require.NoError(t, err)
 
 	// No labels to check
 	queries, err := db.LabelQueriesForHost(context.Background(), host)
@@ -706,10 +709,12 @@ func testLabelsSave(t *testing.T, db *Datastore) {
 
 func testLabelsQueriesForCentOSHost(t *testing.T, db *Datastore) {
 	host, err := db.EnrollHost(context.Background(), "0", "0", nil, 0)
-	require.Nil(t, err, "enrollment should succeed")
+	require.NoError(t, err, "enrollment should succeed")
+
 	host.Platform = "rhel"
 	host.OSVersion = "CentOS 6"
-	require.NoError(t, db.SaveHost(context.Background(), host))
+	err = db.UpdateHost(context.Background(), host)
+	require.NoError(t, err)
 
 	label, err := db.NewLabel(context.Background(), &fleet.Label{
 		UpdateCreateTimestamps: fleet.UpdateCreateTimestamps{
@@ -775,4 +780,62 @@ func testDeleteLabel(t *testing.T, db *Datastore) {
 	require.Empty(t, newP.Labels)
 
 	require.NoError(t, db.DeletePack(context.Background(), newP.Name))
+}
+
+func testLabelsSummary(t *testing.T, db *Datastore) {
+	test.AddAllHostsLabel(t, db)
+
+	// Only 'All Hosts' label should be returned
+	labels, err := db.ListLabels(context.Background(), fleet.TeamFilter{}, fleet.ListOptions{})
+	require.NoError(t, err)
+	require.Len(t, labels, 1)
+
+	newLabels := []*fleet.LabelSpec{
+		{
+			Name:     "foo",
+			Query:    "query foo",
+			Platform: "platform",
+		},
+		{
+			Name:     "bar",
+			Query:    "query bar",
+			Platform: "platform",
+		},
+		{
+			Name:        "baz",
+			Query:       "query baz",
+			Description: "description baz",
+			Platform:    "darwin",
+		},
+	}
+	err = db.ApplyLabelSpecs(context.Background(), newLabels)
+	require.Nil(t, err)
+
+	labels, err = db.ListLabels(context.Background(), fleet.TeamFilter{}, fleet.ListOptions{})
+	require.NoError(t, err)
+	require.Len(t, labels, 4)
+	labelsByID := make(map[uint]*fleet.Label)
+	for _, l := range labels {
+		labelsByID[l.ID] = l
+	}
+
+	ls, err := db.LabelsSummary(context.Background())
+	require.NoError(t, err)
+	require.Len(t, ls, 4)
+	for _, l := range ls {
+		assert.NotNil(t, labelsByID[l.ID])
+		assert.Equal(t, labelsByID[l.ID].Name, l.Name)
+		assert.Equal(t, labelsByID[l.ID].Description, l.Description)
+		assert.Equal(t, labelsByID[l.ID].LabelType, l.LabelType)
+	}
+
+	_, err = db.NewLabel(context.Background(), &fleet.Label{
+		Name:  "bing",
+		Query: "query bing",
+	})
+	require.NoError(t, err)
+
+	ls, err = db.LabelsSummary(context.Background())
+	require.NoError(t, err)
+	require.Len(t, ls, 5)
 }

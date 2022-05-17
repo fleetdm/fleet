@@ -93,12 +93,21 @@
   }
 }
 
-.logo__header {
-  width: 24px;
+.type__header {
+  width: 12px;
 }
 
-.logo__cell {
-  img {
+.type__cell {
+  .logo-cell {
+    display: block;
+    text-align: center;
+  }
+
+  .zendesk-icon {
+    width: 16px;
+  }
+
+  .jira-icon {
     width: 24px;
   }
 }

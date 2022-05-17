@@ -88,7 +88,11 @@ describe("Query flow (seeded)", () => {
       cy.findByText(/query updated/i).should("be.visible");
     });
     it("saves an existing query as new query", () => {
-      cy.getAttached(".name__cell .button--text-link").eq(1).click();
+      cy.getAttached(".name__cell .button--text-link")
+        .eq(1)
+        .within(() => {
+          cy.findByText(/get authorized/i).click();
+        });
       cy.findByText(/run query/i).should("exist");
       cy.getAttached(".ace_scroller")
         .click()
@@ -106,7 +110,9 @@ describe("Query flow (seeded)", () => {
           });
         });
       cy.findByRole("button", { name: /delete/i }).click();
-      cy.getAttached(".button--alert.remove-query-modal__btn").click();
+      cy.getAttached(".remove-query-modal .modal-cta-wrap").within(() => {
+        cy.findByRole("button", { name: /delete/i }).click();
+      });
       cy.findByText(/successfully removed query/i).should("be.visible");
       cy.findByText(/detect presence of authorized ssh keys/i).should(
         "not.exist"
@@ -145,7 +151,9 @@ describe("Query flow (seeded)", () => {
             cy.getAttached(".input-field").click().type("50");
           }
         );
-        cy.getAttached(".schedule-editor-modal__btn-wrap").within(() => {
+        cy.getAttached(
+          ".schedule-editor-modal__btn-wrap .modal-cta-wrap"
+        ).within(() => {
           cy.findByRole("button", { name: /schedule/i }).click();
         });
       });
@@ -178,9 +186,11 @@ describe("Query flow (seeded)", () => {
           cy.findByText(/action/i).click();
           cy.findByText(/remove/i).click();
         });
-      cy.getAttached(".remove-scheduled-query-modal__btn-wrap").within(() => {
-        cy.findByRole("button", { name: /remove/i }).click();
-      });
+      cy.getAttached(".remove-scheduled-query-modal .modal-cta-wrap").within(
+        () => {
+          cy.findByRole("button", { name: /remove/i }).click();
+        }
+      );
       cy.findByText(/successfully removed/i).should("be.visible");
     });
   });

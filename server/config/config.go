@@ -6,9 +6,11 @@ import (
 	"errors"
 	"fmt"
 	"io/ioutil"
+	"net/url"
 	"os"
 	"path/filepath"
 	"runtime"
+	"strconv"
 	"strings"
 	"time"
 
@@ -116,16 +118,66 @@ type OsqueryConfig struct {
 	ResultLogFile                    string        `yaml:"result_log_file"`
 	EnableLogRotation                bool          `yaml:"enable_log_rotation"`
 	MaxJitterPercent                 int           `yaml:"max_jitter_percent"`
-	EnableAsyncHostProcessing        bool          `yaml:"enable_async_host_processing"`
-	AsyncHostCollectInterval         time.Duration `yaml:"async_host_collect_interval"`
+	EnableAsyncHostProcessing        string        `yaml:"enable_async_host_processing"` // true/false or per-task
+	AsyncHostCollectInterval         string        `yaml:"async_host_collect_interval"`  // duration or per-task
 	AsyncHostCollectMaxJitterPercent int           `yaml:"async_host_collect_max_jitter_percent"`
-	AsyncHostCollectLockTimeout      time.Duration `yaml:"async_host_collect_lock_timeout"`
+	AsyncHostCollectLockTimeout      string        `yaml:"async_host_collect_lock_timeout"` // duration or per-task
 	AsyncHostCollectLogStatsInterval time.Duration `yaml:"async_host_collect_log_stats_interval"`
 	AsyncHostInsertBatch             int           `yaml:"async_host_insert_batch"`
 	AsyncHostDeleteBatch             int           `yaml:"async_host_delete_batch"`
 	AsyncHostUpdateBatch             int           `yaml:"async_host_update_batch"`
 	AsyncHostRedisPopCount           int           `yaml:"async_host_redis_pop_count"`
 	AsyncHostRedisScanKeysCount      int           `yaml:"async_host_redis_scan_keys_count"`
+	MinSoftwareLastOpenedAtDiff      time.Duration `yaml:"min_software_last_opened_at_diff"`
+}
+
+// AsyncTaskName is the type of names that identify tasks supporting
+// asynchronous execution.
+type AsyncTaskName string
+
+// List of names for supported async tasks.
+const (
+	AsyncTaskLabelMembership  AsyncTaskName = "label_membership"
+	AsyncTaskPolicyMembership AsyncTaskName = "policy_membership"
+	AsyncTaskHostLastSeen     AsyncTaskName = "host_last_seen"
+)
+
+var knownAsyncTasks = map[AsyncTaskName]struct{}{
+	AsyncTaskLabelMembership:  {},
+	AsyncTaskPolicyMembership: {},
+	AsyncTaskHostLastSeen:     {},
+}
+
+// AsyncConfigForTask returns the applicable configuration for the specified
+// async task.
+func (o OsqueryConfig) AsyncConfigForTask(name AsyncTaskName) AsyncProcessingConfig {
+	strName := string(name)
+	return AsyncProcessingConfig{
+		Enabled:                 configForKeyOrBool("osquery.enable_async_host_processing", strName, o.EnableAsyncHostProcessing, false),
+		CollectInterval:         configForKeyOrDuration("osquery.async_host_collect_interval", strName, o.AsyncHostCollectInterval, 30*time.Second),
+		CollectMaxJitterPercent: o.AsyncHostCollectMaxJitterPercent,
+		CollectLockTimeout:      configForKeyOrDuration("osquery.async_host_collect_lock_timeout", strName, o.AsyncHostCollectLockTimeout, 1*time.Minute),
+		CollectLogStatsInterval: o.AsyncHostCollectLogStatsInterval,
+		InsertBatch:             o.AsyncHostInsertBatch,
+		DeleteBatch:             o.AsyncHostDeleteBatch,
+		UpdateBatch:             o.AsyncHostUpdateBatch,
+		RedisPopCount:           o.AsyncHostRedisPopCount,
+		RedisScanKeysCount:      o.AsyncHostRedisScanKeysCount,
+	}
+}
+
+// AsyncProcessingConfig is the configuration for a specific async task.
+type AsyncProcessingConfig struct {
+	Enabled                 bool
+	CollectInterval         time.Duration
+	CollectMaxJitterPercent int
+	CollectLockTimeout      time.Duration
+	CollectLogStatsInterval time.Duration
+	InsertBatch             int
+	DeleteBatch             int
+	UpdateBatch             int
+	RedisPopCount           int
+	RedisScanKeysCount      int
 }
 
 // LoggingConfig defines configs related to logging
@@ -445,14 +497,14 @@ func (man Manager) addConfigs() {
 		"(DEPRECATED: Use filesystem.enable_log_rotation) Enable automatic rotation for osquery log files")
 	man.addConfigInt("osquery.max_jitter_percent", 10,
 		"Maximum percentage of the interval to add as jitter")
-	man.addConfigBool("osquery.enable_async_host_processing", false,
-		"Enable asynchronous processing of host-reported query results")
-	man.addConfigDuration("osquery.async_host_collect_interval", 30*time.Second,
-		"Interval to collect asynchronous host-reported query results (i.e. 30s)")
+	man.addConfigString("osquery.enable_async_host_processing", "false",
+		"Enable asynchronous processing of host-reported query results (either 'true'/'false' or set per task, e.g. 'label_membership=true&policy_membership=true')")
+	man.addConfigString("osquery.async_host_collect_interval", (30 * time.Second).String(),
+		"Interval to collect asynchronous host-reported query results (e.g. '30s' or set per task 'label_membership=10s&policy_membership=1m')")
 	man.addConfigInt("osquery.async_host_collect_max_jitter_percent", 10,
 		"Maximum percentage of the interval to collect asynchronous host results")
-	man.addConfigDuration("osquery.async_host_collect_lock_timeout", 1*time.Minute,
-		"Timeout of the exclusive lock held during async host collection")
+	man.addConfigString("osquery.async_host_collect_lock_timeout", (1 * time.Minute).String(),
+		"Timeout of the exclusive lock held during async host collection (e.g. '30s' or set per task 'label_membership=10s&policy_membership=1m'")
 	man.addConfigDuration("osquery.async_host_collect_log_stats_interval", 1*time.Minute,
 		"Interval at which async host collection statistics are logged (0 disables logging of stats)")
 	man.addConfigInt("osquery.async_host_insert_batch", 2000,
@@ -465,6 +517,8 @@ func (man Manager) addConfigs() {
 		"Batch size to pop items from redis in async collection")
 	man.addConfigInt("osquery.async_host_redis_scan_keys_count", 1000,
 		"Batch size to scan redis keys in async collection")
+	man.addConfigDuration("osquery.min_software_last_opened_at_diff", 1*time.Hour,
+		"Minimum time difference of the software's last opened timestamp (compared to the last one saved) to trigger an update to the database")
 
 	// Logging
 	man.addConfigBool("logging.debug", false,
@@ -610,7 +664,7 @@ func (man Manager) LoadConfig() FleetConfig {
 		}
 	}
 
-	return FleetConfig{
+	cfg := FleetConfig{
 		Mysql:            loadMysqlConfig("mysql"),
 		MysqlReadReplica: loadMysqlConfig("mysql_read_replica"),
 		Redis: RedisConfig{
@@ -672,16 +726,17 @@ func (man Manager) LoadConfig() FleetConfig {
 			DetailUpdateInterval:             man.getConfigDuration("osquery.detail_update_interval"),
 			EnableLogRotation:                man.getConfigBool("osquery.enable_log_rotation"),
 			MaxJitterPercent:                 man.getConfigInt("osquery.max_jitter_percent"),
-			EnableAsyncHostProcessing:        man.getConfigBool("osquery.enable_async_host_processing"),
-			AsyncHostCollectInterval:         man.getConfigDuration("osquery.async_host_collect_interval"),
+			EnableAsyncHostProcessing:        man.getConfigString("osquery.enable_async_host_processing"),
+			AsyncHostCollectInterval:         man.getConfigString("osquery.async_host_collect_interval"),
 			AsyncHostCollectMaxJitterPercent: man.getConfigInt("osquery.async_host_collect_max_jitter_percent"),
-			AsyncHostCollectLockTimeout:      man.getConfigDuration("osquery.async_host_collect_lock_timeout"),
+			AsyncHostCollectLockTimeout:      man.getConfigString("osquery.async_host_collect_lock_timeout"),
 			AsyncHostCollectLogStatsInterval: man.getConfigDuration("osquery.async_host_collect_log_stats_interval"),
 			AsyncHostInsertBatch:             man.getConfigInt("osquery.async_host_insert_batch"),
 			AsyncHostDeleteBatch:             man.getConfigInt("osquery.async_host_delete_batch"),
 			AsyncHostUpdateBatch:             man.getConfigInt("osquery.async_host_update_batch"),
 			AsyncHostRedisPopCount:           man.getConfigInt("osquery.async_host_redis_pop_count"),
 			AsyncHostRedisScanKeysCount:      man.getConfigInt("osquery.async_host_redis_scan_keys_count"),
+			MinSoftwareLastOpenedAtDiff:      man.getConfigDuration("osquery.min_software_last_opened_at_diff"),
 		},
 		Logging: LoggingConfig{
 			Debug:                man.getConfigBool("logging.debug"),
@@ -775,6 +830,13 @@ func (man Manager) LoadConfig() FleetConfig {
 			},
 		},
 	}
+
+	// ensure immediately that the async config is valid for all known tasks
+	for task := range knownAsyncTasks {
+		cfg.Osquery.AsyncConfigForTask(task)
+	}
+
+	return cfg
 }
 
 // IsSet determines whether a given config key has been explicitly set by any
@@ -945,6 +1007,74 @@ func (man Manager) getConfigDuration(key string) time.Duration {
 	}
 
 	return durationVal
+}
+
+// panics if the config is invalid, this is handled by Viper (this is how all
+// getConfigT helpers indicate errors). The default value is only applied if
+// there is no task-specific config (i.e. no "task=true" config format for that
+// task). If the configuration key was not set at all, it automatically
+// inherited the general default configured for that key (via
+// man.addConfigBool).
+func configForKeyOrBool(key, task, val string, def bool) bool {
+	parseVal := func(v string) bool {
+		if v == "" {
+			return false
+		}
+
+		b, err := strconv.ParseBool(v)
+		if err != nil {
+			panic("Unable to cast to bool for key " + key + ": " + err.Error())
+		}
+		return b
+	}
+
+	if !strings.Contains(val, "=") {
+		// simple case, val is a bool
+		return parseVal(val)
+	}
+
+	q, err := url.ParseQuery(val)
+	if err != nil {
+		panic("Invalid query format for key " + key + ": " + err.Error())
+	}
+	if v := q.Get(task); v != "" {
+		return parseVal(v)
+	}
+	return def
+}
+
+// panics if the config is invalid, this is handled by Viper (this is how all
+// getConfigT helpers indicate errors). The default value is only applied if
+// there is no task-specific config (i.e. no "task=10s" config format for that
+// task). If the configuration key was not set at all, it automatically
+// inherited the general default configured for that key (via
+// man.addConfigDuration).
+func configForKeyOrDuration(key, task, val string, def time.Duration) time.Duration {
+	parseVal := func(v string) time.Duration {
+		if v == "" {
+			return 0
+		}
+
+		d, err := time.ParseDuration(v)
+		if err != nil {
+			panic("Unable to cast to time.Duration for key " + key + ": " + err.Error())
+		}
+		return d
+	}
+
+	if !strings.Contains(val, "=") {
+		// simple case, val is a duration
+		return parseVal(val)
+	}
+
+	q, err := url.ParseQuery(val)
+	if err != nil {
+		panic("Invalid query format for key " + key + ": " + err.Error())
+	}
+	if v := q.Get(task); v != "" {
+		return parseVal(v)
+	}
+	return def
 }
 
 // loadConfigFile handles the loading of the config file.

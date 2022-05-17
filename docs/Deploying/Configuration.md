@@ -1067,9 +1067,15 @@ to the amount of time it takes for Fleet to give the host the label queries.
 
 ##### osquery_enable_async_host_processing
 
-**Experimental feature**. Enable asynchronous processing of hosts query results. Currently, only supported for label query execution and policy membership results. This may improve performance and CPU usage of the Fleet instances and MySQL database servers for setups with a large number of hosts, while requiring more resources from Redis server(s).
+**Experimental feature**. Enable asynchronous processing of hosts query results. Currently, only supported for label query execution, policy membership results and hosts' last seen timestamp. This may improve performance and CPU usage of the Fleet instances and MySQL database servers for setups with a large number of hosts, while requiring more resources from Redis server(s).
 
 Note that currently, if both the failing policies webhook *and* this `osquery.enable_async_host_processing` option are set, some failing policies webhooks could be missing (some transitions from succeeding to failing or vice-versa could happen without triggering a webhook request).
+
+It can be set to a single boolean value ("true" or "false"), which controls all async host processing tasks, or it can be set for specific async tasks using a syntax similar to an URL query string or parameters in a Data Source Name (DSN) string, e.g. "label_membership=true&policy_membership=true". When using the per-task syntax, omitted tasks get the default value. The supported async task names are:
+
+* `label_membership` for updating the hosts' label query execution;
+* `policy_membership` for updating the hosts' policy membership results;
+* `host_last_seen` for updating the hosts' last seen timestamp.
 
 - Default value: false
 - Environment variable: `FLEET_OSQUERY_ENABLE_ASYNC_HOST_PROCESSING`
@@ -1083,6 +1089,8 @@ Note that currently, if both the failing policies webhook *and* this `osquery.en
 ##### osquery_async_host_collect_interval
 
 Applies only when `osquery_enable_async_host_processing` is enabled. Sets the interval at which the host data will be collected into the database. Each Fleet instance will attempt to do the collection at this interval (with some optional jitter added, see `osquery_async_host_collect_max_jitter_percent`), with only one succeeding to get the exclusive lock.
+
+It can be set to a single duration value (e.g. "30s"), which defines the interval for all async host processing tasks, or it can be set for specific async tasks using a syntax similar to an URL query string or parameters in a Data Source Name (DSN) string, e.g. "label_membership=10s&policy_membership=1m". When using the per-task syntax, omitted tasks get the default value. See [osquery_enable_async_host_processing](#osquery_enable_async_host_processing) for the supported async task names.
 
 - Default value: 30s
 - Environment variable: `FLEET_OSQUERY_ASYNC_HOST_COLLECT_INTERVAL`
@@ -1109,6 +1117,8 @@ Applies only when `osquery_enable_async_host_processing` is enabled. A number in
 ##### osquery_async_host_collect_lock_timeout
 
 Applies only when `osquery_enable_async_host_processing` is enabled. Timeout of the lock acquired by a Fleet instance to collect host data into the database. If the collection runs for too long or the instance crashes unexpectedly, the lock will be automatically released after this duration and another Fleet instance can proceed with the next collection.
+
+It can be set to a single duration value (e.g. "1m"), which defines the lock timeout for all async host processing tasks, or it can be set for specific async tasks using a syntax similar to an URL query string or parameters in a Data Source Name (DSN) string, e.g. "label_membership=2m&policy_membership=5m". When using the per-task syntax, omitted tasks get the default value. See [osquery_enable_async_host_processing](#osquery_enable_async_host_processing) for the supported async task names.
 
 - Default value: 1m
 - Environment variable: `FLEET_OSQUERY_ASYNC_HOST_COLLECT_LOCK_TIMEOUT`
@@ -1186,7 +1196,7 @@ Applies only when `osquery_enable_async_host_processing` is enabled. Maximum num
 
 ##### osquery_async_host_redis_scan_keys_count
 
-Applies only when `osquery_enable_async_host_processing` is enabled. Order of magnitude (e.g. 10, 100, 1000, etc.) of keys to scan in a single SCAN request for keys to process when collecting host data into the database.
+Applies only when `osquery_enable_async_host_processing` is enabled. Order of magnitude (e.g. 10, 100, 1000, etc.) of set members to scan in a single ZSCAN/SSCAN request for items to process when collecting host data into the database.
 
 - Default value: 1000
 - Environment variable: `FLEET_OSQUERY_ASYNC_HOST_REDIS_SCAN_KEYS_COUNT`
@@ -1195,6 +1205,19 @@ Applies only when `osquery_enable_async_host_processing` is enabled. Order of ma
   ```
   osquery:
   	async_host_redis_scan_keys_count: 100
+  ```
+
+##### osquery_min_software_last_opened_at_diff
+
+The minimum time difference between the software's "last opened at" timestamp reported by osquery and the last timestamp saved for that software on that host helps minimize the number of updates required when a host reports its installed software information, resulting in less load on the database. If there is no existing timestamp for the software on that host (or if the software was not installed on that host previously), the new timestamp is automatically saved.
+
+- Default value: 1h
+- Environment variable: `FLEET_OSQUERY_MIN_SOFTWARE_LAST_OPENED_AT_DIFF`
+- Config file format:
+
+  ```
+  osquery:
+  	min_software_last_opened_at_diff: 4h
   ```
 
 ##### Example YAML
@@ -2312,7 +2335,7 @@ _**Note that the email being used in the SAML Assertion must match a user that a
 Setting up the service provider (Fleet) with an identity provider generally requires the following information:
 
 - _Assertion Consumer Service_ - This is the call back URL that the identity provider
-  will use to send security assertions to Fleet. In Okta, this field is called _Single sign on URL_. On Google it is "ACS URL". The value that you supply will be a fully qualified URL consisting of your Fleet web address and the callback path `/api/v1/fleet/sso/callback`. For example, if your Fleet web address is https://fleet.example.com, then the value you would use in the identity provider configuration would be:
+  will use to send security assertions to Fleet. In Okta, this field is called _single sign on URL_. On Google it is "ACS URL." The value that you supply will be a fully qualified URL consisting of your Fleet web address and the callback path `/api/v1/fleet/sso/callback`. For example, if your Fleet web address is https://fleet.example.com, then the value you would use in the identity provider configuration would be:
 
   ```
   https://fleet.example.com/api/v1/fleet/sso/callback

@@ -174,35 +174,6 @@ const createConfig = {
   },
 };
 
-const editConfig = {
-  ...getConfig,
-  integrations: {
-    jira: [
-      {
-        url: "https://fleetdm.atlassian.com",
-        username: "jira1@example.com",
-        api_token: "jira123",
-        project_key: "PROJECT 1",
-        enable_software_vulnerabilities: false,
-      },
-      {
-        url: "https://fleetdm.atlassian.com",
-        username: "jira0@example.com",
-        api_token: "jira0123",
-        project_key: "PROJECT 0",
-        enable_software_vulnerabilities: false,
-      },
-      {
-        url: "https://fleetdm.atlassian.com",
-        username: "jira3@example.com",
-        api_token: "jira123",
-        project_key: "PROJECT 3",
-        enable_software_vulnerabilities: false,
-      },
-    ],
-  },
-};
-
 const deleteConfig = {
   ...getConfig,
   integrations: {
@@ -564,51 +535,6 @@ describe("App settings flow", () => {
         console.log(JSON.stringify(configStub));
       });
     });
-    it("edits jira integration", () => {
-      cy.getAttached("tbody>tr")
-        .should("have.length", 3)
-        .eq(1)
-        .within(() => {
-          cy.findByText(/action/i).click();
-          cy.findByText(/edit/i).click();
-        });
-      cy.findByLabelText(/jira site url/i)
-        .clear()
-        .type("https://fleetdm.atlassian.com");
-      cy.findByLabelText(/jira username/i)
-        .clear()
-        .type("jira0@example.com");
-      cy.findByLabelText(/jira api token/i)
-        .clear()
-        .type("jira0123");
-      cy.findByLabelText(/jira project key/i)
-        .clear()
-        .type("PROJECT 0");
-      cy.intercept("PATCH", "/api/latest/fleet/config", editConfig).as(
-        "editIntegration"
-      );
-      cy.intercept("GET", "/api/latest/fleet/config", editConfig).as(
-        "editedIntegration"
-      );
-      cy.getAttached(".integration-form__btn-wrap")
-        .contains("button", /save/i)
-        .click();
-      cy.wait("@editIntegration").then((configStub) => {
-        cy.log(JSON.stringify(configStub));
-        console.log(JSON.stringify(configStub));
-      });
-      cy.wait("@editedIntegration").then((configStub) => {
-        cy.log(JSON.stringify(configStub));
-        console.log(JSON.stringify(configStub));
-        cy.findByText(/successfully edited/i).should("exist");
-        cy.getAttached("tbody>tr")
-          .should("have.length", 3)
-          .eq(0)
-          .within(() => {
-            cy.findByText(/fleetdm.atlassian.com - project 0/i).should("exist");
-          });
-      });
-    });
     it("deletes jira integration", () => {
       cy.getAttached("tbody>tr")
         .eq(1)
@@ -623,7 +549,7 @@ describe("App settings flow", () => {
       cy.intercept("GET", "/api/latest/fleet/config", deleteConfig).as(
         "deletedIntegration"
       );
-      cy.getAttached(".delete-integration-modal__btn-wrap")
+      cy.getAttached(".delete-integration-modal .modal-cta-wrap")
         .contains("button", /delete/i)
         .click();
       cy.wait("@deleteIntegration").then((configStub) => {

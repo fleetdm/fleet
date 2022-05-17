@@ -17,7 +17,7 @@ import usersAPI from "services/entities/users";
 import invitesAPI from "services/entities/invites";
 
 import TableContainer, { ITableQueryData } from "components/TableContainer";
-import TableDataError from "components/TableDataError";
+import TableDataError from "components/DataError";
 import Modal from "components/Modal";
 import { DEFAULT_CREATE_USER_ERRORS } from "utilities/constants";
 import EmptyUsers from "./components/EmptyUsers";

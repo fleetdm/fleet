@@ -18,7 +18,7 @@ describe("Teams flow (empty)", () => {
       cy.findByLabelText(/team name/i)
         .click()
         .type("Valor");
-      cy.getAttached(".create-team-modal__btn-wrap").within(() => {
+      cy.getAttached(".create-team-modal .modal-cta-wrap").within(() => {
         // ^$ forces exact match
         cy.findByRole("button", { name: /^create$/i }).click();
       });
@@ -76,7 +76,7 @@ describe("Teams flow (seeded)", () => {
             });
         });
       });
-      cy.getAttached(".delete-team-modal__btn-wrap").within(() => {
+      cy.getAttached(".delete-team-modal .modal-cta-wrap").within(() => {
         cy.findByRole("button", { name: /delete/i }).click();
       });
       cy.findByText(/successfully deleted/i).should("be.visible");
@@ -86,8 +86,8 @@ describe("Teams flow (seeded)", () => {
   describe("Manage schedules page", () => {
     beforeEach(() => {
       cy.loginWithCySession();
-      cy.visit("/schedule/manage");
       cy.seedQueries();
+      cy.visit("/schedule/manage");
     });
     it("adds a query to team schedule", () => {
       cy.getAttached(".manage-schedule-page__header").within(() => {
@@ -143,10 +143,10 @@ describe("Teams flow (seeded)", () => {
       cy.getAttached(".enroll-secret-modal__add-secret")
         .contains("button", /add secret/i)
         .click();
-      cy.getAttached(".secret-editor-modal__button-wrap")
+      cy.getAttached(".secret-editor-modal .modal-cta-wrap")
         .contains("button", /save/i)
         .click();
-      cy.getAttached(".enroll-secret-modal__button-wrap")
+      cy.getAttached(".enroll-secret-modal .modal-cta-wrap")
         .contains("button", /done/i)
         .click();
     });

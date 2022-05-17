@@ -7,6 +7,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/datastore/redis"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -27,9 +28,10 @@ var (
 )
 
 func (t *Task) RecordPolicyQueryExecutions(ctx context.Context, host *fleet.Host, results map[uint]*bool, ts time.Time, deferred bool) error {
-	if !t.AsyncEnabled {
+	cfg := t.taskConfigs[config.AsyncTaskPolicyMembership]
+	if !cfg.Enabled {
 		host.PolicyUpdatedAt = ts
-		return t.Datastore.RecordPolicyQueryExecutions(ctx, host, results, ts, deferred)
+		return t.datastore.RecordPolicyQueryExecutions(ctx, host, results, ts, deferred)
 	}
 
 	keyList := fmt.Sprintf(policyPassHostKey, host.ID)
@@ -45,7 +47,7 @@ func (t *Task) RecordPolicyQueryExecutions(ctx context.Context, host *fleet.Host
 	// the collector will have plenty of time to run (multiple times) to try to
 	// persist all the data in mysql.
 	ttl := policyPassKeysMinTTL
-	if maxTTL := 10 * t.CollectorInterval; maxTTL > ttl {
+	if maxTTL := 10 * cfg.CollectInterval; maxTTL > ttl {
 		ttl = maxTTL
 	}
 
@@ -79,9 +81,9 @@ func (t *Task) RecordPolicyQueryExecutions(ctx context.Context, host *fleet.Host
 		args = args.Add(fmt.Sprintf("%d=%d", k, pass))
 	}
 
-	conn := t.Pool.Get()
+	conn := t.pool.Get()
 	defer conn.Close()
-	if err := redis.BindConn(t.Pool, conn, keyList, keyTs); err != nil {
+	if err := redis.BindConn(t.pool, conn, keyList, keyTs); err != nil {
 		return ctxerr.Wrap(ctx, err, "bind redis connection")
 	}
 
@@ -93,14 +95,16 @@ func (t *Task) RecordPolicyQueryExecutions(ctx context.Context, host *fleet.Host
 	// outside of the redis script because in Redis Cluster mode the key may not
 	// live on the same node as the host's keys. At the same time, purge any
 	// entry in the set that is older than now - TTL.
-	if _, err := storePurgeActiveHostID(t.Pool, policyPassHostIDsKey, host.ID, ts, ts.Add(-ttl)); err != nil {
+	if _, err := storePurgeActiveHostID(t.pool, policyPassHostIDsKey, host.ID, ts, ts.Add(-ttl)); err != nil {
 		return ctxerr.Wrap(ctx, err, "store active host id")
 	}
 	return nil
 }
 
 func (t *Task) collectPolicyQueryExecutions(ctx context.Context, ds fleet.Datastore, pool fleet.RedisPool, stats *collectorExecStats) error {
-	hosts, err := loadActiveHostIDs(pool, policyPassHostIDsKey, t.RedisScanKeysCount)
+	cfg := t.taskConfigs[config.AsyncTaskPolicyMembership]
+
+	hosts, err := loadActiveHostIDs(pool, policyPassHostIDsKey, cfg.RedisScanKeysCount)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "load active host ids")
 	}
@@ -165,7 +169,7 @@ func (t *Task) collectPolicyQueryExecutions(ctx context.Context, ds fleet.Datast
 		return ds.AsyncBatchUpdatePolicyTimestamp(ctx, ids, ts)
 	}
 
-	insertBatch := make([]fleet.PolicyMembershipResult, 0, t.InsertBatch)
+	insertBatch := make([]fleet.PolicyMembershipResult, 0, cfg.InsertBatch)
 	for _, host := range hosts {
 		hid := host.HostID
 		ins, err := getKeyTuples(hid)
@@ -174,7 +178,7 @@ func (t *Task) collectPolicyQueryExecutions(ctx context.Context, ds fleet.Datast
 		}
 		insertBatch = append(insertBatch, ins...)
 
-		if len(insertBatch) >= t.InsertBatch {
+		if len(insertBatch) >= cfg.InsertBatch {
 			if err := runInsertBatch(insertBatch); err != nil {
 				return err
 			}
@@ -195,8 +199,8 @@ func (t *Task) collectPolicyQueryExecutions(ctx context.Context, ds fleet.Datast
 			hostIDs[i] = host.HostID
 		}
 
-		ts := time.Now()
-		updateBatch := make([]uint, t.UpdateBatch)
+		ts := t.clock.Now()
+		updateBatch := make([]uint, cfg.UpdateBatch)
 		for {
 			n := copy(updateBatch, hostIDs)
 			if n == 0 {
@@ -221,8 +225,10 @@ func (t *Task) collectPolicyQueryExecutions(ctx context.Context, ds fleet.Datast
 }
 
 func (t *Task) GetHostPolicyReportedAt(ctx context.Context, host *fleet.Host) time.Time {
-	if t.AsyncEnabled {
-		conn := redis.ConfigureDoer(t.Pool, t.Pool.Get())
+	cfg := t.taskConfigs[config.AsyncTaskPolicyMembership]
+
+	if cfg.Enabled {
+		conn := redis.ConfigureDoer(t.pool, t.pool.Get())
 		defer conn.Close()
 
 		key := fmt.Sprintf(policyPassReportedKey, host.ID)

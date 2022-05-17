@@ -177,6 +177,10 @@
     .app-config-form__section-description {
       width: initial;
     }
+
+    h2 {
+      max-width: initial;
+    }
   }
 
   &__inputs {
@@ -193,12 +197,16 @@
       margin: 0 0 $pad-medium;
 
       .form-field {
-        width: 18%;
+        width: 29%;
         float: right;
 
         &:first-child {
           float: left;
-          width: 78%;
+          width: 69%;
+        }
+
+        &:nth-child(2) {
+          padding-top: 10px;
         }
 
         &--checkbox {

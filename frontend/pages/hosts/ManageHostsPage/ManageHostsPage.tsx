@@ -10,7 +10,6 @@ import FileSaver from "file-saver";
 import enrollSecretsAPI from "services/entities/enroll_secret";
 import labelsAPI from "services/entities/labels";
 import teamsAPI from "services/entities/teams";
-import usersAPI, { IGetMeResponse } from "services/entities/users";
 import globalPoliciesAPI from "services/entities/global_policies";
 import teamPoliciesAPI from "services/entities/team_policies";
 import hostsAPI, {
@@ -51,7 +50,7 @@ import HostSidePanel from "components/side_panels/HostSidePanel";
 import LabelForm from "components/forms/LabelForm";
 import QuerySidePanel from "components/side_panels/QuerySidePanel";
 import TableContainer from "components/TableContainer";
-import TableDataError from "components/TableDataError";
+import TableDataError from "components/DataError";
 import { IActionButtonProps } from "components/TableContainer/DataTable/ActionButton";
 import TeamsDropdown from "components/TeamsDropdown";
 import Spinner from "components/Spinner";
@@ -146,32 +145,24 @@ const ManageHostsPage = ({
     isOnlyObserver,
     isPremiumTier,
     isFreeTier,
-    setAvailableTeams,
     setCurrentTeam,
-    setCurrentUser,
   } = useContext(AppContext);
   const { renderFlash } = useContext(NotificationContext);
 
-  useQuery(["me"], () => usersAPI.me(), {
-    onSuccess: ({ user, available_teams }: IGetMeResponse) => {
-      setCurrentUser(user);
-      setAvailableTeams(available_teams);
-      if (queryParams.team_id) {
-        const teamIdParam = parseInt(queryParams.team_id, 10);
-        if (
-          isNaN(teamIdParam) ||
-          (teamIdParam &&
-            available_teams &&
-            !available_teams.find((t) => t.id === teamIdParam))
-        ) {
-          router.replace({
-            pathname: location.pathname,
-            query: omit(queryParams, "team_id"),
-          });
-        }
-      }
-    },
-  });
+  if (queryParams.team_id) {
+    const teamIdParam = parseInt(queryParams.team_id, 10);
+    if (
+      isNaN(teamIdParam) ||
+      (teamIdParam &&
+        availableTeams &&
+        !availableTeams.find((team) => team.id === teamIdParam))
+    ) {
+      router.replace({
+        pathname: location.pathname,
+        query: omit(queryParams, "team_id"),
+      });
+    }
+  }
 
   const { selectedOsqueryTable, setSelectedOsqueryTable } = useContext(
     QueryContext
@@ -1595,7 +1586,7 @@ const ManageHostsPage = ({
           <div className="header-wrap">
             {renderHeader()}
             <div className={`${baseClass} button-wrap`}>
-              {canEnrollHosts && (
+              {canEnrollHosts && !hasHostErrors && !hasHostCountErrors && (
                 <Button
                   onClick={() => setShowEnrollSecretModal(true)}
                   className={`${baseClass}__enroll-hosts button`}
@@ -1605,6 +1596,8 @@ const ManageHostsPage = ({
                 </Button>
               )}
               {canEnrollHosts &&
+                !hasHostErrors &&
+                !hasHostCountErrors &&
                 !(
                   getStatusSelected() === ALL_HOSTS_LABEL &&
                   selectedLabel?.count === 0

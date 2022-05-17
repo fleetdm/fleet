@@ -19,7 +19,6 @@ import fleetQueriesAPI from "services/entities/queries";
 import globalScheduledQueriesAPI from "services/entities/global_scheduled_queries";
 import teamScheduledQueriesAPI from "services/entities/team_scheduled_queries";
 import teamsAPI from "services/entities/teams";
-import usersAPI, { IGetMeResponse } from "services/entities/users";
 import sortUtils from "utilities/sort";
 import paths from "router/paths";
 
@@ -27,7 +26,7 @@ import Button from "components/buttons/Button";
 import RevealButton from "components/buttons/RevealButton";
 import Spinner from "components/Spinner";
 import TeamsDropdown from "components/TeamsDropdown";
-import TableDataError from "components/TableDataError";
+import TableDataError from "components/DataError";
 import ScheduleListWrapper from "./components/ScheduleListWrapper";
 import ScheduleEditorModal from "./components/ScheduleEditorModal";
 import RemoveScheduledQueryModal from "./components/RemoveScheduledQueryModal";
@@ -122,8 +121,6 @@ const ManageSchedulePage = ({
     isPremiumTier,
     isFreeTier,
     currentTeam,
-    setAvailableTeams,
-    setCurrentUser,
     setCurrentTeam,
   } = useContext(AppContext);
 
@@ -143,13 +140,6 @@ const ManageSchedulePage = ({
 
     return filteredSortedTeams;
   };
-
-  useQuery(["me"], () => usersAPI.me(), {
-    onSuccess: ({ user, available_teams }: IGetMeResponse) => {
-      setCurrentUser(user);
-      setAvailableTeams(available_teams);
-    },
-  });
 
   const { data: teams, isLoading: isLoadingTeams } = useQuery(
     ["teams"],

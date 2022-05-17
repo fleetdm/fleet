@@ -99,9 +99,6 @@ func TestHostAuth(t *testing.T) {
 	ds.AddHostsToTeamFunc = func(ctx context.Context, teamID *uint, hostIDs []uint) error {
 		return nil
 	}
-	ds.SaveHostFunc = func(ctx context.Context, host *fleet.Host) error {
-		return nil
-	}
 	ds.ListPoliciesForHostFunc = func(ctx context.Context, host *fleet.Host) ([]*fleet.HostPolicy, error) {
 		return nil, nil
 	}
@@ -221,7 +218,7 @@ func TestHostAuth(t *testing.T) {
 		})
 	}
 
-	// List, GetHostSummary, FlushSeenHost work for all
+	// List, GetHostSummary work for all
 }
 
 func TestListHosts(t *testing.T) {
@@ -260,7 +257,11 @@ func TestGetHostSummary(t *testing.T) {
 			MIACount:         3,
 			NewCount:         4,
 			TotalsHostsCount: 5,
+			Platforms:        []*fleet.HostSummaryPlatform{{Platform: "darwin", HostsCount: 1}, {Platform: "debian", HostsCount: 2}, {Platform: "centos", HostsCount: 3}, {Platform: "ubuntu", HostsCount: 4}},
 		}, nil
+	}
+	ds.LabelsSummaryFunc = func(ctx context.Context) ([]*fleet.LabelSummary, error) {
+		return []*fleet.LabelSummary{{ID: 1, Name: "All hosts", Description: "All hosts enrolled in Fleet", LabelType: fleet.LabelTypeBuiltIn}, {ID: 10, Name: "Other label", Description: "Not a builtin label", LabelType: fleet.LabelTypeRegular}}, nil
 	}
 
 	summary, err := svc.GetHostSummary(test.UserContext(test.UserAdmin), nil, nil)
@@ -271,6 +272,10 @@ func TestGetHostSummary(t *testing.T) {
 	require.Equal(t, uint(3), summary.MIACount)
 	require.Equal(t, uint(4), summary.NewCount)
 	require.Equal(t, uint(5), summary.TotalsHostsCount)
+	require.Len(t, summary.Platforms, 4)
+	require.Equal(t, uint(9), summary.AllLinuxCount)
+	require.Len(t, summary.BuiltinLabels, 1)
+	require.Equal(t, "All hosts", summary.BuiltinLabels[0].Name)
 
 	_, err = svc.GetHostSummary(test.UserContext(test.UserNoRoles), nil, nil)
 	require.NoError(t, err)
