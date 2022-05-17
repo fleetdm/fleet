@@ -6,8 +6,6 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
-	"path/filepath"
-	"regexp"
 	"runtime"
 	"strings"
 	"sync"
@@ -82,13 +80,17 @@ func TestTranslateCPEToCVE(t *testing.T) {
 	ctx := context.Background()
 
 	// download the CVEs once for all sub-tests, and then disable syncing
-	cfg := config.FleetConfig{}
 	err := withNetRetry(t, func() error {
-		return SyncCVEData(tempDir, cfg)
+		return DownloadNVDCVEFeed(tempDir, "")
 	})
 	require.NoError(t, err)
-	cfg.Vulnerabilities.DisableDataSync = true
-	cfg.Vulnerabilities.RecentVulnerabilityMaxAge = 365 * 24 * time.Hour
+
+	cfg := config.FleetConfig{
+		Vulnerabilities: config.VulnerabilitiesConfig{
+			DisableDataSync:           true,
+			RecentVulnerabilityMaxAge: 365 * 24 * time.Hour,
+		},
+	}
 
 	for _, tt := range cvetests {
 		t.Run(tt.cpe, func(t *testing.T) {
@@ -178,32 +180,29 @@ func TestSyncsCVEFromURL(t *testing.T) {
 	defer ts.Close()
 
 	tempDir := t.TempDir()
-	err := SyncCVEData(
-		tempDir, config.FleetConfig{Vulnerabilities: config.VulnerabilitiesConfig{CVEFeedPrefixURL: ts.URL + "/feeds/json/cve/1.1/"}})
+	cveFeedPrefixURL := ts.URL + "/feeds/json/cve/1.1/"
+	err := DownloadNVDCVEFeed(tempDir, cveFeedPrefixURL)
 	require.Error(t, err)
-	require.Equal(t,
-		fmt.Sprintf("1 synchronisation error:\n\tunexpected size for \"%s/feeds/json/cve/1.1/nvdcve-1.1-2002.json.gz\" (200 OK): want 1453293, have 0", ts.URL),
+	require.Contains(t,
 		err.Error(),
+		fmt.Sprintf("1 synchronisation error:\n\tunexpected size for \"%s/feeds/json/cve/1.1/nvdcve-1.1-2002.json.gz\" (200 OK): want 1453293, have 0", ts.URL),
 	)
 }
 
-func TestSyncsCVEFromURLSkipsIfDisableSync(t *testing.T) {
+func TestSyncNoopIfDisableSync(t *testing.T) {
+	ds := new(mock.Store)
+
 	tempDir := t.TempDir()
-	fleetConfig := config.FleetConfig{
+	cfg := config.FleetConfig{
 		Vulnerabilities: config.VulnerabilitiesConfig{
 			DisableDataSync: true,
 		},
 	}
-	err := SyncCVEData(tempDir, fleetConfig)
+	err := Sync(tempDir, cfg, ds)
 	require.NoError(t, err)
-	err = filepath.Walk(tempDir, func(path string, info os.FileInfo, err error) error {
-		if match, err := regexp.MatchString("nvdcve.*\\.gz$", path); !match || err != nil {
-			return nil
-		}
 
-		t.FailNow()
-
-		return nil
-	})
+	// test that nothing was downloaded
+	entries, err := os.ReadDir(tempDir)
 	require.NoError(t, err)
+	require.Empty(t, entries)
 }

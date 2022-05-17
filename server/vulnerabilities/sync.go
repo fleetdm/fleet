@@ -232,6 +232,10 @@ func LoadCVEScores(vulnPath string, ds fleet.Datastore) error {
 		scoresMap[vuln.CVEID] = score
 	}
 
+	if len(scoresMap) == 0 {
+		return nil
+	}
+
 	// convert to slice
 	var scores []fleet.CVEScore
 	for _, score := range scoresMap {

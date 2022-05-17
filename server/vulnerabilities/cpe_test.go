@@ -3,7 +3,6 @@ package vulnerabilities
 import (
 	"compress/gzip"
 	"context"
-	"errors"
 	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
@@ -13,7 +12,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/dnaeon/go-vcr/v2/recorder"
 	"github.com/facebookincubator/nvdtools/cpedict"
 	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
 	"github.com/fleetdm/fleet/v4/pkg/nettest"
@@ -25,13 +23,14 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestCpeFromSoftware(t *testing.T) {
-	tempDir := os.TempDir()
+func TestCPEFromSoftware(t *testing.T) {
+	tempDir := t.TempDir()
 
 	items, err := cpedict.Decode(strings.NewReader(XmlCPETestDict))
 	require.NoError(t, err)
 
 	dbPath := path.Join(tempDir, "cpe.sqlite")
+
 	err = GenerateCPEDB(dbPath, items)
 	require.NoError(t, err)
 
@@ -58,25 +57,14 @@ func TestSyncCPEDatabase(t *testing.T) {
 	nettest.Run(t)
 
 	client := fleethttp.NewClient()
-	// Disabling vcr because the resulting file exceeds the 100mb limit for github
-	r, err := recorder.NewAsMode("fixtures/nvd-cpe-release", recorder.ModeDisabled, client.Transport)
-	require.NoError(t, err)
-	defer r.Stop()
 
-	client.Transport = r
-
-	tempDir := os.TempDir()
-	dbPath := path.Join(tempDir, "cpe.sqlite")
-
-	err = os.Remove(dbPath)
-	if !errors.Is(err, os.ErrNotExist) {
-		require.NoError(t, err)
-	}
+	tempDir := t.TempDir()
 
 	// first time, db doesn't exist, so it downloads
-	err = DownloadCPEDatabase(client, dbPath)
+	err := DownloadCPEDatabase(tempDir, client)
 	require.NoError(t, err)
 
+	dbPath := path.Join(tempDir, "cpe.sqlite")
 	db, err := sqliteDB(dbPath)
 	require.NoError(t, err)
 
@@ -106,7 +94,7 @@ func TestSyncCPEDatabase(t *testing.T) {
 	require.NoError(t, err)
 
 	// then it will download
-	err = DownloadCPEDatabase(client, dbPath)
+	err = DownloadCPEDatabase(tempDir, client)
 	require.NoError(t, err)
 
 	// let's register the mtime for the db
@@ -127,7 +115,7 @@ func TestSyncCPEDatabase(t *testing.T) {
 	time.Sleep(2 * time.Second)
 
 	// let's check it doesn't download because it's new enough
-	err = DownloadCPEDatabase(client, dbPath)
+	err = DownloadCPEDatabase(tempDir, client)
 	require.NoError(t, err)
 	stat, err = os.Stat(dbPath)
 	require.NoError(t, err)
@@ -219,12 +207,10 @@ func TestSyncsCPEFromURL(t *testing.T) {
 
 	client := fleethttp.NewClient()
 	tempDir := t.TempDir()
-	dbPath := path.Join(tempDir, "cpe.sqlite")
-
-	err := DownloadCPEDatabase(
-		client, dbPath, WithCPEURL(ts.URL+"/hello-world.gz"))
+	err := DownloadCPEDatabase(tempDir, client, WithCPEURL(ts.URL+"/hello-world.gz"))
 	require.NoError(t, err)
 
+	dbPath := path.Join(tempDir, "cpe.sqlite")
 	stored, err := ioutil.ReadFile(dbPath)
 	require.NoError(t, err)
 	assert.Equal(t, "Hello world!", string(stored))
