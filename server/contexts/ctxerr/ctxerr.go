@@ -29,16 +29,16 @@ var nowFn = time.Now
 
 // FleetError is the error implementation used by this package.
 type FleetError struct {
-	msg   string      // error message to be prepended to cause
-	stack StackTracer // stack trace where this error was created
-	cause error       // original error that caused this error if non-nil
-	data  map[string]interface{}
+	msg   string                 // error message to be prepended to cause
+	stack StackTracer            // stack trace where this error was created
+	cause error                  // original error that caused this error if non-nil
+	data  map[string]interface{} // additional metadata about the error (timestamps, etc)
 }
 
 type fleetErrorJSON struct {
-	Message string                 `json:",omitempty"`
-	Data    map[string]interface{} `json:",omitempty"`
-	Stack   []string               `json:",omitempty"`
+	Message string                 `json:"message,omitempty"`
+	Data    map[string]interface{} `json:"data,omitempty"`
+	Stack   []string               `json:"stack,omitempty"`
 }
 
 // Error implements the error interface.
@@ -144,7 +144,7 @@ func MarshallJSON(err error) ([]byte, error) {
 		case json.Marshaler:
 			chain = append(chain, v)
 		default:
-			chain = append(chain, map[string]interface{}{"Message": err.Error()})
+			chain = append(chain, map[string]interface{}{"message": err.Error()})
 		}
 
 		err = Unwrap(err)
@@ -157,8 +157,8 @@ func MarshallJSON(err error) ([]byte, error) {
 	}
 
 	return json.Marshal(struct {
-		Cause interface{}
-		Wraps []interface{}
+		Cause interface{}   `json:"cause"`
+		Wraps []interface{} `json:"wraps"`
 	}{
 		Cause: chain[0],
 		Wraps: chain[1:],
@@ -229,6 +229,6 @@ func ensureCommonMetadata(ctx context.Context, err *FleetError) {
 		}
 
 		// TODO: add more metadata from ctx
-		ferr.data["Timestamp"] = nowFn().Format(time.RFC3339)
+		ferr.data["timestamp"] = nowFn().Format(time.RFC3339)
 	}
 }
