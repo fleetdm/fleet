@@ -7,6 +7,7 @@ import { Tab, Tabs, TabList, TabPanel } from "react-tabs";
 import classnames from "classnames";
 import { pick } from "lodash";
 
+import { AppContext, IAppContext } from "context/app";
 import { NotificationContext } from "context/notification";
 import deviceUserAPI from "services/entities/device_user";
 import { IHost, IDeviceMappingResponse } from "interfaces/host";
@@ -46,6 +47,7 @@ const DeviceUserPage = ({
 }: IDeviceUserPageProps): JSX.Element => {
   const deviceAuthToken = device_auth_token;
   const { renderFlash } = useContext(NotificationContext);
+  const { isPremiumTier } = useContext(AppContext);
   const handlePageError = useErrorHandler();
 
   const [showInfoModal, setShowInfoModal] = useState<boolean>(false);
@@ -230,6 +232,7 @@ const DeviceUserPage = ({
               showRefetchSpinner={showRefetchSpinner}
               onRefetchHost={onRefetchHost}
               renderActionButtons={renderActionButtons}
+              isPremiumTier
               deviceUser
             />
             <TabsWrapper>
@@ -237,7 +240,18 @@ const DeviceUserPage = ({
                 <TabList>
                   <Tab>Details</Tab>
                   <Tab>Software</Tab>
-                  <Tab>Policies</Tab>
+                  {isPremiumTier && (
+                    <Tab>
+                      <div>
+                        {titleData.issues.failing_policies_count > 0 && (
+                          <span className="fail-count">
+                            {titleData.issues.failing_policies_count}
+                          </span>
+                        )}
+                        Policies
+                      </div>
+                    </Tab>
+                  )}
                 </TabList>
                 <TabPanel>
                   <AboutCard
@@ -254,13 +268,16 @@ const DeviceUserPage = ({
                     deviceUser
                   />
                 </TabPanel>
-                <TabPanel>
-                  <PoliciesCard
-                    policies={host?.policies || []}
-                    isLoading={isLoadingHost}
-                    togglePolicyDetailsModal={togglePolicyDetailsModal}
-                  />
-                </TabPanel>
+                {isPremiumTier && (
+                  <TabPanel>
+                    <PoliciesCard
+                      policies={host?.policies || []}
+                      isLoading={isLoadingHost}
+                      deviceUser
+                      togglePolicyDetailsModal={togglePolicyDetailsModal}
+                    />
+                  </TabPanel>
+                )}
               </Tabs>
             </TabsWrapper>
             {showInfoModal && <InfoModal onCancel={toggleInfoModal} />}

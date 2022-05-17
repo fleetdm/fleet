@@ -23,7 +23,7 @@ const PolicyFailingCount = (policyProps: {
       </div>
       <p>
         Click a policy below to see if there are steps you can take to resolve
-        the issue.
+        the issue
         {failCount > 1 ? "s" : ""}.
       </p>
     </div>
