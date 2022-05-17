@@ -18,6 +18,7 @@ type TeamPayload struct {
 	Description     *string              `json:"description"`
 	Secrets         []*EnrollSecret      `json:"secrets"`
 	WebhookSettings *TeamWebhookSettings `json:"webhook_settings"`
+	Integrations    *TeamIntegrations    `json:"integrations"`
 	// Note AgentOptions must be set by a separate endpoint.
 }
 

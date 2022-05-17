@@ -5439,6 +5439,8 @@ _Available in Fleet Premium_
 
 #### Parameters
 
+!! TODO(mna) : that list of arguments does not seem right?
+
 | Name                                                    | Type    | In   | Description                                                                                                                                                  |
 | ---                                                     | ---     | ---  | ---                                                                                                                                                          |
 | id                                                      | string  | body | **Required.** The desired team's ID.                                                                                                                         |
@@ -5451,6 +5453,8 @@ _Available in Fleet Premium_
 | &nbsp;&nbsp;&nbsp;&nbsp;destination_url                 | string  | body | The URL to deliver the webhook requests to.                                                                                                                  |
 | &nbsp;&nbsp;&nbsp;&nbsp;policy_ids                      | array   | body | List of policy IDs to enable failing policies webhook.                                                                                                       |
 | &nbsp;&nbsp;&nbsp;&nbsp;host_batch_size                 | integer | body | Maximum number of hosts to batch on failing policy webhook requests. The default, 0, means no batching (all hosts failing a policy are sent on one request). |
+| integrations                                            | object  | body | Integrations settings for the team.                                                                                                                      |
+!! TODO(mna): complete documentation of integrations object
 
 #### Example (add users to a team)
 

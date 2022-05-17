@@ -92,6 +92,10 @@ func (svc *Service) ModifyTeam(ctx context.Context, teamID uint, payload fleet.T
 	if payload.WebhookSettings != nil {
 		team.Config.WebhookSettings = *payload.WebhookSettings
 	}
+	if payload.Integrations != nil {
+		// TODO(mna): validate the integrations, like we do in global app config
+		//team.Config.Integrations = *payload.Integrations
+	}
 
 	return svc.ds.SaveTeam(ctx, team)
 }
