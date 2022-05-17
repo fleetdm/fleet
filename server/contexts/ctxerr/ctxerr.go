@@ -64,6 +64,11 @@ func (e *FleetError) MarshalJSON() ([]byte, error) {
 	})
 }
 
+// Stack returns a call stack for the error
+func (e *FleetError) Stack() []string {
+	return e.stack.List()
+}
+
 // setMetadata adds common metadata attributes to the `data` map provided.
 //
 // NOTE: this will override other values with the same keys.
@@ -81,12 +86,12 @@ func encodeData(ctx context.Context, data map[string]interface{}, augment bool) 
 		setMetadata(ctx, data)
 	}
 
-	edata, err := json.Marshal(data)
+	encoded, err := json.Marshal(data)
 	if err != nil {
-		emsg := fmt.Sprintf(`{"error": "there was an error encoding additional data: %s"}`, err.Error())
-		edata = json.RawMessage(emsg)
+		msg := fmt.Sprintf(`{"error": "there was an error encoding additional data: %s"}`, err.Error())
+		encoded = json.RawMessage(msg)
 	}
-	return edata
+	return encoded
 }
 
 func newError(ctx context.Context, msg string, cause error, data map[string]interface{}) *FleetError {
@@ -149,6 +154,26 @@ func Cause(err error) error {
 	}
 }
 
+// FleetCause is similar to Cause, but returns the root-most
+// FleetError in the chain
+func FleetCause(err error) *FleetError {
+	var ferr, aux *FleetError
+	var ok bool
+
+	// the error is not a FleetError, thus there's no
+	// root FleetError in the chain
+	if ferr, ok = err.(*FleetError); !ok {
+		return nil
+	}
+
+	for {
+		if aux, ok = Unwrap(ferr).(*FleetError); !ok {
+			return ferr
+		}
+		err = aux
+	}
+}
+
 // Unwrap is a wrapper of built-in errors.Unwrap. It returns the result of
 // calling the Unwrap method on err, if err's type contains an Unwrap method
 // returning error. Otherwise, Unwrap returns nil.
@@ -184,24 +209,6 @@ func MarshalJSON(err error) ([]byte, error) {
 		Cause: chain[0],
 		Wraps: chain[1:],
 	})
-}
-
-// Summarize describes a summary of the error chain
-// by returning the cause (the first error in the chain)
-// and a full stack trace containing the stack traces of
-// all the errors in the chain
-func Summarize(err error) (error, []string) {
-	stack := make([]string, 0)
-	cause := Cause(err)
-
-	for err != nil {
-		if ferr, ok := err.(*FleetError); ok {
-			stack = append(stack, ferr.stack.List()...)
-		}
-		err = Unwrap(err)
-	}
-
-	return cause, stack
 }
 
 type handler interface {

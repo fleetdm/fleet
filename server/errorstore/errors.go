@@ -133,11 +133,14 @@ func sha256b64(s string) string {
 }
 
 func hashError(err error) string {
-	cause, stack := ctxerr.Summarize(err)
+	cause := ctxerr.Cause(err)
+	ferr := ctxerr.FleetCause(err)
 
 	var sb strings.Builder
+	// hash the cause type and message (it might not be a FleetError)
 	fmt.Fprintf(&sb, "%T\n%s\n", cause, cause.Error())
-	fmt.Fprintf(&sb, strings.Join(stack, "\n"))
+	// hash the stack trace of the root FleetError in the chain
+	fmt.Fprintf(&sb, strings.Join(ferr.Stack(), "\n"))
 
 	return sha256b64(sb.String())
 }
