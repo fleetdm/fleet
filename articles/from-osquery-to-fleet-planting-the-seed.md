@@ -1,6 +1,6 @@
 # The next step for Fleet: our $5M seed round 🌱
 
-![The next step for Fleet: our $5M seed round](https://miro.medium.com/max/1400/1*bKfNH5xP8B6AZUms7KchGg.png)
+![The next step for Fleet: our $5M seed round](../website/assets/images/articles/from-osquery-to-fleet-planting-the-seed-cover-800x450@2x.png)
 
 Eight years ago, I worked with some great minds at Facebook to build the best open source endpoint solution, osquery, together with the open source community. Since then, usage has grown beyond what we could have imagined, and osquery is now used across independent security professionals, startups, and fortune 50 companies to provide cross-platform endpoint visibility for tens of millions of devices.
 
@@ -31,4 +31,4 @@ Through developing Fleet in the open, we’ve validated that the spirit of openn
 <meta name="authorFullName" value="Zach Wasserman">
 <meta name="publishedOn" value="2022-01-20">
 <meta name="articleTitle" value="The next step for Fleet: our $5M seed round 🌱">
-<meta name="articleImageUrl" value="https://miro.medium.com/max/1400/1*bKfNH5xP8B6AZUms7KchGg.png">
+<meta name="articleImageUrl" value="../website/assets/images/articles/from-osquery-to-fleet-planting-the-seed-cover-800x450@2x.png">

@@ -26,6 +26,10 @@
 - [Can I hide known vulnerabilities that I feel are insignificant?](#can-i-hide-known-vulnerabilities-that-i-feel-are-insignificant)
 - [Can I create reports based on historical data in Fleet?](#can-i-create-reports-based-on-historical-data-in-fleet)
 - [Why can't I run queries with `fleetctl` using a new API-only user?](#why-cant-i-run-queries-with-fleetctl-using-a-new-api-only-user)
+- [Why am I getting an error about self-signed certificates when running `fleetctl preview`?](#why-am-i-getting-an-error-about-self-signed-certificates-when-running-fleetctl-preview)
+- [Can I audit actions taken in Fleet?](#can-i-audit-actions-taken-in-fleet)
+- [How often is the software inventory updated?](#how-often-is-the-software-inventory-updated)
+- [Can I group results from multiple hosts?](#can-i-group-results-from-multiple-hosts)
 
 ## What do I need to do to switch from Kolide Fleet to FleetDM Fleet?
 
@@ -122,6 +126,10 @@ Both queries will run as scheduled on applicable hosts. If there are any hosts t
 ## Why aren’t my live queries being logged?
 
 Live query results are never logged to the filesystem of the Fleet server. See [Where are my query results?](#where-are-my-query-results).
+
+## Why does my query work locally with osquery but not in Fleet?
+
+If you're seeing query results using `osqueryi` but not through Fleet, the most likely culprit is a permissions issue. Check out the [osquery docs](https://osquery.readthedocs.io/en/stable/deployment/process-auditing/#full-disk-access) for more details and instructions for setting up Full Disk Access. 
 
 ## Can I use the Fleet API to fetch results from a scheduled query pack?
 
@@ -236,5 +244,39 @@ The [Fleet UI](https://fleetdm.com/docs/using-fleet/fleet-ui) is built for human
 ## Why can't I run queries with `fleetctl` using a new API-only user?
 
 In versions prior to Fleet 4.13, a password reset is needed before a new API-only user can perform queries. You can find detailed instructions for setting that up [here](https://github.com/fleetdm/fleet/blob/a1eba3d5b945cb3339004dd1181526c137dc901c/docs/Using-Fleet/fleetctl-CLI.md#reset-the-password).
+
+## Why am I getting an error about self-signed certificates when running `fleetctl preview`?
+
+If you are trying to run `fleetctl preview` and seeing errors about self-signed certificates, the most likely culprit is that you're behind a corporate proxy server and need to [add the proxy settings to Docker](https://docs.docker.com/network/proxy/) so that the container created by `fleetctl preview` is able to connect properly. 
+
+## Can I audit actions taken in Fleet?
+
+The [REST API `activities` endpoint](./REST-API.md#activities) provides a full breakdown of actions taken on packs, queries, policies, and teams (Available in Fleet Premium) through the UI, the REST API, or `fleetctl`.  
+
+## How often is the software inventory updated?
+
+By default, Fleet will query hosts for software inventory hourly. If you'd like to set a different interval, you can update the [periodicity](../Deploying/Configuration.md#periodicity) in your vulnerabilities configuration. 
+
+## Can I group results from multiple hosts?
+
+There are a few ways you can go about getting counts of hosts that meet specific criteria using the REST API. You can use [`GET /api/v1/fleet/hosts`](./REST-API.md#list-hosts) or the [`fleetctl` CLI](./fleetctl-CLI.md#available-commands) to gather a list of all hosts and then work with that data however you'd like. For example, you could retrieve all hosts using `fleetctl get hosts` and then use `jq` to pull out the data you need. The following example would give you a count of hosts by their OS version:
+
+```
+$ fleetctl get hosts --json | jq '.spec .os_version' | sort | uniq -c
+
+   1 "CentOS Stream 8.0.0"
+   2 "Ubuntu 20.4.0"
+   1 "macOS 11.5.2"
+   1 "macOS 11.6.3"
+   1 "macOS 12.1.0"
+   3 "macOS 12.2.1"
+   3 "macOS 12.3.0"
+   6 "macOS 12.3.1"
+```
+
+## Will updating fleetctl lead to loss of data in Preview?
+
+No, you won't experience data loss when you update fleetctl. Note that you can run `fleetctl preview --tag v#.#.#` if you want to run Preview on a previous version. Just replace # with the version numbers of interest.
+
 
 

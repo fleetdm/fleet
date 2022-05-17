@@ -1,4 +1,11 @@
 .manage-queries-page {
+  a {
+    font-size: $x-small;
+    color: $core-vibrant-blue;
+    font-weight: $bold;
+    text-decoration: none;
+  }
+
   &__header-wrap {
     height: 38px;
     display: flex;
@@ -246,11 +253,6 @@
           margin-bottom: $pad-medium;
         }
 
-        img {
-          width: 176px;
-          margin-right: $pad-xlarge;
-        }
-
         p {
           color: $core-fleet-black;
           font-weight: $regular;
@@ -268,6 +270,11 @@
 
       &__inner-text {
         width: 485px;
+        img {
+          width: 12px;
+          position: relative;
+          top: 1px;
+        }
       }
     }
   }

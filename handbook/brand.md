@@ -33,14 +33,14 @@ Another example to consider is industry jargon that may now be inappropriate. Wh
 Writing at Fleet shares the same principles as [Communicating as Fleet.](https://fleetdm.com/handbook/brand#communicating-as-fleet) Every piece of content we write should be consistent with our company and brand values. To help succeed, we encourage our writers to apply a design thinking approach to their writing by following these principles:
 
 - **Empathize** - Who is the reader? Why will they read it? What do they hope to get from it?
-- **Define** - What are you writing about? What action do you want from the reader?
+- **Define** - What is the subject? What action do you want from the reader?
 - **Ideate and collaborate** - Create an [outline](https://fleetdm.com/handbook/company#why-this-way) of what you plan to write. Interview team members or friends of Fleet to help you.
-- **Prototype** - Write a draft and see how it goes. Draft quickly, iterate and don't be scared to throw it out if it's not working. 
+- **Prototype** - Write a draft and see how it goes. Draft quickly, iterate, and don't be scared to throw it out if it's not working. 
 - **Test** - Revise, edit, proofread, repeat. Revise, edit, proofread, repeat. Revise, edit... Ok, you get the idea 😵‍💫
 
 ### Editing written content
 
-Jokes above aside, testing is an important part of the design thinking approach to writing. It ties in with the spirit of our company value, Ownership. Part of that value is to move quickly and help unblock our team members and contributors to deliver value. When writing at Fleet, our writers need to take ownership of editing and self-check their work before publishing or submitting pull requests. Having an obsession with details is helpful. So is Grammarly, which all writers and editors (yes, we do have editors, more on them later) have access to. Let's take a look at that now. 
+Jokes above aside, testing is an integral part of the design thinking approach to writing. It ties in with the spirit of our company value, Ownership. Part of that value is to move quickly and help unblock our team members and contributors to deliver value. When writing at Fleet, our writers need to take ownership of editing and self-check their work before publishing or submitting pull requests. Having an obsession with details is helpful. So is Grammarly, to which all writers and editors (yes, we do have editors, more on them later) have access. Let's take a look at that now. 
 
 ### Grammarly
 
@@ -52,17 +52,86 @@ All of our writers and editors have access to Grammarly, which comes with a hand
 
 Our favorite Grammarly feature is the tone detector. It's excellent for keeping messaging on-brand and helps alleviate the doubt that often comes along for the ride during a writing assignment. Take a look at [their video](https://youtu.be/3Ct5Tgg9Imc) that sums it up better than this.
 
+## Punctuating and capitalizing bullet points
+
+Bullet point lists are a clean and simple way to present information. But sticking to consistent rules for punctuation and capitalization can be tough. Here we lay out the dos and don’ts for writing consistent bullet points.
+
+### How to introduce a list/when to use a colon?
+
+**Do** use a colon if you introduce a list with a complete sentence.
+
+_We follow the guiding principles below to secure our company-owned devices:_
+- _Our devices should give contributors the freedom to work from anywhere._
+- _To allow maximum freedom in where and how we work, we assume that "Safe" networks do not exist. Contributors should be able to work on a coffee shop's Wi-Fi as if it were their home or work network._
+- _By using techniques such as Two-Factor Authentication (2FA), code reviews, and more, we can further empower contributors to work comfortably from any location - on any network._
+
+**Do not** use a colon when combining the introduction and list items to make a complete sentence. (This is called a “fascination” and is a technique used to create engaging lists.)
+
+_This week at Fleet we_
+- _published new security policies._
+- _launched Jira and Zendesk integrations._
+- _drafted improvements to vulnerable software._
+   
+> Note: You do not need to capitalize bullets when combining the introduction and list items to make a complete sentence.
+
+**Do not** use a colon if you start a list straight after a heading.
+
+_Communicating as Fleet_
+- _Sound positive and assume positive intent. A positive tone helps to empower our users and encourages them to succeed with Fleet._
+- _Be relatable, friendly, and sincere. Being relatable reminds our users that they're talking to another human that cares. Use simple words and sentences, especially in technical conversations._
+
+### Should I use terminal punctuation at the end of each bullet point?
+
+**Do** use terminal punctuation if your bullet points are complete sentences.
+	
+- _Project confidence and be informative. Clearly tell users what they need to know, remembering always to stay positive._
+- _Manage risk, not fear. Educate users about security threats positively. Risk management is wise, but focusing on fear can lead to poor decisions. We never use fear as a communication and marketing tactic._
+
+**Do not** use terminal punctuation if your bullet points are sentence fragments, single words, or short phrases.
+
+- _Multiple teams_
+- _Enterprise support_
+- _Self-hosted agent auto-updates_
+ 
+> Note: Remember to be consistent with your lists. Do not mix complete sentences with sentence fragments, single words, or short phrases.
+ 
+### Does Fleet ever use semicolons or commas to end bullet points?
+
+**No**. For consistency, we choose not to. Although not grammatically incorrect, it’s becoming increasingly uncommon to separate list items with semicolons or commas.
+
+### When to capitalize bullet points?
+
+**Do** use a capital letter when your bullet points are complete sentences.
+
+**Do not** use a capital letter when your bullet points are sentence fragments, single words, or short phrases.
+
+**Do not** use a capital letter when combining the introduction and bullet points to make a complete sentence (AKA a “fascination”). 
+
 ## For editors
 
 While we encourage and equip our writers to succeed by themselves in editing quests, tpyos are inevitable. Here's where the Fleet editor steps in.  
 
-The following is our handy guide to editor bliss at Fleet, but first, let's start by looking at some common content types that require an editor pass. 
+The following is our handy guide to editor bliss at Fleet, but first, let's start by listing common content types that require an editor pass. 
 
-- Recently merged Pull Requests to the handbook and docs.
+- Docs and Handbook pages.
 - Articles, release posts, and press releases.
-- Social media posts
+- Social media posts.
 
-### How to edit recently merged Pull Requests to the handbook and docs
+### How to make edits with GitHub
+
+Our handbook and docs pages are written in Markdown and are editable from our website (via GitHub). Follow the instructions below to propose an edit to the handbook or docs.
+1. Click the "Edit page" button from the relevant handbook or docs page on [fleetdm.com](https://www.fleetdm.com) (this will take you to the GitHub editor).
+2. Make your suggested edits in the GitHub editor.
+3. From the Propose changes dialog, at the bottom of the page, give your proposed edit a title and optional description (these help page maintainers quickly understand the proposed changes).
+4. Hit Propose change which will open a new pull request (PR).
+5. Request a review from the page maintainer, and finally, press “Create pull request.”
+6. GitHub will run a series of automated checks and notify the reviewer. At this point, you are done and can safely close the browser page at any time.
+
+> Keep PR titles short and clear. E.g., "Edit to handbook Product group" 
+>
+> Check the “Files changed” section on the Open a pull request page to double check your proposed changes.
+
+### How to edit recently merged Pull Requests for the handbook and docs
 
 We approach editing retrospectively for pull requests (PRs) to handbook and docs pages. Remember our goal above about moving quickly and reducing time to value for our contributors? By editing for typos and grammatical errors after-the-fact, we avoid the editor becoming a bottleneck who blocks PRs from being merged quickly. Here's how to do it:
 
@@ -81,7 +150,7 @@ We approach editing retrospectively for pull requests (PRs) to handbook and docs
 5. Comment on the original PR to keep track of your progress. Comments made will show up on the history feed. E.g., `"Edited, PR incoming"` or `"LGTM, no edits required."`
 6. Watch [this short video](https://www.loom.com/share/95d4525a7aae482b9f9a9470d446ce9c) to see this process in action.
 
-> **Note:** The Fleet website may render Markdown differently from GitHub's rich text preview. It's important to check that PRs merged by the editor are displaying as expected on the site. It can take a few minutes for merged PRs to appear on the live site, and therefore easy to move on and forget. It's good to start the ritual by looking at the site to check that the previous day's edits are displaying as they should.
+> **Note:** The Fleet website may render Markdown differently from GitHub's rich text preview. It's essential to check that PRs merged by the editor are displaying as expected on the site. It can take a few minutes for merged PRs to appear on the live site, and therefore easy to move on and forget. It's good to start the ritual by looking at the site to check that the previous day's edits are displaying as they should.
 
 ### How to edit articles, release posts, and press releases
 
@@ -100,14 +169,14 @@ For making edits to published articles:
 
 ### How to edit social media posts
 
-In the world of the Fleet editor, there are two types of social media posts. Those that are scheduled to be published and those that are published already. 
+In the world of the Fleet editor, there are two types of social media posts; those scheduled to be published and those published already. 
 
 Refer to [Posting on social media as Fleet](https://fleetdm.com/handbook/growth#posting-on-social-media-as-fleet) for details on editing draft social media posts.
 
 Making edits to published social media posts gets a little tricky. Twitter, for example, doesn't allow editing of tweets, so the only way to make an edit is to remove the tweet and post it again.
 
-1. Post the tweet in #g-growth Slack channel and tag the Digital Experience lead.
-2. Access whether the tweet should be removed. There's a tradeoff between us striving for perfection vs. losing the engagements that the tweet may have already generated.
+1. Post the tweet in the #g-growth Slack channel and tag the Digital Experience lead.
+2. Decide whether to remove the tweet. There's a tradeoff between us striving for perfection vs. losing the engagements that the tweet may have already generated.
 3. Suggest edits in the Slack thread for the Growth team to include and re-post.
 
 ## Voice and tone guidelines
@@ -213,16 +282,17 @@ The following table lists the Brand group's rituals, frequency, and Directly Res
 
 | Ritual                       | Frequency                | Description                                         | DRI               |
 |:-----------------------------|:-----------------------------|:----------------------------------------------------|-------------------|
-| Documentation quality | Daily | Review pull requests for tone and brand consistency. | Mike Thomas |
+| Documentation quality | Daily | Review pull requests to the docs for spelling, punctuation, and grammar. | Desmi Dizney |
+| Handbook quality | Daily | Review pull requests to the handbook for spelling, punctuation, and grammar. | Desmi Dizney |
 | Tweet review | Daily | Review tweets for tone and brand consistency. | Mike Thomas |
-| Community Slack  | Daily   | Check Fleet and osquery Slack channels for community questions and make sure questions are responded to and logged. | Kathy Satterlee |
-| Social media check-in     |  Daily | Check social media for community questions and ensure they are responded to.  Generate dev advocacy-related content. | Kelvin Omereshone   |
-| Weekly article review | Weekly | Review articles for tone and brand consistency. | Mike Thomas |
-| Weekly article graphic | Weekly | Create a graphic for the weekly article. | Mike Thomas |
-| Outside contributor follow up | Weekly | Bring pull requests from outside contributors to engineering and ensure they are merged promptly and promoted. | Kathy Satterlee |
-| Documentation update | Weekly | Turn questions answered from Fleet and osquery Slack into FAQs in Fleet’s docs. | Kathy Satterlee |
-| Digital experience planning  | Three weeks | Prioritize and assigns issues to relevant personnel based on current goals and quarterly OKRs. | Mike Thomas |
-| Browser compatibility check | Monthly | Check browser compatibility for the website. | Eric Shaw |
+| Article review | Weekly | Review articles for tone and brand consistency. | Mike Thomas |
+| Article graphic | Weekly | Create a graphic for the weekly article | Mike Thomas |
+| Docs editor pass | Weekly | Edit two sections a week until completed. | Desmi Dizney |
+| Digital experience planning  | Three weeks | Prioritize and assigns issues to relevant personnel based on current goals and quarterly OKRs | Mike Thomas |
+| OKR review  | Three weeks | Review the status of current OKRs. | Mike Thomas |
+| Handbook editor pass | Monthly | Edit for copy and content. | Desmi Dizney |
+| Browser compatibility check | Monthly | Check browser compatibility for the website | Eric Shaw |
+| OKR planning  | Quarterly | Plan next quarter's OKRs | Mike Thomas |
 
 ## Slack channels
 
@@ -230,13 +300,12 @@ These groups maintain the following [Slack channels](https://fleetdm.com/handboo
 
 | Slack channel               | [DRI](https://fleetdm.com/handbook/company#group-slack-channels)    |
 |:----------------------------|:--------------------------------------------------------------------|
-| `#g-digital-experience`     | Mike Thomas
+| `#g-digital-experience`     | Mike Thomas and Eric Shaw _(multiple DRIs, for the sake of timezones)_
 | `#oooh-websites`            | Mike Thomas
 | `#oooh-automation`          | Mike McNeil
-| `#g-community`              | Kathy Satterlee
-| `#g-people`                 | Eric Shaw
-| `#help-onboarding`          | Eric Shaw
-| `#help-finance`             | Eric Shaw
+| `#g-people`                 | Charlie Chance
+| `#help-onboarding`          | Charlie Chance
+| `#help-finance`             | Nathan Holliday
 | `#help-brex-memos`          | Nathan Holliday
 
 

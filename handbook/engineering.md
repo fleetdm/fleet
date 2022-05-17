@@ -1,5 +1,109 @@
 # Engineering
 
+## Meetings
+
+### Goals
+
+* Stay in alignment across the whole organization.
+* Build teams, not groups of people.
+* Provide substantial time for engineers to work on "focused work".
+
+### Principles
+
+* Keep meetings to a minimum. Sometimes that will be very very few meetings, and sometimes the minimum will be quite a few of them. But always try to reduce meetings, just like we do with process.
+* Each individual must have a weekly sync 1:1 meeting with their manager. This is key to making sure each individual has a voice within the organization.
+* Each team should have a fixed weekly sync check in. This helps reinforce team bonds and alignment.
+* Favor async communication when possible. This is very important to make sure every stakeholder on a project can have a clear understanding of what’s happening, or what was decided, without needing to attend every meeting (i.e. if a person is sick or on vacation or just life happened.)
+* If an async conversation is not proving to be effective, never hesitate to hop on a call. Always document the decisions made in a ticket, document, or whatever makes sense for the conversation.
+
+The following is the subset of proposed engineering meetings. Each group is free to treat these as a subset of the expected meetings, and add any other meetings as they see fit.
+
+### Eng Together (Weekly ~ 1 hour)
+Promote cohesion across groups in the engineering team. Disseminate engineering-wide announcements.
+
+#### Participants
+All of engineering
+
+#### Sample agenda
+- Announcements
+- “Show and tell”
+  - Each engineer gets 2 minutes to explain (showing, if desired) what they are working on, and why it’s important to the business and/or engineering team.
+- Deeper dive
+  - One or a few engineers go deeper on a topic relevant to all of engineering.
+- Social
+  - Structured and/or unstructured social activities
+
+### Release Retro (Each release ~ 30 minutes)
+Gather feedback from all participants in each release. Used to improve communication and processes.
+
+This meeting will likely need to be split in the future as the number of attendees increases.
+
+#### Participants
+Members of each group (+ quality)
+
+#### Sample agenda
+For each attendee:
+- What went well this release cycle?
+- What could have gone better this release cycle?
+- What should we remember next time?
+
+### Group Weeklies (Weekly ~ 30 minutes - 1 hour)
+A chance for deeper, synchronous discussion on topics relevant to that group.
+
+eg. “Interface Weekly” - “Platform Weekly” - “Agent Weekly”
+
+In some groups, this may be split into smaller discussions related to the differing focuses of members within the group.
+
+#### Participants
+Members of each group
+
+#### Sample agenda (Platform)
+- Announcements
+- Anything at risk for the release?
+- Bug assignment
+- Retries in the datastore
+- Platform scale gotchas doc
+- MarshalJSON to hide passwords and API tokens. Thoughts?
+
+#### Sample Agenda (Interface)
+- What’s good?
+- Anything at risk for the release?
+- Bug assignment
+- Confirm response payload matches spec
+- Discuss completion of Redux removal
+
+### Standup (Optional, varies by group)
+
+Provide status reports, discover blockers, and keep the group in sync.
+
+Each group can implement daily (or some other cadence) standups if desired. Ultimately, it’s up to the Engineering Manager to ensure that the team is communicating appropriately to deliver results.
+
+#### Participants
+Members of the group
+
+### Engineering Leadership Weekly (Weekly ~ 1 hour)
+Engineering leaders discuss topics of importance that week.
+
+#### Participants
+CTO + Engineering managers
+
+#### Sample agenda
+- Fullstack engineer hiring
+- Engineering process discussion
+- Review Q2 OKRs
+
+### Product/Eng Weekly (Weekly - 30 minutes)
+Engineering and Product sync on priorities for the upcoming release, surface and address any inter-group dependencies.
+
+#### Participants
+CTO + Engineering managers + PMs
+
+#### Sample agenda
+- Plan for what's going into next release
+- Identify inter-group dependencies
+- Ensure items are moving through architect/estimation
+
+
 ## Release process
 
 This section outlines the release process at Fleet.
@@ -34,11 +138,8 @@ Our primary quality objectives are *customer service* and *defect reduction*. We
 - Customer response time.
 - The number of bugs resolved per release cycle.
 - Stay abreast of what our community wants and the problems they're having.
-
 - Make people feel heard and understood.
-
 - Celebrate contributions.
-
 - Triage bugs, identify community feature requests, community pull requests, and community questions.
 
 ### How?
@@ -80,9 +181,6 @@ If the feature is requested by anyone other than a customer (ex. user in #fleet 
 It is often a good idea to let the original poster (OP) close their issue themselves since they are usually well equipped to decide whether the issue is resolved.   In some cases, circling back with the OP can be impractical, and for the sake of speed, issues might get closed.
 
 Keep in mind that this can feel jarring to the OP.  The effect is worse if issues are closed automatically by a bot (See [balderashy/sails#3423](https://github.com/balderdashy/sails/issues/3423#issuecomment-169751072) and [balderdashy/sails#4057](https://github.com/balderdashy/sails/issues/4057) for examples of this).
-
-To provide another way of tracking status without closing issues altogether, consider using the
-green labels that begin with "+".  To explore them, type `+` from GitHub's label picker.
 
 ### Version support
 
@@ -141,6 +239,12 @@ Every week, the on-call engineer changes. Here are some tips for making this han
    helpful for the former on-call to remain available for any conversations they were deeply involved
    in, so use your judgment on which threads to handoff.
 
+## Project boards
+
+[🚀 Release](https://github.com/orgs/fleetdm/projects/40) - The current release (daily go-to board) for engineers.
+
+[⚗️ Roadmap](https://github.com/orgs/fleetdm/projects/41) - Planning for the next release (shared with product).
+
 ## Rituals
 
 The following rituals are engaged in by the  directly responsible individual (DRI) and at the frequency specified for the ritual.
@@ -161,7 +265,9 @@ The following [Slack channels are maintained](https://fleetdm.com/handbook/compa
 | Slack channel                       | [DRI](https://fleetdm.com/handbook/company#group-slack-channels)    |
 |:------------------------------------|:--------------------------------------------------------------------|
 | `#help-engineering`                 | Zach Wasserman
-| `#help-oncall`                      | Zach Wasserman
+| `#g-platform`                       | Tomás Touceda
+| `#g-interface`                      | Luke Heath
+| `#g-agent`                          | Zach Wasserman
 | `#_pov-environments`                | Ben Edwards
 
 

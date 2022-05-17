@@ -3,23 +3,24 @@ package fleet
 import (
 	"context"
 	"errors"
+	"net"
+
 	"github.com/go-kit/kit/log"
 	"github.com/go-kit/kit/log/level"
 	"github.com/oschwald/geoip2-golang"
-	"net"
 )
 
 var notCityDBError = geoip2.InvalidMethodError{}
 
 type GeoLocation struct {
-	CountryISO string    `json:"country_iso"`
-	CityName   string    `json:"city_name"`
-	Geometry   *Geometry `json:"geometry,omitempty"`
+	CountryISO string    `json:"country_iso" csv:"-"`
+	CityName   string    `json:"city_name" csv:"-"`
+	Geometry   *Geometry `json:"geometry,omitempty" csv:"-"`
 }
 
 type Geometry struct {
-	Type        string    `json:"type"`
-	Coordinates []float64 `json:"coordinates"`
+	Type        string    `json:"type" csv:"-"`
+	Coordinates []float64 `json:"coordinates" csv:"-"`
 }
 
 type GeoIP interface {

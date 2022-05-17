@@ -52,11 +52,11 @@ the same to the server. This is not guaranteed, but it is a useful technique.
 
 First, ensure your Fleet local development environment is up and running. Refer to [Building Fleet](../../docs/Contributing/Building-Fleet.md) for details. Once this is done:
 
-* navigate to the Hosts tab of your Fleet web interface (typically this would be at https://localhost:8080/hosts/manage)
-* click on "Manage enroll secret" and copy the enroll secret
-* start the `osquery-perf` agent (from the root of the Fleet repository, it would be `go run ./cmd/osquery-perf/agent.go --enroll_secret <paste-the-secret>`)
+* navigate to the Hosts tab of your Fleet web interface (typically, this would be at https://localhost:8080/hosts/manage).
+* click on "Manage enroll secret" and copy the enroll secret.
+* start the `osquery-perf` agent (from the root of the Fleet repository, it would be `go run ./cmd/osquery-perf/agent.go --enroll_secret <paste-the-secret>`).
 
-The agent will start. You can connect to mysql to view changes made to the development database by the agent (e.g. at the terminal, with `docker-compose exec mysql mysql -uroot -ptoor -Dfleet`). Remember that frequency of the reported data depends on the configuration of the fleet instance, so you may want to start it with shorter delays for some cases, and enable debug logging (e.g. `./build/fleet serve --dev --logging_debug --osquery_detail_update_interval 1m`).
+The agent will start. You can connect to MySQL to view changes made to the development database by the agent (e.g., at the terminal, with `docker-compose exec mysql mysql -uroot -ptoor -Dfleet`). Remember that frequency of the reported data depends on the configuration of the Fleet instance, so you may want to start it with shorter delays for some cases and enable debug logging (e.g., `./build/fleet serve --dev --logging_debug --osquery_detail_update_interval 1m`).
 
 ### Resource Limits
 

@@ -1,0 +1,1 @@
+* Fleet no longer clears errors from Redis automatically after running `fleetctl debug errors`, but still allows users to clear errors on Redis via the `-flush` flag.

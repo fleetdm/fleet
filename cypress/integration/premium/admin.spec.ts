@@ -537,7 +537,7 @@ describe("Premium tier - Global Admin user", () => {
   describe("Manage policies page", () => {
     beforeEach(() => cy.visit("/policies/manage"));
     it("allows global admin to add a new policy", () => {
-      cy.getAttached(".button-wrap")
+      cy.getAttached(".policies-list-wrapper__action-button-container")
         .findByRole("button", { name: /add a policy/i })
         .click();
       // Add a default policy
@@ -636,7 +636,11 @@ describe("Premium tier - Global Admin user", () => {
       });
       // Access the Settings - Team details page
       cy.getAttached("tbody").within(() => {
-        cy.findByText(/apples/i).click();
+        cy.getAttached(".name__cell .button--text-link")
+          .eq(0)
+          .within(() => {
+            cy.findByText(/apples/i).click();
+          });
       });
       cy.findByText(/apples/i).should("exist");
       cy.findByText(/manage users with global access here/i).should("exist");

@@ -13,4 +13,8 @@ go.mod @fleetdm/go
 # GitHub settings + actions
 /.github/ @zwass
 
+# Changelog
 CHANGELOG.md @noahtalerman
+
+# API documentation
+/docs/Using-Fleet/REST-API.md @ksatter

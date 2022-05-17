@@ -35,6 +35,9 @@ const (
 type HostListOptions struct {
 	ListOptions
 
+	// DeviceMapping joins device user email mapping for each host if available
+	DeviceMapping bool
+
 	// AdditionalFilters selects which host additional fields should be
 	// populated.
 	AdditionalFilters []string
@@ -127,6 +130,8 @@ type Host struct {
 	PercentDiskSpaceAvailable float64 `json:"percent_disk_space_available" db:"percent_disk_space_available" csv:"percent_disk_space_available"`
 
 	HostIssues `json:"issues,omitempty" csv:"-"`
+
+	DeviceMapping *json.RawMessage `json:"device_mapping,omitempty" db:"device_mapping" csv:"device_mapping"`
 }
 
 type HostIssues struct {
@@ -160,11 +165,13 @@ const (
 type HostSummary struct {
 	TeamID           *uint                  `json:"team_id,omitempty"`
 	TotalsHostsCount uint                   `json:"totals_hosts_count" db:"total"`
-	Platforms        []*HostSummaryPlatform `json:"platforms"`
 	OnlineCount      uint                   `json:"online_count" db:"online"`
 	OfflineCount     uint                   `json:"offline_count" db:"offline"`
 	MIACount         uint                   `json:"mia_count" db:"mia"`
 	NewCount         uint                   `json:"new_count" db:"new"`
+	AllLinuxCount    uint                   `json:"all_linux_count"`
+	BuiltinLabels    []*LabelSummary        `json:"builtin_labels"`
+	Platforms        []*HostSummaryPlatform `json:"platforms"`
 }
 
 // HostSummaryPlatform represents the hosts statistics for a given platform,
@@ -216,7 +223,7 @@ var HostLinuxOSs = []string{
 	"linux", "ubuntu", "debian", "rhel", "centos", "sles", "kali", "gentoo", "amzn",
 }
 
-func isLinux(hostPlatform string) bool {
+func IsLinux(hostPlatform string) bool {
 	for _, linuxPlatform := range HostLinuxOSs {
 		if linuxPlatform == hostPlatform {
 			return true
@@ -233,7 +240,7 @@ func isLinux(hostPlatform string) bool {
 // Returns empty string if hostPlatform is unknnown.
 func PlatformFromHost(hostPlatform string) string {
 	switch {
-	case isLinux(hostPlatform):
+	case IsLinux(hostPlatform):
 		return "linux"
 	case hostPlatform == "darwin", hostPlatform == "windows":
 		return hostPlatform

@@ -185,11 +185,7 @@ const HostDetailsPage = ({
       refetchOnReconnect: false,
       refetchOnWindowFocus: false,
       retry: false,
-      select: (data: IDeviceMappingResponse) =>
-        data.device_mapping &&
-        data.device_mapping.filter(
-          (deviceUser) => deviceUser.email && deviceUser.email.length
-        ),
+      select: (data: IDeviceMappingResponse) => data.device_mapping,
     }
   );
 
@@ -600,6 +596,7 @@ const HostDetailsPage = ({
               isLoading={isLoadingHost}
               software={hostSoftware}
               softwareInventoryEnabled={hostSettings?.enable_software_inventory}
+              deviceType={host?.platform === "darwin" ? "macos" : ""}
             />
           </TabPanel>
           <TabPanel>

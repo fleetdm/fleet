@@ -1,6 +1,6 @@
 # Happy 1st anniversary, Fleet.
 
-![Happy 1st anniversary, Fleet.](https://miro.medium.com/max/1400/1*zCLe1aP9ytZ-Ea7b22_dbA.png)
+![Happy 1st anniversary, Fleet.](../website/assets/images/articles/happy-1st-anniversary-fleet-cover-800x450@2x.png)
 
 This week we celebrate our first anniversary since officially releasing the Fleet project under Fleet Device Management — and what a year we’ve had.
 
@@ -39,4 +39,4 @@ Fleet
 <meta name="authorFullName" value="Mike Thomas">
 <meta name="publishedOn" value="2021-10-08">
 <meta name="articleTitle" value="Happy 1st anniversary, Fleet.">
-<meta name="articleImageUrl" value="https://miro.medium.com/max/1400/1*zCLe1aP9ytZ-Ea7b22_dbA.png">
+<meta name="articleImageUrl" value="../website/assets/images/articles/happy-1st-anniversary-fleet-cover-800x450@2x.png">

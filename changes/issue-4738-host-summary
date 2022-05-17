@@ -1,0 +1,1 @@
+- Added `all_linux_count` and `builtin_labels` to `GET /host_summary` response.
