@@ -820,6 +820,8 @@ func (ds *Datastore) SoftwareByID(ctx context.Context, id uint, includeCVEScores
 
 	var software fleet.Software
 	for i, result := range results {
+		result := result // create a copy because we need to take the address to fields below
+
 		if i == 0 {
 			software = result.Software
 		}
