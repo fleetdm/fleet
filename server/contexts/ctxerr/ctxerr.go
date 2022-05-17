@@ -29,16 +29,16 @@ var nowFn = time.Now
 
 // FleetError is the error implementation used by this package.
 type FleetError struct {
-	msg   string                 // error message to be prepended to cause
-	stack StackTracer            // stack trace where this error was created
-	cause error                  // original error that caused this error if non-nil
-	data  map[string]interface{} // additional metadata about the error (timestamps, etc)
+	msg   string          // error message to be prepended to cause
+	stack StackTracer     // stack trace where this error was created
+	cause error           // original error that caused this error if non-nil
+	data  json.RawMessage // json-marshalled additional metadata about the error (timestamps, etc)
 }
 
 type fleetErrorJSON struct {
-	Message string                 `json:"message,omitempty"`
-	Data    map[string]interface{} `json:"data,omitempty"`
-	Stack   []string               `json:"stack,omitempty"`
+	Message string          `json:"message,omitempty"`
+	Data    json.RawMessage `json:"data,omitempty"`
+	Stack   []string        `json:"stack,omitempty"`
 }
 
 // Error implements the error interface.
@@ -64,26 +64,49 @@ func (e *FleetError) MarshalJSON() ([]byte, error) {
 	})
 }
 
+// setMetadata adds common metadata attributes to the `data` map provided.
+//
+// NOTE: this will override other values with the same keys.
+func setMetadata(ctx context.Context, data map[string]interface{}) {
+	// TODO: add more metadata from ctx
+	data["timestamp"] = nowFn().Format(time.RFC3339)
+}
+
+func encodeData(ctx context.Context, data map[string]interface{}, augment bool) json.RawMessage {
+	if data == nil {
+		return nil
+	}
+
+	if augment {
+		setMetadata(ctx, data)
+	}
+
+	edata, err := json.Marshal(data)
+	if err != nil {
+		emsg := fmt.Sprintf(`{"error": "there was an error encoding additional data: %s"}`, err.Error())
+		edata = json.RawMessage(emsg)
+	}
+	return edata
+}
+
 func newError(ctx context.Context, msg string, cause error, data map[string]interface{}) *FleetError {
 	stack := NewStack(2)
-	err := &FleetError{msg, stack, cause, data}
-	ensureCommonMetadata(ctx, err)
-	return err
+	edata := encodeData(ctx, data, true)
+	return &FleetError{msg, stack, cause, edata}
 }
 
 func wrapError(ctx context.Context, msg string, cause error, data map[string]interface{}) *FleetError {
 	stack := NewStack(2)
+	_, isFleetError := cause.(*FleetError)
 
-	// if the error is a FleetError, don't add the full
-	// stack trace. This assumes we're only using ctxerr.Wrap to
-	// wrap errors.
-	if _, ok := cause.(*FleetError); ok {
+	// If the error is a FleetError, don't add the full stack trace as it should
+	// already be present.
+	if isFleetError {
 		stack = stack[:1]
 	}
 
-	err := &FleetError{msg, stack, cause, data}
-	ensureCommonMetadata(ctx, err)
-	return err
+	edata := encodeData(ctx, data, !isFleetError)
+	return &FleetError{msg, stack, cause, edata}
 }
 
 // New creates a new error with the given message.
@@ -201,32 +224,5 @@ func fromContext(ctx context.Context) handler {
 func Handle(ctx context.Context, err error) {
 	if eh := fromContext(ctx); eh != nil {
 		eh.Store(err)
-	}
-}
-
-// ensureCommonMetadata looks for the first FleetError in the chain
-// and ensures common metadata is added to it if it finds one.
-//
-// NOTE: this will override other values with the same keys stored in
-// FleetError.data
-func ensureCommonMetadata(ctx context.Context, err *FleetError) {
-	var ferr = err
-	var aux *FleetError
-	var ok bool
-
-	for {
-		if aux, ok = Unwrap(ferr).(*FleetError); !ok {
-			break
-		}
-		ferr = aux
-	}
-
-	if ferr != nil {
-		if ferr.data == nil {
-			ferr.data = map[string]interface{}{}
-		}
-
-		// TODO: add more metadata from ctx
-		ferr.data["timestamp"] = nowFn().Format(time.RFC3339)
 	}
 }
