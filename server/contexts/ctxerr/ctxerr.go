@@ -84,10 +84,7 @@ func NewWithData(ctx context.Context, msg string, data map[string]interface{}) *
 // Errorf creates a new error with the given message.
 func Errorf(ctx context.Context, format string, args ...interface{}) *FleetError {
 	msg := fmt.Sprintf(format, args...)
-	stack := NewStack(1)
-	err := &FleetError{msg, stack, nil, nil}
-	ensureCommonMetadata(ctx, err)
-	return err
+	return New(ctx, msg)
 }
 
 // Wrap creates a new error with the given message, wrapping another error.
