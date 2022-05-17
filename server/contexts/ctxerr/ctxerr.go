@@ -18,7 +18,6 @@ import (
 	"fmt"
 	"strings"
 	"time"
-	//nolint:depguard
 )
 
 type key int
