@@ -9,10 +9,6 @@ metadata:
     release: {{ .Release.Name }}
   name: {{ .Values.fleetName }}-migration
   namespace: {{ .Release.Namespace }}
-  annotations:
-    "helm.sh/hook": pre-install,pre-upgrade
-    "helm.sh/hook-weight": "1"
-    "helm.sh/hook-delete-policy": hook-succeeded
 spec:
   template:
     metadata:

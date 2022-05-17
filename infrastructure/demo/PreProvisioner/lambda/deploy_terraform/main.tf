@@ -47,7 +47,8 @@ variable "eks_cluster" {}
 
 resource "mysql_user" "main" {
   user               = random_string.main.id
-  plaintext_password = random_password.db.id
+  host               = "%"
+  plaintext_password = random_password.db.result
 }
 
 resource "mysql_database" "main" {
@@ -57,6 +58,7 @@ resource "mysql_database" "main" {
 resource "mysql_grant" "main" {
   user       = mysql_user.main.user
   database   = mysql_database.main.name
+  host       = "%"
   privileges = ["ALL"]
 }
 
@@ -65,7 +67,7 @@ data "aws_secretsmanager_secret_version" "mysql" {
 }
 
 resource "random_password" "db" {
-  length = 24
+  length = 8
 }
 
 resource "random_string" "main" {
@@ -86,7 +88,7 @@ resource "helm_release" "main" {
 
   set {
     name  = "mysql.password"
-    value = mysql_user.main.plaintext_password
+    value = random_password.db.result
   }
 
   set {
