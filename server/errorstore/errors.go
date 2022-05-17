@@ -139,8 +139,11 @@ func hashError(err error) string {
 	var sb strings.Builder
 	// hash the cause type and message (it might not be a FleetError)
 	fmt.Fprintf(&sb, "%T\n%s\n", cause, cause.Error())
+
 	// hash the stack trace of the root FleetError in the chain
-	fmt.Fprintf(&sb, strings.Join(ferr.Stack(), "\n"))
+	if ferr != nil {
+		fmt.Fprintf(&sb, strings.Join(ferr.Stack(), "\n"))
+	}
 
 	return sha256b64(sb.String())
 }

@@ -231,15 +231,17 @@ func testErrorHandlerCollectsErrors(t *testing.T, pool fleet.RedisPool, wd strin
 	require.NoError(t, err)
 	require.Len(t, errors, 1)
 
-	assert.Regexp(t, regexp.MustCompile(fmt.Sprintf(`\{
-  "root": \{
+	assert.Regexp(t, regexp.MustCompile(`\{
+  "cause": \{
     "message": "always new errors",
     "stack": \[
-      "errorstore\.TestErrorHandler\.func\d\.\d+:%s/errors_test\.go:\d+",
-      "errorstore\.testErrorHandlerCollectsErrors:%[1]s/errors_test\.go:\d+",
-      "errorstore\.alwaysNewError:%s/errors_test\.go:\d+"
+      "github\.com\/fleetdm\/fleet\/v4\/server\/errorstore\.alwaysNewError \(errors_test\.go\:\d+\)",
+      "github\.com\/fleetdm\/fleet\/v4\/server\/errorstore\.testErrorHandlerCollectsErrors \(errors_test\.go\:\d+\)",
+      "github\.com\/fleetdm\/fleet\/v4\/server\/errorstore\.TestErrorHandler\.func3\.1 \(errors_test\.go\:\d+\)",
+      ".+",
+      ".+"
     \]
-  \}`, wd, wd)), errors[0])
+  \}`), errors[0])
 
 	errors, err = eh.Retrieve(flush)
 	require.NoError(t, err)
@@ -297,25 +299,29 @@ func testErrorHandlerCollectsDifferentErrors(t *testing.T, pool fleet.RedisPool,
 	// order is not guaranteed by scan keys
 	for _, jsonErr := range errors {
 		if strings.Contains(jsonErr, "new errors two") {
-			assert.Regexp(t, regexp.MustCompile(fmt.Sprintf(`\{
-  "root": \{
+			assert.Regexp(t, regexp.MustCompile(`\{
+  "cause": \{
     "message": "always new errors two",
     "stack": \[
-      "errorstore\.TestErrorHandler\.func\d\.\d+:%s/errors_test\.go:\d+",
-      "errorstore\.testErrorHandlerCollectsDifferentErrors:%[1]s/errors_test\.go:\d+",
-      "errorstore\.alwaysNewErrorTwo:%[1]s/errors_test\.go:\d+"
+      "github\.com\/fleetdm\/fleet\/v4\/server\/errorstore\.alwaysNewErrorTwo \(errors_test\.go\:\d+\)",
+      "github\.com\/fleetdm\/fleet\/v4\/server\/errorstore\.testErrorHandlerCollectsDifferentErrors \(errors_test\.go\:\d+\)",
+      "github\.com\/fleetdm\/fleet\/v4\/server\/errorstore\.TestErrorHandler\.func3\.2 \(errors_test\.go\:\d+\)",
+      ".+",
+      ".+"
     \]
-  \}`, wd)), jsonErr)
+  \}`), jsonErr)
 		} else {
-			assert.Regexp(t, regexp.MustCompile(fmt.Sprintf(`\{
-  "root": \{
+			assert.Regexp(t, regexp.MustCompile(`\{
+  "cause": \{
     "message": "always new errors",
     "stack": \[
-      "errorstore\.TestErrorHandler\.func\d\.\d+:%s/errors_test\.go:\d+",
-      "errorstore\.testErrorHandlerCollectsDifferentErrors:%[1]s/errors_test\.go:\d+",
-      "errorstore\.alwaysNewError:%[1]s/errors_test\.go:\d+"
+      "github\.com\/fleetdm\/fleet\/v4\/server\/errorstore\.alwaysNewError \(errors_test\.go\:\d+\)",
+      "github\.com\/fleetdm\/fleet\/v4\/server\/errorstore\.testErrorHandlerCollectsDifferentErrors \(errors_test\.go\:\d+\)",
+      "github\.com\/fleetdm\/fleet\/v4\/server\/errorstore\.TestErrorHandler\.func3\.2 \(errors_test\.go\:\d+\)",
+      ".+",
+      ".+"
     \]
-  \}`, wd)), jsonErr)
+  \}`), jsonErr)
 		}
 	}
 
@@ -362,7 +368,7 @@ func TestHttpHandler(t *testing.T) {
 
 		require.Equal(t, res.Code, 200)
 		var errs []struct {
-			Root struct {
+			Cause struct {
 				Message string
 			}
 			Wrap []struct {
@@ -371,8 +377,8 @@ func TestHttpHandler(t *testing.T) {
 		}
 		require.NoError(t, json.Unmarshal(res.Body.Bytes(), &errs))
 		require.Len(t, errs, 2)
-		require.NotEmpty(t, errs[0].Root.Message)
-		require.NotEmpty(t, errs[1].Root.Message)
+		require.NotEmpty(t, errs[0].Cause.Message)
+		require.NotEmpty(t, errs[1].Cause.Message)
 	})
 
 	t.Run("flushes errors after retrieving if the flush flag is true", func(t *testing.T) {
@@ -383,7 +389,7 @@ func TestHttpHandler(t *testing.T) {
 
 		require.Equal(t, res.Code, 200)
 		var errs []struct {
-			Root struct {
+			Cause struct {
 				Message string
 			}
 			Wrap []struct {
@@ -392,8 +398,8 @@ func TestHttpHandler(t *testing.T) {
 		}
 		require.NoError(t, json.Unmarshal(res.Body.Bytes(), &errs))
 		require.Len(t, errs, 2)
-		require.NotEmpty(t, errs[0].Root.Message)
-		require.NotEmpty(t, errs[1].Root.Message)
+		require.NotEmpty(t, errs[0].Cause.Message)
+		require.NotEmpty(t, errs[1].Cause.Message)
 
 		req = httptest.NewRequest("GET", "/?flush=true", nil)
 		res = httptest.NewRecorder()

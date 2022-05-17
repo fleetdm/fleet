@@ -157,21 +157,17 @@ func Cause(err error) error {
 // FleetCause is similar to Cause, but returns the root-most
 // FleetError in the chain
 func FleetCause(err error) *FleetError {
-	var ferr, aux *FleetError
+	var ferr, aux *FleetError = nil, nil
 	var ok bool
 
-	// the error is not a FleetError, thus there's no
-	// root FleetError in the chain
-	if ferr, ok = err.(*FleetError); !ok {
-		return nil
+	for err != nil {
+		if aux, ok = err.(*FleetError); ok {
+			ferr = aux
+		}
+		err = Unwrap(err)
 	}
 
-	for {
-		if aux, ok = Unwrap(ferr).(*FleetError); !ok {
-			return ferr
-		}
-		err = aux
-	}
+	return ferr
 }
 
 // Unwrap is a wrapper of built-in errors.Unwrap. It returns the result of
@@ -202,13 +198,13 @@ func MarshalJSON(err error) ([]byte, error) {
 		chain[i], chain[opp] = chain[opp], chain[i]
 	}
 
-	return json.Marshal(struct {
+	return json.MarshalIndent(struct {
 		Cause interface{}   `json:"cause"`
-		Wraps []interface{} `json:"wraps"`
+		Wraps []interface{} `json:"wraps,omitempty"`
 	}{
 		Cause: chain[0],
 		Wraps: chain[1:],
-	})
+	}, "", "  ")
 }
 
 type handler interface {
