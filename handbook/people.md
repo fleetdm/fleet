@@ -354,6 +354,12 @@ When the agreement is completed, make sure it is in the correct Google Drive fol
 ## Onboarding a new consultant
 
 Consultant agreements are sent through [DocuSign](https://www.docusign.com/), using the "Consulting Agreement" template. To send a new consulting agreement, you'll need the new consultant's name, the term of the service, a summary of the services provided and the consultant's fee. 
+There are some defautls that we use for these agreements:
+   - Term: one month
+   - Services rendered: [use this doc](https://docs.google.com/document/d/1b5SGgYEHqDmq5QF8p29WWN3it3XJh3xRT3zG0RdXARo/edit)
+   - Work will commence and complete by dates: Start date and end of term date
+   - Fee: Get from contractor
+   - Hours: Default to 10 hr/week = 40hr/week
 
 Then hit send!  After all of the signatures are there, the completed document will automatically be uploaded to the appropriate Google Drive folder by our automation, and a Slack message will appear in the `#g-people` channel.
 
@@ -431,6 +437,10 @@ We like to celebrate our achievements weekly in `#general`.
   - Every Thursday night, Charlie creates a thread in #help-manage requesting weekly updates, and managers will reply to the thread with their weekly updates.
   - Friday afternoons, Charlie updates the KPIs in the weekly updates spreadsheet, and Friday nights, Charlie will post the updates in #general.
 
+### Investor and Advisor updates
+
+We like to regularly share updates about how Fleet is growing with our investors and advisors. 
+  - Charlie tracks the most recent updates with investors and advisors and coordinates emails, zoom calls, or the investor or advisor's prefered method of communication with @mikermcneil and preps materials as needed. 
 
 ## Rituals
 
@@ -449,6 +459,7 @@ The following table lists the People group's rituals, frequency, and Directly Re
 | OKR planning | Quarterly | Plan the next quarter's OKRs. | Mike Thomas |
 | 550C update | Annually | File California 550C. | Charlie Chance |
 | Workiversaries | Weekly/PRN | People Operations posts in #g-people and tags @mikermcneil about any upcoming workiversaries | Charlie Chance |
+| Investor and Advisor updates | PRN | People Operations tracks last contact with investors and coordinates outreach with CEO | Charlie Chance |
 
 ## Slack channels
 
