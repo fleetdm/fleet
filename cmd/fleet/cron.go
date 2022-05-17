@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"errors"
+	"net/url"
 	"os"
 	"strconv"
 	"strings"
@@ -10,6 +11,7 @@ import (
 
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/policies"
 	"github.com/fleetdm/fleet/v4/server/service/externalsvc"
 	"github.com/fleetdm/fleet/v4/server/vulnerabilities"
 	"github.com/fleetdm/fleet/v4/server/webhooks"
@@ -357,7 +359,7 @@ func cronWebhooks(
 
 		// We set the db lock durations to match the intervalReload.
 		maybeTriggerHostStatus(ctx, ds, logger, identifier, appConfig, intervalReload)
-		maybeTriggerFailingPoliciesWebhook(ctx, ds, logger, identifier, appConfig, intervalReload, failingPoliciesSet)
+		maybeTriggerFailingPoliciesIntegration(ctx, ds, logger, identifier, appConfig, intervalReload, failingPoliciesSet)
 
 		level.Debug(logger).Log("loop", "done")
 	}
@@ -389,7 +391,7 @@ func maybeTriggerHostStatus(
 	}
 }
 
-func maybeTriggerFailingPoliciesWebhook(
+func maybeTriggerFailingPoliciesIntegration(
 	ctx context.Context,
 	ds fleet.Datastore,
 	logger kitlog.Logger,
@@ -408,10 +410,26 @@ func maybeTriggerFailingPoliciesWebhook(
 		return
 	}
 
-	if err := webhooks.TriggerFailingPoliciesWebhook(
-		ctx, ds, kitlog.With(logger, "webhook", "failing_policies"), appConfig, failingPoliciesSet, time.Now(),
-	); err != nil {
-		level.Error(logger).Log("err", "triggering failing policies webhook", "details", err)
+	serverURL, err := url.Parse(appConfig.ServerSettings.ServerURL)
+	if err != nil {
+		level.Error(logger).Log("err", "parsing appConfig.ServerSettings.ServerURL", "details", err)
+		sentry.CaptureException(err)
+		return
+	}
+
+	logger = kitlog.With(logger, "webhook", "failing_policies")
+	err = policies.TriggerFailingPoliciesIntegration(ctx, ds, logger, appConfig, failingPoliciesSet, func(policy *fleet.Policy, cfg policies.FailingPolicyAutomationConfig) error {
+		switch cfg.AutomationType {
+		case policies.FailingPolicyWebhook:
+			return webhooks.SendFailingPoliciesBatchedPOSTs(
+				ctx, policy, failingPoliciesSet, cfg.HostBatchSize, serverURL, cfg.WebhookURL, time.Now(), logger)
+		case policies.FailingPolicyJira:
+		case policies.FailingPolicyZendesk:
+		}
+		return nil
+	})
+	if err != nil {
+		level.Error(logger).Log("err", "triggering failing policies integration", "details", err)
 		sentry.CaptureException(err)
 	}
 }
