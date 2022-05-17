@@ -234,6 +234,9 @@ func testErrorHandlerCollectsErrors(t *testing.T, pool fleet.RedisPool, wd strin
 	assert.Regexp(t, regexp.MustCompile(`\{
   "cause": \{
     "message": "always new errors",
+    "data": \{
+      "timestamp": ".+"
+    \},
     "stack": \[
       "github\.com\/fleetdm\/fleet\/v4\/server\/errorstore\.alwaysNewError \(errors_test\.go\:\d+\)",
       "github\.com\/fleetdm\/fleet\/v4\/server\/errorstore\.testErrorHandlerCollectsErrors \(errors_test\.go\:\d+\)",
@@ -302,6 +305,9 @@ func testErrorHandlerCollectsDifferentErrors(t *testing.T, pool fleet.RedisPool,
 			assert.Regexp(t, regexp.MustCompile(`\{
   "cause": \{
     "message": "always new errors two",
+    "data": \{
+      "timestamp": ".+"
+    \},
     "stack": \[
       "github\.com\/fleetdm\/fleet\/v4\/server\/errorstore\.alwaysNewErrorTwo \(errors_test\.go\:\d+\)",
       "github\.com\/fleetdm\/fleet\/v4\/server\/errorstore\.testErrorHandlerCollectsDifferentErrors \(errors_test\.go\:\d+\)",
@@ -314,6 +320,9 @@ func testErrorHandlerCollectsDifferentErrors(t *testing.T, pool fleet.RedisPool,
 			assert.Regexp(t, regexp.MustCompile(`\{
   "cause": \{
     "message": "always new errors",
+    "data": \{
+      "timestamp": ".+"
+    \},
     "stack": \[
       "github\.com\/fleetdm\/fleet\/v4\/server\/errorstore\.alwaysNewError \(errors_test\.go\:\d+\)",
       "github\.com\/fleetdm\/fleet\/v4\/server\/errorstore\.testErrorHandlerCollectsDifferentErrors \(errors_test\.go\:\d+\)",

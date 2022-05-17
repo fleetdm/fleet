@@ -71,19 +71,21 @@ func (e *FleetError) Stack() []string {
 
 // setMetadata adds common metadata attributes to the `data` map provided.
 //
-// NOTE: this will override other values with the same keys.
-func setMetadata(ctx context.Context, data map[string]interface{}) {
+// NOTE: this will mutate the data provided and override other values with the same keys.
+func setMetadata(ctx context.Context, data map[string]interface{}) map[string]interface{} {
+	if data == nil {
+		data = map[string]interface{}{}
+	}
+
 	// TODO: add more metadata from ctx
 	data["timestamp"] = nowFn().Format(time.RFC3339)
+
+	return data
 }
 
 func encodeData(ctx context.Context, data map[string]interface{}, augment bool) json.RawMessage {
-	if data == nil {
-		return nil
-	}
-
 	if augment {
-		setMetadata(ctx, data)
+		data = setMetadata(ctx, data)
 	}
 
 	encoded, err := json.Marshal(data)
@@ -117,6 +119,10 @@ func wrapError(ctx context.Context, msg string, cause error, data map[string]int
 // New creates a new error with the given message.
 func New(ctx context.Context, msg string) *FleetError {
 	return newError(ctx, msg, nil, nil)
+}
+
+func NewWithData(ctx context.Context, msg string, data map[string]interface{}) *FleetError {
+	return newError(ctx, msg, nil, data)
 }
 
 // Errorf creates a new error with the given message.

@@ -2,29 +2,44 @@ package ctxerr
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
+	"regexp"
 	"testing"
 	"time"
 
 	pkgerrors "github.com/pkg/errors" //nolint:depguard
 	"github.com/stretchr/testify/require"
+	"github.com/tj/assert"
 )
 
-type mockHandler struct{}
+type mockHandler struct {
+	StoreImpl func(err error)
+}
 
-func (h mockHandler) Store(err error) {}
+func (h mockHandler) Store(err error) {
+	h.StoreImpl(err)
+}
 
-func setup() context.Context {
+type cleanupFn func()
+
+func setup() (context.Context, cleanupFn) {
 	ctx := context.Background()
 	eh := mockHandler{}
 	ctx = NewContext(ctx, eh)
-	return ctx
+	nowFn = func() time.Time {
+		now, _ := time.Parse(time.RFC3339, "1969-06-19T21:44:05Z")
+		return now
+	}
+
+	return ctx, func() { nowFn = time.Now }
 }
 
 func TestCause(t *testing.T) {
-	ctx := setup()
+	ctx, cleanup := setup()
+	defer cleanup()
 
 	errNew := errors.New("new")
 	fmtWrap := fmt.Errorf("fmt: %w", errNew)
@@ -62,7 +77,8 @@ func TestCause(t *testing.T) {
 }
 
 func TestNew(t *testing.T) {
-	ctx := setup()
+	ctx, cleanup := setup()
+	defer cleanup()
 	err := New(ctx, "new")
 
 	require.Equal(t, err.msg, "new")
@@ -71,18 +87,33 @@ func TestNew(t *testing.T) {
 }
 
 func TestNewWithData(t *testing.T) {
-	ctx := setup()
-	data := map[string]interface{}{"foo": "bar"}
-	err := NewWithData(ctx, "new", data)
+	t.Run("with valid data", func(t *testing.T) {
+		ctx, cleanup := setup()
+		defer cleanup()
+		data := map[string]interface{}{"foo": "bar"}
+		err := NewWithData(ctx, "new", data)
 
-	require.Equal(t, err.msg, "new")
-	require.NotEmpty(t, err.stack.List())
-	require.Nil(t, err.cause)
-	require.Equal(t, err.data, data)
+		require.Equal(t, err.msg, "new")
+		require.NotEmpty(t, err.stack.List())
+		require.Nil(t, err.cause)
+		require.Equal(t, err.data, json.RawMessage(`{"foo":"bar","timestamp":"1969-06-19T21:44:05Z"}`))
+	})
+
+	t.Run("with invalid data", func(t *testing.T) {
+		ctx, cleanup := setup()
+		defer cleanup()
+		data := map[string]interface{}{"foo": make(chan int)}
+		err := NewWithData(ctx, "new", data)
+		require.Equal(t, err.msg, "new")
+		require.NotEmpty(t, err.stack.List())
+		require.Nil(t, err.cause)
+		assert.Regexp(t, regexp.MustCompile(`{"error": ".+"}`), string(err.data))
+	})
 }
 
 func TestErrorf(t *testing.T) {
-	ctx := setup()
+	ctx, cleanup := setup()
+	defer cleanup()
 	err := Errorf(ctx, "%s %d", "new", 1)
 
 	require.Equal(t, err.msg, "new 1")
@@ -91,7 +122,8 @@ func TestErrorf(t *testing.T) {
 }
 
 func TestWrap(t *testing.T) {
-	ctx := setup()
+	ctx, cleanup := setup()
+	defer cleanup()
 	cause := errors.New("cause")
 	err := Wrap(ctx, cause, "new")
 
@@ -101,19 +133,35 @@ func TestWrap(t *testing.T) {
 }
 
 func TestWrapNewWithData(t *testing.T) {
-	ctx := setup()
-	cause := errors.New("cause")
-	data := map[string]interface{}{"foo": "bar"}
-	err := WrapWithData(ctx, cause, "new", data)
+	t.Run("with valid data", func(t *testing.T) {
+		ctx, cleanup := setup()
+		defer cleanup()
+		cause := errors.New("cause")
+		data := map[string]interface{}{"foo": "bar"}
+		err := WrapWithData(ctx, cause, "new", data)
 
-	require.Equal(t, err.msg, "new")
-	require.NotEmpty(t, err.stack.List())
-	require.NotNil(t, err.cause)
-	require.Equal(t, err.data, data)
+		require.Equal(t, err.msg, "new")
+		require.NotEmpty(t, err.stack.List())
+		require.NotNil(t, err.cause)
+		require.Equal(t, err.data, json.RawMessage(`{"foo":"bar","timestamp":"1969-06-19T21:44:05Z"}`))
+	})
+
+	t.Run("with invalid data", func(t *testing.T) {
+		ctx, cleanup := setup()
+		defer cleanup()
+		cause := errors.New("cause")
+		data := map[string]interface{}{"foo": make(chan int)}
+		err := WrapWithData(ctx, cause, "new", data)
+		require.Equal(t, err.msg, "new")
+		require.NotEmpty(t, err.stack.List())
+		require.NotNil(t, err.cause)
+		assert.Regexp(t, regexp.MustCompile(`{"error": ".+"}`), string(err.data))
+	})
 }
 
 func TestWrapf(t *testing.T) {
-	ctx := setup()
+	ctx, cleanup := setup()
+	defer cleanup()
 	cause := errors.New("cause")
 	err := Wrapf(ctx, cause, "%s %d", "new", 1)
 
@@ -123,24 +171,12 @@ func TestWrapf(t *testing.T) {
 }
 
 func TestUnwrap(t *testing.T) {
-	ctx := setup()
+	ctx, cleanup := setup()
+	defer cleanup()
 	cause := errors.New("cause")
 	err := Wrap(ctx, cause, "new")
 
 	require.Equal(t, Unwrap(err), cause)
-}
-
-func TestUnpack(t *testing.T) {
-	ctx := setup()
-	cause := errors.New("cause")
-	err := Wrap(ctx, cause, "new")
-	err = Wrap(ctx, err, "nested")
-	err = Wrap(ctx, err, "nested 2")
-
-	scause, stack := Summarize(err)
-
-	require.Equal(t, scause, cause)
-	require.NotEmpty(t, stack)
 }
 
 func TestFleetErrorMarshalling(t *testing.T) {
@@ -149,12 +185,12 @@ func TestFleetErrorMarshalling(t *testing.T) {
 		in  FleetError
 		out string
 	}{
-		{"only error", FleetError{"a", mockStack{}, nil, nil}, `{"Message": "a"}`},
-		{"errors and stack", FleetError{"a", mockStack{[]string{"test"}}, errors.New("err"), nil}, `{"Message": "a", "Stack": ["test"]}`},
+		{"only error", FleetError{"a", mockStack{}, nil, nil}, `{"message": "a"}`},
+		{"errors and stack", FleetError{"a", mockStack{[]string{"test"}}, errors.New("err"), nil}, `{"message": "a", "stack": ["test"]}`},
 		{
 			"errors, stack and data",
-			FleetError{"a", mockStack{[]string{"test"}}, errors.New("err"), map[string]interface{}{"foo": "bar"}},
-			`{"Message": "a", "Stack": ["test"], "Data": {"foo": "bar"}}`,
+			FleetError{"a", mockStack{[]string{"test"}}, errors.New("err"), json.RawMessage(`{"foo":"bar"}`)},
+			`{"message": "a", "stack": ["test"], "data": {"foo": "bar"}}`,
 		},
 	}
 
@@ -169,12 +205,8 @@ func TestFleetErrorMarshalling(t *testing.T) {
 }
 
 func TestMarshalJSON(t *testing.T) {
-	nowFn = func() time.Time {
-		now, _ := time.Parse(time.RFC3339, "1969-06-19T21:44:05Z")
-		return now
-	}
-	defer func() { nowFn = time.Now }()
-	ctx := setup()
+	ctx, cleanup := setup()
+	defer cleanup()
 
 	errNew := errors.New("a")
 
@@ -192,17 +224,17 @@ func TestMarshalJSON(t *testing.T) {
 		{
 			"non-wrapped errors",
 			errNew,
-			`{"Cause": {"Message": "a"}, "Wraps": []}`,
+			`{"cause": {"message": "a"}}`,
 		},
 		{
 			"wrapped error",
 			errWrap,
-			`{"Cause": {"Message": "a"}, "Wraps": [{"Data": {"Timestamp": "1969-06-19T21:44:05Z"}, "Stack": ["sa"]}]}`,
+			`{"cause": {"message": "a"}, "wraps": [{"data": {"timestamp": "1969-06-19T21:44:05Z"}, "stack": ["sa"]}]}`,
 		},
 		{
 			"wrapped error with data",
 			errNewWithData,
-			`{"Cause": {"Message": "b", "Stack": ["sb"], "Data": {"f": "b", "Timestamp": "1969-06-19T21:44:05Z"}}, "Wraps": []}`,
+			`{"cause": {"message": "b", "stack": ["sb"], "data": {"f": "b", "timestamp": "1969-06-19T21:44:05Z"}}}`,
 		},
 	}
 
@@ -213,4 +245,58 @@ func TestMarshalJSON(t *testing.T) {
 			require.JSONEq(t, c.out, string(json))
 		})
 	}
+}
+
+func TestStackMethod(t *testing.T) {
+	ctx, cleanup := setup()
+	defer cleanup()
+
+	errNew := errors.New("a")
+	errWrap := Wrap(ctx, errNew)
+	errWrap.stack = mockStack{[]string{"sa"}}
+
+	require.Equal(t, []string{"sa"}, errWrap.Stack())
+}
+
+func TestFleetCause(t *testing.T) {
+	ctx, cleanup := setup()
+	defer cleanup()
+
+	var nilErr *FleetError = nil
+	errNew := errors.New("a")
+	errWrapRoot := Wrap(ctx, errNew)
+	errWrap1 := Wrap(ctx, errWrapRoot)
+	errWrap2 := Wrap(ctx, errWrap1)
+
+	cases := []struct {
+		msg string
+		in  error
+		out error
+	}{
+		{"non-fleet, unwrapped errors returns nil", errNew, nilErr},
+		{"fleet unwrapped errors returns the error itself", errWrapRoot, errWrapRoot},
+		{"deeply nested errors return the root fleet error", errWrap1, errWrapRoot},
+		{"deeply nested errors return the root fleet error", errWrap2, errWrapRoot},
+	}
+
+	for _, c := range cases {
+		t.Run(c.msg, func(t *testing.T) {
+			actual := FleetCause(c.in)
+			fmt.Println(c.msg)
+			fmt.Println(c.out)
+			fmt.Println(actual)
+			require.Equal(t, c.out, actual)
+		})
+	}
+}
+
+func TestHandle(t *testing.T) {
+	ctx := context.Background()
+	eh := mockHandler{}
+	err := New(ctx, "new")
+	eh.StoreImpl = func(serr error) {
+		require.Equal(t, serr, err)
+	}
+	ctx = NewContext(ctx, eh)
+	Handle(ctx, err)
 }
