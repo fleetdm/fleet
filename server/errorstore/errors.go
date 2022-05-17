@@ -143,7 +143,7 @@ func hashError(err error) string {
 }
 
 func hashAndMarshalError(externalErr error) (errHash string, errAsJson string, err error) {
-	bytes, err := ctxerr.MarshallJSON(externalErr)
+	bytes, err := ctxerr.MarshalJSON(externalErr)
 	if err != nil {
 		return "", "", err
 	}

@@ -168,7 +168,7 @@ func TestFleetErrorMarshalling(t *testing.T) {
 	}
 }
 
-func TestMarshallJSON(t *testing.T) {
+func TestMarshalJSON(t *testing.T) {
 	nowFn = func() time.Time {
 		now, _ := time.Parse(time.RFC3339, "1969-06-19T21:44:05Z")
 		return now
@@ -208,7 +208,7 @@ func TestMarshallJSON(t *testing.T) {
 
 	for _, c := range cases {
 		t.Run(c.msg, func(t *testing.T) {
-			json, err := MarshallJSON(c.in)
+			json, err := MarshalJSON(c.in)
 			require.NoError(t, err)
 			require.JSONEq(t, c.out, string(json))
 		})

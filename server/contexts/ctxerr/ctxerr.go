@@ -132,8 +132,8 @@ func Unwrap(err error) error {
 	return errors.Unwrap(err)
 }
 
-// MarshallJSON provides a JSON representation of a whole error chain.
-func MarshallJSON(err error) ([]byte, error) {
+// MarshalJSON provides a JSON representation of a whole error chain.
+func MarshalJSON(err error) ([]byte, error) {
 	chain := make([]interface{}, 0)
 
 	for err != nil {
