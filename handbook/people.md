@@ -354,6 +354,12 @@ When the agreement is completed, make sure it is in the correct Google Drive fol
 ## Onboarding a new consultant
 
 Consultant agreements are sent through [DocuSign](https://www.docusign.com/), using the "Consulting Agreement" template. To send a new consulting agreement, you'll need the new consultant's name, the term of the service, a summary of the services provided and the consultant's fee. 
+There are some defautls that we use for these agreements:
+   - Term: one month
+   - Services rendered: [use this doc](https://docs.google.com/document/d/1b5SGgYEHqDmq5QF8p29WWN3it3XJh3xRT3zG0RdXARo/edit)
+   - Work will commence and complete by dates: Start date and end of term date
+   - Fee: Get from contractor
+   - Hours: Default to 10 hr/week = 40hr/week
 
 Then hit send!  After all of the signatures are there, the completed document will automatically be uploaded to the appropriate Google Drive folder by our automation, and a Slack message will appear in the `#g-people` channel.
 

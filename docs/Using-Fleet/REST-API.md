@@ -6382,6 +6382,8 @@ Deletes the selected user's sessions in Fleet. Also deletes the user's API token
 ## Debug
 
 - [Get a summary of errors](#get-a-summary-of-errors)
+- [Get database information](#get-database-information)
+- [Get profiling information](#get-profiling-information)
 
 The Fleet server exposes a handful of API endpoints to retrieve debug information about the server itself in order to help troubleshooting. All the following endpoints require prior authentication meaning you must first log in successfully before calling any of the endpoints documented below.
 
@@ -6426,6 +6428,32 @@ The server only stores and returns a single instance of each error.
   }
 ]
 ```
+
+### Get database information
+
+Returns information about the current state of the database, valid keys are:
+
+- `locks`: returns transaction locking information.
+- `innodb-status`: returns InnoDB status information.
+- `process-list`: returns running processes (queries, etc).
+
+`GET /debug/db/{key}`
+
+#### Parameters
+
+None.
+
+### Get profiling information
+
+Returns runtime profiling data of the server in the format expected by `go tools pprof`. The responses are equivalent to those returned by the Go `http/pprof` package.
+
+Valid keys are: `cmdline`, `profile`, `symbol` and `trace`.
+
+`GET /debug/pprof/{key}`
+
+#### Parameters
+
+None.
 
 ---
 <meta name="pageOrderInSection" value="400">
