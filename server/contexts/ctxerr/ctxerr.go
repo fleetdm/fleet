@@ -64,54 +64,40 @@ func (e *FleetError) MarshalJSON() ([]byte, error) {
 	})
 }
 
-// New creates a new error with the given message.
-func New(ctx context.Context, msg string) *FleetError {
-	stack := NewStack(1)
-	err := &FleetError{msg, stack, nil, nil}
-	ensureCommonMetadata(ctx, err)
-	return err
-}
-
-// NewWithData creates a new error with the given message and attaches
-// aditional data to it.
-func NewWithData(ctx context.Context, msg string, data map[string]interface{}) *FleetError {
-	stack := NewStack(1)
-	err := &FleetError{msg, stack, nil, data}
-	ensureCommonMetadata(ctx, err)
-	return err
-}
-
-// Errorf creates a new error with the given message.
-func Errorf(ctx context.Context, format string, args ...interface{}) *FleetError {
-	msg := fmt.Sprintf(format, args...)
-	return New(ctx, msg)
-}
-
-// Wrap creates a new error with the given message, wrapping another error.
-func Wrap(ctx context.Context, cause error, msgs ...string) *FleetError {
-	msg := strings.Join(msgs, " ")
-	stack := NewStack(1)
-	err := &FleetError{msg, stack, cause, map[string]interface{}{}}
-	ensureCommonMetadata(ctx, err)
-	return err
-}
-
-// WrapWithData creates a new error with the given message, wrapping another
-// error and attaching the data provided to it.
-func WrapWithData(ctx context.Context, cause error, msg string, data map[string]interface{}) *FleetError {
+func newError(ctx context.Context, msg string, cause error, data map[string]interface{}) *FleetError {
 	stack := NewStack(1)
 	err := &FleetError{msg, stack, cause, data}
 	ensureCommonMetadata(ctx, err)
 	return err
 }
 
+// New creates a new error with the given message.
+func New(ctx context.Context, msg string) *FleetError {
+	return newError(ctx, msg, nil, nil)
+}
+
+// Errorf creates a new error with the given message.
+func Errorf(ctx context.Context, format string, args ...interface{}) *FleetError {
+	msg := fmt.Sprintf(format, args...)
+	return newError(ctx, msg, nil, nil)
+}
+
+// Wrap creates a new error with the given message, wrapping another error.
+func Wrap(ctx context.Context, cause error, msgs ...string) *FleetError {
+	msg := strings.Join(msgs, " ")
+	return newError(ctx, msg, cause, nil)
+}
+
+// WrapWithData creates a new error with the given message, wrapping another
+// error and attaching the data provided to it.
+func WrapWithData(ctx context.Context, cause error, msg string, data map[string]interface{}) *FleetError {
+	return newError(ctx, msg, cause, data)
+}
+
 // Wrapf creates a new error with the given message, wrapping another error.
 func Wrapf(ctx context.Context, cause error, format string, args ...interface{}) *FleetError {
 	msg := fmt.Sprintf(format, args...)
-	stack := NewStack(1)
-	err := &FleetError{msg, stack, cause, nil}
-	ensureCommonMetadata(ctx, err)
-	return err
+	return newError(ctx, msg, cause, nil)
 }
 
 // Cause returns the root error in err's chain.
