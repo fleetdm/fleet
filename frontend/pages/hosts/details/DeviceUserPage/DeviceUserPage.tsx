@@ -55,7 +55,6 @@ const DeviceUserPage = ({
   const [refetchStartTime, setRefetchStartTime] = useState<number | null>(null);
   const [showRefetchSpinner, setShowRefetchSpinner] = useState<boolean>(false);
   const [hostSoftware, setHostSoftware] = useState<ISoftware[]>([]);
-  const [hostPolicies, setHostPolicies] = useState<IHostPolicy[]>([]);
   const [host, setHost] = useState<IHost | null>();
   const [orgLogoURL, setOrgLogoURL] = useState<string>("");
   const [selectedPolicy, setSelectedPolicy] = useState<IHostPolicy | null>(
