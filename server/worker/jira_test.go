@@ -126,3 +126,42 @@ func TestJiraQueueVulnJobs(t *testing.T) {
 		require.True(t, ds.NewJobFuncInvoked)
 	})
 }
+
+func TestJiraQueueFailingPolicyJob(t *testing.T) {
+	ds := new(mock.Store)
+	ctx := context.Background()
+	logger := kitlog.NewNopLogger()
+
+	t.Run("success global", func(t *testing.T) {
+		ds.NewJobFunc = func(ctx context.Context, job *fleet.Job) (*fleet.Job, error) {
+			require.NotContains(t, string(*job.Args), `"team_id"`)
+			return job, nil
+		}
+		err := QueueJiraFailingPolicyJob(ctx, ds, logger,
+			&fleet.Policy{PolicyData: fleet.PolicyData{ID: 1, Name: "p1"}}, nil, []*fleet.HostShort{{ID: 1, Hostname: "h1"}})
+		require.NoError(t, err)
+		require.True(t, ds.NewJobFuncInvoked)
+	})
+
+	t.Run("success team", func(t *testing.T) {
+		ds.NewJobFunc = func(ctx context.Context, job *fleet.Job) (*fleet.Job, error) {
+			require.Contains(t, string(*job.Args), `"team_id"`)
+			return job, nil
+		}
+		err := QueueJiraFailingPolicyJob(ctx, ds, logger,
+			&fleet.Policy{PolicyData: fleet.PolicyData{ID: 1, Name: "p1"}}, &fleet.Team{ID: 2, Name: "t2"}, []*fleet.HostShort{{ID: 1, Hostname: "h1"}})
+		require.NoError(t, err)
+		require.True(t, ds.NewJobFuncInvoked)
+	})
+
+	t.Run("failure", func(t *testing.T) {
+		ds.NewJobFunc = func(ctx context.Context, job *fleet.Job) (*fleet.Job, error) {
+			return nil, io.EOF
+		}
+		err := QueueJiraFailingPolicyJob(ctx, ds, logger,
+			&fleet.Policy{PolicyData: fleet.PolicyData{ID: 1, Name: "p1"}}, nil, []*fleet.HostShort{{ID: 1, Hostname: "h1"}})
+		require.Error(t, err)
+		require.ErrorIs(t, err, io.EOF)
+		require.True(t, ds.NewJobFuncInvoked)
+	})
+}

@@ -226,3 +226,33 @@ func QueueZendeskVulnJobs(ctx context.Context, ds fleet.Datastore, logger kitlog
 	}
 	return nil
 }
+
+// QueueZendeskFailingPolicyJob queues a Zendesk job for a failing policy to
+// process asynchronously via the worker.
+func QueueZendeskFailingPolicyJob(ctx context.Context, ds fleet.Datastore, logger kitlog.Logger,
+	policy *fleet.Policy, team *fleet.Team, hosts []*fleet.HostShort) error {
+	attrs := []interface{}{
+		"enabled", "true",
+		"failing_policy", policy.ID,
+		"hosts_count", len(hosts),
+	}
+	if team != nil {
+		attrs = append(attrs, "team_id", team.ID)
+	}
+	level.Info(logger).Log(attrs...)
+
+	args := &failingPolicyArgs{
+		PolicyID:   policy.ID,
+		PolicyName: policy.Name,
+		Hosts:      hosts,
+	}
+	if team != nil {
+		args.TeamID = &team.ID
+	}
+	job, err := QueueJob(ctx, ds, zendeskName, zendeskArgs{FailingPolicy: args})
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "queueing job")
+	}
+	level.Debug(logger).Log("job_id", job.ID)
+	return nil
+}
