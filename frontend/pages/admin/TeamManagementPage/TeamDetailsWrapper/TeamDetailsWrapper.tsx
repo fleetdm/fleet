@@ -129,6 +129,8 @@ const TeamDetailsWrapper = ({
   const [backendValidators, setBackendValidators] = useState<{
     [key: string]: string;
   }>({});
+  const [teamIsRemoving, setTeamIsRemoving] = useState<boolean>(false);
+  const [teamIsEditing, setTeamIsEditing] = useState<boolean>(false);
 
   const { refetch: refetchMe } = useQuery(["me"], () => usersAPI.me(), {
     enabled: false,
@@ -284,7 +286,7 @@ const TeamDetailsWrapper = ({
       return false;
     }
 
-    toggleDeleteTeamModal();
+    setTeamIsRemoving(true);
 
     try {
       await teamsAPI.destroy(currentTeam.id);
@@ -294,6 +296,9 @@ const TeamDetailsWrapper = ({
       renderFlash("error", "Something went wrong removing the team");
       console.error(response);
       return false;
+    } finally {
+      toggleDeleteTeamModal();
+      setTeamIsRemoving(false);
     }
   }, [toggleDeleteTeamModal, currentTeam?.id]);
 
@@ -311,6 +316,8 @@ const TeamDetailsWrapper = ({
         toggleEditTeamModal();
         return;
       }
+
+      setTeamIsEditing(true);
 
       try {
         await teamsAPI.update(updatedAttrs, currentTeam.id);
@@ -338,6 +345,8 @@ const TeamDetailsWrapper = ({
         }
 
         return false;
+      } finally {
+        setTeamIsEditing(false);
       }
     },
     [toggleEditTeamModal, currentTeam, setBackendValidators]
@@ -519,6 +528,7 @@ const TeamDetailsWrapper = ({
           onCancel={toggleDeleteTeamModal}
           onSubmit={onDeleteSubmit}
           name={currentTeam.name}
+          isLoading={teamIsRemoving}
         />
       )}
       {showEditTeamModal && (
@@ -527,6 +537,7 @@ const TeamDetailsWrapper = ({
           onSubmit={onEditSubmit}
           defaultName={currentTeam.name}
           backendValidators={backendValidators}
+          isLoading={teamIsEditing}
         />
       )}
       {children}
