@@ -260,7 +260,7 @@ func (p UserPayload) User(keySize, cost int) (*User, error) {
 	}
 
 	// SSO user requires a stand-in password to satisfy `NOT NULL` constraint
-	if *p.SSOEnabled {
+	if p.SSOEnabled != nil && *p.SSOEnabled {
 		err := user.SetFakePassword(keySize, cost)
 		if err != nil {
 			return nil, err
