@@ -25,6 +25,11 @@ import (
 // Defining here for testing purposes
 var nowFn = time.Now
 
+const (
+	profileExtension = "prof"
+	jsonExtension    = "json"
+)
+
 func debugCommand() *cli.Command {
 	return &cli.Command{
 		Name:  "debug",
@@ -92,7 +97,7 @@ func debugProfileCommand() *cli.Command {
 
 			outfile := getOutfile(c)
 			if outfile == "" {
-				outfile = outfileName("profile")
+				outfile = outfileNameWithExt("profile", profileExtension)
 			}
 
 			if err := writeFile(outfile, profile, defaultFileMode); err != nil {
@@ -174,7 +179,7 @@ func debugHeapCommand() *cli.Command {
 
 			outfile := getOutfile(c)
 			if outfile == "" {
-				outfile = outfileName(name)
+				outfile = outfileNameWithExt(name, profileExtension)
 			}
 
 			if err := writeFile(outfile, profile, defaultFileMode); err != nil {
@@ -211,7 +216,7 @@ func debugGoroutineCommand() *cli.Command {
 
 			outfile := getOutfile(c)
 			if outfile == "" {
-				outfile = outfileName(name)
+				outfile = outfileNameWithExt(name, profileExtension)
 			}
 
 			if err := writeFile(outfile, profile, defaultFileMode); err != nil {
@@ -248,7 +253,7 @@ func debugTraceCommand() *cli.Command {
 
 			outfile := getOutfile(c)
 			if outfile == "" {
-				outfile = outfileName(name)
+				outfile = outfileNameWithExt(name, profileExtension)
 			}
 
 			if err := writeFile(outfile, profile, defaultFileMode); err != nil {
@@ -309,23 +314,29 @@ func debugArchiveCommand() *cli.Command {
 
 			for _, profile := range profiles {
 				var res []byte
+				var ext string
 
 				switch profile {
 				case "errors":
 					var buf bytes.Buffer
+					ext = jsonExtension
 					err = fleet.DebugErrors(&buf, false)
 					if err == nil {
 						res = buf.Bytes()
 					}
 
 				case "db-locks":
+					ext = jsonExtension
 					res, err = fleet.DebugDBLocks()
 				case "db-innodb-status":
+					ext = jsonExtension
 					res, err = fleet.DebugInnoDBStatus()
 				case "db-process-list":
+					ext = jsonExtension
 					res, err = fleet.DebugProcessList()
 
 				default:
+					ext = profileExtension
 					res, err = fleet.DebugPprof(profile)
 				}
 
@@ -338,18 +349,24 @@ func debugArchiveCommand() *cli.Command {
 				}
 				fmt.Fprintf(os.Stderr, "Ran %s\n", profile)
 
+				outname := profile
+				if ext != "" {
+					outname = profile + "." + ext
+				}
+
+				tarName := outfile + "/" + outname
 				if err := tarwriter.WriteHeader(
 					&tar.Header{
-						Name: outfile + "/" + profile,
+						Name: tarName,
 						Size: int64(len(res)),
 						Mode: defaultFileMode,
 					},
 				); err != nil {
-					return fmt.Errorf("write %s header: %w", profile, err)
+					return fmt.Errorf("write %s header: %w", tarName, err)
 				}
 
 				if _, err := tarwriter.Write(res); err != nil {
-					return fmt.Errorf("write %s contents: %w", profile, err)
+					return fmt.Errorf("write %s contents: %w", tarName, err)
 				}
 			}
 
@@ -572,7 +589,7 @@ func debugErrorsCommand() *cli.Command {
 
 			if !stdout {
 				if outfile == "" {
-					outfile = outfileNameWithExt(name, "json")
+					outfile = outfileNameWithExt(name, jsonExtension)
 				}
 
 				f, err := os.OpenFile(outfile, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, defaultFileMode)
