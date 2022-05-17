@@ -29,16 +29,11 @@ func (svc *Service) CreateInitialUser(ctx context.Context, p fleet.UserPayload) 
 }
 
 func (svc *Service) newUser(ctx context.Context, p fleet.UserPayload) (*fleet.User, error) {
-	var ssoEnabled bool
-	if (p.SSOInvite != nil && *p.SSOInvite) || (p.SSOEnabled != nil && *p.SSOEnabled) {
-		ssoEnabled = true
-	}
-
 	user, err := p.User(svc.config.Auth.SaltKeySize, svc.config.Auth.BcryptCost)
 	if err != nil {
 		return nil, err
 	}
-	user.SSOEnabled = ssoEnabled
+
 	user, err = svc.ds.NewUser(ctx, user)
 	if err != nil {
 		return nil, err

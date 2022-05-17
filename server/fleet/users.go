@@ -259,8 +259,9 @@ func (p UserPayload) User(keySize, cost int) (*User, error) {
 		Teams: []UserTeam{},
 	}
 
-	// SSO user requires a stand-in password to satisfy `NOT NULL` constraint
-	if p.SSOEnabled != nil && *p.SSOEnabled {
+	if (p.SSOInvite != nil && *p.SSOInvite) || (p.SSOEnabled != nil && *p.SSOEnabled) {
+		user.SSOEnabled = true
+		// SSO user requires a stand-in password to satisfy `NOT NULL` constraint
 		err := user.SetFakePassword(keySize, cost)
 		if err != nil {
 			return nil, err
@@ -311,9 +312,13 @@ func (u *User) SetPassword(plaintext string, keySize, cost int) error {
 		return err
 	}
 
-	if err := u.saltAndHashPassword(keySize, plaintext, cost); err != nil {
+	hashed, salt, err := saltAndHashPassword(keySize, plaintext, cost)
+	if err != nil {
 		return err
 	}
+	u.Password = hashed
+	u.Salt = salt
+
 	return nil
 }
 
@@ -352,30 +357,32 @@ func ValidatePasswordRequirements(password string) error {
 // There is no guarantee that the generated password will otherwise satisfy complexity, length or
 // other requirements of standard password validation.
 func (u *User) SetFakePassword(keySize, cost int) error {
-	pwd, err := server.GenerateRandomText(14)
+	plaintext, err := server.GenerateRandomText(14)
 	if err != nil {
 		return err
 	}
 
-	if err := u.saltAndHashPassword(keySize, pwd, cost); err != nil {
+	hashed, salt, err := saltAndHashPassword(keySize, plaintext, cost)
+	if err != nil {
 		return err
 	}
+	u.Password = hashed
+	u.Salt = salt
+
 	return nil
 }
 
-func (u *User) saltAndHashPassword(keySize int, plaintext string, cost int) error {
-	salt, err := server.GenerateRandomText(keySize)
+func saltAndHashPassword(keySize int, plaintext string, cost int) (hashed []byte, salt string, err error) {
+	salt, err = server.GenerateRandomText(keySize)
 	if err != nil {
-		return err
+		return nil, "", err
 	}
 
 	withSalt := []byte(fmt.Sprintf("%s%s", plaintext, salt))
-	hashed, err := bcrypt.GenerateFromPassword(withSalt, cost)
+	hashed, err = bcrypt.GenerateFromPassword(withSalt, cost)
 	if err != nil {
-		return err
+		return nil, "", err
 	}
 
-	u.Salt = salt
-	u.Password = hashed
-	return nil
+	return hashed, salt, nil
 }

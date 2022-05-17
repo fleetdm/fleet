@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"golang.org/x/crypto/bcrypt"
 )
 
@@ -77,5 +78,20 @@ func TestUserPasswordRequirements(t *testing.T) {
 				assert.Nil(t, err)
 			}
 		})
+	}
+}
+
+func TestSaltAndHashPassword(t *testing.T) {
+	passwordTests := []string{"foobar!!", "bazbing!!"}
+	keySize := 24
+	cost := 10
+
+	for _, pwd := range passwordTests {
+		hashed, salt, err := saltAndHashPassword(keySize, pwd, cost)
+		require.NoError(t, err)
+
+		saltAndPass := []byte(fmt.Sprintf("%s%s", pwd, salt))
+		err = bcrypt.CompareHashAndPassword(hashed, saltAndPass)
+		require.NoError(t, err)
 	}
 }
