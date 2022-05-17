@@ -30,10 +30,10 @@ type Job interface {
 // failingPolicyArgs are the args common to all integrations that can process
 // failing policies.
 type failingPolicyArgs struct {
-	PolicyID   uint               `json:"policy_id"`
-	PolicyName string             `json:"policy_name"`
-	Hosts      []*fleet.HostShort `json:"hosts"`
-	TeamID     *uint              `json:"team_id,omitempty"`
+	PolicyID   uint                  `json:"policy_id"`
+	PolicyName string                `json:"policy_name"`
+	Hosts      []fleet.PolicySetHost `json:"hosts"`
+	TeamID     *uint                 `json:"team_id,omitempty"`
 }
 
 // Worker runs jobs. NOT SAFE FOR CONCURRENT USE.

@@ -11,6 +11,7 @@ import (
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mock"
+	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/service/externalsvc"
 	kitlog "github.com/go-kit/kit/log"
 	"github.com/stretchr/testify/require"
@@ -138,7 +139,7 @@ func TestJiraQueueFailingPolicyJob(t *testing.T) {
 			return job, nil
 		}
 		err := QueueJiraFailingPolicyJob(ctx, ds, logger,
-			&fleet.Policy{PolicyData: fleet.PolicyData{ID: 1, Name: "p1"}}, nil, []*fleet.HostShort{{ID: 1, Hostname: "h1"}})
+			&fleet.Policy{PolicyData: fleet.PolicyData{ID: 1, Name: "p1"}}, []fleet.PolicySetHost{{ID: 1, Hostname: "h1"}})
 		require.NoError(t, err)
 		require.True(t, ds.NewJobFuncInvoked)
 	})
@@ -149,7 +150,7 @@ func TestJiraQueueFailingPolicyJob(t *testing.T) {
 			return job, nil
 		}
 		err := QueueJiraFailingPolicyJob(ctx, ds, logger,
-			&fleet.Policy{PolicyData: fleet.PolicyData{ID: 1, Name: "p1"}}, &fleet.Team{ID: 2, Name: "t2"}, []*fleet.HostShort{{ID: 1, Hostname: "h1"}})
+			&fleet.Policy{PolicyData: fleet.PolicyData{ID: 1, Name: "p1", TeamID: ptr.Uint(2)}}, []fleet.PolicySetHost{{ID: 1, Hostname: "h1"}})
 		require.NoError(t, err)
 		require.True(t, ds.NewJobFuncInvoked)
 	})
@@ -159,7 +160,7 @@ func TestJiraQueueFailingPolicyJob(t *testing.T) {
 			return nil, io.EOF
 		}
 		err := QueueJiraFailingPolicyJob(ctx, ds, logger,
-			&fleet.Policy{PolicyData: fleet.PolicyData{ID: 1, Name: "p1"}}, nil, []*fleet.HostShort{{ID: 1, Hostname: "h1"}})
+			&fleet.Policy{PolicyData: fleet.PolicyData{ID: 1, Name: "p1"}}, []fleet.PolicySetHost{{ID: 1, Hostname: "h1"}})
 		require.Error(t, err)
 		require.ErrorIs(t, err, io.EOF)
 		require.True(t, ds.NewJobFuncInvoked)

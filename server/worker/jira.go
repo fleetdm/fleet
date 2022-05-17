@@ -81,7 +81,7 @@ type jiraFailingPoliciesTplArgs struct {
 	PolicyID   uint
 	PolicyName string
 	TeamID     *uint
-	Hosts      []*fleet.HostShort
+	Hosts      []fleet.PolicySetHost
 }
 
 // JiraClient defines the method required for the client that makes API calls
@@ -238,14 +238,14 @@ func QueueJiraVulnJobs(ctx context.Context, ds fleet.Datastore, logger kitlog.Lo
 // QueueJiraFailingPolicyJob queues a Jira job for a failing policy to process
 // asynchronously via the worker.
 func QueueJiraFailingPolicyJob(ctx context.Context, ds fleet.Datastore, logger kitlog.Logger,
-	policy *fleet.Policy, team *fleet.Team, hosts []*fleet.HostShort) error {
+	policy *fleet.Policy, hosts []fleet.PolicySetHost) error {
 	attrs := []interface{}{
 		"enabled", "true",
 		"failing_policy", policy.ID,
 		"hosts_count", len(hosts),
 	}
-	if team != nil {
-		attrs = append(attrs, "team_id", team.ID)
+	if policy.TeamID != nil {
+		attrs = append(attrs, "team_id", *policy.TeamID)
 	}
 	level.Info(logger).Log(attrs...)
 
@@ -253,9 +253,7 @@ func QueueJiraFailingPolicyJob(ctx context.Context, ds fleet.Datastore, logger k
 		PolicyID:   policy.ID,
 		PolicyName: policy.Name,
 		Hosts:      hosts,
-	}
-	if team != nil {
-		args.TeamID = &team.ID
+		TeamID:     policy.TeamID,
 	}
 	job, err := QueueJob(ctx, ds, jiraName, jiraArgs{FailingPolicy: args})
 	if err != nil {

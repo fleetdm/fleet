@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server/config"
+	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/policies"
 	"github.com/fleetdm/fleet/v4/server/service/externalsvc"
@@ -423,8 +424,30 @@ func maybeTriggerFailingPoliciesIntegration(
 		case policies.FailingPolicyWebhook:
 			return webhooks.SendFailingPoliciesBatchedPOSTs(
 				ctx, policy, failingPoliciesSet, cfg.HostBatchSize, serverURL, cfg.WebhookURL, time.Now(), logger)
+
 		case policies.FailingPolicyJira:
+			hosts, err := failingPoliciesSet.ListHosts(policy.ID)
+			if err != nil {
+				return ctxerr.Wrapf(ctx, err, "listing hosts for failing policies set %d", policy.ID)
+			}
+			if err := worker.QueueJiraFailingPolicyJob(ctx, ds, logger, policy, hosts); err != nil {
+				return err
+			}
+			if err := failingPoliciesSet.RemoveHosts(policy.ID, hosts); err != nil {
+				return ctxerr.Wrapf(ctx, err, "removing %d hosts from failing policies set %d", len(hosts), policy.ID)
+			}
+
 		case policies.FailingPolicyZendesk:
+			hosts, err := failingPoliciesSet.ListHosts(policy.ID)
+			if err != nil {
+				return ctxerr.Wrapf(ctx, err, "listing hosts for failing policies set %d", policy.ID)
+			}
+			if err := worker.QueueZendeskFailingPolicyJob(ctx, ds, logger, policy, hosts); err != nil {
+				return err
+			}
+			if err := failingPoliciesSet.RemoveHosts(policy.ID, hosts); err != nil {
+				return ctxerr.Wrapf(ctx, err, "removing %d hosts from failing policies set %d", len(hosts), policy.ID)
+			}
 		}
 		return nil
 	})
