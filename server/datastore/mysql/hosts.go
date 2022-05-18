@@ -1723,16 +1723,13 @@ func (ds *Datastore) HostIDsByPlatform(
 	var filters []goqu.Expression
 
 	stmt := dialect.From("hosts").Select("id")
-
 	if platform != "" {
 		filters = append(filters, goqu.C("platform").Eq(platform))
 	}
 	if osVersion != "" {
 		filters = append(filters, goqu.C("os_version").Eq(osVersion))
 	}
-
-	stmt = stmt.Where(filters...)
-	stmt = stmt.Order(goqu.I("id").Desc())
+	stmt = stmt.Where(filters...).Order(goqu.I("id").Desc())
 
 	sql, args, err := stmt.ToSQL()
 	if err != nil {

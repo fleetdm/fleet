@@ -104,6 +104,7 @@ func TranslateCPEToCVE(
 		return nil, nil
 	}
 
+	// Skip CPEs from platforms supported by OVAL
 	cpeList, err := ds.AllCPEs(ctx, oval.SupportedHostPlatforms)
 	if err != nil {
 		return nil, err
