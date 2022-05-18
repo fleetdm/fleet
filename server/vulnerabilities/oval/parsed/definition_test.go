@@ -3,6 +3,7 @@ package oval_parsed
 import (
 	"testing"
 
+	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/stretchr/testify/require"
 )
 
@@ -21,7 +22,7 @@ func TestOvalParsedDefinition(t *testing.T) {
 			}
 			sut := Definition{Criteria: &criteria}
 			require.False(t, sut.Eval(nil))
-			require.False(t, sut.Eval(make(map[int][]uint)))
+			require.False(t, sut.Eval(make(map[int][]fleet.Software)))
 		})
 
 		t.Run("with single level criteria", func(t *testing.T) {
@@ -39,10 +40,10 @@ func TestOvalParsedDefinition(t *testing.T) {
 					[]int{1, 2, 3},
 					nil,
 				}
-				tests := map[int][]uint{
-					1: {1},
+				tests := map[int][]fleet.Software{
+					1: {{ID: 1}},
 					2: nil,
-					3: {2},
+					3: {{ID: 2}},
 				}
 				sut := Definition{
 					&criteria,
@@ -71,11 +72,11 @@ func TestOvalParsedDefinition(t *testing.T) {
 				[]*Criteria{&leaf},
 			}
 
-			tests := map[int][]uint{
+			tests := map[int][]fleet.Software{
 				1: nil,
 				2: nil,
-				3: {2},
-				4: {3},
+				3: {{ID: 2}},
+				4: {{ID: 3}},
 			}
 
 			sut := Definition{

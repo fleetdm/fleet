@@ -583,6 +583,7 @@ func addCPEForSoftwareDB(ctx context.Context, exec sqlx.ExecerContext, software 
 func (ds *Datastore) AllCPEs(ctx context.Context, excludedPlatforms []string) ([]string, error) {
 	var cpes []string
 	var err error
+	var args []interface{}
 
 	stmt := `SELECT cpe FROM software_cpe`
 
@@ -594,7 +595,7 @@ func (ds *Datastore) AllCPEs(ctx context.Context, excludedPlatforms []string) ([
 			WHERE h.platform IN (?)
 		)`
 
-		stmt, args, err := sqlx.In(stmt, excludedPlatforms)
+		stmt, args, err = sqlx.In(stmt, excludedPlatforms)
 		if err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "loads cpes")
 		}
@@ -919,37 +920,6 @@ ORDER BY
 		return nil, ctxerr.Wrap(ctx, err, "select hosts by cves")
 	}
 	return hosts, nil
-}
-
-func listSoftwareByHostIDShort(
-	ctx context.Context,
-	db sqlx.QueryerContext,
-	hostID uint,
-) ([]fleet.Software, error) {
-	q := `
-SELECT
-    s.id,
-    s.name,
-    s.version,
-    s.source,
-    s.bundle_identifier,
-    s.release,
-    s.version,
-    s.arch,
-    hs.last_opened_at
-FROM
-    software s
-    JOIN host_software hs ON hs.software_id = s.id
-WHERE
-    hs.host_id = ?
-`
-	var softwares []fleet.Software
-	err := sqlx.SelectContext(ctx, db, &softwares, q, hostID)
-	if err != nil {
-		return nil, err
-	}
-
-	return softwares, nil
 }
 
 func (ds *Datastore) InsertVulnerabilities(
