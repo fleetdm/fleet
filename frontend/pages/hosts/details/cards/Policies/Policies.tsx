@@ -13,12 +13,14 @@ import { isValidPolicyResponse } from "../../../ManageHostsPage/helpers";
 interface IPoliciesProps {
   policies: IHostPolicy[];
   isLoading: boolean;
+  deviceUser?: boolean;
   togglePolicyDetailsModal: (policy: IHostPolicy) => void;
 }
 
 const Policies = ({
   policies,
   isLoading,
+  deviceUser,
   togglePolicyDetailsModal,
 }: IPoliciesProps): JSX.Element => {
   if (policies.length === 0) {
@@ -26,15 +28,21 @@ const Policies = ({
       <div className="section section--policies">
         <p className="section__header">Policies</p>
         <div className="results__data">
-          <b>No policies are checked for this host.</b>
+          <b>
+            No policies are checked{" "}
+            {deviceUser ? `on your device` : `for this host`}.
+          </b>
           <p>
-            Expecting to see policies? Try selecting “Refetch” to ask this host
+            Expecting to see policies? Try selecting “Refetch” to ask{" "}
+            {deviceUser ? `your device ` : `this host `}
             to report new vitals.
           </p>
         </div>
       </div>
     );
   }
+
+  console.log("policies: ", policies);
 
   const tableHeaders = generatePolicyTableHeaders(togglePolicyDetailsModal);
   const noResponses: IHostPolicy[] =

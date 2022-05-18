@@ -7,10 +7,12 @@ import { Tab, Tabs, TabList, TabPanel } from "react-tabs";
 import classnames from "classnames";
 import { pick } from "lodash";
 
+import { AppContext, IAppContext } from "context/app";
 import { NotificationContext } from "context/notification";
 import deviceUserAPI from "services/entities/device_user";
 import { IHost, IDeviceMappingResponse } from "interfaces/host";
 import { ISoftware } from "interfaces/software";
+import { IHostPolicy } from "interfaces/policy";
 import PageError from "components/DataError";
 // @ts-ignore
 import OrgLogoIcon from "components/icons/OrgLogoIcon";
@@ -22,10 +24,12 @@ import { normalizeEmptyValues, wrapFleetHelper } from "utilities/helpers";
 import HostSummaryCard from "../cards/HostSummary";
 import AboutCard from "../cards/About";
 import SoftwareCard from "../cards/Software";
+import PoliciesCard from "../cards/Policies";
 import InfoModal from "./InfoModal";
 
 import InfoIcon from "../../../../../assets/images/icon-info-purple-14x14@2x.png";
 import FleetIcon from "../../../../../assets/images/fleet-avatar-24x24@2x.png";
+import PolicyDetailsModal from "../cards/Policies/HostPoliciesTable/PolicyDetailsModal";
 
 const baseClass = "device-user";
 
@@ -43,6 +47,7 @@ const DeviceUserPage = ({
 }: IDeviceUserPageProps): JSX.Element => {
   const deviceAuthToken = device_auth_token;
   const { renderFlash } = useContext(NotificationContext);
+  const { isPremiumTier } = useContext(AppContext);
   const handlePageError = useErrorHandler();
 
   const [showInfoModal, setShowInfoModal] = useState<boolean>(false);
@@ -52,6 +57,12 @@ const DeviceUserPage = ({
   const [hostSoftware, setHostSoftware] = useState<ISoftware[]>([]);
   const [host, setHost] = useState<IHost | null>();
   const [orgLogoURL, setOrgLogoURL] = useState<string>("");
+  const [selectedPolicy, setSelectedPolicy] = useState<IHostPolicy | null>(
+    null
+  );
+  const [showPolicyDetailsModal, setShowPolicyDetailsModal] = useState<boolean>(
+    false
+  );
 
   const { data: deviceMapping, refetch: refetchDeviceMapping } = useQuery(
     ["deviceMapping", deviceAuthToken],
@@ -88,15 +99,7 @@ const DeviceUserPage = ({
       onSuccess: (returnedHost) => {
         setShowRefetchSpinner(returnedHost.host.refetch_requested);
         if (returnedHost.host.refetch_requested) {
-          // If the API reports that a Fleet refetch request is pending, we want to check back for fresh
-          // host details. Here we set a one second timeout and poll the API again using
-          // fullyReloadHost. We will repeat this process with each onSuccess cycle for a total of
-          // 60 seconds or until the API reports that the Fleet refetch request has been resolved
-          // or that the host has gone offline.
           if (!refetchStartTime) {
-            // If our 60 second timer wasn't already started (e.g., if a refetch was pending when
-            // the first page loads), we start it now if the host is online. If the host is offline,
-            // we skip the refetch on page load.
             if (returnedHost.host.status === "online") {
               setRefetchStartTime(Date.now());
               setTimeout(() => {
@@ -129,7 +132,7 @@ const DeviceUserPage = ({
               setShowRefetchSpinner(false);
             }
           }
-          return; // exit early because refectch is pending so we can avoid unecessary steps below
+          return;
         }
         setHostSoftware(returnedHost.host.software);
         setHost(returnedHost.host);
@@ -170,11 +173,20 @@ const DeviceUserPage = ({
     setShowInfoModal(!showInfoModal);
   }, [showInfoModal, setShowInfoModal]);
 
+  const togglePolicyDetailsModal = useCallback(
+    (policy: IHostPolicy) => {
+      setShowPolicyDetailsModal(!showPolicyDetailsModal);
+      setSelectedPolicy(policy);
+    },
+    [showPolicyDetailsModal, setShowPolicyDetailsModal, setSelectedPolicy]
+  );
+  const onCancelPolicyDetailsModal = useCallback(() => {
+    setShowPolicyDetailsModal(!showPolicyDetailsModal);
+    setSelectedPolicy(null);
+  }, [showPolicyDetailsModal, setShowPolicyDetailsModal, setSelectedPolicy]);
+
   const onRefetchHost = async () => {
     if (host) {
-      // Once the user clicks to refetch, the refetch loading spinner should continue spinning
-      // unless there is an error. The spinner state is also controlled in the fullyReloadHost
-      // method.
       setShowRefetchSpinner(true);
       try {
         await deviceUserAPI.refetch(deviceAuthToken).then(() => {
@@ -219,6 +231,7 @@ const DeviceUserPage = ({
               showRefetchSpinner={showRefetchSpinner}
               onRefetchHost={onRefetchHost}
               renderActionButtons={renderActionButtons}
+              isPremiumTier
               deviceUser
             />
             <TabsWrapper>
@@ -226,6 +239,18 @@ const DeviceUserPage = ({
                 <TabList>
                   <Tab>Details</Tab>
                   <Tab>Software</Tab>
+                  {isPremiumTier && (
+                    <Tab>
+                      <div>
+                        {titleData.issues.failing_policies_count > 0 && (
+                          <span className="fail-count">
+                            {titleData.issues.failing_policies_count}
+                          </span>
+                        )}
+                        Policies
+                      </div>
+                    </Tab>
+                  )}
                 </TabList>
                 <TabPanel>
                   <AboutCard
@@ -242,10 +267,26 @@ const DeviceUserPage = ({
                     deviceUser
                   />
                 </TabPanel>
+                {isPremiumTier && (
+                  <TabPanel>
+                    <PoliciesCard
+                      policies={host?.policies || []}
+                      isLoading={isLoadingHost}
+                      deviceUser
+                      togglePolicyDetailsModal={togglePolicyDetailsModal}
+                    />
+                  </TabPanel>
+                )}
               </Tabs>
             </TabsWrapper>
             {showInfoModal && <InfoModal onCancel={toggleInfoModal} />}
           </div>
+        )}
+        {!!host && showPolicyDetailsModal && (
+          <PolicyDetailsModal
+            onCancel={onCancelPolicyDetailsModal}
+            policy={selectedPolicy}
+          />
         )}
       </div>
     );
