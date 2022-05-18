@@ -601,24 +601,9 @@ const (
 	UnknownMigrations
 )
 
-// SoftwareVulnerability identifies a vulnerability on a specific software (CPE).
-type SoftwareVulnerability struct {
-	// CPEID is the ID of the software CPE in the system.
-	CPEID uint   `db:"cpe_id"`
-	CVE   string `db:"cve"`
-}
-
 // String implements fmt.Stringer.
 func (sv SoftwareVulnerability) String() string {
 	return fmt.Sprintf("{%d,%s}", sv.CPEID, sv.CVE)
-}
-
-// SoftwareWithCPE holds a software piece alongside its CPE ID.
-type SoftwareWithCPE struct {
-	// Software holds the software data.
-	Software
-	// CPEID is the ID of the software CPE in the system.
-	CPEID uint
 }
 
 // NotFoundError is returned when the datastore resource cannot be found.

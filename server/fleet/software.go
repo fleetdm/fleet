@@ -86,3 +86,18 @@ type SoftwareListOptions struct {
 	// a count of hosts > 0.
 	WithHostCounts bool
 }
+
+// SoftwareVulnerability identifies a vulnerability on a specific software (CPE).
+type SoftwareVulnerability struct {
+	// CPEID is the ID of the software CPE in the system.
+	CPEID uint   `db:"cpe_id"`
+	CVE   string `db:"cve"`
+}
+
+// SoftwareWithCPE holds a software piece alongside its CPE ID.
+type SoftwareWithCPE struct {
+	// Software holds the software data.
+	Software
+	// CPEID is the ID of the software CPE in the system.
+	CPEID uint
+}
