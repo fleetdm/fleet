@@ -376,6 +376,7 @@ func selectSoftwareSQL(hostID *uint, opts fleet.SoftwareListOptions) (string, []
 		goqu.I("s.version"),
 		goqu.I("s.source"),
 		goqu.I("generated_cpe"),
+		goqu.I("generated_cpe_id"),
 	)
 
 	if opts.VulnerableOnly {
