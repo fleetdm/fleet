@@ -253,7 +253,7 @@ func TestGetHostSummary(t *testing.T) {
 	ds.GenerateHostStatusStatisticsFunc = func(ctx context.Context, filter fleet.TeamFilter, now time.Time, platform *string) (*fleet.HostSummary, error) {
 		return &fleet.HostSummary{
 			OnlineCount:      1,
-			OfflineCount:     2,
+			OfflineCount:     5, // offline hosts also includes mia hosts as of Fleet 4.15
 			MIACount:         3,
 			NewCount:         4,
 			TotalsHostsCount: 5,
@@ -268,7 +268,7 @@ func TestGetHostSummary(t *testing.T) {
 	require.NoError(t, err)
 	require.Nil(t, summary.TeamID)
 	require.Equal(t, uint(1), summary.OnlineCount)
-	require.Equal(t, uint(2), summary.OfflineCount)
+	require.Equal(t, uint(5), summary.OfflineCount)
 	require.Equal(t, uint(3), summary.MIACount)
 	require.Equal(t, uint(4), summary.NewCount)
 	require.Equal(t, uint(5), summary.TotalsHostsCount)

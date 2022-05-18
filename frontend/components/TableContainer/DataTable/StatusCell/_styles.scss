@@ -22,12 +22,8 @@
   }
   &--offline:before,
   &--disabled:before,
-  &--mia:before,
   &--off:before {
     background-color: $ui-offline;
-  }
-  &--mia {
-    text-transform: uppercase;
   }
 
   // policy status

@@ -1,3 +1,5 @@
+// TODO: confirm status labels are not used in current UI and if so remove from codebase
+
 import PropTypes from "prop-types";
 
 export interface IStatusLabels {
@@ -5,7 +7,7 @@ export interface IStatusLabels {
   new_count: number;
   online_count: number;
   offline_count: number;
-  mia_count: number;
+  mia_count: number; // DEPRECATED: to be removed in Fleet 5.0
 }
 
 export default PropTypes.shape({
@@ -13,5 +15,5 @@ export default PropTypes.shape({
   new_count: PropTypes.number,
   online_count: PropTypes.number,
   offline_count: PropTypes.number,
-  mia_count: PropTypes.number,
+  mia_count: PropTypes.number, // DEPRECATED: to be removed in Fleet 5.0
 });

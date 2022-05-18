@@ -53,7 +53,6 @@ export default {
         "help",
         "admin",
         "config",
-        "mia",
         "success-check",
         "offline",
         "windows-original",

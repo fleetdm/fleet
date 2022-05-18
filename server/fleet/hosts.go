@@ -194,6 +194,7 @@ func (h *Host) Status(now time.Time) HostStatus {
 	// Add a small buffer to prevent flapping
 	onlineInterval += OnlineIntervalBuffer
 
+	// TODO: update this? status is appended to each host record returned by the API but doesn't appear to be used for filtering
 	switch {
 	case h.SeenTime.Add(MIADuration).Before(now):
 		return StatusMIA
