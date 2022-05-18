@@ -14,15 +14,25 @@ const OvalFilePrefix = "fleet_oval"
 
 var SupportedHostPlatforms = []string{"ubuntu"}
 
-// getMajorRelease returns the major version of an 'os_version'.
-// ex: 'Ubuntu 20.4.0' => '20'
-func getMajorRelease(osVersion string) string {
-	re := regexp.MustCompile(` (?P<major>\d+)\.?(\d+)?\.?(\*|\d+)?$`)
+// getMajorMinorVer returns the major and minor version of an 'os_version'.
+// ex: 'Ubuntu 20.4.0' => '2004'
+func getMajorMinorVer(osVersion string) string {
+	re := regexp.MustCompile(` (?P<major>\d+)\.?(?P<minor>\d+)?\.?(\*|\d+)?$`)
 	m := re.FindStringSubmatch(osVersion)
-	idx := re.SubexpIndex("major")
 
-	if idx < len(m) {
-		return m[idx]
+	maIdx := re.SubexpIndex("major")
+	miIdx := re.SubexpIndex("minor")
+
+	if maIdx > 0 && miIdx > 0 {
+		major := m[maIdx]
+		if len(major) < 2 {
+			major = fmt.Sprintf("0%s", major)
+		}
+		minor := m[miIdx]
+		if len(minor) < 2 {
+			minor = fmt.Sprintf("0%s", minor)
+		}
+		return fmt.Sprintf("%s%s", major, minor)
 	}
 	return ""
 }
@@ -31,7 +41,7 @@ func getMajorRelease(osVersion string) string {
 // Ex: ('ubuntu', 'Ubuntu 20.4.0') => 'ubuntu-20'.
 func NewPlatform(hostPlatform, hostOsVersion string) Platform {
 	nPlatform := strings.Trim(strings.ToLower(hostPlatform), " ")
-	majorVer := getMajorRelease(hostOsVersion)
+	majorVer := getMajorMinorVer(hostOsVersion)
 	return Platform(fmt.Sprintf("%s_%s", nPlatform, majorVer))
 }
 
