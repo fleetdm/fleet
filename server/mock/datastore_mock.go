@@ -280,7 +280,7 @@ type AddCPEForSoftwareFunc func(ctx context.Context, software fleet.Software, cp
 
 type AllCPEsFunc func(ctx context.Context, excludedPlatforms []string) ([]string, error)
 
-type InsertVulnerabilitiesFunc func(ctx context.Context, vulns []fleet.SoftwareVulnerability) (int64, error)
+type InsertVulnerabilitiesFunc func(ctx context.Context, vulns []fleet.SoftwareVulnerability, source fleet.VulnerabilitySource) (int64, error)
 
 type InsertCVEForCPEFunc func(ctx context.Context, cve string, cpes []string) (int64, error)
 
@@ -1664,9 +1664,9 @@ func (s *DataStore) AllCPEs(ctx context.Context, excludedPlatforms []string) ([]
 	return s.AllCPEsFunc(ctx, excludedPlatforms)
 }
 
-func (s *DataStore) InsertVulnerabilities(ctx context.Context, vulns []fleet.SoftwareVulnerability) (int64, error) {
+func (s *DataStore) InsertVulnerabilities(ctx context.Context, vulns []fleet.SoftwareVulnerability, source fleet.VulnerabilitySource) (int64, error) {
 	s.InsertVulnerabilitiesFuncInvoked = true
-	return s.InsertVulnerabilitiesFunc(ctx, vulns)
+	return s.InsertVulnerabilitiesFunc(ctx, vulns, source)
 }
 
 func (s *DataStore) InsertCVEForCPE(ctx context.Context, cve string, cpes []string) (int64, error) {
