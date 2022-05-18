@@ -11,8 +11,8 @@ import (
 	"time"
 
 	pkgerrors "github.com/pkg/errors" //nolint:depguard
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"github.com/tj/assert"
 )
 
 type mockHandler struct {

@@ -30,7 +30,7 @@ var nowFn = time.Now
 // FleetError is the error implementation used by this package.
 type FleetError struct {
 	msg   string          // error message to be prepended to cause
-	stack StackTracer     // stack trace where this error was created
+	stack stackTracer     // stack trace where this error was created
 	cause error           // original error that caused this error if non-nil
 	data  json.RawMessage // additional metadata about the error (timestamps, etc)
 }
@@ -95,7 +95,7 @@ func encodeData(ctx context.Context, data map[string]interface{}, augment bool) 
 }
 
 func newError(ctx context.Context, msg string, cause error, data map[string]interface{}) error {
-	stack := NewStack(2)
+	stack := newStack(2)
 	edata := encodeData(ctx, data, true)
 	return &FleetError{msg, stack, cause, edata}
 }
@@ -105,7 +105,7 @@ func wrapError(ctx context.Context, msg string, cause error, data map[string]int
 		return cause
 	}
 
-	stack := NewStack(2)
+	stack := newStack(2)
 	var ferr *FleetError
 	isFleetError := errors.As(cause, &ferr)
 
@@ -124,6 +124,7 @@ func New(ctx context.Context, msg string) error {
 	return newError(ctx, msg, nil, nil)
 }
 
+// NewWithData creates a new error and attaches additional metadata to it
 func NewWithData(ctx context.Context, msg string, data map[string]interface{}) error {
 	return newError(ctx, msg, nil, data)
 }

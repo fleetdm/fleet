@@ -15,9 +15,9 @@ func (s mockStack) List() []string {
 	return s.trace
 }
 
-func buildStack(depth int) Stack {
+func buildStack(depth int) stack {
 	if depth == 0 {
-		return NewStack(0)
+		return newStack(0)
 	}
 	return buildStack(depth - 1)
 }
