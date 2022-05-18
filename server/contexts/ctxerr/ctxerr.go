@@ -94,13 +94,17 @@ func encodeData(ctx context.Context, data map[string]interface{}, augment bool) 
 	return encoded
 }
 
-func newError(ctx context.Context, msg string, cause error, data map[string]interface{}) *FleetError {
+func newError(ctx context.Context, msg string, cause error, data map[string]interface{}) error {
 	stack := NewStack(2)
 	edata := encodeData(ctx, data, true)
 	return &FleetError{msg, stack, cause, edata}
 }
 
-func wrapError(ctx context.Context, msg string, cause error, data map[string]interface{}) *FleetError {
+func wrapError(ctx context.Context, msg string, cause error, data map[string]interface{}) error {
+	if msg == "" || cause == nil {
+		return cause
+	}
+
 	stack := NewStack(2)
 	var ferr *FleetError
 	isFleetError := errors.As(cause, &ferr)
@@ -116,34 +120,34 @@ func wrapError(ctx context.Context, msg string, cause error, data map[string]int
 }
 
 // New creates a new error with the given message.
-func New(ctx context.Context, msg string) *FleetError {
+func New(ctx context.Context, msg string) error {
 	return newError(ctx, msg, nil, nil)
 }
 
-func NewWithData(ctx context.Context, msg string, data map[string]interface{}) *FleetError {
+func NewWithData(ctx context.Context, msg string, data map[string]interface{}) error {
 	return newError(ctx, msg, nil, data)
 }
 
 // Errorf creates a new error with the given message.
-func Errorf(ctx context.Context, format string, args ...interface{}) *FleetError {
+func Errorf(ctx context.Context, format string, args ...interface{}) error {
 	msg := fmt.Sprintf(format, args...)
 	return newError(ctx, msg, nil, nil)
 }
 
 // Wrap creates a new error with the given message, wrapping another error.
-func Wrap(ctx context.Context, cause error, msgs ...string) *FleetError {
+func Wrap(ctx context.Context, cause error, msgs ...string) error {
 	msg := strings.Join(msgs, " ")
 	return wrapError(ctx, msg, cause, nil)
 }
 
 // WrapWithData creates a new error with the given message, wrapping another
 // error and attaching the data provided to it.
-func WrapWithData(ctx context.Context, cause error, msg string, data map[string]interface{}) *FleetError {
+func WrapWithData(ctx context.Context, cause error, msg string, data map[string]interface{}) error {
 	return wrapError(ctx, msg, cause, data)
 }
 
 // Wrapf creates a new error with the given message, wrapping another error.
-func Wrapf(ctx context.Context, cause error, format string, args ...interface{}) *FleetError {
+func Wrapf(ctx context.Context, cause error, format string, args ...interface{}) error {
 	msg := fmt.Sprintf(format, args...)
 	return wrapError(ctx, msg, cause, nil)
 }
@@ -234,7 +238,7 @@ func Handle(ctx context.Context, err error) {
 	// a FleetError in the chain
 	var ferr *FleetError
 	if !errors.As(err, &ferr) {
-		err = Wrap(ctx, err)
+		err = Wrap(ctx, err, "missing FleetError in chain")
 	}
 
 	if eh := fromContext(ctx); eh != nil {

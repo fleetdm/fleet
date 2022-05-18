@@ -77,7 +77,7 @@ func TestCause(t *testing.T) {
 func TestNew(t *testing.T) {
 	ctx, cleanup := setup()
 	defer cleanup()
-	err := New(ctx, "new")
+	err := New(ctx, "new").(*FleetError)
 
 	require.Equal(t, err.msg, "new")
 	require.NotEmpty(t, err.stack.List())
@@ -89,7 +89,7 @@ func TestNewWithData(t *testing.T) {
 		ctx, cleanup := setup()
 		defer cleanup()
 		data := map[string]interface{}{"foo": "bar"}
-		err := NewWithData(ctx, "new", data)
+		err := NewWithData(ctx, "new", data).(*FleetError)
 
 		require.Equal(t, err.msg, "new")
 		require.NotEmpty(t, err.stack.List())
@@ -101,7 +101,7 @@ func TestNewWithData(t *testing.T) {
 		ctx, cleanup := setup()
 		defer cleanup()
 		data := map[string]interface{}{"foo": make(chan int)}
-		err := NewWithData(ctx, "new", data)
+		err := NewWithData(ctx, "new", data).(*FleetError)
 		require.Equal(t, err.msg, "new")
 		require.NotEmpty(t, err.stack.List())
 		require.Nil(t, err.cause)
@@ -112,7 +112,7 @@ func TestNewWithData(t *testing.T) {
 func TestErrorf(t *testing.T) {
 	ctx, cleanup := setup()
 	defer cleanup()
-	err := Errorf(ctx, "%s %d", "new", 1)
+	err := Errorf(ctx, "%s %d", "new", 1).(*FleetError)
 
 	require.Equal(t, err.msg, "new 1")
 	require.NotEmpty(t, err.stack.List())
@@ -120,14 +120,31 @@ func TestErrorf(t *testing.T) {
 }
 
 func TestWrap(t *testing.T) {
-	ctx, cleanup := setup()
-	defer cleanup()
-	cause := errors.New("cause")
-	err := Wrap(ctx, cause, "new")
+	t.Run("with message provided", func(t *testing.T) {
+		ctx, cleanup := setup()
+		defer cleanup()
+		cause := errors.New("cause")
+		err := Wrap(ctx, cause, "new").(*FleetError)
 
-	require.Equal(t, err.msg, "new")
-	require.NotEmpty(t, err.stack.List())
-	require.NotNil(t, err.cause)
+		require.Equal(t, err.msg, "new")
+		require.NotEmpty(t, err.stack.List())
+		require.NotNil(t, err.cause)
+	})
+
+	t.Run("without message provided", func(t *testing.T) {
+		ctx, cleanup := setup()
+		defer cleanup()
+		cause := errors.New("cause")
+		err := Wrap(ctx, cause)
+		require.Equal(t, err, cause)
+	})
+
+	t.Run("with nil error provided", func(t *testing.T) {
+		ctx, cleanup := setup()
+		defer cleanup()
+		err := Wrap(ctx, nil)
+		require.Equal(t, err, nil)
+	})
 }
 
 func TestWrapNewWithData(t *testing.T) {
@@ -136,7 +153,7 @@ func TestWrapNewWithData(t *testing.T) {
 		defer cleanup()
 		cause := errors.New("cause")
 		data := map[string]interface{}{"foo": "bar"}
-		err := WrapWithData(ctx, cause, "new", data)
+		err := WrapWithData(ctx, cause, "new", data).(*FleetError)
 
 		require.Equal(t, err.msg, "new")
 		require.NotEmpty(t, err.stack.List())
@@ -149,11 +166,26 @@ func TestWrapNewWithData(t *testing.T) {
 		defer cleanup()
 		cause := errors.New("cause")
 		data := map[string]interface{}{"foo": make(chan int)}
-		err := WrapWithData(ctx, cause, "new", data)
+		err := WrapWithData(ctx, cause, "new", data).(*FleetError)
 		require.Equal(t, err.msg, "new")
 		require.NotEmpty(t, err.stack.List())
 		require.NotNil(t, err.cause)
 		assert.Regexp(t, regexp.MustCompile(`{"error": ".+"}`), string(err.data))
+	})
+
+	t.Run("without message provided", func(t *testing.T) {
+		ctx, cleanup := setup()
+		defer cleanup()
+		cause := errors.New("cause")
+		err := WrapWithData(ctx, cause, "", map[string]interface{}{"foo": "bar"})
+		require.Equal(t, err, cause)
+	})
+
+	t.Run("with nil error provided", func(t *testing.T) {
+		ctx, cleanup := setup()
+		defer cleanup()
+		err := WrapWithData(ctx, nil, "msg", map[string]interface{}{"foo": "bar"})
+		require.Equal(t, err, nil)
 	})
 }
 
@@ -161,7 +193,7 @@ func TestWrapf(t *testing.T) {
 	ctx, cleanup := setup()
 	defer cleanup()
 	cause := errors.New("cause")
-	err := Wrapf(ctx, cause, "%s %d", "new", 1)
+	err := Wrapf(ctx, cause, "%s %d", "new", 1).(*FleetError)
 
 	require.Equal(t, err.msg, "new 1")
 	require.NotEmpty(t, err.stack.List())
@@ -208,11 +240,11 @@ func TestMarshalJSON(t *testing.T) {
 
 	errNew := errors.New("a")
 
-	errWrap := Wrap(ctx, errNew)
-	errWrap.stack = mockStack{[]string{"sa"}}
+	errWrap := Wrap(ctx, errNew, "b").(*FleetError)
+	errWrap.stack = mockStack{[]string{"sb"}}
 
-	errNewWithData := NewWithData(ctx, "b", map[string]interface{}{"f": "b"})
-	errNewWithData.stack = mockStack{[]string{"sb"}}
+	errNewWithData := NewWithData(ctx, "c", map[string]interface{}{"f": "c"}).(*FleetError)
+	errNewWithData.stack = mockStack{[]string{"sc"}}
 
 	cases := []struct {
 		msg string
@@ -227,12 +259,12 @@ func TestMarshalJSON(t *testing.T) {
 		{
 			"wrapped error",
 			errWrap,
-			`{"cause": {"message": "a"}, "wraps": [{"data": {"timestamp": "1969-06-19T21:44:05Z"}, "stack": ["sa"]}]}`,
+			`{"cause": {"message": "a"}, "wraps": [{"message": "b", "data": {"timestamp": "1969-06-19T21:44:05Z"}, "stack": ["sb"]}]}`,
 		},
 		{
 			"wrapped error with data",
 			errNewWithData,
-			`{"cause": {"message": "b", "stack": ["sb"], "data": {"f": "b", "timestamp": "1969-06-19T21:44:05Z"}}}`,
+			`{"cause": {"message": "c", "stack": ["sc"], "data": {"f": "c", "timestamp": "1969-06-19T21:44:05Z"}}}`,
 		},
 	}
 
@@ -250,10 +282,10 @@ func TestStackMethod(t *testing.T) {
 	defer cleanup()
 
 	errNew := errors.New("a")
-	errWrap := Wrap(ctx, errNew)
-	errWrap.stack = mockStack{[]string{"sa"}}
+	errWrap := Wrap(ctx, errNew, "b").(*FleetError)
+	errWrap.stack = mockStack{[]string{"sb"}}
 
-	require.Equal(t, []string{"sa"}, errWrap.Stack())
+	require.Equal(t, []string{"sb"}, errWrap.Stack())
 }
 
 func TestFleetCause(t *testing.T) {
@@ -262,9 +294,9 @@ func TestFleetCause(t *testing.T) {
 
 	var nilErr *FleetError = nil
 	errNew := errors.New("a")
-	errWrapRoot := Wrap(ctx, errNew)
-	errWrap1 := Wrap(ctx, errWrapRoot)
-	errWrap2 := Wrap(ctx, errWrap1)
+	errWrapRoot := Wrap(ctx, errNew, "wrapRoot")
+	errWrap1 := Wrap(ctx, errWrapRoot, "wrap1")
+	errWrap2 := Wrap(ctx, errWrap1, "wrap2")
 
 	cases := []struct {
 		msg string
@@ -280,9 +312,6 @@ func TestFleetCause(t *testing.T) {
 	for _, c := range cases {
 		t.Run(c.msg, func(t *testing.T) {
 			actual := FleetCause(c.in)
-			fmt.Println(c.msg)
-			fmt.Println(c.out)
-			fmt.Println(actual)
 			require.Equal(t, c.out, actual)
 		})
 	}
