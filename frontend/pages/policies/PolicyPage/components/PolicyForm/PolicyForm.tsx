@@ -36,6 +36,7 @@ interface IPolicyFormProps {
   showOpenSchemaActionText: boolean;
   storedPolicy: IPolicy | undefined;
   isStoredPolicyLoading: boolean;
+  isCreatingNewPolicy: boolean;
   onCreatePolicy: (formData: IPolicyFormData) => void;
   onOsqueryTableSelect: (tableName: string) => void;
   goToSelectTargets: () => void;
@@ -62,6 +63,7 @@ const PolicyForm = ({
   showOpenSchemaActionText,
   storedPolicy,
   isStoredPolicyLoading,
+  isCreatingNewPolicy,
   onCreatePolicy,
   onOsqueryTableSelect,
   goToSelectTargets,
@@ -520,6 +522,7 @@ const PolicyForm = ({
           setIsNewPolicyModalOpen={setIsNewPolicyModalOpen}
           backendValidators={backendValidators}
           platformSelector={platformSelector}
+          policyIsLoading={isCreatingNewPolicy}
         />
       )}
     </>
