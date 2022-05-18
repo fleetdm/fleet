@@ -954,6 +954,7 @@ WHERE
 func (ds *Datastore) InsertVulnerabilities(
 	ctx context.Context,
 	vulns []fleet.SoftwareVulnerability,
+	source fleet.VulnerabilitySource,
 ) (int64, error) {
 	var totalCount int64
 
@@ -963,7 +964,11 @@ func (ds *Datastore) InsertVulnerabilities(
 
 	var records []interface{}
 	for _, vuln := range vulns {
-		records = append(records, goqu.Record{"cpe_id": vuln.CPEID, "cve": vuln.CVE})
+		records = append(records, goqu.Record{
+			"cpe_id": vuln.CPEID,
+			"cve":    vuln.CVE,
+			"source": source,
+		})
 	}
 
 	iStmt, _, err := dialect.

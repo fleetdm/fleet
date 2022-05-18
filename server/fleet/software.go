@@ -106,3 +106,10 @@ type SoftwareWithCPE struct {
 	// CPEID is the ID of the software CPE in the system.
 	CPEID uint
 }
+
+type VulnerabilitySource int
+
+const (
+	NVD VulnerabilitySource = iota
+	OVAL
+)

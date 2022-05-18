@@ -68,7 +68,7 @@ func Analyze(
 				}
 			}
 			if len(toInsert) > 0 {
-				if _, err = ds.InsertVulnerabilities(ctx, toInsert); err != nil {
+				if _, err = ds.InsertVulnerabilities(ctx, toInsert, fleet.OVAL); err != nil {
 					return nil, err
 				}
 				return toInsert, nil
