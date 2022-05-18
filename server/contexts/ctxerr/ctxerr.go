@@ -32,7 +32,7 @@ type FleetError struct {
 	msg   string          // error message to be prepended to cause
 	stack StackTracer     // stack trace where this error was created
 	cause error           // original error that caused this error if non-nil
-	data  json.RawMessage // json-marshalled additional metadata about the error (timestamps, etc)
+	data  json.RawMessage // additional metadata about the error (timestamps, etc)
 }
 
 type fleetErrorJSON struct {
@@ -70,7 +70,6 @@ func (e *FleetError) Stack() []string {
 }
 
 // setMetadata adds common metadata attributes to the `data` map provided.
-//
 // NOTE: this will mutate the data provided and override other values with the same keys.
 func setMetadata(ctx context.Context, data map[string]interface{}) map[string]interface{} {
 	if data == nil {
@@ -79,7 +78,6 @@ func setMetadata(ctx context.Context, data map[string]interface{}) map[string]in
 
 	// TODO: add more metadata from ctx
 	data["timestamp"] = nowFn().Format(time.RFC3339)
-
 	return data
 }
 

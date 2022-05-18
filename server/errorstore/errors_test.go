@@ -240,7 +240,7 @@ func testErrorHandlerCollectsErrors(t *testing.T, pool fleet.RedisPool, wd strin
     "stack": \[
       "github\.com\/fleetdm\/fleet\/v4\/server\/errorstore\.alwaysNewError \(errors_test\.go\:\d+\)",
       "github\.com\/fleetdm\/fleet\/v4\/server\/errorstore\.testErrorHandlerCollectsErrors \(errors_test\.go\:\d+\)",
-      "github\.com\/fleetdm\/fleet\/v4\/server\/errorstore\.TestErrorHandler\.func3\.1 \(errors_test\.go\:\d+\)",
+      "github\.com\/fleetdm\/fleet\/v4\/server\/errorstore\.TestErrorHandler\.func\d\.\d \(errors_test\.go\:\d+\)",
       ".+",
       ".+"
     \]
@@ -311,7 +311,7 @@ func testErrorHandlerCollectsDifferentErrors(t *testing.T, pool fleet.RedisPool,
     "stack": \[
       "github\.com\/fleetdm\/fleet\/v4\/server\/errorstore\.alwaysNewErrorTwo \(errors_test\.go\:\d+\)",
       "github\.com\/fleetdm\/fleet\/v4\/server\/errorstore\.testErrorHandlerCollectsDifferentErrors \(errors_test\.go\:\d+\)",
-      "github\.com\/fleetdm\/fleet\/v4\/server\/errorstore\.TestErrorHandler\.func3\.2 \(errors_test\.go\:\d+\)",
+      "github\.com\/fleetdm\/fleet\/v4\/server\/errorstore\.TestErrorHandler\.func\d\.\d \(errors_test\.go\:\d+\)",
       ".+",
       ".+"
     \]
@@ -326,7 +326,7 @@ func testErrorHandlerCollectsDifferentErrors(t *testing.T, pool fleet.RedisPool,
     "stack": \[
       "github\.com\/fleetdm\/fleet\/v4\/server\/errorstore\.alwaysNewError \(errors_test\.go\:\d+\)",
       "github\.com\/fleetdm\/fleet\/v4\/server\/errorstore\.testErrorHandlerCollectsDifferentErrors \(errors_test\.go\:\d+\)",
-      "github\.com\/fleetdm\/fleet\/v4\/server\/errorstore\.TestErrorHandler\.func3\.2 \(errors_test\.go\:\d+\)",
+      "github\.com\/fleetdm\/fleet\/v4\/server\/errorstore\.TestErrorHandler\.func\d.\d \(errors_test\.go\:\d+\)",
       ".+",
       ".+"
     \]

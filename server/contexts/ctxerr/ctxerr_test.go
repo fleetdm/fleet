@@ -23,9 +23,7 @@ func (h mockHandler) Store(err error) {
 	h.StoreImpl(err)
 }
 
-type cleanupFn func()
-
-func setup() (context.Context, cleanupFn) {
+func setup() (context.Context, func()) {
 	ctx := context.Background()
 	eh := mockHandler{}
 	ctx = NewContext(ctx, eh)
