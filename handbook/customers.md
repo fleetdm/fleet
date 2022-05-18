@@ -71,7 +71,7 @@ When creating a new issue, ensure the following:
 
 ### Assistance from engineering
 
-Customer team members can reach the engineering oncall for assistance by writing a message with `@oncall` in the `#help-engineering` channel of the Fleet Slack.
+Customer team members can reach the engineering on-call for assistance by writing a message with `@oncall` in the `#help-engineering` channel of the Fleet Slack.
 ## Runbook
 
 ### Responding to a request to change a credit card number
