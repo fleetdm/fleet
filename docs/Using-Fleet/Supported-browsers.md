@@ -10,7 +10,7 @@ We test each browser on Windows whenever possible, because our engineering team 
 ### Desktop
 
 - Chrome 29
-- Firefox 28
+- Firefox 52
 - Edge 16
 - Safari 13.x (macOS only)
 
