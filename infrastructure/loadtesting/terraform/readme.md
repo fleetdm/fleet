@@ -17,11 +17,15 @@ If you require changes beyond whats described here, contact @zwinnerman-fleetdm.
 After applying terraform with the commands above and before performing your tests, run the following command:
 `aws ecs run-task --region us-east-2 --cluster fleet-"$(terraform workspace show)"-backend --task-definition fleet-"$(terraform workspace show)"-migrate:"$(terraform output -raw fleet_migration_revision)" --launch-type FARGATE --network-configuration "awsvpcConfiguration={subnets="$(terraform output -raw fleet_migration_subnets)",securityGroups="$(terraform output -raw fleet_migration_security_groups)"}"`
 
+You can monitor the migrations' progress in AWS ECS, select the cluster corresponding to your `WORKSPACE-NAME`, and look at the running/stopped tasks.
+
 ### Running a loadtest
 
 We run simulated hosts in containers of 5,000 at a time. Once the infrastructure is running, you can run the following command:
 
 `terraform apply -var tag=BRANCH_NAME -var loadtest_containers=8`
+
+TODO(mna): document how to pass the fleet instance config options as env vars.
 
 With the variable `loadtest_containers` you can specify how many containers of 5,000 hosts you want to start. In the example above, it will run 40,000.
 
@@ -32,3 +36,5 @@ There are a few main places of interest to monitor the load and resource usage:
 * The Application Performance Monitoring (APM) dashboard: access it on your Fleet load-testing URL on port `:5601` and path `/app/apm`, e.g. `https://loadtest.fleetdm.com:5601/app/apm`.
 * To monitor mysql database load, go to AWS RDS, select "Performance Insights" and the database instance to monitor (you may want to turn off auto-refresh).
 * To monitor Redis load, go to Amazon ElastiCache, select the redis cluster to monitor, and go to "Metrics".
+
+TODO(mna): maybe a troubleshooting section with `TF_LOG=DEBUG terraform apply ...`.
