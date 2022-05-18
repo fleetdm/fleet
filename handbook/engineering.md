@@ -160,7 +160,7 @@ The following rituals are engaged in by the  directly responsible individual (DR
 
 | Ritual                       | Frequency                | Description                                         | DRI               |
 |:-----------------------------|:-----------------------------|:----------------------------------------------------|-------------------|
-| Pull request review | Daily | Engineers go through pull requests on which their review has been requested. | Zach Wasserman |
+| Pull request review | Daily | Engineers go through pull requests for which their review has been requested. | Zach Wasserman |
 | Engineering group discussions | Weekly | See "Group Weeklies".  | Zach Wasserman |
 | On-call handoff | Weekly | Hand off the on-call engineering responsibilities to the next on-call engineer. | Zach Wasserman |
 | Release ritual | Every three weeks | Go through the process of releasing the next iteration of Fleet. | Zach Wasserman |
