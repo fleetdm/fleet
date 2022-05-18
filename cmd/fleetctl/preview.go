@@ -222,7 +222,7 @@ Use the stop and reset subcommands to manage the server and dependencies once st
 			const (
 				address  = "https://localhost:8412"
 				email    = "admin@example.com"
-				password = "admin123#"
+				password = "preview1337#"
 			)
 
 			fleetClient, err := service.NewClient(address, true, "", "")

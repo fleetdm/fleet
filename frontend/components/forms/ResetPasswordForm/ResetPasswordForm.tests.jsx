@@ -5,7 +5,7 @@ import userEvent from "@testing-library/user-event";
 import ResetPasswordForm from "./ResetPasswordForm";
 
 describe("ResetPasswordForm - component", () => {
-  const newPassword = "p@ssw0rd";
+  const newPassword = "password123!";
   const submitSpy = jest.fn();
   it("renders correctly", () => {
     render(<ResetPasswordForm handleSubmit={submitSpy} />);
