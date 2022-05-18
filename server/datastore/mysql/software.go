@@ -137,6 +137,7 @@ SELECT
     s.bundle_identifier,
     s.release,
     s.version,
+    s.vendor,
     s.arch,
     hs.last_opened_at
 FROM
