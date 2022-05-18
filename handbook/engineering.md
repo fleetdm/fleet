@@ -128,9 +128,9 @@ Documentation on completing the release process can be found
 
 ## Oncall rotation
 
-The oncall engineer is a second-line responder to questions raised by customers and community members. The Community team is responsible for first response to GitHub issues, pull requests, and Slack messages in the osquery and other public Slacks. The Customer team is responsible for first response to messages in private customer Slack channels.
+The oncall engineer is a second-line responder to questions raised by customers and community members. The Community team is responsible for the first response to GitHub issues, pull requests, and Slack messages in the osquery and other public Slacks. The Customer team is responsible for the first response to messages in private customer Slack channels.
 
-Oncall engineers do not need to actively monitor Slack channels, except when called in by the Community or Customer teams. Members of those teams are instructed to `@oncall` in `#help-engineer` to get the attention of the oncall engineer to further discuss any issues that come up. In some cases, the Community or Customer representative will continue to communicate with the requestor, and in others the oncall engineer will communicate directly.
+Oncall engineers do not need to actively monitor Slack channels, except when called in by the Community or Customer teams. Members of those teams are instructed to `@oncall` in `#help-engineer` to get the attention of the oncall engineer to further discuss any issues that come up. In some cases, the Community or Customer representative will continue to communicate with the requestor, and in others, the oncall engineer will communicate directly.
 
 ### Handoff
 
