@@ -29,6 +29,10 @@ type Software struct {
 
 	// GenerateCPE is the CPE23 string that corresponds to the current software
 	GenerateCPE string `json:"generated_cpe" db:"generated_cpe"`
+
+	// GeneratedCPEID is the ID of the matched CPE
+	GeneratedCPEID uint `json:"-" db:"generated_cpe_id"`
+
 	// Vulnerabilities lists all the found CVEs for the CPE
 	Vulnerabilities VulnerabilitiesSlice `json:"vulnerabilities"`
 	// HostsCount indicates the number of hosts with that software, filled only
@@ -89,6 +93,7 @@ type SoftwareListOptions struct {
 
 // SoftwareVulnerability identifies a vulnerability on a specific software (CPE).
 type SoftwareVulnerability struct {
+	ID    uint   `db:"software_id"`
 	CPE   string `db:"cpe"`
 	CPEID uint   `db:"cpe_id"`
 	CVE   string `db:"cve"`

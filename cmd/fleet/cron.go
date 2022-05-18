@@ -327,7 +327,7 @@ func checkOvalVulnerabilities(
 	}
 
 	// Analyze
-	err = oval.Analyze(ctx, ds, versions, vulnPath)
+	_, err = oval.Analyze(ctx, ds, versions, vulnPath)
 	if err != nil {
 		level.Error(logger).Log("msg", "analyzing oval definitions", "err", err)
 		sentry.CaptureException(err)

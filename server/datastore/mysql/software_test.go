@@ -1125,4 +1125,9 @@ func testListSoftwareVulnerabilities(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.ElementsMatch(t, expectedCPEs, actualCPEs)
 	require.ElementsMatch(t, expectedCVEs, actualCVEs)
+
+	for _, r := range result {
+		require.NotEqual(t, r.ID, 0)
+		require.NotEqual(t, r.CPEID, 0)
+	}
 }

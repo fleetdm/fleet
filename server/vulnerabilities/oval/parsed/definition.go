@@ -1,5 +1,7 @@
 package oval_parsed
 
+import "github.com/fleetdm/fleet/v4/server/fleet"
+
 // Criteria is used to express an arbitrary logic tree.
 // Each node in the tree references a particular test.
 type Criteria struct {
@@ -17,7 +19,7 @@ type Definition struct {
 }
 
 // Eval evaluates the given definition using the provided test results.
-func (r Definition) Eval(testResults map[int][]uint) bool {
+func (r Definition) Eval(testResults map[int][]fleet.Software) bool {
 	if r.Criteria == nil || len(testResults) == 0 {
 		return false
 	}
@@ -43,7 +45,7 @@ func (r Definition) CollectTestIds() []int {
 	return results
 }
 
-func evalCriteria(c *Criteria, testResults map[int][]uint) bool {
+func evalCriteria(c *Criteria, testResults map[int][]fleet.Software) bool {
 	var vals []bool
 	var result bool
 

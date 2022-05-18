@@ -342,6 +342,7 @@ func selectSoftwareSQL(hostID *uint, opts fleet.SoftwareListOptions) (string, []
 	ds := dialect.From(goqu.I("software").As("s")).Select(
 		"s.*",
 		goqu.COALESCE(goqu.I("scp.cpe"), "").As("generated_cpe"),
+		goqu.COALESCE(goqu.I("scp.id"), "").As("generated_cpe_id"),
 	)
 
 	if hostID != nil || opts.TeamID != nil {
@@ -950,35 +951,19 @@ WHERE
 	return softwares, nil
 }
 
-func (ds *Datastore) InsertVulnerabilitiesForSoftwareID(
+func (ds *Datastore) InsertVulnerabilities(
 	ctx context.Context,
-	softwareID uint,
-	vulns []string,
+	vulns []fleet.SoftwareVulnerability,
 ) (int64, error) {
 	var totalCount int64
 
-	stmt := dialect.
-		From(goqu.I("software_cpe")).
-		Select("id").
-		Where(goqu.C("software_id").Eq(softwareID))
-
-	sql, args, err := stmt.ToSQL()
-	if err != nil {
-		return totalCount, ctxerr.Wrap(ctx, err, "InsertVulnerabilitiesForSoftwareID")
-	}
-
-	var cpeIds []int
-	if err := sqlx.SelectContext(ctx, ds.reader, &cpeIds, sql, args...); err != nil {
-		return totalCount, ctxerr.Wrap(ctx, err, "InsertVulnerabilitiesForSoftwareID")
-	}
-
-	if len(cpeIds) == 0 {
-		return totalCount, fmt.Errorf("InsertVulnerabilitiesForSoftwareID CPE not found for %d", softwareID)
+	if len(vulns) == 0 {
+		return totalCount, nil
 	}
 
 	var records []interface{}
 	for _, vuln := range vulns {
-		records = append(records, goqu.Record{"cpe_id": cpeIds[0], "cve": vuln})
+		records = append(records, goqu.Record{"cpe_id": vuln.CPEID, "cve": vuln.CVE})
 	}
 
 	iStmt, _, err := dialect.
@@ -1007,11 +992,6 @@ func (ds *Datastore) ListSoftwareVulnerabilities(
 
 	stmt := dialect.
 		From(goqu.T("software_cve").As("cve")).
-		Select(
-			goqu.C("cpe"),
-			goqu.C("cpe_id"),
-			goqu.C("cve"),
-		).
 		Join(
 			goqu.T("software_cpe").As("cpe"),
 			goqu.On(goqu.Ex{
@@ -1023,6 +1003,12 @@ func (ds *Datastore) ListSoftwareVulnerabilities(
 			goqu.On(goqu.Ex{
 				"cpe.software_id": goqu.I("hs.software_id"),
 			}),
+		).
+		Select(
+			goqu.I("cpe.software_id"),
+			goqu.C("cpe"),
+			goqu.C("cpe_id"),
+			goqu.C("cve"),
 		).
 		Where(goqu.C("host_id").Eq(hostID))
 

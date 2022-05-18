@@ -22,7 +22,7 @@ func Analyze(
 	ds fleet.Datastore,
 	versions *fleet.OSVersions,
 	vulnPath string,
-) error {
+) ([]fleet.SoftwareVulnerability, error) {
 	for _, v := range versions.OSVersions {
 		platform := NewPlatform(v.Platform, v.Name)
 		if !platform.IsSupported() {
@@ -31,12 +31,12 @@ func Analyze(
 
 		defs, err := loadDef(platform, vulnPath)
 		if err != nil {
-			return err
+			return nil, err
 		}
 
 		hIds, err := ds.HostIDsByPlatform(ctx, v.Platform, v.Name)
 		if err != nil {
-			return err
+			return nil, err
 		}
 
 		for _, hId := range hIds {
@@ -48,74 +48,65 @@ func Analyze(
 			}
 			err := ds.LoadHostSoftware(ctx, &h, &opts)
 			if err != nil {
-				return err
+				return nil, err
 			}
 
 			found := defs.Eval(h.Software)
 			if len(found) == 0 {
-				return nil
+				return nil, nil
 			}
 
 			existing, err := ds.ListSoftwareVulnerabilities(ctx, hId)
 			if err != nil {
-				return err
+				return nil, err
 			}
 
 			toInsert, toDelete := vulnsDelta(found, existing)
-
 			if len(toDelete) > 0 {
 				if err := ds.DeleteVulnerabilitiesByCPECVE(ctx, toDelete); err != nil {
-					return err
+					return nil, err
 				}
 			}
-
-			for sId, vulns := range toInsert {
-				if len(vulns) == 0 {
-					continue
+			if len(toInsert) > 0 {
+				if _, err = ds.InsertVulnerabilities(ctx, toInsert); err != nil {
+					return nil, err
 				}
-				_, err = ds.InsertVulnerabilitiesForSoftwareID(ctx, sId, vulns)
-				if err != nil {
-					return err
-				}
+				return toInsert, nil
 			}
 		}
 	}
 
-	return nil
+	return nil, nil
 }
 
 // vulnsDelta compares what vulnerabilities already exists with what new vulnerabilities were found
 // and returns what to insert and what to delete.
 func vulnsDelta(
-	found map[uint][]string,
+	found []fleet.SoftwareVulnerability,
 	existing []fleet.SoftwareVulnerability,
-) (map[uint][]string, []fleet.SoftwareVulnerability) {
+) ([]fleet.SoftwareVulnerability, []fleet.SoftwareVulnerability) {
 	toDelete := make([]fleet.SoftwareVulnerability, 0)
-	toInsert := make(map[uint][]string)
+	toInsert := make([]fleet.SoftwareVulnerability, 0)
 
 	existingSet := make(map[string]bool)
-	for _, v := range existing {
-		existingSet[v.CVE] = true
+	for _, e := range existing {
+		existingSet[e.CVE] = true
 	}
 
 	foundSet := make(map[string]bool)
-	for _, vulns := range found {
-		for _, v := range vulns {
-			foundSet[v] = true
+	for _, f := range found {
+		foundSet[f.CVE] = true
+	}
+
+	for _, e := range existing {
+		if _, ok := foundSet[e.CVE]; !ok {
+			toDelete = append(toDelete, e)
 		}
 	}
 
-	for _, sv := range existing {
-		if _, ok := foundSet[sv.CVE]; !ok {
-			toDelete = append(toDelete, sv)
-		}
-	}
-
-	for sId, vulns := range found {
-		for _, v := range vulns {
-			if _, ok := existingSet[v]; !ok {
-				toInsert[sId] = append(toInsert[sId], v)
-			}
+	for _, f := range found {
+		if _, ok := existingSet[f.CVE]; !ok {
+			toInsert = append(toInsert, f)
 		}
 	}
 
