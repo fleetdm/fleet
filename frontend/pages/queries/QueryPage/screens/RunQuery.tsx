@@ -168,7 +168,7 @@ const RunQuery = ({
       if (err.includes("no hosts targeted")) {
         renderFlash(
           "error",
-          "A campaign with the provided query text has already been created"
+          "Your target selections did not include any hosts. Please try again."
         );
       } else if (err.includes("resource already created")) {
         renderFlash(

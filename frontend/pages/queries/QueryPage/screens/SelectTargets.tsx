@@ -4,7 +4,7 @@ import { useQuery } from "react-query";
 import { useDebouncedCallback } from "use-debounce/lib";
 
 import { AppContext } from "context/app";
-import { QueryContext } from "context/query";
+// import { QueryContext } from "context/query";
 
 import { IHost } from "interfaces/host";
 import { ILabel, ILabelSummary } from "interfaces/label";
@@ -54,9 +54,7 @@ interface ISelectTargetsProps {
   setTargetedHosts: React.Dispatch<React.SetStateAction<IHost[]>>;
   setTargetedLabels: React.Dispatch<React.SetStateAction<ILabel[]>>;
   setTargetedTeams: React.Dispatch<React.SetStateAction<ITeam[]>>;
-
   setTargetsTotalCount: React.Dispatch<React.SetStateAction<number>>;
-  targetsTotalCount: number; // why is this here?
 }
 
 interface ITargetsQueryKey {
@@ -124,7 +122,6 @@ const SelectTargets = ({
   targetedHosts,
   targetedLabels,
   targetedTeams,
-  targetsTotalCount,
   goToQueryEditor,
   goToRunQuery,
   setSelectedTargets,
@@ -134,9 +131,9 @@ const SelectTargets = ({
   setTargetsTotalCount,
 }: ISelectTargetsProps): JSX.Element => {
   const { isPremiumTier } = useContext(AppContext);
-  const { selectedTargetsByQueryId, setSelectedTargetsByQueryId } = useContext(
-    QueryContext
-  );
+  // const { selectedTargetsByQueryId, setSelectedTargetsByQueryId } = useContext(
+  //   QueryContext
+  // );
 
   const [allHosts, setAllHosts] = useState<ILabelSummary[] | null>(null);
   const [platforms, setPlatforms] = useState<ILabelSummary[] | null>(null);
@@ -248,7 +245,11 @@ const SelectTargets = ({
     }
   );
 
-  const { data: counts } = useQuery<
+  const {
+    data: counts,
+    error: errorCounts,
+    isFetching: isFetchingCounts,
+  } = useQuery<
     ITargetsCountResponse,
     Error,
     ITargetsCountResponse,
@@ -277,12 +278,12 @@ const SelectTargets = ({
   useEffect(() => {
     const selected = [...targetedHosts, ...targetedLabels, ...targetedTeams];
     setSelectedTargets(selected);
-    if (queryIdForEdit) {
-      setSelectedTargetsByQueryId(
-        queryIdForEdit,
-        formatSelectedTargetsForApi(selected)
-      );
-    }
+    // if (queryIdForEdit) {
+    //   setSelectedTargetsByQueryId(
+    //     queryIdForEdit,
+    //     formatSelectedTargetsForApi(selected)
+    //   );
+    // }
   }, [targetedHosts, targetedLabels, targetedTeams]);
 
   const handleClickCancel = () => {
@@ -325,6 +326,11 @@ const SelectTargets = ({
     setTargetedHosts(newTargets);
   };
 
+  const onClickRun = () => {
+    setTargetsTotalCount(counts?.targets_count || 0);
+    goToRunQuery();
+  };
+
   // TODO: selections being saved but aren't rendering on initial mount?
   const renderTargetEntityList = (
     header: string,
@@ -351,20 +357,32 @@ const SelectTargets = ({
   };
 
   const renderTargetsCount = (): JSX.Element | null => {
+    if (isFetchingCounts) {
+      return <i style={{ color: "#8b8fa2" }}>Checking for online targets...</i>;
+    }
+
+    if (errorCounts) {
+      return (
+        <b style={{ color: "#d66c7b", margin: 0 }}>
+          There was a problem checking for online targets. Please try again
+          later.
+        </b>
+      );
+    }
+
     if (!counts) {
       return null;
     }
+
     const { targets_count: total, targets_online: online } = counts;
-    const onlinePercentage =
-      targetsTotalCount > 0 ? Math.round((online / total) * 100) : 0;
+    const onlinePercentage = total > 0 ? Math.round((online / total) * 100) : 0;
 
     return (
       <>
         <span>{total}</span>&nbsp;hosts targeted&nbsp; ({onlinePercentage}
         %&nbsp;
         <TooltipWrapper
-          tipContent={`
-                Hosts are online if they<br /> have recently checked <br />into Fleet`}
+          tipContent={`Hosts are online if they<br /> have recently checked <br />into Fleet`}
         >
           online
         </TooltipWrapper>
@@ -405,9 +423,9 @@ const SelectTargets = ({
       <TargetsInput
         tabIndex={inputTabIndex || 0}
         searchText={searchText}
-        searchResults={searchResults ? [...searchResults] : []} // TODO: why spread?
+        searchResults={searchResults || []}
         isTargetsLoading={isFetchingSearchResults || isDebouncing}
-        targetedHosts={[...targetedHosts]} // TODO: why spread?
+        targetedHosts={targetedHosts}
         hasFetchError={!!errorSearchResults}
         setSearchText={setSearchText}
         handleRowSelect={handleRowSelect}
@@ -425,8 +443,8 @@ const SelectTargets = ({
           className={`${baseClass}__btn`}
           type="button"
           variant="blue-green"
-          disabled={!targetsTotalCount} // TODO: confirm
-          onClick={goToRunQuery}
+          disabled={isFetchingCounts || !counts?.targets_count} // TODO: confirm
+          onClick={onClickRun}
         >
           Run
         </Button>
