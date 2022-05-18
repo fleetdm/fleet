@@ -289,12 +289,26 @@ func TestFleetCause(t *testing.T) {
 }
 
 func TestHandle(t *testing.T) {
-	ctx := context.Background()
-	eh := mockHandler{}
-	err := New(ctx, "new")
-	eh.StoreImpl = func(serr error) {
-		require.Equal(t, serr, err)
-	}
-	ctx = NewContext(ctx, eh)
-	Handle(ctx, err)
+	t.Run("stores the error when invoked", func(t *testing.T) {
+		ctx := context.Background()
+		eh := mockHandler{}
+		err := New(ctx, "new")
+		eh.StoreImpl = func(serr error) {
+			require.Equal(t, serr, err)
+		}
+		ctx = NewContext(ctx, eh)
+		Handle(ctx, err)
+	})
+
+	t.Run("wraps when there's no FleetError in the chain", func(t *testing.T) {
+		ctx := context.Background()
+		eh := mockHandler{}
+		err := errors.New("new")
+		eh.StoreImpl = func(serr error) {
+			var ferr *FleetError
+			require.ErrorAs(t, serr, &ferr)
+		}
+		ctx = NewContext(ctx, eh)
+		Handle(ctx, err)
+	})
 }

@@ -230,6 +230,13 @@ func fromContext(ctx context.Context) handler {
 // Handle handles err by passing it to the registered error handler,
 // deduplicating it and storing it for a configured duration.
 func Handle(ctx context.Context, err error) {
+	// as a last resource, wrap the error if there isn't
+	// a FleetError in the chain
+	var ferr *FleetError
+	if !errors.As(err, &ferr) {
+		err = Wrap(ctx, err)
+	}
+
 	if eh := fromContext(ctx); eh != nil {
 		eh.Store(err)
 	}
