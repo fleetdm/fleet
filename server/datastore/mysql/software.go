@@ -345,8 +345,8 @@ func updateModifiedHostSoftwareDB(
 
 var dialect = goqu.Dialect("mysql")
 
-// listSoftwareDB returns all the software installed in the given hostID and list options.
-// If hostID is nil, then the method will look into the installed software of all hosts.
+// listSoftwareDB returns software installed on hosts. Use opts for pagination, filtering, and controlling
+// fields populated in the returned software.
 func listSoftwareDB(
 	ctx context.Context,
 	q sqlx.QueryerContext,

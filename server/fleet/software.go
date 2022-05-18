@@ -80,6 +80,7 @@ type SoftwareIterator interface {
 type SoftwareListOptions struct {
 	ListOptions
 
+	// HostID filters software to the specified host if not nil.
 	HostID           *uint
 	TeamID           *uint `query:"team_id,optional"`
 	VulnerableOnly   bool  `query:"vulnerable,optional"`
