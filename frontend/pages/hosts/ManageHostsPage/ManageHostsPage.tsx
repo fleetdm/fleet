@@ -254,6 +254,7 @@ const ManageHostsPage = ({
   const [labelValidator, setLabelValidator] = useState<{
     [key: string]: string;
   }>(DEFAULT_CREATE_LABEL_ERRORS);
+  const [visibleColumns, setVisibleColumns] = useState<string[]>();
 
   // ======== end states
 
@@ -1288,6 +1289,7 @@ const ManageHostsPage = ({
       policyId,
       policyResponse,
       softwareId,
+      visibleColumns,
     };
 
     options = {
@@ -1500,8 +1502,11 @@ const ManageHostsPage = ({
       currentTeam
     );
 
-    const columnAccessors = tableColumns.map((column) => column.accessor);
+    const columnAccessors = tableColumns.map((column) =>
+      column.accessor ? column.accessor : ""
+    );
     columnAccessors.shift();
+    setVisibleColumns(columnAccessors);
 
     return (
       <TableContainer

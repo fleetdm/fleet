@@ -20,6 +20,7 @@ export interface ILoadHostsOptions {
   softwareId?: number;
   device_mapping?: boolean;
   columns?: string;
+  visibleColumns?: (string | undefined)[];
 }
 
 export type ILoadHostDetailsExtension = "device_mapping" | "macadmins";
@@ -61,7 +62,7 @@ export default {
     const policyId = options?.policyId || null;
     const policyResponse = options?.policyResponse || null;
     const softwareId = options?.softwareId || null;
-    const columns = options?.columns || null;
+    const visibleColumns = options?.visibleColumns || null;
 
     let orderKeyParam = "";
     let orderDirection = "";
@@ -111,6 +112,10 @@ export default {
     // TODO: consider how to check for mutually exclusive scenarios with label, policy and software
     if (!label && !policyId && softwareId) {
       path += `&software_id=${softwareId}`;
+    }
+
+    if (visibleColumns) {
+      path += `&columns=${visibleColumns.join(",")}`;
     }
 
     path += "&format=csv";
