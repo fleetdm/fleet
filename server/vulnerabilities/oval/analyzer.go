@@ -46,17 +46,24 @@ func Analyze(
 			}
 
 			found := defs.Eval(software)
+			if len(found) == 0 {
+				return nil
+			}
+
 			existing, err := ds.ListSoftwareVulnerabilities(ctx, hId)
 			if err != nil {
 				return err
 			}
 
-			toDelete := vulnsToDelete(found, existing)
-			if err := ds.DeleteVulnerabilitiesByCPECVE(ctx, toDelete); err != nil {
-				return err
+			toInsert, toDelete := vulnsDelta(found, existing)
+
+			if len(toDelete) > 0 {
+				if err := ds.DeleteVulnerabilitiesByCPECVE(ctx, toDelete); err != nil {
+					return err
+				}
 			}
 
-			for sId, vulns := range found {
+			for sId, vulns := range toInsert {
 				if len(vulns) == 0 {
 					continue
 				}
@@ -71,8 +78,19 @@ func Analyze(
 	return nil
 }
 
-func vulnsToDelete(found map[uint][]string, existing []fleet.SoftwareVulnerability) []fleet.SoftwareVulnerability {
+// vulnsDelta compares what vulnerabilities already exists with what new vulnerabilities were found
+// and returns what to insert and what to delete.
+func vulnsDelta(
+	found map[uint][]string,
+	existing []fleet.SoftwareVulnerability,
+) (map[uint][]string, []fleet.SoftwareVulnerability) {
 	toDelete := make([]fleet.SoftwareVulnerability, 0)
+	toInsert := make(map[uint][]string)
+
+	existingSet := make(map[string]bool)
+	for _, v := range existing {
+		existingSet[v.CVE] = true
+	}
 
 	foundSet := make(map[string]bool)
 	for _, vulns := range found {
@@ -87,7 +105,15 @@ func vulnsToDelete(found map[uint][]string, existing []fleet.SoftwareVulnerabili
 		}
 	}
 
-	return toDelete
+	for sId, vulns := range found {
+		for _, v := range vulns {
+			if _, ok := existingSet[v]; !ok {
+				toInsert[sId] = append(toInsert[sId], v)
+			}
+		}
+	}
+
+	return toInsert, toDelete
 }
 
 // loadDef returns the latest oval Definition for the given platform.

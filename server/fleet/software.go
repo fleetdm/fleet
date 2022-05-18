@@ -89,7 +89,7 @@ type SoftwareListOptions struct {
 
 // SoftwareVulnerability identifies a vulnerability on a specific software (CPE).
 type SoftwareVulnerability struct {
-	// CPEID is the ID of the software CPE in the system.
+	CPE   string `db:"cpe"`
 	CPEID uint   `db:"cpe_id"`
 	CVE   string `db:"cve"`
 }
