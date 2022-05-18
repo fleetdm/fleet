@@ -102,7 +102,8 @@ func newError(ctx context.Context, msg string, cause error, data map[string]inte
 
 func wrapError(ctx context.Context, msg string, cause error, data map[string]interface{}) *FleetError {
 	stack := NewStack(2)
-	_, isFleetError := cause.(*FleetError)
+	var ferr *FleetError
+	isFleetError := errors.As(cause, &ferr)
 
 	// If the error is a FleetError, don't add the full stack trace as it should
 	// already be present.
