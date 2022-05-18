@@ -18,30 +18,30 @@ Fleet's users and broader audience are spread across many online platforms.  Her
 ### Goals
 Our primary quality objectives are *customer service* and *defect reduction*. We try to optimize the following:
 
-- Customer response time.
-- The number of bugs resolved per release cycle.
-- Stay abreast of what our community wants and the problems they're having.
-- Make people feel heard and understood.
-- Celebrate contributions.
-- Triage bugs, identify community feature requests, community pull requests, and community questions.
+- Customer response time
+- The number of bugs resolved per release cycle
+- Staying abreast of what our community wants and the problems they're having
+- Making people feel heard and understood
+- Celebrating contributions
+- Triaging bugs, identifying community feature requests, community pull requests, and community questions
 
 ### How?
 
-- Folks who post a new comment in Slack or issue on GitHub should receive a response **within 1 business day**. The response doesn't need to include an immediate answer.
-- If you do not understand a question or comment raised, [request more details](#requesting-more-details) to best understand the next steps.
-- If an appropriate response is outside your scope, please post to `#help-engineering` (in the Fleet Slack)), tagging `@oncall`
-- If things get heated, remember to stay [positive and helpful](https://canny.io/blog/moderating-user-comments-diplomatically/).  If you aren't sure how best to respond in a positive way, or if you see behavior that violates the Fleet code of conduct, get help.
+- Folks who post a new comment in Slack or issue on GitHub should receive a response **within one business day**. The response doesn't need to include an immediate answer.
+- If you feel confused by a question or comment raised, [request more details](#requesting-more-details) to better your understanding of the next steps.
+- If an appropriate response is outside of your scope, please post to `#help-engineering` (in the Fleet Slack)), tagging `@oncall`.
+- If things get heated, remember to stay [positive and helpful](https://canny.io/blog/moderating-user-comments-diplomatically/).  If you aren't sure how best to respond positively, or if you see behavior that violates the Fleet code of conduct, get help.
 
 ### Requesting more details
 
-Typically, the *questions*, *bug reports*, and *feature requests* raised by members of the community will be missing helpful context, recreation steps, or motivations respectively.
+Typically, the *questions*, *bug reports*, and *feature requests* raised by community members will be missing helpful context, recreation steps, or motivations.
 
 ❓ For questions that you don't immediately know the answer to, it's helpful to ask follow-up questions to receive additional context.
 
 - Let's say a community member asks the question "How do I do X in Fleet?" A follow-up question could be "What are you attempting to accomplish by doing X?"
-- This way, you have additional details when the primary question is brought to the Roundup meeting. In addition, the community member receives a response and feels heard.
+- This way, you have additional details when you bring this to the Roundup meeting. In addition, the community member receives a response and feels heard.
 
-🦟 For bug reports, it's helpful to ask for recreation steps so you're later able to verify the bug exists.
+🦟 For bug reports, it's helpful to ask for re-creation steps so you're later able to verify the bug exists.
 
 - Let's say a community member submits a bug report. An example follow-up question could be "Can you please walk me through how you encountered this issue so that I can attempt to recreate it?"
 - This way, you now have steps that verify whether the bug exists in Fleet or if the issue is specific to the community member's environment. If the latter, you now have additional information for further investigation and question-asking.
@@ -49,17 +49,17 @@ Typically, the *questions*, *bug reports*, and *feature requests* raised by memb
 💡 For feature requests, it's helpful to ask follow-up questions in an attempt to understand the "Why?" or underlying motivation behind the request.
 
 - Let's say a community member submits the feature request "I want the ability to do X in Fleet." A follow-up question could be "If you were able to do X in Fleet, what's the next action you would take?" or "Why do you want to do X in Fleet?."
-- Both of these questions provide helpful context on the underlying motivation behind the feature request when it is brought to the Roundup meeting. In addition, the community member receives a response and feels heard.
+- Both of these questions provide helpful context on the underlying motivation behind the feature request when brought to the Roundup meeting. In addition, the community member receives a response and feels heard.
 
 ### Closing issues
 
-It is often a good idea to let the original poster (OP) close their issue themselves since they are usually well equipped to decide whether the issue is resolved.   In some cases, circling back with the OP can be impractical, and for the sake of speed, issues might get closed.
+It is often a good idea to let the original poster (OP) close their issue themselves since they are usually well equipped to decide to mark the issue as resolved. In some cases, circling back with the OP can be impractical, and for the sake of speed, issues might get closed.
 
 Keep in mind that this can feel jarring to the OP.  The effect is worse if issues are closed automatically by a bot (See [balderashy/sails#3423](https://github.com/balderdashy/sails/issues/3423#issuecomment-169751072) and [balderdashy/sails#4057](https://github.com/balderdashy/sails/issues/4057) for examples of this).
 
 ### Version support
 
-In order to provide the most accurate and efficient support, Fleet will only target fixes based on the latest released version. Fixes in current versions will not be backported to older releases.
+To provide the most accurate and efficient support, Fleet will only target fixes based on the latest released version. In the current version fixes, Fleet will not backport to older releases.
 
 Community version supported for bug fixes: **Latest version only**
 
@@ -71,24 +71,24 @@ Premium support for support/troubleshooting: **All versions**
 
 ### Tools
 
-There is a script located in `scripts/on-call` for use during on-call rotation (only been tested on macOS and Linux).
+Ther script located in `scripts/on-call` for use during on-call rotation (only been tested on macOS and Linux).
 Its use is completely optional but contains several useful commands for checking issues and PRs that may require attention.
 You will need to install the following tools in order to use it:
 
-- [Github CLI](https://cli.github.com/manual/installation)
-- [jq](https://stedolan.github.io/jq/download/)
+- [GitHub CLI](https://cli.github.com/manual/installation)
+- [JQ](https://stedolan.github.io/jq/download/)
 
 ### Resources
 
 There are several locations in Fleet's public and internal documentation that can be helpful when answering questions raised by the community:
 
-1. The frequently asked question (FAQ) documents in each section are found in the `/docs` folder. These documents are the [Using Fleet FAQ](../docs/Using-Fleet/FAQ.md), [Deploying FAQ](../docs/Deploying/FAQ.md), and [Contributing FAQ](../docs/Contributing/FAQ.md).
+1. Find the frequently asked question (FAQ) documents in each section in the `/docs` folder. These documents are the [Using Fleet FAQ](../docs/Using-Fleet/FAQ.md), [Deploying FAQ](../docs/Deploying/FAQ.md), and [Contributing FAQ](../docs/Contributing/FAQ.md).
 
 2. The [Internal FAQ](https://docs.google.com/document/d/1I6pJ3vz0EE-qE13VmpE2G3gd5zA1m3bb_u8Q2G3Gmp0/edit#heading=h.ltavvjy511qv) document.
 
 ### Assistance from engineering
 
-Community team members can reach the engineering oncall for assistance by writing a message with `@oncall` in the `#help-engineering` channel of the Fleet Slack.
+Community team members can reach the engineering on-call for assistance by writing a message with `@oncall` in the `#help-engineering` channel of the Fleet Slack.
 ## Fleet docs
 
 ### Markdown
