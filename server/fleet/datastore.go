@@ -341,10 +341,8 @@ type Datastore interface {
 	///////////////////////////////////////////////////////////////////////////////
 	// SoftwareStore
 
-	// ListSoftwareByHostIDShort returns all software for the given host id.
-	ListSoftwareByHostIDShort(ctx context.Context, hostID uint) ([]Software, error)
 	ListSoftwareVulnerabilities(ctx context.Context, hostID uint) ([]SoftwareVulnerability, error)
-	LoadHostSoftware(ctx context.Context, host *Host) error
+	LoadHostSoftware(ctx context.Context, host *Host, opts *SoftwareListOptions) error
 	AllSoftwareWithoutCPEIterator(ctx context.Context) (SoftwareIterator, error)
 	AddCPEForSoftware(ctx context.Context, software Software, cpe string) error
 	AllCPEs(ctx context.Context, excludedPlatforms []string) ([]string, error)

@@ -40,12 +40,14 @@ func Analyze(
 		}
 
 		for _, hId := range hIds {
-			software, err := ds.ListSoftwareByHostIDShort(ctx, hId)
+			h := fleet.Host{ID: hId}
+			opts := fleet.SoftwareListOptions{SkipLoadingCVEs: true}
+			err := ds.LoadHostSoftware(ctx, &h, &opts)
 			if err != nil {
 				return err
 			}
 
-			found := defs.Eval(software)
+			found := defs.Eval(h.Software)
 			if len(found) == 0 {
 				return nil
 			}

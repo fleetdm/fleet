@@ -270,11 +270,9 @@ type SearchTeamsFunc func(ctx context.Context, filter fleet.TeamFilter, matchQue
 
 type TeamEnrollSecretsFunc func(ctx context.Context, teamID uint) ([]*fleet.EnrollSecret, error)
 
-type ListSoftwareByHostIDShortFunc func(ctx context.Context, hostID uint) ([]fleet.Software, error)
-
 type ListSoftwareVulnerabilitiesFunc func(ctx context.Context, hostID uint) ([]fleet.SoftwareVulnerability, error)
 
-type LoadHostSoftwareFunc func(ctx context.Context, host *fleet.Host) error
+type LoadHostSoftwareFunc func(ctx context.Context, host *fleet.Host, opts *fleet.SoftwareListOptions) error
 
 type AllSoftwareWithoutCPEIteratorFunc func(ctx context.Context) (fleet.SoftwareIterator, error)
 
@@ -793,9 +791,6 @@ type DataStore struct {
 
 	TeamEnrollSecretsFunc        TeamEnrollSecretsFunc
 	TeamEnrollSecretsFuncInvoked bool
-
-	ListSoftwareByHostIDShortFunc        ListSoftwareByHostIDShortFunc
-	ListSoftwareByHostIDShortFuncInvoked bool
 
 	ListSoftwareVulnerabilitiesFunc        ListSoftwareVulnerabilitiesFunc
 	ListSoftwareVulnerabilitiesFuncInvoked bool
@@ -1644,19 +1639,14 @@ func (s *DataStore) TeamEnrollSecrets(ctx context.Context, teamID uint) ([]*flee
 	return s.TeamEnrollSecretsFunc(ctx, teamID)
 }
 
-func (s *DataStore) ListSoftwareByHostIDShort(ctx context.Context, hostID uint) ([]fleet.Software, error) {
-	s.ListSoftwareByHostIDShortFuncInvoked = true
-	return s.ListSoftwareByHostIDShortFunc(ctx, hostID)
-}
-
 func (s *DataStore) ListSoftwareVulnerabilities(ctx context.Context, hostID uint) ([]fleet.SoftwareVulnerability, error) {
 	s.ListSoftwareVulnerabilitiesFuncInvoked = true
 	return s.ListSoftwareVulnerabilitiesFunc(ctx, hostID)
 }
 
-func (s *DataStore) LoadHostSoftware(ctx context.Context, host *fleet.Host) error {
+func (s *DataStore) LoadHostSoftware(ctx context.Context, host *fleet.Host, opts *fleet.SoftwareListOptions) error {
 	s.LoadHostSoftwareFuncInvoked = true
-	return s.LoadHostSoftwareFunc(ctx, host)
+	return s.LoadHostSoftwareFunc(ctx, host, opts)
 }
 
 func (s *DataStore) AllSoftwareWithoutCPEIterator(ctx context.Context) (fleet.SoftwareIterator, error) {

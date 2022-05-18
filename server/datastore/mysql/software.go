@@ -514,8 +514,12 @@ func loadCVEsBySoftware(
 	return cvesBySoftware, nil
 }
 
-func (ds *Datastore) LoadHostSoftware(ctx context.Context, host *fleet.Host) error {
-	software, err := listSoftwareDB(ctx, ds.reader, &host.ID, fleet.SoftwareListOptions{})
+func (ds *Datastore) LoadHostSoftware(ctx context.Context, host *fleet.Host, opts *fleet.SoftwareListOptions) error {
+	listOpts := fleet.SoftwareListOptions{}
+	if opts != nil {
+		listOpts = *opts
+	}
+	software, err := listSoftwareDB(ctx, ds.reader, &host.ID, listOpts)
 	if err != nil {
 		return err
 	}
@@ -913,10 +917,6 @@ ORDER BY
 		return nil, ctxerr.Wrap(ctx, err, "select hosts by cves")
 	}
 	return hosts, nil
-}
-
-func (ds *Datastore) ListSoftwareByHostIDShort(ctx context.Context, hostID uint) ([]fleet.Software, error) {
-	return listSoftwareByHostIDShort(ctx, ds.reader, hostID)
 }
 
 func listSoftwareByHostIDShort(
