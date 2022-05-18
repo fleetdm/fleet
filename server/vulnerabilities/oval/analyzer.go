@@ -41,7 +41,11 @@ func Analyze(
 
 		for _, hId := range hIds {
 			h := fleet.Host{ID: hId}
-			opts := fleet.SoftwareListOptions{SkipLoadingCVEs: true}
+			opts := fleet.SoftwareListOptions{
+				SkipLoadingCVEs: true,
+				VulnerableOnly:  false,
+				WithHostCounts:  false,
+			}
 			err := ds.LoadHostSoftware(ctx, &h, &opts)
 			if err != nil {
 				return err

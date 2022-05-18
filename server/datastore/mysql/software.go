@@ -1008,6 +1008,7 @@ func (ds *Datastore) ListSoftwareVulnerabilities(
 	stmt := dialect.
 		From(goqu.T("software_cve").As("cve")).
 		Select(
+			goqu.C("cpe"),
 			goqu.C("cpe_id"),
 			goqu.C("cve"),
 		).
