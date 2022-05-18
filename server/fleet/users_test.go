@@ -93,5 +93,8 @@ func TestSaltAndHashPassword(t *testing.T) {
 		saltAndPass := []byte(fmt.Sprintf("%s%s", pwd, salt))
 		err = bcrypt.CompareHashAndPassword(hashed, saltAndPass)
 		require.NoError(t, err)
+
+		err = bcrypt.CompareHashAndPassword(hashed, []byte(fmt.Sprint("invalidpassword", salt)))
+		require.Error(t, err)
 	}
 }
