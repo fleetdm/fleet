@@ -71,7 +71,7 @@ Premium support for support/troubleshooting: **All versions**
 
 ### Tools
 
-Ther script located in `scripts/on-call` for use during on-call rotation (only been tested on macOS and Linux).
+Ther script located in `scripts/oncall` for use during oncall rotation (only been tested on macOS and Linux).
 Its use is completely optional but contains several useful commands for checking issues and PRs that may require attention.
 You will need to install the following tools in order to use it:
 
@@ -88,7 +88,7 @@ There are several locations in Fleet's public and internal documentation that ca
 
 ### Assistance from engineering
 
-Community team members can reach the engineering on-call for assistance by writing a message with `@oncall` in the `#help-engineering` channel of the Fleet Slack.
+Community team members can reach the engineering oncall for assistance by writing a message with `@oncall` in the `#help-engineering` channel of the Fleet Slack.
 ## Fleet docs
 
 ### Markdown
