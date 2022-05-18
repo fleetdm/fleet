@@ -342,7 +342,7 @@ func selectSoftwareSQL(hostID *uint, opts fleet.SoftwareListOptions) (string, []
 	ds := dialect.From(goqu.I("software").As("s")).Select(
 		"s.*",
 		goqu.COALESCE(goqu.I("scp.cpe"), "").As("generated_cpe"),
-		goqu.COALESCE(goqu.I("scp.id"), "").As("generated_cpe_id"),
+		goqu.COALESCE(goqu.I("scp.id"), 0).As("generated_cpe_id"),
 	)
 
 	if hostID != nil || opts.TeamID != nil {
