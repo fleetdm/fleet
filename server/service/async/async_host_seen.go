@@ -6,6 +6,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/datastore/redis"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -20,7 +21,8 @@ const (
 
 // RecordHostLastSeen records that the specified host ID was seen.
 func (t *Task) RecordHostLastSeen(ctx context.Context, hostID uint) error {
-	if !t.AsyncEnabled {
+	cfg := t.taskConfigs[config.AsyncTaskHostLastSeen]
+	if !cfg.Enabled {
 		t.seenHostSet.addHostID(hostID)
 		return nil
 	}
@@ -31,7 +33,7 @@ func (t *Task) RecordHostLastSeen(ctx context.Context, hostID uint) error {
 	// collected yet - 1 week or 10 * the collector interval, whichever is
 	// biggest.
 	ttl := hostSeenKeysMinTTL
-	if maxTTL := 10 * t.CollectorInterval; maxTTL > ttl {
+	if maxTTL := 10 * cfg.CollectInterval; maxTTL > ttl {
 		ttl = maxTTL
 	}
 
@@ -44,9 +46,9 @@ func (t *Task) RecordHostLastSeen(ctx context.Context, hostID uint) error {
     return redis.call('EXPIRE', KEYS[1], ARGV[2])
   `)
 
-	conn := t.Pool.Get()
+	conn := t.pool.Get()
 	defer conn.Close()
-	if err := redis.BindConn(t.Pool, conn, hostSeenRecordedHostIDsKey); err != nil {
+	if err := redis.BindConn(t.pool, conn, hostSeenRecordedHostIDsKey); err != nil {
 		return ctxerr.Wrap(ctx, err, "bind redis connection")
 	}
 
@@ -61,9 +63,10 @@ func (t *Task) RecordHostLastSeen(ctx context.Context, hostID uint) error {
 // no-op if asychronous host processing is enabled, because then it is the
 // task collector that will process the writes to mysql.
 func (t *Task) FlushHostsLastSeen(ctx context.Context, now time.Time) error {
-	if !t.AsyncEnabled {
+	cfg := t.taskConfigs[config.AsyncTaskHostLastSeen]
+	if !cfg.Enabled {
 		hostIDs := t.seenHostSet.getAndClearHostIDs()
-		return t.Datastore.MarkHostsSeen(ctx, hostIDs, now)
+		return t.datastore.MarkHostsSeen(ctx, hostIDs, now)
 	}
 
 	// no-op, flushing the hosts' last seen is done via the cron that runs the
@@ -72,6 +75,8 @@ func (t *Task) FlushHostsLastSeen(ctx context.Context, now time.Time) error {
 }
 
 func (t *Task) collectHostsLastSeen(ctx context.Context, ds fleet.Datastore, pool fleet.RedisPool, stats *collectorExecStats) error {
+	cfg := t.taskConfigs[config.AsyncTaskHostLastSeen]
+
 	hostIDs, err := t.loadSeenHostsIDs(ctx, pool)
 	if err != nil {
 		return err
@@ -85,8 +90,8 @@ func (t *Task) collectHostsLastSeen(ctx context.Context, ds fleet.Datastore, poo
 		// globally sort the host IDs so they are sent ordered as batches to MarkHostsSeen
 		sort.Slice(hostIDs, func(i, j int) bool { return hostIDs[i] < hostIDs[j] })
 
-		ts := t.Clock.Now()
-		batch := make([]uint, t.InsertBatch)
+		ts := t.clock.Now()
+		batch := make([]uint, cfg.InsertBatch)
 		for {
 			n := copy(batch, hostIDs)
 			if n == 0 {
@@ -110,11 +115,13 @@ func (t *Task) collectHostsLastSeen(ctx context.Context, ds fleet.Datastore, poo
 }
 
 func (t *Task) loadSeenHostsIDs(ctx context.Context, pool fleet.RedisPool) ([]uint, error) {
+	cfg := t.taskConfigs[config.AsyncTaskHostLastSeen]
+
 	// compute the TTL for the processing key just as we do for the storage key,
 	// in case the collection fails before removing the working key, we don't
 	// want it to stick around forever.
 	ttl := hostSeenKeysMinTTL
-	if maxTTL := 10 * t.CollectorInterval; maxTTL > ttl {
+	if maxTTL := 10 * cfg.CollectInterval; maxTTL > ttl {
 		ttl = maxTTL
 	}
 
@@ -141,7 +148,7 @@ func (t *Task) loadSeenHostsIDs(ctx context.Context, pool fleet.RedisPool) ([]ui
 	var ids []uint
 	cursor := 0
 	for {
-		res, err := redigo.Values(conn.Do("SSCAN", hostSeenProcessingHostIDsKey, cursor, "COUNT", t.RedisScanKeysCount))
+		res, err := redigo.Values(conn.Do("SSCAN", hostSeenProcessingHostIDsKey, cursor, "COUNT", cfg.RedisScanKeysCount))
 		if err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "scan seen host ids")
 		}

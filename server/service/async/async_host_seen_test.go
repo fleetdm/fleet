@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/WatchBeam/clock"
+	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
 	"github.com/fleetdm/fleet/v4/server/datastore/redis"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -143,14 +144,13 @@ func testCollectHostsLastSeen(t *testing.T, ds *mysql.Datastore, pool fleet.Redi
 
 			// run the collection
 			var stats collectorExecStats
-			task := Task{
-				Clock:              mockTime,
-				InsertBatch:        batchSizes,
-				UpdateBatch:        batchSizes,
-				DeleteBatch:        batchSizes,
-				RedisPopCount:      batchSizes,
-				RedisScanKeysCount: 10,
-			}
+			task := NewTask(nil, nil, mockTime, config.OsqueryConfig{
+				AsyncHostInsertBatch:        batchSizes,
+				AsyncHostUpdateBatch:        batchSizes,
+				AsyncHostDeleteBatch:        batchSizes,
+				AsyncHostRedisPopCount:      batchSizes,
+				AsyncHostRedisScanKeysCount: 10,
+			})
 			err := task.collectHostsLastSeen(ctx, ds, pool, &stats)
 			require.NoError(t, err)
 			require.Equal(t, wantStats, stats)
@@ -177,12 +177,7 @@ func testRecordHostLastSeenSync(t *testing.T, ds *mock.Store, pool fleet.RedisPo
 		return nil
 	}
 
-	task := Task{
-		Datastore:    ds,
-		Pool:         pool,
-		Clock:        clock.C,
-		AsyncEnabled: false,
-	}
+	task := NewTask(ds, pool, clock.C, config.OsqueryConfig{})
 	err := task.RecordHostLastSeen(ctx, 1)
 	require.NoError(t, err)
 	err = task.RecordHostLastSeen(ctx, 2)
@@ -219,15 +214,11 @@ func testRecordHostLastSeenAsync(t *testing.T, ds *mock.Store, pool fleet.RedisP
 		return nil
 	}
 
-	task := Task{
-		Datastore:    ds,
-		Pool:         pool,
-		AsyncEnabled: true,
-		Clock:        clock.C,
-
-		InsertBatch:        2,
-		RedisScanKeysCount: 10,
-	}
+	task := NewTask(ds, pool, clock.C, config.OsqueryConfig{
+		EnableAsyncHostProcessing:   "true",
+		AsyncHostInsertBatch:        2,
+		AsyncHostRedisScanKeysCount: 10,
+	})
 
 	err := task.RecordHostLastSeen(ctx, 1)
 	require.NoError(t, err)
