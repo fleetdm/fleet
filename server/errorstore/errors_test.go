@@ -114,11 +114,13 @@ func TestHashErrFleetError(t *testing.T) {
 
 	t.Run("HashNew", func(t *testing.T) {
 		err := alwaysFleetErrors()
-		werr0, werr1 := pkgErrors.Wrap(err, "wrap pkg"), fmt.Errorf("wrap fmt: %w", err)
+		werr := ctxerr.Wrap(ctx, err, "wrap ctxterr")
+		werr1, werr2 := pkgErrors.Wrap(err, "wrap pkg"), fmt.Errorf("wrap fmt: %w", err)
 		wantHash := hashError(err)
-		h0, h1 := hashError(werr0), hashError(werr1)
+		h0, h1, h2 := hashError(werr), hashError(werr1), hashError(werr2)
 		assert.Equal(t, wantHash, h0)
 		assert.Equal(t, wantHash, h1)
+		assert.Equal(t, wantHash, h2)
 	})
 
 	t.Run("HashSameRootDifferentLocation", func(t *testing.T) {
