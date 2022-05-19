@@ -18,6 +18,9 @@ import (
 	"fmt"
 	"strings"
 	"time"
+
+	"github.com/fleetdm/fleet/v4/server/contexts/host"
+	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 )
 
 type key int
@@ -76,8 +79,25 @@ func setMetadata(ctx context.Context, data map[string]interface{}) map[string]in
 		data = map[string]interface{}{}
 	}
 
-	// TODO: add more metadata from ctx
 	data["timestamp"] = nowFn().Format(time.RFC3339)
+
+	if h, ok := host.FromContext(ctx); ok {
+		data["host"] = map[string]interface{}{
+			"platform":        h.Platform,
+			"osquery_version": h.OsqueryVersion,
+		}
+	}
+
+	if v, ok := viewer.FromContext(ctx); ok {
+		vdata := map[string]interface{}{}
+		data["viewer"] = vdata
+		vdata["is_logged_in"] = v.IsLoggedIn()
+
+		if v.User != nil {
+			vdata["sso_enabled"] = v.User.SSOEnabled
+		}
+	}
+
 	return data
 }
 
