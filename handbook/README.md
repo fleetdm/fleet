@@ -212,6 +212,8 @@ The Fleet handbook is the central guide for how we run the company. As part of o
 
 [PeopleOps](./people.md#people-ops)
 
+[Weekly updates](./people.md#weekly-updates)
+
 [Rituals](./people.md#rituals)
 
 [Slack channels](./people.md#slack-channels)
