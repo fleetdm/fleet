@@ -733,7 +733,8 @@ GROUP BY
 	for _, sc := range softwareCVEs {
 		for _, cve := range strings.Split(sc.CVEs, ",") {
 			sc.Vulnerabilities = append(sc.Vulnerabilities, fleet.CVE{
-				CVE: cve,
+				CVE:         cve,
+				DetailsLink: fmt.Sprintf("https://nvd.nist.gov/vuln/detail/%s", cve),
 			})
 		}
 		software = append(software, fleet.SoftwareWithCPE{
