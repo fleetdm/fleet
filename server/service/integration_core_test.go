@@ -4594,6 +4594,14 @@ func (s *integrationTestSuite) TestDeviceAuthenticatedEndpoints() {
 	// get macadmins for invalid token
 	res = s.DoRawNoAuth("GET", "/api/latest/fleet/device/no_such_token/macadmins", nil, http.StatusUnauthorized)
 	res.Body.Close()
+
+	// response includes license info
+	getHostResp = getDeviceHostResponse{}
+	res = s.DoRawNoAuth("GET", "/api/latest/fleet/device/"+token, nil, http.StatusOK)
+	json.NewDecoder(res.Body).Decode(&getHostResp)
+	res.Body.Close()
+	require.NotNil(t, getHostResp.License)
+	require.Equal(t, getHostResp.License.Tier, "free")
 }
 
 func (s *integrationTestSuite) TestModifyUser() {

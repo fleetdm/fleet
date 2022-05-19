@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/fleetdm/fleet/v4/server"
+	authz_ctx "github.com/fleetdm/fleet/v4/server/contexts/authz"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -128,8 +129,10 @@ func cleanupURL(url string) string {
 }
 
 func (svc *Service) License(ctx context.Context) (*fleet.LicenseInfo, error) {
-	if err := svc.authz.Authorize(ctx, &fleet.AppConfig{}, fleet.ActionRead); err != nil {
-		return nil, err
+	if !svc.authz.IsAuthenticatedWith(ctx, authz_ctx.AuthnDeviceToken) {
+		if err := svc.authz.Authorize(ctx, &fleet.AppConfig{}, fleet.ActionRead); err != nil {
+			return nil, err
+		}
 	}
 
 	return &svc.license, nil
