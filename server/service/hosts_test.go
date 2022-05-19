@@ -43,7 +43,7 @@ func TestHostDetails(t *testing.T) {
 	ds.ListPacksForHostFunc = func(ctx context.Context, hid uint) ([]*fleet.Pack, error) {
 		return expectedPacks, nil
 	}
-	ds.LoadHostSoftwareFunc = func(ctx context.Context, host *fleet.Host, opts *fleet.SoftwareListOptions) error {
+	ds.LoadHostSoftwareFunc = func(ctx context.Context, host *fleet.Host, opts fleet.SoftwareListOptions) error {
 		return nil
 	}
 	ds.ListPoliciesForHostFunc = func(ctx context.Context, host *fleet.Host) ([]*fleet.HostPolicy, error) {
@@ -87,7 +87,7 @@ func TestHostAuth(t *testing.T) {
 	ds.ListHostsFunc = func(ctx context.Context, filter fleet.TeamFilter, opt fleet.HostListOptions) ([]*fleet.Host, error) {
 		return nil, nil
 	}
-	ds.LoadHostSoftwareFunc = func(ctx context.Context, host *fleet.Host, opts *fleet.SoftwareListOptions) error {
+	ds.LoadHostSoftwareFunc = func(ctx context.Context, host *fleet.Host, opts fleet.SoftwareListOptions) error {
 		return nil
 	}
 	ds.ListLabelsForHostFunc = func(ctx context.Context, hid uint) ([]*fleet.Label, error) {

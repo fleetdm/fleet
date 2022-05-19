@@ -341,7 +341,7 @@ type Datastore interface {
 	// SoftwareStore
 
 	ListSoftwareVulnerabilities(ctx context.Context, hostID uint) ([]SoftwareVulnerability, error)
-	LoadHostSoftware(ctx context.Context, host *Host, opts *SoftwareListOptions) error
+	LoadHostSoftware(ctx context.Context, host *Host, opts SoftwareListOptions) error
 	AllSoftwareWithoutCPEIterator(ctx context.Context) (SoftwareIterator, error)
 	AddCPEForSoftware(ctx context.Context, software Software, cpe string) error
 	AllCPEs(ctx context.Context, excludedPlatforms []string) ([]string, error)

@@ -516,12 +516,8 @@ func loadCVEsBySoftware(
 	return cvesBySoftware, nil
 }
 
-func (ds *Datastore) LoadHostSoftware(ctx context.Context, host *fleet.Host, opts *fleet.SoftwareListOptions) error {
-	listOpts := fleet.SoftwareListOptions{}
-	if opts != nil {
-		listOpts = *opts
-	}
-	software, err := listSoftwareDB(ctx, ds.reader, &host.ID, listOpts)
+func (ds *Datastore) LoadHostSoftware(ctx context.Context, host *fleet.Host, opts fleet.SoftwareListOptions) error {
+	software, err := listSoftwareDB(ctx, ds.reader, &host.ID, opts)
 	if err != nil {
 		return err
 	}

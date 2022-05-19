@@ -1900,8 +1900,8 @@ func testHostsListBySoftware(t *testing.T, ds *Datastore) {
 	require.NoError(t, ds.UpdateHostSoftware(context.Background(), host1.ID, software))
 	require.NoError(t, ds.UpdateHostSoftware(context.Background(), host2.ID, software))
 
-	require.NoError(t, ds.LoadHostSoftware(context.Background(), host1, nil))
-	require.NoError(t, ds.LoadHostSoftware(context.Background(), host2, nil))
+	require.NoError(t, ds.LoadHostSoftware(context.Background(), host1, fleet.SoftwareListOptions{}))
+	require.NoError(t, ds.LoadHostSoftware(context.Background(), host2, fleet.SoftwareListOptions{}))
 
 	hosts = listHostsCheckCount(t, ds, filter, fleet.HostListOptions{SoftwareIDFilter: &host1.Software[0].ID}, 2)
 	require.Len(t, hosts, 2)

@@ -46,7 +46,7 @@ func Analyze(
 				VulnerableOnly:  false,
 				WithHostCounts:  false,
 			}
-			err := ds.LoadHostSoftware(ctx, &h, &opts)
+			err := ds.LoadHostSoftware(ctx, &h, opts)
 			if err != nil {
 				return nil, err
 			}
