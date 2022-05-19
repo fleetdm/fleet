@@ -288,6 +288,8 @@ type HostsByCPEsFunc func(ctx context.Context, cpes []string) ([]*fleet.HostShor
 
 type HostsByCVEFunc func(ctx context.Context, cve string) ([]*fleet.HostShort, error)
 
+type InsertCVEScoresFunc func(ctx context.Context, cveScores []fleet.CVEScore) error
+
 type NewActivityFunc func(ctx context.Context, user *fleet.User, activityType string, details *map[string]interface{}) error
 
 type ListActivitiesFunc func(ctx context.Context, opt fleet.ListOptions) ([]*fleet.Activity, error)
@@ -814,6 +816,9 @@ type DataStore struct {
 
 	HostsByCVEFunc        HostsByCVEFunc
 	HostsByCVEFuncInvoked bool
+
+	InsertCVEScoresFunc        InsertCVEScoresFunc
+	InsertCVEScoresFuncInvoked bool
 
 	NewActivityFunc        NewActivityFunc
 	NewActivityFuncInvoked bool
@@ -1672,6 +1677,11 @@ func (s *DataStore) HostsByCPEs(ctx context.Context, cpes []string) ([]*fleet.Ho
 func (s *DataStore) HostsByCVE(ctx context.Context, cve string) ([]*fleet.HostShort, error) {
 	s.HostsByCVEFuncInvoked = true
 	return s.HostsByCVEFunc(ctx, cve)
+}
+
+func (s *DataStore) InsertCVEScores(ctx context.Context, cveScores []fleet.CVEScore) error {
+	s.InsertCVEScoresFuncInvoked = true
+	return s.InsertCVEScoresFunc(ctx, cveScores)
 }
 
 func (s *DataStore) NewActivity(ctx context.Context, user *fleet.User, activityType string, details *map[string]interface{}) error {

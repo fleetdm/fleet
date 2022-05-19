@@ -12,7 +12,7 @@ func init() {
 
 func Up_20220503134048(tx *sql.Tx) error {
 	_, err := tx.Exec(`
-CREATE TABLE cves (
+CREATE TABLE cve_scores (
     cve varchar(20) PRIMARY KEY,
     cvss_score double,
     epss_probability double,

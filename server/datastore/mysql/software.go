@@ -473,7 +473,7 @@ func selectSoftwareSQL(opts fleet.SoftwareListOptions) (string, []interface{}, e
 	if opts.IncludeCVEScores {
 		ds = ds.
 			LeftJoin(
-				goqu.I("cves").As("c"),
+				goqu.I("cve_scores").As("c"),
 				goqu.On(goqu.I("c.cve").Eq(goqu.I("scv.cve"))),
 			).
 			SelectAppend(
@@ -519,11 +519,11 @@ func selectSoftwareSQL(opts fleet.SoftwareListOptions) (string, []interface{}, e
 		"generated_cpe",
 	)
 
-	// Pagination is a bit more complex here due to left join with software_cve table and aggregated columns from cves table.
+	// Pagination is a bit more complex here due to left join with software_cve table and aggregated columns from cve_scores table.
 	// Apply order by again after joining on sub query
 	ds = appendListOptionsToSelect(ds, opts.ListOptions)
 
-	// join on software_cve and cves after apply pagination using the sub-query above
+	// join on software_cve and cve_scores after apply pagination using the sub-query above
 	ds = dialect.From(ds.As("s")).
 		Select(
 			"s.id",
@@ -543,7 +543,7 @@ func selectSoftwareSQL(opts fleet.SoftwareListOptions) (string, []interface{}, e
 			goqu.On(goqu.I("scv.cpe_id").Eq(goqu.I("s.cpe_id"))),
 		).
 		LeftJoin(
-			goqu.I("cves").As("c"),
+			goqu.I("cve_scores").As("c"),
 			goqu.On(goqu.I("c.cve").Eq(goqu.I("scv.cve"))),
 		)
 
@@ -792,7 +792,7 @@ func (ds *Datastore) SoftwareByID(ctx context.Context, id uint, includeCVEScores
 	if includeCVEScores {
 		q = q.
 			LeftJoin(
-				goqu.I("cves").As("c"),
+				goqu.I("cve_scores").As("c"),
 				goqu.On(goqu.I("c.cve").Eq(goqu.I("scv.cve"))),
 			).
 			SelectAppend(
@@ -1028,21 +1028,38 @@ ORDER BY
 	return hosts, nil
 }
 
-func (ds *Datastore) NewCVE(ctx context.Context, cve *fleet.CVE) (*fleet.CVE, error) {
+func (ds *Datastore) InsertCVEScores(ctx context.Context, cveScores []fleet.CVEScore) error {
 	query := `
-INSERT INTO cves (
-    cve,
-    cvss_score,
-    epss_probability,
-    cisa_known_exploit
-)
-VALUES
-    (?, ?, ?, ?)
+INSERT INTO cve_scores (cve, cvss_score, epss_probability, cisa_known_exploit)
+VALUES %s
+ON DUPLICATE KEY UPDATE
+    cvss_score = VALUES(cvss_score),
+    epss_probability = VALUES(epss_probability),
+    cisa_known_exploit = VALUES(cisa_known_exploit)
 `
 
-	_, err := ds.writer.ExecContext(ctx, query, cve.CVE, cve.CVSSScore, cve.EPSSProbability, cve.CISAKnownExploit)
-	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "create new cve")
+	batchSize := 500
+	for i := 0; i < len(cveScores); i += batchSize {
+		end := i + batchSize
+		if end > len(cveScores) {
+			end = len(cveScores)
+		}
+
+		batch := cveScores[i:end]
+
+		valuesFrag := strings.TrimSuffix(strings.Repeat("(?, ?, ?, ?), ", len(batch)), ", ")
+		var args []interface{}
+		for _, score := range batch {
+			args = append(args, score.CVE, score.CVSSScore, score.EPSSProbability, score.CISAKnownExploit)
+		}
+
+		query := fmt.Sprintf(query, valuesFrag)
+
+		_, err := ds.writer.ExecContext(ctx, query, args...)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "insert cve scores")
+		}
 	}
-	return cve, nil
+
+	return nil
 }

@@ -382,12 +382,12 @@ func testSoftwareNothingChanged(t *testing.T, ds *Datastore) {
 	}
 }
 
-func generateCVE(n int) fleet.CVE {
+func generateCVEScore(n int) fleet.CVEScore {
 	CVEID := fmt.Sprintf("CVE-2022-%05d", n)
-	cvssScore := ptr.Float64Ptr(rand.Float64() * 10)
-	epssProbability := ptr.Float64Ptr(rand.Float64())
-	cisaKnownExploit := ptr.BoolPtr(rand.Intn(2) == 1)
-	return fleet.CVE{
+	cvssScore := ptr.Float64(rand.Float64() * 10)
+	epssProbability := ptr.Float64(rand.Float64())
+	cisaKnownExploit := rand.Intn(2) == 1
+	return fleet.CVEScore{
 		CVE:              CVEID,
 		CVSSScore:        cvssScore,
 		EPSSProbability:  epssProbability,
@@ -413,25 +413,19 @@ func testSoftwareLoadSupportsTonsOfCVEs(t *testing.T, ds *Datastore) {
 	somecpeID, err := addCPEForSoftwareDB(context.Background(), ds.writer, host.Software[0], "somecpe")
 	require.NoError(t, err)
 
-	var cves []fleet.CVE
+	var cveScores []fleet.CVEScore
 	for i := 0; i < 1000; i++ {
-		cves = append(cves, generateCVE(i))
+		cveScores = append(cveScores, generateCVEScore(i))
 	}
 
-	values := strings.TrimSuffix(strings.Repeat("(?, ?), ", len(cves)), ", ")
-	query := `INSERT INTO software_cve (cpe_id, cve) VALUES ` + values
-	var args []interface{}
-	for _, cve := range cves {
-		args = append(args, somecpeID, cve.CVE)
-	}
-	_, err = ds.writer.ExecContext(context.Background(), query, args...)
+	err = ds.InsertCVEScores(context.Background(), cveScores)
 	require.NoError(t, err)
 
-	values = strings.TrimSuffix(strings.Repeat("(?, ?, ?, ?), ", len(cves)), ", ")
-	query = `INSERT INTO cves (cve, cvss_score, epss_probability, cisa_known_exploit) VALUES ` + values
-	args = nil
-	for _, cve := range cves {
-		args = append(args, cve.CVE, cve.CVSSScore, cve.EPSSProbability, cve.CISAKnownExploit)
+	values := strings.TrimSuffix(strings.Repeat("(?, ?), ", len(cveScores)), ", ")
+	query := `INSERT INTO software_cve (cpe_id, cve) VALUES ` + values
+	var args []interface{}
+	for _, cve := range cveScores {
+		args = append(args, somecpeID, cve.CVE)
 	}
 	_, err = ds.writer.ExecContext(context.Background(), query, args...)
 	require.NoError(t, err)
@@ -496,30 +490,27 @@ func testSoftwareList(t *testing.T, ds *Datastore) {
 	_, err = ds.InsertCVEForCPE(context.Background(), "CVE-2022-0003", []string{"somecpe2"})
 	require.NoError(t, err)
 
-	cve1 := fleet.CVE{
-		CVE:             "CVE-2022-0001",
-		CVSSScore:       ptr.Float64Ptr(2.0),
-		EPSSProbability: ptr.Float64Ptr(0.01),
+	scores := []fleet.CVEScore{
+		{
+			CVE:             "CVE-2022-0001",
+			CVSSScore:       ptr.Float64(2.0),
+			EPSSProbability: ptr.Float64(0.01),
+		},
+		{
+			CVE:             "CVE-2022-0002",
+			CVSSScore:       ptr.Float64(1.0),
+			EPSSProbability: ptr.Float64(0.99),
+		},
+		{
+			CVE:              "CVE-2022-0003",
+			CVSSScore:        ptr.Float64(3.0),
+			EPSSProbability:  ptr.Float64(0.98),
+			CISAKnownExploit: true,
+		},
 	}
-	cve2 := fleet.CVE{
-		CVE:             "CVE-2022-0002",
-		CVSSScore:       ptr.Float64Ptr(1.0),
-		EPSSProbability: ptr.Float64Ptr(0.99),
-	}
-	cve3 := fleet.CVE{
-		CVE:              "CVE-2022-0003",
-		CVSSScore:        ptr.Float64Ptr(3.0),
-		EPSSProbability:  ptr.Float64Ptr(0.98),
-		CISAKnownExploit: ptr.BoolPtr(true),
-	}
-	_, err = ds.NewCVE(context.Background(), &cve1)
-	require.NoError(t, err)
-	_, err = ds.NewCVE(context.Background(), &cve2)
-	require.NoError(t, err)
-	_, err = ds.NewCVE(context.Background(), &cve3)
+	err = ds.InsertCVEScores(context.Background(), scores)
 	require.NoError(t, err)
 
-	var cisaKnownExploit *bool
 	foo001 := fleet.Software{
 		Name:        "foo",
 		Version:     "0.0.1",
@@ -531,14 +522,14 @@ func testSoftwareList(t *testing.T, ds *Datastore) {
 				DetailsLink:      "https://nvd.nist.gov/vuln/detail/CVE-2022-0001",
 				CVSSScore:        ptr.Float64Ptr(2.0),
 				EPSSProbability:  ptr.Float64Ptr(0.01),
-				CISAKnownExploit: &cisaKnownExploit,
+				CISAKnownExploit: ptr.BoolPtr(false),
 			},
 			{
 				CVE:              "CVE-2022-0002",
 				DetailsLink:      "https://nvd.nist.gov/vuln/detail/CVE-2022-0002",
 				CVSSScore:        ptr.Float64Ptr(1.0),
 				EPSSProbability:  ptr.Float64Ptr(0.99),
-				CISAKnownExploit: &cisaKnownExploit,
+				CISAKnownExploit: ptr.BoolPtr(false),
 			},
 		},
 	}

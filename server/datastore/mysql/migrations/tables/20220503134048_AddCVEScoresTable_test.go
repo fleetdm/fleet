@@ -12,7 +12,7 @@ func TestUp_20220503134048(t *testing.T) {
 	applyNext(t, db)
 
 	query := `
-INSERT INTO cves (
+INSERT INTO cve_scores (
     cve,
     cvss_score,
     epss_probability,

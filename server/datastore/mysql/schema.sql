@@ -71,7 +71,7 @@ CREATE TABLE `carve_metadata` (
 /*!40101 SET character_set_client = @saved_cs_client */;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!40101 SET character_set_client = utf8 */;
-CREATE TABLE `cves` (
+CREATE TABLE `cve_scores` (
   `cve` varchar(20) NOT NULL,
   `cvss_score` double DEFAULT NULL,
   `epss_probability` double DEFAULT NULL,
