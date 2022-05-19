@@ -35,7 +35,7 @@ We made an iterative improvement to Fleet UI’s live query console to help user
 - Fixed up various misalignments, wonky hover states, and other styling hiccups in Fleet UI.
 
 <meta name="category" value="releases">
-<meta name="authorFullName" value="Fleet">
+<meta name="authorFullName" value="Mike Thomas">
 <meta name="authorGitHubUsername" value="mike-j-thomas">
 <meta name="publishedOn" value="2022-03-25">
 <meta name="articleTitle" value="Fleet 4.12.0 | Platform-specific policies, and improved query results">
