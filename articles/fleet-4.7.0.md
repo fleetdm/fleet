@@ -85,7 +85,7 @@ And we fixed some bugs that were affecting the overall user experience of Fleet 
 Visit our [update guide](https://fleetdm.com/docs/using-fleet/updating-fleet) in the Fleet docs for instructions on updating to Fleet 4.7.0.
 
 <meta name="category" value="releases">
-<meta name="authorFullName" value="Fleet">
+<meta name="authorFullName" value="Mike Thomas">
 <meta name="authorGitHubUsername" value="fleetdm">
 <meta name="publishedOn" value="2021-12-14">
 <meta name="articleTitle" value="Does Fleet 4.7.0 bring more power to your osquery compliance policies? Yes.">
