@@ -59,7 +59,7 @@ Visit our [upgrade guide](https://fleetdm.com/docs/using-fleet/updating-fleet) i
 
 <meta name="category" value="releases">
 <meta name="authorFullName" value="Drew Baker">
-<meta name="authorGitHubUsername" value="fleetdm">
+<meta name="authorGitHubUsername" value="DrewBakerfdm">
 <meta name="publishedOn" value="2021-12-31">
 <meta name="articleTitle" value="Looking for policy automations, Google Chrome profile search, and Munki details from your hosts? Upgrade to Fleet 4.8.0">
 <meta name="articleImageUrl" value="../website/assets/images/articles/fleet-4.8.0-cover-700x393@2x.png">
