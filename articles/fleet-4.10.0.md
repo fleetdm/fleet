@@ -61,7 +61,7 @@ MDM enrollment data is only available on macOS and will expand to Windows and Li
 Visit our [upgrade guide](https://fleetdm.com/docs/deploying/upgrading-fleet) in the Fleet docs for instructions on updating to Fleet 4.10.0
 
 <meta name="category" value="releases">
-<meta name="authorFullName" value="Fleet">
+<meta name="authorFullName" value="Mike Thomas">
 <meta name="authorGitHubUsername" value="fleetdm">
 <meta name="publishedOn" value="2022-02-14">
 <meta name="articleTitle" value="Fleet 4.10.0 brings new features and improvements for vulnerability analysts.">
