@@ -59,7 +59,7 @@ Visit our [upgrade guide](https://fleetdm.com/docs/using-fleet/updating-fleet) i
 
 <meta name="category" value="releases">
 <meta name="authorFullName" value="Mike Thomas">
-<meta name="authorGitHubUsername" value="fleetdm">
+<meta name="authorGitHubUsername" value="mike-j-thomas">
 <meta name="publishedOn" value="2022-01-24">
 <meta name="articleTitle" value="Fleet 4.9.0 brings performance updates, paginated live query results, and policy YAML doc support.">
 <meta name="articleImageUrl" value="../website/assets/images/articles/fleet-4.9.0-cover-700x393@2x.png">
