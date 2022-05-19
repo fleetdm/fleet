@@ -1,6 +1,9 @@
 package fleet
 
-import "time"
+import (
+	"fmt"
+	"time"
+)
 
 type SoftwareCVE struct {
 	CVE         string `json:"cve" db:"cve"`
@@ -97,6 +100,11 @@ type SoftwareVulnerability struct {
 	CPE   string `db:"cpe"`
 	CPEID uint   `db:"cpe_id"`
 	CVE   string `db:"cve"`
+}
+
+// String implements fmt.Stringer.
+func (sv SoftwareVulnerability) String() string {
+	return fmt.Sprintf("{%d,%s}", sv.CPEID, sv.CVE)
 }
 
 // SoftwareWithCPE holds a software piece alongside its CPE ID.

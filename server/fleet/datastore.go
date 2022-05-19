@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"fmt"
 	"time"
 )
 
@@ -596,11 +595,6 @@ const (
 	// UnknownMigrations means some unidentified migrations were detected on the database.
 	UnknownMigrations
 )
-
-// String implements fmt.Stringer.
-func (sv SoftwareVulnerability) String() string {
-	return fmt.Sprintf("{%d,%s}", sv.CPEID, sv.CVE)
-}
 
 // NotFoundError is returned when the datastore resource cannot be found.
 type NotFoundError interface {
