@@ -18,6 +18,7 @@ export interface ILoadHostsOptions {
   policyId?: number;
   policyResponse?: string;
   softwareId?: number;
+  columns?: string;
 }
 
 export type ILoadHostDetailsExtension = "device_mapping" | "macadmins";
@@ -59,6 +60,7 @@ export default {
     const policyId = options?.policyId || null;
     const policyResponse = options?.policyResponse || null;
     const softwareId = options?.softwareId || null;
+    const columns = options?.columns || null;
 
     let orderKeyParam = "";
     let orderDirection = "";
@@ -129,6 +131,7 @@ export default {
     const policyId = options?.policyId || null;
     const policyResponse = options?.policyResponse || null;
     const softwareId = options?.softwareId || null;
+    const columns = options?.columns || null;
 
     // TODO: add this query param logic to client class
     const pagination = `page=${page}&per_page=${perPage}`;
@@ -185,6 +188,10 @@ export default {
     // TODO: consider how to check for mutually exclusive scenarios with label, policy and software
     if (!label && !policyId && softwareId) {
       path += `&software_id=${softwareId}`;
+    }
+
+    if (columns) {
+      path += `&columns=${columns}`;
     }
 
     return sendRequest("GET", path);
