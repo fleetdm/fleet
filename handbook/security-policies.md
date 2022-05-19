@@ -45,7 +45,7 @@ Fleet requires all workforce members to comply with the following acceptable use
 
 13. The use of Fleet company accounts on "shared" computers, such as hotel kiosk systems, is strictly prohibited.
 
-### Access control policy
+## Access control policy
 *Created from [JupiterOne/security-policy-templates](https://github.com/JupiterOne/security-policy-templates). [CC BY-SA 4 license](https://creativecommons.org/licenses/by-sa/4.0/)*
 
 | Policy owner   | Effective date |
@@ -70,7 +70,7 @@ Fleet requires all workforce members to comply with the following acceptable use
 
 8. Authenticated sessions must time out after a defined period of inactivity.
 
-#### Access authorization and termination
+### Access authorization and termination
 
 Fleet policy requires that:
 
@@ -86,7 +86,7 @@ Fleet policy requires that:
 
 6. all system access must be reviewed at least annually and whenever a user's job role changes.
 
-#### Shared secrets management
+### Shared secrets management
 
 Fleet policy requires that:
 
@@ -94,7 +94,7 @@ Fleet policy requires that:
 
 2. if required by business operations, secrets/credentials must be shared securely and stored in encrypted vaults that meet the Fleet data encryption standards.
 
-#### Privileged access management
+### Privileged access management
 
 Fleet policy requires that:
 
@@ -102,7 +102,7 @@ Fleet policy requires that:
 
 2. use of high privilege accounts must only be performed when absolutely necessary.
 
-### Asset management policy
+## Asset management policy
 *Created from [JupiterOne/security-policy-templates](https://github.com/JupiterOne/security-policy-templates). [CC BY-SA 4 license](https://creativecommons.org/licenses/by-sa/4.0/)*
 
 | Policy owner   | Effective date |
@@ -119,7 +119,7 @@ Fleet policy requires that:
 
 3. All company-owned computer purchases must be tracked.
 
-### Business continuity and disaster recovery policy
+## Business continuity and disaster recovery policy
 *Created from [JupiterOne/security-policy-templates](https://github.com/JupiterOne/security-policy-templates). [CC BY-SA 4 license](https://creativecommons.org/licenses/by-sa/4.0/)*
 
 | Policy owner   | Effective date |
@@ -136,13 +136,13 @@ Fleet policy requires that:
 
 3. Security controls and requirements will be maintained during all BCDR activities.
 
-#### Business continuity plan
+### Business continuity plan
 
-##### Line of Succession
+#### Line of Succession
 
 The following order of succession to ensure that decision-making authority for the Fleet Contingency Plan is uninterrupted. The Chief Operating Officer (CEO) is responsible for ensuring the safety of personnel and the execution of procedures documented within this Fleet Contingency Plan. The CTO is responsible for the recovery of Fleet technical environments. If the CEO or Head of Engineering is unable to function as the overall authority or chooses to delegate this responsibility to a successor, the board of directors shall function as that authority or choose an alternative delegate. 
 
-##### Response Teams and Responsibilities
+### Response Teams and Responsibilities
 
 The following teams have been developed and trained to respond to a contingency event affecting Fleet infrastructure and systems.
 
@@ -158,9 +158,9 @@ All executive leadership shall be informed of any and all contingency events.
 
 Current members of Fleet continuity leadership team include the Head of Security, CEO, CTO.
 
-##### General Disaster Recovery Procedures
+### General Disaster Recovery Procedures
 
-##### Notification and Activation Phase
+#### Notification and Activation Phase
 
 This phase addresses the initial actions taken to detect and assess damage inflicted by a disruption to Fleet Device Management or the Fleet automatic updater service. Based on the assessment of the Event, sometimes according to the Fleet Incident Response Policy, the Contingency Plan may be activated by either the CEO or CTO.  The Contingency Plan may also be activated by the Head of Security in the event of a cyber disaster.
 
@@ -181,7 +181,7 @@ The notification sequence is listed below:
 * Notification can be Slack, email, or phone.
 * The CTO posts a blog post explaining that the service is down and that recovery is in progress.
 
-##### Reconstitution Phase
+#### Reconstitution Phase
 
 This section discusses activities necessary for restoring full Fleet automatic updater service operations at the original or new site. The goal is to restore full operations within 24 hours of a disaster or outage. The goal is to provide a seamless transition of operations.
 
@@ -196,11 +196,11 @@ This section discusses activities necessary for restoring full Fleet automatic u
 9. Update DNS and other necessary records to point to new environment - DevOps
 10. Update Partners and Customers affected through established channels - DevOps
 
-###### Plan Deactivation
+#### Plan Deactivation
 
 If the Fleet automatic updater environment has been restored, the continuity plan can be deactivated. If the disaster impacted the company and not the service, or both, ensure that any leftover systems created temporarily are destroyed.
 
-### Data management policy
+## Data management policy
 *Created from [JupiterOne/security-policy-templates](https://github.com/JupiterOne/security-policy-templates). [CC BY-SA 4 license](https://creativecommons.org/licenses/by-sa/4.0/)*
 
 This policy outlines the requirements and controls/procedures Fleet has implemented to manage the end-to-end data lifecycle, from data creation/acquisition to retention and deletion.
@@ -229,7 +229,7 @@ Fleet policy requires that:
 
 7. By default, all security documentation and audit trails are kept for a minimum of seven years, unless otherwise specified by Fleet data classification, specific regulations or contractual agreement.
 
-#### Data Classification Model
+### Data Classification Model
 
 Fleet defines the following four classifications of data:
 
@@ -240,7 +240,7 @@ Fleet defines the following four classifications of data:
 
 As Fleet is an open company by default, most of our data falls into **public**.
 
-##### Definitions and Examples
+#### Definitions and Examples
 
 **Critical** data includes data that must be protected due to regulatory requirements, privacy, and/or security sensitivities.
 
@@ -309,7 +309,7 @@ N/R = Not Required
 Most Fleet data is **public** yet retained and backed up not due to our data handling requirements but simply due to business requirements.
 
 
-### Encryption policy
+## Encryption policy
 *Created from [JupiterOne/security-policy-templates](https://github.com/JupiterOne/security-policy-templates). [CC BY-SA 4 license](https://creativecommons.org/licenses/by-sa/4.0/)*
 
 | Policy owner   | Effective date |
@@ -330,11 +330,11 @@ Fleet requires all workforce members to comply with the encryption policy, such 
 
 6. Data is protected in transit using recent TLS versions with ciphers recognized as secure.
 
-#### Local disk/volume encryption
+### Local disk/volume encryption
 
 Encryption and key management for local disk encryption of end-user devices follow the defined best practices for Windows, macOS, and Linux/Unix operating systems, such as Bitlocker and FileVault. 
 
-#### Protecting data in transit
+### Protecting data in transit
 
 1. All external data transmission is encrypted end-to-end. This includes, but is not limited to, cloud infrastructure and third-party vendors and applications.
 
@@ -344,7 +344,7 @@ Encryption and key management for local disk encryption of end-user devices foll
 
 4. Transmission encryption keys are limited to use for one year and then must be regenerated.
 
-### Human resources security policy
+## Human resources security policy
 *Created from [JupiterOne/security-policy-templates](https://github.com/JupiterOne/security-policy-templates). [CC BY-SA 4 license](https://creativecommons.org/licenses/by-sa/4.0/)*
 
 | Policy owner   | Effective date |
@@ -381,7 +381,7 @@ Fleet policy requires that:
 11. Background checks of an employee or contractor must be performed by operations and/or the hiring team prior to the start date of employment.
  
 
-### Incident response policy
+## Incident response policy
 *Created from [JupiterOne/security-policy-templates](https://github.com/JupiterOne/security-policy-templates). [CC BY-SA 4 license](https://creativecommons.org/licenses/by-sa/4.0/). Based on the SANS incident response process.*
 
 Fleet policy requires that:
@@ -391,8 +391,8 @@ Fleet policy requires that:
 3. Incident response procedures are invoked upon discovery of a valid security incident.
 4. Incident response team and management must comply with any additional requests by law enforcement in the event of criminal investigation or national security, including but not limited to warranted data requests, subpoenas, and breach notifications.
 
-#### Incident response plan
-##### Security Incident Response Team (SIRT)
+### Incident response plan
+#### Security Incident Response Team (SIRT)
 
 The Security Incident Response Team (SIRT) is responsible for:
 
@@ -406,7 +406,7 @@ Current members of the Fleet SIRT:
 * CTO
 * CEO
 
-##### Incident Management Process
+#### Incident Management Process
 Fleet's incident response classifies security-related events into the following categories:
 
 * **Events** - Any observable computer security-related occurrence in a system
@@ -454,7 +454,7 @@ as soon as they are discovered.
 
 Incidents of a severity/impact rating higher than **MINOR** shall trigger the response process.
 
-###### I - Identification and Triage
+#### I - Identification and Triage
 
 1. Immediately upon observation Fleet members report suspected and known
    Events, Precursors, Indications, and Incidents in one of the following ways:
@@ -519,7 +519,7 @@ Incidents of a severity/impact rating higher than **MINOR** shall trigger the re
    investigate and involve necessary resources, both internal to Fleet and
    potentially external.
 
-###### II - Containment (Technical)
+#### II - Containment (Technical)
 
 In this Phase, Fleet's engineers and security team attempts to contain the
 security incident. It is extremely important to take detailed notes during the
@@ -557,7 +557,7 @@ appropriate.
 6. Continue to notify affected Customers and Partners with relevant updates as
    needed.
 
-###### III - Eradication (Technical)
+#### III - Eradication (Technical)
 
 The Eradication Phase represents the SIRT's effort to remove the cause, and the
 resulting security exposures, that are now on the affected system(s).
@@ -590,7 +590,7 @@ resulting security exposures, that are now on the affected system(s).
    needed.
 8. Move to Phase IV, Recovery.
 
-###### IV - Recovery (Technical)
+#### IV - Recovery (Technical)
 
 The Recovery Phase represents the SIRT's effort to restore the affected
 system(s) back to operation after the resulting security exposures, if any, have
@@ -617,7 +617,7 @@ been corrected.
        as needed.
     8. Move to Phase V, Follow-up.
 
-###### V - Post-Incident Analysis (Technical and Non-Technical)
+#### V - Post-Incident Analysis (Technical and Non-Technical)
 
 The Follow-up phase represents the review of the security incident to look for
 "lessons learned" and to determine whether the process that was taken could have
@@ -648,7 +648,7 @@ Timeframes may extend to one to two weeks post-incident.
    in Fleet Auditing requirements and Data Retention standards.
 4. Close the security incident.
 
-###### Periodic Evaluation
+#### Periodic Evaluation
 
 It is important to note that the processes surrounding security incident
 response should be periodically reviewed and evaluated for effectiveness. This
@@ -678,7 +678,7 @@ CTO                                             | Oversight over information sec
 | Head of people operations                       | Ensuring employees and contractors are qualified and competent for their roles<br/>  Ensuring appropriate testing and background checks are completed<br/>  Ensuring that employees and relevant contractors are presented with company policies <br/>  Ensuring that employee performance and adherence to values is evaluated<br/>  Ensuring that employees receive appropriate security training                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
 | Head of business operations                     | Responsible for oversight over third-party risk management process Responsible for review of vendor service contracts                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       |
 
-### Operations security and change management policy
+## Operations security and change management policy
 *Created from [JupiterOne/security-policy-templates](https://github.com/JupiterOne/security-policy-templates). [CC BY-SA 4 license](https://creativecommons.org/licenses/by-sa/4.0/)*
 
 | Policy owner   | Effective date |
@@ -699,7 +699,7 @@ Fleet policy requires that:
     The auto-approval criteria must be pre-approved by the Head of Security and
     fully documented and validated for each request.
 
-### Risk management policy
+## Risk management policy
 *Created from [JupiterOne/security-policy-templates](https://github.com/JupiterOne/security-policy-templates). [CC BY-SA 4 license](https://creativecommons.org/licenses/by-sa/4.0/)*
 
 | Policy owner   | Effective date |
@@ -715,7 +715,7 @@ Fleet policy requires that:
 3. Strategies shall be developed to mitigate or accept the risks identified in the risk assessment process.
 
 
-### Secure software development and product security policy 
+## Secure software development and product security policy 
 *Created from [JupiterOne/security-policy-templates](https://github.com/JupiterOne/security-policy-templates). [CC BY-SA 4 license](https://creativecommons.org/licenses/by-sa/4.0/)*
 
 Fleet policy requires that:
@@ -745,7 +745,7 @@ Fleet policy requires that:
 
 10. Any exception to the remediation of a finding must be documented and approved by the security team or CTO.
 
-### Security policy management policy
+## Security policy management policy
 *Created from [JupiterOne/security-policy-templates](https://github.com/JupiterOne/security-policy-templates). [CC BY-SA 4 license](https://creativecommons.org/licenses/by-sa/4.0/)*
 
 | Policy owner   | Effective date |
@@ -777,7 +777,7 @@ Fleet policy requires that:
     of exception approval and it must be reviewed and re-evaluated on or before
     the expiration date.
 
-### Third-party management policy
+## Third-party management policy
 *Created from [JupiterOne/security-policy-templates](https://github.com/JupiterOne/security-policy-templates). [CC BY-SA 4 license](https://creativecommons.org/licenses/by-sa/4.0/)*
 
 | Policy owner   | Effective date |
