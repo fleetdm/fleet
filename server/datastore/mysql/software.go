@@ -599,10 +599,8 @@ func (ds *Datastore) AllCPEs(ctx context.Context, excludedPlatforms []string) ([
 		if err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "loads cpes")
 		}
-		err = sqlx.SelectContext(ctx, ds.reader, &cpes, stmt, args...)
-	} else {
-		err = sqlx.SelectContext(ctx, ds.reader, &cpes, stmt)
 	}
+	err = sqlx.SelectContext(ctx, ds.reader, &cpes, stmt, args...)
 
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "loads cpes")
@@ -927,10 +925,8 @@ func (ds *Datastore) InsertVulnerabilities(
 	vulns []fleet.SoftwareVulnerability,
 	source fleet.VulnerabilitySource,
 ) (int64, error) {
-	var totalCount int64
-
 	if len(vulns) == 0 {
-		return totalCount, nil
+		return 0, nil
 	}
 
 	var records []interface{}
@@ -956,7 +952,10 @@ func (ds *Datastore) InsertVulnerabilities(
 		return 0, ctxerr.Wrap(ctx, err, "InsertVulnerabilitiesForSoftwareID")
 	}
 
-	count, _ := res.RowsAffected()
+	count, err := res.RowsAffected()
+	if err != nil {
+		return 0, err
+	}
 	return count, nil
 }
 
