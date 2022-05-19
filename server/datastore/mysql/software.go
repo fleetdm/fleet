@@ -523,7 +523,7 @@ func selectSoftwareSQL(opts fleet.SoftwareListOptions) (string, []interface{}, e
 	// Apply order by again after joining on sub query
 	ds = appendListOptionsToSelect(ds, opts.ListOptions)
 
-	// join on software_cve and cves after pagination using a sub-query
+	// join on software_cve and cves after apply pagination using the sub-query above
 	ds = dialect.From(ds.As("s")).
 		Select(
 			"s.id",
