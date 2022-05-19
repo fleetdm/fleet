@@ -64,7 +64,7 @@ Ready to update?
 Visit our [upgrade guide](https://fleetdm.com/docs/deploying/upgrading-fleet) in the Fleet docs for instructions on updating to Fleet 4.11.0.
 
 <meta name="category" value="releases">
-<meta name="authorFullName" value="Fleet">
+<meta name="authorFullName" value="Mike Thomas">
 <meta name="authorGitHubUsername" value="fleetdm">
 <meta name="publishedOn" value="2022-03-07">
 <meta name="articleTitle" value="Fleet 4.11.0 brings impact clarity, improvements to vulnerability processing, and performance updates.">
