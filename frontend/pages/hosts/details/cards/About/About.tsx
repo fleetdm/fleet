@@ -18,6 +18,31 @@ interface IAboutProps {
   deviceUser?: boolean;
 }
 
+const condenseDeviceUsers = (users: IDeviceUser[]): string[] => {
+  if (!users?.length) {
+    return [];
+  }
+  const condensed =
+    users
+      .slice(-3)
+      .map((u) => u.email)
+      .reverse() || [];
+  return users.length > 3
+    ? condensed.concat(`+${users.length - 3} more`) // TODO: confirm limit
+    : condensed;
+};
+
+const tooltipTextWithLineBreaks = (lines: string[]) => {
+  return lines.map((line) => {
+    return (
+      <span key={Math.random().toString().slice(2)}>
+        {line}
+        <br />
+      </span>
+    );
+  });
+};
+
 const About = ({
   aboutData,
   deviceMapping,
@@ -81,48 +106,43 @@ const About = ({
   };
 
   const renderDeviceUser = () => {
-    const numUsers = deviceMapping?.length;
-    if (numUsers) {
-      return (
-        <div className="info-grid__block">
-          <span className="info-grid__header">Used by</span>
-          <span className="info-grid__data">
-            {numUsers === 1 && deviceMapping ? (
-              deviceMapping[0].email || "---"
-            ) : (
-              <span className={`${baseClass}__device-mapping`}>
-                <span
-                  className="device-user"
-                  data-tip
-                  data-for="device-user-tooltip"
-                >
-                  {`${numUsers} users`}
-                </span>
-                <ReactTooltip
-                  place="top"
-                  type="dark"
-                  effect="solid"
-                  id="device-user-tooltip"
-                  backgroundColor="#3e4771"
-                >
-                  <div
-                    className={`${baseClass}__tooltip-text device-user-tooltip`}
-                  >
-                    {deviceMapping &&
-                      deviceMapping.map((user: any, i: number, arr: any) => (
-                        <span key={user.email}>{`${user.email}${
-                          i < arr.length - 1 ? ", " : ""
-                        }`}</span>
-                      ))}
-                  </div>
-                </ReactTooltip>
-              </span>
-            )}
-          </span>
-        </div>
-      );
+    if (!deviceMapping) {
+      return null;
     }
-    return null;
+
+    const users = condenseDeviceUsers(deviceMapping || []);
+    const tooltipText = tooltipTextWithLineBreaks(users);
+    return (
+      <div className="info-grid__block">
+        <span className="info-grid__header">Used by</span>
+        <span className="info-grid__data">
+          {users.length > 1 ? (
+            <>
+              <span
+                className={`text-cell ${users.length > 1 ? "text-muted" : ""}`}
+                data-tip
+                data-for={`device_mapping`}
+                data-tip-disable={users.length <= 1}
+              >
+                {users.length === 1 ? users[0] : `${users.length} users`}
+              </span>
+              <ReactTooltip
+                place="top"
+                type="dark"
+                effect="solid"
+                backgroundColor="#3e4771"
+                id={`device_mapping`}
+                data-html
+              >
+                <span className={`tooltip__tooltip-text`}>{tooltipText}</span>
+              </ReactTooltip>
+            </>
+          ) : (
+            users[0] || "---"
+          )}
+        </span>
+      </div>
+    );
   };
 
   const renderGeolocation = () => {

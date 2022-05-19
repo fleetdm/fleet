@@ -433,7 +433,7 @@ func (ds *Datastore) applyHostFilters(opt fleet.HostListOptions, sql string, fil
 	deviceMappingJoin := `LEFT JOIN (
 		SELECT
 			host_id,
-			CONCAT('[', GROUP_CONCAT(JSON_OBJECT('email', email, 'source', source)), ']') AS device_mapping
+			CAST(CONCAT('[', GROUP_CONCAT(JSON_OBJECT('email', email, 'source', source)), ']') AS JSON) AS device_mapping
 		FROM
 			host_emails
 		GROUP BY
