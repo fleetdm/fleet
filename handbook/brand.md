@@ -310,5 +310,4 @@ These groups maintain the following [Slack channels](https://fleetdm.com/handboo
 | `#help-p1`		      | Mike McNeil
 
 
-
 <meta name="maintainedBy" value="mike-j-thomas">
