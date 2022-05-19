@@ -57,7 +57,7 @@ func getDeviceHostEndpoint(ctx context.Context, request interface{}, svc fleet.S
 
 	license, err := svc.License(ctx)
 	if err != nil {
-		return nil, err
+		return getDeviceHostResponse{Err: err}, nil
 	}
 
 	return getDeviceHostResponse{
