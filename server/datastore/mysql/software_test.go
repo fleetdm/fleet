@@ -38,6 +38,7 @@ func TestSoftware(t *testing.T) {
 		{"DeleteVulnerabilitiesByCPECVE", testDeleteVulnerabilitiesByCPECVE},
 		{"HostsByCVE", testHostsByCVE},
 		{"UpdateHostSoftware", testUpdateHostSoftware},
+		{"ListSoftwareByHostIDShort", testListSoftwareByHostIDShort},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -1232,4 +1233,34 @@ func testUpdateHostSoftware(t *testing.T, ds *Datastore) {
 	err = ds.UpdateHostSoftware(ctx, host.ID, sw)
 	require.NoError(t, err)
 	validateSoftware(tup{"bar", lastYear}, tup{"baz", future}, tup{"qux", future})
+}
+
+func testListSoftwareByHostIDShort(t *testing.T, ds *Datastore) {
+	host1 := test.NewHost(t, ds, "host1", "", "host1key", "host1uuid", time.Now())
+	host2 := test.NewHost(t, ds, "host2", "", "host2key", "host2uuid", time.Now())
+
+	software1 := []fleet.Software{
+		{Name: "foo", Version: "0.0.1", Source: "chrome_extensions"},
+		{Name: "foo", Version: "0.0.3", Source: "chrome_extensions"},
+	}
+	software2 := []fleet.Software{
+		{Name: "foo", Version: "v0.0.2", Source: "chrome_extensions"},
+		{Name: "foo", Version: "0.0.3", Source: "chrome_extensions"},
+		{Name: "bar", Version: "0.0.3", Source: "deb_packages"},
+	}
+
+	require.NoError(t, ds.UpdateHostSoftware(context.Background(), host1.ID, software1))
+	require.NoError(t, ds.UpdateHostSoftware(context.Background(), host2.ID, software2))
+	require.NoError(t, ds.LoadHostSoftware(context.Background(), host1))
+	require.NoError(t, ds.LoadHostSoftware(context.Background(), host2))
+
+	software := listSoftwareCheckCount(t, ds, 2, 2, fleet.SoftwareListOptions{HostID: &host1.ID}, true)
+	test.ElementsMatchSkipID(t, software1, software)
+
+	software = listSoftwareCheckCount(t, ds, 3, 3, fleet.SoftwareListOptions{HostID: &host2.ID}, true)
+	test.ElementsMatchSkipID(t, software2, software)
+
+	// bad host id returns no software
+	badHostID := uint(3)
+	listSoftwareCheckCount(t, ds, 0, 0, fleet.SoftwareListOptions{HostID: &badHostID}, true)
 }
