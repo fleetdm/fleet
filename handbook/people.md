@@ -408,9 +408,9 @@ At the end of the quarter and key points throughout the quarter (every three wee
 
 ### Weekly update
 
-Every Thursday afternoon Charlie will create a new thread in the #help-manage channel, and ask managers to reply with a short summary of what their team did in the past week.
-On Friday afternoon Charlie updates the KPIs in the weekly updates spreadsheet (https://docs.google.com/spreadsheets/d/1Hso0LxqwrRVINCyW_n436bNHmoqhoLhC8bcbvLPOs9A/edit#gid=0)
-On Friday evening Charlie will combine the manager's updates into one message and format the content.
+Every Thursday afternoon, Charlie will create a new thread in the #help-manage channel and ask managers to reply with a short summary of what their team did in the past week.
+On Friday afternoon, Charlie updates the KPIs in the weekly updates spreadsheet (https://docs.google.com/spreadsheets/d/1Hso0LxqwrRVINCyW_n436bNHmoqhoLhC8bcbvLPOs9A/edit#gid=0)
+On Friday evening, Charlie will combine the manager's updates into one message and format the content.
 If there are any new team members joining Fleet, Charlie will add an announcement to the update.
 Charlie will post the update in #general and include a link to the Weekly updates spreadsheet (https://docs.google.com/spreadsheets/d/1Hso0LxqwrRVINCyW_n436bNHmoqhoLhC8bcbvLPOs9A/edit#gid=0)
 
