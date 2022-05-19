@@ -25,5 +25,5 @@ Let us know if you can think of any other example scenarios you’d like us to c
 <meta name="authorGitHubUsername" value="mike-j-thomas">
 <meta name="authorFullName" value="Mike Thomas">
 <meta name="publishedOn" value="2021-05-11">
-<meta name="articleTitle" value="Osquery: Consider joining against the users table">
+<meta name="articleTitle" value="Fleet quick tips — identify systems where the ProcDump EULA has been accepted">
 <meta name="articleImageUrl" value="../website/assets/images/articles/fleet-quick-tips-querying-procdump-eula-has-been-accepted-cover-700x440@2x.png">
