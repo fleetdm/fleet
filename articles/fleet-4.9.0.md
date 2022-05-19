@@ -58,7 +58,7 @@ As mentioned above, performance improvements were a theme for this release. As p
 Visit our [upgrade guide](https://fleetdm.com/docs/using-fleet/updating-fleet) in the Fleet docs for instructions on updating to Fleet 4.9.0.
 
 <meta name="category" value="releases">
-<meta name="authorFullName" value="Fleet">
+<meta name="authorFullName" value="Mike Thomas">
 <meta name="authorGitHubUsername" value="fleetdm">
 <meta name="publishedOn" value="2022-01-24">
 <meta name="articleTitle" value="Fleet 4.9.0 brings performance updates, paginated live query results, and policy YAML doc support.">
