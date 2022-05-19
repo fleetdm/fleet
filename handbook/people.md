@@ -449,7 +449,7 @@ We like to celebrate our achievements weekly in `#general`.
 ### Investor and Advisor updates
 
 We like to regularly share updates about how Fleet is growing with our investors and advisors. 
-  - Charlie tracks the most recent updates with investors and advisors and coordinates emails, zoom calls, or the investor or advisor's prefered method of communication with @mikermcneil and preps materials as needed. 
+  - Charlie tracks the most recent updates with investors and advisors and coordinates emails, zoom calls, or the investor or advisor's preferred method of communication with @mikermcneil and preps materials as needed. 
 
 ## Rituals
 
