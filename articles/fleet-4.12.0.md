@@ -36,7 +36,7 @@ We made an iterative improvement to Fleet UI’s live query console to help user
 
 <meta name="category" value="releases">
 <meta name="authorFullName" value="Fleet">
-<meta name="authorGitHubUsername" value="fleetdm">
+<meta name="authorGitHubUsername" value="mike-j-thomas">
 <meta name="publishedOn" value="2022-03-25">
 <meta name="articleTitle" value="Fleet 4.12.0 | Platform-specific policies, and improved query results">
 <meta name="articleImageUrl" value="../website/assets/images/articles/fleet-4.12.0-cover-700x393@2x.png">
