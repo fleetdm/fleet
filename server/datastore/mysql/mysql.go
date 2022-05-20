@@ -577,6 +577,7 @@ func (ds *Datastore) Close() error {
 	return err
 }
 
+// sanitizeColumn is used to sanitize column names which can't be passed as placeholders when executing sql queries
 func sanitizeColumn(col string) string {
 	return columnCharsRegexp.ReplaceAllString(col, "")
 }
@@ -586,22 +587,32 @@ func sanitizeColumn(col string) string {
 //
 // NOTE: This is a copy of appendListOptionsToSQL that uses the goqu package.
 func appendListOptionsToSelect(ds *goqu.SelectDataset, opts fleet.ListOptions) *goqu.SelectDataset {
+	ds = appendOrderByToSelect(ds, opts)
+	ds = appendLimitOffsetToSelect(ds, opts)
+	return ds
+}
+
+func appendOrderByToSelect(ds *goqu.SelectDataset, opts fleet.ListOptions) *goqu.SelectDataset {
 	if opts.OrderKey != "" {
 		ordersKeys := strings.Split(opts.OrderKey, ",")
-		var orderedExps []exp.OrderedExpression
 		for _, key := range ordersKeys {
-			var orderedExp exp.OrderedExpression
-			ident := goqu.I(sanitizeColumn(key))
+			ident := goqu.I(key)
+
+			var orderedExpr exp.OrderedExpression
 			if opts.OrderDirection == fleet.OrderDescending {
-				orderedExp = ident.Desc()
+				orderedExpr = ident.Desc()
 			} else {
-				orderedExp = ident.Asc()
+				orderedExpr = ident.Asc()
 			}
-			orderedExps = append(orderedExps, orderedExp)
+
+			ds = ds.OrderAppend(orderedExpr)
 		}
-		ds = ds.Order(orderedExps...)
 	}
 
+	return ds
+}
+
+func appendLimitOffsetToSelect(ds *goqu.SelectDataset, opts fleet.ListOptions) *goqu.SelectDataset {
 	perPage := opts.PerPage
 	// If caller doesn't supply a limit apply a reasonably large default limit
 	// to insure that an unbounded query with many results doesn't consume too
