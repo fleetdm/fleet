@@ -1,0 +1,1 @@
+* Fixed an issue with duplicated hosts being sent in the vulnerability webhook payload.
