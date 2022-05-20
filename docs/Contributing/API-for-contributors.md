@@ -1085,7 +1085,7 @@ Before you retrieve the live query results, you must create a live query campaig
 
 Note that live queries are automatically cancelled if this method is not called to start retrieving the results within 60 seconds of initiating the query.
 
-`/api/v1/fleet/results/websockets`
+`/api/v1/fleet/results/websocket`
 
 ### Parameters
 
@@ -1099,7 +1099,7 @@ Note that live queries are automatically cancelled if this method is not called 
 #### Example script to handle request and response
 
 ```
-const socket = new WebSocket('wss://<your-base-url>/api/v1/fleet/results/websockets');
+const socket = new WebSocket('wss://<your-base-url>/api/v1/fleet/results/websocket');
 
 socket.onopen = () => {
   socket.send(JSON.stringify({ type: 'auth', data: { token: <auth-token> } }));

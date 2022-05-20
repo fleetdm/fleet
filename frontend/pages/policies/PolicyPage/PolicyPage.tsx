@@ -98,8 +98,6 @@ const PolicyPage = ({
     setShowOpenSchemaActionText,
   ] = useState<boolean>(false);
 
-  // disabled on page load so we can control the number of renders
-  // else it will re-populate the context on occasion
   const {
     isLoading: isStoredPolicyLoading,
     data: storedPolicy,

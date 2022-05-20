@@ -1,1 +1,1 @@
-* Support an extended syntax to configure asynchronous host processing task on a per-task basis.
+* Now supports an extended syntax to configure asynchronous host processing tasks on a per-task basis.

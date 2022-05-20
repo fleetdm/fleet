@@ -66,3 +66,21 @@ jobs:
       env:
         SLACK_WEBHOOK_URL: ${{ secrets.SLACK_G_PLATFORM_WEBHOOK_URL }}
         SLACK_WEBHOOK_TYPE: INCOMING_WEBHOOK
+
+    - name: Get fleet logs
+      run: |
+        FLEET_LICENSE_KEY=foo docker compose -f ~/.fleet/preview/docker-compose.yml logs fleet01 fleet02 > fleet-logs.txt
+        # Copying logs, otherwise the upload-artifact action uploads the logs in a hidden folder (.fleet)
+        cp ~/.fleet/preview/orbit.log orbit.log
+        cp -r ~/.fleet/preview/logs osquery_result_status_logs
+      shell: bash
+
+    - name: Upload logs
+      if: always()
+      uses: actions/upload-artifact@6673cd052c4cd6fcf4b4e6e60ea986c889389535 # v2
+      with:
+        name: ${{ matrix.os }}-log
+        path: |
+          fleet-logs.txt
+          orbit.log
+          osquery_result_status_logs

@@ -3,6 +3,7 @@ import React from "react";
 import { ITeam } from "interfaces/team";
 import { IUserFormErrors } from "interfaces/user";
 import Modal from "components/Modal";
+import Spinner from "components/Spinner";
 import UserForm from "../UserForm";
 import { IFormData } from "../UserForm/UserForm";
 
@@ -23,6 +24,7 @@ interface IEditUserModalProps {
   editUserErrors?: IUserFormErrors;
   isModifiedByGlobalAdmin?: boolean | false;
   isInvitePending?: boolean;
+  isLoading: boolean;
 }
 
 const baseClass = "edit-user-modal";
@@ -44,6 +46,7 @@ const EditUserModal = ({
   editUserErrors,
   isModifiedByGlobalAdmin,
   isInvitePending,
+  isLoading,
 }: IEditUserModalProps): JSX.Element => {
   return (
     <Modal
@@ -51,25 +54,29 @@ const EditUserModal = ({
       onExit={onCancel}
       className={`${baseClass}__edit-user-modal`}
     >
-      <UserForm
-        createOrEditUserErrors={editUserErrors}
-        defaultName={defaultName}
-        defaultEmail={defaultEmail}
-        defaultGlobalRole={defaultGlobalRole}
-        defaultTeamRole={defaultTeamRole}
-        defaultTeams={defaultTeams}
-        onCancel={onCancel}
-        onSubmit={onSubmit}
-        availableTeams={availableTeams}
-        submitText={"Save"}
-        isPremiumTier={isPremiumTier}
-        smtpConfigured={smtpConfigured}
-        canUseSso={canUseSso}
-        isSsoEnabled={isSsoEnabled}
-        isModifiedByGlobalAdmin={isModifiedByGlobalAdmin}
-        isInvitePending={isInvitePending}
-        currentTeam={currentTeam}
-      />
+      {isLoading ? (
+        <Spinner />
+      ) : (
+        <UserForm
+          createOrEditUserErrors={editUserErrors}
+          defaultName={defaultName}
+          defaultEmail={defaultEmail}
+          defaultGlobalRole={defaultGlobalRole}
+          defaultTeamRole={defaultTeamRole}
+          defaultTeams={defaultTeams}
+          onCancel={onCancel}
+          onSubmit={onSubmit}
+          availableTeams={availableTeams}
+          submitText={"Save"}
+          isPremiumTier={isPremiumTier}
+          smtpConfigured={smtpConfigured}
+          canUseSso={canUseSso}
+          isSsoEnabled={isSsoEnabled}
+          isModifiedByGlobalAdmin={isModifiedByGlobalAdmin}
+          isInvitePending={isInvitePending}
+          currentTeam={currentTeam}
+        />
+      )}
     </Modal>
   );
 };

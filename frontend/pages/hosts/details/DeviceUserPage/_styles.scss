@@ -275,6 +275,20 @@
     .section {
       margin-top: $pad-medium;
     }
+
+    .fail-count {
+      background-color: $ui-error;
+      border-radius: 45%;
+      color: $core-white;
+      display: inline-block;
+      padding: 0 10px;
+      font-size: 0.75rem;
+      font-weight: bold;
+      line-height: 1.75;
+      margin: 0 8px -8px 0;
+      position: relative;
+      top: -1px;
+    }
   }
 
   .col-50 {
@@ -422,6 +436,10 @@
 
   .form-field--dropdown {
     margin: 0;
+  }
+
+  .section--policies .data-table-block .data-table__table thead .response__header {
+    width: $col-md;
   }
 }
 

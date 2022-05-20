@@ -158,9 +158,9 @@ const HostSummary = ({
             {titleData.status}
           </span>
         </div>
-        {!deviceUser &&
-          titleData.issues?.total_issues_count > 0 &&
-          renderIssues()}
+        {titleData.issues?.total_issues_count > 0 && deviceUser
+          ? isPremiumTier && renderIssues()
+          : renderIssues()}
         {!deviceUser && isPremiumTier && renderHostTeam()}
         <div className="info-flex__item info-flex__item--title">
           <span className="info-flex__header">Disk space</span>

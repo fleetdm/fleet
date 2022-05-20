@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useContext } from "react";
+import React, { useState, useCallback, useContext, useEffect } from "react";
 import { InjectedRouter } from "react-router";
 import { useQuery } from "react-query";
 import memoize from "memoize-one";
@@ -54,7 +54,8 @@ const UserManagementPage = ({ router }: IUserManagementProps): JSX.Element => {
   const [showResetSessionsModal, setShowResetSessionsModal] = useState<boolean>(
     false
   );
-  const [isFormSubmitting, setIsFormSubmitting] = useState<boolean>(false);
+  const [isLoading, setIsLoading] = useState<boolean>(false);
+  const [isEditingUser, setIsEditingUser] = useState<boolean>(false);
   const [userEditing, setUserEditing] = useState<any>(null);
   const [createUserErrors, setCreateUserErrors] = useState<IUserFormErrors>(
     DEFAULT_CREATE_USER_ERRORS
@@ -67,7 +68,7 @@ const UserManagementPage = ({ router }: IUserManagementProps): JSX.Element => {
   // API CALLS
   const {
     data: teams,
-    isLoading: isLoadingTeams,
+    isFetching: isFetchingTeams,
     error: loadingTeamsError,
   } = useQuery<ILoadTeamsResponse, Error, ITeam[]>(
     ["teams"],
@@ -80,7 +81,7 @@ const UserManagementPage = ({ router }: IUserManagementProps): JSX.Element => {
 
   const {
     data: users,
-    isLoading: isLoadingUsers,
+    isFetching: isFetchingUsers,
     error: loadingUsersError,
     refetch: refetchUsers,
   } = useQuery<IUser[], Error, IUser[]>(
@@ -93,7 +94,7 @@ const UserManagementPage = ({ router }: IUserManagementProps): JSX.Element => {
 
   const {
     data: invites,
-    isLoading: isLoadingInvites,
+    isFetching: isFetchingInvites,
     error: loadingInvitesError,
     refetch: refetchInvites,
   } = useQuery<IInvite[], Error, IInvite[]>(
@@ -212,7 +213,7 @@ const UserManagementPage = ({ router }: IUserManagementProps): JSX.Element => {
   };
 
   const onCreateUserSubmit = (formData: any) => {
-    setIsFormSubmitting(true);
+    setIsLoading(true);
 
     if (formData.newUserType === NewUserType.AdminInvited) {
       // Do some data formatting adding `invited_by` for the request to be correct and deleteing uncessary fields
@@ -238,12 +239,18 @@ const UserManagementPage = ({ router }: IUserManagementProps): JSX.Element => {
             setCreateUserErrors({
               email: "A user with this email address already exists",
             });
+          } else if (
+            userErrors.data.errors[0].reason.includes("required criteria")
+          ) {
+            setCreateUserErrors({
+              password: "Password must meet the criteria below",
+            });
           } else {
             renderFlash("error", "Could not create user. Please try again.");
           }
         })
         .finally(() => {
-          setIsFormSubmitting(false);
+          setIsLoading(false);
         });
     } else {
       // Do some data formatting deleting unnecessary fields
@@ -264,12 +271,18 @@ const UserManagementPage = ({ router }: IUserManagementProps): JSX.Element => {
             setCreateUserErrors({
               email: "A user with this email address already exists",
             });
+          } else if (
+            userErrors.data.errors[0].reason.includes("required criteria")
+          ) {
+            setCreateUserErrors({
+              password: "Password must meet the criteria below",
+            });
           } else {
             renderFlash("error", "Could not create user. Please try again.");
           }
         })
         .finally(() => {
-          setIsFormSubmitting(false);
+          setIsLoading(false);
         });
     }
   };
@@ -277,6 +290,7 @@ const UserManagementPage = ({ router }: IUserManagementProps): JSX.Element => {
   const onEditUser = (formData: any) => {
     const userData = getUser(userEditing.type, userEditing.id);
 
+    setIsEditingUser(true);
     if (userEditing.type === "invite") {
       return (
         userData &&
@@ -292,12 +306,21 @@ const UserManagementPage = ({ router }: IUserManagementProps): JSX.Element => {
               setEditUserErrors({
                 email: "A user with this email address already exists",
               });
+            } else if (
+              userErrors.data.errors[0].reason.includes("required criteria")
+            ) {
+              setEditUserErrors({
+                password: "Password must meet the criteria below",
+              });
             } else {
               renderFlash(
                 "error",
                 `Could not edit ${userEditing?.name}. Please try again.`
               );
             }
+          })
+          .finally(() => {
+            setIsEditingUser(false);
           })
       );
     }
@@ -316,6 +339,12 @@ const UserManagementPage = ({ router }: IUserManagementProps): JSX.Element => {
             if (userErrors.data.errors[0].reason.includes("already exists")) {
               setEditUserErrors({
                 email: "A user with this email address already exists",
+              });
+            } else if (
+              userErrors.data.errors[0].reason.includes("required criteria")
+            ) {
+              setEditUserErrors({
+                password: "Password must meet the criteria below",
               });
             }
             renderFlash(
@@ -345,6 +374,12 @@ const UserManagementPage = ({ router }: IUserManagementProps): JSX.Element => {
           if (userErrors.data.errors[0].reason.includes("already exists")) {
             setEditUserErrors({
               email: "A user with this email address already exists",
+            });
+          } else if (
+            userErrors.data.errors[0].reason.includes("required criteria")
+          ) {
+            setEditUserErrors({
+              password: "Password must meet the criteria below",
             });
           } else {
             renderFlash(
@@ -457,6 +492,7 @@ const UserManagementPage = ({ router }: IUserManagementProps): JSX.Element => {
             isModifiedByGlobalAdmin
             isInvitePending={userEditing.type === "invite"}
             editUserErrors={editUserErrors}
+            isLoading={isEditingUser}
           />
         </>
       </Modal>
@@ -475,7 +511,7 @@ const UserManagementPage = ({ router }: IUserManagementProps): JSX.Element => {
         isPremiumTier={isPremiumTier || false}
         smtpConfigured={config?.smtp_settings.configured || false}
         canUseSso={config?.sso_settings.enable_sso || false}
-        isFormSubmitting={isFormSubmitting}
+        isLoading={isLoading}
         isModifiedByGlobalAdmin
       />
     );
@@ -524,11 +560,12 @@ const UserManagementPage = ({ router }: IUserManagementProps): JSX.Element => {
     isPremiumTier || false
   );
 
-  const loadingTableData = isLoadingUsers || isLoadingInvites || isLoadingTeams;
+  const loadingTableData =
+    isFetchingUsers || isFetchingInvites || isFetchingTeams;
   const tableDataError =
     loadingUsersError || loadingInvitesError || loadingTeamsError;
 
-  let tableData: any = [];
+  let tableData: unknown = [];
   if (!loadingTableData) {
     tableData = combineUsersAndInvites(users, invites, currentUser?.id);
   }

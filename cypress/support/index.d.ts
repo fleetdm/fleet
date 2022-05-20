@@ -37,7 +37,7 @@ declare namespace Cypress {
     /**
      * Custom command to add new policies by default.
      */
-    seedPolicies(): Chainable<Element>;
+    seedPolicies(teamName?: string): Chainable<Element>;
 
     /**
      * Custom command to add a new user in Fleet (via fleetctl).
@@ -72,7 +72,7 @@ declare namespace Cypress {
     /**
      * Custom command to get the emails handled by the Mailhog server.
      */
-    getEmails(): Chainable<Response>;
+    getEmails(): Chainable;
 
     /**
      * Custom command to seed the Free tier teams/users.
@@ -104,7 +104,7 @@ declare namespace Cypress {
      * NOTE: login() command is required before this, as it will make authenticated
      * requests.
      */
-    addDockerHost(): Chainable;
+    addDockerHost(teamName?: string): Chainable;
 
     /**
      * Custom command to stop any running Docker hosts.

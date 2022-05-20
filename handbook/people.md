@@ -354,6 +354,12 @@ When the agreement is completed, make sure it is in the correct Google Drive fol
 ## Onboarding a new consultant
 
 Consultant agreements are sent through [DocuSign](https://www.docusign.com/), using the "Consulting Agreement" template. To send a new consulting agreement, you'll need the new consultant's name, the term of the service, a summary of the services provided and the consultant's fee. 
+There are some defaults that we use for these agreements:
+   - Term: one month
+   - Services rendered: [use this doc](https://docs.google.com/document/d/1b5SGgYEHqDmq5QF8p29WWN3it3XJh3xRT3zG0RdXARo/edit)
+   - Work will commence and complete by dates: Start date and end of term date
+   - Fee: Get from the contractor
+   - Hours: Default to 10 hr/week = 40hr/week
 
 Then hit send!  After all of the signatures are there, the completed document will automatically be uploaded to the appropriate Google Drive folder by our automation, and a Slack message will appear in the `#g-people` channel.
 
@@ -386,6 +392,15 @@ When the final signature is added to an envelope in DocuSign, it is marked as co
       [email subject]
       link: drive.google.com/[destinationFolderID]
    ```
+## Adding Salesforce licenses
+
+At Fleet we consider Salesforce to be our roledex for customer information. During the onboarding process, you may need to add a license for the new hire. Here are the steps we take: 
+
+1. Go to “Your account”
+2. View contracts -> pick current contract
+3. Add the number of licenses
+4. Sign docusign sent to the email
+5. The order will be processed in ~30m
 
 ## PeopleOps
 
@@ -402,9 +417,9 @@ At the end of the quarter and key points throughout the quarter (every three wee
 
 ### Weekly update
 
-Every Thursday afternoon Charlie will create a new thread in the #help-manage channel, and ask managers to reply with a short summary of what their team did in the past week.
-On Friday afternoon Charlie updates the KPIs in the weekly updates spreadsheet (https://docs.google.com/spreadsheets/d/1Hso0LxqwrRVINCyW_n436bNHmoqhoLhC8bcbvLPOs9A/edit#gid=0)
-On Friday evening Charlie will combine the manager's updates into one message and format the content.
+Every Thursday afternoon, Charlie will create a new thread in the #help-manage channel and ask managers to reply with a short summary of what their team did in the past week.
+On Friday afternoon, Charlie updates the KPIs in the weekly updates spreadsheet (https://docs.google.com/spreadsheets/d/1Hso0LxqwrRVINCyW_n436bNHmoqhoLhC8bcbvLPOs9A/edit#gid=0)
+On Friday evening, Charlie will combine the manager's updates into one message and format the content.
 If there are any new team members joining Fleet, Charlie will add an announcement to the update.
 Charlie will post the update in #general and include a link to the Weekly updates spreadsheet (https://docs.google.com/spreadsheets/d/1Hso0LxqwrRVINCyW_n436bNHmoqhoLhC8bcbvLPOs9A/edit#gid=0)
 
@@ -431,6 +446,10 @@ We like to celebrate our achievements weekly in `#general`.
   - Every Thursday night, Charlie creates a thread in #help-manage requesting weekly updates, and managers will reply to the thread with their weekly updates.
   - Friday afternoons, Charlie updates the KPIs in the weekly updates spreadsheet, and Friday nights, Charlie will post the updates in #general.
 
+### Investor and Advisor updates
+
+We like to regularly share updates about how Fleet is growing with our investors and advisors. 
+  - Charlie tracks the most recent updates with investors and advisors and coordinates emails, zoom calls, or the investor or advisor's preferred method of communication with @mikermcneil and preps materials as needed. 
 
 ## Rituals
 
@@ -449,6 +468,7 @@ The following table lists the People group's rituals, frequency, and Directly Re
 | OKR planning | Quarterly | Plan the next quarter's OKRs. | Mike Thomas |
 | 550C update | Annually | File California 550C. | Charlie Chance |
 | Workiversaries | Weekly/PRN | People Operations posts in #g-people and tags @mikermcneil about any upcoming workiversaries | Charlie Chance |
+| Investor and Advisor updates | PRN | People Operations tracks last contact with investors and coordinates outreach with CEO | Charlie Chance |
 
 ## Slack channels
 
