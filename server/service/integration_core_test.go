@@ -2195,7 +2195,7 @@ func (s *integrationTestSuite) TestListHostsDeviceMappingSize() {
 	ctx := context.Background()
 	hosts := s.createHosts(t)
 
-	testSize := 2
+	testSize := 50
 	var mappings []*fleet.HostDeviceMapping
 	for i := 0; i < testSize; i++ {
 		testEmail, _ := server.GenerateRandomText(14)

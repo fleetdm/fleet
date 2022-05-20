@@ -198,11 +198,12 @@ const allHostTableHeaders: IDataColumn[] = [
     Cell: (cellProps: ICellProps) => <TextCell value={cellProps.cell.value} />,
   },
   {
-    title: "Device user",
-    Header: "Device user",
+    title: "Used by",
+    Header: "Used by",
     disableSortBy: true,
     accessor: "device_mapping",
     Cell: (cellProps: IDeviceUserCellProps): JSX.Element => {
+      const numUsers = cellProps.cell.value?.length || 0;
       const users = condenseDeviceUsers(cellProps.cell.value || []);
       if (users.length) {
         const tooltipText = tooltipTextWithLineBreaks(users);
@@ -214,7 +215,7 @@ const allHostTableHeaders: IDataColumn[] = [
               data-for={`device_mapping__${cellProps.row.original.id}`}
               data-tip-disable={users.length <= 1}
             >
-              {users.length === 1 ? users[0] : `${users.length} users`}
+              {numUsers === 1 ? users[0] : `${numUsers} users`}
             </span>
             <ReactTooltip
               place="top"
@@ -352,6 +353,7 @@ const allHostTableHeaders: IDataColumn[] = [
 ];
 
 const defaultHiddenColumns = [
+  "device_mapping",
   "primary_mac",
   "cpu_type",
   "memory",

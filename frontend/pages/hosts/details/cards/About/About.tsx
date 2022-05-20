@@ -18,31 +18,6 @@ interface IAboutProps {
   deviceUser?: boolean;
 }
 
-const condenseDeviceUsers = (users: IDeviceUser[]): string[] => {
-  if (!users?.length) {
-    return [];
-  }
-  const condensed =
-    users
-      .slice(-3)
-      .map((u) => u.email)
-      .reverse() || [];
-  return users.length > 3
-    ? condensed.concat(`+${users.length - 3} more`) // TODO: confirm limit
-    : condensed;
-};
-
-const tooltipTextWithLineBreaks = (lines: string[]) => {
-  return lines.map((line) => {
-    return (
-      <span key={Math.random().toString().slice(2)}>
-        {line}
-        <br />
-      </span>
-    );
-  });
-};
-
 const About = ({
   aboutData,
   deviceMapping,
@@ -110,21 +85,22 @@ const About = ({
       return null;
     }
 
-    const users = condenseDeviceUsers(deviceMapping || []);
-    const tooltipText = tooltipTextWithLineBreaks(users);
+    const numUsers = deviceMapping.length;
+    const tooltipText = deviceMapping.map((d) => (
+      <span key={Math.random().toString().slice(2)}>
+        {d.email}
+        <br />
+      </span>
+    ));
+
     return (
       <div className="info-grid__block">
         <span className="info-grid__header">Used by</span>
         <span className="info-grid__data">
-          {users.length > 1 ? (
+          {numUsers > 1 ? (
             <>
-              <span
-                className={`text-cell ${users.length > 1 ? "text-muted" : ""}`}
-                data-tip
-                data-for={`device_mapping`}
-                data-tip-disable={users.length <= 1}
-              >
-                {users.length === 1 ? users[0] : `${users.length} users`}
+              <span data-tip data-for={`device_mapping`}>
+                {`${numUsers} users`}
               </span>
               <ReactTooltip
                 place="top"
@@ -138,7 +114,7 @@ const About = ({
               </ReactTooltip>
             </>
           ) : (
-            users[0] || "---"
+            deviceMapping[0].email || "---"
           )}
         </span>
       </div>
