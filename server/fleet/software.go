@@ -18,7 +18,7 @@ type CVEScore struct {
 	CVE              string   `db:"cve"`
 	CVSSScore        *float64 `db:"cvss_score"`
 	EPSSProbability  *float64 `db:"epss_probability"`
-	CISAKnownExploit bool     `db:"cisa_known_exploit"`
+	CISAKnownExploit *bool    `db:"cisa_known_exploit"`
 }
 
 // Software is a named and versioned piece of software installed on a device.

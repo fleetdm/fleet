@@ -385,7 +385,7 @@ func generateCVEScore(n int) fleet.CVEScore {
 	CVEID := fmt.Sprintf("CVE-2022-%05d", n)
 	cvssScore := ptr.Float64(rand.Float64() * 10)
 	epssProbability := ptr.Float64(rand.Float64())
-	cisaKnownExploit := rand.Intn(2) == 1
+	cisaKnownExploit := ptr.Bool(rand.Intn(2) == 1)
 	return fleet.CVEScore{
 		CVE:              CVEID,
 		CVSSScore:        cvssScore,
