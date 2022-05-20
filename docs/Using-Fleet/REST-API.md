@@ -6411,7 +6411,7 @@ The server only stores and returns a single instance of each error.
 
 ### Get database information
 
-Returns information about the current state of the database, valid keys are:
+Returns information about the current state of the database; valid keys are:
 
 - `locks`: returns transaction locking information.
 - `innodb-status`: returns InnoDB status information.
