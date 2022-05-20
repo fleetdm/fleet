@@ -38,7 +38,7 @@ type FleetError struct {
 	data  json.RawMessage // additional metadata about the error (timestamps, etc)
 }
 
-type fleetErrorJSON struct {
+type FleetErrorJSON struct {
 	Message string          `json:"message,omitempty"`
 	Data    json.RawMessage `json:"data,omitempty"`
 	Stack   []string        `json:"stack,omitempty"`
@@ -60,7 +60,7 @@ func (e *FleetError) Unwrap() error {
 // MarshalJSON implements the marshaller interface, giving us control on how
 // errors are json-encoded
 func (e *FleetError) MarshalJSON() ([]byte, error) {
-	return json.Marshal(fleetErrorJSON{
+	return json.Marshal(FleetErrorJSON{
 		Message: e.msg,
 		Data:    e.data,
 		Stack:   e.stack.List(),

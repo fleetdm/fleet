@@ -378,14 +378,7 @@ func TestHttpHandler(t *testing.T) {
 		eh.ServeHTTP(res, req)
 
 		require.Equal(t, res.Code, 200)
-		var errs []struct {
-			Cause struct {
-				Message string
-			}
-			Wrap []struct {
-				Message string
-			}
-		}
+		var errs JSONResponse
 		require.NoError(t, json.Unmarshal(res.Body.Bytes(), &errs))
 		require.Len(t, errs, 2)
 		require.NotEmpty(t, errs[0].Cause.Message)
@@ -399,14 +392,7 @@ func TestHttpHandler(t *testing.T) {
 		eh.ServeHTTP(res, req)
 
 		require.Equal(t, res.Code, 200)
-		var errs []struct {
-			Cause struct {
-				Message string
-			}
-			Wrap []struct {
-				Message string
-			}
-		}
+		var errs JSONResponse
 		require.NoError(t, json.Unmarshal(res.Body.Bytes(), &errs))
 		require.Len(t, errs, 2)
 		require.NotEmpty(t, errs[0].Cause.Message)

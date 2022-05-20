@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"io/ioutil"
+	"net"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -14,6 +15,9 @@ import (
 	"github.com/WatchBeam/clock"
 	eeservice "github.com/fleetdm/fleet/v4/ee/server/service"
 	"github.com/fleetdm/fleet/v4/server/config"
+	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
+	"github.com/fleetdm/fleet/v4/server/datastore/redis/redistest"
+	"github.com/fleetdm/fleet/v4/server/errorstore"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/logging"
 	"github.com/fleetdm/fleet/v4/server/ptr"
@@ -187,10 +191,27 @@ func RunServerForTestsWithDS(t *testing.T, ds fleet.Datastore, opts ...*TestServ
 	if len(opts) > 0 && opts[0].Logger != nil {
 		logger = opts[0].Logger
 	}
+	redisPool := redistest.SetupRedis(t, "error:", false, false, false)
+	if len(opts) > 0 && opts[0].Pool != nil {
+		redisPool = opts[0].Pool
+	}
 
 	limitStore, _ := memstore.New(0)
-	r := MakeHandler(svc, config.FleetConfig{}, logger, limitStore, WithLoginRateLimit(throttled.PerMin(100)))
-	server := httptest.NewServer(r)
+	r := http.NewServeMux()
+	apiHandler := MakeHandler(svc, config.FleetConfig{}, logger, limitStore, WithLoginRateLimit(throttled.PerMin(100)))
+
+	ctx := context.Background()
+	eh := errorstore.NewHandler(ctx, redisPool, logger, 100)
+	httpSrvCtx := ctxerr.NewContext(ctx, eh)
+	debugHandler := MakeDebugHandler(svc, config.FleetConfig{}, logger, eh, nil)
+
+	r.Handle("/api/", apiHandler)
+	r.Handle("/debug/", debugHandler)
+	server := httptest.NewUnstartedServer(r)
+	server.Config.BaseContext = func(l net.Listener) context.Context {
+		return httpSrvCtx
+	}
+	server.Start()
 	t.Cleanup(func() {
 		server.Close()
 	})

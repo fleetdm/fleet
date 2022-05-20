@@ -43,6 +43,11 @@ type Handler struct {
 	testOnStart func()      // if set, called once the handler is running
 }
 
+type JSONResponse []struct {
+	Cause ctxerr.FleetErrorJSON
+	Wraps []ctxerr.FleetErrorJSON
+}
+
 // NewHandler creates an error handler using the provided pool and logger,
 // storing unique instances of errors in Redis using the pool. It stops storing
 // errors when ctx is cancelled. Errors are kept for the duration of ttl.
