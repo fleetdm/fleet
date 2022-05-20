@@ -57,7 +57,7 @@ func TestSync(t *testing.T) {
 			if score.EPSSProbability != nil {
 				countEPSSProbability++
 			}
-			if score.CISAKnownExploit {
+			if score.CISAKnownExploit != nil {
 				countCISAKnownExploit++
 			}
 		}

@@ -20,6 +20,7 @@ import (
 	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/hashicorp/go-multierror"
 	"go.uber.org/multierr"
 )
@@ -228,8 +229,16 @@ func LoadCVEScores(vulnPath string, ds fleet.Datastore) error {
 		if !ok {
 			score.CVE = vuln.CVEID
 		}
-		score.CISAKnownExploit = true
+		score.CISAKnownExploit = ptr.Bool(true)
 		scoresMap[vuln.CVEID] = score
+	}
+
+	// The catalog only contains "known" exploits, meaning all other CVEs should have known exploit set to false.
+	for cve, score := range scoresMap {
+		if score.CISAKnownExploit == nil {
+			score.CISAKnownExploit = ptr.Bool(false)
+		}
+		scoresMap[cve] = score
 	}
 
 	if len(scoresMap) == 0 {
