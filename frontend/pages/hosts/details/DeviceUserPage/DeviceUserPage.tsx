@@ -7,7 +7,7 @@ import { Tab, Tabs, TabList, TabPanel } from "react-tabs";
 import classnames from "classnames";
 import { pick } from "lodash";
 
-import { AppContext, IAppContext } from "context/app";
+import { AppContext } from "context/app";
 import { NotificationContext } from "context/notification";
 import deviceUserAPI from "services/entities/device_user";
 import { IHost, IDeviceMappingResponse } from "interfaces/host";
@@ -37,9 +37,14 @@ interface IDeviceUserPageProps {
   params: Params;
 }
 
+interface ILicense {
+  tier: string;
+}
+
 interface IHostResponse {
   host: IHost;
   org_logo_url: string;
+  license: ILicense;
 }
 
 const DeviceUserPage = ({
@@ -47,11 +52,10 @@ const DeviceUserPage = ({
 }: IDeviceUserPageProps): JSX.Element => {
   const deviceAuthToken = device_auth_token;
   const { renderFlash } = useContext(NotificationContext);
-  const { isPremiumTier } = useContext(AppContext);
   const handlePageError = useErrorHandler();
 
+  const [isPremiumTier, setIsPremiumTier] = useState<boolean>(false);
   const [showInfoModal, setShowInfoModal] = useState<boolean>(false);
-
   const [refetchStartTime, setRefetchStartTime] = useState<number | null>(null);
   const [showRefetchSpinner, setShowRefetchSpinner] = useState<boolean>(false);
   const [hostSoftware, setHostSoftware] = useState<ISoftware[]>([]);
@@ -96,8 +100,9 @@ const DeviceUserPage = ({
       refetchOnWindowFocus: false,
       retry: false,
       select: (data: IHostResponse) => data,
-      onSuccess: (returnedHost) => {
+      onSuccess: (returnedHost: IHostResponse) => {
         setShowRefetchSpinner(returnedHost.host.refetch_requested);
+        setIsPremiumTier(returnedHost.license.tier === "premium");
         if (returnedHost.host.refetch_requested) {
           if (!refetchStartTime) {
             if (returnedHost.host.status === "online") {
@@ -231,7 +236,7 @@ const DeviceUserPage = ({
               showRefetchSpinner={showRefetchSpinner}
               onRefetchHost={onRefetchHost}
               renderActionButtons={renderActionButtons}
-              isPremiumTier
+              isPremiumTier={isPremiumTier}
               deviceUser
             />
             <TabsWrapper>
