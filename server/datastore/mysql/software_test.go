@@ -491,20 +491,22 @@ func testSoftwareList(t *testing.T, ds *Datastore) {
 
 	scores := []fleet.CVEScore{
 		{
-			CVE:             "CVE-2022-0001",
-			CVSSScore:       ptr.Float64(2.0),
-			EPSSProbability: ptr.Float64(0.01),
+			CVE:              "CVE-2022-0001",
+			CVSSScore:        ptr.Float64(2.0),
+			EPSSProbability:  ptr.Float64(0.01),
+			CISAKnownExploit: ptr.Bool(false),
 		},
 		{
-			CVE:             "CVE-2022-0002",
-			CVSSScore:       ptr.Float64(1.0),
-			EPSSProbability: ptr.Float64(0.99),
+			CVE:              "CVE-2022-0002",
+			CVSSScore:        ptr.Float64(1.0),
+			EPSSProbability:  ptr.Float64(0.99),
+			CISAKnownExploit: ptr.Bool(false),
 		},
 		{
 			CVE:              "CVE-2022-0003",
 			CVSSScore:        ptr.Float64(3.0),
 			EPSSProbability:  ptr.Float64(0.98),
-			CISAKnownExploit: true,
+			CISAKnownExploit: ptr.Bool(true),
 		},
 	}
 	err = ds.InsertCVEScores(context.Background(), scores)
