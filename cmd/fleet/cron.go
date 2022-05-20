@@ -294,7 +294,7 @@ func checkVulnerabilities(ctx context.Context, ds fleet.Datastore, logger kitlog
 	if err != nil {
 		level.Error(logger).Log("msg", "syncing vulnerability database", "err", err)
 		sentry.CaptureException(err)
-		// continue if sync failed
+		return nil
 	}
 
 	err = vulnerabilities.TranslateSoftwareToCPE(ctx, ds, vulnPath, logger, config)
