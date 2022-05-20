@@ -12,7 +12,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/test"
-	"github.com/google/go-cmp/cmp"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -553,7 +552,15 @@ func testSoftwareList(t *testing.T, ds *Datastore) {
 	}
 
 	t.Run("lists everything", func(t *testing.T) {
-		listSoftwareCheckCount(t, ds, 5, 5, fleet.SoftwareListOptions{}, true)
+		opts := fleet.SoftwareListOptions{
+			ListOptions: fleet.ListOptions{
+				OrderKey: "name,version",
+			},
+			IncludeCVEScores: true,
+		}
+		software := listSoftwareCheckCount(t, ds, 5, 5, opts, false)
+		expected := []fleet.Software{bar003, baz001, foo001, foo002, foo003}
+		test.ElementsMatchSkipID(t, software, expected)
 	})
 
 	t.Run("paginates", func(t *testing.T) {
@@ -646,7 +653,6 @@ func testSoftwareList(t *testing.T, ds *Datastore) {
 		opts.MatchQuery = "0002"
 		software = listSoftwareCheckCount(t, ds, 1, 1, opts, true)
 		expected = []fleet.Software{foo001}
-		fmt.Println(cmp.Diff(expected, software))
 		test.ElementsMatchSkipID(t, software, expected)
 
 		// unknown CVE
@@ -749,6 +755,25 @@ func testSoftwareList(t *testing.T, ds *Datastore) {
 		software := listSoftwareCheckCount(t, ds, 5, 5, opts, false)
 		assert.Equal(t, baz001.Name, software[0].Name)
 		assert.Equal(t, baz001.Version, software[0].Version)
+	})
+
+	t.Run("nil cve scores if IncludeCVEScores is false", func(t *testing.T) {
+		opts := fleet.SoftwareListOptions{
+			ListOptions: fleet.ListOptions{
+				OrderKey:       "name,version",
+				OrderDirection: fleet.OrderDescending,
+			},
+			IncludeCVEScores: false,
+		}
+
+		software := listSoftwareCheckCount(t, ds, 5, 5, opts, false)
+		for _, s := range software {
+			for _, vuln := range s.Vulnerabilities {
+				assert.Nil(t, vuln.CVSSScore)
+				assert.Nil(t, vuln.EPSSProbability)
+				assert.Nil(t, vuln.CISAKnownExploit)
+			}
+		}
 	})
 }
 
