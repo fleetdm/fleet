@@ -1270,13 +1270,17 @@ func testListSoftwareByHostIDShort(t *testing.T, ds *Datastore) {
 	require.NoError(t, ds.LoadHostSoftware(context.Background(), host1))
 	require.NoError(t, ds.LoadHostSoftware(context.Background(), host2))
 
-	software := listSoftwareCheckCount(t, ds, 2, 2, fleet.SoftwareListOptions{HostID: &host1.ID}, true)
+	software, err := ds.ListSoftwareByHostIDShort(context.Background(), host1.ID)
+	require.NoError(t, err)
 	test.ElementsMatchSkipID(t, software1, software)
 
-	software = listSoftwareCheckCount(t, ds, 3, 3, fleet.SoftwareListOptions{HostID: &host2.ID}, true)
+	software, err = ds.ListSoftwareByHostIDShort(context.Background(), host2.ID)
+	require.NoError(t, err)
 	test.ElementsMatchSkipID(t, software2, software)
 
 	// bad host id returns no software
 	badHostID := uint(3)
-	listSoftwareCheckCount(t, ds, 0, 0, fleet.SoftwareListOptions{HostID: &badHostID}, true)
+	software, err = ds.ListSoftwareByHostIDShort(context.Background(), badHostID)
+	require.NoError(t, err)
+	require.Len(t, software, 0)
 }
