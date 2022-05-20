@@ -243,6 +243,12 @@ const UserManagementPage = ({ router }: IUserManagementProps): JSX.Element => {
             setCreateUserErrors({
               email: "A user with this email address already exists",
             });
+          } else if (
+            userErrors.data.errors[0].reason.includes("required criteria")
+          ) {
+            setCreateUserErrors({
+              password: "Password must meet the criteria below",
+            });
           } else {
             renderFlash("error", "Could not create user. Please try again.");
           }
@@ -268,6 +274,12 @@ const UserManagementPage = ({ router }: IUserManagementProps): JSX.Element => {
           if (userErrors.data.errors[0].reason.includes("Duplicate")) {
             setCreateUserErrors({
               email: "A user with this email address already exists",
+            });
+          } else if (
+            userErrors.data.errors[0].reason.includes("required criteria")
+          ) {
+            setCreateUserErrors({
+              password: "Password must meet the criteria below",
             });
           } else {
             renderFlash("error", "Could not create user. Please try again.");
@@ -298,6 +310,12 @@ const UserManagementPage = ({ router }: IUserManagementProps): JSX.Element => {
               setEditUserErrors({
                 email: "A user with this email address already exists",
               });
+            } else if (
+              userErrors.data.errors[0].reason.includes("required criteria")
+            ) {
+              setEditUserErrors({
+                password: "Password must meet the criteria below",
+              });
             } else {
               renderFlash(
                 "error",
@@ -325,6 +343,12 @@ const UserManagementPage = ({ router }: IUserManagementProps): JSX.Element => {
             if (userErrors.data.errors[0].reason.includes("already exists")) {
               setEditUserErrors({
                 email: "A user with this email address already exists",
+              });
+            } else if (
+              userErrors.data.errors[0].reason.includes("required criteria")
+            ) {
+              setEditUserErrors({
+                password: "Password must meet the criteria below",
               });
             }
             renderFlash(
@@ -354,6 +378,12 @@ const UserManagementPage = ({ router }: IUserManagementProps): JSX.Element => {
           if (userErrors.data.errors[0].reason.includes("already exists")) {
             setEditUserErrors({
               email: "A user with this email address already exists",
+            });
+          } else if (
+            userErrors.data.errors[0].reason.includes("required criteria")
+          ) {
+            setEditUserErrors({
+              password: "Password must meet the criteria below",
             });
           } else {
             renderFlash(

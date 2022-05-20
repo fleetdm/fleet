@@ -77,7 +77,7 @@ The Fleet handbook is the central guide for how we run the company. As part of o
 
 [Email blasts](./brand.md#email-blasts)
 
-[Fleet website](./brand.md#website)
+[Fleet website](./brand.md#fleet-website)
 
 [Rituals](./brand.md#rituals)
 
@@ -211,6 +211,8 @@ The Fleet handbook is the central guide for how we run the company. As part of o
 [Zapier and DocuSign](./people.md#zapier-and-docu-sign)
 
 [PeopleOps](./people.md#people-ops)
+
+[Weekly updates](./people.md#weekly-updates)
 
 [Rituals](./people.md#rituals)
 

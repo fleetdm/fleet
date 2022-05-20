@@ -42,9 +42,11 @@ const Policies = ({
     );
   }
 
-  console.log("policies: ", policies);
-
   const tableHeaders = generatePolicyTableHeaders(togglePolicyDetailsModal);
+  if (deviceUser) {
+    // Remove view all hosts link
+    tableHeaders.pop();
+  }
   const noResponses: IHostPolicy[] =
     policies.filter(
       (policy: IHostPolicy) => !isValidPolicyResponse(policy.response)

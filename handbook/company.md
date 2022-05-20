@@ -441,6 +441,6 @@ The following Slack channels are maintained by Fleet's founders and executive co
 
 ## Email relays
 
-There are several special email addresses that automatically relay messages to the appropriate people at Fleet.  Each email address meets a minimum response time ("Min RT"), expressed in business hours / days, and has a dedicated directly responsible individual (DRI) who is responsible for reading and replying to emails sent to that address.  You can see a list of those email addresses in [Contacting Fleet (private Google doc)](https://docs.google.com/document/d/1tE-NpNfw1icmU2MjYuBRib0VWBPVAdmq4NiCrpuI0F0/edit#).
+There are several special email addresses that automatically relay messages to the appropriate people at Fleet.  Each email address meets a minimum response time ("Min RT"), expressed in business hours/days, and has a dedicated directly responsible individual (DRI) who is responsible for reading and replying to emails sent to that address.  You can see a list of those email addresses in [Contacting Fleet (private Google doc)](https://docs.google.com/document/d/1tE-NpNfw1icmU2MjYuBRib0VWBPVAdmq4NiCrpuI0F0/edit#).
 
 <meta name="maintainedBy" value="mikermcneil">

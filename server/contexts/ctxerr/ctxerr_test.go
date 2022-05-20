@@ -10,6 +10,9 @@ import (
 	"testing"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/server/contexts/host"
+	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
+	"github.com/fleetdm/fleet/v4/server/fleet"
 	pkgerrors "github.com/pkg/errors" //nolint:depguard
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -339,5 +342,25 @@ func TestHandle(t *testing.T) {
 		}
 		ctx = NewContext(ctx, eh)
 		Handle(ctx, err)
+	})
+}
+
+func TestAdditionalMetadata(t *testing.T) {
+	t.Run("saves additional data about the host if present", func(t *testing.T) {
+		ctx, cleanup := setup()
+		defer cleanup()
+		hctx := host.NewContext(ctx, &fleet.Host{Platform: "test_platform", OsqueryVersion: "5.0"})
+		err := New(hctx, "with host context").(*FleetError)
+
+		require.JSONEq(t, string(err.data), `{"host":{"osquery_version":"5.0","platform":"test_platform"},"timestamp":"1969-06-19T21:44:05Z"}`)
+	})
+
+	t.Run("saves additional data about the viewer if present", func(t *testing.T) {
+		ctx, cleanup := setup()
+		defer cleanup()
+		vctx := viewer.NewContext(ctx, viewer.Viewer{Session: &fleet.Session{ID: 1}, User: &fleet.User{SSOEnabled: true}})
+		err := New(vctx, "with host context").(*FleetError)
+
+		require.JSONEq(t, string(err.data), `{"viewer":{"is_logged_in":true,"sso_enabled":true},"timestamp":"1969-06-19T21:44:05Z"}`)
 	})
 }

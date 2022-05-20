@@ -128,7 +128,7 @@ jobs:
       run: |
         chmod +x ./build/fleetctl
         ./build/fleetctl config set --address ${{ needs.gen.outputs.address }}
-        until ./build/fleetctl login --email admin@example.com --password admin123#
+        until ./build/fleetctl login --email admin@example.com --password preview1337#
         do
           echo "Retrying in 5s..."
           sleep 5
