@@ -394,13 +394,13 @@ When the final signature is added to an envelope in DocuSign, it is marked as co
    ```
 ## Adding Salesforce licenses
 
-At Fleet we consider Salesforce to be our roledex for customer information. During the onboarding process, you may need to add a license for the new hire. Here are the steps we take: 
+We consider Salesforce to be our Roledex for customer information. During the onboarding process, you may need to add a license for the new hire. Here are the steps we take: 
 
-1. Go to “Your account”
-2. View contracts -> pick current contract
-3. Add the number of licenses
-4. Sign docusign sent to the email
-5. The order will be processed in ~30m
+1. Go to “Your account.”
+2. View contracts -> pick current contract.
+3. Add the number of licenses.
+4. Sign DocuSign sent to the email.
+5. The order will be processed in ~30m.
 
 ## PeopleOps
 
