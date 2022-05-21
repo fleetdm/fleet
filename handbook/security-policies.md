@@ -130,7 +130,7 @@ The Fleet business continuity and disaster recovery plan establishes procedures 
 
 Fleet policy requires that:
 
-1. A plan and process for business continuity and disaster recovery (BCDR), including the backup and recovery of critical systems and data, will be defined and documented.
+1. A plan and process for business continuity and disaster recovery (BCDR), will be defined and documented including the backup and recovery of critical systems and data,.
 
 2. BCDR shall be simulated and tested at least once a year. 
 
@@ -140,34 +140,34 @@ Fleet policy requires that:
 
 #### Line of Succession
 
-The following order of succession to ensure that decision-making authority for the Fleet Contingency Plan is uninterrupted. The Chief Operating Officer (CEO) is responsible for ensuring the safety of personnel and the execution of procedures documented within this Fleet Contingency Plan. The CTO is responsible for the recovery of Fleet technical environments. If the CEO or Head of Engineering is unable to function as the overall authority or chooses to delegate this responsibility to a successor, the board of directors shall function as that authority or choose an alternative delegate. 
+The following order of succession to make sure that decision-making authority for the Fleet Contingency Plan is uninterrupted. The Chief Operating Officer (CEO) is responsible for ensuring the safety of personnel and the execution of procedures documented within this Fleet Contingency Plan. The CTO is responsible for the recovery of Fleet technical environments. If the CEO or Head of Engineering cannot function as the overall authority or choose to delegate this responsibility to a successor, the board of directors shall serve as that authority or choose an alternative delegate. 
 
 ### Response Teams and Responsibilities
 
 The following teams have been developed and trained to respond to a contingency event affecting Fleet infrastructure and systems.
 
-1. **Infrastructure** is responsible for recovery of the Fleet automatic update service hosted environment. The team includes personnel responsible for the daily IT operations and maintenance. The team reports to the CTO.
+1. **Infrastructure** is responsible for recovering the Fleet automatic update service hosted environment. The team includes personnel responsible for the daily IT operations and maintenance. The team reports to the CTO.
 
-2. **People Ops** is responsible for ensuring the physical safety of all Fleet personnel and coordinating response to incidents that could impact it. Fleet has no physical site to recover. The team reports to the CEO.
+2. **People Ops** is responsible for ensuring the physical safety of all Fleet personnel and coordinating the response to incidents that could impact it. Fleet has no physical site to recover. The team reports to the CEO.
 
-4. **Security** is responsible for assessing and responding to all cybersecurity related incidents according to Fleet Incident Response policy and procedures. The security team shall assist the above teams in recovery as needed in non-cybersecurity events. The team leader is the Head of Security.
+3. **Security** is responsible for assessing and responding to all cybersecurity-related incidents according to Fleet Incident Response policy and procedures. The security team shall assist the above teams in recovery as needed in non-cybersecurity events. The team leader is the Head of Security.
 
-Members of above teams must maintain local copies of the contact information of the BCDR succession team. Additionally, the team leads must maintain a local copy of this policy in the event Internet access is not available during a disaster scenario.
+Members of the above teams must maintain local copies of the contact information of the BCDR succession team. Additionally, the team leads must maintain a local copy of this policy in the event Internet access is not available during a disaster scenario.
 
 All executive leadership shall be informed of any and all contingency events.
 
-Current members of Fleet continuity leadership team include the Head of Security, CEO, CTO.
+Current Fleet continuity leadership team members include the Head of Security, CEO, and CTO.
 
 ### General Disaster Recovery Procedures
 
 #### Notification and Activation Phase
 
-This phase addresses the initial actions taken to detect and assess damage inflicted by a disruption to Fleet Device Management or the Fleet automatic updater service. Based on the assessment of the Event, sometimes according to the Fleet Incident Response Policy, the Contingency Plan may be activated by either the CEO or CTO.  The Contingency Plan may also be activated by the Head of Security in the event of a cyber disaster.
+This phase addresses the initial actions taken to detect and assess the damage inflicted by a disruption to Fleet Device Management or the Fleet automatic updater service. Based on the assessment of the Event, sometimes, according to the Fleet Incident Response Policy, the Contingency Plan may be activated by either the CEO or CTO.  The Contingency Plan may also be triggered by the Head of Security in the event of a cyber disaster.
 
 The notification sequence is listed below:
 
 * The first responder is to notify the CTO. All known information must be relayed.
-* The CTO is to contact the Response Teams and inform them of the event. The CTO or delegate is responsible to begin assessment procedures.
+* The CTO is to contact the Response Teams and inform them of the event. The CTO or delegate is responsible to beginning the assessment procedures.
 * The CTO is to notify team members and direct them to complete the assessment procedures outlined below to determine the extent of the issue and estimated recovery time. 
 * The Fleet Contingency Plan is to be activated if one or more of the following criteria are met:
 
@@ -175,11 +175,11 @@ The notification sequence is listed below:
     * Cloud infrastructure service is damaged and will be unavailable for more than 24 hours.
     * Other criteria, as appropriate and as defined by Fleet.
 
-* If the plan is to be activated, the CTO is to notify and inform team members of the details of the event.
-* Upon notification from the CTO, group leaders and managers are to notify their respective teams. Team members are to be informed of all applicable information and prepared to respond and relocate if necessary.
-* The CTO is to notify remaining personnel and executive leadership on the general status of the incident.
-* Notification can be Slack, email, or phone.
-* The CTO posts a blog post explaining that the service is down and that recovery is in progress.
+* If the plan is to be activated, the CTO is to notify and inform team members of the event details.
+* Upon notification from the CTO, group leaders and managers must notify their respective teams. Team members are to be informed of all applicable information and prepared to respond and relocate if necessary.
+* The CTO is to notify the remaining personnel and executive leadership on the general status of the incident.
+* Notification can be via Slack, email, or phone.
+* The CTO posts a blog post explaining that the service is down and recovery is in progress.
 
 #### Reconstitution Phase
 
@@ -188,17 +188,17 @@ This section discusses activities necessary for restoring full Fleet automatic u
 1. Contact Partners and Customers affected to begin initial communication - CTO
 2. Assess damage to the environment - Infrastructure
 3. Create a new production environment using new environment bootstrap automation - Infrastructure
-4. Ensure secure access to the new environment - Security
+4. Make sure secure access to the new environment - Security
 5. Begin code deployment and data replication using pre-established automation - DevOps
 6. Test new environment and applications using pre-written tests - DevOps
 7. Test logging, security, and alerting functionality - DevOps and Security
 8. Assure systems and applications are appropriately patched and up to date -DevOps
-9. Update DNS and other necessary records to point to new environment - DevOps
+9. Update DNS and other necessary records to point to the new environment - DevOps
 10. Update Partners and Customers affected through established channels - DevOps
 
 #### Plan Deactivation
 
-If the Fleet automatic updater environment has been restored, the continuity plan can be deactivated. If the disaster impacted the company and not the service, or both, ensure that any leftover systems created temporarily are destroyed.
+If the Fleet automatic updater environment has been restored, the continuity plan can be deactivated. If the disaster impacted the company and not the service or both, make sure that any leftover systems created temporarily are destroyed.
 
 ## Data management policy
 *Created from [JupiterOne/security-policy-templates](https://github.com/JupiterOne/security-policy-templates). [CC BY-SA 4 license](https://creativecommons.org/licenses/by-sa/4.0/)*
