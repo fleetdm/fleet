@@ -336,7 +336,7 @@ func TestGetHosts(t *testing.T) {
 	}
 
 	expectedText := `+------+------------+----------+-----------------+---------+
-| UUID |  HOSTNAME  | PLATFORM | OSQUERY VERSION | STATUS |
+| UUID |  HOSTNAME  | PLATFORM | OSQUERY VERSION | STATUS  |
 +------+------------+----------+-----------------+---------+
 |      | test_host  |          |                 | offline |
 +------+------------+----------+-----------------+---------+
