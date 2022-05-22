@@ -205,33 +205,33 @@ If the Fleet automatic updater environment has been restored, the continuity pla
 
 This policy outlines the requirements and controls/procedures Fleet has implemented to manage the end-to-end data lifecycle, from data creation/acquisition to retention and deletion.
 
-Additionally, this policy outlines requirements and procedures to create and maintain retrievable exact copies of electronic protected health information(ePHI), PII and other critical customer/business data.
+Additionally, this policy outlines requirements and procedures to create and maintain retrievable exact copies of electronically protected health information(ePHI), PII, and other critical customer/business data.
 
-Data backup is an important part of the day-to-day operations of Fleet. To protect the confidentiality, integrity, and availability of sensitive and critical data, both for Fleet and Fleet Customers, complete backups are done daily to assure that data remains available when it needed and in case of a disaster.
+Data backup is an important part of the day-to-day operations of Fleet. To protect the confidentiality, integrity, and availability of sensitive and critical data, both for Fleet and Fleet Customers, complete backups are done daily to assure that data remains available when needed and in case of a disaster.
 
 Fleet policy requires that:
 
-1. Data should be classified at time of creation or acquisition.
+1. Data should be classified at the time of creation or acquisition.
 
 2. Fleet must maintain an up-to-date inventory and data flows mapping of all critical data.
 
-3. All business data should be stored or replicated to a company controlled repository.
+3. All business data should be stored or replicated to a company-controlled repository.
 
-4. Data must be backed up according to its level defined in Fleet data classification.
+4. Data must be backed up according to the level defined in Fleet data classification.
 
 5. Data backup must be validated for integrity.
 
-6. Data retention period must be defined and comply with any and all applicable regulatory and contractual requirements.  More specifically,
+6. The data retention period must be defined and comply with any and all applicable regulatory and contractual requirements.  More specifically,
 
-  * Data and records belonging to Fleet platform customer must be retained
+  * data and records belonging to Fleet platform customers must be retained
     per Fleet product terms and conditions and/or specific contractual
     agreements.
 
-7. By default, all security documentation and audit trails are kept for a minimum of seven years, unless otherwise specified by Fleet data classification, specific regulations or contractual agreement.
+7. By default, all security documentation and audit trails are kept for a minimum of seven years unless otherwise specified by Fleet data classification, specific regulations, or contractual agreement.
 
 ### Data Classification Model
 
-Fleet defines the following four classifications of data:
+Fleet defines the following four data classifications:
 
 * **Critical**
 * **Confidential**
@@ -244,14 +244,14 @@ As Fleet is an open company by default, most of our data falls into **public**.
 
 **Critical** data includes data that must be protected due to regulatory requirements, privacy, and/or security sensitivities.
 
-Unauthorized disclosure of critical data may result in major disruption to business operations, significant cost, irreparable reputation damage, and/or legal prosecution to the company.
+Unauthorized disclosure of critical data may result in major disruption to business operations, significant cost, irreparable reputation damage, and/or legal prosecution of the company.
 
 External disclosure of critical data is strictly prohibited without an approved process and agreement in place.
 
-*Example Critical Data Types* includes
+*Example Critical Data Types* include
 
 * PII (personal identifiable information)
-* ePHI (electronic protected health information)
+* ePHI (electronically protected health information)
 * Production security data, such as
     - Production secrets, passwords, access keys, certificates, etc.
     - Production security audit logs, events, and incident data
@@ -259,11 +259,11 @@ External disclosure of critical data is strictly prohibited without an approved 
 
 **Confidential** and proprietary data represents company secrets and is of significant value to the company.
 
-Unauthorized disclosure may result in disruption to business operations and loss in value.
+Unauthorized disclosure may result in disruption to business operations and loss of value.
 
 Disclosure requires the signing of NDA and management approval.
 
-*Example Confidential Data Types* includes
+*Example Confidential Data Types* include
 
 * Business plans
 * Employee/HR data
@@ -275,7 +275,7 @@ Disclosure requires the signing of NDA and management approval.
 
 **Internal** data contains information used for internal operations.
 
-Unauthorized disclosure may cause undesirable outcome to business operations.
+Unauthorized disclosure may cause undesirable outcomes to business operations.
 
 Disclosure requires management approval.  NDA is usually required but may be waived on a case-by-case basis.
 
@@ -283,13 +283,13 @@ Disclosure requires management approval.  NDA is usually required but may be wai
 non-confidential, the integrity and availability of public data should be
 protected.
 
-*Example Internal Data Types* includes
+*Example Internal Data Types* include
 
-* Fleet source code
-* News and public announcements (post-announcement)
-* Marketing materials
-* Product documentation
-* Contents posted on company website(s) and social media channel(s)
+* Fleet source code.
+* news and public announcements (post-announcement).
+* marketing materials.
+* product documentation.
+* content posted on the company website(s) and social media channel(s).
 
 #### Data Handling Requirements Matrix
 
@@ -297,16 +297,16 @@ Requirements for data handling, such as the need for encryption and the duration
 
 | Data             | Labeling or Tagging | Segregated Storage | Endpoint Storage | Encrypt At Rest | Encrypt In Transit | Encrypt In Use | Controlled Access | Monitoring | Destruction at Disposal | Retention Period | Backup Recovery |
 |------------------|---------------------|--------------------|------------------|-----------------|--------------------|----------------|-------------------|------------|------------------------|------------------|-----------------|
-| **Critical**     | Required            | Required           | Prohibited       | Required        | Required           | Required       | Access is blocked to end users by default; Temporary access for privileged users only | Required   | Required   | 7 years for audit trails; Varies for customer-owned data† | Required   |
-| **Confidential** | Required            | N/R                | Allowed          | Required        | Required           | Required       | All access is based on need-to-know | Required   | Required   | 7 years for official documentation; Others vary based on business need | Required   |
+| **Critical**     | Required            | Required           | Prohibited       | Required        | Required           | Required       | Access is blocked to end users by default; Temporary access for privileged users only | Required   | Required   | seven years for audit trails; Varies for customer-owned data† | Required   |
+| **Confidential** | Required            | N/R                | Allowed          | Required        | Required           | Required       | All access is based on need-to-know | Required   | Required   | seven years for official documentation; Others vary based on business need | Required   |
 | **Internal**     | Required            | N/R                | Allowed          | N/R             | N/R                | N/R            | All employees and contractors (read); Data owners and authorized individuals (write) | N/R | N/R | Varies based on business need | Optional   |
 | **Public**       | N/R                 | N/R                | Allowed          | N/R             | N/R                | N/R            | Everyone (read); Data owners and authorized individuals (write) | N/R     | N/R     | Varies based on business need | Optional   |
 
 N/R = Not Required
 
-† customer-owned data is stored for as long as they remain as a Fleet customer, or as required by regulations, whichever is longer. Customer may request their data to be deleted at any time; unless retention is required by law.
+† Customer-owned data is stored for as long as they remain as a Fleet customer, or as required by regulations, whichever is longer. Customers may request their data to be deleted at any time; unless retention is required by law.
 
-Most Fleet data is **public** yet retained and backed up not due to our data handling requirements but simply due to business requirements.
+Most Fleet data is **public** yet retained and backed up not due to our data handling requirements but simply business requirements.
 
 
 ## Encryption policy
