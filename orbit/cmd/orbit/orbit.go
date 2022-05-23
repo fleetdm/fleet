@@ -135,12 +135,7 @@ func main() {
 			EnvVars: []string{"ORBIT_FLEET_DESKTOP"},
 		},
 	}
-	app.Action = func(c *cli.Context) error {
-		if c.Bool("version") {
-			fmt.Println("orbit " + build.Version)
-			return nil
-		}
-
+	app.Before = func(c *cli.Context) error {
 		// handle old installations, which had default root dir set to /var/lib/orbit
 		if c.String("root-dir") == "" {
 			rootDir := update.DefaultOptions.RootDirectory
@@ -153,6 +148,14 @@ func main() {
 				rootDir = "/var/lib/orbit"
 			}
 			c.Set("root-dir", rootDir)
+		}
+
+		return nil
+	}
+	app.Action = func(c *cli.Context) error {
+		if c.Bool("version") {
+			fmt.Println("orbit " + build.Version)
+			return nil
 		}
 
 		var logFile io.Writer

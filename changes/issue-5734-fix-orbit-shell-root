@@ -1,0 +1,1 @@
+* Fixed an issue with detecting root directory when using `orbit shell`.
