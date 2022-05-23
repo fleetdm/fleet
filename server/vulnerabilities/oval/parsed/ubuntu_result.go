@@ -44,10 +44,10 @@ func (r UbuntuResult) Eval(software []fleet.Software) []fleet.SoftwareVulnerabil
 			for _, software := range tResults[tId] {
 				for _, v := range d.Vulnerabilities {
 					vuln = append(vuln, fleet.SoftwareVulnerability{
-						ID:    software.ID,
-						CPE:   software.GenerateCPE,
-						CPEID: software.GeneratedCPEID,
-						CVE:   v,
+						SoftwareID: software.ID,
+						CPE:        software.GenerateCPE,
+						CPEID:      software.GeneratedCPEID,
+						CVE:        v,
 					})
 				}
 			}

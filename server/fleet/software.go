@@ -96,10 +96,10 @@ type SoftwareListOptions struct {
 
 // SoftwareVulnerability identifies a vulnerability on a specific software (CPE).
 type SoftwareVulnerability struct {
-	ID    uint   `db:"software_id"`
-	CPE   string `db:"cpe"`
-	CPEID uint   `db:"cpe_id"`
-	CVE   string `db:"cve"`
+	SoftwareID uint   `db:"software_id"`
+	CPE        string `db:"cpe"`
+	CPEID      uint   `db:"cpe_id"`
+	CVE        string `db:"cve"`
 }
 
 // String implements fmt.Stringer.

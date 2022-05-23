@@ -921,34 +921,24 @@ func (ds *Datastore) InsertVulnerabilities(
 	vulns []fleet.SoftwareVulnerability,
 	source fleet.VulnerabilitySource,
 ) (int64, error) {
+	var args []interface{}
+
 	if len(vulns) == 0 {
 		return 0, nil
 	}
 
-	var records []interface{}
-	for _, vuln := range vulns {
-		records = append(records, goqu.Record{
-			"cpe_id": vuln.CPEID,
-			"cve":    vuln.CVE,
-			"source": source,
-		})
-	}
+	values := strings.TrimSuffix(strings.Repeat("(?,?,?),", len(vulns)), ",")
+	sql := fmt.Sprintf(`INSERT IGNORE INTO software_cve (cpe_id, cve, source) VALUES %s`, values)
 
-	iStmt, _, err := dialect.
-		Insert("software_cve").
-		OnConflict(goqu.DoNothing()).
-		Rows(records...).
-		ToSQL()
+	for _, v := range vulns {
+		args = append(args, v.CPEID, v.CVE, source)
+	}
+	res, err := ds.writer.ExecContext(ctx, sql, args...)
 	if err != nil {
-		return 0, ctxerr.Wrap(ctx, err, "InsertVulnerabilitiesForSoftwareID")
+		return 0, ctxerr.Wrap(ctx, err, "insert software cve")
 	}
-
-	res, err := ds.writer.ExecContext(ctx, iStmt)
-	if err != nil {
-		return 0, ctxerr.Wrap(ctx, err, "InsertVulnerabilitiesForSoftwareID")
-	}
-
 	count, _ := res.RowsAffected()
+
 	return count, nil
 }
 

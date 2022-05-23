@@ -39,6 +39,7 @@ func TestSoftware(t *testing.T) {
 		{"HostsByCVE", testHostsByCVE},
 		{"UpdateHostSoftware", testUpdateHostSoftware},
 		{"ListSoftwareVulnerabilities", testListSoftwareVulnerabilities},
+		{"InsertVulnerabilities", testInsertVulnerabilities},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -1127,7 +1128,75 @@ func testListSoftwareVulnerabilities(t *testing.T, ds *Datastore) {
 	require.ElementsMatch(t, expectedCVEs, actualCVEs)
 
 	for _, r := range result {
-		require.NotEqual(t, r.ID, 0)
+		require.NotEqual(t, r.SoftwareID, 0)
 		require.NotEqual(t, r.CPEID, 0)
 	}
+}
+
+func testInsertVulnerabilities(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+
+	t.Run("no vulnerabilities to insert", func(t *testing.T) {
+		r, err := ds.InsertVulnerabilities(ctx, nil, fleet.OVAL)
+		require.Zero(t, r)
+		require.NoError(t, err)
+	})
+
+	t.Run("duplicated vulnerabilities", func(t *testing.T) {
+		host := test.NewHost(t, ds, "host1", "", "host1key", "host1uuid", time.Now())
+		software := fleet.Software{
+			Name: "foo", Version: "0.0.1", Source: "chrome_extensions",
+		}
+
+		require.NoError(t, ds.UpdateHostSoftware(ctx, host.ID, []fleet.Software{software}))
+		require.NoError(t, ds.LoadHostSoftware(ctx, host, fleet.SoftwareListOptions{}))
+		require.NoError(t, ds.AddCPEForSoftware(ctx, host.Software[0], "foo_cpe_1"))
+
+		vulns := []fleet.SoftwareVulnerability{
+			{CPEID: 1, CVE: "cve-1"},
+			{CPEID: 1, CVE: "cve-1"},
+		}
+		n, err := ds.InsertVulnerabilities(ctx, vulns, fleet.OVAL)
+		require.NoError(t, err)
+		require.Equal(t, 1, int(n))
+
+		storedVulns, err := ds.ListSoftwareVulnerabilities(ctx, host.ID)
+		require.NoError(t, err)
+
+		occurrence := make(map[string]int)
+		for _, v := range storedVulns {
+			occurrence[v.CVE] = occurrence[v.CVE] + 1
+		}
+		require.Equal(t, 1, occurrence["cve-1"])
+	})
+
+	t.Run("a vulnerability already exists", func(t *testing.T) {
+		host := test.NewHost(t, ds, "host2", "", "host2key", "host2uuid", time.Now())
+		software := fleet.Software{
+			Name: "foo", Version: "0.0.1", Source: "chrome_extensions",
+		}
+
+		require.NoError(t, ds.UpdateHostSoftware(ctx, host.ID, []fleet.Software{software}))
+		require.NoError(t, ds.LoadHostSoftware(ctx, host, fleet.SoftwareListOptions{}))
+		require.NoError(t, ds.AddCPEForSoftware(ctx, host.Software[0], "foo_cpe_2"))
+
+		vulns := []fleet.SoftwareVulnerability{{CPEID: 1, CVE: "cve-2"}}
+
+		n, err := ds.InsertVulnerabilities(ctx, vulns, fleet.OVAL)
+		require.NoError(t, err)
+		require.Equal(t, 1, int(n))
+
+		n, err = ds.InsertVulnerabilities(ctx, vulns, fleet.OVAL)
+		require.NoError(t, err)
+		require.Equal(t, 0, int(n))
+
+		storedVulns, err := ds.ListSoftwareVulnerabilities(ctx, host.ID)
+
+		occurrence := make(map[string]int)
+		for _, v := range storedVulns {
+			occurrence[v.CVE] = occurrence[v.CVE] + 1
+		}
+		require.Equal(t, 1, occurrence["cve-1"])
+		require.Equal(t, 1, occurrence["cve-2"])
+	})
 }
