@@ -2,7 +2,6 @@ package service
 
 import (
 	"encoding/json"
-	"fmt"
 	"io"
 	"net/http"
 	"regexp"
@@ -86,7 +85,6 @@ func (s *integrationDebugTestSuite) TestWrappedErrors() {
 	require.NoError(t, err)
 
 	var errs errorstore.JSONResponse
-	fmt.Println(string(rawErr))
 	require.NoError(t, json.Unmarshal(rawErr, &errs))
 	require.Len(t, errs, 1)
 	require.Equal(t, errs[0].Cause.Message, "Authentication required")
