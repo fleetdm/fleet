@@ -7,7 +7,6 @@ import { Tab, Tabs, TabList, TabPanel } from "react-tabs";
 import classnames from "classnames";
 import { pick } from "lodash";
 
-import { AppContext } from "context/app";
 import { NotificationContext } from "context/notification";
 import deviceUserAPI from "services/entities/device_user";
 import { IHost, IDeviceMappingResponse } from "interfaces/host";
@@ -248,7 +247,7 @@ const DeviceUserPage = ({
                     <Tab>
                       <div>
                         {titleData.issues.failing_policies_count > 0 && (
-                          <span className="fail-count">
+                          <span className="count">
                             {titleData.issues.failing_policies_count}
                           </span>
                         )}
