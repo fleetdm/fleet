@@ -170,7 +170,8 @@ jobs:
     strategy:
       matrix:
         go-version: ['^1.17.0']
-    runs-on: ubuntu-latest
+    # We can only generate all (PKG, MSI, DEB, RPM) packages from a macOS host.
+    runs-on: macos-latest
     needs: [gen, get-enroll-secret]
     steps:
 
@@ -182,14 +183,26 @@ jobs:
     - name: Checkout Code
       uses: actions/checkout@629c2de402a417ea7690ca6ce3f33229e27606a5 # v2
 
-    - name: Start tunnel
+    - name: Install Docker
+      # Docker needs to be installed manually on macOS.
+      if: contains(matrix.os, 'macos')
+      # From https://github.com/docker/for-mac/issues/2359#issuecomment-943131345
+      run: |
+        brew install --cask docker
+        sudo /Applications/Docker.app/Contents/MacOS/Docker --unattended --install-privileged-components
+        open -a /Applications/Docker.app --args --unattended --accept-license
+        echo "Waiting for Docker to start up..."
+        while ! /Applications/Docker.app/Contents/Resources/bin/docker info &>/dev/null; do sleep 1; done
+        echo "Docker is ready."
+
+    - name: Install cloudflared
+      run: |
+        brew install cloudflared
+
+    - name: Start cloudflared tunnel
       env:
         CERT_PEM: ${{ secrets.CLOUDFLARE_TUNNEL_FLEETUEM_CERT_B64 }}
       run: |
-        # Install cloudflared
-        wget https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64.deb
-        sudo dpkg -i cloudflared-linux-amd64.deb
-        # Add secret
         echo "$CERT_PEM" | base64 -d > cert.pem
         # Start tunnel
         cloudflared tunnel --origincert cert.pem --hostname ${{ needs.gen.outputs.tuf_subdomain }} --url http://localhost:8081 --name ${{ needs.gen.outputs.tuf_subdomain }} &
