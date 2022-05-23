@@ -548,8 +548,8 @@ func (a *agent) DistributedWrite(queries map[string]string) {
 	const hostPolicyQueryPrefix = "fleet_policy_query_"
 	const hostDetailQueryPrefix = "fleet_detail_query_"
 	for name := range queries {
-		r.Results[name] = defaultQueryResult
-		r.Statuses[name] = fleet.StatusOK
+		r.Results[name] = nil
+		r.Statuses[name] = 1
 		if strings.HasPrefix(name, hostPolicyQueryPrefix) {
 			r.Results[name] = a.runPolicy(queries[name])
 			continue
@@ -559,21 +559,21 @@ func (a *agent) DistributedWrite(queries map[string]string) {
 			continue
 		}
 		if name == hostDetailQueryPrefix+"mdm" {
-			r.Statuses[name] = fleet.OsqueryStatus(rand.Intn(2))
+			r.Statuses[name] = 1
 			r.Results[name] = nil
 			if r.Statuses[name] == fleet.StatusOK {
 				r.Results[name] = a.mdm()
 			}
 		}
 		if name == hostDetailQueryPrefix+"munki_info" {
-			r.Statuses[name] = fleet.OsqueryStatus(rand.Intn(2))
+			r.Statuses[name] = 1
 			r.Results[name] = nil
 			if r.Statuses[name] == fleet.StatusOK {
 				r.Results[name] = a.munkiInfo()
 			}
 		}
 		if name == hostDetailQueryPrefix+"google_chrome_profiles" {
-			r.Statuses[name] = fleet.OsqueryStatus(rand.Intn(2))
+			r.Statuses[name] = 1
 			r.Results[name] = nil
 			if r.Statuses[name] == fleet.StatusOK {
 				r.Results[name] = a.googleChromeProfiles()
