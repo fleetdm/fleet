@@ -1716,17 +1716,17 @@ ON DUPLICATE KEY UPDATE
 
 func (ds *Datastore) HostIDsByPlatform(
 	ctx context.Context,
-	platform string,
-	osVersion string,
+	platform *string,
+	osVersion *string,
 ) ([]uint, error) {
 	var ids []uint
 	var filters []goqu.Expression
 
 	stmt := dialect.From("hosts").Select("id")
-	if platform != "" {
+	if platform != nil {
 		filters = append(filters, goqu.C("platform").Eq(platform))
 	}
-	if osVersion != "" {
+	if osVersion != nil {
 		filters = append(filters, goqu.C("os_version").Eq(osVersion))
 	}
 	stmt = stmt.Where(filters...).Order(goqu.I("id").Desc())

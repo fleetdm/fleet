@@ -34,7 +34,7 @@ func Analyze(
 			return nil, err
 		}
 
-		hIds, err := ds.HostIDsByPlatform(ctx, v.Platform, v.Name)
+		hIds, err := ds.HostIDsByPlatform(ctx, &v.Platform, &v.Name)
 		if err != nil {
 			return nil, err
 		}

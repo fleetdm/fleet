@@ -189,7 +189,7 @@ type Datastore interface {
 	// HostIDsByName Retrieve the IDs associated with the given hostnames
 	HostIDsByName(ctx context.Context, filter TeamFilter, hostnames []string) ([]uint, error)
 	// HostIDsByPlatform Retrieve the IDs of all host matching 'platform' and/or 'os_version'
-	HostIDsByPlatform(ctx context.Context, platform string, osVersion string) ([]uint, error)
+	HostIDsByPlatform(ctx context.Context, platform *string, osVersion *string) ([]uint, error)
 	// HostByIdentifier returns one host matching the provided identifier. Possible matches can be on
 	// osquery_host_identifier, node_key, UUID, or hostname.
 	HostByIdentifier(ctx context.Context, identifier string) (*Host, error)

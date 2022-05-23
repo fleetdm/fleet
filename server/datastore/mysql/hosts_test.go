@@ -4195,14 +4195,16 @@ func testHostIDsByPlatform(t *testing.T, ds *Datastore) {
 	}
 
 	t.Run("no platform nor version filters", func(t *testing.T) {
-		result, err := ds.HostIDsByPlatform(ctx, "", "")
+		result, err := ds.HostIDsByPlatform(ctx, nil, nil)
 		require.NoError(t, err)
 		require.Len(t, result, 10)
 	})
 
-	t.Run("filtering by platfrom", func(t *testing.T) {
-		result, err := ds.HostIDsByPlatform(ctx, "ubuntu", "")
+	t.Run("filtering by platform", func(t *testing.T) {
+		platform := "ubuntu"
+		result, err := ds.HostIDsByPlatform(ctx, &platform, nil)
 		require.NoError(t, err)
+		require.Len(t, result, 5)
 		for _, id := range result {
 			r, err := ds.HostLite(ctx, id)
 			require.NoError(t, err)
@@ -4211,13 +4213,17 @@ func testHostIDsByPlatform(t *testing.T, ds *Datastore) {
 	})
 
 	t.Run("no match", func(t *testing.T) {
-		none, err := ds.HostIDsByPlatform(ctx, "asdfas", "sdfasw")
+		platform := "asdfas"
+		version := "sdfasw"
+		none, err := ds.HostIDsByPlatform(ctx, &platform, &version)
 		require.NoError(t, err)
 		require.Len(t, none, 0)
 	})
 
 	t.Run("filtering by platform and version", func(t *testing.T) {
-		result, err := ds.HostIDsByPlatform(ctx, "ubuntu", "20.4.0")
+		platform := "ubuntu"
+		version := "20.4.0"
+		result, err := ds.HostIDsByPlatform(ctx, &platform, &version)
 		require.NoError(t, err)
 		require.Len(t, result, 1)
 		for _, id := range result {
