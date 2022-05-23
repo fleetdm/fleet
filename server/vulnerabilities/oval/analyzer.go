@@ -54,7 +54,7 @@ func Analyze(
 
 			found := defs.Eval(h.Software)
 			if len(found) == 0 {
-				return nil, nil
+				continue
 			}
 
 			existing, err := ds.ListSoftwareVulnerabilities(ctx, hId)
