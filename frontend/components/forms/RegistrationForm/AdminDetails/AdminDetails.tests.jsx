@@ -83,8 +83,11 @@ describe("AdminDetails - form", () => {
       screen.getByRole("textbox", { name: "Email" }),
       "hi@gnar.dog"
     );
-    userEvent.type(screen.getByPlaceholderText("Password"), "p@ssw0rd");
-    userEvent.type(screen.getByPlaceholderText("Confirm password"), "p@ssw0rd");
+    userEvent.type(screen.getByPlaceholderText("Password"), "password123#");
+    userEvent.type(
+      screen.getByPlaceholderText("Confirm password"),
+      "password123#"
+    );
     userEvent.type(
       screen.getByRole("textbox", { name: "Full name" }),
       "Gnar Dog"
@@ -94,8 +97,8 @@ describe("AdminDetails - form", () => {
     expect(onSubmitSpy).toHaveBeenCalledWith({
       email: "hi@gnar.dog",
       name: "Gnar Dog",
-      password: "p@ssw0rd",
-      password_confirmation: "p@ssw0rd",
+      password: "password123#",
+      password_confirmation: "password123#",
     });
   });
 });

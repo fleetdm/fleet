@@ -7,7 +7,7 @@ contributors. The purpose of the growth team is to own and improve the growth fu
 
 Effective market positioning is crucial to the growth of any software product. Fleet needs to maintain a unique, valuable position in the minds of our users. We keep assertions on our positioning in this [Google Doc](https://docs.google.com/document/d/1sttTxm6B-acvZuQuGt7kkKn-_IVXM0sLwStnjnpIU9Y/edit?usp=sharing) (private). It will be updated quarterly based on the feedback of users, customers, team members, and other stakeholders. Feedback can be provided as a comment in the document or by posting in the `#g-growth` Slack channel. 
 
-## Marketing Qualified Opportunities (MQOs)
+## Marketing qualified opportunities (MQOs)
 
 Growth's goal is to increase usage of the product. We value users of all sizes adopting Fleet Free or Fleet Premium. Companies purchasing under 100 device licenses should sign up [self-service](https://fleetdm.com/pricing/). Companies that enroll more than 100 devices should [schedule a demo](https://fleetdm.com/). When these companies attend a demo, Fleet considers them marketing qualified opportunities (MQOs).
 
@@ -18,6 +18,10 @@ Fleet's lead enrichment process can be found in this [Google Doc](https://docs.g
 ## Outreach one-pager
 
 Our one-pager offers a summary of what Fleet does. It can help stakeholders become familiar with the company and product while also being a useful tool the Growth team uses for sales outreach. Find Fleet's outreach one-pager in this [Google Doc](https://drive.google.com/file/d/1o0gHCVonNbjjsk8iI-mgVw5O-o-AhJ5t/view?usp=sharing).
+
+## Intro deck
+
+Fleet's intro deck adds additional detail to our pitch. Find it in [Google Slides](https://docs.google.com/presentation/d/1sMCld6OPPG-LzJojmoSPxnOt17H-KYYfl5QFbBO29Fk/edit?usp=sharing).
 
 ## Posting on social media as Fleet
 

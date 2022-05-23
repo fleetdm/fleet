@@ -41,10 +41,6 @@
     .fleeticon-offline {
       color: $ui-error;
     }
-
-    .fleeticon-mia {
-      color: $core-fleet-black;
-    }
   }
 
   &__description {
@@ -270,6 +266,11 @@
 
       &__inner-text {
         width: 485px;
+        img {
+          width: 12px;
+          position: relative;
+          top: 1px;
+        }
       }
     }
   }

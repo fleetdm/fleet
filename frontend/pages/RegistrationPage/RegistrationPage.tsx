@@ -50,8 +50,10 @@ const RegistrationPage = ({ router }: IRegistrationPageProps) => {
       setCurrentUser(user);
       setAvailableTeams(available_teams);
       return router.push(MANAGE_HOSTS);
-    } catch (response) {
-      console.error(response);
+    } catch (error) {
+      // TODO: Alert user to server errors
+      console.log(error);
+      setPage(1);
       return false;
     }
   };

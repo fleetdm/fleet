@@ -47,10 +47,6 @@
     .fleeticon-offline {
       color: $ui-error;
     }
-
-    .fleeticon-mia {
-      color: $core-fleet-black;
-    }
   }
 
   &__label-actions {
@@ -129,6 +125,14 @@
                     height: 16px;
                     vertical-align: sub;
                   }
+                }
+              }
+              .device_mapping__cell {
+                .text-cell {
+                  display: inline;
+                }
+                .text-muted {
+                  color: $ui-fleet-black-50;
                 }
               }
             }

@@ -12,6 +12,7 @@ import Slider from "components/forms/fields/Slider";
 import Checkbox from "components/forms/fields/Checkbox";
 // @ts-ignore
 import InputField from "components/forms/fields/InputField";
+import Spinner from "components/Spinner";
 import PreviewPayloadModal from "../PreviewPayloadModal";
 
 interface IManageAutomationsModalProps {
@@ -23,6 +24,7 @@ interface IManageAutomationsModalProps {
   currentAutomatedPolicies?: number[];
   currentDestinationUrl?: string;
   enableFailingPoliciesWebhook: boolean;
+  isAutomationsLoading: boolean;
 }
 
 interface ICheckedPolicy {
@@ -95,6 +97,7 @@ const ManageAutomationsModal = ({
   currentAutomatedPolicies,
   currentDestinationUrl,
   enableFailingPoliciesWebhook,
+  isAutomationsLoading,
 }: IManageAutomationsModalProps): JSX.Element => {
   const [destination_url, setDestinationUrl] = useState<string>(
     currentDestinationUrl || ""
@@ -144,8 +147,6 @@ const ManageAutomationsModal = ({
         policy_ids,
         enable_failing_policies_webhook: policyAutomationEnabled,
       });
-
-      onReturnToApp();
     }
   };
 
@@ -172,92 +173,98 @@ const ManageAutomationsModal = ({
       title={"Manage automations"}
       className={baseClass}
     >
-      <div className={baseClass}>
-        <div className={`${baseClass}__software-select-items`}>
-          <Slider
-            value={policyAutomationEnabled}
-            onChange={() =>
-              setPolicyAutomationEnabled(!policyAutomationEnabled)
-            }
-            inactiveText={"Policy automations disabled"}
-            activeText={"Policy automations enabled"}
-          />
-        </div>
-        <div className={`${baseClass}__overlay-container`}>
-          <div className={`${baseClass}__policy-automation-enabled`}>
-            {availablePolicies && availablePolicies.length > 0 ? (
-              <div className={`${baseClass}__policy-select-items`}>
-                <p>
-                  <strong>
-                    Choose which policies you would like to listen to:
-                  </strong>
-                </p>
-                {policyItems &&
-                  policyItems.map((policyItem) => {
-                    const { isChecked, name, id } = policyItem;
-                    return (
-                      <div key={id} className={`${baseClass}__team-item`}>
-                        <Checkbox
-                          value={isChecked}
-                          name={name}
-                          onChange={() => updatePolicyItems(policyItem.id)}
-                        >
-                          {name}
-                        </Checkbox>
-                      </div>
-                    );
-                  })}
+      <>
+        {isAutomationsLoading ? (
+          <Spinner />
+        ) : (
+          <div className={baseClass}>
+            <div className={`${baseClass}__software-select-items`}>
+              <Slider
+                value={policyAutomationEnabled}
+                onChange={() =>
+                  setPolicyAutomationEnabled(!policyAutomationEnabled)
+                }
+                inactiveText={"Policy automations disabled"}
+                activeText={"Policy automations enabled"}
+              />
+            </div>
+            <div className={`${baseClass}__overlay-container`}>
+              <div className={`${baseClass}__policy-automation-enabled`}>
+                {availablePolicies && availablePolicies.length > 0 ? (
+                  <div className={`${baseClass}__policy-select-items`}>
+                    <p>
+                      <strong>
+                        Choose which policies you would like to listen to:
+                      </strong>
+                    </p>
+                    {policyItems &&
+                      policyItems.map((policyItem) => {
+                        const { isChecked, name, id } = policyItem;
+                        return (
+                          <div key={id} className={`${baseClass}__team-item`}>
+                            <Checkbox
+                              value={isChecked}
+                              name={name}
+                              onChange={() => updatePolicyItems(policyItem.id)}
+                            >
+                              {name}
+                            </Checkbox>
+                          </div>
+                        );
+                      })}
+                  </div>
+                ) : (
+                  <div className={`${baseClass}__no-policies`}>
+                    <b>You have no policies.</b>
+                    <p>Add a policy to turn on automations.</p>
+                  </div>
+                )}
+                <InputField
+                  inputWrapperClass={`${baseClass}__url-input`}
+                  name="webhook-url"
+                  label={"Destination URL"}
+                  type={"text"}
+                  value={destination_url}
+                  onChange={onURLChange}
+                  error={errors.url}
+                  hint={
+                    'For each policy, Fleet will send a JSON payload to this URL with a list of the hosts that updated their answer to "No."'
+                  }
+                  placeholder={"https://server.com/example"}
+                  tooltip="Provide a URL to deliver a webhook request to."
+                />
+                <Button
+                  type="button"
+                  variant="text-link"
+                  onClick={togglePreviewPayloadModal}
+                >
+                  Preview payload
+                </Button>
               </div>
-            ) : (
-              <div className={`${baseClass}__no-policies`}>
-                <b>You have no policies.</b>
-                <p>Add a policy to turn on automations.</p>
-              </div>
-            )}
-            <InputField
-              inputWrapperClass={`${baseClass}__url-input`}
-              name="webhook-url"
-              label={"Destination URL"}
-              type={"text"}
-              value={destination_url}
-              onChange={onURLChange}
-              error={errors.url}
-              hint={
-                'For each policy, Fleet will send a JSON payload to this URL with a list of the hosts that updated their answer to "No."'
-              }
-              placeholder={"https://server.com/example"}
-              tooltip="Provide a URL to deliver a webhook request to."
-            />
-            <Button
-              type="button"
-              variant="text-link"
-              onClick={togglePreviewPayloadModal}
-            >
-              Preview payload
-            </Button>
+              {!policyAutomationEnabled && (
+                <div className={`${baseClass}__overlay`} />
+              )}
+            </div>
+            <div className="modal-cta-wrap">
+              <Button
+                className={`${baseClass}__btn`}
+                onClick={onReturnToApp}
+                variant="inverse"
+              >
+                Cancel
+              </Button>
+              <Button
+                className={`${baseClass}__btn`}
+                type="submit"
+                variant="brand"
+                onClick={handleSaveAutomation}
+              >
+                Save
+              </Button>
+            </div>
           </div>
-          {!policyAutomationEnabled && (
-            <div className={`${baseClass}__overlay`} />
-          )}
-        </div>
-        <div className="modal-cta-wrap">
-          <Button
-            className={`${baseClass}__btn`}
-            onClick={onReturnToApp}
-            variant="inverse"
-          >
-            Cancel
-          </Button>
-          <Button
-            className={`${baseClass}__btn`}
-            type="submit"
-            variant="brand"
-            onClick={handleSaveAutomation}
-          >
-            Save
-          </Button>
-        </div>
-      </div>
+        )}
+      </>
     </Modal>
   );
 };

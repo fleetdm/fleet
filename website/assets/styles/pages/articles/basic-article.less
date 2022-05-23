@@ -69,6 +69,13 @@
       line-height: 28px;
       margin-bottom: 24px;
     }
+    img + em { // Image captions
+      position: relative;
+      top: -24px;
+      display: flex;
+      align-items: center;
+      flex-direction: column;
+    }
     ul, ol {
       padding-left: 16px;
     }
@@ -115,6 +122,9 @@
         line-height: 24px;
         font-size: 16px;
       }
+    }
+    iframe {
+      align-self: center;
     }
   }
   [purpose='bottom-cta'] {

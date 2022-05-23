@@ -1232,6 +1232,7 @@ Replaces all existing global enroll secrets.
 | Name      | Type    | In   | Description                                                        |
 | --------- | ------- | ---- | ------------------------------------------------------------------ |
 | spec      | object  | body | **Required**. Attribute "secrets" must be a list of enroll secrets |
+
 #### Example
 
 Replace all global enroll secrets with a new enroll secret.
@@ -1929,7 +1930,7 @@ Returns the count of all hosts organized by status. `online_count` includes all 
       "description": "All Linux distributions",
       "label_type": "builtin"
     }
-  ], 
+  ],
   "platforms": [
     {
       "platform": "linux",
@@ -2602,10 +2603,10 @@ requested by a web browser.
 `Status: 200`
 
 ```csv
-created_at,updated_at,id,detail_updated_at,label_updated_at,policy_updated_at,last_enrolled_at,seen_time,refetch_requested,hostname,uuid,platform,osquery_version,os_version,build,platform_like,code_name,uptime,memory,cpu_type,cpu_subtype,cpu_brand,cpu_physical_cores,cpu_logical_cores,hardware_vendor,hardware_model,hardware_version,hardware_serial,computer_name,primary_ip_id,primary_ip,primary_mac,distributed_interval,config_tls_refresh,logger_tls_period,team_id,team_name,gigs_disk_space_available,percent_disk_space_available
-2022-03-15T17:23:56Z,2022-03-15T17:23:56Z,1,2022-03-15T17:23:56Z,2022-03-15T17:23:56Z,2022-03-15T17:23:56Z,2022-03-15T17:23:56Z,2022-03-15T17:23:56Z,false,foo.local0,a4fc55a1-b5de-409c-a2f4-441f564680d3,debian,,,,,,0s,0,,,,0,0,,,,,,,,,0,0,0,,,0,0
-2022-03-15T17:23:56Z,2022-03-15T17:23:56Z,2,2022-03-15T17:23:56Z,2022-03-15T17:23:56Z,2022-03-15T17:23:56Z,2022-03-15T17:23:56Z,2022-03-15T17:22:56Z,false,foo.local1,689539e5-72f0-4bf7-9cc5-1530d3814660,rhel,,,,,,0s,0,,,,0,0,,,,,,,,,0,0,0,,,0,0
-2022-03-15T17:23:56Z,2022-03-15T17:23:56Z,3,2022-03-15T17:23:56Z,2022-03-15T17:23:56Z,2022-03-15T17:23:56Z,2022-03-15T17:23:56Z,2022-03-15T17:21:56Z,false,foo.local2,48ebe4b0-39c3-4a74-a67f-308f7b5dd171,linux,,,,,,0s,0,,,,0,0,,,,,,,,,0,0,0,,,0,0
+created_at,updated_at,id,detail_updated_at,label_updated_at,policy_updated_at,last_enrolled_at,seen_time,refetch_requested,hostname,uuid,platform,osquery_version,os_version,build,platform_like,code_name,uptime,memory,cpu_type,cpu_subtype,cpu_brand,cpu_physical_cores,cpu_logical_cores,hardware_vendor,hardware_model,hardware_version,hardware_serial,computer_name,primary_ip_id,primary_ip,primary_mac,distributed_interval,config_tls_refresh,logger_tls_period,team_id,team_name,gigs_disk_space_available,percent_disk_space_available,issues,device_mapping,status,display_text
+2022-03-15T17:23:56Z,2022-03-15T17:23:56Z,1,2022-03-15T17:23:56Z,2022-03-15T17:23:56Z,2022-03-15T17:23:56Z,2022-03-15T17:23:56Z,2022-03-15T17:23:56Z,false,foo.local0,a4fc55a1-b5de-409c-a2f4-441f564680d3,debian,,,,,,0s,0,,,,0,0,,,,,,,,,0,0,0,,,0,0,0,,,,
+2022-03-15T17:23:56Z,2022-03-15T17:23:56Z,2,2022-03-15T17:23:56Z,2022-03-15T17:23:56Z,2022-03-15T17:23:56Z,2022-03-15T17:23:56Z,2022-03-15T17:22:56Z,false,foo.local1,689539e5-72f0-4bf7-9cc5-1530d3814660,rhel,,,,,,0s,0,,,,0,0,,,,,,,,,0,0,0,,,0,0,0,,,,
+2022-03-15T17:23:56Z,2022-03-15T17:23:56Z,3,2022-03-15T17:23:56Z,2022-03-15T17:23:56Z,2022-03-15T17:23:56Z,2022-03-15T17:23:56Z,2022-03-15T17:21:56Z,false,foo.local2,48ebe4b0-39c3-4a74-a67f-308f7b5dd171,linux,,,,,,0s,0,,,,0,0,,,,,,,,,0,0,0,,,0,0,0,,,,
 ```
 
 ---
@@ -4949,15 +4950,15 @@ Deletes the session specified by ID. When the user associated with the session n
 
 #### Parameters
 
-| Name                    | Type    | In    | Description                                                                                                                                                                                                                                                                                                                                 |
-| ----------------------- | ------- | ----- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| page                    | integer | query | Page number of the results to fetch.                                                                                                                                                                                                                                                                                                        |
-| per_page                | integer | query | Results per page.                                                                                                                                                                                                                                                                                                                           |
-| order_key               | string  | query | What to order results by. Can be ordered by the following fields: `name`, `hosts_count`. Defaults to the hosts count, descending.                                                                                                                                                                                                           |
-| order_direction         | string  | query | **Requires `order_key`**. The direction of the order given the order key. Options include `asc` and `desc`. Default if not provided is `asc`.                                                                                                                                                                                               |
-| query                   | string  | query | Search query keywords. Searchable fields include `name`, `version`, and `cve`.                                                                                                                                                                                                                                                                                    |
-| team_id                 | integer | query | _Available in Fleet Premium_ Filters the software to only include the software installed on the hosts that are assigned to the specified team.                                                                                                                                                                                              |
-| vulnerable              | bool    | query | If true or 1, only list software that has detected vulnerabilities                                                                                                                                                                                                                                                                          |
+| Name                    | Type    | In    | Description                                                                                                                                                                |
+| ----------------------- | ------- | ----- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| page                    | integer | query | Page number of the results to fetch.                                                                                                                                       |
+| per_page                | integer | query | Results per page.                                                                                                                                                          |
+| order_key               | string  | query | What to order results by. Allowed fields are `name`, `hosts_count`, `cvss_score`, `epss_probability` and `cisa_known_exploit`. Default is `hosts_count` (descending).      |
+| order_direction         | string  | query | **Requires `order_key`**. The direction of the order given the order key. Options include `asc` and `desc`. Default is `asc`.                                              |
+| query                   | string  | query | Search query keywords. Searchable fields include `name`, `version`, and `cve`.                                                                                             |
+| team_id                 | integer | query | _Available in Fleet Premium_ Filters the software to only include the software installed on the hosts that are assigned to the specified team.                             |
+| vulnerable              | bool    | query | If true or 1, only list software that has detected vulnerabilities. Default is `false`.                                                                                    |
 
 #### Example
 
@@ -4972,40 +4973,24 @@ Deletes the session specified by ID. When the user associated with the session n
     "counts_updated_at": "2022-01-01 12:32:00",
     "software": [
       {
-        "id": 4,
-        "name": "osquery",
-        "version": "2.1.11",
-        "source": "rpm_packages",
-        "generated_cpe": "",
-        "vulnerabilities": null,
-        "hosts_count": 456
-      },
-      {
-        "id": 3,
-        "name": "osquery",
-        "version": "2.1.11",
-        "source": "rpm_packages",
-        "generated_cpe": "",
-        "vulnerabilities": null,
-        "hosts_count": 345
-      },
-      {
-        "id": 2,
-        "name": "Figma.app",
-        "version": "2.1.11",
-        "source": "Application (macOS)",
-        "generated_cpe": "",
-        "vulnerabilities": null,
-        "hosts_count": 234
-      },
-      {
         "id": 1,
-        "name": "Chrome.app",
-        "version": "2.1.11",
-        "source": "Application (macOS)",
-        "generated_cpe": "",
-        "vulnerabilities": null,
-        "hosts_count": 123
+        "name": "glibc",
+        "version": "2.12",
+        "source": "rpm_packages",
+        "release": "1.212.el6",
+        "vendor": "CentOS",
+        "arch": "x86_64",
+        "generated_cpe": "cpe:2.3:a:gnu:glibc:2.12:*:*:*:*:*:*:*",
+        "vulnerabilities": [
+          {
+            "cve": "CVE-2009-5155",
+            "details_link": "https://nvd.nist.gov/vuln/detail/CVE-2009-5155",
+            "cvss_score": 7.5,
+            "epss_probability": 0.01537,
+            "cisa_known_exploit": false
+          }
+        ],
+        "hosts_count": 1
       }
     ]
   }
@@ -5020,13 +5005,9 @@ Deletes the session specified by ID. When the user associated with the session n
 
 | Name                    | Type    | In    | Description                                                                                                                                                                                                                                                                                                                                 |
 | ----------------------- | ------- | ----- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| page                    | integer | query | Allowed for compatibility with GET /api/v1/fleet/software but ignored                                                                                                                                                                                                                                                                       |
-| per_page                | integer | query | Allowed for compatibility with GET /api/v1/fleet/software but ignored                                                                                                                                                                                                                                                                       |
-| order_key               | string  | query | Allowed for compatibility with GET /api/v1/fleet/software but ignored                                                                                                                                                                                                                                                                       |
-| order_direction         | string  | query | Allowed for compatibility with GET /api/v1/fleet/software but ignored                                                                                                                                                                                                                                                                       |
-| query                   | string  | query | Search query keywords. Searchable fields include `name`.                                                                                                                                                                                                                                                                                    |
-| team_id                 | integer | query | _Available in Fleet Premium_ Filters the software to only include the software installed on the hosts that are assigned to the specified team.                                                                                                                                                                                                   |
-| vulnerable              | bool    | query | If true or 1, only list software that has detected vulnerabilities                                                                                                                                                                                                                                                                          |
+| query                   | string  | query | Search query keywords. Searchable fields include `name`, `version`, and `cve`.                                                                                                                                                                                                                                                               |
+| team_id                 | integer | query | _Available in Fleet Premium_ Filters the software to only include the software installed on the hosts that are assigned to the specified team.                                                                                                                                                                                              |
+| vulnerable              | bool    | query | If true or 1, only list software that has detected vulnerabilities.                                                                                                                                                                                                                                                                         |
 
 #### Example
 
@@ -6381,6 +6362,8 @@ Deletes the selected user's sessions in Fleet. Also deletes the user's API token
 ## Debug
 
 - [Get a summary of errors](#get-a-summary-of-errors)
+- [Get database information](#get-database-information)
+- [Get profiling information](#get-profiling-information)
 
 The Fleet server exposes a handful of API endpoints to retrieve debug information about the server itself in order to help troubleshooting. All the following endpoints require prior authentication meaning you must first log in successfully before calling any of the endpoints documented below.
 
@@ -6425,6 +6408,32 @@ The server only stores and returns a single instance of each error.
   }
 ]
 ```
+
+### Get database information
+
+Returns information about the current state of the database; valid keys are:
+
+- `locks`: returns transaction locking information.
+- `innodb-status`: returns InnoDB status information.
+- `process-list`: returns running processes (queries, etc).
+
+`GET /debug/db/{key}`
+
+#### Parameters
+
+None.
+
+### Get profiling information
+
+Returns runtime profiling data of the server in the format expected by `go tools pprof`. The responses are equivalent to those returned by the Go `http/pprof` package.
+
+Valid keys are: `cmdline`, `profile`, `symbol` and `trace`.
+
+`GET /debug/pprof/{key}`
+
+#### Parameters
+
+None.
 
 ---
 <meta name="pageOrderInSection" value="400">

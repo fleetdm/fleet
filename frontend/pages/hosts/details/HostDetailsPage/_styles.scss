@@ -335,8 +335,7 @@
       }
     }
 
-    &--offline,
-    &--mia {
+    &--offline {
       &:before {
         background-color: $ui-fleet-black-25;
         border-radius: 100%;
@@ -346,10 +345,6 @@
         margin-right: $pad-small;
         width: 8px;
       }
-    }
-
-    &--mia {
-      text-transform: uppercase;
     }
   }
 
@@ -409,8 +404,8 @@
     margin-right: $pad-small;
   }
 
-  &__device-mapping {
-    .device-user-tooltip {
+  &__device_mapping {
+    .device_mapping--tooltip {
       flex-direction: column;
       justify-content: start;
       text-align: left;

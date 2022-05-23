@@ -19,6 +19,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/service/async"
 	"github.com/fleetdm/fleet/v4/server/sso"
+	"github.com/fleetdm/fleet/v4/server/test"
 	kitlog "github.com/go-kit/kit/log"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -49,10 +50,19 @@ func newTestServiceWithConfig(t *testing.T, ds fleet.Datastore, fleetConfig conf
 
 	var failingPolicySet fleet.FailingPolicySet = NewMemFailingPolicySet()
 	var c clock.Clock = clock.C
+	if len(opts) > 0 {
+		if opts[0].Clock != nil {
+			c = opts[0].Clock
+		}
+	}
 
-	task := &async.Task{
-		Datastore:    ds,
-		AsyncEnabled: false,
+	task := async.NewTask(ds, nil, c, config.OsqueryConfig{})
+	if len(opts) > 0 {
+		if opts[0].Task != nil {
+			task = opts[0].Task
+		} else {
+			opts[0].Task = task
+		}
 	}
 
 	if len(opts) > 0 {
@@ -68,17 +78,8 @@ func newTestServiceWithConfig(t *testing.T, ds fleet.Datastore, fleetConfig conf
 		if opts[0].FailingPolicySet != nil {
 			failingPolicySet = opts[0].FailingPolicySet
 		}
-		if opts[0].Clock != nil {
-			c = opts[0].Clock
-		}
-		if opts[0].Task != nil {
-			task = opts[0].Task
-		} else {
-			opts[0].Task = task
-		}
 	}
 
-	task.Clock = c
 	svc, err := NewService(context.Background(), ds, task, rs, logger, osqlogger, fleetConfig, mailer, c, ssoStore, lq, ds, *license, failingPolicySet, &fleet.NoOpGeoIP{})
 	if err != nil {
 		panic(err)
@@ -130,17 +131,17 @@ var testUsers = map[string]struct {
 	GlobalRole        *string
 }{
 	"admin1": {
-		PlaintextPassword: "foobarbaz1234!",
+		PlaintextPassword: test.GoodPassword,
 		Email:             "admin1@example.com",
 		GlobalRole:        ptr.String(fleet.RoleAdmin),
 	},
 	"user1": {
-		PlaintextPassword: "foobarbaz1234!",
+		PlaintextPassword: test.GoodPassword,
 		Email:             "user1@example.com",
 		GlobalRole:        ptr.String(fleet.RoleMaintainer),
 	},
 	"user2": {
-		PlaintextPassword: "bazfoo1234!",
+		PlaintextPassword: test.GoodPassword,
 		Email:             "user2@example.com",
 		GlobalRole:        ptr.String(fleet.RoleObserver),
 	},

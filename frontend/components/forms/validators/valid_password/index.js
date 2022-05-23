@@ -4,7 +4,7 @@ const SYMBOL_PRESENT = /\W+/;
 
 export default (password = "") => {
   return (
-    password.length >= 7 &&
+    password.length >= 12 &&
     LETTER_PRESENT.test(password) &&
     NUMBER_PRESENT.test(password) &&
     SYMBOL_PRESENT.test(password)

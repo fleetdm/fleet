@@ -1,3 +1,7 @@
+import CONSTANTS from "../../support/constants";
+
+const { GOOD_PASSWORD } = CONSTANTS;
+
 describe("Premium tier - Team Admin user", () => {
   before(() => {
     Cypress.session.clearAllSavedSessions();
@@ -15,7 +19,7 @@ describe("Premium tier - Team Admin user", () => {
   });
 
   beforeEach(() => {
-    cy.loginWithCySession("anita@organization.com", "user123#");
+    cy.loginWithCySession("anita@organization.com", GOOD_PASSWORD);
   });
   describe("Navigation", () => {
     beforeEach(() => cy.visit("/dashboard"));

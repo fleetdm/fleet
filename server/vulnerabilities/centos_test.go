@@ -48,7 +48,7 @@ func TestCentOSPostProcessing(t *testing.T) {
 				Release: "30.el7",
 				Arch:    "x86_64",
 				Vendor:  "CentOS",
-				Vulnerabilities: fleet.VulnerabilitiesSlice{
+				Vulnerabilities: fleet.Vulnerabilities{
 					{
 						CVE: "CVE-2017-7488",
 					},
@@ -63,7 +63,7 @@ func TestCentOSPostProcessing(t *testing.T) {
 				Release: "8.el7_7",
 				Arch:    "x86_64",
 				Vendor:  "CentOS",
-				Vulnerabilities: fleet.VulnerabilitiesSlice{
+				Vulnerabilities: fleet.Vulnerabilities{
 					{
 						CVE: "CVE-2015-3415",
 					},
@@ -84,7 +84,7 @@ func TestCentOSPostProcessing(t *testing.T) {
 				Release: "5.el7",
 				Arch:    "x86_64",
 				Vendor:  "CentOS",
-				Vulnerabilities: fleet.VulnerabilitiesSlice{
+				Vulnerabilities: fleet.Vulnerabilities{
 					{
 						CVE: "CVE-2019-3835",
 					},
@@ -99,7 +99,7 @@ func TestCentOSPostProcessing(t *testing.T) {
 				Release: "9.el7",
 				Arch:    "x86_64",
 				Vendor:  "",
-				Vulnerabilities: fleet.VulnerabilitiesSlice{
+				Vulnerabilities: fleet.Vulnerabilities{
 					{
 						CVE: "CVE-8888-9999",
 					},

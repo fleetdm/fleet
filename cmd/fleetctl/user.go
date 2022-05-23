@@ -153,6 +153,8 @@ func createUserCommand() *cli.Command {
 			// Only set the password reset flag if SSO is not enabled and user is not API-only. Otherwise
 			// the user will be stuck in a bad state and not be able to log in.
 			force_reset := !sso && !apiOnly
+
+			// password requirements are validated as part of `CreateUser`
 			err = client.CreateUser(fleet.UserPayload{
 				Password:                 &password,
 				Email:                    &email,

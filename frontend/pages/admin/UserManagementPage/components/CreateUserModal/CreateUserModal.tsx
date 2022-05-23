@@ -19,7 +19,7 @@ interface ICreateUserModalProps {
   currentTeam?: ITeam;
   canUseSso: boolean; // corresponds to whether SSO is enabled for the organization
   isModifiedByGlobalAdmin?: boolean | false;
-  isFormSubmitting?: boolean | false;
+  isLoading?: boolean | false;
   serverErrors?: { base: string; email: string };
   createUserErrors?: IUserFormErrors;
 }
@@ -38,14 +38,14 @@ const CreateUserModal = ({
   smtpConfigured,
   canUseSso,
   isModifiedByGlobalAdmin,
-  isFormSubmitting,
+  isLoading,
   serverErrors,
   createUserErrors,
 }: ICreateUserModalProps): JSX.Element => {
   return (
     <Modal title="Create user" onExit={onCancel} className={baseClass}>
       <>
-        {isFormSubmitting && (
+        {isLoading && (
           <div className="loading-spinner">
             <Spinner />
           </div>

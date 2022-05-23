@@ -22,7 +22,8 @@ const PolicyFailingCount = (policyProps: {
         {failCount === 1 ? " 1 policy" : ` ${failCount} policies`}
       </div>
       <p>
-        Click a policy below to see steps for resolving the failure
+        Click a policy below to see if there are steps you can take to resolve
+        the issue
         {failCount > 1 ? "s" : ""}.
       </p>
     </div>
