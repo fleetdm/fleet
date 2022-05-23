@@ -150,33 +150,33 @@ func latestOvalDefFor(platform Platform, vulnPath string, date time.Time) (strin
 	fileName := platform.ToFilename(date, ext)
 	target := path.Join(vulnPath, fileName)
 
-	_, err := os.Stat(target)
-	if err != nil {
-		if errors.Is(err, fs.ErrNotExist) {
-			files, err := os.ReadDir(vulnPath)
-			if err != nil {
-				return "", err
-			}
+	switch _, err := os.Stat(target); {
+	case err == nil:
+		return target, nil
+	case errors.Is(err, fs.ErrNotExist):
+		files, err := os.ReadDir(vulnPath)
+		if err != nil {
+			return "", err
+		}
 
-			prefix := strings.Split(fileName, "-")[0]
-			var latest os.FileInfo
-			for _, f := range files {
-				if strings.HasPrefix(f.Name(), prefix) && strings.HasSuffix(f.Name(), ext) {
-					info, err := f.Info()
-					if err != nil {
-						continue
-					}
-					if latest == nil || info.ModTime().After(latest.ModTime()) {
-						latest = info
-					}
+		prefix := strings.Split(fileName, "-")[0]
+		var latest os.FileInfo
+		for _, f := range files {
+			if strings.HasPrefix(f.Name(), prefix) && strings.HasSuffix(f.Name(), ext) {
+				info, err := f.Info()
+				if err != nil {
+					continue
+				}
+				if latest == nil || info.ModTime().After(latest.ModTime()) {
+					latest = info
 				}
 			}
-
-			if latest != nil {
-				return path.Join(vulnPath, latest.Name()), nil
-			}
 		}
-		return "", fmt.Errorf("file not found for platform '%s' in '%s'", platform, vulnPath)
+		if latest == nil {
+			return "", fmt.Errorf("file not found for platform '%s' in '%s'", platform, vulnPath)
+		}
+		return path.Join(vulnPath, latest.Name()), nil
+	default:
+		return "", fmt.Errorf("failed to stat %q: %w", target, err)
 	}
-	return target, nil
 }
