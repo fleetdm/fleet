@@ -146,9 +146,9 @@ func main() {
 				}
 				if licensePass {
 					if allPoliciesPass {
-						myDeviceItem.SetTitle("My device 🟢")
+						myDeviceItem.SetTitle("🟢 My device")
 					} else {
-						myDeviceItem.SetTitle("My device 🔴")
+						myDeviceItem.SetTitle("🔴 My device")
 					}
 				} else {
 					myDeviceItem.SetTitle("My device")
