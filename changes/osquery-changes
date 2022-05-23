@@ -1,0 +1,8 @@
+* Implemented `output_size` column in table `osquery_schedule` for scheduled queries
+* Expanded `wifi_networks` table to include more data on macOS
+* Fixed `wifi_networks` table to now be compatible with newer macOS releases
+* Deprecated and removed FreeBSD support
+
+Upcoming changes:
+* Implemented `es_process_file_events` -- EndpointSecurity based File Integrity Monitoring on macOS
+* Implemented `password_policy` table on macOS
