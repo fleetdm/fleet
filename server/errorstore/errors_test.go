@@ -342,7 +342,7 @@ func testErrorHandlerCollectsDifferentErrors(t *testing.T, pool fleet.RedisPool,
 }
 
 func TestHttpHandler(t *testing.T) {
-	setupTest := func() *Handler {
+	setupTest := func(t *testing.T) *Handler {
 		pool := redistest.SetupRedis(t, "error:", false, false, false)
 		ctx, cancelFunc := context.WithCancel(context.Background())
 		defer cancelFunc()
@@ -372,7 +372,7 @@ func TestHttpHandler(t *testing.T) {
 	}
 
 	t.Run("retrieves errors", func(t *testing.T) {
-		eh := setupTest()
+		eh := setupTest(t)
 		req := httptest.NewRequest("GET", "/", nil)
 		res := httptest.NewRecorder()
 		eh.ServeHTTP(res, req)
@@ -393,7 +393,7 @@ func TestHttpHandler(t *testing.T) {
 	})
 
 	t.Run("flushes errors after retrieving if the flush flag is true", func(t *testing.T) {
-		eh := setupTest()
+		eh := setupTest(t)
 		req := httptest.NewRequest("GET", "/?flush=true", nil)
 		res := httptest.NewRecorder()
 		eh.ServeHTTP(res, req)
@@ -420,7 +420,7 @@ func TestHttpHandler(t *testing.T) {
 	})
 
 	t.Run("fails with correct status code if the flush flag is invalid", func(t *testing.T) {
-		eh := setupTest()
+		eh := setupTest(t)
 		req := httptest.NewRequest("GET", "/?flush=invalid", nil)
 		res := httptest.NewRecorder()
 		eh.ServeHTTP(res, req)

@@ -138,8 +138,10 @@ func TestWrap(t *testing.T) {
 		ctx, cleanup := setup()
 		defer cleanup()
 		cause := errors.New("cause")
-		err := Wrap(ctx, cause)
-		require.Equal(t, err, cause)
+		err := Wrap(ctx, cause).(*FleetError)
+		require.Equal(t, err.msg, "")
+		require.NotEmpty(t, err.stack.List())
+		require.NotNil(t, err.cause)
 	})
 
 	t.Run("with nil error provided", func(t *testing.T) {
@@ -179,9 +181,13 @@ func TestWrapNewWithData(t *testing.T) {
 	t.Run("without message provided", func(t *testing.T) {
 		ctx, cleanup := setup()
 		defer cleanup()
+		data := map[string]interface{}{"foo": make(chan int)}
 		cause := errors.New("cause")
-		err := WrapWithData(ctx, cause, "", map[string]interface{}{"foo": "bar"})
-		require.Equal(t, err, cause)
+		err := WrapWithData(ctx, cause, "", data).(*FleetError)
+		require.Equal(t, err.msg, "")
+		require.NotEmpty(t, err.stack.List())
+		require.NotNil(t, err.cause)
+		assert.Regexp(t, regexp.MustCompile(`{"error": ".+"}`), string(err.data))
 	})
 
 	t.Run("with nil error provided", func(t *testing.T) {

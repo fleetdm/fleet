@@ -30,7 +30,7 @@ Our primary quality objectives are *customer service* and *defect reduction*. We
 - Folks who post a new comment in Slack or issue on GitHub should receive a response **within one business day**. The response doesn't need to include an immediate answer.
 - If you feel confused by a question or comment raised, [request more details](#requesting-more-details) to better your understanding of the next steps.
 - If an appropriate response is outside of your scope, please post to `#help-engineering` (in the Fleet Slack)), tagging `@oncall`.
-- If things get heated, remember to stay [positive and helpful](https://canny.io/blog/moderating-user-comments-diplomatically/).  If you aren't sure how best to respond positively, or if you see behavior that violates the Fleet code of conduct, get help.
+- If things get heated, remember to stay [positive and helpful](https://canny.io/blog/moderating-user-comments-diplomatically/). If you aren't sure how best to respond positively, or if you see behavior that violates the Fleet code of conduct, get help.
 
 ### Requesting more details
 
@@ -38,24 +38,24 @@ Typically, the *questions*, *bug reports*, and *feature requests* raised by comm
 
 ❓ For questions that you don't immediately know the answer to, it's helpful to ask follow-up questions to receive additional context.
 
-- Let's say a community member asks the question "How do I do X in Fleet?" A follow-up question could be "What are you attempting to accomplish by doing X?"
+- Let's say a community member asks, "How do I do X in Fleet?" A follow-up question could be, "What are you attempting to accomplish by doing X?"
 - This way, you have additional details when you bring this to the Roundup meeting. In addition, the community member receives a response and feels heard.
 
-🦟 For bug reports, it's helpful to ask for re-creation steps so you're later able to verify the bug exists.
+🦟 For bug reports, it's helpful to ask for re-creation steps, so you're later able to verify the bug exists.
 
-- Let's say a community member submits a bug report. An example follow-up question could be "Can you please walk me through how you encountered this issue so that I can attempt to recreate it?"
+- Let's say a community member submits a bug report. An example follow-up question could be, "Can you please walk me through how you encountered this issue so that I can attempt to recreate it?"
 - This way, you now have steps that verify whether the bug exists in Fleet or if the issue is specific to the community member's environment. If the latter, you now have additional information for further investigation and question-asking.
 
-💡 For feature requests, it's helpful to ask follow-up questions in an attempt to understand the "Why?" or underlying motivation behind the request.
+💡 For feature requests, it's helpful to ask follow-up questions to better understand the "Why?" or underlying motivation behind the request.
 
 - Let's say a community member submits the feature request "I want the ability to do X in Fleet." A follow-up question could be "If you were able to do X in Fleet, what's the next action you would take?" or "Why do you want to do X in Fleet?."
 - Both of these questions provide helpful context on the underlying motivation behind the feature request when brought to the Roundup meeting. In addition, the community member receives a response and feels heard.
 
 ### Closing issues
 
-It is often a good idea to let the original poster (OP) close their issue themselves since they are usually well equipped to decide to mark the issue as resolved. In some cases, circling back with the OP can be impractical, and for the sake of speed, issues might get closed.
+It is often good to let the original poster (OP) close their issue themselves since they are usually well equipped to decide to mark the issue as resolved. In some cases, circling back with the OP can be impractical, and for the sake of speed, issues might get closed.
 
-Keep in mind that this can feel jarring to the OP.  The effect is worse if issues are closed automatically by a bot (See [balderashy/sails#3423](https://github.com/balderdashy/sails/issues/3423#issuecomment-169751072) and [balderdashy/sails#4057](https://github.com/balderdashy/sails/issues/4057) for examples of this).
+Keep in mind that this can feel jarring to the OP. The effect is worse if issues are closed automatically by a bot (See [balderashy/sails#3423](https://github.com/balderdashy/sails/issues/3423#issuecomment-169751072) and [balderdashy/sails#4057](https://github.com/balderdashy/sails/issues/4057) for examples of this).
 
 ### Version support
 
@@ -71,9 +71,9 @@ Premium support for support/troubleshooting: **All versions**
 
 ### Tools
 
-Ther script located in `scripts/oncall` for use during oncall rotation (only been tested on macOS and Linux).
-Its use is completely optional but contains several useful commands for checking issues and PRs that may require attention.
-You will need to install the following tools in order to use it:
+Find the script in `scripts/oncall` for use during oncall rotation (only been tested on macOS and Linux).
+Its use is optional but contains several useful commands for checking issues and PRs that may require attention.
+You will need to install the following tools to use it:
 
 - [GitHub CLI](https://cli.github.com/manual/installation)
 - [JQ](https://stedolan.github.io/jq/download/)
