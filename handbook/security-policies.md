@@ -318,7 +318,7 @@ Most Fleet data is **public** yet retained and backed up not due to our data han
 
 Fleet requires all workforce members to comply with the encryption policy, such that:
 
-1. The storage drives of all Fleet-owned workstations must be encrypted, and enforced by the IT and/or security team.
+1. The storage drives of all Fleet-owned workstations must be encrypted and enforced by the IT and/or security team.
 
 2. Confidential data must be stored in a manner that supports user access logs.
 
