@@ -131,11 +131,14 @@ type Host struct {
 
 	HostIssues `json:"issues,omitempty" csv:"-"`
 
-	DeviceMapping *json.RawMessage `json:"device_mapping,omitempty" db:"device_mapping" csv:"device_mapping"`
+	// DeviceMapping is in fact included in the CSV export, but it is not directly
+	// encoded from this column, it is processed before marshaling, hence why the
+	// struct tag here has csv:"-".
+	DeviceMapping *json.RawMessage `json:"device_mapping,omitempty" db:"device_mapping" csv:"-"`
 }
 
 type HostIssues struct {
-	TotalIssuesCount     int `json:"total_issues_count" db:"total_issues_count" csv:"-"`
+	TotalIssuesCount     int `json:"total_issues_count" db:"total_issues_count" csv:"issues"` // when exporting in CSV, we want that value as the "issues" column
 	FailingPoliciesCount int `json:"failing_policies_count" db:"failing_policies_count" csv:"-"`
 }
 
