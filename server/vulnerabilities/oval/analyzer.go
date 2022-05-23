@@ -120,14 +120,14 @@ func loadDef(platform Platform, vulnPath string) (oval_parsed.Result, error) {
 	if err != nil {
 		return nil, err
 	}
-	paylaod, err := ioutil.ReadFile(latest)
+	payload, err := ioutil.ReadFile(latest)
 	if err != nil {
 		return nil, err
 	}
 
 	if platform.IsUbuntu() {
 		result := oval_parsed.UbuntuResult{}
-		if err := json.Unmarshal(paylaod, &result); err != nil {
+		if err := json.Unmarshal(payload, &result); err != nil {
 			return nil, err
 		}
 		return result, nil
