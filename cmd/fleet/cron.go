@@ -226,7 +226,7 @@ func cronVulnerabilities(
 			}
 			level.Debug(logger).Log("vulnAutomationEnabled", vulnAutomationEnabled)
 
-			recentVulns := checkVulnerabilities(ctx, ds, logger, vulnPath, config, (vulnAutomationEnabled != ""))
+			recentVulns := checkNVDVulnerabilities(ctx, ds, logger, vulnPath, config, (vulnAutomationEnabled != ""))
 
 			// TODO: merge results
 			checkOvalVulnerabilities(ctx, ds, logger, vulnPath, config)
@@ -312,7 +312,7 @@ func checkOvalVulnerabilities(
 		return
 	}
 	for _, os := range versions.OSVersions {
-		level.Debug(logger).Log("oval-updating", "Found OS Version", os.Platform, os.Name)
+		level.Debug(logger).Log("oval-updating", "Found OS Version", "platform", os.Platform, "version", os.Name)
 	}
 
 	// Sync
@@ -334,7 +334,7 @@ func checkOvalVulnerabilities(
 	}
 }
 
-func checkVulnerabilities(
+func checkNVDVulnerabilities(
 	ctx context.Context,
 	ds fleet.Datastore,
 	logger kitlog.Logger,
