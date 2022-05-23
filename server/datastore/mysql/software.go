@@ -972,11 +972,11 @@ func (ds *Datastore) ListSoftwareVulnerabilities(
 
 	sql, args, err := stmt.ToSQL()
 	if err != nil {
-		return result, ctxerr.Wrap(ctx, err, "ListSoftwareVulnerabilities")
+		return nil, ctxerr.Wrap(ctx, err, "ListSoftwareVulnerabilities")
 	}
 
 	if err := sqlx.SelectContext(ctx, ds.reader, &result, sql, args...); err != nil {
-		return result, ctxerr.Wrap(ctx, err, "ListSoftwareVulnerabilities")
+		return nil, ctxerr.Wrap(ctx, err, "ListSoftwareVulnerabilities")
 	}
 
 	return result, nil
