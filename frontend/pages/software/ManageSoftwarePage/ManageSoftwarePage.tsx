@@ -34,7 +34,7 @@ import TeamsDropdownHeader, {
 } from "components/PageHeader/TeamsDropdownHeader";
 import renderLastUpdatedText from "components/LastUpdatedText";
 
-import softwareTableHeaders from "./SoftwareTableConfig";
+import generateSoftwareTableHeaders from "./SoftwareTableConfig";
 import ManageAutomationsModal from "./components/ManageAutomationsModal";
 import EmptySoftware from "../components/EmptySoftware";
 import ExternalLinkIcon from "../../../../assets/images/open-new-tab-12x12@2x.png";
@@ -46,6 +46,17 @@ interface IManageSoftwarePageProps {
     query: { vulnerable?: boolean };
     search: string;
   };
+}
+
+interface ISoftwareQueryKey {
+  scope: string;
+  page: number;
+  perPage: number;
+  query: string;
+  orderKey: string;
+  orderDir?: "asc" | "desc";
+  vulnerable: boolean;
+  teamId?: number;
 }
 
 interface ISoftwareAutomations {
@@ -61,7 +72,6 @@ interface IHeaderButtonsState extends ITeamsDropdownState {
   isLoading: boolean;
 }
 const DEFAULT_SORT_DIRECTION = "desc";
-const DEFAULT_SORT_HEADER = "hosts_count";
 const PAGE_SIZE = 20;
 
 const baseClass = "manage-software-page";
@@ -76,8 +86,11 @@ const ManageSoftwarePage = ({
     isGlobalAdmin,
     isGlobalMaintainer,
     isOnGlobalTeam,
+    isPremiumTier,
   } = useContext(AppContext);
   const { renderFlash } = useContext(NotificationContext);
+
+  const DEFAULT_SORT_HEADER = isPremiumTier ? "epss_probability" : "host_count";
 
   const [isSoftwareEnabled, setIsSoftwareEnabled] = useState<boolean>();
   const [
@@ -145,36 +158,26 @@ const ManageSoftwarePage = ({
     data: software,
     error: softwareError,
     isFetching: isFetchingSoftware,
-  } = useQuery<ISoftwareResponse, Error>(
+  } = useQuery<
+    ISoftwareResponse,
+    Error,
+    ISoftwareResponse,
+    ISoftwareQueryKey[]
+  >(
     [
-      "software",
       {
-        params: {
-          scope: "software",
-          pageIndex,
-          pageSize: PAGE_SIZE,
-          searchQuery,
-          sortDirection,
-          sortHeader,
-          teamId: currentTeam?.id,
-          vulnerable: !!location.query.vulnerable,
-        },
-      },
-      location.pathname,
-      location.search,
-    ],
-    // TODO: figure out typing and destructuring for query key inside query function
-    () => {
-      const params = {
+        scope: "software",
         page: pageIndex,
         perPage: PAGE_SIZE,
         query: searchQuery,
-        orderKey: sortHeader,
         orderDir: sortDirection || DEFAULT_SORT_DIRECTION,
-        vulnerable: !!location.query.vulnerable,
+        orderKey: sortHeader || DEFAULT_SORT_HEADER,
         teamId: currentTeam?.id,
-      };
-      return softwareAPI.load(params);
+        vulnerable: !!location.query.vulnerable,
+      },
+    ],
+    ({ queryKey }) => {
+      return softwareAPI.load(queryKey[0]);
     },
     {
       enabled:
@@ -189,23 +192,22 @@ const ManageSoftwarePage = ({
     data: softwareCount,
     error: softwareCountError,
     isFetching: isFetchingCount,
-  } = useQuery<ISoftwareCountResponse, Error, number>(
+  } = useQuery<
+    ISoftwareCountResponse,
+    Error,
+    number,
+    Partial<ISoftwareQueryKey>[]
+  >(
     [
-      "softwareCount",
       {
-        params: {
-          searchQuery,
-          vulnerable: !!location.query.vulnerable,
-          teamId: currentTeam?.id,
-        },
-      },
-    ],
-    () => {
-      return softwareAPI.count({
+        scope: "softwareCount",
         query: searchQuery,
         vulnerable: !!location.query.vulnerable,
         teamId: currentTeam?.id,
-      });
+      },
+    ],
+    ({ queryKey }) => {
+      return softwareAPI.count(queryKey[0]);
     },
     {
       enabled:
@@ -249,6 +251,10 @@ const ManageSoftwarePage = ({
             ? newSortDirection
             : DEFAULT_SORT_DIRECTION
         );
+
+      if (isPremiumTier && newSortHeader === "vulnerabilities") {
+        newSortHeader = "epss_probability";
+      }
       sortHeader !== newSortHeader && setSortHeader(newSortHeader);
     },
     300
@@ -475,7 +481,7 @@ const ManageSoftwarePage = ({
             <TableDataError />
           ) : (
             <TableContainer
-              columns={softwareTableHeaders}
+              columns={generateSoftwareTableHeaders(isPremiumTier)}
               data={(isSoftwareEnabled && software?.software) || []}
               isLoading={isFetchingSoftware || isFetchingCount}
               resultsTitle={"software items"}
@@ -486,7 +492,7 @@ const ManageSoftwarePage = ({
                     "default"
                 )
               }
-              defaultSortHeader={"hosts_count"}
+              defaultSortHeader={DEFAULT_SORT_HEADER}
               defaultSortDirection={"desc"}
               manualSortBy
               pageSize={PAGE_SIZE}
