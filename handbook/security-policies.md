@@ -8,7 +8,7 @@ Internet/Intranet/Extranet-related systems, including but not limited to compute
 
 Effective security is a team effort involving the participation and support of every Fleet Device Management Inc employee or contractor who deals with information and/or information systems. It is the responsibility of every team member to read and understand this policy and conduct their activities accordingly.
 
-All Fleet employees and long-term collaborators are expected to read and electronically sign the *acceptable use of end-user computing* policy as well as to be aware of the others and consult them as needed, to ensure systems built and used are done in a compliant manner.
+All Fleet employees and long-term collaborators are expected to read and electronically sign the *acceptable use of end-user computing* policy as well as to be aware of the others and consult them as needed to make sure systems built and used are done in a compliant manner.
 
 ### Acceptable use of end-user computing
 *Created from [JupiterOne/security-policy-templates](https://github.com/JupiterOne/security-policy-templates). [CC BY-SA 4 license](https://creativecommons.org/licenses/by-sa/4.0/)*
@@ -17,33 +17,33 @@ All Fleet employees and long-term collaborators are expected to read and electro
 | -------------- | -------------- |
 | @GuillaumeRoss | 2022-06-01     |
 
-Fleet requires all workforce members to comply with the following acceptable use requirements and procedures, such as:
+Fleet requires all workforce members to comply with the following acceptable use requirements and procedures, such as
 
-1. The use of Fleet computing systems is subject to monitoring by Fleet IT and/or Security teams.
+1. the use of Fleet computing systems is subject to monitoring by Fleet IT and/or Security teams.
 
 2. Fleet team members must not leave computing devices (including laptops and smart devices) used for business purposes, including company-provided and BYOD devices, unattended in public.
 
-3. Device encryption must be enabled for all mobile devices accessing company data, such as whole-disk encryption for all laptops.
+3. device encryption must be enabled for all mobile devices accessing company data, such as whole-disk encryption for all laptops.
 
-4. Use only legal software with a valid license installed through the internal "app store" or trusted sources. Well-documented open source software can be used. If in doubt, ask in *#g-security*.  
+4. using only legal software with a valid license installed through the internal "app store" or trusted sources. Well-documented open source software can be used. If in doubt, ask in *#g-security*.  
 
-5. Avoid sharing credentials. Secrets must be stored safely, using features such as GitHub secrets. For accounts and other sensitive data that need to be shared, use the company-provided password manager.
+5. avoiding sharing credentials. Secrets must be stored safely, using features such as GitHub secrets. For accounts and other sensitive data that need to be shared, use the company-provided password manager.
 
-6. At Fleet, we are public by default. Sensitive information from logs, screenshots, or other types of data (memory dumps, for example), must be sanitized to remove any sensitive or confidential information prior to posting.
+6. sanitizing and removing any sensitive or confidential information prior to posting. At Fleet, we are public by default. Sensitive information from logs, screenshots, or other types of data (memory dumps, for example),should not be shared.
 
-7. Anti-malware or equivalent protection and monitoring must be installed and enabled on all endpoint systems that may be affected by malware, including workstations, laptops and servers.
+7. anti-malware or equivalent protection and monitoring must be installed and enabled on all endpoint systems that may be affected by malware, including workstations, laptops, and servers.
 
-8. It is strictly forbidden to download or store any secrets used to sign Orbit installer updates on end-user computing devices, including laptops, workstations, and mobile devices.
+8. it being strictly forbidden to download or store any secrets used to sign Orbit installer updates on end-user computing devices, including laptops, workstations, and mobile devices.
 
-9. Only company-owned and managed computers are allowed to connect directly to Fleet autoupdater production environments.
+9. only allowing company-owned and managed computers to connect directly to Fleet autoupdater production environments.
 
-10. Fleet team members must not let anyone else use Fleet-provided and managed workstations unsupervised, including family members and support personnel of vendors. Use screen sharing instead of allowing them to access your system directly.
+10. enforcing the policy that Fleet team members must not let anyone else use Fleet-provided and managed workstations unsupervised, including family members and support personnel of vendors. Use screen sharing instead of allowing them to access your system directly.
 
-11. Device's operating system must be kept up to date. Fleet-managed systems will receive prompts for updates to be installed, and BYOD devices are to be updated by the team member using it or they might lose access. 
+11. Requiring device's operating system must be kept up to date. Fleet-managed systems will receive prompts for updates to be installed, and BYOD devices are to be updated by the team member using them or they might lose access. 
 
-12. Team members must not store sensitive data on portable storage.
+12. Requiring team members must not store sensitive data on portable storage.
 
-13. The use of Fleet company accounts on "shared" computers, such as hotel kiosk systems, is strictly prohibited.
+13. Not allowing the use of Fleet company accounts on "shared" computers, such as hotel kiosk systems, is strictly prohibited.
 
 ## Access control policy
 *Created from [JupiterOne/security-policy-templates](https://github.com/JupiterOne/security-policy-templates). [CC BY-SA 4 license](https://creativecommons.org/licenses/by-sa/4.0/)*
@@ -130,7 +130,7 @@ The Fleet business continuity and disaster recovery plan establishes procedures 
 
 Fleet policy requires that:
 
-1. A plan and process for business continuity and disaster recovery (BCDR), including the backup and recovery of critical systems and data, will be defined and documented.
+1. A plan and process for business continuity and disaster recovery (BCDR), will be defined and documented including the backup and recovery of critical systems and data,.
 
 2. BCDR shall be simulated and tested at least once a year. 
 
@@ -140,34 +140,34 @@ Fleet policy requires that:
 
 #### Line of Succession
 
-The following order of succession to ensure that decision-making authority for the Fleet Contingency Plan is uninterrupted. The Chief Operating Officer (CEO) is responsible for ensuring the safety of personnel and the execution of procedures documented within this Fleet Contingency Plan. The CTO is responsible for the recovery of Fleet technical environments. If the CEO or Head of Engineering is unable to function as the overall authority or chooses to delegate this responsibility to a successor, the board of directors shall function as that authority or choose an alternative delegate. 
+The following order of succession to make sure that decision-making authority for the Fleet Contingency Plan is uninterrupted. The Chief Operating Officer (CEO) is responsible for ensuring the safety of personnel and the execution of procedures documented within this Fleet Contingency Plan. The CTO is responsible for the recovery of Fleet technical environments. If the CEO or Head of Engineering cannot function as the overall authority or choose to delegate this responsibility to a successor, the board of directors shall serve as that authority or choose an alternative delegate. 
 
 ### Response Teams and Responsibilities
 
 The following teams have been developed and trained to respond to a contingency event affecting Fleet infrastructure and systems.
 
-1. **Infrastructure** is responsible for recovery of the Fleet automatic update service hosted environment. The team includes personnel responsible for the daily IT operations and maintenance. The team reports to the CTO.
+1. **Infrastructure** is responsible for recovering the Fleet automatic update service hosted environment. The team includes personnel responsible for the daily IT operations and maintenance. The team reports to the CTO.
 
-2. **People Ops** is responsible for ensuring the physical safety of all Fleet personnel and coordinating response to incidents that could impact it. Fleet has no physical site to recover. The team reports to the CEO.
+2. **People Ops** is responsible for ensuring the physical safety of all Fleet personnel and coordinating the response to incidents that could impact it. Fleet has no physical site to recover. The team reports to the CEO.
 
-4. **Security** is responsible for assessing and responding to all cybersecurity related incidents according to Fleet Incident Response policy and procedures. The security team shall assist the above teams in recovery as needed in non-cybersecurity events. The team leader is the Head of Security.
+3. **Security** is responsible for assessing and responding to all cybersecurity-related incidents according to Fleet Incident Response policy and procedures. The security team shall assist the above teams in recovery as needed in non-cybersecurity events. The team leader is the Head of Security.
 
-Members of above teams must maintain local copies of the contact information of the BCDR succession team. Additionally, the team leads must maintain a local copy of this policy in the event Internet access is not available during a disaster scenario.
+Members of the above teams must maintain local copies of the contact information of the BCDR succession team. Additionally, the team leads must maintain a local copy of this policy in the event Internet access is not available during a disaster scenario.
 
 All executive leadership shall be informed of any and all contingency events.
 
-Current members of Fleet continuity leadership team include the Head of Security, CEO, CTO.
+Current Fleet continuity leadership team members include the Head of Security, CEO, and CTO.
 
 ### General Disaster Recovery Procedures
 
 #### Notification and Activation Phase
 
-This phase addresses the initial actions taken to detect and assess damage inflicted by a disruption to Fleet Device Management or the Fleet automatic updater service. Based on the assessment of the Event, sometimes according to the Fleet Incident Response Policy, the Contingency Plan may be activated by either the CEO or CTO.  The Contingency Plan may also be activated by the Head of Security in the event of a cyber disaster.
+This phase addresses the initial actions taken to detect and assess the damage inflicted by a disruption to Fleet Device Management or the Fleet automatic updater service. Based on the assessment of the Event, sometimes, according to the Fleet Incident Response Policy, the Contingency Plan may be activated by either the CEO or CTO.  The Contingency Plan may also be triggered by the Head of Security in the event of a cyber disaster.
 
 The notification sequence is listed below:
 
 * The first responder is to notify the CTO. All known information must be relayed.
-* The CTO is to contact the Response Teams and inform them of the event. The CTO or delegate is responsible to begin assessment procedures.
+* The CTO is to contact the Response Teams and inform them of the event. The CTO or delegate is responsible to beginning the assessment procedures.
 * The CTO is to notify team members and direct them to complete the assessment procedures outlined below to determine the extent of the issue and estimated recovery time. 
 * The Fleet Contingency Plan is to be activated if one or more of the following criteria are met:
 
@@ -175,11 +175,11 @@ The notification sequence is listed below:
     * Cloud infrastructure service is damaged and will be unavailable for more than 24 hours.
     * Other criteria, as appropriate and as defined by Fleet.
 
-* If the plan is to be activated, the CTO is to notify and inform team members of the details of the event.
-* Upon notification from the CTO, group leaders and managers are to notify their respective teams. Team members are to be informed of all applicable information and prepared to respond and relocate if necessary.
-* The CTO is to notify remaining personnel and executive leadership on the general status of the incident.
-* Notification can be Slack, email, or phone.
-* The CTO posts a blog post explaining that the service is down and that recovery is in progress.
+* If the plan is to be activated, the CTO is to notify and inform team members of the event details.
+* Upon notification from the CTO, group leaders and managers must notify their respective teams. Team members are to be informed of all applicable information and prepared to respond and relocate if necessary.
+* The CTO is to notify the remaining personnel and executive leadership on the general status of the incident.
+* Notification can be via Slack, email, or phone.
+* The CTO posts a blog post explaining that the service is down and recovery is in progress.
 
 #### Reconstitution Phase
 
@@ -188,50 +188,50 @@ This section discusses activities necessary for restoring full Fleet automatic u
 1. Contact Partners and Customers affected to begin initial communication - CTO
 2. Assess damage to the environment - Infrastructure
 3. Create a new production environment using new environment bootstrap automation - Infrastructure
-4. Ensure secure access to the new environment - Security
+4. Make sure secure access to the new environment - Security
 5. Begin code deployment and data replication using pre-established automation - DevOps
 6. Test new environment and applications using pre-written tests - DevOps
 7. Test logging, security, and alerting functionality - DevOps and Security
 8. Assure systems and applications are appropriately patched and up to date -DevOps
-9. Update DNS and other necessary records to point to new environment - DevOps
+9. Update DNS and other necessary records to point to the new environment - DevOps
 10. Update Partners and Customers affected through established channels - DevOps
 
 #### Plan Deactivation
 
-If the Fleet automatic updater environment has been restored, the continuity plan can be deactivated. If the disaster impacted the company and not the service, or both, ensure that any leftover systems created temporarily are destroyed.
+If the Fleet automatic updater environment has been restored, the continuity plan can be deactivated. If the disaster impacted the company and not the service or both, make sure that any leftover systems created temporarily are destroyed.
 
 ## Data management policy
 *Created from [JupiterOne/security-policy-templates](https://github.com/JupiterOne/security-policy-templates). [CC BY-SA 4 license](https://creativecommons.org/licenses/by-sa/4.0/)*
 
 This policy outlines the requirements and controls/procedures Fleet has implemented to manage the end-to-end data lifecycle, from data creation/acquisition to retention and deletion.
 
-Additionally, this policy outlines requirements and procedures to create and maintain retrievable exact copies of electronic protected health information(ePHI), PII and other critical customer/business data.
+Additionally, this policy outlines requirements and procedures to create and maintain retrievable exact copies of electronically protected health information(ePHI), PII, and other critical customer/business data.
 
-Data backup is an important part of the day-to-day operations of Fleet. To protect the confidentiality, integrity, and availability of sensitive and critical data, both for Fleet and Fleet Customers, complete backups are done daily to assure that data remains available when it needed and in case of a disaster.
+Data backup is an important part of the day-to-day operations of Fleet. To protect the confidentiality, integrity, and availability of sensitive and critical data, both for Fleet and Fleet Customers, complete backups are done daily to assure that data remains available when needed and in case of a disaster.
 
 Fleet policy requires that:
 
-1. Data should be classified at time of creation or acquisition.
+1. Data should be classified at the time of creation or acquisition.
 
 2. Fleet must maintain an up-to-date inventory and data flows mapping of all critical data.
 
-3. All business data should be stored or replicated to a company controlled repository.
+3. All business data should be stored or replicated to a company-controlled repository.
 
-4. Data must be backed up according to its level defined in Fleet data classification.
+4. Data must be backed up according to the level defined in Fleet data classification.
 
 5. Data backup must be validated for integrity.
 
-6. Data retention period must be defined and comply with any and all applicable regulatory and contractual requirements.  More specifically,
+6. The data retention period must be defined and comply with any and all applicable regulatory and contractual requirements.  More specifically,
 
-  * Data and records belonging to Fleet platform customer must be retained
+  * data and records belonging to Fleet platform customers must be retained
     per Fleet product terms and conditions and/or specific contractual
     agreements.
 
-7. By default, all security documentation and audit trails are kept for a minimum of seven years, unless otherwise specified by Fleet data classification, specific regulations or contractual agreement.
+7. By default, all security documentation and audit trails are kept for a minimum of seven years unless otherwise specified by Fleet data classification, specific regulations, or contractual agreement.
 
 ### Data Classification Model
 
-Fleet defines the following four classifications of data:
+Fleet defines the following four data classifications:
 
 * **Critical**
 * **Confidential**
@@ -244,14 +244,14 @@ As Fleet is an open company by default, most of our data falls into **public**.
 
 **Critical** data includes data that must be protected due to regulatory requirements, privacy, and/or security sensitivities.
 
-Unauthorized disclosure of critical data may result in major disruption to business operations, significant cost, irreparable reputation damage, and/or legal prosecution to the company.
+Unauthorized disclosure of critical data may result in major disruption to business operations, significant cost, irreparable reputation damage, and/or legal prosecution of the company.
 
 External disclosure of critical data is strictly prohibited without an approved process and agreement in place.
 
-*Example Critical Data Types* includes
+*Example Critical Data Types* include
 
 * PII (personal identifiable information)
-* ePHI (electronic protected health information)
+* ePHI (electronically protected health information)
 * Production security data, such as
     - Production secrets, passwords, access keys, certificates, etc.
     - Production security audit logs, events, and incident data
@@ -259,11 +259,11 @@ External disclosure of critical data is strictly prohibited without an approved 
 
 **Confidential** and proprietary data represents company secrets and is of significant value to the company.
 
-Unauthorized disclosure may result in disruption to business operations and loss in value.
+Unauthorized disclosure may result in disruption to business operations and loss of value.
 
 Disclosure requires the signing of NDA and management approval.
 
-*Example Confidential Data Types* includes
+*Example Confidential Data Types* include
 
 * Business plans
 * Employee/HR data
@@ -275,7 +275,7 @@ Disclosure requires the signing of NDA and management approval.
 
 **Internal** data contains information used for internal operations.
 
-Unauthorized disclosure may cause undesirable outcome to business operations.
+Unauthorized disclosure may cause undesirable outcomes to business operations.
 
 Disclosure requires management approval.  NDA is usually required but may be waived on a case-by-case basis.
 
@@ -283,13 +283,13 @@ Disclosure requires management approval.  NDA is usually required but may be wai
 non-confidential, the integrity and availability of public data should be
 protected.
 
-*Example Internal Data Types* includes
+*Example Internal Data Types* include
 
-* Fleet source code
-* News and public announcements (post-announcement)
-* Marketing materials
-* Product documentation
-* Contents posted on company website(s) and social media channel(s)
+* Fleet source code.
+* news and public announcements (post-announcement).
+* marketing materials.
+* product documentation.
+* content posted on the company website(s) and social media channel(s).
 
 #### Data Handling Requirements Matrix
 
@@ -297,16 +297,16 @@ Requirements for data handling, such as the need for encryption and the duration
 
 | Data             | Labeling or Tagging | Segregated Storage | Endpoint Storage | Encrypt At Rest | Encrypt In Transit | Encrypt In Use | Controlled Access | Monitoring | Destruction at Disposal | Retention Period | Backup Recovery |
 |------------------|---------------------|--------------------|------------------|-----------------|--------------------|----------------|-------------------|------------|------------------------|------------------|-----------------|
-| **Critical**     | Required            | Required           | Prohibited       | Required        | Required           | Required       | Access is blocked to end users by default; Temporary access for privileged users only | Required   | Required   | 7 years for audit trails; Varies for customer-owned data† | Required   |
-| **Confidential** | Required            | N/R                | Allowed          | Required        | Required           | Required       | All access is based on need-to-know | Required   | Required   | 7 years for official documentation; Others vary based on business need | Required   |
+| **Critical**     | Required            | Required           | Prohibited       | Required        | Required           | Required       | Access is blocked to end users by default; Temporary access for privileged users only | Required   | Required   | seven years for audit trails; Varies for customer-owned data† | Required   |
+| **Confidential** | Required            | N/R                | Allowed          | Required        | Required           | Required       | All access is based on need-to-know | Required   | Required   | seven years for official documentation; Others vary based on business need | Required   |
 | **Internal**     | Required            | N/R                | Allowed          | N/R             | N/R                | N/R            | All employees and contractors (read); Data owners and authorized individuals (write) | N/R | N/R | Varies based on business need | Optional   |
 | **Public**       | N/R                 | N/R                | Allowed          | N/R             | N/R                | N/R            | Everyone (read); Data owners and authorized individuals (write) | N/R     | N/R     | Varies based on business need | Optional   |
 
 N/R = Not Required
 
-† customer-owned data is stored for as long as they remain as a Fleet customer, or as required by regulations, whichever is longer. Customer may request their data to be deleted at any time; unless retention is required by law.
+† Customer-owned data is stored for as long as they remain as a Fleet customer, or as required by regulations, whichever is longer. Customers may request their data to be deleted at any time; unless retention is required by law.
 
-Most Fleet data is **public** yet retained and backed up not due to our data handling requirements but simply due to business requirements.
+Most Fleet data is **public** yet retained and backed up not due to our data handling requirements but simply business requirements.
 
 
 ## Encryption policy
@@ -318,7 +318,7 @@ Most Fleet data is **public** yet retained and backed up not due to our data han
 
 Fleet requires all workforce members to comply with the encryption policy, such that:
 
-1. The storage drives of all Fleet-owned workstations must be encrypted, and enforced by the IT and/or security team.
+1. The storage drives of all Fleet-owned workstations must be encrypted and enforced by the IT and/or security team.
 
 2. Confidential data must be stored in a manner that supports user access logs.
 
@@ -366,11 +366,11 @@ Fleet policy requires that:
 
 4. Employee offboarding will include reiterating any duties and responsibilities still valid after terminations, verifying that access to any Fleet systems has been removed, and ensuring that all company-owned assets are returned.
 
-5. Fleet and its employees will take reasonable measures to ensure no sensitive data is transmitted via digital communications such as email or posted on social media outlets.
+5. Fleet and its employees will take reasonable measures to make sure no sensitive data is transmitted via digital communications such as email or posted on social media outlets.
 
 6. Fleet will maintain a list of prohibited activities that will be part of onboarding procedures and have training available if/when the list of those activities changes.
 
-7. A fair disciplinary process will be used for employees suspected of committing breaches of security. Fleet will consider multiple factors when deciding the response, such as whether or not this was a first offense, training, business contracts, etc. Fleet reserves the right to terminate employees in the case of severe cases of misconduct.
+7. A fair disciplinary process will be used for employees suspected of committing security breaches. Fleet will consider multiple factors when deciding the response, such as whether or not this was a first offense, training, business contracts, etc. Fleet reserves the right to terminate employees in the case of severe cases of misconduct.
 
 8. Fleet will maintain a reporting structure that aligns with the organization's business lines and/or individual's functional roles. The list of employees and reporting structure must be available to [all employees](https://docs.google.com/spreadsheets/d/1OSLn-ZCbGSjPusHPiR5dwQhheH1K8-xqyZdsOe9y7qc/edit#gid=0).
 
