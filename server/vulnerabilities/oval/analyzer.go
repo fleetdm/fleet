@@ -16,7 +16,8 @@ import (
 	oval_parsed "github.com/fleetdm/fleet/v4/server/vulnerabilities/oval/parsed"
 )
 
-// Analyze scans all hosts for vulnerabilities based on the OVAL definitions for their platform.
+// Analyze scans all hosts for vulnerabilities based on the OVAL definitions for their platform,
+// inserting any new vulnerabilities and deleting anything patched.
 func Analyze(
 	ctx context.Context,
 	ds fleet.Datastore,
