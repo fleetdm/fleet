@@ -20,11 +20,14 @@ type integrationDebugTestSuite struct {
 
 func (s *integrationDebugTestSuite) SetupSuite() {
 	s.withDS.SetupSuite("integrationDebugTestSuite")
+	s.users = createTestUsers(s.T(), s.ds)
+}
 
-	users, server := RunServerForTestsWithDS(s.T(), s.ds)
+func (s *integrationDebugTestSuite) SetupTest() {
+	_, server := RunServerForTestsWithDS(s.T(), s.ds, &TestServerOpts{SkipCreateTestUsers: true})
 	s.server = server
-	s.users = users
 	s.token = s.getTestAdminToken()
+	s.Do("GET", "/debug/errors?flush=true", nil, http.StatusOK)
 }
 
 func TestIntegrationsDebug(t *testing.T) {
