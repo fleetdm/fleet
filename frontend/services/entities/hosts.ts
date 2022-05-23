@@ -82,11 +82,7 @@ export default {
     const label = selectedLabels.find((f) => f.includes(labelPrefix));
     const status = selectedLabels.find((f) => !f.includes(labelPrefix));
     const isValidStatus =
-      status === "new" ||
-      status === "online" ||
-      status === "offline" ||
-      status === "mia";
-
+      status === "new" || status === "online" || status === "offline";
     if (label) {
       const lid = label.substr(labelPrefix.length);
       path = `${LABEL_HOSTS(
@@ -156,10 +152,7 @@ export default {
     const label = selectedLabels.find((f) => f.includes(labelPrefix));
     const status = selectedLabels.find((f) => !f.includes(labelPrefix));
     const isValidStatus =
-      status === "new" ||
-      status === "online" ||
-      status === "offline" ||
-      status === "mia";
+      status === "new" || status === "online" || status === "offline";
 
     if (label) {
       const lid = label.substr(labelPrefix.length);

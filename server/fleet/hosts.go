@@ -185,6 +185,7 @@ type HostSummaryPlatform struct {
 func (h *Host) Status(now time.Time) HostStatus {
 	// The logic in this function should remain synchronized with
 	// GenerateHostStatusStatistics and CountHostsInTargets
+	// NOTE: As of Fleet 4.15 StatusMIA is deprecated and will be removed in Fleet 5.0
 
 	onlineInterval := h.ConfigTLSRefresh
 	if h.DistributedInterval < h.ConfigTLSRefresh {
@@ -195,8 +196,6 @@ func (h *Host) Status(now time.Time) HostStatus {
 	onlineInterval += OnlineIntervalBuffer
 
 	switch {
-	case h.SeenTime.Add(MIADuration).Before(now):
-		return StatusMIA
 	case h.SeenTime.Add(time.Duration(onlineInterval) * time.Second).Before(now):
 		return StatusOffline
 	default:

@@ -68,7 +68,7 @@ spec:
   primary_mac: ""
   refetch_requested: false
   seen_time: "0001-01-01T00:00:00Z"
-  status: mia
+  status: offline
   team_id: null
   team_name: null
   updated_at: "0001-01-01T00:00:00Z"
