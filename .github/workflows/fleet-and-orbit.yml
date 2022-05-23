@@ -308,17 +308,23 @@ jobs:
       run:
         sudo orbit shell -- --json "select * from osquery_info;" | jq -e 'if (.[0]) then true else false end'
 
-    - name: Collect orbit logs
-      if: always()
+    - name: Collect orbit logs (macOS)
+      if: contains(matrix.os, 'macos')
       run: |
         mkdir orbit-logs
         sudo cp /var/log/orbit/* orbit-logs/
+
+    - name: Collect orbit logs (ubuntu)
+      if: contains(matrix.os, 'ubuntu')
+      run: |
+        mkdir orbit-logs
+        sudo journalctl -u orbit.service > orbit-logs/orbit_service.log
 
     - name: Upload orbit logs
       if: always()
       uses: actions/upload-artifact@6673cd052c4cd6fcf4b4e6e60ea986c889389535 # v2
       with:
-        name: orbit-logs-macos
+        name: orbit-logs
         path: |
           orbit_logs
 
