@@ -20,7 +20,7 @@ export interface ILoadHostsOptions {
   softwareId?: number;
   device_mapping?: boolean;
   columns?: string;
-  visibleColumns?: (string | undefined)[];
+  visibleColumns?: string;
 }
 
 export type ILoadHostDetailsExtension = "device_mapping" | "macadmins";
@@ -115,7 +115,7 @@ export default {
     }
 
     if (visibleColumns) {
-      path += `&columns=${visibleColumns.join(",")}`;
+      path += `&columns=${visibleColumns}`;
     }
 
     path += "&format=csv";

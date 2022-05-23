@@ -254,7 +254,6 @@ const ManageHostsPage = ({
   const [labelValidator, setLabelValidator] = useState<{
     [key: string]: string;
   }>(DEFAULT_CREATE_LABEL_ERRORS);
-  const [visibleColumns, setVisibleColumns] = useState<string[]>();
 
   // ======== end states
 
@@ -1281,6 +1280,28 @@ const ManageHostsPage = ({
   ) => {
     evt.preventDefault();
 
+    const hiddenColumnsStorage = localStorage.getItem("hostHiddenColumns");
+    let currentHiddenColumns;
+    let visibleColumns;
+    if (hiddenColumnsStorage) {
+      currentHiddenColumns = JSON.parse(hiddenColumnsStorage);
+    }
+
+    if (config && currentUser) {
+      const tableColumns = generateVisibleTableColumns(
+        currentHiddenColumns,
+        config,
+        currentUser,
+        currentTeam
+      );
+
+      const columnAccessors = tableColumns.map((column) =>
+        column.accessor ? column.accessor : ""
+      );
+      columnAccessors.shift();
+      visibleColumns = columnAccessors.join(",");
+    }
+
     let options = {
       selectedLabels: selectedFilters,
       globalFilter: searchQuery,
@@ -1501,12 +1522,6 @@ const ManageHostsPage = ({
       currentUser,
       currentTeam
     );
-
-    const columnAccessors = tableColumns.map((column) =>
-      column.accessor ? column.accessor : ""
-    );
-    columnAccessors.shift();
-    setVisibleColumns(columnAccessors);
 
     return (
       <TableContainer
