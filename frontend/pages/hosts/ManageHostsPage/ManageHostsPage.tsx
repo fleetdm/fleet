@@ -1295,10 +1295,10 @@ const ManageHostsPage = ({
         currentTeam
       );
 
-      const columnAccessors = tableColumns.map((column) =>
-        column.accessor ? column.accessor : ""
-      );
-      columnAccessors.shift();
+      const columnAccessors = tableColumns
+        .map((column) => (column.accessor ? column.accessor : ""))
+        .filter((element) => element);
+      console.log("columnAccessors: ", columnAccessors);
       visibleColumns = columnAccessors.join(",");
     }
 
