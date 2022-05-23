@@ -5,8 +5,6 @@ import (
 	_ "embed"
 	"encoding/json"
 	"fmt"
-	"github.com/fleetdm/fleet/v4/pkg/open"
-	"github.com/getlantern/systray"
 	"io/ioutil"
 	"log"
 	"net/http"
@@ -14,6 +12,9 @@ import (
 	"os"
 	"strings"
 	"time"
+
+	"github.com/fleetdm/fleet/v4/pkg/open"
+	"github.com/getlantern/systray"
 )
 
 var version = "unknown"
@@ -117,6 +118,8 @@ func main() {
 
 		go func() {
 			tic := time.NewTicker(5 * time.Minute)
+			defer tic.Stop()
+
 			tr := http.DefaultTransport.(*http.Transport)
 			if os.Getenv("FLEET_DESKTOP_INSECURE") != "" {
 				tr.TLSClientConfig = &tls.Config{InsecureSkipVerify: true}
@@ -127,6 +130,8 @@ func main() {
 
 			for {
 				<-tic.C
+				// TODO: Use the policies endpoint instead of full device endpoint
+				// https://github.com/fleetdm/fleet/issues/5697
 				resp, err := client.Get(devTestURL.String())
 				if err != nil {
 					// To ease troubleshooting we set the tooltip as the error.
