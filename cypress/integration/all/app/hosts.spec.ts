@@ -71,6 +71,22 @@ describe("Hosts flow", () => {
         });
       }
     });
+    it(`hides and shows "Used by" column`, () => {
+      cy.visit("/hosts/manage");
+      cy.getAttached("thead").within(() =>
+        cy.findByText(/used by/i).should("not.exist")
+      );
+      cy.getAttached(".table-container").within(() => {
+        cy.contains("button", /edit columns/i).click();
+      });
+      cy.getAttached(".edit-columns-modal").within(() => {
+        cy.findByLabelText(/used by/i).check({ force: true });
+        cy.contains("button", /save/i).click();
+      });
+      cy.getAttached("thead").within(() =>
+        cy.findByText(/used by/i).should("exist")
+      );
+    });
   });
   describe("Manage policies page", () => {
     beforeEach(() => {

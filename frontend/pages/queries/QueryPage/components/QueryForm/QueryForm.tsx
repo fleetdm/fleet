@@ -37,6 +37,7 @@ interface IQueryFormProps {
   showOpenSchemaActionText: boolean;
   storedQuery: IQuery | undefined;
   isStoredQueryLoading: boolean;
+  isQuerySaving: boolean;
   onCreateQuery: (formData: IQueryFormData) => void;
   onOsqueryTableSelect: (tableName: string) => void;
   goToSelectTargets: () => void;
@@ -64,6 +65,7 @@ const QueryForm = ({
   showOpenSchemaActionText,
   storedQuery,
   isStoredQueryLoading,
+  isQuerySaving,
   onCreateQuery,
   onOsqueryTableSelect,
   goToSelectTargets,
@@ -555,6 +557,7 @@ const QueryForm = ({
           onCreateQuery={onCreateQuery}
           setIsSaveModalOpen={setIsSaveModalOpen}
           backendValidators={backendValidators}
+          isLoading={isQuerySaving}
         />
       )}
     </>

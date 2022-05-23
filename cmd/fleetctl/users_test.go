@@ -5,6 +5,8 @@ import (
 	"testing"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/test"
+
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -49,6 +51,8 @@ func (e *notFoundError) Error() string {
 func TestUserCreateForcePasswordReset(t *testing.T) {
 	_, ds := runServerWithMockedDS(t)
 
+	pwd := test.GoodPassword
+
 	ds.InviteByEmailFunc = func(ctx context.Context, email string) (*fleet.Invite, error) {
 		return nil, &notFoundError{}
 	}
@@ -65,7 +69,7 @@ func TestUserCreateForcePasswordReset(t *testing.T) {
 		},
 		{
 			name:                            "api-only",
-			args:                            []string{"--email", "bar@example.com", "--password", "p4ssw0rd.", "--name", "bar", "--api-only"},
+			args:                            []string{"--email", "bar@example.com", "--password", pwd, "--name", "bar", "--api-only"},
 			expectedAdminForcePasswordReset: false,
 		},
 		{
@@ -75,7 +79,7 @@ func TestUserCreateForcePasswordReset(t *testing.T) {
 		},
 		{
 			name:                            "non-sso-non-api-only",
-			args:                            []string{"--email", "zoo@example.com", "--password", "p4ssw0rd.", "--name", "zoo"},
+			args:                            []string{"--email", "zoo@example.com", "--password", pwd, "--name", "zoo"},
 			expectedAdminForcePasswordReset: true,
 		},
 	} {
