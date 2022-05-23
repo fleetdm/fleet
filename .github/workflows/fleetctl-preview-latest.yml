@@ -57,9 +57,27 @@ jobs:
       run: make fleetctl
 
     - name: Run fleetctl preview
+      shell: bash
       run: |
         ./build/fleetctl preview --std-query-lib-file-path $(pwd)/docs/01-Using-Fleet/standard-query-library/standard-query-library.yml
         sleep 10
         ./build/fleetctl get hosts | tee hosts.txt
         [ $( cat hosts.txt | grep online | wc -l) -eq 8 ]
+
+    - name: Get fleet logs
+      run: |
+        FLEET_LICENSE_KEY=foo docker compose -f ~/.fleet/preview/docker-compose.yml logs fleet01 fleet02 > fleet-logs.txt
+        # Copying logs, otherwise the upload-artifact action uploads the logs in a hidden folder (.fleet)
+        cp ~/.fleet/preview/orbit.log orbit.log
+        cp -r ~/.fleet/preview/logs osquery_result_status_logs
       shell: bash
+
+    - name: Upload logs
+      if: always()
+      uses: actions/upload-artifact@6673cd052c4cd6fcf4b4e6e60ea986c889389535 # v2
+      with:
+        name: ${{ matrix.os }}-log
+        path: |
+          fleet-logs.txt
+          orbit.log
+          osquery_result_status_logs
