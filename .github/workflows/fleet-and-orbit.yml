@@ -197,14 +197,14 @@ jobs:
     - name: Build Repository and run TUF server
       timeout-minutes: 10
       env:
-        PKG_FLEET_URL: ${{ $needs.gen.outputs.address }}
-        PKG_TUF_URL: ${{ $needs.gen.outputs.tuf_address }}
-        DEB_FLEET_URL: ${{ $needs.gen.outputs.address }}
-        DEB_TUF_URL: ${{ $needs.gen.outputs.tuf_address }}
-        RPM_FLEET_URL: ${{ $needs.gen.outputs.address }}
-        RPM_TUF_URL: ${{ $needs.gen.outputs.tuf_address }}
-        MSI_FLEET_URL: ${{ $needs.gen.outputs.address }}
-        MSI_TUF_URL: ${{ $needs.gen.outputs.tuf_address }}
+        PKG_FLEET_URL: ${{ needs.gen.outputs.address }}
+        PKG_TUF_URL: ${{ needs.gen.outputs.tuf_address }}
+        DEB_FLEET_URL: ${{ needs.gen.outputs.address }}
+        DEB_TUF_URL: ${{ needs.gen.outputs.tuf_address }}
+        RPM_FLEET_URL: ${{ needs.gen.outputs.address }}
+        RPM_TUF_URL: ${{ needs.gen.outputs.tuf_address }}
+        MSI_FLEET_URL: ${{ needs.gen.outputs.address }}
+        MSI_TUF_URL: ${{ needs.gen.outputs.tuf_address }}
         ENROLL_SECRET: ${{ needs.get-enroll-secret.outputs.enroll_secret }}
         GENERATE_PKG: 1
         GENERATE_DEB: 1
