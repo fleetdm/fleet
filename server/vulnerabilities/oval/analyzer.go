@@ -116,6 +116,10 @@ func vulnsDelta(
 
 // loadDef returns the latest oval Definition for the given platform.
 func loadDef(platform Platform, vulnPath string) (oval_parsed.Result, error) {
+	if !platform.IsUbuntu() {
+		return nil, fmt.Errorf("don't know how to load OVAL file for '%s' platform", platform)
+	}
+
 	latest, err := latestOvalDefFor(platform, vulnPath, time.Now())
 	if err != nil {
 		return nil, err
@@ -125,15 +129,11 @@ func loadDef(platform Platform, vulnPath string) (oval_parsed.Result, error) {
 		return nil, err
 	}
 
-	if platform.IsUbuntu() {
-		result := oval_parsed.UbuntuResult{}
-		if err := json.Unmarshal(payload, &result); err != nil {
-			return nil, err
-		}
-		return result, nil
+	result := oval_parsed.UbuntuResult{}
+	if err := json.Unmarshal(payload, &result); err != nil {
+		return nil, err
 	}
-
-	return nil, fmt.Errorf("don't know how to load OVAL file for '%s' platform", platform)
+	return result, nil
 }
 
 // latestOvalDefFor returns the contents of the OVAL definition for the given 'platform' in
