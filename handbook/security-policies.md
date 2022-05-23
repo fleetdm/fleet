@@ -685,13 +685,13 @@ CTO                                             | Oversight over information sec
 | -------------- | -------------- |
 | @GuillaumeRoss | 2022-06-01     |
 
-Fleet policy requires that:
+Fleet policy requires
 
-1. All production changes, including but not limited to software deployment, feature toggle enablement, network infrastructure changes, and access control authorization updates, must be invoked through the approved change management process.
+1. all production changes, including but not limited to software deployment, feature toggle enablement, network infrastructure changes, and access control authorization updates, must be invoked through the approved change management process.
 
-2. Each production change must maintain complete traceability to fully document the request, including the requestor, date/time of change, actions taken, and results.
+2.each production change must maintain complete traceability to fully document the request, including the requestor, date/time of change, actions taken, and results.
 
-3. Each production change must include proper approval.
+3. each production change must include proper approval.
 
   * The approvers are determined based on the type of change.
   * Approvers must be someone other than the author/executor of the change unless they are the DRI for that system.
@@ -706,13 +706,13 @@ Fleet policy requires that:
 | -------------- | -------------- |
 | @GuillaumeRoss | 2022-06-01     |
 
-Fleet policy requires that:
+Fleet policy requires:
 
-1. A thorough risk assessment must be conducted to evaluate potential threats and vulnerabilities to the confidentiality, integrity, and availability of sensitive, confidential, and proprietary electronic information Fleet stores, transmits, and/or processes.
+1. a thorough risk assessment must be conducted to evaluate potential threats and vulnerabilities to the confidentiality, integrity, and availability of sensitive, confidential, and proprietary electronic information Fleet stores, transmits, and/or processes.
 
-2. Risk assessments must be performed with any major change to Fleet's business or technical operations and/or supporting infrastructure, no less than once per year.
+2. risk assessments must be performed with any major change to Fleet's business or technical operations and/or supporting infrastructure no less than once per year.
 
-3. Strategies shall be developed to mitigate or accept the risks identified in the risk assessment process.
+3. strategies shall be developed to mitigate or accept the risks identified in the risk assessment process.
 
 
 ## Secure software development and product security policy 
@@ -722,24 +722,24 @@ Fleet policy requires that:
 
 1. Fleet software engineering and product development are required to follow security best practices. The product should be "Secure by Design" and "Secure by Default."
 
-2. Fleet performs quality assurance activities. This may include:
+2. Fleet performs quality assurance activities. This may include
 
   * peer code reviews prior to merging new code into the main development branch
     (e.g., master branch).
   * thorough product testing before releasing it to production (e.g., unit testing
     and integration testing).
 
-3. Risk assessment activities (i.e., threat modeling) must be performed for a new product or major changes to an existing product.
+3. Risk assessment activities (i.e., threat modeling) must be performed for a new product or extensive changes to an existing product.
 
 4. Security requirements must be defined, tracked, and implemented.
 
 5. Security analysis must be performed for any open source software and/or third-party components and dependencies included in Fleet software products.
 
-6. Static application security testing (SAST) must be performed throughout development and prior to each release.
+6. Static application security testing (SAST) must be performed throughout development and before each release.
 
-7. Dynamic application security testing (DAST) must be performed prior to each release.
+7. Dynamic application security testing (DAST) must be performed before each release.
 
-8. All critical or high severity security findings must be remediated prior to each release.
+8. All critical or high severity security findings must be remediated before each release.
 
 9. All critical or high severity vulnerabilities discovered post-release must be remediated in the next release or as per the Fleet vulnerability management policy SLAs, whichever is sooner.
 
@@ -793,9 +793,9 @@ Subcontractors, and Contracted Developers.
 
 2. Approval from management, procurement, and security must be in place before onboarding any new vendor or contractor that impacts Fleet production systems. Additionally, all changes to existing contract agreements must be reviewed and approved before implementation.
 
-3. For any technology solution that needs to be integrated with Fleet production environment or operations, a Vendor Technology Review must be performed by the security team to understand and approve the risk. Periodic compliance assessment and SLA review may be required.
+3. For any technology solution that needs to be integrated with Fleet production environment or operations, the security team must perform a Vendor Technology Review to understand and approve the risk. Periodic compliance assessment and SLA review may be required.
 
-4. Fleet Customers or Partners should not be allowed access outside of their own environment, meaning they cannot access, modify, or delete any data belonging to other third-parties.
+4. Fleet Customers or Partners should not be allowed access outside of their own environment, meaning they cannot access, modify, or delete any data belonging to other third parties.
 
 5. Additional vendor agreements are obtained as required by applicable regulatory compliance requirements.
 
