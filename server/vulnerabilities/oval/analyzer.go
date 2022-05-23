@@ -136,7 +136,7 @@ func loadDef(platform Platform, vulnPath string) (oval_parsed.Result, error) {
 	return result, nil
 }
 
-// latestOvalDefFor returns the contents of the OVAL definition for the given 'platform' in
+// latestOvalDefFor returns the path of the OVAL definition for the given 'platform' in
 // 'vulnPath' for the given 'date'.
 // If not found, returns the most up to date OVAL definition for the given 'platform'
 func latestOvalDefFor(platform Platform, vulnPath string, date time.Time) (string, error) {
