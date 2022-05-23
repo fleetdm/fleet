@@ -948,10 +948,7 @@ func (ds *Datastore) InsertVulnerabilities(
 		return 0, ctxerr.Wrap(ctx, err, "InsertVulnerabilitiesForSoftwareID")
 	}
 
-	count, err := res.RowsAffected()
-	if err != nil {
-		return 0, err
-	}
+	count, _ := res.RowsAffected()
 	return count, nil
 }
 

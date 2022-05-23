@@ -345,6 +345,8 @@ type Datastore interface {
 	AllSoftwareWithoutCPEIterator(ctx context.Context) (SoftwareIterator, error)
 	AddCPEForSoftware(ctx context.Context, software Software, cpe string) error
 	AllCPEs(ctx context.Context, excludedPlatforms []string) ([]string, error)
+	// InsertVulnerabilities inserts the given vulnerabilities in the datastore, returns the number
+	// of rows inserted. If a vulnerability already exists in the datastore, then it will be ignored.
 	InsertVulnerabilities(ctx context.Context, vulns []SoftwareVulnerability, source VulnerabilitySource) (int64, error)
 	InsertCVEForCPE(ctx context.Context, cve string, cpes []string) (int64, error)
 	SoftwareByID(ctx context.Context, id uint) (*Software, error)
