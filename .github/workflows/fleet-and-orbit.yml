@@ -27,6 +27,9 @@ jobs:
       subdomain: ${{ steps.gen.outputs.subdomain }}
       domain: ${{ steps.gen.outputs.domain }}
       address: ${{ steps.gen.outputs.address }}
+      tuf_subdomain: ${{ steps.gen.outputs.tuf_subdomain }}
+      tuf_domain: ${{ steps.gen.outputs.tuf_domain }}
+      tuf_address: ${{ steps.gen.outputs.tuf_address }}
     steps:
     - id: gen
       run: |
@@ -163,6 +166,7 @@ jobs:
 
 
   run-tuf:
+    timeout-minutes: 10
     strategy:
       matrix:
         go-version: ['^1.17.0']
@@ -242,6 +246,14 @@ jobs:
         path: |
           fleet-osquery.msi
 
+    - name: Wait fleet server is down
+      run: |
+        while curl --fail ${{ needs.gen.outputs.address }};
+        do
+          echo "Retrying in 10s..."
+          sleep 10
+        done
+
     - name: Cleanup tunnel
       if: always()
       run: cloudflared tunnel --origincert cert.pem delete --force ${{ needs.gen.outputs.tuf_subdomain }}
@@ -260,10 +272,21 @@ jobs:
       with:
         name: fleet-osquery-pkg
 
+    - name: Install Go
+      uses: actions/setup-go@f6164bd8c8acb4a71fb2791a8b6c4024ff038dab # v2
+      with:
+        go-version: ${{ matrix.go-version }}
+
+    - name: Checkout Code
+      uses: actions/checkout@629c2de402a417ea7690ca6ce3f33229e27606a5 # v2
+
+    - name: Build fleetctl
+      run: make fleetctl
+
     - name: Install pkg
       run: |
         sudo installer -pkg ${{ steps.download.outputs.download-path }}/fleet-osquery.pkg -target /
-        until fleetctl get hosts | grep -iF $(hostname -s);
+        until ./build/fleetctl get hosts | grep -iF $(hostname -s);
         do
           echo "Awaiting enrollment..."
           sleep 10
@@ -300,7 +323,16 @@ jobs:
     - name: Install msi
       run: |
         msiexec /i ${{ steps.download.outputs.download-path }}\fleet-osquery.msi /quiet /passive /lv log.txt
-        sleep 60
+
+    - name: Wait enroll
+      shell: bash
+      run: |
+        # TODO(lucas): Improve checking of "enrolled". This waits until the server goes down.
+        while curl --fail ${{ needs.gen.outputs.address }};
+        do
+          echo "Retrying in 10s..."
+          sleep 10
+        done
 
     - name: Run orbit shell
       shell: cmd
