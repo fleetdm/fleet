@@ -4772,6 +4772,7 @@ func (s *integrationTestSuite) TestGetHostLastOpenedAt() {
 
 func (s *integrationTestSuite) TestHostsReportDownload() {
 	t := s.T()
+	ctx := context.Background()
 
 	hosts := s.createHosts(t)
 	err := s.ds.ApplyLabelSpecs(context.Background(), []*fleet.LabelSpec{
@@ -4782,6 +4783,12 @@ func (s *integrationTestSuite) TestHostsReportDownload() {
 	require.NoError(t, err)
 	require.Len(t, lids, 1)
 	customLabelID := lids[0]
+
+	// create a policy and make host[1] fail that policy
+	pol, err := s.ds.NewGlobalPolicy(ctx, nil, fleet.PolicyPayload{Name: t.Name(), Query: "SELECT 1"})
+	require.NoError(t, err)
+	err = s.ds.RecordPolicyQueryExecutions(ctx, hosts[1], map[uint]*bool{pol.ID: ptr.Bool(false)}, time.Now(), false)
+	require.NoError(t, err)
 
 	res := s.DoRaw("GET", "/api/latest/fleet/hosts/report", nil, http.StatusUnsupportedMediaType, "format", "gzip")
 	var errs struct {
@@ -4802,8 +4809,18 @@ func (s *integrationTestSuite) TestHostsReportDownload() {
 	res.Body.Close()
 	require.NoError(t, err)
 	require.Len(t, rows, len(hosts)+1) // all hosts + header row
-	require.Len(t, rows[0], 43)        // total number of cols
+	require.Len(t, rows[0], 44)        // total number of cols
 	t.Log(rows[0])
+
+	// find the row for hosts[1], it should have issues=1 (1 failing policy)
+	const idCol, issuesCol = 2, 40
+	for _, row := range rows[1:] {
+		if row[idCol] == fmt.Sprint(hosts[1].ID) {
+			require.Equal(t, "1", row[issuesCol], row)
+		} else {
+			require.Equal(t, "0", row[issuesCol], row)
+		}
+	}
 
 	// valid format, some columns
 	res = s.DoRaw("GET", "/api/latest/fleet/hosts/report", nil, http.StatusOK, "format", "csv", "columns", "hostname")

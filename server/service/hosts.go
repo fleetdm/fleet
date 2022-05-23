@@ -950,9 +950,7 @@ func hostsReportEndpoint(ctx context.Context, request interface{}, svc fleet.Ser
 		return hostsReportResponse{Err: err}, nil
 	}
 
-	// Those are not supported when listing hosts in a label, so that's just to
-	// make the output consistent whether a label is used or not.
-	req.Opts.DisableFailingPolicies = true
+	req.Opts.DisableFailingPolicies = false
 	req.Opts.AdditionalFilters = nil
 	req.Opts.Page = 0
 	req.Opts.PerPage = 0 // explicitly disable any limit, we want all matching hosts
