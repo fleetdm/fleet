@@ -8,7 +8,7 @@ Internet/Intranet/Extranet-related systems, including but not limited to compute
 
 Effective security is a team effort involving the participation and support of every Fleet Device Management Inc employee or contractor who deals with information and/or information systems. It is the responsibility of every team member to read and understand this policy and conduct their activities accordingly.
 
-All Fleet employees and long-term collaborators are expected to read and electronically sign the *acceptable use of end-user computing* policy as well as to be aware of the others and consult them as needed, to ensure systems built and used are done in a compliant manner.
+All Fleet employees and long-term collaborators are expected to read and electronically sign the *acceptable use of end-user computing* policy as well as to be aware of the others and consult them as needed to make sure systems built and used are done in a compliant manner.
 
 ### Acceptable use of end-user computing
 *Created from [JupiterOne/security-policy-templates](https://github.com/JupiterOne/security-policy-templates). [CC BY-SA 4 license](https://creativecommons.org/licenses/by-sa/4.0/)*
@@ -17,33 +17,33 @@ All Fleet employees and long-term collaborators are expected to read and electro
 | -------------- | -------------- |
 | @GuillaumeRoss | 2022-06-01     |
 
-Fleet requires all workforce members to comply with the following acceptable use requirements and procedures, such as:
+Fleet requires all workforce members to comply with the following acceptable use requirements and procedures, such as
 
-1. The use of Fleet computing systems is subject to monitoring by Fleet IT and/or Security teams.
+1. the use of Fleet computing systems is subject to monitoring by Fleet IT and/or Security teams.
 
 2. Fleet team members must not leave computing devices (including laptops and smart devices) used for business purposes, including company-provided and BYOD devices, unattended in public.
 
-3. Device encryption must be enabled for all mobile devices accessing company data, such as whole-disk encryption for all laptops.
+3. device encryption must be enabled for all mobile devices accessing company data, such as whole-disk encryption for all laptops.
 
-4. Use only legal software with a valid license installed through the internal "app store" or trusted sources. Well-documented open source software can be used. If in doubt, ask in *#g-security*.  
+4. using only legal software with a valid license installed through the internal "app store" or trusted sources. Well-documented open source software can be used. If in doubt, ask in *#g-security*.  
 
-5. Avoid sharing credentials. Secrets must be stored safely, using features such as GitHub secrets. For accounts and other sensitive data that need to be shared, use the company-provided password manager.
+5. avoiding sharing credentials. Secrets must be stored safely, using features such as GitHub secrets. For accounts and other sensitive data that need to be shared, use the company-provided password manager.
 
-6. At Fleet, we are public by default. Sensitive information from logs, screenshots, or other types of data (memory dumps, for example), must be sanitized to remove any sensitive or confidential information prior to posting.
+6. sanitizing and removing any sensitive or confidential information prior to posting. At Fleet, we are public by default. Sensitive information from logs, screenshots, or other types of data (memory dumps, for example),should not be shared.
 
-7. Anti-malware or equivalent protection and monitoring must be installed and enabled on all endpoint systems that may be affected by malware, including workstations, laptops and servers.
+7. anti-malware or equivalent protection and monitoring must be installed and enabled on all endpoint systems that may be affected by malware, including workstations, laptops, and servers.
 
-8. It is strictly forbidden to download or store any secrets used to sign Orbit installer updates on end-user computing devices, including laptops, workstations, and mobile devices.
+8. it being strictly forbidden to download or store any secrets used to sign Orbit installer updates on end-user computing devices, including laptops, workstations, and mobile devices.
 
-9. Only company-owned and managed computers are allowed to connect directly to Fleet autoupdater production environments.
+9. only allowing company-owned and managed computers to connect directly to Fleet autoupdater production environments.
 
-10. Fleet team members must not let anyone else use Fleet-provided and managed workstations unsupervised, including family members and support personnel of vendors. Use screen sharing instead of allowing them to access your system directly.
+10. enforcing the policy that Fleet team members must not let anyone else use Fleet-provided and managed workstations unsupervised, including family members and support personnel of vendors. Use screen sharing instead of allowing them to access your system directly.
 
-11. Device's operating system must be kept up to date. Fleet-managed systems will receive prompts for updates to be installed, and BYOD devices are to be updated by the team member using it or they might lose access. 
+11. Requiring device's operating system must be kept up to date. Fleet-managed systems will receive prompts for updates to be installed, and BYOD devices are to be updated by the team member using them or they might lose access. 
 
-12. Team members must not store sensitive data on portable storage.
+12. Requiring team members must not store sensitive data on portable storage.
 
-13. The use of Fleet company accounts on "shared" computers, such as hotel kiosk systems, is strictly prohibited.
+13. Not allowing the use of Fleet company accounts on "shared" computers, such as hotel kiosk systems, is strictly prohibited.
 
 ## Access control policy
 *Created from [JupiterOne/security-policy-templates](https://github.com/JupiterOne/security-policy-templates). [CC BY-SA 4 license](https://creativecommons.org/licenses/by-sa/4.0/)*
