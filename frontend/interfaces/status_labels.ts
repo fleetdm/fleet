@@ -1,5 +1,3 @@
-// TODO: confirm status labels are not used in current UI and if so remove from codebase
-
 import PropTypes from "prop-types";
 
 export interface IStatusLabels {
