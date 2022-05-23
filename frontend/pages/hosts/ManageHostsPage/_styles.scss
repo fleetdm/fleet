@@ -127,6 +127,14 @@
                   }
                 }
               }
+              .device_mapping__cell {
+                .text-cell {
+                  display: inline;
+                }
+                .text-muted {
+                  color: $ui-fleet-black-50;
+                }
+              }
             }
           }
         }

@@ -18,6 +18,7 @@ export interface ILoadHostsOptions {
   policyId?: number;
   policyResponse?: string;
   softwareId?: number;
+  device_mapping?: boolean;
   columns?: string;
 }
 
@@ -127,6 +128,7 @@ export default {
     const policyId = options?.policyId || null;
     const policyResponse = options?.policyResponse || null;
     const softwareId = options?.softwareId || null;
+    const device_mapping = options?.device_mapping || null;
     const columns = options?.columns || null;
 
     // TODO: add this query param logic to client class
@@ -181,6 +183,10 @@ export default {
     // TODO: consider how to check for mutually exclusive scenarios with label, policy and software
     if (!label && !policyId && softwareId) {
       path += `&software_id=${softwareId}`;
+    }
+
+    if (device_mapping) {
+      path += "&device_mapping=true";
     }
 
     if (columns) {

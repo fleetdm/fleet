@@ -404,8 +404,8 @@
     margin-right: $pad-small;
   }
 
-  &__device-mapping {
-    .device-user-tooltip {
+  &__device_mapping {
+    .device_mapping--tooltip {
       flex-direction: column;
       justify-content: start;
       text-align: left;

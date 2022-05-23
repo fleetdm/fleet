@@ -19,6 +19,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/server"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/ptr"
@@ -2187,6 +2188,35 @@ func (s *integrationTestSuite) TestHostDeviceMapping() {
 
 	s.DoJSON("GET", "/api/latest/fleet/hosts?device_mapping=true", nil, http.StatusOK, &listHosts, "query", "c@b.c")
 	require.Len(t, listHosts.Hosts, 0)
+}
+
+func (s *integrationTestSuite) TestListHostsDeviceMappingSize() {
+	t := s.T()
+	ctx := context.Background()
+	hosts := s.createHosts(t)
+
+	testSize := 50
+	var mappings []*fleet.HostDeviceMapping
+	for i := 0; i < testSize; i++ {
+		testEmail, _ := server.GenerateRandomText(14)
+		mappings = append(mappings, &fleet.HostDeviceMapping{HostID: hosts[0].ID, Email: testEmail, Source: "google_chrome_profiles"})
+	}
+
+	s.ds.ReplaceHostDeviceMapping(ctx, hosts[0].ID, mappings)
+
+	var listHosts listHostsResponse
+	s.DoJSON("GET", "/api/latest/fleet/hosts?device_mapping=true", nil, http.StatusOK, &listHosts)
+
+	hostsByID := make(map[uint]HostResponse)
+	for _, h := range listHosts.Hosts {
+		hostsByID[h.ID] = h
+	}
+	require.NotNil(t, *hostsByID[hosts[0].ID].DeviceMapping)
+
+	var dm []*fleet.HostDeviceMapping
+	err := json.Unmarshal(*hostsByID[hosts[0].ID].DeviceMapping, &dm)
+	require.NoError(t, err)
+	require.Len(t, dm, testSize)
 }
 
 func (s *integrationTestSuite) TestGetMacadminsData() {

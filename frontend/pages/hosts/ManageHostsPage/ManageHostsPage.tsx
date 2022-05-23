@@ -478,7 +478,7 @@ const ManageHostsPage = ({
     if (options.sortBy) {
       delete options.sortBy;
     }
-    retrieveHostCount(options);
+    retrieveHostCount(omit(options, "device_mapping"));
   };
 
   let teamSync = false;
@@ -519,6 +519,7 @@ const ManageHostsPage = ({
       softwareId,
       page: tableQueryData ? tableQueryData.pageIndex : 0,
       perPage: tableQueryData ? tableQueryData.pageSize : 100,
+      device_mapping: true,
     };
 
     if (isEqual(options, currentQueryOptions)) {
@@ -526,7 +527,7 @@ const ManageHostsPage = ({
     }
     if (teamSync) {
       retrieveHosts(options);
-      retrieveHostCount(options);
+      retrieveHostCount(omit(options, "device_mapping"));
       setCurrentQueryOptions(options);
     }
   }, [availableTeams, currentTeam, location, labels]);
