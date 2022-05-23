@@ -5,15 +5,15 @@ import (
 	_ "embed"
 	"encoding/json"
 	"fmt"
+	"github.com/fleetdm/fleet/v4/pkg/open"
+	"github.com/getlantern/systray"
 	"io/ioutil"
 	"log"
 	"net/http"
 	"net/url"
 	"os"
+	"strings"
 	"time"
-
-	"github.com/fleetdm/fleet/v4/pkg/open"
-	"github.com/getlantern/systray"
 )
 
 var version = "unknown"
@@ -38,6 +38,13 @@ type Response struct {
 		Status      string `json:"status"`
 		DisplayText string `json:"display_text"`
 	} `json:"host"`
+	License struct {
+		Tier         string    `json:"tier"`
+		Organization string    `json:"organization"`
+		DeviceCount  int       `json:"device_count"`
+		Expiration   time.Time `json:"expiration"`
+		Note         string    `json:"note"`
+	} `json:"license"`
 }
 
 func main() {
@@ -127,15 +134,19 @@ func main() {
 					log.Printf("get device URL: %s", err)
 					continue
 				}
-				allPoliciesPass, err := parsePoliciesFromResponse(resp)
+				licensePass, allPoliciesPass, err := parseLicenseAndPoliciesFromResponse(resp)
 				if err != nil {
 					log.Println(err.Error())
 					continue
 				}
-				if allPoliciesPass {
-					myDeviceItem.SetTitle("My device 🟢")
+				if licensePass {
+					if allPoliciesPass {
+						myDeviceItem.SetTitle("My device 🟢")
+					} else {
+						myDeviceItem.SetTitle("My device 🔴")
+					}
 				} else {
-					myDeviceItem.SetTitle("My device 🔴")
+					myDeviceItem.SetTitle("My device")
 				}
 			}
 		}()
@@ -162,23 +173,31 @@ func main() {
 	systray.Run(onReady, onExit)
 }
 
-func parsePoliciesFromResponse(resp *http.Response) (bool, error) {
+func parseLicenseAndPoliciesFromResponse(resp *http.Response) (licensePass bool, policiesPass bool, err error) {
 	defer resp.Body.Close()
 	if resp.StatusCode != http.StatusOK {
-		return false, nil
+		return false, false, nil
 	}
 	body, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
-		return false, err
+		return false, false, err
 	}
 	var result Response
 	if err := json.Unmarshal(body, &result); err != nil {
-		return false, err
+		return false, false, err
 	}
-	for _, policy := range result.Host.Policies {
-		if policy.Response != "pass" {
-			return false, nil
+	licensePass = false
+	if strings.Contains(strings.ToLower(result.License.Tier), "premium") {
+		licensePass = true
+	}
+	if licensePass {
+		for _, policy := range result.Host.Policies {
+			if policy.Response != "pass" {
+				return licensePass, false, nil
+			}
 		}
+		return licensePass, true, nil
+	} else {
+		return false, false, nil
 	}
-	return true, nil
 }
