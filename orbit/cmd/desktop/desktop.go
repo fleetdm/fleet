@@ -116,7 +116,7 @@ func main() {
 		}()
 
 		go func() {
-			tic := time.NewTicker(3 * time.Second) // every second now for debugging
+			tic := time.NewTicker(5 * time.Minute)
 			tr := http.DefaultTransport.(*http.Transport)
 			if os.Getenv("FLEET_DESKTOP_INSECURE") != "" {
 				tr.TLSClientConfig = &tls.Config{InsecureSkipVerify: true}
