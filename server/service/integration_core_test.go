@@ -1,12 +1,14 @@
 package service
 
 import (
+	"bytes"
 	"context"
 	"crypto/rand"
 	"encoding/base64"
 	"encoding/csv"
 	"encoding/json"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
@@ -4790,6 +4792,13 @@ func (s *integrationTestSuite) TestHostsReportDownload() {
 	err = s.ds.RecordPolicyQueryExecutions(ctx, hosts[1], map[uint]*bool{pol.ID: ptr.Bool(false)}, time.Now(), false)
 	require.NoError(t, err)
 
+	// create some device mappings for host[2]
+	err = s.ds.ReplaceHostDeviceMapping(ctx, hosts[2].ID, []*fleet.HostDeviceMapping{
+		{HostID: hosts[2].ID, Email: "a@b.c", Source: "google_chrome_profiles"},
+		{HostID: hosts[2].ID, Email: "b@b.c", Source: "google_chrome_profiles"},
+	})
+	require.NoError(t, err)
+
 	res := s.DoRaw("GET", "/api/latest/fleet/hosts/report", nil, http.StatusUnsupportedMediaType, "format", "gzip")
 	var errs struct {
 		Message string `json:"message"`
@@ -4812,8 +4821,9 @@ func (s *integrationTestSuite) TestHostsReportDownload() {
 	require.Len(t, rows[0], 44)        // total number of cols
 	t.Log(rows[0])
 
+	const idCol, issuesCol, deviceCol = 2, 40, 41
+
 	// find the row for hosts[1], it should have issues=1 (1 failing policy)
-	const idCol, issuesCol = 2, 40
 	for _, row := range rows[1:] {
 		if row[idCol] == fmt.Sprint(hosts[1].ID) {
 			require.Equal(t, "1", row[issuesCol], row)
@@ -4848,6 +4858,22 @@ func (s *integrationTestSuite) TestHostsReportDownload() {
 	require.NoError(t, err)
 	require.Len(t, rows, 2) // headers + matching host
 	require.Contains(t, rows[1], hosts[0].Hostname)
+
+	// with device mapping results
+	res = s.DoRaw("GET", "/api/latest/fleet/hosts/report", nil, http.StatusOK, "format", "csv", "columns", "id,hostname,device_mapping")
+	rawCSV, err := io.ReadAll(res.Body)
+	require.Contains(t, string(rawCSV), `"a@b.c,b@b.c"`) // inside quotes because it contains a comma
+	rows, err = csv.NewReader(bytes.NewReader(rawCSV)).ReadAll()
+	res.Body.Close()
+	require.NoError(t, err)
+	require.Len(t, rows, len(hosts)+1)
+	for _, row := range rows[1:] {
+		if row[0] == fmt.Sprint(hosts[2].ID) {
+			require.Equal(t, "a@b.c,b@b.c", row[2], row)
+		} else {
+			require.Equal(t, "", row[2], row)
+		}
+	}
 
 	// with a label id
 	res = s.DoRaw("GET", "/api/latest/fleet/hosts/report", nil, http.StatusOK, "format", "csv", "columns", "hostname", "label_id", fmt.Sprintf("%d", customLabelID))

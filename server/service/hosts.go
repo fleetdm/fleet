@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/csv"
+	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
@@ -23,10 +24,11 @@ import (
 // rendering in the UI.
 type HostResponse struct {
 	*fleet.Host
-	Status      fleet.HostStatus   `json:"status" csv:"status"`
-	DisplayText string             `json:"display_text" csv:"display_text"`
-	Labels      []fleet.Label      `json:"labels,omitempty" csv:"-"`
-	Geolocation *fleet.GeoLocation `json:"geolocation,omitempty" csv:"-"`
+	Status           fleet.HostStatus   `json:"status" csv:"status"`
+	DisplayText      string             `json:"display_text" csv:"display_text"`
+	Labels           []fleet.Label      `json:"labels,omitempty" csv:"-"`
+	Geolocation      *fleet.GeoLocation `json:"geolocation,omitempty" csv:"-"`
+	CSVDeviceMapping string             `json:"-" db:"-" csv:"device_mapping"`
 }
 
 func hostResponseForHost(ctx context.Context, svc fleet.Service, host *fleet.Host) (*HostResponse, error) {
@@ -876,6 +878,30 @@ type hostsReportResponse struct {
 func (r hostsReportResponse) error() error { return r.Err }
 
 func (r hostsReportResponse) hijackRender(ctx context.Context, w http.ResponseWriter) {
+	// post-process the Device Mappings for CSV rendering
+	for _, h := range r.Hosts {
+		if h.DeviceMapping != nil {
+			// return the list of emails, comma-separated, as part of that single CSV field
+			var dms []struct {
+				Email string `json:"email"`
+			}
+			if err := json.Unmarshal(*h.DeviceMapping, &dms); err != nil {
+				// log the error but keep going
+				logging.WithErr(ctx, err)
+				continue
+			}
+
+			var sb strings.Builder
+			for i, dm := range dms {
+				if i > 0 {
+					sb.WriteString(",")
+				}
+				sb.WriteString(dm.Email)
+			}
+			h.CSVDeviceMapping = sb.String()
+		}
+	}
+
 	var buf bytes.Buffer
 	if err := gocsv.Marshal(r.Hosts, &buf); err != nil {
 		logging.WithErr(ctx, err)
@@ -955,6 +981,22 @@ func hostsReportEndpoint(ctx context.Context, request interface{}, svc fleet.Ser
 	req.Opts.Page = 0
 	req.Opts.PerPage = 0 // explicitly disable any limit, we want all matching hosts
 	req.Opts.After = ""
+	req.Opts.DeviceMapping = false
+
+	rawCols := strings.Split(req.Columns, ",")
+	var cols []string
+	for _, rawCol := range rawCols {
+		if rawCol = strings.TrimSpace(rawCol); rawCol != "" {
+			cols = append(cols, rawCol)
+			if rawCol == "device_mapping" {
+				req.Opts.DeviceMapping = true
+			}
+		}
+	}
+	if len(cols) == 0 {
+		// enable device_mapping retrieval, as no column means all columns
+		req.Opts.DeviceMapping = true
+	}
 
 	var (
 		hosts []*fleet.Host
@@ -977,13 +1019,6 @@ func hostsReportEndpoint(ctx context.Context, request interface{}, svc fleet.Ser
 			return hostsReportResponse{Err: err}, nil
 		}
 		hostResps[i] = hr
-	}
-	rawCols := strings.Split(req.Columns, ",")
-	var cols []string
-	for _, rawCol := range rawCols {
-		if rawCol = strings.TrimSpace(rawCol); rawCol != "" {
-			cols = append(cols, rawCol)
-		}
 	}
 	return hostsReportResponse{Columns: cols, Hosts: hostResps}, nil
 }
