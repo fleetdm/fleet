@@ -14,6 +14,7 @@ import (
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	oval_parsed "github.com/fleetdm/fleet/v4/server/vulnerabilities/oval/parsed"
+	"github.com/hashicorp/go-multierror"
 )
 
 // Analyze scans all hosts for vulnerabilities based on the OVAL definitions for their platform,
@@ -24,6 +25,8 @@ func Analyze(
 	versions *fleet.OSVersions,
 	vulnPath string,
 ) ([]fleet.SoftwareVulnerability, error) {
+	var errR error
+
 	for _, v := range versions.OSVersions {
 		platform := NewPlatform(v.Platform, v.Name)
 		if !platform.IsSupported() {
@@ -32,12 +35,14 @@ func Analyze(
 
 		defs, err := loadDef(platform, vulnPath)
 		if err != nil {
-			return nil, err
+			errR = multierror.Append(errR, err)
+			continue
 		}
 
 		hIds, err := ds.HostIDsByPlatform(ctx, &v.Platform, &v.Name)
 		if err != nil {
-			return nil, err
+			errR = multierror.Append(errR, err)
+			continue
 		}
 
 		for _, hId := range hIds {
@@ -49,7 +54,8 @@ func Analyze(
 			}
 			err := ds.LoadHostSoftware(ctx, &h, opts)
 			if err != nil {
-				return nil, err
+				errR = multierror.Append(errR, err)
+				continue
 			}
 
 			found := defs.Eval(h.Software)
@@ -59,25 +65,25 @@ func Analyze(
 
 			existing, err := ds.ListSoftwareVulnerabilities(ctx, hId)
 			if err != nil {
-				return nil, err
+				errR = multierror.Append(errR, err)
 			}
 
 			toInsert, toDelete := vulnsDelta(found, existing)
 			if len(toDelete) > 0 {
 				if err := ds.DeleteVulnerabilitiesByCPECVE(ctx, toDelete); err != nil {
-					return nil, err
+					errR = multierror.Append(errR, err)
 				}
 			}
 			if len(toInsert) > 0 {
 				if _, err = ds.InsertVulnerabilities(ctx, toInsert, fleet.OVAL); err != nil {
-					return nil, err
+					errR = multierror.Append(errR, err)
 				}
-				return toInsert, nil
+				return toInsert, errR
 			}
 		}
 	}
 
-	return nil, nil
+	return nil, errR
 }
 
 // vulnsDelta compares what vulnerabilities already exists with what new vulnerabilities were found
@@ -85,9 +91,9 @@ func Analyze(
 func vulnsDelta(
 	found []fleet.SoftwareVulnerability,
 	existing []fleet.SoftwareVulnerability,
-) ([]fleet.SoftwareVulnerability, []fleet.SoftwareVulnerability) {
-	toDelete := make([]fleet.SoftwareVulnerability, 0)
-	toInsert := make([]fleet.SoftwareVulnerability, 0)
+) (toInsert []fleet.SoftwareVulnerability, toDelete []fleet.SoftwareVulnerability) {
+	toDelete = make([]fleet.SoftwareVulnerability, 0)
+	toInsert = make([]fleet.SoftwareVulnerability, 0)
 
 	existingSet := make(map[string]bool)
 	for _, e := range existing {
