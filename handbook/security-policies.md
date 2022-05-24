@@ -80,9 +80,9 @@ Fleet policy requires that:
 
 3. access to critical resources, such as production environments, must be approved by the security team in addition to the requestor’s manager.
 
-4. access must be reviewed on regularly and revoked if no longer needed.
+4. access must be reviewed regularly and revoked if no longer needed.
 
-5. upon termination of employment, all system access must be revoked, and user accounts terminated within 24 hours or one business day, whichever is shorter.
+5. upon the termination of employment, all system access must be revoked, and user accounts terminated within 24-hours or one business day, whichever is shorter.
 
 6. all system access must be reviewed at least annually and whenever a user's job role changes.
 

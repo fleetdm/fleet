@@ -8,6 +8,7 @@ import { IVulnerability } from "interfaces/vulnerability";
 
 import HeaderCell from "components/TableContainer/DataTable/HeaderCell";
 import TextCell from "components/TableContainer/DataTable/TextCell";
+import TooltipWrapper from "components/TooltipWrapper";
 import Chevron from "../../../../assets/images/icon-chevron-right-blue-16x16@2x.png";
 
 // NOTE: cellProps come from react-table
@@ -65,9 +66,27 @@ const softwareTableHeaders = [
     Header: "Name",
     disableSortBy: true,
     accessor: "name",
-    Cell: (cellProps: IStringCellProps): JSX.Element => (
-      <TextCell value={cellProps.cell.value} />
-    ),
+    Cell: (cellProps: IStringCellProps): JSX.Element => {
+      const { name, bundle_identifier } = cellProps.row.original;
+      if (bundle_identifier) {
+        return (
+          <span className="name-container">
+            <TooltipWrapper
+              tipContent={`
+                <span>
+                  <b>Bundle identifier: </b>
+                  <br />
+                  ${bundle_identifier}
+                </span>
+              `}
+            >
+              {name}
+            </TooltipWrapper>
+          </span>
+        );
+      }
+      return <TextCell value={name} />;
+    },
   },
   {
     title: "Version",

@@ -16,6 +16,7 @@ import Button from "components/buttons/Button";
 import RevealButton from "components/buttons/RevealButton";
 // @ts-ignore
 import InputField from "components/forms/fields/InputField";
+import Checkbox from "components/forms/fields/Checkbox";
 import TooltipWrapper from "components/TooltipWrapper";
 import TabsWrapper from "components/TabsWrapper";
 
@@ -404,7 +405,7 @@ const PlatformWrapper = ({
     }
     return (
       <>
-        {/* <Checkbox
+        <Checkbox
           name="include-fleet-desktop"
           onChange={() => setIncludeFleetDesktop(!includeFleetDesktop)}
           value={includeFleetDesktop}
@@ -419,7 +420,7 @@ const PlatformWrapper = ({
               Fleet Desktop
             </TooltipWrapper>
           </>
-        </Checkbox> */}
+        </Checkbox>
         <InputField
           disabled
           inputWrapperClass={`${baseClass}__installer-input ${baseClass}__installer-input-${platform}`}

@@ -1280,6 +1280,27 @@ const ManageHostsPage = ({
   ) => {
     evt.preventDefault();
 
+    const hiddenColumnsStorage = localStorage.getItem("hostHiddenColumns");
+    let currentHiddenColumns;
+    let visibleColumns;
+    if (hiddenColumnsStorage) {
+      currentHiddenColumns = JSON.parse(hiddenColumnsStorage);
+    }
+
+    if (config && currentUser) {
+      const tableColumns = generateVisibleTableColumns(
+        currentHiddenColumns,
+        config,
+        currentUser,
+        currentTeam
+      );
+
+      const columnAccessors = tableColumns
+        .map((column) => (column.accessor ? column.accessor : ""))
+        .filter((element) => element);
+      visibleColumns = columnAccessors.join(",");
+    }
+
     let options = {
       selectedLabels: selectedFilters,
       globalFilter: searchQuery,
@@ -1288,6 +1309,7 @@ const ManageHostsPage = ({
       policyId,
       policyResponse,
       softwareId,
+      visibleColumns,
     };
 
     options = {
@@ -1499,9 +1521,6 @@ const ManageHostsPage = ({
       currentUser,
       currentTeam
     );
-
-    const columnAccessors = tableColumns.map((column) => column.accessor);
-    columnAccessors.shift();
 
     return (
       <TableContainer
