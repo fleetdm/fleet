@@ -622,7 +622,7 @@ func (ds *Datastore) EnrollHost(ctx context.Context, osqueryHostID, nodeKey stri
 		zeroTime := time.Unix(0, 0).Add(24 * time.Hour)
 
 		var hostID int64
-		err := sqlx.GetContext(ctx, tx, &host, `SELECT id, last_enrolled_at FROM hosts WHERE osquery_host_id = ?`, osqueryHostID)
+		err := sqlx.GetContext(ctx, tx, &host, `SELECT id, last_enrolled_at, team_id FROM hosts WHERE osquery_host_id = ?`, osqueryHostID)
 		switch {
 		case err != nil && !errors.Is(err, sql.ErrNoRows):
 			return ctxerr.Wrap(ctx, err, "check existing")
@@ -652,8 +652,10 @@ func (ds *Datastore) EnrollHost(ctx context.Context, osqueryHostID, nodeKey stri
 			}
 			hostID = int64(host.ID)
 
-			if err := cleanupPolicyMembershipOnTeamChange(ctx, tx, teamID, []uint{host.ID}); err != nil {
-				return ctxerr.Wrap(ctx, err, "EnrollHost delete policy membership")
+			if host.TeamID != teamID {
+				if err := cleanupPolicyMembershipOnTeamChange(ctx, tx, teamID, []uint{host.ID}); err != nil {
+					return ctxerr.Wrap(ctx, err, "EnrollHost delete policy membership")
+				}
 			}
 
 			// Update existing host record

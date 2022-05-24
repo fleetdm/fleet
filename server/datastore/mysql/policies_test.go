@@ -999,6 +999,7 @@ func testTeamPolicyTransfer(t *testing.T, ds *Datastore) {
 	checkPassingCount(1)
 
 	_, err = ds.EnrollHost(context.Background(), "2", "2", &team2.ID, 0)
+	require.NoError(t, err)
 	checkPassingCount(0)
 
 }
