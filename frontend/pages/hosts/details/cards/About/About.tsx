@@ -5,8 +5,6 @@ import ReactTooltip from "react-tooltip";
 import { IMDMData, IMunkiData, IDeviceUser } from "interfaces/host";
 import { humanHostUptime, humanHostEnrolled } from "utilities/helpers";
 
-const baseClass = "host-summary";
-
 interface IAboutProps {
   aboutData: { [key: string]: any };
   deviceMapping?: IDeviceUser[];
