@@ -611,6 +611,20 @@ func (ds *Datastore) GenerateHostStatusStatistics(ctx context.Context, filter fl
 	return &summary, nil
 }
 
+func shouldCleanTeamPolicies(firstID, secondID *uint) bool {
+	// only one of the two is nil, update
+	if firstID != secondID {
+		return true
+	}
+
+	// both are nil, don't update
+	if firstID == nil && secondID == nil {
+		return false
+	}
+
+	return *firstID != *secondID
+}
+
 // EnrollHost enrolls a host
 func (ds *Datastore) EnrollHost(ctx context.Context, osqueryHostID, nodeKey string, teamID *uint, cooldown time.Duration) (*fleet.Host, error) {
 	if osqueryHostID == "" {
@@ -652,7 +666,7 @@ func (ds *Datastore) EnrollHost(ctx context.Context, osqueryHostID, nodeKey stri
 			}
 			hostID = int64(host.ID)
 
-			if host.TeamID != teamID {
+			if shouldCleanTeamPolicies(host.TeamID, teamID) {
 				if err := cleanupPolicyMembershipOnTeamChange(ctx, tx, []uint{host.ID}); err != nil {
 					return ctxerr.Wrap(ctx, err, "EnrollHost delete policy membership")
 				}

@@ -994,14 +994,20 @@ func testTeamPolicyTransfer(t *testing.T, ds *Datastore) {
 	}
 
 	checkPassingCount(2)
-	require.NoError(t, ds.AddHostsToTeam(context.Background(), ptr.Uint(team2.ID), []uint{host1.ID}))
 
+	// team policies are removed when AddHostsToTeam is called
+	require.NoError(t, ds.AddHostsToTeam(context.Background(), ptr.Uint(team2.ID), []uint{host1.ID}))
 	checkPassingCount(1)
 
+	// team policies are not removed when a host is enrolled in the same team
+	_, err = ds.EnrollHost(context.Background(), "2", "2", &team1.ID, 0)
+	require.NoError(t, err)
+	checkPassingCount(1)
+
+	// team policies are removed if the host is enrolled in a different team
 	_, err = ds.EnrollHost(context.Background(), "2", "2", &team2.ID, 0)
 	require.NoError(t, err)
 	checkPassingCount(0)
-
 }
 
 func testApplyPolicySpec(t *testing.T, ds *Datastore) {
