@@ -7,6 +7,7 @@ import (
 	"regexp"
 	"testing"
 
+	"github.com/fleetdm/fleet/v4/server/datastore/redis/redistest"
 	"github.com/fleetdm/fleet/v4/server/errorstore"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
@@ -19,14 +20,12 @@ type integrationDebugTestSuite struct {
 
 func (s *integrationDebugTestSuite) SetupSuite() {
 	s.withDS.SetupSuite("integrationDebugTestSuite")
-	s.users = createTestUsers(s.T(), s.ds)
-}
 
-func (s *integrationDebugTestSuite) SetupTest() {
-	_, server := RunServerForTestsWithDS(s.T(), s.ds, &TestServerOpts{SkipCreateTestUsers: true})
+	redisPool := redistest.SetupRedis(s.T(), "debugtest:", false, false, false)
+	users, server := RunServerForTestsWithDS(s.T(), s.ds, &TestServerOpts{Pool: redisPool})
 	s.server = server
 	s.token = s.getTestAdminToken()
-	s.Do("GET", "/debug/errors?flush=true", nil, http.StatusOK)
+	s.users = users
 }
 
 func TestIntegrationsDebug(t *testing.T) {
@@ -35,56 +34,43 @@ func TestIntegrationsDebug(t *testing.T) {
 	suite.Run(t, testingSuite)
 }
 
-func (s *integrationDebugTestSuite) TestBasic() {
+func (s *integrationDebugTestSuite) TestDebugErrorsIntegration() {
+	var errs errorstore.JSONResponse
 	t := s.T()
 
+	// ensure we start on a clean state
 	res := s.Do("GET", "/debug/errors?flush=true", nil, http.StatusOK)
+
+	// no errors stored if nothing happened
+	res = s.Do("GET", "/debug/errors?flush=true", nil, http.StatusOK)
 	b, err := io.ReadAll(res.Body)
 	require.NoError(t, err)
 	require.JSONEq(t, "[]", string(b))
-}
 
-func (s *integrationDebugTestSuite) TestUnwrappedErrors() {
-	t := s.T()
-
+	// unwrapped errors are still captured
 	s.DoRawNoAuth("GET", "/api/v1/fleet/software?query=test", nil, http.StatusUnauthorized)
-
-	res := s.Do("GET", "/debug/errors?flush=true", nil, http.StatusOK)
+	res = s.Do("GET", "/debug/errors?flush=true", nil, http.StatusOK)
 	rawErr, err := io.ReadAll(res.Body)
 	require.NoError(t, err)
-
-	var errs errorstore.JSONResponse
 	require.NoError(t, json.Unmarshal(rawErr, &errs))
 	require.Len(t, errs, 1)
 	require.Equal(t, errs[0].Cause.Message, "Authorization header required")
 	require.NotEmpty(t, errs[0].Wraps)
 	require.NotEmpty(t, errs[0].Wraps[0].Stack)
-}
 
-func (s *integrationDebugTestSuite) Test404NoErrors() {
-	t := s.T()
-
+	// 404s are not captured
 	s.Do("GET", "/api/v1/non/existent/path", nil, http.StatusNotFound)
-
-	res := s.Do("GET", "/debug/errors?flush=true", nil, http.StatusOK)
-	rawErr, err := io.ReadAll(res.Body)
+	res = s.Do("GET", "/debug/errors?flush=true", nil, http.StatusOK)
+	rawErr, err = io.ReadAll(res.Body)
 	require.NoError(t, err)
-
-	var errs errorstore.JSONResponse
 	require.NoError(t, json.Unmarshal(rawErr, &errs))
 	require.Len(t, errs, 0)
-}
 
-func (s *integrationDebugTestSuite) TestWrappedErrors() {
-	t := s.T()
-
+	// wrapped errors are stored
 	s.Do("GET", "/api/latest/fleet/device/nonexistent", nil, http.StatusUnauthorized)
-
-	res := s.Do("GET", "/debug/errors", nil, http.StatusOK)
-	rawErr, err := io.ReadAll(res.Body)
+	res = s.Do("GET", "/debug/errors", nil, http.StatusOK)
+	rawErr, err = io.ReadAll(res.Body)
 	require.NoError(t, err)
-
-	var errs errorstore.JSONResponse
 	require.NoError(t, json.Unmarshal(rawErr, &errs))
 	require.Len(t, errs, 1)
 	require.Equal(t, errs[0].Cause.Message, "Authentication required")
