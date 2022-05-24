@@ -478,7 +478,7 @@ const ManageHostsPage = ({
     if (options.sortBy) {
       delete options.sortBy;
     }
-    retrieveHostCount(options);
+    retrieveHostCount(omit(options, "device_mapping"));
   };
 
   let teamSync = false;
@@ -519,6 +519,7 @@ const ManageHostsPage = ({
       softwareId,
       page: tableQueryData ? tableQueryData.pageIndex : 0,
       perPage: tableQueryData ? tableQueryData.pageSize : 100,
+      device_mapping: true,
     };
 
     if (isEqual(options, currentQueryOptions)) {
@@ -526,7 +527,7 @@ const ManageHostsPage = ({
     }
     if (teamSync) {
       retrieveHosts(options);
-      retrieveHostCount(options);
+      retrieveHostCount(omit(options, "device_mapping"));
       setCurrentQueryOptions(options);
     }
   }, [availableTeams, currentTeam, location, labels]);
@@ -1279,6 +1280,27 @@ const ManageHostsPage = ({
   ) => {
     evt.preventDefault();
 
+    const hiddenColumnsStorage = localStorage.getItem("hostHiddenColumns");
+    let currentHiddenColumns;
+    let visibleColumns;
+    if (hiddenColumnsStorage) {
+      currentHiddenColumns = JSON.parse(hiddenColumnsStorage);
+    }
+
+    if (config && currentUser) {
+      const tableColumns = generateVisibleTableColumns(
+        currentHiddenColumns,
+        config,
+        currentUser,
+        currentTeam
+      );
+
+      const columnAccessors = tableColumns
+        .map((column) => (column.accessor ? column.accessor : ""))
+        .filter((element) => element);
+      visibleColumns = columnAccessors.join(",");
+    }
+
     let options = {
       selectedLabels: selectedFilters,
       globalFilter: searchQuery,
@@ -1287,6 +1309,7 @@ const ManageHostsPage = ({
       policyId,
       policyResponse,
       softwareId,
+      visibleColumns,
     };
 
     options = {
@@ -1498,9 +1521,6 @@ const ManageHostsPage = ({
       currentUser,
       currentTeam
     );
-
-    const columnAccessors = tableColumns.map((column) => column.accessor);
-    columnAccessors.shift();
 
     return (
       <TableContainer

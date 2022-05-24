@@ -18,7 +18,9 @@ export interface ILoadHostsOptions {
   policyId?: number;
   policyResponse?: string;
   softwareId?: number;
+  device_mapping?: boolean;
   columns?: string;
+  visibleColumns?: string;
 }
 
 export type ILoadHostDetailsExtension = "device_mapping" | "macadmins";
@@ -60,7 +62,7 @@ export default {
     const policyId = options?.policyId || null;
     const policyResponse = options?.policyResponse || null;
     const softwareId = options?.softwareId || null;
-    const columns = options?.columns || null;
+    const visibleColumns = options?.visibleColumns || null;
 
     let orderKeyParam = "";
     let orderDirection = "";
@@ -82,11 +84,7 @@ export default {
     const label = selectedLabels.find((f) => f.includes(labelPrefix));
     const status = selectedLabels.find((f) => !f.includes(labelPrefix));
     const isValidStatus =
-      status === "new" ||
-      status === "online" ||
-      status === "offline" ||
-      status === "mia";
-
+      status === "new" || status === "online" || status === "offline";
     if (label) {
       const lid = label.substr(labelPrefix.length);
       path = `${LABEL_HOSTS(
@@ -116,6 +114,10 @@ export default {
       path += `&software_id=${softwareId}`;
     }
 
+    if (visibleColumns) {
+      path += `&columns=${visibleColumns}`;
+    }
+
     path += "&format=csv";
 
     return sendRequest("GET", path);
@@ -131,6 +133,7 @@ export default {
     const policyId = options?.policyId || null;
     const policyResponse = options?.policyResponse || null;
     const softwareId = options?.softwareId || null;
+    const device_mapping = options?.device_mapping || null;
     const columns = options?.columns || null;
 
     // TODO: add this query param logic to client class
@@ -156,10 +159,7 @@ export default {
     const label = selectedLabels.find((f) => f.includes(labelPrefix));
     const status = selectedLabels.find((f) => !f.includes(labelPrefix));
     const isValidStatus =
-      status === "new" ||
-      status === "online" ||
-      status === "offline" ||
-      status === "mia";
+      status === "new" || status === "online" || status === "offline";
 
     if (label) {
       const lid = label.substr(labelPrefix.length);
@@ -188,6 +188,10 @@ export default {
     // TODO: consider how to check for mutually exclusive scenarios with label, policy and software
     if (!label && !policyId && softwareId) {
       path += `&software_id=${softwareId}`;
+    }
+
+    if (device_mapping) {
+      path += "&device_mapping=true";
     }
 
     if (columns) {
