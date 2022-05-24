@@ -27,9 +27,6 @@ jobs:
       subdomain: ${{ steps.gen.outputs.subdomain }}
       domain: ${{ steps.gen.outputs.domain }}
       address: ${{ steps.gen.outputs.address }}
-      tuf_subdomain: ${{ steps.gen.outputs.tuf_subdomain }}
-      tuf_domain: ${{ steps.gen.outputs.tuf_domain }}
-      tuf_address: ${{ steps.gen.outputs.tuf_address }}
     steps:
     - id: gen
       run: |
@@ -37,10 +34,6 @@ jobs:
         echo "::set-output name=subdomain::fleet-test-$UUID"
         echo "::set-output name=domain::fleet-test-$UUID.fleetuem.com"
         echo "::set-output name=address::https://fleet-test-$UUID.fleetuem.com"
-        TUFUUID=$(uuidgen)
-        echo "::set-output name=tuf_subdomain::fleet-tuf-$TUFUUID"
-        echo "::set-output name=tuf_domain::fleet-tuf-$TUFUUID.fleetuem.com"
-        echo "::set-output name=tuf_address::https://fleet-tuf-$TUFUUID.fleetuem.com"
   
   run-server:
     strategy:
@@ -165,8 +158,15 @@ jobs:
         echo "::set-output name=enroll_secret::$SECRET"
 
 
-  run-tuf:
-    timeout-minutes: 10
+  # TODO(lucas): Currently, to simplify the workflow we do all in one job:
+  # 1. Generate TUF repository (compile Orbit from source).
+  # 2. Run TUF server on localhost.
+  # 3. Generate packages using localhost TUF server.
+  #
+  # When installing the generated packages, Orbit will log "update errors"
+  # because the TUF URL is set to http://localhost:8081.
+  run-tuf-and-gen-pkgs:
+    timeout-minutes: 15
     strategy:
       matrix:
         go-version: ['^1.17.0']
@@ -194,33 +194,17 @@ jobs:
         while ! /Applications/Docker.app/Contents/Resources/bin/docker info &>/dev/null; do sleep 1; done
         echo "Docker is ready."
 
-    - name: Install cloudflared
-      run: |
-        brew install cloudflared
-
-    - name: Start cloudflared tunnel
-      env:
-        CERT_PEM: ${{ secrets.CLOUDFLARE_TUNNEL_FLEETUEM_CERT_B64 }}
-      run: |
-        echo "$CERT_PEM" | base64 -d > cert.pem
-        # Start tunnel
-        cloudflared tunnel --origincert cert.pem --hostname ${{ needs.gen.outputs.tuf_subdomain }} --url http://localhost:8081 --name ${{ needs.gen.outputs.tuf_subdomain }} &
-        until [[ $(cloudflared tunnel --origincert cert.pem info -o json ${{ needs.gen.outputs.tuf_subdomain }} | jq '.conns[0].conns[0].is_pending_reconnect') = false ]]; do
-          echo "Awaiting tunnel ready..."
-          sleep 5
-        done
-
     - name: Build Repository and run TUF server
       timeout-minutes: 10
       env:
         PKG_FLEET_URL: ${{ needs.gen.outputs.address }}
-        PKG_TUF_URL: ${{ needs.gen.outputs.tuf_address }}
+        PKG_TUF_URL: http://localhost:8081
         DEB_FLEET_URL: ${{ needs.gen.outputs.address }}
-        DEB_TUF_URL: ${{ needs.gen.outputs.tuf_address }}
+        DEB_TUF_URL: http://localhost:8081
         RPM_FLEET_URL: ${{ needs.gen.outputs.address }}
-        RPM_TUF_URL: ${{ needs.gen.outputs.tuf_address }}
+        RPM_TUF_URL: http://localhost:8081
         MSI_FLEET_URL: ${{ needs.gen.outputs.address }}
-        MSI_TUF_URL: ${{ needs.gen.outputs.tuf_address }}
+        MSI_TUF_URL: http://localhost:8081
         ENROLL_SECRET: ${{ needs.get-enroll-secret.outputs.enroll_secret }}
         GENERATE_PKG: 1
         GENERATE_DEB: 1
@@ -244,6 +228,7 @@ jobs:
         path: |
           fleet-osquery*.deb
 
+    # TODO(lucas): Install RPM on a CentOS docker image.
     - name: Upload RPM installer
       uses: actions/upload-artifact@6673cd052c4cd6fcf4b4e6e60ea986c889389535 # v2
       with:
@@ -258,26 +243,14 @@ jobs:
         path: |
           fleet-osquery.msi
 
-    - name: Wait fleet server is down
-      run: |
-        while curl --fail ${{ needs.gen.outputs.address }};
-        do
-          echo "Retrying in 10s..."
-          sleep 10
-        done
 
-    - name: Cleanup tunnel
-      if: always()
-      run: cloudflared tunnel --origincert cert.pem delete --force ${{ needs.gen.outputs.tuf_subdomain }}
-
-
-  orbit-macos-and-ubuntu:
+  orbit-macos:
     timeout-minutes: 15
     strategy:
       matrix:
-        os: ['macos-latest', 'ubuntu-latest']
-    runs-on: ${{ matrix.os }}
-    needs: [gen, get-enroll-secret]
+        go-version: ['^1.17.0']
+    runs-on: macos-latest
+    needs: [run-tuf-and-gen-pkgs]
     steps:
 
     - uses: actions/download-artifact@fb598a63ae348fa914e94cd0ff38f362e927b741 # v2
@@ -308,14 +281,64 @@ jobs:
       run:
         sudo orbit shell -- --json "select * from osquery_info;" | jq -e 'if (.[0]) then true else false end'
 
-    - name: Collect orbit logs (macOS)
-      if: contains(matrix.os, 'macos')
+    - name: Collect orbit logs
+      if: always()
       run: |
         mkdir orbit-logs
         sudo cp /var/log/orbit/* orbit-logs/
 
-    - name: Collect orbit logs (ubuntu)
-      if: contains(matrix.os, 'ubuntu')
+    - name: Upload orbit logs
+      if: always()
+      uses: actions/upload-artifact@6673cd052c4cd6fcf4b4e6e60ea986c889389535 # v2
+      with:
+        name: orbit-logs
+        path: |
+          orbit_logs
+
+    - name: Uninstall pkg
+      run: |
+        ./orbit/tools/cleanup/cleanup_macos.sh
+
+
+  orbit-ubuntu:
+    timeout-minutes: 15
+    strategy:
+      matrix:
+        go-version: ['^1.17.0']
+    runs-on: ubuntu-latest
+    needs: [run-tuf-and-gen-pkgs]
+    steps:
+
+    - uses: actions/download-artifact@fb598a63ae348fa914e94cd0ff38f362e927b741 # v2
+      with:
+        name: fleet-osquery-deb
+
+    - name: Install Go
+      uses: actions/setup-go@f6164bd8c8acb4a71fb2791a8b6c4024ff038dab # v2
+      with:
+        go-version: ${{ matrix.go-version }}
+
+    - name: Checkout Code
+      uses: actions/checkout@629c2de402a417ea7690ca6ce3f33229e27606a5 # v2
+
+    - name: Build fleetctl
+      run: make fleetctl
+
+    - name: Install deb
+      run: |
+        sudo dpkg --install ${{ steps.download.outputs.download-path }}/fleet-osquery_*_amd64.deb
+        until ./build/fleetctl get hosts | grep -iF $(hostname -s);
+        do
+          echo "Awaiting enrollment..."
+          sleep 10
+        done
+
+    - name: Run orbit shell
+      run:
+        sudo orbit shell -- --json "select * from osquery_info;" | jq -e 'if (.[0]) then true else false end'
+
+    - name: Collect orbit logs
+      if: always()
       run: |
         mkdir orbit-logs
         sudo journalctl -u orbit.service > orbit-logs/orbit_service.log
@@ -328,9 +351,14 @@ jobs:
         path: |
           orbit_logs
 
+    - name: Uninstall deb
+      run: |
+        sudo apt remove fleet-osquery -y
+
+
   orbit-windows:
     timeout-minutes: 15
-    needs: [gen, get-enroll-secret]
+    needs: [run-tuf-and-gen-pkgs]
     runs-on: windows-latest
     steps:
     
@@ -363,4 +391,3 @@ jobs:
       with:
         name: orbit-logs-windows
         path: |
-          C:\Windows\system32\config\systemprofile\AppData\Local\FleetDM\Orbit\Logs\orbit-osquery.log
