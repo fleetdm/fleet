@@ -940,6 +940,8 @@ func testTeamPolicyTransfer(t *testing.T, ds *Datastore) {
 		Hostname:        "foo.local",
 	})
 	require.NoError(t, err)
+	host2, err := ds.EnrollHost(context.Background(), "2", "2", &team1.ID, 0)
+	require.NoError(t, err)
 
 	require.NoError(t, ds.AddHostsToTeam(context.Background(), &team1.ID, []uint{host1.ID}))
 	host1, err = ds.Host(context.Background(), host1.ID, false)
@@ -971,6 +973,8 @@ func testTeamPolicyTransfer(t *testing.T, ds *Datastore) {
 
 	require.NoError(t, ds.RecordPolicyQueryExecutions(context.Background(), host1, map[uint]*bool{teamPolicy.ID: ptr.Bool(false), globalPolicy.ID: ptr.Bool(true)}, time.Now(), false))
 	require.NoError(t, ds.RecordPolicyQueryExecutions(context.Background(), host1, map[uint]*bool{teamPolicy.ID: ptr.Bool(true), globalPolicy.ID: ptr.Bool(true)}, time.Now(), false))
+	require.NoError(t, ds.RecordPolicyQueryExecutions(context.Background(), host2, map[uint]*bool{teamPolicy.ID: ptr.Bool(false), globalPolicy.ID: ptr.Bool(true)}, time.Now(), false))
+	require.NoError(t, ds.RecordPolicyQueryExecutions(context.Background(), host2, map[uint]*bool{teamPolicy.ID: ptr.Bool(true), globalPolicy.ID: ptr.Bool(true)}, time.Now(), false))
 
 	checkPassingCount := func(expectedCount uint) {
 		policies, err := ds.ListTeamPolicies(context.Background(), team1.ID)
@@ -982,18 +986,21 @@ func testTeamPolicyTransfer(t *testing.T, ds *Datastore) {
 		policies, err = ds.ListGlobalPolicies(context.Background())
 		require.NoError(t, err)
 		require.Len(t, policies, 1)
-		assert.Equal(t, uint(1), policies[0].PassingHostCount)
+		assert.Equal(t, uint(2), policies[0].PassingHostCount)
 
 		policies, err = ds.ListTeamPolicies(context.Background(), team2.ID)
 		require.NoError(t, err)
 		require.Len(t, policies, 0)
 	}
 
-	checkPassingCount(1)
-
+	checkPassingCount(2)
 	require.NoError(t, ds.AddHostsToTeam(context.Background(), ptr.Uint(team2.ID), []uint{host1.ID}))
 
+	checkPassingCount(1)
+
+	_, err = ds.EnrollHost(context.Background(), "2", "2", &team2.ID, 0)
 	checkPassingCount(0)
+
 }
 
 func testApplyPolicySpec(t *testing.T, ds *Datastore) {

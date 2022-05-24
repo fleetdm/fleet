@@ -651,6 +651,11 @@ func (ds *Datastore) EnrollHost(ctx context.Context, osqueryHostID, nodeKey stri
 				return backoff.Permanent(ctxerr.Errorf(ctx, "host identified by %s enrolling too often", osqueryHostID))
 			}
 			hostID = int64(host.ID)
+
+			if err := cleanupPolicyMembershipOnTeamChange(ctx, tx, teamID, []uint{host.ID}); err != nil {
+				return ctxerr.Wrap(ctx, err, "EnrollHost delete policy membership")
+			}
+
 			// Update existing host record
 			sqlUpdate := `
 				UPDATE hosts
@@ -879,18 +884,11 @@ func (ds *Datastore) AddHostsToTeam(ctx context.Context, teamID *uint, hostIDs [
 	}
 
 	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
-		// hosts can only be in one team, so if there's a policy that has a team id and a result from one of our hosts
-		// it can only be from the previous team they are being transferred from
-		query, args, err := sqlx.In(`DELETE FROM policy_membership
-					WHERE policy_id IN (SELECT id FROM policies WHERE team_id IS NOT NULL) AND host_id IN (?)`, hostIDs)
-		if err != nil {
-			return ctxerr.Wrap(ctx, err, "add host to team sqlx in")
-		}
-		if _, err := tx.ExecContext(ctx, query, args...); err != nil {
-			return ctxerr.Wrap(ctx, err, "exec AddHostsToTeam delete policy membership")
+		if err := cleanupPolicyMembershipOnTeamChange(ctx, tx, teamID, hostIDs); err != nil {
+			return ctxerr.Wrap(ctx, err, "AddHostsToTeam delete policy membership")
 		}
 
-		query, args, err = sqlx.In(`UPDATE hosts SET team_id = ? WHERE id IN (?)`, teamID, hostIDs)
+		query, args, err := sqlx.In(`UPDATE hosts SET team_id = ? WHERE id IN (?)`, teamID, hostIDs)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "sqlx.In AddHostsToTeam")
 		}
