@@ -251,7 +251,7 @@ jobs:
       matrix:
         go-version: ['^1.17.0']
     runs-on: macos-latest
-    needs: [run-tuf-and-gen-pkgs]
+    needs: [gen, run-tuf-and-gen-pkgs]
     steps:
 
     - name: Install Go
@@ -274,6 +274,7 @@ jobs:
     - name: Install pkg
       run: |
         sudo hostname orbit-macos
+        ./build/fleetctl config set --address ${{ needs.gen.outputs.address }}
         until ./build/fleetctl login --email admin@example.com --password preview1337#
         do
           echo "Retrying in 30s..."
@@ -315,7 +316,7 @@ jobs:
       matrix:
         go-version: ['^1.17.0']
     runs-on: ubuntu-latest
-    needs: [run-tuf-and-gen-pkgs]
+    needs: [gen, run-tuf-and-gen-pkgs]
     steps:
 
     - name: Install Go
@@ -338,6 +339,7 @@ jobs:
     - name: Install deb
       run: |
         sudo hostname orbit-ubuntu
+        ./build/fleetctl config set --address ${{ needs.gen.outputs.address }}
         until ./build/fleetctl login --email admin@example.com --password preview1337#
         do
           echo "Retrying in 30s..."
