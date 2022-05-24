@@ -142,7 +142,7 @@ func hashError(err error) string {
 
 	// hash the stack trace of the root FleetError in the chain
 	if ferr != nil {
-		fmt.Fprintf(&sb, strings.Join(ferr.Stack(), "\n"))
+		fmt.Fprint(&sb, strings.Join(ferr.Stack(), "\n"))
 	}
 
 	return sha256b64(sb.String())
