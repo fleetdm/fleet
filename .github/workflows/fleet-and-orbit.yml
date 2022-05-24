@@ -273,11 +273,17 @@ jobs:
 
     - name: Install pkg
       run: |
+        sudo hostname orbit-macos
+        until ./build/fleetctl login --email admin@example.com --password preview1337#
+        do
+          echo "Retrying in 30s..."
+          sleep 30
+        done
         sudo installer -pkg ${{ steps.download.outputs.download-path }}/fleet-osquery.pkg -target /
         until ./build/fleetctl get hosts | grep -iF $(hostname -s);
         do
           echo "Awaiting enrollment..."
-          sleep 10
+          sleep 30
         done
 
     - name: Run orbit shell
@@ -331,11 +337,17 @@ jobs:
 
     - name: Install deb
       run: |
+        sudo hostname orbit-ubuntu
+        until ./build/fleetctl login --email admin@example.com --password preview1337#
+        do
+          echo "Retrying in 30s..."
+          sleep 30
+        done
         sudo dpkg --install ${{ steps.download.outputs.download-path }}/fleet-osquery_42.0.0_amd64.deb
         until ./build/fleetctl get hosts | grep -iF $(hostname -s);
         do
           echo "Awaiting enrollment..."
-          sleep 10
+          sleep 30
         done
 
     - name: Run orbit shell
