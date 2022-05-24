@@ -254,6 +254,10 @@ func TranslateSoftwareToCPE(
 			continue
 		}
 		if cpe == "" {
+			// The schema for storing CVEs requires that a CPE for every software exists,
+			// having that constraint in place works fine when the only source for vulnerabilities
+			// is the NVD dataset but breaks down when we look at other sources for vulnerabilities (like OVAL) - this is
+			// why we set a default value for CPEs.
 			cpe = fmt.Sprintf("none:%d", software.ID)
 		}
 		err = ds.AddCPEForSoftware(ctx, *software, cpe)
