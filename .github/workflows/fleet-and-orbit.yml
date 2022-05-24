@@ -173,6 +173,8 @@ jobs:
   #
   # When installing the generated packages, Orbit will log "update errors"
   # because the TUF URL is set to http://localhost:8081.
+  #
+  # TODO(lucas): Test the generated RPM package on a CentOS docker image.
   run-tuf-and-gen-pkgs:
     timeout-minutes: 30
     strategy:
@@ -224,29 +226,21 @@ jobs:
     - name: Upload PKG installer
       uses: actions/upload-artifact@6673cd052c4cd6fcf4b4e6e60ea986c889389535 # v2
       with:
-        name: fleet-osquery-pkg
+        name: fleet-osquery.pkg
         path: |
           fleet-osquery.pkg
 
     - name: Upload DEB installer
       uses: actions/upload-artifact@6673cd052c4cd6fcf4b4e6e60ea986c889389535 # v2
       with:
-        name: fleet-osquery-deb
+        name: fleet-osquery_42.0.0_amd64.deb
         path: |
-          fleet-osquery*.deb
-
-    # TODO(lucas): Install RPM on a CentOS docker image.
-    - name: Upload RPM installer
-      uses: actions/upload-artifact@6673cd052c4cd6fcf4b4e6e60ea986c889389535 # v2
-      with:
-        name: fleet-osquery-rpm
-        path: |
-          fleet-osquery*.rpm
+          fleet-osquery_42.0.0_amd64.deb
 
     - name: Upload MSI installer
       uses: actions/upload-artifact@6673cd052c4cd6fcf4b4e6e60ea986c889389535 # v2
       with:
-        name: fleet-osquery-msi
+        name: fleet-osquery.msi
         path: |
           fleet-osquery.msi
 
@@ -263,7 +257,7 @@ jobs:
     - uses: actions/download-artifact@fb598a63ae348fa914e94cd0ff38f362e927b741 # v2
       id: download
       with:
-        name: fleet-osquery-pkg
+        name: fleet-osquery.pkg
 
     - name: Install Go
       uses: actions/setup-go@f6164bd8c8acb4a71fb2791a8b6c4024ff038dab # v2
@@ -320,7 +314,7 @@ jobs:
     - uses: actions/download-artifact@fb598a63ae348fa914e94cd0ff38f362e927b741 # v2
       id: download
       with:
-        name: fleet-osquery-deb
+        name: fleet-osquery_42.0.0_amd64.deb
 
     - name: Install Go
       uses: actions/setup-go@f6164bd8c8acb4a71fb2791a8b6c4024ff038dab # v2
@@ -335,7 +329,7 @@ jobs:
 
     - name: Install deb
       run: |
-        sudo dpkg --install ${{ steps.download.outputs.download-path }}/fleet-osquery_*_amd64.deb
+        sudo dpkg --install ${{ steps.download.outputs.download-path }}/fleet-osquery_42.0.0_amd64.deb
         until ./build/fleetctl get hosts | grep -iF $(hostname -s);
         do
           echo "Awaiting enrollment..."
@@ -374,7 +368,7 @@ jobs:
     - uses: actions/download-artifact@fb598a63ae348fa914e94cd0ff38f362e927b741 # v2
       id: download
       with:
-        name: fleet-osquery-msi
+        name: fleet-osquery.msi
 
     - name: Install msi
       run: |
@@ -400,4 +394,4 @@ jobs:
       uses: actions/upload-artifact@6673cd052c4cd6fcf4b4e6e60ea986c889389535 # v2
       with:
         name: orbit-logs-windows
-        path: |
+        path: C:\Windows\system32\config\systemprofile\AppData\Local\FleetDM\Orbit\Logs\orbit-osquery.log
