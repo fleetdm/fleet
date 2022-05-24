@@ -39,7 +39,7 @@ jobs:
         echo "::set-output name=enroll_secret::$ENROLL"
   
   run-server:
-    timeout-minutes: 15
+    timeout-minutes: 30
     strategy:
       matrix:
         go-version: ['^1.17.0']
@@ -85,7 +85,6 @@ jobs:
       run: make fleet fleetctl
 
     - name: Run Fleet server
-      timeout-minutes: 10
       env:
         FLEET_OSQUERY_HOST_IDENTIFIER: instance # use instance identifier to allow for duplicate UUIDs
         FLEET_SERVER_ADDRESS: 0.0.0.0:1337
@@ -129,7 +128,7 @@ jobs:
   #
   # This job also makes sure the Fleet server is up and running.
   set-enroll-secret:
-    timeout-minutes: 15
+    timeout-minutes: 30
     strategy:
       matrix:
         go-version: ['^1.17.0']
@@ -175,7 +174,7 @@ jobs:
   # When installing the generated packages, Orbit will log "update errors"
   # because the TUF URL is set to http://localhost:8081.
   run-tuf-and-gen-pkgs:
-    timeout-minutes: 15
+    timeout-minutes: 30
     strategy:
       matrix:
         go-version: ['^1.17.0']
@@ -204,7 +203,6 @@ jobs:
         echo "Docker is ready."
 
     - name: Build Repository and run TUF server
-      timeout-minutes: 10
       env:
         PKG_FLEET_URL: ${{ needs.gen.outputs.address }}
         PKG_TUF_URL: http://localhost:8081
@@ -254,7 +252,7 @@ jobs:
 
 
   orbit-macos:
-    timeout-minutes: 15
+    timeout-minutes: 30
     strategy:
       matrix:
         go-version: ['^1.17.0']
@@ -310,7 +308,7 @@ jobs:
 
 
   orbit-ubuntu:
-    timeout-minutes: 15
+    timeout-minutes: 30
     strategy:
       matrix:
         go-version: ['^1.17.0']
@@ -366,7 +364,7 @@ jobs:
 
 
   orbit-windows:
-    timeout-minutes: 15
+    timeout-minutes: 30
     needs: [run-tuf-and-gen-pkgs]
     runs-on: windows-latest
     steps:
