@@ -23,7 +23,8 @@ func (c AppConfig) AuthzType() string {
 }
 
 const (
-	AppConfigKind = "config"
+	AppConfigKind  = "config"
+	MaskedPassword = "********"
 )
 
 // ModifyAppConfigRequest contains application configuration information
@@ -213,22 +214,18 @@ type VulnerabilitiesWebhookSettings struct {
 // JiraIntegration configures an instance of an integration with the Jira
 // system.
 type JiraIntegration struct {
-	URL                           string `json:"url"`
-	Username                      string `json:"username"`
-	APIToken                      string `json:"api_token"`
-	ProjectKey                    string `json:"project_key"`
-	EnableSoftwareVulnerabilities bool   `json:"enable_software_vulnerabilities"`
-	EnableFailingPolicies         bool   `json:"enable_failing_policies"`
+	// It is a superset of TeamJiraIntegration.
+	TeamJiraIntegration
+
+	EnableSoftwareVulnerabilities bool `json:"enable_software_vulnerabilities"`
 }
 
 // ZendeskIntegration configures an instance of an integration with the external Zendesk service.
 type ZendeskIntegration struct {
-	URL                           string `json:"url"`
-	Email                         string `json:"email"`
-	APIToken                      string `json:"api_token"`
-	GroupID                       int64  `json:"group_id"`
-	EnableSoftwareVulnerabilities bool   `json:"enable_software_vulnerabilities"`
-	EnableFailingPolicies         bool   `json:"enable_failing_policies"`
+	// It is a superset of TeamZendeskIntegration.
+	TeamZendeskIntegration
+
+	EnableSoftwareVulnerabilities bool `json:"enable_software_vulnerabilities"`
 }
 
 // Integrations configures the integrations with external systems.

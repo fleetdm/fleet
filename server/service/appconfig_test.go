@@ -288,7 +288,14 @@ func TestAppConfigSecretsObfuscated(t *testing.T) {
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 		return &fleet.AppConfig{
 			SMTPSettings: fleet.SMTPSettings{SMTPPassword: "smtppassword"},
-			Integrations: fleet.Integrations{Jira: []*fleet.JiraIntegration{{APIToken: "jiratoken"}}, Zendesk: []*fleet.ZendeskIntegration{{APIToken: "zendesktoken"}}},
+			Integrations: fleet.Integrations{
+				Jira: []*fleet.JiraIntegration{
+					{TeamJiraIntegration: fleet.TeamJiraIntegration{APIToken: "jiratoken"}},
+				},
+				Zendesk: []*fleet.ZendeskIntegration{
+					{TeamZendeskIntegration: fleet.TeamZendeskIntegration{APIToken: "zendesktoken"}},
+				},
+			},
 		}, nil
 	}
 
@@ -331,9 +338,9 @@ func TestAppConfigSecretsObfuscated(t *testing.T) {
 
 			ac, err := svc.AppConfig(ctx)
 			require.NoError(t, err)
-			require.Equal(t, ac.SMTPSettings.SMTPPassword, "********")
-			require.Equal(t, ac.Integrations.Jira[0].APIToken, "********")
-			require.Equal(t, ac.Integrations.Zendesk[0].APIToken, "********")
+			require.Equal(t, ac.SMTPSettings.SMTPPassword, fleet.MaskedPassword)
+			require.Equal(t, ac.Integrations.Jira[0].APIToken, fleet.MaskedPassword)
+			require.Equal(t, ac.Integrations.Zendesk[0].APIToken, fleet.MaskedPassword)
 		})
 	}
 }

@@ -2836,7 +2836,7 @@ func (s *integrationTestSuite) TestExternalIntegrationsConfig() {
 	require.Len(t, config.Integrations.Jira, 1)
 	require.Equal(t, srv.URL, config.Integrations.Jira[0].URL)
 	require.Equal(t, "ok", config.Integrations.Jira[0].Username)
-	require.Equal(t, "********", config.Integrations.Jira[0].APIToken)
+	require.Equal(t, fleet.MaskedPassword, config.Integrations.Jira[0].APIToken)
 	require.Equal(t, "qux", config.Integrations.Jira[0].ProjectKey)
 	require.True(t, config.Integrations.Jira[0].EnableSoftwareVulnerabilities)
 
@@ -2868,14 +2868,14 @@ func (s *integrationTestSuite) TestExternalIntegrationsConfig() {
 	// first integration
 	require.Equal(t, srv.URL, config.Integrations.Jira[0].URL)
 	require.Equal(t, "ok", config.Integrations.Jira[0].Username)
-	require.Equal(t, "********", config.Integrations.Jira[0].APIToken)
+	require.Equal(t, fleet.MaskedPassword, config.Integrations.Jira[0].APIToken)
 	require.Equal(t, "qux", config.Integrations.Jira[0].ProjectKey)
 	require.True(t, config.Integrations.Jira[0].EnableSoftwareVulnerabilities)
 
 	// second integration
 	require.Equal(t, srv.URL, config.Integrations.Jira[1].URL)
 	require.Equal(t, "ok", config.Integrations.Jira[1].Username)
-	require.Equal(t, "********", config.Integrations.Jira[1].APIToken)
+	require.Equal(t, fleet.MaskedPassword, config.Integrations.Jira[1].APIToken)
 	require.Equal(t, "qux2", config.Integrations.Jira[1].ProjectKey)
 	require.False(t, config.Integrations.Jira[1].EnableSoftwareVulnerabilities)
 
@@ -2952,13 +2952,13 @@ func (s *integrationTestSuite) TestExternalIntegrationsConfig() {
 				{
 					"url": %[1]q,
 					"username": "ok",
-					"api_token": "********",
+					"api_token": %q,
 					"project_key": "qux2",
 					"enable_software_vulnerabilities": false
 				}
 			]
 		}
-	}`, srv.URL)), http.StatusBadRequest)
+	}`, srv.URL, fleet.MaskedPassword)), http.StatusBadRequest)
 
 	// edit Jira integration without sending API token
 	s.DoRaw("PATCH", "/api/v1/fleet/config", []byte(fmt.Sprintf(`{
@@ -2986,13 +2986,13 @@ func (s *integrationTestSuite) TestExternalIntegrationsConfig() {
 				{
 					"url": %q,
 					"username": "ok",
-					"api_token": "********",
+					"api_token": %q,
 					"project_key": "qux",
 					"enable_software_vulnerabilities": false
 				}
 			]
 		}
-	}`, srv.URL)), http.StatusOK)
+	}`, srv.URL, fleet.MaskedPassword)), http.StatusOK)
 
 	config = s.getConfig()
 	require.Len(t, config.Integrations.Jira, 1)
@@ -3036,13 +3036,13 @@ func (s *integrationTestSuite) TestExternalIntegrationsConfig() {
 				{
 					"url": %q,
 					"username": "ok",
-					"api_token": "********",
+					"api_token": %q,
 					"project_key": "qux3",
 					"enable_software_vulnerabilities": true
 				}
 			]
 		}
-	}`, srv.URL)), http.StatusBadRequest)
+	}`, srv.URL, fleet.MaskedPassword)), http.StatusBadRequest)
 
 	// cannot have two integrations enabled at the same time
 	s.DoRaw("PATCH", "/api/v1/fleet/config", []byte(fmt.Sprintf(`{
@@ -3228,7 +3228,7 @@ func (s *integrationTestSuite) TestExternalIntegrationsConfig() {
 	require.Len(t, config.Integrations.Zendesk, 1)
 	require.Equal(t, srv.URL, config.Integrations.Zendesk[0].URL)
 	require.Equal(t, "ok@example.com", config.Integrations.Zendesk[0].Email)
-	require.Equal(t, "********", config.Integrations.Zendesk[0].APIToken)
+	require.Equal(t, fleet.MaskedPassword, config.Integrations.Zendesk[0].APIToken)
 	require.Equal(t, int64(122), config.Integrations.Zendesk[0].GroupID)
 	require.True(t, config.Integrations.Zendesk[0].EnableSoftwareVulnerabilities)
 
@@ -3261,14 +3261,14 @@ func (s *integrationTestSuite) TestExternalIntegrationsConfig() {
 	// first integration
 	require.Equal(t, srv.URL, config.Integrations.Zendesk[0].URL)
 	require.Equal(t, "ok@example.com", config.Integrations.Zendesk[0].Email)
-	require.Equal(t, "********", config.Integrations.Zendesk[0].APIToken)
+	require.Equal(t, fleet.MaskedPassword, config.Integrations.Zendesk[0].APIToken)
 	require.Equal(t, int64(122), config.Integrations.Zendesk[0].GroupID)
 	require.True(t, config.Integrations.Zendesk[0].EnableSoftwareVulnerabilities)
 
 	// second integration
 	require.Equal(t, srv.URL, config.Integrations.Zendesk[1].URL)
 	require.Equal(t, "test123@example.com", config.Integrations.Zendesk[1].Email)
-	require.Equal(t, "********", config.Integrations.Zendesk[1].APIToken)
+	require.Equal(t, fleet.MaskedPassword, config.Integrations.Zendesk[1].APIToken)
 	require.Equal(t, int64(123), config.Integrations.Zendesk[1].GroupID)
 	require.False(t, config.Integrations.Zendesk[1].EnableSoftwareVulnerabilities)
 
@@ -3347,13 +3347,13 @@ func (s *integrationTestSuite) TestExternalIntegrationsConfig() {
 				{
 					"url": %[1]q,
 					"email": "test123@example.com",
-					"api_token": "********",
+					"api_token": %q,
 					"group_id": 123,
 					"enable_software_vulnerabilities": false
 				}
 			]
 		}
-	}`, srv.URL)), http.StatusBadRequest)
+	}`, srv.URL, fleet.MaskedPassword)), http.StatusBadRequest)
 
 	// edit Zendesk integration without sending API token
 	s.DoRaw("PATCH", "/api/v1/fleet/config", []byte(fmt.Sprintf(`{
@@ -3382,13 +3382,13 @@ func (s *integrationTestSuite) TestExternalIntegrationsConfig() {
 				{
 					"url": %q,
 					"email": "ok@example.com",
-					"api_token": "********",
+					"api_token": %q,
 					"group_id": 122,
 					"enable_software_vulnerabilities": false
 				}
 			]
 		}
-	}`, srv.URL)), http.StatusOK)
+	}`, srv.URL, fleet.MaskedPassword)), http.StatusOK)
 
 	config = s.getConfig()
 	require.Len(t, config.Integrations.Jira, 0)

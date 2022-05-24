@@ -83,7 +83,7 @@ func (svc *Service) sendTestEmail(ctx context.Context, config *fleet.AppConfig) 
 }
 
 func (svc *Service) makeTestJiraRequest(ctx context.Context, jiraSettings *fleet.JiraIntegration) error {
-	if jiraSettings.APIToken == "" || jiraSettings.APIToken == "********" {
+	if jiraSettings.APIToken == "" || jiraSettings.APIToken == fleet.MaskedPassword {
 		return &badRequestError{message: fmt.Sprintf("jira integration request failed: missing or invalid API token")}
 	}
 	client, err := externalsvc.NewJiraClient(&externalsvc.JiraOptions{
@@ -102,7 +102,7 @@ func (svc *Service) makeTestJiraRequest(ctx context.Context, jiraSettings *fleet
 }
 
 func (svc *Service) makeTestZendeskRequest(ctx context.Context, zendeskSettings *fleet.ZendeskIntegration) error {
-	if zendeskSettings.APIToken == "" || zendeskSettings.APIToken == "********" {
+	if zendeskSettings.APIToken == "" || zendeskSettings.APIToken == fleet.MaskedPassword {
 		return &badRequestError{message: fmt.Sprintf("zendesk integration request failed: missing or invalid API token")}
 	}
 	client, err := externalsvc.NewZendeskClient(&externalsvc.ZendeskOptions{

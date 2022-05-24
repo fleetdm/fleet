@@ -100,8 +100,6 @@ func getAppConfigEndpoint(ctx context.Context, request interface{}, svc fleet.Se
 	return response, nil
 }
 
-const maskedPassword = "********"
-
 func (svc *Service) AppConfig(ctx context.Context) (*fleet.AppConfig, error) {
 	if !svc.authz.IsAuthenticatedWith(ctx, authz_ctx.AuthnDeviceToken) {
 		if err := svc.authz.Authorize(ctx, &fleet.AppConfig{}, fleet.ActionRead); err != nil {
@@ -115,15 +113,15 @@ func (svc *Service) AppConfig(ctx context.Context) (*fleet.AppConfig, error) {
 	}
 
 	if ac.SMTPSettings.SMTPPassword != "" {
-		ac.SMTPSettings.SMTPPassword = maskedPassword
+		ac.SMTPSettings.SMTPPassword = fleet.MaskedPassword
 	}
 
 	for _, jiraIntegration := range ac.Integrations.Jira {
-		jiraIntegration.APIToken = maskedPassword
+		jiraIntegration.APIToken = fleet.MaskedPassword
 	}
 
 	for _, zdIntegration := range ac.Integrations.Zendesk {
-		zdIntegration.APIToken = maskedPassword
+		zdIntegration.APIToken = fleet.MaskedPassword
 	}
 
 	return ac, nil
@@ -158,7 +156,7 @@ func modifyAppConfigEndpoint(ctx context.Context, request interface{}, svc fleet
 	}
 
 	if response.SMTPSettings.SMTPPassword != "" {
-		response.SMTPSettings.SMTPPassword = maskedPassword
+		response.SMTPSettings.SMTPPassword = fleet.MaskedPassword
 	}
 	return response, nil
 }
@@ -262,7 +260,7 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte) (*fleet.AppCo
 				continue
 			}
 			// use stored API token if request does not contain new token
-			if new.APIToken == "" || new.APIToken == maskedPassword {
+			if new.APIToken == "" || new.APIToken == fleet.MaskedPassword {
 				new.APIToken = old.APIToken
 			}
 		}
@@ -295,7 +293,7 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte) (*fleet.AppCo
 			// use stored API token if request does not contain new token
 			// intended only as a short-term accommodation for the frontend
 			// will be redesigned in dedicated endpoint for integration config
-			if new.APIToken == "" || new.APIToken == maskedPassword {
+			if new.APIToken == "" || new.APIToken == fleet.MaskedPassword {
 				new.APIToken = old.APIToken
 			}
 		}
