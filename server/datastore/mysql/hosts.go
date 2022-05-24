@@ -653,7 +653,7 @@ func (ds *Datastore) EnrollHost(ctx context.Context, osqueryHostID, nodeKey stri
 			hostID = int64(host.ID)
 
 			if host.TeamID != teamID {
-				if err := cleanupPolicyMembershipOnTeamChange(ctx, tx, teamID, []uint{host.ID}); err != nil {
+				if err := cleanupPolicyMembershipOnTeamChange(ctx, tx, []uint{host.ID}); err != nil {
 					return ctxerr.Wrap(ctx, err, "EnrollHost delete policy membership")
 				}
 			}
@@ -886,7 +886,7 @@ func (ds *Datastore) AddHostsToTeam(ctx context.Context, teamID *uint, hostIDs [
 	}
 
 	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
-		if err := cleanupPolicyMembershipOnTeamChange(ctx, tx, teamID, hostIDs); err != nil {
+		if err := cleanupPolicyMembershipOnTeamChange(ctx, tx, hostIDs); err != nil {
 			return ctxerr.Wrap(ctx, err, "AddHostsToTeam delete policy membership")
 		}
 

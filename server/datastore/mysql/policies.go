@@ -535,7 +535,7 @@ func (ds *Datastore) AsyncBatchUpdatePolicyTimestamp(ctx context.Context, ids []
 	})
 }
 
-func cleanupPolicyMembershipOnTeamChange(ctx context.Context, tx sqlx.ExtContext, teamID *uint, hostIDs []uint) error {
+func cleanupPolicyMembershipOnTeamChange(ctx context.Context, tx sqlx.ExtContext, hostIDs []uint) error {
 	// hosts can only be in one team, so if there's a policy that has a team id and a result from one of our hosts
 	// it can only be from the previous team they are being transferred from
 	query, args, err := sqlx.In(`DELETE FROM policy_membership
