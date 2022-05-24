@@ -1,3 +1,7 @@
+import CONSTANTS from "../../support/constants";
+
+const { GOOD_PASSWORD } = CONSTANTS;
+
 describe("Premium tier - Team observer/maintainer user", () => {
   before(() => {
     Cypress.session.clearAllSavedSessions();
@@ -15,7 +19,7 @@ describe("Premium tier - Team observer/maintainer user", () => {
   });
   describe("Team maintainer and team observer", () => {
     beforeEach(() => {
-      cy.loginWithCySession("marco@organization.com", "user123#");
+      cy.loginWithCySession("marco@organization.com", GOOD_PASSWORD);
     });
     describe("Navigation", () => {
       beforeEach(() => cy.visit("/dashboard"));
@@ -132,7 +136,7 @@ describe("Premium tier - Team observer/maintainer user", () => {
   });
   describe("Team observer", () => {
     beforeEach(() => {
-      cy.loginWithCySession("marco@organization.com", "user123#");
+      cy.loginWithCySession("marco@organization.com", GOOD_PASSWORD);
     });
     describe("Manage hosts page", () => {
       it("should render elements according to role-based access controls", () => {
@@ -200,7 +204,7 @@ describe("Premium tier - Team observer/maintainer user", () => {
     });
 
     beforeEach(() => {
-      cy.loginWithCySession("marco@organization.com", "user123#");
+      cy.loginWithCySession("marco@organization.com", GOOD_PASSWORD);
       cy.visit("/hosts/manage");
     });
     describe("Manage hosts page", () => {

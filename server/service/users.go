@@ -809,6 +809,10 @@ func (svc *Service) PerformRequiredPasswordReset(ctx context.Context, password s
 		return nil, fleet.NewInvalidArgumentError("new_password", "cannot reuse old password")
 	}
 
+	if err := fleet.ValidatePasswordRequirements(password); err != nil {
+		return nil, fleet.NewInvalidArgumentError("new_password", "Password does not meet required criteria")
+	}
+
 	user.AdminForcedPasswordReset = false
 	err := svc.setNewPassword(ctx, user, password)
 	if err != nil {
@@ -895,9 +899,10 @@ func (svc *Service) ResetPassword(ctx context.Context, token, password string) e
 		return fleet.NewInvalidArgumentError("new_password", "cannot reuse old password")
 	}
 
+	// password requirements are validated as part of `setNewPassword``
 	err = svc.setNewPassword(ctx, user, password)
 	if err != nil {
-		return ctxerr.Wrap(ctx, err, "setting new password")
+		return fleet.NewInvalidArgumentError("new_password", err.Error())
 	}
 
 	// delete password reset tokens for user

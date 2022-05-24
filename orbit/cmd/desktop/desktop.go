@@ -3,11 +3,14 @@ package main
 import (
 	"crypto/tls"
 	_ "embed"
+	"encoding/json"
 	"fmt"
+	"io/ioutil"
 	"log"
 	"net/http"
 	"net/url"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/fleetdm/fleet/v4/pkg/open"
@@ -15,6 +18,35 @@ import (
 )
 
 var version = "unknown"
+
+type Response struct {
+	Host struct {
+		Policies []struct {
+			ID          int         `json:"id"`
+			Name        string      `json:"name"`
+			Query       string      `json:"query"`
+			Description string      `json:"description"`
+			AuthorID    int         `json:"author_id"`
+			AuthorName  string      `json:"author_name"`
+			AuthorEmail string      `json:"author_email"`
+			TeamID      interface{} `json:"team_id"`
+			Resolution  string      `json:"resolution"`
+			Platform    string      `json:"platform"`
+			CreatedAt   time.Time   `json:"created_at"`
+			UpdatedAt   time.Time   `json:"updated_at"`
+			Response    string      `json:"response"`
+		} `json:"policies"`
+		Status      string `json:"status"`
+		DisplayText string `json:"display_text"`
+	} `json:"host"`
+	License struct {
+		Tier         string    `json:"tier"`
+		Organization string    `json:"organization"`
+		DeviceCount  int       `json:"device_count"`
+		Expiration   time.Time `json:"expiration"`
+		Note         string    `json:"note"`
+	} `json:"license"`
+}
 
 func main() {
 	// Our TUF provided targets must support launching with "--help".
@@ -85,6 +117,46 @@ func main() {
 		}()
 
 		go func() {
+			tic := time.NewTicker(5 * time.Minute)
+			defer tic.Stop()
+
+			tr := http.DefaultTransport.(*http.Transport)
+			if os.Getenv("FLEET_DESKTOP_INSECURE") != "" {
+				tr.TLSClientConfig = &tls.Config{InsecureSkipVerify: true}
+			}
+			client := &http.Client{
+				Transport: tr,
+			}
+
+			for {
+				<-tic.C
+				// TODO: Use the policies endpoint instead of full device endpoint
+				// https://github.com/fleetdm/fleet/issues/5697
+				resp, err := client.Get(devTestURL.String())
+				if err != nil {
+					// To ease troubleshooting we set the tooltip as the error.
+					myDeviceItem.SetTooltip(err.Error())
+					log.Printf("get device URL: %s", err)
+					continue
+				}
+				licensePass, allPoliciesPass, err := parseLicenseAndPoliciesFromResponse(resp)
+				if err != nil {
+					log.Println(err.Error())
+					continue
+				}
+				if licensePass {
+					if allPoliciesPass {
+						myDeviceItem.SetTitle("🟢 My device")
+					} else {
+						myDeviceItem.SetTitle("🔴 My device")
+					}
+				} else {
+					myDeviceItem.SetTitle("My device")
+				}
+			}
+		}()
+
+		go func() {
 			for {
 				select {
 				case <-myDeviceItem.ClickedCh:
@@ -104,4 +176,33 @@ func main() {
 	}
 
 	systray.Run(onReady, onExit)
+}
+
+func parseLicenseAndPoliciesFromResponse(resp *http.Response) (licensePass bool, policiesPass bool, err error) {
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		return false, false, nil
+	}
+	body, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		return false, false, err
+	}
+	var result Response
+	if err := json.Unmarshal(body, &result); err != nil {
+		return false, false, err
+	}
+	licensePass = false
+	if strings.Contains(strings.ToLower(result.License.Tier), "premium") {
+		licensePass = true
+	}
+	if licensePass {
+		for _, policy := range result.Host.Policies {
+			if policy.Response != "pass" {
+				return licensePass, false, nil
+			}
+		}
+		return licensePass, true, nil
+	} else {
+		return false, false, nil
+	}
 }

@@ -12,7 +12,7 @@ import HeaderCell from "components/TableContainer/DataTable/HeaderCell/HeaderCel
 import { IHostPolicyQuery } from "interfaces/host";
 import sortUtils from "utilities/sort";
 import PassIcon from "../../../../../../assets/images/icon-check-circle-green-16x16@2x.png";
-import FailIcon from "../../../../../../assets/images/icon-exclamation-circle-red-16x16@2x.png";
+import FailIcon from "../../../../../../assets/images/icon-action-fail-16x16@2x.png";
 
 interface IHeaderProps {
   column: ColumnInstance & IDataColumn;

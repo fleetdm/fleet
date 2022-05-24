@@ -349,7 +349,10 @@ type Datastore interface {
 	// of rows inserted. If a vulnerability already exists in the datastore, then it will be ignored.
 	InsertVulnerabilities(ctx context.Context, vulns []SoftwareVulnerability, source VulnerabilitySource) (int64, error)
 	InsertCVEForCPE(ctx context.Context, cve string, cpes []string) (int64, error)
-	SoftwareByID(ctx context.Context, id uint) (*Software, error)
+	SoftwareByID(ctx context.Context, id uint, includeCVEScores bool) (*Software, error)
+	// ListSoftwareByHostIDShort lists software by host ID, but does not include CPEs or vulnerabilites.
+	// It is meant to be used when only minimal software fields are required eg when updating host software.
+	ListSoftwareByHostIDShort(ctx context.Context, hostID uint) ([]Software, error)
 	// CalculateHostsPerSoftware calculates the number of hosts having each
 	// software installed and stores that information in the software_host_counts
 	// table.
@@ -359,6 +362,7 @@ type Datastore interface {
 	CalculateHostsPerSoftware(ctx context.Context, updatedAt time.Time) error
 	HostsByCPEs(ctx context.Context, cpes []string) ([]*HostShort, error)
 	HostsByCVE(ctx context.Context, cve string) ([]*HostShort, error)
+	InsertCVEScores(ctx context.Context, cveScores []CVEScore) error
 
 	///////////////////////////////////////////////////////////////////////////////
 	// ActivitiesStore

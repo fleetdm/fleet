@@ -246,9 +246,9 @@ e2e-reset-db:
 
 e2e-setup:
 	./build/fleetctl config set --context e2e --address https://localhost:8642 --tls-skip-verify true
-	./build/fleetctl setup --context e2e --email=admin@example.com --password=user123# --org-name='Fleet Test' --name Admin
-	./build/fleetctl user create --context e2e --email=maintainer@example.com --name maintainer --password=user123# --global-role=maintainer
-	./build/fleetctl user create --context e2e --email=observer@example.com --name observer --password=user123# --global-role=observer
+	./build/fleetctl setup --context e2e --email=admin@example.com --password=password123# --org-name='Fleet Test' --name Admin
+	./build/fleetctl user create --context e2e --email=maintainer@example.com --name maintainer --password=password123# --global-role=maintainer
+	./build/fleetctl user create --context e2e --email=observer@example.com --name observer --password=password123# --global-role=observer
 	./build/fleetctl user create --context e2e --email=sso_user@example.com --name "SSO user" --sso=true
 
 e2e-serve-free: e2e-reset-db
@@ -284,7 +284,7 @@ db-backup:
 db-restore:
 	./tools/backup_db/restore.sh
 
-# Generate osqueryd.tar.gz bundle from osquery.io.
+# Generate osqueryd.app.tar.gz bundle from osquery.io.
 #
 # Usage:
 # make osqueryd-app-tar-gz version=5.1.0 out-path=.
@@ -299,6 +299,7 @@ endif
 	rm -rf $(TMP_DIR)/osquery_pkg_payload_expanded
 	mkdir -p $(TMP_DIR)/osquery_pkg_payload_expanded
 	tar xf $(TMP_DIR)/osquery_pkg_expanded/Payload --directory $(TMP_DIR)/osquery_pkg_payload_expanded
+	$(TMP_DIR)/osquery_pkg_payload_expanded/opt/osquery/lib/osquery.app/Contents/MacOS/osqueryd --version
 	tar czf $(out-path)/osqueryd.app.tar.gz -C $(TMP_DIR)/osquery_pkg_payload_expanded/opt/osquery/lib osquery.app
 	rm -r $(TMP_DIR)
 

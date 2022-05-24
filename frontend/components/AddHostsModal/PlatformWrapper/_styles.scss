@@ -39,16 +39,22 @@
 
   .fleet-checkbox {
     display: flex;
+    align-items: center;
   }
 
   .form-field {
-    margin-bottom: $pad-small;
+    &--checkbox {
+      margin-bottom: $pad-medium;
+    }
 
     &__label {
       position: relative;
       font-size: $x-small;
       font-weight: $bold;
-      margin-top: $pad-medium;
+    }
+
+    &--textarea {
+      margin-bottom: $pad-xsmall;
     }
   }
 
