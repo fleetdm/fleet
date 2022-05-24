@@ -128,6 +128,8 @@ type TeamWebhookSettings struct {
 	FailingPoliciesWebhook FailingPoliciesWebhookSettings `json:"failing_policies_webhook"`
 }
 
+// TeamIntegrations contains the configuration for external services'
+// integrations for a specific team.
 type TeamIntegrations struct {
 	Jira    []*TeamJiraIntegration    `json:"jira"`
 	Zendesk []*TeamZendeskIntegration `json:"zendesk"`
