@@ -66,56 +66,56 @@ func TestHosts(t *testing.T) {
 		name string
 		fn   func(t *testing.T, ds *Datastore)
 	}{
-		{"Save", testHostsUpdate},
-		{"DeleteWithSoftware", testHostsDeleteWithSoftware},
-		{"SaveHostPackStatsDB", testSaveHostPackStatsDB},
-		{"SavePackStatsOverwrites", testHostsSavePackStatsOverwrites},
-		{"WithTeamPackStats", testHostsWithTeamPackStats},
-		{"Delete", testHostsDelete},
-		{"ListFilterAdditional", testHostsListFilterAdditional},
-		{"ListStatus", testHostsListStatus},
-		{"ListQuery", testHostsListQuery},
-		{"Enroll", testHostsEnroll},
-		{"LoadHostByNodeKey", testHostsLoadHostByNodeKey},
-		{"LoadHostByNodeKeyCaseSensitive", testHostsLoadHostByNodeKeyCaseSensitive},
-		{"Search", testHostsSearch},
-		{"SearchLimit", testHostsSearchLimit},
-		{"GenerateStatusStatistics", testHostsGenerateStatusStatistics},
-		{"MarkSeen", testHostsMarkSeen},
-		{"MarkSeenMany", testHostsMarkSeenMany},
-		{"CleanupIncoming", testHostsCleanupIncoming},
-		{"IDsByName", testHostsIDsByName},
-		{"Additional", testHostsAdditional},
-		{"ByIdentifier", testHostsByIdentifier},
-		{"AddToTeam", testHostsAddToTeam},
-		{"SaveUsers", testHostsSaveUsers},
-		{"SaveHostUsers", testHostsSaveHostUsers},
-		{"SaveUsersWithoutUid", testHostsSaveUsersWithoutUid},
+		// {"Save", testHostsUpdate},
+		// {"DeleteWithSoftware", testHostsDeleteWithSoftware},
+		// {"SaveHostPackStatsDB", testSaveHostPackStatsDB},
+		// {"SavePackStatsOverwrites", testHostsSavePackStatsOverwrites},
+		// {"WithTeamPackStats", testHostsWithTeamPackStats},
+		// {"Delete", testHostsDelete},
+		// {"ListFilterAdditional", testHostsListFilterAdditional},
+		// {"ListStatus", testHostsListStatus},
+		// {"ListQuery", testHostsListQuery},
+		// {"Enroll", testHostsEnroll},
+		// {"LoadHostByNodeKey", testHostsLoadHostByNodeKey},
+		// {"LoadHostByNodeKeyCaseSensitive", testHostsLoadHostByNodeKeyCaseSensitive},
+		// {"Search", testHostsSearch},
+		// {"SearchLimit", testHostsSearchLimit},
+		// {"GenerateStatusStatistics", testHostsGenerateStatusStatistics},
+		// {"MarkSeen", testHostsMarkSeen},
+		// {"MarkSeenMany", testHostsMarkSeenMany},
+		// {"CleanupIncoming", testHostsCleanupIncoming},
+		// {"IDsByName", testHostsIDsByName},
+		// {"Additional", testHostsAdditional},
+		// {"ByIdentifier", testHostsByIdentifier},
+		// {"AddToTeam", testHostsAddToTeam},
+		// {"SaveUsers", testHostsSaveUsers},
+		// {"SaveHostUsers", testHostsSaveHostUsers},
+		// {"SaveUsersWithoutUid", testHostsSaveUsersWithoutUid},
 		{"TotalAndUnseenSince", testHostsTotalAndUnseenSince},
-		{"ListByPolicy", testHostsListByPolicy},
-		{"SaveTonsOfUsers", testHostsUpdateTonsOfUsers},
-		{"SavePackStatsConcurrent", testHostsSavePackStatsConcurrent},
-		{"LoadHostByNodeKeyLoadsDisk", testLoadHostByNodeKeyLoadsDisk},
-		{"LoadHostByNodeKeyUsesStmt", testLoadHostByNodeKeyUsesStmt},
-		{"HostsListBySoftware", testHostsListBySoftware},
-		{"HostsListFailingPolicies", printReadsInTest(testHostsListFailingPolicies)},
-		{"HostsExpiration", testHostsExpiration},
-		{"HostsAllPackStats", testHostsAllPackStats},
-		{"HostsPackStatsMultipleHosts", testHostsPackStatsMultipleHosts},
-		{"HostsPackStatsForPlatform", testHostsPackStatsForPlatform},
-		{"HostsReadsLessRows", testHostsReadsLessRows},
-		{"HostsNoSeenTime", testHostsNoSeenTime},
-		{"HostDeviceMapping", testHostDeviceMapping},
-		{"ReplaceHostDeviceMapping", testHostsReplaceHostDeviceMapping},
-		{"HostMDMAndMunki", testHostMDMAndMunki},
-		{"AggregatedHostMDMAndMunki", testAggregatedHostMDMAndMunki},
-		{"HostLite", testHostsLite},
-		{"UpdateOsqueryIntervals", testUpdateOsqueryIntervals},
-		{"UpdateRefetchRequested", testUpdateRefetchRequested},
-		{"LoadHostByDeviceAuthToken", testHostsLoadHostByDeviceAuthToken},
-		{"SetOrUpdateDeviceAuthToken", testHostsSetOrUpdateDeviceAuthToken},
-		{"OSVersions", testOSVersions},
-		{"DeleteHosts", testHostsDeleteHosts},
+		// {"ListByPolicy", testHostsListByPolicy},
+		// {"SaveTonsOfUsers", testHostsUpdateTonsOfUsers},
+		// {"SavePackStatsConcurrent", testHostsSavePackStatsConcurrent},
+		// {"LoadHostByNodeKeyLoadsDisk", testLoadHostByNodeKeyLoadsDisk},
+		// {"LoadHostByNodeKeyUsesStmt", testLoadHostByNodeKeyUsesStmt},
+		// {"HostsListBySoftware", testHostsListBySoftware},
+		// {"HostsListFailingPolicies", printReadsInTest(testHostsListFailingPolicies)},
+		// {"HostsExpiration", testHostsExpiration},
+		// {"HostsAllPackStats", testHostsAllPackStats},
+		// {"HostsPackStatsMultipleHosts", testHostsPackStatsMultipleHosts},
+		// {"HostsPackStatsForPlatform", testHostsPackStatsForPlatform},
+		// {"HostsReadsLessRows", testHostsReadsLessRows},
+		// {"HostsNoSeenTime", testHostsNoSeenTime},
+		// {"HostDeviceMapping", testHostDeviceMapping},
+		// {"ReplaceHostDeviceMapping", testHostsReplaceHostDeviceMapping},
+		// {"HostMDMAndMunki", testHostMDMAndMunki},
+		// {"AggregatedHostMDMAndMunki", testAggregatedHostMDMAndMunki},
+		// {"HostLite", testHostsLite},
+		// {"UpdateOsqueryIntervals", testUpdateOsqueryIntervals},
+		// {"UpdateRefetchRequested", testUpdateRefetchRequested},
+		// {"LoadHostByDeviceAuthToken", testHostsLoadHostByDeviceAuthToken},
+		// {"SetOrUpdateDeviceAuthToken", testHostsSetOrUpdateDeviceAuthToken},
+		// {"OSVersions", testOSVersions},
+		// {"DeleteHosts", testHostsDeleteHosts},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -1810,6 +1810,24 @@ func testHostsTotalAndUnseenSince(t *testing.T, ds *Datastore) {
 
 	addHostSeenLast(t, ds, 2, 2)
 	addHostSeenLast(t, ds, 3, 4)
+
+	total, unseen, err = ds.TotalAndUnseenHostsSince(context.Background(), 1)
+	require.NoError(t, err)
+	assert.Equal(t, 3, total)
+	assert.Equal(t, 2, unseen)
+
+	// host not counted as unseen if less than a full 24 hours has passed
+	_, err = ds.writer.ExecContext(context.Background(), `UPDATE host_seen_times SET seen_time = ? WHERE host_id = 2`, time.Now().Add(-1*time.Duration(1)*23*time.Hour))
+	require.NoError(t, err)
+
+	total, unseen, err = ds.TotalAndUnseenHostsSince(context.Background(), 1)
+	require.NoError(t, err)
+	assert.Equal(t, 3, total)
+	assert.Equal(t, 1, unseen)
+
+	// host counted as unseen if more than 24 hours has passed
+	_, err = ds.writer.ExecContext(context.Background(), `UPDATE host_seen_times SET seen_time = ? WHERE host_id = 2`, time.Now().Add(-1*time.Duration(1)*25*time.Hour))
+	require.NoError(t, err)
 
 	total, unseen, err = ds.TotalAndUnseenHostsSince(context.Background(), 1)
 	require.NoError(t, err)
