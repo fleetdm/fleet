@@ -261,6 +261,7 @@ jobs:
     steps:
 
     - uses: actions/download-artifact@fb598a63ae348fa914e94cd0ff38f362e927b741 # v2
+      id: download
       with:
         name: fleet-osquery-pkg
 
@@ -317,6 +318,7 @@ jobs:
     steps:
 
     - uses: actions/download-artifact@fb598a63ae348fa914e94cd0ff38f362e927b741 # v2
+      id: download
       with:
         name: fleet-osquery-deb
 
@@ -370,6 +372,7 @@ jobs:
     steps:
     
     - uses: actions/download-artifact@fb598a63ae348fa914e94cd0ff38f362e927b741 # v2
+      id: download
       with:
         name: fleet-osquery-msi
 
