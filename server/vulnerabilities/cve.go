@@ -10,6 +10,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"runtime"
+	"strings"
 	"sync"
 	"time"
 
@@ -20,6 +21,7 @@ import (
 	"github.com/facebookincubator/nvdtools/wfn"
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/vulnerabilities/oval"
 	kitlog "github.com/go-kit/kit/log"
 	"github.com/go-kit/kit/log/level"
 )
@@ -102,13 +104,19 @@ func TranslateCPEToCVE(
 		return nil, nil
 	}
 
-	cpeList, err := ds.AllCPEs(ctx)
+	// Skip CPEs from platforms supported by OVAL
+	cpeList, err := ds.AllCPEs(ctx, oval.SupportedHostPlatforms)
 	if err != nil {
 		return nil, err
 	}
 
 	cpes := make([]*wfn.Attributes, 0, len(cpeList))
 	for _, uri := range cpeList {
+		// Skip dummy CPEs
+		if strings.HasPrefix(uri, "none") {
+			continue
+		}
+
 		attr, err := wfn.Parse(uri)
 		if err != nil {
 			return nil, err

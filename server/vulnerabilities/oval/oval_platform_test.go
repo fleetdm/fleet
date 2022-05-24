@@ -14,17 +14,15 @@ func TestOvalPlatform(t *testing.T) {
 			osVersion string
 			expected  string
 		}{
-			{"centos", "CentOS Linux 8.3.2011", "centos-8"},
-			{"ubuntu", "Ubuntu 20.4.0", "ubuntu-20"},
-			{"centos", "CentOS 6.10.0", "centos-6"},
-			{"debian", "Debian GNU/Linux 9.0.0", "debian-9"},
-			{"debian", "Debian GNU/Linux 10.0.0", "debian-10"},
-			{"centos", "CentOS Linux 7.9.2009", "centos-7"},
-			{"ubuntu", "Ubuntu 16.4.0", "ubuntu-16"},
-			{"ubuntu", "Ubuntu 18.4.0", "ubuntu-18"},
-			{"ubuntu", "Ubuntu 18.4", "ubuntu-18"},
-			{"ubuntu", "Ubuntu 18", "ubuntu-18"},
-			{"", "", "-"},
+			{"centos", "CentOS Linux 8.3.2011", "centos_0803"},
+			{"ubuntu", "Ubuntu 20.4.0", "ubuntu_2004"},
+			{"centos", "CentOS 6.10.0", "centos_0610"},
+			{"debian", "Debian GNU/Linux 9.0.0", "debian_0900"},
+			{"debian", "Debian GNU/Linux 10.0.0", "debian_1000"},
+			{"centos", "CentOS Linux 7.9.2009", "centos_0709"},
+			{"ubuntu", "Ubuntu 16.4.0", "ubuntu_1604"},
+			{"ubuntu", "Ubuntu 18.4.0", "ubuntu_1804"},
+			{"ubuntu", "Ubuntu 18.4", "ubuntu_1804"},
 		}
 
 		for _, c := range cases {
@@ -37,8 +35,8 @@ func TestOvalPlatform(t *testing.T) {
 			date     time.Time
 			expected string
 		}{
-			{time.Date(2020, 1, 1, 0, 0, 0, 0, time.UTC), "fleet_oval_ubuntu-20_2020-01-01.json"},
-			{time.Date(2020, 10, 10, 0, 0, 0, 0, time.UTC), "fleet_oval_ubuntu-20_2020-10-10.json"},
+			{time.Date(2020, 1, 1, 0, 0, 0, 0, time.UTC), "fleet_oval_ubuntu_2004-2020_01_01.json"},
+			{time.Date(2020, 10, 10, 0, 0, 0, 0, time.UTC), "fleet_oval_ubuntu_2004-2020_10_10.json"},
 		}
 		for _, c := range cases {
 			plat := NewPlatform("ubuntu", "Ubuntu 20.4.0")

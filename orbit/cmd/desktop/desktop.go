@@ -59,7 +59,7 @@ func main() {
 
 			tr := http.DefaultTransport.(*http.Transport)
 			if os.Getenv("FLEET_DESKTOP_INSECURE") != "" {
-				tr.TLSClientConfig = &tls.Config{InsecureSkipVerify: true}
+				tr.TLSClientConfig = &tls.Config{InsecureSkipVerify: true} // #nosec G402
 			}
 			client := &http.Client{
 				Transport: tr,

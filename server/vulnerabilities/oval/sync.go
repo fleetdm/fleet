@@ -59,13 +59,13 @@ func whatToDownload(osVers *fleet.OSVersions, existing map[string]bool, date tim
 // removeOldDefs walks 'path' removing any old oval definitions, returns a set containing
 // definitions that are up to date according to 'date'
 func removeOldDefs(date time.Time, path string) (map[string]bool, error) {
-	dateSuffix := fmt.Sprintf("_%d-%02d-%02d.json", date.Year(), date.Month(), date.Day())
+	dateSuffix := fmt.Sprintf("-%d_%02d_%02d.json", date.Year(), date.Month(), date.Day())
 	upToDate := make(map[string]bool)
 
 	err := filepath.WalkDir(path, func(path string, d os.DirEntry, err error) error {
 		if strings.HasPrefix(filepath.Base(path), OvalFilePrefix) {
 			if strings.HasSuffix(path, dateSuffix) {
-				upToDate[path] = true
+				upToDate[filepath.Base(path)] = true
 			} else {
 				err := os.Remove(path)
 				if err != nil {
@@ -124,7 +124,7 @@ func Sync(client *http.Client, dstDir string, platforms []Platform) error {
 func Refresh(
 	ctx context.Context,
 	client *http.Client,
-	osVersions *fleet.OSVersions,
+	versions *fleet.OSVersions,
 	vulnPath string,
 ) ([]Platform, error) {
 	today := time.Now()
@@ -134,7 +134,7 @@ func Refresh(
 		return nil, err
 	}
 
-	toDownload := whatToDownload(osVersions, existing, today)
+	toDownload := whatToDownload(versions, existing, today)
 	err = Sync(client, vulnPath, toDownload)
 	if err != nil {
 		return nil, err

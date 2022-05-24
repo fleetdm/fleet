@@ -116,6 +116,7 @@ func TestHosts(t *testing.T) {
 		{"SetOrUpdateDeviceAuthToken", testHostsSetOrUpdateDeviceAuthToken},
 		{"OSVersions", testOSVersions},
 		{"DeleteHosts", testHostsDeleteHosts},
+		{"HostIDsByPlatform", testHostIDsByPlatform},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -1899,8 +1900,8 @@ func testHostsListBySoftware(t *testing.T, ds *Datastore) {
 	require.NoError(t, ds.UpdateHostSoftware(context.Background(), host1.ID, software))
 	require.NoError(t, ds.UpdateHostSoftware(context.Background(), host2.ID, software))
 
-	require.NoError(t, ds.LoadHostSoftware(context.Background(), host1))
-	require.NoError(t, ds.LoadHostSoftware(context.Background(), host2))
+	require.NoError(t, ds.LoadHostSoftware(context.Background(), host1, fleet.SoftwareListOptions{}))
+	require.NoError(t, ds.LoadHostSoftware(context.Background(), host2, fleet.SoftwareListOptions{}))
 
 	hosts = listHostsCheckCount(t, ds, filter, fleet.HostListOptions{SoftwareIDFilter: &host1.Software[0].ID}, 2)
 	require.Len(t, hosts, 2)
@@ -4165,4 +4166,71 @@ func testHostsDeleteHosts(t *testing.T, ds *Datastore) {
 		require.True(t, err == nil || errors.Is(err, sql.ErrNoRows), "table: %s", hostRef)
 		require.False(t, ok, "table: %s", hostRef)
 	}
+}
+
+func testHostIDsByPlatform(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+	hosts := make([]*fleet.Host, 10)
+	getPlatform := func(i int) string {
+		if i < 5 {
+			return "ubuntu"
+		}
+		return "centos"
+	}
+	for i := range hosts {
+		h, err := ds.NewHost(context.Background(), &fleet.Host{
+			DetailUpdatedAt: time.Now(),
+			LabelUpdatedAt:  time.Now(),
+			PolicyUpdatedAt: time.Now(),
+			SeenTime:        time.Now(),
+			OsqueryHostID:   fmt.Sprintf("host%d", i),
+			NodeKey:         fmt.Sprintf("%d", i),
+			UUID:            fmt.Sprintf("%d", i),
+			Hostname:        fmt.Sprintf("foo.%d.local", i),
+			Platform:        getPlatform(i),
+			OSVersion:       fmt.Sprintf("20.4.%d", i),
+		})
+		require.NoError(t, err)
+		hosts[i] = h
+	}
+
+	t.Run("no platform nor version filters", func(t *testing.T) {
+		result, err := ds.HostIDsByPlatform(ctx, nil, nil)
+		require.NoError(t, err)
+		require.Len(t, result, 10)
+	})
+
+	t.Run("filtering by platform", func(t *testing.T) {
+		platform := "ubuntu"
+		result, err := ds.HostIDsByPlatform(ctx, &platform, nil)
+		require.NoError(t, err)
+		require.Len(t, result, 5)
+		for _, id := range result {
+			r, err := ds.HostLite(ctx, id)
+			require.NoError(t, err)
+			require.Equal(t, r.Platform, "ubuntu")
+		}
+	})
+
+	t.Run("no match", func(t *testing.T) {
+		platform := "asdfas"
+		version := "sdfasw"
+		none, err := ds.HostIDsByPlatform(ctx, &platform, &version)
+		require.NoError(t, err)
+		require.Len(t, none, 0)
+	})
+
+	t.Run("filtering by platform and version", func(t *testing.T) {
+		platform := "ubuntu"
+		version := "20.4.0"
+		result, err := ds.HostIDsByPlatform(ctx, &platform, &version)
+		require.NoError(t, err)
+		require.Len(t, result, 1)
+		for _, id := range result {
+			r, err := ds.Host(ctx, id, true)
+			require.NoError(t, err)
+			require.Equal(t, r.Platform, "ubuntu")
+			require.Equal(t, r.OSVersion, "20.4.0")
+		}
+	})
 }

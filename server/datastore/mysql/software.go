@@ -342,6 +342,7 @@ func selectSoftwareSQL(hostID *uint, opts fleet.SoftwareListOptions) (string, []
 	ds := dialect.From(goqu.I("software").As("s")).Select(
 		"s.*",
 		goqu.COALESCE(goqu.I("scp.cpe"), "").As("generated_cpe"),
+		goqu.COALESCE(goqu.I("scp.id"), 0).As("generated_cpe_id"),
 	)
 
 	if hostID != nil || opts.TeamID != nil {
@@ -375,6 +376,7 @@ func selectSoftwareSQL(hostID *uint, opts fleet.SoftwareListOptions) (string, []
 		goqu.I("s.version"),
 		goqu.I("s.source"),
 		goqu.I("generated_cpe"),
+		goqu.I("generated_cpe_id"),
 	)
 
 	if opts.VulnerableOnly {
@@ -514,8 +516,8 @@ func loadCVEsBySoftware(
 	return cvesBySoftware, nil
 }
 
-func (ds *Datastore) LoadHostSoftware(ctx context.Context, host *fleet.Host) error {
-	software, err := listSoftwareDB(ctx, ds.reader, &host.ID, fleet.SoftwareListOptions{})
+func (ds *Datastore) LoadHostSoftware(ctx context.Context, host *fleet.Host, opts fleet.SoftwareListOptions) error {
+	software, err := listSoftwareDB(ctx, ds.reader, &host.ID, opts)
 	if err != nil {
 		return err
 	}
@@ -574,10 +576,28 @@ func addCPEForSoftwareDB(ctx context.Context, exec sqlx.ExecerContext, software 
 	return uint(id), nil
 }
 
-func (ds *Datastore) AllCPEs(ctx context.Context) ([]string, error) {
-	sql := `SELECT cpe FROM software_cpe`
+func (ds *Datastore) AllCPEs(ctx context.Context, excludedPlatforms []string) ([]string, error) {
 	var cpes []string
-	err := sqlx.SelectContext(ctx, ds.reader, &cpes, sql)
+	var err error
+	var args []interface{}
+
+	stmt := `SELECT cpe FROM software_cpe`
+
+	if excludedPlatforms != nil {
+		stmt += ` WHERE software_id NOT IN (
+			SELECT software_id
+			FROM host_software hs
+			INNER JOIN hosts h on hs.host_id = h.id
+			WHERE h.platform IN (?)
+		)`
+
+		stmt, args, err = sqlx.In(stmt, excludedPlatforms)
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "loads cpes")
+		}
+	}
+	err = sqlx.SelectContext(ctx, ds.reader, &cpes, stmt, args...)
+
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "loads cpes")
 	}
@@ -894,4 +914,70 @@ ORDER BY
 		return nil, ctxerr.Wrap(ctx, err, "select hosts by cves")
 	}
 	return hosts, nil
+}
+
+func (ds *Datastore) InsertVulnerabilities(
+	ctx context.Context,
+	vulns []fleet.SoftwareVulnerability,
+	source fleet.VulnerabilitySource,
+) (int64, error) {
+	var args []interface{}
+
+	if len(vulns) == 0 {
+		return 0, nil
+	}
+
+	values := strings.TrimSuffix(strings.Repeat("(?,?,?),", len(vulns)), ",")
+	sql := fmt.Sprintf(`INSERT IGNORE INTO software_cve (cpe_id, cve, source) VALUES %s`, values)
+
+	for _, v := range vulns {
+		args = append(args, v.CPEID, v.CVE, source)
+	}
+	res, err := ds.writer.ExecContext(ctx, sql, args...)
+	if err != nil {
+		return 0, ctxerr.Wrap(ctx, err, "insert software cve")
+	}
+	count, _ := res.RowsAffected()
+
+	return count, nil
+}
+
+func (ds *Datastore) ListSoftwareVulnerabilities(
+	ctx context.Context,
+	hostID uint,
+) ([]fleet.SoftwareVulnerability, error) {
+	var result []fleet.SoftwareVulnerability
+
+	stmt := dialect.
+		From(goqu.T("software_cve").As("cve")).
+		Join(
+			goqu.T("software_cpe").As("cpe"),
+			goqu.On(goqu.Ex{
+				"cve.cpe_id": goqu.I("cpe.id"),
+			}),
+		).
+		Join(
+			goqu.T("host_software").As("hs"),
+			goqu.On(goqu.Ex{
+				"cpe.software_id": goqu.I("hs.software_id"),
+			}),
+		).
+		Select(
+			goqu.I("cpe.software_id"),
+			goqu.C("cpe"),
+			goqu.C("cpe_id"),
+			goqu.C("cve"),
+		).
+		Where(goqu.C("host_id").Eq(hostID))
+
+	sql, args, err := stmt.ToSQL()
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "ListSoftwareVulnerabilities")
+	}
+
+	if err := sqlx.SelectContext(ctx, ds.reader, &result, sql, args...); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "ListSoftwareVulnerabilities")
+	}
+
+	return result, nil
 }

@@ -106,7 +106,7 @@ func parseUsersOutput(s string) []string {
 //
 // Returns the parsed uid.
 func parseIDOutput(s string) (int64, error) {
-	uid, err := strconv.ParseInt(strings.TrimSpace(string(s)), 10, 0)
+	uid, err := strconv.ParseInt(strings.TrimSpace(s), 10, 0)
 	if err != nil {
 		return 0, fmt.Errorf("failed to parse uid: %w", err)
 	}

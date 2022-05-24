@@ -226,7 +226,7 @@ func cronVulnerabilities(
 			}
 			level.Debug(logger).Log("vulnAutomationEnabled", vulnAutomationEnabled)
 
-			recentVulns := checkVulnerabilities(ctx, ds, logger, vulnPath, config, (vulnAutomationEnabled != ""))
+			recentVulns := checkNVDVulnerabilities(ctx, ds, logger, vulnPath, config, (vulnAutomationEnabled != ""))
 
 			// TODO: merge results
 			checkOvalVulnerabilities(ctx, ds, logger, vulnPath, config)
@@ -304,6 +304,7 @@ func checkOvalVulnerabilities(
 		return
 	}
 
+	// Get Platforms/OS Versions
 	versions, err := ds.OSVersions(ctx, nil, nil)
 	if err != nil {
 		level.Error(logger).Log("msg", "updating oval definitions", "err", err)
@@ -311,23 +312,35 @@ func checkOvalVulnerabilities(
 		return
 	}
 	for _, os := range versions.OSVersions {
-		level.Debug(logger).Log("oval-updating", "Found OS Versions", os)
+		level.Debug(logger).Log("oval-updating", "Found OS Version", "platform", os.Platform, "version", os.Name)
 	}
 
+	// Sync
 	client := fleethttp.NewClient()
 	downloaded, err := oval.Refresh(ctx, client, versions, vulnPath)
 	if err != nil {
 		level.Error(logger).Log("msg", "updating oval definitions", "err", err)
 		sentry.CaptureException(err)
-		return
 	}
 	for _, d := range downloaded {
 		level.Debug(logger).Log("oval-updating", "Downloaded new definitions", d)
 	}
+
+	// Analyze
+	_, err = oval.Analyze(ctx, ds, versions, vulnPath)
+	if err != nil {
+		level.Error(logger).Log("msg", "analyzing oval definitions", "err", err)
+		sentry.CaptureException(err)
+	}
 }
 
-func checkVulnerabilities(ctx context.Context, ds fleet.Datastore, logger kitlog.Logger,
-	vulnPath string, config config.FleetConfig, collectRecentVulns bool,
+func checkNVDVulnerabilities(
+	ctx context.Context,
+	ds fleet.Datastore,
+	logger kitlog.Logger,
+	vulnPath string,
+	config config.FleetConfig,
+	collectRecentVulns bool,
 ) map[string][]string {
 	err := vulnerabilities.TranslateSoftwareToCPE(ctx, ds, vulnPath, logger, config)
 	if err != nil {
