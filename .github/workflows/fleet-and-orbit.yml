@@ -255,6 +255,9 @@ jobs:
     needs: [gen, run-tuf-and-gen-pkgs]
     steps:
 
+    - name: Checkout Code
+      uses: actions/checkout@629c2de402a417ea7690ca6ce3f33229e27606a5 # v2
+
     - name: Download pkg
       id: download
       uses: actions/download-artifact@fb598a63ae348fa914e94cd0ff38f362e927b741 # v2
