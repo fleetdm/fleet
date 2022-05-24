@@ -404,7 +404,7 @@ jobs:
     - name: Run orbit shell
       shell: cmd
       run: |
-        "C:\Program Files\Orbit\bin\orbit\orbit.exe" shell -- --json "select * from osquery_info;" | jq -e 'if (.[0]) then true else false end'
+        "C:\Program Files\Orbit\bin\orbit\orbit.exe" shell -- --json "select * from osquery_info;" | jq -e "if (.[0]) then true else false end"
 
     - name: Upload Orbit logs
       if: always()
