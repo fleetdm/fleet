@@ -175,28 +175,14 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte) (*fleet.AppCo
 
 	oldSmtpSettings := appConfig.SMTPSettings
 
-	storedJira := appConfig.Integrations.Jira
-	storedJiraByProjectKey := make(map[string]fleet.JiraIntegration)
-	if len(storedJira) > 0 {
-		for _, settings := range storedJira {
-			if _, ok := storedJiraByProjectKey[settings.ProjectKey]; ok {
-				// each jira integration must have unique project key
-				return nil, ctxerr.Wrap(ctx, fmt.Errorf("duplicate Jira integration for project key %s", settings.ProjectKey))
-			}
-			storedJiraByProjectKey[settings.ProjectKey] = *settings
-		}
+	storedJiraByProjectKey, err := fleet.IndexJiraIntegrations(appConfig.Integrations.Jira)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "modify AppConfig")
 	}
 
-	storedZendesk := appConfig.Integrations.Zendesk
-	storedZendeskByGroupID := make(map[int64]fleet.ZendeskIntegration)
-	if len(storedZendesk) > 0 {
-		for _, settings := range storedZendesk {
-			if _, ok := storedZendeskByGroupID[settings.GroupID]; ok {
-				// each zendesk integration must have unique group id
-				return nil, ctxerr.Wrap(ctx, fmt.Errorf("duplicate Zendesk integration for group id %v", settings.GroupID))
-			}
-			storedZendeskByGroupID[settings.GroupID] = *settings
-		}
+	storedZendeskByGroupID, err := fleet.IndexZendeskIntegrations(appConfig.Integrations.Zendesk)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "modify AppConfig")
 	}
 
 	// TODO(mna): this ports the validations from the old validationMiddleware

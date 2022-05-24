@@ -220,12 +220,52 @@ type JiraIntegration struct {
 	EnableSoftwareVulnerabilities bool `json:"enable_software_vulnerabilities"`
 }
 
+// IndexJiraIntegrations indexes the provided Jira integrations in a map keyed
+// by the project key. It returns an error if a duplicate configuration is
+// found for the same project key. This is typically used to index the original
+// integrations before applying the changes requested to modify the AppConfig.
+//
+// Note that the returned map uses non-pointer JiraIntegration struct values,
+// so that any changes to the original value does not modify the value in the
+// map. This is important because of how changes are merged with the original
+// AppConfig when modifying it.
+func IndexJiraIntegrations(jiraIntgs []*JiraIntegration) (map[string]JiraIntegration, error) {
+	byProjKey := make(map[string]JiraIntegration, len(jiraIntgs))
+	for _, intg := range jiraIntgs {
+		if _, ok := byProjKey[intg.ProjectKey]; ok {
+			return nil, fmt.Errorf("duplicate Jira integration for project key %s", intg.ProjectKey)
+		}
+		byProjKey[intg.ProjectKey] = *intg
+	}
+	return byProjKey, nil
+}
+
 // ZendeskIntegration configures an instance of an integration with the external Zendesk service.
 type ZendeskIntegration struct {
 	// It is a superset of TeamZendeskIntegration.
 	TeamZendeskIntegration
 
 	EnableSoftwareVulnerabilities bool `json:"enable_software_vulnerabilities"`
+}
+
+// IndexZendeskIntegrations indexes the provided Zendesk integrations in a map
+// keyed by the group ID. It returns an error if a duplicate configuration is
+// found for the same group ID. This is typically used to index the original
+// integrations before applying the changes requested to modify the AppConfig.
+//
+// Note that the returned map uses non-pointer ZendeskIntegration struct
+// values, so that any changes to the original value does not modify the value
+// in the map. This is important because of how changes are merged with the
+// original AppConfig when modifying it.
+func IndexZendeskIntegrations(zendeskIntgs []*ZendeskIntegration) (map[int64]ZendeskIntegration, error) {
+	byGroupID := make(map[int64]ZendeskIntegration, len(zendeskIntgs))
+	for _, intg := range zendeskIntgs {
+		if _, ok := byGroupID[intg.GroupID]; ok {
+			return nil, fmt.Errorf("duplicate Zendesk integration for group id %v", intg.GroupID)
+		}
+		byGroupID[intg.GroupID] = *intg
+	}
+	return byGroupID, nil
 }
 
 // Integrations configures the integrations with external systems.
