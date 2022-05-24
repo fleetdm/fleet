@@ -259,32 +259,24 @@ jobs:
       with:
         go-version: ${{ matrix.go-version }}
 
-    - name: Checkout Code
-      uses: actions/checkout@629c2de402a417ea7690ca6ce3f33229e27606a5 # v2
-
     - name: Download pkg
       id: download
       uses: actions/download-artifact@fb598a63ae348fa914e94cd0ff38f362e927b741 # v2
       with:
         name: fleet-osquery.pkg
 
-    - name: Build fleetctl
-      run: make fleetctl
-
     - name: Install pkg
       run: |
         sudo hostname orbit-macos
-        ./build/fleetctl config set --address ${{ needs.gen.outputs.address }}
-        until ./build/fleetctl login --email admin@example.com --password preview1337#
-        do
-          echo "Retrying in 30s..."
-          sleep 30
-        done
         sudo installer -pkg ${{ steps.download.outputs.download-path }}/fleet-osquery.pkg -target /
-        until ./build/fleetctl get hosts | grep -iF $(hostname -s);
+
+    - name: Wait enroll
+      run: |
+        # Wait until fleet server goes down.
+        while curl --fail ${{ needs.gen.outputs.address }};
         do
-          echo "Awaiting enrollment..."
-          sleep 30
+          echo "Retrying in 10s..."
+          sleep 10
         done
 
     - name: Run orbit shell
@@ -324,32 +316,24 @@ jobs:
       with:
         go-version: ${{ matrix.go-version }}
 
-    - name: Checkout Code
-      uses: actions/checkout@629c2de402a417ea7690ca6ce3f33229e27606a5 # v2
-
     - name: Download deb
       id: download
       uses: actions/download-artifact@fb598a63ae348fa914e94cd0ff38f362e927b741 # v2
       with:
         name: fleet-osquery_42.0.0_amd64.deb
 
-    - name: Build fleetctl
-      run: make fleetctl
-
     - name: Install deb
       run: |
         sudo hostname orbit-ubuntu
-        ./build/fleetctl config set --address ${{ needs.gen.outputs.address }}
-        until ./build/fleetctl login --email admin@example.com --password preview1337#
-        do
-          echo "Retrying in 30s..."
-          sleep 30
-        done
         sudo dpkg --install ${{ steps.download.outputs.download-path }}/fleet-osquery_42.0.0_amd64.deb
-        until ./build/fleetctl get hosts | grep -iF $(hostname -s);
+
+    - name: Wait enroll
+      run: |
+        # Wait until fleet server goes down.
+        while curl --fail ${{ needs.gen.outputs.address }};
         do
-          echo "Awaiting enrollment..."
-          sleep 30
+          echo "Retrying in 10s..."
+          sleep 10
         done
 
     - name: Run orbit shell
@@ -394,7 +378,6 @@ jobs:
     - name: Wait enroll
       shell: bash
       run: |
-        # TODO(lucas): Improve checking of "enrolled". This waits until the server goes down.
         while curl --fail ${{ needs.gen.outputs.address }};
         do
           echo "Retrying in 10s..."
