@@ -1,0 +1,37 @@
+
+/**
+ * <bar-chart>
+ *
+ * App-wide styles for our bar charts.
+ */
+
+ [parasails-component='bar-chart'] {
+  font-size: 14px;
+  line-height: 20px;
+
+  [purpose="title"] {
+    position: relative;
+    top: -10px;
+    font-weight: 700;
+  }
+  [purpose="chart"] {
+    width: 100%;
+    background: #E6E6E6;
+    border-radius: 6px;
+    overflow-x: hidden;
+    height: 12px;
+    [purpose='chart-fill'] {
+      border-radius: 6px;
+    }
+  }
+  [purpose="label"] {
+    display: block;
+    position: relative;
+    top: 4px;
+    white-space: nowrap;
+    margin-right: 8px;
+  }
+  [purpose="range"] {
+    color: #8B8FA2;
+  }
+ }
