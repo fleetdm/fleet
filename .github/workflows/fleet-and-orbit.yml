@@ -294,7 +294,7 @@ jobs:
       with:
         name: orbit-logs
         path: |
-          orbit_logs
+          orbit-logs
 
     - name: Uninstall pkg
       run: |
@@ -343,7 +343,7 @@ jobs:
       with:
         name: orbit-logs
         path: |
-          orbit_logs
+          orbit-logs
 
     - name: Uninstall deb
       run: |
