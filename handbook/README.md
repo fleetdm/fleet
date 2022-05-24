@@ -18,14 +18,15 @@ The Fleet handbook is the central guide for how we run the company. As part of o
 
 [History](./company.md#history)
 
+[Email relays](./company.md#email-relays)
+
+[Tools we use](./company#tools-we-use)
+
 [GitHub labels](./company.md#git-hub-labels)
 
 [Rituals](./company.md#rituals)
 
 [Slack channels](./company.md#slack-channels)
-
-[Email relays](./company.md#email-relays)
-
 
 ### ⛑ Security
 
@@ -78,6 +79,8 @@ The Fleet handbook is the central guide for how we run the company. As part of o
 [Communicating as Fleet](./brand.md#communicating-as-fleet)
 
 [Writing at Fleet](./brand.md#writing-at-fleet)
+
+[Punctuating and capitalizing bullet points](./brand#punctuating-and-capitalizing-bullet-points)
 
 [For editors](./brand.md#for-editors)
 
@@ -162,6 +165,8 @@ The Fleet handbook is the central guide for how we run the company. As part of o
 
 [Outreach one-pager](./growth.md#outreach-one-pager)
 
+[Intro deck](./growth#intro-deck)
+
 [Posting on social media as Fleet](./growth.md#posting-on-social-media-as-fleet)
 
 [Promoting blog posts on social media](./growth.md#promoting-blog-posts-on-social-media)
@@ -220,9 +225,9 @@ The Fleet handbook is the central guide for how we run the company. As part of o
 
 [Zapier and DocuSign](./people.md#zapier-and-docu-sign)
 
-[PeopleOps](./people.md#people-ops)
+[Adding Salesforce licenses](./people#adding-salesforce-licenses)
 
-[Weekly updates](./people.md#weekly-updates)
+[PeopleOps](./people.md#people-ops)
 
 [Rituals](./people.md#rituals)
 
