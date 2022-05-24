@@ -268,13 +268,6 @@ jobs:
       with:
         name: fleet-osquery.pkg
 
-    - name: Download pkg
-      id: download
-      uses: actions/download-artifact@fb598a63ae348fa914e94cd0ff38f362e927b741 # v2
-      with:
-        name: fleet-osquery.pkg
-
-
     - name: Build fleetctl
       run: make fleetctl
 
