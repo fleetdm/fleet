@@ -270,6 +270,8 @@ func ValidateZendeskIntegrations(ctx context.Context, oriZendeskIntgsByGroupID m
 	return nil
 }
 
+// ValidateTeamZendeskIntegrations applies the same validations as
+// ValidateZendeskIntegrations, but for team-specific integration structs.
 func ValidateTeamZendeskIntegrations(ctx context.Context, oriTeamZendeskIntgsByGroupID map[int64]TeamZendeskIntegration, newTeamZendeskIntgs []*TeamZendeskIntegration) error {
 	newZendeskIntgs := make([]*ZendeskIntegration, len(newTeamZendeskIntgs))
 	for i, t := range newTeamZendeskIntgs {
@@ -388,4 +390,21 @@ func ValidateEnabledFailingPoliciesIntegrations(webhook FailingPoliciesWebhookSe
 	if zendeskEnabledCount > 1 {
 		invalid.Append("failing policies", "cannot enable more than one zendesk integration")
 	}
+}
+
+// ValidateEnabledFailingPoliciesTeamIntegrations is like
+// ValidateEnabledFailingPoliciesIntegrations, but for team-specific
+// integration structs.
+func ValidateEnabledFailingPoliciesTeamIntegrations(webhook FailingPoliciesWebhookSettings, teamIntgs TeamIntegrations, invalid *InvalidArgumentError) {
+	intgs := Integrations{
+		Jira:    make([]*JiraIntegration, len(teamIntgs.Jira)),
+		Zendesk: make([]*ZendeskIntegration, len(teamIntgs.Zendesk)),
+	}
+	for i, jira := range teamIntgs.Jira {
+		intgs.Jira[i] = &JiraIntegration{TeamJiraIntegration: *jira}
+	}
+	for i, zdesk := range teamIntgs.Zendesk {
+		intgs.Zendesk[i] = &ZendeskIntegration{TeamZendeskIntegration: *zdesk}
+	}
+	ValidateEnabledFailingPoliciesIntegrations(webhook, intgs, invalid)
 }

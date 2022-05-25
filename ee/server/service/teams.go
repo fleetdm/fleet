@@ -129,7 +129,11 @@ func (svc *Service) ModifyTeam(ctx context.Context, teamID uint, payload fleet.T
 		// supported feature - by now the updated payload has been applied to
 		// team.Config.
 		invalid := &fleet.InvalidArgumentError{}
-		fleet.ValidateEnabledFailingPoliciesIntegrations(team.Config.WebhookSettings.FailingPoliciesWebhook, team.Config.Integrations, invalid)
+		fleet.ValidateEnabledFailingPoliciesTeamIntegrations(
+			team.Config.WebhookSettings.FailingPoliciesWebhook,
+			team.Config.Integrations,
+			invalid,
+		)
 		if invalid.HasErrors() {
 			return nil, ctxerr.Wrap(ctx, invalid)
 		}
