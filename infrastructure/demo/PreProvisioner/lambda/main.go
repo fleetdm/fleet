@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"github.com/aws/aws-lambda-go/lambda"
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
@@ -88,7 +89,7 @@ func initTerraform() error {
 	return err
 }
 
-func runTerraform(workspace string) error {
+func runTerraform(workspace string, redis_database int) error {
 	err := runCmd([]string{
 		"workspace",
 		"new",
@@ -101,8 +102,15 @@ func runTerraform(workspace string) error {
 		"apply",
 		"-auto-approve",
 		"-no-color",
+		"-var",
+		fmt.Sprintf("redis_database=%d", redis_database),
 	})
 	return err
+}
+
+func getRedisDatabase() (int, error) {
+	// TODO: select a free database
+	return 0, nil
 }
 
 func handler(ctx context.Context, name NullEvent) error {
@@ -125,7 +133,11 @@ func handler(ctx context.Context, name NullEvent) error {
 				return err
 			}
 		}
-		if err := runTerraform(uuid.New().String()); err != nil {
+		redisDatabase, err := getRedisDatabase()
+		if err != nil {
+			return err
+		}
+		if err := runTerraform(fmt.Sprintf("t%s", uuid.New().String()[:8]), redisDatabase); err != nil {
 			return err
 		}
 	}

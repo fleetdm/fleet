@@ -57,8 +57,8 @@ module "main" {
   enable_http_endpoint         = false
   performance_insights_enabled = true
 
-  vpc_id                          = var.vpc_id
-  subnets                         = var.database_subnets
+  vpc_id                          = var.vpc.vpc_id
+  subnets                         = var.vpc.database_subnets
   create_security_group           = true
   allowed_security_groups         = var.allowed_security_groups
   allowed_cidr_blocks             = ["10.0.0.0/8"]

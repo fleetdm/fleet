@@ -102,23 +102,20 @@ module "vpc" {
 module "shared-infrastructure" {
   source                  = "./SharedInfrastructure"
   prefix                  = local.prefix
-  vpc_id                  = module.vpc.vpc_id
-  database_subnets        = module.vpc.database_subnets
-  allowed_cidr_blocks     = module.vpc.private_subnets_cidr_blocks
-  private_subnets         = module.vpc.private_subnets
+  vpc                     = module.vpc
   allowed_security_groups = [module.pre-provisioner.lambda_security_group.id]
   eks_allowed_roles       = [module.pre-provisioner.lambda_role]
 }
 
 module "pre-provisioner" {
-  source          = "./PreProvisioner"
-  prefix          = local.prefix
-  vpc_id          = module.vpc.vpc_id
-  dynamodb_table  = aws_dynamodb_table.lifecycle-table
-  private_subnets = module.vpc.private_subnets
-  remote_state    = module.remote_state
-  mysql_secret    = module.shared-infrastructure.mysql_secret
-  eks_cluster     = module.shared-infrastructure.eks_cluster
+  source         = "./PreProvisioner"
+  prefix         = local.prefix
+  vpc            = module.vpc
+  dynamodb_table = aws_dynamodb_table.lifecycle-table
+  remote_state   = module.remote_state
+  mysql_secret   = module.shared-infrastructure.mysql_secret
+  eks_cluster    = module.shared-infrastructure.eks_cluster
+  redis_cluster  = module.shared-infrastructure.redis_cluster
 }
 
 resource "aws_dynamodb_table" "lifecycle-table" {

@@ -44,15 +44,17 @@ provider "mysql" {
 
 variable "mysql_secret" {}
 variable "eks_cluster" {}
+variable "redis_address" {}
+variable "redis_database" {}
 
 resource "mysql_user" "main" {
-  user               = random_string.main.id
+  user               = terraform.workspace
   host               = "%"
   plaintext_password = random_password.db.result
 }
 
 resource "mysql_database" "main" {
-  name = random_string.main.id
+  name = terraform.workspace
 }
 
 resource "mysql_grant" "main" {
@@ -70,20 +72,13 @@ resource "random_password" "db" {
   length = 8
 }
 
-resource "random_string" "main" {
-  length  = 10
-  special = false
-  upper   = false
-  number  = false
-}
-
 resource "helm_release" "main" {
-  name  = random_string.main.id
+  name  = terraform.workspace
   chart = "${path.module}/fleet"
 
   set {
     name  = "fleetName"
-    value = random_string.main.id
+    value = terraform.workspace
   }
 
   set {
@@ -98,7 +93,7 @@ resource "helm_release" "main" {
 
   set {
     name  = "mysql.secretName"
-    value = random_string.main.id
+    value = terraform.workspace
   }
 
   set {
@@ -108,11 +103,26 @@ resource "helm_release" "main" {
 
   set {
     name  = "mysql.database"
-    value = random_string.main.id
+    value = terraform.workspace
   }
 
   set {
     name  = "mysql.address"
     value = jsondecode(data.aws_secretsmanager_secret_version.mysql.secret_string)["endpoint"]
+  }
+
+  set {
+    name  = "fleet.tls.enabled"
+    value = false
+  }
+
+  set {
+    name  = "redis.address"
+    value = var.redis_address
+  }
+
+  set {
+    name  = "redis.database"
+    value = var.redis_database
   }
 }

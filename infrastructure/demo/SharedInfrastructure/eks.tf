@@ -40,8 +40,8 @@ module "aws-eks-accelerator-for-terraform" {
   source = "github.com/aws-samples/aws-eks-accelerator-for-terraform.git"
 
   # EKS Cluster VPC and Subnets
-  vpc_id             = var.vpc_id
-  private_subnet_ids = var.private_subnets
+  vpc_id             = var.vpc.vpc_id
+  private_subnet_ids = var.vpc.private_subnets
 
   # EKS CONTROL PLANE VARIABLES
   cluster_version = "1.21"
@@ -51,7 +51,7 @@ module "aws-eks-accelerator-for-terraform" {
     mg_4 = {
       node_group_name = "managed-ondemand"
       instance_types  = ["t3.medium"]
-      subnet_ids      = var.private_subnets
+      subnet_ids      = var.vpc.private_subnets
     }
   }
 

@@ -27,7 +27,7 @@ data "aws_iam_policy_document" "lambda-assume-role" {
     actions = ["sts:AssumeRole"]
     principals {
       type        = "Service"
-      identifiers = ["lambda.amazonaws.com", "ecs-tasks.amazonaws.com"]
+      identifiers = ["ecs-tasks.amazonaws.com"]
     }
   }
   statement {
@@ -43,11 +43,6 @@ data "aws_iam_policy_document" "lambda-assume-role" {
 resource "aws_iam_role_policy_attachment" "lambda" {
   role       = aws_iam_role.lambda.id
   policy_arn = aws_iam_policy.lambda.arn
-}
-
-resource "aws_iam_role_policy_attachment" "lambda-vpc" {
-  role       = aws_iam_role.lambda.id
-  policy_arn = "arn:aws:iam::aws:policy/service-role/AWSLambdaVPCAccessExecutionRole"
 }
 
 resource "aws_iam_role_policy_attachment" "lambda-ecs" {
@@ -118,7 +113,7 @@ output "lambda_role" {
 resource "aws_security_group" "lambda" {
   name        = local.full_name
   description = "security group for ${local.full_name}"
-  vpc_id      = var.vpc_id
+  vpc_id      = var.vpc.vpc_id
 
   ingress {
     description      = "egress to all"
@@ -193,41 +188,15 @@ resource "aws_ecs_task_definition" "main" {
             name  = "QUEUED_INSTANCES"
             value = "2"
           },
+          {
+            name  = "TF_VAR_redis_address"
+            value = "${var.redis_cluster.primary_endpoint_address}:6379"
+          },
         ])
       }
   ])
   lifecycle {
     create_before_destroy = true
-  }
-}
-
-resource "aws_lambda_function" "main" {
-  image_uri                      = docker_registry_image.main.name
-  package_type                   = "Image"
-  function_name                  = local.full_name
-  role                           = aws_iam_role.lambda.arn
-  reserved_concurrent_executions = -1
-  timeout                        = 600
-  memory_size                    = 512
-  vpc_config {
-    security_group_ids = [aws_security_group.lambda.id]
-    subnet_ids         = var.private_subnets
-  }
-  environment {
-    variables = {
-      DYNAMODB_LIFECYCLE_TABLE = var.dynamodb_table.id
-      MAX_INSTANCES            = 2
-      QUEUED_INSTANCES         = 2
-
-      TF_VAR_mysql_secret       = var.mysql_secret.id
-      TF_VAR_mysql_cluster_name = var.eks_cluster.eks_cluster_id
-      TF_VAR_cluster_endpoint   = data.aws_eks_cluster.cluster.endpoint
-      TF_VAR_cluster_ca_cert    = data.aws_eks_cluster.cluster.certificate_authority.0.data
-      TF_VAR_eks_cluster        = var.eks_cluster.eks_cluster_id
-    }
-  }
-  tracing_config {
-    mode = "Active"
   }
 }
 
@@ -293,14 +262,7 @@ resource "aws_cloudwatch_event_rule" "main" {
   is_enabled          = false
 }
 
-resource "aws_cloudwatch_event_target" "main" {
-  rule = aws_cloudwatch_event_rule.main.name
-  arn  = aws_lambda_function.main.arn
-}
-
-resource "aws_lambda_permission" "main" {
-  action        = "lambda:InvokeFunction"
-  function_name = aws_lambda_function.main.id
-  principal     = "events.amazonaws.com"
-  source_arn    = aws_cloudwatch_event_rule.main.arn
-}
+#resource "aws_cloudwatch_event_target" "main" {
+#  rule = aws_cloudwatch_event_rule.main.name
+#  arn  = aws_lambda_function.main.arn
+#}

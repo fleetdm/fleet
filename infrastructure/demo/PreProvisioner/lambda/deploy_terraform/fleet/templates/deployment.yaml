@@ -318,7 +318,7 @@ spec:
       hostPID: false
       hostNetwork: false
       hostIPC: false
-      serviceAccountName: fleet
+      serviceAccountName: {{ .Values.fleetName }}
       {{- if or (.Values.fleet.tls.enabled) (.Values.mysql.tls.enabled) (eq .Values.osquery.logging.statusPlugin "filesystem") (eq .Values.osquery.logging.resultPlugin "filesystem") }}
       volumes:
         {{- if .Values.fleet.tls.enabled }}
