@@ -205,8 +205,8 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte) (*fleet.AppCo
 		return nil, ctxerr.Wrap(ctx, &badRequestError{message: err.Error()})
 	}
 
-	validateVulnerabilitiesAutomation(appConfig, invalid)
-	validateFailingPoliciesAutomation(appConfig, invalid)
+	fleet.ValidateEnabledVulnerabilitiesIntegrations(appConfig.WebhookSettings.VulnerabilitiesWebhook, appConfig.Integrations, invalid)
+	fleet.ValidateEnabledFailingPoliciesIntegrations(appConfig.WebhookSettings.FailingPoliciesWebhook, appConfig.Integrations, invalid)
 	if invalid.HasErrors() {
 		return nil, ctxerr.Wrap(ctx, invalid)
 	}
@@ -280,64 +280,6 @@ func validateSSOSettings(p fleet.AppConfig, existing *fleet.AppConfig, invalid *
 				invalid.Append("idp_name", "required")
 			}
 		}
-	}
-}
-
-func validateVulnerabilitiesAutomation(merged *fleet.AppConfig, invalid *fleet.InvalidArgumentError) {
-	webhookEnabled := merged.WebhookSettings.VulnerabilitiesWebhook.Enable
-	var jiraEnabledCount int
-	for _, jira := range merged.Integrations.Jira {
-		if jira.EnableSoftwareVulnerabilities {
-			jiraEnabledCount++
-		}
-	}
-	var zendeskEnabledCount int
-	for _, zendesk := range merged.Integrations.Zendesk {
-		if zendesk.EnableSoftwareVulnerabilities {
-			zendeskEnabledCount++
-		}
-	}
-
-	if webhookEnabled && (jiraEnabledCount > 0 || zendeskEnabledCount > 0) {
-		invalid.Append("vulnerabilities", "cannot enable both webhook vulnerabilities and integration automations")
-	}
-	if jiraEnabledCount > 0 && zendeskEnabledCount > 0 {
-		invalid.Append("vulnerabilities", "cannot enable both jira integration and zendesk automations")
-	}
-	if jiraEnabledCount > 1 {
-		invalid.Append("vulnerabilities", "cannot enable more than one jira integration")
-	}
-	if zendeskEnabledCount > 1 {
-		invalid.Append("vulnerabilities", "cannot enable more than one zendesk integration")
-	}
-}
-
-func validateFailingPoliciesAutomation(merged *fleet.AppConfig, invalid *fleet.InvalidArgumentError) {
-	webhookEnabled := merged.WebhookSettings.FailingPoliciesWebhook.Enable
-	var jiraEnabledCount int
-	for _, jira := range merged.Integrations.Jira {
-		if jira.EnableFailingPolicies {
-			jiraEnabledCount++
-		}
-	}
-	var zendeskEnabledCount int
-	for _, zendesk := range merged.Integrations.Zendesk {
-		if zendesk.EnableFailingPolicies {
-			zendeskEnabledCount++
-		}
-	}
-
-	if webhookEnabled && (jiraEnabledCount > 0 || zendeskEnabledCount > 0) {
-		invalid.Append("failing policies", "cannot enable both webhook failing policies and integration automations")
-	}
-	if jiraEnabledCount > 0 && zendeskEnabledCount > 0 {
-		invalid.Append("failing policies", "cannot enable both jira and zendesk automations")
-	}
-	if jiraEnabledCount > 1 {
-		invalid.Append("failing policies", "cannot enable more than one jira integration")
-	}
-	if zendeskEnabledCount > 1 {
-		invalid.Append("failing policies", "cannot enable more than one zendesk integration")
 	}
 }
 

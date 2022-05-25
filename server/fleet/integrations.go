@@ -232,3 +232,69 @@ type Integrations struct {
 	Jira    []*JiraIntegration    `json:"jira"`
 	Zendesk []*ZendeskIntegration `json:"zendesk"`
 }
+
+// ValidateEnabledVulnerabilitiesIntegrations checks that a single integration
+// is enabled for vulnerabilities. It adds any error it finds to the invalid
+// argument error, that can then be checked after the call for errors using
+// invalid.HasErrors.
+func ValidateEnabledVulnerabilitiesIntegrations(webhook VulnerabilitiesWebhookSettings, intgs Integrations, invalid *InvalidArgumentError) {
+	webhookEnabled := webhook.Enable
+	var jiraEnabledCount int
+	for _, jira := range intgs.Jira {
+		if jira.EnableSoftwareVulnerabilities {
+			jiraEnabledCount++
+		}
+	}
+	var zendeskEnabledCount int
+	for _, zendesk := range intgs.Zendesk {
+		if zendesk.EnableSoftwareVulnerabilities {
+			zendeskEnabledCount++
+		}
+	}
+
+	if webhookEnabled && (jiraEnabledCount > 0 || zendeskEnabledCount > 0) {
+		invalid.Append("vulnerabilities", "cannot enable both webhook vulnerabilities and integration automations")
+	}
+	if jiraEnabledCount > 0 && zendeskEnabledCount > 0 {
+		invalid.Append("vulnerabilities", "cannot enable both jira integration and zendesk automations")
+	}
+	if jiraEnabledCount > 1 {
+		invalid.Append("vulnerabilities", "cannot enable more than one jira integration")
+	}
+	if zendeskEnabledCount > 1 {
+		invalid.Append("vulnerabilities", "cannot enable more than one zendesk integration")
+	}
+}
+
+// ValidateEnabledFailingPoliciesIntegrations checks that a single integration
+// is enabled for failing policies. It adds any error it finds to the invalid
+// argument error, that can then be checked after the call for errors using
+// invalid.HasErrors.
+func ValidateEnabledFailingPoliciesIntegrations(webhook FailingPoliciesWebhookSettings, intgs Integrations, invalid *InvalidArgumentError) {
+	webhookEnabled := webhook.Enable
+	var jiraEnabledCount int
+	for _, jira := range intgs.Jira {
+		if jira.EnableFailingPolicies {
+			jiraEnabledCount++
+		}
+	}
+	var zendeskEnabledCount int
+	for _, zendesk := range intgs.Zendesk {
+		if zendesk.EnableFailingPolicies {
+			zendeskEnabledCount++
+		}
+	}
+
+	if webhookEnabled && (jiraEnabledCount > 0 || zendeskEnabledCount > 0) {
+		invalid.Append("failing policies", "cannot enable both webhook failing policies and integration automations")
+	}
+	if jiraEnabledCount > 0 && zendeskEnabledCount > 0 {
+		invalid.Append("failing policies", "cannot enable both jira and zendesk automations")
+	}
+	if jiraEnabledCount > 1 {
+		invalid.Append("failing policies", "cannot enable more than one jira integration")
+	}
+	if zendeskEnabledCount > 1 {
+		invalid.Append("failing policies", "cannot enable more than one zendesk integration")
+	}
+}
