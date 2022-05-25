@@ -598,8 +598,12 @@ func countSoftwareDB(
 	return count, nil
 }
 
-func (ds *Datastore) LoadHostSoftware(ctx context.Context, host *fleet.Host) error {
-	software, err := listSoftwareDB(ctx, ds.reader, fleet.SoftwareListOptions{HostID: &host.ID})
+func (ds *Datastore) LoadHostSoftware(ctx context.Context, host *fleet.Host, includeCVEScores bool) error {
+	opts := fleet.SoftwareListOptions{
+		HostID:           &host.ID,
+		IncludeCVEScores: includeCVEScores,
+	}
+	software, err := listSoftwareDB(ctx, ds.reader, opts)
 	if err != nil {
 		return err
 	}

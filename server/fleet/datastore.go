@@ -338,7 +338,7 @@ type Datastore interface {
 	///////////////////////////////////////////////////////////////////////////////
 	// SoftwareStore
 
-	LoadHostSoftware(ctx context.Context, host *Host) error
+	LoadHostSoftware(ctx context.Context, host *Host, includeCVEScores bool) error
 	AllSoftwareWithoutCPEIterator(ctx context.Context) (SoftwareIterator, error)
 	AddCPEForSoftware(ctx context.Context, software Software, cpe string) error
 	AllCPEs(ctx context.Context) ([]string, error)

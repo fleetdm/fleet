@@ -316,29 +316,43 @@ func (ds *Datastore) DeleteHost(ctx context.Context, hid uint) error {
 }
 
 func (ds *Datastore) Host(ctx context.Context, id uint) (*fleet.Host, error) {
-	policiesColumns := `,
-		       coalesce(failing_policies.count, 0) as failing_policies_count,
-		       coalesce(failing_policies.count, 0) as total_issues_count`
-	policiesJoin := `
-			JOIN (
-		    	SELECT count(*) as count FROM policy_membership WHERE passes=0 AND host_id=?
-			) failing_policies`
+	sqlStatement := `
+SELECT
+  h.*,
+  COALESCE(hst.seen_time, h.created_at) AS seen_time,
+  t.name AS team_name,
+  (
+    SELECT
+      additional
+    FROM
+      host_additional
+    WHERE
+      host_id = h.id
+  ) AS additional,
+  coalesce(failing_policies.count, 0) as failing_policies_count,
+  coalesce(failing_policies.count, 0) as total_issues_count
+FROM
+  hosts h
+  LEFT JOIN teams t ON (h.team_id = t.id)
+  LEFT JOIN host_seen_times hst ON (h.id = hst.host_id)
+  JOIN (
+    SELECT
+      count(*) as count
+    FROM
+      policy_membership
+    WHERE
+      passes = 0
+      AND host_id = ?
+  ) failing_policies
+WHERE
+  h.id = ?
+LIMIT
+  1
+`
 	args := []interface{}{id, id}
-	sqlStatement := fmt.Sprintf(`
-		SELECT
-		       h.*,
-		       COALESCE(hst.seen_time, h.created_at) AS seen_time,
-		       t.name AS team_name,
-		       (SELECT additional FROM host_additional WHERE host_id = h.id) AS additional
-				%s
-		FROM hosts h
-			LEFT JOIN teams t ON (h.team_id = t.id)
-			LEFT JOIN host_seen_times hst ON (h.id = hst.host_id)
-			%s
-		WHERE h.id = ?
-		LIMIT 1`, policiesColumns, policiesJoin)
-	host := &fleet.Host{}
-	err := sqlx.GetContext(ctx, ds.reader, host, sqlStatement, args...)
+
+	var host fleet.Host
+	err := sqlx.GetContext(ctx, ds.reader, &host, sqlStatement, args...)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return nil, ctxerr.Wrap(ctx, notFound("Host").WithID(id))
@@ -358,7 +372,7 @@ func (ds *Datastore) Host(ctx context.Context, id uint) (*fleet.Host, error) {
 	}
 	host.Users = users
 
-	return host, nil
+	return &host, nil
 }
 
 func amountEnrolledHostsDB(ctx context.Context, db sqlx.QueryerContext) (int, error) {
