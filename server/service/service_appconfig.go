@@ -12,7 +12,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mail"
-	"github.com/fleetdm/fleet/v4/server/service/externalsvc"
 )
 
 // mailError is set when an error performing mail operations
@@ -78,29 +77,6 @@ func (svc *Service) sendTestEmail(ctx context.Context, config *fleet.AppConfig) 
 
 	if err := mail.Test(svc.mailService, testMail); err != nil {
 		return mailError{message: err.Error()}
-	}
-	return nil
-}
-
-func (svc *Service) makeTestZendeskRequest(ctx context.Context, zendeskSettings *fleet.ZendeskIntegration) error {
-	if zendeskSettings.APIToken == "" || zendeskSettings.APIToken == fleet.MaskedPassword {
-		return &badRequestError{message: fmt.Sprintf("zendesk integration request failed: missing or invalid API token")}
-	}
-	client, err := externalsvc.NewZendeskClient(&externalsvc.ZendeskOptions{
-		URL:      zendeskSettings.URL,
-		Email:    zendeskSettings.Email,
-		APIToken: zendeskSettings.APIToken,
-		GroupID:  zendeskSettings.GroupID,
-	})
-	if err != nil {
-		return &badRequestError{message: fmt.Sprintf("zendesk integration request failed: %s", err.Error())}
-	}
-	grp, err := client.GetGroup(ctx)
-	if err != nil {
-		return &badRequestError{message: fmt.Sprintf("zendesk integration request failed: %s", err.Error())}
-	}
-	if grp.ID != zendeskSettings.GroupID {
-		return &badRequestError{message: fmt.Sprint("zendesk integration request failed: no matching group id", grp.ID, zendeskSettings.GroupID)}
 	}
 	return nil
 }

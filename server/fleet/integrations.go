@@ -88,6 +88,8 @@ func ValidateJiraIntegrations(ctx context.Context, oriJiraIntgsByProjKey map[str
 				continue
 			}
 			// use stored API token if request does not contain new token
+			// intended only as a short-term accommodation for the frontend
+			// will be redesigned in dedicated endpoint for integration config
 			if new.APIToken == "" || new.APIToken == MaskedPassword {
 				new.APIToken = old.APIToken
 			}
@@ -161,6 +163,68 @@ func IndexZendeskIntegrations(zendeskIntgs []*ZendeskIntegration) (map[int64]Zen
 		byGroupID[intg.GroupID] = *intg
 	}
 	return byGroupID, nil
+}
+
+// ValidateZendeskIntegrations validates that the merge of the original and
+// new Zendesk integrations does not result in any duplicate configuration,
+// and that each modified or added integration can successfully connect to the
+// external Zendesk service.
+//
+// On successful return, the newZendeskIntgs slice is ready to be saved - it
+// may have been updated using the original integrations if the API token was
+// missing.
+func ValidateZendeskIntegrations(ctx context.Context, oriZendeskIntgsByGroupID map[int64]ZendeskIntegration, newZendeskIntgs []*ZendeskIntegration) error {
+	newByGroupID := make(map[int64]*ZendeskIntegration, len(newZendeskIntgs))
+	for i, new := range newZendeskIntgs {
+		// first check for group id uniqueness
+		if _, ok := newByGroupID[new.GroupID]; ok {
+			return fmt.Errorf("duplicate Zendesk integration for group id %v", new.GroupID)
+		}
+		newByGroupID[new.GroupID] = new
+
+		// check if existing integration is being edited
+		if old, ok := oriZendeskIntgsByGroupID[new.GroupID]; ok {
+			if old == *new {
+				// no further validation for unchanged integration
+				continue
+			}
+			// use stored API token if request does not contain new token
+			// intended only as a short-term accommodation for the frontend
+			// will be redesigned in dedicated endpoint for integration config
+			if new.APIToken == "" || new.APIToken == MaskedPassword {
+				new.APIToken = old.APIToken
+			}
+		}
+
+		// new or updated, test it
+		if err := makeTestZendeskRequest(ctx, new); err != nil {
+			return fmt.Errorf("Zendesk integration at index %d: %w", i, err)
+		}
+	}
+	return nil
+}
+
+func makeTestZendeskRequest(ctx context.Context, intg *ZendeskIntegration) error {
+	if intg.APIToken == "" || intg.APIToken == MaskedPassword {
+		return IntegrationTestError{Err: errors.New("Zendesk integration request failed: missing or invalid API token")}
+	}
+	client, err := externalsvc.NewZendeskClient(&externalsvc.ZendeskOptions{
+		URL:      intg.URL,
+		Email:    intg.Email,
+		APIToken: intg.APIToken,
+		GroupID:  intg.GroupID,
+	})
+	if err != nil {
+		return IntegrationTestError{Err: fmt.Errorf("Zendesk integration request failed: %w", err)}
+	}
+	grp, err := client.GetGroup(ctx)
+	if err != nil {
+		return IntegrationTestError{Err: fmt.Errorf("Zendesk integration request failed: %w", err)}
+	}
+	if grp.ID != intg.GroupID {
+		return IntegrationTestError{Err: fmt.Errorf("Zendesk integration request failed: no matching group id: received %d, expected %d", grp.ID, intg.GroupID)}
+	}
+	return nil
 }
 
 // Integrations configures the integrations with external systems.

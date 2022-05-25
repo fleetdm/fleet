@@ -3482,7 +3482,7 @@ func (s *integrationTestSuite) TestExternalIntegrationsConfig() {
 				}
 			]
 		}
-	}`, srv.URL)), http.StatusBadRequest)
+	}`, srv.URL)), http.StatusUnprocessableEntity)
 
 	// even disabled integrations are tested for Zendesk connection and credentials,
 	// so this fails because the 2nd one uses the "fail" token.

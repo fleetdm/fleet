@@ -8,7 +8,6 @@ import (
 	"encoding/json"
 	"encoding/pem"
 	"errors"
-	"fmt"
 	"io"
 	"net"
 	"net/url"
@@ -236,38 +235,13 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte) (*fleet.AppCo
 	}
 	appConfig.Integrations.Jira = newAppConfig.Integrations.Jira
 
-	// if Zendesk integration settings are modified or added, test it.
-	var newZendeskConfig []*fleet.ZendeskIntegration
-	newZendeskByGroupID := make(map[int64]*fleet.ZendeskIntegration)
-	for i, new := range newAppConfig.Integrations.Zendesk {
-		// first check for group id uniqueness
-		if _, ok := newZendeskByGroupID[new.GroupID]; ok {
-			return nil, ctxerr.Wrap(ctx, &badRequestError{message: fmt.Sprintf("duplicate Zendesk integration for group id %v", new.GroupID)})
+	if err := fleet.ValidateZendeskIntegrations(ctx, storedZendeskByGroupID, newAppConfig.Integrations.Zendesk); err != nil {
+		if errors.As(err, &fleet.IntegrationTestError{}) {
+			return nil, ctxerr.Wrap(ctx, &badRequestError{message: err.Error()})
 		}
-		newZendeskByGroupID[new.GroupID] = new
-
-		// check if existing integration is being edited
-		if old, ok := storedZendeskByGroupID[new.GroupID]; ok {
-			if old == *new {
-				newZendeskConfig = append(newZendeskConfig, &old)
-				// no further validation for unchanged integration
-				continue
-			}
-			// use stored API token if request does not contain new token
-			// intended only as a short-term accommodation for the frontend
-			// will be redesigned in dedicated endpoint for integration config
-			if new.APIToken == "" || new.APIToken == fleet.MaskedPassword {
-				new.APIToken = old.APIToken
-			}
-		}
-
-		// new or updated, test it
-		if err := svc.makeTestZendeskRequest(ctx, new); err != nil {
-			return nil, ctxerr.Wrapf(ctx, err, "Zendesk integration at index %d", i)
-		}
-		newZendeskConfig = append(newZendeskConfig, new)
+		return nil, ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("Zendesk integration", err.Error()))
 	}
-	appConfig.Integrations.Zendesk = newZendeskConfig
+	appConfig.Integrations.Zendesk = newAppConfig.Integrations.Zendesk
 
 	if err := svc.ds.SaveAppConfig(ctx, appConfig); err != nil {
 		return nil, err
