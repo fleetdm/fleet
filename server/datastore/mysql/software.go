@@ -415,6 +415,7 @@ func selectSoftwareSQL(opts fleet.SoftwareListOptions) (string, []interface{}, e
 			"s.arch",
 			"scv.cpe_id", // for join on sub query
 			goqu.COALESCE(goqu.I("scp.cpe"), "").As("generated_cpe"),
+			goqu.COALESCE(goqu.I("scp.id"), 0).As("generated_cpe_id"),
 		)
 
 	if opts.HostID != nil || opts.TeamID != nil {
@@ -517,6 +518,7 @@ func selectSoftwareSQL(opts fleet.SoftwareListOptions) (string, []interface{}, e
 		"s.id",
 		"scv.cpe_id",
 		"generated_cpe",
+		"generated_cpe_id",
 	)
 
 	// Pagination is a bit more complex here due to left join with software_cve table and aggregated columns from cve_scores table.
@@ -535,7 +537,7 @@ func selectSoftwareSQL(opts fleet.SoftwareListOptions) (string, []interface{}, e
 			"s.vendor",
 			"s.arch",
 			"s.generated_cpe",
-			// omit s.cpe_id
+			"s.generated_cpe_id",
 			"scv.cve",
 		).
 		LeftJoin(
@@ -1019,7 +1021,6 @@ func (ds *Datastore) HostsByCPEs(ctx context.Context, cpes []string) ([]*fleet.H
 	}
 	var hosts []*fleet.HostShort
 	if err := sqlx.SelectContext(ctx, ds.reader, &hosts, stmt, args...); err != nil {
-
 		return nil, ctxerr.Wrap(ctx, err, "select hosts by cpes")
 	}
 	return hosts, nil
@@ -1082,6 +1083,7 @@ ON DUPLICATE KEY UPDATE
 
 	return nil
 }
+
 func (ds *Datastore) InsertVulnerabilities(
 	ctx context.Context,
 	vulns []fleet.SoftwareVulnerability,
