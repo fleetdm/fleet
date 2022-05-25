@@ -14,7 +14,6 @@ import (
 	"time"
 
 	"github.com/fleetdm/fleet/v4/pkg/download"
-	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	kitlog "github.com/go-kit/kit/log"
@@ -224,7 +223,6 @@ func TranslateSoftwareToCPE(
 	ds fleet.Datastore,
 	vulnPath string,
 	logger kitlog.Logger,
-	config config.FleetConfig,
 ) error {
 	dbPath := path.Join(vulnPath, cpeDatabaseFilename)
 

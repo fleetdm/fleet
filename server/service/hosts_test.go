@@ -43,14 +43,14 @@ func TestHostDetails(t *testing.T) {
 	ds.ListPacksForHostFunc = func(ctx context.Context, hid uint) ([]*fleet.Pack, error) {
 		return expectedPacks, nil
 	}
-	ds.LoadHostSoftwareFunc = func(ctx context.Context, host *fleet.Host) error {
+	ds.LoadHostSoftwareFunc = func(ctx context.Context, host *fleet.Host, includeCVEScores bool) error {
 		return nil
 	}
 	ds.ListPoliciesForHostFunc = func(ctx context.Context, host *fleet.Host) ([]*fleet.HostPolicy, error) {
 		return nil, nil
 	}
 
-	hostDetail, err := svc.getHostDetails(test.UserContext(test.UserAdmin), host)
+	hostDetail, err := svc.getHostDetails(test.UserContext(test.UserAdmin), host, false)
 	require.NoError(t, err)
 	assert.Equal(t, expectedLabels, hostDetail.Labels)
 	assert.Equal(t, expectedPacks, hostDetail.Packs)
@@ -87,7 +87,7 @@ func TestHostAuth(t *testing.T) {
 	ds.ListHostsFunc = func(ctx context.Context, filter fleet.TeamFilter, opt fleet.HostListOptions) ([]*fleet.Host, error) {
 		return nil, nil
 	}
-	ds.LoadHostSoftwareFunc = func(ctx context.Context, host *fleet.Host) error {
+	ds.LoadHostSoftwareFunc = func(ctx context.Context, host *fleet.Host, includeCVEScores bool) error {
 		return nil
 	}
 	ds.ListLabelsForHostFunc = func(ctx context.Context, hid uint) ([]*fleet.Label, error) {
@@ -183,16 +183,16 @@ func TestHostAuth(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			ctx := viewer.NewContext(context.Background(), viewer.Viewer{User: tt.user})
 
-			_, err := svc.GetHost(ctx, 1)
+			_, err := svc.GetHost(ctx, 1, false)
 			checkAuthErr(t, tt.shouldFailTeamRead, err)
 
-			_, err = svc.HostByIdentifier(ctx, "1")
+			_, err = svc.HostByIdentifier(ctx, "1", false)
 			checkAuthErr(t, tt.shouldFailTeamRead, err)
 
-			_, err = svc.GetHost(ctx, 2)
+			_, err = svc.GetHost(ctx, 2, false)
 			checkAuthErr(t, tt.shouldFailGlobalRead, err)
 
-			_, err = svc.HostByIdentifier(ctx, "2")
+			_, err = svc.HostByIdentifier(ctx, "2", false)
 			checkAuthErr(t, tt.shouldFailGlobalRead, err)
 
 			err = svc.DeleteHost(ctx, 1)

@@ -85,12 +85,7 @@ func TestTranslateCPEToCVE(t *testing.T) {
 	})
 	require.NoError(t, err)
 
-	cfg := config.FleetConfig{
-		Vulnerabilities: config.VulnerabilitiesConfig{
-			DisableDataSync:           true,
-			RecentVulnerabilityMaxAge: 365 * 24 * time.Hour,
-		},
-	}
+	recentVulnerabilityMaxAge := 365 * 24 * time.Hour
 
 	for _, tt := range cvetests {
 		t.Run(tt.cpe, func(t *testing.T) {
@@ -109,7 +104,7 @@ func TestTranslateCPEToCVE(t *testing.T) {
 				return 0, nil
 			}
 
-			_, err := TranslateCPEToCVE(ctx, ds, tempDir, kitlog.NewLogfmtLogger(os.Stdout), cfg, false)
+			_, err := TranslateCPEToCVE(ctx, ds, tempDir, kitlog.NewLogfmtLogger(os.Stdout), false, 0)
 			require.NoError(t, err)
 
 			printMemUsage()
@@ -137,7 +132,7 @@ func TestTranslateCPEToCVE(t *testing.T) {
 		ds.InsertCVEForCPEFunc = func(ctx context.Context, cve string, cpes []string) (int64, error) {
 			return 1, nil
 		}
-		recent, err := TranslateCPEToCVE(ctx, safeDS, tempDir, kitlog.NewNopLogger(), cfg, true)
+		recent, err := TranslateCPEToCVE(ctx, safeDS, tempDir, kitlog.NewNopLogger(), true, recentVulnerabilityMaxAge)
 		require.NoError(t, err)
 
 		byCPE := make(map[string]int)
@@ -159,7 +154,7 @@ func TestTranslateCPEToCVE(t *testing.T) {
 		ds.InsertCVEForCPEFunc = func(ctx context.Context, cve string, cpes []string) (int64, error) {
 			return 0, nil
 		}
-		recent, err = TranslateCPEToCVE(ctx, safeDS, tempDir, kitlog.NewNopLogger(), cfg, true)
+		recent, err = TranslateCPEToCVE(ctx, safeDS, tempDir, kitlog.NewNopLogger(), true, recentVulnerabilityMaxAge)
 		require.NoError(t, err)
 
 		// no recent vulnerability should be reported
