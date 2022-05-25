@@ -2,7 +2,10 @@
 
   [purpose='hero-container'] {
     height: 360px;
-    background-color: #6468B0;
+    background-color: #261c50;
+    background-image: url('/images/background-hero.svg');
+    background-position-x: right;
+    background-size: cover;
     [purpose='hero-content'] {
       max-width: 1000px;
       color: #FFF;
@@ -31,11 +34,14 @@
     }
   }
   [purpose='report-container']{
+    padding-top: 100px;
     max-width: 1000px;
+    padding-left: 0px;
+    padding-right: 0px;
   }
   [purpose='report-sidebar'] {
     max-width: 240px;
-    padding-right: 40px;
+    margin-right: 40px;
     a {
       display: block;
       font-weight: 400;
@@ -52,11 +58,28 @@
 
     }
     [purpose='topics']{
+      [purpose='topic-number']{
+        padding: 7px 8px 6px 8px;
+        color: #FFF;
+        min-width: 24px;
+        height: 24px;
+        background-color: @core-vibrant-blue;
+        border-radius: 50%;
+        font-size: 12px;
+        line-height: 11px;
+        display: inline-block;
+        margin-right: 8px;
+        text-align: center;
+        align-self: center;
+      }
+      a {
+        display: inline-flex;
+      }
 
     }
   }
   [purpose='report-content'] {
-
+    max-width: 720px;
     h1 {
       font-size: 28px;
       font-weight: 800;
@@ -73,6 +96,11 @@
       line-height: 24px;
       margin-bottom: 24px;
     }
+    img {
+      height: 36px;
+      width: 36px;
+      margin-bottom: 16px;
+    }
 
 
     [purpose='section-marker'] {
@@ -83,11 +111,13 @@
       font-weight: 700;
       padding: 8px 16px;
       border-radius: 16px;
+      margin-bottom: 16px;
+      display: inline-block;
     }
     [purpose='report-section'] {
       margin-top: 80px;
       padding-bottom: 80px;
-      border-bottom: solid 1px;
+      border-bottom: solid 2px #E2E4EA;
     }
     [purpose='subsection'] {
       padding-top: 40px;
@@ -97,6 +127,7 @@
     [purpose='report-list'] {
       list-style-type: square;
       padding-left: 32px;
+      padding-top: 40px;
       li::marker {
         font-size: 26px;
         color: @core-vibrant-blue;
@@ -108,6 +139,7 @@
       }
       p {
         line-height: 24px;
+        margin-bottom: 40px;
       }
     }
 
@@ -132,7 +164,15 @@
       background-color: #F3F6F7;
       border-radius: 24px;
       margin-top: 40px;
-      // margin-bottom: 40px;
+      margin-bottom: 40px;
+      [purpose='chart-container'] {
+        display: block;
+        margin-left: auto;
+        margin-right: auto;
+        // max-height: 300px;
+        // max-width: 300px;
+
+      }
     }
 
   }
@@ -141,11 +181,41 @@
 
   // For larger screens <1200px
   @media (min-width: 1199px) {
+  }
+  @media (min-width: 1024px) {
+    [purpose='report-sidebar'] {
+      width: 240px;
+    }
     [purpose='report-container']{
-      padding-top: 100px;
+
     }
     [purpose='report-content'] {
       max-width: 720px;
+    }
+
+  }
+
+  // For larger screens <1200px
+  @media (max-width: 1024px) {
+    [purpose='hero-content'] {
+      align-items: center;
+    }
+    [purpose='report-container']{
+      padding-left: 40px;
+      padding-right: 40px;
+      padding-top: 60px;
+    }
+    [purpose='report-content'] {
+      max-width: 664px;
+    }
+    [purpose='report-sidebar'] {
+      display: none;
+    }
+  }
+
+  @media (max-width: 991px) {
+    [purpose='report-content'] {
+      max-width: 100%;
     }
   }
 

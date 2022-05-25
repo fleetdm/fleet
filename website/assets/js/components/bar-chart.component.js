@@ -14,11 +14,13 @@ parasails.registerComponent('barChart', {
   //  ╠═╝╠╦╝║ ║╠═╝╚═╗
   //  ╩  ╩╚═╚═╝╩  ╚═╝
   props: [
-    'chartData',
+    'chartData', // An object containing
     'title',
+    'subtitle',
     'type',
     'maxRange',
     'minRange',
+    'incrementScaleBy',
   ],
 
   //  ╦╔╗╔╦╔╦╗╦╔═╗╦    ╔═╗╔╦╗╔═╗╔╦╗╔═╗
@@ -33,6 +35,9 @@ parasails.registerComponent('barChart', {
       incrementBy = 2;
     } else {
       incrementBy = 1;
+    }
+    if(this.incrementScaleBy){
+      incrementBy = this.incrementScaleBy;
     }
     return {
       range,
@@ -49,6 +54,7 @@ parasails.registerComponent('barChart', {
   <div>
     <div v-if="type === 'stacked'">
       <span purpose="title">{{title}}</span>
+      <span purpose="subtitle" v-if="this.subtitle">{{subtitle}}</span>
       <div purpose="chart" class="d-flex">
         <span v-for="item in chartData" :style="'flex-basis: '+item.percent+'%; background-color: '+item.color+';'">
         </span>
@@ -83,14 +89,25 @@ parasails.registerComponent('barChart', {
   beforeMount: function() {
   },
   mounted: async function() {
+    if(this.type === undefined){
+      throw new Error('');
+    } else if (this.type !== 'divided' && this.type !== 'stacked'){
+      throw new Error('?'+this.type);
+    }
+    if(this.chartData === undefined){
+      throw new Error('');
+    } else if (!_.isArray(this.chartData)){
+      throw new Error('ChartData should be an array of values');
+    }
+
     if(this.type === 'divided') {
       if(this.maxRange && this.minRange){
         this.range = this.maxRange - this.minRange;
-        if(!this.incrementBy){
-          this.chartRange = Array.from({length: (this.range + 1)}, (_, i) => i + parseInt(this.minRange));
-        } else {
-          this.chartRange = Array.from({length: ((this.range)/this.incrementBy + 1)}, (_, i) => (i * this.incrementBy) + parseInt(this.minRange));
-        }
+        this.chartRange = Array.from({length: ((this.range)/this.incrementBy + 1)}, (_, i) => (i * this.incrementBy) + parseInt(this.minRange));
+        // if(!this.incrementBy){
+        //   this.chartRange = Array.from({length: (this.range + 1)}, (_, i) => i + parseInt(this.minRange));
+        // } else {
+        // }
       }
     }
 

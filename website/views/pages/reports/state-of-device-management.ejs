@@ -1,5 +1,5 @@
-<div id="state-of-device-management" v-cloak>
-  <div purpose="hero-container" class=" d-flex justify-content-center align-items-center">
+<div id="state-of-device-management" v-cloak class="">
+  <div purpose="hero-container" class="d-flex justify-content-center align-items-center">
     <div purpose="hero-content" class="container px-0 d-flex flex-column">
       <div purpose="hero-text">
         <h1>State of device management</h1>
@@ -11,8 +11,8 @@
       </div>
     </div>
   </div>
-  <div purpose="report-container" class="container-fluid px-0 d-flex flex-row">
-    <div purpose="report-sidebar" class="d-flex flex-column">
+  <div purpose="report-container" class="container-fluid d-flex flex-row justify-content-between">
+    <div purpose="report-sidebar" class="d-lg-flex d-none flex-column">
       <h4>Table of contents</h4>
       <hr>
       <div purpose="table-of-contents">
@@ -21,13 +21,13 @@
         <a class="pb-3">Who we surveyed</a>
       </div>
       <hr>
-      <div purpose="topics">
-        <a class="pb-3" href="#part-1">State of device management</a>
-        <a class="pb-3" href="#part-2">Best practices & challenges</a>
-        <a class="pb-3" href="#part-3">MDM implementation</a>
-        <a class="pb-3" href="#part-4">Device management effectiveness</a>
-        <a class="pb-3" href="#part-5">Plans & priorities for the future</a>
-        <a href="#part-6">Preparing for the future of device management</a>
+      <div purpose="topics" class="flex-column">
+        <a class="pb-3" href="#part-1"><span purpose="topic-number">1</span>State of device management</a>
+        <a class="pb-3" href="#part-2"><span purpose="topic-number">2</span>Best practices & challenges</a>
+        <a class="pb-3" href="#part-3"><span purpose="topic-number">3</span>MDM implementation</a>
+        <a class="pb-3" href="#part-4"><span purpose="topic-number">4</span>Device management effectiveness</a>
+        <a class="pb-3" href="#part-5"><span purpose="topic-number">5</span>Plans & priorities for the future</a>
+        <a href="#part-6"><span purpose="topic-number">6</span>Preparing for the future of device management</a>
       </div>
     </div>
     <div purpose="report-content" class="d-flex flex-column">
@@ -106,29 +106,32 @@
         <h1 class="pt-2">State of device management</h1>
         <p>Not only has technology enabled employees to work through laptops, smartphones, tablets, and other mobile devices, the shift to remote work has increased the need for it. More devices means greater risk of compromise and organizational security threats. This results in an increased need for endpoint visibility and monitoring.</p>
         <p>Our respondents told us about their current state of device management: what MDM they use, what devices they’re managing, and what they’re struggling to cover.</p>
-        <div class="d-flex flex-row justify-content-center">
-          <div class="d-flex flex-column col-6 pl-0">
-            <h3>58% use a cloud MDM</h3>
-            <p>The majority of our respondents (57.6%) use a cloud solution, hosted by a vendor, for their MDM. The rest are self-managed, and hosted by their organization.</p>
-          </div>
-          <div class="d-flex flex-column col-6 pr-0">
-            <h3>They’re split on paying per user and paying per device</h3>
-            <p>Just over half of our respondents (50.4%) pay per device, while the remainder pay per user.</p>
-          </div>
-        </div>
-        <div class="d-flex flex-row">
-          <div class="d-flex flex-column">
-            <div purpose="chart-card">
-              <div id="cloud-mdm-chart"></div>
+        <div purpose="subsection">
+          <div class="d-flex flex-row row justify-content-center">
+            <div class="d-flex flex-column col-md-6 col-12">
+              <h3>58% use a cloud MDM</h3>
+              <p>The majority of our respondents (57.6%) use a cloud solution, hosted by a vendor, for their MDM. The rest are self-managed, and hosted by their organization.</p>
+            </div>
+            <div class="d-flex flex-column col-md-6 col-12 order-md-2 order-3">
+              <h3>They’re split on paying per user and paying per device</h3>
+              <p>Just over half of our respondents (50.4%) pay per device, while the remainder pay per user.</p>
+            </div>
+            <div class="col-md-6 order-2 order-md-3">
+              <div purpose="chart-card" class="mt-0 ">
+                <div purpose="chart-container">
+                  <canvas id="cloud-mdm-chart"></canvas>
+                </div>
+              </div>
+            </div>
+            <div class="col-md-6 order-4">
+              <div purpose="chart-card" class="mt-0 ">
+                <div purpose="chart-container">
+                  <canvas id="mdm-charges-chart"></canvas>
+                </div>
+              </div>
             </div>
           </div>
-          <div class="d-flex flex-column">
-            <div purpose="chart-card">
-              <div id="cloud-mdm-chart"></div>
-            </div>
-          </div>
         </div>
-
         <div purpose="subsection">
           <h3>26% report their organization manages over 250,000 devices</h3>
           <p>With devices including servers, laptops, desktops, tablets and mobile phones, the largest segment of respondents (25.9%) estimate having over 250,000 total devices in their organization’s fleet.</p>
@@ -141,7 +144,7 @@
           <h3>Rates of MDM enrollment vary across organizations</h3>
           <p>Respondents report varied degrees of enrollment across their organization’s MDM. For 27.8%, only about a quarter of their devices are enrolled. 26.8% say that about half of their devices are enrolled. For 22.4%, about three-quarters of their devices are enrolled. Finally, 22.9% say that all or nearly all of their devices are enrolled.</p>
           <div purpose="chart-card">
-            <bar-chart class="" min-range=20 max-range=30 incrementBy=2 type="divided" title="Estimated percentage of devices enrolled in MDM" :chart-data="barCharts.partOne.mdmEnrolledDevices"></bar-chart>
+            <bar-chart class="" min-range=20 max-range=30 increment-scale-by=2 type="divided" title="Estimated percentage of devices enrolled in MDM" :chart-data="barCharts.partOne.mdmEnrolledDevices"></bar-chart>
           </div>
         </div>
 
@@ -149,7 +152,7 @@
           <h3>25% have 10,000 workstations in their organization</h3>
           <p>The largest segment of respondents (24.9%) report having about 10,000 workstations in their organization, including laptops, desktops, or other devices. Other respondents report having 1,000 workstations (20.5%), 2,000 workstations (18.6%), 5,000 workstations (19%), and 25,000 or more workstations (17.6%).</p>
           <div purpose="chart-card">
-            <bar-chart class="" min-range=15 max-range=25 incrementBy=2 type="divided" title="Estimated percentage of devices enrolled in MDM" :chart-data="barCharts.partOne.numberOfWorkstations"></bar-chart>
+            <bar-chart class="" min-range=15 max-range=25 increment-scale-by=2 type="divided" title="Estimated percentage of devices enrolled in MDM" :chart-data="barCharts.partOne.numberOfWorkstations"></bar-chart>
           </div>
         </div>
 
@@ -189,7 +192,6 @@
           <p>As for the basics of their MDMs, most (58%) are using a vendor-issued, cloud-based solution, while the rest are using a self-managed solution hosted by their organization. The types of devices most commonly covered by their MDMs include their network switches and other infrastructure at the top of the list, followed by laptops, virtual desktops, smartphones, and servers. Windows is the platform that respondents use the most in their office yet that isn’t covered by their MDM, and they also struggle the most to manage miscellaneous platforms, iOS, and Android.</p>
           <p>In our next section, we’ll look deeper at what makes their MDM approach successful and what challenges they face on a daily basis.</p>
         </div>
-
       </div>
       <div purpose="report-section" id="part-2">
         <span purpose="section-marker">PART 2</span>
@@ -198,30 +200,331 @@
         <p>Here are some of the best practices our respondents suggest for device management, and some of the challenges they face each day.</p>
         <div purpose="subsection" class="row">
           <div class="col-md-6">
-            <img src="/images/icon-laptop-">
+            <img src="/images/icon-laptop-36x36@2x.png">
             <h3>Having a documented BYOD policy in place</h3>
             <p>With the rise in employees using their own devices for work, respondents say it’s imperative to have a documented policy over usage and access.</p>
           </div>
           <div class="col-md-6">
-            <img src="/images/icon-">
+            <img src="/images/icon-clock-36x36@2x.png">
             <h3>Measuring point-in-time compliance across all devices</h3>
             <p>It’s a struggle to accurately monitor devices if you’re getting lagging or stale data. Another best practice is to ensure that you’re measuring compliance in real time across all of your devices.</p>
           </div>
           <div class="col-md-6">
-            <img src="/images/icon-">
+            <img src="/images/icon-square-36x36@2x.png">
             <h3>Reporting how quickly vulnerable software is patched</h3>
             <p>Another best practice is reporting, and keeping track of how quickly vulnerable software is patched so you can gauge response time and optimize for performance.</p>
           </div>
           <div class="col-md-6">
-            <img src="/images/icon-">
+            <img src="/images/icon-touch-36x36@2x.png">
             <h3>Providing users a self-service experience</h3>
             <p>Respondents also see value in having end users be able to troubleshoot their issues themselves, instead of having to get IT involved.</p>
           </div>
           <div class="col-md-6">
-            <img src="/images/icon-">
+            <img src="/images/icon-circles-36x36@2x.png">
             <h3>Focusing on a seamless end user experience</h3>
             <p>Finally, respondents stress having a solution in place that is seamless on the end user side, allowing for easy access and continued productivity.</p>
           </div>
+        </div>
+        <div purpose="chart-card">
+          <bar-chart class="" min-range=20 max-range=34 type="divided" title="What best practices are currently part of your device management strategy?" :chart-data="barCharts.partTwo.deviceManagementStrategy"></bar-chart>
+        </div>
+        <div purpose="subsection">
+          <h2>Top challenges for MDM</h2>
+          <p>The biggest challenges respondents face each day when it comes to device management are:</p>
+          <div class="row">
+            <div class="col-md-4"><img src="/images/icon-checklist-36x36@2x.png">
+              <h3>Verifying compliance across devices</h3>
+              <p>Above, respondents said a best practice for success is to verify compliance in real time across all devices — yet doing that effectively is proving to be a challenge. Adding to that complexity is a lack of device enrollment, making full compliance monitoring impossible.</p>
+            </div>
+            <div class="col-md-4"><img src="/images/icon-enrolled-device-36x36@2x.png">
+              <h3>Getting all devices enrolled</h3>
+              <p>Only 22.9% of respondents said that all or nearly all of their devices are enrolled — meaning enrollment has become a challenge. A reason for lack of compliance could be simply getting employees to enroll their devices.</p>
+            </div>
+            <div class="col-md-4"><img src="/images/icon-visibility-36x36@2x.png">
+              <h3>Maintaining accurate visibility across all devices</h3>
+              <p>Accurate visibility across all devices relies not only on having the right MDM solution in place to provide that visibility, but that all devices are enrolled and able to be monitored.</p>
+            </div>
+          </div>
+        </div>
+        <div purpose="chart-card">
+          <bar-chart class="" min-range=14 max-range=24 increment-scale-by=2 type="divided" title="What best practices are currently part of your device management strategy?" :chart-data="barCharts.partTwo.topChallenges"></bar-chart>
+        </div>
+        <div purpose="subsection">
+          <h2>Summary</h2>
+          <p>When it comes to their best practices and their top challenges, two points surface. The first is the necessity of having the right MDM solution in place that can monitor all devices, verify compliance, have accurate visibility into those endpoints, and that can do it all in real time. The second point that surfaces is that the first point can only be achieved if devices are enrolled in the first place. It’s part of the reason why the number one best practice was to have a documented policy in place for personal device usage. It’s also why the second biggest day-to-day challenge is getting all devices being used across their organization enrolled in their MDM.</p>
+          <p>In the next section, we’ll take a step back and look at the reasons why organizations choose their MDM solution in the first place.</p>
+        </div>
+      </div>
+      <div purpose="report-section" id="part-3">
+        <span purpose="section-marker">PART 3</span>
+        <h1>MDM deployment and implementation</h1>
+        <p>Since our respondents are directly involved in managing their organization’s devices, they can give the greatest insight into why their organization decided to implement an MDM, how long it took to implement, and what some of the challenges were to implementation.</p>
+        <div purpose="subsection">
+          <h3>48% use a cloud MDM</h3>
+          <p>About half (48.3%) of our respondents were involved in the deployment of their current MDM solution. 51.7% were not.</p>
+          <div purpose="chart-card">
+            <div purpose="chart-container">
+              <canvas id="mdm-involvement-chart"></canvas>
+            </div>
+          </div>
+        </div>
+        <div purpose="subsection">
+          <h3>Top triggers that led to an MDM investment</h3>
+          <p>More than likely, some event or initiative triggered the move to invest in an MDM. Here are the top reasons why our respondents’ organization turned to an MDM:</p>
+        </div>
+        <div purpose="subsection" class="row">
+          <div class="col-md-4"><img src="/images/icon-globe-36x36@2x.png">
+            <h3>The shift to remote work</h3>
+            <p>Remote work increases endpoints outside of an office location, with workers logging on from anywhere through various reliable and unreliable means. As such, having an MDM became a priority overnight for protecting the organization.</p>
+          </div>
+          <div class="col-md-4"><img src="/images/icon-certificate-36x36@2x.png">
+            <h3>An upcoming compliance audit or certification</h3>
+            <p>Another reason was that they had an upcoming compliance audit or certification, and probably knew they wouldn’t pass it without better monitoring and visibility into their endpoints.</p>
+          </div>
+          <div class="col-md-4"><img src="/images/icon-enrolled-device-36x36@2x.png">
+            <h3>More control over the onboarding or enrollment experience</h3>
+            <p>They also made the decision to invest in an MDM solution in order to be more proactively involved in the device management process.</p>
+          </div>
+        </div>
+        <div purpose="chart-card">
+          <bar-chart  min-range=10 max-range=17 type="divided" title="MDM solution investment triggers" :chart-data="barCharts.partThree.mdmInvestmentTriggers"></bar-chart>
+        </div>
+        <div purpose="subsection">
+          <h3>22% say their MDM took over a year to implement</h3>
+          <p>The largest segment of respondents (22.2%) reported that it took over a year to deploy and implement their MDM. However, for 18.7%, it took four weeks or less. For 15.7%, it took one to three months, and for 13.1% it took three to six months. For 16.2% it took six to nine months, and for 14.1% it took nine to twelve months.</p>
+          <div purpose="chart-card">
+            <div purpose="chart-container">
+              <canvas id="mdm-deployment-time-chart"></canvas>
+            </div>
+          </div>
+        </div>
+        <h3>Top deployment challenges</h3>
+        <p>What were some of the challenges to deployment? Respondents encountered the following while implementing their new MDM solution (and chose all that applied):</p>
+        <div purpose="subsection" class="row">
+          <div class="col-md-4"><img src="/images/icon-arrows-36x36@2x.png">
+            <h3>Too complicated to configure</h3>
+            <p>The biggest challenge was that the solution was too complicated to configure and to understand — a failure right at the start.</p>
+          </div>
+          <div class="col-md-4"><img src="/images/icon-confusing-document-36x36@2x.png">
+            <h3>Confusing or limited documentation</h3>
+            <p>Possibly related to the confusion in the first reason, respondents also discovered there was a lack of documentation to help them deploy the solution, or the documentation was confusing.</p>
+          </div>
+          <div class="col-md-4"><img src="/images/icon-lock-36x36@2x.png">
+            <h3>Integrating with single sign-on</h3>
+            <p>They also found that their MDM solution had trouble integrating with their SSO services like Okta and SAML.</p>
+          </div>
+        </div>
+        <div purpose="chart-card">
+          <bar-chart  min-range=29 max-range=37 type="divided" title="Challenges encountered while deploying MDM" :chart-data="barCharts.partThree.challengesEncountered"></bar-chart>
+        </div>
+        <div purpose="subsection" class="pb-0">
+          <h2>Summary</h2>
+          <p>An organization with a growing number of endpoints across thousands of devices needs some way to manage them. For our respondents, the biggest trigger that got their organization to invest in an MDM solution was the move to remote work sparked by the pandemic and its sudden lockdowns. Other reasons for adopting an MDM include needing to ensure compliance for an audit, and wanting to have more of a hand involved in device management.</p>
+          <p>But in addition to the challenges mentioned in the last section regarding enrollment, real-time monitoring, and visibility, our respondents also found challenges in actually deploying the MDM solution they need to secure their endpoints. While 18.7% said that their MDM took a month or less to deploy and implement, 22.2% said theirs took a year or longer to roll out — which is a long time to leave devices unmonitored and unaccounted for.</p>
+          <p>They also encountered issues during deployment, as the MDM ended up being too complicated to understand, didn’t have helpful documentation, was too hard to configure, and didn’t integrate with SSO — and it was hard to get vendor support to help remedy the issues they faced.</p>
+          <p>Once deployed and implemented, did our respondents find that they had an effective solution on their hands? As we’ll find out in the next section, many of them didn’t.</p>
+        </div>
+      </div>
+      <div purpose="report-section" id="part-4">
+        <span purpose="section-marker">PART 4</span>
+        <h1>Device Management Effectiveness</h1>
+        <p>Organizations may have a way to manage devices in their organization, but are they finding their approach to be successful? In this section, our respondents provided insights into how effective their MDM strategy is when it comes to visibility, keeping inventory, incident response, and more.</p>
+        <div purpose="subsection">
+          <h3>47% have an MDM that provides sufficient visibility into enrolled devices</h3>
+          <p>46.8% say their current MDM strategy provides sufficient visibility into their enrolled devices, and collects sufficient security data. 53.2% say it does not.</p>
+          <div purpose="chart-card" class="mb-0">
+            <div purpose="chart-container">
+              <canvas id="mdm-visibility-chart"></canvas>
+            </div>
+          </div>
+        </div>
+        <div purpose="subsection">
+          <h3>49% have an MDM that effectively maintains secure laptops and servers</h3>
+          <p>48.8% say their current MDM strategy effectively maintains secure laptops and servers. 51.2% says it does not.</p>
+          <div purpose="chart-card" class="pb-0">
+            <div purpose="chart-container">
+              <canvas id="mdm-laptops-and-servers-chart"></canvas>
+            </div>
+          </div>
+        </div>
+        <div purpose="subsection">
+          <h3>50% have an MDM that effectively keeps an accurate inventory of all devices</h3>
+          <p>49.8% say their current MDM effectively keeps an accurate inventory of all devices across platforms. 50.2% say it does not.</p>
+          <div purpose="chart-card" class="pb-0">
+            <div purpose="chart-container">
+              <canvas id="mdm-inventory-chart"></canvas>
+            </div>
+          </div>
+        </div>
+        <div purpose="subsection">
+          <h3>52% have an MDM that allows incident response in a timely manner</h3>
+          <p>51.7% say their current MDM allows them to respond to incidents in a timely manner, with enough context. 48.3% say it does not.</p>
+          <div purpose="chart-card" class="pb-0">
+            <div purpose="chart-container">
+              <canvas id="mdm-incident-response-chart"></canvas>
+            </div>
+          </div>
+        </div>
+        <div purpose="subsection">
+          <h3>55% have an MDM with enough visibility to investigate in real time</h3>
+          <p>54.6% say their current MDM strategy gives them enough visibility to investigate what’s happening on the device in real time. 45.4% say it does not.</p>
+          <div purpose="chart-card" class="pb-0">
+            <div purpose="chart-container">
+              <canvas id="mdm-realtime-visibility-chart"></canvas>
+            </div>
+          </div>
+        </div>
+        <div purpose="subsection">
+          <h3>49% have an MDM that effectively enforces compliance and security posture</h3>
+          <p>48.8% say their current MDM strategy effectively enforces compliance and security posture across all devices. 51.2% says it does not.</p>
+          <div purpose="chart-card" class="pb-0">
+            <div purpose="chart-container">
+              <canvas id="mdm-compliance-enforcement-chart"></canvas>
+            </div>
+          </div>
+        </div>
+        <div purpose="subsection">
+          <h3>54% have an MDM that allows them to effectively automate customer security workflows</h3>
+          <p>54.2% say their current MDM strategy allows them to effectively automate their customer security workflows. 45.9% say it does not.</p>
+          <div purpose="chart-card" class="pb-0">
+            <div purpose="chart-container">
+              <canvas id="mdm-workflow-automation-chart"></canvas>
+            </div>
+          </div>
+        </div>
+        <div purpose="subsection">
+          <h3>49% have an MDM that allows end users to self-service their own IT needs</h3>
+          <p>48.8% say their current MDM strategy effectively gives end users a way to safely self-service their own IT needs without involving the help desk. 51.2% say it does not.</p>
+          <div purpose="chart-card" class="pb-0">
+            <div purpose="chart-container">
+              <canvas id="mdm-self-service-chart"></canvas>
+            </div>
+          </div>
+        </div>
+        <div purpose="subsection" class="pb-0">
+          <h2>Summary</h2>
+          <p>A quick glance through the charts tells the story of MDM effectiveness: only about half have an effective solution implemented across their organization that provides sufficient visibility into enrolled devices, maintains secure laptops and servers, automates customer security workflows, enforces compliance and security posture, and performs other capabilities.</p>
+          <p>We’ll learn more about their future plans for improvements in the next section.</p>
+        </div>
+      </div>
+      <div purpose="report-section" id="part-5">
+        <div purpose="subsection" class="pt-0">
+          <span purpose="section-marker">PART 5</span>
+          <h1>Plans and Priorities for the Future</h1>
+          <p>Organizations are only going to see an increase in mobile device usage, especially as they continue remote work into the foreseeable future. But do organizations have MDM strategy at the top of their priority list? Here’s what the future looks like for device management.</p>
+        </div>
+        <div purpose="subsection">
+          <h3>Budget allocations over the next year will vary</h3>
+          <p>Respondents reported varying levels of investment in their MDM in the future. 35.1% said that their budget will stay the same in the coming year, and for 32.5%, their budget will increase. However, for an additional 32.5%, their budget will decrease.</p>
+          <div purpose="chart-card" class="mb-0">
+            <bar-chart  min-range=30 max-range=36 type="divided" title="Expected device management budget change over the next 12 months" :chart-data="barCharts.partFive.expectedBudgetChange"></bar-chart>
+          </div>
+        </div>
+        <div purpose="subsection">
+          <h3>Most wanted MDM features and capabilities</h3>
+          <p>More than likely, some event or initiative triggered the move to invest in an MDM. Here are the top reasons why our respondents’ organization turned to an MDM:</p>
+        </div>
+        <div purpose="subsection" class="row">
+          <div class="col-md-6">
+            <img src="/images/icon-cloud-36x36@2x.png">
+            <h3>Cloud-hosted by vendor</h3>
+            <p>As more organizations turn to cloud adoption and away from on-prem, respondents want their MDM to be cloud-hosted.</p>
+          </div>
+          <div class="col-md-6">
+            <img src="/images/icon-settings-36x36@2x.png">
+            <h3>Built-in security controls with sensible defaults</h3>
+            <p>The same number of respondents also want to be able to set the security defaults for their MDM.</p>
+          </div>
+          <div class="col-md-6">
+            <img src="/images/icon-partial-circle-36x36@2x.png">
+            <h3>Inspectable, modifiable, open source code</h3>
+            <p>One of the challenges with MDMs today is that they’re black boxes, without any access to the code. So respondents want their MDMs to be open source, with inspectable and modifiable code.</p>
+          </div>
+          <div class="col-md-6">
+            <img src="/images/icon-setup-36x36@2x.png">
+            <h3>Initial setup of software or tools at onboarding</h3>
+            <p>Respondents also want more software setup available at onboarding, including Zoom, Slack, Python, and others.</p>
+          </div>
+          <div class="col-md-6">
+            <img src="/images/icon-realtime-36x36@2x.png">
+            <h3>Real-time visibility of every device that’s less than a minute old</h3>
+            <p>Respondents want to be able to check compliance and other aspects of their devices in real time, gathering data that’s less than a minute old.</p>
+          </div>
+          <div class="col-md-6">
+            <img src="/images/icon-destination-36x36@2x.png">
+            <h3>Collecting security data from enrolled devices</h3>
+            <p>They also want their MDM to be able to collect security data from devices so that they can take immediate action on any vulnerabilities.</p>
+          </div>
+        </div>
+        <div purpose="subsection">
+          <div purpose="chart-card" class="mb-0">
+            <bar-chart  min-range=17 max-range=29 type="divided" title="Most wanted features when evaluating a new MDM vendor" :chart-data="barCharts.partFive.expectedBudgetChange"></bar-chart>
+          </div>
+        </div>
+        <div purpose="subsection">
+          <h2>Top priorities for MDM in 2022
+          <p>When asked their number one priority for their MDM strategy for the next year, respondents said they’re focused on the following initiatives and implementations:</p>
+        </div>
+        <div purpose="subsection" class="row">
+          <div class="col-md-4"><img src="/images/icon-authentication-36x36@2x.png">
+            <h3>Device security such as multi-factor authentication (MFA) at login</h3>
+            <p>For our respondents, their top priority is ensuring security across their organization’s devices, specifically by leveraging multi-factor authentication.</p>
+          </div>
+          <div class="col-md-4"><img src="/images/icon-zero-touch-36x36@2x.png">
+            <h3>Zero-touch enrollment</h3>
+            <p>Respondents also want to focus on zero-touch enrollment to increase enrollment percentages and achieve better monitoring and compliance.</p>
+          </div>
+          <div class="col-md-4"><img src="/images/icon-square-36x36@2x.png">
+            <h3>Patching third-party applications and packages</h3>
+            <p>Another priority is ensuring that third-party applications on various devices are patched and secure.</p>
+          </div>
+        </div>
+        <div purpose="subsection">
+          <div purpose="chart-card" class="mb-0">
+            <bar-chart  min-range=8 max-range=19 type="divided" title="Priorities for device management over the next 12 months" :chart-data="barCharts.partFive.deviceManagementPriorities"></bar-chart>
+          </div>
+        </div>
+        <div purpose="subsection" class="pb-0">
+          <h2>Summary</h2>
+          <p>With remote work likely to continue into the near and far future, and with threats on the rise and malicious actors looking to exploit vulnerable endpoints, it’s increasingly imperative that originations have a robust MDM solution in place. Top priorities for respondents’ organizations include overall security in the form of ensuring multi-factor authentication across devices, as well as shoring up third-party apps and packages. They also want to focus on making device enrollment easier by offering zero-touch enrollment.</p>
+          <p>For those looking for a more efficient MDM that can help them achieve their goals of endpoint protection — and from what we discovered above, that may be half of organizations out there who find that their current MDM is insufficient — they want a solution that’s cloud-based, has built-in security defaults, is open source, is easy to set up, and gives real-time visibility.</p>
+        </div>
+      </div>
+      <div purpose="report-section" id="part-6">
+        <div purpose="subsection">
+          <span purpose="section-marker">PART 6</span>
+          <h1>Preparing for the Future of Device Management</h1>
+          <p>Do organizations have full insight into the state of their devices? Or are they underprepared to manage security and compliance in an increasingly remote world? As we found, many organizations are prepared, with near-full enrollment of their devices in an MDM solution that provides effective visibility, incident response, and security across devices. However, many other organizations are challenged in their approach to device management, starting with confusing and unsupported deployment.</p>
+        </div>
+        <div purpose="subsection">
+          <h2>Takeaways</h2>
+          <p>If you’re looking to strengthen your MDM solution, or simply looking for better ways of thinking about device management, here are a few actionable tips and takeaways.</p>
+          <ul purpose="report-list">
+            <li>
+              <h3>Protect remote workers with zero trust, TLS, and 2FA</h3>
+              With workforces split almost evenly between fully remote, half remote, and no remote employees, focus on designing solutions using tools that are as effective in an office as they are when people are on an unknown internet connection. Not assigning trust to the network location of your devices is the safer approach, even if you don’t have anybody remote right now. Plus, not assigning trust is a useful business continuity mechanism if anything prevents employees from working at the office. To keep devices safe in the office as well as in remote locations, move away from VPNs to granular proxies with TLS and two-factor authentication (2FA) which don’t allow for lateral movement.
+            </li>
+            <li>
+            <h3>Either manage for Linux or don’t use Linux</h3>
+            Respondents above said that the second most frequent platform used in their organization but that’s not currently managed is Linux. The best approach is to either use Linux, or don’t. If you have many Linux workstations stuck in that gray area of being necessary yet not fully managed, see what would be needed to get your Linux workstations up to spec when it comes to secure configuration and monitoring. Otherwise, it’ll become more of a burden and vulnerability point than benefit.
+            </li>
+            <li>
+            <h3>Start managing containers now</h3>
+            Identify your container security needs. Many respondents are not sure if containers are in use at their company, and others do not currently use them. In both cases, there likely will be a need to secure containers soon, and organizations who don’t yet use them still have time to create their container strategy. Start by evaluating your existing IT and security stack and see what gaps you have in terms of vulnerability discovery and real-time monitoring of container workloads.
+            </li>
+            <li>
+            <h3>Make Windows part of your MDM</h3>
+            Move Windows workstations from legacy GPO management to MDM and Autopilot. Because there were other options to manage them, Windows systems are less often managed by MDM, and MDM policies are still catching up. However, in a remote world we can’t assume laptops will ever be connected to the LAN to receive their policies. Like container security above, now’s the time to bring Windows — the number one platform most use yet not managed above — into your MDM solution.
+            </li>
+            <li>
+            <h3>Use open APIs for real-time compliance</h3>
+            Many of the challenges above centered around being able to verify compliance in real time, and have visibility across all devices in the organization. In order to make compliance simpler, use tools with open APIs that let you query the status of devices, but that also alert you when a policy check fails on a device. This way, remediation can happen immediately.
+            </li>
+          </ul>
+        </div>
+        <div purpose="subsection">
+          <h3>The Future of Device Management</h3>
+          <p>Having a strong and comprehensive approach to device management is a necessity for organizations, especially those with remote workers. Make sure that the MDM solution you choose for your organization is providing the endpoint access and insights you need to keep your organization truly safe.</p>
         </div>
       </div>
     </div>

@@ -3,7 +3,158 @@ parasails.registerPage('state-of-device-management', {
   //  ║║║║║ ║ ║╠═╣║    ╚═╗ ║ ╠═╣ ║ ║╣
   //  ╩╝╚╝╩ ╩ ╩╩ ╩╩═╝  ╚═╝ ╩ ╩ ╩ ╩ ╚═╝
   data: {
-    //…
+    pieCharts: {
+      cloudMDM:{
+        elementID: 'cloud-mdm-chart',
+        legendPosition: 'bottom',
+        data: {
+          labels: ['Cloud solution', 'Self-managed'],
+          datasets: [{
+            label: 'percent',
+            data: [57.6, 42.4],
+            backgroundColor: ['#A182DF', '#E59CC4'],
+            color: '#000000',
+            borderWidth: 0,
+            borderColor: 'rgba(0,0,0,0)',
+          }]
+        },
+      },
+      mdmCharges: {
+        elementID: 'mdm-charges-chart',
+        legendPosition: 'bottom',
+        data: {
+          labels: ['MDM charges per device', 'MDM charges per user'],
+          datasets: [{
+            label: 'percent',
+            data: [50.38, 49.62],
+            backgroundColor: ['#F2A254', '#91D4C7'],
+            color: '#000000',
+            borderWidth: 0,
+            borderColor: 'rgba(0,0,0,0)',
+          }]
+        },
+      },
+      mdmInvolvement: {
+        elementID: 'mdm-involvement-chart',
+        title: 'Were you involved in the deployment of your organization’s current MDM solution?',
+        data: {
+          labels: ['Yes', 'No'],
+          datasets: [{
+            label: 'percent',
+            data: [48.3, 51.7],
+            backgroundColor: ['#A182DF', '#E59CC4'],
+          }]
+        },
+      },
+      mdmDeploymentTime: {
+        elementID: 'mdm-deployment-time-chart',
+        title: 'Estimated time to complete MDM deployment and implementation',
+        data: {
+          labels: ['<4 weeks', '1-3 months', '3-6 months', '6-9 months', '9-12 months', '12+ months'],
+          datasets: [{
+            label: 'percent',
+            data: [18.69, 15.66, 13.13, 16.16, 14.14, 22.22],
+            backgroundColor: ['#A182DF', '#E59CC4','#F2A254', '#91D4C7','#C4C2CE','#8191E5'],
+          }]
+        },
+      },
+      mdmVisibility: {
+        elementID: 'mdm-visibility-chart',
+        title: 'Does your current management strategy provide sufficient visibility / collect sufficient security data about enrolled devices?',
+        data: {
+          labels: ['Yes', 'No',],
+          datasets: [{
+            label: 'percent',
+            data: [46.83, 53.17],
+            backgroundColor: ['#A182DF', '#E59CC4'],
+          }]
+        },
+      },
+      mdmLaptopsAndServers: {
+        elementID: 'mdm-laptops-and-servers-chart',
+        title: 'Does your current management strategy provide sufficient visibility / collect sufficient security data about enrolled devices?',
+        data: {
+          labels: ['Yes', 'No',],
+          datasets: [{
+            label: 'percent',
+            data: [48.8, 51.2],
+            backgroundColor: ['#A182DF', '#E59CC4'],
+          }]
+        },
+      },
+      mdmInventory: {
+        elementID: 'mdm-inventory-chart',
+        title: 'Does your current device management strategy effectively keep an accurate inventory of all devices across all platforms?',
+        data: {
+          labels: ['Yes', 'No',],
+          datasets: [{
+            label: 'percent',
+            data: [49.8, 50.2],
+            backgroundColor: ['#A182DF', '#E59CC4'],
+          }]
+        },
+      },
+      mdmIncidentResponse: {
+        elementID: 'mdm-incident-response-chart',
+        title: 'Does your current management strategy allow you to respond to incidents in a timely manner, with enough context?',
+        data: {
+          labels: ['Yes', 'No',],
+          datasets: [{
+            label: 'percent',
+            data: [51.7, 48.3],
+            backgroundColor: ['#A182DF', '#E59CC4'],
+          }]
+        },
+      },
+      mdmRealtimeVisibility: {
+        elementID: 'mdm-realtime-visibility-chart',
+        title: 'Does your current management strategy give you enough visibility to investigate what’s happening on the device “right now”?',
+        data: {
+          labels: ['Yes', 'No',],
+          datasets: [{
+            label: 'percent',
+            data: [54.6, 45.4],
+            backgroundColor: ['#A182DF', '#E59CC4'],
+          }]
+        },
+      },
+      mdmComplianceEnforcement: {
+        elementID: 'mdm-compliance-enforcement-chart',
+        title: 'Does your current management strategy enforce compliance and security posture across all devices?',
+        data: {
+          labels: ['Yes', 'No',],
+          datasets: [{
+            label: 'percent',
+            data: [48.8, 51.2],
+            backgroundColor: ['#A182DF', '#E59CC4'],
+          }]
+        },
+      },
+      mdmWorkflowAutomation: {
+        elementID: 'mdm-workflow-automation-chart',
+        title: 'Does your current management strategy allow you to effectively automate your custom security workflows?',
+        data: {
+          labels: ['Yes', 'No',],
+          datasets: [{
+            label: 'percent',
+            data: [54.2, 45.9],
+            backgroundColor: ['#A182DF', '#E59CC4'],
+          }]
+        },
+      },
+      mdmSelfService: {
+        elementID: 'mdm-self-service-chart',
+        title: 'Does your current management strategy give end users a way to safely self-serve their own IT needs without involving the help desk?',
+        data: {
+          labels: ['Yes', 'No',],
+          datasets: [{
+            label: 'percent',
+            data: [48.8, 51.2],
+            backgroundColor: ['#A182DF', '#E59CC4'],
+          }]
+        },
+      },
+    },
     barCharts: {
       demographics: {
         gender: [
@@ -106,18 +257,158 @@ parasails.registerPage('state-of-device-management', {
           {label: 'macOS', percent: '23.4', color: '#8191E5'},
           {label: 'Blackberry OS', percent: '22', color: '#23AD8E'},
         ],
-      }
+      },
+      partTwo: {
+        deviceManagementStrategy: [
+          {label: 'Having a documented BTOD policy in place', percent: '31.7', color: '#A182DF'},
+          {label: 'Reporting how quickly vulnerable software is patched', percent: '30.2', color: '#E59CC4'},
+          {label: 'Providing a self-service experience', percent: '28.3', color: '#F1AC8C'},
+          {label: 'Focusing on a seamless end-user experience ', percent: '27.3', color: '#91D4C7'},
+          {label: 'Having a documented AUP (Acceptable Use Policy)', percent: '25.9', color: '#C4C2CE'},
+          {label: 'Tracking ownership, location, use, and other aspects of devices', percent: '25.9', color: '#8191E5'},
+          {label: 'Enabling risk-based policies', percent: '24.9', color: '#23AD8E'},
+          {label: 'Adopting passwordless authentication', percent: '23.9', color: '#E5D698'},
+          {label: 'Allowing scalable updates to numerous devices and apps', percent: '22.4', color: '#B99EEF'},
+          {label: 'Measuring point-in-time compliance across all devices', percent: '30.7', color: '#CB73A3'},
+        ],
+        topChallenges: [
+          {label: 'Verifying compliance across devices', percent: '22.9', color: '#A182DF'},
+          {label: 'Getting all devices enrolled', percent: '21', color: '#E59CC4'},
+          {label: 'Maintaining accurate visibility across all devices', percent: '20.5', color: '#F1AC8C'},
+          {label: 'Balancing end-user experience with security', percent: '19', color: '#91D4C7'},
+          {label: 'Investigating devices in real time', percent: '16.6', color: '#C4C2CE'},
+        ],
+      },
+      partThree: {
+        mdmInvestmentTriggers: [
+          {label: 'The shift to remote work', percent: '16.7', color: '#A182DF'},
+          {label: 'An upcoming compliance audit or certification', percent: '16.1', color: '#E59CC4'},
+          {label: 'More control over onboarding/enrollment experience', percent: '15.6', color: '#F1AC8C'},
+          {label: 'More visibility about the device and its installed software', percent: '15.1', color: '#91D4C7'},
+          {label: 'No other way to limit configuration options available to end users', percent: '14', color: '#C4C2CE'},
+          {label: 'Need to keep an accurate inventory of company devices', percent: '11.8', color: '#8191E5'},
+          {label: 'Required by a customer contract', percent: '10.8', color: '#23AD8E'},
+        ],
+        challengesEncountered: [
+          {label: 'Too complicated to configure and understand', percent: '36.1', color: '#A182DF'},
+          {label: 'Confusing or limited documentation', percent: '34.2', color: '#E59CC4'},
+          {label: 'Integrating with single-sign on (Okta, SAML, etc.)', percent: '32.7', color: '#F1AC8C'},
+          {label: 'Hard to get support', percent: '32.7', color: '#91D4C7'},
+          {label: 'Unable to automate everything we want with the API', percent: '32.2', color: '#C4C2CE'},
+          {label: 'Didn’t know where to start', percent: '30.7', color: '#8191E5'},
+          {label: 'Migrating devices enrolled in a previous MDM', percent: '30.2', color: '#23AD8E'},
+        ],
+      },
+      partFive: {
+        expectedBudgetChange: [
+          {label: 'Budget will increase', percent: '32.5', color: '#A182DF'},
+          {label: 'Budget will decrease', percent: '32.5', color: '#E59CC4'},
+          {label: 'Budget will stay the same', percent: '35.1', color: '#F1AC8C'},
+        ],
+        mostWantedFeatures: [
+          {label: 'Cloud-hosted by vendor', percent: '28.3', color: '#A182DF'},
+          {label: 'Built-in security controls with sensible defaults', percent: '28.3', color: '#E59CC4'},
+          {label: 'Inspectable, modifiable, open source code', percent: '26.3', color: '#F1AC8C'},
+          {label: 'Initial setup of software or tools at onboarding', percent: '25.9', color: '#91D4C7'},
+          {label: 'Real-time visibility of every device, less than a minute old', percent: '25.9', color: '#C4C2CE'},
+          {label: 'Collecting security data from enrolled devices', percent: '25.9', color: '#8191E5'},
+          {label: 'GitOps workflows for configuration', percent: '24.4', color: '#23AD8E'},
+          {label: 'Remotely locking or wiping devices', percent: '23.4', color: '#E5D698'},
+          {label: 'Integration with single-sign on (Okta, etc.)', percent: '23.4', color: '#B99EEF'},
+          {label: '24/7 support', percent: '23.4', color: '#CB73A3'},
+          {label: 'Developer-friendly API and webhooks', percent: '22.9', color: '#E3B6A0'},
+          {label: 'Device posture information available in API or integrations ("zero trust")', percent: '22.9', color: '#91D49C'},
+          {label: 'Ability to know what apps, packages, or browser extensions are installed', percent: '22.9', color: '#A5A1B7'},
+          {label: 'Ability to patch operating systems', percent: '22.4', color: '#82A8D3'},
+          {label: 'Self-managed (hosted by company)', percent: '22.4', color: '#23ADA5'},
+          {label: 'Ability to patch third party apps, packages, browser plugins', percent: '22', color: '#F1CD98'},
+          {label: 'Device types supported', percent: '22', color: '#8972B8'},
+          {label: 'Ability to auto-detect new vulnerabilities in packages, apps, browser plugins', percent: '20', color: '#FC838A'},
+          {label: 'Ability to limit OS configuration available to end users ("guest users," etc.)', percent: '19.5', color: '#F2D68E'},
+          {label: 'Self-service IT support', percent: '17.6', color: '#9DC78E'},
+        ],
+        deviceManagementPriorities: [
+          {label: 'Device security such as multi-factor authentication (MFA) at login', percent: '18.1', color: '#A182DF'},
+          {label: 'Zero-touch enrollment', percent: '14.2', color: '#E59CC4'},
+          {label: 'Patching third-party applications and packages', percent: '13.2', color: '#F1AC8C'},
+          {label: 'Supporting fully remote teams', percent: '12.7', color: '#91D4C7'},
+          {label: 'Patching operating systems', percent: '11.7', color: '#C4C2CE'},
+          {label: 'Improving overall visibility', percent: '11.2', color: '#8191E5'},
+          {label: 'Adopting a self-service IT approach', percent: '10.2', color: '#23AD8E'},
+          {label: 'Blocking or allowing SSO (single sign-on) based on device state', percent: '8.8', color: '#E5D698'},
+        ],
+      },
     },
+
   },
 
   //  ╦  ╦╔═╗╔═╗╔═╗╦ ╦╔═╗╦  ╔═╗
   //  ║  ║╠╣ ║╣ ║  ╚╦╝║  ║  ║╣
   //  ╩═╝╩╚  ╚═╝╚═╝ ╩ ╚═╝╩═╝╚═╝
   beforeMount: function() {
-
+    // console.log(this.pieCharts);
   },
   mounted: async function() {
-    //…
+
+    for(let index in this.pieCharts) {
+      // console.log(this.pieCharts[index]);
+      const ctx = this.pieCharts[index].elementID;
+      // cloning this chart's data object to apply the standard configuration options
+      let defaultConfig = [{
+        color: '#000000',
+        borderWidth: 0,
+        borderColor: 'rgba(0,0,0,0)',
+      }];
+      let clonedChartData = _.clone(this.pieCharts[index].data);
+      _.merge(clonedChartData.datasets, defaultConfig);
+      let myChart = new Chart(ctx, {
+        type: 'doughnut',
+        data: clonedChartData,
+        options: {
+          cutout: '40%',
+          aspectRatio: this.pieCharts[index].title ? 1 : 1,
+          layout: {
+            autoPadding: false,
+          },
+          plugins: {
+            title: {
+              display: this.pieCharts[index].title,
+              text: this.pieCharts[index].title,
+              color: '#000000',
+              fullSize: false,
+              align: 'start',
+              padding: {
+                bottom: 16,
+                top: 0
+              },
+              font: {
+                family: 'Nunito Sans',
+                weight: 600,
+                size: 16,
+              }
+            },
+            legend: {
+              position: this.pieCharts[index].legendPosition ? this.pieCharts[index].legendPosition : 'right',
+              labels: {
+                generateLabels: (chart) => {
+                  const datasets = chart.data.datasets;
+                  return datasets[0].data.map((data, i) => ({
+                    text: `${chart.data.labels[i]} (${data}%)`,
+                    fillStyle: datasets[0].backgroundColor[i],
+                    pointStyle: 'rectRounded',
+                    fontColor: '#000000',
+                    lineWidth: 0,
+                  }));
+                },
+                usePointStyle: true,
+              }
+            }
+          }
+        }
+      });
+    }
+    // this.drawChartsOnPage();
+
   },
 
   //  ╦╔╗╔╔╦╗╔═╗╦═╗╔═╗╔═╗╔╦╗╦╔═╗╔╗╔╔═╗
@@ -125,5 +416,25 @@ parasails.registerPage('state-of-device-management', {
   //  ╩╝╚╝ ╩ ╚═╝╩╚═╩ ╩╚═╝ ╩ ╩╚═╝╝╚╝╚═╝
   methods: {
     //…
+    drawChartsOnPage: function() {
+      for(let index in this.pieCharts) {
+        console.log(this.pieCharts[index]);
+        let ctx = $(this.pieCharts[index].elementID);
+        console.log(ctx);
+        const myChart = new Chart(ctx, {
+          type: 'doughnut',
+          data: this.pieCharts[index].data,
+          options: {
+            responsive: false,
+            plugins: {
+              legend: {
+                position: 'bottom',
+              }
+            }
+          }
+        });
+      }
+    },
   }
 });
+//
