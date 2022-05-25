@@ -78,6 +78,11 @@ export default {
     const policyResponse = options?.policyResponse || "passing";
     const softwareId = options?.softwareId || null;
     const visibleColumns = options?.visibleColumns || null;
+
+    if (!sortBy.length) {
+      throw Error("sortBy is a required field.");
+    }
+
     const orderKeyParam = `?order_key=${sortBy[0].key}`;
     const orderDirection = `&order_direction=${sortBy[0].direction}`;
 
