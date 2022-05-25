@@ -326,6 +326,8 @@ func processRepoMD(mdURL *url.URL, localDir string, verbose bool) error {
 		if data.Type != "primary_db" && data.Type != "other_db" {
 			continue
 		}
+		// clone the url and replace repomd.xml with the path to sqlite db
+		// eg /centos/7/os/x86_64/repodata/repomd.xml becomes /centos/7/os/x86_64/repodata/6d0c3a488c282fe537794b5946b01e28c7f44db79097bb06826e1c0c88bad5ef-primary.sqlite.bz2
 		clone := *mdURL
 		sqliteURL := &clone
 		sqliteURL.Path = strings.TrimSuffix(sqliteURL.Path, "repomd.xml") + strings.TrimPrefix(data.Location.Href, "repodata/")
