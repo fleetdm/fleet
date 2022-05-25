@@ -72,7 +72,7 @@ func TestHostAuth(t *testing.T) {
 		}
 		return globalHost, nil
 	}
-	ds.HostFunc = func(ctx context.Context, id uint, skipLoadingExtras bool) (*fleet.Host, error) {
+	ds.HostFunc = func(ctx context.Context, id uint, includeCVEScores bool) (*fleet.Host, error) {
 		if id == 1 {
 			return teamHost, nil
 		}

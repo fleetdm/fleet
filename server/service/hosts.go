@@ -255,8 +255,7 @@ func (r getHostResponse) error() error { return r.Err }
 
 func getHostEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
 	req := request.(*getHostRequest)
-	skipLoadingExtras := false
-	host, err := svc.GetHost(ctx, req.ID, skipLoadingExtras)
+	host, err := svc.GetHost(ctx, req.ID, false)
 	if err != nil {
 		return getHostResponse{Err: err}, nil
 	}
@@ -269,7 +268,7 @@ func getHostEndpoint(ctx context.Context, request interface{}, svc fleet.Service
 	return getHostResponse{Host: resp}, nil
 }
 
-func (svc *Service) GetHost(ctx context.Context, id uint, skipLoadingExtras bool) (*fleet.HostDetail, error) {
+func (svc *Service) GetHost(ctx context.Context, id uint, includeCVEScores bool) (*fleet.HostDetail, error) {
 	alreadyAuthd := svc.authz.IsAuthenticatedWith(ctx, authz.AuthnDeviceToken)
 	if !alreadyAuthd {
 		// First ensure the user has access to list hosts, then check the specific
@@ -278,7 +277,8 @@ func (svc *Service) GetHost(ctx context.Context, id uint, skipLoadingExtras bool
 			return nil, err
 		}
 	}
-	host, err := svc.ds.Host(ctx, id, skipLoadingExtras)
+
+	host, err := svc.ds.Host(ctx, id, includeCVEScores)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "get host")
 	}
