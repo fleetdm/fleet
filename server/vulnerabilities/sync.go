@@ -68,7 +68,7 @@ func DownloadEPSSFeed(vulnPath string, client *http.Client) error {
 	}
 	path := filepath.Join(vulnPath, strings.TrimSuffix(epssFilename, ".gz"))
 
-	err = download.Download(client, u, path)
+	err = download.DownloadAndExtract(client, u, path)
 	if err != nil {
 		return fmt.Errorf("download %s: %w", u, err)
 	}

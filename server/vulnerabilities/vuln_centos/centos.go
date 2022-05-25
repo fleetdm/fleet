@@ -338,7 +338,7 @@ func processRepoMD(mdURL *url.URL, localDir string, verbose bool) error {
 		case err == nil:
 			// File already exists, nothing to do.
 		case errors.Is(err, os.ErrNotExist):
-			if err := download.Download(client, sqliteURL, filePath); err != nil {
+			if err := download.DownloadAndExtract(client, sqliteURL, filePath); err != nil {
 				return err
 			}
 		default:
