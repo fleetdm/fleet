@@ -121,7 +121,7 @@ func DownloadCPEDatabase(
 	if err != nil {
 		return err
 	}
-	if err := download.Download(client, u, dbPath); err != nil {
+	if err := download.DownloadAndExtract(client, u, dbPath); err != nil {
 		return err
 	}
 

@@ -18,7 +18,7 @@ import (
 
 // Download downloads a file from a URL and writes it to path.
 func Download(client *http.Client, u *url.URL, path string) error {
-	return nil
+	return download(client, u, path, false)
 }
 
 // DownloadAndExtract downloads and extracts a file from a URL and writes it to path.
