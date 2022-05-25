@@ -611,18 +611,19 @@ func (ds *Datastore) GenerateHostStatusStatistics(ctx context.Context, filter fl
 	return &summary, nil
 }
 
-func shouldCleanTeamPolicies(firstID, secondID *uint) bool {
-	// both are nil, don't update
-	if firstID == nil && secondID == nil {
+func shouldCleanTeamPolicies(currentTeamID, newTeamID *uint) bool {
+	// if the host is global, then there should be nothing to clean up
+	if currentTeamID == nil {
 		return false
 	}
 
-	// only one of the two is nil, update
-	if firstID == nil || secondID == nil {
+	// if the host is switching from a team to global, we should clean up
+	if newTeamID == nil {
 		return true
 	}
 
-	return *firstID != *secondID
+	// clean up if the host is switching to a different team
+	return *currentTeamID != *newTeamID
 }
 
 // EnrollHost enrolls a host
