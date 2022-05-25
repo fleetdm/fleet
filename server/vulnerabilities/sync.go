@@ -72,13 +72,13 @@ func DownloadEPSSFeed(vulnPath string, client *http.Client) error {
 	return nil
 }
 
-// EPSSScore represents the EPSS score for a CVE.
-type EPSSScore struct {
+// epssScore represents the EPSS score for a CVE.
+type epssScore struct {
 	CVE   string
 	Score float64
 }
 
-func parseEPSSScoresFile(path string) ([]EPSSScore, error) {
+func parseEPSSScoresFile(path string) ([]epssScore, error) {
 	f, err := os.Open(path)
 	if err != nil {
 		return nil, err
@@ -92,7 +92,7 @@ func parseEPSSScoresFile(path string) ([]EPSSScore, error) {
 	// skip the header
 	r.Read()
 
-	var epssScores []EPSSScore
+	var epssScores []epssScore
 	for {
 		rec, err := r.Read()
 		if err == io.EOF {
@@ -114,7 +114,7 @@ func parseEPSSScoresFile(path string) ([]EPSSScore, error) {
 
 		// ignore percentile
 
-		epssScores = append(epssScores, EPSSScore{
+		epssScores = append(epssScores, epssScore{
 			CVE:   cve,
 			Score: score,
 		})
