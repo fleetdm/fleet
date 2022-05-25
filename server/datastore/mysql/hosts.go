@@ -612,14 +612,14 @@ func (ds *Datastore) GenerateHostStatusStatistics(ctx context.Context, filter fl
 }
 
 func shouldCleanTeamPolicies(firstID, secondID *uint) bool {
-	// only one of the two is nil, update
-	if firstID != secondID {
-		return true
-	}
-
 	// both are nil, don't update
 	if firstID == nil && secondID == nil {
 		return false
+	}
+
+	// only one of the two is nil, update
+	if firstID == nil || secondID == nil {
+		return true
 	}
 
 	return *firstID != *secondID

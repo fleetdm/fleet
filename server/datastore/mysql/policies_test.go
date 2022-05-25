@@ -1008,6 +1008,13 @@ func testTeamPolicyTransfer(t *testing.T, ds *Datastore) {
 	_, err = ds.EnrollHost(context.Background(), "2", "2", &team2.ID, 0)
 	require.NoError(t, err)
 	checkPassingCount(0)
+
+	// team policies are removed if the host is re-enrolled without a team
+	require.NoError(t, ds.RecordPolicyQueryExecutions(context.Background(), host2, map[uint]*bool{teamPolicy.ID: ptr.Bool(true), globalPolicy.ID: ptr.Bool(true)}, time.Now(), false))
+	checkPassingCount(1)
+	_, err = ds.EnrollHost(context.Background(), "2", "2", nil, 0)
+	require.NoError(t, err)
+	checkPassingCount(0)
 }
 
 func testApplyPolicySpec(t *testing.T, ds *Datastore) {
