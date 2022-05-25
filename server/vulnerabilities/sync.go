@@ -23,6 +23,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/ptr"
 )
 
+// Sync downloads all the vulnerability data sources and loads cve scores into the database.
 func Sync(vulnPath string, config config.FleetConfig, ds fleet.Datastore) error {
 	if config.Vulnerabilities.DisableDataSync {
 		return nil
@@ -56,6 +57,7 @@ func Sync(vulnPath string, config config.FleetConfig, ds fleet.Datastore) error 
 const epssFeedsURL = "https://epss.cyentia.com"
 const epssFilename = "epss_scores-current.csv.gz"
 
+// DownloadEPSSFeed downloads the EPSS scores feed.
 func DownloadEPSSFeed(vulnPath string, client *http.Client) error {
 	urlString := epssFeedsURL + "/" + epssFilename
 	u, err := url.Parse(urlString)
@@ -148,6 +150,7 @@ type knownExploitedVulnerability struct {
 	// DueDate           time.time `json:"dueDate"`
 }
 
+// DownloadCISAKnownExploitsFeed downloads the CISA known exploited vulnerabilities feed.
 func DownloadCISAKnownExploitsFeed(vulnPath string, client *http.Client) error {
 	path := filepath.Join(vulnPath, cisaKnownExploitsFilename)
 
@@ -164,6 +167,8 @@ func DownloadCISAKnownExploitsFeed(vulnPath string, client *http.Client) error {
 	return nil
 }
 
+// LoadCVEScores loads the cvss scores, epss scores, and known exploits from the previously downloaded feeds and saves
+// them to the database.
 func LoadCVEScores(vulnPath string, ds fleet.Datastore) error {
 	// load cvss scores
 	files, err := getNVDCVEFeedFiles(vulnPath)
