@@ -699,7 +699,6 @@ func (s *integrationEnterpriseTestSuite) TestExternalIntegrationsTeamConfig() {
 
 	// set environmental varible to use Zendesk test client
 	os.Setenv("TEST_ZENDESK_CLIENT", "true")
-	defer os.Unsetenv("TEST_ZENDESK_CLIENT")
 
 	// enable a Zendesk automation - should fail as the webhook is enabled too
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), fleet.TeamPayload{Integrations: &fleet.TeamIntegrations{
