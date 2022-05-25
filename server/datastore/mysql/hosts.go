@@ -983,11 +983,7 @@ func (ds *Datastore) TotalAndUnseenHostsSince(ctx context.Context, daysCount int
 	}
 
 	// convert daysCount to integer number of seconds for more precision in sql query
-	dur, err := time.ParseDuration(fmt.Sprintf("%dh", daysCount*24))
-	if err != nil {
-		return 0, 0, ctxerr.Wrap(ctx, err, "getting total and unseen host counts")
-	}
-	unseenInterval := int(dur.Seconds())
+	unseenSeconds := daysCount * 24 * 60 * 60
 
 	err = sqlx.GetContext(ctx, ds.reader, &counts,
 		`SELECT
@@ -996,7 +992,7 @@ func (ds *Datastore) TotalAndUnseenHostsSince(ctx context.Context, daysCount int
 		FROM hosts h
 		LEFT JOIN host_seen_times hst
 		ON h.id = hst.host_id`,
-		unseenInterval,
+		unseenSeconds,
 	)
 
 	if err != nil {
