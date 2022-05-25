@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"errors"
+	"fmt"
 	"os"
 	"strconv"
 	"strings"
@@ -295,14 +296,23 @@ func checkVulnerabilities(
 	config config.FleetConfig,
 	collectRecentVulns bool,
 ) map[string][]string {
-	err := vulnerabilities.Sync(vulnPath, config, ds)
-	if err != nil {
-		level.Error(logger).Log("msg", "syncing vulnerability database", "err", err)
-		sentry.CaptureException(err)
-		return nil
+	if !config.Vulnerabilities.DisableDataSync {
+		err := vulnerabilities.Sync(vulnPath, config.Vulnerabilities.CPEDatabaseURL, ds)
+		if err != nil {
+			level.Error(logger).Log("msg", "syncing vulnerability database", "err", err)
+			sentry.CaptureException(err)
+			return nil
+		}
 	}
 
-	err = vulnerabilities.TranslateSoftwareToCPE(ctx, ds, vulnPath, logger)
+	if err := vulnerabilities.LoadCVEScores(vulnPath, ds); err != nil {
+		err = fmt.Errorf("load cve scores: %w", err)
+		level.Error(logger).Log("err", err)
+		sentry.CaptureException(err)
+		// continue
+	}
+
+	err := vulnerabilities.TranslateSoftwareToCPE(ctx, ds, vulnPath, logger)
 	if err != nil {
 		level.Error(logger).Log("msg", "analyzing vulnerable software: Software->CPE", "err", err)
 		sentry.CaptureException(err)

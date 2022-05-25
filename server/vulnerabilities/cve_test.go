@@ -14,7 +14,6 @@ import (
 
 	"github.com/WatchBeam/clock"
 	"github.com/fleetdm/fleet/v4/pkg/nettest"
-	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/mock"
 	kitlog "github.com/go-kit/kit/log"
 	"github.com/stretchr/testify/assert"
@@ -182,22 +181,4 @@ func TestSyncsCVEFromURL(t *testing.T) {
 		err.Error(),
 		fmt.Sprintf("1 synchronisation error:\n\tunexpected size for \"%s/feeds/json/cve/1.1/nvdcve-1.1-2002.json.gz\" (200 OK): want 1453293, have 0", ts.URL),
 	)
-}
-
-func TestSyncNoopIfDisableSync(t *testing.T) {
-	ds := new(mock.Store)
-
-	tempDir := t.TempDir()
-	cfg := config.FleetConfig{
-		Vulnerabilities: config.VulnerabilitiesConfig{
-			DisableDataSync: true,
-		},
-	}
-	err := Sync(tempDir, cfg, ds)
-	require.NoError(t, err)
-
-	// test that nothing was downloaded
-	entries, err := os.ReadDir(tempDir)
-	require.NoError(t, err)
-	require.Empty(t, entries)
 }

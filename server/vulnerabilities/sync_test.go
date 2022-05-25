@@ -8,7 +8,6 @@ import (
 
 	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
 	"github.com/fleetdm/fleet/v4/pkg/nettest"
-	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mock"
 	"github.com/stretchr/testify/require"
@@ -41,7 +40,7 @@ func TestDownloadCISAKnownExploitsFeed(t *testing.T) {
 	assert.FileExists(t, filepath.Join(tempDir, cisaKnownExploitsFilename))
 }
 
-func TestSync(t *testing.T) {
+func TestLoadCVEScores(t *testing.T) {
 	nettest.Run(t)
 
 	ds := new(mock.Store)
@@ -65,9 +64,11 @@ func TestSync(t *testing.T) {
 	}
 
 	tempDir := t.TempDir()
-	err := Sync(tempDir, config.FleetConfig{}, ds)
+	err := Sync(tempDir, "", ds)
 	require.NoError(t, err)
 
+	err = LoadCVEScores(tempDir, ds)
+	require.NoError(t, err)
 	require.True(t, ds.InsertCVEScoresFuncInvoked)
 
 	// ensure some non NULL values were inserted

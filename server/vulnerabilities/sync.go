@@ -18,20 +18,15 @@ import (
 	feednvd "github.com/facebookincubator/nvdtools/cvefeed/nvd"
 	"github.com/fleetdm/fleet/v4/pkg/download"
 	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
-	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 )
 
 // Sync downloads all the vulnerability data sources and loads cve scores into the database.
-func Sync(vulnPath string, config config.FleetConfig, ds fleet.Datastore) error {
-	if config.Vulnerabilities.DisableDataSync {
-		return nil
-	}
-
+func Sync(vulnPath string, cpeDatabaseURL string, ds fleet.Datastore) error {
 	client := fleethttp.NewClient()
 
-	if err := DownloadCPEDatabase(vulnPath, client, WithCPEURL(config.Vulnerabilities.CPEDatabaseURL)); err != nil {
+	if err := DownloadCPEDatabase(vulnPath, client, WithCPEURL(cpeDatabaseURL)); err != nil {
 		return fmt.Errorf("sync CPE database: %w", err)
 	}
 
@@ -45,10 +40,6 @@ func Sync(vulnPath string, config config.FleetConfig, ds fleet.Datastore) error 
 
 	if err := DownloadCISAKnownExploitsFeed(vulnPath, client); err != nil {
 		return fmt.Errorf("sync CISA known exploits feed: %w", err)
-	}
-
-	if err := LoadCVEScores(vulnPath, ds); err != nil {
-		return fmt.Errorf("load cve scores: %w", err)
 	}
 
 	return nil
@@ -104,6 +95,7 @@ func parseEPSSScoresFile(path string) ([]epssScore, error) {
 			return nil, err
 		}
 
+		// each row should have 3 records: cve, epss, and percentile
 		if len(rec) != 3 {
 			continue
 		}
@@ -137,7 +129,7 @@ type knownExploitedVulnerabilitiesCatalog struct {
 	Vulnerabilities []knownExploitedVulnerability `json:"vulnerabilities"`
 }
 
-// KnownExplitedVulnerability represents a known exploit in the CISA catalog.
+// knownExploitedVulnerability represents a known exploit in the CISA catalog.
 type knownExploitedVulnerability struct {
 	CVEID string `json:"cveID"`
 	// remaining fields omitted
