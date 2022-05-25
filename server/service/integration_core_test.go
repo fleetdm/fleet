@@ -3086,7 +3086,7 @@ func (s *integrationTestSuite) TestExternalIntegrationsConfig() {
 				}
 			]
 		}
-	}`, srv.URL)), http.StatusBadRequest)
+	}`, srv.URL)), http.StatusUnprocessableEntity)
 
 	// even disabled integrations are tested for Jira connection and credentials,
 	// so this fails because the 2nd one uses the "fail" username.
@@ -3104,7 +3104,7 @@ func (s *integrationTestSuite) TestExternalIntegrationsConfig() {
 					"url": %[1]q,
 					"username": "fail",
 					"api_token": "bar2",
-					"project_key": "qux",
+					"project_key": "qux2",
 					"enable_software_vulnerabilities": false
 				}
 			]

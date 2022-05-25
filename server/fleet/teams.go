@@ -128,33 +128,6 @@ type TeamWebhookSettings struct {
 	FailingPoliciesWebhook FailingPoliciesWebhookSettings `json:"failing_policies_webhook"`
 }
 
-// TeamIntegrations contains the configuration for external services'
-// integrations for a specific team.
-type TeamIntegrations struct {
-	Jira    []*TeamJiraIntegration    `json:"jira"`
-	Zendesk []*TeamZendeskIntegration `json:"zendesk"`
-}
-
-// TeamJiraIntegration configures an instance of an integration with the Jira
-// system for a team.
-type TeamJiraIntegration struct {
-	URL                   string `json:"url"`
-	Username              string `json:"username"`
-	APIToken              string `json:"api_token"`
-	ProjectKey            string `json:"project_key"`
-	EnableFailingPolicies bool   `json:"enable_failing_policies"`
-}
-
-// TeamZendeskIntegration configures an instance of an integration with the
-// external Zendesk service for a team.
-type TeamZendeskIntegration struct {
-	URL                   string `json:"url"`
-	Email                 string `json:"email"`
-	APIToken              string `json:"api_token"`
-	GroupID               int64  `json:"group_id"`
-	EnableFailingPolicies bool   `json:"enable_failing_policies"`
-}
-
 // Scan implements the sql.Scanner interface
 func (t *TeamConfig) Scan(val interface{}) error {
 	switch v := val.(type) {

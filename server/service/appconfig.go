@@ -228,36 +228,13 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte) (*fleet.AppCo
 		appConfig.SMTPSettings.SMTPConfigured = false
 	}
 
-	// if Jira integration settings are modified or added, test it.
-	var newJiraConfig []*fleet.JiraIntegration
-	newJiraByProjectKey := make(map[string]*fleet.JiraIntegration)
-	for i, new := range newAppConfig.Integrations.Jira {
-		// first check for project key uniqueness
-		if _, ok := newJiraByProjectKey[new.ProjectKey]; ok {
-			return nil, ctxerr.Wrap(ctx, &badRequestError{message: fmt.Sprintf("duplicate Jira integration for project key %s", new.ProjectKey)})
+	if err := fleet.ValidateJiraIntegrations(ctx, storedJiraByProjectKey, newAppConfig.Integrations.Jira); err != nil {
+		if errors.As(err, &fleet.IntegrationTestError{}) {
+			return nil, ctxerr.Wrap(ctx, &badRequestError{message: err.Error()})
 		}
-		newJiraByProjectKey[new.ProjectKey] = new
-
-		// check if existing integration is being edited
-		if old, ok := storedJiraByProjectKey[new.ProjectKey]; ok {
-			if old == *new {
-				newJiraConfig = append(newJiraConfig, &old)
-				// no further validation for unchanged integration
-				continue
-			}
-			// use stored API token if request does not contain new token
-			if new.APIToken == "" || new.APIToken == fleet.MaskedPassword {
-				new.APIToken = old.APIToken
-			}
-		}
-
-		// new or updated, test it
-		if err := svc.makeTestJiraRequest(ctx, new); err != nil {
-			return nil, ctxerr.Wrapf(ctx, err, "Jira integration at index %d", i)
-		}
-		newJiraConfig = append(newJiraConfig, new)
+		return nil, ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("Jira integration", err.Error()))
 	}
-	appConfig.Integrations.Jira = newJiraConfig
+	appConfig.Integrations.Jira = newAppConfig.Integrations.Jira
 
 	// if Zendesk integration settings are modified or added, test it.
 	var newZendeskConfig []*fleet.ZendeskIntegration
