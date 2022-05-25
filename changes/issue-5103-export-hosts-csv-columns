@@ -1,1 +1,1 @@
-* Add the `columns` query parameter to the export hosts as CSV API endpoint to select the list of columns to include.
+* Added the `columns` query parameter to the export hosts as CSV API endpoint to select the list of columns to include.

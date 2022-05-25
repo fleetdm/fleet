@@ -14,7 +14,7 @@ We focused on strengthening authentication, monitoring, email security, access t
 
 Expressed on the [Cyber Defense Matrix](https://cyberdefensematrix.com/), we want to identify users correctly, using 2FA, to protect applications, in this case, the applications in Google Workspace. We also want to protect data contained in our Google Workspace environment by implementing access controls to limit third-party applications’ access to it.
 
-![Cyber Defense Matrix](https://miro.medium.com/1*XoGaXKI51QyIFYcyXv9Zgw.png)
+![Cyber Defense Matrix](../website/assets/images/articles/tales-from-fleet-security-securing-google-workspace-1-800x450@2x.png)
 
 ## Challenges
 

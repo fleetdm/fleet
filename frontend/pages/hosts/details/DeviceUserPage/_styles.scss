@@ -301,8 +301,7 @@
       }
     }
 
-    &--offline,
-    &--mia {
+    &--offline {
       &:before {
         background-color: $ui-fleet-black-25;
         border-radius: 100%;
@@ -312,10 +311,6 @@
         margin-right: $pad-small;
         width: 8px;
       }
-    }
-
-    &--mia {
-      text-transform: uppercase;
     }
   }
 
@@ -380,8 +375,8 @@
     text-align: center;
   }
 
-  &__device-mapping {
-    .device-user-tooltip {
+  &__device_mapping {
+    .device_mapping--tooltip {
       flex-direction: column;
       justify-content: start;
       text-align: left;
@@ -422,6 +417,10 @@
 
   .form-field--dropdown {
     margin: 0;
+  }
+
+  .section--policies .data-table-block .data-table__table thead .response__header {
+    width: $col-md;
   }
 }
 

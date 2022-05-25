@@ -6,7 +6,9 @@ import (
 )
 
 var (
-	UserNoRoles = &fleet.User{
+	GoodPassword  = "password123#"
+	GoodPassword2 = "password123!"
+	UserNoRoles   = &fleet.User{
 		ID: 1,
 	}
 	UserAdmin = &fleet.User{

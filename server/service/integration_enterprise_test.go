@@ -11,6 +11,7 @@ import (
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/ptr"
+	"github.com/fleetdm/fleet/v4/server/test"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
@@ -161,7 +162,7 @@ func (s *integrationEnterpriseTestSuite) TestTeamPolicies() {
 		s.token = oldToken
 	})
 
-	password := "garbage"
+	password := test.GoodPassword
 	email := "testteam@user.com"
 
 	u := &fleet.User{
@@ -271,7 +272,7 @@ func (s *integrationEnterpriseTestSuite) TestAvailableTeams() {
 		Email:      "available@example.com",
 		GlobalRole: ptr.String("observer"),
 	}
-	err = user.SetPassword("foobar123#", 10, 10)
+	err = user.SetPassword(test.GoodPassword, 10, 10)
 	require.Nil(t, err)
 	user, err = s.ds.NewUser(context.Background(), user)
 	require.Nil(t, err)
@@ -381,7 +382,7 @@ func (s *integrationEnterpriseTestSuite) TestTeamEndpoints() {
 		Email:      "user@example.com",
 		GlobalRole: ptr.String("observer"),
 	}
-	require.NoError(t, user.SetPassword("foobar123#", 10, 10))
+	require.NoError(t, user.SetPassword(test.GoodPassword, 10, 10))
 	user, err := s.ds.NewUser(context.Background(), user)
 	require.NoError(t, err)
 

@@ -22,7 +22,7 @@
     align-items: center;
     justify-content: space-between;
     margin-bottom: $pad-large;
-    
+
     .Select-control {
       background-color: $ui-off-white !important;
     }
@@ -41,10 +41,6 @@
     .fleeticon-offline {
       color: $ui-error;
     }
-
-    .fleeticon-mia {
-      color: $core-fleet-black;
-    }
   }
 
   &__platforms {
@@ -54,7 +50,8 @@
     span {
       font-size: $small;
     }
-    .Select-control, .Select-value {
+    .Select-control,
+    .Select-value {
       background-color: $core-white !important;
     }
   }
@@ -69,7 +66,7 @@
     display: grid;
     row-gap: $pad-medium;
 
-    // if we have an odd number of elements, take 
+    // if we have an odd number of elements, take
     // the last one and stretch it across the grid
     .homepage-info-card:nth-child(odd):last-child {
       grid-column-start: span 2;

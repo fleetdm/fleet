@@ -175,7 +175,7 @@ type Datastore interface {
 	// NewHost is deprecated and will be removed. Hosts should always be enrolled via EnrollHost.
 	NewHost(ctx context.Context, host *Host) (*Host, error)
 	DeleteHost(ctx context.Context, hid uint) error
-	Host(ctx context.Context, id uint, skipLoadingExtras bool) (*Host, error)
+	Host(ctx context.Context, id uint) (*Host, error)
 	ListHosts(ctx context.Context, filter TeamFilter, opt HostListOptions) ([]*Host, error)
 	MarkHostsSeen(ctx context.Context, hostIDs []uint, t time.Time) error
 	SearchHosts(ctx context.Context, filter TeamFilter, query string, omit ...uint) ([]*Host, error)
@@ -343,7 +343,10 @@ type Datastore interface {
 	AddCPEForSoftware(ctx context.Context, software Software, cpe string) error
 	AllCPEs(ctx context.Context) ([]string, error)
 	InsertCVEForCPE(ctx context.Context, cve string, cpes []string) (int64, error)
-	SoftwareByID(ctx context.Context, id uint) (*Software, error)
+	SoftwareByID(ctx context.Context, id uint, includeCVEScores bool) (*Software, error)
+	// ListSoftwareByHostIDShort lists software by host ID, but does not include CPEs or vulnerabilites.
+	// It is meant to be used when only minimal software fields are required eg when updating host software.
+	ListSoftwareByHostIDShort(ctx context.Context, hostID uint) ([]Software, error)
 	// CalculateHostsPerSoftware calculates the number of hosts having each
 	// software installed and stores that information in the software_host_counts
 	// table.
@@ -353,6 +356,7 @@ type Datastore interface {
 	CalculateHostsPerSoftware(ctx context.Context, updatedAt time.Time) error
 	HostsByCPEs(ctx context.Context, cpes []string) ([]*HostShort, error)
 	HostsByCVE(ctx context.Context, cve string) ([]*HostShort, error)
+	InsertCVEScores(ctx context.Context, cveScores []CVEScore) error
 
 	///////////////////////////////////////////////////////////////////////////////
 	// ActivitiesStore

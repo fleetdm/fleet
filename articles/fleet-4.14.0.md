@@ -1,6 +1,6 @@
 # Fleet 4.14.0 adds beta support for automatic ticket creation and improves the live query experience.
 
-![Fleet 4.14.0](http://fleetdm.com/images/articles/4-14-0-cover-1600x900@2x.png)
+![Fleet 4.14.0](../website/assets/images/articles/fleet-4.14.0-cover-1600x900@2x.png)
 
 Fleet 4.14.0 has arrived. Check out the full [changelog](https://github.com/fleetdm/fleet/releases/tag/fleet-v4.14.0) or continue reading to get the highlights.
 
@@ -14,7 +14,7 @@ For update instructions, see our [upgrade guide](https://fleetdm.com/docs/deploy
 ## Jira integration
 **Available in Fleet Free & Fleet Premium**
 
-![Jira integration](http://fleetdm.com/images/articles/jira-integration-1600x900@2x.png)
+![Jira integration](../website/assets/images/articles/fleet-4.14.0-1-1600x900@2x.png)
 
 You can now configure Fleet to automatically create a Jira issue (ticket) when a new vulnerability (CVE) is
 found on your hosts. No need to create tickets or spend time configuring a webhook manually.
@@ -30,14 +30,14 @@ Follow the steps below to configure Jira as a ticket destination:
 ## Improved live query experience
 **Available in Fleet Free & Fleet Premium**
 
-![Improved live query experience](http://fleetdm.com/images/articles/show-query-1600x900@2x.png)
+![Improved live query experience](../website/assets/images/articles/fleet-4.14.0-2-1600x900@2x.png)
 
 We added a “Show query” option to the live query results view. You can now double-check the syntax you used and compare that to your results without leaving the current view.
 
 ## Postman Collection
 **Available in Fleet Free & Fleet Premium**
 
-![Postman Collection](http://fleetdm.com/images/articles/postman-collection-1600x900@2x.png)
+![Postman Collection](../website/assets/images/articles/fleet-4.14.0-3-1600x900@2x.png)
 
 Fleet users can easily interact with Fleet's API routes using the new Postman Collection. Build and test integrations for running live queries, carving files, managing policies, and more!
 
@@ -74,4 +74,4 @@ Visit our [Update guide](https://fleetdm.com/docs/deploying/upgrading-fleet) in 
 <meta name="authorGitHubUsername" value="ksatter">
 <meta name="publishedOn" value="2022-05-06">
 <meta name="articleTitle" value="Fleet 4.14.0 adds beta support for automatic ticket creation and improves the live query experience.">
-<meta name="articleImageUrl" value="http://fleetdm.com/images/articles/4-14-0-cover-1600x900@2x.png">
+<meta name="articleImageUrl" value="../website/assets/images/articles/fleet-4.14.0-cover-1600x900@2x.png">
