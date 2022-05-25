@@ -1281,7 +1281,7 @@ const ManageHostsPage = ({
     evt.preventDefault();
 
     const hiddenColumnsStorage = localStorage.getItem("hostHiddenColumns");
-    let currentHiddenColumns;
+    let currentHiddenColumns = [];
     let visibleColumns;
     if (hiddenColumnsStorage) {
       currentHiddenColumns = JSON.parse(hiddenColumnsStorage);
