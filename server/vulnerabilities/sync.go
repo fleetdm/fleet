@@ -21,8 +21,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/ptr"
-	"github.com/hashicorp/go-multierror"
-	"go.uber.org/multierr"
 )
 
 func Sync(vulnPath string, config config.FleetConfig, ds fleet.Datastore) error {
@@ -32,29 +30,27 @@ func Sync(vulnPath string, config config.FleetConfig, ds fleet.Datastore) error 
 
 	client := fleethttp.NewClient()
 
-	var syncErr error
-
 	if err := DownloadCPEDatabase(vulnPath, client, WithCPEURL(config.Vulnerabilities.CPEDatabaseURL)); err != nil {
-		syncErr = multierror.Append(syncErr, fmt.Errorf("sync CPE database: %w", err))
+		return fmt.Errorf("sync CPE database: %w", err)
 	}
 
 	if err := DownloadNVDCVEFeed(vulnPath, ""); err != nil {
-		syncErr = multierr.Append(syncErr, fmt.Errorf("sync NVD CVE feed: %w", err))
+		return fmt.Errorf("sync NVD CVE feed: %w", err)
 	}
 
 	if err := DownloadEPSSFeed(vulnPath, client); err != nil {
-		syncErr = multierr.Append(syncErr, fmt.Errorf("sync EPSS CVE feed: %w", err))
+		return fmt.Errorf("sync EPSS CVE feed: %w", err)
 	}
 
 	if err := DownloadCISAKnownExploitsFeed(vulnPath, client); err != nil {
-		syncErr = multierr.Append(syncErr, fmt.Errorf("sync CISA known exploits feed: %w", err))
+		return fmt.Errorf("sync CISA known exploits feed: %w", err)
 	}
 
 	if err := LoadCVEScores(vulnPath, ds); err != nil {
-		syncErr = multierr.Append(syncErr, err)
+		return fmt.Errorf("load cve scores: %w", err)
 	}
 
-	return syncErr
+	return nil
 }
 
 const epssFeedsURL = "https://epss.cyentia.com"

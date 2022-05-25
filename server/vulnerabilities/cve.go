@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"io/fs"
 	"net/url"
 	"os"
 	"path"
@@ -71,14 +72,20 @@ var (
 
 func getNVDCVEFeedFiles(vulnPath string) ([]string, error) {
 	var files []string
-	err := filepath.Walk(vulnPath, func(path string, info os.FileInfo, err error) error {
-		if info.IsDir() {
+
+	err := filepath.WalkDir(vulnPath, func(path string, d fs.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+
+		if d.IsDir() {
 			return nil
 		}
 
 		if match := rxNVDCVEArchive.MatchString(path); !match {
 			return nil
 		}
+
 		files = append(files, path)
 		return nil
 	})
