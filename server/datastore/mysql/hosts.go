@@ -315,7 +315,7 @@ func (ds *Datastore) DeleteHost(ctx context.Context, hid uint) error {
 	})
 }
 
-func (ds *Datastore) Host(ctx context.Context, id uint, includeCVEScores bool) (*fleet.Host, error) {
+func (ds *Datastore) Host(ctx context.Context, id uint) (*fleet.Host, error) {
 	policiesColumns := `,
 		       coalesce(failing_policies.count, 0) as failing_policies_count,
 		       coalesce(failing_policies.count, 0) as total_issues_count`

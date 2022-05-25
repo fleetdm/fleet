@@ -142,7 +142,7 @@ type NewHostFunc func(ctx context.Context, host *fleet.Host) (*fleet.Host, error
 
 type DeleteHostFunc func(ctx context.Context, hid uint) error
 
-type HostFunc func(ctx context.Context, id uint, includeCVEScores bool) (*fleet.Host, error)
+type HostFunc func(ctx context.Context, id uint) (*fleet.Host, error)
 
 type ListHostsFunc func(ctx context.Context, filter fleet.TeamFilter, opt fleet.HostListOptions) ([]*fleet.Host, error)
 
@@ -1314,9 +1314,9 @@ func (s *DataStore) DeleteHost(ctx context.Context, hid uint) error {
 	return s.DeleteHostFunc(ctx, hid)
 }
 
-func (s *DataStore) Host(ctx context.Context, id uint, includeCVEScores bool) (*fleet.Host, error) {
+func (s *DataStore) Host(ctx context.Context, id uint) (*fleet.Host, error) {
 	s.HostFuncInvoked = true
-	return s.HostFunc(ctx, id, includeCVEScores)
+	return s.HostFunc(ctx, id)
 }
 
 func (s *DataStore) ListHosts(ctx context.Context, filter fleet.TeamFilter, opt fleet.HostListOptions) ([]*fleet.Host, error) {

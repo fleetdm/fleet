@@ -689,11 +689,11 @@ func (s *integrationTestSuite) TestBulkDeleteHostsFromTeam() {
 	resp := deleteHostsResponse{}
 	s.DoJSON("POST", "/api/latest/fleet/hosts/delete", req, http.StatusOK, &resp)
 
-	_, err = s.ds.Host(context.Background(), hosts[0].ID, false)
+	_, err = s.ds.Host(context.Background(), hosts[0].ID)
 	require.Error(t, err)
-	_, err = s.ds.Host(context.Background(), hosts[1].ID, false)
+	_, err = s.ds.Host(context.Background(), hosts[1].ID)
 	require.NoError(t, err)
-	_, err = s.ds.Host(context.Background(), hosts[2].ID, false)
+	_, err = s.ds.Host(context.Background(), hosts[2].ID)
 	require.NoError(t, err)
 
 	err = s.ds.DeleteHosts(context.Background(), []uint{hosts[1].ID, hosts[2].ID})
@@ -731,11 +731,11 @@ func (s *integrationTestSuite) TestBulkDeleteHostsInLabel() {
 	resp := deleteHostsResponse{}
 	s.DoJSON("POST", "/api/latest/fleet/hosts/delete", req, http.StatusOK, &resp)
 
-	_, err = s.ds.Host(context.Background(), hosts[0].ID, false)
+	_, err = s.ds.Host(context.Background(), hosts[0].ID)
 	require.NoError(t, err)
-	_, err = s.ds.Host(context.Background(), hosts[1].ID, false)
+	_, err = s.ds.Host(context.Background(), hosts[1].ID)
 	require.Error(t, err)
-	_, err = s.ds.Host(context.Background(), hosts[2].ID, false)
+	_, err = s.ds.Host(context.Background(), hosts[2].ID)
 	require.Error(t, err)
 
 	err = s.ds.DeleteHosts(context.Background(), []uint{hosts[0].ID})
@@ -753,11 +753,11 @@ func (s *integrationTestSuite) TestBulkDeleteHostByIDs() {
 	resp := deleteHostsResponse{}
 	s.DoJSON("POST", "/api/latest/fleet/hosts/delete", req, http.StatusOK, &resp)
 
-	_, err := s.ds.Host(context.Background(), hosts[0].ID, false)
+	_, err := s.ds.Host(context.Background(), hosts[0].ID)
 	require.Error(t, err)
-	_, err = s.ds.Host(context.Background(), hosts[1].ID, false)
+	_, err = s.ds.Host(context.Background(), hosts[1].ID)
 	require.Error(t, err)
-	_, err = s.ds.Host(context.Background(), hosts[2].ID, false)
+	_, err = s.ds.Host(context.Background(), hosts[2].ID)
 	require.NoError(t, err)
 
 	err = s.ds.DeleteHosts(context.Background(), []uint{hosts[2].ID})

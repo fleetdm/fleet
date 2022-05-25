@@ -255,7 +255,7 @@ func (r getHostResponse) error() error { return r.Err }
 
 func getHostEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
 	req := request.(*getHostRequest)
-	host, err := svc.GetHost(ctx, req.ID, false)
+	host, err := svc.GetHost(ctx, req.ID)
 	if err != nil {
 		return getHostResponse{Err: err}, nil
 	}
@@ -268,7 +268,7 @@ func getHostEndpoint(ctx context.Context, request interface{}, svc fleet.Service
 	return getHostResponse{Host: resp}, nil
 }
 
-func (svc *Service) GetHost(ctx context.Context, id uint, includeCVEScores bool) (*fleet.HostDetail, error) {
+func (svc *Service) GetHost(ctx context.Context, id uint) (*fleet.HostDetail, error) {
 	alreadyAuthd := svc.authz.IsAuthenticatedWith(ctx, authz.AuthnDeviceToken)
 	if !alreadyAuthd {
 		// First ensure the user has access to list hosts, then check the specific
@@ -278,7 +278,7 @@ func (svc *Service) GetHost(ctx context.Context, id uint, includeCVEScores bool)
 		}
 	}
 
-	host, err := svc.ds.Host(ctx, id, includeCVEScores)
+	host, err := svc.ds.Host(ctx, id)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "get host")
 	}
@@ -393,7 +393,7 @@ type hostByIdentifierRequest struct {
 
 func hostByIdentifierEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
 	req := request.(*hostByIdentifierRequest)
-	host, err := svc.HostByIdentifier(ctx, req.Identifier, false)
+	host, err := svc.HostByIdentifier(ctx, req.Identifier)
 	if err != nil {
 		return getHostResponse{Err: err}, nil
 	}
@@ -408,7 +408,7 @@ func hostByIdentifierEndpoint(ctx context.Context, request interface{}, svc flee
 	}, nil
 }
 
-func (svc *Service) HostByIdentifier(ctx context.Context, identifier string, includeCVEScores bool) (*fleet.HostDetail, error) {
+func (svc *Service) HostByIdentifier(ctx context.Context, identifier string) (*fleet.HostDetail, error) {
 	if err := svc.authz.Authorize(ctx, &fleet.Host{}, fleet.ActionList); err != nil {
 		return nil, err
 	}

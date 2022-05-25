@@ -72,7 +72,7 @@ func TestHostAuth(t *testing.T) {
 		}
 		return globalHost, nil
 	}
-	ds.HostFunc = func(ctx context.Context, id uint, includeCVEScores bool) (*fleet.Host, error) {
+	ds.HostFunc = func(ctx context.Context, id uint) (*fleet.Host, error) {
 		if id == 1 {
 			return teamHost, nil
 		}
@@ -183,16 +183,16 @@ func TestHostAuth(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			ctx := viewer.NewContext(context.Background(), viewer.Viewer{User: tt.user})
 
-			_, err := svc.GetHost(ctx, 1, false)
+			_, err := svc.GetHost(ctx, 1)
 			checkAuthErr(t, tt.shouldFailTeamRead, err)
 
-			_, err = svc.HostByIdentifier(ctx, "1", false)
+			_, err = svc.HostByIdentifier(ctx, "1")
 			checkAuthErr(t, tt.shouldFailTeamRead, err)
 
-			_, err = svc.GetHost(ctx, 2, false)
+			_, err = svc.GetHost(ctx, 2)
 			checkAuthErr(t, tt.shouldFailGlobalRead, err)
 
-			_, err = svc.HostByIdentifier(ctx, "2", false)
+			_, err = svc.HostByIdentifier(ctx, "2")
 			checkAuthErr(t, tt.shouldFailGlobalRead, err)
 
 			err = svc.DeleteHost(ctx, 1)
