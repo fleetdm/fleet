@@ -126,17 +126,17 @@ func parseEPSSScoresFile(path string) ([]epssScore, error) {
 const cisaKnownExploitsURL = "https://www.cisa.gov/sites/default/files/feeds/known_exploited_vulnerabilities.json"
 const cisaKnownExploitsFilename = "known_exploited_vulnerabilities.json"
 
-// KnownExploitedVulnerabilitiesCatalog represents the CISA Catalog of Known Exploited Vulnerabilities.
-type KnownExploitedVulnerabilitiesCatalog struct {
+// knownExploitedVulnerabilitiesCatalog represents the CISA Catalog of Known Exploited Vulnerabilities.
+type knownExploitedVulnerabilitiesCatalog struct {
 	Title           string                        `json:"title"`
 	CatalogVersion  string                        `json:"catalogVersion"`
 	DateReleased    time.Time                     `json:"dateReleased"`
 	Count           int                           `json:"count"`
-	Vulnerabilities []KnownExploitedVulnerability `json:"vulnerabilities"`
+	Vulnerabilities []knownExploitedVulnerability `json:"vulnerabilities"`
 }
 
 // KnownExplitedVulnerability represents a known exploit in the CISA catalog.
-type KnownExploitedVulnerability struct {
+type knownExploitedVulnerability struct {
 	CVEID string `json:"cveID"`
 	// remaining fields omitted
 	// VendorProject     string `json:"vendorProject"`
@@ -215,7 +215,7 @@ func LoadCVEScores(vulnPath string, ds fleet.Datastore) error {
 		return err
 	}
 
-	var catalog KnownExploitedVulnerabilitiesCatalog
+	var catalog knownExploitedVulnerabilitiesCatalog
 	if err := json.Unmarshal(b, &catalog); err != nil {
 		return fmt.Errorf("unmarshal cisa known exploited vulnerabilities catalog: %w", err)
 	}
