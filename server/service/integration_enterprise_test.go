@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"os"
 	"strings"
 	"testing"
 
@@ -696,475 +697,252 @@ func (s *integrationEnterpriseTestSuite) TestExternalIntegrationsTeamConfig() {
 		},
 	}}, http.StatusOK, &tmResp)
 
-	/*
-		// set environmental varible to use Zendesk test client
-		os.Setenv("TEST_ZENDESK_CLIENT", "true")
-		// create zendesk integration
-		s.DoRaw("PATCH", "/api/v1/fleet/config", []byte(fmt.Sprintf(`{
-			"integrations": {
-				"zendesk": [{
-					"url": %q,
-					"email": "ok@example.com",
-					"api_token": "ok",
-					"group_id": 122,
-					"enable_software_vulnerabilities": true
-				}]
-			}
-		}`, srv.URL)), http.StatusOK)
+	// set environmental varible to use Zendesk test client
+	os.Setenv("TEST_ZENDESK_CLIENT", "true")
+	defer os.Unsetenv("TEST_ZENDESK_CLIENT")
 
-		config = s.getConfig()
-		require.Len(t, config.Integrations.Jira, 0)
-		require.Len(t, config.Integrations.Zendesk, 1)
-		require.Equal(t, srv.URL, config.Integrations.Zendesk[0].URL)
-		require.Equal(t, "ok@example.com", config.Integrations.Zendesk[0].Email)
-		require.Equal(t, fleet.MaskedPassword, config.Integrations.Zendesk[0].APIToken)
-		require.Equal(t, int64(122), config.Integrations.Zendesk[0].GroupID)
-		require.True(t, config.Integrations.Zendesk[0].EnableSoftwareVulnerabilities)
-
-		// add a second, disabled Zendesk integration
-		s.DoRaw("PATCH", "/api/v1/fleet/config", []byte(fmt.Sprintf(`{
-			"integrations": {
-				"zendesk": [
-					{
-						"url": %q,
-						"email": "ok@example.com",
-						"api_token": "ok",
-						"group_id": 122,
-						"enable_software_vulnerabilities": true
-					},
-					{
-						"url": %[1]q,
-						"email": "test123@example.com",
-						"api_token": "ok",
-						"group_id": 123,
-						"enable_software_vulnerabilities": false
-					}
-				]
-			}
-		}`, srv.URL)), http.StatusOK)
-
-		config = s.getConfig()
-		require.Len(t, config.Integrations.Jira, 0)
-		require.Len(t, config.Integrations.Zendesk, 2)
-
-		// first integration
-		require.Equal(t, srv.URL, config.Integrations.Zendesk[0].URL)
-		require.Equal(t, "ok@example.com", config.Integrations.Zendesk[0].Email)
-		require.Equal(t, fleet.MaskedPassword, config.Integrations.Zendesk[0].APIToken)
-		require.Equal(t, int64(122), config.Integrations.Zendesk[0].GroupID)
-		require.True(t, config.Integrations.Zendesk[0].EnableSoftwareVulnerabilities)
-
-		// second integration
-		require.Equal(t, srv.URL, config.Integrations.Zendesk[1].URL)
-		require.Equal(t, "test123@example.com", config.Integrations.Zendesk[1].Email)
-		require.Equal(t, fleet.MaskedPassword, config.Integrations.Zendesk[1].APIToken)
-		require.Equal(t, int64(123), config.Integrations.Zendesk[1].GroupID)
-		require.False(t, config.Integrations.Zendesk[1].EnableSoftwareVulnerabilities)
-
-		// delete first Zendesk integration
-		s.DoRaw("PATCH", "/api/v1/fleet/config", []byte(fmt.Sprintf(`{
-			"integrations": {
-				"zendesk": [
-					{
-						"url": %q,
-						"email": "test123@example.com",
-						"group_id": 123,
-						"enable_software_vulnerabilities": false
-					}
-				]
-			}
-		}`, srv.URL)), http.StatusOK)
-
-		config = s.getConfig()
-		require.Len(t, config.Integrations.Jira, 0)
-		require.Len(t, config.Integrations.Zendesk, 1)
-		require.Equal(t, int64(123), config.Integrations.Zendesk[0].GroupID)
-
-		// replace Zendesk integration
-		s.DoRaw("PATCH", "/api/v1/fleet/config", []byte(fmt.Sprintf(`{
-			"integrations": {
-				"zendesk": [
-					{
-						"url": %q,
-						"email": "ok@example.com",
-						"api_token": "ok",
-						"group_id": 122,
-						"enable_software_vulnerabilities": false
-					}
-				]
-			}
-		}`, srv.URL)), http.StatusOK)
-
-		config = s.getConfig()
-		require.Len(t, config.Integrations.Jira, 0)
-		require.Len(t, config.Integrations.Zendesk, 1)
-		require.Equal(t, int64(122), config.Integrations.Zendesk[0].GroupID)
-		require.False(t, config.Integrations.Zendesk[0].EnableSoftwareVulnerabilities)
-
-		// try adding Zendesk integration without sending API token
-		s.DoRaw("PATCH", "/api/v1/fleet/config", []byte(fmt.Sprintf(`{
-			"integrations": {
-				"zendesk": [
-					{
-						"url": %q,
-						"email": "ok@example.com",
-						"api_token": "ok",
-						"group_id": 122,
-						"enable_software_vulnerabilities": true
-					},
-					{
-						"url": %[1]q,
-						"email": "test123@example.com",
-						"group_id": 123,
-						"enable_software_vulnerabilities": false
-					}
-				]
-			}
-		}`, srv.URL)), http.StatusBadRequest)
-
-		// try adding Zendesk integration with masked API token
-		s.DoRaw("PATCH", "/api/v1/fleet/config", []byte(fmt.Sprintf(`{
-			"integrations": {
-				"zendesk": [
-					{
-						"url": %q,
-						"email": "ok@example.com",
-						"api_token": "ok",
-						"group_id": 122,
-						"enable_software_vulnerabilities": true
-					},
-					{
-						"url": %[1]q,
-						"email": "test123@example.com",
-						"api_token": %q,
-						"group_id": 123,
-						"enable_software_vulnerabilities": false
-					}
-				]
-			}
-		}`, srv.URL, fleet.MaskedPassword)), http.StatusBadRequest)
-
-		// edit Zendesk integration without sending API token
-		s.DoRaw("PATCH", "/api/v1/fleet/config", []byte(fmt.Sprintf(`{
-			"integrations": {
-				"zendesk": [
-					{
-						"url": %q,
-						"email": "ok@example.com",
-						"group_id": 122,
-						"enable_software_vulnerabilities": true
-					}
-				]
-			}
-		}`, srv.URL)), http.StatusOK)
-
-		config = s.getConfig()
-		require.Len(t, config.Integrations.Jira, 0)
-		require.Len(t, config.Integrations.Zendesk, 1)
-		require.Equal(t, int64(122), config.Integrations.Zendesk[0].GroupID)
-		require.True(t, config.Integrations.Zendesk[0].EnableSoftwareVulnerabilities)
-
-		// edit Zendesk integration with masked API token
-		s.DoRaw("PATCH", "/api/v1/fleet/config", []byte(fmt.Sprintf(`{
-			"integrations": {
-				"zendesk": [
-					{
-						"url": %q,
-						"email": "ok@example.com",
-						"api_token": %q,
-						"group_id": 122,
-						"enable_software_vulnerabilities": false
-					}
-				]
-			}
-		}`, srv.URL, fleet.MaskedPassword)), http.StatusOK)
-
-		config = s.getConfig()
-		require.Len(t, config.Integrations.Jira, 0)
-		require.Len(t, config.Integrations.Zendesk, 1)
-		require.Equal(t, int64(122), config.Integrations.Zendesk[0].GroupID)
-		require.False(t, config.Integrations.Zendesk[0].EnableSoftwareVulnerabilities)
-
-		// edit Zendesk integration with explicit "" API token
-		s.DoRaw("PATCH", "/api/v1/fleet/config", []byte(fmt.Sprintf(`{
-			"integrations": {
-				"zendesk": [
-					{
-						"url": %q,
-						"email": "ok@example.com",
-						"api_token": "",
-						"group_id": 122,
-						"enable_software_vulnerabilities": true
-					}
-				]
-			}
-		}`, srv.URL)), http.StatusOK)
-
-		config = s.getConfig()
-		require.Len(t, config.Integrations.Jira, 0)
-		require.Len(t, config.Integrations.Zendesk, 1)
-		require.Equal(t, int64(122), config.Integrations.Zendesk[0].GroupID)
-		require.True(t, config.Integrations.Zendesk[0].EnableSoftwareVulnerabilities)
-
-		// unknown fields fails as bad request
-		s.DoRaw("PATCH", "/api/v1/fleet/config", []byte(fmt.Sprintf(`{
-			"integrations": {
-				"zendesk": [{
-					"url": %q,
-					"UNKNOWN_FIELD": "foo"
-				}]
-			}
-		}`, srv.URL)), http.StatusBadRequest)
-
-		// unknown group id fails as bad request
-		s.DoRaw("PATCH", "/api/v1/fleet/config", []byte(fmt.Sprintf(`{
-			"integrations": {
-				"zendesk": [{
-					"url": %q,
-					"email": "ok@example.com",
-					"api_token": "ok",
-					"group_id": 999,
-					"enable_software_vulnerabilities": true
-				}]
-			}
-		}`, srv.URL)), http.StatusBadRequest)
-
-		// cannot have two zendesk integrations enabled at the same time
-		s.DoRaw("PATCH", "/api/v1/fleet/config", []byte(fmt.Sprintf(`{
-			"integrations": {
-				"zendesk": [
-					{
-						"url": %q,
-						"email": "ok@example.com",
-						"api_token": "ok",
-						"group_id": 122,
-						"enable_software_vulnerabilities": true
-					},
-					{
-						"url": %[1]q,
-						"email": "not.ok@example.com",
-						"api_token": "ok",
-						"group_id": 123,
-						"enable_software_vulnerabilities": true
-					}
-				]
-			}
-		}`, srv.URL)), http.StatusUnprocessableEntity)
-
-		// cannot have two zendesk integrations with the same group id
-		s.DoRaw("PATCH", "/api/v1/fleet/config", []byte(fmt.Sprintf(`{
-			"integrations": {
-				"zendesk": [
-					{
-						"url": %q,
-						"email": "ok@example.com",
-						"api_token": "ok",
-						"group_id": 122,
-						"enable_software_vulnerabilities": true
-					},
-					{
-						"url": %[1]q,
-						"email": "not.ok@example.com",
-						"api_token": "ok",
-						"group_id": 122,
-						"enable_software_vulnerabilities": false
-					}
-				]
-			}
-		}`, srv.URL)), http.StatusUnprocessableEntity)
-
-		// even disabled integrations are tested for Zendesk connection and credentials,
-		// so this fails because the 2nd one uses the "fail" token.
-		s.DoRaw("PATCH", "/api/v1/fleet/config", []byte(fmt.Sprintf(`{
-			"integrations": {
-				"zendesk": [
-					{
-						"url": %q,
-						"email": "ok@example.com",
-						"api_token": "ok",
-						"group_id": 122,
-						"enable_software_vulnerabilities": true
-					},
-					{
-						"url": %[1]q,
-						"email": "not.ok@example.com",
-						"api_token": "fail",
-						"group_id": 123,
-						"enable_software_vulnerabilities": false
-					}
-				]
-			}
-		}`, srv.URL)), http.StatusBadRequest)
-
-		// cannot enable webhook with a zendesk integration already enabled
-		s.DoRaw("PATCH", "/api/v1/fleet/config", []byte(`{
-			"webhook_settings": {
-				"vulnerabilities_webhook": {
-					"enable_vulnerabilities_webhook": true,
-					"destination_url": "http://some/url",
-					"host_batch_size": 1234
-				},
-				"interval": "1h"
-			}
-		}`), http.StatusUnprocessableEntity)
-
-		// disable zendesk, now we can enable webhook
-		s.DoRaw("PATCH", "/api/v1/fleet/config", []byte(fmt.Sprintf(`{
-			"integrations": {
-				"zendesk": [{
-					"url": %q,
-					"email": "ok@example.com",
-					"api_token": "ok",
-					"group_id": 122,
-					"enable_software_vulnerabilities": false
-				}]
+	// enable a Zendesk automation - should fail as the webhook is enabled too
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), fleet.TeamPayload{Integrations: &fleet.TeamIntegrations{
+		Zendesk: []*fleet.TeamZendeskIntegration{
+			{
+				URL:                   srvURL,
+				Email:                 "a@b.c",
+				APIToken:              "ok",
+				GroupID:               122,
+				EnableFailingPolicies: true,
 			},
-			"webhook_settings": {
-				"vulnerabilities_webhook": {
-					"enable_vulnerabilities_webhook": true,
-					"destination_url": "http://some/url",
-					"host_batch_size": 1234
+		},
+	}}, http.StatusUnprocessableEntity, &tmResp)
+
+	// disable the webhook and enable the automation, should work with valid user
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), fleet.TeamPayload{
+		Integrations: &fleet.TeamIntegrations{
+			Zendesk: []*fleet.TeamZendeskIntegration{
+				{
+					URL:                   srvURL,
+					Email:                 "a@b.c",
+					APIToken:              "ok",
+					GroupID:               122,
+					EnableFailingPolicies: true,
 				},
-				"interval": "1h"
-			}
-		}`, srv.URL)), http.StatusOK)
-
-		// cannot enable zendesk with webhook already enabled
-		s.DoRaw("PATCH", "/api/v1/fleet/config", []byte(fmt.Sprintf(`{
-			"integrations": {
-				"zendesk": [{
-					"url": %q,
-					"email": "ok@example.com",
-					"api_token": "ok",
-					"group_id": 122,
-					"enable_software_vulnerabilities": true
-				}]
-			}
-		}`, srv.URL)), http.StatusUnprocessableEntity)
-
-		// disable webhook, enable zendesk with wrong credentials
-		s.DoRaw("PATCH", "/api/v1/fleet/config", []byte(fmt.Sprintf(`{
-			"integrations": {
-				"zendesk": [{
-					"url": %q,
-					"email": "not.ok@example.com",
-					"api_token": "fail",
-					"group_id": 122,
-					"enable_software_vulnerabilities": true
-				}]
 			},
-			"webhook_settings": {
-				"vulnerabilities_webhook": {
-					"enable_vulnerabilities_webhook": false,
-					"destination_url": "http://some/url",
-					"host_batch_size": 1234
-				},
-				"interval": "1h"
-			}
-		}`, srv.URL)), http.StatusBadRequest)
-
-		// update zendesk config to correct credentials (need to disable webhook too as
-		// last request failed)
-		s.DoRaw("PATCH", "/api/v1/fleet/config", []byte(fmt.Sprintf(`{
-			"integrations": {
-				"zendesk": [{
-					"url": %q,
-					"email": "ok@example.com",
-					"api_token": "ok",
-					"group_id": 122,
-					"enable_software_vulnerabilities": true
-				}]
+		},
+		WebhookSettings: &fleet.TeamWebhookSettings{
+			FailingPoliciesWebhook: fleet.FailingPoliciesWebhookSettings{
+				Enable:         false,
+				DestinationURL: "http://example.com",
 			},
-			"webhook_settings": {
-				"vulnerabilities_webhook": {
-					"enable_vulnerabilities_webhook": false,
-					"destination_url": "http://some/url",
-					"host_batch_size": 1234
+		},
+	}, http.StatusOK, &tmResp)
+	require.Len(t, tmResp.Team.Config.Integrations.Zendesk, 1)
+	// TODO(mna): require.Equal(t, fleet.MaskedPassword, tmResp.Team.Config.Integrations.Zendesk[0].APIToken)
+
+	// enable the webhook without changing the integration should fail (an integration is already enabled)
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), fleet.TeamPayload{WebhookSettings: &fleet.TeamWebhookSettings{
+		FailingPoliciesWebhook: fleet.FailingPoliciesWebhookSettings{
+			Enable:         true,
+			DestinationURL: "http://example.com",
+		},
+	}}, http.StatusUnprocessableEntity, &tmResp)
+
+	// add a second, disabled Zendesk integration
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), fleet.TeamPayload{
+		Integrations: &fleet.TeamIntegrations{
+			Zendesk: []*fleet.TeamZendeskIntegration{
+				{
+					URL:                   srvURL,
+					Email:                 "a@b.c",
+					APIToken:              "ok",
+					GroupID:               122,
+					EnableFailingPolicies: true,
 				},
-				"interval": "1h"
-			}
-		}`, srv.URL)), http.StatusOK)
+				{
+					URL:                   srvURL,
+					Email:                 "b@b.c",
+					APIToken:              "ok",
+					GroupID:               123,
+					EnableFailingPolicies: false,
+				},
+			},
+		},
+	}, http.StatusOK, &tmResp)
+	require.Len(t, tmResp.Team.Config.Integrations.Zendesk, 2)
+	// TODO(mna): require.Equal(t, fleet.MaskedPassword, tmResp.Team.Config.Integrations.Zendesk[0].APIToken)
+	// TODO(mna): require.Equal(t, fleet.MaskedPassword, tmResp.Team.Config.Integrations.Zendesk[1].APIToken)
 
-		// can have jira enabled and zendesk disabled
-		s.DoRaw("PATCH", "/api/v1/fleet/config", []byte(fmt.Sprintf(`{
-			"integrations": {
-				"jira": [{
-					"url": %q,
-					"username": "ok",
-					"api_token": "bar",
-					"project_key": "qux",
-					"enable_software_vulnerabilities": true
-				}],
-				"zendesk": [{
-					"url": %[1]q,
-					"email": "ok@example.com",
-					"api_token": "ok",
-					"group_id": 122,
-					"enable_software_vulnerabilities": false
-				}]
-			}
-		}`, srv.URL)), http.StatusOK)
-		config = s.getConfig()
-		require.Len(t, config.Integrations.Jira, 1)
-		require.True(t, config.Integrations.Jira[0].EnableSoftwareVulnerabilities)
-		require.Len(t, config.Integrations.Zendesk, 1)
-		require.False(t, config.Integrations.Zendesk[0].EnableSoftwareVulnerabilities)
+	// enabling the second without disabling the first fails
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), fleet.TeamPayload{
+		Integrations: &fleet.TeamIntegrations{
+			Zendesk: []*fleet.TeamZendeskIntegration{
+				{
+					URL:                   srvURL,
+					Email:                 "a@b.c",
+					APIToken:              "ok",
+					GroupID:               122,
+					EnableFailingPolicies: true,
+				},
+				{
+					URL:                   srvURL,
+					Email:                 "b@b.c",
+					APIToken:              "ok",
+					GroupID:               123,
+					EnableFailingPolicies: true,
+				},
+			},
+		},
+	}, http.StatusUnprocessableEntity, &tmResp)
 
-		// can have jira disabled and zendesk enabled
-		s.DoRaw("PATCH", "/api/v1/fleet/config", []byte(fmt.Sprintf(`{
-			"integrations": {
-				"jira": [{
-					"url": %q,
-					"username": "ok",
-					"api_token": "bar",
-					"project_key": "qux",
-					"enable_software_vulnerabilities": false
-				}],
-				"zendesk": [{
-					"url": %[1]q,
-					"email": "ok@example.com",
-					"api_token": "ok",
-					"group_id": 122,
-					"enable_software_vulnerabilities": true
-				}]
-			}
-		}`, srv.URL)), http.StatusOK)
-		config = s.getConfig()
-		require.Len(t, config.Integrations.Jira, 1)
-		require.False(t, config.Integrations.Jira[0].EnableSoftwareVulnerabilities)
-		require.Len(t, config.Integrations.Zendesk, 1)
-		require.True(t, config.Integrations.Zendesk[0].EnableSoftwareVulnerabilities)
+	// updating the integration with invalid credentials fails
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), fleet.TeamPayload{
+		Integrations: &fleet.TeamIntegrations{
+			Zendesk: []*fleet.TeamZendeskIntegration{
+				{
+					URL:                   srvURL,
+					Email:                 "a@b.c",
+					APIToken:              "fail",
+					GroupID:               122,
+					EnableFailingPolicies: true,
+				},
+				{
+					URL:                   srvURL,
+					Email:                 "b@b.c",
+					APIToken:              "ok",
+					GroupID:               123,
+					EnableFailingPolicies: false,
+				},
+			},
+		},
+	}, http.StatusBadRequest, &tmResp)
 
-		// cannot have both jira enabled and zendesk enabled
-		s.DoRaw("PATCH", "/api/v1/fleet/config", []byte(fmt.Sprintf(`{
-			"integrations": {
-				"jira": [{
-					"url": %q,
-					"username": "ok",
-					"api_token": "bar",
-					"project_key": "qux",
-					"enable_software_vulnerabilities": true
-				}],
-				"zendesk": [{
-					"url": %[1]q,
-					"email": "ok@example.com",
-					"api_token": "ok",
-					"group_id": 122,
-					"enable_software_vulnerabilities": true
-				}]
-			}
-		}`, srv.URL)), http.StatusUnprocessableEntity)
+	// updating the integration with invalid credentials fails, even if the integration is disabled
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), fleet.TeamPayload{
+		Integrations: &fleet.TeamIntegrations{
+			Zendesk: []*fleet.TeamZendeskIntegration{
+				{
+					URL:                   srvURL,
+					Email:                 "a@b.c",
+					APIToken:              "ok",
+					GroupID:               122,
+					EnableFailingPolicies: true,
+				},
+				{
+					URL:                   srvURL,
+					Email:                 "b@b.c",
+					APIToken:              "fail",
+					GroupID:               123,
+					EnableFailingPolicies: false,
+				},
+			},
+		},
+	}, http.StatusBadRequest, &tmResp)
 
-		// remove all integrations on exit, so that other tests can enable the
-		// webhook as needed
-		s.DoRaw("PATCH", "/api/v1/fleet/config", []byte(`{
-			"integrations": {
-			"jira": [],
-			"zendesk": []
-			}
-		}`), http.StatusOK)
-		config = s.getConfig()
-		require.Len(t, config.Integrations.Jira, 0)
-		require.Len(t, config.Integrations.Zendesk, 0)
-	*/
+	// updating to use the same group ID fails (must be unique per group ID)
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), fleet.TeamPayload{
+		Integrations: &fleet.TeamIntegrations{
+			Zendesk: []*fleet.TeamZendeskIntegration{
+				{
+					URL:                   srvURL,
+					Email:                 "a@b.c",
+					APIToken:              "ok",
+					GroupID:               123,
+					EnableFailingPolicies: true,
+				},
+				{
+					URL:                   srvURL,
+					Email:                 "b@b.c",
+					APIToken:              "ok",
+					GroupID:               123,
+					EnableFailingPolicies: false,
+				},
+			},
+		},
+	}, http.StatusUnprocessableEntity, &tmResp)
+
+	// unknown group ID fails
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), fleet.TeamPayload{
+		Integrations: &fleet.TeamIntegrations{
+			Zendesk: []*fleet.TeamZendeskIntegration{
+				{
+					URL:                   srvURL,
+					Email:                 "a@b.c",
+					APIToken:              "ok",
+					GroupID:               122,
+					EnableFailingPolicies: true,
+				},
+				{
+					URL:                   srvURL,
+					Email:                 "b@b.c",
+					APIToken:              "ok",
+					GroupID:               999,
+					EnableFailingPolicies: false,
+				},
+			},
+		},
+	}, http.StatusBadRequest, &tmResp)
+
+	// remove second Zendesk integration, add disabled Jira integration
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), fleet.TeamPayload{
+		Integrations: &fleet.TeamIntegrations{
+			Zendesk: []*fleet.TeamZendeskIntegration{
+				{
+					URL:                   srvURL,
+					Email:                 "a@b.c",
+					APIToken:              "ok",
+					GroupID:               122,
+					EnableFailingPolicies: true,
+				},
+			},
+			Jira: []*fleet.TeamJiraIntegration{
+				{
+					URL:                   srvURL,
+					Username:              "ok",
+					APIToken:              "foo",
+					ProjectKey:            "qux",
+					EnableFailingPolicies: false,
+				},
+			},
+		},
+	}, http.StatusOK, &tmResp)
+	require.Len(t, tmResp.Team.Config.Integrations.Jira, 1)
+	// TODO(mna): require.Equal(t, fleet.MaskedPassword, tmResp.Team.Config.Integrations.Jira[0].APIToken)
+	require.Len(t, tmResp.Team.Config.Integrations.Zendesk, 1)
+	// TODO(mna): require.Equal(t, fleet.MaskedPassword, tmResp.Team.Config.Integrations.Zendesk[0].APIToken)
+
+	// enabling a Jira integration when a Zendesk one is enabled fails
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), fleet.TeamPayload{
+		Integrations: &fleet.TeamIntegrations{
+			Zendesk: []*fleet.TeamZendeskIntegration{
+				{
+					URL:                   srvURL,
+					Email:                 "a@b.c",
+					APIToken:              "ok",
+					GroupID:               122,
+					EnableFailingPolicies: true,
+				},
+			},
+			Jira: []*fleet.TeamJiraIntegration{
+				{
+					URL:                   srvURL,
+					Username:              "ok",
+					APIToken:              "foo",
+					ProjectKey:            "qux",
+					EnableFailingPolicies: true,
+				},
+			},
+		},
+	}, http.StatusUnprocessableEntity, &tmResp)
+
+	// remove all integrations on exit, so that other tests can enable the
+	// webhook as needed
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), fleet.TeamPayload{
+		Integrations: &fleet.TeamIntegrations{
+			Zendesk: []*fleet.TeamZendeskIntegration{},
+			Jira:    []*fleet.TeamJiraIntegration{},
+		},
+		WebhookSettings: &fleet.TeamWebhookSettings{},
+	}, http.StatusOK, &tmResp)
+	require.Len(t, tmResp.Team.Config.Integrations.Jira, 0)
+	require.Len(t, tmResp.Team.Config.Integrations.Zendesk, 0)
+	require.False(t, tmResp.Team.Config.WebhookSettings.FailingPoliciesWebhook.Enable)
+	require.Empty(t, tmResp.Team.Config.WebhookSettings.FailingPoliciesWebhook.DestinationURL)
 }
