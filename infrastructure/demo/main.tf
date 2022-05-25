@@ -133,6 +133,17 @@ resource "aws_dynamodb_table" "lifecycle-table" {
     name = "State"
     type = "S"
   }
+
+  attribute {
+    name = "redis_db"
+    type = "N"
+  }
+
+  global_secondary_index {
+    name            = "RedisDatabases"
+    hash_key        = "redis_db"
+    projection_type = "KEYS_ONLY"
+  }
 }
 
 module "remote_state" {

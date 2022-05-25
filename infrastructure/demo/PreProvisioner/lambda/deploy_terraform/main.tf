@@ -46,6 +46,7 @@ variable "mysql_secret" {}
 variable "eks_cluster" {}
 variable "redis_address" {}
 variable "redis_database" {}
+variable "lifecycle_table" {}
 
 resource "mysql_user" "main" {
   user               = terraform.workspace
@@ -125,4 +126,20 @@ resource "helm_release" "main" {
     name  = "redis.database"
     value = var.redis_database
   }
+}
+
+resource "aws_dynamodb_table_item" "main" {
+  table_name = var.lifecycle_table
+  hash_key   = "ID"
+  range_key  = "State"
+
+  item = <<ITEM
+{
+  "ID": {"S": "${terraform.workspace}"},
+  "State": {"S": "unclaimed"},
+  "redis_db": {"N": "${var.redis_database}"}
+}
+ITEM
+
+  depends_on = [helm_release.main]
 }

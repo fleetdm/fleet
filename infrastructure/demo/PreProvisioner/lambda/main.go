@@ -11,6 +11,7 @@ import (
 	"github.com/google/uuid"
 	flags "github.com/jessevdk/go-flags"
 	"log"
+	"math/rand"
 	"os"
 	"os/exec"
 )
@@ -108,9 +109,37 @@ func runTerraform(workspace string, redis_database int) error {
 	return err
 }
 
+func idExists(id int) (bool, error) {
+	svc := dynamodb.New(session.New())
+	input := &dynamodb.QueryInput{
+		ExpressionAttributeValues: map[string]*dynamodb.AttributeValue{
+			":v1": {
+				N: aws.String(fmt.Sprintf("%d", id)),
+			},
+		},
+		KeyConditionExpression: aws.String("redis_db = :v1"),
+		TableName:              aws.String(options.LifecycleTable),
+		IndexName:              aws.String("RedisDatabases"),
+	}
+
+	result, err := svc.Query(input)
+	if err != nil {
+		return false, err
+	}
+	return *result.Count != 0, nil
+}
+
 func getRedisDatabase() (int, error) {
-	// TODO: select a free database
-	return 0, nil
+	for {
+		ret := rand.Intn(65536)
+		exists, err := idExists(ret)
+		if err != nil {
+			return 0, err
+		}
+		if !exists {
+			return ret, nil
+		}
+	}
 }
 
 func handler(ctx context.Context, name NullEvent) error {

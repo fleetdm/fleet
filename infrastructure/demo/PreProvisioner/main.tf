@@ -181,6 +181,10 @@ resource "aws_ecs_task_definition" "main" {
             value = var.dynamodb_table.id
           },
           {
+            name  = "TF_VAR_lifecycle_table"
+            value = var.dynamodb_table.id
+          },
+          {
             name  = "MAX_INSTANCES"
             value = "2"
           },
