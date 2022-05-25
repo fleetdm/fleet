@@ -92,7 +92,7 @@ export default {
     const label = selectedLabels.find((f) => f.includes(labelPrefix)) || "";
     const status = selectedLabels.find((f) => !f.includes(labelPrefix)) || "";
     const statusFilterList = ["new", "online", "offline"];
-    const isStatusFilter = statusFilterList.indexOf(status) > 0;
+    const isStatusFilter = statusFilterList.includes(status);
 
     if (isStatusFilter) {
       path += `&status=${status}`;

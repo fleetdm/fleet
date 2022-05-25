@@ -1352,7 +1352,7 @@ const ManageHostsPage = ({
         }`}
       >
         <span>{`${count} host${count === 1 ? "" : "s"}`}</span>
-        {count && count > 0 ? (
+        {count ? (
           <Button
             className={`${baseClass}__export-btn`}
             onClick={onExportHostsResults}
