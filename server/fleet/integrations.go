@@ -64,6 +64,26 @@ func IndexJiraIntegrations(jiraIntgs []*JiraIntegration) (map[string]JiraIntegra
 	return byProjKey, nil
 }
 
+// IndexTeamJiraIntegrations is the same as IndexJiraIntegrations, but for
+// team-specific integration structs.
+func IndexTeamJiraIntegrations(teamJiraIntgs []*TeamJiraIntegration) (map[string]TeamJiraIntegration, error) {
+	jiraIntgs := make([]*JiraIntegration, len(teamJiraIntgs))
+	for i, t := range teamJiraIntgs {
+		jiraIntgs[i] = &JiraIntegration{TeamJiraIntegration: *t}
+	}
+
+	indexed, err := IndexJiraIntegrations(jiraIntgs)
+	if err != nil {
+		return nil, err
+	}
+
+	teamIndexed := make(map[string]TeamJiraIntegration, len(indexed))
+	for k, v := range indexed {
+		teamIndexed[k] = v.TeamJiraIntegration
+	}
+	return teamIndexed, nil
+}
+
 // ValidateJiraIntegrations validates that the merge of the original and new
 // Jira integrations does not result in any duplicate configuration, and that
 // each modified or added integration can successfully connect to the external
@@ -99,6 +119,32 @@ func ValidateJiraIntegrations(ctx context.Context, oriJiraIntgsByProjKey map[str
 		if err := makeTestJiraRequest(ctx, new); err != nil {
 			return fmt.Errorf("Jira integration at index %d: %w", i, err)
 		}
+	}
+	return nil
+}
+
+// ValidateTeamJiraIntegrations applies the same validations as
+// ValidateJiraIntegrations, but for team-specific integration structs.
+func ValidateTeamJiraIntegrations(ctx context.Context, oriTeamJiraIntgsByProjKey map[string]TeamJiraIntegration, newTeamJiraIntgs []*TeamJiraIntegration) error {
+	newJiraIntgs := make([]*JiraIntegration, len(newTeamJiraIntgs))
+	for i, t := range newTeamJiraIntgs {
+		newJiraIntgs[i] = &JiraIntegration{TeamJiraIntegration: *t}
+	}
+
+	oriJiraIntgsByProjKey := make(map[string]JiraIntegration, len(oriTeamJiraIntgsByProjKey))
+	for k, v := range oriTeamJiraIntgsByProjKey {
+		oriJiraIntgsByProjKey[k] = JiraIntegration{TeamJiraIntegration: v}
+	}
+
+	if err := ValidateJiraIntegrations(ctx, oriJiraIntgsByProjKey, newJiraIntgs); err != nil {
+		return err
+	}
+
+	// assign back the newJiraIntgs to newTeamJiraIntgs, as they may have been
+	// updated by the call and we need to pass that change back to the caller
+	for i, v := range newJiraIntgs {
+		teamJira := newTeamJiraIntgs[i]
+		*teamJira = v.TeamJiraIntegration
 	}
 	return nil
 }
@@ -165,6 +211,26 @@ func IndexZendeskIntegrations(zendeskIntgs []*ZendeskIntegration) (map[int64]Zen
 	return byGroupID, nil
 }
 
+// IndexTeamZendeskIntegrations is the same as IndexZendeskIntegrations, but
+// for team-specific integration structs.
+func IndexTeamZendeskIntegrations(teamZendeskIntgs []*TeamZendeskIntegration) (map[int64]TeamZendeskIntegration, error) {
+	zendeskIntgs := make([]*ZendeskIntegration, len(teamZendeskIntgs))
+	for i, t := range teamZendeskIntgs {
+		zendeskIntgs[i] = &ZendeskIntegration{TeamZendeskIntegration: *t}
+	}
+
+	indexed, err := IndexZendeskIntegrations(zendeskIntgs)
+	if err != nil {
+		return nil, err
+	}
+
+	teamIndexed := make(map[int64]TeamZendeskIntegration, len(indexed))
+	for k, v := range indexed {
+		teamIndexed[k] = v.TeamZendeskIntegration
+	}
+	return teamIndexed, nil
+}
+
 // ValidateZendeskIntegrations validates that the merge of the original and
 // new Zendesk integrations does not result in any duplicate configuration,
 // and that each modified or added integration can successfully connect to the
@@ -200,6 +266,31 @@ func ValidateZendeskIntegrations(ctx context.Context, oriZendeskIntgsByGroupID m
 		if err := makeTestZendeskRequest(ctx, new); err != nil {
 			return fmt.Errorf("Zendesk integration at index %d: %w", i, err)
 		}
+	}
+	return nil
+}
+
+func ValidateTeamZendeskIntegrations(ctx context.Context, oriTeamZendeskIntgsByGroupID map[int64]TeamZendeskIntegration, newTeamZendeskIntgs []*TeamZendeskIntegration) error {
+	newZendeskIntgs := make([]*ZendeskIntegration, len(newTeamZendeskIntgs))
+	for i, t := range newTeamZendeskIntgs {
+		newZendeskIntgs[i] = &ZendeskIntegration{TeamZendeskIntegration: *t}
+	}
+
+	oriZendeskIntgsByGroupID := make(map[int64]ZendeskIntegration, len(oriTeamZendeskIntgsByGroupID))
+	for k, v := range oriTeamZendeskIntgsByGroupID {
+		oriZendeskIntgsByGroupID[k] = ZendeskIntegration{TeamZendeskIntegration: v}
+	}
+
+	if err := ValidateZendeskIntegrations(ctx, oriZendeskIntgsByGroupID, newZendeskIntgs); err != nil {
+		return err
+	}
+
+	// assign back the newZendeskIntgs to newTeamZendeskIntgs, as they may have
+	// been updated by the call and we need to pass that change back to the
+	// caller
+	for i, v := range newZendeskIntgs {
+		teamZendesk := newTeamZendeskIntgs[i]
+		*teamZendesk = v.TeamZendeskIntegration
 	}
 	return nil
 }

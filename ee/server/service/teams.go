@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
+	"errors"
 	"fmt"
 
 	"github.com/fleetdm/fleet/v4/server"
@@ -89,14 +90,52 @@ func (svc *Service) ModifyTeam(ctx context.Context, teamID uint, payload fleet.T
 	if payload.Description != nil {
 		team.Description = *payload.Description
 	}
+
 	if payload.WebhookSettings != nil {
 		team.Config.WebhookSettings = *payload.WebhookSettings
 	}
+
 	if payload.Integrations != nil {
 		// TODO(mna): validate the integrations, like we do in global app config
-		//team.Config.Integrations = *payload.Integrations
+		oriJiraByProjectKey, err := fleet.IndexTeamJiraIntegrations(team.Config.Integrations.Jira)
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "modify Team")
+		}
+
+		oriZendeskByGroupID, err := fleet.IndexTeamZendeskIntegrations(team.Config.Integrations.Zendesk)
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "modify Team")
+		}
+
+		if err := fleet.ValidateTeamJiraIntegrations(ctx, oriJiraByProjectKey, payload.Integrations.Jira); err != nil {
+			if errors.As(err, &fleet.IntegrationTestError{}) {
+				return nil, ctxerr.Wrap(ctx, &badRequestError{message: err.Error()})
+			}
+			return nil, ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("Jira integration", err.Error()))
+		}
+		team.Config.Integrations.Jira = payload.Integrations.Jira
+
+		if err := fleet.ValidateTeamZendeskIntegrations(ctx, oriZendeskByGroupID, payload.Integrations.Zendesk); err != nil {
+			if errors.As(err, &fleet.IntegrationTestError{}) {
+				return nil, ctxerr.Wrap(ctx, &badRequestError{message: err.Error()})
+			}
+			return nil, ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("Zendesk integration", err.Error()))
+		}
+		team.Config.Integrations.Zendesk = payload.Integrations.Zendesk
 	}
 
+	if payload.WebhookSettings != nil || payload.Integrations != nil {
+		// must validate that at most only one automation is enabled for each
+		// supported feature - by now the updated payload has been applied to
+		// team.Config.
+		invalid := &fleet.InvalidArgumentError{}
+		fleet.ValidateEnabledFailingPoliciesIntegrations(team.Config.WebhookSettings.FailingPoliciesWebhook, team.Config.Integrations, invalid)
+		if invalid.HasErrors() {
+			return nil, ctxerr.Wrap(ctx, invalid)
+		}
+	}
+
+	// TODO(mna): mask API tokens in response
 	return svc.ds.SaveTeam(ctx, team)
 }
 
