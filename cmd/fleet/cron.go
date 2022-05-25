@@ -210,11 +210,11 @@ func cronVulnerabilities(
 					break
 				}
 			}
-			// check for zendesk integrations
+			// check for Zendesk integrations
 			for _, z := range appConfig.Integrations.Zendesk {
 				if z.EnableSoftwareVulnerabilities {
 					if vulnAutomationEnabled != "" {
-						err := errors.New("more than one automation enabled: zendesk check")
+						err := errors.New("more than one automation enabled: Zendesk check")
 						level.Error(logger).Log("err", err)
 						sentry.CaptureException(err)
 					}
@@ -249,14 +249,14 @@ func cronVulnerabilities(
 					}
 
 				case "zendesk":
-					// queue job to create zendesk ticket
+					// queue job to create Zendesk ticket
 					if err := worker.QueueZendeskJobs(
 						ctx,
 						ds,
 						kitlog.With(logger, "zendesk", "vulnerabilities"),
 						recentVulns,
 					); err != nil {
-						level.Error(logger).Log("err", "queueing vulnerabilities to zendesk", "details", err)
+						level.Error(logger).Log("err", "queueing vulnerabilities to Zendesk", "details", err)
 						sentry.CaptureException(err)
 					}
 
@@ -496,7 +496,7 @@ func cronWorker(
 			}
 		}
 
-		// get the enabled zendesk config, if any
+		// get the enabled Zendesk config, if any
 		var zendeskSettings *fleet.ZendeskIntegration
 		for _, intg := range appConfig.Integrations.Zendesk {
 			if intg.EnableSoftwareVulnerabilities {

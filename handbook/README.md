@@ -18,14 +18,15 @@ The Fleet handbook is the central guide for how we run the company. As part of o
 
 [History](./company.md#history)
 
-[GitHub Labels](./company.md#git-hub-labels)
+[Email relays](./company.md#email-relays)
+
+[Tools we use](./company#tools-we-use)
+
+[GitHub labels](./company.md#git-hub-labels)
 
 [Rituals](./company.md#rituals)
 
 [Slack channels](./company.md#slack-channels)
-
-[Email relays](./company.md#email-relays)
-
 
 ### ⛑ Security
 
@@ -47,27 +48,39 @@ The Fleet handbook is the central guide for how we run the company. As part of o
 
 ### 📜 Security policies
 
-[Acceptable use policy](./security-policies.md#acceptable-use-policy)
-
 [Information security policy and acceptable use policy](./security-policies.md#information-security-policy-and-acceptable-use-policy)
+
+[Access control policy](./security-policies.md#access-control-policy)
 
 [Asset management policy](./security-policies.md#asset-management-policy)
 
 [Business continuity and disaster recovery policy](./security-policies.md#business-continuity-and-disaster-recovery-policy)
 
-[Information security roles and responsibilities](./security-policies.md#information-security-roles-and-responsibilities)
+[Data management policy](./security-policies.md#data-management-policy)
+
+[Encryption policy](./security-policies.md#encryption-policy)
+
+[Human resources security policy](./security-policies.md#human-resources-security-policy)
+
+[Incident response policy](./security-policies.md#incident-response-policy)
 
 [Operations security and change management policy](./security-policies.md#operations-security-and-change-management-policy)
 
-[Third-party management policy](./security-policies.md#third-party-management-policy)
+[Risk management policy](./security-policies.md#risk-management-policy)
+
+[Secure software development and product security policy](./security-policies.d#secure-software-development-and-product-security-policy)
 
 [Security policy management policy](./security-policies.md#security-policy-management-policy)
+
+[Third-party management policy](./security-policies.md#third-party-management-policy)
 
 ### 💓 Brand
 
 [Communicating as Fleet](./brand.md#communicating-as-fleet)
 
 [Writing at Fleet](./brand.md#writing-at-fleet)
+
+[Punctuating and capitalizing bullet points](./brand#punctuating-and-capitalizing-bullet-points)
 
 [For editors](./brand.md#for-editors)
 
@@ -152,6 +165,8 @@ The Fleet handbook is the central guide for how we run the company. As part of o
 
 [Outreach one-pager](./growth.md#outreach-one-pager)
 
+[Intro deck](./growth#intro-deck)
+
 [Posting on social media as Fleet](./growth.md#posting-on-social-media-as-fleet)
 
 [Promoting blog posts on social media](./growth.md#promoting-blog-posts-on-social-media)
@@ -210,9 +225,9 @@ The Fleet handbook is the central guide for how we run the company. As part of o
 
 [Zapier and DocuSign](./people.md#zapier-and-docu-sign)
 
-[PeopleOps](./people.md#people-ops)
+[Adding Salesforce licenses](./people#adding-salesforce-licenses)
 
-[Weekly updates](./people.md#weekly-updates)
+[PeopleOps](./people.md#people-ops)
 
 [Rituals](./people.md#rituals)
 

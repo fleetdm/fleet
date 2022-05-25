@@ -239,12 +239,12 @@ type Service interface {
 	AuthenticateDevice(ctx context.Context, authToken string) (host *Host, debug bool, err error)
 
 	ListHosts(ctx context.Context, opt HostListOptions) (hosts []*Host, err error)
-	GetHost(ctx context.Context, id uint, includeCVEScores bool) (host *HostDetail, err error)
+	GetHost(ctx context.Context, id uint) (host *HostDetail, err error)
 	GetHostSummary(ctx context.Context, teamID *uint, platform *string) (summary *HostSummary, err error)
 	DeleteHost(ctx context.Context, id uint) (err error)
 	// HostByIdentifier returns one host matching the provided identifier. Possible matches can be on
 	// osquery_host_identifier, node_key, UUID, or hostname.
-	HostByIdentifier(ctx context.Context, identifier string, includeCVEScores bool) (*HostDetail, error)
+	HostByIdentifier(ctx context.Context, identifier string) (*HostDetail, error)
 	// RefetchHost requests a refetch of host details for the provided host.
 	RefetchHost(ctx context.Context, id uint) (err error)
 	// AddHostsToTeam adds hosts to an existing team, clearing their team settings if teamID is nil.

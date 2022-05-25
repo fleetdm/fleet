@@ -315,7 +315,7 @@ func (ds *Datastore) DeleteHost(ctx context.Context, hid uint) error {
 	})
 }
 
-func (ds *Datastore) Host(ctx context.Context, id uint, skipLoadingExtras bool) (*fleet.Host, error) {
+func (ds *Datastore) Host(ctx context.Context, id uint) (*fleet.Host, error) {
 	policiesColumns := `,
 		       coalesce(failing_policies.count, 0) as failing_policies_count,
 		       coalesce(failing_policies.count, 0) as total_issues_count`
@@ -324,11 +324,6 @@ func (ds *Datastore) Host(ctx context.Context, id uint, skipLoadingExtras bool) 
 		    	SELECT count(*) as count FROM policy_membership WHERE passes=0 AND host_id=?
 			) failing_policies`
 	args := []interface{}{id, id}
-	if skipLoadingExtras {
-		policiesColumns = ""
-		policiesJoin = ""
-		args = []interface{}{id}
-	}
 	sqlStatement := fmt.Sprintf(`
 		SELECT
 		       h.*,
@@ -510,8 +505,8 @@ func filterHostsByStatus(sql string, opt fleet.HostListOptions, params []interfa
 		sql += fmt.Sprintf("AND DATE_ADD(COALESCE(hst.seen_time, h.created_at), INTERVAL LEAST(h.distributed_interval, h.config_tls_refresh) + %d SECOND) > ?", fleet.OnlineIntervalBuffer)
 		params = append(params, time.Now())
 	case "offline":
-		sql += fmt.Sprintf("AND DATE_ADD(COALESCE(hst.seen_time, h.created_at), INTERVAL LEAST(h.distributed_interval, h.config_tls_refresh) + %d SECOND) <= ? AND DATE_ADD(COALESCE(hst.seen_time, h.created_at), INTERVAL 30 DAY) >= ?", fleet.OnlineIntervalBuffer)
-		params = append(params, time.Now(), time.Now())
+		sql += fmt.Sprintf("AND DATE_ADD(COALESCE(hst.seen_time, h.created_at), INTERVAL LEAST(h.distributed_interval, h.config_tls_refresh) + %d SECOND) <= ?", fleet.OnlineIntervalBuffer)
+		params = append(params, time.Now())
 	case "mia":
 		sql += "AND DATE_ADD(COALESCE(hst.seen_time, h.created_at), INTERVAL 30 DAY) <= ?"
 		params = append(params, time.Now())
@@ -555,7 +550,7 @@ func (ds *Datastore) GenerateHostStatusStatistics(ctx context.Context, filter fl
 	// host.Status and CountHostsInTargets - that is, the intervals associated
 	// with each status must be the same.
 
-	args := []interface{}{now, now, now, now, now}
+	args := []interface{}{now, now, now, now}
 	whereClause := ds.whereFilterHostsByTeams(filter, "h")
 	if platform != nil {
 		whereClause += " AND h.platform IN (?) "
@@ -565,7 +560,7 @@ func (ds *Datastore) GenerateHostStatusStatistics(ctx context.Context, filter fl
 			SELECT
 				COUNT(*) total,
 				COALESCE(SUM(CASE WHEN DATE_ADD(COALESCE(hst.seen_time, h.created_at), INTERVAL 30 DAY) <= ? THEN 1 ELSE 0 END), 0) mia,
-				COALESCE(SUM(CASE WHEN DATE_ADD(COALESCE(hst.seen_time, h.created_at), INTERVAL LEAST(distributed_interval, config_tls_refresh) + %d SECOND) <= ? AND DATE_ADD(COALESCE(hst.seen_time, h.created_at), INTERVAL 30 DAY) >= ? THEN 1 ELSE 0 END), 0) offline,
+				COALESCE(SUM(CASE WHEN DATE_ADD(COALESCE(hst.seen_time, h.created_at), INTERVAL LEAST(distributed_interval, config_tls_refresh) + %d SECOND) <= ? THEN 1 ELSE 0 END), 0) offline,
 				COALESCE(SUM(CASE WHEN DATE_ADD(COALESCE(hst.seen_time, h.created_at), INTERVAL LEAST(distributed_interval, config_tls_refresh) + %d SECOND) > ? THEN 1 ELSE 0 END), 0) online,
 				COALESCE(SUM(CASE WHEN DATE_ADD(created_at, INTERVAL 1 DAY) >= ? THEN 1 ELSE 0 END), 0) new
 			FROM hosts h LEFT JOIN host_seen_times hst ON (h.id = hst.host_id) WHERE %s
@@ -981,15 +976,20 @@ func (ds *Datastore) TotalAndUnseenHostsSince(ctx context.Context, daysCount int
 		Total  int `db:"total"`
 		Unseen int `db:"unseen"`
 	}
+
+	// convert daysCount to integer number of seconds for more precision in sql query
+	unseenSeconds := daysCount * 24 * 60 * 60
+
 	err = sqlx.GetContext(ctx, ds.reader, &counts,
 		`SELECT
 			COUNT(*) as total,
-			SUM(IF(DATEDIFF(CURRENT_DATE, COALESCE(hst.seen_time, h.created_at)) >= ?, 1, 0)) as unseen
+			SUM(IF(TIMESTAMPDIFF(SECOND, COALESCE(hst.seen_time, h.created_at), CURRENT_TIMESTAMP) >= ?, 1, 0)) as unseen
 		FROM hosts h
 		LEFT JOIN host_seen_times hst
 		ON h.id = hst.host_id`,
-		daysCount,
+		unseenSeconds,
 	)
+
 	if err != nil {
 		return 0, 0, ctxerr.Wrap(ctx, err, "getting total and unseen host counts")
 	}

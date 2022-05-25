@@ -29,7 +29,6 @@ describe("Hosts flow", () => {
       cy.visit("/hosts/manage");
 
       cy.getAttached(".manage-hosts").within(() => {
-        // cy.getAttached(".manage-hosts__export-btn").click(); // Feature pushed back from 4.13 release
         cy.contains("button", /add hosts/i).click();
       });
       cy.getAttached(".react-tabs").within(() => {
@@ -70,6 +69,36 @@ describe("Hosts flow", () => {
           timeout: 5000,
         });
       }
+    });
+    it(`exports hosts to CSV`, () => {
+      cy.visit("/hosts/manage");
+      cy.getAttached(".manage-hosts").within(() => {
+        cy.getAttached(".manage-hosts__export-btn").click();
+      });
+      if (Cypress.platform !== "win32") {
+        // windows has issues with downloads location
+        const formattedTime = format(new Date(), "yyyy-MM-dd");
+        const filename = `Hosts ${formattedTime}.csv`;
+        cy.readFile(path.join(Cypress.config("downloadsFolder"), filename), {
+          timeout: 5000,
+        });
+      }
+    });
+    it(`hides and shows "Used by" column`, () => {
+      cy.visit("/hosts/manage");
+      cy.getAttached("thead").within(() =>
+        cy.findByText(/used by/i).should("not.exist")
+      );
+      cy.getAttached(".table-container").within(() => {
+        cy.contains("button", /edit columns/i).click();
+      });
+      cy.getAttached(".edit-columns-modal").within(() => {
+        cy.findByLabelText(/used by/i).check({ force: true });
+        cy.contains("button", /save/i).click();
+      });
+      cy.getAttached("thead").within(() =>
+        cy.findByText(/used by/i).should("exist")
+      );
     });
   });
   describe("Manage policies page", () => {
