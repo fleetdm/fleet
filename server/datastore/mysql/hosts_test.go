@@ -1815,6 +1815,24 @@ func testHostsTotalAndUnseenSince(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	assert.Equal(t, 3, total)
 	assert.Equal(t, 2, unseen)
+
+	// host not counted as unseen if less than a full 24 hours has passed
+	_, err = ds.writer.ExecContext(context.Background(), `UPDATE host_seen_times SET seen_time = ? WHERE host_id = 2`, time.Now().Add(-1*time.Duration(1)*86399*time.Second))
+	require.NoError(t, err)
+
+	total, unseen, err = ds.TotalAndUnseenHostsSince(context.Background(), 1)
+	require.NoError(t, err)
+	assert.Equal(t, 3, total)
+	assert.Equal(t, 1, unseen)
+
+	// host counted as unseen if more than 24 hours has passed
+	_, err = ds.writer.ExecContext(context.Background(), `UPDATE host_seen_times SET seen_time = ? WHERE host_id = 2`, time.Now().Add(-1*time.Duration(1)*86401*time.Second))
+	require.NoError(t, err)
+
+	total, unseen, err = ds.TotalAndUnseenHostsSince(context.Background(), 1)
+	require.NoError(t, err)
+	assert.Equal(t, 3, total)
+	assert.Equal(t, 2, unseen)
 }
 
 func testHostsListByPolicy(t *testing.T, ds *Datastore) {

@@ -981,15 +981,20 @@ func (ds *Datastore) TotalAndUnseenHostsSince(ctx context.Context, daysCount int
 		Total  int `db:"total"`
 		Unseen int `db:"unseen"`
 	}
+
+	// convert daysCount to integer number of seconds for more precision in sql query
+	unseenSeconds := daysCount * 24 * 60 * 60
+
 	err = sqlx.GetContext(ctx, ds.reader, &counts,
 		`SELECT
 			COUNT(*) as total,
-			SUM(IF(DATEDIFF(CURRENT_DATE, COALESCE(hst.seen_time, h.created_at)) >= ?, 1, 0)) as unseen
+			SUM(IF(TIMESTAMPDIFF(SECOND, COALESCE(hst.seen_time, h.created_at), CURRENT_TIMESTAMP) >= ?, 1, 0)) as unseen
 		FROM hosts h
 		LEFT JOIN host_seen_times hst
 		ON h.id = hst.host_id`,
-		daysCount,
+		unseenSeconds,
 	)
+
 	if err != nil {
 		return 0, 0, ctxerr.Wrap(ctx, err, "getting total and unseen host counts")
 	}
