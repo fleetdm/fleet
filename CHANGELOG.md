@@ -1,40 +1,34 @@
 ## Fleet 4.15.0 (May 26, 2022)
 
-- Added license object to `GET /fleet/device/{token}` response
+* Expanded beta support for vulnerability reporting to include both Zendesk and Jira integration. This allows users to configure Fleet to
+  automatically create a Zendesk ticket or Jira issue when a new vulnerability (CVE) is detected on your hosts.
+
+* Expanded beta support for Fleet Desktop to Mac and Windows hosts. Fleet Desktop allows the device user to see
+information about their device. To add Fleet Desktop to a host, generate a Fleet-osquery installer with `fleetctl package` and include the `--fleet-desktop` flag. Then, open this installer on the device.
+
+* Added the ability to see when software was last used on Mac hosts in the **Host Details** view in the Fleet UI. Allows you to know how recently an application was accessed and is especially useful when making decisions about whether to continue subscriptions for paid software and distributing licensces. 
+
+* Improved security by increasing the minimum password length requirement for Fleet users to 12 characters.
+
+* Added Policies tab to **Host Details** page for Fleet Premuim users.
+
+* Added `device_mapping` to host information in UI and API responses.
+
+* Deprecated "MIA" host status in UI and API responses.
+
+* Added CVE scores to `/software` API endpoint responses when available.
+
+* Added `all_linux_count` and `builtin_labels` to `GET /host_summary` response.
+
+* Added the ability to select columns when exporting hosts to CSV.
 
 * Improved the output of `fleetclt debug errors` and added the ability to print the errors to stdout via the `-stdout` flag.
 
-Set the correct file extensions to the output of all `fleetctl debug` commands.
+* Added support for Docker Compose V2 to `fleetctl preview`.
 
-- Added policies to device user page for premium users
+* Added experimental option to save responses to `host_last_seen` queries to the database in batches as well as the ability to configure `enable_async_host_processing` settings for `host_last_seen`, `label_membership` and `policy_membership` independently. 
 
-* UI now allows for integration with Zendesk as well as Jira to manage software vulnerabilities.
-
-* Now returns cve scores from software API endpoints when available.
-
-- Added `all_linux_count` and `builtin_labels` to `GET /host_summary` response.
-
-* Increase minimum password length to 12 characters
-
-* Fixed creating a new user password.
-
-* Now supports an extended syntax to configure asynchronous host processing tasks on a per-task basis.
-
-* Now uses `LocalSystem` on fleet-osquery `msi` installer instead of `NT AUTHORITY\SYSTEM`.
-
-* Fleet no longer clears errors from Redis automatically after running `fleetctl debug errors`, but still allows users to clear errors on Redis via the `-flush` flag.
-
-* Added the `columns` query parameter to the export hosts as CSV API endpoint to select the list of columns to include.
-
-Fixed `fleetctl preview` to support docker compose v2.
-
-* Added experimental support for the asynchronous saving of hosts' last seen timestamp.
-
-- Fixed the table layout inconsistencies and bugs in Safari.
-
-- Add more loading spinners while asynchronous actions occur
-
-- Added last used column to host details' software table for Mac OS hosts.
+* Expanded `wifi_networks` table to include more data on macOS and fixed compatibility issues with newer MacOS releases.
 
 ## Fleet 4.14.0 (May 9, 2022)
 
