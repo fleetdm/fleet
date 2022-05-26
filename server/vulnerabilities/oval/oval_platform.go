@@ -20,6 +20,10 @@ func getMajorMinorVer(osVersion string) string {
 	re := regexp.MustCompile(` (?P<major>\d+)\.?(?P<minor>\d+)?\.?(\*|\d+)?$`)
 	m := re.FindStringSubmatch(osVersion)
 
+	if len(m) < 2 {
+		return ""
+	}
+
 	maIdx := re.SubexpIndex("major")
 	miIdx := re.SubexpIndex("minor")
 
