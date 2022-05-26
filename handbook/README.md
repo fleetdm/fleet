@@ -202,7 +202,7 @@ The Fleet handbook is the central guide for how we run the company. As part of o
 
 [Slack channels](./customers.md#slack-channels)
 
-### :handshake: Sales
+### 🤝 Sales
 
 [Rituals](./sales.md#rituals)
 
