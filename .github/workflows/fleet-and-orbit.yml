@@ -220,10 +220,7 @@ jobs:
         GENERATE_DEB: 1
         GENERATE_RPM: 1
         GENERATE_MSI: 1
-        # NOTE(lucas): Fleet Desktop currently disabled because it
-        # takes considerable time to build fleet desktop for Linux
-        # (due to pulling and building of a Docker image).
-        # FLEET_DESKTOP: 1
+        FLEET_DESKTOP: 1
       run: |
         ./tools/tuf/test/main.sh
 
