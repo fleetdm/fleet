@@ -351,6 +351,12 @@ describe("Premium tier - Global Admin user", () => {
         console.log(JSON.stringify(configStub));
       });
     });
+    // it(`displays "Probability of exploit" column`, () => {
+    //   cy.getAttached("thead").within(() => {
+    //     cy.findByText(/vulnerabilities/i).should("not.exist");
+    //     cy.findByText(/probability of exploit/i).should("exist");
+    //   });
+    // });
     it("allows admin to create webhook software vulnerability automation", () => {
       cy.getAttached(".manage-software-page__header-wrap").within(() => {
         cy.findByRole("button", { name: /manage automations/i }).click();
