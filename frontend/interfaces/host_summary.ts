@@ -1,12 +1,3 @@
-import PropTypes from "prop-types";
-
-export default PropTypes.shape({
-  online_count: PropTypes.number,
-  offline_count: PropTypes.number,
-  mia_count: PropTypes.number,
-  new_count: PropTypes.number,
-});
-
 export interface IHostSummaryPlatforms {
   platform: string;
   hosts_count: number;
@@ -25,7 +16,7 @@ export interface IHostSummary {
   platforms: IHostSummaryPlatforms[] | null;
   online_count: number;
   offline_count: number;
-  mia_count: number;
+  mia_count: number; // DEPRECATED: to be removed in Fleet 5.0
   new_count: number;
   builtin_labels: IHostSummaryLabel[];
 }

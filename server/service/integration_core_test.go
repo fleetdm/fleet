@@ -1,12 +1,14 @@
 package service
 
 import (
+	"bytes"
 	"context"
 	"crypto/rand"
 	"encoding/base64"
 	"encoding/csv"
 	"encoding/json"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
@@ -19,6 +21,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/server"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/ptr"
@@ -686,11 +689,11 @@ func (s *integrationTestSuite) TestBulkDeleteHostsFromTeam() {
 	resp := deleteHostsResponse{}
 	s.DoJSON("POST", "/api/latest/fleet/hosts/delete", req, http.StatusOK, &resp)
 
-	_, err = s.ds.Host(context.Background(), hosts[0].ID, false)
+	_, err = s.ds.Host(context.Background(), hosts[0].ID)
 	require.Error(t, err)
-	_, err = s.ds.Host(context.Background(), hosts[1].ID, false)
+	_, err = s.ds.Host(context.Background(), hosts[1].ID)
 	require.NoError(t, err)
-	_, err = s.ds.Host(context.Background(), hosts[2].ID, false)
+	_, err = s.ds.Host(context.Background(), hosts[2].ID)
 	require.NoError(t, err)
 
 	err = s.ds.DeleteHosts(context.Background(), []uint{hosts[1].ID, hosts[2].ID})
@@ -728,11 +731,11 @@ func (s *integrationTestSuite) TestBulkDeleteHostsInLabel() {
 	resp := deleteHostsResponse{}
 	s.DoJSON("POST", "/api/latest/fleet/hosts/delete", req, http.StatusOK, &resp)
 
-	_, err = s.ds.Host(context.Background(), hosts[0].ID, false)
+	_, err = s.ds.Host(context.Background(), hosts[0].ID)
 	require.NoError(t, err)
-	_, err = s.ds.Host(context.Background(), hosts[1].ID, false)
+	_, err = s.ds.Host(context.Background(), hosts[1].ID)
 	require.Error(t, err)
-	_, err = s.ds.Host(context.Background(), hosts[2].ID, false)
+	_, err = s.ds.Host(context.Background(), hosts[2].ID)
 	require.Error(t, err)
 
 	err = s.ds.DeleteHosts(context.Background(), []uint{hosts[0].ID})
@@ -750,11 +753,11 @@ func (s *integrationTestSuite) TestBulkDeleteHostByIDs() {
 	resp := deleteHostsResponse{}
 	s.DoJSON("POST", "/api/latest/fleet/hosts/delete", req, http.StatusOK, &resp)
 
-	_, err := s.ds.Host(context.Background(), hosts[0].ID, false)
+	_, err := s.ds.Host(context.Background(), hosts[0].ID)
 	require.Error(t, err)
-	_, err = s.ds.Host(context.Background(), hosts[1].ID, false)
+	_, err = s.ds.Host(context.Background(), hosts[1].ID)
 	require.Error(t, err)
-	_, err = s.ds.Host(context.Background(), hosts[2].ID, false)
+	_, err = s.ds.Host(context.Background(), hosts[2].ID)
 	require.NoError(t, err)
 
 	err = s.ds.DeleteHosts(context.Background(), []uint{hosts[2].ID})
@@ -2187,6 +2190,35 @@ func (s *integrationTestSuite) TestHostDeviceMapping() {
 
 	s.DoJSON("GET", "/api/latest/fleet/hosts?device_mapping=true", nil, http.StatusOK, &listHosts, "query", "c@b.c")
 	require.Len(t, listHosts.Hosts, 0)
+}
+
+func (s *integrationTestSuite) TestListHostsDeviceMappingSize() {
+	t := s.T()
+	ctx := context.Background()
+	hosts := s.createHosts(t)
+
+	testSize := 50
+	var mappings []*fleet.HostDeviceMapping
+	for i := 0; i < testSize; i++ {
+		testEmail, _ := server.GenerateRandomText(14)
+		mappings = append(mappings, &fleet.HostDeviceMapping{HostID: hosts[0].ID, Email: testEmail, Source: "google_chrome_profiles"})
+	}
+
+	s.ds.ReplaceHostDeviceMapping(ctx, hosts[0].ID, mappings)
+
+	var listHosts listHostsResponse
+	s.DoJSON("GET", "/api/latest/fleet/hosts?device_mapping=true", nil, http.StatusOK, &listHosts)
+
+	hostsByID := make(map[uint]HostResponse)
+	for _, h := range listHosts.Hosts {
+		hostsByID[h.ID] = h
+	}
+	require.NotNil(t, *hostsByID[hosts[0].ID].DeviceMapping)
+
+	var dm []*fleet.HostDeviceMapping
+	err := json.Unmarshal(*hostsByID[hosts[0].ID].DeviceMapping, &dm)
+	require.NoError(t, err)
+	require.Len(t, dm, testSize)
 }
 
 func (s *integrationTestSuite) TestGetMacadminsData() {
@@ -4859,6 +4891,7 @@ func (s *integrationTestSuite) TestGetHostLastOpenedAt() {
 
 func (s *integrationTestSuite) TestHostsReportDownload() {
 	t := s.T()
+	ctx := context.Background()
 
 	hosts := s.createHosts(t)
 	err := s.ds.ApplyLabelSpecs(context.Background(), []*fleet.LabelSpec{
@@ -4869,6 +4902,19 @@ func (s *integrationTestSuite) TestHostsReportDownload() {
 	require.NoError(t, err)
 	require.Len(t, lids, 1)
 	customLabelID := lids[0]
+
+	// create a policy and make host[1] fail that policy
+	pol, err := s.ds.NewGlobalPolicy(ctx, nil, fleet.PolicyPayload{Name: t.Name(), Query: "SELECT 1"})
+	require.NoError(t, err)
+	err = s.ds.RecordPolicyQueryExecutions(ctx, hosts[1], map[uint]*bool{pol.ID: ptr.Bool(false)}, time.Now(), false)
+	require.NoError(t, err)
+
+	// create some device mappings for host[2]
+	err = s.ds.ReplaceHostDeviceMapping(ctx, hosts[2].ID, []*fleet.HostDeviceMapping{
+		{HostID: hosts[2].ID, Email: "a@b.c", Source: "google_chrome_profiles"},
+		{HostID: hosts[2].ID, Email: "b@b.c", Source: "google_chrome_profiles"},
+	})
+	require.NoError(t, err)
 
 	res := s.DoRaw("GET", "/api/latest/fleet/hosts/report", nil, http.StatusUnsupportedMediaType, "format", "gzip")
 	var errs struct {
@@ -4889,8 +4935,19 @@ func (s *integrationTestSuite) TestHostsReportDownload() {
 	res.Body.Close()
 	require.NoError(t, err)
 	require.Len(t, rows, len(hosts)+1) // all hosts + header row
-	require.Len(t, rows[0], 43)        // total number of cols
+	require.Len(t, rows[0], 44)        // total number of cols
 	t.Log(rows[0])
+
+	const idCol, issuesCol, deviceCol = 2, 40, 41
+
+	// find the row for hosts[1], it should have issues=1 (1 failing policy)
+	for _, row := range rows[1:] {
+		if row[idCol] == fmt.Sprint(hosts[1].ID) {
+			require.Equal(t, "1", row[issuesCol], row)
+		} else {
+			require.Equal(t, "0", row[issuesCol], row)
+		}
+	}
 
 	// valid format, some columns
 	res = s.DoRaw("GET", "/api/latest/fleet/hosts/report", nil, http.StatusOK, "format", "csv", "columns", "hostname")
@@ -4918,6 +4975,22 @@ func (s *integrationTestSuite) TestHostsReportDownload() {
 	require.NoError(t, err)
 	require.Len(t, rows, 2) // headers + matching host
 	require.Contains(t, rows[1], hosts[0].Hostname)
+
+	// with device mapping results
+	res = s.DoRaw("GET", "/api/latest/fleet/hosts/report", nil, http.StatusOK, "format", "csv", "columns", "id,hostname,device_mapping")
+	rawCSV, err := io.ReadAll(res.Body)
+	require.Contains(t, string(rawCSV), `"a@b.c,b@b.c"`) // inside quotes because it contains a comma
+	rows, err = csv.NewReader(bytes.NewReader(rawCSV)).ReadAll()
+	res.Body.Close()
+	require.NoError(t, err)
+	require.Len(t, rows, len(hosts)+1)
+	for _, row := range rows[1:] {
+		if row[0] == fmt.Sprint(hosts[2].ID) {
+			require.Equal(t, "a@b.c,b@b.c", row[2], row)
+		} else {
+			require.Equal(t, "", row[2], row)
+		}
+	}
 
 	// with a label id
 	res = s.DoRaw("GET", "/api/latest/fleet/hosts/report", nil, http.StatusOK, "format", "csv", "columns", "hostname", "label_id", fmt.Sprintf("%d", customLabelID))

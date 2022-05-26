@@ -8,6 +8,9 @@ import (
 	"github.com/fleetdm/fleet/v4/server/ptr"
 )
 
+// MaxScheduledQueryInterval is the maximum interval value (in seconds) allowed by osquery
+const MaxScheduledQueryInterval = 604800
+
 type PackListOptions struct {
 	ListOptions
 
@@ -110,7 +113,10 @@ type PackPayload struct {
 	TeamIDs     *[]uint `json:"team_ids"`
 }
 
-var errPackEmptyName = errors.New("pack name cannot be empty")
+var (
+	errPackEmptyName       = errors.New("pack name cannot be empty")
+	errPackInvalidInterval = errors.New("pack scheduled query interval must be an integer greater than 1 and less than 604800")
+)
 
 // Verify verifies the pack's payload fields are valid.
 func (p *PackPayload) Verify() error {
@@ -136,6 +142,11 @@ type PackSpec struct {
 func (p *PackSpec) Verify() error {
 	if emptyString(p.Name) {
 		return errPackEmptyName
+	}
+	for _, sq := range p.Queries {
+		if sq.Interval < 1 || sq.Interval > MaxScheduledQueryInterval {
+			return errPackInvalidInterval
+		}
 	}
 	return nil
 }

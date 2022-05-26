@@ -228,7 +228,7 @@ CPUQuota=20%
 [Install]
 WantedBy=multi-user.target
 `),
-		constant.DefaultFileMode,
+		constant.DefaultSystemdUnitMode,
 	); err != nil {
 		return fmt.Errorf("write file: %w", err)
 	}
@@ -275,8 +275,7 @@ func writeEnvFile(opt Options, rootPath string) error {
 	return nil
 }
 
-var postInstallTemplate = template.Must(template.New("postinstall").Parse(`
-#!/bin/sh
+var postInstallTemplate = template.Must(template.New("postinstall").Parse(`#!/bin/sh
 
 # Exit on error
 set -e

@@ -121,8 +121,8 @@ func newError(ctx context.Context, msg string, cause error, data map[string]inte
 }
 
 func wrapError(ctx context.Context, msg string, cause error, data map[string]interface{}) error {
-	if msg == "" || cause == nil {
-		return cause
+	if cause == nil {
+		return nil
 	}
 
 	stack := newStack(2)

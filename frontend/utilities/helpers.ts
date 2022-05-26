@@ -83,16 +83,6 @@ const labelStubs = [
     statusLabelKey: "offline_count",
     type: "status",
   },
-  {
-    id: "mia",
-    count: 0,
-    description: "Hosts that have not been seen by Fleet in more than 30 days.",
-    display_text: "MIA",
-    slug: "mia",
-    statusLabelKey: "mia_count",
-    title_description: "(offline > 30 days)",
-    type: "status",
-  },
 ];
 
 const isLabel = (target: ISelectTargetsEntity) => {

@@ -7,7 +7,6 @@ import { Tab, Tabs, TabList, TabPanel } from "react-tabs";
 import classnames from "classnames";
 import { pick } from "lodash";
 
-import { AppContext } from "context/app";
 import { NotificationContext } from "context/notification";
 import deviceUserAPI from "services/entities/device_user";
 import { IHost, IDeviceMappingResponse } from "interfaces/host";
@@ -103,9 +102,20 @@ const DeviceUserPage = ({
       onSuccess: (returnedHost: IHostResponse) => {
         setShowRefetchSpinner(returnedHost.host.refetch_requested);
         setIsPremiumTier(returnedHost.license.tier === "premium");
-        if (returnedHost.host.refetch_requested) {
+        setHostSoftware(returnedHost.host.software);
+        setHost(returnedHost.host);
+        setOrgLogoURL(returnedHost.org_logo_url);
+        if (returnedHost?.host.refetch_requested) {
+          // If the API reports that a Fleet refetch request is pending, we want to check back for fresh
+          // host details. Here we set a one second timeout and poll the API again using
+          // fullyReloadHost. We will repeat this process with each onSuccess cycle for a total of
+          // 60 seconds or until the API reports that the Fleet refetch request has been resolved
+          // or that the host has gone offline.
           if (!refetchStartTime) {
-            if (returnedHost.host.status === "online") {
+            // If our 60 second timer wasn't already started (e.g., if a refetch was pending when
+            // the first page loads), we start it now if the host is online. If the host is offline,
+            // we skip the refetch on page load.
+            if (returnedHost?.host.status === "online") {
               setRefetchStartTime(Date.now());
               setTimeout(() => {
                 refetchHostDetails();
@@ -117,7 +127,7 @@ const DeviceUserPage = ({
           } else {
             const totalElapsedTime = Date.now() - refetchStartTime;
             if (totalElapsedTime < 60000) {
-              if (returnedHost.host.status === "online") {
+              if (returnedHost?.host.status === "online") {
                 setTimeout(() => {
                   refetchHostDetails();
                   refetchExtensions();
@@ -137,11 +147,8 @@ const DeviceUserPage = ({
               setShowRefetchSpinner(false);
             }
           }
-          return;
+          // exit early because refectch is pending so we can avoid unecessary steps below
         }
-        setHostSoftware(returnedHost.host.software);
-        setHost(returnedHost.host);
-        setOrgLogoURL(returnedHost.org_logo_url);
       },
       onError: (error) => handlePageError(error),
     }
@@ -194,13 +201,12 @@ const DeviceUserPage = ({
     if (host) {
       setShowRefetchSpinner(true);
       try {
-        await deviceUserAPI.refetch(deviceAuthToken).then(() => {
-          setRefetchStartTime(Date.now());
-          setTimeout(() => {
-            refetchHostDetails();
-            refetchExtensions();
-          }, 1000);
-        });
+        await deviceUserAPI.refetch(deviceAuthToken);
+        setRefetchStartTime(Date.now());
+        setTimeout(() => {
+          refetchHostDetails();
+          refetchExtensions();
+        }, 1000);
       } catch (error) {
         console.log(error);
         renderFlash("error", `Host "${host.hostname}" refetch error`);
@@ -248,7 +254,7 @@ const DeviceUserPage = ({
                     <Tab>
                       <div>
                         {titleData.issues.failing_policies_count > 0 && (
-                          <span className="fail-count">
+                          <span className="count">
                             {titleData.issues.failing_policies_count}
                           </span>
                         )}

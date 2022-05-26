@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/csv"
+	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
@@ -23,10 +24,11 @@ import (
 // rendering in the UI.
 type HostResponse struct {
 	*fleet.Host
-	Status      fleet.HostStatus   `json:"status" csv:"status"`
-	DisplayText string             `json:"display_text" csv:"display_text"`
-	Labels      []fleet.Label      `json:"labels,omitempty" csv:"-"`
-	Geolocation *fleet.GeoLocation `json:"geolocation,omitempty" csv:"-"`
+	Status           fleet.HostStatus   `json:"status" csv:"status"`
+	DisplayText      string             `json:"display_text" csv:"display_text"`
+	Labels           []fleet.Label      `json:"labels,omitempty" csv:"-"`
+	Geolocation      *fleet.GeoLocation `json:"geolocation,omitempty" csv:"-"`
+	CSVDeviceMapping string             `json:"-" db:"-" csv:"device_mapping"`
 }
 
 func hostResponseForHost(ctx context.Context, svc fleet.Service, host *fleet.Host) (*HostResponse, error) {
@@ -74,18 +76,21 @@ func (r listHostsResponse) error() error { return r.Err }
 
 func listHostsEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
 	req := request.(*listHostsRequest)
+
+	var software *fleet.Software
+	if req.Opts.SoftwareIDFilter != nil {
+		var err error
+		software, err = svc.SoftwareByID(ctx, *req.Opts.SoftwareIDFilter, false)
+		if err != nil {
+			return listHostsResponse{Err: err}, nil
+		}
+	}
+
 	hosts, err := svc.ListHosts(ctx, req.Opts)
 	if err != nil {
 		return listHostsResponse{Err: err}, nil
 	}
 
-	var software *fleet.Software
-	if req.Opts.SoftwareIDFilter != nil {
-		software, err = svc.SoftwareByID(ctx, *req.Opts.SoftwareIDFilter)
-		if err != nil {
-			return listHostsResponse{Err: err}, nil
-		}
-	}
 	hostResponses := make([]HostResponse, len(hosts))
 	for i, host := range hosts {
 		h, err := hostResponseForHost(ctx, svc, host)
@@ -110,14 +115,6 @@ func (svc *Service) ListHosts(ctx context.Context, opt fleet.HostListOptions) ([
 	filter := fleet.TeamFilter{User: vc.User, IncludeObserver: true}
 
 	return svc.ds.ListHosts(ctx, filter, opt)
-}
-
-func (svc *Service) SoftwareByID(ctx context.Context, id uint) (*fleet.Software, error) {
-	if err := svc.authz.Authorize(ctx, &fleet.Host{}, fleet.ActionList); err != nil {
-		return nil, err
-	}
-
-	return svc.ds.SoftwareByID(ctx, id)
 }
 
 /////////////////////////////////////////////////////////////////////////////////
@@ -281,7 +278,7 @@ func (svc *Service) GetHost(ctx context.Context, id uint) (*fleet.HostDetail, er
 		}
 	}
 
-	host, err := svc.ds.Host(ctx, id, false)
+	host, err := svc.ds.Host(ctx, id)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "get host")
 	}
@@ -293,7 +290,12 @@ func (svc *Service) GetHost(ctx context.Context, id uint) (*fleet.HostDetail, er
 		}
 	}
 
-	return svc.getHostDetails(ctx, host)
+	hostDetails, err := svc.getHostDetails(ctx, host)
+	if err != nil {
+		return nil, err
+	}
+
+	return hostDetails, nil
 }
 
 func (svc *Service) checkWriteForHostIDs(ctx context.Context, ids []uint) error {
@@ -421,7 +423,12 @@ func (svc *Service) HostByIdentifier(ctx context.Context, identifier string) (*f
 		return nil, err
 	}
 
-	return svc.getHostDetails(ctx, host)
+	hostDetails, err := svc.getHostDetails(ctx, host)
+	if err != nil {
+		return nil, err
+	}
+
+	return hostDetails, nil
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -871,6 +878,30 @@ type hostsReportResponse struct {
 func (r hostsReportResponse) error() error { return r.Err }
 
 func (r hostsReportResponse) hijackRender(ctx context.Context, w http.ResponseWriter) {
+	// post-process the Device Mappings for CSV rendering
+	for _, h := range r.Hosts {
+		if h.DeviceMapping != nil {
+			// return the list of emails, comma-separated, as part of that single CSV field
+			var dms []struct {
+				Email string `json:"email"`
+			}
+			if err := json.Unmarshal(*h.DeviceMapping, &dms); err != nil {
+				// log the error but keep going
+				logging.WithErr(ctx, err)
+				continue
+			}
+
+			var sb strings.Builder
+			for i, dm := range dms {
+				if i > 0 {
+					sb.WriteString(",")
+				}
+				sb.WriteString(dm.Email)
+			}
+			h.CSVDeviceMapping = sb.String()
+		}
+	}
+
 	var buf bytes.Buffer
 	if err := gocsv.Marshal(r.Hosts, &buf); err != nil {
 		logging.WithErr(ctx, err)
@@ -945,13 +976,27 @@ func hostsReportEndpoint(ctx context.Context, request interface{}, svc fleet.Ser
 		return hostsReportResponse{Err: err}, nil
 	}
 
-	// Those are not supported when listing hosts in a label, so that's just to
-	// make the output consistent whether a label is used or not.
-	req.Opts.DisableFailingPolicies = true
+	req.Opts.DisableFailingPolicies = false
 	req.Opts.AdditionalFilters = nil
 	req.Opts.Page = 0
 	req.Opts.PerPage = 0 // explicitly disable any limit, we want all matching hosts
 	req.Opts.After = ""
+	req.Opts.DeviceMapping = false
+
+	rawCols := strings.Split(req.Columns, ",")
+	var cols []string
+	for _, rawCol := range rawCols {
+		if rawCol = strings.TrimSpace(rawCol); rawCol != "" {
+			cols = append(cols, rawCol)
+			if rawCol == "device_mapping" {
+				req.Opts.DeviceMapping = true
+			}
+		}
+	}
+	if len(cols) == 0 {
+		// enable device_mapping retrieval, as no column means all columns
+		req.Opts.DeviceMapping = true
+	}
 
 	var (
 		hosts []*fleet.Host
@@ -974,13 +1019,6 @@ func hostsReportEndpoint(ctx context.Context, request interface{}, svc fleet.Ser
 			return hostsReportResponse{Err: err}, nil
 		}
 		hostResps[i] = hr
-	}
-	rawCols := strings.Split(req.Columns, ",")
-	var cols []string
-	for _, rawCol := range rawCols {
-		if rawCol = strings.TrimSpace(rawCol); rawCol != "" {
-			cols = append(cols, rawCol)
-		}
 	}
 	return hostsReportResponse{Columns: cols, Hosts: hostResps}, nil
 }
