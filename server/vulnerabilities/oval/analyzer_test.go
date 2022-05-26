@@ -45,12 +45,12 @@ func TestOvalAnalyzer(t *testing.T) {
 
 		extract := func(src, dst string) {
 			srcF, err := os.Open(src)
-			defer srcF.Close()
 			require.NoError(t, err)
+			defer srcF.Close()
 
 			dstF, err := os.Create(dst)
-			defer dstF.Close()
 			require.NoError(t, err)
+			defer dstF.Close()
 
 			r := bzip2.NewReader(srcF)
 			_, err = io.Copy(dstF, r)
@@ -111,8 +111,8 @@ func TestOvalAnalyzer(t *testing.T) {
 		assertVulns := func(h *fleet.Host, p Platform) {
 			fPath := filepath.Join(vulnPath, fmt.Sprintf("%s-software_cves.csv", p))
 			f, err := os.Open(fPath)
-			defer f.Close()
 			require.NoError(t, err)
+			defer f.Close()
 
 			r := csv.NewReader(f)
 			var expected []string
