@@ -8,6 +8,7 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"io/ioutil"
 	"log"
 	"math/rand"
 	"net/http"
@@ -133,7 +134,7 @@ func (n *nodeKeyManager) Add(nodekey string) {
 	n.l.Lock()
 	defer n.l.Unlock()
 
-	f, err := os.OpenFile(n.filepath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0600)
+	f, err := os.OpenFile(n.filepath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o600)
 	if err != nil {
 		fmt.Println("error opening nodekey file:", err.Error())
 		return
@@ -398,6 +399,61 @@ func (a *agent) HostUsersMacOS() []fleet.HostUser {
 	return users
 }
 
+func loadUbuntuSoftware(ver string) []fleet.Software {
+	var r []fleet.Software
+
+	type softwareJSON struct {
+		Name    string `json:"name"`
+		Version string `json:"version"`
+	}
+
+	var software []softwareJSON
+	contents, err := ioutil.ReadFile(fmt.Sprintf("ubuntu_%s-vulnerable_software.json", ver))
+	if err != nil {
+		log.Println("reading vuln software for ubuntu 16.04:", err)
+		return nil
+	}
+
+	err = json.Unmarshal(contents, &software)
+	if err != nil {
+		log.Println("unmarshalling vuln software for ubuntu 16.04:", err)
+		return nil
+	}
+
+	for _, fi := range software {
+		r = append(r, fleet.Software{
+			Name:    fi.Name,
+			Version: fi.Version,
+			Source:  "osquery-perf",
+		})
+	}
+	return r
+}
+
+func (a *agent) SoftwareUbuntu1604() []fleet.Software {
+	return loadUbuntuSoftware("1604")
+}
+
+func (a *agent) SoftwareUbuntu1804() []fleet.Software {
+	return loadUbuntuSoftware("1804")
+}
+
+func (a *agent) SoftwareUbuntu2004() []fleet.Software {
+	return loadUbuntuSoftware("2004")
+}
+
+func (a *agent) SoftwareUbuntu2104() []fleet.Software {
+	return loadUbuntuSoftware("2104")
+}
+
+func (a *agent) SoftwareUbuntu2110() []fleet.Software {
+	return loadUbuntuSoftware("2110")
+}
+
+func (a *agent) SoftwareUbuntu2204() []fleet.Software {
+	return loadUbuntuSoftware("2204")
+}
+
 func (a *agent) SoftwareMacOS() []fleet.Software {
 	var lastOpenedCount int
 	commonSoftware := make([]fleet.Software, a.softwareCount.common)
@@ -639,10 +695,24 @@ func main() {
 
 	rand.Seed(*randSeed)
 
-	// Currently all hosts will be macOS.
-	tmpl, err := template.ParseFS(templatesFS, "mac10.14.6.tmpl")
-	if err != nil {
-		log.Fatal("parse templates: ", err)
+	templateNames := []string{
+		"mac10.14.6.tml",
+		"ubuntu_16.04.tmpl",
+		"ubuntu_18.04.tmpl",
+		"ubuntu_20.04.tmpl",
+		"ubuntu_21.04.tmpl",
+		"ubuntu_21.10.tmpl",
+		"ubuntu_22.04.tmpl",
+	}
+
+	var tmpls []*template.Template
+	for _, t := range templateNames {
+		tmpl, err := template.ParseFS(templatesFS, t)
+		if err != nil {
+			log.Fatal("parse templates: ", err)
+			continue
+		}
+		tmpls = append(tmpls, tmpl)
 	}
 
 	// Spread starts over the interval to prevent thundering herd
@@ -658,6 +728,7 @@ func main() {
 	}
 
 	for i := 0; i < *hostCount; i++ {
+		tmpl := tmpls[i%len(tmpls)]
 		a := newAgent(i+1, *serverURL, *enrollSecret, tmpl, *configInterval, *queryInterval, softwareEntityCount{
 			entityCount: entityCount{
 				common: *commonSoftwareCount,

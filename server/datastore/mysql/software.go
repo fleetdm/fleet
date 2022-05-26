@@ -1149,3 +1149,44 @@ func (ds *Datastore) ListSoftwareVulnerabilities(
 
 	return result, nil
 }
+
+func (ds *Datastore) ListSoftwareForVulnDetection(
+	ctx context.Context,
+	hostID uint,
+) ([]fleet.Software, error) {
+	var result []fleet.Software
+
+	stmt := dialect.
+		From(goqu.T("software").As("s")).
+		Join(
+			goqu.T("software_cpe").As("cpe"),
+			goqu.On(goqu.Ex{
+				"s.id": goqu.I("cpe.software_id"),
+			}),
+		).
+		Join(
+			goqu.T("host_software").As("hs"),
+			goqu.On(goqu.Ex{
+				"s.id": goqu.I("hs.software_id"),
+			}),
+		).
+		Select(
+			goqu.I("s.id"),
+			goqu.I("s.name"),
+			goqu.I("s.version"),
+			goqu.I("cpe.cpe").As("generated_cpe"),
+			goqu.I("cpe.id").As("generated_cpe_id"),
+		).
+		Where(goqu.C("host_id").Eq(hostID))
+
+	sql, args, err := stmt.ToSQL()
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "ListSoftwareForVulnDetection")
+	}
+
+	if err := sqlx.SelectContext(ctx, ds.reader, &result, sql, args...); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "ListSoftwareForVulnDetection")
+	}
+
+	return result, nil
+}

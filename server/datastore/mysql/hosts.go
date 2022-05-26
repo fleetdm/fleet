@@ -1714,22 +1714,19 @@ ON DUPLICATE KEY UPDATE
 	return nil
 }
 
-func (ds *Datastore) HostIDsByPlatform(
+func (ds *Datastore) HostIDsByOsVersion(
 	ctx context.Context,
-	platform *string,
-	osVersion *string,
+	osVersion fleet.OSVersion,
+	offset int,
+	limit int,
 ) ([]uint, error) {
 	var ids []uint
 	var filters []goqu.Expression
 
 	stmt := dialect.From("hosts").Select("id")
-	if platform != nil {
-		filters = append(filters, goqu.C("platform").Eq(platform))
-	}
-	if osVersion != nil {
-		filters = append(filters, goqu.C("os_version").Eq(osVersion))
-	}
-	stmt = stmt.Where(filters...).Order(goqu.I("id").Desc())
+	filters = append(filters, goqu.C("platform").Eq(osVersion.Platform))
+	filters = append(filters, goqu.C("os_version").Eq(osVersion.Name))
+	stmt = stmt.Where(filters...).Order(goqu.I("id").Desc()).Offset(uint(offset)).Limit(uint(limit))
 
 	sql, args, err := stmt.ToSQL()
 	if err != nil {
