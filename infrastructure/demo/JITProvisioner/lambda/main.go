@@ -5,7 +5,7 @@ import (
 	"github.com/aws/aws-lambda-go/events"
 	"github.com/aws/aws-lambda-go/lambda"
 	"github.com/awslabs/aws-lambda-go-api-proxy/httpadapter"
-    //"github.com/gin-contrib/cors" TODO: use cors
+	//"github.com/gin-contrib/cors" TODO: use cors
 	"github.com/gin-gonic/gin"
 	flags "github.com/jessevdk/go-flags"
 	//"github.com/juju/errors"
@@ -42,12 +42,10 @@ func Health(c *gin.Context, in *HealthInput) (ret *HealthOutput, err error) {
 }
 
 type NewFleetInput struct {
-	Name string `query:"name"`
+	Email string `validate:"required"`
 }
 type NewFleetOutput struct {
-	Name  string `json:"name"`
-	Price int    `json:"price"`
-	Breed string `json:"breed"`
+	URL string
 }
 
 func NewFleet(c *gin.Context, in *NewFleetInput) (ret *NewFleetOutput, err error) {
@@ -82,7 +80,7 @@ func main() {
 	}
 	f.GET("/openapi.json", nil, f.OpenAPI(infos, "json"))
 	f.GET("/health", nil, tonic.Handler(Health, 200))
-	f.GET("/new", nil, tonic.Handler(NewFleet, 200))
+	f.POST("/new", nil, tonic.Handler(NewFleet, 200))
 
 	if options.LambdaExecutionEnv == "AWS_Lambda_go1.x" {
 		ginLambda = httpadapter.New(r)
