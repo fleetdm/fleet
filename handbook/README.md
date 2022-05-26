@@ -118,7 +118,6 @@ The Fleet handbook is the central guide for how we run the company. As part of o
 
 ### 🚀 Engineering
 
-
 [Meetings](./engineering.md#meetings)
 
 [Release process](./engineering.md#release-process)
@@ -202,6 +201,12 @@ The Fleet handbook is the central guide for how we run the company. As part of o
 [Rituals](./customers.md#rituals)
 
 [Slack channels](./customers.md#slack-channels)
+
+### :handshake: Sales
+
+[Rituals](./sales.md#rituals)
+
+[Slack channels](./sales.md#slack-channels)
 
 ### 🧑‍🚀 People
 
