@@ -2,21 +2,20 @@ package main
 
 import (
 	"context"
-	"fmt"
 	"github.com/aws/aws-lambda-go/events"
 	"github.com/aws/aws-lambda-go/lambda"
 	"github.com/awslabs/aws-lambda-go-api-proxy/httpadapter"
-	"github.com/gin-contrib/cors"
+    //"github.com/gin-contrib/cors" TODO: use cors
 	"github.com/gin-gonic/gin"
 	flags "github.com/jessevdk/go-flags"
-	"github.com/juju/errors"
+	//"github.com/juju/errors"
 	"github.com/loopfz/gadgeto/tonic"
 	"github.com/wI2L/fizz"
 	"github.com/wI2L/fizz/openapi"
+	"go.elastic.co/apm/module/apmgin/v2"
+	_ "go.elastic.co/apm/v2"
 	"log"
 	"net/http"
-	"github.com/fleetdm/fleet/infrastructure/demo/JITProvisioner/lambda/models"
-	"github.com/fleetdm/fleet/infrastructure/demo/JITProvisioner/lambda/controllers"
 )
 
 type OptionsStruct struct {
@@ -33,71 +32,31 @@ type LifecycleRecord struct {
 
 var ginLambda *httpadapter.HandlerAdapter
 
-func NewRouter() (*fizz.Fizz, error) {
-	engine := gin.New()
-	engine.Use(cors.Default())
-	fizzApp := fizz.NewFromEngine(engine)
-
-	infos := &openapi.Info{
-		Title:       "Fleet Demo JIT Provisioner",
-		Description: "API for the Fleet Demo Environment",
-		Version:     "1.0.0",
-	}
-	fizzApp.GET("/openapi.json", nil, fizzApp.OpenAPI(infos, "json"))
-	group := fizzApp.Group("", "endpoints", "All of the endpoints.")
-	group.GET("/healthcheck", []fizz.OperationOption{
-		fizz.Summary("Checks API is healthy."),
-		fizz.Response(fmt.Sprint(http.StatusInternalServerError), "Server Error", models.APIError{}, nil, nil),
-	}, tonic.Handler(controllers.Healthcheck, http.StatusOK))
-	group.POST("/new", []fizz.OperationOption{
-		fizz.Summary("Get a new fleet demo instance"),
-		fizz.Response(fmt.Sprint(http.StatusInternalServerError), "Server Error", models.APIError{}, nil, nil),
-		fizz.Response(fmt.Sprint(http.StatusConflict), "No Capacity", models.APIError{}, nil, nil),
-		fizz.Response(fmt.Sprint(http.StatusUnauthorized), "Incorrect Captcha", models.APIError{}, nil, nil),
-		fizz.Response(fmt.Sprint(http.StatusBadRequest), "Invalid Input", models.APIError{}, nil, nil),
-	}, tonic.Handler(controllers.NewDemo, http.StatusOK))
-
-	if len(fizzApp.Errors()) != 0 {
-		return nil, fmt.Errorf("fizz errors: %v", fizzApp.Errors())
-	}
-	tonic.SetErrorHook(errHook)
-	return fizzApp, nil
+type HealthInput struct{}
+type HealthOutput struct {
+	Message string `json:"message" description:"The status of the API." example:"The API is healthy"`
 }
 
-func errHook(_ *gin.Context, e error) (int, interface{}) {
-	code, msg := http.StatusInternalServerError, http.StatusText(http.StatusInternalServerError)
-	if _, ok := e.(tonic.BindError); ok {
-		code, msg = http.StatusBadRequest, e.Error()
-	} else {
-		switch {
-		case errors.IsBadRequest(e), errors.IsNotValid(e), errors.IsNotSupported(e), errors.IsNotProvisioned(e):
-			code, msg = http.StatusBadRequest, e.Error()
-		case errors.IsForbidden(e):
-			code, msg = http.StatusForbidden, e.Error()
-		case errors.IsMethodNotAllowed(e):
-			code, msg = http.StatusMethodNotAllowed, e.Error()
-		case errors.IsNotFound(e), errors.IsUserNotFound(e):
-			code, msg = http.StatusNotFound, e.Error()
-		case errors.IsUnauthorized(e):
-			code, msg = http.StatusUnauthorized, e.Error()
-		case errors.IsAlreadyExists(e):
-			code, msg = http.StatusConflict, e.Error()
-		case errors.IsNotImplemented(e):
-			code, msg = http.StatusNotImplemented, e.Error()
-		}
-	}
-	err := models.APIError{
-		Message: msg,
-	}
-	return code, err
+func Health(c *gin.Context, in *HealthInput) (ret *HealthOutput, err error) {
+	return
+}
+
+type NewFleetInput struct {
+	Name string `query:"name"`
+}
+type NewFleetOutput struct {
+	Name  string `json:"name"`
+	Price int    `json:"price"`
+	Breed string `json:"breed"`
+}
+
+func NewFleet(c *gin.Context, in *NewFleetInput) (ret *NewFleetOutput, err error) {
+	return
 }
 
 func handler(ctx context.Context, req events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, error) {
 	// If no name is provided in the HTTP request body, throw an error
 	return ginLambda.ProxyWithContext(ctx, req)
-}
-
-func getInstance(c *gin.Context) {
 }
 
 func main() {
@@ -113,10 +72,17 @@ func main() {
 		}
 	}
 
-	r, err := NewRouter()
-	if err != nil {
-		log.Fatal(err)
+	r := gin.Default()
+	r.Use(apmgin.Middleware(r))
+	f := fizz.NewFromEngine(r)
+	infos := &openapi.Info{
+		Title:       "Fleet Demo JITProvisioner",
+		Description: "Provisions new Fleet instances uppon request",
+		Version:     "1.0.0",
 	}
+	f.GET("/openapi.json", nil, f.OpenAPI(infos, "json"))
+	f.GET("/health", nil, tonic.Handler(Health, 200))
+	f.GET("/new", nil, tonic.Handler(NewFleet, 200))
 
 	if options.LambdaExecutionEnv == "AWS_Lambda_go1.x" {
 		ginLambda = httpadapter.New(r)
