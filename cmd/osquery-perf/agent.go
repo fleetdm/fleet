@@ -669,7 +669,7 @@ func main() {
 	commonUserCount := flag.Int("common_user_count", 10, "Number of common host users reported to fleet")
 	uniqueUserCount := flag.Int("unique_user_count", 10, "Number of unique host users reported to fleet")
 	policyPassProb := flag.Float64("policy_pass_prob", 1.0, "Probability of policies to pass [0, 1]")
-	orbitProb := flag.Float64("orbit_prob", 1.0, "Probability of a host being identified as orbit install [0, 1]")
+	orbitProb := flag.Float64("orbit_prob", 0.5, "Probability of a host being identified as orbit install [0, 1]")
 
 	flag.Parse()
 
