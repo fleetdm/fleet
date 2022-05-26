@@ -834,7 +834,7 @@ func registerTLS(conf config.MysqlConfig) error {
 func generateMysqlConnectionString(conf config.MysqlConfig) string {
 	tz := url.QueryEscape("'-00:00'")
 	dsn := fmt.Sprintf(
-		"%s:%s@%s(%s)/%s?charset=utf8mb4&parseTime=true&loc=UTC&time_zone=%s&clientFoundRows=true&allowNativePasswords=true",
+		"%s:%s@%s(%s)/%s?charset=utf8mb4&parseTime=true&loc=UTC&time_zone=%s&clientFoundRows=true&allowNativePasswords=true&group_concat_max_len=4194304",
 		conf.Username,
 		conf.Password,
 		conf.Protocol,

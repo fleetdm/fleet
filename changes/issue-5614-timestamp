@@ -1,0 +1,1 @@
+- Switched from `DATEDIFF` to `TIMESTAMPDIFF` to improve precision when calculating unseen hosts reported by host status webhook

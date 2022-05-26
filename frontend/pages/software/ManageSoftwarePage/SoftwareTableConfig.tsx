@@ -170,9 +170,27 @@ const generateTableHeaders = (isPremiumTier?: boolean): Column[] => {
       Header: "Name",
       disableSortBy: true,
       accessor: "name",
-      Cell: (cellProps: IStringCellProps): JSX.Element => (
-        <TextCell value={cellProps.cell.value} />
-      ),
+      Cell: (cellProps: IStringCellProps): JSX.Element => {
+        const { name, bundle_identifier } = cellProps.row.original;
+        if (bundle_identifier) {
+          return (
+            <span className="name-container">
+              <TooltipWrapper
+                tipContent={`
+                  <span>
+                    <b>Bundle identifier: </b>
+                    <br />
+                    ${bundle_identifier}
+                  </span>
+                `}
+              >
+                {name}
+              </TooltipWrapper>
+            </span>
+          );
+        }
+        return <TextCell value={name} />;
+      },
     },
     {
       title: "Version",

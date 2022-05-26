@@ -976,7 +976,7 @@ func (ds *Datastore) CalculateHostsPerSoftware(ctx context.Context, updatedAt ti
 // matching hosts.
 func (ds *Datastore) HostsByCPEs(ctx context.Context, cpes []string) ([]*fleet.HostShort, error) {
 	queryStmt := `
-    SELECT
+    SELECT DISTINCT
       h.id,
       h.hostname
     FROM
