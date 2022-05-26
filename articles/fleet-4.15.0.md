@@ -1,4 +1,4 @@
-# Fleet 4.15.0 adds beta support for self-service, increases trasparency, and brings Zendesk to the party.
+# Fleet 4.15.0 adds beta support for self-service, increases transparency, and brings Zendesk to the party.
 
 ![Fleet 4.15.0](../website/assets/images/articles/)
 
@@ -16,20 +16,20 @@ For update instructions, see our [upgrade guide](https://fleetdm.com/docs/deploy
 **Available in Fleet Premium**
 
 ![Self-service with Fleet Desktop on macOS, Windows, and Linux](../website/assets/images/articles/)
-Fleet Desktop is a lightweight application that allows end users to self serve failing policies on their laptop or workstation.
+Fleet Desktop is a lightweight application that allows end-users to self serve failing policies on their laptop or workstation.
 
-With Fleet Desktop installed on a host, the end user has access to the list of policies that apply to their laptop, along with the instructions to resolve failing policies. The end user can quickly reach this list of policies by selecting the Fleet icon > My device in the menu bar.
+With Fleet Desktop installed on a host, the end-user has access to the list of policies that apply to their laptop, and the instructions to resolve failing policies. The end-user can quickly reach this list of policies by selecting the Fleet icon > My device in the menu bar.
 
 ## Transparency with Fleet Desktop on macOS, Windows, and Linux
 **Available in Fleet Free & Fleet Premium**
 
 ![Transparency with Fleet Desktop on macOS, Windows, and Linux](../website/assets/images/articles/)
 
-Fleet Desktop also allows end users to see what information, about their laptop or workstation, their organization has access to.
+Fleet Desktop also allows end-users to see what information about their laptop or workstation, is accessible to their organization.
 
-With Fleet Desktop installed on a host, the end user has the ability to navigate to the Transparency page on fleetdm.com. This page includes resources on what personal information Fleet and osquery can see. The end user can quickly reach the Transparency page by selecting the Fleet icon > Transparency in the menu bar.
+With Fleet Desktop installed on a host, the end-user can navigate to the Transparency page on fleetdm.com. This page includes resources on what personal information Fleet and osquery can see. The end-user can quickly reach the Transparency page by selecting the Fleet icon > Transparency in the menu bar.
 
-The end user also has access to information about their laptop's disk space, memory, last restarted time, installed software, and more. The end user can quickly reach this information by selecting the Fleet icon in their menu bar and selecting **My device**.
+The end-user also has access to information about their laptop's disk space, memory, last restarted time, installed software, and more. The end-user can quickly reach this information by selecting the Fleet icon in their menu bar and selecting **My device**.
 
 ## Zendesk integration
 **Available in Fleet Free & Fleet Premium**
@@ -44,14 +44,14 @@ found on your hosts. Add the Zendesk Integration in the Fleet UI under **Setting
 
 !["Last used" information for MacOS applications.](../website/assets/images/articles/)
 
-We've added a **Last used** column to the **Software** tab in **Host Details** for MacOS devices. This allows you to know how recently an application was accessed and is especially useful when making decisions about whether to continue subscriptions for paid software and when distributing licensces. 
+We've added a **Last used** column to the **Software** tab in **Host Details** for MacOS devices. This lets you know how recently an application was accessed and is especially useful when deciding whether to continue subscriptions for paid software and when distributing licenses. 
 
 ## More new features, improvements, and bug fixes
 
 In 4.15.0, we also:
 
 * Improved security by increasing the minimum password length requirement for Fleet users to 12 characters.
-* Added Policies tab to **Host Details** page for Fleet Premuim users.
+* Added Policies tab to **Host Details** page for Fleet Premium users.
 * Added `device_mapping` to hosts` information in UI and API responses.
 * Deprecated "MIA" host status in UI and API responses.
 * Added CVE scores to `/software` API endpoint responses when available.
