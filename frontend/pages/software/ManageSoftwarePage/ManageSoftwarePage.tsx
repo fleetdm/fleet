@@ -90,9 +90,7 @@ const ManageSoftwarePage = ({
   } = useContext(AppContext);
   const { renderFlash } = useContext(NotificationContext);
 
-  const DEFAULT_SORT_HEADER = isPremiumTier
-    ? "epss_probability"
-    : "hosts_count";
+  const DEFAULT_SORT_HEADER = isPremiumTier ? "vulnerabilities" : "hosts_count";
 
   const [isSoftwareEnabled, setIsSoftwareEnabled] = useState<boolean>();
   const [
@@ -173,14 +171,16 @@ const ManageSoftwarePage = ({
         perPage: PAGE_SIZE,
         query: searchQuery,
         orderDir: sortDirection || DEFAULT_SORT_DIRECTION,
-        orderKey: sortHeader || DEFAULT_SORT_HEADER,
+        // API expects "epss_probability" rather than "vulnerabilities"
+        orderKey:
+          isPremiumTier && sortHeader === "vulnerabilities"
+            ? "epss_probability"
+            : sortHeader,
         teamId: currentTeam?.id,
         vulnerable: !!location.query.vulnerable,
       },
     ],
-    ({ queryKey }) => {
-      return softwareAPI.load(queryKey[0]);
-    },
+    ({ queryKey }) => softwareAPI.load(queryKey[0]),
     {
       enabled:
         isOnGlobalTeam ||
@@ -495,7 +495,7 @@ const ManageSoftwarePage = ({
                 )
               }
               defaultSortHeader={DEFAULT_SORT_HEADER}
-              defaultSortDirection={"desc"}
+              defaultSortDirection={DEFAULT_SORT_DIRECTION}
               manualSortBy
               pageSize={PAGE_SIZE}
               showMarkAllPages={false}
