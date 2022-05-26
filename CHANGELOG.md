@@ -10,7 +10,7 @@ information about their device. To add Fleet Desktop to a host, generate a Fleet
 
 * Improved security by increasing the minimum password length requirement for Fleet users to 12 characters.
 
-* Added Policies tab to **Host Details** page for Fleet Premuim users.
+* Added Policies tab to **Host Details** page for Fleet Premium users.
 
 * Added `device_mapping` to host information in UI and API responses.
 
