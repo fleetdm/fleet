@@ -628,12 +628,13 @@ func (ds *Datastore) EnrollHost(ctx context.Context, osqueryHostID, nodeKey stri
 					detail_updated_at,
 					label_updated_at,
 					policy_updated_at,
+					last_enrolled_at,
 					osquery_host_id,
 					node_key,
 					team_id
-				) VALUES (?, ?, ?, ?, ?, ?)
+				) VALUES (?, ?, ?, ?, ?, ?, ?)
 			`
-			result, err := tx.ExecContext(ctx, sqlInsert, zeroTime, zeroTime, zeroTime, osqueryHostID, nodeKey, teamID)
+			result, err := tx.ExecContext(ctx, sqlInsert, zeroTime, zeroTime, zeroTime, time.Now().UTC(), osqueryHostID, nodeKey, teamID)
 			if err != nil {
 				return ctxerr.Wrap(ctx, err, "insert host")
 			}
