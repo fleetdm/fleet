@@ -36,7 +36,6 @@ parasails.registerPage('state-of-device-management', {
       },
       mdmInvolvement: {
         elementID: 'mdm-involvement-chart',
-        title: 'Were you involved in the deployment of your organization’s current MDM solution?',
         data: {
           labels: ['Yes', 'No'],
           datasets: [{
@@ -48,7 +47,6 @@ parasails.registerPage('state-of-device-management', {
       },
       mdmDeploymentTime: {
         elementID: 'mdm-deployment-time-chart',
-        title: 'Estimated time to complete MDM deployment and implementation',
         data: {
           labels: ['<4 weeks', '1-3 months', '3-6 months', '6-9 months', '9-12 months', '12+ months'],
           datasets: [{
@@ -60,7 +58,6 @@ parasails.registerPage('state-of-device-management', {
       },
       mdmVisibility: {
         elementID: 'mdm-visibility-chart',
-        title: 'Does your current management strategy provide sufficient visibility / collect sufficient security data about enrolled devices?',
         data: {
           labels: ['Yes', 'No',],
           datasets: [{
@@ -72,7 +69,6 @@ parasails.registerPage('state-of-device-management', {
       },
       mdmLaptopsAndServers: {
         elementID: 'mdm-laptops-and-servers-chart',
-        title: 'Does your current management strategy provide sufficient visibility / collect sufficient security data about enrolled devices?',
         data: {
           labels: ['Yes', 'No',],
           datasets: [{
@@ -84,7 +80,6 @@ parasails.registerPage('state-of-device-management', {
       },
       mdmInventory: {
         elementID: 'mdm-inventory-chart',
-        title: 'Does your current device management strategy effectively keep an accurate inventory of all devices across all platforms?',
         data: {
           labels: ['Yes', 'No',],
           datasets: [{
@@ -96,7 +91,6 @@ parasails.registerPage('state-of-device-management', {
       },
       mdmIncidentResponse: {
         elementID: 'mdm-incident-response-chart',
-        title: 'Does your current management strategy allow you to respond to incidents in a timely manner, with enough context?',
         data: {
           labels: ['Yes', 'No',],
           datasets: [{
@@ -108,7 +102,6 @@ parasails.registerPage('state-of-device-management', {
       },
       mdmRealtimeVisibility: {
         elementID: 'mdm-realtime-visibility-chart',
-        title: 'Does your current management strategy give you enough visibility to investigate what’s happening on the device “right now”?',
         data: {
           labels: ['Yes', 'No',],
           datasets: [{
@@ -120,7 +113,6 @@ parasails.registerPage('state-of-device-management', {
       },
       mdmComplianceEnforcement: {
         elementID: 'mdm-compliance-enforcement-chart',
-        title: 'Does your current management strategy enforce compliance and security posture across all devices?',
         data: {
           labels: ['Yes', 'No',],
           datasets: [{
@@ -132,7 +124,6 @@ parasails.registerPage('state-of-device-management', {
       },
       mdmWorkflowAutomation: {
         elementID: 'mdm-workflow-automation-chart',
-        title: 'Does your current management strategy allow you to effectively automate your custom security workflows?',
         data: {
           labels: ['Yes', 'No',],
           datasets: [{
@@ -144,7 +135,6 @@ parasails.registerPage('state-of-device-management', {
       },
       mdmSelfService: {
         elementID: 'mdm-self-service-chart',
-        title: 'Does your current management strategy give end users a way to safely self-serve their own IT needs without involving the help desk?',
         data: {
           labels: ['Yes', 'No',],
           datasets: [{
@@ -351,7 +341,6 @@ parasails.registerPage('state-of-device-management', {
   mounted: async function() {
 
     for(let index in this.pieCharts) {
-      // console.log(this.pieCharts[index]);
       const ctx = this.pieCharts[index].elementID;
       // cloning this chart's data object to apply the standard configuration options
       let defaultConfig = [{
@@ -366,29 +355,23 @@ parasails.registerPage('state-of-device-management', {
         data: clonedChartData,
         options: {
           cutout: '40%',
-          aspectRatio: this.pieCharts[index].title ? 1 : 1,
+          aspectRatio: this.pieCharts[index].legendPosition ? 1 : 2,
           layout: {
             autoPadding: false,
+            padding: {
+              left: 0,
+              bottom: 0,
+              top: 16,
+              right: this.pieCharts[index].legendPosition ? 0 : 50,
+            }
           },
           plugins: {
-            title: {
-              display: this.pieCharts[index].title,
-              text: this.pieCharts[index].title,
-              color: '#000000',
-              fullSize: false,
-              align: 'start',
-              padding: {
-                bottom: 16,
-                top: 0
-              },
-              font: {
-                family: 'Nunito Sans',
-                weight: 600,
-                size: 16,
-              }
-            },
             legend: {
               position: this.pieCharts[index].legendPosition ? this.pieCharts[index].legendPosition : 'right',
+              padding: {
+                top: 40
+              },
+              onClick: ()=>{},
               labels: {
                 generateLabels: (chart) => {
                   const datasets = chart.data.datasets;
