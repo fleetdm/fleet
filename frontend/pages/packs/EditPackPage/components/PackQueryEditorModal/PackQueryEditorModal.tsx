@@ -153,12 +153,12 @@ const PackQueryEditorModal = ({
       return selectedQuery?.id;
     };
 
-    const f = parseInt(selectedFrequency, 10);
-    if (!f || f < 0) {
+    const frequency = parseInt(selectedFrequency, 10);
+    if (!frequency || frequency < 0) {
       setErrorFrequency("Frequency must be an integer greater than zero");
       return;
     }
-    if (f > MAX_OSQUERY_SCHEDULED_QUERY_INTERVAL) {
+    if (frequency > MAX_OSQUERY_SCHEDULED_QUERY_INTERVAL) {
       setErrorFrequency(
         "Frequency must be an integer that does not exceed 604,800 (i.e. 7 days)"
       );
