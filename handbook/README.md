@@ -24,6 +24,10 @@ The Fleet handbook is the central guide for how we run the company. As part of o
 
 [GitHub labels](./company.md#git-hub-labels)
 
+[Tools we use](./company.md#tools-we-use)
+
+[Email relays](./company.md#email-relays)
+
 [Rituals](./company.md#rituals)
 
 [Slack channels](./company.md#slack-channels)
