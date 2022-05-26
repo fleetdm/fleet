@@ -20,6 +20,9 @@ import (
 )
 
 func TestOvalAnalyzer(t *testing.T) {
+	// For generating the vulnerability lists I used VMs and ran oscap (since it seems like oscap
+	// does not work with Docker) and extracted all installed software vulnerabilities, then I had
+	// the VMs join my local dev env, and extracted the installed software from the database.
 	t.Run("analyzing Ubuntu software", func(t *testing.T) {
 		type softwareFixture struct {
 			Name    string `json:"name"`
