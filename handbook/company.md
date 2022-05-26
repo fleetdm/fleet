@@ -249,7 +249,7 @@ We prefer to generate our REST API reference docs the good old-fashioned way. By
 ### Why handbook-first strategy?
 The Fleet handbook provides team members with up-to-date information about how to do things in the company. By adopting the handbook-first strategy, we can encourage a culture of self-service and self-learning, which is essential for daily a-synchronous work as part of an all-remote team.
 
-This strategy was inspired by GitLab, who use it to great effect. Check out this [short three-minute video](https://www.youtube.com/watch?v=aZrK8AQM8Ro) about their take on the handbook-first approach.
+This strategy was inspired by GitLab, which uses it with great effect. Check out this [short three-minute video](https://www.youtube.com/watch?v=aZrK8AQM8Ro) about their take on the handbook-first approach.
 
 
 
