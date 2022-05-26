@@ -420,6 +420,26 @@ spec:
 	require.Len(t, appliedPacks, 1)
 	assert.Equal(t, "osquery_monitoring", appliedPacks[0].Name)
 	require.Len(t, appliedPacks[0].Queries, 2)
+
+	interval := writeTmpYml(t, `---
+apiVersion: v1
+kind: pack
+spec:
+  name: test_bad_interval
+  queries:
+    - query: good_interval
+      name: good_interval
+      interval: 7200
+    - query: bad_interval
+      name: bad_interval
+      interval: 604801
+`)
+
+	expectedErrMsg := "applying packs: POST /api/latest/fleet/spec/packs received status 400 Bad request: pack payload verification: pack scheduled query interval must be an integer greater than 1 and less than 604800"
+
+	_, err := runAppNoChecks([]string{"apply", "-f", interval})
+	assert.Error(t, err)
+	require.Equal(t, expectedErrMsg, err.Error())
 }
 
 func TestApplyQueries(t *testing.T) {
