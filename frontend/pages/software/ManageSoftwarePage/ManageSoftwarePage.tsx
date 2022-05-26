@@ -90,7 +90,9 @@ const ManageSoftwarePage = ({
   } = useContext(AppContext);
   const { renderFlash } = useContext(NotificationContext);
 
-  const DEFAULT_SORT_HEADER = isPremiumTier ? "epss_probability" : "host_count";
+  const DEFAULT_SORT_HEADER = isPremiumTier
+    ? "epss_probability"
+    : "hosts_count";
 
   const [isSoftwareEnabled, setIsSoftwareEnabled] = useState<boolean>();
   const [
