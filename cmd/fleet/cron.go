@@ -297,7 +297,7 @@ func checkVulnerabilities(
 	collectRecentVulns bool,
 ) map[string][]string {
 	if !config.Vulnerabilities.DisableDataSync {
-		err := vulnerabilities.Sync(vulnPath, config.Vulnerabilities.CPEDatabaseURL, ds)
+		err := vulnerabilities.Sync(vulnPath, config.Vulnerabilities.CPEDatabaseURL)
 		if err != nil {
 			level.Error(logger).Log("msg", "syncing vulnerability database", "err", err)
 			sentry.CaptureException(err)

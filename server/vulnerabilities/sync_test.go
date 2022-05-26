@@ -64,7 +64,7 @@ func TestLoadCVEScores(t *testing.T) {
 	}
 
 	tempDir := t.TempDir()
-	err := Sync(tempDir, "", ds)
+	err := Sync(tempDir, "")
 	require.NoError(t, err)
 
 	err = LoadCVEScores(tempDir, ds)

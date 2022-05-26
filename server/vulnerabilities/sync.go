@@ -23,7 +23,7 @@ import (
 )
 
 // Sync downloads all the vulnerability data sources and loads cve scores into the database.
-func Sync(vulnPath string, cpeDatabaseURL string, ds fleet.Datastore) error {
+func Sync(vulnPath string, cpeDatabaseURL string) error {
 	client := fleethttp.NewClient()
 
 	if err := DownloadCPEDatabase(vulnPath, client, WithCPEURL(cpeDatabaseURL)); err != nil {
