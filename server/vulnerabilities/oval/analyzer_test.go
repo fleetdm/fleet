@@ -9,7 +9,6 @@ import (
 	"io"
 	"io/ioutil"
 	"os"
-	"path"
 	"path/filepath"
 	"testing"
 	"time"
@@ -61,16 +60,16 @@ func TestOvalAnalyzer(t *testing.T) {
 		extractFixtures := func(p Platform) {
 			fixtPath := "testdata/ubuntu"
 
-			srcDefPath := path.Join(fixtPath, fmt.Sprintf("%s-oval_def.json.bz2", p))
-			dstDefPath := path.Join(vulnPath, p.ToFilename(time.Now(), "json"))
+			srcDefPath := filepath.Join(fixtPath, fmt.Sprintf("%s-oval_def.json.bz2", p))
+			dstDefPath := filepath.Join(vulnPath, p.ToFilename(time.Now(), "json"))
 			extract(srcDefPath, dstDefPath)
 
-			srcSoftPath := path.Join(fixtPath, "software", fmt.Sprintf("%s-software.json.bz2", p))
-			dstSoftPath := path.Join(vulnPath, fmt.Sprintf("%s-software.json", p))
+			srcSoftPath := filepath.Join(fixtPath, "software", fmt.Sprintf("%s-software.json.bz2", p))
+			dstSoftPath := filepath.Join(vulnPath, fmt.Sprintf("%s-software.json", p))
 			extract(srcSoftPath, dstSoftPath)
 
-			srcCvesPath := path.Join(fixtPath, "software", fmt.Sprintf("%s-software_cves.csv.bz2", p))
-			dstCvesPath := path.Join(vulnPath, fmt.Sprintf("%s-software_cves.csv", p))
+			srcCvesPath := filepath.Join(fixtPath, "software", fmt.Sprintf("%s-software_cves.csv.bz2", p))
+			dstCvesPath := filepath.Join(vulnPath, fmt.Sprintf("%s-software_cves.csv", p))
 			extract(srcCvesPath, dstCvesPath)
 		}
 
@@ -82,7 +81,7 @@ func TestOvalAnalyzer(t *testing.T) {
 			require.NoError(t, err)
 
 			var fixtures []softwareFixture
-			contents, err := ioutil.ReadFile(path.Join(vulnPath, fmt.Sprintf("%s-software.json", p)))
+			contents, err := ioutil.ReadFile(filepath.Join(vulnPath, fmt.Sprintf("%s-software.json", p)))
 			require.NoError(t, err)
 
 			err = json.Unmarshal(contents, &fixtures)
@@ -110,7 +109,7 @@ func TestOvalAnalyzer(t *testing.T) {
 		}
 
 		assertVulns := func(h *fleet.Host, p Platform) {
-			fPath := path.Join(vulnPath, fmt.Sprintf("%s-software_cves.csv", p))
+			fPath := filepath.Join(vulnPath, fmt.Sprintf("%s-software_cves.csv", p))
 			f, err := os.Open(fPath)
 			defer f.Close()
 			require.NoError(t, err)
