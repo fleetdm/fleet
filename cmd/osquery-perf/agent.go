@@ -192,12 +192,13 @@ func newAgent(
 	policyPassProb float64,
 	orbitProb float64,
 ) *agent {
-	transport := http.DefaultTransport.(*http.Transport).Clone()
-	transport.TLSClientConfig = &tls.Config{InsecureSkipVerify: true}
-	transport.DisableCompression = true
 	var deviceAuthToken *string
 	if rand.Float64() <= orbitProb {
 		deviceAuthToken = ptr.String(uuid.NewString())
+	}
+	// #nosec (osquery-perf is only used for testing)
+	tlsConfig := &tls.Config{
+		InsecureSkipVerify: true,
 	}
 	return &agent{
 		agentIndex:     agentIndex,
@@ -207,7 +208,7 @@ func newAgent(
 		strings:        make(map[string]string),
 		policyPassProb: policyPassProb,
 		fastClient: fasthttp.Client{
-			TLSConfig: &tls.Config{InsecureSkipVerify: true},
+			TLSConfig: tlsConfig,
 		},
 		templates:       templates,
 		deviceAuthToken: deviceAuthToken,
