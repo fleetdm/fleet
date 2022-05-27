@@ -4,7 +4,6 @@ import { useQuery } from "react-query";
 import { useDebouncedCallback } from "use-debounce/lib";
 
 import { AppContext } from "context/app";
-// import { QueryContext } from "context/query";
 
 import { IHost } from "interfaces/host";
 import { ILabel, ILabelSummary } from "interfaces/label";
@@ -30,8 +29,8 @@ import TargetsInput from "components/TargetsInput";
 import Button from "components/buttons/Button";
 import Spinner from "components/Spinner";
 import TooltipWrapper from "components/TooltipWrapper";
-import PlusIcon from "../../../../../assets/images/icon-plus-purple-32x32@2x.png";
-import CheckIcon from "../../../../../assets/images/icon-check-purple-32x32@2x.png";
+import PlusIcon from "../../../assets/images/icon-plus-purple-32x32@2x.png";
+import CheckIcon from "../../../assets/images/icon-check-purple-32x32@2x.png";
 
 interface ITargetPillSelectorProps {
   entity: ISelectLabel | ISelectTeam;
@@ -43,7 +42,7 @@ interface ITargetPillSelectorProps {
 
 interface ISelectTargetsProps {
   baseClass: string;
-  queryIdForEdit: number | null;
+  queryId?: number | null;
   selectedTargets: ITarget[];
   targetedHosts: IHost[];
   targetedLabels: ILabel[];
@@ -117,7 +116,7 @@ const TargetPillSelector = ({
 
 const SelectTargets = ({
   baseClass,
-  queryIdForEdit,
+  queryId,
   selectedTargets,
   targetedHosts,
   targetedLabels,
@@ -131,9 +130,6 @@ const SelectTargets = ({
   setTargetsTotalCount,
 }: ISelectTargetsProps): JSX.Element => {
   const { isPremiumTier } = useContext(AppContext);
-  // const { selectedTargetsByQueryId, setSelectedTargetsByQueryId } = useContext(
-  //   QueryContext
-  // );
 
   const [allHosts, setAllHosts] = useState<ILabelSummary[] | null>(null);
   const [platforms, setPlatforms] = useState<ILabelSummary[] | null>(null);
@@ -156,15 +152,6 @@ const SelectTargets = ({
     setIsDebouncing(true);
     debounceSearch(searchText);
   }, [searchText]);
-
-  // useEffect(() => {
-  //   if (queryIdForEdit) {
-  //     const selected = selectedTargetsByQueryId?.[queryIdForEdit];
-  //     selected && setTargetedHosts([...selected.hosts]);
-  //     selected && setTargetedLabels([...selected.labels]);
-  //     selected && setTargetedTeams([...selected.teams]);
-  //   }
-  // });
 
   const {
     data: labels,
@@ -225,7 +212,7 @@ const SelectTargets = ({
     [
       {
         scope: "targetsSearch", // TODO: shared scope?
-        query_id: queryIdForEdit,
+        query_id: queryId,
         query: debouncedSearchText,
         selected: formatSelectedTargetsForApi(selectedTargets),
       },
@@ -258,7 +245,7 @@ const SelectTargets = ({
     [
       {
         scope: "targetsCount", // Note: Scope is shared with QueryPage?
-        query_id: queryIdForEdit,
+        query_id: queryId,
         selected: formatSelectedTargetsForApi(selectedTargets),
       },
     ],
@@ -278,12 +265,6 @@ const SelectTargets = ({
   useEffect(() => {
     const selected = [...targetedHosts, ...targetedLabels, ...targetedTeams];
     setSelectedTargets(selected);
-    // if (queryIdForEdit) {
-    //   setSelectedTargetsByQueryId(
-    //     queryIdForEdit,
-    //     formatSelectedTargetsForApi(selected)
-    //   );
-    // }
   }, [targetedHosts, targetedLabels, targetedTeams]);
 
   const handleClickCancel = () => {
@@ -331,7 +312,6 @@ const SelectTargets = ({
     goToRunQuery();
   };
 
-  // TODO: selections being saved but aren't rendering on initial mount?
   const renderTargetEntityList = (
     header: string,
     entityList: ISelectLabel[] | ISelectTeam[]
@@ -358,14 +338,13 @@ const SelectTargets = ({
 
   const renderTargetsCount = (): JSX.Element | null => {
     if (isFetchingCounts) {
-      return <i style={{ color: "#8b8fa2" }}>Checking for online targets...</i>;
+      return <i style={{ color: "#8b8fa2" }}>Checking for online hosts...</i>;
     }
 
     if (errorCounts) {
       return (
         <b style={{ color: "#d66c7b", margin: 0 }}>
-          There was a problem checking for online targets. Please try again
-          later.
+          There was a problem checking online hosts. Please try again later.
         </b>
       );
     }

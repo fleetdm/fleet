@@ -4,14 +4,12 @@ import { find } from "lodash";
 import { osqueryTables } from "utilities/osquery_tables";
 import { DEFAULT_QUERY } from "utilities/constants";
 import { DEFAULT_OSQUERY_TABLE, IOsqueryTable } from "interfaces/osquery_table";
-import { ISelectedTargets } from "interfaces/target";
 
 type Props = {
   children: ReactNode;
 };
 
 type InitialStateType = {
-  selectedTargetsByQueryId: Record<number, ISelectedTargets> | null;
   selectedOsqueryTable: IOsqueryTable;
   lastEditedQueryId: number | null;
   lastEditedQueryName: string;
@@ -24,14 +22,12 @@ type InitialStateType = {
   setLastEditedQueryBody: (value: string) => void;
   setLastEditedQueryObserverCanRun: (value: boolean) => void;
   setSelectedOsqueryTable: (tableName: string) => void;
-  setSelectedTargetsByQueryId: (id: number, targets: ISelectedTargets) => void;
 };
 
 const initialState = {
   selectedOsqueryTable:
     find(osqueryTables, { name: "users" }) || DEFAULT_OSQUERY_TABLE,
   lastEditedQueryId: null,
-  selectedTargetsByQueryId: null,
   lastEditedQueryName: DEFAULT_QUERY.name,
   lastEditedQueryDescription: DEFAULT_QUERY.description,
   lastEditedQueryBody: DEFAULT_QUERY.query,
@@ -42,12 +38,10 @@ const initialState = {
   setLastEditedQueryBody: () => null,
   setLastEditedQueryObserverCanRun: () => null,
   setSelectedOsqueryTable: () => null,
-  setSelectedTargetsByQueryId: () => null,
 };
 
 const actions = {
   SET_SELECTED_OSQUERY_TABLE: "SET_SELECTED_OSQUERY_TABLE",
-  SET_SELECTED_TARGETS_BY_QUERY_ID: "SET_SELECTED_TARGETS_BY_QUERY_ID",
   SET_LAST_EDITED_QUERY_INFO: "SET_LAST_EDITED_QUERY_INFO",
 } as const;
 
@@ -84,14 +78,6 @@ const reducer = (state: any, action: any) => {
             ? state.lastEditedQueryObserverCanRun
             : action.lastEditedQueryObserverCanRun,
       };
-    case actions.SET_SELECTED_TARGETS_BY_QUERY_ID:
-      return {
-        ...state,
-        selectedTargetsByQueryId: {
-          ...state.selectedTargetsByQueryID,
-          [action.id]: action.targets,
-        },
-      };
     default:
       return state;
   }
@@ -104,7 +90,6 @@ const QueryProvider = ({ children }: Props) => {
 
   const value = {
     selectedOsqueryTable: state.selectedOsqueryTable,
-    selectedTargetsByQueryId: state.selectedTargetsByQueryId,
     lastEditedQueryId: state.lastEditedQueryId,
     lastEditedQueryName: state.lastEditedQueryName,
     lastEditedQueryDescription: state.lastEditedQueryDescription,
@@ -144,9 +129,6 @@ const QueryProvider = ({ children }: Props) => {
     },
     setSelectedOsqueryTable: (tableName: string) => {
       dispatch({ type: actions.SET_SELECTED_OSQUERY_TABLE, tableName });
-    },
-    setSelectedTargetsByQueryId: (id: number, targets: ISelectedTargets) => {
-      dispatch({ type: actions.SET_SELECTED_TARGETS_BY_QUERY_ID, id, targets });
     },
   };
 

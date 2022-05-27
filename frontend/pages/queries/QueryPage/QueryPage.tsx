@@ -17,7 +17,7 @@ import { ITarget } from "interfaces/target";
 
 import QuerySidePanel from "components/side_panels/QuerySidePanel";
 import QueryEditor from "pages/queries/QueryPage/screens/QueryEditor";
-import SelectTargets from "pages/queries/QueryPage/screens/SelectTargets";
+import SelectTargets from "components/LiveQuery/SelectTargets";
 import RunQuery from "pages/queries/QueryPage/screens/RunQuery";
 import ExternalURLIcon from "../../../../assets/images/icon-external-url-12x12@2x.png";
 
@@ -44,7 +44,7 @@ const QueryPage = ({
   params: { id: paramsQueryId },
   location: { query: URLQuerySearch },
 }: IQueryPageProps): JSX.Element => {
-  const queryIdForEdit = paramsQueryId ? parseInt(paramsQueryId, 10) : null;
+  const queryId = paramsQueryId ? parseInt(paramsQueryId, 10) : null;
 
   const handlePageError = useErrorHandler();
   const {
@@ -85,10 +85,10 @@ const QueryPage = ({
     data: storedQuery,
     error: storedQueryError,
   } = useQuery<IStoredQueryResponse, Error, IQuery>(
-    ["query", queryIdForEdit],
-    () => queryAPI.load(queryIdForEdit as number),
+    ["query", queryId],
+    () => queryAPI.load(queryId as number),
     {
-      enabled: !!queryIdForEdit,
+      enabled: !!queryId,
       refetchOnWindowFocus: false,
       select: (data: IStoredQueryResponse) => data.query,
       onSuccess: (returnedQuery) => {
@@ -187,7 +187,7 @@ const QueryPage = ({
     const step1Opts = {
       router,
       baseClass,
-      queryIdForEdit,
+      queryIdForEdit: queryId,
       showOpenSchemaActionText,
       storedQuery,
       isStoredQueryLoading,
@@ -201,9 +201,9 @@ const QueryPage = ({
 
     const step2Opts = {
       baseClass,
-      queryIdForEdit,
-      selectedTargets: [...selectedTargets], // why spread here?
-      targetedHosts, // spread here causes infinite loop on effect in child
+      queryId,
+      selectedTargets,
+      targetedHosts,
       targetedLabels,
       targetedTeams,
       targetsTotalCount,
@@ -217,9 +217,9 @@ const QueryPage = ({
     };
 
     const step3Opts = {
-      selectedTargets, // not spread here?
+      queryId,
+      selectedTargets,
       storedQuery,
-      queryIdForEdit,
       setSelectedTargets,
       goToQueryEditor: () => setStep(QUERIES_PAGE_STEPS[1]),
       targetsTotalCount,

@@ -20,7 +20,7 @@ import QueryResults from "../components/QueryResults";
 interface IRunQueryProps {
   storedQuery: IQuery | undefined;
   selectedTargets: ITarget[];
-  queryIdForEdit: number | null;
+  queryId: number | null;
   setSelectedTargets: (value: ITarget[]) => void;
   goToQueryEditor: () => void;
   targetsTotalCount: number;
@@ -29,7 +29,7 @@ interface IRunQueryProps {
 const RunQuery = ({
   storedQuery,
   selectedTargets,
-  queryIdForEdit,
+  queryId,
   setSelectedTargets,
   goToQueryEditor,
   targetsTotalCount,
@@ -154,11 +154,9 @@ const RunQuery = ({
     try {
       const isStoredQueryEdited = storedQuery?.query !== lastEditedQueryBody;
 
-      // because we are not using the saved query id if user edits the SQL
-      const queryId = isStoredQueryEdited ? null : queryIdForEdit;
       const returnedCampaign = await queryAPI.run({
         query: lastEditedQueryBody,
-        queryId,
+        queryId: isStoredQueryEdited ? null : queryId, // we treat edited SQL as a new query
         selected,
       });
 
