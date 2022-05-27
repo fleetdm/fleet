@@ -20,7 +20,7 @@ information about their device. To add Fleet Desktop to a host, generate a Fleet
 
 * Added `all_linux_count` and `builtin_labels` to `GET /host_summary` response.
 
-* Added "Bundle identifier" information as tooltip for macOS applications on Software page
+* Added "Bundle identifier" information as tooltip for macOS applications on Software page.
 
 * Fixed an issue with detecting root directory when using `orbit shell`.
 
@@ -35,9 +35,13 @@ information about their device. To add Fleet Desktop to a host, generate a Fleet
 * Added experimental option to save responses to `host_last_seen` queries to the database in batches as well as the ability to configure `enable_async_host_processing` settings for `host_last_seen`, `label_membership` and `policy_membership` independently. 
 * Expanded `wifi_networks` table to include more data on macOS and fixed compatibility issues with newer MacOS releases.
 
-* Improved precision in unseen hosts reports sent by the host status webhook
+* Improved precision in unseen hosts reports sent by the host status webhook.
 
-* Increased MySQL `group_concat_max_len` setting from default 1024 to 4194304
+* Increased MySQL `group_concat_max_len` setting from default 1024 to 4194304.
+
+* Added validation for pack scheduled query interval.
+
+* Fixed instructions for enrolling hosts using osqueryd.
 
 ## Fleet 4.14.0 (May 9, 2022)
 
