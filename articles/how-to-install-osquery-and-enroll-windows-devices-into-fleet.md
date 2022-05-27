@@ -51,7 +51,7 @@ Once `fleetctl` has finished creating your osquery installer, it will produce an
 Double-click the installer and follow the guided steps to successfully install osquery on your Windows device and enroll it into Fleet!
 
 ## Deploying at scale?
-If you’re managing an enterprise environment, you will likely have a deployment tool like [Munki](https://www.munki.org/munki/), [Jamf Pro] (https://www.jamf.com/products/jamf-pro/), [Chef](https://www.chef.io/), [Ansible](https://www.ansible.com/), or [Puppet](https://puppet.com/) to deliver software to your devices. You can distribute your osquery installer and add all your devices to Fleet using your software management tool of choice.
+If you’re managing an enterprise environment, you will likely have a deployment tool like [Munki](https://www.munki.org/munki/), [Jamf Pro](https://www.jamf.com/products/jamf-pro/), [Chef](https://www.chef.io/), [Ansible](https://www.ansible.com/), or [Puppet](https://puppet.com/) to deliver software to your devices. You can distribute your osquery installer and add all your devices to Fleet using your software management tool of choice.
 
 <meta name="category" value="guides">
 <meta name="authorFullName" value="Kelvin Omereshone">
