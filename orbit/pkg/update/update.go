@@ -23,7 +23,6 @@ import (
 	"github.com/fleetdm/fleet/v4/orbit/pkg/platform"
 	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
 	"github.com/fleetdm/fleet/v4/pkg/secure"
-	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/rs/zerolog/log"
 	"github.com/theupdateframework/go-tuf/client"
 	"github.com/theupdateframework/go-tuf/data"
@@ -152,11 +151,7 @@ func NewDisabled(opt Options) *Updater {
 // UpdateMetadata downloads and verifies remote repository metadata.
 func (u *Updater) UpdateMetadata() error {
 	if _, err := u.client.Update(); err != nil {
-		// An error is returned if we are already up-to-date. We can ignore that
-		// error.
-		if !client.IsLatestSnapshot(ctxerr.Cause(err)) {
-			return fmt.Errorf("update metadata: %w", err)
-		}
+		return fmt.Errorf("update metadata: %w", err)
 	}
 	return nil
 }

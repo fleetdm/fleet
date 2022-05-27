@@ -85,7 +85,7 @@ require (
 	github.com/stretchr/objx v0.3.0 // indirect
 	github.com/stretchr/testify v1.7.1
 	github.com/temoto/robotstxt v1.1.2 // indirect
-	github.com/theupdateframework/go-tuf v0.2.0
+	github.com/theupdateframework/go-tuf v0.3.0
 	github.com/throttled/throttled/v2 v2.8.0
 	github.com/tj/assert v0.0.3
 	github.com/ulikunitz/xz v0.5.10

@@ -89,7 +89,7 @@ func TestScheduledQueriesAuth(t *testing.T) {
 			_, err := svc.GetScheduledQueriesInPack(ctx, 1, fleet.ListOptions{})
 			checkAuthErr(t, tt.shouldFailRead, err)
 
-			_, err = svc.ScheduleQuery(ctx, &fleet.ScheduledQuery{})
+			_, err = svc.ScheduleQuery(ctx, &fleet.ScheduledQuery{Interval: 10})
 			checkAuthErr(t, tt.shouldFailWrite, err)
 
 			_, err = svc.GetScheduledQuery(ctx, 1)
@@ -112,6 +112,7 @@ func TestScheduleQuery(t *testing.T) {
 		Name:      "foobar",
 		QueryName: "foobar",
 		QueryID:   3,
+		Interval:  10,
 	}
 
 	ds.NewScheduledQueryFunc = func(ctx context.Context, q *fleet.ScheduledQuery, opts ...fleet.OptionalArg) (*fleet.ScheduledQuery, error) {
@@ -132,6 +133,7 @@ func TestScheduleQueryNoName(t *testing.T) {
 		Name:      "foobar",
 		QueryName: "foobar",
 		QueryID:   3,
+		Interval:  10,
 	}
 
 	ds.QueryFunc = func(ctx context.Context, qid uint) (*fleet.Query, error) {
@@ -153,7 +155,7 @@ func TestScheduleQueryNoName(t *testing.T) {
 
 	_, err := svc.ScheduleQuery(
 		test.UserContext(test.UserAdmin),
-		&fleet.ScheduledQuery{QueryID: expectedQuery.QueryID},
+		&fleet.ScheduledQuery{QueryID: expectedQuery.QueryID, Interval: 10},
 	)
 	assert.NoError(t, err)
 	assert.True(t, ds.NewScheduledQueryFuncInvoked)
@@ -167,6 +169,7 @@ func TestScheduleQueryNoNameMultiple(t *testing.T) {
 		Name:      "foobar-1",
 		QueryName: "foobar",
 		QueryID:   3,
+		Interval:  10,
 	}
 
 	ds.QueryFunc = func(ctx context.Context, qid uint) (*fleet.Query, error) {
@@ -177,7 +180,8 @@ func TestScheduleQueryNoNameMultiple(t *testing.T) {
 		// No matching query
 		return []*fleet.ScheduledQuery{
 			{
-				Name: "foobar",
+				Name:     "foobar",
+				Interval: 10,
 			},
 		}, nil
 	}
@@ -188,7 +192,7 @@ func TestScheduleQueryNoNameMultiple(t *testing.T) {
 
 	_, err := svc.ScheduleQuery(
 		test.UserContext(test.UserAdmin),
-		&fleet.ScheduledQuery{QueryID: expectedQuery.QueryID},
+		&fleet.ScheduledQuery{QueryID: expectedQuery.QueryID, Interval: 10},
 	)
 	assert.NoError(t, err)
 	assert.True(t, ds.NewScheduledQueryFuncInvoked)
@@ -231,6 +235,122 @@ func TestFindNextNameForQuery(t *testing.T) {
 	for _, tt := range testCases {
 		t.Run("", func(t *testing.T) {
 			assert.Equal(t, tt.expected, findNextNameForQuery(tt.name, tt.scheduled))
+		})
+	}
+}
+
+func TestScheduleQueryInterval(t *testing.T) {
+	ds := new(mock.Store)
+	svc := newTestService(t, ds, nil, nil)
+
+	expectedQuery := &fleet.ScheduledQuery{
+		Name:      "foobar",
+		QueryName: "foobar",
+		QueryID:   3,
+		Interval:  10,
+	}
+
+	ds.QueryFunc = func(ctx context.Context, qid uint) (*fleet.Query, error) {
+		require.Equal(t, expectedQuery.QueryID, qid)
+		return &fleet.Query{Name: expectedQuery.QueryName}, nil
+	}
+	ds.ListScheduledQueriesInPackWithStatsFunc = func(ctx context.Context, id uint, opts fleet.ListOptions) ([]*fleet.ScheduledQuery, error) {
+		// No matching query
+		return []*fleet.ScheduledQuery{
+			{
+				Name: "froobling",
+			},
+		}, nil
+	}
+	ds.NewScheduledQueryFunc = func(ctx context.Context, q *fleet.ScheduledQuery, opts ...fleet.OptionalArg) (*fleet.ScheduledQuery, error) {
+		assert.Equal(t, expectedQuery, q)
+		return expectedQuery, nil
+	}
+
+	_, err := svc.ScheduleQuery(
+		test.UserContext(test.UserAdmin),
+		&fleet.ScheduledQuery{QueryID: expectedQuery.QueryID, Interval: 10},
+	)
+	assert.NoError(t, err)
+	assert.True(t, ds.NewScheduledQueryFuncInvoked)
+
+	// no interval
+	_, err = svc.ScheduleQuery(
+		test.UserContext(test.UserAdmin),
+		&fleet.ScheduledQuery{QueryID: expectedQuery.QueryID},
+	)
+	assert.Error(t, err)
+
+	// interval zero
+	_, err = svc.ScheduleQuery(
+		test.UserContext(test.UserAdmin),
+		&fleet.ScheduledQuery{QueryID: expectedQuery.QueryID, Interval: 0},
+	)
+	assert.Error(t, err)
+
+	// interval exceeds max
+	_, err = svc.ScheduleQuery(
+		test.UserContext(test.UserAdmin),
+		&fleet.ScheduledQuery{QueryID: expectedQuery.QueryID, Interval: 604801},
+	)
+	assert.Error(t, err)
+}
+
+func TestModifyScheduledQueryInterval(t *testing.T) {
+	ds := new(mock.Store)
+	svc := newTestService(t, ds, nil, nil)
+
+	ds.ScheduledQueryFunc = func(ctx context.Context, id uint) (*fleet.ScheduledQuery, error) {
+		assert.Equal(t, id, uint(1))
+		return &fleet.ScheduledQuery{ID: id, Interval: 10}, nil
+	}
+
+	testCases := []struct {
+		payload    fleet.ScheduledQueryPayload
+		shouldFail bool
+	}{
+		{
+			payload: fleet.ScheduledQueryPayload{
+				QueryID:  ptr.Uint(1),
+				Interval: ptr.Uint(0),
+			},
+			shouldFail: true,
+		},
+		{
+			payload: fleet.ScheduledQueryPayload{
+				QueryID:  ptr.Uint(1),
+				Interval: ptr.Uint(604801),
+			},
+			shouldFail: true,
+		},
+		{
+			payload: fleet.ScheduledQueryPayload{
+				QueryID: ptr.Uint(1),
+			},
+			shouldFail: false,
+		},
+		{
+			payload: fleet.ScheduledQueryPayload{
+				QueryID:  ptr.Uint(1),
+				Interval: ptr.Uint(604800),
+			},
+			shouldFail: false,
+		},
+	}
+
+	for _, tt := range testCases {
+		t.Run("", func(t *testing.T) {
+			ds.SaveScheduledQueryFunc = func(ctx context.Context, sq *fleet.ScheduledQuery) (*fleet.ScheduledQuery, error) {
+				assert.Equal(t, sq.ID, uint(1))
+				return &fleet.ScheduledQuery{ID: sq.ID, Interval: sq.Interval}, nil
+			}
+			_, err := svc.ModifyScheduledQuery(test.UserContext(test.UserAdmin), *tt.payload.QueryID, tt.payload)
+			if tt.shouldFail {
+				assert.Error(t, err)
+				assert.False(t, ds.SaveScheduledQueryFuncInvoked)
+			} else {
+				assert.NoError(t, err)
+			}
 		})
 	}
 }
