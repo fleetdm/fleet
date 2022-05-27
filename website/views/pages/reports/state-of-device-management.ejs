@@ -1,4 +1,4 @@
-<div id="state-of-device-management" v-cloak class="">
+<div id="state-of-device-management" v-cloak>
   <div purpose="hero-container" class="d-sm-flex justify-content-center align-items-center">
     <div purpose="hero-content" class="container px-xl-0 d-sm-flex flex-column">
       <div purpose="hero-text">
@@ -6,7 +6,7 @@
         <p>We surveyed 200+ security practitioners who are responsible for device management at their organization. Here’s what we learned about thier current challenges, frustrations, and desires when it comes to managing their devices.</p>
         <div purpose="hero-buttons" class="d-flex flex-column flex-sm-row">
           <a href="#insights-from-mike-mcneil" class="btn btn-primary">Start reading</a>
-          <a class="btn">Download PDF <img class="d-inline" src="/images/icon-arrow-down-16x16@2x.png"></a>
+          <a class="btn">Download PDF <img alt="An arrow pointing down" class="d-inline" src="/images/icon-arrow-down-16x16@2x.png"></a>
         </div>
       </div>
     </div>
@@ -32,8 +32,8 @@
     </div>
     <div purpose="report-content" class="d-flex flex-column">
       <div id="insights-from-mike-mcneil" purpose="report-card" class="mb-0">
-        <div class="d-flex flex-row align-items-center">
-          <img style="display: inline; height: 110px; width: 110px; margin-right: 24px;" src="/images/team-mikermcneil-110x110@2x.png">
+        <div class="d-flex flex-column flex-sm-row align-items-center">
+          <img alt="A picture of Mike McNeil" style="display: inline; height: 110px; width: 110px; margin-right: 24px;" src="/images/team-mikermcneil-110x110@2x.png">
           <div class="flex-column">
             <h2>Insights from Mike McNeil</h2>
             <p class="mb-0">CEO & co-founder, Fleet</p>
@@ -67,7 +67,7 @@
       <div id="who-we-surveyed" purpose="report-section">
         <h2>Who we surveyed</h2>
         <p>In order to provide greater context around these findings, here are more details on who we surveyed and the methodology used. Starting on February 25, 2022, we surveyed 205 members of their organization’s security team who are directly responsible for device management. The survey was conducted online via Pollfish using organic sampling. Learn more about the Pollfish methodology.</p>
-        <div purpose="chart-card" id="demographics-chart">
+        <div purpose="chart-card">
           <h5>Demographics</h5>
           <bar-chart class="pb-3" type="stacked" title="Gender" :chart-data="barCharts.demographics.gender"></bar-chart>
           <bar-chart class="pb-3" type="stacked" title="Age" :chart-data="barCharts.demographics.age"></bar-chart>
@@ -75,13 +75,13 @@
           <bar-chart type="stacked" title="Number of employees" :chart-data="barCharts.demographics.numberOfEmployees"></bar-chart>
         </div>
         <div purpose="chart-card">
-          <bar-chart class="" min-range=10 max-range=22 type="divided" title="Role" :chart-data="barCharts.demographics.role"></bar-chart>
+          <bar-chart min-range="10" max-range="22" type="divided" title="Role" :chart-data="barCharts.demographics.role"></bar-chart>
         </div>
         <div purpose="chart-card">
-          <bar-chart class="" min-range=6 max-range=13 type="divided" title="Industry" :chart-data="barCharts.demographics.industry"></bar-chart>
+          <bar-chart min-range="6" max-range="13" type="divided" title="Industry" :chart-data="barCharts.demographics.industry"></bar-chart>
         </div>
         <div purpose="chart-card">
-          <bar-chart class="" min-range=18 max-range=28 type="divided" title="Percentage of workforce working remotely (fully or partially)" :chart-data="barCharts.demographics.percentWorkingRemote"></bar-chart>
+          <bar-chart min-range="18" max-range="28" type="divided" title="Percentage of workforce working remotely (fully or partially)" :chart-data="barCharts.demographics.percentWorkingRemote"></bar-chart>
         </div>
         <p class="pt-4 mb-0">Now, with context around who our respondents were — security team members responsible for device management, across a variety of sectors, at various levels of remote work — let's take a closer look at what we uncovered.</p>
       </div>
@@ -120,53 +120,49 @@
           <h3>26% report their organization manages over 250,000 devices</h3>
           <p>With devices including servers, laptops, desktops, tablets and mobile phones, the largest segment of respondents (25.9%) estimate having over 250,000 total devices in their organization’s fleet.</p>
           <div purpose="chart-card">
-            <bar-chart class="" min-range=10 max-range=30 type="divided" title="Estimated total number of devices in organization" subtitle="(Includes servers, laptops, desktops, tablets, and mobile phones.)" :chart-data="barCharts.partOne.totalDevices"></bar-chart>
+            <bar-chart min-range="10" max-range="30" increment-scale-by="2" type="divided" title="Estimated total number of devices in organization" subtitle="(Includes servers, laptops, desktops, tablets, and mobile phones.)" :chart-data="barCharts.partOne.totalDevices"></bar-chart>
           </div>
         </div>
-
         <div purpose="subsection">
           <h3>Rates of MDM enrollment vary across organizations</h3>
           <p>Respondents report varied degrees of enrollment across their organization’s MDM. For 27.8%, only about a quarter of their devices are enrolled. 26.8% say that about half of their devices are enrolled. For 22.4%, about three-quarters of their devices are enrolled. Finally, 22.9% say that all or nearly all of their devices are enrolled.</p>
           <div purpose="chart-card">
-            <bar-chart class="" min-range=20 max-range=30 increment-scale-by=2 type="divided" title="Estimated percentage of devices enrolled in MDM" :chart-data="barCharts.partOne.mdmEnrolledDevices"></bar-chart>
+            <bar-chart min-range="20" max-range="30" type="divided" title="Estimated percentage of devices enrolled in MDM" :chart-data="barCharts.partOne.mdmEnrolledDevices"></bar-chart>
           </div>
         </div>
-
         <div purpose="subsection">
           <h3>25% have 10,000 workstations in their organization</h3>
           <p>The largest segment of respondents (24.9%) report having about 10,000 workstations in their organization, including laptops, desktops, or other devices. Other respondents report having 1,000 workstations (20.5%), 2,000 workstations (18.6%), 5,000 workstations (19%), and 25,000 or more workstations (17.6%).</p>
           <div purpose="chart-card">
-            <bar-chart class="" min-range=15 max-range=25 increment-scale-by=2 type="divided" title="Estimated percentage of devices enrolled in MDM" :chart-data="barCharts.partOne.numberOfWorkstations"></bar-chart>
+            <bar-chart min-range="15" max-range="25" type="divided" title="Estimated end-user workstations in organization" subtitle="(Includes servers, laptops, desktops, tablets, and mobile phones.)" :chart-data="barCharts.partOne.numberOfWorkstations"></bar-chart>
           </div>
         </div>
-
         <div purpose="subsection">
           <h3>Devices are also in various states of upgrade</h3>
           <p>This question asked respondents the status of operating system updates on their devices. 21.1% say about a quarter of their organization’s devices are running the latest operating system released from the manufacturer. For 28.57%, roughly half of the devices are running the latest OS. 24.84% say about three-quarters are running the latest OS. Finally, for 25.47%, all or nearly all are running the last OS.</p>
           <div purpose="chart-card">
-            <bar-chart class="" min-range=20 max-range=38 type="divided" title="Estimated end-user workstations in organization" subtitle="(Includes servers, laptops, desktops, tablets, and mobile phones.)" :chart-data="barCharts.partOne.devicesOnLatestOS"></bar-chart>
+            <bar-chart min-range="18" max-range="30" increment-scale-by="2" type="divided" title="Estimated percentage of devices running the latest operating system released from the manufacturer" :chart-data="barCharts.partOne.devicesOnLatestOS"></bar-chart>
           </div>
         </div>
-
         <div purpose="subsection">
           <h3>Network switches and other infrastructure, laptops, and virtual desktops are most frequently covered with their MDM</h3>
           <p>When it comes to today’s device management strategy, our respondents said that the following devices are included (we asked them to choose all that applied): </p>
           <div purpose="chart-card">
-            <bar-chart class="" min-range=10 max-range=38 type="divided" title="Estimated percentage of devices running the latest operating system released from the manufacturer" :chart-data="barCharts.partOne.typesOfDevicesOnLatestOS"></bar-chart>
+            <bar-chart min-range="20" max-range="38" type="divided" title="Estimated percentage of devices running the latest operating system released from the manufacturer" :chart-data="barCharts.partOne.typesOfDevicesOnLatestOS"></bar-chart>
           </div>
         </div>
         <div purpose="subsection">
           <h3>They don’t currently manage Windows or Linux</h3>
           <p>In a “choose all that apply” question, respondents were asked which platforms their organizations use but don’t currently manage. They replied:</p>
           <div purpose="chart-card">
-            <bar-chart class="" min-range=10 max-range=40 type="divided" title="Estimated percentage of devices running the latest operating system released from the manufacturer" :chart-data="barCharts.partOne.platformsManaged"></bar-chart>
+            <bar-chart min-range="10" max-range="40" type="divided" title="What platforms do you struggle the most with managing?" :chart-data="barCharts.partOne.platformsManaged"></bar-chart>
           </div>
         </div>
         <div purpose="subsection">
           <h3>They struggle with managing miscellaneous platforms and iOS the most</h3>
           <p>When it comes to managing various platforms, they struggle the most with managing the following (and chose all that applied):</p>
           <div purpose="chart-card">
-            <bar-chart class="" min-range=20 max-range=38 type="divided" title="Estimated percentage of devices running the latest operating system released from the manufacturer" :chart-data="barCharts.partOne.platformsWithStruggle"></bar-chart>
+            <bar-chart min-range="20" max-range="38" type="divided" title="What platforms do you struggle the most with managing?" :chart-data="barCharts.partOne.platformsWithStruggle"></bar-chart>
           </div>
         </div>
         <div purpose="subsection" class="mb-0">
@@ -184,57 +180,57 @@
         <p>Here are some of the best practices our respondents suggest for device management, and some of the challenges they face each day.</p>
         <div purpose="subsection" class="row">
           <div class="col-md-6" purpose="report-note">
-            <img src="/images/icon-laptop-36x36@2x.png">
+            <img alt="A laptop with a checkmark" src="/images/icon-laptop-36x36@2x.png">
             <h3>Having a documented BYOD policy in place</h3>
             <p>With the rise in employees using their own devices for work, respondents say it’s imperative to have a documented policy over usage and access.</p>
           </div>
           <div class="col-md-6" purpose="report-note">
-            <img src="/images/icon-clock-36x36@2x.png">
+            <img alt="A clock" src="/images/icon-clock-36x36@2x.png">
             <h3>Measuring point-in-time compliance across all devices</h3>
             <p>It’s a struggle to accurately monitor devices if you’re getting lagging or stale data. Another best practice is to ensure that you’re measuring compliance in real time across all of your devices.</p>
           </div>
           <div class="col-md-6" purpose="report-note">
-            <img src="/images/icon-square-36x36@2x.png">
+            <img alt="A square rotated 45 degrees" src="/images/icon-square-36x36@2x.png">
             <h3>Reporting how quickly vulnerable software is patched</h3>
             <p>Another best practice is reporting, and keeping track of how quickly vulnerable software is patched so you can gauge response time and optimize for performance.</p>
           </div>
           <div class="col-md-6" purpose="report-note">
-            <img src="/images/icon-touch-36x36@2x.png">
+            <img alt="A hand touching a button" src="/images/icon-touch-36x36@2x.png">
             <h3>Providing users a self-service experience</h3>
             <p>Respondents also see value in having end users be able to troubleshoot their issues themselves, instead of having to get IT involved.</p>
           </div>
-          <div class="col-md-6" purpose="report-note">
-            <img src="/images/icon-circles-36x36@2x.png">
+          <div class="col-md-6 mb-0" purpose="report-note">
+            <img alt="A circle icon" src="/images/icon-circles-36x36@2x.png">
             <h3>Focusing on a seamless end user experience</h3>
             <p>Finally, respondents stress having a solution in place that is seamless on the end user side, allowing for easy access and continued productivity.</p>
           </div>
         </div>
         <div purpose="chart-card">
-          <bar-chart class="" min-range=20 max-range=34 type="divided" title="What best practices are currently part of your device management strategy?" :chart-data="barCharts.partTwo.deviceManagementStrategy"></bar-chart>
+          <bar-chart min-range="20" max-range="34" type="divided" title="What best practices are currently part of your device management strategy?" :chart-data="barCharts.partTwo.deviceManagementStrategy"></bar-chart>
         </div>
         <div purpose="subsection">
           <h2>Top challenges for MDM</h2>
           <p>The biggest challenges respondents face each day when it comes to device management are:</p>
-          <div class="row">
+        </div>
+          <div class="row mb-0">
             <div class="col-md-4" purpose="report-note">
-              <img src="/images/icon-checklist-36x36@2x.png">
+              <img alt="A checklist" src="/images/icon-checklist-36x36@2x.png">
               <h3>Verifying compliance across devices</h3>
               <p>Above, respondents said a best practice for success is to verify compliance in real time across all devices — yet doing that effectively is proving to be a challenge. Adding to that complexity is a lack of device enrollment, making full compliance monitoring impossible.</p>
             </div>
             <div class="col-md-4" purpose="report-note">
-              <img src="/images/icon-enrolled-device-36x36@2x.png">
+              <img alt="A compliant laptop with a checkmark" src="/images/icon-enrolled-device-36x36@2x.png">
               <h3>Getting all devices enrolled</h3>
               <p>Only 22.9% of respondents said that all or nearly all of their devices are enrolled — meaning enrollment has become a challenge. A reason for lack of compliance could be simply getting employees to enroll their devices.</p>
             </div>
-            <div class="col-md-4" purpose="report-note">
-              <img src="/images/icon-visibility-36x36@2x.png">
+            <div class="col-md-4 mb-0" purpose="report-note">
+              <img alt="An hexagon with a circle in the center and six small circles at each corner" src="/images/icon-visibility-36x36@2x.png">
               <h3>Maintaining accurate visibility across all devices</h3>
               <p>Accurate visibility across all devices relies not only on having the right MDM solution in place to provide that visibility, but that all devices are enrolled and able to be monitored.</p>
             </div>
           </div>
-        </div>
         <div purpose="chart-card">
-          <bar-chart class="" min-range=14 max-range=24 increment-scale-by=2 type="divided" title="What best practices are currently part of your device management strategy?" :chart-data="barCharts.partTwo.topChallenges"></bar-chart>
+          <bar-chart min-range="14" max-range="24" increment-scale-by="2" type="divided" title="#1 challenge with day-to-day device management" :chart-data="barCharts.partTwo.topChallenges"></bar-chart>
         </div>
         <div purpose="subsection" class="mb-0">
           <h2>Summary</h2>
@@ -262,23 +258,23 @@
         </div>
         <div purpose="subsection" class="row">
           <div class="col-md-4" purpose="report-note">
-            <img src="/images/icon-globe-36x36@2x.png">
+            <img alt="A globe with two circles" src="/images/icon-globe-36x36@2x.png">
             <h3>The shift to remote work</h3>
             <p>Remote work increases endpoints outside of an office location, with workers logging on from anywhere through various reliable and unreliable means. As such, having an MDM became a priority overnight for protecting the organization.</p>
           </div>
           <div class="col-md-4" purpose="report-note">
-            <img src="/images/icon-certificate-36x36@2x.png">
+            <img alt="A certificate" src="/images/icon-certificate-36x36@2x.png">
             <h3>An upcoming compliance audit or certification</h3>
             <p>Another reason was that they had an upcoming compliance audit or certification, and probably knew they wouldn’t pass it without better monitoring and visibility into their endpoints.</p>
           </div>
           <div class="col-md-4 mb-0" purpose="report-note">
-            <img src="/images/icon-enrolled-device-36x36@2x.png">
+            <img alt="an enrolled laptop" src="/images/icon-enrolled-device-36x36@2x.png">
             <h3>More control over the onboarding or enrollment experience</h3>
             <p>They also made the decision to invest in an MDM solution in order to be more proactively involved in the device management process.</p>
           </div>
         </div>
         <div purpose="chart-card">
-          <bar-chart  min-range=10 max-range=17 type="divided" title="MDM solution investment triggers" :chart-data="barCharts.partThree.mdmInvestmentTriggers"></bar-chart>
+          <bar-chart  min-range="10" max-range="17" type="divided" title="MDM solution investment triggers" :chart-data="barCharts.partThree.mdmInvestmentTriggers"></bar-chart>
         </div>
         <div purpose="subsection">
           <h3>22% say their MDM took over a year to implement</h3>
@@ -294,23 +290,23 @@
         <p>What were some of the challenges to deployment? Respondents encountered the following while implementing their new MDM solution (and chose all that applied):</p>
         <div purpose="subsection" class="row">
           <div class="col-md-4" purpose="report-note">
-            <img src="/images/icon-arrows-36x36@2x.png">
+            <img alt="Arrows leading in different directions" src="/images/icon-arrows-36x36@2x.png">
             <h3>Too complicated to configure</h3>
             <p>The biggest challenge was that the solution was too complicated to configure and to understand — a failure right at the start.</p>
           </div>
           <div class="col-md-4" purpose="report-note">
-            <img src="/images/icon-confusing-document-36x36@2x.png">
+            <img alt="A confusing document" src="/images/icon-confusing-document-36x36@2x.png">
             <h3>Confusing or limited documentation</h3>
             <p>Possibly related to the confusion in the first reason, respondents also discovered there was a lack of documentation to help them deploy the solution, or the documentation was confusing.</p>
           </div>
           <div class="col-md-4 mb-0" purpose="report-note">
-            <img src="/images/icon-lock-36x36@2x.png">
+            <img alt="A lock with an arrow pointing at it" src="/images/icon-lock-36x36@2x.png">
             <h3>Integrating with single sign-on</h3>
             <p>They also found that their MDM solution had trouble integrating with their SSO services like Okta and SAML.</p>
           </div>
         </div>
         <div purpose="chart-card">
-          <bar-chart  min-range=29 max-range=37 type="divided" title="Challenges encountered while deploying MDM" :chart-data="barCharts.partThree.challengesEncountered"></bar-chart>
+          <bar-chart  min-range="29" max-range="37" type="divided" title="Challenges encountered while deploying MDM" :chart-data="barCharts.partThree.challengesEncountered"></bar-chart>
         </div>
         <div purpose="subsection" class="mb-0">
           <h2>Summary</h2>
@@ -420,7 +416,7 @@
           <h3>Budget allocations over the next year will vary</h3>
           <p>Respondents reported varying levels of investment in their MDM in the future. 35.1% said that their budget will stay the same in the coming year, and for 32.5%, their budget will increase. However, for an additional 32.5%, their budget will decrease.</p>
           <div purpose="chart-card" class="mb-0">
-            <bar-chart  min-range=30 max-range=36 type="divided" title="Expected device management budget change over the next 12 months" :chart-data="barCharts.partFive.expectedBudgetChange"></bar-chart>
+            <bar-chart  min-range="30" max-range="36" type="divided" title="Expected device management budget change over the next 12 months" :chart-data="barCharts.partFive.expectedBudgetChange"></bar-chart>
           </div>
         </div>
         <div purpose="subsection">
@@ -429,39 +425,39 @@
         </div>
         <div purpose="subsection" class="row">
           <div class="col-md-6" purpose="report-note">
-            <img src="/images/icon-cloud-36x36@2x.png">
+            <img alt="Cloud hosting" src="/images/icon-cloud-36x36@2x.png">
             <h3>Cloud-hosted by vendor</h3>
             <p>As more organizations turn to cloud adoption and away from on-prem, respondents want their MDM to be cloud-hosted.</p>
           </div>
           <div class="col-md-6" purpose="report-note">
-            <img src="/images/icon-settings-36x36@2x.png">
+            <img alt="A settings icon" src="/images/icon-settings-36x36@2x.png">
             <h3>Built-in security controls with sensible defaults</h3>
             <p>The same number of respondents also want to be able to set the security defaults for their MDM.</p>
           </div>
           <div class="col-md-6" purpose="report-note">
-            <img src="/images/icon-partial-circle-36x36@2x.png">
+            <img alt="A partial circle" src="/images/icon-partial-circle-36x36@2x.png">
             <h3>Inspectable, modifiable, open source code</h3>
             <p>One of the challenges with MDMs today is that they’re black boxes, without any access to the code. So respondents want their MDMs to be open source, with inspectable and modifiable code.</p>
           </div>
           <div class="col-md-6" purpose="report-note">
-            <img src="/images/icon-setup-36x36@2x.png">
+            <img alt="Three blocks and a checkmark" src="/images/icon-setup-36x36@2x.png">
             <h3>Initial setup of software or tools at onboarding</h3>
             <p>Respondents also want more software setup available at onboarding, including Zoom, Slack, Python, and others.</p>
           </div>
           <div class="col-md-6" purpose="report-note">
-            <img src="/images/icon-realtime-36x36@2x.png">
+            <img alt="A fast moving clock" src="/images/icon-realtime-36x36@2x.png">
             <h3>Real-time visibility of every device that’s less than a minute old</h3>
             <p>Respondents want to be able to check compliance and other aspects of their devices in real time, gathering data that’s less than a minute old.</p>
           </div>
           <div class="col-md-6 mb-0" purpose="report-note">
-            <img src="/images/icon-destination-36x36@2x.png">
+            <img alt="Arrows pointing down from three circles" src="/images/icon-destination-36x36@2x.png">
             <h3>Collecting security data from enrolled devices</h3>
             <p>They also want their MDM to be able to collect security data from devices so that they can take immediate action on any vulnerabilities.</p>
           </div>
         </div>
         <div purpose="subsection">
           <div purpose="chart-card" class="mb-0">
-            <bar-chart  min-range=17 max-range=29 type="divided" title="Most wanted features when evaluating a new MDM vendor" :chart-data="barCharts.partFive.expectedBudgetChange"></bar-chart>
+            <bar-chart  min-range="17" max-range="29" type="divided" title="Most wanted features when evaluating a new MDM vendor" :chart-data="barCharts.partFive.expectedBudgetChange"></bar-chart>
           </div>
         </div>
         <div purpose="subsection">
@@ -470,24 +466,24 @@
         </div>
         <div purpose="subsection" class="row">
           <div class="col-md-4" purpose="report-note">
-            <img src="/images/icon-authentication-36x36@2x.png">
+            <img alt="Multi-factor authentication" src="/images/icon-authentication-36x36@2x.png">
             <h3>Device security such as multi-factor authentication (MFA) at login</h3>
             <p>For our respondents, their top priority is ensuring security across their organization’s devices, specifically by leveraging multi-factor authentication.</p>
           </div>
           <div class="col-md-4" purpose="report-note">
-            <img src="/images/icon-zero-touch-36x36@2x.png">
+            <img alt="Zero touch enrollment" src="/images/icon-zero-touch-36x36@2x.png">
             <h3>Zero-touch enrollment</h3>
             <p>Respondents also want to focus on zero-touch enrollment to increase enrollment percentages and achieve better monitoring and compliance.</p>
           </div>
           <div class="col-md-4 mb-0" purpose="report-note">
-            <img src="/images/icon-square-36x36@2x.png">
+            <img alt="A square rotated 45 degrees" src="/images/icon-square-36x36@2x.png">
             <h3>Patching third-party applications and packages</h3>
             <p>Another priority is ensuring that third-party applications on various devices are patched and secure.</p>
           </div>
         </div>
         <div purpose="subsection">
           <div purpose="chart-card" class="mb-0">
-            <bar-chart  min-range=8 max-range=19 type="divided" title="Priorities for device management over the next 12 months" :chart-data="barCharts.partFive.deviceManagementPriorities"></bar-chart>
+            <bar-chart  min-range="8" max-range="19" type="divided" title="Priorities for device management over the next 12 months" :chart-data="barCharts.partFive.deviceManagementPriorities"></bar-chart>
           </div>
         </div>
         <div purpose="subsection" class="mb-0">

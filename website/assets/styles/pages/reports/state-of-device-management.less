@@ -1,5 +1,5 @@
 #state-of-device-management {
-  div{
+  div {
     scroll-margin-top: 55px;
   }
   [purpose='hero-container'] {
@@ -150,16 +150,19 @@
         content: '';
         padding: 6px;
         display: inline-block;
-        margin-right: 20px;
+        margin-right: 12px;
         background-color: @core-vibrant-blue;
-
       }
       h3 {
         margin-bottom: 12px;
+        padding-left: 32px;
+        text-indent: -24px;
       }
       strong {
         line-height: 20px;
         margin-bottom: 12px;
+        padding-left: 32px;
+        text-indent: -24px;
       }
       p {
         padding-left: 32px;
@@ -207,16 +210,11 @@
 
 
 
-  // For larger screens <1200px
-  @media (min-width: 1199px) {
-  }
+
   @media (min-width: 1024px) {
     [purpose='report-sidebar'] {
       width: 240px;
       max-width: 240px;
-    }
-    [purpose='report-container']{
-
     }
     [purpose='report-content'] {
       max-width: 720px;
@@ -224,12 +222,11 @@
 
   }
 
-  // For larger screens <1200px
   @media (max-width: 1024px) {
     [purpose='hero-content'] {
       align-items: center;
     }
-    [purpose='report-container']{
+    [purpose='report-container'] {
       padding-left: 40px;
       padding-right: 40px;
       padding-top: 60px;
@@ -260,7 +257,7 @@
     [purpose='report-sidebar'] {
       width: 100%;
       max-width: 100%;
-      [purpose='topics']{
+      [purpose='topics'] {
         a {
           display: block;
         }
@@ -274,6 +271,7 @@
       padding-right: 40px;
     }
   }
+
   @media (max-width: 541px) {
     [purpose='hero-container'] {
       height: fit-content;
@@ -290,7 +288,20 @@
       }
     }
     [purpose='hero-buttons'] {
-      flex-direction: column
+      flex-direction: column;
+    }
+    [purpose='report-content'] {
+      [purpose='report-card'] {
+        padding: 20px;
+      }
+      [purpose='chart-card'] {
+        padding: 20px;
+        margin-left: -20px;
+        margin-right: -20px;
+        [purpose='chart-container'] {
+          max-height: 50vh;
+        }
+      }
     }
   }
 

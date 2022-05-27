@@ -9,17 +9,24 @@
   font-size: 14px;
   line-height: 20px;
 
-  [purpose="title"] {
-    position: relative;
-    top: -10px;
+  [purpose='stacked-title'] {
+    font-size: 16px;
+    display: block;
     font-weight: 700;
+    margin-bottom: 4px;
   }
-  [purpose="subtitle"] {
-    position: relative;
-    top: -10px;
+  [purpose='divided-title'] {
+    font-size: 16px;
+    display: block;
+    font-weight: 700;
+    margin-bottom: 24px;
+  }
+  [purpose='subtitle'] {
+    display: block;
+    padding-top: 4px;
     font-weight: 400;
   }
-  [purpose="chart"] {
+  [purpose='chart'] {
     width: 100%;
     background: #E6E6E6;
     border-radius: 6px;
@@ -29,14 +36,31 @@
       border-radius: 6px;
     }
   }
-  [purpose="label"] {
+  [purpose='label'] {
     display: block;
     position: relative;
     top: 4px;
     white-space: nowrap;
     margin-right: 8px;
   }
-  [purpose="range"] {
+  [purpose='range'] {
     color: #8B8FA2;
+    span {
+      display: flex;
+    }
+  }
+
+  @media (max-width: 540px) {
+    [purpose='label'] {
+      white-space: normal;
+    }
+    [purpose='range'] {
+      span {
+        display: none;
+      }
+      span:first-of-type, span:last-of-type {
+        display: flex;
+      }
+    }
   }
  }

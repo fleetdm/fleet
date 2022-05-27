@@ -3,6 +3,7 @@ parasails.registerPage('state-of-device-management', {
   //  ║║║║║ ║ ║╠═╣║    ╚═╗ ║ ╠═╣ ║ ║╣
   //  ╩╝╚╝╩ ╩ ╩╩ ╩╩═╝  ╚═╝ ╩ ╩ ╩ ╩ ╚═╝
   data: {
+
     pieCharts: {
       cloudMDM:{
         elementID: 'cloud-mdm-chart',
@@ -13,9 +14,6 @@ parasails.registerPage('state-of-device-management', {
             label: 'percent',
             data: [57.6, 42.4],
             backgroundColor: ['#A182DF', '#E59CC4'],
-            color: '#000000',
-            borderWidth: 0,
-            borderColor: 'rgba(0,0,0,0)',
           }]
         },
       },
@@ -28,9 +26,6 @@ parasails.registerPage('state-of-device-management', {
             label: 'percent',
             data: [50.38, 49.62],
             backgroundColor: ['#F2A254', '#91D4C7'],
-            color: '#000000',
-            borderWidth: 0,
-            borderColor: 'rgba(0,0,0,0)',
           }]
         },
       },
@@ -336,61 +331,10 @@ parasails.registerPage('state-of-device-management', {
   //  ║  ║╠╣ ║╣ ║  ╚╦╝║  ║  ║╣
   //  ╩═╝╩╚  ╚═╝╚═╝ ╩ ╚═╝╩═╝╚═╝
   beforeMount: function() {
-    // console.log(this.pieCharts);
+
   },
   mounted: async function() {
-
-    for(let index in this.pieCharts) {
-      const ctx = this.pieCharts[index].elementID;
-      // cloning this chart's data object to apply the standard configuration options
-      let defaultConfig = [{
-        color: '#000000',
-        borderWidth: 0,
-        borderColor: 'rgba(0,0,0,0)',
-      }];
-      let clonedChartData = _.clone(this.pieCharts[index].data);
-      _.merge(clonedChartData.datasets, defaultConfig);
-      let myChart = new Chart(ctx, {
-        type: 'doughnut',
-        data: clonedChartData,
-        options: {
-          cutout: '40%',
-          aspectRatio: this.pieCharts[index].legendPosition ? 1 : 2,
-          layout: {
-            autoPadding: false,
-            padding: {
-              left: 0,
-              bottom: 0,
-              top: 16,
-              right: this.pieCharts[index].legendPosition ? 0 : 50,
-            }
-          },
-          plugins: {
-            legend: {
-              position: this.pieCharts[index].legendPosition ? this.pieCharts[index].legendPosition : 'right',
-              padding: {
-                top: 40
-              },
-              onClick: ()=>{},
-              labels: {
-                generateLabels: (chart) => {
-                  const datasets = chart.data.datasets;
-                  return datasets[0].data.map((data, i) => ({
-                    text: `${chart.data.labels[i]} (${data}%)`,
-                    fillStyle: datasets[0].backgroundColor[i],
-                    pointStyle: 'rectRounded',
-                    fontColor: '#000000',
-                    lineWidth: 0,
-                  }));
-                },
-                usePointStyle: true,
-              }
-            }
-          }
-        }
-      });
-    }
-    // this.drawChartsOnPage();
+    this.drawChartsOnPage();
 
   },
 
@@ -398,20 +342,57 @@ parasails.registerPage('state-of-device-management', {
   //  ║║║║ ║ ║╣ ╠╦╝╠═╣║   ║ ║║ ║║║║╚═╗
   //  ╩╝╚╝ ╩ ╚═╝╩╚═╩ ╩╚═╝ ╩ ╩╚═╝╝╚╝╚═╝
   methods: {
-    //…
+
     drawChartsOnPage: function() {
       for(let index in this.pieCharts) {
-        console.log(this.pieCharts[index]);
-        let ctx = $(this.pieCharts[index].elementID);
-        console.log(ctx);
-        const myChart = new Chart(ctx, {
+        const ctx = this.pieCharts[index].elementID;
+        let defaultConfig = [{
+          color: '#000000',
+          borderWidth: 0,
+          borderColor: 'rgba(0,0,0,0)',
+        }];
+        // cloning this chart's data object to apply the standard configuration options
+        let clonedChartData = _.clone(this.pieCharts[index].data);
+        _.merge(clonedChartData.datasets, defaultConfig);
+        // setting a flag based on wether or not this chart has a legend on the bottom. If the legend is on the bottom, we'll adjust the aspect ratio and padding of the chart.
+        let chartHasLegendOnBottom = this.pieCharts[index].legendPosition === 'bottom';
+        new Chart(ctx, {
           type: 'doughnut',
-          data: this.pieCharts[index].data,
+          data: clonedChartData,
           options: {
-            responsive: false,
+            cutout: '40%',
+            aspectRatio: chartHasLegendOnBottom ? 1 : 2,
+            layout: {
+              autoPadding: false,
+              padding: {
+                left: 0,
+                bottom: 0,
+                top: 16,
+                // setting right padding if a legend postion was specified
+                right: chartHasLegendOnBottom ? 0 : 50,
+              }
+            },
             plugins: {
               legend: {
-                position: 'bottom',
+                position: chartHasLegendOnBottom ? 'bottom' : 'right',
+                padding: {
+                  top: 40
+                },
+                // removing the default onClick event from the chart's legend
+                onClick: ()=>{},
+                labels: {
+                  generateLabels: (chart) => {
+                    const datasets = chart.data.datasets;
+                    return datasets[0].data.map((data, i) => ({
+                      text: `${chart.data.labels[i]} (${data}%)`,
+                      fillStyle: datasets[0].backgroundColor[i],
+                      pointStyle: 'rectRounded',
+                      fontColor: '#000000',
+                      lineWidth: 0,
+                    }));
+                  },
+                  usePointStyle: true,
+                }
               }
             }
           }

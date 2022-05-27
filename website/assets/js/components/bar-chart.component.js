@@ -19,31 +19,34 @@ parasails.registerComponent('barChart', {
     'subtitle', // Optional: if provided, a subtitle will be added the chart
     'maxRange', // Required for 'divided' type, the lowest number for the scale to display
     'minRange', // Required for 'divided' type, the highest number for the scale to display
-    'incrementScaleBy', // Optional: if provided the scale will increment by this number
+    'incrementScaleBy', // Optional: if provided the scale will increment by this number, otherwise the scale will increment by 1, 2, 5, or 10
   ],
 
   //  ╦╔╗╔╦╔╦╗╦╔═╗╦    ╔═╗╔╦╗╔═╗╔╦╗╔═╗
   //  ║║║║║ ║ ║╠═╣║    ╚═╗ ║ ╠═╣ ║ ║╣
   //  ╩╝╚╝╩ ╩ ╩╩ ╩╩═╝  ╚═╝ ╩ ╩ ╩ ╩ ╚═╝
   data: function (){
-    // Determine how the scale should increment
     let range = this.maxRange - this.minRange;
     let incrementBy = undefined;
 
-    if (range >= 20) {
+    // Determine how the range should increment, if a number was provided as a prop (`incrementScaleBy`),
+    // we'll use that, otherwise we'll set this value based on the range of the bar chart
+    if(this.incrementScaleBy){
+      incrementBy = this.incrementScaleBy;
+    } else if (range >= 50) {
+      incrementBy = 10;
+    } else if (range >= 20) {
       incrementBy = 5;
     } else if(range > 10) {
       incrementBy = 2;
     } else {
       incrementBy = 1;
     }
-    if(this.incrementScaleBy){
-      incrementBy = this.incrementScaleBy;
-    }
+
     return {
       range,
       incrementBy,
-      chartRange: undefined,
+      chartScale: undefined,
       //…
     };
   },
@@ -54,8 +57,10 @@ parasails.registerComponent('barChart', {
   template: `
   <div>
     <div v-if="type === 'stacked'">
-      <span purpose="title">{{title}}</span>
-      <span purpose="subtitle" v-if="this.subtitle">{{subtitle}}</span>
+      <div purpose="stacked-title">
+        {{title}}
+        <span purpose="subtitle" v-if="this.subtitle">{{subtitle}}</span>
+      </div>
       <div purpose="chart" class="d-flex">
         <span v-for="item in chartData" :style="'flex-basis: '+item.percent+'%; background-color: '+item.color+';'">
         </span>
@@ -67,7 +72,10 @@ parasails.registerComponent('barChart', {
       </div>
     </div>
     <div v-else-if="type === 'divided'">
-      <span purpose="title">{{title}}</span>
+      <div purpose="divided-title">
+        {{title}}
+        <span purpose="subtitle" v-if="this.subtitle">{{subtitle}}</span>
+      </div>
       <div class="d-flex flex-column pb-3" v-for="item in chartData">
         <div purpose="chart" class="d-flex">
         <span purpose="chart-fill" :style="'flex-basis: '+((item.percent - minRange) / range * 100)+'%; background-color: '+item.color+';'">
@@ -76,8 +84,8 @@ parasails.registerComponent('barChart', {
         <span purpose="label"><strong>{{item.percent}}% </strong>{{item.label}}</span>
       </div>
       <div purpose="range" class="pt-3 d-flex flex-row justify-content-between">
-        <span class="d-flex" v-for="item in chartRange">
-          {{item}}%
+        <span v-for="value in chartScale">
+          {{value}}%
         </span>
       </div>
     </div>
@@ -90,6 +98,7 @@ parasails.registerComponent('barChart', {
   beforeMount: function() {
   },
   mounted: async function() {
+
     if(this.type === undefined){
       throw new Error('Incomplete usage of <bar-chart>:  Please provide a `type`, either "divided" or "stacked". For example: `<bar-chart type="divided">`');
     } else if (this.type !== 'divided' && this.type !== 'stacked'){
@@ -100,12 +109,14 @@ parasails.registerComponent('barChart', {
     } else if (!_.isArray(this.chartData)){
       throw new Error('<bar-chart> received an invalid `chartData`. `chartData` should be an array of objects. Each object should containing a `label` (string), `percent` (string), and `color` (string).');
     }
-    if(this.title)
+    if(this.title === undefined){
+      throw new Error('Incomplete usage of <bar-chart>:  Please provide a `title`. For example: `<bar-chart title="My great chart">`');
+    }
 
-    // Adjusting the scale for divided bar charts
+    // Adjusting the range for divided bar charts
     if(this.type === 'divided') {
       if(this.maxRange && this.minRange){
-        this.chartRange = Array.from({length: ((this.range)/this.incrementBy + 1)}, (_, i) => (i * this.incrementBy) + parseInt(this.minRange));
+        this.chartScale = Array.from({length: ((this.range)/this.incrementBy + 1)}, (_, i) => (i * this.incrementBy) + parseInt(this.minRange));
       }
     }
   },
