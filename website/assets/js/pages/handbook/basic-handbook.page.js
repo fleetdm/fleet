@@ -7,6 +7,7 @@ parasails.registerPage('basic-handbook', {
     showHandbookNav: false,
     breadcrumbs: [],
     subtopics: [],
+
   },
 
   //  ╦  ╦╔═╗╔═╗╔═╗╦ ╦╔═╗╦  ╔═╗
