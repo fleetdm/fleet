@@ -63,7 +63,7 @@ jobs:
       run: ./build/fleetctl package --type deb --enroll-secret=foo --fleet-url=https://localhost:8080
 
     - name: Build DEB with Fleet Desktop
-      run: ./build/fleetctl package --type deb --enroll-secret=foo --fleet-url=https://localhost:8080 -fleet-desktop
+      run: ./build/fleetctl package --type deb --enroll-secret=foo --fleet-url=https://localhost:8080 --fleet-desktop
       
     - name: Build RPM
       run: ./build/fleetctl package --type rpm --enroll-secret=foo --fleet-url=https://localhost:8080
