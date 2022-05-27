@@ -22,7 +22,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/ptr"
 )
 
-// Sync downloads all the vulnerability data sources and loads cve scores into the database.
+// Sync downloads all the vulnerability data sources.
 func Sync(vulnPath string, cpeDatabaseURL string) error {
 	client := fleethttp.NewClient()
 
@@ -159,9 +159,9 @@ func DownloadCISAKnownExploitsFeed(vulnPath string, client *http.Client) error {
 	return nil
 }
 
-// LoadCVEScores loads the cvss scores, epss scores, and known exploits from the previously downloaded feeds and saves
+// LoadCVEMeta loads the cvss scores, epss scores, and known exploits from the previously downloaded feeds and saves
 // them to the database.
-func LoadCVEScores(vulnPath string, ds fleet.Datastore) error {
+func LoadCVEMeta(vulnPath string, ds fleet.Datastore) error {
 	// load cvss scores
 	files, err := getNVDCVEFeedFiles(vulnPath)
 	if err != nil {
@@ -173,19 +173,24 @@ func LoadCVEScores(vulnPath string, ds fleet.Datastore) error {
 		return err
 	}
 
-	scoresMap := make(map[string]fleet.CVEScore)
+	metaMap := make(map[string]fleet.CVEMeta)
 	for cve := range dict {
 		schema := dict[cve].(*feednvd.Vuln).Schema()
 		if schema.Impact.BaseMetricV3 == nil {
 			continue
 		}
 		baseScore := schema.Impact.BaseMetricV3.CVSSV3.BaseScore
+		published, err := time.Parse(publishedDateFmt, schema.PublishedDate)
+		if err != nil {
+			return fmt.Errorf("parse published_date: %w", err)
+		}
 
-		score := fleet.CVEScore{
+		meta := fleet.CVEMeta{
 			CVE:       cve,
 			CVSSScore: &baseScore,
+			Published: &published,
 		}
-		scoresMap[cve] = score
+		metaMap[cve] = meta
 	}
 
 	// load epss scores
@@ -197,12 +202,12 @@ func LoadCVEScores(vulnPath string, ds fleet.Datastore) error {
 	}
 
 	for _, epssScore := range epssScores {
-		score, ok := scoresMap[epssScore.CVE]
+		score, ok := metaMap[epssScore.CVE]
 		if !ok {
 			score.CVE = epssScore.CVE
 		}
 		score.EPSSProbability = &epssScore.Score
-		scoresMap[epssScore.CVE] = score
+		metaMap[epssScore.CVE] = score
 	}
 
 	// load known exploits
@@ -218,37 +223,37 @@ func LoadCVEScores(vulnPath string, ds fleet.Datastore) error {
 	}
 
 	for _, vuln := range catalog.Vulnerabilities {
-		score, ok := scoresMap[vuln.CVEID]
+		score, ok := metaMap[vuln.CVEID]
 		if !ok {
 			score.CVE = vuln.CVEID
 		}
 		score.CISAKnownExploit = ptr.Bool(true)
-		scoresMap[vuln.CVEID] = score
+		metaMap[vuln.CVEID] = score
 	}
 
 	// The catalog only contains "known" exploits, meaning all other CVEs should have known exploit set to false.
-	for cve, score := range scoresMap {
-		if score.CISAKnownExploit == nil {
-			score.CISAKnownExploit = ptr.Bool(false)
+	for cve, meta := range metaMap {
+		if meta.CISAKnownExploit == nil {
+			meta.CISAKnownExploit = ptr.Bool(false)
 		}
-		scoresMap[cve] = score
+		metaMap[cve] = meta
 	}
 
-	if len(scoresMap) == 0 {
+	if len(metaMap) == 0 {
 		return nil
 	}
 
 	// convert to slice
-	var scores []fleet.CVEScore
-	for _, score := range scoresMap {
-		scores = append(scores, score)
+	var meta []fleet.CVEMeta
+	for _, score := range metaMap {
+		meta = append(meta, score)
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Minute)
 	defer cancel()
 
-	if err := ds.InsertCVEScores(ctx, scores); err != nil {
-		return fmt.Errorf("insert cisa known exploits: %w", err)
+	if err := ds.InsertCVEMeta(ctx, meta); err != nil {
+		return fmt.Errorf("insert cve meta: %w", err)
 	}
 
 	return nil

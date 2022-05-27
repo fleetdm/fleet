@@ -40,7 +40,7 @@ func TestDownloadCISAKnownExploitsFeed(t *testing.T) {
 	assert.FileExists(t, filepath.Join(tempDir, cisaKnownExploitsFilename))
 }
 
-func TestLoadCVEScores(t *testing.T) {
+func TestLoadCVEMeta(t *testing.T) {
 	nettest.Run(t)
 
 	ds := new(mock.Store)
@@ -48,15 +48,15 @@ func TestLoadCVEScores(t *testing.T) {
 	var countCVSSScore int
 	var countEPSSProbability int
 	var countCISAKnownExploit int
-	ds.InsertCVEScoresFunc = func(ctx context.Context, cveScores []fleet.CVEScore) error {
-		for _, score := range cveScores {
-			if score.CVSSScore != nil {
+	ds.InsertCVEMetaFunc = func(ctx context.Context, cveMeta []fleet.CVEMeta) error {
+		for _, meta := range cveMeta {
+			if meta.CVSSScore != nil {
 				countCVSSScore++
 			}
-			if score.EPSSProbability != nil {
+			if meta.EPSSProbability != nil {
 				countEPSSProbability++
 			}
-			if score.CISAKnownExploit != nil {
+			if meta.CISAKnownExploit != nil {
 				countCISAKnownExploit++
 			}
 		}
@@ -67,9 +67,9 @@ func TestLoadCVEScores(t *testing.T) {
 	err := Sync(tempDir, "")
 	require.NoError(t, err)
 
-	err = LoadCVEScores(tempDir, ds)
+	err = LoadCVEMeta(tempDir, ds)
 	require.NoError(t, err)
-	require.True(t, ds.InsertCVEScoresFuncInvoked)
+	require.True(t, ds.InsertCVEMetaFuncInvoked)
 
 	// ensure some non NULL values were inserted
 	require.True(t, countCVSSScore > 0)

@@ -382,12 +382,12 @@ func testSoftwareNothingChanged(t *testing.T, ds *Datastore) {
 	}
 }
 
-func generateCVEScore(n int) fleet.CVEScore {
+func generateCVEMeta(n int) fleet.CVEMeta {
 	CVEID := fmt.Sprintf("CVE-2022-%05d", n)
 	cvssScore := ptr.Float64(rand.Float64() * 10)
 	epssProbability := ptr.Float64(rand.Float64())
 	cisaKnownExploit := ptr.Bool(rand.Intn(2) == 1)
-	return fleet.CVEScore{
+	return fleet.CVEMeta{
 		CVE:              CVEID,
 		CVSSScore:        cvssScore,
 		EPSSProbability:  epssProbability,
@@ -413,18 +413,18 @@ func testSoftwareLoadSupportsTonsOfCVEs(t *testing.T, ds *Datastore) {
 	somecpeID, err := addCPEForSoftwareDB(context.Background(), ds.writer, host.Software[0], "somecpe")
 	require.NoError(t, err)
 
-	var cveScores []fleet.CVEScore
+	var cveMeta []fleet.CVEMeta
 	for i := 0; i < 1000; i++ {
-		cveScores = append(cveScores, generateCVEScore(i))
+		cveMeta = append(cveMeta, generateCVEMeta(i))
 	}
 
-	err = ds.InsertCVEScores(context.Background(), cveScores)
+	err = ds.InsertCVEMeta(context.Background(), cveMeta)
 	require.NoError(t, err)
 
-	values := strings.TrimSuffix(strings.Repeat("(?, ?), ", len(cveScores)), ", ")
+	values := strings.TrimSuffix(strings.Repeat("(?, ?), ", len(cveMeta)), ", ")
 	query := `INSERT INTO software_cve (cpe_id, cve) VALUES ` + values
 	var args []interface{}
-	for _, cve := range cveScores {
+	for _, cve := range cveMeta {
 		args = append(args, somecpeID, cve.CVE)
 	}
 	_, err = ds.writer.ExecContext(context.Background(), query, args...)
@@ -490,7 +490,7 @@ func testSoftwareList(t *testing.T, ds *Datastore) {
 	_, err = ds.InsertCVEForCPE(context.Background(), "CVE-2022-0003", []string{"somecpe2"})
 	require.NoError(t, err)
 
-	scores := []fleet.CVEScore{
+	cveMeta := []fleet.CVEMeta{
 		{
 			CVE:              "CVE-2022-0001",
 			CVSSScore:        ptr.Float64(2.0),
@@ -510,7 +510,7 @@ func testSoftwareList(t *testing.T, ds *Datastore) {
 			CISAKnownExploit: ptr.Bool(true),
 		},
 	}
-	err = ds.InsertCVEScores(context.Background(), scores)
+	err = ds.InsertCVEMeta(context.Background(), cveMeta)
 	require.NoError(t, err)
 
 	foo001 := fleet.Software{

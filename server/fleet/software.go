@@ -14,7 +14,7 @@ type CVE struct {
 	CISAKnownExploit **bool    `json:"cisa_known_exploit,omitempty" db:"cisa_known_exploit"`
 }
 
-type CVEScore struct {
+type CVEMeta struct {
 	CVE string `db:"cve"`
 	// CVSSScore is the Common Vulnerability Scoring System (CVSS) base score v3. The base score ranges from 0 - 10 and
 	// takes into account several different metrics.
@@ -27,6 +27,8 @@ type CVEScore struct {
 	// CISAKnownExploit is whether the the software vulnerability is a known exploit according to CISA.
 	// See https://www.cisa.gov/known-exploited-vulnerabilities.
 	CISAKnownExploit *bool `db:"cisa_known_exploit"`
+	// Published is when the cve was published according to NIST.score
+	Published *time.Time `db:"published"`
 }
 
 // Software is a named and versioned piece of software installed on a device.
