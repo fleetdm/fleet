@@ -7,7 +7,6 @@ parasails.registerPage('basic-handbook', {
     showHandbookNav: false,
     breadcrumbs: [],
     subtopics: [],
-
   },
 
   //  ╦  ╦╔═╗╔═╗╔═╗╦ ╦╔═╗╦  ╔═╗
@@ -45,6 +44,24 @@ parasails.registerPage('basic-handbook', {
         hashToScrollTo.scrollIntoView();
       }
     }
+
+    // If this is the handbook landing page, iterate through markdown pages in `this.markdownPages`
+    // if(this.isHandbookLandingPage){
+    //  for (page of markdownpages) {
+    //  if the page is a handbook page, create an object that contains the page's title, pageOrderInSection, and the array of markdown links on that page
+    //  example: {
+    //    pageTitle: 'People',
+    //    pageRank: 400,
+    //    pageLinks: [
+    //      { headingText: 'Directly responsible individuals', hashLink: '/handbook/people.md#directly-responsible-individuals'},
+    //      {...},
+    //      {...},
+    //    ],
+    //    }
+    //   Add the object to the array of handbook pages
+    //  }
+    //  after all pages have been added, sort the array by the pageOrderInSection value
+    // }
 
     this.subtopics = (() => {
       let subtopics;

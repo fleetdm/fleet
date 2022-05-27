@@ -95,7 +95,17 @@
             )
           ) %>
           </div>
-
+          <%/*
+            If this is the handbook landing page, we'll use the array of handbook pages to display the links under the handbook readme
+            <v-if="isHandbookLandingPage">
+              <v-for="PAGE in HANDBOOKPAGES">
+                PAGE.pageTitle
+                <v-for="LINK in PAGE.pageLinks">
+                  <a href="LINK.hashLink">LINK.headingText</a>
+                </>
+              </>
+            </>
+          */%>
         </div>
       </div>
     </div>
