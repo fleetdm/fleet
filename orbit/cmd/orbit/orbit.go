@@ -270,6 +270,9 @@ func main() {
 			if c.Bool("fleet-desktop") {
 				targets = append(targets, "desktop")
 			}
+			if c.Bool("dev-mode") {
+				targets = targets[1:] // exclude orbit itself on dev-mode.
+			}
 			updateRunner, err := update.NewRunner(updater, update.RunnerOptions{
 				CheckInterval: c.Duration("update-interval"),
 				Targets:       targets,
