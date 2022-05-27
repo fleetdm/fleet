@@ -35,8 +35,8 @@ const TargetsInput = ({
   handleRowRemove,
   setSearchText,
 }: ITargetsInputProps): JSX.Element => {
-  const resultsDropdownTableHeaders = generateTableHeaders(false);
-  const selectedTableHeaders = generateTableHeaders(true);
+  const resultsDropdownTableHeaders = generateTableHeaders();
+  const selectedTableHeaders = generateTableHeaders(handleRowRemove);
   const dropdownHosts =
     searchResults && pullAllBy(searchResults, targetedHosts, "hostname");
   // const finalSelectedHostTargets =
@@ -101,9 +101,7 @@ const TargetsInput = ({
             isAllPagesSelected={false}
             disableCount
             disablePagination
-            disableMultiRowSelect
             emptyComponent={() => <></>}
-            onSelectSingleRow={handleRowRemove}
           />
         </div>
       </div>

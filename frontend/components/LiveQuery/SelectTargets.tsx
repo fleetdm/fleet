@@ -25,7 +25,7 @@ import teamsAPI, { ILoadTeamsResponse } from "services/entities/teams";
 import { formatSelectedTargetsForApi } from "utilities/helpers";
 
 import PageError from "components/DataError";
-import TargetsInput from "components/TargetsInput";
+import TargetsInput from "components/LiveQuery/TargetsInput";
 import Button from "components/buttons/Button";
 import Spinner from "components/Spinner";
 import TooltipWrapper from "components/TooltipWrapper";
@@ -56,6 +56,12 @@ interface ISelectTargetsProps {
   setTargetsTotalCount: React.Dispatch<React.SetStateAction<number>>;
 }
 
+interface ILabelsByType {
+  allHosts: ILabelSummary[];
+  platforms: ILabelSummary[];
+  other: ILabelSummary[];
+}
+
 interface ITargetsQueryKey {
   scope: string;
   query_id?: number | null;
@@ -70,7 +76,7 @@ const isLabel = (entity: ISelectTargetsEntity) => "label_type" in entity;
 const isHost = (entity: ISelectTargetsEntity) => "hostname" in entity;
 
 const parseLabels = (list?: ILabelSummary[]) => {
-  const all = list?.filter((l) => l.name === "All Hosts") || [];
+  const allHosts = list?.filter((l) => l.name === "All Hosts") || [];
   const platforms =
     list?.filter(
       (l) =>
@@ -78,7 +84,7 @@ const parseLabels = (list?: ILabelSummary[]) => {
     ) || [];
   const other = list?.filter((l) => l.label_type === "regular") || [];
 
-  return { all, platforms, other };
+  return { allHosts, platforms, other };
 };
 
 const TargetPillSelector = ({
@@ -131,9 +137,7 @@ const SelectTargets = ({
 }: ISelectTargetsProps): JSX.Element => {
   const { isPremiumTier } = useContext(AppContext);
 
-  const [allHosts, setAllHosts] = useState<ILabelSummary[] | null>(null);
-  const [platforms, setPlatforms] = useState<ILabelSummary[] | null>(null);
-  const [otherLabels, setOtherLabels] = useState<ILabelSummary[] | null>(null);
+  const [labels, setLabels] = useState<ILabelsByType | null>(null);
   const [inputTabIndex, setInputTabIndex] = useState<number | null>(null);
   const [searchText, setSearchText] = useState<string>("");
   const [debouncedSearchText, setDebouncedSearchText] = useState<string>("");
@@ -147,31 +151,6 @@ const SelectTargets = ({
     DEBOUNCE_DELAY,
     { trailing: true }
   );
-
-  useEffect(() => {
-    setIsDebouncing(true);
-    debounceSearch(searchText);
-  }, [searchText]);
-
-  const {
-    data: labels,
-    error: errorLabels,
-    isLoading: isLoadingLabels,
-  } = useQuery<ILabelsSummaryResponse, Error, ILabelSummary[]>(
-    ["labelsSummary"],
-    labelsAPI.summary,
-    {
-      select: (data) => data.labels,
-      staleTime: STALE_TIME, // TODO: confirm
-    }
-  );
-
-  useEffect(() => {
-    const parsed = parseLabels(labels);
-    setAllHosts(parsed.all);
-    setPlatforms(parsed.platforms);
-    setOtherLabels(parsed.other);
-  }, [labels]);
 
   const {
     data: teams,
@@ -187,22 +166,18 @@ const SelectTargets = ({
     }
   );
 
-  useEffect(() => {
-    if (
-      inputTabIndex === null &&
-      allHosts &&
-      platforms &&
-      otherLabels &&
-      teams
-    ) {
-      setInputTabIndex(
-        allHosts.length +
-          platforms.length +
-          otherLabels.length +
-          teams.length || 0
-      );
+  const {
+    data: labelsSummary,
+    error: errorLabels,
+    isLoading: isLoadingLabels,
+  } = useQuery<ILabelsSummaryResponse, Error, ILabelSummary[]>(
+    ["labelsSummary"],
+    labelsAPI.summary,
+    {
+      select: (data) => data.labels,
+      staleTime: STALE_TIME, // TODO: confirm
     }
-  }, [inputTabIndex, allHosts, platforms, otherLabels, teams]);
+  );
 
   const {
     data: searchResults,
@@ -267,8 +242,22 @@ const SelectTargets = ({
     setSelectedTargets(selected);
   }, [targetedHosts, targetedLabels, targetedTeams]);
 
+  useEffect(() => {
+    labelsSummary && setLabels(parseLabels(labelsSummary));
+  }, [labelsSummary]);
+
+  useEffect(() => {
+    if (inputTabIndex === null && labelsSummary && teams) {
+      setInputTabIndex(labelsSummary.length + teams.length || 0);
+    }
+  }, [inputTabIndex, labelsSummary, teams]);
+
+  useEffect(() => {
+    setIsDebouncing(true);
+    debounceSearch(searchText);
+  }, [searchText]);
+
   const handleClickCancel = () => {
-    // setSelectedTargets([]);
     goToQueryEditor();
   };
 
@@ -292,19 +281,16 @@ const SelectTargets = ({
   };
 
   const handleRowSelect = (row: Row) => {
-    const selectedHost = { ...row.original } as IHost;
-    const newTargets = [...targetedHosts];
-
-    newTargets.push(selectedHost);
-    setTargetedHosts(newTargets);
+    const selectedHost = row.original as IHost;
+    setTargetedHosts((prevHosts) => prevHosts.concat(selectedHost));
     setSearchText("");
   };
 
   const handleRowRemove = (row: Row) => {
-    const removedHost = { ...row.original } as IHost;
-    const newTargets = targetedHosts.filter((t) => t.id !== removedHost.id);
-
-    setTargetedHosts(newTargets);
+    const removedHost = row.original as IHost;
+    setTargetedHosts((prevHosts) =>
+      prevHosts.filter((h) => h.id !== removedHost.id)
+    );
   };
 
   const onClickRun = () => {
@@ -394,10 +380,13 @@ const SelectTargets = ({
     <div className={`${baseClass}__wrapper body-wrap`}>
       <h1>Select targets</h1>
       <div className={`${baseClass}__target-selectors`}>
-        {!!allHosts?.length && renderTargetEntityList("", allHosts)}
-        {!!platforms?.length && renderTargetEntityList("Platforms", platforms)}
+        {!!labels?.allHosts.length &&
+          renderTargetEntityList("", labels.allHosts)}
+        {!!labels?.platforms?.length &&
+          renderTargetEntityList("Platforms", labels.platforms)}
         {!!teams?.length && renderTargetEntityList("Teams", teams)}
-        {!!otherLabels?.length && renderTargetEntityList("Labels", otherLabels)}
+        {!!labels?.other?.length &&
+          renderTargetEntityList("Labels", labels.other)}
       </div>
       <TargetsInput
         tabIndex={inputTabIndex || 0}

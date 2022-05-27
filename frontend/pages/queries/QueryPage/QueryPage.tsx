@@ -120,6 +120,7 @@ const QueryPage = ({
         if (!queryParamHostsAdded) {
           setQueryParamHostsAdded(true);
         }
+        router.replace(location.pathname);
       },
     }
   );
