@@ -1,9 +1,0 @@
-* Implemented `output_size` column in table `osquery_schedule` for scheduled queries
-* Expanded `wifi_networks` table to include more data on macOS
-* Fixed `wifi_networks` table to now be compatible with newer macOS releases
-* Implemented `translated` column in `processes` table on macOS to identify processes running under Rosetta on Apple Silicon macs
-* Deprecated and removed FreeBSD support
-
-Upcoming changes:
-* Implement `es_process_file_events` -- EndpointSecurity based File Integrity Monitoring on macOS
-* Implement `password_policy` table on macOS
