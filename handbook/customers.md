@@ -96,7 +96,7 @@ Occasionally users will either email or Slack questions about product usage. We 
 ## Customer contracts
 Fleet's subscription agreement is available at [fleetdm.com/terms](https://fleetdm.com/terms). 
 
-Fleet employees can find a summary on contract terms [here](https://docs.google.com/spreadsheets/d/1gAenC948YWG2NwcaVHleUvX0LzS8suyMFpjaBqxHQNg/edit?usp=sharing).
+Fleet employees can find a summary of contract terms [here](https://docs.google.com/spreadsheets/d/1gAenC948YWG2NwcaVHleUvX0LzS8suyMFpjaBqxHQNg/edit?usp=sharing).
 
 ## Rituals
 
