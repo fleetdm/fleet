@@ -66,8 +66,8 @@ parasails.registerComponent('barChart', {
         </span>
       </div>
       <div purpose="chart-labels" class="d-flex" :class="[chartData.length === 1 ? 'justify-content-around' : '']">
-        <span v-for="item in chartData" :style="'flex-basis: '+item.percent+'%;'">
-          <span purpose="label"><strong>{{item.percent}}% </strong>{{item.label}}</span>
+        <span purpose="label-container" v-for="item in chartData" :style="'flex-basis: '+item.percent+'%;'">
+          <span purpose="label"><strong>{{item.percent}}% </strong><span>{{item.label}}</span></span>
         </span>
       </div>
     </div>
@@ -83,7 +83,7 @@ parasails.registerComponent('barChart', {
       </div>
         <span purpose="label"><strong>{{item.percent}}% </strong>{{item.label}}</span>
       </div>
-      <div purpose="range" class="pt-3 d-flex flex-row justify-content-between">
+      <div purpose="range" class="d-flex flex-row align-self-end justify-content-between">
         <span v-for="value in chartScale">
           {{value}}%
         </span>
@@ -111,6 +111,14 @@ parasails.registerComponent('barChart', {
     }
     if(this.title === undefined){
       throw new Error('Incomplete usage of <bar-chart>:  Please provide a `title`. For example: `<bar-chart title="My great chart">`');
+    }
+    if(this.type === 'divided') {
+      if(this.maxRange === undefined) {
+        throw new Error('Incomplete usage of <bar-chart>: When using the `divided` type a `maxRange` is required. For example: `<bar-chart max-range="30">`');
+      }
+      if(this.minRange === undefined) {
+        throw new Error('Incomplete usage of <bar-chart>: When using the `divided` type a `minRange` is required. For example: `<bar-chart min-range="10">`');
+      }
     }
 
     // Adjusting the range for divided bar charts

@@ -36,10 +36,13 @@
       border-radius: 6px;
     }
   }
+  [purpose='label-container']:last-child:not(:only-child) {
+    text-align: right;
+  }
+
   [purpose='label'] {
-    display: block;
-    position: relative;
-    top: 4px;
+    display: inline-block;
+    margin-top: 4px;
     white-space: nowrap;
     margin-right: 8px;
   }
@@ -50,10 +53,23 @@
     }
   }
 
-  @media (max-width: 540px) {
+  @media (max-width: 769px) {
     [purpose='label'] {
       white-space: normal;
     }
+  }
+
+  @media (max-width: 540px) {
+    [purpose='range'] {
+      span:nth-of-type(2n) {
+        display: none;
+      }
+      span:first-of-type, span:last-of-type {
+        display: flex;
+      }
+    }
+  }
+  @media (max-width: 400px) {
     [purpose='range'] {
       span {
         display: none;
