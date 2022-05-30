@@ -410,13 +410,13 @@ func loadUbuntuSoftware(ver string) []fleet.Software {
 	var software []softwareJSON
 	contents, err := ioutil.ReadFile(fmt.Sprintf("ubuntu_%s-vulnerable_software.json", ver))
 	if err != nil {
-		log.Println("reading vuln software for ubuntu 16.04:", err)
+		log.Printf("reading vuln software for ubuntu %s: %s\n", ver, err)
 		return nil
 	}
 
 	err = json.Unmarshal(contents, &software)
 	if err != nil {
-		log.Println("unmarshalling vuln software for ubuntu 16.04:", err)
+		log.Printf("unmarshalling vuln software for ubuntu %s:%s", ver, err)
 		return nil
 	}
 
