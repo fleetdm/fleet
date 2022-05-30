@@ -48,6 +48,5 @@ resource "docker_registry_image" "loadtest" {
       TAG = var.tag
     }
     pull_parent = true
-    no_cache = true
   }
 }
