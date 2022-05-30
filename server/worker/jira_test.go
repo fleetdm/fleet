@@ -3,6 +3,7 @@ package worker
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"io"
 	"io/ioutil"
 	"net/http"
@@ -24,6 +25,28 @@ func TestJiraRun(t *testing.T) {
 			{
 				ID:       1,
 				Hostname: "test",
+			},
+		}, nil
+	}
+	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+		return &fleet.AppConfig{Integrations: fleet.Integrations{
+			Jira: []*fleet.JiraIntegration{
+				{EnableSoftwareVulnerabilities: true, TeamJiraIntegration: fleet.TeamJiraIntegration{EnableFailingPolicies: true}},
+			},
+		}}, nil
+	}
+	ds.TeamFunc = func(ctx context.Context, tid uint) (*fleet.Team, error) {
+		if tid != 123 {
+			return nil, errors.New("unexpected team id")
+		}
+		return &fleet.Team{
+			ID: 123,
+			Config: fleet.TeamConfig{
+				Integrations: fleet.TeamIntegrations{
+					Jira: []*fleet.TeamJiraIntegration{
+						{EnableFailingPolicies: true},
+					},
+				},
 			},
 		}, nil
 	}
@@ -73,10 +96,12 @@ func TestJiraRun(t *testing.T) {
 	require.NoError(t, err)
 
 	jira := &Jira{
-		FleetURL:   "http://example.com",
-		Datastore:  ds,
-		Log:        kitlog.NewNopLogger(),
-		JiraClient: client,
+		FleetURL:  "http://example.com",
+		Datastore: ds,
+		Log:       kitlog.NewNopLogger(),
+		NewClientFunc: func(cfg fleet.TeamJiraIntegration) (JiraClient, error) {
+			return client, nil
+		},
 	}
 
 	t.Run("vuln", func(t *testing.T) {

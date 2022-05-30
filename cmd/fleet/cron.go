@@ -475,22 +475,38 @@ func cronWorker(
 	// there won't be any records to process so it will mostly just sleep).
 	w := worker.NewWorker(ds, logger)
 	jira := &worker.Jira{
-		Datastore: ds,
-		Log:       logger,
+		Datastore:     ds,
+		Log:           logger,
+		NewClientFunc: newJiraClient,
 	}
 	zendesk := &worker.Zendesk{
 		Datastore: ds,
 		Log:       logger,
 	}
-	// leave the url and client fields empty for now, will be filled
-	// when the lock is acquired with the up-to-date config.
+	// leave the url empty for now, will be filled when the lock is acquired with
+	// the up-to-date config.
 	w.Register(jira)
 	w.Register(zendesk)
+
+	// Read app config a first time before starting, to clear up any failer client
+	// configuration if we're not on a fleet-owned server. Technically, the ServerURL
+	// could change dynamically, but for the needs of forced client failures, this
+	// is not a possible scenario.
+	appConfig, err := ds.AppConfig(ctx)
+	if err != nil {
+		level.Error(logger).Log("config", "couldn't read app config", "err", err)
+		sentry.CaptureException(err)
+	}
+	// we clear it even if we fail to load the app config, not a likely scenario
+	// in our test environments for the needs of forced failures.
+	if !strings.Contains(appConfig.ServerSettings.ServerURL, "fleetdm") {
+		os.Unsetenv("FLEET_JIRA_CLIENT_FORCED_FAILURES")
+		os.Unsetenv("FLEET_ZENDESK_CLIENT_FORCED_FAILURES")
+	}
 
 	// create client wrappers to introduce forced failures if configured
 	// to do so via the environment variable.
 	// format is "<modulo number>;<cve1>,<cve2>,<cve3>,..."
-	jiraFailerClient := newFailerClient(os.Getenv("FLEET_JIRA_CLIENT_FORCED_FAILURES"))
 	zendeskFailerClient := newFailerClient(os.Getenv("FLEET_ZENDESK_CLIENT_FORCED_FAILURES"))
 
 	ticker := time.NewTicker(10 * time.Second)
@@ -520,6 +536,8 @@ func cronWorker(
 			sentry.CaptureException(err)
 			continue
 		}
+
+		jira.FleetURL = appConfig.ServerSettings.ServerURL
 
 		// get the enabled jira config, if any
 		var jiraSettings *fleet.JiraIntegration
@@ -551,16 +569,6 @@ func cronWorker(
 			continue
 		}
 
-		if jiraSettings != nil {
-			// create the client to make API calls to Jira
-			err := setJiraClient(jira, jiraSettings, appConfig, logger, jiraFailerClient)
-			if err != nil {
-				level.Error(logger).Log("msg", "Error creating JIRA client", "err", err)
-				sentry.CaptureException(err)
-				continue
-			}
-		}
-
 		if zendeskSettings != nil {
 			// create the client to make API calls to Zendesk
 			err := setZendeskClient(zendesk, zendeskSettings, appConfig, logger, zendeskFailerClient)
@@ -580,29 +588,26 @@ func cronWorker(
 	}
 }
 
-func setJiraClient(jira *worker.Jira, jiraSettings *fleet.JiraIntegration, appConfig *fleet.AppConfig, logger kitlog.Logger, failerClient *worker.TestAutomationFailer) error {
+func newJiraClient(cfg fleet.TeamJiraIntegration) (worker.JiraClient, error) {
 	client, err := externalsvc.NewJiraClient(&externalsvc.JiraOptions{
-		BaseURL:           jiraSettings.URL,
-		BasicAuthUsername: jiraSettings.Username,
-		BasicAuthPassword: jiraSettings.APIToken,
-		ProjectKey:        jiraSettings.ProjectKey,
+		BaseURL:           cfg.URL,
+		BasicAuthUsername: cfg.Username,
+		BasicAuthPassword: cfg.APIToken,
+		ProjectKey:        cfg.ProjectKey,
 	})
 	if err != nil {
-		level.Error(logger).Log("msg", "Error creating Jira client", "err", err)
-		sentry.CaptureException(err)
-		return err
+		return nil, err
 	}
 
-	// safe to update the Jira worker as it is not used concurrently
-	jira.FleetURL = appConfig.ServerSettings.ServerURL
-	if failerClient != nil && strings.Contains(jira.FleetURL, "fleetdm") {
+	// create client wrappers to introduce forced failures if configured
+	// to do so via the environment variable.
+	// format is "<modulo number>;<cve1>,<cve2>,<cve3>,..."
+	failerClient := newFailerClient(os.Getenv("FLEET_JIRA_CLIENT_FORCED_FAILURES"))
+	if failerClient != nil {
 		failerClient.JiraClient = client
-		jira.JiraClient = failerClient
-	} else {
-		jira.JiraClient = client
+		return failerClient, nil
 	}
-
-	return nil
+	return client, nil
 }
 
 func setZendeskClient(zendesk *worker.Zendesk, zendeskSettings *fleet.ZendeskIntegration, appConfig *fleet.AppConfig, logger kitlog.Logger, failerClient *worker.TestAutomationFailer) error {

@@ -160,7 +160,7 @@ func makeTeamConfigCache(ds fleet.Datastore) func(ctx context.Context, teamID ui
 			return cfg, ctxerr.Wrapf(ctx, err, "get team: %d", teamID)
 		}
 
-		teamAutomation := getActiveAutomation(team.Config.WebhookSettings.FailingPoliciesWebhook, fleet.Integrations{} /*team.Config.Integrations*/)
+		teamAutomation := getActiveAutomation(team.Config.WebhookSettings.FailingPoliciesWebhook, team.Config.Integrations.ToIntegrations())
 		teamCfg := FailingPolicyAutomationConfig{
 			AutomationType: teamAutomation,
 		}
@@ -190,7 +190,7 @@ func makeTeamConfigCache(ds fleet.Datastore) func(ctx context.Context, teamID ui
 
 func getActiveAutomation(webhook fleet.FailingPoliciesWebhookSettings, intgs fleet.Integrations) FailingPolicyAutomationType {
 	// only one automation (i.e. webhook or integration) can be enabled at a
-	// time, enforced when updating the appconfig.
+	// time, enforced when updating the appconfig or the team config.
 	if webhook.Enable {
 		return FailingPolicyWebhook
 	}

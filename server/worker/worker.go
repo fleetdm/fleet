@@ -18,6 +18,13 @@ const (
 	nvdCVEURL = "https://nvd.nist.gov/vuln/detail/"
 )
 
+const (
+	// types of integrations - jobs like Jira and Zendesk support different
+	// integrations, this identifies the integration type of a message.
+	intgTypeVuln          = "vuln"
+	intgTypeFailingPolicy = "failingPolicy"
+)
+
 // Job defines an interface for jobs that can be run by the Worker
 type Job interface {
 	// Name is the unique name of the job.

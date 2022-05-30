@@ -82,10 +82,12 @@ func main() {
 	}
 
 	jira := &worker.Jira{
-		FleetURL:   *fleetURL,
-		Datastore:  ds,
-		Log:        logger,
-		JiraClient: client,
+		FleetURL:  *fleetURL,
+		Datastore: ds,
+		Log:       logger,
+		NewClientFunc: func(cfg fleet.TeamJiraIntegration) (worker.JiraClient, error) {
+			return client, nil
+		},
 	}
 
 	argsJSON := json.RawMessage(fmt.Sprintf(`{"cve":%q}`, *cve))

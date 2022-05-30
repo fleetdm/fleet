@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"sort"
+	"sync"
 	"text/template"
 
 	jira "github.com/andygrunwald/go-jira"
@@ -92,10 +93,17 @@ type JiraClient interface {
 
 // Jira is the job processor for jira integrations.
 type Jira struct {
-	FleetURL   string
-	Datastore  fleet.Datastore
-	Log        kitlog.Logger
-	JiraClient JiraClient
+	FleetURL      string
+	Datastore     fleet.Datastore
+	Log           kitlog.Logger
+	NewClientFunc func(fleet.TeamJiraIntegration) (JiraClient, error)
+
+	// mu protects concurrent access to clientsCache, so that the job processor
+	// can potentially be run concurrently.
+	mu sync.Mutex
+	// map of integration type + team ID to Jira client (empty team ID for
+	// global), e.g. "vuln:123", "failingPolicy:", etc.
+	clientsCache map[string]JiraClient
 }
 
 // Name returns the name of the job.
@@ -103,10 +111,88 @@ func (j *Jira) Name() string {
 	return jiraName
 }
 
+// returns nil, nil if there is no integration enabled for that message.
+func (j *Jira) getClient(ctx context.Context, args jiraArgs) (JiraClient, error) {
+	var teamID uint
+	var useTeamCfg bool
+
+	intgType := args.integrationType()
+	key := intgType + ":"
+	if intgType == intgTypeFailingPolicy && args.FailingPolicy.TeamID != nil {
+		teamID = *args.FailingPolicy.TeamID
+		useTeamCfg = true
+		key += fmt.Sprint(teamID)
+	}
+
+	j.mu.Lock()
+	if j.clientsCache == nil {
+		j.clientsCache = make(map[string]JiraClient)
+	}
+	if cli := j.clientsCache[key]; cli != nil {
+		j.mu.Unlock()
+		return cli, nil
+	}
+	j.mu.Unlock()
+
+	// create the client for this key and set it if it is still absent from the
+	// cache after its creation. This is so that we avoid holding on to the mutex
+	// for the whole duration of the creation.
+
+	var client JiraClient
+	if useTeamCfg {
+		tm, err := j.Datastore.Team(ctx, teamID)
+		if err != nil {
+			return nil, err
+		}
+
+		for _, intg := range tm.Config.Integrations.Jira {
+			if intgType == intgTypeFailingPolicy && intg.EnableFailingPolicies {
+				cli, err := j.NewClientFunc(*intg)
+				if err != nil {
+					return nil, err
+				}
+				client = cli
+				break
+			}
+		}
+	} else {
+		ac, err := j.Datastore.AppConfig(ctx)
+		if err != nil {
+			return nil, err
+		}
+		for _, intg := range ac.Integrations.Jira {
+			if (intgType == intgTypeVuln && intg.EnableSoftwareVulnerabilities) ||
+				(intgType == intgTypeFailingPolicy && intg.EnableFailingPolicies) {
+				cli, err := j.NewClientFunc(intg.TeamJiraIntegration)
+				if err != nil {
+					return nil, err
+				}
+				client = cli
+				break
+			}
+		}
+	}
+
+	j.mu.Lock()
+	defer j.mu.Unlock()
+	if cli := j.clientsCache[key]; cli != nil {
+		return cli, nil
+	}
+	j.clientsCache[key] = client
+	return client, nil
+}
+
 // jiraArgs are the arguments for the Jira integration job.
 type jiraArgs struct {
 	CVE           string             `json:"cve,omitempty"`
 	FailingPolicy *failingPolicyArgs `json:"failing_policy,omitempty"`
+}
+
+func (a *jiraArgs) integrationType() string {
+	if a.FailingPolicy == nil {
+		return intgTypeVuln
+	}
+	return intgTypeFailingPolicy
 }
 
 // Run executes the jira job.
@@ -116,17 +202,22 @@ func (j *Jira) Run(ctx context.Context, argsJSON json.RawMessage) error {
 		return ctxerr.Wrap(ctx, err, "unmarshal args")
 	}
 
-	switch {
-	case args.CVE != "":
-		return j.runVuln(ctx, args)
-	case args.FailingPolicy != nil:
-		return j.runFailingPolicies(ctx, args)
+	cli, err := j.getClient(ctx, args)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "get jira client")
+	}
+
+	switch intgType := args.integrationType(); intgType {
+	case intgTypeVuln:
+		return j.runVuln(ctx, cli, args)
+	case intgTypeFailingPolicy:
+		return j.runFailingPolicies(ctx, cli, args)
 	default:
-		return ctxerr.New(ctx, "empty JiraArgs, nothing to process")
+		return ctxerr.Errorf(ctx, "unknown integration type: %v", intgType)
 	}
 }
 
-func (j *Jira) runVuln(ctx context.Context, args jiraArgs) error {
+func (j *Jira) runVuln(ctx context.Context, cli JiraClient, args jiraArgs) error {
 	hosts, err := j.Datastore.HostsByCVE(ctx, args.CVE)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "find hosts by cve")
@@ -139,7 +230,7 @@ func (j *Jira) runVuln(ctx context.Context, args jiraArgs) error {
 		Hosts:    hosts,
 	}
 
-	createdIssue, err := j.createTemplatedIssue(ctx, jiraTemplates.VulnSummary, jiraTemplates.VulnDescription, tplArgs)
+	createdIssue, err := j.createTemplatedIssue(ctx, cli, jiraTemplates.VulnSummary, jiraTemplates.VulnDescription, tplArgs)
 	if err != nil {
 		return err
 	}
@@ -152,7 +243,7 @@ func (j *Jira) runVuln(ctx context.Context, args jiraArgs) error {
 	return nil
 }
 
-func (j *Jira) runFailingPolicies(ctx context.Context, args jiraArgs) error {
+func (j *Jira) runFailingPolicies(ctx context.Context, cli JiraClient, args jiraArgs) error {
 	tplArgs := &jiraFailingPoliciesTplArgs{
 		FleetURL:   j.FleetURL,
 		PolicyName: args.FailingPolicy.PolicyName,
@@ -161,7 +252,7 @@ func (j *Jira) runFailingPolicies(ctx context.Context, args jiraArgs) error {
 		Hosts:      args.FailingPolicy.Hosts,
 	}
 
-	createdIssue, err := j.createTemplatedIssue(ctx, jiraTemplates.FailingPolicySummary, jiraTemplates.FailingPolicyDescription, tplArgs)
+	createdIssue, err := j.createTemplatedIssue(ctx, cli, jiraTemplates.FailingPolicySummary, jiraTemplates.FailingPolicyDescription, tplArgs)
 	if err != nil {
 		return err
 	}
@@ -180,7 +271,7 @@ func (j *Jira) runFailingPolicies(ctx context.Context, args jiraArgs) error {
 	return nil
 }
 
-func (j *Jira) createTemplatedIssue(ctx context.Context, summaryTpl, descTpl *template.Template, args interface{}) (*jira.Issue, error) {
+func (j *Jira) createTemplatedIssue(ctx context.Context, cli JiraClient, summaryTpl, descTpl *template.Template, args interface{}) (*jira.Issue, error) {
 	var buf bytes.Buffer
 	if err := summaryTpl.Execute(&buf, args); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "execute summary template")
@@ -203,7 +294,7 @@ func (j *Jira) createTemplatedIssue(ctx context.Context, summaryTpl, descTpl *te
 		},
 	}
 
-	createdIssue, err := j.JiraClient.CreateJiraIssue(ctx, issue)
+	createdIssue, err := cli.CreateJiraIssue(ctx, issue)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "create issue")
 	}

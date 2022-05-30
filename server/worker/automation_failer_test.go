@@ -20,6 +20,13 @@ func TestJiraFailer(t *testing.T) {
 	ds.HostsByCVEFunc = func(ctx context.Context, cve string) ([]*fleet.HostShort, error) {
 		return []*fleet.HostShort{{ID: 1, Hostname: "test"}}, nil
 	}
+	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+		return &fleet.AppConfig{Integrations: fleet.Integrations{
+			Jira: []*fleet.JiraIntegration{
+				{EnableSoftwareVulnerabilities: true},
+			},
+		}}, nil
+	}
 
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusCreated)
@@ -52,10 +59,12 @@ func TestJiraFailer(t *testing.T) {
 
 	// create the Jira job with that failer-wrapped client
 	jira := &Jira{
-		FleetURL:   "http://example.com",
-		Datastore:  ds,
-		Log:        kitlog.NewNopLogger(),
-		JiraClient: failer,
+		FleetURL:  "http://example.com",
+		Datastore: ds,
+		Log:       kitlog.NewNopLogger(),
+		NewClientFunc: func(cfg fleet.TeamJiraIntegration) (JiraClient, error) {
+			return failer, nil
+		},
 	}
 
 	var failedIndices []int
