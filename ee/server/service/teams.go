@@ -138,7 +138,6 @@ func (svc *Service) ModifyTeam(ctx context.Context, teamID uint, payload fleet.T
 		}
 	}
 
-	// TODO(mna): mask API tokens in response
 	return svc.ds.SaveTeam(ctx, team)
 }
 
