@@ -63,25 +63,30 @@ func Analyze(
 			break
 		}
 
+		foundInBatch := make(map[uint][]fleet.SoftwareVulnerability)
+		var foundInBatchIDs []uint
+
 		for _, hId := range hIds {
 			software, err := ds.ListSoftwareForVulnDetection(ctx, hId)
 			if err != nil {
 				errR = multierror.Append(errR, err)
 				continue
 			}
-
 			found := defs.Eval(software)
-			if len(found) == 0 {
-				continue
+			if len(found) != 0 {
+				foundInBatchIDs = append(foundInBatchIDs, hId)
+				foundInBatch[hId] = found
 			}
+		}
 
-			existing, err := ds.ListSoftwareVulnerabilities(ctx, hId)
-			if err != nil {
-				errR = multierror.Append(errR, err)
-				continue
-			}
+		existingInBatch, err := ds.ListSoftwareVulnerabilities(ctx, foundInBatchIDs)
+		if err != nil {
+			errR = multierror.Append(errR, err)
+			continue
+		}
 
-			insrt, del := vulnsDelta(found, existing)
+		for hId, found := range foundInBatch {
+			insrt, del := vulnsDelta(found, existingInBatch[hId])
 			for _, i := range insrt {
 				key := fmt.Sprintf("%d:%s", i.SoftwareID, i.CVE)
 				toInsertSet[key] = i

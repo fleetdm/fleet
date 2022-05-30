@@ -272,7 +272,7 @@ type TeamEnrollSecretsFunc func(ctx context.Context, teamID uint) ([]*fleet.Enro
 
 type ListSoftwareForVulnDetectionFunc func(ctx context.Context, hostID uint) ([]fleet.Software, error)
 
-type ListSoftwareVulnerabilitiesFunc func(ctx context.Context, hostID uint) ([]fleet.SoftwareVulnerability, error)
+type ListSoftwareVulnerabilitiesFunc func(ctx context.Context, hostIDs []uint) (map[uint][]fleet.SoftwareVulnerability, error)
 
 type LoadHostSoftwareFunc func(ctx context.Context, host *fleet.Host, opts fleet.SoftwareListOptions) error
 
@@ -1659,9 +1659,9 @@ func (s *DataStore) ListSoftwareForVulnDetection(ctx context.Context, hostID uin
 	return s.ListSoftwareForVulnDetectionFunc(ctx, hostID)
 }
 
-func (s *DataStore) ListSoftwareVulnerabilities(ctx context.Context, hostID uint) ([]fleet.SoftwareVulnerability, error) {
+func (s *DataStore) ListSoftwareVulnerabilities(ctx context.Context, hostIDs []uint) (map[uint][]fleet.SoftwareVulnerability, error) {
 	s.ListSoftwareVulnerabilitiesFuncInvoked = true
-	return s.ListSoftwareVulnerabilitiesFunc(ctx, hostID)
+	return s.ListSoftwareVulnerabilitiesFunc(ctx, hostIDs)
 }
 
 func (s *DataStore) LoadHostSoftware(ctx context.Context, host *fleet.Host, opts fleet.SoftwareListOptions) error {

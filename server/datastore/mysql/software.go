@@ -1112,9 +1112,15 @@ func (ds *Datastore) InsertVulnerabilities(
 
 func (ds *Datastore) ListSoftwareVulnerabilities(
 	ctx context.Context,
-	hostID uint,
-) ([]fleet.SoftwareVulnerability, error) {
-	var result []fleet.SoftwareVulnerability
+	hostIDs []uint,
+) (map[uint][]fleet.SoftwareVulnerability, error) {
+	result := make(map[uint][]fleet.SoftwareVulnerability)
+
+	type softwareVulnerabilityWithHostId struct {
+		fleet.SoftwareVulnerability
+		HostId uint `db:"host_id"`
+	}
+	var queryR []softwareVulnerabilityWithHostId
 
 	stmt := dialect.
 		From(goqu.T("software_cve").As("cve")).
@@ -1131,20 +1137,30 @@ func (ds *Datastore) ListSoftwareVulnerabilities(
 			}),
 		).
 		Select(
+			goqu.I("hs.host_id").As("host_id"),
 			goqu.I("cpe.software_id"),
 			goqu.C("cpe"),
 			goqu.C("cpe_id"),
 			goqu.C("cve"),
 		).
-		Where(goqu.C("host_id").Eq(hostID))
+		Where(goqu.C("host_id").In(hostIDs))
 
 	sql, args, err := stmt.ToSQL()
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "ListSoftwareVulnerabilities")
 	}
 
-	if err := sqlx.SelectContext(ctx, ds.reader, &result, sql, args...); err != nil {
+	if err := sqlx.SelectContext(ctx, ds.reader, &queryR, sql, args...); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "ListSoftwareVulnerabilities")
+	}
+
+	for _, r := range queryR {
+		result[r.HostId] = append(result[r.HostId], fleet.SoftwareVulnerability{
+			SoftwareID: r.SoftwareID,
+			CPE:        r.CPE,
+			CPEID:      r.CPEID,
+			CVE:        r.CVE,
+		})
 	}
 
 	return result, nil

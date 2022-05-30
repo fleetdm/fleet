@@ -200,11 +200,11 @@ func TestOvalAnalyzer(t *testing.T) {
 			}
 			require.NotEmpty(t, expected)
 
-			storedVulns, err := ds.ListSoftwareVulnerabilities(ctx, h.ID)
+			storedVulns, err := ds.ListSoftwareVulnerabilities(ctx, []uint{h.ID})
 			require.NoError(t, err)
 
 			uniq := make(map[string]bool)
-			for _, v := range storedVulns {
+			for _, v := range storedVulns[h.ID] {
 				uniq[v.CVE] = true
 			}
 			actual := make([]string, 0, len(uniq))
