@@ -21,7 +21,7 @@ RENAME TABLE
 
 	_, err = tx.Exec(`
 ALTER TABLE cve_meta
-    ADD published TIMESTAMP
+    ADD published TIMESTAMP NULL DEFAULT NULL
 `)
 	if err != nil {
 		return errors.Wrapf(err, "add column")
