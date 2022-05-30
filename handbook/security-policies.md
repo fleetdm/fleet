@@ -716,7 +716,17 @@ Fleet policy requires:
 
 3. strategies shall be developed to mitigate or accept the risks identified in the risk assessment process.
 
-| Risk Level | Mitigation timeline |
+4.  The risk register is monitored on a quarterly basis to assess compliance with above policy as well as to document newly discovered or created risks.
+
+### Acceptable Risk Levels
+
+Risks that are either low impact or low probability, are generally considered acceptable.
+
+All other risks must be individually reviewed and managed.
+
+### Risk corrective action timelines
+
+| Risk Level | Corrective action timeline |
 | ---------- | ------------------- |
 | Low        | Best effort         |
 | Medium     | 120 days            |
