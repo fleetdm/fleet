@@ -12,7 +12,7 @@
     </div>
   </div>
   <div purpose="report-container" class="container-fluid d-flex flex-lg-row flex-column justify-content-between">
-    <div purpose="report-sidebar" class="d-flex flex-column mb-4 mb-lg-0">
+    <div purpose="report-sidebar" class="d-flex flex-column mb-5 mb-lg-0">
       <h4>Table of contents</h4>
       <hr>
       <div purpose="table-of-contents">
@@ -32,11 +32,11 @@
     </div>
     <div purpose="report-content" class="d-flex flex-column">
       <div id="insights-from-mike-mcneil" purpose="report-card" class="mb-0">
-        <div class="d-flex flex-column flex-sm-row align-items-center">
+        <div class="d-flex flex-column flex-md-row align-items-center">
           <img alt="A picture of Mike McNeil" style="display: inline; height: 110px; width: 110px; margin-right: 24px;" src="/images/team-mikermcneil-110x110@2x.png">
           <div class="flex-column">
-            <h2>Insights from Mike McNeil</h2>
-            <p class="mb-0">CEO & co-founder, Fleet</p>
+            <h2 class="mb-1">Insights from Mike McNeil</h2>
+            <h6 class="mb-0">CEO & co-founder, Fleet</h6>
           </div>
         </div>
         <hr>
@@ -68,7 +68,7 @@
         <h2>Who we surveyed</h2>
         <p>In order to provide greater context around these findings, here are more details on who we surveyed and the methodology used. Starting on February 25, 2022, we surveyed 205 members of their organization’s security team who are directly responsible for device management. The survey was conducted online via Pollfish using organic sampling. <a href="">Learn more about the Pollfish methodology.</a></p>
         <div purpose="chart-card">
-          <h5>Demographics</h5>
+          <p class="mb-4 font-weight-bold">Demographics</p>
           <bar-chart class="pb-3" type="stacked" title="Gender" :chart-data="barCharts.demographics.gender"></bar-chart>
           <bar-chart class="pb-3" type="stacked" title="Age" :chart-data="barCharts.demographics.age"></bar-chart>
           <bar-chart class="pb-3" type="stacked" title="Country" :chart-data="barCharts.demographics.country"></bar-chart>

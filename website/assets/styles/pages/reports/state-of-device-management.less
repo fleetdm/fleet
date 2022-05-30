@@ -269,10 +269,26 @@
     }
   }
 
-  @media (max-width: 769px) {
+  @media (max-width: 767px) {
     [purpose='hero-content'] {
       padding-left: 40px;
       padding-right: 40px;
+    }
+    #insights-from-mike-mcneil {
+      h1, h6 {
+        text-align: center;
+      }
+      img {
+        margin-right: auto !important;
+      }
+    }
+    [purpose='report-content'] {
+      img {
+        margin: 0 auto 16px;
+      }
+    }
+    [purpose='report-note'] {
+      text-align: center;
     }
   }
 
@@ -296,16 +312,24 @@
     }
     [purpose='report-content'] {
       [purpose='report-card'] {
-        padding: 20px;
+        padding: 60px 20px;
       }
       [purpose='chart-card'] {
-        padding: 20px;
-        margin-left: -20px;
-        margin-right: -20px;
+        padding: 40px 20px;
+        margin-left: -16px;
+        margin-right: -16px;
+        border-radius: 16px;
         [purpose='chart-container'] {
           max-height: 50vh;
         }
       }
+    }
+  }
+
+  @media (max-width: 400px) {
+    [purpose='report-container'] {
+      padding-left: 24px;
+      padding-right: 24px;
     }
   }
 
