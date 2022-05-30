@@ -82,10 +82,12 @@ func main() {
 	}
 
 	zendesk := &worker.Zendesk{
-		FleetURL:      *fleetURL,
-		Datastore:     ds,
-		Log:           logger,
-		ZendeskClient: client,
+		FleetURL:  *fleetURL,
+		Datastore: ds,
+		Log:       logger,
+		NewClientFunc: func(cfg fleet.TeamZendeskIntegration) (worker.ZendeskClient, error) {
+			return client, nil
+		},
 	}
 
 	argsJSON := json.RawMessage(fmt.Sprintf(`{"cve":%q}`, *cve))

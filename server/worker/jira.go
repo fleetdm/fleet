@@ -124,6 +124,7 @@ func (j *Jira) getClient(ctx context.Context, args jiraArgs) (JiraClient, error)
 		key += fmt.Sprint(teamID)
 	}
 
+	// TODO(mna): must update the client if the config changed for the same team/integration
 	j.mu.Lock()
 	if j.clientsCache == nil {
 		j.clientsCache = make(map[string]JiraClient)
@@ -204,7 +205,13 @@ func (j *Jira) Run(ctx context.Context, argsJSON json.RawMessage) error {
 
 	cli, err := j.getClient(ctx, args)
 	if err != nil {
-		return ctxerr.Wrap(ctx, err, "get jira client")
+		return ctxerr.Wrap(ctx, err, "get Jira client")
+	}
+	if cli == nil {
+		// this message was queued when an integration was enabled, but since
+		// then it has been disabled, so return success to mark the message
+		// as processed.
+		return nil
 	}
 
 	switch intgType := args.integrationType(); intgType {

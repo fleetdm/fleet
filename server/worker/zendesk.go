@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"sort"
+	"sync"
 	"text/template"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
@@ -94,7 +95,86 @@ type Zendesk struct {
 	FleetURL      string
 	Datastore     fleet.Datastore
 	Log           kitlog.Logger
-	ZendeskClient ZendeskClient
+	NewClientFunc func(fleet.TeamZendeskIntegration) (ZendeskClient, error)
+
+	// mu protects concurrent access to clientsCache, so that the job processor
+	// can potentially be run concurrently.
+	mu sync.Mutex
+	// map of integration type + team ID to Zendesk client (empty team ID for
+	// global), e.g. "vuln:123", "failingPolicy:", etc.
+	clientsCache map[string]ZendeskClient
+}
+
+// returns nil, nil if there is no integration enabled for that message.
+func (z *Zendesk) getClient(ctx context.Context, args zendeskArgs) (ZendeskClient, error) {
+	var teamID uint
+	var useTeamCfg bool
+
+	intgType := args.integrationType()
+	key := intgType + ":"
+	if intgType == intgTypeFailingPolicy && args.FailingPolicy.TeamID != nil {
+		teamID = *args.FailingPolicy.TeamID
+		useTeamCfg = true
+		key += fmt.Sprint(teamID)
+	}
+
+	// TODO(mna): must update the client if the config changed for the same team/integration
+	z.mu.Lock()
+	if z.clientsCache == nil {
+		z.clientsCache = make(map[string]ZendeskClient)
+	}
+	if cli := z.clientsCache[key]; cli != nil {
+		z.mu.Unlock()
+		return cli, nil
+	}
+	z.mu.Unlock()
+
+	// create the client for this key and set it if it is still absent from the
+	// cache after its creation. This is so that we avoid holding on to the mutex
+	// for the whole duration of the creation.
+
+	var client ZendeskClient
+	if useTeamCfg {
+		tm, err := z.Datastore.Team(ctx, teamID)
+		if err != nil {
+			return nil, err
+		}
+
+		for _, intg := range tm.Config.Integrations.Zendesk {
+			if intgType == intgTypeFailingPolicy && intg.EnableFailingPolicies {
+				cli, err := z.NewClientFunc(*intg)
+				if err != nil {
+					return nil, err
+				}
+				client = cli
+				break
+			}
+		}
+	} else {
+		ac, err := z.Datastore.AppConfig(ctx)
+		if err != nil {
+			return nil, err
+		}
+		for _, intg := range ac.Integrations.Zendesk {
+			if (intgType == intgTypeVuln && intg.EnableSoftwareVulnerabilities) ||
+				(intgType == intgTypeFailingPolicy && intg.EnableFailingPolicies) {
+				cli, err := z.NewClientFunc(intg.TeamZendeskIntegration)
+				if err != nil {
+					return nil, err
+				}
+				client = cli
+				break
+			}
+		}
+	}
+
+	z.mu.Lock()
+	defer z.mu.Unlock()
+	if cli := z.clientsCache[key]; cli != nil {
+		return cli, nil
+	}
+	z.clientsCache[key] = client
+	return client, nil
 }
 
 // Name returns the name of the job.
@@ -108,6 +188,13 @@ type zendeskArgs struct {
 	FailingPolicy *failingPolicyArgs `json:"failing_policy,omitempty"`
 }
 
+func (a *zendeskArgs) integrationType() string {
+	if a.FailingPolicy == nil {
+		return intgTypeVuln
+	}
+	return intgTypeFailingPolicy
+}
+
 // Run executes the zendesk job.
 func (z *Zendesk) Run(ctx context.Context, argsJSON json.RawMessage) error {
 	var args zendeskArgs
@@ -115,17 +202,28 @@ func (z *Zendesk) Run(ctx context.Context, argsJSON json.RawMessage) error {
 		return ctxerr.Wrap(ctx, err, "unmarshal args")
 	}
 
-	switch {
-	case args.CVE != "":
-		return z.runVuln(ctx, args)
-	case args.FailingPolicy != nil:
-		return z.runFailingPolicies(ctx, args)
+	cli, err := z.getClient(ctx, args)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "get Zendesk client")
+	}
+	if cli == nil {
+		// this message was queued when an integration was enabled, but since
+		// then it has been disabled, so return success to mark the message
+		// as processed.
+		return nil
+	}
+
+	switch intgType := args.integrationType(); intgType {
+	case intgTypeVuln:
+		return z.runVuln(ctx, cli, args)
+	case intgTypeFailingPolicy:
+		return z.runFailingPolicies(ctx, cli, args)
 	default:
-		return ctxerr.New(ctx, "empty ZendeskArgs, nothing to process")
+		return ctxerr.Errorf(ctx, "unknown integration type: %v", intgType)
 	}
 }
 
-func (z *Zendesk) runVuln(ctx context.Context, args zendeskArgs) error {
+func (z *Zendesk) runVuln(ctx context.Context, cli ZendeskClient, args zendeskArgs) error {
 	hosts, err := z.Datastore.HostsByCVE(ctx, args.CVE)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "find hosts by cve")
@@ -138,7 +236,7 @@ func (z *Zendesk) runVuln(ctx context.Context, args zendeskArgs) error {
 		Hosts:    hosts,
 	}
 
-	createdTicket, err := z.createTemplatedTicket(ctx, zendeskTemplates.VulnSummary, zendeskTemplates.VulnDescription, tplArgs)
+	createdTicket, err := z.createTemplatedTicket(ctx, cli, zendeskTemplates.VulnSummary, zendeskTemplates.VulnDescription, tplArgs)
 	if err != nil {
 		return err
 	}
@@ -150,7 +248,7 @@ func (z *Zendesk) runVuln(ctx context.Context, args zendeskArgs) error {
 	return nil
 }
 
-func (z *Zendesk) runFailingPolicies(ctx context.Context, args zendeskArgs) error {
+func (z *Zendesk) runFailingPolicies(ctx context.Context, cli ZendeskClient, args zendeskArgs) error {
 	tplArgs := &zendeskFailingPoliciesTplArgs{
 		FleetURL:   z.FleetURL,
 		PolicyName: args.FailingPolicy.PolicyName,
@@ -159,7 +257,7 @@ func (z *Zendesk) runFailingPolicies(ctx context.Context, args zendeskArgs) erro
 		Hosts:      args.FailingPolicy.Hosts,
 	}
 
-	createdTicket, err := z.createTemplatedTicket(ctx, zendeskTemplates.FailingPolicySummary, zendeskTemplates.FailingPolicyDescription, tplArgs)
+	createdTicket, err := z.createTemplatedTicket(ctx, cli, zendeskTemplates.FailingPolicySummary, zendeskTemplates.FailingPolicyDescription, tplArgs)
 	if err != nil {
 		return err
 	}
@@ -177,7 +275,7 @@ func (z *Zendesk) runFailingPolicies(ctx context.Context, args zendeskArgs) erro
 	return nil
 }
 
-func (z *Zendesk) createTemplatedTicket(ctx context.Context, summaryTpl, descTpl *template.Template, args interface{}) (*zendesk.Ticket, error) {
+func (z *Zendesk) createTemplatedTicket(ctx context.Context, cli ZendeskClient, summaryTpl, descTpl *template.Template, args interface{}) (*zendesk.Ticket, error) {
 	var buf bytes.Buffer
 	if err := summaryTpl.Execute(&buf, args); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "execute summary template")
@@ -195,7 +293,7 @@ func (z *Zendesk) createTemplatedTicket(ctx context.Context, summaryTpl, descTpl
 		Comment: &zendesk.TicketComment{Body: description},
 	}
 
-	createdTicket, err := z.ZendeskClient.CreateZendeskTicket(ctx, ticket)
+	createdTicket, err := cli.CreateZendeskTicket(ctx, ticket)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "create ticket")
 	}

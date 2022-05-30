@@ -3,6 +3,7 @@ package worker
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"io"
 	"io/ioutil"
 	"net/http"
@@ -24,6 +25,28 @@ func TestZendeskRun(t *testing.T) {
 			{
 				ID:       1,
 				Hostname: "test",
+			},
+		}, nil
+	}
+	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+		return &fleet.AppConfig{Integrations: fleet.Integrations{
+			Zendesk: []*fleet.ZendeskIntegration{
+				{EnableSoftwareVulnerabilities: true, TeamZendeskIntegration: fleet.TeamZendeskIntegration{EnableFailingPolicies: true}},
+			},
+		}}, nil
+	}
+	ds.TeamFunc = func(ctx context.Context, tid uint) (*fleet.Team, error) {
+		if tid != 123 {
+			return nil, errors.New("unexpected team id")
+		}
+		return &fleet.Team{
+			ID: 123,
+			Config: fleet.TeamConfig{
+				Integrations: fleet.TeamIntegrations{
+					Zendesk: []*fleet.TeamZendeskIntegration{
+						{EnableFailingPolicies: true},
+					},
+				},
 			},
 		}, nil
 	}
@@ -60,10 +83,12 @@ func TestZendeskRun(t *testing.T) {
 	require.NoError(t, err)
 
 	zendesk := &Zendesk{
-		FleetURL:      "https://fleetdm.com",
-		Datastore:     ds,
-		Log:           kitlog.NewNopLogger(),
-		ZendeskClient: client,
+		FleetURL:  "https://fleetdm.com",
+		Datastore: ds,
+		Log:       kitlog.NewNopLogger(),
+		NewClientFunc: func(cfg fleet.TeamZendeskIntegration) (ZendeskClient, error) {
+			return client, nil
+		},
 	}
 
 	t.Run("vuln", func(t *testing.T) {
