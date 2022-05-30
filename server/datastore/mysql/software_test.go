@@ -1341,8 +1341,8 @@ func testListSoftwareVulnerabilities(t *testing.T, ds *Datastore) {
 	actualCPEs := make([]string, 0)
 	actualCVEs := make([]string, 0)
 
-	result, err := ds.ListSoftwareVulnerabilities(ctx, hostOne.ID)
-	for _, r := range result {
+	result, err := ds.ListSoftwareVulnerabilities(ctx, []uint{hostOne.ID})
+	for _, r := range result[hostOne.ID] {
 		actualCPEs = append(actualCPEs, r.CPE)
 		actualCVEs = append(actualCVEs, r.CVE)
 	}
@@ -1351,7 +1351,7 @@ func testListSoftwareVulnerabilities(t *testing.T, ds *Datastore) {
 	require.ElementsMatch(t, expectedCPEs, actualCPEs)
 	require.ElementsMatch(t, expectedCVEs, actualCVEs)
 
-	for _, r := range result {
+	for _, r := range result[hostOne.ID] {
 		require.NotEqual(t, r.SoftwareID, 0)
 		require.NotEqual(t, r.CPEID, 0)
 	}
@@ -1384,11 +1384,11 @@ func testInsertVulnerabilities(t *testing.T, ds *Datastore) {
 		require.NoError(t, err)
 		require.Equal(t, 1, int(n))
 
-		storedVulns, err := ds.ListSoftwareVulnerabilities(ctx, host.ID)
+		storedVulns, err := ds.ListSoftwareVulnerabilities(ctx, []uint{host.ID})
 		require.NoError(t, err)
 
 		occurrence := make(map[string]int)
-		for _, v := range storedVulns {
+		for _, v := range storedVulns[host.ID] {
 			occurrence[v.CVE] = occurrence[v.CVE] + 1
 		}
 		require.Equal(t, 1, occurrence["cve-1"])
