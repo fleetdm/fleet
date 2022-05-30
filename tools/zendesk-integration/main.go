@@ -85,7 +85,7 @@ func main() {
 		FleetURL:  *fleetURL,
 		Datastore: ds,
 		Log:       logger,
-		NewClientFunc: func(cfg fleet.TeamZendeskIntegration) (worker.ZendeskClient, error) {
+		NewClientFunc: func(opts *externalsvc.ZendeskOptions) (worker.ZendeskClient, error) {
 			return client, nil
 		},
 	}

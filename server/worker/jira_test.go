@@ -99,7 +99,7 @@ func TestJiraRun(t *testing.T) {
 		FleetURL:  "http://example.com",
 		Datastore: ds,
 		Log:       kitlog.NewNopLogger(),
-		NewClientFunc: func(cfg fleet.TeamJiraIntegration) (JiraClient, error) {
+		NewClientFunc: func(opts *externalsvc.JiraOptions) (JiraClient, error) {
 			return client, nil
 		},
 	}
@@ -191,3 +191,5 @@ func TestJiraQueueFailingPolicyJob(t *testing.T) {
 		require.True(t, ds.NewJobFuncInvoked)
 	})
 }
+
+// TODO(mna): test creation of client when config changes between 2 uses, and when integration is disabled.

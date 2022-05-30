@@ -11,6 +11,7 @@ import (
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/service/externalsvc"
 	kitlog "github.com/go-kit/kit/log"
 	"github.com/go-kit/kit/log/level"
 	zendesk "github.com/nukosuke/go-zendesk/zendesk"
@@ -88,6 +89,7 @@ type zendeskFailingPoliciesTplArgs struct {
 // to Zendesk.
 type ZendeskClient interface {
 	CreateZendeskTicket(ctx context.Context, ticket *zendesk.Ticket) (*zendesk.Ticket, error)
+	ZendeskConfigMatches(opts *externalsvc.ZendeskOptions) bool
 }
 
 // Zendesk is the job processor for zendesk integrations.
@@ -95,7 +97,7 @@ type Zendesk struct {
 	FleetURL      string
 	Datastore     fleet.Datastore
 	Log           kitlog.Logger
-	NewClientFunc func(fleet.TeamZendeskIntegration) (ZendeskClient, error)
+	NewClientFunc func(*externalsvc.ZendeskOptions) (ZendeskClient, error)
 
 	// mu protects concurrent access to clientsCache, so that the job processor
 	// can potentially be run concurrently.
@@ -118,22 +120,10 @@ func (z *Zendesk) getClient(ctx context.Context, args zendeskArgs) (ZendeskClien
 		key += fmt.Sprint(teamID)
 	}
 
-	// TODO(mna): must update the client if the config changed for the same team/integration
-	z.mu.Lock()
-	if z.clientsCache == nil {
-		z.clientsCache = make(map[string]ZendeskClient)
-	}
-	if cli := z.clientsCache[key]; cli != nil {
-		z.mu.Unlock()
-		return cli, nil
-	}
-	z.mu.Unlock()
-
-	// create the client for this key and set it if it is still absent from the
-	// cache after its creation. This is so that we avoid holding on to the mutex
-	// for the whole duration of the creation.
-
-	var client ZendeskClient
+	// load the config that would be used to create the client first - it is
+	// needed to check if an existing client is configured the same or if its
+	// configuration has changed since it was created.
+	var opts *externalsvc.ZendeskOptions
 	if useTeamCfg {
 		tm, err := z.Datastore.Team(ctx, teamID)
 		if err != nil {
@@ -142,11 +132,12 @@ func (z *Zendesk) getClient(ctx context.Context, args zendeskArgs) (ZendeskClien
 
 		for _, intg := range tm.Config.Integrations.Zendesk {
 			if intgType == intgTypeFailingPolicy && intg.EnableFailingPolicies {
-				cli, err := z.NewClientFunc(*intg)
-				if err != nil {
-					return nil, err
+				opts = &externalsvc.ZendeskOptions{
+					URL:      intg.URL,
+					Email:    intg.Email,
+					APIToken: intg.APIToken,
+					GroupID:  intg.GroupID,
 				}
-				client = cli
 				break
 			}
 		}
@@ -158,11 +149,12 @@ func (z *Zendesk) getClient(ctx context.Context, args zendeskArgs) (ZendeskClien
 		for _, intg := range ac.Integrations.Zendesk {
 			if (intgType == intgTypeVuln && intg.EnableSoftwareVulnerabilities) ||
 				(intgType == intgTypeFailingPolicy && intg.EnableFailingPolicies) {
-				cli, err := z.NewClientFunc(intg.TeamZendeskIntegration)
-				if err != nil {
-					return nil, err
+				opts = &externalsvc.ZendeskOptions{
+					URL:      intg.URL,
+					Email:    intg.Email,
+					APIToken: intg.APIToken,
+					GroupID:  intg.GroupID,
 				}
-				client = cli
 				break
 			}
 		}
@@ -170,11 +162,28 @@ func (z *Zendesk) getClient(ctx context.Context, args zendeskArgs) (ZendeskClien
 
 	z.mu.Lock()
 	defer z.mu.Unlock()
-	if cli := z.clientsCache[key]; cli != nil {
+
+	if z.clientsCache == nil {
+		z.clientsCache = make(map[string]ZendeskClient)
+	}
+	if opts == nil {
+		// no integration configured, clear any existing one
+		delete(z.clientsCache, key)
+		return nil, nil
+	}
+
+	// check if the existing one can be reused
+	if cli := z.clientsCache[key]; cli != nil && cli.ZendeskConfigMatches(opts) {
 		return cli, nil
 	}
-	z.clientsCache[key] = client
-	return client, nil
+
+	// otherwise create a new one
+	cli, err := z.NewClientFunc(opts)
+	if err != nil {
+		return nil, err
+	}
+	z.clientsCache[key] = cli
+	return cli, nil
 }
 
 // Name returns the name of the job.

@@ -545,13 +545,8 @@ func cronWorker(
 	}
 }
 
-func newJiraClient(cfg fleet.TeamJiraIntegration) (worker.JiraClient, error) {
-	client, err := externalsvc.NewJiraClient(&externalsvc.JiraOptions{
-		BaseURL:           cfg.URL,
-		BasicAuthUsername: cfg.Username,
-		BasicAuthPassword: cfg.APIToken,
-		ProjectKey:        cfg.ProjectKey,
-	})
+func newJiraClient(opts *externalsvc.JiraOptions) (worker.JiraClient, error) {
+	client, err := externalsvc.NewJiraClient(opts)
 	if err != nil {
 		return nil, err
 	}
@@ -567,13 +562,8 @@ func newJiraClient(cfg fleet.TeamJiraIntegration) (worker.JiraClient, error) {
 	return client, nil
 }
 
-func newZendeskClient(cfg fleet.TeamZendeskIntegration) (worker.ZendeskClient, error) {
-	client, err := externalsvc.NewZendeskClient(&externalsvc.ZendeskOptions{
-		URL:      cfg.URL,
-		Email:    cfg.Email,
-		APIToken: cfg.APIToken,
-		GroupID:  cfg.GroupID,
-	})
+func newZendeskClient(opts *externalsvc.ZendeskOptions) (worker.ZendeskClient, error) {
+	client, err := externalsvc.NewZendeskClient(opts)
 	if err != nil {
 		return nil, err
 	}

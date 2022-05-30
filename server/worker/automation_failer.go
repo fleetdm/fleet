@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	jira "github.com/andygrunwald/go-jira"
+	"github.com/fleetdm/fleet/v4/server/service/externalsvc"
 	zendesk "github.com/nukosuke/go-zendesk/zendesk"
 )
 
@@ -57,6 +58,14 @@ func (f *TestAutomationFailer) CreateZendeskTicket(ctx context.Context, ticket *
 		return nil, err
 	}
 	return f.ZendeskClient.CreateZendeskTicket(ctx, ticket)
+}
+
+func (f *TestAutomationFailer) JiraConfigMatches(opts *externalsvc.JiraOptions) bool {
+	return f.JiraClient.JiraConfigMatches(opts)
+}
+
+func (f *TestAutomationFailer) ZendeskConfigMatches(opts *externalsvc.ZendeskOptions) bool {
+	return f.ZendeskClient.ZendeskConfigMatches(opts)
 }
 
 func (f *TestAutomationFailer) forceErr(testValue string) error {

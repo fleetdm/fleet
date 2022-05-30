@@ -86,7 +86,7 @@ func TestZendeskRun(t *testing.T) {
 		FleetURL:  "https://fleetdm.com",
 		Datastore: ds,
 		Log:       kitlog.NewNopLogger(),
-		NewClientFunc: func(cfg fleet.TeamZendeskIntegration) (ZendeskClient, error) {
+		NewClientFunc: func(opts *externalsvc.ZendeskOptions) (ZendeskClient, error) {
 			return client, nil
 		},
 	}
@@ -179,3 +179,5 @@ func TestZendeskQueueFailingPolicyJob(t *testing.T) {
 		require.True(t, ds.NewJobFuncInvoked)
 	})
 }
+
+// TODO(mna): test creation of client when config changes between 2 uses, and when integration is disabled.

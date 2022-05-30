@@ -85,7 +85,7 @@ func main() {
 		FleetURL:  *fleetURL,
 		Datastore: ds,
 		Log:       logger,
-		NewClientFunc: func(cfg fleet.TeamJiraIntegration) (worker.JiraClient, error) {
+		NewClientFunc: func(opts *externalsvc.JiraOptions) (worker.JiraClient, error) {
 			return client, nil
 		},
 	}

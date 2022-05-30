@@ -62,7 +62,7 @@ func TestJiraFailer(t *testing.T) {
 		FleetURL:  "http://example.com",
 		Datastore: ds,
 		Log:       kitlog.NewNopLogger(),
-		NewClientFunc: func(cfg fleet.TeamJiraIntegration) (JiraClient, error) {
+		NewClientFunc: func(opts *externalsvc.JiraOptions) (JiraClient, error) {
 			return failer, nil
 		},
 	}
@@ -120,7 +120,7 @@ func TestZendeskFailer(t *testing.T) {
 		FleetURL:  "http://example.com",
 		Datastore: ds,
 		Log:       kitlog.NewNopLogger(),
-		NewClientFunc: func(cfg fleet.TeamZendeskIntegration) (ZendeskClient, error) {
+		NewClientFunc: func(opts *externalsvc.ZendeskOptions) (ZendeskClient, error) {
 			return failer, nil
 		},
 	}

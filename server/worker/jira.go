@@ -12,6 +12,7 @@ import (
 	jira "github.com/andygrunwald/go-jira"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/service/externalsvc"
 	kitlog "github.com/go-kit/kit/log"
 	"github.com/go-kit/kit/log/level"
 )
@@ -89,6 +90,7 @@ type jiraFailingPoliciesTplArgs struct {
 // to Jira.
 type JiraClient interface {
 	CreateJiraIssue(ctx context.Context, issue *jira.Issue) (*jira.Issue, error)
+	JiraConfigMatches(opts *externalsvc.JiraOptions) bool
 }
 
 // Jira is the job processor for jira integrations.
@@ -96,7 +98,7 @@ type Jira struct {
 	FleetURL      string
 	Datastore     fleet.Datastore
 	Log           kitlog.Logger
-	NewClientFunc func(fleet.TeamJiraIntegration) (JiraClient, error)
+	NewClientFunc func(*externalsvc.JiraOptions) (JiraClient, error)
 
 	// mu protects concurrent access to clientsCache, so that the job processor
 	// can potentially be run concurrently.
@@ -124,22 +126,10 @@ func (j *Jira) getClient(ctx context.Context, args jiraArgs) (JiraClient, error)
 		key += fmt.Sprint(teamID)
 	}
 
-	// TODO(mna): must update the client if the config changed for the same team/integration
-	j.mu.Lock()
-	if j.clientsCache == nil {
-		j.clientsCache = make(map[string]JiraClient)
-	}
-	if cli := j.clientsCache[key]; cli != nil {
-		j.mu.Unlock()
-		return cli, nil
-	}
-	j.mu.Unlock()
-
-	// create the client for this key and set it if it is still absent from the
-	// cache after its creation. This is so that we avoid holding on to the mutex
-	// for the whole duration of the creation.
-
-	var client JiraClient
+	// load the config that would be used to create the client first - it is
+	// needed to check if an existing client is configured the same or if its
+	// configuration has changed since it was created.
+	var opts *externalsvc.JiraOptions
 	if useTeamCfg {
 		tm, err := j.Datastore.Team(ctx, teamID)
 		if err != nil {
@@ -148,11 +138,12 @@ func (j *Jira) getClient(ctx context.Context, args jiraArgs) (JiraClient, error)
 
 		for _, intg := range tm.Config.Integrations.Jira {
 			if intgType == intgTypeFailingPolicy && intg.EnableFailingPolicies {
-				cli, err := j.NewClientFunc(*intg)
-				if err != nil {
-					return nil, err
+				opts = &externalsvc.JiraOptions{
+					BaseURL:           intg.URL,
+					BasicAuthUsername: intg.Username,
+					BasicAuthPassword: intg.APIToken,
+					ProjectKey:        intg.ProjectKey,
 				}
-				client = cli
 				break
 			}
 		}
@@ -164,11 +155,12 @@ func (j *Jira) getClient(ctx context.Context, args jiraArgs) (JiraClient, error)
 		for _, intg := range ac.Integrations.Jira {
 			if (intgType == intgTypeVuln && intg.EnableSoftwareVulnerabilities) ||
 				(intgType == intgTypeFailingPolicy && intg.EnableFailingPolicies) {
-				cli, err := j.NewClientFunc(intg.TeamJiraIntegration)
-				if err != nil {
-					return nil, err
+				opts = &externalsvc.JiraOptions{
+					BaseURL:           intg.URL,
+					BasicAuthUsername: intg.Username,
+					BasicAuthPassword: intg.APIToken,
+					ProjectKey:        intg.ProjectKey,
 				}
-				client = cli
 				break
 			}
 		}
@@ -176,11 +168,28 @@ func (j *Jira) getClient(ctx context.Context, args jiraArgs) (JiraClient, error)
 
 	j.mu.Lock()
 	defer j.mu.Unlock()
-	if cli := j.clientsCache[key]; cli != nil {
+
+	if j.clientsCache == nil {
+		j.clientsCache = make(map[string]JiraClient)
+	}
+	if opts == nil {
+		// no integration configured, clear any existing one
+		delete(j.clientsCache, key)
+		return nil, nil
+	}
+
+	// check if the existing one can be reused
+	if cli := j.clientsCache[key]; cli != nil && cli.JiraConfigMatches(opts) {
 		return cli, nil
 	}
-	j.clientsCache[key] = client
-	return client, nil
+
+	// otherwise create a new one
+	cli, err := j.NewClientFunc(opts)
+	if err != nil {
+		return nil, err
+	}
+	j.clientsCache[key] = cli
+	return cli, nil
 }
 
 // jiraArgs are the arguments for the Jira integration job.
