@@ -1,0 +1,2 @@
+* Fixed `GET /software`, `GET /software/{:id}`, and `GET /software/count` endpoints to no include
+  software that has been removed from hosts, but not cleaned up yet (orphaned).
