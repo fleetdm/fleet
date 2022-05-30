@@ -250,13 +250,20 @@
   }
 
   @media (min-width: 991px) {
+
     [purpose='report-sidebar'] {
       position: sticky;
-      top: 100px;
+      top: 40px;
       height: fit-content;
       max-height: calc(~'95vh - 100px');
       overflow-y: auto;
       margin-bottom: 80px;
+      transition-property: all;
+      transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+      transition-duration: 500ms;
+      &:not(.header-hidden) {
+        top: 100px;
+      }
     }
 
   }

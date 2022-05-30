@@ -326,6 +326,7 @@ parasails.registerPage('state-of-device-management', {
     },
     chartsDrawnOnPage: [],
     redrawnCharts: [],
+    scrollDistance: 0,
 
   },
 
@@ -338,6 +339,7 @@ parasails.registerPage('state-of-device-management', {
   mounted: async function() {
     this.drawChartsOnPage();
     window.addEventListener('resize', this.updateChartsOnPage);
+    window.addEventListener('scroll', this.scrollSideNavigationWithHeader);
     this.updateChartsOnPage();
   },
 
@@ -345,6 +347,23 @@ parasails.registerPage('state-of-device-management', {
   //  ║║║║ ║ ║╣ ╠╦╝╠═╣║   ║ ║║ ║║║║╚═╗
   //  ╩╝╚╝ ╩ ╚═╝╩╚═╩ ╩╚═╝ ╩ ╩╚═╝╝╚╝╚═╝
   methods: {
+
+    scrollSideNavigationWithHeader: function () {
+      var navBar = document.querySelector('div[purpose="report-sidebar"');
+      var scrollTop = window.pageYOffset || document.documentElement.scrollTop;
+      if(navBar) {
+        if (scrollTop > this.scrollDistance && scrollTop > window.innerHeight * 1.5) {
+          navBar.classList.add('header-hidden');
+        } else {
+          if(scrollTop === 0) {
+            navBar.classList.remove('header-hidden');
+          } else {
+            navBar.classList.remove('header-hidden');
+          }
+        }
+      }
+      this.scrollDistance = scrollTop;
+    },
 
     drawChartsOnPage: function() {
       for(let index in this.pieCharts) {
