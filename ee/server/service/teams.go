@@ -96,7 +96,6 @@ func (svc *Service) ModifyTeam(ctx context.Context, teamID uint, payload fleet.T
 	}
 
 	if payload.Integrations != nil {
-		// TODO(mna): validate the integrations, like we do in global app config
 		oriJiraByProjectKey, err := fleet.IndexTeamJiraIntegrations(team.Config.Integrations.Jira)
 		if err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "modify Team")
