@@ -1,2 +1,0 @@
-- Removed `iptables` from osquery schema displayed by Fleet UI because this table has been
-  deprecated by osquery

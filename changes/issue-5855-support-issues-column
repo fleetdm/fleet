@@ -1,2 +1,0 @@
-* Added `issues` column in CSV export output, set to the value of the equivalent JSON `issues.total_issues_count` field.
-* Added proper CSV encoding for the `device_mapping` column, when requested.

@@ -1,3 +1,0 @@
-- Added google chrome profile information to hosts page
-- Increased MySQL `group_concat_max_len` setting from default 1024 to 4194304 (which corresponds to
-  `max_allowed_packet` size)
