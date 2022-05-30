@@ -75,6 +75,7 @@ func TestHosts(t *testing.T) {
 		{"ListFilterAdditional", testHostsListFilterAdditional},
 		{"ListStatus", testHostsListStatus},
 		{"ListQuery", testHostsListQuery},
+		{"ListPoliciesForHost", testListPoliciesForHost},
 		{"Enroll", testHostsEnroll},
 		{"LoadHostByNodeKey", testHostsLoadHostByNodeKey},
 		{"LoadHostByNodeKeyCaseSensitive", testHostsLoadHostByNodeKeyCaseSensitive},
@@ -4205,4 +4206,58 @@ func testShouldCleanTeamPolicies(t *testing.T, ds *Datastore) {
 	for _, c := range cases {
 		require.Equal(t, shouldCleanTeamPolicies(c.currentTeamID, c.newTeamID), c.out)
 	}
+}
+
+func testListPoliciesForHost(t *testing.T, ds *Datastore) {
+	user := test.NewUser(t, ds, "Alice", "alice@example.com", true)
+	team, err := ds.NewTeam(context.Background(), &fleet.Team{Name: t.Name()})
+	require.NoError(t, err)
+
+	host, err := ds.NewHost(context.Background(), &fleet.Host{
+		OsqueryHostID:   "1234",
+		DetailUpdatedAt: time.Now(),
+		LabelUpdatedAt:  time.Now(),
+		PolicyUpdatedAt: time.Now(),
+		SeenTime:        time.Now(),
+		NodeKey:         "1",
+		UUID:            "1",
+		Hostname:        "foo.local",
+	})
+	require.NoError(t, err)
+	require.NoError(t, ds.AddHostsToTeam(context.Background(), &team.ID, []uint{host.ID}))
+	host, err = ds.Host(context.Background(), host.ID)
+
+	tq, err := ds.NewQuery(context.Background(), &fleet.Query{
+		Name:        "query1",
+		Description: "query1 desc",
+		Query:       "select 1;",
+		Saved:       true,
+	})
+	require.NoError(t, err)
+
+	teamPolicy, err := ds.NewTeamPolicy(context.Background(), team.ID, &user.ID, fleet.PolicyPayload{
+		QueryID: &tq.ID,
+	})
+	require.NoError(t, err)
+
+	gq, err := ds.NewQuery(context.Background(), &fleet.Query{
+		Name:        "query2",
+		Description: "query2 desc",
+		Query:       "select 2;",
+		Saved:       true,
+	})
+	require.NoError(t, err)
+	globalPolicy, err := ds.NewGlobalPolicy(context.Background(), &user.ID, fleet.PolicyPayload{
+		QueryID: &gq.ID,
+	})
+	require.NoError(t, err)
+
+	require.NoError(t, ds.RecordPolicyQueryExecutions(context.Background(), host, map[uint]*bool{teamPolicy.ID: ptr.Bool(false), globalPolicy.ID: ptr.Bool(true)}, time.Now(), false))
+	require.NoError(t, ds.RecordPolicyQueryExecutions(context.Background(), host, map[uint]*bool{teamPolicy.ID: ptr.Bool(true), globalPolicy.ID: ptr.Bool(false)}, time.Now(), false))
+
+	hostPolicies, err := ds.ListPoliciesForHost(context.Background(), host)
+	require.NoError(t, err)
+
+	require.Len(t, hostPolicies, 2)
+	require.ElementsMatch(t, []*fleet.HostPolicy{&fleet.HostPolicy{teamPolicy.PolicyData, "pass"}, &fleet.HostPolicy{globalPolicy.PolicyData, "fail"}}, hostPolicies)
 }
