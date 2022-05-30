@@ -15,6 +15,20 @@ type TeamIntegrations struct {
 	Zendesk []*TeamZendeskIntegration `json:"zendesk"`
 }
 
+// ToIntegrations converts a TeamIntegrations to an Integrations struct.
+func (ti TeamIntegrations) ToIntegrations() Integrations {
+	var intgs Integrations
+	intgs.Jira = make([]*JiraIntegration, len(ti.Jira))
+	for i, j := range ti.Jira {
+		intgs.Jira[i] = j.ToJiraIntegration()
+	}
+	intgs.Zendesk = make([]*ZendeskIntegration, len(ti.Zendesk))
+	for i, z := range ti.Zendesk {
+		intgs.Zendesk[i] = z.ToZendeskIntegration()
+	}
+	return intgs
+}
+
 // TeamJiraIntegration configures an instance of an integration with the Jira
 // system for a team.
 type TeamJiraIntegration struct {
@@ -25,6 +39,12 @@ type TeamJiraIntegration struct {
 	EnableFailingPolicies bool   `json:"enable_failing_policies"`
 }
 
+// ToJiraIntegration converts a TeamJiraIntegration to a JiraIntegration
+// struct, leaving additional fields to their zero value.
+func (ti TeamJiraIntegration) ToJiraIntegration() *JiraIntegration {
+	return &JiraIntegration{TeamJiraIntegration: ti}
+}
+
 // TeamZendeskIntegration configures an instance of an integration with the
 // external Zendesk service for a team.
 type TeamZendeskIntegration struct {
@@ -33,6 +53,12 @@ type TeamZendeskIntegration struct {
 	APIToken              string `json:"api_token"`
 	GroupID               int64  `json:"group_id"`
 	EnableFailingPolicies bool   `json:"enable_failing_policies"`
+}
+
+// ToZendeskIntegration converts a TeamZendeskIntegration to a ZendeskIntegration
+// struct, leaving additional fields to their zero value.
+func (ti TeamZendeskIntegration) ToZendeskIntegration() *ZendeskIntegration {
+	return &ZendeskIntegration{TeamZendeskIntegration: ti}
 }
 
 // JiraIntegration configures an instance of an integration with the Jira
@@ -69,7 +95,7 @@ func IndexJiraIntegrations(jiraIntgs []*JiraIntegration) (map[string]JiraIntegra
 func IndexTeamJiraIntegrations(teamJiraIntgs []*TeamJiraIntegration) (map[string]TeamJiraIntegration, error) {
 	jiraIntgs := make([]*JiraIntegration, len(teamJiraIntgs))
 	for i, t := range teamJiraIntgs {
-		jiraIntgs[i] = &JiraIntegration{TeamJiraIntegration: *t}
+		jiraIntgs[i] = t.ToJiraIntegration()
 	}
 
 	indexed, err := IndexJiraIntegrations(jiraIntgs)
@@ -128,12 +154,12 @@ func ValidateJiraIntegrations(ctx context.Context, oriJiraIntgsByProjKey map[str
 func ValidateTeamJiraIntegrations(ctx context.Context, oriTeamJiraIntgsByProjKey map[string]TeamJiraIntegration, newTeamJiraIntgs []*TeamJiraIntegration) error {
 	newJiraIntgs := make([]*JiraIntegration, len(newTeamJiraIntgs))
 	for i, t := range newTeamJiraIntgs {
-		newJiraIntgs[i] = &JiraIntegration{TeamJiraIntegration: *t}
+		newJiraIntgs[i] = t.ToJiraIntegration()
 	}
 
 	oriJiraIntgsByProjKey := make(map[string]JiraIntegration, len(oriTeamJiraIntgsByProjKey))
 	for k, v := range oriTeamJiraIntgsByProjKey {
-		oriJiraIntgsByProjKey[k] = JiraIntegration{TeamJiraIntegration: v}
+		oriJiraIntgsByProjKey[k] = *v.ToJiraIntegration()
 	}
 
 	if err := ValidateJiraIntegrations(ctx, oriJiraIntgsByProjKey, newJiraIntgs); err != nil {
@@ -216,7 +242,7 @@ func IndexZendeskIntegrations(zendeskIntgs []*ZendeskIntegration) (map[int64]Zen
 func IndexTeamZendeskIntegrations(teamZendeskIntgs []*TeamZendeskIntegration) (map[int64]TeamZendeskIntegration, error) {
 	zendeskIntgs := make([]*ZendeskIntegration, len(teamZendeskIntgs))
 	for i, t := range teamZendeskIntgs {
-		zendeskIntgs[i] = &ZendeskIntegration{TeamZendeskIntegration: *t}
+		zendeskIntgs[i] = t.ToZendeskIntegration()
 	}
 
 	indexed, err := IndexZendeskIntegrations(zendeskIntgs)
@@ -275,12 +301,12 @@ func ValidateZendeskIntegrations(ctx context.Context, oriZendeskIntgsByGroupID m
 func ValidateTeamZendeskIntegrations(ctx context.Context, oriTeamZendeskIntgsByGroupID map[int64]TeamZendeskIntegration, newTeamZendeskIntgs []*TeamZendeskIntegration) error {
 	newZendeskIntgs := make([]*ZendeskIntegration, len(newTeamZendeskIntgs))
 	for i, t := range newTeamZendeskIntgs {
-		newZendeskIntgs[i] = &ZendeskIntegration{TeamZendeskIntegration: *t}
+		newZendeskIntgs[i] = t.ToZendeskIntegration()
 	}
 
 	oriZendeskIntgsByGroupID := make(map[int64]ZendeskIntegration, len(oriTeamZendeskIntgsByGroupID))
 	for k, v := range oriTeamZendeskIntgsByGroupID {
-		oriZendeskIntgsByGroupID[k] = ZendeskIntegration{TeamZendeskIntegration: v}
+		oriZendeskIntgsByGroupID[k] = *v.ToZendeskIntegration()
 	}
 
 	if err := ValidateZendeskIntegrations(ctx, oriZendeskIntgsByGroupID, newZendeskIntgs); err != nil {
@@ -396,15 +422,6 @@ func ValidateEnabledFailingPoliciesIntegrations(webhook FailingPoliciesWebhookSe
 // ValidateEnabledFailingPoliciesIntegrations, but for team-specific
 // integration structs.
 func ValidateEnabledFailingPoliciesTeamIntegrations(webhook FailingPoliciesWebhookSettings, teamIntgs TeamIntegrations, invalid *InvalidArgumentError) {
-	intgs := Integrations{
-		Jira:    make([]*JiraIntegration, len(teamIntgs.Jira)),
-		Zendesk: make([]*ZendeskIntegration, len(teamIntgs.Zendesk)),
-	}
-	for i, jira := range teamIntgs.Jira {
-		intgs.Jira[i] = &JiraIntegration{TeamJiraIntegration: *jira}
-	}
-	for i, zdesk := range teamIntgs.Zendesk {
-		intgs.Zendesk[i] = &ZendeskIntegration{TeamZendeskIntegration: *zdesk}
-	}
+	intgs := teamIntgs.ToIntegrations()
 	ValidateEnabledFailingPoliciesIntegrations(webhook, intgs, invalid)
 }
