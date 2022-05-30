@@ -10,6 +10,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
+	jira "github.com/andygrunwald/go-jira"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mock"
 	"github.com/fleetdm/fleet/v4/server/ptr"
@@ -192,4 +193,103 @@ func TestJiraQueueFailingPolicyJob(t *testing.T) {
 	})
 }
 
-// TODO(mna): test creation of client when config changes between 2 uses, and when integration is disabled.
+type mockJiraClient struct {
+	opts externalsvc.JiraOptions
+}
+
+func (c *mockJiraClient) CreateJiraIssue(ctx context.Context, issue *jira.Issue) (*jira.Issue, error) {
+	return &jira.Issue{}, nil
+}
+
+func (c *mockJiraClient) JiraConfigMatches(opts *externalsvc.JiraOptions) bool {
+	return c.opts == *opts
+}
+
+func TestJiraRunClientUpdate(t *testing.T) {
+	// test creation of client when config changes between 2 uses, and when integration is disabled.
+	ds := new(mock.Store)
+
+	var globalCount int
+	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+		// failing policies is globally enabled
+		globalCount++
+		return &fleet.AppConfig{Integrations: fleet.Integrations{
+			Jira: []*fleet.JiraIntegration{
+				{TeamJiraIntegration: fleet.TeamJiraIntegration{ProjectKey: "0", EnableFailingPolicies: true}},
+			},
+		}}, nil
+	}
+
+	teamCfg := &fleet.Team{
+		ID: 123,
+		Config: fleet.TeamConfig{
+			Integrations: fleet.TeamIntegrations{
+				Jira: []*fleet.TeamJiraIntegration{
+					{ProjectKey: "1", EnableFailingPolicies: true},
+				},
+			},
+		},
+	}
+
+	var teamCount int
+	ds.TeamFunc = func(ctx context.Context, tid uint) (*fleet.Team, error) {
+		teamCount++
+
+		if tid != 123 {
+			return nil, errors.New("unexpected team id")
+		}
+
+		curCfg := *teamCfg
+
+		jira0 := *teamCfg.Config.Integrations.Jira[0]
+		// failing policies is enabled for team 123 the first time
+		if jira0.ProjectKey == "1" {
+			// the second time we change the project key
+			jira0.ProjectKey = "2"
+			teamCfg.Config.Integrations.Jira = []*fleet.TeamJiraIntegration{&jira0}
+		} else if jira0.ProjectKey == "2" {
+			// the third time we disable it altogether
+			jira0.ProjectKey = "3"
+			jira0.EnableFailingPolicies = false
+			teamCfg.Config.Integrations.Jira = []*fleet.TeamJiraIntegration{&jira0}
+		}
+		return &curCfg, nil
+	}
+
+	var projectKeys []string
+	jiraJob := &Jira{
+		FleetURL:  "http://example.com",
+		Datastore: ds,
+		Log:       kitlog.NewNopLogger(),
+		NewClientFunc: func(opts *externalsvc.JiraOptions) (JiraClient, error) {
+			// keep track of project keys received in calls to NewClientFunc
+			projectKeys = append(projectKeys, opts.ProjectKey)
+			return &mockJiraClient{opts: *opts}, nil
+		},
+	}
+
+	// run it globally - it is enabled and will not change
+	err := jiraJob.Run(context.Background(), json.RawMessage(`{"failing_policy":{"policy_id": 1, "policy_name": "test-policy", "hosts": []}}`))
+	require.NoError(t, err)
+
+	// run it for team 123 a first time
+	err = jiraJob.Run(context.Background(), json.RawMessage(`{"failing_policy":{"policy_id": 2, "policy_name": "test-policy-2", "team_id": 123, "hosts": []}}`))
+	require.NoError(t, err)
+
+	// run it globally again - it will reuse the cached client
+	err = jiraJob.Run(context.Background(), json.RawMessage(`{"failing_policy":{"policy_id": 1, "policy_name": "test-policy", "hosts": []}}`))
+	require.NoError(t, err)
+
+	// run it for team 123 a second time
+	err = jiraJob.Run(context.Background(), json.RawMessage(`{"failing_policy":{"policy_id": 2, "policy_name": "test-policy-2", "team_id": 123, "hosts": []}}`))
+	require.NoError(t, err)
+
+	// run it for team 123 a third time, this time integration is disabled
+	err = jiraJob.Run(context.Background(), json.RawMessage(`{"failing_policy":{"policy_id": 2, "policy_name": "test-policy-2", "team_id": 123, "hosts": []}}`))
+	require.NoError(t, err)
+
+	// it should've created 3 clients - the global one, and the first 2 calls with team 123
+	require.Equal(t, []string{"0", "1", "2"}, projectKeys)
+	require.Equal(t, 2, globalCount)
+	require.Equal(t, 3, teamCount)
+}

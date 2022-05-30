@@ -15,6 +15,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/service/externalsvc"
 	kitlog "github.com/go-kit/kit/log"
+	zendesk "github.com/nukosuke/go-zendesk/zendesk"
 	"github.com/stretchr/testify/require"
 )
 
@@ -180,4 +181,103 @@ func TestZendeskQueueFailingPolicyJob(t *testing.T) {
 	})
 }
 
-// TODO(mna): test creation of client when config changes between 2 uses, and when integration is disabled.
+type mockZendeskClient struct {
+	opts externalsvc.ZendeskOptions
+}
+
+func (c *mockZendeskClient) CreateZendeskTicket(ctx context.Context, ticket *zendesk.Ticket) (*zendesk.Ticket, error) {
+	return &zendesk.Ticket{}, nil
+}
+
+func (c *mockZendeskClient) ZendeskConfigMatches(opts *externalsvc.ZendeskOptions) bool {
+	return c.opts == *opts
+}
+
+func TestZendeskRunClientUpdate(t *testing.T) {
+	// test creation of client when config changes between 2 uses, and when integration is disabled.
+	ds := new(mock.Store)
+
+	var globalCount int
+	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+		// failing policies is globally enabled
+		globalCount++
+		return &fleet.AppConfig{Integrations: fleet.Integrations{
+			Zendesk: []*fleet.ZendeskIntegration{
+				{TeamZendeskIntegration: fleet.TeamZendeskIntegration{GroupID: 0, EnableFailingPolicies: true}},
+			},
+		}}, nil
+	}
+
+	teamCfg := &fleet.Team{
+		ID: 123,
+		Config: fleet.TeamConfig{
+			Integrations: fleet.TeamIntegrations{
+				Zendesk: []*fleet.TeamZendeskIntegration{
+					{GroupID: 1, EnableFailingPolicies: true},
+				},
+			},
+		},
+	}
+
+	var teamCount int
+	ds.TeamFunc = func(ctx context.Context, tid uint) (*fleet.Team, error) {
+		teamCount++
+
+		if tid != 123 {
+			return nil, errors.New("unexpected team id")
+		}
+
+		curCfg := *teamCfg
+
+		zendesk0 := *teamCfg.Config.Integrations.Zendesk[0]
+		// failing policies is enabled for team 123 the first time
+		if zendesk0.GroupID == 1 {
+			// the second time we change the project key
+			zendesk0.GroupID = 2
+			teamCfg.Config.Integrations.Zendesk = []*fleet.TeamZendeskIntegration{&zendesk0}
+		} else if zendesk0.GroupID == 2 {
+			// the third time we disable it altogether
+			zendesk0.GroupID = 3
+			zendesk0.EnableFailingPolicies = false
+			teamCfg.Config.Integrations.Zendesk = []*fleet.TeamZendeskIntegration{&zendesk0}
+		}
+		return &curCfg, nil
+	}
+
+	var groupIDs []int64
+	zendeskJob := &Zendesk{
+		FleetURL:  "http://example.com",
+		Datastore: ds,
+		Log:       kitlog.NewNopLogger(),
+		NewClientFunc: func(opts *externalsvc.ZendeskOptions) (ZendeskClient, error) {
+			// keep track of group IDs received in calls to NewClientFunc
+			groupIDs = append(groupIDs, opts.GroupID)
+			return &mockZendeskClient{opts: *opts}, nil
+		},
+	}
+
+	// run it globally - it is enabled and will not change
+	err := zendeskJob.Run(context.Background(), json.RawMessage(`{"failing_policy":{"policy_id": 1, "policy_name": "test-policy", "hosts": []}}`))
+	require.NoError(t, err)
+
+	// run it for team 123 a first time
+	err = zendeskJob.Run(context.Background(), json.RawMessage(`{"failing_policy":{"policy_id": 2, "policy_name": "test-policy-2", "team_id": 123, "hosts": []}}`))
+	require.NoError(t, err)
+
+	// run it globally again - it will reuse the cached client
+	err = zendeskJob.Run(context.Background(), json.RawMessage(`{"failing_policy":{"policy_id": 1, "policy_name": "test-policy", "hosts": []}}`))
+	require.NoError(t, err)
+
+	// run it for team 123 a second time
+	err = zendeskJob.Run(context.Background(), json.RawMessage(`{"failing_policy":{"policy_id": 2, "policy_name": "test-policy-2", "team_id": 123, "hosts": []}}`))
+	require.NoError(t, err)
+
+	// run it for team 123 a third time, this time integration is disabled
+	err = zendeskJob.Run(context.Background(), json.RawMessage(`{"failing_policy":{"policy_id": 2, "policy_name": "test-policy-2", "team_id": 123, "hosts": []}}`))
+	require.NoError(t, err)
+
+	// it should've created 3 clients - the global one, and the first 2 calls with team 123
+	require.Equal(t, []int64{0, 1, 2}, groupIDs)
+	require.Equal(t, 2, globalCount)
+	require.Equal(t, 3, teamCount)
+}
