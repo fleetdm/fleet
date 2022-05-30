@@ -1,6 +1,0 @@
-- Deprecated "mia" host status in UI and API responses
-  -- Removed "mia" status filter from "Hosts" page UI
-  -- Changed `GET /hosts?status=offline` so that "offline" hosts also includes "mia" hosts
-  -- Changed `GET /hosts/count?status=offline` so that "offline" hosts count also includes "mia" hosts
-  -- Changed `GET /host_summary` so that "offline" hosts count also includes "mia" hosts
-  -- Replaced `mia` with `offline` for `status` property of host records returned by API

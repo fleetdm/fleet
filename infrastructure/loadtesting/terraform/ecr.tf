@@ -38,7 +38,7 @@ data "docker_registry_image" "dockerhub" {
 }
 
 resource "docker_registry_image" "loadtest" {
-  name          = "${aws_ecr_repository.fleet.repository_url}:loadtest-${var.tag}-${split(":", data.docker_registry_image.dockerhub.sha256_digest)[1]}2"
+  name          = "${aws_ecr_repository.fleet.repository_url}:loadtest-${var.tag}-${split(":", data.docker_registry_image.dockerhub.sha256_digest)[1]}"
   keep_remotely = true
 
   build {
