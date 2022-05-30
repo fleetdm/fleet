@@ -12,7 +12,7 @@
     </div>
   </div>
   <div purpose="report-container" class="container-fluid d-flex flex-lg-row flex-column justify-content-between">
-    <div purpose="report-sidebar" class="d-flex flex-column mb-5 mb-lg-0">
+    <div purpose="report-sidebar" class="d-flex flex-column">
       <h4>Table of contents</h4>
       <hr>
       <div purpose="table-of-contents">
@@ -48,7 +48,7 @@
       <div id="key-findings" purpose="report-section">
         <h2>Key findings</h2>
         <div purpose="report-list" class="mb-0 d-flex flex-column">
-            <strong purpose="report-list-header">OOnly a quarter say their devices are fully enrolled and upgraded</strong>
+            <strong purpose="report-list-header">Only a quarter say their devices are fully enrolled and upgraded</strong>
             <p>Only 23% of the people we asked said they have successfully enrolled all, or nearly all, of their devices in their MDM. 25% are running the latest OS version, while the remainder only have a fraction of their devices enrolled or upgraded.</p>
             <strong purpose="report-list-header">Miscellaneous and mobile operating systems are a problem</strong>
             <p>When it comes to managing operating systems, 36% struggle with miscellaneous operating systems, 29% with iOS, and 26% with Android. Additionally, Windows (40%) and Linux (27%) are the platforms they use the most but don’t currently manage.</p>
@@ -66,11 +66,13 @@
       </div>
       <div id="who-we-surveyed" purpose="report-section">
         <h2>Who we surveyed</h2>
-        <p>Starting on February 25, 2022, we sampled 205 members of professional security teams who are directly responsible for device management. The survey was conducted online via Pollfish using organic sampling. <a href="">Learn more about the Pollfish methodology.</a></p>
+        <p>Starting on February 25, 2022, we sampled 205 members of professional security teams who are directly responsible for device management. The survey was conducted online via Pollfish using organic sampling. <a href="https://www.pollfish.com/methodology/" target="_blank">Learn more about the Pollfish methodology.</a></p>
         <div purpose="chart-card">
           <p class="mb-4 font-weight-bold">Demographics</p>
           <bar-chart class="pb-3" type="stacked" title="Gender" :chart-data="barCharts.demographics.gender"></bar-chart>
-          <bar-chart class="pb-3" type="stacked" title="Age" :chart-data="barCharts.demographics.age"></bar-chart>
+          <bar-chart class="pb-md-3 d-sm-block d-none" type="stacked" title="Age" :chart-data="barCharts.demographics.age"></bar-chart>
+          <span class="d-sm-none d-block" style="font-size: 13px; font-weight: 700;">Age</span>
+          <bar-chart class="pb-3 d-sm-none d-block" type="divided" min-range="10" max-range="30" title="" :chart-data="barCharts.demographics.age"></bar-chart>
           <bar-chart class="pb-3" type="stacked" title="Country" :chart-data="barCharts.demographics.country"></bar-chart>
           <bar-chart type="stacked" title="Number of employees" :chart-data="barCharts.demographics.numberOfEmployees"></bar-chart>
         </div>
@@ -246,8 +248,8 @@
           <h3>48% deployed their organization's MDM</h3>
           <p>Just under half of our respondents were involved in the initial deployment of their organization's MDM.</p>
           <div purpose="chart-card">
+            <span purpose="chart-title">Were you involved in the deployment of your organization’s current MDM solution?</span>
             <div purpose="chart-container">
-              <span purpose="chart-title">Were you involved in the deployment of your organization’s current MDM solution?</span>
               <canvas id="mdm-involvement-chart"></canvas>
             </div>
           </div>
@@ -280,8 +282,8 @@
           <h3>22% say their MDM took over a year to implement</h3>
           <p>The largest segment (22.2%) reported that deploying and implementing their MDM took over a year. However, for 18.7%, it took four weeks or less. For 15.7%, it took one to three months, and for 13.1%, it took three to six months. For 16.2%, it took six to nine months, and for 14.1%, it took nine to twelve months.</p>
           <div purpose="chart-card">
+            <span purpose="chart-title">Estimated time to complete MDM deployment and implementation</span>
             <div purpose="chart-container">
-              <span purpose="chart-title">Estimated time to complete MDM deployment and implementation</span>
               <canvas id="mdm-deployment-time-chart"></canvas>
             </div>
           </div>
@@ -324,8 +326,8 @@
           <h3>47% have sufficient visibility into enrolled devices from their MDM</h3>
           <p>Less than half say their current MDM provides sufficient visibility into enrolled devices and collects adequate security data.</p>
           <div purpose="chart-card" class="mb-0">
+            <span purpose="chart-title">Does your current management strategy provide sufficient visibility / collect sufficient security data about enrolled devices?</span>
             <div purpose="chart-container">
-              <span purpose="chart-title">Does your current management strategy provide sufficient visibility / collect sufficient security data about enrolled devices?</span>
               <canvas id="mdm-visibility-chart"></canvas>
             </div>
           </div>
@@ -334,8 +336,8 @@
           <h3>49% say their MDM effectively maintains secure laptops and servers</h3>
           <p>48.8% say their current MDM maintains secure laptops and servers, while 51.2% say it does not.</p>
           <div purpose="chart-card" class="mb-0">
+            <span purpose="chart-title">Does your current device management strategy effectively maintain secure laptops and servers?</span>
             <div purpose="chart-container">
-              <span purpose="chart-title">Does your current device management strategy effectively maintain secure laptops and servers?</span>
               <canvas id="mdm-laptops-and-servers-chart"></canvas>
             </div>
           </div>
@@ -344,8 +346,8 @@
           <h3>50% report their MDM keeps an accurate inventory of all devices</h3>
           <p>Our respondent's opinion on whether their MDM maintains an accurate inventory of devices across platforms was split.</p>
           <div purpose="chart-card" class="mb-0">
+            <span purpose="chart-title">Does your current device management strategy effectively keep an accurate inventory of all devices across all platforms?</span>
             <div purpose="chart-container">
-              <span purpose="chart-title">Does your current device management strategy effectively keep an accurate inventory of all devices across all platforms?</span>
               <canvas id="mdm-inventory-chart"></canvas>
             </div>
           </div>
@@ -354,8 +356,8 @@
           <h3>52% say their MDM allows timely incident response</h3>
           <p>Just over half surveyed say their MDM allows for timely incident response. The remaining 48.3% say it does not.</p>
           <div purpose="chart-card" class="mb-0">
+            <span purpose="chart-title">Does your current management strategy allow you to respond to incidents in a timely manner, with enough context?</span>
             <div purpose="chart-container">
-              <span purpose="chart-title">Does your current management strategy allow you to respond to incidents in a timely manner, with enough context?</span>
               <canvas id="mdm-incident-response-chart"></canvas>
             </div>
           </div>
@@ -364,8 +366,8 @@
           <h3>55% have an MDM with the visibility to investigate in real time</h3>
           <p>54.6% say their MDM strategy offers enough visibility to investigate devices in real time.</p>
           <div purpose="chart-card" class="mb-0">
+            <span purpose="chart-title">Does your current management strategy give you enough visibility to investigate what’s happening on the device “right now”?</span>
             <div purpose="chart-container">
-              <span purpose="chart-title">Does your current management strategy give you enough visibility to investigate what’s happening on the device “right now”?</span>
               <canvas id="mdm-realtime-visibility-chart"></canvas>
             </div>
           </div>
@@ -374,8 +376,8 @@
           <h3>49% can effectively enforce compliance and security posture with their MDM</h3>
           <p>48.8% say their MDM effectively enforces compliance and security posture for all devices.</p>
           <div purpose="chart-card" class="mb-0">
+            <span purpose="chart-title">Does your current management strategy enforce compliance and security posture across all devices?</span>
             <div purpose="chart-container">
-              <span purpose="chart-title">Does your current management strategy enforce compliance and security posture across all devices?</span>
               <canvas id="mdm-compliance-enforcement-chart"></canvas>
             </div>
           </div>
@@ -384,8 +386,8 @@
           <h3>54% have an MDM that allows them to automate customer security workflows</h3>
           <p>54.2% say their MDM strategy allows them to automate customer security workflows, while 45.9% say it does not.</p>
           <div purpose="chart-card" class="mb-0">
+            <span purpose="chart-title">Does your current management strategy allow you to effectively automate your custom security workflows?</span>
             <div purpose="chart-container">
-              <span purpose="chart-title">Does your current management strategy allow you to effectively automate your custom security workflows?</span>
               <canvas id="mdm-workflow-automation-chart"></canvas>
             </div>
           </div>
@@ -394,8 +396,8 @@
           <h3>49% have an MDM that allows end-users to serve their own IT needs</h3>
           <p>48.8% say their MDM gives end users a way to serve their own IT needs without calling the help desk.</p>
           <div purpose="chart-card" class="mb-0">
+            <span purpose="chart-title">Does your current management strategy give end users a way to safely self-serve their own IT needs without involving the help desk?</span>
             <div purpose="chart-container">
-              <span purpose="chart-title">Does your current management strategy give end users a way to safely self-serve their own IT needs without involving the help desk?</span>
               <canvas id="mdm-self-service-chart"></canvas>
             </div>
           </div>

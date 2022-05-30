@@ -324,6 +324,8 @@ parasails.registerPage('state-of-device-management', {
         ],
       },
     },
+    chartsDrawnOnPage: [],
+    redrawnCharts: [],
 
   },
 
@@ -335,7 +337,8 @@ parasails.registerPage('state-of-device-management', {
   },
   mounted: async function() {
     this.drawChartsOnPage();
-
+    window.addEventListener('resize', this.updateChartsOnPage);
+    this.updateChartsOnPage();
   },
 
   //  ╦╔╗╔╔╦╗╔═╗╦═╗╔═╗╔═╗╔╦╗╦╔═╗╔╗╔╔═╗
@@ -356,14 +359,14 @@ parasails.registerPage('state-of-device-management', {
         _.merge(clonedChartData.datasets, defaultConfig);
         // setting a flag based on wether or not this chart has a legend on the bottom. If the legend is on the bottom, we'll adjust the aspect ratio and padding of the chart.
         let chartHasLegendOnBottom = this.pieCharts[index].legendPosition === 'bottom';
-        new Chart(ctx, {
+        let chart = new Chart(ctx, {
           type: 'doughnut',
           data: clonedChartData,
           options: {
             cutout: '40%',
             aspectRatio: chartHasLegendOnBottom ? 1 : 2,
             layout: {
-              autoPadding: false,
+              autoPadding: true,
               padding: {
                 left: 0,
                 bottom: 0,
@@ -374,13 +377,12 @@ parasails.registerPage('state-of-device-management', {
             },
             plugins: {
               legend: {
+                fullSize: true,
                 position: chartHasLegendOnBottom ? 'bottom' : 'right',
-                padding: {
-                  top: 40
-                },
                 // removing the default onClick event from the chart's legend
                 onClick: ()=>{},
                 labels: {
+                  padding: 16,
                   generateLabels: (chart) => {
                     const datasets = chart.data.datasets;
                     return datasets[0].data.map((data, i) => ({
@@ -392,13 +394,64 @@ parasails.registerPage('state-of-device-management', {
                     }));
                   },
                   usePointStyle: true,
+                  font: {
+                    size: 14,
+                    family: 'Nunito Sans',
+                  }
                 }
               }
             }
           }
         });
+        this.chartsDrawnOnPage.push(chart);
       }
     },
+
+    updateChartsOnPage: function() {
+
+      if(this.redrawnCharts.length < 1) {
+        // Iterating through charts drawn on the page. If the window width is below 768px, we'll change the configuration and update the charts.
+        for(let index in this.chartsDrawnOnPage) {
+          // If a bottom legend position was specified, we'll ignore it.
+          let chartHasLegendOnBottomAtAllWidths = this.chartsDrawnOnPage[index]._aspectRatio === 1;
+          if(window.innerWidth < 768 && !chartHasLegendOnBottomAtAllWidths){
+            this.redrawnCharts.push(this.chartsDrawnOnPage[index]);
+            this.chartsDrawnOnPage[index].options.aspectRatio = .90;
+            this.chartsDrawnOnPage[index].options.layout.padding.right = 0;
+            this.chartsDrawnOnPage[index].options.plugins.legend.position = 'bottom';
+            this.chartsDrawnOnPage[index].options.plugins.legend.labels.font.size = 13;
+            this.chartsDrawnOnPage[index].options.plugins.legend.labels.padding = 8;
+            this.chartsDrawnOnPage[index].update();
+          } else if(!chartHasLegendOnBottomAtAllWidths) {
+            this.redrawnCharts.push(this.chartsDrawnOnPage[index]);
+            this.chartsDrawnOnPage[index].options.aspectRatio = 2;
+            this.chartsDrawnOnPage[index].options.layout.padding.right = 50;
+            this.chartsDrawnOnPage[index].options.plugins.legend.position = 'right';
+            this.chartsDrawnOnPage[index].update();
+          }
+        }
+      } else {
+        // Iterating through the charts that have been redrawn and changing them back to their original configuration.
+        for(let index in this.redrawnCharts) {
+          if(window.innerWidth < 768){
+            this.redrawnCharts[index].options.aspectRatio = .90;
+            this.redrawnCharts[index].options.layout.padding.right = 0;
+            this.redrawnCharts[index].options.plugins.legend.position = 'bottom';
+            this.chartsDrawnOnPage[index].options.plugins.legend.labels.font.size = 13;
+            this.chartsDrawnOnPage[index].options.plugins.legend.labels.padding = 8;
+            this.redrawnCharts[index].update();
+          } else {
+            this.redrawnCharts[index].options.aspectRatio = 2;
+            this.redrawnCharts[index].options.layout.padding.right = 50;
+            this.redrawnCharts[index].options.plugins.legend.position = 'right';
+            this.chartsDrawnOnPage[index].options.plugins.legend.labels.font.size = 14;
+            this.chartsDrawnOnPage[index].options.plugins.legend.labels.padding = 16;
+            this.redrawnCharts[index].update();
+          }
+        }
+      }
+    },
+
   }
 });
 //
