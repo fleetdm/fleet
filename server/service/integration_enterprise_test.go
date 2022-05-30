@@ -529,7 +529,7 @@ func (s *integrationEnterpriseTestSuite) TestExternalIntegrationsTeamConfig() {
 		},
 	}, http.StatusOK, &tmResp)
 	require.Len(t, tmResp.Team.Config.Integrations.Jira, 1)
-	// TODO(mna): require.Equal(t, fleet.MaskedPassword, tmResp.Team.Config.Integrations.Jira[0].APIToken)
+	require.Equal(t, fleet.MaskedPassword, tmResp.Team.Config.Integrations.Jira[0].APIToken)
 
 	// enable the webhook without changing the integration should fail (an integration is already enabled)
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), fleet.TeamPayload{WebhookSettings: &fleet.TeamWebhookSettings{
@@ -561,8 +561,8 @@ func (s *integrationEnterpriseTestSuite) TestExternalIntegrationsTeamConfig() {
 		},
 	}, http.StatusOK, &tmResp)
 	require.Len(t, tmResp.Team.Config.Integrations.Jira, 2)
-	// TODO(mna): require.Equal(t, fleet.MaskedPassword, tmResp.Team.Config.Integrations.Jira[0].APIToken)
-	// TODO(mna): require.Equal(t, fleet.MaskedPassword, tmResp.Team.Config.Integrations.Jira[1].APIToken)
+	require.Equal(t, fleet.MaskedPassword, tmResp.Team.Config.Integrations.Jira[0].APIToken)
+	require.Equal(t, fleet.MaskedPassword, tmResp.Team.Config.Integrations.Jira[1].APIToken)
 
 	// enabling the second without disabling the first fails
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), fleet.TeamPayload{
@@ -734,7 +734,7 @@ func (s *integrationEnterpriseTestSuite) TestExternalIntegrationsTeamConfig() {
 		},
 	}, http.StatusOK, &tmResp)
 	require.Len(t, tmResp.Team.Config.Integrations.Zendesk, 1)
-	// TODO(mna): require.Equal(t, fleet.MaskedPassword, tmResp.Team.Config.Integrations.Zendesk[0].APIToken)
+	require.Equal(t, fleet.MaskedPassword, tmResp.Team.Config.Integrations.Zendesk[0].APIToken)
 
 	// enable the webhook without changing the integration should fail (an integration is already enabled)
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), fleet.TeamPayload{WebhookSettings: &fleet.TeamWebhookSettings{
@@ -766,8 +766,8 @@ func (s *integrationEnterpriseTestSuite) TestExternalIntegrationsTeamConfig() {
 		},
 	}, http.StatusOK, &tmResp)
 	require.Len(t, tmResp.Team.Config.Integrations.Zendesk, 2)
-	// TODO(mna): require.Equal(t, fleet.MaskedPassword, tmResp.Team.Config.Integrations.Zendesk[0].APIToken)
-	// TODO(mna): require.Equal(t, fleet.MaskedPassword, tmResp.Team.Config.Integrations.Zendesk[1].APIToken)
+	require.Equal(t, fleet.MaskedPassword, tmResp.Team.Config.Integrations.Zendesk[0].APIToken)
+	require.Equal(t, fleet.MaskedPassword, tmResp.Team.Config.Integrations.Zendesk[1].APIToken)
 
 	// enabling the second without disabling the first fails
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), fleet.TeamPayload{
@@ -903,9 +903,9 @@ func (s *integrationEnterpriseTestSuite) TestExternalIntegrationsTeamConfig() {
 		},
 	}, http.StatusOK, &tmResp)
 	require.Len(t, tmResp.Team.Config.Integrations.Jira, 1)
-	// TODO(mna): require.Equal(t, fleet.MaskedPassword, tmResp.Team.Config.Integrations.Jira[0].APIToken)
+	require.Equal(t, fleet.MaskedPassword, tmResp.Team.Config.Integrations.Jira[0].APIToken)
 	require.Len(t, tmResp.Team.Config.Integrations.Zendesk, 1)
-	// TODO(mna): require.Equal(t, fleet.MaskedPassword, tmResp.Team.Config.Integrations.Zendesk[0].APIToken)
+	require.Equal(t, fleet.MaskedPassword, tmResp.Team.Config.Integrations.Zendesk[0].APIToken)
 
 	// enabling a Jira integration when a Zendesk one is enabled fails
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), fleet.TeamPayload{
