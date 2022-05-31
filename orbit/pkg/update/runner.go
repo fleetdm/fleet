@@ -54,12 +54,16 @@ func NewRunner(updater *Updater, opt RunnerOptions) (*Runner, error) {
 		if err != nil {
 			return nil, fmt.Errorf("get local path for %s: %w", target, err)
 		}
-		_, localHash, err := fileHashes(meta, localTarget.Path)
-		if err != nil {
+		switch _, localHash, err := fileHashes(meta, localTarget.Path); {
+		case err == nil:
+			localHashes[target] = localHash
+			log.Info().Msgf("hash(%s)=%x", target, localHash)
+		case errors.Is(err, os.ErrNotExist):
+			// This is expected to happen if the target is not yet downloaded,
+			// or if the user manually changed the target channel.
+		default:
 			return nil, fmt.Errorf("%s file hash: %w", target, err)
 		}
-		localHashes[target] = localHash
-		log.Info().Msgf("hash(%s)=%x", target, localHash)
 	}
 
 	return &Runner{

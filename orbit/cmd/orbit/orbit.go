@@ -258,7 +258,7 @@ func main() {
 		// NOTE: When running in dev-mode, even if `disable-updates` is set,
 		// it fetches osqueryd once as part of initialization.
 		if !c.Bool("disable-updates") || c.Bool("dev-mode") {
-			updater, err := update.New(opt)
+			updater, err := update.NewUpdater(opt)
 			if err != nil {
 				return fmt.Errorf("create updater: %w", err)
 			}
@@ -288,7 +288,7 @@ func main() {
 			if err != nil {
 				log.Info().Err(err).Msg("early update check failed")
 			}
-			if didUpdate {
+			if didUpdate && !c.Bool("dev-mode") {
 				log.Info().Msg("exiting due to successful early update")
 				return nil
 			}

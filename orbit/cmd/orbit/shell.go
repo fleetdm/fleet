@@ -61,7 +61,7 @@ var shellCommand = &cli.Command{
 		opt.LocalStore = localStore
 		opt.InsecureTransport = c.Bool("insecure")
 
-		updater, err := update.New(opt)
+		updater, err := update.NewUpdater(opt)
 		if err != nil {
 			return err
 		}
