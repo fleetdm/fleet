@@ -27,7 +27,7 @@ With Fleet Desktop installed on a host, the end-user has access to the list of p
 
 Fleet Desktop also allows end-users to see what information about their laptop or workstation, is accessible to their organization.
 
-With Fleet Desktop installed on a host, the end-user can navigate to the Transparency page on fleetdm.com. This page includes resources on what personal information Fleet and osquery can see. The end-user can quickly reach the Transparency page by selecting the Fleet icon > Transparency in the menu bar.
+With Fleet Desktop installed on a host, the end-user can navigate to the **Transparency** page on fleetdm.com. This page includes resources on what personal information Fleet and osquery can see. The end-user can quickly reach the Transparency page by selecting the **Fleet icon > Transparency** in the menu bar.
 
 The end-user also has access to information about their laptop's disk space, memory, last restarted time, installed software, and more. The end-user can quickly reach this information by selecting the Fleet icon in their menu bar and selecting **My device**.
 
