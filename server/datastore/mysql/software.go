@@ -1147,11 +1147,11 @@ func (ds *Datastore) ListSoftwareVulnerabilities(
 
 	sql, args, err := stmt.ToSQL()
 	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "ListSoftwareVulnerabilities")
+		return nil, ctxerr.Wrap(ctx, err, "error generating SQL statement")
 	}
 
 	if err := sqlx.SelectContext(ctx, ds.reader, &queryR, sql, args...); err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "ListSoftwareVulnerabilities")
+		return nil, ctxerr.Wrap(ctx, err, "error executing SQL statement")
 	}
 
 	for _, r := range queryR {
@@ -1197,11 +1197,11 @@ func (ds *Datastore) ListSoftwareForVulnDetection(
 
 	sql, args, err := stmt.ToSQL()
 	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "ListSoftwareForVulnDetection")
+		return nil, ctxerr.Wrap(ctx, err, "error generating SQL statement")
 	}
 
 	if err := sqlx.SelectContext(ctx, ds.reader, &result, sql, args...); err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "ListSoftwareForVulnDetection")
+		return nil, ctxerr.Wrap(ctx, err, "error executing SQL statement")
 	}
 
 	return result, nil
