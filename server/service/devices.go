@@ -170,25 +170,25 @@ func getDeviceMacadminsDataEndpoint(ctx context.Context, request interface{}, sv
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-// Get Current Device's Policies
+// List Current Device's Policies
 ////////////////////////////////////////////////////////////////////////////////
 
-type getDevicePoliciesRequest struct {
+type listDevicePoliciesRequest struct {
 	Token string `url:"token"`
 }
 
-func (r *getDevicePoliciesRequest) deviceAuthToken() string {
+func (r *listDevicePoliciesRequest) deviceAuthToken() string {
 	return r.Token
 }
 
-type getDevicePoliciesResponse struct {
+type listDevicePoliciesResponse struct {
 	Err      error               `json:"error,omitempty"`
 	Policies []*fleet.HostPolicy `json:"policies"`
 }
 
-func (r getDevicePoliciesResponse) error() error { return r.Err }
+func (r listDevicePoliciesResponse) error() error { return r.Err }
 
-func getDevicePoliciesEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
+func listDevicePoliciesEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
 	host, ok := hostctx.FromContext(ctx)
 	if !ok {
 		err := ctxerr.Wrap(ctx, fleet.NewAuthRequiredError("internal error: missing host from request context"))
@@ -197,10 +197,10 @@ func getDevicePoliciesEndpoint(ctx context.Context, request interface{}, svc fle
 
 	data, err := svc.ListDevicePolicies(ctx, host)
 	if err != nil {
-		return getDevicePoliciesResponse{Err: err}, nil
+		return listDevicePoliciesResponse{Err: err}, nil
 	}
 
-	return getDevicePoliciesResponse{Policies: data}, nil
+	return listDevicePoliciesResponse{Policies: data}, nil
 }
 
 func (svc *Service) ListDevicePolicies(ctx context.Context, host *fleet.Host) ([]*fleet.HostPolicy, error) {
