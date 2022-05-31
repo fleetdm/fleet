@@ -180,9 +180,9 @@ The following [Slack channels are maintained](https://fleetdm.com/handbook/compa
 
 ### Overall
 
-Nowadays, fleet, as a Go server, scales horizontally very well. It’s not very CPU or memory intensive. In terms of load in infrastructure, from highest to lowest is: MySQL, Redis, fleet.
+Nowadays, fleet, as a Go server, scales horizontally very well. It’s not very CPU or memory intensive. In terms of load in infrastructure, from highest to lowest is: MySQL, Redis, Fleet.
 
-In general, if burning a bit of CPU or memory on the fleet side allows us to reduce the load on MySQL or Redis, we should do so.
+In general, if burning a bit of CPU or memory on the Fleet side allows us to reduce the load on MySQL or Redis, we should do so.
 
 In a lot of cases, caching helps but given that we are not doing load balancing based on host id (i.e. make sure that the same host ends up in the same fleet server) this goes only so far. Caching host specific data is not done because round robin LB means all fleet instances end up circling the total list of hosts.
 
@@ -206,17 +206,17 @@ However, this database feature doesn’t come without a cost. The one to focus o
 
 The tldr is: understand very well how a table will be used. If we do bulk inserts/updates, InnoDB might lock more than you anticipate and cause issues. This is not an argument to not do bulk inserts/updates, but to be very careful when you add a foreign key.
 
-In particular, host_id is a foreign key we’ve been skipping in all the new additional host data tables. Which is not something that comes for free, as with that we have to keep the data consistent by hand with cleanups.
+In particular, host_id is a foreign key we’ve been skipping in all the new additional host data tables. Which is not something that comes for free, as with that [we have to keep the data consistent by hand with cleanups](https://github.com/fleetdm/fleet/blob/main/server/datastore/mysql/hosts.go#L309-L309).
 
 ### Insert on duplicate update
 
-It’s very important to understand how a table will be used. If rows are inserted once and then updated many times, an easy reflex is to do an INSERT … ON DUPLICATE KEY UPDATE. While technically correct, it will be more performant to try to do an update and if it fails because there are no rows, then do an insert for the row. This means that it’ll fail once, and then it’ll update without issues, while on the INSERT … ON DUPLICATE KEY UPDATE it will try to insert and 99% of the times it will go into the ON DUPLICATE KEY UPDATE.
+It’s very important to understand how a table will be used. If rows are inserted once and then updated many times, an easy reflex is to do an `INSERT … ON DUPLICATE KEY UPDATE`. While technically correct, it will be more performant to try to do an update and if it fails because there are no rows, then do an insert for the row. This means that it’ll fail once, and then it’ll update without issues, while on the `INSERT … ON DUPLICATE KEY UPDATE` it will try to insert and 99% of the times it will go into the `ON DUPLICATE KEY UPDATE`.
 
-This approach has a caveat, which is that it introduces a race condition between the UPDATE and the INSERT where another INSERT might happen in between the two, making the second INSERT fail. With the right constraints (and depending on the details of the problem), this is not a big problem. Alternatively, the INSERT could be one with an ON DUPLICATE KEY UPDATE at the end to recover from this scenario.
+This approach has a caveat, which is that it introduces a race condition between the `UPDATE` and the `INSERT` where another `INSERT` might happen in between the two, making the second `INSERT` fail. With the right constraints (and depending on the details of the problem), this is not a big problem. Alternatively, the `INSERT` could be one with an `ON DUPLICATE KEY UPDATE` at the end to recover from this scenario.
 
 This is subtle, but an insert will update indexes, check constraints, etc. While an update might sometimes not do any of that, depending on what is being updated.
 
-While not a performance gotcha, if you do use INSERT … ON DUPLICATE KEY UPDATE beware of the fact that LastInsertId will return non zero only if the INSERT portion happens. [If an update happens, the LastInsertId will be 0](https://github.com/fleetdm/fleet/blob/1aff4a4231ccff4d80889b46b57ed12c5ba1ae14/server/datastore/mysql/mysql.go#L925-L953).
+While not a performance gotcha, if you do use `INSERT … ON DUPLICATE KEY UPDATE` beware of the fact that LastInsertId will return non-zero only if the INSERT portion happens. [If an update happens, the LastInsertId will be 0](https://github.com/fleetdm/fleet/blob/1aff4a4231ccff4d80889b46b57ed12c5ba1ae14/server/datastore/mysql/mysql.go#L925-L953).
 
 ### Host extra data and JOINs
 
@@ -246,13 +246,13 @@ However, beware of tables that either go through async aggregation processes (su
 
 Particularly with extra host data (think MDM, Munki, Chrome profiles, etc) another gotcha is that some users have built scripts that go through all hosts by using our list host endpoint. This means that any extra data we add might cause this process to be too slow or timeout (this has happened in the past).
 
-Beware of this, and consider gating the extra data behind a query parameter to allow for a performance backwards compatible API that also can expose all the data that might be needed in other use cases.
+Beware of this, and consider gating the extra data behind a query parameter to allow for a performant backwards compatible API that also can expose all the data that might be needed in other use cases.
 
 Calculated data is also tricky in the host listing API at scale, as those calculations have to happen for each host row. This can be extra problematic if the sort happens on the calculated data, as all data has to be calculated across all hosts before being able to sort and limit the results (more on this below).
 
 ### Understand main use-cases for queries
 
-Beware of the main use cases for an API, which sounds obvious, but it’s not necessarily the case. For instance, we build the software listing endpoint. This endpoint listed software alongside the host counts that had that particular software installed. The way it was designed was properly performant: list the first 8 software items, then count hosts for those software ids.
+Be aware of the use cases for an API. For example, take the software listing endpoint. This endpoint lists software alongside the number of hosts with that item installed. The way it was designed was performant in a limited use case: list the first 8 software items, then count hosts for those software ids.
 
 The problem came later when we learned that we missed an important detail: the UI wanted to sort by amount of host count so that the most popular software appeared on the top of this.
 
@@ -266,7 +266,7 @@ Host seen_time is updated with basically every check-in from a host of any kind.
 
 While we are doing a few things to make this better, it is still a big performance pain point we have. In particular, we are updating it in bulk. It used to be a column of the hosts table, which caused a lot of locking. Now it’s an adjacent table without FK.
 
-Luckily, we don’t have anything else (at least up to the time of this writing) that changes as often as seen_time. However, other features such as software last used can cause similar issues. Which is why we’ve punted that feature for now, but it’s likely that it’ll happen.
+Luckily, we don’t have anything else (at least up to the time of this writing) that changes as often as seen_time. However, other features such as software last used can cause similar issues.
 
 ### Counts and aggregated data
 
