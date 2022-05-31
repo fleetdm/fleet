@@ -208,10 +208,9 @@ go run github.com/fleetdm/fleet/v4/orbit/cmd/orbit \
 
 ##### Generate Installer Packages from Orbit Source
 
-The `fleetctl package` command generate installers by fetching the targets/executables from a [TUF](https://theupdateframework.io/) repository.
+The `fleetctl package` command generates installers by fetching the targets/executables from a [TUF](https://theupdateframework.io/) repository.
 To generate an installer that contains an Orbit built from source you need to setup a local TUF repository.
-The following document explains how you can generate such TUF repository, and how to generate installers
-that use it [tools/tuf/test](../tools/tuf/test/README.md).
+The following document explains how you can generate a TUF repository, and installers that use it [tools/tuf/test](../tools/tuf/test/README.md).
 
 ### Troubleshooting
 
