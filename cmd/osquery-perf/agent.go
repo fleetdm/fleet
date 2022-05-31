@@ -426,7 +426,7 @@ func (a *agent) SoftwareMacOS() []fleet.Software {
 	uniqueSoftware := make([]fleet.Software, a.softwareCount.unique)
 	for i := 0; i < len(uniqueSoftware); i++ {
 		uniqueSoftware[i] = fleet.Software{
-			Name:             fmt.Sprintf("Unique_%d_%d", a.agentIndex, i),
+			Name:             fmt.Sprintf("Unique_%s_%d", a.CachedString("hostname"), i),
 			Version:          "1.1.1",
 			BundleIdentifier: "com.fleetdm.osquery-perf",
 			Source:           "osquery-perf",
