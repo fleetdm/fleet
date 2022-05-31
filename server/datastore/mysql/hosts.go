@@ -547,17 +547,30 @@ func (ds *Datastore) CountHosts(ctx context.Context, filter fleet.TeamFilter, op
 }
 
 func (ds *Datastore) CleanupIncomingHosts(ctx context.Context, now time.Time) ([]uint, error) {
-	// TODO(mna): load and return host IDs
-	sqlStatement := `
+	var ids []uint
+	selectIDs := `
+    SELECT
+      id
+    FROM
+      hosts
+    WHERE
+      hostname = '' AND
+      osquery_version = '' AND
+      created_at < (? - INTERVAL 5 MINUTE)`
+	if err := ds.writer.SelectContext(ctx, &ids, selectIDs, now); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "load incoming hosts to cleanup")
+	}
+
+	cleanupHosts := `
 		DELETE FROM hosts
 		WHERE hostname = '' AND osquery_version = ''
 		AND created_at < (? - INTERVAL 5 MINUTE)
 	`
-	if _, err := ds.writer.ExecContext(ctx, sqlStatement, now); err != nil {
+	if _, err := ds.writer.ExecContext(ctx, cleanupHosts, now); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "cleanup incoming hosts")
 	}
 
-	return nil, nil
+	return ids, nil
 }
 
 func (ds *Datastore) GenerateHostStatusStatistics(ctx context.Context, filter fleet.TeamFilter, now time.Time, platform *string) (*fleet.HostSummary, error) {
@@ -1064,8 +1077,6 @@ func (ds *Datastore) ListPoliciesForHost(ctx context.Context, host *fleet.Host) 
 }
 
 func (ds *Datastore) CleanupExpiredHosts(ctx context.Context) ([]uint, error) {
-	// TODO(mna): return list of hosts ids
-
 	ac, err := appConfigDB(ctx, ds.reader)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "getting app config")
@@ -1080,8 +1091,10 @@ func (ds *Datastore) CleanupExpiredHosts(ctx context.Context) ([]uint, error) {
 	// so instead, we get the ids one by one and delete things one by one
 	// it might take longer, but it should lock only the row we need
 
-	rows, err := ds.writer.QueryContext(
+	var ids []uint
+	err = ds.writer.SelectContext(
 		ctx,
+		&ids,
 		`SELECT h.id FROM hosts h
 		LEFT JOIN host_seen_times hst
 		ON h.id = hst.host_id
@@ -1091,28 +1104,19 @@ func (ds *Datastore) CleanupExpiredHosts(ctx context.Context) ([]uint, error) {
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "getting expired host ids")
 	}
-	defer rows.Close()
 
-	for rows.Next() {
-		var id uint
-		err := rows.Scan(&id)
-		if err != nil {
-			return nil, ctxerr.Wrap(ctx, err, "scanning expired host id")
-		}
+	for _, id := range ids {
 		err = ds.DeleteHost(ctx, id)
 		if err != nil {
 			return nil, err
 		}
-	}
-	if err := rows.Err(); err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "expired hosts, row err")
 	}
 
 	_, err = ds.writer.ExecContext(ctx, `DELETE FROM host_seen_times WHERE seen_time < DATE_SUB(NOW(), INTERVAL ? DAY)`, ac.HostExpirySettings.HostExpiryWindow)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "deleting expired host seen times")
 	}
-	return nil, nil
+	return ids, nil
 }
 
 func (ds *Datastore) ListHostDeviceMapping(ctx context.Context, id uint) ([]*fleet.HostDeviceMapping, error) {
