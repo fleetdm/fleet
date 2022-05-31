@@ -73,7 +73,7 @@ In 4.15.0, we also:
 
 ### Ready to update?
 
-Visit our [Update guide](https://fleetdm.com/docs/deploying/upgrading-fleet) in the Fleet docs for instructions on updating to Fleet 4.14.0.
+Visit our [Update guide](https://fleetdm.com/docs/deploying/upgrading-fleet) in the Fleet docs for instructions on updating to Fleet 4.15.0.
 
 <meta name="category" value="releases">
 <meta name="authorFullName" value="Kathy Satterlee">
