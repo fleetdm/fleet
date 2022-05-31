@@ -165,10 +165,6 @@ func InitializeUpdates(updateOpt update.Options) (*UpdatesData, error) {
 		}
 	}
 
-	if devBuildPath := os.Getenv("FLEETCTL_ORBIT_DEV_BUILD_PATH"); devBuildPath != "" {
-		updater.CopyDevBuild("orbit", devBuildPath)
-	}
-
 	return &UpdatesData{
 		OrbitPath:    orbitPath,
 		OrbitVersion: orbitCustom.Version,

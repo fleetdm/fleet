@@ -258,6 +258,8 @@ type Service interface {
 	// ListHostDeviceMapping returns the list of device-mapping of user's email address
 	// for the host.
 	ListHostDeviceMapping(ctx context.Context, id uint) ([]*HostDeviceMapping, error)
+	// ListDevicePolicies lists all policies for the given host, including passing / failing summaries
+	ListDevicePolicies(ctx context.Context, host *Host) ([]*HostPolicy, error)
 
 	MacadminsData(ctx context.Context, id uint) (*MacadminsData, error)
 	AggregatedMacadminsData(ctx context.Context, teamID *uint) (*AggregatedMacadminsData, error)

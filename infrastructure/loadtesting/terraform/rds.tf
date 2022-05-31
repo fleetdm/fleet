@@ -42,7 +42,7 @@ module "aurora_mysql" { #tfsec:ignore:aws-rds-enable-performance-insights-encryp
   subnets                 = data.terraform_remote_state.shared.outputs.vpc.database_subnets
   create_security_group   = true
   allowed_cidr_blocks     = data.terraform_remote_state.shared.outputs.vpc.private_subnets_cidr_blocks
-  allowed_security_groups = "sg-0063a978193fdf7ee"
+  allowed_security_groups = ["sg-0063a978193fdf7ee"]
 
   replica_count         = 1
   replica_scale_enabled = true

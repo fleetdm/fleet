@@ -2,7 +2,7 @@
 
 This document includes the Fleet API routes that are helpful when developing or contributing to Fleet.
 
-Unlike the [Fleet REST API documentation](../Using-Fleet/REST-API.md), the API routes in this document are only intended for use by the Fleet UI and fleetctl clients:
+Unlike the [Fleet REST API documentation](../Using-Fleet/REST-API.md), only the Fleet UI, and fleetctl clients use the API routes in this document:
 
 - [Get queries spec](#get-queries-spec)
 - [Get query spec](#get-query-spec)
@@ -456,7 +456,7 @@ If the `name` is not already associated with an existing team, this API route cr
 | Name          | Type   | In   | Description                                                                                                                                                                                                                                             |
 | ------------- | ------ | ---- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | name          | string | body | **Required.** The team's name.                                                                                                                                                                                                                          |
-| agent_options | string | body | **Required.** The agent options spec that is applied to the hosts assigned to the specified to team. These agent agent options completely override the global agent options specified in the [`GET /api/v1/fleet/config API route`](#get-configuration)  |
+| agent_options | string | body | **Required.** The agent options spec that is applied to the hosts assigned to the specified to team. These agent options completely override the global agent options specified in the [`GET /api/v1/fleet/config API route`](#get-configuration)  |
 | secrets       | list   | body | **Required.** A list of plain text strings is used as the enroll secrets.                                                                                                                                                                                  |
 
 #### Example
@@ -887,9 +887,9 @@ None.
 
 ### Run live query
 
-Runs the specified query as a live query on the specified hosts or group of hosts. Returns a new live query campaign. Individual hosts must be specified with the host's ID. Groups of hosts are specified by label ID.
+Runs the specified query as a live query on the specified hosts or group of hosts and returns a new live query campaign. Individual hosts must be specified with the host's ID. Label IDs also specify groups of hosts.
 
-After the query has been initiated, [get results via WebSocket](#retrieve-live-query-results-standard-websocket-api).
+After you initiate the query, [get results via WebSocket](#retrieve-live-query-results-standard-websocket-api).
 
 `POST /api/v1/fleet/queries/run`
 
