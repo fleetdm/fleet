@@ -188,8 +188,8 @@ type Datastore interface {
 	GenerateHostStatusStatistics(ctx context.Context, filter TeamFilter, now time.Time, platform *string) (*HostSummary, error)
 	// HostIDsByName Retrieve the IDs associated with the given hostnames
 	HostIDsByName(ctx context.Context, filter TeamFilter, hostnames []string) ([]uint, error)
-	// HostIDsByOsVersion retrieves the IDs of all host matching osVersion
-	HostIDsByOsVersion(ctx context.Context, osVersion OSVersion, offset int, limit int) ([]uint, error)
+	// HostIDsByOSVersion retrieves the IDs of all host matching osVersion
+	HostIDsByOSVersion(ctx context.Context, osVersion OSVersion, offset int, limit int) ([]uint, error)
 	// HostByIdentifier returns one host matching the provided identifier. Possible matches can be on
 	// osquery_host_identifier, node_key, UUID, or hostname.
 	HostByIdentifier(ctx context.Context, identifier string) (*Host, error)
