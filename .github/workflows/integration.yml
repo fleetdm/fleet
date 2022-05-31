@@ -202,7 +202,7 @@ jobs:
         fleetctl config set --address ${{ needs.gen.outputs.address }} --token ${{ needs.login.outputs.token }}
 
     - name: Install Go
-      uses: actions/setup-go@f6164bd8c8acb4a71fb2791a8b6c4024ff038dab # v2
+      uses: actions/setup-go@b22fbbc2921299758641fab08929b4ac52b32923 # v2
       with:
         go-version: ${{ matrix.go-version }}
 
