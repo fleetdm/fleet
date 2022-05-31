@@ -106,6 +106,9 @@ func TriggerFailingPoliciesIntegration(
 			case errors.Is(err, sql.ErrNoRows):
 				// shouldn't happen, unless the team was deleted after the policy was retrieved above
 				level.Debug(logger).Log("msg", "team does not exist", "teamID", *policy.TeamID)
+				if err := failingPoliciesSet.RemoveSet(policy.ID); err != nil {
+					level.Error(logger).Log("msg", "failed to remove policy from set", "policyID", policy.ID, "err", err)
+				}
 				continue
 			case err != nil:
 				level.Error(logger).Log("msg", "failed to get team", "teamID", *policy.TeamID, "err", err)
