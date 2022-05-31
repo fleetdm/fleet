@@ -24,7 +24,7 @@ func withTestFixture(
 	vulnPath string,
 	ds *mysql.Datastore,
 	afterLoad func(h *fleet.Host),
-	checkErr func(err error),
+	t require.TestingT,
 ) {
 	type softwareFixture struct {
 		Name    string `json:"name"`
@@ -35,16 +35,16 @@ func withTestFixture(
 
 	extract := func(src, dst string) {
 		srcF, err := os.Open(src)
-		checkErr(err)
+		require.NoError(t, err)
 		defer srcF.Close()
 
 		dstF, err := os.Create(dst)
-		checkErr(err)
+		require.NoError(t, err)
 		defer dstF.Close()
 
 		r := bzip2.NewReader(srcF)
 		_, err = io.Copy(dstF, r)
-		checkErr(err)
+		require.NoError(t, err)
 	}
 
 	extractFixtures := func(p Platform) {
@@ -65,7 +65,7 @@ func withTestFixture(
 
 	loadSoftware := func(p Platform, s fleet.OSVersion) *fleet.Host {
 		osqueryHostID, err := server.GenerateRandomText(10)
-		checkErr(err)
+		require.NoError(t, err)
 
 		h, err := ds.NewHost(context.Background(), &fleet.Host{
 			Hostname:        string(p),
@@ -79,14 +79,14 @@ func withTestFixture(
 			Platform:        s.Platform,
 			OSVersion:       s.Name,
 		})
-		checkErr(err)
+		require.NoError(t, err)
 
 		var fixtures []softwareFixture
 		contents, err := ioutil.ReadFile(filepath.Join(vulnPath, fmt.Sprintf("%s-software.json", p)))
-		checkErr(err)
+		require.NoError(t, err)
 
 		err = json.Unmarshal(contents, &fixtures)
-		checkErr(err)
+		require.NoError(t, err)
 
 		var software []fleet.Software
 		for _, fi := range fixtures {
@@ -96,14 +96,14 @@ func withTestFixture(
 			})
 		}
 		err = ds.UpdateHostSoftware(ctx, h.ID, software)
-		checkErr(err)
+		require.NoError(t, err)
 
 		err = ds.LoadHostSoftware(ctx, h, fleet.SoftwareListOptions{})
-		checkErr(err)
+		require.NoError(t, err)
 
 		for _, s := range h.Software {
 			err = ds.AddCPEForSoftware(ctx, s, fmt.Sprintf("%s-%s", s.Name, s.Version))
-			checkErr(err)
+			require.NoError(t, err)
 		}
 
 		return h
@@ -115,12 +115,12 @@ func withTestFixture(
 	h := loadSoftware(p, version)
 
 	err := ds.UpdateOSVersions(ctx)
-	checkErr(err)
+	require.NoError(t, err)
 
 	afterLoad(h)
 
 	err = ds.DeleteHost(ctx, h.ID)
-	checkErr(err)
+	require.NoError(t, err)
 }
 
 func BenchmarkTestOvalAnalyzer(b *testing.B) {
@@ -148,9 +148,7 @@ func BenchmarkTestOvalAnalyzer(b *testing.B) {
 					_, err = Analyze(context.Background(), ds, v, vulnPath)
 					require.NoError(b, err)
 				}
-			}, func(err error) {
-				require.NoError(b, err)
-			})
+			}, b)
 		})
 	}
 }
@@ -222,9 +220,7 @@ func TestOvalAnalyzer(t *testing.T) {
 
 				p := NewPlatform(v.Platform, v.Name)
 				assertVulns(h, p)
-			}, func(err error) {
-				require.NoError(t, err)
-			})
+			}, t)
 		}
 	})
 
