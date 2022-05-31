@@ -1,4 +1,4 @@
-# Fleet 4.15.0 adds beta support for self-service, scope transparency, and brings Zendesk to the party.
+# Fleet 4.15.0 adds beta support for Self-service, Scope transparency, and brings Zendesk to the party.
 
 ![Fleet 4.15.0](../website/assets/images/articles/fleet-4.15.0-cover-1600x900@2x.jpg)
 
@@ -25,7 +25,7 @@ Fleet Desktop is currently in beta. Check out the remaining work to bring Fleet 
 ## Scope transparency with Fleet Desktop on macOS, Windows, and Linux
 **Available in Fleet Free & Fleet Premium**
 
-![Transparency with Fleet Desktop on macOS, Windows, and Linux](../website/assets/images/articles/fleet-4.15.0-transparency-1200x674.gif)
+![Scope transparency with Fleet Desktop on macOS, Windows, and Linux](../website/assets/images/articles/fleet-4.15.0-transparency-1200x674.gif)
 
 Fleet Desktop also allows end-users to see what information about their laptop or workstation, is accessible to their organization.
 
