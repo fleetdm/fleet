@@ -116,7 +116,7 @@ func TestHosts(t *testing.T) {
 		{"SetOrUpdateDeviceAuthToken", testHostsSetOrUpdateDeviceAuthToken},
 		{"OSVersions", testOSVersions},
 		{"DeleteHosts", testHostsDeleteHosts},
-		{"HostIDsByPlatform", testHostIDsByPlatform},
+		{"HostIDsByOSVersion", testHostIDsByOSVersion},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
