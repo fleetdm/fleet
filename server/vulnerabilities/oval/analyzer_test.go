@@ -287,6 +287,21 @@ func TestOvalAnalyzer(t *testing.T) {
 			require.Equal(t, expectedToInsert, toInsert)
 			require.ElementsMatch(t, expectedToDelete, toDelete)
 		})
+
+		t.Run("nothing found but vulns exist", func(t *testing.T) {
+			var found []fleet.SoftwareVulnerability
+
+			existing := []fleet.SoftwareVulnerability{
+				{CPE: "cpe_1", CPEID: 1, CVE: "cve_1"},
+				{CPE: "cpe_1", CPEID: 1, CVE: "cve_2"},
+				{CPE: "cpe_2", CPEID: 2, CVE: "cve_3"},
+				{CPE: "cpe_2", CPEID: 2, CVE: "cve_4"},
+			}
+
+			toInsert, toDelete := vulnsDelta(found, existing)
+			require.Empty(t, toInsert)
+			require.ElementsMatch(t, existing, toDelete)
+		})
 	})
 
 	t.Run("#load", func(t *testing.T) {
