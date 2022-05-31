@@ -44,9 +44,30 @@ func (d *datastore) removeHosts(ctx context.Context, hostIDs ...uint) error {
 	return ctxerr.Wrap(ctx, err, "enrolled limits: remove hosts")
 }
 
+func (d *datastore) checkCanAddHost(ctx context.Context) (bool, error) {
+	conn := redis.ConfigureDoer(d.pool, d.pool.Get())
+	defer conn.Close()
+
+	n, err := redigo.Int(conn.Do("SCARD", enrolledHostsSetKey))
+	if err != nil {
+		return false, ctxerr.Wrap(ctx, err, "enrolled limits: check can add host")
+	}
+	if n >= d.enforceHostLimit {
+		// TODO(mna): check in DB to make absolutely sure the number is correct?
+		return false, nil
+	}
+	return true, nil
+}
+
 func (d *datastore) NewHost(ctx context.Context, host *fleet.Host) (*fleet.Host, error) {
 	if d.enforceHostLimit > 0 {
-		// TODO: check if limit is exceeded
+		ok, err := d.checkCanAddHost(ctx)
+		if !ok && err == nil {
+			return nil, ctxerr.Errorf(ctx, "maximum number of hosts reached: %d", d.enforceHostLimit)
+		}
+		if err != nil {
+			logging.WithErr(ctx, err)
+		}
 	}
 
 	h, err := d.Datastore.NewHost(ctx, host)
@@ -60,7 +81,13 @@ func (d *datastore) NewHost(ctx context.Context, host *fleet.Host) (*fleet.Host,
 
 func (d *datastore) EnrollHost(ctx context.Context, osqueryHostID, nodeKey string, teamID *uint, cooldown time.Duration) (*fleet.Host, error) {
 	if d.enforceHostLimit > 0 {
-		// TODO: check if limit is exceeded
+		ok, err := d.checkCanAddHost(ctx)
+		if !ok && err == nil {
+			return nil, ctxerr.Errorf(ctx, "maximum number of hosts reached: %d", d.enforceHostLimit)
+		}
+		if err != nil {
+			logging.WithErr(ctx, err)
+		}
 	}
 
 	h, err := d.Datastore.EnrollHost(ctx, osqueryHostID, nodeKey, teamID, cooldown)
