@@ -43,6 +43,8 @@ Fleet Desktop is currently in beta. Check out the remaining work to bring Fleet 
 You can now configure Fleet to automatically create a Zendesk ticket when a new vulnerability (CVE) is
 found on your hosts. Add the Zendesk Integration in the Fleet UI under **Settings** > **Integrations** and selecting **Zendesk** as your ticket destination.
 
+The Zendesk integration is currently in beta.
+
 ## "Last used" information for MacOS applications.
 **Available in Fleet Free & Fleet Premium**
 
