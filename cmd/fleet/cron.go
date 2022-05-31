@@ -309,7 +309,7 @@ func checkVulnerabilities(
 		err = fmt.Errorf("load cve meta: %w", err)
 		level.Error(logger).Log("err", err)
 		sentry.CaptureException(err)
-		// continue
+		// don't return, continue on ...
 	}
 
 	err := vulnerabilities.TranslateSoftwareToCPE(ctx, ds, vulnPath, logger)
