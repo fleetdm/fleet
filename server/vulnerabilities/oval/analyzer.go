@@ -14,7 +14,6 @@ import (
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	oval_parsed "github.com/fleetdm/fleet/v4/server/vulnerabilities/oval/parsed"
-	"github.com/hashicorp/go-multierror"
 )
 
 const (
@@ -41,8 +40,6 @@ func Analyze(
 		return nil, err
 	}
 
-	var errR error
-
 	// Since hosts and software have a M:N relationship, the following sets are used to
 	// avoid doing duplicated inserts/delete operations (a vulnerable software might be
 	// present in many hosts).
@@ -55,8 +52,7 @@ func Analyze(
 		offset += hostsBatchSize
 
 		if err != nil {
-			errR = multierror.Append(errR, err)
-			continue
+			return nil, err
 		}
 
 		if len(hIds) == 0 {
@@ -67,16 +63,14 @@ func Analyze(
 		for _, hId := range hIds {
 			software, err := ds.ListSoftwareForVulnDetection(ctx, hId)
 			if err != nil {
-				errR = multierror.Append(errR, err)
-				continue
+				return nil, err
 			}
 			foundInBatch[hId] = defs.Eval(software)
 		}
 
 		existingInBatch, err := ds.ListSoftwareVulnerabilities(ctx, hIds)
 		if err != nil {
-			errR = multierror.Append(errR, err)
-			continue
+			return nil, err
 		}
 
 		for _, hId := range hIds {
@@ -92,30 +86,34 @@ func Analyze(
 		}
 	}
 
-	batchProcess(toDeleteSet, func(v []fleet.SoftwareVulnerability) {
-		if err := ds.DeleteVulnerabilitiesByCPECVE(ctx, v); err != nil {
-			errR = multierror.Append(errR, err)
-		}
+	err = batchProcess(toDeleteSet, func(v []fleet.SoftwareVulnerability) error {
+		return ds.DeleteVulnerabilitiesByCPECVE(ctx, v)
 	})
+	if err != nil {
+		return nil, err
+	}
 
 	inserted := make([]fleet.SoftwareVulnerability, 0, len(toInsertSet))
-	batchProcess(toInsertSet, func(v []fleet.SoftwareVulnerability) {
+	err = batchProcess(toInsertSet, func(v []fleet.SoftwareVulnerability) error {
 		if _, err := ds.InsertVulnerabilities(ctx, v, fleet.OVAL); err != nil {
-			errR = multierror.Append(errR, err)
-		} else {
-			inserted = append(inserted, v...)
+			return err
 		}
+		inserted = append(inserted, v...)
+		return nil
 	})
+	if err != nil {
+		return nil, err
+	}
 
-	return inserted, errR
+	return inserted, nil
 }
 
 func batchProcess(
 	values map[string]fleet.SoftwareVulnerability,
-	dsFunc func(v []fleet.SoftwareVulnerability),
-) {
+	dsFunc func(v []fleet.SoftwareVulnerability) error,
+) error {
 	if len(values) == 0 {
-		return
+		return nil
 	}
 
 	bSize := vulnBatchSize
@@ -124,17 +122,20 @@ func batchProcess(
 	}
 
 	buffer := make([]fleet.SoftwareVulnerability, bSize)
-
 	var offset, i int
 	for _, v := range values {
 		buffer[offset] = v
 		offset++
 		i++
 		if offset == bSize || i >= len(values) {
-			dsFunc(buffer[:offset])
+			err := dsFunc(buffer[:offset])
+			if err != nil {
+				return err
+			}
 			offset = 0
 		}
 	}
+	return nil
 }
 
 // vulnsDelta compares what vulnerabilities already exists with what new vulnerabilities were found
