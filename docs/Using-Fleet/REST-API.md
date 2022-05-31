@@ -17,7 +17,6 @@
 - [Teams](#teams)
 - [Translator](#translator)
 - [Users](#users)
-- [Devices](#devices)
 
 ## Overview
 
@@ -6359,51 +6358,6 @@ Deletes the selected user's sessions in Fleet. Also deletes the user's API token
 ##### Default response
 
 `Status: 200`
-
-## Devices
-
-- [List all software](#list-all-software)
-- [List device policies](#list-device-policies)
-
-### List device policies
-
-_Available in Fleet Premium_
-
-`GET /api/_version_/fleet/device/{token}/policies`
-
-#### Parameters
-
-None.
-
-#### Example
-
-`GET /api/latest/fleet/device/880e301e-e6c1-4ffa-ab59-1ecfbae34035/policies`
-
-##### Default response
-
-`Status: 200`
-
-```json
-{
-  "policies": [
-    {
-      "id": 3,
-      "name": "Antivirus healthy (Linux)",
-      "query": "SELECT score FROM (SELECT case when COUNT(*) = 2 then 1 ELSE 0 END AS score FROM processes WHERE (name = 'clamd') OR (name = 'freshclam')) WHERE score == 1;",
-      "description": "Checks that both ClamAV's daemon and its updater service (freshclam) are running.",
-      "author_id": 1,
-      "author_name": "Admin",
-      "author_email": "admin@example.com",
-      "team_id": null,
-      "resolution": "Ensure ClamAV and Freshclam are installed and running.",
-      "platform": "linux",
-      "created_at": "2022-05-23T20:53:36Z",
-      "updated_at": "2022-05-23T20:53:36Z",
-      "response": "fail"
-    }
-  ]
-}
-```
 
 ## Debug
 
