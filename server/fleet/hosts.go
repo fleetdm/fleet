@@ -131,11 +131,14 @@ type Host struct {
 
 	HostIssues `json:"issues,omitempty" csv:"-"`
 
-	DeviceMapping *json.RawMessage `json:"device_mapping,omitempty" db:"device_mapping" csv:"device_mapping"`
+	// DeviceMapping is in fact included in the CSV export, but it is not directly
+	// encoded from this column, it is processed before marshaling, hence why the
+	// struct tag here has csv:"-".
+	DeviceMapping *json.RawMessage `json:"device_mapping,omitempty" db:"device_mapping" csv:"-"`
 }
 
 type HostIssues struct {
-	TotalIssuesCount     int `json:"total_issues_count" db:"total_issues_count" csv:"-"`
+	TotalIssuesCount     int `json:"total_issues_count" db:"total_issues_count" csv:"issues"` // when exporting in CSV, we want that value as the "issues" column
 	FailingPoliciesCount int `json:"failing_policies_count" db:"failing_policies_count" csv:"-"`
 }
 
@@ -185,6 +188,7 @@ type HostSummaryPlatform struct {
 func (h *Host) Status(now time.Time) HostStatus {
 	// The logic in this function should remain synchronized with
 	// GenerateHostStatusStatistics and CountHostsInTargets
+	// NOTE: As of Fleet 4.15 StatusMIA is deprecated and will be removed in Fleet 5.0
 
 	onlineInterval := h.ConfigTLSRefresh
 	if h.DistributedInterval < h.ConfigTLSRefresh {
@@ -195,8 +199,6 @@ func (h *Host) Status(now time.Time) HostStatus {
 	onlineInterval += OnlineIntervalBuffer
 
 	switch {
-	case h.SeenTime.Add(MIADuration).Before(now):
-		return StatusMIA
 	case h.SeenTime.Add(time.Duration(onlineInterval) * time.Second).Before(now):
 		return StatusOffline
 	default:

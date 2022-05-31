@@ -121,8 +121,8 @@ func newError(ctx context.Context, msg string, cause error, data map[string]inte
 }
 
 func wrapError(ctx context.Context, msg string, cause error, data map[string]interface{}) error {
-	if msg == "" || cause == nil {
-		return cause
+	if cause == nil {
+		return nil
 	}
 
 	stack := newStack(2)
@@ -187,7 +187,7 @@ func Cause(err error) error {
 // FleetCause is similar to Cause, but returns the root-most
 // FleetError in the chain
 func FleetCause(err error) *FleetError {
-	var ferr, aux *FleetError = nil, nil
+	var ferr, aux *FleetError
 	var ok bool
 
 	for err != nil {

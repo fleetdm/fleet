@@ -275,20 +275,6 @@
     .section {
       margin-top: $pad-medium;
     }
-
-    .fail-count {
-      background-color: $ui-error;
-      border-radius: 45%;
-      color: $core-white;
-      display: inline-block;
-      padding: 0 10px;
-      font-size: 0.75rem;
-      font-weight: bold;
-      line-height: 1.75;
-      margin: 0 8px -8px 0;
-      position: relative;
-      top: -1px;
-    }
   }
 
   .col-50 {
@@ -315,8 +301,7 @@
       }
     }
 
-    &--offline,
-    &--mia {
+    &--offline {
       &:before {
         background-color: $ui-fleet-black-25;
         border-radius: 100%;
@@ -326,10 +311,6 @@
         margin-right: $pad-small;
         width: 8px;
       }
-    }
-
-    &--mia {
-      text-transform: uppercase;
     }
   }
 
@@ -394,8 +375,8 @@
     text-align: center;
   }
 
-  &__device-mapping {
-    .device-user-tooltip {
+  &__device_mapping {
+    .device_mapping--tooltip {
       flex-direction: column;
       justify-content: start;
       text-align: left;

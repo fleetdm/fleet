@@ -5,8 +5,6 @@ import ReactTooltip from "react-tooltip";
 import { IMDMData, IMunkiData, IDeviceUser } from "interfaces/host";
 import { humanHostUptime, humanHostEnrolled } from "utilities/helpers";
 
-const baseClass = "host-summary";
-
 interface IAboutProps {
   aboutData: { [key: string]: any };
   deviceMapping?: IDeviceUser[];
@@ -81,48 +79,44 @@ const About = ({
   };
 
   const renderDeviceUser = () => {
-    const numUsers = deviceMapping?.length;
-    if (numUsers) {
-      return (
-        <div className="info-grid__block">
-          <span className="info-grid__header">Used by</span>
-          <span className="info-grid__data">
-            {numUsers === 1 && deviceMapping ? (
-              deviceMapping[0].email || "---"
-            ) : (
-              <span className={`${baseClass}__device-mapping`}>
-                <span
-                  className="device-user"
-                  data-tip
-                  data-for="device-user-tooltip"
-                >
-                  {`${numUsers} users`}
-                </span>
-                <ReactTooltip
-                  place="top"
-                  type="dark"
-                  effect="solid"
-                  id="device-user-tooltip"
-                  backgroundColor="#3e4771"
-                >
-                  <div
-                    className={`${baseClass}__tooltip-text device-user-tooltip`}
-                  >
-                    {deviceMapping &&
-                      deviceMapping.map((user: any, i: number, arr: any) => (
-                        <span key={user.email}>{`${user.email}${
-                          i < arr.length - 1 ? ", " : ""
-                        }`}</span>
-                      ))}
-                  </div>
-                </ReactTooltip>
-              </span>
-            )}
-          </span>
-        </div>
-      );
+    if (!deviceMapping) {
+      return null;
     }
-    return null;
+
+    const numUsers = deviceMapping.length;
+    const tooltipText = deviceMapping.map((d) => (
+      <span key={Math.random().toString().slice(2)}>
+        {d.email}
+        <br />
+      </span>
+    ));
+
+    return (
+      <div className="info-grid__block">
+        <span className="info-grid__header">Used by</span>
+        <span className="info-grid__data">
+          {numUsers > 1 ? (
+            <>
+              <span data-tip data-for={`device_mapping`}>
+                {`${numUsers} users`}
+              </span>
+              <ReactTooltip
+                place="top"
+                type="dark"
+                effect="solid"
+                backgroundColor="#3e4771"
+                id={`device_mapping`}
+                data-html
+              >
+                <span className={`tooltip__tooltip-text`}>{tooltipText}</span>
+              </ReactTooltip>
+            </>
+          ) : (
+            deviceMapping[0].email || "---"
+          )}
+        </span>
+      </div>
+    );
   };
 
   const renderGeolocation = () => {

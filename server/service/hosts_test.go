@@ -72,7 +72,7 @@ func TestHostAuth(t *testing.T) {
 		}
 		return globalHost, nil
 	}
-	ds.HostFunc = func(ctx context.Context, id uint, skipLoadingExtras bool) (*fleet.Host, error) {
+	ds.HostFunc = func(ctx context.Context, id uint) (*fleet.Host, error) {
 		if id == 1 {
 			return teamHost, nil
 		}
@@ -183,16 +183,16 @@ func TestHostAuth(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			ctx := viewer.NewContext(context.Background(), viewer.Viewer{User: tt.user})
 
-			_, err := svc.GetHost(ctx, 1, false)
+			_, err := svc.GetHost(ctx, 1)
 			checkAuthErr(t, tt.shouldFailTeamRead, err)
 
-			_, err = svc.HostByIdentifier(ctx, "1", false)
+			_, err = svc.HostByIdentifier(ctx, "1")
 			checkAuthErr(t, tt.shouldFailTeamRead, err)
 
-			_, err = svc.GetHost(ctx, 2, false)
+			_, err = svc.GetHost(ctx, 2)
 			checkAuthErr(t, tt.shouldFailGlobalRead, err)
 
-			_, err = svc.HostByIdentifier(ctx, "2", false)
+			_, err = svc.HostByIdentifier(ctx, "2")
 			checkAuthErr(t, tt.shouldFailGlobalRead, err)
 
 			err = svc.DeleteHost(ctx, 1)
@@ -253,7 +253,7 @@ func TestGetHostSummary(t *testing.T) {
 	ds.GenerateHostStatusStatisticsFunc = func(ctx context.Context, filter fleet.TeamFilter, now time.Time, platform *string) (*fleet.HostSummary, error) {
 		return &fleet.HostSummary{
 			OnlineCount:      1,
-			OfflineCount:     2,
+			OfflineCount:     5, // offline hosts also includes mia hosts as of Fleet 4.15
 			MIACount:         3,
 			NewCount:         4,
 			TotalsHostsCount: 5,
@@ -268,7 +268,7 @@ func TestGetHostSummary(t *testing.T) {
 	require.NoError(t, err)
 	require.Nil(t, summary.TeamID)
 	require.Equal(t, uint(1), summary.OnlineCount)
-	require.Equal(t, uint(2), summary.OfflineCount)
+	require.Equal(t, uint(5), summary.OfflineCount)
 	require.Equal(t, uint(3), summary.MIACount)
 	require.Equal(t, uint(4), summary.NewCount)
 	require.Equal(t, uint(5), summary.TotalsHostsCount)

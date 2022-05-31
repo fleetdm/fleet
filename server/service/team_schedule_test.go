@@ -108,7 +108,7 @@ func TestTeamScheduleAuth(t *testing.T) {
 			_, err := svc.GetTeamScheduledQueries(ctx, 1, fleet.ListOptions{})
 			checkAuthErr(t, tt.shouldFailRead, err)
 
-			_, err = svc.TeamScheduleQuery(ctx, 1, &fleet.ScheduledQuery{})
+			_, err = svc.TeamScheduleQuery(ctx, 1, &fleet.ScheduledQuery{Interval: 10})
 			checkAuthErr(t, tt.shouldFailWrite, err)
 
 			_, err = svc.ModifyTeamScheduledQueries(ctx, 1, 99, fleet.ScheduledQueryPayload{})

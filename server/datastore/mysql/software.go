@@ -415,17 +415,13 @@ func selectSoftwareSQL(opts fleet.SoftwareListOptions) (string, []interface{}, e
 			"s.arch",
 			"scv.cpe_id", // for join on sub query
 			goqu.COALESCE(goqu.I("scp.cpe"), "").As("generated_cpe"),
+		).
+		Join( // filter software that is not associated with any hosts
+			goqu.I("host_software").As("hs"),
+			goqu.On(
+				goqu.I("hs.software_id").Eq(goqu.I("s.id")),
+			),
 		)
-
-	if opts.HostID != nil || opts.TeamID != nil {
-		ds = ds.
-			Join(
-				goqu.I("host_software").As("hs"),
-				goqu.On(
-					goqu.I("hs.software_id").Eq(goqu.I("s.id")),
-				),
-			)
-	}
 
 	if opts.HostID != nil {
 		ds = ds.
@@ -454,7 +450,9 @@ func selectSoftwareSQL(opts fleet.SoftwareListOptions) (string, []interface{}, e
 			).
 			Join(
 				goqu.I("software_cve").As("scv"),
-				goqu.On(goqu.I("scp.id").Eq(goqu.I("scv.cpe_id"))),
+				goqu.On(
+					goqu.I("scp.id").Eq(goqu.I("scv.cpe_id")),
+				),
 			)
 	} else {
 		ds = ds.
@@ -778,6 +776,12 @@ func (ds *Datastore) SoftwareByID(ctx context.Context, id uint, includeCVEScores
 			"s.arch",
 			"scv.cve",
 		).
+		Join( // filter software that is not associated with any hosts
+			goqu.I("host_software").As("hs"),
+			goqu.On(
+				goqu.I("hs.software_id").Eq(goqu.I("s.id")),
+			),
+		).
 		LeftJoin(
 			goqu.I("software_cpe").As("scp"),
 			goqu.On(
@@ -976,7 +980,7 @@ func (ds *Datastore) CalculateHostsPerSoftware(ctx context.Context, updatedAt ti
 // matching hosts.
 func (ds *Datastore) HostsByCPEs(ctx context.Context, cpes []string) ([]*fleet.HostShort, error) {
 	queryStmt := `
-    SELECT
+    SELECT DISTINCT
       h.id,
       h.hostname
     FROM
