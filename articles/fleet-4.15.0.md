@@ -33,6 +33,8 @@ With Fleet Desktop installed on a host, the end-user can navigate to the **Trans
 
 The end-user also has access to information about their laptop's disk space, memory, last restarted time, installed software, and more. The end-user can quickly reach this information by selecting the Fleet icon in their menu bar and selecting **My device**.
 
+Fleet Desktop is currently in beta. Check out the remaining work to bring Fleet Desktop out of beta [here on GitHub](https://github.com/fleetdm/fleet/issues/5684).
+
 ## Zendesk integration
 **Available in Fleet Free & Fleet Premium**
 
