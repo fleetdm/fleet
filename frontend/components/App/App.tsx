@@ -72,7 +72,12 @@ const App = ({ children, location, router }: IAppProps): JSX.Element => {
       if (!location?.pathname.includes("/login/reset")) {
         console.log(error);
         local.removeItem("auth_token");
-        window.location.href = "/login";
+
+        // if this is not the device user page,
+        // redirect to login
+        if (!location?.pathname.includes("/device")) {
+          window.location.href = "/login";
+        }
       }
     }
     return true;
