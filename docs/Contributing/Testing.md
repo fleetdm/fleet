@@ -273,7 +273,7 @@ docker-compose exec mysql mysql -uroot -ptoor -Dfleet
 Connect to the `redis-cli` in REPL mode to view and interact directly with the contents stored in Redis.
 
 ```
-docker-compose exec Redis redis-cli
+docker-compose exec redis redis-cli
 ```
 
 ## Testing SSO
