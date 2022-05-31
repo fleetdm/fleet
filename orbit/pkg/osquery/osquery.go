@@ -172,7 +172,7 @@ func (r *Runner) Execute() error {
 func (r *Runner) Interrupt(err error) {
 	log.Debug().Err(err).Msg("interrupt osquery")
 	if cancel := r.getCancel(); cancel != nil {
-		r.cancel()
+		cancel()
 	}
 }
 
