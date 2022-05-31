@@ -7,7 +7,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
-	"path"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -28,7 +28,7 @@ func TestCPEFromSoftware(t *testing.T) {
 	items, err := cpedict.Decode(strings.NewReader(XmlCPETestDict))
 	require.NoError(t, err)
 
-	dbPath := path.Join(tempDir, "cpe.sqlite")
+	dbPath := filepath.Join(tempDir, "cpe.sqlite")
 
 	err = GenerateCPEDB(dbPath, items)
 	require.NoError(t, err)
@@ -63,7 +63,7 @@ func TestSyncCPEDatabase(t *testing.T) {
 	err := DownloadCPEDatabase(tempDir, client)
 	require.NoError(t, err)
 
-	dbPath := path.Join(tempDir, "cpe.sqlite")
+	dbPath := filepath.Join(tempDir, "cpe.sqlite")
 	db, err := sqliteDB(dbPath)
 	require.NoError(t, err)
 
@@ -180,7 +180,7 @@ func TestTranslateSoftwareToCPE(t *testing.T) {
 	items, err := cpedict.Decode(strings.NewReader(XmlCPETestDict))
 	require.NoError(t, err)
 
-	dbPath := path.Join(tempDir, "cpe.sqlite")
+	dbPath := filepath.Join(tempDir, "cpe.sqlite")
 	err = GenerateCPEDB(dbPath, items)
 	require.NoError(t, err)
 
@@ -209,7 +209,7 @@ func TestSyncsCPEFromURL(t *testing.T) {
 	err := DownloadCPEDatabase(tempDir, client, WithCPEURL(ts.URL+"/hello-world.gz"))
 	require.NoError(t, err)
 
-	dbPath := path.Join(tempDir, "cpe.sqlite")
+	dbPath := filepath.Join(tempDir, "cpe.sqlite")
 	stored, err := ioutil.ReadFile(dbPath)
 	require.NoError(t, err)
 	assert.Equal(t, "Hello world!", string(stored))

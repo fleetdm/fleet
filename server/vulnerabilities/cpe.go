@@ -7,7 +7,6 @@ import (
 	"net/http"
 	"net/url"
 	"os"
-	"path"
 	"path/filepath"
 	"regexp"
 	"strings"
@@ -224,7 +223,7 @@ func TranslateSoftwareToCPE(
 	vulnPath string,
 	logger kitlog.Logger,
 ) error {
-	dbPath := path.Join(vulnPath, cpeDatabaseFilename)
+	dbPath := filepath.Join(vulnPath, cpeDatabaseFilename)
 
 	iterator, err := ds.AllSoftwareWithoutCPEIterator(ctx)
 	if err != nil {
