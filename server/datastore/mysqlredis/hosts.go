@@ -120,17 +120,21 @@ func (d *datastore) DeleteHosts(ctx context.Context, ids []uint) error {
 }
 
 func (d *datastore) CleanupExpiredHosts(ctx context.Context) ([]uint, error) {
-	if d.enforceHostLimit > 0 {
+	ids, err := d.Datastore.CleanupExpiredHosts(ctx)
+	if err == nil && d.enforceHostLimit > 0 {
+		if err := d.removeHosts(ctx, ids...); err != nil {
+			logging.WithErr(ctx, err)
+		}
 	}
-	// TODO: change the signature to return IDs of deleted hosts.
-	// TODO: SREM host ids after successful call
-	return d.Datastore.CleanupExpiredHosts(ctx)
+	return ids, err
 }
 
 func (d *datastore) CleanupIncomingHosts(ctx context.Context, now time.Time) ([]uint, error) {
-	if d.enforceHostLimit > 0 {
+	ids, err := d.Datastore.CleanupIncomingHosts(ctx, now)
+	if err == nil && d.enforceHostLimit > 0 {
+		if err := d.removeHosts(ctx, ids...); err != nil {
+			logging.WithErr(ctx, err)
+		}
 	}
-	// TODO: change the signature to return IDs of deleted hosts.
-	// TODO: SREM host ids after successful call
-	return d.Datastore.CleanupIncomingHosts(ctx, now)
+	return ids, err
 }
