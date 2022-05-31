@@ -1,6 +1,13 @@
-import { IHost } from "interfaces/host";
-import { ILabel, ILabelSummary } from "interfaces/label";
-import { ITeam } from "interfaces/team";
+import PropTypes from "prop-types";
+import hostInterface, { IHost } from "interfaces/host";
+import labelInterface, { ILabel, ILabelSummary } from "interfaces/label";
+import teamInterface, { ITeam } from "interfaces/team";
+
+export default PropTypes.oneOfType([
+  hostInterface,
+  labelInterface,
+  teamInterface,
+]);
 
 export type ITarget = IHost | ILabel | ITeam;
 export interface ITargets {
