@@ -62,14 +62,14 @@ func TestDatastoreReplica(t *testing.T) {
 		require.NotNil(t, host)
 
 		// trying to read it fails, not replicated yet
-		_, err = ds.Host(context.Background(), host.ID, false)
+		_, err = ds.Host(context.Background(), host.ID)
 		require.Error(t, err)
 		require.True(t, errors.Is(err, sql.ErrNoRows))
 
 		opts.RunReplication()
 
 		// now it can read it
-		host2, err := ds.Host(context.Background(), host.ID, false)
+		host2, err := ds.Host(context.Background(), host.ID)
 		require.NoError(t, err)
 		require.Equal(t, host.ID, host2.ID)
 	})

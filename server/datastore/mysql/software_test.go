@@ -36,6 +36,7 @@ func TestSoftware(t *testing.T) {
 		{"ListVulnerableSoftwareBySource", testListVulnerableSoftwareBySource},
 		{"DeleteVulnerabilitiesByCPECVE", testDeleteVulnerabilitiesByCPECVE},
 		{"HostsByCVE", testHostsByCVE},
+		{"HostsByCPEs", testHostsByCPEs},
 		{"UpdateHostSoftware", testUpdateHostSoftware},
 		{"ListSoftwareByHostIDShort", testListSoftwareByHostIDShort},
 	}
@@ -863,21 +864,8 @@ func testSoftwareCalculateHostsPerSoftware(t *testing.T, ds *Datastore) {
 	_, err = ds.writer.ExecContext(ctx, `INSERT INTO software (name, version, source) VALUES ('baz', '0.0.1', 'testing')`)
 	require.NoError(t, err)
 
-	// listing without the counts gets that new software entry
-	allSw := listSoftwareCheckCount(t, ds, 4, 4, fleet.SoftwareListOptions{}, false)
-	want = []fleet.Software{
-		{Name: "foo", Version: "0.0.3", HostsCount: 0},
-		{Name: "foo", Version: "0.0.1", HostsCount: 0},
-		{Name: "foo", Version: "v0.0.2", HostsCount: 0},
-		{Name: "baz", Version: "0.0.1", HostsCount: 0},
-	}
-	cmpNameVersionCount(want, allSw)
-
-	// after a call to Calculate, the unused software entry is removed
-	err = ds.CalculateHostsPerSoftware(ctx, time.Now())
-	require.NoError(t, err)
-
-	allSw = listSoftwareCheckCount(t, ds, 3, 3, fleet.SoftwareListOptions{}, false)
+	// listing does not return the new software entry
+	allSw := listSoftwareCheckCount(t, ds, 3, 3, fleet.SoftwareListOptions{}, false)
 	want = []fleet.Software{
 		{Name: "foo", Version: "0.0.3", HostsCount: 0},
 		{Name: "foo", Version: "0.0.1", HostsCount: 0},
@@ -1168,6 +1156,34 @@ func testHostsByCVE(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.Len(t, hosts, 1)
 	require.Equal(t, hosts[0].Hostname, "host2")
+}
+
+func testHostsByCPEs(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+
+	hosts, err := ds.HostsByCPEs(ctx, []string{"cpe_foo_chrome_3"})
+	require.NoError(t, err)
+	require.Len(t, hosts, 0)
+
+	insertVulnSoftwareForTest(t, ds)
+
+	hosts, err = ds.HostsByCPEs(ctx, []string{"cpe_foo_chrome_3"})
+	require.NoError(t, err)
+	require.Len(t, hosts, 2)
+	require.Equal(t, hosts[0].Hostname, "host1")
+	require.Equal(t, hosts[1].Hostname, "host2")
+
+	hosts, err = ds.HostsByCPEs(ctx, []string{"cpe_bar_rpm"})
+	require.NoError(t, err)
+	require.Len(t, hosts, 1)
+	require.Equal(t, hosts[0].Hostname, "host2")
+
+	// Duplicates should not be returned if cpes are found on the same host ie host2 should only appear once
+	hosts, err = ds.HostsByCPEs(ctx, []string{"cpe_foo_chrome_3", "cpe_bar_rpm"})
+	require.NoError(t, err)
+	require.Len(t, hosts, 2)
+	require.Equal(t, hosts[0].Hostname, "host1")
+	require.Equal(t, hosts[1].Hostname, "host2")
 }
 
 func testUpdateHostSoftware(t *testing.T, ds *Datastore) {

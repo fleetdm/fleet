@@ -223,7 +223,7 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte) (*fleet.AppCo
 			}
 		}
 		appConfig.SMTPSettings.SMTPConfigured = true
-	} else if appConfig.SMTPSettings.SMTPEnabled {
+	} else {
 		appConfig.SMTPSettings.SMTPConfigured = false
 	}
 
