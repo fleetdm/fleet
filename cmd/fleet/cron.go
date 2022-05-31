@@ -328,7 +328,7 @@ func checkOvalVulnerabilities(
 		start := time.Now()
 		_, err := oval.Analyze(ctx, ds, version, vulnPath)
 		elapsed := time.Since(start)
-		level.Debug(logger).Log("msg", "oval-analysis-done", "platfrom", version.Name, "elapsed", elapsed)
+		level.Debug(logger).Log("msg", "oval-analysis-done", "platform", version.Name, "elapsed", elapsed)
 
 		if err != nil {
 			level.Error(logger).Log("msg", "analyzing oval definitions", "err", err)
