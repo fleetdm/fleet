@@ -8,7 +8,7 @@ An evolving product inherently needs versioning. Most products create a new vers
 the API will work differently in that regard, as new additions to the API won't increase the version.
 
 Fleet will use new versions for breaking changes and deprecating APIs. We 
-release a new version of the API only when a breaking change is introduced.
+release a new version of the API only when introducing a breaking change.
 
 ## What kind of versioning will we use for the API?
 
@@ -18,7 +18,7 @@ The format for the API version we've chosen is that of a date with the following
 <year>-<month>
 ```
 
-The date is chosen based on the month the breaking change was introduced.
+The date is chosen based on the month we introduce the breaking change.
 
 ## Why is v1 still available at the time of this writing?
 
@@ -28,7 +28,7 @@ exception in the logic in the Go code while it exists.
 
 ## Why not semantic versioning?
 
-Semantic versioning is great and we are using it in Fleet itself. However, it doesn't necessarily work for APIs since we 
+Semantic versioning is great, and we are using it in Fleet itself. However, it doesn't necessarily work for APIs since we 
 will not be releasing a new version with every addition, just with breaking changes. So it doesn't align with our 
 needs at the API level.
 
@@ -39,11 +39,11 @@ Fleet will have a new release for the API.
 
 ## How long do I have until you remove a deprecated API?
 
-6 months after the new release has been available.
+Six months after the new release has been available.
 
 ## How are breaking changes introduced? (Mostly for developers)
 
-Let's use an example. In `handler.go` we have the following endpoint:
+Let's use an example. In `handler.go`, we have the following endpoint:
 
 ```go
 e := NewUserAuthenticatedEndpointer(svc, opts, r, "v1", "2021-11")

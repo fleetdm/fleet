@@ -370,6 +370,9 @@
 
     [purpose='content'] {
 
+      .markdown-heading {
+        scroll-margin-top: 55px;
+      }
       hr {
         margin: 0px;
         padding: 0px;
@@ -501,7 +504,7 @@
       [purpose='next-steps-button'] {
         font-size: 16px;
         line-height: 25px;
-        padding: 16px 32px;
+        padding: 20px;
         img {
           display: inline;
           height: 24px;
@@ -510,6 +513,13 @@
           padding-bottom: 0px;
           margin: 0px;
         }
+      }
+      [purpose='slack-cta'] {
+        padding-top: 40px;
+        padding-bottom: 40px;
+        margin-bottom: 40px;
+        border-top: 1px solid @core-fleet-black-25;
+        border-bottom: 1px solid @core-fleet-black-25;
       }
 
     }
@@ -539,32 +549,60 @@
 
       }
 
+      .header-hidden { // For scrolling the sidebars with the sticky header
+        transform: translateY(-60px);
+        max-height: calc(~'100vh - 80px');
+      }
+      .scrolled:not(.header-hidden) { // For when the page has been scrolled and the header is visible
+        max-height: calc(~'100vh - 170px');
+      }
+      [purpose='left-sidebar'] {
+        position: sticky;
+        top: 118px;
+        height: fit-content;
+        overflow-y: auto;
+        transition-property: all;
+        transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+        transition-duration: 500ms;
+        &:not(.scrolled) {
+          max-height: calc(~'100vh - 205px'); // Using a calculated max-height to allow the sidebars to be fully scrollable before the content is scrolled.
+        }
+      }
+
       [purpose='right-sidebar'] {
+        p {
+          line-height: 21px;
+        }
         min-width: 190px;
         max-width: 210px;
         position: sticky;
-        top: 94px;
+        top: 118px;
         height: fit-content;
+        overflow-y: auto;
+        transition-property: all;
+        transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+        transition-duration: 500ms;
+
         [purpose='subtopics'] {
-          max-height: calc(~'80vh - 90px'); //To prevent the sidenav being anchored to the bottom of the page if it has overflow.
+          max-height: 100vh;
           overflow-y: auto;
           color: @core-fleet-black;
           padding-top: 4px;
           padding-bottom: 4px;
           border-left: 1px solid @core-vibrant-blue-25;
-
           a {
             color: @core-fleet-black;
             text-decoration: none;
-
             &:hover {
               color: @core-vibrant-blue;
             }
-
           }
-
         }
-
+        &:not(.scrolled) {
+          [purpose='subtopics'] {
+            max-height: calc(~'100vh - 225px'); // Using a calculated max-height to allow the sidebars to be fully scrollable before the content is scrolled.
+          }
+        }
       }
 
       [purpose='content'] {

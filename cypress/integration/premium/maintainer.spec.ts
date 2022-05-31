@@ -1,3 +1,7 @@
+import CONSTANTS from "../../support/constants";
+
+const { GOOD_PASSWORD } = CONSTANTS;
+
 describe("Premium tier - Maintainer user", () => {
   before(() => {
     Cypress.session.clearAllSavedSessions();
@@ -15,7 +19,7 @@ describe("Premium tier - Maintainer user", () => {
 
   describe("Global maintainer", () => {
     beforeEach(() => {
-      cy.loginWithCySession("mary@organization.com", "user123#");
+      cy.loginWithCySession("mary@organization.com", GOOD_PASSWORD);
     });
     describe("Navigation", () => {
       beforeEach(() => cy.visit("/dashboard"));

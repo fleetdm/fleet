@@ -123,9 +123,9 @@ describe("ChangePasswordForm - component", () => {
     render(<ChangePasswordForm {...props} />);
 
     const expectedFormData = {
-      old_password: "p@ssw0rd",
-      new_password: "p@ssw0rd1",
-      new_password_confirmation: "p@ssw0rd1",
+      old_password: "password123#",
+      new_password: "password123!",
+      new_password_confirmation: "password123!",
     };
 
     // when

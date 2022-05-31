@@ -158,8 +158,12 @@ const HostSummary = ({
             {titleData.status}
           </span>
         </div>
-        {!deviceUser &&
-          titleData.issues?.total_issues_count > 0 &&
+        {titleData.issues?.total_issues_count > 0 &&
+          deviceUser &&
+          isPremiumTier &&
+          renderIssues()}
+        {titleData.issues?.total_issues_count > 0 &&
+          !deviceUser &&
           renderIssues()}
         {!deviceUser && isPremiumTier && renderHostTeam()}
         <div className="info-flex__item info-flex__item--title">

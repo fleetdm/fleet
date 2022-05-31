@@ -75,7 +75,7 @@ Solutions for working on remote desktops can make critical use cases possible fr
 Supply chain issues will get better, but they will not disappear. Even if they did, the availability of laptops usually suffers when new models are released. By carefully allowing personal computers for some work, you can ensure your new hires can be productive and feel useful right away while balancing a growing organization’s security and productivity goals!
 
 
-<meta name="category" value="product">
+<meta name="category" value="security">
 <meta name="authorGitHubUsername" value="GuillaumeRoss">
 <meta name="authorFullName" value="Guillaume Ross">
 <meta name="publishedOn" value="2022-02-10">

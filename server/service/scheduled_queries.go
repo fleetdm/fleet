@@ -107,6 +107,12 @@ func (svc *Service) ScheduleQuery(ctx context.Context, sq *fleet.ScheduledQuery)
 }
 
 func (svc *Service) unauthorizedScheduleQuery(ctx context.Context, sq *fleet.ScheduledQuery) (*fleet.ScheduledQuery, error) {
+	if sq.Interval < 1 || sq.Interval > fleet.MaxScheduledQueryInterval {
+		return nil, ctxerr.Wrap(ctx, &badRequestError{
+			message: "invalid scheduled query interval",
+		})
+	}
+
 	// Fill in the name with query name if it is unset (because the UI
 	// doesn't provide a way to set it)
 	if sq.Name == "" {
@@ -129,6 +135,7 @@ func (svc *Service) unauthorizedScheduleQuery(ctx context.Context, sq *fleet.Sch
 		}
 		sq.QueryName = query.Name
 	}
+
 	return svc.ds.NewScheduledQuery(ctx, sq)
 }
 
@@ -222,6 +229,12 @@ func (svc *Service) ModifyScheduledQuery(ctx context.Context, id uint, p fleet.S
 }
 
 func (svc *Service) unauthorizedModifyScheduledQuery(ctx context.Context, id uint, p fleet.ScheduledQueryPayload) (*fleet.ScheduledQuery, error) {
+	if p.Interval != nil {
+		if *p.Interval < 1 || *p.Interval > fleet.MaxScheduledQueryInterval {
+			return nil, ctxerr.New(ctx, "invalid scheduled query interval")
+		}
+	}
+
 	sq, err := svc.ds.ScheduledQuery(ctx, id)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "getting scheduled query to modify")

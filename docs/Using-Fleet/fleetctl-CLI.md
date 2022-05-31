@@ -453,6 +453,6 @@ This will generate a `tar.gz` file with:
 
 - `prof` archives that can be inspected via `go tools pprof <archive_name_here>`.
 - A file containing a set of all the errors that happened in the server during the interval of time defined by the [logging_error_retention_period](../Deploying/Configuration.md#logging-error-retention-period) configuration.
-- Files containing database specific information.
+- Files containing database-specific information.
 
 <meta name="pageOrderInSection" value="300">

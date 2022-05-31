@@ -1,3 +1,7 @@
+import CONSTANTS from "../../support/constants";
+
+const { GOOD_PASSWORD } = CONSTANTS;
+
 const getConfig = {
   org_info: {
     org_name: "Fleet Test",
@@ -286,7 +290,7 @@ describe(
     });
     describe("Navigation", () => {
       beforeEach(() => {
-        cy.loginWithCySession("anna@organization.com", "user123#");
+        cy.loginWithCySession("anna@organization.com", GOOD_PASSWORD);
         cy.visit("/dashboard");
       });
       it("displays intended admin top navigation", () => {
@@ -313,7 +317,7 @@ describe(
     });
     describe("Dashboard", () => {
       beforeEach(() => {
-        cy.loginWithCySession("anna@organization.com", "user123#");
+        cy.loginWithCySession("anna@organization.com", GOOD_PASSWORD);
         cy.visit("/dashboard");
       });
       it("displays cards for all platforms", () => {
@@ -412,7 +416,7 @@ describe(
     });
     describe("Manage hosts page", () => {
       beforeEach(() => {
-        cy.loginWithCySession("anna@organization.com", "user123#");
+        cy.loginWithCySession("anna@organization.com", GOOD_PASSWORD);
         cy.visit("/hosts/manage");
       });
       it("verifies teams is disabled on Manage Host page", () => {
@@ -435,7 +439,7 @@ describe(
     });
     describe("Host details tests", () => {
       beforeEach(() => {
-        cy.loginWithCySession("anna@organization.com", "user123#");
+        cy.loginWithCySession("anna@organization.com", GOOD_PASSWORD);
         cy.visit("/hosts/1");
       });
       it("verifies teams is disabled on Host Details page", () => {
@@ -459,7 +463,7 @@ describe(
     });
     describe("Manage software page", () => {
       beforeEach(() => {
-        cy.loginWithCySession("anna@organization.com", "user123#");
+        cy.loginWithCySession("anna@organization.com", GOOD_PASSWORD);
         cy.intercept("GET", "/api/latest/fleet/config", getConfig).as(
           "getIntegrations"
         );
@@ -586,7 +590,7 @@ describe(
     });
     describe("Query pages", () => {
       beforeEach(() => {
-        cy.loginWithCySession("anna@organization.com", "user123#");
+        cy.loginWithCySession("anna@organization.com", GOOD_PASSWORD);
         cy.visit("/queries/manage");
       });
       it("allows admin add a new query", () => {
@@ -637,7 +641,7 @@ describe(
     });
     describe("Manage policies page", () => {
       beforeEach(() => {
-        cy.loginWithCySession("anna@organization.com", "user123#");
+        cy.loginWithCySession("anna@organization.com", GOOD_PASSWORD);
         cy.visit("/policies/manage");
       });
       it("allows admin to click 'Manage automations' button", () => {
@@ -683,7 +687,7 @@ describe(
         return false;
       });
       beforeEach(() => {
-        cy.loginWithCySession("anna@organization.com", "user123#");
+        cy.loginWithCySession("anna@organization.com", GOOD_PASSWORD);
         cy.visit("/settings/users");
       });
       it("hides access team settings", () => {
@@ -727,7 +731,7 @@ describe(
     });
     describe("User profile page", () => {
       beforeEach(() => {
-        cy.loginWithCySession("anna@organization.com", "user123#");
+        cy.loginWithCySession("anna@organization.com", GOOD_PASSWORD);
         cy.visit("/profile");
       });
       it("verifies teams is disabled for the Profile page", () => {

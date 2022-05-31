@@ -249,7 +249,7 @@ We prefer to generate our REST API reference docs the good old-fashioned way. By
 ### Why handbook-first strategy?
 The Fleet handbook provides team members with up-to-date information about how to do things in the company. By adopting the handbook-first strategy, we can encourage a culture of self-service and self-learning, which is essential for daily a-synchronous work as part of an all-remote team.
 
-This strategy was inspired by GitHub, who use it to great effect. Check out this [short three-minute video](https://www.youtube.com/watch?v=aZrK8AQM8Ro) about their take on the handbook-first approach.
+This strategy was inspired by GitLab, which uses it with great effect. Check out this [short three-minute video](https://www.youtube.com/watch?v=aZrK8AQM8Ro) about their take on the handbook-first approach.
 
 
 
@@ -402,6 +402,14 @@ When Kolide's attention shifted away from Fleet and towards their separate, user
 ### 2020: Fleet was incorporated
 Zach partnered with our CEO, Mike McNeil, to found a new, independent company: Fleet Device Management Inc.  In November 2020, we [announced](https://medium.com/fleetdm/a-new-fleet-d4096c7de978) the transition and kicked off the logistics of moving the GitHub repository.
 
+## Email relays
+
+There are several special email addresses that automatically relay messages to the appropriate people at Fleet. Each email address meets a minimum response time ("Min RT"), expressed in business hours/days, and has a dedicated directly responsible individual (DRI) who is responsible for reading and replying to emails sent to that address.  You can see a list of those email addresses in ["Contacting Fleet" (private Google doc)](https://docs.google.com/document/d/1tE-NpNfw1icmU2MjYuBRib0VWBPVAdmq4NiCrpuI0F0/edit#).
+
+## Tools we use
+
+There are a number of tools that are used throughout Fleet. Some of these tools are used company-wide, while others are department specific. You can see a list of those tools in ["Tools we use" (private Google doc)](https://docs.google.com/spreadsheets/d/170qjzvyGjmbFhwS4Mucotxnw_JvyAjYv4qpwBrS6Gl8/edit?usp=sharing).
+
 ## GitHub labels
 
 We use special characters to define different types of GitHub labels. By combining labels, we
@@ -439,8 +447,5 @@ The following Slack channels are maintained by Fleet's founders and executive co
 | `#thanks`                   | N/A _(say thank you)_
 | `#random`                   | N/A _(be random)_
 
-## Email relays
-
-There are several special email addresses that automatically relay messages to the appropriate people at Fleet.  Each email address meets a minimum response time ("Min RT"), expressed in business hours / days, and has a dedicated directly responsible individual (DRI) who is responsible for reading and replying to emails sent to that address.  You can see a list of those email addresses in [Contacting Fleet (private Google doc)](https://docs.google.com/document/d/1tE-NpNfw1icmU2MjYuBRib0VWBPVAdmq4NiCrpuI0F0/edit#).
 
 <meta name="maintainedBy" value="mikermcneil">

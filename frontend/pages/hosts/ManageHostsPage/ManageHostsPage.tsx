@@ -478,7 +478,7 @@ const ManageHostsPage = ({
     if (options.sortBy) {
       delete options.sortBy;
     }
-    retrieveHostCount(options);
+    retrieveHostCount(omit(options, "device_mapping"));
   };
 
   let teamSync = false;
@@ -519,6 +519,7 @@ const ManageHostsPage = ({
       softwareId,
       page: tableQueryData ? tableQueryData.pageIndex : 0,
       perPage: tableQueryData ? tableQueryData.pageSize : 100,
+      device_mapping: true,
     };
 
     if (isEqual(options, currentQueryOptions)) {
@@ -526,7 +527,7 @@ const ManageHostsPage = ({
     }
     if (teamSync) {
       retrieveHosts(options);
-      retrieveHostCount(options);
+      retrieveHostCount(omit(options, "device_mapping"));
       setCurrentQueryOptions(options);
     }
   }, [availableTeams, currentTeam, location, labels]);
@@ -1279,6 +1280,27 @@ const ManageHostsPage = ({
   ) => {
     evt.preventDefault();
 
+    const hiddenColumnsStorage = localStorage.getItem("hostHiddenColumns");
+    let currentHiddenColumns = [];
+    let visibleColumns;
+    if (hiddenColumnsStorage) {
+      currentHiddenColumns = JSON.parse(hiddenColumnsStorage);
+    }
+
+    if (config && currentUser) {
+      const tableColumns = generateVisibleTableColumns(
+        currentHiddenColumns,
+        config,
+        currentUser,
+        currentTeam
+      );
+
+      const columnAccessors = tableColumns
+        .map((column) => (column.accessor ? column.accessor : ""))
+        .filter((element) => element);
+      visibleColumns = columnAccessors.join(",");
+    }
+
     let options = {
       selectedLabels: selectedFilters,
       globalFilter: searchQuery,
@@ -1287,6 +1309,7 @@ const ManageHostsPage = ({
       policyId,
       policyResponse,
       softwareId,
+      visibleColumns,
     };
 
     options = {
@@ -1329,17 +1352,19 @@ const ManageHostsPage = ({
         }`}
       >
         <span>{`${count} host${count === 1 ? "" : "s"}`}</span>
-        {/* Export all columns initially in 4.13 release but feature being pushed
-        back by product until we build client side filtering to export only selected columns
-        <Button
-          className={`${baseClass}__export-btn`}
-          onClick={onExportHostsResults}
-          variant="text-link"
-        >
-          <>
-            Export hosts <img alt="" src={DownloadIcon} />
-          </>
-        </Button> */}
+        {count ? (
+          <Button
+            className={`${baseClass}__export-btn`}
+            onClick={onExportHostsResults}
+            variant="text-link"
+          >
+            <>
+              Export hosts <img alt="" src={DownloadIcon} />
+            </>
+          </Button>
+        ) : (
+          <></>
+        )}
       </div>
     );
   }, [isHostCountLoading, filteredHostCount]);
@@ -1494,14 +1519,16 @@ const ManageHostsPage = ({
       },
     ];
 
+    const tableColumns = generateVisibleTableColumns(
+      hiddenColumns,
+      config,
+      currentUser,
+      currentTeam
+    );
+
     return (
       <TableContainer
-        columns={generateVisibleTableColumns(
-          hiddenColumns,
-          config,
-          currentUser,
-          currentTeam
-        )}
+        columns={tableColumns}
         data={hosts}
         isLoading={isHostsLoading || isHostCountLoading}
         manualSortBy

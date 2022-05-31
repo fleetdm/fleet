@@ -69,6 +69,9 @@ When creating a new issue, ensure the following:
 - Is there a key date or timeframe that the customer hopes to meet?  If so, please post about that in #g-product with a link to the issue, so the team can discuss it before committing to a time frame.
 - Have we provided a link to that issue for the customer to remind everyone of the plan and for the sake of visibility, so other folks who weren't directly involved are up to speed  (e.g., "Hi everyone, here's a link to the issue we discussed on today's call: […link…](https://omfgdogs.com)")?
 
+### Assistance from engineering
+
+Customer team members can reach the engineering oncall for assistance by writing a message with `@oncall` in the `#help-engineering` channel of the Fleet Slack.
 ## Runbook
 
 ### Responding to a request to change a credit card number
@@ -89,6 +92,11 @@ To generate a trial license key for a larger deployment, [create an opportunity 
 
 ## Documentation updates
 Occasionally users will either email or Slack questions about product usage. We will track these requests and occasionally update our documentation to simplify things for our users. We have a Zapier integration that will automatically create an entry in our customer questions Google doc (in Slack, right-click on the customer question and select send to Zapier). At the end of the week, one of our team members will take each request in the spreadsheet and make any helpful documentation updates to help prevent similar questions in the future.
+
+## Customer contracts
+Fleet's subscription agreement is available at [fleetdm.com/terms](https://fleetdm.com/terms). 
+
+Fleet employees can find a summary of contract terms [here](https://docs.google.com/spreadsheets/d/1gAenC948YWG2NwcaVHleUvX0LzS8suyMFpjaBqxHQNg/edit?usp=sharing).
 
 ## Rituals
 

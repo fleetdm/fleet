@@ -438,7 +438,7 @@ type Service interface {
 	// Software
 
 	ListSoftware(ctx context.Context, opt SoftwareListOptions) ([]Software, error)
-	SoftwareByID(ctx context.Context, id uint) (*Software, error)
+	SoftwareByID(ctx context.Context, id uint, includeCVEScores bool) (*Software, error)
 	CountSoftware(ctx context.Context, opt SoftwareListOptions) (int, error)
 
 	///////////////////////////////////////////////////////////////////////////////

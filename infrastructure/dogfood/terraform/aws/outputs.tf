@@ -7,7 +7,7 @@ output "backend_security_group" {
 }
 
 output "private_subnets" {
-  value = module.vpc.private_subnet_arns
+  value = module.vpc.private_subnets
 }
 
 output "fleet-backend-task-revision" {
@@ -52,4 +52,20 @@ output "aws_alb_target_group_name" {
 
 output "aws_alb_name" {
   value = aws_alb.main.name
+}
+
+output "backend_security_group_id" {
+  value = aws_security_group.backend.id
+}
+
+output "private_subnet" {
+  value = module.vpc.private_subnets[0]
+}
+
+output "ecs_cluster_name" {
+  value = aws_ecs_cluster.fleet.name
+}
+
+output "migrate_task_definition_family" {
+  value = aws_ecs_task_definition.migration.family
 }

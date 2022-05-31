@@ -53,7 +53,7 @@ const LoginPreviewPage = ({ router }: ILoginPreviewPageProps): JSX.Element => {
     if (isPreviewMode) {
       onSubmit({
         email: "admin@example.com",
-        password: "admin123#",
+        password: "preview1337#",
       });
     }
   }, []);

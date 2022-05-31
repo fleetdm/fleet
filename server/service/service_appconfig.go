@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/fleetdm/fleet/v4/server"
+	authz_ctx "github.com/fleetdm/fleet/v4/server/contexts/authz"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -83,7 +84,7 @@ func (svc *Service) sendTestEmail(ctx context.Context, config *fleet.AppConfig) 
 
 func (svc *Service) makeTestJiraRequest(ctx context.Context, jiraSettings *fleet.JiraIntegration) error {
 	if jiraSettings.APIToken == "" || jiraSettings.APIToken == "********" {
-		return &badRequestError{message: fmt.Sprintf("jira integration request failed: missing or invalid API token")}
+		return &badRequestError{message: "jira integration request failed: missing or invalid API token"}
 	}
 	client, err := externalsvc.NewJiraClient(&externalsvc.JiraOptions{
 		BaseURL:           jiraSettings.URL,
@@ -102,7 +103,7 @@ func (svc *Service) makeTestJiraRequest(ctx context.Context, jiraSettings *fleet
 
 func (svc *Service) makeTestZendeskRequest(ctx context.Context, zendeskSettings *fleet.ZendeskIntegration) error {
 	if zendeskSettings.APIToken == "" || zendeskSettings.APIToken == "********" {
-		return &badRequestError{message: fmt.Sprintf("zendesk integration request failed: missing or invalid API token")}
+		return &badRequestError{message: "zendesk integration request failed: missing or invalid API token"}
 	}
 	client, err := externalsvc.NewZendeskClient(&externalsvc.ZendeskOptions{
 		URL:      zendeskSettings.URL,
@@ -128,8 +129,10 @@ func cleanupURL(url string) string {
 }
 
 func (svc *Service) License(ctx context.Context) (*fleet.LicenseInfo, error) {
-	if err := svc.authz.Authorize(ctx, &fleet.AppConfig{}, fleet.ActionRead); err != nil {
-		return nil, err
+	if !svc.authz.IsAuthenticatedWith(ctx, authz_ctx.AuthnDeviceToken) {
+		if err := svc.authz.Authorize(ctx, &fleet.AppConfig{}, fleet.ActionRead); err != nil {
+			return nil, err
+		}
 	}
 
 	return &svc.license, nil

@@ -22,12 +22,8 @@
   }
   &--offline:before,
   &--disabled:before,
-  &--mia:before,
   &--off:before {
     background-color: $ui-offline;
-  }
-  &--mia {
-    text-transform: uppercase;
   }
 
   // policy status
@@ -38,7 +34,7 @@
   }
   &--no:before {
     padding-right: 8px;
-    content: url(../assets/images/icon-exclamation-circle-red-16x16@2x.png);
+    content: url(../assets/images/icon-action-fail-16x16@2x.png);
     transform: translate(-4px, -6px) scale(0.5);
   }
   &--indeterminate {

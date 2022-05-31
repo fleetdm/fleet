@@ -1,3 +1,12 @@
+import CONSTANTS from "../../../support/constants";
+
+const {
+  GOOD_PASSWORD,
+  BAD_PASSWORD_LENGTH,
+  BAD_PASSWORD_NO_NUMBER,
+  BAD_PASSWORD_NO_SYMBOL,
+} = CONSTANTS;
+
 describe("Activate user flow", () => {
   before(() => {
     Cypress.session.clearAllSavedSessions();
@@ -35,7 +44,7 @@ describe("Activate user flow", () => {
       cy.wait(3000); // eslint-disable-line cypress/no-unnecessary-waiting
       cy.logout();
       // Retrieves user invite in email
-      const inviteLink = {};
+      const inviteLink = { url: "" };
       const regex = /\/login\/invites\/[a-zA-Z0-9=?%&@._-]*/gm;
       cy.getEmails().then((response) => {
         expect(response.body.items[0].To[0]).to.have.property("Domain");
@@ -54,17 +63,40 @@ describe("Activate user flow", () => {
           .type("Ash Ketchum");
         cy.findByLabelText(/^password$/i)
           .click()
-          .type("#pikachu1");
+          .type(BAD_PASSWORD_LENGTH);
         cy.findByLabelText(/confirm password/i)
           .click()
-          .type("#pikachu1");
+          .type(BAD_PASSWORD_LENGTH);
         cy.findByRole("button", { name: /submit/i }).click();
       });
+      cy.findByText(/password does not meet required criteria/i).should(
+        "exist"
+      );
+      cy.getAttached("#password").clear().type(BAD_PASSWORD_NO_NUMBER);
+      cy.getAttached("#password_confirmation")
+        .clear()
+        .type(BAD_PASSWORD_NO_NUMBER);
+      cy.findByRole("button", { name: /submit/i }).click();
+      cy.findByText(/password does not meet required criteria/i).should(
+        "exist"
+      );
+      cy.getAttached("#password").clear().type(BAD_PASSWORD_NO_SYMBOL);
+      cy.getAttached("#password_confirmation")
+        .clear()
+        .type(BAD_PASSWORD_NO_SYMBOL);
+      cy.findByRole("button", { name: /submit/i }).click();
+      cy.findByText(/password does not meet required criteria/i).should(
+        "exist"
+      );
+      cy.getAttached("#password").clear().type(GOOD_PASSWORD);
+      cy.getAttached("#password_confirmation").clear().type(GOOD_PASSWORD);
+      cy.findByRole("button", { name: /submit/i }).click();
+
       cy.getAttached(".login-form").within(() => {
         cy.findByLabelText(/email/i).clear().type("ash@example.com");
         cy.findByLabelText(/^password$/i)
           .click()
-          .type("#pikachu1");
+          .type(GOOD_PASSWORD);
         cy.findByRole("button", { name: /login/i }).click();
       });
       Cypress.session.clearAllSavedSessions(); // Switch back to admin user

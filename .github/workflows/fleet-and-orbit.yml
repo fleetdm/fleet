@@ -45,7 +45,7 @@ jobs:
     steps:
 
     - name: Install Go
-      uses: actions/setup-go@f6164bd8c8acb4a71fb2791a8b6c4024ff038dab # v2
+      uses: actions/setup-go@b22fbbc2921299758641fab08929b4ac52b32923 # v2
       with:
         go-version: ${{ matrix.go-version }}
 
@@ -92,7 +92,7 @@ jobs:
         make db-reset
         ./build/fleet serve --dev --dev_license 1>./fleet_log/stdout.log 2>./fleet_log/stderr.log &
         ./build/fleetctl config set --address http://localhost:1337 --tls-skip-verify
-        until ./build/fleetctl setup --email admin@example.com --name Admin --password admin123# --org-name Example
+        until ./build/fleetctl setup --email admin@example.com --name Admin --password preview1337# --org-name Example
         do
           echo "Retrying setup in 5s..."
           sleep 5
@@ -131,7 +131,7 @@ jobs:
     steps:
 
     - name: Install Go
-      uses: actions/setup-go@f6164bd8c8acb4a71fb2791a8b6c4024ff038dab # v2
+      uses: actions/setup-go@b22fbbc2921299758641fab08929b4ac52b32923 # v2
       with:
         go-version: ${{ matrix.go-version }}
 
@@ -146,7 +146,7 @@ jobs:
       timeout-minutes: 10
       run: |
         ./build/fleetctl config set --address ${{ needs.gen.outputs.address }}
-        until ./build/fleetctl login --email admin@example.com --password admin123#
+        until ./build/fleetctl login --email admin@example.com --password preview1337#
         do
           echo "Retrying in 10s..."
           sleep 10
@@ -169,7 +169,7 @@ jobs:
     steps:
 
     - name: Install Go
-      uses: actions/setup-go@f6164bd8c8acb4a71fb2791a8b6c4024ff038dab # v2
+      uses: actions/setup-go@b22fbbc2921299758641fab08929b4ac52b32923 # v2
       with:
         go-version: ${{ matrix.go-version }}
 
@@ -220,7 +220,7 @@ jobs:
     steps:
     
     - name: Install Go
-      uses: actions/setup-go@f6164bd8c8acb4a71fb2791a8b6c4024ff038dab # v2
+      uses: actions/setup-go@b22fbbc2921299758641fab08929b4ac52b32923 # v2
       with:
         go-version: ${{ matrix.go-version }}
 
