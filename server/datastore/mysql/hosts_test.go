@@ -1364,7 +1364,7 @@ func testHostsCleanupIncoming(t *testing.T, ds *Datastore) {
 	})
 	require.NoError(t, err)
 
-	err = ds.CleanupIncomingHosts(context.Background(), mockClock.Now().UTC())
+	_, err = ds.CleanupIncomingHosts(context.Background(), mockClock.Now().UTC())
 	require.NoError(t, err)
 
 	// Both hosts should still exist because they are new
@@ -1373,8 +1373,9 @@ func testHostsCleanupIncoming(t *testing.T, ds *Datastore) {
 	_, err = ds.Host(context.Background(), h2.ID)
 	require.NoError(t, err)
 
-	err = ds.CleanupIncomingHosts(context.Background(), mockClock.Now().Add(6*time.Minute).UTC())
+	deleted, err := ds.CleanupIncomingHosts(context.Background(), mockClock.Now().Add(6*time.Minute).UTC())
 	require.NoError(t, err)
+	require.Equal(t, []uint{h1.ID}, deleted)
 
 	// Now only the host with details should exist
 	_, err = ds.Host(context.Background(), h1.ID)
@@ -2496,7 +2497,7 @@ func testHostsExpiration(t *testing.T, ds *Datastore) {
 	hosts := listHostsCheckCount(t, ds, filter, fleet.HostListOptions{}, 10)
 	require.Len(t, hosts, 10)
 
-	err = ds.CleanupExpiredHosts(context.Background())
+	_, err = ds.CleanupExpiredHosts(context.Background())
 	require.NoError(t, err)
 
 	// host expiration is still disabled
@@ -2508,15 +2509,17 @@ func testHostsExpiration(t *testing.T, ds *Datastore) {
 	err = ds.SaveAppConfig(context.Background(), ac)
 	require.NoError(t, err)
 
-	err = ds.CleanupExpiredHosts(context.Background())
+	deleted, err := ds.CleanupExpiredHosts(context.Background())
 	require.NoError(t, err)
+	require.Len(t, deleted, 5)
 
 	hosts = listHostsCheckCount(t, ds, filter, fleet.HostListOptions{}, 5)
 	require.Len(t, hosts, 5)
 
 	// And it doesn't remove more than it should
-	err = ds.CleanupExpiredHosts(context.Background())
+	deleted, err = ds.CleanupExpiredHosts(context.Background())
 	require.NoError(t, err)
+	require.Len(t, deleted, 0)
 
 	hosts = listHostsCheckCount(t, ds, filter, fleet.HostListOptions{}, 5)
 	require.Len(t, hosts, 5)
@@ -3277,7 +3280,7 @@ func testHostsNoSeenTime(t *testing.T, ds *Datastore) {
 
 	removeHostSeenTimes(h3.ID)
 
-	err = ds.CleanupExpiredHosts(context.Background())
+	_, err = ds.CleanupExpiredHosts(context.Background())
 	require.NoError(t, err)
 
 	hosts, err = ds.ListHosts(context.Background(), teamFilter, fleet.HostListOptions{})

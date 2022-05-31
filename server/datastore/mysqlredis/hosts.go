@@ -119,7 +119,7 @@ func (d *datastore) DeleteHosts(ctx context.Context, ids []uint) error {
 	return err
 }
 
-func (d *datastore) CleanupExpiredHosts(ctx context.Context) error {
+func (d *datastore) CleanupExpiredHosts(ctx context.Context) ([]uint, error) {
 	if d.enforceHostLimit > 0 {
 	}
 	// TODO: change the signature to return IDs of deleted hosts.
@@ -127,7 +127,7 @@ func (d *datastore) CleanupExpiredHosts(ctx context.Context) error {
 	return d.Datastore.CleanupExpiredHosts(ctx)
 }
 
-func (d *datastore) CleanupIncomingHosts(ctx context.Context, now time.Time) error {
+func (d *datastore) CleanupIncomingHosts(ctx context.Context, now time.Time) ([]uint, error) {
 	if d.enforceHostLimit > 0 {
 	}
 	// TODO: change the signature to return IDs of deleted hosts.
