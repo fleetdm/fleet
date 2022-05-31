@@ -20,13 +20,9 @@ The Fleet handbook is the central guide for how we run the company. As part of o
 
 [Email relays](./company.md#email-relays)
 
-[Tools we use](./company#tools-we-use)
-
-[GitHub labels](./company.md#git-hub-labels)
-
 [Tools we use](./company.md#tools-we-use)
 
-[Email relays](./company.md#email-relays)
+[GitHub labels](./company.md#git-hub-labels)
 
 [Rituals](./company.md#rituals)
 
@@ -72,7 +68,7 @@ The Fleet handbook is the central guide for how we run the company. As part of o
 
 [Risk management policy](./security-policies.md#risk-management-policy)
 
-[Secure software development and product security policy](./security-policies.d#secure-software-development-and-product-security-policy)
+[Secure software development and product security policy](./security-policies.md#secure-software-development-and-product-security-policy)
 
 [Security policy management policy](./security-policies.md#security-policy-management-policy)
 
@@ -84,7 +80,11 @@ The Fleet handbook is the central guide for how we run the company. As part of o
 
 [Writing at Fleet](./brand.md#writing-at-fleet)
 
-[Punctuating and capitalizing bullet points](./brand#punctuating-and-capitalizing-bullet-points)
+[Punctuating and capitalizing bullet points](./brand.md#punctuating-and-capitalizing-bullet-points)
+
+[Commas](./brand.md#commas)
+
+[Dashes and hyphens](./brand.md#dashes-and-hyphens)
 
 [For editors](./brand.md#for-editors)
 
@@ -117,7 +117,6 @@ The Fleet handbook is the central guide for how we run the company. As part of o
 [Slack channels](./community.md#slack-channels)
 
 ### 🚀 Engineering
-
 
 [Meetings](./engineering.md#meetings)
 
@@ -169,7 +168,7 @@ The Fleet handbook is the central guide for how we run the company. As part of o
 
 [Outreach one-pager](./growth.md#outreach-one-pager)
 
-[Intro deck](./growth#intro-deck)
+[Intro deck](./growth.md#intro-deck)
 
 [Posting on social media as Fleet](./growth.md#posting-on-social-media-as-fleet)
 
@@ -203,6 +202,12 @@ The Fleet handbook is the central guide for how we run the company. As part of o
 
 [Slack channels](./customers.md#slack-channels)
 
+### 🤝 Sales
+
+[Rituals](./sales.md#rituals)
+
+[Slack channels](./sales.md#slack-channels)
+
 ### 🧑‍🚀 People
 
 [Directly responsible individuals](./people.md#directly-resonsible-individuals)
@@ -229,7 +234,7 @@ The Fleet handbook is the central guide for how we run the company. As part of o
 
 [Zapier and DocuSign](./people.md#zapier-and-docu-sign)
 
-[Adding Salesforce licenses](./people#adding-salesforce-licenses)
+[Adding Salesforce licenses](./people.md#adding-salesforce-licenses)
 
 [PeopleOps](./people.md#people-ops)
 

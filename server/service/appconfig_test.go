@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"crypto/tls"
+	"encoding/json"
 	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
@@ -336,4 +337,48 @@ func TestAppConfigSecretsObfuscated(t *testing.T) {
 			require.Equal(t, ac.Integrations.Zendesk[0].APIToken, "********")
 		})
 	}
+}
+
+// TestModifyAppConfigSMTPConfigured tests that disabling SMTP
+// should set the SMTPConfigured field to false.
+func TestModifyAppConfigSMTPConfigured(t *testing.T) {
+	ds := new(mock.Store)
+	svc := newTestService(t, ds, nil, nil)
+
+	// SMTP is initially enabled and configured.
+	dsAppConfig := &fleet.AppConfig{
+		SMTPSettings: fleet.SMTPSettings{
+			SMTPEnabled:    true,
+			SMTPConfigured: true,
+		},
+	}
+
+	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+		return dsAppConfig, nil
+	}
+	ds.SaveAppConfigFunc = func(ctx context.Context, conf *fleet.AppConfig) error {
+		*dsAppConfig = *conf
+		return nil
+	}
+
+	// Disable SMTP.
+	newAppConfig := fleet.AppConfig{
+		SMTPSettings: fleet.SMTPSettings{
+			SMTPEnabled:    false,
+			SMTPConfigured: true,
+		},
+	}
+	b, err := json.Marshal(newAppConfig)
+	require.NoError(t, err)
+
+	admin := &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}
+	ctx := viewer.NewContext(context.Background(), viewer.Viewer{User: admin})
+	updatedAppConfig, err := svc.ModifyAppConfig(ctx, b)
+	require.NoError(t, err)
+
+	// After disabling SMTP, the app config should be "not configured".
+	require.False(t, updatedAppConfig.SMTPSettings.SMTPEnabled)
+	require.False(t, updatedAppConfig.SMTPSettings.SMTPConfigured)
+	require.False(t, dsAppConfig.SMTPSettings.SMTPEnabled)
+	require.False(t, dsAppConfig.SMTPSettings.SMTPConfigured)
 }
