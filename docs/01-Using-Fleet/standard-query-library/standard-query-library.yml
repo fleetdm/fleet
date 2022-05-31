@@ -678,18 +678,13 @@ spec:
   contributors: GuillaumeRoss
   platform: darwin,linux,windows
   contributors: GuillaumeRoss
----
-apiVersion: v1
-kind: policy
-spec:
-  name: BPF
 
 ---
 apiVersion: v1
 kind: policy
 spec:
   name: Suspicious AutoStart (Windows regsvr32 http)
-  query: SELECT * FROM startup_items where path = "regsvr32" and args like "%http%";
+  query: SELECT 1 FROM startup_items where path = "regsvr32" and args like "%http%";
   description: "Checks for an autostart that is attempting to load a DLL from the internet"
   resolution: "Remove the suspicious startup entry"
   platforms: Windows
