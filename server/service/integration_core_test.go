@@ -4634,6 +4634,13 @@ func (s *integrationTestSuite) TestDeviceAuthenticatedEndpoints() {
 	res.Body.Close()
 	require.NotNil(t, getHostResp.License)
 	require.Equal(t, getHostResp.License.Tier, "free")
+
+	// device policies are not accessible for free endpoints
+	listPoliciesResp := listDevicePoliciesResponse{}
+	res = s.DoRawNoAuth("GET", "/api/latest/fleet/device/"+token+"/policies", nil, http.StatusPaymentRequired)
+	json.NewDecoder(res.Body).Decode(&getHostResp)
+	res.Body.Close()
+	require.Nil(t, listPoliciesResp.Policies)
 }
 
 func (s *integrationTestSuite) TestModifyUser() {
