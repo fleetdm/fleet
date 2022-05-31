@@ -55,7 +55,7 @@
             <strong purpose="report-list-header">The best practice is to have a good bring-your-own-device (BYOD) policy</strong>
             <p>32% say having a documented BYOD policy is a crucial best practice for their MDM strategy. They also find success measuring point-in-time compliance across all devices (31%) and tracking how quickly vulnerable software is patched (30%).</p>
             <strong purpose="report-list-header">Compliance verification is the biggest day-to-day challenge</strong>
-            <p>22.9% of our respondents say their biggest daily challenge with their MDM is being able to verify compliance across devices. 21% say getting all their devices enrolled is their top challenge, while 20.5% say maintaining accurate visibility across devices is theirs.</p>
+            <p>23% of our respondents say their biggest daily challenge with their MDM is being able to verify compliance across devices. 21% say getting all their devices enrolled is their top challenge, while 20.5% say maintaining accurate visibility across devices is theirs.</p>
             <strong purpose="report-list-header">Complicated MDMs are the top deployment challenge</strong>
             <p>36% found it too difficult to configure and understand their MDM, while 34% also encountered confusing or limited documentation. 33% were frustrated with SSO integration, and a further 33% faced difficulty getting support.</p>
             <strong purpose="report-list-header">Only half think their MDM is effective</strong>
@@ -122,28 +122,28 @@
           <h3>26% report their organization manages over 250,000 devices</h3>
           <p>With devices including servers, laptops, desktops, tablets, and mobile phones, the largest segment of respondents (25.9%) estimate having over 250,000 total devices in their organization’s fleet.</p>
           <div purpose="chart-card">
-            <bar-chart min-range="10" max-range="30" increment-scale-by="2" type="divided" title="Estimated total number of devices in organization" subtitle="(Includes servers, laptops, desktops, tablets, and mobile phones.)" :chart-data="barCharts.partOne.totalDevices"></bar-chart>
+            <bar-chart min-range="10" max-range="30" increment-scale-by="2" type="divided" title="In total, how many devices would you estimate you have in your organization?" subtitle="(Includes servers, laptops, desktops, tablets, and mobile phones.)" :chart-data="barCharts.partOne.totalDevices"></bar-chart>
           </div>
         </div>
         <div purpose="subsection">
           <h3>Rates of MDM enrollment vary across organizations</h3>
           <p>Respondents report varying degrees of enrollment across their organization’s MDM. The majority (27.8%) have only enrolled about a quarter of their devices. 26.8% say that about half of their devices are enrolled. For 22.4%, about three-quarters of their devices are enrolled. Finally, 22.9% say they have enrolled all, or nearly all, of their devices.</p>
           <div purpose="chart-card">
-            <bar-chart min-range="20" max-range="30" type="divided" title="Estimated percentage of devices enrolled in MDM" :chart-data="barCharts.partOne.mdmEnrolledDevices"></bar-chart>
+            <bar-chart min-range="20" max-range="30" type="divided" title="Roughly what percentage of your devices are currently enrolled in MDM?" :chart-data="barCharts.partOne.mdmEnrolledDevices"></bar-chart>
           </div>
         </div>
         <div purpose="subsection">
           <h3>25% have 10,000 workstations in their organization</h3>
           <p>The largest segment of respondents (24.9% report having about 10,000 workstations in their organization, including laptops, desktops, or other devices. Other respondents report having 1,000 workstations (20.5%), 2,000 workstations (18.6%), 5,000 workstations (19%), and 25,000 or more workstations (17.6%).</p>
           <div purpose="chart-card">
-            <bar-chart min-range="15" max-range="25" type="divided" title="Estimated end-user workstations in organization" subtitle="(Includes servers, laptops, desktops, tablets, and mobile phones.)" :chart-data="barCharts.partOne.numberOfWorkstations"></bar-chart>
+            <bar-chart min-range="15" max-range="25" type="divided" title="How many end-user workstations would you estimate you have in your organization?" subtitle="(Includes servers, laptops, desktops, tablets, and mobile phones.)" :chart-data="barCharts.partOne.numberOfWorkstations"></bar-chart>
           </div>
         </div>
         <div purpose="subsection">
           <h3>Devices are also in various states of upgrade</h3>
           <p>The majority (28.57%) reported that roughly half of their devices are running the latest operating system released by the manufacturer. 21% say about a quarter of their organization’s devices are running the latest OS, while 24.84% say three-quarters have the latest OS installed. Finally, 25.47% of the surveyed people say all, or nearly all, of their devices, have up-to-date operating systems installed.</p>
           <div purpose="chart-card">
-            <bar-chart min-range="18" max-range="30" increment-scale-by="2" type="divided" title="Estimated percentage of devices running the latest operating system released from the manufacturer" :chart-data="barCharts.partOne.devicesOnLatestOS"></bar-chart>
+            <bar-chart min-range="18" max-range="30" increment-scale-by="2" type="divided" title="Roughly what percentage of your devices would you say are running the latest operating system released from the manufacturer?" :chart-data="barCharts.partOne.devicesOnLatestOS"></bar-chart>
           </div>
         </div>
         <div purpose="subsection">
@@ -157,7 +157,7 @@
           <h3>Organizations inadequately manage Windows and Linux</h3>
           <p>In a “choose all that apply” question, We asked respondents which platforms their organizations use but don’t currently manage with an MDM. They replied:</p>
           <div purpose="chart-card">
-            <bar-chart min-range="10" max-range="40" type="divided" title="What platforms do you struggle the most with managing?" :chart-data="barCharts.partOne.platformsManaged"></bar-chart>
+            <bar-chart min-range="10" max-range="40" type="divided" title="What platforms do you have in your organization, but are not currently managed whatsoever?" :chart-data="barCharts.partOne.platformsManaged"></bar-chart>
           </div>
         </div>
         <div purpose="subsection">
@@ -232,7 +232,7 @@
             </div>
           </div>
         <div purpose="chart-card">
-          <bar-chart min-range="14" max-range="24" increment-scale-by="2" type="divided" title="#1 challenge with day-to-day device management" :chart-data="barCharts.partTwo.topChallenges"></bar-chart>
+          <bar-chart min-range="14" max-range="24" increment-scale-by="2" type="divided" title="What is your #1 challenge with day-to-day device management?" :chart-data="barCharts.partTwo.topChallenges"></bar-chart>
         </div>
         <div purpose="subsection" class="mb-0">
           <h2>Summary</h2>
@@ -276,13 +276,13 @@
           </div>
         </div>
         <div purpose="chart-card">
-          <bar-chart  min-range="10" max-range="17" type="divided" title="MDM solution investment triggers" :chart-data="barCharts.partThree.mdmInvestmentTriggers"></bar-chart>
+          <bar-chart  min-range="10" max-range="17" type="divided" title="What triggered your organization to invest in an MDM solution?" :chart-data="barCharts.partThree.mdmInvestmentTriggers"></bar-chart>
         </div>
         <div purpose="subsection">
           <h3>22% say their MDM took over a year to implement</h3>
           <p>The largest segment (22.2%) reported that deploying and implementing their MDM took over a year. However, for 18.7%, it took four weeks or less. For 15.7%, it took one to three months, and for 13.1%, it took three to six months. For 16.2%, it took six to nine months, and for 14.1%, it took nine to twelve months.</p>
           <div purpose="chart-card">
-            <span purpose="chart-title">Estimated time to complete MDM deployment and implementation</span>
+            <span purpose="chart-title">How long do you estimate it took to completely deploy and implement your MDM?</span>
             <div purpose="chart-container">
               <canvas id="mdm-deployment-time-chart"></canvas>
             </div>
@@ -291,24 +291,29 @@
         <h2>Top deployment challenges</h2>
         <p>Respondents encountered these challenges while implementing their new MDM solution:</p>
         <div purpose="subsection" class="row">
-          <div class="col-md-4" purpose="report-note">
+          <div class="col-md-6" purpose="report-note">
             <img alt="Arrows leading in different directions" src="/images/icon-arrows-36x36@2x.png">
             <h3>Comprehension and configuration difficulties</h3>
             <p>36.1% say the biggest challenge was understanding and configuring MDM features — a failure from the start.</p>
           </div>
-          <div class="col-md-4" purpose="report-note">
+          <div class="col-md-6" purpose="report-note">
             <img alt="A confusing document" src="/images/icon-confusing-document-36x36@2x.png">
             <h3>Confusing or limited documentation</h3>
             <p>34.2% also discovered a lack of documentation to help them deploy their MDM, or the documentation was confusing.</p>
           </div>
-          <div class="col-md-4 mb-0" purpose="report-note">
+          <div class="col-md-6 " purpose="report-note">
             <img alt="A lock with an arrow pointing at it" src="/images/icon-lock-36x36@2x.png">
             <h3>Integrating with single sign-on</h3>
             <p>32.7% ran into problems integrating their MDM solution with SSO services like Okta and SAML.</p>
           </div>
+          <div class="col-md-6 mb-0" purpose="report-note">
+            <img alt="A lock with an arrow pointing at it" src="/images/icon-no-support-36x36@2x.png">
+            <h3>Hard to get support</h3>
+            <p>Another 32.7% said it was hard to get support from their vendor during the deployment phase.</p>
+          </div>
         </div>
         <div purpose="chart-card">
-          <bar-chart  min-range="29" max-range="37" type="divided" title="Challenges encountered while deploying MDM" :chart-data="barCharts.partThree.challengesEncountered"></bar-chart>
+          <bar-chart  min-range="29" max-range="37" type="divided" title="What challenges did your team encounter while deploying your MDM solution?" :chart-data="barCharts.partThree.challengesEncountered"></bar-chart>
         </div>
         <div purpose="subsection" class="mb-0">
           <h2>Summary</h2>
@@ -320,7 +325,7 @@
       </div>
       <div purpose="report-section" id="part-4">
         <span purpose="section-marker">PART 4</span>
-        <h1>Device Management Effectiveness</h1>
+        <h1>Device management effectiveness</h1>
         <p>Organizations may have a way to manage devices, but are they finding it successful? In this section, our respondents told us how effective their MDM strategy is for visibility, keeping an inventory, incident response, and other key features.</p>
         <div purpose="subsection">
           <h3>47% have sufficient visibility into enrolled devices from their MDM</h3>
@@ -416,7 +421,7 @@
           <h3>Budget allocation over the next year will vary</h3>
           <p>Respondents reported varying levels of investment in MDM in the future. 35.1% say their budget will stay the same in the coming year, and 32.5% say their budget will increase. An additional 32.5% say their budget will decrease.</p>
           <div purpose="chart-card" class="mb-0">
-            <bar-chart  min-range="30" max-range="36" type="divided" title="Expected device management budget change over the next 12 months" :chart-data="barCharts.partFive.expectedBudgetChange"></bar-chart>
+            <bar-chart  min-range="30" max-range="36" type="divided" title="How will your budget for device management change over the next 12 months?" :chart-data="barCharts.partFive.expectedBudgetChange"></bar-chart>
           </div>
         </div>
         <div purpose="subsection">
@@ -462,7 +467,7 @@
         </div>
         <div purpose="subsection">
           <div purpose="chart-card" class="mb-0">
-            <bar-chart  min-range="17" max-range="29" type="divided" title="Most wanted features when evaluating a new MDM vendor" :chart-data="barCharts.partFive.expectedBudgetChange"></bar-chart>
+            <bar-chart  min-range="17" max-range="29" type="divided" title="If you were evaluating a new MDM vendor, what features and capabilities would be most important to you?" :chart-data="barCharts.partFive.expectedBudgetChange"></bar-chart>
           </div>
         </div>
         <div purpose="subsection">
@@ -488,7 +493,7 @@
         </div>
         <div purpose="subsection">
           <div purpose="chart-card" class="mb-0">
-            <bar-chart  min-range="8" max-range="19" type="divided" title="Priorities for device management over the next 12 months" :chart-data="barCharts.partFive.deviceManagementPriorities"></bar-chart>
+            <bar-chart  min-range="8" max-range="19" type="divided" title="What is your #1 priority for your device management strategy over the next 12 months?" :chart-data="barCharts.partFive.deviceManagementPriorities"></bar-chart>
           </div>
         </div>
         <div purpose="subsection" class="mb-0">
