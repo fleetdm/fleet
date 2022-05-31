@@ -127,6 +127,8 @@ func batchProcess(
 		buffer[offset] = v
 		offset++
 		i++
+
+		// Consume buffer if full or if we are at the last iteration
 		if offset == bSize || i >= len(values) {
 			err := dsFunc(buffer[:offset])
 			if err != nil {
