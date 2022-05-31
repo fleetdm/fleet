@@ -129,7 +129,7 @@ spec:
   description: Get current users with active shell/console on the system and associated process
   query: SELECT user,host,time, p.name, p.cmdline, p.cwd, p.root FROM logged_in_users liu, processes p WHERE liu.pid = p.pid and liu.type='user' and liu.user <> '' ORDER BY time;
   purpose: Informational
-  tags: hunting, built-in 
+  tags: hunting, built-in
   contributors: anelshaer
 ---
 apiVersion: v1
@@ -587,7 +587,7 @@ kind: query
 spec:
   name: Get antivirus status from the Windows Security Center
   platforms: Windows
-  query: SELECT antivirus, signatures_up_to_date from windows_security_center CROSS JOIN windows_security_products WHERE type = 'Antivirus'; 
+  query: SELECT antivirus, signatures_up_to_date from windows_security_center CROSS JOIN windows_security_products WHERE type = 'Antivirus';
   description: Selects the antivirus and signatures status from Windows Security Center.
   purpose: Informational
   tags: compliance, malware, hardening, built-in
@@ -603,7 +603,7 @@ spec:
   purpose: Informational
   tags: compliance, malware, hardening, built-in
   contributors: GuillaumeRoss
----  
+---
 apiVersion: v1
 kind: policy
 spec:
@@ -623,7 +623,7 @@ kind: policy
 spec:
   name: Antivirus healthy (Windows)
   query: SELECT 1 from windows_security_center wsc CROSS JOIN windows_security_products wsp WHERE antivirus = 'Good' AND type = 'Antivirus' AND signatures_up_to_date=1;
-  description: Checks the status of antivirus and signature updates from the Windows Security Center. 
+  description: Checks the status of antivirus and signature updates from the Windows Security Center.
   resolution: "Ensure Windows Defender or your third-party antivirus is running, up to date, and visible in the Windows Security Center."
   platforms: Windows
   tags: compliance, malware, hardening, built-in
@@ -635,7 +635,7 @@ kind: policy
 spec:
   name: Antivirus healthy (Linux)
   query: SELECT score FROM (SELECT case when COUNT(*) = 2 then 1 ELSE 0 END AS score FROM processes WHERE (name = 'clamd') OR (name = 'freshclam')) WHERE score == 1;
-  description: Checks that both ClamAV's daemon and its updater service (freshclam) are running. 
+  description: Checks that both ClamAV's daemon and its updater service (freshclam) are running.
   resolution: "Ensure ClamAV and Freshclam are installed and running."
   platforms: Linux
   tags: compliance, malware, hardening, built-in
@@ -678,3 +678,20 @@ spec:
   contributors: GuillaumeRoss
   platform: darwin,linux,windows
   contributors: GuillaumeRoss
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: BPF
+
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: Suspicious AutoStart (Windows regsvr32 http)
+  query: SELECT * FROM startup_items where path = "regsvr32" and args like "%http%";
+  description: "Checks for an autostart that is attempting to load a DLL from the internet"
+  resolution: "Remove the suspicious startup entry"
+  platforms: Windows
+  tags: malware, hunting
+  contributors: kswagler-rh
