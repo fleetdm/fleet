@@ -1,4 +1,4 @@
-# Fleet 4.15.0 adds beta support for self-service, increases transparency, and brings Zendesk to the party.
+# Fleet 4.15.0 adds beta support for self-service, scope transparency, and brings Zendesk to the party.
 
 ![Fleet 4.15.0](../website/assets/images/articles/fleet-4.15.0-cover-1600x900@2x.jpg)
 
