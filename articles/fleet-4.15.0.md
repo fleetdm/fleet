@@ -20,7 +20,7 @@ Fleet Desktop is a lightweight application that allows end-users to self serve f
 
 With Fleet Desktop installed on a host, the end-user has access to the list of policies that apply to their laptop, and the instructions to resolve failing policies. The end-user can quickly reach this list of policies by selecting the Fleet icon > My device in the menu bar.
 
-## Transparency with Fleet Desktop on macOS, Windows, and Linux
+## Scope transparency with Fleet Desktop on macOS, Windows, and Linux
 **Available in Fleet Free & Fleet Premium**
 
 ![Transparency with Fleet Desktop on macOS, Windows, and Linux](../website/assets/images/articles/fleet-4.15.0-transparency-1200x674.gif)
