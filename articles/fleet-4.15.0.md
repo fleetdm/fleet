@@ -8,7 +8,7 @@ For update instructions, see our [upgrade guide](https://fleetdm.com/docs/deploy
 
 ## Highlights
 - Self-service with Fleet Desktop. 
-- Transparency with Fleet Desktop.
+- Scope transparency with Fleet Desktop.
 - Zendesk integration
 - "Last used" information for macOS applications.
 
