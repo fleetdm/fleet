@@ -156,7 +156,7 @@ type GenerateHostStatusStatisticsFunc func(ctx context.Context, filter fleet.Tea
 
 type HostIDsByNameFunc func(ctx context.Context, filter fleet.TeamFilter, hostnames []string) ([]uint, error)
 
-type HostIDsByOsVersionFunc func(ctx context.Context, osVersion fleet.OSVersion, offset int, limit int) ([]uint, error)
+type HostIDsByOSVersionFunc func(ctx context.Context, osVersion fleet.OSVersion, offset int, limit int) ([]uint, error)
 
 type HostByIdentifierFunc func(ctx context.Context, identifier string) (*fleet.Host, error)
 
@@ -627,8 +627,8 @@ type DataStore struct {
 	HostIDsByNameFunc        HostIDsByNameFunc
 	HostIDsByNameFuncInvoked bool
 
-	HostIDsByOsVersionFunc        HostIDsByOsVersionFunc
-	HostIDsByOsVersionFuncInvoked bool
+	HostIDsByOSVersionFunc        HostIDsByOSVersionFunc
+	HostIDsByOSVersionFuncInvoked bool
 
 	HostByIdentifierFunc        HostByIdentifierFunc
 	HostByIdentifierFuncInvoked bool
@@ -1369,9 +1369,9 @@ func (s *DataStore) HostIDsByName(ctx context.Context, filter fleet.TeamFilter, 
 	return s.HostIDsByNameFunc(ctx, filter, hostnames)
 }
 
-func (s *DataStore) HostIDsByOsVersion(ctx context.Context, osVersion fleet.OSVersion, offset int, limit int) ([]uint, error) {
-	s.HostIDsByOsVersionFuncInvoked = true
-	return s.HostIDsByOsVersionFunc(ctx, osVersion, offset, limit)
+func (s *DataStore) HostIDsByOSVersion(ctx context.Context, osVersion fleet.OSVersion, offset int, limit int) ([]uint, error) {
+	s.HostIDsByOSVersionFuncInvoked = true
+	return s.HostIDsByOSVersionFunc(ctx, osVersion, offset, limit)
 }
 
 func (s *DataStore) HostByIdentifier(ctx context.Context, identifier string) (*fleet.Host, error) {

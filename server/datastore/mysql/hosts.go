@@ -1714,7 +1714,7 @@ ON DUPLICATE KEY UPDATE
 	return nil
 }
 
-func (ds *Datastore) HostIDsByOsVersion(
+func (ds *Datastore) HostIDsByOSVersion(
 	ctx context.Context,
 	osVersion fleet.OSVersion,
 	offset int,

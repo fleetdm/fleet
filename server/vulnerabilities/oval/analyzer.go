@@ -51,7 +51,7 @@ func Analyze(
 
 	var offset int
 	for {
-		hIds, err := ds.HostIDsByOsVersion(ctx, ver, offset, hostsBatchSize)
+		hIds, err := ds.HostIDsByOSVersion(ctx, ver, offset, hostsBatchSize)
 		offset += hostsBatchSize
 
 		if err != nil {
