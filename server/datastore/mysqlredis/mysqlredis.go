@@ -8,10 +8,27 @@ import "github.com/fleetdm/fleet/v4/server/fleet"
 type datastore struct {
 	fleet.Datastore
 	pool fleet.RedisPool
+
+	// options
+	enforceHostLimit int // <= 0 means do not enforce
+}
+
+type Option func(*datastore)
+
+// WithEnforcedHostLimit enables enforcing the host limit count of the current
+// license.
+func WithEnforcedHostLimit(limit int) Option {
+	return func(o *datastore) {
+		o.enforceHostLimit = limit
+	}
 }
 
 // New creates a Datastore that wraps ds and uses pool to execute redis-based
 // operations.
-func New(ds fleet.Datastore, pool fleet.RedisPool) fleet.Datastore {
-	return &datastore{Datastore: ds, pool: pool}
+func New(ds fleet.Datastore, pool fleet.RedisPool, opts ...Option) fleet.Datastore {
+	newDS := &datastore{Datastore: ds, pool: pool}
+	for _, opt := range opts {
+		opt(newDS)
+	}
+	return newDS
 }

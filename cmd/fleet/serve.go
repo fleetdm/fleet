@@ -29,6 +29,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/datastore/cached_mysql"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
+	"github.com/fleetdm/fleet/v4/server/datastore/mysqlredis"
 	"github.com/fleetdm/fleet/v4/server/datastore/redis"
 	"github.com/fleetdm/fleet/v4/server/datastore/s3"
 	"github.com/fleetdm/fleet/v4/server/errorstore"
@@ -291,12 +292,13 @@ the way that the Fleet server works.
 			level.Info(logger).Log("component", "redis", "mode", redisPool.Mode())
 
 			ds = cached_mysql.New(ds)
-			/*
-			   // TODO: clarify condition to add the host count check for hard enrollment limit.
-			   if license.DeviceCount > 0 && license is for Fleet Demo? {
-			     ds = mysqlredis.New(ds, redisPool)
-			   }
-			*/
+			var dsOpts []mysqlredis.Option
+			// TODO(mna): clarify condition to add the host count check for hard enrollment limit.
+			if license.DeviceCount > 0 /* && license is for Fleet Demo? */ {
+				dsOpts = append(dsOpts, mysqlredis.WithEnforcedHostLimit(license.DeviceCount))
+			}
+			ds = mysqlredis.New(ds, redisPool, dsOpts...)
+
 			resultStore := pubsub.NewRedisQueryResults(redisPool, config.Redis.DuplicateResults)
 			liveQueryStore := live_query.NewRedisLiveQuery(redisPool)
 			ssoSessionStore := sso.NewSessionStore(redisPool)
