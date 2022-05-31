@@ -75,7 +75,7 @@ const App = ({ children, location, router }: IAppProps): JSX.Element => {
 
         // if this is not the device user page,
         // redirect to login
-        if (!location?.pathname.includes("/device")) {
+        if (!location?.pathname.includes("/device/")) {
           window.location.href = "/login";
         }
       }
