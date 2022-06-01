@@ -7,6 +7,7 @@ parasails.registerPage('basic-handbook', {
     showHandbookNav: false,
     breadcrumbs: [],
     subtopics: [],
+    handbookIndexLinks: [],
 
   },
 
@@ -46,23 +47,32 @@ parasails.registerPage('basic-handbook', {
       }
     }
 
-    // If this is the handbook landing page, iterate through markdown pages in `this.markdownPages`
-    // if(this.isHandbookLandingPage){
-    //  for (page of markdownpages) {
-    //  if the page is a handbook page, create an object that contains the page's title, pageOrderInSection, and the array of markdown links on that page
-    //  example: {
-    //    pageTitle: 'People',
-    //    pageRank: 400,
-    //    pageLinks: [
-    //      { headingText: 'Directly responsible individuals', hashLink: '/handbook/people.md#directly-responsible-individuals'},
-    //      {...},
-    //      {...},
-    //    ],
-    //    }
-    //   Add the object to the array of handbook pages
-    //  }
-    //  after all pages have been added, sort the array by the pageOrderInSection value
-    // }
+    // If this is the handbook landing page, we'll generate the page links using the `linksForHandbookIndex` array that each handbook page has
+    if(this.isHandbookLandingPage) {
+      let handbookPages = [];
+      for (let page of this.markdownPages) {
+        if(_.startsWith(page.url, '/handbook') && page.title !== 'Readme.md') {
+          let handbookPage = {
+            pageTitle: page.title,
+            url: page.url,
+            pageLinks: page.linksForHandbookIndex,
+          };
+          handbookPages.push(handbookPage);
+        }
+      }
+      // Sorting the handbook pages alphabetically by the pages url
+      this.handbookIndexLinks = _.sortBy(handbookPages, 'url');
+      // Sorting the company page to the top of the list, and the handbook page to the bottom
+      this.handbookIndexLinks.sort((a)=>{
+        if(a.pageTitle === '🔭 Company') {
+          return -100;
+        } else if(a.pageTitle != 'Handbook') {
+          return 100;
+        } else {
+          return 0;
+        }
+      });
+    }
 
     this.subtopics = (() => {
       let subtopics;

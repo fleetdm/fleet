@@ -449,9 +449,4 @@ The following Slack channels are maintained by Fleet's founders and executive co
 
 
 <meta name="maintainedBy" value="mikermcneil">
-<!-- 
-Add pageOrderInSection meta tags to each handbook page
-<meta name="pageOrderInSection" value="100">
-Add titles with emoji to handbook pages
 <meta name="title" value="🔭 Company">
--->
