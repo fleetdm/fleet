@@ -24,10 +24,6 @@ The Fleet handbook is the central guide for how we run the company. As part of o
 
 [GitHub labels](./company.md#git-hub-labels)
 
-[Tools we use](./company.md#tools-we-use)
-
-[Email relays](./company.md#email-relays)
-
 [Rituals](./company.md#rituals)
 
 [Slack channels](./company.md#slack-channels)
@@ -86,6 +82,10 @@ The Fleet handbook is the central guide for how we run the company. As part of o
 
 [Punctuating and capitalizing bullet points](./brand.md#punctuating-and-capitalizing-bullet-points)
 
+[Commas](./brand.md#commas)
+
+[Dashes and hyphens](./brand.md#dashes-and-hyphens)
+
 [For editors](./brand.md#for-editors)
 
 [Voice and tone guidelines](./brand.md#voice-and-grammar-guidelines)
@@ -117,7 +117,6 @@ The Fleet handbook is the central guide for how we run the company. As part of o
 [Slack channels](./community.md#slack-channels)
 
 ### 🚀 Engineering
-
 
 [Meetings](./engineering.md#meetings)
 
@@ -202,6 +201,12 @@ The Fleet handbook is the central guide for how we run the company. As part of o
 [Rituals](./customers.md#rituals)
 
 [Slack channels](./customers.md#slack-channels)
+
+### 🤝 Sales
+
+[Rituals](./sales.md#rituals)
+
+[Slack channels](./sales.md#slack-channels)
 
 ### 🧑‍🚀 People
 

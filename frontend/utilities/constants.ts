@@ -163,6 +163,8 @@ export const LOGGING_TYPE_OPTIONS = [
   },
 ];
 
+export const MAX_OSQUERY_SCHEDULED_QUERY_INTERVAL = 604800;
+
 export const MIN_OSQUERY_VERSION_OPTIONS = [
   { label: "All", value: "" },
   { label: "4.7.0 +", value: "4.7.0" },

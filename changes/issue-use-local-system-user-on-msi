@@ -1,1 +1,0 @@
-* Now uses `LocalSystem` on fleet-osquery `msi` installer instead of `NT AUTHORITY\SYSTEM`.

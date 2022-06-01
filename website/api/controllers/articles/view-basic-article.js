@@ -59,8 +59,12 @@ module.exports = {
       pageTitleForMeta = thisPage.meta.articleTitle + ' | Fleet for osquery';
     }
     let pageDescriptionForMeta;
-    if(!thisPage.meta.articleTitle || !thisPage.meta.authorFullName) {
-      pageDescriptionForMeta = thisPage.meta.articleTitle +' by '+thisPage.meta.authorFullName+'.';
+    if(thisPage.meta.articleTitle && thisPage.meta.authorFullName) {
+      pageDescriptionForMeta = _.trimRight(thisPage.meta.articleTitle, '.') +' by '+thisPage.meta.authorFullName;
+    }
+    let pageImageForMeta;
+    if(thisPage.meta.articleImageUrl){
+      pageImageForMeta = thisPage.meta.articleImageUrl;
     }
 
     // Respond with view.
@@ -71,6 +75,7 @@ module.exports = {
       compiledPagePartialsAppPath: sails.config.builtStaticContent.compiledPagePartialsAppPath,
       pageTitleForMeta,
       pageDescriptionForMeta,
+      pageImageForMeta,
     };
 
   }

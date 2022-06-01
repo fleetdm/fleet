@@ -4634,6 +4634,13 @@ func (s *integrationTestSuite) TestDeviceAuthenticatedEndpoints() {
 	res.Body.Close()
 	require.NotNil(t, getHostResp.License)
 	require.Equal(t, getHostResp.License.Tier, "free")
+
+	// device policies are not accessible for free endpoints
+	listPoliciesResp := listDevicePoliciesResponse{}
+	res = s.DoRawNoAuth("GET", "/api/latest/fleet/device/"+token+"/policies", nil, http.StatusPaymentRequired)
+	json.NewDecoder(res.Body).Decode(&getHostResp)
+	res.Body.Close()
+	require.Nil(t, listPoliciesResp.Policies)
 }
 
 func (s *integrationTestSuite) TestModifyUser() {
@@ -4851,7 +4858,10 @@ func (s *integrationTestSuite) TestHostsReportDownload() {
 	require.Len(t, rows[0], 44)        // total number of cols
 	t.Log(rows[0])
 
-	const idCol, issuesCol, deviceCol = 2, 40, 41
+	const (
+		idCol     = 2
+		issuesCol = 40
+	)
 
 	// find the row for hosts[1], it should have issues=1 (1 failing policy)
 	for _, row := range rows[1:] {
@@ -4892,6 +4902,7 @@ func (s *integrationTestSuite) TestHostsReportDownload() {
 	// with device mapping results
 	res = s.DoRaw("GET", "/api/latest/fleet/hosts/report", nil, http.StatusOK, "format", "csv", "columns", "id,hostname,device_mapping")
 	rawCSV, err := io.ReadAll(res.Body)
+	require.NoError(t, err)
 	require.Contains(t, string(rawCSV), `"a@b.c,b@b.c"`) // inside quotes because it contains a comma
 	rows, err = csv.NewReader(bytes.NewReader(rawCSV)).ReadAll()
 	res.Body.Close()
