@@ -561,44 +561,45 @@ func (a *agent) googleChromeProfiles() []map[string]string {
 	return result
 }
 
-func (a *agent) processQuery(name, query string) (results []map[string]string, status *fleet.OsqueryStatus) {
+func (a *agent) processQuery(name, query string) (handled bool, results []map[string]string, status *fleet.OsqueryStatus) {
 	const (
 		hostPolicyQueryPrefix = "fleet_policy_query_"
 		hostDetailQueryPrefix = "fleet_detail_query_"
 	)
+	statusOK := fleet.StatusOK
 
 	switch {
 	case strings.HasPrefix(name, hostPolicyQueryPrefix):
-		return a.runPolicy(query), nil
+		return true, a.runPolicy(query), &statusOK
 	case name == hostDetailQueryPrefix+"scheduled_query_stats":
-		return a.randomQueryStats(), nil
+		return true, a.randomQueryStats(), &statusOK
 	case name == hostDetailQueryPrefix+"orbit_info":
 		if ok, results := a.orbitInfo(); ok {
-			return results, nil
+			return true, results, &statusOK
 		}
-		return nil, nil
+		return true, nil, nil
 	case name == hostDetailQueryPrefix+"mdm":
 		ss := fleet.OsqueryStatus(rand.Intn(2))
 		if ss == fleet.StatusOK {
 			results = a.mdm()
 		}
-		return results, &ss
+		return true, results, &ss
 	case name == hostDetailQueryPrefix+"munki_info":
 		ss := fleet.OsqueryStatus(rand.Intn(2))
 		if ss == fleet.StatusOK {
 			results = a.munkiInfo()
 		}
-		return results, &ss
+		return true, results, &ss
 	case name == hostDetailQueryPrefix+"google_chrome_profiles":
 		ss := fleet.OsqueryStatus(rand.Intn(2))
 		if ss == fleet.StatusOK {
 			results = a.googleChromeProfiles()
 		}
-		return results, &ss
+		return true, results, &ss
 	default:
 		// Look for results in the template file.
 		if t := a.templates.Lookup(name); t == nil {
-			return nil, nil
+			return false, nil, nil
 		}
 		var ni bytes.Buffer
 		err := a.templates.ExecuteTemplate(&ni, name, a)
@@ -609,7 +610,7 @@ func (a *agent) processQuery(name, query string) (results []map[string]string, s
 		if err != nil {
 			panic(err)
 		}
-		return results, nil
+		return true, results, &statusOK
 	}
 }
 
@@ -620,14 +621,19 @@ func (a *agent) DistributedWrite(queries map[string]string) {
 	}
 	r.NodeKey = a.nodeKey
 	for name, query := range queries {
-		r.Results[name] = defaultQueryResult
-		r.Statuses[name] = fleet.StatusOK
-		results, status := a.processQuery(name, query)
-		if results != nil {
-			r.Results[name] = results
-		}
-		if status != nil {
-			r.Statuses[name] = *status
+		handled, results, status := a.processQuery(name, query)
+		if !handled {
+			// If osquery-perf does not handle the incoming query,
+			// always return status OK and the default query result.
+			r.Results[name] = defaultQueryResult
+			r.Statuses[name] = fleet.StatusOK
+		} else {
+			if results != nil {
+				r.Results[name] = results
+			}
+			if status != nil {
+				r.Statuses[name] = *status
+			}
 		}
 	}
 	body, err := json.Marshal(r)
