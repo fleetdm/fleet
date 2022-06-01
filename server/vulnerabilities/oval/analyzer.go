@@ -8,13 +8,17 @@ import (
 	"io/fs"
 	"io/ioutil"
 	"os"
-	"path"
+	"path/filepath"
 	"strings"
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	oval_parsed "github.com/fleetdm/fleet/v4/server/vulnerabilities/oval/parsed"
-	"github.com/hashicorp/go-multierror"
+)
+
+const (
+	hostsBatchSize = 500
+	vulnBatchSize  = 500
 )
 
 // Analyze scans all hosts for vulnerabilities based on the OVAL definitions for their platform,
@@ -22,68 +26,118 @@ import (
 func Analyze(
 	ctx context.Context,
 	ds fleet.Datastore,
-	versions *fleet.OSVersions,
+	ver fleet.OSVersion,
 	vulnPath string,
 ) ([]fleet.SoftwareVulnerability, error) {
-	var errR error
+	platform := NewPlatform(ver.Platform, ver.Name)
 
-	for _, v := range versions.OSVersions {
-		platform := NewPlatform(v.Platform, v.Name)
-		if !platform.IsSupported() {
-			continue
+	if !platform.IsSupported() {
+		return nil, nil
+	}
+
+	defs, err := loadDef(platform, vulnPath)
+	if err != nil {
+		return nil, err
+	}
+
+	// Since hosts and software have a M:N relationship, the following sets are used to
+	// avoid doing duplicated inserts/delete operations (a vulnerable software might be
+	// present in many hosts).
+	toInsertSet := make(map[string]fleet.SoftwareVulnerability)
+	toDeleteSet := make(map[string]fleet.SoftwareVulnerability)
+
+	var offset int
+	for {
+		hIds, err := ds.HostIDsByOSVersion(ctx, ver, offset, hostsBatchSize)
+		offset += hostsBatchSize
+
+		if err != nil {
+			return nil, err
 		}
 
-		defs, err := loadDef(platform, vulnPath)
-		if err != nil {
-			errR = multierror.Append(errR, err)
-			continue
+		if len(hIds) == 0 {
+			break
 		}
 
-		hIds, err := ds.HostIDsByPlatform(ctx, &v.Platform, &v.Name)
+		foundInBatch := make(map[uint][]fleet.SoftwareVulnerability)
+		for _, hId := range hIds {
+			software, err := ds.ListSoftwareForVulnDetection(ctx, hId)
+			if err != nil {
+				return nil, err
+			}
+			foundInBatch[hId] = defs.Eval(software)
+		}
+
+		existingInBatch, err := ds.ListSoftwareVulnerabilities(ctx, hIds)
 		if err != nil {
-			errR = multierror.Append(errR, err)
-			continue
+			return nil, err
 		}
 
 		for _, hId := range hIds {
-			h := fleet.Host{ID: hId}
-			opts := fleet.SoftwareListOptions{
-				IncludeCVEScores: false,
-				VulnerableOnly:   false,
-				WithHostCounts:   false,
+			insrt, del := vulnsDelta(foundInBatch[hId], existingInBatch[hId])
+			for _, i := range insrt {
+				key := fmt.Sprintf("%d:%s", i.SoftwareID, i.CVE)
+				toInsertSet[key] = i
 			}
-			err := ds.LoadHostSoftware(ctx, &h, opts)
-			if err != nil {
-				errR = multierror.Append(errR, err)
-				continue
-			}
-
-			found := defs.Eval(h.Software)
-			if len(found) == 0 {
-				continue
-			}
-
-			existing, err := ds.ListSoftwareVulnerabilities(ctx, hId)
-			if err != nil {
-				errR = multierror.Append(errR, err)
-			}
-
-			toInsert, toDelete := vulnsDelta(found, existing)
-			if len(toDelete) > 0 {
-				if err := ds.DeleteVulnerabilitiesByCPECVE(ctx, toDelete); err != nil {
-					errR = multierror.Append(errR, err)
-				}
-			}
-			if len(toInsert) > 0 {
-				if _, err = ds.InsertVulnerabilities(ctx, toInsert, fleet.OVAL); err != nil {
-					errR = multierror.Append(errR, err)
-				}
-				return toInsert, errR
+			for _, d := range del {
+				key := fmt.Sprintf("%d:%s", d.SoftwareID, d.CVE)
+				toDeleteSet[key] = d
 			}
 		}
 	}
 
-	return nil, errR
+	err = batchProcess(toDeleteSet, func(v []fleet.SoftwareVulnerability) error {
+		return ds.DeleteVulnerabilitiesByCPECVE(ctx, v)
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	inserted := make([]fleet.SoftwareVulnerability, 0, len(toInsertSet))
+	err = batchProcess(toInsertSet, func(v []fleet.SoftwareVulnerability) error {
+		if _, err := ds.InsertVulnerabilities(ctx, v, fleet.OVAL); err != nil {
+			return err
+		}
+		inserted = append(inserted, v...)
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	return inserted, nil
+}
+
+func batchProcess(
+	values map[string]fleet.SoftwareVulnerability,
+	dsFunc func(v []fleet.SoftwareVulnerability) error,
+) error {
+	if len(values) == 0 {
+		return nil
+	}
+
+	bSize := vulnBatchSize
+	if bSize > len(values) {
+		bSize = len(values)
+	}
+
+	buffer := make([]fleet.SoftwareVulnerability, bSize)
+	var offset, i int
+	for _, v := range values {
+		buffer[offset] = v
+		offset++
+		i++
+
+		// Consume buffer if full or if we are at the last iteration
+		if offset == bSize || i >= len(values) {
+			err := dsFunc(buffer[:offset])
+			if err != nil {
+				return err
+			}
+			offset = 0
+		}
+	}
+	return nil
 }
 
 // vulnsDelta compares what vulnerabilities already exists with what new vulnerabilities were found
@@ -148,7 +202,7 @@ func loadDef(platform Platform, vulnPath string) (oval_parsed.Result, error) {
 func latestOvalDefFor(platform Platform, vulnPath string, date time.Time) (string, error) {
 	ext := "json"
 	fileName := platform.ToFilename(date, ext)
-	target := path.Join(vulnPath, fileName)
+	target := filepath.Join(vulnPath, fileName)
 
 	switch _, err := os.Stat(target); {
 	case err == nil:
@@ -175,7 +229,7 @@ func latestOvalDefFor(platform Platform, vulnPath string, date time.Time) (strin
 		if latest == nil {
 			return "", fmt.Errorf("file not found for platform '%s' in '%s'", platform, vulnPath)
 		}
-		return path.Join(vulnPath, latest.Name()), nil
+		return filepath.Join(vulnPath, latest.Name()), nil
 	default:
 		return "", fmt.Errorf("failed to stat %q: %w", target, err)
 	}

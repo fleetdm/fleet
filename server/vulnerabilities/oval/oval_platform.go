@@ -45,7 +45,7 @@ func getMajorMinorVer(osVersion string) string {
 // Ex: ('ubuntu', 'Ubuntu 20.4.0') => 'ubuntu-20'.
 func NewPlatform(hostPlatform, hostOsVersion string) Platform {
 	nPlatform := strings.Trim(strings.ToLower(hostPlatform), " ")
-	majorVer := getMajorMinorVer(hostOsVersion)
+	majorVer := getMajorMinorVer(strings.Trim(hostOsVersion, " "))
 	return Platform(fmt.Sprintf("%s_%s", nPlatform, majorVer))
 }
 
@@ -56,7 +56,16 @@ func (op Platform) ToFilename(date time.Time, extension string) string {
 
 // IsSupported returns whether the given platform is currently supported or not.
 func (op Platform) IsSupported() bool {
-	for _, p := range SupportedHostPlatforms {
+	supported := []string{
+		"ubuntu_1404",
+		"ubuntu_1604",
+		"ubuntu_1804",
+		"ubuntu_2004",
+		"ubuntu_2104",
+		"ubuntu_2110",
+		"ubuntu_2204",
+	}
+	for _, p := range supported {
 		if strings.HasPrefix(string(op), p) {
 			return true
 		}

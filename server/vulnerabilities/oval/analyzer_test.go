@@ -13,21 +13,159 @@ import (
 	"testing"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/server"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
 	"github.com/fleetdm/fleet/v4/server/fleet"
-	"github.com/fleetdm/fleet/v4/server/test"
 	"github.com/stretchr/testify/require"
 )
+
+func withTestFixture(
+	version fleet.OSVersion,
+	vulnPath string,
+	ds *mysql.Datastore,
+	afterLoad func(h *fleet.Host),
+	t require.TestingT,
+) {
+	type softwareFixture struct {
+		Name    string `json:"name"`
+		Version string `json:"version"`
+	}
+
+	ctx := context.Background()
+
+	extract := func(src, dst string) {
+		srcF, err := os.Open(src)
+		require.NoError(t, err)
+		defer srcF.Close()
+
+		dstF, err := os.Create(dst)
+		require.NoError(t, err)
+		defer dstF.Close()
+
+		r := bzip2.NewReader(srcF)
+		_, err = io.Copy(dstF, r)
+		require.NoError(t, err)
+	}
+
+	extractFixtures := func(p Platform) {
+		fixtPath := "testdata/ubuntu"
+
+		srcDefPath := filepath.Join(fixtPath, fmt.Sprintf("%s-oval_def.json.bz2", p))
+		dstDefPath := filepath.Join(vulnPath, p.ToFilename(time.Now(), "json"))
+		extract(srcDefPath, dstDefPath)
+
+		srcSoftPath := filepath.Join(fixtPath, "software", fmt.Sprintf("%s-software.json.bz2", p))
+		dstSoftPath := filepath.Join(vulnPath, fmt.Sprintf("%s-software.json", p))
+		extract(srcSoftPath, dstSoftPath)
+
+		srcCvesPath := filepath.Join(fixtPath, "software", fmt.Sprintf("%s-software_cves.csv.bz2", p))
+		dstCvesPath := filepath.Join(vulnPath, fmt.Sprintf("%s-software_cves.csv", p))
+		extract(srcCvesPath, dstCvesPath)
+	}
+
+	loadSoftware := func(p Platform, s fleet.OSVersion) *fleet.Host {
+		osqueryHostID, err := server.GenerateRandomText(10)
+		require.NoError(t, err)
+
+		h, err := ds.NewHost(context.Background(), &fleet.Host{
+			Hostname:        string(p),
+			NodeKey:         string(p),
+			UUID:            string(p),
+			DetailUpdatedAt: time.Now(),
+			LabelUpdatedAt:  time.Now(),
+			PolicyUpdatedAt: time.Now(),
+			SeenTime:        time.Now(),
+			OsqueryHostID:   osqueryHostID,
+			Platform:        s.Platform,
+			OSVersion:       s.Name,
+		})
+		require.NoError(t, err)
+
+		var fixtures []softwareFixture
+		contents, err := ioutil.ReadFile(filepath.Join(vulnPath, fmt.Sprintf("%s-software.json", p)))
+		require.NoError(t, err)
+
+		err = json.Unmarshal(contents, &fixtures)
+		require.NoError(t, err)
+
+		var software []fleet.Software
+		for _, fi := range fixtures {
+			software = append(software, fleet.Software{
+				Name:    fi.Name,
+				Version: fi.Version,
+			})
+		}
+		err = ds.UpdateHostSoftware(ctx, h.ID, software)
+		require.NoError(t, err)
+
+		err = ds.LoadHostSoftware(ctx, h, fleet.SoftwareListOptions{})
+		require.NoError(t, err)
+
+		for _, s := range h.Software {
+			err = ds.AddCPEForSoftware(ctx, s, fmt.Sprintf("%s-%s", s.Name, s.Version))
+			require.NoError(t, err)
+		}
+
+		return h
+	}
+
+	p := NewPlatform(version.Platform, version.Name)
+
+	extractFixtures(p)
+	h := loadSoftware(p, version)
+
+	err := ds.UpdateOSVersions(ctx)
+	require.NoError(t, err)
+
+	afterLoad(h)
+
+	err = ds.DeleteHost(ctx, h.ID)
+	require.NoError(t, err)
+}
+
+func BenchmarkTestOvalAnalyzer(b *testing.B) {
+	ds := mysql.CreateMySQLDS(b)
+	defer mysql.TruncateTables(b, ds)
+
+	vulnPath, err := ioutil.TempDir("", "oval_analyzer_ubuntu")
+	defer os.RemoveAll(vulnPath)
+	require.NoError(b, err)
+
+	systems := []fleet.OSVersion{
+		{Platform: "ubuntu", Name: "Ubuntu 16.4.0"},
+		{Platform: "ubuntu", Name: "Ubuntu 18.4.0"},
+		{Platform: "ubuntu", Name: "Ubuntu 20.4.0"},
+		{Platform: "ubuntu", Name: "Ubuntu 21.4.0"},
+		{Platform: "ubuntu", Name: "Ubuntu 21.10.0"},
+		{Platform: "ubuntu", Name: "Ubuntu 22.4.0"},
+	}
+
+	for _, v := range systems {
+		b.Run(fmt.Sprintf("for %s %s", v.Platform, v.Name), func(b *testing.B) {
+			withTestFixture(v, vulnPath, ds, func(h *fleet.Host) {
+				b.ResetTimer()
+				for i := 0; i < b.N; i++ {
+					_, err = Analyze(context.Background(), ds, v, vulnPath)
+					require.NoError(b, err)
+				}
+			}, b)
+		})
+	}
+}
 
 func TestOvalAnalyzer(t *testing.T) {
 	// For generating the vulnerability lists I used VMs and ran oscap (since it seems like oscap
 	// does not work with Docker) and extracted all installed software vulnerabilities, then I had
 	// the VMs join my local dev env, and extracted the installed software from the database.
 	t.Run("analyzing Ubuntu software", func(t *testing.T) {
-		type softwareFixture struct {
-			Name    string `json:"name"`
-			Version string `json:"version"`
-		}
+		ds := mysql.CreateMySQLDS(t)
+		defer mysql.TruncateTables(t, ds)
+
+		vulnPath, err := ioutil.TempDir("", "oval_analyzer_ubuntu")
+		defer os.RemoveAll(vulnPath)
+		require.NoError(t, err)
+
+		ctx := context.Background()
 
 		systems := []fleet.OSVersion{
 			{Platform: "ubuntu", Name: "Ubuntu 16.4.0"},
@@ -36,79 +174,6 @@ func TestOvalAnalyzer(t *testing.T) {
 			{Platform: "ubuntu", Name: "Ubuntu 21.4.0"},
 			{Platform: "ubuntu", Name: "Ubuntu 21.10.0"},
 			{Platform: "ubuntu", Name: "Ubuntu 22.4.0"},
-		}
-
-		ds := mysql.CreateMySQLDS(t)
-		defer mysql.TruncateTables(t, ds)
-		ctx := context.Background()
-
-		vulnPath, err := ioutil.TempDir("", "oval_analyzer_ubuntu")
-		defer os.RemoveAll(vulnPath)
-		require.NoError(t, err)
-
-		extract := func(src, dst string) {
-			srcF, err := os.Open(src)
-			require.NoError(t, err)
-			defer srcF.Close()
-
-			dstF, err := os.Create(dst)
-			require.NoError(t, err)
-			defer dstF.Close()
-
-			r := bzip2.NewReader(srcF)
-			_, err = io.Copy(dstF, r)
-			require.NoError(t, err)
-		}
-
-		extractFixtures := func(p Platform) {
-			fixtPath := "testdata/ubuntu"
-
-			srcDefPath := filepath.Join(fixtPath, fmt.Sprintf("%s-oval_def.json.bz2", p))
-			dstDefPath := filepath.Join(vulnPath, p.ToFilename(time.Now(), "json"))
-			extract(srcDefPath, dstDefPath)
-
-			srcSoftPath := filepath.Join(fixtPath, "software", fmt.Sprintf("%s-software.json.bz2", p))
-			dstSoftPath := filepath.Join(vulnPath, fmt.Sprintf("%s-software.json", p))
-			extract(srcSoftPath, dstSoftPath)
-
-			srcCvesPath := filepath.Join(fixtPath, "software", fmt.Sprintf("%s-software_cves.csv.bz2", p))
-			dstCvesPath := filepath.Join(vulnPath, fmt.Sprintf("%s-software_cves.csv", p))
-			extract(srcCvesPath, dstCvesPath)
-		}
-
-		loadSoftware := func(p Platform, s fleet.OSVersion) *fleet.Host {
-			h := test.NewHost(t, ds, string(p), "127.0.0.1", string(p), string(p), time.Now())
-			h.Platform = s.Platform
-			h.OSVersion = s.Name
-			err := ds.UpdateHost(ctx, h)
-			require.NoError(t, err)
-
-			var fixtures []softwareFixture
-			contents, err := ioutil.ReadFile(filepath.Join(vulnPath, fmt.Sprintf("%s-software.json", p)))
-			require.NoError(t, err)
-
-			err = json.Unmarshal(contents, &fixtures)
-			require.NoError(t, err)
-
-			var software []fleet.Software
-			for _, fi := range fixtures {
-				software = append(software, fleet.Software{
-					Name:    fi.Name,
-					Version: fi.Version,
-				})
-			}
-			err = ds.UpdateHostSoftware(ctx, h.ID, software)
-			require.NoError(t, err)
-
-			err = ds.LoadHostSoftware(ctx, h, fleet.SoftwareListOptions{})
-			require.NoError(t, err)
-
-			for _, s := range h.Software {
-				err = ds.AddCPEForSoftware(ctx, s, fmt.Sprintf("%s-%s", s.Name, s.Version))
-				require.NoError(t, err)
-			}
-
-			return h
 		}
 
 		assertVulns := func(h *fleet.Host, p Platform) {
@@ -133,11 +198,11 @@ func TestOvalAnalyzer(t *testing.T) {
 			}
 			require.NotEmpty(t, expected)
 
-			storedVulns, err := ds.ListSoftwareVulnerabilities(ctx, h.ID)
+			storedVulns, err := ds.ListSoftwareVulnerabilities(ctx, []uint{h.ID})
 			require.NoError(t, err)
 
 			uniq := make(map[string]bool)
-			for _, v := range storedVulns {
+			for _, v := range storedVulns[h.ID] {
 				uniq[v.CVE] = true
 			}
 			actual := make([]string, 0, len(uniq))
@@ -148,25 +213,14 @@ func TestOvalAnalyzer(t *testing.T) {
 			require.ElementsMatch(t, actual, expected)
 		}
 
-		for _, s := range systems {
-			p := NewPlatform(s.Platform, s.Name)
+		for _, v := range systems {
+			withTestFixture(v, vulnPath, ds, func(h *fleet.Host) {
+				_, err = Analyze(ctx, ds, v, vulnPath)
+				require.NoError(t, err)
 
-			extractFixtures(p)
-			h := loadSoftware(p, s)
-
-			err := ds.UpdateOSVersions(ctx)
-			require.NoError(t, err)
-
-			osVersions, err := ds.OSVersions(ctx, nil, nil)
-			require.NoError(t, err)
-
-			_, err = Analyze(ctx, ds, osVersions, vulnPath)
-			require.NoError(t, err)
-
-			assertVulns(h, p)
-
-			err = ds.DeleteHost(ctx, h.ID)
-			require.NoError(t, err)
+				p := NewPlatform(v.Platform, v.Name)
+				assertVulns(h, p)
+			}, t)
 		}
 	})
 
@@ -228,6 +282,21 @@ func TestOvalAnalyzer(t *testing.T) {
 			toInsert, toDelete := vulnsDelta(found, existing)
 			require.Equal(t, expectedToInsert, toInsert)
 			require.ElementsMatch(t, expectedToDelete, toDelete)
+		})
+
+		t.Run("nothing found but vulns exist", func(t *testing.T) {
+			var found []fleet.SoftwareVulnerability
+
+			existing := []fleet.SoftwareVulnerability{
+				{CPE: "cpe_1", CPEID: 1, CVE: "cve_1"},
+				{CPE: "cpe_1", CPEID: 1, CVE: "cve_2"},
+				{CPE: "cpe_2", CPEID: 2, CVE: "cve_3"},
+				{CPE: "cpe_2", CPEID: 2, CVE: "cve_4"},
+			}
+
+			toInsert, toDelete := vulnsDelta(found, existing)
+			require.Empty(t, toInsert)
+			require.ElementsMatch(t, existing, toDelete)
 		})
 	})
 

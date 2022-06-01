@@ -304,18 +304,15 @@ func checkOvalVulnerabilities(
 		return
 	}
 
-	// Get Platforms/OS Versions
+	// Get Platforms
 	versions, err := ds.OSVersions(ctx, nil, nil)
 	if err != nil {
 		level.Error(logger).Log("msg", "updating oval definitions", "err", err)
 		sentry.CaptureException(err)
 		return
 	}
-	for _, os := range versions.OSVersions {
-		level.Debug(logger).Log("oval-updating", "Found OS Version", "platform", os.Platform, "version", os.Name)
-	}
 
-	// Sync
+	// Sync on disk OVAL definitions with current OS Versions.
 	client := fleethttp.NewClient()
 	downloaded, err := oval.Refresh(ctx, client, versions, vulnPath)
 	if err != nil {
@@ -323,14 +320,20 @@ func checkOvalVulnerabilities(
 		sentry.CaptureException(err)
 	}
 	for _, d := range downloaded {
-		level.Debug(logger).Log("oval-updating", "Downloaded new definitions", d)
+		level.Debug(logger).Log("oval-sync-downloaded", d)
 	}
 
-	// Analyze
-	_, err = oval.Analyze(ctx, ds, versions, vulnPath)
-	if err != nil {
-		level.Error(logger).Log("msg", "analyzing oval definitions", "err", err)
-		sentry.CaptureException(err)
+	// Analyze all supported os versions using the synched OVAL definitions.
+	for _, version := range versions.OSVersions {
+		start := time.Now()
+		_, err := oval.Analyze(ctx, ds, version, vulnPath)
+		elapsed := time.Since(start)
+		level.Debug(logger).Log("msg", "oval-analysis-done", "platform", version.Name, "elapsed", elapsed)
+
+		if err != nil {
+			level.Error(logger).Log("msg", "analyzing oval definitions", "err", err)
+			sentry.CaptureException(err)
+		}
 	}
 }
 

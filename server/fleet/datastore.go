@@ -188,8 +188,8 @@ type Datastore interface {
 	GenerateHostStatusStatistics(ctx context.Context, filter TeamFilter, now time.Time, platform *string) (*HostSummary, error)
 	// HostIDsByName Retrieve the IDs associated with the given hostnames
 	HostIDsByName(ctx context.Context, filter TeamFilter, hostnames []string) ([]uint, error)
-	// HostIDsByPlatform retrieves the IDs of all host matching 'platform' and/or 'os_version'
-	HostIDsByPlatform(ctx context.Context, platform *string, osVersion *string) ([]uint, error)
+	// HostIDsByOSVersion retrieves the IDs of all host matching osVersion
+	HostIDsByOSVersion(ctx context.Context, osVersion OSVersion, offset int, limit int) ([]uint, error)
 	// HostByIdentifier returns one host matching the provided identifier. Possible matches can be on
 	// osquery_host_identifier, node_key, UUID, or hostname.
 	HostByIdentifier(ctx context.Context, identifier string) (*Host, error)
@@ -339,8 +339,10 @@ type Datastore interface {
 
 	///////////////////////////////////////////////////////////////////////////////
 	// SoftwareStore
-
-	ListSoftwareVulnerabilities(ctx context.Context, hostID uint) ([]SoftwareVulnerability, error)
+	// ListSoftwareForVulnDetection returns all software for the given hostID with only the fields
+	// used for vulnerability detection populated (id, name, version, cpe_id, cpe)
+	ListSoftwareForVulnDetection(ctx context.Context, hostID uint) ([]Software, error)
+	ListSoftwareVulnerabilities(ctx context.Context, hostIDs []uint) (map[uint][]SoftwareVulnerability, error)
 	LoadHostSoftware(ctx context.Context, host *Host, opts SoftwareListOptions) error
 	AllSoftwareWithoutCPEIterator(ctx context.Context) (SoftwareIterator, error)
 	AddCPEForSoftware(ctx context.Context, software Software, cpe string) error

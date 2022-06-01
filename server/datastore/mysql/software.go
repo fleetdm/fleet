@@ -1112,9 +1112,15 @@ func (ds *Datastore) InsertVulnerabilities(
 
 func (ds *Datastore) ListSoftwareVulnerabilities(
 	ctx context.Context,
-	hostID uint,
-) ([]fleet.SoftwareVulnerability, error) {
-	var result []fleet.SoftwareVulnerability
+	hostIDs []uint,
+) (map[uint][]fleet.SoftwareVulnerability, error) {
+	result := make(map[uint][]fleet.SoftwareVulnerability)
+
+	type softwareVulnerabilityWithHostId struct {
+		fleet.SoftwareVulnerability
+		HostId uint `db:"host_id"`
+	}
+	var queryR []softwareVulnerabilityWithHostId
 
 	stmt := dialect.
 		From(goqu.T("software_cve").As("cve")).
@@ -1131,20 +1137,66 @@ func (ds *Datastore) ListSoftwareVulnerabilities(
 			}),
 		).
 		Select(
+			goqu.I("hs.host_id").As("host_id"),
 			goqu.I("cpe.software_id"),
 			goqu.C("cpe"),
 			goqu.C("cpe_id"),
 			goqu.C("cve"),
 		).
+		Where(goqu.C("host_id").In(hostIDs))
+
+	sql, args, err := stmt.ToSQL()
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "error generating SQL statement")
+	}
+
+	if err := sqlx.SelectContext(ctx, ds.reader, &queryR, sql, args...); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "error executing SQL statement")
+	}
+
+	for _, r := range queryR {
+		result[r.HostId] = append(result[r.HostId], r.SoftwareVulnerability)
+	}
+
+	return result, nil
+}
+
+func (ds *Datastore) ListSoftwareForVulnDetection(
+	ctx context.Context,
+	hostID uint,
+) ([]fleet.Software, error) {
+	var result []fleet.Software
+
+	stmt := dialect.
+		From(goqu.T("software").As("s")).
+		Join(
+			goqu.T("software_cpe").As("cpe"),
+			goqu.On(goqu.Ex{
+				"s.id": goqu.I("cpe.software_id"),
+			}),
+		).
+		Join(
+			goqu.T("host_software").As("hs"),
+			goqu.On(goqu.Ex{
+				"s.id": goqu.I("hs.software_id"),
+			}),
+		).
+		Select(
+			goqu.I("s.id"),
+			goqu.I("s.name"),
+			goqu.I("s.version"),
+			goqu.I("cpe.cpe").As("generated_cpe"),
+			goqu.I("cpe.id").As("generated_cpe_id"),
+		).
 		Where(goqu.C("host_id").Eq(hostID))
 
 	sql, args, err := stmt.ToSQL()
 	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "ListSoftwareVulnerabilities")
+		return nil, ctxerr.Wrap(ctx, err, "error generating SQL statement")
 	}
 
 	if err := sqlx.SelectContext(ctx, ds.reader, &result, sql, args...); err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "ListSoftwareVulnerabilities")
+		return nil, ctxerr.Wrap(ctx, err, "error executing SQL statement")
 	}
 
 	return result, nil

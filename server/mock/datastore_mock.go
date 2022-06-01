@@ -156,7 +156,7 @@ type GenerateHostStatusStatisticsFunc func(ctx context.Context, filter fleet.Tea
 
 type HostIDsByNameFunc func(ctx context.Context, filter fleet.TeamFilter, hostnames []string) ([]uint, error)
 
-type HostIDsByPlatformFunc func(ctx context.Context, platform *string, osVersion *string) ([]uint, error)
+type HostIDsByOSVersionFunc func(ctx context.Context, osVersion fleet.OSVersion, offset int, limit int) ([]uint, error)
 
 type HostByIdentifierFunc func(ctx context.Context, identifier string) (*fleet.Host, error)
 
@@ -270,7 +270,9 @@ type SearchTeamsFunc func(ctx context.Context, filter fleet.TeamFilter, matchQue
 
 type TeamEnrollSecretsFunc func(ctx context.Context, teamID uint) ([]*fleet.EnrollSecret, error)
 
-type ListSoftwareVulnerabilitiesFunc func(ctx context.Context, hostID uint) ([]fleet.SoftwareVulnerability, error)
+type ListSoftwareForVulnDetectionFunc func(ctx context.Context, hostID uint) ([]fleet.Software, error)
+
+type ListSoftwareVulnerabilitiesFunc func(ctx context.Context, hostIDs []uint) (map[uint][]fleet.SoftwareVulnerability, error)
 
 type LoadHostSoftwareFunc func(ctx context.Context, host *fleet.Host, opts fleet.SoftwareListOptions) error
 
@@ -625,8 +627,8 @@ type DataStore struct {
 	HostIDsByNameFunc        HostIDsByNameFunc
 	HostIDsByNameFuncInvoked bool
 
-	HostIDsByPlatformFunc        HostIDsByPlatformFunc
-	HostIDsByPlatformFuncInvoked bool
+	HostIDsByOSVersionFunc        HostIDsByOSVersionFunc
+	HostIDsByOSVersionFuncInvoked bool
 
 	HostByIdentifierFunc        HostByIdentifierFunc
 	HostByIdentifierFuncInvoked bool
@@ -795,6 +797,9 @@ type DataStore struct {
 
 	TeamEnrollSecretsFunc        TeamEnrollSecretsFunc
 	TeamEnrollSecretsFuncInvoked bool
+
+	ListSoftwareForVulnDetectionFunc        ListSoftwareForVulnDetectionFunc
+	ListSoftwareForVulnDetectionFuncInvoked bool
 
 	ListSoftwareVulnerabilitiesFunc        ListSoftwareVulnerabilitiesFunc
 	ListSoftwareVulnerabilitiesFuncInvoked bool
@@ -1364,9 +1369,9 @@ func (s *DataStore) HostIDsByName(ctx context.Context, filter fleet.TeamFilter, 
 	return s.HostIDsByNameFunc(ctx, filter, hostnames)
 }
 
-func (s *DataStore) HostIDsByPlatform(ctx context.Context, platform *string, osVersion *string) ([]uint, error) {
-	s.HostIDsByPlatformFuncInvoked = true
-	return s.HostIDsByPlatformFunc(ctx, platform, osVersion)
+func (s *DataStore) HostIDsByOSVersion(ctx context.Context, osVersion fleet.OSVersion, offset int, limit int) ([]uint, error) {
+	s.HostIDsByOSVersionFuncInvoked = true
+	return s.HostIDsByOSVersionFunc(ctx, osVersion, offset, limit)
 }
 
 func (s *DataStore) HostByIdentifier(ctx context.Context, identifier string) (*fleet.Host, error) {
@@ -1649,9 +1654,14 @@ func (s *DataStore) TeamEnrollSecrets(ctx context.Context, teamID uint) ([]*flee
 	return s.TeamEnrollSecretsFunc(ctx, teamID)
 }
 
-func (s *DataStore) ListSoftwareVulnerabilities(ctx context.Context, hostID uint) ([]fleet.SoftwareVulnerability, error) {
+func (s *DataStore) ListSoftwareForVulnDetection(ctx context.Context, hostID uint) ([]fleet.Software, error) {
+	s.ListSoftwareForVulnDetectionFuncInvoked = true
+	return s.ListSoftwareForVulnDetectionFunc(ctx, hostID)
+}
+
+func (s *DataStore) ListSoftwareVulnerabilities(ctx context.Context, hostIDs []uint) (map[uint][]fleet.SoftwareVulnerability, error) {
 	s.ListSoftwareVulnerabilitiesFuncInvoked = true
-	return s.ListSoftwareVulnerabilitiesFunc(ctx, hostID)
+	return s.ListSoftwareVulnerabilitiesFunc(ctx, hostIDs)
 }
 
 func (s *DataStore) LoadHostSoftware(ctx context.Context, host *fleet.Host, opts fleet.SoftwareListOptions) error {

@@ -127,17 +127,19 @@ func Refresh(
 	versions *fleet.OSVersions,
 	vulnPath string,
 ) ([]Platform, error) {
-	today := time.Now()
+	now := time.Now()
 
-	existing, err := removeOldDefs(today, vulnPath)
+	existing, err := removeOldDefs(now, vulnPath)
 	if err != nil {
 		return nil, err
 	}
 
-	toDownload := whatToDownload(versions, existing, today)
-	err = Sync(client, vulnPath, toDownload)
-	if err != nil {
-		return nil, err
+	toDownload := whatToDownload(versions, existing, now)
+	if len(toDownload) > 0 {
+		err = Sync(client, vulnPath, toDownload)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	return toDownload, nil
