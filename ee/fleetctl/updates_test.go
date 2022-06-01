@@ -129,7 +129,7 @@ func assertFileExists(t *testing.T, path string) {
 	assert.True(t, st.Mode().IsRegular(), "should be regular file: %s", path)
 }
 
-func assertVersion(t *testing.T, expected int, versionFunc func() (int, error)) {
+func assertVersion(t *testing.T, expected int64, versionFunc func() (int64, error)) {
 	t.Helper()
 	actual, err := versionFunc()
 	require.NoError(t, err)

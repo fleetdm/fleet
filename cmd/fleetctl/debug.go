@@ -551,7 +551,7 @@ Such migrations can be applied via "fleet prepare db" before running "fleet serv
 
 func debugErrorsCommand() *cli.Command {
 	var (
-		name  string = "errors"
+		name  = "errors"
 		flush bool
 	)
 	return &cli.Command{

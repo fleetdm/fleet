@@ -3,7 +3,6 @@ package update
 
 import (
 	"archive/tar"
-	"bufio"
 	"compress/gzip"
 	"crypto/tls"
 	"encoding/json"
@@ -17,13 +16,11 @@ import (
 	"runtime"
 	"strings"
 
-	"github.com/fatih/color"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/build"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/constant"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/platform"
 	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
 	"github.com/fleetdm/fleet/v4/pkg/secure"
-	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/rs/zerolog/log"
 	"github.com/theupdateframework/go-tuf/client"
 	"github.com/theupdateframework/go-tuf/data"
@@ -152,11 +149,7 @@ func NewDisabled(opt Options) *Updater {
 // UpdateMetadata downloads and verifies remote repository metadata.
 func (u *Updater) UpdateMetadata() error {
 	if _, err := u.client.Update(); err != nil {
-		// An error is returned if we are already up-to-date. We can ignore that
-		// error.
-		if !client.IsLatestSnapshot(ctxerr.Cause(err)) {
-			return fmt.Errorf("update metadata: %w", err)
-		}
+		return fmt.Errorf("update metadata: %w", err)
 	}
 	return nil
 }
@@ -330,49 +323,6 @@ func (u *Updater) Get(target string) (*LocalTarget, error) {
 	}
 
 	return localTarget, nil
-}
-
-func writeDevWarningBanner(w io.Writer) {
-	warningColor := color.New(color.FgWhite, color.Bold, color.BgRed)
-	warningColor.Fprintf(w, "WARNING: You are attempting to override orbit with a dev build.\nPress Enter to continue, or Control-c to exit.")
-	// We need to disable color and print a new line to make it look somewhat neat, otherwise colors continue to the
-	// next line
-	warningColor.DisableColor()
-	warningColor.Fprintln(w)
-	bufio.NewScanner(os.Stdin).Scan()
-}
-
-// CopyDevBuilds uses a development build for the given target+channel.
-//
-// This is just for development, must not be used in production.
-func (u *Updater) CopyDevBuild(target, devBuildPath string) {
-	writeDevWarningBanner(os.Stderr)
-
-	localPath, err := u.ExecutableLocalPath(target)
-	if err != nil {
-		panic(err)
-	}
-	if err := secure.MkdirAll(filepath.Dir(localPath), constant.DefaultDirMode); err != nil {
-		panic(err)
-	}
-	dst, err := secure.OpenFile(localPath, os.O_CREATE|os.O_WRONLY, constant.DefaultExecutableMode)
-	if err != nil {
-		panic(err)
-	}
-	defer dst.Close()
-
-	src, err := secure.OpenFile(devBuildPath, os.O_RDONLY, constant.DefaultExecutableMode)
-	if err != nil {
-		panic(err)
-	}
-	defer src.Close()
-
-	if _, err := src.Stat(); err != nil {
-		panic(err)
-	}
-	if _, err := io.Copy(dst, src); err != nil {
-		panic(err)
-	}
 }
 
 // download downloads the target to the provided path. The file is deleted and

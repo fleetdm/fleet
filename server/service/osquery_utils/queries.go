@@ -320,11 +320,17 @@ FROM logical_drives WHERE file_system = 'NTFS' LIMIT 1;`,
 		DirectIngestFunc: directIngestChromeProfiles,
 		Discovery:        discoveryTable("google_chrome_profiles"),
 	},
-	"orbit_info": {
-		Query:            `SELECT * FROM orbit_info`,
-		DirectIngestFunc: directIngestOrbitInfo,
-		Discovery:        discoveryTable("orbit_info"),
-	},
+	OrbitInfoQueryName: OrbitInfoDetailQuery,
+}
+
+// OrbitInfoQueryName is the name of the query to ingest orbit_info table extension data.
+const OrbitInfoQueryName = "orbit_info"
+
+// OrbitInfoDetailQuery holds the query and ingestion function for the orbit_info table extension.
+var OrbitInfoDetailQuery = DetailQuery{
+	Query:            `SELECT * FROM orbit_info`,
+	DirectIngestFunc: directIngestOrbitInfo,
+	Discovery:        discoveryTable("orbit_info"),
 }
 
 // discoveryTable returns a query to determine whether a table exists or not.

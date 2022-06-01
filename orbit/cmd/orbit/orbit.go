@@ -494,10 +494,7 @@ func main() {
 		}
 		g.Add(r.Execute, r.Interrupt)
 
-		ext := table.NewRunner(r.ExtensionSocketPath(), table.WithExtension(orbitInfoExtension{
-			deviceAuthToken: deviceAuthToken,
-		}))
-		g.Add(ext.Execute, ext.Interrupt)
+		registerExtensionRunner(&g, r.ExtensionSocketPath(), deviceAuthToken)
 
 		if c.Bool("fleet-desktop") {
 			desktopRunner := newDesktopRunner(desktopPath, fleetURL, deviceAuthToken, c.Bool("insecure"))
@@ -519,6 +516,13 @@ func main() {
 	if err := app.Run(os.Args); err != nil {
 		log.Error().Err(err).Msg("run orbit failed")
 	}
+}
+
+func registerExtensionRunner(g *run.Group, extSockPath, deviceAuthToken string) {
+	ext := table.NewRunner(extSockPath, table.WithExtension(orbitInfoExtension{
+		deviceAuthToken: deviceAuthToken,
+	}))
+	g.Add(ext.Execute, ext.Interrupt)
 }
 
 type desktopRunner struct {

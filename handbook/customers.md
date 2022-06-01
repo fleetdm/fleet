@@ -93,6 +93,11 @@ To generate a trial license key for a larger deployment, [create an opportunity 
 ## Documentation updates
 Occasionally users will either email or Slack questions about product usage. We will track these requests and occasionally update our documentation to simplify things for our users. We have a Zapier integration that will automatically create an entry in our customer questions Google doc (in Slack, right-click on the customer question and select send to Zapier). At the end of the week, one of our team members will take each request in the spreadsheet and make any helpful documentation updates to help prevent similar questions in the future.
 
+## Customer contracts
+Fleet's subscription agreement is available at [fleetdm.com/terms](https://fleetdm.com/terms). 
+
+Fleet employees can find a summary of contract terms [here](https://docs.google.com/spreadsheets/d/1gAenC948YWG2NwcaVHleUvX0LzS8suyMFpjaBqxHQNg/edit?usp=sharing).
+
 ## Rituals
 
 The following table lists the Customers group's rituals, frequency, and Directly Responsible Individual (DRI).

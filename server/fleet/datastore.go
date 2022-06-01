@@ -175,7 +175,7 @@ type Datastore interface {
 	// NewHost is deprecated and will be removed. Hosts should always be enrolled via EnrollHost.
 	NewHost(ctx context.Context, host *Host) (*Host, error)
 	DeleteHost(ctx context.Context, hid uint) error
-	Host(ctx context.Context, id uint, skipLoadingExtras bool) (*Host, error)
+	Host(ctx context.Context, id uint) (*Host, error)
 	ListHosts(ctx context.Context, filter TeamFilter, opt HostListOptions) ([]*Host, error)
 	MarkHostsSeen(ctx context.Context, hostIDs []uint, t time.Time) error
 	SearchHosts(ctx context.Context, filter TeamFilter, query string, omit ...uint) ([]*Host, error)
@@ -338,7 +338,7 @@ type Datastore interface {
 	///////////////////////////////////////////////////////////////////////////////
 	// SoftwareStore
 
-	LoadHostSoftware(ctx context.Context, host *Host) error
+	LoadHostSoftware(ctx context.Context, host *Host, includeCVEScores bool) error
 	AllSoftwareWithoutCPEIterator(ctx context.Context) (SoftwareIterator, error)
 	AddCPEForSoftware(ctx context.Context, software Software, cpe string) error
 	AllCPEs(ctx context.Context) ([]string, error)
@@ -356,7 +356,7 @@ type Datastore interface {
 	CalculateHostsPerSoftware(ctx context.Context, updatedAt time.Time) error
 	HostsByCPEs(ctx context.Context, cpes []string) ([]*HostShort, error)
 	HostsByCVE(ctx context.Context, cve string) ([]*HostShort, error)
-	InsertCVEScores(ctx context.Context, cveScores []CVEScore) error
+	InsertCVEMeta(ctx context.Context, cveMeta []CVEMeta) error
 
 	///////////////////////////////////////////////////////////////////////////////
 	// ActivitiesStore
