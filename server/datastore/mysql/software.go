@@ -1155,12 +1155,7 @@ func (ds *Datastore) ListSoftwareVulnerabilities(
 	}
 
 	for _, r := range queryR {
-		result[r.HostId] = append(result[r.HostId], fleet.SoftwareVulnerability{
-			SoftwareID: r.SoftwareID,
-			CPE:        r.CPE,
-			CPEID:      r.CPEID,
-			CVE:        r.CVE,
-		})
+		result[r.HostId] = append(result[r.HostId], r.SoftwareVulnerability)
 	}
 
 	return result, nil
