@@ -107,7 +107,7 @@ func InitializeUpdates(updateOpt update.Options) (*UpdatesData, error) {
 	}
 	updateOpt.LocalStore = localStore
 
-	updater, err := update.New(updateOpt)
+	updater, err := update.NewUpdater(updateOpt)
 	if err != nil {
 		return nil, fmt.Errorf("failed to init updater: %w", err)
 	}
@@ -163,10 +163,6 @@ func InitializeUpdates(updateOpt update.Options) (*UpdatesData, error) {
 		if err := json.Unmarshal(*desktopMeta.Custom, &desktopCustom); err != nil {
 			return nil, fmt.Errorf("failed to get orbit version: %w", err)
 		}
-	}
-
-	if devBuildPath := os.Getenv("FLEETCTL_ORBIT_DEV_BUILD_PATH"); devBuildPath != "" {
-		updater.CopyDevBuild("orbit", devBuildPath)
 	}
 
 	return &UpdatesData{

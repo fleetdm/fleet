@@ -91,6 +91,7 @@ func main() {
 
 			tr := http.DefaultTransport.(*http.Transport)
 			if os.Getenv("FLEET_DESKTOP_INSECURE") != "" {
+				// #nosec
 				tr.TLSClientConfig = &tls.Config{InsecureSkipVerify: true}
 			}
 			client := &http.Client{
@@ -122,6 +123,7 @@ func main() {
 
 			tr := http.DefaultTransport.(*http.Transport)
 			if os.Getenv("FLEET_DESKTOP_INSECURE") != "" {
+				// #nosec
 				tr.TLSClientConfig = &tls.Config{InsecureSkipVerify: true}
 			}
 			client := &http.Client{
@@ -202,7 +204,6 @@ func parseLicenseAndPoliciesFromResponse(resp *http.Response) (licensePass bool,
 			}
 		}
 		return licensePass, true, nil
-	} else {
-		return false, false, nil
 	}
+	return false, false, nil
 }

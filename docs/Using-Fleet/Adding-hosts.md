@@ -92,7 +92,7 @@ The following command-line flags allow you to further configure an osquery insta
 | --help, -h    |             show help (default: `false`) |
 
 
-Fleet supports other methods for adding your hosts to Fleet such as the [plain osquery binaries](#plain-osquery) or [Kolide Osquery Launcher](https://github.com/kolide/launcher/blob/master/docs/launcher.md#connecting-to-fleet).
+Fleet supports other methods for adding your hosts to Fleet, such as the [plain osquery binaries](#plain-osquery) or [Kolide Osquery Launcher](https://github.com/kolide/launcher/blob/master/docs/launcher.md#connecting-to-fleet).
 
 ## Plain osquery
 

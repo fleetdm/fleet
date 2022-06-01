@@ -170,6 +170,14 @@ module.exports.routes = {
     }
   },
 
+  'GET /reports/state-of-device-management': {
+    action: 'reports/view-state-of-device-management',
+    locals: {
+      pageTitleForMeta: 'State of device management | Fleet for osquery',
+      pageDescriptionForMeta: '',
+    }
+  },
+
 
 
   //  ╦  ╔═╗╔═╗╔═╗╔═╗╦ ╦  ╦═╗╔═╗╔╦╗╦╦═╗╔═╗╔═╗╔╦╗╔═╗

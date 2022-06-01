@@ -301,7 +301,7 @@ func TestFleetCause(t *testing.T) {
 	ctx, cleanup := setup()
 	defer cleanup()
 
-	var nilErr *FleetError = nil
+	var nilErr *FleetError
 	errNew := errors.New("a")
 	errWrapRoot := Wrap(ctx, errNew, "wrapRoot")
 	errWrap1 := Wrap(ctx, errWrapRoot, "wrap1")

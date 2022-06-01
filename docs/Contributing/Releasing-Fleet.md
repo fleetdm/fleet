@@ -1,5 +1,24 @@
 # Releasing Fleet
 
+## Release process
+
+This section outlines the release process at Fleet.
+
+The current release cadence is once every 3 weeks and concentrated around Wednesdays.
+
+### Release freeze period
+
+In order to ensure quality releases, Fleet has a freeze period for testing prior to each release. Effective at the start of the freeze period, new feature work will not be merged.
+
+Release blocking bugs are exempt from the freeze period and are defined by the same rules as patch releases, which include:
+1. Regressions
+2. Security concerns
+3. Issues with features targeted for current release
+
+Non-release blocking bugs may include known issues that were not targeted for the current release, or newly documented behaviors that reproduce in older stable versions. These may be addressed during a release period by mutual agreement between the [Product](./product.md) and Engineering teams.
+
+### What to do?
+
 Note: Please prefix versions with `fleet-v` (eg. `fleet-v4.0.0`) in git tags, Helm charts, and NPM configs.
 
 1. Update the [CHANGELOG](https://github.com/fleetdm/fleet/blob/main/CHANGELOG.md) with the changes that have been made since the last
@@ -85,21 +104,21 @@ Note: Please prefix versions with `fleet-v` (eg. `fleet-v4.0.0`) in git tags, He
 
    Announce the release via blog post (on Medium) and Twitter (linking to blog post).
 
-## Patch releases
+### Patch releases
 
 Generally, a patch should be released when bugs or performance issues are identified that prevent
 users from getting their job done with Fleet.
 
-### Process
+#### Process
 
-#### The easy way
+##### The easy way
 
 If all commits on `main` are acceptable for a patch (no high-risk changes, new features, etc.), then
 the process is easy. Just follow the regular release process as described above, incrementing
 only the patch (`major.minor.patch`) of the version number. In this scenario, there is no need to
 perform any of the steps below.
 
-#### The hard way
+##### The hard way
 
 When only some of the newer changes in `main` are acceptable for release, a separate patch branch
 must be created and relevant changes cherry-picked onto that branch:
