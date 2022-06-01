@@ -554,7 +554,6 @@ func (d *desktopRunner) execute() error {
 	url.Path = path.Join(url.Path, "device", d.deviceAuthToken)
 	opts := []execuser.Option{
 		execuser.WithEnv("FLEET_DESKTOP_DEVICE_URL", url.String()),
-		execuser.WithEnv("FLEET_DESKTOP_DEVICE_API_TEST_PATH", path.Join("api", "latest", "fleet", "device", d.deviceAuthToken)),
 	}
 	if d.insecure {
 		opts = append(opts, execuser.WithEnv("FLEET_DESKTOP_INSECURE", "1"))
