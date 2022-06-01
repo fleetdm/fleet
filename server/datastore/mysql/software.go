@@ -1111,7 +1111,7 @@ func (ds *Datastore) InsertVulnerabilities(
 	}
 	res, err := ds.writer.ExecContext(ctx, sql, args...)
 	if err != nil {
-		return 0, ctxerr.Wrap(ctx, err, "insert software cve")
+		return 0, ctxerr.Wrap(ctx, err, "insert software vulnerabilities")
 	}
 	count, _ := res.RowsAffected()
 
