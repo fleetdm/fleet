@@ -15,6 +15,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 )
 
+// Client is used to consume Fleet APIs from Go code
 type Client struct {
 	*baseClient
 	addr  string
