@@ -4,6 +4,7 @@ go 1.18
 
 require (
 	github.com/aws/aws-lambda-go v1.31.1
+	github.com/aws/aws-sdk-go v1.44.25
 	github.com/awslabs/aws-lambda-go-api-proxy v0.13.2
 	github.com/gin-gonic/gin v1.7.7
 	github.com/jessevdk/go-flags v1.5.0
@@ -26,6 +27,7 @@ require (
 	github.com/golang/protobuf v1.5.2 // indirect
 	github.com/google/uuid v1.1.1 // indirect
 	github.com/jcchavezs/porto v0.1.0 // indirect
+	github.com/jmespath/go-jmespath v0.4.0 // indirect
 	github.com/joeshaw/multierror v0.0.0-20140124173710-69b34d4ec901 // indirect
 	github.com/json-iterator/go v1.1.12 // indirect
 	github.com/leodido/go-urn v1.2.1 // indirect

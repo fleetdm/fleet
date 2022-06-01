@@ -12,6 +12,7 @@ import (
 	"github.com/loopfz/gadgeto/tonic"
 	"github.com/wI2L/fizz"
 	"github.com/wI2L/fizz/openapi"
+	"github.com/aws/aws-sdk-go/service/dynamodb/dynamodbattribute"
 	"go.elastic.co/apm/module/apmgin/v2"
 	_ "go.elastic.co/apm/v2"
 	"log"
@@ -55,6 +56,14 @@ func NewFleet(c *gin.Context, in *NewFleetInput) (ret *NewFleetOutput, err error
 func handler(ctx context.Context, req events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, error) {
 	// If no name is provided in the HTTP request body, throw an error
 	return ginLambda.ProxyWithContext(ctx, req)
+}
+
+type FleetRecord struct {
+    ID string
+    State string
+    RedisDB int `dynamodbav:"redis_db"`
+}
+func getNewFleet() (ret FleetRecord, err error) {
 }
 
 func main() {

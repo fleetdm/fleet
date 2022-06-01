@@ -23,6 +23,10 @@ provider "kubectl" {
   apply_retry_count      = 5
 }
 
+locals {
+  cluster_version = "1.21"
+}
+
 output "eks_cluster" {
   value = module.aws-eks-accelerator-for-terraform
 }
@@ -44,7 +48,7 @@ module "aws-eks-accelerator-for-terraform" {
   private_subnet_ids = var.vpc.private_subnets
 
   # EKS CONTROL PLANE VARIABLES
-  cluster_version = "1.21"
+  cluster_version = local.cluster_version
 
   # EKS MANAGED NODE GROUPS
   managed_node_groups = {
@@ -74,6 +78,9 @@ module "kubernetes-addons" {
   source = "github.com/aws-samples/aws-eks-accelerator-for-terraform.git//modules/kubernetes-addons"
 
   eks_cluster_id               = module.aws-eks-accelerator-for-terraform.eks_cluster_id
+  eks_cluster_endpoint         = module.aws-eks-accelerator-for-terraform.eks_cluster_endpoint
+  eks_cluster_version          = local.cluster_version
+  eks_oidc_provider            = module.aws-eks-accelerator-for-terraform.eks_oidc_issuer_url
   eks_worker_security_group_id = module.aws-eks-accelerator-for-terraform.worker_node_security_group_id
 
   # EKS Managed Add-ons

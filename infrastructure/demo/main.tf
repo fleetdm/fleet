@@ -118,6 +118,17 @@ module "pre-provisioner" {
   redis_cluster  = module.shared-infrastructure.redis_cluster
 }
 
+module "jit-provisioner" {
+  source         = "./JITProvisioner"
+  prefix         = local.prefix
+  vpc            = module.vpc
+  dynamodb_table = aws_dynamodb_table.lifecycle-table
+  remote_state   = module.remote_state
+  mysql_secret   = module.shared-infrastructure.mysql_secret
+  eks_cluster    = module.shared-infrastructure.eks_cluster
+  redis_cluster  = module.shared-infrastructure.redis_cluster
+}
+
 resource "aws_dynamodb_table" "lifecycle-table" {
   name         = "${local.prefix}-lifecycle"
   billing_mode = "PAY_PER_REQUEST"
@@ -153,5 +164,14 @@ module "remote_state" {
   providers = {
     aws         = aws
     aws.replica = aws.replica
+  }
+}
+
+resource "aws_ecs_cluster" "main" {
+  name = local.prefix
+
+  setting {
+    name  = "containerInsights"
+    value = "enabled"
   }
 }
