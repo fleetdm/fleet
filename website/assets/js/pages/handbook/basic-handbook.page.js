@@ -65,9 +65,7 @@ parasails.registerPage('basic-handbook', {
       // Sorting the company page to the top of the list, and the handbook page to the bottom
       this.handbookIndexLinks.sort((a)=>{
         if(a.pageTitle === '🔭 Company') {
-          return -100;
-        } else if(a.pageTitle != 'Handbook') {
-          return 100;
+          return -1;
         } else {
           return 0;
         }
