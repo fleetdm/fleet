@@ -105,7 +105,7 @@ type softwareCPEWithNVDMeta struct {
 
 // TranslateCPEToCVE maps the CVEs found in NVD archive files in the
 // vulnerabilities database folder to software CPEs in the fleet database.
-// If collectVulns is true, returns a list of software vulnerabilities found.
+// If collectVulns is true, returns a list of any new software vulnerabilities found.
 func TranslateCPEToCVE(
 	ctx context.Context,
 	ds fleet.Datastore,
@@ -121,36 +121,35 @@ func TranslateCPEToCVE(
 		return nil, nil
 	}
 
-	// Skip CPEs from platforms supported by OVAL
+	// Skip entries from platforms supported by OVAL
 	CPEs, err := ds.ListSoftwareCPEs(ctx, oval.SupportedHostPlatforms)
 	if err != nil {
 		return nil, err
 	}
 
-	var parsedCPEs []softwareCPEWithNVDMeta
-	for _, cpe := range CPEs {
+	var parsed []softwareCPEWithNVDMeta
+	for _, CPE := range CPEs {
 		// Skip dummy CPEs
-		if strings.HasPrefix(cpe.CPE, "none") {
+		if strings.HasPrefix(CPE.CPE, "none") {
 			continue
 		}
 
-		attr, err := wfn.Parse(cpe.CPE)
+		attr, err := wfn.Parse(CPE.CPE)
 		if err != nil {
 			return nil, err
 		}
-		parsedCPEs = append(parsedCPEs, softwareCPEWithNVDMeta{
-			SoftwareCPE: cpe,
+		parsed = append(parsed, softwareCPEWithNVDMeta{
+			SoftwareCPE: CPE,
 			meta:        attr,
 		})
 	}
-
-	if len(parsedCPEs) == 0 {
+	if len(parsed) == 0 {
 		return nil, nil
 	}
 
 	var vulns []fleet.SoftwareVulnerability
 	for _, file := range files {
-		r, err := checkCVEs(ctx, ds, logger, parsedCPEs, file, collectVulns)
+		r, err := checkCVEs(ctx, ds, logger, parsed, file, collectVulns)
 		if err != nil {
 			return nil, err
 		}
@@ -164,7 +163,7 @@ func checkCVEs(
 	ctx context.Context,
 	ds fleet.Datastore,
 	logger kitlog.Logger,
-	cpes []softwareCPEWithNVDMeta,
+	softwareCPEs []softwareCPEWithNVDMeta,
 	file string,
 	collectVulns bool,
 ) ([]fleet.SoftwareVulnerability, error) {
@@ -172,15 +171,17 @@ func checkCVEs(
 	if err != nil {
 		return nil, err
 	}
+
 	cache := cvefeed.NewCache(dict).SetRequireVersion(true).SetMaxSize(-1)
 	// This index consumes too much RAM
 	// cache.Idx = cvefeed.NewIndex(dict)
 
-	var results []fleet.SoftwareVulnerability
-	cpeCh := make(chan softwareCPEWithNVDMeta)
+	softwareCPECh := make(chan softwareCPEWithNVDMeta)
 
+	var results []fleet.SoftwareVulnerability
 	var wg sync.WaitGroup
 	var mu sync.Mutex
+
 	for i := 0; i < runtime.NumCPU(); i++ {
 		wg.Add(1)
 		goRoutineKey := i
@@ -192,34 +193,34 @@ func checkCVEs(
 
 			for {
 				select {
-				case cpe, more := <-cpeCh:
+				case softwareCPE, more := <-softwareCPECh:
 					if !more {
 						level.Debug(logger).Log(logKey, "done")
 						return
 					}
 
-					cacheHits := cache.Get([]*wfn.Attributes{cpe.meta})
+					cacheHits := cache.Get([]*wfn.Attributes{softwareCPE.meta})
 					for _, matches := range cacheHits {
 						ml := len(matches.CPEs)
 						if ml == 0 {
 							continue
 						}
 
+						matchingVulns := make([]fleet.SoftwareVulnerability, 0, ml)
 						cveID := matches.CVE.ID()
-						matchingCPEs := make([]string, 0, ml)
 						for _, attr := range matches.CPEs {
 							if attr == nil {
 								level.Error(logger).Log("matches nil CPE", cveID)
 								continue
 							}
-							cpe := attr.BindToFmtString()
-							if len(cpe) == 0 {
-								continue
-							}
-							matchingCPEs = append(matchingCPEs, cpe)
+							matchingVulns = append(matchingVulns, fleet.SoftwareVulnerability{
+								SoftwareID: softwareCPE.SoftwareID,
+								CPEID:      softwareCPE.ID,
+								CVE:        cveID,
+							})
 						}
 
-						newCount, err := ds.InsertCVEForCPE(ctx, cveID, matchingCPEs)
+						newCount, err := ds.InsertVulnerabilities(ctx, matchingVulns, fleet.NVD)
 						if err != nil {
 							level.Error(logger).Log("cpe processing", "error", "err", err)
 							continue // do not report a recent vuln that failed to be inserted in the DB
@@ -231,19 +232,15 @@ func checkCVEs(
 						if collectVulns && newCount > 0 {
 							_, ok := matches.CVE.(*feednvd.Vuln)
 							if !ok {
-								level.Error(logger).Log("recent vuln", "unexpected type for Vuln interface", "cve", cveID,
+								level.Error(logger).Log(
+									"recent vuln", "unexpected type for Vuln interface",
+									"cve", cveID,
 									"type", fmt.Sprintf("%T", matches.CVE))
 								continue
 							}
 
 							mu.Lock()
-							for _, cve := range matchingCPEs {
-								results = append(results, fleet.SoftwareVulnerability{
-									SoftwareID: cpe.SoftwareID,
-									CPEID:      cpe.ID,
-									CVE:        cve,
-								})
-							}
+							results = append(results, matchingVulns...)
 							mu.Unlock()
 						}
 					}
@@ -256,10 +253,10 @@ func checkCVEs(
 	}
 
 	level.Debug(logger).Log("pushing cpes", "start")
-	for _, cpe := range cpes {
-		cpeCh <- cpe
+	for _, cpe := range softwareCPEs {
+		softwareCPECh <- cpe
 	}
-	close(cpeCh)
+	close(softwareCPECh)
 
 	level.Debug(logger).Log("pushing cpes", "done")
 
@@ -267,6 +264,7 @@ func checkCVEs(
 	return results, nil
 }
 
+// TODO (juan): Remove this after OVAL centos
 // PostProcess performs additional processing over the results of
 // the main vulnerability processing run (TranslateSoftwareToCPE+TranslateCPEToCVE).
 func PostProcess(

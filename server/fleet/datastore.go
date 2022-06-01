@@ -350,6 +350,7 @@ type Datastore interface {
 	// InsertVulnerabilities inserts the given vulnerabilities in the datastore, returns the number
 	// of rows inserted. If a vulnerability already exists in the datastore, then it will be ignored.
 	InsertVulnerabilities(ctx context.Context, vulns []SoftwareVulnerability, source VulnerabilitySource) (int64, error)
+	// TODO (juan): Remove this
 	InsertCVEForCPE(ctx context.Context, cve string, cpes []string) (int64, error)
 	SoftwareByID(ctx context.Context, id uint, includeCVEScores bool) (*Software, error)
 	// ListSoftwareByHostIDShort lists software by host ID, but does not include CPEs or vulnerabilites.

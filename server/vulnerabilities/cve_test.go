@@ -85,8 +85,6 @@ func TestTranslateCPEToCVE(t *testing.T) {
 	})
 	require.NoError(t, err)
 
-	recentVulnerabilityMaxAge := 365 * 24 * time.Hour
-
 	for _, tt := range cvetests {
 		t.Run(tt.cpe, func(t *testing.T) {
 			ds.ListSoftwareCPEsFunc = func(ctx context.Context, excludedPlatforms []string) ([]fleet.SoftwareCPE, error) {
@@ -106,7 +104,7 @@ func TestTranslateCPEToCVE(t *testing.T) {
 				return 0, nil
 			}
 
-			_, err := TranslateCPEToCVE(ctx, ds, tempDir, kitlog.NewLogfmtLogger(os.Stdout), false, 0)
+			_, err := TranslateCPEToCVE(ctx, ds, tempDir, kitlog.NewLogfmtLogger(os.Stdout), false)
 			require.NoError(t, err)
 
 			printMemUsage()
@@ -137,14 +135,12 @@ func TestTranslateCPEToCVE(t *testing.T) {
 		ds.InsertCVEForCPEFunc = func(ctx context.Context, cve string, cpes []string) (int64, error) {
 			return 1, nil
 		}
-		recent, err := TranslateCPEToCVE(ctx, safeDS, tempDir, kitlog.NewNopLogger(), true, recentVulnerabilityMaxAge)
+		recent, err := TranslateCPEToCVE(ctx, safeDS, tempDir, kitlog.NewNopLogger(), true)
 		require.NoError(t, err)
 
 		byCPE := make(map[string]int)
-		for _, cpes := range recent {
-			for _, cpe := range cpes {
-				byCPE[cpe]++
-			}
+		for _, cpe := range recent {
+			byCPE[fmt.Sprintf("%d", cpe.CPEID)]++
 		}
 
 		// even if it's somewhat far in the past, I've seen the exact numbers
@@ -159,7 +155,7 @@ func TestTranslateCPEToCVE(t *testing.T) {
 		ds.InsertCVEForCPEFunc = func(ctx context.Context, cve string, cpes []string) (int64, error) {
 			return 0, nil
 		}
-		recent, err = TranslateCPEToCVE(ctx, safeDS, tempDir, kitlog.NewNopLogger(), true, recentVulnerabilityMaxAge)
+		recent, err = TranslateCPEToCVE(ctx, safeDS, tempDir, kitlog.NewNopLogger(), true)
 		require.NoError(t, err)
 
 		// no recent vulnerability should be reported
