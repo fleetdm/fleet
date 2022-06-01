@@ -250,21 +250,50 @@ func main() {
 		opt.InsecureTransport = c.Bool("insecure")
 
 		var (
-			updater      *update.Updater
 			osquerydPath string
 			desktopPath  string
+			g            run.Group
 		)
 
 		// NOTE: When running in dev-mode, even if `disable-updates` is set,
 		// it fetches osqueryd once as part of initialization.
 		if !c.Bool("disable-updates") || c.Bool("dev-mode") {
-			updater, err = update.New(opt)
+			updater, err := update.NewUpdater(opt)
 			if err != nil {
 				return fmt.Errorf("create updater: %w", err)
 			}
 			if err := updater.UpdateMetadata(); err != nil {
-				log.Info().Err(err).Msg("update metadata. using saved metadata.")
+				log.Info().Err(err).Msg("update metadata. using saved metadata")
 			}
+
+			targets := []string{"orbit", "osqueryd"}
+			if c.Bool("fleet-desktop") {
+				targets = append(targets, "desktop")
+			}
+			if c.Bool("dev-mode") {
+				targets = targets[1:] // exclude orbit itself on dev-mode.
+			}
+			updateRunner, err := update.NewRunner(updater, update.RunnerOptions{
+				CheckInterval: c.Duration("update-interval"),
+				Targets:       targets,
+			})
+			if err != nil {
+				return err
+			}
+
+			// Perform early check for updates before starting any sub-system.
+			// This is to prevent bugs in other sub-systems to mess up with
+			// the download of available updates.
+			didUpdate, err := updateRunner.UpdateAction()
+			if err != nil {
+				log.Info().Err(err).Msg("early update check failed")
+			}
+			if didUpdate && !c.Bool("dev-mode") {
+				log.Info().Msg("exiting due to successful early update")
+				return nil
+			}
+			g.Add(updateRunner.Execute, updateRunner.Interrupt)
+
 			osquerydLocalTarget, err := updater.Get("osqueryd")
 			if err != nil {
 				return fmt.Errorf("get osqueryd target: %w", err)
@@ -283,7 +312,7 @@ func main() {
 			}
 		} else {
 			log.Info().Msg("running with auto updates disabled")
-			updater = update.NewDisabled(opt)
+			updater := update.NewDisabled(opt)
 			osquerydPath, err = updater.ExecutableLocalPath("osqueryd")
 			if err != nil {
 				log.Fatal().Err(err).Msg("locate osqueryd")
@@ -319,23 +348,6 @@ func main() {
 			return nil
 		}); err != nil {
 			return fmt.Errorf("cleanup old files: %w", err)
-		}
-
-		var g run.Group
-
-		if !c.Bool("disable-updates") {
-			targets := []string{"orbit", "osqueryd"}
-			if c.Bool("fleet-desktop") {
-				targets = append(targets, "desktop")
-			}
-			updateRunner, err := update.NewRunner(updater, update.RunnerOptions{
-				CheckInterval: c.Duration("update-interval"),
-				Targets:       targets,
-			})
-			if err != nil {
-				return err
-			}
-			g.Add(updateRunner.Execute, updateRunner.Interrupt)
 		}
 
 		var options []osquery.Option
