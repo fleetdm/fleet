@@ -40,7 +40,7 @@ func downloadDecompressed(client *http.Client) func(string, string) error {
 		if err != nil {
 			return err
 		}
-		return download.Decompressed(client, *parsedUrl, dstPath)
+		return download.DownloadAndExtract(client, parsedUrl, dstPath)
 	}
 }
 

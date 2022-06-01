@@ -1281,7 +1281,7 @@ const ManageHostsPage = ({
     evt.preventDefault();
 
     const hiddenColumnsStorage = localStorage.getItem("hostHiddenColumns");
-    let currentHiddenColumns;
+    let currentHiddenColumns = [];
     let visibleColumns;
     if (hiddenColumnsStorage) {
       currentHiddenColumns = JSON.parse(hiddenColumnsStorage);
@@ -1352,15 +1352,19 @@ const ManageHostsPage = ({
         }`}
       >
         <span>{`${count} host${count === 1 ? "" : "s"}`}</span>
-        <Button
-          className={`${baseClass}__export-btn`}
-          onClick={onExportHostsResults}
-          variant="text-link"
-        >
-          <>
-            Export hosts <img alt="" src={DownloadIcon} />
-          </>
-        </Button>
+        {count ? (
+          <Button
+            className={`${baseClass}__export-btn`}
+            onClick={onExportHostsResults}
+            variant="text-link"
+          >
+            <>
+              Export hosts <img alt="" src={DownloadIcon} />
+            </>
+          </Button>
+        ) : (
+          <></>
+        )}
       </div>
     );
   }, [isHostCountLoading, filteredHostCount]);

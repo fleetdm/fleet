@@ -1,0 +1,1 @@
+Fixed data inconsistencies in policy counts that happened when a host was re-enrolled without a team or in a different one.

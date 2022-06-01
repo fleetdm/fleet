@@ -1,3 +1,10 @@
+## Orbit 0.0.12 (May 26, 2022)
+### This is a security release.
+
+- **Security**: Update go-tuf library to fix [CVE-2022-29173](https://github.com/theupdateframework/go-tuf/security/advisories/GHSA-66x3-6cw3-v5gj). This vulnerability could allow an attacker with network access to perform a rollback attack, forcing Orbit to downgrade to an earlier version. Orbit installations with autoupdate turned on will automatically update, after which the client will no longer be vulnerable.
+ 
+- Fleet desktop will now notify Premium tier users if policies are failing/passing.
+
 ## Orbit 0.0.11 (May 10, 2022)
 
 - Change install path to /opt/orbit. Fixes a permissions issue on platforms with SELinux enabled.

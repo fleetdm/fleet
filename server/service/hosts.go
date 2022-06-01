@@ -278,7 +278,7 @@ func (svc *Service) GetHost(ctx context.Context, id uint, includeCVEScores bool)
 		}
 	}
 
-	host, err := svc.ds.Host(ctx, id, includeCVEScores)
+	host, err := svc.ds.Host(ctx, id)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "get host")
 	}
@@ -290,7 +290,7 @@ func (svc *Service) GetHost(ctx context.Context, id uint, includeCVEScores bool)
 		}
 	}
 
-	hostDetails, err := svc.getHostDetails(ctx, host)
+	hostDetails, err := svc.getHostDetails(ctx, host, includeCVEScores)
 	if err != nil {
 		return nil, err
 	}
@@ -423,7 +423,7 @@ func (svc *Service) HostByIdentifier(ctx context.Context, identifier string, inc
 		return nil, err
 	}
 
-	hostDetails, err := svc.getHostDetails(ctx, host)
+	hostDetails, err := svc.getHostDetails(ctx, host, includeCVEScores)
 	if err != nil {
 		return nil, err
 	}
@@ -612,9 +612,9 @@ func (svc *Service) RefetchHost(ctx context.Context, id uint) error {
 	return nil
 }
 
-func (svc *Service) getHostDetails(ctx context.Context, host *fleet.Host) (*fleet.HostDetail, error) {
+func (svc *Service) getHostDetails(ctx context.Context, host *fleet.Host, includeCVEScores bool) (*fleet.HostDetail, error) {
 	opts := fleet.SoftwareListOptions{}
-	if err := svc.ds.LoadHostSoftware(ctx, host, opts); err != nil {
+	if err := svc.ds.LoadHostSoftware(ctx, host, opts, includeCVEScores); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "load host software")
 	}
 

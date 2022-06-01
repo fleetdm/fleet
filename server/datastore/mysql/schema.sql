@@ -71,11 +71,12 @@ CREATE TABLE `carve_metadata` (
 /*!40101 SET character_set_client = @saved_cs_client */;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!40101 SET character_set_client = utf8 */;
-CREATE TABLE `cve_scores` (
+CREATE TABLE `cve_meta` (
   `cve` varchar(20) NOT NULL,
   `cvss_score` double DEFAULT NULL,
   `epss_probability` double DEFAULT NULL,
   `cisa_known_exploit` tinyint(1) DEFAULT NULL,
+  `published` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (`cve`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 /*!40101 SET character_set_client = @saved_cs_client */;

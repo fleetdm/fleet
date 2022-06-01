@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"errors"
+	"fmt"
 	"os"
 	"strconv"
 	"strings"
@@ -212,11 +213,11 @@ func cronVulnerabilities(
 					break
 				}
 			}
-			// check for zendesk integrations
+			// check for Zendesk integrations
 			for _, z := range appConfig.Integrations.Zendesk {
 				if z.EnableSoftwareVulnerabilities {
 					if vulnAutomationEnabled != "" {
-						err := errors.New("more than one automation enabled: zendesk check")
+						err := errors.New("more than one automation enabled: Zendesk check")
 						level.Error(logger).Log("err", err)
 						sentry.CaptureException(err)
 					}
@@ -255,14 +256,14 @@ func cronVulnerabilities(
 					}
 
 				case "zendesk":
-					// queue job to create zendesk ticket
+					// queue job to create Zendesk ticket
 					if err := worker.QueueZendeskJobs(
 						ctx,
 						ds,
 						kitlog.With(logger, "zendesk", "vulnerabilities"),
 						recentVulns,
 					); err != nil {
-						level.Error(logger).Log("err", "queueing vulnerabilities to zendesk", "details", err)
+						level.Error(logger).Log("err", "queueing vulnerabilities to Zendesk", "details", err)
 						sentry.CaptureException(err)
 					}
 
@@ -345,14 +346,30 @@ func checkNVDVulnerabilities(
 	config config.FleetConfig,
 	collectRecentVulns bool,
 ) map[string][]string {
-	err := vulnerabilities.TranslateSoftwareToCPE(ctx, ds, vulnPath, logger, config)
+	if !config.Vulnerabilities.DisableDataSync {
+		err := vulnerabilities.Sync(vulnPath, config.Vulnerabilities.CPEDatabaseURL)
+		if err != nil {
+			level.Error(logger).Log("msg", "syncing vulnerability database", "err", err)
+			sentry.CaptureException(err)
+			return nil
+		}
+	}
+
+	if err := vulnerabilities.LoadCVEMeta(vulnPath, ds); err != nil {
+		err = fmt.Errorf("load cve meta: %w", err)
+		level.Error(logger).Log("err", err)
+		sentry.CaptureException(err)
+		// don't return, continue on ...
+	}
+
+	err := vulnerabilities.TranslateSoftwareToCPE(ctx, ds, vulnPath, logger)
 	if err != nil {
 		level.Error(logger).Log("msg", "analyzing vulnerable software: Software->CPE", "err", err)
 		sentry.CaptureException(err)
 		return nil
 	}
 
-	recentVulns, err := vulnerabilities.TranslateCPEToCVE(ctx, ds, vulnPath, logger, config, collectRecentVulns)
+	recentVulns, err := vulnerabilities.TranslateCPEToCVE(ctx, ds, vulnPath, logger, collectRecentVulns, config.Vulnerabilities.RecentVulnerabilityMaxAge)
 	if err != nil {
 		level.Error(logger).Log("msg", "analyzing vulnerable software: CPE->CVE", "err", err)
 		sentry.CaptureException(err)
@@ -545,7 +562,7 @@ func cronWorker(
 			}
 		}
 
-		// get the enabled zendesk config, if any
+		// get the enabled Zendesk config, if any
 		var zendeskSettings *fleet.ZendeskIntegration
 		for _, intg := range appConfig.Integrations.Zendesk {
 			if intg.EnableSoftwareVulnerabilities {

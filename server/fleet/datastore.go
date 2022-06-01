@@ -174,7 +174,7 @@ type Datastore interface {
 	// NewHost is deprecated and will be removed. Hosts should always be enrolled via EnrollHost.
 	NewHost(ctx context.Context, host *Host) (*Host, error)
 	DeleteHost(ctx context.Context, hid uint) error
-	Host(ctx context.Context, id uint, skipLoadingExtras bool) (*Host, error)
+	Host(ctx context.Context, id uint) (*Host, error)
 	ListHosts(ctx context.Context, filter TeamFilter, opt HostListOptions) ([]*Host, error)
 
 	MarkHostsSeen(ctx context.Context, hostIDs []uint, t time.Time) error
@@ -343,7 +343,7 @@ type Datastore interface {
 	// used for vulnerability detection populated (id, name, version, cpe_id, cpe)
 	ListSoftwareForVulnDetection(ctx context.Context, hostID uint) ([]Software, error)
 	ListSoftwareVulnerabilities(ctx context.Context, hostIDs []uint) (map[uint][]SoftwareVulnerability, error)
-	LoadHostSoftware(ctx context.Context, host *Host, opts SoftwareListOptions) error
+	LoadHostSoftware(ctx context.Context, host *Host, opts SoftwareListOptions, includeCVEScores bool) error
 	AllSoftwareWithoutCPEIterator(ctx context.Context) (SoftwareIterator, error)
 	AddCPEForSoftware(ctx context.Context, software Software, cpe string) error
 	AllCPEs(ctx context.Context, excludedPlatforms []string) ([]string, error)
@@ -364,7 +364,7 @@ type Datastore interface {
 	CalculateHostsPerSoftware(ctx context.Context, updatedAt time.Time) error
 	HostsByCPEs(ctx context.Context, cpes []string) ([]*HostShort, error)
 	HostsByCVE(ctx context.Context, cve string) ([]*HostShort, error)
-	InsertCVEScores(ctx context.Context, cveScores []CVEScore) error
+	InsertCVEMeta(ctx context.Context, cveMeta []CVEMeta) error
 
 	///////////////////////////////////////////////////////////////////////////////
 	// ActivitiesStore

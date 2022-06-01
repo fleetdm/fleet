@@ -107,6 +107,27 @@ _Communicating as Fleet_
 
 **Do not** use a capital letter when combining the introduction and bullet points to make a complete sentence (AKA a “fascination”). 
 
+## Commas
+When listing three or more things, use commas to separate the words. 
+
+**Do:** Fleet is for IT professionals, Client Platform Engineers, and security practitioners.
+
+**Don’t:** Fleet is for IT professionals, Client platform Engineers and security practitioners.
+
+The above example lists three of Fleet’s users. Omitting the serial comma redefines the meaning, making Client Platform Engineers and security practitioners the IT professionals who use Fleet. 
+
+Aside from the serial comma, use commas, as usual, to break up your sentences. If you’re unsure where saying the sentence aloud can give you a clue. If you pause or take a breath, a comma is likely needed at those moments.
+
+## Dashes and hyphens
+Use a hyphen to link words that function as an adjective to modify a noun or to indicate a range:
+
+- We release Fleet on a three-week cadence.
+- Monday-Friday
+
+A hyphen is unnecessary when not modifying a noun:
+
+- The Fleet product is released every three weeks.
+
 ## For editors
 
 While we encourage and equip our writers to succeed by themselves in editing quests, tpyos are inevitable. Here's where the Fleet editor steps in.  

@@ -315,35 +315,44 @@ func (ds *Datastore) DeleteHost(ctx context.Context, hid uint) error {
 	})
 }
 
-func (ds *Datastore) Host(ctx context.Context, id uint, skipLoadingExtras bool) (*fleet.Host, error) {
-	policiesColumns := `,
-		       coalesce(failing_policies.count, 0) as failing_policies_count,
-		       coalesce(failing_policies.count, 0) as total_issues_count`
-	policiesJoin := `
-			JOIN (
-		    	SELECT count(*) as count FROM policy_membership WHERE passes=0 AND host_id=?
-			) failing_policies`
+func (ds *Datastore) Host(ctx context.Context, id uint) (*fleet.Host, error) {
+	sqlStatement := `
+SELECT
+  h.*,
+  COALESCE(hst.seen_time, h.created_at) AS seen_time,
+  t.name AS team_name,
+  (
+    SELECT
+      additional
+    FROM
+      host_additional
+    WHERE
+      host_id = h.id
+  ) AS additional,
+  coalesce(failing_policies.count, 0) as failing_policies_count,
+  coalesce(failing_policies.count, 0) as total_issues_count
+FROM
+  hosts h
+  LEFT JOIN teams t ON (h.team_id = t.id)
+  LEFT JOIN host_seen_times hst ON (h.id = hst.host_id)
+  JOIN (
+    SELECT
+      count(*) as count
+    FROM
+      policy_membership
+    WHERE
+      passes = 0
+      AND host_id = ?
+  ) failing_policies
+WHERE
+  h.id = ?
+LIMIT
+  1
+`
 	args := []interface{}{id, id}
-	if skipLoadingExtras {
-		policiesColumns = ""
-		policiesJoin = ""
-		args = []interface{}{id}
-	}
-	sqlStatement := fmt.Sprintf(`
-		SELECT
-		       h.*,
-		       COALESCE(hst.seen_time, h.created_at) AS seen_time,
-		       t.name AS team_name,
-		       (SELECT additional FROM host_additional WHERE host_id = h.id) AS additional
-				%s
-		FROM hosts h
-			LEFT JOIN teams t ON (h.team_id = t.id)
-			LEFT JOIN host_seen_times hst ON (h.id = hst.host_id)
-			%s
-		WHERE h.id = ?
-		LIMIT 1`, policiesColumns, policiesJoin)
-	host := &fleet.Host{}
-	err := sqlx.GetContext(ctx, ds.reader, host, sqlStatement, args...)
+
+	var host fleet.Host
+	err := sqlx.GetContext(ctx, ds.reader, &host, sqlStatement, args...)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return nil, ctxerr.Wrap(ctx, notFound("Host").WithID(id))
@@ -363,7 +372,7 @@ func (ds *Datastore) Host(ctx context.Context, id uint, skipLoadingExtras bool) 
 	}
 	host.Users = users
 
-	return host, nil
+	return &host, nil
 }
 
 func amountEnrolledHostsDB(ctx context.Context, db sqlx.QueryerContext) (int, error) {
@@ -611,6 +620,21 @@ func (ds *Datastore) GenerateHostStatusStatistics(ctx context.Context, filter fl
 	return &summary, nil
 }
 
+func shouldCleanTeamPolicies(currentTeamID, newTeamID *uint) bool {
+	// if the host is global, then there should be nothing to clean up
+	if currentTeamID == nil {
+		return false
+	}
+
+	// if the host is switching from a team to global, we should clean up
+	if newTeamID == nil {
+		return true
+	}
+
+	// clean up if the host is switching to a different team
+	return *currentTeamID != *newTeamID
+}
+
 // EnrollHost enrolls a host
 func (ds *Datastore) EnrollHost(ctx context.Context, osqueryHostID, nodeKey string, teamID *uint, cooldown time.Duration) (*fleet.Host, error) {
 	if osqueryHostID == "" {
@@ -622,7 +646,7 @@ func (ds *Datastore) EnrollHost(ctx context.Context, osqueryHostID, nodeKey stri
 		zeroTime := time.Unix(0, 0).Add(24 * time.Hour)
 
 		var hostID int64
-		err := sqlx.GetContext(ctx, tx, &host, `SELECT id, last_enrolled_at FROM hosts WHERE osquery_host_id = ?`, osqueryHostID)
+		err := sqlx.GetContext(ctx, tx, &host, `SELECT id, last_enrolled_at, team_id FROM hosts WHERE osquery_host_id = ?`, osqueryHostID)
 		switch {
 		case err != nil && !errors.Is(err, sql.ErrNoRows):
 			return ctxerr.Wrap(ctx, err, "check existing")
@@ -651,6 +675,13 @@ func (ds *Datastore) EnrollHost(ctx context.Context, osqueryHostID, nodeKey stri
 				return backoff.Permanent(ctxerr.Errorf(ctx, "host identified by %s enrolling too often", osqueryHostID))
 			}
 			hostID = int64(host.ID)
+
+			if shouldCleanTeamPolicies(host.TeamID, teamID) {
+				if err := cleanupPolicyMembershipOnTeamChange(ctx, tx, []uint{host.ID}); err != nil {
+					return ctxerr.Wrap(ctx, err, "EnrollHost delete policy membership")
+				}
+			}
+
 			// Update existing host record
 			sqlUpdate := `
 				UPDATE hosts
@@ -879,18 +910,11 @@ func (ds *Datastore) AddHostsToTeam(ctx context.Context, teamID *uint, hostIDs [
 	}
 
 	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
-		// hosts can only be in one team, so if there's a policy that has a team id and a result from one of our hosts
-		// it can only be from the previous team they are being transferred from
-		query, args, err := sqlx.In(`DELETE FROM policy_membership
-					WHERE policy_id IN (SELECT id FROM policies WHERE team_id IS NOT NULL) AND host_id IN (?)`, hostIDs)
-		if err != nil {
-			return ctxerr.Wrap(ctx, err, "add host to team sqlx in")
-		}
-		if _, err := tx.ExecContext(ctx, query, args...); err != nil {
-			return ctxerr.Wrap(ctx, err, "exec AddHostsToTeam delete policy membership")
+		if err := cleanupPolicyMembershipOnTeamChange(ctx, tx, hostIDs); err != nil {
+			return ctxerr.Wrap(ctx, err, "AddHostsToTeam delete policy membership")
 		}
 
-		query, args, err = sqlx.In(`UPDATE hosts SET team_id = ? WHERE id IN (?)`, teamID, hostIDs)
+		query, args, err := sqlx.In(`UPDATE hosts SET team_id = ? WHERE id IN (?)`, teamID, hostIDs)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "sqlx.In AddHostsToTeam")
 		}
@@ -981,15 +1005,20 @@ func (ds *Datastore) TotalAndUnseenHostsSince(ctx context.Context, daysCount int
 		Total  int `db:"total"`
 		Unseen int `db:"unseen"`
 	}
+
+	// convert daysCount to integer number of seconds for more precision in sql query
+	unseenSeconds := daysCount * 24 * 60 * 60
+
 	err = sqlx.GetContext(ctx, ds.reader, &counts,
 		`SELECT
 			COUNT(*) as total,
-			SUM(IF(DATEDIFF(CURRENT_DATE, COALESCE(hst.seen_time, h.created_at)) >= ?, 1, 0)) as unseen
+			SUM(IF(TIMESTAMPDIFF(SECOND, COALESCE(hst.seen_time, h.created_at), CURRENT_TIMESTAMP) >= ?, 1, 0)) as unseen
 		FROM hosts h
 		LEFT JOIN host_seen_times hst
 		ON h.id = hst.host_id`,
-		daysCount,
+		unseenSeconds,
 	)
+
 	if err != nil {
 		return 0, 0, ctxerr.Wrap(ctx, err, "getting total and unseen host counts")
 	}

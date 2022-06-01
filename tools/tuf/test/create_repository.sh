@@ -6,11 +6,12 @@ set -e
 # All targets are created with version 42.
 
 # Input:
-# $TUF_PATH: directory path for the test TUF repository.
+# TUF_PATH: directory path for the test TUF repository.
 # FLEET_ROOT_PASSPHRASE: Root role passphrase.
 # FLEET_TARGETS_PASSPHRASE: Targets role passphrase.
 # FLEET_SNAPSHOT_PASSPHRASE: Snapshot role passphrase.
 # FLEET_TIMESTAMP_PASSPHRASE: Timestamp role passphrase.
+# SYSTEMS: Space separated list of systems to support in the TUF repository. Default value is: "macos windows linux"
 
 if [[ -z "$TUF_PATH" ]]; then
     echo "Must set the TUF_PATH environment variable."
@@ -22,28 +23,42 @@ if [[ -d "$TUF_PATH" ]]; then
 fi
 
 OSQUERY_MACOS_APP_BUNDLE_VERSION=5.2.3
+SYSTEMS=${SYSTEMS:-macos linux windows}
 
 mkdir -p $TUF_PATH/tmp
 
 ./build/fleetctl updates init --path $TUF_PATH
 
-for system in macos linux windows; do
+for system in $SYSTEMS; do
 
-    # Use latest stable version of osqueryd from our TUF server.
-    osqueryd="osqueryd"
-    if [[ $system == "windows" ]]; then
-        osqueryd="$osqueryd.exe"
+    if [[ $system == "macos" ]]; then
+        # Generate and add osqueryd .app bundle for macos-app.
+        osqueryd_path=$TUF_PATH/tmp/osqueryd.app.tar.gz
+        make osqueryd-app-tar-gz version=$OSQUERY_MACOS_APP_BUNDLE_VERSION out-path=$(dirname $osqueryd_path)
+        ./build/fleetctl updates add \
+            --path $TUF_PATH \
+            --target $osqueryd_path \
+            --platform macos-app \
+            --name osqueryd \
+            --version 42.0.0 -t 42.0 -t 42 -t stable
+        rm $osqueryd_path
+    else
+        # Use latest stable version of osqueryd from our TUF server.
+        osqueryd="osqueryd"
+        if [[ $system == "windows" ]]; then
+            osqueryd="$osqueryd.exe"
+        fi
+        osqueryd_path="$TUF_PATH/tmp/$osqueryd"
+        curl https://tuf.fleetctl.com/targets/osqueryd/$system/stable/$osqueryd --output $osqueryd_path
+
+        ./build/fleetctl updates add \
+            --path $TUF_PATH \
+            --target $osqueryd_path \
+            --platform $system \
+            --name osqueryd \
+            --version 42.0.0 -t 42.0 -t 42 -t stable
+        rm $osqueryd_path
     fi
-    osqueryd_path="$TUF_PATH/tmp/$osqueryd"
-    curl https://tuf.fleetctl.com/targets/osqueryd/$system/stable/$osqueryd --output $osqueryd_path
-
-    ./build/fleetctl updates add \
-        --path $TUF_PATH \
-        --target $osqueryd_path \
-        --platform $system \
-        --name osqueryd \
-        --version 42.0.0 -t 42.0 -t 42 -t stable
-    rm $osqueryd_path
 
     goose_value="$system"
     if [[ $system == "macos" ]]; then
@@ -110,14 +125,3 @@ for system in macos linux windows; do
         rm desktop.tar.gz
     fi
 done
-
-# Generate and add osqueryd .app bundle for macos-app.
-osqueryd_path=$TUF_PATH/tmp/osqueryd.app.tar.gz
-make osqueryd-app-tar-gz version=$OSQUERY_MACOS_APP_BUNDLE_VERSION out-path=$(dirname $osqueryd_path)
-./build/fleetctl updates add \
-    --path $TUF_PATH \
-    --target $osqueryd_path \
-    --platform macos-app \
-    --name osqueryd \
-    --version 42.0.0 -t 42.0 -t 42 -t stable
-rm $osqueryd_path

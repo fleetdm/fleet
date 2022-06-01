@@ -19,6 +19,7 @@ import (
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/service"
 	"github.com/google/uuid"
 	"github.com/valyala/fasthttp"
@@ -157,6 +158,11 @@ type agent struct {
 	nodeKeyManager *nodeKeyManager
 	nodeKey        string
 	templates      *template.Template
+	// deviceAuthToken holds Fleet Desktop device authentication token.
+	//
+	// Non-nil means the agent is identified as orbit osquery,
+	// nil means the agent is identified as vanilla osquery.
+	deviceAuthToken *string
 
 	scheduledQueries []string
 
@@ -185,10 +191,16 @@ func newAgent(
 	serverAddress, enrollSecret string, templates *template.Template,
 	configInterval, queryInterval time.Duration, softwareCount softwareEntityCount, userCount entityCount,
 	policyPassProb float64,
+	orbitProb float64,
 ) *agent {
-	transport := http.DefaultTransport.(*http.Transport).Clone()
-	transport.TLSClientConfig = &tls.Config{InsecureSkipVerify: true}
-	transport.DisableCompression = true
+	var deviceAuthToken *string
+	if rand.Float64() <= orbitProb {
+		deviceAuthToken = ptr.String(uuid.NewString())
+	}
+	// #nosec (osquery-perf is only used for testing)
+	tlsConfig := &tls.Config{
+		InsecureSkipVerify: true,
+	}
 	return &agent{
 		agentIndex:     agentIndex,
 		serverAddress:  serverAddress,
@@ -197,9 +209,10 @@ func newAgent(
 		strings:        make(map[string]string),
 		policyPassProb: policyPassProb,
 		fastClient: fasthttp.Client{
-			TLSConfig: &tls.Config{InsecureSkipVerify: true},
+			TLSConfig: tlsConfig,
 		},
-		templates: templates,
+		templates:       templates,
+		deviceAuthToken: deviceAuthToken,
 
 		EnrollSecret:   enrollSecret,
 		ConfigInterval: configInterval,
@@ -469,7 +482,7 @@ func (a *agent) SoftwareMacOS() []fleet.Software {
 	uniqueSoftware := make([]fleet.Software, a.softwareCount.unique)
 	for i := 0; i < len(uniqueSoftware); i++ {
 		uniqueSoftware[i] = fleet.Software{
-			Name:             fmt.Sprintf("Unique_%d_%d", a.agentIndex, i),
+			Name:             fmt.Sprintf("Unique_%s_%d", a.CachedString("hostname"), i),
 			Version:          "1.1.1",
 			BundleIdentifier: "com.fleetdm.osquery-perf",
 			Source:           "osquery-perf",
@@ -558,6 +571,15 @@ func (a *agent) randomQueryStats() []map[string]string {
 	return stats
 }
 
+func (a *agent) orbitInfo() (bool, []map[string]string) {
+	if a.deviceAuthToken != nil {
+		return true, []map[string]string{
+			{"device_auth_token": *a.deviceAuthToken, "version": "osquery-perf"},
+		}
+	}
+	return false, nil // vanilla osquery returns no results (due to discovery query).
+}
+
 func (a *agent) mdm() []map[string]string {
 	enrolled := "true"
 	if rand.Intn(2) == 1 {
@@ -595,60 +617,80 @@ func (a *agent) googleChromeProfiles() []map[string]string {
 	return result
 }
 
-func (a *agent) DistributedWrite(queries map[string]string) {
-	r := service.SubmitDistributedQueryResultsRequest{
-		Results:  make(fleet.OsqueryDistributedQueryResults),
-		Statuses: make(map[string]fleet.OsqueryStatus),
-	}
-	r.NodeKey = a.nodeKey
-	const hostPolicyQueryPrefix = "fleet_policy_query_"
-	const hostDetailQueryPrefix = "fleet_detail_query_"
-	for name := range queries {
-		r.Results[name] = defaultQueryResult
-		r.Statuses[name] = fleet.StatusOK
-		if strings.HasPrefix(name, hostPolicyQueryPrefix) {
-			r.Results[name] = a.runPolicy(queries[name])
-			continue
+func (a *agent) processQuery(name, query string) (handled bool, results []map[string]string, status *fleet.OsqueryStatus) {
+	const (
+		hostPolicyQueryPrefix = "fleet_policy_query_"
+		hostDetailQueryPrefix = "fleet_detail_query_"
+	)
+	statusOK := fleet.StatusOK
+
+	switch {
+	case strings.HasPrefix(name, hostPolicyQueryPrefix):
+		return true, a.runPolicy(query), &statusOK
+	case name == hostDetailQueryPrefix+"scheduled_query_stats":
+		return true, a.randomQueryStats(), &statusOK
+	case name == hostDetailQueryPrefix+"orbit_info":
+		if ok, results := a.orbitInfo(); ok {
+			return true, results, &statusOK
 		}
-		if name == hostDetailQueryPrefix+"scheduled_query_stats" {
-			r.Results[name] = a.randomQueryStats()
-			continue
+		return true, nil, nil
+	case name == hostDetailQueryPrefix+"mdm":
+		ss := fleet.OsqueryStatus(rand.Intn(2))
+		if ss == fleet.StatusOK {
+			results = a.mdm()
 		}
-		if name == hostDetailQueryPrefix+"mdm" {
-			r.Statuses[name] = fleet.OsqueryStatus(rand.Intn(2))
-			r.Results[name] = nil
-			if r.Statuses[name] == fleet.StatusOK {
-				r.Results[name] = a.mdm()
-			}
+		return true, results, &ss
+	case name == hostDetailQueryPrefix+"munki_info":
+		ss := fleet.OsqueryStatus(rand.Intn(2))
+		if ss == fleet.StatusOK {
+			results = a.munkiInfo()
 		}
-		if name == hostDetailQueryPrefix+"munki_info" {
-			r.Statuses[name] = fleet.OsqueryStatus(rand.Intn(2))
-			r.Results[name] = nil
-			if r.Statuses[name] == fleet.StatusOK {
-				r.Results[name] = a.munkiInfo()
-			}
+		return true, results, &ss
+	case name == hostDetailQueryPrefix+"google_chrome_profiles":
+		ss := fleet.OsqueryStatus(rand.Intn(2))
+		if ss == fleet.StatusOK {
+			results = a.googleChromeProfiles()
 		}
-		if name == hostDetailQueryPrefix+"google_chrome_profiles" {
-			r.Statuses[name] = fleet.OsqueryStatus(rand.Intn(2))
-			r.Results[name] = nil
-			if r.Statuses[name] == fleet.StatusOK {
-				r.Results[name] = a.googleChromeProfiles()
-			}
-		}
+		return true, results, &ss
+	default:
+		// Look for results in the template file.
 		if t := a.templates.Lookup(name); t == nil {
-			continue
+			return false, nil, nil
 		}
 		var ni bytes.Buffer
 		err := a.templates.ExecuteTemplate(&ni, name, a)
 		if err != nil {
 			panic(err)
 		}
-		var m []map[string]string
-		err = json.Unmarshal(ni.Bytes(), &m)
+		err = json.Unmarshal(ni.Bytes(), &results)
 		if err != nil {
 			panic(err)
 		}
-		r.Results[name] = m
+		return true, results, &statusOK
+	}
+}
+
+func (a *agent) DistributedWrite(queries map[string]string) {
+	r := service.SubmitDistributedQueryResultsRequest{
+		Results:  make(fleet.OsqueryDistributedQueryResults),
+		Statuses: make(map[string]fleet.OsqueryStatus),
+	}
+	r.NodeKey = a.nodeKey
+	for name, query := range queries {
+		handled, results, status := a.processQuery(name, query)
+		if !handled {
+			// If osquery-perf does not handle the incoming query,
+			// always return status OK and the default query result.
+			r.Results[name] = defaultQueryResult
+			r.Statuses[name] = fleet.StatusOK
+		} else {
+			if results != nil {
+				r.Results[name] = results
+			}
+			if status != nil {
+				r.Statuses[name] = *status
+			}
+		}
 	}
 	body, err := json.Marshal(r)
 	if err != nil {
@@ -690,6 +732,7 @@ func main() {
 	commonUserCount := flag.Int("common_user_count", 10, "Number of common host users reported to fleet")
 	uniqueUserCount := flag.Int("unique_user_count", 10, "Number of unique host users reported to fleet")
 	policyPassProb := flag.Float64("policy_pass_prob", 1.0, "Probability of policies to pass [0, 1]")
+	orbitProb := flag.Float64("orbit_prob", 0.5, "Probability of a host being identified as orbit install [0, 1]")
 
 	flag.Parse()
 
@@ -731,18 +774,22 @@ func main() {
 
 	for i := 0; i < *hostCount; i++ {
 		tmpl := tmpls[i%len(tmpls)]
-		a := newAgent(i+1, *serverURL, *enrollSecret, tmpl, *configInterval, *queryInterval, softwareEntityCount{
-			entityCount: entityCount{
-				common: *commonSoftwareCount,
-				unique: *uniqueSoftwareCount,
+		a := newAgent(i+1, *serverURL, *enrollSecret, tmpl, *configInterval, *queryInterval,
+			softwareEntityCount{
+				entityCount: entityCount{
+					common: *commonSoftwareCount,
+					unique: *uniqueSoftwareCount,
+				},
+				vulnerable:     *vulnerableSoftwareCount,
+				withLastOpened: *withLastOpenedSoftwareCount,
+				lastOpenedProb: *lastOpenedChangeProb,
+			}, entityCount{
+				common: *commonUserCount,
+				unique: *uniqueUserCount,
 			},
-			vulnerable:     *vulnerableSoftwareCount,
-			withLastOpened: *withLastOpenedSoftwareCount,
-			lastOpenedProb: *lastOpenedChangeProb,
-		}, entityCount{
-			common: *commonUserCount,
-			unique: *uniqueUserCount,
-		}, *policyPassProb)
+			*policyPassProb,
+			*orbitProb,
+		)
 		a.stats = stats
 		a.nodeKeyManager = nodeKeyManager
 		go a.runLoop(i, onlyAlreadyEnrolled != nil && *onlyAlreadyEnrolled)
