@@ -446,6 +446,10 @@ We like to celebrate our achievements weekly in `#general`.
   - Every Thursday night, Charlie creates a thread in #help-manage requesting weekly updates, and managers will reply to the thread with their weekly updates.
   - Friday afternoons, Charlie updates the KPIs in the weekly updates spreadsheet, and Friday nights, Charlie will post the updates in #general.
 
+Weekly update principles
+   - Each department's update is 20-40 words or less.
+   - Erring on the side of refering to something that is completely done and/or mentioning news that is potentially very exciting to folks throughout the company.
+
 ### Investor and Advisor updates
 
 We like to regularly share updates about how Fleet is growing with our investors and advisors. 
