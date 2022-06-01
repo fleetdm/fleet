@@ -4250,7 +4250,7 @@ func testHostIDsByOSVersion(t *testing.T, ds *Datastore) {
 		require.NoError(t, err)
 		require.Len(t, result, 1)
 		for _, id := range result {
-			r, err := ds.Host(ctx, id, true)
+			r, err := ds.Host(ctx, id)
 			require.NoError(t, err)
 			require.Equal(t, r.Platform, "ubuntu")
 			require.Equal(t, r.OSVersion, "20.4.0")

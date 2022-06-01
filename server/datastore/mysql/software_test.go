@@ -1340,7 +1340,7 @@ func testListSoftwareVulnerabilities(t *testing.T, ds *Datastore) {
 		{Name: "blah", Version: "1.0", Source: "apps"},
 	}
 	require.NoError(t, ds.UpdateHostSoftware(ctx, hostOne.ID, softwareOne))
-	require.NoError(t, ds.LoadHostSoftware(ctx, hostOne, fleet.SoftwareListOptions{}))
+	require.NoError(t, ds.LoadHostSoftware(ctx, hostOne, fleet.SoftwareListOptions{}, false))
 
 	require.NoError(t, ds.AddCPEForSoftware(ctx, hostOne.Software[0], "foo_cpe"))
 	require.NoError(t, ds.AddCPEForSoftware(ctx, hostOne.Software[1], "bar_cpe"))
@@ -1389,7 +1389,7 @@ func testInsertVulnerabilities(t *testing.T, ds *Datastore) {
 		}
 
 		require.NoError(t, ds.UpdateHostSoftware(ctx, host.ID, []fleet.Software{software}))
-		require.NoError(t, ds.LoadHostSoftware(ctx, host, fleet.SoftwareListOptions{}))
+		require.NoError(t, ds.LoadHostSoftware(ctx, host, fleet.SoftwareListOptions{}, false))
 		require.NoError(t, ds.AddCPEForSoftware(ctx, host.Software[0], "foo_cpe_1"))
 
 		vulns := []fleet.SoftwareVulnerability{
@@ -1417,7 +1417,7 @@ func testInsertVulnerabilities(t *testing.T, ds *Datastore) {
 		}
 
 		require.NoError(t, ds.UpdateHostSoftware(ctx, host.ID, []fleet.Software{software}))
-		require.NoError(t, ds.LoadHostSoftware(ctx, host, fleet.SoftwareListOptions{}))
+		require.NoError(t, ds.LoadHostSoftware(ctx, host, fleet.SoftwareListOptions{}, false))
 		require.NoError(t, ds.AddCPEForSoftware(ctx, host.Software[0], "foo_cpe_2"))
 
 		vulns := []fleet.SoftwareVulnerability{{CPEID: 1, CVE: "cve-2"}}
