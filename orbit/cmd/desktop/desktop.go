@@ -109,24 +109,28 @@ func main() {
 				policies, err := client.ListDevicePolicies(deviceToken)
 				switch {
 				case err == nil:
-					status := "🟢"
-					for _, policy := range policies {
-						if policy.Response != "pass" {
-							status = "🔴"
-							break
-						}
-					}
-
-					myDeviceItem.SetTitle(status + " My device")
-					myDeviceItem.Enable()
+					// OK
 				case errors.Is(err, service.ErrMissingLicense):
 					myDeviceItem.SetTitle("My device")
 					myDeviceItem.Disable()
+					continue
 				default:
 					// To ease troubleshooting we set the tooltip as the error.
 					myDeviceItem.SetTooltip(err.Error())
 					log.Printf("get device URL: %s", err)
+					continue
 				}
+
+				status := "🟢"
+				for _, policy := range policies {
+					if policy.Response != "pass" {
+						status = "🔴"
+						break
+					}
+				}
+
+				myDeviceItem.SetTitle(status + " My device")
+				myDeviceItem.Enable()
 			}
 		}()
 
