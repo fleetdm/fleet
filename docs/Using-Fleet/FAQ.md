@@ -281,3 +281,31 @@ No, you won't experience data loss when you update fleetctl. Note that you can r
 ## Can I disable usage statistics via the config file or a CLI flag?
 Apart from an admin [disabling usage](https://fleetdm.com/docs/using-fleet/usage-statistics#disable-usage-statistics) statistics on the Fleet UI, you can edit your `fleet.yml` config file to disable usage statistics. Look for the `server_settings` in your `fleet.yml` and set `enable_analytics: false`. Do note there is no CLI flag option to disable usage statistics at this time.
 
+## How do I downgrade from Fleet Premium to Fleet Free?
+To downgrade from Fleet Premium to Fleet Free, do follow the following steps:
+
+### Users
+- Back up all user roles by running `fleetctl get user_roles > user_roles.yml`
+  - Why? User roles can be reset using `fleetctl apply -f user_roles.yml` if you upgrade later.
+- Update all users so that they have global access. If a user shouldn't have global access delete this user. 
+  - Why? Users with team level access won't be able to see any hosts following the downgrade process.
+
+### Scheduled queries
+- Manually move any scheduled queries that belong to a team to the global "All teams" level.
+- Remove all scheduled queries that belong to a team.
+  - Why? Scheduled queries that belong to a team will no longer run on any hosts following the downgrade process.
+
+### Policies
+- Manually move any policies that belong to a team to the global "All teams" level.
+- Delete all policies that belong to a team.
+  - Policies that belong to a team will no longer run following the downgrade process.
+
+### Teams
+- Backup all teams by running `fleetctl get teams > teams.yml`
+  - Why? User roles can be reset using `fleetctl apply -f teams.yml` if you upgrade later.
+- Delete all teams. This will move all hosts to the global level
+  - Why? If teams aren't deleted, unintended queries may continue to run on these hosts.
+
+
+
+
