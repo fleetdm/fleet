@@ -4195,13 +4195,13 @@ func testHostIDsByOSVersion(t *testing.T, ds *Datastore) {
 	}
 
 	t.Run("no match", func(t *testing.T) {
-		osVersion := fleet.OSVersion{Platform: "asdfas", Name: "sdfasw"}
+		osVersion := fleet.OSVersion{Platform: "ubuntu", Name: "sdfasw"}
 		none, err := ds.HostIDsByOSVersion(ctx, osVersion, 0, 1)
 		require.NoError(t, err)
 		require.Len(t, none, 0)
 	})
 
-	t.Run("filtering by platform and version", func(t *testing.T) {
+	t.Run("filtering by os version", func(t *testing.T) {
 		osVersion := fleet.OSVersion{Platform: "ubuntu", Name: "20.4.0"}
 		result, err := ds.HostIDsByOSVersion(ctx, osVersion, 0, 1)
 		require.NoError(t, err)

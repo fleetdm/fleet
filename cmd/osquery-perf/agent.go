@@ -697,12 +697,14 @@ func main() {
 
 	templateNames := []string{
 		"mac10.14.6.tml",
-		"ubuntu_16.04.tmpl",
-		"ubuntu_18.04.tmpl",
-		"ubuntu_20.04.tmpl",
-		"ubuntu_21.04.tmpl",
-		"ubuntu_21.10.tmpl",
-		"ubuntu_22.04.tmpl",
+
+		// Uncomment this to add ubuntu hosts with vulnerable software
+		// "ubuntu_16.04.tmpl",
+		// "ubuntu_18.04.tmpl",
+		// "ubuntu_20.04.tmpl",
+		// "ubuntu_21.04.tmpl",
+		// "ubuntu_21.10.tmpl",
+		// "ubuntu_22.04.tmpl",
 	}
 
 	var tmpls []*template.Template
