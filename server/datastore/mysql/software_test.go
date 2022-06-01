@@ -321,14 +321,28 @@ func testSoftwareAllCPEs(t *testing.T, ds *Datastore) {
 
 	t.Run("without excludedPlatforms", func(t *testing.T) {
 		cpes, err := ds.AllCPEs(ctx, nil)
+		expected := []string{
+			"cpe1", "cpe2", "cpe3", "cpe4",
+		}
+		var actual []string
+		for _, v := range cpes {
+			actual = append(actual, v.CPE)
+		}
 		require.NoError(t, err)
-		assert.ElementsMatch(t, cpes, []string{"cpe1", "cpe2", "cpe3", "cpe4"})
+		assert.ElementsMatch(t, actual, expected)
 	})
 
 	t.Run("with excludedPlatforms", func(t *testing.T) {
 		cpes, err := ds.AllCPEs(ctx, []string{"ubuntu"})
+		expected := []string{
+			"cpe1", "cpe2",
+		}
+		var actual []string
+		for _, v := range cpes {
+			actual = append(actual, v.CPE)
+		}
 		require.NoError(t, err)
-		assert.ElementsMatch(t, cpes, []string{"cpe1", "cpe2"})
+		assert.ElementsMatch(t, actual, expected)
 	})
 }
 

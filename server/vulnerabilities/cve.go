@@ -107,7 +107,7 @@ func TranslateCPEToCVE(
 	ds fleet.Datastore,
 	vulnPath string,
 	logger kitlog.Logger,
-	collectRecentVulns bool,
+	collectVulns bool,
 	recentVulnerabilityMaxAge time.Duration,
 ) (map[string][]string, error) {
 	files, err := getNVDCVEFeedFiles(vulnPath)
@@ -125,7 +125,8 @@ func TranslateCPEToCVE(
 	}
 
 	cpes := make([]*wfn.Attributes, 0, len(cpeList))
-	for _, uri := range cpeList {
+	for _, cpe := range cpeList {
+		uri := cpe.CPE
 		// Skip dummy CPEs
 		if strings.HasPrefix(uri, "none") {
 			continue
@@ -143,7 +144,7 @@ func TranslateCPEToCVE(
 	}
 
 	var recentVulns map[string][]string
-	if collectRecentVulns {
+	if collectVulns {
 		recentVulns = make(map[string][]string)
 	}
 	for _, file := range files {

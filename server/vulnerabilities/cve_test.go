@@ -14,6 +14,7 @@ import (
 
 	"github.com/WatchBeam/clock"
 	"github.com/fleetdm/fleet/v4/pkg/nettest"
+	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mock"
 	kitlog "github.com/go-kit/kit/log"
 	"github.com/stretchr/testify/assert"
@@ -46,7 +47,7 @@ type threadSafeDSMock struct {
 	*mock.Store
 }
 
-func (d *threadSafeDSMock) AllCPEs(ctx context.Context, excludedPlatforms []string) ([]string, error) {
+func (d *threadSafeDSMock) AllCPEs(ctx context.Context, excludedPlatforms []string) ([]fleet.SoftwareCPE, error) {
 	d.mu.Lock()
 	defer d.mu.Unlock()
 	return d.Store.AllCPEs(ctx, excludedPlatforms)
@@ -88,8 +89,10 @@ func TestTranslateCPEToCVE(t *testing.T) {
 
 	for _, tt := range cvetests {
 		t.Run(tt.cpe, func(t *testing.T) {
-			ds.AllCPEsFunc = func(ctx context.Context, excludedPlatforms []string) ([]string, error) {
-				return []string{tt.cpe}, nil
+			ds.AllCPEsFunc = func(ctx context.Context, excludedPlatforms []string) ([]fleet.SoftwareCPE, error) {
+				return []fleet.SoftwareCPE{
+					{CPE: tt.cpe},
+				}, nil
 			}
 
 			cveLock := &sync.Mutex{}
@@ -124,8 +127,11 @@ func TestTranslateCPEToCVE(t *testing.T) {
 
 		safeDS := &threadSafeDSMock{Store: ds}
 
-		ds.AllCPEsFunc = func(ctx context.Context, excludedPlatforms []string) ([]string, error) {
-			return []string{googleChromeCPE, mozillaFirefoxCPE, curlCPE}, nil
+		ds.AllCPEsFunc = func(ctx context.Context, excludedPlatforms []string) ([]fleet.SoftwareCPE, error) {
+			return []fleet.SoftwareCPE{
+					{CPE: googleChromeCPE}, {CPE: mozillaFirefoxCPE}, {CPE: curlCPE},
+				},
+				nil
 		}
 
 		ds.InsertCVEForCPEFunc = func(ctx context.Context, cve string, cpes []string) (int64, error) {

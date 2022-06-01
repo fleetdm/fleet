@@ -660,12 +660,13 @@ func addCPEForSoftwareDB(ctx context.Context, exec sqlx.ExecerContext, software 
 	return uint(id), nil
 }
 
-func (ds *Datastore) AllCPEs(ctx context.Context, excludedPlatforms []string) ([]string, error) {
-	var cpes []string
+func (ds *Datastore) AllCPEs(ctx context.Context, excludedPlatforms []string) ([]fleet.SoftwareCPE, error) {
+	var result []fleet.SoftwareCPE
+
 	var err error
 	var args []interface{}
 
-	stmt := `SELECT cpe FROM software_cpe`
+	stmt := `SELECT id, software_id, cpe FROM software_cpe`
 
 	if excludedPlatforms != nil {
 		stmt += ` WHERE software_id NOT IN (
@@ -680,12 +681,12 @@ func (ds *Datastore) AllCPEs(ctx context.Context, excludedPlatforms []string) ([
 			return nil, ctxerr.Wrap(ctx, err, "loads cpes")
 		}
 	}
-	err = sqlx.SelectContext(ctx, ds.reader, &cpes, stmt, args...)
+	err = sqlx.SelectContext(ctx, ds.reader, &result, stmt, args...)
 
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "loads cpes")
 	}
-	return cpes, nil
+	return result, nil
 }
 
 // InsertCVEForCPE inserts the cve into software_cve, linking it to all the

@@ -345,7 +345,7 @@ func checkNVDVulnerabilities(
 	logger kitlog.Logger,
 	vulnPath string,
 	config config.FleetConfig,
-	collectRecentVulns bool,
+	collectVulns bool,
 ) map[string][]string {
 	if !config.Vulnerabilities.DisableDataSync {
 		err := vulnerabilities.Sync(vulnPath, config.Vulnerabilities.CPEDatabaseURL)
@@ -370,7 +370,7 @@ func checkNVDVulnerabilities(
 		return nil
 	}
 
-	recentVulns, err := vulnerabilities.TranslateCPEToCVE(ctx, ds, vulnPath, logger, collectRecentVulns, config.Vulnerabilities.RecentVulnerabilityMaxAge)
+	recentVulns, err := vulnerabilities.TranslateCPEToCVE(ctx, ds, vulnPath, logger, collectVulns, config.Vulnerabilities.RecentVulnerabilityMaxAge)
 	if err != nil {
 		level.Error(logger).Log("msg", "analyzing vulnerable software: CPE->CVE", "err", err)
 		sentry.CaptureException(err)
