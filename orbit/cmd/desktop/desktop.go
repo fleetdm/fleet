@@ -54,7 +54,7 @@ func main() {
 		}
 
 		// TODO: figure out the right rootCA to pass to the client
-		client, err := service.NewDeviceClient(basePath, insecureSkipVerify, "")
+		client, err := service.NewDeviceClient(basePath, deviceToken, insecureSkipVerify, "")
 
 		if err != nil {
 			log.Printf("unable to initialize request client: %s", err)
@@ -71,7 +71,7 @@ func main() {
 				defer ticker.Stop()
 
 				for {
-					_, err := client.ListDevicePolicies(deviceToken)
+					_, err := client.ListDevicePolicies()
 
 					switch {
 					case err == nil:
@@ -106,7 +106,7 @@ func main() {
 			for {
 				<-tic.C
 
-				policies, err := client.ListDevicePolicies(deviceToken)
+				policies, err := client.ListDevicePolicies()
 				switch {
 				case err == nil:
 					// OK
