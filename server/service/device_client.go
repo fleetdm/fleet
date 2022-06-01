@@ -44,7 +44,7 @@ func NewDeviceClient(addr string, token string, insecureSkipVerify bool, rootCA 
 		return nil, err
 	}
 
-	return &DeviceClient{baseClient: baseClient}, nil
+	return &DeviceClient{baseClient: baseClient, token: token}, nil
 }
 
 // ListDevicePolicies fetches all policies for the device with the provided token
