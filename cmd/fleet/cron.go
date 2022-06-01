@@ -227,7 +227,8 @@ func cronVulnerabilities(
 			}
 			level.Debug(logger).Log("vulnAutomationEnabled", vulnAutomationEnabled)
 
-			recentVulns := checkNVDVulnerabilities(ctx, ds, logger, vulnPath, config, (vulnAutomationEnabled != ""))
+			collectVulns := vulnAutomationEnabled != ""
+			recentVulns := checkNVDVulnerabilities(ctx, ds, logger, vulnPath, config, collectVulns)
 
 			// TODO: merge results
 			checkOvalVulnerabilities(ctx, ds, logger, vulnPath, config)

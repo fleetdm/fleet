@@ -119,6 +119,13 @@ type SoftwareListOptions struct {
 	WithHostCounts bool
 }
 
+// SoftwareCPE represents an entry in the `software_cpe` table
+type SoftwareCPE struct {
+	ID         uint   `db:"id"`
+	SoftwareID uint   `db:"software_id"`
+	CPE        string `db:"cpe"`
+}
+
 // SoftwareVulnerability identifies a vulnerability on a specific software.
 type SoftwareVulnerability struct {
 	SoftwareID uint   `db:"software_id"`
