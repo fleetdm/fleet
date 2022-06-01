@@ -26,6 +26,11 @@ import (
 	"github.com/go-kit/kit/log/level"
 )
 
+type softwareCPEWithNVDMeta struct {
+	fleet.SoftwareCPE
+	meta *wfn.Attributes
+}
+
 // DownloadNVDCVEFeed downloads the NVD CVE feed. Skips downloading if the cve feed has not changed since the last time.
 func DownloadNVDCVEFeed(vulnPath string, cveFeedPrefixURL string) error {
 	cve := nvd.SupportedCVE["cve-1.1.json.gz"]
@@ -119,27 +124,29 @@ func TranslateCPEToCVE(
 	}
 
 	// Skip CPEs from platforms supported by OVAL
-	cpeList, err := ds.AllCPEs(ctx, oval.SupportedHostPlatforms)
+	CPEs, err := ds.ListSoftwareCPEs(ctx, oval.SupportedHostPlatforms)
 	if err != nil {
 		return nil, err
 	}
 
-	cpes := make([]*wfn.Attributes, 0, len(cpeList))
-	for _, cpe := range cpeList {
-		uri := cpe.CPE
+	var parsedCPEs []softwareCPEWithNVDMeta
+	for _, cpe := range CPEs {
 		// Skip dummy CPEs
-		if strings.HasPrefix(uri, "none") {
+		if strings.HasPrefix(cpe.CPE, "none") {
 			continue
 		}
 
-		attr, err := wfn.Parse(uri)
+		attr, err := wfn.Parse(cpe.CPE)
 		if err != nil {
 			return nil, err
 		}
-		cpes = append(cpes, attr)
+		parsedCPEs = append(parsedCPEs, softwareCPEWithNVDMeta{
+			SoftwareCPE: cpe,
+			meta:        attr,
+		})
 	}
 
-	if len(cpes) == 0 {
+	if len(parsedCPEs) == 0 {
 		return nil, nil
 	}
 
@@ -148,7 +155,7 @@ func TranslateCPEToCVE(
 		recentVulns = make(map[string][]string)
 	}
 	for _, file := range files {
-		err := checkCVEs(ctx, ds, logger, cpes, file, recentVulns, recentVulnerabilityMaxAge)
+		err := checkCVEs(ctx, ds, logger, parsedCPEs, file, recentVulns, recentVulnerabilityMaxAge)
 		if err != nil {
 			return nil, err
 		}

@@ -28,7 +28,7 @@ func TestSoftware(t *testing.T) {
 		{"InsertCVEs", testSoftwareInsertCVEs},
 		{"HostDuplicates", testSoftwareHostDuplicates},
 		{"LoadVulnerabilities", testSoftwareLoadVulnerabilities},
-		{"AllCPEs", testSoftwareAllCPEs},
+		{"ListSoftwareCPEs", testListSoftwareCPEs},
 		{"NothingChanged", testSoftwareNothingChanged},
 		{"LoadSupportsTonsOfCVEs", testSoftwareLoadSupportsTonsOfCVEs},
 		{"List", testSoftwareList},
@@ -290,7 +290,7 @@ func testSoftwareLoadVulnerabilities(t *testing.T, ds *Datastore) {
 	require.Len(t, host.Software[1].Vulnerabilities, 0)
 }
 
-func testSoftwareAllCPEs(t *testing.T, ds *Datastore) {
+func testListSoftwareCPEs(t *testing.T, ds *Datastore) {
 	ctx := context.Background()
 
 	debian := test.NewHost(t, ds, "host3", "", "host3key", "host3uuid", time.Now())
@@ -320,7 +320,7 @@ func testSoftwareAllCPEs(t *testing.T, ds *Datastore) {
 	require.NoError(t, ds.AddCPEForSoftware(ctx, ubuntu.Software[1], "cpe4"))
 
 	t.Run("without excludedPlatforms", func(t *testing.T) {
-		cpes, err := ds.AllCPEs(ctx, nil)
+		cpes, err := ds.ListSoftwareCPEs(ctx, nil)
 		expected := []string{
 			"cpe1", "cpe2", "cpe3", "cpe4",
 		}
@@ -333,7 +333,7 @@ func testSoftwareAllCPEs(t *testing.T, ds *Datastore) {
 	})
 
 	t.Run("with excludedPlatforms", func(t *testing.T) {
-		cpes, err := ds.AllCPEs(ctx, []string{"ubuntu"})
+		cpes, err := ds.ListSoftwareCPEs(ctx, []string{"ubuntu"})
 		expected := []string{
 			"cpe1", "cpe2",
 		}

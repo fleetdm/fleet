@@ -47,10 +47,10 @@ type threadSafeDSMock struct {
 	*mock.Store
 }
 
-func (d *threadSafeDSMock) AllCPEs(ctx context.Context, excludedPlatforms []string) ([]fleet.SoftwareCPE, error) {
+func (d *threadSafeDSMock) ListSoftwareCPEs(ctx context.Context, excludedPlatforms []string) ([]fleet.SoftwareCPE, error) {
 	d.mu.Lock()
 	defer d.mu.Unlock()
-	return d.Store.AllCPEs(ctx, excludedPlatforms)
+	return d.Store.ListSoftwareCPEs(ctx, excludedPlatforms)
 }
 
 func (d *threadSafeDSMock) InsertCVEForCPE(ctx context.Context, cve string, cpes []string) (int64, error) {
@@ -89,7 +89,7 @@ func TestTranslateCPEToCVE(t *testing.T) {
 
 	for _, tt := range cvetests {
 		t.Run(tt.cpe, func(t *testing.T) {
-			ds.AllCPEsFunc = func(ctx context.Context, excludedPlatforms []string) ([]fleet.SoftwareCPE, error) {
+			ds.ListSoftwareCPEsFunc = func(ctx context.Context, excludedPlatforms []string) ([]fleet.SoftwareCPE, error) {
 				return []fleet.SoftwareCPE{
 					{CPE: tt.cpe},
 				}, nil
@@ -127,7 +127,7 @@ func TestTranslateCPEToCVE(t *testing.T) {
 
 		safeDS := &threadSafeDSMock{Store: ds}
 
-		ds.AllCPEsFunc = func(ctx context.Context, excludedPlatforms []string) ([]fleet.SoftwareCPE, error) {
+		ds.ListSoftwareCPEsFunc = func(ctx context.Context, excludedPlatforms []string) ([]fleet.SoftwareCPE, error) {
 			return []fleet.SoftwareCPE{
 					{CPE: googleChromeCPE}, {CPE: mozillaFirefoxCPE}, {CPE: curlCPE},
 				},
