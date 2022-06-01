@@ -184,7 +184,7 @@ Nowadays, fleet, as a Go server, scales horizontally very well. It’s not very 
 
 In general, if burning a bit of CPU or memory on the Fleet side allows us to reduce the load on MySQL or Redis, we should do so.
 
-In a lot of cases, caching helps but given that we are not doing load balancing based on host id (i.e. make sure that the same host ends up in the same fleet server) this goes only so far. Caching host specific data is not done because round robin LB means all fleet instances end up circling the total list of hosts.
+In a lot of cases, caching helps but given that we are not doing load balancing based on host id (i.e. make sure that the same host ends up in the same fleet server) this goes only so far. Caching host specific data is not done because round robin LB means all Fleet instances end up circling the total list of hosts.
 
 ### How to prevent most of this
 
@@ -286,7 +286,7 @@ All of this said, Fleet and osquery work in an “update at an interval” fashi
 
 ### Caching data such as app config
 
-Caching is a usual strategy to solve some performance issues. In the case of fleet level data, such as app config (of which we will only have 1 of), is easy and we cache at the fleet server instance level, refreshing the value every 1 second. App config gets queried with virtually every request, and with this we reduce drastically how many times the database is hit with that query. The side effect is that a config would take 1 minute to get updated in each fleet instance, which is a price we are willing to pay.
+Caching is a usual strategy to solve some performance issues. In the case of fleet level data, such as app config (of which we will only have 1 of), is easy and we cache at the fleet server instance level, refreshing the value every 1 second. App config gets queried with virtually every request, and with this we reduce drastically how many times the database is hit with that query. The side effect is that a config would take 1 second to be updated in each fleet instance, which is a price we are willing to pay.
 
 Caching host level data is a different matter, though. Given that fleet is usually deployed in infrastructure where the load balancer distributes the load in a round robin like fashion (or maybe other algorithms, but nothing aware of anything within Fleet itself). Then virtually all hosts end up being seen by all fleet instances. So caching host level data (in the worst case) results in having a copy of all the hosts in each fleet instance and refreshing that at an interval.
 
