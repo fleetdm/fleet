@@ -843,6 +843,7 @@ func testHostsEnroll(t *testing.T, ds *Datastore) {
 	for _, tt := range enrollTests {
 		h, err := ds.EnrollHost(context.Background(), tt.uuid, tt.nodeKey, &team.ID, 0)
 		require.NoError(t, err)
+		assert.NotZero(t, h.LastEnrolledAt)
 
 		assert.Equal(t, tt.uuid, h.OsqueryHostID)
 		assert.Equal(t, tt.nodeKey, h.NodeKey)
@@ -850,10 +851,12 @@ func testHostsEnroll(t *testing.T, ds *Datastore) {
 		// This host should be allowed to re-enroll immediately if cooldown is disabled
 		_, err = ds.EnrollHost(context.Background(), tt.uuid, tt.nodeKey+"new", nil, 0)
 		require.NoError(t, err)
+		assert.NotZero(t, h.LastEnrolledAt)
 
 		// This host should not be allowed to re-enroll immediately if cooldown is enabled
 		_, err = ds.EnrollHost(context.Background(), tt.uuid, tt.nodeKey+"new", nil, 10*time.Second)
 		require.Error(t, err)
+		assert.NotZero(t, h.LastEnrolledAt)
 	}
 
 	hosts, err = ds.ListHosts(context.Background(), filter, fleet.HostListOptions{})

@@ -168,3 +168,45 @@ func getDeviceMacadminsDataEndpoint(ctx context.Context, request interface{}, sv
 	}
 	return getMacadminsDataResponse{Macadmins: data}, nil
 }
+
+////////////////////////////////////////////////////////////////////////////////
+// List Current Device's Policies
+////////////////////////////////////////////////////////////////////////////////
+
+type listDevicePoliciesRequest struct {
+	Token string `url:"token"`
+}
+
+func (r *listDevicePoliciesRequest) deviceAuthToken() string {
+	return r.Token
+}
+
+type listDevicePoliciesResponse struct {
+	Err      error               `json:"error,omitempty"`
+	Policies []*fleet.HostPolicy `json:"policies"`
+}
+
+func (r listDevicePoliciesResponse) error() error { return r.Err }
+
+func listDevicePoliciesEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
+	host, ok := hostctx.FromContext(ctx)
+	if !ok {
+		err := ctxerr.Wrap(ctx, fleet.NewAuthRequiredError("internal error: missing host from request context"))
+		return getHostResponse{Err: err}, nil
+	}
+
+	data, err := svc.ListDevicePolicies(ctx, host)
+	if err != nil {
+		return listDevicePoliciesResponse{Err: err}, nil
+	}
+
+	return listDevicePoliciesResponse{Policies: data}, nil
+}
+
+func (svc *Service) ListDevicePolicies(ctx context.Context, host *fleet.Host) ([]*fleet.HostPolicy, error) {
+	// skipauth: No authorization check needed due to implementation returning
+	// only license error.
+	svc.authz.SkipAuthorization(ctx)
+
+	return nil, fleet.ErrMissingLicense
+}

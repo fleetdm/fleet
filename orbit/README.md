@@ -182,18 +182,9 @@ If the `logger_path` configuration is set to `filesystem`, Orbit will store osqu
 
 #### Orbit Development
 
-For ease of development of Orbit, `fleetctl package` allows the generation of a package with a
-custom orbit executable using the `FLEETCTL_ORBIT_DEV_BUILD_PATH` environment variable:
-```sh
-FLEETCTL_ORBIT_DEV_BUILD_PATH=$(pwd)/orbit.exe ./build/fleetctl package --type=msi --fleet-url=https://localhost:8080 --enroll-secret=the_secret_value
-Generating your osquery installer...
-2022/01/03 20:31:10 root pinning is not supported in Spec 1.0.19
-WARNING: You are attempting to override orbit with a dev build.
-Press Enter to continue, or Control-c to exit.
-[...]
-```
+##### Run Orbit From Source
 
-If you want to run orbit from source directly, you can do the following:
+To execute orbit from source directly, run the following command:
 
 ```sh
 go run github.com/fleetdm/fleet/v4/orbit/cmd/orbit \
@@ -215,6 +206,11 @@ go run github.com/fleetdm/fleet/v4/orbit/cmd/orbit \
     -- --flagfile=flagfile.txt --verbose
 ```
 
+##### Generate Installer Packages from Orbit Source
+
+The `fleetctl package` command generates installers by fetching the targets/executables from a [TUF](https://theupdateframework.io/) repository.
+To generate an installer that contains an Orbit built from source you need to setup a local TUF repository.
+The following document explains how you can generate a TUF repository, and installers that use it [tools/tuf/test](../tools/tuf/test/README.md).
 
 ### Troubleshooting
 
