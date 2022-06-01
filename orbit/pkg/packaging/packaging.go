@@ -107,7 +107,7 @@ func InitializeUpdates(updateOpt update.Options) (*UpdatesData, error) {
 	}
 	updateOpt.LocalStore = localStore
 
-	updater, err := update.New(updateOpt)
+	updater, err := update.NewUpdater(updateOpt)
 	if err != nil {
 		return nil, fmt.Errorf("failed to init updater: %w", err)
 	}

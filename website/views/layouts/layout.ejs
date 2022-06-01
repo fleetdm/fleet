@@ -23,6 +23,7 @@
     Google Fonts, etc. - above the «body» to prevent the page flickering when fonts
     load.) */ %>
     <link href="https://fonts.googleapis.com/css2?family=Source+Code+Pro:ital,wght@0,200;0,300;0,400;0,500;0,600;0,700;0,900;1,200;1,300;1,400;1,500;1,600;1,700;1,900&display=swap" rel="stylesheet">
+    <script src="https://www.gstatic.com/charts/loader.js"></script>
     <% /* Certain scripts, normally analytics tools like Google Tag Manager and
     Google Analytics, should only be included in production: */
     if (sails.config.environment === 'production') { %>
@@ -352,6 +353,7 @@
     <script src="/dependencies/vue.js"></script>
     <script src="/dependencies/vue-router.js"></script>
     <script src="/dependencies/bootstrap-4/bootstrap-4.bundle.js"></script>
+    <script src="/dependencies/chart.min.js"></script>
     <script src="/dependencies/cloud.js"></script>
     <script src="/dependencies/docsearch.min.js"></script>
     <script src="/dependencies/highlight.min.js"></script>
@@ -361,6 +363,7 @@
     <script src="/js/cloud.setup.js"></script>
     <script src="/js/components/ajax-button.component.js"></script>
     <script src="/js/components/ajax-form.component.js"></script>
+    <script src="/js/components/bar-chart.component.js"></script>
     <script src="/js/components/cloud-error.component.js"></script>
     <script src="/js/components/js-timestamp.component.js"></script>
     <script src="/js/components/modal.component.js"></script>
@@ -393,6 +396,7 @@
     <script src="/js/pages/pricing.page.js"></script>
     <script src="/js/pages/query-detail.page.js"></script>
     <script src="/js/pages/query-library.page.js"></script>
+    <script src="/js/pages/reports/state-of-device-management.page.js"></script>
     <script src="/js/pages/transparency.page.js"></script>
     <!--SCRIPTS END-->
 
