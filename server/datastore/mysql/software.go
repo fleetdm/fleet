@@ -1145,7 +1145,6 @@ func (ds *Datastore) ListSoftwareVulnerabilities(
 		Select(
 			goqu.I("hs.host_id").As("host_id"),
 			goqu.I("cpe.software_id"),
-			goqu.C("cpe"),
 			goqu.C("cpe_id"),
 			goqu.C("cve"),
 		).

@@ -1351,20 +1351,16 @@ func testListSoftwareVulnerabilities(t *testing.T, ds *Datastore) {
 	_, err = ds.InsertCVEForCPE(ctx, "cve-456", []string{"bar_cpe"})
 	require.NoError(t, err)
 
-	expectedCPEs := []string{"foo_cpe", "bar_cpe"}
 	expectedCVEs := []string{"cve-123", "cve-456"}
 
-	actualCPEs := make([]string, 0)
 	actualCVEs := make([]string, 0)
 
 	result, err := ds.ListSoftwareVulnerabilities(ctx, []uint{hostOne.ID})
 	for _, r := range result[hostOne.ID] {
-		actualCPEs = append(actualCPEs, r.CPE)
 		actualCVEs = append(actualCVEs, r.CVE)
 	}
 
 	require.NoError(t, err)
-	require.ElementsMatch(t, expectedCPEs, actualCPEs)
 	require.ElementsMatch(t, expectedCVEs, actualCVEs)
 
 	for _, r := range result[hostOne.ID] {

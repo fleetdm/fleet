@@ -236,17 +236,17 @@ func TestOvalAnalyzer(t *testing.T) {
 
 		t.Run("existing match found", func(t *testing.T) {
 			found := []fleet.SoftwareVulnerability{
-				{CPE: "cpe_1", CPEID: 1, CVE: "cve_1"},
-				{CPE: "cpe_1", CPEID: 1, CVE: "cve_2"},
-				{CPE: "cpe_2", CPEID: 2, CVE: "cve_3"},
-				{CPE: "cpe_2", CPEID: 2, CVE: "cve_4"},
+				{CPEID: 1, CVE: "cve_1"},
+				{CPEID: 1, CVE: "cve_2"},
+				{CPEID: 2, CVE: "cve_3"},
+				{CPEID: 2, CVE: "cve_4"},
 			}
 
 			existing := []fleet.SoftwareVulnerability{
-				{CPE: "cpe_1", CPEID: 1, CVE: "cve_1"},
-				{CPE: "cpe_1", CPEID: 1, CVE: "cve_2"},
-				{CPE: "cpe_2", CPEID: 2, CVE: "cve_3"},
-				{CPE: "cpe_2", CPEID: 2, CVE: "cve_4"},
+				{CPEID: 1, CVE: "cve_1"},
+				{CPEID: 1, CVE: "cve_2"},
+				{CPEID: 2, CVE: "cve_3"},
+				{CPEID: 2, CVE: "cve_4"},
 			}
 
 			toInsert, toDelete := vulnsDelta(found, existing)
@@ -256,27 +256,27 @@ func TestOvalAnalyzer(t *testing.T) {
 
 		t.Run("existing differ from found", func(t *testing.T) {
 			found := []fleet.SoftwareVulnerability{
-				{CPE: "cpe_1", CPEID: 1, CVE: "cve_1"},
-				{CPE: "cpe_1", CPEID: 1, CVE: "cve_2"},
-				{CPE: "cpe_3", CPEID: 3, CVE: "cve_5"},
-				{CPE: "cpe_3", CPEID: 3, CVE: "cve_6"},
+				{CPEID: 1, CVE: "cve_1"},
+				{CPEID: 1, CVE: "cve_2"},
+				{CPEID: 3, CVE: "cve_5"},
+				{CPEID: 3, CVE: "cve_6"},
 			}
 
 			existing := []fleet.SoftwareVulnerability{
-				{CPE: "cpe_1", CPEID: 1, CVE: "cve_1"},
-				{CPE: "cpe_1", CPEID: 1, CVE: "cve_2"},
-				{CPE: "cpe_2", CPEID: 2, CVE: "cve_3"},
-				{CPE: "cpe_2", CPEID: 2, CVE: "cve_4"},
+				{CPEID: 1, CVE: "cve_1"},
+				{CPEID: 1, CVE: "cve_2"},
+				{CPEID: 2, CVE: "cve_3"},
+				{CPEID: 2, CVE: "cve_4"},
 			}
 
 			expectedToInsert := []fleet.SoftwareVulnerability{
-				{CPE: "cpe_3", CPEID: 3, CVE: "cve_5"},
-				{CPE: "cpe_3", CPEID: 3, CVE: "cve_6"},
+				{CPEID: 3, CVE: "cve_5"},
+				{CPEID: 3, CVE: "cve_6"},
 			}
 
 			expectedToDelete := []fleet.SoftwareVulnerability{
-				{CPE: "cpe_2", CPEID: 2, CVE: "cve_3"},
-				{CPE: "cpe_2", CPEID: 2, CVE: "cve_4"},
+				{CPEID: 2, CVE: "cve_3"},
+				{CPEID: 2, CVE: "cve_4"},
 			}
 
 			toInsert, toDelete := vulnsDelta(found, existing)
@@ -288,10 +288,10 @@ func TestOvalAnalyzer(t *testing.T) {
 			var found []fleet.SoftwareVulnerability
 
 			existing := []fleet.SoftwareVulnerability{
-				{CPE: "cpe_1", CPEID: 1, CVE: "cve_1"},
-				{CPE: "cpe_1", CPEID: 1, CVE: "cve_2"},
-				{CPE: "cpe_2", CPEID: 2, CVE: "cve_3"},
-				{CPE: "cpe_2", CPEID: 2, CVE: "cve_4"},
+				{CPEID: 1, CVE: "cve_1"},
+				{CPEID: 1, CVE: "cve_2"},
+				{CPEID: 2, CVE: "cve_3"},
+				{CPEID: 2, CVE: "cve_4"},
 			}
 
 			toInsert, toDelete := vulnsDelta(found, existing)
