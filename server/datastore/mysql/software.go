@@ -689,6 +689,7 @@ func (ds *Datastore) ListSoftwareCPEs(ctx context.Context, excludedPlatforms []s
 	return result, nil
 }
 
+// TODO (juan): Optimize this, we don't need to look at the cpe_id anymore
 // InsertCVEForCPE inserts the cve into software_cve, linking it to all the
 // provided cpes. It returns the number of new rows inserted or an error. If
 // the CVE already existed for all CPEs, it would return 0, nil.

@@ -228,11 +228,11 @@ func cronVulnerabilities(
 			level.Debug(logger).Log("vulnAutomationEnabled", vulnAutomationEnabled)
 
 			collectVulns := vulnAutomationEnabled != ""
-			recentVulns := checkNVDVulnerabilities(ctx, ds, logger, vulnPath, config, collectVulns)
 
-			// TODO: merge results
-			checkOvalVulnerabilities(ctx, ds, logger, vulnPath, config)
+			checkNVDVulnerabilities(ctx, ds, logger, vulnPath, config, collectVulns)
+			checkOvalVulnerabilities(ctx, ds, logger, vulnPath, config, collectVulns)
 
+			var recentVulns map[string][]string
 			if len(recentVulns) > 0 {
 				switch vulnAutomationEnabled {
 				case "webhook":
@@ -301,17 +301,20 @@ func checkOvalVulnerabilities(
 	logger kitlog.Logger,
 	vulnPath string,
 	config config.FleetConfig,
-) {
+	collectVulns bool,
+) []fleet.SoftwareVulnerability {
 	if config.Vulnerabilities.DisableDataSync {
-		return
+		return nil
 	}
+
+	var results []fleet.SoftwareVulnerability
 
 	// Get Platforms
 	versions, err := ds.OSVersions(ctx, nil, nil)
 	if err != nil {
 		level.Error(logger).Log("msg", "updating oval definitions", "err", err)
 		sentry.CaptureException(err)
-		return
+		return nil
 	}
 
 	// Sync on disk OVAL definitions with current OS Versions.
@@ -337,6 +340,8 @@ func checkOvalVulnerabilities(
 			sentry.CaptureException(err)
 		}
 	}
+
+	return results
 }
 
 func checkNVDVulnerabilities(
@@ -346,7 +351,7 @@ func checkNVDVulnerabilities(
 	vulnPath string,
 	config config.FleetConfig,
 	collectVulns bool,
-) map[string][]string {
+) []fleet.SoftwareVulnerability {
 	if !config.Vulnerabilities.DisableDataSync {
 		err := vulnerabilities.Sync(vulnPath, config.Vulnerabilities.CPEDatabaseURL)
 		if err != nil {
@@ -370,14 +375,15 @@ func checkNVDVulnerabilities(
 		return nil
 	}
 
-	recentVulns, err := vulnerabilities.TranslateCPEToCVE(ctx, ds, vulnPath, logger, collectVulns, config.Vulnerabilities.RecentVulnerabilityMaxAge)
+	// , config.Vulnerabilities.RecentVulnerabilityMaxAge
+	vulns, err := vulnerabilities.TranslateCPEToCVE(ctx, ds, vulnPath, logger, collectVulns)
 	if err != nil {
 		level.Error(logger).Log("msg", "analyzing vulnerable software: CPE->CVE", "err", err)
 		sentry.CaptureException(err)
 		return nil
 	}
 
-	return recentVulns
+	return vulns
 }
 
 func cronWebhooks(
