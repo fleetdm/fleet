@@ -21,6 +21,10 @@ const (
 	vulnBatchSize  = 500
 )
 
+func vulnKey(v fleet.SoftwareVulnerability) string {
+	return fmt.Sprintf("%d:%s", v.SoftwareID, v.CVE)
+}
+
 // Analyze scans all hosts for vulnerabilities based on the OVAL definitions for their platform,
 // inserting any new vulnerabilities and deleting anything patched.
 func Analyze(
@@ -76,12 +80,10 @@ func Analyze(
 		for _, hId := range hIds {
 			insrt, del := vulnsDelta(foundInBatch[hId], existingInBatch[hId])
 			for _, i := range insrt {
-				key := fmt.Sprintf("%d:%s", i.SoftwareID, i.CVE)
-				toInsertSet[key] = i
+				toInsertSet[vulnKey(i)] = i
 			}
 			for _, d := range del {
-				key := fmt.Sprintf("%d:%s", d.SoftwareID, d.CVE)
-				toDeleteSet[key] = d
+				toDeleteSet[vulnKey(d)] = d
 			}
 		}
 	}
@@ -151,22 +153,22 @@ func vulnsDelta(
 
 	existingSet := make(map[string]bool)
 	for _, e := range existing {
-		existingSet[e.CVE] = true
+		existingSet[vulnKey(e)] = true
 	}
 
 	foundSet := make(map[string]bool)
 	for _, f := range found {
-		foundSet[f.CVE] = true
+		foundSet[vulnKey(f)] = true
 	}
 
 	for _, e := range existing {
-		if _, ok := foundSet[e.CVE]; !ok {
+		if _, ok := foundSet[vulnKey(e)]; !ok {
 			toDelete = append(toDelete, e)
 		}
 	}
 
 	for _, f := range found {
-		if _, ok := existingSet[f.CVE]; !ok {
+		if _, ok := existingSet[vulnKey(f)]; !ok {
 			toInsert = append(toInsert, f)
 		}
 	}
