@@ -63,33 +63,27 @@ func main() {
 
 		// Perform API test call to enable the "My device" item as soon
 		// as the device auth token is registered by Fleet.
-		deviceEnabledChan := func() <-chan bool {
-			done := make(chan bool)
+		deviceEnabledChan := func() <-chan interface{} {
+			done := make(chan interface{})
 
 			go func() {
 				ticker := time.NewTicker(5 * time.Second)
 				defer ticker.Stop()
+				defer close(done)
 
 				for {
 					_, err := client.ListDevicePolicies()
 
-					switch {
-					case err == nil:
+					if err == nil || errors.Is(err, service.ErrMissingLicense) {
 						myDeviceItem.SetTitle("My device")
 						myDeviceItem.Enable()
 						myDeviceItem.SetTooltip("")
-						done <- true
 						return
-					case errors.Is(err, service.ErrMissingLicense):
-						myDeviceItem.SetTitle("My device")
-						myDeviceItem.SetTooltip("")
-						done <- true
-						return
-					default:
-						// To ease troubleshooting we set the tooltip as the error.
-						myDeviceItem.SetTooltip(err.Error())
-						log.Printf("get device URL: %s", err)
 					}
+
+					// To ease troubleshooting we set the tooltip as the error.
+					myDeviceItem.SetTooltip(err.Error())
+					log.Printf("get device URL: %s", err)
 
 					<-ticker.C
 				}
@@ -112,7 +106,6 @@ func main() {
 					// OK
 				case errors.Is(err, service.ErrMissingLicense):
 					myDeviceItem.SetTitle("My device")
-					myDeviceItem.Disable()
 					continue
 				default:
 					// To ease troubleshooting we set the tooltip as the error.
