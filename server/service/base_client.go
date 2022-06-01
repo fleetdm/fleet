@@ -51,7 +51,7 @@ func (bc *baseClient) parseResponse(verb, path string, response *http.Response, 
 
 	if e, ok := responseDest.(errorer); ok {
 		if e.error() != nil {
-			return fmt.Errorf("%s %s error: %s", verb, path, e.error())
+			return fmt.Errorf("%s %s error: %w", verb, path, e.error())
 		}
 	}
 

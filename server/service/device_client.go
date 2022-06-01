@@ -8,6 +8,8 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 )
 
+// Device client is used to consume `/device/...` endpoints,
+// and meant to be used by Fleet Desktop
 type DeviceClient struct {
 	*baseClient
 }
