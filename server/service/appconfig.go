@@ -208,6 +208,23 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte) (*fleet.AppCo
 		return nil, ctxerr.Wrap(ctx, err)
 	}
 
+	if t := newAppConfig.FleetDesktop.TransparencyURL; t != "" {
+		// TODO: What sort of validation do we want to do here? url.Parse isn't doing much in terms of validation
+		if _, err := url.Parse(t); err != nil {
+			invalid.Append("transparency_url", err.Error())
+			return nil, ctxerr.Wrap(ctx, invalid)
+		}
+
+		license, err := svc.License(ctx)
+		if err != nil {
+			return nil, err
+		}
+		if license.Tier != "premium" {
+			invalid.Append("transparency_url", "requires Fleet Premium license")
+			return nil, ctxerr.Wrap(ctx, invalid)
+		}
+	}
+
 	validateSSOSettings(newAppConfig, appConfig, invalid)
 	if invalid.HasErrors() {
 		return nil, ctxerr.Wrap(ctx, invalid)

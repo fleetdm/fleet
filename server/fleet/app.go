@@ -119,6 +119,7 @@ type AppConfig struct {
 
 	WebhookSettings WebhookSettings `json:"webhook_settings"`
 	Integrations    Integrations    `json:"integrations"`
+	FleetDesktop    FleetDesktop    `json:"fleet_desktop"`
 }
 
 // EnrichedAppConfig contains the AppConfig along with additional fleet
@@ -283,6 +284,11 @@ type HostSettings struct {
 	EnableHostUsers         bool             `json:"enable_host_users"`
 	EnableSoftwareInventory bool             `json:"enable_software_inventory"`
 	AdditionalQueries       *json.RawMessage `json:"additional_queries,omitempty"`
+}
+
+// FleetDesktop contains settings used to configure Fleet Desktop.
+type FleetDesktop struct {
+	TransparencyURL string `json:"transparency_url"`
 }
 
 type OrderDirection int
