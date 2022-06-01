@@ -4,9 +4,9 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"io/fs"
 	"net/url"
 	"os"
-	"path"
 	"path/filepath"
 	"regexp"
 	"runtime"
@@ -24,16 +24,13 @@ import (
 	"github.com/go-kit/kit/log/level"
 )
 
-func SyncCVEData(vulnPath string, config config.FleetConfig) error {
-	if config.Vulnerabilities.DisableDataSync {
-		return nil
-	}
-
+// DownloadNVDCVEFeed downloads the NVD CVE feed. Skips downloading if the cve feed has not changed since the last time.
+func DownloadNVDCVEFeed(vulnPath string, cveFeedPrefixURL string) error {
 	cve := nvd.SupportedCVE["cve-1.1.json.gz"]
 
 	source := nvd.NewSourceConfig()
-	if config.Vulnerabilities.CVEFeedPrefixURL != "" {
-		parsed, err := url.Parse(config.Vulnerabilities.CVEFeedPrefixURL)
+	if cveFeedPrefixURL != "" {
+		parsed, err := url.Parse(cveFeedPrefixURL)
 		if err != nil {
 			return fmt.Errorf("parsing cve feed url prefix override: %w", err)
 		}
@@ -56,7 +53,11 @@ func SyncCVEData(vulnPath string, config config.FleetConfig) error {
 	ctx, cancelFunc := context.WithTimeout(context.Background(), syncTimeout)
 	defer cancelFunc()
 
-	return dfs.Do(ctx)
+	if err := dfs.Do(ctx); err != nil {
+		return fmt.Errorf("download nvd cve feed: %w", err)
+	}
+
+	return nil
 }
 
 const publishedDateFmt = "2006-01-02T15:04Z" // not quite RFC3339
@@ -69,6 +70,32 @@ var (
 	theClock clock.Clock = clock.C
 )
 
+func getNVDCVEFeedFiles(vulnPath string) ([]string, error) {
+	var files []string
+
+	err := filepath.WalkDir(vulnPath, func(path string, d fs.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+
+		if d.IsDir() {
+			return nil
+		}
+
+		if match := rxNVDCVEArchive.MatchString(path); !match {
+			return nil
+		}
+
+		files = append(files, path)
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	return files, nil
+}
+
 // TranslateCPEToCVE maps the CVEs found in NVD archive files in the
 // vulnerabilities database folder to software CPEs in the fleet database.
 // If collectRecentVulns is true, it also returns a mapping of recent CVEs
@@ -78,26 +105,13 @@ func TranslateCPEToCVE(
 	ds fleet.Datastore,
 	vulnPath string,
 	logger kitlog.Logger,
-	config config.FleetConfig,
 	collectRecentVulns bool,
+	recentVulnerabilityMaxAge time.Duration,
 ) (map[string][]string, error) {
-	err := SyncCVEData(vulnPath, config)
+	files, err := getNVDCVEFeedFiles(vulnPath)
 	if err != nil {
 		return nil, err
 	}
-
-	var files []string
-	err = filepath.Walk(vulnPath, func(path string, info os.FileInfo, err error) error {
-		if match := rxNVDCVEArchive.MatchString(path); !match {
-			return nil
-		}
-		files = append(files, path)
-		return nil
-	})
-	if err != nil {
-		return nil, err
-	}
-
 	if len(files) == 0 {
 		return nil, nil
 	}
@@ -125,7 +139,7 @@ func TranslateCPEToCVE(
 		recentVulns = make(map[string][]string)
 	}
 	for _, file := range files {
-		err := checkCVEs(ctx, ds, logger, cpes, file, recentVulns, config.Vulnerabilities.RecentVulnerabilityMaxAge)
+		err := checkCVEs(ctx, ds, logger, cpes, file, recentVulns, recentVulnerabilityMaxAge)
 		if err != nil {
 			return nil, err
 		}
@@ -262,7 +276,7 @@ func PostProcess(
 	logger kitlog.Logger,
 	config config.FleetConfig,
 ) error {
-	dbPath := path.Join(vulnPath, "cpe.sqlite")
+	dbPath := filepath.Join(vulnPath, "cpe.sqlite")
 	db, err := sql.Open("sqlite3", dbPath)
 	if err != nil {
 		return fmt.Errorf("failed to open cpe database: %w", err)
