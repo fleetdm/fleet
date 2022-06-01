@@ -9,6 +9,7 @@ import (
 
 var (
 	ErrUnauthenticated = errors.New("unauthenticated, or invalid token")
+	ErrMissingLicense  = errors.New("missing or invalid license")
 )
 
 type SetupAlreadyErr interface {
