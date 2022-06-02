@@ -135,7 +135,7 @@ type SoftwareVulnerability struct {
 
 // String implements fmt.Stringer.
 func (sv SoftwareVulnerability) String() string {
-	return fmt.Sprintf("{%d,%s}", sv.CPEID, sv.CVE)
+	return fmt.Sprintf("{%d,%s}", sv.SoftwareID, sv.CVE)
 }
 
 // SoftwareWithCPE holds a software piece alongside its CPE ID.

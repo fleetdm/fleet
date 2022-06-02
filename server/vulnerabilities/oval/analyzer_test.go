@@ -145,7 +145,7 @@ func BenchmarkTestOvalAnalyzer(b *testing.B) {
 			withTestFixture(v, vulnPath, ds, func(h *fleet.Host) {
 				b.ResetTimer()
 				for i := 0; i < b.N; i++ {
-					_, err = Analyze(context.Background(), ds, v, vulnPath)
+					_, err = Analyze(context.Background(), ds, v, vulnPath, true)
 					require.NoError(b, err)
 				}
 			}, b)
@@ -215,7 +215,7 @@ func TestOvalAnalyzer(t *testing.T) {
 
 		for _, v := range systems {
 			withTestFixture(v, vulnPath, ds, func(h *fleet.Host) {
-				_, err = Analyze(ctx, ds, v, vulnPath)
+				_, err = Analyze(ctx, ds, v, vulnPath, true)
 				require.NoError(t, err)
 
 				p := NewPlatform(v.Platform, v.Name)

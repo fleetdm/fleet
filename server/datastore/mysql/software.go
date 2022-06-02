@@ -1177,3 +1177,7 @@ func (ds *Datastore) ListSoftwareForVulnDetection(
 
 	return result, nil
 }
+
+func (ds *Datastore) ListCVEs(ctx context.Context, maxAge time.Duration) ([]fleet.CVEMeta, error) {
+	panic("not implemented")
+}

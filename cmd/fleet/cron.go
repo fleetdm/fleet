@@ -229,10 +229,13 @@ func cronVulnerabilities(
 
 			collectVulns := vulnAutomationEnabled != ""
 
-			checkNVDVulnerabilities(ctx, ds, logger, vulnPath, config, collectVulns)
-			checkOvalVulnerabilities(ctx, ds, logger, vulnPath, config, collectVulns)
+			nvdVulns := checkNVDVulnerabilities(ctx, ds, logger, vulnPath, config, collectVulns)
+			ovalVulns := checkOvalVulnerabilities(ctx, ds, logger, vulnPath, config, collectVulns)
+			filterRecentVulns(ctx, ds, logger, nvdVulns, ovalVulns, config.Vulnerabilities.RecentVulnerabilityMaxAge)
 
+			// CVE => CPEs
 			var recentVulns map[string][]string
+
 			if len(recentVulns) > 0 {
 				switch vulnAutomationEnabled {
 				case "webhook":
@@ -293,6 +296,46 @@ func cronVulnerabilities(
 
 		level.Debug(logger).Log("loop", "done")
 	}
+}
+
+func filterRecentVulns(
+	ctx context.Context,
+	ds fleet.Datastore,
+	logger kitlog.Logger,
+	nvdVulns []fleet.SoftwareVulnerability,
+	ovalVulns []fleet.SoftwareVulnerability,
+	maxAge time.Duration,
+) []fleet.SoftwareVulnerability {
+	recent, err := ds.ListCVEs(ctx, maxAge)
+	if err != nil {
+		level.Error(logger).Log("msg", "could not fetch recent CVEs", "err", err)
+		sentry.CaptureException(err)
+		return nil
+	}
+
+	lookup := make(map[string]bool)
+	for _, r := range recent {
+		lookup[r.CVE] = true
+	}
+
+	filtered := make(map[string]fleet.SoftwareVulnerability)
+	for _, v := range nvdVulns {
+		if _, ok := lookup[v.CVE]; ok {
+			filtered[v.String()] = v
+		}
+	}
+	for _, v := range ovalVulns {
+		if _, ok := lookup[v.CVE]; ok {
+			filtered[v.String()] = v
+		}
+	}
+
+	result := make([]fleet.SoftwareVulnerability, 0, len(filtered))
+	for _, v := range filtered {
+		result = append(result, v)
+	}
+
+	return result
 }
 
 func checkOvalVulnerabilities(
@@ -378,7 +421,6 @@ func checkNVDVulnerabilities(
 		return nil
 	}
 
-	// , config.Vulnerabilities.RecentVulnerabilityMaxAge
 	vulns, err := vulnerabilities.TranslateCPEToCVE(ctx, ds, vulnPath, logger, collectVulns)
 	if err != nil {
 		level.Error(logger).Log("msg", "analyzing vulnerable software: CPE->CVE", "err", err)

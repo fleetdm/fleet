@@ -21,12 +21,6 @@ const (
 	vulnBatchSize  = 500
 )
 
-func vulnKey(v fleet.SoftwareVulnerability) string {
-	return fmt.Sprintf("%d:%s", v.SoftwareID, v.CVE)
-}
-
-// TODO (juan): Do we need to even compute a delta??
-
 // Analyze scans all hosts for vulnerabilities based on the OVAL definitions for their platform,
 // inserting any new vulnerabilities and deleting anything patched.
 func Analyze(
@@ -83,10 +77,10 @@ func Analyze(
 		for _, hId := range hIds {
 			insrt, del := vulnsDelta(foundInBatch[hId], existingInBatch[hId])
 			for _, i := range insrt {
-				toInsertSet[vulnKey(i)] = i
+				toInsertSet[i.String()] = i
 			}
 			for _, d := range del {
-				toDeleteSet[vulnKey(d)] = d
+				toDeleteSet[d.String()] = d
 			}
 		}
 	}
@@ -165,22 +159,22 @@ func vulnsDelta(
 
 	existingSet := make(map[string]bool)
 	for _, e := range existing {
-		existingSet[vulnKey(e)] = true
+		existingSet[e.String()] = true
 	}
 
 	foundSet := make(map[string]bool)
 	for _, f := range found {
-		foundSet[vulnKey(f)] = true
+		foundSet[f.String()] = true
 	}
 
 	for _, e := range existing {
-		if _, ok := foundSet[vulnKey(e)]; !ok {
+		if _, ok := foundSet[e.String()]; !ok {
 			toDelete = append(toDelete, e)
 		}
 	}
 
 	for _, f := range found {
-		if _, ok := existingSet[vulnKey(f)]; !ok {
+		if _, ok := existingSet[f.String()]; !ok {
 			toInsert = append(toInsert, f)
 		}
 	}
