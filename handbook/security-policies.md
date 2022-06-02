@@ -378,7 +378,7 @@ Fleet policy requires that:
 
 10. Fleet will publish job descriptions for available positions and conduct interviews to assess a candidate's technical skills as well as soft skills prior to hiring.
 
-11. Background checks of an employee or contractor must be performed by operations and/or the hiring team prior to the new employee or contractor being granted access to the Fleet automatic updater environment.
+11. Background checks of an employee or contractor must be performed by operations and/or the hiring team before we grant the new employee or contractor access to the Fleet automatic updater environment.
 
 12. A list of employees and contractors will be maintained, including their titles and managers, and made available to everyone internally.
 
