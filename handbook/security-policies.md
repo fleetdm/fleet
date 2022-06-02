@@ -382,7 +382,7 @@ Fleet policy requires that:
 
 12. A list of employees and contractors will be maintained, including their titles and managers, and made available to everyone internally.
 
-13. An [anonymous](https://docs.google.com/forms/d/e/1FAIpQLSdv2abLfCUUSxFCrSwh4Ou5yF80c4V2K_POoYbHt3EU1IY-sQ/viewform?vc=0&c=0&w=1&flr=0&fbzx=4276110450338060288) form to report unethical behaviour will be provided to employees.
+13. An [anonymous](https://docs.google.com/forms/d/e/1FAIpQLSdv2abLfCUUSxFCrSwh4Ou5yF80c4V2K_POoYbHt3EU1IY-sQ/viewform?vc=0&c=0&w=1&flr=0&fbzx=4276110450338060288) form to report unethical behavior will be provided to employees.
 
 ## Incident response policy
 *Created from [JupiterOne/security-policy-templates](https://github.com/JupiterOne/security-policy-templates). [CC BY-SA 4 license](https://creativecommons.org/licenses/by-sa/4.0/). Based on the SANS incident response process.*
@@ -717,11 +717,11 @@ Fleet policy requires:
 
 3. strategies shall be developed to mitigate or accept the risks identified in the risk assessment process.
 
-4.  The risk register is monitored on a quarterly basis to assess compliance with above policy as well as to document newly discovered or created risks.
+4.  The risk register is monitored quarterly to assess compliance with the above policy, and document newly discovered or created risks.
 
 ### Acceptable Risk Levels
 
-Risks that are either low impact or low probability, are generally considered acceptable.
+Risks that are either low impact or low probability are generally considered acceptable.
 
 All other risks must be individually reviewed and managed.
 
