@@ -284,8 +284,6 @@ type ListSoftwareCPEsFunc func(ctx context.Context, excludedPlatforms []string) 
 
 type InsertVulnerabilitiesFunc func(ctx context.Context, vulns []fleet.SoftwareVulnerability, source fleet.VulnerabilitySource) (int64, error)
 
-type InsertCVEForCPEFunc func(ctx context.Context, cve string, cpes []string) (int64, error)
-
 type SoftwareByIDFunc func(ctx context.Context, id uint, includeCVEScores bool) (*fleet.Software, error)
 
 type ListSoftwareByHostIDShortFunc func(ctx context.Context, hostID uint) ([]fleet.Software, error)
@@ -818,9 +816,6 @@ type DataStore struct {
 
 	InsertVulnerabilitiesFunc        InsertVulnerabilitiesFunc
 	InsertVulnerabilitiesFuncInvoked bool
-
-	InsertCVEForCPEFunc        InsertCVEForCPEFunc
-	InsertCVEForCPEFuncInvoked bool
 
 	SoftwareByIDFunc        SoftwareByIDFunc
 	SoftwareByIDFuncInvoked bool
@@ -1687,11 +1682,6 @@ func (s *DataStore) ListSoftwareCPEs(ctx context.Context, excludedPlatforms []st
 func (s *DataStore) InsertVulnerabilities(ctx context.Context, vulns []fleet.SoftwareVulnerability, source fleet.VulnerabilitySource) (int64, error) {
 	s.InsertVulnerabilitiesFuncInvoked = true
 	return s.InsertVulnerabilitiesFunc(ctx, vulns, source)
-}
-
-func (s *DataStore) InsertCVEForCPE(ctx context.Context, cve string, cpes []string) (int64, error) {
-	s.InsertCVEForCPEFuncInvoked = true
-	return s.InsertCVEForCPEFunc(ctx, cve, cpes)
 }
 
 func (s *DataStore) SoftwareByID(ctx context.Context, id uint, includeCVEScores bool) (*fleet.Software, error) {

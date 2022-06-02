@@ -478,8 +478,13 @@ func (s *integrationTestSuite) TestVulnerableSoftware() {
 	}
 
 	require.NoError(t, s.ds.AddCPEForSoftware(context.Background(), soft1, "somecpe"))
-	_, err = s.ds.InsertCVEForCPE(context.Background(), "cve-123-123-132", []string{"somecpe"})
+	n, err := s.ds.InsertVulnerabilities(
+		context.Background(), []fleet.SoftwareVulnerability{
+			{SoftwareID: soft1.ID, CPEID: soft1.GeneratedCPEID, CVE: "cve-123-123-132"},
+		}, fleet.NVD,
+	)
 	require.NoError(t, err)
+	require.Equal(t, 1, int(n))
 
 	resp := s.Do("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", host.ID), nil, http.StatusOK)
 	bodyBytes, err := ioutil.ReadAll(resp.Body)
@@ -4083,11 +4088,18 @@ func (s *integrationTestSuite) TestPaginateListSoftware() {
 		cpe := "somecpe" + strconv.Itoa(i)
 		require.NoError(t, s.ds.AddCPEForSoftware(context.Background(), sw, cpe))
 
+		var vulns []fleet.SoftwareVulnerability
 		if i < 10 {
-			// add CVEs for the first 10 software, which are the least used (lower hosts_count)
-			_, err := s.ds.InsertCVEForCPE(context.Background(), fmt.Sprintf("cve-123-123-%03d", i), []string{cpe})
-			require.NoError(t, err)
+			vulns = append(vulns, fleet.SoftwareVulnerability{
+				SoftwareID: sw.ID,
+				CPEID:      sw.GeneratedCPEID,
+				CVE:        fmt.Sprintf("cve-123-123-%03d", i),
+			})
 		}
+		// add CVEs for the first 10 software, which are the least used (lower hosts_count)
+		n, err := s.ds.InsertVulnerabilities(context.Background(), vulns, fleet.NVD)
+		require.NoError(t, err)
+		require.Equal(t, 10, int(n))
 	}
 
 	// create a team and make the last 3 hosts part of it (meaning 3 that use

@@ -53,10 +53,10 @@ func (d *threadSafeDSMock) ListSoftwareCPEs(ctx context.Context, excludedPlatfor
 	return d.Store.ListSoftwareCPEs(ctx, excludedPlatforms)
 }
 
-func (d *threadSafeDSMock) InsertCVEForCPE(ctx context.Context, cve string, cpes []string) (int64, error) {
+func (d *threadSafeDSMock) InsertVulnerabilities(ctx context.Context, vulns []fleet.SoftwareVulnerability, src fleet.VulnerabilitySource) (int64, error) {
 	d.mu.Lock()
 	defer d.mu.Unlock()
-	return d.Store.InsertCVEForCPE(ctx, cve, cpes)
+	return d.Store.InsertVulnerabilities(ctx, vulns, src)
 }
 
 func withNetRetry(t *testing.T, fn func() error) error {
@@ -94,13 +94,14 @@ func TestTranslateCPEToCVE(t *testing.T) {
 			}
 
 			cveLock := &sync.Mutex{}
-			cveToCPEs := make(map[string][]string)
 			var cvesFound []string
-			ds.InsertCVEForCPEFunc = func(ctx context.Context, cve string, cpes []string) (int64, error) {
+			ds.InsertVulnerabilitiesFunc = func(ctx context.Context, vulns []fleet.SoftwareVulnerability, src fleet.VulnerabilitySource) (int64, error) {
 				cveLock.Lock()
 				defer cveLock.Unlock()
-				cveToCPEs[cve] = cpes
-				cvesFound = append(cvesFound, cve)
+				for _, v := range vulns {
+					cvesFound = append(cvesFound, v.CVE)
+				}
+
 				return 0, nil
 			}
 
@@ -110,7 +111,6 @@ func TestTranslateCPEToCVE(t *testing.T) {
 			printMemUsage()
 
 			require.Equal(t, []string{tt.cve}, cvesFound)
-			require.Equal(t, []string{tt.cpe}, cveToCPEs[tt.cve])
 		})
 	}
 
@@ -132,7 +132,7 @@ func TestTranslateCPEToCVE(t *testing.T) {
 				nil
 		}
 
-		ds.InsertCVEForCPEFunc = func(ctx context.Context, cve string, cpes []string) (int64, error) {
+		ds.InsertVulnerabilitiesFunc = func(ctx context.Context, vulns []fleet.SoftwareVulnerability, src fleet.VulnerabilitySource) (int64, error) {
 			return 1, nil
 		}
 		recent, err := TranslateCPEToCVE(ctx, safeDS, tempDir, kitlog.NewNopLogger(), true)
@@ -152,7 +152,7 @@ func TestTranslateCPEToCVE(t *testing.T) {
 
 		// call it again but now return 0 from this call, simulating CVE-CPE pairs
 		// that already existed in the DB.
-		ds.InsertCVEForCPEFunc = func(ctx context.Context, cve string, cpes []string) (int64, error) {
+		ds.InsertVulnerabilitiesFunc = func(ctx context.Context, vulns []fleet.SoftwareVulnerability, src fleet.VulnerabilitySource) (int64, error) {
 			return 0, nil
 		}
 		recent, err = TranslateCPEToCVE(ctx, safeDS, tempDir, kitlog.NewNopLogger(), true)

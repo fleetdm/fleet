@@ -25,6 +25,8 @@ func vulnKey(v fleet.SoftwareVulnerability) string {
 	return fmt.Sprintf("%d:%s", v.SoftwareID, v.CVE)
 }
 
+// TODO (juan): Do we need to even compute a delta??
+
 // Analyze scans all hosts for vulnerabilities based on the OVAL definitions for their platform,
 // inserting any new vulnerabilities and deleting anything patched.
 func Analyze(
@@ -32,6 +34,7 @@ func Analyze(
 	ds fleet.Datastore,
 	ver fleet.OSVersion,
 	vulnPath string,
+	collectVulns bool,
 ) ([]fleet.SoftwareVulnerability, error) {
 	platform := NewPlatform(ver.Platform, ver.Name)
 
@@ -95,12 +98,21 @@ func Analyze(
 		return nil, err
 	}
 
-	inserted := make([]fleet.SoftwareVulnerability, 0, len(toInsertSet))
+	var inserted []fleet.SoftwareVulnerability
+	if collectVulns {
+		inserted = make([]fleet.SoftwareVulnerability, 0, len(toInsertSet))
+	}
+
 	err = batchProcess(toInsertSet, func(v []fleet.SoftwareVulnerability) error {
-		if _, err := ds.InsertVulnerabilities(ctx, v, fleet.OVAL); err != nil {
+		n, err := ds.InsertVulnerabilities(ctx, v, fleet.OVAL)
+		if err != nil {
 			return err
 		}
-		inserted = append(inserted, v...)
+
+		if collectVulns && n > 0 {
+			inserted = append(inserted, v...)
+		}
+
 		return nil
 	})
 	if err != nil {

@@ -99,7 +99,7 @@ func getNVDCVEFeedFiles(vulnPath string) ([]string, error) {
 }
 
 type softwareCPEWithNVDMeta struct {
-	fleet.SoftwareCPE
+	*fleet.SoftwareCPE
 	meta *wfn.Attributes
 }
 
@@ -139,7 +139,7 @@ func TranslateCPEToCVE(
 			return nil, err
 		}
 		parsed = append(parsed, softwareCPEWithNVDMeta{
-			SoftwareCPE: CPE,
+			SoftwareCPE: &CPE,
 			meta:        attr,
 		})
 	}
