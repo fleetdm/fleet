@@ -472,6 +472,12 @@ describe(
           console.log(JSON.stringify(configStub));
         });
       });
+      // it(`displays "Vulnerabilities" column`, () => {
+      //   cy.getAttached("thead").within(() => {
+      //     cy.findByText(/vulnerabilities/i).should("exist");
+      //     cy.findByText(/probability of exploit/i).should("not.exist");
+      //   });
+      // });
       it("allows admin to create webhook software vulnerability automation", () => {
         cy.getAttached(".manage-software-page__header-wrap").within(() => {
           cy.findByRole("button", { name: /manage automations/i }).click();
