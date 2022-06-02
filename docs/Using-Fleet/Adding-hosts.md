@@ -26,7 +26,7 @@ When you install the generated osquery installer on a host, this host will be au
 
   >**Note:** Currently, the fleetctl package command does not provide support for signing Windows osquery installers. Windows installers can be signed after building.
 
-The `fleetctl package` command provides suppport for signing and notarizing macOS osquery installers via the
+The `fleetctl package` command provides support for signing and notarizing macOS osquery installers via the
 `--sign-identity` and `--notarize` flags.
 Check out the example below:
 
@@ -38,6 +38,25 @@ The above command should be run on a macOS device as notarizing and signing of m
 
 Also remember to replace both `AC_USERNAME` and `AC_PASSWORD` environment variables with your Apple ID and a valid [app-specific](https://support.apple.com/en-ca/HT204397) password respectively.
 
+### Fleet Desktop
+
+To install Fleet Desktop on your hosts:
+1. On the top bar in the Fleet UI, select **Hosts > Add hosts**.
+2. Select the **Include Fleet Desktop** checkbox.
+3. Select the clipboard icon to copy the `fleetctl package` command.
+4. In your terminal application, paste and run the copied command.
+
+When you install the generated osquery installer on a host, Fleet Desktop will be installed on this
+host and the Fleet icon will appear on the host's menu bar.
+
+Read more about the Self-service and Scope transparency features included with Fleet Desktop in [the
+4.15.0 release article](https://fleetdm.com/releases/fleet-4.15.0).
+
+Fleet Desktop is supported on macOS, Windows, and Linux. Check out the supported Linux distributions
+and versions [here
+on GitHub](https://github.com/fleetdm/fleet/issues/5684). 
+
+Fleet Desktop is currently in beta. Check out the remaining work to bring Fleet Desktop out of beta [here on GitHub](https://github.com/fleetdm/fleet/issues/5684).
 
 ### Adding multiple hosts
 
@@ -60,11 +79,8 @@ You can add a host to a team by generating and using a unique osquery installer 
 To generate an osquery installer for a team:
 
 1. First, create a team in Fleet by selecting "Create team" in **Settings > Teams**.
-
 2. Then, navigate to **Hosts** and select your team.
-
 3. Next, select "Add hosts" and copy the `fleetctl package` command for the platform (macOS, Windows, Linux) of the hosts you'd like to add to a team in Fleet.
-
 4. Run the copied `fleetctl package` command and [distribute your installer](#adding-multiple-hosts) to add your hosts to a team in Fleet.
 
 ### Configuration options
@@ -74,6 +90,7 @@ The following command-line flags allow you to further configure an osquery insta
 |Flag | Options|
 |------|--------|
 |  --type |  **Required** - Type of package to build.<br> Options: `pkg`(macOS),`msi`(Windows), `deb`(Debian based Linux), `rpm`(RHEL, CentOS, etc.)|
+|--fleet-desktop |      Include Fleet Desktop. Fleet Desktop is currently in beta. |
 |--enroll-secret |      Enroll secret for authenticating to Fleet server |
 |--fleet-url |          URL (`host:port`) of Fleet server |
 |--fleet-certificate |  Path to server certificate bundle |
