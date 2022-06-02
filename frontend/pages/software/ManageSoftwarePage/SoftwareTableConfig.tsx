@@ -62,9 +62,10 @@ const condenseVulnerabilities = (
 };
 
 const getMaxProbability = (vulns: IVulnerability[]) =>
-  vulns.reduce((maxProb, { epss_probability: prob }) => {
-    return prob && prob > maxProb ? prob : maxProb;
-  }, 0);
+  vulns.reduce(
+    (max, { epss_probability }) => Math.max(max, epss_probability || 0),
+    0
+  );
 
 const generateEPSSColumnHeader = () => {
   return {
