@@ -12,7 +12,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/WatchBeam/clock"
 	"github.com/fleetdm/fleet/v4/pkg/nettest"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mock"
@@ -115,21 +114,15 @@ func TestTranslateCPEToCVE(t *testing.T) {
 	}
 
 	t.Run("recent_vulns", func(t *testing.T) {
-		googleChromeCPE := "cpe:2.3:a:google:chrome:-:*:*:*:*:*:*:*"
-		mozillaFirefoxCPE := "cpe:2.3:a:mozilla:firefox:-:*:*:*:*:*:*:*"
-		curlCPE := "cpe:2.3:a:haxx:curl:-:*:*:*:*:*:*:*"
-
-		// consider recent vulnerabilities to be anything published in 2018
-		theClock = clock.NewMockClock(time.Date(2019, 1, 1, 0, 0, 0, 0, time.UTC))
-		defer func() { theClock = clock.C }()
-
 		safeDS := &threadSafeDSMock{Store: ds}
 
+		softwareCPEs := []fleet.SoftwareCPE{
+			{CPE: "cpe:2.3:a:google:chrome:-:*:*:*:*:*:*:*", ID: 1, SoftwareID: 1},
+			{CPE: "cpe:2.3:a:mozilla:firefox:-:*:*:*:*:*:*:*", ID: 2, SoftwareID: 2},
+			{CPE: "cpe:2.3:a:haxx:curl:-:*:*:*:*:*:*:*", ID: 3, SoftwareID: 3},
+		}
 		ds.ListSoftwareCPEsFunc = func(ctx context.Context, excludedPlatforms []string) ([]fleet.SoftwareCPE, error) {
-			return []fleet.SoftwareCPE{
-					{CPE: googleChromeCPE}, {CPE: mozillaFirefoxCPE}, {CPE: curlCPE},
-				},
-				nil
+			return softwareCPEs, nil
 		}
 
 		ds.InsertVulnerabilitiesFunc = func(ctx context.Context, vulns []fleet.SoftwareVulnerability, src fleet.VulnerabilitySource) (int64, error) {
@@ -138,17 +131,17 @@ func TestTranslateCPEToCVE(t *testing.T) {
 		recent, err := TranslateCPEToCVE(ctx, safeDS, tempDir, kitlog.NewNopLogger(), true)
 		require.NoError(t, err)
 
-		byCPE := make(map[string]int)
+		byCPE := make(map[uint]int)
 		for _, cpe := range recent {
-			byCPE[fmt.Sprintf("%d", cpe.CPEID)]++
+			byCPE[cpe.SoftwareID]++
 		}
 
 		// even if it's somewhat far in the past, I've seen the exact numbers
 		// change a bit between runs with different downloads, so allow for a bit
 		// of wiggle room.
-		assert.Greater(t, byCPE[googleChromeCPE], 150, "google chrome CVEs")
-		assert.Greater(t, byCPE[mozillaFirefoxCPE], 280, "mozilla firefox CVEs")
-		assert.Greater(t, byCPE[curlCPE], 10, "curl CVEs")
+		assert.Greater(t, byCPE[softwareCPEs[0].SoftwareID], 150, "google chrome CVEs")
+		assert.Greater(t, byCPE[softwareCPEs[1].SoftwareID], 280, "mozilla firefox CVEs")
+		assert.Greater(t, byCPE[softwareCPEs[2].SoftwareID], 10, "curl CVEs")
 
 		// call it again but now return 0 from this call, simulating CVE-CPE pairs
 		// that already existed in the DB.

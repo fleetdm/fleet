@@ -14,7 +14,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/WatchBeam/clock"
 	"github.com/facebookincubator/nvdtools/cvefeed"
 	feednvd "github.com/facebookincubator/nvdtools/cvefeed/nvd"
 	"github.com/facebookincubator/nvdtools/providers/nvd"
@@ -64,13 +63,7 @@ func DownloadNVDCVEFeed(vulnPath string, cveFeedPrefixURL string) error {
 
 const publishedDateFmt = "2006-01-02T15:04Z" // not quite RFC3339
 
-var (
-	rxNVDCVEArchive = regexp.MustCompile(`nvdcve.*\.gz$`)
-
-	// this allows mocking the time package for tests, by default it is equivalent
-	// to the time functions, e.g. theClock.Now() == time.Now().
-	theClock clock.Clock = clock.C
-)
+var rxNVDCVEArchive = regexp.MustCompile(`nvdcve.*\.gz$`)
 
 func getNVDCVEFeedFiles(vulnPath string) ([]string, error) {
 	var files []string
@@ -99,7 +92,7 @@ func getNVDCVEFeedFiles(vulnPath string) ([]string, error) {
 }
 
 type softwareCPEWithNVDMeta struct {
-	*fleet.SoftwareCPE
+	fleet.SoftwareCPE
 	meta *wfn.Attributes
 }
 
@@ -139,7 +132,7 @@ func TranslateCPEToCVE(
 			return nil, err
 		}
 		parsed = append(parsed, softwareCPEWithNVDMeta{
-			SoftwareCPE: &CPE,
+			SoftwareCPE: CPE,
 			meta:        attr,
 		})
 	}
