@@ -311,7 +311,7 @@ module.exports = {
                 for (let link of (mdString.match(/(\n\#\#\s.+)\n/g, '$1')||[])) {
                   let sectionInHandbookPage =  {};
                   // Remove any preceeding #s and any trailing newlines from the matched link
-                  sectionInHandbookPage.headingText = link.replace('\n## ','').replace('\n', '');
+                  sectionInHandbookPage.headingText = link.replace(/\n## /, '').replace(/\n/g, '');
                   // Build the relative hash link for the matched heading
                   sectionInHandbookPage.hashLink = rootRelativeUrlPath+'#'+_.kebabCase(sectionInHandbookPage.headingText);
                   linksForHandbookIndex.push(sectionInHandbookPage);
