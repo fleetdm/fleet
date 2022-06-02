@@ -11,7 +11,7 @@ fleetctl apply -f docs/01-Using-Fleet/standard-query-library/standard-query-libr
 
 ## Contributors
 
-Want to add your own query?
+Do you want to add your own query?
 
 1. Please copy the following YAML section and paste it at the bottom of the [`standard-query-library.yml`](./standard-query-library.yml) file.
 
@@ -27,7 +27,7 @@ Want to add your own query?
     purpose: What is the goal of running your query? Ex. Detection
     remediation: Are there any remediation steps to resolve the detection triggered by your query? If not, insert "N/A."
     contributors: zwass,mike-j-thomas
-    tags: Keywords that can help users find other relevant queries; each tag should be separated by a comma. (e.g., "foo,bar")
+    tags: Keywords that can help users find other relevant queries; a comma should separate each tag. (e.g., "foo, bar")
   ```
 
 2. Replace each field and submit a pull request to the fleetdm/fleet GitHub repository.
