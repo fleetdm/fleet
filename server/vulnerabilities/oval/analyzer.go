@@ -77,10 +77,10 @@ func Analyze(
 		for _, hId := range hIds {
 			insrt, del := vulnsDelta(foundInBatch[hId], existingInBatch[hId])
 			for _, i := range insrt {
-				toInsertSet[i.String()] = i
+				toInsertSet[i.Key()] = i
 			}
 			for _, d := range del {
-				toDeleteSet[d.String()] = d
+				toDeleteSet[d.Key()] = d
 			}
 		}
 	}
@@ -159,22 +159,22 @@ func vulnsDelta(
 
 	existingSet := make(map[string]bool)
 	for _, e := range existing {
-		existingSet[e.String()] = true
+		existingSet[e.Key()] = true
 	}
 
 	foundSet := make(map[string]bool)
 	for _, f := range found {
-		foundSet[f.String()] = true
+		foundSet[f.Key()] = true
 	}
 
 	for _, e := range existing {
-		if _, ok := foundSet[e.String()]; !ok {
+		if _, ok := foundSet[e.Key()]; !ok {
 			toDelete = append(toDelete, e)
 		}
 	}
 
 	for _, f := range found {
-		if _, ok := existingSet[f.String()]; !ok {
+		if _, ok := existingSet[f.Key()]; !ok {
 			toInsert = append(toInsert, f)
 		}
 	}

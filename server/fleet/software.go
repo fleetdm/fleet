@@ -138,6 +138,11 @@ func (sv SoftwareVulnerability) String() string {
 	return fmt.Sprintf("{%d,%s}", sv.SoftwareID, sv.CVE)
 }
 
+// Key returns a string representation of the SoftwareVulnerability
+func (sv *SoftwareVulnerability) Key() string {
+	return fmt.Sprintf("%d:%s", sv.SoftwareID, sv.CVE)
+}
+
 // SoftwareWithCPE holds a software piece alongside its CPE ID.
 type SoftwareWithCPE struct {
 	// Software holds the software data.

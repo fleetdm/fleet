@@ -968,9 +968,8 @@ func (ds *Datastore) CalculateHostsPerSoftware(ctx context.Context, updatedAt ti
 	return nil
 }
 
-// HostsBySoftwareIDs returns a list of all hosts that have the software corresponding
-// to at least one of the Software installed. It returns a minimal represention of
-// matching hosts.
+// HostsBySoftwareIDs returns a list of all hosts that have at least one of the specified Software
+// installed. It returns a minimal represention of matching hosts.
 func (ds *Datastore) HostsBySoftwareIDs(ctx context.Context, softwareIDs []uint) ([]*fleet.HostShort, error) {
 	queryStmt := `
     SELECT 
@@ -1175,6 +1174,7 @@ func (ds *Datastore) ListSoftwareForVulnDetection(
 	return result, nil
 }
 
+// ListCVEs returns all cve_meta rows published after 'maxAge'
 func (ds *Datastore) ListCVEs(ctx context.Context, maxAge time.Duration) ([]fleet.CVEMeta, error) {
 	var result []fleet.CVEMeta
 

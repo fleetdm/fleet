@@ -1552,6 +1552,7 @@ func testListCVEs(t *testing.T, ds *Datastore) {
 		{CVE: "cve-1", Published: &threeDaysAgo},
 		{CVE: "cve-2", Published: &twoWeeksAgo},
 		{CVE: "cve-3", Published: &twoMonthsAgo},
+		{CVE: "cve-4"},
 	}
 
 	err := ds.InsertCVEMeta(ctx, testCases)

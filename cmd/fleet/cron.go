@@ -326,12 +326,12 @@ func filterRecentVulns(
 	filtered := make(map[string]fleet.SoftwareVulnerability)
 	for _, v := range nvdVulns {
 		if _, ok := lookup[v.CVE]; ok {
-			filtered[v.String()] = v
+			filtered[v.Key()] = v
 		}
 	}
 	for _, v := range ovalVulns {
 		if _, ok := lookup[v.CVE]; ok {
-			filtered[v.String()] = v
+			filtered[v.Key()] = v
 		}
 	}
 
