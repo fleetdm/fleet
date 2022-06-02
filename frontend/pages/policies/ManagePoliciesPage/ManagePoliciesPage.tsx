@@ -11,7 +11,6 @@ import { NotificationContext } from "context/notification";
 import { IAutomationsConfig, IConfig } from "interfaces/config";
 import { IPolicyStats, ILoadAllPoliciesResponse } from "interfaces/policy";
 import { ITeamAutomationsConfig } from "interfaces/team";
-import { IWebhookFailingPolicies } from "interfaces/webhook";
 
 import PATHS from "router/paths";
 import configAPI from "services/entities/config";
@@ -206,50 +205,14 @@ const ManagePolicyPage = ({
     setShowInheritedPolicies(!showInheritedPolicies);
 
   const handleUpdateAutomations = async (
-    formData: IAutomationsConfig | ITeamAutomationsConfig
+    requestBody: IAutomationsConfig | ITeamAutomationsConfig
   ) => {
     setIsAutomationsLoading(true);
     try {
       await (teamId
-        ? teamsAPI.update(formData, teamId)
-        : configAPI.update(formData));
+        ? teamsAPI.update(requestBody, teamId)
+        : configAPI.update(requestBody));
       renderFlash("success", "Successfully updated policy automations.");
-    } catch {
-      renderFlash(
-        "error",
-        "Could not update policy automations. Please try again."
-      );
-    } finally {
-      toggleManageAutomationsModal();
-      setIsAutomationsLoading(false);
-      refetchAutomationsConfig();
-    }
-  };
-
-  const onCreateWebhookSubmit = async ({
-    destination_url,
-    policy_ids,
-    enable_failing_policies_webhook,
-  }: IWebhookFailingPolicies) => {
-    setIsAutomationsLoading(true);
-    try {
-      const api = teamId ? teamsAPI : configAPI;
-      const secondParam = teamId || undefined;
-      const data = {
-        webhook_settings: {
-          failing_policies_webhook: {
-            destination_url,
-            policy_ids,
-            enable_failing_policies_webhook,
-          },
-        },
-      };
-      setIsAutomationsLoading(true);
-
-      const request = api.update(data, secondParam);
-      await request.then(() => {
-        renderFlash("success", "Successfully updated policy automations.");
-      });
     } catch {
       renderFlash(
         "error",
