@@ -125,8 +125,7 @@ The following [Slack channels are maintained](https://fleetdm.com/handbook/compa
 |:------------------------------------|:--------------------------------------------------------------------|
 | `#g-customer-engineering`           | Tony Gauda                                                          |
 | `#fleet-at-*` _(customer channels)_ | Tony Gauda                                                          |
-| `#help-sell`                        | Andrew Bare                                                         |
-| `#_from-prospective-customers`      | Andrew Bare                                                         |
+
 
 
 <meta name="maintainedBy" value="tgauda">
