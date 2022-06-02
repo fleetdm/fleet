@@ -40,7 +40,7 @@ Also remember to replace both `AC_USERNAME` and `AC_PASSWORD` environment variab
 
 ### Fleet Desktop
 
-To install Fleet Desktop on your hosts:
+How to install Fleet Desktop on your hosts:
 1. On the top bar in the Fleet UI, select **Hosts > Add hosts**.
 2. Select the **Include Fleet Desktop** checkbox.
 3. Select the clipboard icon to copy the `fleetctl package` command.
