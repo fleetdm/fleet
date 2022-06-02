@@ -472,3 +472,4 @@ Please see [Brand > Slack channels](https://fleetdm.com/handbook/brand#slack-cha
 
 
 <meta name="maintainedBy" value="eashaw">
+<meta name="title" value="🧑‍🚀 People">
