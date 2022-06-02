@@ -122,13 +122,15 @@ The Fleet handbook is the central guide for how we run the company. As part of o
 
 [Release process](./engineering.md#release-process)
 
-[On-call rotation](./community.md#On-call-rotation) 
+[Oncall rotation](./engineering.md#oncall-rotation) 
 
-[Project boards](./community.md#project-boards) 
+[Project boards](./engineering.md#project-boards) 
 
 [Rituals](./engineering.md#rituals)
 
 [Slack channels](./engineering.md#slack-channels)
+
+[Scaling gotchas](./engineering.md#scaling-gotchas)
 
 ### ⚗️ Product
 

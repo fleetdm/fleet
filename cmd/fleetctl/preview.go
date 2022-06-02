@@ -11,7 +11,6 @@ import (
 	"net/http"
 	"os"
 	"os/exec"
-	"path"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -677,7 +676,7 @@ func previewResetCommand() *cli.Command {
 }
 
 func storePidFile(destDir string, pid int) error {
-	pidFilePath := path.Join(destDir, "orbit.pid")
+	pidFilePath := filepath.Join(destDir, "orbit.pid")
 	err := os.WriteFile(pidFilePath, []byte(fmt.Sprint(pid)), os.FileMode(0o644))
 	if err != nil {
 		return fmt.Errorf("error writing pidfile %s: %s", pidFilePath, err)
@@ -686,7 +685,7 @@ func storePidFile(destDir string, pid int) error {
 }
 
 func readPidFromFile(destDir string, what string) (int, error) {
-	pidFilePath := path.Join(destDir, what)
+	pidFilePath := filepath.Join(destDir, what)
 	data, err := os.ReadFile(pidFilePath)
 	if err != nil {
 		return 0, fmt.Errorf("error reading pidfile %s: %w", pidFilePath, err)
@@ -718,10 +717,10 @@ func downloadOrbitAndStart(destDir, enrollSecret, address, orbitChannel, osquery
 	}
 
 	fmt.Println("Trying to clear orbit and osquery directories...")
-	if err := os.RemoveAll(path.Join(destDir, "osquery.db")); err != nil {
+	if err := os.RemoveAll(filepath.Join(destDir, "osquery.db")); err != nil {
 		fmt.Println("Warning: clearing osquery db dir:", err)
 	}
-	if err := os.RemoveAll(path.Join(destDir, "orbit.db")); err != nil {
+	if err := os.RemoveAll(filepath.Join(destDir, "orbit.db")); err != nil {
 		fmt.Println("Warning: clearing orbit db dir:", err)
 	}
 	if err := cleanUpSocketFiles(destDir); err != nil {
@@ -760,7 +759,7 @@ func downloadOrbitAndStart(destDir, enrollSecret, address, orbitChannel, osquery
 		"--enroll-secret", enrollSecret,
 		"--orbit-channel", orbitChannel,
 		"--osqueryd-channel", osquerydChannel,
-		"--log-file", path.Join(destDir, "orbit.log"),
+		"--log-file", filepath.Join(destDir, "orbit.log"),
 	)
 	if err := cmd.Start(); err != nil {
 		return fmt.Errorf("starting orbit: %w", err)
