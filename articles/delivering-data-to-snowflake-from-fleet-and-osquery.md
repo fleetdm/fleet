@@ -16,7 +16,7 @@ Many of you have probably heard of [osquery](https://osquery.io/), which is a pi
 
 My team and I have been evaluating osquery along with a product called [Fleet](https://fleetdm.com) to see what we can accomplish with getting fast and reliable data pipelined to Snowflake. Like all projects, research and development, proofs-of-concept, and so forth, one can start by simply stating a problem statement or a story. The data story I used to kick this proof of concept off was simply this:
 
-###Our Data Story
+### Our data story
 
 *As an IT Engineer, I want fast, reliable, and robust data from all the systems we manage. While also getting that data as fast as we possibly can at scale.*
 
@@ -26,7 +26,7 @@ Our problem statement will probably be things many of us in IT and Operations fa
 
 MDM typically collects data every 24 hours in most MDM applications out of the box. It is also either a manual process to add inventory data collection into your workflows when you want to collect data on state change or requires writing a series of data collection scripts. For example, every time your MDM tools install an application, the MDM tool must send that data back to the MDM servers to store that data. This often results in data drift where the data on the actual system and the data in the server-side application do not match. The data will match the next time that the device submits inventory to the MDM service. IT Engineers can sometimes crank up inventory collection, but it is at risk of hitting rate limits or even DDoS’ing your own MDM service. MDM also does not collect things like Python Packages, `homebrew` binaries installed, web browser plugins, running process info, and more. Osquery can collect much more data at a much higher frequency. Since osquery is a completely separate toolchain, it also has no dependencies on your MDM or your MDM infrastructure.
 
-###MDM Solutions
+### MDM solutions
 
 *I have not personally tested every MDM solution out there, so this is an anecdotal summarization of my experiences and an overall generalization. Some MDM tools may be able to collect data faster than every 24 hours. Some MDM solutions do allow for customized data collection, but that is not without labor to build and maintain.*
 
@@ -36,7 +36,7 @@ Fleet is a centralized management and orchestration tool for osquery. It allows 
 
 The two features I want to focus on for this blog post are the live queries and the scheduled queries. Live queries are probably what you would assume they are. It is a feature where you can run a query from the Fleet application and get near-real-time results back from an endpoint (or many endpoints) very quickly. Scheduled queries run at a set increment of time, and those query results can be streamed from the application to cloud storage.
 
-###Live query interface:
+### Live query interface:
 
 ![The queries page in Fleet](../website/assets/images/articles/delivering-data-to-snowflake-from-fleet-and-osquery-1-415x400@2x.png)
 
@@ -54,7 +54,7 @@ Running Fleet in AWS means you can leverage all the great cloud tech that exists
 - Configured Snowpipe to consume data on the event of data being written to S3
 - Exposed a load balance appliance on the edge so clients could communicate to the service securely over the internet
 
-###Quick diagram:
+### Quick diagram:
 
 ![A diagram of the tools listed above](../website/assets/images/articles/delivering-data-to-snowflake-from-fleet-and-osquery-3-700x266@2x.png)
 
@@ -66,7 +66,7 @@ Now that our end-to-end data pipelines were flowing, we needed to make sure we c
 
 A quick and easy query to test in Fleet with the live query feature to see if I got the results I wanted was simply this:
 
-###SQL
+### SQL
 
 ```
 1 SELECT * from programs;
@@ -78,7 +78,7 @@ With Snowflake, I can simply run this query to grab the data I need. Remember, w
 
 data sample:
 
-###JSON
+### JSON
 
 ```
 1 {
@@ -116,7 +116,7 @@ data sample:
 
 Now let's really work with the data now that we know we can use the `name` key in the JSON data to filter out the exact data we want to work with. One could also model the data off of this raw data table into other tables and views, but that will be a future blog post on data modeling. It is just a bit worth noting now if you are new to working with data. We will use a feature in Snowflake called [flatten](https://docs.snowflake.com/en/sql-reference/functions/flatten.html) to essentially turn the JSON keys and values into something similar to columns and rows in a relational database.
 
-###SQL
+### SQL
 
 ```
 1 select 
