@@ -290,7 +290,7 @@ type ListSoftwareByHostIDShortFunc func(ctx context.Context, hostID uint) ([]fle
 
 type CalculateHostsPerSoftwareFunc func(ctx context.Context, updatedAt time.Time) error
 
-type HostsByCPEsFunc func(ctx context.Context, cpes []string) ([]*fleet.HostShort, error)
+type HostsBySoftwareIDsFunc func(ctx context.Context, softwareIDs []uint) ([]*fleet.HostShort, error)
 
 type HostsByCVEFunc func(ctx context.Context, cve string) ([]*fleet.HostShort, error)
 
@@ -828,8 +828,8 @@ type DataStore struct {
 	CalculateHostsPerSoftwareFunc        CalculateHostsPerSoftwareFunc
 	CalculateHostsPerSoftwareFuncInvoked bool
 
-	HostsByCPEsFunc        HostsByCPEsFunc
-	HostsByCPEsFuncInvoked bool
+	HostsBySoftwareIDsFunc        HostsBySoftwareIDsFunc
+	HostsBySoftwareIDsFuncInvoked bool
 
 	HostsByCVEFunc        HostsByCVEFunc
 	HostsByCVEFuncInvoked bool
@@ -1704,9 +1704,9 @@ func (s *DataStore) CalculateHostsPerSoftware(ctx context.Context, updatedAt tim
 	return s.CalculateHostsPerSoftwareFunc(ctx, updatedAt)
 }
 
-func (s *DataStore) HostsByCPEs(ctx context.Context, cpes []string) ([]*fleet.HostShort, error) {
-	s.HostsByCPEsFuncInvoked = true
-	return s.HostsByCPEsFunc(ctx, cpes)
+func (s *DataStore) HostsBySoftwareIDs(ctx context.Context, softwareIDs []uint) ([]*fleet.HostShort, error) {
+	s.HostsBySoftwareIDsFuncInvoked = true
+	return s.HostsBySoftwareIDsFunc(ctx, softwareIDs)
 }
 
 func (s *DataStore) HostsByCVE(ctx context.Context, cve string) ([]*fleet.HostShort, error) {

@@ -228,20 +228,21 @@ func cronVulnerabilities(
 			level.Debug(logger).Log("vulnAutomationEnabled", vulnAutomationEnabled)
 
 			collectVulns := vulnAutomationEnabled != ""
-
 			nvdVulns := checkNVDVulnerabilities(ctx, ds, logger, vulnPath, config, collectVulns)
 			ovalVulns := checkOvalVulnerabilities(ctx, ds, logger, vulnPath, config, collectVulns)
-			filterRecentVulns(ctx, ds, logger, nvdVulns, ovalVulns, config.Vulnerabilities.RecentVulnerabilityMaxAge)
-
-			// CVE => CPEs
-			var recentVulns map[string][]string
+			recentVulns := filterRecentVulns(ctx, ds, logger, nvdVulns, ovalVulns, config.Vulnerabilities.RecentVulnerabilityMaxAge)
 
 			if len(recentVulns) > 0 {
 				switch vulnAutomationEnabled {
 				case "webhook":
 					// send recent vulnerabilities via webhook
-					if err := webhooks.TriggerVulnerabilitiesWebhook(ctx, ds, kitlog.With(logger, "webhook", "vulnerabilities"),
-						recentVulns, appConfig, time.Now()); err != nil {
+					if err := webhooks.TriggerVulnerabilitiesWebhook(
+						ctx,
+						ds,
+						kitlog.With(logger, "webhook", "vulnerabilities"),
+						recentVulns,
+						appConfig,
+						time.Now()); err != nil {
 
 						level.Error(logger).Log("err", "triggering vulnerabilities webhook", "details", err)
 						sentry.CaptureException(err)

@@ -968,12 +968,12 @@ func (ds *Datastore) CalculateHostsPerSoftware(ctx context.Context, updatedAt ti
 	return nil
 }
 
-// HostsByCPEs returns a list of all hosts that have the software corresponding
-// to at least one of the CPEs installed. It returns a minimal represention of
+// HostsBySoftwareIDs returns a list of all hosts that have the software corresponding
+// to at least one of the Software installed. It returns a minimal represention of
 // matching hosts.
-func (ds *Datastore) HostsByCPEs(ctx context.Context, cpes []string) ([]*fleet.HostShort, error) {
+func (ds *Datastore) HostsBySoftwareIDs(ctx context.Context, softwareIDs []uint) ([]*fleet.HostShort, error) {
 	queryStmt := `
-    SELECT DISTINCT
+    SELECT 
       h.id,
       h.hostname
     FROM
@@ -982,16 +982,13 @@ func (ds *Datastore) HostsByCPEs(ctx context.Context, cpes []string) ([]*fleet.H
       host_software hs
     ON
       h.id = hs.host_id
-    INNER JOIN
-      software_cpe scp
-    ON
-      hs.software_id = scp.software_id
     WHERE
-      scp.cpe IN (?)
+      hs.software_id IN (?)
+	GROUP BY h.id, h.hostname
     ORDER BY
       h.id`
 
-	stmt, args, err := sqlx.In(queryStmt, cpes)
+	stmt, args, err := sqlx.In(queryStmt, softwareIDs)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "building query args")
 	}
