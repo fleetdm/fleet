@@ -1,7 +1,13 @@
 /* eslint-disable  @typescript-eslint/explicit-module-boundary-types */
 import sendRequest from "services";
 import endpoints from "utilities/endpoints";
-import { INewMembersBody, IRemoveMembersBody } from "interfaces/team";
+import {
+  INewMembersBody,
+  IRemoveMembersBody,
+  ITeam,
+  ITeamAutomationsConfig,
+  ITeamConfig,
+} from "interfaces/team";
 import { ICreateTeamFormData } from "pages/admin/TeamManagementPage/components/CreateTeamModal/CreateTeamModal";
 import { IEnrollSecret } from "interfaces/enroll_secret";
 
@@ -11,17 +17,21 @@ interface ITeamSearchOptions {
   globalFilter?: string;
 }
 
-interface ITeamName {
-  name: string;
-}
+/**
+ * The request body expected for the "Modify team" endpoint.
+ * See https://fleetdm.com/docs/using-fleet/rest-api#modify-team
+ */
+type IModifyTeamRequest =
+  | Pick<ITeam, "name">
+  | Pick<ITeamAutomationsConfig, "webhook_settings">;
 
-interface ITeamWebhooks {
-  webhook_settings: {
-    [key: string]: any;
-  };
+/**
+ * The response body expected for the "Get team" endpoint.
+ * See https://fleetdm.com/docs/using-fleet/rest-api#get-team
+ */
+export interface ILoadTeamResponse {
+  team: ITeamConfig;
 }
-
-type ITeamEditData = ITeamName | ITeamWebhooks;
 
 export default {
   create: (formData: ICreateTeamFormData) => {
@@ -35,7 +45,7 @@ export default {
 
     return sendRequest("DELETE", path);
   },
-  load: (teamId: number) => {
+  load: (teamId: number): Promise<ILoadTeamResponse> => {
     const { TEAMS } = endpoints;
     const path = `${TEAMS}/${teamId}`;
 
@@ -60,7 +70,7 @@ export default {
 
     return sendRequest("GET", path);
   },
-  update: (updateParams: ITeamEditData, teamId?: number) => {
+  update: (updateParams: IModifyTeamRequest, teamId?: number) => {
     // we are grouping this update with the config api update function
     // on the ManagePoliciesPage to streamline updating the
     // webhook settings globally or for a team - see ManagePoliciesPage line 208
