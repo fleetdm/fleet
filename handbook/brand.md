@@ -302,7 +302,7 @@ In Figma:
 The following table details how to request reviews and art assets from the Digital Experience team.
 
 - Reviews should be requested at least 24 hours prior to the intended publication date. 
-- Lead times are an approximation. Artwork requests may vary depending on requirements and prioritization from Digital Experience. Under some circumstances, reviews may take longer than the times listed below. In these cases the reviewer should communicate the expected timeframe with the contributor.
+- Lead times are an approximation. Artwork requests may vary depending on requirements and prioritization from Digital Experience. Under some circumstances, reviews may take longer than the times listed below. In these cases the reviewer should communicate the expected timeframe to the contributor.
 
 | Media | Before publishing | How to adjust after publishing | Lead time |
 |:------ |:-----------------|:-------------------------------|-----------|
