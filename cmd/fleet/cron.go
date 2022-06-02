@@ -307,6 +307,10 @@ func filterRecentVulns(
 	ovalVulns []fleet.SoftwareVulnerability,
 	maxAge time.Duration,
 ) []fleet.SoftwareVulnerability {
+	if len(nvdVulns) == 0 && len(ovalVulns) == 0 {
+		return nil
+	}
+
 	recent, err := ds.ListCVEs(ctx, maxAge)
 	if err != nil {
 		level.Error(logger).Log("msg", "could not fetch recent CVEs", "err", err)
