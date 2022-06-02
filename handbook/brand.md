@@ -306,16 +306,16 @@ The following table details how to request reviews and art assets from the Digit
 
 | Media | Before publishing | How to adjust after publishing | Lead time |
 |:------ |:-----------------|:-------------------------------|-----------|
-| Article | Submit a Google Doc to Digital Experience for an editor review. TODO: "How to publish a Markdown article" | Make a new PR | 2 days |
+| Article | Submit a Google Doc to Digital Experience for an editor review. TODO: "How to publish a Markdown article" | Create a Pull Request (PR) | 2 days |
 | Article artwork | Request from Digital Experience for prioritization | Ask for help in [#g-digital-experience](https://fleetdm.slack.com/archives/C01GQUZ91TN) | - |
 | Ad | Request review from Digital Experience | Ask for help in [#g-digital-experience](https://fleetdm.slack.com/archives/C01GQUZ91TN) | 2 days |
 | Ad artwork | Request from Digital Experience for prioritization | Ask for help in [#g-digital-experience](https://fleetdm.slack.com/archives/C01GQUZ91TN) | - |
-| Docs | Request PR review from Noah Talerman. Digital Experience will follow up after merge with an editor pass. | Make a new PR | 2 days |
-| Docs (REST API) | Request PR review from Luke Heath. Digital Experience will follow up after merge with an editor pass. | Make a new PR | 2 days |
-| Handbook | Request PR review from page DRI. Digital Experience will follow up after merge with an editor pass | Make a new PR | 2 days |
+| Docs | Request PR review from Noah Talerman. Digital Experience will follow up after merge with an editor pass. | Create a Pull Request (PR) | 2 days |
+| Docs (REST API) | Request PR review from Luke Heath. Digital Experience will follow up after merge with an editor pass. | Create a Pull Request (PR) | 2 days |
+| Handbook | Request PR review from page DRI. Digital Experience will follow up after merge with an editor pass | Create a Pull Request (PR) | 2 days |
 | Newletter/email blast | Request review from Digital Experience | Ask for help in [#g-digital-experience](https://fleetdm.slack.com/archives/C01GQUZ91TN) | 2 days |
 | Newsletter/email blast artwork | Request from Digital Experience for prioritization | Ask for help in [#g-digital-experience](https://fleetdm.slack.com/archives/C01GQUZ91TN) | - |
-| Release post | Submit a Google Doc to Digital Experience for an editor review | Make a new PR | 2 days |
+| Release post | Submit a Google Doc to Digital Experience for an editor review | Create a Pull Request (PR) | 2 days |
 | Release post artwork | Request from Digital Experience | Ask for help in [#g-digital-experience](https://fleetdm.slack.com/archives/C01GQUZ91TN) | 3 days |
 | Social media (Twitter, FB, LinkedIn) | (Optional) Request review from Digital Experience | Ask for help in [#g-growth](https://fleetdm.slack.com/archives/C01ALP02RB5) | 1 day |
 | Social media artwork | Request from Digital Experience for prioritization | Ask for help in [#g-digital-experience](https://fleetdm.slack.com/archives/C01GQUZ91TN) | - |
