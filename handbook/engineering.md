@@ -10,11 +10,11 @@
 
 ### Principles
 
-* Keep meetings to a minimum. Sometimes that will be very very few meetings, and sometimes the minimum will be quite a few of them. But always try to reduce meetings, just like we do with process.
+* Support the [Maker Schedule](http://www.paulgraham.com/makersschedule.html) by keeping meetings to a minimum.
 * Each individual must have a weekly sync 1:1 meeting with their manager. This is key to making sure each individual has a voice within the organization.
 * Each team should have a fixed weekly sync check in. This helps reinforce team bonds and alignment.
 * Favor async communication when possible. This is very important to make sure every stakeholder on a project can have a clear understanding of what’s happening, or what was decided, without needing to attend every meeting (i.e. if a person is sick or on vacation or just life happened.)
-* If an async conversation is not proving to be effective, never hesitate to hop on a call. Always document the decisions made in a ticket, document, or whatever makes sense for the conversation.
+* If an async conversation is not proving to be effective, never hesitate to hop on or schedule a call. Always document the decisions made in a ticket, document, or whatever makes sense for the conversation.
 
 The following is the subset of proposed engineering meetings. Each group is free to treat these as a subset of the expected meetings, and add any other meetings as they see fit.
 
