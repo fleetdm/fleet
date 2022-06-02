@@ -15,7 +15,7 @@
 
 ## License key
 
-Need to test Fleet Premium features locally?
+Do you need to test Fleet Premium features locally?
 
 Use the `--dev_license` flag to use the default development license key.
 
@@ -107,7 +107,7 @@ MAIL_TEST=1 make test-go
 
 ### Network tests
 
-A few tests require network access as they make requests to external hosts. Given that the network is unreliable may not be available, and those hosts may also not be unavailable, those tests are skipped by default. They are opt-in via the `NETWORK_TEST` environment variable. To run them:
+A few tests require network access as they make requests to external hosts. Given that the network is unreliable and may not be available. Those hosts may also be unavailable so these tests are skipped by default. They are opt-in via the `NETWORK_TEST` environment variable. To run them:
 
 ```
 NETWORK_TEST=1 make test-go
@@ -139,8 +139,8 @@ E2E tests are constantly evolving, and running them or examining CI results is t
 1. Setup
 2. Log in/out flows
 3. Host page
-    add hosts
-    label flows
+    Add hosts
+    Label flows
 4. Query flows
 5. Policy flows
 6. Schedule flows
@@ -228,7 +228,7 @@ To intercept sent emails while running a Fleet development environment, first, i
 
 Then, in the "SMTP options" section, enter any email address in the "Sender address" field, set the "SMTP server" to `localhost` on port `1025`, and set "Authentication type" to `None`. Note that you may use any active or inactive sender address.
 
-Visit [localhost:8025](http://localhost:8025) to view MailHog's admin interface which will display all emails sent using the simulated mail server.
+Visit [localhost:8025](http://localhost:8025) to view MailHog's admin interface displaying all emails sent using the simulated mail server.
 
 ## Development database management
 
@@ -355,10 +355,10 @@ Here's a sample command for running `fleet serve`:
 ```
 make fleet && FLEET_OSQUERY_RESULT_LOG_PLUGIN=kinesis FLEET_OSQUERY_STATUS_LOG_PLUGIN=kinesis FLEET_KINESIS_REGION=us-east-1 FLEET_KINESIS_ENDPOINT_URL=http://localhost:4566 FLEET_KINESIS_ACCESS_KEY_ID=default FLEET_KINESIS_SECRET_ACCESS_KEY=default FLEET_KINESIS_STATUS_STREAM=sample_status FLEET_KINESIS_RESULT_STREAM=sample_result ./build/fleet serve --dev --dev_license --logging_debug
 ```
-Fleet will now be relaying "status" and "result" logs from osquery agents to the Localstack's
+Fleet will now be relaying "status" and "result" logs from osquery agents to the LocalStack's
 kinesis.
 
-Let's work on inspecting "status" logs received by Kinesis ("status" logs are easier to verify, to generate "result" logs, you need to configure "schedule queries").
+Let's work on inspecting "status" logs received by Kinesis ("status" logs are easier to verify, to generate "result" logs so you need to configure "schedule queries").
 
 Get "status" logging stream shard ID:
 ```
