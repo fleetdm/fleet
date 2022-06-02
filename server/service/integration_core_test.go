@@ -478,11 +478,21 @@ func (s *integrationTestSuite) TestVulnerableSoftware() {
 	}
 
 	require.NoError(t, s.ds.AddCPEForSoftware(context.Background(), soft1, "somecpe"))
+
+	// Reload software so that 'GeneratedCPEID is set.
 	require.NoError(t, s.ds.LoadHostSoftware(context.Background(), host, fleet.SoftwareListOptions{}, false))
+	soft1 = host.Software[0]
+	if soft1.Name != "bar" {
+		soft1 = host.Software[1]
+	}
 
 	n, err := s.ds.InsertVulnerabilities(
 		context.Background(), []fleet.SoftwareVulnerability{
-			{SoftwareID: soft1.ID, CPEID: soft1.GeneratedCPEID, CVE: "cve-123-123-132"},
+			{
+				SoftwareID: soft1.ID,
+				CPEID:      soft1.GeneratedCPEID,
+				CVE:        "cve-123-123-132",
+			},
 		}, fleet.NVD,
 	)
 	require.NoError(t, err)
@@ -4089,20 +4099,23 @@ func (s *integrationTestSuite) TestPaginateListSoftware() {
 	for i, sw := range sws {
 		cpe := "somecpe" + strconv.Itoa(i)
 		require.NoError(t, s.ds.AddCPEForSoftware(context.Background(), sw, cpe))
-
-		var vulns []fleet.SoftwareVulnerability
-		if i < 10 {
-			vulns = append(vulns, fleet.SoftwareVulnerability{
-				SoftwareID: sw.ID,
-				CPEID:      sw.GeneratedCPEID,
-				CVE:        fmt.Sprintf("cve-123-123-%03d", i),
-			})
-		}
-		// add CVEs for the first 10 software, which are the least used (lower hosts_count)
-		n, err := s.ds.InsertVulnerabilities(context.Background(), vulns, fleet.NVD)
-		require.NoError(t, err)
-		require.Equal(t, 10, int(n))
 	}
+
+	// Reload software to load GeneratedCPEID
+	require.NoError(t, s.ds.LoadHostSoftware(context.Background(), hosts[0], fleet.SoftwareListOptions{}, false))
+	var vulns []fleet.SoftwareVulnerability
+	for i, sw := range hosts[0].Software[:10] {
+		vulns = append(vulns, fleet.SoftwareVulnerability{
+			SoftwareID: sw.ID,
+			CPEID:      sw.GeneratedCPEID,
+			CVE:        fmt.Sprintf("cve-123-123-%03d", i),
+		})
+	}
+
+	// add CVEs for the first 10 software, which are the least used (lower hosts_count)
+	n, err := s.ds.InsertVulnerabilities(context.Background(), vulns, fleet.NVD)
+	require.NoError(t, err)
+	require.Equal(t, 10, int(n))
 
 	// create a team and make the last 3 hosts part of it (meaning 3 that use
 	// sws[19], 2 for sws[18], and 1 for sws[17])
