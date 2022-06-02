@@ -378,14 +378,15 @@ func checkOvalVulnerabilities(
 
 	// Analyze all supported os versions using the synched OVAL definitions.
 	for _, version := range versions.OSVersions {
-
 		start := time.Now()
 		r, err := oval.Analyze(ctx, ds, version, vulnPath, collectVulns)
 		elapsed := time.Since(start)
-		level.Debug(logger).Log("msg", "oval-analysis-done", "platform", version.Name, "elapsed", elapsed)
-
+		level.Debug(logger).Log(
+			"msg", "oval-analysis-done",
+			"platform", version.Name,
+			"elapsed", elapsed,
+			"found new", len(r))
 		results = append(results, r...)
-
 		if err != nil {
 			level.Error(logger).Log("msg", "analyzing oval definitions", "err", err)
 			sentry.CaptureException(err)
