@@ -36,7 +36,6 @@ import (
 )
 
 func main() {
-
 	app := cli.NewApp()
 	app.Name = "Orbit osquery"
 	app.Usage = "A powered-up, (near) drop-in replacement for osquery"
@@ -251,21 +250,50 @@ func main() {
 		opt.InsecureTransport = c.Bool("insecure")
 
 		var (
-			updater      *update.Updater
 			osquerydPath string
 			desktopPath  string
+			g            run.Group
 		)
 
 		// NOTE: When running in dev-mode, even if `disable-updates` is set,
 		// it fetches osqueryd once as part of initialization.
 		if !c.Bool("disable-updates") || c.Bool("dev-mode") {
-			updater, err = update.New(opt)
+			updater, err := update.NewUpdater(opt)
 			if err != nil {
 				return fmt.Errorf("create updater: %w", err)
 			}
 			if err := updater.UpdateMetadata(); err != nil {
-				log.Info().Err(err).Msg("update metadata. using saved metadata.")
+				log.Info().Err(err).Msg("update metadata. using saved metadata")
 			}
+
+			targets := []string{"orbit", "osqueryd"}
+			if c.Bool("fleet-desktop") {
+				targets = append(targets, "desktop")
+			}
+			if c.Bool("dev-mode") {
+				targets = targets[1:] // exclude orbit itself on dev-mode.
+			}
+			updateRunner, err := update.NewRunner(updater, update.RunnerOptions{
+				CheckInterval: c.Duration("update-interval"),
+				Targets:       targets,
+			})
+			if err != nil {
+				return err
+			}
+
+			// Perform early check for updates before starting any sub-system.
+			// This is to prevent bugs in other sub-systems to mess up with
+			// the download of available updates.
+			didUpdate, err := updateRunner.UpdateAction()
+			if err != nil {
+				log.Info().Err(err).Msg("early update check failed")
+			}
+			if didUpdate && !c.Bool("dev-mode") {
+				log.Info().Msg("exiting due to successful early update")
+				return nil
+			}
+			g.Add(updateRunner.Execute, updateRunner.Interrupt)
+
 			osquerydLocalTarget, err := updater.Get("osqueryd")
 			if err != nil {
 				return fmt.Errorf("get osqueryd target: %w", err)
@@ -284,7 +312,7 @@ func main() {
 			}
 		} else {
 			log.Info().Msg("running with auto updates disabled")
-			updater = update.NewDisabled(opt)
+			updater := update.NewDisabled(opt)
 			osquerydPath, err = updater.ExecutableLocalPath("osqueryd")
 			if err != nil {
 				log.Fatal().Err(err).Msg("locate osqueryd")
@@ -320,23 +348,6 @@ func main() {
 			return nil
 		}); err != nil {
 			return fmt.Errorf("cleanup old files: %w", err)
-		}
-
-		var g run.Group
-
-		if !c.Bool("disable-updates") {
-			targets := []string{"orbit", "osqueryd"}
-			if c.Bool("fleet-desktop") {
-				targets = append(targets, "desktop")
-			}
-			updateRunner, err := update.NewRunner(updater, update.RunnerOptions{
-				CheckInterval: c.Duration("update-interval"),
-				Targets:       targets,
-			})
-			if err != nil {
-				return err
-			}
-			g.Add(updateRunner.Execute, updateRunner.Interrupt)
 		}
 
 		var options []osquery.Option
@@ -483,10 +494,7 @@ func main() {
 		}
 		g.Add(r.Execute, r.Interrupt)
 
-		ext := table.NewRunner(r.ExtensionSocketPath(), table.WithExtension(orbitInfoExtension{
-			deviceAuthToken: deviceAuthToken,
-		}))
-		g.Add(ext.Execute, ext.Interrupt)
+		registerExtensionRunner(&g, r.ExtensionSocketPath(), deviceAuthToken)
 
 		if c.Bool("fleet-desktop") {
 			desktopRunner := newDesktopRunner(desktopPath, fleetURL, deviceAuthToken, c.Bool("insecure"))
@@ -508,6 +516,13 @@ func main() {
 	if err := app.Run(os.Args); err != nil {
 		log.Error().Err(err).Msg("run orbit failed")
 	}
+}
+
+func registerExtensionRunner(g *run.Group, extSockPath, deviceAuthToken string) {
+	ext := table.NewRunner(extSockPath, table.WithExtension(orbitInfoExtension{
+		deviceAuthToken: deviceAuthToken,
+	}))
+	g.Add(ext.Execute, ext.Interrupt)
 }
 
 type desktopRunner struct {
@@ -554,7 +569,6 @@ func (d *desktopRunner) execute() error {
 	url.Path = path.Join(url.Path, "device", d.deviceAuthToken)
 	opts := []execuser.Option{
 		execuser.WithEnv("FLEET_DESKTOP_DEVICE_URL", url.String()),
-		execuser.WithEnv("FLEET_DESKTOP_DEVICE_API_TEST_PATH", path.Join("api", "latest", "fleet", "device", d.deviceAuthToken)),
 	}
 	if d.insecure {
 		opts = append(opts, execuser.WithEnv("FLEET_DESKTOP_INSECURE", "1"))

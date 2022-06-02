@@ -415,17 +415,13 @@ func selectSoftwareSQL(opts fleet.SoftwareListOptions) (string, []interface{}, e
 			"s.arch",
 			"scv.cpe_id", // for join on sub query
 			goqu.COALESCE(goqu.I("scp.cpe"), "").As("generated_cpe"),
+		).
+		Join( // filter software that is not associated with any hosts
+			goqu.I("host_software").As("hs"),
+			goqu.On(
+				goqu.I("hs.software_id").Eq(goqu.I("s.id")),
+			),
 		)
-
-	if opts.HostID != nil || opts.TeamID != nil {
-		ds = ds.
-			Join(
-				goqu.I("host_software").As("hs"),
-				goqu.On(
-					goqu.I("hs.software_id").Eq(goqu.I("s.id")),
-				),
-			)
-	}
 
 	if opts.HostID != nil {
 		ds = ds.
@@ -454,7 +450,9 @@ func selectSoftwareSQL(opts fleet.SoftwareListOptions) (string, []interface{}, e
 			).
 			Join(
 				goqu.I("software_cve").As("scv"),
-				goqu.On(goqu.I("scp.id").Eq(goqu.I("scv.cpe_id"))),
+				goqu.On(
+					goqu.I("scp.id").Eq(goqu.I("scv.cpe_id")),
+				),
 			)
 	} else {
 		ds = ds.
@@ -473,7 +471,7 @@ func selectSoftwareSQL(opts fleet.SoftwareListOptions) (string, []interface{}, e
 	if opts.IncludeCVEScores {
 		ds = ds.
 			LeftJoin(
-				goqu.I("cve_scores").As("c"),
+				goqu.I("cve_meta").As("c"),
 				goqu.On(goqu.I("c.cve").Eq(goqu.I("scv.cve"))),
 			).
 			SelectAppend(
@@ -519,11 +517,11 @@ func selectSoftwareSQL(opts fleet.SoftwareListOptions) (string, []interface{}, e
 		"generated_cpe",
 	)
 
-	// Pagination is a bit more complex here due to left join with software_cve table and aggregated columns from cve_scores table.
+	// Pagination is a bit more complex here due to left join with software_cve table and aggregated columns from cve_meta table.
 	// Apply order by again after joining on sub query
 	ds = appendListOptionsToSelect(ds, opts.ListOptions)
 
-	// join on software_cve and cve_scores after apply pagination using the sub-query above
+	// join on software_cve and cve_meta after apply pagination using the sub-query above
 	ds = dialect.From(ds.As("s")).
 		Select(
 			"s.id",
@@ -543,7 +541,7 @@ func selectSoftwareSQL(opts fleet.SoftwareListOptions) (string, []interface{}, e
 			goqu.On(goqu.I("scv.cpe_id").Eq(goqu.I("s.cpe_id"))),
 		).
 		LeftJoin(
-			goqu.I("cve_scores").As("c"),
+			goqu.I("cve_meta").As("c"),
 			goqu.On(goqu.I("c.cve").Eq(goqu.I("scv.cve"))),
 		)
 
@@ -598,8 +596,12 @@ func countSoftwareDB(
 	return count, nil
 }
 
-func (ds *Datastore) LoadHostSoftware(ctx context.Context, host *fleet.Host) error {
-	software, err := listSoftwareDB(ctx, ds.reader, fleet.SoftwareListOptions{HostID: &host.ID})
+func (ds *Datastore) LoadHostSoftware(ctx context.Context, host *fleet.Host, includeCVEScores bool) error {
+	opts := fleet.SoftwareListOptions{
+		HostID:           &host.ID,
+		IncludeCVEScores: includeCVEScores,
+	}
+	software, err := listSoftwareDB(ctx, ds.reader, opts)
 	if err != nil {
 		return err
 	}
@@ -778,6 +780,12 @@ func (ds *Datastore) SoftwareByID(ctx context.Context, id uint, includeCVEScores
 			"s.arch",
 			"scv.cve",
 		).
+		Join( // filter software that is not associated with any hosts
+			goqu.I("host_software").As("hs"),
+			goqu.On(
+				goqu.I("hs.software_id").Eq(goqu.I("s.id")),
+			),
+		).
 		LeftJoin(
 			goqu.I("software_cpe").As("scp"),
 			goqu.On(
@@ -792,7 +800,7 @@ func (ds *Datastore) SoftwareByID(ctx context.Context, id uint, includeCVEScores
 	if includeCVEScores {
 		q = q.
 			LeftJoin(
-				goqu.I("cve_scores").As("c"),
+				goqu.I("cve_meta").As("c"),
 				goqu.On(goqu.I("c.cve").Eq(goqu.I("scv.cve"))),
 			).
 			SelectAppend(
@@ -1028,29 +1036,30 @@ ORDER BY
 	return hosts, nil
 }
 
-func (ds *Datastore) InsertCVEScores(ctx context.Context, cveScores []fleet.CVEScore) error {
+func (ds *Datastore) InsertCVEMeta(ctx context.Context, cveMeta []fleet.CVEMeta) error {
 	query := `
-INSERT INTO cve_scores (cve, cvss_score, epss_probability, cisa_known_exploit)
+INSERT INTO cve_meta (cve, cvss_score, epss_probability, cisa_known_exploit, published)
 VALUES %s
 ON DUPLICATE KEY UPDATE
     cvss_score = VALUES(cvss_score),
     epss_probability = VALUES(epss_probability),
-    cisa_known_exploit = VALUES(cisa_known_exploit)
+    cisa_known_exploit = VALUES(cisa_known_exploit),
+    published = VALUES(published)
 `
 
 	batchSize := 500
-	for i := 0; i < len(cveScores); i += batchSize {
+	for i := 0; i < len(cveMeta); i += batchSize {
 		end := i + batchSize
-		if end > len(cveScores) {
-			end = len(cveScores)
+		if end > len(cveMeta) {
+			end = len(cveMeta)
 		}
 
-		batch := cveScores[i:end]
+		batch := cveMeta[i:end]
 
-		valuesFrag := strings.TrimSuffix(strings.Repeat("(?, ?, ?, ?), ", len(batch)), ", ")
+		valuesFrag := strings.TrimSuffix(strings.Repeat("(?, ?, ?, ?, ?), ", len(batch)), ", ")
 		var args []interface{}
-		for _, score := range batch {
-			args = append(args, score.CVE, score.CVSSScore, score.EPSSProbability, score.CISAKnownExploit)
+		for _, meta := range batch {
+			args = append(args, meta.CVE, meta.CVSSScore, meta.EPSSProbability, meta.CISAKnownExploit, meta.Published)
 		}
 
 		query := fmt.Sprintf(query, valuesFrag)

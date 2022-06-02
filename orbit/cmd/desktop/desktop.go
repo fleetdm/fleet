@@ -1,52 +1,21 @@
 package main
 
 import (
-	"crypto/tls"
 	_ "embed"
-	"encoding/json"
+	"errors"
 	"fmt"
-	"io/ioutil"
 	"log"
-	"net/http"
 	"net/url"
 	"os"
-	"strings"
+	"path"
 	"time"
 
 	"github.com/fleetdm/fleet/v4/pkg/open"
+	"github.com/fleetdm/fleet/v4/server/service"
 	"github.com/getlantern/systray"
 )
 
 var version = "unknown"
-
-type Response struct {
-	Host struct {
-		Policies []struct {
-			ID          int         `json:"id"`
-			Name        string      `json:"name"`
-			Query       string      `json:"query"`
-			Description string      `json:"description"`
-			AuthorID    int         `json:"author_id"`
-			AuthorName  string      `json:"author_name"`
-			AuthorEmail string      `json:"author_email"`
-			TeamID      interface{} `json:"team_id"`
-			Resolution  string      `json:"resolution"`
-			Platform    string      `json:"platform"`
-			CreatedAt   time.Time   `json:"created_at"`
-			UpdatedAt   time.Time   `json:"updated_at"`
-			Response    string      `json:"response"`
-		} `json:"policies"`
-		Status      string `json:"status"`
-		DisplayText string `json:"display_text"`
-	} `json:"host"`
-	License struct {
-		Tier         string    `json:"tier"`
-		Organization string    `json:"organization"`
-		DeviceCount  int       `json:"device_count"`
-		Expiration   time.Time `json:"expiration"`
-		Note         string    `json:"note"`
-	} `json:"license"`
-}
 
 func main() {
 	// Our TUF provided targets must support launching with "--help".
@@ -66,13 +35,9 @@ func main() {
 		log.Printf("invalid URL argument: %s\n", err)
 		os.Exit(1)
 	}
-	devTestPath := os.Getenv("FLEET_DESKTOP_DEVICE_API_TEST_PATH")
-	if devTestPath == "" {
-		log.Println("missing URL environment FLEET_DESKTOP_DEVICE_API_TEST_PATH")
-		os.Exit(1)
-	}
-	devTestURL := *deviceURL
-	devTestURL.Path = devTestPath
+
+	basePath := deviceURL.Scheme + "://" + deviceURL.Host
+	deviceToken := path.Base(deviceURL.Path)
 
 	onReady := func() {
 		log.Println("ready")
@@ -83,76 +48,82 @@ func main() {
 		myDeviceItem.Disable()
 		transparencyItem := systray.AddMenuItem("Transparency", "")
 
+		var insecureSkipVerify bool
+		if os.Getenv("FLEET_DESKTOP_INSECURE") != "" {
+			insecureSkipVerify = true
+		}
+
+		// TODO: figure out the right rootCA to pass to the client
+		client, err := service.NewDeviceClient(basePath, deviceToken, insecureSkipVerify, "")
+
+		if err != nil {
+			log.Printf("unable to initialize request client: %s", err)
+			os.Exit(1)
+		}
+
 		// Perform API test call to enable the "My device" item as soon
 		// as the device auth token is registered by Fleet.
-		go func() {
-			ticker := time.NewTicker(5 * time.Second)
-			defer ticker.Stop()
+		deviceEnabledChan := func() <-chan interface{} {
+			done := make(chan interface{})
 
-			tr := http.DefaultTransport.(*http.Transport)
-			if os.Getenv("FLEET_DESKTOP_INSECURE") != "" {
-				tr.TLSClientConfig = &tls.Config{InsecureSkipVerify: true}
-			}
-			client := &http.Client{
-				Transport: tr,
-			}
+			go func() {
+				ticker := time.NewTicker(5 * time.Second)
+				defer ticker.Stop()
+				defer close(done)
 
-			for {
-				resp, err := client.Get(devTestURL.String())
-				if err != nil {
-					// To ease troubleshooting we set the tooltip as the error.
-					myDeviceItem.SetTooltip(err.Error())
-					log.Printf("get device URL: %s", err)
-				} else {
-					resp.Body.Close()
-					if resp.StatusCode == http.StatusOK {
+				for {
+					_, err := client.ListDevicePolicies()
+
+					if err == nil || errors.Is(err, service.ErrMissingLicense) {
 						myDeviceItem.SetTitle("My device")
 						myDeviceItem.Enable()
 						myDeviceItem.SetTooltip("")
 						return
 					}
+
+					// To ease troubleshooting we set the tooltip as the error.
+					myDeviceItem.SetTooltip(err.Error())
+					log.Printf("get device URL: %s", err)
+
+					<-ticker.C
 				}
-				<-ticker.C
-			}
+			}()
+
+			return done
 		}()
 
 		go func() {
+			<-deviceEnabledChan
 			tic := time.NewTicker(5 * time.Minute)
 			defer tic.Stop()
 
-			tr := http.DefaultTransport.(*http.Transport)
-			if os.Getenv("FLEET_DESKTOP_INSECURE") != "" {
-				tr.TLSClientConfig = &tls.Config{InsecureSkipVerify: true}
-			}
-			client := &http.Client{
-				Transport: tr,
-			}
-
 			for {
 				<-tic.C
-				// TODO: Use the policies endpoint instead of full device endpoint
-				// https://github.com/fleetdm/fleet/issues/5697
-				resp, err := client.Get(devTestURL.String())
-				if err != nil {
+
+				policies, err := client.ListDevicePolicies()
+				switch {
+				case err == nil:
+					// OK
+				case errors.Is(err, service.ErrMissingLicense):
+					myDeviceItem.SetTitle("My device")
+					continue
+				default:
 					// To ease troubleshooting we set the tooltip as the error.
 					myDeviceItem.SetTooltip(err.Error())
 					log.Printf("get device URL: %s", err)
 					continue
 				}
-				licensePass, allPoliciesPass, err := parseLicenseAndPoliciesFromResponse(resp)
-				if err != nil {
-					log.Println(err.Error())
-					continue
-				}
-				if licensePass {
-					if allPoliciesPass {
-						myDeviceItem.SetTitle("🟢 My device")
-					} else {
-						myDeviceItem.SetTitle("🔴 My device")
+
+				status := "🟢"
+				for _, policy := range policies {
+					if policy.Response != "pass" {
+						status = "🔴"
+						break
 					}
-				} else {
-					myDeviceItem.SetTitle("My device")
 				}
+
+				myDeviceItem.SetTitle(status + " My device")
+				myDeviceItem.Enable()
 			}
 		}()
 
@@ -176,33 +147,4 @@ func main() {
 	}
 
 	systray.Run(onReady, onExit)
-}
-
-func parseLicenseAndPoliciesFromResponse(resp *http.Response) (licensePass bool, policiesPass bool, err error) {
-	defer resp.Body.Close()
-	if resp.StatusCode != http.StatusOK {
-		return false, false, nil
-	}
-	body, err := ioutil.ReadAll(resp.Body)
-	if err != nil {
-		return false, false, err
-	}
-	var result Response
-	if err := json.Unmarshal(body, &result); err != nil {
-		return false, false, err
-	}
-	licensePass = false
-	if strings.Contains(strings.ToLower(result.License.Tier), "premium") {
-		licensePass = true
-	}
-	if licensePass {
-		for _, policy := range result.Host.Policies {
-			if policy.Response != "pass" {
-				return licensePass, false, nil
-			}
-		}
-		return licensePass, true, nil
-	} else {
-		return false, false, nil
-	}
 }

@@ -5,11 +5,10 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"runtime"
+	"strings"
 
 	"github.com/fleetdm/fleet/v4/orbit/pkg/constant"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/osquery"
-	"github.com/fleetdm/fleet/v4/orbit/pkg/table"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/update"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/update/filestore"
 	"github.com/fleetdm/fleet/v4/pkg/secure"
@@ -37,6 +36,7 @@ var shellCommand = &cli.Command{
 		},
 	},
 	Action: func(c *cli.Context) error {
+		zerolog.SetGlobalLevel(zerolog.InfoLevel)
 		if c.Bool("debug") {
 			zerolog.SetGlobalLevel(zerolog.DebugLevel)
 		}
@@ -61,7 +61,7 @@ var shellCommand = &cli.Command{
 		opt.LocalStore = localStore
 		opt.InsecureTransport = c.Bool("insecure")
 
-		updater, err := update.New(opt)
+		updater, err := update.NewUpdater(opt)
 		if err != nil {
 			return err
 		}
@@ -76,23 +76,42 @@ var shellCommand = &cli.Command{
 
 		var g run.Group
 
-		// Create an osquery runner with the provided options
-		r, _ := osquery.NewRunner(
-			osquerydPath,
+		opts := []osquery.Option{
 			osquery.WithShell(),
 			osquery.WithDataPath(filepath.Join(c.String("root-dir"), "shell")),
-			// Handle additional args after --
-			osquery.WithFlags(c.Args().Slice()),
-		)
-		g.Add(r.Execute, r.Interrupt)
-
-		if runtime.GOOS != "windows" {
-			// We are disabling extensions for Windows until #3679 is fixed.
-			ext := table.NewRunner(r.ExtensionSocketPath())
-			g.Add(ext.Execute, ext.Interrupt)
 		}
 
-		// Install a signal handler
+		// Detect if the additional arguments have a positional argument.
+		//
+		// osqueryi/osqueryd has the following usage:
+		// Usage: osqueryi [OPTION]... [SQL STATEMENT]
+		additionalArgs := c.Args().Slice()
+		singleQueryArg := false
+		if len(additionalArgs) > 0 {
+			if !strings.HasPrefix(additionalArgs[len(additionalArgs)-1], "--") {
+				singleQueryArg = true
+				opts = append(opts, osquery.SingleQuery())
+			}
+		}
+
+		// Handle additional args after --
+		opts = append(opts, osquery.WithFlags(additionalArgs))
+
+		r, err := osquery.NewRunner(osquerydPath, opts...)
+		if err != nil {
+			return fmt.Errorf("create osquery runner: %w", err)
+		}
+		g.Add(r.Execute, r.Interrupt)
+
+		if !singleQueryArg {
+			// We currently start the extension runner when !singleQueryArg
+			// because otherwise osquery exits and leaves too quickly,
+			// leaving the extension runner waiting for the socket.
+			// NOTE(lucas): `--extensions_require` doesn't seem to work with
+			// thrift extensions?
+			registerExtensionRunner(&g, r.ExtensionSocketPath(), "")
+		}
+
 		ctx, cancel := context.WithCancel(context.Background())
 		defer cancel()
 		g.Add(run.SignalHandler(ctx, os.Interrupt, os.Kill))

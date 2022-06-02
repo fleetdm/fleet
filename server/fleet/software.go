@@ -14,11 +14,21 @@ type CVE struct {
 	CISAKnownExploit **bool    `json:"cisa_known_exploit,omitempty" db:"cisa_known_exploit"`
 }
 
-type CVEScore struct {
-	CVE              string   `db:"cve"`
-	CVSSScore        *float64 `db:"cvss_score"`
-	EPSSProbability  *float64 `db:"epss_probability"`
-	CISAKnownExploit *bool    `db:"cisa_known_exploit"`
+type CVEMeta struct {
+	CVE string `db:"cve"`
+	// CVSSScore is the Common Vulnerability Scoring System (CVSS) base score v3. The base score ranges from 0 - 10 and
+	// takes into account several different metrics.
+	// See https://nvd.nist.gov/vuln-metrics/cvss.
+	CVSSScore *float64 `db:"cvss_score"`
+	// EPSSProbability is the Exploit Prediction Scoring System (EPSS) score. It is the probability
+	// that a software vulnerability will be exploited in the next 30 days.
+	// See https://www.first.org/epss/.
+	EPSSProbability *float64 `db:"epss_probability"`
+	// CISAKnownExploit is whether the the software vulnerability is a known exploit according to CISA.
+	// See https://www.cisa.gov/known-exploited-vulnerabilities.
+	CISAKnownExploit *bool `db:"cisa_known_exploit"`
+	// Published is when the cve was published according to NIST.score
+	Published *time.Time `db:"published"`
 }
 
 // Software is a named and versioned piece of software installed on a device.

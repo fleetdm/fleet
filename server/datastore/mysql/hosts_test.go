@@ -116,6 +116,7 @@ func TestHosts(t *testing.T) {
 		{"SetOrUpdateDeviceAuthToken", testHostsSetOrUpdateDeviceAuthToken},
 		{"OSVersions", testOSVersions},
 		{"DeleteHosts", testHostsDeleteHosts},
+		{"ShouldCleanTeamPolicies", testShouldCleanTeamPolicies},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -842,6 +843,7 @@ func testHostsEnroll(t *testing.T, ds *Datastore) {
 	for _, tt := range enrollTests {
 		h, err := ds.EnrollHost(context.Background(), tt.uuid, tt.nodeKey, &team.ID, 0)
 		require.NoError(t, err)
+		assert.NotZero(t, h.LastEnrolledAt)
 
 		assert.Equal(t, tt.uuid, h.OsqueryHostID)
 		assert.Equal(t, tt.nodeKey, h.NodeKey)
@@ -849,10 +851,12 @@ func testHostsEnroll(t *testing.T, ds *Datastore) {
 		// This host should be allowed to re-enroll immediately if cooldown is disabled
 		_, err = ds.EnrollHost(context.Background(), tt.uuid, tt.nodeKey+"new", nil, 0)
 		require.NoError(t, err)
+		assert.NotZero(t, h.LastEnrolledAt)
 
 		// This host should not be allowed to re-enroll immediately if cooldown is enabled
 		_, err = ds.EnrollHost(context.Background(), tt.uuid, tt.nodeKey+"new", nil, 10*time.Second)
 		require.Error(t, err)
+		assert.NotZero(t, h.LastEnrolledAt)
 	}
 
 	hosts, err = ds.ListHosts(context.Background(), filter, fleet.HostListOptions{})
@@ -1917,8 +1921,8 @@ func testHostsListBySoftware(t *testing.T, ds *Datastore) {
 	require.NoError(t, ds.UpdateHostSoftware(context.Background(), host1.ID, software))
 	require.NoError(t, ds.UpdateHostSoftware(context.Background(), host2.ID, software))
 
-	require.NoError(t, ds.LoadHostSoftware(context.Background(), host1))
-	require.NoError(t, ds.LoadHostSoftware(context.Background(), host2))
+	require.NoError(t, ds.LoadHostSoftware(context.Background(), host1, false))
+	require.NoError(t, ds.LoadHostSoftware(context.Background(), host2, false))
 
 	hosts = listHostsCheckCount(t, ds, filter, fleet.HostListOptions{SoftwareIDFilter: &host1.Software[0].ID}, 2)
 	require.Len(t, hosts, 2)
@@ -4182,5 +4186,26 @@ func testHostsDeleteHosts(t *testing.T, ds *Datastore) {
 		err = ds.writer.Get(&ok, fmt.Sprintf("SELECT 1 FROM %s WHERE host_id = ?", hostRef), host.ID)
 		require.True(t, err == nil || errors.Is(err, sql.ErrNoRows), "table: %s", hostRef)
 		require.False(t, ok, "table: %s", hostRef)
+	}
+}
+
+func testShouldCleanTeamPolicies(t *testing.T, ds *Datastore) {
+	var idOne uint = 1
+	var idTwo uint = 2
+
+	cases := []struct {
+		currentTeamID *uint
+		newTeamID     *uint
+		out           bool
+	}{
+		{nil, nil, false},
+		{nil, &idOne, false},
+		{&idOne, nil, true},
+		{&idOne, &idOne, false},
+		{&idOne, &idTwo, true},
+	}
+
+	for _, c := range cases {
+		require.Equal(t, shouldCleanTeamPolicies(c.currentTeamID, c.newTeamID), c.out)
 	}
 }
