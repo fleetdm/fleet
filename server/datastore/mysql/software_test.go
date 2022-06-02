@@ -40,6 +40,7 @@ func TestSoftware(t *testing.T) {
 		{"ListSoftwareByHostIDShort", testListSoftwareByHostIDShort},
 		{"ListSoftwareVulnerabilities", testListSoftwareVulnerabilities},
 		{"InsertVulnerabilities", testInsertVulnerabilities},
+		{"ListCVEs", testListCVEs},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -1477,4 +1478,33 @@ func testInsertVulnerabilities(t *testing.T, ds *Datastore) {
 		require.Equal(t, 1, occurrence["cve-1"])
 		require.Equal(t, 1, occurrence["cve-2"])
 	})
+}
+
+func testListCVEs(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+
+	now := time.Now().UTC()
+	threeDaysAgo := now.Add(-3 * 24 * time.Hour)
+	twoWeeksAgo := now.Add(-14 * 24 * time.Hour)
+	twoMonthsAgo := now.Add(-60 * 24 * time.Hour)
+
+	testCases := []fleet.CVEMeta{
+		{CVE: "cve-1", Published: &threeDaysAgo},
+		{CVE: "cve-2", Published: &twoWeeksAgo},
+		{CVE: "cve-3", Published: &twoMonthsAgo},
+	}
+
+	err := ds.InsertCVEMeta(ctx, testCases)
+	require.NoError(t, err)
+
+	result, err := ds.ListCVEs(ctx, 30*24*time.Hour)
+	require.NoError(t, err)
+
+	expected := []string{"cve-1", "cve-2"}
+	var actual []string
+	for _, r := range result {
+		actual = append(actual, r.CVE)
+	}
+
+	require.ElementsMatch(t, expected, actual)
 }

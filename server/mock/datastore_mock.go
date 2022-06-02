@@ -296,6 +296,8 @@ type HostsByCVEFunc func(ctx context.Context, cve string) ([]*fleet.HostShort, e
 
 type InsertCVEMetaFunc func(ctx context.Context, cveMeta []fleet.CVEMeta) error
 
+type ListCVEsFunc func(ctx context.Context, maxAge time.Duration) ([]fleet.CVEMeta, error)
+
 type NewActivityFunc func(ctx context.Context, user *fleet.User, activityType string, details *map[string]interface{}) error
 
 type ListActivitiesFunc func(ctx context.Context, opt fleet.ListOptions) ([]*fleet.Activity, error)
@@ -834,6 +836,9 @@ type DataStore struct {
 
 	InsertCVEMetaFunc        InsertCVEMetaFunc
 	InsertCVEMetaFuncInvoked bool
+
+	ListCVEsFunc        ListCVEsFunc
+	ListCVEsFuncInvoked bool
 
 	NewActivityFunc        NewActivityFunc
 	NewActivityFuncInvoked bool
@@ -1712,6 +1717,11 @@ func (s *DataStore) HostsByCVE(ctx context.Context, cve string) ([]*fleet.HostSh
 func (s *DataStore) InsertCVEMeta(ctx context.Context, cveMeta []fleet.CVEMeta) error {
 	s.InsertCVEMetaFuncInvoked = true
 	return s.InsertCVEMetaFunc(ctx, cveMeta)
+}
+
+func (s *DataStore) ListCVEs(ctx context.Context, maxAge time.Duration) ([]fleet.CVEMeta, error) {
+	s.ListCVEsFuncInvoked = true
+	return s.ListCVEsFunc(ctx, maxAge)
 }
 
 func (s *DataStore) NewActivity(ctx context.Context, user *fleet.User, activityType string, details *map[string]interface{}) error {

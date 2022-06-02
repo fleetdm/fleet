@@ -1179,5 +1179,27 @@ func (ds *Datastore) ListSoftwareForVulnDetection(
 }
 
 func (ds *Datastore) ListCVEs(ctx context.Context, maxAge time.Duration) ([]fleet.CVEMeta, error) {
-	panic("not implemented")
+	var result []fleet.CVEMeta
+
+	now := time.Now().UTC().Add(-1 * maxAge)
+	stmt := dialect.From(goqu.T("cve_meta")).
+		Select(
+			goqu.C("cve"),
+			goqu.C("cvss_score"),
+			goqu.C("epss_probability"),
+			goqu.C("cisa_known_exploit"),
+			goqu.C("published"),
+		).
+		Where(goqu.C("published").Gte(now))
+
+	sql, args, err := stmt.ToSQL()
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "error generating SQL statement")
+	}
+
+	if err := sqlx.SelectContext(ctx, ds.reader, &result, sql, args...); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "error executing SQL statement")
+	}
+
+	return result, nil
 }
