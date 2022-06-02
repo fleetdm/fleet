@@ -19,10 +19,8 @@ describe("Reset sessions", () => {
       cy.getAttached(".user-settings__additional").within(() => {
         cy.findByRole("button", { name: /get api token/i }).click();
       });
-      cy.getAttached(".user-settings__secret-label").within(() => {
-        cy.findByText(/reveal token/i).click();
-      });
-      cy.getAttached(".user-settings__secret-input").within(() => {
+      cy.getAttached(".secret-field__secret-input").within(() => {
+        cy.getAttached(".secret-field__show-secret").click();
         cy.getAttached("input").invoke("val").as("token1");
       });
       cy.visit("/settings/users");
@@ -46,9 +44,9 @@ describe("Reset sessions", () => {
         cy.findByRole("button", { name: /get api token/i }).click();
       });
       cy.getAttached(".modal__content").within(() => {
-        cy.findByText(/reveal token/i).click();
+        cy.getAttached(".secret-field__show-secret").click();
       });
-      cy.getAttached(".user-settings__secret-input").within(() => {
+      cy.getAttached(".secret-field__secret-input").within(() => {
         cy.get("input").invoke("val").as("token2");
       });
       // new token should not equal old token
