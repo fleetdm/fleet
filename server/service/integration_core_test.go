@@ -478,6 +478,8 @@ func (s *integrationTestSuite) TestVulnerableSoftware() {
 	}
 
 	require.NoError(t, s.ds.AddCPEForSoftware(context.Background(), soft1, "somecpe"))
+	require.NoError(t, s.ds.LoadHostSoftware(context.Background(), host, fleet.SoftwareListOptions{}, false))
+
 	n, err := s.ds.InsertVulnerabilities(
 		context.Background(), []fleet.SoftwareVulnerability{
 			{SoftwareID: soft1.ID, CPEID: soft1.GeneratedCPEID, CVE: "cve-123-123-132"},
