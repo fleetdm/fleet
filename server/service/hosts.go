@@ -255,7 +255,11 @@ func (r getHostResponse) error() error { return r.Err }
 
 func getHostEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
 	req := request.(*getHostRequest)
-	host, err := svc.GetHost(ctx, req.ID, false)
+	opts := fleet.HostDetailOptions{
+		IncludeCVEScores: false,
+		IncludePolicies:  true,
+	}
+	host, err := svc.GetHost(ctx, req.ID, opts)
 	if err != nil {
 		return getHostResponse{Err: err}, nil
 	}
@@ -268,7 +272,7 @@ func getHostEndpoint(ctx context.Context, request interface{}, svc fleet.Service
 	return getHostResponse{Host: resp}, nil
 }
 
-func (svc *Service) GetHost(ctx context.Context, id uint, includeCVEScores bool) (*fleet.HostDetail, error) {
+func (svc *Service) GetHost(ctx context.Context, id uint, opts fleet.HostDetailOptions) (*fleet.HostDetail, error) {
 	alreadyAuthd := svc.authz.IsAuthenticatedWith(ctx, authz.AuthnDeviceToken)
 	if !alreadyAuthd {
 		// First ensure the user has access to list hosts, then check the specific
@@ -290,7 +294,7 @@ func (svc *Service) GetHost(ctx context.Context, id uint, includeCVEScores bool)
 		}
 	}
 
-	hostDetails, err := svc.getHostDetails(ctx, host, includeCVEScores)
+	hostDetails, err := svc.getHostDetails(ctx, host, opts)
 	if err != nil {
 		return nil, err
 	}
@@ -393,7 +397,11 @@ type hostByIdentifierRequest struct {
 
 func hostByIdentifierEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
 	req := request.(*hostByIdentifierRequest)
-	host, err := svc.HostByIdentifier(ctx, req.Identifier, false)
+	opts := fleet.HostDetailOptions{
+		IncludeCVEScores: false,
+		IncludePolicies:  true,
+	}
+	host, err := svc.HostByIdentifier(ctx, req.Identifier, opts)
 	if err != nil {
 		return getHostResponse{Err: err}, nil
 	}
@@ -408,7 +416,7 @@ func hostByIdentifierEndpoint(ctx context.Context, request interface{}, svc flee
 	}, nil
 }
 
-func (svc *Service) HostByIdentifier(ctx context.Context, identifier string, includeCVEScores bool) (*fleet.HostDetail, error) {
+func (svc *Service) HostByIdentifier(ctx context.Context, identifier string, opts fleet.HostDetailOptions) (*fleet.HostDetail, error) {
 	if err := svc.authz.Authorize(ctx, &fleet.Host{}, fleet.ActionList); err != nil {
 		return nil, err
 	}
@@ -423,7 +431,7 @@ func (svc *Service) HostByIdentifier(ctx context.Context, identifier string, inc
 		return nil, err
 	}
 
-	hostDetails, err := svc.getHostDetails(ctx, host, includeCVEScores)
+	hostDetails, err := svc.getHostDetails(ctx, host, opts)
 	if err != nil {
 		return nil, err
 	}
@@ -612,8 +620,8 @@ func (svc *Service) RefetchHost(ctx context.Context, id uint) error {
 	return nil
 }
 
-func (svc *Service) getHostDetails(ctx context.Context, host *fleet.Host, includeCVEScores bool) (*fleet.HostDetail, error) {
-	if err := svc.ds.LoadHostSoftware(ctx, host, includeCVEScores); err != nil {
+func (svc *Service) getHostDetails(ctx context.Context, host *fleet.Host, opts fleet.HostDetailOptions) (*fleet.HostDetail, error) {
+	if err := svc.ds.LoadHostSoftware(ctx, host, opts.IncludeCVEScores); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "load host software")
 	}
 
@@ -627,9 +635,12 @@ func (svc *Service) getHostDetails(ctx context.Context, host *fleet.Host, includ
 		return nil, ctxerr.Wrap(ctx, err, "get packs for host")
 	}
 
-	policies, err := svc.ds.ListPoliciesForHost(ctx, host)
-	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "get policies for host")
+	var policies []*fleet.HostPolicy
+	if opts.IncludePolicies {
+		policies, err = svc.ds.ListPoliciesForHost(ctx, host)
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "get policies for host")
+		}
 	}
 
 	return &fleet.HostDetail{Host: *host, Labels: labels, Packs: packs, Policies: policies}, nil

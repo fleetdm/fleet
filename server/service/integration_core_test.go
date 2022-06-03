@@ -4569,6 +4569,7 @@ func (s *integrationTestSuite) TestDeviceAuthenticatedEndpoints() {
 	require.Equal(t, hosts[0].ID, getHostResp.Host.ID)
 	require.False(t, getHostResp.Host.RefetchRequested)
 	require.Equal(t, "http://example.com/logo", getHostResp.OrgLogoURL)
+	require.Nil(t, getHostResp.Host.Policies)
 	hostDevResp := getHostResp.Host
 
 	// make request for same host on the host details API endpoint, responses should match

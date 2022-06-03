@@ -461,8 +461,14 @@ func (s *integrationEnterpriseTestSuite) TestTeamEndpoints() {
 	s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/teams/%d", tm1ID), nil, http.StatusNotFound, &delResp)
 }
 
-func (s *integrationEnterpriseTestSuite) TestListDevicePolicies() {
+func (s *integrationEnterpriseTestSuite) TestDeviceEndpoints() {
 	t := s.T()
+
+	ac, err := s.ds.AppConfig(context.Background())
+	require.NoError(t, err)
+	ac.OrgInfo.OrgLogoURL = "http://example.com/logo"
+	err = s.ds.SaveAppConfig(context.Background(), ac)
+	require.NoError(t, err)
 
 	team, err := s.ds.NewTeam(context.Background(), &fleet.Team{
 		ID:          51,
@@ -486,7 +492,7 @@ func (s *integrationEnterpriseTestSuite) TestListDevicePolicies() {
 	err = s.ds.AddHostsToTeam(context.Background(), &team.ID, []uint{host.ID})
 	require.NoError(t, err)
 
-	// create an auth token for hosts[0]
+	// create an auth token for host
 	token := "much_valid"
 	mysql.ExecAdhocSQL(t, s.ds, func(db sqlx.ExtContext) error {
 		_, err := db.ExecContext(context.Background(), `INSERT INTO host_device_auth (host_id, token) VALUES (?, ?)`, host.ID, token)
@@ -510,7 +516,7 @@ func (s *integrationEnterpriseTestSuite) TestListDevicePolicies() {
 	s.DoJSON("POST", "/api/latest/fleet/policies", gpParams, http.StatusOK, &gpResp)
 	require.NotNil(t, gpResp.Policy)
 
-	// add a policy to team 1
+	// add a policy to team
 	oldToken := s.token
 	t.Cleanup(func() {
 		s.token = oldToken
@@ -550,10 +556,22 @@ func (s *integrationEnterpriseTestSuite) TestListDevicePolicies() {
 	res := s.DoRawNoAuth("GET", "/api/latest/fleet/device/invalid_token/policies", nil, http.StatusUnauthorized)
 	res.Body.Close()
 
+	// GET `/api/_version_/fleet/device/{token}/policies`
 	listDevicePoliciesResp := listDevicePoliciesResponse{}
 	res = s.DoRawNoAuth("GET", "/api/latest/fleet/device/"+token+"/policies", nil, http.StatusOK)
 	json.NewDecoder(res.Body).Decode(&listDevicePoliciesResp)
 	res.Body.Close()
 	require.Len(t, listDevicePoliciesResp.Policies, 2)
 	require.NoError(t, listDevicePoliciesResp.Err)
+
+	// GET `/api/_version_/fleet/device/{token}`
+	getDeviceHostResp := getDeviceHostResponse{}
+	res = s.DoRawNoAuth("GET", "/api/latest/fleet/device/"+token, nil, http.StatusOK)
+	json.NewDecoder(res.Body).Decode(&getDeviceHostResp)
+	res.Body.Close()
+	require.NoError(t, getDeviceHostResp.Err)
+	require.Equal(t, host.ID, getDeviceHostResp.Host.ID)
+	require.False(t, getDeviceHostResp.Host.RefetchRequested)
+	require.Equal(t, "http://example.com/logo", getDeviceHostResp.OrgLogoURL)
+	require.Len(t, getDeviceHostResp.Host.Policies, 2)
 }
