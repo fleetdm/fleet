@@ -318,5 +318,4 @@ jobs:
       uses: actions/upload-artifact@6673cd052c4cd6fcf4b4e6e60ea986c889389535 # v2
       with:
         name: orbit-windows-${{ matrix.orbit-channel }}-${{ matrix.osqueryd-channel }}-logs
-        path: |
-          C:\Windows\system32\config\systemprofile\AppData\Local\FleetDM\Orbit\Logs\orbit-osquery.log
+        path: C:\Windows\system32\config\systemprofile\AppData\Local\FleetDM\Orbit\Logs\orbit-osquery.log
