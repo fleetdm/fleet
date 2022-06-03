@@ -105,7 +105,6 @@ const condenseVulnerabilities = (vulns: IVulnerability[]): string[] => {
 
 export const generateSoftwareTableData = (software: ISoftware[]) => {
   return software.map((s) => {
-    console.log("mapping");
     return {
       ...s,
       vulnerabilities: condenseVulnerabilities(s.vulnerabilities || []),
