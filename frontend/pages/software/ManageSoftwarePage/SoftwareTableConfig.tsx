@@ -61,11 +61,32 @@ const condenseVulnerabilities = (
     : condensed;
 };
 
+const withBundleTooltip = (name: string, bundle: string) => (
+  <span className="name-container">
+    <TooltipWrapper
+      tipContent={`
+        <span>
+          <b>Bundle identifier: </b>
+          <br />
+          ${bundle}
+        </span>
+      `}
+    >
+      {name}
+    </TooltipWrapper>
+  </span>
+);
+
 const getMaxProbability = (vulns: IVulnerability[]) =>
   vulns.reduce(
     (max, { epss_probability }) => Math.max(max, epss_probability || 0),
     0
   );
+
+const formatAsPercent = (float: number) => {
+  Math.round((float + Number.EPSILON) * 100);
+  return `${Math.round((float + Number.EPSILON) * 100).toString()}%`;
+};
 
 const generateEPSSColumnHeader = () => {
   return {
@@ -97,7 +118,7 @@ const generateEPSSColumnHeader = () => {
       const vulns = cellProps.cell.value || [];
       const maxProbability = (!!vulns.length && getMaxProbability(vulns)) || 0;
       const displayValue =
-        (maxProbability && `${maxProbability * 100}%`) || "---";
+        (maxProbability && formatAsPercent(maxProbability)) || "---";
 
       return (
         <span
@@ -172,25 +193,12 @@ const generateTableHeaders = (isPremiumTier?: boolean): Column[] => {
       disableSortBy: true,
       accessor: "name",
       Cell: (cellProps: IStringCellProps): JSX.Element => {
-        const { name, bundle_identifier } = cellProps.row.original;
-        if (bundle_identifier) {
-          return (
-            <span className="name-container">
-              <TooltipWrapper
-                tipContent={`
-                  <span>
-                    <b>Bundle identifier: </b>
-                    <br />
-                    ${bundle_identifier}
-                  </span>
-                `}
-              >
-                {name}
-              </TooltipWrapper>
-            </span>
-          );
-        }
-        return <TextCell value={name} />;
+        const { id, name, bundle_identifier: bundle } = cellProps.row.original;
+        return (
+          <Link to={`${PATHS.SOFTWARE_DETAILS(id.toString())}`}>
+            {bundle ? withBundleTooltip(name, bundle) : name}
+          </Link>
+        );
       },
     },
     {

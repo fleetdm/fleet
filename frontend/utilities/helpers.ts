@@ -205,6 +205,11 @@ export const frontendFormattedConfig = (config: IConfig) => {
   };
 };
 
+const formatFloatAsPercentage = (float: number): string => {
+  Math.round((float + Number.EPSILON) * 100);
+  return `${Math.round((float + Number.EPSILON) * 100).toString()}%`;
+};
+
 const formatLabelResponse = (response: any): ILabel[] => {
   const labels = response.labels.map((label: ILabel) => {
     return {
@@ -758,6 +763,7 @@ export default {
   addGravatarUrlToResource,
   formatConfigDataForServer,
   formatLabelResponse,
+  formatFloatAsPercentage,
   formatScheduledQueryForClient,
   formatScheduledQueryForServer,
   formatGlobalScheduledQueryForClient,
