@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useMemo } from "react";
 
 import { ISoftware } from "interfaces/software";
 import { GITHUB_NEW_ISSUE_LINK } from "utilities/constants";
@@ -10,7 +10,7 @@ import ExternalLinkIcon from "../../../../../../assets/images/open-new-tab-12x12
 
 const baseClass = "vulnerabilities";
 
-interface ISoftwareTableProps {
+interface IVulnerabilitiesProps {
   isLoading: boolean;
   isPremiumTier: boolean;
   software: ISoftware;
@@ -41,15 +41,10 @@ const Vulnerabilities = ({
   isLoading,
   isPremiumTier,
   software,
-}: ISoftwareTableProps): JSX.Element => {
-  const tableHeaders = generateVulnTableHeaders(isPremiumTier);
-
-  const vulns = software.vulnerabilities?.map((v) => ({
-    ...v,
-    cisa_known_exploit: Math.random() > 0.5,
-  }));
-
-  console.log(vulns);
+}: IVulnerabilitiesProps): JSX.Element => {
+  const tableHeaders = useMemo(() => generateVulnTableHeaders(isPremiumTier), [
+    isPremiumTier,
+  ]);
 
   return (
     <div className="section section--vulnerabilities">
@@ -61,12 +56,7 @@ const Vulnerabilities = ({
             <div className="vuln-table">
               <TableContainer
                 columns={tableHeaders}
-                // data={software.vulnerabilities}
-                data={vulns
-                  ?.concat(vulns)
-                  .concat(vulns)
-                  .concat(vulns)
-                  .concat(vulns)}
+                data={software.vulnerabilities}
                 defaultSortHeader={isPremiumTier ? "epss_probability" : "cve"}
                 defaultSortDirection={"desc"}
                 emptyComponent={NoVulnsDetected}

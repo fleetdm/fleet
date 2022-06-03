@@ -27,7 +27,7 @@ interface ISoftwareDetailsProps {
 const SoftwareDetailsPage = ({
   params: { software_id },
 }: ISoftwareDetailsProps): JSX.Element => {
-  const { config, isPremiumTier } = useContext(AppContext);
+  const { isPremiumTier } = useContext(AppContext);
 
   const { data: software, isFetching: isFetchingSoftware } = useQuery<
     IGetSoftwareByIdResponse,
@@ -39,11 +39,7 @@ const SoftwareDetailsPage = ({
     { select: (data) => data.software }
   );
 
-  const { data: hostCount, isFetching: isFetchingHostCount } = useQuery<
-    { count: number },
-    Error,
-    number
-  >(
+  const { data: hostCount } = useQuery<{ count: number }, Error, number>(
     ["hostCountBySoftwareId", software_id],
     () => hostCountAPI.load({ softwareId: parseInt(software_id, 10) }),
     { select: (data) => data.count }
@@ -79,8 +75,8 @@ const SoftwareDetailsPage = ({
       </div>
       <div className="header title">
         <div className="title__inner">
-          <div className="hostname-container">
-            <h1 className="hostname">{renderName()}</h1>
+          <div className="name-container">
+            <h1 className="name">{renderName()}</h1>
           </div>
         </div>
         <Link
@@ -91,8 +87,8 @@ const SoftwareDetailsPage = ({
           <img src={RightChevron} alt="right chevron" id="right-chevron" />
         </Link>
       </div>
-      <div className="section title">
-        <div className="title__inner">
+      <div className="section info">
+        <div className="info__inner">
           <div className="info-flex">
             <div className="info-flex__item info-flex__item--title">
               <span className="info-flex__header">Type</span>
@@ -107,7 +103,6 @@ const SoftwareDetailsPage = ({
           </div>
         </div>
       </div>
-
       <Vulnerabilities
         isPremiumTier={isPremiumTier}
         isLoading={isFetchingSoftware}
