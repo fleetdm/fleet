@@ -9,6 +9,7 @@
           <div purpose="category-filter" :class="[ filter === 'security' ? 'selected' : '']" @click="filterBy('security')">Security</div>
           <div purpose="category-filter" :class="[ filter === 'announcements' ? 'selected' : '']" @click="filterBy('announcements')">Announcements</div>
           <div purpose="category-filter" :class="[ filter === 'guides' ? 'selected' : '']" @click="filterBy('guides')">Guides</div>
+          <div purpose="category-filter" :class="[ filter === 'podcasts' ? 'selected' : '']" @click="filterBy('podcasts')">Podcasts</div>
         </div>
 <!--         <div purpose="search" class="p-2 mt-3 mt-lg-0 d-flex flex-row">
           <img class="search" alt="search" src="/images/icon-search-16x16@2x.png">
@@ -35,11 +36,11 @@
             </div>
           </div>
         </div>
-        <div purpose="article-card" class="card invisible mb-0">
+        <div purpose="article-card" class="card invisible mb-0 d-none d-sm-flex">
         </div>
-        <div purpose="article-card" class="card invisible mb-0">
+        <div purpose="article-card" class="card invisible mb-0 d-none d-sm-flex">
         </div>
-        <div purpose="article-card" class="card invisible mb-0">
+        <div purpose="article-card" class="card invisible mb-0 d-none d-sm-flex">
         </div>
       </div>
       <div v-else>

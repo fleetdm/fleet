@@ -21,9 +21,8 @@ Listen to the episode on [Apple](#) or [Spotify](#)
 - Follow Mike on [Twitter](https://twitter.com/mikearpaia) 
 - Visit [Mike’s personal website](https://www.arpaia.xyz/)
 
-<meta name="category" value="engineering">
+<meta name="category" value="podcasts">
 <meta name="authorGitHubUsername" value="zwass">
 <meta name="authorFullName" value="Zach Wasserman">
 <meta name="publishedOn" value="2022-06-06">
 <meta name="articleTitle" value="The future of device management EP1">
-<meta name="articleImageUrl" value="../website/assets/images/articles/">
