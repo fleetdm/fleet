@@ -2,6 +2,7 @@ package vulnerabilities
 
 import (
 	"context"
+	"fmt"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -41,38 +42,34 @@ func TestDownloadCISAKnownExploitsFeed(t *testing.T) {
 }
 
 func TestLoadCVEMeta(t *testing.T) {
-	nettest.Run(t)
-
 	ds := new(mock.Store)
 
-	var countCVSSScore int
-	var countEPSSProbability int
-	var countCISAKnownExploit int
-	ds.InsertCVEMetaFunc = func(ctx context.Context, cveMeta []fleet.CVEMeta) error {
-		for _, meta := range cveMeta {
-			if meta.CVSSScore != nil {
-				countCVSSScore++
-			}
-			if meta.EPSSProbability != nil {
-				countEPSSProbability++
-			}
-			if meta.CISAKnownExploit != nil {
-				countCISAKnownExploit++
-			}
-		}
+	var cveMeta []fleet.CVEMeta
+	ds.InsertCVEMetaFunc = func(ctx context.Context, x []fleet.CVEMeta) error {
+		cveMeta = x
 		return nil
 	}
 
-	tempDir := t.TempDir()
-	err := Sync(tempDir, "")
-	require.NoError(t, err)
-
-	err = LoadCVEMeta(tempDir, ds)
+	err := LoadCVEMeta("testdata", ds)
 	require.NoError(t, err)
 	require.True(t, ds.InsertCVEMetaFuncInvoked)
 
-	// ensure some non NULL values were inserted
-	require.True(t, countCVSSScore > 0)
-	require.True(t, countEPSSProbability > 0)
-	require.True(t, countCISAKnownExploit > 0)
+	// check some cves to make sure they got loaded correctly
+	metaMap := make(map[string]fleet.CVEMeta)
+	for _, meta := range cveMeta {
+		metaMap[meta.CVE] = meta
+		if meta.CVSSScore != nil {
+			fmt.Println(meta.CVE, *meta.CVSSScore)
+		}
+	}
+
+	meta := metaMap["CVE-2022-29676"]
+	require.Equal(t, float64(7.2), *meta.CVSSScore)
+	require.Equal(t, float64(0.00885), *meta.EPSSProbability)
+	require.Equal(t, false, *meta.CISAKnownExploit)
+
+	meta = metaMap["CVE-2022-22587"]
+	require.Equal(t, (*float64)(nil), meta.CVSSScore)
+	require.Equal(t, float64(0.01843), *meta.EPSSProbability)
+	require.Equal(t, true, *meta.CISAKnownExploit)
 }
