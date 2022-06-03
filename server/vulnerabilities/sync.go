@@ -202,6 +202,7 @@ func LoadCVEMeta(vulnPath string, ds fleet.Datastore) error {
 	}
 
 	for _, epssScore := range epssScores {
+		epssScore := epssScore // copy, don't take the address of loop variables
 		score, ok := metaMap[epssScore.CVE]
 		if !ok {
 			score.CVE = epssScore.CVE
