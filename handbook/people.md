@@ -87,6 +87,12 @@ When you take any time off, you should follow this process:
 - Find someone to cover anything that needs covering while you're out(i.e., meetings, planned tasks, unfinished business, important Slack/email threads, anything where someone might be depending on you).
 - Mark an all-day "Out of office" event in Google Calendar for the day(s) you're taking off.
 
+If you can’t complete the above because you need to take the day off quickly due to an emergency, let your team know, and they will help you.
+
+If you ever want to take a day off, and the only thing stopping you is internal (Fleetie-only) meetings, don’t stress. Consider, “Is this a meeting that I can reschedule to another day, or is this a meeting that can go on without me and not interfere with the company’s plans?” 
+
+Talk to your manager if you’re unsure, but it is perfectly OK to reschedule internal meetings that can wait so that you can take a day off.
+
 This process is the same for any days you take off, whether it's a holiday or you just need a break.
    
 ### Holidays
