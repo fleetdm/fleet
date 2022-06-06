@@ -86,9 +86,9 @@ type TargetInfo struct {
 	CustomCheckExec func(execPath string) error
 }
 
-// New creates a new updater given the provided options. All the necessary
+// NewUpdater creates a new updater given the provided options. All the necessary
 // directories are initialized.
-func New(opt Options) (*Updater, error) {
+func NewUpdater(opt Options) (*Updater, error) {
 	if opt.LocalStore == nil {
 		return nil, errors.New("opt.LocalStore must be non-nil")
 	}

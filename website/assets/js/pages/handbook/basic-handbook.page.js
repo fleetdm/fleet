@@ -7,6 +7,7 @@ parasails.registerPage('basic-handbook', {
     showHandbookNav: false,
     breadcrumbs: [],
     subtopics: [],
+    handbookIndexLinks: [],
 
   },
 
@@ -44,6 +45,31 @@ parasails.registerPage('basic-handbook', {
       if(hashToScrollTo){
         hashToScrollTo.scrollIntoView();
       }
+    }
+
+    // If this is the handbook landing page, we'll generate the page links using the `linksForHandbookIndex` array that each handbook page has
+    if(this.isHandbookLandingPage) {
+      let handbookPages = [];
+      for (let page of this.markdownPages) {
+        if(_.startsWith(page.url, '/handbook') && !page.title.match(/^readme\.md$/i)) {
+          let handbookPage = {
+            pageTitle: page.title,
+            url: page.url,
+            pageLinks: page.linksForHandbookIndex,
+          };
+          handbookPages.push(handbookPage);
+        }
+      }
+      // Sorting the handbook pages alphabetically by the pages url
+      this.handbookIndexLinks = _.sortBy(handbookPages, 'url');
+      // Sorting the company page to the top of the list, and the handbook page to the bottom
+      this.handbookIndexLinks.sort((a)=>{
+        if(a.pageTitle === '🔭 Company') {
+          return -1;
+        } else {
+          return 0;
+        }
+      });
     }
 
     this.subtopics = (() => {

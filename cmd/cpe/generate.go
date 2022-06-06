@@ -8,7 +8,7 @@ import (
 	"io"
 	"net/http"
 	"os"
-	"path"
+	"path/filepath"
 	"strings"
 
 	"github.com/facebookincubator/nvdtools/cpedict"
@@ -77,11 +77,11 @@ func cpe() string {
 	panicif(err)
 
 	fmt.Println("Generating DB...")
-	dbPath := path.Join(cwd, fmt.Sprintf("cpe-%s.sqlite", remoteEtag))
+	dbPath := filepath.Join(cwd, fmt.Sprintf("cpe-%s.sqlite", remoteEtag))
 	err = vulnerabilities.GenerateCPEDB(dbPath, cpeDict)
 	panicif(err)
 
-	file, err := os.Create(path.Join(cwd, "etagenv"))
+	file, err := os.Create(filepath.Join(cwd, "etagenv"))
 	panicif(err)
 	file.WriteString(fmt.Sprintf(`ETAG=%s`, remoteEtag))
 	file.Close()

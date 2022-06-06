@@ -8,6 +8,7 @@ Scripts in this directory aim to ease the testing of Orbit and the [TUF](https:/
 
 The `main.sh` creates and runs the TUF repository and optionally generate the installers (GENERATE_PKGS):
 ```sh
+SYSTEMS="macos windows linux" \
 PKG_FLEET_URL=https://127.0.0.1:8080 \
 PKG_TUF_URL=http://127.0.0.1:8081 \
 DEB_FLEET_URL=https://172.16.132.1:8080 \

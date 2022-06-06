@@ -470,7 +470,7 @@ func (s *integrationTestSuite) TestVulnerableSoftware() {
 		{Name: "baz", Version: "0.0.4", Source: "apps"},
 	}
 	require.NoError(t, s.ds.UpdateHostSoftware(context.Background(), host.ID, software))
-	require.NoError(t, s.ds.LoadHostSoftware(context.Background(), host))
+	require.NoError(t, s.ds.LoadHostSoftware(context.Background(), host, false))
 
 	soft1 := host.Software[0]
 	if soft1.Name != "bar" {
@@ -929,7 +929,7 @@ func (s *integrationTestSuite) TestListHosts() {
 		{Name: "foo", Version: "0.0.1", Source: "chrome_extensions"},
 	}
 	require.NoError(t, s.ds.UpdateHostSoftware(context.Background(), host.ID, software))
-	require.NoError(t, s.ds.LoadHostSoftware(context.Background(), host))
+	require.NoError(t, s.ds.LoadHostSoftware(context.Background(), host, false))
 
 	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &resp, "software_id", fmt.Sprint(host.Software[0].ID))
 	require.Len(t, resp.Hosts, 1)
@@ -4024,7 +4024,7 @@ func (s *integrationTestSuite) TestPaginateListSoftware() {
 	// sws[0] is only used by 1 host, while sws[19] is used by all.
 	for i, h := range hosts {
 		require.NoError(t, s.ds.UpdateHostSoftware(context.Background(), h.ID, sws[i:]))
-		require.NoError(t, s.ds.LoadHostSoftware(context.Background(), h))
+		require.NoError(t, s.ds.LoadHostSoftware(context.Background(), h, false))
 
 		if i == 0 {
 			// this host has all software, refresh the list so we have the software.ID filled
@@ -4587,6 +4587,13 @@ func (s *integrationTestSuite) TestDeviceAuthenticatedEndpoints() {
 	res.Body.Close()
 	require.NotNil(t, getHostResp.License)
 	require.Equal(t, getHostResp.License.Tier, "free")
+
+	// device policies are not accessible for free endpoints
+	listPoliciesResp := listDevicePoliciesResponse{}
+	res = s.DoRawNoAuth("GET", "/api/latest/fleet/device/"+token+"/policies", nil, http.StatusPaymentRequired)
+	json.NewDecoder(res.Body).Decode(&getHostResp)
+	res.Body.Close()
+	require.Nil(t, listPoliciesResp.Policies)
 }
 
 func (s *integrationTestSuite) TestModifyUser() {

@@ -27,6 +27,9 @@ import InputField from "components/forms/fields/InputField";
 import Modal from "components/Modal";
 // @ts-ignore
 import UserSettingsForm from "components/forms/UserSettingsForm";
+import InfoBanner from "components/InfoBanner";
+import SecretField from "components/SecretField";
+import ExternalURLIcon from "../../../assets/images/icon-external-url-12x12@2x.png";
 
 const baseClass = "user-settings";
 
@@ -230,26 +233,44 @@ const UserSettingsPage = ({ router }: IUserSettingsPageProps) => {
     return (
       <Modal title="Get API token" onExit={onToggleApiTokenModal}>
         <>
-          <p className={`${baseClass}__secret-label`}>
-            Your API token:
-            <a
-              href="#revealSecret"
-              onClick={onToggleSecret}
-              className={`${baseClass}__reveal-secret`}
-            >
-              {revealSecret ? "Hide" : "Reveal"} Token
-            </a>
-          </p>
+          <InfoBanner>
+            <p>
+              <strong>This token expires.</strong> If you want an API key for a
+              permanent integration, create an&nbsp;
+              <a
+                href="https://fleetdm.com/docs/deploying/configuration#session-duration?utm_medium=fleetui&utm_campaign=get-api-token"
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                API-only user
+              </a>
+              <img
+                alt="Open external link"
+                className="icon-external"
+                src={ExternalURLIcon}
+              />
+              &nbsp;instead.
+            </p>
+          </InfoBanner>
           <div className={`${baseClass}__secret-wrapper`}>
-            <InputField
-              disabled
-              inputWrapperClass={`${baseClass}__secret-input`}
-              name="osqueryd-secret"
-              type={revealSecret ? "text" : "password"}
-              value={authToken()}
-              label={renderLabel()}
-            />
+            <SecretField secret={authToken()} />
           </div>
+          <p className="token-message">
+            This token is intended for SSO users to authenticate in the fleetctl
+            CLI. It expires based on the{" "}
+            <a
+              href="https://fleetdm.com/docs/using-fleet/fleetctl-cli#using-fleetctl-with-an-api-only-user?utm_medium=fleetui&utm_campaign=get-api-token"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              session duration configuration
+            </a>
+            <img
+              alt="Open external link"
+              className="icon-external"
+              src={ExternalURLIcon}
+            />
+          </p>
           <div className={`${baseClass}__button-wrap`}>
             <Button
               onClick={onToggleApiTokenModal}

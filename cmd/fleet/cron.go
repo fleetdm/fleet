@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"errors"
+	"fmt"
 	"net/url"
 	"os"
 	"strconv"
@@ -290,17 +291,38 @@ func cronVulnerabilities(
 	}
 }
 
-func checkVulnerabilities(ctx context.Context, ds fleet.Datastore, logger kitlog.Logger,
-	vulnPath string, config config.FleetConfig, collectRecentVulns bool,
+func checkVulnerabilities(
+	ctx context.Context,
+	ds fleet.Datastore,
+	logger kitlog.Logger,
+	vulnPath string,
+	config config.FleetConfig,
+	collectRecentVulns bool,
 ) map[string][]string {
-	err := vulnerabilities.TranslateSoftwareToCPE(ctx, ds, vulnPath, logger, config)
+	if !config.Vulnerabilities.DisableDataSync {
+		err := vulnerabilities.Sync(vulnPath, config.Vulnerabilities.CPEDatabaseURL)
+		if err != nil {
+			level.Error(logger).Log("msg", "syncing vulnerability database", "err", err)
+			sentry.CaptureException(err)
+			return nil
+		}
+	}
+
+	if err := vulnerabilities.LoadCVEMeta(vulnPath, ds); err != nil {
+		err = fmt.Errorf("load cve meta: %w", err)
+		level.Error(logger).Log("err", err)
+		sentry.CaptureException(err)
+		// don't return, continue on ...
+	}
+
+	err := vulnerabilities.TranslateSoftwareToCPE(ctx, ds, vulnPath, logger)
 	if err != nil {
 		level.Error(logger).Log("msg", "analyzing vulnerable software: Software->CPE", "err", err)
 		sentry.CaptureException(err)
 		return nil
 	}
 
-	recentVulns, err := vulnerabilities.TranslateCPEToCVE(ctx, ds, vulnPath, logger, config, collectRecentVulns)
+	recentVulns, err := vulnerabilities.TranslateCPEToCVE(ctx, ds, vulnPath, logger, collectRecentVulns, config.Vulnerabilities.RecentVulnerabilityMaxAge)
 	if err != nil {
 		level.Error(logger).Log("msg", "analyzing vulnerable software: CPE->CVE", "err", err)
 		sentry.CaptureException(err)

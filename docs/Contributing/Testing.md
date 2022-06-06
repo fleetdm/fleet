@@ -15,7 +15,7 @@
 
 ## License key
 
-Need to test Fleet Premium features locally?
+Do you need to test Fleet Premium features locally?
 
 Use the `--dev_license` flag to use the default development license key.
 
@@ -29,7 +29,7 @@ For example:
 
 It can be helpful to quickly populate the UI with simulated hosts when developing or testing features that require host information.
 
-Check out [the instructions in the `/tools/osquery` directory](https://github.com/fleetdm/fleet/tree/main/tools/osquery) for starting up simulated hosts in your development environment.
+Check out [`/tools/osquery` directory instructions](https://github.com/fleetdm/fleet/tree/main/tools/osquery) for starting up simulated hosts in your development environment.
 
 ## Test suite
 
@@ -91,7 +91,7 @@ yarn lint
 
 ### MySQL tests
 
-To run MySQL integration tests set environment variables as follows:
+To run MySQL integration tests, set environment variables as follows:
 
 ```
 MYSQL_TEST=1 make test-go
@@ -107,7 +107,7 @@ MAIL_TEST=1 make test-go
 
 ### Network tests
 
-A few tests require network access as they make requests to external hosts. Given that the network is unreliable, may not be available, and those hosts may also not be unavailable, those tests are skipped by default and are opt-in via the `NETWORK_TEST` environment variable. To run them:
+A few tests require network access as they make requests to external hosts. Given that the network is unreliable and may not be available. Those hosts may also be unavailable so these tests are skipped by default. They are opt-in via the `NETWORK_TEST` environment variable. To run them:
 
 ```
 NETWORK_TEST=1 make test-go
@@ -135,14 +135,14 @@ go tool cover -func=./server/server.cover
 
 E2E tests are run using Docker and Cypress.
 
-E2E tests are constantly evolving and running them or examining CI results is the best way to understand what they cover, but at a high level they cover:
+E2E tests are constantly evolving, and running them or examining CI results is the best way to understand what they cover, but at a high level, they cover:
 1. Setup
-2. Login/out flows
+2. Log in/out flows
 3. Host page
-    add hosts
-    label flows
-4. Queries flows
-5. Policies flows
+    Add hosts
+    Label flows
+4. Query flows
+5. Policy flows
 6. Schedule flows
     scheduling
     packs
@@ -156,7 +156,7 @@ E2E tests are constantly evolving and running them or examining CI results is th
 
 ### Preparation
 
-Make sure dependencies are up to date and the [Fleet binaries are built locally](./Building-Fleet.md).
+Make sure dependencies are up to date and to build the [Fleet binaries locally](./Building-Fleet.md).
 
 For Fleet Free tests:
 
@@ -182,7 +182,7 @@ This will initialize the E2E instance with a user.
 
 ### Run tests
 
-Tests can be run in interactive mode, or from the command line.
+Tests can be run in interactive mode or from the command line.
 
 ### Interactive
 
@@ -214,11 +214,11 @@ For Fleet Premium tests:
 yarn e2e-cli:premium
 ```
 
-Tests will run automatically and results are reported to the shell.
+Tests will run automatically, and results are reported to the shell.
 
 ## Test hosts
 
-The Fleet repo includes tools to start test osquery hosts. Please see the documentation in [/tools/osquery](https://github.com/fleetdm/fleet/tree/main/tools/osquery) for more information.
+The Fleet repo includes tools to start testing osquery hosts. Please see the documentation in [/tools/osquery](https://github.com/fleetdm/fleet/tree/main/tools/osquery) for more information.
 
 ## Email
 
@@ -228,7 +228,7 @@ To intercept sent emails while running a Fleet development environment, first, i
 
 Then, in the "SMTP options" section, enter any email address in the "Sender address" field, set the "SMTP server" to `localhost` on port `1025`, and set "Authentication type" to `None`. Note that you may use any active or inactive sender address.
 
-Visit [localhost:8025](http://localhost:8025) to view Mailhog's admin interface which will display all emails sent using the simulated mail server.
+Visit [localhost:8025](http://localhost:8025) to view MailHog's admin interface displaying all emails sent using the simulated mail server.
 
 ## Development database management
 
@@ -303,7 +303,7 @@ Email: sso_user2@example.com
 Password: user123#
 ```
 
-Use the Fleet UI to invite one of these users with the associated email. Be sure the "Enable single sign on" box is checked for that user. Now after accepting the invitation, you should be able to log in as that user by clicking "Sign on with SimpleSAML" on the login page.
+Use the Fleet UI to invite one of these users with the associated email. Be sure the "Enable single sign-on" box is checked for that user. Now, after accepting the invitation, you should be able to log in as that user by clicking "Sign on with SimpleSAML" on the login page.
 
 To add additional users, modify [tools/saml/users.php](https://github.com/fleetdm/fleet/tree/main/tools/saml/users.php) and restart the `simplesaml` container.
 
@@ -311,15 +311,15 @@ To add additional users, modify [tools/saml/users.php](https://github.com/fleetd
 
 ## Testing Kinesis Logging
 
-Tip: Install [awslocal](https://github.com/localstack/awscli-local) to ease interaction with
-[localstack](https://github.com/localstack/localstack). Alternatively you can use the `aws` client
+Tip: Install [AwsLocal](https://github.com/localstack/awscli-local) to ease interaction with
+[LocalStack](https://github.com/localstack/localstack). Alternatively, you can use the `aws` client
 and use `--endpoint-url=http://localhost:4566` on all invocations.
 
 The following guide assumes you have server dependencies running:
 ```sh
 docker-compose up
 #
-# (Starts localstack with kinesis enabled.)
+# (Starts LocalStack with kinesis enabled.)
 #
 ```
 
@@ -339,7 +339,7 @@ $ awslocal kinesis list-streams
 }
 ```
 
-Use the following configuration to run fleet:
+Use the following configuration to run Fleet:
 ```
 FLEET_OSQUERY_RESULT_LOG_PLUGIN=kinesis
 FLEET_OSQUERY_STATUS_LOG_PLUGIN=kinesis
@@ -355,10 +355,10 @@ Here's a sample command for running `fleet serve`:
 ```
 make fleet && FLEET_OSQUERY_RESULT_LOG_PLUGIN=kinesis FLEET_OSQUERY_STATUS_LOG_PLUGIN=kinesis FLEET_KINESIS_REGION=us-east-1 FLEET_KINESIS_ENDPOINT_URL=http://localhost:4566 FLEET_KINESIS_ACCESS_KEY_ID=default FLEET_KINESIS_SECRET_ACCESS_KEY=default FLEET_KINESIS_STATUS_STREAM=sample_status FLEET_KINESIS_RESULT_STREAM=sample_result ./build/fleet serve --dev --dev_license --logging_debug
 ```
-Fleet will now be relaying "status" and "result" logs from osquery agents to the localstack's
+Fleet will now be relaying "status" and "result" logs from osquery agents to the LocalStack's
 kinesis.
 
-Let's work on inspecting "status" logs received by Kinesis ("status" logs are easier to verify, to generate "result" logs you need to configure "schedule queries").
+Let's work on inspecting "status" logs received by Kinesis ("status" logs are easier to verify, to generate "result" logs so you need to configure "schedule queries").
 
 Get "status" logging stream shard ID:
 ```
