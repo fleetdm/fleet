@@ -3,7 +3,7 @@ import { Link } from "react-router";
 import { isEmpty, noop } from "lodash";
 
 import { IAutomationsConfig } from "interfaces/config";
-import { IIntegration } from "interfaces/integration";
+import { IIntegration, IIntegrations } from "interfaces/integration";
 import { IPolicy } from "interfaces/policy";
 import { ITeamAutomationsConfig } from "interfaces/team";
 import PATHS from "router/paths";
@@ -25,6 +25,7 @@ import PreviewTicketModal from "../PreviewTicketModal";
 
 interface IManageAutomationsModalProps {
   automationsConfig: IAutomationsConfig | ITeamAutomationsConfig;
+  availableIntegrations: IIntegrations;
   availablePolicies: IPolicy[];
   isAutomationsLoading: boolean;
   showPreviewPayloadModal: boolean;
@@ -38,6 +39,13 @@ interface ICheckedPolicy {
   id: number;
   isChecked: boolean;
 }
+
+const findEnabledIntegration = ({ jira, zendesk }: IIntegrations) => {
+  return (
+    jira?.find((j) => j.enable_failing_policies) ||
+    zendesk?.find((z) => z.enable_failing_policies)
+  );
+};
 
 const getIntegrationType = (integration?: IIntegration) => {
   return (
@@ -76,6 +84,7 @@ const baseClass = "manage-automations-modal";
 
 const ManageAutomationsModal = ({
   automationsConfig,
+  availableIntegrations,
   availablePolicies,
   isAutomationsLoading,
   showPreviewPayloadModal: showPreviewModal,
@@ -89,8 +98,7 @@ const ManageAutomationsModal = ({
     integrations,
   } = automationsConfig;
 
-  // TODO: confirm whether all integrations will be pre-populated for all teams
-  const { jira, zendesk } = integrations || {};
+  const { jira, zendesk } = availableIntegrations || {};
   const allIntegrations: IIntegration[] = [];
   jira && allIntegrations.push(...jira);
   zendesk && allIntegrations.push(...zendesk);
@@ -102,12 +110,18 @@ const ManageAutomationsModal = ({
     })
   );
 
-  const [
-    policyAutomationsEnabled,
-    setPolicyAutomationsEnabled,
-  ] = useState<boolean>(!!webhook.enable_failing_policies_webhook);
+  const serverEnabledIntegration = findEnabledIntegration(
+    automationsConfig.integrations
+  );
 
-  const [enabledWebhook, setEnabledWebhook] = useState(
+  const [
+    isPolicyAutomationsEnabled,
+    setIsPolicyAutomationsEnabled,
+  ] = useState<boolean>(
+    !!webhook.enable_failing_policies_webhook || !!serverEnabledIntegration
+  );
+
+  const [isWebhookEnabled, setIsWebhookEnabled] = useState(
     webhook.enable_failing_policies_webhook || false
   );
 
@@ -117,10 +131,7 @@ const ManageAutomationsModal = ({
 
   const [selectedIntegration, setSelectedIntegration] = useState<
     IIntegration | undefined
-  >(
-    jira?.find((j) => j.enable_failing_policies) ||
-      zendesk?.find((z) => z.enable_failing_policies)
-  );
+  >(serverEnabledIntegration);
 
   const [errors, setErrors] = useState<{ [key: string]: string }>({});
 
@@ -138,14 +149,13 @@ const ManageAutomationsModal = ({
   };
 
   const onChangeRadio = (val: string) => {
-    console.log("onChange");
     switch (val) {
       case "webhook":
-        setEnabledWebhook(true);
+        setIsWebhookEnabled(true);
         setSelectedIntegration(undefined);
         break;
       case "ticket":
-        setEnabledWebhook(false);
+        setIsWebhookEnabled(false);
         break;
       default:
         noop();
@@ -172,7 +182,7 @@ const ManageAutomationsModal = ({
     const newErrors = { ...errors };
     if (!newPolicyIds.length) {
       // TODO: display error message if no policies selected?
-    } else if (enabledWebhook && destinationUrl === "") {
+    } else if (isWebhookEnabled && destinationUrl === "") {
       newErrors.url = "Please add a destination URL";
     } else {
       delete newErrors.url;
@@ -184,20 +194,20 @@ const ManageAutomationsModal = ({
     }
 
     const newJira =
-      jira?.map((j) => ({
+      availableIntegrations.jira?.map((j) => ({
         ...j,
         enable_failing_policies:
-          policyAutomationsEnabled &&
-          !enabledWebhook &&
+          isPolicyAutomationsEnabled &&
+          !isWebhookEnabled &&
           j.project_key === selectedIntegration?.project_key,
       })) || null;
 
     const newZendesk =
-      zendesk?.map((z) => ({
+      availableIntegrations.zendesk?.map((z) => ({
         ...z,
         enable_failing_policies:
-          policyAutomationsEnabled &&
-          !enabledWebhook &&
+          isPolicyAutomationsEnabled &&
+          !isWebhookEnabled &&
           z.group_id === selectedIntegration?.group_id,
       })) || null;
 
@@ -206,7 +216,7 @@ const ManageAutomationsModal = ({
         destination_url: destinationUrl,
         policy_ids: newPolicyIds,
         enable_failing_policies_webhook:
-          policyAutomationsEnabled && enabledWebhook,
+          isPolicyAutomationsEnabled && isWebhookEnabled,
       },
     };
 
@@ -296,7 +306,7 @@ const ManageAutomationsModal = ({
   };
 
   const renderPreview = () =>
-    !enabledWebhook ? (
+    !isWebhookEnabled ? (
       <PreviewTicketModal
         type={
           getIntegrationType(selectedIntegration) ||
@@ -320,9 +330,9 @@ const ManageAutomationsModal = ({
           <div className={baseClass}>
             <div className={`${baseClass}__software-select-items`}>
               <Slider
-                value={policyAutomationsEnabled}
+                value={isPolicyAutomationsEnabled}
                 onChange={() =>
-                  setPolicyAutomationsEnabled(!policyAutomationsEnabled)
+                  setIsPolicyAutomationsEnabled(!isPolicyAutomationsEnabled)
                 }
                 inactiveText={"Policy automations disabled"}
                 activeText={"Policy automations enabled"}
@@ -369,7 +379,7 @@ const ManageAutomationsModal = ({
                     className={`${baseClass}__radio-input`}
                     label={"Ticket"}
                     id={"ticket-radio-btn"}
-                    checked={!enabledWebhook}
+                    checked={!isWebhookEnabled}
                     value={"ticket"}
                     name={"ticket"}
                     onChange={onChangeRadio}
@@ -378,15 +388,15 @@ const ManageAutomationsModal = ({
                     className={`${baseClass}__radio-input`}
                     label={"Webhook"}
                     id={"webhook-radio-btn"}
-                    checked={enabledWebhook}
+                    checked={isWebhookEnabled}
                     value={"webhook"}
                     name={"webhook"}
                     onChange={onChangeRadio}
                   />
                 </div>
-                {enabledWebhook ? renderWebhook() : renderIntegrations()}
+                {isWebhookEnabled ? renderWebhook() : renderIntegrations()}
               </div>
-              {!policyAutomationsEnabled && (
+              {!isPolicyAutomationsEnabled && (
                 <div className={`${baseClass}__overlay`} />
               )}
             </div>

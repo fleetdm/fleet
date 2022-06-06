@@ -10,7 +10,7 @@ import { NotificationContext } from "context/notification";
 
 import { IAutomationsConfig, IConfig } from "interfaces/config";
 import { IPolicyStats, ILoadAllPoliciesResponse } from "interfaces/policy";
-import { ITeamAutomationsConfig } from "interfaces/team";
+import { ITeamAutomationsConfig, ITeamConfig } from "interfaces/team";
 
 import PATHS from "router/paths";
 import configAPI from "services/entities/config";
@@ -108,7 +108,7 @@ const ManagePolicyPage = ({
     {
       enabled: !!availableTeams,
       select: (data) => data.policies,
-      staleTime: 3000,
+      staleTime: 5000,
     }
   );
 
@@ -123,6 +123,7 @@ const ManagePolicyPage = ({
     {
       enabled: !!availableTeams && isPremiumTier && !!teamId,
       select: (data) => data.policies,
+      staleTime: 5000,
     }
   );
 
@@ -131,35 +132,34 @@ const ManagePolicyPage = ({
   const canManageAutomations = isGlobalAdmin || isTeamAdmin;
 
   const {
-    data: automationsConfig,
-    isFetching: isFetchingAutomationsConfig,
-    refetch: refetchAutomationsConfig,
-  } = useQuery<
-    IConfig | ILoadTeamResponse,
-    Error,
-    IAutomationsConfig | ITeamAutomationsConfig
-  >(
-    ["automationsConfig", teamId],
+    data: config,
+    isFetching: isFetchingConfig,
+    refetch: refetchConfig,
+  } = useQuery<IConfig, Error>(
+    ["config"],
     () => {
-      return teamId ? teamsAPI.load(teamId) : configAPI.loadAll();
+      return configAPI.loadAll();
     },
     {
       enabled: canAddOrRemovePolicy,
-      select: (data) => {
-        if (has(data, "team")) {
-          return get(data, "team");
-        }
-        return data;
-      },
       onSuccess: (data) => {
-        setCurrentAutomatedPolicies(
-          data.webhook_settings?.failing_policies_webhook?.policy_ids
-        );
-
-        if (has(data, "org_info")) {
-          setConfig(data as IConfig);
-        }
+        setConfig(data);
       },
+      staleTime: 5000,
+    }
+  );
+
+  const {
+    data: teamConfig,
+    isFetching: isFetchingTeamConfig,
+    refetch: refetchTeamConfig,
+  } = useQuery<ILoadTeamResponse, Error, ITeamConfig>(
+    ["teams", teamId],
+    () => teamsAPI.load(teamId),
+    {
+      enabled: !!teamId && canAddOrRemovePolicy,
+      select: (data) => data.team,
+      staleTime: 5000,
     }
   );
 
@@ -221,7 +221,8 @@ const ManagePolicyPage = ({
     } finally {
       toggleManageAutomationsModal();
       setIsAutomationsLoading(false);
-      refetchAutomationsConfig();
+      refetchConfig();
+      teamId && refetchTeamConfig();
     }
   };
 
@@ -320,6 +321,8 @@ const ManagePolicyPage = ({
   const showCtaButtons =
     (!!teamId && teamPolicies) || (!teamId && globalPolicies);
 
+  const automationsConfig = teamId ? teamConfig : config;
+
   return !availableTeams ? (
     <Spinner />
   ) : (
@@ -351,7 +354,7 @@ const ManagePolicyPage = ({
           {showCtaButtons && (
             <div className={`${baseClass} button-wrap`}>
               {canManageAutomations &&
-                !isFetchingAutomationsConfig &&
+                automationsConfig &&
                 !isFetchingGlobalPolicies && (
                   <Button
                     onClick={toggleManageAutomationsModal}
@@ -392,19 +395,24 @@ const ManagePolicyPage = ({
           {!!teamId && teamPoliciesError && <TableDataError />}
           {!!teamId &&
             !teamPoliciesError &&
-            (isFetchingTeamPolicies && isFetchingAutomationsConfig ? (
+            (isFetchingTeamPolicies ? (
               <Spinner />
             ) : (
               <PoliciesListWrapper
                 policiesList={teamPolicies || []}
                 isLoading={
-                  isFetchingTeamPolicies && isFetchingAutomationsConfig
+                  isFetchingTeamPolicies ||
+                  isFetchingTeamConfig ||
+                  isFetchingConfig
                 }
                 onAddPolicyClick={onAddPolicyClick}
                 onRemovePoliciesClick={onRemovePoliciesClick}
                 canAddOrRemovePolicy={canAddOrRemovePolicy}
                 currentTeam={currentTeam}
-                currentAutomatedPolicies={currentAutomatedPolicies}
+                currentAutomatedPolicies={
+                  teamConfig?.webhook_settings.failing_policies_webhook
+                    .policy_ids
+                }
               />
             ))}
           {!teamId && globalPoliciesError && <TableDataError />}
@@ -415,14 +423,14 @@ const ManagePolicyPage = ({
             ) : (
               <PoliciesListWrapper
                 policiesList={globalPolicies || []}
-                isLoading={
-                  isFetchingGlobalPolicies && isFetchingAutomationsConfig
-                }
+                isLoading={isFetchingGlobalPolicies || isFetchingConfig}
                 onAddPolicyClick={onAddPolicyClick}
                 onRemovePoliciesClick={onRemovePoliciesClick}
                 canAddOrRemovePolicy={canAddOrRemovePolicy}
                 currentTeam={currentTeam}
-                currentAutomatedPolicies={currentAutomatedPolicies}
+                currentAutomatedPolicies={
+                  config?.webhook_settings.failing_policies_webhook.policy_ids
+                }
               />
             ))}
         </div>
@@ -453,23 +461,21 @@ const ManagePolicyPage = ({
                 <Spinner />
               ) : (
                 <PoliciesListWrapper
-                  isLoading={
-                    isFetchingGlobalPolicies && isFetchingAutomationsConfig
-                  }
+                  isLoading={isFetchingGlobalPolicies}
                   policiesList={globalPolicies || []}
                   onRemovePoliciesClick={noop}
                   resultsTitle="policies"
                   canAddOrRemovePolicy={canAddOrRemovePolicy}
                   tableType="inheritedPolicies"
                   currentTeam={currentTeam}
-                  currentAutomatedPolicies={currentAutomatedPolicies}
                 />
               ))}
           </div>
         )}
-        {automationsConfig && showManageAutomationsModal && (
+        {config && automationsConfig && showManageAutomationsModal && (
           <ManageAutomationsModal
             automationsConfig={automationsConfig}
+            availableIntegrations={config.integrations}
             availablePolicies={availablePoliciesForAutomation}
             isAutomationsLoading={isAutomationsLoading}
             showPreviewPayloadModal={showPreviewPayloadModal}
