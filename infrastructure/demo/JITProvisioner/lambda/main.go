@@ -9,26 +9,78 @@ import (
 	"github.com/gin-gonic/gin"
 	flags "github.com/jessevdk/go-flags"
 	//"github.com/juju/errors"
+	"encoding/json"
+	"fmt"
+	"github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/aws/session"
+	"github.com/aws/aws-sdk-go/service/dynamodb"
+	"github.com/aws/aws-sdk-go/service/dynamodb/dynamodbattribute"
+	"github.com/aws/aws-sdk-go/service/sfn"
 	"github.com/loopfz/gadgeto/tonic"
 	"github.com/wI2L/fizz"
 	"github.com/wI2L/fizz/openapi"
-	"github.com/aws/aws-sdk-go/service/dynamodb/dynamodbattribute"
 	"go.elastic.co/apm/module/apmgin/v2"
 	_ "go.elastic.co/apm/v2"
 	"log"
+	"math/rand"
 	"net/http"
+	"time"
 )
 
 type OptionsStruct struct {
 	LambdaExecutionEnv string `long:"lambda-execution-environment" env:"AWS_EXECUTION_ENV"`
 	LifecycleTable     string `long:"dynamodb-lifecycle-table" env:"DYNAMODB_LIFECYCLE_TABLE" required:"true"`
+	LifecycleSFN       string `long:"lifecycle-sfn" env:"LIFECYCLE_SFN" required:"true"`
+	FleetBaseURL       string `long:"fleet-base-url" env:"FLEET_BASE_URL" required:"true"`
 }
 
 var options = OptionsStruct{}
 
 type LifecycleRecord struct {
-	ID    string
-	State string
+	ID      string
+	State   string
+	RedisDB int `dynamodbav:"redis_db"`
+}
+
+func getFleetInstance() (ret LifecycleRecord, err error) {
+	svc := dynamodb.New(session.New())
+	input := &dynamodb.QueryInput{
+		ExpressionAttributeValues: map[string]*dynamodb.AttributeValue{
+			":v1": {
+				S: aws.String("unclaimed"),
+			},
+		},
+		KeyConditionExpression: aws.String("State = :v1"),
+		TableName:              aws.String(options.LifecycleTable),
+	}
+
+	result, err := svc.Query(input)
+	if err != nil {
+		return
+	}
+	recs := []LifecycleRecord{}
+	if err = dynamodbattribute.UnmarshalListOfMaps(result.Items, &recs); err != nil {
+		return
+	}
+	ret = recs[rand.Intn(len(recs))]
+	return
+}
+
+func triggerSFN(id string) (err error) {
+	sfnInStr, err := json.Marshal(struct {
+		Id string
+	}{
+		Id: id,
+	})
+	if err != nil {
+		return
+	}
+	sfnIn := sfn.StartExecutionInput{
+		Input: aws.String(string(sfnInStr)),
+		Name:  aws.String(options.LifecycleSFN),
+	}
+	_, err = sfn.New(session.New()).StartExecution(&sfnIn)
+	return
 }
 
 var ginLambda *httpadapter.HandlerAdapter
@@ -50,6 +102,14 @@ type NewFleetOutput struct {
 }
 
 func NewFleet(c *gin.Context, in *NewFleetInput) (ret *NewFleetOutput, err error) {
+	fleet, err := getFleetInstance()
+	if err != nil {
+		return
+	}
+	// TODO: provision a user with the email
+	// TODO: send the email
+	triggerSFN(fleet.ID)
+	ret.URL = fmt.Sprintf("%s.%s", fleet.ID, options.FleetBaseURL)
 	return
 }
 
@@ -58,15 +118,8 @@ func handler(ctx context.Context, req events.APIGatewayProxyRequest) (events.API
 	return ginLambda.ProxyWithContext(ctx, req)
 }
 
-type FleetRecord struct {
-    ID string
-    State string
-    RedisDB int `dynamodbav:"redis_db"`
-}
-func getNewFleet() (ret FleetRecord, err error) {
-}
-
 func main() {
+	rand.Seed(time.Now().Unix())
 	var err error
 	log.SetFlags(log.LstdFlags | log.Lshortfile)
 	// Get config from environment
