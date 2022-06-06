@@ -6,9 +6,9 @@ The following describes how to go about publishing and editing content at Fleet.
 
 ### Publication methods
 
-1. **Instant**: Content is published instantly (get the required training, if any, from the links listed in the table below). Content is approved by Digital Experience post-facto – see [Digital Experience rituals](https://fleetdm.com/handbook/brand#rituals).
+1. **Instant**: Content is published instantly. Content is approved by Digital Experience post-facto – see links in the table below to get the required training.
 2. **Gated**: Submit content to Digital Experience for review – see specific instructions in the table below.
-3. **Queued**: Communicate the publication date with the [DRI](https://fleetdm.com/handbook/people#directly-responsible-individuals) responsible for approving this content. Refer to specific instructions linked in the table below. 
+3. **Queued**: Communicate the publication date with the [DRI](https://fleetdm.com/handbook/people#directly-responsible-individuals) responsible for approving this content – refer to specific instructions linked in the table below. 
 
 ### Revision methods (for editors)
 
