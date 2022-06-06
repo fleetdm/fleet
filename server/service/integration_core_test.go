@@ -470,7 +470,7 @@ func (s *integrationTestSuite) TestVulnerableSoftware() {
 		{Name: "baz", Version: "0.0.4", Source: "apps"},
 	}
 	require.NoError(t, s.ds.UpdateHostSoftware(context.Background(), host.ID, software))
-	require.NoError(t, s.ds.LoadHostSoftware(context.Background(), host, fleet.SoftwareListOptions{}, false))
+	require.NoError(t, s.ds.LoadHostSoftware(context.Background(), host, false))
 
 	soft1 := host.Software[0]
 	if soft1.Name != "bar" {
@@ -480,7 +480,7 @@ func (s *integrationTestSuite) TestVulnerableSoftware() {
 	require.NoError(t, s.ds.AddCPEForSoftware(context.Background(), soft1, "somecpe"))
 
 	// Reload software so that 'GeneratedCPEID is set.
-	require.NoError(t, s.ds.LoadHostSoftware(context.Background(), host, fleet.SoftwareListOptions{}, false))
+	require.NoError(t, s.ds.LoadHostSoftware(context.Background(), host, false))
 	soft1 = host.Software[0]
 	if soft1.Name != "bar" {
 		soft1 = host.Software[1]
@@ -946,7 +946,7 @@ func (s *integrationTestSuite) TestListHosts() {
 		{Name: "foo", Version: "0.0.1", Source: "chrome_extensions"},
 	}
 	require.NoError(t, s.ds.UpdateHostSoftware(context.Background(), host.ID, software))
-	require.NoError(t, s.ds.LoadHostSoftware(context.Background(), host, fleet.SoftwareListOptions{}, false))
+	require.NoError(t, s.ds.LoadHostSoftware(context.Background(), host, false))
 
 	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &resp, "software_id", fmt.Sprint(host.Software[0].ID))
 	require.Len(t, resp.Hosts, 1)
@@ -4041,7 +4041,7 @@ func (s *integrationTestSuite) TestPaginateListSoftware() {
 	// sws[0] is only used by 1 host, while sws[19] is used by all.
 	for i, h := range hosts {
 		require.NoError(t, s.ds.UpdateHostSoftware(context.Background(), h.ID, sws[i:]))
-		require.NoError(t, s.ds.LoadHostSoftware(context.Background(), h, fleet.SoftwareListOptions{}, false))
+		require.NoError(t, s.ds.LoadHostSoftware(context.Background(), h, false))
 
 		if i == 0 {
 			// this host has all software, refresh the list so we have the software.ID filled
@@ -4055,7 +4055,7 @@ func (s *integrationTestSuite) TestPaginateListSoftware() {
 	}
 
 	// Reload software to load GeneratedCPEID
-	require.NoError(t, s.ds.LoadHostSoftware(context.Background(), hosts[0], fleet.SoftwareListOptions{}, false))
+	require.NoError(t, s.ds.LoadHostSoftware(context.Background(), hosts[0], false))
 	var vulns []fleet.SoftwareVulnerability
 	for i, sw := range hosts[0].Software[:10] {
 		vulns = append(vulns, fleet.SoftwareVulnerability{

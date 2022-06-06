@@ -613,8 +613,7 @@ func (svc *Service) RefetchHost(ctx context.Context, id uint) error {
 }
 
 func (svc *Service) getHostDetails(ctx context.Context, host *fleet.Host, includeCVEScores bool) (*fleet.HostDetail, error) {
-	opts := fleet.SoftwareListOptions{}
-	if err := svc.ds.LoadHostSoftware(ctx, host, opts, includeCVEScores); err != nil {
+	if err := svc.ds.LoadHostSoftware(ctx, host, includeCVEScores); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "load host software")
 	}
 

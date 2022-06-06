@@ -298,7 +298,7 @@ func TestGetHosts(t *testing.T) {
 		}, nil
 	}
 
-	ds.LoadHostSoftwareFunc = func(ctx context.Context, host *fleet.Host, opts fleet.SoftwareListOptions, includeCVEScores bool) error {
+	ds.LoadHostSoftwareFunc = func(ctx context.Context, host *fleet.Host, includeCVEScores bool) error {
 		return nil
 	}
 	ds.ListLabelsForHostFunc = func(ctx context.Context, hid uint) ([]*fleet.Label, error) {

@@ -274,7 +274,7 @@ type ListSoftwareForVulnDetectionFunc func(ctx context.Context, hostID uint) ([]
 
 type ListSoftwareVulnerabilitiesFunc func(ctx context.Context, hostIDs []uint) (map[uint][]fleet.SoftwareVulnerability, error)
 
-type LoadHostSoftwareFunc func(ctx context.Context, host *fleet.Host, opts fleet.SoftwareListOptions, includeCVEScores bool) error
+type LoadHostSoftwareFunc func(ctx context.Context, host *fleet.Host, includeCVEScores bool) error
 
 type AllSoftwareWithoutCPEIteratorFunc func(ctx context.Context) (fleet.SoftwareIterator, error)
 
@@ -1664,9 +1664,9 @@ func (s *DataStore) ListSoftwareVulnerabilities(ctx context.Context, hostIDs []u
 	return s.ListSoftwareVulnerabilitiesFunc(ctx, hostIDs)
 }
 
-func (s *DataStore) LoadHostSoftware(ctx context.Context, host *fleet.Host, opts fleet.SoftwareListOptions, includeCVEScores bool) error {
+func (s *DataStore) LoadHostSoftware(ctx context.Context, host *fleet.Host, includeCVEScores bool) error {
 	s.LoadHostSoftwareFuncInvoked = true
-	return s.LoadHostSoftwareFunc(ctx, host, opts, includeCVEScores)
+	return s.LoadHostSoftwareFunc(ctx, host, includeCVEScores)
 }
 
 func (s *DataStore) AllSoftwareWithoutCPEIterator(ctx context.Context) (fleet.SoftwareIterator, error) {

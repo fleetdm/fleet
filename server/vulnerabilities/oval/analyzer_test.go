@@ -98,7 +98,7 @@ func withTestFixture(
 		err = ds.UpdateHostSoftware(ctx, h.ID, software)
 		require.NoError(t, err)
 
-		err = ds.LoadHostSoftware(ctx, h, fleet.SoftwareListOptions{}, false)
+		err = ds.LoadHostSoftware(ctx, h, false)
 		require.NoError(t, err)
 
 		for _, s := range h.Software {

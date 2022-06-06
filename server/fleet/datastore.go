@@ -343,7 +343,7 @@ type Datastore interface {
 	// used for vulnerability detection populated (id, name, version, cpe_id, cpe)
 	ListSoftwareForVulnDetection(ctx context.Context, hostID uint) ([]Software, error)
 	ListSoftwareVulnerabilities(ctx context.Context, hostIDs []uint) (map[uint][]SoftwareVulnerability, error)
-	LoadHostSoftware(ctx context.Context, host *Host, opts SoftwareListOptions, includeCVEScores bool) error
+	LoadHostSoftware(ctx context.Context, host *Host, includeCVEScores bool) error
 	AllSoftwareWithoutCPEIterator(ctx context.Context) (SoftwareIterator, error)
 	AddCPEForSoftware(ctx context.Context, software Software, cpe string) error
 	ListSoftwareCPEs(ctx context.Context, excludedPlatforms []string) ([]SoftwareCPE, error)
