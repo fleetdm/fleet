@@ -2,7 +2,7 @@
 
 ## Customer success calls
 
-### Scheduling a customers call
+### Scheduling a customer call
 
 To schedule an [ad hoc meeting](https://www.vocabulary.com/dictionary/ad%20hoc) with a Fleet customer, use the ["Customer meeting" Calendly link](https://calendly.com/fleetdm/customer).
 
@@ -30,7 +30,7 @@ When we do prospect calls, add the customer's name in both the google doc title 
   - Email, using the email address from the calendar invite.
   - LinkedIn, send a direct message.
   - Phone, try finding their number to text and/or call (as appropriate to the device type: landline vs. cell phone).
-  - Provide an alternative data and time. Suggest two to three options for the customer to choose from.
+  - Provide an alternative date and time. Suggest two to three options from which the customer can choose.
   - Confirm that contact information is accurate and that the customer can receive and access meeting invites.
 
 > **Customer etiquette**. When communicating with the customer, remember to approach the situation with empathy. Anything could have happened.
