@@ -40,7 +40,7 @@ The two features I want to focus on for this blog post are the live queries and 
 
 ![The queries page in Fleet](../website/assets/images/articles/delivering-data-to-snowflake-from-fleet-and-osquery-1-415x400@2x.png)
 
-### Scheduled Queries Interface:
+### Scheduled queries interface:
 
 ![The schedule page in Fleet](../website/assets/images/articles/delivering-data-to-snowflake-from-fleet-and-osquery-2-700x203@2x.png)
 
