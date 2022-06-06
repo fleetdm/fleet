@@ -1,11 +1,11 @@
-# The future of device management EP1
-## Mike Arpaia: the story behind the creation of osquery
+# The Future of Device Management EP1
+## Mike Arpaia: The Story Behind the Creation of osquery
+
+<iframe allow="autoplay *; encrypted-media *; fullscreen *; clipboard-write" frameborder="0" height="175" style="width:100%;max-width:800px;overflow:hidden;background:transparent;" sandbox="allow-forms allow-popups allow-same-origin allow-scripts allow-storage-access-by-user-activation allow-top-navigation-by-user-activation" src="https://embed.podcasts.apple.com/gb/podcast/ep-1-mike-arpaia-the-story-behind-the-creation-of-osquery/id1627079895?i=1000565001475"></iframe>
+
+Listen to the episode on [Apple](https://podcasts.apple.com/gb/podcast/ep-1-mike-arpaia-the-story-behind-the-creation-of-osquery/id1627079895?i=1000565001475), [Spotify](https://open.spotify.com/episode/2K653S8HsXFTe5CGNr0e6H?si=LsZwvBnDT1enaNZT04j1YQ), or [PodBean](https://futureofdevicemanagement.podbean.com/e/ep-1-mike-arpaia-the-story-behind-the-creation-of-osquery/)
 
 In today’s episode of the Future of Device Management podcast, we speak with [Mike Arpaia](https://www.linkedin.com/in/marpaia/) — co-creator and visionary of osquery and partner at [Moonfire Ventures](https://www.moonfire.com/) — a London-based VC firm focused on seed-stage investing in Europe. 
-
-<iframe allow="autoplay *; encrypted-media *; fullscreen *; clipboard-write" frameborder="0" height="175" style="width:100%;max-width:800px;overflow:hidden;background:transparent;" sandbox="allow-forms allow-popups allow-same-origin allow-scripts allow-storage-access-by-user-activation allow-top-navigation-by-user-activation" src="https://embed.podcasts.apple.com/us/podcast/multi-hour-outage-at-megaphone-every-podcast-falls-offline/id1325018583?i=1000564662038"></iframe>
-
-Listen to the episode on [Apple](#) or [Spotify](#)
 
 ### Topics discussed:
 
@@ -25,4 +25,5 @@ Listen to the episode on [Apple](#) or [Spotify](#)
 <meta name="authorGitHubUsername" value="zwass">
 <meta name="authorFullName" value="Zach Wasserman">
 <meta name="publishedOn" value="2022-06-06">
-<meta name="articleTitle" value="The future of device management EP1">
+<meta name="articleTitle" value="The Future of Device Management EP1">
+<meta name="articleImageUrl" value="../website/assets/images/articles/future-of-device-management-ep1-1600x900@2x.jpg">
