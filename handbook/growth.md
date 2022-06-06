@@ -95,7 +95,7 @@ Once a relevant sponsorship opportunity and its prospectus are reviewed:
 
 ## Salesforce contributor experience check ups
 
-In order to maintain a consistent contributor experience in Salesforce, we login to make sure the structure of Salesforce data continues to look correct based on processes started elsewhere and that we can look and see that the goals we want to achieve as a business are in line with our view inside Salesforce by conducting the following checkup. Any discrepancies between how information is presented in Salesforce and what should be in there per this ritual should be flagged so that they can be fixed or discussed.
+In order to maintain a consistent contributor experience in Salesforce, we log in to make sure the structure of Salesforce data continues to look correct based on processes started elsewhere. Then we can look and see that the goals we want to achieve as a business are in line with our view inside Salesforce by conducting the following checkup. Any discrepancies between how information is presented in Salesforce and what should be in there per this ritual should be flagged so that they can be fixed or discussed.
 
 1. Make sure the default tabs for a standard user includes a detailed view of contacts, opportunities, accounts, and leads. No other tabs should exist.
 
