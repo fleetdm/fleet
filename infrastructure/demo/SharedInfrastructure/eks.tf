@@ -41,7 +41,8 @@ terraform {
 }
 
 module "aws-eks-accelerator-for-terraform" {
-  source = "github.com/aws-samples/aws-eks-accelerator-for-terraform.git"
+  source       = "github.com/aws-samples/aws-eks-accelerator-for-terraform.git"
+  cluster_name = var.prefix
 
   # EKS Cluster VPC and Subnets
   vpc_id             = var.vpc.vpc_id
