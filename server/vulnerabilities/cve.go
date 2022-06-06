@@ -14,7 +14,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/WatchBeam/clock"
 	"github.com/facebookincubator/nvdtools/cvefeed"
 	feednvd "github.com/facebookincubator/nvdtools/cvefeed/nvd"
 	"github.com/facebookincubator/nvdtools/providers/nvd"
@@ -64,13 +63,7 @@ func DownloadNVDCVEFeed(vulnPath string, cveFeedPrefixURL string) error {
 
 const publishedDateFmt = "2006-01-02T15:04Z" // not quite RFC3339
 
-var (
-	rxNVDCVEArchive = regexp.MustCompile(`nvdcve.*\.gz$`)
-
-	// this allows mocking the time package for tests, by default it is equivalent
-	// to the time functions, e.g. theClock.Now() == time.Now().
-	theClock clock.Clock = clock.C
-)
+var rxNVDCVEArchive = regexp.MustCompile(`nvdcve.*\.gz$`)
 
 func getNVDCVEFeedFiles(vulnPath string) ([]string, error) {
 	var files []string
@@ -98,18 +91,21 @@ func getNVDCVEFeedFiles(vulnPath string) ([]string, error) {
 	return files, nil
 }
 
+type softwareCPEWithNVDMeta struct {
+	fleet.SoftwareCPE
+	meta *wfn.Attributes
+}
+
 // TranslateCPEToCVE maps the CVEs found in NVD archive files in the
 // vulnerabilities database folder to software CPEs in the fleet database.
-// If collectRecentVulns is true, it also returns a mapping of recent CVEs
-// to a list of CPEs affected by the CVE, otherwise that map is nil.
+// If collectVulns is true, returns a list of any new software vulnerabilities found.
 func TranslateCPEToCVE(
 	ctx context.Context,
 	ds fleet.Datastore,
 	vulnPath string,
 	logger kitlog.Logger,
-	collectRecentVulns bool,
-	recentVulnerabilityMaxAge time.Duration,
-) (map[string][]string, error) {
+	collectVulns bool,
+) ([]fleet.SoftwareVulnerability, error) {
 	files, err := getNVDCVEFeedFiles(vulnPath)
 	if err != nil {
 		return nil, err
@@ -118,66 +114,67 @@ func TranslateCPEToCVE(
 		return nil, nil
 	}
 
-	// Skip CPEs from platforms supported by OVAL
-	cpeList, err := ds.AllCPEs(ctx, oval.SupportedHostPlatforms)
+	// Skip entries from platforms supported by OVAL
+	CPEs, err := ds.ListSoftwareCPEs(ctx, oval.SupportedHostPlatforms)
 	if err != nil {
 		return nil, err
 	}
 
-	cpes := make([]*wfn.Attributes, 0, len(cpeList))
-	for _, uri := range cpeList {
+	var parsed []softwareCPEWithNVDMeta
+	for _, CPE := range CPEs {
 		// Skip dummy CPEs
-		if strings.HasPrefix(uri, "none") {
+		if strings.HasPrefix(CPE.CPE, "none") {
 			continue
 		}
 
-		attr, err := wfn.Parse(uri)
+		attr, err := wfn.Parse(CPE.CPE)
 		if err != nil {
 			return nil, err
 		}
-		cpes = append(cpes, attr)
+		parsed = append(parsed, softwareCPEWithNVDMeta{
+			SoftwareCPE: CPE,
+			meta:        attr,
+		})
 	}
-
-	if len(cpes) == 0 {
+	if len(parsed) == 0 {
 		return nil, nil
 	}
 
-	var recentVulns map[string][]string
-	if collectRecentVulns {
-		recentVulns = make(map[string][]string)
-	}
+	var vulns []fleet.SoftwareVulnerability
 	for _, file := range files {
-		err := checkCVEs(ctx, ds, logger, cpes, file, recentVulns, recentVulnerabilityMaxAge)
+		r, err := checkCVEs(ctx, ds, logger, parsed, file, collectVulns)
 		if err != nil {
 			return nil, err
 		}
+		vulns = append(vulns, r...)
 	}
 
-	return recentVulns, nil
+	return vulns, nil
 }
 
 func checkCVEs(
 	ctx context.Context,
 	ds fleet.Datastore,
 	logger kitlog.Logger,
-	cpes []*wfn.Attributes,
+	softwareCPEs []softwareCPEWithNVDMeta,
 	file string,
-	recentVulns map[string][]string,
-	recentVulnMaxAge time.Duration,
-) error {
+	collectVulns bool,
+) ([]fleet.SoftwareVulnerability, error) {
 	dict, err := cvefeed.LoadJSONDictionary(file)
 	if err != nil {
-		return err
+		return nil, err
 	}
+
 	cache := cvefeed.NewCache(dict).SetRequireVersion(true).SetMaxSize(-1)
 	// This index consumes too much RAM
 	// cache.Idx = cvefeed.NewIndex(dict)
 
-	cpeCh := make(chan *wfn.Attributes)
-	collectVulns := recentVulns != nil
+	softwareCPECh := make(chan softwareCPEWithNVDMeta)
 
+	var results []fleet.SoftwareVulnerability
 	var wg sync.WaitGroup
 	var mu sync.Mutex
+
 	for i := 0; i < runtime.NumCPU(); i++ {
 		wg.Add(1)
 		goRoutineKey := i
@@ -189,70 +186,55 @@ func checkCVEs(
 
 			for {
 				select {
-				case cpe, more := <-cpeCh:
+				case softwareCPE, more := <-softwareCPECh:
 					if !more {
 						level.Debug(logger).Log(logKey, "done")
 						return
 					}
-					cacheHits := cache.Get([]*wfn.Attributes{cpe})
+
+					cacheHits := cache.Get([]*wfn.Attributes{softwareCPE.meta})
 					for _, matches := range cacheHits {
 						ml := len(matches.CPEs)
 						if ml == 0 {
 							continue
 						}
 
+						matchingVulns := make([]fleet.SoftwareVulnerability, 0, ml)
 						cveID := matches.CVE.ID()
-						matchingCPEs := make([]string, 0, ml)
 						for _, attr := range matches.CPEs {
 							if attr == nil {
 								level.Error(logger).Log("matches nil CPE", cveID)
 								continue
 							}
-							cpe := attr.BindToFmtString()
-							if len(cpe) == 0 {
-								continue
-							}
-							matchingCPEs = append(matchingCPEs, cpe)
+							matchingVulns = append(matchingVulns, fleet.SoftwareVulnerability{
+								SoftwareID: softwareCPE.SoftwareID,
+								CPEID:      softwareCPE.ID,
+								CVE:        cveID,
+							})
 						}
 
-						newCount, err := ds.InsertCVEForCPE(ctx, cveID, matchingCPEs)
+						newCount, err := ds.InsertVulnerabilities(ctx, matchingVulns, fleet.NVD)
 						if err != nil {
 							level.Error(logger).Log("cpe processing", "error", "err", err)
 							continue // do not report a recent vuln that failed to be inserted in the DB
 						}
 
-						// collect as recent vuln only if newCount > 0, otherwise we would send
+						// collect vuln only if newCount > 0, otherwise we would send
 						// webhook requests for the same vulnerability over and over again until
 						// it is older than 2 days.
 						if collectVulns && newCount > 0 {
-							vuln, ok := matches.CVE.(*feednvd.Vuln)
+							_, ok := matches.CVE.(*feednvd.Vuln)
 							if !ok {
-								level.Error(logger).Log("recent vuln", "unexpected type for Vuln interface", "cve", cveID,
+								level.Error(logger).Log(
+									"recent vuln", "unexpected type for Vuln interface",
+									"cve", cveID,
 									"type", fmt.Sprintf("%T", matches.CVE))
 								continue
 							}
 
-							rawPubDate := vuln.Schema().PublishedDate
-							if rawPubDate == "" {
-								level.Error(logger).Log("recent vuln", "empty published date", "cve", cveID)
-								continue
-							}
-
-							pubDate, err := time.Parse(publishedDateFmt, rawPubDate)
-							if err != nil {
-								level.Error(logger).Log("recent vuln", "unexpected published date format", "cve", cveID,
-									"published_date", rawPubDate, "err", err)
-								continue
-							}
-
-							// the second condition should only affect tests - to ignore pubDates in the future
-							// when using a mocked current clock. When using the real clock, the published date
-							// should always be in the past.
-							if theClock.Since(pubDate) <= recentVulnMaxAge && theClock.Now().After(pubDate) {
-								mu.Lock()
-								recentVulns[cveID] = append(recentVulns[cveID], matchingCPEs...)
-								mu.Unlock()
-							}
+							mu.Lock()
+							results = append(results, matchingVulns...)
+							mu.Unlock()
 						}
 					}
 				case <-ctx.Done():
@@ -264,17 +246,18 @@ func checkCVEs(
 	}
 
 	level.Debug(logger).Log("pushing cpes", "start")
-	for _, cpe := range cpes {
-		cpeCh <- cpe
+	for _, cpe := range softwareCPEs {
+		softwareCPECh <- cpe
 	}
-	close(cpeCh)
+	close(softwareCPECh)
 
 	level.Debug(logger).Log("pushing cpes", "done")
 
 	wg.Wait()
-	return nil
+	return results, nil
 }
 
+// TODO (juan): Remove this after OVAL centos
 // PostProcess performs additional processing over the results of
 // the main vulnerability processing run (TranslateSoftwareToCPE+TranslateCPEToCVE).
 func PostProcess(

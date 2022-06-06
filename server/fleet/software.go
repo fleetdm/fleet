@@ -119,17 +119,28 @@ type SoftwareListOptions struct {
 	WithHostCounts bool
 }
 
-// SoftwareVulnerability identifies a vulnerability on a specific software (CPE).
-type SoftwareVulnerability struct {
+// SoftwareCPE represents an entry in the `software_cpe` table
+type SoftwareCPE struct {
+	ID         uint   `db:"id"`
 	SoftwareID uint   `db:"software_id"`
 	CPE        string `db:"cpe"`
+}
+
+// SoftwareVulnerability identifies a vulnerability on a specific software.
+type SoftwareVulnerability struct {
+	SoftwareID uint   `db:"software_id"`
 	CPEID      uint   `db:"cpe_id"`
 	CVE        string `db:"cve"`
 }
 
 // String implements fmt.Stringer.
 func (sv SoftwareVulnerability) String() string {
-	return fmt.Sprintf("{%d,%s}", sv.CPEID, sv.CVE)
+	return fmt.Sprintf("{%d,%s}", sv.SoftwareID, sv.CVE)
+}
+
+// Key returns a string representation of the SoftwareVulnerability
+func (sv *SoftwareVulnerability) Key() string {
+	return fmt.Sprintf("%d:%s", sv.SoftwareID, sv.CVE)
 }
 
 // SoftwareWithCPE holds a software piece alongside its CPE ID.

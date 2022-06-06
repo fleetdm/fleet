@@ -280,11 +280,9 @@ type AllSoftwareWithoutCPEIteratorFunc func(ctx context.Context) (fleet.Software
 
 type AddCPEForSoftwareFunc func(ctx context.Context, software fleet.Software, cpe string) error
 
-type AllCPEsFunc func(ctx context.Context, excludedPlatforms []string) ([]string, error)
+type ListSoftwareCPEsFunc func(ctx context.Context, excludedPlatforms []string) ([]fleet.SoftwareCPE, error)
 
 type InsertVulnerabilitiesFunc func(ctx context.Context, vulns []fleet.SoftwareVulnerability, source fleet.VulnerabilitySource) (int64, error)
-
-type InsertCVEForCPEFunc func(ctx context.Context, cve string, cpes []string) (int64, error)
 
 type SoftwareByIDFunc func(ctx context.Context, id uint, includeCVEScores bool) (*fleet.Software, error)
 
@@ -292,11 +290,13 @@ type ListSoftwareByHostIDShortFunc func(ctx context.Context, hostID uint) ([]fle
 
 type CalculateHostsPerSoftwareFunc func(ctx context.Context, updatedAt time.Time) error
 
-type HostsByCPEsFunc func(ctx context.Context, cpes []string) ([]*fleet.HostShort, error)
+type HostsBySoftwareIDsFunc func(ctx context.Context, softwareIDs []uint) ([]*fleet.HostShort, error)
 
 type HostsByCVEFunc func(ctx context.Context, cve string) ([]*fleet.HostShort, error)
 
 type InsertCVEMetaFunc func(ctx context.Context, cveMeta []fleet.CVEMeta) error
+
+type ListCVEsFunc func(ctx context.Context, maxAge time.Duration) ([]fleet.CVEMeta, error)
 
 type NewActivityFunc func(ctx context.Context, user *fleet.User, activityType string, details *map[string]interface{}) error
 
@@ -813,14 +813,11 @@ type DataStore struct {
 	AddCPEForSoftwareFunc        AddCPEForSoftwareFunc
 	AddCPEForSoftwareFuncInvoked bool
 
-	AllCPEsFunc        AllCPEsFunc
-	AllCPEsFuncInvoked bool
+	ListSoftwareCPEsFunc        ListSoftwareCPEsFunc
+	ListSoftwareCPEsFuncInvoked bool
 
 	InsertVulnerabilitiesFunc        InsertVulnerabilitiesFunc
 	InsertVulnerabilitiesFuncInvoked bool
-
-	InsertCVEForCPEFunc        InsertCVEForCPEFunc
-	InsertCVEForCPEFuncInvoked bool
 
 	SoftwareByIDFunc        SoftwareByIDFunc
 	SoftwareByIDFuncInvoked bool
@@ -831,14 +828,17 @@ type DataStore struct {
 	CalculateHostsPerSoftwareFunc        CalculateHostsPerSoftwareFunc
 	CalculateHostsPerSoftwareFuncInvoked bool
 
-	HostsByCPEsFunc        HostsByCPEsFunc
-	HostsByCPEsFuncInvoked bool
+	HostsBySoftwareIDsFunc        HostsBySoftwareIDsFunc
+	HostsBySoftwareIDsFuncInvoked bool
 
 	HostsByCVEFunc        HostsByCVEFunc
 	HostsByCVEFuncInvoked bool
 
 	InsertCVEMetaFunc        InsertCVEMetaFunc
 	InsertCVEMetaFuncInvoked bool
+
+	ListCVEsFunc        ListCVEsFunc
+	ListCVEsFuncInvoked bool
 
 	NewActivityFunc        NewActivityFunc
 	NewActivityFuncInvoked bool
@@ -1679,19 +1679,14 @@ func (s *DataStore) AddCPEForSoftware(ctx context.Context, software fleet.Softwa
 	return s.AddCPEForSoftwareFunc(ctx, software, cpe)
 }
 
-func (s *DataStore) AllCPEs(ctx context.Context, excludedPlatforms []string) ([]string, error) {
-	s.AllCPEsFuncInvoked = true
-	return s.AllCPEsFunc(ctx, excludedPlatforms)
+func (s *DataStore) ListSoftwareCPEs(ctx context.Context, excludedPlatforms []string) ([]fleet.SoftwareCPE, error) {
+	s.ListSoftwareCPEsFuncInvoked = true
+	return s.ListSoftwareCPEsFunc(ctx, excludedPlatforms)
 }
 
 func (s *DataStore) InsertVulnerabilities(ctx context.Context, vulns []fleet.SoftwareVulnerability, source fleet.VulnerabilitySource) (int64, error) {
 	s.InsertVulnerabilitiesFuncInvoked = true
 	return s.InsertVulnerabilitiesFunc(ctx, vulns, source)
-}
-
-func (s *DataStore) InsertCVEForCPE(ctx context.Context, cve string, cpes []string) (int64, error) {
-	s.InsertCVEForCPEFuncInvoked = true
-	return s.InsertCVEForCPEFunc(ctx, cve, cpes)
 }
 
 func (s *DataStore) SoftwareByID(ctx context.Context, id uint, includeCVEScores bool) (*fleet.Software, error) {
@@ -1709,9 +1704,9 @@ func (s *DataStore) CalculateHostsPerSoftware(ctx context.Context, updatedAt tim
 	return s.CalculateHostsPerSoftwareFunc(ctx, updatedAt)
 }
 
-func (s *DataStore) HostsByCPEs(ctx context.Context, cpes []string) ([]*fleet.HostShort, error) {
-	s.HostsByCPEsFuncInvoked = true
-	return s.HostsByCPEsFunc(ctx, cpes)
+func (s *DataStore) HostsBySoftwareIDs(ctx context.Context, softwareIDs []uint) ([]*fleet.HostShort, error) {
+	s.HostsBySoftwareIDsFuncInvoked = true
+	return s.HostsBySoftwareIDsFunc(ctx, softwareIDs)
 }
 
 func (s *DataStore) HostsByCVE(ctx context.Context, cve string) ([]*fleet.HostShort, error) {
@@ -1722,6 +1717,11 @@ func (s *DataStore) HostsByCVE(ctx context.Context, cve string) ([]*fleet.HostSh
 func (s *DataStore) InsertCVEMeta(ctx context.Context, cveMeta []fleet.CVEMeta) error {
 	s.InsertCVEMetaFuncInvoked = true
 	return s.InsertCVEMetaFunc(ctx, cveMeta)
+}
+
+func (s *DataStore) ListCVEs(ctx context.Context, maxAge time.Duration) ([]fleet.CVEMeta, error) {
+	s.ListCVEsFuncInvoked = true
+	return s.ListCVEsFunc(ctx, maxAge)
 }
 
 func (s *DataStore) NewActivity(ctx context.Context, user *fleet.User, activityType string, details *map[string]interface{}) error {

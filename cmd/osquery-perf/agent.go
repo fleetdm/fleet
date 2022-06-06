@@ -739,7 +739,7 @@ func main() {
 	rand.Seed(*randSeed)
 
 	templateNames := []string{
-		"mac10.14.6.tml",
+		"mac10.14.6.tmpl",
 
 		// Uncomment this to add ubuntu hosts with vulnerable software
 		// "ubuntu_16.04.tmpl",

@@ -227,17 +227,22 @@ func cronVulnerabilities(
 			}
 			level.Debug(logger).Log("vulnAutomationEnabled", vulnAutomationEnabled)
 
-			recentVulns := checkNVDVulnerabilities(ctx, ds, logger, vulnPath, config, (vulnAutomationEnabled != ""))
-
-			// TODO: merge results
-			checkOvalVulnerabilities(ctx, ds, logger, vulnPath, config)
+			collectVulns := vulnAutomationEnabled != ""
+			nvdVulns := checkNVDVulnerabilities(ctx, ds, logger, vulnPath, config, collectVulns)
+			ovalVulns := checkOvalVulnerabilities(ctx, ds, logger, vulnPath, config, collectVulns)
+			recentVulns := filterRecentVulns(ctx, ds, logger, nvdVulns, ovalVulns, config.Vulnerabilities.RecentVulnerabilityMaxAge)
 
 			if len(recentVulns) > 0 {
 				switch vulnAutomationEnabled {
 				case "webhook":
 					// send recent vulnerabilities via webhook
-					if err := webhooks.TriggerVulnerabilitiesWebhook(ctx, ds, kitlog.With(logger, "webhook", "vulnerabilities"),
-						recentVulns, appConfig, time.Now()); err != nil {
+					if err := webhooks.TriggerVulnerabilitiesWebhook(
+						ctx,
+						ds,
+						kitlog.With(logger, "webhook", "vulnerabilities"),
+						recentVulns,
+						appConfig,
+						time.Now()); err != nil {
 
 						level.Error(logger).Log("err", "triggering vulnerabilities webhook", "details", err)
 						sentry.CaptureException(err)
@@ -294,23 +299,70 @@ func cronVulnerabilities(
 	}
 }
 
+func filterRecentVulns(
+	ctx context.Context,
+	ds fleet.Datastore,
+	logger kitlog.Logger,
+	nvdVulns []fleet.SoftwareVulnerability,
+	ovalVulns []fleet.SoftwareVulnerability,
+	maxAge time.Duration,
+) []fleet.SoftwareVulnerability {
+	if len(nvdVulns) == 0 && len(ovalVulns) == 0 {
+		return nil
+	}
+
+	recent, err := ds.ListCVEs(ctx, maxAge)
+	if err != nil {
+		level.Error(logger).Log("msg", "could not fetch recent CVEs", "err", err)
+		sentry.CaptureException(err)
+		return nil
+	}
+
+	lookup := make(map[string]bool)
+	for _, r := range recent {
+		lookup[r.CVE] = true
+	}
+
+	filtered := make(map[string]fleet.SoftwareVulnerability)
+	for _, v := range nvdVulns {
+		if _, ok := lookup[v.CVE]; ok {
+			filtered[v.Key()] = v
+		}
+	}
+	for _, v := range ovalVulns {
+		if _, ok := lookup[v.CVE]; ok {
+			filtered[v.Key()] = v
+		}
+	}
+
+	result := make([]fleet.SoftwareVulnerability, 0, len(filtered))
+	for _, v := range filtered {
+		result = append(result, v)
+	}
+
+	return result
+}
+
 func checkOvalVulnerabilities(
 	ctx context.Context,
 	ds fleet.Datastore,
 	logger kitlog.Logger,
 	vulnPath string,
 	config config.FleetConfig,
-) {
+	collectVulns bool,
+) []fleet.SoftwareVulnerability {
 	if config.Vulnerabilities.DisableDataSync {
-		return
+		return nil
 	}
+
+	var results []fleet.SoftwareVulnerability
 
 	// Get Platforms
 	versions, err := ds.OSVersions(ctx, nil, nil)
 	if err != nil {
 		level.Error(logger).Log("msg", "updating oval definitions", "err", err)
 		sentry.CaptureException(err)
-		return
+		return nil
 	}
 
 	// Sync on disk OVAL definitions with current OS Versions.
@@ -327,15 +379,21 @@ func checkOvalVulnerabilities(
 	// Analyze all supported os versions using the synched OVAL definitions.
 	for _, version := range versions.OSVersions {
 		start := time.Now()
-		_, err := oval.Analyze(ctx, ds, version, vulnPath)
+		r, err := oval.Analyze(ctx, ds, version, vulnPath, collectVulns)
 		elapsed := time.Since(start)
-		level.Debug(logger).Log("msg", "oval-analysis-done", "platform", version.Name, "elapsed", elapsed)
-
+		level.Debug(logger).Log(
+			"msg", "oval-analysis-done",
+			"platform", version.Name,
+			"elapsed", elapsed,
+			"found new", len(r))
+		results = append(results, r...)
 		if err != nil {
 			level.Error(logger).Log("msg", "analyzing oval definitions", "err", err)
 			sentry.CaptureException(err)
 		}
 	}
+
+	return results
 }
 
 func checkNVDVulnerabilities(
@@ -344,8 +402,8 @@ func checkNVDVulnerabilities(
 	logger kitlog.Logger,
 	vulnPath string,
 	config config.FleetConfig,
-	collectRecentVulns bool,
-) map[string][]string {
+	collectVulns bool,
+) []fleet.SoftwareVulnerability {
 	if !config.Vulnerabilities.DisableDataSync {
 		err := vulnerabilities.Sync(vulnPath, config.Vulnerabilities.CPEDatabaseURL)
 		if err != nil {
@@ -369,14 +427,14 @@ func checkNVDVulnerabilities(
 		return nil
 	}
 
-	recentVulns, err := vulnerabilities.TranslateCPEToCVE(ctx, ds, vulnPath, logger, collectRecentVulns, config.Vulnerabilities.RecentVulnerabilityMaxAge)
+	vulns, err := vulnerabilities.TranslateCPEToCVE(ctx, ds, vulnPath, logger, collectVulns)
 	if err != nil {
 		level.Error(logger).Log("msg", "analyzing vulnerable software: CPE->CVE", "err", err)
 		sentry.CaptureException(err)
 		return nil
 	}
 
-	return recentVulns
+	return vulns
 }
 
 func cronWebhooks(

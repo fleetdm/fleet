@@ -70,7 +70,7 @@ func TestZendeskQueueJobs(t *testing.T) {
 		ds.NewJobFunc = func(ctx context.Context, job *fleet.Job) (*fleet.Job, error) {
 			return job, nil
 		}
-		err := QueueZendeskJobs(ctx, ds, logger, map[string][]string{"CVE-1234-5678": nil})
+		err := QueueZendeskJobs(ctx, ds, logger, []fleet.SoftwareVulnerability{{CVE: "CVE-1234-5678"}})
 		require.NoError(t, err)
 		require.True(t, ds.NewJobFuncInvoked)
 	})
@@ -79,7 +79,7 @@ func TestZendeskQueueJobs(t *testing.T) {
 		ds.NewJobFunc = func(ctx context.Context, job *fleet.Job) (*fleet.Job, error) {
 			return nil, io.EOF
 		}
-		err := QueueZendeskJobs(ctx, ds, logger, map[string][]string{"CVE-1234-5678": nil})
+		err := QueueZendeskJobs(ctx, ds, logger, []fleet.SoftwareVulnerability{{CVE: "CVE-1234-5678"}})
 		require.Error(t, err)
 		require.ErrorIs(t, err, io.EOF)
 		require.True(t, ds.NewJobFuncInvoked)

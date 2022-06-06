@@ -28,6 +28,7 @@ func Analyze(
 	ds fleet.Datastore,
 	ver fleet.OSVersion,
 	vulnPath string,
+	collectVulns bool,
 ) ([]fleet.SoftwareVulnerability, error) {
 	platform := NewPlatform(ver.Platform, ver.Name)
 
@@ -76,12 +77,10 @@ func Analyze(
 		for _, hId := range hIds {
 			insrt, del := vulnsDelta(foundInBatch[hId], existingInBatch[hId])
 			for _, i := range insrt {
-				key := fmt.Sprintf("%d:%s", i.SoftwareID, i.CVE)
-				toInsertSet[key] = i
+				toInsertSet[i.Key()] = i
 			}
 			for _, d := range del {
-				key := fmt.Sprintf("%d:%s", d.SoftwareID, d.CVE)
-				toDeleteSet[key] = d
+				toDeleteSet[d.Key()] = d
 			}
 		}
 	}
@@ -93,12 +92,21 @@ func Analyze(
 		return nil, err
 	}
 
-	inserted := make([]fleet.SoftwareVulnerability, 0, len(toInsertSet))
+	var inserted []fleet.SoftwareVulnerability
+	if collectVulns {
+		inserted = make([]fleet.SoftwareVulnerability, 0, len(toInsertSet))
+	}
+
 	err = batchProcess(toInsertSet, func(v []fleet.SoftwareVulnerability) error {
-		if _, err := ds.InsertVulnerabilities(ctx, v, fleet.OVAL); err != nil {
+		n, err := ds.InsertVulnerabilities(ctx, v, fleet.OVAL)
+		if err != nil {
 			return err
 		}
-		inserted = append(inserted, v...)
+
+		if collectVulns && n > 0 {
+			inserted = append(inserted, v...)
+		}
+
 		return nil
 	})
 	if err != nil {
@@ -151,22 +159,22 @@ func vulnsDelta(
 
 	existingSet := make(map[string]bool)
 	for _, e := range existing {
-		existingSet[e.CVE] = true
+		existingSet[e.Key()] = true
 	}
 
 	foundSet := make(map[string]bool)
 	for _, f := range found {
-		foundSet[f.CVE] = true
+		foundSet[f.Key()] = true
 	}
 
 	for _, e := range existing {
-		if _, ok := foundSet[e.CVE]; !ok {
+		if _, ok := foundSet[e.Key()]; !ok {
 			toDelete = append(toDelete, e)
 		}
 	}
 
 	for _, f := range found {
-		if _, ok := existingSet[f.CVE]; !ok {
+		if _, ok := existingSet[f.Key()]; !ok {
 			toInsert = append(toInsert, f)
 		}
 	}
