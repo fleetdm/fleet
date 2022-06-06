@@ -223,6 +223,15 @@ or
 
 - _**O**squery and Fleet provide structured, convenient access to information about your devices._
 
+### Open source vs. open core
+
+When deciding whether to describe Fleet as open source or open core, define who you are talking to first. e.g.:
+
+- If talking to users, use **"open source."**
+- If talking to enterprise customers or media outlets, e.g., Hacker News, use **"open core."**
+
+> For simplicity and to avoid conflicts with other uses of the word "core" (such as "core product" or "core team"), Fleet is always described as simply **"open source"** in all writing and verbal communication. In specific situations, e.g., discussing the distinction between various kinds of open source, it can be appropriate to mention **"open core"** to clarify your meaning. If ever in doubt, go with "open source."
+
 ## Brand resources
 
 To download official Fleet logos, product screenshots, and wallpapers, head over to our [brand resources](https://fleetdm.com/logos) page.
