@@ -6406,18 +6406,24 @@ The server only stores and returns a single instance of each error.
 
 ```json
 [
-  {
-    "external": "example error",
-    "root": {
-      "message": "timestamp: 2022-05-06T11:40:32-03:00",
-      "stack": [
-        "http.initALPNRequest.ServeHTTP:/usr/local/Cellar/go/1.17.6/libexec/src/net/http/server.go:3480",
-        "http.serverHandler.ServeHTTP:/usr/local/Cellar/go/1.17.6/libexec/src/net/http/server.go:2879",
-        "service.(*authEndpointer).makeEndpoint.func1:/Users/robertodip/projects/fleet/server/service/endpoint_utils.go:439",
-        "...",
-        "service.listSoftwareEndpoint:/Users/robertodip/projects/fleet/server/service/software.go:30",
-        "ctxerr.New:/Users/robertodip/projects/fleet/server/contexts/ctxerr/ctxerr.go:67",
-        "ctxerr.ensureCommonMetadata:/Users/robertodip/projects/fleet/server/contexts/ctxerr/ctxerr.go:112"
+ {
+    "count": "3",
+    "error": {
+      "cause": {
+        "message": "Authorization header required"
+      },
+      "wraps": [
+        {
+          "message": "missing FleetError in chain",
+          "data": {
+            "timestamp": "2022-06-03T14:16:01-03:00"
+          },
+          "stack": [
+            "github.com/fleetdm/fleet/v4/server/contexts/ctxerr.Handle (ctxerr.go:262)",
+            "github.com/fleetdm/fleet/v4/server/service.encodeError (transport_error.go:80)",
+            "github.com/go-kit/kit/transport/http.Server.ServeHTTP (server.go:124)"
+          ]
+        }
       ]
     }
   }

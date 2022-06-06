@@ -87,6 +87,8 @@ type storedError struct {
 	Error json.RawMessage `json:"error"`
 }
 
+// RedisScan implements the redigo.Scanner interface to control how `storedError`
+// is interpreted when read from Redis.
 func (s *storedError) RedisScan(src interface{}) error {
 	vals, err := redigo.Strings(redigo.Values(src, nil))
 
