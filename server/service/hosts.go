@@ -257,7 +257,7 @@ func getHostEndpoint(ctx context.Context, request interface{}, svc fleet.Service
 	req := request.(*getHostRequest)
 	opts := fleet.HostDetailOptions{
 		IncludeCVEScores: false,
-		IncludePolicies:  true,
+		IncludePolicies:  true, // intentionally true to preserve existing behavior
 	}
 	host, err := svc.GetHost(ctx, req.ID, opts)
 	if err != nil {
@@ -399,7 +399,7 @@ func hostByIdentifierEndpoint(ctx context.Context, request interface{}, svc flee
 	req := request.(*hostByIdentifierRequest)
 	opts := fleet.HostDetailOptions{
 		IncludeCVEScores: false,
-		IncludePolicies:  true,
+		IncludePolicies:  true, // intentionally true to preserve existing behavior
 	}
 	host, err := svc.HostByIdentifier(ctx, req.Identifier, opts)
 	if err != nil {
