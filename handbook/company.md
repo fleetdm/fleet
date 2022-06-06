@@ -78,7 +78,7 @@ Empathy leads to better understanding, better communication, and better decision
   - Own up to mistakes.
   - Understand why it matters (the goals of the work you are doing).
   - Consider the business impact (fast forward 12 months, consider the total cost of ownership over the eternity of maintenance).
-  - Do things that don't scale, sometimes.
+  - Do things that don't scale, sometimes. 
 - Be responsive.
   - Respond quickly, even if you can't take further action at that exact moment.
   - When you disagree, give your feedback; then agree and commit, or disagree and commit anyway.
