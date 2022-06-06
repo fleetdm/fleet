@@ -635,12 +635,18 @@ func (svc *Service) getHostDetails(ctx context.Context, host *fleet.Host, opts f
 		return nil, ctxerr.Wrap(ctx, err, "get packs for host")
 	}
 
-	var policies []*fleet.HostPolicy
+	var policies *[]*fleet.HostPolicy
 	if opts.IncludePolicies {
-		policies, err = svc.ds.ListPoliciesForHost(ctx, host)
+		hp, err := svc.ds.ListPoliciesForHost(ctx, host)
 		if err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "get policies for host")
 		}
+
+		if hp == nil {
+			hp = []*fleet.HostPolicy{}
+		}
+
+		policies = &hp
 	}
 
 	return &fleet.HostDetail{Host: *host, Labels: labels, Packs: packs, Policies: policies}, nil

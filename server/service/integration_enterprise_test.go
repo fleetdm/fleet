@@ -573,5 +573,5 @@ func (s *integrationEnterpriseTestSuite) TestDeviceEndpoints() {
 	require.Equal(t, host.ID, getDeviceHostResp.Host.ID)
 	require.False(t, getDeviceHostResp.Host.RefetchRequested)
 	require.Equal(t, "http://example.com/logo", getDeviceHostResp.OrgLogoURL)
-	require.Len(t, getDeviceHostResp.Host.Policies, 2)
+	require.Len(t, *getDeviceHostResp.Host.Policies, 2)
 }

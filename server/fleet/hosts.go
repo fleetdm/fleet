@@ -155,7 +155,7 @@ type HostDetail struct {
 	// Packs is the list of packs the host is a member of.
 	Packs []*Pack `json:"packs"`
 	// Policies is the list of policies and whether it passes for the host
-	Policies []*HostPolicy `json:"policies,omitempty"`
+	Policies *[]*HostPolicy `json:"policies,omitempty"`
 }
 
 const (
