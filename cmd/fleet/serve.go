@@ -293,8 +293,7 @@ the way that the Fleet server works.
 
 			ds = cached_mysql.New(ds)
 			var dsOpts []mysqlredis.Option
-			// TODO(mna): clarify condition to add the host count check for hard enrollment limit.
-			if license.DeviceCount > 0 /* && license is for Fleet Demo? */ {
+			if license.DeviceCount > 0 && config.License.EnforceHostLimit {
 				dsOpts = append(dsOpts, mysqlredis.WithEnforcedHostLimit(license.DeviceCount))
 			}
 			ds = mysqlredis.New(ds, redisPool, dsOpts...)

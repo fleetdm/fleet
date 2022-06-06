@@ -53,7 +53,6 @@ func (d *datastore) checkCanAddHost(ctx context.Context) (bool, error) {
 		return false, ctxerr.Wrap(ctx, err, "enrolled limits: check can add host")
 	}
 	if n >= d.enforceHostLimit {
-		// TODO(mna): check in DB to make absolutely sure the number is correct?
 		return false, nil
 	}
 	return true, nil
