@@ -139,7 +139,7 @@ func TestTriggerFailingPolicies(t *testing.T) {
 		automation FailingPolicyAutomationType
 	}
 	var triggerCalls []policyAutomation
-	err = TriggerFailingPoliciesIntegration(context.Background(), ds, kitlog.NewNopLogger(), ac, failingPolicySet, func(pol *fleet.Policy, cfg FailingPolicyAutomationConfig) error {
+	err = TriggerFailingPoliciesAutomation(context.Background(), ds, kitlog.NewNopLogger(), ac, failingPolicySet, func(pol *fleet.Policy, cfg FailingPolicyAutomationConfig) error {
 		triggerCalls = append(triggerCalls, policyAutomation{pol.ID, cfg.AutomationType})
 
 		hosts, err := failingPolicySet.ListHosts(pol.ID)

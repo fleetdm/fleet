@@ -226,7 +226,7 @@ func (z *Zendesk) Run(ctx context.Context, argsJSON json.RawMessage) error {
 	case intgTypeVuln:
 		return z.runVuln(ctx, cli, args)
 	case intgTypeFailingPolicy:
-		return z.runFailingPolicies(ctx, cli, args)
+		return z.runFailingPolicy(ctx, cli, args)
 	default:
 		return ctxerr.Errorf(ctx, "unknown integration type: %v", intgType)
 	}
@@ -257,7 +257,7 @@ func (z *Zendesk) runVuln(ctx context.Context, cli ZendeskClient, args zendeskAr
 	return nil
 }
 
-func (z *Zendesk) runFailingPolicies(ctx context.Context, cli ZendeskClient, args zendeskArgs) error {
+func (z *Zendesk) runFailingPolicy(ctx context.Context, cli ZendeskClient, args zendeskArgs) error {
 	tplArgs := &zendeskFailingPoliciesTplArgs{
 		FleetURL:   z.FleetURL,
 		PolicyName: args.FailingPolicy.PolicyName,

@@ -360,7 +360,7 @@ func cronWebhooks(
 
 		// We set the db lock durations to match the intervalReload.
 		maybeTriggerHostStatus(ctx, ds, logger, identifier, appConfig, intervalReload)
-		maybeTriggerFailingPoliciesIntegration(ctx, ds, logger, identifier, appConfig, intervalReload, failingPoliciesSet)
+		maybeTriggerFailingPoliciesAutomation(ctx, ds, logger, identifier, appConfig, intervalReload, failingPoliciesSet)
 
 		level.Debug(logger).Log("loop", "done")
 	}
@@ -392,7 +392,7 @@ func maybeTriggerHostStatus(
 	}
 }
 
-func maybeTriggerFailingPoliciesIntegration(
+func maybeTriggerFailingPoliciesAutomation(
 	ctx context.Context,
 	ds fleet.Datastore,
 	logger kitlog.Logger,
@@ -419,7 +419,7 @@ func maybeTriggerFailingPoliciesIntegration(
 	}
 
 	logger = kitlog.With(logger, "webhook", "failing_policies")
-	err = policies.TriggerFailingPoliciesIntegration(ctx, ds, logger, appConfig, failingPoliciesSet, func(policy *fleet.Policy, cfg policies.FailingPolicyAutomationConfig) error {
+	err = policies.TriggerFailingPoliciesAutomation(ctx, ds, logger, appConfig, failingPoliciesSet, func(policy *fleet.Policy, cfg policies.FailingPolicyAutomationConfig) error {
 		switch cfg.AutomationType {
 		case policies.FailingPolicyWebhook:
 			return webhooks.SendFailingPoliciesBatchedPOSTs(
@@ -452,7 +452,7 @@ func maybeTriggerFailingPoliciesIntegration(
 		return nil
 	})
 	if err != nil {
-		level.Error(logger).Log("err", "triggering failing policies integration", "details", err)
+		level.Error(logger).Log("err", "triggering failing policies automation", "details", err)
 		sentry.CaptureException(err)
 	}
 }

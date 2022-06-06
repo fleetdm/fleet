@@ -33,11 +33,11 @@ type FailingPolicyAutomationConfig struct {
 	HostBatchSize  int      // for webhook automation type only
 }
 
-// TriggerFailingPoliciesIntegration triggers an integration for failing
+// TriggerFailingPoliciesAutomation triggers an automation for failing
 // policies. It receives a function that takes care of sending the failed
-// policy as argument, that function receives the type of integration that is
+// policy as argument, that function receives the type of automation that is
 // enabled for that policy.
-func TriggerFailingPoliciesIntegration(
+func TriggerFailingPoliciesAutomation(
 	ctx context.Context,
 	ds fleet.Datastore,
 	logger kitlog.Logger,

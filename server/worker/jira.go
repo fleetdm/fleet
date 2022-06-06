@@ -227,7 +227,7 @@ func (j *Jira) Run(ctx context.Context, argsJSON json.RawMessage) error {
 	case intgTypeVuln:
 		return j.runVuln(ctx, cli, args)
 	case intgTypeFailingPolicy:
-		return j.runFailingPolicies(ctx, cli, args)
+		return j.runFailingPolicy(ctx, cli, args)
 	default:
 		return ctxerr.Errorf(ctx, "unknown integration type: %v", intgType)
 	}
@@ -259,7 +259,7 @@ func (j *Jira) runVuln(ctx context.Context, cli JiraClient, args jiraArgs) error
 	return nil
 }
 
-func (j *Jira) runFailingPolicies(ctx context.Context, cli JiraClient, args jiraArgs) error {
+func (j *Jira) runFailingPolicy(ctx context.Context, cli JiraClient, args jiraArgs) error {
 	tplArgs := &jiraFailingPoliciesTplArgs{
 		FleetURL:   j.FleetURL,
 		PolicyName: args.FailingPolicy.PolicyName,
