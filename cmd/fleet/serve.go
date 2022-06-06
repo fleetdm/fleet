@@ -352,7 +352,7 @@ the way that the Fleet server works.
 				}
 			}
 
-			cancelBackground := runCrons(ds, task, kitlog.With(logger, "component", "crons"), config, license, failingPolicySet)
+			cancelBackground := runCrons(ds, task, kitlog.With(logger, "component", "crons"), config, license, failingPolicySet, redisPool)
 
 			// Flush seen hosts every second
 			hostsAsyncCfg := config.Osquery.AsyncConfigForTask(configpkg.AsyncTaskHostLastSeen)
@@ -640,6 +640,7 @@ func runCrons(
 	config configpkg.FleetConfig,
 	license *fleet.LicenseInfo,
 	failingPoliciesSet fleet.FailingPolicySet,
+	redisPool fleet.RedisPool,
 ) context.CancelFunc {
 	ctx, cancelBackground := context.WithCancel(context.Background())
 
@@ -651,7 +652,7 @@ func runCrons(
 	// StartCollectors starts a goroutine per collector, using ctx to cancel.
 	task.StartCollectors(ctx, kitlog.With(logger, "cron", "async_task"))
 
-	go cronDB(ctx, ds, kitlog.With(logger, "cron", "cleanups"), ourIdentifier, license)
+	go cronDB(ctx, ds, kitlog.With(logger, "cron", "cleanups"), ourIdentifier, license, redisPool)
 	go cronVulnerabilities(
 		ctx, ds, kitlog.With(logger, "cron", "vulnerabilities"), ourIdentifier, config)
 	go cronWebhooks(ctx, ds, kitlog.With(logger, "cron", "webhooks"), ourIdentifier, failingPoliciesSet, 1*time.Hour)

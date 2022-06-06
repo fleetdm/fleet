@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server/config"
+	"github.com/fleetdm/fleet/v4/server/datastore/mysqlredis"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/service/externalsvc"
 	"github.com/fleetdm/fleet/v4/server/vulnerabilities"
@@ -20,7 +21,7 @@ import (
 	"github.com/go-kit/kit/log/level"
 )
 
-func cronDB(ctx context.Context, ds fleet.Datastore, logger kitlog.Logger, identifier string, license *fleet.LicenseInfo) {
+func cronDB(ctx context.Context, ds fleet.Datastore, logger kitlog.Logger, identifier string, license *fleet.LicenseInfo, redisPool fleet.RedisPool) {
 	logger = kitlog.With(logger, "cron", lockKeyLeader)
 
 	ticker := time.NewTicker(10 * time.Second)
@@ -86,6 +87,11 @@ func cronDB(ctx context.Context, ds fleet.Datastore, logger kitlog.Logger, ident
 		err = ds.UpdateOSVersions(ctx)
 		if err != nil {
 			level.Error(logger).Log("err", "update os versions", "details", err)
+			sentry.CaptureException(err)
+		}
+		err = mysqlredis.SyncEnrolledHostIDs(ctx, ds, redisPool)
+		if err != nil {
+			level.Error(logger).Log("err", "sync enrolled host ids", "details", err)
 			sentry.CaptureException(err)
 		}
 

@@ -2,12 +2,14 @@ package mysqlredis
 
 import (
 	"context"
+	"fmt"
 	"testing"
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server/datastore/redis/redistest"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mock"
+	redigo "github.com/gomodule/redigo/redis"
 	"github.com/stretchr/testify/require"
 )
 
@@ -132,6 +134,79 @@ func TestEnforceHostLimit(t *testing.T) {
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "maximum number of hosts")
 		require.False(t, ds.EnrollHostFuncInvoked)
+	}
+
+	t.Run("standalone", func(t *testing.T) {
+		pool := redistest.SetupRedis(t, enrolledHostsSetKey, false, false, false)
+		runTest(t, pool)
+	})
+
+	t.Run("cluster", func(t *testing.T) {
+		pool := redistest.SetupRedis(t, enrolledHostsSetKey, true, true, false)
+		runTest(t, pool)
+	})
+}
+
+func TestSyncEnrolledHostIDs(t *testing.T) {
+	runTest := func(t *testing.T, pool fleet.RedisPool) {
+		var hostIDSeq uint
+		var enrolledHostCount int
+		var enrolledHostIDs []uint
+		ctx := context.Background()
+
+		ds := new(mock.Store)
+		ds.NewHostFunc = func(ctx context.Context, host *fleet.Host) (*fleet.Host, error) {
+			hostIDSeq++
+			host.ID = hostIDSeq
+			return host, nil
+		}
+		ds.CountEnrolledHostsFunc = func(ctx context.Context) (int, error) {
+			return enrolledHostCount, nil
+		}
+		ds.EnrolledHostIDsFunc = func(ctx context.Context) ([]uint, error) {
+			return enrolledHostIDs, nil
+		}
+
+		requireInvokedAndReset := func(flag *bool) {
+			require.True(t, *flag)
+			*flag = false
+		}
+
+		wrappedDS := New(ds, pool, WithEnforcedHostLimit(10)) // limit is irrelevant for this test
+
+		// create a few hosts kept in sync
+		h1, err := wrappedDS.NewHost(ctx, &fleet.Host{})
+		require.NoError(t, err)
+		h2, err := wrappedDS.NewHost(ctx, &fleet.Host{})
+		require.NoError(t, err)
+		h3, err := wrappedDS.NewHost(ctx, &fleet.Host{})
+		require.NoError(t, err)
+
+		conn := pool.Get()
+		defer conn.Close()
+
+		redisIDs, err := redigo.Strings(conn.Do("SMEMBERS", enrolledHostsSetKey))
+		require.NoError(t, err)
+		require.ElementsMatch(t, []string{fmt.Sprint(h1.ID), fmt.Sprint(h2.ID), fmt.Sprint(h3.ID)}, redisIDs)
+
+		// syncing with the correct count does not trigger a sync
+		enrolledHostCount = 3
+		err = SyncEnrolledHostIDs(ctx, ds, pool)
+		require.NoError(t, err)
+		requireInvokedAndReset(&ds.CountEnrolledHostsFuncInvoked)
+		require.False(t, ds.EnrolledHostIDsFuncInvoked)
+
+		// syncing with a non-matching count triggers a sync
+		enrolledHostCount = 2
+		enrolledHostIDs = []uint{h1.ID, h3.ID} // will set the redis key to those values
+		err = SyncEnrolledHostIDs(ctx, ds, pool)
+		require.NoError(t, err)
+		requireInvokedAndReset(&ds.CountEnrolledHostsFuncInvoked)
+		requireInvokedAndReset(&ds.EnrolledHostIDsFuncInvoked)
+
+		redisIDs, err = redigo.Strings(conn.Do("SMEMBERS", enrolledHostsSetKey))
+		require.NoError(t, err)
+		require.ElementsMatch(t, []string{fmt.Sprint(h1.ID), fmt.Sprint(h3.ID)}, redisIDs)
 	}
 
 	t.Run("standalone", func(t *testing.T) {
