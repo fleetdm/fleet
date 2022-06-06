@@ -1749,3 +1749,25 @@ ON DUPLICATE KEY UPDATE
 
 	return nil
 }
+
+// EnrolledHostIDs returns the complete list of host IDs.
+func (ds *Datastore) EnrolledHostIDs(ctx context.Context) ([]uint, error) {
+	const stmt = `SELECT id FROM hosts`
+
+	var ids []uint
+	if err := sqlx.SelectContext(ctx, ds.reader, &ids, stmt); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "get enrolled host IDs")
+	}
+	return ids, nil
+}
+
+// CountEnrolledHosts returns the current number of enrolled hosts.
+func (ds *Datastore) CountEnrolledHosts(ctx context.Context) (int, error) {
+	const stmt = `SELECT count(*) FROM hosts`
+
+	var count int
+	if err := sqlx.SelectContext(ctx, ds.reader, &count, stmt); err != nil {
+		return 0, ctxerr.Wrap(ctx, err, "count enrolled host")
+	}
+	return count, nil
+}

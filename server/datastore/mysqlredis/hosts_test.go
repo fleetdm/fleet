@@ -14,6 +14,10 @@ import (
 func TestEnforceHostLimit(t *testing.T) {
 	const hostLimit = 3
 
+	oldBatchSize := redisSetMembersBatchSize
+	redisSetMembersBatchSize = 2
+	defer func() { redisSetMembersBatchSize = oldBatchSize }()
+
 	runTest := func(t *testing.T, pool fleet.RedisPool) {
 		var hostIDSeq uint
 		var expiredHostsIDs, incomingHostsIDs []uint
@@ -54,12 +58,15 @@ func TestEnforceHostLimit(t *testing.T) {
 		// create a few hosts within the limit
 		h1, err := wrappedDS.NewHost(ctx, &fleet.Host{})
 		require.NoError(t, err)
+		require.NotNil(t, h1)
 		requireInvokedAndReset(&ds.NewHostFuncInvoked)
 		h2, err := wrappedDS.EnrollHost(ctx, "osquery-2", "node-2", nil, time.Second)
 		require.NoError(t, err)
+		require.NotNil(t, h2)
 		requireInvokedAndReset(&ds.EnrollHostFuncInvoked)
 		h3, err := wrappedDS.EnrollHost(ctx, "osquery-3", "node-3", nil, time.Second)
 		require.NoError(t, err)
+		require.NotNil(t, h3)
 		requireInvokedAndReset(&ds.EnrollHostFuncInvoked)
 
 		// creating a new one fails - the limit is reached
@@ -78,6 +85,7 @@ func TestEnforceHostLimit(t *testing.T) {
 		require.NoError(t, err)
 		h4, err := wrappedDS.EnrollHost(ctx, "osquery-4", "node-4", nil, time.Second)
 		require.NoError(t, err)
+		require.NotNil(t, h4)
 		requireInvokedAndReset(&ds.EnrollHostFuncInvoked)
 
 		// and then limit is reached again
@@ -91,9 +99,11 @@ func TestEnforceHostLimit(t *testing.T) {
 		require.NoError(t, err)
 		h5, err := wrappedDS.EnrollHost(ctx, "osquery-5", "node-5", nil, time.Second)
 		require.NoError(t, err)
+		require.NotNil(t, h5)
 		requireInvokedAndReset(&ds.EnrollHostFuncInvoked)
 		h6, err := wrappedDS.NewHost(ctx, &fleet.Host{})
 		require.NoError(t, err)
+		require.NotNil(t, h6)
 		requireInvokedAndReset(&ds.NewHostFuncInvoked)
 		_, err = wrappedDS.EnrollHost(ctx, "osquery-7", "node-7", nil, time.Second)
 		require.Error(t, err)
@@ -112,16 +122,16 @@ func TestEnforceHostLimit(t *testing.T) {
 		// can now create 2 more
 		h7, err := wrappedDS.EnrollHost(ctx, "osquery-7", "node-7", nil, time.Second)
 		require.NoError(t, err)
+		require.NotNil(t, h7)
 		requireInvokedAndReset(&ds.EnrollHostFuncInvoked)
 		h8, err := wrappedDS.NewHost(ctx, &fleet.Host{})
 		require.NoError(t, err)
+		require.NotNil(t, h8)
 		requireInvokedAndReset(&ds.NewHostFuncInvoked)
 		_, err = wrappedDS.EnrollHost(ctx, "osquery-9", "node-9", nil, time.Second)
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "maximum number of hosts")
 		require.False(t, ds.EnrollHostFuncInvoked)
-
-		_, _, _ = h6, h7, h8 // unused but makes test cases clearer
 	}
 
 	t.Run("standalone", func(t *testing.T) {

@@ -150,6 +150,10 @@ type MarkHostsSeenFunc func(ctx context.Context, hostIDs []uint, t time.Time) er
 
 type SearchHostsFunc func(ctx context.Context, filter fleet.TeamFilter, query string, omit ...uint) ([]*fleet.Host, error)
 
+type EnrolledHostIDsFunc func(ctx context.Context) ([]uint, error)
+
+type CountEnrolledHostsFunc func(ctx context.Context) (int, error)
+
 type CleanupIncomingHostsFunc func(ctx context.Context, now time.Time) ([]uint, error)
 
 type GenerateHostStatusStatisticsFunc func(ctx context.Context, filter fleet.TeamFilter, now time.Time, platform *string) (*fleet.HostSummary, error)
@@ -609,6 +613,12 @@ type DataStore struct {
 
 	SearchHostsFunc        SearchHostsFunc
 	SearchHostsFuncInvoked bool
+
+	EnrolledHostIDsFunc        EnrolledHostIDsFunc
+	EnrolledHostIDsFuncInvoked bool
+
+	CountEnrolledHostsFunc        CountEnrolledHostsFunc
+	CountEnrolledHostsFuncInvoked bool
 
 	CleanupIncomingHostsFunc        CleanupIncomingHostsFunc
 	CleanupIncomingHostsFuncInvoked bool
@@ -1332,6 +1342,16 @@ func (s *DataStore) MarkHostsSeen(ctx context.Context, hostIDs []uint, t time.Ti
 func (s *DataStore) SearchHosts(ctx context.Context, filter fleet.TeamFilter, query string, omit ...uint) ([]*fleet.Host, error) {
 	s.SearchHostsFuncInvoked = true
 	return s.SearchHostsFunc(ctx, filter, query, omit...)
+}
+
+func (s *DataStore) EnrolledHostIDs(ctx context.Context) ([]uint, error) {
+	s.EnrolledHostIDsFuncInvoked = true
+	return s.EnrolledHostIDsFunc(ctx)
+}
+
+func (s *DataStore) CountEnrolledHosts(ctx context.Context) (int, error) {
+	s.CountEnrolledHostsFuncInvoked = true
+	return s.CountEnrolledHostsFunc(ctx)
 }
 
 func (s *DataStore) CleanupIncomingHosts(ctx context.Context, now time.Time) ([]uint, error) {

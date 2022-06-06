@@ -179,6 +179,10 @@ type Datastore interface {
 	ListHosts(ctx context.Context, filter TeamFilter, opt HostListOptions) ([]*Host, error)
 	MarkHostsSeen(ctx context.Context, hostIDs []uint, t time.Time) error
 	SearchHosts(ctx context.Context, filter TeamFilter, query string, omit ...uint) ([]*Host, error)
+	// EnrolledHostIDs returns the full list of enrolled host IDs.
+	EnrolledHostIDs(ctx context.Context) ([]uint, error)
+	CountEnrolledHosts(ctx context.Context) (int, error)
+
 	// CleanupIncomingHosts deletes hosts that have enrolled but never updated their status details. This clears dead
 	// "incoming hosts" that never complete their registration.
 	// A host is considered incoming if both the hostname and osquery_version fields are empty. This means that multiple
