@@ -4,27 +4,27 @@
 
 This section outlines the release process at Fleet.
 
-The current release cadence is once every 3 weeks and concentrated around Wednesdays.
+The current release cadence is once every three weeks and concentrates around Wednesdays.
 
 ### Release freeze period
 
-In order to ensure quality releases, Fleet has a freeze period for testing prior to each release. Effective at the start of the freeze period, new feature work will not be merged.
+To make sure we build quality releases, Fleet has a freeze period for testing prior to each release. Effective at the start of the freeze period, we will not merge new feature work.
 
 Release blocking bugs are exempt from the freeze period and are defined by the same rules as patch releases, which include:
 1. Regressions
 2. Security concerns
-3. Issues with features targeted for current release
+3. Issues with features targeted for the current release
 
-Non-release blocking bugs may include known issues that were not targeted for the current release, or newly documented behaviors that reproduce in older stable versions. These may be addressed during a release period by mutual agreement between the [Product](./product.md) and Engineering teams.
+Non-release blocking bugs may include known issues that were not targeted for the current release or newly documented behaviors that reproduce in older stable versions. These may be addressed during a release period by mutual agreement between the [Product](./product.md) and Engineering teams.
 
 ### What to do?
 
-Note: Please prefix versions with `fleet-v` (eg. `fleet-v4.0.0`) in git tags, Helm charts, and NPM configs.
+Note: Please prefix versions with `fleet-v` (e.g., `fleet-v4.0.0`) in git tags, Helm charts, and NPM configs.
 
-1. Update the [CHANGELOG](https://github.com/fleetdm/fleet/blob/main/CHANGELOG.md) with the changes that have been made since the last
+1. Update the [CHANGELOG](https://github.com/fleetdm/fleet/blob/main/CHANGELOG.md) with the changes you made since the last
    Fleet release. Use `make changelog` to pull the changes files into `CHANGELOG.md`, then manually
-   edit. When editing, order the most relevant/important changes at the time, and try to make the
-   tone and syntax of the written language match throughout. `make changelog` will stage all changes
+   edit. When editing, order the most relevant/important changes at the time and try to make the
+   tone and syntax of the written language match throughout the document. `make changelog` will stage all changes
    file entries for deletion with the commit.
 
    Add a "Performance" section below the list of changes. This section should summarize the number of
@@ -51,15 +51,15 @@ Note: Please prefix versions with `fleet-v` (eg. `fleet-v4.0.0`) in git tags, He
    Note that `origin` may be `upstream` depending on your `git remote` configuration. The intent here
    is to push the new tag to the `github.com/fleetdm/fleet` repository.
 
-   GitHub Actions will automatically begin building the new release after the tag is pushed.
+   Afte the tag is pushed, GitHub Actions will automatically begin building the new release.
 
    ***
 
-   Wait while GitHub Actions creates and uploads the artifacts...
+   Wait while GitHub Actions creates and uploads the artifacts.
 
    ***
 
-   When the Actions Workflow has completed:
+   When the Actions Workflow has been completed:
 
 3. Edit the draft release on the [GitHub releases page](https://github.com/fleetdm/fleet/releases).
    Use the version number as the release title. Use the below template for the release description

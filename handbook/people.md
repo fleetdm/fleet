@@ -87,6 +87,12 @@ When you take any time off, you should follow this process:
 - Find someone to cover anything that needs covering while you're out(i.e., meetings, planned tasks, unfinished business, important Slack/email threads, anything where someone might be depending on you).
 - Mark an all-day "Out of office" event in Google Calendar for the day(s) you're taking off.
 
+If you can’t complete the above because you need to take the day off quickly due to an emergency, let your team know, and they will help you.
+
+If you ever want to take a day off, and the only thing stopping you is internal (Fleetie-only) meetings, don’t stress. Consider, “Is this a meeting that I can reschedule to another day, or is this a meeting that can go on without me and not interfere with the company’s plans?” 
+
+Talk to your manager if you’re unsure, but it is perfectly OK to reschedule internal meetings that can wait so that you can take a day off.
+
 This process is the same for any days you take off, whether it's a holiday or you just need a break.
    
 ### Holidays
@@ -415,14 +421,6 @@ At the end of the quarter and key points throughout the quarter (every three wee
 - Finalized OKRs are shared company-wide and at the "All hands" meeting and, at least to some degree, become public.
 - Throughout the quarter, Mike and Zach have OKR preplanning meetings (every three weeks) to prepare OKRs for the upcoming quarter. 
 
-### Weekly update
-
-Every Thursday afternoon, Charlie will create a new thread in the #help-manage channel and ask managers to reply with a short summary of what their team did in the past week.
-On Friday afternoon, Charlie updates the KPIs in the weekly updates spreadsheet (https://docs.google.com/spreadsheets/d/1Hso0LxqwrRVINCyW_n436bNHmoqhoLhC8bcbvLPOs9A/edit#gid=0)
-On Friday evening, Charlie will combine the manager's updates into one message and format the content.
-If there are any new team members joining Fleet, Charlie will add an announcement to the update.
-Charlie will post the update in #general and include a link to the Weekly updates spreadsheet (https://docs.google.com/spreadsheets/d/1Hso0LxqwrRVINCyW_n436bNHmoqhoLhC8bcbvLPOs9A/edit#gid=0)
-
 ### 1:1 Mike:Sid Document Preparation
 
 Every two weeks, our CEO Mike has a 1:1 meeting with our Investor Sid. The Digital Experience Team completes four parts while constructing the associated document. 
@@ -444,7 +442,11 @@ We're happy you've ventured a trip around the sun with Fleet. Let's celebrate!
 
 We like to celebrate our achievements weekly in `#general`.
   - Every Thursday night, Charlie creates a thread in #help-manage requesting weekly updates, and managers will reply to the thread with their weekly updates.
-  - Friday afternoons, Charlie updates the KPIs in the weekly updates spreadsheet, and Friday nights, Charlie will post the updates in #general.
+  - Friday afternoons, Charlie updates the KPIs in the [weekly updates spreadsheet](https://docs.google.com/spreadsheets/d/1Hso0LxqwrRVINCyW_n436bNHmoqhoLhC8bcbvLPOs9A/edit#gid=0), and Friday nights, Charlie will post the updates in #general.
+
+Weekly update principles
+   - Each department's update is 20-40 words or less.
+   - Erring on the side of refering to something that is completely done and/or mentioning news that is potentially very exciting to folks throughout the company.
 
 ### Investor and Advisor updates
 
@@ -476,3 +478,4 @@ Please see [Brand > Slack channels](https://fleetdm.com/handbook/brand#slack-cha
 
 
 <meta name="maintainedBy" value="eashaw">
+<meta name="title" value="🧑‍🚀 People">

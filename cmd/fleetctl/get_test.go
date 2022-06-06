@@ -159,6 +159,9 @@ spec:
     description: team1 description
     host_count: 0
     id: 42
+    integrations:
+      jira: null
+      zendesk: null
     name: team1
     user_count: 99
     webhook_settings:
@@ -183,6 +186,9 @@ spec:
     description: team2 description
     host_count: 0
     id: 43
+    integrations:
+      jira: null
+      zendesk: null
     name: team2
     user_count: 87
     webhook_settings:
@@ -192,8 +198,8 @@ spec:
         host_batch_size: 0
         policy_ids: null
 `
-			expectedJson := `{"kind":"team","apiVersion":"v1","spec":{"team":{"id":42,"created_at":"1999-03-10T02:45:06.371Z","name":"team1","description":"team1 description","webhook_settings":{"failing_policies_webhook":{"enable_failing_policies_webhook":false,"destination_url":"","policy_ids":null,"host_batch_size":0}},"user_count":99,"host_count":0}}}
-{"kind":"team","apiVersion":"v1","spec":{"team":{"id":43,"created_at":"1999-03-10T02:45:06.371Z","name":"team2","description":"team2 description","agent_options":{"config":{"foo":"bar"},"overrides":{"platforms":{"darwin":{"foo":"override"}}}},"webhook_settings":{"failing_policies_webhook":{"enable_failing_policies_webhook":false,"destination_url":"","policy_ids":null,"host_batch_size":0}},"user_count":87,"host_count":0}}}
+			expectedJson := `{"kind":"team","apiVersion":"v1","spec":{"team":{"id":42,"created_at":"1999-03-10T02:45:06.371Z","name":"team1","description":"team1 description","webhook_settings":{"failing_policies_webhook":{"enable_failing_policies_webhook":false,"destination_url":"","policy_ids":null,"host_batch_size":0}},"integrations":{"jira":null,"zendesk":null},"user_count":99,"host_count":0}}}
+{"kind":"team","apiVersion":"v1","spec":{"team":{"id":43,"created_at":"1999-03-10T02:45:06.371Z","name":"team2","description":"team2 description","agent_options":{"config":{"foo":"bar"},"overrides":{"platforms":{"darwin":{"foo":"override"}}}},"webhook_settings":{"failing_policies_webhook":{"enable_failing_policies_webhook":false,"destination_url":"","policy_ids":null,"host_batch_size":0}},"integrations":{"jira":null,"zendesk":null},"user_count":87,"host_count":0}}}
 `
 			if tt.shouldHaveExpiredBanner {
 				expectedJson = expiredBanner.String() + expectedJson

@@ -8,6 +8,7 @@ import FleetIcon from "components/icons/FleetIcon";
 import Spinner from "components/Spinner";
 import { IIntegration, IIntegrations } from "interfaces/integration";
 import IntegrationForm from "../IntegrationForm";
+import ExternalURLIcon from "../../../../../../assets/images/icon-external-url-12x12@2x.png";
 
 const baseClass = "create-integration-modal";
 
@@ -73,7 +74,7 @@ const CreateIntegrationModal = ({
               rel="noopener noreferrer"
             >
               Suggest a new destination&nbsp;
-              <FleetIcon name="external-link" />
+              <img alt="Open external link" src={ExternalURLIcon} />
             </a>
           </div>
           <IntegrationForm

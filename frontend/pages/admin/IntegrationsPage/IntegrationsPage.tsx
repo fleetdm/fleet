@@ -15,7 +15,6 @@ import { IApiError } from "interfaces/errors";
 
 import Button from "components/buttons/Button";
 // @ts-ignore
-import FleetIcon from "components/icons/FleetIcon";
 
 import configAPI from "services/entities/config";
 
@@ -24,6 +23,7 @@ import TableDataError from "components/DataError";
 import AddIntegrationModal from "./components/CreateIntegrationModal";
 import DeleteIntegrationModal from "./components/DeleteIntegrationModal";
 import EditIntegrationModal from "./components/EditIntegrationModal";
+import ExternalURLIcon from "../../../../assets/images/icon-external-url-12x12@2x.png";
 
 import {
   generateTableHeaders,
@@ -377,7 +377,7 @@ const IntegrationsPage = (): JSX.Element => {
                 rel="noopener noreferrer"
               >
                 Read about automations&nbsp;
-                <FleetIcon name="external-link" />
+                <img alt="Open external link" src={ExternalURLIcon} />
               </a>
             </p>
             <Button
