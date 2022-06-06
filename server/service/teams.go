@@ -31,6 +31,13 @@ func listTeamsEndpoint(ctx context.Context, request interface{}, svc fleet.Servi
 
 	resp := listTeamsResponse{Teams: []fleet.Team{}}
 	for _, team := range teams {
+		// mask the API token of integrations
+		for _, intg := range team.Config.Integrations.Jira {
+			intg.APIToken = fleet.MaskedPassword
+		}
+		for _, intg := range team.Config.Integrations.Zendesk {
+			intg.APIToken = fleet.MaskedPassword
+		}
 		resp.Teams = append(resp.Teams, *team)
 	}
 	return resp, nil
@@ -64,6 +71,14 @@ func getTeamEndpoint(ctx context.Context, request interface{}, svc fleet.Service
 	team, err := svc.GetTeam(ctx, req.ID)
 	if err != nil {
 		return getTeamResponse{Err: err}, nil
+	}
+
+	// mask the API token of integrations
+	for _, intg := range team.Config.Integrations.Jira {
+		intg.APIToken = fleet.MaskedPassword
+	}
+	for _, intg := range team.Config.Integrations.Zendesk {
+		intg.APIToken = fleet.MaskedPassword
 	}
 	return getTeamResponse{Team: team}, nil
 }
@@ -99,6 +114,13 @@ func createTeamEndpoint(ctx context.Context, request interface{}, svc fleet.Serv
 		return teamResponse{Err: err}, nil
 	}
 
+	// mask the API token of integrations
+	for _, intg := range team.Config.Integrations.Jira {
+		intg.APIToken = fleet.MaskedPassword
+	}
+	for _, intg := range team.Config.Integrations.Zendesk {
+		intg.APIToken = fleet.MaskedPassword
+	}
 	return teamResponse{Team: team}, nil
 }
 
@@ -126,6 +148,13 @@ func modifyTeamEndpoint(ctx context.Context, request interface{}, svc fleet.Serv
 		return teamResponse{Err: err}, nil
 	}
 
+	// mask the API token of integrations
+	for _, intg := range team.Config.Integrations.Jira {
+		intg.APIToken = fleet.MaskedPassword
+	}
+	for _, intg := range team.Config.Integrations.Zendesk {
+		intg.APIToken = fleet.MaskedPassword
+	}
 	return teamResponse{Team: team}, err
 }
 
@@ -215,6 +244,13 @@ func modifyTeamAgentOptionsEndpoint(ctx context.Context, request interface{}, sv
 		return teamResponse{Err: err}, nil
 	}
 
+	// mask the API token of integrations
+	for _, intg := range team.Config.Integrations.Jira {
+		intg.APIToken = fleet.MaskedPassword
+	}
+	for _, intg := range team.Config.Integrations.Zendesk {
+		intg.APIToken = fleet.MaskedPassword
+	}
 	return teamResponse{Team: team}, err
 }
 
@@ -276,6 +312,13 @@ func addTeamUsersEndpoint(ctx context.Context, request interface{}, svc fleet.Se
 		return teamResponse{Err: err}, nil
 	}
 
+	// mask the API token of integrations
+	for _, intg := range team.Config.Integrations.Jira {
+		intg.APIToken = fleet.MaskedPassword
+	}
+	for _, intg := range team.Config.Integrations.Zendesk {
+		intg.APIToken = fleet.MaskedPassword
+	}
 	return teamResponse{Team: team}, err
 }
 
@@ -294,6 +337,13 @@ func deleteTeamUsersEndpoint(ctx context.Context, request interface{}, svc fleet
 		return teamResponse{Err: err}, nil
 	}
 
+	// mask the API token of integrations
+	for _, intg := range team.Config.Integrations.Jira {
+		intg.APIToken = fleet.MaskedPassword
+	}
+	for _, intg := range team.Config.Integrations.Zendesk {
+		intg.APIToken = fleet.MaskedPassword
+	}
 	return teamResponse{Team: team}, err
 }
 

@@ -305,6 +305,19 @@ module.exports = {
 
               }
 
+              // Find all H2s in handbook pages for the generated handbook index
+              let linksForHandbookIndex = [];
+              if(sectionRepoPath === 'handbook/') {
+                for (let link of (mdString.match(/(\n\#\#\s.+)\n/g, '$1')||[])) {
+                  let sectionInHandbookPage =  {};
+                  // Remove any preceeding #s and any trailing newlines from the matched link
+                  sectionInHandbookPage.headingText = link.replace(/\n## /, '').replace(/\n/g, '');
+                  // Build the relative hash link for the matched heading
+                  sectionInHandbookPage.hashLink = rootRelativeUrlPath+'#'+_.kebabCase(sectionInHandbookPage.headingText);
+                  linksForHandbookIndex.push(sectionInHandbookPage);
+                }
+              }
+
               // Extract metadata from markdown.
               // > • Parsing meta tags (consider renaming them to just <meta>- or by now there's probably a more standard way of embedding semantics in markdown files; prefer to use that): https://github.com/uncletammy/doc-templater/blob/2969726b598b39aa78648c5379e4d9503b65685e/lib/compile-markdown-tree-from-remote-git-repo.js#L180-L183
               // >   See also https://github.com/mikermcneil/machinepack-markdown/blob/5d8cee127e8ce45c702ec9bbb2b4f9bc4b7fafac/machines/parse-docmeta-tags.js#L42-L47
@@ -345,6 +358,7 @@ module.exports = {
 
               // If the page has a pageOrderInSection meta tag, we'll use that to sort pages in their bottom level sections.
               let pageOrderInSection;
+              // Add handbook pages to pageOrderInSection check, add pageOrderInSection meta tags to each handbook page.
               if(sectionRepoPath === 'docs/') {
                 // Set a flag to determine if the page is a readme (e.g. /docs/Using-Fleet/configuration-files/readme.md) or a FAQ page.
                 // READMEs in subfolders and FAQ pages don't have pageOrderInSection values, they are always sorted at the end of sections.
@@ -462,7 +476,8 @@ module.exports = {
                 htmlId: htmlId,
                 pageOrderInSectionPath: pageOrderInSection,
                 sectionRelativeRepoPath: sectionRelativeRepoPath,
-                meta: _.omit(embeddedMetadata, ['title', 'pageOrderInSection'])
+                meta: _.omit(embeddedMetadata, ['title', 'pageOrderInSection']),
+                linksForHandbookIndex: linksForHandbookIndex.length > 0 ? linksForHandbookIndex : undefined,
               });
             }
           }//∞ </each source file>

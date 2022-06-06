@@ -414,3 +414,4 @@ This group maintains the following [Slack channels](https://fleetdm.com/handbook
 
 
 <meta name="maintainedBy" value="ksatter">
+<meta name="title" value="🪂 Community">
