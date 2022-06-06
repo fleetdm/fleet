@@ -82,19 +82,36 @@ func runHandler(ctx context.Context, eh *Handler) {
 	go eh.handleErrors(ctx)
 }
 
+type storedError struct {
+	Count int             `json:"count"`
+	Error json.RawMessage `json:"error"`
+}
+
+func (s *storedError) RedisScan(src interface{}) error {
+	vals, err := redigo.Strings(redigo.Values(src, nil))
+
+	if err != nil {
+		return err
+	}
+
+	s.Error = json.RawMessage(vals[0])
+	s.Count, err = strconv.Atoi(vals[1])
+	return err
+}
+
 // Retrieve retrieves all stored errors from Redis and returns them as a slice
 // of JSON-encoded strings.
 //
 // If flush is `true`, performs a destructive read - the errors are removed
 // from Redis on return.
-func (h *Handler) Retrieve(flush bool) ([]string, error) {
+func (h *Handler) Retrieve(flush bool) ([]*storedError, error) {
 	errorKeys, err := redis.ScanKeys(h.pool, "error:*", 100)
 	if err != nil {
 		return nil, err
 	}
 
 	keysBySlot := redis.SplitKeysBySlot(h.pool, errorKeys...)
-	var errors []string
+	var errors []*storedError
 	for _, qkeys := range keysBySlot {
 		if len(qkeys) > 0 {
 			gotErrors, err := h.collectBatchErrors(qkeys, flush)
@@ -107,24 +124,33 @@ func (h *Handler) Retrieve(flush bool) ([]string, error) {
 	return errors, nil
 }
 
-func (h *Handler) collectBatchErrors(errorKeys []string, flush bool) ([]string, error) {
+func (h *Handler) collectBatchErrors(errorKeys []string, flush bool) ([]*storedError, error) {
 	conn := redis.ConfigureDoer(h.pool, h.pool.Get())
 	defer conn.Close()
 
-	var args redigo.Args
-	args = args.AddFlat(errorKeys)
-	errorList, err := redigo.Strings(conn.Do("MGET", args...))
+	conn.Send("MULTI")
+	for _, key := range errorKeys {
+		conn.Send("HMGET", key, "error", "count")
+	}
+
+	q, err := redigo.Values(conn.Do("EXEC"))
 	if err != nil {
 		return nil, err
 	}
 
 	if flush {
-		if _, err := conn.Do("DEL", args...); err != nil {
+		var args redigo.Args
+		if _, err := conn.Do("DEL", args.AddFlat(errorKeys)...); err != nil {
 			return nil, err
 		}
 	}
 
-	return errorList, nil
+	var errs = []*storedError{}
+	if err = redigo.ScanSlice(q, &errs); err != nil {
+		return nil, err
+	}
+
+	return errs, nil
 }
 
 func sha256b64(s string) string {
@@ -190,18 +216,17 @@ func (h *Handler) storeError(ctx context.Context, err error) {
 	conn := redis.ConfigureDoer(h.pool, h.pool.Get())
 	defer conn.Close()
 
-	var args redigo.Args
-	args = args.Add(jsonKey, errorJson)
+	conn.Send("MULTI")
+	conn.Send("HSETNX", jsonKey, "error", errorJson)
+	conn.Send("HINCRBY", jsonKey, "count", 1)
+
 	if h.ttl > 0 {
 		secs := int(h.ttl.Seconds())
-		if secs <= 0 {
-			secs = 1 // SET EX fails if ttl is <= 0
-		}
-		args = args.Add("EX", secs)
+		conn.Send("EXPIRE", jsonKey, secs)
 	}
 
-	if _, err := conn.Do("SET", args...); err != nil {
-		level.Error(h.logger).Log("err", err, "msg", "redis SET failed")
+	if _, err := conn.Do("EXEC"); err != nil {
+		level.Error(h.logger).Log("err", err, "msg", "redis EXEC failed")
 		if h.testOnStore != nil {
 			h.testOnStore(err)
 		}
@@ -261,15 +286,7 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// each string returned by eh.Retrieve is already JSON-encoded, so to prevent
-	// double-marshaling while still marshaling the list of errors as a JSON
-	// array, treat them as raw json messages.
-	raw := make([]json.RawMessage, len(errors))
-	for i, s := range errors {
-		raw[i] = json.RawMessage(s)
-	}
-
-	bytes, err := json.Marshal(raw)
+	bytes, err := json.Marshal(errors)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		return
