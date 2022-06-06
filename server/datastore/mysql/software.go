@@ -1178,7 +1178,7 @@ func (ds *Datastore) ListSoftwareForVulnDetection(
 func (ds *Datastore) ListCVEs(ctx context.Context, maxAge time.Duration) ([]fleet.CVEMeta, error) {
 	var result []fleet.CVEMeta
 
-	maxAgeDate := time.Now().UTC().Add(-1 * maxAge)
+	maxAgeDate := time.Now().Add(-1 * maxAge)
 	stmt := dialect.From(goqu.T("cve_meta")).
 		Select(
 			goqu.C("cve"),
