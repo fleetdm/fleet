@@ -54,7 +54,7 @@ Read more about the Self-service and Scope transparency features included with F
 
 Fleet Desktop is supported on macOS, Windows, and Linux. Check out the supported Linux distributions
 and versions [here
-on GitHub](https://github.com/fleetdm/fleet/issues/5684). 
+on GitHub](https://github.com/fleetdm/fleet/issues/5684#issuecomment-1123906753). 
 
 Fleet Desktop is currently in beta. Check out the remaining work to bring Fleet Desktop out of beta [here on GitHub](https://github.com/fleetdm/fleet/issues/5684).
 
