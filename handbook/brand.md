@@ -1,5 +1,43 @@
 # Brand
 
+## Publishing Fleet content 
+
+The following describes how to go about publishing and editing content at Fleet.
+
+### Publication methods
+
+1. **Instant**: Content is published instantly (get the required training, if any, from the links listed in the table below). Content is approved by Digital Experience post-facto – see [Digital Experience rituals](https://fleetdm.com/handbook/brand#rituals).
+2. **Gated**: Submit content to Digital Experience for review – see specific instructions in the table below.
+3. **Queued**: Communicate the publication date with the [DRI](https://fleetdm.com/handbook/people#directly-responsible-individuals) responsible for approving this content. Refer to specific instructions linked in the table below. 
+
+### Revision methods (for editors)
+
+1. **Absorb**: Fix and publish yourself
+2. **Feedback**: Request changes and wait
+3. **Pairing**: Jump on Zoom to finalize with the original contributor.
+
+> Consider: **Absorb** may be risky depending on how sure the editor is about their edits. **Feedback** can get forgotten about. **Pairing** is underused, but can eat up more time, if not careful.
+
+### Timeframe
+
+Details the minimum time needed for new or updated content to be live (published) and brand-approved (reviewed and revised, if necessary).
+
+### Content types
+
+| Content | To publish | To revice (for editors) | Timeframe |
+|:------ |:-----------------|:-------------------------------|-----------|
+| Articles | **Queued** – see _(TODO: Publishing articles on fleetdm.com)_. | **Absorb** (pair or feedback as needed) – see [How to edit articles, release posts, and press releases](http://localhost:2024/handbook/brand#how-to-edit-articles-release-posts-and-press-releases). | 3 business days |
+| Ads | **Gated**. Request review from Digital Experience – see _(TODO: Creating an ad campaign)_. | **Feedback** or **pair** | 5 business days |
+| Docs | **Gated**. Request review from Noah Talerman – see _(TODO: Adding to the docs)_. | **Absorb** – see [How to edit recently merged Pull Requests for the handbook and docs](http://localhost:2024/handbook/brand#how-to-edit-recently-merged-pull-requests-for-the-handbook-and-docs). For non-grammar-related revisions: **Feedback** or **pair** with contributor, and request review from Noah Talerman. | 2 business days |
+| Docs (REST API) | **Gated**. Request review from Luke Heath – see _(TODO: Adding to the docs (REST API))_. | **Absorb** – see [How to edit recently merged Pull Requests for the handbook and docs](http://localhost:2024/handbook/brand#how-to-edit-recently-merged-pull-requests-for-the-handbook-and-docs). For non-grammar-related revisions: **Feedback** or **pair** with contributor, and request review from Luke Heath. | 2 business days |
+| Handbook | **Gated**. Request review from page DRI – see _(TODO: Adding to the handbook)_. | **Absorb** and request review from page DRI – see see [How to edit recently merged Pull Requests for the handbook and docs](http://localhost:2024/handbook/brand#how-to-edit-recently-merged-pull-requests-for-the-handbook-and-docs). | 2 business days |
+| Social media (Twitter, FB, LinkedIn.) | **Instant** – see [Posting on social media as Fleet](https://fleetdm.com/handbook/growth#posting-on-social-media-as-fleet). | **Pair** or **absorb** (pair if possible, otherwise silently fix ASAP by editing or deleting the post. Consider that some or many people may have already seen the post, and decide accordingly – see [How to edit social media posts](http://localhost:2024/handbook/brand#how-to-edit-social-media-posts).) | 1 business day |
+| Newsletter/email blast | **Gated**. Request review from Digital Experience – see _(TODO: Creating an email campaign)_. | **Feedback** or **pair** | 5 business days |
+| Press release | **Queued** – see _(TODO: Publishing a press release)_ | **Feedback** or **pair** – see [How to edit articles, release posts, and press releases](http://localhost:2024/handbook/brand#how-to-edit-articles-release-posts-and-press-releases) | 3 business days |
+| Release post | **Queued** – see _(TODO: Publishing release posts)_ | **Feedback** or **pair** – see [How to edit articles, release posts, and press releases](http://localhost:2024/handbook/brand#how-to-edit-articles-release-posts-and-press-releases) | 3 business days |
+| Website (text change) | **Gated** – see _(TODO: Adding content to fleetdm.com)_. | **Feedback** or **pair** | 3 business days |
+| YouTube | **Queued** – see _(TODO: Publishing on YouTube as Fleet.)_ | **Absorb** for revisions to the description. **Pair** or **absorb** for video content (pair if possible, otherwise silently fix ASAP by deleting the post. Consider that the video may also have been promoted on social media – see Social media (Twitter, FB, LinkedIn) above. | 3 business days |
+
 ## Communicating as Fleet
 
 - **Sound positive** and assume positive intent. A positive tone helps to empower our users and encourages them to succeed with Fleet.
@@ -296,32 +334,6 @@ In Figma:
   * File extension might be .jpg or .png.
   * Avoid using SVGs or icon fonts.
 3. Click the __Export__ button.
-
-## Request Digital Experience services
-
-The following table details how to request reviews and art assets from the Digital Experience team.
-
-- Reviews should be requested at least 24 hours prior to the intended publication date. 
-- Lead times are an approximation. Artwork requests may vary depending on requirements and prioritization from Digital Experience. Under some circumstances, reviews may take longer than the times listed below. In these cases the reviewer should communicate the expected timeframe to the contributor.
-
-| Media | Before publishing | How to adjust after publishing | Lead time |
-|:------ |:-----------------|:-------------------------------|-----------|
-| Article | Submit a Google Doc to Digital Experience for an editor review. TODO: "How to publish a Markdown article" | Create a Pull Request (PR) | 2 days |
-| Article artwork | Request from Digital Experience for prioritization | Ask for help in [#g-digital-experience](https://fleetdm.slack.com/archives/C01GQUZ91TN) | - |
-| Ad | Request review from Digital Experience | Ask for help in [#g-digital-experience](https://fleetdm.slack.com/archives/C01GQUZ91TN) | 2 days |
-| Ad artwork | Request from Digital Experience for prioritization | Ask for help in [#g-digital-experience](https://fleetdm.slack.com/archives/C01GQUZ91TN) | - |
-| Docs | Request PR review from Noah Talerman. Digital Experience will follow up after merge with an editor pass. | Create a Pull Request (PR) | 2 days |
-| Docs (REST API) | Request PR review from Luke Heath. Digital Experience will follow up after merge with an editor pass. | Create a Pull Request (PR) | 2 days |
-| Handbook | Request PR review from page DRI. Digital Experience will follow up after merge with an editor pass | Create a Pull Request (PR) | 2 days |
-| Newletter/email blast | Request review from Digital Experience | Ask for help in [#g-digital-experience](https://fleetdm.slack.com/archives/C01GQUZ91TN) | 2 days |
-| Newsletter/email blast artwork | Request from Digital Experience for prioritization | Ask for help in [#g-digital-experience](https://fleetdm.slack.com/archives/C01GQUZ91TN) | - |
-| Release post | Submit a Google Doc to Digital Experience for an editor review | Create a Pull Request (PR) | 2 days |
-| Release post artwork | Request from Digital Experience | Ask for help in [#g-digital-experience](https://fleetdm.slack.com/archives/C01GQUZ91TN) | 3 days |
-| Social media (Twitter, FB, LinkedIn) | (Optional) Request review from Digital Experience | Ask for help in [#g-growth](https://fleetdm.slack.com/archives/C01ALP02RB5) | 1 day |
-| Social media artwork | Request from Digital Experience for prioritization | Ask for help in [#g-digital-experience](https://fleetdm.slack.com/archives/C01GQUZ91TN) | - |
-| Website (text change) | Request from Digital Experience for approval | Ask for help in [#g-digital-experience](https://fleetdm.slack.com/archives/C01GQUZ91TN) | 2 days |
-| Website (marketing landpage) | Request from Digital Experience for prioritization | Ask for help in [#g-digital-experience](https://fleetdm.slack.com/archives/C01GQUZ91TN) | - |
-| Youtube | (Optional) Request review from Digital Experience | Ask for help in [#g-growth](https://fleetdm.slack.com/archives/C01ALP02RB5) | 2 days |
 
 ## Rituals
 
