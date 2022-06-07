@@ -61,6 +61,7 @@ func runAppForTest(t *testing.T, args []string) string {
 
 func runAppCheckErr(t *testing.T, args []string, errorMsg string) string {
 	w, err := runAppNoChecks(args)
+	require.Error(t, err)
 	require.Equal(t, errorMsg, err.Error())
 	return w.String()
 }

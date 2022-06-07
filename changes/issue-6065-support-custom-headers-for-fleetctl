@@ -1,0 +1,1 @@
+* Added support for custom headers for requests made to `fleet` instances by the `fleetctl` command.
