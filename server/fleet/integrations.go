@@ -121,6 +121,7 @@ func IndexTeamJiraIntegrations(teamJiraIntgs []*TeamJiraIntegration) (map[string
 func ValidateJiraIntegrations(ctx context.Context, oriJiraIntgsByProjKey map[string]JiraIntegration, newJiraIntgs []*JiraIntegration) error {
 	newByProjKey := make(map[string]*JiraIntegration, len(newJiraIntgs))
 	for i, new := range newJiraIntgs {
+		// TODO(mna): uniqueness should be defined by URL + ProjectKey
 		// first check for project key uniqueness
 		if _, ok := newByProjKey[new.ProjectKey]; ok {
 			return fmt.Errorf("duplicate Jira integration for project key %s", new.ProjectKey)
@@ -268,6 +269,7 @@ func IndexTeamZendeskIntegrations(teamZendeskIntgs []*TeamZendeskIntegration) (m
 func ValidateZendeskIntegrations(ctx context.Context, oriZendeskIntgsByGroupID map[int64]ZendeskIntegration, newZendeskIntgs []*ZendeskIntegration) error {
 	newByGroupID := make(map[int64]*ZendeskIntegration, len(newZendeskIntgs))
 	for i, new := range newZendeskIntgs {
+		// TODO(mna): uniqueness should be defined by URL + GroupID
 		// first check for group id uniqueness
 		if _, ok := newByGroupID[new.GroupID]; ok {
 			return fmt.Errorf("duplicate Zendesk integration for group id %v", new.GroupID)

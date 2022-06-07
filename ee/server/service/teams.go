@@ -96,6 +96,17 @@ func (svc *Service) ModifyTeam(ctx context.Context, teamID uint, payload fleet.T
 	}
 
 	if payload.Integrations != nil {
+		// TODO(mna): all provided integrations must already exist on the global
+		// config's integrations. Only consider the URL and Group ID/Project Key,
+		// the rest of the integration's config comes from the global config.
+		// No need to validate uniqueness here, as this is done at the global level
+		// when adding/removing/updating integrations. No need to test connection
+		// either, as this is all done at the global appconfig integrations level.
+		// When merging the global integrations with the team's, set the APIToken/
+		// Password to MaskedPassword, and then no need to mask it again everywhere
+		// we return the config. When we read the config to actually use it, we have
+		// to look up the corresponding AppConfig settings anyway.
+
 		oriJiraByProjectKey, err := fleet.IndexTeamJiraIntegrations(team.Config.Integrations.Jira)
 		if err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "modify Team")
