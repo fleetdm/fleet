@@ -1,0 +1,15 @@
+.forgot-password{
+    &__text {
+        font-size: 1rem;
+        margin-top: 2.5rem;
+    }
+    &__email {
+        font-weight: bold;
+    }
+    img.icon-external {
+        width: 16px;
+        padding-left: 2px;
+        position: relative;
+        top: 1px;
+    }
+}   
