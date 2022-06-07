@@ -5,11 +5,6 @@ import (
 	"time"
 )
 
-type LabelListOptions struct {
-	ListOptions
-	Summary bool
-}
-
 // ModifyLabelPayload is used to change editable fields for a Label
 type ModifyLabelPayload struct {
 	Name        *string `json:"name"`

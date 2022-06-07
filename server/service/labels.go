@@ -168,7 +168,7 @@ func (svc *Service) GetLabel(ctx context.Context, id uint) (*fleet.Label, error)
 ////////////////////////////////////////////////////////////////////////////////
 
 type listLabelsRequest struct {
-	LabelListOptions fleet.LabelListOptions `url:"label_options"`
+	ListOptions fleet.ListOptions `url:"list_options"`
 }
 
 type listLabelsResponse struct {
@@ -181,7 +181,7 @@ func (r listLabelsResponse) error() error { return r.Err }
 func listLabelsEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
 	req := request.(*listLabelsRequest)
 
-	labels, err := svc.ListLabels(ctx, req.LabelListOptions.ListOptions)
+	labels, err := svc.ListLabels(ctx, req.ListOptions)
 	if err != nil {
 		return listLabelsResponse{Err: err}, nil
 	}

@@ -164,13 +164,6 @@ func makeDecoder(iface interface{}) kithttp.DecodeRequestFunc {
 					}
 					field.Set(reflect.ValueOf(opts))
 
-				case "label_options":
-					opts, err := labelListOptionsFromRequest(r)
-					if err != nil {
-						return nil, err
-					}
-					field.Set(reflect.ValueOf(opts))
-
 				case "carve_options":
 					opts, err := carveListOptionsFromRequest(r)
 					if err != nil {
