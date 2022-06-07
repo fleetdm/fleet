@@ -84,6 +84,9 @@ func clientFromCLI(c *cli.Context) (*service.Client, error) {
 
 func unauthenticatedClientFromConfig(cc Context, debug bool, w io.Writer) (*service.Client, error) {
 	options := []service.ClientOption{service.SetClientWriter(w)}
+	if len(cc.CustomHeaders) > 0 {
+		options = append(options, service.WithCustomHeaders(cc.CustomHeaders))
+	}
 
 	if flag.Lookup("test.v") != nil {
 		return service.NewClient(

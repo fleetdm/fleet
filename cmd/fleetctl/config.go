@@ -172,7 +172,6 @@ func setConfigValue(configPath, context, key string, value interface{}) error {
 	case "rootca":
 		currentContext.RootCA = strVal
 	case "tls-skip-verify":
-		fmt.Println(">>>>>>> tls skip setting", strVal)
 		boolValue, err := strconv.ParseBool(strVal)
 		if err != nil {
 			return fmt.Errorf("error parsing %q as bool: %w", value, err)
