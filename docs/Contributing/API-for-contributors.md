@@ -16,7 +16,7 @@ Unlike the [Fleet REST API documentation](../Using-Fleet/REST-API.md), only the 
 - [Get label spec](#get-label-spec)
 - [Get enroll secrets](#get-enroll-secrets)
 - [Modify enroll secrets](#modify-enroll-secrets)
-- [Search targets for live query](#search-targets)
+- [Search hosts to target for live query](#search-targets)
 - [Count targets for live query](#count-targets)
 - [Check live query status](#check-live-query-status)
 - [Check result store status](#check-result-store-status)
@@ -733,15 +733,15 @@ Accepts a search query and a list host IDs to omit and returns a set of up to te
 a query ID is provided and the referenced query allows observers to run, targets will include hosts
 for which the user has an observer role.
 
-`POST /api/latest/fleet/targets/search`
+`POST /api/latest/fleet/hosts/search`
 
 #### Parameters
 
 | Name              | Type    | In   | Description                                                                                                                                      |
 |-------------------|---------|------|--------------------------------------------------------------------------------------------------------------------------------------------------|
-| query             | string  | body | The search query. Searchable items include a host's hostname or IPv4 address and labels.                                                         |
+| query             | string  | body | The query used to identify hosts to target. Searchable items include a host's hostname or IPv4 address.                                          |
 | query_id          | integer | body | The saved query (if any) that will be run. The `observer_can_run` property on the query and the user's roles effect which targets are included.  |
-| selected_host_ids | array   | body | The list of selected host ids to omit from the search results                                                                                    |
+| excluded_host_ids | array   | body | The list of host ids to omit from the search results.                                                           |
 
 #### Example
 

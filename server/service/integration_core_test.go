@@ -2385,6 +2385,14 @@ func (s *integrationTestSuite) TestLabels() {
 	}
 	builtInsCount := len(listResp.Labels)
 
+	// labels summary has the built-in ones
+	var summaryResp getLabelsSummaryResponse
+	s.DoJSON("GET", "/api/latest/fleet/labels/summary", nil, http.StatusOK, &listResp)
+	assert.Len(t, summaryResp.Labels, builtInsCount)
+	for _, lbl := range summaryResp.Labels {
+		assert.Equal(t, fleet.LabelTypeBuiltIn, lbl.LabelType)
+	}
+
 	// create a label without name, an error
 	var createResp createLabelResponse
 	s.DoJSON("POST", "/api/latest/fleet/labels", &fleet.LabelPayload{Query: ptr.String("select 1")}, http.StatusUnprocessableEntity, &createResp)
@@ -2415,6 +2423,10 @@ func (s *integrationTestSuite) TestLabels() {
 	// list labels
 	s.DoJSON("GET", "/api/latest/fleet/labels", nil, http.StatusOK, &listResp, "per_page", strconv.Itoa(builtInsCount+1))
 	assert.Len(t, listResp.Labels, builtInsCount+1)
+
+	// labels summary
+	s.DoJSON("GET", "/api/latest/fleet/labels/summary", nil, http.StatusOK, &listResp)
+	assert.Len(t, summaryResp.Labels, builtInsCount+1)
 
 	// next page is empty
 	s.DoJSON("GET", "/api/latest/fleet/labels", nil, http.StatusOK, &listResp, "per_page", "2", "page", "1", "query", t.Name())
@@ -2463,6 +2475,13 @@ func (s *integrationTestSuite) TestLabels() {
 	s.DoJSON("GET", "/api/latest/fleet/labels", nil, http.StatusOK, &listResp, "per_page", strconv.Itoa(builtInsCount+1))
 	assert.Len(t, listResp.Labels, builtInsCount)
 	for _, lbl := range listResp.Labels {
+		assert.Equal(t, fleet.LabelTypeBuiltIn, lbl.LabelType)
+	}
+
+	// labels summary, only the built-ins remains
+	s.DoJSON("GET", "/api/latest/fleet/labels/summary", nil, http.StatusOK, &listResp)
+	assert.Len(t, summaryResp.Labels, builtInsCount)
+	for _, lbl := range summaryResp.Labels {
 		assert.Equal(t, fleet.LabelTypeBuiltIn, lbl.LabelType)
 	}
 

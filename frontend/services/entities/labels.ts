@@ -53,7 +53,7 @@ export default {
   },
   summary: (): Promise<ILabelsSummaryResponse> => {
     const { LABELS } = endpoints;
-    const path = `${LABELS}?summary=true`;
+    const path = `${LABELS}/summary`;
 
     return sendRequest("GET", path);
   },

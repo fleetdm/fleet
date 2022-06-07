@@ -197,11 +197,11 @@ const SelectTargets = ({
       return targetsAPI.search({
         query_id: query_id || null,
         query: query || "",
-        selected_host_ids: selected?.hosts || null,
+        excluded_host_ids: selected?.hosts || null,
       });
     },
     {
-      select: (data) => data.targets.hosts,
+      select: (data) => data.hosts,
       enabled: !!debouncedSearchText,
       // staleTime: 5000, // TODO: try stale time if further performance optimizations are needed
     }

@@ -20,13 +20,11 @@ const defaultSelected = {
 export interface ITargetsSearchParams {
   query_id?: number | null;
   query: string;
-  selected_host_ids: number[] | null;
+  excluded_host_ids: number[] | null;
 }
 
 export interface ITargetsSearchResponse {
-  targets: {
-    hosts: IHost[];
-  };
+  hosts: IHost[];
 }
 
 export interface ITargetsCountParams {
@@ -61,11 +59,11 @@ export default {
     });
   },
   search: (params: ITargetsSearchParams): Promise<ITargetsSearchResponse> => {
-    if (!params?.selected_host_ids || !params?.query) {
+    if (!params?.excluded_host_ids || !params?.query) {
       return Promise.reject("Invalid usage: missing required parameter(s)");
     }
-    const { TARGETS } = endpoints;
-    const path = `${TARGETS}/search`;
+    const { HOSTS } = endpoints;
+    const path = `${HOSTS}/search`;
 
     return sendRequest("POST", path, params);
   },
