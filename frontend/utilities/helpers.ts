@@ -205,9 +205,13 @@ export const frontendFormattedConfig = (config: IConfig) => {
   };
 };
 
-const formatFloatAsPercentage = (float: number): string => {
-  Math.round((float + Number.EPSILON) * 100);
-  return `${Math.round((float + Number.EPSILON) * 100).toString()}%`;
+export const formatFloatAsPercentage = (float: number): string => {
+  const formatter = Intl.NumberFormat("en-US", {
+    maximumSignificantDigits: 2,
+    style: "percent",
+  });
+
+  return formatter.format(float);
 };
 
 const formatLabelResponse = (response: any): ILabel[] => {

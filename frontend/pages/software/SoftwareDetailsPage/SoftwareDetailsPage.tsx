@@ -1,4 +1,5 @@
 import React, { useContext } from "react";
+import { useErrorHandler } from "react-error-boundary";
 import { useQuery } from "react-query";
 import { Link } from "react-router";
 import PATHS from "router/paths";
@@ -28,6 +29,7 @@ const SoftwareDetailsPage = ({
   params: { software_id },
 }: ISoftwareDetailsProps): JSX.Element => {
   const { isPremiumTier } = useContext(AppContext);
+  const handlePageError = useErrorHandler();
 
   const { data: software, isFetching: isFetchingSoftware } = useQuery<
     IGetSoftwareByIdResponse,
@@ -36,7 +38,10 @@ const SoftwareDetailsPage = ({
   >(
     ["softwareById", software_id],
     () => softwareAPI.getSoftwareById(software_id),
-    { select: (data) => data.software }
+    {
+      select: (data) => data.software,
+      onError: (err) => handlePageError(err),
+    }
   );
 
   const { data: hostCount } = useQuery<{ count: number }, Error, number>(
@@ -45,12 +50,8 @@ const SoftwareDetailsPage = ({
     { select: (data) => data.count }
   );
 
-  if (!software) {
-    return <Spinner />;
-  }
-
-  const renderName = () => {
-    const { name, version } = software;
+  const renderName = (sw: ISoftware) => {
+    const { name, version } = sw;
     if (!name) {
       return "--";
     }
@@ -61,7 +62,7 @@ const SoftwareDetailsPage = ({
     return `${name}, ${version}`;
   };
 
-  if (isPremiumTier === undefined) {
+  if (!software || isPremiumTier === undefined) {
     return <Spinner />;
   }
 
@@ -76,7 +77,7 @@ const SoftwareDetailsPage = ({
       <div className="header title">
         <div className="title__inner">
           <div className="name-container">
-            <h1 className="name">{renderName()}</h1>
+            <h1 className="name">{renderName(software)}</h1>
           </div>
         </div>
         <Link

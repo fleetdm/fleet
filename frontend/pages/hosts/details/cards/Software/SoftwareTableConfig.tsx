@@ -103,7 +103,13 @@ const condenseVulnerabilities = (vulns: IVulnerability[]): string[] => {
     : condensed;
 };
 
-export const generateSoftwareTableData = (software: ISoftware[]) => {
+interface ISoftwareTableData extends Omit<ISoftware, "vulnerabilities"> {
+  vulnerabilities: string[];
+}
+
+export const generateSoftwareTableData = (
+  software: ISoftware[]
+): ISoftwareTableData[] => {
   return software.map((s) => {
     return {
       ...s,
@@ -206,7 +212,7 @@ export const generateSoftwareTableHeaders = (
                 vulnerabilities.length > 1 ? "text-muted" : ""
               }`}
               data-tip
-              data-for={`vulnerabilities__${cellProps.row.original.id.toString()}`}
+              data-for={`vulnerabilities__${cellProps.row.original.id}`}
               data-tip-disable={vulnerabilities.length <= 1}
             >
               {vulnerabilities.length === 1
@@ -218,7 +224,7 @@ export const generateSoftwareTableHeaders = (
               type="dark"
               effect="solid"
               backgroundColor="#3e4771"
-              id={`vulnerabilities__${cellProps.row.original.id.toString()}`}
+              id={`vulnerabilities__${cellProps.row.original.id}`}
               data-html
             >
               <span className={`vulnerabilities tooltip__tooltip-text`}>
@@ -250,7 +256,7 @@ export const generateSoftwareTableHeaders = (
                 lastUsed === "Unavailable" ? "text-muted" : ""
               }`}
               data-tip
-              data-for={`last_used__${cellProps.row.original.id.toString()}`}
+              data-for={`last_used__${cellProps.row.original.id}`}
               data-tip-disable={hasLastUsed}
             >
               {lastUsed}
@@ -260,7 +266,7 @@ export const generateSoftwareTableHeaders = (
               type="dark"
               effect="solid"
               backgroundColor="#3e4771"
-              id={`last_used__${cellProps.row.original.id.toString()}`}
+              id={`last_used__${cellProps.row.original.id}`}
               className="last_used_tooltip"
               data-tip-disable={hasLastUsed}
               data-html
@@ -286,9 +292,7 @@ export const generateSoftwareTableHeaders = (
       Cell: (cellProps: IStringCellProps) => {
         return (
           <Link
-            to={`${
-              PATHS.MANAGE_HOSTS
-            }?software_id=${cellProps.row.original.id.toString()}`}
+            to={`${PATHS.MANAGE_HOSTS}?software_id=${cellProps.row.original.id}`}
             className={`software-link`}
           >
             View all hosts{" "}

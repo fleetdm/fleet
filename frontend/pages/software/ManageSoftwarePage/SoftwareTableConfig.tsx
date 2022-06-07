@@ -6,6 +6,7 @@ import { Link } from "react-router";
 import { formatSoftwareType, ISoftware } from "interfaces/software";
 import { IVulnerability } from "interfaces/vulnerability";
 import PATHS from "router/paths";
+import { formatFloatAsPercentage } from "utilities/helpers";
 
 import HeaderCell from "components/TableContainer/DataTable/HeaderCell";
 import TextCell from "components/TableContainer/DataTable/TextCell";
@@ -83,11 +84,6 @@ const getMaxProbability = (vulns: IVulnerability[]) =>
     0
   );
 
-const formatAsPercent = (float: number) => {
-  Math.round((float + Number.EPSILON) * 100);
-  return `${Math.round((float + Number.EPSILON) * 100).toString()}%`;
-};
-
 const generateEPSSColumnHeader = () => {
   return {
     title: "Probability of exploit",
@@ -118,7 +114,7 @@ const generateEPSSColumnHeader = () => {
       const vulns = cellProps.cell.value || [];
       const maxProbability = (!!vulns.length && getMaxProbability(vulns)) || 0;
       const displayValue =
-        (maxProbability && formatAsPercent(maxProbability)) || "---";
+        (maxProbability && formatFloatAsPercentage(maxProbability)) || "---";
 
       return (
         <span
@@ -160,7 +156,7 @@ const generateVulnColumnHeader = () => {
               vulnerabilities.length > 1 ? "text-muted" : ""
             }`}
             data-tip
-            data-for={`vulnerabilities__${cellProps.row.original.id.toString()}`}
+            data-for={`vulnerabilities__${cellProps.row.original.id}`}
             data-tip-disable={vulnerabilities.length <= 1}
           >
             {vulnerabilities.length === 1
@@ -172,7 +168,7 @@ const generateVulnColumnHeader = () => {
             type="dark"
             effect="solid"
             backgroundColor="#3e4771"
-            id={`vulnerabilities__${cellProps.row.original.id.toString()}`}
+            id={`vulnerabilities__${cellProps.row.original.id}`}
             data-html
           >
             <span className={`vulnerabilities tooltip__tooltip-text`}>

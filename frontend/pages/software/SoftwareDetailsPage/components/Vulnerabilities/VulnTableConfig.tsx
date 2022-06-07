@@ -1,6 +1,7 @@
 import React from "react";
 
 import { IVulnerability } from "interfaces/vulnerability";
+import { formatFloatAsPercentage } from "utilities/helpers";
 
 import HeaderCell from "components/TableContainer/DataTable/HeaderCell/HeaderCell";
 import TextCell from "components/TableContainer/DataTable/TextCell";
@@ -38,11 +39,6 @@ interface IDataColumn {
   disableSortBy?: boolean;
   sortType?: string;
 }
-
-const formatAsPercent = (float: number) => {
-  Math.round((float + Number.EPSILON) * 100);
-  return `${Math.round((float + Number.EPSILON) * 100).toString()}%`;
-};
 
 const formatSeverity = (float: number | null) => {
   if (float === null) {
@@ -112,7 +108,7 @@ const generateVulnTableHeaders = (isPremiumTier: boolean): IDataColumn[] => {
         );
       },
       Cell: ({ cell: { value } }: ITextCellProps): JSX.Element => (
-        <TextCell formatter={formatAsPercent} value={value} />
+        <TextCell formatter={formatFloatAsPercentage} value={value} />
       ),
     },
     {
