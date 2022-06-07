@@ -159,29 +159,6 @@ See [the internal Google Doc](https://docs.google.com/document/d/1FNQdu23wc1S9Yo
 
 [⚗️ Roadmap](https://github.com/orgs/fleetdm/projects/41) - Planning for the next release (shared with product).
 
-## Rituals
-
-The following rituals are engaged in by the  directly responsible individual (DRI) and at the frequency specified for the ritual.
-
-| Ritual                       | Frequency                | Description                                         | DRI               |
-|:-----------------------------|:-----------------------------|:----------------------------------------------------|-------------------|
-| Pull request review | Daily | Engineers go through pull requests for which their review has been requested. | Zach Wasserman |
-| Engineering group discussions | Weekly | See "Group Weeklies".  | Zach Wasserman |
-| On-call handoff | Weekly | Hand off the on-call engineering responsibilities to the next on-call engineer. | Zach Wasserman |
-| Release ritual | Every three weeks | Go through the process of releasing the next iteration of Fleet. | Zach Wasserman |
-
-## Slack channels
-
-The following [Slack channels are maintained](https://fleetdm.com/handbook/company#group-slack-channels) by this group:
-
-| Slack channel                       | [DRI](https://fleetdm.com/handbook/company#group-slack-channels)    |
-|:------------------------------------|:--------------------------------------------------------------------|
-| `#help-engineering`                 | Zach Wasserman
-| `#g-platform`                       | Tomás Touceda
-| `#g-interface`                      | Luke Heath
-| `#g-agent`                          | Zach Wasserman
-| `#_pov-environments`                | Ben Edwards
-
 ## Scaling GOTCHAS
 
 ### Overall
@@ -307,3 +284,26 @@ Redis has solved many scaling problems in general, but it’s not devoid of scal
 
 <meta name="maintainedBy" value="zwass">
 <meta name="title" value="🚀 Engineering">
+
+## Rituals
+
+The following rituals are engaged in by the  directly responsible individual (DRI) and at the frequency specified for the ritual.
+
+| Ritual                       | Frequency                | Description                                         | DRI               |
+|:-----------------------------|:-----------------------------|:----------------------------------------------------|-------------------|
+| Pull request review | Daily | Engineers go through pull requests for which their review has been requested. | Zach Wasserman |
+| Engineering group discussions | Weekly | See "Group Weeklies".  | Zach Wasserman |
+| On-call handoff | Weekly | Hand off the on-call engineering responsibilities to the next on-call engineer. | Zach Wasserman |
+| Release ritual | Every three weeks | Go through the process of releasing the next iteration of Fleet. | Zach Wasserman |
+
+## Slack channels
+
+The following [Slack channels are maintained](https://fleetdm.com/handbook/company#group-slack-channels) by this group:
+
+| Slack channel                       | [DRI](https://fleetdm.com/handbook/company#group-slack-channels)    |
+|:------------------------------------|:--------------------------------------------------------------------|
+| `#help-engineering`                 | Zach Wasserman
+| `#g-platform`                       | Tomás Touceda
+| `#g-interface`                      | Luke Heath
+| `#g-agent`                          | Zach Wasserman
+| `#_pov-environments`                | Ben Edwards
