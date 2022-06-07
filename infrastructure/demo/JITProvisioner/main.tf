@@ -27,7 +27,7 @@ data "aws_iam_policy_document" "sfn-assume-role" {
     actions = ["sts:AssumeRole"]
     principals {
       type        = "Service"
-      identifiers = ["sfn.amazonaws.com"]
+      identifiers = ["states.amazonaws.com"]
     }
   }
 }
