@@ -127,6 +127,19 @@ func (svc *Service) EnrollAgent(ctx context.Context, enrollSecret, hostIdentifie
 
 	hostIdentifier = getHostIdentifier(svc.logger, svc.config.Osquery.HostIdentifier, hostIdentifier, hostDetails)
 
+	if deviceCount := svc.license.DeviceCount; svc.config.License.EnforceHostLimit && deviceCount > 0 {
+		// TODO: check that the maximum number of hosts is not reached, cannot use CountEnrolledHosts as it is
+		// the implementation that should return the real number from the DB, not Redis (used in SyncEnrolledHosts cron).
+		// Use a mysqlredis function instead?
+		actualCount, err := svc.ds.CountEnrolledHosts(ctx)
+		if err != nil {
+			return "", osqueryError{message: "count enrolled hosts failed: " + err.Error(), nodeInvalid: true}
+		}
+		if actualCount >= deviceCount {
+			return "", osqueryError{message: fmt.Sprintf("enroll host failed: maximum number of hosts reached: %d", deviceCount), nodeInvalid: true}
+		}
+	}
+
 	host, err := svc.ds.EnrollHost(ctx, hostIdentifier, nodeKey, secret.TeamID, svc.config.Osquery.EnrollCooldown)
 	if err != nil {
 		return "", osqueryError{message: "save enroll failed: " + err.Error(), nodeInvalid: true}
