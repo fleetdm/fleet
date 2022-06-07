@@ -272,7 +272,7 @@ func configSetCommand() *cli.Command {
 				EnvVars:     []string{"CUSTOM_HEADER"},
 				Value:       nil,
 				Destination: &flCustomHeaders,
-				Usage:       "Specify a custom header as 'Header:Value' to be set on every request to the Fleet server (can be specified multiple times for multiple headers, note that this replaces any existing custom headers)",
+				Usage:       "Specify a custom header as 'Header:Value' to be set on every request to the Fleet server (can be specified multiple times for multiple headers, note that this replaces any existing custom headers). Note that when using the environment variable to set this option, it must be set like so: 'CUSTOM_HEADER=Header:Value,Header:Value', and the value cannot contain commas.",
 			},
 		},
 		Action: func(c *cli.Context) error {
