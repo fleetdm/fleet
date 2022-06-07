@@ -4182,7 +4182,6 @@ func (s *integrationTestSuite) TestChangeUserEmail() {
 	s.DoJSON("GET", "/api/latest/fleet/email/change/validtoken", nil, http.StatusNotFound, &changeResp)
 }
 
-// TODO: Replicate TestSearchTargets for NewSearchTargets
 func (s *integrationTestSuite) TestSearchTargets() {
 	t := s.T()
 
@@ -4223,32 +4222,28 @@ func (s *integrationTestSuite) TestSearchTargets() {
 	require.Contains(t, searchResp.Targets.Hosts[0].Hostname, "foo.local1")
 }
 
-func (s *integrationTestSuite) TestNewSearchTargets() {
+func (s *integrationTestSuite) TestSearchHosts() {
 	t := s.T()
 
 	hosts := s.createHosts(t)
 
-	lblIDs, err := s.ds.LabelIDsByName(context.Background(), []string{"All Hosts"})
-	require.NoError(t, err)
-	require.Len(t, lblIDs, 1)
-
 	// no search criteria
-	var searchResp newSearchTargetsResponse
-	s.DoJSON("POST", "/api/latest/fleet/targets/search", newSearchTargetsRequest{}, http.StatusOK, &searchResp)
-	require.Len(t, searchResp.Targets.Hosts, len(hosts)) // the HostTargets.HostIDs are actually host IDs to *omit* from the search
+	var searchResp searchHostsResponse
+	s.DoJSON("GET", "/api/latest/fleet/hosts/search", searchHostsRequest{}, http.StatusOK, &searchResp)
+	require.Len(t, searchResp.Hosts, len(hosts)) // no request params
 
-	searchResp = newSearchTargetsResponse{}
-	s.DoJSON("POST", "/api/latest/fleet/targets/search", newSearchTargetsRequest{SelectedHostIDs: []uint{}}, http.StatusOK, &searchResp)
-	require.Len(t, searchResp.Targets.Hosts, len(hosts)) // no omitted host id
+	searchResp = searchHostsResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/hosts/search", searchHostsRequest{ExcludedHostIDs: []uint{}}, http.StatusOK, &searchResp)
+	require.Len(t, searchResp.Hosts, len(hosts)) // no omitted host id
 
-	searchResp = newSearchTargetsResponse{}
-	s.DoJSON("POST", "/api/latest/fleet/targets/search", newSearchTargetsRequest{SelectedHostIDs: []uint{hosts[1].ID}}, http.StatusOK, &searchResp)
-	require.Len(t, searchResp.Targets.Hosts, len(hosts)-1) // one omitted host id
+	searchResp = searchHostsResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/hosts/search", searchHostsRequest{ExcludedHostIDs: []uint{hosts[1].ID}}, http.StatusOK, &searchResp)
+	require.Len(t, searchResp.Hosts, len(hosts)-1) // one omitted host id
 
-	searchResp = newSearchTargetsResponse{}
-	s.DoJSON("POST", "/api/latest/fleet/targets/search", newSearchTargetsRequest{MatchQuery: "foo.local1"}, http.StatusOK, &searchResp)
-	require.Len(t, searchResp.Targets.Hosts, 1)
-	require.Contains(t, searchResp.Targets.Hosts[0].Hostname, "foo.local1")
+	searchResp = searchHostsResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/hosts/search", searchHostsRequest{MatchQuery: "foo.local1"}, http.StatusOK, &searchResp)
+	require.Len(t, searchResp.Hosts, 1)
+	require.Contains(t, searchResp.Hosts[0].Hostname, "foo.local1")
 }
 
 func (s *integrationTestSuite) TestCountTargets() {

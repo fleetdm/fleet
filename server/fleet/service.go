@@ -255,6 +255,11 @@ type Service interface {
 	AddHostsToTeamByFilter(ctx context.Context, teamID *uint, opt HostListOptions, lid *uint) error
 	DeleteHosts(ctx context.Context, ids []uint, opt HostListOptions, lid *uint) error
 	CountHosts(ctx context.Context, labelID *uint, opts HostListOptions) (int, error)
+	// SearchHosts performs a search on the hosts table using the following criteria:
+	//	- matchQuery is the query SQL
+	//	- queryID is the ID of a saved query to run (used to determine whether this is a query that observers can run)
+	//	- excludedHostIDs is an optional list of IDs to omit from the search
+	SearchHosts(ctx context.Context, matchQuery string, queryID *uint, excludedHostIDs []uint) ([]*Host, error)
 	// ListHostDeviceMapping returns the list of device-mapping of user's email address
 	// for the host.
 	ListHostDeviceMapping(ctx context.Context, id uint) ([]*HostDeviceMapping, error)
@@ -320,7 +325,7 @@ type Service interface {
 	UpdateInvite(ctx context.Context, id uint, payload InvitePayload) (*Invite, error)
 
 	///////////////////////////////////////////////////////////////////////////////
-	// TargetService **NOTE: NewSearchTargets will replace legacy SearchTargets in Fleet 5.0**
+	// TargetService **NOTE: SearchTargets will be removed in Fleet 5.0**
 
 	// SearchTargets will accept a search query, a slice of IDs of hosts to omit, and a slice of IDs of labels to omit,
 	// and it will return a set of targets (hosts and label) which match the supplied search query. If the query ID is
@@ -329,12 +334,6 @@ type Service interface {
 	SearchTargets(
 		ctx context.Context, searchQuery string, queryID *uint, targets HostTargets,
 	) (*TargetSearchResults, error)
-
-	// NewSearchTargets will accept a search query, a slice of IDs of hosts to omit, and a slice of
-	// IDs of labels and teams to omit, and it will return a set of the first ten hosts that
-	// match the supplied search query. If the query ID is provided and the referenced query allows
-	// observers to run, targets will include hosts for which the user has an observer role.
-	NewSearchTargets(ctx context.Context, matchQuery string, queryID *uint, selectedHostIDs []uint) (*NewTargetSearchResults, error)
 
 	// CountHostsInTargets returns the metrics of the hosts in the provided label and explicit host IDs. If the query ID
 	// is provided and the referenced query allows observers to run, targets will include hosts that the user has

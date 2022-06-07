@@ -176,23 +176,10 @@ type listLabelsResponse struct {
 	Err    error           `json:"error,omitempty"`
 }
 
-type listLabelsSummaryResponse struct {
-	Labels []*fleet.LabelSummary `json:"labels"`
-	Err    error                 `json:"error,omitempty"`
-}
-
 func (r listLabelsResponse) error() error { return r.Err }
 
 func listLabelsEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
 	req := request.(*listLabelsRequest)
-
-	if req.LabelListOptions.Summary {
-		labels, err := svc.LabelsSummary(ctx)
-		if err != nil {
-			return listLabelsSummaryResponse{Err: err}, nil
-		}
-		return listLabelsSummaryResponse{Labels: labels}, nil
-	}
 
 	labels, err := svc.ListLabels(ctx, req.LabelListOptions.ListOptions)
 	if err != nil {
@@ -229,6 +216,23 @@ func labelResponseForLabel(ctx context.Context, svc fleet.Service, label *fleet.
 		DisplayText: label.Name,
 		Count:       label.HostCount,
 	}, nil
+}
+
+////////////////////////////////////////////////////////////////////////////////
+// Labels Summary
+////////////////////////////////////////////////////////////////////////////////
+
+type getLabelsSummaryResponse struct {
+	Labels []*fleet.LabelSummary `json:"labels"`
+	Err    error                 `json:"error,omitempty"`
+}
+
+func getLabelsSummaryEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
+	labels, err := svc.LabelsSummary(ctx)
+	if err != nil {
+		return getLabelsSummaryResponse{Err: err}, nil
+	}
+	return getLabelsSummaryResponse{Labels: labels}, nil
 }
 
 func (svc *Service) LabelsSummary(ctx context.Context) ([]*fleet.LabelSummary, error) {

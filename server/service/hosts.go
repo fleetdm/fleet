@@ -239,6 +239,88 @@ func (svc *Service) countHostFromFilters(ctx context.Context, labelID *uint, opt
 }
 
 /////////////////////////////////////////////////////////////////////////////////
+// Search
+/////////////////////////////////////////////////////////////////////////////////
+
+type searchHostsRequest struct {
+	// MatchQuery is the query SQL
+	MatchQuery string `json:"query"`
+	// QueryID is the ID of a saved query to run (used to determine if this is a
+	// query that observers can run).
+	QueryID *uint `json:"query_id"`
+	// ExcludedHostIDs is the list of IDs selected on the caller side
+	// (e.g. the UI) that will be excluded from the returned payload.
+	ExcludedHostIDs []uint `json:"excluded_host_ids"`
+}
+
+type searchHostsResponse struct {
+	Hosts []*hostSearchResult `json:"hosts"`
+	Err   error               `json:"error,omitempty"`
+}
+
+func (r searchHostsResponse) error() error { return r.Err }
+
+func searchHostsEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
+	req := request.(*searchHostsRequest)
+
+	hosts, err := svc.SearchHosts(ctx, req.MatchQuery, req.QueryID, req.ExcludedHostIDs)
+	if err != nil {
+		return searchHostsResponse{Err: err}, nil
+	}
+
+	results := []*hostSearchResult{}
+
+	for _, h := range hosts {
+		results = append(results,
+			&hostSearchResult{
+				HostResponse{
+					Host:   h,
+					Status: h.Status(time.Now()),
+				},
+				h.Hostname,
+			},
+		)
+	}
+
+	return searchHostsResponse{
+		Hosts: results,
+	}, nil
+}
+
+func (svc *Service) SearchHosts(ctx context.Context, matchQuery string, queryID *uint, excludedHostIDs []uint) ([]*fleet.Host, error) {
+	if err := svc.authz.Authorize(ctx, &fleet.Host{}, fleet.ActionRead); err != nil {
+		return nil, err
+	}
+
+	vc, ok := viewer.FromContext(ctx)
+	if !ok {
+		return nil, fleet.ErrNoContext
+	}
+
+	includeObserver := false
+	if queryID != nil {
+		query, err := svc.ds.Query(ctx, *queryID)
+		if err != nil {
+			return nil, err
+		}
+		includeObserver = query.ObserverCanRun
+	}
+
+	filter := fleet.TeamFilter{User: vc.User, IncludeObserver: includeObserver}
+
+	results := []*fleet.Host{}
+
+	hosts, err := svc.ds.SearchHosts(ctx, filter, matchQuery, excludedHostIDs...)
+	if err != nil {
+		return nil, err
+	}
+
+	results = append(results, hosts...)
+
+	return results, nil
+}
+
+/////////////////////////////////////////////////////////////////////////////////
 // Get host
 /////////////////////////////////////////////////////////////////////////////////
 
