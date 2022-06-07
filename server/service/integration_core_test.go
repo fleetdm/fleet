@@ -1728,12 +1728,13 @@ func (s *integrationTestSuite) TestHostDetailsPolicies() {
 	require.NoError(t, err)
 	require.Nil(t, r.Err)
 	hd := r.Host.HostDetail
-	require.Len(t, hd.Policies, 2)
-	require.True(t, reflect.DeepEqual(gpResp.Policy.PolicyData, hd.Policies[0].PolicyData))
-	require.Equal(t, hd.Policies[0].Response, "pass")
+	policies := *hd.Policies
+	require.Len(t, policies, 2)
+	require.True(t, reflect.DeepEqual(gpResp.Policy.PolicyData, policies[0].PolicyData))
+	require.Equal(t, policies[0].Response, "pass")
 
-	require.True(t, reflect.DeepEqual(tpResp.Policy.PolicyData, hd.Policies[1].PolicyData))
-	require.Equal(t, hd.Policies[1].Response, "") // policy didn't "run"
+	require.True(t, reflect.DeepEqual(tpResp.Policy.PolicyData, policies[1].PolicyData))
+	require.Equal(t, policies[1].Response, "") // policy didn't "run"
 
 	// Try to create a global policy with an existing name.
 	s.DoJSON("POST", "/api/latest/fleet/policies", gpParams, http.StatusConflict, &gpResp)
@@ -4522,11 +4523,13 @@ func (s *integrationTestSuite) TestDeviceAuthenticatedEndpoints() {
 	require.Equal(t, hosts[0].ID, getHostResp.Host.ID)
 	require.False(t, getHostResp.Host.RefetchRequested)
 	require.Equal(t, "http://example.com/logo", getHostResp.OrgLogoURL)
+	require.Nil(t, getHostResp.Host.Policies)
 	hostDevResp := getHostResp.Host
 
-	// make request for same host on the host details API endpoint, responses should match
+	// make request for same host on the host details API endpoint, responses should match, except for policies
 	getHostResp = getDeviceHostResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", hosts[0].ID), nil, http.StatusOK, &getHostResp)
+	getHostResp.Host.Policies = nil
 	require.Equal(t, hostDevResp, getHostResp.Host)
 
 	// request a refetch for that valid host

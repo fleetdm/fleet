@@ -50,7 +50,11 @@ func TestHostDetails(t *testing.T) {
 		return nil, nil
 	}
 
-	hostDetail, err := svc.getHostDetails(test.UserContext(test.UserAdmin), host, false)
+	opts := fleet.HostDetailOptions{
+		IncludeCVEScores: false,
+		IncludePolicies:  false,
+	}
+	hostDetail, err := svc.getHostDetails(test.UserContext(test.UserAdmin), host, opts)
 	require.NoError(t, err)
 	assert.Equal(t, expectedLabels, hostDetail.Labels)
 	assert.Equal(t, expectedPacks, hostDetail.Packs)
@@ -182,17 +186,21 @@ func TestHostAuth(t *testing.T) {
 	for _, tt := range testCases {
 		t.Run(tt.name, func(t *testing.T) {
 			ctx := viewer.NewContext(context.Background(), viewer.Viewer{User: tt.user})
+			opts := fleet.HostDetailOptions{
+				IncludeCVEScores: false,
+				IncludePolicies:  false,
+			}
 
-			_, err := svc.GetHost(ctx, 1, false)
+			_, err := svc.GetHost(ctx, 1, opts)
 			checkAuthErr(t, tt.shouldFailTeamRead, err)
 
-			_, err = svc.HostByIdentifier(ctx, "1", false)
+			_, err = svc.HostByIdentifier(ctx, "1", opts)
 			checkAuthErr(t, tt.shouldFailTeamRead, err)
 
-			_, err = svc.GetHost(ctx, 2, false)
+			_, err = svc.GetHost(ctx, 2, opts)
 			checkAuthErr(t, tt.shouldFailGlobalRead, err)
 
-			_, err = svc.HostByIdentifier(ctx, "2", false)
+			_, err = svc.HostByIdentifier(ctx, "2", opts)
 			checkAuthErr(t, tt.shouldFailGlobalRead, err)
 
 			err = svc.DeleteHost(ctx, 1)
@@ -478,12 +486,12 @@ func TestEmptyTeamOSVersions(t *testing.T) {
 	assert.Empty(t, vers.OSVersions)
 
 	// team does not exist
-	vers, err = svc.OSVersions(test.UserContext(test.UserAdmin), ptr.Uint(3), ptr.String("darwin"))
+	_, err = svc.OSVersions(test.UserContext(test.UserAdmin), ptr.Uint(3), ptr.String("darwin"))
 	require.Error(t, err)
 	require.Equal(t, "not found", fmt.Sprint(err))
 
 	// some unknown error
-	vers, err = svc.OSVersions(test.UserContext(test.UserAdmin), ptr.Uint(4), ptr.String("darwin"))
+	_, err = svc.OSVersions(test.UserContext(test.UserAdmin), ptr.Uint(4), ptr.String("darwin"))
 	require.Error(t, err)
 	require.Equal(t, "some unknown error", fmt.Sprint(err))
 }
