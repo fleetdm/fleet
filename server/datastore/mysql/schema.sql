@@ -76,7 +76,7 @@ CREATE TABLE `cve_meta` (
   `cvss_score` double DEFAULT NULL,
   `epss_probability` double DEFAULT NULL,
   `cisa_known_exploit` tinyint(1) DEFAULT NULL,
-  `published` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  `published` timestamp NULL DEFAULT NULL,
   PRIMARY KEY (`cve`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 /*!40101 SET character_set_client = @saved_cs_client */;
