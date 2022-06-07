@@ -168,29 +168,34 @@ func LoadCVEMeta(vulnPath string, ds fleet.Datastore) error {
 		return fmt.Errorf("get nvd cve feeds: %w", err)
 	}
 
-	dict, err := cvefeed.LoadJSONDictionary(files...)
-	if err != nil {
-		return err
-	}
-
 	metaMap := make(map[string]fleet.CVEMeta)
-	for cve := range dict {
-		schema := dict[cve].(*feednvd.Vuln).Schema()
-		if schema.Impact.BaseMetricV3 == nil {
-			continue
-		}
-		baseScore := schema.Impact.BaseMetricV3.CVSSV3.BaseScore
-		published, err := time.Parse(publishedDateFmt, schema.PublishedDate)
+
+	for _, file := range files {
+
+		// Load json files one at a time. Attempting to load them all uses too much memory, > 1 GB.
+		dict, err := cvefeed.LoadJSONDictionary(file)
 		if err != nil {
-			return fmt.Errorf("parse published_date: %w", err)
+			return err
 		}
 
-		meta := fleet.CVEMeta{
-			CVE:       cve,
-			CVSSScore: &baseScore,
-			Published: &published,
+		for cve := range dict {
+			schema := dict[cve].(*feednvd.Vuln).Schema()
+			if schema.Impact.BaseMetricV3 == nil {
+				continue
+			}
+			baseScore := schema.Impact.BaseMetricV3.CVSSV3.BaseScore
+			published, err := time.Parse(publishedDateFmt, schema.PublishedDate)
+			if err != nil {
+				return fmt.Errorf("parse published_date: %w", err)
+			}
+
+			meta := fleet.CVEMeta{
+				CVE:       cve,
+				CVSSScore: &baseScore,
+				Published: &published,
+			}
+			metaMap[cve] = meta
 		}
-		metaMap[cve] = meta
 	}
 
 	// load epss scores
