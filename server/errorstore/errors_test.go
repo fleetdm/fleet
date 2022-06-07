@@ -15,6 +15,7 @@ import (
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
+	"github.com/fleetdm/fleet/v4/server/datastore/redis"
 	"github.com/fleetdm/fleet/v4/server/datastore/redis/redistest"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	kitlog "github.com/go-kit/kit/log"
@@ -445,4 +446,62 @@ func TestHttpHandler(t *testing.T) {
 
 		require.Equal(t, res.Code, 400)
 	})
+}
+
+func TestBackwardsCompatibility(t *testing.T) {
+	pool := redistest.SetupRedis(t, errKeyRoot, false, false, false)
+	ctx, cancelFunc := context.WithCancel(context.Background())
+	defer cancelFunc()
+
+	chGo, chStep1, chDone := make(chan struct{}), make(chan struct{}), make(chan struct{})
+
+	var storeCalls = 2
+	testOnStart := func() {
+		close(chGo)
+	}
+	testOnStore := func(err error) {
+		require.NoError(t, err)
+		storeCalls = storeCalls - 1
+
+		if storeCalls == 1 {
+			close(chStep1)
+		}
+
+		if storeCalls == 0 {
+			close(chDone)
+		}
+	}
+	eh := newTestHandler(ctx, pool, kitlog.NewNopLogger(), time.Minute, testOnStart, testOnStore)
+
+	<-chGo
+
+	// store an error as a key => string like in previous versions of the store
+	oldErr := ctxerr.New(ctx, "old error")
+	hash, json, err := hashAndMarshalError(oldErr)
+	require.NoError(t, err)
+	key := fmt.Sprintf("error:%s:json", hash)
+	conn := redis.ConfigureDoer(pool, pool.Get())
+	defer conn.Close()
+	conn.Do("SET", key, json)
+
+	// store a new error
+	newErr := ctxerr.New(ctx, "new error")
+	eh.Store(newErr)
+
+	<-chStep1
+
+	errors, err := eh.Retrieve(false)
+	require.NoError(t, err)
+	require.Len(t, errors, 1)
+
+	// store the old error using the new method
+	eh.Store(oldErr)
+
+	<-chDone
+
+	errors, err = eh.Retrieve(false)
+	require.NoError(t, err)
+	require.Len(t, errors, 2)
+	require.Equal(t, errors[0].Count+errors[1].Count, 2)
+
 }
