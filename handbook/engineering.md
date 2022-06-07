@@ -257,7 +257,7 @@ UX is key for any software. APIs that take longer than 500ms to respond can caus
 
 In the ideal case, the count query will be covered by an index and be extremely fast. In the worst case, the query will be counting filtering on calculated data, which results in a full (multi) table scan on big tables.
 
-One way to solve this is to pre-calculate data in an async fashion, so we would have a cron that once every hour or so would count whatever we want counted, store the counts, and then counting things is as fast as reading a row in a table.
+One way to solve this is to pre-calculate data in an async fashion, so we would have a cron that once every hour or so would count whatever we want counted, store the counts, and then counting things is as fast as reading a row in a table. 
 
 This approach has a handful of issues:
 
