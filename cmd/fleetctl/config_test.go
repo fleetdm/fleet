@@ -1,6 +1,9 @@
 package main
 
 import (
+	"net/http"
+	"net/http/httptest"
+	"os"
 	"path/filepath"
 	"testing"
 
@@ -137,4 +140,31 @@ func TestConfigCommand(t *testing.T) {
 			})
 		}
 	})
+}
+
+func TestCustomHeadersConfig(t *testing.T) {
+	dir := t.TempDir()
+	configFile := filepath.Join(dir, "config")
+
+	// start a server that will receive requests
+	var called bool
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		called = true
+		require.Equal(t, "custom", r.Header.Get("X-Fleet-Test"))
+		require.Equal(t, "another", r.Header.Get("X-Fleet-MoreTest"))
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer srv.Close()
+	os.Setenv("FLEET_SERVER_ADDRESS", srv.URL)
+
+	runAppForTest(t, []string{
+		"config", "set",
+		"--config", configFile,
+		"--token", "abcd",
+		"--custom-header", "X-Fleet-Test:custom",
+		"--custom-header", "X-Fleet-MoreTest:another",
+		"--address", srv.URL,
+	})
+	runAppNoChecks([]string{"get", "packs", "--config", configFile})
+	require.True(t, called)
 }

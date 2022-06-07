@@ -156,7 +156,9 @@ func rawHTTPClientFromConfig(cc Context) (*http.Client, *url.URL, error) {
 }
 
 func clientConfigFromCLI(c *cli.Context) (Context, error) {
-	if flag.Lookup("test.v") != nil {
+	// if a config file is explicitly provided, do not return a default context,
+	// just override the address and skip verify before returning.
+	if !c.IsSet("config") && flag.Lookup("test.v") != nil {
 		return Context{
 			Address:       os.Getenv("FLEET_SERVER_ADDRESS"),
 			TLSSkipVerify: true,
@@ -177,6 +179,10 @@ func clientConfigFromCLI(c *cli.Context) (Context, error) {
 	cc, ok := config.Contexts[c.String("context")]
 	if !ok {
 		return zeroCtx, fmt.Errorf("context %q is not found", c.String("context"))
+	}
+	if flag.Lookup("test.v") != nil {
+		cc.Address = os.Getenv("FLEET_SERVER_ADDRESS")
+		cc.TLSSkipVerify = true
 	}
 	return cc, nil
 }
