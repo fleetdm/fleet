@@ -22,7 +22,7 @@ We've seen the following scenario (A) on some hosts/deployments:
 5. Osquery restarts and performs step (1) over and over.
 
 From the Fleet UI, the host is shown as "online" (because of the successful `distributed/read`
-request in step 1), but the "Last fetched" shown in the Hosts table (corresponding to
+request in step 1 and also due to periodic `config` requests), but the "Last fetched" shown in the Hosts table (corresponding to
 "detail_updated_at") is the time it last executed a successful `distributed/write`.
 
 We would like Fleet to:
