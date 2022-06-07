@@ -98,7 +98,11 @@ Therefore we use them as the proof that `distributed/write` succeeded (by readin
 Given that we load the host by selecting `hosts` on every request, this should cause no extra performance penalty on every request).
 Alternatively we could use Redis to store such state, but it would add a Redis read request on every `distributed/read` request.
 - We need to use and store the hashes of the queries because queries can change and new queries be
-  added in between read and write requests (e.g. policy queries are editable by users and new ones can be assigned to hosts).
+  added in between read and write requests (e.g. policy queries are editable by users and new ones
+  can be assigned to hosts).
+- The algorithm performs a sort of binary search of the problematic query. TODO(lucas): Determine
+  how to support more than one query being problematic. With algorithm shown below, Fleet will ping pong between two
+  halfs if those halfs have each a problematic query.
 
 #### `distributed/read`
 	
@@ -179,8 +183,6 @@ func removeTroubleQueries(host *fleet.Host, troubleQueryResults []map[string]str
 //
 ```
 
-TODO(lucas): 
-- Determine how to support more than one query being problematic. Currently Fleet will ping pong between two halfs if those halfs have each a problematic query.
 
 ## Osquery future improvements
 
