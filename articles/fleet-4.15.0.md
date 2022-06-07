@@ -58,7 +58,7 @@ In 4.15.0, we also:
 
 * Improved security by increasing the minimum password length requirement for Fleet users to 12 characters.
 * Added Policies tab to **Host Details** page for Fleet Premium users.
-* Added `device_mapping` to hosts` information in UI and API responses.
+* Added `device_mapping` to host information in UI and API responses.
 * Deprecated "MIA" host status in UI and API responses.
 * Added CVE scores to `/software` API endpoint responses when available.
 * Added license object to `GET /fleet/device/{token}` response.
@@ -78,6 +78,6 @@ Visit our [Update guide](https://fleetdm.com/docs/deploying/upgrading-fleet) in 
 <meta name="category" value="releases">
 <meta name="authorFullName" value="Kathy Satterlee">
 <meta name="authorGitHubUsername" value="ksatter">
-<meta name="publishedOn" value="2022-05-26">
+<meta name="publishedOn" value="2022-05-30">
 <meta name="articleTitle" value="Fleet 4.15.0 adds beta support for Self-service, Scope transparency, and brings Zendesk to the party.">
 <meta name="articleImageUrl" value="../website/assets/images/articles/fleet-4.15.0-cover-1600x900@2x.jpg">

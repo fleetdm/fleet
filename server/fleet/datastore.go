@@ -338,7 +338,7 @@ type Datastore interface {
 	///////////////////////////////////////////////////////////////////////////////
 	// SoftwareStore
 
-	LoadHostSoftware(ctx context.Context, host *Host) error
+	LoadHostSoftware(ctx context.Context, host *Host, includeCVEScores bool) error
 	AllSoftwareWithoutCPEIterator(ctx context.Context) (SoftwareIterator, error)
 	AddCPEForSoftware(ctx context.Context, software Software, cpe string) error
 	AllCPEs(ctx context.Context) ([]string, error)
@@ -356,7 +356,7 @@ type Datastore interface {
 	CalculateHostsPerSoftware(ctx context.Context, updatedAt time.Time) error
 	HostsByCPEs(ctx context.Context, cpes []string) ([]*HostShort, error)
 	HostsByCVE(ctx context.Context, cve string) ([]*HostShort, error)
-	InsertCVEScores(ctx context.Context, cveScores []CVEScore) error
+	InsertCVEMeta(ctx context.Context, cveMeta []CVEMeta) error
 
 	///////////////////////////////////////////////////////////////////////////////
 	// ActivitiesStore

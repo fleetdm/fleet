@@ -268,7 +268,7 @@ type SearchTeamsFunc func(ctx context.Context, filter fleet.TeamFilter, matchQue
 
 type TeamEnrollSecretsFunc func(ctx context.Context, teamID uint) ([]*fleet.EnrollSecret, error)
 
-type LoadHostSoftwareFunc func(ctx context.Context, host *fleet.Host) error
+type LoadHostSoftwareFunc func(ctx context.Context, host *fleet.Host, includeCVEScores bool) error
 
 type AllSoftwareWithoutCPEIteratorFunc func(ctx context.Context) (fleet.SoftwareIterator, error)
 
@@ -288,7 +288,7 @@ type HostsByCPEsFunc func(ctx context.Context, cpes []string) ([]*fleet.HostShor
 
 type HostsByCVEFunc func(ctx context.Context, cve string) ([]*fleet.HostShort, error)
 
-type InsertCVEScoresFunc func(ctx context.Context, cveScores []fleet.CVEScore) error
+type InsertCVEMetaFunc func(ctx context.Context, cveMeta []fleet.CVEMeta) error
 
 type NewActivityFunc func(ctx context.Context, user *fleet.User, activityType string, details *map[string]interface{}) error
 
@@ -817,8 +817,8 @@ type DataStore struct {
 	HostsByCVEFunc        HostsByCVEFunc
 	HostsByCVEFuncInvoked bool
 
-	InsertCVEScoresFunc        InsertCVEScoresFunc
-	InsertCVEScoresFuncInvoked bool
+	InsertCVEMetaFunc        InsertCVEMetaFunc
+	InsertCVEMetaFuncInvoked bool
 
 	NewActivityFunc        NewActivityFunc
 	NewActivityFuncInvoked bool
@@ -1629,9 +1629,9 @@ func (s *DataStore) TeamEnrollSecrets(ctx context.Context, teamID uint) ([]*flee
 	return s.TeamEnrollSecretsFunc(ctx, teamID)
 }
 
-func (s *DataStore) LoadHostSoftware(ctx context.Context, host *fleet.Host) error {
+func (s *DataStore) LoadHostSoftware(ctx context.Context, host *fleet.Host, includeCVEScores bool) error {
 	s.LoadHostSoftwareFuncInvoked = true
-	return s.LoadHostSoftwareFunc(ctx, host)
+	return s.LoadHostSoftwareFunc(ctx, host, includeCVEScores)
 }
 
 func (s *DataStore) AllSoftwareWithoutCPEIterator(ctx context.Context) (fleet.SoftwareIterator, error) {
@@ -1679,9 +1679,9 @@ func (s *DataStore) HostsByCVE(ctx context.Context, cve string) ([]*fleet.HostSh
 	return s.HostsByCVEFunc(ctx, cve)
 }
 
-func (s *DataStore) InsertCVEScores(ctx context.Context, cveScores []fleet.CVEScore) error {
-	s.InsertCVEScoresFuncInvoked = true
-	return s.InsertCVEScoresFunc(ctx, cveScores)
+func (s *DataStore) InsertCVEMeta(ctx context.Context, cveMeta []fleet.CVEMeta) error {
+	s.InsertCVEMetaFuncInvoked = true
+	return s.InsertCVEMetaFunc(ctx, cveMeta)
 }
 
 func (s *DataStore) NewActivity(ctx context.Context, user *fleet.User, activityType string, details *map[string]interface{}) error {

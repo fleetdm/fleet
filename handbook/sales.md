@@ -28,3 +28,4 @@ This group maintains the following [Slack channels](https://fleetdm.com/handbook
 
 
 <meta name="maintainedBy" value="alexmitchelliii">
+<meta name="title" value="🤝 Sales">

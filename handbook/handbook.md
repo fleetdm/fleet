@@ -34,3 +34,4 @@ All done!
 
 
 <meta name="maintainedBy" value="mike-j-thomas">
+<meta name="title" value="Handbook">

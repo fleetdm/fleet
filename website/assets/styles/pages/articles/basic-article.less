@@ -7,13 +7,20 @@
     margin-top: 40px;
     margin-bottom: 40px;
     border-top: 2px solid @core-vibrant-blue-15;
+    width: 100%;
   }
 
   [purpose='article-title'] {
     padding-top: 80px;
+    margin-bottom: 28px;
     h1 {
-      margin-bottom: 16px;
+      margin-bottom: 4px;
       line-height: 38px;
+    }
+    h2 {
+      font-size: 24px;
+      font-weight: 400;
+      line-height: 32px;
     }
   }
 
@@ -36,6 +43,9 @@
     h1:first-of-type {
       display: none;
     }
+    h1:first-of-type + h2:first-of-type {
+      display: none;
+    }
     img {
       max-width: 100%;
       width: auto;
@@ -43,7 +53,7 @@
       max-height: 100%;
       margin-left: auto;
       margin-right: auto;
-      padding: 24px 0px 40px 0px;
+      padding: 24px 0px 16px 0px;
     }
     a {
       color: @core-vibrant-blue;
@@ -71,10 +81,11 @@
     }
     img + em { // Image captions
       position: relative;
-      top: -24px;
+      top: -12px;
       display: flex;
       align-items: center;
       flex-direction: column;
+      margin-bottom: 16px;
     }
     ul, ol {
       padding-left: 16px;
@@ -141,6 +152,10 @@
       }
     }
   }
+  [purpose='large-button-text'] {
+    display: block;
+  }
+
   @media (max-width: 991px) {
     [purpose='article-title'] {
       padding-top: 60px;
@@ -150,6 +165,30 @@
     }
   }
 
+  @media (max-width: 769px) {
+    [purpose='article-title'] {
+      padding-top: 40px;
+      margin-bottom: 8px;
+      h1 {
+        font-size: 28px;
+        line-height: 38px;
+      }
+    }
+    [purpose='article-content'] {
+      img {
+        padding-bottom: 0px;
+      }
+      img + em { // Image captions
+        top: 4px;
+        margin-bottom: 16px;
+      }
+    }
+  }
 
+  @media (max-width: 375px) {
+    [purpose='large-button-text'] { // Changes the Slack call to action (Join the Fleet community on Slack -> Join Fleet on Slack)
+      display: none;
+    }
+  }
 
 }
