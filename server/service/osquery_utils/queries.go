@@ -47,10 +47,12 @@ func (q *DetailQuery) RunsForPlatform(platform string) bool {
 	return false
 }
 
-// detailQueries defines the detail queries that should be run on the host, as
+// hostDetailQueries defines the detail queries that should be run on the host, as
 // well as how the results of those queries should be ingested into the
-// fleet.Host data model. This map should not be modified at runtime.
-var detailQueries = map[string]DetailQuery{
+// fleet.Host data model (via IngestFunc).
+//
+// This map should not be modified at runtime.
+var hostDetailQueries = map[string]DetailQuery{
 	"network_interface": {
 		Query: `select ia.address, id.mac, id.interface
                         from interface_details id join interface_addresses ia
@@ -305,15 +307,25 @@ FROM logical_drives WHERE file_system = 'NTFS' LIMIT 1;`,
 		Platforms:  []string{"windows"},
 		IngestFunc: ingestDiskSpace,
 	},
+}
+
+// extraDetailQueries defines extra detail queries that should be run on the host, as
+// well as how the results of those queries should be ingested into the hosts related tables
+// (via DirectIngestFunc).
+//
+// This map should not be modified at runtime.
+var extraDetailQueries = map[string]DetailQuery{
 	"mdm": {
 		Query:            `select enrolled, server_url, installed_from_dep from mdm;`,
 		DirectIngestFunc: directIngestMDM,
 		Platforms:        []string{"darwin"},
+		Discovery:        discoveryTable("mdm"),
 	},
 	"munki_info": {
 		Query:            `select version from munki_info;`,
 		DirectIngestFunc: directIngestMunkiInfo,
 		Platforms:        []string{"darwin"},
+		Discovery:        discoveryTable("munki_info"),
 	},
 	"google_chrome_profiles": {
 		Query:            `SELECT email FROM google_chrome_profiles WHERE NOT ephemeral AND email <> ''`,
@@ -848,7 +860,10 @@ func directIngestMunkiInfo(ctx context.Context, logger log.Logger, host *fleet.H
 
 func GetDetailQueries(ac *fleet.AppConfig, fleetConfig config.FleetConfig) map[string]DetailQuery {
 	generatedMap := make(map[string]DetailQuery)
-	for key, query := range detailQueries {
+	for key, query := range hostDetailQueries {
+		generatedMap[key] = query
+	}
+	for key, query := range extraDetailQueries {
 		generatedMap[key] = query
 	}
 
