@@ -191,13 +191,13 @@ func TestErrorHandler(t *testing.T) {
 	wd = regexp.QuoteMeta(wd)
 
 	t.Run("standalone", func(t *testing.T) {
-		pool := redistest.SetupRedis(t, "error:", false, false, false)
+		pool := redistest.SetupRedis(t, errKeyRoot, false, false, false)
 		t.Run("collects errors", func(t *testing.T) { testErrorHandlerCollectsErrors(t, pool, wd, false) })
 		t.Run("collects different errors", func(t *testing.T) { testErrorHandlerCollectsDifferentErrors(t, pool, wd, false) })
 	})
 
 	t.Run("cluster", func(t *testing.T) {
-		pool := redistest.SetupRedis(t, "error:", true, true, false)
+		pool := redistest.SetupRedis(t, errKeyRoot, true, true, false)
 		t.Run("collects errors", func(t *testing.T) { testErrorHandlerCollectsErrors(t, pool, wd, false) })
 		t.Run("collects different errors", func(t *testing.T) { testErrorHandlerCollectsDifferentErrors(t, pool, wd, false) })
 	})
@@ -344,7 +344,7 @@ func testErrorHandlerCollectsDifferentErrors(t *testing.T, pool fleet.RedisPool,
 
 func TestHttpHandler(t *testing.T) {
 	setupTest := func(t *testing.T) *Handler {
-		pool := redistest.SetupRedis(t, "error:", false, false, false)
+		pool := redistest.SetupRedis(t, errKeyRoot, false, false, false)
 		ctx, cancelFunc := context.WithCancel(context.Background())
 		defer cancelFunc()
 

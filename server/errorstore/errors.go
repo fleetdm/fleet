@@ -27,6 +27,8 @@ import (
 	redigo "github.com/gomodule/redigo/redis"
 )
 
+const errKeyRoot = "errorhash:"
+
 // Handler defines an error handler. Call Handler.Store to handle an error, and
 // Handler.Retrieve to retrieve all stored errors and optionally clear them
 // from the store. It is safe to call those methods concurrently.
@@ -107,7 +109,7 @@ func (s *storedError) RedisScan(src interface{}) error {
 // If flush is `true`, performs a destructive read - the errors are removed
 // from Redis on return.
 func (h *Handler) Retrieve(flush bool) ([]*storedError, error) {
-	errorKeys, err := redis.ScanKeys(h.pool, "error:*", 100)
+	errorKeys, err := redis.ScanKeys(h.pool, errKeyRoot+"*", 100)
 	if err != nil {
 		return nil, err
 	}
@@ -213,7 +215,7 @@ func (h *Handler) storeError(ctx context.Context, err error) {
 		}
 		return
 	}
-	jsonKey := fmt.Sprintf("error:%s:json", errorHash)
+	jsonKey := fmt.Sprintf("%s%s:json", errKeyRoot, errorHash)
 
 	conn := redis.ConfigureDoer(h.pool, h.pool.Get())
 	defer conn.Close()
