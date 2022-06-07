@@ -115,50 +115,62 @@ func determineQueriesToSend(host *fleet.Host, queriesToSend map[string]string) m
 
 	case !hostNotResponding && host.TroubleQueries == "":
 
+		//
 		// Nothing to do, host is responding and there are no "trouble queries".
+		//
+
 		return queriesToSend
 
 	case hostNotResponding && host.TroubleQueries == "":
 
+		//
 		// This is the first time Fleet detects the host has issues.
+		//
 		
 		// We assume hostDetailQueries never have performance issues.
 		nonDetailQueries := excludeQueries(queriesToSend, hostDetailQueries)
 		
 		host.TroubleQueries = nonDetailQueries // mark all to be sent as "trouble queries"
 		svc.ds.UpdateHost(ctx, host)
+
 		queriesToSend := excludeQueries(queriesToSend, host.TroubleQueries)
-		addQueries(queriesToSend, host.TroubleQueries[0:len(queriesToSend)/2]) // send first half of queries
+		troubleQueries := host.TroubleQueries[0:len(queriesToSend)/2]
+		addQueries(queriesToSend, troubleQueries) // send first half of trouble queries
 		
 		// generateTroubleQuery generates a string of the form: SELECT "q0:hash(q0),q1:hash(q1),..."
 		// which serves as an indicator of the sent queries on distributed/write.
-		queriesToSend["trouble_queries"] = generateTroubleQuery(nonDetailQueries)
-
+		queriesToSend["trouble_queries"] = generateTroubleQuery(troubleQueries)
 		return queriesToSend
 
 	case !hostNotResponding && host.TroubleQueries != "":
 
+		//
 		// This means the host is in "troubleshooting mode" but it has responded to some queries.
+		//
 	
 		queriesToSend := excludeQueries(queriesToSend, host.TroubleQueries)
-		troubleQueries := host.TroubleQueries[0:len(host.TroubleQueries/2)] // send first half of queries
+		troubleQueries := host.TroubleQueries[0:len(host.TroubleQueries/2)] // send first half of trouble queries
 		addQueries(queriesToSend, troubleQueries)
 		
 		// generateTroubleQuery generates a string of the form: SELECT "q0:hash(q0),q1:hash(q1),..."
 		// which serves as an indicator of the sent queries on distributed/write.
-		queriesToSend["trouble_queries"] = generateTroubleQuery(queriesToSend)
+		queriesToSend["trouble_queries"] = generateTroubleQuery(troubleQueries)
+		return queriesToSend
 
-	case hostNotResponding && host.TroubleQueries != "":
+	default: // hostNotResponding && host.TroubleQueries != "":
 		
+		//
 		// This means the host is in "troubleshooting mode" and hasn't responded to first half of trouble queries.
+		//
 		
 		queriesToSend := excludeQueries(queriesToSend, host.TroubleQueries)
-		troubleQueries := host.TroubleQueries[len(host.TroubleQueries)/2: len(host.TroubleQueries)] // send second half of queries
+		troubleQueries := host.TroubleQueries[len(host.TroubleQueries)/2: len(host.TroubleQueries)] // send second half of trouble queries
 		addQueries(queriesToSend, troubleQueries)
 
 		// generateTroubleQuery generates a string of the form: SELECT "q0:hash(q0),q1:hash(q1),..."
 		// which serves as an indicator of the sent queries on distributed/write.
-		queriesToSend["trouble_queries"] = generateTroubleQuery(queriesToSend)		
+		queriesToSend["trouble_queries"] = generateTroubleQuery(troubleQueries)
+		return queriesToSend
 	}
 }
 ```
