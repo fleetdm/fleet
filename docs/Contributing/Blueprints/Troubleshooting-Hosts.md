@@ -103,6 +103,8 @@ Alternatively we could use Redis to store such state, but it would add a Redis r
 - The algorithm performs a sort of binary search of the problematic query. TODO(lucas): Determine
   how to support more than one query being problematic. With algorithm shown below, Fleet will ping pong between two
   halfs if those halfs have each a problematic query.
+- The added performance penalty of the algorithm is in `distributed/read`, there's now an extra
+  write to `hosts` table (only on hosts with issues).
 
 #### `distributed/read`
 	
