@@ -131,7 +131,7 @@ The oncall engineer is a second-line responder to questions raised by customers 
 
 ### How to reach the oncall
 
-Oncall engineers do not need to actively monitor Slack channels, except when called in by the Community or Customer teams. Members of those teams are instructed to `@oncall` in `#help-engineering` to get the attention of the oncall engineer to continue discussing any issues that come up. In some cases, the Community or Customer representative will continue to communicate with the requestor, and in others, the oncall engineer will communicate directly (team members should use their judgement and discuss on a case by case basis how to best communicate with community members and customers).
+Oncall engineers do not need to actively monitor Slack channels, except when called in by the Community or Customer teams. Members of those teams are instructed to `@oncall` in `#help-engineering` to get the attention of the oncall engineer to continue discussing any issues that come up. In some cases, the Community or Customer representative will continue to communicate with the requestor. In others, the oncall engineer will communicate directly (team members should use their judgment and discuss on a case-by-case basis how to best communicate with community members and customers).
 
 ### Handoff
 

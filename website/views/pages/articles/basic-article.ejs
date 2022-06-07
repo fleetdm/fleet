@@ -2,6 +2,7 @@
   <div style="max-width: 800px;" class="container-fluid px-0">
     <div purpose="article-title">
       <h1>{{thisPage.meta.articleTitle}}</h1>
+      <h2 v-if="articleHasSubtitle && articleSubtitle !== undefined">{{articleSubtitle}}</h2>
     </div>
     <div purpose="article-details" class="d-flex flex-row align-items-center">
     <span><js-timestamp format="billing" :at="thisPage.meta.publishedOn"></js-timestamp></span>
@@ -22,7 +23,7 @@
         </a>
         <a href="/slack" target="_blank" class="d-flex btn btn-md btn-outline-secondary justify-content-center align-items-center mt-3 mt-sm-0" purpose="next-steps-button">
           <img class="pr-3" alt="Slack logo" src="/images/logo-slack-24x24@2x.png"/>
-          Join the Fleet community on Slack
+          Join <span purpose="large-button-text">&nbsp;the&nbsp;</span> Fleet <span purpose="large-button-text">&nbsp;community&nbsp;</span>on Slack
         </a>
       </div>
     </div>

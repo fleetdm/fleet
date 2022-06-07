@@ -56,7 +56,7 @@ func TestZendesk(t *testing.T) {
 			APIToken: "fail",
 		})
 		require.NoError(t, err)
-		_, err = client.CreateTicket(context.Background(), &zendesk.Ticket{
+		_, err = client.CreateZendeskTicket(context.Background(), &zendesk.Ticket{
 			Subject:     "test",
 			Description: "test",
 			Comment:     testCmt,
@@ -77,7 +77,7 @@ func TestZendesk(t *testing.T) {
 		require.NoError(t, err)
 
 		start := time.Now()
-		_, err = client.CreateTicket(context.Background(), &zendesk.Ticket{
+		_, err = client.CreateZendeskTicket(context.Background(), &zendesk.Ticket{
 			Subject:     "test",
 			Description: "test",
 			Comment:     testCmt,
@@ -97,7 +97,7 @@ func TestZendesk(t *testing.T) {
 		})
 		require.NoError(t, err)
 
-		_, err = client.CreateTicket(context.Background(), &zendesk.Ticket{
+		_, err = client.CreateZendeskTicket(context.Background(), &zendesk.Ticket{
 			Subject:     "test",
 			Description: "test",
 			Comment:     testCmt,
@@ -115,7 +115,7 @@ func TestZendesk(t *testing.T) {
 			APIToken: "ok",
 		})
 		require.NoError(t, err)
-		tkt, err := client.CreateTicket(context.Background(), &zendesk.Ticket{
+		tkt, err := client.CreateZendeskTicket(context.Background(), &zendesk.Ticket{
 			Subject:     "test",
 			Description: "test",
 			Comment:     testCmt,

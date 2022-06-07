@@ -177,8 +177,8 @@ After successful notarization, the generated "ticket" is automatically stapled t
 If the `logger_path` configuration is set to `filesystem`, Orbit will store osquery's "result" and
 "status" logs to the following directories:
   - Windows: C:\Program Files\Orbit\osquery_log
-  - macOS: /var/lib/orbit/osquery_log
-  - Linux: /var/lib/orbit/osquery_log
+  - macOS: /opt/orbit/osquery_log
+  - Linux: /opt/orbit/osquery_log
 
 #### Orbit Development
 

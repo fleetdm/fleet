@@ -1,40 +1,46 @@
 # Customers
 
-## Customer success
+## Customer success calls
 
-### Scheduling meetings with customers
+### Scheduling a customer call
 
 To schedule an [ad hoc meeting](https://www.vocabulary.com/dictionary/ad%20hoc) with a Fleet customer, use the ["Customer meeting" Calendly link](https://calendly.com/fleetdm/customer).
 
-### Documenting calls with customers
+### Documenting a customer call
+
 When we do prospect calls, add the customer's name in both the google doc title and the heading, ex. "Charlie (Fleet)."  This makes it easier when searching for the document later. 
 
-### Missed Zoom Meeting | Etiquette with Customers
-This is a tutorial on how to respond when someone from outside the company misses a call.
+### How to conduct a customer meeting
 
-#### 48 hours before a meeting
-- Check the calendar invite to determine if the customer has accepted the invitation.
-- If the customer has not accepted the invitation, please reach out through appropriate channels to confirm attendance (Ex: EAs, Email, Slack).
+#### Before a customer call (48hrs)
+
+- Check the calendar invite 48hrs before the meeting to determine if the customer has accepted the invitation.
+- If the customer has not accepted the invitation, reach out to confirm attendance (e.g., EAs, email, Slack).
 - Test the Zoom Meeting link to ensure that it is working.
-- Ensure that agenda documents are attached and accessible to meeting attendees (as appropriate to the situation).
+- Make sure that agenda documents are attached and accessible to meeting attendees (as appropriate to the situation).
 
-#### Day of meeting
+#### Day of the customer call
+
 - Join the meeting two to three minutes before the start time.
+
+#### Missed customer call
+
 - If the customer does not join the call after three minutes, contact the customer with:
   - Slack, if we have a shared channel.
-  - email, using the email address from the calendar invite.
+  - Email, using the email address from the calendar invite.
   - LinkedIn, send a direct message.
-  - phone, try finding their number to text and/or call (as appropriate to the device type: landline vs. cell phone).
-- In these communications to the customer, remember to approach the situation with empathy. Anything could have happened.
-- Be ready to supply an alternative date and time to reschedule the call. Suggest two to three options from which the customer can choose.
-- Ensure that contact information is accurate and that he customer can receive and access meeting invites.
-- Repeat back to the customer the newly agreed upon date and time, as well as the contact information.
-- Congratulations, you’re ready to set up a new call.
+  - Phone, try finding their number to text and/or call (as appropriate to the device type: landline vs. cell phone).
+  - Provide an alternative date and time. Suggest two to three options from which the customer can choose.
+  - Confirm that contact information is accurate and that the customer can receive and access meeting invites.
+
+> **Customer etiquette**. When communicating with the customer, remember to approach the situation with empathy. Anything could have happened.
 
 ### Next steps after a customer conversation 
+
 After a customer conversation, it can sometimes feel like there are 1,001 things to do, but it can be hard to know where to start.  Here are some tips: 
 
 ## Support process
+
 This section outlines the customer and community support process at Fleet.
 - Basic help desk resolution and service delivery -> CS team handles these with occasional support from L2
 - In-depth technical suppport -> CS team with L2 oncall technician
@@ -59,7 +65,7 @@ The weekly on-call retro at Fleet provides time to discuss highlights and answer
 
 This way, the Fleet team can constantly improve the effectiveness and experience during future on-call rotations.
 
-### For customer requests
+## Customer requests
 Locate the relevant issue or create it if it doesn't already exist (to avoid duplication, be creative when searching GitHub for issues - it can often take a couple of tries with different keywords to find an existing issue). 
 
 When creating a new issue, ensure the following:
@@ -69,9 +75,10 @@ When creating a new issue, ensure the following:
 - Is there a key date or timeframe that the customer hopes to meet?  If so, please post about that in #g-product with a link to the issue, so the team can discuss it before committing to a time frame.
 - Have we provided a link to that issue for the customer to remind everyone of the plan and for the sake of visibility, so other folks who weren't directly involved are up to speed  (e.g., "Hi everyone, here's a link to the issue we discussed on today's call: […link…](https://omfgdogs.com)")?
 
-### Assistance from engineering
+## Assistance from engineering
 
 Customer team members can reach the engineering oncall for assistance by writing a message with `@oncall` in the `#help-engineering` channel of the Fleet Slack.
+
 ## Runbook
 
 ### Responding to a request to change a credit card number

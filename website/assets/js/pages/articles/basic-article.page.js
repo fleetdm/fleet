@@ -3,7 +3,8 @@ parasails.registerPage('basic-article', {
   //  ║║║║║ ║ ║╠═╣║    ╚═╗ ║ ╠═╣ ║ ║╣
   //  ╩╝╚╝╩ ╩ ╩╩ ╩╩═╝  ╚═╝ ╩ ╩ ╩ ╩ ╚═╝
   data: {
-    //…
+    articleHasSubtitle: false,
+    articleSubtitle: undefined,
   },
 
   //  ╦  ╦╔═╗╔═╗╔═╗╦ ╦╔═╗╦  ╔═╗
@@ -14,6 +15,11 @@ parasails.registerPage('basic-article', {
   },
   mounted: async function() {
     //…
+    // If the article has a subtitle (an H2 immediatly after an H1), we'll set articleSubtitle to be the text of that heading
+    this.articleHasSubtitle = $('[purpose="article-content"]').find('h1 + h2');
+    if(this.articleHasSubtitle.length > 0 && this.articleHasSubtitle[0].innerText) {
+      this.articleSubtitle = this.articleHasSubtitle[0].innerText;
+    }
   },
 
   //  ╦╔╗╔╔╦╗╔═╗╦═╗╔═╗╔═╗╔╦╗╦╔═╗╔╗╔╔═╗
