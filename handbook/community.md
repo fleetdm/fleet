@@ -41,12 +41,12 @@ Typically, the *questions*, *bug reports*, and *feature requests* raised by comm
 - Let's say a community member asks, "How do I do X in Fleet?" A follow-up question could be, "What are you attempting to accomplish by doing X?"
 - This way, you have additional details when you bring this to the Roundup meeting. In addition, the community member receives a response and feels heard.
 
-🦟 For bug reports, it's helpful to ask for re-creation steps, so you're later able to verify the bug exists.
+🦟 For bug reports, it's helpful to ask for re-creation steps so you're later able to verify the bug exists.
 
 - Let's say a community member submits a bug report. An example follow-up question could be, "Can you please walk me through how you encountered this issue so that I can attempt to recreate it?"
 - This way, you now have steps that verify whether the bug exists in Fleet or if the issue is specific to the community member's environment. If the latter, you now have additional information for further investigation and question-asking.
 
-💡 For feature requests, it's helpful to ask follow-up questions to better understand the "Why?" or underlying motivation behind the request.
+💡 For feature requests, it's helpful to ask follow-up questions to understand better the "Why?" or underlying motivation behind the request.
 
 - Let's say a community member submits the feature request "I want the ability to do X in Fleet." A follow-up question could be "If you were able to do X in Fleet, what's the next action you would take?" or "Why do you want to do X in Fleet?."
 - Both of these questions provide helpful context on the underlying motivation behind the feature request when brought to the Roundup meeting. In addition, the community member receives a response and feels heard.
@@ -98,7 +98,7 @@ Fleet's documentation and handbook are written in [Markdown](https://about.gitla
 When making changes to the Fleet docs or handbook, there are a few differences in how the Markdown will render on GitHub and the Fleet website.
 
 #### Linebreaks and newlines
-Any time you need to add a line break in Markdown, you should add a new line. It is vital to make sure paragraphs are separated by new lines otherwise, they will render as the same HTML element.
+Any time you need to add a line break in Markdown, you should add a new line. It is vital to make sure paragraphs are separated by new lines. Otherwise, they will render as the same HTML element.
 
 For example, if you were adding this section to the docs:
 
@@ -107,12 +107,12 @@ line one
 line two
 ```
 
-The Markdown would render on the Fleet website as:
+The Markdown would render on the Fleet website as
 
 line one
 line two
 
-To ensure formatting is consistent across GitHub and the Fleet website, you need to add a new line anywhere you want a line break. For example, if we separate the lines with a new line:
+To make sure formatting is consistent across GitHub and the Fleet website, you need to add a new line anywhere you want a line break. For example, if we separate the lines with a new line:
 
 ```
 line one
@@ -121,7 +121,7 @@ line two
 ```
 
 
-The Markdown will render correctly as:
+The Markdown will render correctly as
 
 line one
 
@@ -141,7 +141,7 @@ Paragraph about item one
 2. Item two
 ```
 
-On the Fleet website, this ordered list would be rendered as:
+On the Fleet website, this ordered list would be rendered as
 
 1. Item one
 
@@ -149,7 +149,7 @@ Paragraph about item one
 
 2. Item two
 
-To ensure that ordered lists increment on the Fleet website, you can indent the content nested within the list. For example, the same ordered list with indentation:
+To make sure that ordered lists increment on the Fleet website, you can indent the content nested within the list. For example, the same ordered list with indentation:
 
 ```
 1. Item one
@@ -159,7 +159,7 @@ To ensure that ordered lists increment on the Fleet website, you can indent the 
 2. Item two
 ```
 
-This ordered list will render correctly as:
+This ordered list will render correctly as
 
 1. Item one
 
@@ -180,7 +180,7 @@ Keep headings brief, organized, and in a logical order:
 * H3: Subheadings
 * H4: Sub-subheadings (headings nested under subheadings)
 
-Try to stay within 3 or 4 heading levels. Complicated documents may use more, but pages with a simpler structure are easier to read.
+Try to stay within three or four heading levels. Complicated documents may use more, but pages with a simpler structure are easier to read.
 
 ### SQL statements
 
@@ -233,7 +233,7 @@ When adding images to the Fleet documentation, follow these guidelines:
 - Minimize images per doc page. For doc maintainers and users, more than one or two per page can get overwhelming.
 - The goal is for the docs to look good on every form factor, from 320px window width all the way up to infinity. Full window screenshots and images with too much padding on the sides will be less than the width of the user's screen. When adding a large image, make sure it is easily readable at all widths.
 
-Images can be added to the docs using the Markdown image link format, e.g. `![Schedule Query Sidebar](https://raw.githubusercontent.com/fleetdm/fleet/main/docs/images/schedule-query-modal.png)`
+Images can be added to the docs using the Markdown image link format, e.g., `![Schedule Query Sidebar](https://raw.githubusercontent.com/fleetdm/fleet/main/docs/images/schedule-query-modal.png)`
 The images used in the docs live in `docs/images/`. Note that you must provide the URL of the image in the Fleet GitHub repo for it to display properly on both GitHub and the Fleet website.
 
 > Note that the instructions above also apply to adding images in the Fleet handbook.
@@ -276,13 +276,13 @@ The most important thing when community members contribute to Fleet is to show t
 
 ### Process for managing community contributions
 
-The Community Engagement DRI is responsible for keeping an eye out for new community contributions, getting them merged if possible and getting the right eyes on them if they require a review. 
+The Community Engagement DRI is responsible for keeping an eye out for new community contributions, getting them merged if possible, and getting the right eyes on them if they require a review. 
 
-Each business day, the Community Engagement DRI will check open pull requests to:
+Each business day, the Community Engagement DRI will check open pull requests to
 
-1. Check for new pull requests (PRs) from the Fleet community. 
-2. Approve and merge any community PRs that are ready to go.
-3. Make sure there aren't any existing community PRs waiting for a follow-up from Fleet. 
+1. check for new pull requests (PRs) from the Fleet community. 
+2. approve and merge any community PRs that are ready to go.
+3. make sure there aren't any existing community PRs waiting for a follow-up from Fleet. 
 
 
 #### Identify community contributions
@@ -291,14 +291,14 @@ When a new pull request is submitted by a community contributor (someone not a m
 
 - Add the `:community` label.
 - Self-assign for review.
-- Check whether the PR can be merged, or needs to be reviewed by the Product team.
+- Check whether the PR can be merged or needs to be reviewed by the Product team.
     - Things that generally don't need additional review:
         - Minor changes to the docs.
         - Small bug fixes.
 
         - Additions or fixes to the Standard Query Library (as long as the SQL works properly and is attributed correctly).
     - If a review is needed:
-        - Request review from the [Product DRI](./product.md#product-dris). They should approve extensive changes and new features. Ask in the #g-product channel in Fleet's Slack for more information.
+        - Request a review from the [Product DRI](./product.md#product-dris). They should approve extensive changes and new features. Ask in the #g-product channel in Fleet's Slack for more information.
         - Tag the DRI and the contributor in a comment on the PR, letting everyone know why an additional review is needed. Make sure to say thanks!
         - Find any related open issues and make a note in the comments.
 
@@ -318,7 +318,7 @@ When merging a pull request from a community contributor:
 - Verify that all necessary reviews have been approved.
 - Merge the PR.
 - Thank and congratulate the contributor.
-- Share the merged PR with the team in the #help-promote channel of Fleet Slack to be publicized on social media. Those who contribute to Fleet and are recognized for their contributions, often become great champions for the project.
+- Share the merged PR with the team in the #help-promote channel of Fleet Slack to be publicized on social media. Those who contribute to Fleet and are recognized for their contributions often become great champions for the project.
 
 ### Reviewing PRs from the community
 
@@ -356,18 +356,18 @@ Our goal is to answer every question with a link to the docs and/or result in a 
 
 ### Tracking
 
-When responding to a question or issue in the [#fleet](https://osquery.slack.com/join/shared_invite/zt-h29zm0gk-s2DBtGUTW4CFel0f0IjTEw#/) channel of the osquery Slack workspace, push the thread to Zapier using the `TODO: Update docs` Zap. This will add information about the thread to the [Slack Questions Spreadsheet](https://docs.google.com/spreadsheets/d/15AgmjlnV4oRW5m94N5q7DjeBBix8MANV9XLWRktMDGE/edit#gid=336721544). In the `Notes` field, you can include any information that you think will be helpful when making weekly doc updates. That may be something like:
+When responding to a question or issue in the [#fleet](https://osquery.slack.com/join/shared_invite/zt-h29zm0gk-s2DBtGUTW4CFel0f0IjTEw#/) channel of the osquery Slack workspace, push the thread to Zapier using the `TODO: Update docs` Zap. This will add information about the thread to the [Slack Questions Spreadsheet](https://docs.google.com/spreadsheets/d/15AgmjlnV4oRW5m94N5q7DjeBBix8MANV9XLWRktMDGE/edit#gid=336721544). In the `Notes` field, you can include any information that you think will be helpful when making weekly doc updates. That may be something like
 
-- Proposed change to the documentation.
-- Documentation link that was sent as a response.
-- Link to associated thread in [#help-oncall](https://fleetdm.slack.com/archives/C024DGVCABZ).
+- proposed change to the documentation.
+- documentation link that was sent as a response.
+- link to associated thread in [#help-oncall](https://fleetdm.slack.com/archives/C024DGVCABZ).
 
 ### Making the updates
 
 Every week, the Community Engagement DRI will:
 
 - Create a new `Weekly Doc Update` issue on Monday and add it to the [Community board](https://github.com/orgs/fleetdm/projects/36).
-- Review the Slack Questions Spreadsheet and ensure that any necessary updates to the documentation are made. 
+- Review the Slack Questions Spreadsheet and make sure that any necessary updates to the documentation are made. 
     - Update the spreadsheet to indicate what action was taken (Doc change, FAQ added, or None) and add notes if need be. 
 - Set up a single PR to update the Docs. 
     - In the notes, include a list of changes made as well as a link to the related thread. 
@@ -395,11 +395,11 @@ The following table lists the Community group's rituals, frequency, and Directly
 
 | Ritual                       | Frequency                | Description                                         | DRI               |
 |:-----------------------------|:-----------------------------|:----------------------------------------------------|-------------------|
-| Community Slack  | Daily   | Check Fleet and osquery Slack channels for community questions, ensure questions are responded to and logged. | Kathy Satterlee |
-| Social media check-in     |  Daily | Check social media for community questions and ensure they are responded to.  Generate dev advocacy-related content. | Kelvin Omereshone   |
-| Outside contributor follow up | Weekly | Bring pull requests from outside contributors to engineering and ensure they are merged promptly and promoted. | Kathy Satterlee |
+| Community Slack  | Daily   | Check Fleet and osquery Slack channels for community questions, make sure questions are responded to and logged. | Kathy Satterlee |
+| Social media check-in     |  Daily | Check social media for community questions and make sure to respond to them.  Generate dev advocacy-related content. | Kelvin Omereshone   |
+| Outside contributor follow-up | Weekly | Bring pull requests from outside contributors to engineering and make sure they are merged promptly and promoted. | Kathy Satterlee |
 | Documentation update | Weekly | Turn questions answered from Fleet and osquery Slack into FAQs in Fleet’s docs. | Kathy Satterlee |
-| StackOverflow  | Weekly | Search StackOverflow for “osquery,” answer questions with Grammarly, and find a way to prominently feature Fleet in your StackOverflow profile. | Rotation: Community team |
+| StackOverflow  | Weekly | Search StackOverflow for “osquery,” answer questions with Grammarly, and find a way to feature Fleet in your StackOverflow profile prominently. | Rotation: Community team |
 
 
 ## Slack channels
