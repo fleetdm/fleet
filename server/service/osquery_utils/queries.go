@@ -873,7 +873,7 @@ func GetDetailQueries(ac *fleet.AppConfig, fleetConfig config.FleetConfig) map[s
 			continue
 		}
 		if i := strings.Index(env, "="); i >= 0 {
-			queryName := strings.TrimPrefix(env[:i], prefix)
+			queryName := strings.ToLower(strings.TrimPrefix(env[:i], prefix))
 			newQuery := env[i+1:]
 			query := generatedMap[queryName]
 			query.Query = newQuery
