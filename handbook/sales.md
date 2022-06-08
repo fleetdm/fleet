@@ -54,7 +54,7 @@ Directly Responsible Individuals (DRI) engage in the ritual(s) below at the freq
 | Ritual                       | Frequency                | Description                                         | DRI               |
 |:-----------------------------|:-----------------------------|:----------------------------------------------------|-------------------|
 | Sales huddle | Weekly | Agenda: Go through every [open opportunity](https://fleetdm.lightning.force.com/lightning/o/Opportunity/list?filterName=00B4x00000CTHZIEA5) and update next steps. | Alex Mitchell
-[Salesforce contributor experience checkup](./growth.md#salesforcecontributorexperiencecheckups)| Monthly | Make sure all users see a detailed view of contacts, opportunities, accounts, and leads. | Nathan Holliday |
+[Salesforce contributor experience checkup](./sales.md#salesforcecontributorexperiencecheckups)| Monthly | Make sure all users see a detailed view of contacts, opportunities, accounts, and leads. | Nathan Holliday |
 | TODO  | TODO | TODO | TODO 
 | TODO  | TODO | TODO | TODO 
 
