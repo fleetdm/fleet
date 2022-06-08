@@ -2387,7 +2387,7 @@ func (s *integrationTestSuite) TestLabels() {
 
 	// labels summary has the built-in ones
 	var summaryResp getLabelsSummaryResponse
-	s.DoJSON("GET", "/api/latest/fleet/labels/summary", nil, http.StatusOK, &listResp)
+	s.DoJSON("GET", "/api/latest/fleet/labels/summary", nil, http.StatusOK, &summaryResp)
 	assert.Len(t, summaryResp.Labels, builtInsCount)
 	for _, lbl := range summaryResp.Labels {
 		assert.Equal(t, fleet.LabelTypeBuiltIn, lbl.LabelType)
@@ -2425,7 +2425,7 @@ func (s *integrationTestSuite) TestLabels() {
 	assert.Len(t, listResp.Labels, builtInsCount+1)
 
 	// labels summary
-	s.DoJSON("GET", "/api/latest/fleet/labels/summary", nil, http.StatusOK, &listResp)
+	s.DoJSON("GET", "/api/latest/fleet/labels/summary", nil, http.StatusOK, &summaryResp)
 	assert.Len(t, summaryResp.Labels, builtInsCount+1)
 
 	// next page is empty
@@ -2479,7 +2479,7 @@ func (s *integrationTestSuite) TestLabels() {
 	}
 
 	// labels summary, only the built-ins remains
-	s.DoJSON("GET", "/api/latest/fleet/labels/summary", nil, http.StatusOK, &listResp)
+	s.DoJSON("GET", "/api/latest/fleet/labels/summary", nil, http.StatusOK, &summaryResp)
 	assert.Len(t, summaryResp.Labels, builtInsCount)
 	for _, lbl := range summaryResp.Labels {
 		assert.Equal(t, fleet.LabelTypeBuiltIn, lbl.LabelType)
@@ -4248,19 +4248,19 @@ func (s *integrationTestSuite) TestSearchHosts() {
 
 	// no search criteria
 	var searchResp searchHostsResponse
-	s.DoJSON("GET", "/api/latest/fleet/hosts/search", searchHostsRequest{}, http.StatusOK, &searchResp)
+	s.DoJSON("POST", "/api/latest/fleet/hosts/search", searchHostsRequest{}, http.StatusOK, &searchResp)
 	require.Len(t, searchResp.Hosts, len(hosts)) // no request params
 
 	searchResp = searchHostsResponse{}
-	s.DoJSON("GET", "/api/latest/fleet/hosts/search", searchHostsRequest{ExcludedHostIDs: []uint{}}, http.StatusOK, &searchResp)
+	s.DoJSON("POST", "/api/latest/fleet/hosts/search", searchHostsRequest{ExcludedHostIDs: []uint{}}, http.StatusOK, &searchResp)
 	require.Len(t, searchResp.Hosts, len(hosts)) // no omitted host id
 
 	searchResp = searchHostsResponse{}
-	s.DoJSON("GET", "/api/latest/fleet/hosts/search", searchHostsRequest{ExcludedHostIDs: []uint{hosts[1].ID}}, http.StatusOK, &searchResp)
+	s.DoJSON("POST", "/api/latest/fleet/hosts/search", searchHostsRequest{ExcludedHostIDs: []uint{hosts[1].ID}}, http.StatusOK, &searchResp)
 	require.Len(t, searchResp.Hosts, len(hosts)-1) // one omitted host id
 
 	searchResp = searchHostsResponse{}
-	s.DoJSON("GET", "/api/latest/fleet/hosts/search", searchHostsRequest{MatchQuery: "foo.local1"}, http.StatusOK, &searchResp)
+	s.DoJSON("POST", "/api/latest/fleet/hosts/search", searchHostsRequest{MatchQuery: "foo.local1"}, http.StatusOK, &searchResp)
 	require.Len(t, searchResp.Hosts, 1)
 	require.Contains(t, searchResp.Hosts[0].Hostname, "foo.local1")
 }
