@@ -214,3 +214,26 @@ func (svc *Service) ListDevicePolicies(ctx context.Context, host *fleet.Host) ([
 
 	return nil, fleet.ErrMissingLicense
 }
+
+////////////////////////////////////////////////////////////////////////////////
+// Device API features
+////////////////////////////////////////////////////////////////////////////////
+
+type deviceApiFeaturesRequest struct {
+	Token string `url:"token"`
+}
+
+func (r *deviceApiFeaturesRequest) deviceAuthToken() string {
+	return r.Token
+}
+
+type deviceApiFeaturesResponse struct {
+	Err      error `json:"error,omitempty"`
+	Features fleet.DeviceApiFeatures
+}
+
+func (r deviceApiFeaturesResponse) error() error { return r.Err }
+
+func deviceApiFeaturesEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
+	return deviceApiFeaturesResponse{Features: fleet.DeviceApiFeatures{}}, nil
+}
