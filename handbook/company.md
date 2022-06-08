@@ -78,7 +78,7 @@ Empathy leads to better understanding, better communication, and better decision
   - Own up to mistakes.
   - Understand why it matters (the goals of the work you are doing).
   - Consider the business impact (fast forward 12 months, consider the total cost of ownership over the eternity of maintenance).
-  - Do things that don't scale, sometimes. 
+  - Often, you'll need to own processes that won't scale. Not everything should be automated from the start. Your experience with doing things manually will teach us how to scale effectively later. 
 - Be responsive.
   - Respond quickly, even if you can't take further action at that exact moment.
   - When you disagree, give your feedback; then agree and commit, or disagree and commit anyway.
@@ -87,10 +87,10 @@ Empathy leads to better understanding, better communication, and better decision
 - We win or lose together.
   - Think about the big picture beyond your individual team's goals.
   - Success equals creating value for customers.
-  - You're not alone in this (a great community of people who are able and happy to help).
+  - You're not alone in this (There's a great community of people able and happy to help).
   - Don't be afraid to spend time helping users, customers, and contributors (including colleagues on other teams).
   - Be proactive (ask other contributors how you can help, regardless of who is assigned to what
-  - Finish completely way before moving to something new (help unblock team members and other contributors to deliver value). 
+  - Finish completely before moving to something new (help unblock team members and other contributors to deliver value). 
   - (collaborate; help teammates see tasks through to completion) -->
 - Take pride in your work.
   - Be efficient (your time is valuable, your work matters, and your focus is a finite resource).
@@ -225,7 +225,7 @@ The Fleet product is released every three weeks. By syncing the whole company to
 
 
 ### Why use agile methodology?
-Releasing software iteratively gets changes and improvements into the hands of users faster and generally results in software that works. This makes contributors fitter, happier, and more productive. See [the agile manifesto](https://agilemanifesto.org/). For more information.
+Releasing software iteratively gets changes and improvements into the hands of users faster and generally results in software that works. This makes contributors fitter, happier, and more productive. See [the agile manifesto](https://agilemanifesto.org/) for more information.
 
 
 ### Why the emphasis on training?
@@ -360,7 +360,7 @@ These humans might be working within the "Interface" group itself insofar as the
 - Make upgrading Fleet versions seamless for users.
 - Improve the integrity of data (both collected directly from agents or derived from that data, e.g., vulnerabilities).
 - Maintain quick time-til-merge timeframe for PRs reviewed.
-- Maintain clean, empathetic interfaces that allow contributors in other groups (or from outside the company) to execute quickly and without the need to wait for reviews or approvals
+- Maintain clean, empathetic interfaces that allow contributors in other groups (or from outside the company) to execute quickly and without the need to wait for review or approval.
 - **Make Fleet as easy as possible to operate and contribute to**
 
 ### Agent group
