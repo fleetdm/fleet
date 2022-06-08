@@ -138,14 +138,14 @@ func parseXML(reader io.Reader) (*oval_input.UbuntuResultXML, error) {
 				r.PackageTests = append(r.PackageTests, tst)
 			}
 			if t.Name.Local == "dpkginfo_state" {
-				sta := oval_input.DpkgStateXML{}
+				sta := oval_input.DpkgInfoStateXML{}
 				if err = d.DecodeElement(&sta, &t); err != nil {
 					return nil, err
 				}
 				r.PackageStates = append(r.PackageStates, sta)
 			}
 			if t.Name.Local == "dpkginfo_object" {
-				obj := oval_input.DpkgObjectXML{}
+				obj := oval_input.DpkgInfoObjectXML{}
 				if err = d.DecodeElement(&obj, &t); err != nil {
 					return nil, err
 				}

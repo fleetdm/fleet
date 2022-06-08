@@ -64,16 +64,22 @@ func (op Platform) ToFilename(date time.Time, extension string) string {
 	return fmt.Sprintf("%s_%s-%d_%02d_%02d.%s", OvalFilePrefix, op, date.Year(), date.Month(), date.Day(), extension)
 }
 
-// IsSupported returns whether the given platform is currently supported or not.
+// IsSupported returns whether the given platform is currently supported.
 func (op Platform) IsSupported() bool {
 	supported := []string{
 		"ubuntu_1404",
 		"ubuntu_1604",
 		"ubuntu_1804",
+		"ubuntu_1910",
 		"ubuntu_2004",
 		"ubuntu_2104",
 		"ubuntu_2110",
 		"ubuntu_2204",
+		"rhel_05",
+		"rhel_06",
+		"rhel_07",
+		"rhel_08",
+		"rhel_09",
 	}
 	for _, p := range supported {
 		if strings.HasPrefix(string(op), p) {
@@ -86,4 +92,9 @@ func (op Platform) IsSupported() bool {
 // IsUbuntu checks whether the current Platform targets Ubuntu.
 func (op Platform) IsUbuntu() bool {
 	return strings.HasPrefix(string(op), "ubuntu")
+}
+
+// IsRedHat checks whether the current Platform targets Redhat based systems.
+func (op Platform) IsRedHat() bool {
+	return strings.HasPrefix(string(op), "rhel")
 }

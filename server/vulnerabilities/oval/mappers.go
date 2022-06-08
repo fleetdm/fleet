@@ -71,7 +71,7 @@ func mapPackageTest(i oval_input.DpkgInfoTestXML) (int, *oval_parsed.DpkgInfoTes
 	return id, &tst, nil
 }
 
-func mapPackageState(sta oval_input.DpkgStateXML) ([]oval_parsed.ObjectStateEvrString, error) {
+func mapPackageState(sta oval_input.DpkgInfoStateXML) ([]oval_parsed.ObjectStateEvrString, error) {
 	var r []oval_parsed.ObjectStateEvrString
 
 	if sta.Name != nil ||
@@ -88,7 +88,7 @@ func mapPackageState(sta oval_input.DpkgStateXML) ([]oval_parsed.ObjectStateEvrS
 	return r, nil
 }
 
-func mapPackageObject(obj oval_input.DpkgObjectXML, vars map[string]oval_input.ConstantVariableXML) ([]string, error) {
+func mapPackageObject(obj oval_input.DpkgInfoObjectXML, vars map[string]oval_input.ConstantVariableXML) ([]string, error) {
 	// Test objects can define their 'name' in one of two ways:
 	// 1. Inline:
 	// <:object ...>
