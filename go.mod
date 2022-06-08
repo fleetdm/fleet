@@ -50,7 +50,7 @@ require (
 	github.com/kolide/launcher v0.11.25-0.20220321235155-c3e9480037d2
 	github.com/macadmins/osquery-extension v0.0.7
 	github.com/mattermost/xml-roundtrip-validator v0.0.0-20201213122252-bcd7e1b9601e
-	github.com/mattn/go-sqlite3 v1.14.8
+	github.com/mattn/go-sqlite3 v1.14.13
 	github.com/mitchellh/go-ps v1.0.0
 	github.com/mitchellh/gon v0.2.3
 	github.com/mna/redisc v1.3.2
