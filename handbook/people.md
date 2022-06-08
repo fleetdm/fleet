@@ -471,6 +471,8 @@ The following table lists the People group's rituals, frequency, and Directly Re
 | 550C update | Annually | File California 550C. | Charlie Chance |
 | Workiversaries | Weekly/PRN | People Operations posts in #g-people and tags @mikermcneil about any upcoming workiversaries | Charlie Chance |
 | Investor and Advisor updates | PRN | People Operations tracks the last contact with investors and coordinates outreach with CEO | Charlie Chance |
+| CEO inbox sweep | Daily unless OOO | Charlie does a morning sweep of the CEO's inbox to remove spam and grab action items | Charlie Chance |
+
 
 ## Slack channels
 
