@@ -54,7 +54,6 @@ package-lock.json
 # infra
 .terraform
 .terraform.tfstate*
-.terraform.lock*
 terraform.tfstate*
 
 # generated orbit installers and artifacts

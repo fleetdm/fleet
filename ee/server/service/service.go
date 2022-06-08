@@ -46,3 +46,17 @@ func NewService(
 		license: license,
 	}, nil
 }
+
+// TODO(mna): copied from server/service/transport_error.go for now, should
+// eventually have common implementations of HTTP-related errors. #4406
+type badRequestError struct {
+	message string
+}
+
+func (e *badRequestError) Error() string {
+	return e.message
+}
+
+func (e *badRequestError) BadRequestError() []map[string]string {
+	return nil
+}
