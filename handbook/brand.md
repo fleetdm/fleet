@@ -1,5 +1,43 @@
 # Brand
 
+## Publishing Fleet content 
+
+The following describes how to go about publishing and editing content at Fleet.
+
+### Publication methods
+
+1. **Instant**: Content is published instantly. Content is approved by Digital Experience post-facto – see links in the table below to get the required training.
+2. **Gated**: Submit content to Digital Experience for review – see specific instructions in the table below.
+3. **Queued**: Communicate the publication date with the [DRI](https://fleetdm.com/handbook/people#directly-responsible-individuals) responsible for approving this content – refer to specific instructions linked in the table below. 
+
+### Revision methods (for editors)
+
+1. **Absorb**: Fix and publish yourself
+2. **Feedback**: Request changes and wait
+3. **Pairing**: Jump on Zoom to finalize with the original contributor.
+
+> Consider: **Absorb** may be risky depending on how sure the editor is about their edits. **Feedback** can be forgotten. **Pairing** is underused but can eat up more time if not careful.
+
+### Timeframe
+
+Detail the minimum time needed for new or updated content to be live (published) and brand-approved (reviewed and revised, if necessary).
+
+### Content types
+
+| Content | To publish | To revise (for editors) | Timeframe |
+|:------ |:-----------------|:-------------------------------|-----------|
+| Articles | **Queued** – see _(TODO: Publishing articles on fleetdm.com)_. | **Absorb** (pair or feedback as needed) – see [How to edit articles, release posts, and press releases](http://localhost:2024/handbook/brand#how-to-edit-articles-release-posts-and-press-releases). | three business days |
+| Ads | **Gated**. Request review from Digital Experience – see _(TODO: Creating an ad campaign)_. | **Feedback** or **pair** | five business days |
+| Docs | **Gated**. Request review from Noah Talerman – see _(TODO: Adding to the docs)_. | **Absorb** – see [How to edit recently merged Pull Requests for the handbook and docs](http://localhost:2024/handbook/brand#how-to-edit-recently-merged-pull-requests-for-the-handbook-and-docs). For non-grammar-related revisions: **Feedback** or **pair** with contributor, and request review from Noah Talerman. | two business days |
+| Docs (REST API) | **Gated**. Request review from Luke Heath – see _(TODO: Adding to the docs (REST API))_. | **Absorb** – see [How to edit recently merged Pull Requests for the handbook and docs](http://localhost:2024/handbook/brand#how-to-edit-recently-merged-pull-requests-for-the-handbook-and-docs). For non-grammar-related revisions: **Feedback** or **pair** with contributor, and request review from Luke Heath. | two business days |
+| Handbook | **Gated**. Request review from page DRI – see _(TODO: Adding to the handbook)_. | **Absorb** and request review from page DRI – see [How to edit recently merged Pull Requests for the handbook and docs](http://localhost:2024/handbook/brand#how-to-edit-recently-merged-pull-requests-for-the-handbook-and-docs). | two business days |
+| Social media (Twitter, FB, LinkedIn.) | **Instant** – see [Posting on social media as Fleet](https://fleetdm.com/handbook/growth#posting-on-social-media-as-fleet). | **Pair** or **absorb** (pair if possible otherwise, silently fix ASAP by editing or deleting the post. Consider that some or many people may have already seen the post, and decide accordingly – see [How to edit social media posts](http://localhost:2024/handbook/brand#how-to-edit-social-media-posts).) | one business day |
+| Newsletter/email blast | **Gated**. Request review from Digital Experience – see _(TODO: Creating an email campaign)_. | **Feedback** or **pair** | five business days |
+| Press release | **Queued** – see _(TODO: Publishing a press release)_ | **Feedback** or **pair** – see [How to edit articles, release posts, and press releases](http://localhost:2024/handbook/brand#how-to-edit-articles-release-posts-and-press-releases) | three business days |
+| Release post | **Queued** – see _(TODO: Publishing release posts)_ | **Feedback** or **pair** – see [How to edit articles, release posts, and press releases](http://localhost:2024/handbook/brand#how-to-edit-articles-release-posts-and-press-releases) | three business days |
+| Website (text change) | **Gated** – see _(TODO: Adding content to fleetdm.com)_. | **Feedback** or **pair** | three business days |
+| YouTube | **Queued** – see _(TODO: Publishing on YouTube as Fleet.)_ | **Absorb** for revisions to the description. **Pair** or **absorb** for video content (pair if possible otherwise, silently fix ASAP by deleting the post. Consider that the video may also have been promoted on social media – see Social media (Twitter, FB, LinkedIn) above. | three business days |
+
 ## Communicating as Fleet
 
 - **Sound positive** and assume positive intent. A positive tone helps to empower our users and encourages them to succeed with Fleet.
@@ -14,7 +52,7 @@
 
 ### What would Mr. Rogers say?
 
-At Fleet, our voice and tone should be clear, simple, friendly, and inspiring, like [Mr. Rogers](https://en.wikipedia.org/wiki/Fred_Rogers) who had a deep understanding of these communication values.
+At Fleet, our voice and tone should be clear, simple, friendly, and inspiring, like [Mr. Rogers](https://en.wikipedia.org/wiki/Fred_Rogers), who deeply understood these communication values.
 
 Consider the example tweets below. What would Mr. Rogers say?
 
@@ -24,7 +62,7 @@ Becomes...
 
 - *Distributed workforces aren’t going anywhere anytime soon, **so it’s a great time** to **engage** with your **crew** and **help them** work with your security team instead of around them.*
 
-By Mr. Rogersing our writing, we can emphasize positivity, optimism and encourage our readers to succeed. The example above also considers sentence flow and the use of synonyms to reduce repetition.
+By Mr. Rogersing our writing, we can emphasize positivity, optimism, and encourage our readers to succeed. The example above also considers sentence flow and the use of synonyms to reduce repetition.
 
 Another example to consider is industry jargon that may now be inappropriate. While the term *"responsible vulnerability disclosure"* has been used for decades, it supposes that people who use a different process are *irresponsible*. Using *coordinated disclosure* is a more positive way to discuss the issue.
 
@@ -67,7 +105,7 @@ _We follow the guiding principles below to secure our company-owned devices:_
 
 **Do not** use a colon when combining the introduction and list items to make a complete sentence. (This is called a “fascination” and is a technique used to create engaging lists.)
 
-_This week at Fleet we_
+_This week at Fleet, we_
 - _published new security policies._
 - _launched Jira and Zendesk integrations._
 - _drafted improvements to vulnerable software._
@@ -150,7 +188,7 @@ Our handbook and docs pages are written in Markdown and are editable from our we
 
 > Keep PR titles short and clear. E.g., "Edit to handbook Product group" 
 >
-> Check the “Files changed” section on the Open a pull request page to double check your proposed changes.
+> Check the “Files changed” section on the Open a pull request page to double-check your proposed changes.
 
 ### How to edit recently merged Pull Requests for the handbook and docs
 
@@ -209,11 +247,11 @@ For Fleet the product, we say either *“Fleet”* or *“Fleet for osquery.”*
 
 ### How to write headings & subheadings
 Fleet uses **sentence case** capitalization for all headings across Fleet EE, fleetdm.com, our documentation, and our social media channels.
-In **sentence case** we write titles as if they were sentences. For example:
+In **sentence case**, we write titles as if they were sentences. For example:
 - **A**sk questions about your servers, containers, and laptops running **L**inux, **W**indows, and macOS.
 
-As we use sentence case, only the first word of a heading and subheading is capitalized. However, if a word would normally be capitalized in the sentence (e.g. a [proper noun](https://www.grammarly.com/blog/proper-nouns/?&utm_source=google&utm_medium=cpc&utm_campaign=11862361094&utm_targetid=dsa-1233402314764&gclid=Cj0KCQjwg7KJBhDyARIsAHrAXaFwpnEyL9qrS4z1PEAgFwh3RXmQ24zmwmowAyOQbHngsI8W_F730aAaArrwEALw_wcB&gclsrc=aw.ds),) it should remain capitalized in the heading.
-> Note the capitalization of _“macOS”_ in the example above. Although this is a proper noun, macOS uses its own style guide from Apple to which we adhere.
+As we use sentence case, only the first word of a heading and subheading is capitalized. However, if a word would normally be capitalized in the sentence (e.g., a [proper noun](https://www.grammarly.com/blog/proper-nouns/?&utm_source=google&utm_medium=cpc&utm_campaign=11862361094&utm_targetid=dsa-1233402314764&gclid=Cj0KCQjwg7KJBhDyARIsAHrAXaFwpnEyL9qrS4z1PEAgFwh3RXmQ24zmwmowAyOQbHngsI8W_F730aAaArrwEALw_wcB&gclsrc=aw.ds)) it should remain capitalized in the heading.
+> Note the capitalization of _“macOS”_ in the example above. Although this is a proper noun, macOS uses its own style guide from Apple, to which we adhere.
 
 ### How to use osquery in sentences and headings
 Osquery should always be written in lowercase unless used to start a sentence or heading. For example:
@@ -225,7 +263,7 @@ or
 
 ### Open source vs. open core
 
-When deciding whether to describe Fleet as open source or open core, define who you are talking to first. e.g.:
+When deciding whether to describe Fleet as open source or open core, define who you are talking to first. e.g.;
 
 - If talking to users, use **"open source."**
 - If talking to enterprise customers or media outlets, e.g., Hacker News, use **"open core."**
@@ -249,7 +287,7 @@ Use "bcc" so recipients don't see each other's email addresses and send an email
 ### The automated way
 
 - First, design the email and content. The preferred method is to base the design on one of our existing [email templates](https://www.figma.com/file/yLP0vJ8Ms4GbCoofLwptwS/?node-id=3609%3A12552) in Figma. If your Figma boots aren't comfortable (or you don't have edit access), your design could be a Google Drawing, Doc, or just a sketch on paper in a pinch.
-- Bring your request to the digital experience team by posting in [their primary Slack channel](./people.md#slack-channels), along with your urgency/timeline.  The digital experience team will finalize the design and language for consistency, then fork and customize [one of the existing email templates](https://github.com/fleetdm/fleet/blob/de280a478834a7f85772bea4f552f953c65bb29e/website/views/emails/email-order-confirmation.ejs) for you, and write a script to deliver it to your desired recipients. Then, digital experience will merge that, test it by hand to make sure it's attractive and links work, and then tell you how to run the script with e.g.:
+- Bring your request to the digital experience team by posting it in [their primary Slack channel](./people.md#slack-channels), along with your urgency/timeline.  The digital experience team will finalize the design and language for consistency, then fork and customize [one of the existing email templates](https://github.com/fleetdm/fleet/blob/de280a478834a7f85772bea4f552f953c65bb29e/website/views/emails/email-order-confirmation.ejs) for you, and write a script to deliver it to your desired recipients. Then, digital experience will merge that, test it by hand to make sure it's attractive and links work, and then tell you how to run the script with e.g.;
 
   `sails run deliver-release-announcement --emailAddresses='["foo@example.com","bar@example.com"]'`
 
@@ -287,7 +325,7 @@ A browser compatibility check of [fleetdm.com](https://fleetdm.com/) should be c
 
 ### How to make usability changes to the website
 
-We want to make easy to learn how to manage devices with Fleet. Anyone inside or outside the company can suggest changes to the website to improve ease of use and clarity. 
+We want to make it easy to learn how to manage devices with Fleet. Anyone inside or outside the company can suggest changes to the website to improve ease of use and clarity. 
 
 To propose changes:
 1. Decide what you want to change. A small change is the best place to start.
@@ -300,8 +338,8 @@ To propose changes:
 In Figma:
 1. Select the layers you want to export.
 2. Confirm export settings and naming convention:
-  * item name - color variant - (css)size - @2x.fileformat (e.g., `os-macos-black-16x16@2x.png`)
-  * note that the dimensions in the filename are in CSS pixels.  In this example, if you opened it in preview the image would actually have dimensions of 32x32px, but in the filename, and in HTML/CSS, we'll size it as if it were 16x16.  This is so that we support retina displays by default.
+  * Item name - color variant - (CSS)size - @2x.fileformat (e.g., `os-macos-black-16x16@2x.png`)
+  * Note that the dimensions in the filename are in CSS pixels.  In this example, if you opened it in preview, the image would actually have dimensions of 32x32px but in the filename, and in HTML/CSS, we'll size it as if it were 16x16.  This is so that we support retina displays by default.
   * File extension might be .jpg or .png.
   * Avoid using SVGs or icon fonts.
 3. Click the __Export__ button.

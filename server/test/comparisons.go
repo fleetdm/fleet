@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"fmt"
 	"reflect"
+	"strings"
 
 	"github.com/davecgh/go-spew/spew"
 	"github.com/google/go-cmp/cmp"
@@ -24,7 +25,7 @@ func ElementsMatchSkipID(t TestingT, listA, listB interface{}, msgAndArgs ...int
 		for _, ps := range p {
 			switch ps := ps.(type) {
 			case cmp.StructField:
-				if ps.Name() == "ID" {
+				if strings.HasSuffix(ps.Name(), "ID") {
 					return true
 				}
 			}
@@ -126,7 +127,6 @@ func ElementsMatchWithOptions(t TestingT, listA, listB interface{}, opts cmp.Opt
 
 // isEmpty gets whether the specified object is considered empty or not.
 func isEmpty(object interface{}) bool {
-
 	// get nil case out of the way
 	if object == nil {
 		return true
