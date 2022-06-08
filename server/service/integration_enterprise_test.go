@@ -837,6 +837,68 @@ func (s *integrationEnterpriseTestSuite) TestExternalIntegrationsTeamConfig() {
 		},
 	}, http.StatusUnprocessableEntity, &tmResp)
 
+	// set additional integrations on the team
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), fleet.TeamPayload{
+		Integrations: &fleet.TeamIntegrations{
+			Zendesk: []*fleet.TeamZendeskIntegration{
+				{
+					URL:                   srvURL,
+					GroupID:               122,
+					EnableFailingPolicies: true,
+				},
+				{
+					URL:                   srvURL,
+					GroupID:               123,
+					EnableFailingPolicies: false,
+				},
+			},
+			Jira: []*fleet.TeamJiraIntegration{
+				{
+					URL:                   srvURL,
+					ProjectKey:            "qux",
+					EnableFailingPolicies: false,
+				},
+			},
+		},
+	}, http.StatusOK, &tmResp)
+
+	// removing Zendesk 122 from the global config removes it from the team too
+	s.DoRaw("PATCH", "/api/v1/fleet/config", []byte(fmt.Sprintf(`{
+		"integrations": {
+			"zendesk": [
+				{
+					"url": %[1]q,
+					"email": "b@b.c",
+					"api_token": "ok",
+					"group_id": 123
+				}
+			],
+			"jira": [
+				{
+					"url": %[1]q,
+					"username": "ok",
+					"api_token": "foo",
+					"project_key": "qux"
+				},
+				{
+					"url": %[1]q,
+					"username": "ok",
+					"api_token": "foo",
+					"project_key": "qux2"
+				}
+			]
+		}
+	}`, srvURL)), http.StatusOK)
+
+	// get the team, only one Zendesk integration remains, none are enabled
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), nil, http.StatusOK, &getResp)
+	require.Len(t, getResp.Team.Config.Integrations.Jira, 1)
+	require.Equal(t, "qux", getResp.Team.Config.Integrations.Jira[0].ProjectKey)
+	require.False(t, getResp.Team.Config.Integrations.Jira[0].EnableFailingPolicies)
+	require.Len(t, getResp.Team.Config.Integrations.Zendesk, 1)
+	require.Equal(t, int64(123), getResp.Team.Config.Integrations.Zendesk[0].GroupID)
+	require.False(t, getResp.Team.Config.Integrations.Zendesk[0].EnableFailingPolicies)
+
 	/*
 		// remove all integrations on exit, so that other tests can enable the
 		// webhook as needed
