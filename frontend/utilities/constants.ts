@@ -140,6 +140,15 @@ export const DEFAULT_POLICIES = [
       "To enable System Integrity Protection, on the failing device, run the following command in the Terminal app: /usr/sbin/spctl --master-enable.",
     platform: "darwin",
   },
+  {
+    key: 13,
+    query: "SELECT 1 FROM alf WHERE global_state >= 1;",
+    name: "Firewall enabled (macOS)",
+    description: "Checks if the firewall is enabled.",
+    resolution:
+      "In System Preferences, open Security & Privacy, navigate to the Firewall tab and click Turn On Firewall.",
+    platform: "darwin",
+  },
 ] as IPolicyNew[];
 
 export const FREQUENCY_DROPDOWN_OPTIONS = [
