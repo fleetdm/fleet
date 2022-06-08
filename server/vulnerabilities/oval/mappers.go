@@ -78,7 +78,7 @@ func mapPackageState(sta oval_input.DpkgStateXML) ([]oval_parsed.ObjectStateEvrS
 		sta.Arch != nil ||
 		sta.Epoch != nil ||
 		sta.Version != nil {
-		return nil, fmt.Errorf("only evr state definitions are supported")
+		return nil, fmt.Errorf("OVAL parse: only evr state definitions are supported")
 	}
 
 	if sta.Evr != nil {
@@ -89,12 +89,16 @@ func mapPackageState(sta oval_input.DpkgStateXML) ([]oval_parsed.ObjectStateEvrS
 }
 
 func mapPackageObject(obj oval_input.DpkgObjectXML, vars map[string]oval_input.ConstantVariableXML) ([]string, error) {
-	variable, ok := vars[obj.Name.VarRef]
-	if !ok {
-		return nil, fmt.Errorf("variable not found %s", obj.Name.VarRef)
+	if obj.Name.Value != "" {
+		return []string{obj.Name.Value}, nil
 	}
 
 	var r []string
+	variable, ok := vars[obj.Name.VarRef]
+	if !ok {
+		return nil, fmt.Errorf("OVAL parse: variable not found %s", obj.Name.VarRef)
+	}
+
 	r = append(r, variable.Values...)
 
 	return r, nil
