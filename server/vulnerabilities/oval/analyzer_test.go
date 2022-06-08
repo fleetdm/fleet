@@ -127,9 +127,7 @@ func BenchmarkTestOvalAnalyzer(b *testing.B) {
 	ds := mysql.CreateMySQLDS(b)
 	defer mysql.TruncateTables(b, ds)
 
-	vulnPath, err := ioutil.TempDir("", "oval_analyzer_ubuntu")
-	defer os.RemoveAll(vulnPath)
-	require.NoError(b, err)
+	vulnPath := b.TempDir()
 
 	systems := []fleet.OSVersion{
 		{Platform: "ubuntu", Name: "Ubuntu 16.4.0"},
@@ -145,7 +143,7 @@ func BenchmarkTestOvalAnalyzer(b *testing.B) {
 			withTestFixture(v, vulnPath, ds, func(h *fleet.Host) {
 				b.ResetTimer()
 				for i := 0; i < b.N; i++ {
-					_, err = Analyze(context.Background(), ds, v, vulnPath, true)
+					_, err := Analyze(context.Background(), ds, v, vulnPath, true)
 					require.NoError(b, err)
 				}
 			}, b)
@@ -161,9 +159,7 @@ func TestOvalAnalyzer(t *testing.T) {
 		ds := mysql.CreateMySQLDS(t)
 		defer mysql.TruncateTables(t, ds)
 
-		vulnPath, err := ioutil.TempDir("", "oval_analyzer_ubuntu")
-		defer os.RemoveAll(vulnPath)
-		require.NoError(t, err)
+		vulnPath := t.TempDir()
 
 		ctx := context.Background()
 
@@ -215,7 +211,7 @@ func TestOvalAnalyzer(t *testing.T) {
 
 		for _, v := range systems {
 			withTestFixture(v, vulnPath, ds, func(h *fleet.Host) {
-				_, err = Analyze(ctx, ds, v, vulnPath, true)
+				_, err := Analyze(ctx, ds, v, vulnPath, true)
 				require.NoError(t, err)
 
 				p := NewPlatform(v.Platform, v.Name)
@@ -310,9 +306,7 @@ func TestOvalAnalyzer(t *testing.T) {
 
 	t.Run("#latestOvalDefFor", func(t *testing.T) {
 		t.Run("definition matching platform for date exists", func(t *testing.T) {
-			path, err := ioutil.TempDir("", "oval_test")
-			defer os.RemoveAll(path)
-			require.NoError(t, err)
+			path := t.TempDir()
 
 			today := time.Now()
 			platform := NewPlatform("ubuntu", "Ubuntu 20.4.0")
@@ -328,9 +322,7 @@ func TestOvalAnalyzer(t *testing.T) {
 		})
 
 		t.Run("definition matching platform exists but not for date", func(t *testing.T) {
-			path, err := ioutil.TempDir("", "oval_test")
-			defer os.RemoveAll(path)
-			require.NoError(t, err)
+			path := t.TempDir()
 
 			today := time.Now()
 			yesterday := today.Add(-24 * time.Hour)
@@ -348,9 +340,7 @@ func TestOvalAnalyzer(t *testing.T) {
 		})
 
 		t.Run("definition does not exists for platform", func(t *testing.T) {
-			path, err := ioutil.TempDir("", "oval_test")
-			defer os.RemoveAll(path)
-			require.NoError(t, err)
+			path := t.TempDir()
 
 			today := time.Now()
 
