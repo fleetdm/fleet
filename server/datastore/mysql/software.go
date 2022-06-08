@@ -699,45 +699,6 @@ func (ds *Datastore) CountSoftware(ctx context.Context, opt fleet.SoftwareListOp
 	return countSoftwareDB(ctx, ds.reader, opt)
 }
 
-// ListVulnerableSoftwareBySource lists all the vulnerable software that matches the given source.
-func (ds *Datastore) ListVulnerableSoftwareBySource(ctx context.Context, source string) ([]fleet.SoftwareWithCPE, error) {
-	var softwareCVEs []struct {
-		fleet.Software
-		CPE  uint   `db:"cpe_id"`
-		CVEs string `db:"cves"`
-	}
-	if err := sqlx.SelectContext(ctx, ds.reader, &softwareCVEs, `
-SELECT
-    s.*,
-    scv.cpe_id,
-    GROUP_CONCAT(scv.cve SEPARATOR ',') as cves
-FROM
-    software s
-    JOIN software_cpe scp ON scp.software_id = s.id
-    JOIN software_cve scv ON scv.cpe_id = scp.id
-WHERE
-    s.source = ?
-GROUP BY
-    scv.cpe_id
-	`, source); err != nil {
-		return nil, ctxerr.Wrapf(ctx, err, "listing vulnerable software by source")
-	}
-	software := make([]fleet.SoftwareWithCPE, 0, len(softwareCVEs))
-	for _, sc := range softwareCVEs {
-		for _, cve := range strings.Split(sc.CVEs, ",") {
-			sc.Vulnerabilities = append(sc.Vulnerabilities, fleet.CVE{
-				CVE:         cve,
-				DetailsLink: fmt.Sprintf("https://nvd.nist.gov/vuln/detail/%s", cve),
-			})
-		}
-		software = append(software, fleet.SoftwareWithCPE{
-			Software: sc.Software,
-			CPEID:    sc.CPE,
-		})
-	}
-	return software, nil
-}
-
 // DeleteVulnerabilitiesByCPECVE deletes the given list of vulnerabilities identified by CPE+CVE.
 func (ds *Datastore) DeleteVulnerabilitiesByCPECVE(ctx context.Context, vulnerabilities []fleet.SoftwareVulnerability) error {
 	if len(vulnerabilities) == 0 {

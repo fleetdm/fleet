@@ -32,7 +32,6 @@ func TestSoftware(t *testing.T) {
 		{"LoadSupportsTonsOfCVEs", testSoftwareLoadSupportsTonsOfCVEs},
 		{"List", testSoftwareList},
 		{"CalculateHostsPerSoftware", testSoftwareCalculateHostsPerSoftware},
-		{"ListVulnerableSoftwareBySource", testListVulnerableSoftwareBySource},
 		{"DeleteVulnerabilitiesByCPECVE", testDeleteVulnerabilitiesByCPECVE},
 		{"HostsByCVE", testHostsByCVE},
 		{"HostsBySoftwareIDs", testHostsBySoftwareIDs},
@@ -1140,27 +1139,6 @@ func insertVulnSoftwareForTest(t *testing.T, ds *Datastore) {
 	require.Equal(t, 2, int(n))
 }
 
-func testListVulnerableSoftwareBySource(t *testing.T, ds *Datastore) {
-	ctx := context.Background()
-
-	insertVulnSoftwareForTest(t, ds)
-
-	vulnerable, err := ds.ListVulnerableSoftwareBySource(ctx, "apps")
-	require.NoError(t, err)
-	require.Empty(t, vulnerable)
-
-	vulnerable, err = ds.ListVulnerableSoftwareBySource(ctx, "rpm_packages")
-	require.NoError(t, err)
-	require.Len(t, vulnerable, 1)
-	require.Equal(t, vulnerable[0].Name, "bar.rpm")
-	require.Len(t, vulnerable[0].Vulnerabilities, 2)
-	sort.Slice(vulnerable[0].Vulnerabilities, func(i, j int) bool {
-		return vulnerable[0].Vulnerabilities[i].CVE < vulnerable[0].Vulnerabilities[j].CVE
-	})
-	require.Equal(t, "CVE-2022-0002", vulnerable[0].Vulnerabilities[0].CVE)
-	require.Equal(t, "CVE-2022-0003", vulnerable[0].Vulnerabilities[1].CVE)
-}
-
 func testDeleteVulnerabilitiesByCPECVE(t *testing.T, ds *Datastore) {
 	ctx := context.Background()
 
@@ -1177,16 +1155,21 @@ func testDeleteVulnerabilitiesByCPECVE(t *testing.T, ds *Datastore) {
 	})
 	require.NoError(t, err)
 
-	software, err := ds.ListVulnerableSoftwareBySource(ctx, "rpm_packages")
+	host2, err := ds.HostByIdentifier(ctx, "host2")
 	require.NoError(t, err)
 
-	require.Len(t, software, 1)
-	barRPM := software[0]
+	err = ds.LoadHostSoftware(ctx, host2, false)
+	require.NoError(t, err)
+	sort.Slice(host2.Software, func(i, j int) bool {
+		return host2.Software[i].Name+host2.Software[i].Version < host2.Software[j].Name+host2.Software[j].Version
+	})
+
+	barRPM := host2.Software[0]
 	require.Len(t, barRPM.Vulnerabilities, 2)
 
 	err = ds.DeleteVulnerabilitiesByCPECVE(ctx, []fleet.SoftwareVulnerability{
 		{
-			CPEID: barRPM.CPEID,
+			CPEID: barRPM.GeneratedCPEID,
 			CVE:   "CVE-0000-0000", // unknown CVE
 		},
 	})
@@ -1194,33 +1177,37 @@ func testDeleteVulnerabilitiesByCPECVE(t *testing.T, ds *Datastore) {
 
 	err = ds.DeleteVulnerabilitiesByCPECVE(ctx, []fleet.SoftwareVulnerability{
 		{
-			CPEID: barRPM.CPEID,
+			CPEID: barRPM.GeneratedCPEID,
 			CVE:   "CVE-2022-0003",
 		},
 	})
 	require.NoError(t, err)
 
-	software, err = ds.ListVulnerableSoftwareBySource(ctx, "rpm_packages")
+	err = ds.LoadHostSoftware(ctx, host2, false)
 	require.NoError(t, err)
-	require.Len(t, software, 1)
-	barRPM = software[0]
+	sort.Slice(host2.Software, func(i, j int) bool {
+		return host2.Software[i].Name+host2.Software[i].Version < host2.Software[j].Name+host2.Software[j].Version
+	})
+
+	barRPM = host2.Software[0]
 	require.Len(t, barRPM.Vulnerabilities, 1)
 
 	err = ds.DeleteVulnerabilitiesByCPECVE(ctx, []fleet.SoftwareVulnerability{
 		{
-			CPEID: barRPM.CPEID,
+			CPEID: barRPM.GeneratedCPEID,
 			CVE:   "CVE-2022-0002",
 		},
 	})
 	require.NoError(t, err)
 
-	software, err = ds.ListVulnerableSoftwareBySource(ctx, "rpm_packages")
+	err = ds.LoadHostSoftware(ctx, host2, false)
 	require.NoError(t, err)
-	require.Len(t, software, 0)
+	sort.Slice(host2.Software, func(i, j int) bool {
+		return host2.Software[i].Name+host2.Software[i].Version < host2.Software[j].Name+host2.Software[j].Version
+	})
 
-	software, err = ds.ListVulnerableSoftwareBySource(ctx, "chrome_extensions")
-	require.NoError(t, err)
-	require.Len(t, software, 1)
+	barRPM = host2.Software[0]
+	require.Empty(t, barRPM.Vulnerabilities)
 }
 
 func testHostsByCVE(t *testing.T, ds *Datastore) {
