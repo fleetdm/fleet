@@ -219,21 +219,21 @@ func (svc *Service) ListDevicePolicies(ctx context.Context, host *fleet.Host) ([
 // Device API features
 ////////////////////////////////////////////////////////////////////////////////
 
-type deviceApiFeaturesRequest struct {
+type deviceAPIFeaturesRequest struct {
 	Token string `url:"token"`
 }
 
-func (r *deviceApiFeaturesRequest) deviceAuthToken() string {
+func (r *deviceAPIFeaturesRequest) deviceAuthToken() string {
 	return r.Token
 }
 
-type deviceApiFeaturesResponse struct {
+type deviceAPIFeaturesResponse struct {
 	Err      error `json:"error,omitempty"`
-	Features fleet.DeviceApiFeatures
+	Features fleet.DeviceAPIFeatures
 }
 
-func (r deviceApiFeaturesResponse) error() error { return r.Err }
+func (r deviceAPIFeaturesResponse) error() error { return r.Err }
 
-func deviceApiFeaturesEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
-	return deviceApiFeaturesResponse{Features: fleet.DeviceApiFeatures{}}, nil
+func deviceAPIFeaturesEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
+	return deviceAPIFeaturesResponse{Features: fleet.DeviceAPIFeatures{}}, nil
 }

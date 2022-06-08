@@ -4626,7 +4626,7 @@ func (s *integrationTestSuite) TestDeviceAuthenticatedEndpoints() {
 	require.Nil(t, listPoliciesResp.Policies)
 
 	// get list of api features
-	apiFeaturesResp := deviceApiFeaturesResponse{}
+	apiFeaturesResp := deviceAPIFeaturesResponse{}
 	res = s.DoRawNoAuth("GET", "/api/latest/fleet/device/"+token+"/api_features", nil, http.StatusOK)
 	json.NewDecoder(res.Body).Decode(&apiFeaturesResp)
 	res.Body.Close()
