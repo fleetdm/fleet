@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"os"
 	"sort"
 	"testing"
 	"time"
@@ -440,4 +441,18 @@ func TestDirectIngestChromeProfiles(t *testing.T) {
 
 	require.NoError(t, err)
 	require.True(t, ds.ReplaceHostDeviceMappingFuncInvoked)
+}
+
+func TestDangerousReplaceQuery(t *testing.T) {
+	queries := GetDetailQueries(&fleet.AppConfig{HostSettings: fleet.HostSettings{EnableHostUsers: true}}, config.FleetConfig{})
+	originalQuery := queries["users"].Query
+
+	err := os.Setenv("FLEET_DANGEROUS_REPLACE_users", "select * from blah")
+	require.NoError(t, err)
+	queries = GetDetailQueries(&fleet.AppConfig{HostSettings: fleet.HostSettings{EnableHostUsers: true}}, config.FleetConfig{})
+	assert.NotEqual(t, originalQuery, queries["users"].Query)
+
+	os.Clearenv()
+	queries = GetDetailQueries(&fleet.AppConfig{HostSettings: fleet.HostSettings{EnableHostUsers: true}}, config.FleetConfig{})
+	assert.Equal(t, originalQuery, queries["users"].Query)
 }
