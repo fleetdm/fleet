@@ -42,6 +42,7 @@ import PolicyPage from "pages/policies/PolicyPage";
 import QueryPage from "pages/queries/QueryPage";
 import RegistrationPage from "pages/RegistrationPage";
 import ResetPasswordPage from "pages/ResetPasswordPage";
+import SoftwareDetailsPage from "pages/software/SoftwareDetailsPage";
 import ApiOnlyUser from "pages/ApiOnlyUser";
 import Fleet403 from "pages/errors/Fleet403";
 import Fleet404 from "pages/errors/Fleet404";
@@ -128,6 +129,7 @@ const routes = (
           <Route path="software">
             <IndexRedirect to={"manage"} />
             <Route path="manage" component={ManageSoftwarePage} />
+            <Route path=":software_id" component={SoftwareDetailsPage} />
           </Route>
           <Route component={AuthGlobalAdminMaintainerRoutes}>
             <Route path="packs">
