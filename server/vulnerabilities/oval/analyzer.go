@@ -98,7 +98,7 @@ func Analyze(
 	}
 
 	err = batchProcess(toInsertSet, func(v []fleet.SoftwareVulnerability) error {
-		n, err := ds.InsertVulnerabilities(ctx, v, fleet.OVAL)
+		n, err := ds.InsertVulnerabilities(ctx, v, fleet.OVALSource)
 		if err != nil {
 			return err
 		}

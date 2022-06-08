@@ -211,7 +211,7 @@ func checkCVEs(
 							})
 						}
 
-						newCount, err := ds.InsertVulnerabilities(ctx, matchingVulns, fleet.NVD)
+						newCount, err := ds.InsertVulnerabilities(ctx, matchingVulns, fleet.NVDSource)
 						if err != nil {
 							level.Error(logger).Log("cpe processing", "error", "err", err)
 							continue // do not report a recent vuln that failed to be inserted in the DB

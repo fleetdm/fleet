@@ -145,8 +145,7 @@ func (sv *SoftwareVulnerability) Key() string {
 
 type VulnerabilitySource int
 
-// TODO (juan): Rename this
 const (
-	NVD VulnerabilitySource = iota
-	OVAL
+	NVDSource VulnerabilitySource = iota
+	OVALSource
 )
