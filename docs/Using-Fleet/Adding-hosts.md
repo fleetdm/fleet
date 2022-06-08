@@ -162,7 +162,7 @@ sudo osqueryd \
  --distributed_tls_read_endpoint=/api/v1/osquery/distributed/read \
  --distributed_tls_write_endpoint=/api/v1/osquery/distributed/write \
  --logger_plugin=tls \
- --logger_tls_endpoint=/api/osquery/log \
+ --logger_tls_endpoint=/api/v1/osquery/log \
  --logger_tls_period=10
 ```
 
