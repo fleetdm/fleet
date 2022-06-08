@@ -699,8 +699,8 @@ func (ds *Datastore) CountSoftware(ctx context.Context, opt fleet.SoftwareListOp
 	return countSoftwareDB(ctx, ds.reader, opt)
 }
 
-// DeleteVulnerabilitiesByCPECVE deletes the given list of vulnerabilities identified by CPE+CVE.
-func (ds *Datastore) DeleteVulnerabilitiesByCPECVE(ctx context.Context, vulnerabilities []fleet.SoftwareVulnerability) error {
+// DeleteSoftwareVulnerabilities deletes the given list of software vulnerabilities
+func (ds *Datastore) DeleteSoftwareVulnerabilities(ctx context.Context, vulnerabilities []fleet.SoftwareVulnerability) error {
 	if len(vulnerabilities) == 0 {
 		return nil
 	}

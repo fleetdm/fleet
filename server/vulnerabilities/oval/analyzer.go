@@ -86,7 +86,7 @@ func Analyze(
 	}
 
 	err = batchProcess(toDeleteSet, func(v []fleet.SoftwareVulnerability) error {
-		return ds.DeleteVulnerabilitiesByCPECVE(ctx, v)
+		return ds.DeleteSoftwareVulnerabilities(ctx, v)
 	})
 	if err != nil {
 		return nil, err

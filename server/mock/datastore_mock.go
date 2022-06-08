@@ -336,7 +336,7 @@ type ListSoftwareFunc func(ctx context.Context, opt fleet.SoftwareListOptions) (
 
 type CountSoftwareFunc func(ctx context.Context, opt fleet.SoftwareListOptions) (int, error)
 
-type DeleteVulnerabilitiesByCPECVEFunc func(ctx context.Context, vulnerabilities []fleet.SoftwareVulnerability) error
+type DeleteSoftwareVulnerabilitiesFunc func(ctx context.Context, vulnerabilities []fleet.SoftwareVulnerability) error
 
 type NewTeamPolicyFunc func(ctx context.Context, teamID uint, authorID *uint, args fleet.PolicyPayload) (*fleet.Policy, error)
 
@@ -895,8 +895,8 @@ type DataStore struct {
 	CountSoftwareFunc        CountSoftwareFunc
 	CountSoftwareFuncInvoked bool
 
-	DeleteVulnerabilitiesByCPECVEFunc        DeleteVulnerabilitiesByCPECVEFunc
-	DeleteVulnerabilitiesByCPECVEFuncInvoked bool
+	DeleteSoftwareVulnerabilitiesFunc        DeleteSoftwareVulnerabilitiesFunc
+	DeleteSoftwareVulnerabilitiesFuncInvoked bool
 
 	NewTeamPolicyFunc        NewTeamPolicyFunc
 	NewTeamPolicyFuncInvoked bool
@@ -1814,9 +1814,9 @@ func (s *DataStore) CountSoftware(ctx context.Context, opt fleet.SoftwareListOpt
 	return s.CountSoftwareFunc(ctx, opt)
 }
 
-func (s *DataStore) DeleteVulnerabilitiesByCPECVE(ctx context.Context, vulnerabilities []fleet.SoftwareVulnerability) error {
-	s.DeleteVulnerabilitiesByCPECVEFuncInvoked = true
-	return s.DeleteVulnerabilitiesByCPECVEFunc(ctx, vulnerabilities)
+func (s *DataStore) DeleteSoftwareVulnerabilities(ctx context.Context, vulnerabilities []fleet.SoftwareVulnerability) error {
+	s.DeleteSoftwareVulnerabilitiesFuncInvoked = true
+	return s.DeleteSoftwareVulnerabilitiesFunc(ctx, vulnerabilities)
 }
 
 func (s *DataStore) NewTeamPolicy(ctx context.Context, teamID uint, authorID *uint, args fleet.PolicyPayload) (*fleet.Policy, error) {

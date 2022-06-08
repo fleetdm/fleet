@@ -1142,12 +1142,12 @@ func insertVulnSoftwareForTest(t *testing.T, ds *Datastore) {
 func testDeleteVulnerabilitiesByCPECVE(t *testing.T, ds *Datastore) {
 	ctx := context.Background()
 
-	err := ds.DeleteVulnerabilitiesByCPECVE(ctx, nil)
+	err := ds.DeleteSoftwareVulnerabilities(ctx, nil)
 	require.NoError(t, err)
 
 	insertVulnSoftwareForTest(t, ds)
 
-	err = ds.DeleteVulnerabilitiesByCPECVE(ctx, []fleet.SoftwareVulnerability{
+	err = ds.DeleteSoftwareVulnerabilities(ctx, []fleet.SoftwareVulnerability{
 		{
 			CPEID: 999, // unknown CPE
 			CVE:   "CVE-2022-0003",
@@ -1167,7 +1167,7 @@ func testDeleteVulnerabilitiesByCPECVE(t *testing.T, ds *Datastore) {
 	barRPM := host2.Software[0]
 	require.Len(t, barRPM.Vulnerabilities, 2)
 
-	err = ds.DeleteVulnerabilitiesByCPECVE(ctx, []fleet.SoftwareVulnerability{
+	err = ds.DeleteSoftwareVulnerabilities(ctx, []fleet.SoftwareVulnerability{
 		{
 			CPEID: barRPM.GeneratedCPEID,
 			CVE:   "CVE-0000-0000", // unknown CVE
@@ -1175,7 +1175,7 @@ func testDeleteVulnerabilitiesByCPECVE(t *testing.T, ds *Datastore) {
 	})
 	require.NoError(t, err)
 
-	err = ds.DeleteVulnerabilitiesByCPECVE(ctx, []fleet.SoftwareVulnerability{
+	err = ds.DeleteSoftwareVulnerabilities(ctx, []fleet.SoftwareVulnerability{
 		{
 			CPEID: barRPM.GeneratedCPEID,
 			CVE:   "CVE-2022-0003",
@@ -1192,7 +1192,7 @@ func testDeleteVulnerabilitiesByCPECVE(t *testing.T, ds *Datastore) {
 	barRPM = host2.Software[0]
 	require.Len(t, barRPM.Vulnerabilities, 1)
 
-	err = ds.DeleteVulnerabilitiesByCPECVE(ctx, []fleet.SoftwareVulnerability{
+	err = ds.DeleteSoftwareVulnerabilities(ctx, []fleet.SoftwareVulnerability{
 		{
 			CPEID: barRPM.GeneratedCPEID,
 			CVE:   "CVE-2022-0002",
