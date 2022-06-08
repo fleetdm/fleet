@@ -311,21 +311,21 @@ func (z *Zendesk) createTemplatedTicket(ctx context.Context, cli ZendeskClient, 
 
 // QueueZendeskVulnJobs queues the Zendesk vulnerability jobs to process asynchronously
 // via the worker.
-func QueueZendeskVulnJobs(ctx context.Context, ds fleet.Datastore, logger kitlog.Logger, recentVulns map[string][]string) error {
+func QueueZendeskVulnJobs(ctx context.Context, ds fleet.Datastore, logger kitlog.Logger, recentVulns []fleet.SoftwareVulnerability) error {
 	level.Info(logger).Log("enabled", "true", "recentVulns", len(recentVulns))
 
 	// for troubleshooting, log in debug level the CVEs that we will process
 	// (cannot be done in the loop below as we want to add the debug log
 	// _before_ we start processing them).
 	cves := make([]string, 0, len(recentVulns))
-	for cve := range recentVulns {
-		cves = append(cves, cve)
+	for _, vuln := range recentVulns {
+		cves = append(cves, vuln.CVE)
 	}
 	sort.Strings(cves)
 	level.Debug(logger).Log("recent_cves", fmt.Sprintf("%v", cves))
 
-	for cve := range recentVulns {
-		job, err := QueueJob(ctx, ds, zendeskName, zendeskArgs{CVE: cve})
+	for _, vuln := range recentVulns {
+		job, err := QueueJob(ctx, ds, zendeskName, zendeskArgs{CVE: vuln.CVE})
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "queueing job")
 		}
