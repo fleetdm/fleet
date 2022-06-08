@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"strconv"
+	"strings"
 
 	"github.com/fleetdm/fleet/v4/server/service/externalsvc"
 )
@@ -16,11 +17,12 @@ type TeamIntegrations struct {
 	Zendesk []*TeamZendeskIntegration `json:"zendesk"`
 }
 
-// ToGlobalIntegrations maps the team integrations to their corresponding
-// integrations at the global level, returning the resulting integrations
-// struct. It returns an error if any team integration does not map to a
-// global integration.
-func (ti TeamIntegrations) ToGlobalIntegrations(globalIntgs Integrations) (Integrations, error) {
+// MatchWithIntegrations matches the team integrations to their corresponding
+// global integrations found in globalIntgs, returning the resulting
+// integrations struct. It returns an error if any team integration does not
+// map to a global integration, but it will still return the complete list
+// of integrations that do match.
+func (ti TeamIntegrations) MatchWithIntegrations(globalIntgs Integrations) (Integrations, error) {
 	var result Integrations
 
 	jiraIntgs, err := IndexJiraIntegrations(globalIntgs.Jira)
@@ -32,32 +34,45 @@ func (ti TeamIntegrations) ToGlobalIntegrations(globalIntgs Integrations) (Integ
 		return result, err
 	}
 
+	var errs strings.Builder
 	for _, tmJira := range ti.Jira {
-		key := tmJira.uniqueKey()
+		key := tmJira.UniqueKey()
 		intg, ok := jiraIntgs[key]
 		if !ok {
-			return result, fmt.Errorf("unknown Jira integration for url %s and project key %s", tmJira.URL, tmJira.ProjectKey)
+			if errs.Len() > 0 {
+				errs.WriteByte('\n')
+			}
+			fmt.Fprintf(&errs, "unknown Jira integration for url %s and project key %s", tmJira.URL, tmJira.ProjectKey)
+			continue
 		}
 		intg.EnableFailingPolicies = tmJira.EnableFailingPolicies
 		result.Jira = append(result.Jira, &intg)
 	}
 	for _, tmZendesk := range ti.Zendesk {
-		key := tmZendesk.uniqueKey()
+		key := tmZendesk.UniqueKey()
 		intg, ok := zendeskIntgs[key]
 		if !ok {
-			return result, fmt.Errorf("unknown Zendesk integration for url %s and group ID %v", tmZendesk.URL, tmZendesk.GroupID)
+			if errs.Len() > 0 {
+				errs.WriteByte('\n')
+			}
+			fmt.Fprintf(&errs, "unknown Zendesk integration for url %s and group ID %v", tmZendesk.URL, tmZendesk.GroupID)
+			continue
 		}
 		intg.EnableFailingPolicies = tmZendesk.EnableFailingPolicies
 		result.Zendesk = append(result.Zendesk, &intg)
 	}
-	return result, nil
+
+	if errs.Len() > 0 {
+		err = errors.New(errs.String())
+	}
+	return result, err
 }
 
 // Validate validates the team integrations for uniqueness.
 func (ti TeamIntegrations) Validate() error {
 	jira := make(map[string]*TeamJiraIntegration, len(ti.Jira))
 	for _, j := range ti.Jira {
-		key := j.uniqueKey()
+		key := j.UniqueKey()
 		if _, ok := jira[key]; ok {
 			return fmt.Errorf("duplicate Jira integration for url %s and project key %s", j.URL, j.ProjectKey)
 		}
@@ -66,7 +81,7 @@ func (ti TeamIntegrations) Validate() error {
 
 	zendesk := make(map[string]*TeamZendeskIntegration, len(ti.Zendesk))
 	for _, z := range ti.Zendesk {
-		key := z.uniqueKey()
+		key := z.UniqueKey()
 		if _, ok := zendesk[key]; ok {
 			return fmt.Errorf("duplicate Zendesk integration for url %s and group ID %v", z.URL, z.GroupID)
 		}
@@ -83,7 +98,8 @@ type TeamJiraIntegration struct {
 	EnableFailingPolicies bool   `json:"enable_failing_policies"`
 }
 
-func (j TeamJiraIntegration) uniqueKey() string {
+// UniqueKey returns the unique key of this integration.
+func (j TeamJiraIntegration) UniqueKey() string {
 	return j.URL + "\n" + j.ProjectKey
 }
 
@@ -95,7 +111,8 @@ type TeamZendeskIntegration struct {
 	EnableFailingPolicies bool   `json:"enable_failing_policies"`
 }
 
-func (z TeamZendeskIntegration) uniqueKey() string {
+// UniqueKey returns the unique key of this integration.
+func (z TeamZendeskIntegration) UniqueKey() string {
 	return z.URL + "\n" + strconv.FormatInt(z.GroupID, 10)
 }
 
@@ -138,18 +155,18 @@ func IndexJiraIntegrations(jiraIntgs []*JiraIntegration) (map[string]JiraIntegra
 // ValidateJiraIntegrations validates that the merge of the original and new
 // Jira integrations does not result in any duplicate configuration, and that
 // each modified or added integration can successfully connect to the external
-// Jira service.
+// Jira service. It returns the list of integrations that were deleted, if any.
 //
 // On successful return, the newJiraIntgs slice is ready to be saved - it may
 // have been updated using the original integrations if the API token was
 // missing.
-func ValidateJiraIntegrations(ctx context.Context, oriJiraIntgsIndexed map[string]JiraIntegration, newJiraIntgs []*JiraIntegration) error {
+func ValidateJiraIntegrations(ctx context.Context, oriJiraIntgsIndexed map[string]JiraIntegration, newJiraIntgs []*JiraIntegration) (deleted []*JiraIntegration, err error) {
 	newIndexed := make(map[string]*JiraIntegration, len(newJiraIntgs))
 	for i, new := range newJiraIntgs {
 		// first check for uniqueness
 		key := new.uniqueKey()
 		if _, ok := newIndexed[key]; ok {
-			return fmt.Errorf("duplicate Jira integration for url %s and project key %s", new.URL, new.ProjectKey)
+			return nil, fmt.Errorf("duplicate Jira integration for url %s and project key %s", new.URL, new.ProjectKey)
 		}
 		newIndexed[key] = new
 
@@ -169,10 +186,18 @@ func ValidateJiraIntegrations(ctx context.Context, oriJiraIntgsIndexed map[strin
 
 		// new or updated, test it
 		if err := makeTestJiraRequest(ctx, new); err != nil {
-			return fmt.Errorf("Jira integration at index %d: %w", i, err)
+			return nil, fmt.Errorf("Jira integration at index %d: %w", i, err)
 		}
 	}
-	return nil
+
+	// collect any deleted integration
+	for key, intg := range oriJiraIntgsIndexed {
+		intg := intg // do not take address of iteration variable
+		if _, ok := newIndexed[key]; !ok {
+			deleted = append(deleted, &intg)
+		}
+	}
+	return deleted, nil
 }
 
 // IntegrationTestError is the type of error returned when a validation of an
@@ -247,18 +272,19 @@ func IndexZendeskIntegrations(zendeskIntgs []*ZendeskIntegration) (map[string]Ze
 // ValidateZendeskIntegrations validates that the merge of the original and
 // new Zendesk integrations does not result in any duplicate configuration,
 // and that each modified or added integration can successfully connect to the
-// external Zendesk service.
+// external Zendesk service. It returns the list of integrations that were
+// deleted, if any.
 //
 // On successful return, the newZendeskIntgs slice is ready to be saved - it
 // may have been updated using the original integrations if the API token was
 // missing.
-func ValidateZendeskIntegrations(ctx context.Context, oriZendeskIntgsIndexed map[string]ZendeskIntegration, newZendeskIntgs []*ZendeskIntegration) error {
+func ValidateZendeskIntegrations(ctx context.Context, oriZendeskIntgsIndexed map[string]ZendeskIntegration, newZendeskIntgs []*ZendeskIntegration) (deleted []*ZendeskIntegration, err error) {
 	newIndexed := make(map[string]*ZendeskIntegration, len(newZendeskIntgs))
 	for i, new := range newZendeskIntgs {
 		key := new.uniqueKey()
 		// first check for uniqueness
 		if _, ok := newIndexed[key]; ok {
-			return fmt.Errorf("duplicate Zendesk integration for url %s and group id %v", new.URL, new.GroupID)
+			return nil, fmt.Errorf("duplicate Zendesk integration for url %s and group id %v", new.URL, new.GroupID)
 		}
 		newIndexed[key] = new
 
@@ -278,10 +304,18 @@ func ValidateZendeskIntegrations(ctx context.Context, oriZendeskIntgsIndexed map
 
 		// new or updated, test it
 		if err := makeTestZendeskRequest(ctx, new); err != nil {
-			return fmt.Errorf("Zendesk integration at index %d: %w", i, err)
+			return nil, fmt.Errorf("Zendesk integration at index %d: %w", i, err)
 		}
 	}
-	return nil
+
+	// collect any deleted integration
+	for key, intg := range oriZendeskIntgsIndexed {
+		intg := intg // do not take address of iteration variable
+		if _, ok := newIndexed[key]; !ok {
+			deleted = append(deleted, &intg)
+		}
+	}
+	return deleted, nil
 }
 
 func makeTestZendeskRequest(ctx context.Context, intg *ZendeskIntegration) error {

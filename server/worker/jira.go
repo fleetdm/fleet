@@ -141,7 +141,7 @@ func (j *Jira) getClient(ctx context.Context, args jiraArgs) (JiraClient, error)
 			return nil, err
 		}
 
-		intgs, err := tm.Config.Integrations.ToGlobalIntegrations(ac.Integrations)
+		intgs, err := tm.Config.Integrations.MatchWithIntegrations(ac.Integrations)
 		if err != nil {
 			return nil, err
 		}

@@ -227,7 +227,8 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte) (*fleet.AppCo
 		appConfig.SMTPSettings.SMTPConfigured = false
 	}
 
-	if err := fleet.ValidateJiraIntegrations(ctx, storedJiraByProjectKey, newAppConfig.Integrations.Jira); err != nil {
+	delJira, err := fleet.ValidateJiraIntegrations(ctx, storedJiraByProjectKey, newAppConfig.Integrations.Jira)
+	if err != nil {
 		if errors.As(err, &fleet.IntegrationTestError{}) {
 			return nil, ctxerr.Wrap(ctx, &badRequestError{message: err.Error()})
 		}
@@ -235,13 +236,21 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte) (*fleet.AppCo
 	}
 	appConfig.Integrations.Jira = newAppConfig.Integrations.Jira
 
-	if err := fleet.ValidateZendeskIntegrations(ctx, storedZendeskByGroupID, newAppConfig.Integrations.Zendesk); err != nil {
+	delZendesk, err := fleet.ValidateZendeskIntegrations(ctx, storedZendeskByGroupID, newAppConfig.Integrations.Zendesk)
+	if err != nil {
 		if errors.As(err, &fleet.IntegrationTestError{}) {
 			return nil, ctxerr.Wrap(ctx, &badRequestError{message: err.Error()})
 		}
 		return nil, ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("Zendesk integration", err.Error()))
 	}
 	appConfig.Integrations.Zendesk = newAppConfig.Integrations.Zendesk
+
+	// if any integration was deleted, remove it from any team that uses it
+	if len(delJira)+len(delZendesk) > 0 {
+		if err := svc.ds.DeleteIntegrationsFromTeams(ctx, fleet.Integrations{Jira: delJira, Zendesk: delZendesk}); err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "delete integrations from teams")
+		}
+	}
 
 	if err := svc.ds.SaveAppConfig(ctx, appConfig); err != nil {
 		return nil, err

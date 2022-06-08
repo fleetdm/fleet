@@ -164,7 +164,7 @@ func makeTeamConfigCache(ds fleet.Datastore, globalIntgs fleet.Integrations) fun
 			return cfg, ctxerr.Wrapf(ctx, err, "get team: %d", teamID)
 		}
 
-		intgs, err := team.Config.Integrations.ToGlobalIntegrations(globalIntgs)
+		intgs, err := team.Config.Integrations.MatchWithIntegrations(globalIntgs)
 		if err != nil {
 			return cfg, ctxerr.Wrap(ctx, err, "map team integrations to global integrations")
 		}

@@ -135,7 +135,7 @@ func (z *Zendesk) getClient(ctx context.Context, args zendeskArgs) (ZendeskClien
 			return nil, err
 		}
 
-		intgs, err := tm.Config.Integrations.ToGlobalIntegrations(ac.Integrations)
+		intgs, err := tm.Config.Integrations.MatchWithIntegrations(ac.Integrations)
 		if err != nil {
 			return nil, err
 		}

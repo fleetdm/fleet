@@ -100,7 +100,7 @@ func (svc *Service) ModifyTeam(ctx context.Context, teamID uint, payload fleet.T
 		if err != nil {
 			return nil, err
 		}
-		if _, err := payload.Integrations.ToGlobalIntegrations(appCfg.Integrations); err != nil {
+		if _, err := payload.Integrations.MatchWithIntegrations(appCfg.Integrations); err != nil {
 			return nil, fleet.NewInvalidArgumentError("integrations", err.Error())
 		}
 
