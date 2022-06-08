@@ -49,7 +49,7 @@ func NewDeviceClient(addr string, token string, insecureSkipVerify bool, rootCA 
 
 // ListDevicePolicies fetches all policies for the device with the provided token
 func (dc *DeviceClient) ListDevicePolicies() ([]*fleet.HostPolicy, error) {
-	verb, path := "GET", "/api/latest/fleet/device/"+dc.token+"/policies"
+	verb, path := "GET", "/api/2022-04/fleet/device/"+dc.token+"/policies"
 	var responseBody listDevicePoliciesResponse
 	err := dc.request(verb, path, "", &responseBody)
 	if err != nil {
