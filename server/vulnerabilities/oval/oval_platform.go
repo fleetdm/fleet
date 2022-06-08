@@ -15,13 +15,13 @@ const OvalFilePrefix = "fleet_oval"
 var SupportedHostPlatforms = []string{"ubuntu"}
 
 // getMajorMinorVer returns the major and minor version of an 'os_version'.
-// ex: 'Ubuntu 20.4.0' => '2004'
-func getMajorMinorVer(osVersion string) string {
+// ex: 'Ubuntu 20.4.0' => '(20, 04)'
+func getMajorMinorVer(osVersion string) (string, string) {
 	re := regexp.MustCompile(` (?P<major>\d+)\.?(?P<minor>\d+)?\.?(\*|\d+)?$`)
 	m := re.FindStringSubmatch(osVersion)
 
 	if len(m) < 2 {
-		return ""
+		return "", ""
 	}
 
 	maIdx := re.SubexpIndex("major")
@@ -36,17 +36,27 @@ func getMajorMinorVer(osVersion string) string {
 		if len(minor) < 2 {
 			minor = fmt.Sprintf("0%s", minor)
 		}
-		return fmt.Sprintf("%s%s", major, minor)
+		return major, minor
 	}
-	return ""
+	return "", ""
 }
 
-// NewPlatform combines the host platform and os version into 'platform-os major version' string.
-// Ex: ('ubuntu', 'Ubuntu 20.4.0') => 'ubuntu-20'.
+func format(platform string, major string, minor string) string {
+	if platform == "ubuntu" {
+		return fmt.Sprintf("%s_%s%s", platform, major, minor)
+	}
+	return fmt.Sprintf("%s_%s", platform, major)
+}
+
+// NewPlatform combines the host platform and os version into a string used to match OVAL
+// definitions.
+// Examples:
+// ('ubuntu', 'Ubuntu 20.4.0') => 'ubuntu_2004'.
+// ('rhel', 'CentOS Linux 7.9.2009') => 'rhel_07'.
 func NewPlatform(hostPlatform, hostOsVersion string) Platform {
 	nPlatform := strings.Trim(strings.ToLower(hostPlatform), " ")
-	majorVer := getMajorMinorVer(strings.Trim(hostOsVersion, " "))
-	return Platform(fmt.Sprintf("%s_%s", nPlatform, majorVer))
+	major, minor := getMajorMinorVer(strings.Trim(hostOsVersion, " "))
+	return Platform(format(nPlatform, major, minor))
 }
 
 // ToFilename combines 'date' with the contents of 'platform' to produce a 'standard' filename.
