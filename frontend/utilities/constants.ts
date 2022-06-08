@@ -149,6 +149,16 @@ export const DEFAULT_POLICIES = [
       "In System Preferences, open Security & Privacy, navigate to the Firewall tab and click Turn On Firewall.",
     platform: "darwin",
   },
+    {
+    key: 14,
+    query:
+      "SELECT 1 FROM managed_policies WHERE name='askForPassword' AND value='1';",
+    name: "Screen lock enabled via MDM profile (macOS)",
+    description: "Checks that a MDM profile configures the screen lock",
+    resolution:
+      "Ensure your computer is enrolled to MDM. If it is, contact your administrator and ensure a profile is deployed that will enable the screen lock feature on your Mac.",
+    platform: "darwin",
+  },
 ] as IPolicyNew[];
 
 export const FREQUENCY_DROPDOWN_OPTIONS = [
