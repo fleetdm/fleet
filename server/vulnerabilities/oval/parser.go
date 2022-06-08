@@ -15,27 +15,27 @@ import (
 func parseDefinitions(inputFile string, outputFile string) error {
 	r, err := os.Open(inputFile)
 	if err != nil {
-		return err
+		return fmt.Errorf("oval parser: %w", err)
 	}
 	defer r.Close()
 
 	xmlResult, err := parseXML(r)
 	if err != nil {
-		return err
+		return fmt.Errorf("oval parser: %w", err)
 	}
 
 	result, err := mapResult(xmlResult)
 	if err != nil {
-		return err
+		return fmt.Errorf("oval parser: %w", err)
 	}
 
 	payload, err := json.Marshal(result)
 	if err != nil {
-		return err
+		return fmt.Errorf("oval parser: %w", err)
 	}
 	err = ioutil.WriteFile(outputFile, payload, 0o644)
 	if err != nil {
-		return err
+		return fmt.Errorf("oval parser: %w", err)
 	}
 
 	return nil
