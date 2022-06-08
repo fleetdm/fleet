@@ -32,7 +32,7 @@ Fleet's values are a set of five ideals adopted by everyone on the team.  They d
 4. 🔵 Objectivity
 5. 🟣 Openness
 
-When a new team member joins Fleet, they adopt the values, from day one.  This way, even as the company grows, everybody knows what to expect from the people with whome they work. Having a shared mindset keeps us quick and determined.
+When a new team member joins Fleet, they adopt the values, from day one.  This way, even as the company grows, everybody knows what to expect from the people with whom they work. Having a shared mindset keeps us quick and determined.
 
 ### 🔴 Empathy
 Empathy leads to better understanding, better communication, and better decisions.  Try to understand what people may be going through, so you can help make it better.
