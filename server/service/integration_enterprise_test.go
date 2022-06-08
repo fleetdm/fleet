@@ -899,21 +899,95 @@ func (s *integrationEnterpriseTestSuite) TestExternalIntegrationsTeamConfig() {
 	require.Equal(t, int64(123), getResp.Team.Config.Integrations.Zendesk[0].GroupID)
 	require.False(t, getResp.Team.Config.Integrations.Zendesk[0].EnableFailingPolicies)
 
-	/*
-		// remove all integrations on exit, so that other tests can enable the
-		// webhook as needed
-		s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), fleet.TeamPayload{
-			Integrations: &fleet.TeamIntegrations{
-				Zendesk: []*fleet.TeamZendeskIntegration{},
-				Jira:    []*fleet.TeamJiraIntegration{},
+	// removing Jira qux2 from the global config does not impact the team as it is unused.
+	s.DoRaw("PATCH", "/api/v1/fleet/config", []byte(fmt.Sprintf(`{
+		"integrations": {
+			"zendesk": [
+				{
+					"url": %[1]q,
+					"email": "b@b.c",
+					"api_token": "ok",
+					"group_id": 123
+				}
+			],
+			"jira": [
+				{
+					"url": %[1]q,
+					"username": "ok",
+					"api_token": "foo",
+					"project_key": "qux"
+				}
+			]
+		}
+	}`, srvURL)), http.StatusOK)
+
+	// get the team, integrations are unchanged
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), nil, http.StatusOK, &getResp)
+	require.Len(t, getResp.Team.Config.Integrations.Jira, 1)
+	require.Equal(t, "qux", getResp.Team.Config.Integrations.Jira[0].ProjectKey)
+	require.False(t, getResp.Team.Config.Integrations.Jira[0].EnableFailingPolicies)
+	require.Len(t, getResp.Team.Config.Integrations.Zendesk, 1)
+	require.Equal(t, int64(123), getResp.Team.Config.Integrations.Zendesk[0].GroupID)
+	require.False(t, getResp.Team.Config.Integrations.Zendesk[0].EnableFailingPolicies)
+
+	// enable Jira qux for the team
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), fleet.TeamPayload{
+		Integrations: &fleet.TeamIntegrations{
+			Zendesk: []*fleet.TeamZendeskIntegration{
+				{
+					URL:                   srvURL,
+					GroupID:               123,
+					EnableFailingPolicies: false,
+				},
 			},
-			WebhookSettings: &fleet.TeamWebhookSettings{},
-		}, http.StatusOK, &tmResp)
-		require.Len(t, tmResp.Team.Config.Integrations.Jira, 0)
-		require.Len(t, tmResp.Team.Config.Integrations.Zendesk, 0)
-		require.False(t, tmResp.Team.Config.WebhookSettings.FailingPoliciesWebhook.Enable)
-		require.Empty(t, tmResp.Team.Config.WebhookSettings.FailingPoliciesWebhook.DestinationURL)
-	*/
+			Jira: []*fleet.TeamJiraIntegration{
+				{
+					URL:                   srvURL,
+					ProjectKey:            "qux",
+					EnableFailingPolicies: true,
+				},
+			},
+		},
+	}, http.StatusOK, &tmResp)
+
+	// removing Zendesk 123 from the global config removes it from the team but
+	// leaves the Jira integration enabled.
+	s.DoRaw("PATCH", "/api/v1/fleet/config", []byte(fmt.Sprintf(`{
+		"integrations": {
+			"jira": [
+				{
+					"url": %[1]q,
+					"username": "ok",
+					"api_token": "foo",
+					"project_key": "qux"
+				}
+			]
+		}
+	}`, srvURL)), http.StatusOK)
+
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), nil, http.StatusOK, &getResp)
+	require.Len(t, getResp.Team.Config.Integrations.Jira, 1)
+	require.Equal(t, "qux", getResp.Team.Config.Integrations.Jira[0].ProjectKey)
+	require.True(t, getResp.Team.Config.Integrations.Jira[0].EnableFailingPolicies)
+	require.Len(t, getResp.Team.Config.Integrations.Zendesk, 0)
+
+	// remove all integrations on exit, so that other tests can enable the
+	// webhook as needed
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), fleet.TeamPayload{
+		Integrations: &fleet.TeamIntegrations{
+			Zendesk: []*fleet.TeamZendeskIntegration{},
+			Jira:    []*fleet.TeamJiraIntegration{},
+		},
+		WebhookSettings: &fleet.TeamWebhookSettings{},
+	}, http.StatusOK, &tmResp)
+	require.Len(t, tmResp.Team.Config.Integrations.Jira, 0)
+	require.Len(t, tmResp.Team.Config.Integrations.Zendesk, 0)
+	require.False(t, tmResp.Team.Config.WebhookSettings.FailingPoliciesWebhook.Enable)
+	require.Empty(t, tmResp.Team.Config.WebhookSettings.FailingPoliciesWebhook.DestinationURL)
+
+	s.DoRaw("PATCH", "/api/v1/fleet/config", []byte(`{
+		"integrations": {}
+	}`), http.StatusOK)
 }
 
 func (s *integrationEnterpriseTestSuite) TestListDevicePolicies() {
