@@ -79,7 +79,7 @@ func TriggerFailingPoliciesAutomation(
 	}
 
 	// prepare the per-team configuration caches
-	getTeam := makeTeamConfigCache(ds)
+	getTeam := makeTeamConfigCache(ds, appConfig.Integrations)
 
 	policySets, err := failingPoliciesSet.ListSets()
 	if err != nil {
@@ -150,8 +150,9 @@ func TriggerFailingPoliciesAutomation(
 	return nil
 }
 
-func makeTeamConfigCache(ds fleet.Datastore) func(ctx context.Context, teamID uint) (FailingPolicyAutomationConfig, error) {
+func makeTeamConfigCache(ds fleet.Datastore, globalIntgs fleet.Integrations) func(ctx context.Context, teamID uint) (FailingPolicyAutomationConfig, error) {
 	teamCfgs := make(map[uint]FailingPolicyAutomationConfig)
+
 	return func(ctx context.Context, teamID uint) (FailingPolicyAutomationConfig, error) {
 		cfg, ok := teamCfgs[teamID]
 		if ok {
@@ -163,7 +164,12 @@ func makeTeamConfigCache(ds fleet.Datastore) func(ctx context.Context, teamID ui
 			return cfg, ctxerr.Wrapf(ctx, err, "get team: %d", teamID)
 		}
 
-		teamAutomation := getActiveAutomation(team.Config.WebhookSettings.FailingPoliciesWebhook, team.Config.Integrations.ToIntegrations())
+		intgs, err := team.Config.Integrations.ToGlobalIntegrations(globalIntgs)
+		if err != nil {
+			return cfg, ctxerr.Wrap(ctx, err, "map team integrations to global integrations")
+		}
+
+		teamAutomation := getActiveAutomation(team.Config.WebhookSettings.FailingPoliciesWebhook, intgs)
 		teamCfg := FailingPolicyAutomationConfig{
 			AutomationType: teamAutomation,
 		}

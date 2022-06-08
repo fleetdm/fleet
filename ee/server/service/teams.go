@@ -4,7 +4,6 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
-	"errors"
 	"fmt"
 
 	"github.com/fleetdm/fleet/v4/server"
@@ -96,41 +95,21 @@ func (svc *Service) ModifyTeam(ctx context.Context, teamID uint, payload fleet.T
 	}
 
 	if payload.Integrations != nil {
-		// TODO(mna): all provided integrations must already exist on the global
-		// config's integrations. Only consider the URL and Group ID/Project Key,
-		// the rest of the integration's config comes from the global config.
-		// No need to validate uniqueness here, as this is done at the global level
-		// when adding/removing/updating integrations. No need to test connection
-		// either, as this is all done at the global appconfig integrations level.
-		// When merging the global integrations with the team's, set the APIToken/
-		// Password to MaskedPassword, and then no need to mask it again everywhere
-		// we return the config. When we read the config to actually use it, we have
-		// to look up the corresponding AppConfig settings anyway.
-
-		oriJiraByProjectKey, err := fleet.IndexTeamJiraIntegrations(team.Config.Integrations.Jira)
+		// the team integrations must reference an existing global config integration.
+		appCfg, err := svc.ds.AppConfig(ctx)
 		if err != nil {
-			return nil, ctxerr.Wrap(ctx, err, "modify Team")
+			return nil, err
+		}
+		if _, err := payload.Integrations.ToGlobalIntegrations(appCfg.Integrations); err != nil {
+			return nil, fleet.NewInvalidArgumentError("integrations", err.Error())
 		}
 
-		oriZendeskByGroupID, err := fleet.IndexTeamZendeskIntegrations(team.Config.Integrations.Zendesk)
-		if err != nil {
-			return nil, ctxerr.Wrap(ctx, err, "modify Team")
+		// integrations must be unique
+		if err := payload.Integrations.Validate(); err != nil {
+			return nil, fleet.NewInvalidArgumentError("integrations", err.Error())
 		}
 
-		if err := fleet.ValidateTeamJiraIntegrations(ctx, oriJiraByProjectKey, payload.Integrations.Jira); err != nil {
-			if errors.As(err, &fleet.IntegrationTestError{}) {
-				return nil, ctxerr.Wrap(ctx, &badRequestError{message: err.Error()})
-			}
-			return nil, ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("Jira integration", err.Error()))
-		}
 		team.Config.Integrations.Jira = payload.Integrations.Jira
-
-		if err := fleet.ValidateTeamZendeskIntegrations(ctx, oriZendeskByGroupID, payload.Integrations.Zendesk); err != nil {
-			if errors.As(err, &fleet.IntegrationTestError{}) {
-				return nil, ctxerr.Wrap(ctx, &badRequestError{message: err.Error()})
-			}
-			return nil, ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("Zendesk integration", err.Error()))
-		}
 		team.Config.Integrations.Zendesk = payload.Integrations.Zendesk
 	}
 

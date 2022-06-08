@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strconv"
 
 	"github.com/fleetdm/fleet/v4/server/service/externalsvc"
 )
@@ -15,64 +16,107 @@ type TeamIntegrations struct {
 	Zendesk []*TeamZendeskIntegration `json:"zendesk"`
 }
 
-// ToIntegrations converts a TeamIntegrations to an Integrations struct.
-func (ti TeamIntegrations) ToIntegrations() Integrations {
-	var intgs Integrations
-	intgs.Jira = make([]*JiraIntegration, len(ti.Jira))
-	for i, j := range ti.Jira {
-		intgs.Jira[i] = j.ToJiraIntegration()
+// ToGlobalIntegrations maps the team integrations to their corresponding
+// integrations at the global level, returning the resulting integrations
+// struct. It returns an error if any team integration does not map to a
+// global integration.
+func (ti TeamIntegrations) ToGlobalIntegrations(globalIntgs Integrations) (Integrations, error) {
+	var result Integrations
+
+	jiraIntgs, err := IndexJiraIntegrations(globalIntgs.Jira)
+	if err != nil {
+		return result, err
 	}
-	intgs.Zendesk = make([]*ZendeskIntegration, len(ti.Zendesk))
-	for i, z := range ti.Zendesk {
-		intgs.Zendesk[i] = z.ToZendeskIntegration()
+	zendeskIntgs, err := IndexZendeskIntegrations(globalIntgs.Zendesk)
+	if err != nil {
+		return result, err
 	}
-	return intgs
+
+	for _, tmJira := range ti.Jira {
+		key := tmJira.uniqueKey()
+		intg, ok := jiraIntgs[key]
+		if !ok {
+			return result, fmt.Errorf("unknown Jira integration for url %s and project key %s", tmJira.URL, tmJira.ProjectKey)
+		}
+		intg.EnableFailingPolicies = tmJira.EnableFailingPolicies
+		result.Jira = append(result.Jira, &intg)
+	}
+	for _, tmZendesk := range ti.Zendesk {
+		key := tmZendesk.uniqueKey()
+		intg, ok := zendeskIntgs[key]
+		if !ok {
+			return result, fmt.Errorf("unknown Zendesk integration for url %s and group ID %v", tmZendesk.URL, tmZendesk.GroupID)
+		}
+		intg.EnableFailingPolicies = tmZendesk.EnableFailingPolicies
+		result.Zendesk = append(result.Zendesk, &intg)
+	}
+	return result, nil
+}
+
+// Validate validates the team integrations for uniqueness.
+func (ti TeamIntegrations) Validate() error {
+	jira := make(map[string]*TeamJiraIntegration, len(ti.Jira))
+	for _, j := range ti.Jira {
+		key := j.uniqueKey()
+		if _, ok := jira[key]; ok {
+			return fmt.Errorf("duplicate Jira integration for url %s and project key %s", j.URL, j.ProjectKey)
+		}
+		jira[key] = j
+	}
+
+	zendesk := make(map[string]*TeamZendeskIntegration, len(ti.Zendesk))
+	for _, z := range ti.Zendesk {
+		key := z.uniqueKey()
+		if _, ok := zendesk[key]; ok {
+			return fmt.Errorf("duplicate Zendesk integration for url %s and group ID %v", z.URL, z.GroupID)
+		}
+		zendesk[key] = z
+	}
+	return nil
 }
 
 // TeamJiraIntegration configures an instance of an integration with the Jira
 // system for a team.
 type TeamJiraIntegration struct {
 	URL                   string `json:"url"`
-	Username              string `json:"username"`
-	APIToken              string `json:"api_token"`
 	ProjectKey            string `json:"project_key"`
 	EnableFailingPolicies bool   `json:"enable_failing_policies"`
 }
 
-// ToJiraIntegration converts a TeamJiraIntegration to a JiraIntegration
-// struct, leaving additional fields to their zero value.
-func (ti TeamJiraIntegration) ToJiraIntegration() *JiraIntegration {
-	return &JiraIntegration{TeamJiraIntegration: ti}
+func (j TeamJiraIntegration) uniqueKey() string {
+	return j.URL + "\n" + j.ProjectKey
 }
 
 // TeamZendeskIntegration configures an instance of an integration with the
 // external Zendesk service for a team.
 type TeamZendeskIntegration struct {
 	URL                   string `json:"url"`
-	Email                 string `json:"email"`
-	APIToken              string `json:"api_token"`
 	GroupID               int64  `json:"group_id"`
 	EnableFailingPolicies bool   `json:"enable_failing_policies"`
 }
 
-// ToZendeskIntegration converts a TeamZendeskIntegration to a ZendeskIntegration
-// struct, leaving additional fields to their zero value.
-func (ti TeamZendeskIntegration) ToZendeskIntegration() *ZendeskIntegration {
-	return &ZendeskIntegration{TeamZendeskIntegration: ti}
+func (z TeamZendeskIntegration) uniqueKey() string {
+	return z.URL + "\n" + strconv.FormatInt(z.GroupID, 10)
 }
 
 // JiraIntegration configures an instance of an integration with the Jira
 // system.
 type JiraIntegration struct {
-	// It is a superset of TeamJiraIntegration.
-	TeamJiraIntegration
+	URL                           string `json:"url"`
+	Username                      string `json:"username"`
+	APIToken                      string `json:"api_token"`
+	ProjectKey                    string `json:"project_key"`
+	EnableFailingPolicies         bool   `json:"enable_failing_policies"`
+	EnableSoftwareVulnerabilities bool   `json:"enable_software_vulnerabilities"`
+}
 
-	EnableSoftwareVulnerabilities bool `json:"enable_software_vulnerabilities"`
+func (j JiraIntegration) uniqueKey() string {
+	return j.URL + "\n" + j.ProjectKey
 }
 
 // IndexJiraIntegrations indexes the provided Jira integrations in a map keyed
-// by the project key. It returns an error if a duplicate configuration is
-// found for the same project key. This is typically used to index the original
+// by 'URL\nProjectKey'. It returns an error if a duplicate configuration is
+// found for the same combination. This is typically used to index the original
 // integrations before applying the changes requested to modify the AppConfig.
 //
 // Note that the returned map uses non-pointer JiraIntegration struct values,
@@ -80,34 +124,15 @@ type JiraIntegration struct {
 // map. This is important because of how changes are merged with the original
 // AppConfig when modifying it.
 func IndexJiraIntegrations(jiraIntgs []*JiraIntegration) (map[string]JiraIntegration, error) {
-	byProjKey := make(map[string]JiraIntegration, len(jiraIntgs))
+	indexed := make(map[string]JiraIntegration, len(jiraIntgs))
 	for _, intg := range jiraIntgs {
-		if _, ok := byProjKey[intg.ProjectKey]; ok {
-			return nil, fmt.Errorf("duplicate Jira integration for project key %s", intg.ProjectKey)
+		key := intg.uniqueKey()
+		if _, ok := indexed[key]; ok {
+			return nil, fmt.Errorf("duplicate Jira integration for url %s and project key %s", intg.URL, intg.ProjectKey)
 		}
-		byProjKey[intg.ProjectKey] = *intg
+		indexed[key] = *intg
 	}
-	return byProjKey, nil
-}
-
-// IndexTeamJiraIntegrations is the same as IndexJiraIntegrations, but for
-// team-specific integration structs.
-func IndexTeamJiraIntegrations(teamJiraIntgs []*TeamJiraIntegration) (map[string]TeamJiraIntegration, error) {
-	jiraIntgs := make([]*JiraIntegration, len(teamJiraIntgs))
-	for i, t := range teamJiraIntgs {
-		jiraIntgs[i] = t.ToJiraIntegration()
-	}
-
-	indexed, err := IndexJiraIntegrations(jiraIntgs)
-	if err != nil {
-		return nil, err
-	}
-
-	teamIndexed := make(map[string]TeamJiraIntegration, len(indexed))
-	for k, v := range indexed {
-		teamIndexed[k] = v.TeamJiraIntegration
-	}
-	return teamIndexed, nil
+	return indexed, nil
 }
 
 // ValidateJiraIntegrations validates that the merge of the original and new
@@ -118,18 +143,18 @@ func IndexTeamJiraIntegrations(teamJiraIntgs []*TeamJiraIntegration) (map[string
 // On successful return, the newJiraIntgs slice is ready to be saved - it may
 // have been updated using the original integrations if the API token was
 // missing.
-func ValidateJiraIntegrations(ctx context.Context, oriJiraIntgsByProjKey map[string]JiraIntegration, newJiraIntgs []*JiraIntegration) error {
-	newByProjKey := make(map[string]*JiraIntegration, len(newJiraIntgs))
+func ValidateJiraIntegrations(ctx context.Context, oriJiraIntgsIndexed map[string]JiraIntegration, newJiraIntgs []*JiraIntegration) error {
+	newIndexed := make(map[string]*JiraIntegration, len(newJiraIntgs))
 	for i, new := range newJiraIntgs {
-		// TODO(mna): uniqueness should be defined by URL + ProjectKey
-		// first check for project key uniqueness
-		if _, ok := newByProjKey[new.ProjectKey]; ok {
-			return fmt.Errorf("duplicate Jira integration for project key %s", new.ProjectKey)
+		// first check for uniqueness
+		key := new.uniqueKey()
+		if _, ok := newIndexed[key]; ok {
+			return fmt.Errorf("duplicate Jira integration for url %s and project key %s", new.URL, new.ProjectKey)
 		}
-		newByProjKey[new.ProjectKey] = new
+		newIndexed[key] = new
 
 		// check if existing integration is being edited
-		if old, ok := oriJiraIntgsByProjKey[new.ProjectKey]; ok {
+		if old, ok := oriJiraIntgsIndexed[key]; ok {
 			if old == *new {
 				// no further validation for unchanged integration
 				continue
@@ -146,32 +171,6 @@ func ValidateJiraIntegrations(ctx context.Context, oriJiraIntgsByProjKey map[str
 		if err := makeTestJiraRequest(ctx, new); err != nil {
 			return fmt.Errorf("Jira integration at index %d: %w", i, err)
 		}
-	}
-	return nil
-}
-
-// ValidateTeamJiraIntegrations applies the same validations as
-// ValidateJiraIntegrations, but for team-specific integration structs.
-func ValidateTeamJiraIntegrations(ctx context.Context, oriTeamJiraIntgsByProjKey map[string]TeamJiraIntegration, newTeamJiraIntgs []*TeamJiraIntegration) error {
-	newJiraIntgs := make([]*JiraIntegration, len(newTeamJiraIntgs))
-	for i, t := range newTeamJiraIntgs {
-		newJiraIntgs[i] = t.ToJiraIntegration()
-	}
-
-	oriJiraIntgsByProjKey := make(map[string]JiraIntegration, len(oriTeamJiraIntgsByProjKey))
-	for k, v := range oriTeamJiraIntgsByProjKey {
-		oriJiraIntgsByProjKey[k] = *v.ToJiraIntegration()
-	}
-
-	if err := ValidateJiraIntegrations(ctx, oriJiraIntgsByProjKey, newJiraIntgs); err != nil {
-		return err
-	}
-
-	// assign back the newJiraIntgs to newTeamJiraIntgs, as they may have been
-	// updated by the call and we need to pass that change back to the caller
-	for i, v := range newJiraIntgs {
-		teamJira := newTeamJiraIntgs[i]
-		*teamJira = v.TeamJiraIntegration
 	}
 	return nil
 }
@@ -212,50 +211,37 @@ func makeTestJiraRequest(ctx context.Context, intg *JiraIntegration) error {
 
 // ZendeskIntegration configures an instance of an integration with the external Zendesk service.
 type ZendeskIntegration struct {
-	// It is a superset of TeamZendeskIntegration.
-	TeamZendeskIntegration
+	URL                           string `json:"url"`
+	Email                         string `json:"email"`
+	APIToken                      string `json:"api_token"`
+	GroupID                       int64  `json:"group_id"`
+	EnableFailingPolicies         bool   `json:"enable_failing_policies"`
+	EnableSoftwareVulnerabilities bool   `json:"enable_software_vulnerabilities"`
+}
 
-	EnableSoftwareVulnerabilities bool `json:"enable_software_vulnerabilities"`
+func (z ZendeskIntegration) uniqueKey() string {
+	return z.URL + "\n" + strconv.FormatInt(z.GroupID, 10)
 }
 
 // IndexZendeskIntegrations indexes the provided Zendesk integrations in a map
-// keyed by the group ID. It returns an error if a duplicate configuration is
-// found for the same group ID. This is typically used to index the original
+// keyed by 'URL\nGroupID'. It returns an error if a duplicate configuration is
+// found for the same combination. This is typically used to index the original
 // integrations before applying the changes requested to modify the AppConfig.
 //
 // Note that the returned map uses non-pointer ZendeskIntegration struct
 // values, so that any changes to the original value does not modify the value
 // in the map. This is important because of how changes are merged with the
 // original AppConfig when modifying it.
-func IndexZendeskIntegrations(zendeskIntgs []*ZendeskIntegration) (map[int64]ZendeskIntegration, error) {
-	byGroupID := make(map[int64]ZendeskIntegration, len(zendeskIntgs))
+func IndexZendeskIntegrations(zendeskIntgs []*ZendeskIntegration) (map[string]ZendeskIntegration, error) {
+	indexed := make(map[string]ZendeskIntegration, len(zendeskIntgs))
 	for _, intg := range zendeskIntgs {
-		if _, ok := byGroupID[intg.GroupID]; ok {
-			return nil, fmt.Errorf("duplicate Zendesk integration for group id %v", intg.GroupID)
+		key := intg.uniqueKey()
+		if _, ok := indexed[key]; ok {
+			return nil, fmt.Errorf("duplicate Zendesk integration for url %s and group id %v", intg.URL, intg.GroupID)
 		}
-		byGroupID[intg.GroupID] = *intg
+		indexed[key] = *intg
 	}
-	return byGroupID, nil
-}
-
-// IndexTeamZendeskIntegrations is the same as IndexZendeskIntegrations, but
-// for team-specific integration structs.
-func IndexTeamZendeskIntegrations(teamZendeskIntgs []*TeamZendeskIntegration) (map[int64]TeamZendeskIntegration, error) {
-	zendeskIntgs := make([]*ZendeskIntegration, len(teamZendeskIntgs))
-	for i, t := range teamZendeskIntgs {
-		zendeskIntgs[i] = t.ToZendeskIntegration()
-	}
-
-	indexed, err := IndexZendeskIntegrations(zendeskIntgs)
-	if err != nil {
-		return nil, err
-	}
-
-	teamIndexed := make(map[int64]TeamZendeskIntegration, len(indexed))
-	for k, v := range indexed {
-		teamIndexed[k] = v.TeamZendeskIntegration
-	}
-	return teamIndexed, nil
+	return indexed, nil
 }
 
 // ValidateZendeskIntegrations validates that the merge of the original and
@@ -266,18 +252,18 @@ func IndexTeamZendeskIntegrations(teamZendeskIntgs []*TeamZendeskIntegration) (m
 // On successful return, the newZendeskIntgs slice is ready to be saved - it
 // may have been updated using the original integrations if the API token was
 // missing.
-func ValidateZendeskIntegrations(ctx context.Context, oriZendeskIntgsByGroupID map[int64]ZendeskIntegration, newZendeskIntgs []*ZendeskIntegration) error {
-	newByGroupID := make(map[int64]*ZendeskIntegration, len(newZendeskIntgs))
+func ValidateZendeskIntegrations(ctx context.Context, oriZendeskIntgsIndexed map[string]ZendeskIntegration, newZendeskIntgs []*ZendeskIntegration) error {
+	newIndexed := make(map[string]*ZendeskIntegration, len(newZendeskIntgs))
 	for i, new := range newZendeskIntgs {
-		// TODO(mna): uniqueness should be defined by URL + GroupID
-		// first check for group id uniqueness
-		if _, ok := newByGroupID[new.GroupID]; ok {
-			return fmt.Errorf("duplicate Zendesk integration for group id %v", new.GroupID)
+		key := new.uniqueKey()
+		// first check for uniqueness
+		if _, ok := newIndexed[key]; ok {
+			return fmt.Errorf("duplicate Zendesk integration for url %s and group id %v", new.URL, new.GroupID)
 		}
-		newByGroupID[new.GroupID] = new
+		newIndexed[key] = new
 
 		// check if existing integration is being edited
-		if old, ok := oriZendeskIntgsByGroupID[new.GroupID]; ok {
+		if old, ok := oriZendeskIntgsIndexed[key]; ok {
 			if old == *new {
 				// no further validation for unchanged integration
 				continue
@@ -294,33 +280,6 @@ func ValidateZendeskIntegrations(ctx context.Context, oriZendeskIntgsByGroupID m
 		if err := makeTestZendeskRequest(ctx, new); err != nil {
 			return fmt.Errorf("Zendesk integration at index %d: %w", i, err)
 		}
-	}
-	return nil
-}
-
-// ValidateTeamZendeskIntegrations applies the same validations as
-// ValidateZendeskIntegrations, but for team-specific integration structs.
-func ValidateTeamZendeskIntegrations(ctx context.Context, oriTeamZendeskIntgsByGroupID map[int64]TeamZendeskIntegration, newTeamZendeskIntgs []*TeamZendeskIntegration) error {
-	newZendeskIntgs := make([]*ZendeskIntegration, len(newTeamZendeskIntgs))
-	for i, t := range newTeamZendeskIntgs {
-		newZendeskIntgs[i] = t.ToZendeskIntegration()
-	}
-
-	oriZendeskIntgsByGroupID := make(map[int64]ZendeskIntegration, len(oriTeamZendeskIntgsByGroupID))
-	for k, v := range oriTeamZendeskIntgsByGroupID {
-		oriZendeskIntgsByGroupID[k] = *v.ToZendeskIntegration()
-	}
-
-	if err := ValidateZendeskIntegrations(ctx, oriZendeskIntgsByGroupID, newZendeskIntgs); err != nil {
-		return err
-	}
-
-	// assign back the newZendeskIntgs to newTeamZendeskIntgs, as they may have
-	// been updated by the call and we need to pass that change back to the
-	// caller
-	for i, v := range newZendeskIntgs {
-		teamZendesk := newTeamZendeskIntgs[i]
-		*teamZendesk = v.TeamZendeskIntegration
 	}
 	return nil
 }
@@ -424,6 +383,23 @@ func ValidateEnabledFailingPoliciesIntegrations(webhook FailingPoliciesWebhookSe
 // ValidateEnabledFailingPoliciesIntegrations, but for team-specific
 // integration structs.
 func ValidateEnabledFailingPoliciesTeamIntegrations(webhook FailingPoliciesWebhookSettings, teamIntgs TeamIntegrations, invalid *InvalidArgumentError) {
-	intgs := teamIntgs.ToIntegrations()
+	intgs := Integrations{
+		Jira:    make([]*JiraIntegration, len(teamIntgs.Jira)),
+		Zendesk: make([]*ZendeskIntegration, len(teamIntgs.Zendesk)),
+	}
+	for i, j := range teamIntgs.Jira {
+		intgs.Jira[i] = &JiraIntegration{
+			URL:                   j.URL,
+			ProjectKey:            j.ProjectKey,
+			EnableFailingPolicies: j.EnableFailingPolicies,
+		}
+	}
+	for i, z := range teamIntgs.Zendesk {
+		intgs.Zendesk[i] = &ZendeskIntegration{
+			URL:                   z.URL,
+			GroupID:               z.GroupID,
+			EnableFailingPolicies: z.EnableFailingPolicies,
+		}
+	}
 	ValidateEnabledFailingPoliciesIntegrations(webhook, intgs, invalid)
 }

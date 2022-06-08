@@ -291,10 +291,10 @@ func TestAppConfigSecretsObfuscated(t *testing.T) {
 			SMTPSettings: fleet.SMTPSettings{SMTPPassword: "smtppassword"},
 			Integrations: fleet.Integrations{
 				Jira: []*fleet.JiraIntegration{
-					{TeamJiraIntegration: fleet.TeamJiraIntegration{APIToken: "jiratoken"}},
+					{APIToken: "jiratoken"},
 				},
 				Zendesk: []*fleet.ZendeskIntegration{
-					{TeamZendeskIntegration: fleet.TeamZendeskIntegration{APIToken: "zendesktoken"}},
+					{APIToken: "zendesktoken"},
 				},
 			},
 		}, nil
