@@ -149,7 +149,7 @@ export const DEFAULT_POLICIES = [
       "In System Preferences, open Security & Privacy, navigate to the Firewall tab and click Turn On Firewall.",
     platform: "darwin",
   },
-    {
+  {
     key: 14,
     query:
       "SELECT 1 FROM managed_policies WHERE name='askForPassword' AND value='1';",
