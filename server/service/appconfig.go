@@ -20,6 +20,8 @@ import (
 	"github.com/kolide/kit/version"
 )
 
+const defaultTransparencyURL = "https://fleetdm.com/transparency"
+
 ////////////////////////////////////////////////////////////////////////////////
 // Get AppConfig
 ////////////////////////////////////////////////////////////////////////////////
@@ -76,6 +78,14 @@ func getAppConfigEndpoint(ctx context.Context, request interface{}, svc fleet.Se
 		hostExpirySettings = config.HostExpirySettings
 		agentOptions = config.AgentOptions
 	}
+
+	transparencyURL := config.FleetDesktop.TransparencyURL
+	// Fleet Premium license is required for custom transparency url
+	if license.Tier != "premium" || transparencyURL == "" {
+		transparencyURL = defaultTransparencyURL
+	}
+	fleetDesktop := fleet.FleetDesktopSettings{TransparencyURL: transparencyURL}
+
 	hostSettings := config.HostSettings
 	response := appConfigResponse{
 		AppConfig: fleet.AppConfig{
@@ -88,6 +98,8 @@ func getAppConfigEndpoint(ctx context.Context, request interface{}, svc fleet.Se
 			SSOSettings:        ssoSettings,
 			HostExpirySettings: hostExpirySettings,
 			AgentOptions:       agentOptions,
+
+			FleetDesktop: fleetDesktop,
 
 			WebhookSettings: config.WebhookSettings,
 			Integrations:    config.Integrations,
@@ -173,6 +185,11 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte) (*fleet.AppCo
 		return nil, err
 	}
 
+	license, err := svc.License(ctx)
+	if err != nil {
+		return nil, err
+	}
+
 	oldSmtpSettings := appConfig.SMTPSettings
 
 	storedJira := appConfig.Integrations.Jira
@@ -206,23 +223,6 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte) (*fleet.AppCo
 	var newAppConfig fleet.AppConfig
 	if err := json.Unmarshal(p, &newAppConfig); err != nil {
 		return nil, ctxerr.Wrap(ctx, err)
-	}
-
-	if t := newAppConfig.FleetDesktop.TransparencyURL; t != "" {
-		// TODO: What sort of validation do we want to do here? url.Parse isn't doing much in terms of validation
-		if _, err := url.Parse(t); err != nil {
-			invalid.Append("transparency_url", err.Error())
-			return nil, ctxerr.Wrap(ctx, invalid)
-		}
-
-		license, err := svc.License(ctx)
-		if err != nil {
-			return nil, err
-		}
-		if license.Tier != "premium" {
-			invalid.Append("transparency_url", "requires Fleet Premium license")
-			return nil, ctxerr.Wrap(ctx, invalid)
-		}
 	}
 
 	validateSSOSettings(newAppConfig, appConfig, invalid)
@@ -321,6 +321,23 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte) (*fleet.AppCo
 		newZendeskConfig = append(newZendeskConfig, new)
 	}
 	appConfig.Integrations.Zendesk = newZendeskConfig
+
+	transparencyURL := appConfig.FleetDesktop.TransparencyURL
+	if transparencyURL == "" {
+		transparencyURL = defaultTransparencyURL
+	}
+
+	if transparencyURL != defaultTransparencyURL && license.Tier != "premium" {
+		invalid.Append("transparency_url", "requires Fleet Premium license")
+		return nil, ctxerr.Wrap(ctx, invalid)
+	}
+
+	if _, err := url.Parse(transparencyURL); err != nil {
+		invalid.Append("transparency_url", err.Error())
+		return nil, ctxerr.Wrap(ctx, invalid)
+
+	}
+	appConfig.FleetDesktop.TransparencyURL = transparencyURL
 
 	if err := svc.ds.SaveAppConfig(ctx, appConfig); err != nil {
 		return nil, err

@@ -113,13 +113,14 @@ type AppConfig struct {
 	SMTPTest bool `json:"smtp_test,omitempty"`
 	// SSOSettings is single sign on settings
 	SSOSettings SSOSettings `json:"sso_settings"`
+	// FleetDesktop holds settings for Fleet Desktop that can be changed via the API.
+	FleetDesktop FleetDesktopSettings `json:"fleet_desktop"`
 
 	// VulnerabilitySettings defines how fleet will behave while scanning for vulnerabilities in the host software
 	VulnerabilitySettings VulnerabilitySettings `json:"vulnerability_settings"`
 
 	WebhookSettings WebhookSettings `json:"webhook_settings"`
 	Integrations    Integrations    `json:"integrations"`
-	FleetDesktop    FleetDesktop    `json:"fleet_desktop"`
 }
 
 // EnrichedAppConfig contains the AppConfig along with additional fleet
@@ -286,8 +287,8 @@ type HostSettings struct {
 	AdditionalQueries       *json.RawMessage `json:"additional_queries,omitempty"`
 }
 
-// FleetDesktop contains settings used to configure Fleet Desktop.
-type FleetDesktop struct {
+// FleetDesktopSettings contains settings used to configure Fleet Desktop.
+type FleetDesktopSettings struct {
 	TransparencyURL string `json:"transparency_url"`
 }
 
