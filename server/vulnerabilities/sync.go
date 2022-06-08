@@ -179,21 +179,24 @@ func LoadCVEMeta(vulnPath string, ds fleet.Datastore) error {
 		}
 
 		for cve := range dict {
-			schema := dict[cve].(*feednvd.Vuln).Schema()
-			if schema.Impact.BaseMetricV3 == nil {
+			vuln, ok := dict[cve].(*feednvd.Vuln)
+			if !ok {
 				continue
 			}
-			baseScore := schema.Impact.BaseMetricV3.CVSSV3.BaseScore
-			published, err := time.Parse(publishedDateFmt, schema.PublishedDate)
-			if err != nil {
-				return fmt.Errorf("parse published_date: %w", err)
-			}
+			schema := vuln.Schema()
 
 			meta := fleet.CVEMeta{
 				CVE:       cve,
-				CVSSScore: &baseScore,
-				Published: &published,
 			}
+
+			if schema.Impact.BaseMetricV3 != nil {
+				meta.CVSSScore = &schema.Impact.BaseMetricV3.CVSSV3.BaseScore
+			}
+
+			if published, err := time.Parse(publishedDateFmt, schema.PublishedDate); err == nil {
+				meta.Published = &published
+			}
+
 			metaMap[cve] = meta
 		}
 	}
