@@ -232,6 +232,9 @@
                 width: 0;
               }
               .vulnerabilities__cell {
+                span {
+                  display: inline;
+                }
                 .text-muted {
                   color: $ui-fleet-black-50;
                 }

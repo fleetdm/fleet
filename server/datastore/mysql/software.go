@@ -415,6 +415,7 @@ func selectSoftwareSQL(opts fleet.SoftwareListOptions) (string, []interface{}, e
 			"s.arch",
 			"scv.cpe_id", // for join on sub query
 			goqu.COALESCE(goqu.I("scp.cpe"), "").As("generated_cpe"),
+			goqu.COALESCE(goqu.I("scp.id"), 0).As("generated_cpe_id"),
 		).
 		Join( // filter software that is not associated with any hosts
 			goqu.I("host_software").As("hs"),
@@ -515,6 +516,7 @@ func selectSoftwareSQL(opts fleet.SoftwareListOptions) (string, []interface{}, e
 		"s.id",
 		"scv.cpe_id",
 		"generated_cpe",
+		"generated_cpe_id",
 	)
 
 	// Pagination is a bit more complex here due to left join with software_cve table and aggregated columns from cve_meta table.
@@ -533,7 +535,7 @@ func selectSoftwareSQL(opts fleet.SoftwareListOptions) (string, []interface{}, e
 			"s.vendor",
 			"s.arch",
 			"s.generated_cpe",
-			// omit s.cpe_id
+			"s.generated_cpe_id",
 			"scv.cve",
 		).
 		LeftJoin(
@@ -660,44 +662,33 @@ func addCPEForSoftwareDB(ctx context.Context, exec sqlx.ExecerContext, software 
 	return uint(id), nil
 }
 
-func (ds *Datastore) AllCPEs(ctx context.Context) ([]string, error) {
-	sql := `SELECT cpe FROM software_cpe`
-	var cpes []string
-	err := sqlx.SelectContext(ctx, ds.reader, &cpes, sql)
+func (ds *Datastore) ListSoftwareCPEs(ctx context.Context, excludedPlatforms []string) ([]fleet.SoftwareCPE, error) {
+	var result []fleet.SoftwareCPE
+
+	var err error
+	var args []interface{}
+
+	stmt := `SELECT id, software_id, cpe FROM software_cpe`
+
+	if excludedPlatforms != nil {
+		stmt += ` WHERE software_id NOT IN (
+			SELECT software_id
+			FROM host_software hs
+			INNER JOIN hosts h on hs.host_id = h.id
+			WHERE h.platform IN (?)
+		)`
+
+		stmt, args, err = sqlx.In(stmt, excludedPlatforms)
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "loads cpes")
+		}
+	}
+	err = sqlx.SelectContext(ctx, ds.reader, &result, stmt, args...)
+
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "loads cpes")
 	}
-	return cpes, nil
-}
-
-// InsertCVEForCPE inserts the cve into software_cve, linking it to all the
-// provided cpes. It returns the number of new rows inserted or an error. If
-// the CVE already existed for all CPEs, it would return 0, nil.
-func (ds *Datastore) InsertCVEForCPE(ctx context.Context, cve string, cpes []string) (int64, error) {
-	var totalCount int64
-	for _, cpe := range cpes {
-		var ids []uint
-		err := sqlx.Select(ds.writer, &ids, `SELECT id FROM software_cpe WHERE cpe = ?`, cpe)
-		if err != nil {
-			return 0, err
-		}
-
-		values := strings.TrimSuffix(strings.Repeat("(?,?),", len(ids)), ",")
-		sql := fmt.Sprintf(`INSERT IGNORE INTO software_cve (cpe_id, cve) VALUES %s`, values)
-
-		var args []interface{}
-		for _, id := range ids {
-			args = append(args, id, cve)
-		}
-		res, err := ds.writer.ExecContext(ctx, sql, args...)
-		if err != nil {
-			return 0, ctxerr.Wrap(ctx, err, "insert software cve")
-		}
-		count, _ := res.RowsAffected()
-		totalCount += count
-	}
-
-	return totalCount, nil
+	return result, nil
 }
 
 func (ds *Datastore) ListSoftware(ctx context.Context, opt fleet.SoftwareListOptions) ([]fleet.Software, error) {
@@ -979,12 +970,11 @@ func (ds *Datastore) CalculateHostsPerSoftware(ctx context.Context, updatedAt ti
 	return nil
 }
 
-// HostsByCPEs returns a list of all hosts that have the software corresponding
-// to at least one of the CPEs installed. It returns a minimal represention of
-// matching hosts.
-func (ds *Datastore) HostsByCPEs(ctx context.Context, cpes []string) ([]*fleet.HostShort, error) {
+// HostsBySoftwareIDs returns a list of all hosts that have at least one of the specified Software
+// installed. It returns a minimal represention of matching hosts.
+func (ds *Datastore) HostsBySoftwareIDs(ctx context.Context, softwareIDs []uint) ([]*fleet.HostShort, error) {
 	queryStmt := `
-    SELECT DISTINCT
+    SELECT 
       h.id,
       h.hostname
     FROM
@@ -993,22 +983,18 @@ func (ds *Datastore) HostsByCPEs(ctx context.Context, cpes []string) ([]*fleet.H
       host_software hs
     ON
       h.id = hs.host_id
-    INNER JOIN
-      software_cpe scp
-    ON
-      hs.software_id = scp.software_id
     WHERE
-      scp.cpe IN (?)
+      hs.software_id IN (?)
+	GROUP BY h.id, h.hostname
     ORDER BY
       h.id`
 
-	stmt, args, err := sqlx.In(queryStmt, cpes)
+	stmt, args, err := sqlx.In(queryStmt, softwareIDs)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "building query args")
 	}
 	var hosts []*fleet.HostShort
 	if err := sqlx.SelectContext(ctx, ds.reader, &hosts, stmt, args...); err != nil {
-
 		return nil, ctxerr.Wrap(ctx, err, "select hosts by cpes")
 	}
 	return hosts, nil
@@ -1071,4 +1057,148 @@ ON DUPLICATE KEY UPDATE
 	}
 
 	return nil
+}
+
+func (ds *Datastore) InsertVulnerabilities(
+	ctx context.Context,
+	vulns []fleet.SoftwareVulnerability,
+	source fleet.VulnerabilitySource,
+) (int64, error) {
+	var args []interface{}
+
+	if len(vulns) == 0 {
+		return 0, nil
+	}
+
+	values := strings.TrimSuffix(strings.Repeat("(?,?,?),", len(vulns)), ",")
+	sql := fmt.Sprintf(`INSERT IGNORE INTO software_cve (cpe_id, cve, source) VALUES %s`, values)
+
+	for _, v := range vulns {
+		args = append(args, v.CPEID, v.CVE, source)
+	}
+	res, err := ds.writer.ExecContext(ctx, sql, args...)
+	if err != nil {
+		return 0, ctxerr.Wrap(ctx, err, "insert software vulnerabilities")
+	}
+	count, _ := res.RowsAffected()
+
+	return count, nil
+}
+
+func (ds *Datastore) ListSoftwareVulnerabilities(
+	ctx context.Context,
+	hostIDs []uint,
+) (map[uint][]fleet.SoftwareVulnerability, error) {
+	result := make(map[uint][]fleet.SoftwareVulnerability)
+
+	type softwareVulnerabilityWithHostId struct {
+		fleet.SoftwareVulnerability
+		HostId uint `db:"host_id"`
+	}
+	var queryR []softwareVulnerabilityWithHostId
+
+	stmt := dialect.
+		From(goqu.T("software_cve").As("cve")).
+		Join(
+			goqu.T("software_cpe").As("cpe"),
+			goqu.On(goqu.Ex{
+				"cve.cpe_id": goqu.I("cpe.id"),
+			}),
+		).
+		Join(
+			goqu.T("host_software").As("hs"),
+			goqu.On(goqu.Ex{
+				"cpe.software_id": goqu.I("hs.software_id"),
+			}),
+		).
+		Select(
+			goqu.I("hs.host_id").As("host_id"),
+			goqu.I("cpe.software_id"),
+			goqu.C("cpe_id"),
+			goqu.C("cve"),
+		).
+		Where(goqu.C("host_id").In(hostIDs))
+
+	sql, args, err := stmt.ToSQL()
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "error generating SQL statement")
+	}
+
+	if err := sqlx.SelectContext(ctx, ds.reader, &queryR, sql, args...); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "error executing SQL statement")
+	}
+
+	for _, r := range queryR {
+		result[r.HostId] = append(result[r.HostId], r.SoftwareVulnerability)
+	}
+
+	return result, nil
+}
+
+func (ds *Datastore) ListSoftwareForVulnDetection(
+	ctx context.Context,
+	hostID uint,
+) ([]fleet.Software, error) {
+	var result []fleet.Software
+
+	stmt := dialect.
+		From(goqu.T("software").As("s")).
+		Join(
+			goqu.T("software_cpe").As("cpe"),
+			goqu.On(goqu.Ex{
+				"s.id": goqu.I("cpe.software_id"),
+			}),
+		).
+		Join(
+			goqu.T("host_software").As("hs"),
+			goqu.On(goqu.Ex{
+				"s.id": goqu.I("hs.software_id"),
+			}),
+		).
+		Select(
+			goqu.I("s.id"),
+			goqu.I("s.name"),
+			goqu.I("s.version"),
+			goqu.I("cpe.cpe").As("generated_cpe"),
+			goqu.I("cpe.id").As("generated_cpe_id"),
+		).
+		Where(goqu.C("host_id").Eq(hostID))
+
+	sql, args, err := stmt.ToSQL()
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "error generating SQL statement")
+	}
+
+	if err := sqlx.SelectContext(ctx, ds.reader, &result, sql, args...); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "error executing SQL statement")
+	}
+
+	return result, nil
+}
+
+// ListCVEs returns all cve_meta rows published after 'maxAge'
+func (ds *Datastore) ListCVEs(ctx context.Context, maxAge time.Duration) ([]fleet.CVEMeta, error) {
+	var result []fleet.CVEMeta
+
+	maxAgeDate := time.Now().Add(-1 * maxAge)
+	stmt := dialect.From(goqu.T("cve_meta")).
+		Select(
+			goqu.C("cve"),
+			goqu.C("cvss_score"),
+			goqu.C("epss_probability"),
+			goqu.C("cisa_known_exploit"),
+			goqu.C("published"),
+		).
+		Where(goqu.C("published").Gte(maxAgeDate))
+
+	sql, args, err := stmt.ToSQL()
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "error generating SQL statement")
+	}
+
+	if err := sqlx.SelectContext(ctx, ds.reader, &result, sql, args...); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "error executing SQL statement")
+	}
+
+	return result, nil
 }
