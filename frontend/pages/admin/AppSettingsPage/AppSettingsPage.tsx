@@ -1,4 +1,5 @@
 import React, { useCallback, useContext, useState, useEffect } from "react";
+import { useErrorHandler } from "react-error-boundary";
 import { useQuery } from "react-query";
 import { Params } from "react-router/lib/Router";
 import { Link } from "react-router";
@@ -19,6 +20,7 @@ import AgentOptions from "./cards/Agents";
 import HostStatusWebhook from "./cards/HostStatusWebhook";
 import Statistics from "./cards/Statistics";
 import Advanced from "./cards/Advanced";
+import FleetDesktop from "./cards/FleetDesktop";
 
 interface IAppSettingsPageProps {
   params: Params;
@@ -29,8 +31,10 @@ export const baseClass = "app-settings";
 const AppSettingsPage = ({
   params: { section: sectionTitle },
 }: IAppSettingsPageProps): JSX.Element => {
+  const { isFreeTier, isPremiumTier, setConfig } = useContext(AppContext);
   const { renderFlash } = useContext(NotificationContext);
-  const { setConfig } = useContext(AppContext);
+
+  const handlePageError = useErrorHandler();
 
   const [activeSection, setActiveSection] = useState<string>("info");
 
@@ -50,7 +54,7 @@ const AppSettingsPage = ({
   };
 
   const onFormSubmit = useCallback(
-    (formData: IConfig) => {
+    (formData: Partial<IConfig>) => {
       if (!appConfig) {
         return false;
       }
@@ -87,10 +91,13 @@ const AppSettingsPage = ({
   );
 
   useEffect(() => {
+    if (isFreeTier && sectionTitle === "fleet-desktop") {
+      handlePageError({ status: 403 });
+    }
     if (sectionTitle) {
       setActiveSection(sectionTitle);
     }
-  }, [sectionTitle]);
+  }, [isFreeTier, sectionTitle]);
 
   const renderSection = () => {
     if (!isLoading && appConfig) {
@@ -122,6 +129,13 @@ const AppSettingsPage = ({
           )}
           {activeSection === "advanced" && (
             <Advanced appConfig={appConfig} handleSubmit={onFormSubmit} />
+          )}
+          {isPremiumTier && activeSection === "fleet-desktop" && (
+            <FleetDesktop
+              appConfig={appConfig}
+              isPremiumTier={isPremiumTier}
+              handleSubmit={onFormSubmit}
+            />
           )}
         </>
       );
@@ -218,6 +232,18 @@ const AppSettingsPage = ({
                   Advanced options
                 </Link>
               </li>
+              {isPremiumTier && (
+                <li>
+                  <Link
+                    className={`${baseClass}__nav-link ${isNavItemActive(
+                      "fleet-desktop"
+                    )}`}
+                    to={PATHS.ADMIN_SETTINGS_FLEET_DESKTOP}
+                  >
+                    Fleet Desktop
+                  </Link>
+                </li>
+              )}
             </ul>
           </nav>
           {renderSection()}
