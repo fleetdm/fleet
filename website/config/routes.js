@@ -174,7 +174,8 @@ module.exports.routes = {
     action: 'reports/view-state-of-device-management',
     locals: {
       pageTitleForMeta: 'State of device management | Fleet for osquery',
-      pageDescriptionForMeta: '',
+      pageDescriptionForMeta: 'What is device management like in 2022? We asked 200+ security practioners to find out',
+      headerCTAHidden: true,
     }
   },
 
