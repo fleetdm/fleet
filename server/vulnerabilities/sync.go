@@ -14,6 +14,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/go-kit/kit/log/level"
+	"github.com/go-kit/kit/log"
 	"github.com/facebookincubator/nvdtools/cvefeed"
 	feednvd "github.com/facebookincubator/nvdtools/cvefeed/nvd"
 	"github.com/fleetdm/fleet/v4/pkg/download"
@@ -161,7 +163,7 @@ func DownloadCISAKnownExploitsFeed(vulnPath string, client *http.Client) error {
 
 // LoadCVEMeta loads the cvss scores, epss scores, and known exploits from the previously downloaded feeds and saves
 // them to the database.
-func LoadCVEMeta(vulnPath string, ds fleet.Datastore) error {
+func LoadCVEMeta(logger log.Logger, vulnPath string, ds fleet.Datastore) error {
 	// load cvss scores
 	files, err := getNVDCVEFeedFiles(vulnPath)
 	if err != nil {
@@ -181,6 +183,7 @@ func LoadCVEMeta(vulnPath string, ds fleet.Datastore) error {
 		for cve := range dict {
 			vuln, ok := dict[cve].(*feednvd.Vuln)
 			if !ok {
+				level.Error(logger).Log("msg", "unexpected type for Vuln interface", "cve", cve, "type", fmt.Sprintf("%T", dict[cve]))
 				continue
 			}
 			schema := vuln.Schema()
@@ -193,7 +196,9 @@ func LoadCVEMeta(vulnPath string, ds fleet.Datastore) error {
 				meta.CVSSScore = &schema.Impact.BaseMetricV3.CVSSV3.BaseScore
 			}
 
-			if published, err := time.Parse(publishedDateFmt, schema.PublishedDate); err == nil {
+			if published, err := time.Parse(publishedDateFmt, schema.PublishedDate); err != nil {
+				level.Error(logger). Log("msg", "failed to parse published data", "cve", cve, "published_date", schema.PublishedDate, "err", err)
+			} else {
 				meta.Published = &published
 			}
 

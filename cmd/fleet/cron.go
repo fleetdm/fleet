@@ -308,7 +308,7 @@ func checkVulnerabilities(
 		}
 	}
 
-	if err := vulnerabilities.LoadCVEMeta(vulnPath, ds); err != nil {
+	if err := vulnerabilities.LoadCVEMeta(logger, vulnPath, ds); err != nil {
 		err = fmt.Errorf("load cve meta: %w", err)
 		level.Error(logger).Log("err", err)
 		sentry.CaptureException(err)
