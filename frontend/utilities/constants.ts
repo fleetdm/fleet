@@ -156,7 +156,7 @@ export const DEFAULT_POLICIES = [
     name: "Screen lock enabled via MDM profile (macOS)",
     description: "Checks that a MDM profile configures the screen lock",
     resolution:
-      "Ensure your computer is enrolled to MDM. If it is, contact your administrator and ensure a profile is deployed that will enable the screen lock feature on your Mac.",
+      "Contact your IT administrator to help you enroll your computer in your organization's MDM. If already enrolled, ask your IT administrator to enable the screen lock feature in the profile configuration.",
     platform: "darwin",
   },
 ] as IPolicyNew[];

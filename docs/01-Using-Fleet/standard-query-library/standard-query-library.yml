@@ -707,7 +707,7 @@ spec:
   name: Screen lock enabled via MDM profile (macOS)
   query: SELECT 1 FROM managed_policies WHERE name='askForPassword' AND value='1';
   description: "Checks that a MDM profile configures the screen lock."
-  resolution: "Ensure your computer is enrolled to MDM. If it is, contact your administrator and ensure a profile is deployed that will enable the screen lock feature on your Mac."
+  resolution: "Contact your IT administrator to help you enroll your computer in your organization's MDM. If already enrolled, ask your IT administrator to enable the screen lock feature in the profile configuration."
   platforms: macOS
   tags: compliance, hardening, built-in
   platform: darwin
