@@ -26,9 +26,9 @@ request in step 1 and also due to periodic `config` requests), but the "Last fet
 "detail_updated_at") is the time it last executed a successful `distributed/write`.
 
 We would like Fleet to:
-    1. *detect* such problematic queries and show them to the user/admin.
-    2. *automatic troubleshooting* to allow the other non-problematic queries to eventually run on
-    the host and shed some light on the problematic queries.
+1. *detect* such problematic queries and show them to the user/admin.
+2. *automatic troubleshooting* to allow the other non-problematic queries to eventually run on
+the host and shed some light on the problematic queries.
 
 We've also seen the following scenario (B) on some hosts/deployments:
 
@@ -90,27 +90,56 @@ What we call "Host Vitals" in Fleet could be split into two groups of queries:
 	
 ### Algorithm
 
-- The algorithm will assume the detail queries (first group) will never have any performance issues.
-Therefore we use them as the proof that `distributed/write` succeeded (by reading and updating
+- The algorithm will assume the detail queries (first group shown above) will never have any performance issues.
+Therefore we use them as the proof that a `distributed/write` request succeeded (by reading and updating
 `host.details_updated_at`).
-- The algorithm runs in the `distributed/read` and `distributed/write` requests (and we cannot assume that the server that processes the read request will be the same that processes the write request).
-- To not generate more load we will have a new column in `hosts` called something like `trouble_queries`.
-Given that we load the host by selecting `hosts` on every request, this should cause no extra performance penalty on every request).
-Alternatively we could use Redis to store such state, but it would add a Redis read request on every `distributed/read` request.
-- We need to use and store the hashes of the queries because queries can change and new queries be
-  added in between read and write requests (e.g. policy queries are editable by users and new ones
-  can be assigned to hosts).
+- The algorithm runs in the `distributed/read` and `distributed/write` requests
+(and we cannot assume that the server that processes the read request will be the same that
+processes the write request).
+- The algorithm sends a "trouble query" as a "request stamp" in the `distributed/read`.
+This way Fleet can tie the queries sent in the `distributed/read` to the results received in the
+`distributed/write`. (Such stamp contains the hash of the queries.)
+- State storage for each host with issues:
+	- To not generate more load we can define a new column in `hosts` called something like
+	`trouble_queries`. Given that we load the host by selecting `hosts` on every request, this
+	should cause no extra performance penalty on every request).
+	- Alternatively, we could use Redis to store such state, but it would add a Redis read request
+	on every `distributed/read` request (NOTE: we are already doing a Redis request on the
+	`distributed/read`, for retrieving live queries).
+- We need to use and store the hashes of the queries because queries can change and new queries can be
+added in between read and write requests (e.g. policy queries are editable by users and new ones
+can be assigned to hosts).
 - The algorithm performs a sort of binary search of the problematic query. TODO(lucas): Determine
-  how to support more than one query being problematic. With algorithm shown below, Fleet will ping pong between two
-  halfs if those halfs have each a problematic query.
+how to support more than one query being problematic. With algorithm shown below, Fleet will ping pong between two
+halfs if both have a problematic query.
 - The added performance penalty of the algorithm is in `distributed/read`, there's now an extra
-  write to `hosts` table (only on hosts with issues).
+write to `hosts` table (only on hosts with issues).
 
-#### `distributed/read`
+Following is the rough/untested pseudo-code for the `distributed/read` and `distributed/write` to
+implement the binary search. The algorithm keeps a JSON marshalled `TroubleQueriesState` for each problematic host in the `hosts` table.
 	
+#### `distributed/read`
+
 ```go
+type TroubleQueriesState struct {
+	BatchIndex int
+	BatchSize  int
+	// Queries holds the suspicious queries (currently in search for culprits).
+	Queries    []QueryWithHash
+	// Denylisted holds the queries that have been confirmed to cause issues in the host.
+	Denylisted []QueryWithHash
+}
+
+type QueryWithHash struct {
+	Query string
+	Hash  string
+}
+
 func determineQueriesToSend(host *fleet.Host, queriesToSend map[string]string) map[string]string {
 	hostNotResponding := svc.detectHostNotResponding(host)
+
+	// TODO(lucas): Check host.TroubleQueries.Denylisted, and not include these in the response.
+
 	switch {
 
 	case !hostNotResponding && host.TroubleQueries == "":
@@ -130,16 +159,21 @@ func determineQueriesToSend(host *fleet.Host, queriesToSend map[string]string) m
 		// We assume hostDetailQueries never have performance issues.
 		nonDetailQueries := excludeQueries(queriesToSend, hostDetailQueries)
 		
-		host.TroubleQueries = nonDetailQueries // mark all to be sent as "trouble queries"
+		queriesWithHash := withHash(nonDetailQueries)
+		host.TroubleQueries = TroubleQueriesState{
+			BatchIndex: 0,
+			BatchSize: len(queriesToSend)/2,
+			Queries: queriesWithHash,
+		}
 		svc.ds.UpdateHost(ctx, host)
 
-		queriesToSend := excludeQueries(queriesToSend, host.TroubleQueries)
-		troubleQueries := host.TroubleQueries[0:len(queriesToSend)/2]
+		queriesToSend := excludeQueries(queriesToSend, host.TroubleQueries.Queries)
+		troubleQueries := nonDetailQueries[0:len(queriesToSend)/2]
 		addQueries(queriesToSend, troubleQueries) // send first half of trouble queries
 		
 		// generateTroubleQuery generates a string of the form: SELECT "q0:hash(q0),q1:hash(q1),..."
 		// which serves as an indicator of the sent queries on distributed/write.
-		queriesToSend["trouble_queries"] = generateTroubleQuery(troubleQueries)
+		queriesToSend["trouble_queries"] = generateTroubleQuery(queriesWithHash[0:len(queriesWithHash/2)])
 		return queriesToSend
 
 	case !hostNotResponding && host.TroubleQueries != "":
@@ -148,8 +182,11 @@ func determineQueriesToSend(host *fleet.Host, queriesToSend map[string]string) m
 		// This means the host is in "troubleshooting mode" but it has responded to some queries.
 		//
 	
-		queriesToSend := excludeQueries(queriesToSend, host.TroubleQueries)
-		troubleQueries := host.TroubleQueries[0:len(host.TroubleQueries/2)] // send first half of trouble queries
+		queriesToSend := excludeQueries(queriesToSend, host.TroubleQueries.Queries)
+		troubleQueries := queriesToSend[
+			host.TroubleQueries.BatchSize*host.TroubleQueries.BatchIndex:
+			host.TroubleQueries.BatchSize*host.TroubleQueries.BatchIndex+1,
+		]
 		addQueries(queriesToSend, troubleQueries)
 		
 		// generateTroubleQuery generates a string of the form: SELECT "q0:hash(q0),q1:hash(q1),..."
@@ -162,6 +199,15 @@ func determineQueriesToSend(host *fleet.Host, queriesToSend map[string]string) m
 		//
 		// This means the host is in "troubleshooting mode" and hasn't responded to first half of trouble queries.
 		//
+		if host.TroubleQueries.BatchIndex == 0 && host.TroubleQueries.BatchSize == 0 {
+			// We've found a query that kills the host, thus we move it from host.TroubleQueries.Queries to host.TroubleQueries.Denylisted
+			foundOneTroubleQuery(host)
+			host.TroubleQueries.BatchSize = len(host.TroubleQueries.Queries)/2
+		} else {
+			host.TroubleQueries.BatchIndex = 0
+			host.TroubleQueries.BatchSize -= 1
+		}
+		svc.ds.UpdateHost(ctx, host)
 		
 		queriesToSend := excludeQueries(queriesToSend, host.TroubleQueries)
 		troubleQueries := host.TroubleQueries[len(host.TroubleQueries)/2: len(host.TroubleQueries)] // send second half of trouble queries
@@ -183,13 +229,10 @@ func updateTroubleHost(host *fleet.Host, results fleet.OsqueryDistributedQueryRe
 	if !ok {
 		return false // nothing to do
 	}
-	return removeTroubleQueries(host, troubleQueryResults)
-}
-
-func removeTroubleQueries(host *fleet.Host, troubleQueryResults []map[string]string) bool {
-	//
-	// Remove queries present in host.TroubleQueries that are in troubleQueryResults (where hashes match)
-	//
+	// Remove queries that are confirmed to be working and update batch index and size.
+	host.TroubleQueries = host.TroubleQueries[(host.TroubleQueries.BatchIndex+1)*host.TroubleQueries.BatchSize:]
+	host.TroubleQueries.BatchIndex = 0
+	host.TroubleQueries.BatchSize /= 2
 }
 
 //
