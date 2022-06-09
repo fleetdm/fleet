@@ -27,7 +27,7 @@ const FleetDesktop = ({
     Pick<IConfigFormData, "transparency_url">
   >({
     transparency_url:
-      appConfig.fleet_desktop.transparency_url || DEFAULT_TRANSPARENCY_URL,
+      appConfig.fleet_desktop?.transparency_url || DEFAULT_TRANSPARENCY_URL,
   });
 
   const [formErrors, setFormErrors] = useState<IAppConfigFormErrors>({});

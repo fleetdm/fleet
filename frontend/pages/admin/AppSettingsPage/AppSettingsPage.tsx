@@ -222,16 +222,6 @@ const AppSettingsPage = ({
                   Usage statistics
                 </Link>
               </li>
-              <li>
-                <Link
-                  className={`${baseClass}__nav-link ${isNavItemActive(
-                    "advanced"
-                  )}`}
-                  to={PATHS.ADMIN_SETTINGS_ADVANCED}
-                >
-                  Advanced options
-                </Link>
-              </li>
               {isPremiumTier && (
                 <li>
                   <Link
@@ -244,6 +234,16 @@ const AppSettingsPage = ({
                   </Link>
                 </li>
               )}
+              <li>
+                <Link
+                  className={`${baseClass}__nav-link ${isNavItemActive(
+                    "advanced"
+                  )}`}
+                  to={PATHS.ADMIN_SETTINGS_ADVANCED}
+                >
+                  Advanced options
+                </Link>
+              </li>
             </ul>
           </nav>
           {renderSection()}

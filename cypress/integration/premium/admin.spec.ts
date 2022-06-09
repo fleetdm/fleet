@@ -682,6 +682,19 @@ describe("Premium tier - Global Admin user", () => {
         cy.findByLabelText(/password/i).should("exist");
       });
     });
+    it("allows access to Fleet Desktop settings", () => {
+      cy.visit("settings/organization");
+      cy.getAttached(".app-settings__form-nav-list").within(() => {
+        cy.findByText(/organization info/i).should("exist");
+        cy.findByText(/fleet desktop/i)
+          .should("exist")
+          .click();
+      });
+      cy.getAttached("[id=transparency_url").click().type("foo");
+      cy.findByRole("button", { name: /save/i }).click();
+      cy.findByText(/successfully updated/i).should("exist");
+      cy.visit("settings/organization/fleet-desktop");
+    });
   });
   describe("User profile page", () => {
     it("renders elements according to role-based access controls", () => {

@@ -696,6 +696,14 @@ describe(
         cy.loginWithCySession("anna@organization.com", GOOD_PASSWORD);
         cy.visit("/settings/users");
       });
+      it("hides access to Fleet Desktop settings", () => {
+        cy.visit("settings/organization");
+        cy.getAttached(".app-settings__form-nav-list").within(() => {
+          cy.findByText(/organization info/i).should("exist");
+          cy.findByText(/fleet desktop/i).should("not.exist");
+        });
+        cy.visit("settings/organization/fleet-desktop");
+      });
       it("hides access team settings", () => {
         cy.findByText(/teams/i).should("not.exist");
       });
