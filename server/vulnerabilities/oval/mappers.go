@@ -9,18 +9,23 @@ import (
 	oval_parsed "github.com/fleetdm/fleet/v4/server/vulnerabilities/oval/parsed"
 )
 
-// Discards the Namespace part of an OVAL id attr,
-// returning only the last numeric portion
+// extractId discards the Namespace part of an OVAL id attr, returning only the last numeric portion.
 func extractId(idStr string) (int, error) {
 	idParts := strings.Split(idStr, ":")
 	return strconv.Atoi(idParts[len(idParts)-1])
 }
 
+// mapDefinition maps a DefinitionXML into a Definition will error out if the definition contains
+// no Vulnerabilities.
 func mapDefinition(i oval_input.DefinitionXML) (*oval_parsed.Definition, error) {
+	if len(i.Vulnerabilities) == 0 {
+		return nil, fmt.Errorf("definition contains no vulnerabilities")
+	}
+
 	r := oval_parsed.Definition{}
 
-	for _, cve := range i.CVEs {
-		r.Vulnerabilities = append(r.Vulnerabilities, cve.Id)
+	for _, vuln := range i.Vulnerabilities {
+		r.Vulnerabilities = append(r.Vulnerabilities, vuln.Id)
 	}
 
 	c, err := mapCriteria(i.Criteria)
@@ -32,7 +37,13 @@ func mapDefinition(i oval_input.DefinitionXML) (*oval_parsed.Definition, error) 
 	return &r, nil
 }
 
+// mapCriteria maps a CriteriaXML into a Criteria, will error out if any Criterion is missing its id
+// or if any of the Criteriums is empty.
 func mapCriteria(i oval_input.CriteriaXML) (*oval_parsed.Criteria, error) {
+	if len(i.Criteriums) == 0 {
+		return nil, fmt.Errorf("invalid Criteria, Criteriums missing")
+	}
+
 	criteria := oval_parsed.Criteria{
 		Operator: oval_parsed.NewOperatorType(i.Operator).Negate(i.Negate),
 	}
@@ -56,7 +67,8 @@ func mapCriteria(i oval_input.CriteriaXML) (*oval_parsed.Criteria, error) {
 	return &criteria, nil
 }
 
-func mapPackageTest(i oval_input.DpkgInfoTestXML) (int, *oval_parsed.DpkgInfoTest, error) {
+// mapDpkgInfoTest maps a DpkgInfoTestXML returning the test id along side the mapped DpkgInfoTest
+func mapDpkgInfoTest(i oval_input.DpkgInfoTestXML) (int, *oval_parsed.DpkgInfoTest, error) {
 	id, err := extractId(i.Id)
 	if err != nil {
 		return 0, nil, err
@@ -71,35 +83,41 @@ func mapPackageTest(i oval_input.DpkgInfoTestXML) (int, *oval_parsed.DpkgInfoTes
 	return id, &tst, nil
 }
 
-func mapPackageState(sta oval_input.DpkgInfoStateXML) ([]oval_parsed.ObjectStateEvrString, error) {
-	var r []oval_parsed.ObjectStateEvrString
-
+// mapDpkgInfoState maps a DpkgInfoStateXML into an EVR string. The state of an object defines
+// the different information that can be used to evaluate the specified DPKG package. All Ubuntu
+// OVAL definitions seem to only use Evr strings to define object state, that's why only Evr support
+// was added at the moment. Adding support for `Name`, `Epoch` and `Version` should be trivial - in
+// the case of `Arch`, it should be straightforward as well as long as the information we have in the
+// `software` table is accurate. This will error out if object state is defined using anything else
+// than an `Evr` string.
+func mapDpkgInfoState(sta oval_input.DpkgInfoStateXML) (*oval_parsed.ObjectStateEvrString, error) {
 	if sta.Name != nil ||
 		sta.Arch != nil ||
 		sta.Epoch != nil ||
-		sta.Version != nil {
+		sta.Version != nil ||
+		sta.Evr == nil {
 		return nil, fmt.Errorf("only evr state definitions are supported")
 	}
 
-	if sta.Evr != nil {
-		r = append(r, oval_parsed.NewObjectState(sta.Evr.Op, sta.Evr.Value))
-	}
-
-	return r, nil
+	r := oval_parsed.NewObjectState(sta.Evr.Op, sta.Evr.Value)
+	return &r, nil
 }
 
-func mapPackageObject(obj oval_input.DpkgInfoObjectXML, vars map[string]oval_input.ConstantVariableXML) ([]string, error) {
-	// Test objects can define their 'name' in one of two ways:
-	// 1. Inline:
-	// <:object ...>
-	//      <:name>software name</:name>
-	// </:object>
-	//
-	// 2. As a variable reference:
-	// <:object ...>
-	// 		<:name var_ref="var:200224390000000" var_check="at least one" />
-	// </:object>
-
+// mapDpkgInfoObject maps a DpkgInfoObjectXML into one or more object names.
+// Test objects can define their 'name' in one of two ways:
+// 1. Inline:
+// <:object ...>
+//      <:name>software name</:name>
+// </:object>
+//
+// 2. As a variable reference:
+// <:object ...>
+// 		<:name var_ref="var:200224390000000" var_check="at least one" />
+// </:object>
+func mapDpkgInfoObject(
+	obj oval_input.DpkgInfoObjectXML,
+	vars map[string]oval_input.ConstantVariableXML,
+) ([]string, error) {
 	// Check whether the name was defined inline
 	if obj.Name.Value != "" {
 		return []string{obj.Name.Value}, nil
@@ -112,8 +130,8 @@ func mapPackageObject(obj oval_input.DpkgInfoObjectXML, vars map[string]oval_inp
 		return nil, fmt.Errorf("variable not found %s", obj.Name.VarRef)
 	}
 
-	// Normally the variable for a test object contains a single value, but according to the specs,
-	// it can contain multiple values.
+	// Normally the variable for a test object contains a single value but, according to the specs,
+	// it can contain multiple values
 	r = append(r, variable.Values...)
 
 	return r, nil

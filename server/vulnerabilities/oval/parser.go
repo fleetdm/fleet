@@ -108,7 +108,6 @@ func parseUbuntuXML(reader io.Reader) (*oval_input.UbuntuResultXML, error) {
 				}
 				r.Definitions = append(r.Definitions, def)
 			}
-
 			if t.Name.Local == "dpkginfo_test" {
 				tst := oval_input.DpkgInfoTestXML{}
 				if err = d.DecodeElement(&tst, &t); err != nil {
@@ -129,7 +128,6 @@ func parseUbuntuXML(reader io.Reader) (*oval_input.UbuntuResultXML, error) {
 					return nil, err
 				}
 				r.PackageObjects = append(r.PackageObjects, obj)
-
 			}
 			if t.Name.Local == "constant_variable" {
 				cVar := oval_input.ConstantVariableXML{}
@@ -149,7 +147,7 @@ func mapToUbuntuResult(xmlResult *oval_input.UbuntuResultXML) (*oval_parsed.Ubun
 	objToTst := make(map[string][]int)
 
 	for _, d := range xmlResult.Definitions {
-		if len(d.CVEs) > 0 {
+		if len(d.Vulnerabilities) > 0 {
 			def, err := mapDefinition(d)
 			if err != nil {
 				return nil, err
@@ -159,7 +157,7 @@ func mapToUbuntuResult(xmlResult *oval_input.UbuntuResultXML) (*oval_parsed.Ubun
 	}
 
 	for _, t := range xmlResult.PackageTests {
-		id, tst, err := mapPackageTest(t)
+		id, tst, err := mapDpkgInfoTest(t)
 		if err != nil {
 			return nil, err
 		}
@@ -168,12 +166,11 @@ func mapToUbuntuResult(xmlResult *oval_input.UbuntuResultXML) (*oval_parsed.Ubun
 		for _, sta := range t.States {
 			staToTst[sta.Id] = append(staToTst[sta.Id], id)
 		}
-
 		r.AddPackageTest(id, tst)
 	}
 
 	for _, o := range xmlResult.PackageObjects {
-		obj, err := mapPackageObject(o, xmlResult.Variables)
+		obj, err := mapDpkgInfoObject(o, xmlResult.Variables)
 		if err != nil {
 			return nil, err
 		}
@@ -189,15 +186,14 @@ func mapToUbuntuResult(xmlResult *oval_input.UbuntuResultXML) (*oval_parsed.Ubun
 	}
 
 	for _, s := range xmlResult.PackageStates {
-		sta, err := mapPackageState(s)
+		sta, err := mapDpkgInfoState(s)
 		if err != nil {
 			return nil, err
 		}
-
 		for _, tId := range staToTst[s.Id] {
 			t, ok := r.PackageTests[tId]
 			if ok {
-				t.States = sta
+				t.States = append(t.States, *sta)
 			} else {
 				return nil, fmt.Errorf("test not found: %d", tId)
 			}
