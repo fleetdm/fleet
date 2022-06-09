@@ -94,8 +94,7 @@ func mapPackageInfoTestObject(
 		return nil, fmt.Errorf("variable not found %s", obj.Name.VarRef)
 	}
 
-	// Normally the variable for a test object contains a single value but, according to the specs,
-	// it can contain multiple values
+	// If the name is defined using a variable, it can contain multiple values
 	r = append(r, variable.Values...)
 
 	return r, nil
