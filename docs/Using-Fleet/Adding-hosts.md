@@ -43,7 +43,7 @@ Also, remember to replace both `AC_USERNAME` and `AC_PASSWORD` environment varia
 How to install Fleet Desktop on your hosts:
 1. On the top bar in the Fleet UI, select **Hosts > Add hosts**.
 2. Select the **Include Fleet Desktop** checkbox.
-3. Select the clipboard icon to copy the `fleetctl package` command.
+3. Select the clipboard icon to copy the `fleetctl package` command. 
 4. In your terminal application, paste and run the copied command.
 
 When you install the generated osquery installer on a host, Fleet Desktop will be installed on this
@@ -222,7 +222,7 @@ If the existing enrolled hosts use `--host_identifier=uuid` (or the `uuid` setti
 [osquery_host_identifier](../Deploying/Configuration.md#osquery-host-identifier)), the new
 installation should appear as the same host in the Fleet UI. If other settings are used, duplicate
 entries will appear in the Fleet UI. The older entries can be automatically cleaned up with the host
-expiration functionality configured in the application settings (UI or fleetctl).
+expiration functionality configured in the application settings (UI or fleetctl). 
 
 ## Grant full disk access to osquery on macOS
 macOS does not allow applications to access all system files by default. If you are using MDM, which
@@ -262,7 +262,7 @@ Depending on your MDM, this might be possible in the UI or require a custom prof
 
 1. Configure the identifier type to “path.”
 2. Paste the full path to Orbit as the identifier.
-3. Paste the full code signing identifier into the code requirement field.
+3. Paste the full code signing identifier into the code requirement field. 
 4. Allow “Access all files.” Access to Downloads, Documents, etc., is inherited from this.
 
 If your MDM does not have built-in support for privacy preferences profiles, you can use
