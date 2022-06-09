@@ -94,8 +94,6 @@ const ManageAutomationsModal = ({
 }: IManageAutomationsModalProps): JSX.Element => {
   const {
     webhook_settings: { failing_policies_webhook: webhook },
-    // integrations: { jira, zendesk },
-    integrations,
   } = automationsConfig;
 
   const { jira, zendesk } = availableIntegrations || {};

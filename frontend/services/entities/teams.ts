@@ -1,29 +1,22 @@
 /* eslint-disable  @typescript-eslint/explicit-module-boundary-types */
 import sendRequest from "services";
 import endpoints from "utilities/endpoints";
+import { pick } from "lodash";
+
+import { IEnrollSecret } from "interfaces/enroll_secret";
 import {
   INewMembersBody,
   IRemoveMembersBody,
-  ITeam,
-  ITeamAutomationsConfig,
   ITeamConfig,
 } from "interfaces/team";
+
 import { ICreateTeamFormData } from "pages/admin/TeamManagementPage/components/CreateTeamModal/CreateTeamModal";
-import { IEnrollSecret } from "interfaces/enroll_secret";
 
 interface ITeamSearchOptions {
   page?: number;
   perPage?: number;
   globalFilter?: string;
 }
-
-/**
- * The request body expected for the "Modify team" endpoint.
- * See https://fleetdm.com/docs/using-fleet/rest-api#modify-team
- */
-type IModifyTeamRequest =
-  | Pick<ITeam, "name">
-  | Pick<ITeamAutomationsConfig, "webhook_settings">;
 
 /**
  * The response body expected for the "Get team" endpoint.
@@ -70,18 +63,38 @@ export default {
 
     return sendRequest("GET", path);
   },
-  update: (updateParams: IModifyTeamRequest, teamId?: number) => {
-    // we are grouping this update with the config api update function
-    // on the ManagePoliciesPage to streamline updating the
-    // webhook settings globally or for a team - see ManagePoliciesPage line 208
+  update: (
+    { name, webhook_settings, integrations }: Partial<ITeamConfig>,
+    teamId?: number
+  ): Promise<ITeamConfig> => {
     if (typeof teamId === "undefined") {
       return Promise.reject();
     }
 
     const { TEAMS } = endpoints;
     const path = `${TEAMS}/${teamId}`;
+    const requestBody: Record<string, unknown> = {};
+    if (name) {
+      requestBody.name = name;
+    }
+    if (webhook_settings) {
+      requestBody.webhook_settings = webhook_settings;
+    }
+    if (integrations) {
+      const { jira, zendesk } = integrations;
+      const teamIntegrationProps = [
+        "enable_failing_policies_webhook",
+        "group_id",
+        "project_key",
+        "url",
+      ];
+      requestBody.integrations = {
+        jira: jira?.map((j) => pick(j, teamIntegrationProps)),
+        zendesk: zendesk?.map((z) => pick(z, teamIntegrationProps)),
+      };
+    }
 
-    return sendRequest("PATCH", path, updateParams);
+    return sendRequest("PATCH", path, requestBody);
   },
   addMembers: (teamId: number, newMembers: INewMembersBody) => {
     const { TEAMS_MEMBERS } = endpoints;
