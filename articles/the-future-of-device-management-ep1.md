@@ -1,5 +1,5 @@
-# The Future of Device Management EP1
-## Mike Arpaia: The Story Behind the Creation of osquery
+# Future of device management
+## Ep 1: Mike Arpaia: the story behind the creation of osquery
 
 <iframe allow="autoplay *; encrypted-media *; fullscreen *; clipboard-write" frameborder="0" height="175" style="width:100%;max-width:800px;overflow:hidden;background:transparent;" sandbox="allow-forms allow-popups allow-same-origin allow-scripts allow-storage-access-by-user-activation allow-top-navigation-by-user-activation" src="https://embed.podcasts.apple.com/gb/podcast/ep-1-mike-arpaia-the-story-behind-the-creation-of-osquery/id1627079895?i=1000565001475"></iframe>
 
@@ -25,5 +25,5 @@ In today’s episode of the Future of Device Management podcast, we speak with [
 <meta name="authorGitHubUsername" value="zwass">
 <meta name="authorFullName" value="Zach Wasserman">
 <meta name="publishedOn" value="2022-06-06">
-<meta name="articleTitle" value="The Future of Device Management EP1">
+<meta name="articleTitle" value="Future of device management">
 <meta name="articleImageUrl" value="../website/assets/images/articles/future-of-device-management-ep1-1600x900@2x.jpg">

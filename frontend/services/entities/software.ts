@@ -23,6 +23,10 @@ export interface ISoftwareCountResponse {
   count: number;
 }
 
+export interface IGetSoftwareByIdResponse {
+  software: ISoftware;
+}
+
 type ISoftwareParams = Partial<IGetSoftwareProps>;
 
 const ORDER_KEY = "name";
@@ -83,5 +87,14 @@ export default {
     const queryString = buildQueryStringFromParams(params);
 
     return sendRequest("GET", path.concat(queryString));
+  },
+
+  getSoftwareById: async (
+    softwareId: string
+  ): Promise<IGetSoftwareByIdResponse> => {
+    const { SOFTWARE } = endpoints;
+    const path = `${SOFTWARE}/${softwareId}`;
+
+    return sendRequest("GET", path);
   },
 };
