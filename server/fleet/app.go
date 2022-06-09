@@ -23,7 +23,8 @@ func (c AppConfig) AuthzType() string {
 }
 
 const (
-	AppConfigKind = "config"
+	AppConfigKind  = "config"
+	MaskedPassword = "********"
 )
 
 // ModifyAppConfigRequest contains application configuration information
@@ -210,31 +211,6 @@ type VulnerabilitiesWebhookSettings struct {
 	// HostBatchSize allows sending multiple requests in batches of hosts for each vulnerable software found.
 	// A value of 0 means no batching.
 	HostBatchSize int `json:"host_batch_size"`
-}
-
-// JiraIntegration configures an instance of an integration with the Jira
-// system.
-type JiraIntegration struct {
-	URL                           string `json:"url"`
-	Username                      string `json:"username"`
-	APIToken                      string `json:"api_token"`
-	ProjectKey                    string `json:"project_key"`
-	EnableSoftwareVulnerabilities bool   `json:"enable_software_vulnerabilities"`
-}
-
-// ZendeskIntegration configures an instance of an integration with the external Zendesk service.
-type ZendeskIntegration struct {
-	URL                           string `json:"url"`
-	Email                         string `json:"email"`
-	APIToken                      string `json:"api_token"`
-	GroupID                       int64  `json:"group_id"`
-	EnableSoftwareVulnerabilities bool   `json:"enable_software_vulnerabilities"`
-}
-
-// Integrations configures the integrations with external systems.
-type Integrations struct {
-	Jira    []*JiraIntegration    `json:"jira"`
-	Zendesk []*ZendeskIntegration `json:"zendesk"`
 }
 
 func (c *AppConfig) ApplyDefaultsForNewInstalls() {
@@ -470,3 +446,8 @@ type KafkaRESTConfig struct {
 	ResultTopic string `json:"result_topic"`
 	ProxyHost   string `json:"proxyhost"`
 }
+
+// DeviceAPIFeatures specifies a list of features supported
+// by the current API version. Each field in the struct is
+// meant to be a boolean value.
+type DeviceAPIFeatures struct{}

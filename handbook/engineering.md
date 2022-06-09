@@ -131,7 +131,7 @@ The oncall engineer is a second-line responder to questions raised by customers 
 
 ### How to reach the oncall
 
-Oncall engineers do not need to actively monitor Slack channels, except when called in by the Community or Customer teams. Members of those teams are instructed to `@oncall` in `#help-engineering` to get the attention of the oncall engineer to continue discussing any issues that come up. In some cases, the Community or Customer representative will continue to communicate with the requestor, and in others, the oncall engineer will communicate directly (team members should use their judgement and discuss on a case by case basis how to best communicate with community members and customers).
+Oncall engineers do not need to actively monitor Slack channels, except when called in by the Community or Customer teams. Members of those teams are instructed to `@oncall` in `#help-engineering` to get the attention of the oncall engineer to continue discussing any issues that come up. In some cases, the Community or Customer representative will continue to communicate with the requestor. In others, the oncall engineer will communicate directly (team members should use their judgment and discuss on a case-by-case basis how to best communicate with community members and customers).
 
 ### Handoff
 
@@ -158,29 +158,6 @@ See [the internal Google Doc](https://docs.google.com/document/d/1FNQdu23wc1S9Yo
 [🚀 Release](https://github.com/orgs/fleetdm/projects/40) - The current release (daily go-to board) for engineers.
 
 [⚗️ Roadmap](https://github.com/orgs/fleetdm/projects/41) - Planning for the next release (shared with product).
-
-## Rituals
-
-The following rituals are engaged in by the  directly responsible individual (DRI) and at the frequency specified for the ritual.
-
-| Ritual                       | Frequency                | Description                                         | DRI               |
-|:-----------------------------|:-----------------------------|:----------------------------------------------------|-------------------|
-| Pull request review | Daily | Engineers go through pull requests for which their review has been requested. | Zach Wasserman |
-| Engineering group discussions | Weekly | See "Group Weeklies".  | Zach Wasserman |
-| On-call handoff | Weekly | Hand off the on-call engineering responsibilities to the next on-call engineer. | Zach Wasserman |
-| Release ritual | Every three weeks | Go through the process of releasing the next iteration of Fleet. | Zach Wasserman |
-
-## Slack channels
-
-The following [Slack channels are maintained](https://fleetdm.com/handbook/company#group-slack-channels) by this group:
-
-| Slack channel                       | [DRI](https://fleetdm.com/handbook/company#group-slack-channels)    |
-|:------------------------------------|:--------------------------------------------------------------------|
-| `#help-engineering`                 | Zach Wasserman
-| `#g-platform`                       | Tomás Touceda
-| `#g-interface`                      | Luke Heath
-| `#g-agent`                          | Zach Wasserman
-| `#_pov-environments`                | Ben Edwards
 
 ## Scaling GOTCHAS
 
@@ -307,3 +284,26 @@ Redis has solved many scaling problems in general, but it’s not devoid of scal
 
 <meta name="maintainedBy" value="zwass">
 <meta name="title" value="🚀 Engineering">
+
+## Rituals
+
+The following rituals are engaged in by the  directly responsible individual (DRI) and at the frequency specified for the ritual.
+
+| Ritual                       | Frequency                | Description                                         | DRI               |
+|:-----------------------------|:-----------------------------|:----------------------------------------------------|-------------------|
+| Pull request review | Daily | Engineers go through pull requests for which their review has been requested. | Zach Wasserman |
+| Engineering group discussions | Weekly | See "Group Weeklies".  | Zach Wasserman |
+| On-call handoff | Weekly | Hand off the on-call engineering responsibilities to the next on-call engineer. | Zach Wasserman |
+| Release ritual | Every three weeks | Go through the process of releasing the next iteration of Fleet. | Zach Wasserman |
+
+## Slack channels
+
+The following [Slack channels are maintained](https://fleetdm.com/handbook/company#group-slack-channels) by this group:
+
+| Slack channel                       | [DRI](https://fleetdm.com/handbook/company#group-slack-channels)    |
+|:------------------------------------|:--------------------------------------------------------------------|
+| `#help-engineering`                 | Zach Wasserman
+| `#g-platform`                       | Tomás Touceda
+| `#g-interface`                      | Luke Heath
+| `#g-agent`                          | Zach Wasserman
+| `#_pov-environments`                | Ben Edwards

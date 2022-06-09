@@ -68,7 +68,7 @@ module.exports.routes = {
     }
   },
 
-  'r|/((device-management|securing|releases|engineering|guides|announcements|use-cases)/(.+))$|': {
+  'r|/((device-management|securing|releases|engineering|guides|announcements|use-cases|podcasts)/(.+))$|': {
     skipAssets: false,
     action: 'articles/view-basic-article',
     locals: {
@@ -76,7 +76,7 @@ module.exports.routes = {
     }
   },// handles /device-management/foo, /securing/foo, /releases/foo, /engineering/foo, /guides/foo, /announcements/foo, /use-cases/foo
 
-  'r|^/((device-management|securing|releases|engineering|guides|announcements|use-cases|articles))/*$|category': {
+  'r|^/((device-management|securing|releases|engineering|guides|announcements|use-cases|articles|podcasts))/*$|category': {
     skipAssets: false,
     action: 'articles/view-articles',
     locals: {
@@ -241,6 +241,7 @@ module.exports.routes = {
   // Things that are not webpages here (in the Sails app) yet, but could be in the future.  For now they are just
   // redirects to somewhere else EXTERNAL to the Sails app.
   'GET /security':               'https://github.com/fleetdm/fleet/security/policy',
+  'GET /trust':                  'https://app.vanta.com/fleet/trust/5i2ulsbd76k619q9leaoh0',
   'GET /hall-of-fame':           'https://github.com/fleetdm/fleet/pulse',
   'GET /apply':                  'https://fleet-device-management.breezy.hr',
   'GET /jobs':                   'https://fleet-device-management.breezy.hr',

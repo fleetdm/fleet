@@ -6,6 +6,7 @@ import { Link } from "react-router";
 import { formatSoftwareType, ISoftware } from "interfaces/software";
 import { IVulnerability } from "interfaces/vulnerability";
 import PATHS from "router/paths";
+import { formatFloatAsPercentage } from "utilities/helpers";
 
 import HeaderCell from "components/TableContainer/DataTable/HeaderCell";
 import TextCell from "components/TableContainer/DataTable/TextCell";
@@ -61,6 +62,22 @@ const condenseVulnerabilities = (
     : condensed;
 };
 
+const withBundleTooltip = (name: string, bundle: string) => (
+  <span className="name-container">
+    <TooltipWrapper
+      tipContent={`
+        <span>
+          <b>Bundle identifier: </b>
+          <br />
+          ${bundle}
+        </span>
+      `}
+    >
+      {name}
+    </TooltipWrapper>
+  </span>
+);
+
 const getMaxProbability = (vulns: IVulnerability[]) =>
   vulns.reduce(
     (max, { epss_probability }) => Math.max(max, epss_probability || 0),
@@ -97,7 +114,7 @@ const generateEPSSColumnHeader = () => {
       const vulns = cellProps.cell.value || [];
       const maxProbability = (!!vulns.length && getMaxProbability(vulns)) || 0;
       const displayValue =
-        (maxProbability && `${maxProbability * 100}%`) || "---";
+        (maxProbability && formatFloatAsPercentage(maxProbability)) || "---";
 
       return (
         <span
@@ -139,7 +156,7 @@ const generateVulnColumnHeader = () => {
               vulnerabilities.length > 1 ? "text-muted" : ""
             }`}
             data-tip
-            data-for={`vulnerabilities__${cellProps.row.original.id.toString()}`}
+            data-for={`vulnerabilities__${cellProps.row.original.id}`}
             data-tip-disable={vulnerabilities.length <= 1}
           >
             {vulnerabilities.length === 1
@@ -151,7 +168,7 @@ const generateVulnColumnHeader = () => {
             type="dark"
             effect="solid"
             backgroundColor="#3e4771"
-            id={`vulnerabilities__${cellProps.row.original.id.toString()}`}
+            id={`vulnerabilities__${cellProps.row.original.id}`}
             data-html
           >
             <span className={`vulnerabilities tooltip__tooltip-text`}>
@@ -172,25 +189,12 @@ const generateTableHeaders = (isPremiumTier?: boolean): Column[] => {
       disableSortBy: true,
       accessor: "name",
       Cell: (cellProps: IStringCellProps): JSX.Element => {
-        const { name, bundle_identifier } = cellProps.row.original;
-        if (bundle_identifier) {
-          return (
-            <span className="name-container">
-              <TooltipWrapper
-                tipContent={`
-                  <span>
-                    <b>Bundle identifier: </b>
-                    <br />
-                    ${bundle_identifier}
-                  </span>
-                `}
-              >
-                {name}
-              </TooltipWrapper>
-            </span>
-          );
-        }
-        return <TextCell value={name} />;
+        const { id, name, bundle_identifier: bundle } = cellProps.row.original;
+        return (
+          <Link to={`${PATHS.SOFTWARE_DETAILS(id.toString())}`}>
+            {bundle ? withBundleTooltip(name, bundle) : name}
+          </Link>
+        );
       },
     },
     {

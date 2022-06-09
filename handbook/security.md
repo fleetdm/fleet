@@ -818,6 +818,11 @@ We use [Dependabot](https://github.com/dependabot) to create pull requests to up
 
 We ensure the fixes to vulnerable dependencies are also performed according to our remediation timeline. We fix as many dependencies as possible in a single release.
 
+## Trust report
+
+We publish a trust report that includes automated checking of controls, answers to frequently asked
+questions and more on [https://fleetdm.com/trust](https://fleetdm.com/trust)
+
 ## Rituals
 
 The following table lists the Security group's rituals, frequency, and Directly Responsible Individual (DRI).

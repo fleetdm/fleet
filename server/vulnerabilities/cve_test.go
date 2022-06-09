@@ -10,10 +10,9 @@ import (
 	"strings"
 	"sync"
 	"testing"
-	"time"
 
-	"github.com/WatchBeam/clock"
 	"github.com/fleetdm/fleet/v4/pkg/nettest"
+	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mock"
 	kitlog "github.com/go-kit/kit/log"
 	"github.com/stretchr/testify/assert"
@@ -46,28 +45,16 @@ type threadSafeDSMock struct {
 	*mock.Store
 }
 
-func (d *threadSafeDSMock) AllCPEs(ctx context.Context) ([]string, error) {
+func (d *threadSafeDSMock) ListSoftwareCPEs(ctx context.Context, excludedPlatforms []string) ([]fleet.SoftwareCPE, error) {
 	d.mu.Lock()
 	defer d.mu.Unlock()
-	return d.Store.AllCPEs(ctx)
+	return d.Store.ListSoftwareCPEs(ctx, excludedPlatforms)
 }
 
-func (d *threadSafeDSMock) InsertCVEForCPE(ctx context.Context, cve string, cpes []string) (int64, error) {
+func (d *threadSafeDSMock) InsertVulnerabilities(ctx context.Context, vulns []fleet.SoftwareVulnerability, src fleet.VulnerabilitySource) (int64, error) {
 	d.mu.Lock()
 	defer d.mu.Unlock()
-	return d.Store.InsertCVEForCPE(ctx, cve, cpes)
-}
-
-func withNetRetry(t *testing.T, fn func() error) error {
-	for {
-		err := fn()
-		if err != nil && nettest.Retryable(err) {
-			time.Sleep(5 * time.Second)
-			t.Logf("%s: retrying error: %s", t.Name(), err)
-			continue
-		}
-		return err
-	}
+	return d.Store.InsertVulnerabilities(ctx, vulns, src)
 }
 
 func TestTranslateCPEToCVE(t *testing.T) {
@@ -79,81 +66,76 @@ func TestTranslateCPEToCVE(t *testing.T) {
 	ctx := context.Background()
 
 	// download the CVEs once for all sub-tests, and then disable syncing
-	err := withNetRetry(t, func() error {
+	err := nettest.RunWithNetRetry(t, func() error {
 		return DownloadNVDCVEFeed(tempDir, "")
 	})
 	require.NoError(t, err)
 
-	recentVulnerabilityMaxAge := 365 * 24 * time.Hour
-
 	for _, tt := range cvetests {
 		t.Run(tt.cpe, func(t *testing.T) {
-			ds.AllCPEsFunc = func(ctx context.Context) ([]string, error) {
-				return []string{tt.cpe}, nil
+			ds.ListSoftwareCPEsFunc = func(ctx context.Context, excludedPlatforms []string) ([]fleet.SoftwareCPE, error) {
+				return []fleet.SoftwareCPE{
+					{CPE: tt.cpe},
+				}, nil
 			}
 
 			cveLock := &sync.Mutex{}
-			cveToCPEs := make(map[string][]string)
 			var cvesFound []string
-			ds.InsertCVEForCPEFunc = func(ctx context.Context, cve string, cpes []string) (int64, error) {
+			ds.InsertVulnerabilitiesFunc = func(ctx context.Context, vulns []fleet.SoftwareVulnerability, src fleet.VulnerabilitySource) (int64, error) {
 				cveLock.Lock()
 				defer cveLock.Unlock()
-				cveToCPEs[cve] = cpes
-				cvesFound = append(cvesFound, cve)
+				for _, v := range vulns {
+					cvesFound = append(cvesFound, v.CVE)
+				}
+
 				return 0, nil
 			}
 
-			_, err := TranslateCPEToCVE(ctx, ds, tempDir, kitlog.NewLogfmtLogger(os.Stdout), false, 0)
+			_, err := TranslateCPEToCVE(ctx, ds, tempDir, kitlog.NewLogfmtLogger(os.Stdout), false)
 			require.NoError(t, err)
 
 			printMemUsage()
 
 			require.Equal(t, []string{tt.cve}, cvesFound)
-			require.Equal(t, []string{tt.cpe}, cveToCPEs[tt.cve])
 		})
 	}
 
 	t.Run("recent_vulns", func(t *testing.T) {
-		googleChromeCPE := "cpe:2.3:a:google:chrome:-:*:*:*:*:*:*:*"
-		mozillaFirefoxCPE := "cpe:2.3:a:mozilla:firefox:-:*:*:*:*:*:*:*"
-		curlCPE := "cpe:2.3:a:haxx:curl:-:*:*:*:*:*:*:*"
-
-		// consider recent vulnerabilities to be anything published in 2018
-		theClock = clock.NewMockClock(time.Date(2019, 1, 1, 0, 0, 0, 0, time.UTC))
-		defer func() { theClock = clock.C }()
-
 		safeDS := &threadSafeDSMock{Store: ds}
 
-		ds.AllCPEsFunc = func(ctx context.Context) ([]string, error) {
-			return []string{googleChromeCPE, mozillaFirefoxCPE, curlCPE}, nil
+		softwareCPEs := []fleet.SoftwareCPE{
+			{CPE: "cpe:2.3:a:google:chrome:-:*:*:*:*:*:*:*", ID: 1, SoftwareID: 1},
+			{CPE: "cpe:2.3:a:mozilla:firefox:-:*:*:*:*:*:*:*", ID: 2, SoftwareID: 2},
+			{CPE: "cpe:2.3:a:haxx:curl:-:*:*:*:*:*:*:*", ID: 3, SoftwareID: 3},
+		}
+		ds.ListSoftwareCPEsFunc = func(ctx context.Context, excludedPlatforms []string) ([]fleet.SoftwareCPE, error) {
+			return softwareCPEs, nil
 		}
 
-		ds.InsertCVEForCPEFunc = func(ctx context.Context, cve string, cpes []string) (int64, error) {
+		ds.InsertVulnerabilitiesFunc = func(ctx context.Context, vulns []fleet.SoftwareVulnerability, src fleet.VulnerabilitySource) (int64, error) {
 			return 1, nil
 		}
-		recent, err := TranslateCPEToCVE(ctx, safeDS, tempDir, kitlog.NewNopLogger(), true, recentVulnerabilityMaxAge)
+		recent, err := TranslateCPEToCVE(ctx, safeDS, tempDir, kitlog.NewNopLogger(), true)
 		require.NoError(t, err)
 
-		byCPE := make(map[string]int)
-		for _, cpes := range recent {
-			for _, cpe := range cpes {
-				byCPE[cpe]++
-			}
+		byCPE := make(map[uint]int)
+		for _, cpe := range recent {
+			byCPE[cpe.SoftwareID]++
 		}
 
 		// even if it's somewhat far in the past, I've seen the exact numbers
 		// change a bit between runs with different downloads, so allow for a bit
 		// of wiggle room.
-		assert.Greater(t, byCPE[googleChromeCPE], 150, "google chrome CVEs")
-		assert.Greater(t, byCPE[mozillaFirefoxCPE], 280, "mozilla firefox CVEs")
-		assert.Greater(t, byCPE[curlCPE], 10, "curl CVEs")
+		assert.Greater(t, byCPE[softwareCPEs[0].SoftwareID], 150, "google chrome CVEs")
+		assert.Greater(t, byCPE[softwareCPEs[1].SoftwareID], 280, "mozilla firefox CVEs")
+		assert.Greater(t, byCPE[softwareCPEs[2].SoftwareID], 10, "curl CVEs")
 
 		// call it again but now return 0 from this call, simulating CVE-CPE pairs
 		// that already existed in the DB.
-		ds.InsertCVEForCPEFunc = func(ctx context.Context, cve string, cpes []string) (int64, error) {
+		ds.InsertVulnerabilitiesFunc = func(ctx context.Context, vulns []fleet.SoftwareVulnerability, src fleet.VulnerabilitySource) (int64, error) {
 			return 0, nil
 		}
-		recent, err = TranslateCPEToCVE(ctx, safeDS, tempDir, kitlog.NewNopLogger(), true, recentVulnerabilityMaxAge)
+		recent, err = TranslateCPEToCVE(ctx, safeDS, tempDir, kitlog.NewNopLogger(), true)
 		require.NoError(t, err)
 
 		// no recent vulnerability should be reported
