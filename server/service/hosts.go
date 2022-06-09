@@ -299,11 +299,13 @@ func (svc *Service) SearchHosts(ctx context.Context, matchQuery string, queryID 
 
 	includeObserver := false
 	if queryID != nil {
-		query, err := svc.ds.Query(ctx, *queryID)
+		canRun, err := svc.ds.ObserverCanRunQuery(ctx, *queryID)
 		if err != nil {
 			return nil, err
 		}
-		includeObserver = query.ObserverCanRun
+		if canRun != nil {
+			includeObserver = *canRun
+		}
 	}
 
 	filter := fleet.TeamFilter{User: vc.User, IncludeObserver: includeObserver}
