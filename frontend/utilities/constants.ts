@@ -159,7 +159,7 @@ export const DEFAULT_POLICIES = [
       "Contact your IT administrator to help you enroll your computer in your organization's MDM. If already enrolled, ask your IT administrator to enable the screen lock feature in the profile configuration.",
     platform: "darwin",
   },
-    {
+  {
     key: 15,
     query:
       "SELECT 1 FROM registry WHERE path = 'HKEY_LOCAL_MACHINE\Software\Microsoft\Windows\CurrentVersion\Policies\System\InactivityTimeoutSecs' AND CAST(data as INTEGER) <= 1800;",
