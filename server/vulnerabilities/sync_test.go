@@ -2,7 +2,6 @@ package vulnerabilities
 
 import (
 	"context"
-	"fmt"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -11,6 +10,7 @@ import (
 	"github.com/fleetdm/fleet/v4/pkg/nettest"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mock"
+	"github.com/go-kit/kit/log"
 	"github.com/stretchr/testify/require"
 	"github.com/tj/assert"
 )
@@ -50,7 +50,8 @@ func TestLoadCVEMeta(t *testing.T) {
 		return nil
 	}
 
-	err := LoadCVEMeta("testdata", ds)
+	logger := log.NewNopLogger()
+	err := LoadCVEMeta(logger, "testdata", ds)
 	require.NoError(t, err)
 	require.True(t, ds.InsertCVEMetaFuncInvoked)
 
@@ -58,9 +59,6 @@ func TestLoadCVEMeta(t *testing.T) {
 	metaMap := make(map[string]fleet.CVEMeta)
 	for _, meta := range cveMeta {
 		metaMap[meta.CVE] = meta
-		if meta.CVSSScore != nil {
-			fmt.Println(meta.CVE, *meta.CVSSScore)
-		}
 	}
 
 	meta := metaMap["CVE-2022-29676"]

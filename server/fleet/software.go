@@ -1,6 +1,9 @@
 package fleet
 
-import "time"
+import (
+	"fmt"
+	"time"
+)
 
 type CVE struct {
 	CVE         string `json:"cve" db:"cve"`
@@ -53,6 +56,10 @@ type Software struct {
 
 	// GenerateCPE is the CPE23 string that corresponds to the current software
 	GenerateCPE string `json:"generated_cpe" db:"generated_cpe"`
+
+	// GeneratedCPEID is the ID of the matched CPE
+	GeneratedCPEID uint `json:"-" db:"generated_cpe_id"`
+
 	// Vulnerabilities lists all the found CVEs for the CPE
 	Vulnerabilities Vulnerabilities `json:"vulnerabilities"`
 	// HostsCount indicates the number of hosts with that software, filled only
@@ -111,3 +118,42 @@ type SoftwareListOptions struct {
 	// a count of hosts > 0.
 	WithHostCounts bool
 }
+
+// SoftwareCPE represents an entry in the `software_cpe` table
+type SoftwareCPE struct {
+	ID         uint   `db:"id"`
+	SoftwareID uint   `db:"software_id"`
+	CPE        string `db:"cpe"`
+}
+
+// SoftwareVulnerability identifies a vulnerability on a specific software.
+type SoftwareVulnerability struct {
+	SoftwareID uint   `db:"software_id"`
+	CPEID      uint   `db:"cpe_id"`
+	CVE        string `db:"cve"`
+}
+
+// String implements fmt.Stringer.
+func (sv SoftwareVulnerability) String() string {
+	return fmt.Sprintf("{%d,%s}", sv.SoftwareID, sv.CVE)
+}
+
+// Key returns a string representation of the SoftwareVulnerability
+func (sv *SoftwareVulnerability) Key() string {
+	return fmt.Sprintf("%d:%s", sv.SoftwareID, sv.CVE)
+}
+
+// SoftwareWithCPE holds a software piece alongside its CPE ID.
+type SoftwareWithCPE struct {
+	// Software holds the software data.
+	Software
+	// CPEID is the ID of the software CPE in the system.
+	CPEID uint
+}
+
+type VulnerabilitySource int
+
+const (
+	NVD VulnerabilitySource = iota
+	OVAL
+)

@@ -37,7 +37,11 @@ func getDeviceHostEndpoint(ctx context.Context, request interface{}, svc fleet.S
 	}
 
 	// must still load the full host details, as it returns more information
-	hostDetails, err := svc.GetHost(ctx, host.ID, false)
+	opts := fleet.HostDetailOptions{
+		IncludeCVEScores: false,
+		IncludePolicies:  false,
+	}
+	hostDetails, err := svc.GetHost(ctx, host.ID, opts)
 	if err != nil {
 		return getDeviceHostResponse{Err: err}, nil
 	}
