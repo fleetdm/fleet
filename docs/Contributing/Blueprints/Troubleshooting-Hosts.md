@@ -2,7 +2,16 @@
 
 ## Osquery worker/watcher
 
-TODO/WIP: Write some docs around how osquery executes queries and the watcher/worker processes.
+Osquery usually runs two main processes, a "watcher" and a "worker".
+- The watcher monitors the worker process.
+- The worker runs two main threads, one that executes scheduled queries and another devoted to distributed queries.
+
+Fleet makes heavy use of "Distributed Queries" for the majority of its features: "Policies", "Live Queries", "Host Vitals" (Software, users, etc.) and "Labels".
+Currently, the "Distributed Queries" are executed sequentially and their results are kept in memory (see
+[here](https://github.com/osquery/osquery/blob/be88cb495fece507a41049eedbc2f262e9415b47/osquery/distributed/distributed.cpp#L124-L153)) and flushed to the
+server after all the queries have executed successfully. 
+One of the issues we've seen at Fleet is that if one of the distributed queries is using excessive system resources (CPU, memory), then the watcher may
+end up killing the process, losing all the temporary results from previous distributed queries.
 
 ## Fleet's *detection* of `distributed/write` issues
 
@@ -109,9 +118,7 @@ This way Fleet can tie the queries sent in the `distributed/read` to the results
 - We need to use and store the hashes of the queries because queries can change and new queries can be
 added in between read and write requests (e.g. policy queries are editable by users and new ones
 can be assigned to hosts).
-- The algorithm performs a sort of binary search of the problematic query. TODO(lucas): Determine
-how to support more than one query being problematic. With algorithm shown below, Fleet will ping pong between two
-halfs if both have a problematic query.
+- The algorithm performs a sort of binary search of the problematic query.
 - The added performance penalty of the algorithm is in `distributed/read`, there's now an extra
 write to `hosts` table (only on hosts with issues).
 
@@ -240,11 +247,34 @@ func updateTroubleHost(host *fleet.Host, results fleet.OsqueryDistributedQueryRe
 //
 ```
 
+## Possible Improvements on the Osquery Side
 
-## Osquery future improvements
+Idea from Zach Wasserman:
+```
+(From osquery)
 
-TODO/WIP: Distributed queries retries suggested by Zach.
-Currently considering this as the proper solution given the complexity added to Fleet in the above algorithm.
+	Hit distributed/read endpoint to get queries
+		Mark in RocksDB that query foo is running.
+		Mark in RocksDB that query bar is running.
+		Mark in RocksDB that query 'baz` is running.
+	Hit distributed/write to send results.
+
+If watchdog kills worker at any point during execution of a query, a check in RocksDB at startup indicates that the query was
+running when the kill occurred, so osquery writes an error to distributed/write for that query.
+
+This would have the advantage of working in "real time" so that the Fleet server could then not send the same query again.
+```
+
+### Questions
+
+1. How can we differentiate between osquery being killed by the watcher due to excessive resource utilization, versus e.g. Orbit killing osquery due to an available update?
+If we cannot differentiate then the worst case is some query being denylisted incorrectly. But we could make it so that the denylisting expires.
+
+## Conclusion
+
+1. "Detection": This is simple enough to be implemented in Fleet (and we should surface such information on the UI).
+2. "Troubleshooting": Given the complexity and risk of implementing the solution on the Fleet side, I'm more on the side of
+implementing the proper fix shown above on the osquery side. It will be simpler and will provide more value.
 
 ## Misc Findings / Questions
 
