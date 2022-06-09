@@ -63,7 +63,7 @@ func getDeviceHostEndpoint(ctx context.Context, request interface{}, svc fleet.S
 
 	transparencyURL := ac.FleetDesktop.TransparencyURL
 	if license.Tier != "premium" || transparencyURL == "" {
-		transparencyURL = defaultTransparencyURL
+		transparencyURL = fleet.DefaultTransparencyURL
 	}
 
 	return getDeviceHostResponse{

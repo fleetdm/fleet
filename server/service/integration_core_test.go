@@ -4643,7 +4643,7 @@ func (s *integrationTestSuite) TestDeviceAuthenticatedEndpoints() {
 	require.Nil(t, listPoliciesResp.Policies)
 }
 
-// TestTransparencyURL tests that Fleet Free licensees are restricted to the default transparency url.
+// TestDefaultTransparencyURL tests that Fleet Free licensees are restricted to the default transparency url.
 func (s *integrationTestSuite) TestDefaultTransparencyURL() {
 	t := s.T()
 
@@ -4671,7 +4671,7 @@ func (s *integrationTestSuite) TestDefaultTransparencyURL() {
 	acResp := appConfigResponse{}
 	s.DoJSON("GET", "/api/latest/fleet/config", nil, http.StatusOK, &acResp)
 	require.NotNil(t, acResp)
-	require.Equal(t, defaultTransparencyURL, acResp.FleetDesktop.TransparencyURL)
+	require.Equal(t, fleet.DefaultTransparencyURL, acResp.FleetDesktop.TransparencyURL)
 
 	// confirm device endpoint returns initial default url
 	deviceResp := &getDeviceHostResponse{}
@@ -4679,13 +4679,13 @@ func (s *integrationTestSuite) TestDefaultTransparencyURL() {
 	json.NewDecoder(rawResp.Body).Decode(deviceResp)
 	rawResp.Body.Close()
 	require.NoError(t, deviceResp.Err)
-	require.Equal(t, defaultTransparencyURL, deviceResp.TransparencyURL)
+	require.Equal(t, fleet.DefaultTransparencyURL, deviceResp.TransparencyURL)
 
 	// empty string applies default url
 	acResp = appConfigResponse{}
 	s.DoJSON("PATCH", "/api/latest/fleet/config", fleet.AppConfig{FleetDesktop: fleet.FleetDesktopSettings{TransparencyURL: ""}}, http.StatusOK, &acResp)
 	require.NotNil(t, acResp)
-	require.Equal(t, defaultTransparencyURL, acResp.FleetDesktop.TransparencyURL)
+	require.Equal(t, fleet.DefaultTransparencyURL, acResp.FleetDesktop.TransparencyURL)
 
 	// device endpoint returns default url
 	deviceResp = &getDeviceHostResponse{}
@@ -4693,7 +4693,7 @@ func (s *integrationTestSuite) TestDefaultTransparencyURL() {
 	json.NewDecoder(rawResp.Body).Decode(deviceResp)
 	rawResp.Body.Close()
 	require.NoError(t, deviceResp.Err)
-	require.Equal(t, defaultTransparencyURL, deviceResp.TransparencyURL)
+	require.Equal(t, fleet.DefaultTransparencyURL, deviceResp.TransparencyURL)
 
 	// modify transparency url with custom url fails
 	acResp = appConfigResponse{}
@@ -4705,7 +4705,7 @@ func (s *integrationTestSuite) TestDefaultTransparencyURL() {
 	json.NewDecoder(rawResp.Body).Decode(deviceResp)
 	rawResp.Body.Close()
 	require.NoError(t, deviceResp.Err)
-	require.Equal(t, defaultTransparencyURL, deviceResp.TransparencyURL)
+	require.Equal(t, fleet.DefaultTransparencyURL, deviceResp.TransparencyURL)
 }
 
 func (s *integrationTestSuite) TestModifyUser() {

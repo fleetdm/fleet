@@ -29,5 +29,5 @@ func TestUp_20220608113128(t *testing.T) {
 
 	err = json.Unmarshal(newRaw, &newConfig)
 	require.NoError(t, err)
-	require.Equal(t, "https://fleetdm.com/transparency", newConfig.FleetDesktop.TransparencyURL)
+	require.Equal(t, "", newConfig.FleetDesktop.TransparencyURL)
 }

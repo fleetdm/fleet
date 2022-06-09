@@ -586,7 +586,7 @@ func (s *integrationEnterpriseTestSuite) TestCustomTransparencyURL() {
 	acResp := appConfigResponse{}
 	s.DoJSON("GET", "/api/latest/fleet/config", nil, http.StatusOK, &acResp)
 	require.NotNil(t, acResp)
-	require.Equal(t, defaultTransparencyURL, acResp.FleetDesktop.TransparencyURL)
+	require.Equal(t, fleet.DefaultTransparencyURL, acResp.FleetDesktop.TransparencyURL)
 
 	// confirm device endpoint returns initial default url
 	deviceResp := &getDeviceHostResponse{}
@@ -594,7 +594,7 @@ func (s *integrationEnterpriseTestSuite) TestCustomTransparencyURL() {
 	json.NewDecoder(rawResp.Body).Decode(deviceResp)
 	rawResp.Body.Close()
 	require.NoError(t, deviceResp.Err)
-	require.Equal(t, defaultTransparencyURL, deviceResp.TransparencyURL)
+	require.Equal(t, fleet.DefaultTransparencyURL, deviceResp.TransparencyURL)
 
 	// set custom url
 	acResp = appConfigResponse{}
@@ -614,7 +614,7 @@ func (s *integrationEnterpriseTestSuite) TestCustomTransparencyURL() {
 	acResp = appConfigResponse{}
 	s.DoJSON("PATCH", "/api/latest/fleet/config", fleet.AppConfig{FleetDesktop: fleet.FleetDesktopSettings{TransparencyURL: ""}}, http.StatusOK, &acResp)
 	require.NotNil(t, acResp)
-	require.Equal(t, defaultTransparencyURL, acResp.FleetDesktop.TransparencyURL)
+	require.Equal(t, fleet.DefaultTransparencyURL, acResp.FleetDesktop.TransparencyURL)
 
 	// device endpoint returns default url
 	deviceResp = &getDeviceHostResponse{}
@@ -622,5 +622,5 @@ func (s *integrationEnterpriseTestSuite) TestCustomTransparencyURL() {
 	json.NewDecoder(rawResp.Body).Decode(deviceResp)
 	rawResp.Body.Close()
 	require.NoError(t, deviceResp.Err)
-	require.Equal(t, defaultTransparencyURL, deviceResp.TransparencyURL)
+	require.Equal(t, fleet.DefaultTransparencyURL, deviceResp.TransparencyURL)
 }

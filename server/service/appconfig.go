@@ -20,8 +20,6 @@ import (
 	"github.com/kolide/kit/version"
 )
 
-const defaultTransparencyURL = "https://fleetdm.com/transparency"
-
 ////////////////////////////////////////////////////////////////////////////////
 // Get AppConfig
 ////////////////////////////////////////////////////////////////////////////////
@@ -82,7 +80,7 @@ func getAppConfigEndpoint(ctx context.Context, request interface{}, svc fleet.Se
 	transparencyURL := config.FleetDesktop.TransparencyURL
 	// Fleet Premium license is required for custom transparency url
 	if license.Tier != "premium" || transparencyURL == "" {
-		transparencyURL = defaultTransparencyURL
+		transparencyURL = fleet.DefaultTransparencyURL
 	}
 	fleetDesktop := fleet.FleetDesktopSettings{TransparencyURL: transparencyURL}
 
@@ -323,13 +321,8 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte) (*fleet.AppCo
 	appConfig.Integrations.Zendesk = newZendeskConfig
 
 	transparencyURL := appConfig.FleetDesktop.TransparencyURL
-	if transparencyURL == "" {
-		transparencyURL = defaultTransparencyURL
-	}
-
-	if transparencyURL != defaultTransparencyURL && license.Tier != "premium" {
-		invalid.Append("transparency_url", "requires Fleet Premium license")
-		return nil, ctxerr.Wrap(ctx, invalid)
+	if transparencyURL != "" && license.Tier != "premium" {
+		return nil, ctxerr.Wrap(ctx, ErrMissingLicense)
 	}
 
 	if _, err := url.Parse(transparencyURL); err != nil {
