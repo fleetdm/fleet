@@ -10,4 +10,6 @@ type RpmInfoStateXML struct {
 	Version        *SimpleTypeXML `xml:"version,omitempty"`
 	Evr            *SimpleTypeXML `xml:"evr"`
 	SignatureKeyId *SimpleTypeXML `xml:"signature_keyid"`
+	ExtendedName   *SimpleTypeXML `xml:"extended_name"`
+	Filepath       *SimpleTypeXML `xml:"filepath"`
 }

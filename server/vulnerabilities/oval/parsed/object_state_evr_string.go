@@ -7,11 +7,11 @@ import (
 
 type ObjectStateEvrString string
 
-// NewObjectState produces a string with 'op' and 'evr' encoded as op|evr
+// NewObjectStateEvrString produces a string with 'op' and 'evr' encoded as op|evr
 // This is just one possible children of <dpkginfo_state>, that said
 // all deb package tests are written against evr strings
 // see: https://oval.mitre.org/language/version5.10.1/ovaldefinition/documentation/oval-definitions-schema.html#EntityStateEVRStringType
-func NewObjectState(op string, evr string) ObjectStateEvrString {
+func NewObjectStateEvrString(op string, evr string) ObjectStateEvrString {
 	return ObjectStateEvrString(fmt.Sprintf("%s|%s", op, evr))
 }
 

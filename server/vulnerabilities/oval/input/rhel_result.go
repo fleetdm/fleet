@@ -4,9 +4,9 @@ package oval_input
 // RHEL distros.
 type RhelResultXML struct {
 	Definitions        []DefinitionXML
-	RpmVerifyFileTests []RpmVerifyFileTest
+	RpmVerifyFileTests []RpmVerifyFileTestXML
 	RpmInfoTests       []RpmInfoTestXML
 	RpmInfoTestStates  []RpmInfoStateXML
-	RpmInfoTestObjects []RpmInfoObjectXML
+	RpmInfoTestObjects []PackageInfoTestObjectXML
 	Variables          map[string]ConstantVariableXML
 }

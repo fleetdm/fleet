@@ -1,9 +1,9 @@
 package oval_input
 
-// RpmVerifyFileTest see
+// RpmVerifyFileTestXML see
 // https://oval.mitre.org/language/version5.10.1/ovaldefinition/documentation/linux-definitions-schema.html#rpmverifyfile_test
 // Not implemented yet - we will be skipping any definitions that use this type of tests for the time
 // being.
-type RpmVerifyFileTest struct {
+type RpmVerifyFileTestXML struct {
 	Id string `xml:"id,attr"`
 }

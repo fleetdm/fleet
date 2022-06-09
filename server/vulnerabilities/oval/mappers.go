@@ -67,7 +67,126 @@ func mapCriteria(i oval_input.CriteriaXML) (*oval_parsed.Criteria, error) {
 	return &criteria, nil
 }
 
-// mapDpkgInfoTest maps a DpkgInfoTestXML returning the test id along side the mapped DpkgInfoTest
+// mapPackageInfoTestObject maps a PackageInfoTestObjectXML into one or more object names.
+// Test objects can define their 'name' in one of two ways:
+// 1. Inline:
+// <:object ...>
+//      <:name>software name</:name>
+// </:object>
+//
+// 2. As a variable reference:
+// <:object ...>
+// 		<:name var_ref="var:200224390000000" var_check="at least one" />
+// </:object>
+func mapPackageInfoTestObject(
+	obj oval_input.PackageInfoTestObjectXML,
+	vars map[string]oval_input.ConstantVariableXML,
+) ([]string, error) {
+	// Check whether the name was defined inline
+	if obj.Name.Value != "" {
+		return []string{obj.Name.Value}, nil
+	}
+
+	var r []string
+	// If not, the name should be defined as a variable
+	variable, ok := vars[obj.Name.VarRef]
+	if !ok {
+		return nil, fmt.Errorf("variable not found %s", obj.Name.VarRef)
+	}
+
+	// Normally the variable for a test object contains a single value but, according to the specs,
+	// it can contain multiple values
+	r = append(r, variable.Values...)
+
+	return r, nil
+}
+
+// -----------------
+// RHEL
+// -----------------
+
+// mapRpmVerifyFileTest maps a RpmVerifyFileTestXML returning the test id along side the mapped RpmVerifyFileTest,
+// will error out if the test id can not be parsed.
+func mapRpmVerifyFileTest(i oval_input.RpmVerifyFileTestXML) (int, *oval_parsed.RpmVerifyFileTest, error) {
+	id, err := extractId(i.Id)
+	if err != nil {
+		return 0, nil, err
+	}
+
+	tst := oval_parsed.RpmVerifyFileTest{}
+
+	return id, &tst, nil
+}
+
+// mapRpmInfoTest maps a RpmInfoTestXML returning the test id along side the mapped RpmInfoTest,
+// will error out if the test id can not be parsed.
+func mapRpmInfoTest(i oval_input.RpmInfoTestXML) (int, *oval_parsed.RpmInfoTest, error) {
+	id, err := extractId(i.Id)
+	if err != nil {
+		return 0, nil, err
+	}
+
+	tst := oval_parsed.RpmInfoTest{
+		ObjectMatch:   oval_parsed.NewObjectMatchType(i.CheckExistence),
+		StateMatch:    oval_parsed.NewStateMatchType(i.Check),
+		StateOperator: oval_parsed.NewOperatorType(i.StateOperator),
+	}
+
+	return id, &tst, nil
+}
+
+// mapRpmInfoState maps a RpmInfoStateXML into an ObjectInfoState, will error out if one of the
+// non-supported object states is specified
+func mapRpmInfoState(sta oval_input.RpmInfoStateXML) (*oval_parsed.ObjectInfoState, error) {
+	if sta.Filepath != nil {
+		return nil, fmt.Errorf("object state based on filepath not supported")
+	}
+
+	r := oval_parsed.ObjectInfoState{}
+
+	if sta.Name != nil {
+		name := oval_parsed.NewObjectStateString(sta.Name.Op, sta.Name.Value)
+		r.Name = &name
+	}
+	if sta.Arch != nil {
+		arch := oval_parsed.NewObjectStateString(sta.Arch.Op, sta.Arch.Value)
+		r.Arch = &arch
+	}
+	if sta.Epoch != nil {
+		epoch := oval_parsed.NewObjectStateSimpleValue(sta.Epoch.Datatype, sta.Epoch.Op, sta.Epoch.Value)
+		r.Epoch = &epoch
+	}
+	if sta.Release != nil {
+		epoch := oval_parsed.NewObjectStateSimpleValue(sta.Release.Datatype, sta.Release.Op, sta.Release.Value)
+		r.Release = &epoch
+	}
+	if sta.Version != nil {
+		ver := oval_parsed.NewObjectStateSimpleValue(sta.Version.Datatype, sta.Version.Op, sta.Version.Value)
+		r.Version = &ver
+	}
+	if sta.Evr != nil {
+		evr := oval_parsed.NewObjectStateEvrString(sta.Evr.Op, sta.Evr.Value)
+		r.Evr = &evr
+	}
+	if sta.SignatureKeyId != nil {
+		// TODO (juan): Figure out how to test this...
+		sig := oval_parsed.NewObjectStateString(sta.SignatureKeyId.Op, sta.SignatureKeyId.Value)
+		r.SignatureKeyId = &sig
+	}
+	if sta.ExtendedName != nil {
+		extd := oval_parsed.NewObjectStateString(sta.ExtendedName.Op, sta.ExtendedName.Value)
+		r.ExtendedName = &extd
+	}
+
+	return &r, nil
+}
+
+// -----------------
+// Ubuntu
+// -----------------
+
+// mapDpkgInfoTest maps a DpkgInfoTestXML returning the test id along side the mapped DpkgInfoTest,
+// will error out if the test id can not be parsed.
 func mapDpkgInfoTest(i oval_input.DpkgInfoTestXML) (int, *oval_parsed.DpkgInfoTest, error) {
 	id, err := extractId(i.Id)
 	if err != nil {
@@ -99,40 +218,6 @@ func mapDpkgInfoState(sta oval_input.DpkgInfoStateXML) (*oval_parsed.ObjectState
 		return nil, fmt.Errorf("only evr state definitions are supported")
 	}
 
-	r := oval_parsed.NewObjectState(sta.Evr.Op, sta.Evr.Value)
+	r := oval_parsed.NewObjectStateEvrString(sta.Evr.Op, sta.Evr.Value)
 	return &r, nil
-}
-
-// mapDpkgInfoObject maps a DpkgInfoObjectXML into one or more object names.
-// Test objects can define their 'name' in one of two ways:
-// 1. Inline:
-// <:object ...>
-//      <:name>software name</:name>
-// </:object>
-//
-// 2. As a variable reference:
-// <:object ...>
-// 		<:name var_ref="var:200224390000000" var_check="at least one" />
-// </:object>
-func mapDpkgInfoObject(
-	obj oval_input.DpkgInfoObjectXML,
-	vars map[string]oval_input.ConstantVariableXML,
-) ([]string, error) {
-	// Check whether the name was defined inline
-	if obj.Name.Value != "" {
-		return []string{obj.Name.Value}, nil
-	}
-
-	var r []string
-	// If not, the name should be defined as a variable
-	variable, ok := vars[obj.Name.VarRef]
-	if !ok {
-		return nil, fmt.Errorf("variable not found %s", obj.Name.VarRef)
-	}
-
-	// Normally the variable for a test object contains a single value but, according to the specs,
-	// it can contain multiple values
-	r = append(r, variable.Values...)
-
-	return r, nil
 }

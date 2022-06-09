@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	oval_input "github.com/fleetdm/fleet/v4/server/vulnerabilities/oval/input"
+	oval_parsed "github.com/fleetdm/fleet/v4/server/vulnerabilities/oval/parsed"
 	"github.com/stretchr/testify/require"
 )
 
@@ -31,20 +32,20 @@ func TestOvalMapper(t *testing.T) {
 		}
 	})
 
-	t.Run("#mapDpkgInfoObject", func(t *testing.T) {
+	t.Run("#mapPackageInfoTestObject", func(t *testing.T) {
 		t.Run("name defined inline", func(t *testing.T) {
-			input := oval_input.DpkgInfoObjectXML{
+			input := oval_input.PackageInfoTestObjectXML{
 				Name: oval_input.ObjectNameXML{
 					Value: "some name",
 				},
 			}
-			output, err := mapDpkgInfoObject(input, nil)
+			output, err := mapPackageInfoTestObject(input, nil)
 			require.NoError(t, err)
 			require.Contains(t, output, "some name")
 		})
 
 		t.Run("name defined in var ref", func(t *testing.T) {
-			input := oval_input.DpkgInfoObjectXML{
+			input := oval_input.PackageInfoTestObjectXML{
 				Name: oval_input.ObjectNameXML{
 					VarRef: "1",
 				},
@@ -54,14 +55,14 @@ func TestOvalMapper(t *testing.T) {
 					Values: []string{"donut"},
 				},
 			}
-			output, err := mapDpkgInfoObject(input, varRefs)
+			output, err := mapPackageInfoTestObject(input, varRefs)
 			require.NoError(t, err)
 			require.Contains(t, output, "donut")
 		})
 
 		t.Run("name not defined inline nor using a variable ref", func(t *testing.T) {
-			input := oval_input.DpkgInfoObjectXML{}
-			_, err := mapDpkgInfoObject(input, nil)
+			input := oval_input.PackageInfoTestObjectXML{}
+			_, err := mapPackageInfoTestObject(input, nil)
 			require.Errorf(t, err, "variable not found")
 		})
 	})
@@ -99,20 +100,52 @@ func TestOvalMapper(t *testing.T) {
 	})
 
 	t.Run("#mapDpkgInfoTest", func(t *testing.T) {
-		input := oval_input.DpkgInfoTestXML{
-			Id:             "some:oval:namespace:123",
-			CheckExistence: "at_least_one_exists",
-			Check:          "all",
-			StateOperator:  "AND",
-		}
+		t.Run("maps a DpkgInfoTestXML", func(t *testing.T) {
+			input := oval_input.DpkgInfoTestXML{
+				Id:             "some:oval:namespace:123",
+				CheckExistence: "at_least_one_exists",
+				Check:          "all",
+				StateOperator:  "AND",
+			}
 
-		id, result, err := mapDpkgInfoTest(input)
+			id, result, err := mapDpkgInfoTest(input)
 
-		require.NoError(t, err)
-		require.Equal(t, id, 123)
-		require.NotNil(t, result.StateOperator)
-		require.NotNil(t, result.ObjectMatch)
-		require.NotNil(t, result.StateMatch)
+			require.NoError(t, err)
+			require.Equal(t, id, 123)
+			require.NotNil(t, result.StateOperator)
+			require.NotNil(t, result.ObjectMatch)
+			require.NotNil(t, result.StateMatch)
+		})
+
+		t.Run("errors out if id can not be parsed", func(t *testing.T) {
+			input := oval_input.DpkgInfoTestXML{Id: "asdf"}
+			_, _, err := mapDpkgInfoTest(input)
+			require.Error(t, err)
+		})
+	})
+
+	t.Run("#mapRpmInfoTest", func(t *testing.T) {
+		t.Run("maps a RpmInfoTestXML", func(t *testing.T) {
+			input := oval_input.RpmInfoTestXML{
+				Id:             "some:oval:namespace:123",
+				CheckExistence: "at_least_one_exists",
+				Check:          "all",
+				StateOperator:  "AND",
+			}
+
+			id, result, err := mapRpmInfoTest(input)
+
+			require.NoError(t, err)
+			require.Equal(t, id, 123)
+			require.NotNil(t, result.StateOperator)
+			require.NotNil(t, result.ObjectMatch)
+			require.NotNil(t, result.StateMatch)
+		})
+		t.Run("errors out if id can not be parsed", func(t *testing.T) {
+			input := oval_input.RpmInfoTestXML{Id: "asdf"}
+			_, _, err := mapRpmInfoTest(input)
+			require.Error(t, err)
+		})
 	})
 
 	t.Run("#mapCriteria", func(t *testing.T) {
@@ -181,6 +214,68 @@ func TestOvalMapper(t *testing.T) {
 			}}
 			_, err := mapDefinition(input)
 			require.Errorf(t, err, "definition contains no vulnerabilities")
+		})
+	})
+
+	t.Run("#mapRpmInfoState", func(t *testing.T) {
+		t.Run("errors out if not supported state is provided", func(t *testing.T) {
+			input := oval_input.RpmInfoStateXML{
+				Filepath: &oval_input.SimpleTypeXML{},
+			}
+			_, err := mapRpmInfoState(input)
+			require.Errorf(t, err, "object state based on filepath not supported")
+		})
+
+		t.Run("maps a RpmInfoStateXML", func(t *testing.T) {
+			input := oval_input.RpmInfoStateXML{
+				Name: &oval_input.SimpleTypeXML{
+					Value: "name",
+					Op:    "equals",
+				},
+				Arch: &oval_input.SimpleTypeXML{
+					Value: "arch",
+					Op:    "not equals",
+				},
+				Epoch: &oval_input.SimpleTypeXML{
+					Datatype: "string",
+					Value:    "epoch",
+					Op:       "equals",
+				},
+				Release: &oval_input.SimpleTypeXML{
+					Datatype: "boolean",
+					Value:    "true",
+					Op:       "less than",
+				},
+				Version: &oval_input.SimpleTypeXML{
+					Datatype: "int",
+					Value:    "123",
+					Op:       "equals",
+				},
+				Evr: &oval_input.SimpleTypeXML{
+					Value: "^12.12",
+					Op:    "equals",
+				},
+				SignatureKeyId: &oval_input.SimpleTypeXML{
+					Op:    "equals",
+					Value: "12345",
+				},
+				ExtendedName: &oval_input.SimpleTypeXML{
+					Op:    "equals",
+					Value: "0:123:12",
+				},
+			}
+
+			output, err := mapRpmInfoState(input)
+			require.NoError(t, err)
+
+			require.Equal(t, *output.Name, oval_parsed.NewObjectStateString("equals", "name"))
+			require.Equal(t, *output.Arch, oval_parsed.NewObjectStateString("not equals", "arch"))
+			require.Equal(t, *output.Epoch, oval_parsed.NewObjectStateSimpleValue("string", "equals", "epoch"))
+			require.Equal(t, *output.Release, oval_parsed.NewObjectStateSimpleValue("boolean", "less than", "true"))
+			require.Equal(t, *output.Version, oval_parsed.NewObjectStateSimpleValue("int", "equals", "123"))
+			require.Equal(t, *output.Evr, oval_parsed.NewObjectStateEvrString("equals", "^12.12"))
+			require.Equal(t, *output.SignatureKeyId, oval_parsed.NewObjectStateString("equals", "12345"))
+			require.Equal(t, *output.ExtendedName, oval_parsed.NewObjectStateString("equals", "0:123:12"))
 		})
 	})
 }
