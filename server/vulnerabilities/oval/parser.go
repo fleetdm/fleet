@@ -57,8 +57,69 @@ func processRhelDef(r io.Reader) ([]byte, error) {
 	return payload, nil
 }
 
-func parseRhelXML(r io.Reader) (*oval_input.RhelResultXML, error) {
-	panic("not implemented")
+func parseRhelXML(reader io.Reader) (*oval_input.RhelResultXML, error) {
+	r := &oval_input.RhelResultXML{
+		Variables: make(map[string]oval_input.ConstantVariableXML),
+	}
+	d := xml.NewDecoder(reader)
+
+	for {
+		t, err := d.Token()
+		if err != nil {
+			if err == io.EOF {
+				return r, nil
+			}
+			return nil, fmt.Errorf("decoding token: %v", err)
+		}
+
+		switch t := t.(type) {
+		case xml.StartElement:
+			if t.Name.Local == "definition" {
+				def := oval_input.DefinitionXML{}
+				if err = d.DecodeElement(&def, &t); err != nil {
+					return nil, err
+				}
+				r.Definitions = append(r.Definitions, def)
+			}
+			if t.Name.Local == "rpminfo_test" {
+				tst := oval_input.RpmInfoTestXML{}
+				if err = d.DecodeElement(&tst, &t); err != nil {
+					return nil, err
+				}
+				r.RpmInfoTests = append(r.RpmInfoTests, tst)
+			}
+			// We don't support this type of test yet but we need to parse it so that any
+			// definitions that use it are excluded
+			if t.Name.Local == "rpmverifyfile_test" {
+				tst := oval_input.RpmVerifyFileTest{}
+				if err = d.DecodeElement(&tst, &t); err != nil {
+					return nil, err
+				}
+				r.RpmVerifyFileTests = append(r.RpmVerifyFileTests, tst)
+			}
+			if t.Name.Local == "rpminfo_object" {
+				sta := oval_input.RpmInfoObjectXML{}
+				if err = d.DecodeElement(&sta, &t); err != nil {
+					return nil, err
+				}
+				r.RpmInfoTestObjects = append(r.RpmInfoTestObjects, sta)
+			}
+			if t.Name.Local == "rpminfo_state" {
+				obj := oval_input.RpmInfoStateXML{}
+				if err = d.DecodeElement(&obj, &t); err != nil {
+					return nil, err
+				}
+				r.RpmInfoTestStates = append(r.RpmInfoTestStates, obj)
+			}
+			if t.Name.Local == "constant_variable" {
+				cVar := oval_input.ConstantVariableXML{}
+				if err = d.DecodeElement(&cVar, &t); err != nil {
+					return nil, err
+				}
+				r.Variables[cVar.Id] = cVar
+			}
+		}
+	}
 }
 
 func mapToRhelResult(xmlResult *oval_input.RhelResultXML) (*oval_parsed.RhelResult, error) {
@@ -113,21 +174,21 @@ func parseUbuntuXML(reader io.Reader) (*oval_input.UbuntuResultXML, error) {
 				if err = d.DecodeElement(&tst, &t); err != nil {
 					return nil, err
 				}
-				r.PackageTests = append(r.PackageTests, tst)
+				r.DpkgInfoTests = append(r.DpkgInfoTests, tst)
 			}
 			if t.Name.Local == "dpkginfo_state" {
 				sta := oval_input.DpkgInfoStateXML{}
 				if err = d.DecodeElement(&sta, &t); err != nil {
 					return nil, err
 				}
-				r.PackageStates = append(r.PackageStates, sta)
+				r.DpkgInfoStates = append(r.DpkgInfoStates, sta)
 			}
 			if t.Name.Local == "dpkginfo_object" {
 				obj := oval_input.DpkgInfoObjectXML{}
 				if err = d.DecodeElement(&obj, &t); err != nil {
 					return nil, err
 				}
-				r.PackageObjects = append(r.PackageObjects, obj)
+				r.DpkgInfoObjects = append(r.DpkgInfoObjects, obj)
 			}
 			if t.Name.Local == "constant_variable" {
 				cVar := oval_input.ConstantVariableXML{}
@@ -156,7 +217,7 @@ func mapToUbuntuResult(xmlResult *oval_input.UbuntuResultXML) (*oval_parsed.Ubun
 		}
 	}
 
-	for _, t := range xmlResult.PackageTests {
+	for _, t := range xmlResult.DpkgInfoTests {
 		id, tst, err := mapDpkgInfoTest(t)
 		if err != nil {
 			return nil, err
@@ -169,7 +230,7 @@ func mapToUbuntuResult(xmlResult *oval_input.UbuntuResultXML) (*oval_parsed.Ubun
 		r.AddPackageTest(id, tst)
 	}
 
-	for _, o := range xmlResult.PackageObjects {
+	for _, o := range xmlResult.DpkgInfoObjects {
 		obj, err := mapDpkgInfoObject(o, xmlResult.Variables)
 		if err != nil {
 			return nil, err
@@ -185,7 +246,7 @@ func mapToUbuntuResult(xmlResult *oval_input.UbuntuResultXML) (*oval_parsed.Ubun
 		}
 	}
 
-	for _, s := range xmlResult.PackageStates {
+	for _, s := range xmlResult.DpkgInfoStates {
 		sta, err := mapDpkgInfoState(s)
 		if err != nil {
 			return nil, err
