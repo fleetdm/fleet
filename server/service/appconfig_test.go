@@ -394,7 +394,7 @@ func TestTransparencyURL(t *testing.T) {
 	checkLicenseErr := func(t *testing.T, shouldFail bool, err error) {
 		if shouldFail {
 			require.Error(t, err)
-			require.ErrorIs(t, err, ErrMissingLicense)
+			require.ErrorContains(t, err, "missing or invalid license")
 		} else {
 			require.NoError(t, err)
 		}
@@ -410,15 +410,15 @@ func TestTransparencyURL(t *testing.T) {
 		{
 			name:             "customURL",
 			licenseTier:      "free",
-			initialURL:       fleet.DefaultTransparencyURL,
+			initialURL:       "",
 			newURL:           "customURL",
-			expectedURL:      fleet.DefaultTransparencyURL,
+			expectedURL:      "",
 			shouldFailModify: true,
 		},
 		{
 			name:             "customURL",
 			licenseTier:      "premium",
-			initialURL:       fleet.DefaultTransparencyURL,
+			initialURL:       "",
 			newURL:           "customURL",
 			expectedURL:      "customURL",
 			shouldFailModify: false,
@@ -426,9 +426,9 @@ func TestTransparencyURL(t *testing.T) {
 		{
 			name:             "emptyURL",
 			licenseTier:      "free",
-			initialURL:       fleet.DefaultTransparencyURL,
+			initialURL:       "",
 			newURL:           "",
-			expectedURL:      fleet.DefaultTransparencyURL,
+			expectedURL:      "",
 			shouldFailModify: false,
 		},
 		{
@@ -436,7 +436,7 @@ func TestTransparencyURL(t *testing.T) {
 			licenseTier:      "premium",
 			initialURL:       "customURL",
 			newURL:           "",
-			expectedURL:      fleet.DefaultTransparencyURL,
+			expectedURL:      "",
 			shouldFailModify: false,
 		},
 	}

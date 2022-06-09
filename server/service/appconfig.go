@@ -77,10 +77,10 @@ func getAppConfigEndpoint(ctx context.Context, request interface{}, svc fleet.Se
 		agentOptions = config.AgentOptions
 	}
 
-	transparencyURL := config.FleetDesktop.TransparencyURL
+	transparencyURL := fleet.DefaultTransparencyURL
 	// Fleet Premium license is required for custom transparency url
-	if license.Tier != "premium" || transparencyURL == "" {
-		transparencyURL = fleet.DefaultTransparencyURL
+	if license.Tier == "premium" && config.FleetDesktop.TransparencyURL != "" {
+		transparencyURL = config.FleetDesktop.TransparencyURL
 	}
 	fleetDesktop := fleet.FleetDesktopSettings{TransparencyURL: transparencyURL}
 
@@ -168,6 +168,11 @@ func modifyAppConfigEndpoint(ctx context.Context, request interface{}, svc fleet
 	if response.SMTPSettings.SMTPPassword != "" {
 		response.SMTPSettings.SMTPPassword = "********"
 	}
+
+	if license.Tier != "premium" || response.FleetDesktop.TransparencyURL == "" {
+		response.FleetDesktop.TransparencyURL = fleet.DefaultTransparencyURL
+	}
+
 	return response, nil
 }
 
@@ -322,7 +327,8 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte) (*fleet.AppCo
 
 	transparencyURL := appConfig.FleetDesktop.TransparencyURL
 	if transparencyURL != "" && license.Tier != "premium" {
-		return nil, ctxerr.Wrap(ctx, ErrMissingLicense)
+		invalid.Append("transparency_url", ErrMissingLicense.Error())
+		return nil, ctxerr.Wrap(ctx, invalid)
 	}
 
 	if _, err := url.Parse(transparencyURL); err != nil {

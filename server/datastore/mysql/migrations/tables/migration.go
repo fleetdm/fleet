@@ -33,6 +33,8 @@ WHERE
 	return count > 0
 }
 
+// updateAppConfigJSON updates the `json_value` stored in the `app_config_json` after applying the
+// supplied callback to the current config object.
 func updateAppConfigJSON(tx *sql.Tx, fn func(config *fleet.AppConfig) error) error {
 	var raw []byte
 	row := tx.QueryRow(`SELECT json_value FROM app_config_json LIMIT 1`)
@@ -45,16 +47,16 @@ func updateAppConfigJSON(tx *sql.Tx, fn func(config *fleet.AppConfig) error) err
 
 	var config fleet.AppConfig
 	if err := json.Unmarshal(raw, &config); err != nil {
-		return errors.Wrap(err, "unmarshal appconfig")
+		return errors.Wrap(err, "unmarshal app_config_json")
 	}
 
 	if err := fn(&config); err != nil {
-		return err
+		return errors.Wrap(err, "callback app_config_json")
 	}
 
 	b, err := json.Marshal(config)
 	if err != nil {
-		return errors.Wrap(err, "marshal updated appconfig")
+		return errors.Wrap(err, "marshal updated app_config_json")
 	}
 
 	const updateStmt = `UPDATE app_config_json SET json_value = ? WHERE id = 1`
