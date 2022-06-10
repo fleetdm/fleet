@@ -166,7 +166,7 @@ export const DEFAULT_POLICIES = [
     name: "Screen lock enabled (Windows)",
     description: "Checks if the screen lock is enabled and configured to lock the system within 30 minutes or less.",
     resolution:
-      "Ask your administrator to enable the Interactive Logon: Machine inactivity limit setting with a value of 1800 seconds or lower.",
+      "Ask your IT administrator to enable the Interactive Logon: Machine inactivity limit setting with a value of 1800 seconds or lower.",
     platform: "windows",
   },
 ] as IPolicyNew[];
