@@ -198,7 +198,7 @@ func logDir() (string, error) {
 			return "", errors.New("%LocalAppData% is not defined")
 		}
 
-	case "darwin", "ios":
+	case "darwin":
 		dir = os.Getenv("HOME")
 		if dir == "" {
 			return "", errors.New("$HOME is not defined")
