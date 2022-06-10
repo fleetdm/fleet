@@ -21,10 +21,11 @@ func (r *getDeviceHostRequest) deviceAuthToken() string {
 }
 
 type getDeviceHostResponse struct {
-	Host       *HostDetailResponse `json:"host"`
-	OrgLogoURL string              `json:"org_logo_url"`
-	Err        error               `json:"error,omitempty"`
-	License    fleet.LicenseInfo   `json:"license"`
+	Host            *HostDetailResponse `json:"host"`
+	OrgLogoURL      string              `json:"org_logo_url"`
+	TransparencyURL string              `json:"transparency_url"`
+	Err             error               `json:"error,omitempty"`
+	License         fleet.LicenseInfo   `json:"license"`
 }
 
 func (r getDeviceHostResponse) error() error { return r.Err }
@@ -64,10 +65,16 @@ func getDeviceHostEndpoint(ctx context.Context, request interface{}, svc fleet.S
 		return getDeviceHostResponse{Err: err}, nil
 	}
 
+	transparencyURL := fleet.DefaultTransparencyURL
+	if license.Tier == "premium" && ac.FleetDesktop.TransparencyURL != "" {
+		transparencyURL = ac.FleetDesktop.TransparencyURL
+	}
+
 	return getDeviceHostResponse{
-		Host:       resp,
-		OrgLogoURL: ac.OrgInfo.OrgLogoURL,
-		License:    *license,
+		Host:            resp,
+		OrgLogoURL:      ac.OrgInfo.OrgLogoURL,
+		TransparencyURL: transparencyURL,
+		License:         *license,
 	}, nil
 }
 

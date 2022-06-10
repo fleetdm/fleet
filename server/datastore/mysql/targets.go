@@ -20,6 +20,7 @@ func (ds *Datastore) CountHostsInTargets(ctx context.Context, filter fleet.TeamF
 		return fleet.TargetMetrics{}, nil
 	}
 
+	// As of Fleet 4.15, mia hosts are also included in the total for offline hosts
 	sql := fmt.Sprintf(`
 		SELECT
 			COUNT(*) total,
