@@ -260,12 +260,11 @@ func (ds *Datastore) ObserverCanRunQuery(ctx context.Context, queryID uint) (boo
 		FROM queries
 		WHERE id = ?
 	`
-	rows := []bool{}
-
-	err := sqlx.GetContext(ctx, ds.reader, &rows, sql, queryID)
+	var observerCanRun bool
+	err := sqlx.GetContext(ctx, ds.reader, &observerCanRun, sql, queryID)
 	if err != nil {
 		return false, ctxerr.Wrap(ctx, err, "selecting observer_can_run")
 	}
 
-	return rows[0], nil
+	return observerCanRun, nil
 }
