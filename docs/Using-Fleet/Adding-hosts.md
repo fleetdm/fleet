@@ -222,7 +222,7 @@ If the existing enrolled hosts use `--host_identifier=uuid` (or the `uuid` setti
 [osquery_host_identifier](../Deploying/Configuration.md#osquery-host-identifier)), the new
 installation should appear as the same host in the Fleet UI. If other settings are used, duplicate
 entries will appear in the Fleet UI. The older entries can be automatically cleaned up with the host
-expiration functionality configured in the application settings (UI or fleetctl). 
+expiration functionality configured in Settings > Organization settings > Advanced (UI or fleetctl). 
 
 ## Grant full disk access to osquery on macOS
 macOS does not allow applications to access all system files by default. If you are using MDM, which
