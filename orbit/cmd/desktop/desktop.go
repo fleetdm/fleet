@@ -7,6 +7,7 @@ import (
 	"net/url"
 	"os"
 	"path"
+	"path/filepath"
 	"runtime"
 	"time"
 
@@ -165,7 +166,7 @@ func setupLogs() {
 	}
 
 	logFile := &lumberjack.Logger{
-		Filename:   path.Join(dir, "Fleet", "fleet-desktop.log"),
+		Filename:   filepath.Join(dir, "Fleet", "fleet-desktop.log"),
 		MaxSize:    25, // megabytes
 		MaxBackups: 3,
 		MaxAge:     28, // days
