@@ -33,12 +33,10 @@ func main() {
 	devURL := os.Getenv("FLEET_DESKTOP_DEVICE_URL")
 	if devURL == "" {
 		log.Fatal().Msg("missing URL environment FLEET_DESKTOP_DEVICE_URL")
-		os.Exit(1)
 	}
 	deviceURL, err := url.Parse(devURL)
 	if err != nil {
 		log.Fatal().Err(err).Msg("invalid URL argument")
-		os.Exit(1)
 	}
 
 	basePath := deviceURL.Scheme + "://" + deviceURL.Host
@@ -63,7 +61,6 @@ func main() {
 
 		if err != nil {
 			log.Fatal().Err(err).Msg("unable to initialize request client")
-			os.Exit(1)
 		}
 
 		// Perform API test call to enable the "My device" item as soon
