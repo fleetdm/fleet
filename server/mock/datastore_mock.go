@@ -64,6 +64,8 @@ type ListQueriesFunc func(ctx context.Context, opt fleet.ListQueryOptions) ([]*f
 
 type QueryByNameFunc func(ctx context.Context, name string, opts ...fleet.OptionalArg) (*fleet.Query, error)
 
+type ObserverCanRunQueryFunc func(ctx context.Context, queryID uint) (bool, error)
+
 type NewDistributedQueryCampaignFunc func(ctx context.Context, camp *fleet.DistributedQueryCampaign) (*fleet.DistributedQueryCampaign, error)
 
 type DistributedQueryCampaignFunc func(ctx context.Context, id uint) (*fleet.DistributedQueryCampaign, error)
@@ -488,6 +490,9 @@ type DataStore struct {
 
 	QueryByNameFunc        QueryByNameFunc
 	QueryByNameFuncInvoked bool
+
+	ObserverCanRunQueryFunc        ObserverCanRunQueryFunc
+	ObserverCanRunQueryFuncInvoked bool
 
 	NewDistributedQueryCampaignFunc        NewDistributedQueryCampaignFunc
 	NewDistributedQueryCampaignFuncInvoked bool
@@ -1137,6 +1142,11 @@ func (s *DataStore) ListQueries(ctx context.Context, opt fleet.ListQueryOptions)
 func (s *DataStore) QueryByName(ctx context.Context, name string, opts ...fleet.OptionalArg) (*fleet.Query, error) {
 	s.QueryByNameFuncInvoked = true
 	return s.QueryByNameFunc(ctx, name, opts...)
+}
+
+func (s *DataStore) ObserverCanRunQuery(ctx context.Context, queryID uint) (bool, error) {
+	s.ObserverCanRunQueryFuncInvoked = true
+	return s.ObserverCanRunQueryFunc(ctx, queryID)
 }
 
 func (s *DataStore) NewDistributedQueryCampaign(ctx context.Context, camp *fleet.DistributedQueryCampaign) (*fleet.DistributedQueryCampaign, error) {

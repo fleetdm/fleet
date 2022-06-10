@@ -65,7 +65,7 @@ const QueryResults = ({
 
   useEffect(() => {
     const calculatePercent =
-      targetsTotalCount !== 0
+      targetsTotalCount > 0
         ? Math.round((campaign.hosts_count.total / targetsTotalCount) * 100)
         : 0;
     setTargetsRespondedPercent(calculatePercent);
