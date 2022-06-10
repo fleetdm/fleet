@@ -1,4 +1,10 @@
-import React, { useCallback, useContext, useEffect, useState } from "react";
+import React, {
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useState,
+} from "react";
 import { useQuery } from "react-query";
 import { InjectedRouter } from "react-router/lib/Router";
 import { useDebouncedCallback } from "use-debounce";
@@ -472,6 +478,11 @@ const ManageSoftwarePage = ({
     !!softwareCount &&
     PAGE_SIZE * pageIndex + (software?.software?.length || 0) >= softwareCount;
 
+  const softwareTableHeaders = useMemo(
+    () => generateSoftwareTableHeaders(isPremiumTier),
+    [isPremiumTier]
+  );
+
   return !availableTeams || !config ? (
     <Spinner />
   ) : (
@@ -483,7 +494,7 @@ const ManageSoftwarePage = ({
             <TableDataError />
           ) : (
             <TableContainer
-              columns={generateSoftwareTableHeaders(isPremiumTier)}
+              columns={softwareTableHeaders}
               data={(isSoftwareEnabled && software?.software) || []}
               isLoading={isFetchingSoftware || isFetchingCount}
               resultsTitle={"software items"}

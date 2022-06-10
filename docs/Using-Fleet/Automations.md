@@ -51,6 +51,20 @@ POST https://server.com/example
 }
 ```
 
+You can configure Fleet to create a Jira issue or Zendesk ticket instead of a webhook request.
+
+Follow the steps below to configure Jira or Zendesk as a ticket destination:
+
+1. In the top bar of the Fleet UI, select your avatar and then **Settings**.
+2. Select **Integrations > Add integration**.
+3. Under **Ticket destination** select **Jira** or select **Zendesk**.
+4. Enter your ticket destination's credentials.
+5. In the top bar, select **Software > Manage automations**.
+6. Select **Enable vulnerability automations** and choose **Ticket**.
+7. Under **Ticket destination**, select your ticket destination and select **Save**.
+
+The Jira and Zendesk ticket destinations are currently in beta.
+
 ## Policy automations
 
 Policy automations send a webhook request if a policy is newly failing on at

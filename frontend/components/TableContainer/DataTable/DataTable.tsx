@@ -172,6 +172,12 @@ const DataTable = ({
       // with custom `sortTypes` defined for this `useTable` instance
       sortTypes: React.useMemo(
         () => ({
+          boolean: (
+            a: { values: Record<string, unknown> },
+            b: { values: Record<string, unknown> },
+            id: string
+          ) => sort.booleanAsc(a.values[id], b.values[id]),
+
           caseInsensitive: (
             a: { values: Record<string, unknown> },
             b: { values: Record<string, unknown> },

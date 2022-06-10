@@ -953,6 +953,12 @@ func (s *integrationEnterpriseTestSuite) TestExternalIntegrationsTeamConfig() {
 func (s *integrationEnterpriseTestSuite) TestListDevicePolicies() {
 	t := s.T()
 
+	ac, err := s.ds.AppConfig(context.Background())
+	require.NoError(t, err)
+	ac.OrgInfo.OrgLogoURL = "http://example.com/logo"
+	err = s.ds.SaveAppConfig(context.Background(), ac)
+	require.NoError(t, err)
+
 	team, err := s.ds.NewTeam(context.Background(), &fleet.Team{
 		ID:          51,
 		Name:        "team1-policies",
@@ -975,7 +981,7 @@ func (s *integrationEnterpriseTestSuite) TestListDevicePolicies() {
 	err = s.ds.AddHostsToTeam(context.Background(), &team.ID, []uint{host.ID})
 	require.NoError(t, err)
 
-	// create an auth token for hosts[0]
+	// create an auth token for host
 	token := "much_valid"
 	mysql.ExecAdhocSQL(t, s.ds, func(db sqlx.ExtContext) error {
 		_, err := db.ExecContext(context.Background(), `INSERT INTO host_device_auth (host_id, token) VALUES (?, ?)`, host.ID, token)
@@ -999,7 +1005,7 @@ func (s *integrationEnterpriseTestSuite) TestListDevicePolicies() {
 	s.DoJSON("POST", "/api/latest/fleet/policies", gpParams, http.StatusOK, &gpResp)
 	require.NotNil(t, gpResp.Policy)
 
-	// add a policy to team 1
+	// add a policy to team
 	oldToken := s.token
 	t.Cleanup(func() {
 		s.token = oldToken
@@ -1039,10 +1045,89 @@ func (s *integrationEnterpriseTestSuite) TestListDevicePolicies() {
 	res := s.DoRawNoAuth("GET", "/api/latest/fleet/device/invalid_token/policies", nil, http.StatusUnauthorized)
 	res.Body.Close()
 
+	// GET `/api/_version_/fleet/device/{token}/policies`
 	listDevicePoliciesResp := listDevicePoliciesResponse{}
 	res = s.DoRawNoAuth("GET", "/api/latest/fleet/device/"+token+"/policies", nil, http.StatusOK)
 	json.NewDecoder(res.Body).Decode(&listDevicePoliciesResp)
 	res.Body.Close()
 	require.Len(t, listDevicePoliciesResp.Policies, 2)
 	require.NoError(t, listDevicePoliciesResp.Err)
+
+	// GET `/api/_version_/fleet/device/{token}`
+	getDeviceHostResp := getDeviceHostResponse{}
+	res = s.DoRawNoAuth("GET", "/api/latest/fleet/device/"+token, nil, http.StatusOK)
+	json.NewDecoder(res.Body).Decode(&getDeviceHostResp)
+	res.Body.Close()
+	require.NoError(t, getDeviceHostResp.Err)
+	require.Equal(t, host.ID, getDeviceHostResp.Host.ID)
+	require.False(t, getDeviceHostResp.Host.RefetchRequested)
+	require.Equal(t, "http://example.com/logo", getDeviceHostResp.OrgLogoURL)
+	require.Len(t, *getDeviceHostResp.Host.Policies, 2)
+}
+
+// TestCustomTransparencyURL tests that Fleet Premium licensees can use custom transparency urls.
+func (s *integrationEnterpriseTestSuite) TestCustomTransparencyURL() {
+	t := s.T()
+
+	host, err := s.ds.NewHost(context.Background(), &fleet.Host{
+		DetailUpdatedAt: time.Now(),
+		LabelUpdatedAt:  time.Now(),
+		PolicyUpdatedAt: time.Now(),
+		SeenTime:        time.Now().Add(-1 * time.Minute),
+		OsqueryHostID:   t.Name(),
+		NodeKey:         t.Name(),
+		UUID:            uuid.New().String(),
+		Hostname:        fmt.Sprintf("%sfoo.local", t.Name()),
+		Platform:        "darwin",
+	})
+	require.NoError(t, err)
+
+	// create device token for host
+	token := "token_test_custom_transparency_url"
+	mysql.ExecAdhocSQL(t, s.ds, func(db sqlx.ExtContext) error {
+		_, err := db.ExecContext(context.Background(), `INSERT INTO host_device_auth (host_id, token) VALUES (?, ?)`, host.ID, token)
+		return err
+	})
+
+	// confirm intitial default url
+	acResp := appConfigResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/config", nil, http.StatusOK, &acResp)
+	require.NotNil(t, acResp)
+	require.Equal(t, fleet.DefaultTransparencyURL, acResp.FleetDesktop.TransparencyURL)
+
+	// confirm device endpoint returns initial default url
+	deviceResp := &getDeviceHostResponse{}
+	rawResp := s.DoRawNoAuth("GET", "/api/latest/fleet/device/"+token, nil, http.StatusOK)
+	json.NewDecoder(rawResp.Body).Decode(deviceResp)
+	rawResp.Body.Close()
+	require.NoError(t, deviceResp.Err)
+	require.Equal(t, fleet.DefaultTransparencyURL, deviceResp.TransparencyURL)
+
+	// set custom url
+	acResp = appConfigResponse{}
+	s.DoJSON("PATCH", "/api/latest/fleet/config", fleet.AppConfig{FleetDesktop: fleet.FleetDesktopSettings{TransparencyURL: "customURL"}}, http.StatusOK, &acResp)
+	require.NotNil(t, acResp)
+	require.Equal(t, "customURL", acResp.FleetDesktop.TransparencyURL)
+
+	// device endpoint returns custom url
+	deviceResp = &getDeviceHostResponse{}
+	rawResp = s.DoRawNoAuth("GET", "/api/latest/fleet/device/"+token, nil, http.StatusOK)
+	json.NewDecoder(rawResp.Body).Decode(deviceResp)
+	rawResp.Body.Close()
+	require.NoError(t, deviceResp.Err)
+	require.Equal(t, "customURL", deviceResp.TransparencyURL)
+
+	// empty string applies default url
+	acResp = appConfigResponse{}
+	s.DoJSON("PATCH", "/api/latest/fleet/config", fleet.AppConfig{FleetDesktop: fleet.FleetDesktopSettings{TransparencyURL: ""}}, http.StatusOK, &acResp)
+	require.NotNil(t, acResp)
+	require.Equal(t, fleet.DefaultTransparencyURL, acResp.FleetDesktop.TransparencyURL)
+
+	// device endpoint returns default url
+	deviceResp = &getDeviceHostResponse{}
+	rawResp = s.DoRawNoAuth("GET", "/api/latest/fleet/device/"+token, nil, http.StatusOK)
+	json.NewDecoder(rawResp.Body).Decode(deviceResp)
+	rawResp.Body.Close()
+	require.NoError(t, deviceResp.Err)
+	require.Equal(t, fleet.DefaultTransparencyURL, deviceResp.TransparencyURL)
 }

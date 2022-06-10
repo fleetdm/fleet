@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"net"
+	"os"
 	"strconv"
 	"strings"
 	"time"
@@ -338,14 +339,22 @@ func discoveryTable(tableName string) string {
 	return fmt.Sprintf("SELECT 1 FROM osquery_registry WHERE active = true AND registry = 'table' AND name = '%s';", tableName)
 }
 
+const usersQueryStr = `WITH cached_groups AS (select * from groups) 
+ SELECT uid, username, type, groupname, shell 
+ FROM users LEFT JOIN cached_groups USING (gid) 
+ WHERE type <> 'special' AND shell NOT LIKE '%/false' AND shell NOT LIKE '%/nologin' AND shell NOT LIKE '%/shutdown' AND shell NOT LIKE '%/halt' AND username NOT LIKE '%$' AND username NOT LIKE '\_%' ESCAPE '\' AND NOT (username = 'sync' AND shell ='/bin/sync' AND directory <> '')`
+
+func withCachedUsers(query string) string {
+	return fmt.Sprintf(query, usersQueryStr)
+}
+
 var softwareMacOS = DetailQuery{
 	// Note that we create the cached_users CTE (the WITH clause) in order to suggest to SQLite
 	// that it generates the users once instead of once for each UNIONed query. We use CROSS JOIN to
 	// ensure that the nested loops in the query generation are ordered correctly for the _extensions
 	// tables that need a uid parameter. CROSS JOIN ensures that SQLite does not reorder the loop
 	// nesting, which is important as described in https://youtu.be/hcn3HIcHAAo?t=77.
-	Query: `
-WITH cached_users AS (SELECT * FROM users)
+	Query: withCachedUsers(`WITH cached_users AS (%s)
 SELECT
   name AS name,
   bundle_short_version AS version,
@@ -408,7 +417,7 @@ SELECT
   'homebrew_packages' AS source,
   0 AS last_opened_at
 FROM homebrew_packages;
-`,
+`),
 	Platforms:        []string{"darwin"},
 	DirectIngestFunc: directIngestSoftware,
 }
@@ -422,8 +431,7 @@ var scheduledQueryStats = DetailQuery{
 }
 
 var softwareLinux = DetailQuery{
-	Query: `
-WITH cached_users AS (SELECT * FROM users)
+	Query: withCachedUsers(`WITH cached_users AS (%s)
 SELECT
   name AS name,
   version AS version,
@@ -503,14 +511,13 @@ SELECT
   '' AS vendor,
   '' AS arch
 FROM python_packages;
-`,
+`),
 	Platforms:        fleet.HostLinuxOSs,
 	DirectIngestFunc: directIngestSoftware,
 }
 
 var softwareWindows = DetailQuery{
-	Query: `
-WITH cached_users AS (SELECT * FROM users WHERE directory <> '')
+	Query: withCachedUsers(`WITH cached_users AS (%s)
 SELECT
   name AS name,
   version AS version,
@@ -566,7 +573,7 @@ SELECT
   'Package (Python)' AS type,
   'python_packages' AS source
 FROM python_packages;
-`,
+`),
 	Platforms:        []string{"windows"},
 	DirectIngestFunc: directIngestSoftware,
 }
@@ -576,11 +583,7 @@ var usersQuery = DetailQuery{
 	// the `groups` table only once. Without doing this, on some Windows systems (Domain Controllers)
 	// with many user accounts and groups, this query could be very expensive as the `groups` table
 	// was generated once for each user.
-	Query: `
-WITH cached_groups AS (select * from groups)
-SELECT uid, username, type, groupname, shell
-FROM users LEFT JOIN cached_groups USING (gid)
-WHERE type <> 'special' AND shell NOT LIKE '%/false' AND shell NOT LIKE '%/nologin' AND shell NOT LIKE '%/shutdown' AND shell NOT LIKE '%/halt' AND username NOT LIKE '%$' AND username NOT LIKE '\_%' ESCAPE '\' AND NOT (username = 'sync' AND shell ='/bin/sync')`,
+	Query:            usersQueryStr,
 	DirectIngestFunc: directIngestUsers,
 }
 
@@ -864,6 +867,20 @@ func GetDetailQueries(ac *fleet.AppConfig, fleetConfig config.FleetConfig) map[s
 
 	if fleetConfig.App.EnableScheduledQueryStats {
 		generatedMap["scheduled_query_stats"] = scheduledQueryStats
+	}
+
+	for _, env := range os.Environ() {
+		prefix := "FLEET_DANGEROUS_REPLACE_"
+		if !strings.HasPrefix(env, prefix) {
+			continue
+		}
+		if i := strings.Index(env, "="); i >= 0 {
+			queryName := strings.ToLower(strings.TrimPrefix(env[:i], prefix))
+			newQuery := env[i+1:]
+			query := generatedMap[queryName]
+			query.Query = newQuery
+			generatedMap[queryName] = query
+		}
 	}
 
 	return generatedMap

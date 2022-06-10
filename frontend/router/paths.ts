@@ -46,6 +46,9 @@ export default {
     return `${URL_PREFIX}/device/${deviceAuthToken}`;
   },
   MANAGE_SOFTWARE: `${URL_PREFIX}/software/manage`,
+  SOFTWARE_DETAILS: (id: string): string => {
+    return `${URL_PREFIX}/software/${id}`;
+  },
   TEAM_DETAILS_MEMBERS: (teamId: number): string => {
     return `${URL_PREFIX}/settings/teams/${teamId}/members`;
   },

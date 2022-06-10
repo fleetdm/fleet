@@ -478,8 +478,25 @@ func (s *integrationTestSuite) TestVulnerableSoftware() {
 	}
 
 	require.NoError(t, s.ds.AddCPEForSoftware(context.Background(), soft1, "somecpe"))
-	_, err = s.ds.InsertCVEForCPE(context.Background(), "cve-123-123-132", []string{"somecpe"})
+
+	// Reload software so that 'GeneratedCPEID is set.
+	require.NoError(t, s.ds.LoadHostSoftware(context.Background(), host, false))
+	soft1 = host.Software[0]
+	if soft1.Name != "bar" {
+		soft1 = host.Software[1]
+	}
+
+	n, err := s.ds.InsertVulnerabilities(
+		context.Background(), []fleet.SoftwareVulnerability{
+			{
+				SoftwareID: soft1.ID,
+				CPEID:      soft1.GeneratedCPEID,
+				CVE:        "cve-123-123-132",
+			},
+		}, fleet.NVD,
+	)
 	require.NoError(t, err)
+	require.Equal(t, 1, int(n))
 
 	resp := s.Do("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", host.ID), nil, http.StatusOK)
 	bodyBytes, err := ioutil.ReadAll(resp.Body)
@@ -1728,12 +1745,13 @@ func (s *integrationTestSuite) TestHostDetailsPolicies() {
 	require.NoError(t, err)
 	require.Nil(t, r.Err)
 	hd := r.Host.HostDetail
-	require.Len(t, hd.Policies, 2)
-	require.True(t, reflect.DeepEqual(gpResp.Policy.PolicyData, hd.Policies[0].PolicyData))
-	require.Equal(t, hd.Policies[0].Response, "pass")
+	policies := *hd.Policies
+	require.Len(t, policies, 2)
+	require.True(t, reflect.DeepEqual(gpResp.Policy.PolicyData, policies[0].PolicyData))
+	require.Equal(t, policies[0].Response, "pass")
 
-	require.True(t, reflect.DeepEqual(tpResp.Policy.PolicyData, hd.Policies[1].PolicyData))
-	require.Equal(t, hd.Policies[1].Response, "") // policy didn't "run"
+	require.True(t, reflect.DeepEqual(tpResp.Policy.PolicyData, policies[1].PolicyData))
+	require.Equal(t, policies[1].Response, "") // policy didn't "run"
 
 	// Try to create a global policy with an existing name.
 	s.DoJSON("POST", "/api/latest/fleet/policies", gpParams, http.StatusConflict, &gpResp)
@@ -4054,13 +4072,23 @@ func (s *integrationTestSuite) TestPaginateListSoftware() {
 	for i, sw := range sws {
 		cpe := "somecpe" + strconv.Itoa(i)
 		require.NoError(t, s.ds.AddCPEForSoftware(context.Background(), sw, cpe))
-
-		if i < 10 {
-			// add CVEs for the first 10 software, which are the least used (lower hosts_count)
-			_, err := s.ds.InsertCVEForCPE(context.Background(), fmt.Sprintf("cve-123-123-%03d", i), []string{cpe})
-			require.NoError(t, err)
-		}
 	}
+
+	// Reload software to load GeneratedCPEID
+	require.NoError(t, s.ds.LoadHostSoftware(context.Background(), hosts[0], false))
+	var vulns []fleet.SoftwareVulnerability
+	for i, sw := range hosts[0].Software[:10] {
+		vulns = append(vulns, fleet.SoftwareVulnerability{
+			SoftwareID: sw.ID,
+			CPEID:      sw.GeneratedCPEID,
+			CVE:        fmt.Sprintf("cve-123-123-%03d", i),
+		})
+	}
+
+	// add CVEs for the first 10 software, which are the least used (lower hosts_count)
+	n, err := s.ds.InsertVulnerabilities(context.Background(), vulns, fleet.NVD)
+	require.NoError(t, err)
+	require.Equal(t, 10, int(n))
 
 	// create a team and make the last 3 hosts part of it (meaning 3 that use
 	// sws[19], 2 for sws[18], and 1 for sws[17])
@@ -4623,11 +4651,13 @@ func (s *integrationTestSuite) TestDeviceAuthenticatedEndpoints() {
 	require.Equal(t, hosts[0].ID, getHostResp.Host.ID)
 	require.False(t, getHostResp.Host.RefetchRequested)
 	require.Equal(t, "http://example.com/logo", getHostResp.OrgLogoURL)
+	require.Nil(t, getHostResp.Host.Policies)
 	hostDevResp := getHostResp.Host
 
-	// make request for same host on the host details API endpoint, responses should match
+	// make request for same host on the host details API endpoint, responses should match, except for policies
 	getHostResp = getDeviceHostResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", hosts[0].ID), nil, http.StatusOK, &getHostResp)
+	getHostResp.Host.Policies = nil
 	require.Equal(t, hostDevResp, getHostResp.Host)
 
 	// request a refetch for that valid host
@@ -4695,6 +4725,79 @@ func (s *integrationTestSuite) TestDeviceAuthenticatedEndpoints() {
 	json.NewDecoder(res.Body).Decode(&getHostResp)
 	res.Body.Close()
 	require.Nil(t, listPoliciesResp.Policies)
+
+	// get list of api features
+	apiFeaturesResp := deviceAPIFeaturesResponse{}
+	res = s.DoRawNoAuth("GET", "/api/latest/fleet/device/"+token+"/api_features", nil, http.StatusOK)
+	json.NewDecoder(res.Body).Decode(&apiFeaturesResp)
+	res.Body.Close()
+	require.Nil(t, apiFeaturesResp.Err)
+	require.NotNil(t, apiFeaturesResp.Features)
+}
+
+// TestDefaultTransparencyURL tests that Fleet Free licensees are restricted to the default transparency url.
+func (s *integrationTestSuite) TestDefaultTransparencyURL() {
+	t := s.T()
+
+	host, err := s.ds.NewHost(context.Background(), &fleet.Host{
+		DetailUpdatedAt: time.Now(),
+		LabelUpdatedAt:  time.Now(),
+		PolicyUpdatedAt: time.Now(),
+		SeenTime:        time.Now().Add(-1 * time.Minute),
+		OsqueryHostID:   t.Name(),
+		NodeKey:         t.Name(),
+		UUID:            uuid.New().String(),
+		Hostname:        fmt.Sprintf("%sfoo.local", t.Name()),
+		Platform:        "darwin",
+	})
+	require.NoError(t, err)
+
+	// create device token for host
+	token := "token_test_default_transparency_url"
+	mysql.ExecAdhocSQL(t, s.ds, func(db sqlx.ExtContext) error {
+		_, err := db.ExecContext(context.Background(), `INSERT INTO host_device_auth (host_id, token) VALUES (?, ?)`, host.ID, token)
+		return err
+	})
+
+	// confirm initial default url
+	acResp := appConfigResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/config", nil, http.StatusOK, &acResp)
+	require.NotNil(t, acResp)
+	require.Equal(t, fleet.DefaultTransparencyURL, acResp.FleetDesktop.TransparencyURL)
+
+	// confirm device endpoint returns initial default url
+	deviceResp := &getDeviceHostResponse{}
+	rawResp := s.DoRawNoAuth("GET", "/api/latest/fleet/device/"+token, nil, http.StatusOK)
+	json.NewDecoder(rawResp.Body).Decode(deviceResp)
+	rawResp.Body.Close()
+	require.NoError(t, deviceResp.Err)
+	require.Equal(t, fleet.DefaultTransparencyURL, deviceResp.TransparencyURL)
+
+	// empty string applies default url
+	acResp = appConfigResponse{}
+	s.DoJSON("PATCH", "/api/latest/fleet/config", fleet.AppConfig{FleetDesktop: fleet.FleetDesktopSettings{TransparencyURL: ""}}, http.StatusOK, &acResp)
+	require.NotNil(t, acResp)
+	require.Equal(t, fleet.DefaultTransparencyURL, acResp.FleetDesktop.TransparencyURL)
+
+	// device endpoint returns default url
+	deviceResp = &getDeviceHostResponse{}
+	rawResp = s.DoRawNoAuth("GET", "/api/latest/fleet/device/"+token, nil, http.StatusOK)
+	json.NewDecoder(rawResp.Body).Decode(deviceResp)
+	rawResp.Body.Close()
+	require.NoError(t, deviceResp.Err)
+	require.Equal(t, fleet.DefaultTransparencyURL, deviceResp.TransparencyURL)
+
+	// modify transparency url with custom url fails
+	acResp = appConfigResponse{}
+	s.DoJSON("PATCH", "/api/latest/fleet/config", fleet.AppConfig{FleetDesktop: fleet.FleetDesktopSettings{TransparencyURL: "customURL"}}, http.StatusUnprocessableEntity, &acResp)
+
+	// device endpoint still returns default url
+	deviceResp = &getDeviceHostResponse{}
+	rawResp = s.DoRawNoAuth("GET", "/api/latest/fleet/device/"+token, nil, http.StatusOK)
+	json.NewDecoder(rawResp.Body).Decode(deviceResp)
+	rawResp.Body.Close()
+	require.NoError(t, deviceResp.Err)
+	require.Equal(t, fleet.DefaultTransparencyURL, deviceResp.TransparencyURL)
 }
 
 func (s *integrationTestSuite) TestModifyUser() {
