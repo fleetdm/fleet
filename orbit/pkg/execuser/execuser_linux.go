@@ -1,6 +1,7 @@
 package execuser
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"os/exec"
