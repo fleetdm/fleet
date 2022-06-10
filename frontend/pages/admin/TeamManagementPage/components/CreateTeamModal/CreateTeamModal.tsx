@@ -1,5 +1,7 @@
 import React, { useState, useCallback, useEffect } from "react";
 
+import { ITeamFormData } from "services/entities/teams";
+
 import Modal from "components/Modal";
 import Button from "components/buttons/Button";
 import InfoBanner from "components/InfoBanner/InfoBanner";
@@ -9,13 +11,9 @@ import Spinner from "components/Spinner";
 
 const baseClass = "create-team-modal";
 
-export interface ICreateTeamFormData {
-  name: string;
-}
-
 interface ICreateTeamModalProps {
   onCancel: () => void;
-  onSubmit: (formData: ICreateTeamFormData) => void;
+  onSubmit: (formData: ITeamFormData) => void;
   backendValidators: { [key: string]: string };
   isLoading: boolean;
 }

@@ -12,7 +12,7 @@ import { clearToken } from "utilities/local";
 
 import { AppContext } from "context/app";
 import { NotificationContext } from "context/notification";
-import teamsAPI from "services/entities/teams";
+import teamsAPI, { ILoadTeamsResponse } from "services/entities/teams";
 import usersAPI from "services/entities/users";
 import invitesAPI from "services/entities/invites";
 
@@ -33,10 +33,6 @@ const baseClass = "user-management";
 
 interface IUserManagementProps {
   router: InjectedRouter; // v3
-}
-
-interface ITeamsResponse {
-  teams: ITeam[];
 }
 
 const UserManagementPage = ({ router }: IUserManagementProps): JSX.Element => {
@@ -74,12 +70,12 @@ const UserManagementPage = ({ router }: IUserManagementProps): JSX.Element => {
     data: teams,
     isFetching: isFetchingTeams,
     error: loadingTeamsError,
-  } = useQuery<ITeamsResponse, Error, ITeam[]>(
+  } = useQuery<ILoadTeamsResponse, Error, ITeam[]>(
     ["teams"],
     () => teamsAPI.loadAll(),
     {
       enabled: !!isPremiumTier,
-      select: (data: ITeamsResponse) => data.teams,
+      select: (data: ILoadTeamsResponse) => data.teams,
     }
   );
 

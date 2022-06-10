@@ -2620,6 +2620,7 @@ created_at,updated_at,id,detail_updated_at,label_updated_at,policy_updated_at,la
 - [Create label](#create-label)
 - [Modify label](#modify-label)
 - [Get label](#get-label)
+- [Get labels summary](#get-labels-sumary)
 - [List labels](#list-labels)
 - [List hosts in a label](#list-hosts-in-a-label)
 - [Delete label](#delete-label)
@@ -2766,6 +2767,57 @@ Returns the specified label.
 }
 ```
 
+### Get labels summary
+
+Returns a list of all the labels in Fleet.
+
+`GET /api/v1/fleet/labels/summary`
+
+#### Example
+
+`GET /api/v1/fleet/labels/summary`
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "labels": [
+    {
+      "id": 6,
+      "name": "All Hosts",
+      "description": "All hosts which have enrolled in Fleet",
+      "label_type": "builtin",
+    },
+    {
+      "id": 7,
+      "name": "macOS",
+      "description": "All macOS hosts",
+      "label_type": "builtin",
+    },
+    {
+      "id": 8,
+      "name": "Ubuntu Linux",
+      "description": "All Ubuntu hosts",
+      "label_type": "builtin",
+    },
+    {
+      "id": 9,
+      "name": "CentOS Linux",
+      "description": "All CentOS hosts",
+      "label_type": "builtin",
+    },
+    {
+      "id": 10,
+      "name": "MS Windows",
+      "description": "All Windows hosts",
+      "label_type": "builtin",
+    },
+  ]
+}
+```
+
 ### List labels
 
 Returns a list of all the labels in Fleet.
@@ -2775,8 +2827,7 @@ Returns a list of all the labels in Fleet.
 #### Parameters
 
 | Name            | Type    | In    | Description                                                                                                                   |
-| --------------- | ------- | ----- | ----------------------------------------------------------------------------------------------------------------------------- |
-| id              | integer | path  | **Required**. The label's id.                                                                                                 |
+| --------------- | ------- | ----- | ----------------------------------------------------------------------------------------------------------------------------- |                                                                                               |
 | order_key       | string  | query | What to order results by. Can be any column in the labels table.                                                              |
 | order_direction | string  | query | **Requires `order_key`**. The direction of the order given the order key. Options include `asc` and `desc`. Default is `asc`. |
 
