@@ -10,16 +10,21 @@ import ForgotPasswordForm from "components/forms/ForgotPasswordForm";
 import StackedWhiteBoxes from "components/StackedWhiteBoxes";
 import AuthenticationFormWrapper from "components/AuthenticationFormWrapper";
 import ExternalURLIcon from "../../../assets/images/icon-external-url-12x12@2x.png";
+import Spinner from "components/Spinner";
 
 const ForgotPasswordPage = () => {
   const [email, setEmail] = useState<string>("");
   const [errors, setErrors] = useState<{ [key: string]: string }>({});
+  const [isLoading, setIsLoading] = useState<boolean>(false);
+
+  const baseClass = "forgot-password";
 
   useEffect(() => {
     setErrors({});
   }, []);
 
   const handleSubmit = async (formData: any) => {
+    setIsLoading(true);
     try {
       await usersAPI.forgotPassword(formData);
 
@@ -30,13 +35,15 @@ const ForgotPasswordPage = () => {
       setEmail("");
       setErrors(errorObject);
       return false;
+    } finally {
+      setIsLoading(false);
     }
   };
 
   const renderContent = () => {
-    const baseClass = "forgot-password";
-
-    if (email) {
+    if (isLoading) {
+      return <Spinner />;
+    } else if (email) {
       return (
         <div className={`${baseClass}__text-wrapper`}>
           <p className={`${baseClass}__text`}>
@@ -44,6 +51,7 @@ const ForgotPasswordPage = () => {
             <span className={`${baseClass}__email`}>{email}</span>. Click the
             link in the email to proceed with the password reset process. If you
             did not receive an email please contact your Fleet administrator.
+            <br />
             <br />
             You can find more information on resetting passwords at the{" "}
             <a
@@ -64,24 +72,24 @@ const ForgotPasswordPage = () => {
     }
 
     return (
-      <ForgotPasswordForm
-        handleSubmit={handleSubmit}
-        onChangeFunc={() => setErrors({})}
-        serverErrors={errors}
-      />
+      <>
+        <p>
+          Enter your email below to receive an email with instructions to reset
+          your password.
+        </p>
+        <ForgotPasswordForm
+          handleSubmit={handleSubmit}
+          onChangeFunc={() => setErrors({})}
+          serverErrors={errors}
+        />
+      </>
     );
   };
 
-  const leadText =
-    "Enter your email below to receive an email with instructions to reset your password.";
-
   return (
     <AuthenticationFormWrapper>
-      <StackedWhiteBoxes
-        leadText={email ? "" : leadText}
-        previousLocation={PATHS.LOGIN}
-      >
-        {renderContent()}
+      <StackedWhiteBoxes previousLocation={PATHS.LOGIN}>
+        <div className={baseClass}>{renderContent()}</div>
       </StackedWhiteBoxes>
     </AuthenticationFormWrapper>
   );
