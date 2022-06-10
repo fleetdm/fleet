@@ -38,10 +38,10 @@ func mapDefinition(i oval_input.DefinitionXML) (*oval_parsed.Definition, error) 
 }
 
 // mapCriteria maps a CriteriaXML into a Criteria, will error out if any Criterion is missing its id
-// or if any of the Criteriums is empty.
+// or if any of the Criteria contains no Criteriums nor nested Criterias
 func mapCriteria(i oval_input.CriteriaXML) (*oval_parsed.Criteria, error) {
-	if len(i.Criteriums) == 0 {
-		return nil, fmt.Errorf("invalid Criteria, Criteriums missing")
+	if len(i.Criteriums) == 0 && len(i.Criterias) == 0 {
+		return nil, fmt.Errorf("invalid Criteria, no Criteriums nor nested Criterias found")
 	}
 
 	criteria := oval_parsed.Criteria{
@@ -134,6 +134,71 @@ func mapRpmInfoTest(i oval_input.RpmInfoTestXML) (int, *oval_parsed.RpmInfoTest,
 	return id, &tst, nil
 }
 
+// mapRpmVerifyFileObject maps a RpmVerifyFileObjectXML into file path (string), will error out if
+// the `<filepath>` children element is not set or if any of the non supported element is set.
+func mapRpmVerifyFileObject(i oval_input.RpmVerifyFileObjectXML) (*string, error) {
+	if i.FilePath.Value == "" {
+		return nil, fmt.Errorf("missing file path")
+	}
+
+	// The following properties are not used (since we are making an assertion against the contents
+	// of a file), but they are required according to the specs - they should be present but empty
+	if i.Name.Value != "" ||
+		i.Epoch.Value != "" ||
+		i.Version.Value != "" ||
+		i.Release.Value != "" ||
+		i.Arch.Value != "" {
+		return nil, fmt.Errorf("invalid RPM verify file object specified")
+	}
+
+	filepath := i.FilePath.Value
+	return &filepath, nil
+}
+
+// mapRpmVerifyFileState maps a RpmVerifyFileStateXML to an ObjectInfoState, will error out if a non
+// supported attribute is found
+func mapRpmVerifyFileState(sta oval_input.RpmVerifyFileStateXML) (*oval_parsed.ObjectInfoState, error) {
+	if sta.SizeDiffers != nil ||
+		sta.ModeDiffers != nil ||
+		sta.Md5Differs != nil ||
+		sta.DeviceDiffers != nil ||
+		sta.LinkMismatch != nil ||
+		sta.OwnershipDiffers != nil ||
+		sta.GroupDiffers != nil ||
+		sta.MtimeDiffers != nil ||
+		sta.CapabilitiesDiffer != nil ||
+		sta.ConfigurationFile != nil ||
+		sta.GhostFile != nil ||
+		sta.LicenseFile != nil ||
+		sta.ReadmeFile != nil {
+		return nil, fmt.Errorf("invalid RPM verify file state specified")
+	}
+	r := oval_parsed.ObjectInfoState{}
+
+	if sta.Name != nil {
+		name := oval_parsed.NewObjectStateString(sta.Name.Op, sta.Name.Value)
+		r.Name = &name
+	}
+	if sta.Arch != nil {
+		arch := oval_parsed.NewObjectStateString(sta.Arch.Op, sta.Arch.Value)
+		r.Arch = &arch
+	}
+	if sta.Epoch != nil {
+		epoch := oval_parsed.NewObjectStateSimpleValue(sta.Epoch.Datatype, sta.Epoch.Op, sta.Epoch.Value)
+		r.Epoch = &epoch
+	}
+	if sta.Version != nil {
+		ver := oval_parsed.NewObjectStateSimpleValue(sta.Version.Datatype, sta.Version.Op, sta.Version.Value)
+		r.Version = &ver
+	}
+	if sta.ExtendedName != nil {
+		extd := oval_parsed.NewObjectStateString(sta.ExtendedName.Op, sta.ExtendedName.Value)
+		r.ExtendedName = &extd
+	}
+
+	return &r, nil
+}
+
 // mapRpmInfoState maps a RpmInfoStateXML into an ObjectInfoState, will error out if one of the
 // non-supported object states is specified
 func mapRpmInfoState(sta oval_input.RpmInfoStateXML) (*oval_parsed.ObjectInfoState, error) {
@@ -168,7 +233,6 @@ func mapRpmInfoState(sta oval_input.RpmInfoStateXML) (*oval_parsed.ObjectInfoSta
 		r.Evr = &evr
 	}
 	if sta.SignatureKeyId != nil {
-		// TODO (juan): Figure out how to test this...
 		sig := oval_parsed.NewObjectStateString(sta.SignatureKeyId.Op, sta.SignatureKeyId.Value)
 		r.SignatureKeyId = &sig
 	}

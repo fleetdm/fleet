@@ -157,17 +157,29 @@ func TestOvalMapper(t *testing.T) {
 			require.Error(t, err)
 		})
 
-		t.Run("errors out if no Criteriums", func(t *testing.T) {
+		t.Run("errors out if no Criteriums or nested criterias", func(t *testing.T) {
 			input := oval_input.CriteriaXML{}
 			_, err := mapCriteria(input)
-			require.Errorf(t, err, "invalid Criteria, Criteriums missing")
+			require.Errorf(t, err, "invalid Criteria, no Criteriums nor nested Criterias found")
 
 			input = oval_input.CriteriaXML{
 				Criteriums: []oval_input.CriterionXML{{TestId: "oval:123"}},
 				Criterias:  []oval_input.CriteriaXML{{}},
 			}
 			_, err = mapCriteria(input)
-			require.Errorf(t, err, "invalid Criteria, Criteriums missing")
+			require.Errorf(t, err, "invalid Criteria, no Criteriums nor nested Criterias found")
+
+			input = oval_input.CriteriaXML{
+				Criterias: []oval_input.CriteriaXML{{
+					Criterias: []oval_input.CriteriaXML{
+						{Criteriums: []oval_input.CriterionXML{
+							{TestId: "bc:1234"},
+						}},
+					},
+				}},
+			}
+			_, err = mapCriteria(input)
+			require.NoError(t, err)
 		})
 
 		t.Run("maps Criteriums", func(t *testing.T) {
@@ -275,6 +287,183 @@ func TestOvalMapper(t *testing.T) {
 			require.Equal(t, *output.Version, oval_parsed.NewObjectStateSimpleValue("int", "equals", "123"))
 			require.Equal(t, *output.Evr, oval_parsed.NewObjectStateEvrString("equals", "^12.12"))
 			require.Equal(t, *output.SignatureKeyId, oval_parsed.NewObjectStateString("equals", "12345"))
+			require.Equal(t, *output.ExtendedName, oval_parsed.NewObjectStateString("equals", "0:123:12"))
+		})
+	})
+
+	t.Run("#mapRpmVerifyFileObject", func(t *testing.T) {
+		t.Run("errors out if invalid children provided", func(t *testing.T) {
+			testCases := []struct {
+				input     oval_input.RpmVerifyFileObjectXML
+				errorsOut bool
+			}{
+				{
+					input:     oval_input.RpmVerifyFileObjectXML{Name: oval_input.SimpleTypeXML{Value: "123"}},
+					errorsOut: true,
+				},
+				{
+					input:     oval_input.RpmVerifyFileObjectXML{Epoch: oval_input.SimpleTypeXML{Value: "123"}},
+					errorsOut: true,
+				},
+				{
+					input:     oval_input.RpmVerifyFileObjectXML{Version: oval_input.SimpleTypeXML{Value: "123"}},
+					errorsOut: true,
+				},
+				{
+					input:     oval_input.RpmVerifyFileObjectXML{Release: oval_input.SimpleTypeXML{Value: "123"}},
+					errorsOut: true,
+				},
+				{
+					input:     oval_input.RpmVerifyFileObjectXML{Arch: oval_input.SimpleTypeXML{Value: "123"}},
+					errorsOut: true,
+				},
+				{
+					input:     oval_input.RpmVerifyFileObjectXML{FilePath: oval_input.SimpleTypeXML{Value: ""}},
+					errorsOut: true,
+				},
+				{
+					input:     oval_input.RpmVerifyFileObjectXML{FilePath: oval_input.SimpleTypeXML{Value: "/etc/red-hat"}},
+					errorsOut: false,
+				},
+			}
+
+			for _, tCase := range testCases {
+				_, err := mapRpmVerifyFileObject(tCase.input)
+				if tCase.errorsOut {
+					require.Error(t, err)
+				} else {
+					require.NoError(t, err)
+				}
+			}
+		})
+
+		t.Run("maps to a filepath", func(t *testing.T) {
+			input := oval_input.RpmVerifyFileObjectXML{FilePath: oval_input.SimpleTypeXML{Value: "/etc/red-hat"}}
+			r, err := mapRpmVerifyFileObject(input)
+			require.NoError(t, err)
+			require.Equal(t, *r, "/etc/red-hat")
+		})
+	})
+
+	t.Run("#mapRpmVerifyFileState", func(t *testing.T) {
+		t.Run("errors out if not supported state is provided", func(t *testing.T) {
+			testCases := []struct {
+				input       oval_input.RpmVerifyFileStateXML
+				shouldError bool
+			}{
+				{
+					input:       oval_input.RpmVerifyFileStateXML{SizeDiffers: &oval_input.SimpleTypeXML{}},
+					shouldError: true,
+				},
+				{
+					input:       oval_input.RpmVerifyFileStateXML{ModeDiffers: &oval_input.SimpleTypeXML{}},
+					shouldError: true,
+				},
+				{
+					input:       oval_input.RpmVerifyFileStateXML{Md5Differs: &oval_input.SimpleTypeXML{}},
+					shouldError: true,
+				},
+				{
+					input:       oval_input.RpmVerifyFileStateXML{DeviceDiffers: &oval_input.SimpleTypeXML{}},
+					shouldError: true,
+				},
+				{
+					input:       oval_input.RpmVerifyFileStateXML{LinkMismatch: &oval_input.SimpleTypeXML{}},
+					shouldError: true,
+				},
+				{
+					input:       oval_input.RpmVerifyFileStateXML{OwnershipDiffers: &oval_input.SimpleTypeXML{}},
+					shouldError: true,
+				},
+				{
+					input:       oval_input.RpmVerifyFileStateXML{GroupDiffers: &oval_input.SimpleTypeXML{}},
+					shouldError: true,
+				},
+				{
+					input:       oval_input.RpmVerifyFileStateXML{MtimeDiffers: &oval_input.SimpleTypeXML{}},
+					shouldError: true,
+				},
+				{
+					input:       oval_input.RpmVerifyFileStateXML{CapabilitiesDiffer: &oval_input.SimpleTypeXML{}},
+					shouldError: true,
+				},
+				{
+					input:       oval_input.RpmVerifyFileStateXML{ConfigurationFile: &oval_input.SimpleTypeXML{}},
+					shouldError: true,
+				},
+				{
+					input:       oval_input.RpmVerifyFileStateXML{LicenseFile: &oval_input.SimpleTypeXML{}},
+					shouldError: true,
+				},
+				{
+					input:       oval_input.RpmVerifyFileStateXML{ReadmeFile: &oval_input.SimpleTypeXML{}},
+					shouldError: true,
+				},
+				{
+					input:       oval_input.RpmVerifyFileStateXML{Name: &oval_input.SimpleTypeXML{}},
+					shouldError: false,
+				},
+				{
+					input:       oval_input.RpmVerifyFileStateXML{Arch: &oval_input.SimpleTypeXML{}},
+					shouldError: false,
+				},
+				{
+					input:       oval_input.RpmVerifyFileStateXML{Epoch: &oval_input.SimpleTypeXML{}},
+					shouldError: false,
+				},
+				{
+					input:       oval_input.RpmVerifyFileStateXML{Version: &oval_input.SimpleTypeXML{}},
+					shouldError: false,
+				},
+				{
+					input:       oval_input.RpmVerifyFileStateXML{ExtendedName: &oval_input.SimpleTypeXML{}},
+					shouldError: false,
+				},
+			}
+
+			for _, tCase := range testCases {
+				_, err := mapRpmVerifyFileState(tCase.input)
+				if tCase.shouldError {
+					require.Error(t, err)
+				} else {
+					require.NoError(t, err)
+				}
+			}
+		})
+
+		t.Run("maps a RpmVerifyFileStateXML", func(t *testing.T) {
+			input := oval_input.RpmVerifyFileStateXML{
+				Name: &oval_input.SimpleTypeXML{
+					Value: "name",
+					Op:    "equals",
+				},
+				Arch: &oval_input.SimpleTypeXML{
+					Value: "arch",
+					Op:    "not equals",
+				},
+				Epoch: &oval_input.SimpleTypeXML{
+					Datatype: "string",
+					Value:    "epoch",
+					Op:       "equals",
+				},
+				Version: &oval_input.SimpleTypeXML{
+					Datatype: "int",
+					Value:    "123",
+					Op:       "equals",
+				},
+				ExtendedName: &oval_input.SimpleTypeXML{
+					Op:    "equals",
+					Value: "0:123:12",
+				},
+			}
+
+			output, err := mapRpmVerifyFileState(input)
+			require.NoError(t, err)
+
+			require.Equal(t, *output.Name, oval_parsed.NewObjectStateString("equals", "name"))
+			require.Equal(t, *output.Arch, oval_parsed.NewObjectStateString("not equals", "arch"))
+			require.Equal(t, *output.Epoch, oval_parsed.NewObjectStateSimpleValue("string", "equals", "epoch"))
+			require.Equal(t, *output.Version, oval_parsed.NewObjectStateSimpleValue("int", "equals", "123"))
 			require.Equal(t, *output.ExtendedName, oval_parsed.NewObjectStateString("equals", "0:123:12"))
 		})
 	})

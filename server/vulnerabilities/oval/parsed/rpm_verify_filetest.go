@@ -1,5 +1,8 @@
 package oval_parsed
 
-// We don't support this type of test yet but we need to parse it so that any
-// definitions that use it are excluded
-type RpmVerifyFileTest struct{}
+// <rpmverifyfile_test> can actually target any file installed via RPM - but in the case of the OVAL
+// definitions for RHEL based systems, they are used to make assertions againts the installed OS version.
+type RpmVerifyFileTest struct {
+	FilePath string
+	State    ObjectInfoState
+}

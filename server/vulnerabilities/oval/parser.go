@@ -91,8 +91,6 @@ func parseRhelXML(reader io.Reader) (*oval_input.RhelResultXML, error) {
 				}
 				r.RpmInfoTests = append(r.RpmInfoTests, tst)
 			}
-			// We don't support this type of test yet but we need to parse it so that any
-			// definitions that use it are excluded
 			if t.Name.Local == "rpmverifyfile_test" {
 				tst := oval_input.RpmVerifyFileTestXML{}
 				if err = d.DecodeElement(&tst, &t); err != nil {
@@ -114,6 +112,20 @@ func parseRhelXML(reader io.Reader) (*oval_input.RhelResultXML, error) {
 				}
 				r.RpmInfoTestStates = append(r.RpmInfoTestStates, obj)
 			}
+			if t.Name.Local == "rpmverifyfile_object" {
+				obj := oval_input.RpmVerifyFileObjectXML{}
+				if err = d.DecodeElement(&obj, &t); err != nil {
+					return nil, err
+				}
+				r.RpmVerifyFileObjects = append(r.RpmVerifyFileObjects, obj)
+			}
+			if t.Name.Local == "rpmverifyfile_state" {
+				sta := oval_input.RpmVerifyFileStateXML{}
+				if err = d.DecodeElement(&sta, &t); err != nil {
+					return nil, err
+				}
+				r.RpmVerifyFileStates = append(r.RpmVerifyFileStates, sta)
+			}
 			if t.Name.Local == "constant_variable" {
 				cVar := oval_input.ConstantVariableXML{}
 				if err = d.DecodeElement(&cVar, &t); err != nil {
@@ -128,8 +140,11 @@ func parseRhelXML(reader io.Reader) (*oval_input.RhelResultXML, error) {
 func mapToRhelResult(xmlResult *oval_input.RhelResultXML) (*oval_parsed.RhelResult, error) {
 	r := oval_parsed.NewRhelResult()
 
-	objToTst := make(map[string][]int)
-	staToTst := make(map[string][]int)
+	rpmInfoObjToTst := make(map[string][]int)
+	rpmInfoStaToTst := make(map[string][]int)
+
+	rpmVerifyObjToTst := make(map[string][]int)
+	rpmVerifyStaToTst := make(map[string][]int)
 
 	for _, d := range xmlResult.Definitions {
 		if len(d.Vulnerabilities) > 0 {
@@ -141,34 +156,28 @@ func mapToRhelResult(xmlResult *oval_input.RhelResultXML) (*oval_parsed.RhelResu
 		}
 	}
 
+	// ------------
+	// RpmInfoTests
+	// ------------
 	for _, t := range xmlResult.RpmInfoTests {
 		id, tst, err := mapRpmInfoTest(t)
 		if err != nil {
 			return nil, err
 		}
 
-		objToTst[t.Object.Id] = append(objToTst[t.Object.Id], id)
+		rpmInfoObjToTst[t.Object.Id] = append(rpmInfoObjToTst[t.Object.Id], id)
 		for _, sta := range t.States {
-			staToTst[sta.Id] = append(staToTst[sta.Id], id)
+			rpmInfoStaToTst[sta.Id] = append(rpmInfoStaToTst[sta.Id], id)
 		}
 		r.RpmInfoTests[id] = tst
 	}
-
-	for _, t := range xmlResult.RpmVerifyFileTests {
-		id, tst, err := mapRpmVerifyFileTest(t)
-		if err != nil {
-			return nil, err
-		}
-		r.RpmVerifyFileTests[id] = tst
-	}
-
 	for _, o := range xmlResult.RpmInfoTestObjects {
 		obj, err := mapPackageInfoTestObject(o, xmlResult.Variables)
 		if err != nil {
 			return nil, err
 		}
 
-		for _, tId := range objToTst[o.Id] {
+		for _, tId := range rpmInfoObjToTst[o.Id] {
 			t, ok := r.RpmInfoTests[tId]
 			if ok {
 				t.Objects = obj
@@ -177,16 +186,59 @@ func mapToRhelResult(xmlResult *oval_input.RhelResultXML) (*oval_parsed.RhelResu
 			}
 		}
 	}
-
 	for _, s := range xmlResult.RpmInfoTestStates {
 		sta, err := mapRpmInfoState(s)
 		if err != nil {
 			return nil, err
 		}
-		for _, tId := range staToTst[s.Id] {
+		for _, tId := range rpmInfoStaToTst[s.Id] {
 			t, ok := r.RpmInfoTests[tId]
 			if ok {
 				t.States = append(t.States, *sta)
+			} else {
+				return nil, fmt.Errorf("test not found: %d", tId)
+			}
+		}
+	}
+
+	// ------------------
+	// RpmVerifyFileTests
+	// ------------------
+	for _, t := range xmlResult.RpmVerifyFileTests {
+		id, tst, err := mapRpmVerifyFileTest(t)
+		if err != nil {
+			return nil, err
+		}
+		rpmVerifyObjToTst[t.Object.Id] = append(rpmVerifyObjToTst[t.Object.Id], id)
+		for _, sta := range t.States {
+			rpmVerifyStaToTst[sta.Id] = append(rpmVerifyStaToTst[sta.Id], id)
+		}
+		r.RpmVerifyFileTests[id] = tst
+	}
+	for _, o := range xmlResult.RpmVerifyFileObjects {
+		obj, err := mapRpmVerifyFileObject(o)
+		if err != nil {
+			return nil, err
+		}
+
+		for _, tId := range rpmVerifyObjToTst[o.Id] {
+			t, ok := r.RpmVerifyFileTests[tId]
+			if ok {
+				t.FilePath = *obj
+			} else {
+				return nil, fmt.Errorf("test not found: %d", tId)
+			}
+		}
+	}
+	for _, s := range xmlResult.RpmVerifyFileStates {
+		sta, err := mapRpmVerifyFileState(s)
+		if err != nil {
+			return nil, err
+		}
+		for _, tId := range rpmVerifyStaToTst[s.Id] {
+			t, ok := r.RpmVerifyFileTests[tId]
+			if ok {
+				t.State = *sta
 			} else {
 				return nil, fmt.Errorf("test not found: %d", tId)
 			}

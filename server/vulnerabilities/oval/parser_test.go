@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	oval_input "github.com/fleetdm/fleet/v4/server/vulnerabilities/oval/input"
+	oval_parsed "github.com/fleetdm/fleet/v4/server/vulnerabilities/oval/parsed"
 	"github.com/stretchr/testify/require"
 )
 
@@ -370,7 +371,7 @@ func TestOvalParser(t *testing.T) {
 			actualVulns = append(actualVulns, d.Vulnerabilities...)
 		}
 
-		require.Equal(t, expectedVulns, actualVulns, "error")
+		require.Equal(t, expectedVulns, actualVulns)
 		require.ElementsMatch(t, expectedTestIds, actualTestIds)
 
 		require.Len(t, result.PackageTests, 2)
@@ -430,9 +431,17 @@ func TestOvalParser(t *testing.T) {
 		require.Equal(t, result.Definitions[0].Criteria.Criterias[0].Criterias[0].Criterias[2].Criteriums[0].TestId, "oval:com.redhat.rhsa:tst:20224584005")
 		require.Equal(t, result.Definitions[0].Criteria.Criterias[0].Criterias[0].Criterias[2].Criteriums[1].TestId, "oval:com.redhat.rhsa:tst:20224584006")
 
+		require.Len(t, result.RpmVerifyFileTests, 2)
 		require.Equal(t, result.RpmVerifyFileTests[0].Id, "oval:com.redhat.rhsa:tst:20221728048")
+		require.Equal(t, result.RpmVerifyFileTests[0].Object.Id, "oval:com.redhat.rhsa:obj:20221728024")
+		require.Len(t, result.RpmVerifyFileTests[0].States, 1)
+		require.Equal(t, result.RpmVerifyFileTests[0].States[0].Id, "oval:com.redhat.rhsa:ste:20221728005")
 		require.Equal(t, result.RpmVerifyFileTests[1].Id, "oval:com.redhat.rhsa:tst:20221728047")
+		require.Equal(t, result.RpmVerifyFileTests[1].Object.Id, "oval:com.redhat.rhsa:obj:20221728024")
+		require.Len(t, result.RpmVerifyFileTests[1].States, 1)
+		require.Equal(t, result.RpmVerifyFileTests[1].States[0].Id, "oval:com.redhat.rhsa:ste:20221728004")
 
+		require.Len(t, result.RpmInfoTests, 6)
 		require.Equal(t, result.RpmInfoTests[0].Id, "oval:com.redhat.rhsa:tst:20224584001")
 		require.Empty(t, result.RpmInfoTests[0].CheckExistence)
 		require.Equal(t, result.RpmInfoTests[0].Check, "at least one")
@@ -440,7 +449,6 @@ func TestOvalParser(t *testing.T) {
 		require.Equal(t, result.RpmInfoTests[0].Object.Id, "oval:com.redhat.rhsa:obj:20224584001")
 		require.Len(t, result.RpmInfoTests[0].States, 1)
 		require.Equal(t, result.RpmInfoTests[0].States[0].Id, "oval:com.redhat.rhsa:ste:20224584001")
-
 		require.Equal(t, result.RpmInfoTests[1].Id, "oval:com.redhat.rhsa:tst:20224584002")
 		require.Empty(t, result.RpmInfoTests[1].CheckExistence)
 		require.Equal(t, result.RpmInfoTests[1].Check, "at least one")
@@ -448,7 +456,6 @@ func TestOvalParser(t *testing.T) {
 		require.Equal(t, result.RpmInfoTests[1].Object.Id, "oval:com.redhat.rhsa:obj:20224584001")
 		require.Len(t, result.RpmInfoTests[1].States, 1)
 		require.Equal(t, result.RpmInfoTests[1].States[0].Id, "oval:com.redhat.rhsa:ste:20221728002")
-
 		require.Equal(t, result.RpmInfoTests[2].Id, "oval:com.redhat.rhsa:tst:20224584003")
 		require.Empty(t, result.RpmInfoTests[2].CheckExistence)
 		require.Equal(t, result.RpmInfoTests[2].Check, "at least one")
@@ -456,7 +463,6 @@ func TestOvalParser(t *testing.T) {
 		require.Equal(t, result.RpmInfoTests[2].Object.Id, "oval:com.redhat.rhsa:obj:20224584002")
 		require.Len(t, result.RpmInfoTests[2].States, 1)
 		require.Equal(t, result.RpmInfoTests[2].States[0].Id, "oval:com.redhat.rhsa:ste:20224584001")
-
 		require.Equal(t, result.RpmInfoTests[3].Id, "oval:com.redhat.rhsa:tst:20224584004")
 		require.Empty(t, result.RpmInfoTests[3].CheckExistence)
 		require.Equal(t, result.RpmInfoTests[3].Check, "at least one")
@@ -464,7 +470,6 @@ func TestOvalParser(t *testing.T) {
 		require.Equal(t, result.RpmInfoTests[3].Object.Id, "oval:com.redhat.rhsa:obj:20224584002")
 		require.Len(t, result.RpmInfoTests[3].States, 1)
 		require.Equal(t, result.RpmInfoTests[3].States[0].Id, "oval:com.redhat.rhsa:ste:20221728002")
-
 		require.Equal(t, result.RpmInfoTests[4].Id, "oval:com.redhat.rhsa:tst:20224584005")
 		require.Empty(t, result.RpmInfoTests[4].CheckExistence)
 		require.Equal(t, result.RpmInfoTests[4].Check, "at least one")
@@ -472,7 +477,6 @@ func TestOvalParser(t *testing.T) {
 		require.Equal(t, result.RpmInfoTests[4].Object.Id, "oval:com.redhat.rhsa:obj:20224584003")
 		require.Len(t, result.RpmInfoTests[4].States, 1)
 		require.Equal(t, result.RpmInfoTests[4].States[0].Id, "oval:com.redhat.rhsa:ste:20224584001")
-
 		require.Equal(t, result.RpmInfoTests[5].Id, "oval:com.redhat.rhsa:tst:20224584006")
 		require.Empty(t, result.RpmInfoTests[5].CheckExistence)
 		require.Equal(t, result.RpmInfoTests[5].Check, "at least one")
@@ -480,5 +484,159 @@ func TestOvalParser(t *testing.T) {
 		require.Equal(t, result.RpmInfoTests[5].Object.Id, "oval:com.redhat.rhsa:obj:20224584003")
 		require.Len(t, result.RpmInfoTests[5].States, 1)
 		require.Equal(t, result.RpmInfoTests[5].States[0].Id, "oval:com.redhat.rhsa:ste:20221728002")
+
+		require.Len(t, result.RpmInfoTestObjects, 3)
+		require.Equal(t, result.RpmInfoTestObjects[0].Id, "oval:com.redhat.rhsa:obj:20224584001")
+		require.Equal(t, result.RpmInfoTestObjects[0].Name.Value, "zlib")
+		require.Empty(t, result.RpmInfoTestObjects[0].Name.VarRef)
+		require.Empty(t, result.RpmInfoTestObjects[0].Name.VarCheck)
+
+		require.Equal(t, result.RpmInfoTestObjects[1].Id, "oval:com.redhat.rhsa:obj:20224584002")
+		require.Equal(t, result.RpmInfoTestObjects[1].Name.Value, "zlib-devel")
+		require.Empty(t, result.RpmInfoTestObjects[1].Name.VarRef)
+		require.Empty(t, result.RpmInfoTestObjects[1].Name.VarCheck)
+
+		require.Equal(t, result.RpmInfoTestObjects[2].Id, "oval:com.redhat.rhsa:obj:20224584003")
+		require.Equal(t, result.RpmInfoTestObjects[2].Name.Value, "zlib-static")
+		require.Empty(t, result.RpmInfoTestObjects[2].Name.VarRef)
+		require.Empty(t, result.RpmInfoTestObjects[2].Name.VarCheck)
+
+		require.Len(t, result.RpmInfoTestStates, 2)
+		require.Equal(t, result.RpmInfoTestStates[0].Id, "oval:com.redhat.rhsa:ste:20224584001")
+		require.NotNil(t, result.RpmInfoTestStates[0].Arch)
+		require.Equal(t, result.RpmInfoTestStates[0].Arch.Datatype, "string")
+		require.Equal(t, result.RpmInfoTestStates[0].Arch.Op, "pattern match")
+		require.Equal(t, result.RpmInfoTestStates[0].Arch.Value, "aarch64|i686|ppc64le|s390x|x86_64")
+
+		require.Equal(t, result.RpmInfoTestStates[1].Id, "oval:com.redhat.rhsa:ste:20221728002")
+		require.NotNil(t, result.RpmInfoTestStates[1].SignatureKeyId)
+		require.Empty(t, result.RpmInfoTestStates[1].SignatureKeyId.Datatype)
+		require.Equal(t, result.RpmInfoTestStates[1].SignatureKeyId.Op, "equals")
+		require.Equal(t, result.RpmInfoTestStates[1].SignatureKeyId.Value, "199e2f91fd431d51")
+
+		require.Len(t, result.RpmVerifyFileStates, 2)
+		require.Equal(t, result.RpmVerifyFileStates[0].Id, "oval:com.redhat.rhsa:ste:20221728005")
+		require.NotNil(t, result.RpmVerifyFileStates[0].Name)
+		require.Equal(t, result.RpmVerifyFileStates[0].Name.Op, "pattern match")
+		require.Empty(t, result.RpmVerifyFileStates[0].Name.Datatype)
+		require.Equal(t, result.RpmVerifyFileStates[0].Name.Value, "^redhat-release")
+
+		require.Equal(t, result.RpmVerifyFileStates[1].Id, "oval:com.redhat.rhsa:ste:20221728004")
+		require.NotNil(t, result.RpmVerifyFileStates[1].Name)
+		require.Equal(t, result.RpmVerifyFileStates[1].Name.Op, "pattern match")
+		require.Equal(t, result.RpmVerifyFileStates[1].Name.Value, "^redhat-release")
+		require.NotNil(t, result.RpmVerifyFileStates[1].Version)
+		require.Equal(t, result.RpmVerifyFileStates[1].Version.Op, "pattern match")
+		require.Equal(t, result.RpmVerifyFileStates[1].Version.Value, `^9[^\d]`)
+
+		require.Len(t, result.RpmVerifyFileObjects, 1)
+		require.Equal(t, result.RpmVerifyFileObjects[0].Id, "oval:com.redhat.rhsa:obj:20221728024")
+
+		require.Equal(t, result.RpmVerifyFileObjects[0].Behaviors.NoConfigFiles, true)
+		require.Equal(t, result.RpmVerifyFileObjects[0].Behaviors.NoGhostFiles, true)
+		require.Equal(t, result.RpmVerifyFileObjects[0].Behaviors.NoGroup, true)
+		require.Equal(t, result.RpmVerifyFileObjects[0].Behaviors.NoLinkTo, true)
+		require.Equal(t, result.RpmVerifyFileObjects[0].Behaviors.NoMd5, true)
+		require.Equal(t, result.RpmVerifyFileObjects[0].Behaviors.NoMode, true)
+		require.Equal(t, result.RpmVerifyFileObjects[0].Behaviors.NoMtime, true)
+		require.Equal(t, result.RpmVerifyFileObjects[0].Behaviors.NoRev, true)
+		require.Equal(t, result.RpmVerifyFileObjects[0].Behaviors.NoSize, true)
+		require.Equal(t, result.RpmVerifyFileObjects[0].Behaviors.NoUser, true)
+		require.Equal(t, result.RpmVerifyFileObjects[0].Name.Op, "pattern match")
+		require.Empty(t, result.RpmVerifyFileObjects[0].Name.Value)
+		require.Equal(t, result.RpmVerifyFileObjects[0].Epoch.Op, "pattern match")
+		require.Empty(t, result.RpmVerifyFileObjects[0].Epoch.Value)
+		require.Equal(t, result.RpmVerifyFileObjects[0].Version.Op, "pattern match")
+		require.Empty(t, result.RpmVerifyFileObjects[0].Version.Value)
+		require.Equal(t, result.RpmVerifyFileObjects[0].Release.Op, "pattern match")
+		require.Empty(t, result.RpmVerifyFileObjects[0].Arch.Value)
+		require.Equal(t, result.RpmVerifyFileObjects[0].Arch.Op, "pattern match")
+		require.Equal(t, result.RpmVerifyFileObjects[0].FilePath.Value, "/etc/redhat-release")
+		require.Equal(t, result.RpmVerifyFileObjects[0].Arch.Op, "pattern match")
+	})
+
+	t.Run("#mapToRhelResult", func(t *testing.T) {
+		r := strings.NewReader(rhelOvalXML)
+
+		xmlResult, err := parseRhelXML(r)
+		require.NoError(t, err)
+
+		result, err := mapToRhelResult(xmlResult)
+		require.NoError(t, err)
+
+		var expectedVulns []string
+		for _, d := range xmlResult.Definitions {
+			for _, v := range d.Vulnerabilities {
+				expectedVulns = append(expectedVulns, string(v.Id))
+			}
+		}
+
+		var actualVulns []string
+		var actualTestIds []int
+		for _, d := range result.Definitions {
+			actualTestIds = append(actualTestIds, d.CollectTestIds()...)
+			actualVulns = append(actualVulns, d.Vulnerabilities...)
+		}
+		require.ElementsMatch(t, actualVulns, expectedVulns)
+		require.ElementsMatch(t, actualTestIds, []int{
+			20221728048,
+			20221728047,
+			20224584001,
+			20224584002,
+			20224584003,
+			20224584004,
+			20224584005,
+			20224584006,
+		})
+
+		require.Len(t, result.RpmInfoTests, 6)
+
+		testOne, ok := result.RpmInfoTests[20224584001]
+		require.True(t, ok)
+		require.ElementsMatch(t, testOne.Objects, []string{"zlib"})
+		require.Len(t, testOne.States, 1)
+		require.NotNil(t, testOne.States[0].Arch)
+		require.NotNil(t, testOne.States[0].Evr)
+		require.Equal(t, *testOne.States[0].Arch, oval_parsed.NewObjectStateString("pattern match", "aarch64|i686|ppc64le|s390x|x86_64"))
+		require.Equal(t, *testOne.States[0].Evr, oval_parsed.NewObjectStateEvrString("less than", "0:1.2.11-31.el9_0.1"))
+
+		testTwo, ok := result.RpmInfoTests[20224584002]
+		require.True(t, ok)
+		require.ElementsMatch(t, testTwo.Objects, []string{"zlib"})
+		require.Len(t, testTwo.States, 1)
+		require.NotNil(t, testTwo.States[0].SignatureKeyId)
+		require.Equal(t, *testTwo.States[0].SignatureKeyId, oval_parsed.NewObjectStateString("equals", "199e2f91fd431d51"))
+
+		testThree, ok := result.RpmInfoTests[20224584003]
+		require.True(t, ok)
+		require.ElementsMatch(t, testThree.Objects, []string{"zlib-devel"})
+		require.Len(t, testThree.States, 1)
+		require.NotNil(t, testThree.States[0].Arch)
+		require.NotNil(t, testThree.States[0].Evr)
+		require.Equal(t, *testThree.States[0].Arch, oval_parsed.NewObjectStateString("pattern match", "aarch64|i686|ppc64le|s390x|x86_64"))
+		require.Equal(t, *testThree.States[0].Evr, oval_parsed.NewObjectStateEvrString("less than", "0:1.2.11-31.el9_0.1"))
+
+		testFour, ok := result.RpmInfoTests[20224584004]
+		require.True(t, ok)
+		require.ElementsMatch(t, testFour.Objects, []string{"zlib-devel"})
+		require.Len(t, testFour.States, 1)
+		require.NotNil(t, testFour.States[0].SignatureKeyId)
+		require.Equal(t, *testFour.States[0].SignatureKeyId, oval_parsed.NewObjectStateString("equals", "199e2f91fd431d51"))
+
+		testFive, ok := result.RpmInfoTests[20224584005]
+		require.True(t, ok)
+		require.ElementsMatch(t, testFive.Objects, []string{"zlib-static"})
+		require.Len(t, testFive.States, 1)
+		require.NotNil(t, testFive.States[0].Arch)
+		require.NotNil(t, testFive.States[0].Evr)
+		require.Equal(t, *testFive.States[0].Arch, oval_parsed.NewObjectStateString("pattern match", "aarch64|i686|ppc64le|s390x|x86_64"))
+		require.Equal(t, *testFive.States[0].Evr, oval_parsed.NewObjectStateEvrString("less than", "0:1.2.11-31.el9_0.1"))
+
+		testSix, ok := result.RpmInfoTests[20224584006]
+		require.True(t, ok)
+		require.ElementsMatch(t, testSix.Objects, []string{"zlib-static"})
+		require.Len(t, testFour.States, 1)
+		require.NotNil(t, testFour.States[0].SignatureKeyId)
+		require.Equal(t, *testFour.States[0].SignatureKeyId, oval_parsed.NewObjectStateString("equals", "199e2f91fd431d51"))
 	})
 }
