@@ -165,8 +165,16 @@ func setupLogs() {
 		return
 	}
 
+	dir = filepath.Join(dir, "Fleet")
+
+	if err := os.MkdirAll(dir, 0755); err != nil {
+		log.Logger = log.Output(stderrOut)
+		log.Error().Err(err).Msg("make directories for log files")
+		return
+	}
+
 	logFile := &lumberjack.Logger{
-		Filename:   filepath.Join(dir, "Fleet", "fleet-desktop.log"),
+		Filename:   filepath.Join(dir, "fleet-desktop.log"),
 		MaxSize:    25, // megabytes
 		MaxBackups: 3,
 		MaxAge:     28, // days
