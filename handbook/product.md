@@ -57,7 +57,7 @@ device data in unique ways to their organization.
 ##### How?
 
 - Add integrations for policy and vulnerability automations (Miss).
-- Get closer to parity with other vulnerability management solutions (Miss).
+- Take steps toward feature parity with other vulnerability management solutions (Miss).
 - Roll up software and vulnerabilities across the entire organization and teams (Hit).
 
 #### Who's watching the watchers
