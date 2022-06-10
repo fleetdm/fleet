@@ -9,8 +9,8 @@ import ForgotPasswordForm from "components/forms/ForgotPasswordForm";
 // @ts-ignore
 import StackedWhiteBoxes from "components/StackedWhiteBoxes";
 import AuthenticationFormWrapper from "components/AuthenticationFormWrapper";
-import ExternalURLIcon from "../../../assets/images/icon-external-url-12x12@2x.png";
 import Spinner from "components/Spinner";
+import ExternalURLIcon from "../../../assets/images/icon-external-url-12x12@2x.png";
 
 const ForgotPasswordPage = () => {
   const [email, setEmail] = useState<string>("");
