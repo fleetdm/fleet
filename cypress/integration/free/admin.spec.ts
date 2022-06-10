@@ -703,6 +703,7 @@ describe(
           cy.findByText(/fleet desktop/i).should("not.exist");
         });
         cy.visit("settings/organization/fleet-desktop");
+        cy.findAllByText(/access denied/i).should("exist");
       });
       it("hides access team settings", () => {
         cy.findByText(/teams/i).should("not.exist");

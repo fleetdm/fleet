@@ -690,10 +690,17 @@ describe("Premium tier - Global Admin user", () => {
           .should("exist")
           .click();
       });
-      cy.getAttached("[id=transparency_url").click().type("foo");
+      cy.getAttached("[id=transparency_url")
+        .should("have.value", "https://fleetdm.com/transparency")
+        .clear()
+        .type("example.com/transparency");
       cy.findByRole("button", { name: /save/i }).click();
       cy.findByText(/successfully updated/i).should("exist");
       cy.visit("settings/organization/fleet-desktop");
+      cy.getAttached("[id=transparency_url").should(
+        "have.value",
+        "example.com/transparency"
+      );
     });
   });
   describe("User profile page", () => {
