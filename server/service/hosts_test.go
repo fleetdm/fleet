@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"testing"
 	"time"
@@ -469,7 +470,7 @@ func TestEmptyTeamOSVersions(t *testing.T) {
 			return &fleet.OSVersions{CountsUpdatedAt: time.Now(), OSVersions: testVersions}, nil
 		}
 		if *teamID == 4 {
-			return nil, fmt.Errorf("some unknown error")
+			return nil, errors.New("some unknown error")
 		}
 
 		return nil, notFoundError{}
