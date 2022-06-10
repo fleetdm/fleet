@@ -297,7 +297,6 @@ func TruncateTables(t testing.TB, ds *Datastore, tables ...string) {
 	nonEmptyTables := map[string]bool{
 		"app_config_json":         true,
 		"migration_status_tables": true,
-		"migration_status_data":   true,
 		"osquery_options":         true,
 	}
 	ctx := context.Background()
