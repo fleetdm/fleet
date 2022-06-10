@@ -460,6 +460,6 @@ func testObserverCanRunQuery(t *testing.T, ds *Datastore) {
 	for _, q := range queries {
 		canRun, err := ds.ObserverCanRunQuery(context.Background(), q.ID)
 		require.NoError(t, err)
-		require.Equal(t, q.ObserverCanRun, *canRun)
+		require.Equal(t, q.ObserverCanRun, canRun)
 	}
 }

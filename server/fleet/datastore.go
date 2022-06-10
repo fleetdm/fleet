@@ -69,7 +69,7 @@ type Datastore interface {
 	QueryByName(ctx context.Context, name string, opts ...OptionalArg) (*Query, error)
 	// ObserverCanRunQuery returns whether a user with an observer role is permitted to run the
 	// identified query
-	ObserverCanRunQuery(ctx context.Context, queryID uint) (*bool, error)
+	ObserverCanRunQuery(ctx context.Context, queryID uint) (bool, error)
 
 	///////////////////////////////////////////////////////////////////////////////
 	// CampaignStore defines the distributed query campaign related datastore methods

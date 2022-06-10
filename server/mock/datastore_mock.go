@@ -64,7 +64,7 @@ type ListQueriesFunc func(ctx context.Context, opt fleet.ListQueryOptions) ([]*f
 
 type QueryByNameFunc func(ctx context.Context, name string, opts ...fleet.OptionalArg) (*fleet.Query, error)
 
-type ObserverCanRunQueryFunc func(ctx context.Context, queryID uint) (*bool, error)
+type ObserverCanRunQueryFunc func(ctx context.Context, queryID uint) (bool, error)
 
 type NewDistributedQueryCampaignFunc func(ctx context.Context, camp *fleet.DistributedQueryCampaign) (*fleet.DistributedQueryCampaign, error)
 
@@ -1124,7 +1124,7 @@ func (s *DataStore) QueryByName(ctx context.Context, name string, opts ...fleet.
 	return s.QueryByNameFunc(ctx, name, opts...)
 }
 
-func (s *DataStore) ObserverCanRunQuery(ctx context.Context, queryID uint) (*bool, error) {
+func (s *DataStore) ObserverCanRunQuery(ctx context.Context, queryID uint) (bool, error) {
 	s.ObserverCanRunQueryFuncInvoked = true
 	return s.ObserverCanRunQueryFunc(ctx, queryID)
 }

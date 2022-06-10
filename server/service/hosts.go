@@ -303,9 +303,7 @@ func (svc *Service) SearchHosts(ctx context.Context, matchQuery string, queryID 
 		if err != nil {
 			return nil, err
 		}
-		if canRun != nil {
-			includeObserver = *canRun
-		}
+		includeObserver = canRun
 	}
 
 	filter := fleet.TeamFilter{User: vc.User, IncludeObserver: includeObserver}
