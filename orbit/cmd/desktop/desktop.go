@@ -15,6 +15,7 @@ import (
 	"github.com/getlantern/systray"
 )
 
+// version is set at compile time via -ldflags
 var version = "unknown"
 
 func main() {
@@ -44,6 +45,12 @@ func main() {
 
 		systray.SetTemplateIcon(icoBytes, icoBytes)
 		systray.SetTooltip("Fleet Device Management Menu.")
+
+		// Add a disabled menu item with the current version
+		versionItem := systray.AddMenuItem(fmt.Sprintf("Fleet Desktop v%s", version), "")
+		versionItem.Disable()
+		systray.AddSeparator()
+
 		myDeviceItem := systray.AddMenuItem("Initializing...", "")
 		myDeviceItem.Disable()
 		transparencyItem := systray.AddMenuItem("Transparency", "")
