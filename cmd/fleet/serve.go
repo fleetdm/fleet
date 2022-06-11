@@ -2,7 +2,10 @@ package main
 
 import (
 	"context"
+	"crypto/sha256"
+	"crypto/subtle"
 	"crypto/tls"
+	"database/sql/driver"
 	"errors"
 	"fmt"
 	"io/ioutil"
@@ -22,7 +25,7 @@ import (
 	"github.com/fleetdm/fleet/v4/ee/server/licensing"
 	eeservice "github.com/fleetdm/fleet/v4/ee/server/service"
 	"github.com/fleetdm/fleet/v4/server"
-	"github.com/fleetdm/fleet/v4/server/config"
+	configpkg "github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/datastore/cached_mysql"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
@@ -40,15 +43,22 @@ import (
 	"github.com/fleetdm/fleet/v4/server/service/async"
 	"github.com/fleetdm/fleet/v4/server/service/redis_policy_set"
 	"github.com/fleetdm/fleet/v4/server/sso"
-	"github.com/fleetdm/fleet/v4/server/vulnerabilities"
-	"github.com/fleetdm/fleet/v4/server/webhooks"
+	"github.com/getsentry/sentry-go"
 	kitlog "github.com/go-kit/kit/log"
 	"github.com/go-kit/kit/log/level"
 	kitprometheus "github.com/go-kit/kit/metrics/prometheus"
 	"github.com/kolide/kit/version"
+	"github.com/ngrok/sqlmw"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/spf13/cobra"
+	"go.elastic.co/apm/module/apmhttp"
+	_ "go.elastic.co/apm/module/apmsql"
+	_ "go.elastic.co/apm/module/apmsql/mysql"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/exporters/otlp/otlptrace"
+	"go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc"
+	sdktrace "go.opentelemetry.io/otel/sdk/trace"
 	"google.golang.org/grpc"
 )
 
@@ -60,7 +70,7 @@ type initializer interface {
 	Initialize() error
 }
 
-func createServeCmd(configManager config.Manager) *cobra.Command {
+func createServeCmd(configManager configpkg.Manager) *cobra.Command {
 	// Whether to enable the debug endpoints
 	debug := false
 	// Whether to enable developer options
@@ -90,7 +100,7 @@ the way that the Fleet server works.
 
 			if devLicense {
 				// This license key is valid for development only
-				config.License.Key = "eyJhbGciOiJFUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJGbGVldCBEZXZpY2UgTWFuYWdlbWVudCBJbmMuIiwiZXhwIjoxNjQwOTk1MjAwLCJzdWIiOiJkZXZlbG9wbWVudCIsImRldmljZXMiOjEwMCwibm90ZSI6ImZvciBkZXZlbG9wbWVudCBvbmx5IiwidGllciI6ImJhc2ljIiwiaWF0IjoxNjIyNDI2NTg2fQ.WmZ0kG4seW3IrNvULCHUPBSfFdqj38A_eiXdV_DFunMHechjHbkwtfkf1J6JQJoDyqn8raXpgbdhafDwv3rmDw"
+				config.License.Key = "eyJhbGciOiJFUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJGbGVldCBEZXZpY2UgTWFuYWdlbWVudCBJbmMuIiwiZXhwIjoxNjU2NjMzNjAwLCJzdWIiOiJkZXZlbG9wbWVudC1vbmx5IiwiZGV2aWNlcyI6MTAwLCJub3RlIjoiZm9yIGRldmVsb3BtZW50IG9ubHkiLCJ0aWVyIjoicHJlbWl1bSIsImlhdCI6MTY0MTIzMjI3OX0.WriTJfRA-R-ffN_sJwYSkllLGzgDxs1xTUCJX7W02BA5FTGfIYq9CCvcTXAgR5GeMuLEOBs21tY-jpSc6GNe6Q"
 			} else if devExpiredLicense {
 				// An expired license key
 				config.License.Key = "eyJhbGciOiJFUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJGbGVldCBEZXZpY2UgTWFuYWdlbWVudCBJbmMuIiwiZXhwIjoxNjI5NzYzMjAwLCJzdWIiOiJEZXYgbGljZW5zZSAoZXhwaXJlZCkiLCJkZXZpY2VzIjo1MDAwMDAsIm5vdGUiOiJUaGlzIGxpY2Vuc2UgaXMgdXNlZCB0byBmb3IgZGV2ZWxvcG1lbnQgcHVycG9zZXMuIiwidGllciI6ImJhc2ljIiwiaWF0IjoxNjI5OTA0NzMyfQ.AOppRkl1Mlc_dYKH9zwRqaTcL0_bQzs7RM3WSmxd3PeCH9CxJREfXma8gm0Iand6uIWw8gHq5Dn0Ivtv80xKvQ"
@@ -124,6 +134,21 @@ the way that the Fleet server works.
 				logger = kitlog.With(logger, "ts", kitlog.DefaultTimestampUTC)
 			}
 
+			// Init tracing
+			if config.Logging.TracingEnabled {
+				ctx := context.Background()
+				client := otlptracegrpc.NewClient()
+				otlpTraceExporter, err := otlptrace.New(ctx, client)
+				if err != nil {
+					initFatal(err, "Failed to initialize tracing")
+				}
+				batchSpanProcessor := sdktrace.NewBatchSpanProcessor(otlpTraceExporter)
+				tracerProvider := sdktrace.NewTracerProvider(
+					sdktrace.WithSpanProcessor(batchSpanProcessor),
+				)
+				otel.SetTracerProvider(tracerProvider)
+			}
+
 			allowedHostIdentifiers := map[string]bool{
 				"provided": true,
 				"instance": true,
@@ -153,11 +178,21 @@ the way that the Fleet server works.
 			var carveStore fleet.CarveStore
 			mailService := mail.NewService()
 
-			var replicaOpt mysql.DBOption
+			opts := []mysql.DBOption{mysql.Logger(logger), mysql.WithFleetConfig(&config)}
 			if config.MysqlReadReplica.Address != "" {
-				replicaOpt = mysql.Replica(&config.MysqlReadReplica)
+				opts = append(opts, mysql.Replica(&config.MysqlReadReplica))
 			}
-			ds, err = mysql.New(config.Mysql, clock.C, mysql.Logger(logger), replicaOpt)
+			if dev && os.Getenv("FLEET_ENABLE_DEV_SQL_INTERCEPTOR") != "" {
+				opts = append(opts, mysql.WithInterceptor(&devSQLInterceptor{
+					logger: kitlog.With(logger, "component", "sql-interceptor"),
+				}))
+			}
+
+			if config.Logging.TracingEnabled {
+				opts = append(opts, mysql.TracingEnabled(&config.Logging))
+			}
+
+			ds, err = mysql.New(config.Mysql, clock.C, opts...)
 			if err != nil {
 				initFatal(err, "initializing datastore")
 			}
@@ -247,6 +282,8 @@ the way that the Fleet server works.
 				ConnMaxLifetime:           config.Redis.ConnMaxLifetime,
 				IdleTimeout:               config.Redis.IdleTimeout,
 				ConnWaitTimeout:           config.Redis.ConnWaitTimeout,
+				WriteTimeout:              config.Redis.WriteTimeout,
+				ReadTimeout:               config.Redis.ReadTimeout,
 			})
 			if err != nil {
 				initFatal(err, "initialize Redis")
@@ -265,19 +302,38 @@ the way that the Fleet server works.
 
 			failingPolicySet := redis_policy_set.NewFailing(redisPool)
 
-			task := &async.Task{
-				Datastore:          ds,
-				Pool:               redisPool,
-				AsyncEnabled:       config.Osquery.EnableAsyncHostProcessing,
-				LockTimeout:        config.Osquery.AsyncHostCollectLockTimeout,
-				LogStatsInterval:   config.Osquery.AsyncHostCollectLogStatsInterval,
-				InsertBatch:        config.Osquery.AsyncHostInsertBatch,
-				DeleteBatch:        config.Osquery.AsyncHostDeleteBatch,
-				UpdateBatch:        config.Osquery.AsyncHostUpdateBatch,
-				RedisPopCount:      config.Osquery.AsyncHostRedisPopCount,
-				RedisScanKeysCount: config.Osquery.AsyncHostRedisScanKeysCount,
+			task := async.NewTask(ds, redisPool, clock.C, config.Osquery)
+
+			if config.Sentry.Dsn != "" {
+				v := version.Version()
+				err = sentry.Init(sentry.ClientOptions{
+					Dsn:     config.Sentry.Dsn,
+					Release: fmt.Sprintf("%s_%s_%s", v.Version, v.Branch, v.Revision),
+				})
+				if err != nil {
+					initFatal(err, "initializing sentry")
+				}
+				level.Info(logger).Log("msg", "sentry initialized", "dsn", config.Sentry.Dsn)
+
+				defer sentry.Recover()
+				defer sentry.Flush(2 * time.Second)
 			}
-			svc, err := service.NewService(ds, task, resultStore, logger, osqueryLogger, config, mailService, clock.C, ssoSessionStore, liveQueryStore, carveStore, *license, failingPolicySet)
+
+			var geoIP fleet.GeoIP
+			geoIP = &fleet.NoOpGeoIP{}
+			if config.GeoIP.DatabasePath != "" {
+				maxmind, err := fleet.NewMaxMindGeoIP(logger, config.GeoIP.DatabasePath)
+				if err != nil {
+					level.Error(logger).Log("msg", "failed to initialize maxmind geoip, check database path", "database_path", config.GeoIP.DatabasePath, "error", err)
+				} else {
+					geoIP = maxmind
+				}
+			}
+
+			// TODO: gather all the different contexts and use just one
+			ctx, cancelFunc := context.WithCancel(context.Background())
+			defer cancelFunc()
+			svc, err := service.NewService(ctx, ds, task, resultStore, logger, osqueryLogger, config, mailService, clock.C, ssoSessionStore, liveQueryStore, carveStore, *license, failingPolicySet, geoIP)
 			if err != nil {
 				initFatal(err, "initializing service")
 			}
@@ -292,16 +348,19 @@ the way that the Fleet server works.
 			cancelBackground := runCrons(ds, task, kitlog.With(logger, "component", "crons"), config, license, failingPolicySet)
 
 			// Flush seen hosts every second
-			go func() {
-				for range time.Tick(time.Duration(rand.Intn(10)+1) * time.Second) {
-					if err := svc.FlushSeenHosts(context.Background()); err != nil {
-						level.Info(logger).Log(
-							"err", err,
-							"msg", "failed to update host seen times",
-						)
+			hostsAsyncCfg := config.Osquery.AsyncConfigForTask(configpkg.AsyncTaskHostLastSeen)
+			if !hostsAsyncCfg.Enabled {
+				go func() {
+					for range time.Tick(time.Duration(rand.Intn(10)+1) * time.Second) {
+						if err := task.FlushHostsLastSeen(context.Background(), clock.C.Now()); err != nil {
+							level.Info(logger).Log(
+								"err", err,
+								"msg", "failed to update host seen times",
+							)
+						}
 					}
-				}
-			}()
+				}()
+			}
 
 			fieldKeys := []string{"method", "error"}
 			requestCount := kitprometheus.NewCounterFrom(prometheus.CounterOpts{
@@ -328,7 +387,7 @@ the way that the Fleet server works.
 
 			var apiHandler, frontendHandler http.Handler
 			{
-				frontendHandler = service.InstrumentHandler("get_frontend", service.ServeFrontend(config.Server.URLPrefix, httpLogger))
+				frontendHandler = service.PrometheusMetricsHandler("get_frontend", service.ServeFrontend(config.Server.URLPrefix, httpLogger))
 				apiHandler = service.MakeHandler(svc, config, httpLogger, limiterStore)
 
 				setupRequired, err := svc.SetupRequired(context.Background())
@@ -367,19 +426,27 @@ the way that the Fleet server works.
 			// Instantiate a gRPC service to handle launcher requests.
 			launcher := launcher.New(svc, logger, grpc.NewServer(), healthCheckers)
 
-			// TODO: gather all the different contexts and use just one
-			ctx, cancelFunc := context.WithCancel(context.Background())
-			defer cancelFunc()
 			eh := errorstore.NewHandler(ctx, redisPool, logger, config.Logging.ErrorRetentionPeriod)
 
 			rootMux := http.NewServeMux()
-			rootMux.Handle("/healthz", service.InstrumentHandler("healthz", health.Handler(httpLogger, healthCheckers)))
-			rootMux.Handle("/version", service.InstrumentHandler("version", version.Handler()))
-			rootMux.Handle("/assets/", service.InstrumentHandler("static_assets", service.ServeStaticAssets("/assets/")))
-			rootMux.Handle("/metrics", service.InstrumentHandler("metrics", promhttp.Handler()))
+			rootMux.Handle("/healthz", service.PrometheusMetricsHandler("healthz", health.Handler(httpLogger, healthCheckers)))
+			rootMux.Handle("/version", service.PrometheusMetricsHandler("version", version.Handler()))
+			rootMux.Handle("/assets/", service.PrometheusMetricsHandler("static_assets", service.ServeStaticAssets("/assets/")))
+
+			if config.Prometheus.BasicAuth.Username != "" && config.Prometheus.BasicAuth.Password != "" {
+				metricsHandler := basicAuthHandler(config.Prometheus.BasicAuth.Username, config.Prometheus.BasicAuth.Password, service.PrometheusMetricsHandler("metrics", promhttp.Handler()))
+				rootMux.Handle("/metrics", metricsHandler)
+			} else {
+				level.Info(logger).Log("msg", "metrics endpoint disabled (http basic auth credentials not set)")
+			}
+
 			rootMux.Handle("/api/", apiHandler)
 			rootMux.Handle("/", frontendHandler)
-			rootMux.Handle("/debug/", service.MakeDebugHandler(svc, config, logger, eh, ds))
+
+			debugHandler := &debugMux{
+				fleetAuthenticatedHandler: service.MakeDebugHandler(svc, config, logger, eh, ds),
+			}
+			rootMux.Handle("/debug/", debugHandler)
 
 			if path, ok := os.LookupEnv("FLEET_TEST_PAGE_PATH"); ok {
 				// test that we can load this
@@ -405,7 +472,7 @@ the way that the Fleet server works.
 				if err != nil {
 					initFatal(err, "generating debug token")
 				}
-				rootMux.Handle("/debug/", http.StripPrefix("/debug/", netbug.AuthHandler(debugToken)))
+				debugHandler.tokenAuthenticatedHandler = http.StripPrefix("/debug/", netbug.AuthHandler(debugToken))
 				fmt.Printf("*** Debug mode enabled ***\nAccess the debug endpoints at /debug/?token=%s\n", url.QueryEscape(debugToken))
 			}
 
@@ -427,7 +494,7 @@ the way that the Fleet server works.
 
 			defaultWritetimeout := 40 * time.Second
 			writeTimeout := defaultWritetimeout
-			// The "GET /api/v1/fleet/queries/run" API requires
+			// The "GET /api/latest/fleet/queries/run" API requires
 			// WriteTimeout to be higher than the live query rest period
 			// (otherwise the response is not sent back to the client).
 			//
@@ -439,9 +506,18 @@ the way that the Fleet server works.
 			}
 
 			httpSrvCtx := ctxerr.NewContext(ctx, eh)
+
+			// Create the handler based on whether tracing should be there
+			var handler http.Handler
+			if config.Logging.TracingEnabled && config.Logging.TracingType == "elasticapm" {
+				handler = launcher.Handler(apmhttp.Wrap(rootMux))
+			} else {
+				handler = launcher.Handler(rootMux)
+			}
+
 			srv := &http.Server{
 				Addr:              config.Server.Address,
-				Handler:           launcher.Handler(rootMux),
+				Handler:           handler,
 				ReadTimeout:       25 * time.Second,
 				WriteTimeout:      writeTimeout,
 				ReadHeaderTimeout: 5 * time.Second,
@@ -492,11 +568,38 @@ the way that the Fleet server works.
 	return serveCmd
 }
 
+// basicAuthHandler wraps the given handler behind HTTP Basic Auth.
+func basicAuthHandler(username, password string, next http.Handler) http.HandlerFunc {
+	hashFn := func(s string) []byte {
+		h := sha256.Sum256([]byte(s))
+		return h[:]
+	}
+	expectedUsernameHash := hashFn(username)
+	expectedPasswordHash := hashFn(password)
+
+	return func(w http.ResponseWriter, r *http.Request) {
+		recvUsername, recvPassword, ok := r.BasicAuth()
+		if ok {
+			usernameMatch := subtle.ConstantTimeCompare(hashFn(recvUsername), expectedUsernameHash) == 1
+			passwordMatch := subtle.ConstantTimeCompare(hashFn(recvPassword), expectedPasswordHash) == 1
+
+			if usernameMatch && passwordMatch {
+				next.ServeHTTP(w, r)
+				return
+			}
+		}
+
+		w.Header().Set("WWW-Authenticate", `Basic realm="restricted", charset="UTF-8"`)
+		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+	}
+}
+
 const (
 	lockKeyLeader                  = "leader"
 	lockKeyVulnerabilities         = "vulnerabilities"
 	lockKeyWebhooksHostStatus      = "webhooks" // keeping this name for backwards compatibility.
 	lockKeyWebhooksFailingPolicies = "webhooks:global_failing_policies"
+	lockKeyWorker                  = "worker"
 )
 
 func trySendStatistics(ctx context.Context, ds fleet.Datastore, frequency time.Duration, url string, license *fleet.LicenseInfo) error {
@@ -523,7 +626,14 @@ func trySendStatistics(ctx context.Context, ds fleet.Datastore, frequency time.D
 	return ds.RecordStatisticsSent(ctx)
 }
 
-func runCrons(ds fleet.Datastore, task *async.Task, logger kitlog.Logger, config config.FleetConfig, license *fleet.LicenseInfo, failingPoliciesSet fleet.FailingPolicySet) context.CancelFunc {
+func runCrons(
+	ds fleet.Datastore,
+	task *async.Task,
+	logger kitlog.Logger,
+	config configpkg.FleetConfig,
+	license *fleet.LicenseInfo,
+	failingPoliciesSet fleet.FailingPolicySet,
+) context.CancelFunc {
 	ctx, cancelBackground := context.WithCancel(context.Background())
 
 	ourIdentifier, err := server.GenerateRandomText(64)
@@ -532,234 +642,15 @@ func runCrons(ds fleet.Datastore, task *async.Task, logger kitlog.Logger, config
 	}
 
 	// StartCollectors starts a goroutine per collector, using ctx to cancel.
-	task.StartCollectors(ctx, config.Osquery.AsyncHostCollectInterval,
-		config.Osquery.AsyncHostCollectMaxJitterPercent, kitlog.With(logger, "cron", "async_task"))
+	task.StartCollectors(ctx, kitlog.With(logger, "cron", "async_task"))
 
-	go cronCleanups(ctx, ds, kitlog.With(logger, "cron", "cleanups"), ourIdentifier, license)
+	go cronDB(ctx, ds, kitlog.With(logger, "cron", "cleanups"), ourIdentifier, license)
 	go cronVulnerabilities(
 		ctx, ds, kitlog.With(logger, "cron", "vulnerabilities"), ourIdentifier, config)
-	go cronWebhooks(ctx, ds, kitlog.With(logger, "cron", "webhooks"), ourIdentifier, failingPoliciesSet)
+	go cronWebhooks(ctx, ds, kitlog.With(logger, "cron", "webhooks"), ourIdentifier, failingPoliciesSet, 1*time.Hour)
+	go cronWorker(ctx, ds, kitlog.With(logger, "cron", "worker"), ourIdentifier)
 
 	return cancelBackground
-}
-
-func cronCleanups(ctx context.Context, ds fleet.Datastore, logger kitlog.Logger, identifier string, license *fleet.LicenseInfo) {
-	ticker := time.NewTicker(10 * time.Second)
-	for {
-		level.Debug(logger).Log("waiting", "on ticker")
-		select {
-		case <-ticker.C:
-			level.Debug(logger).Log("waiting", "done")
-			ticker.Reset(1 * time.Hour)
-		case <-ctx.Done():
-			level.Debug(logger).Log("exit", "done with cron.")
-			return
-		}
-		if locked, err := ds.Lock(ctx, lockKeyLeader, identifier, time.Hour); err != nil || !locked {
-			level.Debug(logger).Log("leader", "Not the leader. Skipping...")
-			continue
-		}
-		_, err := ds.CleanupDistributedQueryCampaigns(ctx, time.Now())
-		if err != nil {
-			level.Error(logger).Log("err", "cleaning distributed query campaigns", "details", err)
-		}
-		err = ds.CleanupIncomingHosts(ctx, time.Now())
-		if err != nil {
-			level.Error(logger).Log("err", "cleaning incoming hosts", "details", err)
-		}
-		_, err = ds.CleanupCarves(ctx, time.Now())
-		if err != nil {
-			level.Error(logger).Log("err", "cleaning carves", "details", err)
-		}
-		err = ds.CleanupOrphanScheduledQueryStats(ctx)
-		if err != nil {
-			level.Error(logger).Log("err", "cleaning scheduled query stats", "details", err)
-		}
-		err = ds.CleanupOrphanLabelMembership(ctx)
-		if err != nil {
-			level.Error(logger).Log("err", "cleaning label_membership", "details", err)
-		}
-		err = ds.UpdateQueryAggregatedStats(ctx)
-		if err != nil {
-			level.Error(logger).Log("err", "aggregating query stats", "details", err)
-		}
-		err = ds.UpdateScheduledQueryAggregatedStats(ctx)
-		if err != nil {
-			level.Error(logger).Log("err", "aggregating scheduled query stats", "details", err)
-		}
-		err = ds.CleanupExpiredHosts(ctx)
-		if err != nil {
-			level.Error(logger).Log("err", "cleaning expired hosts", "details", err)
-		}
-
-		err = trySendStatistics(ctx, ds, fleet.StatisticsFrequency, "https://fleetdm.com/api/v1/webhooks/receive-usage-analytics", license)
-		if err != nil {
-			level.Error(logger).Log("err", "sending statistics", "details", err)
-		}
-		level.Debug(logger).Log("loop", "done")
-	}
-}
-
-func cronVulnerabilities(
-	ctx context.Context,
-	ds fleet.Datastore,
-	logger kitlog.Logger,
-	identifier string,
-	config config.FleetConfig,
-) {
-	if config.Vulnerabilities.CurrentInstanceChecks == "no" || config.Vulnerabilities.CurrentInstanceChecks == "0" {
-		level.Info(logger).Log("vulnerability scanning", "host not configured to check for vulnerabilities")
-		return
-	}
-
-	appConfig, err := ds.AppConfig(ctx)
-	if err != nil {
-		level.Error(logger).Log("config", "couldn't read app config", "err", err)
-		return
-	}
-	if appConfig.VulnerabilitySettings.DatabasesPath == "" &&
-		config.Vulnerabilities.DatabasesPath == "" {
-		level.Info(logger).Log("vulnerability scanning", "not configured")
-		return
-	}
-	if !appConfig.HostSettings.EnableSoftwareInventory {
-		level.Info(logger).Log("software inventory", "not configured")
-		return
-	}
-
-	vulnPath := appConfig.VulnerabilitySettings.DatabasesPath
-	if vulnPath == "" {
-		vulnPath = config.Vulnerabilities.DatabasesPath
-	}
-	if config.Vulnerabilities.DatabasesPath != "" && config.Vulnerabilities.DatabasesPath != vulnPath {
-		vulnPath = config.Vulnerabilities.DatabasesPath
-		level.Info(logger).Log(
-			"databases_path", "fleet config takes precedence over app config when both are configured",
-			"result", vulnPath)
-	}
-
-	level.Info(logger).Log("databases-path", vulnPath)
-	level.Info(logger).Log("periodicity", config.Vulnerabilities.Periodicity)
-
-	if config.Vulnerabilities.CurrentInstanceChecks == "auto" {
-		level.Debug(logger).Log("current instance checks", "auto", "trying to create databases-path", vulnPath)
-		err := os.MkdirAll(vulnPath, 0o755)
-		if err != nil {
-			level.Error(logger).Log("databases-path", "creation failed, returning", "err", err)
-			return
-		}
-	}
-
-	ticker := time.NewTicker(10 * time.Second)
-	for {
-		level.Debug(logger).Log("waiting", "on ticker")
-		select {
-		case <-ticker.C:
-			level.Debug(logger).Log("waiting", "done")
-			ticker.Reset(config.Vulnerabilities.Periodicity)
-		case <-ctx.Done():
-			level.Debug(logger).Log("exit", "done with cron.")
-			return
-		}
-		if config.Vulnerabilities.CurrentInstanceChecks == "auto" {
-			if locked, err := ds.Lock(ctx, lockKeyVulnerabilities, identifier, time.Hour); err != nil || !locked {
-				level.Debug(logger).Log("leader", "Not the leader. Skipping...")
-				continue
-			}
-		}
-
-		err := vulnerabilities.TranslateSoftwareToCPE(ctx, ds, vulnPath, logger, config)
-		if err != nil {
-			level.Error(logger).Log("msg", "analyzing vulnerable software: Software->CPE", "err", err)
-			continue
-		}
-
-		err = vulnerabilities.TranslateCPEToCVE(ctx, ds, vulnPath, logger, config)
-		if err != nil {
-			level.Error(logger).Log("msg", "analyzing vulnerable software: CPE->CVE", "err", err)
-			continue
-		}
-
-		level.Debug(logger).Log("loop", "done")
-	}
-}
-
-func cronWebhooks(ctx context.Context, ds fleet.Datastore, logger kitlog.Logger, identifier string, failingPoliciesSet fleet.FailingPolicySet) {
-	appConfig, err := ds.AppConfig(ctx)
-	if err != nil {
-		level.Error(logger).Log("config", "couldn't read app config", "err", err)
-		return
-	}
-
-	interval := appConfig.WebhookSettings.Interval.ValueOr(24 * time.Hour)
-	level.Debug(logger).Log("interval", interval.String())
-	ticker := time.NewTicker(interval)
-	for {
-		level.Debug(logger).Log("waiting", "on ticker")
-		select {
-		case <-ticker.C:
-			level.Debug(logger).Log("waiting", "done")
-		case <-ctx.Done():
-			level.Debug(logger).Log("exit", "done with cron.")
-			return
-		}
-
-		// Reread app config to be able to read latest data used by the webhook
-		// and update any intervals for next run.
-		appConfig, err = ds.AppConfig(ctx)
-		if err != nil {
-			level.Error(logger).Log("config", "couldn't read app config", "err", err)
-		} else {
-			interval = appConfig.WebhookSettings.Interval.ValueOr(24 * time.Hour)
-			ticker.Reset(interval)
-		}
-
-		maybeTriggerHostStatus(ctx, ds, logger, identifier, appConfig, interval)
-		maybeTriggerGlobalFailingPoliciesWebhook(ctx, ds, logger, identifier, appConfig, interval, failingPoliciesSet)
-
-		level.Debug(logger).Log("loop", "done")
-	}
-}
-
-func maybeTriggerHostStatus(
-	ctx context.Context,
-	ds fleet.Datastore,
-	logger kitlog.Logger,
-	identifier string,
-	appConfig *fleet.AppConfig,
-	interval time.Duration,
-) {
-	if locked, err := ds.Lock(ctx, lockKeyWebhooksHostStatus, identifier, interval); err != nil || !locked {
-		level.Debug(logger).Log("leader-host-status", "Not the leader. Skipping...")
-		return
-	}
-
-	if err := webhooks.TriggerHostStatusWebhook(
-		ctx, ds, kitlog.With(logger, "webhook", "host_status"), appConfig,
-	); err != nil {
-		level.Error(logger).Log("err", "triggering host status webhook", "details", err)
-	}
-}
-
-func maybeTriggerGlobalFailingPoliciesWebhook(
-	ctx context.Context,
-	ds fleet.Datastore,
-	logger kitlog.Logger,
-	identifier string,
-	appConfig *fleet.AppConfig,
-	interval time.Duration,
-	failingPoliciesSet fleet.FailingPolicySet,
-) {
-	if locked, err := ds.Lock(ctx, lockKeyWebhooksFailingPolicies, identifier, interval); err != nil || !locked {
-		level.Debug(logger).Log("leader-failing-policies", "Not the leader. Skipping...")
-		return
-	}
-
-	if err := webhooks.TriggerGlobalFailingPoliciesWebhook(
-		ctx, ds, kitlog.With(logger, "webhook", "failing_policies"), appConfig, failingPoliciesSet, time.Now(),
-	); err != nil {
-		level.Error(logger).Log("err", "triggering failing policies webhook", "details", err)
-	}
 }
 
 // Support for TLS security profiles, we set up the TLS configuation based on
@@ -772,7 +663,7 @@ func getTLSConfig(profile string) *tls.Config {
 	}
 
 	switch profile {
-	case config.TLSProfileModern:
+	case configpkg.TLSProfileModern:
 		cfg.MinVersion = tls.VersionTLS13
 		cfg.CurvePreferences = append(cfg.CurvePreferences,
 			tls.X25519,
@@ -789,7 +680,7 @@ func getTLSConfig(profile string) *tls.Config {
 			tls.TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256,
 			tls.TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256,
 		)
-	case config.TLSProfileIntermediate:
+	case configpkg.TLSProfileIntermediate:
 		cfg.MinVersion = tls.VersionTLS12
 		cfg.CurvePreferences = append(cfg.CurvePreferences,
 			tls.X25519,
@@ -815,4 +706,71 @@ func getTLSConfig(profile string) *tls.Config {
 	}
 
 	return &cfg
+}
+
+// devSQLInterceptor is a sql interceptor to be used for development purposes.
+type devSQLInterceptor struct {
+	sqlmw.NullInterceptor
+
+	logger kitlog.Logger
+}
+
+func (in *devSQLInterceptor) StmtQueryContext(ctx context.Context, stmt driver.StmtQueryContext, query string, args []driver.NamedValue) (driver.Rows, error) {
+	start := time.Now()
+	rows, err := stmt.QueryContext(ctx, args)
+	in.logQuery(start, query, args, err)
+	return rows, err
+}
+
+func (in *devSQLInterceptor) StmtExecContext(ctx context.Context, stmt driver.StmtExecContext, query string, args []driver.NamedValue) (driver.Result, error) {
+	start := time.Now()
+	result, err := stmt.ExecContext(ctx, args)
+	in.logQuery(start, query, args, err)
+	return result, err
+}
+
+var spaceRegex = regexp.MustCompile(`\s+`)
+
+func (in *devSQLInterceptor) logQuery(start time.Time, query string, args []driver.NamedValue, err error) {
+	logLevel := level.Debug
+	if err != nil {
+		logLevel = level.Error
+	}
+	query = strings.TrimSpace(spaceRegex.ReplaceAllString(query, " "))
+	logLevel(in.logger).Log("duration", time.Since(start), "query", query, "args", argsToString(args), "err", err)
+}
+
+func argsToString(args []driver.NamedValue) string {
+	var allArgs strings.Builder
+	allArgs.WriteString("{")
+	for i, arg := range args {
+		if i > 0 {
+			allArgs.WriteString(", ")
+		}
+		if arg.Name != "" {
+			allArgs.WriteString(fmt.Sprintf("%s=", arg.Name))
+		}
+		allArgs.WriteString(fmt.Sprintf("%v", arg.Value))
+	}
+	allArgs.WriteString("}")
+	return allArgs.String()
+}
+
+// The debugMux directs the request to either the fleet-authenticated handler,
+// which is the standard handler for debug endpoints (using a Fleet
+// authorization bearer token), or to the token-authenticated handler if a
+// query-string token is provided and such a handler is set. The only wayt to
+// set this handler is if the --debug flag was provided to the fleet serve
+// command.
+type debugMux struct {
+	fleetAuthenticatedHandler http.Handler
+	tokenAuthenticatedHandler http.Handler
+}
+
+func (m *debugMux) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	if r.URL.Query().Has("token") && m.tokenAuthenticatedHandler != nil {
+		m.tokenAuthenticatedHandler.ServeHTTP(w, r)
+		return
+	}
+	m.fleetAuthenticatedHandler.ServeHTTP(w, r)
 }

@@ -7,6 +7,7 @@ import (
 
 	"github.com/VividCortex/mysqlerr"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
+	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/go-sql-driver/mysql"
 )
 
@@ -16,6 +17,8 @@ type notFoundError struct {
 	Message      string
 	ResourceType string
 }
+
+var _ fleet.NotFoundError = (*notFoundError)(nil)
 
 func notFound(kind string) *notFoundError {
 	return &notFoundError{

@@ -5,6 +5,7 @@
 build
 vendor
 node_modules
+dist
 
 # generated artifacts
 assets/bundle*.*
@@ -21,6 +22,7 @@ server/bindata/generated.go
 *.test
 *.log
 coverage.txt
+storybook-static
 
 # typescript generated test files
 tmp/
@@ -52,8 +54,18 @@ package-lock.json
 # infra
 .terraform
 .terraform.tfstate*
-.terraform.lock*
 terraform.tfstate*
 
-# generated installers
+# generated orbit installers and artifacts
 fleet-osquery*
+desktop.app.tar.gz
+osqueryd.app.tar.gz
+desktop.tar.gz
+
+# residual files when running the cpe command
+cmd/cpe/etagenv
+cmd/cpe/cpe*.sqlite
+cmd/cpe/cpe*.sqlite.gz
+
+# Testing TUF server
+test_tuf

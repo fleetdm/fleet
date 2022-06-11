@@ -36,13 +36,15 @@ func (r runLiveQueryResponse) error() error { return r.Err }
 func runLiveQueryEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
 	req := request.(*runLiveQueryRequest)
 
+	// The period used here should always be less than the request timeout for any load
+	// balancer/proxy between Fleet and the API client.
 	period := os.Getenv("FLEET_LIVE_QUERY_REST_PERIOD")
 	if period == "" {
-		period = "90s"
+		period = "25s"
 	}
 	duration, err := time.ParseDuration(period)
 	if err != nil {
-		duration = 90 * time.Second
+		duration = 25 * time.Second
 		logging.WithExtras(ctx, "live_query_rest_period_err", err)
 	}
 

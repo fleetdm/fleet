@@ -7,8 +7,18 @@ export default {
   ROOT: `${URL_PREFIX}/`,
   HOME: `${URL_PREFIX}/dashboard`,
   ADMIN_USERS: `${URL_PREFIX}/settings/users`,
-  ADMIN_SETTINGS: `${URL_PREFIX}/settings/organization`,
+  ADMIN_INTEGRATIONS: `${URL_PREFIX}/settings/integrations`,
   ADMIN_TEAMS: `${URL_PREFIX}/settings/teams`,
+  ADMIN_SETTINGS: `${URL_PREFIX}/settings/organization`,
+  ADMIN_SETTINGS_INFO: `${URL_PREFIX}/settings/organization/info`,
+  ADMIN_SETTINGS_WEBADDRESS: `${URL_PREFIX}/settings/organization/webaddress`,
+  ADMIN_SETTINGS_SSO: `${URL_PREFIX}/settings/organization/sso`,
+  ADMIN_SETTINGS_SMTP: `${URL_PREFIX}/settings/organization/smtp`,
+  ADMIN_SETTINGS_AGENTS: `${URL_PREFIX}/settings/organization/agents`,
+  ADMIN_SETTINGS_HOST_STATUS_WEBHOOK: `${URL_PREFIX}/settings/organization/host-status-webhook`,
+  ADMIN_SETTINGS_STATISTICS: `${URL_PREFIX}/settings/organization/statistics`,
+  ADMIN_SETTINGS_ADVANCED: `${URL_PREFIX}/settings/organization/advanced`,
+  ADMIN_SETTINGS_FLEET_DESKTOP: `${URL_PREFIX}/settings/organization/fleet-desktop`,
   ALL_PACKS: `${URL_PREFIX}/packs/all`,
   EDIT_PACK: (packId: number): string => {
     return `${URL_PREFIX}/packs/${packId}/edit`;
@@ -27,12 +37,18 @@ export default {
   FORGOT_PASSWORD: `${URL_PREFIX}/login/forgot`,
   API_ONLY_USER: `${URL_PREFIX}/apionlyuser`,
   FLEET_403: `${URL_PREFIX}/403`,
-  // FLEET_500: `${URL_PREFIX}/500`,
   LOGIN: `${URL_PREFIX}/login`,
   LOGOUT: `${URL_PREFIX}/logout`,
   MANAGE_HOSTS: `${URL_PREFIX}/hosts/manage`,
   HOST_DETAILS: (host: IHost): string => {
     return `${URL_PREFIX}/hosts/${host.id}`;
+  },
+  DEVICE_USER_DETAILS: (deviceAuthToken: any): string => {
+    return `${URL_PREFIX}/device/${deviceAuthToken}`;
+  },
+  MANAGE_SOFTWARE: `${URL_PREFIX}/software/manage`,
+  SOFTWARE_DETAILS: (id: string): string => {
+    return `${URL_PREFIX}/software/${id}`;
   },
   TEAM_DETAILS_MEMBERS: (teamId: number): string => {
     return `${URL_PREFIX}/settings/teams/${teamId}/members`;

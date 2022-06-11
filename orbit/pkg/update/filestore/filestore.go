@@ -70,6 +70,11 @@ func (s *fileStore) DeleteMeta(name string) error {
 	return nil
 }
 
+func (s *fileStore) Close() error {
+	// Files are already closed after each operation.
+	return nil
+}
+
 func (s *fileStore) readData() error {
 	stat, err := os.Stat(s.filename)
 	if err != nil && !errors.Is(err, os.ErrNotExist) {

@@ -23,7 +23,7 @@ func New(config config.FleetConfig, logger log.Logger) (*OsqueryLogger, error) {
 	switch config.Osquery.StatusLogPlugin {
 	case "":
 		// Allow "" to mean filesystem for backwards compatibility
-		level.Info(logger).Log("msg", "fleet_status_log_plugin not explicitly specified. Assuming 'filesystem'")
+		level.Info(logger).Log("msg", "osquery_status_log_plugin not explicitly specified. Assuming 'filesystem'")
 		fallthrough
 	case "filesystem":
 		status, err = NewFilesystemLogWriter(
@@ -90,9 +90,10 @@ func New(config config.FleetConfig, logger log.Logger) (*OsqueryLogger, error) {
 		}
 	case "kafkarest":
 		status, err = NewKafkaRESTWriter(&KafkaRESTParams{
-			KafkaProxyHost: config.KafkaREST.ProxyHost,
-			KafkaTopic:     config.KafkaREST.StatusTopic,
-			KafkaTimeout:   config.KafkaREST.Timeout,
+			KafkaProxyHost:        config.KafkaREST.ProxyHost,
+			KafkaTopic:            config.KafkaREST.StatusTopic,
+			KafkaContentTypeValue: config.KafkaREST.ContentTypeValue,
+			KafkaTimeout:          config.KafkaREST.Timeout,
 		})
 		if err != nil {
 			return nil, fmt.Errorf("create kafka rest status logger: %w", err)
@@ -106,7 +107,7 @@ func New(config config.FleetConfig, logger log.Logger) (*OsqueryLogger, error) {
 	switch config.Osquery.ResultLogPlugin {
 	case "":
 		// Allow "" to mean filesystem for backwards compatibility
-		level.Info(logger).Log("msg", "fleet_result_log_plugin not explicitly specified. Assuming 'filesystem'")
+		level.Info(logger).Log("msg", "osquery_result_log_plugin not explicitly specified. Assuming 'filesystem'")
 		fallthrough
 	case "filesystem":
 		result, err = NewFilesystemLogWriter(
@@ -124,7 +125,7 @@ func New(config config.FleetConfig, logger log.Logger) (*OsqueryLogger, error) {
 			config.Firehose.EndpointURL,
 			config.Firehose.AccessKeyID,
 			config.Firehose.SecretAccessKey,
-			config.Kinesis.StsAssumeRoleArn,
+			config.Firehose.StsAssumeRoleArn,
 			config.Firehose.ResultStream,
 			logger,
 		)
@@ -173,16 +174,17 @@ func New(config config.FleetConfig, logger log.Logger) (*OsqueryLogger, error) {
 		}
 	case "kafkarest":
 		result, err = NewKafkaRESTWriter(&KafkaRESTParams{
-			KafkaProxyHost: config.KafkaREST.ProxyHost,
-			KafkaTopic:     config.KafkaREST.ResultTopic,
-			KafkaTimeout:   config.KafkaREST.Timeout,
+			KafkaProxyHost:        config.KafkaREST.ProxyHost,
+			KafkaTopic:            config.KafkaREST.ResultTopic,
+			KafkaContentTypeValue: config.KafkaREST.ContentTypeValue,
+			KafkaTimeout:          config.KafkaREST.Timeout,
 		})
 		if err != nil {
 			return nil, fmt.Errorf("create kafka rest result logger: %w", err)
 		}
 	default:
 		return nil, fmt.Errorf(
-			"unknown result log plugin: %s", config.Osquery.StatusLogPlugin,
+			"unknown result log plugin: %s", config.Osquery.ResultLogPlugin,
 		)
 	}
 	return &OsqueryLogger{Status: status, Result: result}, nil

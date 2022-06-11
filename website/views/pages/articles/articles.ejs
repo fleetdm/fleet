@@ -1,0 +1,53 @@
+<div id="articles" v-cloak>
+  <div style="max-width: 1200px;" class="container-fluid p-0">
+    <div class="mx-auto">
+      <div purpose="categories-and-search" class="d-flex flex-lg-row flex-column justify-content-lg-between justify-content-md-center justify-content-start" v-if="isArticlesLandingPage">
+        <div purpose="categories" class="d-flex flex-md-row flex-column justify-content-start">
+          <div purpose="category-filter" :class="[ filter === 'all' ? 'selected' : '']" @click="filterBy('all')">All</div>
+          <div purpose="category-filter" :class="[ filter === 'product' ? 'selected' : '']" @click="filterBy('product')">Product</div>
+          <div purpose="category-filter" :class="[ filter === 'engineering' ? 'selected' : '']" @click="filterBy('engineering')">Engineering</div>
+          <div purpose="category-filter" :class="[ filter === 'security' ? 'selected' : '']" @click="filterBy('security')">Security</div>
+          <div purpose="category-filter" :class="[ filter === 'announcements' ? 'selected' : '']" @click="filterBy('announcements')">Announcements</div>
+          <div purpose="category-filter" :class="[ filter === 'guides' ? 'selected' : '']" @click="filterBy('guides')">Guides</div>
+          <div purpose="category-filter" :class="[ filter === 'podcasts' ? 'selected' : '']" @click="filterBy('podcasts')">Podcasts</div>
+        </div>
+<!--         <div purpose="search" class="p-2 mt-3 mt-lg-0 d-flex flex-row">
+          <img class="search" alt="search" src="/images/icon-search-16x16@2x.png">
+          <input class="ml-3 border-0" placeholder="Search">
+        </div> -->
+      </div>
+      <div purpose="category-title" v-else>
+        <h1>{{articleCategory}}</h1>
+        <p>{{categoryDescription}}</p>
+      </div>
+      <div purpose="articles" class="card-deck d-flex justify-content-center" v-if="selectedArticles.length > 0">
+        <div purpose="article-card" class="card" v-for="article in selectedArticles">
+          <a purpose="article-card-link" :href="article.url">
+            <img style="width: 100%; height: auto;" :src="[article.meta.articleImageUrl ? article.meta.articleImageUrl : '/images/press-kit/press-kit-fleet-logo-white-preview-600x336@2x.png']" alt="Article hero image">
+          </a>
+          <div purpose="article-card-body" class="card-body d-flex flex-column">
+            <a purpose="category-link" :href="article.url.split('/')[1]" class="pb-2">{{article.meta.category}}</a>
+            <a purpose="article-title" :href="article.url"><h5>{{article.meta.articleTitle}}</h5></a>
+            <div purpose="article-details" class="d-flex mt-auto flex-row align-items-center">
+              <span><js-timestamp format="billing" :at="article.meta.publishedOn"></js-timestamp></span>
+              <span class="px-2">|</span>
+              <img alt="The author's GitHub profile picture" style="height: 32px; width: 32px; border-radius: 100%;" :src="'https://github.com/'+article.meta.authorGitHubUsername+'.png?size=200'">
+              <p class="pl-2 font-weight-bold">{{article.meta.authorFullName}}</p>
+            </div>
+          </div>
+        </div>
+        <div purpose="article-card" class="card invisible mb-0 d-none d-sm-flex">
+        </div>
+        <div purpose="article-card" class="card invisible mb-0 d-none d-sm-flex">
+        </div>
+        <div purpose="article-card" class="card invisible mb-0 d-none d-sm-flex">
+        </div>
+      </div>
+      <div v-else>
+        <h2 class="text-muted mx-auto">No articles to display</h2>
+      </div>
+    </div>
+  </div>
+
+</div>
+<%- /* Expose server-rendered data as window.SAILS_LOCALS :: */ exposeLocalsToBrowser() %>

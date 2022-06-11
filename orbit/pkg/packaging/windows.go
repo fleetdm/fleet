@@ -37,17 +37,33 @@ func BuildMSI(opt Options) (string, error) {
 	// Initialize autoupdate metadata
 
 	updateOpt := update.DefaultOptions
-	updateOpt.Platform = "windows"
+
 	updateOpt.RootDirectory = orbitRoot
-	updateOpt.OrbitChannel = opt.OrbitChannel
-	updateOpt.OsquerydChannel = opt.OsquerydChannel
+	updateOpt.Targets = update.WindowsTargets
+
+	if opt.Desktop {
+		updateOpt.Targets["desktop"] = update.DesktopWindowsTarget
+		// Override default channel with the provided value.
+		updateOpt.Targets.SetTargetChannel("desktop", opt.DesktopChannel)
+	}
+
+	// Override default channels with the provided values.
+	updateOpt.Targets.SetTargetChannel("orbit", opt.OrbitChannel)
+	updateOpt.Targets.SetTargetChannel("osqueryd", opt.OsquerydChannel)
+
 	updateOpt.ServerURL = opt.UpdateURL
 	if opt.UpdateRoots != "" {
 		updateOpt.RootKeys = opt.UpdateRoots
 	}
 
-	if err := InitializeUpdates(updateOpt); err != nil {
+	updatesData, err := InitializeUpdates(updateOpt)
+	if err != nil {
 		return "", fmt.Errorf("initialize updates: %w", err)
+	}
+	log.Debug().Stringer("data", updatesData).Msg("updates initialized")
+	if opt.Version == "" {
+		// We set the package version to orbit's latest version.
+		opt.Version = updatesData.OrbitVersion
 	}
 
 	// Write files

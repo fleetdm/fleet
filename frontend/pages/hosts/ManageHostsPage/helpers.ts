@@ -3,8 +3,8 @@ import { isString, isPlainObject, isEmpty, reduce, trim, union } from "lodash";
 interface ILocationParams {
   pathPrefix?: string;
   routeTemplate?: string;
-  routeParams?: { [key: string]: any };
-  queryParams?: { [key: string]: any };
+  routeParams?: { [key: string]: string };
+  queryParams?: { [key: string]: string | number };
 }
 
 export const NEW_LABEL_HASH = "#new_label";
@@ -20,19 +20,19 @@ export const HOST_SELECT_STATUSES = [
     disabled: false,
     label: "All hosts",
     value: ALL_HOSTS_LABEL,
-    helpText: "All hosts which have enrolled to Fleet.",
+    helpText: "All hosts that have been enrolled to Fleet.",
   },
   {
     disabled: false,
     label: "Online hosts",
     value: "online",
-    helpText: "Hosts that have recently checked-in to Fleet.",
+    helpText: "Hosts that have recently checked in to Fleet.",
   },
   {
     disabled: false,
     label: "Offline hosts",
     value: "offline",
-    helpText: "Hosts that have not checked-in to Fleet recently.",
+    helpText: "Hosts that have not checked in to Fleet recently.",
   },
   {
     disabled: false,
@@ -40,24 +40,13 @@ export const HOST_SELECT_STATUSES = [
     value: "new",
     helpText: "Hosts that have been enrolled to Fleet in the last 24 hours.",
   },
-  {
-    disabled: false,
-    label: "MIA hosts",
-    value: "mia",
-    helpText: "Hosts that have not been seen by Fleet in more than 30 days.",
-  },
 ];
 
-export const isAcceptableStatus = (filter: string) => {
-  return (
-    filter === "new" ||
-    filter === "online" ||
-    filter === "offline" ||
-    filter === "mia"
-  );
+export const isAcceptableStatus = (filter: string): boolean => {
+  return filter === "new" || filter === "online" || filter === "offline";
 };
 
-export const isValidPolicyResponse = (filter: string) => {
+export const isValidPolicyResponse = (filter: string): boolean => {
   return filter === "pass" || filter === "fail";
 };
 

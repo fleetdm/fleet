@@ -1,34 +1,34 @@
 /* eslint-disable  @typescript-eslint/explicit-module-boundary-types */
 import sendRequest from "services";
-import endpoints from "fleet/endpoints";
-import { INewMembersBody, IRemoveMembersBody, ITeam } from "interfaces/team";
-import { ICreateTeamFormData } from "pages/admin/TeamManagementPage/components/CreateTeamModal/CreateTeamModal";
 import { IEnrollSecret } from "interfaces/enroll_secret";
+import { INewMembersBody, IRemoveMembersBody, ITeam } from "interfaces/team";
+import endpoints from "utilities/endpoints";
+import { IWebhook } from "interfaces/webhook";
 
-interface ILoadAllTeamsResponse {
-  teams: ITeam[];
-}
-
-interface ILoadTeamResponse {
-  team: ITeam;
-}
-
-interface ITeamEnrollSecretsResponse {
-  secrets: IEnrollSecret[];
-}
-
-interface ITeamSearchOptions {
+interface ILoadTeamsParams {
   page?: number;
   perPage?: number;
   globalFilter?: string;
 }
 
-interface IEditTeamFormData {
+export interface ILoadTeamsResponse {
+  teams: ITeam[];
+}
+
+export interface ITeamFormData {
   name: string;
 }
 
+interface ITeamWebhooks {
+  webhook_settings: {
+    [key: string]: IWebhook;
+  };
+}
+
+type ITeamUpdateData = ITeamFormData | ITeamWebhooks;
+
 export default {
-  create: (formData: ICreateTeamFormData) => {
+  create: (formData: ITeamFormData) => {
     const { TEAMS } = endpoints;
 
     return sendRequest("POST", TEAMS, formData);
@@ -49,7 +49,7 @@ export default {
     page = 0,
     perPage = 100,
     globalFilter = "",
-  }: ITeamSearchOptions = {}) => {
+  }: ILoadTeamsParams = {}): Promise<ILoadTeamsResponse> => {
     const { TEAMS } = endpoints;
 
     // TODO: add this query param logic to client class
@@ -64,7 +64,14 @@ export default {
 
     return sendRequest("GET", path);
   },
-  update: (teamId: number, updateParams: IEditTeamFormData) => {
+  update: (updateParams: ITeamUpdateData, teamId?: number) => {
+    // we are grouping this update with the config api update function
+    // on the ManagePoliciesPage to streamline updating the
+    // webhook settings globally or for a team - see ManagePoliciesPage line 208
+    if (typeof teamId === "undefined") {
+      return Promise.reject("Invalid usage: missing team id");
+    }
+
     const { TEAMS } = endpoints;
     const path = `${TEAMS}/${teamId}`;
 

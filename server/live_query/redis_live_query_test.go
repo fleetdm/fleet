@@ -25,7 +25,7 @@ func TestRedisLiveQuery(t *testing.T) {
 }
 
 func setupRedisLiveQuery(t *testing.T, cluster bool) *redisLiveQuery {
-	pool := redistest.SetupRedis(t, cluster, true, true)
+	pool := redistest.SetupRedis(t, "*livequery", cluster, true, true)
 	return NewRedisLiveQuery(pool)
 }
 

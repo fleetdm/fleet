@@ -1,12 +1,12 @@
 /* eslint-disable  @typescript-eslint/explicit-module-boundary-types */
-import sendRequest from "services";
-import endpoints from "fleet/endpoints";
-// import { IConfig } from "interfaces/host";
 
-// TODO add other methods from "fleet/entities/config"
+import sendRequest from "services";
+import sendMockRequest from "services/mock_service";
+import endpoints from "utilities/endpoints";
+import { IConfig } from "interfaces/config";
 
 export default {
-  loadAll: () => {
+  loadAll: (): Promise<IConfig> => {
     const { CONFIG } = endpoints;
     const path = `${CONFIG}`;
 
@@ -29,5 +29,15 @@ export default {
 
       return Promise.resolve(decodedCertificate);
     });
+  },
+  loadEnrollSecret: () => {
+    const { GLOBAL_ENROLL_SECRETS } = endpoints;
+
+    return sendRequest("GET", GLOBAL_ENROLL_SECRETS);
+  },
+  update: (formData: any) => {
+    const { CONFIG } = endpoints;
+
+    return sendRequest("PATCH", CONFIG, formData);
   },
 };

@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { useDeepEffect } from "utilities/hooks";
+import useDeepEffect from "hooks/useDeepEffect";
 
 import Button from "components/buttons/Button";
 
@@ -25,30 +25,11 @@ interface IEditPackForm {
   onAddPackQuery: () => void;
   onEditPackQuery: (selectedQuery: IScheduledQuery) => void;
   onRemovePackQueries: (selectedTableQueryIds: number[]) => void;
-  onPackQueryFormSubmit: (
-    formData: IPackQueryFormData,
-    editQuery: IScheduledQuery | undefined
-  ) => boolean;
-  packId: number;
-  packTargets?: ITarget[];
   targetsCount?: number;
   isPremiumTier?: boolean;
   formData: IEditPackFormData;
   scheduledQueries: IScheduledQuery[];
   isLoadingPackQueries: boolean;
-}
-
-interface IPackQueryFormData {
-  interval: number;
-  name?: string;
-  shard: number;
-  query?: string;
-  query_id?: number;
-  removed: boolean;
-  snapshot: boolean;
-  pack_id: number;
-  platform: string;
-  version: string;
 }
 
 interface IEditPackFormData {
@@ -65,15 +46,13 @@ const EditPackForm = ({
   onAddPackQuery,
   onEditPackQuery,
   onRemovePackQueries,
-  onPackQueryFormSubmit,
-  packId,
   scheduledQueries,
   isLoadingPackQueries,
   targetsCount,
   isPremiumTier,
   formData,
 }: IEditPackForm): JSX.Element => {
-  const [errors, setErrors] = useState<{ [key: string]: any }>({});
+  const [errors, setErrors] = useState<{ [key: string]: string }>({});
   const [packName, setPackName] = useState<string>(formData.name);
   const [packDescription, setPackDescription] = useState<string>(
     formData.description
@@ -100,7 +79,7 @@ const EditPackForm = ({
     setPackFormTargets(value);
   };
 
-  const onFormSubmit = () => {
+  const onFormSubmit = (): void => {
     if (packName === "") {
       return setErrors({
         ...errors,
@@ -153,9 +132,7 @@ const EditPackForm = ({
         onAddPackQuery={onAddPackQuery}
         onEditPackQuery={onEditPackQuery}
         onRemovePackQueries={onRemovePackQueries}
-        onPackQueryFormSubmit={onPackQueryFormSubmit}
         scheduledQueries={scheduledQueries}
-        packId={packId}
         isLoadingPackQueries={isLoadingPackQueries}
       />
       <div className={`${baseClass}__pack-buttons`}>

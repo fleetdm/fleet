@@ -111,17 +111,17 @@ func TestThrottledStore(t *testing.T) {
 	}
 
 	t.Run("standalone", func(t *testing.T) {
-		pool := redistest.SetupRedis(t, false, false, false)
+		pool := redistest.SetupRedis(t, prefix, false, false, false)
 		runTest(t, pool)
 	})
 
 	t.Run("cluster", func(t *testing.T) {
-		pool := redistest.SetupRedis(t, true, true, false)
+		pool := redistest.SetupRedis(t, prefix, true, true, false)
 		runTest(t, pool)
 	})
 
 	t.Run("cluster_nofollow", func(t *testing.T) {
-		pool := redistest.SetupRedis(t, true, false, false)
+		pool := redistest.SetupRedis(t, prefix, true, false, false)
 		runTest(t, pool)
 	})
 }

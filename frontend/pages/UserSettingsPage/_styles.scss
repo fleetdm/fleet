@@ -11,6 +11,13 @@
     font-weight: $bold;
   }
 
+  a {
+    font-size: $x-small;
+    color: $core-vibrant-blue;
+    font-weight: $bold;
+    text-decoration: none;
+  }
+
   &__manage {
     flex-grow: 1;
     min-width: 542px;
@@ -83,11 +90,6 @@
     margin-bottom: $pad-medium;
   }
 
-  &__reveal-secret {
-    float: right;
-    text-decoration: none;
-  }
-
   &__secret-label {
     font-size: $x-small;
     font-weight: $bold;
@@ -98,66 +100,55 @@
     }
   }
 
-  &__secret-wrapper {
-    position: relative;
-  }
-
   &__button-wrap {
     display: flex;
     justify-content: flex-end;
-  }
-
-  .buttons {
-    display: flex;
-    align-items: center;
-    position: absolute;
-    right: 16px;
-    transform: translateY(80%);
-    height: 16px;
-
-    span {
-      font-weight: $regular;
-    }
-
-    a {
-      display: flex;
-      align-items: center;
-    }
-
-    img {
-      width: 16px;
-      height: 16px;
-    }
-  }
-
-  &__secret-copy-icon {
-    color: $core-vibrant-blue;
-    margin-left: $pad-small;
-  }
-
-  &__secret-input {
-    input {
-      border-radius: 2px;
-      background-color: $ui-off-white;
-      border-color: $ui-fleet-blue-15;
-      padding-right: 90px;
-      font-family: "SourceCodePro", $monospace;
-
-      &[type="password"] {
-        letter-spacing: 3px;
-      }
-    }
   }
 
   &__version {
     font-size: $xx-small;
     text-align: center;
     display: block;
-    margin-top: $pad-xxlarge;
+    margin-top: $pad-large;
+  }
+
+  &__privacy-policy {
+    text-align: center;
+    display: block;
+    margin-top: $pad-xlarge;
   }
 
   .grey-cell {
     color: $ui-fleet-black-50;
     font-style: italic;
+  }
+
+  .modal__modal_container {
+    width: 400px;
+    a {
+      font-weight: bold;
+    }
+    img.icon-external {
+      width: 12px;
+      padding-left: 2px;
+      position: relative;
+      top: 1px;
+    }
+  }
+  
+  .secret-field__secret-input {
+    margin-bottom: 8px;
+  }
+
+  .info-banner {
+    margin-bottom: 24px;
+    p {
+      margin: 0;
+    }
+  }
+
+  .token-message {
+    font-size: $xx-small;
+    margin-bottom: 2rem;
   }
 }

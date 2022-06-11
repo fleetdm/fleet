@@ -16,6 +16,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/orbit/pkg/constant"
 	"github.com/fleetdm/fleet/v4/pkg/file"
 	"github.com/fleetdm/fleet/v4/pkg/secure"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
@@ -241,9 +242,22 @@ func updatesAddFunc(c *cli.Context) error {
 
 	var paths []string
 	for _, tag := range append([]string{version}, tags...) {
+		// NOTE(lucas): "updates add" expects the target file to match the target name.
+		// E.g.
+		// 	- an ".app.tar.gz" file for target=osqueryd is expected to be called "osqueryd.app.tar.gz".
+		// 	- an ".exe" file for target=osqueryd is expected to be called "osqueryd.exe".
 		dstPath := filepath.Join(name, platform, tag, name)
-		if strings.HasSuffix(target, ".exe") {
+		switch {
+		case name == "desktop" && platform == "windows":
+			// This is a special case for the desktop target on Windows.
+			dstPath = filepath.Join(filepath.Dir(dstPath), constant.DesktopAppExecName+".exe")
+		case name == "desktop" && platform == "linux":
+			// This is a special case for the desktop target on Linux.
+			dstPath += ".tar.gz"
+		case strings.HasSuffix(target, ".exe"):
 			dstPath += ".exe"
+		case strings.HasSuffix(target, ".app.tar.gz"):
+			dstPath += ".app.tar.gz"
 		}
 		fullPath := filepath.Join(targetsPath, dstPath)
 		paths = append(paths, dstPath)
@@ -357,7 +371,7 @@ func updatesRotateFunc(c *cli.Context) error {
 	}
 
 	// Get old keys for role
-	keys, err := store.GetSigningKeys(role)
+	keys, err := store.GetSigners(role)
 	if err != nil {
 		return fmt.Errorf("get keys for role: %w", err)
 	}
@@ -383,7 +397,7 @@ func updatesRotateFunc(c *cli.Context) error {
 
 	// Delete old keys for role
 	for _, key := range keys {
-		id := key.IDs()[0]
+		id := key.PublicData().IDs()[0]
 		err := repo.RevokeKeyWithExpires(role, id, time.Now().Add(rootExpirationDuration))
 		if err != nil {
 			// go-tuf keeps keys around even after they are revoked from the manifest. We can skip
@@ -473,7 +487,7 @@ func startRotatePseudoTx(repoPath string) (commit, rollback func() error, err er
 func createBackups(dirPath string) error {
 	// Only *.json files need to be backed up (other files are not modified)
 	backupPath := filepath.Join(dirPath, backupDirectory)
-	if err := os.Mkdir(backupPath, os.ModeDir|0744); err != nil {
+	if err := os.Mkdir(backupPath, os.ModeDir|0o744); err != nil {
 		if errors.Is(err, fs.ErrExist) {
 			return fmt.Errorf("backup directory already exists: %w", err)
 		}
@@ -570,11 +584,11 @@ func copyTarget(srcPath, dstPath string) error {
 	}
 	defer src.Close()
 
-	if err := secure.MkdirAll(filepath.Dir(dstPath), 0755); err != nil {
+	if err := secure.MkdirAll(filepath.Dir(dstPath), 0o755); err != nil {
 		return fmt.Errorf("create dst dir for copy: %w", err)
 	}
 
-	dst, err := secure.OpenFile(dstPath, os.O_RDWR|os.O_CREATE, 0644)
+	dst, err := secure.OpenFile(dstPath, os.O_RDWR|os.O_CREATE, 0o644)
 	if err != nil {
 		return fmt.Errorf("open dst for copy: %w", err)
 	}
@@ -637,7 +651,8 @@ func newPassphraseHandler() *passphraseHandler {
 	return &passphraseHandler{cache: make(map[string][]byte)}
 }
 
-func (p *passphraseHandler) getPassphrase(role string, confirm bool) ([]byte, error) {
+// TODO #4145 make use of recently added `change` argument
+func (p *passphraseHandler) getPassphrase(role string, confirm, change bool) ([]byte, error) {
 	// Check cache
 	if pass, ok := p.cache[role]; ok {
 		return pass, nil
@@ -714,7 +729,7 @@ func (p *passphraseHandler) checkPassphrase(store tuf.LocalStore, role string) e
 	// key and see if it is successful. Loop until successful decryption or
 	// non-decryption error.
 	for {
-		keys, err := store.GetSigningKeys(role)
+		keys, err := store.GetSigners(role)
 		if err != nil {
 			// TODO it would be helpful if we could upstream a new error type in
 			// go-tuf and use errors.Is instead of comparing the text of the

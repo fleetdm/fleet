@@ -59,7 +59,8 @@ func TestLabels(t *testing.T) {
 		{"Save", testLabelsSave},
 		{"QueriesForCentOSHost", testLabelsQueriesForCentOSHost},
 		{"RecordNonExistentQueryLabelExecution", testLabelsRecordNonexistentQueryLabelExecution},
-		{"LabelMembershipCleanup", testLabelMembershipCleanup},
+		{"DeleteLabel", testDeleteLabel},
+		{"LabelsSummary", testLabelsSummary},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -79,8 +80,10 @@ func testLabelsAddAllHosts(deferred bool, t *testing.T, db *Datastore) {
 		require.Nil(t, err, "enrollment should succeed")
 		hosts = append(hosts, *host)
 	}
+
 	host.Platform = "darwin"
-	require.NoError(t, db.SaveHost(context.Background(), host))
+	err = db.UpdateHost(context.Background(), host)
+	require.NoError(t, err)
 
 	// No labels to check
 	queries, err := db.LabelQueriesForHost(context.Background(), host)
@@ -144,7 +147,7 @@ func testLabelsAddAllHosts(deferred bool, t *testing.T, db *Datastore) {
 	}, baseTime, deferred)
 	assert.Nil(t, err)
 
-	host, err = db.Host(context.Background(), host.ID, false)
+	host, err = db.Host(context.Background(), host.ID)
 	require.NoError(t, err)
 	host.LabelUpdatedAt = baseTime
 
@@ -706,10 +709,12 @@ func testLabelsSave(t *testing.T, db *Datastore) {
 
 func testLabelsQueriesForCentOSHost(t *testing.T, db *Datastore) {
 	host, err := db.EnrollHost(context.Background(), "0", "0", nil, 0)
-	require.Nil(t, err, "enrollment should succeed")
+	require.NoError(t, err, "enrollment should succeed")
+
 	host.Platform = "rhel"
 	host.OSVersion = "CentOS 6"
-	require.NoError(t, db.SaveHost(context.Background(), host))
+	err = db.UpdateHost(context.Background(), host)
+	require.NoError(t, err)
 
 	label, err := db.NewLabel(context.Background(), &fleet.Label{
 		UpdateCreateTimestamps: fleet.UpdateCreateTimestamps{
@@ -755,68 +760,82 @@ func testLabelsRecordNonexistentQueryLabelExecution(t *testing.T, db *Datastore)
 	require.NoError(t, db.RecordLabelQueryExecutions(context.Background(), h1, map[uint]*bool{99999: ptr.Bool(true)}, time.Now(), false))
 }
 
-func testLabelMembershipCleanup(t *testing.T, ds *Datastore) {
-	setupTest := func() (*fleet.Host, *fleet.Label) {
-		host, err := ds.NewHost(context.Background(), &fleet.Host{
-			DetailUpdatedAt: time.Now(),
-			LabelUpdatedAt:  time.Now(),
-			PolicyUpdatedAt: time.Now(),
-			SeenTime:        time.Now(),
-			NodeKey:         "1",
-			UUID:            "1",
-			Hostname:        "foo.local",
-			PrimaryIP:       "192.168.1.1",
-			PrimaryMac:      "30-65-EC-6F-C4-58",
-			OsqueryHostID:   "1",
-		})
-		require.NoError(t, err)
-		require.NotNil(t, host)
+func testDeleteLabel(t *testing.T, db *Datastore) {
+	l, err := db.NewLabel(context.Background(), &fleet.Label{
+		Name:  t.Name(),
+		Query: "query1",
+	})
+	require.NoError(t, err)
 
-		label := &fleet.Label{
-			Name:  "foo",
-			Query: "select * from foo;",
-		}
-		label, err = ds.NewLabel(context.Background(), label)
-		require.NoError(t, err)
+	p, err := db.NewPack(context.Background(), &fleet.Pack{
+		Name:     t.Name(),
+		LabelIDs: []uint{l.ID},
+	})
+	require.NoError(t, err)
 
-		require.NoError(t, ds.RecordLabelQueryExecutions(context.Background(), host, map[uint]*bool{label.ID: ptr.Bool(true)}, time.Now(), false))
-		return host, label
+	require.NoError(t, db.DeleteLabel(context.Background(), l.Name))
+
+	newP, err := db.Pack(context.Background(), p.ID)
+	require.NoError(t, err)
+	require.Empty(t, newP.Labels)
+
+	require.NoError(t, db.DeletePack(context.Background(), newP.Name))
+}
+
+func testLabelsSummary(t *testing.T, db *Datastore) {
+	test.AddAllHostsLabel(t, db)
+
+	// Only 'All Hosts' label should be returned
+	labels, err := db.ListLabels(context.Background(), fleet.TeamFilter{}, fleet.ListOptions{})
+	require.NoError(t, err)
+	require.Len(t, labels, 1)
+
+	newLabels := []*fleet.LabelSpec{
+		{
+			Name:     "foo",
+			Query:    "query foo",
+			Platform: "platform",
+		},
+		{
+			Name:     "bar",
+			Query:    "query bar",
+			Platform: "platform",
+		},
+		{
+			Name:        "baz",
+			Query:       "query baz",
+			Description: "description baz",
+			Platform:    "darwin",
+		},
+	}
+	err = db.ApplyLabelSpecs(context.Background(), newLabels)
+	require.Nil(t, err)
+
+	labels, err = db.ListLabels(context.Background(), fleet.TeamFilter{}, fleet.ListOptions{})
+	require.NoError(t, err)
+	require.Len(t, labels, 4)
+	labelsByID := make(map[uint]*fleet.Label)
+	for _, l := range labels {
+		labelsByID[l.ID] = l
 	}
 
-	checkCount := func(before, after int) {
-		var count int
-		require.NoError(t, ds.writer.Get(&count, `SELECT count(*) FROM label_membership`))
-		assert.Equal(t, before, count)
-
-		require.NoError(t, ds.CleanupOrphanLabelMembership(context.Background()))
-
-		require.NoError(t, ds.writer.Get(&count, `SELECT count(*) FROM label_membership`))
-		assert.Equal(t, after, count)
+	ls, err := db.LabelsSummary(context.Background())
+	require.NoError(t, err)
+	require.Len(t, ls, 4)
+	for _, l := range ls {
+		assert.NotNil(t, labelsByID[l.ID])
+		assert.Equal(t, labelsByID[l.ID].Name, l.Name)
+		assert.Equal(t, labelsByID[l.ID].Description, l.Description)
+		assert.Equal(t, labelsByID[l.ID].LabelType, l.LabelType)
 	}
 
-	t.Run("none gone", func(t *testing.T) {
-		host, label := setupTest()
-		checkCount(1, 1)
-		require.NoError(t, ds.DeleteHost(context.Background(), host.ID))
-		require.NoError(t, ds.DeleteLabel(context.Background(), label.Name))
-		require.NoError(t, ds.CleanupOrphanLabelMembership(context.Background()))
+	_, err = db.NewLabel(context.Background(), &fleet.Label{
+		Name:  "bing",
+		Query: "query bing",
 	})
-	t.Run("label gone", func(t *testing.T) {
-		host, label := setupTest()
-		require.NoError(t, ds.DeleteLabel(context.Background(), label.Name))
-		checkCount(1, 0)
-		require.NoError(t, ds.DeleteHost(context.Background(), host.ID))
-	})
-	t.Run("host gone", func(t *testing.T) {
-		host, label := setupTest()
-		require.NoError(t, ds.DeleteHost(context.Background(), host.ID))
-		checkCount(1, 0)
-		require.NoError(t, ds.DeleteLabel(context.Background(), label.Name))
-	})
-	t.Run("both gone", func(t *testing.T) {
-		host, label := setupTest()
-		require.NoError(t, ds.DeleteHost(context.Background(), host.ID))
-		require.NoError(t, ds.DeleteLabel(context.Background(), label.Name))
-		checkCount(1, 0)
-	})
+	require.NoError(t, err)
+
+	ls, err = db.LabelsSummary(context.Background())
+	require.NoError(t, err)
+	require.Len(t, ls, 5)
 }

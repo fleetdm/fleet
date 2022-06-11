@@ -14,7 +14,7 @@ module.exports.custom = {
   *                                                                         *
   * The base URL to use during development.                                 *
   *                                                                         *
-  * • No trailing slash at the end                                          *
+  * • No trailing slash at the end                                          *
   * • `http://` or `https://` at the beginning.                             *
   *                                                                         *
   * > This is for use in custom logic that builds URLs.                     *
@@ -23,16 +23,6 @@ module.exports.custom = {
   *                                                                         *
   **************************************************************************/
   baseUrl: 'http://localhost:2024',
-
-  /**************************************************************************
-  *                                                                         *
-  * Display dates for your app                                              *
-  *                                                                         *
-  * > This is here to make it easier to change out the copyright date       *
-  * > that is displayed all over the app when it's first generated.         *
-  *                                                                         *
-  **************************************************************************/
-  platformCopyrightYear: '2021',
 
   /**************************************************************************
   *                                                                         *
@@ -97,6 +87,48 @@ module.exports.custom = {
 
   /***************************************************************************
   *                                                                          *
+  * Directly responsible individuals (DRIs) whose changes to areas of the    *
+  * code respository (outside of the core product code) are auto-approved,   *
+  * even during code freezes.                                                *
+  *                                                                          *
+  * See api/controllers/webhooks/receive-from-github.js for context.         *
+  *                                                                          *
+  ***************************************************************************/
+  githubRepoDRIByPath: {
+    'README.md': 'mike-j-thomas',// (github brandfront)
+
+    'handbook': ['desmi-dizney', 'mike-j-thomas', 'mikermcneil'],// (default for handbook)
+    'handbook/company.md': 'mikermcneil',
+    'handbook/people.md': ['eashaw', 'mike-j-thomas'],
+    'handbook/engineering.md': 'zwass',
+    'handbook/product.md': 'noahtalerman',
+    'handbook/security.md': 'guillaumeross',
+    'handbook/security-policies.md': 'guillaumeross',
+    'handbook/brand.md': 'mike-j-thomas',
+    'handbook/growth.md': 'timmy-k',
+    'handbook/customers.md': 'tgauda',
+    'handbook/community.md': ['dominuskelvin', 'ksatter'],
+    'handbook/README.md': '*',// (any fleetie can update this page and merge their change without waiting for their change to be approved)
+
+    'website': 'mikermcneil',// (default for website)
+    'website/views': 'eashaw',
+    'website/assets': 'eashaw',
+    'website/config/routes.js': ['eashaw', 'mike-j-thomas'],// (for managing website URLs)
+
+    'docs': 'zwass',// (default for docs)
+    'docs/images': ['noahtalerman', 'eashaw', 'mike-j-thomas'],
+    'docs/Using-Fleet/REST-API.md': 'lukeheath',
+    'docs/Contributing/API-for-contributors.md': 'lukeheath',
+    'docs/Deploying/FAQ.md': ['ksatter', 'dominuskelvin'],
+    'docs/Contributing/FAQ.md': ['ksatter', 'dominuskelvin'],
+    'docs/Using-Fleet/FAQ.md': ['ksatter', 'dominuskelvin'],
+
+    'docs/01-Using-Fleet/standard-query-library/standard-query-library.yml': 'guillaumeross',// (standard query library)
+  },
+
+
+  /***************************************************************************
+  *                                                                          *
   * Any other custom config this Sails app should use during development.    *
   * (and possibly in ALL environments, if not overridden in config/env/)     *
   *                                                                          *
@@ -108,6 +140,7 @@ module.exports.custom = {
   // githubAccessToken: '…',
   // githubBotWebhookSecret: '…',
   // slackWebhookUrlForGithubBot: '…',
+  // mergeFreezeAccessToken: '…',
 
   //…
 

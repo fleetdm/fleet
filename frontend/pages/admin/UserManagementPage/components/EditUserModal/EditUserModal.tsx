@@ -1,9 +1,9 @@
 import React from "react";
-import { useDispatch } from "react-redux";
 
 import { ITeam } from "interfaces/team";
 import { IUserFormErrors } from "interfaces/user";
 import Modal from "components/Modal";
+import Spinner from "components/Spinner";
 import UserForm from "../UserForm";
 import { IFormData } from "../UserForm/UserForm";
 
@@ -16,13 +16,15 @@ interface IEditUserModalProps {
   defaultTeamRole?: string;
   defaultTeams?: ITeam[];
   availableTeams: ITeam[];
-  currentTeam: ITeam;
+  currentTeam?: ITeam;
   isPremiumTier: boolean;
   smtpConfigured: boolean;
   canUseSso: boolean; // corresponds to whether SSO is enabled for the organization
   isSsoEnabled?: boolean; // corresponds to whether SSO is enabled for the individual user
-  serverErrors?: IUserFormErrors;
+  editUserErrors?: IUserFormErrors;
   isModifiedByGlobalAdmin?: boolean | false;
+  isInvitePending?: boolean;
+  isLoading: boolean;
 }
 
 const baseClass = "edit-user-modal";
@@ -40,37 +42,41 @@ const EditUserModal = ({
   smtpConfigured,
   canUseSso,
   isSsoEnabled,
-  isModifiedByGlobalAdmin,
   currentTeam,
-  serverErrors,
+  editUserErrors,
+  isModifiedByGlobalAdmin,
+  isInvitePending,
+  isLoading,
 }: IEditUserModalProps): JSX.Element => {
-  const dispatch = useDispatch();
-
   return (
     <Modal
       title="Edit user"
       onExit={onCancel}
       className={`${baseClass}__edit-user-modal`}
     >
-      <UserForm
-        serverErrors={serverErrors}
-        defaultName={defaultName}
-        defaultEmail={defaultEmail}
-        defaultGlobalRole={defaultGlobalRole}
-        defaultTeamRole={defaultTeamRole}
-        defaultTeams={defaultTeams}
-        onCancel={onCancel}
-        onSubmit={onSubmit}
-        availableTeams={availableTeams}
-        submitText={"Save"}
-        isPremiumTier={isPremiumTier}
-        smtpConfigured={smtpConfigured}
-        canUseSso={canUseSso}
-        isSsoEnabled={isSsoEnabled}
-        isModifiedByGlobalAdmin={isModifiedByGlobalAdmin}
-        currentTeam={currentTeam}
-        dispatch={dispatch}
-      />
+      {isLoading ? (
+        <Spinner />
+      ) : (
+        <UserForm
+          createOrEditUserErrors={editUserErrors}
+          defaultName={defaultName}
+          defaultEmail={defaultEmail}
+          defaultGlobalRole={defaultGlobalRole}
+          defaultTeamRole={defaultTeamRole}
+          defaultTeams={defaultTeams}
+          onCancel={onCancel}
+          onSubmit={onSubmit}
+          availableTeams={availableTeams}
+          submitText={"Save"}
+          isPremiumTier={isPremiumTier}
+          smtpConfigured={smtpConfigured}
+          canUseSso={canUseSso}
+          isSsoEnabled={isSsoEnabled}
+          isModifiedByGlobalAdmin={isModifiedByGlobalAdmin}
+          isInvitePending={isInvitePending}
+          currentTeam={currentTeam}
+        />
+      )}
     </Modal>
   );
 };

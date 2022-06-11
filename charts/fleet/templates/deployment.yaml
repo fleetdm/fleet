@@ -31,15 +31,8 @@ spec:
     spec:
       containers:
       - name: fleet
-        command:
-        {{- if .Values.fleet.autoApplySQLMigrations }}
-        - /bin/sh
-        - -c
-        - /usr/bin/fleet prepare db --no-prompt && /usr/bin/fleet serve
-        {{ else }}
-        - /usr/bin/fleet
-        - serve
-        {{- end }}
+        command: [/usr/bin/fleet]
+        args: ["serve"]
         image: fleetdm/fleet:{{ .Values.imageTag }}
         ports:
         - name: fleet

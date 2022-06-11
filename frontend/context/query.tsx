@@ -1,10 +1,9 @@
 import React, { createContext, useReducer, ReactNode } from "react";
 import { find } from "lodash";
 
-// @ts-ignore
 import { osqueryTables } from "utilities/osquery_tables";
 import { DEFAULT_QUERY } from "utilities/constants";
-import { IOsqueryTable } from "interfaces/osquery_table";
+import { DEFAULT_OSQUERY_TABLE, IOsqueryTable } from "interfaces/osquery_table";
 
 type Props = {
   children: ReactNode;
@@ -12,10 +11,12 @@ type Props = {
 
 type InitialStateType = {
   selectedOsqueryTable: IOsqueryTable;
+  lastEditedQueryId: number | null;
   lastEditedQueryName: string;
   lastEditedQueryDescription: string;
   lastEditedQueryBody: string;
   lastEditedQueryObserverCanRun: boolean;
+  setLastEditedQueryId: (value: number) => void;
   setLastEditedQueryName: (value: string) => void;
   setLastEditedQueryDescription: (value: string) => void;
   setLastEditedQueryBody: (value: string) => void;
@@ -24,11 +25,14 @@ type InitialStateType = {
 };
 
 const initialState = {
-  selectedOsqueryTable: find(osqueryTables, { name: "users" }),
+  selectedOsqueryTable:
+    find(osqueryTables, { name: "users" }) || DEFAULT_OSQUERY_TABLE,
+  lastEditedQueryId: null,
   lastEditedQueryName: DEFAULT_QUERY.name,
   lastEditedQueryDescription: DEFAULT_QUERY.description,
   lastEditedQueryBody: DEFAULT_QUERY.query,
   lastEditedQueryObserverCanRun: DEFAULT_QUERY.observer_can_run,
+  setLastEditedQueryId: () => null,
   setLastEditedQueryName: () => null,
   setLastEditedQueryDescription: () => null,
   setLastEditedQueryBody: () => null,
@@ -39,18 +43,24 @@ const initialState = {
 const actions = {
   SET_SELECTED_OSQUERY_TABLE: "SET_SELECTED_OSQUERY_TABLE",
   SET_LAST_EDITED_QUERY_INFO: "SET_LAST_EDITED_QUERY_INFO",
-};
+} as const;
 
 const reducer = (state: any, action: any) => {
   switch (action.type) {
     case actions.SET_SELECTED_OSQUERY_TABLE:
       return {
         ...state,
-        selectedOsqueryTable: find(osqueryTables, { name: action.tableName }),
+        selectedOsqueryTable:
+          find(osqueryTables, { name: action.tableName }) ||
+          DEFAULT_OSQUERY_TABLE,
       };
     case actions.SET_LAST_EDITED_QUERY_INFO:
       return {
         ...state,
+        lastEditedQueryId:
+          typeof action.lastEditedQueryId === "undefined"
+            ? state.lastEditedQueryId
+            : action.lastEditedQueryId,
         lastEditedQueryName:
           typeof action.lastEditedQueryName === "undefined"
             ? state.lastEditedQueryName
@@ -80,10 +90,17 @@ const QueryProvider = ({ children }: Props) => {
 
   const value = {
     selectedOsqueryTable: state.selectedOsqueryTable,
+    lastEditedQueryId: state.lastEditedQueryId,
     lastEditedQueryName: state.lastEditedQueryName,
     lastEditedQueryDescription: state.lastEditedQueryDescription,
     lastEditedQueryBody: state.lastEditedQueryBody,
     lastEditedQueryObserverCanRun: state.lastEditedQueryObserverCanRun,
+    setLastEditedQueryId: (lastEditedQueryId: number) => {
+      dispatch({
+        type: actions.SET_LAST_EDITED_QUERY_INFO,
+        lastEditedQueryId,
+      });
+    },
     setLastEditedQueryName: (lastEditedQueryName: string) => {
       dispatch({
         type: actions.SET_LAST_EDITED_QUERY_INFO,

@@ -2,38 +2,41 @@ package vulnerabilities
 
 import (
 	"context"
+	"database/sql"
 	"fmt"
+	"io/fs"
 	"net/url"
 	"os"
 	"path/filepath"
 	"regexp"
 	"runtime"
+	"strings"
 	"sync"
 	"time"
 
 	"github.com/facebookincubator/nvdtools/cvefeed"
+	feednvd "github.com/facebookincubator/nvdtools/cvefeed/nvd"
 	"github.com/facebookincubator/nvdtools/providers/nvd"
 	"github.com/facebookincubator/nvdtools/wfn"
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/vulnerabilities/oval"
 	kitlog "github.com/go-kit/kit/log"
 	"github.com/go-kit/kit/log/level"
 )
 
-func SyncCVEData(vulnPath string, config config.FleetConfig) error {
-	if config.Vulnerabilities.DisableDataSync {
-		return nil
-	}
-
+// DownloadNVDCVEFeed downloads the NVD CVE feed. Skips downloading if the cve feed has not changed since the last time.
+func DownloadNVDCVEFeed(vulnPath string, cveFeedPrefixURL string) error {
 	cve := nvd.SupportedCVE["cve-1.1.json.gz"]
 
 	source := nvd.NewSourceConfig()
-	if config.Vulnerabilities.CVEFeedPrefixURL != "" {
-		parsed, err := url.Parse(config.Vulnerabilities.CVEFeedPrefixURL)
+	if cveFeedPrefixURL != "" {
+		parsed, err := url.Parse(cveFeedPrefixURL)
 		if err != nil {
 			return fmt.Errorf("parsing cve feed url prefix override: %w", err)
 		}
 		source.Host = parsed.Host
+		source.CVEFeedPath = parsed.Path
 		source.Scheme = parsed.Scheme
 	}
 
@@ -43,76 +46,134 @@ func SyncCVEData(vulnPath string, config config.FleetConfig) error {
 		LocalDir: vulnPath,
 	}
 
-	ctx, cancelFunc := context.WithTimeout(context.Background(), 5*time.Minute)
+	syncTimeout := 5 * time.Minute
+	if os.Getenv("NETWORK_TEST") != "" {
+		syncTimeout = 10 * time.Minute
+	}
+
+	ctx, cancelFunc := context.WithTimeout(context.Background(), syncTimeout)
 	defer cancelFunc()
 
-	return dfs.Do(ctx)
-}
-
-func TranslateCPEToCVE(
-	ctx context.Context,
-	ds fleet.Datastore,
-	vulnPath string,
-	logger kitlog.Logger,
-	config config.FleetConfig,
-) error {
-	err := SyncCVEData(vulnPath, config)
-	if err != nil {
-		return err
-	}
-
-	var files []string
-	err = filepath.Walk(vulnPath, func(path string, info os.FileInfo, err error) error {
-		if match, err := regexp.MatchString("nvdcve.*\\.gz$", path); !match || err != nil {
-			return nil
-		}
-		files = append(files, path)
-		return nil
-	})
-	if err != nil {
-		return err
-	}
-
-	cpeList, err := ds.AllCPEs(ctx)
-	if err != nil {
-		return err
-	}
-
-	cpes := make([]*wfn.Attributes, 0, len(cpeList))
-	for _, uri := range cpeList {
-		attr, err := wfn.Parse(uri)
-		if err != nil {
-			return err
-		}
-		cpes = append(cpes, attr)
-	}
-
-	if len(cpes) == 0 {
-		return nil
-	}
-
-	for _, file := range files {
-		err := checkCVEs(ctx, ds, logger, cpes, file)
-		if err != nil {
-			return err
-		}
+	if err := dfs.Do(ctx); err != nil {
+		return fmt.Errorf("download nvd cve feed: %w", err)
 	}
 
 	return nil
 }
 
-func checkCVEs(ctx context.Context, ds fleet.Datastore, logger kitlog.Logger, cpes []*wfn.Attributes, files ...string) error {
-	dict, err := cvefeed.LoadJSONDictionary(files...)
+const publishedDateFmt = "2006-01-02T15:04Z" // not quite RFC3339
+
+var rxNVDCVEArchive = regexp.MustCompile(`nvdcve.*\.gz$`)
+
+func getNVDCVEFeedFiles(vulnPath string) ([]string, error) {
+	var files []string
+
+	err := filepath.WalkDir(vulnPath, func(path string, d fs.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+
+		if d.IsDir() {
+			return nil
+		}
+
+		if match := rxNVDCVEArchive.MatchString(path); !match {
+			return nil
+		}
+
+		files = append(files, path)
+		return nil
+	})
 	if err != nil {
-		return err
+		return nil, err
 	}
+
+	return files, nil
+}
+
+type softwareCPEWithNVDMeta struct {
+	fleet.SoftwareCPE
+	meta *wfn.Attributes
+}
+
+// TranslateCPEToCVE maps the CVEs found in NVD archive files in the
+// vulnerabilities database folder to software CPEs in the fleet database.
+// If collectVulns is true, returns a list of any new software vulnerabilities found.
+func TranslateCPEToCVE(
+	ctx context.Context,
+	ds fleet.Datastore,
+	vulnPath string,
+	logger kitlog.Logger,
+	collectVulns bool,
+) ([]fleet.SoftwareVulnerability, error) {
+	files, err := getNVDCVEFeedFiles(vulnPath)
+	if err != nil {
+		return nil, err
+	}
+	if len(files) == 0 {
+		return nil, nil
+	}
+
+	// Skip entries from platforms supported by OVAL
+	CPEs, err := ds.ListSoftwareCPEs(ctx, oval.SupportedHostPlatforms)
+	if err != nil {
+		return nil, err
+	}
+
+	var parsed []softwareCPEWithNVDMeta
+	for _, CPE := range CPEs {
+		// Skip dummy CPEs
+		if strings.HasPrefix(CPE.CPE, "none") {
+			continue
+		}
+
+		attr, err := wfn.Parse(CPE.CPE)
+		if err != nil {
+			return nil, err
+		}
+		parsed = append(parsed, softwareCPEWithNVDMeta{
+			SoftwareCPE: CPE,
+			meta:        attr,
+		})
+	}
+	if len(parsed) == 0 {
+		return nil, nil
+	}
+
+	var vulns []fleet.SoftwareVulnerability
+	for _, file := range files {
+		r, err := checkCVEs(ctx, ds, logger, parsed, file, collectVulns)
+		if err != nil {
+			return nil, err
+		}
+		vulns = append(vulns, r...)
+	}
+
+	return vulns, nil
+}
+
+func checkCVEs(
+	ctx context.Context,
+	ds fleet.Datastore,
+	logger kitlog.Logger,
+	softwareCPEs []softwareCPEWithNVDMeta,
+	file string,
+	collectVulns bool,
+) ([]fleet.SoftwareVulnerability, error) {
+	dict, err := cvefeed.LoadJSONDictionary(file)
+	if err != nil {
+		return nil, err
+	}
+
 	cache := cvefeed.NewCache(dict).SetRequireVersion(true).SetMaxSize(-1)
 	// This index consumes too much RAM
-	//cache.Idx = cvefeed.NewIndex(dict)
+	// cache.Idx = cvefeed.NewIndex(dict)
 
-	cpeCh := make(chan *wfn.Attributes)
+	softwareCPECh := make(chan softwareCPEWithNVDMeta)
 
+	var results []fleet.SoftwareVulnerability
 	var wg sync.WaitGroup
+	var mu sync.Mutex
 
 	for i := 0; i < runtime.NumCPU(); i++ {
 		wg.Add(1)
@@ -125,32 +186,55 @@ func checkCVEs(ctx context.Context, ds fleet.Datastore, logger kitlog.Logger, cp
 
 			for {
 				select {
-				case cpe, more := <-cpeCh:
+				case softwareCPE, more := <-softwareCPECh:
 					if !more {
 						level.Debug(logger).Log(logKey, "done")
 						return
 					}
-					cacheHits := cache.Get([]*wfn.Attributes{cpe})
+
+					cacheHits := cache.Get([]*wfn.Attributes{softwareCPE.meta})
 					for _, matches := range cacheHits {
 						ml := len(matches.CPEs)
 						if ml == 0 {
 							continue
 						}
-						matchingCPEs := make([]string, 0, ml)
+
+						matchingVulns := make([]fleet.SoftwareVulnerability, 0, ml)
+						cveID := matches.CVE.ID()
 						for _, attr := range matches.CPEs {
 							if attr == nil {
-								level.Error(logger).Log("matches nil CPE", matches.CVE.ID())
+								level.Error(logger).Log("matches nil CPE", cveID)
 								continue
 							}
-							cpe := attr.BindToFmtString()
-							if len(cpe) == 0 {
-								continue
-							}
-							matchingCPEs = append(matchingCPEs, cpe)
+							matchingVulns = append(matchingVulns, fleet.SoftwareVulnerability{
+								SoftwareID: softwareCPE.SoftwareID,
+								CPEID:      softwareCPE.ID,
+								CVE:        cveID,
+							})
 						}
-						err = ds.InsertCVEForCPE(ctx, matches.CVE.ID(), matchingCPEs)
+
+						newCount, err := ds.InsertVulnerabilities(ctx, matchingVulns, fleet.NVD)
 						if err != nil {
 							level.Error(logger).Log("cpe processing", "error", "err", err)
+							continue // do not report a recent vuln that failed to be inserted in the DB
+						}
+
+						// collect vuln only if newCount > 0, otherwise we would send
+						// webhook requests for the same vulnerability over and over again until
+						// it is older than 2 days.
+						if collectVulns && newCount > 0 {
+							_, ok := matches.CVE.(*feednvd.Vuln)
+							if !ok {
+								level.Error(logger).Log(
+									"recent vuln", "unexpected type for Vuln interface",
+									"cve", cveID,
+									"type", fmt.Sprintf("%T", matches.CVE))
+								continue
+							}
+
+							mu.Lock()
+							results = append(results, matchingVulns...)
+							mu.Unlock()
 						}
 					}
 				case <-ctx.Done():
@@ -162,14 +246,36 @@ func checkCVEs(ctx context.Context, ds fleet.Datastore, logger kitlog.Logger, cp
 	}
 
 	level.Debug(logger).Log("pushing cpes", "start")
-	for _, cpe := range cpes {
-		cpeCh <- cpe
+	for _, cpe := range softwareCPEs {
+		softwareCPECh <- cpe
 	}
-	close(cpeCh)
+	close(softwareCPECh)
 
 	level.Debug(logger).Log("pushing cpes", "done")
 
 	wg.Wait()
+	return results, nil
+}
 
+// TODO (juan): Remove this after OVAL centos
+// PostProcess performs additional processing over the results of
+// the main vulnerability processing run (TranslateSoftwareToCPE+TranslateCPEToCVE).
+func PostProcess(
+	ctx context.Context,
+	ds fleet.Datastore,
+	vulnPath string,
+	logger kitlog.Logger,
+	config config.FleetConfig,
+) error {
+	dbPath := filepath.Join(vulnPath, "cpe.sqlite")
+	db, err := sql.Open("sqlite3", dbPath)
+	if err != nil {
+		return fmt.Errorf("failed to open cpe database: %w", err)
+	}
+	defer db.Close()
+
+	if err := centosPostProcessing(ctx, ds, db, logger, config); err != nil {
+		return err
+	}
 	return nil
 }

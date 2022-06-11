@@ -23,17 +23,17 @@ export default PropTypes.shape({
 });
 
 export interface IPackQueryFormData {
-  interval: number;
+  interval?: number;
   name?: string;
-  shard: number;
+  shard?: number;
   query?: string;
   query_id?: number;
   pack_id?: number;
   logging_type?: string;
   removed?: boolean;
   snapshot?: boolean;
-  platform: string;
-  version: string;
+  platform?: string;
+  version?: string;
 }
 export interface IScheduledQuery {
   created_at: string;
@@ -49,8 +49,31 @@ export interface IScheduledQuery {
   removed: boolean;
   platform?: string;
   version?: string;
-  shard: number | null;
+  shard?: number | undefined;
   denylist?: boolean;
   logging_type?: string;
   stats: IScheduledQueryStats;
+  team_id?: number;
+}
+export interface IEditScheduledQuery extends IScheduledQuery {
+  type: "global_scheduled_query" | "team_scheduled_query";
+}
+export interface ILoadAllGlobalScheduledQueriesResponse {
+  global_schedule: IScheduledQuery[];
+}
+
+export interface ILoadAllTeamScheduledQueriesResponse {
+  scheduled: IScheduledQuery[];
+}
+
+export interface IUpdateScheduledQuery {
+  interval?: number;
+  logging_type: string;
+  platform?: string;
+  version?: string;
+  shard?: number;
+}
+
+export interface IUpdateTeamScheduledQuery extends IUpdateScheduledQuery {
+  team_id: number;
 }

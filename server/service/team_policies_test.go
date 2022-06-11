@@ -14,7 +14,7 @@ import (
 
 func TestTeamPoliciesAuth(t *testing.T) {
 	ds := new(mock.Store)
-	svc := newTestService(ds, nil, nil)
+	svc := newTestService(t, ds, nil, nil)
 
 	ds.NewTeamPolicyFunc = func(ctx context.Context, teamID uint, authorID *uint, args fleet.PolicyPayload) (*fleet.Policy, error) {
 		return &fleet.Policy{
@@ -25,6 +25,9 @@ func TestTeamPoliciesAuth(t *testing.T) {
 		}, nil
 	}
 	ds.ListTeamPoliciesFunc = func(ctx context.Context, teamID uint) ([]*fleet.Policy, error) {
+		return nil, nil
+	}
+	ds.PoliciesByIDFunc = func(ctx context.Context, ids []uint) (map[uint]*fleet.Policy, error) {
 		return nil, nil
 	}
 	ds.TeamPolicyFunc = func(ctx context.Context, teamID uint, policyID uint) (*fleet.Policy, error) {
@@ -56,6 +59,9 @@ func TestTeamPoliciesAuth(t *testing.T) {
 	ds.NewActivityFunc = func(ctx context.Context, user *fleet.User, activityType string, details *map[string]interface{}) error {
 		return nil
 	}
+	ds.TeamFunc = func(ctx context.Context, tid uint) (*fleet.Team, error) {
+		return &fleet.Team{ID: 1}, nil
+	}
 
 	testCases := []struct {
 		name            string
@@ -72,7 +78,7 @@ func TestTeamPoliciesAuth(t *testing.T) {
 		{
 			"global maintainer",
 			&fleet.User{GlobalRole: ptr.String(fleet.RoleMaintainer)},
-			true,
+			false,
 			false,
 		},
 		{

@@ -1,0 +1,33 @@
+.user-menu {
+  button {
+    background-color: transparent;
+    height: 50px;
+
+    &.focus-visible {
+      border: 1px solid $ui-vibrant-blue-10;
+      border-right: 0;
+    }
+  }
+
+  .dropdown-button__options {
+    padding: $pad-small;
+    right: 10px;
+    margin-top: 2px;
+
+    button {
+      display: inline-block;
+      min-width: 125px;
+
+      &:hover,
+      &:focus {
+        background-color: $ui-vibrant-blue-10;
+        color: $core-fleet-black;
+      }
+    }
+
+    .dropdown-button__option:last-child,
+    .dropdown-button__option:nth-last-child(2) {
+      border-top: 1px solid $ui-fleet-blue-15;
+    }
+  }
+}

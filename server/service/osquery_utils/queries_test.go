@@ -3,11 +3,15 @@ package osquery_utils
 import (
 	"context"
 	"encoding/json"
+	"errors"
+	"os"
 	"sort"
 	"testing"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/mock"
 	"github.com/go-kit/kit/log"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -17,90 +21,103 @@ func TestDetailQueryNetworkInterfaces(t *testing.T) {
 	var initialHost fleet.Host
 	host := initialHost
 
-	ingest := GetDetailQueries(nil)["network_interface"].IngestFunc
+	ingest := GetDetailQueries(nil, config.FleetConfig{})["network_interface"].IngestFunc
 
-	assert.NoError(t, ingest(log.NewNopLogger(), &host, nil))
+	assert.NoError(t, ingest(context.Background(), log.NewNopLogger(), &host, nil))
 	assert.Equal(t, initialHost, host)
 
 	var rows []map[string]string
+	// docker interface should be skipped even though it shows up first
 	require.NoError(t, json.Unmarshal([]byte(`
 [
-  {"address":"127.0.0.1","mac":"00:00:00:00:00:00"},
-  {"address":"::1","mac":"00:00:00:00:00:00"},
-  {"address":"fe80::1%lo0","mac":"00:00:00:00:00:00"},
-  {"address":"fe80::df:429b:971c:d051%en0","mac":"f4:5c:89:92:57:5b"},
-  {"address":"192.168.1.3","mac":"f4:5d:79:93:58:5b"},
-  {"address":"fe80::241a:9aff:fe60:d80a%awdl0","mac":"27:1b:aa:60:e8:0a"},
-  {"address":"fe80::3a6f:582f:86c5:8296%utun0","mac":"00:00:00:00:00:00"}
+  {"address":"127.0.0.1","mac":"00:00:00:00:00:00","interface":"lo0"},
+  {"address":"::1","mac":"00:00:00:00:00:00","interface":"lo0"},
+  {"address":"fe80::1%lo0","mac":"00:00:00:00:00:00","interface":"lo0"},
+  {"address":"172.17.0.1","mac":"d3:4d:b3:3f:58:5b","interface":"docker0"},
+  {"address":"fe80::df:429b:971c:d051%en0","mac":"f4:5c:89:92:57:5b","interface":"en0"},
+  {"address":"192.168.1.3","mac":"f4:5d:79:93:58:5b","interface":"en0"},
+  {"address":"fe80::241a:9aff:fe60:d80a%awdl0","mac":"27:1b:aa:60:e8:0a","interface":"en0"},
+  {"address":"fe80::3a6f:582f:86c5:8296%utun0","mac":"00:00:00:00:00:00","interface":"utun0"}
 ]`),
 		&rows,
 	))
 
-	assert.NoError(t, ingest(log.NewNopLogger(), &host, rows))
+	assert.NoError(t, ingest(context.Background(), log.NewNopLogger(), &host, rows))
 	assert.Equal(t, "192.168.1.3", host.PrimaryIP)
 	assert.Equal(t, "f4:5d:79:93:58:5b", host.PrimaryMac)
 
 	// Only IPv6
 	require.NoError(t, json.Unmarshal([]byte(`
 [
-  {"address":"127.0.0.1","mac":"00:00:00:00:00:00"},
-  {"address":"::1","mac":"00:00:00:00:00:00"},
-  {"address":"fe80::1%lo0","mac":"00:00:00:00:00:00"},
-  {"address":"fe80::df:429b:971c:d051%en0","mac":"f4:5c:89:92:57:5b"},
-  {"address":"2604:3f08:1337:9411:cbe:814f:51a6:e4e3","mac":"27:1b:aa:60:e8:0a"},
-  {"address":"3333:3f08:1337:9411:cbe:814f:51a6:e4e3","mac":"bb:1b:aa:60:e8:bb"},
-  {"address":"fe80::3a6f:582f:86c5:8296%utun0","mac":"00:00:00:00:00:00"}
+  {"address":"127.0.0.1","mac":"00:00:00:00:00:00","interface":"lo0"},
+  {"address":"::1","mac":"00:00:00:00:00:00","interface":"lo0"},
+  {"address":"fe80::1%lo0","mac":"00:00:00:00:00:00","interface":"lo0"},
+  {"address":"fe80::df:429b:971c:d051%en0","mac":"f4:5c:89:92:57:5b","interface":"en0"},
+  {"address":"2604:3f08:1337:9411:cbe:814f:51a6:e4e3","mac":"27:1b:aa:60:e8:0a","interface":"en0"},
+  {"address":"3333:3f08:1337:9411:cbe:814f:51a6:e4e3","mac":"bb:1b:aa:60:e8:bb","interface":"en0"},
+  {"address":"fe80::3a6f:582f:86c5:8296%utun0","mac":"00:00:00:00:00:00","interface":"utun0"}
 ]`),
 		&rows,
 	))
 
-	assert.NoError(t, ingest(log.NewNopLogger(), &host, rows))
+	assert.NoError(t, ingest(context.Background(), log.NewNopLogger(), &host, rows))
 	assert.Equal(t, "2604:3f08:1337:9411:cbe:814f:51a6:e4e3", host.PrimaryIP)
 	assert.Equal(t, "27:1b:aa:60:e8:0a", host.PrimaryMac)
 
 	// IPv6 appears before IPv4 (v4 should be prioritized)
 	require.NoError(t, json.Unmarshal([]byte(`
 [
-  {"address":"127.0.0.1","mac":"00:00:00:00:00:00"},
-  {"address":"::1","mac":"00:00:00:00:00:00"},
-  {"address":"fe80::1%lo0","mac":"00:00:00:00:00:00"},
-  {"address":"fe80::df:429b:971c:d051%en0","mac":"f4:5c:89:92:57:5b"},
-  {"address":"2604:3f08:1337:9411:cbe:814f:51a6:e4e3","mac":"27:1b:aa:60:e8:0a"},
-  {"address":"205.111.43.79","mac":"ab:1b:aa:60:e8:0a"},
-  {"address":"205.111.44.80","mac":"bb:bb:aa:60:e8:0a"},
-  {"address":"fe80::3a6f:582f:86c5:8296%utun0","mac":"00:00:00:00:00:00"}
+  {"address":"127.0.0.1","mac":"00:00:00:00:00:00","interface":"lo0"},
+  {"address":"::1","mac":"00:00:00:00:00:00","interface":"lo0"},
+  {"address":"fe80::1%lo0","mac":"00:00:00:00:00:00","interface":"lo0"},
+  {"address":"fe80::df:429b:971c:d051%en0","mac":"f4:5c:89:92:57:5b","interface":"en0"},
+  {"address":"2604:3f08:1337:9411:cbe:814f:51a6:e4e3","mac":"27:1b:aa:60:e8:0a","interface":"en0"},
+  {"address":"205.111.43.79","mac":"ab:1b:aa:60:e8:0a","interface":"en1"},
+  {"address":"205.111.44.80","mac":"bb:bb:aa:60:e8:0a","interface":"en1"},
+  {"address":"fe80::3a6f:582f:86c5:8296%utun0","mac":"00:00:00:00:00:00","interface":"utun0"}
 ]`),
 		&rows,
 	))
 
-	assert.NoError(t, ingest(log.NewNopLogger(), &host, rows))
+	assert.NoError(t, ingest(context.Background(), log.NewNopLogger(), &host, rows))
 	assert.Equal(t, "205.111.43.79", host.PrimaryIP)
 	assert.Equal(t, "ab:1b:aa:60:e8:0a", host.PrimaryMac)
 
 	// Only link-local/loopback
 	require.NoError(t, json.Unmarshal([]byte(`
 [
-  {"address":"127.0.0.1","mac":"00:00:00:00:00:00"},
-  {"address":"::1","mac":"00:00:00:00:00:00"},
-  {"address":"fe80::1%lo0","mac":"00:00:00:00:00:00"},
-  {"address":"fe80::df:429b:971c:d051%en0","mac":"f4:5c:89:92:57:5b"},
-  {"address":"fe80::241a:9aff:fe60:d80a%awdl0","mac":"27:1b:aa:60:e8:0a"},
-  {"address":"fe80::3a6f:582f:86c5:8296%utun0","mac":"00:00:00:00:00:00"}
+  {"address":"127.0.0.1","mac":"00:00:00:00:00:00","interface":"lo0"},
+  {"address":"::1","mac":"00:00:00:00:00:00","interface":"lo0"},
+  {"address":"fe80::1%lo0","mac":"00:00:00:00:00:00","interface":"lo0"},
+  {"address":"fe80::df:429b:971c:d051%en0","mac":"f4:5c:89:92:57:5b","interface":"en0"},
+  {"address":"fe80::241a:9aff:fe60:d80a%awdl0","mac":"27:1b:aa:60:e8:0a","interface":"en0"},
+  {"address":"fe80::3a6f:582f:86c5:8296%utun0","mac":"00:00:00:00:00:00","interface":"utun0"}
 ]`),
 		&rows,
 	))
 
-	assert.NoError(t, ingest(log.NewNopLogger(), &host, rows))
+	assert.NoError(t, ingest(context.Background(), log.NewNopLogger(), &host, rows))
 	assert.Equal(t, "127.0.0.1", host.PrimaryIP)
 	assert.Equal(t, "00:00:00:00:00:00", host.PrimaryMac)
 }
 
 func TestDetailQueryScheduledQueryStats(t *testing.T) {
-	host := fleet.Host{}
+	host := fleet.Host{ID: 1}
+	ds := new(mock.Store)
 
-	ingest := GetDetailQueries(nil)["scheduled_query_stats"].IngestFunc
+	var gotPackStats []fleet.PackStats
+	ds.SaveHostPackStatsFunc = func(ctx context.Context, hostID uint, stats []fleet.PackStats) error {
+		if hostID != host.ID {
+			return errors.New("not found")
+		}
+		gotPackStats = stats
+		return nil
+	}
 
-	assert.NoError(t, ingest(log.NewNopLogger(), &host, nil))
+	ingest := GetDetailQueries(nil, config.FleetConfig{App: config.AppConfig{EnableScheduledQueryStats: true}})["scheduled_query_stats"].DirectIngestFunc
+
+	ctx := context.Background()
+	assert.NoError(t, ingest(ctx, log.NewNopLogger(), &host, ds, nil, false))
 	assert.Len(t, host.PackStats, 0)
 
 	resJSON := `
@@ -181,13 +198,13 @@ func TestDetailQueryScheduledQueryStats(t *testing.T) {
 	var rows []map[string]string
 	require.NoError(t, json.Unmarshal([]byte(resJSON), &rows))
 
-	assert.NoError(t, ingest(log.NewNopLogger(), &host, rows))
-	assert.Len(t, host.PackStats, 2)
-	sort.Slice(host.PackStats, func(i, j int) bool {
-		return host.PackStats[i].PackName < host.PackStats[j].PackName
+	assert.NoError(t, ingest(ctx, log.NewNopLogger(), &host, ds, rows, false))
+	assert.Len(t, gotPackStats, 2)
+	sort.Slice(gotPackStats, func(i, j int) bool {
+		return gotPackStats[i].PackName < gotPackStats[j].PackName
 	})
-	assert.Equal(t, host.PackStats[0].PackName, "pack-2")
-	assert.ElementsMatch(t, host.PackStats[0].QueryStats,
+	assert.Equal(t, gotPackStats[0].PackName, "pack-2")
+	assert.ElementsMatch(t, gotPackStats[0].QueryStats,
 		[]fleet.ScheduledQueryStats{
 			{
 				ScheduledQueryName: "time",
@@ -204,8 +221,8 @@ func TestDetailQueryScheduledQueryStats(t *testing.T) {
 			},
 		},
 	)
-	assert.Equal(t, host.PackStats[1].PackName, "test")
-	assert.ElementsMatch(t, host.PackStats[1].QueryStats,
+	assert.Equal(t, gotPackStats[1].PackName, "test")
+	assert.ElementsMatch(t, gotPackStats[1].QueryStats,
 		[]fleet.ScheduledQueryStats{
 			{
 				ScheduledQueryName: "osquery info",
@@ -262,8 +279,8 @@ func TestDetailQueryScheduledQueryStats(t *testing.T) {
 		},
 	)
 
-	assert.NoError(t, ingest(log.NewNopLogger(), &host, nil))
-	assert.Len(t, host.PackStats, 0)
+	assert.NoError(t, ingest(ctx, log.NewNopLogger(), &host, ds, nil, false))
+	assert.Len(t, gotPackStats, 0)
 }
 
 func sortedKeysCompare(t *testing.T, m map[string]DetailQuery, expectedKeys []string) {
@@ -275,14 +292,13 @@ func sortedKeysCompare(t *testing.T, m map[string]DetailQuery, expectedKeys []st
 }
 
 func TestGetDetailQueries(t *testing.T) {
-	queriesNoConfig := GetDetailQueries(nil)
+	queriesNoConfig := GetDetailQueries(nil, config.FleetConfig{})
 	require.Len(t, queriesNoConfig, 12)
 	baseQueries := []string{
 		"network_interface",
 		"os_version",
 		"osquery_flags",
 		"osquery_info",
-		"scheduled_query_stats",
 		"system_info",
 		"uptime",
 		"disk_space_unix",
@@ -290,26 +306,89 @@ func TestGetDetailQueries(t *testing.T) {
 		"mdm",
 		"munki_info",
 		"google_chrome_profiles",
+		"orbit_info",
 	}
 	sortedKeysCompare(t, queriesNoConfig, baseQueries)
 
-	queriesWithUsers := GetDetailQueries(&fleet.AppConfig{HostSettings: fleet.HostSettings{EnableHostUsers: true}})
-	require.Len(t, queriesWithUsers, 13)
-	sortedKeysCompare(t, queriesWithUsers, append(baseQueries, "users"))
+	queriesWithUsers := GetDetailQueries(&fleet.AppConfig{HostSettings: fleet.HostSettings{EnableHostUsers: true}}, config.FleetConfig{App: config.AppConfig{EnableScheduledQueryStats: true}})
+	require.Len(t, queriesWithUsers, 14)
+	sortedKeysCompare(t, queriesWithUsers, append(baseQueries, "users", "scheduled_query_stats"))
 
-	queriesWithUsersAndSoftware := GetDetailQueries(&fleet.AppConfig{HostSettings: fleet.HostSettings{EnableHostUsers: true, EnableSoftwareInventory: true}})
-	require.Len(t, queriesWithUsersAndSoftware, 16)
+	queriesWithUsersAndSoftware := GetDetailQueries(&fleet.AppConfig{HostSettings: fleet.HostSettings{EnableHostUsers: true, EnableSoftwareInventory: true}}, config.FleetConfig{App: config.AppConfig{EnableScheduledQueryStats: true}})
+	require.Len(t, queriesWithUsersAndSoftware, 17)
 	sortedKeysCompare(t, queriesWithUsersAndSoftware,
-		append(baseQueries, "users", "software_macos", "software_linux", "software_windows"))
+		append(baseQueries, "users", "software_macos", "software_linux", "software_windows", "scheduled_query_stats"))
+}
+
+func TestDetailQueriesOSVersion(t *testing.T) {
+	var initialHost fleet.Host
+	host := initialHost
+
+	ingest := GetDetailQueries(nil, config.FleetConfig{})["os_version"].IngestFunc
+
+	assert.NoError(t, ingest(context.Background(), log.NewNopLogger(), &host, nil))
+	assert.Equal(t, initialHost, host)
+
+	// Rolling release for archlinux
+	var rows []map[string]string
+	require.NoError(t, json.Unmarshal([]byte(`
+[{
+    "hostname": "kube2",
+    "arch": "x86_64",
+    "build": "rolling",
+    "codename": "",
+    "major": "0",
+    "minor": "0",
+    "name": "Arch Linux",
+    "patch": "0",
+    "platform": "arch",
+    "platform_like": "",
+    "version": ""
+}]`),
+		&rows,
+	))
+
+	assert.NoError(t, ingest(context.Background(), log.NewNopLogger(), &host, rows))
+	assert.Equal(t, "Arch Linux rolling", host.OSVersion)
+
+	// Simulate a linux with a proper version
+	require.NoError(t, json.Unmarshal([]byte(`
+[{
+    "hostname": "kube2",
+    "arch": "x86_64",
+    "build": "rolling",
+    "codename": "",
+    "major": "1",
+    "minor": "2",
+    "name": "Arch Linux",
+    "patch": "3",
+    "platform": "arch",
+    "platform_like": "",
+    "version": ""
+}]`),
+		&rows,
+	))
+
+	assert.NoError(t, ingest(context.Background(), log.NewNopLogger(), &host, rows))
+	assert.Equal(t, "Arch Linux 1.2.3", host.OSVersion)
 }
 
 func TestDirectIngestMDM(t *testing.T) {
+	ds := new(mock.Store)
+	ds.SetOrUpdateMDMDataFunc = func(ctx context.Context, hostID uint, enrolled bool, serverURL string, installedFromDep bool) error {
+		require.False(t, enrolled)
+		require.False(t, installedFromDep)
+		require.Empty(t, serverURL)
+		return nil
+	}
+
 	var host fleet.Host
 
-	err := directIngestMDM(context.Background(), log.NewNopLogger(), &host, nil, []map[string]string{}, true)
+	err := directIngestMDM(context.Background(), log.NewNopLogger(), &host, ds, []map[string]string{}, true)
 	require.NoError(t, err)
+	require.False(t, ds.SetOrUpdateMDMDataFuncInvoked)
 
-	err = directIngestMDM(context.Background(), log.NewNopLogger(), &host, nil, []map[string]string{
+	err = directIngestMDM(context.Background(), log.NewNopLogger(), &host, ds, []map[string]string{
 		{
 			"enrolled":           "false",
 			"installed_from_dep": "",
@@ -317,4 +396,62 @@ func TestDirectIngestMDM(t *testing.T) {
 		},
 	}, false)
 	require.NoError(t, err)
+	require.True(t, ds.SetOrUpdateMDMDataFuncInvoked)
+}
+
+func TestDirectIngestOrbitInfo(t *testing.T) {
+	ds := new(mock.Store)
+	ds.SetOrUpdateDeviceAuthTokenFunc = func(ctx context.Context, hostID uint, authToken string) error {
+		require.Equal(t, hostID, uint(1))
+		require.Equal(t, authToken, "foo")
+		return nil
+	}
+
+	host := fleet.Host{
+		ID: 1,
+	}
+
+	err := directIngestOrbitInfo(context.Background(), log.NewNopLogger(), &host, ds, []map[string]string{{
+		"version":           "42",
+		"device_auth_token": "foo",
+	}}, true)
+	require.NoError(t, err)
+	require.True(t, ds.SetOrUpdateDeviceAuthTokenFuncInvoked)
+}
+
+func TestDirectIngestChromeProfiles(t *testing.T) {
+	ds := new(mock.Store)
+	ds.ReplaceHostDeviceMappingFunc = func(ctx context.Context, hostID uint, mapping []*fleet.HostDeviceMapping) error {
+		require.Equal(t, hostID, uint(1))
+		require.Equal(t, mapping, []*fleet.HostDeviceMapping{
+			{HostID: hostID, Email: "test@example.com", Source: "google_chrome_profiles"},
+			{HostID: hostID, Email: "test+2@example.com", Source: "google_chrome_profiles"},
+		})
+		return nil
+	}
+
+	host := fleet.Host{
+		ID: 1,
+	}
+
+	err := directIngestChromeProfiles(context.Background(), log.NewNopLogger(), &host, ds, []map[string]string{
+		{"email": "test@example.com"},
+		{"email": "test+2@example.com"},
+	}, false)
+
+	require.NoError(t, err)
+	require.True(t, ds.ReplaceHostDeviceMappingFuncInvoked)
+}
+
+func TestDangerousReplaceQuery(t *testing.T) {
+	queries := GetDetailQueries(&fleet.AppConfig{HostSettings: fleet.HostSettings{EnableHostUsers: true}}, config.FleetConfig{})
+	originalQuery := queries["users"].Query
+
+	require.NoError(t, os.Setenv("FLEET_DANGEROUS_REPLACE_USERS", "select * from blah"))
+	queries = GetDetailQueries(&fleet.AppConfig{HostSettings: fleet.HostSettings{EnableHostUsers: true}}, config.FleetConfig{})
+	assert.NotEqual(t, originalQuery, queries["users"].Query)
+
+	require.NoError(t, os.Unsetenv("FLEET_DANGEROUS_REPLACE_USERS"))
+	queries = GetDetailQueries(&fleet.AppConfig{HostSettings: fleet.HostSettings{EnableHostUsers: true}}, config.FleetConfig{})
+	assert.Equal(t, originalQuery, queries["users"].Query)
 }

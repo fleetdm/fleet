@@ -19,29 +19,30 @@ import (
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/service/async"
 	"github.com/fleetdm/fleet/v4/server/sso"
+	"github.com/fleetdm/fleet/v4/server/test"
 	kitlog "github.com/go-kit/kit/log"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/throttled/throttled/v2"
 	"github.com/throttled/throttled/v2/store/memstore"
 )
 
-func newTestService(ds fleet.Datastore, rs fleet.QueryResultStore, lq fleet.LiveQueryStore, opts ...TestServerOpts) fleet.Service {
-	return newTestServiceWithConfig(ds, config.TestConfig(), rs, lq, opts...)
+func newTestService(t *testing.T, ds fleet.Datastore, rs fleet.QueryResultStore, lq fleet.LiveQueryStore, opts ...*TestServerOpts) fleet.Service {
+	return newTestServiceWithConfig(t, ds, config.TestConfig(), rs, lq, opts...)
 }
 
-func newTestServiceWithConfig(ds fleet.Datastore, fleetConfig config.FleetConfig, rs fleet.QueryResultStore, lq fleet.LiveQueryStore, opts ...TestServerOpts) fleet.Service {
+func newTestServiceWithConfig(t *testing.T, ds fleet.Datastore, fleetConfig config.FleetConfig, rs fleet.QueryResultStore, lq fleet.LiveQueryStore, opts ...*TestServerOpts) fleet.Service {
 	mailer := &mockMailService{SendEmailFn: func(e fleet.Email) error { return nil }}
 	license := &fleet.LicenseInfo{Tier: fleet.TierFree}
-	writer, _ := logging.NewFilesystemLogWriter(
+	writer, err := logging.NewFilesystemLogWriter(
 		fleetConfig.Filesystem.StatusLogFile,
 		kitlog.NewNopLogger(),
 		fleetConfig.Filesystem.EnableLogRotation,
 		fleetConfig.Filesystem.EnableLogCompression,
 	)
-	// See #1776
-	//if err != nil {
-	//	panic(err)
-	//}
+
+	require.NoError(t, err)
+
 	osqlogger := &logging.OsqueryLogger{Status: writer, Result: writer}
 	logger := kitlog.NewNopLogger()
 
@@ -49,6 +50,21 @@ func newTestServiceWithConfig(ds fleet.Datastore, fleetConfig config.FleetConfig
 
 	var failingPolicySet fleet.FailingPolicySet = NewMemFailingPolicySet()
 	var c clock.Clock = clock.C
+	if len(opts) > 0 {
+		if opts[0].Clock != nil {
+			c = opts[0].Clock
+		}
+	}
+
+	task := async.NewTask(ds, nil, c, config.OsqueryConfig{})
+	if len(opts) > 0 {
+		if opts[0].Task != nil {
+			task = opts[0].Task
+		} else {
+			opts[0].Task = task
+		}
+	}
+
 	if len(opts) > 0 {
 		if opts[0].Logger != nil {
 			logger = opts[0].Logger
@@ -62,15 +78,9 @@ func newTestServiceWithConfig(ds fleet.Datastore, fleetConfig config.FleetConfig
 		if opts[0].FailingPolicySet != nil {
 			failingPolicySet = opts[0].FailingPolicySet
 		}
-		if opts[0].Clock != nil {
-			c = opts[0].Clock
-		}
 	}
-	task := &async.Task{
-		Datastore:    ds,
-		AsyncEnabled: false,
-	}
-	svc, err := NewService(ds, task, rs, logger, osqlogger, fleetConfig, mailer, c, ssoStore, lq, ds, *license, failingPolicySet)
+
+	svc, err := NewService(context.Background(), ds, task, rs, logger, osqlogger, fleetConfig, mailer, c, ssoStore, lq, ds, *license, failingPolicySet, &fleet.NoOpGeoIP{})
 	if err != nil {
 		panic(err)
 	}
@@ -83,9 +93,9 @@ func newTestServiceWithConfig(ds fleet.Datastore, fleetConfig config.FleetConfig
 	return svc
 }
 
-func newTestServiceWithClock(ds fleet.Datastore, rs fleet.QueryResultStore, lq fleet.LiveQueryStore, c clock.Clock) fleet.Service {
+func newTestServiceWithClock(t *testing.T, ds fleet.Datastore, rs fleet.QueryResultStore, lq fleet.LiveQueryStore, c clock.Clock) fleet.Service {
 	testConfig := config.TestConfig()
-	svc := newTestServiceWithConfig(ds, testConfig, rs, lq, TestServerOpts{
+	svc := newTestServiceWithConfig(t, ds, testConfig, rs, lq, &TestServerOpts{
 		Clock: c,
 	})
 	return svc
@@ -93,12 +103,14 @@ func newTestServiceWithClock(ds fleet.Datastore, rs fleet.QueryResultStore, lq f
 
 func createTestUsers(t *testing.T, ds fleet.Datastore) map[string]fleet.User {
 	users := make(map[string]fleet.User)
+	userID := uint(1)
 	for _, u := range testUsers {
 		role := fleet.RoleObserver
 		if strings.Contains(u.Email, "admin") {
 			role = fleet.RoleAdmin
 		}
 		user := &fleet.User{
+			ID:         userID,
 			Name:       "Test Name " + u.Email,
 			Email:      u.Email,
 			GlobalRole: &role,
@@ -108,6 +120,7 @@ func createTestUsers(t *testing.T, ds fleet.Datastore) map[string]fleet.User {
 		user, err = ds.NewUser(context.Background(), user)
 		require.Nil(t, err)
 		users[user.Email] = *user
+		userID++
 	}
 	return users
 }
@@ -118,17 +131,17 @@ var testUsers = map[string]struct {
 	GlobalRole        *string
 }{
 	"admin1": {
-		PlaintextPassword: "foobarbaz1234!",
+		PlaintextPassword: test.GoodPassword,
 		Email:             "admin1@example.com",
 		GlobalRole:        ptr.String(fleet.RoleAdmin),
 	},
 	"user1": {
-		PlaintextPassword: "foobarbaz1234!",
+		PlaintextPassword: test.GoodPassword,
 		Email:             "user1@example.com",
 		GlobalRole:        ptr.String(fleet.RoleMaintainer),
 	},
 	"user2": {
-		PlaintextPassword: "bazfoo1234!",
+		PlaintextPassword: test.GoodPassword,
 		Email:             "user2@example.com",
 		GlobalRole:        ptr.String(fleet.RoleObserver),
 	},
@@ -153,9 +166,10 @@ type TestServerOpts struct {
 	Pool                fleet.RedisPool
 	FailingPolicySet    fleet.FailingPolicySet
 	Clock               clock.Clock
+	Task                *async.Task
 }
 
-func RunServerForTestsWithDS(t *testing.T, ds fleet.Datastore, opts ...TestServerOpts) (map[string]fleet.User, *httptest.Server) {
+func RunServerForTestsWithDS(t *testing.T, ds fleet.Datastore, opts ...*TestServerOpts) (map[string]fleet.User, *httptest.Server) {
 	var rs fleet.QueryResultStore
 	if len(opts) > 0 && opts[0].Rs != nil {
 		rs = opts[0].Rs
@@ -164,7 +178,7 @@ func RunServerForTestsWithDS(t *testing.T, ds fleet.Datastore, opts ...TestServe
 	if len(opts) > 0 && opts[0].Lq != nil {
 		lq = opts[0].Lq
 	}
-	svc := newTestService(ds, rs, lq, opts...)
+	svc := newTestService(t, ds, rs, lq, opts...)
 	users := map[string]fleet.User{}
 	if len(opts) == 0 || (len(opts) > 0 && !opts[0].SkipCreateTestUsers) {
 		users = createTestUsers(t, ds)
@@ -175,7 +189,7 @@ func RunServerForTestsWithDS(t *testing.T, ds fleet.Datastore, opts ...TestServe
 	}
 
 	limitStore, _ := memstore.New(0)
-	r := MakeHandler(svc, config.FleetConfig{}, logger, limitStore)
+	r := MakeHandler(svc, config.FleetConfig{}, logger, limitStore, WithLoginRateLimit(throttled.PerMin(100)))
 	server := httptest.NewServer(r)
 	t.Cleanup(func() {
 		server.Close()
@@ -185,7 +199,6 @@ func RunServerForTestsWithDS(t *testing.T, ds fleet.Datastore, opts ...TestServe
 
 func testKinesisPluginConfig() config.FleetConfig {
 	c := config.TestConfig()
-	c.Filesystem = config.FilesystemConfig{}
 	c.Osquery.ResultLogPlugin = "kinesis"
 	c.Osquery.StatusLogPlugin = "kinesis"
 	c.Kinesis = config.KinesisConfig{
@@ -201,7 +214,6 @@ func testKinesisPluginConfig() config.FleetConfig {
 
 func testFirehosePluginConfig() config.FleetConfig {
 	c := config.TestConfig()
-	c.Filesystem = config.FilesystemConfig{}
 	c.Osquery.ResultLogPlugin = "firehose"
 	c.Osquery.StatusLogPlugin = "firehose"
 	c.Firehose = config.FirehoseConfig{
@@ -217,7 +229,6 @@ func testFirehosePluginConfig() config.FleetConfig {
 
 func testLambdaPluginConfig() config.FleetConfig {
 	c := config.TestConfig()
-	c.Filesystem = config.FilesystemConfig{}
 	c.Osquery.ResultLogPlugin = "lambda"
 	c.Osquery.StatusLogPlugin = "lambda"
 	c.Lambda = config.LambdaConfig{
@@ -233,7 +244,6 @@ func testLambdaPluginConfig() config.FleetConfig {
 
 func testPubSubPluginConfig() config.FleetConfig {
 	c := config.TestConfig()
-	c.Filesystem = config.FilesystemConfig{}
 	c.Osquery.ResultLogPlugin = "pubsub"
 	c.Osquery.StatusLogPlugin = "pubsub"
 	c.PubSub = config.PubSubConfig{
@@ -247,9 +257,14 @@ func testPubSubPluginConfig() config.FleetConfig {
 
 func testStdoutPluginConfig() config.FleetConfig {
 	c := config.TestConfig()
-	c.Filesystem = config.FilesystemConfig{}
 	c.Osquery.ResultLogPlugin = "stdout"
 	c.Osquery.StatusLogPlugin = "stdout"
+	return c
+}
+
+func testUnrecognizedPluginConfig() config.FleetConfig {
+	c := config.TestConfig()
+	c.Osquery = config.OsqueryConfig{ResultLogPlugin: "bar", StatusLogPlugin: "bar"}
 	return c
 }
 

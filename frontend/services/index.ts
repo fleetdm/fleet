@@ -1,23 +1,12 @@
-import axios from "axios";
-// @ts-ignore
+import axios, { AxiosError, AxiosResponse } from "axios";
 import local from "utilities/local";
 import URL_PREFIX from "router/url_prefix";
-
-const createErrorMessage = (error: any): string => {
-  if (error.response) {
-    return error.response.data;
-  } else if (error.request) {
-    return "A connection error occurred. Please try again or contact us.";
-  }
-
-  return "Something went wrong. Please try again or contact us.";
-};
 
 const sendRequest = async (
   method: "GET" | "POST" | "PATCH" | "DELETE",
   path: string,
-  data?: any
-) => {
+  data?: unknown
+): Promise<any> => {
   const { origin } = global.window.location;
 
   const url = `${origin}${URL_PREFIX}/api${path}`;
@@ -35,9 +24,15 @@ const sendRequest = async (
 
     return Promise.resolve(response.data);
   } catch (error) {
-    const message = createErrorMessage(error);
-    return Promise.reject(message);
+    const axiosError = error as AxiosError;
+    return Promise.reject(axiosError.response);
   }
+};
+
+// return the first error
+export const getError = (response: unknown): string => {
+  const r = response as AxiosResponse;
+  return r.data?.errors?.[0]?.reason || ""; // TODO: check if any callers rely on empty return value
 };
 
 export default sendRequest;

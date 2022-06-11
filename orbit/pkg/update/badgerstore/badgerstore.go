@@ -67,3 +67,7 @@ func (b *badgerStore) DeleteMeta(name string) error {
 		return tx.Delete([]byte(keyPrefix + name))
 	})
 }
+
+func (b *badgerStore) Close() error {
+	return b.db.Close()
+}

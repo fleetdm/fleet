@@ -68,21 +68,29 @@ module.exports.routes = {
     }
   },
 
-  'GET /docs/*': {
+  'r|/((device-management|securing|releases|engineering|guides|announcements|use-cases|podcasts)/(.+))$|': {
     skipAssets: false,
-    action: 'docs/view-basic-documentation',
+    action: 'articles/view-basic-article',
     locals: {
-      currentPage: 'docs',
+      currentPage: 'articles',
     }
-  },// handles /docs/foo/bar
+  },// handles /device-management/foo, /securing/foo, /releases/foo, /engineering/foo, /guides/foo, /announcements/foo, /use-cases/foo
 
-  'GET /docs': {
+  'r|^/((device-management|securing|releases|engineering|guides|announcements|use-cases|articles|podcasts))/*$|category': {
+    skipAssets: false,
+    action: 'articles/view-articles',
+    locals: {
+      currentPage: 'articles',
+    }
+  },// Handles the article landing page /articles, and the article cateogry pages (e.g. /device-management, /securing, /releases, etc)
+
+  'GET /docs/?*': {
     skipAssets: false,
     action: 'docs/view-basic-documentation',
     locals: {
       currentPage: 'docs',
     }
-  },// handles /docs, TODO: Remove this route once this bug is fixed in Sails
+  },// handles /docs and /docs/foo/bar
 
   'GET /handbook/?*':  {
     skipAssets: false,
@@ -96,7 +104,79 @@ module.exports.routes = {
       pageDescriptionForMeta: 'Learn what data osquery can see.',
     }
   },
+  'GET /customers/new-license': {
+    action: 'customers/view-new-license',
+    locals: {
+      layout: 'layouts/layout-customer',
+      pageTitleForMeta: 'Get Fleet Premium | Fleet for osquery',
+      pageDescriptionForMeta: 'Generate your quote and start using Fleet Premium today.',
+    }
+  },
+  'GET /customers/register': {
+    action: 'entrance/view-signup',
+    locals: {
+      layout: 'layouts/layout-customer',
+      pageTitleForMeta: 'Sign up | Fleet for osquery',
+      pageDescriptionForMeta: 'Sign up for a Fleet Premium license.',
+    }
+  },
+  'GET /customers/login': {
+    action: 'entrance/view-login',
+    locals: {
+      layout: 'layouts/layout-customer',
+      pageTitleForMeta: 'Log in | Fleet for osquery',
+      pageDescriptionForMeta: 'Log in to the Fleet customer portal.',
+    }
+  },
+  'GET /customers/dashboard': {
+    action: 'customers/view-dashboard',
+    locals: {
+      layout: 'layouts/layout-customer',
+      pageTitleForMeta: 'Customer dashboard | Fleet for osquery',
+      pageDescriptionForMeta: 'View and edit information about your Fleet Premium license.',
+    }
+  },
+  'GET /customers/forgot-password': {
+    action: 'entrance/view-forgot-password',
+    locals: {
+      layout: 'layouts/layout-customer',
+      pageTitleForMeta: 'Forgot password | Fleet for osquery',
+      pageDescriptionForMeta: 'Recover the password for your Fleet customer account.',
+    }
+  },
+  'GET /customers/new-password': {
+    action: 'entrance/view-new-password',
+    locals: {
+      layout: 'layouts/layout-customer',
+      pageTitleForMeta: 'New password | Fleet for osquery',
+      pageDescriptionForMeta: 'Change the password for your Fleet customer account.',
+    }
+  },
 
+  'GET /platform': {
+    action: 'view-platform',
+    locals: {
+      currentPage: 'platform',
+      pageTitleForMeta: 'Platform | Fleet for osquery',
+      pageDescriptionForMeta: 'Learn about the Fleet\'s features.',
+    }
+  },
+
+  'GET /g': {
+    action: 'view-landing',
+    locals: {
+      layout: 'layouts/layout-landing',
+      currentPage: 'landing',
+    }
+  },
+
+  'GET /reports/state-of-device-management': {
+    action: 'reports/view-state-of-device-management',
+    locals: {
+      pageTitleForMeta: 'State of device management | Fleet for osquery',
+      pageDescriptionForMeta: '',
+    }
+  },
 
 
 
@@ -120,6 +200,7 @@ module.exports.routes = {
   // ```
   'GET /try-fleet':                  '/get-started',
   'GET /docs/deploying/fleet-public-load-testing': '/docs/deploying/load-testing',
+  'GET /handbook/customer-experience': '/handbook/customers',
 
 
 
@@ -134,7 +215,7 @@ module.exports.routes = {
   // For example, a clever user might try to visit fleetdm.com/documentation, not knowing that Fleet's website
   // puts this kind of thing under /docs, NOT /documentation.  These "convenience" redirects are to help them out.
   'GET /documentation':              '/docs',
-  'GET /contribute':                 '/docs/contribute',
+  'GET /contribute':                 '/docs/contributing',
   'GET /install':                    '/get-started',
   'GET /company':                    '/company/about',
   'GET /company/about':              '/handbook', // FUTURE: brief "about" page explaining the origins of the company
@@ -142,6 +223,12 @@ module.exports.routes = {
   'GET /contact':                    '/company/contact',
   'GET /legal':                      '/legal/terms',
   'GET /terms':                      '/legal/terms',
+  'GET /handbook/security/github':   '/handbook/security#git-hub-security',
+  'GET /login':                      '/customers/login',
+  'GET /slack':                      (_, res) => { res.status(301).redirect('https://osquery.fleetdm.com/c/fleet'); },
+  'GET /docs/using-fleet/updating-fleet': '/docs/deploying/upgrading-fleet',
+  'GET /blog':                   '/articles',
+  'GET /brand':                  '/logos',
 
   // Sitemap
   // =============================================================================================================
@@ -154,15 +241,14 @@ module.exports.routes = {
   // Things that are not webpages here (in the Sails app) yet, but could be in the future.  For now they are just
   // redirects to somewhere else EXTERNAL to the Sails app.
   'GET /security':               'https://github.com/fleetdm/fleet/security/policy',
-  'GET /brand':                  '/contact',// FUTURE: a page like sailsjs.com/logos
-  'GET /blog':                   'https://blog.fleetdm.com',// Currently, Fleet's blog lives outside of this website source code (the Sails app).  We always link to fleetdm.com/blog, but since the blog lives elsewhere, we redirect to it.
+  'GET /trust':                  'https://app.vanta.com/fleet/trust/5i2ulsbd76k619q9leaoh0',
   'GET /hall-of-fame':           'https://github.com/fleetdm/fleet/pulse',
   'GET /apply':                  'https://fleet-device-management.breezy.hr',
   'GET /jobs':                   'https://fleet-device-management.breezy.hr',
   'GET /company/stewardship':    'https://github.com/fleetdm/fleet', // FUTURE: page about how we approach open source and our commitments to the community
   'GET /legal/terms':            'https://docs.google.com/document/d/1OM6YDVIs7bP8wg6iA3VG13X086r64tWDqBSRudG4a0Y/edit',
   'GET /legal/privacy':          'https://docs.google.com/document/d/17i_g1aGpnuSmlqj35-yHJiwj7WRrLdC_Typc1Yb7aBE/edit',
-
+  'GET /logout':                 '/api/v1/account/logout',
 
   //  ╦ ╦╔═╗╔╗ ╦ ╦╔═╗╔═╗╦╔═╔═╗
   //  ║║║║╣ ╠╩╗╠═╣║ ║║ ║╠╩╗╚═╗
@@ -176,6 +262,17 @@ module.exports.routes = {
   //  ╩ ╩╩  ╩  ╚═╝╝╚╝═╩╝╩  ╚═╝╩╝╚╝ ╩ ╚═╝
   // Note that, in this app, these API endpoints may be accessed using the `Cloud.*()` methods
   // from the Parasails library, or by using those method names as the `action` in <ajax-form>.
-  'POST  /api/v1/deliver-contact-form-message':          { action: 'deliver-contact-form-message' },
+  'POST /api/v1/deliver-contact-form-message':        { action: 'deliver-contact-form-message' },
+  'POST /api/v1/entrance/send-password-recovery-email': { action: 'entrance/send-password-recovery-email' },
+  'POST /api/v1/customers/signup':                     { action: 'entrance/signup' },
+  'POST /api/v1/account/update-profile':               { action: 'account/update-profile' },
+  'POST /api/v1/account/update-password':              { action: 'account/update-password' },
+  'POST /api/v1/account/update-billing-card':          { action: 'account/update-billing-card'},
+  'POST /api/v1/customers/login':                      { action: 'entrance/login' },
+  '/api/v1/account/logout':                            { action: 'account/logout' },
+  'POST /api/v1/customers/create-quote':               { action: 'customers/create-quote' },
+  'POST /api/v1/customers/save-billing-info-and-subscribe': { action: 'customers/save-billing-info-and-subscribe' },
+  'POST /api/v1/entrance/update-password-and-login':    { action: 'entrance/update-password-and-login' },
+  'POST /api/v1/deliver-demo-signup':                   { action: 'deliver-demo-signup' },
 
 };

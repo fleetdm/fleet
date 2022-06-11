@@ -19,6 +19,12 @@
     }
   }
 
+  &.single-platform {
+    .hosts-summary__tile:first-of-type {
+      justify-content: center;
+    }
+  }
+
   &__tile-icon {
     margin-right: px-to-rem(12);
 

@@ -1,74 +1,93 @@
-import React, { useContext, useState } from "react";
-import { useDispatch, useSelector } from "react-redux";
+import React, { useContext, useEffect, useState } from "react";
+import { AxiosResponse } from "axios";
+import { InjectedRouter } from "react-router";
+import { QueryClient, QueryClientProvider } from "react-query";
 import classnames from "classnames";
 
-import { QueryClient, QueryClientProvider } from "react-query";
-
-import { authToken } from "utilities/local"; // @ts-ignore
-import { useDeepEffect } from "utilities/hooks"; // @ts-ignore
-import { fetchCurrentUser } from "redux/nodes/auth/actions"; // @ts-ignore
-import { getConfig, getEnrollSecret } from "redux/nodes/app/actions";
-import { IUser } from "interfaces/user";
-import { IConfig } from "interfaces/config";
 import TableProvider from "context/table";
 import QueryProvider from "context/query";
 import PolicyProvider from "context/policy";
+import NotificationProvider from "context/notification";
 import { AppContext } from "context/app";
-import { IEnrollSecret } from "interfaces/enroll_secret";
-import FleetErrorBoundary from "pages/errors/FleetErrorBoundary";
+import local, { authToken } from "utilities/local";
+import useDeepEffect from "hooks/useDeepEffect";
+
+import usersAPI from "services/entities/users";
+import configAPI from "services/entities/config";
+
+import { ErrorBoundary } from "react-error-boundary";
+// @ts-ignore
+import Fleet403 from "pages/errors/Fleet403";
+// @ts-ignore
+import Fleet404 from "pages/errors/Fleet404";
+// @ts-ignore
+import Fleet500 from "pages/errors/Fleet500";
 import Spinner from "components/Spinner";
 
 interface IAppProps {
   children: JSX.Element;
+  router: InjectedRouter;
+  location:
+    | {
+        pathname: string;
+      }
+    | undefined;
 }
 
-interface ISecretResponse {
-  spec: {
-    secrets: IEnrollSecret[];
-  };
-}
-
-interface IRootState {
-  auth: {
-    user: IUser;
-  };
-}
-
-const App = ({ children }: IAppProps): JSX.Element => {
-  const dispatch = useDispatch();
-  const user = useSelector((state: IRootState) => state.auth.user);
+const App = ({ children, location, router }: IAppProps): JSX.Element => {
   const queryClient = new QueryClient();
   const {
-    setCurrentUser,
-    setConfig,
-    setEnrollSecret,
     currentUser,
     isGlobalObserver,
     isOnlyObserver,
     isAnyTeamMaintainerOrTeamAdmin,
+    setAvailableTeams,
+    setCurrentUser,
+    setConfig,
+    setEnrollSecret,
   } = useContext(AppContext);
 
   const [isLoading, setIsLoading] = useState<boolean>(false);
 
-  useDeepEffect(() => {
-    // on page refresh
-    if (!user && authToken()) {
-      dispatch(fetchCurrentUser()).catch(() => false);
+  const fetchConfig = async () => {
+    try {
+      const config = await configAPI.loadAll();
+      setConfig(config);
+    } catch (error) {
+      console.error(error);
+      return false;
+    } finally {
+      setIsLoading(false);
     }
+    return true;
+  };
 
-    if (user) {
-      setIsLoading(true);
+  const fetchCurrentUser = async () => {
+    try {
+      const { user, available_teams } = await usersAPI.me();
       setCurrentUser(user);
-      dispatch(getConfig())
-        .then((config: IConfig) => {
-          setConfig(config);
-        })
-        .catch(() => false)
-        .finally(() => {
-          setIsLoading(false);
-        });
+      setAvailableTeams(available_teams);
+      fetchConfig();
+    } catch (error) {
+      if (!location?.pathname.includes("/login/reset")) {
+        console.log(error);
+        local.removeItem("auth_token");
+
+        // if this is not the device user page,
+        // redirect to login
+        if (!location?.pathname.includes("/device/")) {
+          window.location.href = "/login";
+        }
+      }
     }
-  }, [user]);
+    return true;
+  };
+
+  useEffect(() => {
+    if (authToken()) {
+      fetchCurrentUser();
+    }
+  }, [location?.pathname]);
 
   useDeepEffect(() => {
     const canGetEnrollSecret =
@@ -80,14 +99,38 @@ const App = ({ children }: IAppProps): JSX.Element => {
       typeof isAnyTeamMaintainerOrTeamAdmin !== "undefined" &&
       !isAnyTeamMaintainerOrTeamAdmin;
 
+    const getEnrollSecret = async () => {
+      try {
+        const { spec } = await configAPI.loadEnrollSecret();
+        setEnrollSecret(spec.secrets);
+      } catch (error) {
+        console.error(error);
+        return false;
+      }
+    };
+
     if (canGetEnrollSecret) {
-      dispatch(getEnrollSecret())
-        .then((response: ISecretResponse) => {
-          setEnrollSecret(response.spec.secrets);
-        })
-        .catch(() => false);
+      getEnrollSecret();
     }
   }, [currentUser, isGlobalObserver, isOnlyObserver]);
+
+  // "any" is used on purpose. We are using Axios but this
+  // function expects a native React Error type, which is incompatible.
+  const renderErrorOverlay = ({ error }: any) => {
+    // @ts-ignore
+    console.error(error);
+
+    const overlayError = error as AxiosResponse;
+    if (overlayError.status === 403 || overlayError.status === 402) {
+      return <Fleet403 />;
+    }
+
+    if (overlayError.status === 404) {
+      return <Fleet404 />;
+    }
+
+    return <Fleet500 />;
+  };
 
   const wrapperStyles = classnames("wrapper");
   return isLoading ? (
@@ -97,9 +140,14 @@ const App = ({ children }: IAppProps): JSX.Element => {
       <TableProvider>
         <QueryProvider>
           <PolicyProvider>
-            <FleetErrorBoundary>
-              <div className={wrapperStyles}>{children}</div>
-            </FleetErrorBoundary>
+            <NotificationProvider>
+              <ErrorBoundary
+                fallbackRender={renderErrorOverlay}
+                resetKeys={[location?.pathname]}
+              >
+                <div className={wrapperStyles}>{children}</div>
+              </ErrorBoundary>
+            </NotificationProvider>
           </PolicyProvider>
         </QueryProvider>
       </TableProvider>

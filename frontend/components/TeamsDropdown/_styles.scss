@@ -22,13 +22,14 @@
 
   .Select-menu {
     padding-right: $pad-small; // moves scrollbar to edge of dropdown
-    padding-bottom: $pad-medium;
+    max-height: none;
   }
 
   .Select-menu-outer {
     position: absolute;
     width: 330px;
     min-width: 125px;
+    max-height: none;
     left: -12px;
     top: 36px;
     border-radius: 6px;

@@ -1,20 +1,16 @@
-import React, { useContext, useEffect } from "react";
+import React, { useContext, useEffect, useState } from "react";
 import { Link } from "react-router";
-import { useDispatch } from "react-redux";
 import { InjectedRouter } from "react-router/lib/Router";
 import { UseMutateAsyncFunction } from "react-query";
 
 import queryAPI from "services/entities/queries";
 import { AppContext } from "context/app";
 import { QueryContext } from "context/query";
-// @ts-ignore
-import { renderFlash } from "redux/nodes/notifications/actions";
-import PATHS from "router/paths";
-// @ts-ignore
-import debounce from "utilities/debounce";
-// @ts-ignore
-import deepDifference from "utilities/deep_difference";
+import { NotificationContext } from "context/notification";
 import { IQueryFormData, IQuery } from "interfaces/query";
+import PATHS from "router/paths";
+import debounce from "utilities/debounce";
+import deepDifference from "utilities/deep_difference";
 
 import QueryForm from "pages/queries/QueryPage/components/QueryForm";
 import BackChevron from "../../../../../assets/images/icon-chevron-down-9x6@2x.png";
@@ -24,10 +20,15 @@ interface IQueryEditorProps {
   baseClass: string;
   queryIdForEdit: number | null;
   storedQuery: IQuery | undefined;
-  storedQueryError: any;
+  storedQueryError: Error | null;
   showOpenSchemaActionText: boolean;
   isStoredQueryLoading: boolean;
-  createQuery: UseMutateAsyncFunction<any, unknown, IQueryFormData, unknown>;
+  createQuery: UseMutateAsyncFunction<
+    { query: IQuery },
+    unknown,
+    IQueryFormData,
+    unknown
+  >;
   onOsqueryTableSelect: (tableName: string) => void;
   goToSelectTargets: () => void;
   onOpenSchemaSidebar: () => void;
@@ -48,8 +49,8 @@ const QueryEditor = ({
   onOpenSchemaSidebar,
   renderLiveQueryWarning,
 }: IQueryEditorProps): JSX.Element | null => {
-  const dispatch = useDispatch();
   const { currentUser } = useContext(AppContext);
+  const { renderFlash } = useContext(NotificationContext);
 
   // Note: The QueryContext values should always be used for any mutable query data such as query name
   // The storedQuery prop should only be used to access immutable metadata such as author id
@@ -60,36 +61,40 @@ const QueryEditor = ({
     lastEditedQueryObserverCanRun,
   } = useContext(QueryContext);
 
+  const [isQuerySaving, setIsQuerySaving] = useState<boolean>(false);
+
   useEffect(() => {
     if (storedQueryError) {
-      dispatch(
-        renderFlash(
-          "error",
-          "Something went wrong retrieving your query. Please try again."
-        )
+      renderFlash(
+        "error",
+        "Something went wrong retrieving your query. Please try again."
       );
     }
   }, []);
 
+  const [backendValidators, setBackendValidators] = useState<{
+    [key: string]: string;
+  }>({});
+
   const onSaveQueryFormSubmit = debounce(async (formData: IQueryFormData) => {
+    setIsQuerySaving(true);
     try {
       const { query }: { query: IQuery } = await createQuery(formData);
       router.push(PATHS.EDIT_QUERY(query));
-      dispatch(renderFlash("success", "Query created!"));
+      renderFlash("success", "Query created!");
+      setBackendValidators({});
     } catch (createError: any) {
       console.error(createError);
-      if (createError.errors[0].reason.includes("already exists")) {
-        dispatch(
-          renderFlash("error", "A query with this name already exists.")
-        );
+      if (createError.data.errors[0].reason.includes("already exists")) {
+        setBackendValidators({ name: "A query with this name already exists" });
       } else {
-        dispatch(
-          renderFlash(
-            "error",
-            "Something went wrong creating your query. Please try again."
-          )
+        renderFlash(
+          "error",
+          "Something went wrong creating your query. Please try again."
         );
       }
+    } finally {
+      setIsQuerySaving(false);
     }
   });
 
@@ -107,19 +112,15 @@ const QueryEditor = ({
 
     try {
       await queryAPI.update(queryIdForEdit, updatedQuery);
-      dispatch(renderFlash("success", "Query updated!"));
+      renderFlash("success", "Query updated!");
     } catch (updateError: any) {
       console.error(updateError);
-      if (updateError.errors[0].reason.includes("Duplicate")) {
-        dispatch(
-          renderFlash("error", "A query with this name already exists.")
-        );
+      if (updateError.data.errors[0].reason.includes("Duplicate")) {
+        renderFlash("error", "A query with this name already exists.");
       } else {
-        dispatch(
-          renderFlash(
-            "error",
-            "Something went wrong updating your query. Please try again."
-          )
+        renderFlash(
+          "error",
+          "Something went wrong updating your query. Please try again."
         );
       }
     }
@@ -138,6 +139,7 @@ const QueryEditor = ({
         <span>Back to queries</span>
       </Link>
       <QueryForm
+        router={router}
         onCreateQuery={onSaveQueryFormSubmit}
         goToSelectTargets={goToSelectTargets}
         onOsqueryTableSelect={onOsqueryTableSelect}
@@ -148,6 +150,8 @@ const QueryEditor = ({
         showOpenSchemaActionText={showOpenSchemaActionText}
         onOpenSchemaSidebar={onOpenSchemaSidebar}
         renderLiveQueryWarning={renderLiveQueryWarning}
+        backendValidators={backendValidators}
+        isQuerySaving={isQuerySaving}
       />
     </div>
   );

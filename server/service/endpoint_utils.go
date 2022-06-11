@@ -2,6 +2,7 @@ package service
 
 import (
 	"bufio"
+	"compress/gzip"
 	"context"
 	"encoding/json"
 	"errors"
@@ -13,6 +14,8 @@ import (
 	"strings"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/go-kit/kit/endpoint"
+	"github.com/go-kit/kit/log"
 	kithttp "github.com/go-kit/kit/transport/http"
 	"github.com/gorilla/mux"
 )
@@ -64,11 +67,15 @@ func allFields(ifv reflect.Value) []reflect.StructField {
 	return fields
 }
 
+type requestDecoder interface {
+	DecodeRequest(ctx context.Context, r *http.Request) (interface{}, error)
+}
+
 // makeDecoder creates a decoder for the type for the struct passed on. If the
 // struct has at least 1 json tag it'll unmarshall the body. If the struct has
 // a `url` tag with value list_options it'll gather fleet.ListOptions from the
-// URL (similarly for host_options, carve_options that derive from the common
-// list_options).
+// URL (similarly for host_options, carve_options, user_options that derive
+// from the common list_options).
 //
 // Finally, any other `url` tag will be treated as a path variable (of the form
 // /path/{name} in the route's path) from the URL path pattern, and it'll be
@@ -76,12 +83,22 @@ func allFields(ifv reflect.Value) []reflect.StructField {
 // follows: `url:"some-id,optional"`.
 // The "list_options" are optional by default and it'll ignore the optional
 // portion of the tag.
+//
+// If iface implements the requestDecoder interface, it returns a function that
+// calls iface.DecodeRequest(ctx, r) - i.e. the value itself fully controls its
+// own decoding.
 func makeDecoder(iface interface{}) kithttp.DecodeRequestFunc {
 	if iface == nil {
 		return func(ctx context.Context, r *http.Request) (interface{}, error) {
 			return nil, nil
 		}
 	}
+	if rd, ok := iface.(requestDecoder); ok {
+		return func(ctx context.Context, r *http.Request) (interface{}, error) {
+			return rd.DecodeRequest(ctx, r)
+		}
+	}
+
 	t := reflect.TypeOf(iface)
 	if t.Kind() != reflect.Struct {
 		panic(fmt.Sprintf("makeDecoder only understands structs, not %T", iface))
@@ -95,8 +112,18 @@ func makeDecoder(iface interface{}) kithttp.DecodeRequestFunc {
 		if _, err := buf.Peek(1); err == io.EOF {
 			nilBody = true
 		} else {
+			var body io.Reader = buf
+			if r.Header.Get("content-encoding") == "gzip" {
+				gzr, err := gzip.NewReader(buf)
+				if err != nil {
+					return nil, err
+				}
+				defer gzr.Close()
+				body = gzr
+			}
+
 			req := v.Interface()
-			if err := json.NewDecoder(buf).Decode(req); err != nil {
+			if err := json.NewDecoder(body).Decode(req); err != nil {
 				return nil, err
 			}
 			v = reflect.ValueOf(req)
@@ -118,6 +145,13 @@ func makeDecoder(iface interface{}) kithttp.DecodeRequestFunc {
 				switch urlTagValue {
 				case "list_options":
 					opts, err := listOptionsFromRequest(r)
+					if err != nil {
+						return nil, err
+					}
+					field.Set(reflect.ValueOf(opts))
+
+				case "user_options":
+					opts, err := userListOptionsFromRequest(r)
 					if err != nil {
 						return nil, err
 					}
@@ -243,18 +277,63 @@ func makeDecoder(iface interface{}) kithttp.DecodeRequestFunc {
 	}
 }
 
-type UserAuthEndpointer struct {
+type authEndpointer struct {
 	svc               fleet.Service
 	opts              []kithttp.ServerOption
 	r                 *mux.Router
+	authFunc          func(svc fleet.Service, next endpoint.Endpoint) endpoint.Endpoint
 	versions          []string
 	startingAtVersion string
 	endingAtVersion   string
 	alternativePaths  []string
+	customMiddleware  []endpoint.Middleware
+	usePathPrefix     bool
 }
 
-func NewUserAuthenticatedEndpointer(svc fleet.Service, opts []kithttp.ServerOption, r *mux.Router, versions ...string) *UserAuthEndpointer {
-	return &UserAuthEndpointer{svc: svc, opts: opts, r: r, versions: versions}
+func newDeviceAuthenticatedEndpointer(svc fleet.Service, logger log.Logger, opts []kithttp.ServerOption, r *mux.Router, versions ...string) *authEndpointer {
+	authFunc := func(svc fleet.Service, next endpoint.Endpoint) endpoint.Endpoint {
+		return authenticatedDevice(svc, logger, next)
+	}
+	return &authEndpointer{
+		svc:      svc,
+		opts:     opts,
+		r:        r,
+		authFunc: authFunc,
+		versions: versions,
+	}
+}
+
+func newUserAuthenticatedEndpointer(svc fleet.Service, opts []kithttp.ServerOption, r *mux.Router, versions ...string) *authEndpointer {
+	return &authEndpointer{
+		svc:      svc,
+		opts:     opts,
+		r:        r,
+		authFunc: authenticatedUser,
+		versions: versions,
+	}
+}
+
+func newHostAuthenticatedEndpointer(svc fleet.Service, logger log.Logger, opts []kithttp.ServerOption, r *mux.Router, versions ...string) *authEndpointer {
+	authFunc := func(svc fleet.Service, next endpoint.Endpoint) endpoint.Endpoint {
+		return authenticatedHost(svc, logger, next)
+	}
+	return &authEndpointer{
+		svc:      svc,
+		opts:     opts,
+		r:        r,
+		authFunc: authFunc,
+		versions: versions,
+	}
+}
+
+func newNoAuthEndpointer(svc fleet.Service, opts []kithttp.ServerOption, r *mux.Router, versions ...string) *authEndpointer {
+	return &authEndpointer{
+		svc:      svc,
+		opts:     opts,
+		r:        r,
+		authFunc: unauthenticatedRequest,
+		versions: versions,
+	}
 }
 
 var pathReplacer = strings.NewReplacer(
@@ -265,26 +344,34 @@ var pathReplacer = strings.NewReplacer(
 
 func getNameFromPathAndVerb(verb, path string) string {
 	return strings.ToLower(verb) + "_" +
-		pathReplacer.Replace(strings.TrimPrefix(strings.TrimRight(path, "/"), "/api/v1/fleet/"))
+		pathReplacer.Replace(strings.TrimPrefix(strings.TrimRight(path, "/"), "/api/_version_/fleet/"))
 }
 
-func (e *UserAuthEndpointer) POST(path string, f handlerFunc, v interface{}) {
-	e.handle(path, f, v, "POST")
+func (e *authEndpointer) POST(path string, f handlerFunc, v interface{}) {
+	e.handleEndpoint(path, f, v, "POST")
 }
 
-func (e *UserAuthEndpointer) GET(path string, f handlerFunc, v interface{}) {
-	e.handle(path, f, v, "GET")
+func (e *authEndpointer) GET(path string, f handlerFunc, v interface{}) {
+	e.handleEndpoint(path, f, v, "GET")
 }
 
-func (e *UserAuthEndpointer) PATCH(path string, f handlerFunc, v interface{}) {
-	e.handle(path, f, v, "PATCH")
+func (e *authEndpointer) PATCH(path string, f handlerFunc, v interface{}) {
+	e.handleEndpoint(path, f, v, "PATCH")
 }
 
-func (e *UserAuthEndpointer) DELETE(path string, f handlerFunc, v interface{}) {
-	e.handle(path, f, v, "DELETE")
+func (e *authEndpointer) DELETE(path string, f handlerFunc, v interface{}) {
+	e.handleEndpoint(path, f, v, "DELETE")
 }
 
-func (e *UserAuthEndpointer) handle(path string, f handlerFunc, v interface{}, verb string) {
+// PathHandler registers a handler for the verb and path. The pathHandler is
+// a function that receives the actual path to which it will be mounted, and
+// returns the actual http.Handler that will handle this endpoint. This is for
+// when the handler needs to know on which path it was called.
+func (e *authEndpointer) PathHandler(verb, path string, pathHandler func(path string) http.Handler) {
+	e.handlePathHandler(path, pathHandler, verb)
+}
+
+func (e *authEndpointer) handlePathHandler(path string, pathHandler func(path string) http.Handler, verb string) {
 	versions := e.versions
 	if e.startingAtVersion != "" {
 		startIndex := -1
@@ -321,59 +408,73 @@ func (e *UserAuthEndpointer) handle(path string, f handlerFunc, v interface{}, v
 
 	versionedPath := strings.Replace(path, "/_version_/", fmt.Sprintf("/{fleetversion:(?:%s)}/", strings.Join(versions, "|")), 1)
 	nameAndVerb := getNameFromPathAndVerb(verb, path)
-	endpoint := e.makeEndpoint(f, v)
-	e.r.Handle(versionedPath, endpoint).Name(nameAndVerb).Methods(verb)
+	if e.usePathPrefix {
+		e.r.PathPrefix(versionedPath).Handler(pathHandler(versionedPath)).Name(nameAndVerb).Methods(verb)
+	} else {
+		e.r.Handle(versionedPath, pathHandler(versionedPath)).Name(nameAndVerb).Methods(verb)
+	}
 	for _, alias := range e.alternativePaths {
 		nameAndVerb := getNameFromPathAndVerb(verb, alias)
 		versionedPath := strings.Replace(alias, "/_version_/", fmt.Sprintf("/{fleetversion:(?:%s)}/", strings.Join(versions, "|")), 1)
-		e.r.Handle(versionedPath, endpoint).Name(nameAndVerb).Methods(verb)
+		if e.usePathPrefix {
+			e.r.PathPrefix(versionedPath).Handler(pathHandler(versionedPath)).Name(nameAndVerb).Methods(verb)
+		} else {
+			e.r.Handle(versionedPath, pathHandler(versionedPath)).Name(nameAndVerb).Methods(verb)
+		}
 	}
 }
 
-func (e *UserAuthEndpointer) makeEndpoint(f handlerFunc, v interface{}) http.Handler {
-	return newServer(
-		authenticatedUser(
-			e.svc,
-			func(ctx context.Context, request interface{}) (interface{}, error) {
-				return f(ctx, request, e.svc)
-			}),
-		makeDecoder(v),
-		e.opts,
-	)
+func (e *authEndpointer) handleHTTPHandler(path string, h http.Handler, verb string) {
+	self := func(_ string) http.Handler { return h }
+	e.handlePathHandler(path, self, verb)
 }
 
-func (e *UserAuthEndpointer) StartingAtVersion(version string) *UserAuthEndpointer {
-	return &UserAuthEndpointer{
-		svc:               e.svc,
-		opts:              e.opts,
-		r:                 e.r,
-		versions:          e.versions,
-		startingAtVersion: version,
-		endingAtVersion:   e.endingAtVersion,
-		alternativePaths:  e.alternativePaths,
-	}
+func (e *authEndpointer) handleEndpoint(path string, f handlerFunc, v interface{}, verb string) {
+	endpoint := e.makeEndpoint(f, v)
+	e.handleHTTPHandler(path, endpoint, verb)
 }
 
-func (e *UserAuthEndpointer) EndingAtVersion(version string) *UserAuthEndpointer {
-	return &UserAuthEndpointer{
-		svc:               e.svc,
-		opts:              e.opts,
-		r:                 e.r,
-		versions:          e.versions,
-		startingAtVersion: e.startingAtVersion,
-		endingAtVersion:   version,
-		alternativePaths:  e.alternativePaths,
+func (e *authEndpointer) makeEndpoint(f handlerFunc, v interface{}) http.Handler {
+	next := func(ctx context.Context, request interface{}) (interface{}, error) {
+		return f(ctx, request, e.svc)
 	}
+	endp := e.authFunc(e.svc, next)
+
+	// apply middleware in reverse order so that the first wraps the second
+	// wraps the third etc.
+	for i := len(e.customMiddleware) - 1; i >= 0; i-- {
+		mw := e.customMiddleware[i]
+		endp = mw(endp)
+	}
+	return newServer(endp, makeDecoder(v), e.opts)
 }
 
-func (e *UserAuthEndpointer) WithAltPaths(paths ...string) *UserAuthEndpointer {
-	return &UserAuthEndpointer{
-		svc:               e.svc,
-		opts:              e.opts,
-		r:                 e.r,
-		versions:          e.versions,
-		startingAtVersion: e.startingAtVersion,
-		endingAtVersion:   e.endingAtVersion,
-		alternativePaths:  paths,
-	}
+func (e *authEndpointer) StartingAtVersion(version string) *authEndpointer {
+	ae := *e
+	ae.startingAtVersion = version
+	return &ae
+}
+
+func (e *authEndpointer) EndingAtVersion(version string) *authEndpointer {
+	ae := *e
+	ae.endingAtVersion = version
+	return &ae
+}
+
+func (e *authEndpointer) WithAltPaths(paths ...string) *authEndpointer {
+	ae := *e
+	ae.alternativePaths = paths
+	return &ae
+}
+
+func (e *authEndpointer) WithCustomMiddleware(mws ...endpoint.Middleware) *authEndpointer {
+	ae := *e
+	ae.customMiddleware = mws
+	return &ae
+}
+
+func (e *authEndpointer) UsePathPrefix() *authEndpointer {
+	ae := *e
+	ae.usePathPrefix = true
+	return &ae
 }

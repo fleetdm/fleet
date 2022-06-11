@@ -39,6 +39,19 @@ type ErrWithRetryAfter interface {
 	RetryAfter() int
 }
 
+type invalidArgWithStatusError struct {
+	InvalidArgumentError
+	code int
+}
+
+func (e invalidArgWithStatusError) Status() int {
+	if e.code == 0 {
+		// 422 is the default code for invalid args
+		return http.StatusUnprocessableEntity
+	}
+	return e.code
+}
+
 // InvalidArgumentError is the error returned when invalid data is presented to
 // a service method.
 type InvalidArgumentError []InvalidArgument
@@ -66,11 +79,18 @@ func (e *InvalidArgumentError) Append(name, reason string) {
 		reason: reason,
 	})
 }
+
 func (e *InvalidArgumentError) Appendf(name, reasonFmt string, args ...interface{}) {
 	*e = append(*e, InvalidArgument{
 		name:   name,
 		reason: fmt.Sprintf(reasonFmt, args...),
 	})
+}
+
+// WithStatus returns an error that combines the InvalidArgumentError
+// with a custom status code.
+func (e InvalidArgumentError) WithStatus(code int) error {
+	return invalidArgWithStatusError{e, code}
 }
 
 func (e *InvalidArgumentError) HasErrors() bool {
@@ -213,7 +233,7 @@ const (
 	ErrNoRoleNeeded = 1
 	// ErrNoOneAdminNeeded is the error number when all admins are about to be removed
 	ErrNoOneAdminNeeded = 2
-	//ErrNoUnknownTranslate is returned when an item type in the translate payload is unknown
+	// ErrNoUnknownTranslate is returned when an item type in the translate payload is unknown
 	ErrNoUnknownTranslate = 3
 )
 

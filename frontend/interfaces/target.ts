@@ -1,6 +1,6 @@
 import PropTypes from "prop-types";
 import hostInterface, { IHost } from "interfaces/host";
-import labelInterface, { ILabel } from "interfaces/label";
+import labelInterface, { ILabel, ILabelSummary } from "interfaces/label";
 import teamInterface, { ITeam } from "interfaces/team";
 
 export default PropTypes.oneOfType([
@@ -22,4 +22,30 @@ export interface ITargetsAPIResponse {
   targets_missing_in_action: number;
   targets_offline: number;
   targets_online: number;
+}
+
+export interface ISelectHost extends IHost {
+  target_type?: string;
+}
+
+export interface ISelectLabel extends ILabelSummary {
+  target_type?: string;
+}
+
+export interface ISelectTeam extends ITeam {
+  target_type?: string;
+}
+
+export type ISelectTargetsEntity = ISelectHost | ISelectLabel | ISelectTeam;
+
+export interface ISelectedTargets {
+  hosts: number[];
+  labels: number[];
+  teams: number[];
+}
+
+export interface IPackTargets {
+  host_ids: (number | string)[];
+  label_ids: (number | string)[];
+  team_ids: (number | string)[];
 }

@@ -1,6 +1,6 @@
 /* eslint-disable  @typescript-eslint/explicit-module-boundary-types */
 import sendRequest from "services";
-import endpoints from "fleet/endpoints";
+import endpoints from "utilities/endpoints";
 import { IHost } from "interfaces/host";
 
 export interface ISortOption {
@@ -8,7 +8,7 @@ export interface ISortOption {
   direction: string;
 }
 
-export interface IHostLoadOptions {
+export interface ILoadHostsOptions {
   page?: number;
   perPage?: number;
   selectedLabels?: string[];
@@ -18,7 +18,27 @@ export interface IHostLoadOptions {
   policyId?: number;
   policyResponse?: string;
   softwareId?: number;
+  device_mapping?: boolean;
+  columns?: string;
+  visibleColumns?: string;
 }
+
+export interface IExportHostsOptions {
+  sortBy: ISortOption[];
+  page?: number;
+  perPage?: number;
+  selectedLabels?: string[];
+  globalFilter?: string;
+  teamId?: number;
+  policyId?: number;
+  policyResponse?: string;
+  softwareId?: number;
+  device_mapping?: boolean;
+  columns?: string;
+  visibleColumns?: string;
+}
+
+export type ILoadHostDetailsExtension = "device_mapping" | "macadmins";
 
 export default {
   destroy: (host: IHost) => {
@@ -48,19 +68,69 @@ export default {
       },
     });
   },
-  refetch: (host: IHost) => {
-    const { HOSTS } = endpoints;
-    const path = `${HOSTS}/${host.id}/refetch`;
+  exportHosts: (options: IExportHostsOptions) => {
+    const { HOSTS_REPORT } = endpoints;
+    const sortBy = options.sortBy;
+    const selectedLabels = options?.selectedLabels || [];
+    const globalFilter = options?.globalFilter || "";
+    const teamId = options?.teamId || null;
+    const policyId = options?.policyId || null;
+    const policyResponse = options?.policyResponse || "passing";
+    const softwareId = options?.softwareId || null;
+    const visibleColumns = options?.visibleColumns || null;
 
-    return sendRequest("POST", path);
-  },
-  load: (hostID: number) => {
-    const { HOSTS } = endpoints;
-    const path = `${HOSTS}/${hostID}`;
+    if (!sortBy.length) {
+      throw Error("sortBy is a required field.");
+    }
+
+    const orderKeyParam = `?order_key=${sortBy[0].key}`;
+    const orderDirection = `&order_direction=${sortBy[0].direction}`;
+
+    let path = `${HOSTS_REPORT}${orderKeyParam}${orderDirection}`;
+
+    if (globalFilter !== "") {
+      path += `&query=${globalFilter}`;
+    }
+    const labelPrefix = "labels/";
+
+    // Handle multiple filters
+    const label = selectedLabels.find((f) => f.includes(labelPrefix)) || "";
+    const status = selectedLabels.find((f) => !f.includes(labelPrefix)) || "";
+    const statusFilterList = ["new", "online", "offline"];
+    const isStatusFilter = statusFilterList.includes(status);
+
+    if (isStatusFilter) {
+      path += `&status=${status}`;
+    }
+
+    if (teamId) {
+      path += `&team_id=${teamId}`;
+    }
+
+    // Label OR policy_id OR software_id are valid filters.
+    if (label) {
+      const lid = label.substr(labelPrefix.length);
+      path += `&label_id=${parseInt(lid, 10)}`;
+    }
+
+    if (!label && policyId) {
+      path += `&policy_id=${policyId}`;
+      path += `&policy_response=${policyResponse}`;
+    }
+
+    if (!label && !policyId && softwareId) {
+      path += `&software_id=${softwareId}`;
+    }
+
+    if (visibleColumns) {
+      path += `&columns=${visibleColumns}`;
+    }
+
+    path += "&format=csv";
 
     return sendRequest("GET", path);
   },
-  loadAll: (options: IHostLoadOptions | undefined) => {
+  loadHosts: (options: ILoadHostsOptions | undefined) => {
     const { HOSTS, LABEL_HOSTS } = endpoints;
     const page = options?.page || 0;
     const perPage = options?.perPage || 100;
@@ -71,6 +141,8 @@ export default {
     const policyId = options?.policyId || null;
     const policyResponse = options?.policyResponse || null;
     const softwareId = options?.softwareId || null;
+    const device_mapping = options?.device_mapping || null;
+    const columns = options?.columns || null;
 
     // TODO: add this query param logic to client class
     const pagination = `page=${page}&per_page=${perPage}`;
@@ -95,10 +167,7 @@ export default {
     const label = selectedLabels.find((f) => f.includes(labelPrefix));
     const status = selectedLabels.find((f) => !f.includes(labelPrefix));
     const isValidStatus =
-      status === "new" ||
-      status === "online" ||
-      status === "offline" ||
-      status === "mia";
+      status === "new" || status === "online" || status === "offline";
 
     if (label) {
       const lid = label.substr(labelPrefix.length);
@@ -129,7 +198,36 @@ export default {
       path += `&software_id=${softwareId}`;
     }
 
+    if (device_mapping) {
+      path += "&device_mapping=true";
+    }
+
+    if (columns) {
+      path += `&columns=${columns}`;
+    }
+
     return sendRequest("GET", path);
+  },
+  loadHostDetails: (hostID: number) => {
+    const { HOSTS } = endpoints;
+    const path = `${HOSTS}/${hostID}`;
+
+    return sendRequest("GET", path);
+  },
+  loadHostDetailsExtension: (
+    hostID: number,
+    extension: ILoadHostDetailsExtension
+  ) => {
+    const { HOSTS } = endpoints;
+    const path = `${HOSTS}/${hostID}/${extension}`;
+
+    return sendRequest("GET", path);
+  },
+  refetch: (host: IHost) => {
+    const { HOSTS } = endpoints;
+    const path = `${HOSTS}/${host.id}/refetch`;
+
+    return sendRequest("POST", path);
   },
   search: (searchText: string) => {
     const { HOSTS } = endpoints;

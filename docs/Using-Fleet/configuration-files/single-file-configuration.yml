@@ -1,0 +1,208 @@
+---
+apiVersion: v1
+kind: config
+spec:
+  agent_options:
+    config:
+      decorators:
+        load:
+          - SELECT uuid AS host_uuid FROM system_info;
+          - SELECT hostname AS hostname FROM system_info;
+      options:
+        disable_distributed: false
+        distributed_interval: 10
+        distributed_plugin: tls
+        distributed_tls_max_attempts: 3
+        logger_plugin: tls
+        logger_tls_endpoint: /api/osquery/log
+        logger_tls_period: 10
+        pack_delimiter: /
+    overrides: {}
+  host_expiry_settings:
+    host_expiry_enabled: false
+    host_expiry_window: 0
+  host_settings:
+    additional_queries: null
+  org_info:
+    org_logo_url: ""
+    org_name: org
+  server_settings:
+    enable_analytics: true
+    live_query_disabled: false
+    server_url: https://localhost:8080
+  smtp_settings:
+    authentication_method: authmethod_plain
+    authentication_type: authtype_username_password
+    configured: false
+    domain: ""
+    enable_smtp: false
+    enable_ssl_tls: true
+    enable_start_tls: true
+    password: "********"
+    port: 587
+    sender_address: ""
+    server: ""
+    user_name: ""
+    verify_ssl_certs: true
+  sso_settings:
+    enable_sso: false
+    enable_sso_idp_login: false
+    entity_id: ""
+    idp_image_url: ""
+    idp_name: ""
+    issuer_uri: ""
+    metadata: ""
+    metadata_url: ""
+---
+apiVersion: v1
+kind: enroll_secret
+spec:
+  secrets:
+    - secret: RzTlxPvugG4o4O5IKS/HqEDJUmI1hwBoffff
+    - secret: reallyworks
+    - secret: thissecretwontwork!
+---
+apiVersion: v1
+kind: label
+spec:
+  name: pending_updates
+  query: pending_updates
+  platforms:
+    - darwin
+---
+apiVersion: v1
+kind: label
+spec:
+  name: slack_not_running
+  query: slack_not_running
+---
+apiVersion: v1
+kind: pack
+spec:
+  name: osquery_monitoring
+  queries:
+    - query: osquery_version
+      name: osquery_version_snapshot
+      interval: 7200
+      snapshot: true
+    - query: osquery_version
+      name: osquery_version_differential
+      interval: 7200
+    - query: osquery_schedule
+      interval: 7200
+      removed: false
+    - query: osquery_events
+      interval: 86400
+      removed: false
+    - query: osquery_info
+      interval: 600
+      removed: false
+---
+apiVersion: v1
+kind: query
+spec:
+  name: osquery_version
+  description: The version of the Launcher and Osquery process
+  query: select launcher.version, osquery.version from kolide_launcher_info launcher, osquery_info osquery;
+  support:
+    launcher: 0.3.0
+    osquery: 2.9.0
+---
+apiVersion: v1
+kind: query
+spec:
+  name: osquery_schedule
+  description: Report performance stats for each file in the query schedule.
+  query: select name, interval, executions, output_size, wall_time, (user_time/executions) as avg_user_time, (system_time/executions) as avg_system_time, average_memory, last_executed from osquery_schedule;
+---
+apiVersion: v1
+kind: query
+spec:
+  name: osquery_info
+  description: A heartbeat counter that reports general performance (CPU, memory) and version.
+  query: select i.*, p.resident_size, p.user_time, p.system_time, time.minutes as counter from osquery_info i, processes p, time where p.pid = i.pid;
+---
+apiVersion: v1
+kind: query
+spec:
+  name: osquery_events
+  description: Report event publisher health and track event counters.
+  query: select name, publisher, type, subscriptions, events, active from osquery_events;
+---
+apiVersion: v1
+kind: query
+spec:
+  name: docker_processes
+  descriptions: The docker containers processes that are running on a system.
+  query: select * from docker_container_processes;
+  support:
+    osquery: 2.9.0
+    platforms:
+      - linux
+      - darwin
+---
+apiVersion: v1
+kind: query
+spec:
+  name: hostname
+  query: select hostname from system_info;
+---
+apiVersion: v1
+kind: query
+spec:
+  name: uuid
+  query: select uuid from osquery_info;
+---
+apiVersion: v1
+kind: query
+spec:
+  name: instance_id
+  query: select instance_id from system_info;
+---
+apiVersion: v1
+kind: query
+spec:
+  name: always_true
+  query: select 1;
+---
+apiVersion: v1
+kind: query
+spec:
+  name: pending_updates
+  query: SELECT value from plist where path = "/Library/Preferences/ManagedInstalls.plist" and key = "PendingUpdateCount" and value > "0";
+---
+apiVersion: v1
+kind: query
+spec:
+  name: slack_not_running
+  query: >
+    SELECT * from system_info
+    WHERE NOT EXISTS (
+      SELECT *
+      FROM processes
+      WHERE name LIKE "%Slack%"
+    );
+---
+apiVersion: v1
+kind: query
+spec:
+  name: centos_hosts
+  query: select 1 from os_version where platform = "centos";
+---
+apiVersion: v1
+kind: query
+spec:
+  name: ubuntu_hosts
+  query: select 1 from os_version where platform = "ubuntu";
+---
+apiVersion: v1
+kind: query
+spec:
+  name: windows_hosts
+  query: select 1 from os_version where platform = "windows";
+---
+apiVersion: v1
+kind: query
+spec:
+  name: darwin_hosts
+  query: select 1 from os_version where platform = "darwin";

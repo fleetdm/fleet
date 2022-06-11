@@ -19,6 +19,7 @@ import (
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
@@ -57,17 +58,17 @@ func TestDebugConnectionCommand(t *testing.T) {
 	})
 
 	t.Run("invalid certificate flag without address", func(t *testing.T) {
-		_, _, err := runAppNoChecks([]string{"debug", "connection", "--fleet-certificate", "cert.pem"})
+		_, err := runAppNoChecks([]string{"debug", "connection", "--fleet-certificate", "cert.pem"})
 		require.Contains(t, err.Error(), "--fleet-certificate")
 	})
 
 	t.Run("invalid context flag with address", func(t *testing.T) {
-		_, _, err := runAppNoChecks([]string{"debug", "connection", "--context", "test", "localhost:8080"})
+		_, err := runAppNoChecks([]string{"debug", "connection", "--context", "test", "localhost:8080"})
 		require.Contains(t, err.Error(), "--context")
 	})
 
 	t.Run("invalid config flag with address", func(t *testing.T) {
-		_, _, err := runAppNoChecks([]string{"debug", "connection", "--config", "/tmp/nosuchfile", "localhost:8080"})
+		_, err := runAppNoChecks([]string{"debug", "connection", "--config", "/tmp/nosuchfile", "localhost:8080"})
 		require.Contains(t, err.Error(), "--config")
 	})
 
@@ -101,7 +102,7 @@ func TestDebugConnectionCommand(t *testing.T) {
 		certPath := filepath.Join(dir, "cert.pem")
 		require.NoError(t, ioutil.WriteFile(certPath, []byte(exampleDotComCertDotPem), 0600))
 
-		buf, _, err := runAppNoChecks([]string{"debug", "connection", "--fleet-certificate", certPath, srv.URL})
+		buf, err := runAppNoChecks([]string{"debug", "connection", "--fleet-certificate", certPath, srv.URL})
 		// 2 successes: resolve host, dial address
 		t.Log(buf.String())
 		require.Equal(t, 2, strings.Count(buf.String(), "Success:"))
@@ -199,4 +200,22 @@ func TestDebugResolveHostname(t *testing.T) {
 
 	err = resolveHostname(context.Background(), timeout, noSuchHost)
 	require.Error(t, err)
+}
+
+func TestFilenameFunctions(t *testing.T) {
+	nowFn = func() time.Time {
+		now, _ := time.Parse(time.RFC3339, "1969-06-19T21:44:05Z")
+		return now
+	}
+	defer func() { nowFn = time.Now }()
+
+	t.Run("outfileName builds a file name using the name provided + current time ", func(t *testing.T) {
+		name := outfileName("test")
+		assert.Equal(t, "fleet-test-19690619214405Z", name)
+	})
+
+	t.Run("outfileNameWithExt builds a file name using the name and extension provided + current time ", func(t *testing.T) {
+		name := outfileNameWithExt("test", "go")
+		assert.Equal(t, "fleet-test-19690619214405Z.go", name)
+	})
 }

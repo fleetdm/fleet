@@ -1,12 +1,16 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { IAceEditor } from "react-ace/lib/types";
-import { noop } from "lodash";
+import { noop, size } from "lodash";
+import { useDebouncedCallback } from "use-debounce";
 
 import { ILabel, ILabelFormData } from "interfaces/label";
-import Button from "components/buttons/Button"; // @ts-ignore
-import Dropdown from "components/forms/fields/Dropdown"; // @ts-ignore
+import Button from "components/buttons/Button";
+// @ts-ignore
+import Dropdown from "components/forms/fields/Dropdown";
+// @ts-ignore
 import InputField from "components/forms/fields/InputField";
-import FleetAce from "components/FleetAce"; // @ts-ignore
+import FleetAce from "components/FleetAce";
+// @ts-ignore
 import validateQuery from "components/forms/validators/validate_query";
 
 interface ILabelFormProps {
@@ -14,8 +18,9 @@ interface ILabelFormProps {
   selectedLabel?: ILabel;
   isEdit?: boolean;
   onCancel: () => void;
-  handleSubmit: (formData: ILabelFormData) => Promise<void>;
+  handleSubmit: (formData: ILabelFormData) => void;
   onOsqueryTableSelect?: (tableName: string) => void;
+  backendValidators: { [key: string]: string };
 }
 
 const baseClass = "label-form";
@@ -35,6 +40,18 @@ const platformOptions = [
   { label: "Centos", value: "centos" },
 ];
 
+const validateQuerySQL = (query: string) => {
+  const errors: { [key: string]: any } = {};
+  const { error: queryError, valid: queryValid } = validateQuery(query);
+
+  if (!queryValid) {
+    errors.query = queryError;
+  }
+
+  const valid = !size(errors);
+  return { valid, errors };
+};
+
 const LabelForm = ({
   baseError,
   selectedLabel,
@@ -42,7 +59,8 @@ const LabelForm = ({
   onCancel,
   handleSubmit,
   onOsqueryTableSelect,
-}: ILabelFormProps) => {
+  backendValidators,
+}: ILabelFormProps): JSX.Element => {
   const [name, setName] = useState<string>(selectedLabel?.name || "");
   const [nameError, setNameError] = useState<string>("");
   const [description, setDescription] = useState<string>(
@@ -53,6 +71,28 @@ const LabelForm = ({
   const [platform, setPlatform] = useState<string>(
     selectedLabel?.platform || ""
   );
+
+  const debounceSQL = useDebouncedCallback((queryString: string) => {
+    let valid = true;
+    const { valid: isValidated, errors: newErrors } = validateQuerySQL(
+      queryString
+    );
+    valid = isValidated;
+
+    if (query === "") {
+      setQueryError("");
+    } else {
+      setQueryError(newErrors.query);
+    }
+  }, 500);
+
+  useEffect(() => {
+    setNameError(backendValidators.name);
+  }, [backendValidators]);
+
+  useEffect(() => {
+    debounceSQL(query);
+  }, [query]);
 
   const onLoad = (editor: IAceEditor) => {
     editor.setOptions({
@@ -78,6 +118,7 @@ const LabelForm = ({
 
   const onNameChange = (value: string) => {
     setName(value);
+    setNameError("");
   };
 
   const onDescriptionChange = (value: string) => {
@@ -162,6 +203,7 @@ const LabelForm = ({
         value={name}
         inputClassName={`${baseClass}__label-title`}
         label="Name"
+        placeholder="Label name"
       />
       <InputField
         name="description"
@@ -170,31 +212,32 @@ const LabelForm = ({
         inputClassName={`${baseClass}__label-description`}
         label="Description"
         type="textarea"
+        placeholder="Label description (optional)"
       />
       {!isManual && !isEdit && (
         <div className="form-field form-field--dropdown">
-          <label className="form-field__label" htmlFor="platform">
-            Platform
-          </label>
           <Dropdown
+            label="Platform"
             name="platform"
             onChange={onPlatformChange}
             value={platform}
             options={platformOptions}
+            classname={`${baseClass}__platform-dropdown`}
+            wrapperClassName={`${baseClass}__form-field ${baseClass}__form-field--platform`}
           />
         </div>
       )}
       {isEdit && platform && (
         <div className={`${baseClass}__label-platform`}>
           <p className="title">Platform</p>
-          <p>{!platform ? "All platforms" : PLATFORM_STRINGS[platform]}</p>
+          <p>{platform ? PLATFORM_STRINGS[platform] : "All platforms"}</p>
           <p className="hint">
             Label platforms are immutable. To change the platform, delete this
             label and create a new one.
           </p>
         </div>
       )}
-      <div className={`${baseClass}__button-wrap`}>
+      <div className="modal-cta-wrap">
         <Button
           className={`${baseClass}__cancel-btn`}
           onClick={onCancel}

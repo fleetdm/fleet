@@ -4,10 +4,11 @@ import (
 	"context"
 	"errors"
 	"net/http"
-	"strings"
+	"regexp"
 
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/contexts/logging"
+	"github.com/fleetdm/fleet/v4/server/contexts/publicip"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/service/middleware/authzcheck"
 	"github.com/fleetdm/fleet/v4/server/service/middleware/ratelimit"
@@ -19,302 +20,8 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/throttled/throttled/v2"
+	otmiddleware "go.opentelemetry.io/contrib/instrumentation/github.com/gorilla/mux/otelmux"
 )
-
-// FleetEndpoints is a collection of RPC endpoints implemented by the Fleet API.
-type FleetEndpoints struct {
-	Login                                 endpoint.Endpoint
-	Logout                                endpoint.Endpoint
-	ForgotPassword                        endpoint.Endpoint
-	ResetPassword                         endpoint.Endpoint
-	Me                                    endpoint.Endpoint
-	ChangePassword                        endpoint.Endpoint
-	CreateUserWithInvite                  endpoint.Endpoint
-	CreateUser                            endpoint.Endpoint
-	GetUser                               endpoint.Endpoint
-	ListUsers                             endpoint.Endpoint
-	ModifyUser                            endpoint.Endpoint
-	DeleteUser                            endpoint.Endpoint
-	RequirePasswordReset                  endpoint.Endpoint
-	PerformRequiredPasswordReset          endpoint.Endpoint
-	GetSessionsForUserInfo                endpoint.Endpoint
-	DeleteSessionsForUser                 endpoint.Endpoint
-	GetSessionInfo                        endpoint.Endpoint
-	DeleteSession                         endpoint.Endpoint
-	GetAppConfig                          endpoint.Endpoint
-	ModifyAppConfig                       endpoint.Endpoint
-	ApplyEnrollSecretSpec                 endpoint.Endpoint
-	GetEnrollSecretSpec                   endpoint.Endpoint
-	CreateInvite                          endpoint.Endpoint
-	ListInvites                           endpoint.Endpoint
-	DeleteInvite                          endpoint.Endpoint
-	VerifyInvite                          endpoint.Endpoint
-	GetQuery                              endpoint.Endpoint
-	ListQueries                           endpoint.Endpoint
-	CreateQuery                           endpoint.Endpoint
-	ModifyQuery                           endpoint.Endpoint
-	DeleteQuery                           endpoint.Endpoint
-	DeleteQueryByID                       endpoint.Endpoint
-	DeleteQueries                         endpoint.Endpoint
-	ApplyQuerySpecs                       endpoint.Endpoint
-	GetQuerySpecs                         endpoint.Endpoint
-	GetQuerySpec                          endpoint.Endpoint
-	CreateDistributedQueryCampaign        endpoint.Endpoint
-	CreateDistributedQueryCampaignByNames endpoint.Endpoint
-	EnrollAgent                           endpoint.Endpoint
-	GetClientConfig                       endpoint.Endpoint
-	GetDistributedQueries                 endpoint.Endpoint
-	SubmitDistributedQueryResults         endpoint.Endpoint
-	SubmitLogs                            endpoint.Endpoint
-	CarveBegin                            endpoint.Endpoint
-	CarveBlock                            endpoint.Endpoint
-	SearchTargets                         endpoint.Endpoint
-	GetCertificate                        endpoint.Endpoint
-	ChangeEmail                           endpoint.Endpoint
-	InitiateSSO                           endpoint.Endpoint
-	CallbackSSO                           endpoint.Endpoint
-	SSOSettings                           endpoint.Endpoint
-	StatusResultStore                     endpoint.Endpoint
-	StatusLiveQuery                       endpoint.Endpoint
-	Version                               endpoint.Endpoint
-	CreateTeam                            endpoint.Endpoint
-	ModifyTeam                            endpoint.Endpoint
-	ModifyTeamAgentOptions                endpoint.Endpoint
-	DeleteTeam                            endpoint.Endpoint
-	ListTeams                             endpoint.Endpoint
-	ListTeamUsers                         endpoint.Endpoint
-	AddTeamUsers                          endpoint.Endpoint
-	DeleteTeamUsers                       endpoint.Endpoint
-	TeamEnrollSecrets                     endpoint.Endpoint
-}
-
-// MakeFleetServerEndpoints creates the Fleet API endpoints.
-func MakeFleetServerEndpoints(svc fleet.Service, urlPrefix string, limitStore throttled.GCRAStore, logger kitlog.Logger) FleetEndpoints {
-	limiter := ratelimit.NewMiddleware(limitStore)
-
-	return FleetEndpoints{
-		Login: limiter.Limit(
-			throttled.RateQuota{MaxRate: throttled.PerMin(10), MaxBurst: 9})(
-			makeLoginEndpoint(svc),
-		),
-		Logout: logged(makeLogoutEndpoint(svc)),
-		ForgotPassword: limiter.Limit(
-			throttled.RateQuota{MaxRate: throttled.PerHour(10), MaxBurst: 9})(
-			logged(makeForgotPasswordEndpoint(svc)),
-		),
-		ResetPassword:        logged(makeResetPasswordEndpoint(svc)),
-		CreateUserWithInvite: logged(makeCreateUserFromInviteEndpoint(svc)),
-		VerifyInvite:         logged(makeVerifyInviteEndpoint(svc)),
-		InitiateSSO:          logged(makeInitiateSSOEndpoint(svc)),
-		CallbackSSO:          logged(makeCallbackSSOEndpoint(svc, urlPrefix)),
-		SSOSettings:          logged(makeSSOSettingsEndpoint(svc)),
-
-		// PerformRequiredPasswordReset needs only to authenticate the
-		// logged in user
-		PerformRequiredPasswordReset: logged(canPerformPasswordReset(makePerformRequiredPasswordResetEndpoint(svc))),
-
-		// Standard user authentication routes
-		Me:                                    authenticatedUser(svc, makeGetSessionUserEndpoint(svc)),
-		ChangePassword:                        authenticatedUser(svc, makeChangePasswordEndpoint(svc)),
-		GetUser:                               authenticatedUser(svc, makeGetUserEndpoint(svc)),
-		ListUsers:                             authenticatedUser(svc, makeListUsersEndpoint(svc)),
-		ModifyUser:                            authenticatedUser(svc, makeModifyUserEndpoint(svc)),
-		DeleteUser:                            authenticatedUser(svc, makeDeleteUserEndpoint(svc)),
-		RequirePasswordReset:                  authenticatedUser(svc, makeRequirePasswordResetEndpoint(svc)),
-		CreateUser:                            authenticatedUser(svc, makeCreateUserEndpoint(svc)),
-		GetSessionsForUserInfo:                authenticatedUser(svc, makeGetInfoAboutSessionsForUserEndpoint(svc)),
-		DeleteSessionsForUser:                 authenticatedUser(svc, makeDeleteSessionsForUserEndpoint(svc)),
-		GetSessionInfo:                        authenticatedUser(svc, makeGetInfoAboutSessionEndpoint(svc)),
-		DeleteSession:                         authenticatedUser(svc, makeDeleteSessionEndpoint(svc)),
-		GetAppConfig:                          authenticatedUser(svc, makeGetAppConfigEndpoint(svc)),
-		ModifyAppConfig:                       authenticatedUser(svc, makeModifyAppConfigEndpoint(svc)),
-		ApplyEnrollSecretSpec:                 authenticatedUser(svc, makeApplyEnrollSecretSpecEndpoint(svc)),
-		GetEnrollSecretSpec:                   authenticatedUser(svc, makeGetEnrollSecretSpecEndpoint(svc)),
-		CreateInvite:                          authenticatedUser(svc, makeCreateInviteEndpoint(svc)),
-		ListInvites:                           authenticatedUser(svc, makeListInvitesEndpoint(svc)),
-		DeleteInvite:                          authenticatedUser(svc, makeDeleteInviteEndpoint(svc)),
-		GetQuery:                              authenticatedUser(svc, makeGetQueryEndpoint(svc)),
-		ListQueries:                           authenticatedUser(svc, makeListQueriesEndpoint(svc)),
-		CreateQuery:                           authenticatedUser(svc, makeCreateQueryEndpoint(svc)),
-		ModifyQuery:                           authenticatedUser(svc, makeModifyQueryEndpoint(svc)),
-		DeleteQuery:                           authenticatedUser(svc, makeDeleteQueryEndpoint(svc)),
-		DeleteQueryByID:                       authenticatedUser(svc, makeDeleteQueryByIDEndpoint(svc)),
-		DeleteQueries:                         authenticatedUser(svc, makeDeleteQueriesEndpoint(svc)),
-		ApplyQuerySpecs:                       authenticatedUser(svc, makeApplyQuerySpecsEndpoint(svc)),
-		GetQuerySpecs:                         authenticatedUser(svc, makeGetQuerySpecsEndpoint(svc)),
-		GetQuerySpec:                          authenticatedUser(svc, makeGetQuerySpecEndpoint(svc)),
-		CreateDistributedQueryCampaign:        authenticatedUser(svc, makeCreateDistributedQueryCampaignEndpoint(svc)),
-		CreateDistributedQueryCampaignByNames: authenticatedUser(svc, makeCreateDistributedQueryCampaignByNamesEndpoint(svc)),
-		SearchTargets:                         authenticatedUser(svc, makeSearchTargetsEndpoint(svc)),
-		GetCertificate:                        authenticatedUser(svc, makeCertificateEndpoint(svc)),
-		ChangeEmail:                           authenticatedUser(svc, makeChangeEmailEndpoint(svc)),
-		Version:                               authenticatedUser(svc, makeVersionEndpoint(svc)),
-		CreateTeam:                            authenticatedUser(svc, makeCreateTeamEndpoint(svc)),
-		ModifyTeam:                            authenticatedUser(svc, makeModifyTeamEndpoint(svc)),
-		ModifyTeamAgentOptions:                authenticatedUser(svc, makeModifyTeamAgentOptionsEndpoint(svc)),
-		DeleteTeam:                            authenticatedUser(svc, makeDeleteTeamEndpoint(svc)),
-		ListTeams:                             authenticatedUser(svc, makeListTeamsEndpoint(svc)),
-		ListTeamUsers:                         authenticatedUser(svc, makeListTeamUsersEndpoint(svc)),
-		AddTeamUsers:                          authenticatedUser(svc, makeAddTeamUsersEndpoint(svc)),
-		DeleteTeamUsers:                       authenticatedUser(svc, makeDeleteTeamUsersEndpoint(svc)),
-		TeamEnrollSecrets:                     authenticatedUser(svc, makeTeamEnrollSecretsEndpoint(svc)),
-
-		// Authenticated status endpoints
-		StatusResultStore: authenticatedUser(svc, makeStatusResultStoreEndpoint(svc)),
-		StatusLiveQuery:   authenticatedUser(svc, makeStatusLiveQueryEndpoint(svc)),
-
-		// Osquery endpoints
-		EnrollAgent: logged(makeEnrollAgentEndpoint(svc)),
-		// Authenticated osquery endpoints
-		GetClientConfig:               authenticatedHost(svc, logger, makeGetClientConfigEndpoint(svc)),
-		GetDistributedQueries:         authenticatedHost(svc, logger, makeGetDistributedQueriesEndpoint(svc)),
-		SubmitDistributedQueryResults: authenticatedHost(svc, logger, makeSubmitDistributedQueryResultsEndpoint(svc)),
-		SubmitLogs:                    authenticatedHost(svc, logger, makeSubmitLogsEndpoint(svc)),
-		CarveBegin:                    authenticatedHost(svc, logger, makeCarveBeginEndpoint(svc)),
-		// For some reason osquery does not provide a node key with the block
-		// data. Instead the carve session ID should be verified in the service
-		// method.
-		CarveBlock: logged(makeCarveBlockEndpoint(svc)),
-	}
-}
-
-type fleetHandlers struct {
-	Login                                 http.Handler
-	Logout                                http.Handler
-	ForgotPassword                        http.Handler
-	ResetPassword                         http.Handler
-	Me                                    http.Handler
-	ChangePassword                        http.Handler
-	CreateUserWithInvite                  http.Handler
-	CreateUser                            http.Handler
-	GetUser                               http.Handler
-	ListUsers                             http.Handler
-	ModifyUser                            http.Handler
-	DeleteUser                            http.Handler
-	RequirePasswordReset                  http.Handler
-	PerformRequiredPasswordReset          http.Handler
-	GetSessionsForUserInfo                http.Handler
-	DeleteSessionsForUser                 http.Handler
-	GetSessionInfo                        http.Handler
-	DeleteSession                         http.Handler
-	GetAppConfig                          http.Handler
-	ModifyAppConfig                       http.Handler
-	ApplyEnrollSecretSpec                 http.Handler
-	GetEnrollSecretSpec                   http.Handler
-	CreateInvite                          http.Handler
-	ListInvites                           http.Handler
-	DeleteInvite                          http.Handler
-	VerifyInvite                          http.Handler
-	GetQuery                              http.Handler
-	ListQueries                           http.Handler
-	CreateQuery                           http.Handler
-	ModifyQuery                           http.Handler
-	DeleteQuery                           http.Handler
-	DeleteQueryByID                       http.Handler
-	DeleteQueries                         http.Handler
-	ApplyQuerySpecs                       http.Handler
-	GetQuerySpecs                         http.Handler
-	GetQuerySpec                          http.Handler
-	CreateDistributedQueryCampaign        http.Handler
-	CreateDistributedQueryCampaignByNames http.Handler
-	EnrollAgent                           http.Handler
-	GetClientConfig                       http.Handler
-	GetDistributedQueries                 http.Handler
-	SubmitDistributedQueryResults         http.Handler
-	SubmitLogs                            http.Handler
-	CarveBegin                            http.Handler
-	CarveBlock                            http.Handler
-	SearchTargets                         http.Handler
-	GetCertificate                        http.Handler
-	ChangeEmail                           http.Handler
-	InitiateSSO                           http.Handler
-	CallbackSSO                           http.Handler
-	SettingsSSO                           http.Handler
-	StatusResultStore                     http.Handler
-	StatusLiveQuery                       http.Handler
-	Version                               http.Handler
-	CreateTeam                            http.Handler
-	ModifyTeam                            http.Handler
-	ModifyTeamAgentOptions                http.Handler
-	DeleteTeam                            http.Handler
-	ListTeams                             http.Handler
-	ListTeamUsers                         http.Handler
-	AddTeamUsers                          http.Handler
-	DeleteTeamUsers                       http.Handler
-	TeamEnrollSecrets                     http.Handler
-}
-
-func makeKitHandlers(e FleetEndpoints, opts []kithttp.ServerOption) *fleetHandlers {
-	newServer := func(e endpoint.Endpoint, decodeFn kithttp.DecodeRequestFunc) http.Handler {
-		e = authzcheck.NewMiddleware().AuthzCheck()(e)
-		return kithttp.NewServer(e, decodeFn, encodeResponse, opts...)
-	}
-	return &fleetHandlers{
-		Login:                                 newServer(e.Login, decodeLoginRequest),
-		Logout:                                newServer(e.Logout, decodeNoParamsRequest),
-		ForgotPassword:                        newServer(e.ForgotPassword, decodeForgotPasswordRequest),
-		ResetPassword:                         newServer(e.ResetPassword, decodeResetPasswordRequest),
-		Me:                                    newServer(e.Me, decodeNoParamsRequest),
-		ChangePassword:                        newServer(e.ChangePassword, decodeChangePasswordRequest),
-		CreateUserWithInvite:                  newServer(e.CreateUserWithInvite, decodeCreateUserRequest),
-		CreateUser:                            newServer(e.CreateUser, decodeCreateUserRequest),
-		GetUser:                               newServer(e.GetUser, decodeGetUserRequest),
-		ListUsers:                             newServer(e.ListUsers, decodeListUsersRequest),
-		ModifyUser:                            newServer(e.ModifyUser, decodeModifyUserRequest),
-		DeleteUser:                            newServer(e.DeleteUser, decodeDeleteUserRequest),
-		RequirePasswordReset:                  newServer(e.RequirePasswordReset, decodeRequirePasswordResetRequest),
-		PerformRequiredPasswordReset:          newServer(e.PerformRequiredPasswordReset, decodePerformRequiredPasswordResetRequest),
-		GetSessionsForUserInfo:                newServer(e.GetSessionsForUserInfo, decodeGetInfoAboutSessionsForUserRequest),
-		DeleteSessionsForUser:                 newServer(e.DeleteSessionsForUser, decodeDeleteSessionsForUserRequest),
-		GetSessionInfo:                        newServer(e.GetSessionInfo, decodeGetInfoAboutSessionRequest),
-		DeleteSession:                         newServer(e.DeleteSession, decodeDeleteSessionRequest),
-		GetAppConfig:                          newServer(e.GetAppConfig, decodeNoParamsRequest),
-		ModifyAppConfig:                       newServer(e.ModifyAppConfig, decodeModifyAppConfigRequest),
-		ApplyEnrollSecretSpec:                 newServer(e.ApplyEnrollSecretSpec, decodeApplyEnrollSecretSpecRequest),
-		GetEnrollSecretSpec:                   newServer(e.GetEnrollSecretSpec, decodeNoParamsRequest),
-		CreateInvite:                          newServer(e.CreateInvite, decodeCreateInviteRequest),
-		ListInvites:                           newServer(e.ListInvites, decodeListInvitesRequest),
-		DeleteInvite:                          newServer(e.DeleteInvite, decodeDeleteInviteRequest),
-		VerifyInvite:                          newServer(e.VerifyInvite, decodeVerifyInviteRequest),
-		GetQuery:                              newServer(e.GetQuery, decodeGetQueryRequest),
-		ListQueries:                           newServer(e.ListQueries, decodeListQueriesRequest),
-		CreateQuery:                           newServer(e.CreateQuery, decodeCreateQueryRequest),
-		ModifyQuery:                           newServer(e.ModifyQuery, decodeModifyQueryRequest),
-		DeleteQuery:                           newServer(e.DeleteQuery, decodeDeleteQueryRequest),
-		DeleteQueryByID:                       newServer(e.DeleteQueryByID, decodeDeleteQueryByIDRequest),
-		DeleteQueries:                         newServer(e.DeleteQueries, decodeDeleteQueriesRequest),
-		ApplyQuerySpecs:                       newServer(e.ApplyQuerySpecs, decodeApplyQuerySpecsRequest),
-		GetQuerySpecs:                         newServer(e.GetQuerySpecs, decodeNoParamsRequest),
-		GetQuerySpec:                          newServer(e.GetQuerySpec, decodeGetGenericSpecRequest),
-		CreateDistributedQueryCampaign:        newServer(e.CreateDistributedQueryCampaign, decodeCreateDistributedQueryCampaignRequest),
-		CreateDistributedQueryCampaignByNames: newServer(e.CreateDistributedQueryCampaignByNames, decodeCreateDistributedQueryCampaignByNamesRequest),
-		EnrollAgent:                           newServer(e.EnrollAgent, decodeEnrollAgentRequest),
-		GetClientConfig:                       newServer(e.GetClientConfig, decodeGetClientConfigRequest),
-		GetDistributedQueries:                 newServer(e.GetDistributedQueries, decodeGetDistributedQueriesRequest),
-		SubmitDistributedQueryResults:         newServer(e.SubmitDistributedQueryResults, decodeSubmitDistributedQueryResultsRequest),
-		SubmitLogs:                            newServer(e.SubmitLogs, decodeSubmitLogsRequest),
-		CarveBegin:                            newServer(e.CarveBegin, decodeCarveBeginRequest),
-		CarveBlock:                            newServer(e.CarveBlock, decodeCarveBlockRequest),
-		SearchTargets:                         newServer(e.SearchTargets, decodeSearchTargetsRequest),
-		GetCertificate:                        newServer(e.GetCertificate, decodeNoParamsRequest),
-		ChangeEmail:                           newServer(e.ChangeEmail, decodeChangeEmailRequest),
-		InitiateSSO:                           newServer(e.InitiateSSO, decodeInitiateSSORequest),
-		CallbackSSO:                           newServer(e.CallbackSSO, decodeCallbackSSORequest),
-		SettingsSSO:                           newServer(e.SSOSettings, decodeNoParamsRequest),
-		StatusResultStore:                     newServer(e.StatusResultStore, decodeNoParamsRequest),
-		StatusLiveQuery:                       newServer(e.StatusLiveQuery, decodeNoParamsRequest),
-		Version:                               newServer(e.Version, decodeNoParamsRequest),
-		CreateTeam:                            newServer(e.CreateTeam, decodeCreateTeamRequest),
-		ModifyTeam:                            newServer(e.ModifyTeam, decodeModifyTeamRequest),
-		ModifyTeamAgentOptions:                newServer(e.ModifyTeamAgentOptions, decodeModifyTeamAgentOptionsRequest),
-		DeleteTeam:                            newServer(e.DeleteTeam, decodeDeleteTeamRequest),
-		ListTeams:                             newServer(e.ListTeams, decodeListTeamsRequest),
-		ListTeamUsers:                         newServer(e.ListTeamUsers, decodeListTeamUsersRequest),
-		AddTeamUsers:                          newServer(e.AddTeamUsers, decodeModifyTeamUsersRequest),
-		DeleteTeamUsers:                       newServer(e.DeleteTeamUsers, decodeModifyTeamUsersRequest),
-		TeamEnrollSecrets:                     newServer(e.TeamEnrollSecrets, decodeTeamEnrollSecretsRequest),
-	}
-}
 
 type errorHandler struct {
 	logger kitlog.Logger
@@ -368,15 +75,40 @@ func checkLicenseExpiration(svc fleet.Service) func(context.Context, http.Respon
 	}
 }
 
+type extraHandlerOpts struct {
+	loginRateLimit *throttled.Rate
+}
+
+// ExtraHandlerOption allows adding extra configuration to the HTTP handler.
+type ExtraHandlerOption func(*extraHandlerOpts)
+
+// WithLoginRateLimit configures the rate limit for the login endpoint.
+func WithLoginRateLimit(r throttled.Rate) ExtraHandlerOption {
+	return func(o *extraHandlerOpts) {
+		o.loginRateLimit = &r
+	}
+}
+
 // MakeHandler creates an HTTP handler for the Fleet server endpoints.
-func MakeHandler(svc fleet.Service, config config.FleetConfig, logger kitlog.Logger, limitStore throttled.GCRAStore) http.Handler {
+func MakeHandler(
+	svc fleet.Service,
+	config config.FleetConfig,
+	logger kitlog.Logger,
+	limitStore throttled.GCRAStore,
+	extra ...ExtraHandlerOption,
+) http.Handler {
+	var eopts extraHandlerOpts
+	for _, fn := range extra {
+		fn(&eopts)
+	}
+
 	fleetAPIOptions := []kithttp.ServerOption{
 		kithttp.ServerBefore(
 			kithttp.PopulateRequestContext, // populate the request context with common fields
 			setRequestsContexts(svc),
 		),
 		kithttp.ServerErrorHandler(&errorHandler{logger}),
-		kithttp.ServerErrorEncoder(encodeError),
+		kithttp.ServerErrorEncoder(encodeErrorAndTrySentry(config.Sentry.Dsn != "")),
 		kithttp.ServerAfter(
 			kithttp.SetContentType("application/json; charset=utf-8"),
 			logRequestEnd(logger),
@@ -384,28 +116,33 @@ func MakeHandler(svc fleet.Service, config config.FleetConfig, logger kitlog.Log
 		),
 	}
 
-	fleetEndpoints := MakeFleetServerEndpoints(svc, config.Server.URLPrefix, limitStore, logger)
-	fleetHandlers := makeKitHandlers(fleetEndpoints, fleetAPIOptions)
-
 	r := mux.NewRouter()
+	if config.Logging.TracingEnabled && config.Logging.TracingType == "opentelemetry" {
+		r.Use(otmiddleware.Middleware("fleet"))
+	}
 
-	attachFleetAPIRoutes(r, fleetHandlers)
-	attachNewStyleFleetAPIRoutes(r, svc, fleetAPIOptions)
+	r.Use(publicIP)
 
-	// Results endpoint is handled different due to websockets use
-	r.PathPrefix("/api/v1/fleet/results/").
-		Handler(makeStreamDistributedQueryCampaignResultsHandler(svc, logger)).
-		Name("distributed_query_results")
-
+	attachFleetAPIRoutes(r, svc, config, logger, limitStore, fleetAPIOptions, eopts)
 	addMetrics(r)
 
 	return r
 }
 
-// InstrumentHandler wraps the provided handler with prometheus metrics
+func publicIP(handler http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		ip := extractIP(r)
+		if ip != "" {
+			r.RemoteAddr = ip
+		}
+		handler.ServeHTTP(w, r.WithContext(publicip.NewContext(r.Context(), ip)))
+	})
+}
+
+// PrometheusMetricsHandler wraps the provided handler with prometheus metrics
 // middleware and returns the resulting handler that should be mounted for that
 // route.
-func InstrumentHandler(name string, handler http.Handler) http.Handler {
+func PrometheusMetricsHandler(name string, handler http.Handler) http.Handler {
 	reg := prometheus.DefaultRegisterer
 	registerOrExisting := func(coll prometheus.Collector) prometheus.Collector {
 		if err := reg.Register(coll); err != nil {
@@ -476,178 +213,263 @@ func InstrumentHandler(name string, handler http.Handler) http.Handler {
 // addMetrics decorates each handler with prometheus instrumentation
 func addMetrics(r *mux.Router) {
 	walkFn := func(route *mux.Route, router *mux.Router, ancestors []*mux.Route) error {
-		route.Handler(InstrumentHandler(route.GetName(), route.GetHandler()))
+		route.Handler(PrometheusMetricsHandler(route.GetName(), route.GetHandler()))
 		return nil
 	}
 	r.Walk(walkFn)
 }
 
-func attachFleetAPIRoutes(r *mux.Router, h *fleetHandlers) {
-	r.Handle("/api/v1/fleet/login", h.Login).Methods("POST").Name("login")
-	r.Handle("/api/v1/fleet/logout", h.Logout).Methods("POST").Name("logout")
-	r.Handle("/api/v1/fleet/forgot_password", h.ForgotPassword).Methods("POST").Name("forgot_password")
-	r.Handle("/api/v1/fleet/reset_password", h.ResetPassword).Methods("POST").Name("reset_password")
-	r.Handle("/api/v1/fleet/me", h.Me).Methods("GET").Name("me")
-	r.Handle("/api/v1/fleet/change_password", h.ChangePassword).Methods("POST").Name("change_password")
-	r.Handle("/api/v1/fleet/perform_required_password_reset", h.PerformRequiredPasswordReset).Methods("POST").Name("perform_required_password_reset")
-	r.Handle("/api/v1/fleet/sso", h.InitiateSSO).Methods("POST").Name("intiate_sso")
-	r.Handle("/api/v1/fleet/sso", h.SettingsSSO).Methods("GET").Name("sso_config")
-	r.Handle("/api/v1/fleet/sso/callback", h.CallbackSSO).Methods("POST").Name("callback_sso")
-	r.Handle("/api/v1/fleet/users", h.ListUsers).Methods("GET").Name("list_users")
-	r.Handle("/api/v1/fleet/users", h.CreateUserWithInvite).Methods("POST").Name("create_user_with_invite")
-	r.Handle("/api/v1/fleet/users/admin", h.CreateUser).Methods("POST").Name("create_user")
-	r.Handle("/api/v1/fleet/users/{id:[0-9]+}", h.GetUser).Methods("GET").Name("get_user")
-	r.Handle("/api/v1/fleet/users/{id:[0-9]+}", h.ModifyUser).Methods("PATCH").Name("modify_user")
-	r.Handle("/api/v1/fleet/users/{id:[0-9]+}", h.DeleteUser).Methods("DELETE").Name("delete_user")
-	r.Handle("/api/v1/fleet/users/{id:[0-9]+}/require_password_reset", h.RequirePasswordReset).Methods("POST").Name("require_password_reset")
-	r.Handle("/api/v1/fleet/users/{id:[0-9]+}/sessions", h.GetSessionsForUserInfo).Methods("GET").Name("get_session_for_user")
-	r.Handle("/api/v1/fleet/users/{id:[0-9]+}/sessions", h.DeleteSessionsForUser).Methods("DELETE").Name("delete_session_for_user")
+func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetConfig,
+	logger kitlog.Logger, limitStore throttled.GCRAStore, opts []kithttp.ServerOption,
+	extra extraHandlerOpts,
+) {
+	apiVersions := []string{"v1", "2022-04"}
 
-	r.Handle("/api/v1/fleet/sessions/{id:[0-9]+}", h.GetSessionInfo).Methods("GET").Name("get_session_info")
-	r.Handle("/api/v1/fleet/sessions/{id:[0-9]+}", h.DeleteSession).Methods("DELETE").Name("delete_session")
+	// user-authenticated endpoints
+	ue := newUserAuthenticatedEndpointer(svc, opts, r, apiVersions...)
 
-	r.Handle("/api/v1/fleet/config/certificate", h.GetCertificate).Methods("GET").Name("get_certificate")
-	r.Handle("/api/v1/fleet/config", h.GetAppConfig).Methods("GET").Name("get_app_config")
-	r.Handle("/api/v1/fleet/config", h.ModifyAppConfig).Methods("PATCH").Name("modify_app_config")
-	r.Handle("/api/v1/fleet/spec/enroll_secret", h.ApplyEnrollSecretSpec).Methods("POST").Name("apply_enroll_secret_spec")
-	r.Handle("/api/v1/fleet/spec/enroll_secret", h.GetEnrollSecretSpec).Methods("GET").Name("get_enroll_secret_spec")
-	r.Handle("/api/v1/fleet/invites", h.CreateInvite).Methods("POST").Name("create_invite")
-	r.Handle("/api/v1/fleet/invites", h.ListInvites).Methods("GET").Name("list_invites")
-	r.Handle("/api/v1/fleet/invites/{id:[0-9]+}", h.DeleteInvite).Methods("DELETE").Name("delete_invite")
-	r.Handle("/api/v1/fleet/invites/{token}", h.VerifyInvite).Methods("GET").Name("verify_invite")
+	ue.GET("/api/_version_/fleet/me", meEndpoint, nil)
+	ue.GET("/api/_version_/fleet/sessions/{id:[0-9]+}", getInfoAboutSessionEndpoint, getInfoAboutSessionRequest{})
+	ue.DELETE("/api/_version_/fleet/sessions/{id:[0-9]+}", deleteSessionEndpoint, deleteSessionRequest{})
 
-	r.Handle("/api/v1/fleet/email/change/{token}", h.ChangeEmail).Methods("GET").Name("change_email")
+	ue.GET("/api/_version_/fleet/config/certificate", getCertificateEndpoint, nil)
+	ue.GET("/api/_version_/fleet/config", getAppConfigEndpoint, nil)
+	ue.PATCH("/api/_version_/fleet/config", modifyAppConfigEndpoint, modifyAppConfigRequest{})
+	ue.POST("/api/_version_/fleet/spec/enroll_secret", applyEnrollSecretSpecEndpoint, applyEnrollSecretSpecRequest{})
+	ue.GET("/api/_version_/fleet/spec/enroll_secret", getEnrollSecretSpecEndpoint, nil)
+	ue.GET("/api/_version_/fleet/version", versionEndpoint, nil)
 
-	r.Handle("/api/v1/fleet/queries/{id:[0-9]+}", h.GetQuery).Methods("GET").Name("get_query")
-	r.Handle("/api/v1/fleet/queries", h.ListQueries).Methods("GET").Name("list_queries")
-	r.Handle("/api/v1/fleet/queries", h.CreateQuery).Methods("POST").Name("create_query")
-	r.Handle("/api/v1/fleet/queries/{id:[0-9]+}", h.ModifyQuery).Methods("PATCH").Name("modify_query")
-	r.Handle("/api/v1/fleet/queries/{name}", h.DeleteQuery).Methods("DELETE").Name("delete_query")
-	r.Handle("/api/v1/fleet/queries/id/{id:[0-9]+}", h.DeleteQueryByID).Methods("DELETE").Name("delete_query_by_id")
-	r.Handle("/api/v1/fleet/queries/delete", h.DeleteQueries).Methods("POST").Name("delete_queries")
-	r.Handle("/api/v1/fleet/spec/queries", h.ApplyQuerySpecs).Methods("POST").Name("apply_query_specs")
-	r.Handle("/api/v1/fleet/spec/queries", h.GetQuerySpecs).Methods("GET").Name("get_query_specs")
-	r.Handle("/api/v1/fleet/spec/queries/{name}", h.GetQuerySpec).Methods("GET").Name("get_query_spec")
-	r.Handle("/api/v1/fleet/queries/run", h.CreateDistributedQueryCampaign).Methods("POST").Name("create_distributed_query_campaign")
-	r.Handle("/api/v1/fleet/queries/run_by_names", h.CreateDistributedQueryCampaignByNames).Methods("POST").Name("create_distributed_query_campaign_by_names")
+	ue.POST("/api/_version_/fleet/users/roles/spec", applyUserRoleSpecsEndpoint, applyUserRoleSpecsRequest{})
+	ue.POST("/api/_version_/fleet/translate", translatorEndpoint, translatorRequest{})
+	ue.POST("/api/_version_/fleet/spec/teams", applyTeamSpecsEndpoint, applyTeamSpecsRequest{})
+	ue.PATCH("/api/_version_/fleet/teams/{team_id:[0-9]+}/secrets", modifyTeamEnrollSecretsEndpoint, modifyTeamEnrollSecretsRequest{})
+	ue.POST("/api/_version_/fleet/teams", createTeamEndpoint, createTeamRequest{})
+	ue.GET("/api/_version_/fleet/teams", listTeamsEndpoint, listTeamsRequest{})
+	ue.GET("/api/_version_/fleet/teams/{id:[0-9]+}", getTeamEndpoint, getTeamRequest{})
+	ue.PATCH("/api/_version_/fleet/teams/{id:[0-9]+}", modifyTeamEndpoint, modifyTeamRequest{})
+	ue.DELETE("/api/_version_/fleet/teams/{id:[0-9]+}", deleteTeamEndpoint, deleteTeamRequest{})
+	ue.POST("/api/_version_/fleet/teams/{id:[0-9]+}/agent_options", modifyTeamAgentOptionsEndpoint, modifyTeamAgentOptionsRequest{})
+	ue.GET("/api/_version_/fleet/teams/{id:[0-9]+}/users", listTeamUsersEndpoint, listTeamUsersRequest{})
+	ue.PATCH("/api/_version_/fleet/teams/{id:[0-9]+}/users", addTeamUsersEndpoint, modifyTeamUsersRequest{})
+	ue.DELETE("/api/_version_/fleet/teams/{id:[0-9]+}/users", deleteTeamUsersEndpoint, modifyTeamUsersRequest{})
+	ue.GET("/api/_version_/fleet/teams/{id:[0-9]+}/secrets", teamEnrollSecretsEndpoint, teamEnrollSecretsRequest{})
 
-	r.Handle("/api/v1/fleet/targets", h.SearchTargets).Methods("POST").Name("search_targets")
+	ue.GET("/api/_version_/fleet/users", listUsersEndpoint, listUsersRequest{})
+	ue.POST("/api/_version_/fleet/users/admin", createUserEndpoint, createUserRequest{})
+	ue.GET("/api/_version_/fleet/users/{id:[0-9]+}", getUserEndpoint, getUserRequest{})
+	ue.PATCH("/api/_version_/fleet/users/{id:[0-9]+}", modifyUserEndpoint, modifyUserRequest{})
+	ue.DELETE("/api/_version_/fleet/users/{id:[0-9]+}", deleteUserEndpoint, deleteUserRequest{})
+	ue.POST("/api/_version_/fleet/users/{id:[0-9]+}/require_password_reset", requirePasswordResetEndpoint, requirePasswordResetRequest{})
+	ue.GET("/api/_version_/fleet/users/{id:[0-9]+}/sessions", getInfoAboutSessionsForUserEndpoint, getInfoAboutSessionsForUserRequest{})
+	ue.DELETE("/api/_version_/fleet/users/{id:[0-9]+}/sessions", deleteSessionsForUserEndpoint, deleteSessionsForUserRequest{})
+	ue.POST("/api/_version_/fleet/change_password", changePasswordEndpoint, changePasswordRequest{})
 
-	r.Handle("/api/v1/fleet/version", h.Version).Methods("GET").Name("version")
+	ue.GET("/api/_version_/fleet/email/change/{token}", changeEmailEndpoint, changeEmailRequest{})
+	// TODO: searchTargetsEndpoint will be removed in Fleet 5.0
+	ue.POST("/api/_version_/fleet/targets", searchTargetsEndpoint, searchTargetsRequest{})
+	ue.POST("/api/_version_/fleet/targets/count", countTargetsEndpoint, countTargetsRequest{})
 
-	r.Handle("/api/v1/fleet/status/result_store", h.StatusResultStore).Methods("GET").Name("status_result_store")
-	r.Handle("/api/v1/fleet/status/live_query", h.StatusLiveQuery).Methods("GET").Name("status_live_query")
+	ue.POST("/api/_version_/fleet/invites", createInviteEndpoint, createInviteRequest{})
+	ue.GET("/api/_version_/fleet/invites", listInvitesEndpoint, listInvitesRequest{})
+	ue.DELETE("/api/_version_/fleet/invites/{id:[0-9]+}", deleteInviteEndpoint, deleteInviteRequest{})
+	ue.PATCH("/api/_version_/fleet/invites/{id:[0-9]+}", updateInviteEndpoint, updateInviteRequest{})
 
-	r.Handle("/api/v1/fleet/teams", h.CreateTeam).Methods("POST").Name("create_team")
-	r.Handle("/api/v1/fleet/teams", h.ListTeams).Methods("GET").Name("list_teams")
-	r.Handle("/api/v1/fleet/teams/{id:[0-9]+}", h.ModifyTeam).Methods("PATCH").Name("modify_team")
-	r.Handle("/api/v1/fleet/teams/{id:[0-9]+}", h.DeleteTeam).Methods("DELETE").Name("delete_team")
-	r.Handle("/api/v1/fleet/teams/{id:[0-9]+}/agent_options", h.ModifyTeamAgentOptions).Methods("POST").Name("modify_team_agent_options")
-	r.Handle("/api/v1/fleet/teams/{id:[0-9]+}/users", h.ListTeamUsers).Methods("GET").Name("team_users")
-	r.Handle("/api/v1/fleet/teams/{id:[0-9]+}/users", h.AddTeamUsers).Methods("PATCH").Name("add_team_users")
-	r.Handle("/api/v1/fleet/teams/{id:[0-9]+}/users", h.DeleteTeamUsers).Methods("DELETE").Name("delete_team_users")
-	r.Handle("/api/v1/fleet/teams/{id:[0-9]+}/secrets", h.TeamEnrollSecrets).Methods("GET").Name("get_team_enroll_secrets")
-	r.Handle("/api/v1/osquery/enroll", h.EnrollAgent).Methods("POST").Name("enroll_agent")
-	r.Handle("/api/v1/osquery/config", h.GetClientConfig).Methods("POST").Name("get_client_config")
-	r.Handle("/api/v1/osquery/distributed/read", h.GetDistributedQueries).Methods("POST").Name("get_distributed_queries")
-	r.Handle("/api/v1/osquery/distributed/write", h.SubmitDistributedQueryResults).Methods("POST").Name("submit_distributed_query_results")
-	r.Handle("/api/v1/osquery/log", h.SubmitLogs).Methods("POST").Name("submit_logs")
-	r.Handle("/api/v1/osquery/carve/begin", h.CarveBegin).Methods("POST").Name("carve_begin")
-	r.Handle("/api/v1/osquery/carve/block", h.CarveBlock).Methods("POST").Name("carve_block")
-}
-
-func attachNewStyleFleetAPIRoutes(r *mux.Router, svc fleet.Service, opts []kithttp.ServerOption) {
-	e := NewUserAuthenticatedEndpointer(svc, opts, r, "v1")
-
-	e.POST("/api/_version_/fleet/users/roles/spec", applyUserRoleSpecsEndpoint, applyUserRoleSpecsRequest{})
-	e.POST("/api/_version_/fleet/translate", translatorEndpoint, translatorRequest{})
-	e.POST("/api/_version_/fleet/spec/teams", applyTeamSpecsEndpoint, applyTeamSpecsRequest{})
-	e.PATCH("/api/_version_/fleet/teams/{team_id:[0-9]+}/secrets", modifyTeamEnrollSecretsEndpoint, modifyTeamEnrollSecretsRequest{})
+	ue.EndingAtVersion("v1").POST("/api/_version_/fleet/global/policies", globalPolicyEndpoint, globalPolicyRequest{})
+	ue.StartingAtVersion("2022-04").POST("/api/_version_/fleet/policies", globalPolicyEndpoint, globalPolicyRequest{})
+	ue.EndingAtVersion("v1").GET("/api/_version_/fleet/global/policies", listGlobalPoliciesEndpoint, nil)
+	ue.StartingAtVersion("2022-04").GET("/api/_version_/fleet/policies", listGlobalPoliciesEndpoint, nil)
+	ue.EndingAtVersion("v1").GET("/api/_version_/fleet/global/policies/{policy_id}", getPolicyByIDEndpoint, getPolicyByIDRequest{})
+	ue.StartingAtVersion("2022-04").GET("/api/_version_/fleet/policies/{policy_id}", getPolicyByIDEndpoint, getPolicyByIDRequest{})
+	ue.EndingAtVersion("v1").POST("/api/_version_/fleet/global/policies/delete", deleteGlobalPoliciesEndpoint, deleteGlobalPoliciesRequest{})
+	ue.StartingAtVersion("2022-04").POST("/api/_version_/fleet/policies/delete", deleteGlobalPoliciesEndpoint, deleteGlobalPoliciesRequest{})
+	ue.EndingAtVersion("v1").PATCH("/api/_version_/fleet/global/policies/{policy_id}", modifyGlobalPolicyEndpoint, modifyGlobalPolicyRequest{})
+	ue.StartingAtVersion("2022-04").PATCH("/api/_version_/fleet/policies/{policy_id}", modifyGlobalPolicyEndpoint, modifyGlobalPolicyRequest{})
 
 	// Alias /api/_version_/fleet/team/ -> /api/_version_/fleet/teams/
-	e.WithAltPaths("/api/_version_/fleet/team/{team_id}/schedule").GET("/api/_version_/fleet/teams/{team_id}/schedule", getTeamScheduleEndpoint, getTeamScheduleRequest{})
-	e.WithAltPaths("/api/_version_/fleet/team/{team_id}/schedule").POST("/api/_version_/fleet/teams/{team_id}/schedule", teamScheduleQueryEndpoint, teamScheduleQueryRequest{})
-	e.WithAltPaths("/api/_version_/fleet/team/{team_id}/schedule/{scheduled_query_id}").PATCH("/api/_version_/fleet/teams/{team_id}/schedule/{scheduled_query_id}", modifyTeamScheduleEndpoint, modifyTeamScheduleRequest{})
-	e.WithAltPaths("/api/_version_/fleet/team/{team_id}/schedule/{scheduled_query_id}").DELETE("/api/_version_/fleet/teams/{team_id}/schedule/{scheduled_query_id}", deleteTeamScheduleEndpoint, deleteTeamScheduleRequest{})
+	ue.WithAltPaths("/api/_version_/fleet/team/{team_id}/policies").
+		POST("/api/_version_/fleet/teams/{team_id}/policies", teamPolicyEndpoint, teamPolicyRequest{})
+	ue.WithAltPaths("/api/_version_/fleet/team/{team_id}/policies").
+		GET("/api/_version_/fleet/teams/{team_id}/policies", listTeamPoliciesEndpoint, listTeamPoliciesRequest{})
+	ue.WithAltPaths("/api/_version_/fleet/team/{team_id}/policies/{policy_id}").
+		GET("/api/_version_/fleet/teams/{team_id}/policies/{policy_id}", getTeamPolicyByIDEndpoint, getTeamPolicyByIDRequest{})
+	ue.WithAltPaths("/api/_version_/fleet/team/{team_id}/policies/delete").
+		POST("/api/_version_/fleet/teams/{team_id}/policies/delete", deleteTeamPoliciesEndpoint, deleteTeamPoliciesRequest{})
+	ue.PATCH("/api/_version_/fleet/teams/{team_id}/policies/{policy_id}", modifyTeamPolicyEndpoint, modifyTeamPolicyRequest{})
+	ue.POST("/api/_version_/fleet/spec/policies", applyPolicySpecsEndpoint, applyPolicySpecsRequest{})
 
-	e.POST("/api/_version_/fleet/global/policies", globalPolicyEndpoint, globalPolicyRequest{})
-	e.GET("/api/_version_/fleet/global/policies", listGlobalPoliciesEndpoint, nil)
-	e.GET("/api/_version_/fleet/global/policies/{policy_id}", getPolicyByIDEndpoint, getPolicyByIDRequest{})
-	e.POST("/api/_version_/fleet/global/policies/delete", deleteGlobalPoliciesEndpoint, deleteGlobalPoliciesRequest{})
-	e.PATCH("/api/_version_/fleet/global/policies/{policy_id}", modifyGlobalPolicyEndpoint, modifyGlobalPolicyRequest{})
+	ue.GET("/api/_version_/fleet/queries/{id:[0-9]+}", getQueryEndpoint, getQueryRequest{})
+	ue.GET("/api/_version_/fleet/queries", listQueriesEndpoint, listQueriesRequest{})
+	ue.POST("/api/_version_/fleet/queries", createQueryEndpoint, createQueryRequest{})
+	ue.PATCH("/api/_version_/fleet/queries/{id:[0-9]+}", modifyQueryEndpoint, modifyQueryRequest{})
+	ue.DELETE("/api/_version_/fleet/queries/{name}", deleteQueryEndpoint, deleteQueryRequest{})
+	ue.DELETE("/api/_version_/fleet/queries/id/{id:[0-9]+}", deleteQueryByIDEndpoint, deleteQueryByIDRequest{})
+	ue.POST("/api/_version_/fleet/queries/delete", deleteQueriesEndpoint, deleteQueriesRequest{})
+	ue.POST("/api/_version_/fleet/spec/queries", applyQuerySpecsEndpoint, applyQuerySpecsRequest{})
+	ue.GET("/api/_version_/fleet/spec/queries", getQuerySpecsEndpoint, nil)
+	ue.GET("/api/_version_/fleet/spec/queries/{name}", getQuerySpecEndpoint, getGenericSpecRequest{})
+
+	ue.GET("/api/_version_/fleet/packs/{id:[0-9]+}", getPackEndpoint, getPackRequest{})
+	ue.POST("/api/_version_/fleet/packs", createPackEndpoint, createPackRequest{})
+	ue.PATCH("/api/_version_/fleet/packs/{id:[0-9]+}", modifyPackEndpoint, modifyPackRequest{})
+	ue.GET("/api/_version_/fleet/packs", listPacksEndpoint, listPacksRequest{})
+	ue.DELETE("/api/_version_/fleet/packs/{name}", deletePackEndpoint, deletePackRequest{})
+	ue.DELETE("/api/_version_/fleet/packs/id/{id:[0-9]+}", deletePackByIDEndpoint, deletePackByIDRequest{})
+	ue.POST("/api/_version_/fleet/spec/packs", applyPackSpecsEndpoint, applyPackSpecsRequest{})
+	ue.GET("/api/_version_/fleet/spec/packs", getPackSpecsEndpoint, nil)
+	ue.GET("/api/_version_/fleet/spec/packs/{name}", getPackSpecEndpoint, getGenericSpecRequest{})
+
+	ue.GET("/api/_version_/fleet/software", listSoftwareEndpoint, listSoftwareRequest{})
+	ue.GET("/api/_version_/fleet/software/{id:[0-9]+}", getSoftwareEndpoint, getSoftwareRequest{})
+	ue.GET("/api/_version_/fleet/software/count", countSoftwareEndpoint, countSoftwareRequest{})
+
+	ue.GET("/api/_version_/fleet/host_summary", getHostSummaryEndpoint, getHostSummaryRequest{})
+	ue.GET("/api/_version_/fleet/hosts", listHostsEndpoint, listHostsRequest{})
+	ue.POST("/api/_version_/fleet/hosts/delete", deleteHostsEndpoint, deleteHostsRequest{})
+	ue.GET("/api/_version_/fleet/hosts/{id:[0-9]+}", getHostEndpoint, getHostRequest{})
+	ue.GET("/api/_version_/fleet/hosts/count", countHostsEndpoint, countHostsRequest{})
+	ue.POST("/api/_version_/fleet/hosts/search", searchHostsEndpoint, searchHostsRequest{})
+	ue.GET("/api/_version_/fleet/hosts/identifier/{identifier}", hostByIdentifierEndpoint, hostByIdentifierRequest{})
+	ue.DELETE("/api/_version_/fleet/hosts/{id:[0-9]+}", deleteHostEndpoint, deleteHostRequest{})
+	ue.POST("/api/_version_/fleet/hosts/transfer", addHostsToTeamEndpoint, addHostsToTeamRequest{})
+	ue.POST("/api/_version_/fleet/hosts/transfer/filter", addHostsToTeamByFilterEndpoint, addHostsToTeamByFilterRequest{})
+	ue.POST("/api/_version_/fleet/hosts/{id:[0-9]+}/refetch", refetchHostEndpoint, refetchHostRequest{})
+	ue.GET("/api/_version_/fleet/hosts/{id:[0-9]+}/device_mapping", listHostDeviceMappingEndpoint, listHostDeviceMappingRequest{})
+	ue.GET("/api/_version_/fleet/hosts/report", hostsReportEndpoint, hostsReportRequest{})
+	ue.GET("/api/_version_/fleet/os_versions", osVersionsEndpoint, osVersionsRequest{})
+
+	ue.POST("/api/_version_/fleet/labels", createLabelEndpoint, createLabelRequest{})
+	ue.PATCH("/api/_version_/fleet/labels/{id:[0-9]+}", modifyLabelEndpoint, modifyLabelRequest{})
+	ue.GET("/api/_version_/fleet/labels/{id:[0-9]+}", getLabelEndpoint, getLabelRequest{})
+	ue.GET("/api/_version_/fleet/labels", listLabelsEndpoint, listLabelsRequest{})
+	ue.GET("/api/_version_/fleet/labels/summary", getLabelsSummaryEndpoint, nil)
+	ue.GET("/api/_version_/fleet/labels/{id:[0-9]+}/hosts", listHostsInLabelEndpoint, listHostsInLabelRequest{})
+	ue.DELETE("/api/_version_/fleet/labels/{name}", deleteLabelEndpoint, deleteLabelRequest{})
+	ue.DELETE("/api/_version_/fleet/labels/id/{id:[0-9]+}", deleteLabelByIDEndpoint, deleteLabelByIDRequest{})
+	ue.POST("/api/_version_/fleet/spec/labels", applyLabelSpecsEndpoint, applyLabelSpecsRequest{})
+	ue.GET("/api/_version_/fleet/spec/labels", getLabelSpecsEndpoint, nil)
+	ue.GET("/api/_version_/fleet/spec/labels/{name}", getLabelSpecEndpoint, getGenericSpecRequest{})
+
+	ue.GET("/api/_version_/fleet/queries/run", runLiveQueryEndpoint, runLiveQueryRequest{})
+	ue.POST("/api/_version_/fleet/queries/run", createDistributedQueryCampaignEndpoint, createDistributedQueryCampaignRequest{})
+	ue.POST("/api/_version_/fleet/queries/run_by_names", createDistributedQueryCampaignByNamesEndpoint, createDistributedQueryCampaignByNamesRequest{})
+
+	ue.GET("/api/_version_/fleet/activities", listActivitiesEndpoint, listActivitiesRequest{})
+
+	ue.GET("/api/_version_/fleet/packs/{id:[0-9]+}/scheduled", getScheduledQueriesInPackEndpoint, getScheduledQueriesInPackRequest{})
+	ue.EndingAtVersion("v1").POST("/api/_version_/fleet/schedule", scheduleQueryEndpoint, scheduleQueryRequest{})
+	ue.StartingAtVersion("2022-04").POST("/api/_version_/fleet/packs/schedule", scheduleQueryEndpoint, scheduleQueryRequest{})
+	ue.GET("/api/_version_/fleet/schedule/{id:[0-9]+}", getScheduledQueryEndpoint, getScheduledQueryRequest{})
+	ue.EndingAtVersion("v1").PATCH("/api/_version_/fleet/schedule/{id:[0-9]+}", modifyScheduledQueryEndpoint, modifyScheduledQueryRequest{})
+	ue.StartingAtVersion("2022-04").PATCH("/api/_version_/fleet/packs/schedule/{id:[0-9]+}", modifyScheduledQueryEndpoint, modifyScheduledQueryRequest{})
+	ue.EndingAtVersion("v1").DELETE("/api/_version_/fleet/schedule/{id:[0-9]+}", deleteScheduledQueryEndpoint, deleteScheduledQueryRequest{})
+	ue.StartingAtVersion("2022-04").DELETE("/api/_version_/fleet/packs/schedule/{id:[0-9]+}", deleteScheduledQueryEndpoint, deleteScheduledQueryRequest{})
+
+	ue.EndingAtVersion("v1").GET("/api/_version_/fleet/global/schedule", getGlobalScheduleEndpoint, getGlobalScheduleRequest{})
+	ue.StartingAtVersion("2022-04").GET("/api/_version_/fleet/schedule", getGlobalScheduleEndpoint, getGlobalScheduleRequest{})
+	ue.EndingAtVersion("v1").POST("/api/_version_/fleet/global/schedule", globalScheduleQueryEndpoint, globalScheduleQueryRequest{})
+	ue.StartingAtVersion("2022-04").POST("/api/_version_/fleet/schedule", globalScheduleQueryEndpoint, globalScheduleQueryRequest{})
+	ue.EndingAtVersion("v1").PATCH("/api/_version_/fleet/global/schedule/{id:[0-9]+}", modifyGlobalScheduleEndpoint, modifyGlobalScheduleRequest{})
+	ue.StartingAtVersion("2022-04").PATCH("/api/_version_/fleet/schedule/{id:[0-9]+}", modifyGlobalScheduleEndpoint, modifyGlobalScheduleRequest{})
+	ue.EndingAtVersion("v1").DELETE("/api/_version_/fleet/global/schedule/{id:[0-9]+}", deleteGlobalScheduleEndpoint, deleteGlobalScheduleRequest{})
+	ue.StartingAtVersion("2022-04").DELETE("/api/_version_/fleet/schedule/{id:[0-9]+}", deleteGlobalScheduleEndpoint, deleteGlobalScheduleRequest{})
 
 	// Alias /api/_version_/fleet/team/ -> /api/_version_/fleet/teams/
-	e.WithAltPaths("/api/_version_/fleet/team/{team_id}/policies").POST("/api/_version_/fleet/teams/{team_id}/policies", teamPolicyEndpoint, teamPolicyRequest{})
-	e.WithAltPaths("/api/_version_/fleet/team/{team_id}/policies").GET("/api/_version_/fleet/teams/{team_id}/policies", listTeamPoliciesEndpoint, listTeamPoliciesRequest{})
-	e.WithAltPaths("/api/_version_/fleet/team/{team_id}/policies/{policy_id}").GET("/api/_version_/fleet/teams/{team_id}/policies/{policy_id}", getTeamPolicyByIDEndpoint, getTeamPolicyByIDRequest{})
-	e.WithAltPaths("/api/_version_/fleet/team/{team_id}/policies/delete").POST("/api/_version_/fleet/teams/{team_id}/policies/delete", deleteTeamPoliciesEndpoint, deleteTeamPoliciesRequest{})
+	ue.WithAltPaths("/api/_version_/fleet/team/{team_id}/schedule").
+		GET("/api/_version_/fleet/teams/{team_id}/schedule", getTeamScheduleEndpoint, getTeamScheduleRequest{})
+	ue.WithAltPaths("/api/_version_/fleet/team/{team_id}/schedule").
+		POST("/api/_version_/fleet/teams/{team_id}/schedule", teamScheduleQueryEndpoint, teamScheduleQueryRequest{})
+	ue.WithAltPaths("/api/_version_/fleet/team/{team_id}/schedule/{scheduled_query_id}").
+		PATCH("/api/_version_/fleet/teams/{team_id}/schedule/{scheduled_query_id}", modifyTeamScheduleEndpoint, modifyTeamScheduleRequest{})
+	ue.WithAltPaths("/api/_version_/fleet/team/{team_id}/schedule/{scheduled_query_id}").
+		DELETE("/api/_version_/fleet/teams/{team_id}/schedule/{scheduled_query_id}", deleteTeamScheduleEndpoint, deleteTeamScheduleRequest{})
 
-	e.PATCH("/api/_version_/fleet/teams/{team_id}/policies/{policy_id}", modifyTeamPolicyEndpoint, modifyTeamPolicyRequest{})
+	ue.GET("/api/_version_/fleet/carves", listCarvesEndpoint, listCarvesRequest{})
+	ue.GET("/api/_version_/fleet/carves/{id:[0-9]+}", getCarveEndpoint, getCarveRequest{})
+	ue.GET("/api/_version_/fleet/carves/{id:[0-9]+}/block/{block_id}", getCarveBlockEndpoint, getCarveBlockRequest{})
 
-	e.POST("/api/_version_/fleet/spec/policies", applyPolicySpecsEndpoint, applyPolicySpecsRequest{})
+	ue.GET("/api/_version_/fleet/hosts/{id:[0-9]+}/macadmins", getMacadminsDataEndpoint, getMacadminsDataRequest{})
+	ue.GET("/api/_version_/fleet/macadmins", getAggregatedMacadminsDataEndpoint, getAggregatedMacadminsDataRequest{})
 
-	e.GET("/api/_version_/fleet/packs/{id:[0-9]+}/scheduled", getScheduledQueriesInPackEndpoint, getScheduledQueriesInPackRequest{})
-	e.POST("/api/_version_/fleet/schedule", scheduleQueryEndpoint, scheduleQueryRequest{})
-	e.GET("/api/_version_/fleet/schedule/{id:[0-9]+}", getScheduledQueryEndpoint, getScheduledQueryRequest{})
-	e.PATCH("/api/_version_/fleet/schedule/{id:[0-9]+}", modifyScheduledQueryEndpoint, modifyScheduledQueryRequest{})
-	e.DELETE("/api/_version_/fleet/schedule/{id:[0-9]+}", deleteScheduledQueryEndpoint, deleteScheduledQueryRequest{})
+	ue.GET("/api/_version_/fleet/status/result_store", statusResultStoreEndpoint, nil)
+	ue.GET("/api/_version_/fleet/status/live_query", statusLiveQueryEndpoint, nil)
 
-	e.GET("/api/_version_/fleet/packs/{id:[0-9]+}", getPackEndpoint, getPackRequest{})
-	e.POST("/api/_version_/fleet/packs", createPackEndpoint, createPackRequest{})
-	e.PATCH("/api/_version_/fleet/packs/{id:[0-9]+}", modifyPackEndpoint, modifyPackRequest{})
-	e.GET("/api/_version_/fleet/packs", listPacksEndpoint, listPacksRequest{})
-	e.DELETE("/api/_version_/fleet/packs/{name}", deletePackEndpoint, deletePackRequest{})
-	e.DELETE("/api/_version_/fleet/packs/id/{id:[0-9]+}", deletePackByIDEndpoint, deletePackByIDRequest{})
-	e.POST("/api/_version_/fleet/spec/packs", applyPackSpecsEndpoint, applyPackSpecsRequest{})
-	e.GET("/api/_version_/fleet/spec/packs", getPackSpecsEndpoint, nil)
-	e.GET("/api/_version_/fleet/spec/packs/{name}", getPackSpecEndpoint, getGenericSpecRequest{})
+	// device-authenticated endpoints
+	de := newDeviceAuthenticatedEndpointer(svc, logger, opts, r, apiVersions...)
+	de.GET("/api/_version_/fleet/device/{token}", getDeviceHostEndpoint, getDeviceHostRequest{})
+	de.POST("/api/_version_/fleet/device/{token}/refetch", refetchDeviceHostEndpoint, refetchDeviceHostRequest{})
+	de.GET("/api/_version_/fleet/device/{token}/device_mapping", listDeviceHostDeviceMappingEndpoint, listDeviceHostDeviceMappingRequest{})
+	de.GET("/api/_version_/fleet/device/{token}/macadmins", getDeviceMacadminsDataEndpoint, getDeviceMacadminsDataRequest{})
+	de.GET("/api/_version_/fleet/device/{token}/policies", listDevicePoliciesEndpoint, listDevicePoliciesRequest{})
+	de.GET("/api/_version_/fleet/device/{token}/api_features", deviceAPIFeaturesEndpoint, deviceAPIFeaturesRequest{})
 
-	e.GET("/api/_version_/fleet/software", listSoftwareEndpoint, listSoftwareRequest{})
-	e.GET("/api/_version_/fleet/software/count", countSoftwareEndpoint, countSoftwareRequest{})
+	// host-authenticated endpoints
+	he := newHostAuthenticatedEndpointer(svc, logger, opts, r, apiVersions...)
 
-	e.GET("/api/_version_/fleet/host_summary", getHostSummaryEndpoint, getHostSummaryRequest{})
-	e.GET("/api/_version_/fleet/hosts", listHostsEndpoint, listHostsRequest{})
-	e.POST("/api/_version_/fleet/hosts/delete", deleteHostsEndpoint, deleteHostsRequest{})
-	e.GET("/api/_version_/fleet/hosts/{id:[0-9]+}", getHostEndpoint, getHostRequest{})
-	e.GET("/api/_version_/fleet/hosts/count", countHostsEndpoint, countHostsRequest{})
-	e.GET("/api/_version_/fleet/hosts/identifier/{identifier}", hostByIdentifierEndpoint, hostByIdentifierRequest{})
-	e.DELETE("/api/_version_/fleet/hosts/{id:[0-9]+}", deleteHostEndpoint, deleteHostRequest{})
-	e.POST("/api/_version_/fleet/hosts/transfer", addHostsToTeamEndpoint, addHostsToTeamRequest{})
-	e.POST("/api/_version_/fleet/hosts/transfer/filter", addHostsToTeamByFilterEndpoint, addHostsToTeamByFilterRequest{})
-	e.POST("/api/_version_/fleet/hosts/{id:[0-9]+}/refetch", refetchHostEndpoint, refetchHostRequest{})
-	e.GET("/api/_version_/fleet/hosts/{id:[0-9]+}/device_mapping", listHostDeviceMappingEndpoint, listHostDeviceMappingRequest{})
+	// Note that the /osquery/ endpoints are *not* versioned, i.e. there is no
+	// `_version_` placeholder in the path. This is deliberate, see
+	// https://github.com/fleetdm/fleet/pull/4731#discussion_r838931732 For now
+	// we add an alias to `/api/v1/osquery` so that it is backwards compatible,
+	// but even that `v1` is *not* part of the standard versioning, it will still
+	// work even after we remove support for the `v1` version for the rest of the
+	// API. This allows us to deprecate osquery endpoints separately.
+	he.WithAltPaths("/api/v1/osquery/config").
+		POST("/api/osquery/config", getClientConfigEndpoint, getClientConfigRequest{})
+	he.WithAltPaths("/api/v1/osquery/distributed/read").
+		POST("/api/osquery/distributed/read", getDistributedQueriesEndpoint, getDistributedQueriesRequest{})
+	he.WithAltPaths("/api/v1/osquery/distributed/write").
+		POST("/api/osquery/distributed/write", submitDistributedQueryResultsEndpoint, submitDistributedQueryResultsRequestShim{})
+	he.WithAltPaths("/api/v1/osquery/carve/begin").
+		POST("/api/osquery/carve/begin", carveBeginEndpoint, carveBeginRequest{})
+	he.WithAltPaths("/api/v1/osquery/log").
+		POST("/api/osquery/log", submitLogsEndpoint, submitLogsRequest{})
 
-	e.POST("/api/_version_/fleet/labels", createLabelEndpoint, createLabelRequest{})
-	e.PATCH("/api/_version_/fleet/labels/{id:[0-9]+}", modifyLabelEndpoint, modifyLabelRequest{})
-	e.GET("/api/_version_/fleet/labels/{id:[0-9]+}", getLabelEndpoint, getLabelRequest{})
-	e.GET("/api/_version_/fleet/labels", listLabelsEndpoint, listLabelsRequest{})
-	e.GET("/api/_version_/fleet/labels/{id:[0-9]+}/hosts", listHostsInLabelEndpoint, listHostsInLabelRequest{})
-	e.DELETE("/api/_version_/fleet/labels/{name}", deleteLabelEndpoint, deleteLabelRequest{})
-	e.DELETE("/api/_version_/fleet/labels/id/{id:[0-9]+}", deleteLabelByIDEndpoint, deleteLabelByIDRequest{})
-	e.POST("/api/_version_/fleet/spec/labels", applyLabelSpecsEndpoint, applyLabelSpecsRequest{})
-	e.GET("/api/_version_/fleet/spec/labels", getLabelSpecsEndpoint, nil)
-	e.GET("/api/_version_/fleet/spec/labels/{name}", getLabelSpecEndpoint, getGenericSpecRequest{})
+	// unauthenticated endpoints - most of those are either login-related,
+	// invite-related or host-enrolling. So they typically do some kind of
+	// one-time authentication by verifying that a valid secret token is provided
+	// with the request.
+	ne := newNoAuthEndpointer(svc, opts, r, apiVersions...)
+	ne.WithAltPaths("/api/v1/osquery/enroll").
+		POST("/api/osquery/enroll", enrollAgentEndpoint, enrollAgentRequest{})
 
-	e.GET("/api/_version_/fleet/queries/run", runLiveQueryEndpoint, runLiveQueryRequest{})
+	// For some reason osquery does not provide a node key with the block data.
+	// Instead the carve session ID should be verified in the service method.
+	ne.WithAltPaths("/api/v1/osquery/carve/block").
+		POST("/api/osquery/carve/block", carveBlockEndpoint, carveBlockRequest{})
 
-	e.PATCH("/api/_version_/fleet/invites/{id:[0-9]+}", updateInviteEndpoint, updateInviteRequest{})
+	ne.POST("/api/_version_/fleet/perform_required_password_reset", performRequiredPasswordResetEndpoint, performRequiredPasswordResetRequest{})
+	ne.POST("/api/_version_/fleet/users", createUserFromInviteEndpoint, createUserRequest{})
+	ne.GET("/api/_version_/fleet/invites/{token}", verifyInviteEndpoint, verifyInviteRequest{})
+	ne.POST("/api/_version_/fleet/reset_password", resetPasswordEndpoint, resetPasswordRequest{})
+	ne.POST("/api/_version_/fleet/logout", logoutEndpoint, nil)
+	ne.POST("/api/v1/fleet/sso", initiateSSOEndpoint, initiateSSORequest{})
+	ne.POST("/api/v1/fleet/sso/callback", makeCallbackSSOEndpoint(config.Server.URLPrefix), callbackSSORequest{})
+	ne.GET("/api/v1/fleet/sso", settingsSSOEndpoint, nil)
+	// the websocket distributed query results endpoint is a bit different - the
+	// provided path is a prefix, not an exact match, and it is not a go-kit
+	// endpoint but a raw http.Handler. It uses the NoAuthEndpointer because
+	// authentication is done when the websocket session is established, inside
+	// the handler.
+	ne.UsePathPrefix().PathHandler("GET", "/api/_version_/fleet/results/", makeStreamDistributedQueryCampaignResultsHandler(svc, logger))
 
-	e.GET("/api/_version_/fleet/activities", listActivitiesEndpoint, listActivitiesRequest{})
+	limiter := ratelimit.NewMiddleware(limitStore)
+	ne.
+		WithCustomMiddleware(limiter.Limit("forgot_password", throttled.RateQuota{MaxRate: throttled.PerHour(10), MaxBurst: 9})).
+		POST("/api/_version_/fleet/forgot_password", forgotPasswordEndpoint, forgotPasswordRequest{})
 
-	e.GET("/api/_version_/fleet/global/schedule", getGlobalScheduleEndpoint, getGlobalScheduleRequest{})
-	e.POST("/api/_version_/fleet/global/schedule", globalScheduleQueryEndpoint, globalScheduleQueryRequest{})
-	e.PATCH("/api/_version_/fleet/global/schedule/{id:[0-9]+}", modifyGlobalScheduleEndpoint, modifyGlobalScheduleRequest{})
-	e.DELETE("/api/_version_/fleet/global/schedule/{id:[0-9]+}", deleteGlobalScheduleEndpoint, deleteGlobalScheduleRequest{})
+	loginRateLimit := throttled.PerMin(10)
+	if extra.loginRateLimit != nil {
+		loginRateLimit = *extra.loginRateLimit
+	}
 
-	e.GET("/api/_version_/fleet/carves", listCarvesEndpoint, listCarvesRequest{})
-	e.GET("/api/_version_/fleet/carves/{id:[0-9]+}", getCarveEndpoint, getCarveRequest{})
-	e.GET("/api/_version_/fleet/carves/{id:[0-9]+}/block/{block_id}", getCarveBlockEndpoint, getCarveBlockRequest{})
-
-	e.GET("/api/_version_/fleet/hosts/{id:[0-9]+}/macadmins", getMacadminsDataEndpoint, getMacadminsDataRequest{})
+	ne.WithCustomMiddleware(limiter.Limit("login", throttled.RateQuota{MaxRate: loginRateLimit, MaxBurst: 9})).
+		POST("/api/_version_/fleet/login", loginEndpoint, loginRequest{})
 }
 
-// TODO: this duplicates the one in makeKitHandler
 func newServer(e endpoint.Endpoint, decodeFn kithttp.DecodeRequestFunc, opts []kithttp.ServerOption) http.Handler {
+	// TODO: some handlers don't have authz checks, and because the SkipAuth call is done only in the
+	// endpoint handler, any middleware that raises errors before the handler is reached will end up
+	// returning authz check missing instead of the more relevant error. Should be addressed as part
+	// of #4406.
 	e = authzcheck.NewMiddleware().AuthzCheck()(e)
 	return kithttp.NewServer(e, decodeFn, encodeResponse, opts...)
 }
@@ -656,15 +478,21 @@ func newServer(e endpoint.Endpoint, decodeFn kithttp.DecodeRequestFunc, opts []k
 // If setup hasn't been completed it serves the API with a setup middleware.
 // If the server is already configured, the default API handler is exposed.
 func WithSetup(svc fleet.Service, logger kitlog.Logger, next http.Handler) http.HandlerFunc {
+	rxOsquery := regexp.MustCompile(`^/api/[^/]+/osquery`)
 	return func(w http.ResponseWriter, r *http.Request) {
 		configRouter := http.NewServeMux()
-		configRouter.Handle("/api/v1/setup", kithttp.NewServer(
-			makeSetupEndpoint(svc),
+		srv := kithttp.NewServer(
+			makeSetupEndpoint(svc, logger),
 			decodeSetupRequest,
 			encodeResponse,
-		))
+		)
+		// NOTE: support setup on both /v1/ and version-less, in the future /v1/
+		// will be dropped.
+		configRouter.Handle("/api/v1/setup", srv)
+		configRouter.Handle("/api/setup", srv)
+
 		// whitelist osqueryd endpoints
-		if strings.HasPrefix(r.URL.Path, "/api/v1/osquery") {
+		if rxOsquery.MatchString(r.URL.Path) {
 			next.ServeHTTP(w, r)
 			return
 		}

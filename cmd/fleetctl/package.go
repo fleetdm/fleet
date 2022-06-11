@@ -1,10 +1,13 @@
 package main
 
 import (
+	"encoding/pem"
 	"errors"
 	"fmt"
+	"io/ioutil"
 	"path/filepath"
 	"runtime"
+	"time"
 
 	"github.com/fleetdm/fleet/v4/orbit/pkg/packaging"
 	"github.com/rs/zerolog"
@@ -13,7 +16,10 @@ import (
 	"github.com/urfave/cli/v2"
 )
 
-var opt packaging.Options
+var (
+	opt               packaging.Options
+	disableOpenFolder bool
+)
 
 func packageCommand() *cli.Command {
 	return &cli.Command{
@@ -39,7 +45,7 @@ func packageCommand() *cli.Command {
 			},
 			&cli.StringFlag{
 				Name:        "fleet-certificate",
-				Usage:       "Path to server cerificate bundle",
+				Usage:       "Path to server certificate chain",
 				Destination: &opt.FleetCertificate,
 			},
 			&cli.StringFlag{
@@ -51,7 +57,6 @@ func packageCommand() *cli.Command {
 			&cli.StringFlag{
 				Name:        "version",
 				Usage:       "Version for package product",
-				Value:       "0.0.5",
 				Destination: &opt.Version,
 			},
 			&cli.BoolFlag{
@@ -82,10 +87,21 @@ func packageCommand() *cli.Command {
 				Destination: &opt.OsquerydChannel,
 			},
 			&cli.StringFlag{
+				Name:        "desktop-channel",
+				Usage:       "Update channel of desktop to use",
+				Value:       "stable",
+				Destination: &opt.DesktopChannel,
+			},
+			&cli.StringFlag{
 				Name:        "orbit-channel",
 				Usage:       "Update channel of Orbit to use",
 				Value:       "stable",
 				Destination: &opt.OrbitChannel,
+			},
+			&cli.BoolFlag{
+				Name:        "disable-updates",
+				Usage:       "Disable auto updates on the generated package",
+				Destination: &opt.DisableUpdates,
 			},
 			&cli.StringFlag{
 				Name:        "update-url",
@@ -112,6 +128,22 @@ func packageCommand() *cli.Command {
 				Name:  "verbose",
 				Usage: "Log detailed information when building the package",
 			},
+			&cli.BoolFlag{
+				Name:        "fleet-desktop",
+				Usage:       "Include the Fleet Desktop Application in the package",
+				Destination: &opt.Desktop,
+			},
+			&cli.DurationFlag{
+				Name:        "update-interval",
+				Usage:       "Interval that Orbit will use to check for new updates (10s, 1h, etc.)",
+				Value:       15 * time.Minute,
+				Destination: &opt.OrbitUpdateInterval,
+			},
+			&cli.BoolFlag{
+				Name:        "disable-open-folder",
+				Usage:       "Disable opening the folder at the end",
+				Destination: &disableOpenFolder,
+			},
 		},
 		Action: func(c *cli.Context) error {
 			if opt.FleetURL != "" || opt.EnrollSecret != "" {
@@ -126,6 +158,13 @@ func packageCommand() *cli.Command {
 
 			if runtime.GOOS == "windows" && c.String("type") != "msi" {
 				return errors.New("Windows can only build MSI packages.")
+			}
+
+			if opt.FleetCertificate != "" {
+				err := checkPEMCertificate(opt.FleetCertificate)
+				if err != nil {
+					return fmt.Errorf("failed to read certificate %q: %w", opt.FleetCertificate, err)
+				}
 			}
 
 			var buildFunc func(packaging.Options) (string, error)
@@ -160,8 +199,21 @@ To add this device to Fleet, double-click to open your installer.
 
 To add other devices to Fleet, distribute this installer using Chef, Ansible, Jamf, or Puppet. Learn how: https://fleetdm.com/docs/using-fleet/adding-hosts
 `, path)
-			open.Start(filepath.Dir(path))
+			if !disableOpenFolder {
+				open.Start(filepath.Dir(path))
+			}
 			return nil
 		},
 	}
+}
+
+func checkPEMCertificate(path string) error {
+	cert, err := ioutil.ReadFile(path)
+	if err != nil {
+		return err
+	}
+	if p, _ := pem.Decode(cert); p == nil {
+		return errors.New("invalid PEM file")
+	}
+	return nil
 }

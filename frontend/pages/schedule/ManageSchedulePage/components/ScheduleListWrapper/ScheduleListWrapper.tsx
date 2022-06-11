@@ -1,17 +1,17 @@
 /**
  * Component when there is an error retrieving schedule set up in fleet
  */
-import React, { useCallback } from "react";
-import { useSelector, useDispatch } from "react-redux";
-import { push } from "react-router-redux";
+import React from "react";
+import { InjectedRouter } from "react-router";
 import paths from "router/paths";
 
 import Button from "components/buttons/Button";
-import { IGlobalScheduledQuery } from "interfaces/global_scheduled_query";
-import { ITeamScheduledQuery } from "interfaces/team_scheduled_query";
+import {
+  IScheduledQuery,
+  IEditScheduledQuery,
+} from "interfaces/scheduled_query";
+
 import { ITeam } from "interfaces/team";
-// @ts-ignore
-import globalScheduledQueryActions from "redux/nodes/entities/global_scheduled_queries/actions";
 
 import TableContainer from "components/TableContainer";
 import {
@@ -19,42 +19,31 @@ import {
   generateTableHeaders,
   generateDataSet,
 } from "./ScheduleTableConfig";
-// @ts-ignore
 import scheduleSvg from "../../../../../../assets/images/no-schedule-322x138@2x.png";
 
 const baseClass = "schedule-list-wrapper";
 const noScheduleClass = "no-schedule";
 
 const TAGGED_TEMPLATES = {
-  hostsByTeamPRoute: (teamId: number | undefined | null) => {
+  hostsByTeamRoute: (teamId: number | undefined | null) => {
     return `${teamId ? `/?team_id=${teamId}` : ""}`;
   },
 };
 interface IScheduleListWrapperProps {
+  router: InjectedRouter; // v3
   onRemoveScheduledQueryClick?: (selectIds: number[]) => void;
-  onEditScheduledQueryClick?: (
-    selectedQuery: IGlobalScheduledQuery | ITeamScheduledQuery
-  ) => void;
-  allScheduledQueriesList: IGlobalScheduledQuery[] | ITeamScheduledQuery[];
+  onEditScheduledQueryClick?: (selectedQuery: IEditScheduledQuery) => void;
+  allScheduledQueriesList: IScheduledQuery[];
   toggleScheduleEditorModal?: () => void;
   inheritedQueries?: boolean;
   isOnGlobalTeam: boolean;
   selectedTeamData: ITeam | undefined;
-}
-interface IRootState {
-  entities: {
-    global_scheduled_queries: {
-      isLoading: boolean;
-      data: IGlobalScheduledQuery[];
-    };
-    team_scheduled_queries: {
-      isLoading: boolean;
-      data: ITeamScheduledQuery[];
-    };
-  };
+  loadingInheritedQueriesTableData: boolean;
+  loadingTeamQueriesTableData: boolean;
 }
 
 const ScheduleListWrapper = ({
+  router,
   onRemoveScheduledQueryClick,
   allScheduledQueriesList,
   toggleScheduleEditorModal,
@@ -62,11 +51,12 @@ const ScheduleListWrapper = ({
   inheritedQueries,
   isOnGlobalTeam,
   selectedTeamData,
+  loadingInheritedQueriesTableData,
+  loadingTeamQueriesTableData,
 }: IScheduleListWrapperProps): JSX.Element => {
-  const dispatch = useDispatch();
   const { MANAGE_PACKS, MANAGE_HOSTS } = paths;
 
-  const handleAdvanced = () => dispatch(push(MANAGE_PACKS));
+  const handleAdvanced = () => router.push(MANAGE_PACKS);
 
   const NoScheduledQueries = () => {
     return (
@@ -86,7 +76,7 @@ const ScheduleListWrapper = ({
                     <a
                       href={
                         MANAGE_HOSTS +
-                        TAGGED_TEMPLATES.hostsByTeamPRoute(selectedTeamData.id)
+                        TAGGED_TEMPLATES.hostsByTeamRoute(selectedTeamData.id)
                       }
                     >
                       {selectedTeamData.name}
@@ -110,7 +100,7 @@ const ScheduleListWrapper = ({
                 </>
               )}
             </p>
-            <div className={`${noScheduleClass}__-cta-buttons`}>
+            <div className={`${noScheduleClass}__cta-buttons`}>
               <Button
                 variant="brand"
                 className={`${noScheduleClass}__schedule-button`}
@@ -136,48 +126,26 @@ const ScheduleListWrapper = ({
 
   const onActionSelection = (
     action: string,
-    global_scheduled_query: IGlobalScheduledQuery
+    scheduledQuery: IEditScheduledQuery
   ): void => {
     switch (action) {
       case "edit":
         if (onEditScheduledQueryClick) {
-          onEditScheduledQueryClick(global_scheduled_query);
+          onEditScheduledQueryClick(scheduledQuery);
         }
         break;
       default:
         if (onRemoveScheduledQueryClick) {
-          onRemoveScheduledQueryClick([global_scheduled_query.id]);
+          onRemoveScheduledQueryClick([scheduledQuery.id]);
         }
         break;
     }
   };
 
   const tableHeaders = generateTableHeaders(onActionSelection);
-  const loadingTableData = useSelector((state: IRootState) => {
-    if (selectedTeamData?.id) {
-      return state.entities.team_scheduled_queries.isLoading;
-    }
-    return state.entities.global_scheduled_queries.isLoading;
-  });
-
-  // Search functionality disabled, needed if enabled
-  const onQueryChange = useCallback(
-    (queryData) => {
-      const { pageIndex, pageSize, searchQuery } = queryData;
-      dispatch(
-        globalScheduledQueryActions.loadAll({
-          page: pageIndex,
-          perPage: pageSize,
-          globalFilter: searchQuery,
-        })
-      );
-    },
-    [dispatch]
-  );
-
-  const loadingInheritedQueriesTableData = useSelector((state: IRootState) => {
-    return state.entities.global_scheduled_queries.isLoading;
-  });
+  const loadingTableData = selectedTeamData?.id
+    ? loadingTeamQueriesTableData
+    : loadingInheritedQueriesTableData;
 
   if (inheritedQueries) {
     const inheritedQueriesTableHeaders = generateInheritedQueriesTableHeaders();
@@ -213,14 +181,13 @@ const ScheduleListWrapper = ({
         defaultSortDirection={"desc"}
         showMarkAllPages={false}
         isAllPagesSelected={false}
-        onQueryChange={onQueryChange}
         inputPlaceHolder="Search"
         searchable={false}
         disablePagination
         onPrimarySelectActionClick={onRemoveScheduledQueryClick}
         primarySelectActionButtonVariant="text-icon"
-        primarySelectActionButtonIcon="close"
-        primarySelectActionButtonText={"Remove"}
+        primarySelectActionButtonIcon="delete"
+        primarySelectActionButtonText={"Delete"}
         emptyComponent={NoScheduledQueries}
       />
     </div>

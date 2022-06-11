@@ -1,7 +1,9 @@
 /* eslint-disable  @typescript-eslint/explicit-module-boundary-types */
-import sendRequest from "services";
-import endpoints from "fleet/endpoints";
-import { IQueryFormData, IQuery } from "interfaces/query";
+import sendRequest, { getError } from "services";
+import endpoints from "utilities/endpoints";
+import { IQueryFormData } from "interfaces/query";
+import { ISelectedTargets } from "interfaces/target";
+import { AxiosResponse } from "axios";
 
 export default {
   create: ({ description, name, query, observer_can_run }: IQueryFormData) => {
@@ -38,7 +40,7 @@ export default {
   }: {
     query: string;
     queryId: number | null;
-    selected: any;
+    selected: ISelectedTargets;
   }) => {
     const { RUN_QUERY } = endpoints;
 
@@ -48,20 +50,19 @@ export default {
         query_id: queryId,
         selected,
       });
-      return {
+      return Promise.resolve({
         ...campaign,
         hosts_count: {
           successful: 0,
           failed: 0,
           total: 0,
         },
-      };
-    } catch (error) {
-      console.error(error);
-      throw new Error("Could not run query.");
+      });
+    } catch (response) {
+      throw new Error(getError(response as AxiosResponse));
     }
   },
-  update: (id: number, updateParams: any) => {
+  update: (id: number, updateParams: IQueryFormData) => {
     const { QUERIES } = endpoints;
     const path = `${QUERIES}/${id}`;
 

@@ -1,80 +1,65 @@
 import React from "react";
-import { mount } from "enzyme";
-import { noop } from "lodash";
+import { fireEvent, render, screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 
 import ForgotPasswordForm from "./ForgotPasswordForm";
-import { fillInFormInput } from "../../../test/helpers";
 
 const email = "hi@thegnar.co";
 
 describe("ForgotPasswordForm - component", () => {
-  it("renders the base error", () => {
-    const baseError = "Cant find the specified user";
-    const formWithError = mount(
+  const handleSubmit = jest.fn();
+  it("renders correctly", () => {
+    render(<ForgotPasswordForm handleSubmit={handleSubmit} />);
+
+    expect(screen.getByRole("textbox", { name: /email/i })).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Reset password" })
+    ).toBeInTheDocument();
+  });
+
+  it("should renders the component with the server error prop", () => {
+    const baseError = "Can't find the specified user";
+    // when
+    render(
       <ForgotPasswordForm
+        handleSubmit={handleSubmit}
         serverErrors={{ base: baseError }}
-        handleSubmit={noop}
       />
     );
-    const formWithoutError = mount(<ForgotPasswordForm handleSubmit={noop} />);
-
-    expect(formWithError.text()).toContain(baseError);
-    expect(formWithoutError.text()).not.toContain(baseError);
+    // then
+    expect(
+      screen.getByText("Can't find the specified user")
+    ).toBeInTheDocument();
   });
 
-  it("renders an InputFieldWithIcon components", () => {
-    const form = mount(<ForgotPasswordForm handleSubmit={noop} />);
+  it("should test validation for email field", async () => {
+    render(<ForgotPasswordForm handleSubmit={handleSubmit} />);
 
-    expect(form.find("InputFieldWithIcon").length).toEqual(1);
-  });
+    // when
+    fireEvent.click(screen.getByRole("button", { name: "Reset password" }));
+    // then
+    expect(
+      await screen.findByText("Email field must be completed")
+    ).toBeInTheDocument();
+    expect(handleSubmit).not.toHaveBeenCalled();
 
-  it("updates component state when the email field is changed", () => {
-    const form = mount(<ForgotPasswordForm handleSubmit={noop} />);
-
-    const emailField = form.find({ name: "email" });
-    fillInFormInput(emailField, email);
-
-    const { formData } = form.state();
-    expect(formData).toMatchObject({ email });
-  });
-
-  it("it does not submit the form when the form fields have not been filled out", () => {
-    const submitSpy = jest.fn();
-    const form = mount(<ForgotPasswordForm handleSubmit={submitSpy} />);
-    const submitBtn = form.find("button");
-
-    submitBtn.simulate("submit");
-
-    expect(form.state().errors).toMatchObject({
-      email: "Email field must be completed",
-    });
-    expect(submitSpy).not.toHaveBeenCalled();
+    // when
+    userEvent.type(screen.getByPlaceholderText("Email"), "invalid-email");
+    fireEvent.click(screen.getByRole("button", { name: "Reset password" }));
+    // then
+    expect(
+      await screen.findByText("invalid-email is not a valid email")
+    ).toBeInTheDocument();
+    expect(handleSubmit).not.toHaveBeenCalled();
   });
 
   it("submits the form data when the form is submitted", () => {
-    const submitSpy = jest.fn();
-    const form = mount(<ForgotPasswordForm handleSubmit={submitSpy} />);
-    const emailField = form.find({ name: "email" });
-    const submitBtn = form.find("button");
+    render(<ForgotPasswordForm handleSubmit={handleSubmit} />);
 
-    fillInFormInput(emailField, email);
-    submitBtn.simulate("submit");
-
-    expect(submitSpy).toHaveBeenCalledWith({ email });
-  });
-
-  it("does not submit the form if the email is not valid", () => {
-    const submitSpy = jest.fn();
-    const form = mount(<ForgotPasswordForm handleSubmit={submitSpy} />);
-    const emailField = form.find({ name: "email" });
-    const submitBtn = form.find("button");
-
-    fillInFormInput(emailField, "invalid-email");
-    submitBtn.simulate("submit");
-
-    expect(submitSpy).not.toHaveBeenCalled();
-    expect(form.state().errors).toMatchObject({
-      email: "invalid-email is not a valid email",
-    });
+    // when
+    userEvent.type(screen.getByPlaceholderText("Email"), email);
+    fireEvent.click(screen.getByRole("button", { name: "Reset password" }));
+    // then
+    expect(handleSubmit).toHaveBeenCalledWith({ email });
   });
 });

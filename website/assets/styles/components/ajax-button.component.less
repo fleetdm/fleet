@@ -6,9 +6,20 @@
  */
 
  [parasails-component='ajax-button'] {
+  .loading-spinner {
+      width: 16px;
+      height: 16px;
+      border: 3px solid #EEE;
+      border-bottom-color: transparent;
+      border-radius: 50%;
+      display: inline-block;
+      box-sizing: border-box;
+      animation: rotation 1s linear infinite;
+   }
    .button-loader, .button-loading {
      display: none;
      margin: auto;
+
      .loading-dot {
        opacity: 0;
        display: inline;
@@ -37,5 +48,15 @@
      .button-text {
        display: none;
      }
+
+
    }
+ @keyframes rotation {
+     0% {
+         transform: rotate(0deg);
+     }
+     100% {
+         transform: rotate(360deg);
+     }
+ }
  }

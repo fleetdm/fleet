@@ -12,7 +12,8 @@
             "cwd": "${fileDirname}",
             "env": {
                 "MYSQL_TEST": 1,
-                "REDIS_TEST": 1
+                "REDIS_TEST": 1,
+                "NETWORK_TEST": 1
             },
             "buildFlags": "-tags='full,fts5'",
             "program": "${fileDirname}"
@@ -25,7 +26,8 @@
             "cwd": "${fileDirname}",
             "env": {
                 "MYSQL_TEST": 1,
-                "REDIS_TEST": 1
+                "REDIS_TEST": 1,
+                "NETWORK_TEST": 1
             },
             "buildFlags": "-tags='full,fts5'",
             "program": "${file}"
@@ -58,6 +60,14 @@
                 "--logging_debug",
                 "--dev_license"
             ]
+        },
+        {
+            "name": "Attach to a running Fleet server",
+            "type": "go",
+            "request": "attach",
+            "mode": "remote",
+            "port": 61179,
+            "host": "127.0.0.1",
         },
         {
             "type": "pwa-chrome",

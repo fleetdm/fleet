@@ -5,10 +5,10 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/fleetdm/fleet/v4/orbit/pkg/constant"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/osquery"
-	"github.com/fleetdm/fleet/v4/orbit/pkg/table"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/update"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/update/filestore"
 	"github.com/fleetdm/fleet/v4/pkg/secure"
@@ -36,6 +36,7 @@ var shellCommand = &cli.Command{
 		},
 	},
 	Action: func(c *cli.Context) error {
+		zerolog.SetGlobalLevel(zerolog.InfoLevel)
 		if c.Bool("debug") {
 			zerolog.SetGlobalLevel(zerolog.DebugLevel)
 		}
@@ -51,39 +52,66 @@ var shellCommand = &cli.Command{
 
 		// Initialize updater and get expected version
 		opt := update.DefaultOptions
+
+		// Override default channel with the provided value.
+		opt.Targets.SetTargetChannel("osqueryd", c.String("osqueryd-channel"))
+
 		opt.RootDirectory = c.String("root-dir")
 		opt.ServerURL = c.String("update-url")
 		opt.LocalStore = localStore
 		opt.InsecureTransport = c.Bool("insecure")
-		updater, err := update.New(opt)
+
+		updater, err := update.NewUpdater(opt)
 		if err != nil {
 			return err
 		}
 		if err := updater.UpdateMetadata(); err != nil {
 			log.Info().Err(err).Msg("failed to update metadata. using saved metadata.")
 		}
-		osquerydPath, err := updater.Get("osqueryd", c.String("osqueryd-channel"))
+		osquerydLocalTarget, err := updater.Get("osqueryd")
 		if err != nil {
 			return err
 		}
+		osquerydPath := osquerydLocalTarget.ExecPath
 
 		var g run.Group
 
-		// Create an osquery runner with the provided options
-		r, _ := osquery.NewRunner(
-			osquerydPath,
+		opts := []osquery.Option{
 			osquery.WithShell(),
-			osquery.WithDataPath(c.String("root-dir")),
-			// Handle additional args after --
-			osquery.WithFlags(c.Args().Slice()),
-		)
+			osquery.WithDataPath(filepath.Join(c.String("root-dir"), "shell")),
+		}
+
+		// Detect if the additional arguments have a positional argument.
+		//
+		// osqueryi/osqueryd has the following usage:
+		// Usage: osqueryi [OPTION]... [SQL STATEMENT]
+		additionalArgs := c.Args().Slice()
+		singleQueryArg := false
+		if len(additionalArgs) > 0 {
+			if !strings.HasPrefix(additionalArgs[len(additionalArgs)-1], "--") {
+				singleQueryArg = true
+				opts = append(opts, osquery.SingleQuery())
+			}
+		}
+
+		// Handle additional args after --
+		opts = append(opts, osquery.WithFlags(additionalArgs))
+
+		r, err := osquery.NewRunner(osquerydPath, opts...)
+		if err != nil {
+			return fmt.Errorf("create osquery runner: %w", err)
+		}
 		g.Add(r.Execute, r.Interrupt)
 
-		// Extension tables not yet supported on Windows.
-		ext := table.NewRunner(r.ExtensionSocketPath())
-		g.Add(ext.Execute, ext.Interrupt)
+		if !singleQueryArg {
+			// We currently start the extension runner when !singleQueryArg
+			// because otherwise osquery exits and leaves too quickly,
+			// leaving the extension runner waiting for the socket.
+			// NOTE(lucas): `--extensions_require` doesn't seem to work with
+			// thrift extensions?
+			registerExtensionRunner(&g, r.ExtensionSocketPath(), "")
+		}
 
-		// Install a signal handler
 		ctx, cancel := context.WithCancel(context.Background())
 		defer cancel()
 		g.Add(run.SignalHandler(ctx, os.Interrupt, os.Kill))

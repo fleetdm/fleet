@@ -1,6 +1,10 @@
 .host-side-panel {
   color: $core-fleet-black;
 
+  .loading-spinner {
+    margin-top: 155px; // line up with host table loading spinner
+  }
+
   .input-icon-field {
     margin-top: 0;
 
@@ -21,7 +25,6 @@
   }
 
   &__add-label-btn {
-    color: $core-vibrant-blue !important;
     align-self: right;
 
     span {

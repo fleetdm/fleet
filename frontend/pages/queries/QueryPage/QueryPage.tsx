@@ -1,28 +1,32 @@
 import React, { useState, useEffect, useContext } from "react";
 import { useQuery, useMutation } from "react-query";
+import { useErrorHandler } from "react-error-boundary";
 import { InjectedRouter, Params } from "react-router/lib/Router";
 
-// @ts-ignore
-import Fleet from "fleet"; // @ts-ignore
 import { AppContext } from "context/app";
 import { QueryContext } from "context/query";
 import { QUERIES_PAGE_STEPS, DEFAULT_QUERY } from "utilities/constants";
-import queryAPI from "services/entities/queries"; // @ts-ignore
-import hostAPI from "services/entities/hosts"; // @ts-ignore
+import queryAPI from "services/entities/queries";
+import hostAPI from "services/entities/hosts";
+import statusAPI from "services/entities/status";
+import { IHost } from "interfaces/host";
+import { ILabel } from "interfaces/label";
+import { ITeam } from "interfaces/team";
 import { IQueryFormData, IQuery } from "interfaces/query";
 import { ITarget } from "interfaces/target";
-import { IHost } from "interfaces/host";
 
 import QuerySidePanel from "components/side_panels/QuerySidePanel";
 import QueryEditor from "pages/queries/QueryPage/screens/QueryEditor";
-import SelectTargets from "pages/queries/QueryPage/screens/SelectTargets";
+import SelectTargets from "components/LiveQuery/SelectTargets";
 import RunQuery from "pages/queries/QueryPage/screens/RunQuery";
 import ExternalURLIcon from "../../../../assets/images/icon-external-url-12x12@2x.png";
 
 interface IQueryPageProps {
   router: InjectedRouter;
   params: Params;
-  location: any; // no type in react-router v3
+  location: {
+    query: { host_ids: string };
+  };
 }
 
 interface IStoredQueryResponse {
@@ -40,8 +44,9 @@ const QueryPage = ({
   params: { id: paramsQueryId },
   location: { query: URLQuerySearch },
 }: IQueryPageProps): JSX.Element => {
-  const queryIdForEdit = paramsQueryId ? parseInt(paramsQueryId, 10) : null;
+  const queryId = paramsQueryId ? parseInt(paramsQueryId, 10) : null;
 
+  const handlePageError = useErrorHandler();
   const {
     isGlobalAdmin,
     isGlobalMaintainer,
@@ -50,6 +55,7 @@ const QueryPage = ({
   const {
     selectedOsqueryTable,
     setSelectedOsqueryTable,
+    setLastEditedQueryId,
     setLastEditedQueryName,
     setLastEditedQueryDescription,
     setLastEditedQueryBody,
@@ -61,6 +67,10 @@ const QueryPage = ({
   );
   const [step, setStep] = useState<string>(QUERIES_PAGE_STEPS[1]);
   const [selectedTargets, setSelectedTargets] = useState<ITarget[]>([]);
+  const [targetedHosts, setTargetedHosts] = useState<IHost[]>([]);
+  const [targetedLabels, setTargetedLabels] = useState<ILabel[]>([]);
+  const [targetedTeams, setTargetedTeams] = useState<ITeam[]>([]);
+  const [targetsTotalCount, setTargetsTotalCount] = useState<number>(0);
   const [isLiveQueryRunnable, setIsLiveQueryRunnable] = useState<boolean>(true);
   const [isSidebarOpen, setIsSidebarOpen] = useState<boolean>(true);
   const [
@@ -74,43 +84,43 @@ const QueryPage = ({
     isLoading: isStoredQueryLoading,
     data: storedQuery,
     error: storedQueryError,
-    refetch: refetchStoredQuery,
   } = useQuery<IStoredQueryResponse, Error, IQuery>(
-    ["query", queryIdForEdit],
-    () => queryAPI.load(queryIdForEdit as number),
+    ["query", queryId],
+    () => queryAPI.load(queryId as number),
     {
-      enabled: false,
+      enabled: !!queryId,
       refetchOnWindowFocus: false,
       select: (data: IStoredQueryResponse) => data.query,
       onSuccess: (returnedQuery) => {
+        setLastEditedQueryId(returnedQuery.id);
         setLastEditedQueryName(returnedQuery.name);
         setLastEditedQueryDescription(returnedQuery.description);
         setLastEditedQueryBody(returnedQuery.query);
         setLastEditedQueryObserverCanRun(returnedQuery.observer_can_run);
       },
+      onError: (error) => handlePageError(error),
     }
   );
 
-  // if URL is like `/queries/1?host_ids=22`, add the host
-  // to the selected targets automatically
   useQuery<IHostResponse, Error, IHost>(
     "hostFromURL",
-    () => hostAPI.load(parseInt(URLQuerySearch.host_ids as string, 10)),
+    () =>
+      hostAPI.loadHostDetails(parseInt(URLQuerySearch.host_ids as string, 10)),
     {
       enabled: !!URLQuerySearch.host_ids && !queryParamHostsAdded,
       select: (data: IHostResponse) => data.host,
-      onSuccess: (data) => {
+      onSuccess: (host) => {
+        setTargetedHosts((prevHosts) =>
+          prevHosts.filter((h) => h.id !== host.id).concat(host)
+        );
         const targets = selectedTargets;
-        const hostTarget = data as any; // intentional so we can add to the object
-
-        hostTarget.target_type = "hosts";
-
-        targets.push(hostTarget as IHost);
+        host.target_type = "hosts";
+        targets.push(host);
         setSelectedTargets([...targets]);
-
         if (!queryParamHostsAdded) {
           setQueryParamHostsAdded(true);
         }
+        router.replace(location.pathname);
       },
     }
   );
@@ -119,15 +129,15 @@ const QueryPage = ({
     queryAPI.create(formData)
   );
 
-  useEffect(() => {
-    const detectIsFleetQueryRunnable = () => {
-      Fleet.status.live_query().catch(() => {
-        setIsLiveQueryRunnable(false);
-      });
-    };
+  const detectIsFleetQueryRunnable = () => {
+    statusAPI.live_query().catch(() => {
+      setIsLiveQueryRunnable(false);
+    });
+  };
 
+  useEffect(() => {
     detectIsFleetQueryRunnable();
-    !!queryIdForEdit && refetchStoredQuery();
+    setLastEditedQueryId(DEFAULT_QUERY.id);
     setLastEditedQueryName(DEFAULT_QUERY.name);
     setLastEditedQueryDescription(DEFAULT_QUERY.description);
     setLastEditedQueryBody(DEFAULT_QUERY.query);
@@ -178,7 +188,7 @@ const QueryPage = ({
     const step1Opts = {
       router,
       baseClass,
-      queryIdForEdit,
+      queryIdForEdit: queryId,
       showOpenSchemaActionText,
       storedQuery,
       isStoredQueryLoading,
@@ -192,19 +202,28 @@ const QueryPage = ({
 
     const step2Opts = {
       baseClass,
-      selectedTargets: [...selectedTargets],
-      queryIdForEdit,
+      queryId,
+      selectedTargets,
+      targetedHosts,
+      targetedLabels,
+      targetedTeams,
+      targetsTotalCount,
       goToQueryEditor: () => setStep(QUERIES_PAGE_STEPS[1]),
       goToRunQuery: () => setStep(QUERIES_PAGE_STEPS[3]),
       setSelectedTargets,
+      setTargetedHosts,
+      setTargetedLabels,
+      setTargetedTeams,
+      setTargetsTotalCount,
     };
 
     const step3Opts = {
+      queryId,
       selectedTargets,
       storedQuery,
-      queryIdForEdit,
       setSelectedTargets,
       goToQueryEditor: () => setStep(QUERIES_PAGE_STEPS[1]),
+      targetsTotalCount,
     };
 
     switch (step) {

@@ -1,0 +1,86 @@
+name: Test fleetctl preview
+
+# Tests the `fleetctl preview` command with latest npm released version of fleetctl.
+
+on:
+  workflow_dispatch: # Manual
+  schedule:
+  - cron: '0 2 * * *' # Nightly 2AM UTC
+
+permissions:
+  contents: read
+
+jobs:
+  test-preview:
+    timeout-minutes: 60
+    strategy:
+      matrix:
+        # Doesn't work on Windows because Linux Docker containers are not supported.
+        os: [ubuntu-20.04, ubuntu-18.04, macos-10.15, macos-11]
+    runs-on: ${{ matrix.os }}
+    steps:
+    - name: Install Docker
+      # Docker needs to be installed manually on macOS.
+      if: contains(matrix.os, 'macos')
+      # From https://github.com/docker/for-mac/issues/2359#issuecomment-943131345
+      run: |
+        brew install --cask docker
+        sudo /Applications/Docker.app/Contents/MacOS/Docker --unattended --install-privileged-components
+        open -a /Applications/Docker.app --args --unattended --accept-license
+        echo "Waiting for Docker to start up..."
+        while ! /Applications/Docker.app/Contents/Resources/bin/docker info &>/dev/null; do sleep 1; done
+        echo "Docker is ready."
+
+    - name: Start tunnel
+      run: |
+        npm install -g localtunnel
+        lt --port 1337 &
+        sleep 5
+
+    - name: Test fleetctl preview
+      run: |
+        npm install -g fleetctl
+        fleetctl preview
+        sleep 10
+        fleetctl get hosts | tee hosts.txt
+        [ $( cat hosts.txt | grep online | wc -l) -eq 8 ]
+      shell: bash
+
+    - name: Slack Notification
+      if: failure()
+      uses: slackapi/slack-github-action@16b6c78ee73689a627b65332b34e5d409c7299da # v1.18.0
+      with:
+        payload: |
+          {
+            "text": "${{ job.status }}\n${{ github.event.pull_request.html_url || github.event.head.html_url }}",
+            "blocks": [
+              {
+                "type": "section",
+                "text": {
+                  "type": "mrkdwn",
+                  "text": "Fleetctl preview test result: ${{ job.status }}\nhttps://github.com/fleetdm/fleet/actions/runs/${{  github.run_id }}\n${{ github.event.pull_request.html_url || github.event.head.html_url }}"
+                }
+              }
+            ]
+          }
+      env:
+        SLACK_WEBHOOK_URL: ${{ secrets.SLACK_G_PLATFORM_WEBHOOK_URL }}
+        SLACK_WEBHOOK_TYPE: INCOMING_WEBHOOK
+
+    - name: Get fleet logs
+      run: |
+        FLEET_LICENSE_KEY=foo docker compose -f ~/.fleet/preview/docker-compose.yml logs fleet01 fleet02 > fleet-logs.txt
+        # Copying logs, otherwise the upload-artifact action uploads the logs in a hidden folder (.fleet)
+        cp ~/.fleet/preview/orbit.log orbit.log
+        cp -r ~/.fleet/preview/logs osquery_result_status_logs
+      shell: bash
+
+    - name: Upload logs
+      if: always()
+      uses: actions/upload-artifact@6673cd052c4cd6fcf4b4e6e60ea986c889389535 # v2
+      with:
+        name: ${{ matrix.os }}-log
+        path: |
+          fleet-logs.txt
+          orbit.log
+          osquery_result_status_logs

@@ -17,7 +17,7 @@ const scheduledQueryPercentileQuery = `
 SELECT
 	coalesce((t1.%s / t1.executions), 0)
 FROM (
-	SELECT @rownum := @rownum + 1 AS row_number, mm.* FROM (
+	SELECT (@rownum := @rownum + 1) AS row_number_value, mm.* FROM (
 		SELECT d.scheduled_query_id, d.%s, d.executions
 		FROM scheduled_query_stats d
 		WHERE d.scheduled_query_id=?
@@ -30,13 +30,13 @@ FROM (
 	FROM scheduled_query_stats d
 	WHERE d.scheduled_query_id=?
 ) AS t2
-WHERE t1.row_number = floor(total_rows * %s) + 1;`
+WHERE t1.row_number_value = floor(total_rows * %s) + 1;`
 
 const queryPercentileQuery = `
 SELECT
 	coalesce((t1.%s / t1.executions), 0)
 FROM (
-	SELECT @rownum := @rownum + 1 AS row_number, mm.* FROM (
+	SELECT @rownum := @rownum + 1 AS row_number_value, mm.* FROM (
 		SELECT d.scheduled_query_id, d.%s, d.executions
 		FROM scheduled_query_stats d
 		JOIN scheduled_queries sq ON (sq.id=d.scheduled_query_id)
@@ -51,10 +51,12 @@ FROM (
 	JOIN scheduled_queries sq ON (sq.id=d.scheduled_query_id)
 	WHERE sq.query_id=?
 ) AS t2
-WHERE t1.row_number = floor(total_rows * %s) + 1;`
+WHERE t1.row_number_value = floor(total_rows * %s) + 1;`
 
-const scheduledQueryTotalExecutions = `SELECT coalesce(sum(executions), 0) FROM scheduled_query_stats WHERE scheduled_query_id=?`
-const queryTotalExecutions = `SELECT coalesce(sum(executions), 0) FROM scheduled_query_stats sqs JOIN scheduled_queries sq ON (sqs.scheduled_query_id=sq.id) JOIN queries q ON (q.id=sq.query_id) WHERE sq.query_id=?`
+const (
+	scheduledQueryTotalExecutions = `SELECT coalesce(sum(executions), 0) FROM scheduled_query_stats WHERE scheduled_query_id=?`
+	queryTotalExecutions          = `SELECT coalesce(sum(executions), 0) FROM scheduled_query_stats sqs JOIN scheduled_queries sq ON (sqs.scheduled_query_id=sq.id) JOIN queries q ON (q.id=sq.query_id) WHERE sq.query_id=?`
+)
 
 func getPercentileQuery(aggregate string, time string, percentile string) string {
 	switch aggregate {
@@ -89,11 +91,11 @@ func setP50AndP95Map(ctx context.Context, tx sqlx.QueryerContext, aggregate stri
 	return nil
 }
 
-func (d *Datastore) UpdateScheduledQueryAggregatedStats(ctx context.Context) error {
+func (ds *Datastore) UpdateScheduledQueryAggregatedStats(ctx context.Context) error {
 	statsTypeScheduledQuery := "scheduled_query"
 
-	err := walkIdsInTable(ctx, d.reader, "scheduled_queries", func(id uint) error {
-		return calculatePercentiles(ctx, d.writer, statsTypeScheduledQuery, id)
+	err := walkIdsInTable(ctx, ds.reader, "scheduled_queries", func(id uint) error {
+		return calculatePercentiles(ctx, ds.writer, statsTypeScheduledQuery, id)
 	})
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "looping through ids")
@@ -102,11 +104,11 @@ func (d *Datastore) UpdateScheduledQueryAggregatedStats(ctx context.Context) err
 	return nil
 }
 
-func (d *Datastore) UpdateQueryAggregatedStats(ctx context.Context) error {
+func (ds *Datastore) UpdateQueryAggregatedStats(ctx context.Context) error {
 	statsTypeQuery := "query"
 
-	err := walkIdsInTable(ctx, d.reader, "queries", func(id uint) error {
-		return calculatePercentiles(ctx, d.writer, statsTypeQuery, id)
+	err := walkIdsInTable(ctx, ds.reader, "queries", func(id uint) error {
+		return calculatePercentiles(ctx, ds.writer, statsTypeQuery, id)
 	})
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "looping through ids")

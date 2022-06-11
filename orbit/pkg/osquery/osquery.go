@@ -3,11 +3,14 @@ package osquery
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"runtime"
+	"sync"
 	"time"
 
 	"github.com/fleetdm/fleet/v4/orbit/pkg/constant"
@@ -24,14 +27,27 @@ const (
 // Runner is a specialized runner for osquery. It is designed with Execute and
 // Interrupt functions to be compatible with oklog/run.
 type Runner struct {
-	proc     *process.Process
-	cmd      *exec.Cmd
-	dataPath string
-	cancel   func()
+	proc        *process.Process
+	cmd         *exec.Cmd
+	dataPath    string
+	cancelMu    sync.Mutex
+	cancel      func()
+	singleQuery bool
 }
 
+type Option func(*Runner) error
+
 // NewRunner creates a new osquery runner given the provided functional options.
-func NewRunner(path string, options ...func(*Runner) error) (*Runner, error) {
+func NewRunner(path string, options ...Option) (*Runner, error) {
+	switch _, err := os.Stat(path); {
+	case err == nil:
+		// OK
+	case errors.Is(err, os.ErrNotExist):
+		return nil, fmt.Errorf("osqueryd doesn't exist at path %q", path)
+	default:
+		return nil, fmt.Errorf("failed to check for osqueryd file: %w", err)
+	}
+
 	r := &Runner{}
 
 	cmd := exec.Command(path)
@@ -52,7 +68,7 @@ func NewRunner(path string, options ...func(*Runner) error) (*Runner, error) {
 }
 
 // WithFlags adds additional flags to the osqueryd invocation.
-func WithFlags(flags []string) func(*Runner) error {
+func WithFlags(flags []string) Option {
 	return func(r *Runner) error {
 		r.cmd.Args = append(r.cmd.Args, flags...)
 		return nil
@@ -61,9 +77,17 @@ func WithFlags(flags []string) func(*Runner) error {
 
 // WithEnv adds additional environment variables to the osqueryd invocation.
 // Inputs should be in the form "KEY=VAL".
-func WithEnv(env []string) func(*Runner) error {
+func WithEnv(env []string) Option {
 	return func(r *Runner) error {
 		r.cmd.Env = append(r.cmd.Env, env...)
+		return nil
+	}
+}
+
+// SingleQuery configures the osqueryd invocation to run a SQL statement and exit.
+func SingleQuery() Option {
+	return func(r *Runner) error {
+		r.singleQuery = true
 		return nil
 	}
 }
@@ -77,11 +101,11 @@ func WithShell() func(*Runner) error {
 	}
 }
 
-func WithDataPath(path string) func(*Runner) error {
+func WithDataPath(path string) Option {
 	return func(r *Runner) error {
 		r.dataPath = path
 
-		if err := secure.MkdirAll(filepath.Join(path, "logs"), constant.DefaultDirMode); err != nil {
+		if err := secure.MkdirAll(path, constant.DefaultDirMode); err != nil {
 			return fmt.Errorf("initialize osquery data path: %w", err)
 		}
 
@@ -94,7 +118,23 @@ func WithDataPath(path string) func(*Runner) error {
 	}
 }
 
-func WithLogPath(path string) func(*Runner) error {
+// WithStderr sets the runner's cmd's stderr to the given writer.
+func WithStderr(w io.Writer) Option {
+	return func(r *Runner) error {
+		r.cmd.Stderr = w
+		return nil
+	}
+}
+
+// WithStdout sets the runner's cmd's stdout to the given writer.
+func WithStdout(w io.Writer) Option {
+	return func(r *Runner) error {
+		r.cmd.Stdout = w
+		return nil
+	}
+}
+
+func WithLogPath(path string) Option {
 	return func(r *Runner) error {
 		if err := secure.MkdirAll(path, constant.DefaultDirMode); err != nil {
 			return fmt.Errorf("initialize osquery log path: %w", err)
@@ -112,17 +152,25 @@ func WithLogPath(path string) func(*Runner) error {
 // process may not be restarted after exit. Instead create a new one with
 // NewRunner.
 func (r *Runner) Execute() error {
-	log.Info().Str("cmd", r.cmd.String()).Msg("run osqueryd")
+	log.Info().Str("cmd", r.cmd.String()).Msg("start osqueryd")
 
-	ctx, cancel := context.WithCancel(context.Background())
-	r.cancel = cancel
+	if r.singleQuery {
+		// When running in "SQL STATEMENT" mode, start osqueryd
+		// and wait for it to exit.
+		if err := r.cmd.Run(); err != nil {
+			return fmt.Errorf("start osqueryd shell: %w", err)
+		}
+	} else {
+		ctx, cancel := context.WithCancel(context.Background())
+		defer cancel()
+		r.setCancel(cancel)
 
-	if err := r.proc.Start(); err != nil {
-		return fmt.Errorf("start osqueryd: %w", err)
-	}
-
-	if err := r.proc.WaitOrKill(ctx, 10*time.Second); err != nil {
-		return fmt.Errorf("osqueryd exited with error: %w", err)
+		if err := r.proc.Start(); err != nil {
+			return fmt.Errorf("start osqueryd: %w", err)
+		}
+		if err := r.proc.WaitOrKill(ctx, 10*time.Second); err != nil {
+			return fmt.Errorf("osqueryd exited with error: %w", err)
+		}
 	}
 
 	return nil
@@ -130,8 +178,10 @@ func (r *Runner) Execute() error {
 
 // Runner interrupts the running osquery process.
 func (r *Runner) Interrupt(err error) {
-	log.Debug().Msg("interrupt osquery")
-	r.cancel()
+	log.Debug().Err(err).Msg("interrupt osquery")
+	if cancel := r.getCancel(); cancel != nil {
+		cancel()
+	}
 }
 
 func (r *Runner) ExtensionSocketPath() string {
@@ -140,4 +190,18 @@ func (r *Runner) ExtensionSocketPath() string {
 	}
 
 	return filepath.Join(r.dataPath, extensionSocketName)
+}
+
+func (r *Runner) setCancel(c func()) {
+	r.cancelMu.Lock()
+	defer r.cancelMu.Unlock()
+
+	r.cancel = c
+}
+
+func (r *Runner) getCancel() func() {
+	r.cancelMu.Lock()
+	defer r.cancelMu.Unlock()
+
+	return r.cancel
 }

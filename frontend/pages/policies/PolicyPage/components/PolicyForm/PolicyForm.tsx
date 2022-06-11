@@ -1,28 +1,32 @@
 /* eslint-disable jsx-a11y/no-noninteractive-element-to-interactive-role */
 /* eslint-disable jsx-a11y/interactive-supports-focus */
-import React, { useState, useContext } from "react";
+import React, { useState, useContext, useEffect, KeyboardEvent } from "react";
 import { IAceEditor } from "react-ace/lib/types";
 import ReactTooltip from "react-tooltip";
-import { isUndefined } from "lodash";
+import { useDebouncedCallback } from "use-debounce";
+import { size } from "lodash";
+import classnames from "classnames";
 
-import { addGravatarUrlToResource } from "fleet/helpers";
-// @ts-ignore
-
+import { addGravatarUrlToResource } from "utilities/helpers";
 import { AppContext } from "context/app";
 import { PolicyContext } from "context/policy";
+import usePlatformCompatibility from "hooks/usePlatformCompatibility";
+import usePlatformSelector from "hooks/usePlaformSelector";
+
 import { IPolicy, IPolicyFormData } from "interfaces/policy";
-import { IQueryPlatform } from "interfaces/query";
+import { IOsqueryPlatform, IPlatformString } from "interfaces/platform";
+import { DEFAULT_POLICIES } from "utilities/constants";
 
 import Avatar from "components/Avatar";
 import FleetAce from "components/FleetAce";
-import Button from "components/buttons/Button";
-import Checkbox from "components/forms/fields/Checkbox";
-import Spinner from "components/Spinner";
 // @ts-ignore
-import InputField from "components/forms/fields/InputField";
+import validateQuery from "components/forms/validators/validate_query";
+import Button from "components/buttons/Button";
+import RevealButton from "components/buttons/RevealButton";
+import Spinner from "components/Spinner";
+import AutoSizeInputField from "components/forms/fields/AutoSizeInputField";
 import NewPolicyModal from "../NewPolicyModal";
 import InfoIcon from "../../../../../../assets/images/icon-info-purple-14x14@2x.png";
-import QuestionIcon from "../../../../../../assets/images/icon-question-16x16@2x.png";
 import PencilIcon from "../../../../../../assets/images/icon-pencil-14x14@2x.png";
 
 const baseClass = "policy-form";
@@ -32,27 +36,43 @@ interface IPolicyFormProps {
   showOpenSchemaActionText: boolean;
   storedPolicy: IPolicy | undefined;
   isStoredPolicyLoading: boolean;
+  isCreatingNewPolicy: boolean;
   onCreatePolicy: (formData: IPolicyFormData) => void;
   onOsqueryTableSelect: (tableName: string) => void;
   goToSelectTargets: () => void;
   onUpdate: (formData: IPolicyFormData) => void;
   onOpenSchemaSidebar: () => void;
   renderLiveQueryWarning: () => JSX.Element | null;
+  backendValidators: { [key: string]: string };
 }
+
+const validateQuerySQL = (query: string) => {
+  const errors: { [key: string]: any } = {};
+  const { error: queryError, valid: queryValid } = validateQuery(query);
+
+  if (!queryValid) {
+    errors.query = queryError;
+  }
+
+  const valid = !size(errors);
+  return { valid, errors };
+};
 
 const PolicyForm = ({
   policyIdForEdit,
   showOpenSchemaActionText,
   storedPolicy,
   isStoredPolicyLoading,
+  isCreatingNewPolicy,
   onCreatePolicy,
   onOsqueryTableSelect,
   goToSelectTargets,
   onUpdate,
   onOpenSchemaSidebar,
   renderLiveQueryWarning,
+  backendValidators,
 }: IPolicyFormProps): JSX.Element => {
-  const [errors, setErrors] = useState<{ [key: string]: string }>({});
+  const [errors, setErrors] = useState<{ [key: string]: any }>({}); // string | null | undefined or boolean | undefined
   const [isNewPolicyModalOpen, setIsNewPolicyModalOpen] = useState<boolean>(
     false
   );
@@ -64,16 +84,12 @@ const PolicyForm = ({
   const [isEditingResolution, setIsEditingResolution] = useState<boolean>(
     false
   );
-  const [isDarwinCompatible, setIsDarwinCompatible] = useState<boolean>(false);
-  const [isWindowsCompatible, setIsWindowsCompatible] = useState<boolean>(
-    false
-  );
-  const [isLinuxCompatible, setIsLinuxCompatible] = useState<boolean>(false);
 
   // Note: The PolicyContext values should always be used for any mutable policy data such as query name
   // The storedPolicy prop should only be used to access immutable metadata such as author id
   const {
     policyTeamId,
+    lastEditedQueryId,
     lastEditedQueryName,
     lastEditedQueryDescription,
     lastEditedQueryBody,
@@ -97,34 +113,62 @@ const PolicyForm = ({
     isTeamMaintainer,
   } = useContext(AppContext);
 
+  const debounceSQL = useDebouncedCallback((sql: string) => {
+    const { errors: newErrors } = validateQuerySQL(sql);
+
+    setErrors({
+      ...newErrors,
+    });
+  }, 500);
+
+  const platformCompatibility = usePlatformCompatibility();
+  const {
+    getCompatiblePlatforms,
+    setCompatiblePlatforms,
+  } = platformCompatibility;
+
+  const platformSelector = usePlatformSelector(
+    lastEditedQueryPlatform,
+    baseClass
+  );
+  const {
+    getSelectedPlatforms,
+    setSelectedPlatforms,
+    isAnyPlatformSelected,
+  } = platformSelector;
+
+  policyIdForEdit = policyIdForEdit || 0;
+
   const isEditMode = !!policyIdForEdit && !isTeamObserver && !isGlobalObserver;
+
+  const isNewTemplatePolicy =
+    !policyIdForEdit &&
+    DEFAULT_POLICIES.find((p) => p.name === lastEditedQueryName);
+
+  useEffect(() => {
+    if (isNewTemplatePolicy) {
+      setCompatiblePlatforms(lastEditedQueryBody);
+    }
+  }, []);
+
+  useEffect(() => {
+    debounceSQL(lastEditedQueryBody);
+    if (
+      (policyIdForEdit && policyIdForEdit !== lastEditedQueryId) ||
+      (isNewTemplatePolicy && !lastEditedQueryBody)
+    ) {
+      return;
+    }
+    setCompatiblePlatforms(lastEditedQueryBody);
+  }, [lastEditedQueryBody, lastEditedQueryId]);
 
   const hasSavePermissions =
     isGlobalAdmin || isGlobalMaintainer || isTeamAdmin || isTeamMaintainer;
-
-  const displayOrder = [
-    {
-      selected: isDarwinCompatible,
-      displayName: "macOS",
-    },
-    {
-      selected: isWindowsCompatible,
-      displayName: "Windows",
-    },
-    {
-      selected: isLinuxCompatible,
-      displayName: "Linux",
-    },
-  ];
 
   const onLoad = (editor: IAceEditor) => {
     editor.setOptions({
       enableLinking: true,
     });
-
-    setIsWindowsCompatible(!!lastEditedQueryPlatform?.includes("windows"));
-    setIsDarwinCompatible(!!lastEditedQueryPlatform?.includes("darwin"));
-    setIsLinuxCompatible(!!lastEditedQueryPlatform?.includes("linux"));
 
     // @ts-expect-error
     // the string "linkClick" is not officially in the lib but we need it
@@ -143,9 +187,17 @@ const PolicyForm = ({
     setLastEditedQueryBody(sqlString);
   };
 
-  const promptSavePolicy = (forceNew = false) => (
-    evt: React.MouseEvent<HTMLButtonElement>
-  ) => {
+  const onInputKeypress = (event: KeyboardEvent<HTMLTextAreaElement>) => {
+    if (event.key.toLowerCase() === "enter" && !event.shiftKey) {
+      event.preventDefault();
+      event.currentTarget.blur();
+      setIsEditingName(false);
+      setIsEditingDescription(false);
+      setIsEditingResolution(false);
+    }
+  };
+
+  const promptSavePolicy = () => (evt: React.MouseEvent<HTMLButtonElement>) => {
     evt.preventDefault();
 
     if (isEditMode && !lastEditedQueryName) {
@@ -155,22 +207,25 @@ const PolicyForm = ({
       });
     }
 
-    const selectedPlatforms = [];
-
-    const areCheckboxesUndefined = [
-      isDarwinCompatible,
-      isWindowsCompatible,
-      isLinuxCompatible,
-    ].some((val) => isUndefined(val));
-
-    if (!areCheckboxesUndefined) {
-      isDarwinCompatible && selectedPlatforms.push("darwin");
-      isWindowsCompatible && selectedPlatforms.push("windows");
-      isLinuxCompatible && selectedPlatforms.push("linux");
-      setLastEditedQueryPlatform(selectedPlatforms.join(",") as IQueryPlatform);
+    if (isEditMode && !isAnyPlatformSelected) {
+      return setErrors({
+        ...errors,
+        name: "At least one platform must be selected",
+      });
     }
 
-    if (!isEditMode || forceNew) {
+    let selectedPlatforms: IOsqueryPlatform[] = [];
+    if (isEditMode) {
+      selectedPlatforms = getSelectedPlatforms();
+    } else {
+      selectedPlatforms = getCompatiblePlatforms();
+      setSelectedPlatforms(selectedPlatforms);
+    }
+
+    const newPlatformString = selectedPlatforms.join(",") as IPlatformString;
+    setLastEditedQueryPlatform(newPlatformString);
+
+    if (!isEditMode) {
       setIsNewPolicyModalOpen(true);
     } else {
       onUpdate({
@@ -178,7 +233,7 @@ const PolicyForm = ({
         description: lastEditedQueryDescription,
         query: lastEditedQueryBody,
         resolution: lastEditedQueryResolution,
-        platform: lastEditedQueryPlatform,
+        platform: newPlatformString,
       });
     }
 
@@ -223,81 +278,86 @@ const PolicyForm = ({
     );
   };
 
+  const policyNameClasses = classnames("policy-name-wrapper", {
+    [`${baseClass}--editing`]: isEditingName,
+  });
+
+  const policyDescriptionClasses = classnames("policy-description-wrapper", {
+    [`${baseClass}--editing`]: isEditingDescription,
+  });
+
+  const policyResolutionClasses = classnames("policy-resolution-wrapper", {
+    [`${baseClass}--editing`]: isEditingResolution,
+  });
+
   const renderName = () => {
     if (isEditMode) {
-      if (isEditingName) {
-        return (
-          <InputField
-            id="policy-name"
-            type="textarea"
-            name="policy-name"
-            error={errors.name}
-            value={lastEditedQueryName}
-            placeholder="Add name here"
-            inputClassName={`${baseClass}__policy-name`}
-            onChange={setLastEditedQueryName}
-            inputOptions={{
-              autoFocus: true,
-              onFocus: (e: React.FocusEvent<HTMLInputElement>) => {
-                // sets cursor to end of inputfield
-                const val = e.target.value;
-                e.target.value = "";
-                e.target.value = val;
-              },
-            }}
-          />
-        );
-      }
-
       return (
-        <h1
-          role="button"
-          className={`${baseClass}__policy-name`}
-          onClick={() => setIsEditingName(true)}
-        >
-          {lastEditedQueryName}
-          <img alt="Edit name" src={PencilIcon} />
-        </h1>
+        <>
+          <div className={policyNameClasses}>
+            <AutoSizeInputField
+              name="policy-name"
+              placeholder="Add name here"
+              value={lastEditedQueryName}
+              hasError={errors && errors.name}
+              inputClassName={`${baseClass}__policy-name`}
+              maxLength="160"
+              onChange={setLastEditedQueryName}
+              onFocus={() => setIsEditingName(true)}
+              onBlur={() => setIsEditingName(false)}
+              onKeyPress={onInputKeypress}
+              isFocused={isEditingName}
+            />
+            <a className="edit-link" onClick={() => setIsEditingName(true)}>
+              <img
+                className={`edit-icon ${isEditingName && "hide"}`}
+                alt="Edit name"
+                src={PencilIcon}
+              />
+            </a>
+          </div>
+        </>
       );
     }
 
-    return <h1 className={`${baseClass}__policy-name no-hover`}>New policy</h1>;
+    return (
+      <h1
+        className={`${baseClass}__policy-name ${baseClass}__policy-name--new no-hover`}
+      >
+        New policy
+      </h1>
+    );
   };
 
   const renderDescription = () => {
     if (isEditMode) {
-      if (isEditingDescription) {
-        return (
-          <InputField
-            id="policy-description"
-            type="textarea"
-            name="policy-description"
-            value={lastEditedQueryDescription}
-            placeholder="Add description here."
-            inputClassName={`${baseClass}__policy-description`}
-            onChange={setLastEditedQueryDescription}
-            inputOptions={{
-              autoFocus: true,
-              onFocus: (e: React.FocusEvent<HTMLInputElement>) => {
-                // sets cursor to end of inputfield
-                const val = e.target.value;
-                e.target.value = "";
-                e.target.value = val;
-              },
-            }}
-          />
-        );
-      }
-
       return (
-        <span
-          role="button"
-          className={`${baseClass}__policy-description`}
-          onClick={() => setIsEditingDescription(true)}
-        >
-          {lastEditedQueryDescription || "Add description here."}
-          <img alt="Edit description" src={PencilIcon} />
-        </span>
+        <>
+          <div className={policyDescriptionClasses}>
+            <AutoSizeInputField
+              name="policy-description"
+              placeholder="Add description here."
+              value={lastEditedQueryDescription}
+              inputClassName={`${baseClass}__policy-description`}
+              maxLength="250"
+              onChange={setLastEditedQueryDescription}
+              onFocus={() => setIsEditingDescription(true)}
+              onBlur={() => setIsEditingDescription(false)}
+              onKeyPress={onInputKeypress}
+              isFocused={isEditingDescription}
+            />
+            <a
+              className="edit-link"
+              onClick={() => setIsEditingDescription(true)}
+            >
+              <img
+                className={`edit-icon ${isEditingDescription && "hide"}`}
+                alt="Edit name"
+                src={PencilIcon}
+              />
+            </a>
+          </div>
+        </>
       );
     }
 
@@ -306,52 +366,34 @@ const PolicyForm = ({
 
   const renderResolution = () => {
     if (isEditMode) {
-      if (isEditingResolution) {
-        return (
-          <div className={`${baseClass}__policy-resolve`}>
-            {" "}
-            <b>Resolve:</b> <br />
-            <InputField
-              id="policy-resolution"
-              type="textarea"
-              name="policy-resolution"
-              value={lastEditedQueryResolution}
-              placeholder="Add resolution here."
-              inputClassName={`${baseClass}__policy-resolution`}
-              onChange={setLastEditedQueryResolution}
-              inputOptions={{
-                autoFocus: true,
-                onFocus: (e: React.FocusEvent<HTMLInputElement>) => {
-                  // sets cursor to end of inputfield
-                  const val = e.target.value;
-                  e.target.value = "";
-                  e.target.value = val;
-                },
-              }}
-            />
-          </div>
-        );
-      }
-
       return (
         <>
-          <div className="resolve-text-wrapper">
-            <b>Resolve:</b>{" "}
-            <span
-              role="button"
-              className={`${baseClass}__policy-resolution`}
+          <p className="resolve-title">
+            <strong>Resolve:</strong>
+          </p>
+          <div className={policyResolutionClasses}>
+            <AutoSizeInputField
+              name="policy-resolution"
+              placeholder="Add resolution here."
+              value={lastEditedQueryResolution}
+              inputClassName={`${baseClass}__policy-resolution`}
+              maxLength="500"
+              onChange={setLastEditedQueryResolution}
+              onFocus={() => setIsEditingResolution(true)}
+              onBlur={() => setIsEditingResolution(false)}
+              onKeyPress={onInputKeypress}
+              isFocused={isEditingResolution}
+            />
+            <a
+              className="edit-link"
               onClick={() => setIsEditingResolution(true)}
             >
-              <img alt="Edit resolution" src={PencilIcon} />
-            </span>
-            <br />
-            <span
-              role="button"
-              className={`${baseClass}__policy-resolution`}
-              onClick={() => setIsEditingResolution(true)}
-            >
-              {lastEditedQueryResolution || "Add resolution here."}
-            </span>
+              <img
+                className={`edit-icon ${isEditingResolution && "hide"}`}
+                alt="Edit name"
+                src={PencilIcon}
+              />
+            </a>
           </div>
         </>
       );
@@ -361,75 +403,14 @@ const PolicyForm = ({
   };
 
   const renderPlatformCompatibility = () => {
-    const displayPlatforms = displayOrder
-      .filter((platform) => platform.selected)
-      .map((platform) => {
-        return platform.displayName;
-      });
+    if (
+      isEditMode &&
+      (isStoredPolicyLoading || policyIdForEdit !== lastEditedQueryId)
+    ) {
+      return null;
+    }
 
-    return (
-      <span className={`${baseClass}__platform-compatibility`}>
-        {isEditMode ? (
-          <>
-            <b>Checks on:</b>
-            <span className="platforms-text">
-              {displayPlatforms.join(", ")}
-            </span>
-            <span className={`tooltip`}>
-              <span
-                className={`tooltip__tooltip-icon`}
-                data-tip
-                data-for="query-compatibility-tooltip"
-                data-tip-disable={false}
-              >
-                <img alt="question icon" src={QuestionIcon} />
-              </span>
-              <ReactTooltip
-                place="bottom"
-                type="dark"
-                effect="solid"
-                backgroundColor="#3e4771"
-                id="query-compatibility-tooltip"
-                data-html
-              >
-                <span className={`tooltip__tooltip-text`}>
-                  To choose new platforms,
-                  <br />
-                  please create a new policy.
-                </span>
-              </ReactTooltip>
-            </span>
-          </>
-        ) : (
-          <>
-            <b>Checks on:</b>
-            <div className="platforms-select">
-              <Checkbox
-                value={isDarwinCompatible}
-                onChange={(value: boolean) => setIsDarwinCompatible(value)}
-                wrapperClassName={`${baseClass}__platform-checkbox-wrapper`}
-              >
-                macOS
-              </Checkbox>
-              <Checkbox
-                value={isWindowsCompatible}
-                onChange={(value: boolean) => setIsWindowsCompatible(value)}
-                wrapperClassName={`${baseClass}__platform-checkbox-wrapper`}
-              >
-                Windows
-              </Checkbox>
-              <Checkbox
-                value={isLinuxCompatible}
-                onChange={(value: boolean) => setIsLinuxCompatible(value)}
-                wrapperClassName={`${baseClass}__platform-checkbox-wrapper`}
-              >
-                Linux
-              </Checkbox>
-            </div>
-          </>
-        )}
-      </span>
-    );
+    return platformCompatibility.render();
   };
 
   const renderRunForObserver = (
@@ -445,14 +426,13 @@ const PolicyForm = ({
         </div>
         <div className="author">{renderAuthor()}</div>
       </div>
-      <Button
-        className={`${baseClass}__toggle-sql`}
-        variant="text-link"
+      <RevealButton
+        isShowing={showQueryEditor}
+        baseClass={baseClass}
+        hideText="Hide SQL"
+        showText="Show SQL"
         onClick={() => setShowQueryEditor(!showQueryEditor)}
-        disabled={false}
-      >
-        {showQueryEditor ? "Hide SQL" : "Show SQL"}
-      </Button>
+      />
       {showQueryEditor && (
         <FleetAce
           value={lastEditedQueryBody}
@@ -487,35 +467,51 @@ const PolicyForm = ({
           onChange={onChangePolicy}
           handleSubmit={promptSavePolicy}
         />
-        {renderPlatformCompatibility()}
+        <span className={`${baseClass}__platform-compatibility`}>
+          {renderPlatformCompatibility()}
+        </span>
+        {isEditMode && platformSelector.render()}
         {renderLiveQueryWarning()}
-        <div
-          className={`${baseClass}__button-wrap ${baseClass}__button-wrap--new-policy`}
-        >
-          {hasSavePermissions && (
-            <div className="query-form__button-wrap--save-policy-button">
-              <div
-                data-tip
-                data-for="save-query-button"
-                data-tip-disable={!(isTeamAdmin || isTeamMaintainer)}
-              >
-                <Button
-                  className={`${baseClass}__save`}
-                  variant="brand"
-                  onClick={promptSavePolicy()}
-                >
-                  <>Save{!isEditMode && " policy"}</>
-                </Button>
-              </div>
-            </div>
-          )}
-          <Button
-            className={`${baseClass}__run`}
-            variant="blue-green"
-            onClick={goToSelectTargets}
+        <div className={`${baseClass}__button-wrap`}>
+          <span
+            className={`${baseClass}__button-wrap--tooltip`}
+            data-tip
+            data-for={`${baseClass}__button-wrap--tooltip`}
+            data-tip-disable={!isEditMode || isAnyPlatformSelected}
           >
-            Run
-          </Button>
+            {hasSavePermissions && (
+              <Button
+                className={`${baseClass}__save`}
+                variant="brand"
+                onClick={promptSavePolicy()}
+                disabled={isEditMode && !isAnyPlatformSelected}
+              >
+                <>{!isEditMode ? "Save policy" : "Save"}</>
+              </Button>
+            )}
+            <Button
+              className={`${baseClass}__run`}
+              variant="blue-green"
+              onClick={goToSelectTargets}
+              disabled={isEditMode && !isAnyPlatformSelected}
+            >
+              Run
+            </Button>
+          </span>
+          <ReactTooltip
+            className={`${baseClass}__button-wrap--tooltip`}
+            place="bottom"
+            type="dark"
+            effect="solid"
+            id={`${baseClass}__button-wrap--tooltip`}
+            backgroundColor="#3e4771"
+          >
+            Select the platform(s) this
+            <br />
+            policy will be checked on
+            <br />
+            to save or run the policy.
+          </ReactTooltip>
         </div>
       </form>
       {isNewPolicyModalOpen && (
@@ -524,7 +520,9 @@ const PolicyForm = ({
           queryValue={lastEditedQueryBody}
           onCreatePolicy={onCreatePolicy}
           setIsNewPolicyModalOpen={setIsNewPolicyModalOpen}
-          platform={lastEditedQueryPlatform}
+          backendValidators={backendValidators}
+          platformSelector={platformSelector}
+          policyIsLoading={isCreatingNewPolicy}
         />
       )}
     </>

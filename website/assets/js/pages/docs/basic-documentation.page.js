@@ -16,6 +16,7 @@ parasails.registerPage('basic-documentation', {
     pagesBySectionSlug: {},
     subtopics: [],
     relatedTopics: [],
+    scrollDistance: 0,
 
   },
 
@@ -45,27 +46,16 @@ parasails.registerPage('basic-documentation', {
       let pagesBySectionSlug = {};
 
       for (let sectionSlug of sectionSlugs) {
-        pagesBySectionSlug[sectionSlug] = _
-          .chain(this.pages)
-          .filter((page) => {
-            return sectionSlug === page.url.split(/\//).slice(-2)[0];
-          })
-          .sortBy((page) => {
-            // custom sort function is needed because simple sort of alphanumeric htmlIds strings
-            // does not appropriately handle double-digit strings
-            try {
-              // attempt to split htmlId and parse out its ordinal value (e.g., `docs--10-teams--xxxxxxxxxx`)
-              let sortValue = page.htmlId.split(/--/)[1].split(/-/)[0];
-              return parseInt(sortValue) || sortValue;
-            } catch (error) {
-              // something unexpected happened so just return the htmlId and continue sort
-              console.log(error);
-              return page.htmlId;
-            }
-          })
-          .value();
+        pagesBySectionSlug[sectionSlug] = this.pages.filter((page) => {
+          return sectionSlug === page.url.split(/\//).slice(-2)[0];
+        });
+        // Sorting pages by pageOrderInSectionPath value, README files do not have a pageOrderInSectionPath, and FAQ pages are added to the end of the sorted array below.
+        pagesBySectionSlug[sectionSlug] = _.sortBy(pagesBySectionSlug[sectionSlug], (page) => {
+          if (!page.sectionRelativeRepoPath.match(/README\.md$/i) && !page.sectionRelativeRepoPath.match(/FAQ\.md$/i)) {
+            return page.pageOrderInSectionPath;
+          }
+        });
       }
-
       // We need to re-sort the top-level sections because their htmlIds do not reflect the correct order
       pagesBySectionSlug['docs'] = DOCS_SLUGS.map((slug) => {
         return pagesBySectionSlug['docs'].find((page) => slug === _.kebabCase(page.title));
@@ -86,18 +76,20 @@ parasails.registerPage('basic-documentation', {
 
       return pagesBySectionSlug;
     })();
+    // Adding scroll event listener for scrolling sidebars with the header.
+    window.addEventListener('scroll', this.scrollSideNavigationWithHeader);
   },
 
   mounted: async function() {
-
     // Algolia DocSearch
     docsearch({
-      apiKey: '8c492befdb9f5b5166253a0f8eeb789d',
+      appId: 'NZXAYZXDGH',
+      apiKey: 'f3c02b646222734376a5e94408d6fead',
       indexName: 'fleetdm',
       inputSelector: (this.isDocsLandingPage ? '#docsearch-query-landing' : '#docsearch-query'),
       debug: false,
       algoliaOptions: {
-        'facetFilters': ['tags:docs']
+        'facetFilters': ['section:docs']
       },
     });
 
@@ -256,6 +248,35 @@ parasails.registerPage('basic-documentation', {
     setSearchString: function () {
       this.searchString = this.inputTextValue;
     },
+
+    scrollSideNavigationWithHeader: function () {
+      var rightNavBar = document.querySelector('div[purpose="right-sidebar"]');
+      var leftNavBar = document.querySelector('div[purpose="left-sidebar"]');
+      var scrollTop = window.pageYOffset || document.documentElement.scrollTop;
+      if(rightNavBar) {
+        if (scrollTop > this.scrollDistance && scrollTop > window.innerHeight * 1.5) {
+          rightNavBar.classList.add('header-hidden', 'scrolled');
+        } else {
+          if(scrollTop === 0) {
+            rightNavBar.classList.remove('header-hidden', 'scrolled');
+          } else {
+            rightNavBar.classList.remove('header-hidden');
+          }
+        }
+      }
+      if(leftNavBar) {
+        if (scrollTop > this.scrollDistance && scrollTop > window.innerHeight * 1.5) {
+          leftNavBar.classList.add('header-hidden', 'scrolled');
+        } else {
+          if(scrollTop === 0) {
+            leftNavBar.classList.remove('header-hidden', 'scrolled');
+          } else {
+            leftNavBar.classList.remove('header-hidden');
+          }
+        }
+      }
+      this.scrollDistance = scrollTop;
+    }
 
   }
 

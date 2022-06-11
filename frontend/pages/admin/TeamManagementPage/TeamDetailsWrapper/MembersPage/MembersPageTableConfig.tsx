@@ -13,12 +13,21 @@ interface IHeaderProps {
   };
 }
 
-interface ICellProps {
-  cell: {
-    value: any;
-  };
+interface IRowProps {
   row: {
     original: IUser;
+  };
+}
+
+interface ICellProps extends IRowProps {
+  cell: {
+    value: string | number | boolean;
+  };
+}
+
+interface IDropdownCellProps extends IRowProps {
+  cell: {
+    value: IDropdownOption[];
   };
 }
 
@@ -26,12 +35,15 @@ interface IDataColumn {
   title: string;
   Header: ((props: IHeaderProps) => JSX.Element) | string;
   accessor: string;
-  Cell: (props: ICellProps) => JSX.Element;
+  Cell:
+    | ((props: ICellProps) => JSX.Element)
+    | ((props: IDropdownCellProps) => JSX.Element);
   disableHidden?: boolean;
   disableSortBy?: boolean;
+  sortType?: string;
 }
 
-interface IMembersTableData {
+export interface IMembersTableData {
   name: string;
   email: string;
   role: string;
@@ -50,29 +62,36 @@ const generateTableHeaders = (
       title: "Name",
       Header: "Name",
       disableSortBy: true,
+      sortType: "caseInsensitive",
       accessor: "name",
-      Cell: (cellProps) => <TextCell value={cellProps.cell.value} />,
-    },
-    {
-      title: "Email",
-      Header: "Email",
-      disableSortBy: true,
-      accessor: "email",
-      Cell: (cellProps) => <TextCell value={cellProps.cell.value} />,
+      Cell: (cellProps: ICellProps) => (
+        <TextCell value={cellProps.cell.value} />
+      ),
     },
     {
       title: "Role",
       Header: "Role",
       disableSortBy: true,
       accessor: "role",
-      Cell: (cellProps) => <TextCell value={cellProps.cell.value} />,
+      Cell: (cellProps: ICellProps) => (
+        <TextCell value={cellProps.cell.value} />
+      ),
+    },
+    {
+      title: "Email",
+      Header: "Email",
+      disableSortBy: true,
+      accessor: "email",
+      Cell: (cellProps: ICellProps) => (
+        <TextCell classes="w400" value={cellProps.cell.value} />
+      ),
     },
     {
       title: "Actions",
-      Header: "Actions",
+      Header: "",
       disableSortBy: true,
       accessor: "actions",
-      Cell: (cellProps) => (
+      Cell: (cellProps: IDropdownCellProps) => (
         <DropdownCell
           options={cellProps.cell.value}
           onChange={(value: string) =>
@@ -106,9 +125,7 @@ const generateRole = (teamId: number, teams: ITeam[]): string => {
 
 const enhanceMembersData = (
   teamId: number,
-  users: {
-    [id: number]: IUser;
-  }
+  users: IUser[]
 ): IMembersTableData[] => {
   return Object.values(users).map((user) => {
     return {
@@ -126,9 +143,7 @@ const enhanceMembersData = (
 
 const generateDataSet = (
   teamId: number,
-  users: {
-    [id: number]: IUser;
-  }
+  users: IUser[]
 ): IMembersTableData[] => {
   return [...enhanceMembersData(teamId, users)];
 };

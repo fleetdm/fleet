@@ -1,5 +1,16 @@
 package fleet
 
+import (
+	"errors"
+	"strconv"
+	"strings"
+
+	"github.com/fleetdm/fleet/v4/server/ptr"
+)
+
+// MaxScheduledQueryInterval is the maximum interval value (in seconds) allowed by osquery
+const MaxScheduledQueryInterval = 604800
+
 type PackListOptions struct {
 	ListOptions
 
@@ -8,20 +19,73 @@ type PackListOptions struct {
 }
 
 // Pack is the structure which represents an osquery query pack.
+//
+// NOTE: A "team pack" is a special type of pack with Pack.Type="team-$TEAM_ID".
+// Such team packs hold the scheduled queries for a team. This is different from a
+// pack that has a team as target (Pack.Teams and Pack.TeamIDs fields).
 type Pack struct {
 	UpdateCreateTimestamps
-	ID          uint     `json:"id"`
-	Name        string   `json:"name"`
-	Description string   `json:"description,omitempty"`
-	Platform    string   `json:"platform,omitempty"`
-	Disabled    bool     `json:"disabled"`
-	Type        *string  `json:"type" db:"pack_type"`
-	Labels      []Target `json:"labels"`
-	LabelIDs    []uint   `json:"label_ids"`
-	Hosts       []Target `json:"hosts"`
-	HostIDs     []uint   `json:"host_ids"`
-	Teams       []Target `json:"teams"`
-	TeamIDs     []uint   `json:"team_ids"`
+	ID          uint   `json:"id"`
+	Name        string `json:"name"`
+	Description string `json:"description,omitempty"`
+	Platform    string `json:"platform,omitempty"`
+	Disabled    bool   `json:"disabled"`
+	// Type indicates the type of the pack:
+	//	- "global" is the type of the global pack.
+	//	- "team-$ID" is the type for team packs.
+	//	- nil is the type for a user created pack.
+	Type     *string  `json:"type" db:"pack_type"`
+	Labels   []Target `json:"labels"`
+	LabelIDs []uint   `json:"label_ids"`
+	Hosts    []Target `json:"hosts"`
+	HostIDs  []uint   `json:"host_ids"`
+	Teams    []Target `json:"teams"`
+	// TeamIDs holds the ID of the teams this pack should target.
+	TeamIDs []uint `json:"team_ids"`
+}
+
+// isTeamPack returns true if the pack is a pack specifically made for a team.
+func (p *Pack) isTeamPack() bool {
+	return p.Type != nil && strings.HasPrefix(*p.Type, "team-")
+}
+
+// isGlobalPack returns true if the pack is the global pack.
+func (p *Pack) isGlobalPack() bool {
+	return p.Type != nil && *p.Type == "global"
+}
+
+// TeamPack returns the team ID for a team's pack.
+// Returns (nil, nil) if the pack is not a team pack.
+func (p *Pack) teamPack() (*uint, error) {
+	if !p.isTeamPack() {
+		return nil, nil
+	}
+	t := strings.TrimPrefix(*p.Type, "team-")
+	teamID, err := strconv.ParseUint(t, 10, 64)
+	if err != nil {
+		return nil, err
+	}
+	return ptr.Uint(uint(teamID)), nil
+}
+
+// ExtraAuthz implements authz.ExtraAuthzer.
+func (p *Pack) ExtraAuthz() (map[string]interface{}, error) {
+	packTeamID, err := p.teamPack()
+	if err != nil {
+		return nil, err
+	}
+	return map[string]interface{}{
+		"pack_team_id":   packTeamID,
+		"is_global_pack": p.isGlobalPack(),
+	}, nil
+}
+
+// Verify verifies the pack's fields are valid.
+func (p *Pack) Verify() error {
+	if emptyString(p.Name) {
+		return errPackEmptyName
+	}
+	return nil
 }
 
 // EditablePackType only returns true when the pack doesn't have a specific Type set, only nil & empty string Pack.Type
@@ -49,6 +113,21 @@ type PackPayload struct {
 	TeamIDs     *[]uint `json:"team_ids"`
 }
 
+var (
+	errPackEmptyName       = errors.New("pack name cannot be empty")
+	errPackInvalidInterval = errors.New("pack scheduled query interval must be an integer greater than 1 and less than 604800")
+)
+
+// Verify verifies the pack's payload fields are valid.
+func (p *PackPayload) Verify() error {
+	if p.Name != nil {
+		if emptyString(*p.Name) {
+			return errPackEmptyName
+		}
+	}
+	return nil
+}
+
 type PackSpec struct {
 	ID          uint            `json:"id,omitempty"`
 	Name        string          `json:"name"`
@@ -59,8 +138,22 @@ type PackSpec struct {
 	Queries     []PackSpecQuery `json:"queries,omitempty"`
 }
 
+// Verify verifies the pack's spec fields are valid.
+func (p *PackSpec) Verify() error {
+	if emptyString(p.Name) {
+		return errPackEmptyName
+	}
+	for _, sq := range p.Queries {
+		if sq.Interval < 1 || sq.Interval > MaxScheduledQueryInterval {
+			return errPackInvalidInterval
+		}
+	}
+	return nil
+}
+
 type PackSpecTargets struct {
 	Labels []string `json:"labels"`
+	Teams  []string `json:"teams"`
 }
 
 type PackSpecQuery struct {

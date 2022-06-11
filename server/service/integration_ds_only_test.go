@@ -44,13 +44,13 @@ func (s *integrationDSTestSuite) TestLicenseExpiration() {
 			t := s.T()
 
 			license := &fleet.LicenseInfo{Tier: tt.tier, Expiration: tt.expiration}
-			_, server := RunServerForTestsWithDS(t, s.ds, TestServerOpts{License: license, SkipCreateTestUsers: true})
+			_, server := RunServerForTestsWithDS(t, s.ds, &TestServerOpts{License: license, SkipCreateTestUsers: true})
 
 			ts := withServer{server: server}
 			ts.s = &s.Suite
 			ts.token = ts.getTestAdminToken()
 
-			resp := ts.Do("GET", "/api/v1/fleet/config", nil, http.StatusOK)
+			resp := ts.Do("GET", "/api/latest/fleet/config", nil, http.StatusOK)
 			if tt.shouldHaveHeader {
 				require.Equal(t, fleet.HeaderLicenseValueExpired, resp.Header.Get(fleet.HeaderLicenseKey))
 			} else {

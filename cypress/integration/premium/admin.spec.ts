@@ -1,282 +1,717 @@
-describe(
-  "Premium tier - Admin user",
-  {
-    defaultCommandTimeout: 20000,
+import CONSTANTS from "../../support/constants";
+
+const { GOOD_PASSWORD } = CONSTANTS;
+
+const getConfig = {
+  org_info: {
+    org_name: "Fleet Test",
+    org_logo_url: "",
   },
-  () => {
-    beforeEach(() => {
-      cy.setup();
-      cy.login();
-      cy.seedPremium();
-      cy.setupSMTP();
-      cy.seedQueries();
-      cy.seedPolicies("apples");
-      cy.addDockerHost("apples");
-      cy.logout();
-    });
-    afterEach(() => {
-      cy.stopDockerHost();
-    });
-
-    it(
-      "Can perform the appropriate premium-tier admin actions",
-      {
-        retries: {
-          runMode: 2,
-        },
+  server_settings: {
+    server_url: "https://localhost:8642",
+    live_query_disabled: false,
+    enable_analytics: true,
+    deferred_save_host: false,
+  },
+  smtp_settings: {
+    enable_smtp: false,
+    configured: false,
+    sender_address: "",
+    server: "",
+    port: 587,
+    authentication_type: "authtype_username_password",
+    user_name: "",
+    password: "",
+    enable_ssl_tls: true,
+    authentication_method: "authmethod_plain",
+    domain: "",
+    verify_ssl_certs: true,
+    enable_start_tls: true,
+  },
+  host_expiry_settings: {
+    host_expiry_enabled: true,
+    host_expiry_window: 9,
+  },
+  host_settings: {
+    enable_host_users: true,
+    enable_software_inventory: true,
+  },
+  agent_options: {
+    config: {
+      options: {
+        logger_plugin: "tls",
+        pack_delimiter: "/",
+        logger_tls_period: 10,
+        distributed_plugin: "tls",
+        disable_distributed: false,
+        logger_tls_endpoint: "/api/osquery/log",
+        distributed_interval: 10,
+        distributed_tls_max_attempts: 3,
       },
-      () => {
-        cy.login("anna@organization.com", "user123#");
-        cy.visit("/hosts/manage");
+      decorators: {
+        load: [
+          "SELECT uuid AS host_uuid FROM system_info;",
+          "SELECT hostname AS hostname FROM system_info;",
+        ],
+      },
+    },
+    overrides: {},
+  },
+  sso_settings: {
+    entity_id: "",
+    issuer_uri: "",
+    idp_image_url: "",
+    metadata: "",
+    metadata_url: "",
+    idp_name: "",
+    enable_sso: false,
+    enable_sso_idp_login: false,
+  },
+  vulnerability_settings: {
+    databases_path: "",
+  },
+  webhook_settings: {
+    host_status_webhook: {
+      enable_host_status_webhook: false,
+      destination_url: "",
+      host_percentage: 0,
+      days_count: 0,
+    },
+    failing_policies_webhook: {
+      enable_failing_policies_webhook: true,
+      destination_url: "ok.com",
+      policy_ids: [5, 10],
+      host_batch_size: 0,
+    },
+    vulnerabilities_webhook: {
+      enable_vulnerabilities_webhook: false,
+      destination_url: "",
+      host_batch_size: 0,
+    },
+    interval: "24h0m0s",
+  },
+  integrations: {
+    jira: [
+      {
+        url: "https://fleetdm.atlassian.com",
+        username: "jira1@example.com",
+        api_token: "jira123",
+        project_key: "PROJECT 1",
+        enable_software_vulnerabilities: true,
+      },
+      {
+        url: "https://fleetdm.atlassian.com",
+        username: "jira2@example.com",
+        api_token: "jira123",
+        project_key: "PROJECT 2",
+        enable_software_vulnerabilities: false,
+      },
+      {
+        url: "https://fleetdm.atlassian.com",
+        username: "jira3@example.com",
+        api_token: "jira123",
+        project_key: "PROJECT 3",
+        enable_software_vulnerabilities: false,
+      },
+    ],
+  },
+  update_interval: {
+    osquery_detail: 3600000000000,
+    osquery_policy: 3600000000000,
+  },
+  vulnerabilities: {
+    databases_path: "/tmp/vulndbs",
+    periodicity: 3600000000000,
+    cpe_database_url: "",
+    cve_feed_prefix_url: "",
+    current_instance_checks: "auto",
+    disable_data_sync: false,
+    recent_vulnerability_max_age: 2592000000000000,
+  },
+  license: {
+    tier: "premium",
+    organization: "development-only",
+    device_count: 100,
+    expiration: "2022-06-30T20:00:00-04:00",
+    note: "for development only",
+  },
+  logging: {
+    debug: false,
+    json: false,
+    result: {
+      plugin: "filesystem",
+      config: {
+        status_log_file:
+          "/var/folders/xh/bxm1d2615tv3vrg4zrxq540h0000gn/T/osquery_status",
+        result_log_file:
+          "/var/folders/xh/bxm1d2615tv3vrg4zrxq540h0000gn/T/osquery_result",
+        enable_log_rotation: false,
+        enable_log_compression: false,
+      },
+    },
+    status: {
+      plugin: "filesystem",
+      config: {
+        status_log_file:
+          "/var/folders/xh/bxm1d2615tv3vrg4zrxq540h0000gn/T/osquery_status",
+        result_log_file:
+          "/var/folders/xh/bxm1d2615tv3vrg4zrxq540h0000gn/T/osquery_result",
+        enable_log_rotation: false,
+        enable_log_compression: false,
+      },
+    },
+  },
+};
 
-        // On the hosts page, they should…
+const enableWebhook = {
+  ...getConfig,
+  integrations: {
+    jira: [
+      {
+        url: "https://fleetdm.atlassian.com",
+        username: "jira1@example.com",
+        api_token: "jira123",
+        project_key: "PROJECT 1",
+        enable_software_vulnerabilities: false,
+      },
+      {
+        url: "https://fleetdm.atlassian.com",
+        username: "jira2@example.com",
+        api_token: "jira123",
+        project_key: "PROJECT 2",
+        enable_software_vulnerabilities: false,
+      },
+      {
+        url: "https://fleetdm.atlassian.com",
+        username: "jira3@example.com",
+        api_token: "jira123",
+        project_key: "PROJECT 3",
+        enable_software_vulnerabilities: false,
+      },
+    ],
+  },
+  webhook_settings: {
+    vulnerabilities_webhook: {
+      destination_url: "www.foo.com/bar",
+      enable_vulnerabilities_webhook: true,
+    },
+  },
+};
 
-        // See the “Teams” column in the Hosts table
-        cy.getAttached("thead").contains(/team/i).should("exist");
+const enableIntegration = {
+  ...getConfig,
+  integrations: {
+    jira: [
+      {
+        url: "https://fleetdm.atlassian.com",
+        username: "jira1@example.com",
+        api_token: "jira123",
+        project_key: "PROJECT 1",
+        enable_software_vulnerabilities: false,
+      },
+      {
+        url: "https://fleetdm.atlassian.com",
+        username: "jira2@example.com",
+        api_token: "jira123",
+        project_key: "PROJECT 2",
+        enable_software_vulnerabilities: true,
+      },
+      {
+        url: "https://fleetdm.atlassian.com",
+        username: "jira3@example.com",
+        api_token: "jira123",
+        project_key: "PROJECT 3",
+        enable_software_vulnerabilities: false,
+      },
+    ],
+  },
+  webhook_settings: {
+    vulnerabilities_webhook: {
+      destination_url: "www.foo.com/bar",
+      enable_vulnerabilities_webhook: false,
+    },
+  },
+};
 
-        // See and select the “Generate installer” button
-        cy.contains("button", /generate installer/i).click();
-        cy.contains("button", /done/i).click();
+const disableAutomations = {
+  ...getConfig,
+  integrations: {
+    jira: [
+      {
+        url: "https://fleetdm.atlassian.com",
+        username: "jira1@example.com",
+        api_token: "jira123",
+        project_key: "PROJECT 1",
+        enable_software_vulnerabilities: false,
+      },
+      {
+        url: "https://fleetdm.atlassian.com",
+        username: "jira2@example.com",
+        api_token: "jira123",
+        project_key: "PROJECT 2",
+        enable_software_vulnerabilities: false,
+      },
+      {
+        url: "https://fleetdm.atlassian.com",
+        username: "jira3@example.com",
+        api_token: "jira123",
+        project_key: "PROJECT 3",
+        enable_software_vulnerabilities: false,
+      },
+    ],
+  },
+  webhook_settings: {
+    vulnerabilities_webhook: {
+      destination_url: "www.foo.com/bar",
+      enable_vulnerabilities_webhook: false,
+    },
+  },
+};
 
-        // See the "Manage" enroll secret” button. A modal appears after the user selects the button
-        // Add secret tests same API as edit and delete
-        cy.contains("button", /manage enroll secret/i).click();
-        cy.contains("button", /add secret/i).click();
-        cy.contains("button", /save/i).click();
-        cy.contains("button", /done/i).click();
+describe("Premium tier - Global Admin user", () => {
+  before(() => {
+    Cypress.session.clearAllSavedSessions();
+    cy.setup();
+    cy.loginWithCySession();
+    cy.seedPremium();
+    cy.seedQueries();
+    cy.seedPolicies("apples");
+    cy.addDockerHost("apples"); // host not transferred
+    cy.addDockerHost("oranges"); // host transferred between teams by global admin
+  });
+  after(() => {
+    cy.logout();
+    cy.stopDockerHost();
+  });
 
-        // On the Host details page, they should…
-        // See the “Team” information below the hostname
-        // Be able to transfer Teams
-        cy.visit("/hosts/1");
-        cy.findByText(/team/i).next().contains("Apples");
-        cy.contains("button", /transfer/i).click();
-        cy.get(".Select-control").click();
-        cy.findByText(/create a team/i).should("exist");
-        cy.get(".Select-menu").within(() => {
-          cy.findByText(/no team/i).should("exist");
-          cy.findByText(/apples/i).should("exist");
-          cy.findByText(/oranges/i).click();
+  beforeEach(() => {
+    cy.loginWithCySession("anna@organization.com", GOOD_PASSWORD);
+  });
+  describe("Navigation", () => {
+    beforeEach(() => cy.visit("/dashboard"));
+    it("displays intended global admin top navigation", () => {
+      cy.getAttached(".site-nav-container").within(() => {
+        cy.findByText(/hosts/i).should("exist");
+        cy.findByText(/software/i).should("exist");
+        cy.findByText(/queries/i).should("exist");
+        cy.findByText(/schedule/i).should("exist");
+        cy.findByText(/policies/i).should("exist");
+        cy.getAttached(".user-menu").click();
+        cy.findByText(/settings/i).click();
+      });
+      cy.getAttached(".react-tabs__tab--selected").within(() => {
+        cy.findByText(/organization/i).should("exist");
+      });
+      cy.getAttached(".site-nav-container").within(() => {
+        cy.getAttached(".user-menu").click();
+        cy.findByText(/manage users/i).click();
+      });
+      cy.getAttached(".react-tabs__tab--selected").within(() => {
+        cy.findByText(/users/i).should("exist");
+      });
+    });
+  });
+  // Global Admin dashboard tested in integration/free/admin.spec.ts
+  // Team Admin dashboard tested below in integration/premium/admin.spec.ts
+  describe("Manage hosts page", () => {
+    beforeEach(() => cy.visit("/hosts/manage"));
+    it("displays team column in hosts table", () => {
+      cy.getAttached(".data-table__table th")
+        .contains("Team")
+        .should("be.visible");
+    });
+    it("allows global admin to see and click 'Add hosts'", () => {
+      cy.getAttached(".button-wrap")
+        .contains("button", /add hosts/i)
+        .click();
+      cy.getAttached(".modal__content").contains("button", /done/i).click();
+    });
+    it("allows global admin to add new enroll secret", () => {
+      cy.getAttached(".button-wrap")
+        .contains("button", /manage enroll secret/i)
+        .click();
+      cy.getAttached(".enroll-secret-modal__add-secret")
+        .contains("button", /add secret/i)
+        .click();
+      cy.getAttached(".secret-editor-modal .modal-cta-wrap")
+        .contains("button", /save/i)
+        .click();
+      cy.getAttached(".enroll-secret-modal .modal-cta-wrap")
+        .contains("button", /done/i)
+        .click();
+    });
+  });
+  describe("Manage software page", () => {
+    beforeEach(() => {
+      cy.intercept("GET", "/api/latest/fleet/config", getConfig).as(
+        "getIntegrations"
+      );
+      cy.visit("/software/manage");
+      cy.wait("@getIntegrations").then((configStub) => {
+        console.log(JSON.stringify(configStub));
+      });
+    });
+    // it(`displays "Probability of exploit" column`, () => {
+    //   cy.getAttached("thead").within(() => {
+    //     cy.findByText(/vulnerabilities/i).should("not.exist");
+    //     cy.findByText(/probability of exploit/i).should("exist");
+    //   });
+    // });
+    it("allows admin to create webhook software vulnerability automation", () => {
+      cy.getAttached(".manage-software-page__header-wrap").within(() => {
+        cy.findByRole("button", { name: /manage automations/i }).click();
+      });
+      cy.getAttached(".manage-automations-modal").within(() => {
+        cy.getAttached(".fleet-slider").click();
+        cy.getAttached(".fleet-slider").click();
+        cy.getAttached("#webhook-radio-btn").next().click();
+      });
+      cy.getAttached("#webhook-url").click().type("www.foo.com/bar");
+      cy.intercept("PATCH", "/api/latest/fleet/config", enableWebhook).as(
+        "createWebhook"
+      );
+      cy.intercept("GET", "/api/latest/fleet/config", enableWebhook).as(
+        "createdWebhook"
+      );
+      cy.findByRole("button", { name: /^Save$/ }).click();
+      cy.wait("@createWebhook").then((configStub) => {
+        console.log(JSON.stringify(configStub));
+      });
+      cy.wait("@createdWebhook").then((configStub) => {
+        console.log(JSON.stringify(configStub));
+      });
+      // Confirm manage automations webhook was added successfully
+      cy.findByText(/updated vulnerability automations/i).should("exist");
+      cy.getAttached(".button-wrap").within(() => {
+        cy.findByRole("button", {
+          name: /manage automations/i,
+        }).click();
+      });
+      cy.getAttached(".manage-automations-modal").within(() => {
+        cy.getAttached(".fleet-slider--active").should("exist");
+        cy.getAttached("#webhook-url").should("exist");
+      });
+    });
+    it("allows admin to create jira integration software vulnerability automation", () => {
+      cy.getAttached(".manage-software-page__header-wrap").within(() => {
+        cy.findByRole("button", {
+          name: /manage automations/i,
+        }).click();
+      });
+      cy.getAttached(".manage-automations-modal").within(() => {
+        cy.getAttached(".fleet-slider").click();
+        cy.getAttached(".fleet-slider").click();
+        cy.getAttached("#ticket-radio-btn").next().click();
+        cy.findByText(/project 1/i).click();
+        cy.findByText(/project 2/i).click();
+      });
+      cy.intercept("PATCH", "/api/latest/fleet/config", enableIntegration).as(
+        "enableIntegration"
+      );
+      cy.intercept("GET", "/api/latest/fleet/config", enableIntegration).as(
+        "enabledIntegration"
+      );
+      cy.findByRole("button", { name: /^Save$/ }).click();
+      cy.wait("@enableIntegration").then((configStub) => {
+        console.log(JSON.stringify(configStub));
+      });
+      cy.wait("@enabledIntegration").then((configStub) => {
+        console.log(JSON.stringify(configStub));
+      });
+      // Confirm jira integration was added successfully
+      cy.findByText(/updated vulnerability automations/i).should("exist");
+      cy.intercept("GET", "/api/latest/fleet/config", enableIntegration).as(
+        "getIntegrations"
+      );
+      cy.visit("/software/manage");
+      cy.wait("@getIntegrations").then((configStub) => {
+        console.log(JSON.stringify(configStub));
+      });
+      cy.getAttached(".button-wrap").within(() => {
+        cy.findByRole("button", {
+          name: /manage automations/i,
+        }).click();
+      });
+      cy.getAttached(".manage-automations-modal").within(() => {
+        cy.getAttached(".fleet-slider--active").should("exist");
+        cy.findByText(/project 2/i).should("exist");
+      });
+    });
+    it("allows admin to disable software vulnerability automation", () => {
+      cy.getAttached(".manage-software-page__header-wrap").within(() => {
+        cy.findByRole("button", {
+          name: /manage automations/i,
+        }).click();
+      });
+      cy.getAttached(".manage-automations-modal").within(() => {
+        cy.getAttached(".fleet-slider").click();
+      });
+      cy.intercept("PATCH", "/api/latest/fleet/config", disableAutomations).as(
+        "disableAutomations"
+      );
+      cy.intercept("GET", "/api/latest/fleet/config", disableAutomations).as(
+        "disabledAutomations"
+      );
+      cy.findByRole("button", { name: /^Save$/ }).click();
+      cy.wait("@disableAutomations").then((configStub) => {
+        console.log(JSON.stringify(configStub));
+      });
+      cy.wait("@disabledAutomations").then((configStub) => {
+        console.log(JSON.stringify(configStub));
+      });
+      // Confirm integration was disabled successfully
+      cy.findByText(/updated vulnerability automations/i).should("exist");
+      cy.getAttached(".button-wrap").within(() => {
+        cy.findByRole("button", {
+          name: /manage automations/i,
+        }).click();
+      });
+      cy.getAttached(".manage-automations-modal").within(() => {
+        cy.findByText(/vulnerability automations disabled/i).should("exist");
+      });
+    });
+    it("hides manage automations button since all teams not selected", () => {
+      cy.getAttached(".manage-software-page__header-wrap").within(() => {
+        cy.getAttached(".Select").within(() => {
+          cy.findByText(/all teams/i).click();
+          cy.findByText(/apples/i).click();
         });
-        cy.get(".transfer-action-btn").click();
-        cy.findByText(/transferred to oranges/i).should("exist");
-        cy.findByText(/team/i).next().contains("Oranges");
-        // See and select operating system
-        // TODO
+        cy.findByText(/manage automations/i).should("not.exist");
+      });
+    });
+  });
+  describe("Host details page", () => {
+    beforeEach(() => cy.visit("hosts/2"));
+    it("allows global admin to transfer host to an existing team", () => {
+      cy.getAttached(".host-details__transfer-button").click();
+      cy.findByText(/create a team/i).should("exist");
+      cy.getAttached(".Select-control").click();
+      cy.getAttached(".Select-menu").within(() => {
+        cy.findByText(/no team/i).should("exist");
+        cy.findByText(/oranges/i).should("exist");
+        cy.findByText(/apples/i).click();
+      });
+      cy.getAttached(".transfer-host-modal .modal-cta-wrap")
+        .contains("button", /transfer/i)
+        .click();
+      cy.findByText(/transferred to apples/i).should("exist");
+      cy.findByText(/team/i).next().contains("Apples");
+    });
+    it("allows global admin to create an operating system policy", () => {
+      cy.getAttached(".info-flex").within(() => {
+        cy.findByText(/ubuntu/i).should("exist");
+        cy.getAttached(".host-summary__os-policy-button").click();
+      });
+      cy.getAttached(".modal__content")
+        .findByRole("button", { name: /create new policy/i })
+        .should("exist");
+    });
+    it("allows global admin to create a custom query", () => {
+      cy.getAttached(".host-details__query-button").click();
+      cy.contains("button", /create custom query/i).should("exist");
+      cy.getAttached(".modal__ex").click();
+    });
+    it("allows global admin to delete a host", () => {
+      cy.getAttached(".host-details__action-button-container")
+        .contains("button", /delete/i)
+        .click();
+      cy.getAttached(".delete-host-modal__modal").within(() => {
+        cy.findByText(/delete host/i).should("exist");
+        cy.contains("button", /delete/i).should("exist");
+        cy.getAttached(".modal__ex").click();
+      });
+    });
+  });
 
-        // TODO - Fix tests according to improved query experience - MP
-        // On the Queries - new / edit / run page, they should…
-        // See the “Teams” section in the Select target picker. This picker is summoned when the “Select targets” field is selected.
-        // cy.visit("/queries/new");
-        // cy.get(".target-select").within(() => {
-        //   cy.findByText(/Label name, host name, IP address, etc./i).click();
-        //   cy.findByText(/teams/i).should("exist");
-        // });
-
-        cy.visit("/queries/manage");
-
-        cy.findByRole("button", { name: /create new query/i }).click();
-
-        // Using class selector because third party element doesn't work with Cypress Testing Selector Library
-        cy.get(".ace_scroller")
-          .click({ force: true })
-          .type("{selectall}SELECT * FROM windows_crashes;");
-
-        cy.findByRole("button", { name: /save/i }).click();
-
-        // save modal
-        cy.get(".query-form__query-save-modal-name")
-          .click()
-          .type("Query all window crashes");
-
-        cy.get(".query-form__query-save-modal-description")
-          .click()
-          .type("See all window crashes");
-
-        cy.findByRole("button", { name: /save query/i }).click();
-
-        cy.findByText(/query created/i).should("exist");
-        cy.findByText(/back to queries/i).should("exist");
-        cy.visit("/queries/manage");
-
-        cy.wait(2000); // eslint-disable-line cypress/no-unnecessary-waiting
-        cy.findByText(/query all/i).click();
-
-        cy.wait(1000); // eslint-disable-line cypress/no-unnecessary-waiting
-        cy.findByText(/run query/i).should("exist");
-
-        cy.get(".ace_scroller")
-          .click({ force: true })
-          .type("{selectall}SELECT datetime, username FROM windows_crashes;");
-
-        cy.findByRole("button", { name: /^Save$/ }).click();
-
-        cy.findByText(/query updated/i).should("be.visible");
-
-        // Start e2e test for schedules
-        cy.visit("/schedule/manage");
-
-        cy.wait(2000); // eslint-disable-line cypress/no-unnecessary-waiting
-
-        cy.findByRole("button", { name: /schedule a query/i }).click();
-
-        cy.findByText(/select query/i).click();
-
-        cy.findByText(/query all window crashes/i).click();
-
-        cy.get(
-          ".schedule-editor-modal__form-field--frequency > .dropdown__select"
-        ).click();
-
-        cy.findByText(/every week/i).click();
-
-        cy.findByText(/show advanced options/i).click();
-
-        cy.get(
-          ".schedule-editor-modal__form-field--logging > .dropdown__select"
-        ).click();
-
-        cy.findByText(/ignore removals/i).click();
-
-        cy.get(".schedule-editor-modal__form-field--shard > .input-field")
-          .click()
-          .type("50");
-
-        cy.get(".schedule-editor-modal__btn-wrap")
-          .contains("button", /schedule/i)
-          .click();
-
-        cy.visit("/schedule/manage");
-
-        cy.wait(2000); // eslint-disable-line cypress/no-unnecessary-waiting
-        cy.findByText(/query all window crashes/i).should("exist");
-
-        cy.findByText(/actions/i).click();
-        cy.findByText(/edit/i).click();
-
-        cy.get(
-          ".schedule-editor-modal__form-field--frequency > .dropdown__select"
-        ).click();
-
-        cy.findByText(/every 6 hours/i).click();
-
-        cy.findByText(/show advanced options/i).click();
-
-        cy.findByText(/ignore removals/i).click();
-        cy.findByText(/snapshot/i).click();
-
-        cy.get(".schedule-editor-modal__form-field--shard > .input-field")
-          .click()
-          .type("{selectall}{backspace}10");
-
-        cy.get(".schedule-editor-modal__btn-wrap")
-          .contains("button", /schedule/i)
-          .click();
-
-        cy.visit("/schedule/manage");
-
-        cy.wait(2000); // eslint-disable-line cypress/no-unnecessary-waiting
-        cy.findByText(/actions/i).click();
-        cy.findByText(/remove/i).click();
-
-        cy.get(".remove-scheduled-query-modal__btn-wrap")
-          .contains("button", /remove/i)
-          .click();
-
-        cy.findByText(/query all window crashes/i).should("not.exist");
-
-        // End e2e test for schedules
-
-        cy.visit("/queries/manage");
-        cy.wait(1000); // eslint-disable-line cypress/no-unnecessary-waiting
-        cy.findByText(/query all window crashes/i)
-          .parent()
-          .parent()
+  describe("Query pages", () => {
+    beforeEach(() => cy.visit("/queries/manage"));
+    it("allows global admin to select teams targets for query", () => {
+      cy.getAttached("tbody").within(() => {
+        cy.getAttached("tr")
+          .first()
           .within(() => {
-            cy.get(".fleet-checkbox__input").check({ force: true });
+            cy.getAttached(".fleet-checkbox__input").check({ force: true });
           });
+        cy.findAllByText(/detect presence/i).click();
+      });
 
-        cy.findByRole("button", { name: /delete/i }).click();
-
-        // Can't figure out how attach findByRole onto modal button
-        // Can't use findByText because delete button under modal
-        cy.get(".remove-query-modal")
-          .contains("button", /delete/i)
-          .click();
-
-        cy.findByText(/successfully removed query/i).should("be.visible");
-
-        // On the policies manage page, they should…
-        cy.contains("a", "Policies").click();
-
-        // See and select the "Add a policy", "delete", and "edit" policy
-        cy.findByRole("button", { name: /add a policy/i })
+      cy.getAttached(".query-form__button-wrap").within(() => {
+        cy.findByRole("button", { name: /run/i }).click();
+      });
+      cy.contains("h3", /teams/i).should("exist");
+      cy.contains(".selector-name", /apples/i).should("exist");
+    });
+  });
+  // Global Admin schedule tested in integration/free/admin.spec.ts
+  // Team Admin team schedule tested below in integration/premium/admin.spec.ts
+  describe("Manage policies page", () => {
+    beforeEach(() => cy.visit("/policies/manage"));
+    it("allows global admin to add a new policy", () => {
+      cy.getAttached(".policies-list-wrapper__action-button-container")
+        .findByRole("button", { name: /add a policy/i })
+        .click();
+      // Add a default policy
+      cy.findByText(/gatekeeper enabled/i).click();
+      cy.getAttached(".policy-form__button-wrap").within(() => {
+        cy.findByRole("button", { name: /run/i }).should("exist");
+        cy.findByRole("button", { name: /save policy/i }).click();
+      });
+      cy.findByRole("button", { name: /^Save$/ }).click();
+      cy.findByText(/policy created/i).should("exist");
+      cy.findByText(/gatekeeper enabled/i).should("exist");
+    });
+    it("allows global admin to automate a global policy", () => {
+      cy.getAttached(".button-wrap")
+        .findByRole("button", { name: /manage automations/i })
+        .click();
+      cy.getAttached(".manage-automations-modal").within(() => {
+        cy.getAttached(".fleet-slider").click();
+        cy.getAttached(".fleet-checkbox__input").check({ force: true });
+        cy.getAttached("#webhook-url")
+          .clear()
+          .type("https://example.com/global_admin");
+        cy.findByText(/save/i).click();
+      });
+      cy.findByText(/successfully updated policy automations/i).should("exist");
+    });
+    it("allows global admin to automate a team policy", () => {
+      cy.visit("/policies/manage");
+      cy.getAttached(".Select-control").within(() => {
+        cy.findByText(/all teams/i).click();
+      });
+      cy.getAttached(".Select-menu")
+        .contains(/apples/i)
+        .click();
+      cy.getAttached(".button-wrap")
+        .findByRole("button", { name: /manage automations/i })
+        .click();
+      cy.getAttached(".manage-automations-modal").within(() => {
+        cy.getAttached(".fleet-slider").click();
+        cy.getAttached(".fleet-checkbox__input").check({ force: true });
+        cy.getAttached("#webhook-url")
+          .clear()
+          .type("https://example.com/global_admin");
+        cy.findByText(/save/i).click();
+      });
+      cy.findByText(/successfully updated policy automations/i).should("exist");
+    });
+    it("allows global admin to delete a team policy", () => {
+      cy.visit("/policies/manage");
+      cy.getAttached(".Select-control").within(() => {
+        cy.findByText(/all teams/i).click();
+      });
+      cy.getAttached(".Select-menu")
+        .contains(/apples/i)
+        .click();
+      cy.getAttached("tbody").within(() => {
+        cy.getAttached("tr")
+          .first()
+          .within(() => {
+            cy.getAttached(".fleet-checkbox__input").check({
+              force: true,
+            });
+          });
+      });
+      cy.findByRole("button", { name: /delete/i }).click();
+      cy.getAttached(".remove-policies-modal").within(() => {
+        cy.findByRole("button", { name: /delete/i }).should("exist");
+        cy.findByRole("button", { name: /cancel/i }).click();
+      });
+    });
+    it("allows global admin to edit a team policy", () => {
+      cy.visit("policies/manage");
+      cy.findByText(/all teams/i).click();
+      cy.findByText(/apples/i).click();
+      cy.getAttached("tbody").within(() => {
+        cy.getAttached("tr")
+          .first()
+          .within(() => {
+            cy.getAttached(".fleet-checkbox__input").check({
+              force: true,
+            });
+          });
+      });
+      cy.findByText(/filevault enabled/i).click();
+      cy.getAttached(".policy-form__button-wrap").within(() => {
+        cy.findByRole("button", { name: /run/i }).should("exist");
+        cy.findByRole("button", { name: /save/i }).should("exist");
+      });
+    });
+  });
+  describe("Admin settings page", () => {
+    beforeEach(() => cy.visit("/settings/organization"));
+    it("allows global admin to access team settings", () => {
+      cy.getAttached(".react-tabs").within(() => {
+        cy.findByText(/teams/i).click();
+      });
+      // Access the Settings - Team details page
+      cy.getAttached("tbody").within(() => {
+        cy.getAttached(".name__cell .button--text-link")
+          .eq(0)
+          .within(() => {
+            cy.findByText(/apples/i).click();
+          });
+      });
+      cy.findByText(/apples/i).should("exist");
+      cy.findByText(/manage users with global access here/i).should("exist");
+    });
+    it("displays the 'Team' section in the create user modal", () => {
+      cy.getAttached(".react-tabs").within(() => {
+        cy.findByText(/users/i).click();
+      });
+      cy.findByRole("button", { name: /create user/i }).click();
+      cy.findByText(/assign teams/i).should("exist");
+    });
+    it("allows global admin to edit existing user password", () => {
+      cy.visit("/settings/users");
+      cy.getAttached("tbody").within(() => {
+        cy.findByText("Oliver") // case-sensitive
+          .parent()
+          .next()
+          .next()
+          .next()
+          .next()
+          .next()
+          .within(() => cy.getAttached(".Select-placeholder").click());
+      });
+      cy.getAttached(".Select-menu").within(() => {
+        cy.findByText(/edit/i).click();
+      });
+      cy.getAttached(".create-user-form").within(() => {
+        cy.findByLabelText(/email/i).should("exist");
+        cy.findByLabelText(/password/i).should("exist");
+      });
+    });
+    it("allows access to Fleet Desktop settings", () => {
+      cy.visit("settings/organization");
+      cy.getAttached(".app-settings__form-nav-list").within(() => {
+        cy.findByText(/organization info/i).should("exist");
+        cy.findByText(/fleet desktop/i)
           .should("exist")
           .click();
-        cy.get(".modal__ex").within(() => {
-          cy.findByRole("button").click();
-        });
-
-        // No global policies seeded, switch to team apples to create, delete, edit
-        cy.findByText(/ask yes or no questions/i).should("exist");
-        cy.findByText(/all teams/i).click();
-        cy.findByText(/apples/i).click();
-
-        cy.get("tbody").within(() => {
-          cy.get("tr")
-            .first()
-            .within(() => {
-              cy.get(".fleet-checkbox__input").check({ force: true });
-            });
-        });
-        cy.findByRole("button", { name: /delete/i }).click();
-        cy.get(".remove-policies-modal").within(() => {
-          cy.findByRole("button", { name: /delete/i }).should("exist");
-          cy.findByRole("button", { name: /cancel/i }).click();
-        });
-        cy.findByText(/filevault enabled/i).click();
-        cy.wait(1000); // eslint-disable-line cypress/no-unnecessary-waiting
-
-        cy.findByRole("button", { name: /save/i }).should("exist");
-        cy.findByRole("button", { name: /run/i }).should("exist");
-
-        // On the Packs pages (manage, new, and edit), they should…
-        // ^^General admin functionality for packs page is being tested in app/packflow.spec.ts
-
-        // On the Settings pages, they should…
-        // See the “Teams” navigation item and access the Settings - Teams page
-        cy.visit("/settings/organization");
-        cy.wait(1000); // eslint-disable-line cypress/no-unnecessary-waiting
-
-        cy.get(".react-tabs").within(() => {
-          cy.findByText(/teams/i).click();
-        });
-        cy.wait(1000); // eslint-disable-line cypress/no-unnecessary-waiting
-
-        // Access the Settings - Team details page
-        cy.findByText(/apples/i).click();
-        cy.findByText(/apples/i).should("exist");
-        cy.findByText(/manage users with global access here/i).should("exist");
-
-        // See the “Team” section in the create user modal. This modal is summoned when the “Create user” button is selected
-        cy.visit("/settings/organization");
-        cy.wait(1000); // eslint-disable-line cypress/no-unnecessary-waiting
-        cy.get(".react-tabs").within(() => {
-          cy.findByText(/users/i).click();
-        });
-        cy.findByRole("button", { name: /create user/i }).click();
-        cy.findByText(/assign teams/i).should("exist");
-
-        // On the Profile page, they should…
-        // See Global in the Team section and Admin in the Role section
-        cy.visit("/profile");
-        cy.wait(1000); // eslint-disable-line cypress/no-unnecessary-waiting
-
+      });
+      cy.getAttached("[id=transparency_url")
+        .should("have.value", "https://fleetdm.com/transparency")
+        .clear()
+        .type("example.com/transparency");
+      cy.findByRole("button", { name: /save/i }).click();
+      cy.findByText(/successfully updated/i).should("exist");
+      cy.visit("settings/organization/fleet-desktop");
+      cy.getAttached("[id=transparency_url").should(
+        "have.value",
+        "example.com/transparency"
+      );
+    });
+  });
+  describe("User profile page", () => {
+    it("renders elements according to role-based access controls", () => {
+      cy.visit("/profile");
+      cy.getAttached(".user-settings__additional").within(() => {
         cy.findByText(/team/i)
           .next()
           .contains(/global/i);
         cy.findByText("Role").next().contains(/admin/i);
-      }
-    );
-  }
-);
+      });
+    });
+  });
+});

@@ -28,7 +28,6 @@
         font-size: $x-small;
         font-weight: $bold;
         color: $core-fleet-black;
-        padding-left: 12px;
       }
     }
   }
@@ -54,7 +53,7 @@
     color: $core-fleet-black;
     font-size: $x-small;
     font-weight: $bold;
-    margin-bottom: $pad-xsmall;
+    margin-bottom: $pad-small;
   }
 
   &__user-permissions-info {

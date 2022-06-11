@@ -1,49 +1,51 @@
 import React from "react";
-import { mount } from "enzyme";
-import { noop } from "lodash";
+import { fireEvent, render, screen } from "@testing-library/react";
 
 import ConfirmInviteForm from "components/forms/ConfirmInviteForm";
-import { fillInFormInput } from "test/helpers";
+import userEvent from "@testing-library/user-event";
 
 describe("ConfirmInviteForm - component", () => {
   const handleSubmitSpy = jest.fn();
   const inviteToken = "abc123";
   const formData = { invite_token: inviteToken };
-  const form = mount(
-    <ConfirmInviteForm formData={formData} handleSubmit={handleSubmitSpy} />
-  );
-
-  const nameInput = form.find({ name: "name" }).find("input");
-  const passwordConfirmationInput = form
-    .find({ name: "password_confirmation" })
-    .find("input");
-  const passwordInput = form.find({ name: "password" }).find("input");
-  const submitBtn = form.find("button");
 
   it("renders", () => {
-    expect(form.length).toEqual(1);
+    render(
+      <ConfirmInviteForm formData={formData} handleSubmit={handleSubmitSpy} />
+    );
+    expect(
+      screen.getByRole("textbox", { name: "Full name" })
+    ).toBeInTheDocument();
+    expect(screen.getByLabelText("Password")).toBeInTheDocument();
+    expect(screen.getByLabelText("Confirm password")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Submit" })).toBeInTheDocument();
   });
 
   it("renders the base error", () => {
     const baseError = "Unable to authenticate the current user";
-    const formWithError = mount(
+    render(
       <ConfirmInviteForm
         serverErrors={{ base: baseError }}
-        handleSubmit={noop}
+        handleSubmit={handleSubmitSpy}
       />
     );
-    const formWithoutError = mount(<ConfirmInviteForm handleSubmit={noop} />);
 
-    expect(formWithError.text()).toContain(baseError);
-    expect(formWithoutError.text()).not.toContain(baseError);
+    expect(screen.getByText(baseError)).toBeInTheDocument();
   });
 
   it("calls the handleSubmit prop with the invite_token when valid", () => {
-    fillInFormInput(nameInput, "Gnar Dog");
-    fillInFormInput(passwordInput, "p@ssw0rd");
-    fillInFormInput(passwordConfirmationInput, "p@ssw0rd");
-    submitBtn.simulate("click");
-
+    render(
+      <ConfirmInviteForm formData={formData} handleSubmit={handleSubmitSpy} />
+    );
+    // when
+    userEvent.type(
+      screen.getByRole("textbox", { name: "Full name" }),
+      "Gnar Dog"
+    );
+    userEvent.type(screen.getByLabelText("Password"), "p@ssw0rd");
+    userEvent.type(screen.getByLabelText("Confirm password"), "p@ssw0rd");
+    fireEvent.click(screen.getByRole("button", { name: "Submit" }));
+    // then
     expect(handleSubmitSpy).toHaveBeenCalledWith({
       ...formData,
       name: "Gnar Dog",
@@ -53,65 +55,65 @@ describe("ConfirmInviteForm - component", () => {
   });
 
   describe("name input", () => {
-    it("changes form state on change", () => {
-      fillInFormInput(nameInput, "Gnar Dog");
-
-      expect(form.state().formData).toMatchObject({ name: "Gnar Dog" });
-    });
-
-    it("validates the field must be present", () => {
-      fillInFormInput(nameInput, "");
-      form.find("button").simulate("click");
-
-      expect(form.state().errors).toMatchObject({
-        name: "Full name must be present",
-      });
+    it("validates the field must be present", async () => {
+      render(
+        <ConfirmInviteForm formData={formData} handleSubmit={handleSubmitSpy} />
+      );
+      // when
+      userEvent.type(screen.getByRole("textbox", { name: "Full name" }), "");
+      fireEvent.click(screen.getByRole("button", { name: "Submit" }));
+      // then
+      expect(
+        await screen.findByText("Full name must be present")
+      ).toBeInTheDocument();
     });
   });
 
   describe("password input", () => {
-    it("changes form state on change", () => {
-      fillInFormInput(passwordInput, "p@ssw0rd");
-
-      expect(form.state().formData).toMatchObject({ password: "p@ssw0rd" });
-    });
-
-    it("validates the field must be present", () => {
-      fillInFormInput(passwordInput, "");
-      form.find("button").simulate("click");
-
-      expect(form.state().errors).toMatchObject({
-        password: "Password must be present",
-      });
+    it("validates the field must be present", async () => {
+      render(
+        <ConfirmInviteForm formData={formData} handleSubmit={handleSubmitSpy} />
+      );
+      // when
+      userEvent.type(screen.getByLabelText("Password"), "");
+      fireEvent.click(screen.getByRole("button", { name: "Submit" }));
+      // then
+      expect(
+        await screen.findByText("Password must be present")
+      ).toBeInTheDocument();
     });
   });
 
   describe("password_confirmation input", () => {
-    it("changes form state on change", () => {
-      fillInFormInput(passwordConfirmationInput, "p@ssw0rd");
+    it("validates the password_confirmation matches the password", async () => {
+      render(
+        <ConfirmInviteForm formData={formData} handleSubmit={handleSubmitSpy} />
+      );
 
-      expect(form.state().formData).toMatchObject({
-        password_confirmation: "p@ssw0rd",
-      });
+      // when
+      userEvent.type(screen.getByLabelText("Password"), "p@ssw0rd");
+      userEvent.type(
+        screen.getByLabelText("Confirm password"),
+        "another password"
+      );
+      fireEvent.click(screen.getByRole("button", { name: "Submit" }));
+      // then
+      expect(
+        await screen.findByText("Password confirmation does not match password")
+      ).toBeInTheDocument();
     });
 
-    it("validates the password_confirmation matches the password", () => {
-      fillInFormInput(passwordInput, "p@ssw0rd");
-      fillInFormInput(passwordConfirmationInput, "another-password");
-      form.find("button").simulate("click");
-
-      expect(form.state().errors).toMatchObject({
-        password_confirmation: "Password confirmation does not match password",
-      });
-    });
-
-    it("validates the field must be present", () => {
-      fillInFormInput(passwordConfirmationInput, "");
-      form.find("button").simulate("click");
-
-      expect(form.state().errors).toMatchObject({
-        password_confirmation: "Password confirmation must be present",
-      });
+    it("validates the field must be present", async () => {
+      render(
+        <ConfirmInviteForm formData={formData} handleSubmit={handleSubmitSpy} />
+      );
+      // when
+      userEvent.type(screen.getByLabelText("Confirm password"), "");
+      fireEvent.click(screen.getByRole("button", { name: "Submit" }));
+      // then
+      expect(
+        await screen.findByText("Password confirmation must be present")
+      ).toBeInTheDocument();
     });
   });
 });

@@ -9,7 +9,6 @@ import formFieldInterface from "interfaces/form_field";
 import InputField from "components/forms/fields/InputField";
 import validate from "components/forms/ConfigurePackQueryForm/validate";
 import {
-  FREQUENCY_DROPDOWN_OPTIONS,
   PLATFORM_DROPDOWN_OPTIONS,
   LOGGING_TYPE_OPTIONS,
   MIN_OSQUERY_VERSION_OPTIONS,

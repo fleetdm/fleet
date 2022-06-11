@@ -4,11 +4,14 @@ import (
 	"context"
 	"fmt"
 	"net"
+	"os"
 	"strconv"
 	"strings"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
+	"github.com/fleetdm/fleet/v4/server/contexts/publicip"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/go-kit/kit/log"
 	"github.com/go-kit/kit/log/level"
@@ -16,13 +19,19 @@ import (
 )
 
 type DetailQuery struct {
+	// Query is the SQL query string.
 	Query string
+	// Discovery is the SQL query that defines whether the query will run or the host or not.
+	// If not set, Fleet makes sure the query will always run.
+	Discovery string
 	// Platforms is a list of platforms to run the query on. If this value is
 	// empty, run on all platforms.
 	Platforms []string
-	// IngestFunc translates a query result into an update to the host struct
-	IngestFunc func(logger log.Logger, host *fleet.Host, rows []map[string]string) error
-	// DirectIngestFunc gathers results from a query and directly works with the datastore to persist them
+	// IngestFunc translates a query result into an update to the host struct,
+	// around data that lives on the hosts table.
+	IngestFunc func(ctx context.Context, logger log.Logger, host *fleet.Host, rows []map[string]string) error
+	// DirectIngestFunc gathers results from a query and directly works with the datastore to
+	// persist them. This is usually used for host data that is stored in a separate table.
 	DirectIngestFunc func(ctx context.Context, logger log.Logger, host *fleet.Host, ds fleet.Datastore, rows []map[string]string, failed bool) error
 }
 
@@ -44,11 +53,11 @@ func (q *DetailQuery) RunsForPlatform(platform string) bool {
 // fleet.Host data model. This map should not be modified at runtime.
 var detailQueries = map[string]DetailQuery{
 	"network_interface": {
-		Query: `select address, mac
+		Query: `select ia.address, id.mac, id.interface
                         from interface_details id join interface_addresses ia
                                on ia.interface = id.interface where length(mac) > 0
                                order by (ibytes + obytes) desc`,
-		IngestFunc: func(logger log.Logger, host *fleet.Host, rows []map[string]string) (err error) {
+		IngestFunc: func(ctx context.Context, logger log.Logger, host *fleet.Host, rows []map[string]string) (err error) {
 			if len(rows) == 0 {
 				logger.Log("component", "service", "method", "IngestFunc", "err",
 					"detail_query_network_interface expected 1 or more results")
@@ -66,6 +75,13 @@ var detailQueries = map[string]DetailQuery{
 
 				// Skip link-local and loopback interfaces
 				if ip.IsLinkLocalUnicast() || ip.IsLoopback() {
+					continue
+				}
+
+				// Skip docker interfaces as these are sometimes heavily
+				// trafficked, but rarely the interface that Fleet users want to
+				// see. https://github.com/fleetdm/fleet/issues/4754.
+				if strings.Contains(row["interface"], "docker") {
 					continue
 				}
 
@@ -98,25 +114,34 @@ var detailQueries = map[string]DetailQuery{
 
 			host.PrimaryIP = selected["address"]
 			host.PrimaryMac = selected["mac"]
+			host.PublicIP = publicip.FromContext(ctx)
 			return nil
 		},
 	},
 	"os_version": {
 		Query: "select * from os_version limit 1",
-		IngestFunc: func(logger log.Logger, host *fleet.Host, rows []map[string]string) error {
+		IngestFunc: func(ctx context.Context, logger log.Logger, host *fleet.Host, rows []map[string]string) error {
 			if len(rows) != 1 {
 				logger.Log("component", "service", "method", "IngestFunc", "err",
 					fmt.Sprintf("detail_query_os_version expected single result got %d", len(rows)))
 				return nil
 			}
 
-			host.OSVersion = fmt.Sprintf(
-				"%s %s.%s.%s",
-				rows[0]["name"],
-				rows[0]["major"],
-				rows[0]["minor"],
-				rows[0]["patch"],
-			)
+			if rows[0]["major"] != "0" || rows[0]["minor"] != "0" || rows[0]["patch"] != "0" {
+				host.OSVersion = fmt.Sprintf(
+					"%s %s.%s.%s",
+					rows[0]["name"],
+					rows[0]["major"],
+					rows[0]["minor"],
+					rows[0]["patch"],
+				)
+			} else {
+				host.OSVersion = fmt.Sprintf(
+					"%s %s",
+					rows[0]["name"],
+					rows[0]["build"],
+				)
+			}
 			host.OSVersion = strings.Trim(host.OSVersion, ".")
 
 			if build, ok := rows[0]["build"]; ok {
@@ -143,7 +168,7 @@ var detailQueries = map[string]DetailQuery{
 		// distributed_interval (but it's not required), and typically
 		// do not control config_tls_refresh.
 		Query: `select name, value from osquery_flags where name in ("distributed_interval", "config_tls_refresh", "config_refresh", "logger_tls_period")`,
-		IngestFunc: func(logger log.Logger, host *fleet.Host, rows []map[string]string) error {
+		IngestFunc: func(ctx context.Context, logger log.Logger, host *fleet.Host, rows []map[string]string) error {
 			var configTLSRefresh, configRefresh uint
 			var configRefreshSeen, configTLSRefreshSeen bool
 			for _, row := range rows {
@@ -200,7 +225,7 @@ var detailQueries = map[string]DetailQuery{
 	},
 	"osquery_info": {
 		Query: "select * from osquery_info limit 1",
-		IngestFunc: func(logger log.Logger, host *fleet.Host, rows []map[string]string) error {
+		IngestFunc: func(ctx context.Context, logger log.Logger, host *fleet.Host, rows []map[string]string) error {
 			if len(rows) != 1 {
 				logger.Log("component", "service", "method", "IngestFunc", "err",
 					fmt.Sprintf("detail_query_osquery_info expected single result got %d", len(rows)))
@@ -214,7 +239,7 @@ var detailQueries = map[string]DetailQuery{
 	},
 	"system_info": {
 		Query: "select * from system_info limit 1",
-		IngestFunc: func(logger log.Logger, host *fleet.Host, rows []map[string]string) error {
+		IngestFunc: func(ctx context.Context, logger log.Logger, host *fleet.Host, rows []map[string]string) error {
 			if len(rows) != 1 {
 				logger.Log("component", "service", "method", "IngestFunc", "err",
 					fmt.Sprintf("detail_query_system_info expected single result got %d", len(rows)))
@@ -249,7 +274,7 @@ var detailQueries = map[string]DetailQuery{
 	},
 	"uptime": {
 		Query: "select * from uptime limit 1",
-		IngestFunc: func(logger log.Logger, host *fleet.Host, rows []map[string]string) error {
+		IngestFunc: func(ctx context.Context, logger log.Logger, host *fleet.Host, rows []map[string]string) error {
 			if len(rows) != 1 {
 				logger.Log("component", "service", "method", "IngestFunc", "err",
 					fmt.Sprintf("detail_query_uptime expected single result got %d", len(rows)))
@@ -261,80 +286,6 @@ var detailQueries = map[string]DetailQuery{
 				return err
 			}
 			host.Uptime = time.Duration(uptimeSeconds) * time.Second
-
-			return nil
-		},
-	},
-	"scheduled_query_stats": {
-		Query: `
-			SELECT *,
-				(SELECT value from osquery_flags where name = 'pack_delimiter') AS delimiter
-			FROM osquery_schedule
-`,
-		IngestFunc: func(logger log.Logger, host *fleet.Host, rows []map[string]string) error {
-			packs := map[string][]fleet.ScheduledQueryStats{}
-
-			for _, row := range rows {
-				providedName := row["name"]
-				if providedName == "" {
-					level.Debug(logger).Log(
-						"msg", "host reported scheduled query with empty name",
-						"host", host.Hostname,
-					)
-					continue
-				}
-				delimiter := row["delimiter"]
-				if delimiter == "" {
-					level.Debug(logger).Log(
-						"msg", "host reported scheduled query with empty delimiter",
-						"host", host.Hostname,
-					)
-					continue
-				}
-
-				// Split with a limit of 2 in case query name includes the
-				// delimiter. Not much we can do if pack name includes the
-				// delimiter.
-				trimmedName := strings.TrimPrefix(providedName, "pack"+delimiter)
-				parts := strings.SplitN(trimmedName, delimiter, 2)
-				if len(parts) != 2 {
-					level.Debug(logger).Log(
-						"msg", "could not split pack and query names",
-						"host", host.Hostname,
-						"name", providedName,
-						"delimiter", delimiter,
-					)
-					continue
-				}
-				packName, scheduledName := parts[0], parts[1]
-
-				stats := fleet.ScheduledQueryStats{
-					ScheduledQueryName: scheduledName,
-					PackName:           packName,
-					AverageMemory:      cast.ToInt(row["average_memory"]),
-					Denylisted:         cast.ToBool(row["denylisted"]),
-					Executions:         cast.ToInt(row["executions"]),
-					Interval:           cast.ToInt(row["interval"]),
-					// Cast to int first to allow cast.ToTime to interpret the unix timestamp.
-					LastExecuted: time.Unix(cast.ToInt64(row["last_executed"]), 0).UTC(),
-					OutputSize:   cast.ToInt(row["output_size"]),
-					SystemTime:   cast.ToInt(row["system_time"]),
-					UserTime:     cast.ToInt(row["user_time"]),
-					WallTime:     cast.ToInt(row["wall_time"]),
-				}
-				packs[packName] = append(packs[packName], stats)
-			}
-
-			host.PackStats = []fleet.PackStats{}
-			for packName, stats := range packs {
-				host.PackStats = append(
-					host.PackStats,
-					fleet.PackStats{
-						PackName:   packName,
-						QueryStats: stats,
-					},
-				)
-			}
 
 			return nil
 		},
@@ -358,25 +309,59 @@ FROM logical_drives WHERE file_system = 'NTFS' LIMIT 1;`,
 	"mdm": {
 		Query:            `select enrolled, server_url, installed_from_dep from mdm;`,
 		DirectIngestFunc: directIngestMDM,
+		Platforms:        []string{"darwin"},
 	},
 	"munki_info": {
 		Query:            `select version from munki_info;`,
 		DirectIngestFunc: directIngestMunkiInfo,
+		Platforms:        []string{"darwin"},
 	},
 	"google_chrome_profiles": {
-		Query:            `SELECT email FROM google_chrome_profiles WHERE NOT ephemeral`,
+		Query:            `SELECT email FROM google_chrome_profiles WHERE NOT ephemeral AND email <> ''`,
 		DirectIngestFunc: directIngestChromeProfiles,
+		Discovery:        discoveryTable("google_chrome_profiles"),
 	},
+	OrbitInfoQueryName: OrbitInfoDetailQuery,
+}
+
+// OrbitInfoQueryName is the name of the query to ingest orbit_info table extension data.
+const OrbitInfoQueryName = "orbit_info"
+
+// OrbitInfoDetailQuery holds the query and ingestion function for the orbit_info table extension.
+var OrbitInfoDetailQuery = DetailQuery{
+	Query:            `SELECT * FROM orbit_info`,
+	DirectIngestFunc: directIngestOrbitInfo,
+	Discovery:        discoveryTable("orbit_info"),
+}
+
+// discoveryTable returns a query to determine whether a table exists or not.
+func discoveryTable(tableName string) string {
+	return fmt.Sprintf("SELECT 1 FROM osquery_registry WHERE active = true AND registry = 'table' AND name = '%s';", tableName)
+}
+
+const usersQueryStr = `WITH cached_groups AS (select * from groups) 
+ SELECT uid, username, type, groupname, shell 
+ FROM users LEFT JOIN cached_groups USING (gid) 
+ WHERE type <> 'special' AND shell NOT LIKE '%/false' AND shell NOT LIKE '%/nologin' AND shell NOT LIKE '%/shutdown' AND shell NOT LIKE '%/halt' AND username NOT LIKE '%$' AND username NOT LIKE '\_%' ESCAPE '\' AND NOT (username = 'sync' AND shell ='/bin/sync' AND directory <> '')`
+
+func withCachedUsers(query string) string {
+	return fmt.Sprintf(query, usersQueryStr)
 }
 
 var softwareMacOS = DetailQuery{
-	Query: `
+	// Note that we create the cached_users CTE (the WITH clause) in order to suggest to SQLite
+	// that it generates the users once instead of once for each UNIONed query. We use CROSS JOIN to
+	// ensure that the nested loops in the query generation are ordered correctly for the _extensions
+	// tables that need a uid parameter. CROSS JOIN ensures that SQLite does not reorder the loop
+	// nesting, which is important as described in https://youtu.be/hcn3HIcHAAo?t=77.
+	Query: withCachedUsers(`WITH cached_users AS (%s)
 SELECT
   name AS name,
   bundle_short_version AS version,
   'Application (macOS)' AS type,
   bundle_identifier AS bundle_identifier,
-  'apps' AS source
+  'apps' AS source,
+  last_opened_time AS last_opened_at
 FROM apps
 UNION
 SELECT
@@ -384,7 +369,8 @@ SELECT
   version AS version,
   'Package (Python)' AS type,
   '' AS bundle_identifier,
-  'python_packages' AS source
+  'python_packages' AS source,
+  0 AS last_opened_at
 FROM python_packages
 UNION
 SELECT
@@ -392,87 +378,146 @@ SELECT
   version AS version,
   'Browser plugin (Chrome)' AS type,
   '' AS bundle_identifier,
-  'chrome_extensions' AS source
-FROM chrome_extensions
+  'chrome_extensions' AS source,
+  0 AS last_opened_at
+FROM cached_users CROSS JOIN chrome_extensions USING (uid)
 UNION
 SELECT
   name AS name,
   version AS version,
   'Browser plugin (Firefox)' AS type,
   '' AS bundle_identifier,
-  'firefox_addons' AS source
-FROM firefox_addons
+  'firefox_addons' AS source,
+  0 AS last_opened_at
+FROM cached_users CROSS JOIN firefox_addons USING (uid)
 UNION
 SELECT
   name As name,
   version AS version,
   'Browser plugin (Safari)' AS type,
   '' AS bundle_identifier,
-  'safari_extensions' AS source
-FROM safari_extensions
+  'safari_extensions' AS source,
+  0 AS last_opened_at
+FROM cached_users CROSS JOIN safari_extensions USING (uid)
+UNION
+SELECT
+  name AS name,
+  version AS version,
+  'Package (Atom)' AS type,
+  '' AS bundle_identifier,
+  'atom_packages' AS source,
+  0 AS last_opened_at
+FROM cached_users CROSS JOIN atom_packages USING (uid)
 UNION
 SELECT
   name AS name,
   version AS version,
   'Package (Homebrew)' AS type,
   '' AS bundle_identifier,
-  'homebrew_packages' AS source
+  'homebrew_packages' AS source,
+  0 AS last_opened_at
 FROM homebrew_packages;
-`,
-	Platforms:  []string{"darwin"},
-	IngestFunc: ingestSoftware,
+`),
+	Platforms:        []string{"darwin"},
+	DirectIngestFunc: directIngestSoftware,
+}
+
+var scheduledQueryStats = DetailQuery{
+	Query: `
+			SELECT *,
+				(SELECT value from osquery_flags where name = 'pack_delimiter') AS delimiter
+			FROM osquery_schedule`,
+	DirectIngestFunc: directIngestScheduledQueryStats,
 }
 
 var softwareLinux = DetailQuery{
-	Query: `
+	Query: withCachedUsers(`WITH cached_users AS (%s)
 SELECT
   name AS name,
   version AS version,
   'Package (deb)' AS type,
-  'deb_packages' AS source
+  'deb_packages' AS source,
+  '' AS release,
+  '' AS vendor,
+  '' AS arch
 FROM deb_packages
 UNION
 SELECT
   package AS name,
   version AS version,
   'Package (Portage)' AS type,
-  'portage_packages' AS source
+  'portage_packages' AS source,
+  '' AS release,
+  '' AS vendor,
+  '' AS arch
 FROM portage_packages
 UNION
 SELECT
   name AS name,
   version AS version,
   'Package (RPM)' AS type,
-  'rpm_packages' AS source
+  'rpm_packages' AS source,
+  release AS release,
+  vendor AS vendor,
+  arch AS arch
 FROM rpm_packages
 UNION
 SELECT
   name AS name,
   version AS version,
   'Package (NPM)' AS type,
-  'npm_packages' AS source
+  'npm_packages' AS source,
+  '' AS release,
+  '' AS vendor,
+  '' AS arch
 FROM npm_packages
 UNION
 SELECT
   name AS name,
   version AS version,
+  'Browser plugin (Chrome)' AS type,
+  'chrome_extensions' AS source,
+  '' AS release,
+  '' AS vendor,
+  '' AS arch
+FROM cached_users CROSS JOIN chrome_extensions USING (uid)
+UNION
+SELECT
+  name AS name,
+  version AS version,
+  'Browser plugin (Firefox)' AS type,
+  'firefox_addons' AS source,
+  '' AS release,
+  '' AS vendor,
+  '' AS arch
+FROM cached_users CROSS JOIN firefox_addons USING (uid)
+UNION
+SELECT
+  name AS name,
+  version AS version,
   'Package (Atom)' AS type,
-  'atom_packages' AS source
-FROM atom_packages
+  'atom_packages' AS source,
+  '' AS release,
+  '' AS vendor,
+  '' AS arch
+FROM cached_users CROSS JOIN atom_packages USING (uid)
 UNION
 SELECT
   name AS name,
   version AS version,
   'Package (Python)' AS type,
-  'python_packages' AS source
+  'python_packages' AS source,
+  '' AS release,
+  '' AS vendor,
+  '' AS arch
 FROM python_packages;
-`,
-	Platforms:  fleet.HostLinuxOSs,
-	IngestFunc: ingestSoftware,
+`),
+	Platforms:        fleet.HostLinuxOSs,
+	DirectIngestFunc: directIngestSoftware,
 }
 
 var softwareWindows = DetailQuery{
-	Query: `
+	Query: withCachedUsers(`WITH cached_users AS (%s)
 SELECT
   name AS name,
   version AS version,
@@ -499,14 +544,14 @@ SELECT
   version AS version,
   'Browser plugin (Chrome)' AS type,
   'chrome_extensions' AS source
-FROM chrome_extensions
+FROM cached_users CROSS JOIN chrome_extensions USING (uid)
 UNION
 SELECT
   name AS name,
   version AS version,
   'Browser plugin (Firefox)' AS type,
   'firefox_addons' AS source
-FROM firefox_addons
+FROM cached_users CROSS JOIN firefox_addons USING (uid)
 UNION
 SELECT
   name AS name,
@@ -520,7 +565,7 @@ SELECT
   version AS version,
   'Package (Atom)' AS type,
   'atom_packages' AS source
-FROM atom_packages
+FROM cached_users CROSS JOIN atom_packages USING (uid)
 UNION
 SELECT
   name AS name,
@@ -528,37 +573,18 @@ SELECT
   'Package (Python)' AS type,
   'python_packages' AS source
 FROM python_packages;
-`,
-	Platforms:  []string{"windows"},
-	IngestFunc: ingestSoftware,
+`),
+	Platforms:        []string{"windows"},
+	DirectIngestFunc: directIngestSoftware,
 }
 
 var usersQuery = DetailQuery{
-	Query: `SELECT uid, username, type, groupname, shell FROM users u LEFT JOIN groups g ON g.gid=u.gid WHERE type <> 'special' AND shell NOT LIKE '%/false' AND shell NOT LIKE '%/nologin' AND shell NOT LIKE '%/shutdown' AND shell NOT LIKE '%/halt' AND username NOT LIKE '%$' AND username NOT LIKE '\_%' ESCAPE '\' AND NOT (username = 'sync' AND shell ='/bin/sync')`,
-	IngestFunc: func(logger log.Logger, host *fleet.Host, rows []map[string]string) error {
-		var users []fleet.HostUser
-		for _, row := range rows {
-			uid, err := strconv.Atoi(row["uid"])
-			if err != nil {
-				return fmt.Errorf("converting uid %s to int: %w", row["uid"], err)
-			}
-			username := row["username"]
-			type_ := row["type"]
-			groupname := row["groupname"]
-			shell := row["shell"]
-			u := fleet.HostUser{
-				Uid:       uint(uid),
-				Username:  username,
-				Type:      type_,
-				GroupName: groupname,
-				Shell:     shell,
-			}
-			users = append(users, u)
-		}
-		host.Users = users
-
-		return nil
-	},
+	// Note we use the cached_groups CTE (`WITH` clause) here to suggest to SQLite that it generate
+	// the `groups` table only once. Without doing this, on some Windows systems (Domain Controllers)
+	// with many user accounts and groups, this query could be very expensive as the `groups` table
+	// was generated once for each user.
+	Query:            usersQueryStr,
+	DirectIngestFunc: directIngestUsers,
 }
 
 func directIngestChromeProfiles(ctx context.Context, logger log.Logger, host *fleet.Host, ds fleet.Datastore, rows []map[string]string, failed bool) error {
@@ -578,9 +604,102 @@ func directIngestChromeProfiles(ctx context.Context, logger log.Logger, host *fl
 	return ds.ReplaceHostDeviceMapping(ctx, host.ID, mapping)
 }
 
-func ingestSoftware(logger log.Logger, host *fleet.Host, rows []map[string]string) error {
-	software := fleet.HostSoftware{Modified: true}
+func directIngestOrbitInfo(ctx context.Context, logger log.Logger, host *fleet.Host, ds fleet.Datastore, rows []map[string]string, failed bool) error {
+	if len(rows) != 1 {
+		return ctxerr.Errorf(ctx, "invalid number of orbit_info rows: %d", len(rows))
+	}
+	deviceAuthToken := rows[0]["device_auth_token"]
+	if deviceAuthToken == "" {
+		return ctxerr.New(ctx, "empty orbit_info.device_auth_token")
+	}
+	if err := ds.SetOrUpdateDeviceAuthToken(ctx, host.ID, deviceAuthToken); err != nil {
+		return ctxerr.Wrap(ctx, err, "set or update device_auth_token")
+	}
+	return nil
+}
 
+func directIngestScheduledQueryStats(ctx context.Context, logger log.Logger, host *fleet.Host, ds fleet.Datastore, rows []map[string]string, failed bool) error {
+	if failed {
+		level.Error(logger).Log("op", "directIngestScheduledQueryStats", "err", "failed")
+		return nil
+	}
+
+	packs := map[string][]fleet.ScheduledQueryStats{}
+	for _, row := range rows {
+		providedName := row["name"]
+		if providedName == "" {
+			level.Debug(logger).Log(
+				"msg", "host reported scheduled query with empty name",
+				"host", host.Hostname,
+			)
+			continue
+		}
+		delimiter := row["delimiter"]
+		if delimiter == "" {
+			level.Debug(logger).Log(
+				"msg", "host reported scheduled query with empty delimiter",
+				"host", host.Hostname,
+			)
+			continue
+		}
+
+		// Split with a limit of 2 in case query name includes the
+		// delimiter. Not much we can do if pack name includes the
+		// delimiter.
+		trimmedName := strings.TrimPrefix(providedName, "pack"+delimiter)
+		parts := strings.SplitN(trimmedName, delimiter, 2)
+		if len(parts) != 2 {
+			level.Debug(logger).Log(
+				"msg", "could not split pack and query names",
+				"host", host.Hostname,
+				"name", providedName,
+				"delimiter", delimiter,
+			)
+			continue
+		}
+		packName, scheduledName := parts[0], parts[1]
+
+		stats := fleet.ScheduledQueryStats{
+			ScheduledQueryName: scheduledName,
+			PackName:           packName,
+			AverageMemory:      cast.ToInt(row["average_memory"]),
+			Denylisted:         cast.ToBool(row["denylisted"]),
+			Executions:         cast.ToInt(row["executions"]),
+			Interval:           cast.ToInt(row["interval"]),
+			// Cast to int first to allow cast.ToTime to interpret the unix timestamp.
+			LastExecuted: time.Unix(cast.ToInt64(row["last_executed"]), 0).UTC(),
+			OutputSize:   cast.ToInt(row["output_size"]),
+			SystemTime:   cast.ToInt(row["system_time"]),
+			UserTime:     cast.ToInt(row["user_time"]),
+			WallTime:     cast.ToInt(row["wall_time"]),
+		}
+		packs[packName] = append(packs[packName], stats)
+	}
+
+	packStats := []fleet.PackStats{}
+	for packName, stats := range packs {
+		packStats = append(
+			packStats,
+			fleet.PackStats{
+				PackName:   packName,
+				QueryStats: stats,
+			},
+		)
+	}
+	if err := ds.SaveHostPackStats(ctx, host.ID, packStats); err != nil {
+		return ctxerr.Wrap(ctx, err, "save host pack stats")
+	}
+
+	return nil
+}
+
+func directIngestSoftware(ctx context.Context, logger log.Logger, host *fleet.Host, ds fleet.Datastore, rows []map[string]string, failed bool) error {
+	if failed {
+		level.Error(logger).Log("op", "directIngestSoftware", "err", "failed")
+		return nil
+	}
+
+	var software []fleet.Software
 	for _, row := range rows {
 		name := row["name"]
 		version := row["version"]
@@ -604,21 +723,72 @@ func ingestSoftware(logger log.Logger, host *fleet.Host, rows []map[string]strin
 			)
 			continue
 		}
+
+		var lastOpenedAt time.Time
+		if lastOpenedRaw := row["last_opened_at"]; lastOpenedRaw != "" {
+			if lastOpenedEpoch, err := strconv.ParseFloat(lastOpenedRaw, 64); err != nil {
+				level.Debug(logger).Log(
+					"msg", "host reported software with invalid last opened timestamp",
+					"host", host.Hostname,
+					"version", version,
+					"name", name,
+					"last_opened_at", lastOpenedRaw,
+				)
+			} else if lastOpenedEpoch > 0 {
+				lastOpenedAt = time.Unix(int64(lastOpenedEpoch), 0).UTC()
+			}
+		}
+
 		s := fleet.Software{
 			Name:             name,
 			Version:          version,
 			Source:           source,
 			BundleIdentifier: bundleIdentifier,
+
+			Release: row["release"],
+			Vendor:  row["vendor"],
+			Arch:    row["arch"],
 		}
-		software.Software = append(software.Software, s)
+		if !lastOpenedAt.IsZero() {
+			s.LastOpenedAt = &lastOpenedAt
+		}
+		software = append(software, s)
 	}
 
-	host.HostSoftware = software
+	if err := ds.UpdateHostSoftware(ctx, host.ID, software); err != nil {
+		return ctxerr.Wrap(ctx, err, "update host software")
+	}
 
 	return nil
 }
 
-func ingestDiskSpace(logger log.Logger, host *fleet.Host, rows []map[string]string) error {
+func directIngestUsers(ctx context.Context, logger log.Logger, host *fleet.Host, ds fleet.Datastore, rows []map[string]string, failed bool) error {
+	var users []fleet.HostUser
+	for _, row := range rows {
+		uid, err := strconv.Atoi(row["uid"])
+		if err != nil {
+			return fmt.Errorf("converting uid %s to int: %w", row["uid"], err)
+		}
+		username := row["username"]
+		type_ := row["type"]
+		groupname := row["groupname"]
+		shell := row["shell"]
+		u := fleet.HostUser{
+			Uid:       uint(uid),
+			Username:  username,
+			Type:      type_,
+			GroupName: groupname,
+			Shell:     shell,
+		}
+		users = append(users, u)
+	}
+	if err := ds.SaveHostUsers(ctx, host.ID, users); err != nil {
+		return ctxerr.Wrap(ctx, err, "update host users")
+	}
+	return nil
+}
+
+func ingestDiskSpace(ctx context.Context, logger log.Logger, host *fleet.Host, rows []map[string]string) error {
 	if len(rows) != 1 {
 		logger.Log("component", "service", "method", "ingestDiskSpace", "err",
 			fmt.Sprintf("detail_query_disk_space expected single result got %d", len(rows)))
@@ -654,14 +824,13 @@ func directIngestMDM(ctx context.Context, logger log.Logger, host *fleet.Host, d
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "parsing enrolled")
 	}
-	if !enrolled {
-		// A row with enrolled=false and all other columns empty is a host with the osquery
-		// MDM table extensions installed (e.g. Orbit) but MDM unconfigured/disabled.
-		return nil
-	}
-	installedFromDep, err := strconv.ParseBool(rows[0]["installed_from_dep"])
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "parsing installed_from_dep")
+	installedFromDepVal := rows[0]["installed_from_dep"]
+	installedFromDep := false
+	if installedFromDepVal != "" {
+		installedFromDep, err = strconv.ParseBool(installedFromDepVal)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "parsing installed_from_dep")
+		}
 	}
 
 	return ds.SetOrUpdateMDMData(ctx, host.ID, enrolled, rows[0]["server_url"], installedFromDep)
@@ -680,7 +849,7 @@ func directIngestMunkiInfo(ctx context.Context, logger log.Logger, host *fleet.H
 	return ds.SetOrUpdateMunkiVersion(ctx, host.ID, rows[0]["version"])
 }
 
-func GetDetailQueries(ac *fleet.AppConfig) map[string]DetailQuery {
+func GetDetailQueries(ac *fleet.AppConfig, fleetConfig config.FleetConfig) map[string]DetailQuery {
 	generatedMap := make(map[string]DetailQuery)
 	for key, query := range detailQueries {
 		generatedMap[key] = query
@@ -694,6 +863,24 @@ func GetDetailQueries(ac *fleet.AppConfig) map[string]DetailQuery {
 
 	if ac != nil && ac.HostSettings.EnableHostUsers {
 		generatedMap["users"] = usersQuery
+	}
+
+	if fleetConfig.App.EnableScheduledQueryStats {
+		generatedMap["scheduled_query_stats"] = scheduledQueryStats
+	}
+
+	for _, env := range os.Environ() {
+		prefix := "FLEET_DANGEROUS_REPLACE_"
+		if !strings.HasPrefix(env, prefix) {
+			continue
+		}
+		if i := strings.Index(env, "="); i >= 0 {
+			queryName := strings.ToLower(strings.TrimPrefix(env[:i], prefix))
+			newQuery := env[i+1:]
+			query := generatedMap[queryName]
+			query.Query = newQuery
+			generatedMap[queryName] = query
+		}
 	}
 
 	return generatedMap

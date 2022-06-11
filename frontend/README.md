@@ -1,8 +1,8 @@
-# Fleet Front-End
+# Fleet front-end
 
 The Fleet front-end is a Single Page Application using React with Typescript and Hooks.
 
-## Table of Contents
+## Table of contents
 - [Running the Fleet web app](#running-the-fleet-web-app)
 - [Storybook](#storybook)
 - [Directory Structure](#directory-structure)
@@ -13,12 +13,13 @@ The Fleet front-end is a Single Page Application using React with Typescript and
   - [React Context](#react-context)
   - [Fleet API Calls](#fleet-api-calls)
   - [Page Routing](#page-routing)
+  - [Styles](#styles)
   - [Other](#other)
 
 ## Running the Fleet web app
 
 For details instruction on building and serving the Fleet web application
-consult the [Contributing documentation](../docs/03-Contributing/README.md).
+consult the [Contributing documentation](../docs/Contributing/README.md).
 
 ## Storybook
 
@@ -47,7 +48,7 @@ After creating a component, create a new file, `component.stories.tsx`, within i
 fill it with the appropriate Storybook code to create a new Storybook entry. You will be able to visualize 
 the component within Storybook to determine if it looks and behaves as expected.
 
-## Directory Structure
+## Directory structure
 
 Component directories in the Fleet front-end application encapsulate the entire
 component, including files for the component and its styles. The
@@ -67,18 +68,10 @@ typical directory structure for a component is as follows:
     by it's directory name. Without this file the component name would have to
     be duplicated during imports (`components/ComponentName` vs. `components/ComponentName/ComponentName`).
 
-### [app_constants](./app_constants)
-
-The app_constants directory exports the constants used in the app. Examples
-include the app's URL paths, settings, and http statuses. When building features
-that require constants, the constants should be added here for accessibility
-throughout the application.
-
 ### [components](./components)
 
-The component directory contains the React components rendered by pages. They
-are typically not connected to the redux state but receive props from their
-parent components to render data and handle user interactions.
+The component directory contains global React components rendered by pages, receiving props from
+their parent components to render data and handle user interactions.
 
 ### [context](./context)
 
@@ -141,10 +134,8 @@ etc.
 
 ## Deprecated
 
-These directories and files are still used (as of 9/14/21) but are being replaced by newer code:
+These directories and files are still used (as of 4/22/22) but are being replaced by newer code:
 
-- [fleet](./fleet); now using [services](./services)
-- [redux](./redux); now using [services](./services), local states, and various entities directly (e.g. React Router)
 - [Form.jsx Higher Order Component](./components/forms/README.md); now creating forms with local states with React Hooks (i.e. `useState`)
 
 To view the deprecated documentation, [click here](./README_deprecated.md).
@@ -195,7 +186,7 @@ const functionWithTableName = (tableName: string): boolean => {
 };
 ```
 
-### React Hooks (Functional Components)
+### React hooks (functional components)
 
 [Hooks](https://reactjs.org/docs/hooks-intro.html) are used to track state and use other features
 of React. Hooks are only allowed in functional components, which are created like so:
@@ -224,19 +215,13 @@ const PageOrComponent = (props) => {
 
 **Note: Other hooks are available per [React's documentation](https://reactjs.org/docs/hooks-intro.html).**
 
-### React Context
+### React context
 
-[React Context](https://reactjs.org/docs/context.html) is a store similar to Redux. It stores 
+[React context](https://reactjs.org/docs/context.html) is a state management store. It stores 
 data that is desired and allows for retrieval of that data in whatever component is in need.
 View currently working contexts in the [context directory](./context).
 
-### Fleet API Calls
-
-**Deprecated:** 
-
-Redux was used to make API calls, along with the [fleet](./fleet) directory.
-
-**Current:**
+### Fleet API calls
 
 The [services](./services) directory stores all API calls and is to be used in two ways: 
 - A direct `async/await` assignment
@@ -306,13 +291,7 @@ const PageOrComponent = (props) => {
 };
 ```
 
-### Page Routing
-
-**Deprecated:** 
-
-Redux was used to manage redirecting to different pages of the app.
-
-**Current:**
+### Page routing
 
 We use React Router directly to navigate between pages. For page components,
 React Router (v3) supplies a `router` prop that can be easily accessed.
@@ -340,6 +319,17 @@ const PageOrComponent = ({
   );
 };
 ```
+
+### Styles
+Below are a few need-to-knows about what's available in Fleet's CSS:
+
+**Modals**
+1) When creating a modal with a form inside, the action buttons (cancel, save, delete, etc.) should
+   be wrapped in the `modal-cta-wrap` class to keep unified styles.
+
+**Forms**
+1) When creating a form, **not** in a modal, use the class `${baseClass}__button-wrap` for the
+   action buttons (cancel, save, delete, etc.) and proceed to style as needed.
 
 ### Other
 

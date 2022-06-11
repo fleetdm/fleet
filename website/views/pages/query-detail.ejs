@@ -41,6 +41,17 @@
             </div>
           </div>
         </div>
+        <div class="border-top py-2 pb-md-4">
+          <div class="d-flex flex-md-column justify-content-between justify-content-md-start align-items-center align-items-md-start pt-md-3">
+            <h5 class="pb-md-2 m-0">Tags</h5>
+            <div :class="[query.tags.length > 2 ? 'mt-1' : '']"  class="d-flex flex-wrap align-items-center justify-content-end justify-content-sm-start">
+              <span class="mb-1" v-if="!query.tags || !query.tags.length">--</span>
+              <div purpose="query-tag" class="mr-md-1 ml-1 ml-md-0" :class="[query.tags.length > 2 ? 'mb-1' : '']" v-for="tag in query.tags">
+                {{tag}}
+              </div>
+            </div>
+          </div>
+        </div>
         <div class="border-top py-2">
           <div class="d-flex flex-md-column justify-content-between justify-content-md-start align-items-center align-items-md-start py-1 py-md-3">
             <h5 class="pb-md-2 m-0">Purpose</h5>

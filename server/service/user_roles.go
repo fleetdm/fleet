@@ -26,7 +26,7 @@ func applyUserRoleSpecsEndpoint(ctx context.Context, request interface{}, svc fl
 	return applyUserRoleSpecsResponse{}, nil
 }
 
-func (svc Service) ApplyUserRolesSpecs(ctx context.Context, specs fleet.UsersRoleSpec) error {
+func (svc *Service) ApplyUserRolesSpecs(ctx context.Context, specs fleet.UsersRoleSpec) error {
 	if err := svc.authz.Authorize(ctx, &fleet.User{}, fleet.ActionWrite); err != nil {
 		return err
 	}
@@ -61,7 +61,7 @@ func (svc Service) ApplyUserRolesSpecs(ctx context.Context, specs fleet.UsersRol
 	return svc.ds.SaveUsers(ctx, users)
 }
 
-func (svc Service) checkAtLeastOneAdmin(ctx context.Context, user *fleet.User, spec *fleet.UserRoleSpec, email string) error {
+func (svc *Service) checkAtLeastOneAdmin(ctx context.Context, user *fleet.User, spec *fleet.UserRoleSpec, email string) error {
 	if null.StringFromPtr(user.GlobalRole).ValueOrZero() == fleet.RoleAdmin &&
 		null.StringFromPtr(spec.GlobalRole).ValueOrZero() != fleet.RoleAdmin {
 		users, err := svc.ds.ListUsers(ctx, fleet.UserListOptions{})

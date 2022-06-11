@@ -1,0 +1,254 @@
+#dashboard {
+  padding-top: 80px;
+  h1 {
+    font-size: 28px;
+    line-height: 38px;
+  }
+  h3 {
+    padding-bottom: 16px;
+    font-size: 24px;
+    margin-bottom: 0px;
+  }
+  a {
+    text-decoration: underline;
+    color: @core-vibrant-blue;
+  }
+  a:hover {
+    text-decoration: none;
+    color: darken(@core-vibrant-blue, 20%);
+  }
+  p {
+    font-size: 16px;
+  }
+
+  [purpose='customer-portal-form'] {
+    label {
+      font-weight: 700;
+      margin-bottom: 4px;
+    }
+    .form-control {
+      height: 40px;
+      border-radius: 6px;
+    }
+    .card {
+      border-radius: 6px;
+    }
+    .card-body {
+      padding: 2em;
+    }
+  }
+
+  [purpose='submit-button'] {
+    width: 200px;
+    margin-left: auto;
+    margin-right: auto;
+    border-radius: 4px;
+    padding-top: 10px;
+    padding-bottom: 10px;
+    display: flex;
+    span {
+      display: inline;
+      margin-left: auto;
+      margin-right: auto;
+      font-size: 16px;
+      line-height: 20px;
+      text-align: center;
+      font-weight: 400;
+    }
+
+  }
+
+  [purpose='edit-button'] {
+
+    display: inline-block;
+    margin-bottom: 3px;
+    margin-left: 8px;
+    width: 12px;
+    height: 12px;
+    cursor: pointer;
+  }
+
+  [purpose='slack-button'] {
+    font-size: 16px;
+    color: @core-fleet-black;
+    background-color: #fff;
+    border: 1px solid #C5C7D1;
+    border-radius: 4px;
+    padding: 8px 40px;
+    line-height: 20px;
+    &:hover {
+      background: #fff;
+      color: @core-fleet-black;
+    }
+    &:focus {
+      box-shadow: none;
+    }
+    img {
+      display: inline;
+      height: 20px;
+      width: auto;
+      padding-right: 4px;
+      margin-bottom: 1px;
+    }
+    a {
+      color: @core-fleet-black;
+    }
+    text-decoration: none;
+  }
+  [purpose='deploy-button'] {
+    font-size: 16px;
+    line-height: 20px;
+    padding: 8px 40px;
+    border-radius: 4px;
+    color: white;
+    text-decoration: none;
+    &:hover {
+      color: white;
+    }
+  }
+
+  .card {
+    border-radius: 8px;
+    box-shadow: 1px 2px 2px 0px #C5C7D133;
+  }
+  [purpose='contact'] {
+    background: #F1F0FF;
+    border: 1px solid #D9D9FE;
+    box-sizing: border-box;
+    border-radius: 4px;
+    padding: 16px;
+    p {
+      font-size: 14px;
+      margin-block-end: 0px;
+    }
+    a {
+      font-size: 14px;
+      font-weight: 700;
+      text-underline-offset: 5px;
+    }
+  }
+
+  [purpose='billing-card'] {
+    padding: 40px;
+    min-height: 312px;
+    p {
+      margin-block-end: 4px;
+    }
+    [purpose='contact'] {
+      background: #F1F0FF;
+      border: 1px solid #D9D9FE;
+      box-sizing: border-box;
+      border-radius: 4px;
+      padding: 16px;
+      p {
+        font-size: 14px;
+        margin-block-end: 0px;
+      }
+      a {
+        font-size: 14px;
+        font-weight: 700;
+        text-underline-offset: 5px;
+      }
+    }
+
+  }
+
+  [purpose='details-card'] {
+    padding: 40px;
+    min-height: 312px;
+    hr {
+      color: #E2E4EA;
+    }
+
+  }
+
+  [purpose='license-card'] {
+    padding: 30px 40px 30px 40px;
+    p {
+      margin-block-end: 0px;
+    }
+
+    strong {
+      font-size: 14px;
+      padding-bottom: 8px;
+    }
+
+    [purpose='copied-notification'] {
+      display: none;
+      font-weight: 400;
+      position: relative;
+      bottom: 0px;
+      left: 10px;
+      font-size: 16px;
+      line-height: 20px;
+      white-space: nowrap;
+      color: @core-vibrant-blue;
+    }
+
+    [purpose='license-key'] {
+      display: block;
+      text-overflow: ellipsis;
+      overflow: hidden;
+      white-space: nowrap;
+      max-height: 20px;
+      cursor: pointer;
+
+      &.show-overflow {
+        display: inline;
+        cursor: pointer;
+        overflow: auto;
+        white-space: normal;
+      }
+
+    }
+
+  }
+
+
+  @media (max-width: 991px) {
+
+    [purpose='details-card'] {
+      min-height: auto;
+    }
+    [purpose='billing-card'] {
+      // padding: 40px;
+      min-height: auto;
+    }
+
+  }
+
+  @media (max-width: 768px) {
+    padding-top: 60px;
+
+    [purpose='modal-content'] {
+      margin-top: 50px;
+      padding-left: 10px;
+      padding-right: 10px;
+    }
+
+    [purpose='license-card'] {
+      padding: 30px 20px;
+    }
+
+    [purpose='details-card'] {
+      padding: 40px 20px;
+    }
+
+    [purpose='billing-card'] {
+      padding: 40px 20px;
+    }
+  }
+
+
+  @media (max-width: 576px) {
+    padding-top: 40px;
+    [purpose='customer-portal-form'] {
+      .card-body {
+        padding: 1em;
+      }
+    }
+  }
+
+
+
+}

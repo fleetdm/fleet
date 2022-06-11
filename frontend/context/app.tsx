@@ -1,19 +1,59 @@
 import React, { createContext, useReducer, ReactNode } from "react";
 
-import { IUser } from "interfaces/user";
 import { IConfig } from "interfaces/config";
-import { ITeam } from "interfaces/team";
-import permissions from "utilities/permissions";
 import { IEnrollSecret } from "interfaces/enroll_secret";
+import { ITeamSummary } from "interfaces/team";
+import { IUser } from "interfaces/user";
+import permissions from "utilities/permissions";
+import sort from "utilities/sort";
+
+enum ACTIONS {
+  SET_AVAILABLE_TEAMS = "SET_AVAILABLE_TEAMS",
+  SET_CURRENT_USER = "SET_CURRENT_USER",
+  SET_CURRENT_TEAM = "SET_CURRENT_TEAM",
+  SET_CONFIG = "SET_CONFIG",
+  SET_ENROLL_SECRET = "SET_ENROLL_SECRET",
+}
+
+interface ISetAvailableTeamsAction {
+  type: ACTIONS.SET_AVAILABLE_TEAMS;
+  availableTeams: ITeamSummary[];
+}
+
+interface ISetConfigAction {
+  type: ACTIONS.SET_CONFIG;
+  config: IConfig;
+}
+
+interface ISetCurrentTeamAction {
+  type: ACTIONS.SET_CURRENT_TEAM;
+  currentTeam: ITeamSummary | undefined;
+}
+interface ISetCurrentUserAction {
+  type: ACTIONS.SET_CURRENT_USER;
+  currentUser: IUser;
+}
+interface ISetEnrollSecretAction {
+  type: ACTIONS.SET_ENROLL_SECRET;
+  enrollSecret: IEnrollSecret[];
+}
+
+type IAction =
+  | ISetAvailableTeamsAction
+  | ISetConfigAction
+  | ISetCurrentTeamAction
+  | ISetCurrentUserAction
+  | ISetEnrollSecretAction;
 
 type Props = {
   children: ReactNode;
 };
 
 type InitialStateType = {
+  availableTeams: ITeamSummary[] | undefined;
   config: IConfig | null;
   currentUser: IUser | null;
-  currentTeam: ITeam | undefined;
+  currentTeam: ITeamSummary | undefined;
   enrollSecret: IEnrollSecret[] | null;
   isPreviewMode: boolean | undefined;
   isFreeTier: boolean | undefined;
@@ -30,13 +70,18 @@ type InitialStateType = {
   isAnyTeamAdmin: boolean | undefined;
   isTeamAdmin: boolean | undefined;
   isOnlyObserver: boolean | undefined;
+  isNoAccess: boolean | undefined;
+  setAvailableTeams: (availableTeams: ITeamSummary[]) => void;
   setCurrentUser: (user: IUser) => void;
-  setCurrentTeam: (team: ITeam | undefined) => void;
+  setCurrentTeam: (team: ITeamSummary | undefined) => void;
   setConfig: (config: IConfig) => void;
   setEnrollSecret: (enrollSecret: IEnrollSecret[]) => void;
 };
 
+export type IAppContext = InitialStateType;
+
 const initialState = {
+  availableTeams: undefined,
   config: null,
   currentUser: null,
   currentTeam: undefined,
@@ -56,17 +101,12 @@ const initialState = {
   isAnyTeamAdmin: undefined,
   isTeamAdmin: undefined,
   isOnlyObserver: undefined,
+  isNoAccess: undefined,
+  setAvailableTeams: () => null,
   setCurrentUser: () => null,
   setCurrentTeam: () => null,
   setConfig: () => null,
   setEnrollSecret: () => null,
-};
-
-const actions = {
-  SET_CURRENT_USER: "SET_CURRENT_USER",
-  SET_CURRENT_TEAM: "SET_CURRENT_TEAM",
-  SET_CONFIG: "SET_CONFIG",
-  SET_ENROLL_SECRET: "SET_ENROLL_SECRET",
 };
 
 const detectPreview = () => {
@@ -75,7 +115,11 @@ const detectPreview = () => {
 
 // helper function - this is run every
 // time currentUser, currentTeam, config, or teamId is changed
-const setPermissions = (user: IUser, config: IConfig, teamId = 0) => {
+const setPermissions = (
+  user: IUser | null,
+  config: IConfig | null,
+  teamId = 0
+) => {
   if (!user || !config) {
     return {};
   }
@@ -100,38 +144,56 @@ const setPermissions = (user: IUser, config: IConfig, teamId = 0) => {
       teamId
     ),
     isOnlyObserver: permissions.isOnlyObserver(user),
+    isNoAccess: permissions.isNoAccess(user),
   };
 };
 
-const reducer = (state: any, action: any) => {
+const reducer = (state: InitialStateType, action: IAction) => {
   switch (action.type) {
-    case actions.SET_CURRENT_USER:
+    case ACTIONS.SET_AVAILABLE_TEAMS: {
+      const { availableTeams } = action;
+
       return {
         ...state,
-        currentUser: action.currentUser,
-        ...setPermissions(action.currentUser, state.config),
+        availableTeams:
+          availableTeams?.sort((a: ITeamSummary, b: ITeamSummary) =>
+            sort.caseInsensitiveAsc(a.name, b.name)
+          ) || [],
       };
-    case actions.SET_CURRENT_TEAM:
+    }
+    case ACTIONS.SET_CURRENT_USER: {
+      const { currentUser } = action;
+
       return {
         ...state,
-        currentTeam: action.currentTeam,
-        ...setPermissions(
-          state.currentUser,
-          state.config,
-          action.currentTeam?.id
-        ),
+        currentUser,
+        ...setPermissions(currentUser, state.config, state.currentTeam?.id),
       };
-    case actions.SET_CONFIG:
+    }
+    case ACTIONS.SET_CURRENT_TEAM: {
+      const { currentTeam } = action;
       return {
         ...state,
-        config: action.config,
-        ...setPermissions(state.currentUser, action.config),
+        currentTeam,
+        ...setPermissions(state.currentUser, state.config, currentTeam?.id),
       };
-    case actions.SET_ENROLL_SECRET:
+    }
+    case ACTIONS.SET_CONFIG: {
+      const { config } = action;
+
       return {
         ...state,
-        enrollSecret: action.enrollSecret,
+        config,
+        ...setPermissions(state.currentUser, config, state.currentTeam?.id),
       };
+    }
+    case ACTIONS.SET_ENROLL_SECRET: {
+      const { enrollSecret } = action;
+      return {
+        ...state,
+        enrollSecret,
+      };
+    }
     default:
       return state;
   }
@@ -143,6 +205,7 @@ const AppProvider = ({ children }: Props): JSX.Element => {
   const [state, dispatch] = useReducer(reducer, initialState);
 
   const value = {
+    availableTeams: state.availableTeams,
     config: state.config,
     currentUser: state.currentUser,
     currentTeam: state.currentTeam,
@@ -162,17 +225,21 @@ const AppProvider = ({ children }: Props): JSX.Element => {
     isTeamMaintainerOrTeamAdmin: state.isTeamMaintainer,
     isAnyTeamAdmin: state.isAnyTeamAdmin,
     isOnlyObserver: state.isOnlyObserver,
-    setCurrentUser: (currentUser: IUser) => {
-      dispatch({ type: actions.SET_CURRENT_USER, currentUser });
+    isNoAccess: state.isNoAccess,
+    setAvailableTeams: (availableTeams: ITeamSummary[]) => {
+      dispatch({ type: ACTIONS.SET_AVAILABLE_TEAMS, availableTeams });
     },
-    setCurrentTeam: (currentTeam: ITeam | undefined) => {
-      dispatch({ type: actions.SET_CURRENT_TEAM, currentTeam });
+    setCurrentUser: (currentUser: IUser) => {
+      dispatch({ type: ACTIONS.SET_CURRENT_USER, currentUser });
+    },
+    setCurrentTeam: (currentTeam: ITeamSummary | undefined) => {
+      dispatch({ type: ACTIONS.SET_CURRENT_TEAM, currentTeam });
     },
     setConfig: (config: IConfig) => {
-      dispatch({ type: actions.SET_CONFIG, config });
+      dispatch({ type: ACTIONS.SET_CONFIG, config });
     },
     setEnrollSecret: (enrollSecret: IEnrollSecret[]) => {
-      dispatch({ type: actions.SET_ENROLL_SECRET, enrollSecret });
+      dispatch({ type: ACTIONS.SET_ENROLL_SECRET, enrollSecret });
     },
   };
 

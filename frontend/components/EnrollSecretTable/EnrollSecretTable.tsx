@@ -9,7 +9,7 @@ interface IEnrollSecretRowProps {
   secrets: IEnrollSecret[] | undefined;
   toggleSecretEditorModal?: () => void;
   toggleDeleteSecretModal?: () => void;
-  setSelectedSecret: React.Dispatch<
+  setSelectedSecret?: React.Dispatch<
     React.SetStateAction<IEnrollSecret | undefined>
   >;
 }

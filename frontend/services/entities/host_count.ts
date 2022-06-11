@@ -1,6 +1,6 @@
 /* eslint-disable  @typescript-eslint/explicit-module-boundary-types */
 import sendRequest from "services";
-import endpoints from "fleet/endpoints";
+import endpoints from "utilities/endpoints";
 
 export interface ISortOption {
   key: string;
@@ -36,11 +36,7 @@ export default {
     const label = selectedLabels.find((f) => f.includes(labelPrefix));
     const status = selectedLabels.find((f) => !f.includes(labelPrefix));
     const isValidStatus =
-      status === "new" ||
-      status === "online" ||
-      status === "offline" ||
-      status === "mia";
-
+      status === "new" || status === "online" || status === "offline";
     let queryString = "";
 
     if (globalFilter !== "") {

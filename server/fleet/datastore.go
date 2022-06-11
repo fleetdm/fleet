@@ -2,6 +2,7 @@ package fleet
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"time"
 )
@@ -65,6 +66,9 @@ type Datastore interface {
 	ListQueries(ctx context.Context, opt ListQueryOptions) ([]*Query, error)
 	// QueryByName looks up a query by name.
 	QueryByName(ctx context.Context, name string, opts ...OptionalArg) (*Query, error)
+	// ObserverCanRunQuery returns whether a user with an observer role is permitted to run the
+	// identified query
+	ObserverCanRunQuery(ctx context.Context, queryID uint) (bool, error)
 
 	///////////////////////////////////////////////////////////////////////////////
 	// CampaignStore defines the distributed query campaign related datastore methods
@@ -141,14 +145,11 @@ type Datastore interface {
 	DeleteLabel(ctx context.Context, name string) error
 	Label(ctx context.Context, lid uint) (*Label, error)
 	ListLabels(ctx context.Context, filter TeamFilter, opt ListOptions) ([]*Label, error)
+	LabelsSummary(ctx context.Context) ([]*LabelSummary, error)
 
 	// LabelQueriesForHost returns the label queries that should be executed for the given host.
 	// Results are returned in a map of label id -> query
 	LabelQueriesForHost(ctx context.Context, host *Host) (map[string]string, error)
-
-	// RecordLabelQueryExecutions saves the results of label queries. The results map is a map of label id -> whether or
-	// not the label matches. The time parameter is the timestamp to save with the query execution.
-	RecordLabelQueryExecutions(ctx context.Context, host *Host, results map[uint]*bool, t time.Time, deferredSaveHost bool) error
 
 	// ListLabelsForHost returns the labels that the given host is in.
 	ListLabelsForHost(ctx context.Context, hid uint) ([]*Label, error)
@@ -175,19 +176,10 @@ type Datastore interface {
 
 	// NewHost is deprecated and will be removed. Hosts should always be enrolled via EnrollHost.
 	NewHost(ctx context.Context, host *Host) (*Host, error)
-	SaveHost(ctx context.Context, host *Host) error
-	SerialSaveHost(ctx context.Context, host *Host) error
 	DeleteHost(ctx context.Context, hid uint) error
-	Host(ctx context.Context, id uint, skipLoadingExtras bool) (*Host, error)
-	// EnrollHost will enroll a new host with the given identifier, setting the node key, and team. Implementations of
-	// this method should respect the provided host enrollment cooldown, by returning an error if the host has enrolled
-	// within the cooldown period.
-	EnrollHost(ctx context.Context, osqueryHostId, nodeKey string, teamID *uint, cooldown time.Duration) (*Host, error)
+	Host(ctx context.Context, id uint) (*Host, error)
 	ListHosts(ctx context.Context, filter TeamFilter, opt HostListOptions) ([]*Host, error)
-	// AuthenticateHost authenticates and returns host metadata by node key. This method should not return the host
-	// "additional" information as this is not typically necessary for the operations performed by the osquery
-	// endpoints.
-	AuthenticateHost(ctx context.Context, nodeKey string) (*Host, error)
+
 	MarkHostsSeen(ctx context.Context, hostIDs []uint, t time.Time) error
 	SearchHosts(ctx context.Context, filter TeamFilter, query string, omit ...uint) ([]*Host, error)
 	// CleanupIncomingHosts deletes hosts that have enrolled but never updated their status details. This clears dead
@@ -196,9 +188,11 @@ type Datastore interface {
 	// different osquery queries failed to populate details.
 	CleanupIncomingHosts(ctx context.Context, now time.Time) error
 	// GenerateHostStatusStatistics retrieves the count of online, offline, MIA and new hosts.
-	GenerateHostStatusStatistics(ctx context.Context, filter TeamFilter, now time.Time) (*HostSummary, error)
+	GenerateHostStatusStatistics(ctx context.Context, filter TeamFilter, now time.Time, platform *string) (*HostSummary, error)
 	// HostIDsByName Retrieve the IDs associated with the given hostnames
 	HostIDsByName(ctx context.Context, filter TeamFilter, hostnames []string) ([]uint, error)
+	// HostIDsByOSVersion retrieves the IDs of all host matching osVersion
+	HostIDsByOSVersion(ctx context.Context, osVersion OSVersion, offset int, limit int) ([]uint, error)
 	// HostByIdentifier returns one host matching the provided identifier. Possible matches can be on
 	// osquery_host_identifier, node_key, UUID, or hostname.
 	HostByIdentifier(ctx context.Context, identifier string) (*Host, error)
@@ -207,21 +201,34 @@ type Datastore interface {
 
 	TotalAndUnseenHostsSince(ctx context.Context, daysCount int) (total int, unseen int, err error)
 
+	// DeleteHosts deletes associated tables for multiple hosts.
+	//
+	// It atomically deletes each host but if it returns an error, some of the hosts may be
+	// deleted and others not.
 	DeleteHosts(ctx context.Context, ids []uint) error
 
 	CountHosts(ctx context.Context, filter TeamFilter, opt HostListOptions) (int, error)
 	CountHostsInLabel(ctx context.Context, filter TeamFilter, lid uint, opt HostListOptions) (int, error)
 	ListHostDeviceMapping(ctx context.Context, id uint) ([]*HostDeviceMapping, error)
-	ReplaceHostDeviceMapping(ctx context.Context, id uint, mappings []*HostDeviceMapping) error
+
+	// LoadHostByDeviceAuthToken loads the host identified by the device auth token.
+	// If the token is invalid it returns a NotFoundError.
+	LoadHostByDeviceAuthToken(ctx context.Context, authToken string) (*Host, error)
+	// SetOrUpdateDeviceAuthToken inserts or updates the auth token for a host.
+	SetOrUpdateDeviceAuthToken(ctx context.Context, hostID uint, authToken string) error
 
 	// ListPoliciesForHost lists the policies that a host will check and whether they are passing
 	ListPoliciesForHost(ctx context.Context, host *Host) ([]*HostPolicy, error)
 
-	SetOrUpdateMunkiVersion(ctx context.Context, hostID uint, version string) error
-	SetOrUpdateMDMData(ctx context.Context, hostID uint, enrolled bool, serverURL string, installedFromDep bool) error
-
 	GetMunkiVersion(ctx context.Context, hostID uint) (string, error)
 	GetMDM(ctx context.Context, hostID uint) (enrolled bool, serverURL string, installedFromDep bool, err error)
+
+	AggregatedMunkiVersion(ctx context.Context, teamID *uint) ([]AggregatedMunkiVersion, time.Time, error)
+	AggregatedMDMStatus(ctx context.Context, teamID *uint) (AggregatedMDMStatus, time.Time, error)
+	GenerateAggregatedMunkiAndMDM(ctx context.Context) error
+
+	OSVersions(ctx context.Context, teamID *uint, platform *string) (*OSVersions, error)
+	UpdateOSVersions(ctx context.Context) error
 
 	///////////////////////////////////////////////////////////////////////////////
 	// TargetStore
@@ -237,7 +244,7 @@ type Datastore interface {
 
 	NewPasswordResetRequest(ctx context.Context, req *PasswordResetRequest) (*PasswordResetRequest, error)
 	DeletePasswordResetRequestsForUser(ctx context.Context, userID uint) error
-	FindPassswordResetByToken(ctx context.Context, token string) (*PasswordResetRequest, error)
+	FindPasswordResetByToken(ctx context.Context, token string) (*PasswordResetRequest, error)
 
 	///////////////////////////////////////////////////////////////////////////////
 	// SessionStore is the abstract interface that all session backends must conform to.
@@ -254,7 +261,7 @@ type Datastore interface {
 	ListSessionsForUser(ctx context.Context, id uint) ([]*Session, error)
 
 	// NewSession stores a new session struct
-	NewSession(ctx context.Context, session *Session) (*Session, error)
+	NewSession(ctx context.Context, userID uint, sessionKey string) (*Session, error)
 
 	// DestroySession destroys the currently tracked session
 	DestroySession(ctx context.Context, session *Session) error
@@ -272,9 +279,6 @@ type Datastore interface {
 	AppConfig(ctx context.Context) (*AppConfig, error)
 	SaveAppConfig(ctx context.Context, info *AppConfig) error
 
-	// VerifyEnrollSecret checks that the provided secret matches an active enroll secret. If it is successfully
-	// matched, that secret is returned. Otherwise, an error is returned.
-	VerifyEnrollSecret(ctx context.Context, secret string) (*EnrollSecret, error)
 	// GetEnrollSecrets gets the enroll secrets for a team (or global if teamID is nil).
 	GetEnrollSecrets(ctx context.Context, teamID *uint) ([]*EnrollSecret, error)
 	// ApplyEnrollSecrets replaces the current enroll secrets for a team with the provided secrets.
@@ -306,13 +310,12 @@ type Datastore interface {
 	///////////////////////////////////////////////////////////////////////////////
 	// ScheduledQueryStore
 
-	ListScheduledQueriesInPack(ctx context.Context, id uint, opts ListOptions) ([]*ScheduledQuery, error)
+	// ListScheduledQueriesInPackWithStats loads a pack's scheduled queries and its aggregated stats.
+	ListScheduledQueriesInPackWithStats(ctx context.Context, id uint, opts ListOptions) ([]*ScheduledQuery, error)
 	NewScheduledQuery(ctx context.Context, sq *ScheduledQuery, opts ...OptionalArg) (*ScheduledQuery, error)
 	SaveScheduledQuery(ctx context.Context, sq *ScheduledQuery) (*ScheduledQuery, error)
 	DeleteScheduledQuery(ctx context.Context, id uint) error
 	ScheduledQuery(ctx context.Context, id uint) (*ScheduledQuery, error)
-	CleanupOrphanScheduledQueryStats(ctx context.Context) error
-	CleanupOrphanLabelMembership(ctx context.Context) error
 	CleanupExpiredHosts(ctx context.Context) error
 
 	///////////////////////////////////////////////////////////////////////////////
@@ -330,6 +333,8 @@ type Datastore interface {
 	TeamByName(ctx context.Context, name string) (*Team, error)
 	// ListTeams lists teams with the ordering and filters in the provided options.
 	ListTeams(ctx context.Context, filter TeamFilter, opt ListOptions) ([]*Team, error)
+	// TeamsSummary lists id, name and description for all teams.
+	TeamsSummary(ctx context.Context) ([]*TeamSummary, error)
 	// SearchTeams searches teams using the provided query and ommitting the provided existing selection.
 	SearchTeams(ctx context.Context, filter TeamFilter, matchQuery string, omit ...uint) ([]*Team, error)
 	// TeamEnrollSecrets lists the enroll secrets for the team.
@@ -337,14 +342,32 @@ type Datastore interface {
 
 	///////////////////////////////////////////////////////////////////////////////
 	// SoftwareStore
-
-	SaveHostSoftware(ctx context.Context, host *Host) error
-	LoadHostSoftware(ctx context.Context, host *Host) error
+	// ListSoftwareForVulnDetection returns all software for the given hostID with only the fields
+	// used for vulnerability detection populated (id, name, version, cpe_id, cpe)
+	ListSoftwareForVulnDetection(ctx context.Context, hostID uint) ([]Software, error)
+	ListSoftwareVulnerabilities(ctx context.Context, hostIDs []uint) (map[uint][]SoftwareVulnerability, error)
+	LoadHostSoftware(ctx context.Context, host *Host, includeCVEScores bool) error
 	AllSoftwareWithoutCPEIterator(ctx context.Context) (SoftwareIterator, error)
 	AddCPEForSoftware(ctx context.Context, software Software, cpe string) error
-	AllCPEs(ctx context.Context) ([]string, error)
-	InsertCVEForCPE(ctx context.Context, cve string, cpes []string) error
-	SoftwareByID(ctx context.Context, id uint) (*Software, error)
+	ListSoftwareCPEs(ctx context.Context, excludedPlatforms []string) ([]SoftwareCPE, error)
+	// InsertVulnerabilities inserts the given vulnerabilities in the datastore, returns the number
+	// of rows inserted. If a vulnerability already exists in the datastore, then it will be ignored.
+	InsertVulnerabilities(ctx context.Context, vulns []SoftwareVulnerability, source VulnerabilitySource) (int64, error)
+	SoftwareByID(ctx context.Context, id uint, includeCVEScores bool) (*Software, error)
+	// ListSoftwareByHostIDShort lists software by host ID, but does not include CPEs or vulnerabilites.
+	// It is meant to be used when only minimal software fields are required eg when updating host software.
+	ListSoftwareByHostIDShort(ctx context.Context, hostID uint) ([]Software, error)
+	// CalculateHostsPerSoftware calculates the number of hosts having each
+	// software installed and stores that information in the software_host_counts
+	// table.
+	//
+	// After aggregation, it cleans up unused software (e.g. software installed
+	// on removed hosts, software uninstalled on hosts, etc.)
+	CalculateHostsPerSoftware(ctx context.Context, updatedAt time.Time) error
+	HostsBySoftwareIDs(ctx context.Context, softwareIDs []uint) ([]*HostShort, error)
+	HostsByCVE(ctx context.Context, cve string) ([]*HostShort, error)
+	InsertCVEMeta(ctx context.Context, cveMeta []CVEMeta) error
+	ListCVEs(ctx context.Context, maxAge time.Duration) ([]CVEMeta, error)
 
 	///////////////////////////////////////////////////////////////////////////////
 	// ActivitiesStore
@@ -361,29 +384,26 @@ type Datastore interface {
 	///////////////////////////////////////////////////////////////////////////////
 	// GlobalPoliciesStore
 
+	// ApplyPolicySpecs applies a list of policies (likely from a yaml file) to the datastore. Existing policies are updated,
+	// and new policies are created.
+	ApplyPolicySpecs(ctx context.Context, authorID uint, specs []*PolicySpec) error
+
 	NewGlobalPolicy(ctx context.Context, authorID *uint, args PolicyPayload) (*Policy, error)
 	Policy(ctx context.Context, id uint) (*Policy, error)
 	// SavePolicy updates some fields of the given policy on the datastore.
 	//
 	// It is also used to update team policies.
 	SavePolicy(ctx context.Context, p *Policy) error
-	// FlippingPoliciesForHost fetches the policies with incoming results and returns:
-	//	- a list of "new" failing policies; "new" here means those that fail on their first
-	//	run, and those that were passing on the previous run and are failing on the incoming execution.
-	//	- a list of "new" passing policies; "new" here means those that failed on a previous
-	//	run and are passing now.
-	//
-	// "Failure" here means the policy query executed successfully but didn't return any rows,
-	// so policies that did not execute (incomingResults with nil bool) are ignored.
-	FlippingPoliciesForHost(ctx context.Context, hostID uint, incomingResults map[uint]*bool) (newFailing []uint, newPassing []uint, err error)
-	// RecordPolicyQueryExecutions records the execution results of the policies for the given host.
-	RecordPolicyQueryExecutions(ctx context.Context, host *Host, results map[uint]*bool, updated time.Time, deferredSaveHost bool) error
 
 	ListGlobalPolicies(ctx context.Context) ([]*Policy, error)
+	PoliciesByID(ctx context.Context, ids []uint) (map[uint]*Policy, error)
 	DeleteGlobalPolicies(ctx context.Context, ids []uint) ([]uint, error)
 
 	PolicyQueriesForHost(ctx context.Context, host *Host) (map[string]string, error)
-	ApplyPolicySpecs(ctx context.Context, authorID uint, specs []*PolicySpec) error
+
+	// Methods used for async processing of host policy query results.
+	AsyncBatchInsertPolicyMembership(ctx context.Context, batch []PolicyMembershipResult) error
+	AsyncBatchUpdatePolicyTimestamp(ctx context.Context, ids []uint, ts time.Time) error
 
 	// MigrateTables creates and migrates the table schemas
 	MigrateTables(ctx context.Context) error
@@ -394,6 +414,10 @@ type Datastore interface {
 
 	ListSoftware(ctx context.Context, opt SoftwareListOptions) ([]Software, error)
 	CountSoftware(ctx context.Context, opt SoftwareListOptions) (int, error)
+	// ListVulnerableSoftwareBySource lists all the vulnerable software that matches the given source.
+	ListVulnerableSoftwareBySource(ctx context.Context, source string) ([]SoftwareWithCPE, error)
+	// DeleteVulnerabilities deletes the given list of vulnerabilities identified by CPE+CVE.
+	DeleteVulnerabilitiesByCPECVE(ctx context.Context, vulnerabilities []SoftwareVulnerability) error
 
 	///////////////////////////////////////////////////////////////////////////////
 	// Team Policies
@@ -402,6 +426,8 @@ type Datastore interface {
 	ListTeamPolicies(ctx context.Context, teamID uint) ([]*Policy, error)
 	DeleteTeamPolicies(ctx context.Context, teamID uint, ids []uint) ([]uint, error)
 	TeamPolicy(ctx context.Context, teamID uint, policyID uint) (*Policy, error)
+
+	CleanupPolicyMembership(ctx context.Context, now time.Time) error
 
 	///////////////////////////////////////////////////////////////////////////////
 	// Locking
@@ -425,6 +451,125 @@ type Datastore interface {
 
 	UpdateScheduledQueryAggregatedStats(ctx context.Context) error
 	UpdateQueryAggregatedStats(ctx context.Context) error
+
+	///////////////////////////////////////////////////////////////////////////////
+	// Following are the set of APIs used by osquery hosts:
+	// TODO(lucas): Move them to a separate datastore or abstraction, to avoid
+	// future developers trying to use user-datastore APIs on the host requests.
+	// The user-datastore APIs (all the above) are generally more expensive and
+	// load data that is not necessary for osquery hosts.
+	///////////////////////////////////////////////////////////////////////////////
+
+	// LoadHostByNodeKey loads the whole host identified by the node key.
+	// If the node key is invalid it returns a NotFoundError.
+	LoadHostByNodeKey(ctx context.Context, nodeKey string) (*Host, error)
+
+	// HostLite will load the primary data of the host with the given id.
+	// We define "primary data" as all host information except the
+	// details (like cpu, memory, gigs_disk_space_available, etc.).
+	//
+	// If the host doesn't exist, a NotFoundError is returned.
+	HostLite(ctx context.Context, hostID uint) (*Host, error)
+
+	// UpdateHostOsqueryIntervals updates the osquery intervals of a host.
+	UpdateHostOsqueryIntervals(ctx context.Context, hostID uint, intervals HostOsqueryIntervals) error
+
+	// TeamAgentOptions loads the agents options of a team.
+	TeamAgentOptions(ctx context.Context, teamID uint) (*json.RawMessage, error)
+
+	// SaveHostPackStats stores (and updates) the pack's scheduled queries stats of a host.
+	SaveHostPackStats(ctx context.Context, hostID uint, stats []PackStats) error
+
+	// UpdateHostSoftware updates the software list of a host.
+	// The update consists of deleting existing entries that are not in the given `software`
+	// slice, updating existing entries and inserting new entries.
+	UpdateHostSoftware(ctx context.Context, hostID uint, software []Software) error
+
+	// UpdateHost updates a host.
+	UpdateHost(ctx context.Context, host *Host) error
+
+	// ListScheduledQueriesInPack lists all the scheduled queries of a pack.
+	ListScheduledQueriesInPack(ctx context.Context, packID uint) ([]*ScheduledQuery, error)
+
+	// UpdateHostRefetchRequested updates a host's refetch requested field.
+	UpdateHostRefetchRequested(ctx context.Context, hostID uint, value bool) error
+
+	// FlippingPoliciesForHost fetches the policies with incoming results and returns:
+	//	- a list of "new" failing policies; "new" here means those that fail on their first
+	//	run, and those that were passing on the previous run and are failing on the incoming execution.
+	//	- a list of "new" passing policies; "new" here means those that failed on a previous
+	//	run and are passing now.
+	//
+	// "Failure" here means the policy query executed successfully but didn't return any rows,
+	// so policies that did not execute (incomingResults with nil bool) are ignored.
+	FlippingPoliciesForHost(ctx context.Context, hostID uint, incomingResults map[uint]*bool) (newFailing []uint, newPassing []uint, err error)
+
+	// RecordPolicyQueryExecutions records the execution results of the policies for the given host.
+	RecordPolicyQueryExecutions(ctx context.Context, host *Host, results map[uint]*bool, updated time.Time, deferredSaveHost bool) error
+
+	// RecordLabelQueryExecutions saves the results of label queries. The results map is a map of label id -> whether or
+	// not the label matches. The time parameter is the timestamp to save with the query execution.
+	RecordLabelQueryExecutions(ctx context.Context, host *Host, results map[uint]*bool, t time.Time, deferredSaveHost bool) error
+
+	// SaveHostUsers updates the user list of a host.
+	// The update consists of deleting existing entries that are not in the given `users`
+	// slice, updating existing entries and inserting new entries.
+	SaveHostUsers(ctx context.Context, hostID uint, users []HostUser) error
+
+	// SaveHostAdditional updates the additional queries results of a host.
+	SaveHostAdditional(ctx context.Context, hostID uint, additional *json.RawMessage) error
+
+	SetOrUpdateMunkiVersion(ctx context.Context, hostID uint, version string) error
+	SetOrUpdateMDMData(ctx context.Context, hostID uint, enrolled bool, serverURL string, installedFromDep bool) error
+
+	ReplaceHostDeviceMapping(ctx context.Context, id uint, mappings []*HostDeviceMapping) error
+
+	// VerifyEnrollSecret checks that the provided secret matches an active enroll secret. If it is successfully
+	// matched, that secret is returned. Otherwise, an error is returned.
+	VerifyEnrollSecret(ctx context.Context, secret string) (*EnrollSecret, error)
+
+	// EnrollHost will enroll a new host with the given identifier, setting the node key, and team. Implementations of
+	// this method should respect the provided host enrollment cooldown, by returning an error if the host has enrolled
+	// within the cooldown period.
+	EnrollHost(ctx context.Context, osqueryHostId, nodeKey string, teamID *uint, cooldown time.Duration) (*Host, error)
+
+	SerialUpdateHost(ctx context.Context, host *Host) error
+
+	///////////////////////////////////////////////////////////////////////////////
+	// JobStore
+
+	// NewJob inserts a new job into the jobs table (queue).
+	NewJob(ctx context.Context, job *Job) (*Job, error)
+
+	// GetQueuedJobs gets queued jobs from the jobs table (queue).
+	GetQueuedJobs(ctx context.Context, maxNumJobs int) ([]*Job, error)
+
+	// UpdateJobs updates an existing job. Call this after processing a job.
+	UpdateJob(ctx context.Context, id uint, job *Job) (*Job, error)
+
+	///////////////////////////////////////////////////////////////////////////////
+	// Debug
+
+	InnoDBStatus(ctx context.Context) (string, error)
+	ProcessList(ctx context.Context) ([]MySQLProcess, error)
+}
+
+type MySQLProcess struct {
+	Id      int     `json:"id" db:"Id"`
+	User    string  `json:"user" db:"User"`
+	Host    string  `json:"host" db:"Host"`
+	DB      *string `json:"db" db:"db"`
+	Command string  `json:"command" db:"Command"`
+	Time    int     `json:"time" db:"Time"`
+	State   *string `json:"state" db:"State"`
+	Info    *string `json:"info" db:"Info"`
+}
+
+// HostOsqueryIntervals holds an osquery host's osquery interval configurations.
+type HostOsqueryIntervals struct {
+	DistributedInterval uint `json:"distributed_interval" db:"distributed_interval"`
+	ConfigTLSRefresh    uint `json:"config_tls_refresh" db:"config_tls_refresh"`
+	LoggerTLSPeriod     uint `json:"logger_tls_period" db:"logger_tls_period"`
 }
 
 type MigrationStatus struct {

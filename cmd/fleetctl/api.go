@@ -15,6 +15,7 @@ import (
 
 	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
 	"github.com/fleetdm/fleet/v4/server/service"
+	"github.com/kolide/kit/version"
 	"github.com/urfave/cli/v2"
 )
 
@@ -26,8 +27,6 @@ func unauthenticatedClientFromCLI(c *cli.Context) (*service.Client, error) {
 
 	return unauthenticatedClientFromConfig(cc, getDebug(c), c.App.Writer)
 }
-
-var invalidSessionErr = errors.New("Invalid session. Please log in with: fleetctl login")
 
 func clientFromCLI(c *cli.Context) (*service.Client, error) {
 	fleet, err := unauthenticatedClientFromCLI(c)
@@ -49,29 +48,35 @@ func clientFromCLI(c *cli.Context) (*service.Client, error) {
 		return nil, fmt.Errorf("error getting token from the config: %w", err)
 	}
 
-	if token, ok := t.(string); ok {
-		if token == "" {
-			return nil, errors.New("Please log in with: fleetctl login")
-		}
-		fleet.SetToken(token)
-	} else {
-		return nil, fmt.Errorf("token config value was not a string: %+v", t)
+	token, ok := t.(string)
+	if !ok {
+		fmt.Fprintln(os.Stderr, "Token invalid. Please log in with: fleetctl login")
+		return nil, fmt.Errorf("token config value expected type %T, got %T: %+v", "", t, t)
 	}
+	if token == "" {
+		fmt.Fprintln(os.Stderr, "Token missing. Please log in with: fleetctl login")
+		return nil, errors.New("token config value missing")
+	}
+	fleet.SetToken(token)
 
-	// Perform a "/me" request to verify the session is valid.
-	response, err := fleet.AuthenticatedDo("GET", "/api/v1/fleet/me", "", nil)
+	// Check if version matches fleet server. Also ensures that the token is valid.
+	clientInfo := version.Version()
+
+	serverInfo, err := fleet.Version()
 	if err != nil {
-		return nil, fmt.Errorf("Failed to execute session check: %w", err)
+		if errors.Is(err, service.ErrUnauthenticated) {
+			fmt.Fprintln(os.Stderr, "Token invalid or session expired. Please log in with: fleetctl login")
+		}
+		return nil, err
 	}
-	defer response.Body.Close()
 
-	switch response.StatusCode {
-	case http.StatusOK:
-		// OK
-	case http.StatusUnauthorized:
-		return nil, invalidSessionErr
-	default:
-		return nil, fmt.Errorf("session check received status: %d", response.StatusCode)
+	if clientInfo.Version != serverInfo.Version {
+		fmt.Fprintf(
+			os.Stderr,
+			"Warning: Version mismatch.\nClient Version:   %s\nServer Version:  %s\n",
+			clientInfo.Version, serverInfo.Version,
+		)
+		// This is just a warning, continue ...
 	}
 
 	return fleet, nil
@@ -79,6 +84,9 @@ func clientFromCLI(c *cli.Context) (*service.Client, error) {
 
 func unauthenticatedClientFromConfig(cc Context, debug bool, w io.Writer) (*service.Client, error) {
 	options := []service.ClientOption{service.SetClientWriter(w)}
+	if len(cc.CustomHeaders) > 0 {
+		options = append(options, service.WithCustomHeaders(cc.CustomHeaders))
+	}
 
 	if flag.Lookup("test.v") != nil {
 		return service.NewClient(
@@ -148,7 +156,9 @@ func rawHTTPClientFromConfig(cc Context) (*http.Client, *url.URL, error) {
 }
 
 func clientConfigFromCLI(c *cli.Context) (Context, error) {
-	if flag.Lookup("test.v") != nil {
+	// if a config file is explicitly provided, do not return a default context,
+	// just override the address and skip verify before returning.
+	if !c.IsSet("config") && flag.Lookup("test.v") != nil {
 		return Context{
 			Address:       os.Getenv("FLEET_SERVER_ADDRESS"),
 			TLSSkipVerify: true,
@@ -169,6 +179,10 @@ func clientConfigFromCLI(c *cli.Context) (Context, error) {
 	cc, ok := config.Contexts[c.String("context")]
 	if !ok {
 		return zeroCtx, fmt.Errorf("context %q is not found", c.String("context"))
+	}
+	if flag.Lookup("test.v") != nil {
+		cc.Address = os.Getenv("FLEET_SERVER_ADDRESS")
+		cc.TLSSkipVerify = true
 	}
 	return cc, nil
 }

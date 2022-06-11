@@ -20,7 +20,8 @@ parasails.registerComponent('jsTimestamp', {
   props: [
     'at',// « The JS timestamp to format
     'short',// « Whether to shorten the formatted date by not including the time of day (may only be used with timeago, and even then only applicable in certain situations)
-    'format',// « one of: 'calendar', 'timeago' (defaults to 'timeago'.  Otherwise, the "calendar" format displays data as US-style calendar dates with a four-character year, separated by dashes.  In other words: "MM-DD-YYYY")
+    'format',// « one of: 'timeago', 'calendar', 'billing' (defaults to 'timeago'.  Otherwise, the "calendar" format displays data as US-style calendar dates with a four-character year, separated by dashes.  In other words: "MM-DD-YYYY". The "billing" format displays timestamp in an expanded calendar format without the time of day, e.g. Dec 13, 2022)
+    'alwaysShowYear',// « (only for 'timeago') Whether to always include the year in the timestamp.
   ],
 
   //  ╦╔╗╔╦╔╦╗╦╔═╗╦    ╔═╗╔╦╗╔═╗╔╦╗╔═╗
@@ -51,12 +52,12 @@ parasails.registerComponent('jsTimestamp', {
     if(this.format === undefined) {
       this.formatType = 'timeago';
     } else  {
-      if(!_.contains(['calendar', 'timeago'], this.format)) { throw new Error('Unsupported `format` ('+this.format+') passed in to the JS timestamp component! Must be either \'calendar\' or \'timeago\'.'); }
+      if(!_.contains(['calendar', 'timeago', 'billing'], this.format)) { throw new Error('Unsupported `format` ('+this.format+') passed in to the JS timestamp component! Must be either \'calendar\', \'timeago\', or \'billing\'.'); }
       this.formatType = this.format;
     }
 
-    // If timeago timestamp, update the timestamp every minute.
-    if(this.formatType === 'timeago') {
+    // If timeago or a billing timestamp, update the timestamp every minute.
+    if(this.formatType === 'timeago' || this.formatType === 'billing') {
       this._formatTimeago();
       this.interval = setInterval(async()=>{
         try {
@@ -80,7 +81,7 @@ parasails.registerComponent('jsTimestamp', {
   },
 
   beforeDestroy: function() {
-    if(this.formatType === 'timeago') {
+    if(this.formatType === 'timeago' || this.formatType === 'billing') {
       clearInterval(this.interval);
     }
   },
@@ -88,7 +89,7 @@ parasails.registerComponent('jsTimestamp', {
   watch: {
     at: function() {
       // Render to account for after-mount programmatic changes to `at`.
-      if(this.formatType === 'timeago') {
+      if(this.formatType === 'timeago' || this.formatType === 'billing') {
         this._formatTimeago();
       } else if(this.formatType === 'calendar') {
         this.formattedTimestamp = moment(this.at).format('MM-DD-YYYY');
@@ -109,18 +110,18 @@ parasails.registerComponent('jsTimestamp', {
       var timeDifference = Math.abs(now - this.at);
 
       // If the timestamp is less than a day old, format as time ago.
-      if(timeDifference < 1000*60*60*24) {
+      if(timeDifference < 1000*60*60*24 && this.formatType !== 'billing') {
         this.formattedTimestamp = moment(this.at).fromNow();
       } else {
-        // If the timestamp is less than a month-ish old, we'll include the
-        // time of day in the formatted timestamp.
-        let includeTime = !this.short && timeDifference < 1000*60*60*24*31;
+        // If the timestamp is not a billing timestamp and is less than a month-ish old,
+        // we'll include the time of day in the formatted timestamp.
+        let includeTime = !this.short && timeDifference < 1000*60*60*24*31 && this.formatType !== 'billing';
 
-        // If the timestamp is from a different year, we'll include the year
-        // in the formatted timestamp.
-        let includeYear = moment(now).format('YYYY') !== moment(this.at).format('YYYY');
+        // If the timestamp is from a different year, 'alwaysShowYear' is set to true, or is a billing timestamp
+        // we'll include the year in the formatted timestamp.
+        let includeYear = (moment(now).format('YYYY') !== moment(this.at).format('YYYY') || this.alwaysShowYear || this.formatType === 'billing');
 
-        this.formattedTimestamp = moment(this.at).format('MMMM DD'+(includeYear ? ', YYYY' : '')+(includeTime ? ' [at] h:mma' : ''));
+        this.formattedTimestamp = moment(this.at).format((this.formatType === 'billing' ? 'MMM' : 'MMMM')+' DD'+(includeYear ? ', YYYY' : '')+(includeTime ? ' [at] h:mma' : ''));
       }
 
     }

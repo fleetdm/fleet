@@ -7,6 +7,9 @@ module.exports = {
   description: 'Receive webhook requests and/or incoming auth redirects from GitHub.',
 
 
+  extendedDescription: 'Useful for automation, visibility of changes, and abuse monitoring.',
+
+
   inputs: {
     botSignature: { type: 'string', },
     action: { type: 'string', example: 'opened', defaultsTo: 'ping', moreInfoUrl: 'https://developer.github.com/v3/activity/events/types' },
@@ -24,7 +27,8 @@ module.exports = {
 
     let GitHub = require('machinepack-github');
 
-    let GREEN_LABEL_COLOR = 'C2E0C6';// « Used in multiple places below.
+    let IS_FROZEN = false;// « Set this to `true` whenever a freeze is in effect, then set it back to `false` when the freeze ends.
+
     let GITHUB_USERNAMES_OF_BOTS_AND_MAINTAINERS = [// « Used in multiple places below.
       'sailsbot',
       'fleet-release',
@@ -45,9 +49,24 @@ module.exports = {
       'vercel[bot]',
       'lucasmrod',
       'tgauda',
-      'ksatter'
+      'ksatter',
+      'guillaumeross',
+      'dominuskelvin',
+      'sharvilshah',
+      'michalnicp',
+      'desmi-dizney',
+      'charlottechance',
+      'timmy-k',
+      'zwinnerman-fleetdm',
+      'hollidayn',
+      'juan-fdz-hawa',
+      'roperzh',
+      'zhumo',
     ];
-    let GITHUB_USERNAME_OF_DRI_FOR_LABELS = 'noahtalerman';// « Used below
+
+    let GREEN_LABEL_COLOR = 'C2E0C6';// « Used in multiple places below.  (FUTURE: Use the "+" prefix for this instead of color.  2022-05-05)
+
+    let GITHUB_USERNAME_OF_DRI_FOR_LABELS = 'noahtalerman';// « Used below (FUTURE: Remove this capability as Fleet has outgrown it.  2022-05-05)
 
     if (!sails.config.custom.slackWebhookUrlForGithubBot) {
       throw new Error('No Slack webhook URL configured for the GitHub bot to notify with alerts!  (Please set `sails.config.custom.slackWebhookUrlForGithubBot`.)');
@@ -113,7 +132,7 @@ module.exports = {
       //     `For help with questions about Sails, [click here](http://sailsjs.com/support).\n`;
       //   }
       // } else {
-      //   let wasReopenedByBot = GITHUB_USERNAMES_OF_BOTS_AND_MAINTAINERS.includes(sender.login);
+      //   let wasReopenedByBot = GITHUB_USERNAMES_OF_BOTS_AND_MAINTAINERS.includes(sender.login.toLowerCase());
       //   if (wasReopenedByBot) {
       //     newBotComment = '';// « checked below
       //   } else {
@@ -153,20 +172,19 @@ module.exports = {
       //  ╚██╗╚██████╔╝██║     ███████╗██║ ╚████║███████╗██████╔╝    ██╔╝       ███████╗██████╔╝██║   ██║   ███████╗██████╔╝    ██╔╝       ██║  ██║███████╗╚██████╔╝██║     ███████╗██║ ╚████║███████╗██████╔╝██╔╝
       //   ╚═╝ ╚═════╝ ╚═╝     ╚══════╝╚═╝  ╚═══╝╚══════╝╚═════╝     ╚═╝        ╚══════╝╚═════╝ ╚═╝   ╚═╝   ╚══════╝╚═════╝     ╚═╝        ╚═╝  ╚═╝╚══════╝ ╚═════╝ ╚═╝     ╚══════╝╚═╝  ╚═══╝╚══════╝╚═════╝ ╚═╝
       //
-      // // Handle opened/reopened/edited PR by commenting/labeling/unlabeling it
-      // // (if appropriate).
-      // // > Note: If we apply the "needs cleanup" label here, then any subsequent
-      // // > edits of the PR should trigger a webhook request that causes the bot
-      // // > to re-examine the PR's title for compliance with the repo guidelines.
-      // let owner = repository.owner.login;
-      // let repo = repository.name;
-      // let issueNumber = issueOrPr.number;
 
-      // if (action === 'edited' && pr.state !== 'open') {
-      //   // If this is an edit to an already-closed pull request, then do nothing.
-      // } else if (action === 'reopened') {
-      //   let wasReopenedByBot = GITHUB_USERNAMES_OF_BOTS_AND_MAINTAINERS.includes(sender.login);
-      //   if (!wasReopenedByBot) {
+      let owner = repository.owner.login;
+      let repo = repository.name;
+      let prNumber = issueOrPr.number;
+
+      // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+      // Want to do more?
+      //
+      // For some working, recent, easily-tweaked example code that manages a conversation with the GitHub bot
+      // to get help submitters of PRs/issues get them up to spec, see:
+      // https://github.com/fleetdm/fleet/blob/0a59adc2dd65bce5c1201a752e9c218faea7be35/website/api/controllers/webhooks/receive-from-github.js#L145-L216
+      //
+      // To potentially reuse:
       //     let newBotComment =
       //     `Oh hey again, @${issueOrPr.user.login}.  Now that this pull request is reopened, it's on our radar.  Please let us know if there's any new information we should be aware of!\n`+
       //     `<hr/>\n`+
@@ -174,40 +192,44 @@ module.exports = {
       //     `Please remember: never post in a public forum if you believe you've found a genuine security vulnerability.  Instead, [disclose it responsibly](https://sailsjs.com/security).\n`+
       //     `\n`+
       //     `For help with questions about Sails, [click here](http://sailsjs.com/support).\n`;
-      //     await GitHub.commentOnIssue.with({ comment: newBotComment, issueNumber, owner, repo, credentials });
-      //   }//ﬁ
-      // } else if (!pr.title.match(/^\[(proposal|patch|implements #\d+|fixes #\d+|misc)\]/i)) {
-      //   await sails.helpers.flow.simultaneously([
-      //     async() => await GitHub.addLabelsToIssue.with({ labels: [ 'needs cleanup' ], issueNumber, owner, repo, credentials }),
-      //     async() => await GitHub.commentOnIssue.with({ comment: `Hi @${pr.user.login}!  It looks like the title of your pull request doesn&rsquo;t quite match our [guidelines](https://sailsjs.com/contribute) yet.  Would you please edit your pull request's title so that it begins with \`[proposal]\`, \`[patch]\`, \`[fixes #<issue number>]\`, \`[implements #<other PR number>]\`, or \`[misc]\`?  Once you've edited it, I'll take another look!`, issueNumber, owner, repo, credentials })
-      //   ]);
-      // } else {
-      //   let removeNeedsCleanupLabel = pr.labels.some(({name}) => name === 'needs cleanup');
-      //   if (removeNeedsCleanupLabel) {
-      //     await GitHub.removeLabelFromIssue.with({ label: 'needs cleanup', issueNumber, owner, repo, credentials });
-      //   }//ﬁ
-      //   if (action === 'opened' || removeNeedsCleanupLabel) {
-      //     await GitHub.commentOnIssue.with({
-      //       comment:
-      //         `Thanks for submitting this pull request, @${pr.user.login}!  We'll look at it ASAP.\n`+
-      //         `\n`+
-      //         `In the mean time, here are some ways you can help speed things along:\n`+
-      //         ` - discuss this pull request with [other contributors](https://gitter.im/balderdashy/sails) and get their feedback.  _(Reactions and comments can help us make better decisions, anticipate compatibility problems, and prevent bugs.)_\n`+
-      //         ` - ask [another JavaScript developer](https://gitter.im/balderdashy/sails) to review the files changed in this pull request.  _(Peer reviews definitely don't guarantee perfection, but they help catch mistakes and enourage collaborative thinking.  Code reviews are so useful that some open source projects require a minimum number of reviews before even considering a merge!)_\n`+
-      //         ` - if appropriate, ask your business to [sponsor your pull request](https://sailsjs.com/support).   _(Open source is our passion, and our core maintainers volunteer many of their nights and weekends working on Sails.  But you only get so many nights and weekends in life, and stuff gets done a lot faster when you can work on it during normal daylight hours.)_\n`+
-      //         ` - make sure you've answered the "why?"  _(Before we can review and merge a pull request, we feel it is important to fully understand the use case: the human reason these changes are important for you, your team, or your organization.)_\n`+
-      //         `<hr/>\n`+
-      //         `\n`+
-      //         `Please remember: never post in a public forum if you believe you've found a genuine security vulnerability.  Instead, [disclose it responsibly](https://sailsjs.com/security).\n`+
-      //         `\n`+
-      //         `For help with questions about Sails, [click here](http://sailsjs.com/support).\n`,
-      //       issueNumber,
-      //       owner,
-      //       repo,
-      //       credentials
-      //     });
-      //   }//ﬁ
-      // }
+      // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+
+      if (action === 'edited' && pr.state !== 'open') {// PR edited ‡
+        // This is an edit to an already-closed pull request.
+        // (Do nothing.)
+      } else {// Either:
+        // PR opened ‡  (Newly opened.)
+        // PR reopened ‡   (This is a closed pull request, being reopened.  `action === 'reopened'`)
+
+        let baseHeaders = {
+          'User-Agent': 'Fleetie pie',
+          'Authorization': `token ${sails.config.custom.githubAccessToken}`
+        };
+
+        require('assert')(sender.login !== undefined);
+
+        // Check whether auto-approval is warranted.
+        let isAutoApproved = await sails.helpers.githubAutomations.getIsPrPreapproved.with({
+          prNumber: prNumber,
+          githubUserToCheck: sender.login,
+          isGithubUserMaintainerOrDoesntMatter: GITHUB_USERNAMES_OF_BOTS_AND_MAINTAINERS.includes(sender.login.toLowerCase())
+        });
+
+        // Now, if appropriate, auto-approve the change.
+        if (isAutoApproved) {
+          // [?] https://docs.github.com/en/rest/reference/pulls#create-a-review-for-a-pull-request
+          await sails.helpers.http.post(`https://api.github.com/repos/${owner}/${repo}/pulls/${prNumber}/reviews`, {
+            event: 'APPROVE'
+          }, baseHeaders);
+        } else if (IS_FROZEN) {
+          // [?] https://docs.github.com/en/rest/reference/pulls#create-a-review-for-a-pull-request
+          await sails.helpers.http.post(`https://api.github.com/repos/${owner}/${repo}/pulls/${prNumber}/reviews`, {
+            event: 'REQUEST_CHANGES',
+            body: 'The repository is currently frozen for an upcoming release.  \n> After the freeze has ended, please dismiss this review.  \n\nIn case of emergency, you can dismiss this review and merge now.'
+          }, baseHeaders);
+        }
+
+      }
     } else if (ghNoun === 'issue_comment' && ['created'].includes(action) && (issueOrPr&&issueOrPr.state === 'open')) {
       //   ██████╗ ██████╗ ███╗   ███╗███╗   ███╗███████╗███╗   ██╗████████╗
       //  ██╔════╝██╔═══██╗████╗ ████║████╗ ████║██╔════╝████╗  ██║╚══██╔══╝
@@ -228,7 +250,7 @@ module.exports = {
       let repo = repository.name;
       let issueNumber = issueOrPr.number;
 
-      let wasPostedByBot = GITHUB_USERNAMES_OF_BOTS_AND_MAINTAINERS.includes(sender.login);
+      let wasPostedByBot = GITHUB_USERNAMES_OF_BOTS_AND_MAINTAINERS.includes(sender.login.toLowerCase());
       if (!wasPostedByBot) {
         let greenLabels = _.filter(issueOrPr.labels, ({color}) => color === GREEN_LABEL_COLOR);
         await sails.helpers.flow.simultaneouslyForEach(greenLabels, async(greenLabel)=>{
@@ -238,8 +260,8 @@ module.exports = {
     } else if (
       (ghNoun === 'issue_comment' && ['deleted'].includes(action) && !GITHUB_USERNAMES_OF_BOTS_AND_MAINTAINERS.includes(comment.user.login))||
       (ghNoun === 'commit_comment' && ['created'].includes(action) && !GITHUB_USERNAMES_OF_BOTS_AND_MAINTAINERS.includes(comment.user.login))||
-      (ghNoun === 'label' && ['created','edited','deleted'].includes(action) && GITHUB_USERNAME_OF_DRI_FOR_LABELS !== sender.login)||//« exempt label changes made by the directly responsible individual for labels, because otherwise when process changes/fiddlings happen, they can otherwise end up making too much noise in Slack
-      (ghNoun === 'issue_comment' && ['created'].includes(action) && issueOrPr.state !== 'open' && (issueOrPr.closed_at) && ((new Date(issueOrPr.closed_at)).getTime() < Date.now() - 7*24*60*60*1000 ) && !GITHUB_USERNAMES_OF_BOTS_AND_MAINTAINERS.includes(sender.login) )
+      (ghNoun === 'label' && false /* label change notifications temporarily disabled until digital experience team has time to clean up labels.  FUTURE: turn this back on after doing that cleanup to facilitate gradual ongoing maintenance and education rather than herculean cleanup efforts and retraining */ && ['created','edited','deleted'].includes(action) && GITHUB_USERNAME_OF_DRI_FOR_LABELS !== sender.login.toLowerCase())||//« exempt label changes made by the directly responsible individual for labels, because otherwise when process changes/fiddlings happen, they can otherwise end up making too much noise in Slack
+      (ghNoun === 'issue_comment' && ['created'].includes(action) && issueOrPr.state !== 'open' && (issueOrPr.closed_at) && ((new Date(issueOrPr.closed_at)).getTime() < Date.now() - 7*24*60*60*1000 ) && !GITHUB_USERNAMES_OF_BOTS_AND_MAINTAINERS.includes(sender.login.toLowerCase()) )
     ) {
       //  ██╗███╗   ██╗███████╗ ██████╗ ██████╗ ███╗   ███╗    ██╗   ██╗███████╗
       //  ██║████╗  ██║██╔════╝██╔═══██╗██╔══██╗████╗ ████║    ██║   ██║██╔════╝

@@ -11,9 +11,7 @@ import (
 	"net/http"
 	"os"
 	"os/exec"
-	"path"
 	"path/filepath"
-	"runtime"
 	"strconv"
 	"strings"
 	"time"
@@ -22,11 +20,14 @@ import (
 	"github.com/fleetdm/fleet/v4/orbit/pkg/packaging"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/update"
 	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
+	"github.com/fleetdm/fleet/v4/pkg/open"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/service"
 	"github.com/mitchellh/go-ps"
 	"github.com/urfave/cli/v2"
 )
+
+type dockerComposeVersion int
 
 const (
 	downloadUrl             = "https://github.com/fleetdm/osquery-in-a-box/archive/%s.zip"
@@ -34,13 +35,58 @@ const (
 	licenseKeyFlagName      = "license-key"
 	tagFlagName             = "tag"
 	previewConfigFlagName   = "preview-config"
+	noHostsFlagName         = "no-hosts"
+	orbitChannel            = "orbit-channel"
+	osquerydChannel         = "osqueryd-channel"
+	updateURL               = "update-url"
+	updateRootKeys          = "update-roots"
+	stdQueryLibFilePath     = "std-query-lib-file-path"
+	disableOpenBrowser      = "disable-open-browser"
+
+	dockerComposeV1 dockerComposeVersion = 1
+	dockerComposeV2 dockerComposeVersion = 2
 )
+
+type dockerCompose struct {
+	version dockerComposeVersion
+}
+
+func (d dockerCompose) String() string {
+	if d.version == dockerComposeV1 {
+		return "`docker-compose`"
+	}
+
+	return "`docker compose`"
+}
+
+func (d dockerCompose) Command(arg ...string) *exec.Cmd {
+	if d.version == dockerComposeV1 {
+		return exec.Command("docker-compose", arg...)
+	}
+
+	return exec.Command("docker", append([]string{"compose"}, arg...)...)
+}
+
+func newDockerCompose() (dockerCompose, error) {
+	// first, check if `docker compose` is available
+	if err := exec.Command("docker compose").Run(); err == nil {
+		return dockerCompose{dockerComposeV2}, nil
+	}
+
+	// if not, try to use `docker-compose`
+	if _, err := exec.LookPath("docker-compose"); err == nil {
+		return dockerCompose{dockerComposeV1}, nil
+	}
+
+	return dockerCompose{}, errors.New("`docker compose` is required for the fleetctl preview experience.\n\nPlease install `docker compose` (https://docs.docker.com/compose/install/).")
+}
 
 func previewCommand() *cli.Command {
 	return &cli.Command{
-		Name:  "preview",
-		Usage: "Start a preview deployment of the Fleet server",
-		Description: `Start a preview deployment of the Fleet server using Docker and docker-compose. Docker tools must be available in the environment.
+		Name:    "preview",
+		Aliases: []string{"sandbox"},
+		Usage:   "Start a sandbox deployment of the Fleet server",
+		Description: `Start a sandbox deployment of the Fleet server using Docker and docker compose. Docker tools must be available in the environment.
 
 Use the stop and reset subcommands to manage the server and dependencies once started.`,
 		Subcommands: []*cli.Command{
@@ -65,9 +111,48 @@ Use the stop and reset subcommands to manage the server and dependencies once st
 				Usage: "Run a specific branch of the preview repository",
 				Value: "production",
 			},
+			&cli.BoolFlag{
+				Name:  noHostsFlagName,
+				Usage: "Start the server without adding any hosts",
+				Value: false,
+			},
+			&cli.StringFlag{
+				Name:  orbitChannel,
+				Usage: "Use a custom orbit channel",
+				Value: "stable",
+			},
+			&cli.StringFlag{
+				Name:  osquerydChannel,
+				Usage: "Use a custom osqueryd channel",
+				Value: "stable",
+			},
+			&cli.StringFlag{
+				Name:  updateURL,
+				Usage: "Use a custom update TUF URL",
+				Value: "",
+			},
+			&cli.StringFlag{
+				Name:  updateRootKeys,
+				Usage: "Use custom update TUF root keys",
+				Value: "",
+			},
+			&cli.StringFlag{
+				Name:  stdQueryLibFilePath,
+				Usage: "Use custom standard query library yml file",
+				Value: "",
+			},
+			&cli.BoolFlag{
+				Name:  disableOpenBrowser,
+				Usage: "Disable opening the browser",
+			},
 		},
 		Action: func(c *cli.Context) error {
 			if err := checkDocker(); err != nil {
+				return err
+			}
+
+			compose, err := newDockerCompose()
+			if err != nil {
 				return err
 			}
 
@@ -89,10 +174,10 @@ Use the stop and reset subcommands to manage the server and dependencies once st
 			// Make sure the logs directory is writable, otherwise the Fleet
 			// server errors on startup. This can be a problem when running on
 			// Linux with a non-root user inside the container.
-			if err := os.Chmod(filepath.Join(previewDir, "logs"), 0777); err != nil {
+			if err := os.Chmod(filepath.Join(previewDir, "logs"), 0o777); err != nil {
 				return fmt.Errorf("make logs writable: %w", err)
 			}
-			if err := os.Chmod(filepath.Join(previewDir, "vulndb"), 0777); err != nil {
+			if err := os.Chmod(filepath.Join(previewDir, "vulndb"), 0o777); err != nil {
 				return fmt.Errorf("make vulndb writable: %w", err)
 			}
 
@@ -101,19 +186,19 @@ Use the stop and reset subcommands to manage the server and dependencies once st
 			}
 
 			fmt.Println("Pulling Docker dependencies...")
-			out, err := exec.Command("docker-compose", "pull").CombinedOutput()
+			out, err := compose.Command("pull").CombinedOutput()
 			if err != nil {
 				fmt.Println(string(out))
-				return errors.New("Failed to run docker-compose")
+				return fmt.Errorf("Failed to run %s", compose)
 			}
 
 			fmt.Println("Starting Docker containers...")
-			cmd := exec.Command("docker-compose", "up", "-d", "--remove-orphans", "mysql01", "redis01", "fleet01")
+			cmd := compose.Command("up", "-d", "--remove-orphans", "mysql01", "redis01", "fleet01")
 			cmd.Env = append(os.Environ(), "FLEET_LICENSE_KEY="+c.String(licenseKeyFlagName))
 			out, err = cmd.CombinedOutput()
 			if err != nil {
 				fmt.Println(string(out))
-				return errors.New("Failed to run docker-compose")
+				return fmt.Errorf("Failed to run %s", compose)
 			}
 
 			fmt.Println("Waiting for server to start up...")
@@ -124,19 +209,19 @@ Use the stop and reset subcommands to manage the server and dependencies once st
 			// Start fleet02 (UI server) after fleet01 (agent/fleetctl server)
 			// has finished starting up so that there is no conflict with
 			// running database migrations.
-			cmd = exec.Command("docker-compose", "up", "-d", "--remove-orphans", "fleet02")
+			cmd = compose.Command("up", "-d", "--remove-orphans", "fleet02")
 			cmd.Env = append(os.Environ(), "FLEET_LICENSE_KEY="+c.String(licenseKeyFlagName))
 			out, err = cmd.CombinedOutput()
 			if err != nil {
 				fmt.Println(string(out))
-				return errors.New("Failed to run docker-compose")
+				return fmt.Errorf("Failed to run %s", compose)
 			}
 
 			fmt.Println("Initializing server...")
 			const (
 				address  = "https://localhost:8412"
 				email    = "admin@example.com"
-				password = "admin123#"
+				password = "preview1337#"
 			)
 
 			fleetClient, err := service.NewClient(address, true, "", "")
@@ -197,19 +282,24 @@ Use the stop and reset subcommands to manage the server and dependencies once st
 			client.SetToken(token)
 
 			fmt.Println("Loading standard query library...")
-			buf, err := downloadStandardQueryLibrary()
-			if err != nil {
-				return fmt.Errorf("failed to download standard query library: %w", err)
+			var buf []byte
+			if fp := c.String(stdQueryLibFilePath); fp != "" {
+				var err error
+				buf, err = ioutil.ReadFile(fp)
+				if err != nil {
+					return fmt.Errorf("failed to read standard query library file %q: %w", fp, err)
+				}
+			} else {
+				var err error
+				buf, err = downloadStandardQueryLibrary()
+				if err != nil {
+					return fmt.Errorf("failed to download standard query library: %w", err)
+				}
 			}
 
-			specGroup, err := specGroupFromBytes(buf)
+			err = applyYamlBytes(c, buf, client)
 			if err != nil {
-				return fmt.Errorf("failed to parse standard query library: %w", err)
-			}
-
-			err = client.ApplyQueries(specGroup.Queries)
-			if err != nil {
-				return fmt.Errorf("failed to apply standard query library: %w", err)
+				return err
 			}
 
 			// disable anonymous analytics collection and enable software inventory for preview
@@ -218,11 +308,6 @@ Use the stop and reset subcommands to manage the server and dependencies once st
 				"server_settings": {"enable_analytics": false},
 			}); err != nil {
 				return fmt.Errorf("failed to apply updated app config: %w", err)
-			}
-
-			fmt.Println("Applying Policies...")
-			if err := loadPolicies(client); err != nil {
-				fmt.Println("WARNING: Couldn't load policies:", err)
 			}
 
 			secrets, err := client.GetEnrollSecretSpec()
@@ -242,38 +327,48 @@ Use the stop and reset subcommands to manage the server and dependencies once st
 				return fmt.Errorf("Error disabling anonymous analytics collection in app config: %w", err)
 			}
 
-			fmt.Println("Fleet will now enroll your device and log you into the UI automatically.")
+			fmt.Println("Fleet will now log you into the UI automatically.")
 			fmt.Println("You can also open the UI at this URL: http://localhost:1337/previewlogin.")
 			fmt.Println("Email:", email)
 			fmt.Println("Password:", password)
 
-			fmt.Println("Downloading Orbit and osqueryd...")
+			if !c.Bool(noHostsFlagName) {
+				fmt.Println("Enrolling local host...")
 
-			if err := downloadOrbitAndStart(previewDir, secrets.Secrets[0].Secret, address); err != nil {
-				return fmt.Errorf("downloading orbit and osqueryd: %w", err)
-			}
+				if err := downloadOrbitAndStart(previewDir, secrets.Secrets[0].Secret, address, c.String(orbitChannel), c.String(osquerydChannel), c.String(updateURL), c.String(updateRootKeys)); err != nil {
+					return fmt.Errorf("downloading orbit and osqueryd: %w", err)
+				}
 
-			// Give it a bit of time so the current device is the one with id 1
-			fmt.Println("Waiting for current host to enroll...")
-			if err := waitFirstHost(client); err != nil {
-				return fmt.Errorf("wait for current host: %w", err)
-			}
+				// Give it a bit of time so the current device is the one with id 1
+				fmt.Println("Waiting for host to enroll...")
+				if err := waitFirstHost(client); err != nil {
+					return fmt.Errorf("wait for current host: %w", err)
+				}
 
-			if err := openBrowser("http://localhost:1337/previewlogin"); err != nil {
-				fmt.Println("Automatic browser open failed. Please navigate to http://localhost:1337/previewlogin.")
-			}
+				if !c.Bool(disableOpenBrowser) {
+					if err := open.Browser("http://localhost:1337/previewlogin"); err != nil {
+						fmt.Println("Automatic browser open failed. Please navigate to http://localhost:1337/previewlogin.")
+					}
+				}
 
-			fmt.Println("Starting simulated Linux hosts...")
-			cmd = exec.Command("docker-compose", "up", "-d", "--remove-orphans")
-			cmd.Dir = filepath.Join(previewDir, "osquery")
-			cmd.Env = append(os.Environ(),
-				"ENROLL_SECRET="+secrets.Secrets[0].Secret,
-				"FLEET_URL="+address,
-			)
-			out, err = cmd.CombinedOutput()
-			if err != nil {
-				fmt.Println(string(out))
-				return errors.New("Failed to run docker-compose")
+				fmt.Println("Starting simulated Linux hosts...")
+				cmd = compose.Command("up", "-d", "--remove-orphans")
+				cmd.Dir = filepath.Join(previewDir, "osquery")
+				cmd.Env = append(os.Environ(),
+					"ENROLL_SECRET="+secrets.Secrets[0].Secret,
+					"FLEET_URL="+address,
+				)
+				out, err = cmd.CombinedOutput()
+				if err != nil {
+					fmt.Println(string(out))
+					return fmt.Errorf("Failed to run %s", compose)
+				}
+			} else {
+				if !c.Bool(disableOpenBrowser) {
+					if err := open.Browser("http://localhost:1337/previewlogin"); err != nil {
+						fmt.Println("Automatic browser open failed. Please navigate to http://localhost:1337/previewlogin.")
+					}
+				}
 			}
 
 			fmt.Println("Preview environment complete. Enjoy using Fleet!")
@@ -358,9 +453,6 @@ func unzip(r *zip.Reader, branch string) error {
 		path := f.Name
 		path = strings.Replace(path, replacePath, previewDir, 1)
 
-		// We don't need to check for directory traversal as we are already
-		// trusting the validity of this ZIP file.
-
 		if f.FileInfo().IsDir() {
 			if err := os.MkdirAll(path, f.Mode()); err != nil {
 				return err
@@ -384,6 +476,10 @@ func unzip(r *zip.Reader, branch string) error {
 	}
 
 	for _, f := range r.File {
+		// Prevent zip-slip attack.
+		if strings.Contains(f.Name, "..") {
+			return fmt.Errorf("invalid path in zip: %q", f.Name)
+		}
 		err := extractAndWriteFile(f)
 		if err != nil {
 			return err
@@ -447,9 +543,6 @@ func checkDocker() error {
 	if _, err := exec.LookPath("docker"); err != nil {
 		return errors.New("Docker is required for the fleetctl preview experience.\n\nPlease install Docker (https://docs.docker.com/get-docker/).")
 	}
-	if _, err := exec.LookPath("docker-compose"); err != nil {
-		return errors.New("Docker Compose is required for the fleetctl preview experience.\n\nPlease install Docker Compose (https://docs.docker.com/compose/install/).")
-	}
 
 	// Check running
 	if err := exec.Command("docker", "info").Run(); err != nil {
@@ -473,6 +566,11 @@ func previewStopCommand() *cli.Command {
 				return err
 			}
 
+			compose, err := newDockerCompose()
+			if err != nil {
+				return err
+			}
+
 			previewDir := previewDirectory()
 			if err := os.Chdir(previewDir); err != nil {
 				return err
@@ -481,13 +579,13 @@ func previewStopCommand() *cli.Command {
 				return fmt.Errorf("docker-compose file not found in preview directory: %w", err)
 			}
 
-			out, err := exec.Command("docker-compose", "stop").CombinedOutput()
+			out, err := compose.Command("stop").CombinedOutput()
 			if err != nil {
 				fmt.Println(string(out))
-				return errors.New("Failed to run docker-compose stop for Fleet server and dependencies")
+				return fmt.Errorf("Failed to run %s stop for Fleet server and dependencies", compose)
 			}
 
-			cmd := exec.Command("docker-compose", "stop")
+			cmd := compose.Command("stop")
 			cmd.Dir = filepath.Join(previewDir, "osquery")
 			cmd.Env = append(os.Environ(),
 				// Note that these must be set even though they are unused while
@@ -498,7 +596,7 @@ func previewStopCommand() *cli.Command {
 			out, err = cmd.CombinedOutput()
 			if err != nil {
 				fmt.Println(string(out))
-				return errors.New("Failed to run docker-compose stop for simulated hosts")
+				return fmt.Errorf("Failed to run %d stop for simulated hosts", compose)
 			}
 
 			if err := stopOrbit(previewDir); err != nil {
@@ -526,6 +624,11 @@ func previewResetCommand() *cli.Command {
 				return err
 			}
 
+			compose, err := newDockerCompose()
+			if err != nil {
+				return err
+			}
+
 			previewDir := previewDirectory()
 			if err := os.Chdir(previewDir); err != nil {
 				return err
@@ -534,13 +637,13 @@ func previewResetCommand() *cli.Command {
 				return fmt.Errorf("docker-compose file not found in preview directory: %w", err)
 			}
 
-			out, err := exec.Command("docker-compose", "rm", "-sf").CombinedOutput()
+			out, err := compose.Command("rm", "-sf").CombinedOutput()
 			if err != nil {
 				fmt.Println(string(out))
-				return errors.New("Failed to run docker-compose rm -sf for Fleet server and dependencies.")
+				return fmt.Errorf("Failed to run %s rm -sf for Fleet server and dependencies.", compose)
 			}
 
-			cmd := exec.Command("docker-compose", "rm", "-sf")
+			cmd := compose.Command("rm", "-sf")
 			cmd.Dir = filepath.Join(previewDir, "osquery")
 			cmd.Env = append(os.Environ(),
 				// Note that these must be set even though they are unused while
@@ -551,11 +654,18 @@ func previewResetCommand() *cli.Command {
 			out, err = cmd.CombinedOutput()
 			if err != nil {
 				fmt.Println(string(out))
-				return errors.New("Failed to run docker-compose rm -sf for simulated hosts.")
+				return fmt.Errorf("Failed to run %s rm -sf for simulated hosts.", compose)
 			}
 
 			if err := stopOrbit(previewDir); err != nil {
 				return fmt.Errorf("Failed to stop orbit: %w", err)
+			}
+
+			if err := os.RemoveAll(filepath.Join(previewDir, "tuf-metadata.json")); err != nil {
+				return fmt.Errorf("failed to remove preview update metadata file: %w", err)
+			}
+			if err := os.RemoveAll(filepath.Join(previewDir, "bin")); err != nil {
+				return fmt.Errorf("failed to remove preview bin directory: %w", err)
 			}
 
 			fmt.Println("Fleet preview server and dependencies reset. Start again with fleetctl preview.")
@@ -566,8 +676,8 @@ func previewResetCommand() *cli.Command {
 }
 
 func storePidFile(destDir string, pid int) error {
-	pidFilePath := path.Join(destDir, "orbit.pid")
-	err := os.WriteFile(pidFilePath, []byte(fmt.Sprint(pid)), os.FileMode(0644))
+	pidFilePath := filepath.Join(destDir, "orbit.pid")
+	err := os.WriteFile(pidFilePath, []byte(fmt.Sprint(pid)), os.FileMode(0o644))
 	if err != nil {
 		return fmt.Errorf("error writing pidfile %s: %s", pidFilePath, err)
 	}
@@ -575,7 +685,7 @@ func storePidFile(destDir string, pid int) error {
 }
 
 func readPidFromFile(destDir string, what string) (int, error) {
-	pidFilePath := path.Join(destDir, what)
+	pidFilePath := filepath.Join(destDir, what)
 	data, err := os.ReadFile(pidFilePath)
 	if err != nil {
 		return 0, fmt.Errorf("error reading pidfile %s: %w", pidFilePath, err)
@@ -598,7 +708,7 @@ func processNameMatches(pid int, expectedPrefix string) (bool, error) {
 	return strings.HasPrefix(strings.ToLower(process.Executable()), strings.ToLower(expectedPrefix)), nil
 }
 
-func downloadOrbitAndStart(destDir string, enrollSecret string, address string) error {
+func downloadOrbitAndStart(destDir, enrollSecret, address, orbitChannel, osquerydChannel, updateURL, updateRoots string) error {
 	// Stop any current intance of orbit running, otherwise the configured enroll secret
 	// won't match the generated in the preview run.
 	if err := stopOrbit(destDir); err != nil {
@@ -607,39 +717,49 @@ func downloadOrbitAndStart(destDir string, enrollSecret string, address string) 
 	}
 
 	fmt.Println("Trying to clear orbit and osquery directories...")
-	if err := os.RemoveAll(path.Join(destDir, "osquery.db")); err != nil {
+	if err := os.RemoveAll(filepath.Join(destDir, "osquery.db")); err != nil {
 		fmt.Println("Warning: clearing osquery db dir:", err)
 	}
-	if err := os.RemoveAll(path.Join(destDir, "orbit.db")); err != nil {
+	if err := os.RemoveAll(filepath.Join(destDir, "orbit.db")); err != nil {
 		fmt.Println("Warning: clearing orbit db dir:", err)
+	}
+	if err := cleanUpSocketFiles(destDir); err != nil {
+		fmt.Println("Warning: cleaning up socket files:", err)
 	}
 
 	updateOpt := update.DefaultOptions
-	switch runtime.GOOS {
-	case "linux":
-		updateOpt.Platform = "linux"
-	case "darwin":
-		updateOpt.Platform = "macos"
-	case "windows":
-		updateOpt.Platform = "windows"
-	default:
-		return fmt.Errorf("unsupported arch: %s", runtime.GOOS)
-	}
-	updateOpt.ServerURL = "https://tuf.fleetctl.com"
+
+	// Override default channels with the provided values.
+	updateOpt.Targets.SetTargetChannel("orbit", orbitChannel)
+	updateOpt.Targets.SetTargetChannel("osqueryd", osquerydChannel)
+
 	updateOpt.RootDirectory = destDir
 
-	if err := packaging.InitializeUpdates(updateOpt); err != nil {
+	if updateURL != "" {
+		updateOpt.ServerURL = updateURL
+	}
+	if updateRoots != "" {
+		updateOpt.RootKeys = updateRoots
+	}
+
+	if _, err := packaging.InitializeUpdates(updateOpt); err != nil {
 		return fmt.Errorf("initialize updates: %w", err)
 	}
 
-	cmd := exec.Command(
-		path.Join(destDir, "bin", "orbit", updateOpt.Platform, updateOpt.OrbitChannel, "orbit"),
+	orbitPath, err := update.NewDisabled(updateOpt).ExecutableLocalPath("orbit")
+	if err != nil {
+		return fmt.Errorf("failed to locate executable for orbit: %w", err)
+	}
+
+	cmd := exec.Command(orbitPath,
 		"--root-dir", destDir,
 		"--fleet-url", address,
 		"--insecure",
 		"--debug",
 		"--enroll-secret", enrollSecret,
-		"--log-file", path.Join(destDir, "orbit.log"),
+		"--orbit-channel", orbitChannel,
+		"--osqueryd-channel", osquerydChannel,
+		"--log-file", filepath.Join(destDir, "orbit.log"),
 	)
 	if err := cmd.Start(); err != nil {
 		return fmt.Errorf("starting orbit: %w", err)
@@ -648,6 +768,26 @@ func downloadOrbitAndStart(destDir string, enrollSecret string, address string) 
 		return fmt.Errorf("saving pid file: %w", err)
 	}
 
+	return nil
+}
+
+// cleanUpSocketFiles cleans up fleet-osqueryd's socket file
+// ("orbit-osquery.em") and osquery extension socket files
+// ("orbit-osquery.em.*").
+func cleanUpSocketFiles(path string) error {
+	entries, err := os.ReadDir(path)
+	if err != nil {
+		return fmt.Errorf("read dir: %w", err)
+	}
+	for _, entry := range entries {
+		if !strings.HasPrefix(entry.Name(), "orbit-osquery.em") {
+			continue
+		}
+		entryPath := filepath.Join(path, entry.Name())
+		if err := os.Remove(entryPath); err != nil {
+			return fmt.Errorf("remove %q: %w", entryPath, err)
+		}
+	}
 	return nil
 }
 
@@ -684,60 +824,6 @@ func killFromPIDFile(destDir string, pidFileName string, expectedExecName string
 	}
 	if err := killPID(pid); err != nil {
 		return fmt.Errorf("killing %d: %w", pid, err)
-	}
-	return nil
-}
-
-func loadPolicies(client *service.Client) error {
-	policies := []struct {
-		name, query, description, resolution, platform string
-	}{
-		{
-			"Is Gatekeeper enabled on macOS devices?",
-			"SELECT 1 FROM gatekeeper WHERE assessments_enabled = 1;",
-			"Checks to make sure that the Gatekeeper feature is enabled on macOS devices. Gatekeeper tries to ensure only trusted software is run on a mac machine.",
-			"Run the following command in the Terminal app: /usr/sbin/spctl --master-enable",
-			"darwin",
-		},
-		{
-			"Is disk encryption enabled on Windows devices?",
-			"SELECT 1 FROM bitlocker_info where protection_status = 1;",
-			"Checks to make sure that device encryption is enabled on Windows devices.",
-			"Option 1: Select the Start button. Select Settings > Update & Security > Device encryption. If Device encryption doesn't appear, skip to Option 2. If device encryption is turned off, select Turn on. Option 2: Select the Start button. Under Windows System, select Control Panel. Select System and Security. Under BitLocker Drive Encryption, select Manage BitLocker. Select Turn on BitLocker and then follow the instructions.",
-			"windows",
-		},
-		{
-			"Is Filevault enabled on macOS devices?",
-			`SELECT 1 FROM disk_encryption WHERE user_uuid IS NOT "" AND filevault_status = 'on' LIMIT 1;`,
-			"Checks to make sure that the Filevault feature is enabled on macOS devices.",
-			"Choose Apple menu > System Preferences, then click Security & Privacy. Click the FileVault tab. Click the Lock icon, then enter an administrator name and password. Click Turn On FileVault.",
-			"darwin",
-		},
-	}
-
-	for _, policy := range policies {
-		err := client.CreateGlobalPolicy(policy.name, policy.query, policy.description, policy.resolution, policy.platform)
-		if err != nil {
-			return fmt.Errorf("creating policy: %w", err)
-		}
-	}
-
-	return nil
-}
-
-func openBrowser(url string) error {
-	var cmd *exec.Cmd
-	switch runtime.GOOS {
-	case "windows":
-		cmd = exec.Command("cmd", "/c", "start", url)
-	case "darwin":
-		cmd = exec.Command("open", url)
-	default: // xdg-open is available on most Linux-y systems
-		cmd = exec.Command("xdg-open", url)
-	}
-
-	if err := cmd.Run(); err != nil {
-		return fmt.Errorf("failed to open in browser: %w", err)
 	}
 	return nil
 }

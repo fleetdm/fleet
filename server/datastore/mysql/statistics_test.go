@@ -70,6 +70,15 @@ func testStatisticsShouldSend(t *testing.T, ds *Datastore) {
 	})
 	require.NoError(t, err)
 
+	// Create new label for test
+	_, err = ds.NewLabel(context.Background(), &fleet.Label{
+		Name:        "testlabel",
+		Query:       "select 1;",
+		Platform:    "darwin",
+		Description: "test label description",
+	})
+	require.NoError(t, err)
+
 	// Create new app config for test
 	config, err := ds.NewAppConfig(context.Background(), &fleet.AppConfig{
 		OrgInfo: fleet.OrgInfo{
@@ -80,7 +89,7 @@ func testStatisticsShouldSend(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	config.HostSettings.EnableSoftwareInventory = false
 	config.HostSettings.EnableHostUsers = false
-	config.VulnerabilitySettings.DatabasesPath = "foo/bar"
+	config.VulnerabilitySettings.DatabasesPath = ""
 	config.WebhookSettings.HostStatusWebhook.Enable = true
 
 	err = ds.SaveAppConfig(context.Background(), config)
@@ -99,9 +108,10 @@ func testStatisticsShouldSend(t *testing.T, ds *Datastore) {
 	assert.Equal(t, stats.NumUsers, 1)
 	assert.Equal(t, stats.NumTeams, 1)
 	assert.Equal(t, stats.NumPolicies, 1)
+	assert.Equal(t, stats.NumLabels, 1)
 	assert.Equal(t, stats.SoftwareInventoryEnabled, false)
 	assert.Equal(t, stats.SystemUsersEnabled, false)
-	assert.Equal(t, stats.VulnDetectionEnabled, true)
+	assert.Equal(t, stats.VulnDetectionEnabled, false)
 	assert.Equal(t, stats.HostsStatusWebHookEnabled, true)
 
 	firstIdentifier := stats.AnonymousIdentifier

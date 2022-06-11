@@ -49,7 +49,7 @@ func testDeleteEntity(t *testing.T, ds *Datastore) {
 
 	require.NoError(t, ds.deleteEntity(context.Background(), hostsTable, host.ID))
 
-	host, err = ds.Host(context.Background(), host.ID, false)
+	host, err = ds.Host(context.Background(), host.ID)
 	require.Error(t, err)
 	assert.Nil(t, host)
 }

@@ -14,6 +14,12 @@ declare namespace Cypress {
     login(email?: string, password?: string): Chainable<Element>;
 
     /**
+     * Custom command to login the user programmatically using the fleet API
+     * but with a Cypress session wrapper.
+     */
+    loginWithCySession(email?: string, password?: string): Chainable<Element>;
+
+    /**
      * Custom command to log out the current user.
      */
     logout(): Chainable<Element>;
@@ -24,9 +30,14 @@ declare namespace Cypress {
     seedQueries(): Chainable<Element>;
 
     /**
-     * Custom command to add new queries by default.
+     * Custom command to add new scheduled queries by default.
      */
-    seedPolicies(): Chainable<Element>;
+    seedSchedule(): Chainable<Element>;
+
+    /**
+     * Custom command to add new policies by default.
+     */
+    seedPolicies(teamName?: string): Chainable<Element>;
 
     /**
      * Custom command to add a new user in Fleet (via fleetctl).
@@ -61,7 +72,7 @@ declare namespace Cypress {
     /**
      * Custom command to get the emails handled by the Mailhog server.
      */
-    getEmails(): Chainable<Response>;
+    getEmails(): Chainable;
 
     /**
      * Custom command to seed the Free tier teams/users.
@@ -93,11 +104,21 @@ declare namespace Cypress {
      * NOTE: login() command is required before this, as it will make authenticated
      * requests.
      */
-    addDockerHost(): Chainable;
+    addDockerHost(teamName?: string): Chainable;
 
     /**
      * Custom command to stop any running Docker hosts.
      */
     stopDockerHost(): Chainable;
+
+    /**
+     * Custom command to clear downloaded files from test machine.
+     */
+    clearDownloads(): Chainable;
+
+    /**
+     * Custom command to get any element describe only if it is attached to the DOM.
+     */
+    getAttached(selector: string): Chainable;
   }
 }

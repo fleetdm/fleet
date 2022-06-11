@@ -10,6 +10,13 @@
 
     &--error {
       font-weight: $bold;
+      color: $core-vibrant-red;
+    }
+
+    // so tooltips won't be triggered with whitespace
+    &[data-has-tooltip="true"] {
+      margin-bottom: $pad-small;
+      display: inline-flex;
     }
   }
 
@@ -27,5 +34,13 @@
       padding: $pad-xxsmall;
       font-family: "SourceCodePro", $monospace;
     }
+  }
+
+  &--checkbox {
+    margin-bottom: $pad-medium;
+  }
+
+  &--slider {
+    margin-bottom: 0;
   }
 }

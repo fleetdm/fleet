@@ -21,7 +21,7 @@
   }
 
 
-  a {
+  a:not(.btn) {
     color: @core-vibrant-blue;
   }
 
@@ -295,7 +295,7 @@
       [purpose='docs-nav-button'] {
         color: @core-fleet-black;
         background-color: transparent;
-        font-family: 'Nunito';
+        font-family: 'Nunito Sans';
         font-weight: 400;
         font-size: 16px;
         padding: 0;
@@ -367,9 +367,38 @@
       }
 
     }
+    [purpose='swag-cta'] {
+      display: flex;
+      margin-top: 30px;
+      border: 1px solid #E3E3E3;
+      box-shadow: 1px 2px 2px rgba(197, 199, 209, 0.2);
+      border-radius: 6px;
+      padding: 20px;
+      color: @core-fleet-black;
+      width: fit-content;
+      a {
+        text-decoration: none;
+        color: @core-fleet-black;
+        &:hover {
+          color: @core-fleet-black;
+        }
+      }
+      strong {
+        font-size: 14px;
+        line-height: 24px;
+      }
+      span {
+        font-size: 14px;
+        line-height: 19px;
+        color: @core-fleet-black;
+      }
+    }
 
     [purpose='content'] {
 
+      .markdown-heading {
+        scroll-margin-top: 55px;
+      }
       hr {
         margin: 0px;
         padding: 0px;
@@ -417,7 +446,25 @@
         padding-top: 0px;
       }
       blockquote {
-        margin: 0px;
+        margin: 16px 0 32px;
+        background: #F7F7FC;
+        border: 1px solid @core-vibrant-blue-50;
+        padding: 16px;
+        border-radius: 8px;
+        display: inline-flex;
+      img {
+        display: flex;
+        margin: 4px 12px 0 0;
+        height: 16px;
+        width: 16px;
+        padding: 0px;
+      }
+      p {
+        display: block;
+        margin-bottom: 0px;
+        line-height: 24px;
+        font-size: 16px;
+        }
       }
 
       ul {
@@ -480,46 +527,25 @@
       ol {
         padding-inline-start: 16px;
       }
-      [purpose='next-steps-buttons'] {
-
-
-        .btn {
-          font-size: 16px;
-          line-height: 25px;
-          padding: 16px 32px;
+      [purpose='next-steps-button'] {
+        font-size: 16px;
+        line-height: 25px;
+        padding: 20px;
+        img {
+          display: inline;
+          height: 24px;
+          width: auto;
+          padding-top: 0px;
+          padding-bottom: 0px;
+          margin: 0px;
         }
-
-        .btn-primary {
-          color: #fff;
-          &:active {
-            background: @core-vibrant-red;
-            border-color: @core-vibrant-red;
-          }
-        }
-        .btn-slack {
-          color: @core-fleet-black;
-          img {
-            display: inline;
-            height: 24px;
-            width: auto;
-            padding-top: 0px;
-            padding-bottom: 0px;
-            margin: 0px;
-          }
-          &:focus {
-            box-shadow: none;
-          }
-        }
-        .btn-outline-secondary {
-          color: @core-fleet-black;
-          border: 1px solid #C5C7D1;
-          &:hover {
-            background: #fff;
-          }
-          &:focus {
-            box-shadow: none;
-          }
-        }
+      }
+      [purpose='slack-cta'] {
+        padding-top: 40px;
+        padding-bottom: 40px;
+        margin-bottom: 40px;
+        border-top: 1px solid @core-fleet-black-25;
+        border-bottom: 1px solid @core-fleet-black-25;
       }
 
     }
@@ -549,28 +575,60 @@
 
       }
 
+      .header-hidden { // For scrolling the sidebars with the sticky header
+        transform: translateY(-60px);
+        max-height: calc(~'100vh - 80px');
+      }
+      .scrolled:not(.header-hidden) { // For when the page has been scrolled and the header is visible
+        max-height: calc(~'100vh - 170px');
+      }
+      [purpose='left-sidebar'] {
+        position: sticky;
+        top: 118px;
+        height: fit-content;
+        overflow-y: auto;
+        transition-property: all;
+        transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+        transition-duration: 500ms;
+        &:not(.scrolled) {
+          max-height: calc(~'100vh - 205px'); // Using a calculated max-height to allow the sidebars to be fully scrollable before the content is scrolled.
+        }
+      }
+
       [purpose='right-sidebar'] {
+        p {
+          line-height: 21px;
+        }
         min-width: 190px;
         max-width: 210px;
+        position: sticky;
+        top: 118px;
+        height: fit-content;
+        overflow-y: auto;
+        transition-property: all;
+        transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+        transition-duration: 500ms;
 
         [purpose='subtopics'] {
+          max-height: 100vh;
+          overflow-y: auto;
           color: @core-fleet-black;
           padding-top: 4px;
           padding-bottom: 4px;
           border-left: 1px solid @core-vibrant-blue-25;
-
           a {
             color: @core-fleet-black;
             text-decoration: none;
-
             &:hover {
               color: @core-vibrant-blue;
             }
-
           }
-
         }
-
+        &:not(.scrolled) {
+          [purpose='subtopics'] {
+            max-height: calc(~'100vh - 225px'); // Using a calculated max-height to allow the sidebars to be fully scrollable before the content is scrolled.
+          }
+        }
       }
 
       [purpose='content'] {

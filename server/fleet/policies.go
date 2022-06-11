@@ -58,14 +58,18 @@ func (p PolicyPayload) Verify() error {
 }
 
 func verifyPolicyName(name string) error {
-	if name == "" {
+	if emptyString(name) {
 		return errPolicyEmptyName
 	}
 	return nil
 }
 
+func emptyString(s string) bool {
+	return len(strings.TrimSpace(s)) == 0
+}
+
 func verifyPolicyQuery(query string) error {
-	if query == "" {
+	if emptyString(query) {
 		return errPolicyEmptyQuery
 	}
 	if validateSQLRegexp.MatchString(query) {
@@ -99,6 +103,9 @@ type ModifyPolicyPayload struct {
 	Description *string `json:"description"`
 	// Resolution indicate the steps needed to solve a failing policy.
 	Resolution *string `json:"resolution"`
+	// Platform is a comma-separated string to indicate the target platforms.
+	// If non-nil, empty string targets all platforms.
+	Platform *string `json:"platform"`
 }
 
 // Verify verifies the policy payload is valid.
@@ -110,6 +117,11 @@ func (p ModifyPolicyPayload) Verify() error {
 	}
 	if p.Query != nil {
 		if err := verifyPolicyQuery(*p.Query); err != nil {
+			return err
+		}
+	}
+	if p.Platform != nil {
+		if err := verifyPolicyPlatforms(*p.Platform); err != nil {
 			return err
 		}
 	}
@@ -230,4 +242,10 @@ type PolicySetHost struct {
 	ID uint
 	// Hostname is the host's name.
 	Hostname string
+}
+
+type PolicyMembershipResult struct {
+	HostID   uint
+	PolicyID uint
+	Passes   *bool
 }

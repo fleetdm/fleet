@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"fmt"
 	"testing"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
@@ -12,12 +13,15 @@ import (
 
 func TestTeamScheduleAuth(t *testing.T) {
 	ds := new(mock.Store)
-	svc := newTestService(ds, nil, nil)
+	svc := newTestService(t, ds, nil, nil)
 
 	ds.EnsureTeamPackFunc = func(ctx context.Context, teamID uint) (*fleet.Pack, error) {
-		return &fleet.Pack{ID: 999}, nil
+		return &fleet.Pack{
+			ID:   999,
+			Type: ptr.String(fmt.Sprintf("team-%d", teamID)),
+		}, nil
 	}
-	ds.ListScheduledQueriesInPackFunc = func(ctx context.Context, id uint, opts fleet.ListOptions) ([]*fleet.ScheduledQuery, error) {
+	ds.ListScheduledQueriesInPackWithStatsFunc = func(ctx context.Context, id uint, opts fleet.ListOptions) ([]*fleet.ScheduledQuery, error) {
 		return nil, nil
 	}
 	ds.QueryFunc = func(ctx context.Context, id uint) (*fleet.Query, error) {
@@ -36,7 +40,7 @@ func TestTeamScheduleAuth(t *testing.T) {
 		return nil
 	}
 
-	var testCases = []struct {
+	testCases := []struct {
 		name            string
 		user            *fleet.User
 		shouldFailWrite bool
@@ -76,7 +80,7 @@ func TestTeamScheduleAuth(t *testing.T) {
 			"team observer, belongs to team",
 			&fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 1}, Role: fleet.RoleObserver}}},
 			true,
-			true,
+			false,
 		},
 		{
 			"team maintainer, DOES NOT belong to team",
@@ -104,7 +108,7 @@ func TestTeamScheduleAuth(t *testing.T) {
 			_, err := svc.GetTeamScheduledQueries(ctx, 1, fleet.ListOptions{})
 			checkAuthErr(t, tt.shouldFailRead, err)
 
-			_, err = svc.TeamScheduleQuery(ctx, 1, &fleet.ScheduledQuery{})
+			_, err = svc.TeamScheduleQuery(ctx, 1, &fleet.ScheduledQuery{Interval: 10})
 			checkAuthErr(t, tt.shouldFailWrite, err)
 
 			_, err = svc.ModifyTeamScheduledQueries(ctx, 1, 99, fleet.ScheduledQueryPayload{})

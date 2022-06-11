@@ -14,10 +14,6 @@
     margin-top: $pad-medium;
   }
 
-  .table-container {
-    margin-top: $pad-small;
-  }
-
   .table-container__header {
     display: none;
   }
@@ -43,15 +39,6 @@
     height: 16px;
     vertical-align: sub;
     padding-right: 4px;
-  }
-
-  &__th-pack-name {
-    padding-left: 0;
-    text-align: left;
-  }
-
-  &__select-all {
-    margin-bottom: 0;
   }
 
   &__empty-table {

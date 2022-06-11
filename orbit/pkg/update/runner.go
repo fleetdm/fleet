@@ -16,56 +16,70 @@ type RunnerOptions struct {
 	// CheckInterval is the interval to check for updates.
 	CheckInterval time.Duration
 	// Targets is the names of the artifacts to watch for updates.
-	Targets map[string]string
+	Targets []string
 }
 
-// Runner is a specialized runner for the updater. It is designed with Execute and
+// Runner is a specialized runner for an Updater. It is designed with Execute and
 // Interrupt functions to be compatible with oklog/run.
+//
+// It uses an Updater and makes sure to keep its targets up-to-date.
 type Runner struct {
-	client    *Updater
-	opt       RunnerOptions
-	cancel    chan struct{}
-	hashCache map[string][]byte
+	updater     *Updater
+	opt         RunnerOptions
+	cancel      chan struct{}
+	localHashes map[string][]byte
 }
 
 // NewRunner creates a new runner with the provided options. The runner must be
 // started with Execute.
-func NewRunner(client *Updater, opt RunnerOptions) (*Runner, error) {
+func NewRunner(updater *Updater, opt RunnerOptions) (*Runner, error) {
 	if opt.CheckInterval <= 0 {
-		return nil, errors.New("Runner must be configured with interval greater than 0")
+		return nil, errors.New("runner must be configured with interval greater than 0")
 	}
 	if len(opt.Targets) == 0 {
-		return nil, errors.New("Runner must have nonempty subscriptions")
+		return nil, errors.New("runner must have nonempty subscriptions")
 	}
 
-	// Initialize hash cache
-	cache := make(map[string][]byte)
-	for target, channel := range opt.Targets {
-		meta, err := client.Lookup(target, channel)
+	// Initialize the hashes of the local files for all tracked targets.
+	//
+	// This is an optimization to not compute the hash of the local files every opt.CheckInterval
+	// (knowing that they are not expected to change during the execution of the runner).
+	localHashes := make(map[string][]byte)
+	for _, target := range opt.Targets {
+		meta, err := updater.Lookup(target)
 		if err != nil {
-			return nil, fmt.Errorf("initialize update cache: %w", err)
+			return nil, fmt.Errorf("target %s lookup: %w", target, err)
 		}
-
-		_, hash, err := selectHashFunction(meta)
+		localTarget, err := updater.localTarget(target)
 		if err != nil {
-			return nil, fmt.Errorf("select hash for cache: %w", err)
+			return nil, fmt.Errorf("get local path for %s: %w", target, err)
 		}
-		cache[target] = hash
+		switch _, localHash, err := fileHashes(meta, localTarget.Path); {
+		case err == nil:
+			localHashes[target] = localHash
+			log.Info().Msgf("hash(%s)=%x", target, localHash)
+		case errors.Is(err, os.ErrNotExist):
+			// This is expected to happen if the target is not yet downloaded,
+			// or if the user manually changed the target channel.
+		default:
+			return nil, fmt.Errorf("%s file hash: %w", target, err)
+		}
 	}
 
 	return &Runner{
-		client: client,
-		opt:    opt,
-
+		updater: updater,
+		opt:     opt,
 		// chan gets capacity of 1 so we don't end up hung if Interrupt is
 		// called after Execute has already returned.
-		cancel:    make(chan struct{}, 1),
-		hashCache: cache,
+		cancel:      make(chan struct{}, 1),
+		localHashes: localHashes,
 	}, nil
 }
 
 // Execute begins a loop checking for updates.
 func (r *Runner) Execute() error {
+	log.Debug().Msg("start updater")
+
 	ticker := time.NewTicker(r.opt.CheckInterval)
 	defer ticker.Stop()
 
@@ -74,10 +88,8 @@ func (r *Runner) Execute() error {
 		select {
 		case <-r.cancel:
 			return nil
-
 		case <-ticker.C:
-			// On each tick, check for updates
-			didUpdate, err := r.updateAction()
+			didUpdate, err := r.UpdateAction()
 			if err != nil {
 				log.Info().Err(err).Msg("update failed")
 			}
@@ -89,54 +101,59 @@ func (r *Runner) Execute() error {
 	}
 }
 
-func (r *Runner) updateAction() (bool, error) {
-	var didUpdate bool
-	if err := r.client.UpdateMetadata(); err != nil {
+// UpdateAction checks for updates on all targets.
+// Returns true if one of the targets has been updated.
+//
+// NOTE: If it returns (true, non-nil error) then it means some target/s
+// were successfully upgraded and some failed to upgrade.
+func (r *Runner) UpdateAction() (bool, error) {
+	if err := r.updater.UpdateMetadata(); err != nil {
 		// Consider this a non-fatal error since it will be common to be offline
 		// or otherwise unable to retrieve the metadata.
-		return didUpdate, fmt.Errorf("update metadata: %w", err)
+		return false, fmt.Errorf("update metadata: %w", err)
 	}
 
-	for target, channel := range r.opt.Targets {
-		meta, err := r.client.Lookup(target, channel)
+	var didUpdate bool
+	for _, target := range r.opt.Targets {
+		meta, err := r.updater.Lookup(target)
 		if err != nil {
 			return didUpdate, fmt.Errorf("lookup failed: %w", err)
 		}
-
-		// Check whether the hash has changed
-		_, hash, err := selectHashFunction(meta)
+		_, metaHash, err := selectHashFunction(meta)
 		if err != nil {
 			return didUpdate, fmt.Errorf("select hash for cache: %w", err)
 		}
-
-		if !bytes.Equal(r.hashCache[target], hash) {
+		// Check whether the hash of the repository is different than
+		// that of the target local file.
+		if !bytes.Equal(r.localHashes[target], metaHash) {
 			// Update detected
-			log.Info().Str("target", target).Str("channel", channel).Msg("update detected")
-			if err := r.updateTarget(target, channel); err != nil {
-				return didUpdate, fmt.Errorf("update %s@%s: %w", target, channel, err)
+			log.Info().Str("target", target).Msg("update detected")
+			if err := r.updateTarget(target); err != nil {
+				return didUpdate, fmt.Errorf("update %s: %w", target, err)
 			}
-			log.Info().Str("target", target).Str("channel", channel).Msg("update completed")
+			log.Info().Str("target", target).Msg("update completed")
 			didUpdate = true
 		} else {
-			log.Debug().Str("target", target).Str("channel", channel).Msg("no update")
+			log.Debug().Str("target", target).Msg("no update")
 		}
 	}
 
 	return didUpdate, nil
 }
 
-func (r *Runner) updateTarget(target, channel string) error {
-	path, err := r.client.Get(target, channel)
+func (r *Runner) updateTarget(target string) error {
+	localTarget, err := r.updater.Get(target)
 	if err != nil {
 		return fmt.Errorf("get binary: %w", err)
 	}
+	path := localTarget.ExecPath
 
 	if target != "orbit" {
 		return nil
 	}
 
 	// Symlink Orbit binary
-	linkPath := filepath.Join(r.client.opt.RootDirectory, "bin", "orbit", filepath.Base(path))
+	linkPath := filepath.Join(r.updater.opt.RootDirectory, "bin", "orbit", filepath.Base(path))
 	// Rename the old file otherwise overwrite fails
 	if err := os.Rename(linkPath, linkPath+".old"); err != nil {
 		return fmt.Errorf("move old symlink current: %w", err)
@@ -150,5 +167,5 @@ func (r *Runner) updateTarget(target, channel string) error {
 
 func (r *Runner) Interrupt(err error) {
 	r.cancel <- struct{}{}
-	log.Debug().Msg("interrupt updater")
+	log.Debug().Err(err).Msg("interrupt updater")
 }

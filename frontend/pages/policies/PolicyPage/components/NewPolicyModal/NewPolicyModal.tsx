@@ -1,21 +1,27 @@
-import React, { useState, useContext } from "react";
+import React, { useState, useContext, useEffect } from "react";
 import { size } from "lodash";
 
-import { IPolicyFormData } from "interfaces/policy";
-import { IQueryPlatform } from "interfaces/query";
-import { useDeepEffect } from "utilities/hooks";
 import { PolicyContext } from "context/policy";
+import { IPlatformSelector } from "hooks/usePlaformSelector";
+import { IPolicyFormData } from "interfaces/policy";
+import { IPlatformString } from "interfaces/platform";
+import useDeepEffect from "hooks/useDeepEffect";
+
 // @ts-ignore
 import InputField from "components/forms/fields/InputField";
 import Button from "components/buttons/Button";
 import Modal from "components/Modal";
+import ReactTooltip from "react-tooltip";
+import Spinner from "components/Spinner";
 
 export interface INewPolicyModalProps {
   baseClass: string;
   queryValue: string;
-  platform: IQueryPlatform;
   onCreatePolicy: (formData: IPolicyFormData) => void;
   setIsNewPolicyModalOpen: (isOpen: boolean) => void;
+  backendValidators: { [key: string]: string };
+  platformSelector: IPlatformSelector;
+  policyIsLoading: boolean;
 }
 
 const validatePolicyName = (name: string) => {
@@ -32,14 +38,17 @@ const validatePolicyName = (name: string) => {
 const NewPolicyModal = ({
   baseClass,
   queryValue,
-  platform,
   onCreatePolicy,
   setIsNewPolicyModalOpen,
+  backendValidators,
+  platformSelector,
+  policyIsLoading,
 }: INewPolicyModalProps): JSX.Element => {
   const {
     lastEditedQueryName,
     lastEditedQueryDescription,
     lastEditedQueryResolution,
+    setLastEditedQueryPlatform,
   } = useContext(PolicyContext);
 
   const [name, setName] = useState<string>(lastEditedQueryName);
@@ -49,7 +58,11 @@ const NewPolicyModal = ({
   const [resolution, setResolution] = useState<string>(
     lastEditedQueryResolution
   );
-  const [errors, setErrors] = useState<{ [key: string]: string }>({});
+  const [errors, setErrors] = useState<{ [key: string]: string }>(
+    backendValidators
+  );
+
+  const disableSave = !platformSelector.isAnyPlatformSelected;
 
   useDeepEffect(() => {
     if (name) {
@@ -57,81 +70,117 @@ const NewPolicyModal = ({
     }
   }, [name]);
 
+  useEffect(() => {
+    setErrors(backendValidators);
+  }, [backendValidators]);
+
   const handleSavePolicy = (evt: React.MouseEvent<HTMLFormElement>) => {
     evt.preventDefault();
 
-    const { valid, errors: newErrors } = validatePolicyName(name);
+    const newPlatformString = platformSelector
+      .getSelectedPlatforms()
+      .join(",") as IPlatformString;
+    setLastEditedQueryPlatform(newPlatformString);
+
+    const { valid: validName, errors: newErrors } = validatePolicyName(name);
     setErrors({
       ...errors,
       ...newErrors,
     });
 
-    if (valid) {
+    if (!disableSave && validName) {
       onCreatePolicy({
         description,
         name,
         query: queryValue,
         resolution,
-        platform,
+        platform: newPlatformString,
       });
-
-      setIsNewPolicyModalOpen(false);
     }
   };
 
   return (
     <Modal title={"Save policy"} onExit={() => setIsNewPolicyModalOpen(false)}>
-      <form
-        onSubmit={handleSavePolicy}
-        className={`${baseClass}__save-modal-form`}
-        autoComplete="off"
-      >
-        <InputField
-          name="name"
-          onChange={(value: string) => setName(value)}
-          value={name}
-          error={errors.name}
-          inputClassName={`${baseClass}__policy-save-modal-name`}
-          label="Name"
-          placeholder="What yes or no question does your policy ask about your devices?"
-        />
-        <InputField
-          name="description"
-          onChange={(value: string) => setDescription(value)}
-          value={description}
-          inputClassName={`${baseClass}__policy-save-modal-description`}
-          label="Description"
-          placeholder="Add a description here"
-        />
-        <InputField
-          name="resolution"
-          onChange={(value: string) => setResolution(value)}
-          value={resolution}
-          inputClassName={`${baseClass}__policy-save-modal-resolution`}
-          label="Resolution"
-          type="textarea"
-          placeholder="What are the steps a device owner should take to resolve a host that fails this policy?"
-        />
-        <div
-          className={`${baseClass}__button-wrap ${baseClass}__button-wrap--modal`}
-        >
-          <Button
-            className={`${baseClass}__btn`}
-            onClick={() => setIsNewPolicyModalOpen(false)}
-            variant="text-link"
+      <>
+        {policyIsLoading ? (
+          <Spinner />
+        ) : (
+          <form
+            onSubmit={handleSavePolicy}
+            className={`${baseClass}__save-modal-form`}
+            autoComplete="off"
           >
-            Cancel
-          </Button>
-          <Button
-            className={`${baseClass}__btn`}
-            type="submit"
-            variant="brand"
-            onClick={handleSavePolicy}
-          >
-            Save
-          </Button>
-        </div>
-      </form>
+            <InputField
+              name="name"
+              onChange={(value: string) => setName(value)}
+              value={name}
+              error={errors.name}
+              inputClassName={`${baseClass}__policy-save-modal-name`}
+              label="Name"
+              placeholder="What yes or no question does your policy ask about your devices?"
+            />
+            <InputField
+              name="description"
+              onChange={(value: string) => setDescription(value)}
+              value={description}
+              inputClassName={`${baseClass}__policy-save-modal-description`}
+              label="Description"
+              placeholder="Add a description here (optional)"
+            />
+            <InputField
+              name="resolution"
+              onChange={(value: string) => setResolution(value)}
+              value={resolution}
+              inputClassName={`${baseClass}__policy-save-modal-resolution`}
+              label="Resolution"
+              type="textarea"
+              placeholder="What steps should a device owner take to resolve a host that fails this policy? (optional)"
+            />
+            {platformSelector.render()}
+            <div
+              className={`${baseClass}__button-wrap ${baseClass}__button-wrap--modal`}
+            >
+              <Button
+                className={`${baseClass}__button--modal-cancel`}
+                onClick={() => setIsNewPolicyModalOpen(false)}
+                variant="text-link"
+              >
+                Cancel
+              </Button>
+              <span
+                className={`${baseClass}__button-wrap--modal-save`}
+                data-tip
+                data-for={`${baseClass}__button--modal-save-tooltip`}
+                data-tip-disable={!disableSave}
+              >
+                <Button
+                  className={`${baseClass}__button--modal-save`}
+                  type="submit"
+                  variant="brand"
+                  onClick={handleSavePolicy}
+                  disabled={disableSave}
+                >
+                  Save
+                </Button>
+                <ReactTooltip
+                  className={`${baseClass}__button--modal-save-tooltip`}
+                  place="bottom"
+                  type="dark"
+                  effect="solid"
+                  id={`${baseClass}__button--modal-save-tooltip`}
+                  backgroundColor="#3e4771"
+                >
+                  Select the platform(s) this
+                  <br />
+                  policy will be checked on
+                  <br />
+                  to save the policy.
+                </ReactTooltip>
+              </span>
+            </div>
+          </form>
+        )}
+      </>
     </Modal>
   );
 };

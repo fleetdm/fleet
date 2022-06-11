@@ -1,17 +1,13 @@
 .fleet-ace {
   &__label {
     height: 25px;
-    margin-bottom: $pad-small;
+    margin-bottom: $pad-xsmall;
     display: flex;
     align-items: center;
-    
-    p {
-      font-size: $x-small;
-      font-weight: $bold;
-      color: $core-fleet-black;
-      margin: 0;
-      flex: 1;
-    }
+    font-size: $x-small;
+    font-weight: $bold;
+    color: $core-fleet-black;
+
     &--error {
       color: $ui-error;
     }

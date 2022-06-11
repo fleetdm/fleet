@@ -1,8 +1,6 @@
 import React, { useCallback } from "react";
 import { kebabCase } from "lodash";
 
-// ignore TS error for now until these are rewritten in ts.
-// @ts-ignore
 import { ButtonVariant } from "components/buttons/Button/Button";
 import Button from "../../../buttons/Button";
 import CloseIcon from "../../../../../assets/images/icon-close-vibrant-blue-16x16@2x.png";
@@ -77,7 +75,7 @@ const ActionButton = (buttonProps: IActionButtonProps): JSX.Element | null => {
     return Boolean(hideButtonProp);
   };
 
-  return !isHidden(hideButton) ? (
+  return isHidden(hideButton) ? null : (
     <div className={`${baseClass} ${baseClass}__${kebabCase(name)}`}>
       <Button onClick={() => onButtonClick(targetIds)} variant={variant}>
         <>
@@ -91,7 +89,7 @@ const ActionButton = (buttonProps: IActionButtonProps): JSX.Element | null => {
         </>
       </Button>
     </div>
-  ) : null;
+  );
 };
 
 export default ActionButton;

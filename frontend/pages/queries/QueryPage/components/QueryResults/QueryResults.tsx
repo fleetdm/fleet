@@ -1,23 +1,24 @@
 import React, { useState, useEffect } from "react";
 import { Tab, Tabs, TabList, TabPanel } from "react-tabs";
-import moment from "moment";
 import classnames from "classnames";
+import { format } from "date-fns";
 import FileSaver from "file-saver";
-import { filter, get, keys, omit } from "lodash";
+import { filter, get } from "lodash";
 
-// @ts-ignore
-import convertToCSV from "utilities/convert_to_csv"; // @ts-ignore
-import filterArrayByHash from "utilities/filter_array_by_hash";
-import { ICampaign, ICampaignQueryResult } from "interfaces/campaign";
+import convertToCSV from "utilities/convert_to_csv";
+import { ICampaign } from "interfaces/campaign";
 import { ITarget } from "interfaces/target";
 
-import Button from "components/buttons/Button"; // @ts-ignore
-import FleetIcon from "components/icons/FleetIcon"; // @ts-ignore
-import InputField from "components/forms/fields/InputField";
-import QueryResultsRow from "components/queries/QueryResultsRow";
+import Button from "components/buttons/Button";
 import Spinner from "components/Spinner";
+import TableContainer from "components/TableContainer";
 import TabsWrapper from "components/TabsWrapper";
+import TooltipWrapper from "components/TooltipWrapper";
+import ShowQueryModal from "./ShowQueryModal";
 import DownloadIcon from "../../../../../../assets/images/icon-download-12x12@2x.png";
+import EyeIcon from "../../../../../../assets/images/icon-eye-16x16@2x.png";
+
+import resultsTableHeaders from "./QueryResultsTableConfig";
 
 interface IQueryResultsProps {
   campaign: ICampaign;
@@ -26,6 +27,7 @@ interface IQueryResultsProps {
   onStopQuery: (evt: React.MouseEvent<HTMLButtonElement>) => void;
   setSelectedTargets: (value: ITarget[]) => void;
   goToQueryEditor: () => void;
+  targetsTotalCount: number;
 }
 
 const baseClass = "query-results";
@@ -46,26 +48,28 @@ const QueryResults = ({
   onStopQuery,
   setSelectedTargets,
   goToQueryEditor,
+  targetsTotalCount,
 }: IQueryResultsProps): JSX.Element => {
   const { hosts_count: hostsCount, query_results: queryResults, errors } =
     campaign || {};
 
-  const totalHostsOnline = get(campaign, ["totals", "online"], 0);
-  const totalHostsOffline = get(campaign, ["totals", "offline"], 0);
   const totalRowsCount = get(campaign, ["query_results", "length"], 0);
-  const onlineTotalText = `${totalRowsCount} result${
-    totalRowsCount === 1 ? "" : "s"
-  }`;
-  const errorsTotalText = `${errors?.length || 0} result${
-    errors?.length === 1 ? "" : "s"
-  }`;
 
   const [pageTitle, setPageTitle] = useState<string>(PAGE_TITLES.RUNNING);
-  const [resultsFilter, setResultsFilter] = useState<{ [key: string]: string }>(
-    {}
-  );
-  const [activeColumn, setActiveColumn] = useState<string>("");
   const [navTabIndex, setNavTabIndex] = useState(0);
+  const [
+    targetsRespondedPercent,
+    setTargetsRespondedPercent,
+  ] = useState<number>(0);
+  const [showQueryModal, setShowQueryModal] = useState<boolean>(false);
+
+  useEffect(() => {
+    const calculatePercent =
+      targetsTotalCount > 0
+        ? Math.round((campaign.hosts_count.total / targetsTotalCount) * 100)
+        : 0;
+    setTargetsRespondedPercent(calculatePercent);
+  }, [campaign]);
 
   useEffect(() => {
     if (isQueryFinished) {
@@ -74,17 +78,6 @@ const QueryResults = ({
       setPageTitle(PAGE_TITLES.RUNNING);
     }
   }, [isQueryFinished]);
-
-  const onFilterAttribute = (attribute: string) => {
-    return (value: string) => {
-      setResultsFilter({
-        ...resultsFilter,
-        [attribute]: value,
-      });
-
-      return false;
-    };
-  };
 
   const onExportQueryResults = (evt: React.MouseEvent<HTMLButtonElement>) => {
     evt.preventDefault();
@@ -97,7 +90,7 @@ const QueryResults = ({
         return result;
       });
 
-      const formattedTime = moment(new Date()).format("MM-DD-YY hh-mm-ss");
+      const formattedTime = format(new Date(), "MM-dd-yy hh-mm-ss");
       const filename = `${CSV_QUERY_TITLE} (${formattedTime}).csv`;
       const file = new global.window.File([csv], filename, {
         type: "text/csv",
@@ -118,7 +111,7 @@ const QueryResults = ({
         return result;
       });
 
-      const formattedTime = moment(new Date()).format("MM-DD-YY hh-mm-ss");
+      const formattedTime = format(new Date(), "MM-dd-yy hh-mm-ss");
       const filename = `${CSV_QUERY_TITLE} Errors (${formattedTime}).csv`;
       const file = new global.window.File([csv], filename, {
         type: "text/csv",
@@ -128,65 +121,45 @@ const QueryResults = ({
     }
   };
 
+  const onShowQueryModal = () => {
+    setShowQueryModal(!showQueryModal);
+  };
+
   const onQueryDone = () => {
     setSelectedTargets([]);
     goToQueryEditor();
   };
 
-  const renderTableHeaderColumn = (column: string, index: number) => {
-    const filterable = column === "hostname" ? "host_hostname" : column;
-    const filterIconClassName = classnames(`${baseClass}__filter-icon`, {
-      [`${baseClass}__filter-icon--is-active`]: activeColumn === column,
-    });
-
+  const renderNoResults = () => {
     return (
-      <th key={`query-results-table-header-${index}`}>
+      <p className="no-results-message">
+        Your live query returned no results.
         <span>
-          <FleetIcon className={filterIconClassName} name="filter" />
-          {column}
+          Expecting to see results? Check to see if the hosts you targeted
+          reported &ldquo;Online&rdquo; or check out the &ldquo;Errors&rdquo;
+          table.
         </span>
-        <InputField
-          name={column}
-          onChange={onFilterAttribute(filterable)}
-          onFocus={() => setActiveColumn(column)}
-          value={resultsFilter[filterable]}
-        />
-      </th>
+      </p>
     );
   };
 
-  const renderTableHeaderRow = (rows: ICampaignQueryResult[]) => {
-    if (!rows) {
-      return false;
-    }
-
-    const queryAttrs = omit(rows[0], ["host_hostname"]);
-    const queryResultColumns = keys(queryAttrs);
-
+  const renderTable = (tableData: unknown[]) => {
     return (
-      <tr>
-        {renderTableHeaderColumn("hostname", -1)}
-        {queryResultColumns.map((column, i) => {
-          return renderTableHeaderColumn(column, i);
-        })}
-      </tr>
+      <TableContainer
+        columns={resultsTableHeaders(tableData || [])}
+        data={tableData || []}
+        emptyComponent={renderNoResults}
+        isLoading={false}
+        disableCount
+        isClientSidePagination
+        showMarkAllPages={false}
+        isAllPagesSelected={false}
+        resultsTitle={"hosts"}
+      />
     );
   };
 
-  const renderTableRows = (rows: ICampaignQueryResult[]) => {
-    const filteredRows = filterArrayByHash(rows, resultsFilter);
-
-    return filteredRows.map((row: ICampaignQueryResult) => {
-      return (
-        <QueryResultsRow
-          key={row.uuid || row.host_hostname}
-          queryResult={row}
-        />
-      );
-    });
-  };
-
-  const renderTable = () => {
+  const renderResultsTable = () => {
     const emptyResults = !queryResults || !queryResults.length;
     const hasNoResultsYet = !isQueryFinished && emptyResults;
     const finishedWithNoResults =
@@ -197,35 +170,37 @@ const QueryResults = ({
     }
 
     if (finishedWithNoResults) {
-      return (
-        <p className="no-results-message">
-          Your live query returned no results.
-          <span>
-            Expecting to see results? Check to see if the hosts you targeted
-            reported &ldquo;Online&rdquo; or check out the &ldquo;Errors&rdquo;
-            table.
-          </span>
-        </p>
-      );
+      return renderNoResults();
     }
 
     return (
       <div className={`${baseClass}__results-table-container`}>
-        <Button
-          className={`${baseClass}__export-btn`}
-          onClick={onExportQueryResults}
-          variant="text-link"
-        >
-          <>
-            Export results <img alt="" src={DownloadIcon} />
-          </>
-        </Button>
-        <div className={`${baseClass}__results-table-wrapper`}>
-          <table className={`${baseClass}__table`}>
-            <thead>{renderTableHeaderRow(queryResults)}</thead>
-            <tbody>{renderTableRows(queryResults)}</tbody>
-          </table>
+        <div className={`${baseClass}__results-table-header`}>
+          <span className={`${baseClass}__results-count`}>
+            {totalRowsCount} result{totalRowsCount !== 1 && "s"}
+          </span>
+          <div className={`${baseClass}__results-cta`}>
+            <Button
+              className={`${baseClass}__show-query-btn`}
+              onClick={onShowQueryModal}
+              variant="text-link"
+            >
+              <>
+                Show query <img alt="Show query" src={EyeIcon} />
+              </>
+            </Button>
+            <Button
+              className={`${baseClass}__export-btn`}
+              onClick={onExportQueryResults}
+              variant="text-link"
+            >
+              <>
+                Export results <img alt="Export results" src={DownloadIcon} />
+              </>
+            </Button>
+          </div>
         </div>
+        {renderTable(queryResults)}
       </div>
     );
   };
@@ -233,20 +208,35 @@ const QueryResults = ({
   const renderErrorsTable = () => {
     return (
       <div className={`${baseClass}__error-table-container`}>
-        <Button
-          className={`${baseClass}__export-btn`}
-          onClick={onExportErrorsResults}
-          variant="text-link"
-        >
-          <>
-            Export errors <img alt="" src={DownloadIcon} />
-          </>
-        </Button>
+        <div className={`${baseClass}__errors-table-header`}>
+          {errors && (
+            <span className={`${baseClass}__error-count`}>
+              {errors.length} error{errors.length !== 1 && "s"}
+            </span>
+          )}
+          <div className={`${baseClass}__errors-cta`}>
+            <Button
+              className={`${baseClass}__show-query-btn`}
+              onClick={onShowQueryModal}
+              variant="text-link"
+            >
+              <>
+                Show query <img alt="Show query" src={EyeIcon} />
+              </>
+            </Button>
+            <Button
+              className={`${baseClass}__export-btn`}
+              onClick={onExportErrorsResults}
+              variant="text-link"
+            >
+              <>
+                Export errors <img alt="" src={DownloadIcon} />
+              </>
+            </Button>
+          </div>
+        </div>
         <div className={`${baseClass}__error-table-wrapper`}>
-          <table className={`${baseClass}__table`}>
-            <thead>{renderTableHeaderRow(errors)}</thead>
-            <tbody>{renderTableRows(errors)}</tbody>
-          </table>
+          {renderTable(errors)}
         </div>
       </div>
     );
@@ -295,15 +285,15 @@ const QueryResults = ({
       <div className={`${baseClass}__wrapper`}>
         <h1>{pageTitle}</h1>
         <div className={`${baseClass}__text-wrapper`}>
-          <span className={`${baseClass}__text-online`}>
-            Online: {totalHostsOnline} hosts / {onlineTotalText}
-          </span>
-          <span className={`${baseClass}__text-offline`}>
-            Offline: {totalHostsOffline} hosts / 0 results
-          </span>
-          <span className={`${baseClass}__text-error`}>
-            Errors: {hostsCount.failed} hosts / {errorsTotalText}
-          </span>
+          <span>{targetsTotalCount}</span>&nbsp;hosts targeted&nbsp; (
+          {targetsRespondedPercent}%&nbsp;
+          <TooltipWrapper
+            tipContent={`
+                Hosts that respond may<br /> return results, errors, or <br />no results`}
+          >
+            responded
+          </TooltipWrapper>
+          )
         </div>
       </div>
       {isQueryFinished ? renderFinishedButtons() : renderStopQueryButton()}
@@ -312,16 +302,19 @@ const QueryResults = ({
           <TabList>
             <Tab className={firstTabClass}>{NAV_TITLES.RESULTS}</Tab>
             <Tab disabled={!errors?.length}>
-              {errors?.length > 0 && (
-                <span className="count">{errors.length}</span>
-              )}
-              {NAV_TITLES.ERRORS}
+              <span>
+                {errors?.length > 0 && (
+                  <span className="count">{errors.length}</span>
+                )}
+                {NAV_TITLES.ERRORS}
+              </span>
             </Tab>
           </TabList>
-          <TabPanel>{renderTable()}</TabPanel>
+          <TabPanel>{renderResultsTable()}</TabPanel>
           <TabPanel>{renderErrorsTable()}</TabPanel>
         </Tabs>
       </TabsWrapper>
+      {showQueryModal && <ShowQueryModal onCancel={onShowQueryModal} />}
     </div>
   );
 };

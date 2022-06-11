@@ -10,6 +10,18 @@ REVSHORT = $(shell git rev-parse --short HEAD)
 USER = $(shell whoami)
 DOCKER_IMAGE_NAME = fleetdm/fleet
 
+ifdef RACE_ENABLED
+RACE_ENABLED_VAR := $(RACE_ENABLED)
+else
+RACE_ENABLED_VAR := false
+endif
+
+ifdef GO_TEST_TIMEOUT
+GO_TEST_TIMEOUT_VAR := $(GO_TEST_TIMEOUT)
+else
+GO_TEST_TIMEOUT_VAR := 10m
+endif
+
 ifneq ($(OS), Windows_NT)
 	# If on macOS, set the shell to bash explicitly
 	ifeq ($(shell uname), Darwin)
@@ -110,7 +122,7 @@ lint-js:
 	yarn lint
 
 lint-go:
-	golangci-lint run --skip-dirs ./node_modules
+	golangci-lint run --skip-dirs ./node_modules --timeout 10m
 
 lint: lint-go lint-js
 
@@ -118,7 +130,7 @@ dump-test-schema:
 	go run ./tools/dbutils ./server/datastore/mysql/schema.sql
 
 test-go: dump-test-schema generate-mock
-	go test -tags full,fts5,netgo -parallel 8 -coverprofile=coverage.txt -covermode=atomic ./cmd/... ./ee/... ./orbit/... ./pkg/... ./server/... ./tools/...
+	go test -tags full,fts5,netgo -timeout=${GO_TEST_TIMEOUT_VAR} -race=${RACE_ENABLED_VAR} -parallel 8 -coverprofile=coverage.txt -covermode=atomic ./cmd/... ./ee/... ./orbit/pkg/... ./orbit/cmd/orbit ./pkg/... ./server/... ./tools/...
 
 analyze-go:
 	go test -tags full,fts5,netgo -race -cover ./...
@@ -166,6 +178,7 @@ deps-go:
 
 migration:
 	go run github.com/fleetdm/goose/cmd/goose -dir server/datastore/mysql/migrations/tables create $(name)
+	gofmt -w server/datastore/mysql/migrations/tables/*_$(name)*.go
 
 clean: clean-assets
 	rm -rf build vendor
@@ -228,14 +241,14 @@ binary-arch: .pre-binary-arch .pre-binary-bundle .pre-fleet
 
 # Drop, create, and migrate the e2e test database
 e2e-reset-db:
-	docker-compose exec -T mysql_test bash -c 'echo "drop database if exists e2e; create database e2e;" | mysql -uroot -ptoor'
+	docker-compose exec -T mysql_test bash -c 'echo "drop database if exists e2e; create database e2e;" | MYSQL_PWD=toor mysql -uroot'
 	./build/fleet prepare db --mysql_address=localhost:3307  --mysql_username=root --mysql_password=toor --mysql_database=e2e
 
 e2e-setup:
 	./build/fleetctl config set --context e2e --address https://localhost:8642 --tls-skip-verify true
-	./build/fleetctl setup --context e2e --email=admin@example.com --password=user123# --org-name='Fleet Test' --name Admin
-	./build/fleetctl user create --context e2e --email=maintainer@example.com --name maintainer --password=user123# --global-role=maintainer
-	./build/fleetctl user create --context e2e --email=observer@example.com --name observer --password=user123# --global-role=observer
+	./build/fleetctl setup --context e2e --email=admin@example.com --password=password123# --org-name='Fleet Test' --name Admin
+	./build/fleetctl user create --context e2e --email=maintainer@example.com --name maintainer --password=password123# --global-role=maintainer
+	./build/fleetctl user create --context e2e --email=observer@example.com --name observer --password=password123# --global-role=observer
 	./build/fleetctl user create --context e2e --email=sso_user@example.com --name "SSO user" --sso=true
 
 e2e-serve-free: e2e-reset-db
@@ -245,7 +258,7 @@ e2e-serve-premium: e2e-reset-db
 	./build/fleet serve  --dev_license --mysql_address=localhost:3307 --mysql_username=root --mysql_password=toor --mysql_database=e2e --server_address=0.0.0.0:8642
 
 changelog:
-	sh -c "find changes -type file | grep -v .keep | xargs -I {} sh -c 'grep \"\S\" {}; echo' > new-CHANGELOG.md"
+	sh -c "find changes -type f | grep -v .keep | xargs -I {} sh -c 'grep \"\S\" {}; echo' > new-CHANGELOG.md"
 	sh -c "cat new-CHANGELOG.md CHANGELOG.md > tmp-CHANGELOG.md && rm new-CHANGELOG.md && mv tmp-CHANGELOG.md CHANGELOG.md"
 	sh -c "git rm changes/*"
 
@@ -260,7 +273,7 @@ changelog-orbit:
 
 # Reset the development DB
 db-reset:
-	docker-compose exec -T mysql bash -c 'echo "drop database if exists fleet; create database fleet;" | mysql -uroot -ptoor'
+	docker-compose exec -T mysql bash -c 'echo "drop database if exists fleet; create database fleet;" | MYSQL_PWD=toor mysql -uroot'
 	./build/fleet prepare db --dev
 
 # Back up the development DB to file
@@ -270,3 +283,92 @@ db-backup:
 # Restore the development DB from file
 db-restore:
 	./tools/backup_db/restore.sh
+
+# Generate osqueryd.app.tar.gz bundle from osquery.io.
+#
+# Usage:
+# make osqueryd-app-tar-gz version=5.1.0 out-path=.
+osqueryd-app-tar-gz:
+ifneq ($(shell uname), Darwin)
+	@echo "Makefile target osqueryd-app-tar-gz is only supported on macOS"
+	@exit 1
+endif
+	$(eval TMP_DIR := $(shell mktemp -d))
+	curl -L https://pkg.osquery.io/darwin/osquery-$(version).pkg --output $(TMP_DIR)/osquery-$(version).pkg
+	pkgutil --expand $(TMP_DIR)/osquery-$(version).pkg $(TMP_DIR)/osquery_pkg_expanded
+	rm -rf $(TMP_DIR)/osquery_pkg_payload_expanded
+	mkdir -p $(TMP_DIR)/osquery_pkg_payload_expanded
+	tar xf $(TMP_DIR)/osquery_pkg_expanded/Payload --directory $(TMP_DIR)/osquery_pkg_payload_expanded
+	$(TMP_DIR)/osquery_pkg_payload_expanded/opt/osquery/lib/osquery.app/Contents/MacOS/osqueryd --version
+	tar czf $(out-path)/osqueryd.app.tar.gz -C $(TMP_DIR)/osquery_pkg_payload_expanded/opt/osquery/lib osquery.app
+	rm -r $(TMP_DIR)
+
+# Build and generate desktop.app.tar.gz bundle.
+#
+# Usage:
+# FLEET_DESKTOP_APPLE_AUTHORITY=foo FLEET_DESKTOP_VERSION=0.0.1 make desktop-app-tar-gz
+#
+# Output: desktop.app.tar.gz
+desktop-app-tar-gz:
+ifneq ($(shell uname), Darwin)
+	@echo "Makefile target desktop-app-tar-gz is only supported on macOS"
+	@exit 1
+endif
+	go run ./tools/desktop macos
+
+FLEET_DESKTOP_VERSION ?= unknown
+
+# Build desktop executable for Windows.
+#
+# Usage:
+# FLEET_DESKTOP_VERSION=0.0.1 make desktop-windows
+#
+# Output: fleet-desktop.exe
+desktop-windows:
+	GOOS=windows GOARCH=amd64 go build -ldflags "-H=windowsgui -X=main.version=$(FLEET_DESKTOP_VERSION)" -o fleet-desktop.exe ./orbit/cmd/desktop
+
+# Build desktop executable for Linux.
+#
+# Usage:
+# FLEET_DESKTOP_VERSION=0.0.1 make desktop-linux
+#
+# Output: desktop.tar.gz
+desktop-linux:
+	docker build -f Dockerfile-desktop-linux -t desktop-linux-builder .
+	docker run --rm -v $(shell pwd):/output desktop-linux-builder /bin/bash -c "\
+		mkdir /output/fleet-desktop && \
+		go build -o /output/fleet-desktop/fleet-desktop -ldflags "-X=main.version=$(FLEET_DESKTOP_VERSION)" /usr/src/fleet/orbit/cmd/desktop && \
+		cp /usr/lib/x86_64-linux-gnu/libayatana-appindicator3.so.1 \
+		/usr/lib/x86_64-linux-gnu/libayatana-ido3-0.4.so.0 \
+		/usr/lib/x86_64-linux-gnu/libayatana-indicator3.so.7 \
+		/lib/x86_64-linux-gnu/libm.so.6 \
+		/usr/lib/x86_64-linux-gnu/libdbusmenu-gtk3.so.4 \
+		/usr/lib/x86_64-linux-gnu/libdbusmenu-glib.so.4 \
+		/output/fleet-desktop && cd /output && \
+		tar czf desktop.tar.gz fleet-desktop && \
+		rm -r fleet-desktop"
+
+# db-replica-setup setups one main and one read replica MySQL instance for dev/testing.
+#	- Assumes the docker containers are already running (tools/mysql-replica-testing/docker-compose.yml)
+# 	- MySQL instance listening on 3308 is the main instance.
+# 	- MySQL instance listening on 3309 is the read instance.
+#	- Sets a delay of 1s for replication.
+db-replica-setup:
+	$(eval MYSQL_REPLICATION_USER := replicator)
+	$(eval MYSQL_REPLICATION_PASSWORD := rotacilper)
+	MYSQL_PWD=toor mysql --host 127.0.0.1 --port 3309 -uroot -AN -e "stop slave; reset slave all;"
+	MYSQL_PWD=toor mysql --host 127.0.0.1 --port 3308 -uroot -AN -e "drop user if exists '$(MYSQL_REPLICATION_USER)'; create user '$(MYSQL_REPLICATION_USER)'@'%'; grant replication slave on *.* to '$(MYSQL_REPLICATION_USER)'@'%' identified by '$(MYSQL_REPLICATION_PASSWORD)'; flush privileges;"
+	$(eval MAIN_POSITION := $(shell MYSQL_PWD=toor mysql --host 127.0.0.1 --port 3308 -uroot -e 'show master status \G' | grep Position | grep -o '[0-9]*'))
+	$(eval MAIN_FILE := $(shell MYSQL_PWD=toor mysql --host 127.0.0.1 --port 3308 -uroot -e 'show master status \G' | grep File | sed -n -e 's/^.*: //p'))
+	MYSQL_PWD=toor mysql --host 127.0.0.1 --port 3309 -uroot -AN -e "change master to master_host='mysql_main',master_user='$(MYSQL_REPLICATION_USER)',master_password='$(MYSQL_REPLICATION_PASSWORD)',master_log_file='$(MAIN_FILE)',master_log_pos=$(MAIN_POSITION);"
+	MYSQL_PWD=toor mysql --host 127.0.0.1 --port 3309 -uroot -AN -e "change master to master_delay=1;"
+	MYSQL_PWD=toor mysql --host 127.0.0.1 --port 3309 -uroot -AN -e "start slave;"
+
+# db-replica-reset resets the main MySQL instance.
+db-replica-reset: fleet
+	MYSQL_PWD=toor mysql --host 127.0.0.1 --port 3308 -uroot -e "drop database if exists fleet; create database fleet;"
+	FLEET_MYSQL_ADDRESS=127.0.0.1:3308 ./build/fleet prepare db --dev
+
+# db-replica-run runs fleet serve with one main and one read MySQL instance.
+db-replica-run: fleet
+	FLEET_MYSQL_ADDRESS=127.0.0.1:3308 FLEET_MYSQL_READ_REPLICA_ADDRESS=127.0.0.1:3309 FLEET_MYSQL_READ_REPLICA_USERNAME=fleet FLEET_MYSQL_READ_REPLICA_DATABASE=fleet FLEET_MYSQL_READ_REPLICA_PASSWORD=insecure ./build/fleet serve --dev --dev_license

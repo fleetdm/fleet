@@ -1,0 +1,42 @@
+.component__auto-size-input-field {
+  box-sizing: border-box;
+  color: $core-fleet-black;
+
+  &::placeholder {
+    color: $ui-fleet-black-50;
+  }
+
+  &:focus {
+    outline: none;
+    border-color: $core-vibrant-blue;
+  }
+
+  .input-sizer {
+    display: inline-grid;
+    vertical-align: top;
+    align-items: center;
+    position: relative;
+
+    &::after,
+    input,
+    textarea {
+      width: auto;
+      grid-area: 1 / 2;
+      resize: none;
+      background: none;
+      appearance: none;
+      border: none;
+    }
+
+    textarea {
+      height: 100%;
+      overflow: hidden;
+    }
+
+    &::after {
+      content: attr(data-value) " ";
+      visibility: hidden;
+      white-space: pre-wrap;
+    }
+  }
+}

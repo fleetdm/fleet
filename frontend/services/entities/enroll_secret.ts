@@ -4,12 +4,6 @@ import teamsAPI from "services/entities/teams";
 
 import { IEnrollSecret } from "interfaces/enroll_secret";
 
-interface IEnrollSecretSpec {
-  spec: {
-    secrets: IEnrollSecret[];
-  };
-}
-
 export default {
   getGlobalEnrollSecrets: () => {
     return specAPI.getEnrollSecretSpec().then((res) => res.spec);

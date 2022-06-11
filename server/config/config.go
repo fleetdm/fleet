@@ -6,9 +6,11 @@ import (
 	"errors"
 	"fmt"
 	"io/ioutil"
+	"net/url"
 	"os"
 	"path/filepath"
 	"runtime"
+	"strconv"
 	"strings"
 	"time"
 
@@ -56,13 +58,14 @@ type RedisConfig struct {
 	TLSCA                     string        `yaml:"tls_ca"`
 	TLSServerName             string        `yaml:"tls_server_name"`
 	TLSHandshakeTimeout       time.Duration `yaml:"tls_handshake_timeout"`
-	// TODO(mna): should we allow insecure skip verify option?
-	MaxIdleConns int `yaml:"max_idle_conns"`
-	MaxOpenConns int `yaml:"max_open_conns"`
+	MaxIdleConns              int           `yaml:"max_idle_conns"`
+	MaxOpenConns              int           `yaml:"max_open_conns"`
 	// this config is an int on MysqlConfig, but it should be a time.Duration.
 	ConnMaxLifetime time.Duration `yaml:"conn_max_lifetime"`
 	IdleTimeout     time.Duration `yaml:"idle_timeout"`
 	ConnWaitTimeout time.Duration `yaml:"conn_wait_timeout"`
+	WriteTimeout    time.Duration `yaml:"write_timeout"`
+	ReadTimeout     time.Duration `yaml:"read_timeout"`
 }
 
 const (
@@ -92,6 +95,7 @@ type AuthConfig struct {
 type AppConfig struct {
 	TokenKeySize              int           `yaml:"token_key_size"`
 	InviteTokenValidityPeriod time.Duration `yaml:"invite_token_validity_period"`
+	EnableScheduledQueryStats bool          `yaml:"enable_scheduled_query_stats"`
 }
 
 // SessionConfig defines configs related to user sessions
@@ -114,16 +118,66 @@ type OsqueryConfig struct {
 	ResultLogFile                    string        `yaml:"result_log_file"`
 	EnableLogRotation                bool          `yaml:"enable_log_rotation"`
 	MaxJitterPercent                 int           `yaml:"max_jitter_percent"`
-	EnableAsyncHostProcessing        bool          `yaml:"enable_async_host_processing"`
-	AsyncHostCollectInterval         time.Duration `yaml:"async_host_collect_interval"`
+	EnableAsyncHostProcessing        string        `yaml:"enable_async_host_processing"` // true/false or per-task
+	AsyncHostCollectInterval         string        `yaml:"async_host_collect_interval"`  // duration or per-task
 	AsyncHostCollectMaxJitterPercent int           `yaml:"async_host_collect_max_jitter_percent"`
-	AsyncHostCollectLockTimeout      time.Duration `yaml:"async_host_collect_lock_timeout"`
+	AsyncHostCollectLockTimeout      string        `yaml:"async_host_collect_lock_timeout"` // duration or per-task
 	AsyncHostCollectLogStatsInterval time.Duration `yaml:"async_host_collect_log_stats_interval"`
 	AsyncHostInsertBatch             int           `yaml:"async_host_insert_batch"`
 	AsyncHostDeleteBatch             int           `yaml:"async_host_delete_batch"`
 	AsyncHostUpdateBatch             int           `yaml:"async_host_update_batch"`
 	AsyncHostRedisPopCount           int           `yaml:"async_host_redis_pop_count"`
 	AsyncHostRedisScanKeysCount      int           `yaml:"async_host_redis_scan_keys_count"`
+	MinSoftwareLastOpenedAtDiff      time.Duration `yaml:"min_software_last_opened_at_diff"`
+}
+
+// AsyncTaskName is the type of names that identify tasks supporting
+// asynchronous execution.
+type AsyncTaskName string
+
+// List of names for supported async tasks.
+const (
+	AsyncTaskLabelMembership  AsyncTaskName = "label_membership"
+	AsyncTaskPolicyMembership AsyncTaskName = "policy_membership"
+	AsyncTaskHostLastSeen     AsyncTaskName = "host_last_seen"
+)
+
+var knownAsyncTasks = map[AsyncTaskName]struct{}{
+	AsyncTaskLabelMembership:  {},
+	AsyncTaskPolicyMembership: {},
+	AsyncTaskHostLastSeen:     {},
+}
+
+// AsyncConfigForTask returns the applicable configuration for the specified
+// async task.
+func (o OsqueryConfig) AsyncConfigForTask(name AsyncTaskName) AsyncProcessingConfig {
+	strName := string(name)
+	return AsyncProcessingConfig{
+		Enabled:                 configForKeyOrBool("osquery.enable_async_host_processing", strName, o.EnableAsyncHostProcessing, false),
+		CollectInterval:         configForKeyOrDuration("osquery.async_host_collect_interval", strName, o.AsyncHostCollectInterval, 30*time.Second),
+		CollectMaxJitterPercent: o.AsyncHostCollectMaxJitterPercent,
+		CollectLockTimeout:      configForKeyOrDuration("osquery.async_host_collect_lock_timeout", strName, o.AsyncHostCollectLockTimeout, 1*time.Minute),
+		CollectLogStatsInterval: o.AsyncHostCollectLogStatsInterval,
+		InsertBatch:             o.AsyncHostInsertBatch,
+		DeleteBatch:             o.AsyncHostDeleteBatch,
+		UpdateBatch:             o.AsyncHostUpdateBatch,
+		RedisPopCount:           o.AsyncHostRedisPopCount,
+		RedisScanKeysCount:      o.AsyncHostRedisScanKeysCount,
+	}
+}
+
+// AsyncProcessingConfig is the configuration for a specific async task.
+type AsyncProcessingConfig struct {
+	Enabled                 bool
+	CollectInterval         time.Duration
+	CollectMaxJitterPercent int
+	CollectLockTimeout      time.Duration
+	CollectLogStatsInterval time.Duration
+	InsertBatch             int
+	DeleteBatch             int
+	UpdateBatch             int
+	RedisPopCount           int
+	RedisScanKeysCount      int
 }
 
 // LoggingConfig defines configs related to logging
@@ -132,6 +186,9 @@ type LoggingConfig struct {
 	JSON                 bool
 	DisableBanner        bool          `yaml:"disable_banner"`
 	ErrorRetentionPeriod time.Duration `yaml:"error_retention_period"`
+	TracingEnabled       bool          `yaml:"tracing_enabled"`
+	// TracingType can either be opentelemetry or elasticapm for whichever type of tracing wanted
+	TracingType string `yaml:"tracing_type"`
 }
 
 // FirehoseConfig defines configs for the AWS Firehose logging plugin
@@ -197,10 +254,11 @@ type FilesystemConfig struct {
 
 // KafkaRESTConfig defines configs for the Kafka REST Proxy logging plugin.
 type KafkaRESTConfig struct {
-	StatusTopic string `json:"status_topic" yaml:"status_topic"`
-	ResultTopic string `json:"result_topic" yaml:"result_topic"`
-	ProxyHost   string `json:"proxyhost" yaml:"proxyhost"`
-	Timeout     int    `json:"timeout" yaml:"timeout"`
+	StatusTopic      string `json:"status_topic" yaml:"status_topic"`
+	ResultTopic      string `json:"result_topic" yaml:"result_topic"`
+	ProxyHost        string `json:"proxyhost" yaml:"proxyhost"`
+	ContentTypeValue string `json:"content_type_value" yaml:"content_type_value"`
+	Timeout          int    `json:"timeout" yaml:"timeout"`
 }
 
 // LicenseConfig defines configs related to licensing Fleet.
@@ -210,17 +268,40 @@ type LicenseConfig struct {
 
 // VulnerabilitiesConfig defines configs related to vulnerability processing within Fleet.
 type VulnerabilitiesConfig struct {
-	DatabasesPath         string        `json:"databases_path" yaml:"databases_path"`
-	Periodicity           time.Duration `json:"periodicity" yaml:"periodicity"`
-	CPEDatabaseURL        string        `json:"cpe_database_url" yaml:"cpe_database_url"`
-	CVEFeedPrefixURL      string        `json:"cve_feed_prefix_url" yaml:"cve_feed_prefix_url"`
-	CurrentInstanceChecks string        `json:"current_instance_checks" yaml:"current_instance_checks"`
-	DisableDataSync       bool          `json:"disable_data_sync" yaml:"disable_data_sync"`
+	DatabasesPath             string        `json:"databases_path" yaml:"databases_path"`
+	Periodicity               time.Duration `json:"periodicity" yaml:"periodicity"`
+	CPEDatabaseURL            string        `json:"cpe_database_url" yaml:"cpe_database_url"`
+	CVEFeedPrefixURL          string        `json:"cve_feed_prefix_url" yaml:"cve_feed_prefix_url"`
+	CurrentInstanceChecks     string        `json:"current_instance_checks" yaml:"current_instance_checks"`
+	DisableDataSync           bool          `json:"disable_data_sync" yaml:"disable_data_sync"`
+	RecentVulnerabilityMaxAge time.Duration `json:"recent_vulnerability_max_age" yaml:"recent_vulnerability_max_age"`
 }
 
 // UpgradesConfig defines configs related to fleet server upgrades.
 type UpgradesConfig struct {
 	AllowMissingMigrations bool `json:"allow_missing_migrations" yaml:"allow_missing_migrations"`
+}
+
+type SentryConfig struct {
+	Dsn string `json:"dsn"`
+}
+
+type GeoIPConfig struct {
+	DatabasePath string `json:"database_path" yaml:"database_path"`
+}
+
+// PrometheusConfig holds the configuration for Fleet's prometheus metrics.
+type PrometheusConfig struct {
+	// BasicAuth is the HTTP Basic BasicAuth configuration.
+	BasicAuth HTTPBasicAuthConfig `json:"basic_auth" yaml:"basic_auth"`
+}
+
+// HTTPBasicAuthConfig holds configuration for HTTP Basic Auth.
+type HTTPBasicAuthConfig struct {
+	// Username is the HTTP Basic Auth username.
+	Username string `json:"username" yaml:"username"`
+	// Password is the HTTP Basic Auth password.
+	Password string `json:"password" yaml:"password"`
 }
 
 // FleetConfig stores the application configuration. Each subcategory is
@@ -247,6 +328,9 @@ type FleetConfig struct {
 	License          LicenseConfig
 	Vulnerabilities  VulnerabilitiesConfig
 	Upgrades         UpgradesConfig
+	Sentry           SentryConfig
+	GeoIP            GeoIPConfig
+	Prometheus       PrometheusConfig
 }
 
 type TLS struct {
@@ -346,6 +430,8 @@ func (man Manager) addConfigs() {
 	man.addConfigDuration("redis.conn_max_lifetime", 0, "Redis maximum amount of time a connection may be reused, 0 means no limit")
 	man.addConfigDuration("redis.idle_timeout", 240*time.Second, "Redis maximum amount of time a connection may stay idle, 0 means no limit")
 	man.addConfigDuration("redis.conn_wait_timeout", 0, "Redis maximum amount of time to wait for a connection if the maximum is reached (0 for no wait, ignored in non-cluster Redis)")
+	man.addConfigDuration("redis.write_timeout", 10*time.Second, "Redis maximum amount of time to wait for a write (send) on a connection")
+	man.addConfigDuration("redis.read_timeout", 10*time.Second, "Redis maximum amount of time to wait for a read (receive) on a connection")
 
 	// Server
 	man.addConfigString("server.address", "0.0.0.0:8080",
@@ -377,11 +463,13 @@ func (man Manager) addConfigs() {
 		"Duration invite tokens remain valid (i.e. 1h)")
 	man.addConfigInt("app.token_key_size", 24,
 		"Size of generated tokens")
+	man.addConfigBool("app.enable_scheduled_query_stats", true,
+		"If true (default) it gets scheduled query stats from hosts")
 
 	// Session
 	man.addConfigInt("session.key_size", 64,
 		"Size of generated session keys")
-	man.addConfigDuration("session.duration", 24*time.Hour,
+	man.addConfigDuration("session.duration", 24*5*time.Hour,
 		"Duration session keys remain valid (i.e. 4h)")
 
 	// Osquery
@@ -409,14 +497,14 @@ func (man Manager) addConfigs() {
 		"(DEPRECATED: Use filesystem.enable_log_rotation) Enable automatic rotation for osquery log files")
 	man.addConfigInt("osquery.max_jitter_percent", 10,
 		"Maximum percentage of the interval to add as jitter")
-	man.addConfigBool("osquery.enable_async_host_processing", false,
-		"Enable asynchronous processing of host-reported query results")
-	man.addConfigDuration("osquery.async_host_collect_interval", 30*time.Second,
-		"Interval to collect asynchronous host-reported query results (i.e. 30s)")
+	man.addConfigString("osquery.enable_async_host_processing", "false",
+		"Enable asynchronous processing of host-reported query results (either 'true'/'false' or set per task, e.g., 'label_membership=true&policy_membership=true')")
+	man.addConfigString("osquery.async_host_collect_interval", (30 * time.Second).String(),
+		"Interval to collect asynchronous host-reported query results (e.g. '30s' or set per task 'label_membership=10s&policy_membership=1m')")
 	man.addConfigInt("osquery.async_host_collect_max_jitter_percent", 10,
 		"Maximum percentage of the interval to collect asynchronous host results")
-	man.addConfigDuration("osquery.async_host_collect_lock_timeout", 1*time.Minute,
-		"Timeout of the exclusive lock held during async host collection")
+	man.addConfigString("osquery.async_host_collect_lock_timeout", (1 * time.Minute).String(),
+		"Timeout of the exclusive lock held during async host collection (e.g., '30s' or set per task 'label_membership=10s&policy_membership=1m'")
 	man.addConfigDuration("osquery.async_host_collect_log_stats_interval", 1*time.Minute,
 		"Interval at which async host collection statistics are logged (0 disables logging of stats)")
 	man.addConfigInt("osquery.async_host_insert_batch", 2000,
@@ -429,6 +517,8 @@ func (man Manager) addConfigs() {
 		"Batch size to pop items from redis in async collection")
 	man.addConfigInt("osquery.async_host_redis_scan_keys_count", 1000,
 		"Batch size to scan redis keys in async collection")
+	man.addConfigDuration("osquery.min_software_last_opened_at_diff", 1*time.Hour,
+		"Minimum time difference of the software's last opened timestamp (compared to the last one saved) to trigger an update to the database")
 
 	// Logging
 	man.addConfigBool("logging.debug", false,
@@ -439,6 +529,10 @@ func (man Manager) addConfigs() {
 		"Disable startup banner")
 	man.addConfigDuration("logging.error_retention_period", 24*time.Hour,
 		"Amount of time to keep errors, 0 means no expiration, < 0 means disable storage of errors")
+	man.addConfigBool("logging.tracing_enabled", false,
+		"Enable Tracing, further configured via standard env variables")
+	man.addConfigString("logging.tracing_type", "opentelemetry",
+		"Select the kind of tracing, defaults to opentelemetry, can also be elasticapm")
 
 	// Firehose
 	man.addConfigString("firehose.region", "", "AWS Region to use")
@@ -508,6 +602,8 @@ func (man Manager) addConfigs() {
 	man.addConfigString("kafkarest.status_topic", "", "Kafka REST topic for status logs")
 	man.addConfigString("kafkarest.result_topic", "", "Kafka REST topic for result logs")
 	man.addConfigString("kafkarest.proxyhost", "", "Kafka REST proxy host url")
+	man.addConfigString("kafkarest.content_type_value", "application/vnd.kafka.json.v1+json",
+		"Kafka REST proxy content type header (defaults to \"application/vnd.kafka.json.v1+json\"")
 	man.addConfigInt("kafkarest.timeout", 5, "Kafka REST proxy json post timeout")
 
 	// License
@@ -526,10 +622,22 @@ func (man Manager) addConfigs() {
 		"Allows to manually select an instance to do the vulnerability processing.")
 	man.addConfigBool("vulnerabilities.disable_data_sync", false,
 		"Skips synchronizing data streams and expects them to be available in the databases_path.")
+	man.addConfigDuration("vulnerabilities.recent_vulnerability_max_age", 30*24*time.Hour,
+		"Maximum age of the published date of a vulnerability (CVE) to be considered 'recent'.")
 
 	// Upgrades
 	man.addConfigBool("upgrades.allow_missing_migrations", false,
 		"Allow serve to run even if migrations are missing.")
+
+	// Sentry
+	man.addConfigString("sentry.dsn", "", "DSN for Sentry")
+
+	// GeoIP
+	man.addConfigString("geoip.database_path", "", "path to mmdb file")
+
+	// Prometheus
+	man.addConfigString("prometheus.basic_auth.username", "", "Prometheus username for HTTP Basic Auth")
+	man.addConfigString("prometheus.basic_auth.password", "", "Prometheus password for HTTP Basic Auth")
 }
 
 // LoadConfig will load the config variables into a fully initialized
@@ -556,7 +664,7 @@ func (man Manager) LoadConfig() FleetConfig {
 		}
 	}
 
-	return FleetConfig{
+	cfg := FleetConfig{
 		Mysql:            loadMysqlConfig("mysql"),
 		MysqlReadReplica: loadMysqlConfig("mysql_read_replica"),
 		Redis: RedisConfig{
@@ -580,6 +688,8 @@ func (man Manager) LoadConfig() FleetConfig {
 			ConnMaxLifetime:           man.getConfigDuration("redis.conn_max_lifetime"),
 			IdleTimeout:               man.getConfigDuration("redis.idle_timeout"),
 			ConnWaitTimeout:           man.getConfigDuration("redis.conn_wait_timeout"),
+			WriteTimeout:              man.getConfigDuration("redis.write_timeout"),
+			ReadTimeout:               man.getConfigDuration("redis.read_timeout"),
 		},
 		Server: ServerConfig{
 			Address:    man.getConfigString("server.address"),
@@ -597,6 +707,7 @@ func (man Manager) LoadConfig() FleetConfig {
 		App: AppConfig{
 			TokenKeySize:              man.getConfigInt("app.token_key_size"),
 			InviteTokenValidityPeriod: man.getConfigDuration("app.invite_token_validity_period"),
+			EnableScheduledQueryStats: man.getConfigBool("app.enable_scheduled_query_stats"),
 		},
 		Session: SessionConfig{
 			KeySize:  man.getConfigInt("session.key_size"),
@@ -615,22 +726,25 @@ func (man Manager) LoadConfig() FleetConfig {
 			DetailUpdateInterval:             man.getConfigDuration("osquery.detail_update_interval"),
 			EnableLogRotation:                man.getConfigBool("osquery.enable_log_rotation"),
 			MaxJitterPercent:                 man.getConfigInt("osquery.max_jitter_percent"),
-			EnableAsyncHostProcessing:        man.getConfigBool("osquery.enable_async_host_processing"),
-			AsyncHostCollectInterval:         man.getConfigDuration("osquery.async_host_collect_interval"),
+			EnableAsyncHostProcessing:        man.getConfigString("osquery.enable_async_host_processing"),
+			AsyncHostCollectInterval:         man.getConfigString("osquery.async_host_collect_interval"),
 			AsyncHostCollectMaxJitterPercent: man.getConfigInt("osquery.async_host_collect_max_jitter_percent"),
-			AsyncHostCollectLockTimeout:      man.getConfigDuration("osquery.async_host_collect_lock_timeout"),
+			AsyncHostCollectLockTimeout:      man.getConfigString("osquery.async_host_collect_lock_timeout"),
 			AsyncHostCollectLogStatsInterval: man.getConfigDuration("osquery.async_host_collect_log_stats_interval"),
 			AsyncHostInsertBatch:             man.getConfigInt("osquery.async_host_insert_batch"),
 			AsyncHostDeleteBatch:             man.getConfigInt("osquery.async_host_delete_batch"),
 			AsyncHostUpdateBatch:             man.getConfigInt("osquery.async_host_update_batch"),
 			AsyncHostRedisPopCount:           man.getConfigInt("osquery.async_host_redis_pop_count"),
 			AsyncHostRedisScanKeysCount:      man.getConfigInt("osquery.async_host_redis_scan_keys_count"),
+			MinSoftwareLastOpenedAtDiff:      man.getConfigDuration("osquery.min_software_last_opened_at_diff"),
 		},
 		Logging: LoggingConfig{
 			Debug:                man.getConfigBool("logging.debug"),
 			JSON:                 man.getConfigBool("logging.json"),
 			DisableBanner:        man.getConfigBool("logging.disable_banner"),
 			ErrorRetentionPeriod: man.getConfigDuration("logging.error_retention_period"),
+			TracingEnabled:       man.getConfigBool("logging.tracing_enabled"),
+			TracingType:          man.getConfigString("logging.tracing_type"),
 		},
 		Firehose: FirehoseConfig{
 			Region:           man.getConfigString("firehose.region"),
@@ -682,26 +796,47 @@ func (man Manager) LoadConfig() FleetConfig {
 			EnableLogCompression: man.getConfigBool("filesystem.enable_log_compression"),
 		},
 		KafkaREST: KafkaRESTConfig{
-			StatusTopic: man.getConfigString("kafkarest.status_topic"),
-			ResultTopic: man.getConfigString("kafkarest.result_topic"),
-			ProxyHost:   man.getConfigString("kafkarest.proxyhost"),
-			Timeout:     man.getConfigInt("kafkarest.timeout"),
+			StatusTopic:      man.getConfigString("kafkarest.status_topic"),
+			ResultTopic:      man.getConfigString("kafkarest.result_topic"),
+			ProxyHost:        man.getConfigString("kafkarest.proxyhost"),
+			ContentTypeValue: man.getConfigString("kafkarest.content_type_value"),
+			Timeout:          man.getConfigInt("kafkarest.timeout"),
 		},
 		License: LicenseConfig{
 			Key: man.getConfigString("license.key"),
 		},
 		Vulnerabilities: VulnerabilitiesConfig{
-			DatabasesPath:         man.getConfigString("vulnerabilities.databases_path"),
-			Periodicity:           man.getConfigDuration("vulnerabilities.periodicity"),
-			CPEDatabaseURL:        man.getConfigString("vulnerabilities.cpe_database_url"),
-			CVEFeedPrefixURL:      man.getConfigString("vulnerabilities.cve_feed_prefix_url"),
-			CurrentInstanceChecks: man.getConfigString("vulnerabilities.current_instance_checks"),
-			DisableDataSync:       man.getConfigBool("vulnerabilities.disable_data_sync"),
+			DatabasesPath:             man.getConfigString("vulnerabilities.databases_path"),
+			Periodicity:               man.getConfigDuration("vulnerabilities.periodicity"),
+			CPEDatabaseURL:            man.getConfigString("vulnerabilities.cpe_database_url"),
+			CVEFeedPrefixURL:          man.getConfigString("vulnerabilities.cve_feed_prefix_url"),
+			CurrentInstanceChecks:     man.getConfigString("vulnerabilities.current_instance_checks"),
+			DisableDataSync:           man.getConfigBool("vulnerabilities.disable_data_sync"),
+			RecentVulnerabilityMaxAge: man.getConfigDuration("vulnerabilities.recent_vulnerability_max_age"),
 		},
 		Upgrades: UpgradesConfig{
 			AllowMissingMigrations: man.getConfigBool("upgrades.allow_missing_migrations"),
 		},
+		Sentry: SentryConfig{
+			Dsn: man.getConfigString("sentry.dsn"),
+		},
+		GeoIP: GeoIPConfig{
+			DatabasePath: man.getConfigString("geoip.database_path"),
+		},
+		Prometheus: PrometheusConfig{
+			BasicAuth: HTTPBasicAuthConfig{
+				Username: man.getConfigString("prometheus.basic_auth.username"),
+				Password: man.getConfigString("prometheus.basic_auth.password"),
+			},
+		},
 	}
+
+	// ensure immediately that the async config is valid for all known tasks
+	for task := range knownAsyncTasks {
+		cfg.Osquery.AsyncConfigForTask(task)
+	}
+
+	return cfg
 }
 
 // IsSet determines whether a given config key has been explicitly set by any
@@ -874,6 +1009,74 @@ func (man Manager) getConfigDuration(key string) time.Duration {
 	return durationVal
 }
 
+// panics if the config is invalid, this is handled by Viper (this is how all
+// getConfigT helpers indicate errors). The default value is only applied if
+// there is no task-specific config (i.e., no "task=true" config format for that
+// task). If the configuration key was not set at all, it automatically
+// inherited the general default configured for that key (via
+// man.addConfigBool).
+func configForKeyOrBool(key, task, val string, def bool) bool {
+	parseVal := func(v string) bool {
+		if v == "" {
+			return false
+		}
+
+		b, err := strconv.ParseBool(v)
+		if err != nil {
+			panic("Unable to cast to bool for key " + key + ": " + err.Error())
+		}
+		return b
+	}
+
+	if !strings.Contains(val, "=") {
+		// simple case, val is a bool
+		return parseVal(val)
+	}
+
+	q, err := url.ParseQuery(val)
+	if err != nil {
+		panic("Invalid query format for key " + key + ": " + err.Error())
+	}
+	if v := q.Get(task); v != "" {
+		return parseVal(v)
+	}
+	return def
+}
+
+// panics if the config is invalid, this is handled by Viper (this is how all
+// getConfigT helpers indicate errors). The default value is only applied if
+// there is no task-specific config (i.e. no "task=10s" config format for that
+// task). If the configuration key was not set at all, it automatically
+// inherited the general default configured for that key (via
+// man.addConfigDuration).
+func configForKeyOrDuration(key, task, val string, def time.Duration) time.Duration {
+	parseVal := func(v string) time.Duration {
+		if v == "" {
+			return 0
+		}
+
+		d, err := time.ParseDuration(v)
+		if err != nil {
+			panic("Unable to cast to time.Duration for key " + key + ": " + err.Error())
+		}
+		return d
+	}
+
+	if !strings.Contains(val, "=") {
+		// simple case, val is a duration
+		return parseVal(val)
+	}
+
+	q, err := url.ParseQuery(val)
+	if err != nil {
+		panic("Invalid query format for key " + key + ": " + err.Error())
+	}
+	if v := q.Get(task); v != "" {
+		return parseVal(v)
+	}
+	return def
+}
+
 // loadConfigFile handles the loading of the config file.
 func (man Manager) loadConfigFile() {
 	man.viper.SetConfigType("yaml")
@@ -893,7 +1096,7 @@ func (man Manager) loadConfigFile() {
 		os.Exit(1)
 	}
 
-	fmt.Println("Using config file: ", man.viper.ConfigFileUsed())
+	fmt.Println("Using config file:", man.viper.ConfigFileUsed())
 }
 
 // TestConfig returns a barebones configuration suitable for use in tests.
@@ -914,7 +1117,7 @@ func TestConfig() FleetConfig {
 		},
 		Session: SessionConfig{
 			KeySize:  64,
-			Duration: 24 * 90 * time.Hour,
+			Duration: 24 * 5 * time.Hour,
 		},
 		Osquery: OsqueryConfig{
 			NodeKeySize:          24,

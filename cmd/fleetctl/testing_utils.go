@@ -15,7 +15,10 @@ import (
 	"github.com/urfave/cli/v2"
 )
 
-func runServerWithMockedDS(t *testing.T, opts ...service.TestServerOpts) (*httptest.Server, *mock.Store) {
+// runServerWithMockedDS runs the fleet server with several mocked DS methods.
+//
+// NOTE: Assumes the current session is always from the admin user (see ds.SessionByKeyFunc below).
+func runServerWithMockedDS(t *testing.T, opts ...*service.TestServerOpts) (*httptest.Server, *mock.Store) {
 	ds := new(mock.Store)
 	var users []*fleet.User
 	var admin *fleet.User
@@ -31,7 +34,7 @@ func runServerWithMockedDS(t *testing.T, opts ...service.TestServerOpts) (*httpt
 			CreateTimestamp: fleet.CreateTimestamp{CreatedAt: time.Now()},
 			ID:              1,
 			AccessedAt:      time.Now(),
-			UserID:          1,
+			UserID:          admin.ID,
 			Key:             key,
 		}, nil
 	}
@@ -51,25 +54,26 @@ func runServerWithMockedDS(t *testing.T, opts ...service.TestServerOpts) (*httpt
 }
 
 func runAppForTest(t *testing.T, args []string) string {
-	w, exitErr, err := runAppNoChecks(args)
-	require.Nil(t, err)
-	require.Nil(t, exitErr)
+	w, err := runAppNoChecks(args)
+	require.NoError(t, err)
 	return w.String()
 }
 
 func runAppCheckErr(t *testing.T, args []string, errorMsg string) string {
-	w, _, err := runAppNoChecks(args)
+	w, err := runAppNoChecks(args)
+	require.Error(t, err)
 	require.Equal(t, errorMsg, err.Error())
 	return w.String()
 }
 
-func runAppNoChecks(args []string) (*bytes.Buffer, error, error) {
+func runAppNoChecks(args []string) (*bytes.Buffer, error) {
+	// first arg must be the binary name. Allow tests to omit it.
+	args = append([]string{""}, args...)
+
 	w := new(bytes.Buffer)
-	r, _, _ := os.Pipe()
-	var exitErr error
-	app := createApp(r, w, func(context *cli.Context, err error) {
-		exitErr = err
-	})
-	err := app.Run(append([]string{""}, args...))
-	return w, exitErr, err
+	app := createApp(nil, w, noopExitErrHandler)
+	err := app.Run(args)
+	return w, err
 }
+
+func noopExitErrHandler(c *cli.Context, err error) {}

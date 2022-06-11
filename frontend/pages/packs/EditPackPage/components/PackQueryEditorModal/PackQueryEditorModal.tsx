@@ -1,8 +1,6 @@
 /* This component is used for creating and editing pack queries */
 
-import React, { useState, useEffect } from "react";
-// @ts-ignore
-import Fleet from "fleet";
+import React, { useState } from "react";
 import { pull } from "lodash";
 import Modal from "components/Modal";
 import Button from "components/buttons/Button";
@@ -15,6 +13,7 @@ import { IScheduledQuery } from "interfaces/scheduled_query";
 import {
   PLATFORM_DROPDOWN_OPTIONS,
   LOGGING_TYPE_OPTIONS,
+  MAX_OSQUERY_SCHEDULED_QUERY_INTERVAL,
   MIN_OSQUERY_VERSION_OPTIONS,
 } from "utilities/constants";
 
@@ -65,16 +64,13 @@ const PackQueryEditorModal = ({
   editQuery,
   packId,
 }: IPackQueryEditorModalProps): JSX.Element => {
-  const [loggingConfig, setLoggingConfig] = useState("");
-  const [isLoading, setIsLoading] = useState(true);
-  const [isLoadingError, setIsLoadingError] = useState(false);
-
   const [selectedQuery, setSelectedQuery] = useState<
     IScheduledQuery | INoQueryOption
   >();
   const [selectedFrequency, setSelectedFrequency] = useState<string>(
     editQuery?.interval.toString() || ""
   );
+  const [errorFrequency, setErrorFrequency] = useState<string>("");
   const [
     selectedPlatformOptions,
     setSelectedPlatformOptions,
@@ -96,20 +92,6 @@ const PackQueryEditorModal = ({
     editQuery?.shard ? editQuery?.shard.toString() : ""
   );
 
-  useEffect((): void => {
-    const getConfigDestination = async (): Promise<void> => {
-      try {
-        const responseConfig = await Fleet.config.loadAll();
-        setIsLoading(false);
-        setLoggingConfig(responseConfig.logging.result.plugin);
-      } catch (err) {
-        setIsLoadingError(true);
-        setIsLoading(false);
-      }
-    };
-    getConfigDestination();
-  }, []);
-
   const createQueryDropdownOptions = () => {
     const queryOptions = allQueries.map((q) => {
       return {
@@ -128,6 +110,9 @@ const PackQueryEditorModal = ({
   };
 
   const onChangeFrequency = (value: string) => {
+    if (errorFrequency) {
+      setErrorFrequency("");
+    }
     setSelectedFrequency(value);
   };
 
@@ -159,13 +144,26 @@ const PackQueryEditorModal = ({
     setSelectedShard(value);
   };
 
-  const onFormSubmit = () => {
+  const onFormSubmit = (): void => {
+    setErrorFrequency("");
     const query_id = () => {
       if (editQuery) {
         return editQuery.query_id;
       }
       return selectedQuery?.id;
     };
+
+    const frequency = parseInt(selectedFrequency, 10);
+    if (!frequency || frequency < 0) {
+      setErrorFrequency("Frequency must be an integer greater than zero");
+      return;
+    }
+    if (frequency > MAX_OSQUERY_SCHEDULED_QUERY_INTERVAL) {
+      setErrorFrequency(
+        "Frequency must be an integer that does not exceed 604,800 (i.e. 7 days)"
+      );
+      return;
+    }
 
     onPackQueryFormSubmit(
       {
@@ -202,6 +200,7 @@ const PackQueryEditorModal = ({
         )}
         <InputField
           onChange={onChangeFrequency}
+          error={errorFrequency}
           inputWrapperClass={`${baseClass}__form-field ${baseClass}__form-field--frequency`}
           value={selectedFrequency}
           placeholder="- - -"
@@ -242,22 +241,17 @@ const PackQueryEditorModal = ({
           type="number"
         />
 
-        <div className={`${baseClass}__btn-wrap`}>
+        <div className="modal-cta-wrap">
+          <Button onClick={onCancel} variant="inverse">
+            Cancel
+          </Button>
           <Button
-            className={`${baseClass}__btn`}
             type="button"
             variant="brand"
             onClick={onFormSubmit}
             disabled={!selectedQuery && !editQuery}
           >
             {editQuery?.name ? "Save" : "Add query"}
-          </Button>
-          <Button
-            className={`${baseClass}__btn`}
-            onClick={onCancel}
-            variant="inverse"
-          >
-            Cancel
           </Button>
         </div>
       </form>

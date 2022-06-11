@@ -1,19 +1,16 @@
 .fleet-slider {
   transition: background-color 150ms ease-in-out;
-  background-color: $core-fleet-black;
+  background-color: $ui-fleet-black-50;
   border-radius: 12px;
-  border: 1px solid #eaeaea;
   cursor: pointer;
   display: inline-block;
-  height: 22px;
-  min-width: 40px;
+  height: 20px;
+  min-width: 35px;
   position: relative;
-  width: 40px;
-  box-shadow: inset 0 1px 6px 0 rgba(0, 0, 0, 0.2);
+  width: 35px;
 
   &:hover {
-    background-color: $core-fleet-black;
-    box-shadow: inset 0 1px 6px 0 rgba(0, 0, 0, 0.2);
+    background-color: $ui-fleet-black-50;
   }
 
   &--active {
@@ -31,31 +28,22 @@
   }
 
   &__dot {
-    @include size(14px);
-    @include position(absolute, 0 null null 5px);
+    @include size(16px);
+    @include position(absolute, 2px null null 2px);
     transition: left 150ms ease-in-out;
-    margin-top: 3px;
     border-radius: 50%;
     background-color: $core-white;
-    box-shadow: 0 2px 3px 0 rgba(0, 0, 0, 0.25);
 
     &--active {
-      left: 21px;
+      left: 17px;
     }
   }
 
   &__label {
-    font-size: $small;
+    font-size: $x-small;
     font-weight: $regular;
     text-align: left;
     vertical-align: text-bottom;
-    margin-right: 10px;
-    color: $core-fleet-blue;
-
-    &--active {
-      color: $core-vibrant-blue;
-      margin-right: 0;
-      margin-left: 10px;
-    }
+    margin-left: $pad-small;
   }
 }

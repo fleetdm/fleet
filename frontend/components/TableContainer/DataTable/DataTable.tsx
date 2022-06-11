@@ -1,19 +1,24 @@
+/* eslint-disable react/prop-types */
+// disable this rule as it was throwing an error in Header and Cell component
+// definitions for the selection row for some reason when we dont really need it.
 import React, { useMemo, useEffect, useCallback, useContext } from "react";
 import { TableContext } from "context/table";
-import PropTypes from "prop-types";
 import classnames from "classnames";
 import {
-  useTable,
-  useSortBy,
-  useRowSelect,
+  Column,
+  HeaderGroup,
   Row,
-  usePagination,
   useFilters,
+  useGlobalFilter,
+  usePagination,
+  useRowSelect,
+  useSortBy,
+  useTable,
 } from "react-table";
-import { isString, kebabCase, noop } from "lodash";
-import { useDebouncedCallback } from "use-debounce/lib";
+import { kebabCase, noop } from "lodash";
+import { useDebouncedCallback } from "use-debounce";
 
-import { useDeepEffect } from "utilities/hooks";
+import useDeepEffect from "hooks/useDeepEffect";
 import sort from "utilities/sort";
 import { AppContext } from "context/app";
 
@@ -22,14 +27,14 @@ import Button from "components/buttons/Button";
 import FleetIcon from "components/icons/FleetIcon";
 import Spinner from "components/Spinner";
 import { ButtonVariant } from "components/buttons/Button/Button";
-// @ts-ignore
 import ActionButton, { IActionButtonProps } from "./ActionButton";
 
-const baseClass = "data-table-container";
+const baseClass = "data-table-block";
 
 interface IDataTableProps {
-  columns: any;
+  columns: Column[];
   data: any;
+  filters?: Record<string, string | number | boolean>;
   isLoading: boolean;
   manualSortBy?: boolean;
   sortHeader: any;
@@ -52,9 +57,10 @@ interface IDataTableProps {
   searchQuery?: string;
   searchQueryColumn?: string;
   selectedDropdownFilter?: string;
-  clearSelectionCount?: number;
   onSelectSingleRow?: (value: Row) => void;
   onResultsCountChange?: (value: number) => void;
+  renderFooter?: () => JSX.Element | null;
+  renderPagination?: () => JSX.Element | null;
 }
 
 const CLIENT_SIDE_DEFAULT_PAGE_SIZE = 20;
@@ -64,6 +70,7 @@ const CLIENT_SIDE_DEFAULT_PAGE_SIZE = 20;
 const DataTable = ({
   columns: tableColumns,
   data: tableData,
+  filters: tableFilters,
   isLoading,
   manualSortBy = false,
   sortHeader,
@@ -86,9 +93,10 @@ const DataTable = ({
   searchQuery,
   searchQueryColumn,
   selectedDropdownFilter,
-  clearSelectionCount,
   onSelectSingleRow,
   onResultsCountChange,
+  renderFooter,
+  renderPagination,
 }: IDataTableProps): JSX.Element => {
   const { resetSelectedRows } = useContext(TableContext);
   const { isOnlyObserver } = useContext(AppContext);
@@ -122,7 +130,9 @@ const DataTable = ({
     nextPage,
     previousPage,
     setPageSize,
-    setFilter,
+    setFilter, // sets a specific column-level filter
+    setAllFilters, // sets all of the column-level filters; rows are included in filtered results only if each column filter return true
+    setGlobalFilter, // sets the global filter; this serves as a global free text search across all columns (excluding only those where `disableGlobalFilter: true`)
   } = useTable(
     {
       columns,
@@ -137,36 +147,82 @@ const DataTable = ({
       manualSortBy,
       // Initializes as false, but changes briefly to true on successful notification
       autoResetSelectedRows: resetSelectedRows,
+      // Expands the enumerated `filterTypes` for react-table
+      // (see https://github.com/TanStack/react-table/blob/alpha/packages/react-table/src/filterTypes.ts)
+      // with custom `filterTypes` defined for this `useTable` instance
+      filterTypes: React.useMemo(
+        () => ({
+          hasLength: (
+            // eslint-disable-next-line @typescript-eslint/no-shadow
+            rows: Row[],
+            columnIds: string[],
+            filterValue: boolean
+          ) => {
+            return !filterValue
+              ? rows
+              : rows?.filter((row) => {
+                  return columnIds?.some((id) => row?.values?.[id]?.length);
+                });
+          },
+        }),
+        []
+      ),
+      // Expands the enumerated `sortTypes` for react-table
+      // (see https://github.com/tannerlinsley/react-table/blob/master/src/sortTypes.js)
+      // with custom `sortTypes` defined for this `useTable` instance
       sortTypes: React.useMemo(
         () => ({
-          caseInsensitive: (a: any, b: any, id: any) => {
-            let valueA = a.values[id];
-            let valueB = b.values[id];
+          boolean: (
+            a: { values: Record<string, unknown> },
+            b: { values: Record<string, unknown> },
+            id: string
+          ) => sort.booleanAsc(a.values[id], b.values[id]),
 
-            valueA = isString(valueA) ? valueA.toLowerCase() : valueA;
-            valueB = isString(valueB) ? valueB.toLowerCase() : valueB;
+          caseInsensitive: (
+            a: { values: Record<string, unknown> },
+            b: { values: Record<string, unknown> },
+            id: string
+          ) => sort.caseInsensitiveAsc(a.values[id], b.values[id]),
 
-            if (valueB > valueA) {
-              return -1;
-            }
-            if (valueB < valueA) {
-              return 1;
-            }
-            return 0;
+          dateStrings: (
+            a: { values: Record<string, string> },
+            b: { values: Record<string, string> },
+            id: string
+          ) => sort.dateStringsAsc(a.values[id], b.values[id]),
+
+          hasLength: (
+            a: { values: Record<string, unknown[]> },
+            b: { values: Record<string, unknown[]> },
+            id: string
+          ) => {
+            return sort.hasLength(a.values[id], b.values[id]);
           },
-          dateStrings: (a: any, b: any, id: any) =>
-            sort.dateStringsAsc(a.values[id], b.values[id]),
         }),
         []
       ),
     },
-    useFilters,
+    useGlobalFilter, // order of these hooks matters; here we first apply the global filter (if any); this could be reversed depending on where we want to target performance
+    useFilters, // react-table applies column-level filters after first applying the global filter (if any)
     useSortBy,
     usePagination,
     useRowSelect
   );
 
   const { sortBy, selectedRowIds } = tableState;
+
+  useEffect(() => {
+    if (tableFilters) {
+      const filtersToSet = tableFilters;
+      const global = filtersToSet.global;
+      setGlobalFilter(global);
+      delete filtersToSet.global;
+      const allFilters = Object.entries(filtersToSet).map(([id, value]) => ({
+        id,
+        value,
+      }));
+      !!allFilters.length && setAllFilters(allFilters);
+    }
+  }, [tableFilters]);
 
   // Listen for changes to filters if clientSideFilter is enabled
 
@@ -197,10 +253,6 @@ const DataTable = ({
     }
   }, [selectedDropdownFilter]);
 
-  useEffect(() => {
-    toggleAllRowsSelected(false);
-  }, [clearSelectionCount]);
-
   // This is used to listen for changes to sort. If there is a change
   // Then the sortHandler change is fired.
   useEffect(() => {
@@ -224,7 +276,7 @@ const DataTable = ({
   }, [isAllPagesSelected, toggleAllRowsSelected]);
 
   useEffect(() => {
-    setPageSize(CLIENT_SIDE_DEFAULT_PAGE_SIZE);
+    setPageSize(defaultPageSize || CLIENT_SIDE_DEFAULT_PAGE_SIZE);
   }, [setPageSize]);
 
   useDeepEffect(() => {
@@ -255,6 +307,15 @@ const DataTable = ({
     },
     [disableMultiRowSelect, onSelectSingleRow, toggleAllRowsSelected]
   );
+
+  const renderColumnHeader = (column: HeaderGroup) => {
+    return (
+      <div className="column-header">
+        {column.render("Header")}
+        {column.Filter && column.render("Filter")}
+      </div>
+    );
+  };
 
   const renderSelectedCount = (): JSX.Element => {
     return (
@@ -377,6 +438,7 @@ const DataTable = ({
             <thead className={"active-selection"}>
               <tr {...headerGroups[0].getHeaderGroupProps()}>
                 <th
+                  className={"active-selection__checkbox"}
                   {...headerGroups[0].headers[0].getHeaderProps(
                     headerGroups[0].headers[0].getSortByToggleProps()
                   )}
@@ -422,7 +484,7 @@ const DataTable = ({
                     className={column.id ? `${column.id}__header` : ""}
                     {...column.getHeaderProps(column.getSortByToggleProps())}
                   >
-                    <div>{column.render("Header")}</div>
+                    {renderColumnHeader(column)}
                   </th>
                 ))}
               </tr>
@@ -442,7 +504,9 @@ const DataTable = ({
                   {...row.getRowProps({
                     // @ts-ignore // TS complains about prop not existing
                     onClick: () => {
-                      disableMultiRowSelect && onSingleRowClick(row);
+                      onSingleRowClick &&
+                        disableMultiRowSelect &&
+                        onSingleRowClick(row);
                     },
                   })}
                 >
@@ -464,37 +528,33 @@ const DataTable = ({
           </tbody>
         </table>
       </div>
-      {isClientSidePagination && (
-        <div className={`${baseClass}__pagination`}>
-          <Button
-            variant="unstyled"
-            onClick={() => previousPage()}
-            disabled={!canPreviousPage}
-          >
-            {previousButton}
-          </Button>
-          <Button
-            variant="unstyled"
-            onClick={() => nextPage()}
-            disabled={!canNextPage}
-          >
-            {nextButton}
-          </Button>
-        </div>
-      )}
+      <div className={`${baseClass}__footer`}>
+        {renderFooter && (
+          <div className={`${baseClass}__footer-text`}>{renderFooter()}</div>
+        )}
+        {isClientSidePagination ? (
+          <div className={`${baseClass}__pagination`}>
+            <Button
+              variant="unstyled"
+              onClick={() => previousPage()}
+              disabled={!canPreviousPage}
+            >
+              {previousButton}
+            </Button>
+            <Button
+              variant="unstyled"
+              onClick={() => nextPage()}
+              disabled={!canNextPage}
+            >
+              {nextButton}
+            </Button>
+          </div>
+        ) : (
+          renderPagination && renderPagination()
+        )}
+      </div>
     </div>
   );
-};
-
-DataTable.propTypes = {
-  columns: PropTypes.arrayOf(PropTypes.object), // TODO: create proper interface for this
-  data: PropTypes.arrayOf(PropTypes.object), // TODO: create proper interface for this
-  isLoading: PropTypes.bool,
-  sortHeader: PropTypes.string,
-  sortDirection: PropTypes.string,
-  onSort: PropTypes.func,
-  onPrimarySelectActionClick: PropTypes.func,
-  secondarySelectActions: PropTypes.arrayOf(PropTypes.object),
 };
 
 export default DataTable;

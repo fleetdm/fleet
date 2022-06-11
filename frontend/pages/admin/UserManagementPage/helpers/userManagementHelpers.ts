@@ -20,7 +20,7 @@ type ICurrentUserData = Pick<
 interface ILocationParams {
   pathPrefix?: string;
   routeTemplate?: string;
-  routeParams?: { [key: string]: any };
+  routeParams?: { [key: string]: number };
 }
 
 /**

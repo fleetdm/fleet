@@ -15,25 +15,31 @@ import (
 
 func TestRedisFailingPolicySet(t *testing.T) {
 	for _, f := range []func(*testing.T, fleet.FailingPolicySet){
-		policytest.RunFailingPolicySetTests,
+		policytest.RunFailingBasic,
+		policytest.RunFailing1000hosts,
 	} {
 		t.Run(test.FunctionName(f), func(t *testing.T) {
 			t.Run("standalone", func(t *testing.T) {
-				store := setupRedis(t, false)
+				store := setupRedis(t, false, false)
 				f(t, store)
 			})
 
 			t.Run("cluster", func(t *testing.T) {
-				store := setupRedis(t, true)
+				store := setupRedis(t, true, true)
+				f(t, store)
+			})
+
+			t.Run("cluster-no-redir", func(t *testing.T) {
+				store := setupRedis(t, true, false)
 				f(t, store)
 			})
 		})
 	}
 }
 
-func setupRedis(t testing.TB, cluster bool) *redisFailingPolicySet {
-	pool := redistest.SetupRedis(t, cluster, true, true)
-	return NewFailing(pool)
+func setupRedis(t testing.TB, cluster, redir bool) *redisFailingPolicySet {
+	pool := redistest.SetupRedis(t, t.Name(), cluster, redir, true)
+	return NewFailingTest(t, pool)
 }
 
 func BenchmarkFailingPolicySetStandaloneP10H10(b *testing.B) {
@@ -45,7 +51,7 @@ func BenchmarkFailingPolicySetClusterP10H10(b *testing.B) {
 }
 
 func benchmarkFailingPolicySet(b *testing.B, policyCount, hostCount int, cluster bool) {
-	s := setupRedis(b, cluster)
+	s := setupRedis(b, cluster, false)
 	for i := 0; i < b.N; i++ {
 		runBenchmark(b, policyCount, hostCount, s)
 	}

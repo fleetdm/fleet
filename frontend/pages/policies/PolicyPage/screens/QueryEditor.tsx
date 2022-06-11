@@ -1,15 +1,14 @@
-import React, { useContext, useEffect } from "react";
+import React, { useContext, useEffect, useState } from "react";
 import { Link } from "react-router";
-import { useDispatch } from "react-redux";
 import { InjectedRouter } from "react-router/lib/Router";
 
 import globalPoliciesAPI from "services/entities/global_policies";
 import teamPoliciesAPI from "services/entities/team_policies";
 import { AppContext } from "context/app";
-import { PolicyContext } from "context/policy"; // @ts-ignore
-import { renderFlash } from "redux/nodes/notifications/actions";
-import PATHS from "router/paths"; // @ts-ignore
-import debounce from "utilities/debounce"; // @ts-ignore
+import { PolicyContext } from "context/policy";
+import { NotificationContext } from "context/notification";
+import PATHS from "router/paths";
+import debounce from "utilities/debounce";
 import deepDifference from "utilities/deep_difference";
 import { IPolicyFormData, IPolicy } from "interfaces/policy";
 
@@ -21,7 +20,7 @@ interface IQueryEditorProps {
   baseClass: string;
   policyIdForEdit: number | null;
   storedPolicy: IPolicy | undefined;
-  storedPolicyError: any;
+  storedPolicyError: Error | null;
   showOpenSchemaActionText: boolean;
   isStoredPolicyLoading: boolean;
   createPolicy: (formData: IPolicyFormData) => Promise<any>;
@@ -45,8 +44,8 @@ const QueryEditor = ({
   onOpenSchemaSidebar,
   renderLiveQueryWarning,
 }: IQueryEditorProps): JSX.Element | null => {
-  const dispatch = useDispatch();
   const { currentUser } = useContext(AppContext);
+  const { renderFlash } = useContext(NotificationContext);
 
   // Note: The PolicyContext values should always be used for any mutable policy data such as query name
   // The storedPolicy prop should only be used to access immutable metadata such as author id
@@ -61,40 +60,46 @@ const QueryEditor = ({
 
   useEffect(() => {
     if (storedPolicyError) {
-      dispatch(
-        renderFlash(
-          "error",
-          "Something went wrong retrieving your policy. Please try again."
-        )
+      renderFlash(
+        "error",
+        "Something went wrong retrieving your policy. Please try again."
       );
     }
   }, []);
+
+  const [isCreatingNewPolicy, setIsCreatingNewPolicy] = useState<boolean>(
+    false
+  );
+  const [backendValidators, setBackendValidators] = useState<{
+    [key: string]: string;
+  }>({});
 
   const onCreatePolicy = debounce(async (formData: IPolicyFormData) => {
     if (policyTeamId) {
       formData.team_id = policyTeamId;
     }
-
+    setIsCreatingNewPolicy(true);
     try {
       const policy: IPolicy = await createPolicy(formData).then(
         (data) => data.policy
       );
+      setIsCreatingNewPolicy(false);
       router.push(PATHS.EDIT_POLICY(policy));
-      dispatch(renderFlash("success", "Policy created!"));
+      renderFlash("success", "Policy created!");
     } catch (createError: any) {
       console.error(createError);
-      if (createError.errors[0].reason.includes("already exists")) {
-        dispatch(
-          renderFlash("error", "A policy with this name already exists.")
-        );
+      if (createError.data.errors[0].reason.includes("already exists")) {
+        setBackendValidators({
+          name: "A policy with this name already exists",
+        });
       } else {
-        dispatch(
-          renderFlash(
-            "error",
-            "Something went wrong creating your policy. Please try again."
-          )
+        renderFlash(
+          "error",
+          "Something went wrong creating your policy. Please try again."
         );
       }
+    } finally {
+      setIsCreatingNewPolicy(false);
     }
   });
 
@@ -125,19 +130,15 @@ const QueryEditor = ({
 
     try {
       await updateAPIRequest();
-      dispatch(renderFlash("success", "Policy updated!"));
+      renderFlash("success", "Policy updated!");
     } catch (updateError: any) {
       console.error(updateError);
-      if (updateError.errors[0].reason.includes("Duplicate")) {
-        dispatch(
-          renderFlash("error", "A policy with this name already exists.")
-        );
+      if (updateError.data.errors[0].reason.includes("Duplicate")) {
+        renderFlash("error", "A policy with this name already exists.");
       } else {
-        dispatch(
-          renderFlash(
-            "error",
-            "Something went wrong updating your policy. Please try again."
-          )
+        renderFlash(
+          "error",
+          "Something went wrong updating your policy. Please try again."
         );
       }
     }
@@ -168,9 +169,11 @@ const QueryEditor = ({
         storedPolicy={storedPolicy}
         policyIdForEdit={policyIdForEdit}
         isStoredPolicyLoading={isStoredPolicyLoading}
+        isCreatingNewPolicy={isCreatingNewPolicy}
         showOpenSchemaActionText={showOpenSchemaActionText}
         onOpenSchemaSidebar={onOpenSchemaSidebar}
         renderLiveQueryWarning={renderLiveQueryWarning}
+        backendValidators={backendValidators}
       />
     </div>
   );

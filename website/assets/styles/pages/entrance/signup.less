@@ -1,5 +1,82 @@
 #signup {
+  padding-top: 80px;
+  h1 {
+    font-size: 28px;
+    line-height: 38px;
+  }
+  a {
+    color: @core-vibrant-blue;
+  }
 
-  //…
+  [purpose='customer-portal-form'] {
+    label {
+      font-weight: 700;
+      margin-bottom: 4px;
+    }
+    .form-control {
+      height: 40px;
+      border-radius: 6px;
+    }
+    .card {
+      border-radius: 6px;
+    }
+    .card-body {
+      padding: 2em;
+    }
+  }
+
+  [purpose='submit-button'] {
+
+    margin-left: auto;
+    margin-right: auto;
+    border-radius: 4px;
+    padding-top: 10px;
+    padding-bottom: 10px;
+    display: flex;
+    span {
+      display: inline;
+      margin-left: auto;
+      margin-right: auto;
+      font-size: 16px;
+      line-height: 20px;
+      text-align: center;
+      font-weight: 400;
+    }
+
+  }
+
+  [purpose='features-list'] {
+    padding-left: 40px;
+    font-size: 14px;
+    word-wrap: overflow;
+    ul {
+     list-style-type: none;
+     padding-inline-start: 0px;
+    }
+    li {
+    padding-bottom: 12px;
+    color: @core-fleet-black-75;
+    white-space: nowrap;
+   }
+   img {
+    display: inline;
+    height: 16px;
+    margin-right: 8px;
+   }
+
+  }
+
+  @media (max-width: 768px) {
+    padding-top: 60px;
+  }
+
+  @media (max-width: 576px) {
+    padding-top: 40px;
+    [purpose='customer-portal-form'] {
+      .card-body {
+        padding: 1.5em 1em;
+      }
+    }
+  }
 
 }

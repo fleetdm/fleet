@@ -4,10 +4,13 @@
 import React from "react";
 import ReactTooltip from "react-tooltip";
 import formatDistanceToNow from "date-fns/formatDistanceToNow";
+import PATHS from "router/paths";
 
 import permissionsUtils from "utilities/permissions";
+import { IQuery } from "interfaces/query";
+import { IUser } from "interfaces/user";
+import { addGravatarUrlToResource } from "utilities/helpers";
 
-// @ts-ignore
 import Avatar from "components/Avatar";
 import Checkbox from "components/forms/fields/Checkbox";
 import LinkCell from "components/TableContainer/DataTable/LinkCell/LinkCell";
@@ -15,44 +18,57 @@ import HeaderCell from "components/TableContainer/DataTable/HeaderCell/HeaderCel
 import PlatformCell from "components/TableContainer/DataTable/PlatformCell";
 import TextCell from "components/TableContainer/DataTable/TextCell";
 import PillCell from "components/TableContainer/DataTable/PillCell";
-
-import PATHS from "router/paths";
-
-import { IQuery } from "interfaces/query";
-import { IUser } from "interfaces/user";
-import { addGravatarUrlToResource } from "fleet/helpers";
+import TooltipWrapper from "components/TooltipWrapper";
 
 interface IQueryRow {
   id: string;
   original: IQuery;
+}
+
+interface IGetToggleAllRowsSelectedProps {
+  checked: boolean;
+  indeterminate: boolean;
+  title: string;
+  onChange: () => void;
+  style: { cursor: string };
 }
 interface IHeaderProps {
   column: {
     title: string;
     isSortedDesc: boolean;
   };
-  getToggleAllRowsSelectedProps: () => any; // TODO: do better with types
+  getToggleAllRowsSelectedProps: () => IGetToggleAllRowsSelectedProps;
   toggleAllRowsSelected: () => void;
   toggleRowSelected: (id: string, value?: boolean) => void;
   rows: IQueryRow[];
   selectedFlatRows: IQueryRow[];
 }
-
-interface ICellProps {
-  cell: {
-    value: any;
-  };
+interface IRowProps {
   row: {
     original: IQuery;
-    getToggleRowSelectedProps: () => any; // TODO: do better with types
+    getToggleRowSelectedProps: () => IGetToggleAllRowsSelectedProps;
     toggleRowSelected: () => void;
   };
   toggleRowSelected: (id: string, value: boolean) => void;
 }
 
+interface ICellProps extends IRowProps {
+  cell: {
+    value: string;
+  };
+}
+
+interface IPlatformCellProps extends IRowProps {
+  cell: {
+    value: string[];
+  };
+}
+
 interface IDataColumn {
   Header: ((props: IHeaderProps) => JSX.Element) | string;
-  Cell: (props: ICellProps) => JSX.Element;
+  Cell:
+    | ((props: ICellProps) => JSX.Element)
+    | ((props: IPlatformCellProps) => JSX.Element);
   id?: string;
   title?: string;
   accessor?: string;
@@ -81,6 +97,7 @@ const generateTableHeaders = (currentUser: IUser): IDataColumn[] => {
       accessor: "name",
       Cell: (cellProps: ICellProps): JSX.Element => (
         <LinkCell
+          classes="w400"
           value={cellProps.cell.value}
           path={PATHS.EDIT_QUERY(cellProps.row.original)}
         />
@@ -92,18 +109,9 @@ const generateTableHeaders = (currentUser: IUser): IDataColumn[] => {
       Header: "Platform",
       disableSortBy: true,
       accessor: "platforms",
-      Cell: (cellProps: ICellProps): JSX.Element => {
+      Cell: (cellProps: IPlatformCellProps): JSX.Element => {
         return <PlatformCell value={cellProps.cell.value} />;
       },
-    },
-    {
-      title: "Performance impact",
-      Header: "Performance impact",
-      disableSortBy: true,
-      accessor: "performance",
-      Cell: (cellProps) => (
-        <PillCell value={[cellProps.cell.value, cellProps.row.original.id]} />
-      ),
     },
     {
       title: "Author",
@@ -123,11 +131,34 @@ const generateTableHeaders = (currentUser: IUser): IDataColumn[] => {
               user={addGravatarUrlToResource({ email: author_email })}
               size="xsmall"
             />
-            {author}
+            <span className="text-cell author-name">{author}</span>
           </span>
         );
       },
       sortType: "caseInsensitive",
+    },
+    {
+      title: "Performance impact",
+      Header: () => {
+        return (
+          <div>
+            <TooltipWrapper
+              tipContent={`
+                This is the average <br />
+                performance impact <br />
+                across all hosts where this <br />
+                query was scheduled.`}
+            >
+              Performance impact
+            </TooltipWrapper>
+          </div>
+        );
+      },
+      disableSortBy: true,
+      accessor: "performance",
+      Cell: (cellProps: ICellProps) => (
+        <PillCell value={[cellProps.cell.value, cellProps.row.original.id]} />
+      ),
     },
     {
       title: "Last modified",
@@ -234,22 +265,6 @@ const generateTableHeaders = (currentUser: IUser): IDataColumn[] => {
         );
       },
       disableHidden: true,
-    });
-    tableHeaders.splice(2, 0, {
-      title: "Observer can run",
-      Header: (cellProps) => (
-        <HeaderCell
-          value={cellProps.column.title}
-          isSortedDesc={cellProps.column.isSortedDesc}
-        />
-      ),
-      accessor: "observer_can_run",
-      Cell: (cellProps: ICellProps): JSX.Element => (
-        <TextCell
-          value={cellProps.row.original.observer_can_run ? "Yes" : "No"}
-        />
-      ),
-      sortType: "basic",
     });
   }
   return tableHeaders;

@@ -1,4 +1,7 @@
 .platform-cell {
+  &__wrapper {
+    display: inline-flex;
+  }
   &__icon {
     height: 12px;
     width: auto;

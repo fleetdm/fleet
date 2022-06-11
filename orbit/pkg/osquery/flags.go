@@ -24,7 +24,7 @@ func FleetFlags(fleetURL *url.URL) []string {
 		"--distributed_tls_max_attempts=10",
 		"--distributed_tls_read_endpoint=" + path.Join(prefix, "/api/v1/osquery/distributed/read"),
 		"--distributed_tls_write_endpoint=" + path.Join(prefix, "/api/v1/osquery/distributed/write"),
-		"--logger_plugin=tls",
+		"--logger_plugin=tls,filesystem",
 		"--logger_tls_endpoint=" + path.Join(prefix, "/api/v1/osquery/log"),
 		"--disable_carver=false",
 		// carver_disable_function is separate from disable_carver as it controls the use of file

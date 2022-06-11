@@ -3,11 +3,13 @@ import React, { useCallback, useContext, useState } from "react";
 
 import { AppContext } from "context/app";
 import { IQuery } from "interfaces/query";
-import { ITableSearchData } from "components/TableContainer/TableContainer";
+import { ITableQueryData } from "components/TableContainer/TableContainer";
 
 import Button from "components/buttons/Button";
 import TableContainer from "components/TableContainer";
 import generateTableHeaders from "./QueriesTableConfig";
+
+import OpenNewTabIcon from "../../../../../../assets/images/open-new-tab-12x12@2x.png";
 
 const baseClass = "queries-list-wrapper";
 const noQueriesClass = "no-queries";
@@ -18,7 +20,7 @@ interface IQueryTableData extends IQuery {
 interface IQueriesListWrapperProps {
   queriesList: IQueryTableData[] | null;
   isLoading: boolean;
-  onRemoveQueryClick: any;
+  onRemoveQueryClick: (selectedTableQueryIds: number[]) => void;
   onCreateQueryClick: () => void;
   searchable: boolean;
   customControl?: () => JSX.Element;
@@ -39,7 +41,7 @@ const QueriesListWrapper = ({
   const { currentUser } = useContext(AppContext);
   const [searchString, setSearchString] = useState<string>("");
 
-  const handleSearchChange = ({ searchQuery }: ITableSearchData) => {
+  const handleSearchChange = ({ searchQuery }: ITableQueryData) => {
     setSearchString(searchQuery);
   };
 
@@ -48,7 +50,15 @@ const QueriesListWrapper = ({
       <div className={`${noQueriesClass}`}>
         <div className={`${noQueriesClass}__inner`}>
           <div className={`${noQueriesClass}__inner-text`}>
-            {!searchString ? (
+            {searchString ? (
+              <>
+                <h2>No queries match the current search criteria.</h2>
+                <p>
+                  Expecting to see queries? Try again in a few seconds as the
+                  system catches up.
+                </p>
+              </>
+            ) : (
               <>
                 <h2>You don&apos;t have any queries.</h2>
                 <p>
@@ -57,11 +67,19 @@ const QueriesListWrapper = ({
                 {!isOnlyObserver && (
                   <>
                     <p>
-                      Create a new query, or go to GitHub to{" "}
-                      <a href="https://fleetdm.com/docs/using-fleet/standard-query-library">
-                        import Fleet’s standard query library
+                      Create a new query, or{" "}
+                      <a
+                        target="_blank"
+                        rel="noreferrer noopener"
+                        href="https://fleetdm.com/docs/using-fleet/standard-query-library"
+                      >
+                        import Fleet’s standard query library{" "}
+                        <img
+                          src={OpenNewTabIcon}
+                          alt="open new tab"
+                          id="new-tab-icon"
+                        />
                       </a>
-                      .
                     </p>
                     <Button
                       variant="brand"
@@ -72,14 +90,6 @@ const QueriesListWrapper = ({
                     </Button>
                   </>
                 )}
-              </>
-            ) : (
-              <>
-                <h2>No queries match the current search criteria.</h2>
-                <p>
-                  Expecting to see queries? Try again in a few seconds as the
-                  system catches up.
-                </p>
               </>
             )}
           </div>

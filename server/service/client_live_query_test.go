@@ -20,7 +20,7 @@ func TestLiveQueryWithContext(t *testing.T) {
 	upgrader := websocket.Upgrader{}
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
-		case "/api/v1/fleet/queries/run_by_names":
+		case "/api/latest/fleet/queries/run_by_names":
 			resp := createDistributedQueryCampaignResponse{
 				Campaign: &fleet.DistributedQueryCampaign{
 					UpdateCreateTimestamps: fleet.UpdateCreateTimestamps{
@@ -42,7 +42,7 @@ func TestLiveQueryWithContext(t *testing.T) {
 			}
 			err := json.NewEncoder(w).Encode(resp)
 			assert.NoError(t, err)
-		case "/api/v1/fleet/results/websocket":
+		case "/api/latest/fleet/results/websocket":
 			ws, _ := upgrader.Upgrade(w, r, nil)
 			defer ws.Close()
 
@@ -88,12 +88,14 @@ func TestLiveQueryWithContext(t *testing.T) {
 	baseURL, err := url.Parse(ts.URL)
 	require.NoError(t, err)
 	client := &Client{
-		baseURL:            baseURL,
-		urlPrefix:          "",
-		token:              "1234",
-		http:               fleethttp.NewClient(),
-		insecureSkipVerify: false,
-		writer:             nil,
+		baseClient: &baseClient{
+			baseURL:            baseURL,
+			http:               fleethttp.NewClient(),
+			insecureSkipVerify: false,
+			urlPrefix:          "",
+		},
+		token:  "1234",
+		writer: nil,
 	}
 	ctx, cancelFunc := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancelFunc()

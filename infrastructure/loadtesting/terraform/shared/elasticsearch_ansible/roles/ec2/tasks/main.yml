@@ -1,0 +1,6 @@
+---
+- amazon.aws.ec2_metadata_facts:
+- amazon.aws.ec2_tag_info:
+    resource: "{{ ansible_ec2_instance_id }}"
+    region: "{{ ansible_ec2_placement_region }}"
+  register: instance_tags

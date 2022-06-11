@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"net/url"
 	"os"
 	"strconv"
 
@@ -23,7 +24,6 @@ const (
 	jsonFlagName                = "json"
 	withQueriesFlagName         = "with-queries"
 	expiredFlagName             = "expired"
-	stdoutFlagName              = "stdout"
 	includeServerConfigFlagName = "include-server-config"
 )
 
@@ -141,6 +141,40 @@ func printHostDetail(c *cli.Context, host *service.HostDetailResponse) error {
 	}
 
 	return printSpec(c, spec)
+}
+
+type enrichedAppConfigPresenter fleet.EnrichedAppConfig
+
+func (eacp enrichedAppConfigPresenter) MarshalJSON() ([]byte, error) {
+	type UpdateIntervalConfigPresenter struct {
+		OSQueryDetail string `json:"osquery_detail"`
+		OSQueryPolicy string `json:"osquery_policy"`
+		*fleet.UpdateIntervalConfig
+	}
+
+	type VulnerabilitiesConfigPresenter struct {
+		Periodicity               string `json:"periodicity"`
+		RecentVulnerabilityMaxAge string `json:"recent_vulnerability_max_age"`
+		*fleet.VulnerabilitiesConfig
+	}
+
+	return json.Marshal(&struct {
+		fleet.EnrichedAppConfig
+		UpdateInterval  UpdateIntervalConfigPresenter  `json:"update_interval,omitempty"`
+		Vulnerabilities VulnerabilitiesConfigPresenter `json:"vulnerabilities,omitempty"`
+	}{
+		EnrichedAppConfig: fleet.EnrichedAppConfig(eacp),
+		UpdateInterval: UpdateIntervalConfigPresenter{
+			eacp.UpdateInterval.OSQueryDetail.String(),
+			eacp.UpdateInterval.OSQueryPolicy.String(),
+			eacp.UpdateInterval,
+		},
+		Vulnerabilities: VulnerabilitiesConfigPresenter{
+			eacp.Vulnerabilities.Periodicity.String(),
+			eacp.Vulnerabilities.RecentVulnerabilityMaxAge.String(),
+			eacp.Vulnerabilities,
+		},
+	})
 }
 
 func printConfig(c *cli.Context, config interface{}) error {
@@ -309,7 +343,6 @@ func getQueriesCommand() *cli.Command {
 			}
 
 			return nil
-
 		},
 	}
 }
@@ -427,7 +460,6 @@ func getPacksCommand() *cli.Command {
 			}
 
 			return printQueries()
-
 		},
 	}
 }
@@ -497,7 +529,6 @@ func getLabelsCommand() *cli.Command {
 
 			printLabel(c, label)
 			return nil
-
 		},
 	}
 }
@@ -562,7 +593,7 @@ func getAppConfigCommand() *cli.Command {
 			}
 
 			if c.Bool(includeServerConfigFlagName) {
-				err = printConfig(c, config)
+				err = printConfig(c, enrichedAppConfigPresenter(*config))
 			} else {
 				err = printConfig(c, config.AppConfig)
 			}
@@ -601,11 +632,14 @@ func getHostsCommand() *cli.Command {
 			identifier := c.Args().First()
 
 			if identifier == "" {
-				query := `additional_info_filters=*`
-				if c.Uint("team") > 0 {
-					query += fmt.Sprintf("&team_id=%d", c.Uint("team"))
+				query := url.Values{}
+				query.Set("additional_info_filters", "*")
+				if teamID := c.Uint("team"); teamID > 0 {
+					query.Set("team_id", strconv.FormatUint(uint64(teamID), 10))
 				}
-				hosts, err := client.GetHosts(query)
+				queryStr := query.Encode()
+
+				hosts, err := client.GetHosts(queryStr)
 				if err != nil {
 					return fmt.Errorf("could not list hosts: %w", err)
 				}
@@ -718,10 +752,7 @@ func getCarveCommand() *cli.Command {
 		Name:  "carve",
 		Usage: "Retrieve details for a carve by ID",
 		Flags: []cli.Flag{
-			&cli.BoolFlag{
-				Name:  stdoutFlagName,
-				Usage: "Print carve contents to stdout",
-			},
+			stdoutFlag(),
 			configFlag(),
 			contextFlag(),
 			outfileFlag(),
@@ -867,6 +898,10 @@ func getTeamsCommand() *cli.Command {
 			configFlag(),
 			contextFlag(),
 			debugFlag(),
+			&cli.StringFlag{
+				Name:  nameFlagName,
+				Usage: "filter by name",
+			},
 		},
 		Action: func(c *cli.Context) error {
 			client, err := clientFromCLI(c)
@@ -874,7 +909,13 @@ func getTeamsCommand() *cli.Command {
 				return err
 			}
 
-			teams, err := client.ListTeams()
+			query := url.Values{}
+			if name := c.String(nameFlagName); name != "" {
+				query.Set("query", name)
+			}
+			queryStr := query.Encode()
+
+			teams, err := client.ListTeams(queryStr)
 			if err != nil {
 				return fmt.Errorf("could not list teams: %w", err)
 			}

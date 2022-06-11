@@ -4,6 +4,7 @@ import { noop, pick } from "lodash";
 
 import FormField from "components/forms/FormField";
 import { IFormFieldProps } from "components/forms/FormField/FormField";
+import TooltipWrapper from "components/TooltipWrapper";
 
 const baseClass = "fleet-checkbox";
 
@@ -13,9 +14,12 @@ export interface ICheckboxProps {
   disabled?: boolean;
   name?: string;
   onChange?: any; // TODO: meant to be an event; figure out type for this
+  onBlur?: any;
   value?: boolean;
   wrapperClassName?: string;
   indeterminate?: boolean;
+  parseTarget?: boolean;
+  tooltip?: string;
 }
 
 const Checkbox = (props: ICheckboxProps) => {
@@ -25,12 +29,20 @@ const Checkbox = (props: ICheckboxProps) => {
     disabled = false,
     name,
     onChange = noop,
+    onBlur = noop,
     value,
     wrapperClassName,
     indeterminate,
+    parseTarget,
+    tooltip,
   } = props;
 
   const handleChange = () => {
+    if (parseTarget) {
+      // Returns both name and value
+      return onChange({ name, value: !value });
+    }
+
     return onChange(!value);
   };
 
@@ -56,13 +68,23 @@ const Checkbox = (props: ICheckboxProps) => {
           id={name}
           name={name}
           onChange={handleChange}
+          onBlur={onBlur}
           type="checkbox"
           ref={(element) => {
             element && indeterminate && (element.indeterminate = indeterminate);
           }}
         />
         <span className={checkBoxTickClass} />
-        <span className={`${checkBoxClass}__label`}>{children}</span>
+
+        {tooltip ? (
+          <span className={`${checkBoxClass}__label-tooltip`}>
+            <TooltipWrapper tipContent={tooltip}>
+              {children as string}
+            </TooltipWrapper>
+          </span>
+        ) : (
+          <span className={`${checkBoxClass}__label`}>{children} </span>
+        )}
       </label>
     </FormField>
   );

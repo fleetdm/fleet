@@ -1,4 +1,7 @@
 .query-page {
+  .body-wrap {
+    min-width: 0;
+  }
   &__results {
     display: flex;
     flex-grow: 1;
@@ -124,6 +127,9 @@
         img {
           max-width: 12px;
         }
+        .plus-icon {
+          padding-right: 3px;
+        }
         .selector-name {
           margin-left: 8px;
           font-size: $x-small;
@@ -153,9 +159,14 @@
   &__targets-total-count {
     margin-left: 16px;
     font-size: $x-small;
+    display: flex;
 
     span {
       font-weight: 700;
+    }
+
+    .icon-tooltip {
+      margin-left: $pad-small;
     }
   }
   &__page-loading {

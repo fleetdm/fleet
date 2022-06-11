@@ -4,32 +4,60 @@
 import React from "react";
 import { find } from "lodash";
 
-import { performanceIndicator } from "fleet/helpers";
+import {
+  performanceIndicator,
+  secondsToDhms,
+  abbreviateTimeUnits,
+} from "utilities/helpers";
+import { IScheduledQuery } from "interfaces/scheduled_query";
+import { IDropdownOption } from "interfaces/dropdownOption";
+
 import Checkbox from "components/forms/fields/Checkbox";
 import DropdownCell from "components/TableContainer/DataTable/DropdownCell";
 import HeaderCell from "components/TableContainer/DataTable/HeaderCell/HeaderCell";
 import PillCell from "components/TableContainer/DataTable/PillCell";
 import TextCell from "components/TableContainer/DataTable/TextCell";
-import { IScheduledQuery } from "interfaces/scheduled_query";
-import { IDropdownOption } from "interfaces/dropdownOption";
+import TooltipWrapper from "components/TooltipWrapper";
 
+interface IGetToggleAllRowsSelectedProps {
+  checked: boolean;
+  indeterminate: boolean;
+  title: string;
+  onChange: () => void;
+  style: { cursor: string };
+}
 interface IHeaderProps {
   column: {
     title: string;
     isSortedDesc: boolean;
   };
-  getToggleAllRowsSelectedProps: () => any; // TODO: do better with types
+  getToggleAllRowsSelectedProps: () => IGetToggleAllRowsSelectedProps;
   toggleAllRowsSelected: () => void;
 }
 
-interface ICellProps {
-  cell: {
-    value: any;
-  };
+interface IRowProps {
   row: {
     original: IScheduledQuery;
-    getToggleRowSelectedProps: () => any; // TODO: do better with types
+    getToggleRowSelectedProps: () => IGetToggleAllRowsSelectedProps;
     toggleRowSelected: () => void;
+  };
+}
+
+interface ICellProps extends IRowProps {
+  cell: {
+    value: string | number | boolean;
+  };
+}
+
+interface IPillCellProps extends IRowProps {
+  cell: {
+    value: [string, number];
+  };
+}
+
+interface IDropdownCellProps extends IRowProps {
+  cell: {
+    value: IDropdownOption[];
   };
 }
 
@@ -38,13 +66,16 @@ interface IDataColumn {
   title?: string;
   Header: ((props: IHeaderProps) => JSX.Element) | string;
   accessor?: string;
-  Cell: (props: ICellProps) => JSX.Element;
+  Cell:
+    | ((props: ICellProps) => JSX.Element)
+    | ((props: IPillCellProps) => JSX.Element)
+    | ((props: IDropdownCellProps) => JSX.Element);
   disableHidden?: boolean;
   disableSortBy?: boolean;
 }
 
 interface IPackQueriesTableData extends IScheduledQuery {
-  loggingTypeString: string;
+  logging_string: string;
 }
 
 // NOTE: cellProps come from react-table
@@ -75,7 +106,7 @@ const generateTableHeaders = (
       disableHidden: true,
     },
     {
-      title: "Query name",
+      title: "Query",
       Header: (cellProps) => (
         <HeaderCell
           value={cellProps.column.title}
@@ -83,14 +114,21 @@ const generateTableHeaders = (
         />
       ),
       accessor: "name",
-      Cell: (cellProps) => <TextCell value={cellProps.cell.value} />,
+      Cell: (cellProps: ICellProps) => (
+        <TextCell value={cellProps.cell.value} />
+      ),
     },
     {
       title: "Frequency",
       Header: "Frequency",
       disableSortBy: false,
       accessor: "interval",
-      Cell: (cellProps) => <TextCell value={cellProps.cell.value} />,
+      Cell: (cellProps: ICellProps) => (
+        <TextCell
+          formatter={(val) => abbreviateTimeUnits(secondsToDhms(val))}
+          value={cellProps.cell.value}
+        />
+      ),
     },
     {
       title: "Platform",
@@ -100,29 +138,43 @@ const generateTableHeaders = (
           isSortedDesc={cellProps.column.isSortedDesc}
         />
       ),
-      accessor: "platformTypeString",
-      Cell: (cellProps) => <TextCell value={cellProps.cell.value} />,
+      accessor: "platform_string",
+      Cell: (cellProps: ICellProps) => (
+        <TextCell value={cellProps.cell.value} />
+      ),
     },
     {
       title: "Logging",
       Header: "Logging",
       disableSortBy: false,
-      accessor: "loggingTypeString",
-      Cell: (cellProps) => <TextCell value={cellProps.cell.value} />,
+      accessor: "logging_string",
+      Cell: (cellProps: ICellProps) => (
+        <TextCell value={cellProps.cell.value} />
+      ),
     },
     {
       title: "Performance impact",
-      Header: "Performance impact",
+      Header: () => {
+        return (
+          <div>
+            <TooltipWrapper tipContent="This is the average performance<br />impact across all hosts where<br />this query was scheduled.">
+              Performance impact
+            </TooltipWrapper>
+          </div>
+        );
+      },
       disableSortBy: true,
       accessor: "performance",
-      Cell: (cellProps) => <PillCell value={cellProps.cell.value} />,
+      Cell: (cellProps: IPillCellProps) => (
+        <PillCell value={cellProps.cell.value} />
+      ),
     },
     {
       title: "Actions",
       Header: "",
       disableSortBy: true,
       accessor: "actions",
-      Cell: (cellProps) => (
+      Cell: (cellProps: IDropdownCellProps) => (
         <DropdownCell
           options={cellProps.cell.value}
           onChange={(value: string) =>
@@ -224,11 +276,8 @@ const enhancePackQueriesData = (
       query_id: query.query_id,
       removed: query.removed,
       snapshot: query.snapshot,
-      loggingTypeString: generateLoggingTypeString(
-        query.snapshot,
-        query.removed
-      ),
-      platformTypeString: generatePlatformTypeString(query.platform),
+      logging_string: generateLoggingTypeString(query.snapshot, query.removed),
+      platform_string: generatePlatformTypeString(query.platform),
       shard: query.shard,
       version: query.version,
       versionString: generateVersionString(query.version),

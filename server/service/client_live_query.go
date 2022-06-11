@@ -71,28 +71,11 @@ func (c *Client) LiveQueryWithContext(ctx context.Context, query string, labels 
 		QuerySQL: query,
 		Selected: distributedQueryCampaignTargetsByNames{Labels: labels, Hosts: hosts},
 	}
-	response, err := c.AuthenticatedDo("POST", "/api/v1/fleet/queries/run_by_names", "", req)
-	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "POST /api/v1/fleet/queries/run_by_names")
-	}
-	defer response.Body.Close()
-
-	if response.StatusCode != http.StatusOK {
-		return nil, ctxerr.Errorf(
-			ctx,
-			"create live query received status %d %s",
-			response.StatusCode,
-			extractServerErrorText(response.Body),
-		)
-	}
-
+	verb, path := "POST", "/api/latest/fleet/queries/run_by_names"
 	var responseBody createDistributedQueryCampaignResponse
-	err = json.NewDecoder(response.Body).Decode(&responseBody)
+	err := c.authenticatedRequest(req, verb, path, &responseBody)
 	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "decode create live query response")
-	}
-	if responseBody.Err != nil {
-		return nil, ctxerr.Errorf(ctx, "create live query: %s", responseBody.Err)
+		return nil, ctxerr.Errorf(ctx, "create live query: %v", err)
 	}
 
 	// Copy default dialer but skip cert verification if set.
@@ -107,7 +90,7 @@ func (c *Client) LiveQueryWithContext(ctx context.Context, query string, labels 
 	if flag.Lookup("test.v") != nil {
 		wssURL.Scheme = "ws"
 	}
-	wssURL.Path = c.urlPrefix + "/api/v1/fleet/results/websocket"
+	wssURL.Path = c.urlPrefix + "/api/latest/fleet/results/websocket"
 	conn, _, err := dialer.Dial(wssURL.String(), nil)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "upgrade live query result websocket")

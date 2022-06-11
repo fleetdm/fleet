@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"runtime"
 
+	"github.com/Masterminds/semver"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/constant"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/update"
 	"github.com/fleetdm/fleet/v4/pkg/file"
@@ -28,11 +29,11 @@ func BuildPkg(opt Options) (string, error) {
 	}
 	defer os.RemoveAll(tmpDir)
 
-	filesystemRoot := filepath.Join(tmpDir, "root")
-	if err := secure.MkdirAll(filesystemRoot, constant.DefaultDirMode); err != nil {
+	rootDir := filepath.Join(tmpDir, "root")
+	if err := secure.MkdirAll(rootDir, constant.DefaultDirMode); err != nil {
 		return "", fmt.Errorf("create root dir: %w", err)
 	}
-	orbitRoot := filepath.Join(filesystemRoot, "var", "lib", "orbit")
+	orbitRoot := filepath.Join(rootDir, "opt", "orbit")
 	if err := secure.MkdirAll(orbitRoot, constant.DefaultDirMode); err != nil {
 		return "", fmt.Errorf("create orbit dir: %w", err)
 	}
@@ -40,18 +41,41 @@ func BuildPkg(opt Options) (string, error) {
 	// Initialize autoupdate metadata
 
 	updateOpt := update.DefaultOptions
-	updateOpt.Platform = "macos"
+
 	updateOpt.RootDirectory = orbitRoot
-	updateOpt.OrbitChannel = opt.OrbitChannel
-	updateOpt.OsquerydChannel = opt.OsquerydChannel
 	updateOpt.ServerURL = opt.UpdateURL
+	updateOpt.Targets = update.DarwinTargets
+
+	if opt.Desktop {
+		updateOpt.Targets["desktop"] = update.DesktopMacOSTarget
+		// Override default channel with the provided value.
+		updateOpt.Targets.SetTargetChannel("desktop", opt.DesktopChannel)
+	}
+
+	// Override default channels with the provided values.
+	updateOpt.Targets.SetTargetChannel("orbit", opt.OrbitChannel)
+	updateOpt.Targets.SetTargetChannel("osqueryd", opt.OsquerydChannel)
+
 	if opt.UpdateRoots != "" {
 		updateOpt.RootKeys = opt.UpdateRoots
 	}
 
-	if err := InitializeUpdates(updateOpt); err != nil {
+	updatesData, err := InitializeUpdates(updateOpt)
+	if err != nil {
 		return "", fmt.Errorf("initialize updates: %w", err)
 	}
+	log.Debug().Stringer("data", updatesData).Msg("updates initialized")
+	if opt.Version == "" {
+		// We set the package version to orbit's latest version.
+		opt.Version = updatesData.OrbitVersion
+	}
+
+	if orbitSemVer, err := semver.NewVersion(updatesData.OrbitVersion); err == nil {
+		if orbitSemVer.LessThan(semver.MustParse("0.0.11")) {
+			opt.LegacyVarLibSymlink = true
+		}
+	}
+	// If err != nil we assume non-legacy Orbit.
 
 	// Write files
 
@@ -75,7 +99,7 @@ func BuildPkg(opt Options) (string, error) {
 	}
 
 	if opt.StartService {
-		if err := writeLaunchd(opt, filesystemRoot); err != nil {
+		if err := writeLaunchd(opt, rootDir); err != nil {
 			return "", fmt.Errorf("write launchd: %w", err)
 		}
 	}
@@ -84,15 +108,6 @@ func BuildPkg(opt Options) (string, error) {
 			return "", fmt.Errorf("write fleet certificate: %w", err)
 		}
 	}
-
-	// TODO gate behind a flag and allow copying a local orbit
-	// if err := file.Copy(
-	// 	"./orbit",
-	// 	filepath.Join(orbitRoot, "bin", "orbit", "macos", "current", "orbit"),
-	// 	0755,
-	// ); err != nil {
-	// 	return errors.Wrap(err, "write orbit")
-	// }
 
 	// Build package
 
@@ -110,7 +125,7 @@ func BuildPkg(opt Options) (string, error) {
 	}
 
 	if opt.Notarize {
-		if err := notarizePkg(generatedPath); err != nil {
+		if err := NotarizeStaple(generatedPath, "com.fleetdm.orbit"); err != nil {
 			return "", err
 		}
 	}
@@ -155,7 +170,7 @@ func writeScripts(opt Options, rootPath string) error {
 		return fmt.Errorf("execute template: %w", err)
 	}
 
-	if err := ioutil.WriteFile(path, contents.Bytes(), 0744); err != nil {
+	if err := ioutil.WriteFile(path, contents.Bytes(), 0o744); err != nil {
 		return fmt.Errorf("write file: %w", err)
 	}
 
@@ -174,7 +189,7 @@ func writeLaunchd(opt Options, rootPath string) error {
 		return fmt.Errorf("execute template: %w", err)
 	}
 
-	if err := ioutil.WriteFile(path, contents.Bytes(), 0644); err != nil {
+	if err := ioutil.WriteFile(path, contents.Bytes(), 0o644); err != nil {
 		return fmt.Errorf("write file: %w", err)
 	}
 
@@ -204,7 +219,7 @@ func writeCertificate(opt Options, orbitRoot string) error {
 	// Fleet TLS certificate
 	dstPath := filepath.Join(orbitRoot, "fleet.pem")
 
-	if err := file.Copy(opt.FleetCertificate, dstPath, 0644); err != nil {
+	if err := file.Copy(opt.FleetCertificate, dstPath, 0o644); err != nil {
 		return fmt.Errorf("write orbit: %w", err)
 	}
 
@@ -294,7 +309,7 @@ func xarBom(opt Options, rootPath string) error {
 
 func cpio(srcPath, dstPath string) error {
 	// This is the compression routine that is expected for pkg files.
-	dst, err := secure.OpenFile(dstPath, os.O_RDWR|os.O_CREATE, 0755)
+	dst, err := secure.OpenFile(dstPath, os.O_RDWR|os.O_CREATE, 0o755)
 	if err != nil {
 		return fmt.Errorf("open dst: %w", err)
 	}

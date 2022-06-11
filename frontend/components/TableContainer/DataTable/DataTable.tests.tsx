@@ -1,8 +1,6 @@
 import React from "react";
 import { render, screen } from "@testing-library/react";
 import { noop } from "lodash";
-// ignore TS error for now until these are rewritten in ts.
-// @ts-ignore
 import DataTable from "./DataTable";
 
 const DEFAULT_PAGE_SIZE = 100;
@@ -24,6 +22,8 @@ describe("DataTable - component", () => {
       <DataTable
         columns={columns}
         data={data}
+        sortHeader={"name"}
+        sortDirection={"desc"}
         isLoading={false}
         onSort={noop}
         showMarkAllPages={false}
@@ -31,6 +31,7 @@ describe("DataTable - component", () => {
         resultsTitle="users"
         defaultPageSize={DEFAULT_PAGE_SIZE}
         disableMultiRowSelect={false}
+        onPrimarySelectActionClick={noop}
       />
     );
 
@@ -73,6 +74,7 @@ describe("DataTable - component", () => {
         resultsTitle="users"
         defaultPageSize={DEFAULT_PAGE_SIZE}
         disableMultiRowSelect={false}
+        onPrimarySelectActionClick={noop}
       />
     );
 
@@ -99,6 +101,7 @@ describe("DataTable - component", () => {
         resultsTitle="users"
         defaultPageSize={DEFAULT_PAGE_SIZE}
         disableMultiRowSelect={false}
+        onPrimarySelectActionClick={noop}
       />
     );
 
@@ -133,6 +136,7 @@ describe("DataTable - component", () => {
         resultsTitle="users"
         defaultPageSize={DEFAULT_PAGE_SIZE}
         disableMultiRowSelect={false}
+        onPrimarySelectActionClick={noop}
       />
     );
 
@@ -156,6 +160,7 @@ describe("DataTable - component", () => {
         resultsTitle="users"
         defaultPageSize={DEFAULT_PAGE_SIZE}
         disableMultiRowSelect={false}
+        onPrimarySelectActionClick={noop}
       />
     );
 

@@ -20,21 +20,11 @@ export default PropTypes.shape({
   stats: scheduledQueryStatsInterface,
 });
 export interface IQueryFormData {
-  description?: string | number | boolean | any[] | undefined;
-  name?: string | number | boolean | any[] | undefined;
-  query?: string | number | boolean | any[] | undefined;
-  observer_can_run?: string | number | boolean | any[] | undefined;
+  description?: string | number | boolean | undefined;
+  name?: string | number | boolean | undefined;
+  query?: string | number | boolean | undefined;
+  observer_can_run?: string | number | boolean | undefined;
 }
-
-export type IQueryPlatform =
-  | ""
-  | "darwin"
-  | "windows"
-  | "linux"
-  | "darwin,windows,linux"
-  | "darwin,windows"
-  | "darwin,linux"
-  | "windows,linux";
 
 export interface IQuery {
   created_at: string;

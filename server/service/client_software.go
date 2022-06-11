@@ -8,7 +8,7 @@ import (
 
 // ListSoftware retrieves the software running across hosts.
 func (c *Client) ListSoftware(teamID *uint) ([]fleet.Software, error) {
-	verb, path := "GET", "/api/v1/fleet/software"
+	verb, path := "GET", "/api/latest/fleet/software"
 	query := ""
 	if teamID != nil {
 		query = fmt.Sprintf("team_id=%d", *teamID)

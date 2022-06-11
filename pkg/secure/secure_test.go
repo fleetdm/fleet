@@ -3,7 +3,7 @@ package secure
 import (
 	"fmt"
 	"os"
-	"path"
+	"path/filepath"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -11,7 +11,7 @@ import (
 
 func TestMkdirAll(t *testing.T) {
 	tmpDir := t.TempDir()
-	basePath := path.Join(tmpDir, "test")
+	basePath := filepath.Join(tmpDir, "test")
 	require.NoError(t, os.MkdirAll(basePath, 0700))
 	err := MkdirAll(basePath, 0677)
 	require.Error(t, err)
@@ -19,20 +19,20 @@ func TestMkdirAll(t *testing.T) {
 		"Path %s already exists with mode 20000000700 instead of the expected %o", basePath, 0677^os.ModeDir)
 	require.Equal(t, expectedErr, err.Error())
 
-	err = MkdirAll(path.Join(basePath, "test2", "test3"), 0677)
+	err = MkdirAll(filepath.Join(basePath, "test2", "test3"), 0677)
 	require.Error(t, err)
 	require.Equal(t, expectedErr, err.Error())
 
-	err = MkdirAll(path.Join(basePath, "test2", "test3"), 0700)
+	err = MkdirAll(filepath.Join(basePath, "test2", "test3"), 0700)
 	require.NoError(t, err)
 }
 
 func TestOpenFile(t *testing.T) {
 	tmpDir := t.TempDir()
-	basePath := path.Join(tmpDir, "test")
+	basePath := filepath.Join(tmpDir, "test")
 	require.NoError(t, os.MkdirAll(basePath, 0755))
 
-	filePath := path.Join(basePath, "file1")
+	filePath := filepath.Join(basePath, "file1")
 	_, err := OpenFile(filePath, os.O_CREATE|os.O_WRONLY, 0677)
 	require.Error(t, err)
 	expectedErr := fmt.Sprintf(

@@ -14,21 +14,37 @@ export default PropTypes.shape({
 });
 
 /**
+ * The id, name, and optional description for a team entity
+ */
+export interface ITeamSummary {
+  id: number;
+  name: string;
+  description?: string;
+  host_count?: number;
+}
+
+/**
  * The shape of a team entity
  */
-export interface ITeam {
-  id: number;
+export interface ITeam extends ITeamSummary {
   uuid?: string;
   display_text?: string;
   count?: number;
   created_at?: string;
-  name: string;
-  description: string;
-  agent_options?: any;
-  user_count: number;
-  host_count: number;
+  agent_options?: {
+    [key: string]: any;
+  };
+  webhook_settings?: {
+    [key: string]: any;
+  };
+  user_count?: number;
+  host_count?: number;
   secrets?: IEnrollSecret[];
   role?: string; // role value is included when the team is in the context of a user
+}
+
+export interface ILoadTeamResponse {
+  team: ITeam;
 }
 
 /**
@@ -46,7 +62,7 @@ export interface INewMembersBody {
   users: INewMember[];
 }
 export interface IRemoveMembersBody {
-  users: { id: number }[];
+  users: { id?: number }[];
 }
 interface INewTeamSecret {
   team_id: number;

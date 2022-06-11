@@ -4,11 +4,15 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"net/http"
 	"strconv"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
+	"github.com/fleetdm/fleet/v4/server/contexts/host"
+	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/getsentry/sentry-go"
 	kithttp "github.com/go-kit/kit/transport/http"
 	"github.com/go-sql-driver/mysql"
 )
@@ -61,6 +65,16 @@ type existsErrorInterface interface {
 	IsExists() bool
 }
 
+func encodeErrorAndTrySentry(sentryEnabled bool) func(ctx context.Context, err error, w http.ResponseWriter) {
+	if !sentryEnabled {
+		return encodeError
+	}
+	return func(ctx context.Context, err error, w http.ResponseWriter) {
+		encodeError(ctx, err, w)
+		sendToSentry(ctx, err)
+	}
+}
+
 // encode error and status header to the client
 func encodeError(ctx context.Context, err error, w http.ResponseWriter) {
 	ctxerr.Handle(ctx, err)
@@ -76,7 +90,11 @@ func encodeError(ctx context.Context, err error, w http.ResponseWriter) {
 			Message: "Validation Failed",
 			Errors:  e.Invalid(),
 		}
-		w.WriteHeader(http.StatusUnprocessableEntity)
+		if statusErr, ok := e.(statuser); ok {
+			w.WriteHeader(statusErr.Status())
+		} else {
+			w.WriteHeader(http.StatusUnprocessableEntity)
+		}
 		enc.Encode(ve)
 	case permissionErrorInterface:
 		pe := jsonError{
@@ -105,6 +123,10 @@ func encodeError(ctx context.Context, err error, w http.ResponseWriter) {
 			w.WriteHeader(http.StatusUnauthorized)
 			errMap["node_invalid"] = true
 		} else {
+			// TODO: osqueryError is not always the result of an internal error on
+			// our side, it is also used to represent a client error (invalid data,
+			// e.g. malformed json, carve too large, etc., so 4xx), are we returning
+			// a 500 because of some osquery-specific requirement?
 			w.WriteHeader(http.StatusInternalServerError)
 		}
 
@@ -181,4 +203,22 @@ func encodeError(ctx context.Context, err error, w http.ResponseWriter) {
 		}
 		enc.Encode(je)
 	}
+}
+
+func sendToSentry(ctx context.Context, err error) {
+	v, haveUser := viewer.FromContext(ctx)
+	h, haveHost := host.FromContext(ctx)
+	localHub := sentry.CurrentHub().Clone()
+	if haveUser {
+		localHub.ConfigureScope(func(scope *sentry.Scope) {
+			scope.SetTag("email", v.User.Email)
+			scope.SetTag("user_id", fmt.Sprint(v.User.ID))
+		})
+	} else if haveHost {
+		localHub.ConfigureScope(func(scope *sentry.Scope) {
+			scope.SetTag("hostname", h.Hostname)
+			scope.SetTag("host_id", fmt.Sprint(h.ID))
+		})
+	}
+	localHub.CaptureException(err)
 }

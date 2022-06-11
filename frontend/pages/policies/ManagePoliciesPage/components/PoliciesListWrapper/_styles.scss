@@ -1,4 +1,4 @@
-.policy-list-wrapper {
+.policies-list-wrapper {
   border-collapse: collapse;
 
   a {
@@ -7,50 +7,23 @@
     text-decoration: none;
   }
 
-  &__wrapper {
-    border: 1px solid $ui-fleet-blue-15;
-    border-radius: 4px;
-    overflow: hidden;
-    margin-top: $pad-medium;
-  }
-
   thead {
-    background-color: $ui-off-white;
-    border-bottom: 1px solid $ui-fleet-blue-15;
-
     th {
-      font-size: $x-small;
-      font-weight: $bold;
-      text-align: left;
-      padding: $pad-medium $pad-large;
-
-      &:nth-child(2) {
-        width: calc(49% - 20px);
-      }
-
-      &:nth-child(3) {
+      &.passing_host_count__header,
+      &.failing_host_count__header,
+      &.webhook__header {
         width: 20%;
-        max-width: 150px;
+        @media (min-width: $medium-width) {
+          width: 15%;
+        }
       }
-
-      &:nth-last-child(2) {
-        border-right: 0;
-      }
-
-      &:last-child {
-        width: 150px;
-        border-left: 0;
+      &.passing_host_count__header,
+      &.failing_host_count__header {
+        .status-header-text {
+          margin-left: 10px;
+        }
       }
     }
-  }
-
-  &__th-pack-name {
-    padding-left: 0;
-    text-align: left;
-  }
-
-  &__select-all {
-    margin-bottom: 0;
   }
 
   &__empty-table {
@@ -58,14 +31,10 @@
     font-size: $x-small;
     color: $core-fleet-black;
   }
+}
 
-  &__policy-count {
-    color: $core-fleet-black;
-    font-size: $x-small;
-    font-weight: $bold;
-    margin: 0 12px 0 0;
-    display: inline-block;
-  }
+.has-not-run {
+  width: 20px;
 }
 
 .no-policies {

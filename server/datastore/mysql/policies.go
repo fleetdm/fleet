@@ -2,6 +2,7 @@ package mysql
 
 import (
 	"context"
+	"database/sql"
 	"fmt"
 	"sort"
 	"strings"
@@ -67,6 +68,9 @@ func policyDB(ctx context.Context, q sqlx.QueryerContext, id uint, teamID *uint)
 		WHERE p.id=? AND %s`, teamWhere),
 		args...)
 	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, ctxerr.Wrap(ctx, notFound("Policy").WithID(id))
+		}
 		return nil, ctxerr.Wrap(ctx, err, "getting policy")
 	}
 	return &policy, nil
@@ -74,15 +78,14 @@ func policyDB(ctx context.Context, q sqlx.QueryerContext, id uint, teamID *uint)
 
 // SavePolicy updates some fields of the given policy on the datastore.
 //
-// Currently SavePolicy does not allow updating the team or platform of an existing policy,
-// such functionality will be implemented in #3220.
+// Currently SavePolicy does not allow updating the team of an existing policy.
 func (ds *Datastore) SavePolicy(ctx context.Context, p *fleet.Policy) error {
 	sql := `
 		UPDATE policies
-			SET name = ?, query = ?, description = ?, resolution = ?
+			SET name = ?, query = ?, description = ?, resolution = ?, platforms = ?
 			WHERE id = ?
 	`
-	result, err := ds.writer.ExecContext(ctx, sql, p.Name, p.Query, p.Description, p.Resolution, p.ID)
+	result, err := ds.writer.ExecContext(ctx, sql, p.Name, p.Query, p.Description, p.Resolution, p.Platform, p.ID)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "updating policy")
 	}
@@ -93,7 +96,8 @@ func (ds *Datastore) SavePolicy(ctx context.Context, p *fleet.Policy) error {
 	if rows == 0 {
 		return ctxerr.Wrap(ctx, notFound("Policy").WithID(p.ID))
 	}
-	return nil
+
+	return cleanupPolicyMembershipOnPolicyUpdate(ctx, ds.writer, p.ID, p.Platform)
 }
 
 // FlippingPoliciesForHost fetches previous policy membership results and returns:
@@ -130,10 +134,8 @@ func (ds *Datastore) FlippingPoliciesForHost(
 		return orderedIDs[i] < orderedIDs[j]
 	})
 	// By using `passes IS NOT NULL` we filter out those policies that never executed properly.
-	selectQuery := fmt.Sprintf(
-		`SELECT policy_id, passes FROM policy_membership
-		WHERE host_id = ? AND policy_id IN (?) AND passes IS NOT NULL`,
-	)
+	selectQuery := `SELECT policy_id, passes FROM policy_membership
+		WHERE host_id = ? AND policy_id IN (?) AND passes IS NOT NULL`
 	var fetchedPolicyResults []struct {
 		ID     uint `db:"policy_id"`
 		Passes bool `db:"passes"`
@@ -198,6 +200,13 @@ func (ds *Datastore) RecordPolicyQueryExecutions(ctx context.Context, host *flee
 		bindvars = append(bindvars, "(?,?,?,?)")
 		vals = append(vals, updated, policyID, host.ID, matches)
 	}
+
+	// NOTE: the insert of policy membership that follows must be kept in sync
+	// with the async implementation in AsyncBatchInsertPolicyMembership, and the
+	// update of the policy_updated_at timestamp in sync with the
+	// AsyncBatchUpdatePolicyTimestamp method (that is, their processing must be
+	// semantically equivalent, even though here it processes a single host and
+	// in async mode it processes a batch of hosts).
 
 	query := fmt.Sprintf(
 		`INSERT INTO policy_membership (updated_at, policy_id, host_id, passes)
@@ -276,6 +285,44 @@ func listPoliciesDB(ctx context.Context, q sqlx.QueryerContext, teamID *uint) ([
 		return nil, ctxerr.Wrap(ctx, err, "listing policies")
 	}
 	return policies, nil
+}
+
+func (ds *Datastore) PoliciesByID(ctx context.Context, ids []uint) (map[uint]*fleet.Policy, error) {
+	sql := `SELECT p.*,
+		    COALESCE(u.name, '<deleted>') AS author_name,
+			COALESCE(u.email, '') AS author_email,
+       		(select count(*) from policy_membership where policy_id=p.id and passes=true) as passing_host_count,
+       		(select count(*) from policy_membership where policy_id=p.id and passes=false) as failing_host_count
+		FROM policies p
+		LEFT JOIN users u ON p.author_id = u.id
+		WHERE p.id IN (?)`
+	query, args, err := sqlx.In(sql, ids)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "building query to get policies by ID")
+	}
+
+	var policies []*fleet.Policy
+	err = sqlx.SelectContext(
+		ctx,
+		ds.reader,
+		&policies,
+		query, args...,
+	)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "getting policies by ID")
+	}
+
+	policiesByID := make(map[uint]*fleet.Policy, len(ids))
+	for _, p := range policies {
+		policiesByID[p.ID] = p
+	}
+	for _, id := range ids {
+		if policiesByID[id] == nil {
+			return nil, ctxerr.Wrap(ctx, notFound("Policy").WithID(id))
+		}
+	}
+
+	return policiesByID, nil
 }
 
 func (ds *Datastore) DeleteGlobalPolicies(ctx context.Context, ids []uint) ([]uint, error) {
@@ -386,13 +433,12 @@ func (ds *Datastore) TeamPolicy(ctx context.Context, teamID uint, policyID uint)
 }
 
 // ApplyPolicySpecs applies the given policy specs, creating new policies and updating the ones that
-// already exist (a policy is identified by its name and the team it belongs to).
+// already exist (a policy is identified by its name).
 //
 // NOTE: Similar to ApplyQueries, ApplyPolicySpecs will update the author_id of the policies
 // that are updated.
 //
-// Currently ApplyPolicySpecs does not allow updating the team or platform of an existing policy,
-// such functionality will be implemented in #3220.
+// Currently ApplyPolicySpecs does not allow updating the team of an existing policy.
 func (ds *Datastore) ApplyPolicySpecs(ctx context.Context, authorID uint, specs []*fleet.PolicySpec) error {
 	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
 		sql := `
@@ -410,24 +456,181 @@ func (ds *Datastore) ApplyPolicySpecs(ctx context.Context, authorID uint, specs 
 			query = VALUES(query),
 			description = VALUES(description),
 			author_id = VALUES(author_id),
-			resolution = VALUES(resolution)
+			resolution = VALUES(resolution),
+			platforms = VALUES(platforms)
 		`
 		for _, spec := range specs {
-			if _, err := tx.ExecContext(ctx,
+			res, err := tx.ExecContext(ctx,
 				sql, spec.Name, spec.Query, spec.Description, authorID, spec.Resolution, spec.Team, spec.Platform,
-			); err != nil {
+			)
+			if err != nil {
 				return ctxerr.Wrap(ctx, err, "exec ApplyPolicySpecs insert")
+			}
+
+			if insertOnDuplicateDidUpdate(res) {
+				// when the upsert results in an UPDATE that *did* change some values,
+				// it returns the updated ID as last inserted id.
+				if lastID, _ := res.LastInsertId(); lastID > 0 {
+					if err := cleanupPolicyMembershipOnPolicyUpdate(ctx, tx, uint(lastID), spec.Platform); err != nil {
+						return err
+					}
+				}
 			}
 		}
 		return nil
 	})
 }
 
-func amountPoliciesDB(db sqlx.Queryer) (int, error) {
+func amountPoliciesDB(ctx context.Context, db sqlx.QueryerContext) (int, error) {
 	var amount int
-	err := sqlx.Get(db, &amount, `SELECT count(*) FROM policies`)
+	err := sqlx.GetContext(ctx, db, &amount, `SELECT count(*) FROM policies`)
 	if err != nil {
 		return 0, err
 	}
 	return amount, nil
+}
+
+// AsyncBatchInsertPolicyMembership inserts into the policy_membership table
+// the batch of policy membership results.
+func (ds *Datastore) AsyncBatchInsertPolicyMembership(ctx context.Context, batch []fleet.PolicyMembershipResult) error {
+	// NOTE: this is tested via the server/service/async package tests.
+
+	// INSERT IGNORE, to avoid failing if policy / host does not exist (as this
+	// runs asynchronously, they could get deleted in between the data being
+	// received and being upserted).
+	sql := `INSERT IGNORE INTO policy_membership (policy_id, host_id, passes) VALUES `
+	sql += strings.Repeat(`(?, ?, ?),`, len(batch))
+	sql = strings.TrimSuffix(sql, ",")
+	sql += ` ON DUPLICATE KEY UPDATE updated_at = VALUES(updated_at), passes = VALUES(passes)`
+
+	vals := make([]interface{}, 0, len(batch)*3)
+	for _, tup := range batch {
+		vals = append(vals, tup.PolicyID, tup.HostID, tup.Passes)
+	}
+	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		_, err := tx.ExecContext(ctx, sql, vals...)
+		return ctxerr.Wrap(ctx, err, "insert into policy_membership")
+	})
+}
+
+// AsyncBatchUpdatePolicyTimestamp updates the hosts' policy_updated_at timestamp
+// for the batch of host ids provided.
+func (ds *Datastore) AsyncBatchUpdatePolicyTimestamp(ctx context.Context, ids []uint, ts time.Time) error {
+	// NOTE: this is tested via the server/service/async package tests.
+
+	sql := `
+	    UPDATE
+	      hosts
+	    SET
+	      policy_updated_at = ?
+	    WHERE
+	      id IN (?)`
+	query, args, err := sqlx.In(sql, ts, ids)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "building query to update hosts.policy_updated_at")
+	}
+	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		_, err := tx.ExecContext(ctx, query, args...)
+		return ctxerr.Wrap(ctx, err, "update hosts.policy_updated_at")
+	})
+}
+
+func cleanupPolicyMembershipOnTeamChange(ctx context.Context, tx sqlx.ExtContext, hostIDs []uint) error {
+	// hosts can only be in one team, so if there's a policy that has a team id and a result from one of our hosts
+	// it can only be from the previous team they are being transferred from
+	query, args, err := sqlx.In(`DELETE FROM policy_membership
+					WHERE policy_id IN (SELECT id FROM policies WHERE team_id IS NOT NULL) AND host_id IN (?)`, hostIDs)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "clean old policy memberships sqlx in")
+	}
+	if _, err := tx.ExecContext(ctx, query, args...); err != nil {
+		return ctxerr.Wrap(ctx, err, "exec clean old policy memberships")
+	}
+	return nil
+}
+
+func cleanupPolicyMembershipOnPolicyUpdate(ctx context.Context, db sqlx.ExecerContext, policyID uint, platforms string) error {
+	if platforms == "" {
+		// all platforms allowed, nothing to clean up
+		return nil
+	}
+
+	delStmt := `
+    DELETE
+      pm
+    FROM
+      policy_membership pm
+    LEFT JOIN
+      hosts h
+    ON
+      pm.host_id = h.id
+    WHERE
+      pm.policy_id = ? AND
+      ( h.id IS NULL OR
+        FIND_IN_SET(h.platform, ?) = 0 )`
+
+	var expandedPlatforms []string
+	splitPlatforms := strings.Split(platforms, ",")
+	for _, platform := range splitPlatforms {
+		expandedPlatforms = append(expandedPlatforms, fleet.ExpandPlatform(strings.TrimSpace(platform))...)
+	}
+	_, err := db.ExecContext(ctx, delStmt, policyID, strings.Join(expandedPlatforms, ","))
+	return ctxerr.Wrap(ctx, err, "cleanup policy membership")
+}
+
+// CleanupPolicyMembership deletes the host's membership from policies that
+// have been updated recently if those hosts don't meet the policy's criteria
+// anymore (e.g. if the policy's platforms has been updated from "any" - the
+// empty string - to "windows", this would delete that policy's membership rows
+// for any non-windows host).
+func (ds *Datastore) CleanupPolicyMembership(ctx context.Context, now time.Time) error {
+	const (
+		recentlyUpdatedPoliciesInterval = 24 * time.Hour
+
+		updatedPoliciesStmt = `
+			SELECT
+				p.id,
+				p.platforms
+			FROM
+				policies p
+			WHERE
+				p.updated_at >= DATE_SUB(?, INTERVAL ? SECOND) AND
+				p.created_at < p.updated_at`  // ignore newly created
+
+		deleteMembershipStmt = `
+			DELETE
+				pm
+			FROM
+				policy_membership pm
+			INNER JOIN
+				hosts h
+			ON
+				pm.host_id = h.id
+			WHERE
+				pm.policy_id = ? AND
+				FIND_IN_SET(h.platform, ?) = 0`
+	)
+
+	var pols []*fleet.Policy
+	if err := sqlx.SelectContext(ctx, ds.reader, &pols, updatedPoliciesStmt, now, int(recentlyUpdatedPoliciesInterval.Seconds())); err != nil {
+		return ctxerr.Wrap(ctx, err, "select recently updated policies")
+	}
+
+	for _, pol := range pols {
+		if pol.Platform == "" {
+			continue
+		}
+
+		var expandedPlatforms []string
+		splitPlatforms := strings.Split(pol.Platform, ",")
+		for _, platform := range splitPlatforms {
+			expandedPlatforms = append(expandedPlatforms, fleet.ExpandPlatform(strings.TrimSpace(platform))...)
+		}
+
+		if _, err := ds.writer.ExecContext(ctx, deleteMembershipStmt, pol.ID, strings.Join(expandedPlatforms, ",")); err != nil {
+			return ctxerr.Wrapf(ctx, err, "delete outdated hosts membership for policy: %d; platforms: %v", pol.ID, expandedPlatforms)
+		}
+	}
+
+	return nil
 }

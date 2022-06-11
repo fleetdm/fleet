@@ -6,30 +6,16 @@
   }
 
   h6 {
-    font-family: Nunito;
+    font-family: Nunito Sans;
     font-size: 24px;
     line-height: 36px;
   }
 
-
   .btn {
-    font-family: @main-font;
-    font-weight: 700;
     font-size: 18px;
-    line-height: 28px;
-    border-radius: 8px;
   }
 
-  .btn-primary {
-    background-color: #ff5c83;
-    border-color: #ff5c83;
-    &:hover {
-      background-color: darken(#ff5c83, 10%);
-      border-color: darken(#ff5c83, 10%);
-    }
-  }
-
-  .hero-banner {
+  [purpose='hero-banner'] {
     width: 100%;
     height: 100%;
     background: linear-gradient(173.74deg, #1F1D42 4.94%, #00FFF0 87.78%);
@@ -42,19 +28,35 @@
     }
   }
 
-  .hero-clouds {
+  [purpose='hero-clouds'] {
     background-image: url('/images/clouds-1600x320@2x.png');
     background-position: bottom 150px center;
     background-size: 1600px auto;
     background-repeat: repeat-x;
-
   }
 
-  .log-destination-grid {
-    max-width: 736px;;
+
+  [purpose='top-try-it-out-btn'] {
+    max-width: 220px;
+    line-height: 24px;
+    padding-top: 16px;
+    padding-bottom: 16px;
   }
 
-  .log-destination {
+  [purpose='animated-arrow-button-red'] {
+    .btn-animated-arrow-red();
+  }
+  [purpose='animated-arrow-button-white'] {
+    .btn-animated-arrow-white();
+    padding-top: 16px;
+    padding-bottom: 16px;
+  }
+
+  [purpose='log-destination-grid'] {
+    max-width: 736px;
+  }
+
+  [purpose='log-destination'] {
     height: 80px;
     justify-content: center;
     align-items: center;
@@ -69,127 +71,83 @@
     }
   }
 
-  .tweets {
+  [purpose='tweets'] {
     max-width: 1200px;
-  }
-
-  .tweet {
-    flex: 0 1 380px;
-    text-align: left;
-    background: #FFFFFF;
-    padding: 40px;
-    margin-bottom: 30px;
-    border: 1px solid #E2E4EA;
-    box-sizing: border-box;
-    box-shadow: 0px 7px 3px -5px rgba(25, 33, 71, 0.1);
-    border-radius: 16px;
-    &[purpose='top-row'] {
-      min-height: 390px;
-    }
-    &[purpose='middle-row'] {
-      min-height: 290px;
-    }
-    &[purpose='bottom-row'] {
-      min-height: 340px;
+    padding-bottom: 50px;
+    box-sizing: content-box;
+    [purpose='tweet-card'] {
+      text-align: left;
+      background: #FFFFFF;
+      padding: 40px;
+      margin-bottom: 30px;
+      border: 1px solid #E2E4EA;
+      box-sizing: border-box;
+      box-shadow: 0px 7px 3px 0px rgba(25, 33, 71, 0.1);
+      border-radius: 16px;
     }
   }
 
-  .avatar-frame {
-    width: 48px;
-    height: 48px;
-    position: relative;
-    justify-content: center;
-    align-content: center;
-    overflow: hidden;
-    background-color: black;
-    border-radius: 50%;
-    &:hover {
-      cursor: pointer;
-    }
-    img {
-      display: inline;
-      width: auto;
-      height: 100%;
-    }
-  }
 
-  .logos {
-    max-width: 360px;
-    img {
-      width: auto;
-      height: 35px;
-    }
-  }
 
-  // TODO: dedupe this into a mixin and use from here and in pricing.less, or use existing transition mixin
-  [purpose='animated-arrow-button'] {
-    padding-right: 40px;
-    cursor: pointer;
-    position: relative;
-    width: auto;
-    color: #192147;
-    font-weight: bold;
-    user-select: none;
-    transition: 0.2s ease-in-out;
-    -o-transition: 0.2s ease-in-out;
-    -ms-transition: 0.2s ease-in-out;
-    -moz-transition: 0.2s ease-in-out;
-    -webkit-transition: 0.2s ease-in-out;
-  }
-
-  [purpose='animated-arrow-button']:before {
-    content: url('/images/arrow-right-16x16@2x.png');
-    transform: scale(0.5);
-    position: absolute;
-    top: 12px;
-    left: 80%; // <--- here
-    transition: 0.2s ease-in-out;
-    -o-transition: 0.2s ease-in-out;
-    -ms-transition: 0.2s ease-in-out;
-    -moz-transition: 0.2s ease-in-out;
-    -webkit-transition: 0.2s ease-in-out;
-    /*   opacity: 0; */
-  }
-
-  [purpose='animated-arrow-button']:hover:before {
-    left: 82%; // <--- here
-    transition: 0.2s ease-in-out;
-    -o-transition: 0.2s ease-in-out;
-    -ms-transition: 0.2s ease-in-out;
-    -moz-transition: 0.2s ease-in-out;
-    -webkit-transition: 0.2s ease-in-out;
-    /*   opacity:1; */
-  }
-
-  @media (max-width: 1200px) {
-    .tweets {
-      max-width: 390px;
-      &[purpose='top-row'], [purpose='middle-row'], [purpose='bottom-row'] {
-        min-height: auto;
+  @media (min-width: 1200px) {
+    [purpose='tweets'] {
+      padding-left: 0px;
+      padding-right: 0px;
+      [purpose='tweet-card'] {
+        margin-left: 15px;
+        margin-right: 15px;
+        flex: 0 1 326px;
       }
     }
   }
 
-  @media (min-width: 768px) {
-    .log-destination-grid {
-      max-width: 976px;
-    }
-    .log-destination {
-      flex: 0 0 228px;
-    }
-    .logos {
-      max-width: 720px;
+  @media (max-width: 1200px) {
+    [purpose='tweets'] {
+      padding-left: 72px;
+      padding-right: 72px;
+      [purpose='tweet-card'] {
+        flex: 1 1 360px;
+        margin-bottom: 15px;
+        margin-left: 8px;
+        margin-right: 8px;
+      }
     }
   }
 
+  @media (max-width: 990px) {
+    [purpose='tweets'] {
+      [purpose='tweet-card'] {
+        flex: 1 1 295px;
+      }
+    }
+  }
+
+
+  @media (min-width: 768px) {
+    [purpose='log-destination-grid'] {
+      max-width: 976px;
+    }
+    [purpose='log-destination'] {
+      flex: 0 0 228px;
+    }
+
+  }
+
   @media (max-width: 768px) {
-    .hero-clouds {
+    [purpose='tweets'] {
+      padding-left: 52px;
+      padding-right: 52px;
+      [purpose='tweet-card'] {
+        flex: 1 1 316px;
+      }
+    }
+    [purpose='hero-clouds'] {
       background: linear-gradient(0deg, rgba(255, 255, 255, 1) 0%, rgba(255, 255, 255, 1) 23%, rgba(255, 255, 255, 0) 48%, rgba(255, 255, 255, 0) 100%);
     }
   }
 
   @media (min-width: 600px) and (max-width: (767px)) {
-    .log-destination {
+    [purpose='log-destination'] {
       flex: 0 0 280px;
       p {
         display: flex;
@@ -198,7 +156,7 @@
   }
 
   @media (max-width: 600px) {
-    .log-destination {
+    [purpose='log-destination'] {
       flex-basis: 160px;
       p {
         display: none;
@@ -215,10 +173,20 @@
       font-size: 18px;
       line-height: 24px;
     }
+    [purpose='top-try-it-out-btn'] {
+      max-width: 100%;
+    }
+    [purpose='tweets'] {
+      padding-left: 16px;
+      padding-right: 16px;
+      [purpose='tweet-card'] {
+        margin-bottom: 30px;
+      }
+    }
   }
 
   @media (max-width: 355px) {
-    .log-destination {
+    [purpose='log-destination'] {
       flex-basis: 80px;
     }
   }

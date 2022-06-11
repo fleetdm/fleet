@@ -1,15 +1,54 @@
 .members {
   &__page-description {
     font-size: $x-small;
-    color: $core-fleet-black;
-    @include sticky-settings-description;
+    padding-top: 40px;
     padding-bottom: $pad-medium;
+    margin: 0;
 
     a {
       color: $core-vibrant-blue;
       font-size: $x-small;
       font-weight: $bold;
       text-decoration: none;
+    }
+  }
+
+  .data-table-block {
+    .data-table__table {
+      thead {
+        .name__header {
+          width: $col-md;
+        }
+
+        .role__header {
+          width: $col-md;
+          border-right: none;
+        }
+
+        .actions__header {
+          width: auto;
+        }
+
+        @media (min-width: $break-1400) {
+          .role__header {
+            border-right: 1px solid $ui-fleet-blue-15;
+          }
+        }
+      }
+
+      tbody {
+        .name__cell {
+          max-width: $col-md;
+        }
+
+        .role__cell {
+          max-width: $col-md;
+        }
+
+        .actions__cell {
+          width: auto;
+        }
+      }
     }
   }
 }

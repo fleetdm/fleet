@@ -1,21 +1,21 @@
 /* This component is used for creating and editing both global and team scheduled queries */
 
-import React, { useState, useCallback, useEffect } from "react";
-// @ts-ignore
-import Fleet from "fleet";
+import React, { useState, useCallback, useContext, useEffect } from "react";
 import { pull } from "lodash";
-// @ts-ignore
-import FleetIcon from "components/icons/FleetIcon";
+import { AppContext } from "context/app";
+
+import { IQuery } from "interfaces/query";
+import { IEditScheduledQuery } from "interfaces/scheduled_query";
+
 import Modal from "components/Modal";
 import Button from "components/buttons/Button";
+import RevealButton from "components/buttons/RevealButton";
 import InfoBanner from "components/InfoBanner/InfoBanner";
 // @ts-ignore
 import Dropdown from "components/forms/fields/Dropdown";
 // @ts-ignore
 import InputField from "components/forms/fields/InputField";
-import { IQuery } from "interfaces/query";
-import { IGlobalScheduledQuery } from "interfaces/global_scheduled_query";
-import { ITeamScheduledQuery } from "interfaces/team_scheduled_query";
+import Spinner from "components/Spinner";
 import {
   FREQUENCY_DROPDOWN_OPTIONS,
   PLATFORM_DROPDOWN_OPTIONS,
@@ -41,22 +41,23 @@ interface IFormData {
 
 interface IScheduleEditorModalProps {
   allQueries: IQuery[];
-  onCancel: () => void;
+  onClose: () => void;
   onScheduleSubmit: (
     formData: IFormData,
-    editQuery: IGlobalScheduledQuery | ITeamScheduledQuery | undefined
+    editQuery: IEditScheduledQuery | undefined
   ) => void;
-  editQuery?: IGlobalScheduledQuery | ITeamScheduledQuery;
+  editQuery?: IEditScheduledQuery;
   teamId?: number;
   togglePreviewDataModal: () => void;
   showPreviewDataModal: boolean;
+  isLoading: boolean;
 }
 interface INoQueryOption {
   id: number;
   name: string;
 }
 
-const generateLoggingType = (query: IGlobalScheduledQuery) => {
+const generateLoggingType = (query: IEditScheduledQuery) => {
   if (query.snapshot) {
     return "snapshot";
   }
@@ -86,37 +87,24 @@ const generateLoggingDestination = (loggingConfig: string): string => {
 };
 
 const ScheduleEditorModal = ({
-  onCancel,
+  onClose,
   onScheduleSubmit,
   allQueries,
   editQuery,
   teamId,
   togglePreviewDataModal,
   showPreviewDataModal,
+  isLoading,
 }: IScheduleEditorModalProps): JSX.Element => {
-  const [loggingConfig, setLoggingConfig] = useState("");
-  const [isLoading, setIsLoading] = useState(true);
-  const [isLoadingError, setIsLoadingError] = useState(false);
+  const { config } = useContext(AppContext);
 
-  useEffect((): void => {
-    const getConfigDestination = async (): Promise<void> => {
-      try {
-        const responseConfig = await Fleet.config.loadAll();
-        setIsLoading(false);
-        setLoggingConfig(responseConfig.logging.result.plugin);
-      } catch (err) {
-        setIsLoadingError(true);
-        setIsLoading(false);
-      }
-    };
-    getConfigDestination();
-  }, []);
+  const loggingConfig = config?.logging.result.plugin || "unknown";
 
   const [showAdvancedOptions, setShowAdvancedOptions] = useState<boolean>(
     false
   );
   const [selectedQuery, setSelectedQuery] = useState<
-    IGlobalScheduledQuery | INoQueryOption
+    IEditScheduledQuery | INoQueryOption
   >();
   const [selectedFrequency, setSelectedFrequency] = useState<number>(
     editQuery ? editQuery.interval : 86400
@@ -205,7 +193,7 @@ const ScheduleEditorModal = ({
     [setSelectedShard]
   );
 
-  const onFormSubmit = () => {
+  const onFormSubmit = (): void => {
     const query_id = () => {
       if (editQuery) {
         return editQuery.query_id;
@@ -235,135 +223,147 @@ const ScheduleEditorModal = ({
     );
   };
 
+  useEffect(() => {
+    const listener = (event: KeyboardEvent) => {
+      if (event.code === "Enter" || event.code === "NumpadEnter") {
+        event.preventDefault();
+        onFormSubmit();
+      }
+    };
+    document.addEventListener("keydown", listener);
+    return () => {
+      document.removeEventListener("keydown", listener);
+    };
+  }, [onFormSubmit]);
+
   if (showPreviewDataModal) {
     return <PreviewDataModal onCancel={togglePreviewDataModal} />;
   }
 
   return (
     <Modal
-      title={editQuery?.name || "Schedule editor"}
-      onExit={onCancel}
+      title={editQuery?.query_name || "Schedule editor"}
+      onExit={onClose}
       className={baseClass}
     >
-      <form className={`${baseClass}__form`}>
-        {!editQuery && (
-          <Dropdown
-            searchable
-            options={createQueryDropdownOptions()}
-            onChange={onChangeSelectQuery}
-            placeholder={"Select query"}
-            value={selectedQuery?.id}
-            wrapperClassName={`${baseClass}__select-query-dropdown-wrapper`}
-          />
-        )}
-        <Dropdown
-          searchable={false}
-          options={FREQUENCY_DROPDOWN_OPTIONS}
-          onChange={onChangeSelectFrequency}
-          placeholder={"Every day"}
-          value={selectedFrequency}
-          label={"Choose a frequency and then run this query on a schedule"}
-          wrapperClassName={`${baseClass}__form-field ${baseClass}__form-field--frequency`}
-        />
-        <InfoBanner className={`${baseClass}__sandbox-info`}>
-          <p>
-            Your configured log destination is <b>{loggingConfig}</b>.
-          </p>
-          <p>
-            This means that when this query is run on your hosts, the data will
-            be sent to {generateLoggingDestination(loggingConfig)}.
-          </p>
-          <p>
-            Check out the Fleet documentation on&nbsp;
-            <a
-              href="https://github.com/fleetdm/fleet/blob/6649d08a05799811f6fb0566947946edbfebf63e/docs/2-Deploying/2-Configuration.md#osquery_result_log_plugin"
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              how to configure a different log destination
-            </a>
-            .
-          </p>
-        </InfoBanner>
-        <div>
-          <Button
-            variant="unstyled"
-            className={`${showAdvancedOptions ? "upcarat" : "downcarat"} 
-               ${baseClass}__advanced-options-button`}
-            onClick={toggleAdvancedOptions}
-          >
-            {showAdvancedOptions
-              ? "Hide advanced options"
-              : "Show advanced options"}
-          </Button>
-          {showAdvancedOptions && (
-            <div>
-              <Dropdown
-                options={LOGGING_TYPE_OPTIONS}
-                onChange={onChangeSelectLoggingType}
-                placeholder="Select"
-                value={selectedLoggingType}
-                label="Logging"
-                wrapperClassName={`${baseClass}__form-field ${baseClass}__form-field--logging`}
-              />
-              <Dropdown
-                options={PLATFORM_DROPDOWN_OPTIONS}
-                placeholder="Select"
-                label="Platform"
-                onChange={onChangeSelectPlatformOptions}
-                value={selectedPlatformOptions}
-                multi
-                wrapperClassName={`${baseClass}__form-field ${baseClass}__form-field--platform`}
-              />
-              <Dropdown
-                options={MIN_OSQUERY_VERSION_OPTIONS}
-                onChange={onChangeMinOsqueryVersionOptions}
-                placeholder="Select"
-                value={selectedMinOsqueryVersionOptions}
-                label="Minimum osquery version"
-                wrapperClassName={`${baseClass}__form-field ${baseClass}__form-field--osquer-vers`}
-              />
-              <InputField
-                onChange={onChangeShard}
-                inputWrapperClass={`${baseClass}__form-field ${baseClass}__form-field--shard`}
-                value={selectedShard}
-                placeholder="- - -"
-                label="Shard"
-                type="number"
-              />
-            </div>
+      {isLoading ? (
+        <Spinner />
+      ) : (
+        <form className={`${baseClass}__form`}>
+          {!editQuery && (
+            <Dropdown
+              searchable
+              options={createQueryDropdownOptions()}
+              onChange={onChangeSelectQuery}
+              placeholder={"Select query"}
+              value={selectedQuery?.id}
+              wrapperClassName={`${baseClass}__select-query-dropdown-wrapper`}
+            />
           )}
-        </div>
-        <div className={`${baseClass}__btn-wrap`}>
-          <div className={`${baseClass}__preview-btn-wrap`}>
-            <Button
-              type="button"
-              variant="inverse"
-              onClick={togglePreviewDataModal}
-            >
-              Preview data
-            </Button>
+          <Dropdown
+            searchable={false}
+            options={FREQUENCY_DROPDOWN_OPTIONS}
+            onChange={onChangeSelectFrequency}
+            placeholder={"Every day"}
+            value={selectedFrequency}
+            label={"Choose a frequency and then run this query on a schedule"}
+            wrapperClassName={`${baseClass}__form-field ${baseClass}__form-field--frequency`}
+          />
+          <InfoBanner className={`${baseClass}__sandbox-info`}>
+            <p>
+              Your configured log destination is <b>{loggingConfig}</b>.
+            </p>
+            <p>
+              {loggingConfig === "unknown"
+                ? ""
+                : `This means that when this query is run on your hosts, the data will
+              be sent to ${generateLoggingDestination(loggingConfig)}.`}
+            </p>
+            <p>
+              Check out the Fleet documentation on&nbsp;
+              <a
+                href="https://fleetdm.com/docs/deploying/configuration#osquery-result-log-plugin"
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                how to configure a different log destination
+              </a>
+              .
+            </p>
+          </InfoBanner>
+          <div>
+            <RevealButton
+              isShowing={showAdvancedOptions}
+              baseClass={baseClass}
+              hideText={"Hide advanced options"}
+              showText={"Show advanced options"}
+              caretPosition={"after"}
+              onClick={toggleAdvancedOptions}
+            />
+            {showAdvancedOptions && (
+              <div>
+                <Dropdown
+                  options={LOGGING_TYPE_OPTIONS}
+                  onChange={onChangeSelectLoggingType}
+                  placeholder="Select"
+                  value={selectedLoggingType}
+                  label="Logging"
+                  wrapperClassName={`${baseClass}__form-field ${baseClass}__form-field--logging`}
+                />
+                <Dropdown
+                  options={PLATFORM_DROPDOWN_OPTIONS}
+                  placeholder="Select"
+                  label="Platform"
+                  onChange={onChangeSelectPlatformOptions}
+                  value={selectedPlatformOptions}
+                  multi
+                  wrapperClassName={`${baseClass}__form-field ${baseClass}__form-field--platform`}
+                />
+                <Dropdown
+                  options={MIN_OSQUERY_VERSION_OPTIONS}
+                  onChange={onChangeMinOsqueryVersionOptions}
+                  placeholder="Select"
+                  value={selectedMinOsqueryVersionOptions}
+                  label="Minimum osquery version"
+                  wrapperClassName={`${baseClass}__form-field ${baseClass}__form-field--osquer-vers`}
+                />
+                <InputField
+                  onChange={onChangeShard}
+                  inputWrapperClass={`${baseClass}__form-field ${baseClass}__form-field--shard`}
+                  value={selectedShard}
+                  placeholder="- - -"
+                  label="Shard"
+                  type="number"
+                />
+              </div>
+            )}
           </div>
-          <div className={`${baseClass}__cta-btn-wrap`}>
-            <Button
-              className={`${baseClass}__btn`}
-              onClick={onCancel}
-              variant="inverse"
-            >
-              Cancel
-            </Button>
-            <Button
-              className={`${baseClass}__btn`}
-              type="button"
-              variant="brand"
-              onClick={onFormSubmit}
-              disabled={!selectedQuery && !editQuery}
-            >
-              Schedule
-            </Button>
+          <div className={`${baseClass}__btn-wrap`}>
+            <div className={`${baseClass}__preview-btn-wrap`}>
+              <Button
+                type="button"
+                variant="inverse"
+                onClick={togglePreviewDataModal}
+              >
+                Preview data
+              </Button>
+            </div>
+            <div className="modal-cta-wrap">
+              <Button onClick={onClose} variant="inverse">
+                Cancel
+              </Button>
+              <Button
+                type="button"
+                variant="brand"
+                onClick={onFormSubmit}
+                disabled={!selectedQuery && !editQuery}
+              >
+                Schedule
+              </Button>
+            </div>
           </div>
-        </div>
-      </form>
+        </form>
+      )}
     </Modal>
   );
 };

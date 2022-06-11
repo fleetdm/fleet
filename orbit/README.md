@@ -4,7 +4,12 @@
 
 Orbit is an [osquery](https://github.com/osquery/osquery) runtime and autoupdater. With Orbit, it's easy to deploy osquery, manage configurations, and stay up to date. Orbit eases the deployment of osquery connected with a [Fleet server](https://github.com/fleetdm/fleet), and is a (near) drop-in replacement for osquery in a variety of deployment scenarios.
 
-Orbit is the recommended agent for Fleet. But Orbit can be used with or without Fleet, and Fleet can be used with or without Orbit.
+Orbit is the recommended agent for Fleet. But Orbit can be used with or without Fleet, and Fleet can
+be used with or without Orbit.
+
+# Documentation
+
+- [Releasing Orbit](docs/Releasing-Orbit.md)
 
 ## Try Orbit
 
@@ -167,6 +172,60 @@ This process may take several minutes to complete as the Notarization process co
 
 After successful notarization, the generated "ticket" is automatically stapled to the package.
 
+#### Orbit Osquery Result and Status Logs
+
+If the `logger_path` configuration is set to `filesystem`, Orbit will store osquery's "result" and
+"status" logs to the following directories:
+  - Windows: C:\Program Files\Orbit\osquery_log
+  - macOS: /opt/orbit/osquery_log
+  - Linux: /opt/orbit/osquery_log
+
+#### Orbit Development
+
+##### Run Orbit From Source
+
+To execute orbit from source directly, run the following command:
+
+```sh
+go run github.com/fleetdm/fleet/v4/orbit/cmd/orbit \
+    --dev-mode \
+    --disable-updates \
+    --root-dir /tmp/orbit \
+    --fleet-url https://localhost:8080 \
+    --insecure \
+    --enroll-secret Pz3zC0NMDdZfb3FtqiLgwoexItojrYh/ \
+    -- --verbose
+```
+
+Or, using a `flagfile.txt` for osqueryd:
+```sh 
+go run github.com/fleetdm/fleet/v4/orbit/cmd/orbit \
+    --dev-mode \
+    --disable-updates \
+    --root-dir /tmp/orbit \
+    -- --flagfile=flagfile.txt --verbose
+```
+
+##### Generate Installer Packages from Orbit Source
+
+The `fleetctl package` command generates installers by fetching the targets/executables from a [TUF](https://theupdateframework.io/) repository.
+To generate an installer that contains an Orbit built from source you need to setup a local TUF repository.
+The following document explains how you can generate a TUF repository, and installers that use it [tools/tuf/test](../tools/tuf/test/README.md).
+
+### Troubleshooting
+
+#### Logs
+
+Orbit captures and streams osqueryd's stdout/stderr into its own stdout/stderr output.
+Following are the destination of logs for each platform (to access such locations the user will need administrative permissions on the host):
+- Linux: Orbit and osqueryd stdout/stderr output is sent to syslog (`/var/log/syslog` on Debian systems and `/var/log/messages` on CentOS).
+- macOS: `/private/var/log/orbit/orbit.std{out|err}.log`.
+- Windows: `C:\Windows\system32\config\systemprofile\AppData\Local\FleetDM\Orbit\Logs\orbit-osquery.log` (the log file is rotated).
+
+#### Debug
+
+You can use the `--debug` option in `fleetctl package` to generate installers in "debug mode". Such mode increases the verbosity of logging for orbit and osqueryd (log DEBUG level).
+
 ### Uninstall
 #### Windows
 
@@ -174,7 +233,16 @@ Use the "Add or remove programs" dialog to remove Orbit.
 
 #### Linux
 
-Run the [cleanup script](./tools/cleanup/cleanup_linux.sh).
+Uninstall the package with the corresponding package manager:
+
+- Ubuntu
+```sh
+sudo apt remove fleet-osquery -y
+```
+- CentOS
+```sh
+sudo rpm -e fleet-osquery-X.Y.Z.x86_64
+```
 
 #### macOS
 
@@ -205,7 +273,7 @@ Yes! Orbit is licensed under an MIT license and all uses are encouraged.
 
 ### How does orbit update osquery? And how do the stable and edge channels get triggered to update osquery on a self hosted Fleet instance?
 
-Orbit uses a configurable update server. We expect that many folks will just use the update server we manage (similar to what Kolide does with Launcher's update server). We are also offering [tooling for self-managing an update server](https://github.com/fleetdm/fleet/blob/main/docs/02-Deploying/04-fleetctl-agent-updates.md) as part of Fleet Premium (the subscription offering).
+Orbit uses a configurable update server. We expect that many folks will just use the update server we manage (similar to what Kolide does with Launcher's update server). We are also offering [tooling for self-managing an update server](https://fleetdm.com/docs/deploying/fleetctl-agent-updates) as part of Fleet Premium (the subscription offering).
 
 ## Community
 

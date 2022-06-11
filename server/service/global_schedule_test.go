@@ -12,9 +12,9 @@ import (
 
 func TestGlobalScheduleAuth(t *testing.T) {
 	ds := new(mock.Store)
-	svc := newTestService(ds, nil, nil)
+	svc := newTestService(t, ds, nil, nil)
 
-	ds.ListScheduledQueriesInPackFunc = func(ctx context.Context, id uint, opts fleet.ListOptions) ([]*fleet.ScheduledQuery, error) {
+	ds.ListScheduledQueriesInPackWithStatsFunc = func(ctx context.Context, id uint, opts fleet.ListOptions) ([]*fleet.ScheduledQuery, error) {
 		return nil, nil
 	}
 	ds.EnsureGlobalPackFunc = func(ctx context.Context) (*fleet.Pack, error) {
@@ -33,47 +33,47 @@ func TestGlobalScheduleAuth(t *testing.T) {
 		return nil
 	}
 
-	var testCases = []struct {
+	testCases := []struct {
 		name            string
 		user            *fleet.User
 		shouldFailWrite bool
 		shouldFailRead  bool
 	}{
 		{
-			"global admin",
-			&fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)},
-			false,
-			false,
+			name:            "global admin",
+			user:            &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)},
+			shouldFailWrite: false,
+			shouldFailRead:  false,
 		},
 		{
-			"global maintainer",
-			&fleet.User{GlobalRole: ptr.String(fleet.RoleMaintainer)},
-			false,
-			false,
+			name:            "global maintainer",
+			user:            &fleet.User{GlobalRole: ptr.String(fleet.RoleMaintainer)},
+			shouldFailWrite: false,
+			shouldFailRead:  false,
 		},
 		{
-			"global observer",
-			&fleet.User{GlobalRole: ptr.String(fleet.RoleObserver)},
-			true,
-			true,
+			name:            "global observer",
+			user:            &fleet.User{GlobalRole: ptr.String(fleet.RoleObserver)},
+			shouldFailWrite: true,
+			shouldFailRead:  false,
 		},
 		{
-			"team admin",
-			&fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 1}, Role: fleet.RoleAdmin}}},
-			true,
-			false,
+			name:            "team admin",
+			user:            &fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 1}, Role: fleet.RoleAdmin}}},
+			shouldFailWrite: true,
+			shouldFailRead:  false,
 		},
 		{
-			"team maintainer",
-			&fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 1}, Role: fleet.RoleMaintainer}}},
-			true,
-			false,
+			name:            "team maintainer",
+			user:            &fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 1}, Role: fleet.RoleMaintainer}}},
+			shouldFailWrite: true,
+			shouldFailRead:  false,
 		},
 		{
-			"team observer",
-			&fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 1}, Role: fleet.RoleObserver}}},
-			true,
-			true,
+			name:            "team observer",
+			user:            &fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 1}, Role: fleet.RoleObserver}}},
+			shouldFailWrite: true,
+			shouldFailRead:  false,
 		},
 	}
 	for _, tt := range testCases {
@@ -83,7 +83,7 @@ func TestGlobalScheduleAuth(t *testing.T) {
 			_, err := svc.GetGlobalScheduledQueries(ctx, fleet.ListOptions{})
 			checkAuthErr(t, tt.shouldFailRead, err)
 
-			_, err = svc.GlobalScheduleQuery(ctx, &fleet.ScheduledQuery{Name: "query", QueryName: "query"})
+			_, err = svc.GlobalScheduleQuery(ctx, &fleet.ScheduledQuery{Name: "query", QueryName: "query", Interval: 10})
 			checkAuthErr(t, tt.shouldFailWrite, err)
 
 			_, err = svc.ModifyGlobalScheduledQueries(ctx, 1, fleet.ScheduledQueryPayload{})

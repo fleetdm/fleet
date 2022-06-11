@@ -31,6 +31,8 @@ class Dropdown extends Component {
       PropTypes.number,
     ]),
     wrapperClassName: PropTypes.string,
+    parseTarget: PropTypes.bool,
+    tooltip: PropTypes.string,
   };
 
   static defaultProps = {
@@ -43,6 +45,8 @@ class Dropdown extends Component {
     multi: false,
     name: "targets",
     placeholder: "Select One...",
+    parseTarget: false,
+    tooltip: "",
   };
 
   onMenuOpen = () => {
@@ -56,15 +60,22 @@ class Dropdown extends Component {
   };
 
   handleChange = (selected) => {
-    const { multi, onChange, clearable } = this.props;
+    const { multi, onChange, clearable, name, parseTarget } = this.props;
+
+    if (parseTarget) {
+      // Returns both name and value
+      return onChange({ value: selected.value, name });
+    }
 
     if (clearable && selected === null) {
-      onChange(null);
-    } else if (multi) {
-      onChange(selected.map((obj) => obj.value).join(","));
-    } else {
-      onChange(selected.value);
+      return onChange(null);
     }
+
+    if (multi) {
+      return onChange(selected.map((obj) => obj.value).join(","));
+    }
+
+    return onChange(selected.value);
   };
 
   renderLabel = () => {
@@ -113,7 +124,13 @@ class Dropdown extends Component {
       searchable,
     } = this.props;
 
-    const formFieldProps = pick(this.props, ["hint", "label", "error", "name"]);
+    const formFieldProps = pick(this.props, [
+      "hint",
+      "label",
+      "error",
+      "name",
+      "tooltip",
+    ]);
     const selectClasses = classnames(className, `${baseClass}__select`, {
       [`${baseClass}__select--error`]: error,
     });

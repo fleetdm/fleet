@@ -2,6 +2,7 @@ package redis_test
 
 import (
 	"fmt"
+	"net"
 	"testing"
 	"time"
 
@@ -17,7 +18,7 @@ func TestRedisPoolConfigureDoer(t *testing.T) {
 	const prefix = "TestRedisPoolConfigureDoer:"
 
 	t.Run("standalone", func(t *testing.T) {
-		pool := redistest.SetupRedis(t, false, false, false)
+		pool := redistest.SetupRedis(t, prefix, false, false, false)
 
 		c1 := pool.Get()
 		defer c1.Close()
@@ -38,7 +39,7 @@ func TestRedisPoolConfigureDoer(t *testing.T) {
 	})
 
 	t.Run("cluster", func(t *testing.T) {
-		pool := redistest.SetupRedis(t, true, true, false)
+		pool := redistest.SetupRedis(t, prefix, true, true, false)
 
 		c1 := pool.Get()
 		defer c1.Close()
@@ -100,12 +101,12 @@ func TestEachNode(t *testing.T) {
 	}
 
 	t.Run("standalone", func(t *testing.T) {
-		pool := redistest.SetupRedis(t, false, false, false)
+		pool := redistest.SetupRedis(t, prefix, false, false, false)
 		runTest(t, pool)
 	})
 
 	t.Run("cluster", func(t *testing.T) {
-		pool := redistest.SetupRedis(t, true, false, false)
+		pool := redistest.SetupRedis(t, prefix, true, false, false)
 		runTest(t, pool)
 	})
 }
@@ -114,7 +115,7 @@ func TestBindConn(t *testing.T) {
 	const prefix = "TestBindConn:"
 
 	t.Run("standalone", func(t *testing.T) {
-		pool := redistest.SetupRedis(t, false, false, false)
+		pool := redistest.SetupRedis(t, prefix, false, false, false)
 
 		conn := pool.Get()
 		defer conn.Close()
@@ -130,7 +131,7 @@ func TestBindConn(t *testing.T) {
 	})
 
 	t.Run("cluster", func(t *testing.T) {
-		pool := redistest.SetupRedis(t, true, false, false)
+		pool := redistest.SetupRedis(t, prefix, true, false, false)
 
 		conn := pool.Get()
 		defer conn.Close()
@@ -152,9 +153,26 @@ func TestBindConn(t *testing.T) {
 
 func TestPublishHasListeners(t *testing.T) {
 	const prefix = "TestPublishHasListeners:"
+	const defaultTimeout = 5 * time.Second
+
+	waitForSub := func(t *testing.T, psc redigo.PubSubConn, timeout time.Duration) {
+		start := time.Now()
+		var loopOk bool
+	loop:
+		for time.Since(start) < timeout {
+			msg := psc.ReceiveWithTimeout(time.Second)
+			switch msg := msg.(type) {
+			case redigo.Subscription:
+				require.Equal(t, msg.Count, 1)
+				loopOk = true
+				break loop
+			}
+		}
+		require.True(t, loopOk, "timed out")
+	}
 
 	t.Run("standalone", func(t *testing.T) {
-		pool := redistest.SetupRedis(t, false, false, false)
+		pool := redistest.SetupRedis(t, prefix, false, false, false)
 
 		pconn := pool.Get()
 		defer pconn.Close()
@@ -167,42 +185,29 @@ func TestPublishHasListeners(t *testing.T) {
 
 		psc := redigo.PubSubConn{Conn: sconn}
 		require.NoError(t, psc.Subscribe(prefix+"a"))
-
-		start := time.Now()
-		var loopOk bool
-	loop1:
-		for time.Since(start) < 2*time.Second {
-			msg := psc.Receive()
-			switch msg := msg.(type) {
-			case redigo.Subscription:
-				require.Equal(t, msg.Count, 1)
-				loopOk = true
-				break loop1
-			}
-		}
-		require.True(t, loopOk, "timed out")
+		waitForSub(t, psc, defaultTimeout)
 
 		ok, err = redis.PublishHasListeners(pool, pconn, prefix+"a", "B")
 		require.NoError(t, err)
 		require.True(t, ok)
 
-		start = time.Now()
-		loopOk = false
-	loop2:
-		for time.Since(start) < 2*time.Second {
-			msg := psc.Receive()
+		start := time.Now()
+		loopOk := false
+	loop:
+		for time.Since(start) < defaultTimeout {
+			msg := psc.ReceiveWithTimeout(time.Second)
 			switch msg := msg.(type) {
 			case redigo.Message:
 				require.Equal(t, "B", string(msg.Data))
 				loopOk = true
-				break loop2
+				break loop
 			}
 		}
 		require.True(t, loopOk, "timed out")
 	})
 
 	t.Run("cluster", func(t *testing.T) {
-		pool := redistest.SetupRedis(t, true, false, false)
+		pool := redistest.SetupRedis(t, prefix, true, false, false)
 
 		pconn := pool.Get()
 		defer pconn.Close()
@@ -217,31 +222,42 @@ func TestPublishHasListeners(t *testing.T) {
 		redis.BindConn(pool, sconn, "b")
 		psc := redigo.PubSubConn{Conn: sconn}
 		require.NoError(t, psc.Subscribe(prefix+"{a}"))
+		waitForSub(t, psc, defaultTimeout)
 
-		// a standard PUBLISH returns 0
+		// a standard PUBLISH returns 0, because there are no subscribers *on this
+		// particular node*
 		n, err := redigo.Int(pconn.Do("PUBLISH", prefix+"{a}", "B"))
 		require.NoError(t, err)
 		require.Equal(t, 0, n)
 
-		// but this returns true
+		// but PublishHasListeners returns true, as it checks for subscribers on
+		// each node in the cluster
 		ok, err = redis.PublishHasListeners(pool, pconn, prefix+"{a}", "C")
 		require.NoError(t, err)
 		require.True(t, ok)
 
+		// wait to receive the messages - note that both B and C will be received,
+		// but order is not guaranteed as the publishing was done on a distinct
+		// node and the cluster protocol forwards them on every node in the
+		// cluster.
 		start := time.Now()
-		want := "B"
+		want := map[string]bool{"B": false, "C": false}
 		var loopOk bool
 	loop:
-		for time.Since(start) < 2*time.Second {
-			msg := psc.Receive()
+		for time.Since(start) < defaultTimeout {
+			msg := psc.ReceiveWithTimeout(time.Second)
 			switch msg := msg.(type) {
 			case redigo.Message:
-				require.Equal(t, want, string(msg.Data))
-				if want == "C" {
-					loopOk = true
-					break loop
+				_, ok := want[string(msg.Data)]
+				require.True(t, ok) // must be one of the expected messages
+				want[string(msg.Data)] = true
+				for _, v := range want {
+					if !v {
+						continue loop
+					}
 				}
-				want = "C"
+				loopOk = true
+				break loop
 			}
 		}
 		require.True(t, loopOk, "timed out")
@@ -252,7 +268,7 @@ func TestReadOnlyConn(t *testing.T) {
 	const prefix = "TestReadOnlyConn:"
 
 	t.Run("standalone", func(t *testing.T) {
-		pool := redistest.SetupRedis(t, false, false, true)
+		pool := redistest.SetupRedis(t, prefix, false, false, true)
 		conn := redis.ReadOnlyConn(pool, pool.Get())
 		defer conn.Close()
 
@@ -261,7 +277,7 @@ func TestReadOnlyConn(t *testing.T) {
 	})
 
 	t.Run("cluster", func(t *testing.T) {
-		pool := redistest.SetupRedis(t, true, false, true)
+		pool := redistest.SetupRedis(t, prefix, true, false, true)
 		conn := redis.ReadOnlyConn(pool, pool.Get())
 		defer conn.Close()
 
@@ -273,12 +289,78 @@ func TestReadOnlyConn(t *testing.T) {
 
 func TestRedisMode(t *testing.T) {
 	t.Run("standalone", func(t *testing.T) {
-		pool := redistest.SetupRedis(t, false, false, false)
+		pool := redistest.SetupRedis(t, "zz", false, false, false)
 		require.Equal(t, pool.Mode(), fleet.RedisStandalone)
 	})
 
 	t.Run("cluster", func(t *testing.T) {
-		pool := redistest.SetupRedis(t, true, false, false)
+		pool := redistest.SetupRedis(t, "zz", true, false, false)
 		require.Equal(t, pool.Mode(), fleet.RedisCluster)
 	})
+}
+
+func rawTCPServer(t *testing.T, handler func(c net.Conn, done <-chan struct{})) (addr string) {
+	// start a server on localhost, on a random free port
+	l, err := net.Listen("tcp", "127.0.0.1:0")
+	require.NoError(t, err, "net.Listen")
+	_, port, _ := net.SplitHostPort(l.Addr().String())
+	done, exited := make(chan struct{}), make(chan struct{})
+
+	go func() {
+		defer close(exited)
+		for {
+			conn, err := l.Accept()
+			if err != nil {
+				return
+			}
+			handler(conn, done)
+		}
+	}()
+
+	t.Cleanup(func() {
+		require.NoError(t, l.Close())
+		close(done)
+		select {
+		case <-exited:
+		case <-time.After(time.Second):
+			t.Fatalf("timed out stopping TCP server")
+		}
+	})
+
+	return "127.0.0.1:" + port
+}
+
+func TestReadTimeout(t *testing.T) {
+	var count int
+	addr := rawTCPServer(t, func(c net.Conn, done <-chan struct{}) {
+		count++
+		if count == 1 {
+			// the CLUSTER REFRESH request, return error so that it is not seen as a
+			// cluster setup
+			fmt.Fprint(c, "-ERR unknown command `CLUSTER`\r\n")
+			return
+		}
+		select {
+		case <-done:
+			return
+		case <-time.After(10 * time.Second):
+			fmt.Fprint(c, "+OK\r\n") // the "simple string OK result" in redis protocol
+		}
+	})
+
+	pool, err := redis.NewPool(redis.PoolConfig{
+		Server:       addr,
+		ConnTimeout:  2 * time.Second,
+		KeepAlive:    2 * time.Second,
+		ReadTimeout:  time.Second,
+		WriteTimeout: time.Second,
+	})
+	require.NoError(t, err)
+
+	start := time.Now()
+	conn := pool.Get()
+	_, err = redigo.String(conn.Do("PING"))
+	require.Less(t, time.Since(start), 2*time.Second)
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "i/o timeout")
 }

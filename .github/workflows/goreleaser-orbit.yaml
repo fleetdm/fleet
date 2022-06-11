@@ -6,15 +6,17 @@ on:
      - 'orbit-*'
      
 permissions:
-  contents: write
+  contents: read
 
 jobs:
   goreleaser:
     runs-on: macos-latest
     environment: Docker Hub
+    permissions:
+      contents: write
     steps:
       - name: Checkout
-        uses: actions/checkout@v2
+        uses: actions/checkout@629c2de402a417ea7690ca6ce3f33229e27606a5 # v2
 
       # Note that goreleaser does not like the orbit- prefixed flag unless you use the closed-source
       # paid version. We pay for goreleaser, but using the closed source build would weaken our
@@ -38,12 +40,12 @@ jobs:
           rm certificate.p12
 
       - name: Set up Go
-        uses: actions/setup-go@v2
+        uses: actions/setup-go@b22fbbc2921299758641fab08929b4ac52b32923 # v2
         with:
-          go-version: 1.17
+          go-version: 1.18.2  
 
       - name: Run GoReleaser
-        run: go run github.com/goreleaser/goreleaser release --rm-dist -f orbit/.goreleaser.yml
+        run: go run github.com/goreleaser/goreleaser@v1.1.0 release --rm-dist -f orbit/.goreleaser.yml
         env:
           AC_USERNAME: ${{ secrets.APPLE_USERNAME }}
           AC_PASSWORD: ${{ secrets.APPLE_PASSWORD }}

@@ -35,6 +35,9 @@ const (
 type HostListOptions struct {
 	ListOptions
 
+	// DeviceMapping joins device user email mapping for each host if available
+	DeviceMapping bool
+
 	// AdditionalFilters selects which host additional fields should be
 	// populated.
 	AdditionalFilters []string
@@ -55,10 +58,6 @@ func (h HostListOptions) Empty() bool {
 	return h.ListOptions.Empty() && len(h.AdditionalFilters) == 0 && h.StatusFilter == "" && h.TeamFilter == nil && h.PolicyIDFilter == nil && h.PolicyResponseFilter == nil
 }
 
-func (l ListOptions) Empty() bool {
-	return l.Page == 0 && l.PerPage == 0 && l.OrderKey == "" && l.OrderDirection == 0 && l.MatchQuery == ""
-}
-
 type HostUser struct {
 	Uid       uint   `json:"uid" db:"uid"`
 	Username  string `json:"username" db:"username"`
@@ -70,73 +69,77 @@ type HostUser struct {
 type Host struct {
 	UpdateCreateTimestamps
 	HostSoftware
-	ID uint `json:"id"`
+	ID uint `json:"id" csv:"id"`
 	// OsqueryHostID is the key used in the request context that is
 	// used to retrieve host information.  It is sent from osquery and may currently be
 	// a GUID or a Host Name, but in either case, it MUST be unique
-	OsqueryHostID    string    `json:"-" db:"osquery_host_id"`
-	DetailUpdatedAt  time.Time `json:"detail_updated_at" db:"detail_updated_at"` // Time that the host details were last updated
-	LabelUpdatedAt   time.Time `json:"label_updated_at" db:"label_updated_at"`   // Time that the host labels were last updated
-	PolicyUpdatedAt  time.Time `json:"policy_updated_at" db:"policy_updated_at"` // Time that the host policies were last updated
-	LastEnrolledAt   time.Time `json:"last_enrolled_at" db:"last_enrolled_at"`   // Time that the host last enrolled
-	SeenTime         time.Time `json:"seen_time" db:"seen_time"`                 // Time that the host was last "seen"
-	RefetchRequested bool      `json:"refetch_requested" db:"refetch_requested"`
-	NodeKey          string    `json:"-" db:"node_key"`
-	Hostname         string    `json:"hostname" db:"hostname"` // there is a fulltext index on this field
-	UUID             string    `json:"uuid" db:"uuid"`         // there is a fulltext index on this field
+	OsqueryHostID    string    `json:"-" db:"osquery_host_id" csv:"-"`
+	DetailUpdatedAt  time.Time `json:"detail_updated_at" db:"detail_updated_at" csv:"detail_updated_at"` // Time that the host details were last updated
+	LabelUpdatedAt   time.Time `json:"label_updated_at" db:"label_updated_at" csv:"label_updated_at"`    // Time that the host labels were last updated
+	PolicyUpdatedAt  time.Time `json:"policy_updated_at" db:"policy_updated_at" csv:"policy_updated_at"` // Time that the host policies were last updated
+	LastEnrolledAt   time.Time `json:"last_enrolled_at" db:"last_enrolled_at" csv:"last_enrolled_at"`    // Time that the host last enrolled
+	SeenTime         time.Time `json:"seen_time" db:"seen_time" csv:"seen_time"`                         // Time that the host was last "seen"
+	RefetchRequested bool      `json:"refetch_requested" db:"refetch_requested" csv:"refetch_requested"`
+	NodeKey          string    `json:"-" db:"node_key" csv:"-"`
+	Hostname         string    `json:"hostname" db:"hostname" csv:"hostname"` // there is a fulltext index on this field
+	UUID             string    `json:"uuid" db:"uuid" csv:"uuid"`             // there is a fulltext index on this field
 	// Platform is the host's platform as defined by osquery's os_version.platform.
-	Platform       string        `json:"platform"`
-	OsqueryVersion string        `json:"osquery_version" db:"osquery_version"`
-	OSVersion      string        `json:"os_version" db:"os_version"`
-	Build          string        `json:"build"`
-	PlatformLike   string        `json:"platform_like" db:"platform_like"`
-	CodeName       string        `json:"code_name" db:"code_name"`
-	Uptime         time.Duration `json:"uptime"`
-	Memory         int64         `json:"memory" sql:"type:bigint" db:"memory"`
+	Platform       string        `json:"platform" csv:"platform"`
+	OsqueryVersion string        `json:"osquery_version" db:"osquery_version" csv:"osquery_version"`
+	OSVersion      string        `json:"os_version" db:"os_version" csv:"os_version"`
+	Build          string        `json:"build" csv:"build"`
+	PlatformLike   string        `json:"platform_like" db:"platform_like" csv:"platform_like"`
+	CodeName       string        `json:"code_name" db:"code_name" csv:"code_name"`
+	Uptime         time.Duration `json:"uptime" csv:"uptime"`
+	Memory         int64         `json:"memory" sql:"type:bigint" db:"memory" csv:"memory"`
 	// system_info fields
-	CPUType          string `json:"cpu_type" db:"cpu_type"`
-	CPUSubtype       string `json:"cpu_subtype" db:"cpu_subtype"`
-	CPUBrand         string `json:"cpu_brand" db:"cpu_brand"`
-	CPUPhysicalCores int    `json:"cpu_physical_cores" db:"cpu_physical_cores"`
-	CPULogicalCores  int    `json:"cpu_logical_cores" db:"cpu_logical_cores"`
-	HardwareVendor   string `json:"hardware_vendor" db:"hardware_vendor"`
-	HardwareModel    string `json:"hardware_model" db:"hardware_model"`
-	HardwareVersion  string `json:"hardware_version" db:"hardware_version"`
-	HardwareSerial   string `json:"hardware_serial" db:"hardware_serial"`
-	ComputerName     string `json:"computer_name" db:"computer_name"`
+	CPUType          string `json:"cpu_type" db:"cpu_type" csv:"cpu_type"`
+	CPUSubtype       string `json:"cpu_subtype" db:"cpu_subtype" csv:"cpu_subtype"`
+	CPUBrand         string `json:"cpu_brand" db:"cpu_brand" csv:"cpu_brand"`
+	CPUPhysicalCores int    `json:"cpu_physical_cores" db:"cpu_physical_cores" csv:"cpu_physical_cores"`
+	CPULogicalCores  int    `json:"cpu_logical_cores" db:"cpu_logical_cores" csv:"cpu_logical_cores"`
+	HardwareVendor   string `json:"hardware_vendor" db:"hardware_vendor" csv:"hardware_vendor"`
+	HardwareModel    string `json:"hardware_model" db:"hardware_model" csv:"hardware_model"`
+	HardwareVersion  string `json:"hardware_version" db:"hardware_version" csv:"hardware_version"`
+	HardwareSerial   string `json:"hardware_serial" db:"hardware_serial" csv:"hardware_serial"`
+	ComputerName     string `json:"computer_name" db:"computer_name" csv:"computer_name"`
 	// PrimaryNetworkInterfaceID if present indicates to primary network for the host, the details of which
 	// can be found in the NetworkInterfaces element with the same ip_address.
-	PrimaryNetworkInterfaceID *uint               `json:"primary_ip_id,omitempty" db:"primary_ip_id"`
-	NetworkInterfaces         []*NetworkInterface `json:"-" db:"-"`
-	PrimaryIP                 string              `json:"primary_ip" db:"primary_ip"`
-	PrimaryMac                string              `json:"primary_mac" db:"primary_mac"`
-	DistributedInterval       uint                `json:"distributed_interval" db:"distributed_interval"`
-	ConfigTLSRefresh          uint                `json:"config_tls_refresh" db:"config_tls_refresh"`
-	LoggerTLSPeriod           uint                `json:"logger_tls_period" db:"logger_tls_period"`
-	TeamID                    *uint               `json:"team_id" db:"team_id"`
+	PrimaryNetworkInterfaceID *uint               `json:"primary_ip_id,omitempty" db:"primary_ip_id" csv:"primary_ip_id"`
+	NetworkInterfaces         []*NetworkInterface `json:"-" db:"-" csv:"-"`
+	PublicIP                  string              `json:"public_ip" db:"public_ip" csv:"public_ip"`
+	PrimaryIP                 string              `json:"primary_ip" db:"primary_ip" csv:"primary_ip"`
+	PrimaryMac                string              `json:"primary_mac" db:"primary_mac" csv:"primary_mac"`
+	DistributedInterval       uint                `json:"distributed_interval" db:"distributed_interval" csv:"distributed_interval"`
+	ConfigTLSRefresh          uint                `json:"config_tls_refresh" db:"config_tls_refresh" csv:"config_tls_refresh"`
+	LoggerTLSPeriod           uint                `json:"logger_tls_period" db:"logger_tls_period" csv:"logger_tls_period"`
+	TeamID                    *uint               `json:"team_id" db:"team_id" csv:"team_id"`
 
 	// Loaded via JOIN in DB
-	PackStats []PackStats `json:"pack_stats"`
+	PackStats []PackStats `json:"pack_stats" csv:"-"`
 	// TeamName is the name of the team, loaded by JOIN to the teams table.
-	TeamName *string `json:"team_name" db:"team_name"`
+	TeamName *string `json:"team_name" db:"team_name" csv:"team_name"`
 	// Additional is the additional information from the host
 	// additional_queries. This should be stored in a separate DB table.
-	Additional *json.RawMessage `json:"additional,omitempty" db:"additional"`
+	Additional *json.RawMessage `json:"additional,omitempty" db:"additional" csv:"-"`
 
 	// Users currently in the host
-	Users []HostUser `json:"users,omitempty"`
+	Users []HostUser `json:"users,omitempty" csv:"-"`
 
-	GigsDiskSpaceAvailable    float64 `json:"gigs_disk_space_available" db:"gigs_disk_space_available"`
-	PercentDiskSpaceAvailable float64 `json:"percent_disk_space_available" db:"percent_disk_space_available"`
+	GigsDiskSpaceAvailable    float64 `json:"gigs_disk_space_available" db:"gigs_disk_space_available" csv:"gigs_disk_space_available"`
+	PercentDiskSpaceAvailable float64 `json:"percent_disk_space_available" db:"percent_disk_space_available" csv:"percent_disk_space_available"`
 
-	HostIssues `json:"issues,omitempty"`
+	HostIssues `json:"issues,omitempty" csv:"-"`
 
-	Modified bool `json:"-"`
+	// DeviceMapping is in fact included in the CSV export, but it is not directly
+	// encoded from this column, it is processed before marshaling, hence why the
+	// struct tag here has csv:"-".
+	DeviceMapping *json.RawMessage `json:"device_mapping,omitempty" db:"device_mapping" csv:"-"`
 }
 
 type HostIssues struct {
-	TotalIssuesCount     int `json:"total_issues_count" db:"total_issues_count"`
-	FailingPoliciesCount int `json:"failing_policies_count" db:"failing_policies_count"`
+	TotalIssuesCount     int `json:"total_issues_count" db:"total_issues_count" csv:"issues"` // when exporting in CSV, we want that value as the "issues" column
+	FailingPoliciesCount int `json:"failing_policies_count" db:"failing_policies_count" csv:"-"`
 }
 
 func (h Host) AuthzType() string {
@@ -152,7 +155,7 @@ type HostDetail struct {
 	// Packs is the list of packs the host is a member of.
 	Packs []*Pack `json:"packs"`
 	// Policies is the list of policies and whether it passes for the host
-	Policies []*HostPolicy `json:"policies"`
+	Policies *[]*HostPolicy `json:"policies,omitempty"`
 }
 
 const (
@@ -165,11 +168,13 @@ const (
 type HostSummary struct {
 	TeamID           *uint                  `json:"team_id,omitempty"`
 	TotalsHostsCount uint                   `json:"totals_hosts_count" db:"total"`
-	Platforms        []*HostSummaryPlatform `json:"platforms"`
 	OnlineCount      uint                   `json:"online_count" db:"online"`
 	OfflineCount     uint                   `json:"offline_count" db:"offline"`
 	MIACount         uint                   `json:"mia_count" db:"mia"`
 	NewCount         uint                   `json:"new_count" db:"new"`
+	AllLinuxCount    uint                   `json:"all_linux_count"`
+	BuiltinLabels    []*LabelSummary        `json:"builtin_labels"`
+	Platforms        []*HostSummaryPlatform `json:"platforms"`
 }
 
 // HostSummaryPlatform represents the hosts statistics for a given platform,
@@ -183,6 +188,7 @@ type HostSummaryPlatform struct {
 func (h *Host) Status(now time.Time) HostStatus {
 	// The logic in this function should remain synchronized with
 	// GenerateHostStatusStatistics and CountHostsInTargets
+	// NOTE: As of Fleet 4.15 StatusMIA is deprecated and will be removed in Fleet 5.0
 
 	onlineInterval := h.ConfigTLSRefresh
 	if h.DistributedInterval < h.ConfigTLSRefresh {
@@ -193,8 +199,6 @@ func (h *Host) Status(now time.Time) HostStatus {
 	onlineInterval += OnlineIntervalBuffer
 
 	switch {
-	case h.SeenTime.Add(MIADuration).Before(now):
-		return StatusMIA
 	case h.SeenTime.Add(time.Duration(onlineInterval) * time.Second).Before(now):
 		return StatusOffline
 	default:
@@ -218,10 +222,10 @@ func (h *Host) FleetPlatform() string {
 
 // HostLinuxOSs are the possible linux values for Host.Platform.
 var HostLinuxOSs = []string{
-	"linux", "ubuntu", "debian", "rhel", "centos", "sles", "kali", "gentoo",
+	"linux", "ubuntu", "debian", "rhel", "centos", "sles", "kali", "gentoo", "amzn",
 }
 
-func isLinux(hostPlatform string) bool {
+func IsLinux(hostPlatform string) bool {
 	for _, linuxPlatform := range HostLinuxOSs {
 		if linuxPlatform == hostPlatform {
 			return true
@@ -238,12 +242,28 @@ func isLinux(hostPlatform string) bool {
 // Returns empty string if hostPlatform is unknnown.
 func PlatformFromHost(hostPlatform string) string {
 	switch {
-	case isLinux(hostPlatform):
+	case IsLinux(hostPlatform):
 		return "linux"
 	case hostPlatform == "darwin", hostPlatform == "windows":
 		return hostPlatform
 	default:
 		return ""
+	}
+}
+
+// ExpandPlatform returns the list of platforms corresponding to the (possibly
+// generic) platform provided. For example, "linux" expands to all the platform
+// identifiers considered to be linux, while "debian" returns only "debian",
+// "windows" => "windows", etc.
+func ExpandPlatform(platform string) []string {
+	switch platform {
+	case "linux":
+		// return a copy to make sure the caller cannot modify the slice
+		linuxOSs := make([]string, len(HostLinuxOSs))
+		copy(linuxOSs, HostLinuxOSs)
+		return linuxOSs
+	default:
+		return []string{platform}
 	}
 }
 
@@ -268,4 +288,44 @@ type HostMDM struct {
 type MacadminsData struct {
 	Munki *HostMunkiInfo `json:"munki"`
 	MDM   *HostMDM       `json:"mobile_device_management"`
+}
+
+type AggregatedMunkiVersion struct {
+	HostMunkiInfo
+	HostsCount int `json:"hosts_count" db:"hosts_count"`
+}
+
+type AggregatedMDMStatus struct {
+	EnrolledManualHostsCount    int `json:"enrolled_manual_hosts_count" db:"enrolled_manual_hosts_count"`
+	EnrolledAutomatedHostsCount int `json:"enrolled_automated_hosts_count" db:"enrolled_automated_hosts_count"`
+	UnenrolledHostsCount        int `json:"unenrolled_hosts_count" db:"unenrolled_hosts_count"`
+	HostsCount                  int `json:"hosts_count" db:"hosts_count"`
+}
+
+type AggregatedMacadminsData struct {
+	CountsUpdatedAt time.Time                `json:"counts_updated_at"`
+	MunkiVersions   []AggregatedMunkiVersion `json:"munki_versions"`
+	MDMStatus       AggregatedMDMStatus      `json:"mobile_device_management_enrollment_status"`
+}
+
+// HostShort is a minimal host representation returned when querying hosts.
+type HostShort struct {
+	ID       uint   `json:"id" db:"id"`
+	Hostname string `json:"hostname" db:"hostname"`
+}
+
+type OSVersions struct {
+	CountsUpdatedAt time.Time   `json:"counts_updated_at"`
+	OSVersions      []OSVersion `json:"os_versions"`
+}
+
+type OSVersion struct {
+	HostsCount int    `json:"hosts_count"`
+	Name       string `json:"name"`
+	Platform   string `json:"platform"`
+}
+
+type HostDetailOptions struct {
+	IncludeCVEScores bool
+	IncludePolicies  bool
 }

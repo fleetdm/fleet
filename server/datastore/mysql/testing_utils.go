@@ -2,7 +2,9 @@ package mysql
 
 import (
 	"context"
+	"database/sql"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"os"
 	"os/exec"
@@ -10,6 +12,7 @@ import (
 	"runtime"
 	"strings"
 	"testing"
+	"text/tabwriter"
 	"time"
 
 	"github.com/WatchBeam/clock"
@@ -85,17 +88,17 @@ func setupReadReplica(t testing.TB, testName string, ds *Datastore, opts *Datast
 		// drop all foreign keys in the replica, as that causes issues even with
 		// FOREIGN_KEY_CHECKS=0
 		var fks []struct {
-			TableName      string `db:"table_name"`
-			ConstraintName string `db:"constraint_name"`
+			TableName      string `db:"TABLE_NAME"`
+			ConstraintName string `db:"CONSTRAINT_NAME"`
 		}
 		err := primary.SelectContext(ctx, &fks, `
           SELECT
-            table_name, constraint_name
+            TABLE_NAME, CONSTRAINT_NAME
           FROM
-            information_schema.key_column_usage
+            INFORMATION_SCHEMA.KEY_COLUMN_USAGE
           WHERE
-            table_schema = ? AND
-            referenced_table_name IS NOT NULL`, testName)
+            TABLE_SCHEMA = ? AND
+            REFERENCED_TABLE_NAME IS NOT NULL`, testName)
 		require.NoError(t, err)
 		for _, fk := range fks {
 			stmt := fmt.Sprintf(`ALTER TABLE %s.%s DROP FOREIGN KEY %s`, replicaDB, fk.TableName, fk.ConstraintName)
@@ -243,6 +246,11 @@ func createMySQLDSWithOptions(t testing.TB, opts *DatastoreTestOptions) *Datasto
 		strings.TrimPrefix(details.Name(), "github.com/fleetdm/fleet/v4/"), "/", "_",
 	)
 	cleanName = strings.ReplaceAll(cleanName, ".", "_")
+	if len(cleanName) > 60 {
+		// the later parts are more unique than the start, with the package names,
+		// so trim from the start.
+		cleanName = cleanName[len(cleanName)-60:]
+	}
 	ds := initializeDatabase(t, cleanName, opts)
 	t.Cleanup(func() { ds.Close() })
 	return ds
@@ -331,4 +339,40 @@ func TruncateTables(t testing.TB, ds *Datastore, tables ...string) {
 		}
 		return nil
 	}))
+}
+
+// this is meant to be used for debugging/testing that statement uses an efficient
+// plan (e.g. makes use of an index, avoids full scans, etc.) using the data already
+// created for tests. Calls to this function should be temporary and removed when
+// done investigating the plan, so it is expected that this function will be detected
+// as unused.
+func explainSQLStatement(w io.Writer, db sqlx.QueryerContext, stmt string, args ...interface{}) { //nolint:deadcode,unused
+	var rows []struct {
+		ID           int             `db:"id"`
+		SelectType   string          `db:"select_type"`
+		Table        sql.NullString  `db:"table"`
+		Partitions   sql.NullString  `db:"partitions"`
+		Type         sql.NullString  `db:"type"`
+		PossibleKeys sql.NullString  `db:"possible_keys"`
+		Key          sql.NullString  `db:"key"`
+		KeyLen       sql.NullInt64   `db:"key_len"`
+		Ref          sql.NullString  `db:"ref"`
+		Rows         sql.NullInt64   `db:"rows"`
+		Filtered     sql.NullFloat64 `db:"filtered"`
+		Extra        sql.NullString  `db:"Extra"`
+	}
+	if err := sqlx.SelectContext(context.Background(), db, &rows, "EXPLAIN "+stmt, args...); err != nil {
+		panic(err)
+	}
+	fmt.Fprint(w, "\n\n", strings.Repeat("-", 60), "\n", stmt, "\n", strings.Repeat("-", 60), "\n")
+	tw := tabwriter.NewWriter(w, 0, 1, 1, ' ', tabwriter.Debug)
+
+	fmt.Fprintln(tw, "id\tselect_type\ttable\tpartitions\ttype\tpossible_keys\tkey\tkey_len\tref\trows\tfiltered\textra")
+	for _, row := range rows {
+		fmt.Fprintf(tw, "%d\t%s\t%s\t%s\t%s\t%s\t%s\t%d\t%s\t%d\t%f\t%s\n", row.ID, row.SelectType, row.Table.String, row.Partitions.String,
+			row.Type.String, row.PossibleKeys.String, row.Key.String, row.KeyLen.Int64, row.Ref.String, row.Rows.Int64, row.Filtered.Float64, row.Extra.String)
+	}
+	if err := tw.Flush(); err != nil {
+		panic(err)
+	}
 }

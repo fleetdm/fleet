@@ -10,28 +10,39 @@ on:
   pull_request:
     paths:
       - '**.go'
+  workflow_dispatch: # Manual
+  schedule:
+    - cron: '0 4 * * *'
+
+permissions:
+  contents: read
 
 jobs:
   test-go:
     strategy:
       matrix:
         os: [ubuntu-latest]
-        go-version: ['^1.17.0']
+        go-version: ['^1.17.8']
+        mysql: ["mysql:5.7.21", "mysql:8.0.28"]
     runs-on: ${{ matrix.os }}
+
+    env:
+      RACE_ENABLED: false
+      GO_TEST_TIMEOUT: 10m
 
     steps:
     - name: Install Go
-      uses: actions/setup-go@v2
+      uses: actions/setup-go@b22fbbc2921299758641fab08929b4ac52b32923 # v2
       with:
         go-version: ${{ matrix.go-version }}
 
     - name: Checkout Code
-      uses: actions/checkout@v2
+      uses: actions/checkout@629c2de402a417ea7690ca6ce3f33229e27606a5 # v2
 
     # Pre-starting dependencies here means they are ready to go when we need them.
     - name: Start Infra Dependencies
       # Use & to background this
-      run: docker-compose up -d mysql_test redis redis-cluster-1 redis-cluster-2 redis-cluster-3 redis-cluster-4 redis-cluster-5 redis-cluster-6 redis-cluster-setup &
+      run: FLEET_MYSQL_IMAGE=${{ matrix.mysql }} docker-compose up -d mysql_test redis redis-cluster-1 redis-cluster-2 redis-cluster-3 redis-cluster-4 redis-cluster-5 redis-cluster-6 redis-cluster-setup &
 
     # It seems faster not to cache Go dependencies
     - name: Install Go Dependencies
@@ -42,11 +53,38 @@ jobs:
         export PATH=$PATH:~/go/bin
         make generate-go
 
+    - name: Set Go race setting on schedule
+      if: github.event.schedule == '0 4 * * *'
+      run: |
+        echo "RACE_ENABLED=true" >> $GITHUB_ENV
+        echo "GO_TEST_TIMEOUT=1h" >> $GITHUB_ENV
+
     - name: Run Go Tests
       run: |
-        NETWORK_TEST=1 REDIS_TEST=1 MYSQL_TEST=1 make test-go
+        TEST_LOCK_FILE_PATH=$(pwd)/lock NETWORK_TEST=1 REDIS_TEST=1 MYSQL_TEST=1 RACE_ENABLED=$RACE_ENABLED GO_TEST_TIMEOUT=$GO_TEST_TIMEOUT make test-go
 
     - name: Upload to Codecov
-      uses: codecov/codecov-action@v2
+      uses: codecov/codecov-action@e3c560433a6cc60aec8812599b7844a7b4fa0d71
       with:
         files: coverage.txt
+
+    - name: Slack Notification
+      if: github.event.schedule == '0 4 * * *' && failure()
+      uses: slackapi/slack-github-action@16b6c78ee73689a627b65332b34e5d409c7299da # v1.18.0
+      with:
+        payload: |
+          {
+            "text": "${{ job.status }}\n${{ github.event.pull_request.html_url || github.event.head.html_url }}",
+            "blocks": [
+              {
+                "type": "section",
+                "text": {
+                  "type": "mrkdwn",
+                  "text": "Go tests result: ${{ job.status }}\nhttps://github.com/fleetdm/fleet/actions/runs/${{  github.run_id }}\n${{ github.event.pull_request.html_url || github.event.head.html_url }}"
+                }
+              }
+            ]
+          }
+      env:
+        SLACK_WEBHOOK_URL: ${{ secrets.SLACK_G_PLATFORM_WEBHOOK_URL }}
+        SLACK_WEBHOOK_TYPE: INCOMING_WEBHOOK

@@ -1,0 +1,15 @@
+<% /* Note: This is injected into `views/layouts/layout-email.ejs` */ %>
+<h1 style="margin-bottom: 32px; font-weight: bold; font-size: 24px;">Order confirmation</h1>
+<p style="margin-bottom: 32px;">Hello <%= firstName+' '+lastName %>,</p>
+
+<p style="margin-bottom: 32px;">Thank you for purchasing a subscription to Fleet Premium.</p>
+<p style="margin-bottom: 32px;">You can access your license at any time from your <a style="color: #6A67FE;" href="<%= url.resolve(sails.config.custom.baseUrl,'/customers/dashboard')%>">customer dashboard</a>. Please keep it safe and attach it to your Fleet Premium instance.</p>
+
+<div style="margin-bottom: 32px; text-align: left;">
+  <div style="background: #6A67FE; display: inline-block; color: white; text-decoration: none; border-radius: 4px; text-align: center; padding: 8px 16px 8px 16px" >
+    <a style="color: #EEE;  text-decoration: none;" href="<%= url.resolve(sails.config.custom.baseUrl,'/customers/dashboard') %>">Go to your customer dashboard</a>
+  </div>
+</div>
+<p style="margin-bottom: 32px;">As part of your subscription to Fleet Premium you are entitled to unlimited email support. To contact support, please email <a style="color: #6A67FE;" href="mailto:support@fleetdm.com">support@fleetdm.com</a>.</p>
+<p style="margin-bottom: 32px;">If you have any other questions or concerns, please reply to this email or <a style="color: #6A67FE;" href="<%= url.resolve(sails.config.custom.baseUrl,'/contact') %>">contact us</a>.</p>
+<p style="margin-bottom: 32px;">Thank you again for your purchase!</p>

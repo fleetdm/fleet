@@ -5,31 +5,32 @@ import React, {
   useMemo,
   useState,
 } from "react";
-import { useDispatch } from "react-redux";
+import { InjectedRouter } from "react-router";
 import { useQuery } from "react-query";
-import { push } from "react-router-redux";
 import { pick } from "lodash";
 
 import { AppContext } from "context/app";
-import { performanceIndicator } from "fleet/helpers";
+import { TableContext } from "context/table";
+import { NotificationContext } from "context/notification";
+import { performanceIndicator } from "utilities/helpers";
+import { IOsqueryPlatform } from "interfaces/platform";
 import { IQuery } from "interfaces/query";
 import fleetQueriesAPI from "services/entities/queries";
-// @ts-ignore
-import queryActions from "redux/nodes/entities/queries/actions"; // TODO: Delete this after redux dependencies have been removed.
-// @ts-ignore
-import { renderFlash } from "redux/nodes/notifications/actions";
 import PATHS from "router/paths";
-// @ts-ignore
-import sqlTools from "utilities/sql_tools";
+import checkPlatformCompatibility from "utilities/sql_tools";
 import Button from "components/buttons/Button";
 // @ts-ignore
 import Dropdown from "components/forms/fields/Dropdown";
 import Spinner from "components/Spinner";
-import TableDataError from "components/TableDataError";
+import TableDataError from "components/DataError";
 import QueriesListWrapper from "./components/QueriesListWrapper";
 import RemoveQueryModal from "./components/RemoveQueryModal";
 
 const baseClass = "manage-queries-page";
+interface IManageQueriesPageProps {
+  router: InjectedRouter; // v3
+}
+
 interface IFleetQueriesResponse {
   queries: IQuery[];
 }
@@ -37,8 +38,6 @@ interface IQueryTableData extends IQuery {
   performance: string;
   platforms: string[];
 }
-
-const PLATFORMS = ["darwin", "linux", "windows"];
 
 const PLATFORM_FILTER_OPTIONS = [
   {
@@ -67,10 +66,11 @@ const PLATFORM_FILTER_OPTIONS = [
   },
 ];
 
-const getPlatforms = (queryString: string): string[] =>
-  sqlTools
-    .listCompatiblePlatforms(sqlTools.parseSqlTables(queryString))
-    .filter((p: string) => PLATFORMS.includes(p));
+const getPlatforms = (queryString: string): Array<IOsqueryPlatform | "---"> => {
+  const { platforms } = checkPlatformCompatibility(queryString);
+
+  return platforms || ["---"];
+};
 
 const enhanceQuery = (q: IQuery) => {
   return {
@@ -82,10 +82,12 @@ const enhanceQuery = (q: IQuery) => {
   };
 };
 
-const ManageQueriesPage = (): JSX.Element => {
-  const dispatch = useDispatch();
-
+const ManageQueriesPage = ({
+  router,
+}: IManageQueriesPageProps): JSX.Element => {
   const { isOnlyObserver } = useContext(AppContext);
+  const { setResetSelectedRows } = useContext(TableContext);
+  const { renderFlash } = useContext(NotificationContext);
 
   const [queriesList, setQueriesList] = useState<IQueryTableData[] | null>(
     null
@@ -97,11 +99,12 @@ const ManageQueriesPage = (): JSX.Element => {
   const [showRemoveQueryModal, setShowRemoveQueryModal] = useState<boolean>(
     false
   );
+  const [queryIsRemoving, setQueryIsRemoving] = useState<boolean>(false);
 
   const {
     data: fleetQueries,
     error: fleetQueriesError,
-    isLoading: isLoadingFleetQueries,
+    isFetching: isFetchingFleetQueries,
     refetch: refetchFleetQueries,
   } = useQuery<IFleetQueriesResponse, Error, IQuery[]>(
     "fleet queries by platform",
@@ -122,18 +125,18 @@ const ManageQueriesPage = (): JSX.Element => {
   }, [fleetQueries]);
 
   useEffect(() => {
-    if (!isLoadingFleetQueries && enhancedQueriesList) {
+    if (!isFetchingFleetQueries && enhancedQueriesList) {
       setQueriesList(enhancedQueriesList);
     }
-  }, [enhancedQueriesList, isLoadingFleetQueries]);
+  }, [enhancedQueriesList, isFetchingFleetQueries]);
 
-  const onCreateQueryClick = () => dispatch(push(PATHS.NEW_QUERY));
+  const onCreateQueryClick = () => router.push(PATHS.NEW_QUERY);
 
   const toggleRemoveQueryModal = useCallback(() => {
     setShowRemoveQueryModal(!showRemoveQueryModal);
   }, [showRemoveQueryModal, setShowRemoveQueryModal]);
 
-  const onRemoveQueryClick = (selectedTableQueryIds: any) => {
+  const onRemoveQueryClick = (selectedTableQueryIds: number[]) => {
     toggleRemoveQueryModal();
     setSelectedQueryIds(selectedTableQueryIds);
   };
@@ -141,31 +144,29 @@ const ManageQueriesPage = (): JSX.Element => {
   const onRemoveQuerySubmit = useCallback(async () => {
     const queryOrQueries = selectedQueryIds.length === 1 ? "query" : "queries";
 
+    setQueryIsRemoving(true);
+
     const removeQueries = selectedQueryIds.map((id) =>
       fleetQueriesAPI.destroy(id)
     );
 
     try {
-      await Promise.all(removeQueries);
+      await Promise.all(removeQueries).then(() => {
+        renderFlash("success", `Successfully removed ${queryOrQueries}.`);
+        setResetSelectedRows(true);
+        refetchFleetQueries();
+      });
       renderFlash("success", `Successfully removed ${queryOrQueries}.`);
-      toggleRemoveQueryModal();
-      refetchFleetQueries();
-      toggleRemoveQueryModal();
-      dispatch(
-        renderFlash("success", `Successfully removed ${queryOrQueries}.`)
-      );
-      // TODO: Delete this redux action after redux dependencies have been removed (e.g., schedules page
-      // depends on redux state for queries).
-      dispatch(queryActions.loadAll());
     } catch (errorResponse) {
-      dispatch(
-        renderFlash(
-          "error",
-          `There was an error removing your ${queryOrQueries}. Please try again later.`
-        )
+      renderFlash(
+        "error",
+        `There was an error removing your ${queryOrQueries}. Please try again later.`
       );
+    } finally {
+      toggleRemoveQueryModal();
+      setQueryIsRemoving(false);
     }
-  }, [dispatch, refetchFleetQueries, selectedQueryIds, toggleRemoveQueryModal]);
+  }, [refetchFleetQueries, selectedQueryIds, toggleRemoveQueryModal]);
 
   const renderPlatformDropdown = () => {
     return (
@@ -179,7 +180,7 @@ const ManageQueriesPage = (): JSX.Element => {
     );
   };
 
-  const isTableDataLoading = isLoadingFleetQueries || queriesList === null;
+  const isTableDataLoading = isFetchingFleetQueries || queriesList === null;
 
   return (
     <div className={baseClass}>
@@ -226,6 +227,7 @@ const ManageQueriesPage = (): JSX.Element => {
         </div>
         {showRemoveQueryModal && (
           <RemoveQueryModal
+            isLoading={queryIsRemoving}
             onCancel={toggleRemoveQueryModal}
             onSubmit={onRemoveQuerySubmit}
           />

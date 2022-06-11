@@ -7,13 +7,18 @@ import ReactTooltip from "react-tooltip";
 interface IPillCellProps {
   value: [string, number];
   customIdPrefix?: string;
+  hostDetails?: boolean;
 }
 
 const generateClassTag = (rawValue: string): string => {
   return rawValue.replace(" ", "-").toLowerCase();
 };
 
-const PillCell = ({ value, customIdPrefix }: IPillCellProps): JSX.Element => {
+const PillCell = ({
+  value,
+  customIdPrefix,
+  hostDetails,
+}: IPillCellProps): JSX.Element => {
   const [pillText, id] = value;
 
   const pillClassName = classnames(
@@ -28,6 +33,8 @@ const PillCell = ({ value, customIdPrefix }: IPillCellProps): JSX.Element => {
       case "Considerable":
         return false;
       case "Excessive":
+        return false;
+      case "Undetermined":
         return false;
       default:
         return true;
@@ -63,6 +70,14 @@ const PillCell = ({ value, customIdPrefix }: IPillCellProps): JSX.Element => {
           <>
             This query has been <br /> stopped from running <br /> because of
             excessive <br /> resource consumption.
+          </>
+        );
+      case "Undetermined":
+        return (
+          <>
+            To see performance <br /> impact, this query must <br /> run as a
+            scheduled query <br /> on {hostDetails ? "this" : "at least one"}{" "}
+            host.
           </>
         );
       default:

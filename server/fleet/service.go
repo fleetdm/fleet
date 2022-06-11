@@ -13,6 +13,7 @@ type OsqueryService interface {
 	EnrollAgent(
 		ctx context.Context, enrollSecret, hostIdentifier string, hostDetails map[string](map[string]string),
 	) (nodeKey string, err error)
+	// AuthenticateHost loads host identified by nodeKey. Returns an error if the nodeKey doesn't exist.
 	AuthenticateHost(ctx context.Context, nodeKey string) (host *Host, debug bool, err error)
 	GetClientConfig(ctx context.Context) (config map[string]interface{}, err error)
 	// GetDistributedQueries retrieves the distributed queries to run for the host in
@@ -26,7 +27,7 @@ type OsqueryService interface {
 	//
 	// To enable the osquery "accelerated checkins" feature, a positive integer (number of seconds to activate for)
 	// should be returned. Returning 0 for this will not activate the feature.
-	GetDistributedQueries(ctx context.Context) (queries map[string]string, accelerate uint, err error)
+	GetDistributedQueries(ctx context.Context) (queries map[string]string, discovery map[string]string, accelerate uint, err error)
 	SubmitDistributedQueryResults(
 		ctx context.Context,
 		results OsqueryDistributedQueryResults,
@@ -112,7 +113,7 @@ type Service interface {
 
 	// SSOSettings returns non-sensitive single sign on information used before authentication
 	SSOSettings(ctx context.Context) (*SessionSSOSettings, error)
-	Login(ctx context.Context, email, password string) (user *User, sessionKey string, err error)
+	Login(ctx context.Context, email, password string) (user *User, session *Session, err error)
 	Logout(ctx context.Context) (err error)
 	DestroySession(ctx context.Context) (err error)
 	GetInfoAboutSessionsForUser(ctx context.Context, id uint) (sessions []*Session, err error)
@@ -167,6 +168,7 @@ type Service interface {
 	NewLabel(ctx context.Context, p LabelPayload) (label *Label, err error)
 	ModifyLabel(ctx context.Context, id uint, payload ModifyLabelPayload) (*Label, error)
 	ListLabels(ctx context.Context, opt ListOptions) (labels []*Label, err error)
+	LabelsSummary(ctx context.Context) (labels []*LabelSummary, err error)
 	GetLabel(ctx context.Context, id uint) (label *Label, err error)
 
 	DeleteLabel(ctx context.Context, name string) (err error)
@@ -228,22 +230,32 @@ type Service interface {
 
 	// AgentOptionsForHost gets the agent options for the provided host. The host information should be used for
 	// filtering based on team, platform, etc.
-	AgentOptionsForHost(ctx context.Context, host *Host) (json.RawMessage, error)
+	AgentOptionsForHost(ctx context.Context, hostTeamID *uint, hostPlatform string) (json.RawMessage, error)
 
 	///////////////////////////////////////////////////////////////////////////////
 	// HostService
 
+	// AuthenticateDevice loads host identified by the device's auth token.
+	// Returns an error if the auth token doesn't exist.
+	AuthenticateDevice(ctx context.Context, authToken string) (host *Host, debug bool, err error)
+
 	ListHosts(ctx context.Context, opt HostListOptions) (hosts []*Host, err error)
-	GetHost(ctx context.Context, id uint) (host *HostDetail, err error)
-	GetHostSummary(ctx context.Context, teamID *uint) (summary *HostSummary, err error)
+	// GetHost returns the host with the provided ID.
+	//
+	// The return value can also include policy information and CVE scores based
+	// on the values provided to `opts`
+	GetHost(ctx context.Context, id uint, opts HostDetailOptions) (host *HostDetail, err error)
+	GetHostSummary(ctx context.Context, teamID *uint, platform *string) (summary *HostSummary, err error)
 	DeleteHost(ctx context.Context, id uint) (err error)
-	// HostByIdentifier returns one host matching the provided identifier. Possible matches can be on
-	// osquery_host_identifier, node_key, UUID, or hostname.
-	HostByIdentifier(ctx context.Context, identifier string) (*HostDetail, error)
+	// HostByIdentifier returns one host matching the provided identifier.
+	// Possible matches can be on osquery_host_identifier, node_key, UUID, or
+	// hostname.
+	//
+	// The return value can also include policy information and CVE scores based
+	// on the values provided to `opts`
+	HostByIdentifier(ctx context.Context, identifier string, opts HostDetailOptions) (*HostDetail, error)
 	// RefetchHost requests a refetch of host details for the provided host.
 	RefetchHost(ctx context.Context, id uint) (err error)
-
-	FlushSeenHosts(ctx context.Context) error
 	// AddHostsToTeam adds hosts to an existing team, clearing their team settings if teamID is nil.
 	AddHostsToTeam(ctx context.Context, teamID *uint, hostIDs []uint) error
 	// AddHostsToTeamByFilter adds hosts to an existing team, clearing their team settings if teamID is nil. Hosts are
@@ -251,11 +263,21 @@ type Service interface {
 	AddHostsToTeamByFilter(ctx context.Context, teamID *uint, opt HostListOptions, lid *uint) error
 	DeleteHosts(ctx context.Context, ids []uint, opt HostListOptions, lid *uint) error
 	CountHosts(ctx context.Context, labelID *uint, opts HostListOptions) (int, error)
+	// SearchHosts performs a search on the hosts table using the following criteria:
+	//	- matchQuery is the query SQL
+	//	- queryID is the ID of a saved query to run (used to determine whether this is a query that observers can run)
+	//	- excludedHostIDs is an optional list of IDs to omit from the search
+	SearchHosts(ctx context.Context, matchQuery string, queryID *uint, excludedHostIDs []uint) ([]*Host, error)
 	// ListHostDeviceMapping returns the list of device-mapping of user's email address
 	// for the host.
 	ListHostDeviceMapping(ctx context.Context, id uint) ([]*HostDeviceMapping, error)
+	// ListDevicePolicies lists all policies for the given host, including passing / failing summaries
+	ListDevicePolicies(ctx context.Context, host *Host) ([]*HostPolicy, error)
 
 	MacadminsData(ctx context.Context, id uint) (*MacadminsData, error)
+	AggregatedMacadminsData(ctx context.Context, teamID *uint) (*AggregatedMacadminsData, error)
+
+	OSVersions(ctx context.Context, teamID *uint, platform *string) (*OSVersions, error)
 
 	///////////////////////////////////////////////////////////////////////////////
 	// AppConfigService provides methods for configuring  the Fleet application
@@ -311,7 +333,7 @@ type Service interface {
 	UpdateInvite(ctx context.Context, id uint, payload InvitePayload) (*Invite, error)
 
 	///////////////////////////////////////////////////////////////////////////////
-	// TargetService
+	// TargetService **NOTE: SearchTargets will be removed in Fleet 5.0**
 
 	// SearchTargets will accept a search query, a slice of IDs of hosts to omit, and a slice of IDs of labels to omit,
 	// and it will return a set of targets (hosts and label) which match the supplied search query. If the query ID is
@@ -359,6 +381,8 @@ type Service interface {
 
 	// NewTeam creates a new team.
 	NewTeam(ctx context.Context, p TeamPayload) (*Team, error)
+	// GetTeam returns a existing team.
+	GetTeam(ctx context.Context, id uint) (*Team, error)
 	// ModifyTeam modifies an existing team (besides agent options).
 	ModifyTeam(ctx context.Context, id uint, payload TeamPayload) (*Team, error)
 	// ModifyTeamAgentOptions modifies agent options for a team.
@@ -373,6 +397,8 @@ type Service interface {
 	ListTeams(ctx context.Context, opt ListOptions) ([]*Team, error)
 	// ListTeamUsers lists users on the team with the provided list options.
 	ListTeamUsers(ctx context.Context, teamID uint, opt ListOptions) ([]*User, error)
+	// ListAvailableTeamsForUser lists the teams the user is permitted to view
+	ListAvailableTeamsForUser(ctx context.Context, user *User) ([]*TeamSummary, error)
 	// TeamEnrollSecrets lists the enroll secrets for the team.
 	TeamEnrollSecrets(ctx context.Context, teamID uint) ([]*EnrollSecret, error)
 	// ModifyTeamEnrollSecrets modifies enroll secrets for a team.
@@ -428,7 +454,7 @@ type Service interface {
 	// Software
 
 	ListSoftware(ctx context.Context, opt SoftwareListOptions) ([]Software, error)
-	SoftwareByID(ctx context.Context, id uint) (*Software, error)
+	SoftwareByID(ctx context.Context, id uint, includeCVEScores bool) (*Software, error)
 	CountSoftware(ctx context.Context, opt SoftwareListOptions) (int, error)
 
 	///////////////////////////////////////////////////////////////////////////////
@@ -439,4 +465,7 @@ type Service interface {
 	DeleteTeamPolicies(ctx context.Context, teamID uint, ids []uint) ([]uint, error)
 	ModifyTeamPolicy(ctx context.Context, teamID uint, id uint, p ModifyPolicyPayload) (*Policy, error)
 	GetTeamPolicyByIDQueries(ctx context.Context, teamID uint, policyID uint) (*Policy, error)
+
+	/// Geolocation
+	LookupGeoIP(ctx context.Context, ip string) *GeoLocation
 }

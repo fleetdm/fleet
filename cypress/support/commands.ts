@@ -1,5 +1,8 @@
 import "@testing-library/cypress/add-commands";
 import "cypress-wait-until";
+import CONSTANTS from "./constants";
+
+const { GOOD_PASSWORD } = CONSTANTS;
 
 // ***********************************************
 // This example commands.js shows you how to
@@ -38,17 +41,29 @@ Cypress.Commands.add("setup", () => {
 
 Cypress.Commands.add("login", (email, password) => {
   email ||= "admin@example.com";
-  password ||= "user123#";
-  cy.request("POST", "/api/v1/fleet/login", { email, password }).then(
+  password ||= GOOD_PASSWORD;
+  cy.request("POST", "/api/latest/fleet/login", { email, password }).then(
     (resp) => {
       window.localStorage.setItem("FLEET::auth_token", resp.body.token);
     }
   );
 });
 
+Cypress.Commands.add("loginWithCySession", (email, password) => {
+  email ||= "admin@example.com";
+  password ||= GOOD_PASSWORD;
+  cy.session([email, password], () => {
+    cy.request("POST", "/api/latest/fleet/login", { email, password }).then(
+      (resp) => {
+        window.localStorage.setItem("FLEET::auth_token", resp.body.token);
+      }
+    );
+  });
+});
+
 Cypress.Commands.add("logout", () => {
   cy.request({
-    url: "/api/v1/fleet/logout",
+    url: "/api/latest/fleet/logout",
     method: "POST",
     body: {},
     auth: {
@@ -77,11 +92,11 @@ Cypress.Commands.add("seedQueries", () => {
       observer_can_run: false,
     },
     {
-      name:
-        "Detect Linux hosts with high severity vulnerable versions of OpenSSL",
+      name: "Get local user accounts",
       query:
-        "SELECT name AS name, version AS version, 'deb_packages' AS source FROM deb_packages WHERE name LIKE 'openssl%' UNION SELECT name AS name, version AS version, 'apt_sources' AS source FROM apt_sources WHERE name LIKE 'openssl%' UNION SELECT name AS name, version AS version, 'rpm_packages' AS source FROM rpm_packages WHERE name LIKE 'openssl%';",
-      description: "Retrieves the OpenSSL version.",
+        "SELECT uid, gid, username, description,directory, shell FROM users;",
+      description:
+        "Local user accounts (including domain accounts that have logged on locally (Windows)).",
       observer_can_run: false,
     },
   ];
@@ -89,9 +104,78 @@ Cypress.Commands.add("seedQueries", () => {
   queries.forEach((queryForm) => {
     const { name, query, description, observer_can_run } = queryForm;
     cy.request({
-      url: "/api/v1/fleet/queries",
+      url: "/api/latest/fleet/queries",
       method: "POST",
       body: { name, query, description, observer_can_run },
+      auth: {
+        bearer: window.localStorage.getItem("FLEET::auth_token"),
+      },
+    });
+  });
+});
+
+Cypress.Commands.add("seedSchedule", () => {
+  const scheduledQueries = [
+    {
+      interval: 86400,
+      platform: "",
+      query_id: 1,
+      removed: false,
+      shard: null,
+      snapshot: true,
+      version: "",
+    },
+    {
+      interval: 604800,
+      platform: "linux",
+      query_id: 2,
+      removed: true,
+      shard: 50,
+      snapshot: false,
+      version: "4.6.0",
+    },
+  ];
+
+  scheduledQueries.forEach((scheduleForm) => {
+    const {
+      interval,
+      platform,
+      query_id,
+      removed,
+      shard,
+      snapshot,
+      version,
+    } = scheduleForm;
+    cy.request({
+      url: "/api/latest/fleet/schedule",
+      method: "POST",
+      body: { interval, platform, query_id, removed, shard, snapshot, version },
+      auth: {
+        bearer: window.localStorage.getItem("FLEET::auth_token"),
+      },
+    });
+  });
+});
+
+// @ts-ignore
+Cypress.Commands.add("seedPacks", () => {
+  const packs = [
+    {
+      name: "Mac starter pack",
+      description: "Run all queries weekly on Mac hosts",
+    },
+    {
+      name: "Windows starter pack",
+      description: "Run all queries weekly on Windows hosts",
+    },
+  ];
+
+  packs.forEach((packForm) => {
+    const { name, description } = packForm;
+    cy.request({
+      url: "/api/latest/fleet/packs",
+      method: "POST",
+      body: { name, description, host_ids: [], label_ids: [], team_ids: [] },
       auth: {
         bearer: window.localStorage.getItem("FLEET::auth_token"),
       },
@@ -109,6 +193,7 @@ Cypress.Commands.add("seedPolicies", (team = "") => {
         "Checks to make sure that the Filevault feature is enabled on macOS devices.",
       resolution:
         "Choose Apple menu > System Preferences, then click Security & Privacy. Click the FileVault tab. Click the Lock icon, then enter an administrator name and password. Click Turn On FileVault.",
+      platform: "darwin,linux",
     },
     {
       name: "Is Ubuntu, version 20.4.0 installed?",
@@ -117,16 +202,25 @@ Cypress.Commands.add("seedPolicies", (team = "") => {
       description:
         "Returns yes or no for detecting operating system and version",
       resolution: "Update OS if needed",
+      platform: "darwin,windows,linux",
+    },
+    {
+      name: "Is Ubuntu, version 16.4.0 or later, installed?",
+      query:
+        "SELECT 1 from os_version WHERE name = 'Ubuntu' AND major || '.' || minor || '.' || patch >= '16.4.0';",
+      description:
+        "Returns yes or no for detecting operating system and version",
+      resolution: "Update OS if needed",
+      platform: "",
     },
   ];
 
   if (team === "apples") {
     policies.forEach((policyForm) => {
-      const { name, query, description, resolution } = policyForm;
       cy.request({
-        url: "/api/v1/fleet/teams/1/policies",
+        url: "/api/latest/fleet/teams/1/policies",
         method: "POST",
-        body: { name, query, description, resolution },
+        body: { ...policyForm },
         auth: {
           bearer: window.localStorage.getItem("FLEET::auth_token"),
         },
@@ -134,11 +228,10 @@ Cypress.Commands.add("seedPolicies", (team = "") => {
     });
   } else {
     policies.forEach((policyForm) => {
-      const { name, query, description, resolution } = policyForm;
       cy.request({
-        url: "/api/v1/fleet/global/policies",
+        url: "/api/latest/fleet/policies",
         method: "POST",
-        body: { name, query, description, resolution },
+        body: { ...policyForm },
         auth: {
           bearer: window.localStorage.getItem("FLEET::auth_token"),
         },
@@ -159,7 +252,7 @@ Cypress.Commands.add("setupSMTP", () => {
   };
 
   cy.request({
-    url: "/api/v1/fleet/config",
+    url: "/api/latest/fleet/config",
     method: "PATCH",
     body,
     auth: {
@@ -181,7 +274,7 @@ Cypress.Commands.add("setupSSO", (enable_idp_login = false) => {
   };
 
   cy.request({
-    url: "/api/v1/fleet/config",
+    url: "/api/latest/fleet/config",
     method: "PATCH",
     body,
     auth: {
@@ -288,7 +381,7 @@ Cypress.Commands.add("seedFigma", () => {
 
 Cypress.Commands.add("addUser", (options = {}) => {
   let { password, email, globalRole } = options;
-  password ||= "test123#";
+  password ||= GOOD_PASSWORD;
   email ||= `admin@example.com`;
   globalRole ||= "admin";
 
@@ -305,11 +398,11 @@ Cypress.Commands.add("addUser", (options = {}) => {
 Cypress.Commands.add("addDockerHost", (team = "") => {
   const serverPort = new URL(Cypress.config().baseUrl).port;
   // Get enroll secret
-  let enrollSecretURL = "/api/v1/fleet/spec/enroll_secret";
+  let enrollSecretURL = "/api/latest/fleet/spec/enroll_secret";
   if (team === "apples") {
-    enrollSecretURL = "/api/v1/fleet/teams/1/secrets";
+    enrollSecretURL = "/api/latest/fleet/teams/1/secrets";
   } else if (team === "oranges") {
-    enrollSecretURL = "/api/v1/fleet/teams/2/secrets";
+    enrollSecretURL = "/api/latest/fleet/teams/2/secrets";
   }
 
   cy.request({

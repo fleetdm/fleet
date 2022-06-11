@@ -24,29 +24,15 @@
       color: $core-fleet-blue;
       padding-top: $pad-small;
     }
-
   }
 
-  &__button-wrap {
-    display: flex;
-    justify-content: flex-end;
-
-    .query-form__run-query-btn,
-    .query-form__stop-query-btn {
-      margin-left: $pad-xsmall;
-    }
-
-    .kolide-timer {
-      display: block;
-    }
+  .query-form__run-query-btn,
+  .query-form__stop-query-btn {
+    margin-left: $pad-xsmall;
   }
 
   &__cancel-btn {
     margin-right: $pad-medium;
-  }
-
-  &__save-btn {
-    padding: 7px 28px;
   }
 
   &__text-editor-wrapper {

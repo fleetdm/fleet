@@ -16,7 +16,7 @@ import (
 
 func TestLabelsAuth(t *testing.T) {
 	ds := new(mock.Store)
-	svc := newTestService(ds, nil, nil)
+	svc := newTestService(t, ds, nil, nil)
 
 	ds.NewLabelFunc = func(ctx context.Context, lbl *fleet.Label, opts ...fleet.OptionalArg) (*fleet.Label, error) {
 		return lbl, nil
@@ -34,6 +34,9 @@ func TestLabelsAuth(t *testing.T) {
 		return &fleet.Label{}, nil
 	}
 	ds.ListLabelsFunc = func(ctx context.Context, filter fleet.TeamFilter, opts fleet.ListOptions) ([]*fleet.Label, error) {
+		return nil, nil
+	}
+	ds.LabelsSummaryFunc = func(ctx context.Context) ([]*fleet.LabelSummary, error) {
 		return nil, nil
 	}
 	ds.ListHostsInLabelFunc = func(ctx context.Context, filter fleet.TeamFilter, lid uint, opts fleet.HostListOptions) ([]*fleet.Host, error) {
@@ -108,6 +111,9 @@ func TestLabelsAuth(t *testing.T) {
 			_, err = svc.ListLabels(ctx, fleet.ListOptions{})
 			checkAuthErr(t, tt.shouldFailRead, err)
 
+			_, err = svc.LabelsSummary((ctx))
+			checkAuthErr(t, tt.shouldFailRead, err)
+
 			_, err = svc.ListHostsInLabel(ctx, 1, fleet.HostListOptions{})
 			checkAuthErr(t, tt.shouldFailRead, err)
 
@@ -139,7 +145,7 @@ func TestLabelsWithDS(t *testing.T) {
 }
 
 func testLabelsGetLabel(t *testing.T, ds *mysql.Datastore) {
-	svc := newTestService(ds, nil, nil)
+	svc := newTestService(t, ds, nil, nil)
 
 	label := &fleet.Label{
 		Name:  "foo",
@@ -155,10 +161,14 @@ func testLabelsGetLabel(t *testing.T, ds *mysql.Datastore) {
 }
 
 func testLabelsListLabels(t *testing.T, ds *mysql.Datastore) {
-	svc := newTestService(ds, nil, nil)
+	svc := newTestService(t, ds, nil, nil)
 	require.NoError(t, ds.MigrateData(context.Background()))
 
 	labels, err := svc.ListLabels(test.UserContext(test.UserAdmin), fleet.ListOptions{Page: 0, PerPage: 1000})
 	require.NoError(t, err)
 	require.Len(t, labels, 7)
+
+	labelsSummary, err := svc.LabelsSummary(test.UserContext(test.UserAdmin))
+	require.NoError(t, err)
+	require.Len(t, labelsSummary, 7)
 }

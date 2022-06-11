@@ -62,14 +62,14 @@ func TestDatastoreReplica(t *testing.T) {
 		require.NotNil(t, host)
 
 		// trying to read it fails, not replicated yet
-		_, err = ds.Host(context.Background(), host.ID, false)
+		_, err = ds.Host(context.Background(), host.ID)
 		require.Error(t, err)
 		require.True(t, errors.Is(err, sql.ErrNoRows))
 
 		opts.RunReplication()
 
 		// now it can read it
-		host2, err := ds.Host(context.Background(), host.ID, false)
+		host2, err := ds.Host(context.Background(), host.ID)
 		require.NoError(t, err)
 		require.Equal(t, host.ID, host2.ID)
 	})
@@ -778,10 +778,12 @@ func TestNewUsesRegisterTLS(t *testing.T) {
 	// This fails because the certificate mysql is using is different than the one generated here
 	_, err := newDSWithConfig(t, dbName, mysqlConfig)
 	require.Error(t, err)
-	require.Equal(t, "x509: certificate is not valid for any names, but wanted to match localhost", err.Error())
+	// TODO: we're using a Regexp because the message is different depending on the version of mysql,
+	// we should refactor and use different error types instead.
+	require.Regexp(t, "^(x509|tls)", err.Error())
 }
 
-func TestWhereFilterTeas(t *testing.T) {
+func TestWhereFilterTeams(t *testing.T) {
 	t.Parallel()
 
 	testCases := []struct {
@@ -938,4 +940,37 @@ func TestCompareVersions(t *testing.T) {
 			require.Equal(t, tc.expEqual, equal)
 		})
 	}
+}
+
+func TestRxLooseEmail(t *testing.T) {
+	testCases := []struct {
+		str   string
+		match bool
+	}{
+		{"foo", false},
+		{"", false},
+		{"foo@example", false},
+		{"foo@example.com", true},
+		{"foo+bar@example.com", true},
+		{"foo.bar@example.com", true},
+		{"foo.bar@baz.example.com", true},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.str, func(t *testing.T) {
+			assert.Equal(t, tc.match, rxLooseEmail.MatchString(tc.str))
+		})
+	}
+}
+
+func TestDebugs(t *testing.T) {
+	ds := CreateMySQLDS(t)
+
+	status, err := ds.InnoDBStatus(context.Background())
+	require.NoError(t, err)
+	assert.NotEmpty(t, status)
+
+	processList, err := ds.ProcessList(context.Background())
+	require.NoError(t, err)
+	require.Greater(t, len(processList), 0)
 }

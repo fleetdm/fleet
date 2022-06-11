@@ -1,8 +1,16 @@
 /* eslint-disable  @typescript-eslint/explicit-module-boundary-types */
 import sendRequest from "services";
-import endpoints from "fleet/endpoints";
-import helpers from "fleet/helpers";
-import { ILabel, ILabelFormData } from "interfaces/label";
+import endpoints from "utilities/endpoints";
+import helpers from "utilities/helpers";
+import { ILabel, ILabelFormData, ILabelSummary } from "interfaces/label";
+
+export interface ILabelsResponse {
+  labels: ILabel[];
+}
+
+export interface ILabelsSummaryResponse {
+  labels: ILabelSummary[];
+}
 
 export default {
   create: async (formData: ILabelFormData) => {
@@ -22,7 +30,7 @@ export default {
       };
     } catch (error) {
       console.error(error);
-      throw new Error("Could not create label.");
+      throw error;
     }
   },
   destroy: (label: ILabel) => {
@@ -31,16 +39,23 @@ export default {
 
     return sendRequest("DELETE", path);
   },
-  loadAll: async () => {
+  // TODO: confirm this still works
+  loadAll: async (): Promise<ILabelsResponse> => {
     const { LABELS } = endpoints;
 
     try {
       const response = await sendRequest("GET", LABELS);
-      return { labels: helpers.formatLabelResponse(response) };
+      return Promise.resolve({ labels: helpers.formatLabelResponse(response) });
     } catch (error) {
       console.error(error);
-      throw new Error("Could not load all labels.");
+      return Promise.reject(error);
     }
+  },
+  summary: (): Promise<ILabelsSummaryResponse> => {
+    const { LABELS } = endpoints;
+    const path = `${LABELS}/summary`;
+
+    return sendRequest("GET", path);
   },
   update: async (label: ILabel, updatedAttrs: ILabel) => {
     const { LABELS } = endpoints;
@@ -59,7 +74,7 @@ export default {
       };
     } catch (error) {
       console.error(error);
-      throw new Error("Could not update label.");
+      throw error;
     }
   },
 };

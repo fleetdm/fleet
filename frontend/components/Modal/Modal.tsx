@@ -1,5 +1,6 @@
-import React, { useEffect } from "react";
+import React, { useContext, useEffect } from "react";
 import classnames from "classnames";
+import { NotificationContext } from "context/notification";
 
 const baseClass = "modal";
 
@@ -10,7 +11,14 @@ export interface IModalProps {
   className?: string;
 }
 
-const Modal = ({ children, onExit, title, className }: IModalProps) => {
+const Modal = ({
+  children,
+  onExit,
+  title,
+  className,
+}: IModalProps): JSX.Element => {
+  const { hideFlash } = useContext(NotificationContext);
+
   useEffect(() => {
     const closeWithEscapeKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
@@ -18,6 +26,7 @@ const Modal = ({ children, onExit, title, className }: IModalProps) => {
       }
     };
 
+    hideFlash();
     document.addEventListener("keydown", closeWithEscapeKey);
 
     return () => {

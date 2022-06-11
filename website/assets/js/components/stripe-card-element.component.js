@@ -85,15 +85,15 @@ parasails.registerComponent('stripeCardElement', {
         base: {
           lineHeight: '36px',
           fontSize: '16px',
-          color: '#495057',
-          iconColor: '#14acc2',
+          color: '#192147',
+          iconColor: '#6A67FE',
           fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
           '::placeholder': {
-            color: '#6c757d',
+            color: '#515774',
           },
         },
         invalid: {
-          color: '#dc3545',
+          color: '#FF5C83',
         },
       },
     });

@@ -1,5 +1,4 @@
 import React from "react";
-import { useDispatch } from "react-redux";
 
 import { ITeam } from "interfaces/team";
 import { IUserFormErrors } from "interfaces/user";
@@ -14,14 +13,15 @@ interface ICreateUserModalProps {
   defaultGlobalRole?: string | null;
   defaultTeamRole?: string;
   defaultTeams?: ITeam[];
-  availableTeams: ITeam[];
+  availableTeams?: ITeam[];
   isPremiumTier: boolean;
   smtpConfigured: boolean;
   currentTeam?: ITeam;
   canUseSso: boolean; // corresponds to whether SSO is enabled for the organization
   isModifiedByGlobalAdmin?: boolean | false;
-  isFormSubmitting?: boolean | false;
-  serverErrors?: IUserFormErrors;
+  isLoading?: boolean | false;
+  serverErrors?: { base: string; email: string };
+  createUserErrors?: IUserFormErrors;
 }
 
 const baseClass = "create-user-modal";
@@ -38,27 +38,27 @@ const CreateUserModal = ({
   smtpConfigured,
   canUseSso,
   isModifiedByGlobalAdmin,
-  isFormSubmitting,
+  isLoading,
   serverErrors,
+  createUserErrors,
 }: ICreateUserModalProps): JSX.Element => {
-  const dispatch = useDispatch();
-
   return (
     <Modal title="Create user" onExit={onCancel} className={baseClass}>
       <>
-        {isFormSubmitting && (
+        {isLoading && (
           <div className="loading-spinner">
             <Spinner />
           </div>
         )}
         <UserForm
           serverErrors={serverErrors}
+          createOrEditUserErrors={createUserErrors}
           defaultGlobalRole={defaultGlobalRole}
           defaultTeamRole={defaultTeamRole}
           defaultTeams={defaultTeams}
           onCancel={onCancel}
           onSubmit={onSubmit}
-          availableTeams={availableTeams}
+          availableTeams={availableTeams || []}
           submitText={"Create"}
           isPremiumTier={isPremiumTier}
           smtpConfigured={smtpConfigured}
@@ -66,7 +66,6 @@ const CreateUserModal = ({
           isModifiedByGlobalAdmin={isModifiedByGlobalAdmin}
           currentTeam={currentTeam}
           isNewUser
-          dispatch={dispatch}
         />
       </>
     </Modal>

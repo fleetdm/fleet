@@ -5,12 +5,12 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"golang.org/x/crypto/bcrypt"
 )
 
 func TestValidatePassword(t *testing.T) {
-
-	var passwordTests = []struct {
+	passwordTests := []struct {
 		Password, Email      string
 		Admin, PasswordReset bool
 	}{
@@ -40,5 +40,61 @@ func newTestUser(t *testing.T, password, email string) *User {
 		Salt:     salt,
 		Password: hashed,
 		Email:    email,
+	}
+}
+
+func TestUserPasswordRequirements(t *testing.T) {
+	passwordTests := []struct {
+		password string
+		wantErr  bool
+	}{
+		{
+			password: "foobar",
+			wantErr:  true,
+		},
+		{
+			password: "foobarbaz",
+			wantErr:  true,
+		},
+		{
+			password: "foobarbaz!",
+			wantErr:  true,
+		},
+		{
+			password: "foobarbaz!3",
+			wantErr:  true,
+		},
+		{
+			password: "foobarbaz!3!",
+		},
+	}
+
+	for _, tt := range passwordTests {
+		t.Run(tt.password, func(t *testing.T) {
+			err := ValidatePasswordRequirements(tt.password)
+			if tt.wantErr {
+				assert.NotNil(t, err)
+			} else {
+				assert.Nil(t, err)
+			}
+		})
+	}
+}
+
+func TestSaltAndHashPassword(t *testing.T) {
+	passwordTests := []string{"foobar!!", "bazbing!!"}
+	keySize := 24
+	cost := 10
+
+	for _, pwd := range passwordTests {
+		hashed, salt, err := saltAndHashPassword(keySize, pwd, cost)
+		require.NoError(t, err)
+
+		saltAndPass := []byte(fmt.Sprintf("%s%s", pwd, salt))
+		err = bcrypt.CompareHashAndPassword(hashed, saltAndPass)
+		require.NoError(t, err)
+
+		err = bcrypt.CompareHashAndPassword(hashed, []byte(fmt.Sprint("invalidpassword", salt)))
+		require.Error(t, err)
 	}
 }
