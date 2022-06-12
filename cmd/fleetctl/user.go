@@ -11,6 +11,7 @@ import (
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/ptr"
+	"github.com/sethvargo/go-password/password"
 	"github.com/urfave/cli/v2"
 	"golang.org/x/crypto/ssh/terminal"
 )
@@ -104,7 +105,7 @@ func createUserCommand() *cli.Command {
 				globalRole = ptr.String(fleet.RoleObserver)
 			} else if globalRoleString != "" {
 				if !fleet.ValidGlobalRole(globalRoleString) {
-					return fmt.Errorf("'%s' is not a valid team role", globalRoleString)
+					return fmt.Errorf("'%s' is not a valid global role", globalRoleString)
 				}
 				globalRole = ptr.String(globalRoleString)
 			} else {
@@ -181,7 +182,7 @@ func createBulkUsersCommand() *cli.Command {
 	return &cli.Command{
 		Name:  "import",
 		Usage: "Create bulk users",
-		UsageText: `This command will create a set of users in Fleet by importing a CSV file. Expected columns are: Name,Email,Password,SSO,API Only,Global Role,Teams. Created Users by default get Observer Role.
+		UsageText: `This command will create a set of users in Fleet by importing a CSV file. Expected columns are: Name,Email,SSO,API Only,Global Role,Teams. Created Users by default get random password and Observer Role.
 		Password could be left blank, Users should receive an invitation link.`,
 		Flags: []cli.Flag{
 			&cli.StringFlag{
@@ -215,17 +216,24 @@ func createBulkUsersCommand() *cli.Command {
 			for _, record := range csvLines[1:] {
 				name := record[0]
 				email := record[1]
-				password := record[2]
-				sso := c.Bool(record[3])
-				apiOnly := c.Bool(record[4])
-				globalRoleString := c.String(record[5])
-				teamStrings := c.StringSlice(record[6])
+				password := generateRandomPassword()
+				sso, ssoErr := strconv.ParseBool(record[2])
+				apiOnly, apiErr := strconv.ParseBool(record[3])
+				globalRoleString := record[4]
+				teamStrings := strings.Split(record[5], " ")
+				if ssoErr != nil {
+					return fmt.Errorf("SSO is not a vailed Boolean value: %w", err)
+				}
+				if apiErr != nil {
+					return fmt.Errorf("API Only is not a vailed Boolean value: %w", err)
+				}
 
 				var globalRole *string
 				var teams []fleet.UserTeam
-				if globalRoleString != "" && len(teamStrings) > 0 {
+
+				if globalRoleString != "" && len(teamStrings) > 0 && teamStrings[0] != "" {
 					return errors.New("Users may not have global_role and teams.")
-				} else if globalRoleString == "" && len(teamStrings) == 0 {
+				} else if globalRoleString == "" && (len(teamStrings) == 0 || teamStrings[0] == "") {
 					globalRole = ptr.String(fleet.RoleObserver)
 				} else if globalRoleString != "" {
 					if !fleet.ValidGlobalRole(globalRoleString) {
@@ -251,32 +259,9 @@ func createBulkUsersCommand() *cli.Command {
 				}
 
 				if sso && len(password) > 0 {
-					return errors.New("Password may not be provided for SSO users.")
+					password = ""
 				}
-				if !sso && len(password) == 0 {
-					fmt.Print("Enter password for user: ")
-					passBytes, err := terminal.ReadPassword(int(os.Stdin.Fd()))
-					fmt.Println()
-					if err != nil {
-						return fmt.Errorf("Failed to read password: %w", err)
-					}
-					if len(passBytes) == 0 {
-						return errors.New("Password may not be empty.")
-					}
 
-					fmt.Print("Enter password for user (confirm): ")
-					confBytes, err := terminal.ReadPassword(int(os.Stdin.Fd()))
-					fmt.Println()
-					if err != nil {
-						return fmt.Errorf("Failed to read confirmation: %w", err)
-					}
-
-					if !bytes.Equal(passBytes, confBytes) {
-						return errors.New("Confirmation does not match")
-					}
-
-					password = string(passBytes)
-				}
 				force_reset := !sso
 				err = client.CreateUser(fleet.UserPayload{
 					Password:                 &password,
@@ -291,6 +276,12 @@ func createBulkUsersCommand() *cli.Command {
 				if err != nil {
 					return fmt.Errorf("Failed to create user: %w", err)
 				}
+				if sso {
+					fmt.Printf("Email: %v SSO: %v\n", email, sso)
+				} else {
+					fmt.Printf("Email: %v Generated password: %v\n", email, password)
+				}
+
 			}
 			return nil
 		},
@@ -323,4 +314,12 @@ func deleteUserCommand() *cli.Command {
 			return client.DeleteUser(email)
 		},
 	}
+}
+
+func generateRandomPassword() string {
+	password, err := password.Generate(20, 2, 2, false, true)
+	if err != nil {
+		fmt.Println(err)
+	}
+	return password
 }
