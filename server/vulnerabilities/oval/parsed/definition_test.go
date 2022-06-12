@@ -11,7 +11,7 @@ func TestOvalParsedDefinition(t *testing.T) {
 	t.Run("#Eval", func(t *testing.T) {
 		t.Run("no root criteria", func(t *testing.T) {
 			sut := Definition{}
-			require.False(t, sut.Eval(nil))
+			require.False(t, sut.Eval(nil, nil))
 		})
 
 		t.Run("with empty test results", func(t *testing.T) {
@@ -21,8 +21,23 @@ func TestOvalParsedDefinition(t *testing.T) {
 				nil,
 			}
 			sut := Definition{Criteria: &criteria}
-			require.False(t, sut.Eval(nil))
-			require.False(t, sut.Eval(make(map[int][]fleet.Software)))
+			require.False(t, sut.Eval(nil, nil))
+			require.False(t, sut.Eval(make(map[int]bool), make(map[int][]fleet.Software)))
+		})
+
+		t.Run("with OS tests result only", func(t *testing.T) {
+			criteria := Criteria{
+				And,
+				[]int{1, 2, 3},
+				nil,
+			}
+			sut := Definition{Criteria: &criteria}
+			OSTstResults := map[int]bool{
+				1: true,
+				2: true,
+				3: true,
+			}
+			require.True(t, sut.Eval(OSTstResults, nil))
 		})
 
 		t.Run("with single level criteria", func(t *testing.T) {
@@ -40,7 +55,8 @@ func TestOvalParsedDefinition(t *testing.T) {
 					[]int{1, 2, 3},
 					nil,
 				}
-				tests := map[int][]fleet.Software{
+				OSTsts := make(map[int]bool)
+				pkgTsts := map[int][]fleet.Software{
 					1: {{ID: 1}},
 					2: nil,
 					3: {{ID: 2}},
@@ -50,7 +66,7 @@ func TestOvalParsedDefinition(t *testing.T) {
 					nil,
 				}
 
-				require.Equal(t, c.expected, sut.Eval(tests))
+				require.Equal(t, c.expected, sut.Eval(OSTsts, pkgTsts))
 			}
 		})
 
@@ -72,7 +88,8 @@ func TestOvalParsedDefinition(t *testing.T) {
 				[]*Criteria{&leaf},
 			}
 
-			tests := map[int][]fleet.Software{
+			OSTsts := make(map[int]bool)
+			pkgTsts := map[int][]fleet.Software{
 				1: nil,
 				2: nil,
 				3: {{ID: 2}},
@@ -84,7 +101,7 @@ func TestOvalParsedDefinition(t *testing.T) {
 				nil,
 			}
 
-			require.True(t, sut.Eval(tests))
+			require.True(t, sut.Eval(OSTsts, pkgTsts))
 		})
 	})
 

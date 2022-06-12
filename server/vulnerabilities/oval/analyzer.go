@@ -66,7 +66,7 @@ func Analyze(
 			if err != nil {
 				return nil, err
 			}
-			foundInBatch[hId] = defs.Eval(software)
+			foundInBatch[hId] = defs.Eval(ver, software)
 		}
 
 		existingInBatch, err := ds.ListSoftwareVulnerabilities(ctx, hIds)
@@ -184,8 +184,8 @@ func vulnsDelta(
 
 // loadDef returns the latest oval Definition for the given platform.
 func loadDef(platform Platform, vulnPath string) (oval_parsed.Result, error) {
-	if !platform.IsUbuntu() {
-		return nil, fmt.Errorf("don't know how to load OVAL file for '%s' platform", platform)
+	if !platform.IsSupported() {
+		return nil, fmt.Errorf("platform %q not supported", platform)
 	}
 
 	latest, err := latestOvalDefFor(platform, vulnPath, time.Now())
@@ -197,11 +197,23 @@ func loadDef(platform Platform, vulnPath string) (oval_parsed.Result, error) {
 		return nil, err
 	}
 
-	result := oval_parsed.UbuntuResult{}
-	if err := json.Unmarshal(payload, &result); err != nil {
-		return nil, err
+	if platform.IsUbuntu() {
+		result := oval_parsed.UbuntuResult{}
+		if err := json.Unmarshal(payload, &result); err != nil {
+			return nil, err
+		}
+		return result, nil
 	}
-	return result, nil
+
+	if platform.IsRedHat() {
+		result := oval_parsed.RhelResult{}
+		if err := json.Unmarshal(payload, &result); err != nil {
+			return nil, err
+		}
+		return result, nil
+	}
+
+	return nil, fmt.Errorf("don't know how to parse file %q for %q platform", latest, platform)
 }
 
 // latestOvalDefFor returns the path of the OVAL definition for the given 'platform' in

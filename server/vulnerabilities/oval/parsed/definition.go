@@ -19,12 +19,15 @@ type Definition struct {
 }
 
 // Eval evaluates the given definition using the provided test results.
-func (r Definition) Eval(testResults map[int][]fleet.Software) bool {
-	if r.Criteria == nil || len(testResults) == 0 {
+// Tests results can come from two sources:
+// - OSTstResults: Test results from making assertions against the installed OS Version
+// - pkTstResults: Tests results from making assertions against the installed software packages.
+func (r Definition) Eval(OSTstResults map[int]bool, pkgTstResults map[int][]fleet.Software) bool {
+	if r.Criteria == nil || (len(OSTstResults) == 0 && len(pkgTstResults) == 0) {
 		return false
 	}
 
-	return evalCriteria(r.Criteria, testResults)
+	return evalCriteria(r.Criteria, OSTstResults, pkgTstResults)
 }
 
 func (r Definition) CollectTestIds() []int {
@@ -45,18 +48,24 @@ func (r Definition) CollectTestIds() []int {
 	return results
 }
 
-func evalCriteria(c *Criteria, testResults map[int][]fleet.Software) bool {
+func evalCriteria(c *Criteria, OSTstResults map[int]bool, pkgTstResults map[int][]fleet.Software) bool {
 	var vals []bool
 	var result bool
 
 	for _, co := range c.Criteriums {
-		r := len(testResults[co]) > 0
-		vals = append(vals, r)
+		if _, ok := pkgTstResults[co]; ok {
+			r := len(pkgTstResults[co]) > 0
+			vals = append(vals, r)
+		}
+
+		if v, ok := OSTstResults[co]; ok {
+			vals = append(vals, v)
+		}
 	}
 	result = c.Operator.Eval(vals...)
 
 	for _, ci := range c.Criterias {
-		return c.Operator.Eval(result, evalCriteria(ci, testResults))
+		return c.Operator.Eval(result, evalCriteria(ci, OSTstResults, pkgTstResults))
 	}
 
 	return result
