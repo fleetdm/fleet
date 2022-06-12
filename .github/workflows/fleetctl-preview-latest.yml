@@ -37,9 +37,11 @@ jobs:
       # Docker needs to be installed manually on macOS.
       if: contains(matrix.os, 'macos')
       run: |
-        brew install --cask docker
-        sudo /Applications/Docker.app/Contents/MacOS/Docker --unattended --install-privileged-components
+        wget https://desktop.docker.com/mac/main/amd64/Docker.dmg
+        hdiutil attach Docker.dmg
+        sudo /Volumes/Docker/Docker.app/Contents/MacOS/install --accept-license
         open -a /Applications/Docker.app --args --unattended --accept-license
+        hdiutil detach /Volumes/Docker
         echo "Waiting for Docker to start up..."
         while ! /Applications/Docker.app/Contents/Resources/bin/docker info &>/dev/null; do sleep 1; done
         echo "Docker is ready."

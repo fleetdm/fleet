@@ -199,7 +199,7 @@ jobs:
       run: |
         wget https://desktop.docker.com/mac/main/amd64/Docker.dmg
         hdiutil attach Docker.dmg
-        /Volumes/Docker/Docker.app/Contents/MacOS/install --accept-license
+        sudo /Volumes/Docker/Docker.app/Contents/MacOS/install --accept-license
         open -a /Applications/Docker.app --args --unattended --accept-license
         hdiutil detach /Volumes/Docker
         echo "Waiting for Docker to start up..."
