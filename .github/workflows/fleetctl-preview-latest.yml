@@ -36,7 +36,6 @@ jobs:
     - name: Install Docker
       # Docker needs to be installed manually on macOS.
       if: contains(matrix.os, 'macos')
-      # From https://github.com/docker/for-mac/issues/2359#issuecomment-943131345
       run: |
         brew install --cask docker
         sudo /Applications/Docker.app/Contents/MacOS/Docker --unattended --install-privileged-components
