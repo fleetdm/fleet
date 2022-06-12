@@ -29,6 +29,9 @@ jobs:
     runs-on: ${{ matrix.os }}
 
     steps:
+    - name: Debug via SSH
+      uses: mxschmitt/action-tmate@8b4e4ac71822ed7e0ad5fb3d1c33483e9e8fb270 # v3.11
+
     - name: Install Docker
       timeout-minutes: 60
       # Docker needs to be installed manually on macOS.
