@@ -510,15 +510,14 @@ func TestTransparencyURLDowngradeLicense(t *testing.T) {
 	// setting transparency url fails
 	raw, err := json.Marshal(fleet.AppConfig{FleetDesktop: fleet.FleetDesktopSettings{TransparencyURL: "https://f1337.com/transparency"}})
 	require.NoError(t, err)
-	modified, err := svc.ModifyAppConfig(ctx, raw)
-
+	_, err = svc.ModifyAppConfig(ctx, raw)
 	require.Error(t, err)
 	require.ErrorContains(t, err, "missing or invalid license")
 
 	// setting unrelated config value does not fail and resets transparency url to ""
 	raw, err = json.Marshal(fleet.AppConfig{OrgInfo: fleet.OrgInfo{OrgName: "f1337"}})
 	require.NoError(t, err)
-	modified, err = svc.ModifyAppConfig(ctx, raw)
+	modified, err := svc.ModifyAppConfig(ctx, raw)
 	require.NoError(t, err)
 	require.NotNil(t, modified)
 	require.Equal(t, "", modified.FleetDesktop.TransparencyURL)
