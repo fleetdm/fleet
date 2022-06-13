@@ -66,6 +66,9 @@ type Datastore interface {
 	ListQueries(ctx context.Context, opt ListQueryOptions) ([]*Query, error)
 	// QueryByName looks up a query by name.
 	QueryByName(ctx context.Context, name string, opts ...OptionalArg) (*Query, error)
+	// ObserverCanRunQuery returns whether a user with an observer role is permitted to run the
+	// identified query
+	ObserverCanRunQuery(ctx context.Context, queryID uint) (bool, error)
 
 	///////////////////////////////////////////////////////////////////////////////
 	// CampaignStore defines the distributed query campaign related datastore methods
@@ -336,6 +339,9 @@ type Datastore interface {
 	SearchTeams(ctx context.Context, filter TeamFilter, matchQuery string, omit ...uint) ([]*Team, error)
 	// TeamEnrollSecrets lists the enroll secrets for the team.
 	TeamEnrollSecrets(ctx context.Context, teamID uint) ([]*EnrollSecret, error)
+	// DeleteIntegrationsFromTeams deletes integrations used by teams, as they
+	// are being deleted from the global configuration.
+	DeleteIntegrationsFromTeams(ctx context.Context, deletedIntgs Integrations) error
 
 	///////////////////////////////////////////////////////////////////////////////
 	// SoftwareStore

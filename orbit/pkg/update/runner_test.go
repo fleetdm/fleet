@@ -34,6 +34,7 @@ func TestNewRunner(t *testing.T) {
 	r, err := NewRunner(u, runnerOpts)
 	require.NoError(t, err)
 	execPath, err := u.ExecutableLocalPath("osqueryd")
+	require.NoError(t, err)
 	require.NoFileExists(t, execPath)
 
 	// r.UpdateAction should download osqueryd.

@@ -453,7 +453,6 @@ Weekly update principles
 We like to regularly share updates about how Fleet is growing with our investors and advisors. 
   - Charlie tracks the most recent updates with investors and advisors and coordinates emails, zoom calls, or the investor or advisor's preferred method of communication with @mikermcneil and preps materials as needed. 
 
-The information in GitLab is organized as follows: 
 
 # Participating in the program
 
@@ -571,6 +570,16 @@ GitLab co-founder and CEO Sid Sijbrandij [answered questions in a YouTube livest
 # Alumni 
 TODO: (this is a chart with info on CEO alumni) (they use a slack channel for CEO-shadow-alumni)
 
+### Recruiting progress checkup
+
+Weekly, Charlie looks in the [Fleeties spreadsheet](https://docs.google.com/spreadsheets/d/1OSLn-ZCbGSjPusHPiR5dwQhheH1K8-xqyZdsOe9y7qc/edit#gid=0) and reports on each open position:
+
+ - Is the position in [BreezyHR](https://app.breezy.hr/signin)?
+ - Is the position listed on fleetdm.com/jobs?
+ - What is the total # applicants?
+ - Total # interviews? 
+
+
 ## Rituals
 
 The following table lists the People group's rituals, frequency, and Directly Responsible Individual (DRI).
@@ -590,6 +599,7 @@ The following table lists the People group's rituals, frequency, and Directly Re
 | Workiversaries | Weekly/PRN | People Operations posts in #g-people and tags @mikermcneil about any upcoming workiversaries | Charlie Chance |
 | Investor and Advisor updates | PRN | People Operations tracks the last contact with investors and coordinates outreach with CEO | Charlie Chance |
 | CEO inbox sweep | Daily unless OOO | Charlie does a morning sweep of the CEO's inbox to remove spam and grab action items | Charlie Chance |
+| Recruiting progress checkup | Weekly | Charlie looks in the [Fleeties spreadsheet](https://docs.google.com/spreadsheets/d/1OSLn-ZCbGSjPusHPiR5dwQhheH1K8-xqyZdsOe9y7qc/edit#gid=0) and reports on each open position | Charlie Chance |
 
 
 ## Slack channels
