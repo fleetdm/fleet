@@ -1136,12 +1136,12 @@ func (s *integrationEnterpriseTestSuite) TestCustomTransparencyURL() {
 	require.Equal(t, fleet.DefaultTransparencyURL, acResp.FleetDesktop.TransparencyURL)
 
 	// confirm device endpoint returns initial default url
-	deviceResp := &getDeviceHostResponse{}
-	rawResp := s.DoRawNoAuth("GET", "/api/latest/fleet/device/"+token, nil, http.StatusOK)
+	deviceResp := &transparencyURLResponse{}
+	rawResp := s.DoRawNoAuth("GET", "/api/latest/fleet/device/"+token+"/transparency", nil, http.StatusTemporaryRedirect)
 	json.NewDecoder(rawResp.Body).Decode(deviceResp)
 	rawResp.Body.Close()
 	require.NoError(t, deviceResp.Err)
-	require.Equal(t, fleet.DefaultTransparencyURL, deviceResp.TransparencyURL)
+	require.Equal(t, fleet.DefaultTransparencyURL, rawResp.Header.Get("Location"))
 
 	// set custom url
 	acResp = appConfigResponse{}
@@ -1150,12 +1150,12 @@ func (s *integrationEnterpriseTestSuite) TestCustomTransparencyURL() {
 	require.Equal(t, "customURL", acResp.FleetDesktop.TransparencyURL)
 
 	// device endpoint returns custom url
-	deviceResp = &getDeviceHostResponse{}
-	rawResp = s.DoRawNoAuth("GET", "/api/latest/fleet/device/"+token, nil, http.StatusOK)
+	deviceResp = &transparencyURLResponse{}
+	rawResp = s.DoRawNoAuth("GET", "/api/latest/fleet/device/"+token+"/transparency", nil, http.StatusTemporaryRedirect)
 	json.NewDecoder(rawResp.Body).Decode(deviceResp)
 	rawResp.Body.Close()
 	require.NoError(t, deviceResp.Err)
-	require.Equal(t, "customURL", deviceResp.TransparencyURL)
+	require.Equal(t, "customURL", rawResp.Header.Get("Location"))
 
 	// empty string applies default url
 	acResp = appConfigResponse{}
@@ -1164,10 +1164,10 @@ func (s *integrationEnterpriseTestSuite) TestCustomTransparencyURL() {
 	require.Equal(t, fleet.DefaultTransparencyURL, acResp.FleetDesktop.TransparencyURL)
 
 	// device endpoint returns default url
-	deviceResp = &getDeviceHostResponse{}
-	rawResp = s.DoRawNoAuth("GET", "/api/latest/fleet/device/"+token, nil, http.StatusOK)
+	deviceResp = &transparencyURLResponse{}
+	rawResp = s.DoRawNoAuth("GET", "/api/latest/fleet/device/"+token+"/transparency", nil, http.StatusTemporaryRedirect)
 	json.NewDecoder(rawResp.Body).Decode(deviceResp)
 	rawResp.Body.Close()
 	require.NoError(t, deviceResp.Err)
-	require.Equal(t, fleet.DefaultTransparencyURL, deviceResp.TransparencyURL)
+	require.Equal(t, fleet.DefaultTransparencyURL, rawResp.Header.Get("Location"))
 }
