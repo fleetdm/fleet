@@ -10,5 +10,5 @@ type RpmVerifyFileTest struct {
 }
 
 func (t *RpmVerifyFileTest) Eval(ver fleet.OSVersion) (bool, error) {
-	return false, nil
+	return t.State.EvalOSVersion(ver)
 }
