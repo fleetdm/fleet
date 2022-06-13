@@ -61,6 +61,7 @@ interface IDataTableProps {
   onResultsCountChange?: (value: number) => void;
   renderFooter?: () => JSX.Element | null;
   renderPagination?: () => JSX.Element | null;
+  setExportRows?: (rows: Row[]) => void;
 }
 
 const CLIENT_SIDE_DEFAULT_PAGE_SIZE = 20;
@@ -97,6 +98,7 @@ const DataTable = ({
   onResultsCountChange,
   renderFooter,
   renderPagination,
+  setExportRows,
 }: IDataTableProps): JSX.Element => {
   const { resetSelectedRows } = useContext(TableContext);
   const { isOnlyObserver } = useContext(AppContext);
@@ -167,6 +169,7 @@ const DataTable = ({
         }),
         []
       ),
+      autoResetFilters: false,
       // Expands the enumerated `sortTypes` for react-table
       // (see https://github.com/tannerlinsley/react-table/blob/master/src/sortTypes.js)
       // with custom `sortTypes` defined for this `useTable` instance
@@ -221,8 +224,13 @@ const DataTable = ({
         value,
       }));
       !!allFilters.length && setAllFilters(allFilters);
+      setExportRows && setExportRows(rows);
     }
   }, [tableFilters]);
+
+  useEffect(() => {
+    setExportRows && setExportRows(rows);
+  }, [tableState.filters]);
 
   // Listen for changes to filters if clientSideFilter is enabled
 

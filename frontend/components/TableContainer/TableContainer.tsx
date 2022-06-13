@@ -62,6 +62,8 @@ interface ITableContainerProps {
   selectedDropdownFilter?: string;
   isClientSidePagination?: boolean;
   isClientSideFilter?: boolean;
+  isMultiColumnFilter?: boolean; // isMultiColumnFilter is used to preserve the table headers
+  // in lieu of displaying the empty component when client-side filtering yields zero results
   highlightOnHover?: boolean;
   pageSize?: number;
   onActionButtonClick?: () => void;
@@ -73,6 +75,7 @@ interface ITableContainerProps {
   filters?: Record<string, string | number | boolean>;
   renderCount?: () => JSX.Element | null;
   renderFooter?: () => JSX.Element | null;
+  setExportRows?: (rows: Row[]) => void;
 }
 
 const baseClass = "table-container";
@@ -116,6 +119,7 @@ const TableContainer = ({
   searchToolTipText,
   isClientSidePagination,
   isClientSideFilter,
+  isMultiColumnFilter,
   highlightOnHover,
   pageSize = DEFAULT_PAGE_SIZE,
   selectedDropdownFilter,
@@ -128,6 +132,7 @@ const TableContainer = ({
   onSelectSingleRow,
   renderCount,
   renderFooter,
+  setExportRows,
 }: ITableContainerProps): JSX.Element => {
   const [searchQuery, setSearchQuery] = useState("");
   const [sortHeader, setSortHeader] = useState(defaultSortHeader || "");
@@ -210,7 +215,7 @@ const TableContainer = ({
     } else if (typeof clientFilterCount === "number") {
       return clientFilterCount;
     }
-    return data.length;
+    return data?.length || 0;
   }, [filteredCount, clientFilterCount, data]);
 
   const renderPagination = useCallback(() => {
@@ -269,7 +274,9 @@ const TableContainer = ({
                 {renderCount()}
               </div>
             )}
-            {!renderCount && data && displayCount() && !disableCount ? (
+            {!renderCount &&
+            !disableCount &&
+            (isMultiColumnFilter || displayCount()) ? (
               <div
                 className={`${baseClass}__results-count ${
                   stackControls ? "stack-table-controls" : ""
@@ -344,8 +351,8 @@ const TableContainer = ({
       </div>
       <div className={`${baseClass}__data-table-block`}>
         {/* No entities for this result. */}
-        {(!isLoading && data.length === 0) ||
-        (searchQuery.length && data.length === 0) ? (
+        {(!isLoading && data.length === 0 && !isMultiColumnFilter) ||
+        (searchQuery.length && data.length === 0 && !isMultiColumnFilter) ? (
           <>
             <EmptyComponent pageIndex={pageIndex} />
             {pageIndex !== 0 && (
@@ -365,12 +372,12 @@ const TableContainer = ({
           <>
             {/* TODO: Fix this hacky solution to clientside search being 0 rendering emptycomponent but
             no longer accesses rows.length because DataTable is not rendered */}
-            {clientFilterCount === 0 && (
+            {clientFilterCount === 0 && !isMultiColumnFilter && (
               <EmptyComponent pageIndex={pageIndex} />
             )}
             <div
               className={
-                isClientSideFilter
+                isClientSideFilter && !isMultiColumnFilter
                   ? `client-result-count-${clientFilterCount}`
                   : ""
               }
@@ -407,6 +414,7 @@ const TableContainer = ({
                 selectedDropdownFilter={selectedDropdownFilter}
                 renderFooter={renderFooter}
                 renderPagination={renderPagination}
+                setExportRows={setExportRows}
               />
             </div>
           </>
