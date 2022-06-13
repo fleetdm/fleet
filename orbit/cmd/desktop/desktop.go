@@ -43,6 +43,7 @@ func main() {
 
 	basePath := deviceURL.Scheme + "://" + deviceURL.Host
 	deviceToken := path.Base(deviceURL.Path)
+	transparencyURL := basePath + "/api/latest/fleet/device/" + deviceToken + "/transparency"
 
 	onReady := func() {
 		log.Info().Msg("ready")
@@ -145,7 +146,7 @@ func main() {
 						log.Error().Err(err).Msg("open browser my device")
 					}
 				case <-transparencyItem.ClickedCh:
-					if err := open.Browser("https://fleetdm.com/transparency"); err != nil {
+					if err := open.Browser(transparencyURL); err != nil {
 						log.Error().Err(err).Msg("open browser transparency")
 					}
 				}
