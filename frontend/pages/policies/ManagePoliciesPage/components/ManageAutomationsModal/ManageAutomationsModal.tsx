@@ -120,7 +120,7 @@ const ManageAutomationsModal = ({
   );
 
   const [isWebhookEnabled, setIsWebhookEnabled] = useState(
-    webhook.enable_failing_policies_webhook || false
+    !isPolicyAutomationsEnabled || webhook.enable_failing_policies_webhook
   );
 
   const [destinationUrl, setDestinationUrl] = useState<string>(
