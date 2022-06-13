@@ -230,6 +230,24 @@ func TestOvalMapper(t *testing.T) {
 	})
 
 	t.Run("#mapRpmInfoState", func(t *testing.T) {
+		t.Run("maps the operator, if any", func(t *testing.T) {
+			input := oval_input.RpmInfoStateXML{
+				Name: &oval_input.SimpleTypeXML{
+					Value: "name",
+					Op:    "equals",
+				},
+			}
+			result, err := mapRpmInfoState(input)
+			require.NoError(t, err)
+			require.Equal(t, result.Operator, oval_parsed.And)
+
+			op := oval_parsed.Or.String()
+			input.Operator = &op
+			result, err = mapRpmInfoState(input)
+			require.NoError(t, err)
+			require.Equal(t, result.Operator, oval_parsed.Or)
+		})
+
 		t.Run("errors out if not supported state is provided", func(t *testing.T) {
 			input := oval_input.RpmInfoStateXML{
 				Filepath: &oval_input.SimpleTypeXML{},
@@ -429,6 +447,24 @@ func TestOvalMapper(t *testing.T) {
 					require.NoError(t, err)
 				}
 			}
+		})
+
+		t.Run("maps the operator, if any", func(t *testing.T) {
+			input := oval_input.RpmVerifyFileStateXML{
+				Name: &oval_input.SimpleTypeXML{
+					Value: "name",
+					Op:    "equals",
+				},
+			}
+			result, err := mapRpmVerifyFileState(input)
+			require.NoError(t, err)
+			require.Equal(t, result.Operator, oval_parsed.And)
+
+			op := oval_parsed.Or.String()
+			input.Operator = &op
+			result, err = mapRpmVerifyFileState(input)
+			require.NoError(t, err)
+			require.Equal(t, result.Operator, oval_parsed.Or)
 		})
 
 		t.Run("maps a RpmVerifyFileStateXML", func(t *testing.T) {

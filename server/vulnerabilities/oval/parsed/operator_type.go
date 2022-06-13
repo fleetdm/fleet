@@ -91,3 +91,18 @@ func (op OperatorType) Eval(vals ...bool) bool {
 
 	return r
 }
+
+func (op OperatorType) String() string {
+	switch op {
+	case And:
+		return "AND"
+	case One:
+		return "ONE"
+	case Or:
+		return "OR"
+	case Xor:
+		return "XOR"
+	default:
+		return "AND"
+	}
+}

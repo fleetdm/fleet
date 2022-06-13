@@ -12,4 +12,5 @@ type RpmInfoStateXML struct {
 	SignatureKeyId *SimpleTypeXML `xml:"signature_keyid"`
 	ExtendedName   *SimpleTypeXML `xml:"extended_name"`
 	Filepath       *SimpleTypeXML `xml:"filepath"`
+	Operator       *string        `xml:"operator,attr"`
 }

@@ -23,4 +23,5 @@ type RpmVerifyFileStateXML struct {
 	GhostFile          *SimpleTypeXML `xml:"ghost_file"`
 	LicenseFile        *SimpleTypeXML `xml:"license_file"`
 	ReadmeFile         *SimpleTypeXML `xml:"readme_file	"`
+	Operator           *string        `xml:"operator,attr"`
 }

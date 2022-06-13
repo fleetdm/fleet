@@ -196,6 +196,12 @@ func mapRpmVerifyFileState(sta oval_input.RpmVerifyFileStateXML) (*oval_parsed.O
 		r.ExtendedName = &extd
 	}
 
+	if sta.Operator != nil {
+		r.Operator = oval_parsed.NewOperatorType(*sta.Operator)
+	} else {
+		r.Operator = oval_parsed.And
+	}
+
 	return &r, nil
 }
 
@@ -239,6 +245,12 @@ func mapRpmInfoState(sta oval_input.RpmInfoStateXML) (*oval_parsed.ObjectInfoSta
 	if sta.ExtendedName != nil {
 		extd := oval_parsed.NewObjectStateString(sta.ExtendedName.Op, sta.ExtendedName.Value)
 		r.ExtendedName = &extd
+	}
+
+	if sta.Operator != nil {
+		r.Operator = oval_parsed.NewOperatorType(*sta.Operator)
+	} else {
+		r.Operator = oval_parsed.And
 	}
 
 	return &r, nil
