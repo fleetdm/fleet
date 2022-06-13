@@ -23,7 +23,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/datastore/redis/redistest"
 	"github.com/fleetdm/fleet/v4/server/fleet"
-	"github.com/fleetdm/fleet/v4/server/live_query"
+	"github.com/fleetdm/fleet/v4/server/live_query/live_query_mock"
 	"github.com/fleetdm/fleet/v4/server/logging"
 	"github.com/fleetdm/fleet/v4/server/mock"
 	"github.com/fleetdm/fleet/v4/server/ptr"
@@ -413,6 +413,8 @@ func verifyDiscovery(t *testing.T, queries, discovery map[string]string) {
 	discoveryUsed := map[string]struct{}{
 		hostDetailQueryPrefix + "google_chrome_profiles": {},
 		hostDetailQueryPrefix + "orbit_info":             {},
+		hostDetailQueryPrefix + "mdm":                    {},
+		hostDetailQueryPrefix + "munki_info":             {},
 	}
 	for name := range queries {
 		require.NotEmpty(t, discovery[name])
@@ -499,7 +501,7 @@ func TestGetDistributedQueriesMissingHost(t *testing.T) {
 func TestLabelQueries(t *testing.T) {
 	mockClock := clock.NewMockClock()
 	ds := new(mock.Store)
-	lq := new(live_query.MockLiveQuery)
+	lq := live_query_mock.New(t)
 	svc := newTestServiceWithClock(t, ds, nil, lq, mockClock)
 
 	host := &fleet.Host{
@@ -658,7 +660,7 @@ func TestLabelQueries(t *testing.T) {
 func TestDetailQueriesWithEmptyStrings(t *testing.T) {
 	ds := new(mock.Store)
 	mockClock := clock.NewMockClock()
-	lq := new(live_query.MockLiveQuery)
+	lq := live_query_mock.New(t)
 	svc := newTestServiceWithClock(t, ds, nil, lq, mockClock)
 
 	host := &fleet.Host{
@@ -849,7 +851,7 @@ func TestDetailQueriesWithEmptyStrings(t *testing.T) {
 func TestDetailQueries(t *testing.T) {
 	ds := new(mock.Store)
 	mockClock := clock.NewMockClock()
-	lq := new(live_query.MockLiveQuery)
+	lq := live_query_mock.New(t)
 	svc := newTestServiceWithClock(t, ds, nil, lq, mockClock)
 
 	host := &fleet.Host{
@@ -1166,7 +1168,7 @@ func TestNewDistributedQueryCampaign(t *testing.T) {
 			return nil
 		},
 	}
-	lq := &live_query.MockLiveQuery{}
+	lq := live_query_mock.New(t)
 	mockClock := clock.NewMockClock()
 	svc := newTestServiceWithClock(t, ds, rs, lq, mockClock)
 
@@ -1231,7 +1233,7 @@ func TestDistributedQueryResults(t *testing.T) {
 	mockClock := clock.NewMockClock()
 	ds := new(mock.Store)
 	rs := pubsub.NewInmemQueryResults()
-	lq := new(live_query.MockLiveQuery)
+	lq := live_query_mock.New(t)
 	svc := newTestServiceWithClock(t, ds, rs, lq, mockClock)
 
 	campaign := &fleet.DistributedQueryCampaign{ID: 42}
@@ -1339,7 +1341,7 @@ func TestIngestDistributedQueryParseIdError(t *testing.T) {
 	mockClock := clock.NewMockClock()
 	ds := new(mock.Store)
 	rs := pubsub.NewInmemQueryResults()
-	lq := new(live_query.MockLiveQuery)
+	lq := live_query_mock.New(t)
 	svc := &Service{
 		ds:             ds,
 		resultStore:    rs,
@@ -1358,7 +1360,7 @@ func TestIngestDistributedQueryOrphanedCampaignLoadError(t *testing.T) {
 	mockClock := clock.NewMockClock()
 	ds := new(mock.Store)
 	rs := pubsub.NewInmemQueryResults()
-	lq := new(live_query.MockLiveQuery)
+	lq := live_query_mock.New(t)
 	svc := &Service{
 		ds:             ds,
 		resultStore:    rs,
@@ -1384,7 +1386,7 @@ func TestIngestDistributedQueryOrphanedCampaignWaitListener(t *testing.T) {
 	mockClock := clock.NewMockClock()
 	ds := new(mock.Store)
 	rs := pubsub.NewInmemQueryResults()
-	lq := new(live_query.MockLiveQuery)
+	lq := live_query_mock.New(t)
 	svc := &Service{
 		ds:             ds,
 		resultStore:    rs,
@@ -1417,7 +1419,7 @@ func TestIngestDistributedQueryOrphanedCloseError(t *testing.T) {
 	mockClock := clock.NewMockClock()
 	ds := new(mock.Store)
 	rs := pubsub.NewInmemQueryResults()
-	lq := new(live_query.MockLiveQuery)
+	lq := live_query_mock.New(t)
 	svc := &Service{
 		ds:             ds,
 		resultStore:    rs,
@@ -1453,7 +1455,7 @@ func TestIngestDistributedQueryOrphanedStopError(t *testing.T) {
 	mockClock := clock.NewMockClock()
 	ds := new(mock.Store)
 	rs := pubsub.NewInmemQueryResults()
-	lq := new(live_query.MockLiveQuery)
+	lq := live_query_mock.New(t)
 	svc := &Service{
 		ds:             ds,
 		resultStore:    rs,
@@ -1490,7 +1492,7 @@ func TestIngestDistributedQueryOrphanedStop(t *testing.T) {
 	mockClock := clock.NewMockClock()
 	ds := new(mock.Store)
 	rs := pubsub.NewInmemQueryResults()
-	lq := new(live_query.MockLiveQuery)
+	lq := live_query_mock.New(t)
 	svc := &Service{
 		ds:             ds,
 		resultStore:    rs,
@@ -1528,7 +1530,7 @@ func TestIngestDistributedQueryRecordCompletionError(t *testing.T) {
 	mockClock := clock.NewMockClock()
 	ds := new(mock.Store)
 	rs := pubsub.NewInmemQueryResults()
-	lq := new(live_query.MockLiveQuery)
+	lq := live_query_mock.New(t)
 	svc := &Service{
 		ds:             ds,
 		resultStore:    rs,
@@ -1559,7 +1561,7 @@ func TestIngestDistributedQuery(t *testing.T) {
 	mockClock := clock.NewMockClock()
 	ds := new(mock.Store)
 	rs := pubsub.NewInmemQueryResults()
-	lq := new(live_query.MockLiveQuery)
+	lq := live_query_mock.New(t)
 	svc := &Service{
 		ds:             ds,
 		resultStore:    rs,
@@ -1952,7 +1954,7 @@ func TestObserversCanOnlyRunDistributedCampaigns(t *testing.T) {
 			return nil
 		},
 	}
-	lq := &live_query.MockLiveQuery{}
+	lq := live_query_mock.New(t)
 	mockClock := clock.NewMockClock()
 	svc := newTestServiceWithClock(t, ds, rs, lq, mockClock)
 
@@ -2025,7 +2027,7 @@ func TestTeamMaintainerCanRunNewDistributedCampaigns(t *testing.T) {
 			return nil
 		},
 	}
-	lq := &live_query.MockLiveQuery{}
+	lq := live_query_mock.New(t)
 	mockClock := clock.NewMockClock()
 	svc := newTestServiceWithClock(t, ds, rs, lq, mockClock)
 
@@ -2079,7 +2081,7 @@ func TestTeamMaintainerCanRunNewDistributedCampaigns(t *testing.T) {
 func TestPolicyQueries(t *testing.T) {
 	mockClock := clock.NewMockClock()
 	ds := new(mock.Store)
-	lq := new(live_query.MockLiveQuery)
+	lq := live_query_mock.New(t)
 	svc := newTestServiceWithClock(t, ds, nil, lq, mockClock)
 
 	host := &fleet.Host{
@@ -2259,7 +2261,7 @@ func TestPolicyQueries(t *testing.T) {
 func TestPolicyWebhooks(t *testing.T) {
 	mockClock := clock.NewMockClock()
 	ds := new(mock.Store)
-	lq := new(live_query.MockLiveQuery)
+	lq := live_query_mock.New(t)
 	pool := redistest.SetupRedis(t, t.Name(), false, false, false)
 	failingPolicySet := redis_policy_set.NewFailingTest(t, pool)
 	testConfig := config.TestConfig()
@@ -2526,7 +2528,7 @@ func TestPolicyWebhooks(t *testing.T) {
 // want hosts to get queries and continue to check in.
 func TestLiveQueriesFailing(t *testing.T) {
 	ds := new(mock.Store)
-	lq := new(live_query.MockLiveQuery)
+	lq := live_query_mock.New(t)
 	cfg := config.TestConfig()
 	buf := new(bytes.Buffer)
 	logger := log.NewLogfmtLogger(buf)
@@ -2574,7 +2576,7 @@ func TestLiveQueriesFailing(t *testing.T) {
 // refetched for "orbitInfoRefetchAfterEnrollDur" after enroll.
 func TestFleetDesktopOrbitInfo(t *testing.T) {
 	ds := new(mock.Store)
-	lq := new(live_query.MockLiveQuery)
+	lq := live_query_mock.New(t)
 	mockClock := clock.NewMockClock()
 	fleetConfig := config.TestConfig()
 	fleetConfig.Osquery.LabelUpdateInterval = 5 * time.Minute

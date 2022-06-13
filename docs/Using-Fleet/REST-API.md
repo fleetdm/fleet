@@ -5505,18 +5505,14 @@ _Available in Fleet Premium_
 | &nbsp;&nbsp;&nbsp;&nbsp;destination_url                 | string  | body | The URL to deliver the webhook requests to.                                                                                                                  |
 | &nbsp;&nbsp;&nbsp;&nbsp;policy_ids                      | array   | body | List of policy IDs to enable failing policies webhook.                                                                                                       |
 | &nbsp;&nbsp;&nbsp;&nbsp;host_batch_size                 | integer | body | Maximum number of hosts to batch on failing policy webhook requests. The default, 0, means no batching (all hosts failing a policy are sent on one request). |
-| integrations                                            | object  | body | Integrations settings for the team.                                                                                                                      |
+| integrations                                            | object  | body | Integrations settings for the team. Note that integrations referenced here must already exist at the global level, created by a call to [Modify configuration](#modify-configuration).     |
 | &nbsp;&nbsp;jira                                        | array   | body | Jira integrations configuration. |
-| &nbsp;&nbsp;&nbsp;&nbsp;url                             | string  | body | The URL of the Jira server to integrate with. |
-| &nbsp;&nbsp;&nbsp;&nbsp;username                        | string  | body | The Jira username to use for this Jira integration. |
-| &nbsp;&nbsp;&nbsp;&nbsp;api_token                       | string  | body | The API token of the Jira username to use for this Jira integration. |
-| &nbsp;&nbsp;&nbsp;&nbsp;project_key                     | string  | body | The Jira project key to use for this integration. Jira tickets will be created in this project. |
+| &nbsp;&nbsp;&nbsp;&nbsp;url                             | string  | body | The URL of the Jira server to use. |
+| &nbsp;&nbsp;&nbsp;&nbsp;project_key                     | string  | body | The project key of the Jira integration to use. Jira tickets will be created in this project. |
 | &nbsp;&nbsp;&nbsp;&nbsp;enable_failing_policies         | boolean | body | Whether or not that Jira integration is enabled for failing policies. Only one failing policy automation can be enabled at a given time (enable_failing_policies_webhook and enable_failing_policies). |
 | &nbsp;&nbsp;zendesk                                     | array   | body | Zendesk integrations configuration. |
-| &nbsp;&nbsp;&nbsp;&nbsp;url                             | string  | body | The URL of the Zendesk server to integrate with. |
-| &nbsp;&nbsp;&nbsp;&nbsp;email                           | string  | body | The Zendesk user email to use for this Zendesk integration. |
-| &nbsp;&nbsp;&nbsp;&nbsp;api_token                       | string  | body | The Zendesk API token to use for this Zendesk integration. |
-| &nbsp;&nbsp;&nbsp;&nbsp;group_id                        | integer | body | The Zendesk group id to use for this integration. Zendesk tickets will be created in this group. |
+| &nbsp;&nbsp;&nbsp;&nbsp;url                             | string  | body | The URL of the Zendesk server to use. |
+| &nbsp;&nbsp;&nbsp;&nbsp;group_id                        | integer | body | The Zendesk group id to use. Zendesk tickets will be created in this group. |
 | &nbsp;&nbsp;&nbsp;&nbsp;enable_failing_policies         | boolean | body | Whether or not that Zendesk integration is enabled for failing policies. Only one failing policy automation can be enabled at a given time (enable_failing_policies_webhook and enable_failing_policies). |
 
 #### Example (add users to a team)

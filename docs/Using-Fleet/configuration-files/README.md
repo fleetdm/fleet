@@ -255,7 +255,7 @@ spec:
     server: mail.example.org
     user_name: test_user
     verify_ssl_certs: true
-  vulnerability_settings":
+  vulnerability_settings:
     databases_path: ""
   webhook_settings:
     host_status_webhook:

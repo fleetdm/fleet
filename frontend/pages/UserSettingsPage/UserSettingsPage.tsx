@@ -23,7 +23,6 @@ import ChangePasswordForm from "components/forms/ChangePasswordForm";
 // @ts-ignore
 import FleetIcon from "components/icons/FleetIcon";
 // @ts-ignore
-import InputField from "components/forms/fields/InputField";
 import Modal from "components/Modal";
 // @ts-ignore
 import UserSettingsForm from "components/forms/UserSettingsForm";

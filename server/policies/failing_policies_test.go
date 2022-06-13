@@ -27,7 +27,8 @@ func TestTriggerFailingPolicies(t *testing.T) {
 	// pol-teamB-{7-9}: team B policies (only 7 and 8 is enabled), ids 7-8-9
 	// pol-teamC-10: team C policy, team does not exist, id 10
 	// pol-unknown-11: policy that does not exist anymore, id 11
-	// pol-teamD-{12-14}: team C policies (only 12 and 13 is enabled), ids 12-13-14
+	// pol-teamD-{12-14}: team D policies (only 12 and 13 is enabled), ids 12-13-14
+	// pol-teamE-15: team E policy, integration does not exist at the global level
 	//
 	// Global config uses the webhook, team A a Jira integration, team B a
 	// Zendesk integration, team D a webhook.
@@ -46,6 +47,7 @@ func TestTriggerFailingPolicies(t *testing.T) {
 		12: {ID: 12, Name: "pol-teamD-12", TeamID: ptr.Uint(4)},
 		13: {ID: 13, Name: "pol-teamD-13", TeamID: ptr.Uint(4)},
 		14: {ID: 14, Name: "pol-teamD-14", TeamID: ptr.Uint(4)},
+		15: {ID: 15, Name: "pol-teamE-15", TeamID: ptr.Uint(5)},
 	}
 	ds.PolicyFunc = func(ctx context.Context, id uint) (*fleet.Policy, error) {
 		pd, ok := pols[id]
@@ -64,7 +66,7 @@ func TestTriggerFailingPolicies(t *testing.T) {
 			},
 			Integrations: fleet.TeamIntegrations{
 				Jira: []*fleet.TeamJiraIntegration{
-					{EnableFailingPolicies: true},
+					{URL: "http://j.com", ProjectKey: "A", EnableFailingPolicies: true},
 				},
 			},
 		}},
@@ -76,7 +78,7 @@ func TestTriggerFailingPolicies(t *testing.T) {
 			},
 			Integrations: fleet.TeamIntegrations{
 				Zendesk: []*fleet.TeamZendeskIntegration{
-					{EnableFailingPolicies: true},
+					{URL: "http://z.com", GroupID: 1, EnableFailingPolicies: true},
 				},
 			},
 		}},
@@ -89,10 +91,22 @@ func TestTriggerFailingPolicies(t *testing.T) {
 			},
 			Integrations: fleet.TeamIntegrations{
 				Zendesk: []*fleet.TeamZendeskIntegration{
-					{EnableFailingPolicies: false},
+					{URL: "http://z.com", GroupID: 1, EnableFailingPolicies: false},
 				},
 				Jira: []*fleet.TeamJiraIntegration{
-					{EnableFailingPolicies: false},
+					{URL: "http://j.com", ProjectKey: "A", EnableFailingPolicies: false},
+				},
+			},
+		}},
+		5: {ID: 5, Name: "teamE", Config: fleet.TeamConfig{
+			WebhookSettings: fleet.TeamWebhookSettings{
+				FailingPoliciesWebhook: fleet.FailingPoliciesWebhookSettings{
+					PolicyIDs: []uint{15},
+				},
+			},
+			Integrations: fleet.TeamIntegrations{
+				Zendesk: []*fleet.TeamZendeskIntegration{
+					{URL: "http://notexist", GroupID: 999, EnableFailingPolicies: true},
 				},
 			},
 		}},
@@ -111,6 +125,14 @@ func TestTriggerFailingPolicies(t *testing.T) {
 			FailingPoliciesWebhook: fleet.FailingPoliciesWebhookSettings{
 				Enable:    true,
 				PolicyIDs: []uint{1, 2},
+			},
+		},
+		Integrations: fleet.Integrations{
+			Jira: []*fleet.JiraIntegration{
+				{URL: "http://j.com", ProjectKey: "A", Username: "jirauser", APIToken: "secret"},
+			},
+			Zendesk: []*fleet.ZendeskIntegration{
+				{URL: "http://z.com", GroupID: 1, Email: "zendesk@z.com", APIToken: "secret"},
 			},
 		},
 		ServerSettings: fleet.ServerSettings{
@@ -167,11 +189,17 @@ func TestTriggerFailingPolicies(t *testing.T) {
 	// failing policies set is now cleared
 	polSets, err := failingPolicySet.ListSets()
 	require.NoError(t, err)
-	var countHosts int
+	var remainingHosts []uint
 	for _, set := range polSets {
 		hosts, err := failingPolicySet.ListHosts(set)
 		require.NoError(t, err)
-		countHosts += len(hosts)
+		for _, h := range hosts {
+			remainingHosts = append(remainingHosts, h.ID)
+		}
 	}
-	require.Zero(t, countHosts)
+	// there's one remaining host ID in the failing policy sets, and it's the one
+	// with the invalid integration (it did not remove the failing policy set so
+	// that it can retry once the integration is fixed).
+	require.Len(t, remainingHosts, 1)
+	require.Equal(t, remainingHosts[0], uint(15)) // host id used is the same as the policy id
 }
