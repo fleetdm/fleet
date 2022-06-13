@@ -143,9 +143,7 @@ func (f *fakeSoftwareIterator) Close() error { f.closed = true; return nil }
 func TestTranslateSoftwareToCPE(t *testing.T) {
 	nettest.Run(t)
 
-	tempDir, err := os.MkdirTemp(os.TempDir(), "TestTranslateSoftwareToCPE-*")
-	require.NoError(t, err)
-	defer os.RemoveAll(tempDir)
+	tempDir := t.TempDir()
 
 	ds := new(mock.Store)
 
