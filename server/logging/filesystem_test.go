@@ -6,7 +6,6 @@ import (
 	"encoding/json"
 	"errors"
 	"io/fs"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"testing"
@@ -84,16 +83,11 @@ func TestFilesystemLoggerPermission(t *testing.T) {
 
 func BenchmarkFilesystemLogger(b *testing.B) {
 	ctx := context.Background()
-	tempPath, err := ioutil.TempDir("", "test")
-	if err != nil {
-		b.Fatal("temp dir failed", err)
-	}
-	fileName := filepath.Join(tempPath, "filesystemLogWriter")
+	fileName := filepath.Join(b.TempDir(), "filesystemLogWriter")
 	lgr, err := NewFilesystemLogWriter(fileName, log.NewNopLogger(), false, false)
 	if err != nil {
 		b.Fatal("new failed ", err)
 	}
-	defer os.Remove(fileName)
 
 	var logs []json.RawMessage
 	for i := 0; i < 50; i++ {
@@ -125,16 +119,11 @@ func BenchmarkLumberjackWithCompression(b *testing.B) {
 
 func benchLumberjack(b *testing.B, compression bool) {
 	ctx := context.Background()
-	tempPath, err := ioutil.TempDir("", "test")
-	if err != nil {
-		b.Fatal("temp dir failed", err)
-	}
-	fileName := filepath.Join(tempPath, "lumberjack")
+	fileName := filepath.Join(b.TempDir(), "lumberjack")
 	lgr, err := NewFilesystemLogWriter(fileName, log.NewNopLogger(), true, compression)
 	if err != nil {
 		b.Fatal("new failed ", err)
 	}
-	defer os.Remove(fileName)
 
 	var logs []json.RawMessage
 	for i := 0; i < 50; i++ {

@@ -10,13 +10,15 @@ import globalPoliciesAPI from "services/entities/global_policies";
 import teamPoliciesAPI from "services/entities/team_policies";
 import hostAPI from "services/entities/hosts";
 import statusAPI from "services/entities/status";
+import { IHost } from "interfaces/host";
+import { ILabel } from "interfaces/label";
 import { IPolicyFormData, IPolicy } from "interfaces/policy";
 import { ITarget } from "interfaces/target";
-import { IHost } from "interfaces/host";
+import { ITeam } from "interfaces/team";
 
 import QuerySidePanel from "components/side_panels/QuerySidePanel";
 import QueryEditor from "pages/policies/PolicyPage/screens/QueryEditor";
-import SelectTargets from "pages/policies/PolicyPage/screens/SelectTargets";
+import SelectTargets from "components/LiveQuery/SelectTargets";
 import RunQuery from "pages/policies/PolicyPage/screens/RunQuery";
 import ExternalURLIcon from "../../../../assets/images/icon-external-url-12x12@2x.png";
 
@@ -41,7 +43,7 @@ const PolicyPage = ({
   params: { id: paramsPolicyId },
   location: { query: URLQuerySearch },
 }: IPolicyPageProps): JSX.Element => {
-  const policyIdForEdit = paramsPolicyId ? parseInt(paramsPolicyId, 10) : null;
+  const policyId = paramsPolicyId ? parseInt(paramsPolicyId, 10) : null;
   const policyTeamId = parseInt(URLQuerySearch.team_id, 10) || 0;
   const handlePageError = useErrorHandler();
   const {
@@ -89,6 +91,9 @@ const PolicyPage = ({
 
   const [step, setStep] = useState<string>(QUERIES_PAGE_STEPS[1]);
   const [selectedTargets, setSelectedTargets] = useState<ITarget[]>([]);
+  const [targetedHosts, setTargetedHosts] = useState<IHost[]>([]);
+  const [targetedLabels, setTargetedLabels] = useState<ILabel[]>([]);
+  const [targetedTeams, setTargetedTeams] = useState<ITeam[]>([]);
   const [targetsTotalCount, setTargetsTotalCount] = useState<number>(0);
   const [isLiveQueryRunnable, setIsLiveQueryRunnable] = useState<boolean>(true);
   const [isSidebarOpen, setIsSidebarOpen] = useState<boolean>(true);
@@ -102,13 +107,13 @@ const PolicyPage = ({
     data: storedPolicy,
     error: storedPolicyError,
   } = useQuery<IStoredPolicyResponse, Error, IPolicy>(
-    ["query", policyIdForEdit],
+    ["policy", policyId],
     () =>
       policyTeamId
-        ? teamPoliciesAPI.load(policyTeamId, policyIdForEdit as number)
-        : globalPoliciesAPI.load(policyIdForEdit as number),
+        ? teamPoliciesAPI.load(policyTeamId, policyId as number)
+        : globalPoliciesAPI.load(policyId as number),
     {
-      enabled: !!policyIdForEdit,
+      enabled: !!policyId,
       refetchOnWindowFocus: false,
       retry: false,
       select: (data: IStoredPolicyResponse) => data.policy,
@@ -204,7 +209,7 @@ const PolicyPage = ({
     const step1Opts = {
       router,
       baseClass,
-      policyIdForEdit,
+      policyIdForEdit: policyId,
       showOpenSchemaActionText,
       storedPolicy,
       isStoredPolicyLoading,
@@ -218,18 +223,23 @@ const PolicyPage = ({
 
     const step2Opts = {
       baseClass,
-      selectedTargets: [...selectedTargets],
+      selectedTargets,
+      targetedHosts,
+      targetedLabels,
+      targetedTeams,
+      targetsTotalCount,
       goToQueryEditor: () => setStep(QUERIES_PAGE_STEPS[1]),
       goToRunQuery: () => setStep(QUERIES_PAGE_STEPS[3]),
       setSelectedTargets,
-      targetsTotalCount,
+      setTargetedHosts,
+      setTargetedLabels,
+      setTargetedTeams,
       setTargetsTotalCount,
     };
 
     const step3Opts = {
       selectedTargets,
       storedPolicy,
-      policyIdForEdit,
       setSelectedTargets,
       goToQueryEditor: () => setStep(QUERIES_PAGE_STEPS[1]),
       targetsTotalCount,

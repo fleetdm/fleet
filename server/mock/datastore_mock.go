@@ -64,6 +64,8 @@ type ListQueriesFunc func(ctx context.Context, opt fleet.ListQueryOptions) ([]*f
 
 type QueryByNameFunc func(ctx context.Context, name string, opts ...fleet.OptionalArg) (*fleet.Query, error)
 
+type ObserverCanRunQueryFunc func(ctx context.Context, queryID uint) (bool, error)
+
 type NewDistributedQueryCampaignFunc func(ctx context.Context, camp *fleet.DistributedQueryCampaign) (*fleet.DistributedQueryCampaign, error)
 
 type DistributedQueryCampaignFunc func(ctx context.Context, id uint) (*fleet.DistributedQueryCampaign, error)
@@ -269,6 +271,8 @@ type TeamsSummaryFunc func(ctx context.Context) ([]*fleet.TeamSummary, error)
 type SearchTeamsFunc func(ctx context.Context, filter fleet.TeamFilter, matchQuery string, omit ...uint) ([]*fleet.Team, error)
 
 type TeamEnrollSecretsFunc func(ctx context.Context, teamID uint) ([]*fleet.EnrollSecret, error)
+
+type DeleteIntegrationsFromTeamsFunc func(ctx context.Context, deletedIntgs fleet.Integrations) error
 
 type ListSoftwareForVulnDetectionFunc func(ctx context.Context, hostID uint) ([]fleet.Software, error)
 
@@ -488,6 +492,9 @@ type DataStore struct {
 
 	QueryByNameFunc        QueryByNameFunc
 	QueryByNameFuncInvoked bool
+
+	ObserverCanRunQueryFunc        ObserverCanRunQueryFunc
+	ObserverCanRunQueryFuncInvoked bool
 
 	NewDistributedQueryCampaignFunc        NewDistributedQueryCampaignFunc
 	NewDistributedQueryCampaignFuncInvoked bool
@@ -797,6 +804,9 @@ type DataStore struct {
 
 	TeamEnrollSecretsFunc        TeamEnrollSecretsFunc
 	TeamEnrollSecretsFuncInvoked bool
+
+	DeleteIntegrationsFromTeamsFunc        DeleteIntegrationsFromTeamsFunc
+	DeleteIntegrationsFromTeamsFuncInvoked bool
 
 	ListSoftwareForVulnDetectionFunc        ListSoftwareForVulnDetectionFunc
 	ListSoftwareForVulnDetectionFuncInvoked bool
@@ -1137,6 +1147,11 @@ func (s *DataStore) ListQueries(ctx context.Context, opt fleet.ListQueryOptions)
 func (s *DataStore) QueryByName(ctx context.Context, name string, opts ...fleet.OptionalArg) (*fleet.Query, error) {
 	s.QueryByNameFuncInvoked = true
 	return s.QueryByNameFunc(ctx, name, opts...)
+}
+
+func (s *DataStore) ObserverCanRunQuery(ctx context.Context, queryID uint) (bool, error) {
+	s.ObserverCanRunQueryFuncInvoked = true
+	return s.ObserverCanRunQueryFunc(ctx, queryID)
 }
 
 func (s *DataStore) NewDistributedQueryCampaign(ctx context.Context, camp *fleet.DistributedQueryCampaign) (*fleet.DistributedQueryCampaign, error) {
@@ -1652,6 +1667,11 @@ func (s *DataStore) SearchTeams(ctx context.Context, filter fleet.TeamFilter, ma
 func (s *DataStore) TeamEnrollSecrets(ctx context.Context, teamID uint) ([]*fleet.EnrollSecret, error) {
 	s.TeamEnrollSecretsFuncInvoked = true
 	return s.TeamEnrollSecretsFunc(ctx, teamID)
+}
+
+func (s *DataStore) DeleteIntegrationsFromTeams(ctx context.Context, deletedIntgs fleet.Integrations) error {
+	s.DeleteIntegrationsFromTeamsFuncInvoked = true
+	return s.DeleteIntegrationsFromTeamsFunc(ctx, deletedIntgs)
 }
 
 func (s *DataStore) ListSoftwareForVulnDetection(ctx context.Context, hostID uint) ([]fleet.Software, error) {

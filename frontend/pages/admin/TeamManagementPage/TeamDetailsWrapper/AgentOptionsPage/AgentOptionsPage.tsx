@@ -6,7 +6,7 @@ import yaml from "js-yaml";
 import { NotificationContext } from "context/notification";
 import { ITeam } from "interfaces/team";
 import endpoints from "utilities/endpoints";
-import teamsAPI from "services/entities/teams";
+import teamsAPI, { ILoadTeamsResponse } from "services/entities/teams";
 import osqueryOptionsAPI from "services/entities/osquery_options";
 
 // @ts-ignore
@@ -24,10 +24,6 @@ interface IAgentOptionsPageProps {
   };
 }
 
-interface ITeamsResponse {
-  teams: ITeam[];
-}
-
 const AgentOptionsPage = ({
   params: { team_id },
 }: IAgentOptionsPageProps): JSX.Element => {
@@ -37,11 +33,11 @@ const AgentOptionsPage = ({
   const [formData, setFormData] = useState<{ osquery_options?: string }>({});
   const handlePageError = useErrorHandler();
 
-  useQuery<ITeamsResponse, Error, ITeam[]>(
+  useQuery<ILoadTeamsResponse, Error, ITeam[]>(
     ["teams"],
     () => teamsAPI.loadAll(),
     {
-      select: (data: ITeamsResponse) => data.teams,
+      select: (data: ILoadTeamsResponse) => data.teams,
       onSuccess: (data) => {
         const selected = data.find((team) => team.id === teamIdFromURL);
 

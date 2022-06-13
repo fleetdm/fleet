@@ -1,6 +1,7 @@
 package execuser
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"os/exec"
@@ -69,7 +70,7 @@ func getLoginUID() (*user, error) {
 	usernames := parseUsersOutput(string(out))
 	username := usernames[0]
 	if username == "" {
-		return nil, fmt.Errorf("no user session found")
+		return nil, errors.New("no user session found")
 	}
 	out, err = exec.Command("id", "-u", username).CombinedOutput()
 	if err != nil {

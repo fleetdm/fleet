@@ -75,6 +75,14 @@ func getAppConfigEndpoint(ctx context.Context, request interface{}, svc fleet.Se
 		hostExpirySettings = config.HostExpirySettings
 		agentOptions = config.AgentOptions
 	}
+
+	transparencyURL := fleet.DefaultTransparencyURL
+	// Fleet Premium license is required for custom transparency url
+	if license.Tier == "premium" && config.FleetDesktop.TransparencyURL != "" {
+		transparencyURL = config.FleetDesktop.TransparencyURL
+	}
+	fleetDesktop := fleet.FleetDesktopSettings{TransparencyURL: transparencyURL}
+
 	hostSettings := config.HostSettings
 	response := appConfigResponse{
 		AppConfig: fleet.AppConfig{
@@ -87,6 +95,8 @@ func getAppConfigEndpoint(ctx context.Context, request interface{}, svc fleet.Se
 			SSOSettings:        ssoSettings,
 			HostExpirySettings: hostExpirySettings,
 			AgentOptions:       agentOptions,
+
+			FleetDesktop: fleetDesktop,
 
 			WebhookSettings: config.WebhookSettings,
 			Integrations:    config.Integrations,
@@ -157,6 +167,11 @@ func modifyAppConfigEndpoint(ctx context.Context, request interface{}, svc fleet
 	if response.SMTPSettings.SMTPPassword != "" {
 		response.SMTPSettings.SMTPPassword = fleet.MaskedPassword
 	}
+
+	if license.Tier != "premium" || response.FleetDesktop.TransparencyURL == "" {
+		response.FleetDesktop.TransparencyURL = fleet.DefaultTransparencyURL
+	}
+
 	return response, nil
 }
 
@@ -168,6 +183,11 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte) (*fleet.AppCo
 	// we need the config from the datastore because API tokens are obfuscated at the service layer
 	// we will retrieve the obfuscated config before we return
 	appConfig, err := svc.ds.AppConfig(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	license, err := svc.License(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -227,7 +247,8 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte) (*fleet.AppCo
 		appConfig.SMTPSettings.SMTPConfigured = false
 	}
 
-	if err := fleet.ValidateJiraIntegrations(ctx, storedJiraByProjectKey, newAppConfig.Integrations.Jira); err != nil {
+	delJira, err := fleet.ValidateJiraIntegrations(ctx, storedJiraByProjectKey, newAppConfig.Integrations.Jira)
+	if err != nil {
 		if errors.As(err, &fleet.IntegrationTestError{}) {
 			return nil, ctxerr.Wrap(ctx, &badRequestError{message: err.Error()})
 		}
@@ -235,13 +256,34 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte) (*fleet.AppCo
 	}
 	appConfig.Integrations.Jira = newAppConfig.Integrations.Jira
 
-	if err := fleet.ValidateZendeskIntegrations(ctx, storedZendeskByGroupID, newAppConfig.Integrations.Zendesk); err != nil {
+	delZendesk, err := fleet.ValidateZendeskIntegrations(ctx, storedZendeskByGroupID, newAppConfig.Integrations.Zendesk)
+	if err != nil {
 		if errors.As(err, &fleet.IntegrationTestError{}) {
 			return nil, ctxerr.Wrap(ctx, &badRequestError{message: err.Error()})
 		}
 		return nil, ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("Zendesk integration", err.Error()))
 	}
 	appConfig.Integrations.Zendesk = newAppConfig.Integrations.Zendesk
+
+	// if any integration was deleted, remove it from any team that uses it
+	if len(delJira)+len(delZendesk) > 0 {
+		if err := svc.ds.DeleteIntegrationsFromTeams(ctx, fleet.Integrations{Jira: delJira, Zendesk: delZendesk}); err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "delete integrations from teams")
+		}
+	}
+
+	transparencyURL := appConfig.FleetDesktop.TransparencyURL
+	if transparencyURL != "" && license.Tier != "premium" {
+		invalid.Append("transparency_url", ErrMissingLicense.Error())
+		return nil, ctxerr.Wrap(ctx, invalid)
+	}
+
+	if _, err := url.Parse(transparencyURL); err != nil {
+		invalid.Append("transparency_url", err.Error())
+		return nil, ctxerr.Wrap(ctx, invalid)
+
+	}
+	appConfig.FleetDesktop.TransparencyURL = transparencyURL
 
 	if err := svc.ds.SaveAppConfig(ctx, appConfig); err != nil {
 		return nil, err

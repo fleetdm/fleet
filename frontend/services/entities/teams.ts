@@ -10,9 +10,7 @@ import {
   ITeamConfig,
 } from "interfaces/team";
 
-import { ICreateTeamFormData } from "pages/admin/TeamManagementPage/components/CreateTeamModal/CreateTeamModal";
-
-interface ITeamSearchOptions {
+interface ILoadTeamsParams {
   page?: number;
   perPage?: number;
   globalFilter?: string;
@@ -26,8 +24,16 @@ export interface ILoadTeamResponse {
   team: ITeamConfig;
 }
 
+export interface ILoadTeamsResponse {
+  teams: ITeamConfig[];
+}
+
+export interface ITeamFormData {
+  name: string;
+}
+
 export default {
-  create: (formData: ICreateTeamFormData) => {
+  create: (formData: ITeamFormData) => {
     const { TEAMS } = endpoints;
 
     return sendRequest("POST", TEAMS, formData);
@@ -48,7 +54,7 @@ export default {
     page = 0,
     perPage = 100,
     globalFilter = "",
-  }: ITeamSearchOptions = {}) => {
+  }: ILoadTeamsParams = {}): Promise<ILoadTeamsResponse> => {
     const { TEAMS } = endpoints;
 
     // TODO: add this query param logic to client class
@@ -68,7 +74,7 @@ export default {
     teamId?: number
   ): Promise<ITeamConfig> => {
     if (typeof teamId === "undefined") {
-      return Promise.reject();
+      return Promise.reject("Invalid usage: missing team id");
     }
 
     const { TEAMS } = endpoints;

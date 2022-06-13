@@ -300,3 +300,54 @@ func (ds *Datastore) TeamAgentOptions(ctx context.Context, tid uint) (*json.RawM
 	}
 	return agentOptions, nil
 }
+
+// DeleteIntegrationsFromTeams removes the deleted integrations from any team
+// that uses it.
+func (ds *Datastore) DeleteIntegrationsFromTeams(ctx context.Context, deletedIntgs fleet.Integrations) error {
+	const (
+		listTeams  = `SELECT id, config FROM teams WHERE config IS NOT NULL`
+		updateTeam = `UPDATE teams SET config = ? WHERE id = ?`
+	)
+
+	rows, err := ds.writer.QueryxContext(ctx, listTeams)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "query teams")
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		var tm fleet.Team
+		if err := rows.StructScan(&tm); err != nil {
+			return ctxerr.Wrap(ctx, err, "scan team row in struct")
+		}
+
+		// ignore errors, it's ok for some integrations to not match with the
+		// batch of deleted integrations, we're only interested in knowing if
+		// some did match.
+		if matches, _ := tm.Config.Integrations.MatchWithIntegrations(deletedIntgs); len(matches.Jira)+len(matches.Zendesk) > 0 {
+			delJira, _ := fleet.IndexJiraIntegrations(matches.Jira)
+			delZendesk, _ := fleet.IndexZendeskIntegrations(matches.Zendesk)
+
+			var keepJira []*fleet.TeamJiraIntegration
+			for _, tmIntg := range tm.Config.Integrations.Jira {
+				if _, ok := delJira[tmIntg.UniqueKey()]; !ok {
+					keepJira = append(keepJira, tmIntg)
+				}
+			}
+
+			var keepZendesk []*fleet.TeamZendeskIntegration
+			for _, tmIntg := range tm.Config.Integrations.Zendesk {
+				if _, ok := delZendesk[tmIntg.UniqueKey()]; !ok {
+					keepZendesk = append(keepZendesk, tmIntg)
+				}
+			}
+
+			tm.Config.Integrations.Jira = keepJira
+			tm.Config.Integrations.Zendesk = keepZendesk
+			if _, err := ds.writer.ExecContext(ctx, updateTeam, tm.Config, tm.ID); err != nil {
+				return ctxerr.Wrap(ctx, err, "update team config")
+			}
+		}
+	}
+	return rows.Err()
+}

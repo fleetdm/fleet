@@ -10,7 +10,6 @@ import (
 	"strings"
 	"sync"
 	"testing"
-	"time"
 
 	"github.com/fleetdm/fleet/v4/pkg/nettest"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -58,18 +57,6 @@ func (d *threadSafeDSMock) InsertVulnerabilities(ctx context.Context, vulns []fl
 	return d.Store.InsertVulnerabilities(ctx, vulns, src)
 }
 
-func withNetRetry(t *testing.T, fn func() error) error {
-	for {
-		err := fn()
-		if err != nil && nettest.Retryable(err) {
-			time.Sleep(5 * time.Second)
-			t.Logf("%s: retrying error: %s", t.Name(), err)
-			continue
-		}
-		return err
-	}
-}
-
 func TestTranslateCPEToCVE(t *testing.T) {
 	nettest.Run(t)
 
@@ -79,7 +66,7 @@ func TestTranslateCPEToCVE(t *testing.T) {
 	ctx := context.Background()
 
 	// download the CVEs once for all sub-tests, and then disable syncing
-	err := withNetRetry(t, func() error {
+	err := nettest.RunWithNetRetry(t, func() error {
 		return DownloadNVDCVEFeed(tempDir, "")
 	})
 	require.NoError(t, err)

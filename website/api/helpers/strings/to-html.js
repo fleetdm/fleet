@@ -61,7 +61,7 @@ module.exports = {
 
 
   fn: function(inputs, exits) {
-    var marked = require('marked');
+    const { marked } = require('marked');
 
     // For full list of options, see:
     //  • https://github.com/chjj/marked
