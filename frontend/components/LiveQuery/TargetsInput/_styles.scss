@@ -1,7 +1,6 @@
 .targets-input {
-  max-width: 980px;
   position: relative;
-  
+
   &__hosts-search-dropdown {
     width: 100%;
     position: absolute;
@@ -10,13 +9,14 @@
     z-index: 1;
     background-color: $core-white;
     border-radius: 0px 0px 8px 8px;
-    
+
     .table-container {
       min-height: 225px;
-      max-height: 400px;
-      overflow: auto;
       box-shadow: 0px 4px 10px rgba(52, 59, 96, 0.15);
       border-radius: 0px 0px 8px 8px;
+      .data-table__wrapper {
+        overflow: auto;
+      }
     }
     .empty-search,
     .error-search {
@@ -42,7 +42,7 @@
             color: $core-vibrant-blue;
             font-weight: 700;
             text-decoration: none;
-            
+
             img {
               vertical-align: text-bottom;
               position: relative;
@@ -72,9 +72,14 @@
     margin-top: 8px;
 
     img {
+      cursor: pointer;
       transform: scale(0.5);
       position: relative;
       top: 2px;
+    }
+    .data-table__wrapper {
+      width: 100%;
+      overflow: auto;
     }
   }
 }

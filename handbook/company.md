@@ -402,6 +402,12 @@ When Kolide's attention shifted away from Fleet and towards their separate, user
 ### 2020: Fleet was incorporated
 Zach partnered with our CEO, Mike McNeil, to found a new, independent company: Fleet Device Management Inc.  In November 2020, we [announced](https://medium.com/fleetdm/a-new-fleet-d4096c7de978) the transition and kicked off the logistics of moving the GitHub repository.
 
+## Levels of confidentiality
+
+- *Public*   _(share with anyone, anywhere in the world)_
+- *Confidential*  _(share only with team members who've signed an NDA, consulting agreement, or employment agreement)_
+- *Classified*  _(share only with founders of Fleet, peepops, and/or the people involved.  e.g., US social security numbers during hiring)_
+
 ## Email relays
 
 There are several special email addresses that automatically relay messages to the appropriate people at Fleet. Each email address meets a minimum response time ("Min RT"), expressed in business hours/days, and has a dedicated directly responsible individual (DRI) who is responsible for reading and replying to emails sent to that address.  You can see a list of those email addresses in ["Contacting Fleet" (private Google doc)](https://docs.google.com/document/d/1tE-NpNfw1icmU2MjYuBRib0VWBPVAdmq4NiCrpuI0F0/edit#).

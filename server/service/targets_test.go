@@ -76,5 +76,5 @@ func TestSearchWithOmit(t *testing.T) {
 	}
 
 	_, err := svc.SearchTargets(ctx, "foo", nil, fleet.HostTargets{HostIDs: []uint{1, 2}, LabelIDs: []uint{3, 4}, TeamIDs: []uint{5, 6}})
-	require.Nil(t, err)
+	require.NoError(t, err)
 }

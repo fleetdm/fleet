@@ -413,6 +413,8 @@ func verifyDiscovery(t *testing.T, queries, discovery map[string]string) {
 	discoveryUsed := map[string]struct{}{
 		hostDetailQueryPrefix + "google_chrome_profiles": {},
 		hostDetailQueryPrefix + "orbit_info":             {},
+		hostDetailQueryPrefix + "mdm":                    {},
+		hostDetailQueryPrefix + "munki_info":             {},
 	}
 	for name := range queries {
 		require.NotEmpty(t, discovery[name])
