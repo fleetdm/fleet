@@ -22,24 +22,24 @@ func (sta ObjectStateEvrString) unpack() (OperationType, string) {
 
 // Eval evaluates the evr object state against another evr string using 'cmp'
 // for performing the comparison.
-func (sta ObjectStateEvrString) Eval(ver string, cmp func(string, string) int) bool {
+func (sta ObjectStateEvrString) Eval(ver string, cmp func(string, string) int) (bool, error) {
 	op, evr := sta.unpack()
 
 	r := cmp(ver, evr)
 	switch op {
 	case LessThan:
-		return r == -1
+		return r == -1, nil
 	case Equals:
-		return r == 0
+		return r == 0, nil
 	case NotEqual:
-		return r != 0
+		return r != 0, nil
 	case GreaterThan:
-		return r == 1
+		return r == 1, nil
 	case GreaterThanOrEqual:
-		return r == 1 || r == 0
+		return r == 1 || r == 0, nil
 	case LessThanOrEqual:
-		return r == -1 || r == 0
+		return r == -1 || r == 0, nil
 	}
 
-	return false
+	return false, fmt.Errorf("can not compute op %q", op)
 }

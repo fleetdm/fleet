@@ -46,7 +46,8 @@ func (t *DpkgInfoTest) matches(software []fleet.Software) (int, int, []fleet.Sof
 
 				r := make([]bool, 0)
 				for _, s := range t.States {
-					r = append(r, s.Eval(p.Version, Rpmvercmp))
+					eR, _ := s.Eval(p.Version, Rpmvercmp)
+					r = append(r, eR)
 				}
 				if t.StateOperator.Eval(r...) {
 					matches = append(matches, p)

@@ -2,6 +2,7 @@ package oval_parsed
 
 import (
 	"fmt"
+	"regexp"
 	"strings"
 )
 
@@ -13,12 +14,39 @@ func NewObjectStateString(op string, val string) ObjectStateString {
 }
 
 func (sta ObjectStateString) unpack() (OperationType, string) {
-	parts := strings.Split(string(sta), "|")
+	parts := strings.SplitN(string(sta), "|", 2)
 	return NewOperationType(parts[0]), parts[1]
 }
 
-// Eval evaluates the provided value againts the encoded value in sta according to the encoded op in
-// sta.
-func (sta ObjectStateString) Eval(val string) bool {
-	return false
+// Eval evaluates the provided value againts the encoded value in sta according to the encoded
+// operation.
+func (sta ObjectStateString) Eval(other string) (bool, error) {
+	op, val := sta.unpack()
+
+	switch op {
+	case Equals:
+		return val == other, nil
+	case NotEqual:
+		return val != other, nil
+	case CaseInsensitiveEquals:
+		return strings.ToLower(val) == strings.ToLower(val), nil
+	case CaseInsensitiveNotEqual:
+		return strings.ToLower(val) != strings.ToLower(val), nil
+	case GreaterThan:
+		return val > other, nil
+	case LessThan:
+		return val < other, nil
+	case GreaterThanOrEqual:
+		return val > other || val == other, nil
+	case LessThanOrEqual:
+		return val < other || val == other, nil
+	case PatternMatch:
+		r, err := regexp.Compile(val)
+		if err != nil {
+			return false, err
+		}
+		return r.MatchString(other), nil
+	}
+
+	return false, fmt.Errorf("can not compute op %q", op)
 }
