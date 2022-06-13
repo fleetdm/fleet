@@ -1,7 +1,7 @@
 import React, { useCallback, useContext, useEffect, useState } from "react";
 import { useQuery } from "react-query";
 import { InjectedRouter } from "react-router/lib/Router";
-import { get, has, noop } from "lodash";
+import { noop } from "lodash";
 
 import { AppContext } from "context/app";
 import { PolicyContext } from "context/policy";
@@ -86,9 +86,6 @@ const ManagePolicyPage = ({
   const [showAddPolicyModal, setShowAddPolicyModal] = useState(false);
   const [showRemovePoliciesModal, setShowRemovePoliciesModal] = useState(false);
   const [showInheritedPolicies, setShowInheritedPolicies] = useState(false);
-  const [currentAutomatedPolicies, setCurrentAutomatedPolicies] = useState<
-    number[]
-  >();
 
   useEffect(() => {
     setLastEditedQueryPlatform(null);
@@ -323,6 +320,27 @@ const ManagePolicyPage = ({
 
   const automationsConfig = teamId ? teamConfig : config;
 
+  // NOTE: backend uses webhook_settings to store automated policy ids for both webhooks and integrations
+  let currentAutomatedPolicies: number[] = [];
+  if (automationsConfig) {
+    const {
+      webhook_settings: { failing_policies_webhook: webhook },
+      integrations,
+    } = automationsConfig;
+
+    let isIntegrationEnabled = false;
+    if (integrations) {
+      const { jira, zendesk } = integrations;
+      isIntegrationEnabled =
+        !!jira?.find((j) => j.enable_failing_policies) ||
+        !!zendesk?.find((z) => z.enable_failing_policies);
+    }
+
+    if (isIntegrationEnabled || webhook?.enable_failing_policies_webhook) {
+      currentAutomatedPolicies = webhook?.policy_ids || [];
+    }
+  }
+
   return !availableTeams ? (
     <Spinner />
   ) : (
@@ -409,10 +427,7 @@ const ManagePolicyPage = ({
                 onRemovePoliciesClick={onRemovePoliciesClick}
                 canAddOrRemovePolicy={canAddOrRemovePolicy}
                 currentTeam={currentTeam}
-                currentAutomatedPolicies={
-                  teamConfig?.webhook_settings.failing_policies_webhook
-                    .policy_ids
-                }
+                currentAutomatedPolicies={currentAutomatedPolicies}
               />
             ))}
           {!teamId && globalPoliciesError && <TableDataError />}
@@ -428,9 +443,7 @@ const ManagePolicyPage = ({
                 onRemovePoliciesClick={onRemovePoliciesClick}
                 canAddOrRemovePolicy={canAddOrRemovePolicy}
                 currentTeam={currentTeam}
-                currentAutomatedPolicies={
-                  config?.webhook_settings.failing_policies_webhook.policy_ids
-                }
+                currentAutomatedPolicies={currentAutomatedPolicies}
               />
             ))}
         </div>

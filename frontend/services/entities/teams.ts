@@ -89,7 +89,7 @@ export default {
     if (integrations) {
       const { jira, zendesk } = integrations;
       const teamIntegrationProps = [
-        "enable_failing_policies_webhook",
+        "enable_failing_policies",
         "group_id",
         "project_key",
         "url",

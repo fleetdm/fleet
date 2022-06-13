@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { Link } from "react-router";
-import { isEmpty, noop } from "lodash";
+import { isEmpty, noop, omit } from "lodash";
 
 import { IAutomationsConfig } from "interfaces/config";
 import { IIntegration, IIntegrations } from "interfaces/integration";
@@ -135,15 +135,12 @@ const ManageAutomationsModal = ({
 
   const { policyItems, updatePolicyItems } = useCheckboxListStateManagement(
     availablePolicies,
-    webhook.policy_ids
+    (isPolicyAutomationsEnabled && webhook?.policy_ids) || []
   );
 
   const onChangeUrl = (value: string) => {
     setDestinationUrl(value);
-    setErrors((errs) => {
-      delete errs.url;
-      return errs;
-    });
+    setErrors((errs) => omit(errs, "url"));
   };
 
   const onChangeRadio = (val: string) => {
@@ -174,13 +171,18 @@ const ManageAutomationsModal = ({
   ) => {
     evt.preventDefault();
 
-    const newPolicyIds: number[] = [];
+    let newPolicyIds: number[] = [];
     policyItems?.forEach((p) => p.isChecked && newPolicyIds.push(p.id));
 
     const newErrors = { ...errors };
     if (!newPolicyIds.length) {
-      // TODO: display error message if no policies selected?
-    } else if (isWebhookEnabled && destinationUrl === "") {
+      newErrors.policyItems =
+        "Please choose at least one policy you want to listen to:";
+    } else {
+      delete newErrors.policyItems;
+    }
+
+    if (isWebhookEnabled && !destinationUrl) {
       newErrors.url = "Please add a destination URL";
     } else {
       delete newErrors.url;
@@ -209,6 +211,14 @@ const ManageAutomationsModal = ({
           z.group_id === selectedIntegration?.group_id,
       })) || null;
 
+    if (
+      !isPolicyAutomationsEnabled ||
+      (!isWebhookEnabled && !selectedIntegration)
+    ) {
+      newPolicyIds = [];
+    }
+
+    // NOTE: backend uses webhook_settings to store automated policy ids for both webhooks and integrations
     const newWebhook = {
       failing_policies_webhook: {
         destination_url: destinationUrl,
@@ -342,9 +352,15 @@ const ManageAutomationsModal = ({
                   {availablePolicies?.length ? (
                     <div className={`${baseClass}__policy-select-items`}>
                       <p>
-                        <strong>
-                          Choose which policies you would like to listen to:
-                        </strong>
+                        {errors.policyItems ? (
+                          <span className="form-field__label--error">
+                            {errors.policyItems}
+                          </span>
+                        ) : (
+                          <strong>
+                            Choose which policies you would like to listen to:
+                          </strong>
+                        )}
                       </p>
                       {policyItems &&
                         policyItems.map((policyItem) => {
@@ -354,9 +370,13 @@ const ManageAutomationsModal = ({
                               <Checkbox
                                 value={isChecked}
                                 name={name}
-                                onChange={() =>
-                                  updatePolicyItems(policyItem.id)
-                                }
+                                onChange={() => {
+                                  updatePolicyItems(policyItem.id);
+                                  !isChecked &&
+                                    setErrors((errs) =>
+                                      omit(errs, "policyItems")
+                                    );
+                                }}
                               >
                                 {name}
                               </Checkbox>
