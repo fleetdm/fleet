@@ -3,7 +3,6 @@ import { Tab, Tabs, TabList, TabPanel } from "react-tabs";
 import classnames from "classnames";
 import { format } from "date-fns";
 import FileSaver from "file-saver";
-import { filter } from "lodash";
 
 import convertToCSV from "utilities/convert_to_csv";
 import { ICampaign } from "interfaces/campaign";
@@ -41,6 +40,27 @@ const NAV_TITLES = {
   ERRORS: "Errors",
 };
 
+const reorderCSVFields = (fields: string[]) => {
+  const result = fields.filter((field) => field !== "host_hostname");
+  result.unshift("host_hostname");
+
+  return result;
+};
+
+const generateExportCSVFile = (data: unknown[], filename: string) => {
+  return new global.window.File(
+    [convertToCSV(data, reorderCSVFields)],
+    filename,
+    {
+      type: "text/csv",
+    }
+  );
+};
+
+const generateExportFilename = (descriptor: string) => {
+  return `${descriptor} (${format(new Date(), "MM-dd-yy hh-mm-ss")}).csv`;
+};
+
 const QueryResults = ({
   campaign,
   isQueryFinished,
@@ -52,22 +72,14 @@ const QueryResults = ({
 }: IQueryResultsProps): JSX.Element => {
   const { hosts_count: hostsCount, query_results: queryResults, errors } =
     campaign || {};
+  const percentResponded =
+    targetsTotalCount > 0
+      ? Math.round((hostsCount.total / targetsTotalCount) * 100)
+      : 0;
 
   const [pageTitle, setPageTitle] = useState<string>(PAGE_TITLES.RUNNING);
   const [navTabIndex, setNavTabIndex] = useState(0);
-  const [
-    targetsRespondedPercent,
-    setTargetsRespondedPercent,
-  ] = useState<number>(0);
   const [showQueryModal, setShowQueryModal] = useState<boolean>(false);
-
-  useEffect(() => {
-    const calculatePercent =
-      targetsTotalCount > 0
-        ? Math.round((campaign.hosts_count.total / targetsTotalCount) * 100)
-        : 0;
-    setTargetsRespondedPercent(calculatePercent);
-  }, [campaign]);
 
   useEffect(() => {
     if (isQueryFinished) {
@@ -80,43 +92,23 @@ const QueryResults = ({
   const onExportQueryResults = (evt: React.MouseEvent<HTMLButtonElement>) => {
     evt.preventDefault();
 
-    if (queryResults) {
-      const csv = convertToCSV(queryResults, (fields: string[]) => {
-        const result = filter(fields, (f) => f !== "host_hostname");
-        result.unshift("host_hostname");
-
-        return result;
-      });
-
-      const formattedTime = format(new Date(), "MM-dd-yy hh-mm-ss");
-      const filename = `${CSV_QUERY_TITLE} (${formattedTime}).csv`;
-      const file = new global.window.File([csv], filename, {
-        type: "text/csv",
-      });
-
-      FileSaver.saveAs(file);
-    }
+    FileSaver.saveAs(
+      generateExportCSVFile(
+        queryResults,
+        generateExportFilename(CSV_QUERY_TITLE)
+      )
+    );
   };
 
   const onExportErrorsResults = (evt: React.MouseEvent<HTMLButtonElement>) => {
     evt.preventDefault();
 
-    if (errors) {
-      const csv = convertToCSV(errors, (fields: string[]) => {
-        const result = filter(fields, (f) => f !== "host_hostname");
-        result.unshift("host_hostname");
-
-        return result;
-      });
-
-      const formattedTime = format(new Date(), "MM-dd-yy hh-mm-ss");
-      const filename = `${CSV_QUERY_TITLE} Errors (${formattedTime}).csv`;
-      const file = new global.window.File([csv], filename, {
-        type: "text/csv",
-      });
-
-      FileSaver.saveAs(file);
-    }
+    FileSaver.saveAs(
+      generateExportCSVFile(
+        errors,
+        generateExportFilename(`${CSV_QUERY_TITLE} Errors`)
+      )
+    );
   };
 
   const onShowQueryModal = () => {
@@ -250,7 +242,7 @@ const QueryResults = ({
         <h1>{pageTitle}</h1>
         <div className={`${baseClass}__text-wrapper`}>
           <span>{targetsTotalCount}</span>&nbsp;hosts targeted&nbsp; (
-          {targetsRespondedPercent}%&nbsp;
+          {percentResponded}%&nbsp;
           <TooltipWrapper
             tipContent={`
                 Hosts that respond may<br /> return results, errors, or <br />no results`}
