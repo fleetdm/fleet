@@ -182,11 +182,15 @@ type Datastore interface {
 
 	MarkHostsSeen(ctx context.Context, hostIDs []uint, t time.Time) error
 	SearchHosts(ctx context.Context, filter TeamFilter, query string, omit ...uint) ([]*Host, error)
+	// EnrolledHostIDs returns the full list of enrolled host IDs.
+	EnrolledHostIDs(ctx context.Context) ([]uint, error)
+	CountEnrolledHosts(ctx context.Context) (int, error)
+
 	// CleanupIncomingHosts deletes hosts that have enrolled but never updated their status details. This clears dead
 	// "incoming hosts" that never complete their registration.
 	// A host is considered incoming if both the hostname and osquery_version fields are empty. This means that multiple
 	// different osquery queries failed to populate details.
-	CleanupIncomingHosts(ctx context.Context, now time.Time) error
+	CleanupIncomingHosts(ctx context.Context, now time.Time) ([]uint, error)
 	// GenerateHostStatusStatistics retrieves the count of online, offline, MIA and new hosts.
 	GenerateHostStatusStatistics(ctx context.Context, filter TeamFilter, now time.Time, platform *string) (*HostSummary, error)
 	// HostIDsByName Retrieve the IDs associated with the given hostnames
@@ -316,7 +320,7 @@ type Datastore interface {
 	SaveScheduledQuery(ctx context.Context, sq *ScheduledQuery) (*ScheduledQuery, error)
 	DeleteScheduledQuery(ctx context.Context, id uint) error
 	ScheduledQuery(ctx context.Context, id uint) (*ScheduledQuery, error)
-	CleanupExpiredHosts(ctx context.Context) error
+	CleanupExpiredHosts(ctx context.Context) ([]uint, error)
 
 	///////////////////////////////////////////////////////////////////////////////
 	// TeamStore
