@@ -70,7 +70,8 @@ data "git_repository" "tf" {
 }
 
 locals {
-  prefix = "fleet-demo"
+  prefix      = "fleet-demo"
+  base_domain = "sandbox.fleetdm.com"
 }
 
 module "vpc" {
@@ -127,6 +128,8 @@ module "jit-provisioner" {
   mysql_secret   = module.shared-infrastructure.mysql_secret
   eks_cluster    = module.shared-infrastructure.eks_cluster
   redis_cluster  = module.shared-infrastructure.redis_cluster
+  alb_listener   = module.shared-infrastructure.alb_listener
+  base_domain    = local.base_domain
 }
 
 resource "aws_dynamodb_table" "lifecycle-table" {
