@@ -119,33 +119,6 @@ const QueryResults = ({
     }
   };
 
-  const onExport = (type: "hosts" | "errors") => (
-    evt: React.MouseEvent<HTMLButtonElement>
-  ) => {
-    evt.preventDefault();
-
-    const exportData = type === "errors" ? errors : queryResults;
-    if (!exportData) {
-      // This case should never happen because UI hides the export button if there are no results
-      return;
-    }
-
-    const csv = convertToCSV(exportData, (fields: string[]) => {
-      const result = filter(fields, (f) => f !== "host_hostname");
-      result.unshift("host_hostname");
-      return result;
-    });
-    const formattedTime = format(new Date(), "MM-dd-yy hh-mm-ss");
-    const filename = `${CSV_QUERY_TITLE} ${
-      type === "errors" ? "Errors" : ""
-    } (${formattedTime}).csv`;
-    const file = new global.window.File([csv], filename, {
-      type: "text/csv",
-    });
-
-    FileSaver.saveAs(file);
-  };
-
   const onShowQueryModal = () => {
     setShowQueryModal(!showQueryModal);
   };
