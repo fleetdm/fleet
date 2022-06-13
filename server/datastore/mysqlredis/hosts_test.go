@@ -199,6 +199,14 @@ func TestSyncEnrolledHostIDs(t *testing.T) {
 		redisIDs, err = redigo.Strings(conn.Do("SMEMBERS", enrolledHostsSetKey))
 		require.NoError(t, err)
 		require.ElementsMatch(t, []string{fmt.Sprint(h1.ID), fmt.Sprint(h3.ID)}, redisIDs)
+
+		// syncing when enforcing the limit is disabled removes the set key
+		wrappedDS = New(ds, pool) // no limit enforced
+		err = wrappedDS.SyncEnrolledHostIDs(ctx)
+		require.NoError(t, err)
+		exists, err := redigo.Bool(conn.Do("EXISTS", enrolledHostsSetKey))
+		require.NoError(t, err)
+		require.False(t, exists)
 	}
 
 	t.Run("standalone", func(t *testing.T) {
