@@ -23,6 +23,17 @@ var redisSetMembersBatchSize = 10000 // var so it can be changed in tests
 // regularly (via a cron job) so that if the Redis set gets out of sync, it
 // eventually fixes itself automatically.
 func (d *Datastore) SyncEnrolledHostIDs(ctx context.Context) error {
+	if d.enforceHostLimit <= 0 {
+		// remove the enrolled hosts key, e.g. if the limit was enforced at some
+		// point and then disabled, so we reclaim the redis memory space.
+		conn := redis.ConfigureDoer(d.pool, d.pool.Get())
+		defer conn.Close()
+		if _, err := conn.Do("DEL", enrolledHostsSetKey); err != nil {
+			return ctxerr.Wrap(ctx, err, "delete enrolled hosts key")
+		}
+		return nil
+	}
+
 	dbCount, err := d.CountEnrolledHosts(ctx)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "count enrolled hosts from the database")
