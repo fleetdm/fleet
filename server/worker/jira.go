@@ -126,6 +126,11 @@ func (j *Jira) getClient(ctx context.Context, args jiraArgs) (JiraClient, error)
 		key += fmt.Sprint(teamID)
 	}
 
+	ac, err := j.Datastore.AppConfig(ctx)
+	if err != nil {
+		return nil, err
+	}
+
 	// load the config that would be used to create the client first - it is
 	// needed to check if an existing client is configured the same or if its
 	// configuration has changed since it was created.
@@ -136,7 +141,11 @@ func (j *Jira) getClient(ctx context.Context, args jiraArgs) (JiraClient, error)
 			return nil, err
 		}
 
-		for _, intg := range tm.Config.Integrations.Jira {
+		intgs, err := tm.Config.Integrations.MatchWithIntegrations(ac.Integrations)
+		if err != nil {
+			return nil, err
+		}
+		for _, intg := range intgs.Jira {
 			if intgType == intgTypeFailingPolicy && intg.EnableFailingPolicies {
 				opts = &externalsvc.JiraOptions{
 					BaseURL:           intg.URL,
@@ -148,10 +157,6 @@ func (j *Jira) getClient(ctx context.Context, args jiraArgs) (JiraClient, error)
 			}
 		}
 	} else {
-		ac, err := j.Datastore.AppConfig(ctx)
-		if err != nil {
-			return nil, err
-		}
 		for _, intg := range ac.Integrations.Jira {
 			if (intgType == intgTypeVuln && intg.EnableSoftwareVulnerabilities) ||
 				(intgType == intgTypeFailingPolicy && intg.EnableFailingPolicies) {

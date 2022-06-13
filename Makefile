@@ -122,7 +122,7 @@ lint-js:
 	yarn lint
 
 lint-go:
-	golangci-lint run --skip-dirs ./node_modules
+	golangci-lint run --skip-dirs ./node_modules --timeout 10m
 
 lint: lint-go lint-js
 
@@ -294,7 +294,7 @@ ifneq ($(shell uname), Darwin)
 	@exit 1
 endif
 	$(eval TMP_DIR := $(shell mktemp -d))
-	curl -L https://pkg.osquery.io/darwin/osquery-$(version).pkg --output $(TMP_DIR)/osquery-$(version).pkg
+	curl -L https://github.com/osquery/osquery/releases/download/$(version)/osquery-$(version).pkg --output $(TMP_DIR)/osquery-$(version).pkg
 	pkgutil --expand $(TMP_DIR)/osquery-$(version).pkg $(TMP_DIR)/osquery_pkg_expanded
 	rm -rf $(TMP_DIR)/osquery_pkg_payload_expanded
 	mkdir -p $(TMP_DIR)/osquery_pkg_payload_expanded

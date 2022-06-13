@@ -38,7 +38,8 @@ type Service struct {
 	mailService     fleet.MailService
 	ssoSessionStore sso.SessionStore
 
-	failingPolicySet fleet.FailingPolicySet
+	failingPolicySet  fleet.FailingPolicySet
+	enrollHostLimiter fleet.EnrollHostLimiter
 
 	authz *authz.Authorizer
 
@@ -69,6 +70,7 @@ func NewService(
 	license fleet.LicenseInfo,
 	failingPolicySet fleet.FailingPolicySet,
 	geoIP fleet.GeoIP,
+	enrollHostLimiter fleet.EnrollHostLimiter,
 ) (fleet.Service, error) {
 	authorizer, err := authz.NewAuthorizer()
 	if err != nil {
@@ -76,23 +78,24 @@ func NewService(
 	}
 
 	svc := &Service{
-		ds:               ds,
-		task:             task,
-		carveStore:       carveStore,
-		resultStore:      resultStore,
-		liveQueryStore:   lq,
-		logger:           logger,
-		config:           config,
-		clock:            c,
-		osqueryLogWriter: osqueryLogger,
-		mailService:      mailService,
-		ssoSessionStore:  sso,
-		license:          license,
-		failingPolicySet: failingPolicySet,
-		authz:            authorizer,
-		jitterH:          make(map[time.Duration]*jitterHashTable),
-		jitterMu:         new(sync.Mutex),
-		geoIP:            geoIP,
+		ds:                ds,
+		task:              task,
+		carveStore:        carveStore,
+		resultStore:       resultStore,
+		liveQueryStore:    lq,
+		logger:            logger,
+		config:            config,
+		clock:             c,
+		osqueryLogWriter:  osqueryLogger,
+		mailService:       mailService,
+		ssoSessionStore:   sso,
+		license:           license,
+		failingPolicySet:  failingPolicySet,
+		authz:             authorizer,
+		jitterH:           make(map[time.Duration]*jitterHashTable),
+		jitterMu:          new(sync.Mutex),
+		geoIP:             geoIP,
+		enrollHostLimiter: enrollHostLimiter,
 	}
 	return validationMiddleware{svc, ds, sso}, nil
 }

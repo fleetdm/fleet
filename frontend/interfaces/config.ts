@@ -72,6 +72,10 @@ export default PropTypes.shape({
   }),
 });
 
+export interface IFleetDesktopSettings {
+  transparency_url: string;
+}
+
 export interface IConfigFormData {
   smtpAuthenticationMethod: string;
   smtpAuthenticationType: string;
@@ -105,6 +109,7 @@ export interface IConfigFormData {
   hostStatusWebhookHostPercentage?: number;
   hostStatusWebhookDaysCount?: number;
   enableUsageStatistics: boolean;
+  transparency_url: string;
 }
 
 export interface IConfig {
@@ -162,6 +167,7 @@ export interface IConfig {
     expiration: string;
     note: string;
   };
+  fleet_desktop: IFleetDesktopSettings;
   vulnerabilities: {
     databases_path: string;
     periodicity: number;

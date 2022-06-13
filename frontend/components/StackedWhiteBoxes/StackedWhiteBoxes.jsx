@@ -4,6 +4,7 @@ import { Link } from "react-router";
 import classnames from "classnames";
 
 import FleetIcon from "components/icons/FleetIcon";
+import CloseIcon from "../../../assets/images/icon-close-fleet-black-16x16@2x.png";
 
 const baseClass = "stacked-white-boxes";
 
@@ -49,14 +50,13 @@ class StackedWhiteBoxes extends Component {
 
   renderBackButton = () => {
     const { previousLocation } = this.props;
-    const { nowLeaving } = this;
 
     if (!previousLocation) return false;
 
     return (
       <div className={`${baseClass}__back`}>
         <Link to={previousLocation} className={`${baseClass}__back-link`}>
-          <FleetIcon name="x" />
+          <img src={CloseIcon} alt="close icon" />
         </Link>
       </div>
     );

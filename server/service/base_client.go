@@ -96,7 +96,8 @@ func newBaseClient(addr string, insecureSkipVerify bool, rootCA, urlPrefix strin
 	}
 
 	httpClient := fleethttp.NewClient(fleethttp.WithTLSClientConfig(&tls.Config{
-		InsecureSkipVerify: insecureSkipVerify,
+		// Ignoring "G402: TLS InsecureSkipVerify set true", needed for development/testing.
+		InsecureSkipVerify: insecureSkipVerify, //nolint:gosec
 		RootCAs:            rootCAPool,
 	}))
 

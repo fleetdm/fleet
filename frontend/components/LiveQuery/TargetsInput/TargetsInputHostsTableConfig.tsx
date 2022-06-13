@@ -1,23 +1,26 @@
 /* eslint-disable react/prop-types */
 
 import React from "react";
+import { Row } from "react-table";
 
 import { IDataColumn } from "interfaces/datatable_config";
 
 import TextCell from "components/TableContainer/DataTable/TextCell";
 import StatusCell from "components/TableContainer/DataTable/StatusCell/StatusCell";
-import RemoveIcon from "../../../assets/images/icon-action-remove-20x20@2x.png";
+import RemoveIcon from "../../../../assets/images/icon-action-remove-20x20@2x.png";
 
 // NOTE: cellProps come from react-table
 // more info here https://react-table.tanstack.com/docs/api/useTable#cell-properties
-export const generateTableHeaders = (showDelete: boolean): IDataColumn[] => {
-  const deleteHeader = showDelete
+export const generateTableHeaders = (
+  handleRowRemove?: (value: Row) => void
+): IDataColumn[] => {
+  const deleteHeader = handleRowRemove
     ? [
         {
           id: "delete",
           Header: "",
-          Cell: (): JSX.Element => (
-            <div>
+          Cell: (cellProps: { row: Row }): JSX.Element => (
+            <div onClick={() => handleRowRemove(cellProps.row)}>
               <img alt="Remove" src={RemoveIcon} />
             </div>
           ),
@@ -34,6 +37,8 @@ export const generateTableHeaders = (showDelete: boolean): IDataColumn[] => {
       accessor: "hostname",
       Cell: (cellProps) => <TextCell value={cellProps.cell.value} />,
     },
+    // TODO: Consider removing status column from selected hosts table because
+    // status info is not refreshed once a target has been selected
     {
       title: "Status",
       Header: "Status",

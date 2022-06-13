@@ -504,7 +504,9 @@ const DataTable = ({
                   {...row.getRowProps({
                     // @ts-ignore // TS complains about prop not existing
                     onClick: () => {
-                      disableMultiRowSelect && onSingleRowClick(row);
+                      onSingleRowClick &&
+                        disableMultiRowSelect &&
+                        onSingleRowClick(row);
                     },
                   })}
                 >

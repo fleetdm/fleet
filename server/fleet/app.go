@@ -114,6 +114,8 @@ type AppConfig struct {
 	SMTPTest bool `json:"smtp_test,omitempty"`
 	// SSOSettings is single sign on settings
 	SSOSettings SSOSettings `json:"sso_settings"`
+	// FleetDesktop holds settings for Fleet Desktop that can be changed via the API.
+	FleetDesktop FleetDesktopSettings `json:"fleet_desktop"`
 
 	// VulnerabilitySettings defines how fleet will behave while scanning for vulnerabilities in the host software
 	VulnerabilitySettings VulnerabilitySettings `json:"vulnerability_settings"`
@@ -260,6 +262,15 @@ type HostSettings struct {
 	EnableSoftwareInventory bool             `json:"enable_software_inventory"`
 	AdditionalQueries       *json.RawMessage `json:"additional_queries,omitempty"`
 }
+
+// FleetDesktopSettings contains settings used to configure Fleet Desktop.
+type FleetDesktopSettings struct {
+	// TransparencyURL is the URL used for the “Transparency” link in the Fleet Desktop menu.
+	TransparencyURL string `json:"transparency_url"`
+}
+
+// DefaultTransparencyURL is the default URL used for the “Transparency” link in the Fleet Desktop menu.
+const DefaultTransparencyURL = "https://fleetdm.com/transparency"
 
 type OrderDirection int
 
