@@ -62,13 +62,13 @@ describe("Query flow (seeded)", () => {
       cy.findByText(/run/i).click();
       // Ensures live query runs
       cy.wait(10000); // eslint-disable-line cypress/no-unnecessary-waiting
-      cy.getAttached(".query-results__results-table-header").within(() => {
+      cy.getAttached(".table-container").within(() => {
         cy.findByText(/show query/i).click();
       });
       cy.getAttached(".show-query-modal").within(() => {
         cy.findByText(/done/i).click();
       });
-      cy.getAttached(".query-results__results-table-header").within(() => {
+      cy.getAttached(".table-container").within(() => {
         const formattedTime = format(new Date(), "MM-dd-yy hh-mm-ss");
         cy.findByText(/export results/i).click();
         const filename = `Query Results (${formattedTime}).csv`;

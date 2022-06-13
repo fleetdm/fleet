@@ -133,7 +133,7 @@ const QueryResults = ({
     );
   };
 
-  const renderTableButtons = (type: "hosts" | "errors") => {
+  const renderTableButtons = (tableType: "results" | "errors") => {
     return (
       <div className={`${baseClass}__results-cta`}>
         <Button
@@ -148,19 +148,25 @@ const QueryResults = ({
         <Button
           className={`${baseClass}__export-btn`}
           onClick={
-            type === "errors" ? onExportErrorsResults : onExportQueryResults
+            tableType === "errors"
+              ? onExportErrorsResults
+              : onExportQueryResults
           }
           variant="text-link"
         >
           <>
-            {`Export ${type}`} <img alt={`Export ${type}`} src={DownloadIcon} />
+            {`Export ${tableType}`}{" "}
+            <img alt={`Export ${tableType}`} src={DownloadIcon} />
           </>
         </Button>
       </div>
     );
   };
 
-  const renderTable = (tableData: unknown[], type: "hosts" | "errors") => {
+  const renderTable = (
+    tableData: unknown[],
+    tableType: "errors" | "results"
+  ) => {
     return (
       <div className={`${baseClass}__results-table-container`}>
         <TableContainer
@@ -173,8 +179,8 @@ const QueryResults = ({
           isMultiColumnFilter
           showMarkAllPages={false}
           isAllPagesSelected={false}
-          resultsTitle={type}
-          customControl={() => renderTableButtons(type)}
+          resultsTitle={tableType === "results" ? "hosts" : tableType}
+          customControl={() => renderTableButtons(tableType)}
         />
       </div>
     );
@@ -193,7 +199,7 @@ const QueryResults = ({
       return renderNoResults();
     }
 
-    return renderTable(queryResults, "hosts");
+    return renderTable(queryResults, "results");
   };
 
   const renderErrorsTab = () => renderTable(errors, "errors");
