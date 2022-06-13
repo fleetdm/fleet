@@ -351,6 +351,12 @@ describe("Premium tier - Global Admin user", () => {
         console.log(JSON.stringify(configStub));
       });
     });
+    // it(`displays "Probability of exploit" column`, () => {
+    //   cy.getAttached("thead").within(() => {
+    //     cy.findByText(/vulnerabilities/i).should("not.exist");
+    //     cy.findByText(/probability of exploit/i).should("exist");
+    //   });
+    // });
     it("allows admin to create webhook software vulnerability automation", () => {
       cy.getAttached(".manage-software-page__header-wrap").within(() => {
         cy.findByRole("button", { name: /manage automations/i }).click();
@@ -675,6 +681,26 @@ describe("Premium tier - Global Admin user", () => {
         cy.findByLabelText(/email/i).should("exist");
         cy.findByLabelText(/password/i).should("exist");
       });
+    });
+    it("allows access to Fleet Desktop settings", () => {
+      cy.visit("settings/organization");
+      cy.getAttached(".app-settings__form-nav-list").within(() => {
+        cy.findByText(/organization info/i).should("exist");
+        cy.findByText(/fleet desktop/i)
+          .should("exist")
+          .click();
+      });
+      cy.getAttached("[id=transparency_url")
+        .should("have.value", "https://fleetdm.com/transparency")
+        .clear()
+        .type("example.com/transparency");
+      cy.findByRole("button", { name: /save/i }).click();
+      cy.findByText(/successfully updated/i).should("exist");
+      cy.visit("settings/organization/fleet-desktop");
+      cy.getAttached("[id=transparency_url").should(
+        "have.value",
+        "example.com/transparency"
+      );
     });
   });
   describe("User profile page", () => {

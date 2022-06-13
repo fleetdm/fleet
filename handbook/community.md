@@ -228,6 +228,8 @@ When adding or reordering a page, try to leave as much room between values as po
 Try to keep images in the docs at a minimum. Images can be a quick way to help users understand a concept or direct them towards a specific user interface(UI) element. Still, too many can make the documentation feel cluttered and more difficult to maintain.
 
 When adding images to the Fleet documentation, follow these guidelines:
+- UI screenshots should be a 4:3 aspect ratio (1280x960). This is an optimal size for the container width of the docs and ensures that content in screenshots is as clear as possible to view in the docs (and especially on mobile devices).
+- You can set up a custom preset in the Google Chrome device toolbar (in Developer Tools) to quickly adjust your browser to the correct size for taking a screenshot.
 - Keep the images as simple as possible to maintain. Screenshots can get out of date quickly as UIs change.
 - Exclude unnecessary images. Images should be used to help emphasize information in the docs, not replace it.
 - Minimize images per doc page. For doc maintainers and users, more than one or two per page can get overwhelming.
@@ -414,3 +416,4 @@ This group maintains the following [Slack channels](https://fleetdm.com/handbook
 
 
 <meta name="maintainedBy" value="ksatter">
+<meta name="title" value="🪂 Community">

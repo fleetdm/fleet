@@ -19,7 +19,7 @@ Keep headings brief and organize them in a logical order:
 * H3: Subheadings
 * H4: Sub-subheadings (headings nested under subheadings)
 
-Try to stay within 3 or 4 heading levels. Complicated documents may use more, but pages with a simpler structure are easier to read.
+Try to stay within three or four heading levels. Complicated documents may use more, but pages with a simpler structure are easier to read.
 
 ## Contributing to the handbook
 
@@ -34,3 +34,4 @@ All done!
 
 
 <meta name="maintainedBy" value="mike-j-thomas">
+<meta name="title" value="Handbook">

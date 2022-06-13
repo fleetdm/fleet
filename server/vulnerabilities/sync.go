@@ -20,6 +20,8 @@ import (
 	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/ptr"
+	"github.com/go-kit/kit/log"
+	"github.com/go-kit/kit/log/level"
 )
 
 // Sync downloads all the vulnerability data sources.
@@ -45,8 +47,10 @@ func Sync(vulnPath string, cpeDatabaseURL string) error {
 	return nil
 }
 
-const epssFeedsURL = "https://epss.cyentia.com"
-const epssFilename = "epss_scores-current.csv.gz"
+const (
+	epssFeedsURL = "https://epss.cyentia.com"
+	epssFilename = "epss_scores-current.csv.gz"
+)
 
 // DownloadEPSSFeed downloads the EPSS scores feed.
 func DownloadEPSSFeed(vulnPath string, client *http.Client) error {
@@ -117,8 +121,10 @@ func parseEPSSScoresFile(path string) ([]epssScore, error) {
 	return epssScores, nil
 }
 
-const cisaKnownExploitsURL = "https://www.cisa.gov/sites/default/files/feeds/known_exploited_vulnerabilities.json"
-const cisaKnownExploitsFilename = "known_exploited_vulnerabilities.json"
+const (
+	cisaKnownExploitsURL      = "https://www.cisa.gov/sites/default/files/feeds/known_exploited_vulnerabilities.json"
+	cisaKnownExploitsFilename = "known_exploited_vulnerabilities.json"
+)
 
 // knownExploitedVulnerabilitiesCatalog represents the CISA Catalog of Known Exploited Vulnerabilities.
 type knownExploitedVulnerabilitiesCatalog struct {
@@ -161,36 +167,47 @@ func DownloadCISAKnownExploitsFeed(vulnPath string, client *http.Client) error {
 
 // LoadCVEMeta loads the cvss scores, epss scores, and known exploits from the previously downloaded feeds and saves
 // them to the database.
-func LoadCVEMeta(vulnPath string, ds fleet.Datastore) error {
+func LoadCVEMeta(logger log.Logger, vulnPath string, ds fleet.Datastore) error {
 	// load cvss scores
 	files, err := getNVDCVEFeedFiles(vulnPath)
 	if err != nil {
 		return fmt.Errorf("get nvd cve feeds: %w", err)
 	}
 
-	dict, err := cvefeed.LoadJSONDictionary(files...)
-	if err != nil {
-		return err
-	}
-
 	metaMap := make(map[string]fleet.CVEMeta)
-	for cve := range dict {
-		schema := dict[cve].(*feednvd.Vuln).Schema()
-		if schema.Impact.BaseMetricV3 == nil {
-			continue
-		}
-		baseScore := schema.Impact.BaseMetricV3.CVSSV3.BaseScore
-		published, err := time.Parse(publishedDateFmt, schema.PublishedDate)
+
+	for _, file := range files {
+
+		// Load json files one at a time. Attempting to load them all uses too much memory, > 1 GB.
+		dict, err := cvefeed.LoadJSONDictionary(file)
 		if err != nil {
-			return fmt.Errorf("parse published_date: %w", err)
+			return err
 		}
 
-		meta := fleet.CVEMeta{
-			CVE:       cve,
-			CVSSScore: &baseScore,
-			Published: &published,
+		for cve := range dict {
+			vuln, ok := dict[cve].(*feednvd.Vuln)
+			if !ok {
+				level.Error(logger).Log("msg", "unexpected type for Vuln interface", "cve", cve, "type", fmt.Sprintf("%T", dict[cve]))
+				continue
+			}
+			schema := vuln.Schema()
+
+			meta := fleet.CVEMeta{
+				CVE: cve,
+			}
+
+			if schema.Impact.BaseMetricV3 != nil {
+				meta.CVSSScore = &schema.Impact.BaseMetricV3.CVSSV3.BaseScore
+			}
+
+			if published, err := time.Parse(publishedDateFmt, schema.PublishedDate); err != nil {
+				level.Error(logger).Log("msg", "failed to parse published data", "cve", cve, "published_date", schema.PublishedDate, "err", err)
+			} else {
+				meta.Published = &published
+			}
+
+			metaMap[cve] = meta
 		}
-		metaMap[cve] = meta
 	}
 
 	// load epss scores
@@ -202,6 +219,7 @@ func LoadCVEMeta(vulnPath string, ds fleet.Datastore) error {
 	}
 
 	for _, epssScore := range epssScores {
+		epssScore := epssScore // copy, don't take the address of loop variables
 		score, ok := metaMap[epssScore.CVE]
 		if !ok {
 			score.CVE = epssScore.CVE

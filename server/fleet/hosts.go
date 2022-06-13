@@ -155,7 +155,7 @@ type HostDetail struct {
 	// Packs is the list of packs the host is a member of.
 	Packs []*Pack `json:"packs"`
 	// Policies is the list of policies and whether it passes for the host
-	Policies []*HostPolicy `json:"policies"`
+	Policies *[]*HostPolicy `json:"policies,omitempty"`
 }
 
 const (
@@ -323,4 +323,9 @@ type OSVersion struct {
 	HostsCount int    `json:"hosts_count"`
 	Name       string `json:"name"`
 	Platform   string `json:"platform"`
+}
+
+type HostDetailOptions struct {
+	IncludeCVEScores bool
+	IncludePolicies  bool
 }

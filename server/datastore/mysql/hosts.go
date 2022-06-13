@@ -1742,3 +1742,32 @@ ON DUPLICATE KEY UPDATE
 
 	return nil
 }
+
+func (ds *Datastore) HostIDsByOSVersion(
+	ctx context.Context,
+	osVersion fleet.OSVersion,
+	offset int,
+	limit int,
+) ([]uint, error) {
+	var ids []uint
+
+	stmt := dialect.From("hosts").
+		Select("id").
+		Where(
+			goqu.C("platform").Eq(osVersion.Platform),
+			goqu.C("os_version").Eq(osVersion.Name)).
+		Order(goqu.I("id").Desc()).
+		Offset(uint(offset)).
+		Limit(uint(limit))
+
+	sql, args, err := stmt.ToSQL()
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "get host IDs")
+	}
+
+	if err := sqlx.SelectContext(ctx, ds.reader, &ids, sql, args...); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "get host IDs")
+	}
+
+	return ids, nil
+}

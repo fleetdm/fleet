@@ -472,6 +472,12 @@ describe(
           console.log(JSON.stringify(configStub));
         });
       });
+      // it(`displays "Vulnerabilities" column`, () => {
+      //   cy.getAttached("thead").within(() => {
+      //     cy.findByText(/vulnerabilities/i).should("exist");
+      //     cy.findByText(/probability of exploit/i).should("not.exist");
+      //   });
+      // });
       it("allows admin to create webhook software vulnerability automation", () => {
         cy.getAttached(".manage-software-page__header-wrap").within(() => {
           cy.findByRole("button", { name: /manage automations/i }).click();
@@ -689,6 +695,15 @@ describe(
       beforeEach(() => {
         cy.loginWithCySession("anna@organization.com", GOOD_PASSWORD);
         cy.visit("/settings/users");
+      });
+      it("hides access to Fleet Desktop settings", () => {
+        cy.visit("settings/organization");
+        cy.getAttached(".app-settings__form-nav-list").within(() => {
+          cy.findByText(/organization info/i).should("exist");
+          cy.findByText(/fleet desktop/i).should("not.exist");
+        });
+        cy.visit("settings/organization/fleet-desktop");
+        cy.findAllByText(/access denied/i).should("exist");
       });
       it("hides access team settings", () => {
         cy.findByText(/teams/i).should("not.exist");

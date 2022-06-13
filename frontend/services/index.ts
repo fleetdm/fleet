@@ -5,7 +5,7 @@ import URL_PREFIX from "router/url_prefix";
 const sendRequest = async (
   method: "GET" | "POST" | "PATCH" | "DELETE",
   path: string,
-  data?: any
+  data?: unknown
 ): Promise<any> => {
   const { origin } = global.window.location;
 
@@ -30,9 +30,9 @@ const sendRequest = async (
 };
 
 // return the first error
-export const getError = (response: any): string => {
+export const getError = (response: unknown): string => {
   const r = response as AxiosResponse;
-  return r.data?.errors[0].reason || "";
+  return r.data?.errors?.[0]?.reason || ""; // TODO: check if any callers rely on empty return value
 };
 
 export default sendRequest;

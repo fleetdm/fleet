@@ -289,7 +289,14 @@ func TestAppConfigSecretsObfuscated(t *testing.T) {
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 		return &fleet.AppConfig{
 			SMTPSettings: fleet.SMTPSettings{SMTPPassword: "smtppassword"},
-			Integrations: fleet.Integrations{Jira: []*fleet.JiraIntegration{{APIToken: "jiratoken"}}, Zendesk: []*fleet.ZendeskIntegration{{APIToken: "zendesktoken"}}},
+			Integrations: fleet.Integrations{
+				Jira: []*fleet.JiraIntegration{
+					{TeamJiraIntegration: fleet.TeamJiraIntegration{APIToken: "jiratoken"}},
+				},
+				Zendesk: []*fleet.ZendeskIntegration{
+					{TeamZendeskIntegration: fleet.TeamZendeskIntegration{APIToken: "zendesktoken"}},
+				},
+			},
 		}, nil
 	}
 
@@ -332,9 +339,9 @@ func TestAppConfigSecretsObfuscated(t *testing.T) {
 
 			ac, err := svc.AppConfig(ctx)
 			require.NoError(t, err)
-			require.Equal(t, ac.SMTPSettings.SMTPPassword, "********")
-			require.Equal(t, ac.Integrations.Jira[0].APIToken, "********")
-			require.Equal(t, ac.Integrations.Zendesk[0].APIToken, "********")
+			require.Equal(t, ac.SMTPSettings.SMTPPassword, fleet.MaskedPassword)
+			require.Equal(t, ac.Integrations.Jira[0].APIToken, fleet.MaskedPassword)
+			require.Equal(t, ac.Integrations.Zendesk[0].APIToken, fleet.MaskedPassword)
 		})
 	}
 }
@@ -381,4 +388,96 @@ func TestModifyAppConfigSMTPConfigured(t *testing.T) {
 	require.False(t, updatedAppConfig.SMTPSettings.SMTPConfigured)
 	require.False(t, dsAppConfig.SMTPSettings.SMTPEnabled)
 	require.False(t, dsAppConfig.SMTPSettings.SMTPConfigured)
+}
+
+// TestTransparencyURL tests that Fleet Premium licensees can use custom transparency urls and Fleet
+// Free licensees are restricted to the default transparency url.
+func TestTransparencyURL(t *testing.T) {
+	ds := new(mock.Store)
+
+	admin := &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}
+	ctx := viewer.NewContext(context.Background(), viewer.Viewer{User: admin})
+
+	checkLicenseErr := func(t *testing.T, shouldFail bool, err error) {
+		if shouldFail {
+			require.Error(t, err)
+			require.ErrorContains(t, err, "missing or invalid license")
+		} else {
+			require.NoError(t, err)
+		}
+	}
+	testCases := []struct {
+		name             string
+		licenseTier      string
+		initialURL       string
+		newURL           string
+		expectedURL      string
+		shouldFailModify bool
+	}{
+		{
+			name:             "customURL",
+			licenseTier:      "free",
+			initialURL:       "",
+			newURL:           "customURL",
+			expectedURL:      "",
+			shouldFailModify: true,
+		},
+		{
+			name:             "customURL",
+			licenseTier:      "premium",
+			initialURL:       "",
+			newURL:           "customURL",
+			expectedURL:      "customURL",
+			shouldFailModify: false,
+		},
+		{
+			name:             "emptyURL",
+			licenseTier:      "free",
+			initialURL:       "",
+			newURL:           "",
+			expectedURL:      "",
+			shouldFailModify: false,
+		},
+		{
+			name:             "emptyURL",
+			licenseTier:      "premium",
+			initialURL:       "customURL",
+			newURL:           "",
+			expectedURL:      "",
+			shouldFailModify: false,
+		},
+	}
+
+	for _, tt := range testCases {
+		t.Run(tt.name, func(t *testing.T) {
+			svc := newTestService(t, ds, nil, nil, &TestServerOpts{License: &fleet.LicenseInfo{Tier: tt.licenseTier}})
+
+			dsAppConfig := &fleet.AppConfig{FleetDesktop: fleet.FleetDesktopSettings{TransparencyURL: tt.initialURL}}
+
+			ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+				return dsAppConfig, nil
+			}
+
+			ds.SaveAppConfigFunc = func(ctx context.Context, conf *fleet.AppConfig) error {
+				*dsAppConfig = *conf
+				return nil
+			}
+
+			ac, err := svc.AppConfig(ctx)
+			require.NoError(t, err)
+			require.Equal(t, tt.initialURL, ac.FleetDesktop.TransparencyURL)
+
+			raw, err := json.Marshal(fleet.AppConfig{FleetDesktop: fleet.FleetDesktopSettings{TransparencyURL: tt.newURL}})
+			require.NoError(t, err)
+			modified, err := svc.ModifyAppConfig(ctx, raw)
+			checkLicenseErr(t, tt.shouldFailModify, err)
+
+			if modified != nil {
+				require.Equal(t, tt.expectedURL, modified.FleetDesktop.TransparencyURL)
+				ac, err = svc.AppConfig(ctx)
+				require.NoError(t, err)
+				require.Equal(t, tt.expectedURL, ac.FleetDesktop.TransparencyURL)
+			}
+		})
+	}
 }

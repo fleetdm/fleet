@@ -21,10 +21,11 @@ func (r *getDeviceHostRequest) deviceAuthToken() string {
 }
 
 type getDeviceHostResponse struct {
-	Host       *HostDetailResponse `json:"host"`
-	OrgLogoURL string              `json:"org_logo_url"`
-	Err        error               `json:"error,omitempty"`
-	License    fleet.LicenseInfo   `json:"license"`
+	Host            *HostDetailResponse `json:"host"`
+	OrgLogoURL      string              `json:"org_logo_url"`
+	TransparencyURL string              `json:"transparency_url"`
+	Err             error               `json:"error,omitempty"`
+	License         fleet.LicenseInfo   `json:"license"`
 }
 
 func (r getDeviceHostResponse) error() error { return r.Err }
@@ -37,7 +38,11 @@ func getDeviceHostEndpoint(ctx context.Context, request interface{}, svc fleet.S
 	}
 
 	// must still load the full host details, as it returns more information
-	hostDetails, err := svc.GetHost(ctx, host.ID, false)
+	opts := fleet.HostDetailOptions{
+		IncludeCVEScores: false,
+		IncludePolicies:  false,
+	}
+	hostDetails, err := svc.GetHost(ctx, host.ID, opts)
 	if err != nil {
 		return getDeviceHostResponse{Err: err}, nil
 	}
@@ -60,10 +65,16 @@ func getDeviceHostEndpoint(ctx context.Context, request interface{}, svc fleet.S
 		return getDeviceHostResponse{Err: err}, nil
 	}
 
+	transparencyURL := fleet.DefaultTransparencyURL
+	if license.Tier == "premium" && ac.FleetDesktop.TransparencyURL != "" {
+		transparencyURL = ac.FleetDesktop.TransparencyURL
+	}
+
 	return getDeviceHostResponse{
-		Host:       resp,
-		OrgLogoURL: ac.OrgInfo.OrgLogoURL,
-		License:    *license,
+		Host:            resp,
+		OrgLogoURL:      ac.OrgInfo.OrgLogoURL,
+		TransparencyURL: transparencyURL,
+		License:         *license,
 	}, nil
 }
 
@@ -209,4 +220,27 @@ func (svc *Service) ListDevicePolicies(ctx context.Context, host *fleet.Host) ([
 	svc.authz.SkipAuthorization(ctx)
 
 	return nil, fleet.ErrMissingLicense
+}
+
+////////////////////////////////////////////////////////////////////////////////
+// Device API features
+////////////////////////////////////////////////////////////////////////////////
+
+type deviceAPIFeaturesRequest struct {
+	Token string `url:"token"`
+}
+
+func (r *deviceAPIFeaturesRequest) deviceAuthToken() string {
+	return r.Token
+}
+
+type deviceAPIFeaturesResponse struct {
+	Err      error `json:"error,omitempty"`
+	Features fleet.DeviceAPIFeatures
+}
+
+func (r deviceAPIFeaturesResponse) error() error { return r.Err }
+
+func deviceAPIFeaturesEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
+	return deviceAPIFeaturesResponse{Features: fleet.DeviceAPIFeatures{}}, nil
 }

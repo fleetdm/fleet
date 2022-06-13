@@ -1,0 +1,4 @@
+- Improve live query experience by saving state of selected targets
+- Introduce new API endpoint `POST /targets/search`
+- Introduce new API endpoint `POST /targets/count`
+- Migrate UI to use new endpoints to select targets for queries and policies
