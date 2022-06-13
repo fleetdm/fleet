@@ -481,3 +481,49 @@ func TestTransparencyURL(t *testing.T) {
 		})
 	}
 }
+
+// TestTransparencyURLDowngradeLicense tests scenarios where a transparency url value has previously
+// been stored (for example, if a licensee downgraded without manually resetting the transparency url)
+func TestTransparencyURLDowngradeLicense(t *testing.T) {
+	ds := new(mock.Store)
+
+	admin := &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}
+	ctx := viewer.NewContext(context.Background(), viewer.Viewer{User: admin})
+
+	svc := newTestService(t, ds, nil, nil, &TestServerOpts{License: &fleet.LicenseInfo{Tier: "free"}})
+
+	dsAppConfig := &fleet.AppConfig{FleetDesktop: fleet.FleetDesktopSettings{TransparencyURL: "https://example.com/transparency"}}
+
+	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+		return dsAppConfig, nil
+	}
+
+	ds.SaveAppConfigFunc = func(ctx context.Context, conf *fleet.AppConfig) error {
+		*dsAppConfig = *conf
+		return nil
+	}
+
+	ac, err := svc.AppConfig(ctx)
+	require.NoError(t, err)
+	require.Equal(t, "https://example.com/transparency", ac.FleetDesktop.TransparencyURL)
+
+	// setting transparency url fails
+	raw, err := json.Marshal(fleet.AppConfig{FleetDesktop: fleet.FleetDesktopSettings{TransparencyURL: "https://f1337.com/transparency"}})
+	require.NoError(t, err)
+	modified, err := svc.ModifyAppConfig(ctx, raw)
+
+	require.Error(t, err)
+	require.ErrorContains(t, err, "missing or invalid license")
+
+	// setting unrelated config value does not fail and resets transparency url to ""
+	raw, err = json.Marshal(fleet.AppConfig{OrgInfo: fleet.OrgInfo{OrgName: "f1337"}})
+	require.NoError(t, err)
+	modified, err = svc.ModifyAppConfig(ctx, raw)
+	require.NoError(t, err)
+	require.NotNil(t, modified)
+	require.Equal(t, "", modified.FleetDesktop.TransparencyURL)
+	ac, err = svc.AppConfig(ctx)
+	require.NoError(t, err)
+	require.Equal(t, "f1337", ac.OrgInfo.OrgName)
+	require.Equal(t, "", ac.FleetDesktop.TransparencyURL)
+}

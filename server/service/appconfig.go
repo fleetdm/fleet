@@ -213,6 +213,17 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte) (*fleet.AppCo
 		return nil, ctxerr.Wrap(ctx, err)
 	}
 
+	if newAppConfig.FleetDesktop.TransparencyURL != "" {
+		if license.Tier != "premium" {
+			invalid.Append("transparency_url", ErrMissingLicense.Error())
+			return nil, ctxerr.Wrap(ctx, invalid)
+		}
+		if _, err := url.Parse(newAppConfig.FleetDesktop.TransparencyURL); err != nil {
+			invalid.Append("transparency_url", err.Error())
+			return nil, ctxerr.Wrap(ctx, invalid)
+		}
+	}
+
 	validateSSOSettings(newAppConfig, appConfig, invalid)
 	if invalid.HasErrors() {
 		return nil, ctxerr.Wrap(ctx, invalid)
@@ -272,18 +283,10 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte) (*fleet.AppCo
 		}
 	}
 
-	transparencyURL := appConfig.FleetDesktop.TransparencyURL
-	if transparencyURL != "" && license.Tier != "premium" {
-		invalid.Append("transparency_url", ErrMissingLicense.Error())
-		return nil, ctxerr.Wrap(ctx, invalid)
+	// reset transparency url to empty for downgraded licenses
+	if license.Tier != "premium" && appConfig.FleetDesktop.TransparencyURL != "" {
+		appConfig.FleetDesktop.TransparencyURL = ""
 	}
-
-	if _, err := url.Parse(transparencyURL); err != nil {
-		invalid.Append("transparency_url", err.Error())
-		return nil, ctxerr.Wrap(ctx, invalid)
-
-	}
-	appConfig.FleetDesktop.TransparencyURL = transparencyURL
 
 	if err := svc.ds.SaveAppConfig(ctx, appConfig); err != nil {
 		return nil, err
