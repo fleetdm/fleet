@@ -75,6 +75,7 @@ interface ITableContainerProps {
   filters?: Record<string, string | number | boolean>;
   renderCount?: () => JSX.Element | null;
   renderFooter?: () => JSX.Element | null;
+  setExportRows?: (rows: Row[]) => void;
 }
 
 const baseClass = "table-container";
@@ -131,6 +132,7 @@ const TableContainer = ({
   onSelectSingleRow,
   renderCount,
   renderFooter,
+  setExportRows,
 }: ITableContainerProps): JSX.Element => {
   const [searchQuery, setSearchQuery] = useState("");
   const [sortHeader, setSortHeader] = useState(defaultSortHeader || "");
@@ -412,6 +414,7 @@ const TableContainer = ({
                 selectedDropdownFilter={selectedDropdownFilter}
                 renderFooter={renderFooter}
                 renderPagination={renderPagination}
+                setExportRows={setExportRows}
               />
             </div>
           </>

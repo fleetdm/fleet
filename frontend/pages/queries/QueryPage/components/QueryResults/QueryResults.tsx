@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { Row } from "react-table";
 import { Tab, Tabs, TabList, TabPanel } from "react-tabs";
 import classnames from "classnames";
 import { format } from "date-fns";
@@ -47,9 +48,14 @@ const reorderCSVFields = (fields: string[]) => {
   return result;
 };
 
-const generateExportCSVFile = (data: unknown[], filename: string) => {
+const generateExportCSVFile = (rows: Row[], filename: string) => {
   return new global.window.File(
-    [convertToCSV(data, reorderCSVFields)],
+    [
+      convertToCSV(
+        rows.map((r) => r.original),
+        reorderCSVFields
+      ),
+    ],
     filename,
     {
       type: "text/csv",
@@ -80,6 +86,8 @@ const QueryResults = ({
   const [pageTitle, setPageTitle] = useState<string>(PAGE_TITLES.RUNNING);
   const [navTabIndex, setNavTabIndex] = useState(0);
   const [showQueryModal, setShowQueryModal] = useState<boolean>(false);
+  const [filteredResults, setFilteredResults] = useState<Row[]>([]);
+  const [filteredErrors, setFilteredErrors] = useState<Row[]>([]);
 
   useEffect(() => {
     if (isQueryFinished) {
@@ -94,7 +102,7 @@ const QueryResults = ({
 
     FileSaver.saveAs(
       generateExportCSVFile(
-        queryResults,
+        filteredResults,
         generateExportFilename(CSV_QUERY_TITLE)
       )
     );
@@ -105,7 +113,7 @@ const QueryResults = ({
 
     FileSaver.saveAs(
       generateExportCSVFile(
-        errors,
+        filteredErrors,
         generateExportFilename(`${CSV_QUERY_TITLE} Errors`)
       )
     );
@@ -181,6 +189,9 @@ const QueryResults = ({
           isAllPagesSelected={false}
           resultsTitle={tableType === "results" ? "hosts" : tableType}
           customControl={() => renderTableButtons(tableType)}
+          setExportRows={
+            tableType === "errors" ? setFilteredErrors : setFilteredResults
+          }
         />
       </div>
     );
