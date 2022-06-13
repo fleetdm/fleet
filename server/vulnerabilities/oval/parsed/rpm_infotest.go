@@ -13,9 +13,9 @@ type RpmInfoTest struct {
 // Eval evaluates the given test againts a host's installed packages.
 // If test evaluates to true, returns all Software involved with the test match, otherwise will
 // return nil.
-func (t *RpmInfoTest) Eval(packages []fleet.Software) []fleet.Software {
+func (t *RpmInfoTest) Eval(packages []fleet.Software) ([]fleet.Software, error) {
 	if len(packages) == 0 {
-		return nil
+		return nil, nil
 	}
-	return nil
+	return nil, nil
 }

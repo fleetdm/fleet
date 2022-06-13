@@ -9,6 +9,6 @@ type RpmVerifyFileTest struct {
 	State    ObjectInfoState
 }
 
-func (t *RpmVerifyFileTest) Eval(ver fleet.OSVersion) bool {
-	return false
+func (t *RpmVerifyFileTest) Eval(ver fleet.OSVersion) (bool, error) {
+	return false, nil
 }

@@ -27,11 +27,15 @@ func (r *UbuntuResult) AddPackageTest(id int, tst *DpkgInfoTest) {
 	r.PackageTests[id] = tst
 }
 
-func (r UbuntuResult) Eval(ver fleet.OSVersion, software []fleet.Software) []fleet.SoftwareVulnerability {
+func (r UbuntuResult) Eval(ver fleet.OSVersion, software []fleet.Software) ([]fleet.SoftwareVulnerability, error) {
 	// Test Id => Matching software
 	pkgTstResults := make(map[int][]fleet.Software)
 	for i, t := range r.PackageTests {
-		pkgTstResults[i] = t.Eval(software)
+		r, err := t.Eval(software)
+		if err != nil {
+			return nil, err
+		}
+		pkgTstResults[i] = r
 	}
 
 	// We don't parse/analyze any tests against the installed OS Ver on Ubuntu hosts
@@ -56,5 +60,5 @@ func (r UbuntuResult) Eval(ver fleet.OSVersion, software []fleet.Software) []fle
 		}
 	}
 
-	return vuln
+	return vuln, nil
 }

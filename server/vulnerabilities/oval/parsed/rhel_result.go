@@ -16,17 +16,25 @@ func NewRhelResult() *RhelResult {
 	}
 }
 
-func (r RhelResult) Eval(ver fleet.OSVersion, software []fleet.Software) []fleet.SoftwareVulnerability {
+func (r RhelResult) Eval(ver fleet.OSVersion, software []fleet.Software) ([]fleet.SoftwareVulnerability, error) {
 	// Rpm Info Test Id => Matching software
 	pkgTstResults := make(map[int][]fleet.Software)
 	for i, t := range r.RpmInfoTests {
-		pkgTstResults[i] = t.Eval(software)
+		rEval, err := t.Eval(software)
+		if err != nil {
+			return nil, err
+		}
+		pkgTstResults[i] = rEval
 	}
 
 	// Evaluate RpmVerifyFileTests, which are used to make assertions against the installed OS
 	OSTstResults := make(map[int]bool)
 	for i, t := range r.RpmVerifyFileTests {
-		OSTstResults[i] = t.Eval(ver)
+		rEval, err := t.Eval(ver)
+		if err != nil {
+			return nil, err
+		}
+		OSTstResults[i] = rEval
 	}
 
 	vuln := make([]fleet.SoftwareVulnerability, 0)
@@ -48,5 +56,5 @@ func (r RhelResult) Eval(ver fleet.OSVersion, software []fleet.Software) []fleet
 		}
 	}
 
-	return vuln
+	return vuln, nil
 }

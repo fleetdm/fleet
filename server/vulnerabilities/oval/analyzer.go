@@ -66,7 +66,12 @@ func Analyze(
 			if err != nil {
 				return nil, err
 			}
-			foundInBatch[hId] = defs.Eval(ver, software)
+
+			evalR, err := defs.Eval(ver, software)
+			if err != nil {
+				return nil, err
+			}
+			foundInBatch[hId] = evalR
 		}
 
 		existingInBatch, err := ds.ListSoftwareVulnerabilities(ctx, hIds)
