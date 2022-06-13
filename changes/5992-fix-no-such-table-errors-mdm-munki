@@ -1,0 +1,1 @@
+* Fixed `no such table` errors for `mdm` and `munki_info` for vanilla osquery macOS hosts.
