@@ -48,7 +48,10 @@ func newTestServiceWithConfig(t *testing.T, ds fleet.Datastore, fleetConfig conf
 
 	var ssoStore sso.SessionStore
 
-	var failingPolicySet fleet.FailingPolicySet = NewMemFailingPolicySet()
+	var (
+		failingPolicySet  fleet.FailingPolicySet  = NewMemFailingPolicySet()
+		enrollHostLimiter fleet.EnrollHostLimiter = nopEnrollHostLimiter{}
+	)
 	var c clock.Clock = clock.C
 	if len(opts) > 0 {
 		if opts[0].Clock != nil {
@@ -78,9 +81,12 @@ func newTestServiceWithConfig(t *testing.T, ds fleet.Datastore, fleetConfig conf
 		if opts[0].FailingPolicySet != nil {
 			failingPolicySet = opts[0].FailingPolicySet
 		}
+		if opts[0].EnrollHostLimiter != nil {
+			enrollHostLimiter = opts[0].EnrollHostLimiter
+		}
 	}
 
-	svc, err := NewService(context.Background(), ds, task, rs, logger, osqlogger, fleetConfig, mailer, c, ssoStore, lq, ds, *license, failingPolicySet, &fleet.NoOpGeoIP{})
+	svc, err := NewService(context.Background(), ds, task, rs, logger, osqlogger, fleetConfig, mailer, c, ssoStore, lq, ds, *license, failingPolicySet, &fleet.NoOpGeoIP{}, enrollHostLimiter)
 	if err != nil {
 		panic(err)
 	}
@@ -167,6 +173,7 @@ type TestServerOpts struct {
 	FailingPolicySet    fleet.FailingPolicySet
 	Clock               clock.Clock
 	Task                *async.Task
+	EnrollHostLimiter   fleet.EnrollHostLimiter
 }
 
 func RunServerForTestsWithDS(t *testing.T, ds fleet.Datastore, opts ...*TestServerOpts) (map[string]fleet.User, *httptest.Server) {
@@ -362,4 +369,14 @@ func (m *memFailingPolicySet) ListSets() ([]uint, error) {
 		policyIDs = append(policyIDs, policyID)
 	}
 	return policyIDs, nil
+}
+
+type nopEnrollHostLimiter struct{}
+
+func (nopEnrollHostLimiter) CanEnrollNewHost(ctx context.Context) (bool, error) {
+	return true, nil
+}
+
+func (nopEnrollHostLimiter) SyncEnrolledHostIDs(ctx context.Context) error {
+	return nil
 }

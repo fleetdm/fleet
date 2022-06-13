@@ -5,7 +5,11 @@ package mysqlredis
 
 import "github.com/fleetdm/fleet/v4/server/fleet"
 
-type datastore struct {
+// Datastore is the mysqlredis datastore type - it wraps the fleet.Datastore
+// interface to keep track of enrolled hosts and extends it to implement the
+// fleet.EnrollHostLimiter interface which indicates when the limit is
+// reached.
+type Datastore struct {
 	fleet.Datastore
 	pool fleet.RedisPool
 
@@ -13,20 +17,21 @@ type datastore struct {
 	enforceHostLimit int // <= 0 means do not enforce
 }
 
-type Option func(*datastore)
+// Option is an option that can be passed to New to configure the datastore.
+type Option func(*Datastore)
 
 // WithEnforcedHostLimit enables enforcing the host limit count of the current
 // license.
 func WithEnforcedHostLimit(limit int) Option {
-	return func(o *datastore) {
+	return func(o *Datastore) {
 		o.enforceHostLimit = limit
 	}
 }
 
 // New creates a Datastore that wraps ds and uses pool to execute redis-based
 // operations.
-func New(ds fleet.Datastore, pool fleet.RedisPool, opts ...Option) fleet.Datastore {
-	newDS := &datastore{Datastore: ds, pool: pool}
+func New(ds fleet.Datastore, pool fleet.RedisPool, opts ...Option) *Datastore {
+	newDS := &Datastore{Datastore: ds, pool: pool}
 	for _, opt := range opts {
 		opt(newDS)
 	}

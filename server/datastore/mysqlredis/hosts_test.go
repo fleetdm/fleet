@@ -50,90 +50,82 @@ func TestEnforceHostLimit(t *testing.T) {
 			return incomingHostsIDs, nil
 		}
 
+		wrappedDS := New(ds, pool, WithEnforcedHostLimit(hostLimit))
+
 		requireInvokedAndReset := func(flag *bool) {
 			require.True(t, *flag)
 			*flag = false
 		}
-
-		wrappedDS := New(ds, pool, WithEnforcedHostLimit(hostLimit))
+		requireCanEnroll := func(ok bool) {
+			canEnroll, err := wrappedDS.CanEnrollNewHost(ctx)
+			require.NoError(t, err)
+			require.Equal(t, ok, canEnroll)
+		}
 
 		// create a few hosts within the limit
 		h1, err := wrappedDS.NewHost(ctx, &fleet.Host{})
 		require.NoError(t, err)
 		require.NotNil(t, h1)
 		requireInvokedAndReset(&ds.NewHostFuncInvoked)
+		requireCanEnroll(true)
 		h2, err := wrappedDS.EnrollHost(ctx, "osquery-2", "node-2", nil, time.Second)
 		require.NoError(t, err)
 		require.NotNil(t, h2)
 		requireInvokedAndReset(&ds.EnrollHostFuncInvoked)
+		requireCanEnroll(true)
 		h3, err := wrappedDS.EnrollHost(ctx, "osquery-3", "node-3", nil, time.Second)
 		require.NoError(t, err)
 		require.NotNil(t, h3)
 		requireInvokedAndReset(&ds.EnrollHostFuncInvoked)
-
-		// creating a new one fails - the limit is reached
-		_, err = wrappedDS.NewHost(ctx, &fleet.Host{})
-		require.Error(t, err)
-		require.Contains(t, err.Error(), "maximum number of hosts")
-		require.False(t, ds.NewHostFuncInvoked)
-
-		_, err = wrappedDS.EnrollHost(ctx, "osquery-4", "node-4", nil, time.Second)
-		require.Error(t, err)
-		require.Contains(t, err.Error(), "maximum number of hosts")
-		require.False(t, ds.EnrollHostFuncInvoked)
+		requireCanEnroll(false)
 
 		// deleting h1 allows h4 to be created
 		err = wrappedDS.DeleteHost(ctx, h1.ID)
 		require.NoError(t, err)
+		requireCanEnroll(true)
 		h4, err := wrappedDS.EnrollHost(ctx, "osquery-4", "node-4", nil, time.Second)
 		require.NoError(t, err)
 		require.NotNil(t, h4)
 		requireInvokedAndReset(&ds.EnrollHostFuncInvoked)
-
-		// and then limit is reached again
-		_, err = wrappedDS.EnrollHost(ctx, "osquery-5", "node-5", nil, time.Second)
-		require.Error(t, err)
-		require.Contains(t, err.Error(), "maximum number of hosts")
-		require.False(t, ds.EnrollHostFuncInvoked)
+		requireCanEnroll(false)
 
 		// delete h1-h2-h3 (even if h1 is already deleted) should allow 2 more
 		err = wrappedDS.DeleteHosts(ctx, []uint{h1.ID, h2.ID, h3.ID})
 		require.NoError(t, err)
+		requireCanEnroll(true)
 		h5, err := wrappedDS.EnrollHost(ctx, "osquery-5", "node-5", nil, time.Second)
 		require.NoError(t, err)
 		require.NotNil(t, h5)
 		requireInvokedAndReset(&ds.EnrollHostFuncInvoked)
+		requireCanEnroll(true)
 		h6, err := wrappedDS.NewHost(ctx, &fleet.Host{})
 		require.NoError(t, err)
 		require.NotNil(t, h6)
 		requireInvokedAndReset(&ds.NewHostFuncInvoked)
-		_, err = wrappedDS.EnrollHost(ctx, "osquery-7", "node-7", nil, time.Second)
-		require.Error(t, err)
-		require.Contains(t, err.Error(), "maximum number of hosts")
-		require.False(t, ds.EnrollHostFuncInvoked)
+		requireCanEnroll(false)
 
 		// cleanup expired removes h4
 		expiredHostsIDs = []uint{h4.ID}
 		_, err = wrappedDS.CleanupExpiredHosts(ctx)
 		require.NoError(t, err)
+		requireCanEnroll(true)
 		// cleanup incoming removes h4, h5
 		incomingHostsIDs = []uint{h4.ID, h5.ID}
 		_, err = wrappedDS.CleanupIncomingHosts(ctx, time.Now())
 		require.NoError(t, err)
+		requireCanEnroll(true)
 
 		// can now create 2 more
 		h7, err := wrappedDS.EnrollHost(ctx, "osquery-7", "node-7", nil, time.Second)
 		require.NoError(t, err)
 		require.NotNil(t, h7)
 		requireInvokedAndReset(&ds.EnrollHostFuncInvoked)
+		requireCanEnroll(true)
 		h8, err := wrappedDS.NewHost(ctx, &fleet.Host{})
 		require.NoError(t, err)
 		require.NotNil(t, h8)
 		requireInvokedAndReset(&ds.NewHostFuncInvoked)
-		_, err = wrappedDS.EnrollHost(ctx, "osquery-9", "node-9", nil, time.Second)
-		require.Error(t, err)
-		require.Contains(t, err.Error(), "maximum number of hosts")
-		require.False(t, ds.EnrollHostFuncInvoked)
+		requireCanEnroll(false)
 	}
 
 	t.Run("standalone", func(t *testing.T) {
@@ -191,7 +183,7 @@ func TestSyncEnrolledHostIDs(t *testing.T) {
 
 		// syncing with the correct count does not trigger a sync
 		enrolledHostCount = 3
-		err = SyncEnrolledHostIDs(ctx, ds, pool)
+		err = wrappedDS.SyncEnrolledHostIDs(ctx)
 		require.NoError(t, err)
 		requireInvokedAndReset(&ds.CountEnrolledHostsFuncInvoked)
 		require.False(t, ds.EnrolledHostIDsFuncInvoked)
@@ -199,7 +191,7 @@ func TestSyncEnrolledHostIDs(t *testing.T) {
 		// syncing with a non-matching count triggers a sync
 		enrolledHostCount = 2
 		enrolledHostIDs = []uint{h1.ID, h3.ID} // will set the redis key to those values
-		err = SyncEnrolledHostIDs(ctx, ds, pool)
+		err = wrappedDS.SyncEnrolledHostIDs(ctx)
 		require.NoError(t, err)
 		requireInvokedAndReset(&ds.CountEnrolledHostsFuncInvoked)
 		requireInvokedAndReset(&ds.EnrolledHostIDsFuncInvoked)

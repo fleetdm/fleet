@@ -22,13 +22,13 @@ var redisSetMembersBatchSize = 10000 // var so it can be changed in tests
 // clears the Redis set, and stores the IDs in the Redis set. This is called
 // regularly (via a cron job) so that if the Redis set gets out of sync, it
 // eventually fixes itself automatically.
-func SyncEnrolledHostIDs(ctx context.Context, ds fleet.Datastore, pool fleet.RedisPool) error {
-	dbCount, err := ds.CountEnrolledHosts(ctx)
+func (d *Datastore) SyncEnrolledHostIDs(ctx context.Context) error {
+	dbCount, err := d.CountEnrolledHosts(ctx)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "count enrolled hosts from the database")
 	}
 
-	conn := redis.ConfigureDoer(pool, pool.Get())
+	conn := redis.ConfigureDoer(d.pool, d.pool.Get())
 	defer conn.Close()
 
 	redisCount, err := redigo.Int(conn.Do("SCARD", enrolledHostsSetKey))
@@ -41,7 +41,7 @@ func SyncEnrolledHostIDs(ctx context.Context, ds fleet.Datastore, pool fleet.Red
 	}
 
 	// counts differ, replace the redis set with ids from the database
-	ids, err := ds.EnrolledHostIDs(ctx)
+	ids, err := d.EnrolledHostIDs(ctx)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "get enrolled host IDs from the database")
 	}
@@ -53,7 +53,7 @@ func SyncEnrolledHostIDs(ctx context.Context, ds fleet.Datastore, pool fleet.Red
 	// return the connection to the pool so it can be reused in addHosts
 	conn.Close()
 
-	if err := addHosts(ctx, pool, ids...); err != nil {
+	if err := addHosts(ctx, d.pool, ids...); err != nil {
 		return ctxerr.Wrap(ctx, err, "add database host IDs to the redis set")
 	}
 	return nil
@@ -99,7 +99,7 @@ func removeHosts(ctx context.Context, pool fleet.RedisPool, hostIDs ...uint) err
 	return nil
 }
 
-func (d *datastore) checkCanAddHost(ctx context.Context) (bool, error) {
+func (d *Datastore) checkCanAddHost(ctx context.Context) (bool, error) {
 	conn := redis.ConfigureDoer(d.pool, d.pool.Get())
 	defer conn.Close()
 
@@ -113,17 +113,7 @@ func (d *datastore) checkCanAddHost(ctx context.Context) (bool, error) {
 	return true, nil
 }
 
-func (d *datastore) NewHost(ctx context.Context, host *fleet.Host) (*fleet.Host, error) {
-	if d.enforceHostLimit > 0 {
-		ok, err := d.checkCanAddHost(ctx)
-		if !ok && err == nil {
-			return nil, ctxerr.Errorf(ctx, "maximum number of hosts reached: %d", d.enforceHostLimit)
-		}
-		if err != nil {
-			logging.WithErr(ctx, err)
-		}
-	}
-
+func (d *Datastore) NewHost(ctx context.Context, host *fleet.Host) (*fleet.Host, error) {
 	h, err := d.Datastore.NewHost(ctx, host)
 	if err == nil && d.enforceHostLimit > 0 {
 		if err := addHosts(ctx, d.pool, h.ID); err != nil {
@@ -133,17 +123,7 @@ func (d *datastore) NewHost(ctx context.Context, host *fleet.Host) (*fleet.Host,
 	return h, err
 }
 
-func (d *datastore) EnrollHost(ctx context.Context, osqueryHostID, nodeKey string, teamID *uint, cooldown time.Duration) (*fleet.Host, error) {
-	if d.enforceHostLimit > 0 {
-		ok, err := d.checkCanAddHost(ctx)
-		if !ok && err == nil {
-			return nil, ctxerr.Errorf(ctx, "maximum number of hosts reached: %d", d.enforceHostLimit)
-		}
-		if err != nil {
-			logging.WithErr(ctx, err)
-		}
-	}
-
+func (d *Datastore) EnrollHost(ctx context.Context, osqueryHostID, nodeKey string, teamID *uint, cooldown time.Duration) (*fleet.Host, error) {
 	h, err := d.Datastore.EnrollHost(ctx, osqueryHostID, nodeKey, teamID, cooldown)
 	if err == nil && d.enforceHostLimit > 0 {
 		if err := addHosts(ctx, d.pool, h.ID); err != nil {
@@ -153,7 +133,7 @@ func (d *datastore) EnrollHost(ctx context.Context, osqueryHostID, nodeKey strin
 	return h, err
 }
 
-func (d *datastore) DeleteHost(ctx context.Context, hid uint) error {
+func (d *Datastore) DeleteHost(ctx context.Context, hid uint) error {
 	err := d.Datastore.DeleteHost(ctx, hid)
 	if err == nil && d.enforceHostLimit > 0 {
 		if err := removeHosts(ctx, d.pool, hid); err != nil {
@@ -163,7 +143,7 @@ func (d *datastore) DeleteHost(ctx context.Context, hid uint) error {
 	return err
 }
 
-func (d *datastore) DeleteHosts(ctx context.Context, ids []uint) error {
+func (d *Datastore) DeleteHosts(ctx context.Context, ids []uint) error {
 	err := d.Datastore.DeleteHosts(ctx, ids)
 	if err == nil && d.enforceHostLimit > 0 {
 		if err := removeHosts(ctx, d.pool, ids...); err != nil {
@@ -173,7 +153,7 @@ func (d *datastore) DeleteHosts(ctx context.Context, ids []uint) error {
 	return err
 }
 
-func (d *datastore) CleanupExpiredHosts(ctx context.Context) ([]uint, error) {
+func (d *Datastore) CleanupExpiredHosts(ctx context.Context) ([]uint, error) {
 	ids, err := d.Datastore.CleanupExpiredHosts(ctx)
 	if err == nil && d.enforceHostLimit > 0 {
 		if err := removeHosts(ctx, d.pool, ids...); err != nil {
@@ -183,7 +163,7 @@ func (d *datastore) CleanupExpiredHosts(ctx context.Context) ([]uint, error) {
 	return ids, err
 }
 
-func (d *datastore) CleanupIncomingHosts(ctx context.Context, now time.Time) ([]uint, error) {
+func (d *Datastore) CleanupIncomingHosts(ctx context.Context, now time.Time) ([]uint, error) {
 	ids, err := d.Datastore.CleanupIncomingHosts(ctx, now)
 	if err == nil && d.enforceHostLimit > 0 {
 		if err := removeHosts(ctx, d.pool, ids...); err != nil {
@@ -191,4 +171,11 @@ func (d *datastore) CleanupIncomingHosts(ctx context.Context, now time.Time) ([]
 		}
 	}
 	return ids, err
+}
+
+func (d *Datastore) CanEnrollNewHost(ctx context.Context) (bool, error) {
+	if d.enforceHostLimit > 0 {
+		return d.checkCanAddHost(ctx)
+	}
+	return true, nil
 }
