@@ -1141,7 +1141,7 @@ func (s *integrationEnterpriseTestSuite) TestCustomTransparencyURL() {
 	json.NewDecoder(rawResp.Body).Decode(deviceResp)
 	rawResp.Body.Close()
 	require.NoError(t, deviceResp.Err)
-	require.Equal(t, fleet.DefaultTransparencyURL, rawResp.Header["Location"][0])
+	require.Equal(t, fleet.DefaultTransparencyURL, rawResp.Header.Get("Location"))
 
 	// set custom url
 	acResp = appConfigResponse{}
@@ -1155,7 +1155,7 @@ func (s *integrationEnterpriseTestSuite) TestCustomTransparencyURL() {
 	json.NewDecoder(rawResp.Body).Decode(deviceResp)
 	rawResp.Body.Close()
 	require.NoError(t, deviceResp.Err)
-	require.Equal(t, "customURL", rawResp.Header["Location"][0])
+	require.Equal(t, "customURL", rawResp.Header.Get("Location"))
 
 	// empty string applies default url
 	acResp = appConfigResponse{}
@@ -1169,5 +1169,5 @@ func (s *integrationEnterpriseTestSuite) TestCustomTransparencyURL() {
 	json.NewDecoder(rawResp.Body).Decode(deviceResp)
 	rawResp.Body.Close()
 	require.NoError(t, deviceResp.Err)
-	require.Equal(t, fleet.DefaultTransparencyURL, rawResp.Header["Location"][0])
+	require.Equal(t, fleet.DefaultTransparencyURL, rawResp.Header.Get("Location"))
 }

@@ -4771,7 +4771,7 @@ func (s *integrationTestSuite) TestDefaultTransparencyURL() {
 	json.NewDecoder(rawResp.Body).Decode(deviceResp)
 	rawResp.Body.Close()
 	require.NoError(t, deviceResp.Err)
-	require.Equal(t, fleet.DefaultTransparencyURL, rawResp.Header["Location"][0])
+	require.Equal(t, fleet.DefaultTransparencyURL, rawResp.Header.Get("Location"))
 
 	// empty string applies default url
 	acResp = appConfigResponse{}
@@ -4785,7 +4785,7 @@ func (s *integrationTestSuite) TestDefaultTransparencyURL() {
 	json.NewDecoder(rawResp.Body).Decode(deviceResp)
 	rawResp.Body.Close()
 	require.NoError(t, deviceResp.Err)
-	require.Equal(t, fleet.DefaultTransparencyURL, rawResp.Header["Location"][0])
+	require.Equal(t, fleet.DefaultTransparencyURL, rawResp.Header.Get("Location"))
 
 	// modify transparency url with custom url fails
 	acResp = appConfigResponse{}
@@ -4797,7 +4797,7 @@ func (s *integrationTestSuite) TestDefaultTransparencyURL() {
 	json.NewDecoder(rawResp.Body).Decode(deviceResp)
 	rawResp.Body.Close()
 	require.NoError(t, deviceResp.Err)
-	require.Equal(t, fleet.DefaultTransparencyURL, rawResp.Header["Location"][0])
+	require.Equal(t, fleet.DefaultTransparencyURL, rawResp.Header.Get("Location"))
 }
 
 func (s *integrationTestSuite) TestModifyUser() {
