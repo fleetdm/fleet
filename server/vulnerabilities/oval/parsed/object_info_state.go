@@ -2,6 +2,7 @@ package oval_parsed
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
 )
@@ -19,6 +20,7 @@ type ObjectInfoState struct {
 	Operator       OperatorType            `json:"operator"`
 }
 
+// EvalSoftware evaluates the passed software against the specified state.
 func (sta ObjectInfoState) EvalSoftware(s fleet.Software) (bool, error) {
 	var results []bool
 
@@ -77,9 +79,45 @@ func (sta ObjectInfoState) EvalSoftware(s fleet.Software) (bool, error) {
 		results = append(results, true)
 	}
 
+	if len(results) == 0 {
+		return false, fmt.Errorf("invalid empty state")
+	}
+
 	return sta.Operator.Eval(results...), nil
 }
 
 func (sta ObjectInfoState) EvalOSVersion(version fleet.OSVersion) (bool, error) {
-	panic("not implemented yet")
+	var results []bool
+
+	// If 'sta' is used for specifying the state of a RpmVerifyFile test, 'Name' refers to the name of the
+	// file, when making assertions against the installed OS, the file in question will be
+	// /etc/redhat-release, so in order to use the same test for CentOS distros, we will need to
+	// normalize the value.
+	if sta.Name != nil {
+		var nName string
+		if version.Platform == "rhel" {
+			nName = "redhat-release"
+		}
+		rEval, err := sta.Name.Eval(nName)
+		if err != nil {
+			return false, err
+		}
+		results = append(results, rEval)
+	}
+
+	if sta.Version != nil {
+		pName := strings.Trim(version.Name, " ")
+		pVer := pName[strings.LastIndex(pName, " ")+1:]
+		rEval, err := sta.Version.Eval(pVer)
+		if err != nil {
+			return false, err
+		}
+		results = append(results, rEval)
+	}
+
+	if len(results) == 0 {
+		return false, fmt.Errorf("invalid empty state")
+	}
+
+	return sta.Operator.Eval(results...), nil
 }
