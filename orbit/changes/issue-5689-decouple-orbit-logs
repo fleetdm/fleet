@@ -1,0 +1,4 @@
+* Added log files for Fleet Desktop logs, located at:
+  - macOS:  `~/Library/Log`
+  - Linux: `$XDG_STATE_HOME`, fallback to `$HOME/.local/state`
+  - Windows: `%LocalAppData%`
