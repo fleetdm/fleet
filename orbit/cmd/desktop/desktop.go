@@ -29,7 +29,7 @@ func main() {
 		fmt.Println("Fleet Desktop application executable")
 		return
 	}
-	log.Info().Msgf("fleet-desktop version=%s\n", version)
+	log.Info().Msgf("fleet-desktop version=%s", version)
 
 	devURL := os.Getenv("FLEET_DESKTOP_DEVICE_URL")
 	if devURL == "" {
