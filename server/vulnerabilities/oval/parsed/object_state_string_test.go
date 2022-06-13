@@ -15,26 +15,17 @@ func TestObjectStateString(t *testing.T) {
 				other    string
 				expected bool
 			}{
-				{"equals|1.1", "1.1", true},
-				{"equals|1.1", "1.0", false},
-				{"not equal|1.1", "2.1", true},
-				{"not equal|1.1", "1.1", false},
-				{"greater than|b", "a", true},
-				{"greater than|a", "b", false},
-				{"greater than|a", "a", false},
-				{"greater than or equal|a", "a", true},
-				{"greater than or equal|b", "a", true},
-				{"greater than or equal|a", "b", false},
-				{"less than|a", "b", true},
-				{"less than|b", "a", false},
-				{"less than|a", "a", false},
-				{"less than or equal|a", "b", true},
-				{"less than or equal|b", "a", false},
-				{"less than or equal|a", "a", true},
-				{"less than or equal|a", "a", true},
-				{"pattern match|aarch64|ppc64le|s390x|x86_64", "abc", false},
-				{"pattern match|aarch64|ppc64le|s390x|x86_64", "aarch64", true},
-				{"pattern match|aarch64|ppc64le|s390x|x86_64", "x86_64", true},
+				{val: "equals|1.1", other: "1.1", expected: true},
+				{val: "equals|1.1", other: "1.0", expected: false},
+				{val: "not equal|1.1", other: "2.1", expected: true},
+				{val: "not equal|1.1", other: "1.1", expected: false},
+				{val: "case insensitive equals|a", other: "A", expected: true},
+				{val: "case insensitive equals|a", other: "B", expected: false},
+				{val: "case insensitive not equal|a", other: "A", expected: false},
+				{val: "case insensitive not equal|a", other: "B", expected: true},
+				{val: "pattern match|aarch64|ppc64le|s390x|x86_64", other: "abc", expected: false},
+				{val: "pattern match|aarch64|ppc64le|s390x|x86_64", other: "aarch64", expected: true},
+				{val: "pattern match|aarch64|ppc64le|s390x|x86_64", other: "x86_64", expected: true},
 			}
 
 			for _, c := range cases {
@@ -54,13 +45,32 @@ func TestObjectStateString(t *testing.T) {
 
 		t.Run("it errors out if operation can not be computed", func(t *testing.T) {
 			invalidOps := []OperationType{
-				BitwiseAnd, BitwiseOr, SupersetOf, SubsetOf,
+				BitwiseAnd,
+				BitwiseOr,
+				SupersetOf,
+				SubsetOf,
+				LessThan,
+				LessThanOrEqual,
+				GreaterThan,
+				GreaterThanOrEqual,
 			}
-
 			for _, op := range invalidOps {
 				sut := ObjectStateString(fmt.Sprintf("%s|%s", op, "something"))
 				_, err := sut.Eval("the thing")
 				require.Errorf(t, err, "can not compute")
+			}
+
+			validOps := []OperationType{
+				Equals,
+				NotEqual,
+				CaseInsensitiveEquals,
+				CaseInsensitiveNotEqual,
+				PatternMatch,
+			}
+			for _, op := range validOps {
+				sut := ObjectStateString(fmt.Sprintf("%s|%s", op, "something"))
+				_, err := sut.Eval("the thing")
+				require.NoError(t, err)
 			}
 		})
 	})

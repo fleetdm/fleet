@@ -29,17 +29,9 @@ func (sta ObjectStateString) Eval(other string) (bool, error) {
 	case NotEqual:
 		return val != other, nil
 	case CaseInsensitiveEquals:
-		return strings.ToLower(val) == strings.ToLower(val), nil
+		return strings.ToLower(val) == strings.ToLower(other), nil
 	case CaseInsensitiveNotEqual:
-		return strings.ToLower(val) != strings.ToLower(val), nil
-	case GreaterThan:
-		return val > other, nil
-	case LessThan:
-		return val < other, nil
-	case GreaterThanOrEqual:
-		return val > other || val == other, nil
-	case LessThanOrEqual:
-		return val < other || val == other, nil
+		return strings.ToLower(val) != strings.ToLower(other), nil
 	case PatternMatch:
 		r, err := regexp.Compile(val)
 		if err != nil {
