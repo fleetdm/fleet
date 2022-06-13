@@ -34,15 +34,12 @@ func (ti TeamIntegrations) MatchWithIntegrations(globalIntgs Integrations) (Inte
 		return result, err
 	}
 
-	var errs strings.Builder
+	var errs []string
 	for _, tmJira := range ti.Jira {
 		key := tmJira.UniqueKey()
 		intg, ok := jiraIntgs[key]
 		if !ok {
-			if errs.Len() > 0 {
-				errs.WriteByte('\n')
-			}
-			fmt.Fprintf(&errs, "unknown Jira integration for url %s and project key %s", tmJira.URL, tmJira.ProjectKey)
+			errs = append(errs, fmt.Sprintf("unknown Jira integration for url %s and project key %s", tmJira.URL, tmJira.ProjectKey))
 			continue
 		}
 		intg.EnableFailingPolicies = tmJira.EnableFailingPolicies
@@ -52,18 +49,15 @@ func (ti TeamIntegrations) MatchWithIntegrations(globalIntgs Integrations) (Inte
 		key := tmZendesk.UniqueKey()
 		intg, ok := zendeskIntgs[key]
 		if !ok {
-			if errs.Len() > 0 {
-				errs.WriteByte('\n')
-			}
-			fmt.Fprintf(&errs, "unknown Zendesk integration for url %s and group ID %v", tmZendesk.URL, tmZendesk.GroupID)
+			errs = append(errs, fmt.Sprintf("unknown Zendesk integration for url %s and group ID %v", tmZendesk.URL, tmZendesk.GroupID))
 			continue
 		}
 		intg.EnableFailingPolicies = tmZendesk.EnableFailingPolicies
 		result.Zendesk = append(result.Zendesk, &intg)
 	}
 
-	if errs.Len() > 0 {
-		err = errors.New(errs.String())
+	if len(errs) > 0 {
+		err = errors.New(strings.Join(errs, "\n"))
 	}
 	return result, err
 }
