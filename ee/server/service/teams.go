@@ -89,8 +89,43 @@ func (svc *Service) ModifyTeam(ctx context.Context, teamID uint, payload fleet.T
 	if payload.Description != nil {
 		team.Description = *payload.Description
 	}
+
 	if payload.WebhookSettings != nil {
 		team.Config.WebhookSettings = *payload.WebhookSettings
+	}
+
+	if payload.Integrations != nil {
+		// the team integrations must reference an existing global config integration.
+		appCfg, err := svc.ds.AppConfig(ctx)
+		if err != nil {
+			return nil, err
+		}
+		if _, err := payload.Integrations.MatchWithIntegrations(appCfg.Integrations); err != nil {
+			return nil, fleet.NewInvalidArgumentError("integrations", err.Error())
+		}
+
+		// integrations must be unique
+		if err := payload.Integrations.Validate(); err != nil {
+			return nil, fleet.NewInvalidArgumentError("integrations", err.Error())
+		}
+
+		team.Config.Integrations.Jira = payload.Integrations.Jira
+		team.Config.Integrations.Zendesk = payload.Integrations.Zendesk
+	}
+
+	if payload.WebhookSettings != nil || payload.Integrations != nil {
+		// must validate that at most only one automation is enabled for each
+		// supported feature - by now the updated payload has been applied to
+		// team.Config.
+		invalid := &fleet.InvalidArgumentError{}
+		fleet.ValidateEnabledFailingPoliciesTeamIntegrations(
+			team.Config.WebhookSettings.FailingPoliciesWebhook,
+			team.Config.Integrations,
+			invalid,
+		)
+		if invalid.HasErrors() {
+			return nil, ctxerr.Wrap(ctx, invalid)
+		}
 	}
 
 	return svc.ds.SaveTeam(ctx, team)

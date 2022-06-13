@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"os"
 	"strings"
 	"testing"
 	"time"
@@ -354,12 +355,14 @@ func (s *integrationEnterpriseTestSuite) TestTeamEndpoints() {
 	s.DoJSON("GET", "/api/latest/fleet/teams", nil, http.StatusOK, &listResp, "query", name, "per_page", "2")
 	require.Len(t, listResp.Teams, 1)
 	assert.Equal(t, team.Name, listResp.Teams[0].Name)
+	assert.NotNil(t, listResp.Teams[0].Config.AgentOptions)
 	tm1ID := listResp.Teams[0].ID
 
 	// get team
 	var getResp getTeamResponse
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/teams/%d", tm1ID), nil, http.StatusOK, &getResp)
 	assert.Equal(t, team.Name, getResp.Team.Name)
+	assert.NotNil(t, getResp.Team.Config.AgentOptions)
 
 	// modify team
 	team.Description = "Alt " + team.Description
@@ -461,8 +464,540 @@ func (s *integrationEnterpriseTestSuite) TestTeamEndpoints() {
 	s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/teams/%d", tm1ID), nil, http.StatusNotFound, &delResp)
 }
 
+func (s *integrationEnterpriseTestSuite) TestExternalIntegrationsTeamConfig() {
+	t := s.T()
+
+	// create a test http server to act as the Jira and Zendesk server
+	srvURL := startExternalServiceWebServer(t)
+
+	// create a new team
+	team := &fleet.Team{
+		Name:        t.Name(),
+		Description: "Team description",
+		Secrets:     []*fleet.EnrollSecret{{Secret: "XYZ"}},
+	}
+	var tmResp teamResponse
+	s.DoJSON("POST", "/api/latest/fleet/teams", team, http.StatusOK, &tmResp)
+	require.Equal(t, team.Name, tmResp.Team.Name)
+	require.Len(t, tmResp.Team.Secrets, 1)
+	require.Equal(t, "XYZ", tmResp.Team.Secrets[0].Secret)
+	team.ID = tmResp.Team.ID
+
+	// modify the team's config - enable the webhook
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), fleet.TeamPayload{WebhookSettings: &fleet.TeamWebhookSettings{
+		FailingPoliciesWebhook: fleet.FailingPoliciesWebhookSettings{
+			Enable:         true,
+			DestinationURL: "http://example.com",
+		},
+	}}, http.StatusOK, &tmResp)
+	require.True(t, tmResp.Team.Config.WebhookSettings.FailingPoliciesWebhook.Enable)
+	require.Equal(t, "http://example.com", tmResp.Team.Config.WebhookSettings.FailingPoliciesWebhook.DestinationURL)
+
+	// add an unknown automation - does not exist at the global level
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), fleet.TeamPayload{Integrations: &fleet.TeamIntegrations{
+		Jira: []*fleet.TeamJiraIntegration{
+			{
+				URL:                   srvURL,
+				ProjectKey:            "qux",
+				EnableFailingPolicies: false,
+			},
+		},
+	}}, http.StatusUnprocessableEntity, &tmResp)
+
+	// add a couple Jira integrations at the global level (qux and qux2)
+	s.DoRaw("PATCH", "/api/v1/fleet/config", []byte(fmt.Sprintf(`{
+		"integrations": {
+			"jira": [
+				{
+					"url": %q,
+					"username": "ok",
+					"api_token": "foo",
+					"project_key": "qux"
+				},
+				{
+					"url": %[1]q,
+					"username": "ok",
+					"api_token": "foo",
+					"project_key": "qux2"
+				}
+			]
+		}
+	}`, srvURL)), http.StatusOK)
+
+	// enable an automation - should fail as the webhook is enabled too
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), fleet.TeamPayload{Integrations: &fleet.TeamIntegrations{
+		Jira: []*fleet.TeamJiraIntegration{
+			{
+				URL:                   srvURL,
+				ProjectKey:            "qux",
+				EnableFailingPolicies: true,
+			},
+		},
+	}}, http.StatusUnprocessableEntity, &tmResp)
+
+	// get the team, no integration was saved
+	var getResp getTeamResponse
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), nil, http.StatusOK, &getResp)
+	require.Len(t, getResp.Team.Config.Integrations.Jira, 0)
+	require.Len(t, getResp.Team.Config.Integrations.Zendesk, 0)
+
+	// disable the webhook and enable the automation
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), fleet.TeamPayload{
+		Integrations: &fleet.TeamIntegrations{
+			Jira: []*fleet.TeamJiraIntegration{
+				{
+					URL:                   srvURL,
+					ProjectKey:            "qux",
+					EnableFailingPolicies: true,
+				},
+			},
+		},
+		WebhookSettings: &fleet.TeamWebhookSettings{
+			FailingPoliciesWebhook: fleet.FailingPoliciesWebhookSettings{
+				Enable:         false,
+				DestinationURL: "http://example.com",
+			},
+		},
+	}, http.StatusOK, &tmResp)
+	require.Len(t, tmResp.Team.Config.Integrations.Jira, 1)
+	require.Equal(t, "qux", tmResp.Team.Config.Integrations.Jira[0].ProjectKey)
+
+	// enable the webhook without changing the integration should fail (an integration is already enabled)
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), fleet.TeamPayload{WebhookSettings: &fleet.TeamWebhookSettings{
+		FailingPoliciesWebhook: fleet.FailingPoliciesWebhookSettings{
+			Enable:         true,
+			DestinationURL: "http://example.com",
+		},
+	}}, http.StatusUnprocessableEntity, &tmResp)
+
+	// add a second, disabled Jira integration
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), fleet.TeamPayload{
+		Integrations: &fleet.TeamIntegrations{
+			Jira: []*fleet.TeamJiraIntegration{
+				{
+					URL:                   srvURL,
+					ProjectKey:            "qux",
+					EnableFailingPolicies: true,
+				},
+				{
+					URL:                   srvURL,
+					ProjectKey:            "qux2",
+					EnableFailingPolicies: false,
+				},
+			},
+		},
+	}, http.StatusOK, &tmResp)
+	require.Len(t, tmResp.Team.Config.Integrations.Jira, 2)
+	require.Equal(t, "qux", tmResp.Team.Config.Integrations.Jira[0].ProjectKey)
+	require.Equal(t, "qux2", tmResp.Team.Config.Integrations.Jira[1].ProjectKey)
+
+	// enabling the second without disabling the first fails
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), fleet.TeamPayload{
+		Integrations: &fleet.TeamIntegrations{
+			Jira: []*fleet.TeamJiraIntegration{
+				{
+					URL:                   srvURL,
+					ProjectKey:            "qux",
+					EnableFailingPolicies: true,
+				},
+				{
+					URL:                   srvURL,
+					ProjectKey:            "qux2",
+					EnableFailingPolicies: true,
+				},
+			},
+		},
+	}, http.StatusUnprocessableEntity, &tmResp)
+
+	// updating to use the same project key fails (must be unique)
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), fleet.TeamPayload{
+		Integrations: &fleet.TeamIntegrations{
+			Jira: []*fleet.TeamJiraIntegration{
+				{
+					URL:                   srvURL,
+					ProjectKey:            "qux",
+					EnableFailingPolicies: true,
+				},
+				{
+					URL:                   srvURL,
+					ProjectKey:            "qux",
+					EnableFailingPolicies: false,
+				},
+			},
+		},
+	}, http.StatusUnprocessableEntity, &tmResp)
+
+	// remove second integration, disable first so that nothing is enabled now
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), fleet.TeamPayload{
+		Integrations: &fleet.TeamIntegrations{
+			Jira: []*fleet.TeamJiraIntegration{
+				{
+					URL:                   srvURL,
+					ProjectKey:            "qux",
+					EnableFailingPolicies: false,
+				},
+			},
+		},
+	}, http.StatusOK, &tmResp)
+
+	// enable the webhook now works
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), fleet.TeamPayload{WebhookSettings: &fleet.TeamWebhookSettings{
+		FailingPoliciesWebhook: fleet.FailingPoliciesWebhookSettings{
+			Enable:         true,
+			DestinationURL: "http://example.com",
+		},
+	}}, http.StatusOK, &tmResp)
+
+	// set environmental varible to use Zendesk test client
+	os.Setenv("TEST_ZENDESK_CLIENT", "true")
+
+	// add an unknown automation - does not exist at the global level
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), fleet.TeamPayload{Integrations: &fleet.TeamIntegrations{
+		Zendesk: []*fleet.TeamZendeskIntegration{
+			{
+				URL:                   srvURL,
+				GroupID:               122,
+				EnableFailingPolicies: false,
+			},
+		},
+	}}, http.StatusUnprocessableEntity, &tmResp)
+
+	// add a couple Zendesk integrations at the global level (122 and 123), keep the jira ones too
+	s.DoRaw("PATCH", "/api/v1/fleet/config", []byte(fmt.Sprintf(`{
+		"integrations": {
+			"zendesk": [
+				{
+					"url": %q,
+					"email": "a@b.c",
+					"api_token": "ok",
+					"group_id": 122
+				},
+				{
+					"url": %[1]q,
+					"email": "b@b.c",
+					"api_token": "ok",
+					"group_id": 123
+				}
+			],
+			"jira": [
+				{
+					"url": %[1]q,
+					"username": "ok",
+					"api_token": "foo",
+					"project_key": "qux"
+				},
+				{
+					"url": %[1]q,
+					"username": "ok",
+					"api_token": "foo",
+					"project_key": "qux2"
+				}
+			]
+		}
+	}`, srvURL)), http.StatusOK)
+
+	// enable a Zendesk automation - should fail as the webhook is enabled too
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), fleet.TeamPayload{Integrations: &fleet.TeamIntegrations{
+		Zendesk: []*fleet.TeamZendeskIntegration{
+			{
+				URL:                   srvURL,
+				GroupID:               122,
+				EnableFailingPolicies: true,
+			},
+		},
+	}}, http.StatusUnprocessableEntity, &tmResp)
+
+	// disable the webhook and enable the automation
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), fleet.TeamPayload{
+		Integrations: &fleet.TeamIntegrations{
+			Zendesk: []*fleet.TeamZendeskIntegration{
+				{
+					URL:                   srvURL,
+					GroupID:               122,
+					EnableFailingPolicies: true,
+				},
+			},
+		},
+		WebhookSettings: &fleet.TeamWebhookSettings{
+			FailingPoliciesWebhook: fleet.FailingPoliciesWebhookSettings{
+				Enable:         false,
+				DestinationURL: "http://example.com",
+			},
+		},
+	}, http.StatusOK, &tmResp)
+	require.Len(t, tmResp.Team.Config.Integrations.Zendesk, 1)
+	require.Equal(t, int64(122), tmResp.Team.Config.Integrations.Zendesk[0].GroupID)
+
+	// enable the webhook without changing the integration should fail (an integration is already enabled)
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), fleet.TeamPayload{WebhookSettings: &fleet.TeamWebhookSettings{
+		FailingPoliciesWebhook: fleet.FailingPoliciesWebhookSettings{
+			Enable:         true,
+			DestinationURL: "http://example.com",
+		},
+	}}, http.StatusUnprocessableEntity, &tmResp)
+
+	// add a second, disabled Zendesk integration
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), fleet.TeamPayload{
+		Integrations: &fleet.TeamIntegrations{
+			Zendesk: []*fleet.TeamZendeskIntegration{
+				{
+					URL:                   srvURL,
+					GroupID:               122,
+					EnableFailingPolicies: true,
+				},
+				{
+					URL:                   srvURL,
+					GroupID:               123,
+					EnableFailingPolicies: false,
+				},
+			},
+		},
+	}, http.StatusOK, &tmResp)
+	require.Len(t, tmResp.Team.Config.Integrations.Zendesk, 2)
+	require.Equal(t, int64(122), tmResp.Team.Config.Integrations.Zendesk[0].GroupID)
+	require.Equal(t, int64(123), tmResp.Team.Config.Integrations.Zendesk[1].GroupID)
+
+	// enabling the second without disabling the first fails
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), fleet.TeamPayload{
+		Integrations: &fleet.TeamIntegrations{
+			Zendesk: []*fleet.TeamZendeskIntegration{
+				{
+					URL:                   srvURL,
+					GroupID:               122,
+					EnableFailingPolicies: true,
+				},
+				{
+					URL:                   srvURL,
+					GroupID:               123,
+					EnableFailingPolicies: true,
+				},
+			},
+		},
+	}, http.StatusUnprocessableEntity, &tmResp)
+
+	// updating to use the same group ID fails (must be unique per group ID)
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), fleet.TeamPayload{
+		Integrations: &fleet.TeamIntegrations{
+			Zendesk: []*fleet.TeamZendeskIntegration{
+				{
+					URL:                   srvURL,
+					GroupID:               123,
+					EnableFailingPolicies: true,
+				},
+				{
+					URL:                   srvURL,
+					GroupID:               123,
+					EnableFailingPolicies: false,
+				},
+			},
+		},
+	}, http.StatusUnprocessableEntity, &tmResp)
+
+	// remove second Zendesk integration, add disabled Jira integration
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), fleet.TeamPayload{
+		Integrations: &fleet.TeamIntegrations{
+			Zendesk: []*fleet.TeamZendeskIntegration{
+				{
+					URL:                   srvURL,
+					GroupID:               122,
+					EnableFailingPolicies: true,
+				},
+			},
+			Jira: []*fleet.TeamJiraIntegration{
+				{
+					URL:                   srvURL,
+					ProjectKey:            "qux",
+					EnableFailingPolicies: false,
+				},
+			},
+		},
+	}, http.StatusOK, &tmResp)
+	require.Len(t, tmResp.Team.Config.Integrations.Jira, 1)
+	require.Equal(t, "qux", tmResp.Team.Config.Integrations.Jira[0].ProjectKey)
+	require.Len(t, tmResp.Team.Config.Integrations.Zendesk, 1)
+	require.Equal(t, int64(122), tmResp.Team.Config.Integrations.Zendesk[0].GroupID)
+
+	// enabling a Jira integration when a Zendesk one is enabled fails
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), fleet.TeamPayload{
+		Integrations: &fleet.TeamIntegrations{
+			Zendesk: []*fleet.TeamZendeskIntegration{
+				{
+					URL:                   srvURL,
+					GroupID:               122,
+					EnableFailingPolicies: true,
+				},
+			},
+			Jira: []*fleet.TeamJiraIntegration{
+				{
+					URL:                   srvURL,
+					ProjectKey:            "qux",
+					EnableFailingPolicies: true,
+				},
+			},
+		},
+	}, http.StatusUnprocessableEntity, &tmResp)
+
+	// set additional integrations on the team
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), fleet.TeamPayload{
+		Integrations: &fleet.TeamIntegrations{
+			Zendesk: []*fleet.TeamZendeskIntegration{
+				{
+					URL:                   srvURL,
+					GroupID:               122,
+					EnableFailingPolicies: true,
+				},
+				{
+					URL:                   srvURL,
+					GroupID:               123,
+					EnableFailingPolicies: false,
+				},
+			},
+			Jira: []*fleet.TeamJiraIntegration{
+				{
+					URL:                   srvURL,
+					ProjectKey:            "qux",
+					EnableFailingPolicies: false,
+				},
+			},
+		},
+	}, http.StatusOK, &tmResp)
+
+	// removing Zendesk 122 from the global config removes it from the team too
+	s.DoRaw("PATCH", "/api/v1/fleet/config", []byte(fmt.Sprintf(`{
+		"integrations": {
+			"zendesk": [
+				{
+					"url": %[1]q,
+					"email": "b@b.c",
+					"api_token": "ok",
+					"group_id": 123
+				}
+			],
+			"jira": [
+				{
+					"url": %[1]q,
+					"username": "ok",
+					"api_token": "foo",
+					"project_key": "qux"
+				},
+				{
+					"url": %[1]q,
+					"username": "ok",
+					"api_token": "foo",
+					"project_key": "qux2"
+				}
+			]
+		}
+	}`, srvURL)), http.StatusOK)
+
+	// get the team, only one Zendesk integration remains, none are enabled
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), nil, http.StatusOK, &getResp)
+	require.Len(t, getResp.Team.Config.Integrations.Jira, 1)
+	require.Equal(t, "qux", getResp.Team.Config.Integrations.Jira[0].ProjectKey)
+	require.False(t, getResp.Team.Config.Integrations.Jira[0].EnableFailingPolicies)
+	require.Len(t, getResp.Team.Config.Integrations.Zendesk, 1)
+	require.Equal(t, int64(123), getResp.Team.Config.Integrations.Zendesk[0].GroupID)
+	require.False(t, getResp.Team.Config.Integrations.Zendesk[0].EnableFailingPolicies)
+
+	// removing Jira qux2 from the global config does not impact the team as it is unused.
+	s.DoRaw("PATCH", "/api/v1/fleet/config", []byte(fmt.Sprintf(`{
+		"integrations": {
+			"zendesk": [
+				{
+					"url": %[1]q,
+					"email": "b@b.c",
+					"api_token": "ok",
+					"group_id": 123
+				}
+			],
+			"jira": [
+				{
+					"url": %[1]q,
+					"username": "ok",
+					"api_token": "foo",
+					"project_key": "qux"
+				}
+			]
+		}
+	}`, srvURL)), http.StatusOK)
+
+	// get the team, integrations are unchanged
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), nil, http.StatusOK, &getResp)
+	require.Len(t, getResp.Team.Config.Integrations.Jira, 1)
+	require.Equal(t, "qux", getResp.Team.Config.Integrations.Jira[0].ProjectKey)
+	require.False(t, getResp.Team.Config.Integrations.Jira[0].EnableFailingPolicies)
+	require.Len(t, getResp.Team.Config.Integrations.Zendesk, 1)
+	require.Equal(t, int64(123), getResp.Team.Config.Integrations.Zendesk[0].GroupID)
+	require.False(t, getResp.Team.Config.Integrations.Zendesk[0].EnableFailingPolicies)
+
+	// enable Jira qux for the team
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), fleet.TeamPayload{
+		Integrations: &fleet.TeamIntegrations{
+			Zendesk: []*fleet.TeamZendeskIntegration{
+				{
+					URL:                   srvURL,
+					GroupID:               123,
+					EnableFailingPolicies: false,
+				},
+			},
+			Jira: []*fleet.TeamJiraIntegration{
+				{
+					URL:                   srvURL,
+					ProjectKey:            "qux",
+					EnableFailingPolicies: true,
+				},
+			},
+		},
+	}, http.StatusOK, &tmResp)
+
+	// removing Zendesk 123 from the global config removes it from the team but
+	// leaves the Jira integration enabled.
+	s.DoRaw("PATCH", "/api/v1/fleet/config", []byte(fmt.Sprintf(`{
+		"integrations": {
+			"jira": [
+				{
+					"url": %[1]q,
+					"username": "ok",
+					"api_token": "foo",
+					"project_key": "qux"
+				}
+			]
+		}
+	}`, srvURL)), http.StatusOK)
+
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), nil, http.StatusOK, &getResp)
+	require.Len(t, getResp.Team.Config.Integrations.Jira, 1)
+	require.Equal(t, "qux", getResp.Team.Config.Integrations.Jira[0].ProjectKey)
+	require.True(t, getResp.Team.Config.Integrations.Jira[0].EnableFailingPolicies)
+	require.Len(t, getResp.Team.Config.Integrations.Zendesk, 0)
+
+	// remove all integrations on exit, so that other tests can enable the
+	// webhook as needed
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), fleet.TeamPayload{
+		Integrations: &fleet.TeamIntegrations{
+			Zendesk: []*fleet.TeamZendeskIntegration{},
+			Jira:    []*fleet.TeamJiraIntegration{},
+		},
+		WebhookSettings: &fleet.TeamWebhookSettings{},
+	}, http.StatusOK, &tmResp)
+	require.Len(t, tmResp.Team.Config.Integrations.Jira, 0)
+	require.Len(t, tmResp.Team.Config.Integrations.Zendesk, 0)
+	require.False(t, tmResp.Team.Config.WebhookSettings.FailingPoliciesWebhook.Enable)
+	require.Empty(t, tmResp.Team.Config.WebhookSettings.FailingPoliciesWebhook.DestinationURL)
+
+	s.DoRaw("PATCH", "/api/v1/fleet/config", []byte(`{
+		"integrations": {}
+	}`), http.StatusOK)
+}
+
 func (s *integrationEnterpriseTestSuite) TestListDevicePolicies() {
 	t := s.T()
+
+	ac, err := s.ds.AppConfig(context.Background())
+	require.NoError(t, err)
+	ac.OrgInfo.OrgLogoURL = "http://example.com/logo"
+	err = s.ds.SaveAppConfig(context.Background(), ac)
+	require.NoError(t, err)
 
 	team, err := s.ds.NewTeam(context.Background(), &fleet.Team{
 		ID:          51,
@@ -486,7 +1021,7 @@ func (s *integrationEnterpriseTestSuite) TestListDevicePolicies() {
 	err = s.ds.AddHostsToTeam(context.Background(), &team.ID, []uint{host.ID})
 	require.NoError(t, err)
 
-	// create an auth token for hosts[0]
+	// create an auth token for host
 	token := "much_valid"
 	mysql.ExecAdhocSQL(t, s.ds, func(db sqlx.ExtContext) error {
 		_, err := db.ExecContext(context.Background(), `INSERT INTO host_device_auth (host_id, token) VALUES (?, ?)`, host.ID, token)
@@ -510,7 +1045,7 @@ func (s *integrationEnterpriseTestSuite) TestListDevicePolicies() {
 	s.DoJSON("POST", "/api/latest/fleet/policies", gpParams, http.StatusOK, &gpResp)
 	require.NotNil(t, gpResp.Policy)
 
-	// add a policy to team 1
+	// add a policy to team
 	oldToken := s.token
 	t.Cleanup(func() {
 		s.token = oldToken
@@ -550,10 +1085,89 @@ func (s *integrationEnterpriseTestSuite) TestListDevicePolicies() {
 	res := s.DoRawNoAuth("GET", "/api/latest/fleet/device/invalid_token/policies", nil, http.StatusUnauthorized)
 	res.Body.Close()
 
+	// GET `/api/_version_/fleet/device/{token}/policies`
 	listDevicePoliciesResp := listDevicePoliciesResponse{}
 	res = s.DoRawNoAuth("GET", "/api/latest/fleet/device/"+token+"/policies", nil, http.StatusOK)
 	json.NewDecoder(res.Body).Decode(&listDevicePoliciesResp)
 	res.Body.Close()
 	require.Len(t, listDevicePoliciesResp.Policies, 2)
 	require.NoError(t, listDevicePoliciesResp.Err)
+
+	// GET `/api/_version_/fleet/device/{token}`
+	getDeviceHostResp := getDeviceHostResponse{}
+	res = s.DoRawNoAuth("GET", "/api/latest/fleet/device/"+token, nil, http.StatusOK)
+	json.NewDecoder(res.Body).Decode(&getDeviceHostResp)
+	res.Body.Close()
+	require.NoError(t, getDeviceHostResp.Err)
+	require.Equal(t, host.ID, getDeviceHostResp.Host.ID)
+	require.False(t, getDeviceHostResp.Host.RefetchRequested)
+	require.Equal(t, "http://example.com/logo", getDeviceHostResp.OrgLogoURL)
+	require.Len(t, *getDeviceHostResp.Host.Policies, 2)
+}
+
+// TestCustomTransparencyURL tests that Fleet Premium licensees can use custom transparency urls.
+func (s *integrationEnterpriseTestSuite) TestCustomTransparencyURL() {
+	t := s.T()
+
+	host, err := s.ds.NewHost(context.Background(), &fleet.Host{
+		DetailUpdatedAt: time.Now(),
+		LabelUpdatedAt:  time.Now(),
+		PolicyUpdatedAt: time.Now(),
+		SeenTime:        time.Now().Add(-1 * time.Minute),
+		OsqueryHostID:   t.Name(),
+		NodeKey:         t.Name(),
+		UUID:            uuid.New().String(),
+		Hostname:        fmt.Sprintf("%sfoo.local", t.Name()),
+		Platform:        "darwin",
+	})
+	require.NoError(t, err)
+
+	// create device token for host
+	token := "token_test_custom_transparency_url"
+	mysql.ExecAdhocSQL(t, s.ds, func(db sqlx.ExtContext) error {
+		_, err := db.ExecContext(context.Background(), `INSERT INTO host_device_auth (host_id, token) VALUES (?, ?)`, host.ID, token)
+		return err
+	})
+
+	// confirm intitial default url
+	acResp := appConfigResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/config", nil, http.StatusOK, &acResp)
+	require.NotNil(t, acResp)
+	require.Equal(t, fleet.DefaultTransparencyURL, acResp.FleetDesktop.TransparencyURL)
+
+	// confirm device endpoint returns initial default url
+	deviceResp := &getDeviceHostResponse{}
+	rawResp := s.DoRawNoAuth("GET", "/api/latest/fleet/device/"+token, nil, http.StatusOK)
+	json.NewDecoder(rawResp.Body).Decode(deviceResp)
+	rawResp.Body.Close()
+	require.NoError(t, deviceResp.Err)
+	require.Equal(t, fleet.DefaultTransparencyURL, deviceResp.TransparencyURL)
+
+	// set custom url
+	acResp = appConfigResponse{}
+	s.DoJSON("PATCH", "/api/latest/fleet/config", fleet.AppConfig{FleetDesktop: fleet.FleetDesktopSettings{TransparencyURL: "customURL"}}, http.StatusOK, &acResp)
+	require.NotNil(t, acResp)
+	require.Equal(t, "customURL", acResp.FleetDesktop.TransparencyURL)
+
+	// device endpoint returns custom url
+	deviceResp = &getDeviceHostResponse{}
+	rawResp = s.DoRawNoAuth("GET", "/api/latest/fleet/device/"+token, nil, http.StatusOK)
+	json.NewDecoder(rawResp.Body).Decode(deviceResp)
+	rawResp.Body.Close()
+	require.NoError(t, deviceResp.Err)
+	require.Equal(t, "customURL", deviceResp.TransparencyURL)
+
+	// empty string applies default url
+	acResp = appConfigResponse{}
+	s.DoJSON("PATCH", "/api/latest/fleet/config", fleet.AppConfig{FleetDesktop: fleet.FleetDesktopSettings{TransparencyURL: ""}}, http.StatusOK, &acResp)
+	require.NotNil(t, acResp)
+	require.Equal(t, fleet.DefaultTransparencyURL, acResp.FleetDesktop.TransparencyURL)
+
+	// device endpoint returns default url
+	deviceResp = &getDeviceHostResponse{}
+	rawResp = s.DoRawNoAuth("GET", "/api/latest/fleet/device/"+token, nil, http.StatusOK)
+	json.NewDecoder(rawResp.Body).Decode(deviceResp)
+	rawResp.Body.Close()
+	require.NoError(t, deviceResp.Err)
+	require.Equal(t, fleet.DefaultTransparencyURL, deviceResp.TransparencyURL)
 }

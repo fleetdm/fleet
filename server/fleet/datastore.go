@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"fmt"
 	"time"
 )
 
@@ -67,6 +66,9 @@ type Datastore interface {
 	ListQueries(ctx context.Context, opt ListQueryOptions) ([]*Query, error)
 	// QueryByName looks up a query by name.
 	QueryByName(ctx context.Context, name string, opts ...OptionalArg) (*Query, error)
+	// ObserverCanRunQuery returns whether a user with an observer role is permitted to run the
+	// identified query
+	ObserverCanRunQuery(ctx context.Context, queryID uint) (bool, error)
 
 	///////////////////////////////////////////////////////////////////////////////
 	// CampaignStore defines the distributed query campaign related datastore methods
@@ -177,6 +179,7 @@ type Datastore interface {
 	DeleteHost(ctx context.Context, hid uint) error
 	Host(ctx context.Context, id uint) (*Host, error)
 	ListHosts(ctx context.Context, filter TeamFilter, opt HostListOptions) ([]*Host, error)
+
 	MarkHostsSeen(ctx context.Context, hostIDs []uint, t time.Time) error
 	SearchHosts(ctx context.Context, filter TeamFilter, query string, omit ...uint) ([]*Host, error)
 	// EnrolledHostIDs returns the full list of enrolled host IDs.
@@ -192,6 +195,8 @@ type Datastore interface {
 	GenerateHostStatusStatistics(ctx context.Context, filter TeamFilter, now time.Time, platform *string) (*HostSummary, error)
 	// HostIDsByName Retrieve the IDs associated with the given hostnames
 	HostIDsByName(ctx context.Context, filter TeamFilter, hostnames []string) ([]uint, error)
+	// HostIDsByOSVersion retrieves the IDs of all host matching osVersion
+	HostIDsByOSVersion(ctx context.Context, osVersion OSVersion, offset int, limit int) ([]uint, error)
 	// HostByIdentifier returns one host matching the provided identifier. Possible matches can be on
 	// osquery_host_identifier, node_key, UUID, or hostname.
 	HostByIdentifier(ctx context.Context, identifier string) (*Host, error)
@@ -338,15 +343,23 @@ type Datastore interface {
 	SearchTeams(ctx context.Context, filter TeamFilter, matchQuery string, omit ...uint) ([]*Team, error)
 	// TeamEnrollSecrets lists the enroll secrets for the team.
 	TeamEnrollSecrets(ctx context.Context, teamID uint) ([]*EnrollSecret, error)
+	// DeleteIntegrationsFromTeams deletes integrations used by teams, as they
+	// are being deleted from the global configuration.
+	DeleteIntegrationsFromTeams(ctx context.Context, deletedIntgs Integrations) error
 
 	///////////////////////////////////////////////////////////////////////////////
 	// SoftwareStore
-
+	// ListSoftwareForVulnDetection returns all software for the given hostID with only the fields
+	// used for vulnerability detection populated (id, name, version, cpe_id, cpe)
+	ListSoftwareForVulnDetection(ctx context.Context, hostID uint) ([]Software, error)
+	ListSoftwareVulnerabilities(ctx context.Context, hostIDs []uint) (map[uint][]SoftwareVulnerability, error)
 	LoadHostSoftware(ctx context.Context, host *Host, includeCVEScores bool) error
 	AllSoftwareWithoutCPEIterator(ctx context.Context) (SoftwareIterator, error)
 	AddCPEForSoftware(ctx context.Context, software Software, cpe string) error
-	AllCPEs(ctx context.Context) ([]string, error)
-	InsertCVEForCPE(ctx context.Context, cve string, cpes []string) (int64, error)
+	ListSoftwareCPEs(ctx context.Context, excludedPlatforms []string) ([]SoftwareCPE, error)
+	// InsertVulnerabilities inserts the given vulnerabilities in the datastore, returns the number
+	// of rows inserted. If a vulnerability already exists in the datastore, then it will be ignored.
+	InsertVulnerabilities(ctx context.Context, vulns []SoftwareVulnerability, source VulnerabilitySource) (int64, error)
 	SoftwareByID(ctx context.Context, id uint, includeCVEScores bool) (*Software, error)
 	// ListSoftwareByHostIDShort lists software by host ID, but does not include CPEs or vulnerabilites.
 	// It is meant to be used when only minimal software fields are required eg when updating host software.
@@ -358,9 +371,10 @@ type Datastore interface {
 	// After aggregation, it cleans up unused software (e.g. software installed
 	// on removed hosts, software uninstalled on hosts, etc.)
 	CalculateHostsPerSoftware(ctx context.Context, updatedAt time.Time) error
-	HostsByCPEs(ctx context.Context, cpes []string) ([]*HostShort, error)
+	HostsBySoftwareIDs(ctx context.Context, softwareIDs []uint) ([]*HostShort, error)
 	HostsByCVE(ctx context.Context, cve string) ([]*HostShort, error)
 	InsertCVEMeta(ctx context.Context, cveMeta []CVEMeta) error
+	ListCVEs(ctx context.Context, maxAge time.Duration) ([]CVEMeta, error)
 
 	///////////////////////////////////////////////////////////////////////////////
 	// ActivitiesStore
@@ -599,26 +613,6 @@ const (
 	// UnknownMigrations means some unidentified migrations were detected on the database.
 	UnknownMigrations
 )
-
-// SoftwareVulnerability identifies a vulnerability on a specific software (CPE).
-type SoftwareVulnerability struct {
-	// CPEID is the ID of the software CPE in the system.
-	CPEID uint
-	CVE   string
-}
-
-// String implements fmt.Stringer.
-func (sv SoftwareVulnerability) String() string {
-	return fmt.Sprintf("{%d,%s}", sv.CPEID, sv.CVE)
-}
-
-// SoftwareWithCPE holds a software piece alongside its CPE ID.
-type SoftwareWithCPE struct {
-	// Software holds the software data.
-	Software
-	// CPEID is the ID of the software CPE in the system.
-	CPEID uint
-}
 
 // NotFoundError is returned when the datastore resource cannot be found.
 type NotFoundError interface {

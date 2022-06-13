@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"strconv"
+	"strings"
 
 	"github.com/fleetdm/fleet/v4/pkg/secure"
 	"github.com/ghodss/yaml"
@@ -22,12 +23,13 @@ type configFile struct {
 }
 
 type Context struct {
-	Address       string `json:"address"`
-	Email         string `json:"email"`
-	Token         string `json:"token"`
-	TLSSkipVerify bool   `json:"tls-skip-verify"`
-	RootCA        string `json:"rootca"`
-	URLPrefix     string `json:"url-prefix"`
+	Address       string            `json:"address"`
+	Email         string            `json:"email"`
+	Token         string            `json:"token"`
+	TLSSkipVerify bool              `json:"tls-skip-verify"`
+	RootCA        string            `json:"rootca"`
+	URLPrefix     string            `json:"url-prefix"`
+	CustomHeaders map[string]string `json:"custom-headers"`
 }
 
 func configFlag() cli.Flag {
@@ -127,12 +129,14 @@ func getConfigValue(configPath, context, key string) (interface{}, error) {
 		return false, nil
 	case "url-prefix":
 		return currentContext.URLPrefix, nil
+	case "custom-headers":
+		return currentContext.CustomHeaders, nil
 	default:
 		return nil, fmt.Errorf("%q is an invalid key", key)
 	}
 }
 
-func setConfigValue(configPath, context, key, value string) error {
+func setConfigValue(configPath, context, key string, value interface{}) error {
 	if err := makeConfigIfNotExists(configPath); err != nil {
 		return fmt.Errorf("error verifying that config exists at %s: %w", configPath, err)
 	}
@@ -148,23 +152,50 @@ func setConfigValue(configPath, context, key, value string) error {
 		currentContext = Context{}
 	}
 
+	var strVal string
+	switch key {
+	case "address", "email", "token", "rootca", "tls-skip-verify", "url-prefix":
+		s, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("error setting %q, string value expected, got %T", key, value)
+		}
+		strVal = s
+	}
+
 	switch key {
 	case "address":
-		currentContext.Address = value
+		currentContext.Address = strVal
 	case "email":
-		currentContext.Email = value
+		currentContext.Email = strVal
 	case "token":
-		currentContext.Token = value
+		currentContext.Token = strVal
 	case "rootca":
-		currentContext.RootCA = value
+		currentContext.RootCA = strVal
 	case "tls-skip-verify":
-		boolValue, err := strconv.ParseBool(value)
+		boolValue, err := strconv.ParseBool(strVal)
 		if err != nil {
 			return fmt.Errorf("error parsing %q as bool: %w", value, err)
 		}
 		currentContext.TLSSkipVerify = boolValue
 	case "url-prefix":
-		currentContext.URLPrefix = value
+		currentContext.URLPrefix = strVal
+
+	case "custom-headers":
+		vals, ok := value.([]string)
+		if !ok {
+			return fmt.Errorf("error setting %q, []string value expected, got %T", key, value)
+		}
+
+		hdrs := make(map[string]string, len(vals))
+		for _, v := range vals {
+			parts := strings.SplitN(v, ":", 2)
+			if len(parts) < 2 {
+				parts = append(parts, "")
+			}
+			hdrs[parts[0]] = parts[1]
+		}
+		currentContext.CustomHeaders = hdrs
+
 	default:
 		return fmt.Errorf("%q is an invalid option", key)
 	}
@@ -186,6 +217,7 @@ func configSetCommand() *cli.Command {
 		flTLSSkipVerify bool
 		flRootCA        string
 		flURLPrefix     string
+		flCustomHeaders cli.StringSlice
 	)
 	return &cli.Command{
 		Name:      "set",
@@ -234,6 +266,13 @@ func configSetCommand() *cli.Command {
 				Value:       "",
 				Destination: &flURLPrefix,
 				Usage:       "Specify URL Prefix to use with Fleet server (copy from server configuration)",
+			},
+			&cli.StringSliceFlag{
+				Name:        "custom-header",
+				EnvVars:     []string{"CUSTOM_HEADER"},
+				Value:       nil,
+				Destination: &flCustomHeaders,
+				Usage:       "Specify a custom header as 'Header:Value' to be set on every request to the Fleet server (can be specified multiple times for multiple headers, note that this replaces any existing custom headers). Note that when using the environment variable to set this option, it must be set like so: 'CUSTOM_HEADER=Header:Value,Header:Value', and the value cannot contain commas.",
 			},
 		},
 		Action: func(c *cli.Context) error {
@@ -289,6 +328,14 @@ func configSetCommand() *cli.Command {
 				fmt.Printf("[+] Set the url-prefix config key to %q in the %q context\n", flURLPrefix, c.String("context"))
 			}
 
+			if len(flCustomHeaders.Value()) > 0 {
+				set = true
+				if err := setConfigValue(configPath, context, "custom-headers", flCustomHeaders.Value()); err != nil {
+					return fmt.Errorf("error setting custom headers: %w", err)
+				}
+				fmt.Printf("[+] Set the custom-headers config key to %v in the %q context\n", flCustomHeaders.Value(), c.String("context"))
+			}
+
 			if !set {
 				return cli.ShowCommandHelp(c, "set")
 			}
@@ -316,7 +363,7 @@ func configGetCommand() *cli.Command {
 
 			// validate key
 			switch key {
-			case "address", "email", "token", "tls-skip-verify", "rootca":
+			case "address", "email", "token", "tls-skip-verify", "rootca", "url-prefix", "custom-headers":
 			default:
 				return cli.ShowCommandHelp(c, "get")
 			}
@@ -328,7 +375,7 @@ func configGetCommand() *cli.Command {
 				return fmt.Errorf("error getting config value: %w", err)
 			}
 
-			fmt.Printf("  %s.%s => %s\n", c.String("context"), key, value)
+			fmt.Printf("  %s.%s => %v\n", c.String("context"), key, value)
 
 			return nil
 		},

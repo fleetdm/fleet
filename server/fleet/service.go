@@ -168,6 +168,7 @@ type Service interface {
 	NewLabel(ctx context.Context, p LabelPayload) (label *Label, err error)
 	ModifyLabel(ctx context.Context, id uint, payload ModifyLabelPayload) (*Label, error)
 	ListLabels(ctx context.Context, opt ListOptions) (labels []*Label, err error)
+	LabelsSummary(ctx context.Context) (labels []*LabelSummary, err error)
 	GetLabel(ctx context.Context, id uint) (label *Label, err error)
 
 	DeleteLabel(ctx context.Context, name string) (err error)
@@ -239,12 +240,20 @@ type Service interface {
 	AuthenticateDevice(ctx context.Context, authToken string) (host *Host, debug bool, err error)
 
 	ListHosts(ctx context.Context, opt HostListOptions) (hosts []*Host, err error)
-	GetHost(ctx context.Context, id uint, includeCVEScores bool) (host *HostDetail, err error)
+	// GetHost returns the host with the provided ID.
+	//
+	// The return value can also include policy information and CVE scores based
+	// on the values provided to `opts`
+	GetHost(ctx context.Context, id uint, opts HostDetailOptions) (host *HostDetail, err error)
 	GetHostSummary(ctx context.Context, teamID *uint, platform *string) (summary *HostSummary, err error)
 	DeleteHost(ctx context.Context, id uint) (err error)
-	// HostByIdentifier returns one host matching the provided identifier. Possible matches can be on
-	// osquery_host_identifier, node_key, UUID, or hostname.
-	HostByIdentifier(ctx context.Context, identifier string, includeCVEScores bool) (*HostDetail, error)
+	// HostByIdentifier returns one host matching the provided identifier.
+	// Possible matches can be on osquery_host_identifier, node_key, UUID, or
+	// hostname.
+	//
+	// The return value can also include policy information and CVE scores based
+	// on the values provided to `opts`
+	HostByIdentifier(ctx context.Context, identifier string, opts HostDetailOptions) (*HostDetail, error)
 	// RefetchHost requests a refetch of host details for the provided host.
 	RefetchHost(ctx context.Context, id uint) (err error)
 	// AddHostsToTeam adds hosts to an existing team, clearing their team settings if teamID is nil.
@@ -254,6 +263,11 @@ type Service interface {
 	AddHostsToTeamByFilter(ctx context.Context, teamID *uint, opt HostListOptions, lid *uint) error
 	DeleteHosts(ctx context.Context, ids []uint, opt HostListOptions, lid *uint) error
 	CountHosts(ctx context.Context, labelID *uint, opts HostListOptions) (int, error)
+	// SearchHosts performs a search on the hosts table using the following criteria:
+	//	- matchQuery is the query SQL
+	//	- queryID is the ID of a saved query to run (used to determine whether this is a query that observers can run)
+	//	- excludedHostIDs is an optional list of IDs to omit from the search
+	SearchHosts(ctx context.Context, matchQuery string, queryID *uint, excludedHostIDs []uint) ([]*Host, error)
 	// ListHostDeviceMapping returns the list of device-mapping of user's email address
 	// for the host.
 	ListHostDeviceMapping(ctx context.Context, id uint) ([]*HostDeviceMapping, error)
@@ -319,7 +333,7 @@ type Service interface {
 	UpdateInvite(ctx context.Context, id uint, payload InvitePayload) (*Invite, error)
 
 	///////////////////////////////////////////////////////////////////////////////
-	// TargetService
+	// TargetService **NOTE: SearchTargets will be removed in Fleet 5.0**
 
 	// SearchTargets will accept a search query, a slice of IDs of hosts to omit, and a slice of IDs of labels to omit,
 	// and it will return a set of targets (hosts and label) which match the supplied search query. If the query ID is

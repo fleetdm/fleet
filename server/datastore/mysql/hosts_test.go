@@ -116,6 +116,7 @@ func TestHosts(t *testing.T) {
 		{"SetOrUpdateDeviceAuthToken", testHostsSetOrUpdateDeviceAuthToken},
 		{"OSVersions", testOSVersions},
 		{"DeleteHosts", testHostsDeleteHosts},
+		{"HostIDsByOSVersion", testHostIDsByOSVersion},
 		{"ShouldCleanTeamPolicies", testShouldCleanTeamPolicies},
 	}
 	for _, c := range cases {
@@ -4211,4 +4212,51 @@ func testShouldCleanTeamPolicies(t *testing.T, ds *Datastore) {
 	for _, c := range cases {
 		require.Equal(t, shouldCleanTeamPolicies(c.currentTeamID, c.newTeamID), c.out)
 	}
+}
+
+func testHostIDsByOSVersion(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+	hosts := make([]*fleet.Host, 10)
+	getPlatform := func(i int) string {
+		if i < 5 {
+			return "ubuntu"
+		}
+		return "centos"
+	}
+	for i := range hosts {
+		h, err := ds.NewHost(context.Background(), &fleet.Host{
+			DetailUpdatedAt: time.Now(),
+			LabelUpdatedAt:  time.Now(),
+			PolicyUpdatedAt: time.Now(),
+			SeenTime:        time.Now(),
+			OsqueryHostID:   fmt.Sprintf("host%d", i),
+			NodeKey:         fmt.Sprintf("%d", i),
+			UUID:            fmt.Sprintf("%d", i),
+			Hostname:        fmt.Sprintf("foo.%d.local", i),
+			Platform:        getPlatform(i),
+			OSVersion:       fmt.Sprintf("20.4.%d", i),
+		})
+		require.NoError(t, err)
+		hosts[i] = h
+	}
+
+	t.Run("no match", func(t *testing.T) {
+		osVersion := fleet.OSVersion{Platform: "ubuntu", Name: "sdfasw"}
+		none, err := ds.HostIDsByOSVersion(ctx, osVersion, 0, 1)
+		require.NoError(t, err)
+		require.Len(t, none, 0)
+	})
+
+	t.Run("filtering by os version", func(t *testing.T) {
+		osVersion := fleet.OSVersion{Platform: "ubuntu", Name: "20.4.0"}
+		result, err := ds.HostIDsByOSVersion(ctx, osVersion, 0, 1)
+		require.NoError(t, err)
+		require.Len(t, result, 1)
+		for _, id := range result {
+			r, err := ds.Host(ctx, id)
+			require.NoError(t, err)
+			require.Equal(t, r.Platform, "ubuntu")
+			require.Equal(t, r.OSVersion, "20.4.0")
+		}
+	})
 }

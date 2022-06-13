@@ -4,16 +4,21 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"net/url"
 	"os"
 	"strconv"
 	"strings"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
 	"github.com/fleetdm/fleet/v4/server/config"
+	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysqlredis"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/policies"
 	"github.com/fleetdm/fleet/v4/server/service/externalsvc"
 	"github.com/fleetdm/fleet/v4/server/vulnerabilities"
+	"github.com/fleetdm/fleet/v4/server/vulnerabilities/oval"
 	"github.com/fleetdm/fleet/v4/server/webhooks"
 	"github.com/fleetdm/fleet/v4/server/worker"
 	"github.com/getsentry/sentry-go"
@@ -231,13 +236,22 @@ func cronVulnerabilities(
 			}
 			level.Debug(logger).Log("vulnAutomationEnabled", vulnAutomationEnabled)
 
-			recentVulns := checkVulnerabilities(ctx, ds, logger, vulnPath, config, (vulnAutomationEnabled != ""))
+			collectVulns := vulnAutomationEnabled != ""
+			nvdVulns := checkNVDVulnerabilities(ctx, ds, logger, vulnPath, config, collectVulns)
+			ovalVulns := checkOvalVulnerabilities(ctx, ds, logger, vulnPath, config, collectVulns)
+			recentVulns := filterRecentVulns(ctx, ds, logger, nvdVulns, ovalVulns, config.Vulnerabilities.RecentVulnerabilityMaxAge)
+
 			if len(recentVulns) > 0 {
 				switch vulnAutomationEnabled {
 				case "webhook":
 					// send recent vulnerabilities via webhook
-					if err := webhooks.TriggerVulnerabilitiesWebhook(ctx, ds, kitlog.With(logger, "webhook", "vulnerabilities"),
-						recentVulns, appConfig, time.Now()); err != nil {
+					if err := webhooks.TriggerVulnerabilitiesWebhook(
+						ctx,
+						ds,
+						kitlog.With(logger, "webhook", "vulnerabilities"),
+						recentVulns,
+						appConfig,
+						time.Now()); err != nil {
 
 						level.Error(logger).Log("err", "triggering vulnerabilities webhook", "details", err)
 						sentry.CaptureException(err)
@@ -245,7 +259,7 @@ func cronVulnerabilities(
 
 				case "jira":
 					// queue job to create jira issues
-					if err := worker.QueueJiraJobs(
+					if err := worker.QueueJiraVulnJobs(
 						ctx,
 						ds,
 						kitlog.With(logger, "jira", "vulnerabilities"),
@@ -256,8 +270,8 @@ func cronVulnerabilities(
 					}
 
 				case "zendesk":
-					// queue job to create Zendesk ticket
-					if err := worker.QueueZendeskJobs(
+					// queue job to create zendesk ticket
+					if err := worker.QueueZendeskVulnJobs(
 						ctx,
 						ds,
 						kitlog.With(logger, "zendesk", "vulnerabilities"),
@@ -294,14 +308,111 @@ func cronVulnerabilities(
 	}
 }
 
-func checkVulnerabilities(
+func filterRecentVulns(
+	ctx context.Context,
+	ds fleet.Datastore,
+	logger kitlog.Logger,
+	nvdVulns []fleet.SoftwareVulnerability,
+	ovalVulns []fleet.SoftwareVulnerability,
+	maxAge time.Duration,
+) []fleet.SoftwareVulnerability {
+	if len(nvdVulns) == 0 && len(ovalVulns) == 0 {
+		return nil
+	}
+
+	recent, err := ds.ListCVEs(ctx, maxAge)
+	if err != nil {
+		level.Error(logger).Log("msg", "could not fetch recent CVEs", "err", err)
+		sentry.CaptureException(err)
+		return nil
+	}
+
+	lookup := make(map[string]bool)
+	for _, r := range recent {
+		lookup[r.CVE] = true
+	}
+
+	filtered := make(map[string]fleet.SoftwareVulnerability)
+	for _, v := range nvdVulns {
+		if _, ok := lookup[v.CVE]; ok {
+			filtered[v.Key()] = v
+		}
+	}
+	for _, v := range ovalVulns {
+		if _, ok := lookup[v.CVE]; ok {
+			filtered[v.Key()] = v
+		}
+	}
+
+	result := make([]fleet.SoftwareVulnerability, 0, len(filtered))
+	for _, v := range filtered {
+		result = append(result, v)
+	}
+
+	return result
+}
+
+func checkOvalVulnerabilities(
 	ctx context.Context,
 	ds fleet.Datastore,
 	logger kitlog.Logger,
 	vulnPath string,
 	config config.FleetConfig,
-	collectRecentVulns bool,
-) map[string][]string {
+	collectVulns bool,
+) []fleet.SoftwareVulnerability {
+	if config.Vulnerabilities.DisableDataSync {
+		return nil
+	}
+
+	var results []fleet.SoftwareVulnerability
+
+	// Get Platforms
+	versions, err := ds.OSVersions(ctx, nil, nil)
+	if err != nil {
+		level.Error(logger).Log("msg", "updating oval definitions", "err", err)
+		sentry.CaptureException(err)
+		return nil
+	}
+
+	// Sync on disk OVAL definitions with current OS Versions.
+	client := fleethttp.NewClient()
+	downloaded, err := oval.Refresh(ctx, client, versions, vulnPath)
+	if err != nil {
+		level.Error(logger).Log("msg", "updating oval definitions", "err", err)
+		sentry.CaptureException(err)
+	}
+	for _, d := range downloaded {
+		level.Debug(logger).Log("oval-sync-downloaded", d)
+	}
+
+	// Analyze all supported os versions using the synched OVAL definitions.
+	for _, version := range versions.OSVersions {
+		start := time.Now()
+		r, err := oval.Analyze(ctx, ds, version, vulnPath, collectVulns)
+		elapsed := time.Since(start)
+		level.Debug(logger).Log(
+			"msg", "oval-analysis-done",
+			"platform", version.Name,
+			"elapsed", elapsed,
+			"found new", len(r))
+		results = append(results, r...)
+		if err != nil {
+			level.Error(logger).Log("msg", "analyzing oval definitions", "err", err)
+			sentry.CaptureException(err)
+		}
+	}
+
+	return results
+}
+
+func checkNVDVulnerabilities(
+	ctx context.Context,
+	ds fleet.Datastore,
+	logger kitlog.Logger,
+	vulnPath string,
+	config config.FleetConfig,
+	collectVulns bool,
+) []fleet.SoftwareVulnerability {
 	if !config.Vulnerabilities.DisableDataSync {
 		err := vulnerabilities.Sync(vulnPath, config.Vulnerabilities.CPEDatabaseURL)
 		if err != nil {
@@ -311,7 +422,7 @@ func checkVulnerabilities(
 		}
 	}
 
-	if err := vulnerabilities.LoadCVEMeta(vulnPath, ds); err != nil {
+	if err := vulnerabilities.LoadCVEMeta(logger, vulnPath, ds); err != nil {
 		err = fmt.Errorf("load cve meta: %w", err)
 		level.Error(logger).Log("err", err)
 		sentry.CaptureException(err)
@@ -325,13 +436,14 @@ func checkVulnerabilities(
 		return nil
 	}
 
-	recentVulns, err := vulnerabilities.TranslateCPEToCVE(ctx, ds, vulnPath, logger, collectRecentVulns, config.Vulnerabilities.RecentVulnerabilityMaxAge)
+	vulns, err := vulnerabilities.TranslateCPEToCVE(ctx, ds, vulnPath, logger, collectVulns)
 	if err != nil {
 		level.Error(logger).Log("msg", "analyzing vulnerable software: CPE->CVE", "err", err)
 		sentry.CaptureException(err)
 		return nil
 	}
-	return recentVulns
+
+	return vulns
 }
 
 func cronWebhooks(
@@ -385,7 +497,7 @@ func cronWebhooks(
 
 		// We set the db lock durations to match the intervalReload.
 		maybeTriggerHostStatus(ctx, ds, logger, identifier, appConfig, intervalReload)
-		maybeTriggerFailingPoliciesWebhook(ctx, ds, logger, identifier, appConfig, intervalReload, failingPoliciesSet)
+		maybeTriggerFailingPoliciesAutomation(ctx, ds, logger, identifier, appConfig, intervalReload, failingPoliciesSet)
 
 		level.Debug(logger).Log("loop", "done")
 	}
@@ -417,7 +529,7 @@ func maybeTriggerHostStatus(
 	}
 }
 
-func maybeTriggerFailingPoliciesWebhook(
+func maybeTriggerFailingPoliciesAutomation(
 	ctx context.Context,
 	ds fleet.Datastore,
 	logger kitlog.Logger,
@@ -436,10 +548,48 @@ func maybeTriggerFailingPoliciesWebhook(
 		return
 	}
 
-	if err := webhooks.TriggerFailingPoliciesWebhook(
-		ctx, ds, kitlog.With(logger, "webhook", "failing_policies"), appConfig, failingPoliciesSet, time.Now(),
-	); err != nil {
-		level.Error(logger).Log("err", "triggering failing policies webhook", "details", err)
+	serverURL, err := url.Parse(appConfig.ServerSettings.ServerURL)
+	if err != nil {
+		level.Error(logger).Log("err", "parsing appConfig.ServerSettings.ServerURL", "details", err)
+		sentry.CaptureException(err)
+		return
+	}
+
+	logger = kitlog.With(logger, "webhook", "failing_policies")
+	err = policies.TriggerFailingPoliciesAutomation(ctx, ds, logger, appConfig, failingPoliciesSet, func(policy *fleet.Policy, cfg policies.FailingPolicyAutomationConfig) error {
+		switch cfg.AutomationType {
+		case policies.FailingPolicyWebhook:
+			return webhooks.SendFailingPoliciesBatchedPOSTs(
+				ctx, policy, failingPoliciesSet, cfg.HostBatchSize, serverURL, cfg.WebhookURL, time.Now(), logger)
+
+		case policies.FailingPolicyJira:
+			hosts, err := failingPoliciesSet.ListHosts(policy.ID)
+			if err != nil {
+				return ctxerr.Wrapf(ctx, err, "listing hosts for failing policies set %d", policy.ID)
+			}
+			if err := worker.QueueJiraFailingPolicyJob(ctx, ds, logger, policy, hosts); err != nil {
+				return err
+			}
+			if err := failingPoliciesSet.RemoveHosts(policy.ID, hosts); err != nil {
+				return ctxerr.Wrapf(ctx, err, "removing %d hosts from failing policies set %d", len(hosts), policy.ID)
+			}
+
+		case policies.FailingPolicyZendesk:
+			hosts, err := failingPoliciesSet.ListHosts(policy.ID)
+			if err != nil {
+				return ctxerr.Wrapf(ctx, err, "listing hosts for failing policies set %d", policy.ID)
+			}
+			if err := worker.QueueZendeskFailingPolicyJob(ctx, ds, logger, policy, hosts); err != nil {
+				return err
+			}
+			if err := failingPoliciesSet.RemoveHosts(policy.ID, hosts); err != nil {
+				return ctxerr.Wrapf(ctx, err, "removing %d hosts from failing policies set %d", len(hosts), policy.ID)
+			}
+		}
+		return nil
+	})
+	if err != nil {
+		level.Error(logger).Log("err", "triggering failing policies automation", "details", err)
 		sentry.CaptureException(err)
 	}
 }
@@ -462,23 +612,35 @@ func cronWorker(
 	// there won't be any records to process so it will mostly just sleep).
 	w := worker.NewWorker(ds, logger)
 	jira := &worker.Jira{
-		Datastore: ds,
-		Log:       logger,
+		Datastore:     ds,
+		Log:           logger,
+		NewClientFunc: newJiraClient,
 	}
 	zendesk := &worker.Zendesk{
-		Datastore: ds,
-		Log:       logger,
+		Datastore:     ds,
+		Log:           logger,
+		NewClientFunc: newZendeskClient,
 	}
-	// leave the url and client fields empty for now, will be filled
-	// when the lock is acquired with the up-to-date config.
+	// leave the url empty for now, will be filled when the lock is acquired with
+	// the up-to-date config.
 	w.Register(jira)
 	w.Register(zendesk)
 
-	// create client wrappers to introduce forced failures if configured
-	// to do so via the environment variable.
-	// format is "<modulo number>;<cve1>,<cve2>,<cve3>,..."
-	jiraFailerClient := newFailerClient(os.Getenv("FLEET_JIRA_CLIENT_FORCED_FAILURES"))
-	zendeskFailerClient := newFailerClient(os.Getenv("FLEET_ZENDESK_CLIENT_FORCED_FAILURES"))
+	// Read app config a first time before starting, to clear up any failer client
+	// configuration if we're not on a fleet-owned server. Technically, the ServerURL
+	// could change dynamically, but for the needs of forced client failures, this
+	// is not a possible scenario.
+	appConfig, err := ds.AppConfig(ctx)
+	if err != nil {
+		level.Error(logger).Log("config", "couldn't read app config", "err", err)
+		sentry.CaptureException(err)
+	}
+	// we clear it even if we fail to load the app config, not a likely scenario
+	// in our test environments for the needs of forced failures.
+	if !strings.Contains(appConfig.ServerSettings.ServerURL, "fleetdm") {
+		os.Unsetenv("FLEET_JIRA_CLIENT_FORCED_FAILURES")
+		os.Unsetenv("FLEET_ZENDESK_CLIENT_FORCED_FAILURES")
+	}
 
 	ticker := time.NewTicker(10 * time.Second)
 	for {
@@ -508,55 +670,8 @@ func cronWorker(
 			continue
 		}
 
-		// get the enabled jira config, if any
-		var jiraSettings *fleet.JiraIntegration
-		for _, intg := range appConfig.Integrations.Jira {
-			if intg.EnableSoftwareVulnerabilities {
-				jiraSettings = intg
-				break
-			}
-		}
-
-		// get the enabled Zendesk config, if any
-		var zendeskSettings *fleet.ZendeskIntegration
-		for _, intg := range appConfig.Integrations.Zendesk {
-			if intg.EnableSoftwareVulnerabilities {
-				zendeskSettings = intg
-				break
-			}
-		}
-
-		if jiraSettings != nil && zendeskSettings != nil {
-			// skip processing jobs if more than one integration is enabled.
-			level.Error(logger).Log("err", "more than one automation enabled")
-			continue
-		}
-
-		if jiraSettings == nil && zendeskSettings == nil {
-			// skip processing jobs if no integrations are enabled.
-			level.Debug(logger).Log("msg", "no automations enabled")
-			continue
-		}
-
-		if jiraSettings != nil {
-			// create the client to make API calls to Jira
-			err := setJiraClient(jira, jiraSettings, appConfig, logger, jiraFailerClient)
-			if err != nil {
-				level.Error(logger).Log("msg", "Error creating JIRA client", "err", err)
-				sentry.CaptureException(err)
-				continue
-			}
-		}
-
-		if zendeskSettings != nil {
-			// create the client to make API calls to Zendesk
-			err := setZendeskClient(zendesk, zendeskSettings, appConfig, logger, zendeskFailerClient)
-			if err != nil {
-				level.Error(logger).Log("msg", "Error creating Zendesk client", "err", err)
-				sentry.CaptureException(err)
-				continue
-			}
-		}
+		jira.FleetURL = appConfig.ServerSettings.ServerURL
+		zendesk.FleetURL = appConfig.ServerSettings.ServerURL
 
 		workCtx, cancel := context.WithTimeout(ctx, lockDuration)
 		if err := w.ProcessJobs(workCtx); err != nil {
@@ -567,54 +682,38 @@ func cronWorker(
 	}
 }
 
-func setJiraClient(jira *worker.Jira, jiraSettings *fleet.JiraIntegration, appConfig *fleet.AppConfig, logger kitlog.Logger, failerClient *worker.TestAutomationFailer) error {
-	client, err := externalsvc.NewJiraClient(&externalsvc.JiraOptions{
-		BaseURL:           jiraSettings.URL,
-		BasicAuthUsername: jiraSettings.Username,
-		BasicAuthPassword: jiraSettings.APIToken,
-		ProjectKey:        jiraSettings.ProjectKey,
-	})
+func newJiraClient(opts *externalsvc.JiraOptions) (worker.JiraClient, error) {
+	client, err := externalsvc.NewJiraClient(opts)
 	if err != nil {
-		level.Error(logger).Log("msg", "Error creating Jira client", "err", err)
-		sentry.CaptureException(err)
-		return err
+		return nil, err
 	}
 
-	// safe to update the Jira worker as it is not used concurrently
-	jira.FleetURL = appConfig.ServerSettings.ServerURL
-	if failerClient != nil && strings.Contains(jira.FleetURL, "fleetdm") {
+	// create client wrappers to introduce forced failures if configured
+	// to do so via the environment variable.
+	// format is "<modulo number>;<cve1>,<cve2>,<cve3>,..."
+	failerClient := newFailerClient(os.Getenv("FLEET_JIRA_CLIENT_FORCED_FAILURES"))
+	if failerClient != nil {
 		failerClient.JiraClient = client
-		jira.JiraClient = failerClient
-	} else {
-		jira.JiraClient = client
+		return failerClient, nil
 	}
-
-	return nil
+	return client, nil
 }
 
-func setZendeskClient(zendesk *worker.Zendesk, zendeskSettings *fleet.ZendeskIntegration, appConfig *fleet.AppConfig, logger kitlog.Logger, failerClient *worker.TestAutomationFailer) error {
-	client, err := externalsvc.NewZendeskClient(&externalsvc.ZendeskOptions{
-		URL:      zendeskSettings.URL,
-		Email:    zendeskSettings.Email,
-		APIToken: zendeskSettings.APIToken,
-		GroupID:  zendeskSettings.GroupID,
-	})
+func newZendeskClient(opts *externalsvc.ZendeskOptions) (worker.ZendeskClient, error) {
+	client, err := externalsvc.NewZendeskClient(opts)
 	if err != nil {
-		level.Error(logger).Log("msg", "Error creating Zendesk client", "err", err)
-		sentry.CaptureException(err)
-		return err
+		return nil, err
 	}
 
-	// safe to update the worker as it is not used concurrently
-	zendesk.FleetURL = appConfig.ServerSettings.ServerURL
-	if failerClient != nil && strings.Contains(zendesk.FleetURL, "fleetdm") {
+	// create client wrappers to introduce forced failures if configured
+	// to do so via the environment variable.
+	// format is "<modulo number>;<cve1>,<cve2>,<cve3>,..."
+	failerClient := newFailerClient(os.Getenv("FLEET_ZENDESK_CLIENT_FORCED_FAILURES"))
+	if failerClient != nil {
 		failerClient.ZendeskClient = client
-		zendesk.ZendeskClient = failerClient
-	} else {
-		zendesk.ZendeskClient = client
+		return failerClient, nil
 	}
-
-	return nil
+	return client, nil
 }
 
 func newFailerClient(forcedFailures string) *worker.TestAutomationFailer {
