@@ -423,11 +423,11 @@ func TestOvalMapper(t *testing.T) {
 				},
 				{
 					input:       oval_input.RpmVerifyFileStateXML{Arch: &oval_input.SimpleTypeXML{}},
-					shouldError: false,
+					shouldError: true,
 				},
 				{
 					input:       oval_input.RpmVerifyFileStateXML{Epoch: &oval_input.SimpleTypeXML{}},
-					shouldError: false,
+					shouldError: true,
 				},
 				{
 					input:       oval_input.RpmVerifyFileStateXML{Version: &oval_input.SimpleTypeXML{}},
@@ -435,7 +435,7 @@ func TestOvalMapper(t *testing.T) {
 				},
 				{
 					input:       oval_input.RpmVerifyFileStateXML{ExtendedName: &oval_input.SimpleTypeXML{}},
-					shouldError: false,
+					shouldError: true,
 				},
 			}
 
@@ -473,23 +473,10 @@ func TestOvalMapper(t *testing.T) {
 					Value: "name",
 					Op:    "equals",
 				},
-				Arch: &oval_input.SimpleTypeXML{
-					Value: "arch",
-					Op:    "not equals",
-				},
-				Epoch: &oval_input.SimpleTypeXML{
-					Datatype: "string",
-					Value:    "epoch",
-					Op:       "equals",
-				},
 				Version: &oval_input.SimpleTypeXML{
 					Datatype: "int",
 					Value:    "123",
 					Op:       "equals",
-				},
-				ExtendedName: &oval_input.SimpleTypeXML{
-					Op:    "equals",
-					Value: "0:123:12",
 				},
 			}
 
@@ -497,10 +484,7 @@ func TestOvalMapper(t *testing.T) {
 			require.NoError(t, err)
 
 			require.Equal(t, *output.Name, oval_parsed.NewObjectStateString("equals", "name"))
-			require.Equal(t, *output.Arch, oval_parsed.NewObjectStateString("not equals", "arch"))
-			require.Equal(t, *output.Epoch, oval_parsed.NewObjectStateSimpleValue("string", "equals", "epoch"))
 			require.Equal(t, *output.Version, oval_parsed.NewObjectStateSimpleValue("int", "equals", "123"))
-			require.Equal(t, *output.ExtendedName, oval_parsed.NewObjectStateString("equals", "0:123:12"))
 		})
 	})
 }

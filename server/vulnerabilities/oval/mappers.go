@@ -170,7 +170,10 @@ func mapRpmVerifyFileState(sta oval_input.RpmVerifyFileStateXML) (*oval_parsed.O
 		sta.ConfigurationFile != nil ||
 		sta.GhostFile != nil ||
 		sta.LicenseFile != nil ||
-		sta.ReadmeFile != nil {
+		sta.ReadmeFile != nil ||
+		sta.Arch != nil ||
+		sta.Epoch != nil ||
+		sta.ExtendedName != nil {
 		return nil, fmt.Errorf("invalid RPM verify file state specified")
 	}
 	r := oval_parsed.ObjectInfoState{}
@@ -179,21 +182,9 @@ func mapRpmVerifyFileState(sta oval_input.RpmVerifyFileStateXML) (*oval_parsed.O
 		name := oval_parsed.NewObjectStateString(sta.Name.Op, sta.Name.Value)
 		r.Name = &name
 	}
-	if sta.Arch != nil {
-		arch := oval_parsed.NewObjectStateString(sta.Arch.Op, sta.Arch.Value)
-		r.Arch = &arch
-	}
-	if sta.Epoch != nil {
-		epoch := oval_parsed.NewObjectStateSimpleValue(sta.Epoch.Datatype, sta.Epoch.Op, sta.Epoch.Value)
-		r.Epoch = &epoch
-	}
 	if sta.Version != nil {
 		ver := oval_parsed.NewObjectStateSimpleValue(sta.Version.Datatype, sta.Version.Op, sta.Version.Value)
 		r.Version = &ver
-	}
-	if sta.ExtendedName != nil {
-		extd := oval_parsed.NewObjectStateString(sta.ExtendedName.Op, sta.ExtendedName.Value)
-		r.ExtendedName = &extd
 	}
 
 	if sta.Operator != nil {
