@@ -1,6 +1,7 @@
 package oval
 
 import (
+	"errors"
 	"fmt"
 	"strconv"
 	"strings"
@@ -78,7 +79,7 @@ func mapPackageState(sta oval_input.DpkgStateXML) ([]oval_parsed.ObjectStateEvrS
 		sta.Arch != nil ||
 		sta.Epoch != nil ||
 		sta.Version != nil {
-		return nil, fmt.Errorf("only evr state definitions are supported")
+		return nil, errors.New("only evr state definitions are supported")
 	}
 
 	if sta.Evr != nil {

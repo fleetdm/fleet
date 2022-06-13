@@ -167,13 +167,8 @@ func testLabelsListLabels(t *testing.T, ds *mysql.Datastore) {
 	labels, err := svc.ListLabels(test.UserContext(test.UserAdmin), fleet.ListOptions{Page: 0, PerPage: 1000})
 	require.NoError(t, err)
 	require.Len(t, labels, 7)
-}
 
-func testLabelsSummary(t *testing.T, ds *mysql.Datastore) {
-	svc := newTestService(t, ds, nil, nil)
-	require.NoError(t, ds.MigrateData(context.Background()))
-
-	labels, err := svc.LabelsSummary(test.UserContext(test.UserAdmin))
+	labelsSummary, err := svc.LabelsSummary(test.UserContext(test.UserAdmin))
 	require.NoError(t, err)
-	require.Len(t, labels, 7)
+	require.Len(t, labelsSummary, 7)
 }

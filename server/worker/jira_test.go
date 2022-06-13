@@ -32,7 +32,7 @@ func TestJiraRun(t *testing.T) {
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 		return &fleet.AppConfig{Integrations: fleet.Integrations{
 			Jira: []*fleet.JiraIntegration{
-				{EnableSoftwareVulnerabilities: true, TeamJiraIntegration: fleet.TeamJiraIntegration{EnableFailingPolicies: true}},
+				{EnableSoftwareVulnerabilities: true, EnableFailingPolicies: true},
 			},
 		}}, nil
 	}
@@ -215,7 +215,10 @@ func TestJiraRunClientUpdate(t *testing.T) {
 		globalCount++
 		return &fleet.AppConfig{Integrations: fleet.Integrations{
 			Jira: []*fleet.JiraIntegration{
-				{TeamJiraIntegration: fleet.TeamJiraIntegration{ProjectKey: "0", EnableFailingPolicies: true}},
+				{ProjectKey: "0", EnableFailingPolicies: true},
+				{ProjectKey: "1", EnableFailingPolicies: false}, // the team integration will use the project keys 1-3
+				{ProjectKey: "2", EnableFailingPolicies: false},
+				{ProjectKey: "3", EnableFailingPolicies: false},
 			},
 		}}, nil
 	}
@@ -290,6 +293,6 @@ func TestJiraRunClientUpdate(t *testing.T) {
 
 	// it should've created 3 clients - the global one, and the first 2 calls with team 123
 	require.Equal(t, []string{"0", "1", "2"}, projectKeys)
-	require.Equal(t, 2, globalCount)
+	require.Equal(t, 5, globalCount) // app config is requested every time
 	require.Equal(t, 3, teamCount)
 }
