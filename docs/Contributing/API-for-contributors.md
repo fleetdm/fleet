@@ -729,7 +729,7 @@ This replaces the active global enroll secrets with the secrets specified.
 
 ### Search targets
 
-Accepts a search query and a list host IDs to omit and returns a set of up to ten matching hosts. If
+Accepts a search query and a list of host IDs to omit and returns a set of up to ten matching hosts. If
 a query ID is provided and the referenced query allows observers to run, targets will include hosts
 for which the user has an observer role.
 
@@ -740,7 +740,7 @@ for which the user has an observer role.
 | Name              | Type    | In   | Description                                                                                                                                      |
 |-------------------|---------|------|--------------------------------------------------------------------------------------------------------------------------------------------------|
 | query             | string  | body | The query used to identify hosts to target. Searchable items include a host's hostname or IPv4 address.                                          |
-| query_id          | integer | body | The saved query (if any) that will be run. The `observer_can_run` property on the query and the user's roles effect which targets are included.  |
+| query_id          | integer | body | The saved query (if any) that will be run. The `observer_can_run` property on the query and the user's roles affect which targets are included.  |
 | excluded_host_ids | array   | body | The list of host ids to omit from the search results.                                                           |
 
 #### Example
