@@ -3,13 +3,17 @@
 // keep a count of active hosts so that a limit can be applied.
 package mysqlredis
 
-import "github.com/fleetdm/fleet/v4/server/fleet"
+import (
+	"github.com/fleetdm/fleet/v4/server/fleet"
+	kitlog "github.com/go-kit/kit/log"
+)
 
 // Datastore is the mysqlredis datastore type - it wraps the fleet.Datastore
 // interface to keep track of enrolled hosts and extends it to implement the
 // fleet.EnrollHostLimiter interface which indicates when the limit is
 // reached.
 type Datastore struct {
+	Logger kitlog.Logger
 	fleet.Datastore
 	pool fleet.RedisPool
 

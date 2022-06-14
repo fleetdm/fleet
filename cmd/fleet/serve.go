@@ -298,6 +298,7 @@ the way that the Fleet server works.
 				level.Info(logger).Log("enforce_host_limit", "true", "device_count", license.DeviceCount)
 			}
 			redisWrapperDS := mysqlredis.New(ds, redisPool, dsOpts...)
+			redisWrapperDS.Logger = logger
 			ds = redisWrapperDS
 
 			resultStore := pubsub.NewRedisQueryResults(redisPool, config.Redis.DuplicateResults)

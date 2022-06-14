@@ -8,6 +8,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/logging"
 	"github.com/fleetdm/fleet/v4/server/datastore/redis"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/go-kit/kit/log/level"
 	redigo "github.com/gomodule/redigo/redis"
 )
 
@@ -46,6 +47,7 @@ func (d *Datastore) SyncEnrolledHostIDs(ctx context.Context) error {
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "count enrolled hosts from redis")
 	}
+	level.Debug(d.Logger).Log("enforce_host_limit", "true", "sync_enrolled_host_ids:dbCount", dbCount, "sync_enrolled_host_ids:redisCount", redisCount)
 
 	if redisCount == dbCount {
 		return nil
@@ -118,6 +120,7 @@ func (d *Datastore) checkCanAddHost(ctx context.Context) (bool, error) {
 	if err != nil {
 		return false, ctxerr.Wrap(ctx, err, "enrolled limits: check can add host")
 	}
+	level.Debug(d.Logger).Log("enforce_host_limit", "true", "check_can_add_host:redisCount", n)
 	if n >= d.enforceHostLimit {
 		return false, nil
 	}
