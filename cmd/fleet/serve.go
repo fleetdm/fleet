@@ -295,6 +295,7 @@ the way that the Fleet server works.
 			var dsOpts []mysqlredis.Option
 			if license.DeviceCount > 0 && config.License.EnforceHostLimit {
 				dsOpts = append(dsOpts, mysqlredis.WithEnforcedHostLimit(license.DeviceCount))
+				level.Info(logger).Log("enforce_host_limit", "true", "device_count", license.DeviceCount)
 			}
 			redisWrapperDS := mysqlredis.New(ds, redisPool, dsOpts...)
 			ds = redisWrapperDS

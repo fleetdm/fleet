@@ -121,11 +121,11 @@ resource "aws_ecs_task_definition" "backend" {
           {
             name      = "FLEET_MYSQL_READ_REPLICA_PASSWORD"
             valueFrom = aws_secretsmanager_secret.database_password_secret.arn
-          },
-          {
-            name      = "FLEET_LICENSE_KEY"
-            valueFrom = data.aws_secretsmanager_secret.license.arn
           }
+          //{
+          //  name      = "FLEET_LICENSE_KEY"
+          //  valueFrom = data.aws_secretsmanager_secret.license.arn
+          //}
         ]
         environment = concat([
           {
