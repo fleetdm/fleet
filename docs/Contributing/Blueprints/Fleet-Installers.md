@@ -102,13 +102,15 @@ All the APIs must be rate-limited to prevent abuse of the system.
 
 #### 1. Package creation
 
-`POST /api/v1/fleet/create`
+`POST /create`
 
 This endpoint will perform the following operations:
 1. Check if a `package_id` already exists (and hasn't been expired) with the exact same arguments, if so, return HTTP 200 with the `package_id`.
 2. Generate a [random](https://en.wikipedia.org/wiki/Universally_unique_identifier#Version_4_(random)) `package_id`.
 3. Dispacth the creation of a package with ID set to `package_id` and the given request parameters.
 4. Return HTTP 200 with the `package_id`.
+
+This endpoint, which is the entrypoint, should be rate-limited by IP.
 
 ##### Request Fields
 
@@ -137,16 +139,18 @@ This endpoint will perform the following operations:
 
 #### 2. Package Status Check
 
-`GET /api/v1/fleet/status`
+`GET /status`
 
 This endpoint allows checking the status of a package being created.
 Clients can poll for the status of a package using this API.
+
+This endpoint should be rate-limited by `package_id`.
 
 ##### Request Fields
 
 | Name              | Type    | In    | Description                                                              |
 | ----------------- | ------- | ----- | ------------------------------------------------------------------------ |
-| package_id        | string  | query | **Required.** ID of the package created with `POST /api/v1/fleet/create` |
+| package_id        | string  | query | **Required.** ID of the package created with `POST /create` |
 
 ##### Response Fields
 
@@ -159,9 +163,11 @@ Clients can poll for the status of a package using this API.
 
 #### 3. Package Download
 
-`GET /api/v1/fleet/download/{package_id}`
+`GET /download/{package_id}`
 
 This is the API to download the generated package.
+
+This endpoint should be rate-limited by `package_id`.
 
 ## Sequence Diagram
 
@@ -171,11 +177,11 @@ Following is the sequence diagram for the happy-path.
 sequenceDiagram
     User-Agent/Browser->>Fleet: GET /api/v1/fleet/config
     Fleet-->>User-Agent/Browser: packager_url
-    User-Agent/Browser->>Packager: POST /api/v1/fleet/create
+    User-Agent/Browser->>Packager: POST /create
     Packager-->>User-Agent/Browser: package_id
     Packager-->>TUF Server: Fetch targets
     loop
-        User-Agent/Browser->>Packager: GET /api/v1/fleet/status
+        User-Agent/Browser->>Packager: GET /status
         Packager-->>User-Agent/Browser: status == "in-progress"
         Note over User-Agent/Browser: Retry every ~10 seconds,<br>until status is "success"
         TUF Server->>Packager: Targets
@@ -192,7 +198,7 @@ sequenceDiagram
             end
         end
     end
-    User-Agent/Browser->>Packager: GET /api/v1/fleet/download/{package_id}
+    User-Agent/Browser->>Packager: GET /download/{package_id}
     Packager-->>User-Agent/Browser: Package File
 ```
 
