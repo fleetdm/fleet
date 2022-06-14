@@ -25,8 +25,9 @@ As the goal states, we would like to provide functionality in Fleet to automatic
 ## How
 
 We can implement such functionality in two ways:
-A. Fleet Server to generate such packages itself.
-B. A separate "Packager" service.
+
+- Option A. Fleet Server to generate such packages itself.
+- Option B. Separate "Packager" service.
 
 There's a lot of platform specific logic and tooling involved in packaging, and one of Fleet's primary goals is to keep deployment/infrastructure simple for On-Prem deployments.
 To that end, we believe the best option is Option B, implementing the functionality as a separate service.
@@ -66,6 +67,7 @@ The generated packages should be stored on encrypted disk and will expire (will 
 There are two reasons we want to expire generated packages soon:
 1. To not store user credentials for too long (URL and enroll secret).
 2. To free up space.
+
 We can use "Storage Optimized" instances (see https://aws.amazon.com/ec2/instance-types/).
 
 PS: As a possible future optimization, we could use "Memory Optimized" instances and store packages in RAM instead of using hard disk.
@@ -74,7 +76,7 @@ PS: As a possible future optimization, we could use "Memory Optimized" instances
 
 - `.pkg`s use ~70MB of storage.
 - `.msi`s use ~20MB of storage.
-- `.deb|rpm` use ~75MB of storage.
+- `.deb`s and `.rpm`s use ~75MB of storage.
 
 Assuming the worst case of ~75 MB for each package:
 If we have a ~30TB hard disk, it would allow storing ~400_000 packages simultaneously.
@@ -82,14 +84,16 @@ If we have a ~30TB hard disk, it would allow storing ~400_000 packages simultane
 ### Network & Credentials
 
 The service will require network access to (URLs provided via config):
-    - TUF server.
-    - Apple's Notary Server (for generating `.pkg`).
+
+- TUF server.
+- Apple's Notary Server (for generating `.pkg`).
 
 The packaging service will need the following credentials (provided via config):
-    - Apple credentials:
-      - Codesign identity.
-      - Username and Password for notarization.
-    - TUF server update roots (default will be the hardcoded one for FleetDM's hosted TUF server, tuf.fleetctl.com).
+
+- Apple credentials:
+  - Codesign identity.
+  - Username and Password for notarization.
+- TUF server update roots (default will be the hardcoded one for FleetDM's hosted TUF server, tuf.fleetctl.com).
 
 ### Packager REST API
 
@@ -230,25 +234,28 @@ Total: ~1 minute.
 ### macOS
 
 There are two operations **required** to have a proper macOS installer package (`.pkg`):
-    1. Code signing: Used by Gatekeeper to verify the author of the package (identified by Developer ID)
-    2. Notarization: "Gives users more confidence that the Developer ID-signed software you distribute has been checked by Apple for malicious components."
+
+1. Code signing: Used by Gatekeeper to verify the author of the package (identified by Developer ID)
+2. Notarization: "Gives users more confidence that the Developer ID-signed software you distribute has been checked by Apple for malicious components."
 
 The packages are composed by three TUF targets: osquery, Orbit and Fleet Desktop.
 
 All the TUF targets served by FleetDM's TUF server are signed and notarized:
-    - osquery: signed and notarized .app (by Osquery)
-    - Orbit: signed and notarized executable (by Fleet DM)
-    - fleet-desktop: signed and notarized .app (by Fleet DM)
+
+- osquery: signed and notarized .app (by Osquery)
+- Orbit: signed and notarized executable (by Fleet DM)
+- fleet-desktop: signed and notarized .app (by Fleet DM)
 
 Even if all targets are signed and notarized we must still sign and notarize the `.pkg` installer as a whole, see [#122045](https://developer.apple.com/forums/thread/122045).
 
 #### Notarization
 
 The Notarization process can be summarized to the following steps:
-	1. Submit/Upload the **signed** package to the Notary Server.
-	2. Notary server performs automated security checks.
-	3. Notary generates a ticket, publishes ticket online (so that Gatekeeper can find it) and returns the ticket.
-	4. Ticket can be stapled to your software to let Gatekeeper know it has been notarized.
+
+1. Submit/Upload the **signed** package to the Notary Server.
+2. Notary server performs automated security checks.
+3. Notary generates a ticket, publishes ticket online (so that Gatekeeper can find it) and returns the ticket.
+4. Ticket can be stapled to your software to let Gatekeeper know it has been notarized.
 
 ##### Notarization Limitations
 
@@ -363,6 +370,7 @@ Attackers could enroll their devices to users' Fleet deployment. What then? Can 
 ## Sandbox/Demo & Cloud
 
 The design supports the following deployments:
+
 - Fleet On-Prem running with FleetDM's Packager and TUF.
 - Fleet On-Prem running with On-Prem Packager with FleetDM's TUF server.
 - Fleet On-Prem running with On-Prem Packager with On-Prem TUF server.
