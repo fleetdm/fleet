@@ -781,6 +781,7 @@ func main() {
 		"mac10.14.6.tmpl",
 
 		// Uncomment this to add ubuntu hosts with vulnerable software
+		// "partial_ubuntu.tmpl",
 		// "ubuntu_16.04.tmpl",
 		// "ubuntu_18.04.tmpl",
 		// "ubuntu_20.04.tmpl",
@@ -813,6 +814,9 @@ func main() {
 
 	for i := 0; i < *hostCount; i++ {
 		tmpl := tmpls[i%len(tmpls)]
+		if strings.HasPrefix(tmpl.Name(), "partial") {
+			continue
+		}
 		a := newAgent(i+1, *serverURL, *enrollSecret, tmpl, *configInterval, *queryInterval,
 			softwareEntityCount{
 				entityCount: entityCount{

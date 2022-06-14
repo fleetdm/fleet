@@ -48,7 +48,7 @@ func withTestFixture(
 	}
 
 	extractFixtures := func(p Platform) {
-		fixtPath := "../testdata/ubuntu"
+		fixtPath := filepath.Join("..", "testdata", "ubuntu")
 
 		srcDefPath := filepath.Join(fixtPath, fmt.Sprintf("%s-oval_def.json.bz2", p))
 		dstDefPath := filepath.Join(vulnPath, p.ToFilename(time.Now(), "json"))
