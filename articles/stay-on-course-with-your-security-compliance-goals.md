@@ -49,6 +49,7 @@ Fleet policies, teams, and permissions empower employees at every level of your 
 
 <meta name="category" value="product">
 <meta name="authorFullName" value="Chris McGillicuddy">
+<meta name="authorGitHubUsername" value="fleetdm">
 <meta name="publishedOn" value="2022-06-14">
 <meta name="articleTitle" value="Stay on course with your security compliance goals">
 <meta name="articleImageUrl" value="../website/assets/images/articles/fleet-4.15.0-cover-1600x900@2x.jpg">
