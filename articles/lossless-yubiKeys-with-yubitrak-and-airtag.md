@@ -1,9 +1,12 @@
-# Keeping track of YubiKeys
+# Lossless YubiKeys with Yubitrak and AirTag
 As a long-time fan of the [FIDO Alliance](https://fidoalliance.org/), I have built quite a collection of hardware security keys over the years.
 
 I can currently count four on my desk, five if my [Flipper](https://flipperzero.one/) counts.
 
 I used to need multiple keys not just for backup purposes but also to access accounts from different devices. USB-A, USB-C, Bluetooth, NFC, you name it. Thanks to the adoption of USB-C and NFC, I could finally get rid of most of the keys and standardize on one model: the [YubiKey 5C NFC](https://www.yubico.com/ca/product/yubikey-5c-nfc/). 
+
+![Locate device assets in the event of an emergency](../website/assets/images/articles/lossless-yubikeys-with-yubitrak-and-airtag-2-2016x1512@2x.jpeg)
+
 
 It works on my Mac and iPad Pro via USB-C and my phone via NFC. So now that I only need two keys for backup purposes, I can finally get rid of an extensive note in my password manager that tracked which key is connected to which account. 
 
@@ -20,7 +23,7 @@ We brainstormed a few ideas, but it quickly became apparent that we could not st
 Then, we needed to find a way to keep the key secure. Fortunately, the key already has a keychain hole, so Alex suggested adding a pin to completely secure the key to the top and bottom parts of this contraption.
 
 
-![Contraption connected](../website/assets/images/articles/keeping-track-of-yubikeys-5c_nfc_connected.jpeg)
+
 
 The increased size will help me not lose the key in my office, so I expect I'll have to use the AirTag functionality rarely. 
 
@@ -36,5 +39,5 @@ If you think this could be a good idea as conference swag, let us know in the [#
 <meta name="authorGitHubUsername" value="GuillaumeRoss">
 <meta name="authorFullName" value="Guillaume Ross">
 <meta name="publishedOn" value="2022-06-16">
-<meta name="articleTitle" value="Keeping track of YubiKeys">
-<meta name="articleImageUrl" value="../website/assets/images/articles/keeping-track-of-yubikeys-5c_nfc_connected.jpeg">
+<meta name="articleTitle" value="Lossless YubiKeys with Yubitrak and AirTag">
+<meta name="articleImageUrl" value="../website/assets/images/articles/lossless-yubikeys-with-yubitrak-and-airtag-cover-2016x1512@2x.jpeg">
