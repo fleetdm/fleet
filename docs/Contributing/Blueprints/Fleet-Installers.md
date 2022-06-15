@@ -272,7 +272,7 @@ Though Zach has ran the following test with no issues:
 > I was able to Notarize ~200 packages in under 12 hours yesterday with no apparent limiting. 
 > Note this was using the older Notarization API (slower, about 3 mins per notarization).
 
-#### Future Optimization for Notarization
+#### Future Optimizations for Notarization
 
 This is the current structure of a `.pkg` generated with `fleetctl package` (unsigned and unnotarized):
 ```sh
@@ -328,17 +328,42 @@ pkg_expanded
             └── tuf-metadata.json
 ```
 
-Worth mentioning that the only files that really change when users generate a pkg are:
-  - Library/LaunchDaemons/com.fleetdm.orbit.plist (contains the configuration, like URLs, etc.)
-  - opt/orbit/secret.txt (enroll secret)
+##### Remove Unnecessary Files
 
 The `osqueryd.app.tar.gz` and `desktop.app.tar.gz`  files are used by Orbit to compare with remote targets when checking for updates.
 A future optimization could replace those `.app.tar.gz` files with a txt file with the hash of such file
 (would reduce ~30MB of uncompressed size reduction for the `.pkg`).
 
+##### Notarized Package without Configs
+
+The only files that really change when users generate a pkg are:
+- Library/LaunchDaemons/com.fleetdm.orbit.plist (contains the configuration, like URLs, update channels, etc.)
+- opt/orbit/secret.txt (enroll secret)
+
+Another idea to consider could be packaging and notarizing code and scripts, but leave specific configs out of the `.pkg`.
+Problem: We would need to solve how to apply the additional configuration (the two files above) to installed packages.
+
+From [#122512](https://developer.apple.com/forums/thread/122512):
+
+> I thought there might be some apple approved way of adding extra information to a package.
+
+>> No. The notarisation ticket covers the code signature of the package, and the code signature of the package covers the
+>> effective contents of that package. This is pretty much required. For example, one of your goals is to tweak the install scripts,
+>> but such scripts execute with enormous privileges and thus must be covered by the code signature, and thus covered by the notarisation ticket.
+
+---
+
+> Is there a Apple recommended method to provide custom packages for different customers?
+> Some way to add additional parameters to a package without breaking the notarizartion/signing of it?
+
+>> Option 2) Change your distribution strategy to distribute a static executable.
+>> Download any customer-specific resources and store them in /Library/Application Support.
+
 ### Windows
 
 Currently we don't support signing of the MSI installers in `fleetctl package`. But this functionality could be added both to the command and the service.
+From Zach:
+> When we decide to support this (which we should do soon), we can use https://github.com/mtrojnar/osslsigncode.
 
 ## Service Implementation
 
