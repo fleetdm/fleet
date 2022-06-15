@@ -1,6 +1,8 @@
 package oval_parsed
 
 import (
+	"fmt"
+
 	"github.com/fleetdm/fleet/v4/server/fleet"
 )
 
@@ -29,7 +31,11 @@ func (r Definition) Eval(OSTstResults map[int]bool, pkgTstResults map[int][]flee
 		return false
 	}
 
-	return evalCriteria(r.Criteria, OSTstResults, pkgTstResults)
+	rEval, err := evalCriteria(r.Criteria, OSTstResults, pkgTstResults)
+	if err != nil {
+		return false
+	}
+	return rEval
 }
 
 func (r Definition) CollectTestIds() []int {
@@ -50,27 +56,35 @@ func (r Definition) CollectTestIds() []int {
 	return results
 }
 
-func evalCriteria(c *Criteria, OSTstResults map[int]bool, pkgTstResults map[int][]fleet.Software) bool {
+func evalCriteria(c *Criteria, OSTstResults map[int]bool, pkgTstResults map[int][]fleet.Software) (bool, error) {
 	var vals []bool
 	var result bool
 
 	for _, co := range c.Criteriums {
-		if _, ok := pkgTstResults[co]; ok {
-			r := len(pkgTstResults[co]) > 0
-			vals = append(vals, r)
+		pkgTstR, pkgOk := pkgTstResults[co]
+		if pkgOk {
+			vals = append(vals, len(pkgTstR) > 0)
 		}
 
-		if v, ok := OSTstResults[co]; ok {
-			vals = append(vals, v)
+		OSTstR, OSTstOk := OSTstResults[co]
+		if OSTstOk {
+			vals = append(vals, OSTstR)
+		}
+
+		if !pkgOk && !OSTstOk {
+			return false, fmt.Errorf("test not found: %d", co)
 		}
 	}
 
 	result = c.Operator.Eval(vals...)
 
 	for _, ci := range c.Criterias {
-		rEval := evalCriteria(ci, OSTstResults, pkgTstResults)
+		rEval, err := evalCriteria(ci, OSTstResults, pkgTstResults)
+		if err != nil {
+			return false, err
+		}
 		result = c.Operator.Eval(result, rEval)
 	}
 
-	return result
+	return result, nil
 }

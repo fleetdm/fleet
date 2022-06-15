@@ -70,7 +70,7 @@ func TestOvalParsedDefinition(t *testing.T) {
 			}
 		})
 
-		t.Run("evaluating logic tree", func(t *testing.T) {
+		t.Run("simple logic tree", func(t *testing.T) {
 			//     OR
 			//  /   |   \
 			// 1:F 2:F AND
@@ -102,6 +102,31 @@ func TestOvalParsedDefinition(t *testing.T) {
 			}
 
 			require.True(t, sut.Eval(OSTsts, pkgTsts))
+		})
+
+		t.Run("tree reference non-existing test", func(t *testing.T) {
+			//       OR
+			//  /     |     \
+			// 1:n/a  2:F   3:T
+
+			root := Criteria{
+				Or,
+				[]int{1, 2, 3},
+				nil,
+			}
+
+			OSTsts := make(map[int]bool)
+			pkgTsts := map[int][]fleet.Software{
+				2: nil,
+				3: {{ID: 2}},
+			}
+
+			sut := Definition{
+				&root,
+				nil,
+			}
+
+			require.False(t, sut.Eval(OSTsts, pkgTsts))
 		})
 
 		t.Run("deep tree", func(t *testing.T) {

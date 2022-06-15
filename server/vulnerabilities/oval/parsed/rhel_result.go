@@ -26,7 +26,6 @@ func (r RhelResult) Eval(ver fleet.OSVersion, software []fleet.Software) ([]flee
 		if err != nil {
 			return nil, err
 		}
-
 		pkgTstResults[i] = rEval
 	}
 
@@ -37,7 +36,6 @@ func (r RhelResult) Eval(ver fleet.OSVersion, software []fleet.Software) ([]flee
 		if err != nil {
 			return nil, err
 		}
-
 		OSTstResults[i] = rEval
 	}
 
