@@ -15,7 +15,7 @@ import {
   useSortBy,
   useTable,
 } from "react-table";
-import { kebabCase, noop } from "lodash";
+import { kebabCase, noop, omit, pick } from "lodash";
 import { useDebouncedCallback } from "use-debounce";
 
 import useDeepEffect from "hooks/useDeepEffect";
@@ -317,9 +317,16 @@ const DataTable = ({
   );
 
   const renderColumnHeader = (column: HeaderGroup) => {
+    // if there is a column filter, we want the `onClick` event listener attached
+    // just to the child title span so that clicking into the column filter input
+    // doesn't also sort the column
+    const spanProps = column.Filter
+      ? pick(column.getSortByToggleProps(), "onClick")
+      : {};
+
     return (
       <div className="column-header">
-        {column.render("Header")}
+        <span {...spanProps}>{column.render("Header")}</span>
         {column.Filter && column.render("Filter")}
       </div>
     );
@@ -487,14 +494,24 @@ const DataTable = ({
           <thead>
             {headerGroups.map((headerGroup) => (
               <tr {...headerGroup.getHeaderGroupProps()}>
-                {headerGroup.headers.map((column) => (
-                  <th
-                    className={column.id ? `${column.id}__header` : ""}
-                    {...column.getHeaderProps(column.getSortByToggleProps())}
-                  >
-                    {renderColumnHeader(column)}
-                  </th>
-                ))}
+                {headerGroup.headers.map((column) => {
+                  let thProps = column.getSortByToggleProps();
+                  if (column.Filter) {
+                    // if there is a column filter, we want the `onClick` event listener attached
+                    // just to the child title span so that clicking into the column filter input
+                    // doesn't also sort the column
+                    thProps = omit(thProps, "onClick");
+                  }
+
+                  return (
+                    <th
+                      className={column.id ? `${column.id}__header` : ""}
+                      {...thProps}
+                    >
+                      {renderColumnHeader(column)}
+                    </th>
+                  );
+                })}
               </tr>
             ))}
           </thead>
