@@ -288,7 +288,7 @@ To downgrade from Fleet Premium to Fleet Free, do the following steps:
 - Back up all user roles by running `fleetctl get user_roles > user_roles.yml`
   - Why? User roles can be reset using `fleetctl apply -f user_roles.yml` if you upgrade later.
 - Update all users so that they have global access. If a user shouldn't have global access delete this user. 
-  - Why? Users with team level access won't be able to see any hosts following the downgrade process.
+  - Why? Users with team-level access won't be able to see any hosts following the downgrade process.
 
 ### Scheduled queries
 - Manually move any scheduled queries that belong to a team to the global "All teams" level.
