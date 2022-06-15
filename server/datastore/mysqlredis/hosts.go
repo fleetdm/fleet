@@ -66,6 +66,7 @@ func (d *Datastore) SyncEnrolledHostIDs(ctx context.Context) error {
 	// return the connection to the pool so it can be reused in addHosts
 	conn.Close()
 
+	level.Debug(d.Logger).Log("enforce_host_limit", "true", "sync_enrolled_host_ids:addHosts", ids)
 	if err := addHosts(ctx, d.pool, ids...); err != nil {
 		return ctxerr.Wrap(ctx, err, "add database host IDs to the redis set")
 	}
@@ -130,6 +131,7 @@ func (d *Datastore) checkCanAddHost(ctx context.Context) (bool, error) {
 func (d *Datastore) NewHost(ctx context.Context, host *fleet.Host) (*fleet.Host, error) {
 	h, err := d.Datastore.NewHost(ctx, host)
 	if err == nil && d.enforceHostLimit > 0 {
+		level.Debug(d.Logger).Log("enforce_host_limit", "true", "new_host:id", h.ID)
 		if err := addHosts(ctx, d.pool, h.ID); err != nil {
 			logging.WithErr(ctx, err)
 		}
@@ -140,6 +142,7 @@ func (d *Datastore) NewHost(ctx context.Context, host *fleet.Host) (*fleet.Host,
 func (d *Datastore) EnrollHost(ctx context.Context, osqueryHostID, nodeKey string, teamID *uint, cooldown time.Duration) (*fleet.Host, error) {
 	h, err := d.Datastore.EnrollHost(ctx, osqueryHostID, nodeKey, teamID, cooldown)
 	if err == nil && d.enforceHostLimit > 0 {
+		level.Debug(d.Logger).Log("enforce_host_limit", "true", "enroll_host:id", h.ID)
 		if err := addHosts(ctx, d.pool, h.ID); err != nil {
 			logging.WithErr(ctx, err)
 		}
@@ -150,6 +153,7 @@ func (d *Datastore) EnrollHost(ctx context.Context, osqueryHostID, nodeKey strin
 func (d *Datastore) DeleteHost(ctx context.Context, hid uint) error {
 	err := d.Datastore.DeleteHost(ctx, hid)
 	if err == nil && d.enforceHostLimit > 0 {
+		level.Debug(d.Logger).Log("enforce_host_limit", "true", "delete_host:id", hid)
 		if err := removeHosts(ctx, d.pool, hid); err != nil {
 			logging.WithErr(ctx, err)
 		}
@@ -160,6 +164,7 @@ func (d *Datastore) DeleteHost(ctx context.Context, hid uint) error {
 func (d *Datastore) DeleteHosts(ctx context.Context, ids []uint) error {
 	err := d.Datastore.DeleteHosts(ctx, ids)
 	if err == nil && d.enforceHostLimit > 0 {
+		level.Debug(d.Logger).Log("enforce_host_limit", "true", "delete_hosts:ids", ids)
 		if err := removeHosts(ctx, d.pool, ids...); err != nil {
 			logging.WithErr(ctx, err)
 		}
@@ -170,6 +175,7 @@ func (d *Datastore) DeleteHosts(ctx context.Context, ids []uint) error {
 func (d *Datastore) CleanupExpiredHosts(ctx context.Context) ([]uint, error) {
 	ids, err := d.Datastore.CleanupExpiredHosts(ctx)
 	if err == nil && d.enforceHostLimit > 0 {
+		level.Debug(d.Logger).Log("enforce_host_limit", "true", "cleanup_expired_hosts:ids", ids)
 		if err := removeHosts(ctx, d.pool, ids...); err != nil {
 			logging.WithErr(ctx, err)
 		}
@@ -180,6 +186,7 @@ func (d *Datastore) CleanupExpiredHosts(ctx context.Context) ([]uint, error) {
 func (d *Datastore) CleanupIncomingHosts(ctx context.Context, now time.Time) ([]uint, error) {
 	ids, err := d.Datastore.CleanupIncomingHosts(ctx, now)
 	if err == nil && d.enforceHostLimit > 0 {
+		level.Debug(d.Logger).Log("enforce_host_limit", "true", "cleanup_incoming_hosts:ids", ids)
 		if err := removeHosts(ctx, d.pool, ids...); err != nil {
 			logging.WithErr(ctx, err)
 		}
