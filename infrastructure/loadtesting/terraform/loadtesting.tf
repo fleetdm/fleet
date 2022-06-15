@@ -47,9 +47,9 @@ resource "aws_ecs_task_definition" "loadtest" {
             awslogs-stream-prefix = "loadtest"
           }
         },
-        workingDirectory = "/go/fleet",
+        workingDirectory = "/go",
         command = [
-          "go", "run", "/go/fleet/cmd/osquery-perf/agent.go",
+          "/go/osquery-perf",
           "-enroll_secret", data.aws_secretsmanager_secret_version.enroll_secret.secret_string,
           "-host_count", "5000",
           "-server_url", "http://${aws_lb.internal.dns_name}",

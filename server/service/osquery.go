@@ -126,6 +126,13 @@ func (svc *Service) EnrollAgent(ctx context.Context, enrollSecret, hostIdentifie
 	}
 
 	hostIdentifier = getHostIdentifier(svc.logger, svc.config.Osquery.HostIdentifier, hostIdentifier, hostDetails)
+	canEnroll, err := svc.enrollHostLimiter.CanEnrollNewHost(ctx)
+	if err != nil {
+		return "", osqueryError{message: "can enroll host check failed: " + err.Error(), nodeInvalid: true}
+	}
+	if !canEnroll {
+		return "", osqueryError{message: fmt.Sprintf("enroll host failed: maximum number of hosts reached: %d", svc.license.DeviceCount), nodeInvalid: true}
+	}
 
 	host, err := svc.ds.EnrollHost(ctx, hostIdentifier, nodeKey, secret.TeamID, svc.config.Osquery.EnrollCooldown)
 	if err != nil {

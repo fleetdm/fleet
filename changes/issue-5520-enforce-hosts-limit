@@ -1,0 +1,1 @@
+* Added verification of the hosts' limit of the license for Fleet Cloud Demo, preventing enrollment of new hosts when the limit is reached.

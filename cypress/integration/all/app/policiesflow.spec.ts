@@ -400,6 +400,29 @@ describe("Policies flow (seeded)", () => {
       cy.getAttached(".manage-automations-modal").within(() => {
         cy.getAttached(".fleet-checkbox__input").should("be.checked");
       });
+      // reset slider for subsequent tests
+      cy.getAttached(".manage-automations-modal").within(() => {
+        cy.getAttached(".fleet-slider").click();
+      });
+      cy.findByRole("button", { name: /^Save$/ }).click();
+    });
+    it("creates a failing policies integration", () => {
+      cy.getAttached(".button-wrap").within(() => {
+        cy.findByRole("button", { name: /manage automations/i }).click();
+      });
+      cy.getAttached(".manage-automations-modal").within(() => {
+        cy.getAttached(".fleet-slider").click();
+        cy.getAttached(".fleet-checkbox__input").check({ force: true });
+      });
+      cy.getAttached("#ticket-radio-btn").next().click();
+
+      cy.findByText(/you have no integrations/i).should("exist");
+      cy.getAttached(".manage-automations-modal__add-integration-link").click();
+      // should be redirected to integrations settings page
+      cy.getAttached(".table-container").within(() => {
+        cy.findByText(/set up integration/i).should("exist");
+      });
+      // TODO: add tests for selecting integration
     });
   });
   describe("Platform compatibility", () => {
