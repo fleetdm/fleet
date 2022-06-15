@@ -39,7 +39,7 @@ parasails.registerComponent('callToAction', {
       calltoActionPrimaryBtnHref,
       calltoActionSecondaryBtnText,
       calltoActionSecondaryBtnHref
-    }
+    };
   },
 
   //  ╦ ╦╔╦╗╔╦╗╦
@@ -70,22 +70,22 @@ parasails.registerComponent('callToAction', {
     if (this.title) {
       this.callToActionTitle = this.title;
     } else {
-      throw new Error('Incomplete usage of <call-to-action>: Please provide a `title` example: title="Secure laptops & servers"')
+      throw new Error('Incomplete usage of <call-to-action>: Please provide a `title` example: title="Secure laptops & servers"');
     }
     if (this.text) {
       this.callToActionText = this.text;
     } else {
-      throw new Error('Incomplete usage of <call-to-action>: Please provide a `text` example: text="Get up and running with a test environment of Fleet within minutes"')
+      throw new Error('Incomplete usage of <call-to-action>: Please provide a `text` example: text="Get up and running with a test environment of Fleet within minutes"');
     }
     if (this.primaryButtonText) {
       this.calltoActionPrimaryBtnText = this.primaryButtonText;
     } else {
-      throw new Error('Incomplete usage of <call-to-action>: Please provide a `primaryButtonText`. example: primary-button-text="Get started"')
+      throw new Error('Incomplete usage of <call-to-action>: Please provide a `primaryButtonText`. example: primary-button-text="Get started"');
     }
     if (this.primaryButtonHref) {
       this.calltoActionPrimaryBtnHref = this.primaryButtonHref;
     } else {
-      throw new Error('Incomplete usage of <call-to-action>: Please provide a `primaryButtonHref` example: primary-button-href="/get-started?try-it-now"')
+      throw new Error('Incomplete usage of <call-to-action>: Please provide a `primaryButtonHref` example: primary-button-href="/get-started?try-it-now"');
     }
     if (this.secondaryButtonText) {
       this.calltoActionSecondaryBtnText = this.secondaryButtonText;
