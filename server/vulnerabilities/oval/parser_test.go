@@ -359,7 +359,7 @@ func TestOvalParser(t *testing.T) {
 				expectedTestIds = append(expectedTestIds, tstId)
 			}
 			for _, v := range d.Vulnerabilities {
-				expectedVulns = append(expectedVulns, string(v.Id))
+				expectedVulns = append(expectedVulns, v.Id)
 			}
 		}
 
@@ -567,7 +567,7 @@ func TestOvalParser(t *testing.T) {
 		var expectedVulns []string
 		for _, d := range xmlResult.Definitions {
 			for _, v := range d.Vulnerabilities {
-				expectedVulns = append(expectedVulns, string(v.Id))
+				expectedVulns = append(expectedVulns, v.Id)
 			}
 		}
 

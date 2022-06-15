@@ -57,37 +57,40 @@ func TestObjectInfoState(t *testing.T) {
 			}
 		})
 
-		t.Run("epoch", func(t *testing.T) {
-			epoch := NewObjectStateSimpleValue(Int.String(), Equals.String(), "0")
-			sut := ObjectInfoState{Operator: And, Epoch: &epoch}
-			testCases := []struct {
-				software fleet.Software
-				expected bool
-			}{
-				{
-					software: fleet.Software{Version: "0:123-3"},
-					expected: true,
-				},
-				{
-					software: fleet.Software{Version: "123"},
-					expected: true,
-				},
-				{
-					software: fleet.Software{Version: ""},
-					expected: true,
-				},
-				{
-					software: fleet.Software{Version: "1:123"},
-					expected: false,
-				},
-			}
+		// TODO: see https://github.com/fleetdm/fleet/issues/6236 -
+		// For RHEL based systems the epoch is not included in the version field
 
-			for _, tCase := range testCases {
-				r, err := sut.EvalSoftware(tCase.software)
-				require.NoError(t, err)
-				require.Equal(t, tCase.expected, r)
-			}
-		})
+		// t.Run("epoch", func(t *testing.T) {
+		// 	epoch := NewObjectStateSimpleValue(Int.String(), Equals.String(), "0")
+		// 	sut := ObjectInfoState{Operator: And, Epoch: &epoch}
+		// 	testCases := []struct {
+		// 		software fleet.Software
+		// 		expected bool
+		// 	}{
+		// 		{
+		// 			software: fleet.Software{Version: "0:123-3"},
+		// 			expected: true,
+		// 		},
+		// 		{
+		// 			software: fleet.Software{Version: "123"},
+		// 			expected: true,
+		// 		},
+		// 		{
+		// 			software: fleet.Software{Version: ""},
+		// 			expected: true,
+		// 		},
+		// 		{
+		// 			software: fleet.Software{Version: "1:123"},
+		// 			expected: false,
+		// 		},
+		// 	}
+
+		// 	for _, tCase := range testCases {
+		// 		r, err := sut.EvalSoftware(tCase.software)
+		// 		require.NoError(t, err)
+		// 		require.Equal(t, tCase.expected, r)
+		// 	}
+		// })
 
 		t.Run("release", func(t *testing.T) {
 			release := NewObjectStateSimpleValue(String.String(), Equals.String(), "0")

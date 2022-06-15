@@ -20,7 +20,7 @@ func extractId(idStr string) (int, error) {
 // no Vulnerabilities.
 func mapDefinition(i oval_input.DefinitionXML) (*oval_parsed.Definition, error) {
 	if len(i.Vulnerabilities) == 0 {
-		return nil, fmt.Errorf("definition contains no vulnerabilities")
+		return nil, errors.New("definition contains no vulnerabilities")
 	}
 
 	r := oval_parsed.Definition{}
@@ -42,7 +42,7 @@ func mapDefinition(i oval_input.DefinitionXML) (*oval_parsed.Definition, error) 
 // or if any of the Criteria contains no Criteriums nor nested Criterias
 func mapCriteria(i oval_input.CriteriaXML) (*oval_parsed.Criteria, error) {
 	if len(i.Criteriums) == 0 && len(i.Criterias) == 0 {
-		return nil, fmt.Errorf("invalid Criteria, no Criteriums nor nested Criterias found")
+		return nil, errors.New("invalid Criteria, no Criteriums nor nested Criterias found")
 	}
 
 	criteria := oval_parsed.Criteria{
@@ -143,7 +143,7 @@ func mapRpmInfoTest(i oval_input.RpmInfoTestXML) (int, *oval_parsed.RpmInfoTest,
 // the `<filepath>` children element is not set or if any of the non supported element is set.
 func mapRpmVerifyFileObject(i oval_input.RpmVerifyFileObjectXML) (*string, error) {
 	if i.FilePath.Value == "" {
-		return nil, fmt.Errorf("missing file path")
+		return nil, errors.New("missing file path")
 	}
 
 	// The following properties are not used (since we are making an assertion against the contents
@@ -153,7 +153,7 @@ func mapRpmVerifyFileObject(i oval_input.RpmVerifyFileObjectXML) (*string, error
 		i.Version.Value != "" ||
 		i.Release.Value != "" ||
 		i.Arch.Value != "" {
-		return nil, fmt.Errorf("invalid RPM verify file object specified")
+		return nil, errors.New("invalid RPM verify file object specified")
 	}
 
 	filepath := i.FilePath.Value
@@ -179,7 +179,7 @@ func mapRpmVerifyFileState(sta oval_input.RpmVerifyFileStateXML) (*oval_parsed.O
 		sta.Arch != nil ||
 		sta.Epoch != nil ||
 		sta.ExtendedName != nil {
-		return nil, fmt.Errorf("invalid RPM verify file state specified")
+		return nil, errors.New("invalid RPM verify file state specified")
 	}
 	r := oval_parsed.ObjectInfoState{}
 
@@ -205,7 +205,7 @@ func mapRpmVerifyFileState(sta oval_input.RpmVerifyFileStateXML) (*oval_parsed.O
 // non-supported object states is specified
 func mapRpmInfoState(sta oval_input.RpmInfoStateXML) (*oval_parsed.ObjectInfoState, error) {
 	if sta.Filepath != nil {
-		return nil, fmt.Errorf("object state based on filepath not supported")
+		return nil, errors.New("object state based on filepath not supported")
 	}
 
 	r := oval_parsed.ObjectInfoState{}

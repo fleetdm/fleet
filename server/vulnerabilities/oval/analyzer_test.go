@@ -164,8 +164,6 @@ func assertVulns(
 			break
 		}
 
-		fmt.Println(row)
-
 		if len(row) < 1 {
 			continue
 		}
