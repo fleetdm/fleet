@@ -12,7 +12,7 @@ We hope you consider these insights and findings as you build your device manage
 
 [Read the full report](https://fleetdm.com/reports/state-of-device-management)
 
-<meta name="category" value="releases">
+<meta name="category" value="report">
 <meta name="authorFullName" value="Mike McNeil">
 <meta name="authorGitHubUsername" value="mikermcneil">
 <meta name="publishedOn" value="2022-06-20">
