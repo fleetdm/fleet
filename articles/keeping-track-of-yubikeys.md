@@ -11,7 +11,7 @@ That left me with one problem: these keys are relatively small, and I always los
 
 Unfortunately, hoping a company creates a niche product is not a winning strategy, so I decided to do something about it. Why not 3D print a case that could hold my YubiKey securely, along with an AirTag?
 
-Many would say: why don't you just put it on your keychain? Then put the AirTag on the same keychain! While that works, as I use Yubikeys many times a day to sign in to different sites and to sign [git commits](https://developers.yubico.com/PGP/Git_signing.html), I definitely wouldn't want my actual keys stuck to my laptop all day. The real reason, however, is that this is way more *fun*.
+Many would say: why don't you just put it on your keychain? Then put the AirTag on the same keychain! While that works, I use Yubikeys many times a day to sign in to different sites and to sign [git commits](https://developers.yubico.com/PGP/Git_signing.html). I definitely wouldn't want my actual keys stuck to my laptop all day. The real reason, however, is that this is way more *fun*.
 
 I have zero 3D design skills, so I got in touch with [Alexander Surdu](https://github.com/surdoozaphonics), who has the skills and the equipment. I highly recommend [contacting him](https://www.surdoozaphonics.com/3d-modeling) if you need help designing such a gadget.
 
@@ -24,11 +24,11 @@ Then, we needed to find a way to keep the key secure. Fortunately, the key alrea
 
 The increased size will help me not lose the key in my office, so I expect I'll have to use the AirTag functionality rarely. 
 
-You can find the 3D models (STL files), more photos and some printing instructions in the [Yubitrak](https://github.com/GuillaumeRoss/yubitrak/) repository.
+You can find the 3D models (STL files), more photos, and some printing instructions in the [Yubitrak](https://github.com/GuillaumeRoss/yubitrak/) repository.
 
 If you do end up printing and using one, I would love for you to Tweet photos of them to [@fleetctl](https://twitter.com/fleetctl).
 
-If you think this could be a good idea as conference swag, let us know in the [#Fleet](http://fleetdm.com/slack) and I might bring a few our [DEF CON workshop](https://forum.defcon.org/node/241778)!
+If you think this could be a good idea as conference swag, let us know in the [#Fleet](http://fleetdm.com/slack), and I might bring a few to our [DEF CON workshop](https://forum.defcon.org/node/241778)!
 
 
 
