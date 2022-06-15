@@ -120,12 +120,12 @@ func TestCreateBulkUsers(t *testing.T) {
 
 	csvFile := writeTmpCsv(t,
 		`Name,Email,SSO,API Only,Global Role,Teams
-	user11@example.com,false,false,maintainer,
-	user12@example.com,false,false,,
-	user13@example.com,true,false,admin,
-	user14@example.com,false,false,,2:maintainer
-	user15@example.com,false,false,,1:admin
-	user16@example.com,false,false,,1:admin 2:maintainer`)
+		user11,user11@example.com,false,false,maintainer,
+		user12,user12@example.com,false,false,,
+		user13,user13@example.com,true,false,admin,
+		user14,user14@example.com,false,false,,2:maintainer
+		user15,user15@example.com,false,false,,1:admin
+		user16,user16@example.com,false,false,,1:admin 2:maintainer`)
 
 	expectedText := `{"kind":"user_roles","apiVersion":"v1","spec":{"roles":{"admin1@example.com":{"global_role":"admin","teams":null},"user11@example.com":{"global_role":"maintainer","teams":null},"user12@example.com":{"global_role":"observer","teams":null},"user13@example.com":{"global_role":"admin","teams":null},"user14@example.com":{"global_role":null,"teams":[{"team":"","role":"maintainer"}]},"user15@example.com":{"global_role":null,"teams":[{"team":"","role":"admin"}]},"user16@example.com":{"global_role":null,"teams":[{"team":"","role":"admin"},{"team":"","role":"maintainer"}]},"user1@example.com":{"global_role":"observer","teams":null},"user2@example.com":{"global_role":"observer","teams":null}}}}
 `
