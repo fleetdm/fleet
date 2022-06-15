@@ -1,6 +1,8 @@
 package oval_parsed
 
-import "github.com/fleetdm/fleet/v4/server/fleet"
+import (
+	"github.com/fleetdm/fleet/v4/server/fleet"
+)
 
 type RhelResult struct {
 	Definitions        []Definition
@@ -24,6 +26,7 @@ func (r RhelResult) Eval(ver fleet.OSVersion, software []fleet.Software) ([]flee
 		if err != nil {
 			return nil, err
 		}
+
 		pkgTstResults[i] = rEval
 	}
 
@@ -34,6 +37,7 @@ func (r RhelResult) Eval(ver fleet.OSVersion, software []fleet.Software) ([]flee
 		if err != nil {
 			return nil, err
 		}
+
 		OSTstResults[i] = rEval
 	}
 

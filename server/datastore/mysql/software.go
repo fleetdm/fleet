@@ -1120,6 +1120,8 @@ func (ds *Datastore) ListSoftwareForVulnDetection(
 			goqu.I("s.id"),
 			goqu.I("s.name"),
 			goqu.I("s.version"),
+			goqu.I("s.release"),
+			goqu.I("s.arch"),
 			goqu.I("cpe.cpe").As("generated_cpe"),
 			goqu.I("cpe.id").As("generated_cpe_id"),
 		).

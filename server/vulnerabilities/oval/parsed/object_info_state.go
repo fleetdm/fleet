@@ -20,7 +20,7 @@ type ObjectInfoState struct {
 	Operator       OperatorType            `json:"operator"`
 }
 
-// EvalSoftware evaluates the passed software against the specified state.
+// EvalSoftware evaluates the software against the specified state.
 func (sta ObjectInfoState) EvalSoftware(s fleet.Software) (bool, error) {
 	var results []bool
 
@@ -49,7 +49,15 @@ func (sta ObjectInfoState) EvalSoftware(s fleet.Software) (bool, error) {
 	}
 
 	if sta.Release != nil {
-		rEval, err := sta.Release.Eval(release(s.Version))
+		var rel string
+		if s.Release != "" {
+			// Check if the software has a release
+			rel = s.Release
+		} else {
+			// If not, try to get it from the version
+			rel = release(s.Version)
+		}
+		rEval, err := sta.Release.Eval(rel)
 		if err != nil {
 			return false, err
 		}
@@ -57,7 +65,7 @@ func (sta ObjectInfoState) EvalSoftware(s fleet.Software) (bool, error) {
 	}
 
 	if sta.Version != nil {
-		rEval, err := sta.Version.Eval(version(s.Version))
+		rEval, err := sta.Version.Eval(s.Version)
 		if err != nil {
 			return false, err
 		}
@@ -65,7 +73,16 @@ func (sta ObjectInfoState) EvalSoftware(s fleet.Software) (bool, error) {
 	}
 
 	if sta.Evr != nil {
-		rEval, err := sta.Evr.Eval(s.Version, Rpmvercmp)
+		var ver string
+
+		if s.Release != "" {
+			// If the release is set, append it to version
+			ver = fmt.Sprintf("%s-%s", s.Version, s.Release)
+		} else {
+			ver = s.Version
+		}
+
+		rEval, err := sta.Evr.Eval(ver, Rpmvercmp)
 		if err != nil {
 			return false, err
 		}

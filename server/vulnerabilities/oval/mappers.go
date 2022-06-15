@@ -112,7 +112,11 @@ func mapRpmVerifyFileTest(i oval_input.RpmVerifyFileTestXML) (int, *oval_parsed.
 		return 0, nil, err
 	}
 
-	tst := oval_parsed.RpmVerifyFileTest{}
+	tst := oval_parsed.RpmVerifyFileTest{
+		ObjectMatch:   oval_parsed.NewObjectMatchType(i.CheckExistence),
+		StateMatch:    oval_parsed.NewStateMatchType(i.Check),
+		StateOperator: oval_parsed.NewOperatorType(i.StateOperator),
+	}
 
 	return id, &tst, nil
 }

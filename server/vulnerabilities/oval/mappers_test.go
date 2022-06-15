@@ -309,6 +309,23 @@ func TestOvalMapper(t *testing.T) {
 		})
 	})
 
+	t.Run("#mapRpmVerifyFileTest", func(t *testing.T) {
+		input := oval_input.RpmVerifyFileTestXML{
+			Id:             "some:oval:namespace:123",
+			CheckExistence: "at_least_one_exists",
+			Check:          "all",
+			StateOperator:  "AND",
+		}
+
+		id, result, err := mapRpmVerifyFileTest(input)
+
+		require.NoError(t, err)
+		require.Equal(t, id, 123)
+		require.NotNil(t, result.StateOperator)
+		require.NotNil(t, result.ObjectMatch)
+		require.NotNil(t, result.StateMatch)
+	})
+
 	t.Run("#mapRpmVerifyFileObject", func(t *testing.T) {
 		t.Run("errors out if invalid children provided", func(t *testing.T) {
 			testCases := []struct {
