@@ -114,7 +114,7 @@ func (h *Handler) Retrieve(flush bool) ([]*storedError, error) {
 		}
 	}
 
-	errorList := []*storedError{}
+	errorList := make([]*storedError, 0, len(rawErrs))
 	if err := redigo.ScanSlice(rawErrs, &errorList); err != nil {
 		return nil, err
 	}
