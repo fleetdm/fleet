@@ -216,7 +216,7 @@ func createBulkUsersCommand() *cli.Command {
 			for _, record := range csvLines[1:] {
 				name := record[0]
 				email := record[1]
-				password := generateRandomPassword()
+				password, passErr := generateRandomPassword()
 				sso, ssoErr := strconv.ParseBool(record[2])
 				apiOnly, apiErr := strconv.ParseBool(record[3])
 				globalRoleString := record[4]
@@ -226,6 +226,9 @@ func createBulkUsersCommand() *cli.Command {
 				}
 				if apiErr != nil {
 					return fmt.Errorf("API Only is not a vailed Boolean value: %w", err)
+				}
+				if passErr != nil {
+					return fmt.Errorf("not able to generate a random password: %w", err)
 				}
 
 				var globalRole *string
@@ -316,10 +319,10 @@ func deleteUserCommand() *cli.Command {
 	}
 }
 
-func generateRandomPassword() string {
+func generateRandomPassword() (string, error) {
 	password, err := password.Generate(20, 2, 2, false, true)
 	if err != nil {
-		fmt.Println(err)
+		return "", err
 	}
-	return password
+	return password, nil
 }
