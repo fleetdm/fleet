@@ -35,6 +35,7 @@ func userCommand() *cli.Command {
 			createUserCommand(),
 			deleteUserCommand(),
 			createBulkUsersCommand(),
+			deleteBulkUsersCommand(),
 		},
 	}
 }
@@ -180,7 +181,7 @@ func createUserCommand() *cli.Command {
 
 func createBulkUsersCommand() *cli.Command {
 	return &cli.Command{
-		Name:  "import",
+		Name:  "create-users",
 		Usage: "Create bulk users",
 		UsageText: `This command will create a set of users in Fleet by importing a CSV file. Expected columns are: Name,Email,SSO,API Only,Global Role,Teams. Created Users by default get random password and Observer Role.
 		Password could be left blank, Users should receive an invitation link.`,
@@ -323,6 +324,49 @@ func deleteUserCommand() *cli.Command {
 	}
 }
 
+func deleteBulkUsersCommand() *cli.Command {
+	return &cli.Command{
+		Name:      "delete-users",
+		Usage:     "Delete a list of user",
+		UsageText: `This command will delete a list of users by importing a CSV file containing a list of emails. Expected columns are:Email`,
+		Flags: []cli.Flag{
+			&cli.StringFlag{
+				Name:     csvFlagName,
+				Usage:    "csv file with all the users (required)",
+				Required: true,
+			},
+			configFlag(),
+			contextFlag(),
+			yamlFlag(),
+			debugFlag(),
+		},
+		Action: func(c *cli.Context) error {
+			client, err := clientFromCLI(c)
+			if err != nil {
+				return err
+			}
+
+			csvFilePath := c.String(csvFlagName)
+
+			csvFile, err := os.Open(csvFilePath)
+			if err != nil {
+				return err
+			}
+			defer csvFile.Close()
+			csvLines, err := csv.NewReader(csvFile).ReadAll()
+
+			if err != nil {
+				return err
+			}
+			for _, user := range csvLines[1:] {
+				email := user[0]
+				client.DeleteUser(email)
+			}
+			return nil
+
+		},
+	}
+}
 func generateRandomPassword() (string, error) {
 	password, err := password.Generate(20, 2, 2, false, true)
 	if err != nil {
