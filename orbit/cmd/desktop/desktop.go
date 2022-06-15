@@ -10,9 +10,9 @@ import (
 	"path"
 	"time"
 
-	"github.com/fleetdm/fleet/v4/pkg/open"
 	"github.com/fleetdm/fleet/v4/server/service"
 	"github.com/getlantern/systray"
+	"github.com/pkg/browser"
 )
 
 // version is set at compile time via -ldflags
@@ -138,11 +138,12 @@ func main() {
 			for {
 				select {
 				case <-myDeviceItem.ClickedCh:
-					if err := open.Browser(deviceURL.String()); err != nil {
+					//if err := open.Browser(deviceURL.String()); err != nil {
+					if err := browser.OpenURL(deviceURL.String()); err != nil {
 						log.Printf("open browser my device: %s", err)
 					}
 				case <-transparencyItem.ClickedCh:
-					if err := open.Browser("https://fleetdm.com/transparency"); err != nil {
+					if err := browser.OpenURL("https://fleetdm.com/transparency"); err != nil {
 						log.Printf("open browser transparency: %s", err)
 					}
 				}
