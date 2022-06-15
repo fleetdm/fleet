@@ -243,7 +243,7 @@ This resulted in basically a full host_software table scan per each software row
 
 ### On constantly changing data
 
-A very complex thing to do well shows presence data in a somewhat real-time fashion. In the case of Fleet, that is host seen_time which is what we use to define if a host is online or offline.
+It can be difficult to show real-time presence data. For Fleet, that is the host `seen_time` -- the time a host last connected to the server -- which is used to determine whether a host is online.
 
 Host seen_time is updated with basically every check-in from any kind of host. Hosts check in every 10 seconds by default. Given that it’s a timestamp reflecting the last time a host contacted Fleet for anything, it’s always different.
 
