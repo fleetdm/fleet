@@ -100,6 +100,14 @@ Fleet's subscription agreement is available at [fleetdm.com/terms](https://fleet
 
 Fleeties can find a summary of contract terms in the relevant [customer's Salesforce opportunity.](https://fleetdm.lightning.force.com/lightning/o/Opportunity/list?filterName=Recent)
 
+## Contract Glossary
+
+| Term           | Definition                                                |
+|:---------------|:----------------------------------------------------------|
+| Effective date | The start date for the subscription service. |
+| Close date | The date the last party to the contract signed the agreement. |
+| Invoice date | The date that Fleet sent the invoice to the customer. |
+
 ## Rituals
 
 The following table lists the Customer's group's rituals, frequency, and Directly Responsible Individual (DRI).
