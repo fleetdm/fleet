@@ -40,13 +40,15 @@ func (sta ObjectInfoState) EvalSoftware(s fleet.Software) (bool, error) {
 		results = append(results, rEval)
 	}
 
-	if sta.Epoch != nil {
-		rEval, err := sta.Epoch.Eval(fmt.Sprint(epoch(s.Version)))
-		if err != nil {
-			return false, err
-		}
-		results = append(results, rEval)
-	}
+	// TODO: see https://github.com/fleetdm/fleet/issues/6236 -
+	// For RHEL based systems the epoch is not included in the version field
+	// if sta.Epoch != nil {
+	// 	rEval, err := sta.Epoch.Eval(fmt.Sprint(epoch(s.Version)))
+	// 	if err != nil {
+	// 		return false, err
+	// 	}
+	// 	results = append(results, rEval)
+	// }
 
 	if sta.Release != nil {
 		var rel string
@@ -73,16 +75,18 @@ func (sta ObjectInfoState) EvalSoftware(s fleet.Software) (bool, error) {
 	}
 
 	if sta.Evr != nil {
-		var ver string
-
+		var evr string
 		if s.Release != "" {
 			// If the release is set, append it to version
-			ver = fmt.Sprintf("%s-%s", s.Version, s.Release)
+			evr = fmt.Sprintf("%s-%s", s.Version, s.Release)
 		} else {
-			ver = s.Version
+			evr = s.Version
 		}
 
-		rEval, err := sta.Evr.Eval(ver, Rpmvercmp)
+		// TODO: see https://github.com/fleetdm/fleet/issues/6236 -
+		// ATM we are not storing the epoch, so we will need to removed it from the
+		// state ... otherwise we will
+		rEval, err := sta.Evr.Eval(evr, Rpmvercmp, true)
 		if err != nil {
 			return false, err
 		}

@@ -59,7 +59,7 @@ func (sta ObjectStateSimpleValue) Eval(other string) (bool, error) {
 		}
 	case EvrString:
 		evr := NewObjectStateEvrString(op.String(), val)
-		return evr.Eval(other, Rpmvercmp)
+		return evr.Eval(other, Rpmvercmp, true)
 	case Float:
 		val1, err := strconv.ParseFloat(val, 32)
 		if err != nil {

@@ -35,7 +35,7 @@ func TestObjectStateEvrString(t *testing.T) {
 			}
 
 			for _, c := range cases {
-				r, err := ObjectStateEvrString(c.val).Eval(c.other, c.cmp)
+				r, err := ObjectStateEvrString(c.val).Eval(c.other, c.cmp, false)
 				require.NoError(t, err)
 				require.Equal(t, c.expected, r)
 			}
@@ -54,7 +54,7 @@ func TestObjectStateEvrString(t *testing.T) {
 
 			for _, op := range invalidOps {
 				sut := ObjectStateEvrString(fmt.Sprintf("%s|%s", op, "something"))
-				_, err := sut.Eval("the thing", func(s1, s2 string) int { return 0 })
+				_, err := sut.Eval("the thing", func(s1, s2 string) int { return 0 }, false)
 				require.Errorf(t, err, "can not compute")
 			}
 		})

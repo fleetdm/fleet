@@ -1,6 +1,8 @@
 package oval_parsed
 
-import "github.com/fleetdm/fleet/v4/server/fleet"
+import (
+	"github.com/fleetdm/fleet/v4/server/fleet"
+)
 
 // Criteria is used to express an arbitrary logic tree.
 // Each node in the tree references a particular test.
@@ -62,10 +64,12 @@ func evalCriteria(c *Criteria, OSTstResults map[int]bool, pkgTstResults map[int]
 			vals = append(vals, v)
 		}
 	}
+
 	result = c.Operator.Eval(vals...)
 
 	for _, ci := range c.Criterias {
-		return c.Operator.Eval(result, evalCriteria(ci, OSTstResults, pkgTstResults))
+		rEval := evalCriteria(ci, OSTstResults, pkgTstResults)
+		result = c.Operator.Eval(result, rEval)
 	}
 
 	return result

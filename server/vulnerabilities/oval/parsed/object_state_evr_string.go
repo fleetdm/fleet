@@ -22,8 +22,18 @@ func (sta ObjectStateEvrString) unpack() (OperationType, string) {
 
 // Eval evaluates the evr object state against another evr string using 'cmp'
 // for performing the comparison.
-func (sta ObjectStateEvrString) Eval(ver string, cmp func(string, string) int) (bool, error) {
+func (sta ObjectStateEvrString) Eval(ver string, cmp func(string, string) int, ignoreEpoch bool) (bool, error) {
 	op, evr := sta.unpack()
+
+	// TODO: see https://github.com/fleetdm/fleet/issues/6236 -
+	// ATM we are not storing the epoch, so we will need to removed when working with RHEL based
+	// distros
+	if ignoreEpoch {
+		parts := strings.Split(evr, ":")
+		if len(parts) > 1 {
+			evr = parts[1]
+		}
+	}
 
 	r := cmp(ver, evr)
 	switch op {

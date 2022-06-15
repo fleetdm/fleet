@@ -71,11 +71,11 @@ func TestOvalParsedDefinition(t *testing.T) {
 		})
 
 		t.Run("evaluating logic tree", func(t *testing.T) {
-			//   OR
-			//  / | \
-			// F  F AND
-			//     /  \
-			//    T    T
+			//     OR
+			//  /   |   \
+			// 1:F 2:F AND
+			//        /   \
+			//      3:T   4:T
 
 			leaf := Criteria{
 				And,
@@ -94,6 +94,124 @@ func TestOvalParsedDefinition(t *testing.T) {
 				2: nil,
 				3: {{ID: 2}},
 				4: {{ID: 3}},
+			}
+
+			sut := Definition{
+				&root,
+				nil,
+			}
+
+			require.True(t, sut.Eval(OSTsts, pkgTsts))
+		})
+
+		t.Run("deep tree", func(t *testing.T) {
+			// 		OR
+			// 	   /  \
+			//   1:F   AND                     (1)
+			// 		 /   \
+			//     2:T     OR                  (2)
+			//        /    |    \
+			//      AND   AND     AND          (3)
+			//     /  \   /  \    /  \
+			//   3:F 4:F 5:F 6:F 7:T 8:T
+
+			thirdLeaf := Criteria{
+				Operator:   And,
+				Criteriums: []int{7, 8},
+			}
+			secondLeaf := Criteria{
+				Operator:   And,
+				Criteriums: []int{5, 6},
+			}
+			firstLeaf := Criteria{
+				Operator:   And,
+				Criteriums: []int{3, 4},
+			}
+			firstChildLeaf := Criteria{
+				Operator:  Or,
+				Criterias: []*Criteria{&firstLeaf, &secondLeaf, &thirdLeaf},
+			}
+
+			firstChild := Criteria{
+				Operator:   And,
+				Criteriums: []int{2},
+				Criterias:  []*Criteria{&firstChildLeaf},
+			}
+			root := Criteria{
+				Operator:   Or,
+				Criteriums: []int{1},
+				Criterias:  []*Criteria{&firstChild},
+			}
+
+			OSTsts := make(map[int]bool)
+			pkgTsts := map[int][]fleet.Software{
+				1: nil,
+				2: {{ID: 1}},
+				3: nil,
+				4: nil,
+				5: nil,
+				6: nil,
+				7: {{ID: 2}},
+				8: {{ID: 3}},
+			}
+
+			sut := Definition{
+				&root,
+				nil,
+			}
+
+			require.True(t, sut.Eval(OSTsts, pkgTsts))
+		})
+
+		t.Run("tree with only criterias", func(t *testing.T) {
+			// 		OR
+			// 	   /  \
+			//   1:F   AND                      (1)
+			// 		 /     \
+			//     OR        OR                 (2)
+			//   /  |     /     \
+			// 2:T 3:F  AND     AND             (3)
+			//         /  \    /  \
+			//       4:T  5:T 6:F 7:F
+
+			secondLeaf := Criteria{
+				Operator:   And,
+				Criteriums: []int{6, 7},
+			}
+			firstLeaf := Criteria{
+				Operator:   And,
+				Criteriums: []int{4, 5},
+			}
+
+			levelTwoSecondChild := Criteria{
+				Operator:  Or,
+				Criterias: []*Criteria{&firstLeaf, &secondLeaf},
+			}
+
+			levelTwoFirstChild := Criteria{
+				Operator:   Or,
+				Criteriums: []int{2, 3},
+			}
+
+			firstChild := Criteria{
+				Operator:  And,
+				Criterias: []*Criteria{&levelTwoFirstChild, &levelTwoSecondChild},
+			}
+			root := Criteria{
+				Operator:   Or,
+				Criteriums: []int{1},
+				Criterias:  []*Criteria{&firstChild},
+			}
+
+			OSTsts := make(map[int]bool)
+			pkgTsts := map[int][]fleet.Software{
+				1: nil,
+				2: {{ID: 1}},
+				3: nil,
+				4: {{ID: 2}},
+				5: {{ID: 3}},
+				6: nil,
+				7: nil,
 			}
 
 			sut := Definition{
