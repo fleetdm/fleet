@@ -282,7 +282,7 @@ No, you won't experience data loss when you update fleetctl. Note that you can r
 Apart from an admin [disabling usage](https://fleetdm.com/docs/using-fleet/usage-statistics#disable-usage-statistics) statistics on the Fleet UI, you can edit your `fleet.yml` config file to disable usage statistics. Look for the `server_settings` in your `fleet.yml` and set `enable_analytics: false`. Do note there is no CLI flag option to disable usage statistics at this time.
 
 ## How do I downgrade from Fleet Premium to Fleet Free?
-To downgrade from Fleet Premium to Fleet Free, do follow the following steps:
+To downgrade from Fleet Premium to Fleet Free, do the following steps:
 
 ### Users
 - Back up all user roles by running `fleetctl get user_roles > user_roles.yml`
