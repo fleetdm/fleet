@@ -5,14 +5,17 @@ I can currently count four on my desk, five if my [Flipper](https://flipperzero.
 
 I used to need multiple keys not just for backup purposes but also to access accounts from different devices. USB-A, USB-C, Bluetooth, NFC, you name it. Thanks to the adoption of USB-C and NFC, I could finally get rid of most of the keys and standardize on one model: the [YubiKey 5C NFC](https://www.yubico.com/ca/product/yubikey-5c-nfc/). 
 
-![Locate device assets in the event of an emergency](../website/assets/images/articles/lossless-yubikeys-with-yubitrak-and-airtag-2-2016x1512@2x.jpeg)
-
-
 It works on my Mac and iPad Pro via USB-C and my phone via NFC. So now that I only need two keys for backup purposes, I can finally get rid of an extensive note in my password manager that tracked which key is connected to which account. 
 
 That left me with one problem: these keys are relatively small, and I always lose stuff. As someone using the Apple ecosystem, I thought, wouldn't it be great if Yubico made YubiKeys with *Find My* integration? It would require a battery in the key, but seeing as it's plugged in so often, that could work. 
 
-Unfortunately, hoping a company creates a niche product is not a winning strategy, so I decided to do something about it. Why not 3D print a case that could hold my YubiKey securely, along with an AirTag?
+Unfortunately, hoping a company creates a niche product is not a winning strategy, so I decided to
+do something about it. Why not 3D print a case that could hold my YubiKey securely, along with an
+AirTag?
+
+![Yubitrak seen from the top with an Airtag](../website/assets/images/articles/lossless-yubikeys-with-yubitrak-and-airtag-2-2016x1512@2x.jpeg)
+
+
 
 Many would say: why don't you just put it on your keychain? Then put the AirTag on the same keychain! While that works, I use Yubikeys many times a day to sign in to different sites and to sign [git commits](https://developers.yubico.com/PGP/Git_signing.html). I definitely wouldn't want my actual keys stuck to my laptop all day. The real reason, however, is that this is way more *fun*.
 
