@@ -32,7 +32,7 @@ func TestZendeskRun(t *testing.T) {
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 		return &fleet.AppConfig{Integrations: fleet.Integrations{
 			Zendesk: []*fleet.ZendeskIntegration{
-				{EnableSoftwareVulnerabilities: true, TeamZendeskIntegration: fleet.TeamZendeskIntegration{EnableFailingPolicies: true}},
+				{EnableSoftwareVulnerabilities: true, EnableFailingPolicies: true},
 			},
 		}}, nil
 	}
@@ -203,7 +203,10 @@ func TestZendeskRunClientUpdate(t *testing.T) {
 		globalCount++
 		return &fleet.AppConfig{Integrations: fleet.Integrations{
 			Zendesk: []*fleet.ZendeskIntegration{
-				{TeamZendeskIntegration: fleet.TeamZendeskIntegration{GroupID: 0, EnableFailingPolicies: true}},
+				{GroupID: 0, EnableFailingPolicies: true},
+				{GroupID: 1, EnableFailingPolicies: false}, // the team integration will use the group IDs 1-3
+				{GroupID: 2, EnableFailingPolicies: false},
+				{GroupID: 3, EnableFailingPolicies: false},
 			},
 		}}, nil
 	}
@@ -278,6 +281,6 @@ func TestZendeskRunClientUpdate(t *testing.T) {
 
 	// it should've created 3 clients - the global one, and the first 2 calls with team 123
 	require.Equal(t, []int64{0, 1, 2}, groupIDs)
-	require.Equal(t, 2, globalCount)
+	require.Equal(t, 5, globalCount) // app config is requested every time
 	require.Equal(t, 3, teamCount)
 }

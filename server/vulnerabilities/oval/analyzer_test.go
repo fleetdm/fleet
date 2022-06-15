@@ -37,7 +37,8 @@ func extract(src, dst string, t require.TestingT) {
 	defer dstF.Close()
 
 	r := bzip2.NewReader(srcF)
-	_, err = io.Copy(dstF, r)
+	// ignoring "G110: Potential DoS vulnerability via decompression bomb", as this is test code.
+	_, err = io.Copy(dstF, r) //nolint:gosec
 	require.NoError(t, err)
 }
 

@@ -795,7 +795,6 @@ func main() {
 		tmpl, err := template.ParseFS(templatesFS, t)
 		if err != nil {
 			log.Fatal("parse templates: ", err)
-			continue
 		}
 		tmpls = append(tmpls, tmpl)
 	}

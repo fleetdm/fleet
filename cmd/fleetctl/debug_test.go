@@ -211,11 +211,11 @@ func TestFilenameFunctions(t *testing.T) {
 
 	t.Run("outfileName builds a file name using the name provided + current time ", func(t *testing.T) {
 		name := outfileName("test")
-		assert.Equal(t, name, "fleet-test-1969-06-19T21:44:05Z")
+		assert.Equal(t, "fleet-test-19690619214405Z", name)
 	})
 
 	t.Run("outfileNameWithExt builds a file name using the name and extension provided + current time ", func(t *testing.T) {
 		name := outfileNameWithExt("test", "go")
-		assert.Equal(t, name, "fleet-test-1969-06-19T21:44:05Z.go")
+		assert.Equal(t, "fleet-test-19690619214405Z.go", name)
 	})
 }

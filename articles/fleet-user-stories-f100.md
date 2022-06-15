@@ -4,7 +4,7 @@
 
 ![Two people talking about Fleet](../website/assets/images/articles/fleet-user-stories-f100-cover-800x450@2x.jpeg)
 
-When we spoke recently, our next Fleet user (who’s name and employer must remain anonymous for contractual reasons) gave us candid insights into how osquery and Fleet has been adopted at their F100 security and networking company.
+When we spoke recently, our next Fleet user (whose name and employer must remain anonymous for contractual reasons) gave us candid insights into how osquery and Fleet has been adopted at their F100 security and networking company.
 
 ### How did you first get started using osquery?
 

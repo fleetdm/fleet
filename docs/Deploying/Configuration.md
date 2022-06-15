@@ -866,6 +866,19 @@ The license key provided to Fleet customers which provides access to Fleet Premi
     key: foobar
   ```
 
+##### license_enforce_host_limit
+
+Whether Fleet should enforce the host limit of the license, if true, attempting to enroll new hosts when the limit is reached will fail.
+
+- Default value: `false`
+- Environment variable: `FLEET_LICENSE_ENFORCE_HOST_LIMIT`
+- Config file format:
+
+  ```
+  license:
+    enforce_host_limit: true
+  ```
+
 ##### Example YAML
 
 ```yaml
@@ -874,6 +887,7 @@ kind: config
 spec:
  license:
     key: foobar
+    enforce_host_limit: false
 ```
 
 #### Session

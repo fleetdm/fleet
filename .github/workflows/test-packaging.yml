@@ -30,6 +30,7 @@ jobs:
 
     steps:
     - name: Install Docker
+      timeout-minutes: 60
       if: matrix.os == 'macos-latest'
       # From https://github.com/docker/for-mac/issues/2359#issuecomment-943131345
       run: |
