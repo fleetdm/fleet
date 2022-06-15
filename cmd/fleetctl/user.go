@@ -213,6 +213,7 @@ func createBulkUsersCommand() *cli.Command {
 			if err != nil {
 				return err
 			}
+			users := []fleet.UserPayload{}
 			for _, record := range csvLines[1:] {
 				name := record[0]
 				email := record[1]
@@ -264,9 +265,8 @@ func createBulkUsersCommand() *cli.Command {
 				if sso && len(password) > 0 {
 					password = ""
 				}
-
 				force_reset := !sso
-				err = client.CreateUser(fleet.UserPayload{
+				users = append(users, fleet.UserPayload{
 					Password:                 &password,
 					Email:                    &email,
 					Name:                     &name,
@@ -276,13 +276,17 @@ func createBulkUsersCommand() *cli.Command {
 					GlobalRole:               globalRole,
 					Teams:                    &teams,
 				})
+			}
+
+			for _, user := range users {
+				err = client.CreateUser(user)
 				if err != nil {
 					return fmt.Errorf("Failed to create user: %w", err)
 				}
-				if sso {
-					fmt.Printf("Email: %v SSO: %v\n", email, sso)
+				if *user.SSOEnabled {
+					fmt.Printf("Email: %v SSO: %v\n", *user.Email, *user.SSOEnabled)
 				} else {
-					fmt.Printf("Email: %v Generated password: %v\n", email, password)
+					fmt.Printf("Email: %v Generated password: %v\n", *user.Email, *user.Password)
 				}
 
 			}
