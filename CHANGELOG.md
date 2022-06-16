@@ -1,7 +1,38 @@
+* Added the ability to set a Custom URL for the "Transparency" link included in Fleet Desktop. This allows you to use custom branding, as well as giving you control over what information you want to share with your end-users. 
+
+* Added scoring to vulnerability detection, including EPSS probability score, CVSS base score and known exploits. This helps you to quickly categorize which threats need attention today, next week, next month, or "someday."
+
+* Added a ticket workflow for policy automations. Configure Fleet to automatically create a Jira issue or Zendesk ticket when one or more hosts fails a specific policy.
+
+* Added [Open Vulnerability and Assement Language](https://access.redhat.com/solutions/4161) (`OVAL`) processing for Ubuntu hosts. This increases the accuracy of detected vulnerabilities. 
+
+* Added software details page to the Fleet UI.
+
+* Improved live query experience by saving the state of selected targets and adding count of visible results when filtering columns.
+
+* Fixed an issue where the **Device user** page redirected to login if an expired session token was present. 
+
+* Fixed an issue that caused a delay in availability of **My device** in Fleet Desktop.
+
+* Added support for custom headers for requests made to `fleet` instances by the `fleetctl` command.
+
+* Updated to an improved `users` query in every query we send to osquery.
+
+* Fixed `no such table` errors for `mdm` and `munki_info` for vanilla osquery MacOS hosts.
+
+* Fixed data inconsistencies in policy counts caused when a host was re-enrolled without a team or in a different one.
+
+* Fixed a bug affecting `fleetctl debug` `archive` and `errors` commands on Windows.
+
+* Added `/api/_version_/fleet/device/{token}/policies` to retrieve policies for a specific device. This endpoint can only be accessed with a premium license.
+
+* Added `POST /targets/search` and `POST /targets/count` API endpoints.
+
+* Updated `GET /software`, `GET /software/{:id}`, and `GET /software/count` endpoints to no include software that has been removed from hosts, but not cleaned up yet (orphaned).
+
 ## Fleet 4.15.0 (May 26, 2022)
 
-* Expanded beta support for vulnerability reporting to include both Zendesk and Jira integration. This allows users to configure Fleet to
-  automatically create a Zendesk ticket or Jira issue when a new vulnerability (CVE) is detected on your hosts.
+* Expanded beta support for vulnerability reporting to include both Zendesk and Jira integration. This allows users to configure Fleet to automatically create a Zendesk ticket or Jira issue when a new vulnerability (CVE) is detected on your hosts.
 
 * Expanded beta support for Fleet Desktop to Mac and Windows hosts. Fleet Desktop allows the device user to see
 information about their device. To add Fleet Desktop to a host, generate a Fleet-osquery installer with `fleetctl package` and include the `--fleet-desktop` flag. Then, open this installer on the device.
@@ -70,7 +101,7 @@ includes Fleet Desktop. Then, open this installer on the device.
 
 * Improved the empty states and forms on the **Policies** page, **Queries** page, and **Host details** page in the Fleet UI.
 
-- All duration settings returned by `fleetctl get config --include-server-config` were changed from
+* All duration settings returned by `fleetctl get config --include-server-config` were changed from
 nanoseconds to an easy to read format.
 
 * Fixed a bug in which the "Bundle identifier" tooltips displayed on **Host details > Software** did not
@@ -1452,7 +1483,7 @@ repository. Please follow changes and releases there.
 
 * Added GCP PubSub logging plugin. Thanks to Michael Samuel for adding this capability.
 
-* Improved escaping for target search in live query interface. It is now easier to target hosts with + and - characters in the name.
+* Improved escaping for target search in live query interface. It is now easier to target hosts with + and * characters in the name.
 
 * Server and browser performance improved to reduced loading of hosts in frontend. Host status will only update on page load when over 100 hosts are present.
 

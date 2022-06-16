@@ -1,2 +1,0 @@
-- fleetctl vulnerability-data-stream now downloads and parses Ubuntu OVAL definitions.
-- cron vulnerabity job now keeps up-to-date local Ubuntu OVAL definitions
