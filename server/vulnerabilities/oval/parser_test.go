@@ -4,6 +4,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/fleetdm/fleet/v4/server/fleet"
 	oval_input "github.com/fleetdm/fleet/v4/server/vulnerabilities/oval/input"
 	oval_parsed "github.com/fleetdm/fleet/v4/server/vulnerabilities/oval/parsed"
 	"github.com/stretchr/testify/require"
@@ -638,5 +639,21 @@ func TestOvalParser(t *testing.T) {
 		require.Len(t, testFour.States, 1)
 		require.NotNil(t, testFour.States[0].SignatureKeyId)
 		require.Equal(t, *testFour.States[0].SignatureKeyId, oval_parsed.NewObjectStateString("equals", "199e2f91fd431d51"))
+	})
+
+	t.Run("RHEL OVAL definitions work with CentOS", func(t *testing.T) {
+		r := strings.NewReader(rhelOvalXML)
+
+		xmlResult, err := parseRhelXML(r)
+		require.NoError(t, err)
+
+		result, err := mapToRhelResult(xmlResult)
+		centOS := fleet.OSVersion{
+			Platform: "rhel",
+			Name:     "CentOS Stream 9.0.0",
+		}
+		rEval, err := result.RpmVerifyFileTests[20221728047].Eval(centOS)
+		require.NoError(t, err)
+		require.True(t, rEval)
 	})
 }
