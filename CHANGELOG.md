@@ -1,4 +1,4 @@
-* Added the ability to set a Custom URL for the "Transparency" link included in Fleet Desktop. This allows you to use custom branding, as well as giving you control over what information you want to share with your end-users. 
+* Added the ability to set a Custom URL for the "Transparency" link included in Fleet Desktop. This allows you to use custom branding, as well as gives you control over what information you want to share with your end-users. 
 
 * Added scoring to vulnerability detection, including EPSS probability score, CVSS base score and known exploits. This helps you to quickly categorize which threats need attention today, next week, next month, or "someday."
 
