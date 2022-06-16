@@ -38,7 +38,7 @@ Your company could hire more security specialists. Some organizations have thous
 
 Team leads are in the perfect position to help you measure compliance progress. They know which hardware needs maintenance. They know which software to update, and they’ll be the first to know of any employees who are onboarding or offboarding.
 
-## Fleet makes measuring compliance easy
+## Fleet makes tracking compliance easy
 
 Your team leads don’t need a crash course in security and compliance to measure compliance progress. With Fleet, you can create [policies](https://fleetdm.com/securing/what-are-fleet-policies) that ask questions about your devices — questions you can customize to meet your compliance goals. You can then group these custom queries with [teams](https://fleetdm.com/docs/using-fleet/teams), eliminating unnecessary processes and lowering the level of effort for your organization.
 
