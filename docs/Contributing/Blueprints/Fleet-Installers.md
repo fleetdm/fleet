@@ -107,7 +107,7 @@ All the APIs must be rate-limited to prevent abuse of the system.
 This endpoint will perform the following operations:
 1. Check if a `package_id` already exists (and hasn't been expired) with the exact same arguments, if so, return HTTP 200 with the `package_id`.
 2. Generate a [random](https://en.wikipedia.org/wiki/Universally_unique_identifier#Version_4_(random)) `package_id`.
-3. Dispacth the creation of a package with ID set to `package_id` and the given request parameters.
+3. Dispatch the creation of a package with ID set to `package_id` and the given request parameters.
 4. Return HTTP 200 with the `package_id`.
 
 This endpoint, which is the entrypoint, should be rate-limited by IP.
@@ -371,10 +371,23 @@ Currently we don't support signing of the MSI installers in `fleetctl package`. 
 From Zach:
 > When we decide to support this (which we should do soon), we can use https://github.com/mtrojnar/osslsigncode.
 
+We should also research https://github.com/sassoftware/relic (it mentions Windows signature support)
+
 ## Service Implementation
 
 It looks like we will be able to implement the first iteration of the Packager Service as a Go service running on a Linux server.
 The only limitation will be macOS stapling (see below).
+
+### State storing
+
+For the first iteration, we should pick one of the following simple options:
+1. Store state in-memory. Simplest, but not resilient to crashes/restarts.
+2. Store state in an embedded disk database, such as:
+   - https://github.com/dgraph-io/badger (Pure Go)
+   - https://github.com/etcd-io/bbolt (Pure Go)
+   - Sqlite3 (Cgo 🙈), see https://www.youtube.com/watch?v=XcAYkriuQ1o
+
+- We already need disk storage for storing the packages, so option (2) is feasible to do from the get-go.
 
 ### macOS requirements 
 
