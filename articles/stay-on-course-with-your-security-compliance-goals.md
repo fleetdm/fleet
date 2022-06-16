@@ -26,7 +26,7 @@ Be sure to set goals based on the resources you have available, and try not to l
 
 While your industry may have compliance standards, these recommendations may not apply to your entire organization.
 
-Let’s look at the Payment Card Industry Data Security Standard or PCI DSS. This is a set of standards that aims to protect debit and credit card transactions against data theft and fraud. This is pretty important if your organization plans to accept card payments. But how many of your teams are in the position to collect payments — or even interact with customers?
+Let’s look at the [Payment Card Industry Data Security Standard](https://www.pcisecuritystandards.org/) or PCI DSS. This is a set of standards that aims to protect debit and credit card transactions against data theft and fraud. This is pretty important if your organization plans to accept card payments. But how many of your teams are in the position to collect payments — or even interact with customers?
 
 There may be processes that apply to your entire company, like using multi-factor authentication. These types of requirements have a great impact on improving security. But this isn’t always the case. Some of the requirements either don't make sense, or have very limited impact on actual security. Knowing which compliance standards apply to which teams will help lighten the load across your organization.
 
