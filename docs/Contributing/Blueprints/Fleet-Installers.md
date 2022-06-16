@@ -119,6 +119,7 @@ This endpoint, which is the entrypoint, should be rate-limited by IP.
 | type              | string  | body | **Required.** One of the following values "pkg", "msi", "deb", "rpm"                   |
 | fleet_url         | string  | body | **Required.** The URL that the hosts will use to connect to the Fleet server           |
 | enroll_secret     | string  | body | **Required.** Global or team enroll secret to use when enrolling the host to Fleet     |
+| retry             | boolean | body | Retry a failed package generation (default: false)                                     |
 | fleet-certificate | string  | body | Server certificate chain                                                               |
 | insecure          | boolean | body | Disable TLS certificate verification (default: false)                                  |
 | osqueryd-channel  | string  | body | Update channel of osqueryd to use (default: "stable")                                  |
@@ -130,6 +131,12 @@ This endpoint, which is the entrypoint, should be rate-limited by IP.
 | update-interval   | string  | body | Interval that Orbit will use to check for new updates (10s, 1h, etc.) (default: 15m0s) |
 | osquery-flagfile  | string  | body | Flagfile to package and provide to osquery (default: empty)                            |
 | service           | boolean | body | Install with a persistence service (launchd, systemd, etc.) (default: true)            |
+
+##### Error in Package Generation
+
+When the set of arguments correspond to a `package_id` that failed to generate, then:
+- If `retry` is `false` (default) it will return such `package_id`.
+- If `retry` is set to `true`, the service will dispatch a new package build and return a new `package_id`.
 
 ##### Response Fields
 
