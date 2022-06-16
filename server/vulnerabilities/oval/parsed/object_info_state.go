@@ -1,6 +1,7 @@
 package oval_parsed
 
 import (
+	"errors"
 	"fmt"
 	"strings"
 
@@ -101,7 +102,7 @@ func (sta ObjectInfoState) EvalSoftware(s fleet.Software) (bool, error) {
 	}
 
 	if len(results) == 0 {
-		return false, fmt.Errorf("invalid empty state")
+		return false, errors.New("invalid empty state")
 	}
 
 	return sta.Operator.Eval(results...), nil
@@ -137,7 +138,7 @@ func (sta ObjectInfoState) EvalOSVersion(version fleet.OSVersion) (bool, error) 
 	}
 
 	if len(results) == 0 {
-		return false, fmt.Errorf("invalid empty state")
+		return false, errors.New("invalid empty state")
 	}
 
 	return sta.Operator.Eval(results...), nil

@@ -26,7 +26,7 @@ func (sta ObjectStateEvrString) Eval(ver string, cmp func(string, string) int, i
 	op, evr := sta.unpack()
 
 	// TODO: see https://github.com/fleetdm/fleet/issues/6236 -
-	// ATM we are not storing the epoch, so we will need to removed when working with RHEL based
+	// ATM we are not storing the epoch, so we will need to removed it when working with RHEL based
 	// distros
 	if ignoreEpoch {
 		parts := strings.Split(evr, ":")

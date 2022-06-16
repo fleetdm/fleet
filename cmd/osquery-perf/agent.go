@@ -431,6 +431,9 @@ func extract(src, dst string) {
 	r := bzip2.NewReader(srcF)
 	// ignoring "G110: Potential DoS vulnerability via decompression bomb", as this is test code.
 	_, err = io.Copy(dstF, r) //nolint:gosec
+	if err != nil {
+		panic(err)
+	}
 }
 
 func loadUbuntuSoftware(ver string) []fleet.Software {
