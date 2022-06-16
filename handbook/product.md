@@ -382,6 +382,10 @@ Use `---`, with color `$ui-fleet-black-50` as the default UI for empty columns.
 
 Pressing the return or enter key with an open form will cause the form to be submitted.
 
+**Internal links**
+
+For a link that navigates the user to a different page within the Fleet UI, use the `$core-blue` color and `xs-bold` styling for the link's text. Also, use the underline style when the user hovers over these links.
+
 **External links**
 
 For a link that navigates the user to an external site (e.g., fleetdm.com/docs), use the `$core-blue` color and `xs-bold` styling for the link's text. Also, place the link-out icon to the right of the link's text.
