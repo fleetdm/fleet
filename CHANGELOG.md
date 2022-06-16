@@ -2,7 +2,7 @@
 
 * Added scoring to vulnerability detection, including EPSS probability score, CVSS base score, and known exploits. This helps you to quickly categorize which threats need attention today, next week, next month, or "someday."
 
-* Added a ticket workflow for policy automations. Configure Fleet to automatically create a Jira issue or Zendesk ticket when one or more hosts fails a specific policy.
+* Added a ticket-workflow for policy automations. Configured Fleet to automatically create a Jira issue or Zendesk ticket when one or more hosts fail a specific policy.
 
 * Added [Open Vulnerability and Assement Language](https://access.redhat.com/solutions/4161) (`OVAL`) processing for Ubuntu hosts. This increases the accuracy of detected vulnerabilities. 
 
