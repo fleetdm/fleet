@@ -384,7 +384,7 @@ Pressing the return or enter key with an open form will cause the form to be sub
 
 **Internal links**
 
-For a link that navigates the user to a different page within the Fleet UI, use the `$core-blue` color and `xs-bold` styling for the link's text. Also, use the underline style when the user hovers over these links.
+For text links that navigates the user to a different page within the Fleet UI, use the `$core-blue` color and `xs-bold` styling. You'll also want to make sure to use the underline style for when the user hovers over these links.
 
 **External links**
 
