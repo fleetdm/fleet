@@ -32,7 +32,7 @@ There may be processes that apply to your entire company, like using multi-facto
 
 ## Delegate to team leads
 
-Ultimately, your Head of Security or Chief Compliance Officer is responsible for ensuring compliance, depending on the structure of your organization. Asking them to check the progress of each team and individual, in addition to their other responsibilities, isn’t exactly efficient (or fair).
+Ultimately, your CISO, Head of Security or Chief Compliance Officer is responsible for ensuring compliance, depending on the structure of your organization. Asking them to check the progress of each team and individual, in addition to their other responsibilities, isn’t exactly efficient (or fair).
 
 Your company could hire more security specialists. Some organizations have thousands on staff, but we know this isn’t always a realistic option. The good news is that you don’t necessarily need more security and compliance people — just more people with security skills.
 
