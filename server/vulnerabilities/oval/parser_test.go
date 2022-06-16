@@ -648,10 +648,13 @@ func TestOvalParser(t *testing.T) {
 		require.NoError(t, err)
 
 		result, err := mapToRhelResult(xmlResult)
+		require.NoError(t, err)
+
 		centOS := fleet.OSVersion{
 			Platform: "rhel",
 			Name:     "CentOS Stream 9.0.0",
 		}
+
 		rEval, err := result.RpmVerifyFileTests[20221728047].Eval(centOS)
 		require.NoError(t, err)
 		require.True(t, rEval)
