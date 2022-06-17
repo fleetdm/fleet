@@ -135,7 +135,7 @@ const ManageAutomationsModal = ({
 
   const { policyItems, updatePolicyItems } = useCheckboxListStateManagement(
     availablePolicies,
-    (isPolicyAutomationsEnabled && webhook?.policy_ids) || []
+    webhook?.policy_ids || []
   );
 
   const onChangeUrl = (value: string) => {
@@ -171,15 +171,26 @@ const ManageAutomationsModal = ({
   ) => {
     evt.preventDefault();
 
-    let newPolicyIds: number[] = [];
+    const newPolicyIds: number[] = [];
     policyItems?.forEach((p) => p.isChecked && newPolicyIds.push(p.id));
 
     const newErrors = { ...errors };
-    if (!newPolicyIds.length) {
-      newErrors.policyItems =
-        "Please choose at least one policy you want to listen to:";
+    // if (isPolicyAutomationsEnabled && !newPolicyIds.length) {
+    //   newErrors.policyItems =
+    //     "Please choose at least one policy you want to listen to:";
+    // } else {
+    //   delete newErrors.policyItems;
+    // }
+
+    if (
+      isPolicyAutomationsEnabled &&
+      newPolicyIds.length &&
+      !isWebhookEnabled &&
+      !selectedIntegration
+    ) {
+      newErrors.integration = "Please enable at least one integration:";
     } else {
-      delete newErrors.policyItems;
+      delete newErrors.integration;
     }
 
     if (isWebhookEnabled && !destinationUrl) {
@@ -211,12 +222,12 @@ const ManageAutomationsModal = ({
           z.group_id === selectedIntegration?.group_id,
       })) || null;
 
-    if (
-      !isPolicyAutomationsEnabled ||
-      (!isWebhookEnabled && !selectedIntegration)
-    ) {
-      newPolicyIds = [];
-    }
+    // if (
+    //   !isPolicyAutomationsEnabled ||
+    //   (!isWebhookEnabled && !selectedIntegration)
+    // ) {
+    //   newPolicyIds = [];
+    // }
 
     // NOTE: backend uses webhook_settings to store automated policy ids for both webhooks and integrations
     const newWebhook = {
@@ -287,6 +298,7 @@ const ManageAutomationsModal = ({
             selectedIntegration?.group_id || selectedIntegration?.project_key
           }
           label={"Integration"}
+          error={errors.integration}
           wrapperClassName={`${baseClass}__form-field ${baseClass}__form-field--frequency`}
           hint={
             "For each policy, Fleet will create a ticket with a list of the failing hosts."
@@ -339,9 +351,10 @@ const ManageAutomationsModal = ({
             <div className={`${baseClass}__software-select-items`}>
               <Slider
                 value={isPolicyAutomationsEnabled}
-                onChange={() =>
-                  setIsPolicyAutomationsEnabled(!isPolicyAutomationsEnabled)
-                }
+                onChange={() => {
+                  setIsPolicyAutomationsEnabled(!isPolicyAutomationsEnabled);
+                  setErrors({});
+                }}
                 inactiveText={"Policy automations disabled"}
                 activeText={"Policy automations enabled"}
               />
@@ -352,7 +365,7 @@ const ManageAutomationsModal = ({
                   {availablePolicies?.length ? (
                     <div className={`${baseClass}__policy-select-items`}>
                       <p>
-                        {errors.policyItems ? (
+                        {/* {errors.policyItems ? (
                           <span className="form-field__label--error">
                             {errors.policyItems}
                           </span>
@@ -360,7 +373,10 @@ const ManageAutomationsModal = ({
                           <strong>
                             Choose which policies you would like to listen to:
                           </strong>
-                        )}
+                        )} */}
+                        <strong>
+                          Choose which policies you would like to listen to:
+                        </strong>
                       </p>
                       {policyItems &&
                         policyItems.map((policyItem) => {
