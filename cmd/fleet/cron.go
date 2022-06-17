@@ -25,7 +25,7 @@ import (
 	"github.com/go-kit/kit/log/level"
 )
 
-func cronDB(ctx context.Context, ds fleet.Datastore, logger kitlog.Logger, identifier string, license *fleet.LicenseInfo) {
+func cronDB(ctx context.Context, ds fleet.Datastore, logger kitlog.Logger, identifier string, license *fleet.LicenseInfo, enrollHostLimiter fleet.EnrollHostLimiter) {
 	logger = kitlog.With(logger, "cron", lockKeyLeader)
 
 	ticker := time.NewTicker(10 * time.Second)
@@ -53,7 +53,7 @@ func cronDB(ctx context.Context, ds fleet.Datastore, logger kitlog.Logger, ident
 			level.Error(logger).Log("err", "cleaning distributed query campaigns", "details", err)
 			sentry.CaptureException(err)
 		}
-		err = ds.CleanupIncomingHosts(ctx, time.Now())
+		_, err = ds.CleanupIncomingHosts(ctx, time.Now())
 		if err != nil {
 			level.Error(logger).Log("err", "cleaning incoming hosts", "details", err)
 			sentry.CaptureException(err)
@@ -73,7 +73,7 @@ func cronDB(ctx context.Context, ds fleet.Datastore, logger kitlog.Logger, ident
 			level.Error(logger).Log("err", "aggregating scheduled query stats", "details", err)
 			sentry.CaptureException(err)
 		}
-		err = ds.CleanupExpiredHosts(ctx)
+		_, err = ds.CleanupExpiredHosts(ctx)
 		if err != nil {
 			level.Error(logger).Log("err", "cleaning expired hosts", "details", err)
 			sentry.CaptureException(err)
@@ -91,6 +91,11 @@ func cronDB(ctx context.Context, ds fleet.Datastore, logger kitlog.Logger, ident
 		err = ds.UpdateOSVersions(ctx)
 		if err != nil {
 			level.Error(logger).Log("err", "update os versions", "details", err)
+			sentry.CaptureException(err)
+		}
+		err = enrollHostLimiter.SyncEnrolledHostIDs(ctx)
+		if err != nil {
+			level.Error(logger).Log("err", "sync enrolled host ids", "details", err)
 			sentry.CaptureException(err)
 		}
 

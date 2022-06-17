@@ -68,3 +68,16 @@ func Retryable(err error) bool {
 	}
 	return false
 }
+
+// RunWithNetRetry runs the given function and retries in case of network errors (see Retryable).
+func RunWithNetRetry(t *testing.T, fn func() error) error {
+	for {
+		err := fn()
+		if err != nil && Retryable(err) {
+			time.Sleep(5 * time.Second)
+			t.Logf("%s: retrying error: %s", t.Name(), err)
+			continue
+		}
+		return err
+	}
+}

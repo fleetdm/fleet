@@ -1,7 +1,6 @@
 /* eslint-disable  @typescript-eslint/explicit-module-boundary-types */
 
 import sendRequest from "services";
-import sendMockRequest from "services/mock_service";
 import endpoints from "utilities/endpoints";
 import { IConfig } from "interfaces/config";
 

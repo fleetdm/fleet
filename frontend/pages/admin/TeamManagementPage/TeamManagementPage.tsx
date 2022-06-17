@@ -5,7 +5,10 @@ import { useErrorHandler } from "react-error-boundary";
 import { NotificationContext } from "context/notification";
 import { ITeam } from "interfaces/team";
 import { IApiError } from "interfaces/errors";
-import teamsAPI from "services/entities/teams";
+import teamsAPI, {
+  ILoadTeamsResponse,
+  ITeamFormData,
+} from "services/entities/teams";
 
 import Button from "components/buttons/Button";
 // @ts-ignore
@@ -15,13 +18,7 @@ import TableDataError from "components/DataError";
 import CreateTeamModal from "./components/CreateTeamModal";
 import DeleteTeamModal from "./components/DeleteTeamModal";
 import EditTeamModal from "./components/EditTeamModal";
-import { ICreateTeamFormData } from "./components/CreateTeamModal/CreateTeamModal";
-import { IEditTeamFormData } from "./components/EditTeamModal/EditTeamModal";
 import { generateTableHeaders, generateDataSet } from "./TeamTableConfig";
-
-interface ITeamsResponse {
-  teams: ITeam[];
-}
 
 const baseClass = "team-management";
 const noTeamsClass = "no-teams";
@@ -46,11 +43,11 @@ const TeamManagementPage = (): JSX.Element => {
     isFetching: isFetchingTeams,
     error: loadingTeamsError,
     refetch: refetchTeams,
-  } = useQuery<ITeamsResponse, Error, ITeam[]>(
+  } = useQuery<ILoadTeamsResponse, Error, ITeam[]>(
     ["teams"],
     () => teamsAPI.loadAll(),
     {
-      select: (data: ITeamsResponse) => data.teams,
+      select: (data: ILoadTeamsResponse) => data.teams,
       onError: (error) => handlePageError(error),
     }
   );
@@ -98,7 +95,7 @@ const TeamManagementPage = (): JSX.Element => {
   );
 
   const onCreateSubmit = useCallback(
-    (formData: ICreateTeamFormData) => {
+    (formData: ITeamFormData) => {
       setTeamIsLoading(true);
       teamsAPI
         .create(formData)
@@ -148,7 +145,7 @@ const TeamManagementPage = (): JSX.Element => {
   }, [teamEditing, toggleDeleteTeamModal]);
 
   const onEditSubmit = useCallback(
-    (formData: IEditTeamFormData) => {
+    (formData: ITeamFormData) => {
       if (formData.name === teamEditing?.name) {
         toggleEditTeamModal();
       } else if (teamEditing) {

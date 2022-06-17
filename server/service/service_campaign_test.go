@@ -13,7 +13,7 @@ import (
 	"github.com/WatchBeam/clock"
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/fleet"
-	"github.com/fleetdm/fleet/v4/server/live_query"
+	"github.com/fleetdm/fleet/v4/server/live_query/live_query_mock"
 	"github.com/fleetdm/fleet/v4/server/mock"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/pubsub"
@@ -30,7 +30,7 @@ func TestStreamCampaignResultsClosesReditOnWSClose(t *testing.T) {
 
 	mockClock := clock.NewMockClock()
 	ds := new(mock.Store)
-	lq := new(live_query.MockLiveQuery)
+	lq := live_query_mock.New(t)
 	svc := newTestServiceWithClock(t, ds, store, lq, mockClock)
 
 	campaign := &fleet.DistributedQueryCampaign{ID: 42}

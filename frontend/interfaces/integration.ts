@@ -3,6 +3,7 @@ export interface IJiraIntegration {
   username: string;
   api_token: string;
   project_key: string;
+  enable_failing_policies?: boolean;
   enable_software_vulnerabilities?: boolean;
 }
 
@@ -11,6 +12,7 @@ export interface IZendeskIntegration {
   email: string;
   api_token: string;
   group_id: number;
+  enable_failing_policies?: boolean;
   enable_software_vulnerabilities?: boolean;
 }
 
@@ -21,6 +23,7 @@ export interface IIntegration {
   api_token: string;
   project_key?: string;
   group_id?: number;
+  enable_failing_policies?: boolean;
   enable_software_vulnerabilities?: boolean;
   originalIndex?: number;
   type?: string;

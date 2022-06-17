@@ -14,14 +14,14 @@ import (
 	"strings"
 	"time"
 
-	"github.com/go-kit/kit/log/level"
-	"github.com/go-kit/kit/log"
 	"github.com/facebookincubator/nvdtools/cvefeed"
 	feednvd "github.com/facebookincubator/nvdtools/cvefeed/nvd"
 	"github.com/fleetdm/fleet/v4/pkg/download"
 	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/ptr"
+	"github.com/go-kit/kit/log"
+	"github.com/go-kit/kit/log/level"
 )
 
 // Sync downloads all the vulnerability data sources.
@@ -47,8 +47,10 @@ func Sync(vulnPath string, cpeDatabaseURL string) error {
 	return nil
 }
 
-const epssFeedsURL = "https://epss.cyentia.com"
-const epssFilename = "epss_scores-current.csv.gz"
+const (
+	epssFeedsURL = "https://epss.cyentia.com"
+	epssFilename = "epss_scores-current.csv.gz"
+)
 
 // DownloadEPSSFeed downloads the EPSS scores feed.
 func DownloadEPSSFeed(vulnPath string, client *http.Client) error {
@@ -119,8 +121,10 @@ func parseEPSSScoresFile(path string) ([]epssScore, error) {
 	return epssScores, nil
 }
 
-const cisaKnownExploitsURL = "https://www.cisa.gov/sites/default/files/feeds/known_exploited_vulnerabilities.json"
-const cisaKnownExploitsFilename = "known_exploited_vulnerabilities.json"
+const (
+	cisaKnownExploitsURL      = "https://www.cisa.gov/sites/default/files/feeds/known_exploited_vulnerabilities.json"
+	cisaKnownExploitsFilename = "known_exploited_vulnerabilities.json"
+)
 
 // knownExploitedVulnerabilitiesCatalog represents the CISA Catalog of Known Exploited Vulnerabilities.
 type knownExploitedVulnerabilitiesCatalog struct {
@@ -189,7 +193,7 @@ func LoadCVEMeta(logger log.Logger, vulnPath string, ds fleet.Datastore) error {
 			schema := vuln.Schema()
 
 			meta := fleet.CVEMeta{
-				CVE:       cve,
+				CVE: cve,
 			}
 
 			if schema.Impact.BaseMetricV3 != nil {
@@ -197,7 +201,7 @@ func LoadCVEMeta(logger log.Logger, vulnPath string, ds fleet.Datastore) error {
 			}
 
 			if published, err := time.Parse(publishedDateFmt, schema.PublishedDate); err != nil {
-				level.Error(logger). Log("msg", "failed to parse published data", "cve", cve, "published_date", schema.PublishedDate, "err", err)
+				level.Error(logger).Log("msg", "failed to parse published data", "cve", cve, "published_date", schema.PublishedDate, "err", err)
 			} else {
 				meta.Published = &published
 			}
