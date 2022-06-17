@@ -21,7 +21,7 @@ This is a proposal on how this tool could look like and work.
 
 We would create a new type of boolean value in our `AppConfig` called `RolloutBoolean`.
 
-`RolloutBoolean` will have a function `Enabled(h *fleet.Host) bool`. So instead of doing this:
+`RolloutBoolean` will have a function `Get(h *fleet.Host) bool`. So instead of doing this:
 
 ```go 
 if ac.HostSettings.EnableHostUsers {
@@ -32,7 +32,7 @@ if ac.HostSettings.EnableHostUsers {
 We would do:
 
 ```go 
-if ac.HostSettings.EnableHostUsers.Enabled(host) {
+if ac.HostSettings.EnableHostUsers.Get(host) {
     ...
 }
 ```
@@ -111,5 +111,5 @@ spec:
         - linux: true
 ```
 
-The `Enabled(h *Host) bool` function will use the provided host to define whether the feature is enabled or not based on
+The `Get(h *Host) bool` function will use the provided host to define whether the feature is enabled or not based on
 how it's defined in the configuration.
