@@ -225,7 +225,7 @@ module.exports = {
                   '$1 class="$5"$2$3'
                 )
                 .replace(// Finally, remove any "LANG" markers that have been added inside of a nested code block
-                  /(```)\n\s\&lt;\!\-+\s\_+LANG\=\%+\_+\s\-+\&gt;/gm,
+                  /((&#96;)+)\n\&lt;\!\-+\s\_+LANG\=\%+\_+\s\-+\&gt;/gm,
                   '$1'
                 )
               );
