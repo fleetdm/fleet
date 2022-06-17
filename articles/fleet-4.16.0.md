@@ -1,4 +1,4 @@
-# Fleet 4.16.0 gives you the option to customize the information you share to end users in Fleet Desktop, beefs up vulnerability management and adds additional workflows to Jira and Zendesk integrations. 
+# Fleet 4.16.0 brings more customization, beefs up vulnerability management and adds value to integrations. 
 
 ![Fleet 4.16.0](<placeholder>)
 
