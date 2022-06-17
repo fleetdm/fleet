@@ -892,6 +892,15 @@ func (ds *Datastore) CalculateHostsPerSoftware(ctx context.Context, updatedAt ti
         shc.software_id IS NULL OR
         (shc.team_id = 0 AND shc.hosts_count = 0)`
 
+		cleanupOrphanedStmt = `
+		  DELETE shc
+		  FROM
+		    software_host_counts shc
+		    LEFT JOIN software s ON s.id = shc.software_id
+		  WHERE
+		    s.id IS NULL
+		`
+
 		cleanupTeamStmt = `
       DELETE shc
       FROM software_host_counts shc
@@ -961,6 +970,11 @@ func (ds *Datastore) CalculateHostsPerSoftware(ctx context.Context, updatedAt ti
 	// remove any unused software (global counts = 0)
 	if _, err := ds.writer.ExecContext(ctx, cleanupSoftwareStmt); err != nil {
 		return ctxerr.Wrap(ctx, err, "delete unused software")
+	}
+
+	// remove any software count row for software that don't exist anymore
+	if _, err := ds.writer.ExecContext(ctx, cleanupOrphanedStmt); err != nil {
+		return ctxerr.Wrap(ctx, err, "delete software_host_counts for non-existing teams")
 	}
 
 	// remove any software count row for teams that don't exist anymore
