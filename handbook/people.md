@@ -78,7 +78,7 @@ When attending a conference for Fleet, please make a post in [g-digital-experien
 The start and end dates for your trip.
 The price of your flight (feel free to optimize a direct flight if there is one that is less than double the price of the cheapest non-direct flight).
 The price of your hotel per night.
-The price of the admission fees for the conference.
+- The price of the admission fees for the conference.
 
 The monthly limit on your Brex card will be increased temporarily as necessary to accomodate the increased spending associated with the conference.
 It is highly recommended that you order a physical Brex card if you do not have one before attending the conference.
