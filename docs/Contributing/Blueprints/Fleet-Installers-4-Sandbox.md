@@ -38,10 +38,12 @@ PS: There's some complexity in storing/handling credentials for macOS Signing an
 ### Fleet Server and UI
 
 - Fleet server new configuration and new functionality:
-	- FLEET_MAX_TEAMS: Maximum number of teams to allow in the deployment (default 0, disabled).
-	- FLEET_DISABLE_ENROLL_CHANGE: Disallow users from changing enroll secrets (default false).
-	- FLEET_INSTALLERS_DIR: directory with the pre-packaged installers (default empty).
-	- FLEET_ENROLL_POOL: comma-separated enrolls to use when needed (default empty), must have equals to FLEET_MAX_TEAMS+1 items (default empty).
+	- `FLEET_MAX_TEAMS`: Maximum number of teams to allow in the deployment (default 0, disabled).
+	- `FLEET_DISABLE_ENROLL_CHANGE`: Disallow users from changing enroll secrets (default false).
+	- `FLEET_INSTALLERS_DIR`: directory with the pre-packaged installers (default empty).
+	- `FLEET_ENROLL_POOL`: comma-separated enrolls to use when needed (default empty), must have equals to FLEET_MAX_TEAMS+1 items (default empty).
+
+- Alternatively, instead of using a `FLEET_INSTALLERS_DIR`, we can store packages on a S3-compatible object (thus we would have to define new S3 configuration instead).
 	
 - Fleet will serve a new authenticated API (for Sandbox-only):
   `{GET|HEAD} /api/v1/fleet/download_installer/{enroll}/{type}`
