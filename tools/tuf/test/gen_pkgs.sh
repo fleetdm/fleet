@@ -33,7 +33,7 @@ if [ -n "$GENERATE_PKG" ]; then
         ${FLEET_DESKTOP:+--fleet-desktop} \
         --fleet-url=$PKG_FLEET_URL \
         --enroll-secret=$ENROLL_SECRET \
-        --insecure \
+        --fleet-certificate=./tools/osquery/fleet.crt \
         --debug \
         --update-roots="$ROOT_KEYS" \
         --update-interval=10s \
@@ -48,7 +48,7 @@ if [ -n "$GENERATE_DEB" ]; then
         ${FLEET_DESKTOP:+--fleet-desktop} \
         --fleet-url=$DEB_FLEET_URL \
         --enroll-secret=$ENROLL_SECRET \
-        --insecure \
+        --fleet-certificate=./tools/osquery/fleet.crt \
         --debug \
         --update-roots="$ROOT_KEYS" \
         --update-interval=10s \
@@ -63,7 +63,7 @@ if [ -n "$GENERATE_RPM" ]; then
         ${FLEET_DESKTOP:+--fleet-desktop} \
         --fleet-url=$RPM_FLEET_URL \
         --enroll-secret=$ENROLL_SECRET \
-        --insecure \
+        --fleet-certificate=./tools/osquery/fleet.crt \
         --debug \
         --update-roots="$ROOT_KEYS" \
         --update-interval=10s \
@@ -78,7 +78,7 @@ if [ -n "$GENERATE_MSI" ]; then
         ${FLEET_DESKTOP:+--fleet-desktop} \
         --fleet-url=$MSI_FLEET_URL \
         --enroll-secret=$ENROLL_SECRET \
-        --insecure \
+        --fleet-certificate=./tools/osquery/fleet.crt \
         --debug \
         --update-roots="$ROOT_KEYS" \
         --update-interval=10s \

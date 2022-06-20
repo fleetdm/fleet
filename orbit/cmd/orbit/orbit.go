@@ -497,7 +497,7 @@ func main() {
 		registerExtensionRunner(&g, r.ExtensionSocketPath(), deviceAuthToken)
 
 		if c.Bool("fleet-desktop") {
-			desktopRunner := newDesktopRunner(desktopPath, fleetURL, deviceAuthToken, c.Bool("insecure"))
+			desktopRunner := newDesktopRunner(desktopPath, fleetURL, deviceAuthToken, c.String("fleet-certificate"), c.Bool("insecure"))
 			g.Add(desktopRunner.actor())
 		}
 
@@ -529,16 +529,18 @@ type desktopRunner struct {
 	desktopPath     string
 	fleetURL        string
 	deviceAuthToken string
+	fleetRootCA     string
 	insecure        bool
 	interruptCh     chan struct{} // closed when interrupt is triggered
 	executeDoneCh   chan struct{} // closed when execute returns
 }
 
-func newDesktopRunner(desktopPath, fleetURL, deviceAuthToken string, insecure bool) *desktopRunner {
+func newDesktopRunner(desktopPath, fleetURL, deviceAuthToken, fleetRootCA string, insecure bool) *desktopRunner {
 	return &desktopRunner{
 		desktopPath:     desktopPath,
 		fleetURL:        fleetURL,
 		deviceAuthToken: deviceAuthToken,
+		fleetRootCA:     fleetRootCA,
 		insecure:        insecure,
 		interruptCh:     make(chan struct{}),
 		executeDoneCh:   make(chan struct{}),
@@ -569,6 +571,9 @@ func (d *desktopRunner) execute() error {
 	url.Path = path.Join(url.Path, "device", d.deviceAuthToken)
 	opts := []execuser.Option{
 		execuser.WithEnv("FLEET_DESKTOP_DEVICE_URL", url.String()),
+	}
+	if d.fleetRootCA != "" {
+		opts = append(opts, execuser.WithEnv("FLEET_DESKTOP_FLEET_ROOT_CA", d.fleetRootCA))
 	}
 	if d.insecure {
 		opts = append(opts, execuser.WithEnv("FLEET_DESKTOP_INSECURE", "1"))
