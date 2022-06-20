@@ -21,3 +21,28 @@ func (a alreadyExistsError) Error() string {
 func (a alreadyExistsError) IsExists() bool {
 	return true
 }
+
+// ssoErrCode defines a code for the type of SSO error that occurred.
+type ssoErrCode string
+
+// List of valid SSO error codes.
+const (
+	ssoOtherError      ssoErrCode = "error"
+	ssoOrgDisabled     ssoErrCode = "org_disabled"
+	ssoAccountDisabled ssoErrCode = "account_disabled"
+)
+
+// ssoError is an error that occurs during the Single-Sign-On flow. Its code
+// indicates the type of error.
+type ssoError struct {
+	err  error
+	code ssoErrCode
+}
+
+func (e ssoError) Error() string {
+	return string(e.code) + ": " + e.err.Error()
+}
+
+func (e ssoError) Unwrap() error {
+	return e.err
+}

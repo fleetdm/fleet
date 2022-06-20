@@ -346,10 +346,16 @@ func makeCallbackSSOEndpoint(urlPrefix string) handlerFunc {
 		session, err := svc.CallbackSSO(ctx, authResponse)
 		var resp callbackSSOResponse
 		if err != nil {
+			var ssoErr ssoError
+
+			status := ssoOtherError
+			if errors.As(err, &ssoErr) {
+				status = ssoErr.code
+			}
 			// redirect to login page on front end if there was some problem,
 			// errors should still be logged
 			session = &fleet.SSOSession{
-				RedirectURL: urlPrefix + "/login",
+				RedirectURL: urlPrefix + "/login?status=" + string(status),
 				Token:       "",
 			}
 			resp.Err = err
@@ -448,7 +454,7 @@ func (svc *Service) CallbackSSO(ctx context.Context, auth fleet.Auth) (*fleet.SS
 	}
 	// if the user is not sso enabled they are not authorized
 	if !user.SSOEnabled {
-		return nil, ctxerr.New(ctx, "user not configured to use sso")
+		return nil, ctxerr.Wrap(ctx, ssoError{err: errors.New("user not configured to use sso"), code: ssoAccountDisabled})
 	}
 	session, err := svc.makeSession(ctx, user.ID)
 	if err != nil {
