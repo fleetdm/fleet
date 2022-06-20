@@ -39,28 +39,57 @@ type LifecycleRecord struct {
 	RedisDB int `dynamodbav:"redis_db"`
 }
 
-func getFleetInstance() (ret LifecycleRecord, err error) {
-	svc := dynamodb.New(session.New())
-	input := &dynamodb.QueryInput{
-		ExpressionAttributeValues: map[string]*dynamodb.AttributeValue{
-			":v1": {
-				S: aws.String("unclaimed"),
+func claimFleet(fleet LifecycleRecord, svc *dynamodb.DynamoDB) (err error) {
+	// Perform a conditional update to claim the item
+	input := &dynamodb.UpdateItemInput{
+		ConditionExpression: aws.String("State = unclaimed"),
+		TableName:           aws.String(options.LifecycleTable),
+		Key: map[string]*dynamodb.AttributeValue{
+			"ID": {
+				S: aws.String(fleet.ID),
 			},
 		},
-		KeyConditionExpression: aws.String("State = :v1"),
-		TableName:              aws.String(options.LifecycleTable),
+		UpdateExpression: aws.String("set State = :s"),
+		ExpressionAttributeValues: map[string]*dynamodb.AttributeValue{
+			":S": {
+				S: aws.String(fleet.ID),
+			},
+		},
 	}
-
-	result, err := svc.Query(input)
-	if err != nil {
+	if _, err = svc.UpdateItem(input); err != nil {
 		return
 	}
-	recs := []LifecycleRecord{}
-	if err = dynamodbattribute.UnmarshalListOfMaps(result.Items, &recs); err != nil {
-		return
-	}
-	ret = recs[rand.Intn(len(recs))]
 	return
+}
+
+func getFleetInstance() (ret LifecycleRecord, err error) {
+	svc := dynamodb.New(session.New())
+	// Loop until we get one
+	for {
+		input := &dynamodb.QueryInput{
+			ExpressionAttributeValues: map[string]*dynamodb.AttributeValue{
+				":v1": {
+					S: aws.String("unclaimed"),
+				},
+			},
+			KeyConditionExpression: aws.String("State = :v1"),
+			TableName:              aws.String(options.LifecycleTable),
+		}
+
+		var result *dynamodb.QueryOutput
+		if result, err = svc.Query(input); err != nil {
+			return
+		}
+		recs := []LifecycleRecord{}
+		if err = dynamodbattribute.UnmarshalListOfMaps(result.Items, &recs); err != nil {
+			return
+		}
+		ret = recs[rand.Intn(len(recs))]
+		if err = claimFleet(ret, svc); err != nil {
+			continue
+		}
+		return
+	}
 }
 
 func triggerSFN(id string) (err error) {
@@ -93,8 +122,8 @@ func Health(c *gin.Context, in *HealthInput) (ret *HealthOutput, err error) {
 }
 
 type NewFleetInput struct {
-	Email string `validate:"required"`
-    Password string `validate:"required"`
+	Email    string `validate:"required"`
+	Password string `validate:"required"`
 }
 type NewFleetOutput struct {
 	URL string
@@ -110,8 +139,7 @@ func NewFleet(c *gin.Context, in *NewFleetInput) (ret *NewFleetOutput, err error
 	if err != nil {
 		return
 	}
-	client.Setup(in.Email, in.Email, in.Password, fleet.ID) // TODO: parse email parts to get the name
-	// TODO: send the email
+	client.Setup(in.Email, in.Email, in.Password, fleet.ID)
 	triggerSFN(fleet.ID)
 	return
 }

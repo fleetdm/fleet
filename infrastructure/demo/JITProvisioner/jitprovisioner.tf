@@ -77,9 +77,9 @@ resource "aws_lambda_function" "jitprovisioner" {
   }
   environment {
     variables = {
-      DYNAMODB_LIFECYCLE_TABLE = "test"
-      LIFECYCLE_SFN            = "test"
-      FLEET_BASE_URL           = "test"
+      DYNAMODB_LIFECYCLE_TABLE = var.dynamodb_table.id
+      LIFECYCLE_SFN            = aws_sfn_state_machine.main.id
+      FLEET_BASE_URL           = var.base_domain
     }
   }
 }
