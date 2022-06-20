@@ -460,6 +460,10 @@ func (svc *Service) CallbackSSO(ctx context.Context, auth fleet.Auth) (*fleet.SS
 	// Get and log in user
 	user, err := svc.ds.UserByEmail(ctx, auth.UserID())
 	if err != nil {
+		var nfe notFoundErrorInterface
+		if errors.As(err, &nfe) {
+			return nil, ctxerr.Wrap(ctx, ssoError{err: err, code: ssoAccountInvalid})
+		}
 		return nil, ctxerr.Wrap(ctx, err, "find user in sso callback")
 	}
 	// if the user is not sso enabled they are not authorized

@@ -30,6 +30,7 @@ const (
 	ssoOtherError      ssoErrCode = "error"
 	ssoOrgDisabled     ssoErrCode = "org_disabled"
 	ssoAccountDisabled ssoErrCode = "account_disabled"
+	ssoAccountInvalid  ssoErrCode = "account_invalid"
 )
 
 // ssoError is an error that occurs during the Single-Sign-On flow. Its code
