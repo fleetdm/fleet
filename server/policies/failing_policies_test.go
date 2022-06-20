@@ -202,4 +202,22 @@ func TestTriggerFailingPolicies(t *testing.T) {
 	// that it can retry once the integration is fixed).
 	require.Len(t, remainingHosts, 1)
 	require.Equal(t, remainingHosts[0], uint(15)) // host id used is the same as the policy id
+
+	// trigger it again, should cause the same calls as the first time, but all
+	// policy sets should be empty (no host to process).
+	var countHosts int
+	triggerCalls = triggerCalls[:0]
+	err = TriggerFailingPoliciesAutomation(context.Background(), ds, kitlog.NewNopLogger(), ac, failingPolicySet, func(pol *fleet.Policy, cfg FailingPolicyAutomationConfig) error {
+		hosts, err := failingPolicySet.ListHosts(pol.ID)
+		require.NoError(t, err)
+		countHosts += len(hosts)
+		triggerCalls = append(triggerCalls, policyAutomation{pol.ID, cfg.AutomationType})
+
+		return nil
+	})
+	require.NoError(t, err)
+
+	// order of calls is undefined
+	require.ElementsMatch(t, wantCalls, triggerCalls)
+	require.Zero(t, countHosts)
 }
