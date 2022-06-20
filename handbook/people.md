@@ -83,7 +83,6 @@ When attending a conference for Fleet, please make a post in [g-digital-experien
 The monthly limit on your Brex card will be increased temporarily as necessary to accomodate the increased spending associated with the conference.
 It is highly recommended that you order a physical Brex card if you do not have one before attending the conference.
 
-
 ## Paid time off
 
 What matters most is your results, which are driven by your focus, your availability to collaborate, and the time and consideration you put into your work.
