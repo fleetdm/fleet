@@ -8,7 +8,7 @@ There are two main ways to add a new endpoint to the Fleet API:
 2. Building the API endpoint and then going down the stack until the datastore.
 
 For the sake of ease of writing this document, we'll cover case 1. If you prefer to build in more of an option 2 style
-you can simply read the documentation from top to bottom.
+you can simply read the documentation bottom up.
 
 ### Step 1: Datastore
 
@@ -43,7 +43,7 @@ type Datastore interface {
 }
 ```
 
-Now we are ready for creating a method in the service.
+Now we are ready to create a method in the service.
 
 ### Step 2: Service
 
@@ -57,8 +57,8 @@ amount of hosts, it make sense to add it to the
 was a totally new feature, we could've created new files instead of adding to existing ones (this also applies to the 
 datastore portion).
 
-If you scroll around the hosts.go file, you'll notice the pattern that we'll be following. Since we are doing it "bottom 
-up", you'll notice that we'll skip a few things in this step but we'll add them in the next one.
+If you scroll around the hosts.go file, you'll notice the pattern that we'll be following. Since we are doing it 
+"datastore up", you'll notice that we'll skip a few things in this step but we'll add them in the next one.
 
 So we add to the bottom of the file the following:
 
