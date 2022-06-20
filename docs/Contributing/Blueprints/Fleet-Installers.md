@@ -246,7 +246,6 @@ Total: ~1 minute.
 
 - The Packager service could cache the TUF targets for a couple of minutes (given that they usually change ~ every three weeks).
 This would reduce 15s-30s the time it takes to generate the packages.
-- Currently, linux osquery target are ~200MB due to osquery including debug symbols, this target could be reduced by stripping them off or using a different non-debug build.
 
 ## Platform Specifics
 
