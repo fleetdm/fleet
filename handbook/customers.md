@@ -100,7 +100,7 @@ Fleet's subscription agreement is available at [fleetdm.com/terms](https://fleet
 
 Fleeties can find a summary of contract terms in the relevant [customer's Salesforce opportunity.](https://fleetdm.lightning.force.com/lightning/o/Opportunity/list?filterName=Recent)
 
-## Contract Glossary
+## Contract glossary
 
 | Term           | Definition                                                |
 |:---------------|:----------------------------------------------------------|
