@@ -397,6 +397,11 @@ func (svc *Service) CallbackSSO(ctx context.Context, auth fleet.Auth) (*fleet.SS
 		return nil, ctxerr.Wrap(ctx, err, "get config for sso")
 	}
 
+	if !appConfig.SSOSettings.EnableSSO {
+		err := ctxerr.New(ctx, "organization not configured to use sso")
+		return nil, ctxerr.Wrap(ctx, ssoError{err: err, code: ssoOrgDisabled})
+	}
+
 	// Load the request metadata if available
 
 	// localhost:9080/simplesaml/saml2/idp/SSOService.php?spentityid=https://localhost:8080
@@ -454,7 +459,8 @@ func (svc *Service) CallbackSSO(ctx context.Context, auth fleet.Auth) (*fleet.SS
 	}
 	// if the user is not sso enabled they are not authorized
 	if !user.SSOEnabled {
-		return nil, ctxerr.Wrap(ctx, ssoError{err: errors.New("user not configured to use sso"), code: ssoAccountDisabled})
+		err := ctxerr.New(ctx, "user not configured to use sso")
+		return nil, ctxerr.Wrap(ctx, ssoError{err: err, code: ssoAccountDisabled})
 	}
 	session, err := svc.makeSession(ctx, user.ID)
 	if err != nil {
