@@ -77,7 +77,7 @@ When a device has been purchased, it's added to the [spreadsheet of company equi
 When attending a conference for Fleet, please make a post in [g-digital-experience](https://github.com/fleetdm/fleet/pull/6288) on Slack with the following information:
 The start and end dates for your trip.
 The price of your flight (feel free to optimize a direct flight if there is one that is less than double the price of the cheapest non-direct flight).
-The price of your hotel per night.
+- The price of your hotel per night.
 - The price of the admission fees for the conference.
 
 The monthly limit on your Brex card will be increased temporarily as necessary to accomodate the increased spending associated with the conference.
