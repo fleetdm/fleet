@@ -260,6 +260,8 @@ type ScheduledQueryFunc func(ctx context.Context, id uint) (*fleet.ScheduledQuer
 
 type CleanupExpiredHostsFunc func(ctx context.Context) ([]uint, error)
 
+type ScheduledQueryIDsByNameFunc func(ctx context.Context, packAndSchedQueryNames ...[2]string) ([]uint, error)
+
 type NewTeamFunc func(ctx context.Context, team *fleet.Team) (*fleet.Team, error)
 
 type SaveTeamFunc func(ctx context.Context, team *fleet.Team) (*fleet.Team, error)
@@ -792,6 +794,9 @@ type DataStore struct {
 
 	CleanupExpiredHostsFunc        CleanupExpiredHostsFunc
 	CleanupExpiredHostsFuncInvoked bool
+
+	ScheduledQueryIDsByNameFunc        ScheduledQueryIDsByNameFunc
+	ScheduledQueryIDsByNameFuncInvoked bool
 
 	NewTeamFunc        NewTeamFunc
 	NewTeamFuncInvoked bool
@@ -1652,6 +1657,11 @@ func (s *DataStore) ScheduledQuery(ctx context.Context, id uint) (*fleet.Schedul
 func (s *DataStore) CleanupExpiredHosts(ctx context.Context) ([]uint, error) {
 	s.CleanupExpiredHostsFuncInvoked = true
 	return s.CleanupExpiredHostsFunc(ctx)
+}
+
+func (s *DataStore) ScheduledQueryIDsByName(ctx context.Context, packAndSchedQueryNames ...[2]string) ([]uint, error) {
+	s.ScheduledQueryIDsByNameFuncInvoked = true
+	return s.ScheduledQueryIDsByNameFunc(ctx, packAndSchedQueryNames...)
 }
 
 func (s *DataStore) NewTeam(ctx context.Context, team *fleet.Team) (*fleet.Team, error) {

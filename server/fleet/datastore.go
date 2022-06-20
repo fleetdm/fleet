@@ -323,6 +323,9 @@ type Datastore interface {
 	DeleteScheduledQuery(ctx context.Context, id uint) error
 	ScheduledQuery(ctx context.Context, id uint) (*ScheduledQuery, error)
 	CleanupExpiredHosts(ctx context.Context) ([]uint, error)
+	// ScheduledQueryIDsByName loads the IDs associated with the given pack and
+	// query names.
+	ScheduledQueryIDsByName(ctx context.Context, packAndSchedQueryNames ...[2]string) ([]uint, error)
 
 	///////////////////////////////////////////////////////////////////////////////
 	// TeamStore

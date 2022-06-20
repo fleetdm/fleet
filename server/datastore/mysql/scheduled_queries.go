@@ -213,3 +213,12 @@ func (ds *Datastore) ScheduledQuery(ctx context.Context, id uint) (*fleet.Schedu
 
 	return sq, nil
 }
+
+func (ds *Datastore) ScheduledQueryIDsByName(ctx context.Context, packAndSchedQueryNames ...[2]string) ([]uint, error) {
+	//	const stmt = `SELECT sq.id
+	//    FROM scheduled_queries sq
+	//    INNER JOIN packs p ON sq.pack_id = p.id
+	//    WHERE (p.name, sq.name) IN (?)`
+	// TODO(mna): how to efficiently load those ids?
+	panic("unimplemented")
+}

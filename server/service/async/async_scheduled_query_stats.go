@@ -95,11 +95,6 @@ func (t *Task) collectScheduledQueryStats(ctx context.Context, ds fleet.Datastor
 	}
 	stats.Keys = len(hosts)
 
-	// TODO(mna): packs typically target many hosts, so it's very likely that the
-	// batch of recorded stats have a small-ish set of packName+schedQueryName that
-	// is repeated many times over. Instead of loading those schedQuery IDs for each
-	// insertion of the stats, load it once before processing the batch.
-
 	getHostStats := func(hostID uint) (packStats []fleet.PackStats, schedQueryNames [][2]string, err error) {
 		keyHash := fmt.Sprintf(scheduledQueryStatsHostQueriesKey, hostID)
 		conn := redis.ConfigureDoer(pool, pool.Get())
@@ -148,8 +143,25 @@ func (t *Task) collectScheduledQueryStats(ctx context.Context, ds fleet.Datastor
 		}
 	}
 
-	// get all hosts' stats
-	// index the pack + scheduled query names
+	// NOTE(mna): packs typically target many hosts, so it's very likely that the
+	// batch of recorded stats have a small-ish set of packName+schedQueryName that
+	// is repeated many times over. Instead of loading those schedQuery IDs for each
+	// insertion of the stats, load it once before processing the batch.
+
+	// get all hosts' stats and index the scheduled query names
+	hostsStats := make(map[uint][]fleet.PackStats, len(hosts)) // key is host ID
+	uniqueSchedQueries := make(map[[2]string]uint)             // key is pack+scheduled query names, value is scheduled query id
+	for _, host := range hosts {
+		packStats, names, err := getHostStats(host.HostID)
+		if err != nil {
+			return err
+		}
+		hostsStats[host.HostID] = packStats
+		for _, nm := range names {
+			uniqueSchedQueries[nm] = 0
+		}
+	}
+
 	// load scheduled query IDs
 	// batch upsert the stats
 
