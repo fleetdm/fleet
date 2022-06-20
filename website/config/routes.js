@@ -178,6 +178,13 @@ module.exports.routes = {
     }
   },
 
+  'GET /sales': {
+    action: 'view-sales-one-pager',
+    locals: {
+      layout: 'layouts/layout-landing'
+    },
+   },
+
 
 
   //  ╦  ╔═╗╔═╗╔═╗╔═╗╦ ╦  ╦═╗╔═╗╔╦╗╦╦═╗╔═╗╔═╗╔╦╗╔═╗
