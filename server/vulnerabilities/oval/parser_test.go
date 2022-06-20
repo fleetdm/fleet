@@ -224,7 +224,7 @@ func TestOvalParser(t *testing.T) {
 		</red-def:rpmverifyfile_state>
 		<red-def:rpmverifyfile_state id="oval:com.redhat.rhsa:ste:20221728004" version="635">
 			<red-def:name operation="pattern match">^redhat-release</red-def:name>
-			<red-def:version operation="pattern match">^9[^\d]</red-def:version>
+			<red-def:version operation="pattern match">^7[^\d]</red-def:version>
 		</red-def:rpmverifyfile_state>
 		<red-def:rpminfo_state id="oval:com.redhat.rhsa:ste:20224584001" version="635">
 			<red-def:arch datatype="string" operation="pattern match">aarch64|i686|ppc64le|s390x|x86_64</red-def:arch>
@@ -528,7 +528,7 @@ func TestOvalParser(t *testing.T) {
 		require.Equal(t, result.RpmVerifyFileStates[1].Name.Value, "^redhat-release")
 		require.NotNil(t, result.RpmVerifyFileStates[1].Version)
 		require.Equal(t, result.RpmVerifyFileStates[1].Version.Op, "pattern match")
-		require.Equal(t, result.RpmVerifyFileStates[1].Version.Value, `^9[^\d]`)
+		require.Equal(t, result.RpmVerifyFileStates[1].Version.Value, `^7[^\d]`)
 
 		require.Len(t, result.RpmVerifyFileObjects, 1)
 		require.Equal(t, result.RpmVerifyFileObjects[0].Id, "oval:com.redhat.rhsa:obj:20221728024")
@@ -652,10 +652,29 @@ func TestOvalParser(t *testing.T) {
 
 		centOS := fleet.OSVersion{
 			Platform: "rhel",
-			Name:     "CentOS Stream 9.0.0",
+			Name:     "CentOS Linux 7.9.2009",
 		}
 
 		rEval, err := result.RpmVerifyFileTests[20221728047].Eval(centOS)
+		require.NoError(t, err)
+		require.True(t, rEval)
+	})
+
+	t.Run("RHEL OVAL definitions work with Amazon Distro", func(t *testing.T) {
+		r := strings.NewReader(rhelOvalXML)
+
+		xmlResult, err := parseRhelXML(r)
+		require.NoError(t, err)
+
+		result, err := mapToRhelResult(xmlResult)
+		require.NoError(t, err)
+
+		amzDistro := fleet.OSVersion{
+			Platform: "amzn",
+			Name:     "Amazon Linux 2.0.0",
+		}
+
+		rEval, err := result.RpmVerifyFileTests[20221728047].Eval(amzDistro)
 		require.NoError(t, err)
 		require.True(t, rEval)
 	})

@@ -117,7 +117,7 @@ func (sta ObjectInfoState) EvalOSVersion(version fleet.OSVersion) (bool, error) 
 	// normalize the value.
 	if sta.Name != nil {
 		var nName string
-		if version.Platform == "rhel" {
+		if version.Platform == "rhel" || version.Platform == "amzn" {
 			nName = "redhat-release"
 		}
 		rEval, err := sta.Name.Eval(nName)
@@ -128,8 +128,17 @@ func (sta ObjectInfoState) EvalOSVersion(version fleet.OSVersion) (bool, error) 
 	}
 
 	if sta.Version != nil {
-		pName := strings.Trim(version.Name, " ")
-		pVer := pName[strings.LastIndex(pName, " ")+1:]
+		var pVer string
+		if version.Platform == "rhel" {
+			pName := strings.Trim(version.Name, " ")
+			pVer = pName[strings.LastIndex(pName, " ")+1:]
+		}
+
+		if version.Platform == "amzn" {
+			// Amazon Linux 2 is based on RHEL 7
+			pVer = "7.0.0"
+		}
+
 		rEval, err := sta.Version.Eval(pVer)
 		if err != nil {
 			return false, err

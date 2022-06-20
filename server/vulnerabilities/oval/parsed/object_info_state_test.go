@@ -192,6 +192,10 @@ func TestObjectInfoState(t *testing.T) {
 					expected: true,
 				},
 				{
+					version:  fleet.OSVersion{Platform: "amzn", Name: "Amazon Linux 2.0.0"},
+					expected: true,
+				},
+				{
 					version:  fleet.OSVersion{Platform: "rhel", Name: "Red Hat Enterprise Linux 9.0.0"},
 					expected: true,
 				},

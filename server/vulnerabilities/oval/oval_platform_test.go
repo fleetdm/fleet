@@ -25,6 +25,7 @@ func TestOvalPlatform(t *testing.T) {
 			{"ubuntu", "Ubuntu 18.4", "ubuntu_1804"},
 			{"ubuntu", "Ubuntu 18.4.0 ", "ubuntu_1804"},
 			{"rhel", "CentOS Linux 7.9.2009", "rhel_07"},
+			{"amzn", "Amazon Linux 2.0.0", "amzn_02"},
 		}
 
 		for _, c := range cases {
