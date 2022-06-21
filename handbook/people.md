@@ -500,5 +500,5 @@ The following table lists the People group's rituals, frequency, and Directly Re
 Please see [Brand > Slack channels](https://fleetdm.com/handbook/brand#slack-channels).
 
 
-<meta name="maintainedBy" value="eashaw">
+<meta name="maintainedBy" value="charlottechance">
 <meta name="title" value="🧑‍🚀 People">
