@@ -1,0 +1,2 @@
+* Added /etc/init.d/orbit init script to the package
+* Corrected pre-remove and post-remove files to handle absense of systemctl
