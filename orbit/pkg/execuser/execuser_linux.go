@@ -36,6 +36,13 @@ func run(path string, opts eopts) error {
 		// multi-user/multi-session support. This assumes there's only
 		// one desktop session and belongs to the user returned in `getLoginUID'.
 		"DISPLAY=:0",
+		// DBUS_SESSION_BUS_ADDRESS sets the location of the user login session bus.
+		// Required by the libayatana-appindicator3 library to display a tray icon
+		// on the desktop session.
+		//
+		// This is required for Ubuntu 18, and not required for Ubuntu 21/22
+		// (because it's already part of the user).
+		fmt.Sprintf("DBUS_SESSION_BUS_ADDRESS=unix:path=/run/user/%d/bus", user.id),
 		// Append the packaged libayatana-appindicator3 libraries path to LD_LIBRARY_PATH.
 		fmt.Sprintf("LD_LIBRARY_PATH=%s:%s", filepath.Dir(path), os.ExpandEnv("$LD_LIBRARY_PATH")),
 		path,
