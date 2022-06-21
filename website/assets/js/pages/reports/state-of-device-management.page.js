@@ -399,7 +399,7 @@ parasails.registerPage('state-of-device-management', {
               fullWidth: false,
               position: chartHasLegendOnBottom ? 'bottom' : 'right',
               // removing the default onClick event from the chart's legend
-              onClick: (click)=>{console.log(click);},
+              onClick: (click)=>{return;},
               labels: {
                 padding: 16,
                 generateLabels: (chart) => {
@@ -428,10 +428,8 @@ parasails.registerPage('state-of-device-management', {
       if(this.redrawnCharts.length < 1) {
         // Iterating through charts drawn on the page. If the window width is below 768px, we'll change the configuration and update the charts.
         for(let index in this.chartsDrawnOnPage) {
-          console.log(this.chartsDrawnOnPage[index]);
           // If a bottom legend position was specified, we'll ignore it.
           let chartHasLegendOnBottomAtAllWidths = this.chartsDrawnOnPage[index].aspectRatio === 0.8;
-          console.log(this.chartsDrawnOnPage[index] + ' ' + 'chartHasLegendOnBottomAtAllWidths: '+ chartHasLegendOnBottomAtAllWidths);
           if(window.innerWidth < 768 && !chartHasLegendOnBottomAtAllWidths){
             this.redrawnCharts.push(this.chartsDrawnOnPage[index]);
             this.chartsDrawnOnPage[index].aspectRatio = 1;
@@ -450,7 +448,6 @@ parasails.registerPage('state-of-device-management', {
             this.chartsDrawnOnPage[index].resize();
           }
         }
-        console.log(this.chartsDrawnOnPage);
       } else {
         // Iterating through the charts that have been redrawn and changing them back to their original configuration.
         for(let index in this.redrawnCharts) {
@@ -473,7 +470,6 @@ parasails.registerPage('state-of-device-management', {
             this.redrawnCharts[index].resize();
           }
         }
-        console.log(this.redrawnCharts);
       }
     },
 
