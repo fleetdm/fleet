@@ -22,7 +22,9 @@ func (a alreadyExistsError) IsExists() bool {
 	return true
 }
 
-// ssoErrCode defines a code for the type of SSO error that occurred.
+// ssoErrCode defines a code for the type of SSO error that occurred. This is
+// used to indicate to the frontend why the SSO login attempt failed so that
+// it can provide a helpful and appropriate error message.
 type ssoErrCode string
 
 // List of valid SSO error codes.
