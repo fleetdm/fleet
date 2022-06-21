@@ -106,6 +106,21 @@ html, body {
       }
     }
   }
+  [purpose='header-report-cta'] {
+    height: 48px;
+    strong {
+      font-size: 14px;
+      line-height: 20px;
+    }
+    p {
+      font-size: 14px;
+      line-height: 20px;
+    }
+    a {
+      font-weight: 700;
+      text-decoration: underline;
+    }
+  }
 } // Homepage header styles
 &.homepage-header {
   z-index: 9999;
@@ -119,13 +134,13 @@ html, body {
     color: #192147;
 
     .btn.btn-link {
-        color: #192147;
+      color: #192147;
     }
 
     [purpose='header-nav'] {
-        a {
-            color: #192147;
-        }
+      a {
+        color: #192147;
+      }
 
     }
    }
@@ -140,6 +155,14 @@ html, body {
       color: #ffffff;
       font-weight: @bold;
       cursor: pointer;
+    }
+  }
+  [purpose='header-report-cta'] {
+    background-color: #FFF;
+    color: #000;
+
+    a {
+      color: #000;
     }
   }
 } // Non-homepage header styles
@@ -171,6 +194,13 @@ html, body {
       color: #192147;
       font-weight: @bold;
       cursor: pointer;
+    }
+  }
+  [purpose='header-report-cta'] {
+    background-color: @core-fleet-black;
+    color: #FFF;
+    a {
+      color: #FFF;
     }
   }
 }
@@ -235,17 +265,31 @@ body.detected-mobile {
     [purpose='page-footer'] {
       height: 264px;
     }
-
+    [purpose='page-header'] {
+      [purpose='header-report-cta'] {
+        height: 58px;
+      }
+    }
+    .translate-y-0 {
+      transform: translateY(-153px);
+    }
   }
 }
 
 @media (max-width: 575px) {
-    [purpose='page-wrap'] {
-      padding-bottom: 371px;
-
-      [purpose='page-footer'] {
-        height: 371px;
+  [purpose='page-wrap'] {
+    padding-bottom: 371px;
+    [purpose='page-footer'] {
+      height: 371px;
+    }
+    [purpose='page-header'] {
+      [purpose='header-report-cta'] {
+        height: 78px;
       }
+    }
+    .translate-y-0 {
+        transform: translateY(-173px);
+    }
   }
 }
 
@@ -274,5 +318,5 @@ body.detected-mobile {
 
 // Some utilities for the sticky nav behaviour
 .translate-y-0 {
-    transform: translateY(-95px);
+    transform: translateY(-143px);
 }
