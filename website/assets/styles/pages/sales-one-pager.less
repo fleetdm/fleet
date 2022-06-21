@@ -76,6 +76,9 @@
       width: 36px;
       margin-bottom: 16px;
     }
+    p {
+      margin-bottom: 0px;
+    }
   }
 
   [purpose='tweet-deck'] {
@@ -139,6 +142,10 @@
   }
 
   @media (max-width: 991px) {
+    [purpose='content'] {
+      padding-left: 40px;
+      padding-right: 40px;
+    }
     [purpose='feature-image-left'] {
       margin-right: auto;
       margin-left: auto;
@@ -162,6 +169,27 @@
     [purpose='common-problem'] {
       margin-right: 15px;
       margin-left: 15px;
+    }
+    [purpose='common-problem'] {
+      flex: 0 0 210px;
+    }
+  }
+  @media (max-width: 776px) {
+    [purpose='common-problem'] {
+      flex: 0 0 200px;
+    }
+
+  }
+  @media (max-width: 541px) {
+    [purpose='common-problem'] {
+      flex: 0 0 180px;
+    }
+    [purpose='banner'] {
+      padding-left: 15px;
+      padding-right: 15px;
+    }
+    [purpose='fleet-cta'] {
+      padding: 60px 45px;
     }
   }
 }
