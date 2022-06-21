@@ -15,6 +15,7 @@ type StatisticsPayload struct {
 	VulnDetectionEnabled      bool   `json:"vulnDetectionEnabled"`
 	SystemUsersEnabled        bool   `json:"systemUsersEnabled"`
 	HostsStatusWebHookEnabled bool   `json:"hostsStatusWebHookEnabled"`
+	NumWeeklyActiveUsers      int    `json:"numWeeklyActiveUsers"`
 }
 
 const (
