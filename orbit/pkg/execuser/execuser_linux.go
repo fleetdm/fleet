@@ -24,19 +24,19 @@ func run(path string, opts eopts) error {
 		Int64("id", user.id).
 		Msg("running sudo")
 
-	arg := []string{"-u", user.name, "-H"}
+	// Flag `-i` is needed to run the command with the user's context, from `man sudo`:
+	// "The command is run with an environment similar to the one a user would receive at log in"
+	arg := []string{"-i", "-u", user.name, "-H"}
 	for _, nv := range opts.env {
 		arg = append(arg, fmt.Sprintf("%s=%s", nv[0], nv[1]))
 	}
+
 	arg = append(arg,
 		// TODO(lucas): Default to display 0, revisit when working on
 		// multi-user/multi-session support. This assumes there's only
 		// one desktop session and belongs to the user returned in `getLoginUID'.
 		"DISPLAY=:0",
-		// DBUS_SESSION_BUS_ADDRESS sets the location of the user login session bus.
-		// Required by the libayatana-appindicator3 library to display a tray icon
-		// on the desktop session.
-		fmt.Sprintf("DBUS_SESSION_BUS_ADDRESS=unix:path=/run/user/%d/bus", user.id),
+		// Append the packaged libayatana-appindicator3 libraries path to LD_LIBRARY_PATH.
 		fmt.Sprintf("LD_LIBRARY_PATH=%s:%s", filepath.Dir(path), os.ExpandEnv("$LD_LIBRARY_PATH")),
 		path,
 	)
