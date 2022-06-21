@@ -22,9 +22,9 @@ SELECT COUNT(*) FROM hosts
 So let's create a function for this within the mysql datastore in the [hosts.go file](https://github.com/fleetdm/fleet/blob/main/server/datastore/mysql/hosts.go):
 
 ```go
-func (ds *Datastore) CountAllHost(ctx context.Context) (int, error) {
+func (ds *Datastore) CountAllHosts(ctx context.Context) (int, error) {
     var hostCount int
-    err := sqlx.GetContext(ctx, db, &hostCount, `SELECT COUNT(*) FROM hosts`)
+    err := sqlx.GetContext(ctx, ds.reader, &hostCount, `SELECT COUNT(*) FROM hosts`)
     if err != nil {
         return 0, err
     }
@@ -39,7 +39,7 @@ interface. So we add this method [to it](https://github.com/fleetdm/fleet/blob/m
 type Datastore interface {
 	// rest of the interface here
 	
-    CountAllHost(ctx context.Context) (int, error)
+    CountAllHosts(ctx context.Context) (int, error)
 }
 ```
 
