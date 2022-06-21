@@ -6,7 +6,6 @@ import (
 	"crypto/subtle"
 	"crypto/tls"
 	"database/sql/driver"
-	"errors"
 	"fmt"
 	"io/ioutil"
 	"math/rand"
@@ -338,9 +337,10 @@ the way that the Fleet server works.
 				}
 			}
 
-			// TODO: gather all the different contexts and use just one
 			ctx, cancelFunc := context.WithCancel(context.Background())
 			defer cancelFunc()
+			eh := errorstore.NewHandler(ctx, redisPool, logger, config.Logging.ErrorRetentionPeriod)
+			ctx = ctxerr.NewContext(ctx, eh)
 			svc, err := service.NewService(ctx, ds, task, resultStore, logger, osqueryLogger, config, mailService, clock.C, ssoSessionStore, liveQueryStore, carveStore, *license, failingPolicySet, geoIP, redisWrapperDS)
 			if err != nil {
 				initFatal(err, "initializing service")
@@ -353,7 +353,7 @@ the way that the Fleet server works.
 				}
 			}
 
-			cancelBackground := runCrons(ds, task, kitlog.With(logger, "component", "crons"), config, license, failingPolicySet, redisWrapperDS)
+			runCrons(ctx, ds, task, kitlog.With(logger, "component", "crons"), config, license, failingPolicySet, redisWrapperDS)
 
 			// Flush seen hosts every second
 			hostsAsyncCfg := config.Osquery.AsyncConfigForTask(configpkg.AsyncTaskHostLastSeen)
@@ -434,8 +434,6 @@ the way that the Fleet server works.
 			// Instantiate a gRPC service to handle launcher requests.
 			launcher := launcher.New(svc, logger, grpc.NewServer(), healthCheckers)
 
-			eh := errorstore.NewHandler(ctx, redisPool, logger, config.Logging.ErrorRetentionPeriod)
-
 			rootMux := http.NewServeMux()
 			rootMux.Handle("/healthz", service.PrometheusMetricsHandler("healthz", health.Handler(httpLogger, healthCheckers)))
 			rootMux.Handle("/version", service.PrometheusMetricsHandler("version", version.Handler()))
@@ -513,8 +511,6 @@ the way that the Fleet server works.
 				writeTimeout = liveQueryRestPeriod
 			}
 
-			httpSrvCtx := ctxerr.NewContext(ctx, eh)
-
 			// Create the handler based on whether tracing should be there
 			var handler http.Handler
 			if config.Logging.TracingEnabled && config.Logging.TracingType == "elasticapm" {
@@ -532,7 +528,7 @@ the way that the Fleet server works.
 				IdleTimeout:       5 * time.Minute,
 				MaxHeaderBytes:    1 << 18, // 0.25 MB (262144 bytes)
 				BaseContext: func(l net.Listener) context.Context {
-					return httpSrvCtx
+					return ctx
 				},
 			}
 			srv.SetKeepAlivesEnabled(config.Server.Keepalive)
@@ -557,7 +553,6 @@ the way that the Fleet server works.
 				ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 				defer cancel()
 				errs <- func() error {
-					cancelBackground()
 					cancelFunc()
 					launcher.GracefulStop()
 					return srv.Shutdown(ctx)
@@ -635,6 +630,7 @@ func trySendStatistics(ctx context.Context, ds fleet.Datastore, frequency time.D
 }
 
 func runCrons(
+	ctx context.Context,
 	ds fleet.Datastore,
 	task *async.Task,
 	logger kitlog.Logger,
@@ -642,12 +638,11 @@ func runCrons(
 	license *fleet.LicenseInfo,
 	failingPoliciesSet fleet.FailingPolicySet,
 	enrollHostLimiter fleet.EnrollHostLimiter,
-) context.CancelFunc {
-	ctx, cancelBackground := context.WithCancel(context.Background())
+) {
 
 	ourIdentifier, err := server.GenerateRandomText(64)
 	if err != nil {
-		initFatal(errors.New("Error generating random instance identifier"), "")
+		initFatal(ctxerr.New(ctx, "generating random instance identifier"), "")
 	}
 
 	// StartCollectors starts a goroutine per collector, using ctx to cancel.
@@ -658,8 +653,6 @@ func runCrons(
 		ctx, ds, kitlog.With(logger, "cron", "vulnerabilities"), ourIdentifier, config)
 	go cronWebhooks(ctx, ds, kitlog.With(logger, "cron", "webhooks"), ourIdentifier, failingPoliciesSet, 1*time.Hour)
 	go cronWorker(ctx, ds, kitlog.With(logger, "cron", "worker"), ourIdentifier)
-
-	return cancelBackground
 }
 
 // Support for TLS security profiles, we set up the TLS configuation based on
