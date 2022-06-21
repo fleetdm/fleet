@@ -1254,6 +1254,7 @@ func testHostsBySoftwareIDs(t *testing.T, ds *Datastore) {
 	insertVulnSoftwareForTest(t, ds)
 
 	allSoftware, err := ds.ListSoftware(ctx, fleet.SoftwareListOptions{})
+	require.NoError(t, err)
 
 	var chrome3 fleet.Software
 	var barRpm fleet.Software
@@ -1530,6 +1531,7 @@ func testInsertVulnerabilities(t *testing.T, ds *Datastore) {
 		require.Equal(t, 0, int(n))
 
 		storedVulns, err := ds.ListSoftwareVulnerabilities(ctx, []uint{host.ID})
+		require.NoError(t, err)
 
 		occurrence := make(map[string]int)
 		for _, v := range storedVulns[host.ID] {

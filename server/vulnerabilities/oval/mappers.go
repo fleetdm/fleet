@@ -1,6 +1,7 @@
 package oval
 
 import (
+	"errors"
 	"fmt"
 	"strconv"
 	"strings"
@@ -78,7 +79,7 @@ func mapPackageState(sta oval_input.DpkgStateXML) ([]oval_parsed.ObjectStateEvrS
 		sta.Arch != nil ||
 		sta.Epoch != nil ||
 		sta.Version != nil {
-		return nil, fmt.Errorf("only evr state definitions are supported")
+		return nil, errors.New("only evr state definitions are supported")
 	}
 
 	if sta.Evr != nil {
@@ -89,12 +90,31 @@ func mapPackageState(sta oval_input.DpkgStateXML) ([]oval_parsed.ObjectStateEvrS
 }
 
 func mapPackageObject(obj oval_input.DpkgObjectXML, vars map[string]oval_input.ConstantVariableXML) ([]string, error) {
+	// Test objects can define their 'name' in one of two ways:
+	// 1. Inline:
+	// <:object ...>
+	//      <:name>software name</:name>
+	// </:object>
+	//
+	// 2. As a variable reference:
+	// <:object ...>
+	// 		<:name var_ref="var:200224390000000" var_check="at least one" />
+	// </:object>
+
+	// Check whether the name was defined inline
+	if obj.Name.Value != "" {
+		return []string{obj.Name.Value}, nil
+	}
+
+	var r []string
+	// If not, the name should be defined as a variable
 	variable, ok := vars[obj.Name.VarRef]
 	if !ok {
 		return nil, fmt.Errorf("variable not found %s", obj.Name.VarRef)
 	}
 
-	var r []string
+	// Normally the variable for a test object contains a single value, but according to the specs,
+	// it can contain multiple values.
 	r = append(r, variable.Values...)
 
 	return r, nil

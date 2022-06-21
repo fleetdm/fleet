@@ -2,7 +2,7 @@
 
 ## Directly responsible individuals
 
-At Fleet, we use the concept of directly responsible individuals (**DRI**s). This person is singularly responsible for a given aspect of the open source project, the product, or the company.
+At Fleet, we use the concept of Directly Responsible Individuals (**DRI**s). This person is singularly responsible for a given aspect of the open source project, the product, or the company.
 
 This person is accountable for accomplishing goals and making decisions about a particular element of Fleet.
 
@@ -47,8 +47,8 @@ As we continue to expand our company policies, we use [GitLab's open expense pol
 In brief, this means that as a Fleet team member, you may:
 
 * Spend company money like it is your own money.
-* Be responsible for what you need to purchase or expense in order to do your job effectively.
-* Feel free to make purchases __in the company interest__ without asking for permission beforehand (when in doubt, do __inform__ your manager prior to purchase or as soon as possible after the purchase).
+* Be responsible for what you need to purchase or expense to do your job effectively.
+* Feel free to make purchases __in the company's interest__ without asking for permission beforehand (when in doubt, do __inform__ your manager prior to purchase or as soon as possible after the purchase).
 
 For more developed thoughts about __spending guidelines and limits__, please read [GitLab's open expense policy](https://about.gitlab.com/handbook/spending-company-money/).
 
@@ -58,7 +58,7 @@ We provide all of our team members with Brex cards for making purchases for the 
 
 Team members can request reimbursement through [Gusto](https://app.gusto.com/expenses) if they're in the US or [Pilot](https://pilot.co/) if they are an international team member. When submitting an expense report, team members need to provide the receipt and a description of the expense.
 
-Operations will review the expense and reach out to the team member if they have any questions. When an expense is approved, the reimbursement will be added to the team member's next payroll.
+Operations will review the expense and reach out to the team member if they have any questions. The reimbursement will be added to the team member's next payroll when an expense is approved.
 
 >Pilot handles reimbursements differently depending on if the international team member is classified as an employee or a contractor. If the reimbursement is for a contractor, Operations will need to add the expense reimbursement to an upcoming recurring payment or schedule the reimbursement as an off-cycle payment. If the reimbursement is for an employee, no other action is needed; Pilot will add the reimbursement to the team member's next payroll. 
 
@@ -70,7 +70,18 @@ Most of the team at Fleet uses 16" MacBook Pros, but team members are free to ch
 
 When selecting your new laptop, we ask that you optimize your configuration to have a large hard drive and be available for delivery or pickup quickly, without waiting for customization.
 
-When a device has been purchased, it's added to the [spreadsheet of company equipment](https://docs.google.com/spreadsheets/d/1hFlymLlRWIaWeVh14IRz03yE-ytBLfUaqVz0VVmmoGI/edit#gid=0) where we keep track of devices and equipment purchased by Fleet. When the team member receives their computer, they will complete the entry by adding a description, model, and serial number to the spreadsheet.
+When a device has been purchased, it's added to the [spreadsheet of company equipment](https://docs.google.com/spreadsheets/d/1hFlymLlRWIaWeVh14IRz03yE-ytBLfUaqVz0VVmmoGI/edit#gid=0) where we keep track of devices and equipment, purchased by Fleet. When the team member receives their computer, they will complete the entry by adding a description, model, and serial number to the spreadsheet.
+
+### Attending conferences
+
+When attending a conference for Fleet, please make a post in [g-digital-experience](https://github.com/fleetdm/fleet/pull/6288) on Slack with the following information:
+- The start and end dates for your trip.
+- The price of your flight (feel free to optimize a direct flight if there is one that is less than double the price of the cheapest non-direct flight).
+- The price of your hotel per night.
+- The price of the admission fees for the conference.
+
+The monthly limit on your Brex card will be increased temporarily as necessary to accomodate the increased spending associated with the conference.
+It is highly recommended that you order a physical Brex card if you do not have one before attending the conference.
 
 ## Paid time off
 
@@ -107,7 +118,7 @@ When a team member joins Fleet, they pick one of the following holiday schedules
 
  - **Freestyle**: You have no set schedule and start with no holidays. Then you add the days that are holidays to you.
 
-Either way, it's up to you to ensure that your responsibilities are covered and your team knows that you're out of the office.
+Either way, it's up to you to make sure that your responsibilities are covered, and that your team knows you're out of the office.
 
 ### New parent leave
 
@@ -116,8 +127,8 @@ Fleet gives new parents six weeks of paid leave. After six weeks, if you don't f
 ## Meetings
 
 * At Fleet, meetings start whether you're there or not. Nevertheless, being even a few minutes late can make a big difference and slow your meeting counterparts down. When in doubt, show up a couple of minutes early.
-* It's okay to spend the first minute or two of a meeting being present and making small talk. Being all-remote, it's easy to miss out on hallway chatter and human connections that happen in [meatspace](https://www.dictionary.com/browse/meatspace).  Use this time together during the first minute to say "Hi!"  Then you can jump into the topics to be discussed.
-* Turning on your camera allows for more complete and intuitive verbal and non-verbal communication. Feel free to leave your camera on or to turn it off when joining meetings with new participants who you might not be familiar with yet. Turn your camera on when you lead or cohost a meeting.
+* It's okay to spend the first minute or two of a meeting being present and making small talk. Since we are all remote, it's easy to miss out on hallway chatter and human connections that happen in [meatspace](https://www.dictionary.com/browse/meatspace).  Use this time together during the first minute to say "Hi!"  Then you can jump into the topics to be discussed.
+* Turning on your camera allows for more complete and intuitive verbal and non-verbal communication. Feel free to leave your camera on or turn it off when joining meetings with new participants you might not be familiar with yet. Turn your camera on when you lead or cohost a meeting.
 * In an all-remote company, “face time” matters. Remember: even if someone’s calendar is open, they have other work to do. Limiting (or batching up) internal meetings can enable longer, uninterrupted stretches of deep work.
 
 ### Internal meeting scheduling
@@ -134,14 +145,14 @@ communication overhead, especially when scheduling with multiple participants.
 
 It is important to [set your working
 hours](https://support.google.com/calendar/answer/7638168?hl=en&co=GENIE.Platform%3DDesktop) in
-Google Calendar and block out any personal time/events/PTO so that team members do not inadvertently
+Google Calendar and block out any personal time/events/PTO, so that team members do not inadvertently
 schedule a time when you are not available. Many team members use the free tier of
 [reclaim.ai](https://reclaim.ai/) to synchronize personal event times (without event details) into
 their work calendars. It is also common practice to block out time for focused work.
 
 #### Modifying an event organized by someone else
 
-To edit an event where someone else at Fleet is the organizer, you can first subscribe to their calendar in Google Calendar, then edit the event on their calendar.  Your edits will automatically apply to all attendees.
+To edit an event where someone else at Fleet is the organizer, you can first subscribe to their calendar in Google Calendar and then edit the event on their calendar.  Your edits will automatically apply to all attendees.
 
 > This works because every Fleetie grants edit access to everyone else at Fleet as part of onboarding.
 
@@ -155,7 +166,7 @@ need a Calendly account, reach out to `@eashaw` via Slack.
 
 We use [Zoom](https://zoom.us) for virtual meetings at Fleet, and it is important that every team member feels comfortable hosting, joining, and scheduling Zoom meetings.
 
-Zoom settings are the same for all Fleet team members by default, but you can change your personal settings on your [profile settings](https://zoom.us/profile/setting) page. 
+By default, Zoom settings are the same for all Fleet team members, but you can change your personal settings on your [profile settings](https://zoom.us/profile/setting) page. 
 
 Settings that have a lock icon next to them have been locked by an administrator and cannot be changed. Zoom administrators can change settings for all team members on the [account settings page](https://zoom.us/account/setting) or for individual accounts on the [user management page](https://zoom.us/account/user#/).
 
@@ -163,7 +174,7 @@ Settings that have a lock icon next to them have been locked by an administrator
 
 We use the Zoom add-on for Google Calendar to schedule Zoom meetings when we create calendar events. To add a Zoom meeting to a calendar event, click the "Add video conferencing" dropdown and select "Zoom Meeting." Google Calendar will automatically add the Zoom meeting details and instructions to join the event.
 
-Our Zoom meetings are configured to let participants join before the host starts the meeting. We do this to ensure meetings start on time, even if the host isn't there.
+We configure our Zoom meetings to let participants join before the host starts the meeting. We do this to make sure meetings start on time, even if the host isn't there.
 
 ## Slack
 
@@ -171,7 +182,7 @@ At Fleet, we do not send internal emails to each other. Instead, we prefer to us
 
 We use threads in Slack as much as possible. Threads help limit noise for other people following the channel and reduce notification overload.
 
-We configure our [working hours in Slack](https://slack.com/help/articles/360025054173-Set-up-Slack-for-work-hours-)to ensure everyone knows when they can get in touch with others.
+We configure our [working hours in Slack](https://slack.com/help/articles/360025054173-Set-up-Slack-for-work-hours-) to make sure everyone knows when they can get in touch with others.
 
 ### Slack channel prefixes
 
@@ -196,7 +207,7 @@ Founders evaluate and update compensation decisions yearly, shortly after the an
 Every new position being created goes through this process before interviewing, accepting applicants, or extending offers.
 
 1. Add the proposed position to ["Fleeties"](https://docs.google.com/spreadsheets/d/1OSLn-ZCbGSjPusHPiR5dwQhheH1K8-xqyZdsOe9y7qc/edit#gid=0) as a new row, with a blank start date.  Be sure to include job title, manager, and department.
-2. Add a job description to the ["Roles."](https://docs.google.com/document/d/1wS5jFfrZtO4xMH-3U_S8pE59gNXOTR3rS1WWD8pkq9E/edit#heading=h.5z24knw25190)  Include only "Responsibilities" and "Experience." (These will be inserted into the existing job description template.)
+2. Add a job description to the ["Roles."](https://docs.google.com/document/d/1wS5jFfrZtO4xMH-3U_S8pE59gNXOTR3rS1WWD8pkq9E/edit#heading=h.5z24knw25190)  Include only "Responsibilities" and "Experience." (You will insert these into the existing job description template.)
 3. Create a private "#hiring-xxxxxx-2022" Slack channel (where "xxxxxx" is the job title) and invite the CEO (Mike McNeil) and People Operations (Charlie Chance).
   - People Ops is the DRI for all `#hiring-xxxxx-2022` Slack channels.
 4. In that channel, post a message proposing the position:
@@ -273,8 +284,8 @@ The CEO will then reply in `#g-people` to indicate that the offer is approved.
 
 8. **People Ops:** After obtaining CEO approval, confirm everything is correct one more time, then mention the CEO or CTO, who will send the offer email.
   - The offer email is copied directly from Google Drive into Gmail before being sent to the candidate.
-  - When sending the offer, the CEO or CTO will edit the permissions of the exit scenarios sheet, so it is accessible to the candidate.
-  - People Ops is cc'd on the offer email, but will not participate in the email thread until after the offer is accepted.
+  - When sending the offer, the CEO or CTO will edit the permissions of the exit scenarios sheet so it is accessible to the candidate.
+  - People Ops is cc'd on the offer email but will not participate in the email thread until after the offer is accepted.
 
 
 ### Steps after an offer is accepted
@@ -288,13 +299,13 @@ The CEO will then reply in `#g-people` to indicate that the offer is approved.
    - **US team members**: People Ops will send the new team member's agreement through [DocuSign](https://www.docusign.com/).
   After signing and storing an in the correct Google Drive folder, People Ops will invite the new team member to onboard in [Gusto](https://www.gusto.com/). People Ops will reach out to them if the new team member is a W-2 employee and schedule an I-9 verification meeting.
 
-   >*If we're hiring in a new state, we'll have to register for state taxes and unemployment. This process can usually be handled by Gusto.*
+   >*If we're hiring in a new state, we'll have to register for state taxes and unemployment. Gusto usually handles this process.*
 
    - **For international team members:** People Ops enters the new team member's information into [Pilot](https://pilot.co/) to kick off their hiring process. Pilot creates an agreement for the new team member, and People Ops reviews it to make sure everything looks correct. After People Ops confirms the information about the new hire, Pilot invites the new team member to enter the rest of their information and informs People Ops via email when a new Fleetie signs their agreement.
 
 4. **As soon as we have a signed agreement with a new team member:** People Ops reaches out to the new team member to provide them with a [work device](#purchasing-a-company-issued-device) and a pair of [YubiKeys](./security.md#hardware-security-keys). People Ops then requests a screenshot or link to the new Fleetie's preferred device and configuration. People Ops orders their device and Yubikeys using his Brex card and has them shipped directly to the new team member.
 
-   >*If the new team member is in the US and requests a MacBook, It will be purchased using our Apple business account. MacBooks purchased with this account will ship pre-configured and will be enrolled in our MDM.*
+   >*If the new team member is in the US and requests a MacBook, It will be purchased using our Apple business account. For MacBooks purchased with this account, Apple will ship pre-configured and enrolled in our MDM.*
 
 5. **Two weeks before their first day at Fleet:** People Ops creates a [Google Workspace account](https://admin.google.com/ac/users) for the new team member and invites them to join the [FleetDM](https://github.com/fleetdm) GitHub organization. 
 
@@ -306,8 +317,8 @@ The CEO will then reply in `#g-people` to indicate that the offer is approved.
 
    In CorpNet, select "place an order for an existing business" we’ll need to have Foreign Registration and Payroll Tax Registration done.
    - You can have CorpNet do this by emailing the account rep "Subject: Fleet Device Management: State - Foreign Registration and Payroll Tax Registration" (this takes about two weeks).
-   - You can do this between you and CorpNet by selecting "Foreign Qualification," place the order, and email the confirmation to the rep for Payroll registration (this is a short turnaround).
-   - You can do this on your own by visiting the state's "Secretary of State" website and checking that the company name is available. To register online you'll need the EIN, business address, information about the owners and their percentages, the first date of business, sales within the state, and the business type (usually get an email right away for approval ~24-48 hrs). 
+   - You can do this between you and CorpNet by selecting "Foreign Qualification," placing the order and emailing the confirmation to the rep for Payroll registration (this is a short turnaround).
+   - You can do this on your own by visiting the state's "Secretary of State" website and checking that the company name is available. To register online, you'll need the EIN, business address, information about the owners and their percentages, the first date of business, sales within the state, and the business type (usually get an email right away for approval ~24-48 hrs). 
 
 ## Team member onboarding
 
@@ -317,14 +328,14 @@ When a new team member joins Fleet, we create an onboarding issue for them in th
 
 We want to make sure that the new team member will be able to complete every task in their issue. To make sure the new team member is successful in their onboarding, we customize their issue by commenting on any tasks they won't need to complete.
 
-We believe onboarding and training should be taken seriously, and that the onboarding template is an essential source of truth and good use of time for every single new hire. If managers see a step that they don't feel is necessary, they should make a pull request to the [onboarding template](https://github.com/fleetdm/confidential/blob/main/.github/ISSUE_TEMPLATE/onboarding.md) and request a review from People operations.
+We believe in taking onboarding and training seriously and that the onboarding template is an essential source of truth and good use of time for every single new hire. If managers see a step that they don't feel is necessary, they should make a pull request to the [onboarding template](https://github.com/fleetdm/confidential/blob/main/.github/ISSUE_TEMPLATE/onboarding.md) and request a review from People operations.
 
 ### Contributor experience training
 
-During their first week at Fleet, new team members are asked to schedule a contributor experience training call with People operations. During this call, the new team member will share their screen, and People operations will:
+During their first week at Fleet, new team members are asked to schedule a contributor experience training call with People operations. During this call, the new team member will share their screen, and People operations will
 
-- make sure emails are going to get seen and responded to quickly.
-- make sure Slack messages are going to get seen and responded to quickly.
+- make sure emails will get seen and responded to quickly.
+- make sure Slack messages will get seen and responded to quickly.
 - make sure you know where your issues are tracked, which kanban board you use, and what the columns mean.
 - make sure you can succeed with submitting a PR with the GitHub web editor, modifying docs or handbook, and working with Markdown.
 - talk about Google calendar.
@@ -335,9 +346,9 @@ During their first week at Fleet, new team members are asked to schedule a contr
 During their onboarding at Fleet, new team members are asked to schedule a sightseeing tour call with People operations. During this call, the new team member will participate in an interactive tour that includes:
 
 - GitHub issues: the living bloodstream of the company.
-- Kanban boards: the bulletin board of quests you can get, and how you update status and let folks know things are done.
+- Kanban boards: the bulletin board of quests you can get and how you update status and let folks know things are done.
 - Google Calendar: the future.
-- Gmail: like any mailbox; full of junk mail, plus some important things, so it is important to check carefully.
+- Gmail: like any mailbox, full of junk mail, plus some important things, so it is important to check carefully.
 - Salesforce: the Rolodex.
 - Google Docs: the archives.
 - Slack:
@@ -351,15 +362,15 @@ Advisor agreements are sent through [DocuSign](https://www.docusign.com/), using
 template. To send a new advisor agreement, you'll need the new advisor's name and the number of shares they
 are offered. 
 
-Once the agreement is sent, add a new row to the [advisory board spreadsheet](https://docs.google.com/spreadsheets/d/15knBE2-PrQ1Ad-QcIk0mxCN-xFsATKK9hcifqrm0qFQ/edit#gid=1803674483) and enter the new advisor's information. Use this spreadsheet to track the advisor's progress through the onboarding process.
+Once you send the agreement, add a new row to the [advisory board spreadsheet](https://docs.google.com/spreadsheets/d/15knBE2-PrQ1Ad-QcIk0mxCN-xFsATKK9hcifqrm0qFQ/edit#gid=1803674483) and enter the new advisor's information. Use this spreadsheet to track the advisor's progress through the onboarding process.
 
    >**_Note:_** *Be sure to mark any columns that haven't been completed yet as "TODO"*
 
-When the agreement is completed, make sure it is in the correct Google Drive folder, update the [advisory board spreadsheet](https://docs.google.com/spreadsheets/d/15knBE2-PrQ1Ad-QcIk0mxCN-xFsATKK9hcifqrm0qFQ/edit#gid=1803674483) to show that the agreement has been signed, and ask the new advisor to add us on [Linkedin](https://www.linkedin.com/company/71111416), [Crunchbase](https://www.crunchbase.com/organization/fleet-device-management), and [Angellist](https://angel.co/company/fleetdm).
+When you complete the agreement, make sure it is in the correct Google Drive folder, update the [advisory board spreadsheet](https://docs.google.com/spreadsheets/d/15knBE2-PrQ1Ad-QcIk0mxCN-xFsATKK9hcifqrm0qFQ/edit#gid=1803674483) to show that the agreement has been signed, and ask the new advisor to add us on [Linkedin](https://www.linkedin.com/company/71111416), [Crunchbase](https://www.crunchbase.com/organization/fleet-device-management), and [Angellist](https://angel.co/company/fleetdm).
 
 ## Onboarding a new consultant
 
-Consultant agreements are sent through [DocuSign](https://www.docusign.com/), using the "Consulting Agreement" template. To send a new consulting agreement, you'll need the new consultant's name, the term of the service, a summary of the services provided and the consultant's fee. 
+Consultant agreements are sent through [DocuSign](https://www.docusign.com/), using the "Consulting Agreement" template. To send a new consulting agreement, you'll need the new consultant's name, the term of the service, a summary of the services provided, and the consultant's fee. 
 There are some defaults that we use for these agreements:
    - Term: one month
    - Services rendered: [use this doc](https://docs.google.com/document/d/1b5SGgYEHqDmq5QF8p29WWN3it3XJh3xRT3zG0RdXARo/edit)
@@ -367,7 +378,7 @@ There are some defaults that we use for these agreements:
    - Fee: Get from the contractor
    - Hours: Default to 10 hr/week = 40hr/week
 
-Then hit send!  After all of the signatures are there, the completed document will automatically be uploaded to the appropriate Google Drive folder by our automation, and a Slack message will appear in the `#g-people` channel.
+Then hit send!  After all of the signatures are there, the completed document will automatically be uploaded to the appropriate Google Drive folder, and a Slack message will appear in the `#g-people` channel.
 
 ## Updating a consultant's fee
 
@@ -385,10 +396,10 @@ When the final signature is added to an envelope in DocuSign, it is marked as co
    - **`emailSubject`** - The subject of the envelope sent by DocuSign. Our DocuSign templates are configured to format the email subject as `[type of document] for [signer's name]`.
    - **`emailCsv`** - A comma-separated list of signers' email addresses.
 
-2. The Hydroplane webhook matches the document type to the correct Google Drive folder, orders the list of signers, creates a timestamp, and sends that data back to Zapier as:
+2. The Hydroplane webhook matches the document type to the correct Google Drive folder, orders the list of signers, creates a timestamp, and sends that data back to Zapier as
    - **`destinationFolderID`** - The slug for the Google Drive folder where we store this type of document.
    - **`emailCsv`** - A sorted list of signers' email addresses.
-   - **`date`** - The date that the document was completed in DocuSign, formatted YYYY-MM-DD.
+   - **`date`** - The date the document was completed in DocuSign, formatted YYYY-MM-DD.
 
 3. Zapier uses this information to upload the file to the matched Google Drive folder, with the filename formatted as `[date] - [emailSubject] - [emailCvs].PDF`.
 
@@ -400,7 +411,7 @@ When the final signature is added to an envelope in DocuSign, it is marked as co
    ```
 ## Adding Salesforce licenses
 
-We consider Salesforce to be our Roledex for customer information. During the onboarding process, you may need to add a license for the new hire. Here are the steps we take: 
+We consider Salesforce to be our Rolodex for customer information. During the onboarding process, you may need to add a license for the new hire. Here are the steps we take: 
 
 1. Go to “Your account.”
 2. View contracts -> pick current contract.
@@ -446,12 +457,25 @@ We like to celebrate our achievements weekly in `#general`.
 
 Weekly update principles
    - Each department's update is 20-40 words or less.
-   - Erring on the side of refering to something that is completely done and/or mentioning news that is potentially very exciting to folks throughout the company.
+   - Erring on the side of refering to items that are completely done and/or mentioning news that is potentially very exciting to folks throughout the company.
 
 ### Investor and Advisor updates
 
 We like to regularly share updates about how Fleet is growing with our investors and advisors. 
   - Charlie tracks the most recent updates with investors and advisors and coordinates emails, zoom calls, or the investor or advisor's preferred method of communication with @mikermcneil and preps materials as needed. 
+
+### Recruiting progress checkup
+
+Weekly, Charlie looks in the [Fleeties spreadsheet](https://docs.google.com/spreadsheets/d/1OSLn-ZCbGSjPusHPiR5dwQhheH1K8-xqyZdsOe9y7qc/edit#gid=0) and reports on each open position:
+
+ - Is the position in [BreezyHR](https://app.breezy.hr/signin)?
+ - Is the position listed on fleetdm.com/jobs?
+ - What is the total # applicants?
+ - Total # interviews? 
+
+### Payroll
+
+Many of these processes are automated but it's important that we check Gusto and Pilot manually for accuracy. 
 
 ## Rituals
 
@@ -459,7 +483,7 @@ The following table lists the People group's rituals, frequency, and Directly Re
 
 | Ritual                       | Frequency                | Description                                         | DRI               |
 |:-----------------------------|:-----------------------------|:----------------------------------------------------|-------------------|
-| AP invoice monitoring | Daily | Look for new accounts payable invoices and ensure that Fleet's suppliers are paid. | Nathanael Holliday |
+| AP invoice monitoring | Daily | Look for new accounts payable invoices and make sure that Fleet's suppliers are paid. | Nathanael Holliday |
 | Weekly update | Weekly | Updates from managers on what their departments accomplished for the week are logged in the cloud and disseminated in Slack. Update the ops KPIs in the ["🌈 Weekly updates" spreadsheet](https://docs.google.com/spreadsheets/d/1Hso0LxqwrRVINCyW_n436bNHmoqhoLhC8bcbvLPOs9A/edit#gid=0).| Charlie Chance | 
 | Hours update | Weekly | Screenshots of contractor hours as shown in Gusto are sent via Slack to each contractor's manager with no further action necessary if everything appears normal. | Charlie Chance |
 | Prepare Mike and Sid's 1:1 doc | Bi-weekly | Run through the document preparation GitHub issue for Mike's call with Sid. | Nathanael Holliday |
@@ -467,16 +491,19 @@ The following table lists the People group's rituals, frequency, and Directly Re
 | Brex reconciliation | Monthly | Make sure all company-issued credit card transactions include memos. | Nathanael Holliday |
 | Monthly accounting | Monthly | Use the monthly accounting template in GitHub to go through the process of validating Fleet's books. | Nathanael Holliday |
 | US contractor payroll | Monthly | Sync contractor hours to payments in Gusto and run payroll for the month. | Charlie Chance |
-| OKR planning | Quarterly | Plan the next quarter's OKRs. | Mike Thomas |
+| OKR planning | Quarterly | Plan for the next quarter's OKRs. | Mike Thomas |
 | 550C update | Annually | File California 550C. | Charlie Chance |
 | Workiversaries | Weekly/PRN | People Operations posts in #g-people and tags @mikermcneil about any upcoming workiversaries | Charlie Chance |
-| Investor and Advisor updates | PRN | People Operations tracks last contact with investors and coordinates outreach with CEO | Charlie Chance |
+| Investor and Advisor updates | PRN | People Operations tracks the last contact with investors and coordinates outreach with CEO | Charlie Chance |
 | CEO inbox sweep | Daily unless OOO | Charlie does a morning sweep of the CEO's inbox to remove spam and grab action items | Charlie Chance |
+| Recruiting progress checkup | Weekly | Charlie looks in the [Fleeties spreadsheet](https://docs.google.com/spreadsheets/d/1OSLn-ZCbGSjPusHPiR5dwQhheH1K8-xqyZdsOe9y7qc/edit#gid=0) and reports on each open position | Charlie Chance |
+| Payroll | Monthly before payroll runs | Every month Charlie audits the payroll platforms for accuracy | Charlie |
+
 
 ## Slack channels
 
 Please see [Brand > Slack channels](https://fleetdm.com/handbook/brand#slack-channels).
 
 
-<meta name="maintainedBy" value="eashaw">
+<meta name="maintainedBy" value="charlottechance">
 <meta name="title" value="🧑‍🚀 People">

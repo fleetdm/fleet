@@ -1,8 +1,8 @@
 import React, { useEffect } from "react";
 import paths from "router/paths";
 
+import { ILabelSummary } from "interfaces/label";
 import { PLATFORM_NAME_TO_LABEL_NAME } from "utilities/constants";
-import { IHostSummaryLabel } from "interfaces/host_summary";
 
 import WindowsIcon from "../../../../../assets/images/icon-windows-48x48@2x.png";
 import LinuxIcon from "../../../../../assets/images/icon-linux-48x48@2x.png";
@@ -18,7 +18,7 @@ interface IHostSummaryProps {
   isLoadingHostsSummary: boolean;
   showHostsUI: boolean;
   selectedPlatform: string;
-  labels?: IHostSummaryLabel[];
+  labels?: ILabelSummary[];
   setActionURL?: (url: string) => void;
 }
 
@@ -37,9 +37,9 @@ const HostsSummary = ({
 
   const getLabel = (
     labelString: string,
-    summaryLabels: IHostSummaryLabel[]
-  ): IHostSummaryLabel | undefined => {
-    return Object.values(summaryLabels).find((label: IHostSummaryLabel) => {
+    summaryLabels: ILabelSummary[]
+  ): ILabelSummary | undefined => {
+    return Object.values(summaryLabels).find((label: ILabelSummary) => {
       return label.label_type === "builtin" && label.name === labelString;
     });
   };

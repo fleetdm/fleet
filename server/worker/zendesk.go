@@ -120,6 +120,11 @@ func (z *Zendesk) getClient(ctx context.Context, args zendeskArgs) (ZendeskClien
 		key += fmt.Sprint(teamID)
 	}
 
+	ac, err := z.Datastore.AppConfig(ctx)
+	if err != nil {
+		return nil, err
+	}
+
 	// load the config that would be used to create the client first - it is
 	// needed to check if an existing client is configured the same or if its
 	// configuration has changed since it was created.
@@ -130,7 +135,12 @@ func (z *Zendesk) getClient(ctx context.Context, args zendeskArgs) (ZendeskClien
 			return nil, err
 		}
 
-		for _, intg := range tm.Config.Integrations.Zendesk {
+		intgs, err := tm.Config.Integrations.MatchWithIntegrations(ac.Integrations)
+		if err != nil {
+			return nil, err
+		}
+
+		for _, intg := range intgs.Zendesk {
 			if intgType == intgTypeFailingPolicy && intg.EnableFailingPolicies {
 				opts = &externalsvc.ZendeskOptions{
 					URL:      intg.URL,
@@ -142,10 +152,6 @@ func (z *Zendesk) getClient(ctx context.Context, args zendeskArgs) (ZendeskClien
 			}
 		}
 	} else {
-		ac, err := z.Datastore.AppConfig(ctx)
-		if err != nil {
-			return nil, err
-		}
 		for _, intg := range ac.Integrations.Zendesk {
 			if (intgType == intgTypeVuln && intg.EnableSoftwareVulnerabilities) ||
 				(intgType == intgTypeFailingPolicy && intg.EnableFailingPolicies) {
@@ -346,6 +352,12 @@ func QueueZendeskFailingPolicyJob(ctx context.Context, ds fleet.Datastore, logge
 	if policy.TeamID != nil {
 		attrs = append(attrs, "team_id", *policy.TeamID)
 	}
+	if len(hosts) == 0 {
+		attrs = append(attrs, "msg", "skipping, no host")
+		level.Debug(logger).Log(attrs...)
+		return nil
+	}
+
 	level.Info(logger).Log(attrs...)
 
 	args := &failingPolicyArgs{
