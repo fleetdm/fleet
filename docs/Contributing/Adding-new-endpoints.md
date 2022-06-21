@@ -12,7 +12,7 @@ you can simply read the documentation bottom up.
 
 ### Step 1: Datastore
 
-So let's say you want to add an endpoint that would count the total number of hosts enrolled in Fleet. A SQL query for
+Let's say you want to add an endpoint that would count the total number of hosts enrolled in Fleet. A SQL query for
 gathering this data could be the following:
 
 ```sql
@@ -43,7 +43,8 @@ type Datastore interface {
 }
 ```
 
-Now we are ready to create a method in the service.
+After adding a function to the Datastore interface, you need to run `make generate-mock` to update the mock for it. And 
+now we are ready to create a method in the service.
 
 ### Step 2: Service
 
@@ -158,6 +159,18 @@ func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetC
 
 And that's it! (Well, besides tests and documentation, which are key parts of adding a new API).
 
+Now that the endpoint is all connected in the right places, a few things happen automatically:
+
+1. The [decoding of the request](https://github.com/fleetdm/fleet/blob/main/server/service/endpoint_utils.go#L90) data 
+(body, query params, etc). More on this below.
+2. The [encoding of the response](https://github.com/fleetdm/fleet/blob/main/server/service/transport.go#L22), including 
+[error encoding/handling](https://github.com/fleetdm/fleet/blob/main/server/service/transport.go#L32) among other things.
+3. [User](https://github.com/fleetdm/fleet/blob/main/server/service/endpoint_utils.go#L311) or 
+[host](https://github.com/fleetdm/fleet/blob/main/server/service/endpoint_utils.go#L318) or 
+[device](https://github.com/fleetdm/fleet/blob/main/server/service/endpoint_utils.go#L295) token authentication. 
+4. API versioning. You probably noticed the `_version_` portion of the URL above. More on this approach 
+[here](API-Versioning.md).
+
 One thing to note is that while we used an empty struct `countAllHostsRequest`, we could've easily skipped defining it
 and used `nil`, but it was added for the sake of this documentation.
 
@@ -170,8 +183,8 @@ discuss responsibilities of each layer and how it's meant to be used in testing.
 
 ### Datastore
 
-This is the layer where Fleet talks directly to the database. If it has a database query, [this](https://github.com/fleetdm/fleet/tree/main/server/datastore) is where that code should 
-live.
+This is the layer where Fleet talks directly to the database. If it has a database query, 
+[this](https://github.com/fleetdm/fleet/tree/main/server/datastore) is where that code should live.
 
 The reason this layer implements the `Datastore` interface is so it can be mocked while testing any other layer that 
 interacts with it.
@@ -203,22 +216,23 @@ This layer is tested in the integrations tests:
 
 ## Queries, Request bodies, and other decoding facts
 
-Before we dive into specifics, let's discuss some generics around the framework we are using and other tools that have
+Before we dive into specifics, let's discuss some context around the framework we are using and other tools that have
 been implemented.
 
 The main thing to be aware is that Fleet is using `go-kit` underneath. With it, we get all the concepts from the 
-framework such as decoders, transport, etc. `go-kit` is no longer the best framework for Fleet to use anymore, but the 
-cost of replacing it is higher than the cost of building some of the tooling we'll discuss here and maintaining it.
+framework such as decoders, transport, etc. We have decided `go-kit` is no longer the best framework for Fleet to use 
+anymore, but the cost of replacing it is higher than the cost of building some of the tooling we'll discuss here and 
+maintaining it.
 
 The tools that were built were meant to abstract away layers that `go-kit` leaves available to its users in a way that 
 makes sense for our use case. 
 
 For instance, we found ourselves implementing extremely similar request decoding code. It varied very slightly from one 
 implementation to the next, and it varied in ways that Go wasn't capable of handling at the time. So we wrote a [generic
-decoder](https://github.com/fleetdm/fleet/blob/main/server/service/endpoint_utils.go#L90) that uses reflect to 
+decoder](https://github.com/fleetdm/fleet/blob/main/server/service/endpoint_utils.go#L90) that uses Go's `reflect` to 
 understand what kind of request it is and the destination and decodes it correctly.
 
-Then the problem was: I have to specify this decoder _every time I create a new endpoint_. And creating new endpoints 
+Then the problem was specifying this decoder _every time a new endpoint is created_. And creating new endpoints 
 also involves creating a server, user or host authentication, etc. So we abstracted this away into a 
 [handful of types](https://github.com/fleetdm/fleet/blob/main/server/service/endpoint_utils.go#L280) that handles this 
 in a readable way.
@@ -245,9 +259,10 @@ order to be added among others. Here's an
 ## How to add URL variables
 
 If you want to assign a part of a URL to a variable, such as an ID for an entity, you can define this by specifying 
-`url:"id"` in the tag in the Request struct and in between `{}` in the URL for the handler where that variable is placed. For instance:
-`"/api/_version_/fleet/labels/{id:[0-9]+}"` and can be found in 
-[this example](https://github.com/fleetdm/fleet/blob/main/server/service/handler.go#L341). URL variable are not optional.
+`url:"id"` in the tag in the Request struct and in between `{}` in the URL for the handler where that variable is placed. 
+For instance: `"/api/_version_/fleet/labels/{id:[0-9]+}"` and can be found in 
+[this example](https://github.com/fleetdm/fleet/blob/main/server/service/handler.go#L341). URL variables cannot be 
+optional.
 
 ## How is the JSON body defined
 
