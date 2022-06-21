@@ -299,7 +299,7 @@ The CEO will then reply in `#g-people` to indicate that the offer is approved.
    - **US team members**: People Ops will send the new team member's agreement through [DocuSign](https://www.docusign.com/).
   After signing and storing an in the correct Google Drive folder, People Ops will invite the new team member to onboard in [Gusto](https://www.gusto.com/). People Ops will reach out to them if the new team member is a W-2 employee and schedule an I-9 verification meeting.
 
-   >*If we're hiring in a new state, we'll have to register for state taxes and unemployment. Gusto usually hadles this process.*
+   >*If we're hiring in a new state, we'll have to register for state taxes and unemployment. Gusto usually handles this process.*
 
    - **For international team members:** People Ops enters the new team member's information into [Pilot](https://pilot.co/) to kick off their hiring process. Pilot creates an agreement for the new team member, and People Ops reviews it to make sure everything looks correct. After People Ops confirms the information about the new hire, Pilot invites the new team member to enter the rest of their information and informs People Ops via email when a new Fleetie signs their agreement.
 
