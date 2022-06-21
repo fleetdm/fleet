@@ -153,6 +153,18 @@ Every week, the oncall engineer changes. Here are some tips for making this hand
 
 See [the internal Google Doc](https://docs.google.com/document/d/1FNQdu23wc1S9Yo6x5k04uxT2RwT77CIMzLLeEI2U7JA/edit#) for the engineers in the rotation.
 
+## Incident postmortems
+At Fleet, we take customer incidents very seriously. After working with customers to resolve issues, we will conduct an internal postmortem to determine any documentation or coding changes to prevent similar incidents from happening in the future. Why? We strive to make Fleet the best osquery management platform globally, and we sincerely believe that starts with sharing lessons learned with the community to become stronger together.
+
+At Fleet, we do postmortem meetings for every production incident, whether it's a customer's environment or on fleetdm.com.
+
+## Outages
+At Fleet we consider an outage to be a situation where new features or previously stable features are broken or unusable.
+ - Occurances of outages are tracked in the [Outages](https://docs.google.com/spreadsheets/d/1a8rUk0pGlCPpPHAV60kCEUBLvavHHXbk_L3BI0ybME4/edit#gid=0) spreadsheet.
+ - Fleet encourages embracing the inevitability of mistakes and discourages blame games.
+ - Fleet stresses the critical importance of avoiding outages because they make customers lives worse instead of better.
+
+
 ## Project boards
 
 [🚀 Release](https://github.com/orgs/fleetdm/projects/40) - The current release (daily go-to board) for engineers.

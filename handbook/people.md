@@ -299,7 +299,7 @@ The CEO will then reply in `#g-people` to indicate that the offer is approved.
    - **US team members**: People Ops will send the new team member's agreement through [DocuSign](https://www.docusign.com/).
   After signing and storing an in the correct Google Drive folder, People Ops will invite the new team member to onboard in [Gusto](https://www.gusto.com/). People Ops will reach out to them if the new team member is a W-2 employee and schedule an I-9 verification meeting.
 
-   >*If we're hiring in a new state, we'll have to register for state taxes and unemployment. Gusto usually hadles this process.*
+   >*If we're hiring in a new state, we'll have to register for state taxes and unemployment. Gusto usually handles this process.*
 
    - **For international team members:** People Ops enters the new team member's information into [Pilot](https://pilot.co/) to kick off their hiring process. Pilot creates an agreement for the new team member, and People Ops reviews it to make sure everything looks correct. After People Ops confirms the information about the new hire, Pilot invites the new team member to enter the rest of their information and informs People Ops via email when a new Fleetie signs their agreement.
 
@@ -473,6 +473,10 @@ Weekly, Charlie looks in the [Fleeties spreadsheet](https://docs.google.com/spre
  - What is the total # applicants?
  - Total # interviews? 
 
+### Payroll
+
+Many of these processes are automated but it's important that we check Gusto and Pilot manually for accuracy.
+
 ## BizOps
 
 ### Monthly accounting
@@ -507,6 +511,7 @@ The following table lists the People group's rituals, frequency, and Directly Re
 | Investor and Advisor updates | PRN | People Operations tracks the last contact with investors and coordinates outreach with CEO | Charlie Chance |
 | CEO inbox sweep | Daily unless OOO | Charlie does a morning sweep of the CEO's inbox to remove spam and grab action items | Charlie Chance |
 | Recruiting progress checkup | Weekly | Charlie looks in the [Fleeties spreadsheet](https://docs.google.com/spreadsheets/d/1OSLn-ZCbGSjPusHPiR5dwQhheH1K8-xqyZdsOe9y7qc/edit#gid=0) and reports on each open position | Charlie Chance |
+| Payroll | Monthly before payroll runs | Every month Charlie audits the payroll platforms for accuracy | Charlie |
 
 
 ## Slack channels
@@ -514,5 +519,5 @@ The following table lists the People group's rituals, frequency, and Directly Re
 Please see [Brand > Slack channels](https://fleetdm.com/handbook/brand#slack-channels).
 
 
-<meta name="maintainedBy" value="eashaw">
+<meta name="maintainedBy" value="charlottechance">
 <meta name="title" value="🧑‍🚀 People">
