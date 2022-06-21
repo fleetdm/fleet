@@ -1,7 +1,6 @@
 #sales-one-pager {
   padding-bottom: 120px;
   [purpose='banner-background'] {
-
     background: url(/images/background-sales-banner.svg);
     background-size: cover;
     background-position-x: right;
@@ -12,7 +11,6 @@
   [purpose='demo-btn'] {
     .btn-animated-arrow-red();
   }
-  //…
   [purpose='banner'] {
     padding-top: 80px;
     padding-bottom: 80px;
@@ -115,12 +113,6 @@
       max-width: 100%;
     }
   }
-  // [purpose='feature-image-left'] {
-  //   margin-right: 80px;
-  // }
-  // [purpose='feature-image-right'] {
-  //   margin-left: 80px;
-  // }
   [purpose='feature-text'] {
     align-self: center;
     max-width: 380px;
@@ -128,6 +120,7 @@
       font-weight: 700;
       font-size: 20px;
       line-height: 24px;
+      margin-bottom: 24px;
     }
   }
 
@@ -136,7 +129,7 @@
     background-position-x: center;
     background-size: cover;
     background-color: #192147;
-    padding: 60px 90px;
+    padding: 60px 90px 66px 90px;
     border-radius: 16px;
     margin-top: 120px;
   }
@@ -173,7 +166,10 @@
       margin-left: 15px;
     }
     [purpose='common-problem'] {
-      flex: 0 0 210px;
+      flex: 1 0 200px;
+    }
+    [purpose='fleet-cta'] {
+      padding: 60px 45px;
     }
   }
   @media (max-width: 776px) {
@@ -189,9 +185,6 @@
     [purpose='banner'] {
       padding-left: 15px;
       padding-right: 15px;
-    }
-    [purpose='fleet-cta'] {
-      padding: 60px 45px;
     }
   }
 }
