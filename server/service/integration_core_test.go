@@ -5105,6 +5105,25 @@ func (s *integrationTestSuite) TestHostsReportDownload() {
 	t.Log(rows)
 }
 
+func (s *integrationTestSuite) TestSSODisabled() {
+	t := s.T()
+
+	var initiateResp initiateSSOResponse
+	s.DoJSON("POST", "/api/v1/fleet/sso", struct{}{}, http.StatusBadRequest, &initiateResp)
+
+	var callbackResp callbackSSOResponse
+	// callback without SAML response
+	s.DoJSON("POST", "/api/v1/fleet/sso/callback", nil, http.StatusBadRequest, &callbackResp)
+	// callback with invalid SAML response
+	s.DoJSON("POST", "/api/v1/fleet/sso/callback?SAMLResponse=zz", nil, http.StatusBadRequest, &callbackResp)
+	// callback with valid SAML response (<samlp:AuthnRequest></samlp:AuthnRequest>)
+	res := s.DoRaw("POST", "/api/v1/fleet/sso/callback?SAMLResponse=PHNhbWxwOkF1dGhuUmVxdWVzdD48L3NhbWxwOkF1dGhuUmVxdWVzdD4%3D", nil, http.StatusOK)
+	defer res.Body.Close()
+	body, err := io.ReadAll(res.Body)
+	require.NoError(t, err)
+	require.Contains(t, string(body), "/login?status=org_disabled") // html contains a script that redirects to this path
+}
+
 // this test can be deleted once the "v1" version is removed.
 func (s *integrationTestSuite) TestAPIVersion_v1_2022_04() {
 	t := s.T()

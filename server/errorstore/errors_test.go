@@ -9,6 +9,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"regexp"
+	"sort"
 	"strings"
 	"sync/atomic"
 	"testing"
@@ -246,7 +247,7 @@ func testErrorHandlerCollectsErrors(t *testing.T, pool fleet.RedisPool, wd strin
       ".+",
       ".+"
     \]
-  \}`), errors[0])
+  \}`), string(errors[0].Error))
 
 	errors, err = eh.Retrieve(flush)
 	require.NoError(t, err)
@@ -303,7 +304,8 @@ func testErrorHandlerCollectsDifferentErrors(t *testing.T, pool fleet.RedisPool,
 
 	// order is not guaranteed by scan keys
 	for _, jsonErr := range errors {
-		if strings.Contains(jsonErr, "new errors two") {
+		msg := string(jsonErr.Error)
+		if strings.Contains(msg, "new errors two") {
 			assert.Regexp(t, regexp.MustCompile(`\{
   "cause": \{
     "message": "always new errors two",
@@ -317,7 +319,7 @@ func testErrorHandlerCollectsDifferentErrors(t *testing.T, pool fleet.RedisPool,
       ".+",
       ".+"
     \]
-  \}`), jsonErr)
+  \}`), msg)
 		} else {
 			assert.Regexp(t, regexp.MustCompile(`\{
   "cause": \{
@@ -332,7 +334,7 @@ func testErrorHandlerCollectsDifferentErrors(t *testing.T, pool fleet.RedisPool,
       ".+",
       ".+"
     \]
-  \}`), jsonErr)
+  \}`), msg)
 		}
 	}
 
@@ -347,7 +349,7 @@ func TestHttpHandler(t *testing.T) {
 		ctx, cancelFunc := context.WithCancel(context.Background())
 		defer cancelFunc()
 
-		var storeCalls int32 = 2
+		var storeCalls int32 = 3
 
 		chGo, chDone := make(chan struct{}), make(chan struct{})
 		testOnStart := func() {
@@ -363,12 +365,35 @@ func TestHttpHandler(t *testing.T) {
 		eh := newTestHandler(ctx, pool, kitlog.NewNopLogger(), time.Minute, testOnStart, testOnStore)
 
 		<-chGo
-		// store two errors
-		alwaysNewError(eh)
-		alwaysNewErrorTwo(eh)
+		// simulate two errors, one happening twice
+		err1 := ctxerr.New(ctx, "err1")
+		err2 := ctxerr.New(ctx, "err2")
+		eh.Store(err1)
+		eh.Store(err2)
+		eh.Store(err1)
 		<-chDone
 
 		return eh
+	}
+
+	type errResp struct {
+		Count int
+		Error struct {
+			Cause struct {
+				Message string
+			}
+			Wrap []struct {
+				Message string
+			}
+		}
+	}
+
+	var errs []errResp
+
+	sortByCount := func(errs []errResp) {
+		sort.Slice(errs, func(i, j int) bool {
+			return errs[i].Count > errs[j].Count
+		})
 	}
 
 	t.Run("retrieves errors", func(t *testing.T) {
@@ -378,18 +403,14 @@ func TestHttpHandler(t *testing.T) {
 		eh.ServeHTTP(res, req)
 
 		require.Equal(t, res.Code, 200)
-		var errs []struct {
-			Cause struct {
-				Message string
-			}
-			Wrap []struct {
-				Message string
-			}
-		}
 		require.NoError(t, json.Unmarshal(res.Body.Bytes(), &errs))
 		require.Len(t, errs, 2)
-		require.NotEmpty(t, errs[0].Cause.Message)
-		require.NotEmpty(t, errs[1].Cause.Message)
+		require.NotEmpty(t, errs[0].Error.Cause.Message)
+		require.NotEmpty(t, errs[1].Error.Cause.Message)
+
+		sortByCount(errs)
+		require.Equal(t, 2, errs[0].Count)
+		require.Equal(t, 1, errs[1].Count)
 	})
 
 	t.Run("flushes errors after retrieving if the flush flag is true", func(t *testing.T) {
@@ -399,18 +420,14 @@ func TestHttpHandler(t *testing.T) {
 		eh.ServeHTTP(res, req)
 
 		require.Equal(t, res.Code, 200)
-		var errs []struct {
-			Cause struct {
-				Message string
-			}
-			Wrap []struct {
-				Message string
-			}
-		}
 		require.NoError(t, json.Unmarshal(res.Body.Bytes(), &errs))
 		require.Len(t, errs, 2)
-		require.NotEmpty(t, errs[0].Cause.Message)
-		require.NotEmpty(t, errs[1].Cause.Message)
+		require.NotEmpty(t, errs[0].Error.Cause.Message)
+		require.NotEmpty(t, errs[1].Error.Cause.Message)
+
+		sortByCount(errs)
+		require.Equal(t, 2, errs[0].Count)
+		require.Equal(t, 1, errs[1].Count)
 
 		req = httptest.NewRequest("GET", "/?flush=true", nil)
 		res = httptest.NewRecorder()
