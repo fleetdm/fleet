@@ -55,6 +55,13 @@ func (ds *Datastore) ShouldSendStatistics(ctx context.Context, frequency time.Du
 			if err != nil {
 				return fleet.StatisticsPayload{}, false, ctxerr.Wrap(ctx, err, "insert statistics")
 			}
+
+			// compute active weekly users since now - frequency
+			amountWeeklyUsers, err := amountActiveUsersSinceDB(ctx, ds.writer, time.Now().Add(-frequency))
+			if err != nil {
+				return fleet.StatisticsPayload{}, false, ctxerr.Wrap(ctx, err, "amount active users")
+			}
+
 			return fleet.StatisticsPayload{
 				AnonymousIdentifier:       anonIdentifier,
 				FleetVersion:              version.Version().Version,
@@ -68,6 +75,7 @@ func (ds *Datastore) ShouldSendStatistics(ctx context.Context, frequency time.Du
 				VulnDetectionEnabled:      appConfig.VulnerabilitySettings.DatabasesPath != "",
 				SystemUsersEnabled:        appConfig.HostSettings.EnableHostUsers,
 				HostsStatusWebHookEnabled: appConfig.WebhookSettings.HostStatusWebhook.Enable,
+				NumWeeklyActiveUsers:      amountWeeklyUsers,
 			}, true, nil
 		}
 		return fleet.StatisticsPayload{}, false, ctxerr.Wrap(ctx, err, "get statistics")
@@ -79,6 +87,13 @@ func (ds *Datastore) ShouldSendStatistics(ctx context.Context, frequency time.Du
 	if time.Now().Before(lastUpdated.Add(frequency)) {
 		return fleet.StatisticsPayload{}, false, nil
 	}
+
+	// compute active weekly users since lastUpdated
+	amountWeeklyUsers, err := amountActiveUsersSinceDB(ctx, ds.writer, lastUpdated)
+	if err != nil {
+		return fleet.StatisticsPayload{}, false, ctxerr.Wrap(ctx, err, "amount active users")
+	}
+
 	return fleet.StatisticsPayload{
 		AnonymousIdentifier:       dest.Identifier,
 		FleetVersion:              version.Version().Version,
@@ -92,6 +107,7 @@ func (ds *Datastore) ShouldSendStatistics(ctx context.Context, frequency time.Du
 		VulnDetectionEnabled:      appConfig.VulnerabilitySettings.DatabasesPath != "",
 		SystemUsersEnabled:        appConfig.HostSettings.EnableHostUsers,
 		HostsStatusWebHookEnabled: appConfig.WebhookSettings.HostStatusWebhook.Enable,
+		NumWeeklyActiveUsers:      amountWeeklyUsers,
 	}, true, nil
 }
 
