@@ -12,7 +12,7 @@ type Platform string
 // OvalFilePrefix is the file prefix used when saving an OVAL artifact.
 const OvalFilePrefix = "fleet_oval"
 
-var SupportedHostPlatforms = []string{"ubuntu", "rhel"}
+var SupportedHostPlatforms = []string{"ubuntu", "rhel", "amzn"}
 
 // getMajorMinorVer returns the major and minor version of an 'os_version'.
 // ex: 'Ubuntu 20.4.0' => '(20, 04)'
@@ -80,6 +80,7 @@ func (op Platform) IsSupported() bool {
 		"rhel_07",
 		"rhel_08",
 		"rhel_09",
+		"amzn_02",
 	}
 	for _, p := range supported {
 		if strings.HasPrefix(string(op), p) {
@@ -96,5 +97,5 @@ func (op Platform) IsUbuntu() bool {
 
 // IsRedHat checks whether the current Platform targets Redhat based systems.
 func (op Platform) IsRedHat() bool {
-	return strings.HasPrefix(string(op), "rhel")
+	return strings.HasPrefix(string(op), "rhel") || strings.HasPrefix(string(op), "amzn")
 }
