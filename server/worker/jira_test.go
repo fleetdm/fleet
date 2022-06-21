@@ -168,6 +168,7 @@ func TestJiraQueueFailingPolicyJob(t *testing.T) {
 			&fleet.Policy{PolicyData: fleet.PolicyData{ID: 1, Name: "p1"}}, []fleet.PolicySetHost{{ID: 1, Hostname: "h1"}})
 		require.NoError(t, err)
 		require.True(t, ds.NewJobFuncInvoked)
+		ds.NewJobFuncInvoked = false
 	})
 
 	t.Run("success team", func(t *testing.T) {
@@ -179,6 +180,7 @@ func TestJiraQueueFailingPolicyJob(t *testing.T) {
 			&fleet.Policy{PolicyData: fleet.PolicyData{ID: 1, Name: "p1", TeamID: ptr.Uint(2)}}, []fleet.PolicySetHost{{ID: 1, Hostname: "h1"}})
 		require.NoError(t, err)
 		require.True(t, ds.NewJobFuncInvoked)
+		ds.NewJobFuncInvoked = false
 	})
 
 	t.Run("failure", func(t *testing.T) {
@@ -190,6 +192,18 @@ func TestJiraQueueFailingPolicyJob(t *testing.T) {
 		require.Error(t, err)
 		require.ErrorIs(t, err, io.EOF)
 		require.True(t, ds.NewJobFuncInvoked)
+		ds.NewJobFuncInvoked = false
+	})
+
+	t.Run("no host", func(t *testing.T) {
+		ds.NewJobFunc = func(ctx context.Context, job *fleet.Job) (*fleet.Job, error) {
+			return job, nil
+		}
+		err := QueueJiraFailingPolicyJob(ctx, ds, logger,
+			&fleet.Policy{PolicyData: fleet.PolicyData{ID: 1, Name: "p1"}}, []fleet.PolicySetHost{})
+		require.NoError(t, err)
+		require.False(t, ds.NewJobFuncInvoked)
+		ds.NewJobFuncInvoked = false
 	})
 }
 

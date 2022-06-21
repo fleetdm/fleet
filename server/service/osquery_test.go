@@ -21,6 +21,7 @@ import (
 	hostctx "github.com/fleetdm/fleet/v4/server/contexts/host"
 	fleetLogging "github.com/fleetdm/fleet/v4/server/contexts/logging"
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
+	"github.com/fleetdm/fleet/v4/server/datastore/mysqlredis"
 	"github.com/fleetdm/fleet/v4/server/datastore/redis/redistest"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/live_query/live_query_mock"
@@ -213,6 +214,82 @@ func TestEnrollAgent(t *testing.T) {
 	nodeKey, err := svc.EnrollAgent(context.Background(), "valid_secret", "host123", nil)
 	require.NoError(t, err)
 	assert.NotEmpty(t, nodeKey)
+}
+
+func TestEnrollAgentEnforceLimit(t *testing.T) {
+	ctx := viewer.NewContext(context.Background(), viewer.Viewer{
+		User: &fleet.User{
+			ID:         0,
+			GlobalRole: ptr.String(fleet.RoleAdmin),
+		},
+	})
+
+	runTest := func(t *testing.T, pool fleet.RedisPool) {
+		const maxHosts = 2
+
+		var hostIDSeq uint
+		ds := new(mock.Store)
+		ds.VerifyEnrollSecretFunc = func(ctx context.Context, secret string) (*fleet.EnrollSecret, error) {
+			switch secret {
+			case "valid_secret":
+				return &fleet.EnrollSecret{Secret: "valid_secret"}, nil
+			default:
+				return nil, errors.New("not found")
+			}
+		}
+		ds.EnrollHostFunc = func(ctx context.Context, osqueryHostId, nodeKey string, teamID *uint, cooldown time.Duration) (*fleet.Host, error) {
+			hostIDSeq++
+			return &fleet.Host{
+				ID: hostIDSeq, OsqueryHostID: osqueryHostId, NodeKey: nodeKey,
+			}, nil
+		}
+		ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+			return &fleet.AppConfig{}, nil
+		}
+		ds.HostLiteFunc = func(ctx context.Context, id uint) (*fleet.Host, error) {
+			return &fleet.Host{ID: id}, nil
+		}
+		ds.DeleteHostFunc = func(ctx context.Context, id uint) error {
+			return nil
+		}
+
+		redisWrapDS := mysqlredis.New(ds, pool, mysqlredis.WithEnforcedHostLimit(maxHosts))
+		svc := newTestService(t, redisWrapDS, nil, nil, &TestServerOpts{
+			EnrollHostLimiter: redisWrapDS,
+			License:           &fleet.LicenseInfo{DeviceCount: maxHosts},
+		})
+
+		nodeKey, err := svc.EnrollAgent(ctx, "valid_secret", "host001", nil)
+		require.NoError(t, err)
+		assert.NotEmpty(t, nodeKey)
+
+		nodeKey, err = svc.EnrollAgent(ctx, "valid_secret", "host002", nil)
+		require.NoError(t, err)
+		assert.NotEmpty(t, nodeKey)
+
+		_, err = svc.EnrollAgent(ctx, "valid_secret", "host003", nil)
+		require.Error(t, err)
+		require.Contains(t, err.Error(), fmt.Sprintf("maximum number of hosts reached: %d", maxHosts))
+
+		// delete a host with id 1
+		err = svc.DeleteHost(ctx, 1)
+		require.NoError(t, err)
+
+		// now host 003 can be enrolled
+		nodeKey, err = svc.EnrollAgent(ctx, "valid_secret", "host003", nil)
+		require.NoError(t, err)
+		assert.NotEmpty(t, nodeKey)
+	}
+
+	t.Run("standalone", func(t *testing.T) {
+		pool := redistest.SetupRedis(t, "enrolled_hosts:*", false, false, false)
+		runTest(t, pool)
+	})
+
+	t.Run("cluster", func(t *testing.T) {
+		pool := redistest.SetupRedis(t, "enrolled_hosts:*", true, true, false)
+		runTest(t, pool)
+	})
 }
 
 func TestEnrollAgentIncorrectEnrollSecret(t *testing.T) {

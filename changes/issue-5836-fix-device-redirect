@@ -1,1 +1,0 @@
-* Fixed device user page redirecting to login if an expired session token is in local storage

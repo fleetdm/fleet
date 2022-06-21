@@ -44,6 +44,7 @@
   }
 
   [purpose='animated-arrow-button-red'] {
+    color: #192147;
     .btn-animated-arrow-red();
   }
   [purpose='animated-arrow-button-white'] {
@@ -87,6 +88,30 @@
     }
   }
 
+  [purpose='report-banner-container'] {
+    background: linear-gradient(#FFF 50%, #F4F6FA 50%);
+    padding-right: 40px;
+    padding-left: 40px;
+  }
+  [purpose='report-banner-cta'] {
+    max-width: 1080px;
+    margin-top: 40px;
+    border-radius: 16px;
+    background-color: #261c50;
+    background-image: url('/images/homepage-report-cta-background.svg');
+    background-position-x: right;
+    background-size: cover;
+    color: #FFF;
+    padding: 27px 87px 34px 87px;
+    img {
+      margin-right: 60px;
+    }
+    a {
+      font-weight: 400;
+      color: #FFF;
+    }
+  }
+
 
 
   @media (min-width: 1200px) {
@@ -120,6 +145,17 @@
         flex: 1 1 295px;
       }
     }
+    [purpose='report-banner-cta'] {
+      padding: 27px 43px 34px 43px;
+      img {
+        margin-right: 0px;
+      }
+
+    }
+    [purpose='report-banner-container'] {
+      padding-right: 20px;
+      padding-left: 20px;
+    }
   }
 
 
@@ -143,6 +179,10 @@
     }
     [purpose='hero-clouds'] {
       background: linear-gradient(0deg, rgba(255, 255, 255, 1) 0%, rgba(255, 255, 255, 1) 23%, rgba(255, 255, 255, 0) 48%, rgba(255, 255, 255, 0) 100%);
+    }
+    [purpose='report-banner-container'] {
+      padding-right: 15px;
+      padding-left: 15px;
     }
   }
 

@@ -5505,7 +5505,7 @@ _Available in Fleet Premium_
 | &nbsp;&nbsp;&nbsp;&nbsp;destination_url                 | string  | body | The URL to deliver the webhook requests to.                                                                                                                  |
 | &nbsp;&nbsp;&nbsp;&nbsp;policy_ids                      | array   | body | List of policy IDs to enable failing policies webhook.                                                                                                       |
 | &nbsp;&nbsp;&nbsp;&nbsp;host_batch_size                 | integer | body | Maximum number of hosts to batch on failing policy webhook requests. The default, 0, means no batching (all hosts failing a policy are sent on one request). |
-| integrations                                            | object  | body | Integrations settings for the team. Note that integrations referenced here must already exist at the global level, created by a call to [Modify configuration](#modify-configuration).     |
+| integrations                                            | object  | body | Integrations settings for the team. Note that integrations referenced here must already exist globally, created by a call to [Modify configuration](#modify-configuration).     |
 | &nbsp;&nbsp;jira                                        | array   | body | Jira integrations configuration. |
 | &nbsp;&nbsp;&nbsp;&nbsp;url                             | string  | body | The URL of the Jira server to use. |
 | &nbsp;&nbsp;&nbsp;&nbsp;project_key                     | string  | body | The project key of the Jira integration to use. Jira tickets will be created in this project. |
@@ -6454,18 +6454,24 @@ The server only stores and returns a single instance of each error.
 
 ```json
 [
-  {
-    "external": "example error",
-    "root": {
-      "message": "timestamp: 2022-05-06T11:40:32-03:00",
-      "stack": [
-        "http.initALPNRequest.ServeHTTP:/usr/local/Cellar/go/1.17.6/libexec/src/net/http/server.go:3480",
-        "http.serverHandler.ServeHTTP:/usr/local/Cellar/go/1.17.6/libexec/src/net/http/server.go:2879",
-        "service.(*authEndpointer).makeEndpoint.func1:/Users/robertodip/projects/fleet/server/service/endpoint_utils.go:439",
-        "...",
-        "service.listSoftwareEndpoint:/Users/robertodip/projects/fleet/server/service/software.go:30",
-        "ctxerr.New:/Users/robertodip/projects/fleet/server/contexts/ctxerr/ctxerr.go:67",
-        "ctxerr.ensureCommonMetadata:/Users/robertodip/projects/fleet/server/contexts/ctxerr/ctxerr.go:112"
+ {
+    "count": "3",
+    "error": {
+      "cause": {
+        "message": "Authorization header required"
+      },
+      "wraps": [
+        {
+          "message": "missing FleetError in chain",
+          "data": {
+            "timestamp": "2022-06-03T14:16:01-03:00"
+          },
+          "stack": [
+            "github.com/fleetdm/fleet/v4/server/contexts/ctxerr.Handle (ctxerr.go:262)",
+            "github.com/fleetdm/fleet/v4/server/service.encodeError (transport_error.go:80)",
+            "github.com/go-kit/kit/transport/http.Server.ServeHTTP (server.go:124)"
+          ]
+        }
       ]
     }
   }

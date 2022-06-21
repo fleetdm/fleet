@@ -4766,12 +4766,12 @@ func (s *integrationTestSuite) TestDefaultTransparencyURL() {
 	require.Equal(t, fleet.DefaultTransparencyURL, acResp.FleetDesktop.TransparencyURL)
 
 	// confirm device endpoint returns initial default url
-	deviceResp := &getDeviceHostResponse{}
-	rawResp := s.DoRawNoAuth("GET", "/api/latest/fleet/device/"+token, nil, http.StatusOK)
+	deviceResp := &transparencyURLResponse{}
+	rawResp := s.DoRawNoAuth("GET", "/api/latest/fleet/device/"+token+"/transparency", nil, http.StatusTemporaryRedirect)
 	json.NewDecoder(rawResp.Body).Decode(deviceResp)
 	rawResp.Body.Close()
 	require.NoError(t, deviceResp.Err)
-	require.Equal(t, fleet.DefaultTransparencyURL, deviceResp.TransparencyURL)
+	require.Equal(t, fleet.DefaultTransparencyURL, rawResp.Header.Get("Location"))
 
 	// empty string applies default url
 	acResp = appConfigResponse{}
@@ -4780,24 +4780,24 @@ func (s *integrationTestSuite) TestDefaultTransparencyURL() {
 	require.Equal(t, fleet.DefaultTransparencyURL, acResp.FleetDesktop.TransparencyURL)
 
 	// device endpoint returns default url
-	deviceResp = &getDeviceHostResponse{}
-	rawResp = s.DoRawNoAuth("GET", "/api/latest/fleet/device/"+token, nil, http.StatusOK)
+	deviceResp = &transparencyURLResponse{}
+	rawResp = s.DoRawNoAuth("GET", "/api/latest/fleet/device/"+token+"/transparency", nil, http.StatusTemporaryRedirect)
 	json.NewDecoder(rawResp.Body).Decode(deviceResp)
 	rawResp.Body.Close()
 	require.NoError(t, deviceResp.Err)
-	require.Equal(t, fleet.DefaultTransparencyURL, deviceResp.TransparencyURL)
+	require.Equal(t, fleet.DefaultTransparencyURL, rawResp.Header.Get("Location"))
 
 	// modify transparency url with custom url fails
 	acResp = appConfigResponse{}
 	s.DoJSON("PATCH", "/api/latest/fleet/config", fleet.AppConfig{FleetDesktop: fleet.FleetDesktopSettings{TransparencyURL: "customURL"}}, http.StatusUnprocessableEntity, &acResp)
 
 	// device endpoint still returns default url
-	deviceResp = &getDeviceHostResponse{}
-	rawResp = s.DoRawNoAuth("GET", "/api/latest/fleet/device/"+token, nil, http.StatusOK)
+	deviceResp = &transparencyURLResponse{}
+	rawResp = s.DoRawNoAuth("GET", "/api/latest/fleet/device/"+token+"/transparency", nil, http.StatusTemporaryRedirect)
 	json.NewDecoder(rawResp.Body).Decode(deviceResp)
 	rawResp.Body.Close()
 	require.NoError(t, deviceResp.Err)
-	require.Equal(t, fleet.DefaultTransparencyURL, deviceResp.TransparencyURL)
+	require.Equal(t, fleet.DefaultTransparencyURL, rawResp.Header.Get("Location"))
 }
 
 func (s *integrationTestSuite) TestModifyUser() {
@@ -5103,6 +5103,25 @@ func (s *integrationTestSuite) TestHostsReportDownload() {
 	require.Len(t, rows[3], 3)
 	require.Equal(t, []string{"0", "TestIntegrations/TestHostsReportDownloadfoo.local0"}, rows[3][:2])
 	t.Log(rows)
+}
+
+func (s *integrationTestSuite) TestSSODisabled() {
+	t := s.T()
+
+	var initiateResp initiateSSOResponse
+	s.DoJSON("POST", "/api/v1/fleet/sso", struct{}{}, http.StatusBadRequest, &initiateResp)
+
+	var callbackResp callbackSSOResponse
+	// callback without SAML response
+	s.DoJSON("POST", "/api/v1/fleet/sso/callback", nil, http.StatusBadRequest, &callbackResp)
+	// callback with invalid SAML response
+	s.DoJSON("POST", "/api/v1/fleet/sso/callback?SAMLResponse=zz", nil, http.StatusBadRequest, &callbackResp)
+	// callback with valid SAML response (<samlp:AuthnRequest></samlp:AuthnRequest>)
+	res := s.DoRaw("POST", "/api/v1/fleet/sso/callback?SAMLResponse=PHNhbWxwOkF1dGhuUmVxdWVzdD48L3NhbWxwOkF1dGhuUmVxdWVzdD4%3D", nil, http.StatusOK)
+	defer res.Body.Close()
+	body, err := io.ReadAll(res.Body)
+	require.NoError(t, err)
+	require.Contains(t, string(body), "/login?status=org_disabled") // html contains a script that redirects to this path
 }
 
 // this test can be deleted once the "v1" version is removed.

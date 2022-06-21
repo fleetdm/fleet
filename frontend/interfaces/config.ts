@@ -181,11 +181,7 @@ export interface IConfig {
   // vulnerability_settings: {
   //   databases_path: string;
   // };
-  webhook_settings: {
-    host_status_webhook: IWebhookHostStatus;
-    failing_policies_webhook: IWebhookFailingPolicies;
-    vulnerabilities_webhook: IWebhookSoftwareVulnerabilities;
-  };
+  webhook_settings: IWebhookSettings;
   integrations: IIntegrations;
   logging: {
     debug: boolean;
@@ -210,3 +206,14 @@ export interface IConfig {
     };
   };
 }
+
+export interface IWebhookSettings {
+  failing_policies_webhook: IWebhookFailingPolicies;
+  host_status_webhook: IWebhookHostStatus;
+  vulnerabilities_webhook: IWebhookSoftwareVulnerabilities;
+}
+
+export type IAutomationsConfig = Pick<
+  IConfig,
+  "webhook_settings" | "integrations"
+>;

@@ -237,7 +237,7 @@ const UserSettingsPage = ({ router }: IUserSettingsPageProps) => {
               <strong>This token expires.</strong> If you want an API key for a
               permanent integration, create an&nbsp;
               <a
-                href="https://fleetdm.com/docs/deploying/configuration#session-duration?utm_medium=fleetui&utm_campaign=get-api-token"
+                href="https://fleetdm.com/docs/using-fleet/fleetctl-cli#using-fleetctl-with-an-api-only-user?utm_medium=fleetui&utm_campaign=get-api-token"
                 target="_blank"
                 rel="noopener noreferrer"
               >
@@ -258,7 +258,7 @@ const UserSettingsPage = ({ router }: IUserSettingsPageProps) => {
             This token is intended for SSO users to authenticate in the fleetctl
             CLI. It expires based on the{" "}
             <a
-              href="https://fleetdm.com/docs/using-fleet/fleetctl-cli#using-fleetctl-with-an-api-only-user?utm_medium=fleetui&utm_campaign=get-api-token"
+              href="https://fleetdm.com/docs/deploying/configuration#session-duration?utm_medium=fleetui&utm_campaign=get-api-token"
               target="_blank"
               rel="noopener noreferrer"
             >

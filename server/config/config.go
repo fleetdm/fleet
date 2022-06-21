@@ -263,7 +263,8 @@ type KafkaRESTConfig struct {
 
 // LicenseConfig defines configs related to licensing Fleet.
 type LicenseConfig struct {
-	Key string `yaml:"key"`
+	Key              string `yaml:"key"`
+	EnforceHostLimit bool   `yaml:"enforce_host_limit"`
 }
 
 // VulnerabilitiesConfig defines configs related to vulnerability processing within Fleet.
@@ -608,6 +609,7 @@ func (man Manager) addConfigs() {
 
 	// License
 	man.addConfigString("license.key", "", "Fleet license key (to enable Fleet Premium features)")
+	man.addConfigBool("license.enforce_host_limit", false, "Enforce license limit of enrolled hosts")
 
 	// Vulnerability processing
 	man.addConfigString("vulnerabilities.databases_path", "/tmp/vulndbs",
@@ -803,7 +805,8 @@ func (man Manager) LoadConfig() FleetConfig {
 			Timeout:          man.getConfigInt("kafkarest.timeout"),
 		},
 		License: LicenseConfig{
-			Key: man.getConfigString("license.key"),
+			Key:              man.getConfigString("license.key"),
+			EnforceHostLimit: man.getConfigBool("license.enforce_host_limit"),
 		},
 		Vulnerabilities: VulnerabilitiesConfig{
 			DatabasesPath:             man.getConfigString("vulnerabilities.databases_path"),
