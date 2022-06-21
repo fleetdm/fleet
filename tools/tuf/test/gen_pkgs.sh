@@ -1,6 +1,6 @@
 #!/bin/bash
 
-set -e
+set -ex
 
 # This script generates fleet-osquery packages for all supported platforms
 # using the specified TUF server.
@@ -25,6 +25,12 @@ set -e
 # ENROLL_SECRET: Fleet server enroll secret.
 # ROOT_KEYS: TUF repository root keys.
 # FLEET_DESKTOP: Whether to build with Fleet Desktop support. 
+# FLEET_CERTIFICATE: Whether to use a custom certificate bundle. If not set, then --insecure mode is used.
+
+TLS_FLAG="--insecure"
+if [ -n "$FLEET_CERTIFICATE" ]; then
+    TLS_FLAG="--fleet-certificate=./tools/osquery/fleet.crt"
+fi
 
 if [ -n "$GENERATE_PKG" ]; then
     echo "Generating pkg..."
@@ -33,7 +39,7 @@ if [ -n "$GENERATE_PKG" ]; then
         ${FLEET_DESKTOP:+--fleet-desktop} \
         --fleet-url=$PKG_FLEET_URL \
         --enroll-secret=$ENROLL_SECRET \
-        --fleet-certificate=./tools/osquery/fleet.crt \
+        ${TLS_FLAG} \
         --debug \
         --update-roots="$ROOT_KEYS" \
         --update-interval=10s \
@@ -48,7 +54,7 @@ if [ -n "$GENERATE_DEB" ]; then
         ${FLEET_DESKTOP:+--fleet-desktop} \
         --fleet-url=$DEB_FLEET_URL \
         --enroll-secret=$ENROLL_SECRET \
-        --fleet-certificate=./tools/osquery/fleet.crt \
+        ${TLS_FLAG} \
         --debug \
         --update-roots="$ROOT_KEYS" \
         --update-interval=10s \
@@ -63,7 +69,7 @@ if [ -n "$GENERATE_RPM" ]; then
         ${FLEET_DESKTOP:+--fleet-desktop} \
         --fleet-url=$RPM_FLEET_URL \
         --enroll-secret=$ENROLL_SECRET \
-        --fleet-certificate=./tools/osquery/fleet.crt \
+        ${TLS_FLAG} \
         --debug \
         --update-roots="$ROOT_KEYS" \
         --update-interval=10s \
@@ -78,7 +84,7 @@ if [ -n "$GENERATE_MSI" ]; then
         ${FLEET_DESKTOP:+--fleet-desktop} \
         --fleet-url=$MSI_FLEET_URL \
         --enroll-secret=$ENROLL_SECRET \
-        --fleet-certificate=./tools/osquery/fleet.crt \
+        ${TLS_FLAG} \
         --debug \
         --update-roots="$ROOT_KEYS" \
         --update-interval=10s \
