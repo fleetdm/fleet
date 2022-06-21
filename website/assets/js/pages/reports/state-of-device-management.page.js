@@ -399,7 +399,7 @@ parasails.registerPage('state-of-device-management', {
               fullWidth: false,
               position: chartHasLegendOnBottom ? 'bottom' : 'right',
               // removing the default onClick event from the chart's legend
-              onClick: (click)=>{return;},
+              onClick: ()=>{return;},
               labels: {
                 padding: 16,
                 generateLabels: (chart) => {
