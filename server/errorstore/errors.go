@@ -43,6 +43,13 @@ type Handler struct {
 	testOnStart func()      // if set, called once the handler is running
 }
 
+// storedError represents the structure we use to de-serialize errors and
+// counts stored in Redis
+type storedError struct {
+	Count int             `json:"count"`
+	Error json.RawMessage `json:"error"`
+}
+
 // NewHandler creates an error handler using the provided pool and logger,
 // storing unique instances of errors in Redis using the pool. It stops storing
 // errors when ctx is cancelled. Errors are kept for the duration of ttl.
@@ -87,33 +94,46 @@ func runHandler(ctx context.Context, eh *Handler) {
 //
 // If flush is `true`, performs a destructive read - the errors are removed
 // from Redis on return.
-func (h *Handler) Retrieve(flush bool) ([]string, error) {
-	errorKeys, err := redis.ScanKeys(h.pool, "error:*", 100)
+func (h *Handler) Retrieve(flush bool) ([]*storedError, error) {
+	// scanning only the error:*:json keys as json and count are both tagged keys
+	// and should hash to the same Redis slot
+	errorKeys, err := redis.ScanKeys(h.pool, "error:*:json", 100)
 	if err != nil {
 		return nil, err
 	}
 
 	keysBySlot := redis.SplitKeysBySlot(h.pool, errorKeys...)
-	var errors []string
+	var rawErrs []interface{}
 	for _, qkeys := range keysBySlot {
 		if len(qkeys) > 0 {
 			gotErrors, err := h.collectBatchErrors(qkeys, flush)
 			if err != nil {
 				return nil, err
 			}
-			errors = append(errors, gotErrors...)
+			rawErrs = append(rawErrs, gotErrors...)
 		}
 	}
-	return errors, nil
+
+	errorList := make([]*storedError, 0, len(rawErrs))
+	if err := redigo.ScanSlice(rawErrs, &errorList); err != nil {
+		return nil, err
+	}
+	return errorList, nil
 }
 
-func (h *Handler) collectBatchErrors(errorKeys []string, flush bool) ([]string, error) {
+func (h *Handler) collectBatchErrors(errorKeys []string, flush bool) ([]interface{}, error) {
 	conn := redis.ConfigureDoer(h.pool, h.pool.Get())
 	defer conn.Close()
 
 	var args redigo.Args
-	args = args.AddFlat(errorKeys)
-	errorList, err := redigo.Strings(conn.Do("MGET", args...))
+	for _, ek := range errorKeys {
+		// note: the order in which the keys are requested must match the order in
+		// which the struct fields are declared (due to how redigo.ScanSlice works)
+		args = args.Add(strings.Replace(ek, ":json", ":count", 1))
+		args = args.Add(ek)
+	}
+
+	errorList, err := redigo.Values(conn.Do("MGET", args...))
 	if err != nil {
 		return nil, err
 	}
@@ -185,22 +205,28 @@ func (h *Handler) storeError(ctx context.Context, err error) {
 		}
 		return
 	}
-	jsonKey := fmt.Sprintf("error:%s:json", errorHash)
 
-	conn := redis.ConfigureDoer(h.pool, h.pool.Get())
+	// not using a connection that follows redirections here
+	// in order to do pipeline commands
+	conn := h.pool.Get()
 	defer conn.Close()
 
-	var args redigo.Args
-	args = args.Add(jsonKey, errorJson)
+	jsonKey := fmt.Sprintf("error:{%s}:json", errorHash)
+	countKey := fmt.Sprintf("error:{%s}:count", errorHash)
+
+	conn.Send("SET", jsonKey, errorJson)
+	conn.Send("INCR", countKey)
+
 	if h.ttl > 0 {
 		secs := int(h.ttl.Seconds())
 		if secs <= 0 {
-			secs = 1 // SET EX fails if ttl is <= 0
+			secs = 1 // EXPIRE fails if ttl is <= 0
 		}
-		args = args.Add("EX", secs)
+		conn.Send("EXPIRE", jsonKey, secs)
+		conn.Send("EXPIRE", countKey, secs)
 	}
 
-	if _, err := conn.Do("SET", args...); err != nil {
+	if _, err := conn.Do(""); err != nil {
 		level.Error(h.logger).Log("err", err, "msg", "redis SET failed")
 		if h.testOnStore != nil {
 			h.testOnStore(err)
@@ -261,15 +287,7 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// each string returned by eh.Retrieve is already JSON-encoded, so to prevent
-	// double-marshaling while still marshaling the list of errors as a JSON
-	// array, treat them as raw json messages.
-	raw := make([]json.RawMessage, len(errors))
-	for i, s := range errors {
-		raw[i] = json.RawMessage(s)
-	}
-
-	bytes, err := json.Marshal(raw)
+	bytes, err := json.Marshal(errors)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		return
