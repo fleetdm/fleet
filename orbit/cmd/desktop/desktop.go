@@ -64,10 +64,9 @@ func main() {
 		if os.Getenv("FLEET_DESKTOP_INSECURE") != "" {
 			insecureSkipVerify = true
 		}
+		rootCA := os.Getenv("FLEET_DESKTOP_FLEET_ROOT_CA")
 
-		// TODO: figure out the right rootCA to pass to the client
-		client, err := service.NewDeviceClient(basePath, deviceToken, insecureSkipVerify, "")
-
+		client, err := service.NewDeviceClient(basePath, deviceToken, insecureSkipVerify, rootCA)
 		if err != nil {
 			log.Fatal().Err(err).Msg("unable to initialize request client")
 		}
@@ -175,7 +174,7 @@ func setupLogs() {
 
 	dir = filepath.Join(dir, "Fleet")
 
-	if err := os.MkdirAll(dir, 0755); err != nil {
+	if err := os.MkdirAll(dir, 0o755); err != nil {
 		log.Logger = log.Output(stderrOut)
 		log.Error().Err(err).Msg("make directories for log files")
 		return
