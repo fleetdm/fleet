@@ -1,3 +1,0 @@
-- Add `fleet_desktop.transparency_url` to `app_config_json`
-- Set default `transparency_url="https://fleetdm.com/transparency`
-- Enable Fleet Premium licensees to set custom `transparency_url` via REST API and `fleetctl apply`
