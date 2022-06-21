@@ -72,6 +72,17 @@ When selecting your new laptop, we ask that you optimize your configuration to h
 
 When a device has been purchased, it's added to the [spreadsheet of company equipment](https://docs.google.com/spreadsheets/d/1hFlymLlRWIaWeVh14IRz03yE-ytBLfUaqVz0VVmmoGI/edit#gid=0) where we keep track of devices and equipment, purchased by Fleet. When the team member receives their computer, they will complete the entry by adding a description, model, and serial number to the spreadsheet.
 
+### Attending conferences
+
+When attending a conference for Fleet, please make a post in [g-digital-experience](https://github.com/fleetdm/fleet/pull/6288) on Slack with the following information:
+- The start and end dates for your trip.
+- The price of your flight (feel free to optimize a direct flight if there is one that is less than double the price of the cheapest non-direct flight).
+- The price of your hotel per night.
+- The price of the admission fees for the conference.
+
+The monthly limit on your Brex card will be increased temporarily as necessary to accomodate the increased spending associated with the conference.
+It is highly recommended that you order a physical Brex card if you do not have one before attending the conference.
+
 ## Paid time off
 
 What matters most is your results, which are driven by your focus, your availability to collaborate, and the time and consideration you put into your work.
