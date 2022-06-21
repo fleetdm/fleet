@@ -7,6 +7,8 @@ const (
 	DefaultFileMode = 0o600
 	// DefaultSystemdUnitMode is the required file mode to systemd unit files.
 	DefaultSystemdUnitMode = 0o644
+	// DefaultInitScriptMode is the required file mode to init.d script files.
+	DefaultInitScriptMode = 0o755
 	// DesktopAppExecName is the name of Fleet's Desktop executable.
 	//
 	// We use fleet-desktop as name to properly identify the process when listing
