@@ -56,7 +56,7 @@ For more developed thoughts about __spending guidelines and limits__, please rea
 
 We provide all of our team members with Brex cards for making purchases for the company. Fleet will reimburse team members who pay for work-related expenses with their personal funds.
 
-Team members can request reimbursement through [Gusto](https://app.gusto.com/expenses) if they're in the US or [Pilot](https://pilot.co/) if they are an international team member. When submitting an expense report, team members need to provide the receipt and a description of the expense.
+Team members can request reimbursement through [Gusto]([https://app.gusto.com/expenses](https://support.gusto.com/article/209831449100000/Get-reimbursed-for-expenses-as-an-employee)) if they're in the US or [Pilot]([https://pilot.co/](https://help.pilot.co/en/articles/4658204-how-to-request-a-reimbursement#:~:text=If%20you%20made%20a%20purchase,and%20click%20'Add%20new%20expense.)) if they are an international team member. When submitting an expense report, team members need to provide the receipt and a description of the expense.
 
 Operations will review the expense and reach out to the team member if they have any questions. The reimbursement will be added to the team member's next payroll when an expense is approved.
 
