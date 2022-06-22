@@ -259,7 +259,7 @@ e2e-setup-with-software:
 		--data-raw '{"server_url":"https://localhost:8642","org_info":{"org_name":"Fleet Test"},"admin":{"admin":true,"email":"admin@example.com","name":"Admin","password":"password123#","password_confirmation":"password123#"}}' \
 		--compressed \
 		--insecure
-	./tools/backup_db/restore_software_test.sh
+	./tools/backup_db/restore_e2e_software_test.sh
 
 e2e-serve-free: e2e-reset-db
 	./build/fleet serve --mysql_address=localhost:3307 --mysql_username=root --mysql_password=toor --mysql_database=e2e --server_address=0.0.0.0:8642
