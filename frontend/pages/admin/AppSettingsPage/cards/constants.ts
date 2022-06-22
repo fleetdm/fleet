@@ -70,15 +70,16 @@ export const usageStatsPreview = {
   anonymousIdentifier: "9pnzNmrES3mQG66UQtd29cYTiX2+fZ4CYxDvh495720=",
   fleetVersion: "x.x.x",
   licenseTier: "free",
-  numHostsEnrolled: 12345,
-  numUsers: 12,
-  numTeams: 3,
-  numPolicies: 5,
-  numLabels: 20,
+  numHostsEnrolled: 999,
+  numUsers: 999,
+  numTeams: 999,
+  numPolicies: 999,
+  numLabels: 999,
   softwareInventoryEnabled: true,
   vulnDetectionEnabled: true,
   systemUsersEnabled: true,
   hostStatusWebhookEnabled: true,
+  numWeeklyActiveUsers: 999,
 };
 
 export default {

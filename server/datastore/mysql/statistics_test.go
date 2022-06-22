@@ -44,14 +44,25 @@ func testStatisticsShouldSend(t *testing.T, ds *Datastore) {
 	})
 	require.NoError(t, err)
 
-	// Create new user for test
-	_, err = ds.NewUser(context.Background(), &fleet.User{
+	// Create two new users for test
+	u1, err := ds.NewUser(context.Background(), &fleet.User{
 		Password:                 []byte("foobar"),
 		AdminForcedPasswordReset: false,
 		Email:                    "baz@example.com",
 		SSOEnabled:               false,
 		GlobalRole:               ptr.String(fleet.RoleObserver),
 	})
+	require.NoError(t, err)
+	_, err = ds.NewUser(context.Background(), &fleet.User{
+		Password:                 []byte("foobar"),
+		AdminForcedPasswordReset: false,
+		Email:                    "qux@example.com",
+		SSOEnabled:               false,
+		GlobalRole:               ptr.String(fleet.RoleObserver),
+	})
+	require.NoError(t, err)
+	// Create a session for user baz, but not qux (so only 1 is active)
+	_, err = ds.NewSession(context.Background(), u1.ID, "session_key")
 	require.NoError(t, err)
 
 	// Create new team for test
@@ -95,6 +106,8 @@ func testStatisticsShouldSend(t *testing.T, ds *Datastore) {
 	err = ds.SaveAppConfig(context.Background(), config)
 	require.NoError(t, err)
 
+	time.Sleep(1100 * time.Millisecond) // ensure the DB timestamp is not in the same second
+
 	license := &fleet.LicenseInfo{Tier: "premium"}
 
 	// First time running, we send statistics
@@ -105,7 +118,7 @@ func testStatisticsShouldSend(t *testing.T, ds *Datastore) {
 	assert.NotEmpty(t, stats.FleetVersion)
 	assert.Equal(t, stats.LicenseTier, "premium")
 	assert.Equal(t, stats.NumHostsEnrolled, 1)
-	assert.Equal(t, stats.NumUsers, 1)
+	assert.Equal(t, stats.NumUsers, 2)
 	assert.Equal(t, stats.NumTeams, 1)
 	assert.Equal(t, stats.NumPolicies, 1)
 	assert.Equal(t, stats.NumLabels, 1)
@@ -113,6 +126,7 @@ func testStatisticsShouldSend(t *testing.T, ds *Datastore) {
 	assert.Equal(t, stats.SystemUsersEnabled, false)
 	assert.Equal(t, stats.VulnDetectionEnabled, false)
 	assert.Equal(t, stats.HostsStatusWebHookEnabled, true)
+	assert.Equal(t, stats.NumWeeklyActiveUsers, 1)
 
 	firstIdentifier := stats.AnonymousIdentifier
 
@@ -124,7 +138,7 @@ func testStatisticsShouldSend(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	assert.False(t, shouldSend)
 
-	time.Sleep(2)
+	time.Sleep(1100 * time.Millisecond) // ensure the DB timestamp is not in the same second
 
 	_, err = ds.NewHost(context.Background(), &fleet.Host{
 		DetailUpdatedAt: time.Now(),
@@ -146,4 +160,25 @@ func testStatisticsShouldSend(t *testing.T, ds *Datastore) {
 	assert.True(t, shouldSend)
 	assert.Equal(t, firstIdentifier, stats.AnonymousIdentifier)
 	assert.Equal(t, stats.NumHostsEnrolled, 2)
+	assert.Equal(t, stats.NumUsers, 2)
+	assert.Equal(t, stats.NumWeeklyActiveUsers, 0) // no active user since last stats were sent
+
+	// Create multiple new sessions for a single user
+	_, err = ds.NewSession(context.Background(), u1.ID, "session_key2")
+	require.NoError(t, err)
+	_, err = ds.NewSession(context.Background(), u1.ID, "session_key3")
+	require.NoError(t, err)
+	_, err = ds.NewSession(context.Background(), u1.ID, "session_key4")
+	require.NoError(t, err)
+
+	// wait a bit and resend statistics
+	time.Sleep(1100 * time.Millisecond) // ensure the DB timestamp is not in the same second
+
+	stats, shouldSend, err = ds.ShouldSendStatistics(context.Background(), time.Millisecond, license)
+	require.NoError(t, err)
+	assert.True(t, shouldSend)
+	assert.Equal(t, firstIdentifier, stats.AnonymousIdentifier)
+	assert.Equal(t, stats.NumHostsEnrolled, 2)
+	assert.Equal(t, stats.NumUsers, 2)
+	assert.Equal(t, stats.NumWeeklyActiveUsers, 1)
 }
