@@ -19,9 +19,9 @@ type statistics struct {
 
 func (ds *Datastore) ShouldSendStatistics(ctx context.Context, frequency time.Duration, license *fleet.LicenseInfo) (fleet.StatisticsPayload, bool, error) {
 	computeStats := func(stats *fleet.StatisticsPayload, since time.Time) error {
-		amountEnrolledHosts, err := amountEnrolledHostsDB(ctx, ds.writer)
+		enrolledHostsByOS, amountEnrolledHosts, err := amountEnrolledHostsByOSDB(ctx, ds.writer)
 		if err != nil {
-			return ctxerr.Wrap(ctx, err, "amount enrolled hosts")
+			return ctxerr.Wrap(ctx, err, "amount enrolled hosts by os")
 		}
 		amountUsers, err := amountUsersDB(ctx, ds.writer)
 		if err != nil {
@@ -58,6 +58,7 @@ func (ds *Datastore) ShouldSendStatistics(ctx context.Context, frequency time.Du
 		stats.SystemUsersEnabled = appConfig.HostSettings.EnableHostUsers
 		stats.HostsStatusWebHookEnabled = appConfig.WebhookSettings.HostStatusWebhook.Enable
 		stats.NumWeeklyActiveUsers = amountWeeklyUsers
+		stats.HostsEnrolledByOperatingSystem = enrolledHostsByOS
 		return nil
 	}
 

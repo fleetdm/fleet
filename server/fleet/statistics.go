@@ -20,7 +20,6 @@ type StatisticsPayload struct {
 }
 
 type HostsCountByOSVersion struct {
-	OS          string `json:"-"`
 	Version     string `json:"version"`
 	NumEnrolled int    `json:"numEnrolled"`
 }

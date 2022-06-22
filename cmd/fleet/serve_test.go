@@ -56,7 +56,7 @@ func TestMaybeSendStatistics(t *testing.T) {
 			NumWeeklyActiveUsers:      111,
 			HostsEnrolledByOperatingSystem: map[string][]fleet.HostsCountByOSVersion{
 				"linux": {
-					fleet.HostsCountByOSVersion{OS: "linux", Version: "1.2.3", NumEnrolled: 22},
+					fleet.HostsCountByOSVersion{Version: "1.2.3", NumEnrolled: 22},
 				},
 			},
 		}, true, nil
