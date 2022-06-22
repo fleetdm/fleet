@@ -2,10 +2,10 @@ package main
 
 import (
 	"context"
+	"crypto/rand"
 	"encoding/csv"
-	"fmt"
 	"io/ioutil"
-	"math/rand"
+	"math/big"
 	"os"
 	"strings"
 	"testing"
@@ -144,22 +144,22 @@ func TestDeleteBulkUsers(t *testing.T) {
 	user13@example.com`)
 
 	csvFile, err := os.Open(csvFilePath)
-	if err != nil {
-		fmt.Errorf("not able to open CSV file: %w", err)
-	}
-
+	require.NoError(t, err)
 	defer csvFile.Close()
-	csvLines, err := csv.NewReader(csvFile).ReadAll()
 
-	if err != nil {
-		fmt.Errorf("not able to read CSV file: %w", err)
-	}
+	csvLines, err := csv.NewReader(csvFile).ReadAll()
+	require.NoError(t, err)
+
 	users := []fleet.User{}
 	deletedUserIds := []uint{}
 	for _, user := range csvLines[1:] {
 		email := user[0]
 		name := strings.Split(email, "@")[0]
-		id := uint(rand.Intn(100))
+
+		randId, err := rand.Int(rand.Reader, big.NewInt(1000))
+		require.NoError(t, err)
+		id := uint(randId.Int64())
+
 		users = append(users, fleet.User{
 			Name:  name,
 			Email: email,

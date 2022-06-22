@@ -181,10 +181,9 @@ func createUserCommand() *cli.Command {
 
 func createBulkUsersCommand() *cli.Command {
 	return &cli.Command{
-		Name:  "create-users",
-		Usage: "Create bulk users",
-		UsageText: `This command will create a set of users in Fleet by importing a CSV file. Expected columns are: Name,Email,SSO,API Only,Global Role,Teams. Created Users by default get random password and Observer Role.
-		Password could be left blank, Users should receive an invitation link.`,
+		Name:      "create-users",
+		Usage:     "Create bulk users",
+		UsageText: `This command will create a set of users in Fleet by importing a CSV file. Expected columns are: Name,Email,SSO,API Only,Global Role,Teams. Created Users by default get random password and Observer Role.`,
 		Flags: []cli.Flag{
 			&cli.StringFlag{
 				Name:     csvFlagName,
@@ -193,7 +192,6 @@ func createBulkUsersCommand() *cli.Command {
 			},
 			configFlag(),
 			contextFlag(),
-			yamlFlag(),
 			debugFlag(),
 		},
 		Action: func(c *cli.Context) error {
@@ -337,7 +335,6 @@ func deleteBulkUsersCommand() *cli.Command {
 			},
 			configFlag(),
 			contextFlag(),
-			yamlFlag(),
 			debugFlag(),
 		},
 		Action: func(c *cli.Context) error {
@@ -360,7 +357,9 @@ func deleteBulkUsersCommand() *cli.Command {
 			}
 			for _, user := range csvLines[1:] {
 				email := user[0]
-				client.DeleteUser(email)
+				if err := client.DeleteUser(email); err != nil {
+					return err
+				}
 			}
 			return nil
 
