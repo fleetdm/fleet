@@ -39,6 +39,13 @@ Cypress.Commands.add("setup", () => {
   });
 });
 
+Cypress.Commands.add("setupWithSoftware", () => {
+  cy.exec("make e2e-reset-db e2e-setup-with-software", {
+    timeout: 20000,
+    env: { SHELL },
+  });
+});
+
 Cypress.Commands.add("login", (email, password) => {
   email ||= "admin@example.com";
   password ||= GOOD_PASSWORD;

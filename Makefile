@@ -251,6 +251,16 @@ e2e-setup:
 	./build/fleetctl user create --context e2e --email=observer@example.com --name observer --password=password123# --global-role=observer
 	./build/fleetctl user create --context e2e --email=sso_user@example.com --name "SSO user" --sso=true
 
+# Setup e2e test environment and pre-populate database with software and vulnerabilities fixtures.
+#
+# Use in lieu of `e2e-setup` for tests that depend on these fixtures
+e2e-setup-with-software:
+	curl 'https://localhost:8642/api/v1/setup' \
+		--data-raw '{"server_url":"https://localhost:8642","org_info":{"org_name":"Fleet Test"},"admin":{"admin":true,"email":"admin@example.com","name":"Admin","password":"password123#","password_confirmation":"password123#"}}' \
+		--compressed \
+		--insecure
+	./tools/backup_db/restore_software_test.sh
+
 e2e-serve-free: e2e-reset-db
 	./build/fleet serve --mysql_address=localhost:3307 --mysql_username=root --mysql_password=toor --mysql_database=e2e --server_address=0.0.0.0:8642
 

@@ -9,6 +9,11 @@ declare namespace Cypress {
     setup(): Chainable<Element>;
 
     /**
+     * Custom command to setup the testing environment with fixture data for software and vulnerabilities.
+     */
+    setupWithSoftware(): Chainable<Element>;
+
+    /**
      * Custom command to login the user programmatically using the fleet API.
      */
     login(email?: string, password?: string): Chainable<Element>;
