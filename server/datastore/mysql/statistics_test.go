@@ -140,6 +140,7 @@ func testStatisticsShouldSend(t *testing.T, ds *Datastore) {
 
 	time.Sleep(1100 * time.Millisecond) // ensure the DB timestamp is not in the same second
 
+	// create a few more hosts, with platforms and os versions
 	_, err = ds.NewHost(context.Background(), &fleet.Host{
 		DetailUpdatedAt: time.Now(),
 		LabelUpdatedAt:  time.Now(),
@@ -151,6 +152,56 @@ func testStatisticsShouldSend(t *testing.T, ds *Datastore) {
 		PrimaryIP:       "192.168.1.2",
 		PrimaryMac:      "30-65-EC-6F-C4-59",
 		OsqueryHostID:   "S",
+		Platform:        "rhel",
+		OSVersion:       "Fedora 35",
+	})
+	require.NoError(t, err)
+
+	_, err = ds.NewHost(context.Background(), &fleet.Host{
+		DetailUpdatedAt: time.Now(),
+		LabelUpdatedAt:  time.Now(),
+		PolicyUpdatedAt: time.Now(),
+		SeenTime:        time.Now(),
+		NodeKey:         "3",
+		UUID:            "3",
+		Hostname:        "foo.local3",
+		PrimaryIP:       "192.168.1.3",
+		PrimaryMac:      "40-65-EC-6F-C4-59",
+		OsqueryHostID:   "T",
+		Platform:        "rhel",
+		OSVersion:       "Fedora 35",
+	})
+	require.NoError(t, err)
+
+	_, err = ds.NewHost(context.Background(), &fleet.Host{
+		DetailUpdatedAt: time.Now(),
+		LabelUpdatedAt:  time.Now(),
+		PolicyUpdatedAt: time.Now(),
+		SeenTime:        time.Now(),
+		NodeKey:         "4",
+		UUID:            "4",
+		Hostname:        "foo.local4",
+		PrimaryIP:       "192.168.1.4",
+		PrimaryMac:      "50-65-EC-6F-C4-59",
+		OsqueryHostID:   "U",
+		Platform:        "macos",
+		OSVersion:       "10.11.12",
+	})
+	require.NoError(t, err)
+
+	_, err = ds.NewHost(context.Background(), &fleet.Host{
+		DetailUpdatedAt: time.Now(),
+		LabelUpdatedAt:  time.Now(),
+		PolicyUpdatedAt: time.Now(),
+		SeenTime:        time.Now(),
+		NodeKey:         "5",
+		UUID:            "5",
+		Hostname:        "foo.local5",
+		PrimaryIP:       "192.168.1.5",
+		PrimaryMac:      "60-65-EC-6F-C4-59",
+		OsqueryHostID:   "V",
+		Platform:        "rhel",
+		OSVersion:       "Fedora 36",
 	})
 	require.NoError(t, err)
 
@@ -159,9 +210,20 @@ func testStatisticsShouldSend(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	assert.True(t, shouldSend)
 	assert.Equal(t, firstIdentifier, stats.AnonymousIdentifier)
-	assert.Equal(t, stats.NumHostsEnrolled, 2)
+	assert.Equal(t, stats.NumHostsEnrolled, 5)
 	assert.Equal(t, stats.NumUsers, 2)
-	assert.Equal(t, stats.NumWeeklyActiveUsers, 0) // no active user since last stats were sent
+	assert.Equal(t, stats.NumWeeklyActiveUsers, 0)          // no active user since last stats were sent
+	require.Len(t, stats.HostsEnrolledByOperatingSystem, 3) // empty platform, rhel and macos
+	require.ElementsMatch(t, []fleet.HostsCountByOSVersion{
+		{Version: "Fedora 35", NumEnrolled: 2},
+		{Version: "Fedora 36", NumEnrolled: 1},
+	}, stats.HostsEnrolledByOperatingSystem["rhel"])
+	require.ElementsMatch(t, []fleet.HostsCountByOSVersion{
+		{Version: "10.11.12", NumEnrolled: 1},
+	}, stats.HostsEnrolledByOperatingSystem["macos"])
+	require.ElementsMatch(t, []fleet.HostsCountByOSVersion{
+		{Version: "", NumEnrolled: 1},
+	}, stats.HostsEnrolledByOperatingSystem[""])
 
 	// Create multiple new sessions for a single user
 	_, err = ds.NewSession(context.Background(), u1.ID, "session_key2")
@@ -178,7 +240,7 @@ func testStatisticsShouldSend(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	assert.True(t, shouldSend)
 	assert.Equal(t, firstIdentifier, stats.AnonymousIdentifier)
-	assert.Equal(t, stats.NumHostsEnrolled, 2)
+	assert.Equal(t, stats.NumHostsEnrolled, 5)
 	assert.Equal(t, stats.NumUsers, 2)
 	assert.Equal(t, stats.NumWeeklyActiveUsers, 1)
 }

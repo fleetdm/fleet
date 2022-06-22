@@ -21,6 +21,7 @@ module.exports = {
     systemUsersEnabled: { type: 'boolean', defaultsTo: false },
     hostStatusWebhookEnabled: { type: 'boolean', defaultsTo: false },
     numWeeklyActiveUsers: { type: 'number', defaultsTo: 0 },
+    hostsEnrolledByOperatingSystem: { type: 'json', defaultsTo: {} },
   },
 
 
