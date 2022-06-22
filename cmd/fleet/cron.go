@@ -273,11 +273,11 @@ func cronVulnerabilities(
 			}
 		}
 
-		if err := ds.CalculateHostsPerSoftware(ctx, time.Now()); err != nil {
+		if err := ds.SyncHostsSoftware(ctx, time.Now()); err != nil {
 			errHandler(ctx, logger, "calculating hosts count per software", err)
 		}
 
-		// It's important vulnerabilities.PostProcess runs after ds.CalculateHostsPerSoftware
+		// It's important vulnerabilities.PostProcess runs after ds.SyncHostsSoftware
 		// because it cleans up any software that's not installed on the fleet (e.g. hosts removal,
 		// or software being uninstalled on hosts).
 		if !vulnDisabled {
