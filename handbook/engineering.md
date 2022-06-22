@@ -6,28 +6,28 @@
 
 * Stay in alignment across the whole organization.
 * Build teams, not groups of people.
-* Provide substantial time for engineers to work on "focused work".
+* Provide substantial time for engineers to work on "focused work."
 
 ### Principles
 
 * Support the [Maker Schedule](http://www.paulgraham.com/makersschedule.html) by keeping meetings to a minimum.
 * Each individual must have a weekly sync 1:1 meeting with their manager. This is key to making sure each individual has a voice within the organization.
-* Each team should have a fixed weekly sync check in. This helps reinforce team bonds and alignment.
-* Favor async communication when possible. This is very important to make sure every stakeholder on a project can have a clear understanding of what’s happening, or what was decided, without needing to attend every meeting (i.e. if a person is sick or on vacation or just life happened.)
+* Each team should have a fixed weekly sync check-in. This helps reinforce team bonds and alignment.
+* Favor async communication when possible. This is very important to make sure every stakeholder on a project can have a clear understanding of what’s happening or what was decided, without needing to attend every meeting (i.e., if a person is sick or on vacation or just life happened.)
 * If an async conversation is not proving to be effective, never hesitate to hop on or schedule a call. Always document the decisions made in a ticket, document, or whatever makes sense for the conversation.
 
-The following is the subset of proposed engineering meetings. Each group is free to treat these as a subset of the expected meetings, and add any other meetings as they see fit.
+The following is the subset of proposed engineering meetings. Each group is free to treat these as a subset of the expected meetings and add any other meetings as they see fit.
 
 ### Eng together (Weekly ~ one hour)
-Promote cohesion across groups in the engineering team. Disseminate engineering-wide announcements.
+This is to promote cohesion across groups within the engineering team. Disseminate engineering-wide announcements.
 
 #### Participants
-All of engineering
+This includes all of engineering.
 
 #### Sample agenda
 - Announcements
 - “Show and tell”
-  - Each engineer gets two minutes to explain (showing, if desired) what they are working on, and why it’s important to the business and/or engineering team.
+  - Each engineer gets two minutes to explain (showing, if desired) what they are working on and why it’s important to the business and/or engineering team.
 - Deeper dive
   - One or a few engineers go deeper on a topic relevant to all of engineering.
 - Social
@@ -39,7 +39,7 @@ Gather feedback from all participants in each release. Used to improve communica
 This meeting will likely need to be split in the future as the number of attendees increases.
 
 #### Participants
-Members of each group (+ quality)
+This would include members of each group (+ quality).
 
 #### Sample agenda
 For each attendee:
@@ -50,12 +50,12 @@ For each attendee:
 ### Group Weeklies (Weekly ~ 30 minutes - one hour)
 A chance for deeper, synchronous discussion on topics relevant to that group.
 
-eg. “Interface Weekly” - “Platform Weekly” - “Agent Weekly”
+e.g., “Interface Weekly” - “Platform Weekly” - “Agent Weekly”
 
-In some groups, this may be split into smaller discussions related to the differing focuses of members within the group.
+In some groups, this may be split into smaller discussions related to the different focuses of members within the group.
 
 #### Participants
-Members of each group
+This would include members of each group.
 
 #### Sample agenda (Platform)
 - Announcements
@@ -74,18 +74,18 @@ Members of each group
 
 ### Standup (Optional, varies by group)
 
-Provide status reports, discover blockers, and keep the group in sync.
+This is to provide status reports, discover blockers, and keep the group in sync.
 
-Each group can implement daily (or some other cadence) standups if desired. Ultimately, it’s up to the Engineering Manager to ensure that the team is communicating appropriately to deliver results.
+If desired, each group can implement daily (or some other cadence) standups. Ultimately, it’s up to the Engineering Manager to make sure that the team is communicating appropriately to deliver results.
 
 #### Participants
-Members of the group
+This would include any members of the group.
 
 ### Engineering Leadership Weekly (Weekly ~ one hour)
 Engineering leaders discuss topics of importance that week.
 
 #### Participants
-CTO + Engineering managers
+This would include the CTO + Engineering managers.
 
 #### Sample agenda
 - Fullstack engineer hiring
@@ -96,10 +96,10 @@ CTO + Engineering managers
 Engineering and Product sync on priorities for the upcoming release, surface and address any inter-group dependencies.
 
 #### Participants
-CTO + Engineering managers + PMs
+This would include the CTO + Engineering managers + PMs.
 
 #### Sample agenda
-- Plan for what's going into next release
+- Plan for what's going into the next release
 - Identify inter-group dependencies
 - Ensure items are moving through architect/estimation
 
@@ -107,11 +107,11 @@ CTO + Engineering managers + PMs
 
 This section outlines the release process at Fleet.
 
-The current release cadence is once every 3 weeks and concentrated around Wednesdays.
+The current release cadence is once every three weeks and is concentrated around Wednesdays.
 
 ### Release freeze period
 
-In order to ensure quality releases, Fleet has a freeze period for testing prior to each release. Effective at the start of the freeze period, new feature work will not be merged.
+In order to make sure quality releases, Fleet has a freeze period for testing prior to each release. Effective at the start of the freeze period, new feature work will not be merged.
 
 Release blocking bugs are exempt from the freeze period and are defined by the same rules as patch releases, which include:
 1. Regressions
@@ -169,13 +169,13 @@ At Fleet we consider an outage to be a situation where new features or previousl
 
 [🚀 Release](https://github.com/orgs/fleetdm/projects/40) - The current release (daily go-to board) for engineers.
 
-[⚗️ Roadmap](https://github.com/orgs/fleetdm/projects/41) - Planning for the next release (shared with product).
+[⚗️ Roadmap](https://github.com/orgs/fleetdm/projects/41) - Planning for the next release (shared with the Product team).
 
 ## Scaling GOTCHAS
 
 ### Overall
 
-Nowadays, Fleet, as a Go server, scales horizontally very well. It’s not very CPU or memory intensive. In terms of load in infrastructure, from highest to lowest is: MySQL, Redis, and Fleet.
+Nowadays, Fleet, as a Go server, scales horizontally very well. It’s not very CPU or memory intensive. In terms of load in infrastructure, from highest to lowest are: MySQL, Redis, and Fleet.
 
 In general, we should burn a bit of CPU or memory on the Fleet side if it allows us to reduce the load on MySQL or Redis.
 
@@ -183,13 +183,13 @@ In many, caching helps, but given that we are not doing load balancing based on 
 
 ### How to prevent most of this
 
-The best way we’ve got so far to prevent any scaling issues is to load test things. **Every new feature must have its corresponding osquery-perf implementation as part of the PR, and it should be tested at a scale that is reasonable for the feature**.
+The best way we’ve got so far to prevent any scaling issues is to load test things. **Every new feature must have its corresponding osquery-perf implementation as part of the PR, and it should be tested at a reasonable scale for the feature**.
 
 Besides that, you should consider the answer(s) to the following question: how can I know that the feature I’m working on is working and performing well enough? Add any logs, metrics, or anything that will help us debug and understand what’s happening when things unavoidably go wrong or take longer than anticipated.
 
 **HOWEVER** (and forgive this Captain Obvious comment): do NOT optimize before you KNOW you have to. Don’t hesitate to take an extra day on your feature/bug work to load test things properly.
 
-## What have we learned so far
+## What have we learned so far?
 
 This is a document that evolves and will likely always be incomplete. If you feel like something is missing, either add it or bring it up in any way you consider.
 
@@ -201,13 +201,13 @@ However, this database feature doesn’t come without a cost. The one to focus o
 
 The TLDR is: understand very well how a table will be used. If we do bulk inserts/updates, InnoDB might lock more than you anticipate and cause issues. This is not an argument to not do bulk inserts/updates, but to be very careful when you add a foreign key.
 
-In particular, host_id is a foreign key we’ve been skipping in all the new additional host data tables, which is not something that comes for free, as with that [we have to keep the data consistent by hand with cleanups](https://github.com/fleetdm/fleet/blob/main/server/datastore/mysql/hosts.go#L309-L309).
+In particular, host_id is a foreign key we’ve been skipping in all the new additional host data tables, which is not something that comes for free, as with that, [we have to keep the data consistent by hand with cleanups](https://github.com/fleetdm/fleet/blob/main/server/datastore/mysql/hosts.go#L309-L309).
 
 ### Insert on duplicate update
 
 It’s very important to understand how a table will be used. If rows are inserted once and then updated many times, an easy reflex is to do an `INSERT … ON DUPLICATE KEY UPDATE`. While technically correct, it will be more performant to try to do an update, and if it fails because there are no rows, then do an insert for the row. This means that it’ll fail once, and then it’ll update without issues, while on the `INSERT … ON DUPLICATE KEY UPDATE`, it will try to insert, and 99% of the time, it will go into the `ON DUPLICATE KEY UPDATE`.
 
-This approach has a caveat, it introduces a race condition between the `UPDATE` and the `INSERT` where another `INSERT` might happen in between the two, making the second `INSERT` fail. With the right constraints (and depending on the details of the problem), this is not a big problem. Alternatively, the `INSERT` could be one with an `ON DUPLICATE KEY UPDATE` at the end to recover from this scenario.
+This approach has a caveat. It introduces a race condition between the `UPDATE` and the `INSERT` where another `INSERT` might happen in between the two, making the second `INSERT` fail. With the right constraints (and depending on the details of the problem), this is not a big problem. Alternatively, the `INSERT` could be one with an `ON DUPLICATE KEY UPDATE` at the end to recover from this scenario.
 
 This is subtle, but an insert will update indexes, check constraints, etc. At the same time, an update might sometimes not do any of that, depending on what is being updated.
 
@@ -217,7 +217,7 @@ While not a performance GOTCHA, if you do use `INSERT … ON DUPLICATE KEY UPDAT
 
 Indexes are great. But like most good things, the trick is in the dosage. Too many indexes can be a performance killer on inserts/updates. Not enough, and it kills the performance of selects.
 
-Data calculated on the fly cannot be indexed, unless it’s precalculated (see counts section below for more information.)
+Data calculated on the fly cannot be indexed unless it’s precalculated (see counts section below for more information).
 
 Host data is among the data that changes and grows the most in terms of what we store. It used to be that we used to add more columns in the host table for the extra data in some cases.
 
@@ -227,11 +227,11 @@ This approach works well for most cases, and for now, it should be the default w
 
 JOINing too many tables, sorting based on the JOINed table, etc., can have a big performance impact on selects.
 
-Sometimes one strategy that works is selecting and filtering the adjacent table with the right indexes; then, JOIN the host table to that. This works when only filtering/sorting by one adjacent table, and pagination can be tricky.
+Sometimes one strategy that works is selecting and filtering the adjacent table with the right indexes; then, JOIN the host table to that. This works when only filtering/sorting by one adjacent table and pagination can be tricky.
 
 Solutions can become a curse too. Be mindful of when we might cross that threshold between good and bad performance.
 
-### What db tables matter more when thinking about performance
+### What DB tables matter more when thinking about performance?
 
 While we need to be careful about handling everything in the database, not every table is the same. The host and host_* tables are the main cases where we have to be careful when using them in any way.
 
@@ -255,9 +255,9 @@ This resulted in basically a full host_software table scan per each software row
 
 ### On constantly changing data
 
-A very complex thing to do well shows presence data in a somewhat real time fashion. In the case of Fleet, that is host seen_time which is what we use to define if a host is online or offline.
+It can be difficult to show real-time presence data. For Fleet, that is the host `seen_time` -- the time a host last connected to the server -- which is used to determine whether a host is online.
 
-Host seen_time is updated with basically every check-in from any kind of host. Hosts check in every 10 seconds by default. Given that it’s a timestamp reflecting the last time a host contacted Fleet for anything; it’s always different.
+Host seen_time is updated with basically every check-in from any kind of host. Hosts check in every 10 seconds by default. Given that it’s a timestamp reflecting the last time a host contacted Fleet for anything, it’s always different.
 
 While we are doing a few things to make this better, this is still a big performance pain point we have. In particular, we are updating it in bulk. It used to be a column of the hosts' table, which caused a lot of locking. Now it’s an adjacent table without FK.
 
@@ -269,7 +269,7 @@ UX is key for any software. APIs that take longer than 500ms to respond can caus
 
 In the ideal case, the count query will be covered by an index and be extremely fast. In the worst case, the query will be counting filtering on calculated data, which results in a full (multi) table scan on big tables.
 
-One way to solve this is to pre-calculate data in an async fashion, so we would have a cron that once every hour or so would count whatever we want counted, store the counts, and then counting things is as fast as reading a row in a table.
+An approach we've taken to addressing this is pre-calculating aggregations and counts that take a long time to generate. By generating these results beforehand and storing them, we can return results by reading a single row from a table when the information is needed.
 
 This approach has a handful of issues:
 
@@ -281,7 +281,7 @@ All of this said, Fleet and osquery work in an “update at an interval” fashi
 
 ### Caching data such as app config
 
-Caching is a usual strategy to solve some performance issues in the case of Fleet level data, such as app config (of which we will only have one of), is easy, and we cache at the Fleet server instance level, refreshing the value every one second. App config gets queried with virtually every request, and with this, we reduce drastically how many times the database is hit with that query. The side effect is that a configuration would take one second to be updated in each Fleet instance, which is a price we are willing to pay.
+Caching is a usual strategy to solve some performance issues in the case of Fleet level data, such as app config (of which we will only have one), is easy, and we cache at the Fleet server instance level, refreshing the value every one second. App config gets queried with virtually every request, and with this, we reduce drastically how many times the database is hit with that query. The side effect is that a configuration would take one second to be updated in each Fleet instance, which is a price we are willing to pay.
 
 Caching host-level data is a different matter, though. Given that Fleet is usually deployed in infrastructure where the load balancer distributes the load in a round-robin-like fashion (or maybe other algorithms, but nothing aware of anything within Fleet itself). Then virtually all hosts end up being seen by all Fleet instances, so caching host-level data (in the worst case) results in having a copy of all the hosts in each Fleet instance and refreshing that at an interval.
 
