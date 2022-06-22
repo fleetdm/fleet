@@ -262,7 +262,7 @@ Depending on your MDM, this might be possible in the UI or require a custom prof
 
 1. Configure the identifier type to “path.”
 2. Paste the full path to Orbit as the identifier.
-3. Paste the full code signing identifier into the code requirement field. 
+3. Paste the full code signing identifier into the Code requirement field. 
 4. Allow “Access all files.” Access to Downloads, Documents, etc., is inherited from this.
 
 If your MDM does not have built-in support for privacy preferences profiles, you can use
