@@ -66,7 +66,7 @@ func writeFile(filename string, bytes []byte, mode os.FileMode) error {
 }
 
 func outfileName(name string) string {
-	return fmt.Sprintf("fleet-%s-%s", name, nowFn().Format(time.RFC3339))
+	return fmt.Sprintf("fleet-%s-%s", name, nowFn().Format("20060102150405Z"))
 }
 
 func outfileNameWithExt(name string, ext string) string {

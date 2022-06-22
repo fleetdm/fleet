@@ -7,6 +7,7 @@ import (
 
 	"github.com/WatchBeam/clock"
 	"github.com/fleetdm/fleet/v4/server/config"
+	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/datastore/redis"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/getsentry/sentry-go"
@@ -46,6 +47,7 @@ func (t *Task) StartCollectors(ctx context.Context, logger kitlog.Logger) {
 	collectorErrHandler := func(name string, err error) {
 		level.Error(logger).Log("err", fmt.Sprintf("%s collector", name), "details", err)
 		sentry.CaptureException(err)
+		ctxerr.Handle(ctx, err)
 	}
 
 	handlers := map[config.AsyncTaskName]collectorHandlerFunc{

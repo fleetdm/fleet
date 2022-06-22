@@ -116,6 +116,7 @@ func TestHosts(t *testing.T) {
 		{"SetOrUpdateDeviceAuthToken", testHostsSetOrUpdateDeviceAuthToken},
 		{"OSVersions", testOSVersions},
 		{"DeleteHosts", testHostsDeleteHosts},
+		{"HostIDsByOSVersion", testHostIDsByOSVersion},
 		{"ShouldCleanTeamPolicies", testShouldCleanTeamPolicies},
 	}
 	for _, c := range cases {
@@ -1364,7 +1365,7 @@ func testHostsCleanupIncoming(t *testing.T, ds *Datastore) {
 	})
 	require.NoError(t, err)
 
-	err = ds.CleanupIncomingHosts(context.Background(), mockClock.Now().UTC())
+	_, err = ds.CleanupIncomingHosts(context.Background(), mockClock.Now().UTC())
 	require.NoError(t, err)
 
 	// Both hosts should still exist because they are new
@@ -1373,8 +1374,9 @@ func testHostsCleanupIncoming(t *testing.T, ds *Datastore) {
 	_, err = ds.Host(context.Background(), h2.ID)
 	require.NoError(t, err)
 
-	err = ds.CleanupIncomingHosts(context.Background(), mockClock.Now().Add(6*time.Minute).UTC())
+	deleted, err := ds.CleanupIncomingHosts(context.Background(), mockClock.Now().Add(6*time.Minute).UTC())
 	require.NoError(t, err)
+	require.Equal(t, []uint{h1.ID}, deleted)
 
 	// Now only the host with details should exist
 	_, err = ds.Host(context.Background(), h1.ID)
@@ -2496,7 +2498,7 @@ func testHostsExpiration(t *testing.T, ds *Datastore) {
 	hosts := listHostsCheckCount(t, ds, filter, fleet.HostListOptions{}, 10)
 	require.Len(t, hosts, 10)
 
-	err = ds.CleanupExpiredHosts(context.Background())
+	_, err = ds.CleanupExpiredHosts(context.Background())
 	require.NoError(t, err)
 
 	// host expiration is still disabled
@@ -2508,15 +2510,17 @@ func testHostsExpiration(t *testing.T, ds *Datastore) {
 	err = ds.SaveAppConfig(context.Background(), ac)
 	require.NoError(t, err)
 
-	err = ds.CleanupExpiredHosts(context.Background())
+	deleted, err := ds.CleanupExpiredHosts(context.Background())
 	require.NoError(t, err)
+	require.Len(t, deleted, 5)
 
 	hosts = listHostsCheckCount(t, ds, filter, fleet.HostListOptions{}, 5)
 	require.Len(t, hosts, 5)
 
 	// And it doesn't remove more than it should
-	err = ds.CleanupExpiredHosts(context.Background())
+	deleted, err = ds.CleanupExpiredHosts(context.Background())
 	require.NoError(t, err)
+	require.Len(t, deleted, 0)
 
 	hosts = listHostsCheckCount(t, ds, filter, fleet.HostListOptions{}, 5)
 	require.Len(t, hosts, 5)
@@ -3277,7 +3281,7 @@ func testHostsNoSeenTime(t *testing.T, ds *Datastore) {
 
 	removeHostSeenTimes(h3.ID)
 
-	err = ds.CleanupExpiredHosts(context.Background())
+	_, err = ds.CleanupExpiredHosts(context.Background())
 	require.NoError(t, err)
 
 	hosts, err = ds.ListHosts(context.Background(), teamFilter, fleet.HostListOptions{})
@@ -4208,4 +4212,51 @@ func testShouldCleanTeamPolicies(t *testing.T, ds *Datastore) {
 	for _, c := range cases {
 		require.Equal(t, shouldCleanTeamPolicies(c.currentTeamID, c.newTeamID), c.out)
 	}
+}
+
+func testHostIDsByOSVersion(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+	hosts := make([]*fleet.Host, 10)
+	getPlatform := func(i int) string {
+		if i < 5 {
+			return "ubuntu"
+		}
+		return "centos"
+	}
+	for i := range hosts {
+		h, err := ds.NewHost(context.Background(), &fleet.Host{
+			DetailUpdatedAt: time.Now(),
+			LabelUpdatedAt:  time.Now(),
+			PolicyUpdatedAt: time.Now(),
+			SeenTime:        time.Now(),
+			OsqueryHostID:   fmt.Sprintf("host%d", i),
+			NodeKey:         fmt.Sprintf("%d", i),
+			UUID:            fmt.Sprintf("%d", i),
+			Hostname:        fmt.Sprintf("foo.%d.local", i),
+			Platform:        getPlatform(i),
+			OSVersion:       fmt.Sprintf("20.4.%d", i),
+		})
+		require.NoError(t, err)
+		hosts[i] = h
+	}
+
+	t.Run("no match", func(t *testing.T) {
+		osVersion := fleet.OSVersion{Platform: "ubuntu", Name: "sdfasw"}
+		none, err := ds.HostIDsByOSVersion(ctx, osVersion, 0, 1)
+		require.NoError(t, err)
+		require.Len(t, none, 0)
+	})
+
+	t.Run("filtering by os version", func(t *testing.T) {
+		osVersion := fleet.OSVersion{Platform: "ubuntu", Name: "20.4.0"}
+		result, err := ds.HostIDsByOSVersion(ctx, osVersion, 0, 1)
+		require.NoError(t, err)
+		require.Len(t, result, 1)
+		for _, id := range result {
+			r, err := ds.Host(ctx, id)
+			require.NoError(t, err)
+			require.Equal(t, r.Platform, "ubuntu")
+			require.Equal(t, r.OSVersion, "20.4.0")
+		}
+	})
 }

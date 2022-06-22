@@ -1,6 +1,7 @@
 package execuser
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"os/exec"
@@ -23,10 +24,13 @@ func run(path string, opts eopts) error {
 		Int64("id", user.id).
 		Msg("running sudo")
 
-	arg := []string{"-u", user.name, "-H"}
+	// Flag `-i` is needed to run the command with the user's context, from `man sudo`:
+	// "The command is run with an environment similar to the one a user would receive at log in"
+	arg := []string{"-i", "-u", user.name, "-H"}
 	for _, nv := range opts.env {
 		arg = append(arg, fmt.Sprintf("%s=%s", nv[0], nv[1]))
 	}
+
 	arg = append(arg,
 		// TODO(lucas): Default to display 0, revisit when working on
 		// multi-user/multi-session support. This assumes there's only
@@ -35,7 +39,11 @@ func run(path string, opts eopts) error {
 		// DBUS_SESSION_BUS_ADDRESS sets the location of the user login session bus.
 		// Required by the libayatana-appindicator3 library to display a tray icon
 		// on the desktop session.
+		//
+		// This is required for Ubuntu 18, and not required for Ubuntu 21/22
+		// (because it's already part of the user).
 		fmt.Sprintf("DBUS_SESSION_BUS_ADDRESS=unix:path=/run/user/%d/bus", user.id),
+		// Append the packaged libayatana-appindicator3 libraries path to LD_LIBRARY_PATH.
 		fmt.Sprintf("LD_LIBRARY_PATH=%s:%s", filepath.Dir(path), os.ExpandEnv("$LD_LIBRARY_PATH")),
 		path,
 	)
@@ -69,7 +77,7 @@ func getLoginUID() (*user, error) {
 	usernames := parseUsersOutput(string(out))
 	username := usernames[0]
 	if username == "" {
-		return nil, fmt.Errorf("no user session found")
+		return nil, errors.New("no user session found")
 	}
 	out, err = exec.Command("id", "-u", username).CombinedOutput()
 	if err != nil {
@@ -106,7 +114,7 @@ func parseUsersOutput(s string) []string {
 //
 // Returns the parsed uid.
 func parseIDOutput(s string) (int64, error) {
-	uid, err := strconv.ParseInt(strings.TrimSpace(string(s)), 10, 0)
+	uid, err := strconv.ParseInt(strings.TrimSpace(s), 10, 0)
 	if err != nil {
 		return 0, fmt.Errorf("failed to parse uid: %w", err)
 	}

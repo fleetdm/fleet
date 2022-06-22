@@ -64,6 +64,8 @@ type ListQueriesFunc func(ctx context.Context, opt fleet.ListQueryOptions) ([]*f
 
 type QueryByNameFunc func(ctx context.Context, name string, opts ...fleet.OptionalArg) (*fleet.Query, error)
 
+type ObserverCanRunQueryFunc func(ctx context.Context, queryID uint) (bool, error)
+
 type NewDistributedQueryCampaignFunc func(ctx context.Context, camp *fleet.DistributedQueryCampaign) (*fleet.DistributedQueryCampaign, error)
 
 type DistributedQueryCampaignFunc func(ctx context.Context, id uint) (*fleet.DistributedQueryCampaign, error)
@@ -150,11 +152,17 @@ type MarkHostsSeenFunc func(ctx context.Context, hostIDs []uint, t time.Time) er
 
 type SearchHostsFunc func(ctx context.Context, filter fleet.TeamFilter, query string, omit ...uint) ([]*fleet.Host, error)
 
-type CleanupIncomingHostsFunc func(ctx context.Context, now time.Time) error
+type EnrolledHostIDsFunc func(ctx context.Context) ([]uint, error)
+
+type CountEnrolledHostsFunc func(ctx context.Context) (int, error)
+
+type CleanupIncomingHostsFunc func(ctx context.Context, now time.Time) ([]uint, error)
 
 type GenerateHostStatusStatisticsFunc func(ctx context.Context, filter fleet.TeamFilter, now time.Time, platform *string) (*fleet.HostSummary, error)
 
 type HostIDsByNameFunc func(ctx context.Context, filter fleet.TeamFilter, hostnames []string) ([]uint, error)
+
+type HostIDsByOSVersionFunc func(ctx context.Context, osVersion fleet.OSVersion, offset int, limit int) ([]uint, error)
 
 type HostByIdentifierFunc func(ctx context.Context, identifier string) (*fleet.Host, error)
 
@@ -248,7 +256,7 @@ type DeleteScheduledQueryFunc func(ctx context.Context, id uint) error
 
 type ScheduledQueryFunc func(ctx context.Context, id uint) (*fleet.ScheduledQuery, error)
 
-type CleanupExpiredHostsFunc func(ctx context.Context) error
+type CleanupExpiredHostsFunc func(ctx context.Context) ([]uint, error)
 
 type NewTeamFunc func(ctx context.Context, team *fleet.Team) (*fleet.Team, error)
 
@@ -268,15 +276,21 @@ type SearchTeamsFunc func(ctx context.Context, filter fleet.TeamFilter, matchQue
 
 type TeamEnrollSecretsFunc func(ctx context.Context, teamID uint) ([]*fleet.EnrollSecret, error)
 
+type DeleteIntegrationsFromTeamsFunc func(ctx context.Context, deletedIntgs fleet.Integrations) error
+
+type ListSoftwareForVulnDetectionFunc func(ctx context.Context, hostID uint) ([]fleet.Software, error)
+
+type ListSoftwareVulnerabilitiesFunc func(ctx context.Context, hostIDs []uint) (map[uint][]fleet.SoftwareVulnerability, error)
+
 type LoadHostSoftwareFunc func(ctx context.Context, host *fleet.Host, includeCVEScores bool) error
 
 type AllSoftwareWithoutCPEIteratorFunc func(ctx context.Context) (fleet.SoftwareIterator, error)
 
 type AddCPEForSoftwareFunc func(ctx context.Context, software fleet.Software, cpe string) error
 
-type AllCPEsFunc func(ctx context.Context) ([]string, error)
+type ListSoftwareCPEsFunc func(ctx context.Context, excludedPlatforms []string) ([]fleet.SoftwareCPE, error)
 
-type InsertCVEForCPEFunc func(ctx context.Context, cve string, cpes []string) (int64, error)
+type InsertVulnerabilitiesFunc func(ctx context.Context, vulns []fleet.SoftwareVulnerability, source fleet.VulnerabilitySource) (int64, error)
 
 type SoftwareByIDFunc func(ctx context.Context, id uint, includeCVEScores bool) (*fleet.Software, error)
 
@@ -284,11 +298,13 @@ type ListSoftwareByHostIDShortFunc func(ctx context.Context, hostID uint) ([]fle
 
 type CalculateHostsPerSoftwareFunc func(ctx context.Context, updatedAt time.Time) error
 
-type HostsByCPEsFunc func(ctx context.Context, cpes []string) ([]*fleet.HostShort, error)
+type HostsBySoftwareIDsFunc func(ctx context.Context, softwareIDs []uint) ([]*fleet.HostShort, error)
 
 type HostsByCVEFunc func(ctx context.Context, cve string) ([]*fleet.HostShort, error)
 
 type InsertCVEMetaFunc func(ctx context.Context, cveMeta []fleet.CVEMeta) error
+
+type ListCVEsFunc func(ctx context.Context, maxAge time.Duration) ([]fleet.CVEMeta, error)
 
 type NewActivityFunc func(ctx context.Context, user *fleet.User, activityType string, details *map[string]interface{}) error
 
@@ -481,6 +497,9 @@ type DataStore struct {
 	QueryByNameFunc        QueryByNameFunc
 	QueryByNameFuncInvoked bool
 
+	ObserverCanRunQueryFunc        ObserverCanRunQueryFunc
+	ObserverCanRunQueryFuncInvoked bool
+
 	NewDistributedQueryCampaignFunc        NewDistributedQueryCampaignFunc
 	NewDistributedQueryCampaignFuncInvoked bool
 
@@ -610,6 +629,12 @@ type DataStore struct {
 	SearchHostsFunc        SearchHostsFunc
 	SearchHostsFuncInvoked bool
 
+	EnrolledHostIDsFunc        EnrolledHostIDsFunc
+	EnrolledHostIDsFuncInvoked bool
+
+	CountEnrolledHostsFunc        CountEnrolledHostsFunc
+	CountEnrolledHostsFuncInvoked bool
+
 	CleanupIncomingHostsFunc        CleanupIncomingHostsFunc
 	CleanupIncomingHostsFuncInvoked bool
 
@@ -618,6 +643,9 @@ type DataStore struct {
 
 	HostIDsByNameFunc        HostIDsByNameFunc
 	HostIDsByNameFuncInvoked bool
+
+	HostIDsByOSVersionFunc        HostIDsByOSVersionFunc
+	HostIDsByOSVersionFuncInvoked bool
 
 	HostByIdentifierFunc        HostByIdentifierFunc
 	HostByIdentifierFuncInvoked bool
@@ -787,6 +815,15 @@ type DataStore struct {
 	TeamEnrollSecretsFunc        TeamEnrollSecretsFunc
 	TeamEnrollSecretsFuncInvoked bool
 
+	DeleteIntegrationsFromTeamsFunc        DeleteIntegrationsFromTeamsFunc
+	DeleteIntegrationsFromTeamsFuncInvoked bool
+
+	ListSoftwareForVulnDetectionFunc        ListSoftwareForVulnDetectionFunc
+	ListSoftwareForVulnDetectionFuncInvoked bool
+
+	ListSoftwareVulnerabilitiesFunc        ListSoftwareVulnerabilitiesFunc
+	ListSoftwareVulnerabilitiesFuncInvoked bool
+
 	LoadHostSoftwareFunc        LoadHostSoftwareFunc
 	LoadHostSoftwareFuncInvoked bool
 
@@ -796,11 +833,11 @@ type DataStore struct {
 	AddCPEForSoftwareFunc        AddCPEForSoftwareFunc
 	AddCPEForSoftwareFuncInvoked bool
 
-	AllCPEsFunc        AllCPEsFunc
-	AllCPEsFuncInvoked bool
+	ListSoftwareCPEsFunc        ListSoftwareCPEsFunc
+	ListSoftwareCPEsFuncInvoked bool
 
-	InsertCVEForCPEFunc        InsertCVEForCPEFunc
-	InsertCVEForCPEFuncInvoked bool
+	InsertVulnerabilitiesFunc        InsertVulnerabilitiesFunc
+	InsertVulnerabilitiesFuncInvoked bool
 
 	SoftwareByIDFunc        SoftwareByIDFunc
 	SoftwareByIDFuncInvoked bool
@@ -811,14 +848,17 @@ type DataStore struct {
 	CalculateHostsPerSoftwareFunc        CalculateHostsPerSoftwareFunc
 	CalculateHostsPerSoftwareFuncInvoked bool
 
-	HostsByCPEsFunc        HostsByCPEsFunc
-	HostsByCPEsFuncInvoked bool
+	HostsBySoftwareIDsFunc        HostsBySoftwareIDsFunc
+	HostsBySoftwareIDsFuncInvoked bool
 
 	HostsByCVEFunc        HostsByCVEFunc
 	HostsByCVEFuncInvoked bool
 
 	InsertCVEMetaFunc        InsertCVEMetaFunc
 	InsertCVEMetaFuncInvoked bool
+
+	ListCVEsFunc        ListCVEsFunc
+	ListCVEsFuncInvoked bool
 
 	NewActivityFunc        NewActivityFunc
 	NewActivityFuncInvoked bool
@@ -1119,6 +1159,11 @@ func (s *DataStore) QueryByName(ctx context.Context, name string, opts ...fleet.
 	return s.QueryByNameFunc(ctx, name, opts...)
 }
 
+func (s *DataStore) ObserverCanRunQuery(ctx context.Context, queryID uint) (bool, error) {
+	s.ObserverCanRunQueryFuncInvoked = true
+	return s.ObserverCanRunQueryFunc(ctx, queryID)
+}
+
 func (s *DataStore) NewDistributedQueryCampaign(ctx context.Context, camp *fleet.DistributedQueryCampaign) (*fleet.DistributedQueryCampaign, error) {
 	s.NewDistributedQueryCampaignFuncInvoked = true
 	return s.NewDistributedQueryCampaignFunc(ctx, camp)
@@ -1334,7 +1379,17 @@ func (s *DataStore) SearchHosts(ctx context.Context, filter fleet.TeamFilter, qu
 	return s.SearchHostsFunc(ctx, filter, query, omit...)
 }
 
-func (s *DataStore) CleanupIncomingHosts(ctx context.Context, now time.Time) error {
+func (s *DataStore) EnrolledHostIDs(ctx context.Context) ([]uint, error) {
+	s.EnrolledHostIDsFuncInvoked = true
+	return s.EnrolledHostIDsFunc(ctx)
+}
+
+func (s *DataStore) CountEnrolledHosts(ctx context.Context) (int, error) {
+	s.CountEnrolledHostsFuncInvoked = true
+	return s.CountEnrolledHostsFunc(ctx)
+}
+
+func (s *DataStore) CleanupIncomingHosts(ctx context.Context, now time.Time) ([]uint, error) {
 	s.CleanupIncomingHostsFuncInvoked = true
 	return s.CleanupIncomingHostsFunc(ctx, now)
 }
@@ -1347,6 +1402,11 @@ func (s *DataStore) GenerateHostStatusStatistics(ctx context.Context, filter fle
 func (s *DataStore) HostIDsByName(ctx context.Context, filter fleet.TeamFilter, hostnames []string) ([]uint, error) {
 	s.HostIDsByNameFuncInvoked = true
 	return s.HostIDsByNameFunc(ctx, filter, hostnames)
+}
+
+func (s *DataStore) HostIDsByOSVersion(ctx context.Context, osVersion fleet.OSVersion, offset int, limit int) ([]uint, error) {
+	s.HostIDsByOSVersionFuncInvoked = true
+	return s.HostIDsByOSVersionFunc(ctx, osVersion, offset, limit)
 }
 
 func (s *DataStore) HostByIdentifier(ctx context.Context, identifier string) (*fleet.Host, error) {
@@ -1579,7 +1639,7 @@ func (s *DataStore) ScheduledQuery(ctx context.Context, id uint) (*fleet.Schedul
 	return s.ScheduledQueryFunc(ctx, id)
 }
 
-func (s *DataStore) CleanupExpiredHosts(ctx context.Context) error {
+func (s *DataStore) CleanupExpiredHosts(ctx context.Context) ([]uint, error) {
 	s.CleanupExpiredHostsFuncInvoked = true
 	return s.CleanupExpiredHostsFunc(ctx)
 }
@@ -1629,6 +1689,21 @@ func (s *DataStore) TeamEnrollSecrets(ctx context.Context, teamID uint) ([]*flee
 	return s.TeamEnrollSecretsFunc(ctx, teamID)
 }
 
+func (s *DataStore) DeleteIntegrationsFromTeams(ctx context.Context, deletedIntgs fleet.Integrations) error {
+	s.DeleteIntegrationsFromTeamsFuncInvoked = true
+	return s.DeleteIntegrationsFromTeamsFunc(ctx, deletedIntgs)
+}
+
+func (s *DataStore) ListSoftwareForVulnDetection(ctx context.Context, hostID uint) ([]fleet.Software, error) {
+	s.ListSoftwareForVulnDetectionFuncInvoked = true
+	return s.ListSoftwareForVulnDetectionFunc(ctx, hostID)
+}
+
+func (s *DataStore) ListSoftwareVulnerabilities(ctx context.Context, hostIDs []uint) (map[uint][]fleet.SoftwareVulnerability, error) {
+	s.ListSoftwareVulnerabilitiesFuncInvoked = true
+	return s.ListSoftwareVulnerabilitiesFunc(ctx, hostIDs)
+}
+
 func (s *DataStore) LoadHostSoftware(ctx context.Context, host *fleet.Host, includeCVEScores bool) error {
 	s.LoadHostSoftwareFuncInvoked = true
 	return s.LoadHostSoftwareFunc(ctx, host, includeCVEScores)
@@ -1644,14 +1719,14 @@ func (s *DataStore) AddCPEForSoftware(ctx context.Context, software fleet.Softwa
 	return s.AddCPEForSoftwareFunc(ctx, software, cpe)
 }
 
-func (s *DataStore) AllCPEs(ctx context.Context) ([]string, error) {
-	s.AllCPEsFuncInvoked = true
-	return s.AllCPEsFunc(ctx)
+func (s *DataStore) ListSoftwareCPEs(ctx context.Context, excludedPlatforms []string) ([]fleet.SoftwareCPE, error) {
+	s.ListSoftwareCPEsFuncInvoked = true
+	return s.ListSoftwareCPEsFunc(ctx, excludedPlatforms)
 }
 
-func (s *DataStore) InsertCVEForCPE(ctx context.Context, cve string, cpes []string) (int64, error) {
-	s.InsertCVEForCPEFuncInvoked = true
-	return s.InsertCVEForCPEFunc(ctx, cve, cpes)
+func (s *DataStore) InsertVulnerabilities(ctx context.Context, vulns []fleet.SoftwareVulnerability, source fleet.VulnerabilitySource) (int64, error) {
+	s.InsertVulnerabilitiesFuncInvoked = true
+	return s.InsertVulnerabilitiesFunc(ctx, vulns, source)
 }
 
 func (s *DataStore) SoftwareByID(ctx context.Context, id uint, includeCVEScores bool) (*fleet.Software, error) {
@@ -1669,9 +1744,9 @@ func (s *DataStore) CalculateHostsPerSoftware(ctx context.Context, updatedAt tim
 	return s.CalculateHostsPerSoftwareFunc(ctx, updatedAt)
 }
 
-func (s *DataStore) HostsByCPEs(ctx context.Context, cpes []string) ([]*fleet.HostShort, error) {
-	s.HostsByCPEsFuncInvoked = true
-	return s.HostsByCPEsFunc(ctx, cpes)
+func (s *DataStore) HostsBySoftwareIDs(ctx context.Context, softwareIDs []uint) ([]*fleet.HostShort, error) {
+	s.HostsBySoftwareIDsFuncInvoked = true
+	return s.HostsBySoftwareIDsFunc(ctx, softwareIDs)
 }
 
 func (s *DataStore) HostsByCVE(ctx context.Context, cve string) ([]*fleet.HostShort, error) {
@@ -1682,6 +1757,11 @@ func (s *DataStore) HostsByCVE(ctx context.Context, cve string) ([]*fleet.HostSh
 func (s *DataStore) InsertCVEMeta(ctx context.Context, cveMeta []fleet.CVEMeta) error {
 	s.InsertCVEMetaFuncInvoked = true
 	return s.InsertCVEMetaFunc(ctx, cveMeta)
+}
+
+func (s *DataStore) ListCVEs(ctx context.Context, maxAge time.Duration) ([]fleet.CVEMeta, error) {
+	s.ListCVEsFuncInvoked = true
+	return s.ListCVEsFunc(ctx, maxAge)
 }
 
 func (s *DataStore) NewActivity(ctx context.Context, user *fleet.User, activityType string, details *map[string]interface{}) error {

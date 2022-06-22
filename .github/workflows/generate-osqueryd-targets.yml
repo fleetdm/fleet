@@ -14,7 +14,7 @@ on:
   workflow_dispatch:
 
 env:
-  OSQUERY_VERSION: 5.2.3
+  OSQUERY_VERSION: 5.3.0
 
 permissions:
   contents: read
@@ -44,8 +44,9 @@ jobs:
 
       - name: Download and extract osqueryd for linux
         run: |
-          curl -L https://pkg.osquery.io/linux/osquery-${{ env.OSQUERY_VERSION }}_1.linux_x86_64.tar.gz --output osquery-${{ env.OSQUERY_VERSION }}_1.linux_x86_64.tar.gz
-          tar xf osquery-${{ env.OSQUERY_VERSION }}_1.linux_x86_64.tar.gz
+          curl -L https://github.com/osquery/osquery/releases/download/${{ env.OSQUERY_VERSION }}/osquery_${{ env.OSQUERY_VERSION }}-1.linux_amd64.deb --output osquery.deb
+          ar x osquery.deb
+          tar xf data.tar.gz
           chmod +x ./opt/osquery/bin/osqueryd
           ./opt/osquery/bin/osqueryd --version
 
@@ -64,7 +65,7 @@ jobs:
       - name: Download osquery msi for Windows
         shell: bash
         run: |
-          curl -L https://pkg.osquery.io/windows/osquery-${{ env.OSQUERY_VERSION }}.msi --output osquery-${{ env.OSQUERY_VERSION }}.msi
+          curl -L https://github.com/osquery/osquery/releases/download/${{ env.OSQUERY_VERSION }}/osquery-${{ env.OSQUERY_VERSION }}.msi --output osquery-${{ env.OSQUERY_VERSION }}.msi
 
       - name: Extract osqueryd.exe for Windows
         shell: cmd

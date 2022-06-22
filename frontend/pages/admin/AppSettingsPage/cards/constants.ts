@@ -1,7 +1,10 @@
 import { IConfig } from "interfaces/config";
 
+export const DEFAULT_TRANSPARENCY_URL = "https://fleetdm.com/transparency";
+
 export interface IAppConfigFormProps {
   appConfig: IConfig;
+  isPremiumTier?: boolean;
   handleSubmit: any;
 }
 
@@ -26,6 +29,7 @@ export interface IAppConfigFormErrors {
   destination_url?: string | null;
   host_expiry_window?: string | null;
   agent_options?: string | null;
+  transparency_url?: string | null;
 }
 
 export const authMethodOptions = [

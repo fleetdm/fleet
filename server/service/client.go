@@ -18,8 +18,9 @@ import (
 // Client is used to consume Fleet APIs from Go code
 type Client struct {
 	*baseClient
-	addr  string
-	token string
+	addr          string
+	token         string
+	customHeaders map[string]string
 
 	writer io.Writer
 }
@@ -30,7 +31,6 @@ func NewClient(addr string, insecureSkipVerify bool, rootCA, urlPrefix string, o
 	// TODO #265 refactor all optional parameters to functional options
 	// API breaking change, needs a major version release
 	baseClient, err := newBaseClient(addr, insecureSkipVerify, rootCA, urlPrefix)
-
 	if err != nil {
 		return nil, err
 	}
@@ -69,6 +69,20 @@ func SetClientWriter(w io.Writer) ClientOption {
 	}
 }
 
+// WithCustomHeaders sets custom headers to be sent with every request made
+// with the client.
+func WithCustomHeaders(headers map[string]string) ClientOption {
+	return func(c *Client) error {
+		// clone the map to prevent any changes in the original affecting the client
+		m := make(map[string]string, len(headers))
+		for k, v := range headers {
+			m[k] = v
+		}
+		c.customHeaders = m
+		return nil
+	}
+}
+
 func (c *Client) doContextWithHeaders(ctx context.Context, verb, path, rawQuery string, params interface{}, headers map[string]string) (*http.Response, error) {
 	var bodyBytes []byte
 	var err error
@@ -87,6 +101,12 @@ func (c *Client) doContextWithHeaders(ctx context.Context, verb, path, rawQuery 
 	)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "creating request object")
+	}
+
+	// set the custom headers first, they should not override the actual headers
+	// we set explicitly.
+	for k, v := range c.customHeaders {
+		request.Header.Set(k, v)
 	}
 	for k, v := range headers {
 		request.Header.Set(k, v)

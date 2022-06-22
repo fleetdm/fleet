@@ -126,6 +126,11 @@ func (j *Jira) getClient(ctx context.Context, args jiraArgs) (JiraClient, error)
 		key += fmt.Sprint(teamID)
 	}
 
+	ac, err := j.Datastore.AppConfig(ctx)
+	if err != nil {
+		return nil, err
+	}
+
 	// load the config that would be used to create the client first - it is
 	// needed to check if an existing client is configured the same or if its
 	// configuration has changed since it was created.
@@ -136,7 +141,11 @@ func (j *Jira) getClient(ctx context.Context, args jiraArgs) (JiraClient, error)
 			return nil, err
 		}
 
-		for _, intg := range tm.Config.Integrations.Jira {
+		intgs, err := tm.Config.Integrations.MatchWithIntegrations(ac.Integrations)
+		if err != nil {
+			return nil, err
+		}
+		for _, intg := range intgs.Jira {
 			if intgType == intgTypeFailingPolicy && intg.EnableFailingPolicies {
 				opts = &externalsvc.JiraOptions{
 					BaseURL:           intg.URL,
@@ -148,10 +157,6 @@ func (j *Jira) getClient(ctx context.Context, args jiraArgs) (JiraClient, error)
 			}
 		}
 	} else {
-		ac, err := j.Datastore.AppConfig(ctx)
-		if err != nil {
-			return nil, err
-		}
 		for _, intg := range ac.Integrations.Jira {
 			if (intgType == intgTypeVuln && intg.EnableSoftwareVulnerabilities) ||
 				(intgType == intgTypeFailingPolicy && intg.EnableFailingPolicies) {
@@ -319,21 +324,21 @@ func (j *Jira) createTemplatedIssue(ctx context.Context, cli JiraClient, summary
 
 // QueueJiraVulnJobs queues the Jira vulnerability jobs to process asynchronously
 // via the worker.
-func QueueJiraVulnJobs(ctx context.Context, ds fleet.Datastore, logger kitlog.Logger, recentVulns map[string][]string) error {
+func QueueJiraVulnJobs(ctx context.Context, ds fleet.Datastore, logger kitlog.Logger, recentVulns []fleet.SoftwareVulnerability) error {
 	level.Info(logger).Log("enabled", "true", "recentVulns", len(recentVulns))
 
 	// for troubleshooting, log in debug level the CVEs that we will process
 	// (cannot be done in the loop below as we want to add the debug log
 	// _before_ we start processing them).
 	cves := make([]string, 0, len(recentVulns))
-	for cve := range recentVulns {
-		cves = append(cves, cve)
+	for _, vuln := range recentVulns {
+		cves = append(cves, vuln.CVE)
 	}
 	sort.Strings(cves)
 	level.Debug(logger).Log("recent_cves", fmt.Sprintf("%v", cves))
 
-	for cve := range recentVulns {
-		job, err := QueueJob(ctx, ds, jiraName, jiraArgs{CVE: cve})
+	for _, vuln := range recentVulns {
+		job, err := QueueJob(ctx, ds, jiraName, jiraArgs{CVE: vuln.CVE})
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "queueing job")
 		}
@@ -354,6 +359,12 @@ func QueueJiraFailingPolicyJob(ctx context.Context, ds fleet.Datastore, logger k
 	if policy.TeamID != nil {
 		attrs = append(attrs, "team_id", *policy.TeamID)
 	}
+	if len(hosts) == 0 {
+		attrs = append(attrs, "msg", "skipping, no host")
+		level.Debug(logger).Log(attrs...)
+		return nil
+	}
+
 	level.Info(logger).Log(attrs...)
 
 	args := &failingPolicyArgs{

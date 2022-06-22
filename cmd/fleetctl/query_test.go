@@ -7,7 +7,7 @@ import (
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
-	"github.com/fleetdm/fleet/v4/server/live_query"
+	"github.com/fleetdm/fleet/v4/server/live_query/live_query_mock"
 	"github.com/fleetdm/fleet/v4/server/pubsub"
 	"github.com/fleetdm/fleet/v4/server/service"
 	kitlog "github.com/go-kit/kit/log"
@@ -18,7 +18,7 @@ import (
 
 func TestLiveQuery(t *testing.T) {
 	rs := pubsub.NewInmemQueryResults()
-	lq := new(live_query.MockLiveQuery)
+	lq := live_query_mock.New(t)
 
 	logger := kitlog.NewJSONLogger(os.Stdout)
 	logger = level.NewFilter(logger, level.AllowDebug())

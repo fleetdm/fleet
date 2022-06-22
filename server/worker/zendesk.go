@@ -120,6 +120,11 @@ func (z *Zendesk) getClient(ctx context.Context, args zendeskArgs) (ZendeskClien
 		key += fmt.Sprint(teamID)
 	}
 
+	ac, err := z.Datastore.AppConfig(ctx)
+	if err != nil {
+		return nil, err
+	}
+
 	// load the config that would be used to create the client first - it is
 	// needed to check if an existing client is configured the same or if its
 	// configuration has changed since it was created.
@@ -130,7 +135,12 @@ func (z *Zendesk) getClient(ctx context.Context, args zendeskArgs) (ZendeskClien
 			return nil, err
 		}
 
-		for _, intg := range tm.Config.Integrations.Zendesk {
+		intgs, err := tm.Config.Integrations.MatchWithIntegrations(ac.Integrations)
+		if err != nil {
+			return nil, err
+		}
+
+		for _, intg := range intgs.Zendesk {
 			if intgType == intgTypeFailingPolicy && intg.EnableFailingPolicies {
 				opts = &externalsvc.ZendeskOptions{
 					URL:      intg.URL,
@@ -142,10 +152,6 @@ func (z *Zendesk) getClient(ctx context.Context, args zendeskArgs) (ZendeskClien
 			}
 		}
 	} else {
-		ac, err := z.Datastore.AppConfig(ctx)
-		if err != nil {
-			return nil, err
-		}
 		for _, intg := range ac.Integrations.Zendesk {
 			if (intgType == intgTypeVuln && intg.EnableSoftwareVulnerabilities) ||
 				(intgType == intgTypeFailingPolicy && intg.EnableFailingPolicies) {
@@ -311,21 +317,21 @@ func (z *Zendesk) createTemplatedTicket(ctx context.Context, cli ZendeskClient, 
 
 // QueueZendeskVulnJobs queues the Zendesk vulnerability jobs to process asynchronously
 // via the worker.
-func QueueZendeskVulnJobs(ctx context.Context, ds fleet.Datastore, logger kitlog.Logger, recentVulns map[string][]string) error {
+func QueueZendeskVulnJobs(ctx context.Context, ds fleet.Datastore, logger kitlog.Logger, recentVulns []fleet.SoftwareVulnerability) error {
 	level.Info(logger).Log("enabled", "true", "recentVulns", len(recentVulns))
 
 	// for troubleshooting, log in debug level the CVEs that we will process
 	// (cannot be done in the loop below as we want to add the debug log
 	// _before_ we start processing them).
 	cves := make([]string, 0, len(recentVulns))
-	for cve := range recentVulns {
-		cves = append(cves, cve)
+	for _, vuln := range recentVulns {
+		cves = append(cves, vuln.CVE)
 	}
 	sort.Strings(cves)
 	level.Debug(logger).Log("recent_cves", fmt.Sprintf("%v", cves))
 
-	for cve := range recentVulns {
-		job, err := QueueJob(ctx, ds, zendeskName, zendeskArgs{CVE: cve})
+	for _, vuln := range recentVulns {
+		job, err := QueueJob(ctx, ds, zendeskName, zendeskArgs{CVE: vuln.CVE})
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "queueing job")
 		}
@@ -346,6 +352,12 @@ func QueueZendeskFailingPolicyJob(ctx context.Context, ds fleet.Datastore, logge
 	if policy.TeamID != nil {
 		attrs = append(attrs, "team_id", *policy.TeamID)
 	}
+	if len(hosts) == 0 {
+		attrs = append(attrs, "msg", "skipping, no host")
+		level.Debug(logger).Log(attrs...)
+		return nil
+	}
+
 	level.Info(logger).Log(attrs...)
 
 	args := &failingPolicyArgs{
