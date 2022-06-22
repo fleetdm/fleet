@@ -179,6 +179,31 @@ module.exports.routes = {
     }
   },
 
+  'GET /try-fleet/register': {
+    action: 'try-fleet/view-register',
+    locals: {
+      layout: 'layouts/layout-customer',
+    }
+  },
+
+
+  'GET /try-fleet/login': {
+    action: 'try-fleet/view-login',
+    locals: {
+      layout: 'layouts/layout-customer',
+    }
+  },
+
+  'GET /try-fleet/forgot-password': {
+    action: 'try-fleet/view-forgot-password',
+    locals: {
+      layout: 'layouts/layout-customer',
+    }
+  },
+
+
+
+
 
 
   //  ╦  ╔═╗╔═╗╔═╗╔═╗╦ ╦  ╦═╗╔═╗╔╦╗╦╦═╗╔═╗╔═╗╔╦╗╔═╗

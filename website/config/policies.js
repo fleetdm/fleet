@@ -36,5 +36,6 @@ module.exports.policies = {
   'deliver-demo-signup': true,
   'articles/*': true,
   'reports/*': true,
+  'try-fleet/*': true,
 
 };
