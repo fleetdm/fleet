@@ -844,13 +844,13 @@ func (ds *Datastore) SoftwareByID(ctx context.Context, id uint, includeCVEScores
 	return &software, nil
 }
 
-// CalculateHostsPerSoftware calculates the number of hosts having each
+// SyncHostsSoftware calculates the number of hosts having each
 // software installed and stores that information in the software_host_counts
 // table.
 //
 // After aggregation, it cleans up unused software (e.g. software installed
 // on removed hosts, software uninstalled on hosts, etc.)
-func (ds *Datastore) CalculateHostsPerSoftware(ctx context.Context, updatedAt time.Time) error {
+func (ds *Datastore) SyncHostsSoftware(ctx context.Context, updatedAt time.Time) error {
 	const (
 		resetStmt = `
       UPDATE software_host_counts
