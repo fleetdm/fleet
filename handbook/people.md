@@ -72,6 +72,17 @@ When selecting your new laptop, we ask that you optimize your configuration to h
 
 When a device has been purchased, it's added to the [spreadsheet of company equipment](https://docs.google.com/spreadsheets/d/1hFlymLlRWIaWeVh14IRz03yE-ytBLfUaqVz0VVmmoGI/edit#gid=0) where we keep track of devices and equipment, purchased by Fleet. When the team member receives their computer, they will complete the entry by adding a description, model, and serial number to the spreadsheet.
 
+### Attending conferences
+
+When attending a conference for Fleet, please make a post in [g-digital-experience](https://github.com/fleetdm/fleet/pull/6288) on Slack with the following information:
+- The start and end dates for your trip.
+- The price of your flight (feel free to optimize a direct flight if there is one that is less than double the price of the cheapest non-direct flight).
+- The price of your hotel per night.
+- The price of the admission fees for the conference.
+
+The monthly limit on your Brex card will be increased temporarily as necessary to accomodate the increased spending associated with the conference.
+It is highly recommended that you order a physical Brex card if you do not have one before attending the conference.
+
 ## Paid time off
 
 What matters most is your results, which are driven by your focus, your availability to collaborate, and the time and consideration you put into your work.
@@ -288,7 +299,7 @@ The CEO will then reply in `#g-people` to indicate that the offer is approved.
    - **US team members**: People Ops will send the new team member's agreement through [DocuSign](https://www.docusign.com/).
   After signing and storing an in the correct Google Drive folder, People Ops will invite the new team member to onboard in [Gusto](https://www.gusto.com/). People Ops will reach out to them if the new team member is a W-2 employee and schedule an I-9 verification meeting.
 
-   >*If we're hiring in a new state, we'll have to register for state taxes and unemployment. Gusto usually hadles this process.*
+   >*If we're hiring in a new state, we'll have to register for state taxes and unemployment. Gusto usually handles this process.*
 
    - **For international team members:** People Ops enters the new team member's information into [Pilot](https://pilot.co/) to kick off their hiring process. Pilot creates an agreement for the new team member, and People Ops reviews it to make sure everything looks correct. After People Ops confirms the information about the new hire, Pilot invites the new team member to enter the rest of their information and informs People Ops via email when a new Fleetie signs their agreement.
 
@@ -453,6 +464,32 @@ Weekly update principles
 We like to regularly share updates about how Fleet is growing with our investors and advisors. 
   - Charlie tracks the most recent updates with investors and advisors and coordinates emails, zoom calls, or the investor or advisor's preferred method of communication with @mikermcneil and preps materials as needed. 
 
+### Recruiting progress checkup
+
+Weekly, Charlie looks in the [Fleeties spreadsheet](https://docs.google.com/spreadsheets/d/1OSLn-ZCbGSjPusHPiR5dwQhheH1K8-xqyZdsOe9y7qc/edit#gid=0) and reports on each open position:
+
+ - Is the position in [BreezyHR](https://app.breezy.hr/signin)?
+ - Is the position listed on fleetdm.com/jobs?
+ - What is the total # applicants?
+ - Total # interviews? 
+
+### Payroll
+
+Many of these processes are automated but it's important that we check Gusto and Pilot manually for accuracy.
+
+## BizOps
+
+### Monthly accounting
+
+Create a new issue for the current month and year named "Closing out YYYY-MM" using the [monthly accounting issue template](https://github.com/fleetdm/confidential/blob/main/.github/ISSUE_TEMPLATE/5-monthly-accounting.md) in GitHub and complete all of the tasks in the issue.  
+
+### Commission Payroll
+
+- Update [commission calculator](https://docs.google.com/spreadsheets/d/1vw6Q7kCC7-FdG5Fgx3ghgUdQiF2qwxk6njgK6z8_O9U/edit) with new revenue from any deals that are closed/won (have a subscription agreement signed by both parties) and have an **effective start date** within the previous month.
+  - Detailed notes on this process are located [here](https://docs.google.com/document/d/1FQLpGxvHPW6X801HYYLPs5y8o943mmasQD3m9k_c0so/edit#). 
+- Contact Charlie Chance in Slack and let her know she can run the commission payroll. Use the off-cycle payroll option in Gusto. Be sure to classify the payment as "Commission" in the "other earnings" field and not the generic  "Bonus".
+- Once commission payroll has been run, update the [commission calculator](https://docs.google.com/spreadsheets/d/1vw6Q7kCC7-FdG5Fgx3ghgUdQiF2qwxk6njgK6z8_O9U/edit) to mark the commission as paid. 
+
 ## Rituals
 
 The following table lists the People group's rituals, frequency, and Directly Responsible Individual (DRI).
@@ -466,12 +503,15 @@ The following table lists the People group's rituals, frequency, and Directly Re
 | OKR review | Every three weeks | Review the status of each OKR. | Mike Thomas |
 | Brex reconciliation | Monthly | Make sure all company-issued credit card transactions include memos. | Nathanael Holliday |
 | Monthly accounting | Monthly | Use the monthly accounting template in GitHub to go through the process of validating Fleet's books. | Nathanael Holliday |
+| Commission payroll | Monthly | Use the [commission calculator](https://docs.google.com/spreadsheets/d/1vw6Q7kCC7-FdG5Fgx3ghgUdQiF2qwxk6njgK6z8_O9U/edit#gid=0) to determine the commission payroll to be run in Gusto. | Nathanael Holliday |
 | US contractor payroll | Monthly | Sync contractor hours to payments in Gusto and run payroll for the month. | Charlie Chance |
 | OKR planning | Quarterly | Plan for the next quarter's OKRs. | Mike Thomas |
 | 550C update | Annually | File California 550C. | Charlie Chance |
 | Workiversaries | Weekly/PRN | People Operations posts in #g-people and tags @mikermcneil about any upcoming workiversaries | Charlie Chance |
 | Investor and Advisor updates | PRN | People Operations tracks the last contact with investors and coordinates outreach with CEO | Charlie Chance |
 | CEO inbox sweep | Daily unless OOO | Charlie does a morning sweep of the CEO's inbox to remove spam and grab action items | Charlie Chance |
+| Recruiting progress checkup | Weekly | Charlie looks in the [Fleeties spreadsheet](https://docs.google.com/spreadsheets/d/1OSLn-ZCbGSjPusHPiR5dwQhheH1K8-xqyZdsOe9y7qc/edit#gid=0) and reports on each open position | Charlie Chance |
+| Payroll | Monthly before payroll runs | Every month Charlie audits the payroll platforms for accuracy | Charlie |
 
 
 ## Slack channels
@@ -479,5 +519,5 @@ The following table lists the People group's rituals, frequency, and Directly Re
 Please see [Brand > Slack channels](https://fleetdm.com/handbook/brand#slack-channels).
 
 
-<meta name="maintainedBy" value="eashaw">
+<meta name="maintainedBy" value="charlottechance">
 <meta name="title" value="🧑‍🚀 People">

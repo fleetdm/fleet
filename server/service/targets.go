@@ -264,3 +264,32 @@ func (svc *Service) CountHostsInTargets(ctx context.Context, queryID *uint, targ
 
 	return &metrics, nil
 }
+
+type countTargetsRequest struct {
+	Selected fleet.HostTargets `json:"selected"`
+	QueryID  *uint             `json:"query_id"`
+}
+
+type countTargetsResponse struct {
+	TargetsCount   uint  `json:"targets_count"`
+	TargetsOnline  uint  `json:"targets_online"`
+	TargetsOffline uint  `json:"targets_offline"`
+	Err            error `json:"error,omitempty"`
+}
+
+func (r countTargetsResponse) error() error { return r.Err }
+
+func countTargetsEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
+	req := request.(*countTargetsRequest)
+
+	counts, err := svc.CountHostsInTargets(ctx, req.QueryID, req.Selected)
+	if err != nil {
+		return searchTargetsResponse{Err: err}, nil
+	}
+
+	return countTargetsResponse{
+		TargetsCount:   counts.TotalHosts,
+		TargetsOnline:  counts.OnlineHosts,
+		TargetsOffline: counts.OfflineHosts,
+	}, nil
+}

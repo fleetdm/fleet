@@ -10,7 +10,7 @@ import { Link } from "react-router";
 import { AppContext } from "context/app";
 import usersAPI from "services/entities/users";
 import inviteAPI from "services/entities/invites";
-import teamsAPI from "services/entities/teams";
+import teamsAPI, { ILoadTeamsResponse } from "services/entities/teams";
 
 import Button from "components/buttons/Button";
 import TableContainer from "components/TableContainer";
@@ -39,10 +39,6 @@ interface IMembersPageProps {
   params: {
     team_id: string;
   };
-}
-
-interface ITeamsResponse {
-  teams: ITeam[];
 }
 
 const MembersPage = ({
@@ -116,11 +112,11 @@ const MembersPage = ({
     data: teams,
     isLoading: isLoadingTeams,
     error: loadingTeamsError,
-  } = useQuery<ITeamsResponse, Error, ITeam[]>(
+  } = useQuery<ILoadTeamsResponse, Error, ITeam[]>(
     ["teams", teamId],
     () => teamsAPI.loadAll(),
     {
-      select: (data: ITeamsResponse) => data.teams,
+      select: (data: ILoadTeamsResponse) => data.teams,
       onSuccess: (data) => {
         setCurrentTeam(data.find((team) => team.id === teamId));
       },

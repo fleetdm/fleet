@@ -44,6 +44,7 @@
 
     a {
       color: $core-fleet-black;
+      font-weight: $regular;
       text-decoration: none;
       cursor: pointer;
 
@@ -291,6 +292,18 @@
 
   &__advanced-options {
     margin-bottom: $pad-large;
+  }
+
+  &__transparency {
+    color: $core-vibrant-blue;
+    font-size: $x-small;
+    font-weight: $bold;
+    text-decoration: none;
+
+    img {
+      width: 12px;
+      height: 12px;
+    }
   }
 
   .component__tooltip-wrapper {

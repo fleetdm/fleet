@@ -4,7 +4,20 @@ The Fleet sales team embodies [our values](https://fleetdm.com/handbook/company#
 
 ## Outreach one-pager
 
-Our one-pager offers a summary of what Fleet does. It can help stakeholders become familiar with the company and product while also being a useful tool the Growth team uses for sales outreach. Find Fleet's outreach one-pager in this [Google Doc](https://drive.google.com/file/d/1o0gHCVonNbjjsk8iI-mgVw5O-o-AhJ5t/view?usp=sharing).
+Our one-pager offers a summary of what Fleet does. It can help stakeholders become familiar with the company and product while also being a useful tool the Growth team uses for sales outreach. Find Fleet's outreach one-pager in this [Google Doc](https://drive.google.com/file/d/1Xh94y5EoGIm8SY_gNX0ZFdJgSE2T0A6_/view?usp=sharing).
+
+## Our cold approach
+
+At times, our sales team will reach out to prospective customers before they come to Fleet for information. Our cold approach is inspired by Daniel Grzelak’s (Founder, investor, advisor, hacker, CISO) [Linkedin post](https://www.linkedin.com/posts/danielgrzelak_if-you-are-going-to-do-a-cold-approach-be-activity-6940518616459022336-iYE7?utm_source=linkedin_share&utm_medium=ios_app). The following are the keys to an engaging cold approach. Since cold approaches like these can be easily ignored as mass emails, it’s important to personalize each one. 
+
+- Research each prospect.
+- Praise what’s great about their company.
+- Avoid just stating facts about our product.
+- State why we would love to work with them.
+- Ask questions about their company and current device management experience.
+- Keep an enthusiastic and warm tone.
+- Be personable.
+- Ask for the meeting with a proposed time.
 
 ## Intro deck
 

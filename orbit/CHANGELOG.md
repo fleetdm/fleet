@@ -1,8 +1,22 @@
+## Orbit 0.0.13 (Jun 16, 2022)
+
+- Orbit is now a Universal Binary supporting Intel and M1 on macOS machines without Rosetta.
+
+- Updated the Fleet Desktop "Transparency" menu item to use a custom URL if specified (Premium only).
+
+- Added an early check for updates to Orbit (before sub-systems are started) to improve chances of being able to recover from crashes via updates.
+
+- Added log files for Fleet Desktop logs, located at:
+  - macOS: `~/Library/Log`
+  - Linux: `$XDG_STATE_HOME`, fallback to `$HOME/.local/state`
+  - Windows: `%LocalAppData%`
+
 ## Orbit 0.0.12 (May 26, 2022)
+
 ### This is a security release.
 
 - **Security**: Update go-tuf library to fix [CVE-2022-29173](https://github.com/theupdateframework/go-tuf/security/advisories/GHSA-66x3-6cw3-v5gj). This vulnerability could allow an attacker with network access to perform a rollback attack, forcing Orbit to downgrade to an earlier version. Orbit installations with autoupdate turned on will automatically update, after which the client will no longer be vulnerable.
- 
+
 - Fleet desktop will now notify Premium tier users if policies are failing/passing.
 
 ## Orbit 0.0.11 (May 10, 2022)

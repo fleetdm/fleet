@@ -1,6 +1,7 @@
 package fleet
 
 import (
+	"context"
 	"encoding/json"
 	"time"
 )
@@ -328,4 +329,11 @@ type OSVersion struct {
 type HostDetailOptions struct {
 	IncludeCVEScores bool
 	IncludePolicies  bool
+}
+
+// EnrollHostLimiter defines the methods to support enforcement of enrolled
+// hosts limit, as defined by the user's license.
+type EnrollHostLimiter interface {
+	CanEnrollNewHost(ctx context.Context) (ok bool, err error)
+	SyncEnrolledHostIDs(ctx context.Context) error
 }

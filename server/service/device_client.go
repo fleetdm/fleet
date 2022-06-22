@@ -22,7 +22,6 @@ func (dc *DeviceClient) request(verb string, path string, query string, response
 		dc.url(path, query).String(),
 		bytes.NewBuffer(bodyBytes),
 	)
-
 	if err != nil {
 		return err
 	}
@@ -37,19 +36,21 @@ func (dc *DeviceClient) request(verb string, path string, query string, response
 }
 
 // NewDeviceClient instantiates a new client to perform requests against device endpoints
-func NewDeviceClient(addr string, token string, insecureSkipVerify bool, rootCA string) (*DeviceClient, error) {
+func NewDeviceClient(addr, token string, insecureSkipVerify bool, rootCA string) (*DeviceClient, error) {
 	baseClient, err := newBaseClient(addr, insecureSkipVerify, rootCA, "")
-
 	if err != nil {
 		return nil, err
 	}
 
-	return &DeviceClient{baseClient: baseClient, token: token}, nil
+	return &DeviceClient{
+		baseClient: baseClient,
+		token:      token,
+	}, nil
 }
 
 // ListDevicePolicies fetches all policies for the device with the provided token
 func (dc *DeviceClient) ListDevicePolicies() ([]*fleet.HostPolicy, error) {
-	verb, path := "GET", "/api/2022-04/fleet/device/"+dc.token+"/policies"
+	verb, path := "GET", "/api/latest/fleet/device/"+dc.token+"/policies"
 	var responseBody listDevicePoliciesResponse
 	err := dc.request(verb, path, "", &responseBody)
 	if err != nil {

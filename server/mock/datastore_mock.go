@@ -64,6 +64,8 @@ type ListQueriesFunc func(ctx context.Context, opt fleet.ListQueryOptions) ([]*f
 
 type QueryByNameFunc func(ctx context.Context, name string, opts ...fleet.OptionalArg) (*fleet.Query, error)
 
+type ObserverCanRunQueryFunc func(ctx context.Context, queryID uint) (bool, error)
+
 type NewDistributedQueryCampaignFunc func(ctx context.Context, camp *fleet.DistributedQueryCampaign) (*fleet.DistributedQueryCampaign, error)
 
 type DistributedQueryCampaignFunc func(ctx context.Context, id uint) (*fleet.DistributedQueryCampaign, error)
@@ -150,7 +152,11 @@ type MarkHostsSeenFunc func(ctx context.Context, hostIDs []uint, t time.Time) er
 
 type SearchHostsFunc func(ctx context.Context, filter fleet.TeamFilter, query string, omit ...uint) ([]*fleet.Host, error)
 
-type CleanupIncomingHostsFunc func(ctx context.Context, now time.Time) error
+type EnrolledHostIDsFunc func(ctx context.Context) ([]uint, error)
+
+type CountEnrolledHostsFunc func(ctx context.Context) (int, error)
+
+type CleanupIncomingHostsFunc func(ctx context.Context, now time.Time) ([]uint, error)
 
 type GenerateHostStatusStatisticsFunc func(ctx context.Context, filter fleet.TeamFilter, now time.Time, platform *string) (*fleet.HostSummary, error)
 
@@ -250,7 +256,7 @@ type DeleteScheduledQueryFunc func(ctx context.Context, id uint) error
 
 type ScheduledQueryFunc func(ctx context.Context, id uint) (*fleet.ScheduledQuery, error)
 
-type CleanupExpiredHostsFunc func(ctx context.Context) error
+type CleanupExpiredHostsFunc func(ctx context.Context) ([]uint, error)
 
 type NewTeamFunc func(ctx context.Context, team *fleet.Team) (*fleet.Team, error)
 
@@ -269,6 +275,8 @@ type TeamsSummaryFunc func(ctx context.Context) ([]*fleet.TeamSummary, error)
 type SearchTeamsFunc func(ctx context.Context, filter fleet.TeamFilter, matchQuery string, omit ...uint) ([]*fleet.Team, error)
 
 type TeamEnrollSecretsFunc func(ctx context.Context, teamID uint) ([]*fleet.EnrollSecret, error)
+
+type DeleteIntegrationsFromTeamsFunc func(ctx context.Context, deletedIntgs fleet.Integrations) error
 
 type ListSoftwareForVulnDetectionFunc func(ctx context.Context, hostID uint) ([]fleet.Software, error)
 
@@ -489,6 +497,9 @@ type DataStore struct {
 	QueryByNameFunc        QueryByNameFunc
 	QueryByNameFuncInvoked bool
 
+	ObserverCanRunQueryFunc        ObserverCanRunQueryFunc
+	ObserverCanRunQueryFuncInvoked bool
+
 	NewDistributedQueryCampaignFunc        NewDistributedQueryCampaignFunc
 	NewDistributedQueryCampaignFuncInvoked bool
 
@@ -617,6 +628,12 @@ type DataStore struct {
 
 	SearchHostsFunc        SearchHostsFunc
 	SearchHostsFuncInvoked bool
+
+	EnrolledHostIDsFunc        EnrolledHostIDsFunc
+	EnrolledHostIDsFuncInvoked bool
+
+	CountEnrolledHostsFunc        CountEnrolledHostsFunc
+	CountEnrolledHostsFuncInvoked bool
 
 	CleanupIncomingHostsFunc        CleanupIncomingHostsFunc
 	CleanupIncomingHostsFuncInvoked bool
@@ -797,6 +814,9 @@ type DataStore struct {
 
 	TeamEnrollSecretsFunc        TeamEnrollSecretsFunc
 	TeamEnrollSecretsFuncInvoked bool
+
+	DeleteIntegrationsFromTeamsFunc        DeleteIntegrationsFromTeamsFunc
+	DeleteIntegrationsFromTeamsFuncInvoked bool
 
 	ListSoftwareForVulnDetectionFunc        ListSoftwareForVulnDetectionFunc
 	ListSoftwareForVulnDetectionFuncInvoked bool
@@ -1139,6 +1159,11 @@ func (s *DataStore) QueryByName(ctx context.Context, name string, opts ...fleet.
 	return s.QueryByNameFunc(ctx, name, opts...)
 }
 
+func (s *DataStore) ObserverCanRunQuery(ctx context.Context, queryID uint) (bool, error) {
+	s.ObserverCanRunQueryFuncInvoked = true
+	return s.ObserverCanRunQueryFunc(ctx, queryID)
+}
+
 func (s *DataStore) NewDistributedQueryCampaign(ctx context.Context, camp *fleet.DistributedQueryCampaign) (*fleet.DistributedQueryCampaign, error) {
 	s.NewDistributedQueryCampaignFuncInvoked = true
 	return s.NewDistributedQueryCampaignFunc(ctx, camp)
@@ -1354,7 +1379,17 @@ func (s *DataStore) SearchHosts(ctx context.Context, filter fleet.TeamFilter, qu
 	return s.SearchHostsFunc(ctx, filter, query, omit...)
 }
 
-func (s *DataStore) CleanupIncomingHosts(ctx context.Context, now time.Time) error {
+func (s *DataStore) EnrolledHostIDs(ctx context.Context) ([]uint, error) {
+	s.EnrolledHostIDsFuncInvoked = true
+	return s.EnrolledHostIDsFunc(ctx)
+}
+
+func (s *DataStore) CountEnrolledHosts(ctx context.Context) (int, error) {
+	s.CountEnrolledHostsFuncInvoked = true
+	return s.CountEnrolledHostsFunc(ctx)
+}
+
+func (s *DataStore) CleanupIncomingHosts(ctx context.Context, now time.Time) ([]uint, error) {
 	s.CleanupIncomingHostsFuncInvoked = true
 	return s.CleanupIncomingHostsFunc(ctx, now)
 }
@@ -1604,7 +1639,7 @@ func (s *DataStore) ScheduledQuery(ctx context.Context, id uint) (*fleet.Schedul
 	return s.ScheduledQueryFunc(ctx, id)
 }
 
-func (s *DataStore) CleanupExpiredHosts(ctx context.Context) error {
+func (s *DataStore) CleanupExpiredHosts(ctx context.Context) ([]uint, error) {
 	s.CleanupExpiredHostsFuncInvoked = true
 	return s.CleanupExpiredHostsFunc(ctx)
 }
@@ -1652,6 +1687,11 @@ func (s *DataStore) SearchTeams(ctx context.Context, filter fleet.TeamFilter, ma
 func (s *DataStore) TeamEnrollSecrets(ctx context.Context, teamID uint) ([]*fleet.EnrollSecret, error) {
 	s.TeamEnrollSecretsFuncInvoked = true
 	return s.TeamEnrollSecretsFunc(ctx, teamID)
+}
+
+func (s *DataStore) DeleteIntegrationsFromTeams(ctx context.Context, deletedIntgs fleet.Integrations) error {
+	s.DeleteIntegrationsFromTeamsFuncInvoked = true
+	return s.DeleteIntegrationsFromTeamsFunc(ctx, deletedIntgs)
 }
 
 func (s *DataStore) ListSoftwareForVulnDetection(ctx context.Context, hostID uint) ([]fleet.Software, error) {
