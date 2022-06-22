@@ -30,6 +30,11 @@ declare namespace Cypress {
     logout(): Chainable<Element>;
 
     /**
+     * Custom command to set a Fleet Desktop token to a host.
+     */
+    setDesktopToken(hostId?: number, token?: string): Chainable<Element>;
+
+    /**
      * Custom command to add new queries by default.
      */
     seedQueries(): Chainable<Element>;

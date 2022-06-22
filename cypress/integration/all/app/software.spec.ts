@@ -3,7 +3,6 @@ describe("Software", () => {
     Cypress.session.clearAllSavedSessions();
     cy.setupWithSoftware();
     cy.loginWithCySession();
-    cy.setupSMTP();
     cy.viewport(1600, 900);
   });
   after(() => {

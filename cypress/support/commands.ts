@@ -81,6 +81,13 @@ Cypress.Commands.add("logout", () => {
   });
 });
 
+Cypress.Commands.add("setDesktopToken", (hostId, token) => {
+  cy.exec(`make e2e-set-desktop-token host_id=${hostId} token=${token}`, {
+    timeout: 20000,
+    env: { SHELL },
+  });
+});
+
 Cypress.Commands.add("seedQueries", () => {
   const queries = [
     {
