@@ -5,6 +5,8 @@ import (
 	"regexp"
 	"strings"
 	"time"
+
+	oval_parsed "github.com/fleetdm/fleet/v4/server/vulnerabilities/oval/parsed"
 )
 
 type Platform string
@@ -45,6 +47,7 @@ func format(platform string, major string, minor string) string {
 	if platform == "ubuntu" {
 		return fmt.Sprintf("%s_%s%s", platform, major, minor)
 	}
+	// RHEL based platforms only use the major version for their OVAL definitions
 	return fmt.Sprintf("%s_%s", platform, major)
 }
 
@@ -55,6 +58,7 @@ func format(platform string, major string, minor string) string {
 // ('rhel', 'CentOS Linux 7.9.2009') => 'rhel_07'.
 func NewPlatform(hostPlatform, hostOsVersion string) Platform {
 	nPlatform := strings.Trim(strings.ToLower(hostPlatform), " ")
+	hostOsVersion = oval_parsed.ReplaceFedoraOSVersion(hostOsVersion)
 	major, minor := getMajorMinorVer(strings.Trim(hostOsVersion, " "))
 	return Platform(format(nPlatform, major, minor))
 }

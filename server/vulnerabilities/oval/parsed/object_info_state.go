@@ -130,7 +130,8 @@ func (sta ObjectInfoState) EvalOSVersion(version fleet.OSVersion) (bool, error) 
 	if sta.Version != nil {
 		var pVer string
 		if version.Platform == "rhel" {
-			pName := strings.Trim(version.Name, " ")
+			version := ReplaceFedoraOSVersion(version.Name)
+			pName := strings.Trim(version, " ")
 			pVer = pName[strings.LastIndex(pName, " ")+1:]
 		}
 

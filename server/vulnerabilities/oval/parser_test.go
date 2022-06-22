@@ -641,7 +641,7 @@ func TestOvalParser(t *testing.T) {
 		require.Equal(t, *testFour.States[0].SignatureKeyId, oval_parsed.NewObjectStateString("equals", "199e2f91fd431d51"))
 	})
 
-	t.Run("RHEL OVAL definitions work with CentOS", func(t *testing.T) {
+	t.Run("RHEL OVAL definitions work with RHEL based distros", func(t *testing.T) {
 		r := strings.NewReader(rhelOvalXML)
 
 		xmlResult, err := parseRhelXML(r)
@@ -650,32 +650,33 @@ func TestOvalParser(t *testing.T) {
 		result, err := mapToRhelResult(xmlResult)
 		require.NoError(t, err)
 
-		centOS := fleet.OSVersion{
-			Platform: "rhel",
-			Name:     "CentOS Linux 7.9.2009",
+		testCases := []fleet.OSVersion{
+			{
+				Platform: "rhel",
+				Name:     "CentOS Linux 7.9.2009",
+			},
+			{
+				Platform: "amzn",
+				Name:     "Amazon Linux 2.0.0",
+			},
+			{
+				Platform: "rhel",
+				Name:     "Fedora Linux 19.0.0",
+			},
+			{
+				Platform: "rhel",
+				Name:     "Fedora Linux 20.0.0",
+			},
+			{
+				Platform: "rhel",
+				Name:     "Fedora Linux 21.0.0",
+			},
 		}
 
-		rEval, err := result.RpmVerifyFileTests[20221728047].Eval(centOS)
-		require.NoError(t, err)
-		require.True(t, rEval)
-	})
-
-	t.Run("RHEL OVAL definitions work with Amazon Distro", func(t *testing.T) {
-		r := strings.NewReader(rhelOvalXML)
-
-		xmlResult, err := parseRhelXML(r)
-		require.NoError(t, err)
-
-		result, err := mapToRhelResult(xmlResult)
-		require.NoError(t, err)
-
-		amzDistro := fleet.OSVersion{
-			Platform: "amzn",
-			Name:     "Amazon Linux 2.0.0",
+		for _, tCase := range testCases {
+			rEval, err := result.RpmVerifyFileTests[20221728047].Eval(tCase)
+			require.NoError(t, err)
+			require.True(t, rEval, tCase)
 		}
-
-		rEval, err := result.RpmVerifyFileTests[20221728047].Eval(amzDistro)
-		require.NoError(t, err)
-		require.True(t, rEval)
 	})
 }
