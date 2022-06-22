@@ -98,7 +98,15 @@ Occasionally, users will email or Slack questions about product usage. We will t
 ## Customer contracts
 Fleet's subscription agreement is available at [fleetdm.com/terms](https://fleetdm.com/terms). 
 
-Fleet employees can find a summary of contract terms [here](https://docs.google.com/spreadsheets/d/1gAenC948YWG2NwcaVHleUvX0LzS8suyMFpjaBqxHQNg/edit?usp=sharing).
+Fleeties can find a summary of contract terms in the relevant [customer's Salesforce opportunity.](https://fleetdm.lightning.force.com/lightning/o/Opportunity/list?filterName=Recent)
+
+## Contract glossary
+
+| Term           | Definition                                                |
+|:---------------|:----------------------------------------------------------|
+| Effective date | The start date for the subscription service. |
+| Close date | The date the last party to the contract signed the agreement. |
+| Invoice date | The date that Fleet sent the invoice to the customer. |
 
 ## Rituals
 
