@@ -2,9 +2,11 @@ package mysql
 
 import (
 	"context"
+	"encoding/json"
 	"testing"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/stretchr/testify/assert"
@@ -29,8 +31,19 @@ func TestStatistics(t *testing.T) {
 }
 
 func testStatisticsShouldSend(t *testing.T, ds *Datastore) {
+	var eh = ctxerr.MockHandler{}
+	// Mock the error handler to always return an error
+	eh.RetrieveImpl = func(flush bool) ([]*ctxerr.StoredError, error) {
+		require.False(t, flush)
+		return []*ctxerr.StoredError{
+			{Count: 10, Error: json.RawMessage(`{"cause": {"stack": ["a","b","c","d"]}}`)},
+		}, nil
+	}
+	var ctxb = context.Background()
+	var ctx = ctxerr.NewContext(ctxb, eh)
+
 	// Create new host for test
-	_, err := ds.NewHost(context.Background(), &fleet.Host{
+	_, err := ds.NewHost(ctx, &fleet.Host{
 		DetailUpdatedAt: time.Now(),
 		LabelUpdatedAt:  time.Now(),
 		PolicyUpdatedAt: time.Now(),
@@ -45,7 +58,7 @@ func testStatisticsShouldSend(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 
 	// Create two new users for test
-	u1, err := ds.NewUser(context.Background(), &fleet.User{
+	u1, err := ds.NewUser(ctx, &fleet.User{
 		Password:                 []byte("foobar"),
 		AdminForcedPasswordReset: false,
 		Email:                    "baz@example.com",
@@ -53,7 +66,7 @@ func testStatisticsShouldSend(t *testing.T, ds *Datastore) {
 		GlobalRole:               ptr.String(fleet.RoleObserver),
 	})
 	require.NoError(t, err)
-	_, err = ds.NewUser(context.Background(), &fleet.User{
+	_, err = ds.NewUser(ctx, &fleet.User{
 		Password:                 []byte("foobar"),
 		AdminForcedPasswordReset: false,
 		Email:                    "qux@example.com",
@@ -62,18 +75,18 @@ func testStatisticsShouldSend(t *testing.T, ds *Datastore) {
 	})
 	require.NoError(t, err)
 	// Create a session for user baz, but not qux (so only 1 is active)
-	_, err = ds.NewSession(context.Background(), u1.ID, "session_key")
+	_, err = ds.NewSession(ctx, u1.ID, "session_key")
 	require.NoError(t, err)
 
 	// Create new team for test
-	_, err = ds.NewTeam(context.Background(), &fleet.Team{
+	_, err = ds.NewTeam(ctx, &fleet.Team{
 		Name:        "footeam",
 		Description: "team of foo",
 	})
 	require.NoError(t, err)
 
 	// Create new global policy for test
-	_, err = ds.NewGlobalPolicy(context.Background(), ptr.Uint(1), fleet.PolicyPayload{
+	_, err = ds.NewGlobalPolicy(ctx, ptr.Uint(1), fleet.PolicyPayload{
 		Name:        "testpolicy",
 		Query:       "select 1;",
 		Description: "test policy desc",
@@ -82,7 +95,7 @@ func testStatisticsShouldSend(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 
 	// Create new label for test
-	_, err = ds.NewLabel(context.Background(), &fleet.Label{
+	_, err = ds.NewLabel(ctx, &fleet.Label{
 		Name:        "testlabel",
 		Query:       "select 1;",
 		Platform:    "darwin",
@@ -91,19 +104,20 @@ func testStatisticsShouldSend(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 
 	// Create new app config for test
-	config, err := ds.NewAppConfig(context.Background(), &fleet.AppConfig{
+	config, err := ds.NewAppConfig(ctx, &fleet.AppConfig{
 		OrgInfo: fleet.OrgInfo{
 			OrgName:    "Test",
 			OrgLogoURL: "localhost:8080/logo.png",
 		},
 	})
+
 	require.NoError(t, err)
 	config.HostSettings.EnableSoftwareInventory = false
 	config.HostSettings.EnableHostUsers = false
 	config.VulnerabilitySettings.DatabasesPath = ""
 	config.WebhookSettings.HostStatusWebhook.Enable = true
 
-	err = ds.SaveAppConfig(context.Background(), config)
+	err = ds.SaveAppConfig(ctx, config)
 	require.NoError(t, err)
 
 	time.Sleep(1100 * time.Millisecond) // ensure the DB timestamp is not in the same second
@@ -111,7 +125,7 @@ func testStatisticsShouldSend(t *testing.T, ds *Datastore) {
 	license := &fleet.LicenseInfo{Tier: "premium"}
 
 	// First time running, we send statistics
-	stats, shouldSend, err := ds.ShouldSendStatistics(context.Background(), fleet.StatisticsFrequency, license)
+	stats, shouldSend, err := ds.ShouldSendStatistics(ctx, fleet.StatisticsFrequency, license)
 	require.NoError(t, err)
 	assert.True(t, shouldSend)
 	assert.NotEmpty(t, stats.AnonymousIdentifier)
@@ -127,21 +141,22 @@ func testStatisticsShouldSend(t *testing.T, ds *Datastore) {
 	assert.Equal(t, stats.VulnDetectionEnabled, false)
 	assert.Equal(t, stats.HostsStatusWebHookEnabled, true)
 	assert.Equal(t, stats.NumWeeklyActiveUsers, 1)
+	assert.Equal(t, string(stats.StoredErrors), `[{"count":10,"loc":["a","b","c"]}]`)
 
 	firstIdentifier := stats.AnonymousIdentifier
 
-	err = ds.RecordStatisticsSent(context.Background())
+	err = ds.RecordStatisticsSent(ctx)
 	require.NoError(t, err)
 
 	// If we try right away, it shouldn't ask to send
-	stats, shouldSend, err = ds.ShouldSendStatistics(context.Background(), fleet.StatisticsFrequency, license)
+	stats, shouldSend, err = ds.ShouldSendStatistics(ctx, fleet.StatisticsFrequency, license)
 	require.NoError(t, err)
 	assert.False(t, shouldSend)
 
 	time.Sleep(1100 * time.Millisecond) // ensure the DB timestamp is not in the same second
 
 	// create a few more hosts, with platforms and os versions
-	_, err = ds.NewHost(context.Background(), &fleet.Host{
+	_, err = ds.NewHost(ctx, &fleet.Host{
 		DetailUpdatedAt: time.Now(),
 		LabelUpdatedAt:  time.Now(),
 		PolicyUpdatedAt: time.Now(),
@@ -157,7 +172,7 @@ func testStatisticsShouldSend(t *testing.T, ds *Datastore) {
 	})
 	require.NoError(t, err)
 
-	_, err = ds.NewHost(context.Background(), &fleet.Host{
+	_, err = ds.NewHost(ctx, &fleet.Host{
 		DetailUpdatedAt: time.Now(),
 		LabelUpdatedAt:  time.Now(),
 		PolicyUpdatedAt: time.Now(),
@@ -173,7 +188,7 @@ func testStatisticsShouldSend(t *testing.T, ds *Datastore) {
 	})
 	require.NoError(t, err)
 
-	_, err = ds.NewHost(context.Background(), &fleet.Host{
+	_, err = ds.NewHost(ctx, &fleet.Host{
 		DetailUpdatedAt: time.Now(),
 		LabelUpdatedAt:  time.Now(),
 		PolicyUpdatedAt: time.Now(),
@@ -189,7 +204,7 @@ func testStatisticsShouldSend(t *testing.T, ds *Datastore) {
 	})
 	require.NoError(t, err)
 
-	_, err = ds.NewHost(context.Background(), &fleet.Host{
+	_, err = ds.NewHost(ctx, &fleet.Host{
 		DetailUpdatedAt: time.Now(),
 		LabelUpdatedAt:  time.Now(),
 		PolicyUpdatedAt: time.Now(),
@@ -206,7 +221,7 @@ func testStatisticsShouldSend(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 
 	// Lower the frequency to trigger an "outdated" sent
-	stats, shouldSend, err = ds.ShouldSendStatistics(context.Background(), time.Millisecond, license)
+	stats, shouldSend, err = ds.ShouldSendStatistics(ctx, time.Millisecond, license)
 	require.NoError(t, err)
 	assert.True(t, shouldSend)
 	assert.Equal(t, firstIdentifier, stats.AnonymousIdentifier)
@@ -224,23 +239,25 @@ func testStatisticsShouldSend(t *testing.T, ds *Datastore) {
 	require.ElementsMatch(t, []fleet.HostsCountByOSVersion{
 		{Version: "", NumEnrolled: 1},
 	}, stats.HostsEnrolledByOperatingSystem[""])
+	assert.Equal(t, string(stats.StoredErrors), `[{"count":10,"loc":["a","b","c"]}]`)
 
 	// Create multiple new sessions for a single user
-	_, err = ds.NewSession(context.Background(), u1.ID, "session_key2")
+	_, err = ds.NewSession(ctx, u1.ID, "session_key2")
 	require.NoError(t, err)
-	_, err = ds.NewSession(context.Background(), u1.ID, "session_key3")
+	_, err = ds.NewSession(ctx, u1.ID, "session_key3")
 	require.NoError(t, err)
-	_, err = ds.NewSession(context.Background(), u1.ID, "session_key4")
+	_, err = ds.NewSession(ctx, u1.ID, "session_key4")
 	require.NoError(t, err)
 
 	// wait a bit and resend statistics
 	time.Sleep(1100 * time.Millisecond) // ensure the DB timestamp is not in the same second
 
-	stats, shouldSend, err = ds.ShouldSendStatistics(context.Background(), time.Millisecond, license)
+	stats, shouldSend, err = ds.ShouldSendStatistics(ctx, time.Millisecond, license)
 	require.NoError(t, err)
 	assert.True(t, shouldSend)
 	assert.Equal(t, firstIdentifier, stats.AnonymousIdentifier)
 	assert.Equal(t, stats.NumHostsEnrolled, 5)
 	assert.Equal(t, stats.NumUsers, 2)
 	assert.Equal(t, stats.NumWeeklyActiveUsers, 1)
+	assert.Equal(t, string(stats.StoredErrors), `[{"count":10,"loc":["a","b","c"]}]`)
 }

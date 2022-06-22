@@ -44,8 +44,15 @@ type fleetErrorJSON struct {
 	Stack   []string        `json:"stack,omitempty"`
 }
 
+// FleetErrorChainJSON is the JSON representation of a whole error chain
+// json-encoded
+type FleetErrorChainJSON struct {
+	Cause fleetErrorJSON   `json:"cause"`
+	Wraps []fleetErrorJSON `json:"wraps,omitempty"`
+}
+
 // Error implements the error interface.
-func (e *FleetError) Error() string {
+func (e FleetError) Error() string {
 	if e.cause == nil {
 		return e.msg
 	}
@@ -57,14 +64,18 @@ func (e *FleetError) Unwrap() error {
 	return e.cause
 }
 
-// MarshalJSON implements the marshaller interface, giving us control on how
-// errors are json-encoded
-func (e *FleetError) MarshalJSON() ([]byte, error) {
-	return json.Marshal(fleetErrorJSON{
+func (e *FleetError) toErrorJSON() fleetErrorJSON {
+	return fleetErrorJSON{
 		Message: e.msg,
 		Data:    e.data,
 		Stack:   e.stack.List(),
-	})
+	}
+}
+
+// MarshalJSON implements the marshaller interface, giving us control on how
+// errors are json-encoded
+func (e *FleetError) MarshalJSON() ([]byte, error) {
+	return json.Marshal(e.toErrorJSON())
 }
 
 // Stack returns a call stack for the error
@@ -209,14 +220,14 @@ func Unwrap(err error) error {
 
 // MarshalJSON provides a JSON representation of a whole error chain.
 func MarshalJSON(err error) ([]byte, error) {
-	chain := make([]interface{}, 0)
+	chain := make([]fleetErrorJSON, 0)
 
 	for err != nil {
 		switch v := err.(type) {
-		case json.Marshaler:
-			chain = append(chain, v)
+		case *FleetError:
+			chain = append(chain, v.toErrorJSON())
 		default:
-			chain = append(chain, map[string]interface{}{"message": err.Error()})
+			chain = append(chain, fleetErrorJSON{Message: v.Error()})
 		}
 
 		err = Unwrap(err)
@@ -228,17 +239,22 @@ func MarshalJSON(err error) ([]byte, error) {
 		chain[i], chain[opp] = chain[opp], chain[i]
 	}
 
-	return json.MarshalIndent(struct {
-		Cause interface{}   `json:"cause"`
-		Wraps []interface{} `json:"wraps,omitempty"`
-	}{
+	return json.MarshalIndent(FleetErrorChainJSON{
 		Cause: chain[0],
 		Wraps: chain[1:],
 	}, "", "  ")
 }
 
+// StoredError represents the structure we use to de-serialize errors and
+// counts stored in Redis
+type StoredError struct {
+	Count int             `json:"count"`
+	Error json.RawMessage `json:"error"`
+}
+
 type handler interface {
 	Store(error)
+	Retrieve(flush bool) ([]*StoredError, error)
 }
 
 // NewContext returns a context derived from ctx that contains the provided
@@ -265,4 +281,31 @@ func Handle(ctx context.Context, err error) {
 	if eh := fromContext(ctx); eh != nil {
 		eh.Store(err)
 	}
+}
+
+// Retrieve retrieves an error from the registered error handler
+func Retrieve(ctx context.Context) ([]*StoredError, error) {
+	eh := fromContext(ctx)
+	if eh == nil {
+		return nil, New(ctx, "missing handler in context")
+	}
+	return eh.Retrieve(false)
+}
+
+// MockHandler is a mock implementation of an error handler that allows to test
+// ctxerr features that retrieve and store information in Redis without a
+// server running.
+// Ideally this should live in errorstore/errors, but that creates a circular
+// dependency.
+type MockHandler struct {
+	StoreImpl    func(err error)
+	RetrieveImpl func(flush bool) ([]*StoredError, error)
+}
+
+func (h MockHandler) Store(err error) {
+	h.StoreImpl(err)
+}
+
+func (h MockHandler) Retrieve(flush bool) ([]*StoredError, error) {
+	return h.RetrieveImpl(flush)
 }

@@ -24,11 +24,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-type mockHandler struct{}
-
-func (h mockHandler) Store(err error) {}
-
-var eh = mockHandler{}
+var eh = ctxerr.MockHandler{}
 var ctxb = context.Background()
 var ctx = ctxerr.NewContext(ctxb, eh)
 
@@ -378,14 +374,7 @@ func TestHttpHandler(t *testing.T) {
 
 	type errResp struct {
 		Count int
-		Error struct {
-			Cause struct {
-				Message string
-			}
-			Wrap []struct {
-				Message string
-			}
-		}
+		Error ctxerr.FleetErrorChainJSON
 	}
 
 	var errs []errResp

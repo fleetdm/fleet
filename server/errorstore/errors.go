@@ -43,13 +43,6 @@ type Handler struct {
 	testOnStart func()      // if set, called once the handler is running
 }
 
-// storedError represents the structure we use to de-serialize errors and
-// counts stored in Redis
-type storedError struct {
-	Count int             `json:"count"`
-	Error json.RawMessage `json:"error"`
-}
-
 // NewHandler creates an error handler using the provided pool and logger,
 // storing unique instances of errors in Redis using the pool. It stops storing
 // errors when ctx is cancelled. Errors are kept for the duration of ttl.
@@ -94,7 +87,7 @@ func runHandler(ctx context.Context, eh *Handler) {
 //
 // If flush is `true`, performs a destructive read - the errors are removed
 // from Redis on return.
-func (h *Handler) Retrieve(flush bool) ([]*storedError, error) {
+func (h *Handler) Retrieve(flush bool) ([]*ctxerr.StoredError, error) {
 	// scanning only the error:*:json keys as json and count are both tagged keys
 	// and should hash to the same Redis slot
 	errorKeys, err := redis.ScanKeys(h.pool, "error:*:json", 100)
@@ -114,7 +107,7 @@ func (h *Handler) Retrieve(flush bool) ([]*storedError, error) {
 		}
 	}
 
-	errorList := make([]*storedError, 0, len(rawErrs))
+	errorList := make([]*ctxerr.StoredError, 0, len(rawErrs))
 	if err := redigo.ScanSlice(rawErrs, &errorList); err != nil {
 		return nil, err
 	}
