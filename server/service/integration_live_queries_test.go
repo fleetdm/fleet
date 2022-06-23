@@ -35,6 +35,12 @@ type liveQueriesTestSuite struct {
 	hosts []*fleet.Host
 }
 
+// SetupTest partially implements suite.SetupTestSuite.
+func (s *liveQueriesTestSuite) SetupTest() {
+	s.lq.Mock.Test(s.T())
+}
+
+// SetupSuite partially implements suite.SetupAllSuite.
 func (s *liveQueriesTestSuite) SetupSuite() {
 	require.NoError(s.T(), os.Setenv("FLEET_LIVE_QUERY_REST_PERIOD", "5s"))
 
@@ -66,6 +72,7 @@ func (s *liveQueriesTestSuite) SetupSuite() {
 	}
 }
 
+// TearDownTest partially implements suite.TearDownTestSuite.
 func (s *liveQueriesTestSuite) TearDownTest() {
 	// reset the mock
 	s.lq.Mock = mock.Mock{}
