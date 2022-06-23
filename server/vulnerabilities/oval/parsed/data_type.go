@@ -46,3 +46,32 @@ func NewDataType(val string) DataType {
 		return String
 	}
 }
+
+func (dt DataType) String() string {
+	switch dt {
+	case Binary:
+		return "binary"
+	case Boolean:
+		return "boolean"
+	case EvrString:
+		return "evr_string"
+	case FilesetRevision:
+		return "fileset_revision"
+	case Float:
+		return "float"
+	case IosVersion:
+		return "ios_version"
+	case Int:
+		return "int"
+	case Ipv4Address:
+		return "ipv4_address"
+	case Ipv6Address:
+		return "ipv6_address"
+	case String:
+		return "string"
+	case Version:
+		return "version"
+	default:
+		return "string"
+	}
+}

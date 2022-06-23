@@ -1,6 +1,10 @@
 package oval_parsed
 
-import "github.com/fleetdm/fleet/v4/server/fleet"
+import (
+	"fmt"
+
+	"github.com/fleetdm/fleet/v4/server/fleet"
+)
 
 // Criteria is used to express an arbitrary logic tree.
 // Each node in the tree references a particular test.
@@ -19,12 +23,19 @@ type Definition struct {
 }
 
 // Eval evaluates the given definition using the provided test results.
-func (r Definition) Eval(testResults map[int][]fleet.Software) bool {
-	if r.Criteria == nil || len(testResults) == 0 {
+// Tests results can come from two sources:
+// - OSTstResults: Test results from making assertions against the installed OS Version
+// - pkTstResults: Tests results from making assertions against the installed software packages.
+func (r Definition) Eval(OSTstResults map[int]bool, pkgTstResults map[int][]fleet.Software) bool {
+	if r.Criteria == nil || (len(OSTstResults) == 0 && len(pkgTstResults) == 0) {
 		return false
 	}
 
-	return evalCriteria(r.Criteria, testResults)
+	rEval, err := evalCriteria(r.Criteria, OSTstResults, pkgTstResults)
+	if err != nil {
+		return false
+	}
+	return rEval
 }
 
 func (r Definition) CollectTestIds() []int {
@@ -45,19 +56,35 @@ func (r Definition) CollectTestIds() []int {
 	return results
 }
 
-func evalCriteria(c *Criteria, testResults map[int][]fleet.Software) bool {
+func evalCriteria(c *Criteria, OSTstResults map[int]bool, pkgTstResults map[int][]fleet.Software) (bool, error) {
 	var vals []bool
 	var result bool
 
 	for _, co := range c.Criteriums {
-		r := len(testResults[co]) > 0
-		vals = append(vals, r)
+		pkgTstR, pkgOk := pkgTstResults[co]
+		if pkgOk {
+			vals = append(vals, len(pkgTstR) > 0)
+		}
+
+		OSTstR, OSTstOk := OSTstResults[co]
+		if OSTstOk {
+			vals = append(vals, OSTstR)
+		}
+
+		if !pkgOk && !OSTstOk {
+			return false, fmt.Errorf("test not found: %d", co)
+		}
 	}
+
 	result = c.Operator.Eval(vals...)
 
 	for _, ci := range c.Criterias {
-		return c.Operator.Eval(result, evalCriteria(ci, testResults))
+		rEval, err := evalCriteria(ci, OSTstResults, pkgTstResults)
+		if err != nil {
+			return false, err
+		}
+		result = c.Operator.Eval(result, rEval)
 	}
 
-	return result
+	return result, nil
 }

@@ -50,10 +50,29 @@ func (op OperatorType) Negate(neg string) OperatorType {
 	return op
 }
 
+func (op OperatorType) identity() bool {
+	switch op {
+	case And:
+		return true
+	case NotAnd:
+		return false
+	case Or:
+		return false
+	case NotOr:
+		return true
+	case Xor:
+		return false
+	case NotXor:
+		return true
+	default:
+		return true
+	}
+}
+
 // Eval evaluates one or more boolean values according to the truth table of the given operator.
 func (op OperatorType) Eval(vals ...bool) bool {
 	if len(vals) == 0 {
-		return false
+		return op.identity()
 	}
 
 	if op == One || op == NotOne {
@@ -90,4 +109,19 @@ func (op OperatorType) Eval(vals ...bool) bool {
 	}
 
 	return r
+}
+
+func (op OperatorType) String() string {
+	switch op {
+	case And:
+		return "AND"
+	case One:
+		return "ONE"
+	case Or:
+		return "OR"
+	case Xor:
+		return "XOR"
+	default:
+		return "AND"
+	}
 }
