@@ -3,7 +3,7 @@ version: "2"
 services:
   # To test with MariaDB, set FLEET_MYSQL_IMAGE to mariadb:10.6 or the like.
   mysql:
-    image: ${FLEET_MYSQL_IMAGE:-mysql:5.7.21}
+    image: ${FLEET_MYSQL_IMAGE:-mysql:5.7}
     platform: linux/x86_64
     volumes:
       - mysql-persistent-volume:/tmp
@@ -25,7 +25,7 @@ services:
       - "3306:3306"
 
   mysql_test:
-    image: ${FLEET_MYSQL_IMAGE:-mysql:5.7.21}
+    image: ${FLEET_MYSQL_IMAGE:-mysql:5.7}
     platform: linux/x86_64
     # innodb-file-per-table=OFF gives ~20% speedup for test runs.
     command: [
