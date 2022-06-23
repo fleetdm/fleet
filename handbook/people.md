@@ -80,8 +80,8 @@ When attending a conference for Fleet, please make a post in [g-digital-experien
 - The price of your hotel per night.
 - The price of the admission fees for the conference.
 
-The monthly limit on your Brex card will be increased temporarily as necessary to accomodate the increased spending associated with the conference.
-It is highly recommended that you order a physical Brex card if you do not have one before attending the conference.
+The monthly limit on your Brex card will be increased temporarily as necessary to accommodate the increased spending associated with the conference.
+We highly recommend you order a physical Brex card if you do not have one before attending the conference.
 
 ## Paid time off
 
