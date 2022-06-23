@@ -43,19 +43,19 @@ Writing policies from scratch can seem daunting. Many compliance automation prod
 
 As you can see, our policies are in our [handbook](https://fleetdm.com/handbook/security-policies#information-security-policy-and-acceptable-use-policy), and we created most of them using this [free set of templates](https://github.com/JupiterOne/security-policy-templates) published by JupiterOne under Creative Commons licensing.
 
-We kept our policies as basic as possible to ensure everything in them is valuable and achievable. Having policies that state you must do the impossible is a surefire way of getting in trouble! The templates we used contained many processes and procedures as well. We used the policies and will eventually document more of our procedures in our handbook.
+We kept our policies as basic as possible to make sure everything in them is valuable and achievable. Having policies that state you must do the impossible is a surefire way of getting in trouble! The templates we used contained many processes and procedures as well. We used the policies and will eventually document more of our procedures in our handbook.
 
 ## Scope
 
-Auditors need a description of the system they are auditing. While a lot of SOC 2 applies to the entire company, such as policies and human resource processes, the more technical aspects of SOC 2 should be applied where it makes sense.
+Auditors need a description of the system they are auditing. While a lot of SOC 2 applies to the entire company, such as policies and human resource processes, the more technical aspects of SOC 2 should be used where it makes sense.
 
-Fleet is a self-hosted application we distribute. We also make Orbit, which is an osquery runtime and autoupdater. We host automatic updates for people using Orbit. While this system is simple at a technical level, it is also critical from a security point of view. That's why we picked it as the system we wanted to get a SOC 2 report for. 
+Fleet is a self-hosted application we distribute. We also make Orbit, which is an osquery runtime and autoupdater. We host automatic updates for people using Orbit. While this system is simple at a technical level, it is also critical from a security point of view. That's why we picked it as the system for which we wanted to get a SOC 2 report. 
 
 Why is the hosted Fleet automatic update service critical? As it delivers files, an attacker could leverage it to deliver malware to Orbit users. That is something we work hard to prevent and will continuously improve. You can read more about how we handle updates with [The Update Framework](https://fleetdm.com/docs/deploying/fleetctl-agent-updates#securing-updates) in the [Fleet documentation](https://fleetdm.com/docs/deploying/fleetctl-agent-updates#securing-updates).
 
 After picking this system to be audited, it became evident that critical tools such as GitHub, where our code (and much more) is stored, reviewed, and built, would need to be well secured. Thankfully, we had done much of the security work before SOC 2. This allowed us to focus on documentation and policies.
 
-If you want to get your own SOC 2 report, ensure you get it for the systems where your customers are most concerned about security. That way, the information in the report is relevant to their vendor management needs. Requesting a compliance report from a vendor and receiving one with a scope utterly unrelated to what you use is a waste of time!
+If you want to get your own SOC 2 report, make sure you get it for the systems where your customers are most concerned about security. That way, the information in the report is relevant to their vendor management needs. Requesting a compliance report from a vendor and receiving one with a scope utterly unrelated to what you use is a waste of time!
 
 ## Tools
 
@@ -70,7 +70,7 @@ We picked Vanta because it had integrations for the most critical systems we nee
 * Google Workspace
 * Background check providers
 
-Vanta also has an [API](https://developer.vanta.com/recipes) which we might use in the future to automate more evidence collection and tracking of the status of controls.
+Vanta also has an [API](https://developer.vanta.com/recipes), which we might use in the future to automate more evidence collection and tracking of the status of controls.
 
 If you're working on getting a SOC 2 report for your organization, compare different vendors and see which one integrates with the most tools you currently have and has the flexibility for more integrations in the future.
 
@@ -78,7 +78,7 @@ If you're working on getting a SOC 2 report for your organization, compare diffe
 
 In terms of controls, Vanta (and similar tools) come with a list of controls that it expects. They range from technical controls that can be checked automatically to policy, documentation, and controls for which no automation is available. These controls are derived from the SOC 2 criteria and are a good starting set, which we slightly customized to apply to our environment better.
 
-By integrating GitHub, AWS, our background check provider, and our Google Workspace environment, the system automatically gathered evidence for multiple controls. Here's a list of example controls that can be detected as met automatically, with evidence gathered by the system:
+By integrating GitHub, AWS, our background check provider, and our Google Workspace environment, the system automatically collected evidence for multiple controls. Here's a list of example controls that can be detected as met automatically, with evidence gathered by the system:
 
 * Employee background checks performed (where we require it)
 * Unique account authentication enforced
@@ -100,9 +100,9 @@ Vanta performs many automated checks, which we ensured were passing. For example
 
 By being well prepared, you can make sure the audit will be smooth. Suppose auditors can understand the system and your controls easily, and you have prepared most of the evidence in advance. When that is the case, it allows focusing on the more complicated aspects of the report. 
 
-Our audit has been completed and our report is currently a draft, to be finalized by July 1st, at the latest. 
+Our audit has been completed, and our report is currently a draft, to be finalized by July 1st at the latest. 
 
-Our total SOC 2 journey took about 2 months from when we started writing policies and ensuring we had controls for every trust criteria to when we received the draft report.
+Our total SOC 2 journey took about two months, from when we started writing policies and ensuring we had controls for every trust criteria to when we received the draft report.
 
 If you would like to discuss compliance, security, how Fleet can help you achieve SOC 2, or how we implemented specific controls, be sure to join the [#Fleet channel](http://fleetdm.com/slack) on the osquery Slack and ask away!
 
