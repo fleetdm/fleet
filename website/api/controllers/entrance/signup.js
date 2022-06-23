@@ -37,6 +37,8 @@ the account verification message.)`,
 
     organization: {
       required: true,
+      // required: false, //« Change organization to be required: false.
+      // defaultsTo: 'N/A', //« Add a default value, using 'N/A' as a default because this is required on the user model.
       type: 'string',
       maxLength: 120,
       example: 'The Sails company',
@@ -56,6 +58,13 @@ the account verification message.)`,
       example: 'Rivera',
       description: 'The user\'s last name.',
     }
+
+    // Add sandboxExpiration as an optional input
+    // sandboxExpiration: {
+    //   required: false,
+    //   type: 'string',
+    //   description: 'An ISO 8601 timestamp of when this user\'s Fleet sandbox will expire'
+    // },
 
   },
 
@@ -78,12 +87,18 @@ the account verification message.)`,
       description: 'The provided email address is already in use.',
     },
 
+
   },
 
-
+  // Add sandboxExpiration to inputs
+  // fn: async function ({emailAddress, password, firstName, lastName, organization, sandboxExpiration}) {
   fn: async function ({emailAddress, password, firstName, lastName, organization}) {
 
     var newEmailAddress = emailAddress.toLowerCase();
+
+    // If a sandboxExpiration was provided, this is a fleet sandbox user.
+    // let isSandboxUser = !! sandboxExpiration;
+
 
     // Build up data for the new user record and save it to the database.
     // (Also use `fetch` to retrieve the new ID so that we can use it below.)
@@ -114,6 +129,11 @@ the account verification message.)`,
         stripeCustomerId
       });
     }
+
+    // // if this is a fleet sandbox user, we'll call the provision-fleet-sandbox helper
+    // if(isSandboxUser) {
+        // await sails.helpers.provisionFleetSandbox.with({userId: newUserRecord.id, sandboxExpirationTimestamp: sandboxExpiration})
+    // }
 
     // Store the user's new id in their session.
     this.req.session.userId = newUserRecord.id;

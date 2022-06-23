@@ -171,6 +171,18 @@ without necessarily having a billing card.`
       example: 1502844074211
     },
 
+    // Add two new attributes to the User model
+    // fleetSandboxURL: {
+    //   type: 'string',
+    //   description: 'The url of the Fleet sandbox instance that was provisioned for this user',
+    //   example: 'billybobcat.sandbox.fleetdm.com',
+    // },
+    // fleetSandboxExpiresAt: {
+    //   type: 'string', // TODO: can probably be stored as a JS Timestamp
+    //   description: 'An ISO 8601 timestamp representing when this user`s fleet sandbox instance will expire',
+    //   example: '0001-01-01T00:00:00Z',
+    // }
+
     //  ╔═╗╔╦╗╔╗ ╔═╗╔╦╗╔═╗
     //  ║╣ ║║║╠╩╗║╣  ║║╚═╗
     //  ╚═╝╩ ╩╚═╝╚═╝═╩╝╚═╝
