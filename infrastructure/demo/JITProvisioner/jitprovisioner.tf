@@ -58,6 +58,34 @@ resource "aws_iam_role_policy_attachment" "jitprovisioner-vpc" {
   policy_arn = "arn:aws:iam::aws:policy/service-role/AWSLambdaVPCAccessExecutionRole"
 }
 
+resource "aws_iam_policy" "jitprovisioner" {
+  name   = "${var.prefix}-jitprovisioner"
+  policy = data.aws_iam_policy_document.jitprovisioner.json
+}
+
+data "aws_iam_policy_document" "jitprovisioner" {
+  statement {
+    actions = [
+      "dynamodb:BatchGetItem",
+      "dynamodb:BatchWriteItem",
+      "dynamodb:ConditionCheckItem",
+      "dynamodb:PutItem",
+      "dynamodb:DescribeTable",
+      "dynamodb:DeleteItem",
+      "dynamodb:GetItem",
+      "dynamodb:Scan",
+      "dynamodb:Query",
+      "dynamodb:UpdateItem",
+    ]
+    resources = [var.dynamodb_table.arn, "${var.dynamodb_table.arn}/*"]
+  }
+}
+
+resource "aws_iam_role_policy_attachment" "jitprovisioner" {
+  role       = aws_iam_role.jitprovisioner.name
+  policy_arn = aws_iam_policy.jitprovisioner.arn
+}
+
 resource "aws_lambda_function" "jitprovisioner" {
   # If the file is not in the current working directory you will need to include a
   # path.module in the filename.
@@ -109,4 +137,11 @@ resource "docker_registry_image" "jitprovisioner" {
 resource "aws_security_group" "jitprovisioner" {
   name   = "${var.prefix}-lambda"
   vpc_id = var.vpc.vpc_id
+  egress {
+    from_port        = 0
+    to_port          = 0
+    protocol         = "-1"
+    cidr_blocks      = ["0.0.0.0/0"]
+    ipv6_cidr_blocks = ["::/0"]
+  }
 }

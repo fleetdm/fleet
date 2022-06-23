@@ -40,6 +40,10 @@ terraform {
   }
 }
 
+data "aws_iam_role" "admin" {
+  name = "admin"
+}
+
 module "aws-eks-accelerator-for-terraform" {
   source       = "github.com/aws-samples/aws-eks-accelerator-for-terraform.git"
   cluster_name = var.prefix
@@ -60,11 +64,15 @@ module "aws-eks-accelerator-for-terraform" {
     }
   }
 
-  map_roles = [for i in var.eks_allowed_roles : {
+  map_roles = concat([for i in var.eks_allowed_roles : {
     rolearn  = i.arn
     username = i.id
     groups   = ["system:masters"]
-  }]
+    }], [{
+    rolearn  = data.aws_iam_role.admin.arn
+    username = data.aws_iam_role.admin.id
+    groups   = ["system:masters"]
+  }])
 }
 
 data "aws_eks_cluster" "cluster" {
@@ -91,12 +99,12 @@ module "kubernetes-addons" {
   enable_amazon_eks_aws_ebs_csi_driver = true
 
   #K8s Add-ons
-  enable_aws_load_balancer_controller = true
+  enable_aws_load_balancer_controller = false
   enable_metrics_server               = false
   enable_cluster_autoscaler           = true
   enable_vpa                          = true
   enable_prometheus                   = false
-  enable_ingress_nginx                = false
+  enable_ingress_nginx                = true
   enable_aws_for_fluentbit            = false
   enable_argocd                       = false
   enable_fargate_fluentbit            = false

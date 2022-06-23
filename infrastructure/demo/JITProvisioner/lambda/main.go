@@ -40,6 +40,7 @@ type LifecycleRecord struct {
 }
 
 func claimFleet(fleet LifecycleRecord, svc *dynamodb.DynamoDB) (err error) {
+    log.Printf("Claiming instance: %+v", fleet)
 	// Perform a conditional update to claim the item
 	input := &dynamodb.UpdateItemInput{
 		ConditionExpression: aws.String("State = unclaimed"),
@@ -49,12 +50,13 @@ func claimFleet(fleet LifecycleRecord, svc *dynamodb.DynamoDB) (err error) {
 				S: aws.String(fleet.ID),
 			},
 		},
-		UpdateExpression: aws.String("set State = :s"),
+		UpdateExpression: aws.String("set #fleet_state = :s"),
 		ExpressionAttributeValues: map[string]*dynamodb.AttributeValue{
 			":S": {
 				S: aws.String(fleet.ID),
 			},
 		},
+        ExpressionAttributeNames: map[string]*string {"#fleet_state": aws.String("State")},
 	}
 	if _, err = svc.UpdateItem(input); err != nil {
 		return
@@ -63,6 +65,7 @@ func claimFleet(fleet LifecycleRecord, svc *dynamodb.DynamoDB) (err error) {
 }
 
 func getFleetInstance() (ret LifecycleRecord, err error) {
+    log.Print("Getting fleet instance")
 	svc := dynamodb.New(session.New())
 	// Loop until we get one
 	for {
@@ -93,6 +96,7 @@ func getFleetInstance() (ret LifecycleRecord, err error) {
 }
 
 func triggerSFN(id string) (err error) {
+    log.Print("Triggering state machine")
 	sfnInStr, err := json.Marshal(struct {
 		Id string
 	}{
@@ -122,8 +126,8 @@ func Health(c *gin.Context, in *HealthInput) (ret *HealthOutput, err error) {
 }
 
 type NewFleetInput struct {
-	Email    string `validate:"required"`
-	Password string `validate:"required"`
+    Email    string `json:"email" validate:"required,email"`
+    Password string `json:"password" validate:"required"`
 }
 type NewFleetOutput struct {
 	URL string
@@ -139,6 +143,7 @@ func NewFleet(c *gin.Context, in *NewFleetInput) (ret *NewFleetOutput, err error
 	if err != nil {
 		return
 	}
+	log.Print("Creating admin user")
 	client.Setup(in.Email, in.Email, in.Password, fleet.ID)
 	triggerSFN(fleet.ID)
 	return
