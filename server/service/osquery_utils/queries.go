@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net"
 	"os"
+	"regexp"
 	"strconv"
 	"strings"
 	"time"
@@ -129,7 +130,17 @@ var hostDetailQueries = map[string]DetailQuery{
 				return nil
 			}
 
-			if rows[0]["major"] != "0" || rows[0]["minor"] != "0" || rows[0]["patch"] != "0" {
+			if rows[0]["name"] == "Ubuntu" {
+				// Ubuntu takes a different approach to updating patch IDs so we instead use
+				// the version string provided after removing the code name
+				regx := regexp.MustCompile(`\(.*\)`)
+				vers := regx.ReplaceAllString(rows[0]["version"], "")
+				host.OSVersion = fmt.Sprintf(
+					"%s %s",
+					rows[0]["name"],
+					strings.TrimSpace(vers),
+				)
+			} else if rows[0]["major"] != "0" || rows[0]["minor"] != "0" || rows[0]["patch"] != "0" {
 				host.OSVersion = fmt.Sprintf(
 					"%s %s.%s.%s",
 					rows[0]["name"],
