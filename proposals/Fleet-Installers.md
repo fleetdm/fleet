@@ -70,7 +70,14 @@ There are two reasons we want to expire generated packages soon:
 
 We can use "Storage Optimized" instances (see https://aws.amazon.com/ec2/instance-types/).
 
-PS: As a possible future optimization, we could use "Memory Optimized" instances and store packages in RAM instead of using hard disk.
+#### Notes
+
+- As a possible future optimization, we could use "Memory Optimized" instances and store packages in RAM instead of using hard disk.
+- S3 could also be used to store such packages, but disk storage is needed to generate the packages in the first place. 
+So hard-disk will be a dependency anyways (and ideally we would like these packages with sensitive credentials to be stored in one location).
+- From Roberto: "sounds like the main bottleneck here will be transferring the data over the network to the user doing the request.".
+In other words, we should apply all optimizations on the network (like caching, reducing package size, etc.), that will be our main bottleneck
+(not CPU or hard-disk access).
 
 #### Back of the Envelope
 
@@ -161,12 +168,12 @@ This endpoint should be rate-limited by `package_id`.
 
 ##### Response Fields
 
-| Name              | Type    | In   | Description                                                              |
-| ----------------- | ------- | ---- | ------------------------------------------------------------------------ |
-| status            | string  | body | One of the following values "success", "fail", "in-progress", "expired"  |
-| download_url      | string  | body | Set to the download URL if status field is "success"                     |
-| progress          | string  | body | Set to the progress (0-99) if status field is "in-progress"              |
-| logs              | string  | body | Contains logs if status is "failed"                                      |
+| Name              | Type    | In   | Description                                                                  |
+| ----------------- | ------- | ---- | ---------------------------------------------------------------------------- |
+| status            | string  | body | One of the following values "success", "fail", "in-progress", "expired"      |
+| download_url      | string  | body | Set to the download URL if status field is "success"                         |
+| stage             | string  | body | Set to a "stage" string if status field is "in-progress" (e.g. "notarizing") |
+| logs              | string  | body | Contains logs if status is "failed"                                          |
 
 #### 3. Package Download
 
