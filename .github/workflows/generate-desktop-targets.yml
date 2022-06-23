@@ -61,7 +61,7 @@ jobs:
           make desktop-app-tar-gz
 
       - name: Upload desktop.app.tar.gz
-        uses: actions/upload-artifact@6673cd052c4cd6fcf4b4e6e60ea986c889389535 # v2
+        uses: actions/upload-artifact@3cea5372237819ed00197afe530f5a7ea3e805c8 # v2
         with:
           name: desktop.app.tar.gz
           path: desktop.app.tar.gz
@@ -84,7 +84,7 @@ jobs:
           make desktop-windows
 
       - name: Upload fleet-desktop.exe
-        uses: actions/upload-artifact@6673cd052c4cd6fcf4b4e6e60ea986c889389535 # v2
+        uses: actions/upload-artifact@3cea5372237819ed00197afe530f5a7ea3e805c8 # v2
         with:
           name: fleet-desktop.exe
           path: fleet-desktop.exe
@@ -107,7 +107,7 @@ jobs:
           make desktop-linux
 
       - name: Upload desktop.tar.gz
-        uses: actions/upload-artifact@6673cd052c4cd6fcf4b4e6e60ea986c889389535 # v2
+        uses: actions/upload-artifact@3cea5372237819ed00197afe530f5a7ea3e805c8 # v2
         with:
           name: desktop.tar.gz
           path: desktop.tar.gz
