@@ -475,7 +475,7 @@ Weekly, Charlie looks in the [Fleeties spreadsheet](https://docs.google.com/spre
 
 ### Payroll
 
-Many of these processes are automated but it's important that we check Gusto and Pilot manually for accuracy.
+Many of these processes are automated, but it's vital check Gusto and Pilot manually for accuracy.
 
 ## BizOps
 
@@ -511,7 +511,7 @@ The following table lists the People group's rituals, frequency, and Directly Re
 | Investor and Advisor updates | PRN | People Operations tracks the last contact with investors and coordinates outreach with CEO | Charlie Chance |
 | CEO inbox sweep | Daily unless OOO | Charlie does a morning sweep of the CEO's inbox to remove spam and grab action items | Charlie Chance |
 | Recruiting progress checkup | Weekly | Charlie looks in the [Fleeties spreadsheet](https://docs.google.com/spreadsheets/d/1OSLn-ZCbGSjPusHPiR5dwQhheH1K8-xqyZdsOe9y7qc/edit#gid=0) and reports on each open position | Charlie Chance |
-| Payroll | Monthly before payroll runs | Every month Charlie audits the payroll platforms for accuracy | Charlie |
+| Payroll | Monthly before payroll runs | Every month, Charlie audits the payroll platforms for accuracy | Charlie |
 
 
 ## Slack channels
