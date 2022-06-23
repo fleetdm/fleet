@@ -192,34 +192,87 @@ func assertVulns(
 }
 
 func BenchmarkTestOvalAnalyzer(b *testing.B) {
-	ds := mysql.CreateMySQLDS(b)
-	defer mysql.TruncateTables(b, ds)
+	b.Run("Ubuntu", func(b *testing.B) {
+		ds := mysql.CreateMySQLDS(b)
+		defer mysql.TruncateTables(b, ds)
 
-	vulnPath := b.TempDir()
+		vulnPath := b.TempDir()
 
-	systems := []fleet.OSVersion{
-		{Platform: "ubuntu", Name: "Ubuntu 16.4.0"},
-		{Platform: "ubuntu", Name: "Ubuntu 18.4.0"},
-		{Platform: "ubuntu", Name: "Ubuntu 20.4.0"},
-		{Platform: "ubuntu", Name: "Ubuntu 21.4.0"},
-		{Platform: "ubuntu", Name: "Ubuntu 21.10.0"},
-		{Platform: "ubuntu", Name: "Ubuntu 22.4.0"},
-	}
+		systems := []fleet.OSVersion{
+			{Platform: "ubuntu", Name: "Ubuntu 16.4.0"},
+			{Platform: "ubuntu", Name: "Ubuntu 18.4.0"},
+			{Platform: "ubuntu", Name: "Ubuntu 20.4.0"},
+			{Platform: "ubuntu", Name: "Ubuntu 21.4.0"},
+			{Platform: "ubuntu", Name: "Ubuntu 21.10.0"},
+			{Platform: "ubuntu", Name: "Ubuntu 22.4.0"},
+		}
 
-	ovalFixtureDir := "ubuntu"
-	softwareFixtureDir := filepath.Join("ubuntu", "software")
+		ovalFixtureDir := "ubuntu"
+		softwareFixtureDir := filepath.Join("ubuntu", "software")
 
-	for _, v := range systems {
-		b.Run(fmt.Sprintf("for %s %s", v.Platform, v.Name), func(b *testing.B) {
-			withTestFixutre(v, ovalFixtureDir, softwareFixtureDir, vulnPath, ds, func(h *fleet.Host) {
-				b.ResetTimer()
-				for i := 0; i < b.N; i++ {
-					_, err := Analyze(context.Background(), ds, v, vulnPath, true)
-					require.NoError(b, err)
-				}
-			}, b)
-		})
-	}
+		for _, v := range systems {
+			b.Run(fmt.Sprintf("for %s %s", v.Platform, v.Name), func(b *testing.B) {
+				withTestFixutre(v, ovalFixtureDir, softwareFixtureDir, vulnPath, ds, func(h *fleet.Host) {
+					b.ResetTimer()
+					for i := 0; i < b.N; i++ {
+						_, err := Analyze(context.Background(), ds, v, vulnPath, true)
+						require.NoError(b, err)
+					}
+				}, b)
+			})
+		}
+	})
+
+	b.Run("RHEL", func(b *testing.B) {
+		ds := mysql.CreateMySQLDS(b)
+		defer mysql.TruncateTables(b, ds)
+
+		vulnPath := b.TempDir()
+
+		systems := []struct {
+			softwareFixtureDir string
+			ovalFixtureDir     string
+			version            fleet.OSVersion
+		}{
+			{
+				ovalFixtureDir:     "rhel",
+				softwareFixtureDir: filepath.Join("rhel", "software", "0709"),
+				version:            fleet.OSVersion{Platform: "rhel", Name: "Red Hat Enterprise Linux Server 7.9.0"},
+			},
+			{
+				ovalFixtureDir:     "rhel",
+				softwareFixtureDir: filepath.Join("rhel", "software", "0802"),
+				version:            fleet.OSVersion{Platform: "rhel", Name: "Red Hat Enterprise Linux Server 8.2.0"},
+			},
+			{
+				ovalFixtureDir:     "rhel",
+				softwareFixtureDir: filepath.Join("rhel", "software", "0804"),
+				version:            fleet.OSVersion{Platform: "rhel", Name: "Red Hat Enterprise Linux 8.4.0"},
+			},
+			{
+				ovalFixtureDir:     "rhel",
+				softwareFixtureDir: filepath.Join("rhel", "software", "0806"),
+				version:            fleet.OSVersion{Platform: "rhel", Name: "Red Hat Enterprise Linux 8.6.0"},
+			},
+			{
+				ovalFixtureDir:     "rhel",
+				softwareFixtureDir: filepath.Join("rhel", "software", "0900"),
+				version:            fleet.OSVersion{Platform: "rhel", Name: "Red Hat Enterprise Linux 9.0.0"},
+			},
+		}
+
+		for _, v := range systems {
+			b.Run(fmt.Sprintf("for %s %s", v.version.Platform, v.version.Name), func(b *testing.B) {
+				withTestFixutre(v.version, v.ovalFixtureDir, v.softwareFixtureDir, vulnPath, ds, func(h *fleet.Host) {
+					b.ResetTimer()
+					for i := 0; i < b.N; i++ {
+						_, err := Analyze(context.Background(), ds, v.version, vulnPath, true)
+						require.NoError(b, err)
+					}
+				}, b)
+			})
+		}
+	})
 }
 
 func TestOvalAnalyzer(t *testing.T) {
