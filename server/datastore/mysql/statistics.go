@@ -18,33 +18,52 @@ type statistics struct {
 }
 
 func (ds *Datastore) ShouldSendStatistics(ctx context.Context, frequency time.Duration, license *fleet.LicenseInfo) (fleet.StatisticsPayload, bool, error) {
-	amountEnrolledHosts, err := amountEnrolledHostsDB(ctx, ds.writer)
-	if err != nil {
-		return fleet.StatisticsPayload{}, false, ctxerr.Wrap(ctx, err, "amount enrolled hosts")
-	}
-	amountUsers, err := amountUsersDB(ctx, ds.writer)
-	if err != nil {
-		return fleet.StatisticsPayload{}, false, ctxerr.Wrap(ctx, err, "amount users")
-	}
-	amountTeams, err := amountTeamsDB(ctx, ds.writer)
-	if err != nil {
-		return fleet.StatisticsPayload{}, false, ctxerr.Wrap(ctx, err, "amount teams")
-	}
-	amountPolicies, err := amountPoliciesDB(ctx, ds.writer)
-	if err != nil {
-		return fleet.StatisticsPayload{}, false, ctxerr.Wrap(ctx, err, "amount policies")
-	}
-	amountLabels, err := amountLabelsDB(ctx, ds.writer)
-	if err != nil {
-		return fleet.StatisticsPayload{}, false, ctxerr.Wrap(ctx, err, "amount labels")
-	}
-	appConfig, err := ds.AppConfig(ctx)
-	if err != nil {
-		return fleet.StatisticsPayload{}, false, ctxerr.Wrap(ctx, err, "statistics app config")
+	computeStats := func(stats *fleet.StatisticsPayload, since time.Time) error {
+		enrolledHostsByOS, amountEnrolledHosts, err := amountEnrolledHostsByOSDB(ctx, ds.writer)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "amount enrolled hosts by os")
+		}
+		amountUsers, err := amountUsersDB(ctx, ds.writer)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "amount users")
+		}
+		amountTeams, err := amountTeamsDB(ctx, ds.writer)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "amount teams")
+		}
+		amountPolicies, err := amountPoliciesDB(ctx, ds.writer)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "amount policies")
+		}
+		amountLabels, err := amountLabelsDB(ctx, ds.writer)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "amount labels")
+		}
+		appConfig, err := ds.AppConfig(ctx)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "statistics app config")
+		}
+		amountWeeklyUsers, err := amountActiveUsersSinceDB(ctx, ds.writer, since)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "amount active users")
+		}
+
+		stats.NumHostsEnrolled = amountEnrolledHosts
+		stats.NumUsers = amountUsers
+		stats.NumTeams = amountTeams
+		stats.NumPolicies = amountPolicies
+		stats.NumLabels = amountLabels
+		stats.SoftwareInventoryEnabled = appConfig.HostSettings.EnableSoftwareInventory
+		stats.VulnDetectionEnabled = appConfig.VulnerabilitySettings.DatabasesPath != ""
+		stats.SystemUsersEnabled = appConfig.HostSettings.EnableHostUsers
+		stats.HostsStatusWebHookEnabled = appConfig.WebhookSettings.HostStatusWebhook.Enable
+		stats.NumWeeklyActiveUsers = amountWeeklyUsers
+		stats.HostsEnrolledByOperatingSystem = enrolledHostsByOS
+		return nil
 	}
 
 	dest := statistics{}
-	err = sqlx.GetContext(ctx, ds.writer, &dest, `SELECT created_at, updated_at, anonymous_identifier FROM statistics LIMIT 1`)
+	err := sqlx.GetContext(ctx, ds.writer, &dest, `SELECT created_at, updated_at, anonymous_identifier FROM statistics LIMIT 1`)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			anonIdentifier, err := server.GenerateRandomText(64)
@@ -55,23 +74,22 @@ func (ds *Datastore) ShouldSendStatistics(ctx context.Context, frequency time.Du
 			if err != nil {
 				return fleet.StatisticsPayload{}, false, ctxerr.Wrap(ctx, err, "insert statistics")
 			}
-			return fleet.StatisticsPayload{
-				AnonymousIdentifier:       anonIdentifier,
-				FleetVersion:              version.Version().Version,
-				LicenseTier:               license.Tier,
-				NumHostsEnrolled:          amountEnrolledHosts,
-				NumUsers:                  amountUsers,
-				NumTeams:                  amountTeams,
-				NumPolicies:               amountPolicies,
-				NumLabels:                 amountLabels,
-				SoftwareInventoryEnabled:  appConfig.HostSettings.EnableSoftwareInventory,
-				VulnDetectionEnabled:      appConfig.VulnerabilitySettings.DatabasesPath != "",
-				SystemUsersEnabled:        appConfig.HostSettings.EnableHostUsers,
-				HostsStatusWebHookEnabled: appConfig.WebhookSettings.HostStatusWebhook.Enable,
-			}, true, nil
+
+			// compute active weekly users since now - frequency
+			stats := fleet.StatisticsPayload{
+				AnonymousIdentifier: anonIdentifier,
+				FleetVersion:        version.Version().Version,
+				LicenseTier:         license.Tier,
+			}
+			if err := computeStats(&stats, time.Now().Add(-frequency)); err != nil {
+				return fleet.StatisticsPayload{}, false, ctxerr.Wrap(ctx, err, "compute statistics")
+			}
+
+			return stats, true, nil
 		}
 		return fleet.StatisticsPayload{}, false, ctxerr.Wrap(ctx, err, "get statistics")
 	}
+
 	lastUpdated := dest.UpdatedAt
 	if dest.CreatedAt.After(dest.UpdatedAt) {
 		lastUpdated = dest.CreatedAt
@@ -79,20 +97,17 @@ func (ds *Datastore) ShouldSendStatistics(ctx context.Context, frequency time.Du
 	if time.Now().Before(lastUpdated.Add(frequency)) {
 		return fleet.StatisticsPayload{}, false, nil
 	}
-	return fleet.StatisticsPayload{
-		AnonymousIdentifier:       dest.Identifier,
-		FleetVersion:              version.Version().Version,
-		LicenseTier:               license.Tier,
-		NumHostsEnrolled:          amountEnrolledHosts,
-		NumUsers:                  amountUsers,
-		NumTeams:                  amountTeams,
-		NumPolicies:               amountPolicies,
-		NumLabels:                 amountLabels,
-		SoftwareInventoryEnabled:  appConfig.HostSettings.EnableSoftwareInventory,
-		VulnDetectionEnabled:      appConfig.VulnerabilitySettings.DatabasesPath != "",
-		SystemUsersEnabled:        appConfig.HostSettings.EnableHostUsers,
-		HostsStatusWebHookEnabled: appConfig.WebhookSettings.HostStatusWebhook.Enable,
-	}, true, nil
+
+	stats := fleet.StatisticsPayload{
+		AnonymousIdentifier: dest.Identifier,
+		FleetVersion:        version.Version().Version,
+		LicenseTier:         license.Tier,
+	}
+	if err := computeStats(&stats, lastUpdated); err != nil {
+		return fleet.StatisticsPayload{}, false, ctxerr.Wrap(ctx, err, "compute statistics")
+	}
+
+	return stats, true, nil
 }
 
 func (ds *Datastore) RecordStatisticsSent(ctx context.Context) error {

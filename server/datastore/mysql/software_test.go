@@ -31,7 +31,7 @@ func TestSoftware(t *testing.T) {
 		{"NothingChanged", testSoftwareNothingChanged},
 		{"LoadSupportsTonsOfCVEs", testSoftwareLoadSupportsTonsOfCVEs},
 		{"List", testSoftwareList},
-		{"CalculateHostsPerSoftware", testSoftwareCalculateHostsPerSoftware},
+		{"SyncHostsSoftware", testSoftwareSyncHostsSoftware},
 		{"DeleteVulnerabilitiesByCPECVE", testDeleteVulnerabilitiesByCPECVE},
 		{"HostsByCVE", testHostsByCVE},
 		{"HostsBySoftwareIDs", testHostsBySoftwareIDs},
@@ -741,7 +741,7 @@ func testSoftwareList(t *testing.T, ds *Datastore) {
 		listSoftwareCheckCount(t, ds, 0, 0, fleet.SoftwareListOptions{WithHostCounts: true}, false)
 
 		// create the counts for those software and re-run
-		require.NoError(t, ds.CalculateHostsPerSoftware(context.Background(), time.Now()))
+		require.NoError(t, ds.SyncHostsSoftware(context.Background(), time.Now()))
 		software := listSoftwareCheckCount(t, ds, 5, 5, fleet.SoftwareListOptions{ListOptions: fleet.ListOptions{OrderKey: "hosts_count", OrderDirection: fleet.OrderDescending}, WithHostCounts: true}, false)
 		// ordered by counts descending, so foo003 is first
 		assert.Equal(t, foo003.Name, software[0].Name)
@@ -831,7 +831,7 @@ func listSoftwareCheckCount(t *testing.T, ds *Datastore, expectedListCount int, 
 	return software
 }
 
-func testSoftwareCalculateHostsPerSoftware(t *testing.T, ds *Datastore) {
+func testSoftwareSyncHostsSoftware(t *testing.T, ds *Datastore) {
 	ctx := context.Background()
 
 	cmpNameVersionCount := func(want, got []fleet.Software) {
@@ -840,6 +840,16 @@ func testSoftwareCalculateHostsPerSoftware(t *testing.T, ds *Datastore) {
 			cmp[i] = fleet.Software{Name: sw.Name, Version: sw.Version, HostsCount: sw.HostsCount}
 		}
 		require.ElementsMatch(t, want, cmp)
+	}
+
+	// this check ensures that the total number of rows in software_host_counts
+	// matches the expected value.  we can't rely on ds.CountSoftware alone, as
+	// that method (rightfully) ignores orphaned software counts.
+	checkTableTotalCount := func(want int) {
+		var tableCount int
+		err := ds.writer.Get(&tableCount, "SELECT COUNT(*) FROM software_host_counts")
+		require.NoError(t, err)
+		require.Equal(t, want, tableCount)
 	}
 
 	host1 := test.NewHost(t, ds, "host1", "", "host1key", "host1uuid", time.Now())
@@ -858,7 +868,7 @@ func testSoftwareCalculateHostsPerSoftware(t *testing.T, ds *Datastore) {
 	require.NoError(t, ds.UpdateHostSoftware(ctx, host1.ID, software1))
 	require.NoError(t, ds.UpdateHostSoftware(ctx, host2.ID, software2))
 
-	err := ds.CalculateHostsPerSoftware(ctx, time.Now())
+	err := ds.SyncHostsSoftware(ctx, time.Now())
 	require.NoError(t, err)
 
 	globalOpts := fleet.SoftwareListOptions{WithHostCounts: true, ListOptions: fleet.ListOptions{OrderKey: "hosts_count", OrderDirection: fleet.OrderDescending}}
@@ -871,6 +881,7 @@ func testSoftwareCalculateHostsPerSoftware(t *testing.T, ds *Datastore) {
 		{Name: "bar", Version: "0.0.3", HostsCount: 1},
 	}
 	cmpNameVersionCount(want, globalCounts)
+	checkTableTotalCount(4)
 
 	// update host2, remove "bar" software
 	software2 = []fleet.Software{
@@ -879,7 +890,7 @@ func testSoftwareCalculateHostsPerSoftware(t *testing.T, ds *Datastore) {
 	}
 	require.NoError(t, ds.UpdateHostSoftware(ctx, host2.ID, software2))
 
-	err = ds.CalculateHostsPerSoftware(ctx, time.Now())
+	err = ds.SyncHostsSoftware(ctx, time.Now())
 	require.NoError(t, err)
 
 	globalCounts = listSoftwareCheckCount(t, ds, 3, 3, globalOpts, false)
@@ -889,6 +900,7 @@ func testSoftwareCalculateHostsPerSoftware(t *testing.T, ds *Datastore) {
 		{Name: "foo", Version: "v0.0.2", HostsCount: 1},
 	}
 	cmpNameVersionCount(want, globalCounts)
+	checkTableTotalCount(3)
 
 	// create a software entry without any host and any counts
 	_, err = ds.writer.ExecContext(ctx, `INSERT INTO software (name, version, source) VALUES ('baz', '0.0.1', 'testing')`)
@@ -934,14 +946,16 @@ func testSoftwareCalculateHostsPerSoftware(t *testing.T, ds *Datastore) {
 		{Name: "foo", Version: "v0.0.2", HostsCount: 1},
 	}
 	cmpNameVersionCount(want, globalCounts)
+	checkTableTotalCount(3)
 
 	team1Opts := fleet.SoftwareListOptions{WithHostCounts: true, TeamID: ptr.Uint(team1.ID), ListOptions: fleet.ListOptions{OrderKey: "hosts_count", OrderDirection: fleet.OrderDescending}}
 	team1Counts := listSoftwareCheckCount(t, ds, 0, 0, team1Opts, false)
 	want = []fleet.Software{}
 	cmpNameVersionCount(want, team1Counts)
+	checkTableTotalCount(3)
 
 	// after a call to Calculate, the global counts are updated and the team counts appear
-	err = ds.CalculateHostsPerSoftware(ctx, time.Now())
+	err = ds.SyncHostsSoftware(ctx, time.Now())
 	require.NoError(t, err)
 
 	globalCounts = listSoftwareCheckCount(t, ds, 4, 4, globalOpts, false)
@@ -960,6 +974,9 @@ func testSoftwareCalculateHostsPerSoftware(t *testing.T, ds *Datastore) {
 	}
 	cmpNameVersionCount(want, team1Counts)
 
+	// composite pk (software_id, team_id), so we expect more rows
+	checkTableTotalCount(8)
+
 	team2Opts := fleet.SoftwareListOptions{WithHostCounts: true, TeamID: ptr.Uint(team2.ID), ListOptions: fleet.ListOptions{OrderKey: "hosts_count", OrderDirection: fleet.OrderDescending}}
 	team2Counts := listSoftwareCheckCount(t, ds, 2, 2, team2Opts, false)
 	want = []fleet.Software{
@@ -974,7 +991,7 @@ func testSoftwareCalculateHostsPerSoftware(t *testing.T, ds *Datastore) {
 	}
 	require.NoError(t, ds.UpdateHostSoftware(ctx, host4.ID, software4))
 
-	err = ds.CalculateHostsPerSoftware(ctx, time.Now())
+	err = ds.SyncHostsSoftware(ctx, time.Now())
 	require.NoError(t, err)
 
 	globalCounts = listSoftwareCheckCount(t, ds, 3, 3, globalOpts, false)
@@ -998,13 +1015,15 @@ func testSoftwareCalculateHostsPerSoftware(t *testing.T, ds *Datastore) {
 	}
 	cmpNameVersionCount(want, team2Counts)
 
+	checkTableTotalCount(6)
+
 	// update host4 (team2), remove all software and delete team
 	software4 = []fleet.Software{}
 	require.NoError(t, ds.UpdateHostSoftware(ctx, host4.ID, software4))
 	require.NoError(t, ds.DeleteTeam(ctx, team2.ID))
 
 	// this call will remove team2 from the software host counts table
-	err = ds.CalculateHostsPerSoftware(ctx, time.Now())
+	err = ds.SyncHostsSoftware(ctx, time.Now())
 	require.NoError(t, err)
 
 	globalCounts = listSoftwareCheckCount(t, ds, 3, 3, globalOpts, false)
@@ -1023,6 +1042,7 @@ func testSoftwareCalculateHostsPerSoftware(t *testing.T, ds *Datastore) {
 	cmpNameVersionCount(want, team1Counts)
 
 	listSoftwareCheckCount(t, ds, 0, 0, team2Opts, false)
+	checkTableTotalCount(5)
 }
 
 func insertVulnSoftwareForTest(t *testing.T, ds *Datastore) {

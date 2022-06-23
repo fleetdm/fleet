@@ -24,6 +24,8 @@ module.exports = {
     vulnDetectionEnabled: { required: true, type: 'boolean' },
     systemUsersEnabled: { required: true, type: 'boolean' },
     hostStatusWebhookEnabled: { required: true, type: 'boolean' },
+    numWeeklyActiveUsers: { required: true, type: 'number' },
+    hostsEnrolledByOperatingSystem: { required: true, type: 'json' },
 
     //  ╔═╗╔╦╗╔╗ ╔═╗╔╦╗╔═╗
     //  ║╣ ║║║╠╩╗║╣  ║║╚═╗

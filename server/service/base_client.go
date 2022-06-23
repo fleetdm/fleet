@@ -76,31 +76,38 @@ func newBaseClient(addr string, insecureSkipVerify bool, rootCA, urlPrefix strin
 	}
 
 	rootCAPool := x509.NewCertPool()
-	if rootCA != "" {
+
+	tlsConfig := &tls.Config{
+		// Osquery itself requires >= TLS 1.2.
+		// https://github.com/osquery/osquery/blob/9713ad9e28f1cfe6c16a823fb88bd531e39e192d/osquery/remote/transports/tls.cpp#L97-L98
+		MinVersion: tls.VersionTLS12,
+	}
+
+	switch {
+	case rootCA != "":
 		// read in the root cert file specified in the context
 		certs, err := ioutil.ReadFile(rootCA)
 		if err != nil {
 			return nil, fmt.Errorf("reading root CA: %w", err)
 		}
-
 		// add certs to pool
 		if ok := rootCAPool.AppendCertsFromPEM(certs); !ok {
 			return nil, errors.New("failed to add certificates to root CA pool")
 		}
-	} else if !insecureSkipVerify {
+		tlsConfig.RootCAs = rootCAPool
+	case insecureSkipVerify:
+		// Ignoring "G402: TLS InsecureSkipVerify set true", needed for development/testing.
+		tlsConfig.InsecureSkipVerify = true //nolint:gosec
+	default:
 		// Use only the system certs (doesn't work on Windows)
 		rootCAPool, err = x509.SystemCertPool()
 		if err != nil {
 			return nil, fmt.Errorf("loading system cert pool: %w", err)
 		}
+		tlsConfig.RootCAs = rootCAPool
 	}
 
-	httpClient := fleethttp.NewClient(fleethttp.WithTLSClientConfig(&tls.Config{
-		// Ignoring "G402: TLS InsecureSkipVerify set true", needed for development/testing.
-		InsecureSkipVerify: insecureSkipVerify, //nolint:gosec
-		RootCAs:            rootCAPool,
-	}))
-
+	httpClient := fleethttp.NewClient(fleethttp.WithTLSClientConfig(tlsConfig))
 	client := &baseClient{
 		baseURL:            baseURL,
 		http:               httpClient,

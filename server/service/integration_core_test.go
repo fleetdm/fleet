@@ -59,7 +59,7 @@ func (s *integrationTestSuite) TearDownTest() {
 	}
 
 	// recalculate software counts will remove the software entries
-	require.NoError(t, s.ds.CalculateHostsPerSoftware(context.Background(), time.Now()))
+	require.NoError(t, s.ds.SyncHostsSoftware(context.Background(), time.Now()))
 
 	lbls, err := s.ds.ListLabels(ctx, fleet.TeamFilter{}, fleet.ListOptions{})
 	require.NoError(t, err)
@@ -97,8 +97,8 @@ func (s *integrationTestSuite) TearDownTest() {
 		require.NoError(t, err)
 	}
 
-	// CalculateHostsPerSoftware performs a cleanup.
-	err = s.ds.CalculateHostsPerSoftware(ctx, time.Now())
+	// SyncHostsSoftware performs a cleanup.
+	err = s.ds.SyncHostsSoftware(ctx, time.Now())
 	require.NoError(t, err)
 }
 
@@ -545,7 +545,7 @@ func (s *integrationTestSuite) TestVulnerableSoftware() {
 
 	// calculate hosts counts
 	hostsCountTs := time.Now().UTC()
-	require.NoError(t, s.ds.CalculateHostsPerSoftware(context.Background(), hostsCountTs))
+	require.NoError(t, s.ds.SyncHostsSoftware(context.Background(), hostsCountTs))
 
 	// now the list software endpoint returns the software
 	lsResp = listSoftwareResponse{}
@@ -4126,7 +4126,7 @@ func (s *integrationTestSuite) TestPaginateListSoftware() {
 
 	// calculate hosts counts
 	hostsCountTs := time.Now().UTC()
-	require.NoError(t, s.ds.CalculateHostsPerSoftware(context.Background(), hostsCountTs))
+	require.NoError(t, s.ds.SyncHostsSoftware(context.Background(), hostsCountTs))
 
 	// now the list software endpoint returns the software, get the first page without vulns
 	lsResp = listSoftwareResponse{}
@@ -5103,6 +5103,25 @@ func (s *integrationTestSuite) TestHostsReportDownload() {
 	require.Len(t, rows[3], 3)
 	require.Equal(t, []string{"0", "TestIntegrations/TestHostsReportDownloadfoo.local0"}, rows[3][:2])
 	t.Log(rows)
+}
+
+func (s *integrationTestSuite) TestSSODisabled() {
+	t := s.T()
+
+	var initiateResp initiateSSOResponse
+	s.DoJSON("POST", "/api/v1/fleet/sso", struct{}{}, http.StatusBadRequest, &initiateResp)
+
+	var callbackResp callbackSSOResponse
+	// callback without SAML response
+	s.DoJSON("POST", "/api/v1/fleet/sso/callback", nil, http.StatusBadRequest, &callbackResp)
+	// callback with invalid SAML response
+	s.DoJSON("POST", "/api/v1/fleet/sso/callback?SAMLResponse=zz", nil, http.StatusBadRequest, &callbackResp)
+	// callback with valid SAML response (<samlp:AuthnRequest></samlp:AuthnRequest>)
+	res := s.DoRaw("POST", "/api/v1/fleet/sso/callback?SAMLResponse=PHNhbWxwOkF1dGhuUmVxdWVzdD48L3NhbWxwOkF1dGhuUmVxdWVzdD4%3D", nil, http.StatusOK)
+	defer res.Body.Close()
+	body, err := io.ReadAll(res.Body)
+	require.NoError(t, err)
+	require.Contains(t, string(body), "/login?status=org_disabled") // html contains a script that redirects to this path
 }
 
 // this test can be deleted once the "v1" version is removed.
