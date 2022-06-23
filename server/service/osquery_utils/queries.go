@@ -130,7 +130,7 @@ var hostDetailQueries = map[string]DetailQuery{
 				return nil
 			}
 
-			if rows[0]["name"] == "Ubuntu" {
+			if strings.Contains(strings.ToLower(rows[0]["name"]), "ubuntu") {
 				// Ubuntu takes a different approach to updating patch IDs so we instead use
 				// the version string provided after removing the code name
 				regx := regexp.MustCompile(`\(.*\)`)
