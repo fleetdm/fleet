@@ -159,10 +159,10 @@ At Fleet, we take customer incidents very seriously. After working with customer
 At Fleet, we do postmortem meetings for every production incident, whether it's a customer's environment or on fleetdm.com.
 
 ## Outages
-At Fleet we consider an outage to be a situation where new features or previously stable features are broken or unusable.
- - Occurances of outages are tracked in the [Outages](https://docs.google.com/spreadsheets/d/1a8rUk0pGlCPpPHAV60kCEUBLvavHHXbk_L3BI0ybME4/edit#gid=0) spreadsheet.
+At Fleet, we consider an outage to be a situation where new features or previously stable features are broken or unusable.
+ - Occurences of outages are tracked in the [Outages](https://docs.google.com/spreadsheets/d/1a8rUk0pGlCPpPHAV60kCEUBLvavHHXbk_L3BI0ybME4/edit#gid=0) spreadsheet.
  - Fleet encourages embracing the inevitability of mistakes and discourages blame games.
- - Fleet stresses the critical importance of avoiding outages because they make customers lives worse instead of better.
+ - Fleet stresses the critical importance of avoiding outages because they make customers' lives worse instead of better.
 
 
 ## Project boards
