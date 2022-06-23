@@ -64,7 +64,7 @@ Operations will review the expense and reach out to the team member if they have
 
 ### Purchasing a company-issued device
 
-Fleet provides laptops for team members to use while working at Fleet. As soon as an offer is accepted, `eashaw` will reach out to the new team member to start this process. `eashaw` will work with the new team member to get their laptop purchased and shipped to them.
+Fleet provides laptops for team members to use while working at Fleet. As soon as an offer is accepted, `charlottechance` will reach out to the new team member to start this process. `charlottechance` will work with the new team member to get their laptop purchased and shipped to them.
 
 Most of the team at Fleet uses 16" MacBook Pros, but team members are free to choose any laptop or operating system that works for them, as long as the price [is within reason](#spending-company-money).
 
