@@ -1,4 +1,4 @@
-# Security best practices
+# Application security
 
 - [Describe your secure coding practices](#describe-your-secure-coding-practices-including-code-reviews-use-of-staticdynamic-security-testing-tools-3rd-party-scansreviews)
 - [SQL injection](#sql-injection)
@@ -13,15 +13,16 @@ The Fleet community follows best practices when coding. Here are some of the way
 
 ### Describe your secure coding practices, including code reviews, use of static/dynamic security testing tools, 3rd party scans/reviews.
 
-Code commits to Fleet go through a series of tests, including SAST (static application security testing). 
+Code commits to Fleet go through a series of tests, including SAST (static application security
+testing). We use a combination of tools including [gosec](https://github.com/securego/gosec) and
+[CodeQL](https://codeql.github.com/) for this purpose.
 
-Every piece of code that is merged into Fleet is reviewed by at least one other engineer before merging. 
+Every piece of code that is merged into Fleet is reviewed by at least one other engineer before
+merging.  This is enforced via branch protection on the main branch.
 
 The server backend is built in Golang, which (besides for language-level vulnerabilities) eliminates buffer overflow and other memory related attacks.
 
 We use standard library cryptography wherever possible, and all cryptography is using well-known standards.
-
-Libraries are inventoried and monitored for vulnerabilities. Our process for fixing vulnerable libraries and other vulnerabilities is available in our [handbook](https://fleetdm.com/handbook/security#vulnerability-management).
 
 ### SQL injection
 
@@ -55,6 +56,14 @@ We render the frontend with React and benefit from built-in XSS protection in Re
 
 ### Components with known vulnerabilities – prevent the use of libraries, frameworks, other software with existing vulnerabilities.
 
-We rely on Github's automated vulnerability checks, community news, and direct reports to discover vulnerabilities in our dependencies. We endeavor to fix these immediately and would almost always do so within a week of a report.
+We rely on Github's automated vulnerability checks, community news, and direct reports to discover
+vulnerabilities in our dependencies. We endeavor to fix these immediately and would almost always do
+so within a week of a report.
+
+Libraries are inventoried and monitored for vulnerabilities. Our process for fixing vulnerable
+libraries and other vulnerabilities is available in our
+[handbook](https://fleetdm.com/handbook/security#vulnerability-management). We use
+[Dependabot](https://github.com/dependabot) to automatically open PRs to update vulnerable dependencies.
+
 
 <meta name="pageOrderInSection" value="800">
