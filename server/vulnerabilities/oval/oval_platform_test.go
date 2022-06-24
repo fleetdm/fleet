@@ -26,10 +26,35 @@ func TestOvalPlatform(t *testing.T) {
 			{"ubuntu", "Ubuntu 18.4.0 ", "ubuntu_1804"},
 			{"rhel", "CentOS Linux 7.9.2009", "rhel_07"},
 			{"amzn", "Amazon Linux 2.0.0", "amzn_02"},
+			{"rhel", "Fedora Linux 12.0.0", "rhel_06"},
+			{"rhel", "Fedora Linux 13.0.0", "rhel_06"},
+			{"rhel", "Fedora Linux 14.0.0", "rhel_06"},
+			{"rhel", "Fedora Linux 15.0.0", "rhel_06"},
+			{"rhel", "Fedora Linux 16.0.0", "rhel_06"},
+			{"rhel", "Fedora Linux 17.0.0", "rhel_06"},
+			{"rhel", "Fedora Linux 18.0.0", "rhel_06"},
+			{"rhel", "Fedora Linux 19.0.0", "rhel_07"},
+			{"rhel", "Fedora Linux 20.0.0", "rhel_07"},
+			{"rhel", "Fedora Linux 21.0.0", "rhel_07"},
+			{"rhel", "Fedora Linux 22.0.0", "rhel_07"},
+			{"rhel", "Fedora Linux 23.0.0", "rhel_07"},
+			{"rhel", "Fedora Linux 24.0.0", "rhel_07"},
+			{"rhel", "Fedora Linux 25.0.0", "rhel_07"},
+			{"rhel", "Fedora Linux 26.0.0", "rhel_07"},
+			{"rhel", "Fedora Linux 27.0.0", "rhel_07"},
+			{"rhel", "Fedora Linux 28.0.0", "rhel_08"},
+			{"rhel", "Fedora Linux 29.0.0", "rhel_08"},
+			{"rhel", "Fedora Linux 30.0.0", "rhel_08"},
+			{"rhel", "Fedora Linux 31.0.0", "rhel_08"},
+			{"rhel", "Fedora Linux 32.0.0", "rhel_08"},
+			{"rhel", "Fedora Linux 33.0.0", "rhel_08"},
+			{"rhel", "Fedora Linux 34.0.0", "rhel_09"},
+			{"rhel", "Fedora Linux 35.0.0", "rhel_09"},
+			{"rhel", "Fedora Linux 36.0.0", "rhel_09"},
 		}
 
 		for _, c := range cases {
-			require.Equal(t, c.expected, string(NewPlatform(c.platform, c.osVersion)))
+			require.Equal(t, c.expected, string(NewPlatform(c.platform, c.osVersion)), c)
 		}
 	})
 

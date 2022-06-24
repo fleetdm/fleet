@@ -240,7 +240,6 @@ func cronVulnerabilities(
 						recentVulns,
 						appConfig,
 						time.Now()); err != nil {
-
 						errHandler(ctx, logger, "triggering vulnerabilities webhook", err)
 					}
 
@@ -276,7 +275,6 @@ func cronVulnerabilities(
 		if err := ds.SyncHostsSoftware(ctx, time.Now()); err != nil {
 			errHandler(ctx, logger, "calculating hosts count per software", err)
 		}
-
 		level.Debug(logger).Log("loop", "done")
 	}
 }
