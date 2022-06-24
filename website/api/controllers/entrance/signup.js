@@ -96,7 +96,7 @@ the account verification message.)`,
 
     var newEmailAddress = emailAddress.toLowerCase();
 
-    // If a sandboxExpiration was provided, this is a fleet sandbox user.
+    // If a sandboxExpiration was provided, this is a user signing up to try Fleet sandbox.
     // let isSandboxUser = !! sandboxExpiration;
 
 
@@ -130,7 +130,8 @@ the account verification message.)`,
       });
     }
 
-    // // if this is a fleet sandbox user, we'll call the provision-fleet-sandbox helper
+    // // if this is a fleet sandbox user, we'll call the provision-fleet-sandbox helper,
+    ///  this helper will make a POST request to the cloud provisioner, add the URL of the fleet sandbox instance and the expiration timestamp to the user's record
     // if(isSandboxUser) {
         // await sails.helpers.provisionFleetSandbox.with({userId: newUserRecord.id, sandboxExpirationTimestamp: sandboxExpiration})
     // }
