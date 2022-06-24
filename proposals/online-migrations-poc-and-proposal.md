@@ -165,7 +165,7 @@ Common scenarios (based on our latest 10 migrations):
   allowed
 - Renaming a column: don’t rename, instead
   - `vN`: non breaking, add a new column with `LOCK=NONE`, allow `NULL` values.
-  - `vN+1: breaking, remove the old column, add `NOT NULL` constraints if
+  - `vN+1`: breaking, remove the old column, add `NOT NULL` constraints if
     necessary.
 - Change the data type of a column: follow the Rename process instead.
 - Index operations: create, drop, rename and change type allow `LOCK=NONE`
