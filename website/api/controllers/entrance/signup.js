@@ -59,8 +59,8 @@ the account verification message.)`,
       description: 'The user\'s last name.',
     }
 
-    // Add sandboxExpiration as an optional input
-    // sandboxExpiration: {
+    // Add sandboxExpirationTimestamp as an optional input
+    // sandboxExpirationTimestamp: {
     //   required: false,
     //   type: 'string',
     //   description: 'An ISO 8601 timestamp of when this user\'s Fleet sandbox will expire'
