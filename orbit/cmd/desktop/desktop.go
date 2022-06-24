@@ -124,15 +124,18 @@ func main() {
 					continue
 				}
 
-				status := "🟢"
+				failedPolicyCount := 0
 				for _, policy := range policies {
 					if policy.Response != "pass" {
-						status = "🔴"
-						break
+						failedPolicyCount++
 					}
 				}
 
-				myDeviceItem.SetTitle(status + " My device")
+				if failedPolicyCount > 0 {
+					myDeviceItem.SetTitle("🔴 My device " + fmt.Sprintf("(%d)", failedPolicyCount))
+				} else {
+					myDeviceItem.SetTitle("🟢 My device")
+				}
 				myDeviceItem.Enable()
 			}
 		}()
