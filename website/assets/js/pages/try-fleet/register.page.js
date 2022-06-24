@@ -45,14 +45,15 @@ parasails.registerPage('register', {
     // handleSubmittingRegisterForm: async function(argins) {
     //   argins.firstName = argins.emailAddress.split('@')[0];
     //   argins.lastName = argins.emailAddress.split('@')[1];
-    //   let twentyFourHoursFromNowInMS = Date.now() + (24*60*60*1000);
-    //   argins.sandboxExpiration = new Date(twentyFourHoursFromNowInMS).toISOString();
+    //   argins.sandboxExpiration = new Date(Date.now() + (24*60*60*1000)).toISOString();
     //   await Cloud.signup.with(argins);
     // },
-    // After the form is submitted, we'll redirect the user to the page where they can access their Fleet sandbox instance
-    // submittedRegisterForm: function() {
+
+    // After the form is submitted, we'll redirect the user to their Fleet sandbox instance when it is ready
+    // submittedRegisterForm: async function() {
     //   this.syncing = true;
-    //   window.location = '/try-fleet/sandbox'
+    //   let liveFleetSandboxURL = await Cloud.isSandboxReady.with({id: this.me.id});
+    //   window.location = liveFleetSandboxURL;
     // }
   }
 });
