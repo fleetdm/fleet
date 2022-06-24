@@ -11,6 +11,11 @@ module.exports = {
 
     success: {
       viewTemplatePath: 'pages/try-fleet/sandbox'
+    },
+
+    redirect: {
+      description: 'The requesting user is already logged in.',
+      responseType: 'redirect'
     }
 
   },
@@ -23,18 +28,22 @@ module.exports = {
     //   throw {redirect: '/try-fleet/register'};
     // }
 
-    // Make sure this user has a fleetSandboxURL
-    // if(!this.req.me.fleetSandboxURL) {
-        // If they don't have a fleetSandboxURL, we'll redirect this user to the change password page
-        // If their password has been updated to meet the new requirements, we'll provision them a Fleet sandbox instance
-        // Create an ISO timestamp set 24 hours from now
-        // call the provision-fleet-sandbox helper, passing in the created timestamp and the logged in user's ID
-    // }
+    // Check if the user has a fleetSandboxURL (this.req.me.fleetSandboxUrl)
+      // If the user doesn't have a fleetSandboxURL, they will be taken to the sandbox page with an empty fleetSandboxURL and the isFleetSandboxExpired flag set to false.
 
-    //
+    // Check the fleetSandboxExpiresAt (this.req.me.fleetSandboxExpiresAt)
+      // If the sandbox instance is expired, we'll set a flag to display the sandbox expired state of the sandbox page (isFleetSandboxExpired: true)
+      // If the sandbox instance has not expired, we'll check the /healthz endpoint.
+        // Note: we're only checking this enpoint once here, all other checks will be handled by /try-fleet/redirect-to-fleet-sandbox
+        // If the /healthz endpoint returns a 200 response, we'll redirect the user to their Fleet sandbox instance.
+
+        // If the sandbox instance is not ready yet, we'll take the user the sandbox page and return the fleetSandboxURL.
 
     // Respond with view.
-    return {};
+    return {
+      // isFleetSandboxExpired,
+      // fleetSandboxURL
+    };
 
   }
 

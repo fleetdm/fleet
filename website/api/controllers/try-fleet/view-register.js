@@ -24,9 +24,9 @@ module.exports = {
   fn: async function () {
 
     // If the user is logged in, redirect them to the Fleet sandbox page.
-    // if (this.req.me) {
-    //   throw {redirect: '/try-fleet/sandbox'};
-    // }
+    if (this.req.me) {
+      throw {redirect: '/try-fleet/sandbox'};
+    }
 
     // Respond with view.
     return {};
