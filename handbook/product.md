@@ -94,7 +94,9 @@ policies that any organization needs(Miss).
 
 The product team is responsible for product design tasks. These include drafting
 changes to the Fleet product, reviewing and collecting feedback from engineering, sales, customer success, and marketing counterparts, and delivering
-these changes to the engineering team.
+these changes to the engineering team. 
+
+Look here for more information about [Using Figma](https://fleetdm.com/handbook/brand#fleet-website).
 
 ### Drafting
 
