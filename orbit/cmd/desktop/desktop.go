@@ -132,7 +132,7 @@ func main() {
 				}
 
 				if failedPolicyCount > 0 {
-					myDeviceItem.SetTitle("🔴 My device " + fmt.Sprintf("(%d)", failedPolicyCount))
+					myDeviceItem.SetTitle(fmt.Sprintf("🔴 My device (%d)", failedPolicyCount))
 				} else {
 					myDeviceItem.SetTitle("🟢 My device")
 				}
