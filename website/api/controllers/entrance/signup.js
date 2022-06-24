@@ -90,14 +90,14 @@ the account verification message.)`,
 
   },
 
-  // Add sandboxExpiration to inputs
-  // fn: async function ({emailAddress, password, firstName, lastName, organization, sandboxExpiration}) {
+  // Add sandboxExpirationTimestamp to inputs
+  // fn: async function ({emailAddress, password, firstName, lastName, organization, sandboxExpirationTimestamp}) {
   fn: async function ({emailAddress, password, firstName, lastName, organization}) {
 
     var newEmailAddress = emailAddress.toLowerCase();
 
-    // If a sandboxExpiration was provided, this is a user signing up to try Fleet sandbox.
-    // let isSandboxUser = !! sandboxExpiration;
+
+    // let isSandboxUser = !! ;
 
 
     // Build up data for the new user record and save it to the database.
@@ -130,10 +130,10 @@ the account verification message.)`,
       });
     }
 
-    // // if this is a fleet sandbox user, we'll call the provision-fleet-sandbox helper,
+    // If a sandboxExpirationTimestamp was provided, this is a user signing up to try Fleet Sandbox and we'll call the provision-fleet-sandbox helper.
     ///  this helper will make a POST request to the cloud provisioner, add the URL of the fleet sandbox instance and the expiration timestamp to the user's record
-    // if(isSandboxUser) {
-        // await sails.helpers.provisionFleetSandbox.with({userId: newUserRecord.id, sandboxExpirationTimestamp: sandboxExpiration})
+    // if(sandboxExpirationTimestamp) {
+        // await sails.helpers.provisionFleetSandbox.with({userId: newUserRecord.id, sandboxExpiresAt: sandboxExpirationTimestamp})
     // }
 
     // Store the user's new id in their session.

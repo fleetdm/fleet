@@ -41,11 +41,11 @@ parasails.registerPage('register', {
   //  ╩╝╚╝ ╩ ╚═╝╩╚═╩ ╩╚═╝ ╩ ╩╚═╝╝╚╝╚═╝
   methods: {
 
-    // Using handle-submitting to add sandboxExpiration, firstName, and lastName values to our formData before sending it to signup.js
+    // Using handle-submitting to add sandboxExpirationTimestamp, firstName, and lastName values to our formData before sending it to signup.js
     // handleSubmittingRegisterForm: async function(argins) {
     //   argins.firstName = argins.emailAddress.split('@')[0];
     //   argins.lastName = argins.emailAddress.split('@')[1];
-    //   argins.sandboxExpiration = new Date(Date.now() + (24*60*60*1000)).toISOString();
+    //   argins.sandboxExpirationTimestamp = new Date(Date.now() + (24*60*60*1000)).toISOString();
     //   await Cloud.signup.with(argins);
     // },
 
