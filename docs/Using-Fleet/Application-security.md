@@ -14,10 +14,10 @@ The Fleet community follows best practices when coding. Here are some of the way
 ### Describe your secure coding practices, including code reviews, use of static/dynamic security testing tools, 3rd party scans/reviews.
 
 Code commits to Fleet go through a series of tests, including SAST (static application security
-testing). We use a combination of tools including [gosec](https://github.com/securego/gosec) and
+testing). We use a combination of tools, including [gosec](https://github.com/securego/gosec) and
 [CodeQL](https://codeql.github.com/) for this purpose.
 
-Every piece of code that is merged into Fleet is reviewed by at least one other engineer before
+At least one other engineer reviews every piece of code before it is merged to Fleet.
 merging.  This is enforced via branch protection on the main branch.
 
 The server backend is built in Golang, which (besides for language-level vulnerabilities) eliminates buffer overflow and other memory related attacks.
@@ -56,7 +56,7 @@ We render the frontend with React and benefit from built-in XSS protection in Re
 
 ### Components with known vulnerabilities – prevent the use of libraries, frameworks, other software with existing vulnerabilities.
 
-We rely on Github's automated vulnerability checks, community news, and direct reports to discover
+We rely on GitHub's automated vulnerability checks, community news, and direct reports to discover
 vulnerabilities in our dependencies. We endeavor to fix these immediately and would almost always do
 so within a week of a report.
 
