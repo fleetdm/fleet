@@ -1,7 +1,7 @@
 module.exports = {
 
 
-  friendlyName: 'Is sandbox ready',
+  friendlyName: 'Get sandbox status',
 
 
   description: 'Check the status of a user\'s Fleet sandbox instance',
