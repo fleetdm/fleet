@@ -201,13 +201,6 @@ module.exports.routes = {
     }
   },
 
-  'GET /try-fleet/sandbox': {
-    action: 'try-fleet/view-sandbox',
-    locals: {
-      layout: 'layouts/layout-customer',
-    } ,
-  },
-
 
 
 
