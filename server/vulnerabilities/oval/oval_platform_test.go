@@ -14,16 +14,18 @@ func TestOvalPlatform(t *testing.T) {
 			osVersion string
 			expected  string
 		}{
-			{"centos", "CentOS Linux 8.3.2011", "centos_0803"},
+			{"centos", "CentOS Linux 8.3.2011", "centos_08"},
 			{"ubuntu", "Ubuntu 20.4.0", "ubuntu_2004"},
-			{"centos", "CentOS 6.10.0", "centos_0610"},
-			{"debian", "Debian GNU/Linux 9.0.0", "debian_0900"},
-			{"debian", "Debian GNU/Linux 10.0.0", "debian_1000"},
-			{"centos", "CentOS Linux 7.9.2009", "centos_0709"},
+			{"centos", "CentOS 6.10.0", "centos_06"},
+			{"debian", "Debian GNU/Linux 9.0.0", "debian_09"},
+			{"debian", "Debian GNU/Linux 10.0.0", "debian_10"},
+			{"centos", "CentOS Linux 7.9.2009", "centos_07"},
 			{"ubuntu", "Ubuntu 16.4.0", "ubuntu_1604"},
 			{"ubuntu", "Ubuntu 18.4.0", "ubuntu_1804"},
 			{"ubuntu", "Ubuntu 18.4", "ubuntu_1804"},
 			{"ubuntu", "Ubuntu 18.4.0 ", "ubuntu_1804"},
+			{"rhel", "CentOS Linux 7.9.2009", "rhel_07"},
+			{"amzn", "Amazon Linux 2.0.0", "amzn_02"},
 		}
 
 		for _, c := range cases {

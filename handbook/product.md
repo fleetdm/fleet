@@ -454,9 +454,9 @@ Fleet's feature flag guidelines is borrowed from GitLab's ["When to use feature 
 
 ## Competition
 
-We track competitors' capabilities and adjacent (or commonly integrated) products in this [Google Doc](https://docs.google.com/document/d/1Bqdui6oQthdv5XtD5l7EZVB-duNRcqVRg7NVA4lCXeI/edit) (private).
+We track competitors' capabilities and adjacent (or commonly integrated) products in this [Google doc](https://docs.google.com/document/d/1Bqdui6oQthdv5XtD5l7EZVB-duNRcqVRg7NVA4lCXeI/edit) (private).
 
-### Intake process
+## Intake process
 
 Intake for new product ideas (requests) happens at the 🗣 Product office hours meeting.
 
@@ -466,7 +466,7 @@ The team prioritizes a request when the business perceives it as an immediate pr
 
 The team puts a request to the side when the business perceives competing priorities as more pressing in the immediate moment.
 
-#### Why this way?
+### Why this way?
 
 At Fleet, we use objectives and key results (OKRs) to align the organization with measurable goals.
 These OKRs fill up a large portion, but not all, of planning (drafting, wireframing, spec'ing, etc.)
@@ -482,7 +482,7 @@ request is prioritized or put to the side within one business day from when the 
 
 The 🗣 Product office hours meeting is a recurring ritual to make sure that the team weighs all requests.
 
-#### Making a request
+### Making a request
 
 To make a request or advocate for a request from a customer or community member,  Fleet asks all members of the organization to add their name and a description of the request to the list in the [🗣 Product office hours Google
 doc](https://docs.google.com/document/d/1mwu5WfdWBWwJ2C3zFDOMSUC9QCyYuKP4LssO_sIHDd0/edit#heading=h.zahrflvvks7q).
@@ -497,7 +497,13 @@ All 🗣 Product office hours meetings are recorded and uploaded to the [🗣 Pr
 folder](https://drive.google.com/drive/folders/1nsjqDyX5WDQ0HJhg_2yOaqBu4J-hqRIW) in the shared
 Google drive.
 
-Each week Reed Haynes follows the directions in this [document](https://docs.google.com/document/d/1MkM57cLNzkN51Hqq5CyBG4HaauAaf446ZhwWJlVho0M/edit?usp=sharing) (internal doc) and a backup copy of the Product office hours document is created and dropped in the [Product office hours backup folder](https://drive.google.com/drive/folders/1WTSSLxA-P3OlspkMKjlRXKjzZsDRoe-4?usp=sharing) in the shared drive. 
+Each week Reed Haynes follows the directions in this [document](https://docs.google.com/document/d/1MkM57cLNzkN51Hqq5CyBG4HaauAaf446ZhwWJlVho0M/edit?usp=sharing) (internal doc) and a backup copy of the Product office hours document is created and dropped in the [Product office hours backup folder](https://drive.google.com/drive/folders/1WTSSLxA-P3OlspkMKjlRXKjzZsDRoe-4?usp=sharing) in the shared drive.
+
+## Usage analytics
+
+In order to understand usage of the Fleet product, we [collect analytics](https://fleetdm.com/docs/using-fleet/usage-statistics) from installations where this functionality is enabled.
+
+Fleet team members can view these statistics in the [Google spreadsheet](https://docs.google.com/spreadsheets/d/1Mh7Vf4kJL8b5TWlHxcX7mYwaakZMg_ZGNLY3kl1VI-c/edit#gid=0) available in Drive.
 
 ## Rituals
 

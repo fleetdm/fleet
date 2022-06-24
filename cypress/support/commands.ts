@@ -39,6 +39,13 @@ Cypress.Commands.add("setup", () => {
   });
 });
 
+Cypress.Commands.add("setupWithSoftware", () => {
+  cy.exec("make e2e-reset-db e2e-setup-with-software", {
+    timeout: 20000,
+    env: { SHELL },
+  });
+});
+
 Cypress.Commands.add("login", (email, password) => {
   email ||= "admin@example.com";
   password ||= GOOD_PASSWORD;
@@ -71,6 +78,13 @@ Cypress.Commands.add("logout", () => {
     },
   }).then(() => {
     window.localStorage.removeItem("FLEET::auth_token");
+  });
+});
+
+Cypress.Commands.add("setDesktopToken", (hostId, token) => {
+  cy.exec(`make e2e-set-desktop-token host_id=${hostId} token=${token}`, {
+    timeout: 20000,
+    env: { SHELL },
   });
 });
 

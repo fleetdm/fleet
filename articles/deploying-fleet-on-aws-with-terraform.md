@@ -11,7 +11,7 @@ Deploying on AWS with Fleet’s reference architecture will get you a fully func
 - AWS CLI installed
 - Terraform installed (version 1.04 or greater)
 - AWS Account and IAM user capable of creating resources
-- Clone [Fleet](https://github.com/fleetdm/fleet) or copy the [terraform files](https://github.com/fleetdm/fleet/tree/fleet-v4.7.0/tools/terraform)
+- Clone [Fleet](https://github.com/fleetdm/fleet) or copy the [Terraform files](https://github.com/fleetdm/fleet/tree/main/infrastructure/dogfood/terraform/aws)
 
 ## Bootstrapping
 
@@ -40,7 +40,7 @@ After typing `yes` you should have a new S3 bucket named `<prefix>-terraform-rem
 ## Infastructure
 https://github.com/fleetdm/fleet/tools/terraform
 
-Using the buckets and table we just created, we’ll update the [remote state](https://github.com/fleetdm/fleet/tree/fleet-v4.7.0/tools/terraform/main.tf) to expect the same values:
+Using the buckets and table we just created, we’ll update the [remote state](https://github.com/fleetdm/fleet/tree/main/infrastructure/dogfood/terraform/aws/main.tf) to expect the same values:
 
 ```
 terraform {

@@ -371,6 +371,27 @@ func TestDetailQueriesOSVersion(t *testing.T) {
 
 	assert.NoError(t, ingest(context.Background(), log.NewNopLogger(), &host, rows))
 	assert.Equal(t, "Arch Linux 1.2.3", host.OSVersion)
+
+	// Simulate Ubuntu host with incorrect `patch`` number
+	require.NoError(t, json.Unmarshal([]byte(`
+[{
+    "hostname": "kube2",
+    "arch": "x86_64",
+    "build": "",
+    "codename": "bionic",
+    "major": "18",
+    "minor": "4",
+    "name": "Ubuntu",
+    "patch": "0",
+    "platform": "ubuntu",
+    "platform_like": "debian",
+    "version": "18.04.5 LTS (Bionic Beaver)"
+}]`),
+		&rows,
+	))
+
+	assert.NoError(t, ingest(context.Background(), log.NewNopLogger(), &host, rows))
+	assert.Equal(t, "Ubuntu 18.04.5 LTS", host.OSVersion)
 }
 
 func TestDirectIngestMDM(t *testing.T) {

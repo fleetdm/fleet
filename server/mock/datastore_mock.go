@@ -296,7 +296,7 @@ type SoftwareByIDFunc func(ctx context.Context, id uint, includeCVEScores bool) 
 
 type ListSoftwareByHostIDShortFunc func(ctx context.Context, hostID uint) ([]fleet.Software, error)
 
-type CalculateHostsPerSoftwareFunc func(ctx context.Context, updatedAt time.Time) error
+type SyncHostsSoftwareFunc func(ctx context.Context, updatedAt time.Time) error
 
 type HostsBySoftwareIDsFunc func(ctx context.Context, softwareIDs []uint) ([]*fleet.HostShort, error)
 
@@ -344,9 +344,7 @@ type ListSoftwareFunc func(ctx context.Context, opt fleet.SoftwareListOptions) (
 
 type CountSoftwareFunc func(ctx context.Context, opt fleet.SoftwareListOptions) (int, error)
 
-type ListVulnerableSoftwareBySourceFunc func(ctx context.Context, source string) ([]fleet.SoftwareWithCPE, error)
-
-type DeleteVulnerabilitiesByCPECVEFunc func(ctx context.Context, vulnerabilities []fleet.SoftwareVulnerability) error
+type DeleteSoftwareVulnerabilitiesFunc func(ctx context.Context, vulnerabilities []fleet.SoftwareVulnerability) error
 
 type NewTeamPolicyFunc func(ctx context.Context, teamID uint, authorID *uint, args fleet.PolicyPayload) (*fleet.Policy, error)
 
@@ -845,8 +843,8 @@ type DataStore struct {
 	ListSoftwareByHostIDShortFunc        ListSoftwareByHostIDShortFunc
 	ListSoftwareByHostIDShortFuncInvoked bool
 
-	CalculateHostsPerSoftwareFunc        CalculateHostsPerSoftwareFunc
-	CalculateHostsPerSoftwareFuncInvoked bool
+	SyncHostsSoftwareFunc        SyncHostsSoftwareFunc
+	SyncHostsSoftwareFuncInvoked bool
 
 	HostsBySoftwareIDsFunc        HostsBySoftwareIDsFunc
 	HostsBySoftwareIDsFuncInvoked bool
@@ -917,11 +915,8 @@ type DataStore struct {
 	CountSoftwareFunc        CountSoftwareFunc
 	CountSoftwareFuncInvoked bool
 
-	ListVulnerableSoftwareBySourceFunc        ListVulnerableSoftwareBySourceFunc
-	ListVulnerableSoftwareBySourceFuncInvoked bool
-
-	DeleteVulnerabilitiesByCPECVEFunc        DeleteVulnerabilitiesByCPECVEFunc
-	DeleteVulnerabilitiesByCPECVEFuncInvoked bool
+	DeleteSoftwareVulnerabilitiesFunc        DeleteSoftwareVulnerabilitiesFunc
+	DeleteSoftwareVulnerabilitiesFuncInvoked bool
 
 	NewTeamPolicyFunc        NewTeamPolicyFunc
 	NewTeamPolicyFuncInvoked bool
@@ -1739,9 +1734,9 @@ func (s *DataStore) ListSoftwareByHostIDShort(ctx context.Context, hostID uint) 
 	return s.ListSoftwareByHostIDShortFunc(ctx, hostID)
 }
 
-func (s *DataStore) CalculateHostsPerSoftware(ctx context.Context, updatedAt time.Time) error {
-	s.CalculateHostsPerSoftwareFuncInvoked = true
-	return s.CalculateHostsPerSoftwareFunc(ctx, updatedAt)
+func (s *DataStore) SyncHostsSoftware(ctx context.Context, updatedAt time.Time) error {
+	s.SyncHostsSoftwareFuncInvoked = true
+	return s.SyncHostsSoftwareFunc(ctx, updatedAt)
 }
 
 func (s *DataStore) HostsBySoftwareIDs(ctx context.Context, softwareIDs []uint) ([]*fleet.HostShort, error) {
@@ -1859,14 +1854,9 @@ func (s *DataStore) CountSoftware(ctx context.Context, opt fleet.SoftwareListOpt
 	return s.CountSoftwareFunc(ctx, opt)
 }
 
-func (s *DataStore) ListVulnerableSoftwareBySource(ctx context.Context, source string) ([]fleet.SoftwareWithCPE, error) {
-	s.ListVulnerableSoftwareBySourceFuncInvoked = true
-	return s.ListVulnerableSoftwareBySourceFunc(ctx, source)
-}
-
-func (s *DataStore) DeleteVulnerabilitiesByCPECVE(ctx context.Context, vulnerabilities []fleet.SoftwareVulnerability) error {
-	s.DeleteVulnerabilitiesByCPECVEFuncInvoked = true
-	return s.DeleteVulnerabilitiesByCPECVEFunc(ctx, vulnerabilities)
+func (s *DataStore) DeleteSoftwareVulnerabilities(ctx context.Context, vulnerabilities []fleet.SoftwareVulnerability) error {
+	s.DeleteSoftwareVulnerabilitiesFuncInvoked = true
+	return s.DeleteSoftwareVulnerabilitiesFunc(ctx, vulnerabilities)
 }
 
 func (s *DataStore) NewTeamPolicy(ctx context.Context, teamID uint, authorID *uint, args fleet.PolicyPayload) (*fleet.Policy, error) {
