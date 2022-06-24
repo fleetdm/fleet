@@ -38,7 +38,7 @@ parasails.registerPage('sandbox', {
     // For logged in users who have Fleet sandbox instance that might not be ready yet.
     clickGoToFleetSandbox: async function() {
       // this.syncing = true;
-      // this.sandboxInstanceURL = await Cloud.isSandboxReady.with({id: this.me.id});
+      // this.sandboxInstanceURL = await Cloud.getSandboxStatus.with({id: this.me.id});
       // window.location = this.sandboxInstanceURL
     },
 

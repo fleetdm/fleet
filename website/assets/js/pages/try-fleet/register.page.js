@@ -52,7 +52,7 @@ parasails.registerPage('register', {
     // After the form is submitted, we'll redirect the user to their Fleet sandbox instance when it is ready
     // submittedRegisterForm: async function() {
     //   this.syncing = true;
-    //   let liveFleetSandboxURL = await Cloud.isSandboxReady.with({id: this.me.id});
+    //   let liveFleetSandboxURL = await Cloud.getSandboxStatus.with({id: this.me.id});
     //   window.location = liveFleetSandboxURL;
     // }
   }

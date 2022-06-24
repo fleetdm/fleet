@@ -29,8 +29,11 @@ module.exports = {
       // If the user has a fleetSandboxURL, throw an error
     // Call the provision sandbox helper and get the URL of the Fleet sandbox instance (fleetSandboxInfo = await sails.helpers.provisionFleetSandbox.with(userId: user.id));
 
-    // Once we have the URL, we'll check the /healthz endpoint and return the Fleet sandbox url when it returns a 200 status (await sails.helpers.flow.until(......))
-
+    // Once we have the URL, we'll check the /healthz endpoint and return the Fleet sandbox url when it returns a 200 status
+    // await sails.helpers.flow.until(async funtion () {
+    //   let serverResponse = sails.helpers.http.get(.....).tolerate('non200Response')
+    //   return !! serverResponse
+    // });
 
     // When the Fleet Sandbox instance is ready, return the sandbox url
     // return sandboxURL;
