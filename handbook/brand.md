@@ -344,6 +344,10 @@ In Figma:
   * Avoid using SVGs or icon fonts.
 3. Click the __Export__ button.
 
+### Vulnerability monitoring
+
+Every week, we run `npm audit --only=prod` to check for vulnerabilities on the production dependencies of fleetdm.com. Once we have a solution to configure GitHub's Dependabot to ignore devDependencies, this manual process can be replaced with Dependabot.
+
 ## Rituals
 
 The following table lists the Brand group's rituals, frequency, and Directly Responsible Individual (DRI).
@@ -361,6 +365,7 @@ The following table lists the Brand group's rituals, frequency, and Directly Res
 | Handbook editor pass | Monthly | Edit for copy and content. | Desmi Dizney |
 | Browser compatibility check | Monthly | Check browser compatibility for the website | Eric Shaw |
 | OKR planning  | Quarterly | Plan next quarter's OKRs | Mike Thomas |
+| Website vulnerability check  | Weekly | Checking for vulnerabilities on fleetdm.com | Eric Shaw |
 
 ## Slack channels
 
