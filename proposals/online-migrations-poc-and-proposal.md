@@ -165,10 +165,12 @@ Common scenarios (based on our latest 10 migrations):
   allowed
 - Renaming a column: don’t rename, instead
   - `vN`: non breaking, add a new column with `LOCK=NONE`, allow `NULL` values.
-  - `vN+1`: breaking, remove the old column, add `NOT NULL` constraints if
+  - `vN+1`: stop writing to the column.
+  - `vN+2`: breaking, remove the old column, add `NOT NULL` constraints if
     necessary.
 - Change the data type of a column: follow the Rename process instead.
-- Index operations: create, drop, rename and change type allow `LOCK=NONE`
+- Index operations: create, drop, rename and change type allow `LOCK=NONE`, use
+  a procedure analogous to renaming a column.
 - Rename table: renaming allows `LOCK=NONE`, for backwards compatibility are
   multiple options, including using a temporary view.
 
@@ -176,6 +178,15 @@ For a full list of which operations are allowed without locks, check
 [here][mysql-ddl-table], all operations that have "yes" under "Permits
 Concurrent DM" allow the use of `LOCK=NONE`, and those with "yes" under "In
 Place" allow `LOCK=SHARED` which enables you to read data from the table.
+
+### Limitations
+
+1. This approach needs special planning and care between version. We have to
+   look into ways to keep the house in order and make sure columns/indexes/etc
+   are removed.
+2. Data is replicated sequentially leading to replication lags.
+3. The MySQL documentation often mentions that for some concurrent operations
+   data is reorganized substantially, making it an expensive operation
 
 
 [migrations-proposal]: https://docs.google.com/document/d/1lv67XVhLbejgeS6Vi43C8wqvjb6wRpc07zy1Guv-3VA
