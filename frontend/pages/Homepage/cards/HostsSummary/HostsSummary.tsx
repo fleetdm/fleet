@@ -134,7 +134,7 @@ const HostsSummary = ({
     }
   };
 
-  if (showHostsError) {
+  if (showHostsError && !isLoadingHostsSummary) {
     return <DataError card />;
   }
 

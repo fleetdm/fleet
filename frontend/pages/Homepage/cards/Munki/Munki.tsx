@@ -46,29 +46,26 @@ const Munki = ({
   setTitleDetail,
 }: IMunkiCardProps): JSX.Element => {
   const [munkiData, setMunkiData] = useState<IMunkiAggregate[]>([]);
-  const [showMunkiError, setShowMunkiError] = useState<boolean>(false);
 
-  const { isFetching: isMunkiFetching } = useQuery<IMacadminAggregate, Error>(
-    ["munki", currentTeamId],
-    () => macadminsAPI.loadAll(currentTeamId),
-    {
-      keepPreviousData: true,
-      onSuccess: (data) => {
-        const { counts_updated_at, munki_versions } = data.macadmins;
+  const { isFetching: isMunkiFetching, error: errorMunki } = useQuery<
+    IMacadminAggregate,
+    Error
+  >(["munki", currentTeamId], () => macadminsAPI.loadAll(currentTeamId), {
+    keepPreviousData: true,
+    onSuccess: (data) => {
+      const { counts_updated_at, munki_versions } = data.macadmins;
 
-        setMunkiData(munki_versions);
-        setShowMunkiUI(true);
-        setTitleDetail &&
-          setTitleDetail(
-            renderLastUpdatedText(counts_updated_at, "Munki versions")
-          );
-      },
-      onError: () => {
-        setShowMunkiUI(true);
-        setShowMunkiError(true);
-      },
-    }
-  );
+      setMunkiData(munki_versions);
+      setShowMunkiUI(true);
+      setTitleDetail &&
+        setTitleDetail(
+          renderLastUpdatedText(counts_updated_at, "Munki versions")
+        );
+    },
+    onError: () => {
+      setShowMunkiUI(true);
+    },
+  });
 
   const tableHeaders = generateTableHeaders();
 
@@ -83,7 +80,7 @@ const Munki = ({
         </div>
       )}
       <div style={opacity}>
-        {showMunkiError ? (
+        {errorMunki ? (
           <TableDataError card />
         ) : (
           <TableContainer

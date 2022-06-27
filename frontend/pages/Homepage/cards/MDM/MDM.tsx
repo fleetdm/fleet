@@ -48,47 +48,44 @@ const MDM = ({
   const [formattedMDMData, setFormattedMDMData] = useState<
     IDataTableMDMFormat[]
   >([]);
-  const [showMDMError, setShowMDMError] = useState<boolean>(false);
 
-  const { isFetching: isMDMFetching } = useQuery<IMacadminAggregate, Error>(
-    ["MDM", currentTeamId],
-    () => macadminsAPI.loadAll(currentTeamId),
-    {
-      keepPreviousData: true,
-      onSuccess: (data) => {
-        const {
-          counts_updated_at,
-          mobile_device_management_enrollment_status,
-        } = data.macadmins;
-        const {
-          enrolled_manual_hosts_count,
-          enrolled_automated_hosts_count,
-          unenrolled_hosts_count,
-        } = mobile_device_management_enrollment_status;
+  const { isFetching: isMDMFetching, error: errorMDM } = useQuery<
+    IMacadminAggregate,
+    Error
+  >(["MDM", currentTeamId], () => macadminsAPI.loadAll(currentTeamId), {
+    keepPreviousData: true,
+    onSuccess: (data) => {
+      const {
+        counts_updated_at,
+        mobile_device_management_enrollment_status,
+      } = data.macadmins;
+      const {
+        enrolled_manual_hosts_count,
+        enrolled_automated_hosts_count,
+        unenrolled_hosts_count,
+      } = mobile_device_management_enrollment_status;
 
-        setShowMDMUI(true);
-        setTitleDetail &&
-          setTitleDetail(
-            renderLastUpdatedText(counts_updated_at, "MDM enrollment")
-          );
-        setFormattedMDMData([
-          {
-            status: "Enrolled (manual)",
-            hosts: enrolled_manual_hosts_count,
-          },
-          {
-            status: "Enrolled (automatic)",
-            hosts: enrolled_automated_hosts_count,
-          },
-          { status: "Unenrolled", hosts: unenrolled_hosts_count },
-        ]);
-      },
-      onError: () => {
-        setShowMDMUI(true);
-        setShowMDMError(true);
-      },
-    }
-  );
+      setShowMDMUI(true);
+      setTitleDetail &&
+        setTitleDetail(
+          renderLastUpdatedText(counts_updated_at, "MDM enrollment")
+        );
+      setFormattedMDMData([
+        {
+          status: "Enrolled (manual)",
+          hosts: enrolled_manual_hosts_count,
+        },
+        {
+          status: "Enrolled (automatic)",
+          hosts: enrolled_automated_hosts_count,
+        },
+        { status: "Unenrolled", hosts: unenrolled_hosts_count },
+      ]);
+    },
+    onError: () => {
+      setShowMDMUI(true);
+    },
+  });
 
   const tableHeaders = generateTableHeaders();
 
@@ -103,7 +100,7 @@ const MDM = ({
         </div>
       )}
       <div style={opacity}>
-        {showMDMError ? (
+        {errorMDM ? (
           <TableDataError card />
         ) : (
           <TableContainer

@@ -49,9 +49,7 @@ const OperatingSystems = ({
   setShowOperatingSystemsUI,
   setTitleDetail,
 }: IOperatingSystemsCardProps): JSX.Element => {
-  const [showOSError, setShowOSError] = useState<boolean>(false);
-
-  const { data: osInfo, error, isFetching } = useQuery<
+  const { data: osInfo, error: errorOS, isFetching } = useQuery<
     IOperatingSystemsResponse,
     Error,
     IOperatingSystemsResponse,
@@ -86,7 +84,6 @@ const OperatingSystems = ({
       },
       onError: () => {
         setShowOperatingSystemsUI(true);
-        setShowOSError(true);
       },
     }
   );
@@ -98,13 +95,13 @@ const OperatingSystems = ({
 
   return (
     <div className={baseClass}>
-      {!showOperatingSystemsUI && !showOSError && (
+      {!showOperatingSystemsUI && !errorOS && (
         <div className="spinner">
           <Spinner />
         </div>
       )}
       <div style={opacity}>
-        {showOSError ? (
+        {errorOS ? (
           <TableDataError card />
         ) : (
           <TableContainer
