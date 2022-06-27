@@ -1245,7 +1245,43 @@ func (ds *Datastore) ReplaceHostDeviceMapping(ctx context.Context, hid uint, map
 }
 
 func (ds *Datastore) ReplaceHostBatteries(ctx context.Context, hid uint, mappings []*fleet.HostBattery) error {
-	panic("unimplemented")
+	const replaceStmt = `
+    INSERT INTO
+      host_batteries (
+        host_id,
+        serial_number,
+        cycle_count,
+        health
+      )
+    VALUES
+      (?, ?, ?, ?)
+    ON DUPLICATE KEY UPDATE
+      cycle_count = VALUES(cycle_count),
+      health = VALUES(health),
+      updated_at = CURRENT_TIMESTAMP
+`
+
+	const deleteExceptStmt = `
+    DELETE FROM
+      host_batteries
+    WHERE
+      host_id = ? AND
+      serial_number NOT IN (?)
+`
+	const deleteAllStmt = `
+    DELETE FROM
+      host_batteries
+    WHERE
+      host_id = ?
+`
+
+	deleteNotIn := make([]string, 0, len(mappings))
+	for _, hb := range mappings {
+		deleteNotIn = append(deleteNotIn, hb.SerialNumber)
+	}
+
+	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+	})
 }
 
 func (ds *Datastore) updateOrInsert(ctx context.Context, updateQuery string, insertQuery string, args ...interface{}) error {
