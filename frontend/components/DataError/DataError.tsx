@@ -8,10 +8,14 @@ import ErrorIcon from "../../../assets/images/icon-error-16x16@2x.png";
 
 const baseClass = "data-error";
 
-const DataError = (): JSX.Element => {
+interface IDataErrorProps {
+  noMargin?: boolean;
+}
+
+const DataError = ({ noMargin }: IDataErrorProps): JSX.Element => {
   return (
     <div className={`${baseClass}`}>
-      <div className={`${baseClass}__inner`}>
+      <div className={`${baseClass}__${noMargin ? "no-margin" : "inner"}`}>
         <div className="info">
           <span className="info__header">
             <img src={ErrorIcon} alt="error icon" id="error-icon" />

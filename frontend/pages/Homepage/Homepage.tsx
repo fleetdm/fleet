@@ -58,6 +58,7 @@ const Homepage = (): JSX.Element => {
     false
   );
   const [showHostsUI, setShowHostsUI] = useState<boolean>(false); // Hides UI on first load only
+  const [showHostsError, setShowHostsError] = useState<boolean>(false);
 
   const { data: teams } = useQuery<ILoadTeamsResponse, Error, ITeam[]>(
     ["teams"],
@@ -105,6 +106,9 @@ const Homepage = (): JSX.Element => {
         setLinuxCount(data.all_linux_count);
         setShowHostsUI(true);
       },
+      onError: () => {
+        setShowHostsError(true);
+      },
     }
   );
 
@@ -120,7 +124,7 @@ const Homepage = (): JSX.Element => {
       text: "View all hosts",
     },
     total_host_count: (() => {
-      if (!isHostSummaryFetching) {
+      if (!isHostSummaryFetching && !showHostsError) {
         return `${hostSummaryData?.totals_hosts_count}` || undefined;
       }
 
@@ -137,6 +141,7 @@ const Homepage = (): JSX.Element => {
         showHostsUI={showHostsUI}
         selectedPlatform={selectedPlatform}
         labels={labels}
+        showHostsError={showHostsError}
       />
     ),
   });
