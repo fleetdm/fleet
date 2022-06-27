@@ -19,7 +19,7 @@ found on at least one host.
 > Note that a CVE is "new" if it was published to the national vulnerability (NVD) database within
 > the last 30 days (by default).
 
-Fleet checks if its time to send these webhook requests, or create tickets (Jira or Zendesk), once every hour. 
+Fleet checks if it's time to send these webhook requests, or create tickets (Jira or Zendesk), once every hour. 
 
 If two new vulnerabilities are detected
 within the hour, two
