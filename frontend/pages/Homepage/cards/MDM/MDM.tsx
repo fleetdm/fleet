@@ -6,6 +6,7 @@ import { IMacadminAggregate, IDataTableMDMFormat } from "interfaces/macadmins";
 
 import TableContainer from "components/TableContainer";
 import Spinner from "components/Spinner";
+import TableDataError from "components/DataError";
 import renderLastUpdatedText from "components/LastUpdatedText";
 import generateTableHeaders from "./MDMTableConfig";
 
@@ -47,6 +48,7 @@ const MDM = ({
   const [formattedMDMData, setFormattedMDMData] = useState<
     IDataTableMDMFormat[]
   >([]);
+  const [showMDMError, setShowMDMError] = useState<boolean>(false);
 
   const { isFetching: isMDMFetching } = useQuery<IMacadminAggregate, Error>(
     ["MDM", currentTeamId],
@@ -81,6 +83,10 @@ const MDM = ({
           { status: "Unenrolled", hosts: unenrolled_hosts_count },
         ]);
       },
+      onError: () => {
+        setShowMDMUI(true);
+        setShowMDMError(true);
+      },
     }
   );
 
@@ -97,22 +103,26 @@ const MDM = ({
         </div>
       )}
       <div style={opacity}>
-        <TableContainer
-          columns={tableHeaders}
-          data={formattedMDMData}
-          isLoading={isMDMFetching}
-          defaultSortHeader={DEFAULT_SORT_HEADER}
-          defaultSortDirection={DEFAULT_SORT_DIRECTION}
-          hideActionButton
-          resultsTitle={"MDM"}
-          emptyComponent={EmptyMDM}
-          showMarkAllPages={false}
-          isAllPagesSelected={false}
-          disableCount
-          disableActionButton
-          disablePagination
-          pageSize={PAGE_SIZE}
-        />
+        {showMDMError ? (
+          <TableDataError card />
+        ) : (
+          <TableContainer
+            columns={tableHeaders}
+            data={formattedMDMData}
+            isLoading={isMDMFetching}
+            defaultSortHeader={DEFAULT_SORT_HEADER}
+            defaultSortDirection={DEFAULT_SORT_DIRECTION}
+            hideActionButton
+            resultsTitle={"MDM"}
+            emptyComponent={EmptyMDM}
+            showMarkAllPages={false}
+            isAllPagesSelected={false}
+            disableCount
+            disableActionButton
+            disablePagination
+            pageSize={PAGE_SIZE}
+          />
+        )}
       </div>
     </div>
   );

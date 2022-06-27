@@ -135,7 +135,7 @@ const HostsSummary = ({
   };
 
   if (showHostsError) {
-    return <DataError noMargin />;
+    return <DataError card />;
   }
 
   return (

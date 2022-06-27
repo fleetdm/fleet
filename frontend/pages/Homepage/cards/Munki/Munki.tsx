@@ -6,6 +6,7 @@ import { IMacadminAggregate, IMunkiAggregate } from "interfaces/macadmins";
 
 import TableContainer from "components/TableContainer";
 import Spinner from "components/Spinner";
+import TableDataError from "components/DataError";
 import renderLastUpdatedText from "components/LastUpdatedText";
 import generateTableHeaders from "./MunkiTableConfig";
 
@@ -45,6 +46,7 @@ const Munki = ({
   setTitleDetail,
 }: IMunkiCardProps): JSX.Element => {
   const [munkiData, setMunkiData] = useState<IMunkiAggregate[]>([]);
+  const [showMunkiError, setShowMunkiError] = useState<boolean>(false);
 
   const { isFetching: isMunkiFetching } = useQuery<IMacadminAggregate, Error>(
     ["munki", currentTeamId],
@@ -60,6 +62,10 @@ const Munki = ({
           setTitleDetail(
             renderLastUpdatedText(counts_updated_at, "Munki versions")
           );
+      },
+      onError: () => {
+        setShowMunkiUI(true);
+        setShowMunkiError(true);
       },
     }
   );
@@ -77,22 +83,26 @@ const Munki = ({
         </div>
       )}
       <div style={opacity}>
-        <TableContainer
-          columns={tableHeaders}
-          data={munkiData || []}
-          isLoading={isMunkiFetching}
-          defaultSortHeader={DEFAULT_SORT_HEADER}
-          defaultSortDirection={DEFAULT_SORT_DIRECTION}
-          hideActionButton
-          resultsTitle={"Munki"}
-          emptyComponent={EmptyMunki}
-          showMarkAllPages={false}
-          isAllPagesSelected={false}
-          disableCount
-          disableActionButton
-          disablePagination
-          pageSize={PAGE_SIZE}
-        />
+        {showMunkiError ? (
+          <TableDataError card />
+        ) : (
+          <TableContainer
+            columns={tableHeaders}
+            data={munkiData || []}
+            isLoading={isMunkiFetching}
+            defaultSortHeader={DEFAULT_SORT_HEADER}
+            defaultSortDirection={DEFAULT_SORT_DIRECTION}
+            hideActionButton
+            resultsTitle={"Munki"}
+            emptyComponent={EmptyMunki}
+            showMarkAllPages={false}
+            isAllPagesSelected={false}
+            disableCount
+            disableActionButton
+            disablePagination
+            pageSize={PAGE_SIZE}
+          />
+        )}
       </div>
     </div>
   );
