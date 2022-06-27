@@ -16,7 +16,7 @@ type errorAgg struct {
 // - A reduced stack trace used for debugging the error
 func Aggregate(ctx context.Context) (json.RawMessage, error) {
 	empty := json.RawMessage("[]")
-	maxTraceLen := 3
+	const maxTraceLen = 3
 
 	storedErrs, err := Retrieve(ctx)
 	if err != nil {
