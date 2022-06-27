@@ -6456,7 +6456,7 @@ The server only stores and returns a single instance of each error.
 [
   {
     "count": "3",
-    "error": [
+    "chain": [
       {
         "message": "Authorization header required"
       },
