@@ -43,9 +43,10 @@ const renderTable = (
   isOnGlobalTeam: boolean,
   selectedTeamData: ITeam | undefined,
   isFetchingGlobalScheduledQueries: boolean,
-  isLoadingTeamScheduledQueries: boolean
+  isLoadingTeamScheduledQueries: boolean,
+  errorQueries: Error | null
 ): JSX.Element => {
-  return allScheduledQueriesError ? (
+  return allScheduledQueriesError || errorQueries ? (
     <TableDataError />
   ) : (
     <ScheduleListWrapper
@@ -156,15 +157,15 @@ const ManageSchedulePage = ({
     }
   );
 
-  const { data: fleetQueries, isLoading: isLoadingFleetQueries } = useQuery(
-    ["fleetQueries"],
-    () => fleetQueriesAPI.loadAll(),
-    {
-      refetchOnMount: false,
-      refetchOnWindowFocus: false,
-      select: (data) => data.queries,
-    }
-  );
+  const {
+    data: fleetQueries,
+    isLoading: isLoadingFleetQueries,
+    error: errorQueries,
+  } = useQuery(["fleetQueries"], () => fleetQueriesAPI.loadAll(), {
+    refetchOnMount: false,
+    refetchOnWindowFocus: false,
+    select: (data) => data.queries,
+  });
 
   const {
     data: globalScheduledQueries,
@@ -502,7 +503,8 @@ const ManageSchedulePage = ({
               isOnGlobalTeam || false,
               selectedTeamData,
               isFetchingGlobalScheduledQueries,
-              isLoadingTeamScheduledQueries
+              isLoadingTeamScheduledQueries,
+              errorQueries
             )
           )}
         </div>
