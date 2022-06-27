@@ -286,6 +286,14 @@ type HostMDM struct {
 	ServerURL        string `json:"server_url"`
 }
 
+// HostBattery represents a host's battery, as reported by the osquery battery
+// table.
+type HostBattery struct {
+	HostID       uint   `json:"-" db:"host_id"`
+	SerialNumber string `json:"-" db:"serial_number"`
+	CycleCount   int    `json:"cycle_count" db:"cycle_count"`
+}
+
 type MacadminsData struct {
 	Munki *HostMunkiInfo `json:"munki"`
 	MDM   *HostMDM       `json:"mobile_device_management"`

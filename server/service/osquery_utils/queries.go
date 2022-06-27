@@ -344,6 +344,14 @@ var extraDetailQueries = map[string]DetailQuery{
 		DirectIngestFunc: directIngestChromeProfiles,
 		Discovery:        discoveryTable("google_chrome_profiles"),
 	},
+	"battery": {
+		Query:            `SELECT serial_number, cycle_count FROM battery;`,
+		Platforms:        []string{"darwin"},
+		DirectIngestFunc: directIngestBattery,
+		// the "battery" table doesn't need a Discovery query as it is an official
+		// osquery table on darwin (https://osquery.io/schema/5.3.0#battery), it is
+		// always present.
+	},
 	OrbitInfoQueryName: OrbitInfoDetailQuery,
 }
 
@@ -362,9 +370,9 @@ func discoveryTable(tableName string) string {
 	return fmt.Sprintf("SELECT 1 FROM osquery_registry WHERE active = true AND registry = 'table' AND name = '%s';", tableName)
 }
 
-const usersQueryStr = `WITH cached_groups AS (select * from groups) 
- SELECT uid, username, type, groupname, shell 
- FROM users LEFT JOIN cached_groups USING (gid) 
+const usersQueryStr = `WITH cached_groups AS (select * from groups)
+ SELECT uid, username, type, groupname, shell
+ FROM users LEFT JOIN cached_groups USING (gid)
  WHERE type <> 'special' AND shell NOT LIKE '%/false' AND shell NOT LIKE '%/nologin' AND shell NOT LIKE '%/shutdown' AND shell NOT LIKE '%/halt' AND username NOT LIKE '%$' AND username NOT LIKE '\_%' ESCAPE '\' AND NOT (username = 'sync' AND shell ='/bin/sync' AND directory <> '')`
 
 func withCachedUsers(query string) string {
@@ -625,6 +633,28 @@ func directIngestChromeProfiles(ctx context.Context, logger log.Logger, host *fl
 		})
 	}
 	return ds.ReplaceHostDeviceMapping(ctx, host.ID, mapping)
+}
+
+func directIngestBattery(ctx context.Context, logger log.Logger, host *fleet.Host, ds fleet.Datastore, rows []map[string]string, failed bool) error {
+	if failed {
+		level.Error(logger).Log("op", "directIngestBattery", "err", "failed")
+		return nil
+	}
+
+	mapping := make([]*fleet.HostBattery, 0, len(rows))
+	for _, row := range rows {
+		// TODO(mna): should we instead ignore results without a cycle count?
+		cycleCount, err := strconv.ParseInt(EmptyToZero(row["cycle_count"]), 10, 64)
+		if err != nil {
+			return err
+		}
+		mapping = append(mapping, &fleet.HostBattery{
+			HostID:       host.ID,
+			SerialNumber: row["serial_number"],
+			CycleCount:   int(cycleCount),
+		})
+	}
+	return ds.ReplaceHostBatteries(ctx, host.ID, mapping)
 }
 
 func directIngestOrbitInfo(ctx context.Context, logger log.Logger, host *fleet.Host, ds fleet.Datastore, rows []map[string]string, failed bool) error {
