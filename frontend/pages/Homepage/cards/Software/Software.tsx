@@ -89,6 +89,9 @@ const Software = ({
             );
         }
       },
+      onError: () => {
+        setShowSoftwareUI(true);
+      },
     }
   );
 
@@ -128,6 +131,7 @@ const Software = ({
   // Renders opaque information as host information is loading
   const opacity = showSoftwareUI ? { opacity: 1 } : { opacity: 0 };
 
+  console.log("showSoftwareUI", showSoftwareUI);
   return (
     <div className={baseClass}>
       {!showSoftwareUI && (

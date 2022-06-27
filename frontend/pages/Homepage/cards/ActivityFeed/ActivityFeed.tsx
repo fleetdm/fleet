@@ -102,6 +102,9 @@ const ActivityFeed = ({
           setShowMore(false);
         }
       },
+      onError: () => {
+        setShowActivityFeedTitle(true);
+      },
     }
   );
 
