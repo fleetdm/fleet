@@ -17,8 +17,8 @@ Code commits to Fleet go through a series of tests, including SAST (static appli
 testing). We use a combination of tools, including [gosec](https://github.com/securego/gosec) and
 [CodeQL](https://codeql.github.com/) for this purpose.
 
-At least one other engineer reviews every piece of code before it is merged to Fleet.
-merging.  This is enforced via branch protection on the main branch.
+At least one other engineer reviews every piece of code before merging it to Fleet.
+This is enforced via branch protection on the main branch.
 
 The server backend is built in Golang, which (besides for language-level vulnerabilities) eliminates buffer overflow and other memory related attacks.
 
