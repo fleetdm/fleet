@@ -292,6 +292,7 @@ type HostBattery struct {
 	HostID       uint   `json:"-" db:"host_id"`
 	SerialNumber string `json:"-" db:"serial_number"`
 	CycleCount   int    `json:"cycle_count" db:"cycle_count"`
+	Health       string `json:"health" db:"health"`
 }
 
 type MacadminsData struct {

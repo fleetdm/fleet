@@ -652,6 +652,7 @@ func directIngestBattery(ctx context.Context, logger log.Logger, host *fleet.Hos
 			HostID:       host.ID,
 			SerialNumber: row["serial_number"],
 			CycleCount:   int(cycleCount),
+			Health:       row["health"],
 		})
 	}
 	return ds.ReplaceHostBatteries(ctx, host.ID, mapping)
