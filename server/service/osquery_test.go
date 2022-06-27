@@ -557,7 +557,7 @@ func TestHostDetailQueries(t *testing.T) {
 	queries, discovery, err = svc.detailQueriesForHost(context.Background(), &host)
 	require.NoError(t, err)
 	// +1 because 2 additional queries, but -1 due to removed disk space query (only 1 of 2 active for a given platform)
-	require.Equal(t, len(expectedDetailQueries)+1, len(queries), mapKeys(queries))
+	require.Equal(t, len(expectedDetailQueries)+1, len(queries), distQueriesMapKeys(queries))
 	verifyDiscovery(t, queries, discovery)
 	for name := range queries {
 		assert.True(t,
@@ -612,7 +612,7 @@ func TestLabelQueries(t *testing.T) {
 	queries, discovery, acc, err := svc.GetDistributedQueries(ctx)
 	require.NoError(t, err)
 	// -1 due to removed disk space query (only 1 of 2 active for a given platform)
-	require.Equal(t, len(expectedDetailQueries)-1, len(queries), mapKeys(queries))
+	require.Equal(t, len(expectedDetailQueries)-1, len(queries), distQueriesMapKeys(queries))
 	verifyDiscovery(t, queries, discovery)
 	assert.NotZero(t, acc)
 
@@ -703,7 +703,7 @@ func TestLabelQueries(t *testing.T) {
 	queries, discovery, acc, err = svc.GetDistributedQueries(ctx)
 	require.NoError(t, err)
 	// +3 for label queries, -1 due to removed disk space query (only 1 of 2 active for a given platform)
-	require.Equal(t, len(expectedDetailQueries)+2, len(queries), mapKeys(queries))
+	require.Equal(t, len(expectedDetailQueries)+2, len(queries), distQueriesMapKeys(queries))
 	verifyDiscovery(t, queries, discovery)
 	assert.Zero(t, acc)
 
@@ -771,8 +771,13 @@ func TestDetailQueriesWithEmptyStrings(t *testing.T) {
 	// queries)
 	queries, discovery, acc, err := svc.GetDistributedQueries(ctx)
 	require.NoError(t, err)
-	// -2 due to windows not having battery and removed disk space query (only 1 of 2 active for a given platform)
-	require.Equal(t, len(expectedDetailQueries)-2, len(queries), mapKeys(queries))
+	// -4 due to windows not having battery, mdm, munki_info and removed disk space query (only 1 of 2 active for a given platform)
+	if !assert.Equal(t, len(expectedDetailQueries)-4, len(queries)) {
+		// this is just to print the diff between the expected and actual query
+		// keys when the count assertion fails, to help debugging - they are not
+		// expected to match.
+		require.ElementsMatch(t, osqueryMapKeys(expectedDetailQueries), distQueriesMapKeys(queries))
+	}
 	verifyDiscovery(t, queries, discovery)
 	assert.NotZero(t, acc)
 
@@ -924,7 +929,10 @@ func TestDetailQueriesWithEmptyStrings(t *testing.T) {
 
 	queries, discovery, acc, err = svc.GetDistributedQueries(ctx)
 	require.NoError(t, err)
-	require.Equal(t, len(expectedDetailQueries), len(queries), mapKeys(queries))
+	// somehow confusingly, the query response above changed the host's platform
+	// from windows to darwin, so now it has all expected queries except the
+	// extra disk space one.
+	require.Equal(t, len(expectedDetailQueries)-1, len(queries), distQueriesMapKeys(queries))
 	verifyDiscovery(t, queries, discovery)
 	assert.Zero(t, acc)
 }
@@ -978,7 +986,14 @@ func TestDetailQueries(t *testing.T) {
 	// queries)
 	queries, discovery, acc, err := svc.GetDistributedQueries(ctx)
 	require.NoError(t, err)
-	require.Equal(t, len(expectedDetailQueries)-2, len(queries), mapKeys(queries)) // linux platform, no "battery" query
+	// -4 due to linux platform, so battery, mdm and munki are missing, and the extra disk space query,
+	// then +1 due to software inventory being enabled.
+	if !assert.Equal(t, len(expectedDetailQueries)-3, len(queries)) {
+		// this is just to print the diff between the expected and actual query
+		// keys when the count assertion fails, to help debugging - they are not
+		// expected to match.
+		require.ElementsMatch(t, osqueryMapKeys(expectedDetailQueries), distQueriesMapKeys(queries))
+	}
 	verifyDiscovery(t, queries, discovery)
 	assert.NotZero(t, acc)
 
@@ -1234,7 +1249,9 @@ func TestDetailQueries(t *testing.T) {
 
 	queries, discovery, acc, err = svc.GetDistributedQueries(ctx)
 	require.NoError(t, err)
-	require.Equal(t, len(expectedDetailQueries)+1, len(queries), mapKeys(queries))
+	// host platform changed to darwin, so all queries are present - that is, -1 for the
+	// extra disk space query, +1 for the software inventory enabled.
+	require.Equal(t, len(expectedDetailQueries), len(queries), distQueriesMapKeys(queries))
 	verifyDiscovery(t, queries, discovery)
 	assert.Zero(t, acc)
 }
@@ -1358,7 +1375,13 @@ func TestDistributedQueryResults(t *testing.T) {
 	// Now we should get the active distributed query
 	queries, discovery, acc, err := svc.GetDistributedQueries(hostCtx)
 	require.NoError(t, err)
-	require.Equal(t, len(expectedDetailQueries)-2, len(queries), mapKeys(queries)) // platform is windows, "batteries" is not returned in addition to one of the "disk space"
+	// -4 for the non-windows queries, +1 for the distributed query for campaign ID 42
+	if !assert.Equal(t, len(expectedDetailQueries)-3, len(queries)) {
+		// this is just to print the diff between the expected and actual query
+		// keys when the count assertion fails, to help debugging - they are not
+		// expected to match.
+		require.ElementsMatch(t, osqueryMapKeys(expectedDetailQueries), distQueriesMapKeys(queries))
+	}
 	verifyDiscovery(t, queries, discovery)
 	queryKey := fmt.Sprintf("%s%d", hostDistributedQueryPrefix, campaign.ID)
 	assert.Equal(t, "select * from time", queries[queryKey])
@@ -2202,7 +2225,8 @@ func TestPolicyQueries(t *testing.T) {
 
 	queries, discovery, _, err := svc.GetDistributedQueries(ctx)
 	require.NoError(t, err)
-	require.Equal(t, len(expectedDetailQueries)+2, len(queries), mapKeys(queries))
+	// all queries -1 for the extra disk space one, and +2 for the policy queries
+	require.Equal(t, len(expectedDetailQueries)+1, len(queries), distQueriesMapKeys(queries))
 	verifyDiscovery(t, queries, discovery)
 
 	checkPolicyResults := func(queries map[string]string) {
@@ -2258,7 +2282,8 @@ func TestPolicyQueries(t *testing.T) {
 	ctx = hostctx.NewContext(context.Background(), host)
 	queries, discovery, _, err = svc.GetDistributedQueries(ctx)
 	require.NoError(t, err)
-	require.Equal(t, len(expectedDetailQueries), len(queries), mapKeys(queries))
+	// all standard queries minus the extra disk space
+	require.Equal(t, len(expectedDetailQueries)-1, len(queries), distQueriesMapKeys(queries))
 	verifyDiscovery(t, queries, discovery)
 	noPolicyResults(queries)
 
@@ -2267,7 +2292,8 @@ func TestPolicyQueries(t *testing.T) {
 
 	queries, discovery, _, err = svc.GetDistributedQueries(ctx)
 	require.NoError(t, err)
-	require.Equal(t, len(expectedDetailQueries)+2, len(queries), mapKeys(queries))
+	// all standard queries minus the extra disk space, +2 policy queries
+	require.Equal(t, len(expectedDetailQueries)+1, len(queries), distQueriesMapKeys(queries))
 	verifyDiscovery(t, queries, discovery)
 	checkPolicyResults(queries)
 
@@ -2295,7 +2321,8 @@ func TestPolicyQueries(t *testing.T) {
 	ctx = hostctx.NewContext(context.Background(), host)
 	queries, discovery, _, err = svc.GetDistributedQueries(ctx)
 	require.NoError(t, err)
-	require.Equal(t, len(expectedDetailQueries), len(queries), mapKeys(queries))
+	// all standard queries minus the extra disk space
+	require.Equal(t, len(expectedDetailQueries)-1, len(queries), distQueriesMapKeys(queries))
 	verifyDiscovery(t, queries, discovery)
 	noPolicyResults(queries)
 
@@ -2304,7 +2331,8 @@ func TestPolicyQueries(t *testing.T) {
 	ctx = hostctx.NewContext(context.Background(), host)
 	queries, discovery, _, err = svc.GetDistributedQueries(ctx)
 	require.NoError(t, err)
-	require.Equal(t, len(expectedDetailQueries)+2, len(queries), mapKeys(queries))
+	// all standard queries minus the extra disk space, +2 policy queries
+	require.Equal(t, len(expectedDetailQueries)+1, len(queries), distQueriesMapKeys(queries))
 	verifyDiscovery(t, queries, discovery)
 	checkPolicyResults(queries)
 
@@ -2334,7 +2362,8 @@ func TestPolicyQueries(t *testing.T) {
 	ctx = hostctx.NewContext(context.Background(), host)
 	queries, discovery, _, err = svc.GetDistributedQueries(ctx)
 	require.NoError(t, err)
-	require.Equal(t, len(expectedDetailQueries), len(queries), mapKeys(queries))
+	// all standard queries minus the extra disk space
+	require.Equal(t, len(expectedDetailQueries)-1, len(queries), distQueriesMapKeys(queries))
 	verifyDiscovery(t, queries, discovery)
 	noPolicyResults(queries)
 }
@@ -2399,7 +2428,8 @@ func TestPolicyWebhooks(t *testing.T) {
 
 	queries, discovery, _, err := svc.GetDistributedQueries(ctx)
 	require.NoError(t, err)
-	require.Equal(t, len(expectedDetailQueries)+3, len(queries), mapKeys(queries))
+	// all queries -1 for extra disk space, +3 for policies
+	require.Equal(t, len(expectedDetailQueries)+2, len(queries), distQueriesMapKeys(queries))
 	verifyDiscovery(t, queries, discovery)
 
 	checkPolicyResults := func(queries map[string]string) {
@@ -2512,7 +2542,8 @@ func TestPolicyWebhooks(t *testing.T) {
 	ctx = hostctx.NewContext(context.Background(), host)
 	queries, discovery, _, err = svc.GetDistributedQueries(ctx)
 	require.NoError(t, err)
-	require.Equal(t, len(expectedDetailQueries), len(queries), mapKeys(queries))
+	// all standard queries minus the extra disk space
+	require.Equal(t, len(expectedDetailQueries)-1, len(queries), distQueriesMapKeys(queries))
 	verifyDiscovery(t, queries, discovery)
 	noPolicyResults(queries)
 
@@ -2521,7 +2552,8 @@ func TestPolicyWebhooks(t *testing.T) {
 
 	queries, discovery, _, err = svc.GetDistributedQueries(ctx)
 	require.NoError(t, err)
-	require.Equal(t, len(expectedDetailQueries)+3, len(queries), mapKeys(queries))
+	// all queries -1 for extra disk space, +3 for policies
+	require.Equal(t, len(expectedDetailQueries)+2, len(queries), distQueriesMapKeys(queries))
 	verifyDiscovery(t, queries, discovery)
 	checkPolicyResults(queries)
 
@@ -2644,7 +2676,8 @@ func TestLiveQueriesFailing(t *testing.T) {
 
 	queries, discovery, _, err := svc.GetDistributedQueries(ctx)
 	require.NoError(t, err)
-	require.Equal(t, len(expectedDetailQueries), len(queries), mapKeys(queries))
+	// all queries minus the extra disk space
+	require.Equal(t, len(expectedDetailQueries)-1, len(queries), distQueriesMapKeys(queries))
 	verifyDiscovery(t, queries, discovery)
 
 	logs, err := ioutil.ReadAll(buf)
@@ -2699,7 +2732,16 @@ func TestFleetDesktopOrbitInfo(t *testing.T) {
 	require.Len(t, discovery, 0)
 }
 
-func mapKeys(m map[string]string) []string {
+func distQueriesMapKeys(m map[string]string) []string {
+	keys := make([]string, 0, len(m))
+	for k := range m {
+		keys = append(keys, strings.TrimPrefix(k, "fleet_detail_query_"))
+	}
+	sort.Strings(keys)
+	return keys
+}
+
+func osqueryMapKeys(m map[string]osquery_utils.DetailQuery) []string {
 	keys := make([]string, 0, len(m))
 	for k := range m {
 		keys = append(keys, k)
