@@ -12,7 +12,7 @@ type errorAgg struct {
 
 // Aggregate retrieves all errors in the store and returns an aggregated,
 // json-formatted summary containing:
-// - The number of ocurrences of each error
+// - The number of occurrences of each error
 // - A reduced stack trace used for debugging the error
 func Aggregate(ctx context.Context) (json.RawMessage, error) {
 	empty := json.RawMessage("[]")
