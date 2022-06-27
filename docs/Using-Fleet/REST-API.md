@@ -6454,26 +6454,24 @@ The server only stores and returns a single instance of each error.
 
 ```json
 [
- {
+  {
     "count": "3",
-    "error": {
-      "cause": {
+    "error": [
+      {
         "message": "Authorization header required"
       },
-      "wraps": [
-        {
-          "message": "missing FleetError in chain",
-          "data": {
-            "timestamp": "2022-06-03T14:16:01-03:00"
-          },
-          "stack": [
-            "github.com/fleetdm/fleet/v4/server/contexts/ctxerr.Handle (ctxerr.go:262)",
-            "github.com/fleetdm/fleet/v4/server/service.encodeError (transport_error.go:80)",
-            "github.com/go-kit/kit/transport/http.Server.ServeHTTP (server.go:124)"
-          ]
-        }
-      ]
-    }
+      {
+        "message": "missing FleetError in chain",
+        "data": {
+          "timestamp": "2022-06-03T14:16:01-03:00"
+        },
+        "stack": [
+          "github.com/fleetdm/fleet/v4/server/contexts/ctxerr.Handle (ctxerr.go:262)",
+          "github.com/fleetdm/fleet/v4/server/service.encodeError (transport_error.go:80)",
+          "github.com/go-kit/kit/transport/http.Server.ServeHTTP (server.go:124)"
+        ]
+      }
+    ]
   }
 ]
 ```

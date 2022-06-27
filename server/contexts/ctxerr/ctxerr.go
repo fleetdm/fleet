@@ -44,13 +44,6 @@ type fleetErrorJSON struct {
 	Stack   []string        `json:"stack,omitempty"`
 }
 
-// FleetErrorChainJSON is the JSON representation of a whole error chain
-// json-encoded
-type FleetErrorChainJSON struct {
-	Cause fleetErrorJSON   `json:"cause"`
-	Wraps []fleetErrorJSON `json:"wraps,omitempty"`
-}
-
 // Error implements the error interface.
 func (e FleetError) Error() string {
 	if e.cause == nil {
@@ -62,20 +55,6 @@ func (e FleetError) Error() string {
 // Unwrap implements the error Unwrap interface introduced in go1.13.
 func (e *FleetError) Unwrap() error {
 	return e.cause
-}
-
-func (e *FleetError) toErrorJSON() fleetErrorJSON {
-	return fleetErrorJSON{
-		Message: e.msg,
-		Data:    e.data,
-		Stack:   e.stack.List(),
-	}
-}
-
-// MarshalJSON implements the marshaller interface, giving us control on how
-// errors are json-encoded
-func (e *FleetError) MarshalJSON() ([]byte, error) {
-	return json.Marshal(e.toErrorJSON())
 }
 
 // Stack returns a call stack for the error
@@ -225,7 +204,11 @@ func MarshalJSON(err error) ([]byte, error) {
 	for err != nil {
 		switch v := err.(type) {
 		case *FleetError:
-			chain = append(chain, v.toErrorJSON())
+			chain = append(chain, fleetErrorJSON{
+				Message: v.msg,
+				Data:    v.data,
+				Stack:   v.stack.List(),
+			})
 		default:
 			chain = append(chain, fleetErrorJSON{Message: v.Error()})
 		}
@@ -239,17 +222,14 @@ func MarshalJSON(err error) ([]byte, error) {
 		chain[i], chain[opp] = chain[opp], chain[i]
 	}
 
-	return json.MarshalIndent(FleetErrorChainJSON{
-		Cause: chain[0],
-		Wraps: chain[1:],
-	}, "", "  ")
+	return json.MarshalIndent(chain, "", "  ")
 }
 
 // StoredError represents the structure we use to de-serialize errors and
 // counts stored in Redis
 type StoredError struct {
 	Count int             `json:"count"`
-	Error json.RawMessage `json:"error"`
+	Chain json.RawMessage `json:"chain"`
 }
 
 type handler interface {

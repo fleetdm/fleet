@@ -210,31 +210,6 @@ func TestUnwrap(t *testing.T) {
 	require.Equal(t, Unwrap(err), cause)
 }
 
-func TestFleetErrorMarshalling(t *testing.T) {
-	cases := []struct {
-		msg string
-		in  FleetError
-		out string
-	}{
-		{"only error", FleetError{"a", mockStack{}, nil, nil}, `{"message": "a"}`},
-		{"errors and stack", FleetError{"a", mockStack{[]string{"test"}}, errors.New("err"), nil}, `{"message": "a", "stack": ["test"]}`},
-		{
-			"errors, stack and data",
-			FleetError{"a", mockStack{[]string{"test"}}, errors.New("err"), json.RawMessage(`{"foo":"bar"}`)},
-			`{"message": "a", "stack": ["test"], "data": {"foo": "bar"}}`,
-		},
-	}
-
-	for _, c := range cases {
-		t.Run(c.msg, func(t *testing.T) {
-			json, err := c.in.MarshalJSON()
-
-			require.NoError(t, err)
-			require.JSONEq(t, c.out, string(json))
-		})
-	}
-}
-
 func TestMarshalJSON(t *testing.T) {
 	ctx, cleanup := setup()
 	defer cleanup()
@@ -255,17 +230,17 @@ func TestMarshalJSON(t *testing.T) {
 		{
 			"non-wrapped errors",
 			errNew,
-			`{"cause": {"message": "a"}}`,
+			`[{"message": "a"}]`,
 		},
 		{
 			"wrapped error",
 			errWrap,
-			`{"cause": {"message": "a"}, "wraps": [{"message": "b", "data": {"timestamp": "1969-06-19T21:44:05Z"}, "stack": ["sb"]}]}`,
+			`[{"message": "a"}, {"message": "b", "data": {"timestamp": "1969-06-19T21:44:05Z"}, "stack": ["sb"]}]`,
 		},
 		{
 			"wrapped error with data",
 			errNewWithData,
-			`{"cause": {"message": "c", "stack": ["sc"], "data": {"f": "c", "timestamp": "1969-06-19T21:44:05Z"}}}`,
+			`[{"message": "c", "stack": ["sc"], "data": {"f": "c", "timestamp": "1969-06-19T21:44:05Z"}}]`,
 		},
 	}
 

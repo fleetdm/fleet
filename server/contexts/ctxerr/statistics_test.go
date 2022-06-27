@@ -17,7 +17,7 @@ func TestAggregate(t *testing.T) {
 	t.Run("returns an error if it can't decode one of the errors stored", func(t *testing.T) {
 		eh := MockHandler{}
 		eh.RetrieveImpl = func(flush bool) ([]*StoredError, error) {
-			return []*StoredError{{Error: []byte("invalid")}}, nil
+			return []*StoredError{{Chain: []byte("invalid")}}, nil
 		}
 		ctx := NewContext(context.Background(), eh)
 		_, err := Aggregate(ctx)
@@ -28,8 +28,10 @@ func TestAggregate(t *testing.T) {
 		eh := MockHandler{}
 		eh.RetrieveImpl = func(flush bool) ([]*StoredError, error) {
 			return []*StoredError{
-				{Count: 10, Error: []byte(`{"cause": {"stack": ["a", "b", "c", "d"]}}`)},
-				{Count: 20, Error: []byte(`{"cause": {"stack": ["x", "y"]}}`)},
+				{Count: 10, Chain: []byte(`[{"stack": ["a", "b", "c", "d"]}]`)},
+				{Count: 20, Chain: []byte(`[{"stack": ["x", "y"]}]`)},
+				{Count: 30, Chain: []byte(`[{"stack": ["a", "b", "c", "d"]}, {"stack": ["x", "y"]}]`)},
+				{Count: 40, Chain: []byte(`[{"stack": ["a"]}, {"stack": ["x", "y"]}]`)},
 			}, nil
 		}
 		ctx := NewContext(context.Background(), eh)
@@ -39,10 +41,11 @@ func TestAggregate(t *testing.T) {
 		var aggs []errorAgg
 		err = json.Unmarshal(rawAgg, &aggs)
 		require.NoError(t, err)
-		require.Len(t, aggs, 2)
-		require.Equal(t, aggs[0].Count, 10)
-		require.Equal(t, aggs[0].Loc, []string{"a", "b", "c"})
-		require.Equal(t, aggs[1].Count, 20)
-		require.Equal(t, aggs[1].Loc, []string{"x", "y"})
+		require.Equal(t, []errorAgg{
+			{Count: 10, Loc: []string{"a", "b", "c"}},
+			{Count: 20, Loc: []string{"x", "y"}},
+			{Count: 30, Loc: []string{"a", "b", "c"}},
+			{Count: 40, Loc: []string{"a", "x", "y"}},
+		}, aggs)
 	})
 }

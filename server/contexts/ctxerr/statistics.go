@@ -15,8 +15,8 @@ type errorAgg struct {
 // - The number of occurrences of each error
 // - A reduced stack trace used for debugging the error
 func Aggregate(ctx context.Context) (json.RawMessage, error) {
-	empty := json.RawMessage("[]")
 	const maxTraceLen = 3
+	empty := json.RawMessage("[]")
 
 	storedErrs, err := Retrieve(ctx)
 	if err != nil {
@@ -25,25 +25,35 @@ func Aggregate(ctx context.Context) (json.RawMessage, error) {
 
 	aggs := make([]errorAgg, len(storedErrs))
 	for i, stored := range storedErrs {
-		var em FleetErrorChainJSON
-		if err = json.Unmarshal(stored.Error, &em); err != nil {
+		var ferr []fleetErrorJSON
+		if err = json.Unmarshal(stored.Chain, &ferr); err != nil {
 			return empty, Wrap(ctx, err, "unmarshal on aggregation")
 		}
 
-		// build a full stack trace
-		stack := em.Cause.Stack
-		for _, wrap := range em.Wraps {
-			stack = append(stack, wrap.Stack...)
-		}
-
-		// store the topmost stack traces for each error
-		max := len(stack)
-		if max > maxTraceLen {
-			max = maxTraceLen
-		}
-
-		aggs[i] = errorAgg{stored.Count, stack[:max]}
+		stack := aggregateStack(ferr, maxTraceLen)
+		aggs[i] = errorAgg{stored.Count, stack}
 	}
 
 	return json.Marshal(aggs)
+}
+
+// aggregateStack creates a single stack trace by joining all the stack traces in
+// an error chain
+func aggregateStack(chain []fleetErrorJSON, max int) []string {
+	stack := make([]string, max)
+	stackIdx := 0
+
+out:
+	for _, e := range chain {
+		for _, m := range e.Stack {
+			if stackIdx >= max {
+				break out
+			}
+
+			stack[stackIdx] = m
+			stackIdx++
+		}
+	}
+
+	return stack[:stackIdx]
 }

@@ -36,7 +36,7 @@ func testStatisticsShouldSend(t *testing.T, ds *Datastore) {
 	eh.RetrieveImpl = func(flush bool) ([]*ctxerr.StoredError, error) {
 		require.False(t, flush)
 		return []*ctxerr.StoredError{
-			{Count: 10, Error: json.RawMessage(`{"cause": {"stack": ["a","b","c","d"]}}`)},
+			{Count: 10, Chain: json.RawMessage(`[{"stack": ["a","b","c","d"]}]`)},
 		}, nil
 	}
 	var ctxb = context.Background()
