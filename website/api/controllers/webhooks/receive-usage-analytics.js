@@ -22,7 +22,7 @@ module.exports = {
     hostStatusWebhookEnabled: { type: 'boolean', defaultsTo: false },
     numWeeklyActiveUsers: { type: 'number', defaultsTo: 0 },
     hostsEnrolledByOperatingSystem: { type: 'json', defaultsTo: {} },
-    storedErrors: { type: 'json', defaultsTo: '[]', description: 'TODO' },
+    storedErrors: { type: 'json', defaultsTo: '[]' },
   },
 
 
