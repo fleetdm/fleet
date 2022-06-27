@@ -19,7 +19,7 @@ interface IHostSummaryProps {
   linuxCount: number;
   isLoadingHostsSummary: boolean;
   showHostsUI: boolean;
-  showHostsError: boolean;
+  errorHosts: boolean;
   selectedPlatform: string;
   labels?: ILabelSummary[];
   setActionURL?: (url: string) => void;
@@ -32,7 +32,7 @@ const HostsSummary = ({
   linuxCount,
   isLoadingHostsSummary,
   showHostsUI,
-  showHostsError,
+  errorHosts,
   selectedPlatform,
   labels,
   setActionURL,
@@ -134,7 +134,7 @@ const HostsSummary = ({
     }
   };
 
-  if (showHostsError && !isLoadingHostsSummary) {
+  if (errorHosts && !isLoadingHostsSummary) {
     return <DataError card />;
   }
 
