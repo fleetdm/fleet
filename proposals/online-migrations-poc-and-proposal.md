@@ -181,12 +181,14 @@ Place" allow `LOCK=SHARED` which enables you to read data from the table.
 
 ### Limitations
 
-1. This approach needs special planning and care between version. We have to
+1. This approach needs special planning and care between versions. We have to
    look into ways to keep the house in order and make sure columns/indexes/etc
    are removed.
 2. Data is replicated sequentially leading to replication lags.
 3. The MySQL documentation often mentions that for some concurrent operations
-   data is reorganized substantially, making it an expensive operation
+   data is reorganized substantially, making it an expensive operation. We need
+   to compare this with the cost of recursively creating a new table + copying
+   the data for parent tables.
 
 
 [migrations-proposal]: https://docs.google.com/document/d/1lv67XVhLbejgeS6Vi43C8wqvjb6wRpc07zy1Guv-3VA
