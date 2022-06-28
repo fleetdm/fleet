@@ -44,7 +44,7 @@ Your team leads don’t need a crash course in security and compliance to measur
 
 Fleet also lets you [assign users different levels of access](https://fleetdm.com/docs/using-fleet/permissions): Observer, Maintainer, and Admin. So, your Head of Security can create policies and assign them to different teams — preparing team leads to run queries for up-to-the-minute data on devices. Though that might not be necessary. Fleet policies automatically refresh every hour.
 
-Fleet policies, teams, and permissions empower employees at every level of your organization to share the responsibility of measuring compliance. With more hands on deck, reaching your goals will be a breeze.
+Fleet policies, teams, and permissions empower employees at every level of your organization to share the responsibility of measuring compliance. With more hands on deck, reaching your goals will be a breeze. You can even enable [policy automations](https://fleetdm.com/docs/using-fleet/automations#policy-automations) that let you create tickets in external systems when a policy fails.
 
 
 <meta name="category" value="product">
