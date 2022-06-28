@@ -40,6 +40,10 @@ Also remember to replace both `AC_USERNAME` and `AC_PASSWORD` environment variab
 
 ### Fleet Desktop
 
+> Fleet Desktop requires a Fleet version of 4.12.0 and above. To check your Fleet version, select
+> the avatar on the right side of the top bar and select **My account**. Your Fleet version is
+> displayed below the **Get API token** button.
+
 How to install Fleet Desktop on your hosts:
 1. On the top bar in the Fleet UI, select **Hosts > Add hosts**.
 2. Select the **Include Fleet Desktop** checkbox.

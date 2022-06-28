@@ -2,17 +2,20 @@ package main
 
 import (
 	"bytes"
+	"compress/bzip2"
 	"crypto/tls"
 	"embed"
 	"encoding/json"
 	"errors"
 	"flag"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"log"
 	"math/rand"
 	"net/http"
 	"os"
+	"path/filepath"
 	"strings"
 	"sync"
 	"text/template"
@@ -412,8 +415,47 @@ func (a *agent) HostUsersMacOS() []fleet.HostUser {
 	return users
 }
 
+func extract(src, dst string) {
+	srcF, err := os.Open(src)
+	if err != nil {
+		panic(err)
+	}
+	defer srcF.Close()
+
+	dstF, err := os.Create(dst)
+	if err != nil {
+		panic(err)
+	}
+	defer dstF.Close()
+
+	r := bzip2.NewReader(srcF)
+	// ignoring "G110: Potential DoS vulnerability via decompression bomb", as this is test code.
+	_, err = io.Copy(dstF, r) //nolint:gosec
+	if err != nil {
+		panic(err)
+	}
+}
+
 func loadUbuntuSoftware(ver string) []fleet.Software {
-	var r []fleet.Software
+	srcPath := filepath.Join(
+		"..",
+		"..",
+		"server",
+		"vulnerabilities",
+		"testdata",
+		"ubuntu",
+		"software",
+		fmt.Sprintf("ubuntu_%s-software.json.bz2", ver),
+	)
+
+	tmpDir, err := ioutil.TempDir("", "osquery-perf")
+	if err != nil {
+		panic(err)
+	}
+	defer os.RemoveAll(tmpDir)
+	dstPath := filepath.Join(tmpDir, fmt.Sprintf("%s-software.json", ver))
+
+	extract(srcPath, dstPath)
 
 	type softwareJSON struct {
 		Name    string `json:"name"`
@@ -421,7 +463,7 @@ func loadUbuntuSoftware(ver string) []fleet.Software {
 	}
 
 	var software []softwareJSON
-	contents, err := ioutil.ReadFile(fmt.Sprintf("ubuntu_%s-vulnerable_software.json", ver))
+	contents, err := ioutil.ReadFile(dstPath)
 	if err != nil {
 		log.Printf("reading vuln software for ubuntu %s: %s\n", ver, err)
 		return nil
@@ -433,6 +475,7 @@ func loadUbuntuSoftware(ver string) []fleet.Software {
 		return nil
 	}
 
+	var r []fleet.Software
 	for _, fi := range software {
 		r = append(r, fleet.Software{
 			Name:    fi.Name,
@@ -742,6 +785,7 @@ func main() {
 		"mac10.14.6.tmpl",
 
 		// Uncomment this to add ubuntu hosts with vulnerable software
+		// "partial_ubuntu.tmpl",
 		// "ubuntu_16.04.tmpl",
 		// "ubuntu_18.04.tmpl",
 		// "ubuntu_20.04.tmpl",
@@ -773,6 +817,9 @@ func main() {
 
 	for i := 0; i < *hostCount; i++ {
 		tmpl := tmpls[i%len(tmpls)]
+		if strings.HasPrefix(tmpl.Name(), "partial") {
+			continue
+		}
 		a := newAgent(i+1, *serverURL, *enrollSecret, tmpl, *configInterval, *queryInterval,
 			softwareEntityCount{
 				entityCount: entityCount{

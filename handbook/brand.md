@@ -303,6 +303,14 @@ Production systems can fail for various reasons, and it can be frustrating to us
 * notify impacted users of any steps they need to take (if any).  If a customer paid with a credit card and had a bad experience, default to refunding their money.
 * Conduct an incident post-mortem to determine any additional steps we need (including monitoring) to take to prevent this class of problems from happening in the future.
 
+#### Incident post-mortems
+
+When conducting an incident post-mortem, answer the following three questions:
+
+1. Impact: What impact did this error have? How many humans experienced this error, if any, and who were they?
+2. Root Cause: Why did this error happen?
+3. Side effects: did this error have any side effects? e.g., did it corrupt any data? Did code that was supposed to run afterwards and “finish something up” not run, and did it leave anything in the database or other systems in a broken state requiring repair? This typically involves checking the line in the source code that threw the error.
+
 ### When can I merge a change to the website?
 When merging a PR to master, remember that whatever you merge to master gets deployed live immediately. So if the PR's changes contain anything that you don't think is appropriate to be seen publicly by all guests of [fleetdm.com](https://fleetdm.com/), please do not merge.
 
@@ -344,6 +352,10 @@ In Figma:
   * Avoid using SVGs or icon fonts.
 3. Click the __Export__ button.
 
+### Vulnerability monitoring
+
+Every week, we run `npm audit --only=prod` to check for vulnerabilities on the production dependencies of fleetdm.com. Once we have a solution to configure GitHub's Dependabot to ignore devDependencies, this manual process can be replaced with Dependabot.
+
 ## Rituals
 
 The following table lists the Brand group's rituals, frequency, and Directly Responsible Individual (DRI).
@@ -361,6 +373,7 @@ The following table lists the Brand group's rituals, frequency, and Directly Res
 | Handbook editor pass | Monthly | Edit for copy and content. | Desmi Dizney |
 | Browser compatibility check | Monthly | Check browser compatibility for the website | Eric Shaw |
 | OKR planning  | Quarterly | Plan next quarter's OKRs | Mike Thomas |
+| Website vulnerability check  | Weekly | Checking for vulnerabilities on fleetdm.com | Eric Shaw |
 
 ## Slack channels
 

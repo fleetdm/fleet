@@ -21,7 +21,7 @@ type ReferenceXML struct {
 
 // DefinitionXML see https://oval.mitre.org/language/version5.10.1/ovaldefinition/documentation/oval-definitions-schema.html#definition.
 type DefinitionXML struct {
-	Id       string         `xml:"id,attr"`
-	CVEs     []ReferenceXML `xml:"metadata>reference"`
-	Criteria CriteriaXML    `xml:"criteria"`
+	Id              string         `xml:"id,attr"`
+	Vulnerabilities []ReferenceXML `xml:"metadata>reference"`
+	Criteria        CriteriaXML    `xml:"criteria"`
 }

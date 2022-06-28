@@ -493,7 +493,7 @@ func (s *integrationTestSuite) TestVulnerableSoftware() {
 				CPEID:      soft1.GeneratedCPEID,
 				CVE:        "cve-123-123-132",
 			},
-		}, fleet.NVD,
+		}, fleet.NVDSource,
 	)
 	require.NoError(t, err)
 	require.Equal(t, 1, int(n))
@@ -4086,7 +4086,7 @@ func (s *integrationTestSuite) TestPaginateListSoftware() {
 	}
 
 	// add CVEs for the first 10 software, which are the least used (lower hosts_count)
-	n, err := s.ds.InsertVulnerabilities(context.Background(), vulns, fleet.NVD)
+	n, err := s.ds.InsertVulnerabilities(context.Background(), vulns, fleet.NVDSource)
 	require.NoError(t, err)
 	require.Equal(t, 10, int(n))
 

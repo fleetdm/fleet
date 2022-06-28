@@ -143,17 +143,9 @@ func (sv *SoftwareVulnerability) Key() string {
 	return fmt.Sprintf("%d:%s", sv.SoftwareID, sv.CVE)
 }
 
-// SoftwareWithCPE holds a software piece alongside its CPE ID.
-type SoftwareWithCPE struct {
-	// Software holds the software data.
-	Software
-	// CPEID is the ID of the software CPE in the system.
-	CPEID uint
-}
-
 type VulnerabilitySource int
 
 const (
-	NVD VulnerabilitySource = iota
-	OVAL
+	NVDSource VulnerabilitySource = iota
+	OVALSource
 )

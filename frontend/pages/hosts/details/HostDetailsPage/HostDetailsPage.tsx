@@ -54,6 +54,8 @@ import PolicyDetailsModal from "../cards/Policies/HostPoliciesTable/PolicyDetail
 import DeleteHostModal from "./modals/DeleteHostModal";
 import RenderOSPolicyModal from "./modals/OSPolicyModal";
 
+import parseOsVersion from "./modals/OSPolicyModal/helpers";
+
 import BackChevron from "../../../../../assets/images/icon-chevron-down-9x6@2x.png";
 import DeleteIcon from "../../../../../assets/images/icon-action-delete-14x14@2x.png";
 import QueryIcon from "../../../../../assets/images/icon-action-query-16x16@2x.png";
@@ -328,15 +330,7 @@ const HostDetailsPage = ({
     ])
   );
 
-  const operatingSystem = host?.os_version.slice(
-    0,
-    host?.os_version.lastIndexOf(" ")
-  );
-  const operatingSystemVersion = host?.os_version.slice(
-    host?.os_version.lastIndexOf(" ") + 1
-  );
-  const osPolicyLabel = `Is ${operatingSystem}, version ${operatingSystemVersion} or later, installed?`;
-  const osPolicy = `SELECT 1 from os_version WHERE name = '${operatingSystem}' AND major || '.' || minor || '.' || patch >= '${operatingSystemVersion}';`;
+  const [osPolicyLabel, osPolicyQuery] = parseOsVersion(host?.os_version);
 
   const aboutData = normalizeEmptyValues(
     pick(host, [
@@ -385,7 +379,7 @@ const HostDetailsPage = ({
     setLastEditedQueryDescription(
       "Checks to see if the required minimum operating system version is installed."
     );
-    setLastEditedQueryBody(osPolicy);
+    setLastEditedQueryBody(osPolicyQuery);
     setLastEditedQueryResolution("");
     router.replace(NEW_POLICY);
   };
@@ -648,7 +642,7 @@ const HostDetailsPage = ({
           onCancel={() => setShowOSPolicyModal(false)}
           onCreateNewPolicy={onCreateNewPolicy}
           titleData={titleData}
-          osPolicy={osPolicy}
+          osPolicy={osPolicyQuery}
           osPolicyLabel={osPolicyLabel}
         />
       )}
