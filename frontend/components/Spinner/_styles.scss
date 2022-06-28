@@ -32,22 +32,6 @@
     }
   }
   
-  &__ring-for-button {
-    margin-right: $pad-small;
-    width: 16px;
-    height: 16px;
-    border-width: 3px;
-    border-color: rgba(255,255,255,0.25);
-    
-    div {
-      margin: -3px;
-      width: 16px;
-      height: 16px;
-      border-width: 3px;
-      border-color: $core-white transparent transparent transparent;
-    }
-  }
-  
   div:nth-child(1) {
     animation-delay: -0.45s;
   }
@@ -58,6 +42,19 @@
   
   div:nth-child(3) {
     animation-delay: -0.15s;
+  }
+}
+
+button .loading-spinner {
+  background: none;
+  box-shadow: none;
+  transform: scale(0.8);
+  &__ring {
+    border-color: $core-white;
+    div {
+      animation: ring 1.2s cubic-bezier(0.5, 0, 0.5, 1) infinite;
+      border-color: $core-vibrant-blue transparent transparent transparent;
+    }
   }
 }
 
