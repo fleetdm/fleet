@@ -391,6 +391,12 @@ We should also research https://github.com/sassoftware/relic (it mentions Window
 It looks like we will be able to implement the first iteration of the Packager Service as a Go service running on a Linux server.
 The only limitation will be macOS stapling (see below).
 
+### Scale
+
+MVP of the service will support running one instance of the service. Probably ok as the majority of the load will be IO, network and disk.
+
+Nothing prevent us from horizontal scaling by sharding requests by `package_id` (or a `client_id`) in the future.
+
 ### State storing
 
 For the first iteration, we should pick one of the following simple options:
@@ -426,9 +432,28 @@ Depending on dependencies we could implement the service as a Lambda Function. T
 
 What could go wrong?
 
+### Fleet Credentials
+
+The MVP of the service will have access to:
+- Fleet's Developer Signing Key (for `.pkg` signing).
+- Fleet's Apple Connect Username and Password (for `.pkg` notarization).
+
+From Guillaume:
+> If someone manages to compromise this service, they could potentially sign AND notarize malware under Fleet's identity.
+
+Remediation: Fleet credentials should be stored on a secrets manager, e.g. [AWS Secrets Manager](https://docs.aws.amazon.com/secretsmanager/latest/userguide/intro.html).
+
+### User Credentials
+
 The Fleet-URL and enroll secret are stored within the generated packages.
 If the unexpired installers are leaked, users' Fleet URLs and enroll secrets would be compromised.
-Attackers could enroll their devices to users' Fleet deployment. What then? Can they do damage? TBD
+Attackers could enroll their devices to users' Fleet deployment.
+
+An attacker with access to an enroll secret can perform the following attacks:
+- Feed a Fleet server with fake data (possibly DoS the service).
+- Leak the queries configured in Fleet.
+
+Remediation: All generated packages should be securely deleted when they expire.
 
 ## Sandbox/Demo & Cloud
 
@@ -441,4 +466,4 @@ The design supports the following deployments:
 
 ## New Fleetctl Command
 
-We can add new flags to `fleetctl package` to generate the packages using a Packager Service instead of building locally.
+We could add new flags (e.g. `--remote`) to `fleetctl package` to generate the packages using a Packager Service instead of building locally.
