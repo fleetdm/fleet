@@ -18,7 +18,7 @@ Answering questions like these is the first step to becoming compliant. After al
 
 Achieving the highest level of compliance for your industry is an admirable goal. But pursuing compliance perfection could tie up daily business operations.
 
-For instance, if your organization has 30 employees who use MacBooks, it might be possible to make sure they all have the latest version of macOS installed. That goal gets more challenging to achieve as those MacBooks multiply to the hundreds or even thousands. Maybe then you just want to make sure they’re on Big Sur.
+For instance, if your organization has 30 employees who use MacBooks, it might be possible to make sure they all have the latest version of macOS installed. That goal gets more challenging to achieve as those MacBooks multiply and employees elect to use other operating systems, devices, or even servers. Maybe then you just want to make sure they have auto updates enabled.
 
 Be sure to set goals based on the resources you have available, and try not to let perfection stand in the way of progress.
 
@@ -34,9 +34,9 @@ There may be processes that apply to your entire company, like using multi-facto
 
 Ultimately, your CISO, Head of Security or Chief Compliance Officer is responsible for ensuring compliance, depending on the structure of your organization. Asking them to check the progress of each team and individual, in addition to their other responsibilities, isn’t exactly efficient (or fair).
 
-Your company could hire more security specialists. Some organizations have thousands on staff, but we know this isn’t always a realistic option. The good news is that you don’t necessarily need more security and compliance people — just more people with security skills.
+Your company could hire more security specialists, like devops engineers. Some organizations have thousands on staff, but we know this isn’t always a realistic option. The good news is that you don’t necessarily need more security and compliance people — just more people with security skills.
 
-Team leads are in the perfect position to help you measure compliance progress. They know which hardware needs maintenance. They know which software to update, and they’ll be the first to know of any employees who are onboarding or offboarding.
+The lead devops engineers know exactly how your cloud environments are configured at scale, and when given visibility into what needs to be done, are the people with the best skills to get it done properly. Provide your technical experts with the reasoning behind the compliance requirements as well as with the visibility they need to know which systems are or aren't compliant.
 
 ## Fleet makes tracking compliance easy
 
