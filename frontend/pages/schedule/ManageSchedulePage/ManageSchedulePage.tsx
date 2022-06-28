@@ -9,6 +9,7 @@ import { AppContext } from "context/app";
 import { NotificationContext } from "context/notification";
 import deepDifference from "utilities/deep_difference";
 import { ITeam } from "interfaces/team";
+import { IQuery } from "interfaces/query";
 import {
   IScheduledQuery,
   IEditScheduledQuery,
@@ -32,6 +33,10 @@ import ScheduleEditorModal from "./components/ScheduleEditorModal";
 import RemoveScheduledQueryModal from "./components/RemoveScheduledQueryModal";
 
 const baseClass = "manage-schedule-page";
+
+interface IFleetQueriesResponse {
+  queries: IQuery[];
+}
 
 const renderTable = (
   router: InjectedRouter,
@@ -161,11 +166,15 @@ const ManageSchedulePage = ({
     data: fleetQueries,
     isLoading: isLoadingFleetQueries,
     error: errorQueries,
-  } = useQuery(["fleetQueries"], () => fleetQueriesAPI.loadAll(), {
-    refetchOnMount: false,
-    refetchOnWindowFocus: false,
-    select: (data) => data.queries,
-  });
+  } = useQuery<IFleetQueriesResponse, Error, IQuery[]>(
+    ["fleetQueries"],
+    () => fleetQueriesAPI.loadAll(),
+    {
+      refetchOnMount: false,
+      refetchOnWindowFocus: false,
+      select: (data) => data.queries,
+    }
+  );
 
   const {
     data: globalScheduledQueries,
@@ -535,7 +544,7 @@ const ManageSchedulePage = ({
             isFetchingGlobalScheduledQueries,
             isLoadingTeamScheduledQueries
           )}
-        {showScheduleEditorModal && (
+        {showScheduleEditorModal && fleetQueries && (
           <ScheduleEditorModal
             onClose={toggleScheduleEditorModal}
             onScheduleSubmit={onAddScheduledQuerySubmit}
