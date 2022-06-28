@@ -26,14 +26,15 @@ module.exports.routes = {
     }
   },
 
-  'GET /get-started': {
-    action: 'view-get-started' ,
-    locals: {
-      currentPage: 'get started',
-      pageTitleForMeta: 'Get started | Fleet for osquery',
-      pageDescriptionForMeta: 'Learn about getting started with Fleet.'
-    }
-  },
+  'GET /get-started': { action: 'try-fleet/view-register' },
+  // {
+  //   action: 'view-get-started' ,
+  //   locals: {
+  //     currentPage: 'get started',
+  //     pageTitleForMeta: 'Get started | Fleet for osquery',
+  //     pageDescriptionForMeta: 'Learn about getting started with Fleet.'
+  //   }
+  // },
 
   'GET /pricing': {
     action: 'view-pricing',
@@ -187,7 +188,9 @@ module.exports.routes = {
       layout: 'layouts/layout-landing'
     },
   },
-
+  'GET /try-fleet/sandbox': { action: 'try-fleet/view-sandbox' },
+  'GET /try-fleet/login': { action: 'try-fleet/view-sandbox-login' },
+  'GET /try-fleet/register': { action: 'try-fleet/view-register' },
 
 
   //  ╦  ╔═╗╔═╗╔═╗╔═╗╦ ╦  ╦═╗╔═╗╔╦╗╦╦═╗╔═╗╔═╗╔╦╗╔═╗

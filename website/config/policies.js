@@ -37,5 +37,6 @@ module.exports.policies = {
   'articles/*': true,
   'reports/*': true,
   'view-sales-one-pager': true,
+  'try-fleet/*': true
 
 };
