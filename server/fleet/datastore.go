@@ -324,7 +324,9 @@ type Datastore interface {
 	ScheduledQuery(ctx context.Context, id uint) (*ScheduledQuery, error)
 	CleanupExpiredHosts(ctx context.Context) ([]uint, error)
 	// ScheduledQueryIDsByName loads the IDs associated with the given pack and
-	// query names.
+	// query names. It returns a slice of IDs in the same order as
+	// packAndSchedQueryNames, with the ID set to 0 if the corresponding
+	// scheduled query did not exist.
 	ScheduledQueryIDsByName(ctx context.Context, packAndSchedQueryNames ...[2]string) ([]uint, error)
 
 	///////////////////////////////////////////////////////////////////////////////

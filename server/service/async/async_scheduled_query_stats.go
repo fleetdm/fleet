@@ -166,20 +166,6 @@ func (t *Task) collectScheduledQueryStats(ctx context.Context, ds fleet.Datastor
 	// batch upsert the stats
 
 	/*
-		// Based on those pages, the best approach appears to be INSERT with multiple
-		// rows in the VALUES section (short of doing LOAD FILE, which we can't):
-		// https://www.databasejournal.com/features/mysql/optimize-mysql-inserts-using-batch-processing.html
-		// https://dev.mysql.com/doc/refman/5.7/en/insert-optimization.html
-		// https://dev.mysql.com/doc/refman/5.7/en/optimizing-innodb-bulk-data-loading.html
-		//
-		// Given that there are no UNIQUE constraints in label_membership (well,
-		// apart from the primary key columns), no AUTO_INC column and no FOREIGN
-		// KEY, there is no obvious setting to tweak (based on the recommendations of
-		// the third link above).
-		//
-		// However, in label_membership, updated_at defaults to the current timestamp
-		// both on INSERT and when UPDATEd, so it does not need to be provided.
-
 		runInsertBatch := func(batch [][2]uint) error {
 			stats.Inserts++
 			return ds.AsyncBatchInsertLabelMembership(ctx, batch)
