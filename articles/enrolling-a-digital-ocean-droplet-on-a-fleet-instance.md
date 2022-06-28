@@ -1,4 +1,6 @@
-# Enrolling a DigitalOcean Droplet Server on a Fleet instance
+# Enrolling a DigitalOcean Droplet server on a Fleet instance
+
+![Enrolling a DigitalOcean Droplet server on a Fleet instance](../website/assets/images/articles/enrolling-a-digitalocean-droplet-server-on-a-fleet-instance-1600x900@2x.jpg)
 
 Here's a scenario: you have an Ubuntu server created as a Droplet on DigitalOcean. You want to deploy an osquery agent on that server and connect to your Fleet Instance.
 
@@ -121,3 +123,4 @@ Which should return all the commands typed in the shell, and I got an output lik
 <meta name="authorFullName" value="Kelvin Omereshone">
 <meta name="publishedOn" value="2022-05-26">
 <meta name="articleTitle" value="Enrolling a DigitalOcean Droplet on a Fleet instance">
+<meta name="articleImageUrl" value="../website/assets/images/articles/enrolling-a-digitalocean-droplet-server-on-a-fleet-instance-1600x900@2x.jpg">

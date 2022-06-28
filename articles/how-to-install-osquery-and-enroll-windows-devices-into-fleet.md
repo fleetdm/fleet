@@ -1,7 +1,5 @@
 # How to install osquery and enroll Windows devices into Fleet
 
-![Enroll Linux devices into Fleet](../website/assets/images/articles/install-osquery-and-enroll-windows-devices-into-fleet-cover@2x.jpg)
-
 The easiest way to install osquery and enroll Windows devices into your Fleet instance is to use the Fleet osquery installer.
 
 Alternatively, you can run a preview environment of Fleet locally (which automatically adds your device to the locally running Fleet server). Check out the [Getting Started](https://fleetdm.com/get-started) guide for instructions on setting that up.
@@ -58,4 +56,4 @@ If you’re managing an enterprise environment, you will likely have a deploymen
 <meta name="authorGitHubUsername" value="dominuskelvin">
 <meta name="publishedOn" value="2022-02-03">
 <meta name="articleTitle" value="How to install osquery and enroll Windows devices into Fleet">
-<meta name="articleImageUrl" value="../website/assets/images/articles/install-osquery-and-enroll-windows-devices-into-fleet-cover@2x.jpg">
+<meta name="articleImageUrl" value="../website/assets/images/articles/install-osquery-and-enroll-windows-devices-into-fleet-1600x900@2x.jpg">

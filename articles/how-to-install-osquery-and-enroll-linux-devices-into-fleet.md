@@ -1,7 +1,5 @@
 # How to install osquery and enroll Linux devices into Fleet
 
-![Enroll Linux devices into Fleet](../website/assets/images/articles/install-osquery-and-enroll-linux-devices-into-fleet-cover@2x.jpg)
-
 Here, we will cover enrolling Linux devices to an existing Fleet server. If you don’t have a Fleet server configured already, check out the [Server Installation docs](https://fleetdm.com/docs/deploying/server-installation). If you’re still getting to know Fleet and would like to skip the server setup process and check out a preview, you can [Get Started](https://fleetdm.com/get-started) using `fleetctl preview` instead.
 
 ## Prerequisites
@@ -90,4 +88,4 @@ If you’re managing an enterprise environment, you will likely have a deploymen
 <meta name="authorGitHubUsername" value="ksatter">
 <meta name="publishedOn" value="2022-03-19">
 <meta name="articleTitle" value="How to install osquery and enroll Linux devices into Fleet">
-<meta name="articleImageUrl" value="../website/assets/images/articles/install-osquery-and-enroll-linux-devices-into-fleet-cover@2x.jpg">
+<meta name="articleImageUrl" value="../website/assets/images/articles/install-osquery-and-enroll-linux-devices-into-fleet-1600x900@2x.jpg">

@@ -1,7 +1,5 @@
 # How to install osquery and enroll macOS devices into Fleet
 
-![Enroll Linux devices into Fleet](../website/assets/images/articles/install-osquery-and-enroll-macos-devices-into-fleet-cover@2x.jpg)
-
 The easiest way to install osquery and enroll macOS devices into your Fleet instance is to use the Fleet osquery installer.
 
 Alternatively, you can run a preview environment of Fleet locally (which automatically adds your device to the locally running Fleet server). Check out the [Getting Started](https://fleetdm.com/get-started) guide for instructions on setting that up.
@@ -60,4 +58,4 @@ Fleet makes it easy to install osquery and enrol macOS devices with fleetctl. If
 <meta name="authorGitHubUsername" value="dominuskelvin">
 <meta name="publishedOn" value="2022-01-13">
 <meta name="articleTitle" value="How to install osquery and enroll macOS devices into Fleet">
-<meta name="articleImageUrl" value="../website/assets/images/articles/install-osquery-and-enroll-macos-devices-into-fleet-cover@2x.jpg">
+<meta name="articleImageUrl" value="../website/assets/images/articles/install-osquery-and-enroll-macos-devices-into-fleet-1600x900@2x.jpg">

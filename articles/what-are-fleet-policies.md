@@ -1,7 +1,5 @@
 # What are Fleet policies?
 
-![The policies page of Fleet](../website/assets/images/articles/get-and-stay-compliant-across-your-devices-with-fleet-1-700x523@2x.jpeg)
-
 Fleet policies are a great way to quickly monitor your devices by asking yes or no questions about them. Policies are also an easy way to make sure you maintain data integrity, confidentiality, and security. Whether you’re checking in on a small set of devices, or a fleet of thousands, policies give quick insight into their status and IT compliance. For example, suppose one of your defined controls makes sure that all of your macOS devices have Gatekeeper enabled. In that case, the Security team can create a policy to quickly and easily return a yes or no response from all of your enrolled devices.
 
 Read more about [getting and staying compliant across your fleet.](https://fleetdm.com/use-cases/get-and-stay-compliant-across-your-devices-with-fleet)
@@ -54,4 +52,4 @@ Policies and automation help your security and IT teams feel confident that devi
 <meta name="authorFullName" value="Andrew Baker">
 <meta name="publishedOn" value="2022-05-20">
 <meta name="articleTitle" value="What are Fleet policies?">
-<meta name="articleImageUrl" value="../website/assets/images/articles/get-and-stay-compliant-across-your-devices-with-fleet-1-700x523@2x.jpeg">
+<meta name="articleImageUrl" value="../website/assets/images/articles/what-are-fleet-policies-1600x900@2x.jpg">
