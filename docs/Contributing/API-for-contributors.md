@@ -2,7 +2,7 @@
 
 This document includes the Fleet API routes that are helpful when developing or contributing to Fleet.
 
-Unlike the [Fleet REST API documentation](../Using-Fleet/REST-API.md), only the Fleet UI, and fleetctl clients use the API routes in this document:
+Unlike the [Fleet REST API documentation](../Using-Fleet/REST-API.md), only the Fleet UI, Fleet Desktop and `fleetctl` clients use the API routes in this document:
 
 - [Get queries spec](#get-queries-spec)
 - [Get query spec](#get-query-spec)
@@ -24,6 +24,8 @@ Unlike the [Fleet REST API documentation](../Using-Fleet/REST-API.md), only the 
 - [Retrieve live query results (SockJS)](#retrieve-live-query-results-sock-js)
 - [Run live query by name](#run-live-query-by-name)
 - [Apply policies spec](#apply-policies-spec)
+
+TODO(mna): TOC for device-authenticated endpoints
 
 ### Get queries spec
 
@@ -1390,7 +1392,7 @@ NOTE: when updating a policy, team and platform will be ignored.
       "query": "SELECT 1 FROM disk_encryption WHERE user_uuid IS NOT “” AND filevault_status = ‘on’ LIMIT 1;",
       "description": "Checks to make sure that the FileVault feature is enabled on macOS devices.",
       "resolution": "Choose Apple menu > System Preferences, then click Security & Privacy. Click the FileVault tab. Click the Lock icon, then enter an administrator name and password. Click Turn On FileVault.",
-      "platform": "darwin" 
+      "platform": "darwin"
     }
   ]
 }
