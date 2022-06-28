@@ -72,7 +72,7 @@ rm -rf fleetctl_v4.14.0_linux/ fleetctl_v4.14.0_linux.tar.gz
 
 With that clean-up out of the way, execute the fleetctl binary and pass the `--version` flag to it.
 
-![fleetctl version](../website/assets/images/articles/enrolling-a-digital-ocean-droplet-in-a-fleet-instance-1-1007x197@2xpng)
+![fleetctl version](../website/assets/images/articles/enrolling-a-digital-ocean-droplet-in-a-fleet-instance-1-1007x197@2x.png)
 
 If you get an output similar to the example above everything you did leading up to this point was successful. You can now move on to create the osquery installer.
 
