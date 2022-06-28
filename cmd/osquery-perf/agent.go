@@ -16,6 +16,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"sync"
 	"text/template"
@@ -660,6 +661,27 @@ func (a *agent) googleChromeProfiles() []map[string]string {
 	return result
 }
 
+func (a *agent) batteries() []map[string]string {
+	count := rand.Intn(3) // return between 0 and 2 batteries
+	result := make([]map[string]string, count)
+	for i := range result {
+		health := "Good"
+		cycleCount := rand.Intn(2000)
+		switch {
+		case cycleCount > 1500:
+			health = "Poor"
+		case cycleCount > 1000:
+			health = "Fair"
+		}
+		result[i] = map[string]string{
+			"serial_number": fmt.Sprintf("%04d", i),
+			"cycle_count":   strconv.Itoa(cycleCount),
+			"health":        health,
+		}
+	}
+	return result
+}
+
 func (a *agent) processQuery(name, query string) (handled bool, results []map[string]string, status *fleet.OsqueryStatus) {
 	const (
 		hostPolicyQueryPrefix = "fleet_policy_query_"
@@ -693,6 +715,12 @@ func (a *agent) processQuery(name, query string) (handled bool, results []map[st
 		ss := fleet.OsqueryStatus(rand.Intn(2))
 		if ss == fleet.StatusOK {
 			results = a.googleChromeProfiles()
+		}
+		return true, results, &ss
+	case name == hostDetailQueryPrefix+"battery":
+		ss := fleet.OsqueryStatus(rand.Intn(2))
+		if ss == fleet.StatusOK {
+			results = a.batteries()
 		}
 		return true, results, &ss
 	default:

@@ -178,6 +178,8 @@ type CountHostsInLabelFunc func(ctx context.Context, filter fleet.TeamFilter, li
 
 type ListHostDeviceMappingFunc func(ctx context.Context, id uint) ([]*fleet.HostDeviceMapping, error)
 
+type ListHostBatteriesFunc func(ctx context.Context, id uint) ([]*fleet.HostBattery, error)
+
 type LoadHostByDeviceAuthTokenFunc func(ctx context.Context, authToken string) (*fleet.Host, error)
 
 type SetOrUpdateDeviceAuthTokenFunc func(ctx context.Context, hostID uint, authToken string) error
@@ -399,6 +401,8 @@ type SetOrUpdateMunkiVersionFunc func(ctx context.Context, hostID uint, version 
 type SetOrUpdateMDMDataFunc func(ctx context.Context, hostID uint, enrolled bool, serverURL string, installedFromDep bool) error
 
 type ReplaceHostDeviceMappingFunc func(ctx context.Context, id uint, mappings []*fleet.HostDeviceMapping) error
+
+type ReplaceHostBatteriesFunc func(ctx context.Context, id uint, mappings []*fleet.HostBattery) error
 
 type VerifyEnrollSecretFunc func(ctx context.Context, secret string) (*fleet.EnrollSecret, error)
 
@@ -665,6 +669,9 @@ type DataStore struct {
 
 	ListHostDeviceMappingFunc        ListHostDeviceMappingFunc
 	ListHostDeviceMappingFuncInvoked bool
+
+	ListHostBatteriesFunc        ListHostBatteriesFunc
+	ListHostBatteriesFuncInvoked bool
 
 	LoadHostByDeviceAuthTokenFunc        LoadHostByDeviceAuthTokenFunc
 	LoadHostByDeviceAuthTokenFuncInvoked bool
@@ -998,6 +1005,9 @@ type DataStore struct {
 
 	ReplaceHostDeviceMappingFunc        ReplaceHostDeviceMappingFunc
 	ReplaceHostDeviceMappingFuncInvoked bool
+
+	ReplaceHostBatteriesFunc        ReplaceHostBatteriesFunc
+	ReplaceHostBatteriesFuncInvoked bool
 
 	VerifyEnrollSecretFunc        VerifyEnrollSecretFunc
 	VerifyEnrollSecretFuncInvoked bool
@@ -1437,6 +1447,11 @@ func (s *DataStore) CountHostsInLabel(ctx context.Context, filter fleet.TeamFilt
 func (s *DataStore) ListHostDeviceMapping(ctx context.Context, id uint) ([]*fleet.HostDeviceMapping, error) {
 	s.ListHostDeviceMappingFuncInvoked = true
 	return s.ListHostDeviceMappingFunc(ctx, id)
+}
+
+func (s *DataStore) ListHostBatteries(ctx context.Context, id uint) ([]*fleet.HostBattery, error) {
+	s.ListHostBatteriesFuncInvoked = true
+	return s.ListHostBatteriesFunc(ctx, id)
 }
 
 func (s *DataStore) LoadHostByDeviceAuthToken(ctx context.Context, authToken string) (*fleet.Host, error) {
@@ -1992,6 +2007,11 @@ func (s *DataStore) SetOrUpdateMDMData(ctx context.Context, hostID uint, enrolle
 func (s *DataStore) ReplaceHostDeviceMapping(ctx context.Context, id uint, mappings []*fleet.HostDeviceMapping) error {
 	s.ReplaceHostDeviceMappingFuncInvoked = true
 	return s.ReplaceHostDeviceMappingFunc(ctx, id, mappings)
+}
+
+func (s *DataStore) ReplaceHostBatteries(ctx context.Context, id uint, mappings []*fleet.HostBattery) error {
+	s.ReplaceHostBatteriesFuncInvoked = true
+	return s.ReplaceHostBatteriesFunc(ctx, id, mappings)
 }
 
 func (s *DataStore) VerifyEnrollSecret(ctx context.Context, secret string) (*fleet.EnrollSecret, error) {

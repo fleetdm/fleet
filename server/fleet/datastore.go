@@ -214,6 +214,8 @@ type Datastore interface {
 	CountHosts(ctx context.Context, filter TeamFilter, opt HostListOptions) (int, error)
 	CountHostsInLabel(ctx context.Context, filter TeamFilter, lid uint, opt HostListOptions) (int, error)
 	ListHostDeviceMapping(ctx context.Context, id uint) ([]*HostDeviceMapping, error)
+	// ListHostBatteries returns the list of batteries for the given host ID.
+	ListHostBatteries(ctx context.Context, id uint) ([]*HostBattery, error)
 
 	// LoadHostByDeviceAuthToken loads the host identified by the device auth token.
 	// If the token is invalid it returns a NotFoundError.
@@ -528,6 +530,9 @@ type Datastore interface {
 	SetOrUpdateMDMData(ctx context.Context, hostID uint, enrolled bool, serverURL string, installedFromDep bool) error
 
 	ReplaceHostDeviceMapping(ctx context.Context, id uint, mappings []*HostDeviceMapping) error
+
+	// ReplaceHostBatteries creates or updates the battery mappings of a host.
+	ReplaceHostBatteries(ctx context.Context, id uint, mappings []*HostBattery) error
 
 	// VerifyEnrollSecret checks that the provided secret matches an active enroll secret. If it is successfully
 	// matched, that secret is returned. Otherwise, an error is returned.
