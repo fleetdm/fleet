@@ -1,5 +1,7 @@
 # Stay on course with your security compliance goals
 
+![Security compliance goals](../website/assets/images/articles/security-compliance-goals-cover-800x450@2x.jpg)
+
 Pursuing security compliance is a long journey. It isn’t so much taking a road trip as it’s setting sail on the open ocean. Regulatory changes can knock you off course. Learning a new technology can take the wind out of your sails. And no matter how hard you try, you can never reach the horizon.
 
 Are you feeling a little seasick? Don’t worry. There are ways to navigate the waters of security compliance and still enjoy smooth sailing.
@@ -52,3 +54,4 @@ Fleet policies, teams, and permissions empower employees at every level of your 
 <meta name="authorGitHubUsername" value="fleetdm">
 <meta name="publishedOn" value="2022-06-14">
 <meta name="articleTitle" value="Stay on course with your security compliance goals">
+<meta name="articleImageUrl" value="../website/assets/images/articles/security-compliance-goals-cover-800x450@2x.jpg">
