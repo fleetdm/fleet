@@ -13,7 +13,7 @@ Our current approach to CPE binding consists of matching the `software name` aga
 try to match the software vendor and name parts against the CPE vendor and product parts (standardizing the values when
 needed) and then we can programmatically look at the version (and the rest of the CPE parts) to
 determine what CVEs match a given CPE. In other words, instead of looking at CPEs as just strings,
-we should be looking at them as graphs:
+we should be looking at them as sets:
 
 So this:
 
@@ -23,7 +23,7 @@ cpe:2.3:a:microsoft:edge:80.0.361.48:*:*:*:*:*:*:*
 cpe:2.3:a:microsoft:edge:80.0.361.50:*:*:*:*:*:*:*
 cpe:2.3:a:microsoft:edge:80.0.361.50:*:*:*:*:windows:*:*
 ```
-Becomes this:
+Can be visualized as this:
 
 ```mermaid
 flowchart TD 
@@ -35,12 +35,19 @@ flowchart TD
     id3((version: 79.0.309.68)) --> id7((cve_2))
     id4((version: 80.0.361.48)) --> id8((cve_3))
     id5((version: 80.0.361.50)) --> id9((cve_4))
-    id5((version: 80.0.361.50)) --> id10((windows))
-    id10((windows)) --> id11((cve_5))
+    id5((version: 80.0.361.50)) --> id10((target_sw: windows))
+    id10((target_sw: windows)) --> id11((cve_5))
 ```
 
 So having version `80.0.361.50` of `Edge` installed on MacOS should only return `cve_4` but having
 the same program in Windows should return both `cve_4` and `cve_5`.
+
+So basically our vulnerability detection problem can be broken down into two sub-problems:
+1. Binding the software `vendor` and `name` attributes to known CPE `vendor` and `product` attributes (a.k.a the
+   binding problem).
+2. Once we have the `vendor` and `product`, we will need to match that along with the version and other
+   characteristics (like language, platform, etc) to one or more target CPEs contained in the NVD
+   dataset (a.k.a the matching problem).
 
 ## Binding the vendor portion
 
@@ -84,14 +91,27 @@ flowchart LR
     map_values --> to_lower
     to_lower --> replace_spaces
 ```
+Again, like with the version portion, some translation was required. When testing this approach the
+following translation were used:
+
+| vendor | bundle name | executable | translation |
+|---|---|---|
+| oracle | VirtualBox| vm_virtualbox|
+| agilebits | 1Password 7| 1password|
+| zoom | zoom.us | zoom |
+| microsoft | Microsoft AutoUpdate | autoupdate |
+| microsoft | Microsoft Edge | edge |
+| microsoft | Code | visual_studio_code |
+| osquery | oqueryd | osquery |
 
 ## Reference
 To test this approach I used
 [this](https://docs.google.com/spreadsheets/d/1D6Ub8_6YhLpVkmxLwTdGP8VWTH7rMS6-ZoBmJcrDDLE/edit?usp=sharing)
-data as input (the apps tab). Both the not_found and found sheets contain the apps that were not
-found and found in the NVD dataset respectively. 
+data as input (the apps sheet). Both the not_found and found sheets contain the apps that were not
+found and found in the NVD dataset respectively. I checked that all entries in the `not_found` sheet
+did have entries in the NVD dataset.
 
 For extracting the vendor and product portions from the NVD dataset I used the [following
 script](https://gist.github.com/juan-fdz-hawa/52a9a54646a1cdc26359104d4f1a57e3).
 
-To determine matches/mist matches I used [following script](https://gist.github.com/juan-fdz-hawa/a3eb1cf33f149f7473a37469ecb9feda)
+To determine matches/mismatches I used [following script](https://gist.github.com/juan-fdz-hawa/a3eb1cf33f149f7473a37469ecb9feda)
