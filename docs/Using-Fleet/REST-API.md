@@ -2134,7 +2134,13 @@ If the scheduled queries haven't run on the host yet, the stats have zero values
     "issues": {
       "failing_policies_count": 2,
       "total_issues_count": 2
-    }
+    },
+    "batteries": [
+      {
+        "cycle_count": 999,
+        "health": "Good"
+      }
+    ]
   }
 }
 ```
@@ -2201,7 +2207,13 @@ Returns the information of the host specified using the `uuid`, `osquery_host_id
     "team_name": null,
     "gigs_disk_space_available": 45.86,
     "percent_disk_space_available": 73,
-    "pack_stats": null
+    "pack_stats": null,
+    "batteries": [
+      {
+        "cycle_count": 999,
+        "health": "Good"
+      }
+    ]
   }
 }
 ```
