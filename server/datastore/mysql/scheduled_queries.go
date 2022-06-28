@@ -3,6 +3,8 @@ package mysql
 import (
 	"context"
 	"database/sql"
+	"fmt"
+	"strings"
 
 	"github.com/jmoiron/sqlx"
 
@@ -215,10 +217,49 @@ func (ds *Datastore) ScheduledQuery(ctx context.Context, id uint) (*fleet.Schedu
 }
 
 func (ds *Datastore) ScheduledQueryIDsByName(ctx context.Context, packAndSchedQueryNames ...[2]string) ([]uint, error) {
-	//	const stmt = `SELECT sq.id
-	//    FROM scheduled_queries sq
-	//    INNER JOIN packs p ON sq.pack_id = p.id
-	//    WHERE (p.name, sq.name) IN (?)`
-	// TODO(mna): how to efficiently load those ids?
-	panic("unimplemented")
+	const (
+		stmt = `
+    SELECT sqn.idx, sq.id
+      FROM scheduled_queries sq
+      INNER JOIN packs p ON sq.pack_id = p.id
+      INNER JOIN (
+        SELECT ? as idx, ? as pack_name, ? as scheduled_query_name
+        %s
+      ) AS sqn ON (p.name, sq.name) = (sqn.pack_name, sqn.scheduled_query_name)
+`
+		additionalRows = `UNION SELECT ?, ?, ? `
+		batchSize      = 1000
+	)
+
+	type idxAndID struct {
+		IDX int  `db:"idx"`
+		ID  uint `db:"id"`
+	}
+
+	// all provided names have a corresponding scheduled query ID in the result,
+	// even if it doesn't exist for some reason (in which case it will be 0).
+	result := make([]uint, len(packAndSchedQueryNames))
+
+	for len(packAndSchedQueryNames) > 0 {
+		max := len(packAndSchedQueryNames)
+		if max > batchSize {
+			max = batchSize
+		}
+
+		args := make([]interface{}, 0, max*3)
+		for i, psn := range packAndSchedQueryNames[:max] {
+			args = append(args, i, psn[0], psn[1])
+		}
+		packAndSchedQueryNames = packAndSchedQueryNames[max:]
+
+		stmt := fmt.Sprintf(stmt, strings.Repeat(additionalRows, max-1))
+		var rows []idxAndID
+		if err := ds.writer.SelectContext(ctx, &rows, stmt, args...); err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "select scheduled query IDs by name")
+		}
+		for _, row := range rows {
+			result[row.IDX] = row.ID
+		}
+	}
+	return result, nil
 }
