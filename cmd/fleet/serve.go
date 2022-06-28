@@ -6,6 +6,7 @@ import (
 	"crypto/subtle"
 	"crypto/tls"
 	"database/sql/driver"
+	"errors"
 	"fmt"
 	"io/ioutil"
 	"math/rand"
@@ -418,14 +419,16 @@ the way that the Fleet server works.
 			{
 				// a list of dependencies which could affect the status of the app if unavailable.
 				deps := map[string]interface{}{
-					"datastore":          ds,
-					"query_result_store": resultStore,
+					"mysql": ds,
+					"redis": resultStore,
 				}
 
 				// convert all dependencies to health.Checker if they implement the healthz methods.
 				for name, dep := range deps {
 					if hc, ok := dep.(health.Checker); ok {
 						healthCheckers[name] = hc
+					} else {
+						initFatal(errors.New(name+" should be a health.Checker"), "initializing health checks")
 					}
 				}
 
@@ -639,7 +642,6 @@ func runCrons(
 	failingPoliciesSet fleet.FailingPolicySet,
 	enrollHostLimiter fleet.EnrollHostLimiter,
 ) {
-
 	ourIdentifier, err := server.GenerateRandomText(64)
 	if err != nil {
 		initFatal(ctxerr.New(ctx, "generating random instance identifier"), "")

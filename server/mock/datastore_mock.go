@@ -12,6 +12,8 @@ import (
 
 var _ fleet.Datastore = (*DataStore)(nil)
 
+type HealthCheckFunc func() error
+
 type NewCarveFunc func(ctx context.Context, metadata *fleet.CarveMetadata) (*fleet.CarveMetadata, error)
 
 type UpdateCarveFunc func(ctx context.Context, metadata *fleet.CarveMetadata) error
@@ -421,6 +423,9 @@ type InnoDBStatusFunc func(ctx context.Context) (string, error)
 type ProcessListFunc func(ctx context.Context) ([]fleet.MySQLProcess, error)
 
 type DataStore struct {
+	HealthCheckFunc        HealthCheckFunc
+	HealthCheckFuncInvoked bool
+
 	NewCarveFunc        NewCarveFunc
 	NewCarveFuncInvoked bool
 
@@ -1032,6 +1037,11 @@ type DataStore struct {
 
 	ProcessListFunc        ProcessListFunc
 	ProcessListFuncInvoked bool
+}
+
+func (s *DataStore) HealthCheck() error {
+	s.HealthCheckFuncInvoked = true
+	return s.HealthCheckFunc()
 }
 
 func (s *DataStore) NewCarve(ctx context.Context, metadata *fleet.CarveMetadata) (*fleet.CarveMetadata, error) {

@@ -169,7 +169,7 @@ generate-dev: .prefix
 
 generate-mock: .prefix
 	go install github.com/groob/mockimpl@latest
-	go generate github.com/fleetdm/fleet/v4/server/mock
+	go generate github.com/fleetdm/fleet/v4/server/mock github.com/fleetdm/fleet/v4/server/mock/mockresult
 
 deps: deps-js deps-go
 
