@@ -91,7 +91,7 @@ flowchart LR
     map_values --> to_lower
     to_lower --> replace_spaces
 ```
-Again, like with the version portion, some translation was required. When testing this approach the
+Again, like with the vendor portion, some translation was required. When testing this approach the
 following translation were used:
 
 | vendor | bundle name/ executable | translation |
