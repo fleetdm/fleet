@@ -884,10 +884,6 @@ None.
       "overrides": {}
     }
   },
-  "license": {
-    "tier": "free",
-    "expiration": "0001-01-01T00:00:00Z"
-  },
   "logging": {
       "debug": false,
       "json": false,
