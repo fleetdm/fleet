@@ -24,6 +24,14 @@ Unlike the [Fleet REST API documentation](../Using-Fleet/REST-API.md), only the 
 - [Retrieve live query results (SockJS)](#retrieve-live-query-results-sock-js)
 - [Run live query by name](#run-live-query-by-name)
 - [Apply policies spec](#apply-policies-spec)
+- [Device-authenticated routes](#device-authenticated-routes)
+    - [Get device host](#get-device-host)
+    - [Refetch device host](#refetch-device-host)
+    - [List host device-mapping](#list-host-device-mapping)
+    - [Get device macadmins](#get-device-macadmins)
+    - [Get device policies](#get-device-policies)
+    - [Get device API features](#get-device-api-features)
+    - [Get device transparency URL](#get-device-transparency-url)
 
 TODO(mna): TOC for device-authenticated endpoints
 
@@ -1401,5 +1409,57 @@ NOTE: when updating a policy, team and platform will be ignored.
 ##### Default response
 
 `Status: 200`
+
+### Device-authenticated routes
+
+Device-authenticated routes are routes used by the Fleet Desktop application. Unlike most other routes, they are not authenticated with a Fleet user's API token, they use a device-specific token and as such, are not meant to be consumed by users.
+
+#### Get device host
+
+Returns the host information about the device that makes the request.
+
+`GET /api/v1/fleet/device/{token}`
+
+#### Parameters
+
+| Name            | Type   | In    | Description                                                                                                                   |
+| --------------- | ------ | ----- | ----------------------------------------------------------------------------------------------------------------------------- |
+| token           | string | path  | The device's authentication token.
+
+#### Example
+
+`GET /api/v1/fleet/device/abcdef012456789`
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "invites": [
+    {
+      "created_at": "0001-01-01T00:00:00Z",
+      "updated_at": "0001-01-01T00:00:00Z",
+      "id": 3,
+      "email": "john_appleseed@example.com",
+      "name": "John",
+      "sso_enabled": false,
+      "global_role": "admin",
+      "teams": []
+    },
+    {
+      "created_at": "0001-01-01T00:00:00Z",
+      "updated_at": "0001-01-01T00:00:00Z",
+      "id": 4,
+      "email": "bob_marks@example.com",
+      "name": "Bob",
+      "sso_enabled": false,
+      "global_role": "admin",
+      "teams": []
+    },
+  ]
+}
+```
+
 
 <meta name="pageOrderInSection" value="800">
