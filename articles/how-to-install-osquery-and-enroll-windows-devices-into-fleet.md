@@ -37,7 +37,7 @@ fleetctl.exe - version 4.8.0
 
 Head over to the Hosts page on Fleet and click on the “Generate installer” button, which will present a pop-up that allows you to choose the type of installer you want to generate. Make sure you are on the “Windows” tab and click on the clipboard icon.
 
-![Generate installer](../website/assets/images/articles/install-osquery-and-enroll-windows-devices-into-fleet-1@2x.png)
+![Generate installer](../website/assets/images/articles/install-osquery-and-enroll-windows-devices-into-fleet-1-700x365@2x.png)
 *Windows osquery Installer command on Fleet UI*
 
 Next, head over to your Windows command prompt (making sure that you are running with administrator privilege and Docker is running), paste the copied command, and then hit enter.
@@ -56,4 +56,4 @@ If you’re managing an enterprise environment, you will likely have a deploymen
 <meta name="authorGitHubUsername" value="dominuskelvin">
 <meta name="publishedOn" value="2022-02-03">
 <meta name="articleTitle" value="How to install osquery and enroll Windows devices into Fleet">
-<meta name="articleImageUrl" value="../website/assets/images/articles/install-osquery-and-enroll-windows-devices-into-fleet-1600x900@2x.jpg">
+<meta name="articleImageUrl" value="../website/assets/images/articles/install-osquery-and-enroll-windows-devices-into-fleet-cover-1600x900@2x.jpg">

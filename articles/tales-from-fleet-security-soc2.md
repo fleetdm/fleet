@@ -1,6 +1,6 @@
 # Tales from Fleet security: how we achieved our SOC 2 type 1 rapidly
 
-![SOC 2 type 1 certified](../website/assets/images/articles/tales-from-fleet-soc2-type1-certified-1600x900@2x.jpg)
+![SOC 2 type 1 certified](../website/assets/images/articles/tales-from-fleet-soc2-type1-certified-cover-1600x900@2x.jpg)
 
 At Fleet, we strive to build a security program that answers the needs of everyone using our software. We want to push far beyond any compliance requirement and make as much of what we do available in our [handbook](https://fleetdm.com/handbook). We want to make it as easy as possible for customers to obtain the necessary information to judge Fleet's trustworthiness. 
 
@@ -114,4 +114,4 @@ If you would like to discuss compliance, security, how Fleet can help you achiev
 <meta name="authorFullName" value="Guillaume Ross">
 <meta name="publishedOn" value="2022-06-24">
 <meta name="articleTitle" value="Tales from Fleet security: how we achieved our SOC 2 type 1 rapidly">
-<meta name="articleImageUrl" value="../website/assets/images/articles/tales-from-fleet-soc2-type1-certified-1600x900@2x.jpg">
+<meta name="articleImageUrl" value="../website/assets/images/articles/tales-from-fleet-soc2-type1-certified-cover-1600x900@2x.jpg">

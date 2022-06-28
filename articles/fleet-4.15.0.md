@@ -80,4 +80,4 @@ Visit our [Update guide](https://fleetdm.com/docs/deploying/upgrading-fleet) in 
 <meta name="authorGitHubUsername" value="ksatter">
 <meta name="publishedOn" value="2022-05-30">
 <meta name="articleTitle" value="Fleet 4.15.0 adds beta support for Self-service, Scope transparency, and brings Zendesk to the party.">
-<meta name="articleImageUrl" value="../website/assets/images/articles/fleet-4.15.0-1600x900@2x.jpg">
+<meta name="articleImageUrl" value="../website/assets/images/articles/fleet-4.15.0-cover-1600x900@2x.jpg">

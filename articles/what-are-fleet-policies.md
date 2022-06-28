@@ -8,7 +8,7 @@ Read more about [getting and staying compliant across your fleet.](https://fleet
 
 Standards can change based on business needs, industry best practices, or for any number of reasons. Teams grow, software requirements change, and new vulnerabilities are discovered every day. [Fleet makes adding and modifying policies easy](https://fleetdm.com/docs/using-fleet/rest-api#add-policy). To reduce the barrier of entry with Fleet for our less-technical users, we’ve introduced our standard templates that allow users to choose from a library of pre-made policies. Of course, those handy with [osquery](https://osquery.io/) and SQL can still create custom policies to their heart’s content. Simply click “Add a policy” from the “Policies” page in Fleet or select an existing policy to edit its query.
 
-![Add a policy modal in Fleet](../website/assets/images/articles/what-are-fleet-policies-1.png)
+![Add a policy modal in Fleet](../website/assets/images/articles/what-are-fleet-policies-1-1080x720@2x.png)
 
 ## Identifying out-of-policy devices
 
@@ -52,4 +52,4 @@ Policies and automation help your security and IT teams feel confident that devi
 <meta name="authorFullName" value="Andrew Baker">
 <meta name="publishedOn" value="2022-05-20">
 <meta name="articleTitle" value="What are Fleet policies?">
-<meta name="articleImageUrl" value="../website/assets/images/articles/what-are-fleet-policies-1600x900@2x.jpg">
+<meta name="articleImageUrl" value="../website/assets/images/articles/what-are-fleet-policies-cover-1600x900@2x.jpg">

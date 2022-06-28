@@ -37,7 +37,7 @@ fleetctl.exe - version 4.8.0
 
 Head over to the Hosts page on Fleet and click on the “Generate installer” button, which will present a pop-up that allows you to choose the type of installer you want to generate. Make sure you are on the “macOS” tab and click on the clipboard icon to copy the installation command for macOS.
 
-![Generate installer](../website/assets/images/articles/install-osquery-and-enroll-macos-devices-into-fleet-1@2x.png)
+![Generate installer](../website/assets/images/articles/install-osquery-and-enroll-macos-devices-into-fleet-1-454x225@2x.png)
 *Generate installer for osquery on macOS*
 
 Head over to your command line, paste the copied command, and then hit enter.
@@ -58,4 +58,4 @@ Fleet makes it easy to install osquery and enrol macOS devices with fleetctl. If
 <meta name="authorGitHubUsername" value="dominuskelvin">
 <meta name="publishedOn" value="2022-01-13">
 <meta name="articleTitle" value="How to install osquery and enroll macOS devices into Fleet">
-<meta name="articleImageUrl" value="../website/assets/images/articles/install-osquery-and-enroll-macos-devices-into-fleet-1600x900@2x.jpg">
+<meta name="articleImageUrl" value="../website/assets/images/articles/install-osquery-and-enroll-macos-devices-into-fleet-cover-1600x900@2x.jpg">
