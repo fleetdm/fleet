@@ -24,11 +24,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-type mockHandler struct{}
-
-func (h mockHandler) Store(err error) {}
-
-var eh = mockHandler{}
+var eh = ctxerr.MockHandler{}
 var ctxb = context.Background()
 var ctx = ctxerr.NewContext(ctxb, eh)
 
@@ -74,7 +70,7 @@ func TestHashErr(t *testing.T) {
 	})
 
 	t.Run("generates json", func(t *testing.T) {
-		var m map[string]interface{}
+		var m []interface{}
 
 		generatedErr := pkgErrors.New("some err")
 		res, jsonBytes, err := hashAndMarshalError(generatedErr)
@@ -92,7 +88,7 @@ func TestHashErr(t *testing.T) {
 
 func TestHashErrFleetError(t *testing.T) {
 	t.Run("Marshal", func(t *testing.T) {
-		var m map[string]interface{}
+		var m []interface{}
 
 		generatedErr := ctxerr.New(ctx, "some err")
 		res, jsonBytes, err := hashAndMarshalError(generatedErr)
@@ -234,8 +230,8 @@ func testErrorHandlerCollectsErrors(t *testing.T, pool fleet.RedisPool, wd strin
 	require.NoError(t, err)
 	require.Len(t, errors, 1)
 
-	assert.Regexp(t, regexp.MustCompile(`\{
-  "cause": \{
+	assert.Regexp(t, regexp.MustCompile(`\[
+  \{
     "message": "always new errors",
     "data": \{
       "timestamp": ".+"
@@ -247,7 +243,8 @@ func testErrorHandlerCollectsErrors(t *testing.T, pool fleet.RedisPool, wd strin
       ".+",
       ".+"
     \]
-  \}`), string(errors[0].Error))
+  \}
+\]`), string(errors[0].Chain))
 
 	errors, err = eh.Retrieve(flush)
 	require.NoError(t, err)
@@ -304,10 +301,10 @@ func testErrorHandlerCollectsDifferentErrors(t *testing.T, pool fleet.RedisPool,
 
 	// order is not guaranteed by scan keys
 	for _, jsonErr := range errors {
-		msg := string(jsonErr.Error)
+		msg := string(jsonErr.Chain)
 		if strings.Contains(msg, "new errors two") {
-			assert.Regexp(t, regexp.MustCompile(`\{
-  "cause": \{
+			assert.Regexp(t, regexp.MustCompile(`\[
+  \{
     "message": "always new errors two",
     "data": \{
       "timestamp": ".+"
@@ -319,10 +316,11 @@ func testErrorHandlerCollectsDifferentErrors(t *testing.T, pool fleet.RedisPool,
       ".+",
       ".+"
     \]
-  \}`), msg)
+  \}
+\]`), msg)
 		} else {
-			assert.Regexp(t, regexp.MustCompile(`\{
-  "cause": \{
+			assert.Regexp(t, regexp.MustCompile(`\[
+  \{
     "message": "always new errors",
     "data": \{
       "timestamp": ".+"
@@ -334,7 +332,8 @@ func testErrorHandlerCollectsDifferentErrors(t *testing.T, pool fleet.RedisPool,
       ".+",
       ".+"
     \]
-  \}`), msg)
+  \}
+\]`), msg)
 		}
 	}
 
@@ -378,14 +377,7 @@ func TestHttpHandler(t *testing.T) {
 
 	type errResp struct {
 		Count int
-		Error struct {
-			Cause struct {
-				Message string
-			}
-			Wrap []struct {
-				Message string
-			}
-		}
+		Chain []struct{ Message string }
 	}
 
 	var errs []errResp
@@ -405,8 +397,8 @@ func TestHttpHandler(t *testing.T) {
 		require.Equal(t, res.Code, 200)
 		require.NoError(t, json.Unmarshal(res.Body.Bytes(), &errs))
 		require.Len(t, errs, 2)
-		require.NotEmpty(t, errs[0].Error.Cause.Message)
-		require.NotEmpty(t, errs[1].Error.Cause.Message)
+		require.NotEmpty(t, errs[0].Chain[0].Message)
+		require.NotEmpty(t, errs[1].Chain[0].Message)
 
 		sortByCount(errs)
 		require.Equal(t, 2, errs[0].Count)
@@ -422,8 +414,8 @@ func TestHttpHandler(t *testing.T) {
 		require.Equal(t, res.Code, 200)
 		require.NoError(t, json.Unmarshal(res.Body.Bytes(), &errs))
 		require.Len(t, errs, 2)
-		require.NotEmpty(t, errs[0].Error.Cause.Message)
-		require.NotEmpty(t, errs[1].Error.Cause.Message)
+		require.NotEmpty(t, errs[0].Chain[0].Message)
+		require.NotEmpty(t, errs[1].Chain[0].Message)
 
 		sortByCount(errs)
 		require.Equal(t, 2, errs[0].Count)
