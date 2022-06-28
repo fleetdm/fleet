@@ -50,6 +50,10 @@ func TestHostDetails(t *testing.T) {
 	ds.ListPoliciesForHostFunc = func(ctx context.Context, host *fleet.Host) ([]*fleet.HostPolicy, error) {
 		return nil, nil
 	}
+	expectedBats := []*fleet.HostBattery{{HostID: host.ID, SerialNumber: "a"}}
+	ds.ListHostBatteriesFunc = func(ctx context.Context, hostID uint) ([]*fleet.HostBattery, error) {
+		return expectedBats, nil
+	}
 
 	opts := fleet.HostDetailOptions{
 		IncludeCVEScores: false,
@@ -59,6 +63,8 @@ func TestHostDetails(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, expectedLabels, hostDetail.Labels)
 	assert.Equal(t, expectedPacks, hostDetail.Packs)
+	require.NotNil(t, hostDetail.Batteries)
+	assert.Equal(t, expectedBats, *hostDetail.Batteries)
 }
 
 func TestHostAuth(t *testing.T) {
@@ -105,6 +111,9 @@ func TestHostAuth(t *testing.T) {
 		return nil
 	}
 	ds.ListPoliciesForHostFunc = func(ctx context.Context, host *fleet.Host) ([]*fleet.HostPolicy, error) {
+		return nil, nil
+	}
+	ds.ListHostBatteriesFunc = func(ctx context.Context, hostID uint) ([]*fleet.HostBattery, error) {
 		return nil, nil
 	}
 	ds.DeleteHostsFunc = func(ctx context.Context, ids []uint) error {

@@ -157,6 +157,11 @@ type HostDetail struct {
 	Packs []*Pack `json:"packs"`
 	// Policies is the list of policies and whether it passes for the host
 	Policies *[]*HostPolicy `json:"policies,omitempty"`
+	// Batteries is the list of batteries for the host. It is a pointer to a
+	// slice so that when set, it gets marhsaled even if the slice is empty,
+	// but when unset, it doesn't get marshaled (e.g. we don't return that
+	// information for the List Hosts endpoint).
+	Batteries *[]*HostBattery `json:"batteries,omitempty"`
 }
 
 const (
