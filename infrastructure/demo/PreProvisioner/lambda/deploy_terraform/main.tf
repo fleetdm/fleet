@@ -47,6 +47,7 @@ variable "eks_cluster" {}
 variable "redis_address" {}
 variable "redis_database" {}
 variable "lifecycle_table" {}
+variable "base_domain" {}
 
 resource "mysql_user" "main" {
   user               = terraform.workspace
@@ -125,6 +126,16 @@ resource "helm_release" "main" {
   set {
     name  = "redis.database"
     value = var.redis_database
+  }
+
+  set {
+    name  = "kubernetes.io/ingress.class"
+    value = "nginx"
+  }
+
+  set {
+    name  = "hostName"
+    value = "${terraform.workspace}.${var.base_domain}"
   }
 }
 

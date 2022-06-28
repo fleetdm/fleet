@@ -99,12 +99,12 @@ module "kubernetes-addons" {
   enable_amazon_eks_aws_ebs_csi_driver = true
 
   #K8s Add-ons
-  enable_aws_load_balancer_controller = false
+  enable_aws_load_balancer_controller = true
   enable_metrics_server               = false
   enable_cluster_autoscaler           = true
   enable_vpa                          = true
   enable_prometheus                   = false
-  enable_ingress_nginx                = true
+  enable_ingress_nginx                = false
   enable_aws_for_fluentbit            = false
   enable_argocd                       = false
   enable_fargate_fluentbit            = false
@@ -113,4 +113,68 @@ module "kubernetes-addons" {
   enable_yunikorn                     = false
 
   depends_on = [module.aws-eks-accelerator-for-terraform.managed_node_groups]
+}
+
+resource "helm_release" "nginx_ingress" {
+  name      = "haproxy-ingress-controller"
+  namespace = "kube-system"
+
+  repository = "https://haproxy-ingress.github.io/charts"
+  chart      = "haproxy-ingress"
+
+  set {
+    name  = "controller.hostNetwork"
+    value = "true"
+  }
+
+  set {
+    name  = "controller.kind"
+    value = "DaemonSet"
+  }
+
+  set {
+    name  = "controller.service.type"
+    value = "NodePort"
+  }
+}
+
+resource "aws_lb_target_group" "eks" {
+  name     = var.prefix
+  port     = 80
+  protocol = "HTTP"
+  vpc_id   = var.vpc.vpc_id
+  health_check {
+    matcher = "404"
+  }
+}
+
+resource "kubernetes_manifest" "targetgroupbinding" {
+  manifest = {
+    "apiVersion" = "elbv2.k8s.aws/v1beta1"
+    "kind"       = "TargetGroupBinding"
+    "metadata" = {
+      "name"      = "haproxy"
+      "namespace" = "kube-system"
+    }
+    "spec" = {
+      "targetGroupARN" = aws_lb_target_group.eks.arn
+      "serviceRef" = {
+        "name" = helm_release.nginx_ingress.name
+        "port" = 80
+      }
+      "targetType" = "instance"
+      "networking" = {
+        "ingress" = [{
+          "from" = [{
+            "securityGroup" = {
+              "groupID" = aws_security_group.lb.id
+            }
+          }]
+          "ports" = [{
+            "protocol" = "TCP"
+          }]
+        }]
+      }
+    }
+  }
 }

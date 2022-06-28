@@ -117,6 +117,7 @@ module "pre-provisioner" {
   mysql_secret   = module.shared-infrastructure.mysql_secret
   eks_cluster    = module.shared-infrastructure.eks_cluster
   redis_cluster  = module.shared-infrastructure.redis_cluster
+  base_domain    = local.base_domain
 }
 
 module "jit-provisioner" {
