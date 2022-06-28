@@ -345,7 +345,7 @@ var extraDetailQueries = map[string]DetailQuery{
 		Discovery:        discoveryTable("google_chrome_profiles"),
 	},
 	"battery": {
-		Query:            `SELECT serial_number, cycle_count FROM battery;`,
+		Query:            `SELECT serial_number, cycle_count, health FROM battery;`,
 		Platforms:        []string{"darwin"},
 		DirectIngestFunc: directIngestBattery,
 		// the "battery" table doesn't need a Discovery query as it is an official
