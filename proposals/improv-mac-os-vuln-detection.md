@@ -94,7 +94,7 @@ flowchart LR
 Again, like with the version portion, some translation was required. When testing this approach the
 following translation were used:
 
-| vendor | bundle name | executable | translation |
+| vendor | bundle name/ executable | translation |
 |---|---|---|
 | oracle | VirtualBox| vm_virtualbox|
 | agilebits | 1Password 7| 1password|
