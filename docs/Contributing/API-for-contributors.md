@@ -25,15 +25,13 @@ Unlike the [Fleet REST API documentation](../Using-Fleet/REST-API.md), only the 
 - [Run live query by name](#run-live-query-by-name)
 - [Apply policies spec](#apply-policies-spec)
 - [Device-authenticated routes](#device-authenticated-routes)
-    - [Get device host](#get-device-host)
-    - [Refetch device host](#refetch-device-host)
-    - [List host device-mapping](#list-host-device-mapping)
-    - [Get device macadmins](#get-device-macadmins)
-    - [Get device policies](#get-device-policies)
-    - [Get device API features](#get-device-api-features)
-    - [Get device transparency URL](#get-device-transparency-url)
-
-TODO(mna): TOC for device-authenticated endpoints
+    - [Get device's host](#get-devices-host)
+    - [Refetch device's host](#refetch-devices-host)
+    - [Get device's Google Chrome profiles](#get-devices-google-chrome-profiles)
+    - [Get device's mobile device management (MDM) and Munki information](#get-devices-mobile-device-management-mdm-and-munki-information)
+    - [Get device's policies](#get-devices-policies)
+    - [Get device's API features](#get-devices-api-features)
+    - [Get device's transparency URL](#get-devices-transparency-url)
 
 ### Get queries spec
 
@@ -1414,19 +1412,19 @@ NOTE: when updating a policy, team and platform will be ignored.
 
 Device-authenticated routes are routes used by the Fleet Desktop application. Unlike most other routes, they are not authenticated with a Fleet user's API token, they use a device-specific token and as such, are not meant to be consumed by users.
 
-#### Get device host
+#### Get device's host
 
 Returns the host information about the device that makes the request.
 
 `GET /api/v1/fleet/device/{token}`
 
-#### Parameters
+##### Parameters
 
-| Name            | Type   | In    | Description                                                                                                                   |
-| --------------- | ------ | ----- | ----------------------------------------------------------------------------------------------------------------------------- |
-| token           | string | path  | The device's authentication token.
+| Name            | Type   | In    | Description                                        |
+| --------------- | ------ | ----- | ---------------------------------------------------|
+| token           | string | path  | The device's authentication token.                 |
 
-#### Example
+##### Example
 
 `GET /api/v1/fleet/device/abcdef012456789`
 
@@ -1436,30 +1434,282 @@ Returns the host information about the device that makes the request.
 
 ```json
 {
-  "invites": [
+  "host": {
+    "created_at": "2021-08-19T02:02:22Z",
+    "updated_at": "2021-08-19T21:14:58Z",
+    "software": [
+      {
+        "id": 408,
+        "name": "osquery",
+        "version": "4.5.1",
+        "source": "rpm_packages",
+        "generated_cpe": "",
+        "vulnerabilities": null
+      },
+      {
+        "id": 1146,
+        "name": "tar",
+        "version": "1.30",
+        "source": "rpm_packages",
+        "generated_cpe": "",
+        "vulnerabilities": null
+      },
+      {
+        "id": 321,
+        "name": "SomeApp.app",
+        "version": "1.0",
+        "source": "apps",
+        "bundle_identifier": "com.some.app",
+        "last_opened_at": "2021-08-18T21:14:00Z",
+        "generated_cpe": "",
+        "vulnerabilities": null
+      }
+    ],
+    "id": 1,
+    "detail_updated_at": "2021-08-19T21:07:53Z",
+    "label_updated_at": "2021-08-19T21:07:53Z",
+    "last_enrolled_at": "2021-08-19T02:02:22Z",
+    "seen_time": "2021-08-19T21:14:58Z",
+    "refetch_requested": false,
+    "hostname": "23cfc9caacf0",
+    "uuid": "309a4b7d-0000-0000-8e7f-26ae0815ede8",
+    "platform": "rhel",
+    "osquery_version": "4.5.1",
+    "os_version": "CentOS Linux 8.3.2011",
+    "build": "",
+    "platform_like": "rhel",
+    "code_name": "",
+    "uptime": 210671000000000,
+    "memory": 16788398080,
+    "cpu_type": "x86_64",
+    "cpu_subtype": "158",
+    "cpu_brand": "Intel(R) Core(TM) i9-9980HK CPU @ 2.40GHz",
+    "cpu_physical_cores": 12,
+    "cpu_logical_cores": 12,
+    "hardware_vendor": "",
+    "hardware_model": "",
+    "hardware_version": "",
+    "hardware_serial": "",
+    "computer_name": "23cfc9caacf0",
+    "public_ip": "",
+    "primary_ip": "172.27.0.6",
+    "primary_mac": "02:42:ac:1b:00:06",
+    "distributed_interval": 10,
+    "config_tls_refresh": 10,
+    "logger_tls_period": 10,
+    "team_id": null,
+    "pack_stats": null,
+    "team_name": null,
+    "additional": {},
+    "gigs_disk_space_available": 46.1,
+    "percent_disk_space_available": 73,
+    "users": [
+      {
+        "uid": 0,
+        "username": "root",
+        "type": "",
+        "groupname": "root",
+        "shell": "/bin/bash"
+      },
+      {
+        "uid": 1,
+        "username": "bin",
+        "type": "",
+        "groupname": "bin",
+        "shell": "/sbin/nologin"
+      }
+    ],
+    "labels": [
+      {
+        "created_at": "2021-08-19T02:02:17Z",
+        "updated_at": "2021-08-19T02:02:17Z",
+        "id": 6,
+        "name": "All Hosts",
+        "description": "All hosts which have enrolled in Fleet",
+        "query": "SELECT 1;",
+        "platform": "",
+        "label_type": "builtin",
+        "label_membership_type": "dynamic"
+      },
+      {
+        "created_at": "2021-08-19T02:02:17Z",
+        "updated_at": "2021-08-19T02:02:17Z",
+        "id": 9,
+        "name": "CentOS Linux",
+        "description": "All CentOS hosts",
+        "query": "SELECT 1 FROM os_version WHERE platform = 'centos' OR name LIKE '%centos%'",
+        "platform": "",
+        "label_type": "builtin",
+        "label_membership_type": "dynamic"
+      },
+      {
+        "created_at": "2021-08-19T02:02:17Z",
+        "updated_at": "2021-08-19T02:02:17Z",
+        "id": 12,
+        "name": "All Linux",
+        "description": "All Linux distributions",
+        "query": "SELECT 1 FROM osquery_info WHERE build_platform LIKE '%ubuntu%' OR build_distro LIKE '%centos%';",
+        "platform": "",
+        "label_type": "builtin",
+        "label_membership_type": "dynamic"
+      }
+    ],
+    "packs": [],
+    "status": "online",
+    "display_text": "23cfc9caacf0",
+    "batteries": [
+      {
+        "cycle_count": 999,
+        "health": "Good"
+      }
+    ]
+  },
+  "org_logo_url": "https://example.com/logo.jpg",
+  "license": {
+    "tier": "free",
+    "expiration": "2031-01-01T00:00:00Z"
+  }
+}
+```
+
+#### Refetch device's host
+
+Same as [Refetch host route](../Using-Fleet/REST-API.md#refetch-host) for the current device.
+
+`POST /api/v1/fleet/device/{token}/refetch`
+
+##### Parameters
+
+| Name            | Type   | In    | Description                            |
+| --------------- | ------ | ----- | ---------------------------------------|
+| token           | string | path  | The device's authentication token.     |
+
+#### Get device's Google Chrome profiles
+
+Same as [Get host's Google Chrome profiles](../Using-Fleet/REST-API.md#get-hosts-google-chrome-profiles) for the current device.
+
+`GET /api/v1/fleet/device/{token}/device_mapping`
+
+##### Parameters
+
+| Name            | Type   | In    | Description                            |
+| --------------- | ------ | ----- | ---------------------------------------|
+| token           | string | path  | The device's authentication token.     |
+
+#### Get device's mobile device management (MDM) and Munki information
+
+Same as [Get host's mobile device management and Munki information](../Using-Fleet/REST-API.md#get-hosts-mobile-device-management-mdm-and-munki-information) for the current device.
+
+`GET /api/v1/fleet/device/{token}/macadmins`
+
+##### Parameters
+
+| Name            | Type   | In    | Description                            |
+| --------------- | ------ | ----- | ---------------------------------------|
+| token           | string | path  | The device's authentication token.     |
+
+#### Get device's policies
+
+_Available in Fleet Premium_
+
+Lists the policies applied to the current device.
+
+`GET /api/v1/fleet/device/{token}/policies`
+
+##### Parameters
+
+| Name            | Type   | In    | Description                            |
+| --------------- | ------ | ----- | ---------------------------------------|
+| token           | string | path  | The device's authentication token.     |
+
+##### Example
+
+`GET /api/v1/fleet/device/abcdef012456789/policies`
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "policies": [
     {
-      "created_at": "0001-01-01T00:00:00Z",
-      "updated_at": "0001-01-01T00:00:00Z",
+      "id": 1,
+      "name": "SomeQuery",
+      "query": "SELECT * FROM foo;",
+      "description": "this is a query",
+      "resolution": "fix with these steps...",
+      "platform": "windows,linux",
+      "response": "pass"
+    },
+    {
+      "id": 2,
+      "name": "SomeQuery2",
+      "query": "SELECT * FROM bar;",
+      "description": "this is another query",
+      "resolution": "fix with these other steps...",
+      "platform": "darwin",
+      "response": "fail"
+    },
+    {
       "id": 3,
-      "email": "john_appleseed@example.com",
-      "name": "John",
-      "sso_enabled": false,
-      "global_role": "admin",
-      "teams": []
-    },
-    {
-      "created_at": "0001-01-01T00:00:00Z",
-      "updated_at": "0001-01-01T00:00:00Z",
-      "id": 4,
-      "email": "bob_marks@example.com",
-      "name": "Bob",
-      "sso_enabled": false,
-      "global_role": "admin",
-      "teams": []
-    },
+      "name": "SomeQuery3",
+      "query": "SELECT * FROM baz;",
+      "description": "",
+      "resolution": "",
+      "platform": "",
+      "response": ""
+    }
   ]
 }
 ```
 
+#### Get device's API features
+
+Supports the dynamic discovery of API features supported by the server for device-authenticated routes. This allows supporting different versions of Fleet Desktop and Fleet server instances (either can be older or newer) while supporting evolution of the API features. With this mechanism, an older Fleet Desktop can ignore features it doesn't know about, and a newer one can avoid requesting features that the server doesn't know about.
+
+`GET /api/v1/fleet/device/{token}/api_features`
+
+##### Parameters
+
+| Name            | Type   | In    | Description                            |
+| --------------- | ------ | ----- | ---------------------------------------|
+| token           | string | path  | The device's authentication token.     |
+
+##### Example
+
+`GET /api/v1/fleet/device/abcdef012456789/api_features`
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "features": {}
+}
+```
+
+#### Get device's transparency URL
+
+Returns the URL to open when clicking the "Transparency" menu item in Fleet Desktop. Note that _Fleet Premium_ is required to configure a custom transparency URL.
+
+`GET /api/v1/fleet/device/{token}/transparency`
+
+##### Parameters
+
+| Name            | Type   | In    | Description                            |
+| --------------- | ------ | ----- | ---------------------------------------|
+| token           | string | path  | The device's authentication token.     |
+
+##### Example
+
+`GET /api/v1/fleet/device/abcdef012456789/transparency`
+
+##### Default response
+
+`Status: 307`
+
+Redirects to the transparency URL.
 
 <meta name="pageOrderInSection" value="800">
