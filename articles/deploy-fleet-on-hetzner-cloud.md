@@ -1,6 +1,6 @@
 # Deploy Fleet on Hetzner Cloud in less than 2 minutes, with CloudInit & Docker
 
-![Fleet + Hetzner](../website/assets/images/articles/fleet+hetzner.1600x900.png)
+![Fleet + Hetzner](../website/assets/images/articles/deploy-fleet-on-hetzner-cloud-cover-800x450@2x.png)
 
 **Long story short, use our pre-made [UserData script](#bookmark=id.41mghml) to deploy [Fleet](https://fleetdm.com) to [Hetzner Cloud](https://hetzner.com/cloud) in 2 minutes or fewer.**
 
@@ -352,7 +352,7 @@ To follow this guide, you’ll need:
 
 First, purchase a machine (for example, a [Hetzner Cloud](https://hetzner.com/cloud) instance):
 
-![Hetzner cloud purchase machine screen](hetzner-cloud-purchase.png)
+![Hetzner cloud purchase machine screen](../website/assets/images/articles/deploy-fleet-on-hetzner-cloud-1-932x388%402x.png)
 _Hetzner cloud purchase machine screen_
 
 After purchasing, you should know the IP address of your machine (and make sure you set up things like SSH securely!)
@@ -740,12 +740,12 @@ Now that we’ve got Fleet running let’s complete the initial setup!
 
 Visit your Fleet dashboard (i.e., `https://fleet.domain.tld`), and enter your name, email and password to complete the initial setup of Fleet:
 
-![Fleet setup screen](../website/assets/images/articles/fleet-setup-page.png)
+![Fleet setup screen](../website/assets/images/articles/deploy-fleet-on-hetzner-cloud-2-774x453@2x.png)
 _Fleet setup screen_
 
 You should see the empty hosts page:
 
-![Empty host page on Fleet](../website/assets/images/articles/fleet-hosts-listing-page.png)
+![Empty host page on Fleet](../website/assets/images/articles/deploy-fleet-on-hetzner-cloud-3-960x302@2x.png)
 _Empty host page on Fleet_
 
 
@@ -798,7 +798,7 @@ We’re running on Ubuntu so we’ve used `--type=deb`; pick the right command f
 
 After refreshing Fleet you should see one host:
 
-![one host displayed on hosts page of Fleet](fleet-hosts-page-with-one-host.png)
+![one host displayed on hosts page of Fleet](../website/assets/images/articles/deploy-fleet-on-hetzner-cloud-4-960x281@2x.png)
 _one host displayed on hosts page of Fleet_
 
 
@@ -826,7 +826,7 @@ sudo apt install osquery
 
 Here is where we check with Fleet for an enroll secret:
 
-![Fleet add new host modal](fleet-add-new-host-modal.png)
+![Fleet add new host modal](../website/assets/images/articles/deploy-fleet-on-hetzner-cloud-5-1400x860@2x.png)
 _Fleet add new host modal dialog_
 
 Write the enroll secret out to a file:
@@ -893,7 +893,7 @@ systemctl start osqueryd
 
 Take some time and get acclimated to Fleet – your Fleet dashboard should look like the following:
 
-![fleet dashboard](fleet-dashboard.png)
+![fleet dashboard](../website/assets/images/articles/deploy-fleet-on-hetzner-cloud-6-959x373@2x.png)
 _Fleet dashboard_
 
 
@@ -969,4 +969,4 @@ Of course, we should be monitoring more hosts! Fleet has lots of ways to integra
 <meta name="authorFullName" value="Fleet">
 <meta name="publishedOn" value="2022-06-27">
 <meta name="articleTitle" value="Deploy Fleet on Hetzner Cloud in less than 2 minutes, with CloudInit & Docker">
-<meta name="articleImageUrl" value="../website/assets/images/articles/fleet+hetzner.1600x900.png">
+<meta name="articleImageUrl" value="../website/assets/images/articles/deploy-fleet-on-hetzner-cloud-cover-800x450@2x.png">
