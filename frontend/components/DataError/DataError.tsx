@@ -25,7 +25,7 @@ const DataError = ({ card }: IDataErrorProps): JSX.Element => {
           <span className="info__data">
             If this keeps happening, please&nbsp;
             <a
-              href="https://github.com/fleetdm/fleet/issues"
+              href="https://github.com/fleetdm/fleet/issues/new/choose"
               target="_blank"
               rel="noopener noreferrer"
             >
