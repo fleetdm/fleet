@@ -21,7 +21,7 @@
     min-height: 360px;
     box-sizing: border-box;
     padding: $pad-xxlarge;
-    font-weight: 300;
+    font-weight: $regular;
     position: relative;
 
     &-text {
