@@ -282,6 +282,7 @@ var hostRefs = []string{
 	"host_mdm",
 	"host_munki_info",
 	"host_device_auth",
+	"host_batteries",
 }
 
 func (ds *Datastore) DeleteHost(ctx context.Context, hid uint) error {
@@ -1245,7 +1246,8 @@ func (ds *Datastore) ReplaceHostDeviceMapping(ctx context.Context, hid uint, map
 }
 
 func (ds *Datastore) ReplaceHostBatteries(ctx context.Context, hid uint, mappings []*fleet.HostBattery) error {
-	const replaceStmt = `
+	const (
+		replaceStmt = `
     INSERT INTO
       host_batteries (
         host_id,
@@ -1254,33 +1256,57 @@ func (ds *Datastore) ReplaceHostBatteries(ctx context.Context, hid uint, mapping
         health
       )
     VALUES
-      (?, ?, ?, ?)
+      %s
     ON DUPLICATE KEY UPDATE
       cycle_count = VALUES(cycle_count),
       health = VALUES(health),
       updated_at = CURRENT_TIMESTAMP
 `
+		valuesPart = `(?, ?, ?, ?),`
 
-	const deleteExceptStmt = `
+		deleteExceptStmt = `
     DELETE FROM
       host_batteries
     WHERE
       host_id = ? AND
       serial_number NOT IN (?)
 `
-	const deleteAllStmt = `
+		deleteAllStmt = `
     DELETE FROM
       host_batteries
     WHERE
       host_id = ?
 `
+	)
 
+	replaceArgs := make([]interface{}, 0, len(mappings)*4)
 	deleteNotIn := make([]string, 0, len(mappings))
 	for _, hb := range mappings {
 		deleteNotIn = append(deleteNotIn, hb.SerialNumber)
+		replaceArgs = append(replaceArgs, hid, hb.SerialNumber, hb.CycleCount, hb.Health)
 	}
 
 	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		// first, insert the new batteries or update the existing ones
+		if len(replaceArgs) > 0 {
+			if _, err := tx.ExecContext(ctx, fmt.Sprintf(replaceStmt, strings.TrimSuffix(strings.Repeat(valuesPart, len(mappings)), ",")), replaceArgs...); err != nil {
+				return ctxerr.Wrap(ctx, err, "upsert host batteries")
+			}
+		}
+
+		// then, delete the old ones
+		if len(deleteNotIn) > 0 {
+			delStmt, args, err := sqlx.In(deleteExceptStmt, hid, deleteNotIn)
+			if err != nil {
+				return ctxerr.Wrap(ctx, err, "generating host batteries delete NOT IN statement")
+			}
+			if _, err := tx.ExecContext(ctx, delStmt, args...); err != nil {
+				return ctxerr.Wrap(ctx, err, "delete host batteries")
+			}
+		} else if _, err := tx.ExecContext(ctx, deleteAllStmt, hid); err != nil {
+			return ctxerr.Wrap(ctx, err, "delete all host batteries")
+		}
+		return nil
 	})
 }
 
@@ -1859,4 +1885,24 @@ func (ds *Datastore) HostIDsByOSVersion(
 	}
 
 	return ids, nil
+}
+
+func (ds *Datastore) ListHostBatteries(ctx context.Context, hid uint) ([]*fleet.HostBattery, error) {
+	const stmt = `
+    SELECT
+      host_id,
+      serial_number,
+      cycle_count,
+      health
+    FROM
+      host_batteries
+    WHERE
+      host_id = ?
+`
+
+	var batteries []*fleet.HostBattery
+	if err := sqlx.SelectContext(ctx, ds.reader, &batteries, stmt, hid); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "select host batteries")
+	}
+	return batteries, nil
 }

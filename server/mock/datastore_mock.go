@@ -178,6 +178,8 @@ type CountHostsInLabelFunc func(ctx context.Context, filter fleet.TeamFilter, li
 
 type ListHostDeviceMappingFunc func(ctx context.Context, id uint) ([]*fleet.HostDeviceMapping, error)
 
+type ListHostBatteriesFunc func(ctx context.Context, id uint) ([]*fleet.HostBattery, error)
+
 type LoadHostByDeviceAuthTokenFunc func(ctx context.Context, authToken string) (*fleet.Host, error)
 
 type SetOrUpdateDeviceAuthTokenFunc func(ctx context.Context, hostID uint, authToken string) error
@@ -667,6 +669,9 @@ type DataStore struct {
 
 	ListHostDeviceMappingFunc        ListHostDeviceMappingFunc
 	ListHostDeviceMappingFuncInvoked bool
+
+	ListHostBatteriesFunc        ListHostBatteriesFunc
+	ListHostBatteriesFuncInvoked bool
 
 	LoadHostByDeviceAuthTokenFunc        LoadHostByDeviceAuthTokenFunc
 	LoadHostByDeviceAuthTokenFuncInvoked bool
@@ -1442,6 +1447,11 @@ func (s *DataStore) CountHostsInLabel(ctx context.Context, filter fleet.TeamFilt
 func (s *DataStore) ListHostDeviceMapping(ctx context.Context, id uint) ([]*fleet.HostDeviceMapping, error) {
 	s.ListHostDeviceMappingFuncInvoked = true
 	return s.ListHostDeviceMappingFunc(ctx, id)
+}
+
+func (s *DataStore) ListHostBatteries(ctx context.Context, id uint) ([]*fleet.HostBattery, error) {
+	s.ListHostBatteriesFuncInvoked = true
+	return s.ListHostBatteriesFunc(ctx, id)
 }
 
 func (s *DataStore) LoadHostByDeviceAuthToken(ctx context.Context, authToken string) (*fleet.Host, error) {

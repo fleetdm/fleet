@@ -643,7 +643,6 @@ func directIngestBattery(ctx context.Context, logger log.Logger, host *fleet.Hos
 
 	mapping := make([]*fleet.HostBattery, 0, len(rows))
 	for _, row := range rows {
-		// TODO(mna): should we instead ignore results without a cycle count?
 		cycleCount, err := strconv.ParseInt(EmptyToZero(row["cycle_count"]), 10, 64)
 		if err != nil {
 			return err
