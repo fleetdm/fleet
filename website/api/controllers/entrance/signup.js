@@ -36,9 +36,8 @@ the account verification message.)`,
     },
 
     organization: {
-      required: true,
-      // required: false, //« Change organization to be required: false.
-      // defaultsTo: 'N/A', //« Add a default value, using 'N/A' as a default because this is required on the user model.
+      required: false, //« Change organization to be required: false.
+      defaultsTo: '', //« Add a default value
       type: 'string',
       maxLength: 120,
       example: 'The Sails company',
@@ -57,14 +56,15 @@ the account verification message.)`,
       type: 'string',
       example: 'Rivera',
       description: 'The user\'s last name.',
-    }
+    },
 
-    // Add sandboxExpirationTimestamp as an optional input
-    // sandboxExpirationTimestamp: {
-    //   required: false,
-    //   type: 'string',
-    //   description: 'An ISO 8601 timestamp of when this user\'s Fleet sandbox will expire'
-    // },
+    // Add optional input
+    signupReason: {
+      required: false,
+      defaultsTo: 'Buy a license',
+      type: 'string',
+      isIn: ['Buy a license', 'Try Fleet Sandbox'],
+    }
 
   },
 
@@ -87,17 +87,17 @@ the account verification message.)`,
       description: 'The provided email address is already in use.',
     },
 
+    couldNotProvisionSandbox: {
+      description: 'An error occurred while trying to provision the Fleet Sandbox Instance'
+    }
+
 
   },
 
   // Add sandboxExpirationTimestamp to inputs
-  // fn: async function ({emailAddress, password, firstName, lastName, organization, sandboxExpirationTimestamp}) {
-  fn: async function ({emailAddress, password, firstName, lastName, organization}) {
+  fn: async function ({emailAddress, password, firstName, lastName, organization, signupReason}) {
 
     var newEmailAddress = emailAddress.toLowerCase();
-
-
-    // let isSandboxUser = !! ;
 
 
     // Build up data for the new user record and save it to the database.
@@ -106,6 +106,7 @@ the account verification message.)`,
       firstName,
       lastName,
       organization,
+      signupReason,
       emailAddress: newEmailAddress,
       password: await sails.helpers.passwords.hashPassword(password),
       tosAcceptedByIp: this.req.ip
@@ -130,11 +131,45 @@ the account verification message.)`,
       });
     }
 
-    // If a sandboxExpirationTimestamp was provided, this is a user signing up to try Fleet Sandbox and we'll call the provision-fleet-sandbox helper.
-    ///  this helper will make a POST request to the cloud provisioner, add the URL of the fleet sandbox instance and the expiration timestamp to the user's record
-    // if(sandboxExpirationTimestamp) {
-        // await sails.helpers.provisionFleetSandbox.with({userId: newUserRecord.id, sandboxExpiresAt: sandboxExpirationTimestamp})
-    // }
+    // If "Try Fleet Sandbox" was provided as the signupReason, this is a user signing up to try Fleet Sandbox.
+    if(signupReason === 'Try Fleet Sandbox') {
+
+      // Creating an expiration JS timestamp for the Fleet sandbox instance. NOTE: We send this value to the cloud provisioner API as an ISO 8601 string.
+      let fleetSandboxExpiresAt = Date.now() + (24*60*60*1000);
+
+      // Create a key to send to the Fleet Sandbox instance, This key will be provided when the user logs in to their fleet sandbox instance
+      let fleetSandboxDemoKey = await sails.helpers.strings.random('url-friendly');
+
+      // Send a POST request to the cloud provisioner API
+      let cloudProvisionerResponse = await sails.helpers.http.post(sails.config.custom.fleetSandboxProvisionerURL, {
+        'name': firstName + ' ' + lastName,
+        'email': emailAddress,
+        'password': password,
+        'sandbox_expiration': new Date(fleetSandboxExpiresAt).toISOString(), // sending expiration_timestamp as an ISO string.
+        'fleetSandboxDemoKey': fleetSandboxDemoKey,
+        'apiSecret': sails.config.custom.fleetSandboxProvisionerSecret,
+      })
+      .timeout(5000)
+      .intercept('non200Response', 'couldNotProvisionSandbox');
+
+      if(cloudProvisionerResponse.url) {
+        // Update the user's record with the fleetSandboxURL, fleetSandboxExpiresAt, and fleetSandboxKey.
+        await User.updateOne({id: newUserRecord.id}).set({
+          fleetSandboxURL: cloudProvisionerResponse.url,
+          fleetSandboxExpiresAt: fleetSandboxExpiresAt,
+          fleetSandboxDemoKey: fleetSandboxDemoKey,
+        });
+        // Start polling the /healthz endpoint of the created Fleet Sandbox instance, once it returns a 200 response, we'll continue.
+        await sails.helpers.flow.until( async function () {
+          let serverResponse = await sails.helpers.http.sendHttpRequest('GET', cloudProvisionerResponse.url+'/healthz').timeout(5000).tolerate('non200Response').tolerate('requestFailed');
+          if(serverResponse && serverResponse.statusCode) {
+           return serverResponse.statusCode === 200;
+          }
+        });
+      } else {
+        throw 'couldNotProvisionSandbox';
+      }
+    }
 
     // Store the user's new id in their session.
     this.req.session.userId = newUserRecord.id;
