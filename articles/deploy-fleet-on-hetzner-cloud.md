@@ -964,9 +964,9 @@ We can run a much safer and more secure setup by doing this.
 
 Of course, we should be monitoring more hosts! Fleet has lots of ways to integrate so you can get your whole Fleet running `fleet`.
 
-<meta name="category" value="engineering">
-<meta name="authorGitHubUsername" value="fleetdm">
-<meta name="authorFullName" value="Fleet">
+<meta name="category" value="guides">
+<meta name="authorGitHubUsername" value="ksatter">
+<meta name="authorFullName" value="Katheryn Satterlee">
 <meta name="publishedOn" value="2022-06-27">
 <meta name="articleTitle" value="Deploy Fleet on Hetzner Cloud in less than 2 minutes, with CloudInit & Docker">
 <meta name="articleImageUrl" value="../website/assets/images/articles/deploy-fleet-on-hetzner-cloud-cover-800x450@2x.png">
