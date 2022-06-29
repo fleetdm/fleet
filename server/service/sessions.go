@@ -648,7 +648,8 @@ func makeDemologinEndpoint(urlPrefix string) handlerFunc {
 		}{}
 		var resp demologinResponse
 		if err != nil {
-			resp.Err = err
+			//resp.Err = err
+			return nil, err // TODO(mna): TBD if we fail the request here or continue but redirect to an error page instead?
 		}
 		session.Token = sess.Key
 
