@@ -1906,3 +1906,40 @@ func (ds *Datastore) ListHostBatteries(ctx context.Context, hid uint) ([]*fleet.
 	}
 	return batteries, nil
 }
+
+// TODO: Cron clean up host_not_responding table? Delete if host id does not exist in main hosts table?
+func (ds *Datastore) MarkHostNotResponding(ctx context.Context, hostID uint) error {
+	level.Info(ds.logger).Log("msg", fmt.Sprint("MarkHostNotResponding", hostID))
+	// try to select first because if a host is not responding we likely already have recorded it in
+	// the database and we can skip unnessecary insert operations that otherwise would be occurring
+	// every distributed interval (which is every 10 seconds by default)
+	var id int64
+	err := sqlx.GetContext(
+		ctx,
+		ds.reader,
+		&id,
+		`SELECT host_id FROM host_not_responding WHERE host_id = ?`,
+		hostID,
+	)
+	if errors.Is(err, sql.ErrNoRows) {
+		// intentionally reuse `err` so we can consolidate any error return below
+		_, err = ds.writer.ExecContext(
+			ctx,
+			`INSERT INTO host_not_responding (host_id) VALUE (?)`,
+			hostID,
+		)
+	}
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "mark host not responding")
+	}
+	return nil
+}
+
+func (ds *Datastore) ClearHostNotResponding(ctx context.Context, hostID uint) error {
+	level.Info(ds.logger).Log("msg", fmt.Sprint("ClearHostNotResponding", hostID))
+	stmt := `DELETE FROM host_not_responding WHERE host_id = ?`
+	if _, err := ds.writer.ExecContext(ctx, stmt, hostID); err != nil {
+		return ctxerr.Wrap(ctx, err, "clear host not responding")
+	}
+	return nil
+}

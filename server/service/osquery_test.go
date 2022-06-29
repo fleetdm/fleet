@@ -568,6 +568,26 @@ func TestHostDetailQueries(t *testing.T) {
 	assert.Equal(t, "select foo", queries[hostAdditionalQueryPrefix+"foobar"])
 }
 
+func TestDetectHostNotResponding(t *testing.T) {
+	mockClock := clock.NewMockClock()
+	svc := &Service{
+		clock:  mockClock,
+		config: config.FleetConfig{Osquery: config.OsqueryConfig{DetailUpdateInterval: time.Duration(1 * time.Hour)}},
+	}
+
+	host := &fleet.Host{DistributedInterval: uint(time.Duration(10 * time.Second))}
+
+	// non-responsive host
+	host.DetailUpdatedAt = svc.clock.Now().Add(-3 * time.Hour)
+	isNotResponding := svc.detectHostNotResponding(host)
+	require.True(t, isNotResponding)
+
+	// responsive host
+	host.DetailUpdatedAt = svc.clock.Now().Add(-3 * time.Minute)
+	isNotResponding = svc.detectHostNotResponding(host)
+	require.False(t, isNotResponding)
+}
+
 func TestGetDistributedQueriesMissingHost(t *testing.T) {
 	svc := newTestService(t, &mock.Store{}, nil, nil)
 

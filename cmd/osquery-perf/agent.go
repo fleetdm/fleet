@@ -171,11 +171,27 @@ type agent struct {
 	scheduledQueries []string
 
 	// The following are exported to be used by the templates.
-
 	EnrollSecret   string
 	UUID           string
 	ConfigInterval time.Duration
 	QueryInterval  time.Duration
+
+	failer *failer
+}
+
+// failer is an optional property on an agent that performs a distributed write only once per success interval
+// and fails all subsequent distributed writes during such interval.
+type failer struct {
+	successInterval time.Duration
+	lastSuccess     time.Time
+}
+
+func (f *failer) shouldFail() bool {
+	if time.Since(f.lastSuccess) < f.successInterval {
+		return true
+	}
+	f.lastSuccess = time.Now()
+	return false
 }
 
 type entityCount struct {
@@ -196,15 +212,28 @@ func newAgent(
 	configInterval, queryInterval time.Duration, softwareCount softwareEntityCount, userCount entityCount,
 	policyPassProb float64,
 	orbitProb float64,
+	queryFailerProb float64,
 ) *agent {
 	var deviceAuthToken *string
 	if rand.Float64() <= orbitProb {
 		deviceAuthToken = ptr.String(uuid.NewString())
 	}
+	var f *failer
+	if rand.Float64() <= queryFailerProb {
+		f = &failer{
+			// Fleet considers a host to be not responding if it has failed to make a distibuted write
+			// within 2x the configInterval so we set our successInterval to be 3x, 4x, or 5x configInterval
+			successInterval: time.Duration(configInterval.Nanoseconds() * int64(agentIndex%3+3)),
+			lastSuccess:     time.Now(),
+		}
+		fmt.Println("failer agent", agentIndex)
+		fmt.Println(f)
+	}
 	// #nosec (osquery-perf is only used for testing)
 	tlsConfig := &tls.Config{
 		InsecureSkipVerify: true,
 	}
+
 	return &agent{
 		agentIndex:     agentIndex,
 		serverAddress:  serverAddress,
@@ -222,6 +251,7 @@ func newAgent(
 		ConfigInterval: configInterval,
 		QueryInterval:  queryInterval,
 		UUID:           uuid.New().String(),
+		failer:         f,
 	}
 }
 
@@ -258,7 +288,13 @@ func (a *agent) runLoop(i int, onlyAlreadyEnrolled bool) {
 			resp, err := a.DistributedRead()
 			if err != nil {
 				log.Println(err)
-			} else if len(resp.Queries) > 0 {
+				continue
+			}
+			if a.failer != nil && a.failer.shouldFail() {
+				fmt.Println("fail", a.agentIndex)
+				continue
+			}
+			if len(resp.Queries) > 0 {
 				a.DistributedWrite(resp.Queries)
 			}
 		}
@@ -804,6 +840,7 @@ func main() {
 	uniqueUserCount := flag.Int("unique_user_count", 10, "Number of unique host users reported to fleet")
 	policyPassProb := flag.Float64("policy_pass_prob", 1.0, "Probability of policies to pass [0, 1]")
 	orbitProb := flag.Float64("orbit_prob", 0.5, "Probability of a host being identified as orbit install [0, 1]")
+	queryFailerProb := flag.Float64("query_failer_prob", 0.5, "Probability of a host being created that will intermittently fail to respond to distributed queries [0, 1]")
 
 	flag.Parse()
 
@@ -863,6 +900,7 @@ func main() {
 			},
 			*policyPassProb,
 			*orbitProb,
+			*queryFailerProb,
 		)
 		a.stats = stats
 		a.nodeKeyManager = nodeKeyManager

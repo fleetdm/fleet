@@ -509,6 +509,14 @@ func (svc *Service) GetDistributedQueries(ctx context.Context) (queries map[stri
 		return nil, nil, 0, osqueryError{message: "internal error: missing host from request context"}
 	}
 
+	if svc.detectHostNotResponding(host) {
+		level.Info(svc.logger).Log("msg", fmt.Sprintf("host %v is not responding to distributed queries", host.ID))
+
+		if err := svc.ds.MarkHostNotResponding(ctx, host.ID); err != nil {
+			logging.WithErr(ctx, err)
+		}
+	}
+
 	queries = make(map[string]string)
 	discovery = make(map[string]string)
 
@@ -587,6 +595,24 @@ func (svc *Service) GetDistributedQueries(ctx context.Context) (queries map[stri
 	}
 
 	return queries, discovery, accelerate, nil
+}
+
+// detectHostNotResponding returns whether the host hasn't been submitting results for sent queries.
+//
+// Notes:
+//   - We use `2 * interval`, because of the artificial jitter added to the intervals in Fleet.
+//   - Default values for:
+//     - host.DistributedInterval is usually 10s.
+//     - svc.config.Osquery.DetailUpdateInterval is usually 1h.
+func (svc *Service) detectHostNotResponding(host *fleet.Host) bool {
+	interval := svc.config.Osquery.DetailUpdateInterval
+	if time.Duration(host.DistributedInterval) > interval {
+		interval = time.Duration(host.DistributedInterval)
+	}
+	// The following means Fleet hasn't received the distributed/request from the host
+	// "in a while", thus we assume the host is having some issue in executing the
+	// queries or sending the results.
+	return svc.clock.Now().Sub(host.DetailUpdatedAt) > 2*interval
 }
 
 const alwaysTrueQuery = "SELECT 1"
@@ -940,6 +966,10 @@ func (svc *Service) SubmitDistributedQueryResults(
 				}
 			}
 		}
+	}
+
+	if err := svc.ds.ClearHostNotResponding(ctx, host.ID); err != nil {
+		logging.WithErr(ctx, err)
 	}
 
 	return nil

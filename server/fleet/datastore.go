@@ -545,6 +545,12 @@ type Datastore interface {
 
 	SerialUpdateHost(ctx context.Context, host *Host) error
 
+	// MarkHostNotResponding performs an upsert for the given host id in the list of non-responsive host
+	MarkHostNotResponding(ctx context.Context, hostID uint) error
+
+	// ClearHostNotResponding deletes given host id from the list of non-responsive hosts
+	ClearHostNotResponding(ctx context.Context, hostID uint) error
+
 	///////////////////////////////////////////////////////////////////////////////
 	// JobStore
 

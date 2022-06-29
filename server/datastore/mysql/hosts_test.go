@@ -21,6 +21,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/test"
+	"github.com/jmoiron/sqlx"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -119,6 +120,7 @@ func TestHosts(t *testing.T) {
 		{"HostIDsByOSVersion", testHostIDsByOSVersion},
 		{"ShouldCleanTeamPolicies", testShouldCleanTeamPolicies},
 		{"ReplaceHostBatteries", testHostsReplaceHostBatteries},
+		{"HostNotResponding", testHostNotResponding},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -4353,4 +4355,131 @@ func testHostsReplaceHostBatteries(t *testing.T, ds *Datastore) {
 	bat2, err = ds.ListHostBatteries(ctx, h2.ID)
 	require.NoError(t, err)
 	require.ElementsMatch(t, h2Bat, bat2)
+}
+
+func testHostNotResponding(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+	host1, err := ds.NewHost(ctx, &fleet.Host{
+		ID:              1,
+		OsqueryHostID:   "1",
+		NodeKey:         "1",
+		UUID:            "1",
+		Hostname:        "not-responding-1",
+		PrimaryIP:       "192.168.1.1",
+		PrimaryMac:      "30-65-EC-6F-C4-58",
+		DetailUpdatedAt: time.Now(),
+		LabelUpdatedAt:  time.Now(),
+		PolicyUpdatedAt: time.Now(),
+		SeenTime:        time.Now(),
+	})
+	require.NoError(t, err)
+	require.NotNil(t, host1)
+
+	host2, err := ds.NewHost(ctx, &fleet.Host{
+		ID:              2,
+		OsqueryHostID:   "2",
+		NodeKey:         "2",
+		UUID:            "2",
+		Hostname:        "not-responding-2",
+		PrimaryIP:       "192.168.1.2",
+		PrimaryMac:      "30-65-EC-6F-C4-59",
+		DetailUpdatedAt: time.Now(),
+		LabelUpdatedAt:  time.Now(),
+		PolicyUpdatedAt: time.Now(),
+		SeenTime:        time.Now(),
+	})
+	require.NoError(t, err)
+	require.NotNil(t, host2)
+
+	ids := []uint8{}
+	err = sqlx.SelectContext(
+		context.Background(),
+		ds.reader,
+		&ids,
+		`SELECT host_id FROM host_not_responding`,
+	)
+	require.NoError(t, err)
+	require.Len(t, ids, 0)
+
+	// mark host1 not responding
+	err = ds.MarkHostNotResponding(context.Background(), host1.ID)
+	require.NoError(t, err)
+
+	// check that table contains host1
+	ids = []uint8{}
+	err = sqlx.SelectContext(
+		context.Background(),
+		ds.reader,
+		&ids,
+		`SELECT host_id FROM host_not_responding`,
+	)
+	require.NoError(t, err)
+	require.Len(t, ids, 1)
+	require.Contains(t, ids, uint8(host1.ID))
+
+	// mark host2 not responding
+	err = ds.MarkHostNotResponding(context.Background(), host2.ID)
+	require.NoError(t, err)
+
+	// check that table includes host1 and host2
+	ids = []uint8{}
+	err = sqlx.SelectContext(
+		context.Background(),
+		ds.reader,
+		&ids,
+		`SELECT host_id FROM host_not_responding`,
+	)
+	require.NoError(t, err)
+	require.Len(t, ids, 2)
+	require.Contains(t, ids, uint8(host1.ID))
+	require.Contains(t, ids, uint8(host2.ID))
+
+	// attempt to mark host2 not responding again should have no effect
+	err = ds.MarkHostNotResponding(context.Background(), host2.ID)
+	require.NoError(t, err)
+
+	// check that table still includes host1 and host2
+	ids = []uint8{}
+	err = sqlx.SelectContext(
+		context.Background(),
+		ds.reader,
+		&ids,
+		`SELECT host_id FROM host_not_responding`,
+	)
+	require.NoError(t, err)
+	require.Len(t, ids, 2)
+	require.Contains(t, ids, uint8(host1.ID))
+	require.Contains(t, ids, uint8(host2.ID))
+
+	// clear host1 not responding
+	err = ds.ClearHostNotResponding(context.Background(), host1.ID)
+	require.NoError(t, err)
+
+	// check that table only includes host2
+	ids = []uint8{}
+	err = sqlx.SelectContext(
+		context.Background(),
+		ds.reader,
+		&ids,
+		`SELECT host_id FROM host_not_responding`,
+	)
+	require.NoError(t, err)
+	require.Len(t, ids, 1)
+	require.Contains(t, ids, uint8(host2.ID))
+
+	// attempt to clear host1 again should have no effect
+	err = ds.ClearHostNotResponding(context.Background(), host1.ID)
+	require.NoError(t, err)
+
+	// check that table still only includes host2
+	ids = []uint8{}
+	err = sqlx.SelectContext(
+		context.Background(),
+		ds.reader,
+		&ids,
+		`SELECT host_id FROM host_not_responding`,
+	)
+	require.NoError(t, err)
+	require.Len(t, ids, 1)
+	require.Contains(t, ids, uint8(host2.ID))
 }

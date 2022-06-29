@@ -410,6 +410,10 @@ type EnrollHostFunc func(ctx context.Context, osqueryHostId string, nodeKey stri
 
 type SerialUpdateHostFunc func(ctx context.Context, host *fleet.Host) error
 
+type MarkHostNotRespondingFunc func(ctx context.Context, hostID uint) error
+
+type ClearHostNotRespondingFunc func(ctx context.Context, hostID uint) error
+
 type NewJobFunc func(ctx context.Context, job *fleet.Job) (*fleet.Job, error)
 
 type GetQueuedJobsFunc func(ctx context.Context, maxNumJobs int) ([]*fleet.Job, error)
@@ -1017,6 +1021,12 @@ type DataStore struct {
 
 	SerialUpdateHostFunc        SerialUpdateHostFunc
 	SerialUpdateHostFuncInvoked bool
+
+	MarkHostNotRespondingFunc        MarkHostNotRespondingFunc
+	MarkHostNotRespondingFuncInvoked bool
+
+	ClearHostNotRespondingFunc        ClearHostNotRespondingFunc
+	ClearHostNotRespondingFuncInvoked bool
 
 	NewJobFunc        NewJobFunc
 	NewJobFuncInvoked bool
@@ -2027,6 +2037,16 @@ func (s *DataStore) EnrollHost(ctx context.Context, osqueryHostId string, nodeKe
 func (s *DataStore) SerialUpdateHost(ctx context.Context, host *fleet.Host) error {
 	s.SerialUpdateHostFuncInvoked = true
 	return s.SerialUpdateHostFunc(ctx, host)
+}
+
+func (s *DataStore) MarkHostNotResponding(ctx context.Context, hostID uint) error {
+	s.MarkHostNotRespondingFuncInvoked = true
+	return s.MarkHostNotRespondingFunc(ctx, hostID)
+}
+
+func (s *DataStore) ClearHostNotResponding(ctx context.Context, hostID uint) error {
+	s.ClearHostNotRespondingFuncInvoked = true
+	return s.ClearHostNotRespondingFunc(ctx, hostID)
 }
 
 func (s *DataStore) NewJob(ctx context.Context, job *fleet.Job) (*fleet.Job, error) {
