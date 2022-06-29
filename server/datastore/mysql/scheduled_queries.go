@@ -275,6 +275,8 @@ func (ds *Datastore) ScheduledQueryIDsByName(ctx context.Context, packAndSchedQu
 // which seems to be around 64K, again not a problem here.
 var asyncBatchScheduledQueryStatsSize = 1000 // var so it can be changed for tests
 
+// TODO(mna): it should receive the batch size, which should be the one configured
+// in fleet (AsyncHostInsertBatch)
 func (ds *Datastore) AsyncBatchSaveHostsScheduledQueryStats(ctx context.Context, stats map[uint][]fleet.ScheduledQueryStats) (int, error) {
 	// NOTE: this implementation must be kept in sync with the non-async version
 	// in SaveHostPackStats (in hosts.go) - that is, the behaviour per host must

@@ -38,10 +38,11 @@ func (t *Task) RecordScheduledQueryStats(ctx context.Context, hostID uint, stats
 	}
 
 	// the redis key is a hash where the field names are the
-	// packname\x00queryname and the values are the json-marshaled
-	// fleet.PackStats struct. Using this structure ensures the fields are always
-	// overridden with the latest stats for the pack/query tuple, which mirrors
-	// the behavior of the mysql table (we only keep the latest stats).
+	// packname\x00schedqueryname and the values are the json-marshaled
+	// fleet.ScheduledQueryStats struct. Using this structure ensures the fields
+	// are always overridden with the latest stats for the pack/query tuple,
+	// which mirrors the behavior of the mysql table (we only keep the latest
+	// stats).
 
 	// keys and arguments passed to the script are:
 	// KEYS[1]: hash key (scheduledQueryStatsHostQueriesKey)
@@ -58,22 +59,25 @@ func (t *Task) RecordScheduledQueryStats(ctx context.Context, hostID uint, stats
 	for _, ps := range stats {
 		for _, qs := range ps.QueryStats {
 			field := fmt.Sprintf("%s\x00%s", ps.PackName, qs.ScheduledQueryName)
-			jsonStat, err := json.Marshal(ps)
+			jsonStat, err := json.Marshal(qs)
 			if err != nil {
-				return ctxerr.Wrap(ctx, err, "marshal pack stats")
+				return ctxerr.Wrap(ctx, err, "marshal scheduled query stats")
 			}
 			args = args.Add(field, string(jsonStat))
 		}
 	}
 
-	conn := t.pool.Get()
-	defer conn.Close()
-	if err := redis.BindConn(t.pool, conn, key); err != nil {
-		return ctxerr.Wrap(ctx, err, "bind redis connection")
-	}
+	if len(args) > 2 {
+		// only if there are fields to HSET
+		conn := t.pool.Get()
+		defer conn.Close()
+		if err := redis.BindConn(t.pool, conn, key); err != nil {
+			return ctxerr.Wrap(ctx, err, "bind redis connection")
+		}
 
-	if _, err := script.Do(conn, args...); err != nil {
-		return ctxerr.Wrap(ctx, err, "run redis script")
+		if _, err := script.Do(conn, args...); err != nil {
+			return ctxerr.Wrap(ctx, err, "run redis script")
+		}
 	}
 
 	// Storing the host id in the set of active host IDs for scheduled query stats
@@ -95,7 +99,7 @@ func (t *Task) collectScheduledQueryStats(ctx context.Context, ds fleet.Datastor
 	}
 	stats.Keys = len(hosts)
 
-	getHostStats := func(hostID uint) (packStats []fleet.PackStats, schedQueryNames [][2]string, err error) {
+	getHostStats := func(hostID uint) (sqStats []fleet.ScheduledQueryStats, schedQueryNames [][2]string, err error) {
 		keyHash := fmt.Sprintf(scheduledQueryStatsHostQueriesKey, hostID)
 		conn := redis.ConfigureDoer(pool, pool.Get())
 		defer conn.Close()
@@ -113,11 +117,11 @@ func (t *Task) collectScheduledQueryStats(ctx context.Context, ds fleet.Datastor
 				return nil, nil, ctxerr.Wrap(ctx, err, "scan HSCAN result")
 			}
 			items := len(hashFieldVals)
-			stats.Items += items
+			stats.Items += items / 2 // because keys/values are alternating
 
 			for len(hashFieldVals) > 0 {
-				var packSchedName, packStatJSON string
-				hashFieldVals, err = redigo.Scan(hashFieldVals, &packSchedName, &packStatJSON)
+				var packSchedName, schedQueryStatJSON string
+				hashFieldVals, err = redigo.Scan(hashFieldVals, &packSchedName, &schedQueryStatJSON)
 				if err != nil {
 					return nil, nil, ctxerr.Wrap(ctx, err, "scan HSCAN field and value")
 				}
@@ -129,16 +133,19 @@ func (t *Task) collectScheduledQueryStats(ctx context.Context, ds fleet.Datastor
 				}
 				schedQueryNames = append(schedQueryNames, [2]string{parts[0], parts[1]})
 
-				// unmarshal the pack stats
-				var ps fleet.PackStats
-				if err := json.Unmarshal([]byte(packStatJSON), &ps); err != nil {
-					return nil, nil, ctxerr.Wrap(ctx, err, "unmarshal pack stats hash value")
+				// unmarshal the scheduled query stats
+				var sqStat fleet.ScheduledQueryStats
+				if err := json.Unmarshal([]byte(schedQueryStatJSON), &sqStat); err != nil {
+					return nil, nil, ctxerr.Wrap(ctx, err, "unmarshal scheduled query stats hash value")
 				}
-				packStats = append(packStats, ps)
+				sqStat.PackName = parts[0]
+				sqStats = append(sqStats, sqStat)
 			}
 			if cursor == 0 {
-				// iteration completed
-				return packStats, schedQueryNames, nil
+				// iteration completed, clear the hash but do not fail on error
+				_, _ = conn.Do("DEL", keyHash)
+
+				return sqStats, schedQueryNames, nil
 			}
 		}
 	}
@@ -149,14 +156,14 @@ func (t *Task) collectScheduledQueryStats(ctx context.Context, ds fleet.Datastor
 	// insertion of the stats, load it once before processing the batch.
 
 	// get all hosts' stats and index the scheduled query names
-	hostsStats := make(map[uint][]fleet.PackStats, len(hosts)) // key is host ID
-	uniqueSchedQueries := make(map[[2]string]uint)             // key is pack+scheduled query names, value is scheduled query id
+	hostsStats := make(map[uint][]fleet.ScheduledQueryStats, len(hosts)) // key is host ID
+	uniqueSchedQueries := make(map[[2]string]uint)                       // key is pack+scheduled query names, value is scheduled query id
 	for _, host := range hosts {
-		packStats, names, err := getHostStats(host.HostID)
+		sqStats, names, err := getHostStats(host.HostID)
 		if err != nil {
 			return err
 		}
-		hostsStats[host.HostID] = packStats
+		hostsStats[host.HostID] = sqStats
 		for _, nm := range names {
 			uniqueSchedQueries[nm] = 0
 		}
@@ -179,16 +186,13 @@ func (t *Task) collectScheduledQueryStats(ctx context.Context, ds fleet.Datastor
 	// build the batch of stats to upsert, ignoring stats for non-existing
 	// scheduled queries
 	batchStatsByHost := make(map[uint][]fleet.ScheduledQueryStats, len(hostsStats))
-	for hid, pstats := range hostsStats {
+	for hid, sqStats := range hostsStats {
 		batchStats := batchStatsByHost[hid]
-		for _, pstat := range pstats {
-			for _, qstat := range pstat.QueryStats {
-				qstat.ScheduledQueryID = uniqueSchedQueries[[2]string{pstat.PackName, qstat.ScheduledQueryName}]
-				// ignore if the scheduled query does not exist
-				if qstat.ScheduledQueryID != 0 {
-					// TODO(mna): actually use a superset struct with the host ID
-					batchStats = append(batchStats, qstat)
-				}
+		for _, sqStat := range sqStats {
+			sqStat.ScheduledQueryID = uniqueSchedQueries[[2]string{sqStat.PackName, sqStat.ScheduledQueryName}]
+			// ignore if the scheduled query does not exist
+			if sqStat.ScheduledQueryID != 0 {
+				batchStats = append(batchStats, sqStat)
 			}
 		}
 		batchStatsByHost[hid] = batchStats
