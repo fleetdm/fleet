@@ -97,7 +97,8 @@ const App = ({ children, location, router }: IAppProps): JSX.Element => {
       typeof isOnlyObserver !== "undefined" &&
       !isOnlyObserver &&
       typeof isAnyTeamMaintainerOrTeamAdmin !== "undefined" &&
-      !isAnyTeamMaintainerOrTeamAdmin;
+      !isAnyTeamMaintainerOrTeamAdmin &&
+      !location?.pathname.includes("/device/");
 
     const getEnrollSecret = async () => {
       try {
