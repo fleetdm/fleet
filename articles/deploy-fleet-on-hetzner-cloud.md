@@ -693,8 +693,9 @@ Cloud-init v. 22.1-14-g2e17a0d6-0ubuntu1~20.04.3 finished at Thu, 02 Jun 2022 07
 
 ## Set up Fleet and enroll hosts
 
-Now that Fleet is running, visit your Fleet dashboard (i.e., `https://fleet.domain.tld`) and enter your name, email and password. You should now see the empty hosts page.
-To start enrolling hosts into Fleet, check out [Adding hosts](https://fleetdm.com/docs/using-fleet/adding-hosts).
+Now that Fleet is running, visit your Fleet dashboard (i.e., `https://fleet.domain.tld`) and enter your name, email and password. You should now see the empty hosts page. To start enrolling hosts into Fleet, check out [Adding hosts](https://fleetdm.com/docs/using-fleet/adding-hosts).
+
+---
 
 ## What's next?
 
@@ -702,7 +703,7 @@ Now that you’re ready to use Fleet and have a host installed. Here's some next
 
 - Take some time to get acclimatized to Fleet. [Learn how to use Fleet](https://fleetdm.com/docs/using-fleet/learn-how-to-use-fleet) and [Fleet UI](https://fleetdm.com/docs/using-fleet/fleet-ui) are both great places to start.
 - Import Fleet's [standard query library](https://fleetdm.com/docs/using-fleet/standard-query-library) to start asking questions about your hosts.
-- Create a dedicated `fleet` user with Docker's support for user [namespaces](https://docs.docker.com/engine/security/userns-remap/) to run a more secure setup. 
+- To run a more secure setup, consider creating a dedicated `fleet` user with Docker's support for user [namespaces](https://docs.docker.com/engine/security/userns-remap/). 
 
 <meta name="category" value="guides">
 <meta name="authorGitHubUsername" value="ksatter">
