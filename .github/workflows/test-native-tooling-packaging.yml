@@ -1,0 +1,75 @@
+name: Test native tooling packaging
+
+# This workflow tests packaging of Fleet-osquery with the
+# `fleetdm/fleetctl` Docker image. 
+
+on:
+  push:
+    branches:
+      - main
+      - patch-*
+  pull_request:
+    paths:
+      - '**.go'
+      - 'tools/fleetctl-docker/**'
+      - 'tools/wix-docker/**'
+      - 'tools/bomutils-docker/**'
+      - '.github/workflows/test-native-tooling-packaging.yml'
+  workflow_dispatch: # Manual
+
+permissions:
+  contents: read
+
+jobs:
+  test-packaging:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest]
+        go-version: ['^1.17.8']
+    runs-on: ${{ matrix.os }}
+
+    steps:
+    - name: Install Go
+      uses: actions/setup-go@b22fbbc2921299758641fab08929b4ac52b32923 # v2
+      with:
+        go-version: ${{ matrix.go-version }}
+
+    - name: Checkout Code
+      uses: actions/checkout@629c2de402a417ea7690ca6ce3f33229e27606a5 # v2
+
+    - name: Install Go Dependencies
+      run: make deps-go
+
+    - name: Build fleetctl
+      run: make xp-fleetctl
+
+    # TODO: pull the image from the registry instead once it's published 
+    - name: Build fleetdm/fleetctl
+      run: docker build -t fleetdm/fleetctl --platform=linux/amd64 -f tools/fleetctl-docker/Dockerfile .
+
+    - name: Build DEB
+      run: docker run fleetdm/fleetctl package --type deb --enroll-secret=foo --fleet-url=https://localhost:8080
+    - name: Build DEB
+      run: docker run fleetdm/fleetctl package --type deb --enroll-secret=foo --fleet-url=https://localhost:8080
+
+    - name: Build DEB with Fleet Desktop
+      run: docker run fleetdm/fleetctl package --type deb --enroll-secret=foo --fleet-url=https://localhost:8080 --fleet-desktop
+      
+    - name: Build RPM
+      run: docker run fleetdm/fleetctl --type rpm --enroll-secret=foo --fleet-url=https://localhost:8080
+      
+    - name: Build RPM with Fleet Desktop
+      run: docker run fleetdm/fleetctl package --type rpm --enroll-secret=foo --fleet-url=https://localhost:8080 --fleet-desktop
+
+    - name: Build MSI
+      run: docker run fleetdm/fleetctl package --type msi --enroll-secret=foo --fleet-url=https://localhost:8080
+
+    - name: Build MSI with Fleet Desktop
+      run: docker run fleetdm/fleetctl package --type msi --enroll-secret=foo --fleet-url=https://localhost:8080 --fleet-desktop
+
+    - name: Build PKG
+      run: docker run fleetdm/fleetctl package --type pkg --enroll-secret=foo --fleet-url=https://localhost:8080
+
+    - name: Build PKG with Fleet Desktop
+      run: docker run fleetdm/fleetctl package --type pkg --enroll-secret=foo --fleet-url=https://localhost:8080 --fleet-desktop

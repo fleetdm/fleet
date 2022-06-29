@@ -63,6 +63,9 @@ type Options struct {
 	// LegacyVarLibSymlink indicates whether Orbit is legacy (< 0.0.11),
 	// which assumes it is installed under /var/lib.
 	LegacyVarLibSymlink bool
+	// Native tooling is used to determine if the package should be build
+	// natively instead of via Docker images.
+	NativeTooling bool
 }
 
 func initializeTempDir() (string, error) {
