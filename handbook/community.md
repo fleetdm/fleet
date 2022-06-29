@@ -398,7 +398,8 @@ The following table lists the Community group's rituals, frequency, and Directly
 | Ritual                       | Frequency                | Description                                         | DRI               |
 |:-----------------------------|:-----------------------------|:----------------------------------------------------|-------------------|
 | Community Slack  | Daily   | Check Fleet and osquery Slack channels for community questions, make sure questions are responded to and logged. | Kathy Satterlee |
-| Social media check-in     |  Daily | Check social media for community questions and make sure to respond to them.  Generate dev advocacy-related content. | Kelvin Omereshone   |
+| Social media check-in |  Daily | Check social media for community questions and make sure to respond to them.  Generate dev advocacy-related content. | Kelvin Omereshone   |
+| Issue check-in | Daily | Check GitHub for new issues submitted by the community, check status of existing requests and follow up when needed. | Kathy Satterlee |
 | Outside contributor follow-up | Weekly | Bring pull requests from outside contributors to engineering and make sure they are merged promptly and promoted. | Kathy Satterlee |
 | Documentation update | Weekly | Turn questions answered from Fleet and osquery Slack into FAQs in Fleet’s docs. | Kathy Satterlee |
 | StackOverflow  | Weekly | Search StackOverflow for “osquery,” answer questions with Grammarly, and find a way to feature Fleet in your StackOverflow profile prominently. | Rotation: Community team |
