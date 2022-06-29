@@ -29,7 +29,17 @@ First, a new table needs to be created.
 ```sql
 CREATE TABLE labels_1 LIKE labels;
 ALTER TABLE labels_1 ADD COLUMN priority int(10) NOT NULL DEFAULT '0';
+``
+
+Data from the `labels` table needs to be copied over  `labels_1`, to do this,
+we add the following:
+
+```sql
+INSERT LOW_PRIORITY IGNORE INTO labels_1 SELECT * FROM labels;
 ```
+
+If the table is big, we should consider splitting the rows into chunks
+and do the insert in batches, but I didn't built that for the PoC.
 
 If the table has FKs, you need to add `ALTER` statements to set those, as they
 aren't created with `CREATE TABLE ... LIKE`, taking special care on the naming
@@ -48,12 +58,12 @@ opposite direction using the same boilerplate.
 # in a trigger
 delimiter //
 
-# since MySQL doesn't have ON CONFLIC IGNORE, we craft our own, this is copyied
+# since MySQL doesn't have ON CONFLICT IGNORE, we craft our own, this is copyied
 # from the percona toolkit
 CREATE TRIGGER labels_labels_1_ins AFTER INSERT ON labels
 FOR EACH ROW
 BEGIN
-DECLARE CONTINUE HANDLER FOR 1146 BEGIN END;
+DECLARE CONTINUE HANDLER FOR 1442 BEGIN END;
 REPLACE INTO labels_1 VALUES (
   NEW.id, NEW.created_at, NEW.updated_at, NEW.name,
   NEW.description, NEW.query, NEW.platform, NEW.label_type,
@@ -64,14 +74,14 @@ END;
 CREATE TRIGGER labels_labels_1_del AFTER DELETE ON labels
 FOR EACH ROW
 BEGIN
-DECLARE CONTINUE HANDLER FOR 1146 BEGIN END;
+DECLARE CONTINUE HANDLER FOR 1442 BEGIN END;
 DELETE IGNORE FROM labels_1 WHERE id = OLD.id;
 END;
 
 CREATE TRIGGER labels_labels_1_upd AFTER UPDATE ON labels
 FOR EACH ROW
 BEGIN
-DECLARE CONTINUE HANDLER FOR 1146 BEGIN END;
+DECLARE CONTINUE HANDLER FOR 1442 BEGIN END;
 DELETE IGNORE FROM labels_1 WHERE id = OLD.id;
 REPLACE INTO labels_1 VALUES (
   NEW.id, NEW.created_at, NEW.updated_at, NEW.name,
