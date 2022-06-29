@@ -176,11 +176,12 @@ type agent struct {
 	ConfigInterval time.Duration
 	QueryInterval  time.Duration
 
+	// failer is an optional property to configure an agent that performs distributed
+	// writes only once per success interval and fails all subsequent distributed writes
+	// during such interval.
 	failer *failer
 }
 
-// failer is an optional property on an agent that performs a distributed write only once per success interval
-// and fails all subsequent distributed writes during such interval.
 type failer struct {
 	successInterval time.Duration
 	lastSuccess     time.Time
@@ -226,8 +227,6 @@ func newAgent(
 			successInterval: time.Duration(configInterval.Nanoseconds() * int64(agentIndex%3+3)),
 			lastSuccess:     time.Now(),
 		}
-		fmt.Println("failer agent", agentIndex)
-		fmt.Println(f)
 	}
 	// #nosec (osquery-perf is only used for testing)
 	tlsConfig := &tls.Config{
@@ -291,7 +290,8 @@ func (a *agent) runLoop(i int, onlyAlreadyEnrolled bool) {
 				continue
 			}
 			if a.failer != nil && a.failer.shouldFail() {
-				fmt.Println("fail", a.agentIndex)
+				// TODO: Would some logging be useful here?
+				// fmt.Println("fail", a.agentIndex)
 				continue
 			}
 			if len(resp.Queries) > 0 {
@@ -840,7 +840,7 @@ func main() {
 	uniqueUserCount := flag.Int("unique_user_count", 10, "Number of unique host users reported to fleet")
 	policyPassProb := flag.Float64("policy_pass_prob", 1.0, "Probability of policies to pass [0, 1]")
 	orbitProb := flag.Float64("orbit_prob", 0.5, "Probability of a host being identified as orbit install [0, 1]")
-	queryFailerProb := flag.Float64("query_failer_prob", 0.5, "Probability of a host being created that will intermittently fail to respond to distributed queries [0, 1]")
+	queryFailerProb := flag.Float64("query_failer_prob", 0.1, "Probability of a host being configured to intermittently fail to respond to distributed queries [0, 1]")
 
 	flag.Parse()
 

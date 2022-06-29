@@ -1,0 +1,3 @@
+- Added detections for hosts with issues submitting query results and added `host_not_responding`
+  table to maintain list of hosts that have not responded to any requested queries during the last
+  two osquery detail update intervals.
