@@ -89,6 +89,7 @@ func main() {
 						myDeviceItem.SetTitle("My device")
 						myDeviceItem.Enable()
 						myDeviceItem.SetTooltip("")
+						transparencyItem.Enable()
 						return
 					}
 
@@ -105,7 +106,6 @@ func main() {
 
 		go func() {
 			<-deviceEnabledChan
-			transparencyItem.Enable()
 			tic := time.NewTicker(5 * time.Minute)
 			defer tic.Stop()
 
