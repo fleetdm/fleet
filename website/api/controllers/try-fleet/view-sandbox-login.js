@@ -4,13 +4,13 @@ module.exports = {
   friendlyName: 'View login',
 
 
-  description: 'Display "Login" page.',
+  description: 'Display the "Sandbox Login" page. Note: This page is the "login" page skinned for Fleet Sandbox.',
 
 
   exits: {
 
     success: {
-      viewTemplatePath: 'pages/try-fleet/login'
+      viewTemplatePath: 'pages/try-fleet/sandbox-login'
     },
 
     redirect: {

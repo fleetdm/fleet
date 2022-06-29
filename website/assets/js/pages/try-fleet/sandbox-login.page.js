@@ -4,24 +4,24 @@ parasails.registerPage('sandbox-login', {
   //  ╩╝╚╝╩ ╩ ╩╩ ╩╩═╝  ╚═╝ ╩ ╩ ╩ ╩ ╚═╝
   data: {
     // Main syncing/loading state for this page.
-    // syncing: false,
+    syncing: false,
 
-    // // Form data
-    // formData: { },
+    // Form data
+    formData: { },
 
-    // // For tracking client-side validation errors in our form.
-    // // > Has property set to `true` for each invalid property in `formData`.
-    // formErrors: { /* … */ },
+    // For tracking client-side validation errors in our form.
+    // > Has property set to `true` for each invalid property in `formData`.
+    formErrors: { /* … */ },
 
-    // // A set of validation rules for our form.
-    // // > The form will not be submitted if these are invalid.
-    // formRules: {
-    //   emailAddress: { required: true, isEmail: true },
-    //   password: { required: true },
-    // },
+    // A set of validation rules for our form.
+    // > The form will not be submitted if these are invalid.
+    formRules: {
+      emailAddress: { required: true, isEmail: true },
+      password: { required: true },
+    },
 
-    // // Server error state for the form
-    // cloudError: '',
+    // Server error state for the form
+    cloudError: '',
   },
 
   //  ╦  ╦╔═╗╔═╗╔═╗╦ ╦╔═╗╦  ╔═╗
@@ -39,9 +39,9 @@ parasails.registerPage('sandbox-login', {
   //  ╩╝╚╝ ╩ ╚═╝╩╚═╩ ╩╚═╝ ╩ ╩╚═╝╝╚╝╚═╝
   methods: {
 
-    // submittedLoginForm: async function() {
-    //   this.syncing = true;
-    //   window.location = '/try-fleet/sandbox'
-    // }
+    submittedLoginForm: async function() {
+      this.syncing = true;
+      window.location = '/try-fleet/sandbox'
+    }
   }
 });
