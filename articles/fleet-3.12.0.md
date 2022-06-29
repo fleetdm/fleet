@@ -42,4 +42,4 @@ Visit our [update guide](https://github.com/fleetdm/fleet/blob/master/docs/1-Usi
 <meta name="authorGitHubUsername" value="noahtalerman">
 <meta name="publishedOn" value="2021-05-20">
 <meta name="articleTitle" value="Fleet 3.12.0">
-<meta name="articleImageUrl" value="../website/assets/images/articles/fleet-3.12.0-cover-700x393@2x.jpg">
+<meta name="articleImageUrl" value="../website/assets/images/articles/fleet-3.12.0-cover-1600x900@2x.jpg">

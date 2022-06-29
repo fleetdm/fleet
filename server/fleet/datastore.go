@@ -214,6 +214,8 @@ type Datastore interface {
 	CountHosts(ctx context.Context, filter TeamFilter, opt HostListOptions) (int, error)
 	CountHostsInLabel(ctx context.Context, filter TeamFilter, lid uint, opt HostListOptions) (int, error)
 	ListHostDeviceMapping(ctx context.Context, id uint) ([]*HostDeviceMapping, error)
+	// ListHostBatteries returns the list of batteries for the given host ID.
+	ListHostBatteries(ctx context.Context, id uint) ([]*HostBattery, error)
 
 	// LoadHostByDeviceAuthToken loads the host identified by the device auth token.
 	// If the token is invalid it returns a NotFoundError.
@@ -364,13 +366,13 @@ type Datastore interface {
 	// ListSoftwareByHostIDShort lists software by host ID, but does not include CPEs or vulnerabilites.
 	// It is meant to be used when only minimal software fields are required eg when updating host software.
 	ListSoftwareByHostIDShort(ctx context.Context, hostID uint) ([]Software, error)
-	// CalculateHostsPerSoftware calculates the number of hosts having each
+	// SyncHostsSoftware calculates the number of hosts having each
 	// software installed and stores that information in the software_host_counts
 	// table.
 	//
 	// After aggregation, it cleans up unused software (e.g. software installed
 	// on removed hosts, software uninstalled on hosts, etc.)
-	CalculateHostsPerSoftware(ctx context.Context, updatedAt time.Time) error
+	SyncHostsSoftware(ctx context.Context, updatedAt time.Time) error
 	HostsBySoftwareIDs(ctx context.Context, softwareIDs []uint) ([]*HostShort, error)
 	HostsByCVE(ctx context.Context, cve string) ([]*HostShort, error)
 	InsertCVEMeta(ctx context.Context, cveMeta []CVEMeta) error
@@ -421,10 +423,8 @@ type Datastore interface {
 
 	ListSoftware(ctx context.Context, opt SoftwareListOptions) ([]Software, error)
 	CountSoftware(ctx context.Context, opt SoftwareListOptions) (int, error)
-	// ListVulnerableSoftwareBySource lists all the vulnerable software that matches the given source.
-	ListVulnerableSoftwareBySource(ctx context.Context, source string) ([]SoftwareWithCPE, error)
 	// DeleteVulnerabilities deletes the given list of vulnerabilities identified by CPE+CVE.
-	DeleteVulnerabilitiesByCPECVE(ctx context.Context, vulnerabilities []SoftwareVulnerability) error
+	DeleteSoftwareVulnerabilities(ctx context.Context, vulnerabilities []SoftwareVulnerability) error
 
 	///////////////////////////////////////////////////////////////////////////////
 	// Team Policies
@@ -530,6 +530,9 @@ type Datastore interface {
 	SetOrUpdateMDMData(ctx context.Context, hostID uint, enrolled bool, serverURL string, installedFromDep bool) error
 
 	ReplaceHostDeviceMapping(ctx context.Context, id uint, mappings []*HostDeviceMapping) error
+
+	// ReplaceHostBatteries creates or updates the battery mappings of a host.
+	ReplaceHostBatteries(ctx context.Context, id uint, mappings []*HostBattery) error
 
 	// VerifyEnrollSecret checks that the provided secret matches an active enroll secret. If it is successfully
 	// matched, that secret is returned. Otherwise, an error is returned.

@@ -178,6 +178,15 @@ module.exports.routes = {
       headerCTAHidden: true,
     }
   },
+  
+  'GET /overview': {
+    action: 'view-sales-one-pager',
+    locals: {
+      pageTitleForMeta: 'Overview | Fleet for osquery',
+      pageDescriptionForMeta: 'Fleet helps security and IT teams protect their devices. We\'re the single source of truth for workstation and server telemetry. Click to learn more!',
+      layout: 'layouts/layout-landing'
+    },
+  },
 
   'GET /try-fleet/register': {
     action: 'try-fleet/view-register',
@@ -185,7 +194,6 @@ module.exports.routes = {
       layout: 'layouts/layout-customer',
     }
   },
-
 
   'GET /try-fleet/login': {
     action: 'try-fleet/view-login',
@@ -200,10 +208,6 @@ module.exports.routes = {
       layout: 'layouts/layout-customer',
     } ,
   },
-
-
-
-
 
 
   //  ╦  ╔═╗╔═╗╔═╗╔═╗╦ ╦  ╦═╗╔═╗╔╦╗╦╦═╗╔═╗╔═╗╔╦╗╔═╗

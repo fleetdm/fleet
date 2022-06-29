@@ -45,3 +45,4 @@ Visit our [update guide](https://fleetdm.com/docs/using-fleet/updating-fleet) in
 <meta name="authorGitHubUsername" value="noahtalerman">
 <meta name="publishedOn" value="2021-04-29">
 <meta name="articleTitle" value="Fleet 3.11.0 released with software inventory">
+<meta name="articleImageUrl" value="../website/assets/images/articles/fleet-3.11.0-cover-1600x900@2x.jpg">

@@ -18,17 +18,9 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-type mockHandler struct {
-	StoreImpl func(err error)
-}
-
-func (h mockHandler) Store(err error) {
-	h.StoreImpl(err)
-}
-
 func setup() (context.Context, func()) {
 	ctx := context.Background()
-	eh := mockHandler{}
+	eh := MockHandler{}
 	ctx = NewContext(ctx, eh)
 	nowFn = func() time.Time {
 		now, _ := time.Parse(time.RFC3339, "1969-06-19T21:44:05Z")
@@ -218,31 +210,6 @@ func TestUnwrap(t *testing.T) {
 	require.Equal(t, Unwrap(err), cause)
 }
 
-func TestFleetErrorMarshalling(t *testing.T) {
-	cases := []struct {
-		msg string
-		in  FleetError
-		out string
-	}{
-		{"only error", FleetError{"a", mockStack{}, nil, nil}, `{"message": "a"}`},
-		{"errors and stack", FleetError{"a", mockStack{[]string{"test"}}, errors.New("err"), nil}, `{"message": "a", "stack": ["test"]}`},
-		{
-			"errors, stack and data",
-			FleetError{"a", mockStack{[]string{"test"}}, errors.New("err"), json.RawMessage(`{"foo":"bar"}`)},
-			`{"message": "a", "stack": ["test"], "data": {"foo": "bar"}}`,
-		},
-	}
-
-	for _, c := range cases {
-		t.Run(c.msg, func(t *testing.T) {
-			json, err := c.in.MarshalJSON()
-
-			require.NoError(t, err)
-			require.JSONEq(t, c.out, string(json))
-		})
-	}
-}
-
 func TestMarshalJSON(t *testing.T) {
 	ctx, cleanup := setup()
 	defer cleanup()
@@ -263,17 +230,17 @@ func TestMarshalJSON(t *testing.T) {
 		{
 			"non-wrapped errors",
 			errNew,
-			`{"cause": {"message": "a"}}`,
+			`[{"message": "a"}]`,
 		},
 		{
 			"wrapped error",
 			errWrap,
-			`{"cause": {"message": "a"}, "wraps": [{"message": "b", "data": {"timestamp": "1969-06-19T21:44:05Z"}, "stack": ["sb"]}]}`,
+			`[{"message": "a"}, {"message": "b", "data": {"timestamp": "1969-06-19T21:44:05Z"}, "stack": ["sb"]}]`,
 		},
 		{
 			"wrapped error with data",
 			errNewWithData,
-			`{"cause": {"message": "c", "stack": ["sc"], "data": {"f": "c", "timestamp": "1969-06-19T21:44:05Z"}}}`,
+			`[{"message": "c", "stack": ["sc"], "data": {"f": "c", "timestamp": "1969-06-19T21:44:05Z"}}]`,
 		},
 	}
 
@@ -329,7 +296,7 @@ func TestFleetCause(t *testing.T) {
 func TestHandle(t *testing.T) {
 	t.Run("stores the error when invoked", func(t *testing.T) {
 		ctx := context.Background()
-		eh := mockHandler{}
+		eh := MockHandler{}
 		err := New(ctx, "new")
 		eh.StoreImpl = func(serr error) {
 			require.Equal(t, serr, err)
@@ -340,7 +307,7 @@ func TestHandle(t *testing.T) {
 
 	t.Run("wraps when there's no FleetError in the chain", func(t *testing.T) {
 		ctx := context.Background()
-		eh := mockHandler{}
+		eh := MockHandler{}
 		err := errors.New("new")
 		eh.StoreImpl = func(serr error) {
 			var ferr *FleetError
@@ -368,5 +335,24 @@ func TestAdditionalMetadata(t *testing.T) {
 		err := New(vctx, "with host context").(*FleetError)
 
 		require.JSONEq(t, string(err.data), `{"viewer":{"is_logged_in":true,"sso_enabled":true},"timestamp":"1969-06-19T21:44:05Z"}`)
+	})
+}
+
+func TestRetrieve(t *testing.T) {
+	t.Run("returns an error if unable to retrieve a handler from ctx", func(t *testing.T) {
+		_, err := Retrieve(context.Background())
+		require.Error(t, err)
+	})
+
+	t.Run("retrieves an error from the error handler", func(t *testing.T) {
+		eh := MockHandler{}
+		eh.RetrieveImpl = func(flush bool) ([]*StoredError, error) {
+			require.False(t, flush)
+			return make([]*StoredError, 2), nil
+		}
+		ctx := NewContext(context.Background(), eh)
+		rerrs, err := Retrieve(ctx)
+		require.NoError(t, err)
+		require.Len(t, rerrs, 2)
 	})
 }

@@ -19,7 +19,7 @@ type OvalSources map[Platform]string
 
 // getOvalSources gets the 'oval sources' file.
 // The 'oval sources' is a metadata file hosted in the NVD repo, it contains
-// where to find the OVAL definitions for a given 'platform-major release' combination.
+// where to find the OVAL definitions for a given platform.
 func getOvalSources(getter func(string) (io.ReadCloser, error)) (OvalSources, error) {
 	src, err := getter(ovalSourcesFileName)
 	if err != nil {

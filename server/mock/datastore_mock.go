@@ -178,6 +178,8 @@ type CountHostsInLabelFunc func(ctx context.Context, filter fleet.TeamFilter, li
 
 type ListHostDeviceMappingFunc func(ctx context.Context, id uint) ([]*fleet.HostDeviceMapping, error)
 
+type ListHostBatteriesFunc func(ctx context.Context, id uint) ([]*fleet.HostBattery, error)
+
 type LoadHostByDeviceAuthTokenFunc func(ctx context.Context, authToken string) (*fleet.Host, error)
 
 type SetOrUpdateDeviceAuthTokenFunc func(ctx context.Context, hostID uint, authToken string) error
@@ -296,7 +298,7 @@ type SoftwareByIDFunc func(ctx context.Context, id uint, includeCVEScores bool) 
 
 type ListSoftwareByHostIDShortFunc func(ctx context.Context, hostID uint) ([]fleet.Software, error)
 
-type CalculateHostsPerSoftwareFunc func(ctx context.Context, updatedAt time.Time) error
+type SyncHostsSoftwareFunc func(ctx context.Context, updatedAt time.Time) error
 
 type HostsBySoftwareIDsFunc func(ctx context.Context, softwareIDs []uint) ([]*fleet.HostShort, error)
 
@@ -344,9 +346,7 @@ type ListSoftwareFunc func(ctx context.Context, opt fleet.SoftwareListOptions) (
 
 type CountSoftwareFunc func(ctx context.Context, opt fleet.SoftwareListOptions) (int, error)
 
-type ListVulnerableSoftwareBySourceFunc func(ctx context.Context, source string) ([]fleet.SoftwareWithCPE, error)
-
-type DeleteVulnerabilitiesByCPECVEFunc func(ctx context.Context, vulnerabilities []fleet.SoftwareVulnerability) error
+type DeleteSoftwareVulnerabilitiesFunc func(ctx context.Context, vulnerabilities []fleet.SoftwareVulnerability) error
 
 type NewTeamPolicyFunc func(ctx context.Context, teamID uint, authorID *uint, args fleet.PolicyPayload) (*fleet.Policy, error)
 
@@ -401,6 +401,8 @@ type SetOrUpdateMunkiVersionFunc func(ctx context.Context, hostID uint, version 
 type SetOrUpdateMDMDataFunc func(ctx context.Context, hostID uint, enrolled bool, serverURL string, installedFromDep bool) error
 
 type ReplaceHostDeviceMappingFunc func(ctx context.Context, id uint, mappings []*fleet.HostDeviceMapping) error
+
+type ReplaceHostBatteriesFunc func(ctx context.Context, id uint, mappings []*fleet.HostBattery) error
 
 type VerifyEnrollSecretFunc func(ctx context.Context, secret string) (*fleet.EnrollSecret, error)
 
@@ -668,6 +670,9 @@ type DataStore struct {
 	ListHostDeviceMappingFunc        ListHostDeviceMappingFunc
 	ListHostDeviceMappingFuncInvoked bool
 
+	ListHostBatteriesFunc        ListHostBatteriesFunc
+	ListHostBatteriesFuncInvoked bool
+
 	LoadHostByDeviceAuthTokenFunc        LoadHostByDeviceAuthTokenFunc
 	LoadHostByDeviceAuthTokenFuncInvoked bool
 
@@ -845,8 +850,8 @@ type DataStore struct {
 	ListSoftwareByHostIDShortFunc        ListSoftwareByHostIDShortFunc
 	ListSoftwareByHostIDShortFuncInvoked bool
 
-	CalculateHostsPerSoftwareFunc        CalculateHostsPerSoftwareFunc
-	CalculateHostsPerSoftwareFuncInvoked bool
+	SyncHostsSoftwareFunc        SyncHostsSoftwareFunc
+	SyncHostsSoftwareFuncInvoked bool
 
 	HostsBySoftwareIDsFunc        HostsBySoftwareIDsFunc
 	HostsBySoftwareIDsFuncInvoked bool
@@ -917,11 +922,8 @@ type DataStore struct {
 	CountSoftwareFunc        CountSoftwareFunc
 	CountSoftwareFuncInvoked bool
 
-	ListVulnerableSoftwareBySourceFunc        ListVulnerableSoftwareBySourceFunc
-	ListVulnerableSoftwareBySourceFuncInvoked bool
-
-	DeleteVulnerabilitiesByCPECVEFunc        DeleteVulnerabilitiesByCPECVEFunc
-	DeleteVulnerabilitiesByCPECVEFuncInvoked bool
+	DeleteSoftwareVulnerabilitiesFunc        DeleteSoftwareVulnerabilitiesFunc
+	DeleteSoftwareVulnerabilitiesFuncInvoked bool
 
 	NewTeamPolicyFunc        NewTeamPolicyFunc
 	NewTeamPolicyFuncInvoked bool
@@ -1003,6 +1005,9 @@ type DataStore struct {
 
 	ReplaceHostDeviceMappingFunc        ReplaceHostDeviceMappingFunc
 	ReplaceHostDeviceMappingFuncInvoked bool
+
+	ReplaceHostBatteriesFunc        ReplaceHostBatteriesFunc
+	ReplaceHostBatteriesFuncInvoked bool
 
 	VerifyEnrollSecretFunc        VerifyEnrollSecretFunc
 	VerifyEnrollSecretFuncInvoked bool
@@ -1444,6 +1449,11 @@ func (s *DataStore) ListHostDeviceMapping(ctx context.Context, id uint) ([]*flee
 	return s.ListHostDeviceMappingFunc(ctx, id)
 }
 
+func (s *DataStore) ListHostBatteries(ctx context.Context, id uint) ([]*fleet.HostBattery, error) {
+	s.ListHostBatteriesFuncInvoked = true
+	return s.ListHostBatteriesFunc(ctx, id)
+}
+
 func (s *DataStore) LoadHostByDeviceAuthToken(ctx context.Context, authToken string) (*fleet.Host, error) {
 	s.LoadHostByDeviceAuthTokenFuncInvoked = true
 	return s.LoadHostByDeviceAuthTokenFunc(ctx, authToken)
@@ -1739,9 +1749,9 @@ func (s *DataStore) ListSoftwareByHostIDShort(ctx context.Context, hostID uint) 
 	return s.ListSoftwareByHostIDShortFunc(ctx, hostID)
 }
 
-func (s *DataStore) CalculateHostsPerSoftware(ctx context.Context, updatedAt time.Time) error {
-	s.CalculateHostsPerSoftwareFuncInvoked = true
-	return s.CalculateHostsPerSoftwareFunc(ctx, updatedAt)
+func (s *DataStore) SyncHostsSoftware(ctx context.Context, updatedAt time.Time) error {
+	s.SyncHostsSoftwareFuncInvoked = true
+	return s.SyncHostsSoftwareFunc(ctx, updatedAt)
 }
 
 func (s *DataStore) HostsBySoftwareIDs(ctx context.Context, softwareIDs []uint) ([]*fleet.HostShort, error) {
@@ -1859,14 +1869,9 @@ func (s *DataStore) CountSoftware(ctx context.Context, opt fleet.SoftwareListOpt
 	return s.CountSoftwareFunc(ctx, opt)
 }
 
-func (s *DataStore) ListVulnerableSoftwareBySource(ctx context.Context, source string) ([]fleet.SoftwareWithCPE, error) {
-	s.ListVulnerableSoftwareBySourceFuncInvoked = true
-	return s.ListVulnerableSoftwareBySourceFunc(ctx, source)
-}
-
-func (s *DataStore) DeleteVulnerabilitiesByCPECVE(ctx context.Context, vulnerabilities []fleet.SoftwareVulnerability) error {
-	s.DeleteVulnerabilitiesByCPECVEFuncInvoked = true
-	return s.DeleteVulnerabilitiesByCPECVEFunc(ctx, vulnerabilities)
+func (s *DataStore) DeleteSoftwareVulnerabilities(ctx context.Context, vulnerabilities []fleet.SoftwareVulnerability) error {
+	s.DeleteSoftwareVulnerabilitiesFuncInvoked = true
+	return s.DeleteSoftwareVulnerabilitiesFunc(ctx, vulnerabilities)
 }
 
 func (s *DataStore) NewTeamPolicy(ctx context.Context, teamID uint, authorID *uint, args fleet.PolicyPayload) (*fleet.Policy, error) {
@@ -2002,6 +2007,11 @@ func (s *DataStore) SetOrUpdateMDMData(ctx context.Context, hostID uint, enrolle
 func (s *DataStore) ReplaceHostDeviceMapping(ctx context.Context, id uint, mappings []*fleet.HostDeviceMapping) error {
 	s.ReplaceHostDeviceMappingFuncInvoked = true
 	return s.ReplaceHostDeviceMappingFunc(ctx, id, mappings)
+}
+
+func (s *DataStore) ReplaceHostBatteries(ctx context.Context, id uint, mappings []*fleet.HostBattery) error {
+	s.ReplaceHostBatteriesFuncInvoked = true
+	return s.ReplaceHostBatteriesFunc(ctx, id, mappings)
 }
 
 func (s *DataStore) VerifyEnrollSecret(ctx context.Context, secret string) (*fleet.EnrollSecret, error) {
