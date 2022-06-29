@@ -145,6 +145,8 @@ If the issue is related to osquery extensions, the following data would be neede
 - What does the extension do?
 - How is the extension queried/deployed?
 - What language is the extension implemented in?
+- What's the nature of the problem? (i.e. whether the extension is respawning, or whether the extension can’t connect, 
+or extension is up/working and then dies and can’t reconnect)
 
 With this data, it's time to reach out to Engineering.
 
