@@ -496,7 +496,7 @@ $ systemctl enable fleet-mysql
 
 ---
 
-## Set up Redis
+## Redis
 
 Fleet uses [Redis](https://redis.io/) as its primary caching solution, so we’ll need to set up Redis as well. While “vanilla” Redis is a great choice, a recent entrant to the space is [KeyDB](https://keydb.dev/), an alternative multi-threaded implementation of Redis.
 
@@ -691,209 +691,18 @@ Cloud-init v. 22.1-14-g2e17a0d6-0ubuntu1~20.04.3 finished at Thu, 02 Jun 2022 07
 
 ---
 
-## Initial setup of Fleet
+## Set up Fleet and enroll hosts
 
-Now that we’ve got Fleet running let’s complete the initial setup!
+Now that Fleet is running, visit your Fleet dashboard (i.e., `https://fleet.domain.tld`) and enter your name, email and password. You should now see the empty hosts page.
+To start enrolling hosts into Fleet, check out [Adding hosts](https://fleetdm.com/docs/using-fleet/adding-hosts).
 
-Visit your Fleet dashboard (i.e., `https://fleet.domain.tld`), and enter your name, email and password to complete the initial setup of Fleet:
+## What's next?
 
-![Fleet setup screen](../website/assets/images/articles/deploy-fleet-on-hetzner-cloud-2-774x453@2x.png)
-_Fleet setup screen_
+Now that you’re ready to use Fleet and have a host installed. Here's some next steps:
 
-You should see the empty hosts page:
-
-![Empty host page on Fleet](../website/assets/images/articles/deploy-fleet-on-hetzner-cloud-3-960x302@2x.png)
-_Empty host page on Fleet_
-
----
-
-## Adding a host
-
-From this point on, we can start adding nodes to our cluster – for demonstration purposes, we’ll add _the node that Fleet is running on and our intended workloads_, which isn’t the best, but ignoring that, Fleet is up and running!
-
-
-### Adding a host (the easy way)
-
-The easiest way to add a new host is <code>[fleetctl](https://fleetdm.com/docs/using-fleet/fleetctl-cli)</code> – let’s see how you can easily add a new host. <code>fleetctl</code> can be used to create Orbit installers, making installing/updating <code>osquery</code> easy.
-
-
-### Installing fleetctl
-
-First, download the [latest stable fleetctl release](https://github.com/fleetdm/fleet/releases):
-
-```
-wget https://github.com/fleetdm/fleet/releases/download/fleet-v4.14.0/fleetctl_v4.14.0_linux.tar.gz
-echo "cd50f058724cdde07edcc3cf89c83e9c5cd91ca41974ea470ae660cb50dd04a1 fleetctl_v4.14.0_linux.tar.gz" | sha256sum -c
-```
-
-We can install `fleetctl` by unzipping it to `/usr/bin/fleetctl`:
-
-```
-tar --extract --file=fleetctl_v4.14.0_linux.tar.gz fleetctl_v4.14.0_linux/fleetctl
-mv fleetctl_v4.14.0_linux/fleetctl /usr/bin/fleetctl
-```
-
-### Adding a new host with fleetctl
-
-We can bootstrap a new host quite easily with `fleetctl`.
-
-First SSH to the machine and run:
-
-```
-$ fleetctl package --type=deb --fleet-url=https://fleet.domain.tld --enroll-secret=xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
-# fleetctl package will output the name of an osquery installer deb file
-$ sudo apt install /root/fleet-osquery_0.0.11_amd64.deb # this path may be different for you!
-```
-
-We’re running on Ubuntu so we’ve used `--type=deb`; pick the right command for the device you're adding (e.g.,. `msi` for Windows machines). Also, make sure to change your `--fleet-url` as well.
-
-After refreshing Fleet you should see one host:
-
-![one host displayed on hosts page of Fleet](../website/assets/images/articles/deploy-fleet-on-hetzner-cloud-4-960x281@2x.png)
-_one host displayed on hosts page of Fleet_
-
----
-
-### Adding a device (the hard way)
-
-If you’re determined to do things the hard way, use the commands below!
-
-### Install `osquery` & `osqueryd`
-
-We can install osquery quickly using the usual instructions:
-
-```
-export OSQUERY_KEY=1484120AC4E9F8A1A577AEEE97A80C63C9D8B80B
-sudo apt-key adv --keyserver keyserver.ubuntu.com --recv-keys $OSQUERY_KEY
-sudo add-apt-repository 'deb [arch=amd64] https://pkg.osquery.io/deb deb main'
-sudo apt update
-sudo apt install osquery
-```
-
-### Check with Fleet for an enroll secret
-
-Here is where we check with Fleet for an enroll secret:
-
-![Fleet add new host modal](../website/assets/images/articles/deploy-fleet-on-hetzner-cloud-5-1400x860@2x.png)
-_Fleet add new host modal dialog_
-
-Write the enroll secret out to a file:
-
-```
-$ echo '< your enroll secret >' | sudo tee /var/osquery/enroll_secret
-```
-
-Along with the enroll seret we’ll need the server certificate as well, save that file under `/var/osquery/server.pem`.
-
-The `osqueryd` installed via `apt` has it’s default ENV config stored in `/etc/default/osqueryd`:
-
-```
-FLAG_FILE="/etc/osquery/osquery.flags"
-CONFIG_FILE="/etc/osquery/osquery.conf"
-LOCAL_PIDFILE="/var/osquery/osqueryd.pidfile"
-PIDFILE="/var/run/osqueryd.pidfile"
-```
-
-We need quite a few flags for the `osqueryd` service installed via `apt` (installed at `/etc/systemd/system/osqueryd.service`):
-
-```
-[Unit]
-Description=The osquery Daemon
-After=network.service syslog.service
-
-[Service]
-TimeoutStartSec=0
-EnvironmentFile=/etc/default/osqueryd
-
-ExecStartPre=/bin/sh -c "if [ ! -f $FLAG_FILE ]; then touch $FLAG_FILE; fi"
-ExecStartPre=/bin/sh -c "if [ -f $LOCAL_PIDFILE ]; then mv $LOCAL_PIDFILE $PIDFILE; fi"
-
-ExecStart=/opt/osquery/bin/osqueryd \
-  --flagfile $FLAG_FILE \
-  --config_path $CONFIG_FILE
-
-Restart=on-failure
-KillMode=control-group
-KillSignal=SIGTERM
-TimeoutStopSec=15
-CPUQuota=20%
-
-[Install]
-WantedBy=multi-user.target
-```
-
-With this in place we can start `osqueryd` on this machine:
-
-```
-systemctl start osqueryd
-```
-
----
-
-## Getting used to Fleet
-
-Take some time and get acclimated to Fleet – your Fleet dashboard should look like the following:
-
-![fleet dashboard](../website/assets/images/articles/deploy-fleet-on-hetzner-cloud-6-959x373@2x.png)
-_Fleet dashboard_
-
----
-
-## Advanced Fleet
-
-Now that you’re ready to use Fleet and have a host installed, let’s import some queries and learn more about our hosts.
-
-### Importing queries to Fleet
-
-We can also use `fleetctl` to import queries (stored in a Query Library) into Fleet.
-
-Let’s use the [standard query library](https://github.com/fleetdm/fleet/tree/main/docs/01-Using-Fleet/standard-query-library), downloading it like so:
-
-```
-$ curl https://raw.githubusercontent.com/fleetdm/fleet/main/docs/01-Using-Fleet/standard-query-library/standard-query-library.yml -o standard-query-library.yaml
-```
-
-Now that we have downloaded the library, we can set the address for Fleet:
-
-```
-$ fleetctl config set --address https://fleet.yourserver.tld
-```
-
-Next, we’ll need to log in with the credentials we set up for Fleet:
-
-```
-$ fleetctl login
-Log in using the standard Fleet credentials.
-Email: <enter user you just set up>
-Password:
-Fleet login successful and context configured!
-```
-
-Finally, to apply the standard query library that we downloaded earlier:
-
-```
-$ fleetctl apply -f standard-query-library.yaml
-```
-
-`fleetctl` is a crucial tool for using Fleet and provides many new powerful ways to monitor your infrastructure.
-
-> NOTE: Fleet scales horizontally with no effort, but this setup is “all-in-one”, so if you’d like to add more nodes make sure to make the MySQL instance a separate cloud server!
-
----
-
-## What’s next?
-
-Consider further detailing your setup with the following:
-
-### Create a dedicated `fleet` user
-
-We can create a `fleet` user with restricted privileges to run `fleet` and related services with Docker’s support for [user namespaces](https://docs.docker.com/engine/security/userns-remap/).
-
-We can run a much safer and more secure setup by doing this.
-
-### Add more hosts
-
-Of course, we should be monitoring more hosts! Fleet has lots of ways to integrate so you can get your whole Fleet running `fleet`.
+- Take some time to get acclimatized to Fleet. [Learn how to use Fleet](https://fleetdm.com/docs/using-fleet/learn-how-to-use-fleet) and [Fleet UI](https://fleetdm.com/docs/using-fleet/fleet-ui) are both great places to start.
+- Import Fleet's [standard query library](https://fleetdm.com/docs/using-fleet/standard-query-library) to start asking questions about your hosts.
+- Create a dedicated `fleet` user with Docker's support for user [namespaces](https://docs.docker.com/engine/security/userns-remap/) to run a more secure setup. 
 
 <meta name="category" value="guides">
 <meta name="authorGitHubUsername" value="ksatter">
