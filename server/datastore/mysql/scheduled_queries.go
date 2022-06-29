@@ -271,11 +271,15 @@ func (ds *Datastore) ScheduledQueryIDsByName(ctx context.Context, packAndSchedQu
 var asyncBatchScheduledQueryStatsSize = 1000 // var so it can be changed for tests
 
 func (ds *Datastore) AsyncBatchSaveHostsScheduledQueryStats(ctx context.Context, stats map[uint][]fleet.ScheduledQueryStats) (int, error) {
+	// NOTE: this implementation must be kept in sync with the non-async version
+	// in SaveHostPackStats (in hosts.go) - that is, the behaviour per host must
+	// be the same.
+
 	const (
 		stmt = `
 			INSERT INTO scheduled_query_stats (
-				scheduled_query_id,
 				host_id,
+				scheduled_query_id,
 				average_memory,
 				denylisted,
 				executions,
@@ -303,7 +307,9 @@ func (ds *Datastore) AsyncBatchSaveHostsScheduledQueryStats(ctx context.Context,
 	)
 
 	var countExecs int
-	// inserting sorted by host id apparently helps mysql with locking
+
+	// inserting sorted by host id (the first key in the PK) apparently helps
+	// mysql with locking
 	hostIDs := make([]uint, 0, len(stats))
 	for k := range stats {
 		hostIDs = append(hostIDs, k)
@@ -311,5 +317,37 @@ func (ds *Datastore) AsyncBatchSaveHostsScheduledQueryStats(ctx context.Context,
 	sort.Slice(hostIDs, func(i, j int) bool {
 		return hostIDs[i] < hostIDs[j]
 	})
+
+	var batchArgs []interface{}
+	var batchCount int
+	for _, hostID := range hostIDs {
+		hostStats := stats[hostID]
+
+		for _, stat := range hostStats {
+			batchArgs = append(batchArgs,
+				hostID,
+				stat.ScheduledQueryID,
+				stat.AverageMemory,
+				stat.Denylisted,
+				stat.Executions,
+				stat.Interval,
+				stat.LastExecuted,
+				stat.OutputSize,
+				stat.SystemTime,
+				stat.UserTime,
+				stat.WallTime)
+			batchCount++
+
+			if batchCount >= asyncBatchScheduledQueryStatsSize {
+				stmt := fmt.Sprintf(stmt, strings.TrimSuffix(strings.Repeat(values, batchCount), ","))
+				if _, err := ds.writer.ExecContext(ctx, stmt, batchArgs...); err != nil {
+					return countExecs, ctxerr.Wrap(ctx, err, "insert batch of scheduled query stats")
+				}
+				countExecs++
+				batchArgs = batchArgs[:0]
+				batchCount = 0
+			}
+		}
+	}
 	return countExecs, nil
 }

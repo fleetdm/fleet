@@ -194,87 +194,11 @@ func (t *Task) collectScheduledQueryStats(ctx context.Context, ds fleet.Datastor
 		batchStatsByHost[hid] = batchStats
 	}
 
-	/*
-		runInsertBatch := func(batch [][2]uint) error {
-			stats.Inserts++
-			return ds.AsyncBatchInsertLabelMembership(ctx, batch)
-		}
-
-		runDeleteBatch := func(batch [][2]uint) error {
-			stats.Deletes++
-			return ds.AsyncBatchDeleteLabelMembership(ctx, batch)
-		}
-
-		runUpdateBatch := func(ids []uint, ts time.Time) error {
-			stats.Updates++
-			return ds.AsyncBatchUpdateLabelTimestamp(ctx, ids, ts)
-		}
-
-		insertBatch := make([][2]uint, 0, cfg.InsertBatch)
-		deleteBatch := make([][2]uint, 0, cfg.DeleteBatch)
-		for _, host := range hosts {
-			hid := host.HostID
-			ins, del, err := getKeyTuples(hid)
-			if err != nil {
-				return err
-			}
-			insertBatch = append(insertBatch, ins...)
-			deleteBatch = append(deleteBatch, del...)
-
-			if len(insertBatch) >= cfg.InsertBatch {
-				if err := runInsertBatch(insertBatch); err != nil {
-					return err
-				}
-				insertBatch = insertBatch[:0]
-			}
-			if len(deleteBatch) >= cfg.DeleteBatch {
-				if err := runDeleteBatch(deleteBatch); err != nil {
-					return err
-				}
-				deleteBatch = deleteBatch[:0]
-			}
-		}
-
-		// process any remaining batch that did not reach the batchSize limit in the
-		// loop.
-		if len(insertBatch) > 0 {
-			if err := runInsertBatch(insertBatch); err != nil {
-				return err
-			}
-		}
-		if len(deleteBatch) > 0 {
-			if err := runDeleteBatch(deleteBatch); err != nil {
-				return err
-			}
-		}
-		if len(hosts) > 0 {
-			hostIDs := make([]uint, len(hosts))
-			for i, host := range hosts {
-				hostIDs[i] = host.HostID
-			}
-
-			ts := t.clock.Now()
-			updateBatch := make([]uint, cfg.UpdateBatch)
-			for {
-				n := copy(updateBatch, hostIDs)
-				if n == 0 {
-					break
-				}
-				if err := runUpdateBatch(updateBatch[:n], ts); err != nil {
-					return err
-				}
-				hostIDs = hostIDs[n:]
-			}
-
-			// batch-remove any host ID from the active set that still has its score to
-			// the initial value, so that the active set does not keep all (potentially
-			// 100K+) host IDs to process at all times - only those with reported
-			// results to process.
-			if _, err := removeProcessedHostIDs(pool, labelMembershipActiveHostIDsKey, hosts); err != nil {
-				return ctxerr.Wrap(ctx, err, "remove processed host ids")
-			}
-		}
-	*/
+	countExecs, err := ds.AsyncBatchSaveHostsScheduledQueryStats(ctx, batchStatsByHost)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "batch-save scheduled query stats for hosts")
+	}
+	stats.Inserts += countExecs // technically, could be updates
 
 	if len(hosts) > 0 {
 		// batch-remove any host ID from the active set that still has its score to
