@@ -1,7 +1,5 @@
 # How to install osquery and enroll Linux devices into Fleet
 
-![Enroll Linux devices into Fleet](../website/assets/images/articles/install-osquery-and-enroll-linux-devices-into-fleet-cover@2x.jpg)
-
 Here, we will cover enrolling Linux devices to an existing Fleet server. If you don’t have a Fleet server configured already, check out the [Server Installation docs](https://fleetdm.com/docs/deploying/server-installation). If you’re still getting to know Fleet and would like to skip the server setup process and check out a preview, you can [Get Started](https://fleetdm.com/get-started) using `fleetctl preview` instead.
 
 ## Prerequisites
@@ -50,7 +48,7 @@ Thankfully, you don’t need to know the `type`, `server url`, or `enroll secret
 Make sure you choose the correct package type for your Linux distribution. Red Hat and SUSE distributions will use RPM, and Debian based distributions (like Ubuntu) will use DEB. If you aren’t sure which to use, Wikipedia has a [categorized list](https://en.wikipedia.org/wiki/List_of_Linux_distributions).
 
 
-![Add hosts](../website/assets/images/articles/install-osquery-and-enroll-linux-devices-into-fleet-1@2x.png)
+![Add hosts](../website/assets/images/articles/install-osquery-and-enroll-linux-devices-into-fleet-1-700x393@2x.png)
 *Even if you know all of that information, getting the exact command from the Fleet UI can save some typo woes. The enroll secret is long and random.*
 
 Next, head over to your terminal (or the magic box where you can run commands to make cool stuff happen), paste the copied command, and then hit enter and watch while `fleetctl` does its thing.
@@ -90,4 +88,4 @@ If you’re managing an enterprise environment, you will likely have a deploymen
 <meta name="authorGitHubUsername" value="ksatter">
 <meta name="publishedOn" value="2022-03-19">
 <meta name="articleTitle" value="How to install osquery and enroll Linux devices into Fleet">
-<meta name="articleImageUrl" value="../website/assets/images/articles/install-osquery-and-enroll-linux-devices-into-fleet-cover@2x.jpg">
+<meta name="articleImageUrl" value="../website/assets/images/articles/install-osquery-and-enroll-linux-devices-into-fleet-cover-1600x900@2x.jpg">

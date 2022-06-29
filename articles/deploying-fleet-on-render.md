@@ -1,7 +1,5 @@
 # Deploying Fleet on Render
 
-![deploying fleet on render](../website/assets/images/articles/deploying-fleet-on-render-cover-800x450@2x.jpeg)
-
 [Render](https://render.com/) is a cloud hosting service that makes it dead simple to get things up and running fast, without the typical headache of larger enterprise hosting providers. Hosting Fleet on Render is a cost effective and scalable cloud environment with a lower barrier to entry, making it a great place to get some experience with [Fleet](https://fleetdm.com/) and [osquery](https://osquery.io/).
 
 ---
@@ -147,6 +145,6 @@ That’s it! We have successfully deployed and configured a Fleet instance! Rend
 <meta name="category" value="guides">
 <meta name="authorGitHubUsername" value="edwardsb">
 <meta name="authorFullName" value="Ben Edwards">
-<meta name="publishedOn" value="2021-09-21">
+<meta name="publishedOn" value="2021-11-21">
 <meta name="articleTitle" value="Deploying Fleet on Render">
-<meta name="articleImageUrl" value="../website/assets/images/articles/deploying-fleet-on-render-cover-800x450@2x.jpeg">
+<meta name="articleImageUrl" value="../website/assets/images/articles/deploying-fleet-on-render-cover-1600x900@2x.jpg">

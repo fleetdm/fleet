@@ -1,6 +1,6 @@
 # Work may be watching, but it might not be as bad as you think.
 
-![A friendly eye of Sauron watching someone work](../website/assets/images/articles/work-may-be-watching-but-it-might-not-be-as-bad-as-you-think-cover-800x502@2x.png)
+![A friendly eye of Sauron watching someone work](../website/assets/images/articles/work-may-be-watching-but-it-might-not-be-as-bad-as-you-think-cover-1600x900@2x.jpg)
 *Transparency and collaboration are becoming the norm for company device monitoring.*
 
 It’s safe to say that many employers have at least some visibility into your activity on work devices. But the extent of this visibility varies widely, and largely depends on your line of work, and who you work for; their company values, and the privacy and security policies that they have in place.
@@ -50,4 +50,4 @@ While it is common for companies to collect activity data, it’s rarely looked 
 <meta name="authorGitHubUsername" value="mike-j-thomas">
 <meta name="publishedOn" value="2021-10-22">
 <meta name="articleTitle" value="Work may be watching, but it might not be as bad as you think.">
-<meta name="articleImageUrl" value="../website/assets/images/articles/work-may-be-watching-but-it-might-not-be-as-bad-as-you-think-cover-800x502@2x.png">
+<meta name="articleImageUrl" value="../website/assets/images/articles/work-may-be-watching-but-it-might-not-be-as-bad-as-you-think-cover-1600x900@2x.jpg">

@@ -57,3 +57,4 @@ Visit our [update guide](https://fleetdm.com/docs/using-fleet/updating-fleet) in
 <meta name="authorGitHubUsername" value="noahtalerman">
 <meta name="publishedOn" value="2021-02-04">
 <meta name="articleTitle" value="Fleet 3.7.1">
+<meta name="articleImageUrl" value="../website/assets/images/articles/fleet-3.7.1-cover-1600x900@2x.jpg">
