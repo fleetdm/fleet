@@ -240,7 +240,6 @@ func cronVulnerabilities(
 						recentVulns,
 						appConfig,
 						time.Now()); err != nil {
-
 						errHandler(ctx, logger, "triggering vulnerabilities webhook", err)
 					}
 
@@ -276,16 +275,6 @@ func cronVulnerabilities(
 		if err := ds.SyncHostsSoftware(ctx, time.Now()); err != nil {
 			errHandler(ctx, logger, "calculating hosts count per software", err)
 		}
-
-		// It's important vulnerabilities.PostProcess runs after ds.SyncHostsSoftware
-		// because it cleans up any software that's not installed on the fleet (e.g. hosts removal,
-		// or software being uninstalled on hosts).
-		if !vulnDisabled {
-			if err := vulnerabilities.PostProcess(ctx, ds, vulnPath, logger, config); err != nil {
-				errHandler(ctx, logger, "post processing CVEs", err)
-			}
-		}
-
 		level.Debug(logger).Log("loop", "done")
 	}
 }

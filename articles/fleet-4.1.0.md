@@ -70,4 +70,4 @@ Visit our [update guide](https://fleetdm.com/docs/using-fleet/updating-fleet) in
 <meta name="authorGitHubUsername" value="noahtalerman">
 <meta name="publishedOn" value="2021-07-27">
 <meta name="articleTitle" value="Fleet 4.1.0 released with Schedule and Activity feed features">
-<meta name="articleImageUrl" value="../website/assets/images/articles/fleet-4.1.0-cover-700x393@2x.jpg">
+<meta name="articleImageUrl" value="../website/assets/images/articles/fleet-4.1.0-cover-1600x900@2x.jpg">

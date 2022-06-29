@@ -1,6 +1,7 @@
 # Saving over 100x on egress switching from AWS to Hetzner
 
 ![Deploying Fleet on AWS with Terraform](../website/assets/images/articles/saving-over-100x-on-egress-switching-from-aws-to-hetzner-cover-800x533@2x.jpeg)
+*Egrets? No, egress.*
 
 Our AWS CloudFront bill spiked to **$2,457** in October 2021 from **$370** in September. When we dug into the bill, we saw that egress in the EU region accounted for most of this increase, with egress in the US making up the rest.
 
@@ -27,4 +28,4 @@ Are you interested in working full-time in [Fleet’s public GitHub repository](
 <meta name="authorFullName" value="Zach Wasserman">
 <meta name="publishedOn" value="2022-01-25">
 <meta name="articleTitle" value="Saving over 100x on egress switching from AWS to Hetzner">
-<meta name="articleImageUrl" value="../website/assets/images/articles/saving-over-100x-on-egress-switching-from-aws-to-hetzner-cover-800x533@2x.jpeg">
+<meta name="articleImageUrl" value="../website/assets/images/articles/saving-over-100x-on-egress-switching-from-aws-to-hetzner-cover-1600x900@2x.jpg">

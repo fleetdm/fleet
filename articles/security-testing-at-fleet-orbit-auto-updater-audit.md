@@ -1,5 +1,7 @@
 # Security testing at Fleet/Orbit auto-updater audit
 
+![Security testing at Fleet/Orbit auto-updater audit](../website/assets/images/articles/security-testing-at-fleet-orbit-auto-updater-audit-cover-1600x900@2x.jpg)
+
 At Fleet, openness is one of our core [values](https://fleetdm.com/handbook/company#values). We believe a rising tide lifts all boats and that almost everything we do regarding security should be public.
 
 [Orbit](https://blog.fleetdm.com/introducing-orbit-for-osquery-751da494d617) is an [osquery](https://github.com/osquery/osquery) runtime and auto-updater. It leverages [The Update Framework](https://theupdateframework.io/) to create a secure update mechanism using a hierarchy of cryptographic keys and operations.
@@ -36,3 +38,4 @@ If you have questions about the Orbit audit or Fleet security, please join us on
 <meta name="authorFullName" value="Guillaume Ross">
 <meta name="publishedOn" value="2022-03-30">
 <meta name="articleTitle" value="Security testing at Fleet/Orbit auto-updater audit">
+<meta name="articleImageUrl" value="../website/assets/images/articles/security-testing-at-fleet-orbit-auto-updater-audit-cover-1600x900@2x.jpg">

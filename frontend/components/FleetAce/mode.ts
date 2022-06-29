@@ -25,8 +25,10 @@ ace.define(
 
       var builtinConstants = "true|false";
 
+      // Note: `last` was removed from the list of built-in functions because it collides with the
+      // `last` table available in osquery
       var builtinFunctions =
-        "avg|count|first|last|max|min|sum|ucase|lcase|mid|len|round|rank|now|format|" +
+        "avg|count|first|max|min|sum|ucase|lcase|mid|len|round|rank|now|format|" +
         "coalesce|ifnull|isnull|nvl";
 
       var dataTypes =

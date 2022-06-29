@@ -89,4 +89,4 @@ Visit our [update guide](https://fleetdm.com/docs/using-fleet/updating-fleet) in
 <meta name="authorGitHubUsername" value="mike-j-thomas">
 <meta name="publishedOn" value="2021-12-14">
 <meta name="articleTitle" value="Does Fleet 4.7.0 bring more power to your osquery compliance policies? Yes.">
-<meta name="articleImageUrl" value="../website/assets/images/articles/fleet-4.7.0-cover-700x393@2x.png">
+<meta name="articleImageUrl" value="../website/assets/images/articles/fleet-4.7.0-cover-1600x900@2x.jpg">

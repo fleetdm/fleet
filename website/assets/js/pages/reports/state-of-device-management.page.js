@@ -123,7 +123,7 @@ parasails.registerPage('state-of-device-management', {
           labels: ['Yes', 'No',],
           datasets: [{
             label: 'percent',
-            data: [54.2, 45.9],
+            data: [54, 46],
             backgroundColor: ['#A182DF', '#E59CC4'],
           }]
         },
@@ -181,10 +181,10 @@ parasails.registerPage('state-of-device-management', {
           {label: 'Non-profit, K-12 education', percent: '7.32', color: '#CB73A3'},
         ],
         percentWorkingRemote: [
-          {label: '100 percent of workspace', percent: '27', color: '#A182DF'},
-          {label: '50 percent of workspace', percent: '27', color: '#E59CC4'},
-          {label: '25 percent of workspace', percent: '25', color: '#F1AC8C'},
-          {label: '0 percent of workspace', percent: '21', color: '#91D4C7'},
+          {label: '100 percent of workforce', percent: '27', color: '#A182DF'},
+          {label: '50 percent of workforce', percent: '27', color: '#E59CC4'},
+          {label: '25 percent of workforce', percent: '25', color: '#F1AC8C'},
+          {label: '0 percent of workforce', percent: '21', color: '#91D4C7'},
         ],
       },
       partOne: {

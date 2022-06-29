@@ -293,7 +293,7 @@ func sortedKeysCompare(t *testing.T, m map[string]DetailQuery, expectedKeys []st
 
 func TestGetDetailQueries(t *testing.T) {
 	queriesNoConfig := GetDetailQueries(nil, config.FleetConfig{})
-	require.Len(t, queriesNoConfig, 12)
+	require.Len(t, queriesNoConfig, 13)
 	baseQueries := []string{
 		"network_interface",
 		"os_version",
@@ -307,15 +307,16 @@ func TestGetDetailQueries(t *testing.T) {
 		"munki_info",
 		"google_chrome_profiles",
 		"orbit_info",
+		"battery",
 	}
 	sortedKeysCompare(t, queriesNoConfig, baseQueries)
 
 	queriesWithUsers := GetDetailQueries(&fleet.AppConfig{HostSettings: fleet.HostSettings{EnableHostUsers: true}}, config.FleetConfig{App: config.AppConfig{EnableScheduledQueryStats: true}})
-	require.Len(t, queriesWithUsers, 14)
+	require.Len(t, queriesWithUsers, 15)
 	sortedKeysCompare(t, queriesWithUsers, append(baseQueries, "users", "scheduled_query_stats"))
 
 	queriesWithUsersAndSoftware := GetDetailQueries(&fleet.AppConfig{HostSettings: fleet.HostSettings{EnableHostUsers: true, EnableSoftwareInventory: true}}, config.FleetConfig{App: config.AppConfig{EnableScheduledQueryStats: true}})
-	require.Len(t, queriesWithUsersAndSoftware, 17)
+	require.Len(t, queriesWithUsersAndSoftware, 18)
 	sortedKeysCompare(t, queriesWithUsersAndSoftware,
 		append(baseQueries, "users", "software_macos", "software_linux", "software_windows", "scheduled_query_stats"))
 }
@@ -371,6 +372,27 @@ func TestDetailQueriesOSVersion(t *testing.T) {
 
 	assert.NoError(t, ingest(context.Background(), log.NewNopLogger(), &host, rows))
 	assert.Equal(t, "Arch Linux 1.2.3", host.OSVersion)
+
+	// Simulate Ubuntu host with incorrect `patch`` number
+	require.NoError(t, json.Unmarshal([]byte(`
+[{
+    "hostname": "kube2",
+    "arch": "x86_64",
+    "build": "",
+    "codename": "bionic",
+    "major": "18",
+    "minor": "4",
+    "name": "Ubuntu",
+    "patch": "0",
+    "platform": "ubuntu",
+    "platform_like": "debian",
+    "version": "18.04.5 LTS (Bionic Beaver)"
+}]`),
+		&rows,
+	))
+
+	assert.NoError(t, ingest(context.Background(), log.NewNopLogger(), &host, rows))
+	assert.Equal(t, "Ubuntu 18.04.5 LTS", host.OSVersion)
 }
 
 func TestDirectIngestMDM(t *testing.T) {

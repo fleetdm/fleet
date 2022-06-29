@@ -105,7 +105,7 @@ func Sync(client *http.Client, dstDir string, platforms []Platform) error {
 
 		dstFile := strings.Replace(filepath.Base(defFile), ".xml", ".json", 1)
 		dstPath := filepath.Join(dstDir, dstFile)
-		err = parseDefinitions(defFile, dstPath)
+		err = parseDefinitions(platform, defFile, dstPath)
 		if err != nil {
 			return err
 		}
