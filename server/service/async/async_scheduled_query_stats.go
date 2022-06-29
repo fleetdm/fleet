@@ -162,7 +162,7 @@ func (t *Task) collectScheduledQueryStats(ctx context.Context, ds fleet.Datastor
 		}
 	}
 
-	// load scheduled query IDs
+	// batch-load scheduled query IDs
 	schedNames := make([][2]string, 0, len(uniqueSchedQueries))
 	for k := range uniqueSchedQueries {
 		schedNames = append(schedNames, k)
@@ -176,7 +176,23 @@ func (t *Task) collectScheduledQueryStats(ctx context.Context, ds fleet.Datastor
 		uniqueSchedQueries[nm] = schedIDs[i]
 	}
 
-	// batch upsert the stats
+	// build the batch of stats to upsert, ignoring stats for non-existing
+	// scheduled queries
+	batchStatsByHost := make(map[uint][]fleet.ScheduledQueryStats, len(hostsStats))
+	for hid, pstats := range hostsStats {
+		batchStats := batchStatsByHost[hid]
+		for _, pstat := range pstats {
+			for _, qstat := range pstat.QueryStats {
+				qstat.ScheduledQueryID = uniqueSchedQueries[[2]string{pstat.PackName, qstat.ScheduledQueryName}]
+				// ignore if the scheduled query does not exist
+				if qstat.ScheduledQueryID != 0 {
+					// TODO(mna): actually use a superset struct with the host ID
+					batchStats = append(batchStats, qstat)
+				}
+			}
+		}
+		batchStatsByHost[hid] = batchStats
+	}
 
 	/*
 		runInsertBatch := func(batch [][2]uint) error {

@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"sort"
 	"strings"
 
 	"github.com/jmoiron/sqlx"
@@ -265,4 +266,50 @@ func (ds *Datastore) ScheduledQueryIDsByName(ctx context.Context, packAndSchedQu
 		}
 	}
 	return result, nil
+}
+
+var asyncBatchScheduledQueryStatsSize = 1000 // var so it can be changed for tests
+
+func (ds *Datastore) AsyncBatchSaveHostsScheduledQueryStats(ctx context.Context, stats map[uint][]fleet.ScheduledQueryStats) (int, error) {
+	const (
+		stmt = `
+			INSERT INTO scheduled_query_stats (
+				scheduled_query_id,
+				host_id,
+				average_memory,
+				denylisted,
+				executions,
+				schedule_interval,
+				last_executed,
+				output_size,
+				system_time,
+				user_time,
+				wall_time
+			)
+			VALUES %s
+      ON DUPLICATE KEY UPDATE
+				average_memory = VALUES(average_memory),
+				denylisted = VALUES(denylisted),
+				executions = VALUES(executions),
+				schedule_interval = VALUES(schedule_interval),
+				last_executed = VALUES(last_executed),
+				output_size = VALUES(output_size),
+				system_time = VALUES(system_time),
+				user_time = VALUES(user_time),
+				wall_time = VALUES(wall_time)
+`
+
+		values = `(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?),`
+	)
+
+	var countExecs int
+	// inserting sorted by host id apparently helps mysql with locking
+	hostIDs := make([]uint, 0, len(stats))
+	for k := range stats {
+		hostIDs = append(hostIDs, k)
+	}
+	sort.Slice(hostIDs, func(i, j int) bool {
+		return hostIDs[i] < hostIDs[j]
+	})
+	return countExecs, nil
 }

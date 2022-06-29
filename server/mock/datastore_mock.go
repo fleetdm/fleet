@@ -380,6 +380,8 @@ type TeamAgentOptionsFunc func(ctx context.Context, teamID uint) (*json.RawMessa
 
 type SaveHostPackStatsFunc func(ctx context.Context, hostID uint, stats []fleet.PackStats) error
 
+type AsyncBatchSaveHostsScheduledQueryStatsFunc func(ctx context.Context, stats map[uint][]fleet.ScheduledQueryStats) (int, error)
+
 type UpdateHostSoftwareFunc func(ctx context.Context, hostID uint, software []fleet.Software) error
 
 type UpdateHostFunc func(ctx context.Context, host *fleet.Host) error
@@ -974,6 +976,9 @@ type DataStore struct {
 
 	SaveHostPackStatsFunc        SaveHostPackStatsFunc
 	SaveHostPackStatsFuncInvoked bool
+
+	AsyncBatchSaveHostsScheduledQueryStatsFunc        AsyncBatchSaveHostsScheduledQueryStatsFunc
+	AsyncBatchSaveHostsScheduledQueryStatsFuncInvoked bool
 
 	UpdateHostSoftwareFunc        UpdateHostSoftwareFunc
 	UpdateHostSoftwareFuncInvoked bool
@@ -1957,6 +1962,11 @@ func (s *DataStore) TeamAgentOptions(ctx context.Context, teamID uint) (*json.Ra
 func (s *DataStore) SaveHostPackStats(ctx context.Context, hostID uint, stats []fleet.PackStats) error {
 	s.SaveHostPackStatsFuncInvoked = true
 	return s.SaveHostPackStatsFunc(ctx, hostID, stats)
+}
+
+func (s *DataStore) AsyncBatchSaveHostsScheduledQueryStats(ctx context.Context, stats map[uint][]fleet.ScheduledQueryStats) (int, error) {
+	s.AsyncBatchSaveHostsScheduledQueryStatsFuncInvoked = true
+	return s.AsyncBatchSaveHostsScheduledQueryStatsFunc(ctx, stats)
 }
 
 func (s *DataStore) UpdateHostSoftware(ctx context.Context, hostID uint, software []fleet.Software) error {
