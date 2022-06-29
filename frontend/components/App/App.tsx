@@ -84,7 +84,7 @@ const App = ({ children, location, router }: IAppProps): JSX.Element => {
   };
 
   useEffect(() => {
-    if (authToken()) {
+    if (authToken() && !location?.pathname.includes("/device/")) {
       fetchCurrentUser();
     }
   }, [location?.pathname]);
