@@ -216,6 +216,8 @@ func (ds *Datastore) ScheduledQuery(ctx context.Context, id uint) (*fleet.Schedu
 	return sq, nil
 }
 
+var scheduledQueryIDsByNameBatchSize = 1000 // var so it can be changed for tests
+
 func (ds *Datastore) ScheduledQueryIDsByName(ctx context.Context, packAndSchedQueryNames ...[2]string) ([]uint, error) {
 	const (
 		stmt = `
@@ -228,7 +230,6 @@ func (ds *Datastore) ScheduledQueryIDsByName(ctx context.Context, packAndSchedQu
       ) AS sqn ON (p.name, sq.name) = (sqn.pack_name, sqn.scheduled_query_name)
 `
 		additionalRows = `UNION SELECT ?, ?, ? `
-		batchSize      = 1000
 	)
 
 	type idxAndID struct {
@@ -240,17 +241,19 @@ func (ds *Datastore) ScheduledQueryIDsByName(ctx context.Context, packAndSchedQu
 	// even if it doesn't exist for some reason (in which case it will be 0).
 	result := make([]uint, len(packAndSchedQueryNames))
 
+	var indexOffset int
 	for len(packAndSchedQueryNames) > 0 {
 		max := len(packAndSchedQueryNames)
-		if max > batchSize {
-			max = batchSize
+		if max > scheduledQueryIDsByNameBatchSize {
+			max = scheduledQueryIDsByNameBatchSize
 		}
 
 		args := make([]interface{}, 0, max*3)
 		for i, psn := range packAndSchedQueryNames[:max] {
-			args = append(args, i, psn[0], psn[1])
+			args = append(args, indexOffset+i, psn[0], psn[1])
 		}
 		packAndSchedQueryNames = packAndSchedQueryNames[max:]
+		indexOffset += max
 
 		stmt := fmt.Sprintf(stmt, strings.Repeat(additionalRows, max-1))
 		var rows []idxAndID

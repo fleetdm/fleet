@@ -163,6 +163,19 @@ func (t *Task) collectScheduledQueryStats(ctx context.Context, ds fleet.Datastor
 	}
 
 	// load scheduled query IDs
+	schedNames := make([][2]string, 0, len(uniqueSchedQueries))
+	for k := range uniqueSchedQueries {
+		schedNames = append(schedNames, k)
+	}
+	schedIDs, err := ds.ScheduledQueryIDsByName(ctx, schedNames...)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "batch-load scheduled query ids from names")
+	}
+	// store the IDs along with the names
+	for i, nm := range schedNames {
+		uniqueSchedQueries[nm] = schedIDs[i]
+	}
+
 	// batch upsert the stats
 
 	/*
