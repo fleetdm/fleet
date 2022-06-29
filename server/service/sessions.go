@@ -633,9 +633,12 @@ func (r demologinResponse) html() string { return r.content }
 
 func makeDemologinEndpoint(urlPrefix string) handlerFunc {
 	return func(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
+		// Undocumented FLEET_DEMO environment variable, as this endpoint is intended only to be
+		// used in the Fleet Sandbox demo environment.
 		if os.Getenv("FLEET_DEMO") != "1" {
 			return nil, errors.New("this endpoint only enabled in demo mode")
 		}
+
 		req := request.(demologinRequest)
 
 		_, sess, err := svc.Login(ctx, req.Email, req.Password)
@@ -647,9 +650,7 @@ func makeDemologinEndpoint(urlPrefix string) handlerFunc {
 		if err != nil {
 			resp.Err = err
 		}
-		if sess != nil {
-			session.Token = sess.Key
-		}
+		session.Token = sess.Key
 
 		relayStateLoadPage := `<!DOCTYPE html>
      <script type='text/javascript'>
