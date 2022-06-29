@@ -47,6 +47,10 @@ func (ds *Datastore) ShouldSendStatistics(ctx context.Context, frequency time.Du
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "amount active users")
 		}
+		storedErrs, err := ctxerr.Aggregate(ctx)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "statistics error store")
+		}
 
 		stats.NumHostsEnrolled = amountEnrolledHosts
 		stats.NumUsers = amountUsers
@@ -59,6 +63,7 @@ func (ds *Datastore) ShouldSendStatistics(ctx context.Context, frequency time.Du
 		stats.HostsStatusWebHookEnabled = appConfig.WebhookSettings.HostStatusWebhook.Enable
 		stats.NumWeeklyActiveUsers = amountWeeklyUsers
 		stats.HostsEnrolledByOperatingSystem = enrolledHostsByOS
+		stats.StoredErrors = storedErrs
 		return nil
 	}
 

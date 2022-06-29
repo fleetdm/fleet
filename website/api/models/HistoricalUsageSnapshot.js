@@ -26,6 +26,7 @@ module.exports = {
     hostStatusWebhookEnabled: { required: true, type: 'boolean' },
     numWeeklyActiveUsers: { required: true, type: 'number' },
     hostsEnrolledByOperatingSystem: { required: true, type: 'json' },
+    storedErrors: { required: true, type: 'json' },
 
     //  ╔═╗╔╦╗╔╗ ╔═╗╔╦╗╔═╗
     //  ║╣ ║║║╠╩╗║╣  ║║╚═╗

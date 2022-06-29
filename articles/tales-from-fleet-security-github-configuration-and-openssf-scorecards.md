@@ -1,14 +1,13 @@
 # Tales from Fleet security: GitHub configuration and OpenSSF Scorecards
 
+![Tales from Fleet security: GitHub configuration and OpenSSF Scorecards](../website/assets/images/articles/tales-from-fleet-security-github-configuration-and-openssf-scorecards-cover-1600x900@2x.jpg)
+*The goal of Scorecards is to auto-generate a “security score” for open source projects to help users as they decide the trust, risk, and security posture for their use case. This data can also be used to augment any decision making in an automated fashion when new open source dependencies are introduced inside projects or at organizations.*
+
 At Fleet, we do our work in public. Our code is open source. Customers and open source users use it with [osquery](https://osquery.io/), another great open source project. We want to provide quality software and a method for potential users to assess the maturity of our security.
 
 Security maturity assessments are a complex topic. We felt we could start by providing *some* metrics and information to those looking at using anything from the Fleet [GitHub repository](https://github.com/fleetdm/fleet). Through the process of acquiring the metrics, we would discover things we can improve as well.
 
 While researching how we could achieve this goal, we noticed that the Open Source Security Foundation ([OpenSSF](https://openssf.org/)) [published](https://openssf.org/blog/2020/11/06/security-scorecards-for-open-source-projects/) a project that aims to address this issue at scale.
-
-![Tales from Fleet security: GitHub configuration and OpenSSF Scorecards](../website/assets/images/articles/tales-from-fleet-security-github-configuration-and-openssf-scorecards-cover-700x393@2x.png)
-
->*The goal of Scorecards is to auto-generate a “security score” for open source projects to help users as they decide the trust, risk, and security posture for their use case. This data can also be used to augment any decision making in an automated fashion when new open source dependencies are introduced inside projects or at organizations.*
 
 OpenSSF built Scorecards so that anyone can run it against a repository. It checks that a repository is maintained, that automation is in place to manage dependencies, that automated tests are in place, that code is reviewed, [and more](https://github.com/ossf/scorecard#scorecard-checks). [Public data](https://github.com/ossf/scorecard#public-data) is gathered for popular projects and projects opting to submit results.
 
@@ -92,4 +91,4 @@ Stay tuned for our next article in the Tales from Fleet security series!
 <meta name="authorGitHubUsername" value="GuillaumeRoss">
 <meta name="publishedOn" value="2022-04-15">
 <meta name="articleTitle" value="Tales from Fleet security: GitHub configuration and OpenSSF Scorecards">
-<meta name="articleImageUrl" value="../website/assets/images/articles/tales-from-fleet-security-github-configuration-and-openssf-scorecards-cover-700x393@2x.png">
+<meta name="articleImageUrl" value="../website/assets/images/articles/tales-from-fleet-security-github-configuration-and-openssf-scorecards-cover-1600x900@2x.jpg">

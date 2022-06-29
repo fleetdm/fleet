@@ -294,6 +294,24 @@ Use "bcc" so recipients don't see each other's email addresses and send an email
 
 ## Fleet website
 
+### Using Figma?
+Fleet EE
+- All product design work is done in the Fleet EE (scratchpad) Figma doc. Check out the README for how to use this doc.
+
+Fleet website
+- All website design work is done in the fleetdm.com (current, dev-ready) Figma file.
+
+Shared design system
+- Shared logos, typography styles, and UI components can be found in Design system.
+
+> The Figma docs in Design System contain the master components that are referenced throughout all other Figma files. Use caution when modifying these components, as changes will be reflected in the master Fleet EE (scratchpad) and fleetdm.com (current, dev-ready) Figma docs.
+
+Marketing assets
+- Product screenshots and artwork for social media, articles, and other marketing assets can be found in Collateral.
+
+### Which logo should I use?
+The "official" Fleet logo and other assets can be found at:  https://fleetdm.com/logos
+
 ### Responding to a 5xx error on fleetdm.com
 Production systems can fail for various reasons, and it can be frustrating to users when they do, and customer experience is significant to Fleet. In the event of system failure, Fleet will:
 * investigate the problem to determine the root cause.
