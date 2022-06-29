@@ -59,6 +59,7 @@ func main() {
 		myDeviceItem := systray.AddMenuItem("Initializing...", "")
 		myDeviceItem.Disable()
 		transparencyItem := systray.AddMenuItem("Transparency", "")
+		transparencyItem.Disable()
 
 		var insecureSkipVerify bool
 		if os.Getenv("FLEET_DESKTOP_INSECURE") != "" {
@@ -104,6 +105,7 @@ func main() {
 
 		go func() {
 			<-deviceEnabledChan
+			transparencyItem.Enable()
 			tic := time.NewTicker(5 * time.Minute)
 			defer tic.Stop()
 
