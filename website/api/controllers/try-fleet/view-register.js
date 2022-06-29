@@ -4,7 +4,7 @@ module.exports = {
   friendlyName: 'View register',
 
 
-  description: 'Display "Register" page.',
+  description: 'Display "Register" page. Note: This page is the "signup" page skinned for Fleet Sandbox.',
 
 
   exits: {
