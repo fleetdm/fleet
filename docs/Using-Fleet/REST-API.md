@@ -884,6 +884,10 @@ None.
       "overrides": {}
     }
   },
+  "license": {
+     "tier": "free",
+     "expiration": "0001-01-01T00:00:00Z"
+   },
   "logging": {
       "debug": false,
       "json": false,
@@ -904,13 +908,6 @@ None.
               "enable_log_compression": false
           }
       }
-  },
-  "license": {
-    "tier": "free",
-    "organization": "fleet",
-    "device_count": 100,
-    "expiration": "2021-12-31T19:00:00-05:00",
-    "note": ""
   },
   "vulnerability_settings": {
     "databases_path": ""
