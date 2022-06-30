@@ -633,25 +633,30 @@ func (r demologinResponse) html() string { return r.content }
 
 func makeDemologinEndpoint(urlPrefix string) handlerFunc {
 	return func(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
+		req := request.(demologinRequest)
+
 		// Undocumented FLEET_DEMO environment variable, as this endpoint is intended only to be
 		// used in the Fleet Sandbox demo environment.
 		if os.Getenv("FLEET_DEMO") != "1" {
 			return nil, errors.New("this endpoint only enabled in demo mode")
 		}
 
-		req := request.(demologinRequest)
-
 		_, sess, err := svc.Login(ctx, req.Email, req.Password)
+
+		// This endpoint handles errors slightly differently in that we want to still return the
+		// HTML page redirect to login if there was some error, so we can't just return the response
+		// error without doing the rest of the logic.
 
 		session := struct {
 			Token string
 		}{}
 		var resp demologinResponse
 		if err != nil {
-			//resp.Err = err
-			return nil, err // TODO(mna): TBD if we fail the request here or continue but redirect to an error page instead?
+			resp.Err = err
 		}
-		session.Token = sess.Key
+		if sess != nil {
+			session.Token = sess.Key
+		}
 
 		relayStateLoadPage := `<!DOCTYPE html>
      <script type='text/javascript'>

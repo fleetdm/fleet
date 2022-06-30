@@ -5144,9 +5144,8 @@ func (s *integrationTestSuite) TestFleetSandboxDemoLogin() {
 	formBody := make(url.Values)
 	formBody.Set("email", validEmail)
 	formBody.Set("password", validPwd)
-	// TODO(mna): should probably be 400, 401 or 404? But can be addressed by
-	// https://github.com/fleetdm/fleet/issues/4406 using a more general fix.
-	s.DoRawWithHeaders("POST", "/api/v1/fleet/demologin", []byte(formBody.Encode()), http.StatusInternalServerError, hdrs)
+	res := s.DoRawWithHeaders("POST", "/api/v1/fleet/demologin", []byte(formBody.Encode()), http.StatusInternalServerError, hdrs)
+	require.NotEqual(t, http.StatusOK, res.StatusCode)
 
 	// with the FLEET_DEMO env var set, the login works as expected, validating
 	// the credentials
@@ -5155,14 +5154,15 @@ func (s *integrationTestSuite) TestFleetSandboxDemoLogin() {
 
 	formBody.Set("email", validEmail)
 	formBody.Set("password", wrongPwd)
-	// TODO(mna): may return StatusOK with a different redirect if we decide to handle a failed attempt differently.
-	s.DoRawWithHeaders("POST", "/api/v1/fleet/demologin", []byte(formBody.Encode()), http.StatusUnauthorized, hdrs)
+	res = s.DoRawWithHeaders("POST", "/api/v1/fleet/demologin", []byte(formBody.Encode()), http.StatusUnauthorized, hdrs)
+	require.Equal(t, http.StatusUnauthorized, res.StatusCode)
 
 	formBody.Set("email", validEmail)
 	formBody.Set("password", validPwd)
-	res := s.DoRawWithHeaders("POST", "/api/v1/fleet/demologin", []byte(formBody.Encode()), http.StatusOK, hdrs)
+	res = s.DoRawWithHeaders("POST", "/api/v1/fleet/demologin", []byte(formBody.Encode()), http.StatusOK, hdrs)
 	resBody, err := io.ReadAll(res.Body)
 	require.NoError(t, err)
+	require.Equal(t, http.StatusOK, res.StatusCode)
 	require.Contains(t, string(resBody), `window.location = "/"`)
 	require.Regexp(t, `window.localStorage.setItem\('FLEET::auth_token', '[^']+'\)`, string(resBody))
 }
