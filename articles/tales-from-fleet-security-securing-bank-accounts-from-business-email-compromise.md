@@ -12,8 +12,8 @@ Since BEC typically targets one straightforward thing, money, there are controls
 While good email hygiene can't stop BEC, it can at least reduce the number of fraudulent emails that make it through and force criminals to work harder.
 
 1. Require secure two-factor authentication (2FA) to access email, such as [FIDO U2F](https://fidoalliance.org/specs/u2f-specs-master/fido-u2f-overview.html) security keys. Using U2F keys makes the credentials phishing-resistant, lowering the risk of malicious access to your email accounts from being used to launch an internal BEC attempt.
-2. Configure email security features such as [SPF, DMARC and DKIM](https://support.google.com/a/answer/2466580?product_name=UnuFlow&hl=en&visit_id=637919491839685136-2075570827&rd=1&src=supportwidget0&hl=en). These help make it harder to impersonate your domain name in email.
-3. Configure spam filters to protect your organization from people impersonating employees from other domain names. On Google Workspace/Gmail, this setting is called **Protect against spoofing of employee names** and you should enable it along with **Protect against inbound emails spoofing your domain**. 
+2. Configure email security features such as [SPF, DMARC, and DKIM](https://support.google.com/a/answer/2466580?product_name=UnuFlow&hl=en&visit_id=637919491839685136-2075570827&rd=1&src=supportwidget0&hl=en). These help make it harder to impersonate your domain name in an email.
+3. Configure spam filters to protect your organization from people impersonating employees from other domain names. On Google Workspace/Gmail, this setting is called **Protect against spoofing of employee names**, and you should enable it along with **Protect against inbound emails spoofing your domain**. 
 
 You can find detailed instructions on configuring Google Workspace in our [handbook](https://fleetdm.com/handbook/security#email-authentication).
 
@@ -23,7 +23,7 @@ The best email configuration ever is not enough to protect from BEC and other ty
 
 If you think you can't fall victim to these emails, you probably have not received one that was sufficiently well-targeted and delivered at precisely the right time.
 
-As defenders, we often say that while we must always be perfect, attackers only need to succeed once. As [Joe Slowik](https://www.dragos.com/blog/industry-news/the-myth-of-the-adversary-advantage/) explained in this excellent blog post a couple of years ago, that is seldom true. As defenders, we have have the high ground, but we often fail to leverage it.
+As defenders, we often say that while we must always be perfect, attackers only need to succeed once. As [Joe Slowik](https://www.dragos.com/blog/industry-news/the-myth-of-the-adversary-advantage/) explained in this excellent blog post a couple of years ago, that is seldom true. As defenders, we have the high ground, but we often fail to leverage it.
 
 Since we know the attackers are looking for money, instead of trying to train people to be perfect at spotting scams, which is impossible, let's secure the cash!
 
@@ -57,7 +57,7 @@ If possible, enable at least the following:
 4. Alert when an address or other contact information is changed
 5. Alert on any transaction above a certain threshold, such as $10,000
 
-These alerts are typically delivered via email, which is not ideal for rapid awareness. To improve that, create an email address never used anywhere else specifically for these alerts. You'll then be able to integrate that mailbox to other tools, like Slack, by using a [forwarding address](https://slack.com/help/articles/206819278-Send-emails-to-Slack#:~:text=To%20send%20an%20email%20to,see%20your%20email%20in%20Slack.). 
+Banks typically deliver these alerts via email, which is not ideal for rapid awareness. To improve that, create an email address never used anywhere else specifically for these alerts. You'll then be able to integrate that mailbox to other tools, like Slack, by using a [forwarding address](https://slack.com/help/articles/206819278-Send-emails-to-Slack#:~:text=To%20send%20an%20email%20to,see%20your%20email%20in%20Slack.). 
 With this configuration, you can deliver these alerts in your administrative or accounting channel, where everyone can see them, create a thread and ask questions.
 
 On top of email alerts, inform your accounting department that they should pay attention to push notifications from your online banking application. If you can keep the amount of "false positives" down and your accounting and finance are all in the same time zone, have a rotation for who will let the app notify them even when in do not disturb mode.
@@ -65,9 +65,9 @@ On top of email alerts, inform your accounting department that they should pay a
 ### Dual and triple approval
 
 Most business banks allow customers to set thresholds above which the system will require multiple approvals.
-A threshold of $10,000 before a second approval is needed ensures that if an attacker compromised a single person, they could only send away money in $10,000 batches. Alerting remains essential as the total cost can grow pretty quickly, but it is much safer than allowing a single person to move millions of dollars.
+A threshold of $10,000 before a second approval is needed makes sure that if an attacker compromised a single person, they could only send away money in $10,000 batches. Alerting remains essential as the total cost can grow pretty quickly, but it is much safer than allowing a single person to move millions of dollars.
 
-Consider requiring three approvals for substantial transactions, as long as your team is large enough to accomodate this even when people are on vacation or unavailable for any other reason.
+Consider requiring three approvals for substantial transactions, as long as your team is large enough to accommodate this even when people are on vacation or unavailable for any other reason.
 
 ### ACH filters
 
@@ -78,7 +78,7 @@ Many banks offer ACH filters on business accounts. These filters work like many 
 * In deny list mode, where you provide criteria to deny payments
 * In allow list mode, where you give criteria to allow payments
 
-Allow listing is safer but requires more work to implement. Some banks allow combinations of vendors and amounts while others only allow lists of vendors. 
+Allow listing is safer but requires more work to implement. Some banks allow combinations of vendors and amounts, while others only allow lists of vendors. 
 
 Before implementing ACH filters, obtain a list of all ACH transfers made in the last 18 months. Identify the vendors you have that are still active, the average amount you pay them, plus a buffer to cover increases, and then provide this list to your bank to enable ACH filtering in allow list mode. Have every other payment generate an **exception** that will require manual intervention.
 
