@@ -31,7 +31,7 @@ jobs:
           make osqueryd-app-tar-gz out-path=. version=$OSQUERY_VERSION
 
       - name: Upload osqueryd.app.tar.gz
-        uses: actions/upload-artifact@6673cd052c4cd6fcf4b4e6e60ea986c889389535 # v2
+        uses: actions/upload-artifact@3cea5372237819ed00197afe530f5a7ea3e805c8 # v2
         with:
           name: osqueryd.app.tar.gz
           path: osqueryd.app.tar.gz
@@ -44,13 +44,14 @@ jobs:
 
       - name: Download and extract osqueryd for linux
         run: |
-          curl -L https://github.com/osquery/osquery/releases/download/${{ env.OSQUERY_VERSION }}/osquery-${{ env.OSQUERY_VERSION }}_1.linux_x86_64.tar.gz --output osquery-${{ env.OSQUERY_VERSION }}_1.linux_x86_64.tar.gz
-          tar xf osquery-${{ env.OSQUERY_VERSION }}_1.linux_x86_64.tar.gz
+          curl -L https://github.com/osquery/osquery/releases/download/${{ env.OSQUERY_VERSION }}/osquery_${{ env.OSQUERY_VERSION }}-1.linux_amd64.deb --output osquery.deb
+          ar x osquery.deb
+          tar xf data.tar.gz
           chmod +x ./opt/osquery/bin/osqueryd
           ./opt/osquery/bin/osqueryd --version
 
       - name: Upload osqueryd for linux
-        uses: actions/upload-artifact@6673cd052c4cd6fcf4b4e6e60ea986c889389535 # v2
+        uses: actions/upload-artifact@3cea5372237819ed00197afe530f5a7ea3e805c8 # v2
         with:
           name: osqueryd
           path: opt/osquery/bin/osqueryd
@@ -73,7 +74,7 @@ jobs:
           C:\temp\osquery\osqueryd\osqueryd.exe --version
 
       - name: Upload osqueryd for Windows
-        uses: actions/upload-artifact@6673cd052c4cd6fcf4b4e6e60ea986c889389535 # v2
+        uses: actions/upload-artifact@3cea5372237819ed00197afe530f5a7ea3e805c8 # v2
         with:
           name: osqueryd.exe
           path: C:\temp\osquery\osqueryd\osqueryd.exe

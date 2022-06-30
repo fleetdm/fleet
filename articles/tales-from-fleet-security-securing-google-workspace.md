@@ -1,5 +1,7 @@
 # Tales from Fleet security: securing Google Workspace
 
+![Securing Google Workspace](../website/assets/images/articles/tales-from-fleet-security-securing-google-workspace-cover-1600x900@2x.jpg)
+
 At Fleet, we collaborate using various SaaS tools, from GitHub to Google Workspace and Slack. Since we use our Google identities for many of these, Workspace is the most critical one from a security point of view.
 
 Our high-level goals are to:
@@ -68,3 +70,5 @@ In my next post, I’ll cover how we deployed the [OSSF scorecard](https://githu
 <meta name="authorGitHubUsername" value="GuillaumeRoss">
 <meta name="publishedOn" value="2022-03-25">
 <meta name="articleTitle" value="Tales from Fleet security: securing Google Workspace">
+<meta name="articleImageUrl" value="../website/assets/images/articles/tales-from-fleet-security-securing-google-workspace-cover-1600x900@2x.jpg">
+

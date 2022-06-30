@@ -352,6 +352,12 @@ func QueueZendeskFailingPolicyJob(ctx context.Context, ds fleet.Datastore, logge
 	if policy.TeamID != nil {
 		attrs = append(attrs, "team_id", *policy.TeamID)
 	}
+	if len(hosts) == 0 {
+		attrs = append(attrs, "msg", "skipping, no host")
+		level.Debug(logger).Log(attrs...)
+		return nil
+	}
+
 	level.Info(logger).Log(attrs...)
 
 	args := &failingPolicyArgs{

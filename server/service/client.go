@@ -31,7 +31,6 @@ func NewClient(addr string, insecureSkipVerify bool, rootCA, urlPrefix string, o
 	// TODO #265 refactor all optional parameters to functional options
 	// API breaking change, needs a major version release
 	baseClient, err := newBaseClient(addr, insecureSkipVerify, rootCA, urlPrefix)
-
 	if err != nil {
 		return nil, err
 	}

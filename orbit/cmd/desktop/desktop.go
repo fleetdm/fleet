@@ -59,15 +59,15 @@ func main() {
 		myDeviceItem := systray.AddMenuItem("Initializing...", "")
 		myDeviceItem.Disable()
 		transparencyItem := systray.AddMenuItem("Transparency", "")
+		transparencyItem.Disable()
 
 		var insecureSkipVerify bool
 		if os.Getenv("FLEET_DESKTOP_INSECURE") != "" {
 			insecureSkipVerify = true
 		}
+		rootCA := os.Getenv("FLEET_DESKTOP_FLEET_ROOT_CA")
 
-		// TODO: figure out the right rootCA to pass to the client
-		client, err := service.NewDeviceClient(basePath, deviceToken, insecureSkipVerify, "")
-
+		client, err := service.NewDeviceClient(basePath, deviceToken, insecureSkipVerify, rootCA)
 		if err != nil {
 			log.Fatal().Err(err).Msg("unable to initialize request client")
 		}
@@ -89,6 +89,7 @@ func main() {
 						myDeviceItem.SetTitle("My device")
 						myDeviceItem.Enable()
 						myDeviceItem.SetTooltip("")
+						transparencyItem.Enable()
 						return
 					}
 
@@ -125,15 +126,18 @@ func main() {
 					continue
 				}
 
-				status := "🟢"
+				failedPolicyCount := 0
 				for _, policy := range policies {
 					if policy.Response != "pass" {
-						status = "🔴"
-						break
+						failedPolicyCount++
 					}
 				}
 
-				myDeviceItem.SetTitle(status + " My device")
+				if failedPolicyCount > 0 {
+					myDeviceItem.SetTitle(fmt.Sprintf("🔴 My device (%d)", failedPolicyCount))
+				} else {
+					myDeviceItem.SetTitle("🟢 My device")
+				}
 				myDeviceItem.Enable()
 			}
 		}()
@@ -175,7 +179,7 @@ func setupLogs() {
 
 	dir = filepath.Join(dir, "Fleet")
 
-	if err := os.MkdirAll(dir, 0755); err != nil {
+	if err := os.MkdirAll(dir, 0o755); err != nil {
 		log.Logger = log.Output(stderrOut)
 		log.Error().Err(err).Msg("make directories for log files")
 		return
@@ -199,7 +203,7 @@ func setupLogs() {
 // On Unix systems, it returns $XDG_STATE_HOME as specified by
 // https://specifications.freedesktop.org/basedir-spec/basedir-spec-latest.html if
 // non-empty, else $HOME/.local/state.
-// On Darwin, it returns $HOME/Library/Log.
+// On Darwin, it returns $HOME/Library/Logs.
 // On Windows, it returns %LocalAppData%
 //
 // If the location cannot be determined (for example, $HOME is not defined),
@@ -219,7 +223,7 @@ func logDir() (string, error) {
 		if dir == "" {
 			return "", errors.New("$HOME is not defined")
 		}
-		dir += "/Library/Log"
+		dir += "/Library/Logs"
 
 	default: // Unix
 		dir = os.Getenv("XDG_STATE_HOME")

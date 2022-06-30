@@ -66,7 +66,12 @@ func Analyze(
 			if err != nil {
 				return nil, err
 			}
-			foundInBatch[hId] = defs.Eval(software)
+
+			evalR, err := defs.Eval(ver, software)
+			if err != nil {
+				return nil, err
+			}
+			foundInBatch[hId] = evalR
 		}
 
 		existingInBatch, err := ds.ListSoftwareVulnerabilities(ctx, hIds)
@@ -86,7 +91,7 @@ func Analyze(
 	}
 
 	err = batchProcess(toDeleteSet, func(v []fleet.SoftwareVulnerability) error {
-		return ds.DeleteVulnerabilitiesByCPECVE(ctx, v)
+		return ds.DeleteSoftwareVulnerabilities(ctx, v)
 	})
 	if err != nil {
 		return nil, err
@@ -98,7 +103,7 @@ func Analyze(
 	}
 
 	err = batchProcess(toInsertSet, func(v []fleet.SoftwareVulnerability) error {
-		n, err := ds.InsertVulnerabilities(ctx, v, fleet.OVAL)
+		n, err := ds.InsertVulnerabilities(ctx, v, fleet.OVALSource)
 		if err != nil {
 			return err
 		}
@@ -184,8 +189,8 @@ func vulnsDelta(
 
 // loadDef returns the latest oval Definition for the given platform.
 func loadDef(platform Platform, vulnPath string) (oval_parsed.Result, error) {
-	if !platform.IsUbuntu() {
-		return nil, fmt.Errorf("don't know how to load OVAL file for '%s' platform", platform)
+	if !platform.IsSupported() {
+		return nil, fmt.Errorf("platform %q not supported", platform)
 	}
 
 	latest, err := latestOvalDefFor(platform, vulnPath, time.Now())
@@ -197,11 +202,23 @@ func loadDef(platform Platform, vulnPath string) (oval_parsed.Result, error) {
 		return nil, err
 	}
 
-	result := oval_parsed.UbuntuResult{}
-	if err := json.Unmarshal(payload, &result); err != nil {
-		return nil, err
+	if platform.IsUbuntu() {
+		result := oval_parsed.UbuntuResult{}
+		if err := json.Unmarshal(payload, &result); err != nil {
+			return nil, err
+		}
+		return result, nil
 	}
-	return result, nil
+
+	if platform.IsRedHat() {
+		result := oval_parsed.RhelResult{}
+		if err := json.Unmarshal(payload, &result); err != nil {
+			return nil, err
+		}
+		return result, nil
+	}
+
+	return nil, fmt.Errorf("don't know how to parse file %q for %q platform", latest, platform)
 }
 
 // latestOvalDefFor returns the path of the OVAL definition for the given 'platform' in

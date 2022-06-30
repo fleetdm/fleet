@@ -885,9 +885,9 @@ None.
     }
   },
   "license": {
-    "tier": "free",
-    "expiration": "0001-01-01T00:00:00Z"
-  },
+     "tier": "free",
+     "expiration": "0001-01-01T00:00:00Z"
+   },
   "logging": {
       "debug": false,
       "json": false,
@@ -908,13 +908,6 @@ None.
               "enable_log_compression": false
           }
       }
-  },
-  "license": {
-    "tier": "free",
-    "organization": "fleet",
-    "device_count": 100,
-    "expiration": "2021-12-31T19:00:00-05:00",
-    "note": ""
   },
   "vulnerability_settings": {
     "databases_path": ""
@@ -2134,7 +2127,13 @@ If the scheduled queries haven't run on the host yet, the stats have zero values
     "issues": {
       "failing_policies_count": 2,
       "total_issues_count": 2
-    }
+    },
+    "batteries": [
+      {
+        "cycle_count": 999,
+        "health": "Good"
+      }
+    ]
   }
 }
 ```
@@ -2201,7 +2200,13 @@ Returns the information of the host specified using the `uuid`, `osquery_host_id
     "team_name": null,
     "gigs_disk_space_available": 45.86,
     "percent_disk_space_available": 73,
-    "pack_stats": null
+    "pack_stats": null,
+    "batteries": [
+      {
+        "cycle_count": 999,
+        "health": "Good"
+      }
+    ]
   }
 }
 ```
@@ -6455,19 +6460,23 @@ The server only stores and returns a single instance of each error.
 ```json
 [
   {
-    "external": "example error",
-    "root": {
-      "message": "timestamp: 2022-05-06T11:40:32-03:00",
-      "stack": [
-        "http.initALPNRequest.ServeHTTP:/usr/local/Cellar/go/1.17.6/libexec/src/net/http/server.go:3480",
-        "http.serverHandler.ServeHTTP:/usr/local/Cellar/go/1.17.6/libexec/src/net/http/server.go:2879",
-        "service.(*authEndpointer).makeEndpoint.func1:/Users/robertodip/projects/fleet/server/service/endpoint_utils.go:439",
-        "...",
-        "service.listSoftwareEndpoint:/Users/robertodip/projects/fleet/server/service/software.go:30",
-        "ctxerr.New:/Users/robertodip/projects/fleet/server/contexts/ctxerr/ctxerr.go:67",
-        "ctxerr.ensureCommonMetadata:/Users/robertodip/projects/fleet/server/contexts/ctxerr/ctxerr.go:112"
-      ]
-    }
+    "count": "3",
+    "chain": [
+      {
+        "message": "Authorization header required"
+      },
+      {
+        "message": "missing FleetError in chain",
+        "data": {
+          "timestamp": "2022-06-03T14:16:01-03:00"
+        },
+        "stack": [
+          "github.com/fleetdm/fleet/v4/server/contexts/ctxerr.Handle (ctxerr.go:262)",
+          "github.com/fleetdm/fleet/v4/server/service.encodeError (transport_error.go:80)",
+          "github.com/go-kit/kit/transport/http.Server.ServeHTTP (server.go:124)"
+        ]
+      }
+    ]
   }
 ]
 ```

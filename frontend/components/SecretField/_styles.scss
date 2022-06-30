@@ -10,7 +10,7 @@
 
     .input-field {
       width: 100%;
-      padding-right: 20%;
+      padding-right: 16%;
 
       &--disabled {
         letter-spacing: 0;
@@ -25,13 +25,13 @@
   &__secret-copy-icon {
     color: $core-vibrant-blue;
     margin-left: $pad-small;
-    margin-right: $pad-medium;
+    margin-right: $pad-small;
   }
 
   .copy-message {
     position: absolute;
     top: -32px;
-    right: 16px;
+    right: 10px;
   }
 
   .buttons {

@@ -47,3 +47,4 @@ Visit our [update guide](https://fleetdm.com/docs/using-fleet/updating-fleet) in
 <meta name="authorGitHubUsername" value="noahtalerman">
 <meta name="publishedOn" value="2021-04-01">
 <meta name="articleTitle" value="Fleet 3.10.0 released with agent auto-updates beta">
+<meta name="articleImageUrl" value="../website/assets/images/articles/fleet-3.10.0-cover-1600x900@2x.jpg">

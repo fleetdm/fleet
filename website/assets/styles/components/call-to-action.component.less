@@ -1,0 +1,88 @@
+
+/**
+ * <call-to-action>
+ *
+ * App-wide styles for our <call-to-action> component.
+ */
+[parasails-component='call-to-action'] {
+   background-image: url('/images/call-to-action-banner-background.svg');
+   background-position-x: center;
+   background-size: cover;
+   background-color: #192147;
+   padding: 60px 90px;
+   border-radius: 16px;
+   margin-top: 40px;
+   margin-bottom: 40px;
+
+  [purpose='cta-content'] {
+   color: #FFF;
+   margin-bottom: 24px;
+   [purpose='cta-title'] {
+     font-weight: 900;
+     font-size: 28px;
+     line-height: 40px;
+     margin-bottom: 4px;
+   }
+   [purpose='cta-text'] {
+     font-size: 18px;
+     line-height: 28px;
+     margin-bottom: 0px;
+   }
+ }
+
+ [purpose='cta-buttons'] {
+   [purpose='primary-button'] {
+     padding: 16px 63px;
+   }
+   [purpose='secondary-button'] {
+     .btn-animated-arrow-red();
+   }
+  }
+
+  @media(max-width: 991px) {
+    padding: 60px 45px;
+    [purpose='cta-content'] {
+      [purpose='cta-title'] {
+        font-weight: 900;
+        font-size: 24px;
+        line-height: 32px;
+        margin-bottom: 4px;
+      }
+      [purpose='cta-text'] {
+        font-size: 16px;
+        line-height: 24px;
+        margin-bottom: 0px;
+      }
+    }
+    [purpose='cta-buttons'] {
+      [purpose='primary-button'] {
+        padding: 16px 63px;
+      }
+    }
+  }
+
+  @media(max-width: 576px) {
+    padding: 60px 24px;
+    margin-left: -16px;
+    margin-right: -16px;
+    [purpose='cta-buttons'] {
+      [purpose='primary-button'] {
+        padding: 16px 63px;
+      }
+    }
+    [purpose='cta-content'] {
+
+      [purpose='cta-title'] {
+        font-weight: 900;
+        font-size: 24px;
+        line-height: 32px;
+        margin-bottom: 4px;
+      }
+      [purpose='cta-text'] {
+        font-size: 16px;
+        line-height: 24px;
+        margin-bottom: 0px;
+      }
+    }
+  }
+}

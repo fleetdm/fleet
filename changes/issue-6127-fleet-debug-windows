@@ -1,1 +1,0 @@
-* Fixed the `fleetctl debug` `archive` and `errors` commands on Windows.

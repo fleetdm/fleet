@@ -94,7 +94,9 @@ policies that any organization needs(Miss).
 
 The product team is responsible for product design tasks. These include drafting
 changes to the Fleet product, reviewing and collecting feedback from engineering, sales, customer success, and marketing counterparts, and delivering
-these changes to the engineering team.
+these changes to the engineering team. 
+
+Look here for more information about [Using Figma](https://fleetdm.com/handbook/brand#fleet-website).
 
 ### Drafting
 
@@ -382,6 +384,10 @@ Use `---`, with color `$ui-fleet-black-50` as the default UI for empty columns.
 
 Pressing the return or enter key with an open form will cause the form to be submitted.
 
+**Internal links**
+
+For text links that navigates the user to a different page within the Fleet UI, use the `$core-blue` color and `xs-bold` styling. You'll also want to make sure to use the underline style for when the user hovers over these links.
+
 **External links**
 
 For a link that navigates the user to an external site (e.g., fleetdm.com/docs), use the `$core-blue` color and `xs-bold` styling for the link's text. Also, place the link-out icon to the right of the link's text.
@@ -450,9 +456,9 @@ Fleet's feature flag guidelines is borrowed from GitLab's ["When to use feature 
 
 ## Competition
 
-We track competitors' capabilities and adjacent (or commonly integrated) products in this [Google Doc](https://docs.google.com/document/d/1Bqdui6oQthdv5XtD5l7EZVB-duNRcqVRg7NVA4lCXeI/edit) (private).
+We track competitors' capabilities and adjacent (or commonly integrated) products in Google doc [Competition](https://docs.google.com/document/d/1Bqdui6oQthdv5XtD5l7EZVB-duNRcqVRg7NVA4lCXeI/edit) (private).
 
-### Intake process
+## Intake process
 
 Intake for new product ideas (requests) happens at the 🗣 Product office hours meeting.
 
@@ -462,7 +468,7 @@ The team prioritizes a request when the business perceives it as an immediate pr
 
 The team puts a request to the side when the business perceives competing priorities as more pressing in the immediate moment.
 
-#### Why this way?
+### Why this way?
 
 At Fleet, we use objectives and key results (OKRs) to align the organization with measurable goals.
 These OKRs fill up a large portion, but not all, of planning (drafting, wireframing, spec'ing, etc.)
@@ -478,7 +484,7 @@ request is prioritized or put to the side within one business day from when the 
 
 The 🗣 Product office hours meeting is a recurring ritual to make sure that the team weighs all requests.
 
-#### Making a request
+### Making a request
 
 To make a request or advocate for a request from a customer or community member,  Fleet asks all members of the organization to add their name and a description of the request to the list in the [🗣 Product office hours Google
 doc](https://docs.google.com/document/d/1mwu5WfdWBWwJ2C3zFDOMSUC9QCyYuKP4LssO_sIHDd0/edit#heading=h.zahrflvvks7q).
@@ -493,6 +499,14 @@ All 🗣 Product office hours meetings are recorded and uploaded to the [🗣 Pr
 folder](https://drive.google.com/drive/folders/1nsjqDyX5WDQ0HJhg_2yOaqBu4J-hqRIW) in the shared
 Google drive.
 
+Each week Reed Haynes follows the [directions in this document](https://docs.google.com/document/d/1MkM57cLNzkN51Hqq5CyBG4HaauAaf446ZhwWJlVho0M/edit?usp=sharing) (internal doc) and a backup copy of the Product office hours document is created and dropped in the [Product office hours backup folder](https://drive.google.com/drive/folders/1WTSSLxA-P3OlspkMKjlRXKjzZsDRoe-4?usp=sharing) in the shared drive.
+
+## Usage analytics
+
+In order to understand the usage of the Fleet product, we [collect analytics](https://fleetdm.com/docs/using-fleet/usage-statistics) from installations where this functionality is enabled.
+
+Fleet team members can view these statistics in the Google spreadsheet[Fleet usage](https://docs.google.com/spreadsheets/d/1Mh7Vf4kJL8b5TWlHxcX7mYwaakZMg_ZGNLY3kl1VI-c/edit#gid=0) available in Drive.
+
 ## Rituals
 
 Directly Responsible Individuals (DRI) engage in the ritual(s) below at the frequency specified.
@@ -503,7 +517,8 @@ Directly Responsible Individuals (DRI) engage in the ritual(s) below at the freq
 | 🗣 Product office hours  | Weekly (Tuesdays) | We make a decision regarding which customer and community feature requests can be committed to in the next six weeks. We create issues for any requests that don't already have one. | Noah Talerman |
 | 🎨 UI/UX huddle      | Weekly (Wednesdays) | We discuss "In progress" issues and place any issues that are "ready for review" on the list for the product design review call. We hold  separate times for 🎙 Product huddle so Mike Thomas can make it.    | Noah Talerman |
 | ✨ Product design review  | Weekly (Thursdays) | The Product team discusses "ready for review" items and makes the decision on whether the UI changes are ready for engineering specification and later implementation. | Noah Talerman |
-| 👀 Product review      | Every three weeks | Fleeties present features and improvements in the upcoming release. A discussion is held about bugs, fixes, and changes to be made prior to release.  | Noah Talerman |
+| 👀 Product review      | Every three weeks | Fleeties present features and improvements in the upcoming release. A discussion is held about bugs, fixes and changes to be made prior to release.  | Noah Talerman |
+| Product office hours doc prep | Weekly | Every week a backup doc is created to accompany the Product office hours event | Reed Haynes |
 
 
 ## Slack channels

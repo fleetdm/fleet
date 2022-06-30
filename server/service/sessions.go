@@ -277,6 +277,11 @@ func (svc *Service) InitiateSSO(ctx context.Context, redirectURL string) (string
 		return "", ctxerr.Wrap(ctx, err, "InitiateSSO getting app config")
 	}
 
+	if !appConfig.SSOSettings.EnableSSO {
+		err := &badRequestError{message: "organization not configured to use sso"}
+		return "", ctxerr.Wrap(ctx, ssoError{err: err, code: ssoOrgDisabled}, "callback sso")
+	}
+
 	metadata, err := svc.getMetadata(appConfig)
 	if err != nil {
 		return "", ctxerr.Wrap(ctx, err, "InitiateSSO getting metadata")
@@ -321,11 +326,11 @@ type callbackSSORequest struct{}
 func (callbackSSORequest) DecodeRequest(ctx context.Context, r *http.Request) (interface{}, error) {
 	err := r.ParseForm()
 	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "decode sso callback")
+		return nil, ctxerr.Wrap(ctx, &badRequestError{message: err.Error()}, "decode sso callback")
 	}
 	authResponse, err := sso.DecodeAuthResponse(r.FormValue("SAMLResponse"))
 	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "decoding sso callback")
+		return nil, ctxerr.Wrap(ctx, &badRequestError{message: err.Error()}, "decoding sso callback")
 	}
 	return authResponse, nil
 }
@@ -346,10 +351,16 @@ func makeCallbackSSOEndpoint(urlPrefix string) handlerFunc {
 		session, err := svc.CallbackSSO(ctx, authResponse)
 		var resp callbackSSOResponse
 		if err != nil {
+			var ssoErr ssoError
+
+			status := ssoOtherError
+			if errors.As(err, &ssoErr) {
+				status = ssoErr.code
+			}
 			// redirect to login page on front end if there was some problem,
 			// errors should still be logged
 			session = &fleet.SSOSession{
-				RedirectURL: urlPrefix + "/login",
+				RedirectURL: urlPrefix + "/login?status=" + string(status),
 				Token:       "",
 			}
 			resp.Err = err
@@ -389,6 +400,11 @@ func (svc *Service) CallbackSSO(ctx context.Context, auth fleet.Auth) (*fleet.SS
 	appConfig, err := svc.ds.AppConfig(ctx)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "get config for sso")
+	}
+
+	if !appConfig.SSOSettings.EnableSSO {
+		err := ctxerr.New(ctx, "organization not configured to use sso")
+		return nil, ctxerr.Wrap(ctx, ssoError{err: err, code: ssoOrgDisabled}, "callback sso")
 	}
 
 	// Load the request metadata if available
@@ -444,11 +460,16 @@ func (svc *Service) CallbackSSO(ctx context.Context, auth fleet.Auth) (*fleet.SS
 	// Get and log in user
 	user, err := svc.ds.UserByEmail(ctx, auth.UserID())
 	if err != nil {
+		var nfe notFoundErrorInterface
+		if errors.As(err, &nfe) {
+			return nil, ctxerr.Wrap(ctx, ssoError{err: err, code: ssoAccountInvalid})
+		}
 		return nil, ctxerr.Wrap(ctx, err, "find user in sso callback")
 	}
 	// if the user is not sso enabled they are not authorized
 	if !user.SSOEnabled {
-		return nil, ctxerr.New(ctx, "user not configured to use sso")
+		err := ctxerr.New(ctx, "user not configured to use sso")
+		return nil, ctxerr.Wrap(ctx, ssoError{err: err, code: ssoAccountDisabled})
 	}
 	session, err := svc.makeSession(ctx, user.ID)
 	if err != nil {

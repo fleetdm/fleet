@@ -62,4 +62,4 @@ Visit our [Update guide](https://fleetdm.com/docs/deploying/upgrading-fleet) in 
 <meta name="authorGitHubUsername" value="fleetdm">
 <meta name="publishedOn" value="2022-04-19">
 <meta name="articleTitle" value="Fleet 4.13.0 | Security fixes, policy automations for teams, and aggregated macOS versions for MacAdmins.">
-<meta name="articleImageUrl" value="../website/assets/images/articles/fleet-4.13.0-cover-800x450@2x.png">
+<meta name="articleImageUrl" value="../website/assets/images/articles/fleet-4.13.0-cover-1600x900@2x.jpg">

@@ -699,47 +699,8 @@ func (ds *Datastore) CountSoftware(ctx context.Context, opt fleet.SoftwareListOp
 	return countSoftwareDB(ctx, ds.reader, opt)
 }
 
-// ListVulnerableSoftwareBySource lists all the vulnerable software that matches the given source.
-func (ds *Datastore) ListVulnerableSoftwareBySource(ctx context.Context, source string) ([]fleet.SoftwareWithCPE, error) {
-	var softwareCVEs []struct {
-		fleet.Software
-		CPE  uint   `db:"cpe_id"`
-		CVEs string `db:"cves"`
-	}
-	if err := sqlx.SelectContext(ctx, ds.reader, &softwareCVEs, `
-SELECT
-    s.*,
-    scv.cpe_id,
-    GROUP_CONCAT(scv.cve SEPARATOR ',') as cves
-FROM
-    software s
-    JOIN software_cpe scp ON scp.software_id = s.id
-    JOIN software_cve scv ON scv.cpe_id = scp.id
-WHERE
-    s.source = ?
-GROUP BY
-    scv.cpe_id
-	`, source); err != nil {
-		return nil, ctxerr.Wrapf(ctx, err, "listing vulnerable software by source")
-	}
-	software := make([]fleet.SoftwareWithCPE, 0, len(softwareCVEs))
-	for _, sc := range softwareCVEs {
-		for _, cve := range strings.Split(sc.CVEs, ",") {
-			sc.Vulnerabilities = append(sc.Vulnerabilities, fleet.CVE{
-				CVE:         cve,
-				DetailsLink: fmt.Sprintf("https://nvd.nist.gov/vuln/detail/%s", cve),
-			})
-		}
-		software = append(software, fleet.SoftwareWithCPE{
-			Software: sc.Software,
-			CPEID:    sc.CPE,
-		})
-	}
-	return software, nil
-}
-
-// DeleteVulnerabilitiesByCPECVE deletes the given list of vulnerabilities identified by CPE+CVE.
-func (ds *Datastore) DeleteVulnerabilitiesByCPECVE(ctx context.Context, vulnerabilities []fleet.SoftwareVulnerability) error {
+// DeleteSoftwareVulnerabilities deletes the given list of software vulnerabilities
+func (ds *Datastore) DeleteSoftwareVulnerabilities(ctx context.Context, vulnerabilities []fleet.SoftwareVulnerability) error {
 	if len(vulnerabilities) == 0 {
 		return nil
 	}
@@ -844,13 +805,13 @@ func (ds *Datastore) SoftwareByID(ctx context.Context, id uint, includeCVEScores
 	return &software, nil
 }
 
-// CalculateHostsPerSoftware calculates the number of hosts having each
+// SyncHostsSoftware calculates the number of hosts having each
 // software installed and stores that information in the software_host_counts
 // table.
 //
 // After aggregation, it cleans up unused software (e.g. software installed
 // on removed hosts, software uninstalled on hosts, etc.)
-func (ds *Datastore) CalculateHostsPerSoftware(ctx context.Context, updatedAt time.Time) error {
+func (ds *Datastore) SyncHostsSoftware(ctx context.Context, updatedAt time.Time) error {
 	const (
 		resetStmt = `
       UPDATE software_host_counts
@@ -891,6 +852,15 @@ func (ds *Datastore) CalculateHostsPerSoftware(ctx context.Context, updatedAt ti
       WHERE
         shc.software_id IS NULL OR
         (shc.team_id = 0 AND shc.hosts_count = 0)`
+
+		cleanupOrphanedStmt = `
+		  DELETE shc
+		  FROM
+		    software_host_counts shc
+		    LEFT JOIN software s ON s.id = shc.software_id
+		  WHERE
+		    s.id IS NULL
+		`
 
 		cleanupTeamStmt = `
       DELETE shc
@@ -961,6 +931,11 @@ func (ds *Datastore) CalculateHostsPerSoftware(ctx context.Context, updatedAt ti
 	// remove any unused software (global counts = 0)
 	if _, err := ds.writer.ExecContext(ctx, cleanupSoftwareStmt); err != nil {
 		return ctxerr.Wrap(ctx, err, "delete unused software")
+	}
+
+	// remove any software count row for software that don't exist anymore
+	if _, err := ds.writer.ExecContext(ctx, cleanupOrphanedStmt); err != nil {
+		return ctxerr.Wrap(ctx, err, "delete software_host_counts for non-existing teams")
 	}
 
 	// remove any software count row for teams that don't exist anymore
@@ -1159,6 +1134,8 @@ func (ds *Datastore) ListSoftwareForVulnDetection(
 			goqu.I("s.id"),
 			goqu.I("s.name"),
 			goqu.I("s.version"),
+			goqu.I("s.release"),
+			goqu.I("s.arch"),
 			goqu.I("cpe.cpe").As("generated_cpe"),
 			goqu.I("cpe.id").As("generated_cpe_id"),
 		).

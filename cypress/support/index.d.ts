@@ -9,6 +9,11 @@ declare namespace Cypress {
     setup(): Chainable<Element>;
 
     /**
+     * Custom command to setup the testing environment with fixture data for software and vulnerabilities.
+     */
+    setupWithSoftware(): Chainable<Element>;
+
+    /**
      * Custom command to login the user programmatically using the fleet API.
      */
     login(email?: string, password?: string): Chainable<Element>;
@@ -23,6 +28,11 @@ declare namespace Cypress {
      * Custom command to log out the current user.
      */
     logout(): Chainable<Element>;
+
+    /**
+     * Custom command to set a Fleet Desktop token to a host.
+     */
+    setDesktopToken(hostId?: number, token?: string): Chainable<Element>;
 
     /**
      * Custom command to add new queries by default.

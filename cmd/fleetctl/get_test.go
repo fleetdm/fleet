@@ -307,6 +307,9 @@ func TestGetHosts(t *testing.T) {
 	ds.ListPacksForHostFunc = func(ctx context.Context, hid uint) (packs []*fleet.Pack, err error) {
 		return make([]*fleet.Pack, 0), nil
 	}
+	ds.ListHostBatteriesFunc = func(ctx context.Context, hid uint) (batteries []*fleet.HostBattery, err error) {
+		return nil, nil
+	}
 	defaultPolicyQuery := "select 1 from osquery_info where start_time > 1;"
 	ds.ListPoliciesForHostFunc = func(ctx context.Context, host *fleet.Host) ([]*fleet.HostPolicy, error) {
 		return []*fleet.HostPolicy{
