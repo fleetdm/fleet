@@ -304,7 +304,7 @@ Next, move all team level scheduled queries to the global level:
 
 Next, move all team level policies to the global level:
 1. Head to the **Policies** page in the Fleet UI.
-2. For each policy that belongs to a team, copy the **Name**, **Description, **Query**, **Resolve**,
+2. For each policy that belongs to a team, copy the **Name**, **Description, **Resolve**,
   and **Query**. Then, select **All teams** in the top dropdown, select **Add a policy**, select
   **create your own policy**, paste each item in the appropriate field, and select **Save**.
 3. Delete each policy that belongs to a team because they will no longer run on any hosts
@@ -318,7 +318,7 @@ that, if you choose to upgrade later, you can restore teams.
 
 Lastly, remove your Fleet Premium license key:
 1. Remove your license key from your Fleet configuration. Documentation on where the license key is
-   locating your configuration is [here](https://fleetdm.com/docs/deploying/configuration#license).
+   located in your configuration is [here](https://fleetdm.com/docs/deploying/configuration#license).
 2. Restart your Fleet server.
 
 
