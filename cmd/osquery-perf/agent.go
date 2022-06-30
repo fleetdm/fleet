@@ -248,8 +248,8 @@ func (a *agent) runLoop(i int, onlyAlreadyEnrolled bool) {
 		}
 	}
 
-	configTicker := time.Tick(a.ConfigInterval)
-	liveQueryTicker := time.Tick(a.QueryInterval)
+	configTicker := time.Tick(time.Second)
+	liveQueryTicker := time.Tick(time.Second)
 	for {
 		select {
 		case <-configTicker:
@@ -549,7 +549,7 @@ func (a *agent) SoftwareMacOS() []fleet.Software {
 
 func (a *agent) DistributedRead() (*distributedReadResponse, error) {
 	req := fasthttp.AcquireRequest()
-	req.SetBody([]byte(`{"node_key": "` + a.nodeKey + `"}`))
+	req.SetBody([]byte(`{"node_key_": "` + a.nodeKey + `"}`))
 	req.Header.SetMethod("POST")
 	req.Header.SetContentType("application/json")
 	req.Header.Add("User-Agent", "osquery/4.6.0")
