@@ -26,13 +26,75 @@ const deleteJiraIntegration = {
         username: "jira1@example.com",
         api_token: "jira123",
         project_key: "PROJECT 1",
+        enable_failing_policies: false,
+        enable_software_vulnerabilities: false,
+      },
+    ],
+    zendesk: [
+      {
+        url: "https://fleetdm.zendesk.com",
+        email: "zendesk1@example.com",
+        api_token: "zendesk123",
+        group_id: 12345678,
+        enable_failing_policies: false,
+        enable_software_vulnerabilities: false,
+      },
+      {
+        url: "https://fleetdm.zendesk.com",
+        email: "zendesk2@example.com",
+        api_token: "zendesk123",
+        group_id: 87654321,
+        enable_failing_policies: false,
+        enable_software_vulnerabilities: false,
+      },
+    ],
+  },
+};
+
+const createZendeskIntegration = {
+  ...CONFIG_INTEGRATIONS_AUTOMATIONS,
+  integrations: {
+    zendesk: [
+      {
+        url: "https://fleetdm.zendesk.com",
+        email: "zendesk1@example.com",
+        api_token: "zendesk123",
+        group_id: 12345678,
+        enable_failing_policies: false,
+        enable_software_vulnerabilities: false,
+      },
+    ],
+  },
+};
+
+const deleteZendeskIntegration = {
+  ...CONFIG_INTEGRATIONS_AUTOMATIONS,
+  integrations: {
+    jira: [
+      {
+        url: "https://fleetdm.atlassian.com",
+        username: "jira1@example.com",
+        api_token: "jira123",
+        project_key: "PROJECT 1",
+        enable_failing_policies: false,
         enable_software_vulnerabilities: false,
       },
       {
         url: "https://fleetdm.atlassian.com",
-        username: "jira3@example.com",
+        username: "jira2@example.com",
         api_token: "jira123",
-        project_key: "PROJECT 3",
+        project_key: "PROJECT 2",
+        enable_failing_policies: false,
+        enable_software_vulnerabilities: false,
+      },
+    ],
+    zendesk: [
+      {
+        url: "https://fleetdm.zendesk.com",
+        email: "zendesk1@example.com",
+        api_token: "zendesk123",
+        group_id: 12345678,
+        enable_failing_policies: false,
         enable_software_vulnerabilities: false,
       },
     ],
@@ -363,6 +425,42 @@ describe("App settings flow", () => {
         cy.findByText(/fleetdm.atlassian.com - PROJECT/i).should("exist");
       });
     });
+    it("creates a new zendesk integration", () => {
+      cy.getAttached(".no-integrations__create-button").click();
+      cy.getAttached(".create-integration-modal__form-field--platform").within(
+        () => {
+          cy.findByText(/jira/i).click();
+          cy.findByText(/zendesk/i).click();
+        }
+      );
+      cy.getAttached("#url").click().type("https://fleetdm.zendesk.com");
+      cy.getAttached("#email").click().type("zendesk1@example.com");
+      cy.getAttached("#apiToken").click().type("zendesk123");
+      cy.getAttached("#groupId").click().type("12345678");
+      cy.intercept(
+        "PATCH",
+        "/api/latest/fleet/config",
+        createZendeskIntegration
+      ).as("createIntegration");
+      cy.intercept(
+        "GET",
+        "/api/latest/fleet/config",
+        createZendeskIntegration
+      ).as("createdIntegration");
+      cy.findByRole("button", { name: /save/i }).click();
+      cy.wait("@createIntegration").then((configStub) => {
+        cy.log(JSON.stringify(configStub));
+        console.log(JSON.stringify(configStub));
+      });
+      cy.wait("@createdIntegration").then((configStub) => {
+        cy.log(JSON.stringify(configStub));
+        console.log(JSON.stringify(configStub));
+      });
+      cy.findByText(/successfully added/i).should("exist");
+      cy.getAttached(".table-container").within(() => {
+        cy.findByText(/fleetdm.zendesk.com - 12345678/i).should("exist");
+      });
+    });
   });
 
   describe("Integrations settings page (seeded)", () => {
@@ -410,8 +508,41 @@ describe("App settings flow", () => {
         console.log(JSON.stringify(configStub));
       });
       cy.findByText(/successfully deleted/i).should("exist");
-      cy.getAttached("tbody>tr").should("have.length", 2);
+      cy.getAttached("tbody>tr").should("have.length", 3);
       cy.findByText(/project 2/i).should("not.exist");
+    });
+    it("deletes zendesk integration", () => {
+      cy.getAttached("tbody>tr")
+        .eq(3)
+        .within(() => {
+          cy.findByText(/87654321/i).should("exist");
+          cy.findByText(/action/i).click();
+          cy.findByText(/delete/i).click();
+        });
+      cy.intercept(
+        "PATCH",
+        "/api/latest/fleet/config",
+        deleteZendeskIntegration
+      ).as("deleteIntegration");
+      cy.intercept(
+        "GET",
+        "/api/latest/fleet/config",
+        deleteZendeskIntegration
+      ).as("deletedIntegration");
+      cy.getAttached(".delete-integration-modal .modal-cta-wrap")
+        .contains("button", /delete/i)
+        .click();
+      cy.wait("@deleteIntegration").then((configStub) => {
+        cy.log(JSON.stringify(configStub));
+        console.log(JSON.stringify(configStub));
+      });
+      cy.wait("@deletedIntegration").then((configStub) => {
+        cy.log(JSON.stringify(configStub));
+        console.log(JSON.stringify(configStub));
+      });
+      cy.findByText(/successfully deleted/i).should("exist");
+      cy.getAttached("tbody>tr").should("have.length", 3);
+      cy.findByText(/87654321/i).should("not.exist");
     });
   });
 });
