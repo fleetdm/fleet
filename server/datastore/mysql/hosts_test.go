@@ -118,6 +118,7 @@ func TestHosts(t *testing.T) {
 		{"DeleteHosts", testHostsDeleteHosts},
 		{"HostIDsByOSVersion", testHostIDsByOSVersion},
 		{"ShouldCleanTeamPolicies", testShouldCleanTeamPolicies},
+		{"ReplaceHostBatteries", testHostsReplaceHostBatteries},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -4172,6 +4173,9 @@ func testHostsDeleteHosts(t *testing.T, ds *Datastore) {
 	// Update device_auth_token.
 	err = ds.SetOrUpdateDeviceAuthToken(context.Background(), host.ID, "foo")
 	require.NoError(t, err)
+	// Update host_batteries
+	err = ds.ReplaceHostBatteries(context.Background(), host.ID, []*fleet.HostBattery{{HostID: host.ID, SerialNumber: "a"}})
+	require.NoError(t, err)
 
 	// Check there's an entry for the host in all the associated tables.
 	for _, hostRef := range hostRefs {
@@ -4259,4 +4263,94 @@ func testHostIDsByOSVersion(t *testing.T, ds *Datastore) {
 			require.Equal(t, r.OSVersion, "20.4.0")
 		}
 	})
+}
+
+func testHostsReplaceHostBatteries(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+	h1, err := ds.NewHost(ctx, &fleet.Host{
+		ID:              1,
+		OsqueryHostID:   "1",
+		NodeKey:         "1",
+		Platform:        "linux",
+		Hostname:        "host1",
+		DetailUpdatedAt: time.Now(),
+		LabelUpdatedAt:  time.Now(),
+		PolicyUpdatedAt: time.Now(),
+		SeenTime:        time.Now(),
+	})
+	require.NoError(t, err)
+	h2, err := ds.NewHost(ctx, &fleet.Host{
+		ID:              2,
+		OsqueryHostID:   "2",
+		NodeKey:         "2",
+		Platform:        "linux",
+		Hostname:        "host2",
+		DetailUpdatedAt: time.Now(),
+		LabelUpdatedAt:  time.Now(),
+		PolicyUpdatedAt: time.Now(),
+		SeenTime:        time.Now(),
+	})
+	require.NoError(t, err)
+
+	err = ds.ReplaceHostBatteries(ctx, h1.ID, nil)
+	require.NoError(t, err)
+
+	bat1, err := ds.ListHostBatteries(ctx, h1.ID)
+	require.NoError(t, err)
+	require.Len(t, bat1, 0)
+
+	h1Bat := []*fleet.HostBattery{
+		{HostID: h1.ID, SerialNumber: "a", CycleCount: 1, Health: "Good"},
+		{HostID: h1.ID, SerialNumber: "b", CycleCount: 2, Health: "Good"},
+	}
+	err = ds.ReplaceHostBatteries(ctx, h1.ID, h1Bat)
+	require.NoError(t, err)
+
+	bat1, err = ds.ListHostBatteries(ctx, h1.ID)
+	require.NoError(t, err)
+	require.ElementsMatch(t, h1Bat, bat1)
+
+	bat2, err := ds.ListHostBatteries(ctx, h2.ID)
+	require.NoError(t, err)
+	require.Len(t, bat2, 0)
+
+	// update "a", remove "b", add "c"
+	h1Bat = []*fleet.HostBattery{
+		{HostID: h1.ID, SerialNumber: "a", CycleCount: 2, Health: "Good"},
+		{HostID: h1.ID, SerialNumber: "c", CycleCount: 3, Health: "Bad"},
+	}
+
+	err = ds.ReplaceHostBatteries(ctx, h1.ID, h1Bat)
+	require.NoError(t, err)
+
+	bat1, err = ds.ListHostBatteries(ctx, h1.ID)
+	require.NoError(t, err)
+	require.ElementsMatch(t, h1Bat, bat1)
+
+	// add "d" to h2
+	h2Bat := []*fleet.HostBattery{
+		{HostID: h2.ID, SerialNumber: "d", CycleCount: 1, Health: "Good"},
+	}
+
+	err = ds.ReplaceHostBatteries(ctx, h2.ID, h2Bat)
+	require.NoError(t, err)
+
+	bat2, err = ds.ListHostBatteries(ctx, h2.ID)
+	require.NoError(t, err)
+	require.ElementsMatch(t, h2Bat, bat2)
+
+	// remove all from h1
+	h1Bat = []*fleet.HostBattery{}
+
+	err = ds.ReplaceHostBatteries(ctx, h1.ID, h1Bat)
+	require.NoError(t, err)
+
+	bat1, err = ds.ListHostBatteries(ctx, h1.ID)
+	require.NoError(t, err)
+	require.Len(t, bat1, 0)
+
+	// h2 unchanged
+	bat2, err = ds.ListHostBatteries(ctx, h2.ID)
+	require.NoError(t, err)
+	require.ElementsMatch(t, h2Bat, bat2)
 }

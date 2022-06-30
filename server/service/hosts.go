@@ -717,6 +717,11 @@ func (svc *Service) getHostDetails(ctx context.Context, host *fleet.Host, opts f
 		return nil, ctxerr.Wrap(ctx, err, "get packs for host")
 	}
 
+	bats, err := svc.ds.ListHostBatteries(ctx, host.ID)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "get batteries for host")
+	}
+
 	var policies *[]*fleet.HostPolicy
 	if opts.IncludePolicies {
 		hp, err := svc.ds.ListPoliciesForHost(ctx, host)
@@ -731,7 +736,13 @@ func (svc *Service) getHostDetails(ctx context.Context, host *fleet.Host, opts f
 		policies = &hp
 	}
 
-	return &fleet.HostDetail{Host: *host, Labels: labels, Packs: packs, Policies: policies}, nil
+	return &fleet.HostDetail{
+		Host:      *host,
+		Labels:    labels,
+		Packs:     packs,
+		Policies:  policies,
+		Batteries: &bats,
+	}, nil
 }
 
 func (svc *Service) hostIDsFromFilters(ctx context.Context, opt fleet.HostListOptions, lid *uint) ([]uint, error) {

@@ -64,7 +64,7 @@ Operations will review the expense and reach out to the team member if they have
 
 ### Purchasing a company-issued device
 
-Fleet provides laptops for team members to use while working at Fleet. As soon as an offer is accepted, `eashaw` will reach out to the new team member to start this process. `eashaw` will work with the new team member to get their laptop purchased and shipped to them.
+Fleet provides laptops for team members to use while working at Fleet. As soon as an offer is accepted, `@charlottechance` will reach out to the new team member to start this process. `@charlottechance` will work with the new team member to get their laptop purchased and shipped to them.
 
 Most of the team at Fleet uses 16" MacBook Pros, but team members are free to choose any laptop or operating system that works for them, as long as the price [is within reason](#spending-company-money).
 
@@ -80,8 +80,8 @@ When attending a conference for Fleet, please make a post in [g-digital-experien
 - The price of your hotel per night.
 - The price of the admission fees for the conference.
 
-The monthly limit on your Brex card will be increased temporarily as necessary to accomodate the increased spending associated with the conference.
-It is highly recommended that you order a physical Brex card if you do not have one before attending the conference.
+The monthly limit on your Brex card will be increased temporarily as necessary to accommodate the increased spending associated with the conference.
+We highly recommend you order a physical Brex card if you do not have one before attending the conference.
 
 ## Paid time off
 
@@ -160,7 +160,7 @@ To edit an event where someone else at Fleet is the organizer, you can first su
 
 When scheduling external meetings, provide external participants with a
 [Calendly](https://calendly.com) link to schedule with the relevant internal participants. If you
-need a Calendly account, reach out to `@eashaw` via Slack.
+need a Calendly account, reach out to `@charlottechance` via Slack.
 
 ### Zoom
 
@@ -441,7 +441,7 @@ Every two weeks, our CEO Mike has a 1:1 meeting with our Investor Sid. The Digit
  - Charlie prepares the original document by deleting the agenda items in the "Hallway" and "Feedback" sections, leaving only the "Vision" section.
  - Charlie will update the monthly "All Hands" link and grant Sid viewing access. 
  - Charlie will send Mike links to the new document and the backup copy in a direct message in Slack. 
- - The day before the meeting, Nathan will prepare the "Vision" section of the original document. Nathan will collect and update information related to annual recurring revenue, new members in the `#fleet` channel in the osquery Slack, the number of new customers and opportunities from Salesforce, the total number of devices using Fleet, the company's current headcount, and banking information.
+ - The day before the meeting, Charlie will prepare the "Vision" section of the original document. Charlie will collect and update information related to annual recurring revenue, new members in the `#fleet` channel in the osquery Slack, the number of new customers and opportunities from Salesforce, the total number of devices using Fleet, the company's current headcount, and banking information.
 
 ### Workiversaries
 
@@ -475,7 +475,7 @@ Weekly, Charlie looks in the [Fleeties spreadsheet](https://docs.google.com/spre
 
 ### Payroll
 
-Many of these processes are automated but it's important that we check Gusto and Pilot manually for accuracy.
+Many of these processes are automated, but it's vital check Gusto and Pilot manually for accuracy.
 
 ## BizOps
 
@@ -486,8 +486,8 @@ Create a new issue for the current month and year named "Closing out YYYY-MM" us
 ### Commission Payroll
 
 - Update [commission calculator](https://docs.google.com/spreadsheets/d/1vw6Q7kCC7-FdG5Fgx3ghgUdQiF2qwxk6njgK6z8_O9U/edit) with new revenue from any deals that are closed/won (have a subscription agreement signed by both parties) and have an **effective start date** within the previous month.
-  - Detailed notes on this process are located [here](https://docs.google.com/document/d/1FQLpGxvHPW6X801HYYLPs5y8o943mmasQD3m9k_c0so/edit#). 
-- Contact Charlie Chance in Slack and let her know she can run the commission payroll. Use the off-cycle payroll option in Gusto. Be sure to classify the payment as "Commission" in the "other earnings" field and not the generic  "Bonus".
+  - Find detailed notes on this process in [Notes - Run commission payroll in Gusto](https://docs.google.com/document/d/1FQLpGxvHPW6X801HYYLPs5y8o943mmasQD3m9k_c0so/edit#). 
+- Contact Charlie Chance in Slack and let her know she can run the commission payroll. Use the off-cycle payroll option in Gusto. Be sure to classify the payment as "Commission" in the "other earnings" field and not the generic  "Bonus."
 - Once commission payroll has been run, update the [commission calculator](https://docs.google.com/spreadsheets/d/1vw6Q7kCC7-FdG5Fgx3ghgUdQiF2qwxk6njgK6z8_O9U/edit) to mark the commission as paid. 
 
 ## Rituals
@@ -511,7 +511,7 @@ The following table lists the People group's rituals, frequency, and Directly Re
 | Investor and Advisor updates | PRN | People Operations tracks the last contact with investors and coordinates outreach with CEO | Charlie Chance |
 | CEO inbox sweep | Daily unless OOO | Charlie does a morning sweep of the CEO's inbox to remove spam and grab action items | Charlie Chance |
 | Recruiting progress checkup | Weekly | Charlie looks in the [Fleeties spreadsheet](https://docs.google.com/spreadsheets/d/1OSLn-ZCbGSjPusHPiR5dwQhheH1K8-xqyZdsOe9y7qc/edit#gid=0) and reports on each open position | Charlie Chance |
-| Payroll | Monthly before payroll runs | Every month Charlie audits the payroll platforms for accuracy | Charlie |
+| Payroll | Monthly before payroll runs | Every month, Charlie audits the payroll platforms for accuracy | Charlie |
 
 
 ## Slack channels

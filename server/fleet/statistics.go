@@ -1,6 +1,9 @@
 package fleet
 
-import "time"
+import (
+	"encoding/json"
+	"time"
+)
 
 type StatisticsPayload struct {
 	AnonymousIdentifier            string                             `json:"anonymousIdentifier"`
@@ -17,6 +20,7 @@ type StatisticsPayload struct {
 	HostsStatusWebHookEnabled      bool                               `json:"hostsStatusWebHookEnabled"`
 	NumWeeklyActiveUsers           int                                `json:"numWeeklyActiveUsers"`
 	HostsEnrolledByOperatingSystem map[string][]HostsCountByOSVersion `json:"hostsEnrolledByOperatingSystem"`
+	StoredErrors                   json.RawMessage                    `json:"storedErrors"`
 }
 
 type HostsCountByOSVersion struct {

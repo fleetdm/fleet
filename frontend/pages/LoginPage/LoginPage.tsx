@@ -4,6 +4,7 @@ import { size } from "lodash";
 
 import paths from "router/paths";
 import { AppContext } from "context/app";
+import { NotificationContext } from "context/notification";
 import { RoutingContext } from "context/routing";
 import { ISSOSettings } from "interfaces/ssoSettings";
 import local from "utilities/local";
@@ -17,6 +18,11 @@ import LoginSuccessfulPage from "pages/LoginSuccessfulPage";
 
 interface ILoginPageProps {
   router: InjectedRouter; // v3
+  location: {
+    pathname: string;
+    query: { vulnerable?: boolean };
+    search: string;
+  };
 }
 
 interface ILoginData {
@@ -24,16 +30,36 @@ interface ILoginData {
   password: string;
 }
 
-const LoginPage = ({ router }: ILoginPageProps) => {
+interface IStatusMessages {
+  account_disabled: string;
+  account_invalid: string;
+  org_disabled: string;
+  error: string;
+}
+
+const statusMessages: IStatusMessages = {
+  account_disabled:
+    "Single sign-on is not enabled on your account. Please contact your Fleet administrator.",
+  account_invalid: "You do not have a Fleet account.",
+  org_disabled: "Single sign-on is not enabled for your organization.",
+  error:
+    "There was an error with single sign-on. Please contact your Fleet administrator.",
+};
+
+const LoginPage = ({ router, location }: ILoginPageProps) => {
   const {
     currentUser,
     setAvailableTeams,
     setCurrentUser,
     setCurrentTeam,
   } = useContext(AppContext);
+  const { renderFlash } = useContext(NotificationContext);
   const { redirectLocation } = useContext(RoutingContext);
   const [loginVisible, setLoginVisible] = useState<boolean>(true);
   const [ssoSettings, setSSOSettings] = useState<ISSOSettings>();
+  const [pageStatus, setPageStatus] = useState<string | null>(
+    new URLSearchParams(location.search).get("status")
+  );
   const [errors, setErrors] = useState<{ [key: string]: string }>({});
 
   useEffect(() => {
@@ -52,6 +78,10 @@ const LoginPage = ({ router }: ILoginPageProps) => {
       router?.push(HOME);
     } else {
       getSSO();
+    }
+
+    if (pageStatus && pageStatus in statusMessages) {
+      renderFlash("error", statusMessages[pageStatus as keyof IStatusMessages]);
     }
   }, [router]);
 
@@ -108,7 +138,6 @@ const LoginPage = ({ router }: ILoginPageProps) => {
 
   return (
     <AuthenticationFormWrapper>
-      <LoginSuccessfulPage />
       <LoginForm
         onChangeFunc={onChange}
         handleSubmit={onSubmit}
