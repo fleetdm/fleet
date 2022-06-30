@@ -74,7 +74,7 @@ const getConfig = {
       days_count: 0,
     },
     failing_policies_webhook: {
-      enable_failing_policies_webhook: true,
+      enable_failing_policies_webhook: false,
       destination_url: "ok.com",
       policy_ids: [5, 10],
       host_batch_size: 0,
@@ -220,7 +220,7 @@ const enableWebhook = {
       days_count: 0,
     },
     failing_policies_webhook: {
-      enable_failing_policies_webhook: true,
+      enable_failing_policies_webhook: false,
       destination_url: "ok.com",
       policy_ids: [5, 10],
       host_batch_size: 0,
@@ -232,7 +232,7 @@ const enableWebhook = {
   },
 };
 
-const enableJiraIntegration = {
+const enableJiraSoftwareIntegration = {
   ...getConfig,
   integrations: {
     jira: [
@@ -280,7 +280,7 @@ const enableJiraIntegration = {
       days_count: 0,
     },
     failing_policies_webhook: {
-      enable_failing_policies_webhook: true,
+      enable_failing_policies_webhook: false,
       destination_url: "ok.com",
       policy_ids: [5, 10],
       host_batch_size: 0,
@@ -292,7 +292,7 @@ const enableJiraIntegration = {
   },
 };
 
-const enableZendeskIntegration = {
+const enableZendeskSoftwareIntegration = {
   ...getConfig,
   integrations: {
     jira: [
@@ -340,7 +340,7 @@ const enableZendeskIntegration = {
       days_count: 0,
     },
     failing_policies_webhook: {
-      enable_failing_policies_webhook: true,
+      enable_failing_policies_webhook: false,
       destination_url: "ok.com",
       policy_ids: [5, 10],
       host_batch_size: 0,
@@ -400,7 +400,7 @@ const disableAutomations = {
       days_count: 0,
     },
     failing_policies_webhook: {
-      enable_failing_policies_webhook: true,
+      enable_failing_policies_webhook: false,
       destination_url: "ok.com",
       policy_ids: [5, 10],
       host_batch_size: 0,
@@ -435,7 +435,7 @@ describe("Software", () => {
       });
       cy.findByPlaceholderText(/search software/i).type("lib");
       // Ensures search completes
-      cy.wait(1000); // eslint-disable-line cypress/no-unnecessary-waiting
+      cy.wait(3000); // eslint-disable-line cypress/no-unnecessary-waiting
       cy.getAttached(".table-container__results-count")
         .invoke("text")
         .then((text) => {
@@ -525,20 +525,24 @@ describe("Software", () => {
       cy.intercept(
         "PATCH",
         "/api/latest/fleet/config",
-        enableJiraIntegration
-      ).as("enableJiraIntegration");
-      cy.intercept("GET", "/api/latest/fleet/config", enableJiraIntegration).as(
-        "enabledJiraIntegration"
-      );
+        enableJiraSoftwareIntegration
+      ).as("enableJiraSoftwareIntegration");
+      cy.intercept(
+        "GET",
+        "/api/latest/fleet/config",
+        enableJiraSoftwareIntegration
+      ).as("enabledJiraSoftwareIntegration");
       cy.findByRole("button", { name: /^Save$/ }).click();
-      cy.wait("@enableJiraIntegration").then((configStub) => {
+      cy.wait("@enableJiraSoftwareIntegration").then((configStub) => {
         console.log(JSON.stringify(configStub));
       });
       // Confirm jira integration was added successfully
       cy.findByText(/updated vulnerability automations/i).should("exist");
-      cy.intercept("GET", "/api/latest/fleet/config", enableJiraIntegration).as(
-        "getIntegrations"
-      );
+      cy.intercept(
+        "GET",
+        "/api/latest/fleet/config",
+        enableJiraSoftwareIntegration
+      ).as("getIntegrations");
       cy.visit("/software/manage");
       cy.wait("@getIntegrations").then((configStub) => {
         console.log(JSON.stringify(configStub));
@@ -569,15 +573,15 @@ describe("Software", () => {
       cy.intercept(
         "PATCH",
         "/api/latest/fleet/config",
-        enableZendeskIntegration
-      ).as("enableZendeskIntegration");
+        enableZendeskSoftwareIntegration
+      ).as("enableZendeskSoftwareIntegration");
       cy.intercept(
         "GET",
         "/api/latest/fleet/config",
-        enableZendeskIntegration
+        enableZendeskSoftwareIntegration
       ).as("enabledZendeskIntegration");
       cy.findByRole("button", { name: /^Save$/ }).click();
-      cy.wait("@enableZendeskIntegration").then((configStub) => {
+      cy.wait("@enableZendeskSoftwareIntegration").then((configStub) => {
         console.log(JSON.stringify(configStub));
       });
       // Confirm zendesk integration was added successfully
@@ -585,7 +589,7 @@ describe("Software", () => {
       cy.intercept(
         "GET",
         "/api/latest/fleet/config",
-        enableZendeskIntegration
+        enableZendeskSoftwareIntegration
       ).as("getIntegrations");
       cy.visit("/software/manage");
       cy.wait("@getIntegrations").then((configStub) => {
@@ -608,7 +612,6 @@ describe("Software", () => {
         }).click();
       });
       cy.getAttached(".manage-automations-modal").within(() => {
-        cy.getAttached(".fleet-slider").click();
         cy.getAttached(".fleet-slider").click();
       });
       cy.intercept("PATCH", "/api/latest/fleet/config", disableAutomations).as(
