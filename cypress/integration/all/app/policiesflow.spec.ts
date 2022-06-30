@@ -533,7 +533,7 @@ describe("Policies flow (seeded)", () => {
       });
       cy.findByRole("button", { name: /^Save$/ }).click();
     });
-    it("empty state prompts to create an integration", () => {
+    it("empty automation state prompts to create an integration", () => {
       cy.getAttached(".button-wrap").within(() => {
         cy.findByRole("button", { name: /manage automations/i }).click();
       });
