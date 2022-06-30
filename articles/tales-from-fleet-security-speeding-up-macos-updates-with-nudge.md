@@ -1,6 +1,6 @@
 # Tales from Fleet security: speeding up macOS updates with Nudge
 
-To keep Fleet secure, we manage vulnerabilities on all of our company workstations, which are all laptops. 
+To keep Fleet secure, we manage vulnerabilities on all of our company workstations, all of which are laptops. 
 
 We manage vulnerabilities by:
 
@@ -11,7 +11,7 @@ We manage vulnerabilities by:
 
 With this strategy, we only have to address a few vulnerabilities manually. Browsers, operating systems, and office productivity software are big targets, so focusing on fixing issues related to that attack surface as quickly as possible makes sense.
 
-One issue with automatic updates on macOS is that a user can click **try tonight**** repeatedly, have the install not occur for whatever reason, and end up using an outdated operating system weeks later.
+One issue with automatic updates on macOS is that a user can click **try tonight** repeatedly, have the installation not occur for whatever reason, and end up using an outdated operating system weeks later.
 
 We can fix this by requiring up-to-date macOS versions before using specific cloud applications, which we will write about in the next quarter. But before that, we need to make people aware that they're missing an update more obviously. The experience of being unable to get work done because your OS is outdated is sub-par, so before we deploy this capability, we want to help people keep their systems up-to-date easily.
 
@@ -22,7 +22,7 @@ We like this approach because it is evident while at the same time not automatic
 ## How we deployed Nudge
 
 ### Configuration
-Before deploying Nudge, we had to configure it properly. We wanted to ensure we had a configuration in place before deploying Nudge, so the risk of unexpected behavior was as low as possible. Imagine deploying it with values that required you to install a new version a week ago, immediately enabling the most aggressive UI!
+Before deploying Nudge, we had to configure it properly. We wanted to make sure we had a configuration in place before deploying Nudge so the risk of unexpected behavior was as low as possible. Imagine deploying it with values that required you to install a new version a week ago, immediately enabling the most aggressive UI!
 
 There are three main ways of configuring Nudge:
 
@@ -40,7 +40,7 @@ We enabled `simpleMode` to get a simpler UI when Nudge gets triggered. Based on 
 
 ![Simple mode](../website/assets/images/articles/tales-from-fleet-security-speeding-up-macos-updates-with-nudge-1-1012x590@2x.png)
 
-We did not tweak the other settings. After gaining experience with the tool, we might tweak parameters related to grace periods and number of deferrals allowed. Until we have more data, the defaults seem like a good baseline.
+We did not tweak the other settings. After gaining experience with the tool, we might tweak parameters related to grace periods and the number of deferrals allowed. Until we have more data, the defaults seem like a good baseline.
 
 ### Nudge itself
 
@@ -57,7 +57,7 @@ As long as a system runs the `requiredMinimumOSVersion`, Nudge will not run in a
 
 When macOS 12.5 gets released, we'll be able to see how fast the update gets deployed to our laptops and tweak our Nudge configuration.
 
-Next, we'll use [BeyondCorp Enterprise](https://cloud.google.com/beyondcorp-enterprise) to require an up-to-date version of macOS required to access some cloud applications. Once we have done this, we'll publish configurations in our handbook and a blog post on how we did it.
+Next, we'll use [BeyondCorp Enterprise](https://cloud.google.com/beyondcorp-enterprise) to require an up-to-date version of macOS to access some cloud applications. Once we have done this, we'll publish configurations in our handbook and a blog post on how we did it.
 
 Feel free to drop in our [#Fleet](https://fleetdm.com/slack) Slack Channel to discuss anything security-related with us!
 
