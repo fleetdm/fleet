@@ -700,25 +700,25 @@ func (a *agent) processQuery(name, query string) (handled bool, results []map[st
 		}
 		return true, nil, nil
 	case name == hostDetailQueryPrefix+"mdm":
-		ss := fleet.OsqueryStatus(rand.Intn(2))
+		ss := fleet.OsqueryStatus(1)
 		if ss == fleet.StatusOK {
 			results = a.mdm()
 		}
 		return true, results, &ss
 	case name == hostDetailQueryPrefix+"munki_info":
-		ss := fleet.OsqueryStatus(rand.Intn(2))
+		ss := fleet.OsqueryStatus(1)
 		if ss == fleet.StatusOK {
 			results = a.munkiInfo()
 		}
 		return true, results, &ss
 	case name == hostDetailQueryPrefix+"google_chrome_profiles":
-		ss := fleet.OsqueryStatus(rand.Intn(2))
+		ss := fleet.OsqueryStatus(1)
 		if ss == fleet.StatusOK {
 			results = a.googleChromeProfiles()
 		}
 		return true, results, &ss
 	case name == hostDetailQueryPrefix+"battery":
-		ss := fleet.OsqueryStatus(rand.Intn(2))
+		ss := fleet.OsqueryStatus(1)
 		if ss == fleet.StatusOK {
 			results = a.batteries()
 		}
@@ -752,8 +752,8 @@ func (a *agent) DistributedWrite(queries map[string]string) {
 		if !handled {
 			// If osquery-perf does not handle the incoming query,
 			// always return status OK and the default query result.
-			r.Results[name] = defaultQueryResult
-			r.Statuses[name] = fleet.StatusOK
+			r.Results[name] = nil
+			r.Statuses[name] = 1
 		} else {
 			if results != nil {
 				r.Results[name] = results

@@ -846,8 +846,10 @@ func (svc *Service) SubmitDistributedQueryResults(
 		}
 
 		if err != nil {
-			logging.WithErr(ctx, ctxerr.New(ctx, "error in query ingestion"))
-			logging.WithExtras(ctx, "ingestion-err", err)
+			werr := ctxerr.New(ctx, "error in query ingestion")
+			logging.WithErr(ctx, werr)
+			logging.WithExtras(ctx, "ingestion-err", werr)
+			ctxerr.Handle(ctx, werr)
 		}
 	}
 
