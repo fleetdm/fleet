@@ -570,10 +570,6 @@ func (a *agent) DistributedRead() (*distributedReadResponse, error) {
 	return &parsedResp, nil
 }
 
-var defaultQueryResult = []map[string]string{
-	{"foo": "bar"},
-}
-
 func (a *agent) genLastOpenedAt(count *int) *time.Time {
 	if *count >= a.softwareCount.withLastOpened {
 		return nil
