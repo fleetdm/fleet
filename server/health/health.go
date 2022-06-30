@@ -29,7 +29,7 @@ func Handler(logger log.Logger, allCheckers map[string]Checker) http.HandlerFunc
 			for _, checkName := range checks {
 				check, ok := allCheckers[checkName]
 				if !ok {
-					http.Error(w, checkName+" is not a valid check", http.StatusBadRequest)
+					http.Error(w, "the provided check is not valid", http.StatusBadRequest)
 					return
 				}
 				checkers[checkName] = check
