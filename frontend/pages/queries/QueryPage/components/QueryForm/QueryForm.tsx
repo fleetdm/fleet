@@ -38,6 +38,7 @@ interface IQueryFormProps {
   storedQuery: IQuery | undefined;
   isStoredQueryLoading: boolean;
   isQuerySaving: boolean;
+  isQueryUpdating: boolean;
   onCreateQuery: (formData: IQueryFormData) => void;
   onOsqueryTableSelect: (tableName: string) => void;
   goToSelectTargets: () => void;
@@ -66,6 +67,7 @@ const QueryForm = ({
   storedQuery,
   isStoredQueryLoading,
   isQuerySaving,
+  isQueryUpdating,
   onCreateQuery,
   onOsqueryTableSelect,
   goToSelectTargets,
@@ -519,7 +521,7 @@ const QueryForm = ({
                       !hasTeamMaintainerPermissions
                     }
                   >
-                    Save
+                    {isQueryUpdating ? <Spinner /> : "Save"}
                   </Button>
                 </div>{" "}
                 <ReactTooltip

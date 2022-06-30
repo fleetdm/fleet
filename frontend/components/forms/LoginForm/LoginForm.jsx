@@ -5,7 +5,6 @@ import classnames from "classnames";
 
 import Button from "components/buttons/Button";
 import Form from "components/forms/Form";
-import Spinner from "components/Spinner";
 import formFieldInterface from "interfaces/form_field";
 import InputFieldWithIcon from "components/forms/fields/InputFieldWithIcon";
 import paths from "router/paths";
@@ -82,8 +81,6 @@ class LoginForm extends Component {
       [`${baseClass}--hidden`]: isHidden,
     });
 
-    // Login
-
     return (
       <form onSubmit={handleSubmit} className={loginFormClass}>
         <div className={`${baseClass}__container`}>
@@ -107,7 +104,7 @@ class LoginForm extends Component {
             onClick={handleSubmit}
             type="submit"
           >
-            <Spinner />
+            Login
           </Button>
           {ssoEnabled && showSingleSignOnButton()}
         </div>

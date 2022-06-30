@@ -25,7 +25,7 @@
       width: 32px;
       height: 32px;
       margin: -4px;
-      border: 4px solid $core-white;
+      border: 4px solid;
       border-radius: 50%;
       animation: ring 1.2s cubic-bezier(0.5, 0, 0.5, 1) infinite;
       border-color: $ui-vibrant-blue-25 transparent transparent transparent;
@@ -45,15 +45,22 @@
   }
 }
 
-button .loading-spinner {
-  background: none;
-  box-shadow: none;
-  transform: scale(0.8);
-  &__ring {
-    border-color: $core-white;
-    div {
-      animation: ring 1.2s cubic-bezier(0.5, 0, 0.5, 1) infinite;
-      border-color: $core-vibrant-blue transparent transparent transparent;
+button {
+  position: relative;
+  .loading-spinner {
+    background: none;
+    box-shadow: none;
+    margin: 0;
+    transform: scale(0.7);
+    position: absolute;
+    &__ring {
+      border-color: $core-white;
+
+      div {
+        border-color: $core-vibrant-blue transparent transparent transparent;
+        width: 32px;
+        height: 32px;
+      }
     }
   }
 }
