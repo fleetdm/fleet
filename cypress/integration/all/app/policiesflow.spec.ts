@@ -1,178 +1,12 @@
-const getPoliciesConfig = {
-  org_info: {
-    org_name: "Fleet Test",
-    org_logo_url: "",
-  },
-  server_settings: {
-    server_url: "https://localhost:8642",
-    live_query_disabled: false,
-    enable_analytics: true,
-    deferred_save_host: false,
-  },
-  smtp_settings: {
-    enable_smtp: false,
-    configured: false,
-    sender_address: "",
-    server: "",
-    port: 587,
-    authentication_type: "authtype_username_password",
-    user_name: "",
-    password: "",
-    enable_ssl_tls: true,
-    authentication_method: "authmethod_plain",
-    domain: "",
-    verify_ssl_certs: true,
-    enable_start_tls: true,
-  },
-  host_expiry_settings: {
-    host_expiry_enabled: true,
-    host_expiry_window: 9,
-  },
-  host_settings: {
-    enable_host_users: true,
-    enable_software_inventory: true,
-  },
-  agent_options: {
-    config: {
-      options: {
-        logger_plugin: "tls",
-        pack_delimiter: "/",
-        logger_tls_period: 10,
-        distributed_plugin: "tls",
-        disable_distributed: false,
-        logger_tls_endpoint: "/api/osquery/log",
-        distributed_interval: 10,
-        distributed_tls_max_attempts: 3,
-      },
-      decorators: {
-        load: [
-          "SELECT uuid AS host_uuid FROM system_info;",
-          "SELECT hostname AS hostname FROM system_info;",
-        ],
-      },
-    },
-    overrides: {},
-  },
-  sso_settings: {
-    entity_id: "",
-    issuer_uri: "",
-    idp_image_url: "",
-    metadata: "",
-    metadata_url: "",
-    idp_name: "",
-    enable_sso: false,
-    enable_sso_idp_login: false,
-  },
-  vulnerability_settings: {
-    databases_path: "",
-  },
-  webhook_settings: {
-    host_status_webhook: {
-      enable_host_status_webhook: false,
-      destination_url: "",
-      host_percentage: 0,
-      days_count: 0,
-    },
-    failing_policies_webhook: {
-      enable_failing_policies_webhook: false,
-      destination_url: "ok.com",
-      policy_ids: [5, 10],
-      host_batch_size: 0,
-    },
-    vulnerabilities_webhook: {
-      enable_vulnerabilities_webhook: false,
-      destination_url: "",
-      host_batch_size: 0,
-    },
-    interval: "24h0m0s",
-  },
-  integrations: {
-    jira: [
-      {
-        url: "https://fleetdm.atlassian.com",
-        username: "jira1@example.com",
-        api_token: "jira123",
-        project_key: "PROJECT 1",
-        enable_failing_policies: false,
-        enable_software_vulnerabilities: true,
-      },
-      {
-        url: "https://fleetdm.atlassian.com",
-        username: "jira2@example.com",
-        api_token: "jira123",
-        project_key: "PROJECT 2",
-        enable_failing_policies: false,
-        enable_software_vulnerabilities: false,
-      },
-    ],
-    zendesk: [
-      {
-        url: "https://fleetdm.zendesk.com",
-        email: "zendesk1@example.com",
-        api_token: "zendesk123",
-        group_id: 12345678,
-        enable_failing_policies: false,
-        enable_software_vulnerabilities: false,
-      },
-      {
-        url: "https://fleetdm.zendesk.com",
-        email: "zendesk2@example.com",
-        api_token: "zendesk123",
-        group_id: 87654321,
-        enable_failing_policies: false,
-        enable_software_vulnerabilities: false,
-      },
-    ],
-  },
-  update_interval: {
-    osquery_detail: 3600000000000,
-    osquery_policy: 3600000000000,
-  },
-  vulnerabilities: {
-    databases_path: "/tmp/vulndbs",
-    periodicity: 3600000000000,
-    cpe_database_url: "",
-    cve_feed_prefix_url: "",
-    current_instance_checks: "auto",
-    disable_data_sync: false,
-    recent_vulnerability_max_age: 2592000000000000,
-  },
-  license: {
-    tier: "premium",
-    organization: "development-only",
-    device_count: 100,
-    expiration: "2022-06-30T20:00:00-04:00",
-    note: "for development only",
-  },
-  logging: {
-    debug: false,
-    json: false,
-    result: {
-      plugin: "filesystem",
-      config: {
-        status_log_file:
-          "/var/folders/xh/bxm1d2615tv3vrg4zrxq540h0000gn/T/osquery_status",
-        result_log_file:
-          "/var/folders/xh/bxm1d2615tv3vrg4zrxq540h0000gn/T/osquery_result",
-        enable_log_rotation: false,
-        enable_log_compression: false,
-      },
-    },
-    status: {
-      plugin: "filesystem",
-      config: {
-        status_log_file:
-          "/var/folders/xh/bxm1d2615tv3vrg4zrxq540h0000gn/T/osquery_status",
-        result_log_file:
-          "/var/folders/xh/bxm1d2615tv3vrg4zrxq540h0000gn/T/osquery_result",
-        enable_log_rotation: false,
-        enable_log_compression: false,
-      },
-    },
-  },
-};
+import CONSTANTS from "../../../support/constants";
+
+const {
+  CONFIG_INTEGRATIONS_AUTOMATIONS,
+  CONFIG_INTEGRATIONS_AUTOMATIONS_DISABLED,
+} = CONSTANTS;
+
 const enableJiraPoliciesIntegration = {
-  ...getPoliciesConfig,
+  ...CONFIG_INTEGRATIONS_AUTOMATIONS,
   integrations: {
     jira: [
       {
@@ -232,7 +66,7 @@ const enableJiraPoliciesIntegration = {
 };
 
 const enableZendeskPoliciesIntegration = {
-  ...getPoliciesConfig,
+  ...CONFIG_INTEGRATIONS_AUTOMATIONS,
   integrations: {
     jira: [
       {
@@ -267,66 +101,6 @@ const enableZendeskPoliciesIntegration = {
         api_token: "zendesk123",
         group_id: 87654321,
         enable_failing_policies: true,
-        enable_software_vulnerabilities: false,
-      },
-    ],
-  },
-  webhook_settings: {
-    host_status_webhook: {
-      enable_host_status_webhook: false,
-      destination_url: "",
-      host_percentage: 0,
-      days_count: 0,
-    },
-    failing_policies_webhook: {
-      enable_failing_policies_webhook: false,
-      destination_url: "ok.com",
-      policy_ids: [5, 10],
-      host_batch_size: 0,
-    },
-    vulnerabilities_webhook: {
-      destination_url: "www.foo.com/bar",
-      enable_vulnerabilities_webhook: false,
-    },
-  },
-};
-
-const disablePoliciesAutomations = {
-  ...getPoliciesConfig,
-  integrations: {
-    jira: [
-      {
-        url: "https://fleetdm.atlassian.com",
-        username: "jira1@example.com",
-        api_token: "jira123",
-        project_key: "PROJECT 1",
-        enable_failing_policies: false,
-        enable_software_vulnerabilities: false,
-      },
-      {
-        url: "https://fleetdm.atlassian.com",
-        username: "jira2@example.com",
-        api_token: "jira123",
-        project_key: "PROJECT 2",
-        enable_failing_policies: false,
-        enable_software_vulnerabilities: false,
-      },
-    ],
-    zendesk: [
-      {
-        url: "https://fleetdm.zendesk.com",
-        email: "zendesk1@example.com",
-        api_token: "zendesk123",
-        group_id: 12345678,
-        enable_failing_policies: false,
-        enable_software_vulnerabilities: false,
-      },
-      {
-        url: "https://fleetdm.zendesk.com",
-        email: "zendesk2@example.com",
-        api_token: "zendesk123",
-        group_id: 87654321,
-        enable_failing_policies: false,
         enable_software_vulnerabilities: false,
       },
     ],
@@ -781,9 +555,11 @@ describe("Policies flow (seeded)", () => {
     beforeEach(() => {
       cy.loginWithCySession();
       cy.viewport(1600, 900);
-      cy.intercept("GET", "/api/latest/fleet/config", getPoliciesConfig).as(
-        "getIntegrations"
-      );
+      cy.intercept(
+        "GET",
+        "/api/latest/fleet/config",
+        CONFIG_INTEGRATIONS_AUTOMATIONS
+      ).as("getIntegrations");
       cy.visit("/policies/manage");
       cy.wait("@getIntegrations").then((configStub) => {
         console.log(JSON.stringify(configStub));
@@ -797,8 +573,9 @@ describe("Policies flow (seeded)", () => {
       });
       cy.getAttached(".manage-automations-modal").within(() => {
         cy.getAttached(".fleet-slider").click();
+        cy.getAttached(".fleet-slider").click();
         cy.getAttached("#ticket-radio-btn").next().click();
-        cy.findByText(/select integration/i).click();
+        cy.findByText(/project 1/i).click();
         cy.findByText(/project 2/i).click();
       });
       cy.intercept(
@@ -844,8 +621,9 @@ describe("Policies flow (seeded)", () => {
       });
       cy.getAttached(".manage-automations-modal").within(() => {
         cy.getAttached(".fleet-slider").click();
+        cy.getAttached(".fleet-slider").click();
         cy.getAttached("#ticket-radio-btn").next().click();
-        cy.findByText(/select integration/i).click();
+        cy.findByText(/project 1/i).click();
         cy.findByText(/87654321/i).click();
       });
       cy.intercept(
@@ -895,12 +673,12 @@ describe("Policies flow (seeded)", () => {
       cy.intercept(
         "PATCH",
         "/api/latest/fleet/config",
-        disablePoliciesAutomations
+        CONFIG_INTEGRATIONS_AUTOMATIONS_DISABLED
       ).as("disablePoliciesAutomations");
       cy.intercept(
         "GET",
         "/api/latest/fleet/config",
-        disablePoliciesAutomations
+        CONFIG_INTEGRATIONS_AUTOMATIONS_DISABLED
       ).as("disabledAutomations");
       cy.findByRole("button", { name: /^Save$/ }).click();
       cy.wait("@disablePoliciesAutomations").then((configStub) => {
