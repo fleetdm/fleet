@@ -34,14 +34,14 @@ We follow the guiding principles below to secure our company-owned devices.
 
 * Our devices should give contributors the freedom to work from anywhere.
 * To allow maximum freedom in where and how we work, we assume that "Safe" networks do not exist. Contributors should be able to work on a coffee shop's Wi-Fi as if it were their home or work network.
-* To limit the impact on user experience, we do not dictate security configurations unless the security benefit is significant (only if it dramatically reduces risk for the company, customers, or open source users).
-* By using techniques such as Two-Factor Authentication (2FA), code reviews, and more, we can further empower contributors to work comfortably from any location - on any network.
+* To limit the impact on user experience, we do not dictate security configurations unless the security benefit is significant (only if it dramatically reduces the risk for the company, customers, or open source users).
+* By using techniques such as Two-Factor Authentication (2FA), code reviews, and more, we can further empower contributors to work comfortably from anywhere - on any network.
 
 
 ### macOS devices
 > *Find more information about the process of implementing security on the Fleet blog. The first [Tales from Fleet security: securing the startup](https://blog.fleetdm.com/tales-from-fleet-security-securing-the-startup-448ea590ea3a) article covers the process of securing our laptops.*
 
-We use configuration profiles to standardize security settings for our Mac devices. We use [CIS Benchmark for macOS 12](https://www.cisecurity.org/benchmark/apple_os) as our configuration baseline and adapt it to:
+We use configuration profiles to standardize security settings for our Mac devices. We use [CIS Benchmark for macOS 12](https://www.cisecurity.org/benchmark/apple_os) as our configuration baseline and adapt it to
 * suit a remote team.
 * balance the need for productivity and security.
 * limit the impact on the daily use of our devices.
@@ -50,7 +50,7 @@ We use configuration profiles to standardize security settings for our Mac devic
 
 
 
-Our policy applies to Fleet-owned laptops purchased via Apple's DEP (Device Enrollment Program) which will retroactively be applied to every company-owned Mac consists of the below. 
+Our policy applies to Fleet-owned laptops purchased via Apple's DEP (Device Enrollment Program), which will retroactively be applied to every company-owned Mac, consists of the below. 
 
 #### Enabling automatic updates
 
@@ -68,7 +68,7 @@ Our policy applies to Fleet-owned laptops purchased via Apple's DEP (Device Enro
 
 Keeping software up-to-date helps to improve the resilience of our Mac fleet. Software updates include security updates that fix vulnerabilities that could otherwise be exploited. Browsers, for example, are often exposed to untrusted code, have a significant attack surface, and are frequently attacked.
 
-macOS includes [malware protection tools](https://support.apple.com/en-ca/guide/security/sec469d47bd8/web) such as *Xprotect*. This is an antivirus technology based on [YARA](https://github.com/VirusTotal/yara), and MRT (Malware Removal Tool), a tool built by Apple to remove common malware from systems that are infected.
+macOS includes [malware protection tools](https://support.apple.com/en-ca/guide/security/sec469d47bd8/web) such as *Xprotect*. This is an antivirus technology based on [YARA](https://github.com/VirusTotal/yara) and MRT (Malware Removal Tool), a tool built by Apple to remove common malware from systems that are infected.
 By enabling these settings, we:
 
 * Ensure the operating system is kept up to date.
@@ -79,9 +79,9 @@ This improves the resilience of our Mac fleet.
 
 **User experience impacts**
 
-* Updates are required, which can be disruptive. For this reason, we allow the user to **postpone the installation 5 times**.
+* Updates are required, which can be disruptive. For this reason, we allow the user to **postpone the installation five times**.
 * Critical security updates are automatically downloaded, which could result in bandwidth use on slow or expensive links. For this reason, we limit automatic downloads to critical security updates only, while feature updates, which are typically larger, are downloaded at the time of installation selected by the user.
-* Enforced updates **do not** include significant macOS releases (e.g., 11➡️12). Those updates are tracked and enforced separately, as the impact can be more significant. We require installing the latest macOS version within 3 months of release or when known vulnerabilities remain unpatched on the older version.
+* Enforced updates **do not** include significant macOS releases (e.g., 11➡️12). Those updates are tracked and enforced separately, as the impact can be more significant. We require installing the latest macOS version within three months of release or when known vulnerabilities remain unpatched on the older version.
 
 #### Time and date
 
@@ -103,15 +103,15 @@ An accurate time is important for two main reasons
 
 | #     | Setting                                                                                  |
 | ----- | ---------------------------------------------------------------------------------------- |
-| 5.2.2 | Ensure password minimum length is configured (our minimum: 8 characters)                                             |
+| 5.2.2 | Ensure  minimum password length is configured (our minimum: eight characters)                                             |
 | 5.2.3 | Ensure complex password must contain alphabetic characters is configured                 |
 | 5.8   | Ensure a password is required to wake the computer from sleep or screen saver is enabled |
 
 **Why?**
 
-This category of settings is special because there are more settings that we do *not* configure than those we do.
+This category of settings is unique because there are more settings that we do *not* configure than those we do.
 
-We follow the CIS benchmark where it makes sense and in this case, take guidance from [NIST SP800-63B - Digital Identity Guidelines](https://pages.nist.gov/800-63-3/sp800-63b.html), especially [Appendix A -Strength of Memorized Secrets](https://pages.nist.gov/800-63-3/sp800-63b.html#appA).
+We follow the CIS benchmark where it makes sense and, in this case, take guidance from [NIST SP800-63B - Digital Identity Guidelines](https://pages.nist.gov/800-63-3/sp800-63b.html), especially [Appendix A -Strength of Memorized Secrets](https://pages.nist.gov/800-63-3/sp800-63b.html#appA).
 
 * We do NOT enforce special complexity beyond requiring letters to be in the password.
 
@@ -121,9 +121,9 @@ Length is the most important factor when determining a secure password; while en
 
 As we use recent Macs with T2 chips or Apple Silicon, brute-force attacks against the hardware are [mitigated](https://www.apple.com/mideast/mac/docs/Apple_T2_Security_Chip_Overview.pdf).
 
-* We DO require passwords to be a minimum of 8 characters long with letters.
+* We DO require passwords to be a minimum of eight characters long with letters.
 
-Since we can't eliminate the risk of passwords being cracked remotely, we require passwords to be a minimum of 8 characters long with letters, a length reasonably hard to crack over the network, and the minimum recommendation by SP800-63B.
+Since we can't eliminate the risk of passwords being cracked remotely, we require passwords to be a minimum of eight characters long with letters, a length reasonably hard to crack over the network and the minimum recommendation by SP800-63B.
 
 
 **User experience impact**
@@ -165,9 +165,9 @@ Since we can't eliminate the risk of passwords being cracked remotely, we requir
 
 **Why?**
 
-* Using FileVault protects the data on our laptops, including confidential data and session material (browser cookies), SSH keys, and more. Using FileVault ensures a lost laptop is a minor inconvenience and not an incident. We escrow the keys to be sure we can recover the data if needed.
-* [Gatekeeper](https://support.apple.com/en-ca/HT202491) is a macOS feature that ensures users can safely open software on their Mac. With Gatekeeper enabled, users may execute only trustworthy apps (signed by the software developer and/or checked for malicious software by Apple). This is a useful first line of defense to have.
-* Using the firewall will ensure that we limit the exposure to our devices, while stealth mode makes them more challeging to discover. 
+* Using FileVault protects the data on our laptops, including confidential data and session material (browser cookies), SSH keys, and more. Using FileVault makes sure a lost laptop is a minor inconvenience and not an incident. We escrow the keys to be sure we can recover the data if needed.
+* [Gatekeeper](https://support.apple.com/en-ca/HT202491) is a macOS feature that makes sure users can safely open software on their Mac. With Gatekeeper enabled, users may execute only trustworthy apps (signed by the software developer and/or checked for malicious software by Apple). This is a useful first line of defense to have.
+* Using the firewall will make sure that we limit the exposure to our devices, while stealth mode makes them more challenging to discover. 
 * Firewall logging allows us to troubleshoot and investigate whether the firewall blocks applications or connections.
 
 **User experience impacts**
@@ -188,8 +188,8 @@ Since we can't eliminate the risk of passwords being cracked remotely, we requir
 
 **Why?**
 
-* Fleet contributors are free to work from wherever they choose. If a laptop is lost or forgotten, automatic login exposes sensitive company data and poses a critical security risk. 
-* Password hints can sometimes be easier to guess than the password itself. Since we support contributors remotely via MDM and do not require users to change passwords frequently, we eliminate the need for passwords hints and their associated risk.
+* Fleet contributors are free to work from wherever they choose. Automatic login exposes sensitive company data and poses a critical security risk if a laptop is lost or stolen. 
+* Password hints can sometimes be easier to guess than the password itself. Since we support contributors remotely via MDM and do not require users to change passwords frequently, we eliminate the need for password hints and their associated risk.
 * Since company laptops are issued primarily for work and tied to a single contributor's identity, guest accounts are not permitted.
 * Automatic login would defeat the purpose of even requiring passwords to unlock computers.
 
@@ -200,7 +200,7 @@ Since we can't eliminate the risk of passwords being cracked remotely, we requir
 * Guest accounts are not available.
 
 #### iCloud
-We do not apply ultra restrictive Data Loss Prevention style policies to our devices. Instead, by using our company Google Drive, we ensure that the most critical company data never reaches our laptops, so it can remain secure while our laptops can remain productive.
+We do not apply ultra restrictive Data Loss Prevention style policies to our devices. Instead, by using our company Google Drive, we make sure that the most critical company data never reaches our laptops, so it can remain secure while our laptops can remain productive.
 
 
 | #       | Setting                                                   |
@@ -208,11 +208,11 @@ We do not apply ultra restrictive Data Loss Prevention style policies to our dev
 | 2.6.1.4 | Ensure iCloud Drive Documents and Desktop sync is disabled |
 
 **Why?**
-* We do not use managed Apple IDs, and allow contributors to use their own iCloud accounts. We disable iCloud Documents and Desktop sync to avoid accidental copying of data to iCloud, but we do allow iCloud drive.
+* We do not use managed Apple IDs and allow contributors to use their own iCloud accounts. We disable iCloud Documents and Desktop sync to avoid accidentally copying data to iCloud, but we do allow iCloud drive.
 
 **User experience impact**
 
-* iCloud remains permitted, but the Desktop and Documents folders will not be synchronized. Ensure you put your documents in our Google Drive so you do not lose them if your laptop has an issue.
+* iCloud remains permitted, but the Desktop and Documents folders will not be synchronized. Make sure you put your documents in our Google Drive, so you do not lose them if your laptop has an issue.
 
 #### Miscellaneous security settings
 
@@ -226,8 +226,8 @@ We do not apply ultra restrictive Data Loss Prevention style policies to our dev
 **Why?**
 
 * Limiting ad tracking has privacy benefits and no downside.
-* Protecting keyboard entry into Terminal.app could prevent malicious applications or non-malicious but inappropriate applications from receiving passwords.
-* Library validation ensures that an attacker can't trick applications into loading a software library in a different location, leaving it open to abuse.
+* Protecting keyboard entry into Terminal.app could prevent malicious or non-malicious but inappropriate applications from receiving passwords.
+* Library validation makes sure that an attacker can't trick applications into loading a software library in a different location, leaving it open to abuse.
 * Safari opening files automatically can lead to negative scenarios where files are downloaded and automatically opened in another application. Though the setting relates to files deemed "safe," it includes PDFs and other file formats where malicious documents exploiting vulnerabilities have been seen before.
 
 **User experience impact**
@@ -249,11 +249,11 @@ We do not apply ultra restrictive Data Loss Prevention style policies to our dev
 
 **User experience impacts**
 
-* Some misconfigured "captive portals," typically used in hotels and airports, might be unusable with DoH due to how they are configured. This can be worked around by using the hotspot on your phone, and if you have to use this network for an extended period of time, there are usually workarounds to preform to connect to them. Navigating to http://1.1.1.1 often resolves the issue.
+* Some misconfigured "captive portals," typically used in hotels and airports, might be unusable with DoH due to how they are configured. This can be worked around by using the hotspot on your phone, and if you have to use this network for an extended period of time, there are usually workarounds to perform to connect to them. Navigating to http://1.1.1.1 often resolves the issue.
 * If you are trying to reach a site and believe it is being blocked accidentally, please submit it to Cloudflare. This should be extremely rare. If it is not, please let the security team know.
 * If your ISP's DNS service goes down, you'll be able to continue working. 😎
 
-*Note: If you are from another organization, reading this to help create your own configuration, remember implementing DoH in an office environment where other network controls are in place has other downsides than it would for a remote company. In those cases, **disabling** DoH makes more sense, so network controls can retain visibility. Please evaluate your situation before implementing any of our recommendations at your organization, especially DoH.*
+*Note: If you are from another organization, reading this to help create your own configuration, remember implementing DoH in an office environment where other network controls are in place has other downsides than it would for a remote company. **Disabling** DoH makes more sense in those cases so that network controls can retain visibility. Please evaluate your situation before implementing any of our recommendations at your organization, especially DoH.*
 
 #### Deploy osquery
 | #  | Setting                |
@@ -262,7 +262,7 @@ We do not apply ultra restrictive Data Loss Prevention style policies to our dev
 
 ***Why?***
 
-We use osquery and Fleet to monitor our own devices. This is used for vulnerability detection, security posture tracking, and for incident response when necessary.
+We use osquery and Fleet to monitor our own devices. This is used for vulnerability detection, security posture tracking, and incident response when necessary.
 
 
 ### Chrome configuration
@@ -282,9 +282,9 @@ We configure Chrome on company-owned devices with a basic policy.
 
 **User experience impact**
 
-* Chrome needs to be restarted within 48 hours of patch installation. The automatic restart happens after 19:00 and before 6:00 if the computer is running and tabs are restored (except for incognito tabs).
+* Chrome must be restarted within 48 hours of patch installation. The automatic restart happens after 19:00 and before 6:00 if the computer is running and tabs are restored (except for incognito tabs).
 * Ads considered intrusive are blocked.
-* uBlock Origin is enabled by default, and is 100% configurable, improving security and the performance of browsing.
+* uBlock Origin is enabled by default, and is 100% configurable, improving security and browsing performance.
 * Endpoint Verification is used to make access decisions based on the security posture of the device. For example, an outdated Mac could be prevented access to Google Drive.
 
 ### Personal mobile devices
