@@ -59,6 +59,7 @@ func main() {
 		myDeviceItem := systray.AddMenuItem("Initializing...", "")
 		myDeviceItem.Disable()
 		transparencyItem := systray.AddMenuItem("Transparency", "")
+		transparencyItem.Disable()
 
 		var insecureSkipVerify bool
 		if os.Getenv("FLEET_DESKTOP_INSECURE") != "" {
@@ -88,6 +89,7 @@ func main() {
 						myDeviceItem.SetTitle("My device")
 						myDeviceItem.Enable()
 						myDeviceItem.SetTooltip("")
+						transparencyItem.Enable()
 						return
 					}
 
