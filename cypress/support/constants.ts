@@ -145,7 +145,7 @@ const CONFIG_INTEGRATIONS_AUTOMATIONS = {
     tier: "premium",
     organization: "development-only",
     device_count: 100,
-    expiration: "2022-06-30T20:00:00-04:00",
+    expiration: "2099-06-30T20:00:00-04:00",
     note: "for development only",
   },
   logging: {
