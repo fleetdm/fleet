@@ -40,23 +40,26 @@ type LifecycleRecord struct {
 }
 
 func claimFleet(fleet LifecycleRecord, svc *dynamodb.DynamoDB) (err error) {
-    log.Printf("Claiming instance: %+v", fleet)
+	log.Printf("Claiming instance: %+v", fleet)
 	// Perform a conditional update to claim the item
 	input := &dynamodb.UpdateItemInput{
-		ConditionExpression: aws.String("State = unclaimed"),
+		ConditionExpression: aws.String("#fleet_state = :v1"),
 		TableName:           aws.String(options.LifecycleTable),
 		Key: map[string]*dynamodb.AttributeValue{
 			"ID": {
 				S: aws.String(fleet.ID),
 			},
 		},
-		UpdateExpression: aws.String("set #fleet_state = :s"),
+		UpdateExpression:         aws.String("set #fleet_state = :v2"),
+		ExpressionAttributeNames: map[string]*string{"#fleet_state": aws.String("State")},
 		ExpressionAttributeValues: map[string]*dynamodb.AttributeValue{
-			":S": {
-				S: aws.String(fleet.ID),
+			":v1": {
+				S: aws.String("unclaimed"),
+			},
+			":v2": {
+				S: aws.String("claimed"),
 			},
 		},
-        ExpressionAttributeNames: map[string]*string {"#fleet_state": aws.String("State")},
 	}
 	if _, err = svc.UpdateItem(input); err != nil {
 		return
@@ -65,7 +68,7 @@ func claimFleet(fleet LifecycleRecord, svc *dynamodb.DynamoDB) (err error) {
 }
 
 func getFleetInstance() (ret LifecycleRecord, err error) {
-    log.Print("Getting fleet instance")
+	log.Print("Getting fleet instance")
 	svc := dynamodb.New(session.New())
 	// Loop until we get one
 	for {
@@ -75,8 +78,10 @@ func getFleetInstance() (ret LifecycleRecord, err error) {
 					S: aws.String("unclaimed"),
 				},
 			},
-			KeyConditionExpression: aws.String("State = :v1"),
-			TableName:              aws.String(options.LifecycleTable),
+			KeyConditionExpression:   aws.String("#fleet_state = :v1"),
+			TableName:                aws.String(options.LifecycleTable),
+			ExpressionAttributeNames: map[string]*string{"#fleet_state": aws.String("State")},
+			IndexName:                aws.String("FleetState"),
 		}
 
 		var result *dynamodb.QueryOutput
@@ -89,6 +94,7 @@ func getFleetInstance() (ret LifecycleRecord, err error) {
 		}
 		ret = recs[rand.Intn(len(recs))]
 		if err = claimFleet(ret, svc); err != nil {
+			log.Print(err)
 			continue
 		}
 		return
@@ -96,7 +102,7 @@ func getFleetInstance() (ret LifecycleRecord, err error) {
 }
 
 func triggerSFN(id string) (err error) {
-    log.Print("Triggering state machine")
+	log.Print("Triggering state machine")
 	sfnInStr, err := json.Marshal(struct {
 		Id string
 	}{
@@ -126,26 +132,33 @@ func Health(c *gin.Context, in *HealthInput) (ret *HealthOutput, err error) {
 }
 
 type NewFleetInput struct {
-    Email    string `json:"email" validate:"required,email"`
-    Password string `json:"password" validate:"required"`
+	Email             string    `json:"email" validate:"required,email"`
+	Name              string    `json:"name" validate:"required"`
+	SandboxExpiration string `json:"sandbox_expiration" validate:"required"`
+	Password          string    `json:"password" validate:"required"`
 }
 type NewFleetOutput struct {
 	URL string
 }
 
 func NewFleet(c *gin.Context, in *NewFleetInput) (ret *NewFleetOutput, err error) {
+	ret = &NewFleetOutput{}
 	fleet, err := getFleetInstance()
 	if err != nil {
+		log.Print(err)
 		return
 	}
-	ret.URL = fmt.Sprintf("%s.%s", fleet.ID, options.FleetBaseURL)
-	client, err := service.NewClient(ret.URL, true, "", "", nil)
+	log.Print("Creating fleet client")
+    ret.URL = fmt.Sprintf("https://%s.%s", fleet.ID, options.FleetBaseURL)
+	log.Print(ret.URL)
+	client, err := service.NewClient(ret.URL, true, "", "")
 	if err != nil {
+		log.Print(err)
 		return
 	}
 	log.Print("Creating admin user")
-	client.Setup(in.Email, in.Email, in.Password, fleet.ID)
-	triggerSFN(fleet.ID)
+	client.Setup(in.Email, in.Name, in.Password, fleet.ID)
+	//triggerSFN(fleet.ID)
 	return
 }
 
@@ -168,7 +181,7 @@ func main() {
 	f := fizz.NewFromEngine(r)
 	infos := &openapi.Info{
 		Title:       "Fleet Demo JITProvisioner",
-		Description: "Provisions new Fleet instances uppon request",
+		Description: "Provisions new Fleet instances upon request",
 		Version:     "1.0.0",
 	}
 	f.GET("/openapi.json", nil, f.OpenAPI(infos, "json"))

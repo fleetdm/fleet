@@ -137,12 +137,16 @@ resource "helm_release" "main" {
     name  = "hostName"
     value = "${terraform.workspace}.${var.base_domain}"
   }
+
+  set {
+    name  = "ingressAnnotations.kubernetes\\.io/ingress\\.class"
+    value = "haproxy"
+  }
 }
 
 resource "aws_dynamodb_table_item" "main" {
   table_name = var.lifecycle_table
   hash_key   = "ID"
-  range_key  = "State"
 
   item = <<ITEM
 {

@@ -16,6 +16,10 @@ terraform {
       source  = "hashicorp/random"
       version = "~> 3.1.2"
     }
+    cloudflare = {
+      source  = "cloudflare/cloudflare"
+      version = "~> 3.18.0"
+    }
   }
   backend "s3" {
     bucket         = "fleet-loadtesting-tfstate"
@@ -24,7 +28,6 @@ terraform {
     dynamodb_table = "fleet-loadtesting-tfstate"
   }
 }
-
 
 provider "aws" {
   region = "us-east-2"
@@ -48,6 +51,7 @@ provider "aws" {
   }
 }
 
+provider "cloudflare" {}
 
 provider "random" {}
 
@@ -106,6 +110,7 @@ module "shared-infrastructure" {
   vpc                     = module.vpc
   allowed_security_groups = [module.pre-provisioner.lambda_security_group.id]
   eks_allowed_roles       = [module.pre-provisioner.lambda_role]
+  base_domain             = local.base_domain
 }
 
 module "pre-provisioner" {
@@ -137,7 +142,6 @@ resource "aws_dynamodb_table" "lifecycle-table" {
   name         = "${local.prefix}-lifecycle"
   billing_mode = "PAY_PER_REQUEST"
   hash_key     = "ID"
-  range_key    = "State"
 
   attribute {
     name = "ID"
@@ -158,6 +162,11 @@ resource "aws_dynamodb_table" "lifecycle-table" {
     name            = "RedisDatabases"
     hash_key        = "redis_db"
     projection_type = "KEYS_ONLY"
+  }
+  global_secondary_index {
+    name            = "FleetState"
+    hash_key        = "State"
+    projection_type = "ALL"
   }
 }
 

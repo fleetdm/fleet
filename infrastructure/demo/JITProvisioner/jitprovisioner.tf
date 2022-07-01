@@ -94,7 +94,7 @@ resource "aws_lambda_function" "jitprovisioner" {
   function_name                  = "${var.prefix}-lambda"
   role                           = aws_iam_role.jitprovisioner.arn
   reserved_concurrent_executions = -1
-  timeout                        = 600
+  timeout                        = 10
   memory_size                    = 512
   vpc_config {
     security_group_ids = [aws_security_group.jitprovisioner.id]
@@ -107,7 +107,7 @@ resource "aws_lambda_function" "jitprovisioner" {
     variables = {
       DYNAMODB_LIFECYCLE_TABLE = var.dynamodb_table.id
       LIFECYCLE_SFN            = aws_sfn_state_machine.main.id
-      FLEET_BASE_URL           = var.base_domain
+      FLEET_BASE_URL           = "${var.base_domain}"
     }
   }
 }

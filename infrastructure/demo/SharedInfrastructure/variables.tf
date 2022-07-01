@@ -11,3 +11,4 @@ variable "eks_allowed_roles" {
 }
 
 variable "vpc" {}
+variable "base_domain" {}
