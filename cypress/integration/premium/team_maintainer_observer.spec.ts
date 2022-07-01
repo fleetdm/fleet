@@ -290,7 +290,7 @@ describe("Premium tier - Team observer/maintainer user", () => {
         // Add a default policy
         cy.findByText(/gatekeeper enabled/i).click();
         cy.getAttached(".policy-form__button-wrap").within(() => {
-          cy.findByRole("button", { name: /save policy/i }).click();
+          cy.getAttached(".policy-form__save").click();
         });
         cy.findByRole("button", { name: /^Save$/ }).click();
         cy.findByText(/policy created/i).should("exist");
