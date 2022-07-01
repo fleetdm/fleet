@@ -341,7 +341,7 @@ To follow this guide, you’ll need:
 
 - An [account with Hetzner](https://accounts.hetzner.com/signUp)
 - A practical understanding of [Cloud-init](https://cloudinit.readthedocs.io/), the multi-distribution method for cross platform cloud instance initialization.
-- A practical understanding of Cloud-init [User-Data](https://cloudinit.readthedocs.io/en/latest/topics/format.html)
+- A practical understanding of cloud-init [User-Data](https://cloudinit.readthedocs.io/en/latest/topics/format.html)
 - A practical understanding of [Docker](https://docs.docker.com/) (or any other container runtime of your choice)
 
 ## Get a machine from Hetzner
