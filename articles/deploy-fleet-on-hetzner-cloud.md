@@ -2,7 +2,7 @@
 
 ![Fleet + Hetzner](../website/assets/images/articles/deploying-fleet-on-hetzner-1600x900@2x.jpg)
 
-[Hetzner](https://hetzner.com) provides the best price-performance of any provider worldwide for “root” (dedicated) and Virtual Private Servers (VPS) with high performance and generous bandwidth.
+[Hetzner](https://hetzner.com) is a great price-performance provider for “root” (dedicated) and Virtual Private Servers (VPS) with high performance and generous bandwidth.
 
 While other providers may charge large amounts for computing and storage, Hetzner is cost-effective _and_ scalable, with great managed options (such as [Nextcloud](https://www.hetzner.com/storage/storage-share)).
 
@@ -14,7 +14,7 @@ For those who want to get started quickly, copy and paste the following two scri
 
 ### Fleet
 
-Copy and paste the following script into cloud-init User-Data for the Fleet controller machine:
+Copy and paste the following script into cloud-init User-Data for the Fleet controller machine, replacing `FLEET_DOMAIN` with your Fleet machine TLD:
 
 ```bash
 #!/usr/bin/bash
@@ -268,6 +268,8 @@ systemctl start fleet-caddy
 
 Copy and paste the script below into cloud-init User-Data for your hosts (which run `osqueryd` and workloads).
 
+> The Fleet version number in the script can be swapped for the latest.
+
 ```bash
 #!/usr/bin/bash
 #######
@@ -309,11 +311,11 @@ apt install fail2ban
 # fleetctl #
 ############
 
-wget https://github.com/fleetdm/fleet/releases/download/fleet-v4.14.0/fleetctl_v4.14.0_linux.tar.gz
-echo "cd50f058724cdde07edcc3cf89c83e9c5cd91ca41974ea470ae660cb50dd04a1 fleetctl_v4.14.0_linux.tar.gz" | sha256sum -c
+wget https://github.com/fleetdm/fleet/releases/download/fleet-v4.15.0/fleetctl_v4.15.0_linux.tar.gz
+echo "cd50f058724cdde07edcc3cf89c83e9c5cd91ca41974ea470ae660cb50dd04a1 fleetctl_v4.15.0_linux.tar.gz" | sha256sum -c
 
-tar --extract --file=fleetctl_v4.14.0_linux.tar.gz fleetctl_v4.14.0_linux/fleetctl
-mv fleetctl_v4.14.0_linux/fleetctl /usr/bin/fleetctl
+tar --extract --file=fleetctl_v4.15.0_linux.tar.gz fleetctl_v4.15.0_linux/fleetctl
+mv fleetctl_v4.15.0_linux/fleetctl /usr/bin/fleetctl
 
 ##########################
 # Machine Workload Setup #
@@ -560,7 +562,7 @@ We can pull the [Fleet docker image](https://hub.docker.com/r/fleetdm/fleet) lik
 $ docker pull fleetdm/fleet@sha256:332744f3503dc15fdb65c7b672a09349b2c30fb59a08f9ab4b1bbab94e3ddb5b
 ```
 
-The [Fleet v4.14.0](https://github.com/fleetdm/fleet/releases/tag/fleet-v4.14.0) release can be found [in DockerHub](https://hub.docker.com/r/fleetdm/fleet/tags?page=1&name=v4.14.0).
+The [Fleet v4.15.0](https://github.com/fleetdm/fleet/releases/tag/fleet-v4.15.0) release can be found [in DockerHub](https://hub.docker.com/r/fleetdm/fleet/tags?page=1&name=v4.15.0).
 
 ### Create and enable the Fleet systemd service
 
