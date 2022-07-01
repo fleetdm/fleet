@@ -266,7 +266,7 @@ systemctl start fleet-caddy
 
 ### Host
 
-Copy and paste the script below into Cloud-init UserData for your hosts (which run `osqueryd` and workloads).
+Copy and paste the script below into cloud-init User-Data for your hosts (which run `osqueryd` and workloads).
 
 ```bash
 #!/usr/bin/bash
