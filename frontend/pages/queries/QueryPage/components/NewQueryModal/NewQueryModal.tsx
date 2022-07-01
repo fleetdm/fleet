@@ -42,7 +42,6 @@ const NewQueryModal = ({
   const [name, setName] = useState<string>("");
   const [description, setDescription] = useState<string>("");
   const [observerCanRun, setObserverCanRun] = useState<boolean>(false);
-  const [queryIsSaving, setQueryIsSaving] = useState<boolean>(false);
   const [errors, setErrors] = useState<{ [key: string]: string }>(
     backendValidators
   );
@@ -67,7 +66,6 @@ const NewQueryModal = ({
     });
 
     if (valid) {
-      setQueryIsSaving(true);
       onCreateQuery({
         description,
         name,
@@ -131,7 +129,7 @@ const NewQueryModal = ({
               type="submit"
               variant="brand"
             >
-              {queryIsSaving ? <Spinner /> : "Save query"}
+              {isLoading ? <Spinner /> : "Save query"}
             </Button>
           </div>
         </form>

@@ -442,11 +442,6 @@ const QueryForm = ({
   const renderForGlobalAdminOrAnyMaintainer = (
     <>
       <form className={`${baseClass}__wrapper`} autoComplete="off">
-        {isSaveAsNewLoading && (
-          <div className={`${baseClass}__loading-overlay`}>
-            <Spinner />
-          </div>
-        )}
         <div className={`${baseClass}__title-bar`}>
           <div className="name-description">
             {renderName()}
@@ -498,7 +493,7 @@ const QueryForm = ({
                   onClick={promptSaveAsNewQuery()}
                   disabled={false}
                 >
-                  Save as new
+                  {isSaveAsNewLoading ? <Spinner /> : "Save as new"}
                 </Button>
               )}
               <div className="query-form__button-wrap--save-query-button">

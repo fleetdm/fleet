@@ -228,6 +228,19 @@
     }
   }
 
+  &__button-wrap--modal-save {
+    display: flex;
+  }
+
+  &__button--modal-save {
+    width: 106px;
+  }
+
+  &__save {
+    display: flex;
+    width: 64px;
+  }
+
   &__platform-error {
     font-size: $small;
     font-weight: $bold;

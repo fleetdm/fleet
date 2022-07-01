@@ -45,6 +45,14 @@
   }
 }
 
+.loading-spinner.small {
+  background: none;
+  box-shadow: none;
+  height: auto;
+  margin: 0;
+  transform: scale(0.7);
+}
+
 button {
   position: relative;
   .loading-spinner {
@@ -63,6 +71,10 @@ button {
       }
     }
   }
+}
+
+.spinner-wrap {
+  display: flex;
 }
 
 @keyframes ring {

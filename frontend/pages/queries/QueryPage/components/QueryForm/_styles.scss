@@ -198,7 +198,12 @@
   }
 
   &__save {
+    display: flex;
     width: 64px;
+  }
+
+  &__save-as-new {
+    width: 82px;
   }
 
   &__save-modal__btn {
