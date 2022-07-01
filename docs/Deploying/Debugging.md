@@ -8,7 +8,7 @@ This is a guide for going from a vague statement such as "things are not working
 specific assessment. This doesn't mean necessarily a solution; but, with a more specific assessment, it'll be easier for 
 the Engineering team to help.
 
-Note that even if you do all your homework, the Engineering team might have follow-up questions.
+Note that even if you follow all those steps, the Engineering team might have follow-up questions.
 
 ## Basic data that is needed
 
@@ -17,13 +17,14 @@ the basic characteristics of the Fleet deployment with the issues:
 
 - Amount of total hosts.
 - Amount of online hosts.
+- Amount of scheduled queries.
 - Amount and size (CPU/Mem) of the Fleet instances.
 - Fleet instances CPU and Memory usage while the issue has been happening.
 - MySQL flavor/version in use.
-- MySQL database size (CPU/Mem).
+- MySQL server capacity (CPU/Mem).
 - MySQL CPU and Memory usage while the issue has been happening.
-- Are database readers configured? If so, how many?
-- Redis version and size (CPU/Mem).
+- Are MySQL read replicas configured? If so, how many?
+- Redis version and server capacity (CPU/Mem).
 - Is Redis running in cluster mode?
 - Redis CPU and Memory usage while the issue has been happening.
 - The output of `fleetctl debug archive`.
@@ -64,7 +65,7 @@ With this areas in mind, here's a list of possible issues and what are you shoul
 - osquery Extensions are not working correctly -> `OSQUERY`
 - fleetctl is getting errors when applying yamls -> `SERVER` 
 - Migrations are taking too long -> `MYSQL`
-- I see 500 errors on the fleetctl or osquery logs, but not on my Fleet logs -> `INFRA`
+- I see connection/network errors on the fleetctl or osquery logs, but not on my Fleet logs -> `INFRA`
 
 ### SERVER
 
@@ -119,15 +120,22 @@ happening with Redis. However, if more details are needed, running the
 
 **WARNING**: if Redis is suffering from performance issues, running monitor will only increase the problem.
 
+A less invasive way to check for more stats, if Elasticache is being used (or another system with more reporting) other 
+metrics like current connections, replication lag if applicable, if one instance is largely overused compare to others 
+in cluster mode, number of commands per key type could help identify what is wrong.
+
 ### OSQUERY
 
 Just like with the Fleet server, the best way to understand issues on the client side is to look at logs.
 
 If you are running vanilla osquery in the host, please restart the host with `--tls_dump` and `--verbose`. This will 
-allow us to see more details as to what's happening in the communication with Fleet (or lack there of).
+allow us to see more details as to what's happening in the communication with Fleet (or lack there of). Check the 
+[official documentation](https://osquery.readthedocs.io/en/stable/deployment/logging/) for details as to how to locate 
+the logs and other configurations.
 
 If you are running Orbit, you should add `--debug` to the command line options. This will get debug logs for Orbit and 
-also for osquery automatically.
+also for osquery automatically. Check the [Orbit README](https://github.com/fleetdm/fleet/blob/main/orbit/README.md#logs) 
+for more details as to where to find Orbit specific logs.
 
 If you are running Fleet Desktop there's no change needed, you should see the log file in the following directories 
 depending on the platform:
@@ -154,5 +162,8 @@ With this data, it's time to reach out to Engineering.
 
 At this level, what you want to look into are Load Balancer logs, errors, and configurations. For instance, does the LB 
 have a request size limit? If the LB is not terminating TLS, is that configured properly on the Fleet side?
+
+Make sure as well that your cloud provider is not having issues of their own. For instances, 
+[here](https://health.aws.amazon.com/health/status) is where to check for status for AWS.
 
 <meta name="pageOrderInSection" value="600">
