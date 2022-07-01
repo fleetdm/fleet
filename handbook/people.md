@@ -341,7 +341,7 @@ During their first week at Fleet, new team members are asked to schedule a contr
 - talk about Google calendar.
 - give you a quick tour of the Fleet Google drive folder.
 
-### Sightseeing Tour
+### Sightseeing tour
 
 During their onboarding at Fleet, new team members are asked to schedule a sightseeing tour call with People operations. During this call, the new team member will participate in an interactive tour that includes:
 
@@ -421,7 +421,7 @@ We consider Salesforce to be our Rolodex for customer information. During the on
 
 ## PeopleOps
 
-### OKR Planning
+### OKR planning
 
 OKRs help inform what to prioritize and communicate company goals while encouraging cross-team collaboration.
 
@@ -432,7 +432,7 @@ At the end of the quarter and key points throughout the quarter (every three wee
 - Finalized OKRs are shared company-wide and at the "All hands" meeting and, at least to some degree, become public.
 - Throughout the quarter, Mike and Zach have OKR preplanning meetings (every three weeks) to prepare OKRs for the upcoming quarter. 
 
-### 1:1 Mike:Sid Document Preparation
+### 1:1 Mike:Sid document preparation
 
 Every two weeks, our CEO Mike has a 1:1 meeting with our Investor Sid. The Digital Experience Team completes four parts while constructing the associated document. 
 
@@ -459,36 +459,35 @@ Weekly update principles
    - Each department's update is 20-40 words or less.
    - Erring on the side of refering to items that are completely done and/or mentioning news that is potentially very exciting to folks throughout the company.
 
-### Investor and Advisor updates
+### Investor and advisor updates
 
 We like to regularly share updates about how Fleet is growing with our investors and advisors. 
   - Charlie tracks the most recent updates with investors and advisors and coordinates emails, zoom calls, or the investor or advisor's preferred method of communication with @mikermcneil and preps materials as needed. 
 
+## Participating in the program
 
-# Participating in the program
-
-## Eligibility
+### Eligibility
 TODO
 
-## How to apply
+### How to apply
  1. TODO: Create a merge request to add yourself to the [rotation schedule]()TODO.
  2. Assign your manager and ask them to approve (but not to merge) the merge request.
  3. TODO: Once your manager approves the merge request, assign the merge request to Charlie, link to the merge request in the #ceo-shadow channel, and @mention Charlie in the message.
 
-## Parental Participation 
+### Parental participation 
  TODO: (parent-friendly scheduling options)
 
-## Rotation rhythm
+### Rotation rhythm
  1. See one, you are trained by the outgoing person.
  2. Teach one, you train the incoming person.
  The shadow should be available for the full two weeks.
 
-## Rotation schedule 
+### Rotation schedule 
  TODO: (this is a chart: start date, end date, see one, teach one)
 
-# Preparing for the Program
+### Preparing for the program
 
-## Important things to note
+### Important things to note
  1. This is not a performance evaluation.
  2. Plan to observe and ask questions.
  3. Don't plan to do any of your usual work.
@@ -496,10 +495,10 @@ TODO
  5. Participating in the shadow program is a privilege where you will be exposed to confidential information.
  6. Give feedback to and receive feedback from the CEO
 
-## What to wear
+### What to wear
 TODO: Casual
 
-## Pre-Program Tasks
+### Pre-program tasks
 
 ### Create an onboarding issue 
  TODO:(onboarding and offboarding issues are created for the two week program)
@@ -510,31 +509,31 @@ TODO: Casual
 ### Practice your introduction
  See [CEO Shadow Introductions](https://about.gitlab.com/handbook/ceo/shadow/#ceo-shadow-introductions) for specifics.
 
-### Coffee chat with Co-shadow
+### Coffee chat with co-shadow
   Try to schedule coffee chats with your co-shadow before you start the program
 
-### Coffee Chat with CEO Shadow Alumni
+### Coffee Chat with CEO shadow alumni
  Feel free to schedule a coffee chat with any of the CEO Shadow Alumni. There's a link to the alumni chart dropped here too. 
 
-### Coffee Chat with the CLO 
+### Coffee chat with the CLO 
  TODO
 
-### Explore the CEO Shadow project
+### Explore the CEO shadow project
  TODO: private board
 
 ### Review the CEO's calendar
  Anticipate your week. Look ahead in the schedule and plan accordingly 
 
-### Review the CEO Handbook (TODO: insert link here)
+### Review the CEO handbook (TODO: insert link here)
  TODO: how to communicate and interact with CEO
 
 ### Review acronyms 
  TODO: add resource link (KPIs, OKRs, xMAU, SpU, ARR, keep a financial dictionary handy)
 
-# What to expect during the program 
+### What to expect during the program 
  TODO: Broken down by tasks like handbooking, and "for meetings"
 
-## Tasks
+### Tasks
 
 ### Collecting and managing tasks 
  TODO: (there is a project board that is privately linked here)
@@ -542,9 +541,9 @@ TODO: Casual
 ### Tweetstorm
 A tweet storm is a series of Twitter posts usually made as replies in a single thread on a topic. CEO shadows may be asked to draft the tweets in relation to a public live streamed video recording or some other media content.
 
-## Meetings & Events
+### Meetings & events
 
-### CEO's Calendar
+### CEO's calendar
  1. review the CEO's calendar
  2. how to update your zoom name so that it shows "CEO shadow"
  3. how to add CEO calendar to google calendar (we already do this in onboarding)
@@ -567,10 +566,10 @@ TODO
 ### Responsibilities
  TODO: this is a chart outlining responsibilities based on meeting types
 
-## Email Best Practices
+### Email best practices
 TODO: In order to ensure continuity across CEO shadow participants. Always, cc TDOD on emails as part of the program. This ensures that even after you've left the program the response and follow-up can be tracked
 
-# Considerations for other companies starting CEO Shadow programs
+### Considerations for other companies starting CEO shadow programs
 GitLab co-founder and CEO Sid Sijbrandij [answered questions in a YouTube livestream](https://youtu.be/ExG8_bnIAMI) from Sam Altman, as the two discussed considerations for implementing a CEO Shadow program in other organizations. Key takeaways are documented below.
 
  1. CEOs should not optimize meetings for Shadows. They are learning by being in the room, either in-person or virtual, and it's OK if the Shadow doesn't fully understand everything.
@@ -578,7 +577,7 @@ GitLab co-founder and CEO Sid Sijbrandij [answered questions in a YouTube livest
  11. Non-obvious benefits for a CEO (and their organization) include CEO empathy and humanizing a CEO, such that team members are more comfortable contributing input to an executive. Shadow alumni are able to translate real-world examples of [assuming positive intent](https://about.gitlab.com/handbook/values/#assume-positive-intent) from their time in the program to their direct reports, further fortifying company culture.
  12. Ensure that CEO Shadows do not plan to do any of their usual work. Shadows should prepare their team as if they were on vacation. Attempting to shadow the CEO while also maintaining a full workload creates undue stress for the CEO Shadow.
 
-# Alumni 
+### Alumni 
 TODO: (this is a chart with info on CEO alumni) (they use a slack channel for CEO-shadow-alumni)
 
 ### Recruiting progress checkup
@@ -600,7 +599,7 @@ Many of these processes are automated, but it's vital check Gusto and Pilot manu
 
 Create a new issue for the current month and year named "Closing out YYYY-MM" using the [monthly accounting issue template](https://github.com/fleetdm/confidential/blob/main/.github/ISSUE_TEMPLATE/5-monthly-accounting.md) in GitHub and complete all of the tasks in the issue.  
 
-### Commission Payroll
+### Commission payroll
 
 - Update [commission calculator](https://docs.google.com/spreadsheets/d/1vw6Q7kCC7-FdG5Fgx3ghgUdQiF2qwxk6njgK6z8_O9U/edit) with new revenue from any deals that are closed/won (have a subscription agreement signed by both parties) and have an **effective start date** within the previous month.
   - Find detailed notes on this process in [Notes - Run commission payroll in Gusto](https://docs.google.com/document/d/1FQLpGxvHPW6X801HYYLPs5y8o943mmasQD3m9k_c0so/edit#). 
