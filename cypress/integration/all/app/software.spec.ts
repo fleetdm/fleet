@@ -231,7 +231,7 @@ describe("Software", () => {
           const pattern = /[0-9]+/g;
           const newCount = fullText.match(pattern);
           const searchCount = parseInt(newCount[0], 10);
-          expect(searchCount).to.be.equal(2);
+          expect(searchCount).to.be.equal(1);
         });
     });
   });
