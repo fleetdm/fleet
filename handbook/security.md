@@ -2,7 +2,7 @@
 
 ## Account recovery process
 
-As an all-remote company, we do not have the luxury of seeing each other or are able to ask for help in person. Instead, we require live video confirmation of someone's identity before performing recovery and this applies to all Fleet company accounts, from internal systems to SaaS accounts.
+As an all-remote company, we do not have the luxury of seeing each other or being able to ask for help in person. Instead, we require live video confirmation of someone's identity before performing recovery, and this applies to all Fleet company accounts, from internal systems to SaaS accounts.
 
 | Participant | Role                                                                                                                                                 |
 | ----------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -20,10 +20,10 @@ Here are the steps we take for the recovery process:
 * If the recoverer does not know the requester well enough to positively identify them visually, the
   recoverer can ask a colleague whom they recognize to act as the identifier. **All three must be
   live on a video call at the same time.**
-*  For example, if the recoverer does not recognize Guillaume but can recognize Zach, they should ask Zach to identify Guillaume. Using the requester's manager or a direct teammate is recommended, as it increases the chances they see each other on video frequently.
-4. If the recoverer recognizes the requester, or has the identity confirmed by the person acting as
+*  For example, if the recoverer does not recognize Guillaume but can recognize Zach, they should ask Zach to identify Guillaume. Using the requester's manager or a direct teammate is recommended, as it increases the chances they frequently see each other on video.
+4. If the recoverer recognizes the requester or has the identity confirmed by the person acting as
    the identifier, they can perform the recovery and update the thread in *#help-login*.
-* If the recoverer is not 100% satisfied with identification, they do **NOT** proceed, and post to #g-security to engage the security team immediately.
+* If the recoverer is not 100% satisfied with identification, they do **NOT** proceed and post to #g-security to engage the security team immediately.
 
 
 ## How we protect end-user devices
