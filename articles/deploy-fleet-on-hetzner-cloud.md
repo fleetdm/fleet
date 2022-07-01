@@ -14,7 +14,7 @@ For those who want to get started quickly, copy and paste the following two scri
 
 ### Fleet
 
-Copy and paste the following script into Cloud-init UserData for the Fleet controller machine:
+Copy and paste the following script into cloud-init User-Data for the Fleet controller machine:
 
 ```bash
 #!/usr/bin/bash
