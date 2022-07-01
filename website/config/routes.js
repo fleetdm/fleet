@@ -26,14 +26,14 @@ module.exports.routes = {
     }
   },
 
-  'GET /get-started': {
-    action: 'view-get-started' ,
-    locals: {
-      currentPage: 'get started',
-      pageTitleForMeta: 'Get started | Fleet for osquery',
-      pageDescriptionForMeta: 'Learn about getting started with Fleet.'
-    }
-  },
+  // 'GET /get-started': {
+  //   action: 'view-get-started' ,
+  //   locals: {
+  //     currentPage: 'get started',
+  //     pageTitleForMeta: 'Get started | Fleet for osquery',
+  //     pageDescriptionForMeta: 'Learn about getting started with Fleet.'
+  //   }
+  // },
 
   'GET /pricing': {
     action: 'view-pricing',
@@ -191,24 +191,41 @@ module.exports.routes = {
   'GET /try-fleet/register': {
     action: 'try-fleet/view-register',
     locals: {
-      layout: 'layouts/layout-customer',
+      layout: 'layouts/layout-sandbox',
     }
   },
 
   'GET /try-fleet/login': {
     action: 'try-fleet/view-sandbox-login',
     locals: {
-      layout: 'layouts/layout-customer',
+      layout: 'layouts/layout-sandbox',
     }
   },
 
   'GET /try-fleet/sandbox': {
     action: 'try-fleet/view-sandbox-or-redirect',
     locals: {
-      layout: 'layouts/layout-customer',
-    } ,
+      layout: 'layouts/layout-sandbox',
+    },
   },
 
+  'GET /try-fleet/forgot-password': {
+    action: 'entrance/view-forgot-password',
+    locals: {
+      layout: 'layouts/layout-customer',
+      pageTitleForMeta: 'Forgot password | Fleet for osquery',
+      pageDescriptionForMeta: 'Recover the password for your Fleet account.',
+    }
+  },
+
+  'GET /try-fleet/new-password': {
+    action: 'entrance/view-new-password',
+    locals: {
+      layout: 'layouts/layout-customer',
+      pageTitleForMeta: 'New password | Fleet for osquery',
+      pageDescriptionForMeta: 'Change the password for your Fleet account.',
+    }
+  },
 
   //  ╦  ╔═╗╔═╗╔═╗╔═╗╦ ╦  ╦═╗╔═╗╔╦╗╦╦═╗╔═╗╔═╗╔╦╗╔═╗
   //  ║  ║╣ ║ ╦╠═╣║  ╚╦╝  ╠╦╝║╣  ║║║╠╦╝║╣ ║   ║ ╚═╗
@@ -259,6 +276,7 @@ module.exports.routes = {
   'GET /docs/using-fleet/updating-fleet': '/docs/deploying/upgrading-fleet',
   'GET /blog':                   '/articles',
   'GET /brand':                  '/logos',
+  'GET /get-started':            '/try-fleet/register',
 
   // Sitemap
   // =============================================================================================================

@@ -14,9 +14,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
     <meta name="twitter:card" content="summary" />
     <meta name="twitter:site" content="https://fleetdm.com" />
-    <meta name="twitter:title" content="<%= typeof pageTitleForMeta !== 'undefined' ? pageTitleForMeta : 'Fleet for osquery | Open source device management' %>" />
+    <meta name="twitter:title" content="<%= typeof pageTitleForMeta !== 'undefined' ? pageTitleForMeta : 'Open source device management' %>" />
     <meta name="twitter:description" content="<%= typeof pageDescriptionForMeta !== 'undefined' ? pageDescriptionForMeta : 'Open source software, built on osquery. With Fleet you can ask important questions about your devices. Whatever operating system, wherever they live.' %>" />
-    <meta name="twitter:image" content="<%= typeof pageImageForMeta !== 'undefined' ? 'https://fleetdm.com' + pageImageForMeta : 'https://fleetdm.com/images/fleet-logo-square@2x.png' %>" />
+    <meta name="twitter:image" content="https://fleetdm.com/images/fleet-logo-square@2x.png" />
     <% /* Script tags should normally be included further down the page- but any
     scripts that load fonts (e.g. Fontawesome ≥v5) are special exceptions to the
     rule. (Include them up here along with any hard-coded «link» tags for Typekit,
@@ -69,7 +69,6 @@
 
         snid('verify', '8416878');
     </script>
-    <meta name="robots" content="noindex">
     <% }
     /* Otherwise, any such scripts are excluded, and we instead inject a
     robots/noindex meta tag to help prevent any unwanted visits from search engines. */
@@ -94,34 +93,145 @@
     <!--STYLES END-->
   </head>
   <body>
-    <div style="padding-bottom: 60px; background-color: #FFFFFF;" purpose="page-wrap">
+    <div style="padding-bottom: 60px; background-color: #FFF;" purpose="page-wrap">
+
       <div style="background-color: #FFFFFF;" class="header" purpose="page-header">
-        <div purpose="header-report-cta" class="d-flex flex-row justify-content-center align-items-md-center">
-          <div class="mb-0 d-flex flex-lg-row flex-column justify-content-center py-3 px-2">
-            <p class="text-center pr-1 mb-0">We surveyed 200+ security practitioners to discover the state of device management in 2022. </p>
-            <a class="mb-0 d-block text-center d-lg-inline text-lg-left" href="/reports/state-of-device-management">Click here to learn about their struggles and best practices.</a>
-          </div>
-        </div>
-        <div style="max-width: 1248px; height: 94px;" class="container-fluid d-flex align-items-center justify-content-between pt-3 pb-3 px-3 px-md-4">
-          <a class="" href="/" style="max-width: 118px;">
+        <div style="max-width: 1248px; height: 94px;" class="container-fluid d-flex justify-content-between align-items-center pt-3 pb-3 px-3 px-md-4">
+          <a href="/" style="max-width: 118px;">
+            <% /* The homepage-header on the homepage has a white fleet logo */ %>
+            <% if (isHomepage) { %>
+            <img alt="Fleet logo" src="/images/logo-white-118x48@2x.png" style="width: 118px; height: 48px;"/>
+            <% } else { %>
             <img alt="Fleet logo" src="/images/logo-blue-162x92@2x.png" style="height: 92px; width: 162px;"/>
+            <% } %>
           </a>
-          <div class="d-sm-flex d-none flex-row align-items-center">
-            <a style="padding: 4px 16px; line-height: 24px; color: #000; font-weight: 700; text-decoration: none;" target="_blank" href="https://calendly.com/fleetdm/demo?utm_source=landing+demo+topnav">Schedule a demo</a>
-            <a style="padding: 4px 16px; line-height: 24px; color: #FFFFFF" class="btn btn-sm btn-primary d-flex" href="/get-started?tryitnow" >Try it out</a>
+          <div class="d-flex d-lg-none">
+            <button purpose="header-btn" style="font-size: 16px; text-decoration: none;" class="btn btn-link d-flex align-items-center" data-toggle="collapse" data-target="#navbarToggleExternalContent">
+              <span class="mr-2">Menu</span>
+              <% /* The hamburger icon on the homepage is white */ %>
+              <% if (isHomepage) { %>
+              <img alt="An icon indicating that interacting with this button will open the navigation menu." src="/images/icon-hamburger-16x14@2x.png" style="width: 16px;" />
+              <% } else { %>
+              <img alt="An icon indicating that interacting with this button will open the navigation menu." src="/images/icon-hamburger-blue-16x14@2x.png" style="width: 16px;" />
+              <% } %>
+            </button>
+          </div>
+          <%/* Mobile Navigation menu */%>
+          <div purpose="mobile-nav" class="collapse px-4 px-sm-5" id="navbarToggleExternalContent">
+            <div class="d-flex justify-content-between">
+              <a href="/">
+                <img alt="Fleet logo" src="/images/logo-blue-162x92@2x.png" style="height: 92px; width: 162px;" class="mt-3"/>
+              </a>
+              <button style="font-size: 16px; text-decoration: none;" class="btn btn-link d-flex align-items-center" data-toggle="collapse" data-target="#navbarToggleExternalContent">
+                <img alt="An 'X' icon indicating that this can be interacted with to close the navigation menu." src="/images/icon-close-16x16@2x.png" style="width: 16px;" />
+              </button>
+            </div>
+            <div id="mobileDropdowns" class="py-2">
+              <a purpose="mobile-dropdown-toggle" class="d-flex align-items-center collapsed" data-toggle="collapse" data-target="#mobileNavbarToggleUseCases" aria-haspopup="true" aria-expanded="false">Use cases</a>
+              <div class="d-block">
+                <div id="mobileNavbarToggleUseCases" purpose="mobile-dropdown" class="collapse align-items-start" data-parent="#mobileDropdowns">
+                  <a href="/platform">How it works</a>
+                  <span>SUCCESS STORIES</span>
+                  <a class="pl-3" href="/device-management/fleet-user-stories-wayfair">Wayfair</a>
+                  <a class="pl-3" href="/device-management/fleet-user-stories-schrodinger">Schrödinger</a>
+                  <a class="pl-3" href="/device-management/fleet-user-stories-f100">F100 security & networking co.</a>
+                </div>
+              </div>
+              <hr>
+              <a purpose="mobile-dropdown-toggle" class="d-flex align-items-center mr-4 collapsed"  data-toggle="collapse" data-target="#mobileNavbarToggleDocumentation" aria-haspopup="true" aria-expanded="false">Documentation</a>
+              <div class="d-block">
+                <div id="mobileNavbarToggleDocumentation" purpose="mobile-dropdown" class="collapse" data-parent="#mobileDropdowns">
+                  <a href="/docs">Docs</a>
+                  <a href="https://github.com/fleetdm/fleet/releases">Releases</a>
+                  <a href="/queries">Query library</a>
+                  <span>GUIDES</span>
+                  <a class="pl-3" href="/guides/deploying-fleet-on-aws-with-terraform">Deploy on AWS with Terraform</a>
+                  <a class="pl-3" href="/guides/deploying-fleet-on-render">Deploy on Render</a>
+                </div>
+              </div>
+              <hr>
+              <a purpose="mobile-dropdown-toggle" class="d-flex align-items-center mr-4 collapsed" data-toggle="collapse" data-target="#mobileNavbarToggleCommunity">Community</a>
+              <div class="d-block">
+                <div id="mobileNavbarToggleCommunity" purpose="mobile-dropdown" class="collapse" data-parent="#mobileDropdowns">
+                  <a href="/slack" target="_blank">Chat</a>
+                  <a href="/podcasts">Podcasts</a>
+                  <a href="/reports/state-of-device-management">State of device management</a>
+                  <span>ARTICLES</span>
+                  <a href="/securing">Security</a>
+                  <a href="/engineering">Engineering</a>
+                  <a href="/announcements">Announcements</a>
+                  <a href="/articles">See more</a>
+                  <span>RESOURCES</span>
+                  <a href="/handbook">Handbook</a>
+                  <a href="/logos">Logos & artwork</a>
+                </div>
+              </div>
+              <hr>
+              <a href="/pricing" class="d-flex align-items-center mb-2 pb-3" style="text-decoration: none; font-weight: 700;">Pricing</a>
+            </div>
+          </div>
+          <%/* Desktop Navigation bar */%>
+          <div purpose="header-nav" class="d-none d-lg-flex align-items-center">
+            <div purpose="dropdown-button" class="btn-group">
+              <a class="dropdown-toggle d-flex align-items-center py-2 px-3" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">Use cases</a>
+              <div purpose="header-dropdown" class="dropdown-menu">
+                <a class="dropdown-item mb-1" href="/platform">How it works</a>
+                <div class="dropdown-divider"></div>
+                <h6 class="muted dropdown-header">SUCCESS STORIES</h6>
+                <a class="dropdown-item mb-1" href="/device-management/fleet-user-stories-wayfair">Wayfair</a>
+                <a class="dropdown-item mb-1" href="/device-management/fleet-user-stories-schrodinger">Schrödinger</a>
+                <a class="dropdown-item" href="/device-management/fleet-user-stories-f100">F100 security & networking co.</a>
+              </div>
+            </div>
+            <div purpose="dropdown-button" class="btn-group">
+              <a class="dropdown-toggle d-flex align-items-center py-2 px-3" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">Documentation</a>
+              <div purpose="header-dropdown" class="dropdown-menu">
+                <a class="dropdown-item mb-1" href="/docs">Docs</a>
+                <a class="dropdown-item mb-1" href="https://github.com/fleetdm/fleet/releases">Releases</a>
+                <a class="dropdown-item mb-1" href="/queries">Query library</a>
+                <div class="dropdown-divider"></div>
+                <span class="muted dropdown-header">GUIDES</span>
+                <a class="dropdown-item mb-1" href="/guides/deploying-fleet-on-aws-with-terraform">Deploy on AWS with Terraform</a>
+                <a class="dropdown-item" href="/guides/deploying-fleet-on-render">Deploy on Render</a>
+              </div>
+            </div>
+            <div purpose="dropdown-button" class="btn-group">
+              <a class="dropdown-toggle d-flex align-items-center py-2 px-3" data-toggle="dropdown">Community</a>
+              <div purpose="header-dropdown" class="dropdown-menu">
+                <a class="dropdown-item mb-1" href="/slack" target="_blank">Chat</a>
+                <a class="dropdown-item mb-1" href="/podcasts">Podcasts</a>
+                <a class="dropdown-item mb-1" href="/reports/state-of-device-management">State of device management</a>
+                <div class="dropdown-divider"></div>
+                <span class="muted dropdown-header">ARTICLES</span>
+                <a class="dropdown-item mb-1" href="/securing">Security</a>
+                <a class="dropdown-item mb-1" href="/engineering">Engineering</a>
+                <a class="dropdown-item mb-1" href="/announcements">Announcements</a>
+                <a class="dropdown-item mb-1" href="/articles">See more</a>
+                <div class="dropdown-divider"></div>
+                <span class="muted dropdown-header">RESOURCES</span>
+                <a class="dropdown-item mb-1" href="/handbook">Handbook</a>
+                <a class="dropdown-item" href="/logos">Logos & artwork</a>
+              </div>
+            </div>
+            <a href="/pricing" class="d-flex align-items-center py-2 px-3" style="text-decoration: none; line-height: 23px;">Pricing</a>
+            <span class="d-flex align-items-center px-3">
+              <iframe src="//ghbtns.com/github-btn.html?user=fleetdm&amp;repo=fleet&amp;type=watch&amp;count=true"
+              allowtransparency="true" frameborder="0" scrolling="0" width="100" height="20"></iframe>
+            </span>
+            <a href="/logout?redirectTo=sandbox" class="justify-content-end px-3 py-2 text-decoration-none <%= _.has(me, 'id') ? 'd-flex' : 'd-none' %>" style="text-decoration: none; line-height: 23px;">Log out</a>
           </div>
         </div>
       </div>
 
       <%- body %>
 
-      <div purpose="landing-footer" class="d-flex" style="position: absolute; bottom: 0px; width: 100%; color: #FFFF; background-color: #182147;;">
-        <div style="max-width: 1200px;" class="container-fluid align-items-center d-sm-flex d-block flex-sm-row ">
-          <div style="font-size: 11px; line-height: 18px;" class="justify-content-start mr-4 pt-3 pt-sm-0 mr-md-auto">
-            <div class="d-sm-flex d-block">
-            <img alt="Creative Commons Licence CC BY-SA 4.0" src="/images/logo-creative-commons-160x30@2x.png" style="width: 80px; height: 15px; display:" class="mr-2 mb-2 mb-sm-0"/>
+      <div purpose="footer" style="position: absolute; bottom:  0px; width: 100%; height:  60px; color: #515774;">
+        <div style="max-width: 500px;" class="container-fluid">
+          <div style="font-size: 11px; line-height: 18px;" class="d-sm-flex d-block flex-sm-row justify-content-center mr-4 mr-md-auto">
+            <img alt="Creative Commons Licence CC BY-SA 4.0" src="/images/logo-creative-commons-160x30@2x.png" style="width: 80px; height: 15px;" class="mr-2 mb-2 mb-sm-0"/>
+            <div class="d-flex">
               © 2022 Fleet Device Management Inc.
-              <a style="font-size: 11px; text-underline-offset: 5px; text-decoration: underline; color: #FFFF" class="ml-2" href="/legal/privacy">Privacy</a>
+              <a style="font-size: 12px; font-weight:  700; text-underline-offset: 5px; text-decoration: underline; color: #515774" class="ml-2" href="/legal/privacy">Privacy</a>
             </div>
           </div>
         </div>
