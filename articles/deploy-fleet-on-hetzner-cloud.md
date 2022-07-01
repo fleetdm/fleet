@@ -1,4 +1,4 @@
-# Deploy Fleet on Hetzner Cloud with Cloud-init & Docker
+# Deploy Fleet on Hetzner Cloud with cloud-init & Docker
 
 ![Fleet + Hetzner](../website/assets/images/articles/deploying-fleet-on-hetzner-1600x900@2x.jpg)
 
