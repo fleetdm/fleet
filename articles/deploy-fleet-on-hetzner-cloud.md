@@ -351,7 +351,7 @@ First, purchase a machine (for example, a [Hetzner Cloud](https://hetzner.com/cl
 ![Hetzner cloud purchase machine screen](../website/assets/images/articles/deploy-fleet-on-hetzner-cloud-1-932x388%402x.png)
 _Hetzner cloud purchase machine screen_
 
-After purchasing, you should know the IP address of your machine (and make sure you set up things like SSH securely!)
+After purchasing, you should know the IP address of your machine (and make sure you set up things like SSH [securely](https://community.hetzner.com/tutorials/securing-ssh)!)
 
 ---
 
