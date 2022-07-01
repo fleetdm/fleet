@@ -10,7 +10,7 @@ Let’s explore how you might deploy Fleet on [Hetzner Cloud](https://hetzner.co
 
 ## The 2 minute setup
 
-For those who want to get started quickly, copy and paste the following two scripts into Cloud-init UserData. Alternatively, the more adventurous can follow the [full deployment guide](#the-full-deployment-guide).
+For those who want to get started quickly, copy and paste the following two scripts into cloud-init User-Data. Alternatively, the more adventurous can follow the [full deployment guide](#the-full-deployment-guide).
 
 ### Fleet
 
