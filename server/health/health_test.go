@@ -35,32 +35,53 @@ func (c fail) HealthCheck() error {
 
 func TestHealthzHandler(t *testing.T) {
 	logger := log.NewNopLogger()
-	failing := Handler(logger, map[string]Checker{
-		"mock": healthcheckFunc(func() error {
-			return errors.New("health check failed")
-		})})
+	failCheck := healthcheckFunc(func() error {
+		return errors.New("health check failed")
+	})
+	passCheck := healthcheckFunc(func() error {
+		return nil
+	})
 
-	ok := Handler(logger, map[string]Checker{
-		"mock": healthcheckFunc(func() error {
-			return nil
-		})})
+	fail := Handler(logger, map[string]Checker{
+		"mock": failCheck,
+	})
+	pass := Handler(logger, map[string]Checker{
+		"mock": passCheck,
+	})
+	both := Handler(logger, map[string]Checker{
+		"pass": passCheck,
+		"fail": failCheck,
+	})
 
-	var httpTests = []struct {
-		wantHeader int
+	httpTests := []struct {
 		handler    http.Handler
+		path       string
+		wantHeader int
 	}{
-		{200, ok},
-		{500, failing},
+		{pass, "/healthz", http.StatusOK},
+		{fail, "/healthz", http.StatusInternalServerError},
+
+		// Empty check name
+		{pass, "/healthz?check=mock&check=", http.StatusBadRequest},
+		// Bad check name
+		{pass, "/healthz?check=mock&check=bad", http.StatusBadRequest},
+		// Passing and failing checks
+		{both, "/healthz", http.StatusInternalServerError},
+		// Passing and failing checks
+		{both, "/healthz?check=pass&check=fail", http.StatusInternalServerError},
+		// Only run passing
+		{both, "/healthz?check=pass", http.StatusOK},
+		// Only run failing
+		{both, "/healthz?check=fail", http.StatusInternalServerError},
 	}
 	for _, tt := range httpTests {
 		t.Run("", func(t *testing.T) {
 			rr := httptest.NewRecorder()
-			req := httptest.NewRequest("GET", "/healthz", nil)
+			req := httptest.NewRequest("GET", tt.path, nil)
 			tt.handler.ServeHTTP(rr, req)
 			assert.Equal(t, rr.Code, tt.wantHeader)
 		})
 	}
-
 }
 
 type healthcheckFunc func() error

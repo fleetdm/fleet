@@ -5,6 +5,8 @@ import (
 	"encoding/json"
 	"errors"
 	"time"
+
+	"github.com/fleetdm/fleet/v4/server/health"
 )
 
 type CarveStore interface {
@@ -23,6 +25,8 @@ type CarveStore interface {
 
 // Datastore combines all the interfaces in the Fleet DAL
 type Datastore interface {
+	health.Checker
+
 	CarveStore
 
 	///////////////////////////////////////////////////////////////////////////////
