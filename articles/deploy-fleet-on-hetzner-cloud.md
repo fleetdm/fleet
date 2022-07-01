@@ -333,7 +333,7 @@ mv fleetctl_v4.14.0_linux/fleetctl /usr/bin/fleetctl
 
 ## The full deployment guide
 
-For the more adventurous, here are the complete instructions for deploying Fleet on Hetzner with Cloud-init and Docker from scratch.
+For the more adventurous, here are the complete instructions for deploying Fleet on Hetzner with cloud-init and Docker from scratch.
 
 ## Prerequisites
 
