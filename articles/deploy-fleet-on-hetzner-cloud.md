@@ -384,7 +384,7 @@ sudo apt install -y ca-certificates curl gnupg lsb-release
 
 ### Set up a firewall
 
-Basic security hardening dictates you add a firewall so let’s use [UFW][ufw]:
+To ensure we do not expose services accidentally, we'll install [UncomplicatedFirewall](https://wiki.ubuntu.com/UncomplicatedFirewall), also known as ufw, block all inbound traffic by default and then allow the protocols we need.
 
 ```
 apt install ufw
