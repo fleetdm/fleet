@@ -81,7 +81,7 @@ jobs:
     - name: Generate and bundle go & js code
       run: make generate
 
-    - name: Build fleet and fleetctl"
+    - name: Build fleet and fleetctl
       # fleet-dev builds fleet with "race" enabled.
       run: make fleet-dev fleetctl
 
