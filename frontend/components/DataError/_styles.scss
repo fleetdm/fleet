@@ -2,7 +2,6 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  margin: $pad-xxxlarge 0;
 
   #error-icon {
     height: 12px;
@@ -24,9 +23,16 @@
     text-decoration: none;
   }
 
+  &__card {
+    display: flex;
+    flex-direction: row;
+    margin: $pad-large 0 0;
+  }
+
   &__inner {
     display: flex;
     flex-direction: row;
+    margin: $pad-xxxlarge 0;
   }
 
   .info {

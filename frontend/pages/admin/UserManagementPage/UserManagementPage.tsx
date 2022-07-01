@@ -566,7 +566,7 @@ const UserManagementPage = ({ router }: IUserManagementProps): JSX.Element => {
     loadingUsersError || loadingInvitesError || loadingTeamsError;
 
   let tableData: unknown = [];
-  if (!loadingTableData) {
+  if (!loadingTableData && !tableDataError) {
     tableData = combineUsersAndInvites(users, invites, currentUser?.id);
   }
 
