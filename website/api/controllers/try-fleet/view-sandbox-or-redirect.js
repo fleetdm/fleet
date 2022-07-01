@@ -14,7 +14,7 @@ module.exports = {
     },
 
     redirect: {
-      description: 'The User is being redirected to their Fleet sandbox instance',
+      description: 'The user has been redirected to their Fleet sandbox instance',
       responseType: 'redirect'
     }
 
@@ -34,10 +34,11 @@ module.exports = {
 
       // Check if this sandbox instance is expired.
       if(this.req.me.fleetSandboxExpiresAt > Date.now()) {
-
+        // Setting this.req.me.fleetSandboxURL to a variable to pass in to sails.helper.flow.until()
+        let sandboxURL = this.req.me.fleetSandboxURL;
         // If this is a valid fleet sandbox instance, we'll check the /healthz endpoint before redirecting the user to their sandbox.
         await sails.helpers.flow.until(async function () {
-          let serverResponse = await sails.helpers.http.sendHttpRequest('GET', this.req.me.fleetSandboxURL+'/healthz').timeout(5000).tolerate('non200Response').tolerate('requestFailed');
+          let serverResponse = await sails.helpers.http.sendHttpRequest('GET', sandboxURL+'/healthz').timeout(5000).tolerate('non200Response').tolerate('requestFailed');
           if(serverResponse) {
             return serverResponse.statusCode === 200;
           }

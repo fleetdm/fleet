@@ -144,7 +144,7 @@ the account verification message.)`,
       let cloudProvisionerResponse = await sails.helpers.http.post(sails.config.custom.fleetSandboxProvisionerURL, {
         'name': firstName + ' ' + lastName,
         'email': emailAddress,
-        'password': password,
+        'password': newUserRecord.password, //« Sending the hashed password to the Fleet Sandbox instance
         'sandbox_expiration': new Date(fleetSandboxExpiresAt).toISOString(), // sending expiration_timestamp as an ISO string.
         'fleetSandboxDemoKey': fleetSandboxDemoKey,
         'apiSecret': sails.config.custom.fleetSandboxProvisionerSecret,
