@@ -556,7 +556,7 @@ describe("Premium tier - Global Admin user", () => {
         cy.findByRole("button", { name: /run/i }).should("exist");
         cy.getAttached(".policy-form__save").click();
       });
-      cy.findByRole("button", { name: /^Save$/ }).click();
+      cy.getAttached(".policy-form__button--modal-save").click();
       cy.findByText(/policy created/i).should("exist");
       cy.findByText(/gatekeeper enabled/i).should("exist");
     });
