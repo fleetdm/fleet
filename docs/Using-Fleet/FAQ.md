@@ -304,7 +304,7 @@ Next, move all team-level scheduled queries to the global level:
 
 Next, move all team level policies to the global level:
 1. Head to the **Policies** page in the Fleet UI.
-2. For each policy that belongs to a team, copy the **Name**, **Description, **Resolve**,
+2. For each policy that belongs to a team, copy the **Name**, **Description**, **Resolve**,
   and **Query**. Then, select **All teams** in the top dropdown, select **Add a policy**, select
   **create your own policy**, paste each item in the appropriate field, and select **Save**.
 3. Delete each policy that belongs to a team because they will no longer run on any hosts
