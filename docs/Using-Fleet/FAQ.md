@@ -294,7 +294,7 @@ First, back up your users and update all team-level users to global users:
    then select
    **Global user**, and then select **Save**. If a user shouldn't have global access, delete this user.
 
-Next, move all team level scheduled queries to the global level:
+Next, move all team-level scheduled queries to the global level:
 1. Head to the **Schedule** page in the Fleet UI.
 2. For each scheduled query that belongs to a team, copy the name in the **Query** column, select
    **All teams** in the top dropdown, select **Schedule a query**, past the name in the **Select
