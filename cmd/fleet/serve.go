@@ -6,6 +6,7 @@ import (
 	"crypto/subtle"
 	"crypto/tls"
 	"database/sql/driver"
+	"errors"
 	"fmt"
 	"io/ioutil"
 	"math/rand"
@@ -100,7 +101,7 @@ the way that the Fleet server works.
 
 			if devLicense {
 				// This license key is valid for development only
-				config.License.Key = "eyJhbGciOiJFUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJGbGVldCBEZXZpY2UgTWFuYWdlbWVudCBJbmMuIiwiZXhwIjoxNjU2NjMzNjAwLCJzdWIiOiJkZXZlbG9wbWVudC1vbmx5IiwiZGV2aWNlcyI6MTAwLCJub3RlIjoiZm9yIGRldmVsb3BtZW50IG9ubHkiLCJ0aWVyIjoicHJlbWl1bSIsImlhdCI6MTY0MTIzMjI3OX0.WriTJfRA-R-ffN_sJwYSkllLGzgDxs1xTUCJX7W02BA5FTGfIYq9CCvcTXAgR5GeMuLEOBs21tY-jpSc6GNe6Q"
+				config.License.Key = "eyJhbGciOiJFUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJGbGVldCBEZXZpY2UgTWFuYWdlbWVudCBJbmMuIiwiZXhwIjoxNzUxMjQxNjAwLCJzdWIiOiJkZXZlbG9wbWVudC1vbmx5IiwiZGV2aWNlcyI6MTAwLCJub3RlIjoiZm9yIGRldmVsb3BtZW50IG9ubHkiLCJ0aWVyIjoicHJlbWl1bSIsImlhdCI6MTY1NjY5NDA4N30.dvfterOvfTGdrsyeWYH9_lPnyovxggM5B7tkSl1q1qgFYk_GgOIxbaqIZ6gJlL0cQuBF9nt5NgV0AUT9RmZUaA"
 			} else if devExpiredLicense {
 				// An expired license key
 				config.License.Key = "eyJhbGciOiJFUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJGbGVldCBEZXZpY2UgTWFuYWdlbWVudCBJbmMuIiwiZXhwIjoxNjI5NzYzMjAwLCJzdWIiOiJEZXYgbGljZW5zZSAoZXhwaXJlZCkiLCJkZXZpY2VzIjo1MDAwMDAsIm5vdGUiOiJUaGlzIGxpY2Vuc2UgaXMgdXNlZCB0byBmb3IgZGV2ZWxvcG1lbnQgcHVycG9zZXMuIiwidGllciI6ImJhc2ljIiwiaWF0IjoxNjI5OTA0NzMyfQ.AOppRkl1Mlc_dYKH9zwRqaTcL0_bQzs7RM3WSmxd3PeCH9CxJREfXma8gm0Iand6uIWw8gHq5Dn0Ivtv80xKvQ"
@@ -418,14 +419,16 @@ the way that the Fleet server works.
 			{
 				// a list of dependencies which could affect the status of the app if unavailable.
 				deps := map[string]interface{}{
-					"datastore":          ds,
-					"query_result_store": resultStore,
+					"mysql": ds,
+					"redis": resultStore,
 				}
 
 				// convert all dependencies to health.Checker if they implement the healthz methods.
 				for name, dep := range deps {
 					if hc, ok := dep.(health.Checker); ok {
 						healthCheckers[name] = hc
+					} else {
+						initFatal(errors.New(name+" should be a health.Checker"), "initializing health checks")
 					}
 				}
 
@@ -639,7 +642,6 @@ func runCrons(
 	failingPoliciesSet fleet.FailingPolicySet,
 	enrollHostLimiter fleet.EnrollHostLimiter,
 ) {
-
 	ourIdentifier, err := server.GenerateRandomText(64)
 	if err != nil {
 		initFatal(ctxerr.New(ctx, "generating random instance identifier"), "")

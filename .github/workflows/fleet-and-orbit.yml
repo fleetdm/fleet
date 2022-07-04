@@ -82,7 +82,8 @@ jobs:
       run: make generate
 
     - name: Build fleet and fleetctl
-      run: make fleet fleetctl
+      # fleet-dev builds fleet with "race" enabled.
+      run: make fleet-dev fleetctl
 
     - name: Run Fleet server
       env:
