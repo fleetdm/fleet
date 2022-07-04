@@ -285,7 +285,7 @@ Apart from an admin [disabling usage](https://fleetdm.com/docs/using-fleet/usage
 
 How to downgrade from Fleet Premium to Fleet Free:
 
-First, back up your users and update all team level users to global users:
+First, back up your users and update all team-level users to global users:
 
 1. Run the `fleetctl get user_roles > user_roles.yml` command. Save the `user_roles.yml` file so
    that, if you choose to upgrade later, you can restore user roles.
