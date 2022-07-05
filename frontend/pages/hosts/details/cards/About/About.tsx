@@ -144,7 +144,9 @@ const About = ({
     return (
       <div className="info-grid__block">
         <span className="info-grid__header">Battery</span>
-        <span className="info-grid__data">{aboutData.batteries[0].health}</span>
+        <span className="info-grid__data">
+          {aboutData.batteries[0]?.health}
+        </span>
       </div>
     );
   };
