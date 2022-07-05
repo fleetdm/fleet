@@ -1,6 +1,8 @@
 package service
 
 import (
+	"fmt"
+
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 )
@@ -11,6 +13,13 @@ func (c *Client) GetHosts(query string) ([]HostResponse, error) {
 	var responseBody listHostsResponse
 	err := c.authenticatedRequestWithQuery(nil, verb, path, &responseBody, query)
 	return responseBody.Hosts, err
+}
+
+func (c *Client) GetHost(id uint) (*HostDetailResponse, error) {
+	verb, path := "GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", id)
+	var responseBody getHostResponse
+	err := c.authenticatedRequest(nil, verb, path, &responseBody)
+	return responseBody.Host, err
 }
 
 // HostByIdentifier retrieves a host by the uuid, osquery_host_id, hostname, or

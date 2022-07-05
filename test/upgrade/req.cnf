@@ -1,0 +1,16 @@
+[req]
+distinguished_name = subject
+x509_extensions = v3_req
+prompt = no
+
+[subject]
+CN = fleet
+
+[v3_req]
+keyUsage = critical, digitalSignature, keyAgreement
+extendedKeyUsage = serverAuth
+subjectAltName = @alt_names
+
+[alt_names]
+DNS.1 = fleet-a
+DNS.2 = fleet-b

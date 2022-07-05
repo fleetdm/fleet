@@ -155,7 +155,7 @@ generate-ci:
 	make generate-go
 
 generate-js: clean-assets .prefix
-	NODE_ENV=production webpack --progress --colors
+	NODE_ENV=production webpack --progress
 
 generate-go: .prefix
 	go run github.com/kevinburke/go-bindata/go-bindata -pkg=bindata -tags full \
