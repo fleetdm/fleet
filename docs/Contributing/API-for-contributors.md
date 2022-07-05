@@ -2,7 +2,7 @@
 
 This document includes the Fleet API routes that are helpful when developing or contributing to Fleet.
 
-Unlike the [Fleet REST API documentation](../Using-Fleet/REST-API.md), only the Fleet UI, Fleet Desktop and `fleetctl` clients use the API routes in this document:
+Unlike the [Fleet REST API documentation](../Using-Fleet/REST-API.md), only the Fleet UI, Fleet Desktop, and `fleetctl` clients use the API routes in this document:
 
 - [Get queries spec](#get-queries-spec)
 - [Get query spec](#get-query-spec)
@@ -1410,7 +1410,7 @@ NOTE: when updating a policy, team and platform will be ignored.
 
 ### Device-authenticated routes
 
-Device-authenticated routes are routes used by the Fleet Desktop application. Unlike most other routes, they are not authenticated with a Fleet user's API token, they use a device-specific token.
+Device-authenticated routes are routes used by the Fleet Desktop application. Unlike most other routes, Fleet user's API token does not authenticate them. They use a device-specific token.
 
 #### Get device's host
 
@@ -1666,7 +1666,7 @@ Lists the policies applied to the current device.
 
 #### Get device's API features
 
-Supports the dynamic discovery of API features supported by the server for device-authenticated routes. This allows supporting different versions of Fleet Desktop and Fleet server instances (either can be older or newer) while supporting evolution of the API features. With this mechanism, an older Fleet Desktop can ignore features it doesn't know about, and a newer one can avoid requesting features that the server doesn't know about.
+This supports the dynamic discovery of API features supported by the server for device-authenticated routes. This allows supporting different versions of Fleet Desktop and Fleet server instances (older or newer) while supporting the evolution of the API features. With this mechanism, an older Fleet Desktop can ignore features it doesn't know about, and a newer one can avoid requesting features about which the server doesn't know.
 
 `GET /api/v1/fleet/device/{token}/api_features`
 
