@@ -1410,7 +1410,7 @@ NOTE: when updating a policy, team and platform will be ignored.
 
 ### Device-authenticated routes
 
-Device-authenticated routes are routes used by the Fleet Desktop application. Unlike most other routes, Fleet user's API tokendoes not authenticate them. They use a device-specific token.
+Device-authenticated routes are routes used by the Fleet Desktop application. Unlike most other routes, Fleet user's API token does not authenticate them. They use a device-specific token.
 
 #### Get device's host
 
