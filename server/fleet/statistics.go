@@ -21,6 +21,7 @@ type StatisticsPayload struct {
 	NumWeeklyActiveUsers           int                                `json:"numWeeklyActiveUsers"`
 	HostsEnrolledByOperatingSystem map[string][]HostsCountByOSVersion `json:"hostsEnrolledByOperatingSystem"`
 	StoredErrors                   json.RawMessage                    `json:"storedErrors"`
+	NumHostsNotResponding          int                                `json:"numHostsNotResponding"`
 }
 
 type HostsCountByOSVersion struct {

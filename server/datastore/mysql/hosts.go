@@ -12,6 +12,7 @@ import (
 
 	"github.com/cenkalti/backoff/v4"
 	"github.com/doug-martin/goqu/v9"
+	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/go-kit/kit/log/level"
@@ -1908,4 +1909,43 @@ func (ds *Datastore) ListHostBatteries(ctx context.Context, hid uint) ([]*fleet.
 		return nil, ctxerr.Wrap(ctx, err, "select host batteries")
 	}
 	return batteries, nil
+}
+
+// countHostNotResponding counts the hosts that haven't been submitting results for sent queries.
+//
+// Notes:
+//   - We use `2 * interval`, because of the artificial jitter added to the intervals in Fleet.
+//   - Default values for:
+//     - host.DistributedInterval is usually 10s.
+//     - svc.config.Osquery.DetailUpdateInterval is usually 1h.
+//   - Count only includes hosts seen during the last 7 days.
+func countHostsNotRespondingDB(ctx context.Context, db sqlx.QueryerContext, config config.FleetConfig) (int, error,
+) {
+	interval := config.Osquery.DetailUpdateInterval.Seconds() * 2
+
+	// The `WHERE` clause is intended to capture where Fleet hasn't received a distributed write
+	// from the host during the interval since the host was last seen. Thus we assume the host
+	// is having some issue in executing distributed queries or sending the results.
+	sql := `
+	SELECT
+	  COUNT(*)
+	FROM (
+	  SELECT
+		  h.id,
+		  h.detail_updated_at,
+		  h.distributed_interval,
+		  hst.seen_time
+	  FROM
+		hosts h
+		JOIN host_seen_times hst ON h.id = hst.host_id) j
+	WHERE 
+	  TIME_TO_SEC(TIMEDIFF(j.seen_time, j.detail_updated_at)) >= GREATEST(j.distributed_interval, ?)
+	  AND TIMEDIFF(DATE_ADD(j.seen_time, INTERVAL 7 DAY), NOW()) > 0
+`
+
+	var count int
+	if err := sqlx.GetContext(ctx, db, &count, sql, interval); err != nil {
+		return count, ctxerr.Wrap(ctx, err, "count hosts not responding")
+	}
+	return count, nil
 }
