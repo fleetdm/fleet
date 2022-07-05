@@ -62,6 +62,7 @@ const QueryEditor = ({
   } = useContext(QueryContext);
 
   const [isQuerySaving, setIsQuerySaving] = useState<boolean>(false);
+  const [isQueryUpdating, setIsQueryUpdating] = useState<boolean>(false);
 
   useEffect(() => {
     if (storedQueryError) {
@@ -103,6 +104,8 @@ const QueryEditor = ({
       return false;
     }
 
+    setIsQueryUpdating(true);
+
     const updatedQuery = deepDifference(formData, {
       lastEditedQueryName,
       lastEditedQueryDescription,
@@ -124,6 +127,8 @@ const QueryEditor = ({
         );
       }
     }
+
+    setIsQueryUpdating(false);
 
     return false;
   };
@@ -152,6 +157,7 @@ const QueryEditor = ({
         renderLiveQueryWarning={renderLiveQueryWarning}
         backendValidators={backendValidators}
         isQuerySaving={isQuerySaving}
+        isQueryUpdating={isQueryUpdating}
       />
     </div>
   );

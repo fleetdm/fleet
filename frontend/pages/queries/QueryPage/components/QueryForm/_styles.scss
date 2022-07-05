@@ -197,6 +197,19 @@
     margin-right: $pad-xsmall;
   }
 
+  &__save {
+    display: flex;
+    width: 64px;
+  }
+
+  &__save-as-new {
+    width: 82px;
+  }
+
+  &__save-modal__btn {
+    width: 106px;
+  }
+
   &__title {
     color: $core-fleet-black;
     display: inline-block;
