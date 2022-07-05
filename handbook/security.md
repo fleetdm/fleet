@@ -296,11 +296,11 @@ is kept up to date.
 
 If you do not already have a pair of hardware security keys, order [YubiKey 5C NFC security
 keys](https://www.yubico.com/ca/product/yubikey-5c-nfc-pack-of-2/) with your company card, or ask
-for help in [#help-login](https://fleetdm.com/handbook/security#slack-channels) to get you one if you do not have a company card.
+for help in [#help-login](https://fleetdm.com/handbook/security#slack-channels) to get one if you do not have a company card.
 
 ### Are they YubiKeys or security keys?
 
-We use YubiKeys, a brand of hardware security keys that support the FIDO U2F protocol. You can use
+We use YubiKeys, a hardware security key brand that supports the FIDO U2F protocol. You can use
 both terms interchangeably at Fleet. We use YubiKeys because they support more authentication protocols than regular
 security keys.
 
@@ -317,12 +317,12 @@ information on the security of different types of 2FA.
 
 ### Goals
 
-Our goals with security keys are to:
+Our goals with security keys are to
 
 1. eliminate the risk of credential phishing.
 2. maintain the best user experience possible.
-3. ensure team members can access systems as needed, and that recovery procedures exist in case of a lost key.
-4. ensure recovery mechanisms are safe to prevent attackers from bypassing 2FA completely.
+3. make sure team members can access systems as needed, and that recovery procedures exist in case of a lost key.
+4. make sure recovery mechanisms are safe to prevent attackers from bypassing 2FA completely.
 
 ### Setting up security keys on Google
 
@@ -358,7 +358,7 @@ identified" warning.
 
 1. Configure your two security keys to [access
    GitHub](https://github.com/settings/two_factor_authentication/configure).
-2. If you are using a Mac, feel free to add it as a security key on GitHub. This brings most of the
+2. If you use a Mac, feel free to add it as a security key on GitHub. This brings most of the
    advantages of the hardware security key but allows you to log in by simply touching Touch ID as
    your second factor.
 
@@ -393,14 +393,13 @@ worries, just enroll it again!
 
 5. I lost all of my keys, and I'm locked out! What do I do?
 
-**Answer**: Post in the `#help-login` channel, or if you are locked out of Slack, contact your
-manager. You will be provided a way to log back in and make your phone your security key until you
+**Answer**: Post in the `#help-login` channel, or contact your manager if you find yourself locked out of Slack. You will be provided a way to log back in and make your phone your security key until you
 receive new ones.
 
 6. Can I use security keys to log in from any device?
 
 **Answer**: The keys we use, YubiKeys 5C NFC, work over USB-C as well as NFC. They can be used on
-Mac/PC, Android and iPhone and iPad Pro with USB-C port. If some application or device does
+Mac/PC, Android, iPhone, and iPad Pro with USB-C port. If some application or device does
 not support it, you can always browse to [g.co/sc](https://g.co/sc) from a device that supports
 security keys to generate a temporary code for the device that does not.
 
