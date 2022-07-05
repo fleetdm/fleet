@@ -51,7 +51,7 @@ parasails.registerPage('basic-handbook', {
     if(this.isHandbookLandingPage) {
       let handbookPages = [];
       for (let page of this.markdownPages) {
-        if(_.startsWith(page.url, '/handbook') && !page.title.match(/^readme\.md$/i)) {
+        if(_.startsWith(page.url, '/handbook') && !page.title.match(/^readme\.md$/i) && !page.meta.excludePageFromSectionIndex) {// « Note: Excluding pages with a excludePageFromSectionIndex meta tag (`<meta name="excludePageFromSectionIndex" value="true">`)
           let handbookPage = {
             pageTitle: page.title,
             url: page.url,
