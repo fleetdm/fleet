@@ -529,12 +529,12 @@ this will be similar to what [this blog post](https://oops.computer/posts/github
 
 ## Google Workspace security
 Google Workspace is our collaboration tool and the source of truth for our user identities.
-A Google Workspace account has access to email, calendar, files, and external applications integrated with Google Authentication or SAML.
+A Google Workspace account gives access to email, calendar, files, and external applications integrated with Google Authentication or SAML.
 At the same time, third-party applications installed by users can access the same data.
 
-To reduce the risk of malicious or vulnerable apps being used to steal data, we configure Google Workspace beyond the default settings. Our current configuration balances security and productivity and is a starting point for any organization looking to improve the security of Google Workspace.
+We configure Google Workspace beyond the default settings to reduce the risk of malicious or vulnerable apps being used to steal data. Our current configuration balances security and productivity and is a starting point for any organization looking to improve the security of Google Workspace.
 
-As Google frequently adds new features, feel free to submit a PR to edit this file if you discover a new one that we should use!
+As Google frequently adds new features, feel free to submit a PR to edit this file if you discover a new one we should use!
 
 ### Authentication
 We cannot overstate the importance of securing authentication, especially in a platform that includes email and is used as a directory to log in to multiple applications.
@@ -546,8 +546,8 @@ Google's name for Two-Factor Authentication (2FA) or Multi-Factor Authentication
 | ----------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------- |
 | No 2FA                                                                        | Credential theft is easy, and passwords are often leaked or easy to guess.                                |
 | SMS/Phone-based 2FA                                                           | Puts trust in the phone number itself, which attackers can hijack by [social engineering phone companies](https://www.vice.com/en/topic/sim-hijacking).      |
-| Time-based one-time password (TOTP - Google Authenticator type 6 digit codes) | Phishable as long as the attacker uses it within its short lifetime by intercepting the login form. |
-| App-based push notifications                                                  | Harder to phish than TOTP, but by sending a lot of prompts to a phone, a user might accidentally accept a nefarious notification.       |
+| Time-based one-time password (TOTP - Google Authenticator type six digit codes) | Phishable as long as the attacker uses it within its short lifetime by intercepting the login form. |
+| App-based push notifications                                                  | These are harder to phish than TOTP, but by sending a lot of prompts to a phone, a user might accidentally accept a nefarious notification.       |
 | Hardware security keys                                                        | [Most secure](https://krebsonsecurity.com/2018/07/google-security-keys-neutralized-employee-phishing/) but requires extra hardware or a recent smartphone. Configure this as soon as you receive your Fleet YubiKeys                                                                |
 
 ##### 2-Step verification in Google Workspace
@@ -577,7 +577,7 @@ As we enforce the use of 2-SV, passwords are less critical to the security of ou
 
 Enforcing 2FA is a much more valuable control than enforcing the expiration of passwords, which usually results in users changing only a small portion of the password and following predictable patterns.
 
-We apply the following settings to *Security/Password management* to all users as the minimum baseline.
+We apply the following *Security/Password management* settings to all users as the minimum baseline.
 
 
 | Setting name                                                            | Value         |
@@ -601,16 +601,16 @@ We apply the following settings to *Security/Account Recovery* to all users as t
 | Allow super admins to recover their account                | Off   |
 | Allow users and non-super admins to recover their account | Off   |
 
-First, we ensure we have a handful of administrators. Then, by not requiring password expiration, the number of issues related to passwords is reduced. Lastly, we can support locked-out users manually as the volume of issues is minimal.
+First, we make sure we have a handful of administrators. Then, by not requiring password expiration, the number of issues related to passwords is reduced. Lastly, we can support locked-out users manually as the volume of issues is minimal.
 
 #### Less secure apps
 Less secure apps use legacy protocols that do not support secure authentication methods. We disable them, and as they are becoming rare, we have not noticed any issues from this setting.
 
-We apply the following settings to *Security/Less Secure Apps* to all users as the minimum baseline.
+We apply the following *Security/Less Secure Apps* settings to all users as the minimum baseline.
 
 | Setting name                                                                                            | Value                                            |
 | ------------------------------------------------------------------------------------------------------- | ------------------------------------------------ |
-| Control user access to apps that use less secure sign-in technology and make accounts more vulnerable.  | Disable access to less secure apps (Recommended) |
+| Control user access to apps that use less secure sign-in technology makes accounts more vulnerable.  | Disable access to less secure apps (Recommended) |
 
 #### API access
 Google Workspace makes it easy for users to add tools to their workflows while having these tools authenticate to their Google applications and data via OAuth. We mark all Google services as *restricted* but do allow the use of OAuth for simple authentication and the use of less dangerous privileges on Gmail and Drive. We then approve applications that require more privileges on a case-by-case basis.
@@ -637,15 +637,15 @@ We have also created the following custom alerts.
 | ------------------------------------------- | ----------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | -------------------- |
 | Out of domain email forwarding              | Login audit log, filtered by event  | Attackers in control of an email account often configure forwarding to establish persistence.                                                              | Alert Center + Email |
 | 2-step Verification disable                 | Login audit log, filtered by event  | Though we enforce 2-SV, if we accidentally allow removing it, we want to know as soon as someone does so.                                                               | Alert Center + Email |
-| 2-step Verification Scratch Codes Generated | Admin audit log, filtered by event  | Scratch codes can be used to bypass 2-SV. An attacker with elevated privileges could leverage this to log in as a user.                           | Alert Center + Email |
+| 2-step Verification Scratch Codes Generated | Admin audit log, filtered by event  | Use scratch codes to bypass 2-SV. An attacker with elevated privileges could leverage this to log in as a user.                           | Alert Center + Email |
 | Change Allowed 2-step Verification Methods  | Admin audit log, filtered by event  | We want to detect accidental or malicious downgrades of 2-SV configuration.                                                                                              | Alert Center + Email |
-| Change 2-Step Verification Start Date       | Admin audit log, filtered by event  | We want to detect accidental or malicious "downgrades" of 2-SV configuration.                                                                                              | Alert Center + Email |
+| Change 2-Step Verification Start Date       | Admin audit log, filtered by event  | We want to detect accidental or malicious "downgrades" of the 2-SV configuration.                                                                                              | Alert Center + Email |
 | Alert Deletion                              | Admin audit log, filtered by event  | For alerts to be a reliable control, we need to alert on alerts being disabled or changed.                                                                                | Alert Center + Email |
 | Alert Criteria Change                       | Admin audit log, filtered by event  | For alerts to be a reliable control, we need to alert on alerts being disabled or changed.                                                                                | Alert Center + Email |
 | Alert Receivers Change                      | Admin audit log, filtered by event  | For alerts to be a reliable control, we need to alert on alerts being disabled or changed.                                                                                | Alert Center + Email |
-| Dangerous download warning                  | Chrome audit log, filtered by event | As we roll out more Chrome security features we want to track the things getting blocked to evaluate the usefulness of the feature and potential false positives. | Alert Center         |
-| Malware transfer                            | Chrome audit log, filtered by event | As we roll out more Chrome security features we want to track the things getting blocked to evaluate the usefulness of the feature and potential false positives. | Alert Center         |
-| Password reuse                              | Chrome audit log, filtered by event | As we roll out more Chrome security features we want to track the things getting blocked to evaluate the usefulness of the feature and potential false positives | Alert Center         |
+| Dangerous download warning                  | Chrome audit log, filtered by event | As we roll out more Chrome security features, we want to track the things getting blocked to evaluate the usefulness of the feature and potential false positives. | Alert Center         |
+| Malware transfer                            | Chrome audit log, filtered by event | As we roll out more Chrome security features, we want to track the things getting blocked to evaluate the usefulness of the feature and potential false positives. | Alert Center         |
+| Password reuse                              | Chrome audit log, filtered by event | As we roll out more Chrome security features, we want to track the things getting blocked to evaluate the usefulness of the feature and potential false positives | Alert Center         |
 
 
 ### Gmail
@@ -653,17 +653,17 @@ We have also created the following custom alerts.
 #### Email authentication
 Email authentication makes it harder for other senders to pretend to be from Fleet. This improves trust in emails from fleetdm.com and makes it more difficult for anyone attempting to impersonate Fleet.
 
-We authenticate email with [DKIM](https://support.google.com/a/answer/174124?product_name=UnuFlow&hl=en&visit_id=637806265550953415-394435698&rd=1&src=supportwidget0&hl=en) and have a [DMARC](https://support.google.com/a/answer/2466580) policy to define how our outgoing email should be defined.
+We authenticate email with [DKIM](https://support.google.com/a/answer/174124?product_name=UnuFlow&hl=en&visit_id=637806265550953415-394435698&rd=1&src=supportwidget0&hl=en) and have a [DMARC](https://support.google.com/a/answer/2466580) policy to decide how our outgoing email should be defined.
 
-The DKIM configuration under *Apps/Google Workspace/Settings for Gmail/Authenticate Email* simply consists of generating the key, publishing it to DNS, then enabling the feature 48 hours later.
+The DKIM configuration under *Apps/Google Workspace/Settings for Gmail/Authenticate Email* simply consists of generating the key, publishing it to DNS, then enabling the feature 48-hours later.
 
 [DMARC](https://support.google.com/a/answer/2466580) is configured separately at the DNS level once DKIM is enforced.
 
 #### Email security
 
-Google Workspace includes multiple options in *Apps/Google Workspace/Settings for Gmail/Safety* related to how inbound email is handled.
+Google Workspace includes multiple options in *Apps/Google Workspace/Settings for Gmail/Safety* related to how it handles inbound email.
 
-As email is one of the main vectors used by attackers, we ensure we protect it as much as possible. Attachments are frequently used to send malware. We apply the following settings to block common tactics.
+As email is one of the main vectors used by attackers, we make certain we protect it as much as possible. Attachments are frequently used to send malware. We apply the following settings to block common tactics.
 
 | Category                    | Setting name                                                    | Value   | Action                               | Note                                                                                                   |
 | --------------------------- | --------------------------------------------------------------- | ------- | ------------------------------------ | ------------------------------------------------------------------------------------------------------ |
@@ -685,11 +685,11 @@ As email is one of the main vectors used by attackers, we ensure we protect it a
 | Spoofing and authentication | Apply future recommended settings automatically                 | On      |                                      |                                                                                                        |
 | Manage quarantines | Notify periodically when messages are quarantine                   | On      |                                      |                                                                                                        |
 
-We enable *Apply future recommended settings automatically* to ensure we are secure by default. We would prefer to adjust this after seeing emails quarantined accidentally rather than missing out on new security features for email security.
+We enable *Apply future recommended settings automatically* to make certain we are secure by default. We would prefer to adjust this after seeing emails quarantined accidentally rather than missing out on new security features for email security.
 
 #### End-user access
 
-We recommend using the Gmail web interface on computers and the Gmail app on mobile devices. The user interface on the official applications includes security information that is not visible in standard mail clients (e.g., Mail on macOS). We do allow a few of them at the moment for specific workflows. 
+We recommend using the Gmail web interface on computers and the Gmail app on mobile devices. The user interface on the official applications includes security information not visible in standard mail clients (e.g., Mail on macOS). We do allow a few of them at the moment for specific workflows. 
 
 | Category                         | Setting name                                                                                                                                      | Value                                                                                                                                                                                                                        | Note                                                                                                                                                                                                                                                  |
 | -------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -716,7 +716,7 @@ We use Google Drive and related applications for internal and external collabora
 | Sharing options           | When sharing outside of Fleet Device Management is allowed, users in Fleet Device Management can make files and published web content visible to anyone with the link | Enabled                                     |                                                                                                                                                                                                                                                                                                                                                                                              |
 | Sharing options           | Access Checker                                                                                                                                                        | Recipients only, or Fleet Device Management |                                                                                                                                                                                                                                                                                                                                                                                              |
 | Sharing options           | Distributing content outside of Fleet Device Management                                                                                                               | Only users in Fleet Device Management       | This prevents external contributors from sharing to other external contributors                                                                                                                                                                                                                                                                                                              |
-| Link sharing default      | When users in Fleet Device Management create items, the default link sharing access will be:                                                                          | Off                                         | We want the owners of new files to make a conscious decision around sharing, and to be secure by default                                                                                                                                                                                                                                                                                     |
+| Link sharing default      | When users in Fleet Device Management create items, the default link sharing access will be:                                                                          | Off                                         | We want the owners of new files to make a conscious decision around sharing and to be secure by default                                                                                                                                                                                                                                                                                     |
 | Security update for files | Security update                                                                                                                                                       | Apply security update to all affected files |                                                                                                                                                                                                                                                                                                                                                                                              |
 | Security update for files | Allow users to remove/apply the security update for files they own or manage                                                                                          | Enabled                                     | We have very few files impacted by [updates to link sharing](https://support.google.com/a/answer/10685032?amp;visit_id=637807141073031168-526258799&amp;rd=1&product_name=UnuFlow&p=update_drives&visit_id=637807141073031168-526258799&rd=2&src=supportwidget0). For some files meant to be public, we want users to be able to revert to the old URL that is more easily guessed.  |
 
@@ -726,7 +726,7 @@ We use Google Drive and related applications for internal and external collabora
 | ------------------------------------ | ------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------- |
 | Offline                              | Control offline access using device policies                             | Enabled                                                                                                                         |                                                                                                                        |
 | Smart Compose                        | Allow users to see Smart Compose suggestions                             | Enabled                                                                                                                         |                                                                                                                        |
-| Google Drive for desktop             | Allow Google Drive for desktop in your organization                      | Off                                                                                                                             | To limit the amount of data stored on computers, we currently do not allow local sync. We may enable it in the future  |
+| Google Drive for desktop             | Allow Google Drive for desktop in your organization                      | Off                                                                                                                             | To limit the amount of data stored on computers, we currently do not allow local sync. We may enable it in the future.  |
 | Drive                                | Drive                                                                    | Do not allow Backup and Sync in your organization                                                                               |                                                                                                                        |
 | Drive SDK                            | Allow users to access Google Drive with the Drive SDK API                | Enabled                                                                                                                         | The applications trusted for access to Drive are controlled but require this to work.                                 |
 | Add-Ons                              | Allow users to install Google Docs add-ons from add-ons store            | Enabled                                                                                                                         | The applications trusted for access to Drive are controlled but require this to work.                                 |
