@@ -13,7 +13,6 @@ Fleet Device Management Inc. periodically collects information about your instan
 ```json
 {
   "anonymousIdentifier": "9pnzNmrES3mQG66UQtd29cYTiX2+fZ4CYxDvh495720=",
-  "organization": "Fleet",
   "fleetVersion": "x.x.x",
   "licenseTier": "free",
   "numHostsEnrolled": 999,
