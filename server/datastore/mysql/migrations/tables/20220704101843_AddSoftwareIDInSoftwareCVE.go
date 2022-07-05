@@ -12,6 +12,19 @@ func init() {
 }
 
 func Up_20220704101843(tx *sql.Tx) error {
+	if !columnExists(tx, "software_cve", "software_id") {
+		fmt.Println("Adding software_id column to software_cve table...")
+
+		_, err := tx.Exec(`
+	ALTER TABLE software_cve ADD COLUMN software_id bigint(20) UNSIGNED NULL, ALGORITHM=INPLACE, LOCK=NONE;
+`)
+		if err != nil {
+			return errors.Wrapf(err, "adding software_id to software_cve")
+		}
+		fmt.Println("Done adding software_id column to software_cve table...")
+
+	}
+
 	fmt.Println("Updating software_id column in software_cve table...")
 
 	var min int
