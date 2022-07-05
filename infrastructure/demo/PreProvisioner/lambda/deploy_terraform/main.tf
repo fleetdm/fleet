@@ -142,6 +142,11 @@ resource "helm_release" "main" {
     name  = "ingressAnnotations.kubernetes\\.io/ingress\\.class"
     value = "haproxy"
   }
+
+  set {
+    name  = "replicas"
+    value = "2"
+  }
 }
 
 resource "aws_dynamodb_table_item" "main" {

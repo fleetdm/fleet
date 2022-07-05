@@ -2,24 +2,16 @@ package main
 
 import (
 	"context"
-	"fmt"
 	"github.com/aws/aws-lambda-go/lambda"
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/session"
-	"github.com/aws/aws-sdk-go/service/dynamodb"
-	"github.com/aws/aws-sdk-go/service/dynamodb/dynamodbattribute"
-	"github.com/google/uuid"
 	flags "github.com/jessevdk/go-flags"
 	"log"
-	"math/rand"
 	"os"
 	"os/exec"
 )
 
 type OptionsStruct struct {
 	LambdaExecutionEnv string `long:"lambda-execution-environment" env:"AWS_EXECUTION_ENV"`
-	LifecycleTable     string `long:"dynamodb-lifecycle-table" env:"DYNAMODB_LIFECYCLE_TABLE" required:"true"`
-	InstanceID         string `long:"instance-id" env:"INSTANCE_ID"`
+    InstanceID         string `long:"instance-id" env:"INSTANCE_ID" required:"true"`
 }
 
 var options = OptionsStruct{}
@@ -52,7 +44,7 @@ func initTerraform() error {
 func runTerraform(workspace string) error {
 	err := runCmd([]string{
 		"workspace",
-		"new",
+		"select",
 		workspace,
 	})
 	if err != nil {
@@ -70,11 +62,13 @@ func handler(ctx context.Context, name NullEvent) error {
 	if err := initTerraform(); err != nil {
 		return err
 	}
-	if err := runTerraform(fmt.Sprintf("t%s", uuid.New().String()[:8]), redisDatabase); err != nil {
+	if err := runTerraform(options.InstanceID); err != nil {
 		return err
 	}
 	return nil
 }
+
+type NullEvent struct{}
 
 func main() {
 	var err error

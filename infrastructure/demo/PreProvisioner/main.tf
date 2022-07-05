@@ -22,19 +22,60 @@ resource "aws_cloudwatch_log_group" "main" {
   name = local.full_name
 }
 
+data "aws_iam_policy_document" "events-assume-role" {
+  statement {
+    actions = ["sts:AssumeRole"]
+    principals {
+      type        = "Service"
+      identifiers = ["events.amazonaws.com"]
+    }
+  }
+}
+
+resource "aws_iam_role_policy_attachment" "events" {
+  role       = aws_iam_role.events.id
+  policy_arn = aws_iam_policy.events.arn
+}
+
+resource "aws_iam_policy" "events" {
+  name   = "${local.full_name}-events"
+  policy = data.aws_iam_policy_document.events.json
+}
+
+data "aws_iam_policy_document" "events" {
+  statement {
+    actions   = ["ecs:RunTask"]
+    resources = [replace(aws_ecs_task_definition.main.arn, "/:\\d+$/", ":*"), replace(aws_ecs_task_definition.main.arn, "/:\\d+$/", "")]
+    condition {
+      test     = "ArnLike"
+      variable = "ecs:cluster"
+      values   = [var.ecs_cluster.arn]
+    }
+  }
+  statement {
+    actions   = ["iam:PassRole"]
+    resources = ["*"]
+    condition {
+      test     = "StringLike"
+      variable = "iam:PassedToService"
+      values   = ["ecs-tasks.amazonaws.com"]
+    }
+  }
+}
+
+resource "aws_iam_role" "events" {
+  name = "${local.full_name}-events"
+  path = "/service-role/"
+
+  assume_role_policy = data.aws_iam_policy_document.events-assume-role.json
+}
+
 data "aws_iam_policy_document" "lambda-assume-role" {
   statement {
     actions = ["sts:AssumeRole"]
     principals {
       type        = "Service"
       identifiers = ["ecs-tasks.amazonaws.com"]
-    }
-  }
-  statement {
-    actions = ["sts:AssumeRole"]
-    principals {
-      type        = "AWS"
-      identifiers = ["arn:aws:iam::917007347864:user/zwinnerman@fleetdm.com"]
     }
   }
 }
@@ -190,11 +231,11 @@ resource "aws_ecs_task_definition" "main" {
           },
           {
             name  = "MAX_INSTANCES"
-            value = "2"
+            value = "100"
           },
           {
             name  = "QUEUED_INSTANCES"
-            value = "2"
+            value = "20"
           },
           {
             name  = "TF_VAR_redis_address"
@@ -266,11 +307,22 @@ resource "docker_registry_image" "main" {
 
 resource "aws_cloudwatch_event_rule" "main" {
   name_prefix         = var.prefix
-  schedule_expression = "rate(5 minutes)"
-  is_enabled          = false
+  schedule_expression = "rate(1 hour)"
+  is_enabled          = true
 }
 
-#resource "aws_cloudwatch_event_target" "main" {
-#  rule = aws_cloudwatch_event_rule.main.name
-#  arn  = aws_lambda_function.main.arn
-#}
+resource "aws_cloudwatch_event_target" "main" {
+  rule     = aws_cloudwatch_event_rule.main.name
+  arn      = var.ecs_cluster.arn
+  role_arn = aws_iam_role.events.arn
+  ecs_target {
+    task_count          = 1
+    task_definition_arn = aws_ecs_task_definition.main.arn
+    launch_type         = "FARGATE"
+    network_configuration {
+      subnets          = var.vpc.private_subnets
+      security_groups  = [aws_security_group.lambda.id]
+      assign_public_ip = false
+    }
+  }
+}

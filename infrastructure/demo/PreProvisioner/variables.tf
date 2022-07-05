@@ -6,3 +6,4 @@ variable "mysql_secret" {}
 variable "eks_cluster" {}
 variable "redis_cluster" {}
 variable "base_domain" {}
+variable "ecs_cluster" {}
