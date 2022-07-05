@@ -86,6 +86,7 @@ Fleet Device Management Inc. periodically collects anonymous information about y
     },
     ...
   ]
+  "organization": "Fleet"
 }
 ```
 
