@@ -35,7 +35,7 @@ module.exports = {
     if (category === 'articles') {
       // If the category is `/articles` we'll show all articles
       articles = sails.config.builtStaticContent.markdownPages.filter((page)=>{
-        if(_.startsWith(page.htmlId, 'articles') && !page.meta.excludePageFromSectionIndex) {// « Note: Excluding pages with a excludePageFromSectionIndex meta tag (`<meta name="excludePageFromSectionIndex" value="true">`)
+        if(_.startsWith(page.htmlId, 'articles')) {
           return page;
         }
       });
@@ -44,7 +44,7 @@ module.exports = {
     } else {
       // if the user navigates to a URL for a specific category, we'll only display articles in that category
       articles = sails.config.builtStaticContent.markdownPages.filter((page)=>{
-        if(_.startsWith(page.url, '/'+category) && !page.meta.excludePageFromSectionIndex) {// « Note: Excluding pages with a excludePageFromSectionIndex meta tag (`<meta name="excludePageFromSectionIndex" value="true">`)
+        if(_.startsWith(page.url, '/'+category)) {
           return page;
         }
       });

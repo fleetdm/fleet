@@ -47,9 +47,7 @@ parasails.registerPage('basic-documentation', {
 
       for (let sectionSlug of sectionSlugs) {
         pagesBySectionSlug[sectionSlug] = this.pages.filter((page) => {
-          if(!page.meta.excludePageFromSectionIndex) { // « If a page has a excludePageFromSectionIndex meta tag (`<meta name="excludePageFromSectionIndex" value="true">`), We won't include it in our table of contents.
-            return sectionSlug === page.url.split(/\//).slice(-2)[0];
-          }
+          return sectionSlug === page.url.split(/\//).slice(-2)[0];
         });
         // Sorting pages by pageOrderInSectionPath value, README files do not have a pageOrderInSectionPath, and FAQ pages are added to the end of the sorted array below.
         pagesBySectionSlug[sectionSlug] = _.sortBy(pagesBySectionSlug[sectionSlug], (page) => {
