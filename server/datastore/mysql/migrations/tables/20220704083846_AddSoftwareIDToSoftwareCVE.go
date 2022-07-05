@@ -12,7 +12,7 @@ func init() {
 
 func Up_20220704083846(tx *sql.Tx) error {
 	_, err := tx.Exec(`
-	ALTER TABLE software_cve ADD COLUMN software_id INT(10) UNSIGNED NULL, ALGORITHM=INPLACE, LOCK=NONE;
+	ALTER TABLE software_cve ADD COLUMN software_id bigint(20) UNSIGNED NULL, ALGORITHM=INPLACE, LOCK=NONE;
 `)
 	if err != nil {
 		return errors.Wrapf(err, "adding software_id to software_cve")

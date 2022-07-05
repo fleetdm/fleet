@@ -15,7 +15,7 @@ func Up_20220704101843(tx *sql.Tx) error {
 	var max int
 
 	const selectStmt = `
-SELECT MIN(cve.id) AS min_id, MAX(cve.id) as max_id 
+SELECT COALESCE(MIN(cve.id), 0) AS min_id, COALESCE(MAX(cve.id), 0) as max_id 
 FROM software_cve AS cve
 WHERE cve.software_id IS NULL;`
 	if err := tx.QueryRow(selectStmt).Scan(&min, &max); err != nil {
