@@ -17,8 +17,8 @@ func TestUp_20220704101843(t *testing.T) {
 	VALUES (2, 1, '2022-06-19 18:01:14', '2022-06-19 18:01:14', 'none:1704');`)
 	require.NoError(t, err)
 
-	_, err = db.Exec(`INSERT INTO software_cve (id, cpe_id, cve, created_at, updated_at, source, software_id)
-	VALUES (3, 2, 'CVE-2019-17006', '2022-06-19 18:04:02', '2022-07-04 14:33:04', 1, NULL);`)
+	_, err = db.Exec(`INSERT INTO software_cve (id, cpe_id, cve, created_at, updated_at, source)
+	VALUES (3, 2, 'CVE-2019-17006', '2022-06-19 18:04:02', '2022-07-04 14:33:04', 1);`)
 	require.NoError(t, err)
 
 	applyNext(t, db)
