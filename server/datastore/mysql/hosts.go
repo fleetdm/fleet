@@ -1929,18 +1929,10 @@ func countHostsNotRespondingDB(ctx context.Context, db sqlx.QueryerContext, conf
 	sql := `
 	SELECT
 	  COUNT(*)
-	FROM (
-	  SELECT
-		  h.id,
-		  h.detail_updated_at,
-		  h.distributed_interval,
-		  hst.seen_time
-	  FROM
-		hosts h
-		JOIN host_seen_times hst ON h.id = hst.host_id) j
+	FROM (SELECT * FROM hosts JOIN host_seen_times ON hosts.id = host_seen_times.host_id) h
 	WHERE 
-	  TIME_TO_SEC(TIMEDIFF(j.seen_time, j.detail_updated_at)) >= GREATEST(j.distributed_interval, ?)
-	  AND TIMEDIFF(DATE_ADD(j.seen_time, INTERVAL 7 DAY), NOW()) > 0
+	  TIME_TO_SEC(TIMEDIFF(h.seen_time, h.detail_updated_at)) >= GREATEST(h.distributed_interval, ?)
+	  AND TIMEDIFF(DATE_ADD(h.seen_time, INTERVAL 7 DAY), NOW()) > 0
 `
 
 	var count int

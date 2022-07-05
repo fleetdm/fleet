@@ -4436,6 +4436,7 @@ func testCountHostsNotResponding(t *testing.T, ds *Datastore) {
 		PolicyUpdatedAt:     time.Now().Add(-8 * 24 * time.Hour),
 		SeenTime:            time.Now().Add(-8 * 24 * time.Hour),
 	})
+	require.NoError(t, err)
 
 	count, err := countHostsNotRespondingDB(ctx, ds.writer, config)
 	require.NoError(t, err)
