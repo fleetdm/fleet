@@ -178,6 +178,7 @@ const DeviceUserPage = ({
       "hardware_serial",
       "primary_ip",
       "public_ip",
+      "batteries",
     ])
   );
 
