@@ -49,27 +49,27 @@ jobs:
       run: docker build -t fleetdm/fleetctl --platform=linux/amd64 -f tools/fleetctl-docker/Dockerfile .
 
     - name: Build DEB
-      run: docker run fleetdm/fleetctl package --type deb --enroll-secret=foo --fleet-url=https://localhost:8080
+      run: docker run -v "$(pwd):/build" fleetdm/fleetctl package --type deb --enroll-secret=foo --fleet-url=https://localhost:8080
     - name: Build DEB
       run: docker run fleetdm/fleetctl package --type deb --enroll-secret=foo --fleet-url=https://localhost:8080
 
     - name: Build DEB with Fleet Desktop
-      run: docker run fleetdm/fleetctl package --type deb --enroll-secret=foo --fleet-url=https://localhost:8080 --fleet-desktop
+      run: docker run -v "$(pwd):/build" fleetdm/fleetctl package --type deb --enroll-secret=foo --fleet-url=https://localhost:8080 --fleet-desktop
       
     - name: Build RPM
-      run: docker run fleetdm/fleetctl --type rpm --enroll-secret=foo --fleet-url=https://localhost:8080
+      run: docker run -v "$(pwd):/build" fleetdm/fleetctl --type rpm --enroll-secret=foo --fleet-url=https://localhost:8080
       
     - name: Build RPM with Fleet Desktop
-      run: docker run fleetdm/fleetctl package --type rpm --enroll-secret=foo --fleet-url=https://localhost:8080 --fleet-desktop
+      run: docker run -v "$(pwd):/build" fleetdm/fleetctl package --type rpm --enroll-secret=foo --fleet-url=https://localhost:8080 --fleet-desktop
 
     - name: Build MSI
-      run: docker run fleetdm/fleetctl package --type msi --enroll-secret=foo --fleet-url=https://localhost:8080
+      run: docker run -v "$(pwd):/build" fleetdm/fleetctl package --type msi --enroll-secret=foo --fleet-url=https://localhost:8080
 
     - name: Build MSI with Fleet Desktop
-      run: docker run fleetdm/fleetctl package --type msi --enroll-secret=foo --fleet-url=https://localhost:8080 --fleet-desktop
+      run: docker run -v "$(pwd):/build" fleetdm/fleetctl package --type msi --enroll-secret=foo --fleet-url=https://localhost:8080 --fleet-desktop
 
     - name: Build PKG
-      run: docker run fleetdm/fleetctl package --type pkg --enroll-secret=foo --fleet-url=https://localhost:8080
+      run: docker run -v "$(pwd):/build" fleetdm/fleetctl package --type pkg --enroll-secret=foo --fleet-url=https://localhost:8080
 
     - name: Build PKG with Fleet Desktop
-      run: docker run fleetdm/fleetctl package --type pkg --enroll-secret=foo --fleet-url=https://localhost:8080 --fleet-desktop
+      run: docker run -v "$(pwd):/build" fleetdm/fleetctl package --type pkg --enroll-secret=foo --fleet-url=https://localhost:8080 --fleet-desktop
