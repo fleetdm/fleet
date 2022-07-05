@@ -50,8 +50,6 @@ jobs:
 
     - name: Build DEB
       run: docker run -v "$(pwd):/build" fleetdm/fleetctl package --type deb --enroll-secret=foo --fleet-url=https://localhost:8080
-    - name: Build DEB
-      run: docker run fleetdm/fleetctl package --type deb --enroll-secret=foo --fleet-url=https://localhost:8080
 
     - name: Build DEB with Fleet Desktop
       run: docker run -v "$(pwd):/build" fleetdm/fleetctl package --type deb --enroll-secret=foo --fleet-url=https://localhost:8080 --fleet-desktop
