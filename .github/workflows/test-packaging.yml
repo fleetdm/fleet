@@ -13,7 +13,6 @@ on:
   pull_request:
     paths:
       - '**.go'
-      - 'tools/fleetctl-docker/**'
       - 'tools/wix-docker/**'
       - 'tools/bomutils-docker/**'
       - '.github/workflows/test-packaging.yml'
