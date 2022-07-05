@@ -89,7 +89,7 @@ Fleet Device Management Inc. periodically collects anonymous information about y
 }
 ```
 
-- For Fleet Free instances, usage statistics are anonymous. The "organization" property is reported as "unknown".
+- All statistics are anonymous and contain no personal information about any particular device, organization, or person.
 
 - Sending Usage statistics from your Fleet instance is optional and can be disabled.
 
