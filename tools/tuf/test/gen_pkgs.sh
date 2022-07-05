@@ -93,3 +93,7 @@ if [ -n "$GENERATE_MSI" ]; then
 fi
 
 echo "Packages generated."
+
+if [[ $OSTYPE == 'darwin'* && -n "$INSTALL_PKG" ]]; then
+    sudo installer -pkg fleet-osquery.pkg -target /
+fi

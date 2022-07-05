@@ -1583,12 +1583,13 @@ func testHostsAdditional(t *testing.T, ds *Datastore) {
 }
 
 func testHostsByIdentifier(t *testing.T, ds *Datastore) {
+	now := time.Now().UTC().Truncate(time.Second)
 	for i := 1; i <= 10; i++ {
 		_, err := ds.NewHost(context.Background(), &fleet.Host{
-			DetailUpdatedAt: time.Now(),
-			LabelUpdatedAt:  time.Now(),
-			PolicyUpdatedAt: time.Now(),
-			SeenTime:        time.Now(),
+			DetailUpdatedAt: now,
+			LabelUpdatedAt:  now,
+			PolicyUpdatedAt: now,
+			SeenTime:        now,
 			OsqueryHostID:   fmt.Sprintf("osquery_host_id_%d", i),
 			NodeKey:         fmt.Sprintf("node_key_%d", i),
 			UUID:            fmt.Sprintf("uuid_%d", i),
@@ -1604,21 +1605,26 @@ func testHostsByIdentifier(t *testing.T, ds *Datastore) {
 	h, err = ds.HostByIdentifier(context.Background(), "uuid_1")
 	require.NoError(t, err)
 	assert.Equal(t, uint(1), h.ID)
+	assert.Equal(t, now.UTC(), h.SeenTime)
 
 	h, err = ds.HostByIdentifier(context.Background(), "osquery_host_id_2")
 	require.NoError(t, err)
 	assert.Equal(t, uint(2), h.ID)
+	assert.Equal(t, now.UTC(), h.SeenTime)
 
 	h, err = ds.HostByIdentifier(context.Background(), "node_key_4")
 	require.NoError(t, err)
 	assert.Equal(t, uint(4), h.ID)
+	assert.Equal(t, now.UTC(), h.SeenTime)
 
 	h, err = ds.HostByIdentifier(context.Background(), "hostname_7")
 	require.NoError(t, err)
 	assert.Equal(t, uint(7), h.ID)
+	assert.Equal(t, now.UTC(), h.SeenTime)
 
 	h, err = ds.HostByIdentifier(context.Background(), "foobar")
 	require.Error(t, err)
+	require.Nil(t, h)
 }
 
 func testHostsAddToTeam(t *testing.T, ds *Datastore) {
