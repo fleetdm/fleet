@@ -59,7 +59,6 @@ parasails.registerPage('basic-handbook', {
             pageLinks: page.linksForHandbookIndex,
             relatedPages: this.markdownPages.filter(relatedPage => {
               if(relatedPage.handbookSection === page.handbookSection && relatedPage.url !== page.url && !page.meta.unlisted) {// « Note: Excluding pages with a unlisted meta tag (`<meta name="unlisted" value="true">`)
-                relatedPage.title = relatedPage.title.replace(/(\u00a9|\u00ae|[\u2000-\u3300]|\ud83c[\ud000-\udfff]|\ud83d[\ud000-\udfff]|\ud83e[\ud000-\udfff])/g, '');
                 return relatedPage;
               }
             }),
