@@ -52,13 +52,13 @@ parasails.registerPage('basic-handbook', {
     if(this.isHandbookLandingPage) {
       let handbookPages = [];
       for (let page of this.markdownPages) {
-        if(_.startsWith(page.url, '/handbook') && !page.title.match(/^readme\.md$/i) && !page.url.match(/\/handbook\/\w+\/\w+/g)  && !page.meta.unlisted) {// « Note: Excluding pages with a unlisted meta tag (`<meta name="unlisted" value="true">`)
+        if(_.startsWith(page.url, '/handbook') && !page.title.match(/^readme\.md$/i) && !page.url.match(/\/handbook\/\w+\/\w+/g)) {
           let handbookPage = {
             pageTitle: page.title,
             url: page.url,
             pageLinks: page.linksForHandbookIndex,
             relatedPages: this.markdownPages.filter(relatedPage => {
-              if(relatedPage.handbookSection === page.handbookSection && relatedPage.url !== page.url && !page.meta.unlisted) {// « Note: Excluding pages with a unlisted meta tag (`<meta name="unlisted" value="true">`)
+              if(relatedPage.handbookSection === page.handbookSection && relatedPage.url !== page.url) {
                 return relatedPage;
               }
             }),
