@@ -100,7 +100,10 @@
               <div v-for="page in handbookIndexLinks">
                 <h3 class="mb-2"><a style="color: #000; text-decoration: none;" :href="page.url">{{page.pageTitle}}</a></h3>
                 <p v-for="link in page.pageLinks">
-                  <a :href="link.hashLink">{{link.headingText}}</a>
+                  <a :href="link.hashLink">{{link.headingText.replace(/(\u00a9|\u00ae|[\u2000-\u3300]|\ud83c[\ud000-\udfff]|\ud83d[\ud000-\udfff]|\ud83e[\ud000-\udfff])/g, '')}}</a>
+                <p v-for="relatedPage in page.relatedPages">
+                  <a :href="relatedPage.url">{{relatedPage.title}}</a>
+                </p>
                 </p>
               </div>
             </div>

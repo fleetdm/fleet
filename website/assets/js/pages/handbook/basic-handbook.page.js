@@ -8,6 +8,7 @@ parasails.registerPage('basic-handbook', {
     breadcrumbs: [],
     subtopics: [],
     handbookIndexLinks: [],
+    pagesInSameSection: [],
 
   },
 
@@ -51,11 +52,17 @@ parasails.registerPage('basic-handbook', {
     if(this.isHandbookLandingPage) {
       let handbookPages = [];
       for (let page of this.markdownPages) {
-        if(_.startsWith(page.url, '/handbook') && !page.title.match(/^readme\.md$/i) && !page.meta.excludePageFromSectionIndex) {// « Note: Excluding pages with a excludePageFromSectionIndex meta tag (`<meta name="excludePageFromSectionIndex" value="true">`)
+        if(_.startsWith(page.url, '/handbook') && !page.title.match(/^readme\.md$/i) && !page.url.match(/\/handbook\/\w+\/\w+/g)  && !page.meta.unlisted) {// « Note: Excluding pages with a unlisted meta tag (`<meta name="unlisted" value="true">`)
           let handbookPage = {
             pageTitle: page.title,
             url: page.url,
             pageLinks: page.linksForHandbookIndex,
+            relatedPages: this.markdownPages.filter(relatedPage => {
+              if(relatedPage.handbookSection === page.handbookSection && relatedPage.url !== page.url && !page.meta.unlisted) {// « Note: Excluding pages with a unlisted meta tag (`<meta name="unlisted" value="true">`)
+                relatedPage.title = relatedPage.title.replace(/(\u00a9|\u00ae|[\u2000-\u3300]|\ud83c[\ud000-\udfff]|\ud83d[\ud000-\udfff]|\ud83e[\ud000-\udfff])/g, '');
+                return relatedPage;
+              }
+            }),
           };
           handbookPages.push(handbookPage);
         }
@@ -83,7 +90,7 @@ parasails.registerPage('basic-handbook', {
         // Removing all apostrophes from the title to keep  _.kebabCase() from turning words like 'user’s' into 'user-s'
         let kebabCaseFriendlyTitle = title.replace(/[\’]/g, '');
         return {
-          title: title.replace(/([\uE000-\uF8FF]|\uD83C[\uDF00-\uDFFF]|\uD83D[\uDC00-\uDDFF])/g, ''), // take out any emojis (they look weird in the menu)
+          title: title.replace(/(\u00a9|\u00ae|[\u2000-\u3300]|\ud83c[\ud000-\udfff]|\ud83d[\ud000-\udfff]|\ud83e[\ud000-\udfff])/g, ''), // take out any emojis (they look weird in the menu)
           url: '#' + _.kebabCase(kebabCaseFriendlyTitle),
         };
       });
