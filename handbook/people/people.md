@@ -632,7 +632,7 @@ The following table lists the People group's rituals, frequency, and Directly Re
 
 ## Slack channels
 
-Please see [Brand > Slack channels](https://fleetdm.com/handbook/brand#slack-channels).
+Please see [Digital Experience > Slack channels](https://fleetdm.com/handbook/digital-experience#slack-channels).
 
 
 <meta name="maintainedBy" value="charlottechance">

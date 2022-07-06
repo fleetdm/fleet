@@ -1,4 +1,4 @@
-# Brand
+# Digital Experience
 
 ## Publishing Fleet content 
 
@@ -20,21 +20,21 @@ The following describes how to go about publishing and editing content at Fleet.
 
 ### Timeframe
 
-Detail the minimum time needed for new or updated content to be live (published) and brand-approved (reviewed and revised, if necessary).
+Detail the minimum time needed for new or updated content to be live (published) and Digital Experience-approved (reviewed and revised, if necessary).
 
 ### Content types
 
 | Content | To publish | To revise (for editors) | Timeframe |
 |:------ |:-----------------|:-------------------------------|-----------|
-| Articles | **Queued** – see _(TODO: Publishing articles on fleetdm.com)_. | **Absorb** (pair or feedback as needed) – see [How to edit articles, release posts, and press releases](http://localhost:2024/handbook/brand#how-to-edit-articles-release-posts-and-press-releases). | three business days |
+| Articles | **Queued** – see _(TODO: Publishing articles on fleetdm.com)_. | **Absorb** (pair or feedback as needed) – see [How to edit articles, release posts, and press releases](#how-to-edit-articles-release-posts-and-press-releases). | three business days |
 | Ads | **Gated**. Request review from Digital Experience – see _(TODO: Creating an ad campaign)_. | **Feedback** or **pair** | five business days |
-| Docs | **Gated**. Request review from Noah Talerman – see _(TODO: Adding to the docs)_. | **Absorb** – see [How to edit recently merged Pull Requests for the handbook and docs](http://localhost:2024/handbook/brand#how-to-edit-recently-merged-pull-requests-for-the-handbook-and-docs). For non-grammar-related revisions: **Feedback** or **pair** with contributor, and request review from Noah Talerman. | two business days |
-| Docs (REST API) | **Gated**. Request review from Luke Heath – see _(TODO: Adding to the docs (REST API))_. | **Absorb** – see [How to edit recently merged Pull Requests for the handbook and docs](http://localhost:2024/handbook/brand#how-to-edit-recently-merged-pull-requests-for-the-handbook-and-docs). For non-grammar-related revisions: **Feedback** or **pair** with contributor, and request review from Luke Heath. | two business days |
-| Handbook | **Gated**. Request review from page DRI – see _(TODO: Adding to the handbook)_. | **Absorb** and request review from page DRI – see [How to edit recently merged Pull Requests for the handbook and docs](http://localhost:2024/handbook/brand#how-to-edit-recently-merged-pull-requests-for-the-handbook-and-docs). | two business days |
-| Social media (Twitter, FB, LinkedIn.) | **Instant** – see [Posting on social media as Fleet](https://fleetdm.com/handbook/growth#posting-on-social-media-as-fleet). | **Pair** or **absorb** (pair if possible otherwise, silently fix ASAP by editing or deleting the post. Consider that some or many people may have already seen the post, and decide accordingly – see [How to edit social media posts](http://localhost:2024/handbook/brand#how-to-edit-social-media-posts).) | one business day |
+| Docs | **Gated**. Request review from Noah Talerman – see _(TODO: Adding to the docs)_. | **Absorb** – see [How to edit recently merged Pull Requests for the handbook and docs](#how-to-edit-recently-merged-pull-requests-for-the-handbook-and-docs). For non-grammar-related revisions: **Feedback** or **pair** with contributor, and request review from Noah Talerman. | two business days |
+| Docs (REST API) | **Gated**. Request review from Luke Heath – see _(TODO: Adding to the docs (REST API))_. | **Absorb** – see [How to edit recently merged Pull Requests for the handbook and docs](#how-to-edit-recently-merged-pull-requests-for-the-handbook-and-docs). For non-grammar-related revisions: **Feedback** or **pair** with contributor, and request review from Luke Heath. | two business days |
+| Handbook | **Gated**. Request review from page DRI – see _(TODO: Adding to the handbook)_. | **Absorb** and request review from page DRI – see [How to edit recently merged Pull Requests for the handbook and docs](#how-to-edit-recently-merged-pull-requests-for-the-handbook-and-docs). | two business days |
+| Social media (Twitter, FB, LinkedIn.) | **Instant** – see [Posting on social media as Fleet](https://fleetdm.com/handbook/growth#posting-on-social-media-as-fleet). | **Pair** or **absorb** (pair if possible otherwise, silently fix ASAP by editing or deleting the post. Consider that some or many people may have already seen the post, and decide accordingly – see [How to edit social media posts](#how-to-edit-social-media-posts).) | one business day |
 | Newsletter/email blast | **Gated**. Request review from Digital Experience – see _(TODO: Creating an email campaign)_. | **Feedback** or **pair** | five business days |
-| Press release | **Queued** – see _(TODO: Publishing a press release)_ | **Feedback** or **pair** – see [How to edit articles, release posts, and press releases](http://localhost:2024/handbook/brand#how-to-edit-articles-release-posts-and-press-releases) | three business days |
-| Release post | **Queued** – see _(TODO: Publishing release posts)_ | **Feedback** or **pair** – see [How to edit articles, release posts, and press releases](http://localhost:2024/handbook/brand#how-to-edit-articles-release-posts-and-press-releases) | three business days |
+| Press release | **Queued** – see _(TODO: Publishing a press release)_ | **Feedback** or **pair** – see [How to edit articles, release posts, and press releases](#how-to-edit-articles-release-posts-and-press-releases) | three business days |
+| Release post | **Queued** – see _(TODO: Publishing release posts)_ | **Feedback** or **pair** – see [How to edit articles, release posts, and press releases](#how-to-edit-articles-release-posts-and-press-releases) | three business days |
 | Website (text change) | **Gated** – see _(TODO: Adding content to fleetdm.com)_. | **Feedback** or **pair** | three business days |
 | YouTube | **Queued** – see _(TODO: Publishing on YouTube as Fleet.)_ | **Absorb** for revisions to the description. **Pair** or **absorb** for video content (pair if possible otherwise, silently fix ASAP by deleting the post. Consider that the video may also have been promoted on social media – see Social media (Twitter, FB, LinkedIn) above. | three business days |
 
@@ -68,7 +68,7 @@ Another example to consider is industry jargon that may now be inappropriate. Wh
 
 ## Writing at Fleet
 
-Writing at Fleet shares the same principles as [Communicating as Fleet.](https://fleetdm.com/handbook/brand#communicating-as-fleet) Every piece of content we write should be consistent with our company and brand values. To help succeed, we encourage our writers to apply a design thinking approach to their writing by following these principles:
+Writing at Fleet shares the same principles as [Communicating as Fleet.](#communicating-as-fleet) Every piece of content we write should be consistent with our company and brand values. To help succeed, we encourage our writers to apply a design thinking approach to their writing by following these principles:
 
 - **Empathize** - Who is the reader? Why will they read it? What do they hope to get from it?
 - **Define** - What is the subject? What action do you want from the reader?
@@ -202,7 +202,7 @@ We approach editing retrospectively for pull requests (PRs) to handbook and docs
   - [Docs history](https://github.com/fleetdm/fleet/commits/main/docs)
 3. From the list of recently merged PRs, look at the files changed for each and then:
   - Scan for typos and grammatical errors.
-  - Check that the tone aligns with our [Communicating as Fleet](https://fleetdm.com/handbook/brand#communicating-as-fleet) guidelines and that Grammarly's tone detector is on-brand.
+  - Check that the tone aligns with our [Communicating as Fleet](#communicating-as-fleet) guidelines and that Grammarly's tone detector is on-brand.
   - Check that Markdown is formatted correctly.
   - **Remember**, Do not make edits to this page. It's already merged.
 4. Instead, navigate to the page in question on the website and submit a new PR to make edits - making sure to request a review from the maintainer of that page.
@@ -222,7 +222,7 @@ For making edits to published articles:
 1. Log in to [Medium](https://fleetdm.com/blog).
 2. Find the article to edit and select "Edit story" from the hotdog menu (•••).
 3. Scan for typos and grammatical errors.
-4. Check that the tone aligns with our [Communicating as Fleet](https://fleetdm.com/handbook/brand#communicating-as-fleet) guidelines and that Grammarly's tone detector is on-brand.
+4. Check that the tone aligns with our [Communicating as Fleet](#communicating-as-fleet) guidelines and that Grammarly's tone detector is on-brand.
 5. **Remember**, this article is already published, so if you're unsure about any edits, it doesn't hurt to check in with the original author.
 6. Hit "Save and publish," and you're all done.
 
@@ -410,4 +410,4 @@ These groups maintain the following [Slack channels](https://fleetdm.com/handboo
 
 
 <meta name="maintainedBy" value="mike-j-thomas">
-<meta name="title" value="💓 Brand">
+<meta name="title" value="💓 Digital Experience">

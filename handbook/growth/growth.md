@@ -17,7 +17,7 @@ Fleet's lead enrichment process can be found in this [Google Doc](https://docs.g
 
 ## Posting on social media as Fleet
 
-Posting to social media should follow a [personable tone](https://fleetdm.com/handbook/brand#communicating-as-fleet) and strive to deliver useful information across our social accounts.
+Posting to social media should follow a [personable tone](https://fleetdm.com/handbook/digital-experience#communicating-as-fleet) and strive to deliver useful information across our social accounts.
 
 ### Topics:
 

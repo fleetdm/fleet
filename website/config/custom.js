@@ -98,16 +98,15 @@ module.exports.custom = {
     'README.md': 'mike-j-thomas',// (github brandfront)
 
     'handbook': ['desmi-dizney', 'mike-j-thomas', 'mikermcneil'],// (default for handbook)
-    'handbook/company.md': 'mikermcneil',
-    'handbook/people.md': 'charlottechance',
-    'handbook/engineering.md': 'zwass',
-    'handbook/product.md': 'noahtalerman',
-    'handbook/security.md': 'guillaumeross',
-    'handbook/security-policies.md': 'guillaumeross',
-    'handbook/brand.md': 'mike-j-thomas',
-    'handbook/growth.md': 'timmy-k',
-    'handbook/customers.md': 'tgauda',
-    'handbook/community.md': ['dominuskelvin', 'ksatter'],
+    'handbook/company': 'mikermcneil',
+    'handbook/people': 'charlottechance',
+    'handbook/engineering': 'zwass',
+    'handbook/product': 'noahtalerman',
+    'handbook/security': 'guillaumeross',
+    'handbook/digital-experience': 'mike-j-thomas',
+    'handbook/growth': 'timmy-k',
+    'handbook/customers': 'tgauda',
+    'handbook/community': ['dominuskelvin', 'ksatter'],
     'handbook/README.md': '*',// (any fleetie can update this page and merge their change without waiting for their change to be approved)
 
     'website': 'mikermcneil',// (default for website)
