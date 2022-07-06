@@ -179,6 +179,7 @@ const DeviceUserPage = ({
       "primary_ip",
       "public_ip",
       "batteries",
+      "detail_updated_at",
     ])
   );
 

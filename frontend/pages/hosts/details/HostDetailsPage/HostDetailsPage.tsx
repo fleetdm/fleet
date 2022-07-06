@@ -343,6 +343,7 @@ const HostDetailsPage = ({
       "public_ip",
       "geolocation",
       "batteries",
+      "detail_updated_at",
     ])
   );
 

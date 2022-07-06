@@ -5084,6 +5084,40 @@
     ]
   },
   {
+    "name": "docker_container_envs",
+    "description": "Docker container environment variables.",
+    "url": "https://github.com/osquery/osquery/blob/master/specs/posix/docker_container_envs.table",
+    "platforms": ["darwin", "linux"],
+    "evented": false,
+    "cacheable": false,
+    "columns": [
+      {
+        "name": "id",
+        "description": "Container ID",
+        "type": "text",
+        "hidden": false,
+        "required": false,
+        "index": true
+      },
+      {
+        "name": "key",
+        "description": "Environment variable name",
+        "type": "text",
+        "hidden": false,
+        "required": false,
+        "index": false
+      },
+      {
+        "name": "value",
+        "description": "Environment variable value",
+        "type": "text",
+        "hidden": false,
+        "required": false,
+        "index": false
+      }
+    ]
+  },
+  {
     "name": "docker_container_fs_changes",
     "description": "Changes to files or directories on container's filesystem.",
     "url": "https://github.com/osquery/osquery/blob/master/specs/posix/docker_container_fs_changes.table",
