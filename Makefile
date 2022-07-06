@@ -200,7 +200,7 @@ docker-push-release: docker-build-release
 	docker push fleetdm/fleet:${VERSION}
 	docker push fleetdm/fleet:latest
 
-fleetcl-docker: xp-fleetctl
+fleetctl-docker: xp-fleetctl
 	docker build -t fleetdm/fleetctl --platform=linux/amd64 -f tools/fleetctl-docker/Dockerfile .
 
 .pre-binary-bundle:

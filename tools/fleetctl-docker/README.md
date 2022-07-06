@@ -21,5 +21,5 @@ This image needs to be built from the root of the repo in order for the build
 context to have access to the `fleetctl` binary. To build the image, run:
 
 ```
-make fleetcl-docker
+make fleetctl-docker
 ```
