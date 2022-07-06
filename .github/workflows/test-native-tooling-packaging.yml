@@ -41,12 +41,8 @@ jobs:
     - name: Install Go Dependencies
       run: make deps-go
 
-    - name: Build fleetctl
-      run: make xp-fleetctl
-
-    # TODO: pull the image from the registry instead once it's published 
     - name: Build fleetdm/fleetctl
-      run: docker build -t fleetdm/fleetctl --platform=linux/amd64 -f tools/fleetctl-docker/Dockerfile .
+      run: make fleetctl-docker
 
     - name: Build DEB
       run: docker run -v "$(pwd):/build" fleetdm/fleetctl package --type deb --enroll-secret=foo --fleet-url=https://localhost:8080
