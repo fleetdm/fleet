@@ -844,9 +844,9 @@ The following table lists the Security group's rituals, frequency, and Directly 
 
 ## Slack channels
 
-This group maintains the following [Slack channels](https://fleetdm.com/handbook/company#group-slack-channels):
+This group maintains the following [Slack channels](https://fleetdm.com/handbook/company#why-group-slack-channels):
 
-| Slack channel                       | [DRI](https://fleetdm.com/handbook/company#group-slack-channels)    |
+| Slack channel                       | [DRI](https://fleetdm.com/handbook/company#why-group-slack-channels)    |
 |:------------------------------------|:--------------------------------------------------------------------|
 | `#g-security`                       | Guillaume Ross
 | `#help-login`                       | Guillaume Ross
