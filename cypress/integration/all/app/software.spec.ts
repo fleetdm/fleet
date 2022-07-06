@@ -16,6 +16,8 @@ describe("Software", () => {
       cy.visit("/software/manage");
     });
     it("displays total software count", () => {
+      // Ensures software loads
+      cy.wait(1000); // eslint-disable-line cypress/no-unnecessary-waiting
       cy.getAttached(".manage-software-page__count").within(() => {
         cy.findByText(/902 software items/i).should("exist");
       });
