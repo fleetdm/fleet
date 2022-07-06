@@ -7,6 +7,6 @@
     "runMode": 1,
     "openMode": 0
   },
-  "video": false,
+  "video": true,
   "videoUploadOnPasses": false
 }
