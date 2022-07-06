@@ -203,7 +203,7 @@ describe("Software", () => {
       cy.visit("/software/manage");
     });
     it("renders and searches the host's software,  links to filter hosts by software", () => {
-      cy.getAttached(".table-container__header-left").within(() => {
+      cy.getAttached(".manage-software-page__count").within(() => {
         cy.findByText(/902 software items/i).should("exist");
       });
       cy.findByPlaceholderText(/search software/i).type("lib");
