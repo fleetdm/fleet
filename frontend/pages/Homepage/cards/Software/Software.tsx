@@ -9,7 +9,7 @@ import softwareAPI, { ISoftwareResponse } from "services/entities/software";
 
 import TabsWrapper from "components/TabsWrapper";
 import TableContainer, { ITableQueryData } from "components/TableContainer";
-import TableDataError from "components/DataError"; // TODO how do we handle errors? UI just keeps spinning?
+import TableDataError from "components/DataError";
 import Spinner from "components/Spinner";
 import renderLastUpdatedText from "components/LastUpdatedText/LastUpdatedText";
 import generateTableHeaders from "./SoftwareTableConfig";
@@ -88,6 +88,9 @@ const Software = ({
               renderLastUpdatedText(data.counts_updated_at, "software")
             );
         }
+      },
+      onError: () => {
+        setShowSoftwareUI(true);
       },
     }
   );

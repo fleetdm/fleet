@@ -917,8 +917,11 @@ func (ds *Datastore) HostIDsByName(ctx context.Context, filter fleet.TeamFilter,
 
 func (ds *Datastore) HostByIdentifier(ctx context.Context, identifier string) (*fleet.Host, error) {
 	stmt := `
-		SELECT * FROM hosts
-		WHERE ? IN (hostname, osquery_host_id, node_key, uuid)
+		SELECT h.*, COALESCE(hst.seen_time, h.created_at) AS seen_time
+		FROM hosts h
+		LEFT JOIN host_seen_times hst
+		ON (h.id = hst.host_id)
+		WHERE ? IN (h.hostname, h.osquery_host_id, h.node_key, h.uuid)
 		LIMIT 1
 	`
 	host := &fleet.Host{}

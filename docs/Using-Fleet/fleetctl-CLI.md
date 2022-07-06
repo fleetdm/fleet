@@ -276,9 +276,9 @@ Now that your new user is all set up, you will need to log in with `fleetctl log
 > If you are using a version of Fleet older than `4.13.0`, you will need to [reset the API-only user's password](https://github.com/fleetdm/fleet/blob/a1eba3d5b945cb3339004dd1181526c137dc901c/docs/Using-Fleet/fleetctl-CLI.md#reset-the-password) before running queries.
 
 ### Get the API token of an API-only user
-To get the API key of an API-only user, you need to call the Login API with the credentials that were supplied during user creation.
+To get the API key of an API-only user, you need to call the Login API with the credentials supplied during user creation.
 
-For example say the credentials provided was `api@fleetdm.com` for the email and `foobar12345` for the password. You may call the [Log in API](https://fleetdm.com/docs/using-fleet/rest-api#log-in) like so:
+For example, say the credentials provided were `api@fleetdm.com` for the email and `foobar12345` for the password. You may call the [Log in API](https://fleetdm.com/docs/using-fleet/rest-api#log-in) like so:
 
 ```sh
 curl --location --request POST 'https://myfleetdomain.com/api/v1/fleet/login' \
@@ -289,7 +289,7 @@ curl --location --request POST 'https://myfleetdomain.com/api/v1/fleet/login' \
 }'
 ```
 
-The [Log in API](https://fleetdm.com/docs/using-fleet/rest-api#log-in) will return a response similar to the one below with the API token included which will not expire.
+The [Log in API](https://fleetdm.com/docs/using-fleet/rest-api#log-in) will return a response similar to the one below with the API token included that will not expire.
 
 ```json
 {

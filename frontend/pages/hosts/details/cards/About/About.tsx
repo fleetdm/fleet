@@ -137,6 +137,20 @@ const About = ({
     );
   };
 
+  const renderBattery = () => {
+    if (typeof aboutData.batteries !== "object") {
+      return null;
+    }
+    return (
+      <div className="info-grid__block">
+        <span className="info-grid__header">Battery</span>
+        <span className="info-grid__data">
+          {aboutData.batteries[0]?.health}
+        </span>
+      </div>
+    );
+  };
+
   if (deviceUser) {
     return (
       <div className="section about">
@@ -160,6 +174,7 @@ const About = ({
           </div>
           {renderSerialAndIPs()}
           {renderDeviceUser()}
+          {renderBattery()}
         </div>
       </div>
     );
@@ -190,6 +205,7 @@ const About = ({
         {renderMdmData()}
         {renderDeviceUser()}
         {renderGeolocation()}
+        {renderBattery()}
       </div>
     </div>
   );

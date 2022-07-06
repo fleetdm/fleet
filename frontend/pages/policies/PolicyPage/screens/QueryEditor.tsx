@@ -70,6 +70,7 @@ const QueryEditor = ({
   const [isCreatingNewPolicy, setIsCreatingNewPolicy] = useState<boolean>(
     false
   );
+  const [isUpdatingPolicy, setIsUpdatingPolicy] = useState<boolean>(false);
   const [backendValidators, setBackendValidators] = useState<{
     [key: string]: string;
   }>({});
@@ -108,6 +109,8 @@ const QueryEditor = ({
       return false;
     }
 
+    setIsUpdatingPolicy(true);
+
     const updatedPolicy = deepDifference(formData, {
       lastEditedQueryName,
       lastEditedQueryDescription,
@@ -141,6 +144,8 @@ const QueryEditor = ({
           "Something went wrong updating your policy. Please try again."
         );
       }
+    } finally {
+      setIsUpdatingPolicy(false);
     }
 
     return false;
@@ -174,6 +179,7 @@ const QueryEditor = ({
         onOpenSchemaSidebar={onOpenSchemaSidebar}
         renderLiveQueryWarning={renderLiveQueryWarning}
         backendValidators={backendValidators}
+        isUpdatingPolicy={isUpdatingPolicy}
       />
     </div>
   );
