@@ -30,7 +30,7 @@ You can use `fleetctl` to accomplish many tasks you would typically need to do t
 
 ### Available commands
 
-Much of the functionality available in the Fleet UI is also available in `fleetctl`. You can run queries, add and remove users, generate installer packages to add new hosts, get information about existing hosts, and more! The following commands are available for use with `fleetctl`:
+Much of the functionality available in the Fleet UI is also available in `fleetctl`. You can run queries, add and remove users, generate osquery installers to add new hosts, get information about existing hosts, and more! The following commands are available for use with `fleetctl`:
 
    | Command                    | Description                                                        |
    |:---------------------------|:-------------------------------------------------------------------|
