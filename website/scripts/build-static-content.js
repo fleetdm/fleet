@@ -172,7 +172,7 @@ module.exports = {
               // Set the handbookSection for this page to be the subfolder that this handbook page is in. This value will be added to the handbook page's configuration.
               handbookSection = splitPageUnextensionedLowercasedRelPath[0];
               if(splitPageUnextensionedLowercasedRelPath[0] === splitPageUnextensionedLowercasedRelPath[1] && !splitPageUnextensionedLowercasedRelPath[3]){
-                // If this page has the same name as the subfolder it's in, we'll modify the pageUnextensionedLowercasedRelPath to remove the page name from the final URL. Example: growth/growth -> growth
+                // If this page has the same name as the subfolder it's in, we'll modify the pageUnextensionedLowercasedRelPath to remove the page name before we use it to determine the final url. Example: growth/growth -> growth
                 pageUnextensionedLowercasedRelPath = pageUnextensionedLowercasedRelPath.replace(('/'+splitPageUnextensionedLowercasedRelPath[0]), '');
               }
             }
