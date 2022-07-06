@@ -4,7 +4,7 @@
 ℹ️  In Fleet 4.0, Usage statistics were introduced.
 ```
 
-Fleet Device Management Inc. periodically collects anonymous information about your instance.
+Fleet Device Management Inc. periodically collects information about your instance.
 
 ## What is included in usage statistics in Fleet?
 
@@ -13,6 +13,7 @@ Fleet Device Management Inc. periodically collects anonymous information about y
 ```json
 {
   "anonymousIdentifier": "9pnzNmrES3mQG66UQtd29cYTiX2+fZ4CYxDvh495720=",
+  "organization": "Fleet",
   "fleetVersion": "x.x.x",
   "licenseTier": "free",
   "numHostsEnrolled": 999,
@@ -89,7 +90,7 @@ Fleet Device Management Inc. periodically collects anonymous information about y
 }
 ```
 
-- All statistics are anonymous and contain no personal information about any particular device, organization, or person.
+- For Fleet Free instances, usage statistics are anonymous. The "organization" property is reported as "unknown".
 
 - Sending Usage statistics from your Fleet instance is optional and can be disabled.
 
