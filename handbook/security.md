@@ -834,8 +834,8 @@ The following table lists the Security group's rituals, frequency, and Directly 
 | YubiKey adoption | Monthly | Track YubiKey adoption in Google workspace and follow up with those that aren't using it. | Guillaume Ross |
 | Dogfood policy update | Monthly | Edit Fleet dogfood policies that check for Chrome, Docker, and macOS version numbers. | Guillaume Ross |
 | Security blog post | Monthly | Publish a security-related blog post to Fleet's blog. | Guillaume Ross |
-| Security lunch & learn | Monthly | Educational live stream session on cybersecurity for Fleet employees, sessions are later shared for public consumption on YouTube. | Guillaume Ross |
-| MDM device enrollment | Quarterly | Provide export of MDM enrolled devices to ops team. | Guillaume Ross |
+| Security lunch & learn | Monthly | Educational live stream session on cybersecurity for Fleet employees; sessions are later shared for public consumption on YouTube. | Guillaume Ross |
+| MDM device enrollment | Quarterly | Provide export of MDM enrolled devices to the ops team. | Guillaume Ross |
 | Access revalidation | Quarterly | Review critical access groups to make sure they contain only relevant people. | Guillaume Ross |
 | Snyk scan | Quarterly | Scan Fleet repo with Snyk to identify important vulnerabilities that GitHub did not identify. | Guillaume Ross |
 | Security conference review | Quarterly | Look at upcoming security conferences and work with the growth team to determine whether Fleet should submit to attend. | Guillaume Ross |
