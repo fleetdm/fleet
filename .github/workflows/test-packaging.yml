@@ -13,8 +13,6 @@ on:
   pull_request:
     paths:
       - '**.go'
-      - 'tools/wix-docker/**'
-      - 'tools/bomutils-docker/**'
       - '.github/workflows/test-packaging.yml'
   workflow_dispatch: # Manual
 
