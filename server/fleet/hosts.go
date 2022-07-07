@@ -1,6 +1,7 @@
 package fleet
 
 import (
+	"context"
 	"encoding/json"
 	"time"
 )
@@ -156,6 +157,11 @@ type HostDetail struct {
 	Packs []*Pack `json:"packs"`
 	// Policies is the list of policies and whether it passes for the host
 	Policies *[]*HostPolicy `json:"policies,omitempty"`
+	// Batteries is the list of batteries for the host. It is a pointer to a
+	// slice so that when set, it gets marhsaled even if the slice is empty,
+	// but when unset, it doesn't get marshaled (e.g. we don't return that
+	// information for the List Hosts endpoint).
+	Batteries *[]*HostBattery `json:"batteries,omitempty"`
 }
 
 const (
@@ -285,6 +291,15 @@ type HostMDM struct {
 	ServerURL        string `json:"server_url"`
 }
 
+// HostBattery represents a host's battery, as reported by the osquery battery
+// table.
+type HostBattery struct {
+	HostID       uint   `json:"-" db:"host_id"`
+	SerialNumber string `json:"-" db:"serial_number"`
+	CycleCount   int    `json:"cycle_count" db:"cycle_count"`
+	Health       string `json:"health" db:"health"`
+}
+
 type MacadminsData struct {
 	Munki *HostMunkiInfo `json:"munki"`
 	MDM   *HostMDM       `json:"mobile_device_management"`
@@ -328,4 +343,11 @@ type OSVersion struct {
 type HostDetailOptions struct {
 	IncludeCVEScores bool
 	IncludePolicies  bool
+}
+
+// EnrollHostLimiter defines the methods to support enforcement of enrolled
+// hosts limit, as defined by the user's license.
+type EnrollHostLimiter interface {
+	CanEnrollNewHost(ctx context.Context) (ok bool, err error)
+	SyncEnrolledHostIDs(ctx context.Context) error
 }

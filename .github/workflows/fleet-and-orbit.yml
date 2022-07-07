@@ -82,7 +82,8 @@ jobs:
       run: make generate
 
     - name: Build fleet and fleetctl
-      run: make fleet fleetctl
+      # fleet-dev builds fleet with "race" enabled.
+      run: make fleet-dev fleetctl
 
     - name: Run Fleet server
       env:
@@ -117,7 +118,7 @@ jobs:
 
     - name: Upload fleet logs
       if: always()
-      uses: actions/upload-artifact@6673cd052c4cd6fcf4b4e6e60ea986c889389535 # v2
+      uses: actions/upload-artifact@3cea5372237819ed00197afe530f5a7ea3e805c8 # v2
       with:
         name: fleet-logs
         path: |
@@ -225,21 +226,21 @@ jobs:
         ./tools/tuf/test/main.sh
 
     - name: Upload PKG installer
-      uses: actions/upload-artifact@6673cd052c4cd6fcf4b4e6e60ea986c889389535 # v2
+      uses: actions/upload-artifact@3cea5372237819ed00197afe530f5a7ea3e805c8 # v2
       with:
         name: fleet-osquery.pkg
         path: |
           fleet-osquery.pkg
 
     - name: Upload DEB installer
-      uses: actions/upload-artifact@6673cd052c4cd6fcf4b4e6e60ea986c889389535 # v2
+      uses: actions/upload-artifact@3cea5372237819ed00197afe530f5a7ea3e805c8 # v2
       with:
         name: fleet-osquery_42.0.0_amd64.deb
         path: |
           fleet-osquery_42.0.0_amd64.deb
 
     - name: Upload MSI installer
-      uses: actions/upload-artifact@6673cd052c4cd6fcf4b4e6e60ea986c889389535 # v2
+      uses: actions/upload-artifact@3cea5372237819ed00197afe530f5a7ea3e805c8 # v2
       with:
         name: fleet-osquery.msi
         path: |
@@ -287,7 +288,7 @@ jobs:
 
     - name: Upload orbit logs
       if: always()
-      uses: actions/upload-artifact@6673cd052c4cd6fcf4b4e6e60ea986c889389535 # v2
+      uses: actions/upload-artifact@3cea5372237819ed00197afe530f5a7ea3e805c8 # v2
       with:
         name: orbit-logs
         path: |
@@ -336,7 +337,7 @@ jobs:
 
     - name: Upload orbit logs
       if: always()
-      uses: actions/upload-artifact@6673cd052c4cd6fcf4b4e6e60ea986c889389535 # v2
+      uses: actions/upload-artifact@3cea5372237819ed00197afe530f5a7ea3e805c8 # v2
       with:
         name: orbit-logs
         path: |
@@ -379,7 +380,7 @@ jobs:
 
     - name: Upload Orbit logs
       if: always()
-      uses: actions/upload-artifact@6673cd052c4cd6fcf4b4e6e60ea986c889389535 # v2
+      uses: actions/upload-artifact@3cea5372237819ed00197afe530f5a7ea3e805c8 # v2
       with:
         name: orbit-logs-windows
         path: C:\Windows\system32\config\systemprofile\AppData\Local\FleetDM\Orbit\Logs\orbit-osquery.log

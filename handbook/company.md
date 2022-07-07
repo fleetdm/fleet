@@ -4,10 +4,10 @@
 
 Fleet Device Management Inc is an [open core company](https://www.heavybit.com/library/video/commercial-open-source-business-strategies/) that sells subscriptions that offer [more features and support](https://fleetdm.com/pricing) for Fleet and [osquery](https://osquery.io), the leading open source endpoint agent.
 
-We are dedicated to:
+We are dedicated to
 
 - 🧑‍🚀 automating IT and security.
-- 💍 reducing the proliferation of agents, and growing the adoption of osquery (one agent to rule them all).
+- 💍 reducing the proliferation of agents and growing the adoption of osquery (one agent to rule them all).
 - 🪟 privacy, transparency, and trust through open source software.
 - 👁️ remaining the freshest, simplest source of truth for every kind of computing device and OS.
 - 💻 building a better way to manage computers.
@@ -16,10 +16,10 @@ We are dedicated to:
 ## Culture
 
 ### All remote
-Fleet Device Management Inc. is an all-remote company, with team members spread across 4 continents and 8 time zones.  The broader team of contributors [worldwide](https://github.com/fleetdm/fleet/graphs/contributors) submits patches, bug reports, troubleshooting tips, improvements, and real-world insights to Fleet's open source code base, documentation, website, and company handbook.
+Fleet Device Management Inc. is an all-remote company with team members spread across four continents and eight time zones.  The broader team of contributors [worldwide](https://github.com/fleetdm/fleet/graphs/contributors) submits patches, bug reports, troubleshooting tips, improvements, and real-world insights to Fleet's open source code base, documentation, website, and company handbook.
 
 ### Open source
-The majority of the code, documentation, and content we create at Fleet is public and source-available. We strive to be open and transparent in the way we run the business; as much as confidentiality agreements (and time) allow. We perform better with an audience, and our audience performs better with us.
+The majority of the code, documentation, and content we create at Fleet is public and source-available. We strive to be open and transparent in the way we run the business, as much as confidentiality agreements (and time) allow. We perform better with an audience, and our audience performs better with us.
 
 
 ## 🌈 Values
@@ -32,14 +32,14 @@ Fleet's values are a set of five ideals adopted by everyone on the team.  They d
 4. 🔵 Objectivity
 5. 🟣 Openness
 
-When a new team member joins Fleet, they adopt the values, from day 1.  This way, even as the company grows, everybody knows what to expect from the people they work with. Having a shared mindset keeps us quick and determined.
+When a new team member joins Fleet, they adopt the values, from day one.  This way, even as the company grows, everybody knows what to expect from the people with whom they work. Having a shared mindset keeps us quick and determined.
 
 ### 🔴 Empathy
 Empathy leads to better understanding, better communication, and better decisions.  Try to understand what people may be going through, so you can help make it better.
 
 - Think and make customer-first choices.
 - Consider your counterpart.
-  - For example: keep in mind customers, contributors, colleagues, the other person in your Zoom meeting, the other folks in a Slack channel, the people who use software and APIs you build, the people following the processes you design.
+  - For example: keep in mind customers, contributors, colleagues, the other person in your Zoom meeting, the other folks in a Slack channel, and the people who use software and APIs you build, the people following the processes you design.
   - Ask questions in a way you would want to be asked.
   - Assume others have positive intent.
   - Be kind.
@@ -53,18 +53,18 @@ Empathy leads to better understanding, better communication, and better decision
   - Bugs cause frustrating experiences and alienate users.
   - Create patches with care (upgrading to new releases of Fleet can be time-consuming for users running self-managed deployments). <!-- TODO: (patch releases are important for improving security, quality, and stability. Cut a patch release if there is a security concern, previously stable features are unusable, or if a new feature advertised in the current release is unusable.  But remember that people have to actually install these updates!) -->
   - Confusing error messages make people feel helpless and can fill them with despair.
-  - Error messages deserve to be good (it's worth it to spend time on them).
+  - Error messages deserve to be good (spending time on them is worth it).
   - UI help text and labels deserve to be good (it's worth it to spend time on them).
 - Invest in hospitality.
   - "Be a helper."   -Mr. Rogers
   - Think and say [positive things](https://www.theatlantic.com/family/archive/2018/06/mr-rogers-neighborhood-talking-to-kids/562352/).
-  - Use the `#thanks` channel to show genuine gratitude for other team member's actions.
+  - Use the `#thanks` channel to show genuine gratitude for other team members' actions.
   - Talking with users and contributors is time well spent.
   - Embrace the excitement of others (it's contagious).
   - Make small talk at the beginning of meetings.
   - Be generous (go above and beyond; for example, the majority of the features Fleet releases [will always be free](https://fleetdm.com/pricing))
   - Apply customer service principles to all users, even if they never buy Fleet.
-  - Treat everyone as our guest.
+  - Treat everyone as our guests.
   - Better humanity.
 
 
@@ -78,27 +78,27 @@ Empathy leads to better understanding, better communication, and better decision
   - Own up to mistakes.
   - Understand why it matters (the goals of the work you are doing).
   - Consider the business impact (fast forward 12 months, consider the total cost of ownership over the eternity of maintenance).
-  - Do things that don't scale, sometimes.
+  - Often, you'll need to own processes that won't scale. Not everything should be automated from the start. Your experience with doing things manually will teach us how to scale effectively later. 
 - Be responsive.
   - Respond quickly, even if you can't take further action at that exact moment.
   - When you disagree, give your feedback; then agree and commit, or disagree and commit anyway.
   - Favor short calls over long asynchronous back and forth discussions in Slack.
   - Procrastination is a symptom of not knowing what to do next (if you find yourself avoiding reading or responding to a message, schedule a Zoom call with the people you need to figure it out).
 - We win or lose together.
-  - Think about the big picture, beyond your individual team's goals.
+  - Think about the big picture beyond your individual team's goals.
   - Success equals creating value for customers.
-  - You're not alone in this (there's a great community of people able and happy to help).
+  - You're not alone in this (There's a great community of people able and happy to help).
   - Don't be afraid to spend time helping users, customers, and contributors (including colleagues on other teams).
   - Be proactive (ask other contributors how you can help, regardless of who is assigned to what
-  - Finish tasks all the way before moving to something new (help unblock team members and other contributors to deliver value). 
+  - Finish completely before moving to something new (help unblock team members and other contributors to deliver value). 
   - (collaborate; help teammates see tasks through to completion) -->
 - Take pride in your work.
   - Be efficient (your time is valuable, your work matters, and your focus is a finite resource).
   - You don't need permission to be thoughtful.
   - Reread anything you write for users. <!-- TODO: (Check everything that a user might read for clarity, spelling errors, and to make sure that it provides value.) -->
   - Take your ideas seriously (great ideas come from everyone; write them out and see if they have merit).
-  - Think for yourself, from first principles.
-  - Use reason (believe in your brain's capacity to evaluate a solution or idea, regardless of how popular it is).
+  - Think for yourself (from first principles).
+  - Use reason (believe in your brain's capacity to evaluate a solution or idea, regardless of its popularity).
   - You are on a hero's journey (motivate yourself intrinsically with self-talk; even boring tasks are more motivating, fun, and effective when you care).
   - Better your results.
 
@@ -110,7 +110,7 @@ Between overthinking and rushing, there is a [golden mean](https://en.wikipedia.
   - Work in baby steps. <!-- TODO: (look for ways to make the smallest, minimally viable change. Small changes provide faster feedback, and help us to stay focused on quality) -->
   - Pick low-hanging fruit (deliver value quickly where you can).
   - Think ahead, then make the right decision for now.
-  - Look before you leap (when facing a non-trivial problem, get perspective before you dive in; there may be a simpler solution). <!-- TODO: When facing a (non-trivial) problem, take a step back before diving into fixing it - put the problem back in context, think about the actual goal and not just the issue itself, sometimes the obvious solution misses the end goal, sometimes a simpler solution will emerge, or it may just confirm that the fix is the right one and you can go ahead with better confidence -->
+  - Look before you leap (when facing a non-trivial problem, get perspective before diving in; there may be a simpler solution). <!-- TODO: When facing a (non-trivial) problem, take a step back before diving into fixing it - put the problem back in context, think about the actual goal and not just the issue itself, sometimes the obvious solution misses the end goal, sometimes a simpler solution will emerge, or it may just confirm that the fix is the right one and you can go ahead with better confidence -->
 - Move quickly.
   - "Everything is in draft."
   - Think fast (balance thoughtfulness and planning with moving quickly).
@@ -128,7 +128,7 @@ Between overthinking and rushing, there is a [golden mean](https://en.wikipedia.
   - This helps you bring your best self when communicating with others, making decisions, etc.
   - Consider taking a break or going for a walk.
   - Take time off (it is better to have 100% focus for 80% of the time than it is to have 80% focus for 100% of the time).
-  - Think about how to best organize your day/work hours to fit your life and maximize your focus.
+  - Think about how to organize your day/work hours to best fit your life and maximize your focus.
 - Better focus.
 
 
@@ -137,24 +137,24 @@ Between overthinking and rushing, there is a [golden mean](https://en.wikipedia.
 
 - Be curious.
   - Ask great questions & take the time to listen truly.
-  - Listen intently to feedback, and genuinely try to understand (especially constructive criticism).  <!-- TODO: Trust the feedback from counterparts. It’s easy to quickly say “no” or ignore feedback because we’re busy and we often default to our way of thinking is right. Trust that your counterpart is making a good suggestion and give it the time/consideration it deserves. -->
+  - Listen intently to feedback and genuinely try to understand (especially constructive criticism).  <!-- TODO: Trust the feedback from counterparts. It’s easy to quickly say “no” or ignore feedback because we’re busy and we often default to our way of thinking is right. Trust that your counterpart is making a good suggestion and give it the time/consideration it deserves. -->
   - See failure as a beginning (it is rare to get things right the first time).
-  - Question yourself ("why do I think this?").
+  - Question yourself ("Why do I think this?").
 - Underpromise and overdeliver.
   - Quality results often take longer than we anticipate.
-  - Be practical about your limits, and about what's possible with the time and resources we have.
+  - Be practical about your limits and about what's possible with the time and resources we have.
   - Be thorough (don't settle for "the happy path"; every real-world edge case deserves handling).
 - Prioritize the truth (reality).
   - Be wrong and show your work (it's better to make the right decision than it is to be right).
   - Think "strong opinions, loosely held"  (proceed boldly, but change your mind in the face of new evidence)
-  - Avoid the sunk cost fallacy (getting attached to something just because you invested time working on it, or came up with it).
+  - Avoid the sunk cost fallacy (getting attached to something just because you invested time working on it or came up with it).
   - Be fair to competitors ("may the best product win.").
   - Give credit where credit is due; don't show favoritism. <!-- as it breeds resentment, destroys employee morale, and creates disincentives for good performance.  Seek out ways to be fair to everyone - https://about.gitlab.com/handbook/values/#permission-to-play -->
   - Hold facts, over commentary.
-- speak computer to computers
+- Speak computer to computers
   - A lucky fix without understanding does more harm than good.
   - When something isn't working, use the scientific method.
-  - Especially think like a computer when there is a bug, or when something is slow, or when a customer is having a problem.
+  - Especially think like a computer when there is a bug, or when something is slow, or when a customer experiences a problem.
   - Assume it's your fault.
   - Assume nothing else.
 - Better  your rigor.
@@ -164,10 +164,10 @@ Between overthinking and rushing, there is a [golden mean](https://en.wikipedia.
 
 - Anyone can contribute to Fleet.
   - Be outsider-friendly, inclusive, and approachable.
-  - [Use small words](http://www.paulgraham.com/writing44.html) so readers understand more easily.
+  - [Use small words](http://www.paulgraham.com/writing44.html), so readers understand more easily.
   - Prioritize accessible terminology and simple explanations to provide value to the largest possible audience of users.
   - Avoid acronyms and idioms which might not translate.
-  - Welcome contributions to your team's work, from people inside or outside the company.
+  - Welcome contributions to your team's work from people inside or outside the company.
   - Get comfortable letting others contribute to your domain.
   - Believe in everyone.
 - Write everything down.
@@ -175,11 +175,11 @@ Between overthinking and rushing, there is a [golden mean](https://en.wikipedia.
   - Writing your work down makes it real and allows others to read on their own time (and in their own timezone).
   - Never stop consolidating and deduplicating content (gradually, consistently, bit by bit).
 - Embrace candor.
-  - Have "short toes" and don't be afraid of stepping on toes.
+  - Have "short toes," and don't be afraid of stepping on toes.
   - Don't be afraid to speak up (ask questions, be direct, and interrupt).
   - Give pointed and respectful feedback. <!-- (in the same way you would want to receive it) -->
   - Take initiative in trying to improve things (no need to wait [for a consensus](https://twitter.com/ryanfalor/status/1182647229414166528?s=12)).
-  - Communicate openly (if you think you should send a message to communicate something, send it; but keep comments brief and relevant).
+  - Communicate openly (if you think you should send a message to communicate something, send it, but keep comments brief and relevant).
 - Be transparent.
   - Everything we do is "public by default."
   - We build in the open.
@@ -225,12 +225,12 @@ The Fleet product is released every three weeks. By syncing the whole company to
 
 
 ### Why use agile methodology?
-Releasing software iteratively gets changes and improvements into the hands of users faster and generally results in software that works. This makes contributors fitter, happier, and more productive. See [the agile manifesto](https://agilemanifesto.org/). for more information.
+Releasing software iteratively gets changes and improvements into the hands of users faster and generally results in software that works. This makes contributors fitter, happier, and more productive. See [the agile manifesto](https://agilemanifesto.org/) for more information.
 
 
 ### Why the emphasis on training?
 Investing in people and providing generous, prioritized training, especially up front, helps contributors understand what is going on at Fleet. By making training a prerequisite at Fleet, we can:
-- help team members make better decisions at work and to feel confident while doing so. 
+- help team members feel confident in the better decisions they make at work. 
 - create a culture of helping others, which results in team members feeling more comfortable even if they aren’t familiar with the osquery, security, startup, or IT space. 
 
 
@@ -277,7 +277,7 @@ _progress (+) guarantee_
 - **Agent**: grow # open source, osquery-based agents by making Fleet’s agents better, faster, and broader in capabilities
   - (+) every table works intuitively with user-friendly docs and empathetic caveats, warnings, and error messages
 
-At Fleet, groups define the relevant sections of the engineering org chart.  A product manager (PM) represent each group and reports to the Product department (or a founder serving as an
+At Fleet, groups define the relevant sections of the engineering org chart.  A product manager (PM) represents each group and reports to the Product department (or a founder serving as an
 interim product manager):
 
 - Interface PM: Noah Talerman
@@ -287,7 +287,7 @@ interim product manager):
 Each group is associated with an engineering manager (EM), who, with their group of engineers, form the engineering members of the group.
 
 Each group's PM works very closely with engineers within their group:
-- The PM **prioritizes** work and defines **what** to iteratively build and release next within their group's domain to best-serve the group's goals and the company's goals as a whole. The PM communicates **why** this work is prioritized and works with engineering to come up with the best possible **how**.
+- The PM **prioritizes** work and defines **what** to iteratively build and release next within their group's domain to best serve the group's goals and the company's goals as a whole. The PM communicates **why** this work is prioritized and works with engineering to come up with the best possible **how**.
 - The EM (along with engineers) defines **how** to implement that definition within the surface area of code, processes, and rituals owned by their group while serving their group’s goals and the company's goals as a whole.
 
 ### Interface group
@@ -310,22 +310,22 @@ Each group's PM works very closely with engineers within their group:
 - A human using Fleet's graphical user interface
 - A human who is writing code that integrates Fleet's REST API 
 - A human reading Fleet's REST API docs
-- A human using fleetctl, Fleet's Postman collection, or Fleet's other future SDK wrappers
+- A human using fleetctl, Fleet's Postman collection or Fleet's other future SDK wrappers
 
 These humans might be working within the "Interface" group itself insofar as they consume the Fleet REST API.  Or they might be a contributor to the Fleet community.  Or one of Fleet's core users or customers, usually in an SRE, IT, or security role in an organization.
 
 #### Goals
-- Bring value to Fleet users by delivering new features and iteration of existing features.
+- Bring value to Fleet users by delivering new features and iterations of existing features.
 - Increase adoption and stickiness of features.
 - Keep the graphical user interface, REST API, fleetctl, and SDKs like Postman reliable, minimal, consistent, and easy to use.
 - Promote stability of the API, introducing breaking changes only through the documented [API versioning](https://fleetdm.com/docs/contributing/api-versioning#what-kind-of-versioning-will-we-use-for-the-api) strategy or at major version releases.
 - Ensure observance of semantic versioning for the Fleet API and config between releases so that only major versions include breaking changes.
 - Delight users of Fleet's API, UI, SDKs, and documentation with a simple, secure, widely-adopted user and developer experience.
-- **Improve Fleet’s feature-value and ease of use.**
+- **Improve Fleet’s feature value and ease of use.**
 
 ### Platform group
 #### Responsibilities
-- The implementation of Fleet Agent API: i.e.
+- The implementation of Fleet Agent API: i.e.,
   - The API used by agents on enrolled hosts to communicate with Fleet
   - The API used by agents for doing auto-updates and future installation/upgrade of custom extensions (e.g., TUF)
 - Everything related to providing a stable, simple-to-build-on platform for Fleet contributors to use when implementing changes to the REST API
@@ -340,9 +340,9 @@ These humans might be working within the "Interface" group itself insofar as the
   - The registry (TUF) used for auto-updates and (in the future) extensions
   - whatever backend is needed to generate installers in self-managed and hosted Fleet deployments
   - The future monitoring and 24/7/365 enhancement to the on-call rotation necessary for Fleet Cloud
-- behind-the-scenes integrations
+- Behind-the-scenes integrations
   - i.e., integrations that make Fleet "just work" and don't involve configuration from users
-  - example: the code that fetches and manages CVE data from NVD and other behind-the-scenes infrastructure that enables vulnerability management to exist in Fleet without requiring any interactions or configuration from users
+  - Example: the code that fetches and manages CVE data from NVD and other behind-the-scenes infrastructure that enables vulnerability management to exist in Fleet without requiring any interactions or configuration from users
 - The CI/CD pipeline
 - `loadtest.fleetdm.com`
 - `dogfood.fleetdm.com`
@@ -360,7 +360,7 @@ These humans might be working within the "Interface" group itself insofar as the
 - Make upgrading Fleet versions seamless for users.
 - Improve the integrity of data (both collected directly from agents or derived from that data, e.g., vulnerabilities).
 - Maintain quick time-til-merge timeframe for PRs reviewed.
-- Maintain clean, empathetic interfaces that allow contributors in other groups (or from outside the company) to execute quickly and without the need to wait for review or approvals
+- Maintain clean, empathetic interfaces that allow contributors in other groups (or from outside the company) to execute quickly and without the need to wait for review or approval.
 - **Make Fleet as easy as possible to operate and contribute to**
 
 ### Agent group
@@ -397,7 +397,7 @@ In 2014, our CTO Zach Wasserman, together with [Mike Arpaia](https://twitter.com
 A few years later, Zach, Mike Arpaia, and [Jason Meller](https://honest.security) founded [Kolide](https://kolide.com) and created Fleet: an open source platform that made it easier and more productive to use osquery in an enterprise setting.
 
 ### 2019: The growing community
-When Kolide's attention shifted away from Fleet and towards their separate, user-focused SaaS offering, the Fleet community took over maintenance of the open source project. After his time at Kolide, Zach continued as lead maintainer of Fleet.  He spent 2019 consulting and working with the growing open source community to support and extend the capabilities of the Fleet platform.
+When Kolide's attention shifted away from Fleet, and towards their separate, user-focused SaaS offering, the Fleet community took over maintenance of the open source project. After his time at Kolide, Zach continued as lead maintainer of Fleet.  He spent 2019 consulting and working with the growing open source community to support and extend the capabilities of the Fleet platform.
 
 ### 2020: Fleet was incorporated
 Zach partnered with our CEO, Mike McNeil, to found a new, independent company: Fleet Device Management Inc.  In November 2020, we [announced](https://medium.com/fleetdm/a-new-fleet-d4096c7de978) the transition and kicked off the logistics of moving the GitHub repository.
@@ -410,18 +410,18 @@ Zach partnered with our CEO, Mike McNeil, to found a new, independent company: F
 
 ## Email relays
 
-There are several special email addresses that automatically relay messages to the appropriate people at Fleet. Each email address meets a minimum response time ("Min RT"), expressed in business hours/days, and has a dedicated directly responsible individual (DRI) who is responsible for reading and replying to emails sent to that address.  You can see a list of those email addresses in ["Contacting Fleet" (private Google doc)](https://docs.google.com/document/d/1tE-NpNfw1icmU2MjYuBRib0VWBPVAdmq4NiCrpuI0F0/edit#).
+There are several special email addresses that automatically relay messages to the appropriate people at Fleet. Each email address meets a minimum response time ("Min RT"), expressed in business hours/days, and has a dedicated, directly responsible individual (DRI) who is responsible for reading and replying to emails sent to that address.  You can see a list of those email addresses in ["Contacting Fleet" (private Google doc)](https://docs.google.com/document/d/1tE-NpNfw1icmU2MjYuBRib0VWBPVAdmq4NiCrpuI0F0/edit#).
 
 ## Tools we use
 
-There are a number of tools that are used throughout Fleet. Some of these tools are used company-wide, while others are department specific. You can see a list of those tools in ["Tools we use" (private Google doc)](https://docs.google.com/spreadsheets/d/170qjzvyGjmbFhwS4Mucotxnw_JvyAjYv4qpwBrS6Gl8/edit?usp=sharing).
+There are a number of tools that are used throughout Fleet. Some of these tools are used company-wide, while others are department-specific. You can see a list of those tools in ["Tools we use" (private Google doc)](https://docs.google.com/spreadsheets/d/170qjzvyGjmbFhwS4Mucotxnw_JvyAjYv4qpwBrS6Gl8/edit?usp=sharing).
 
 ## GitHub labels
 
 We use special characters to define different types of GitHub labels. By combining labels, we
 organize and categorize GitHub issues. This reduces the total number of labels required while
-maintaining an expressive labelling system. For example, instead of a label called
-`platform-dev-backend` we use `#platform :dev ~backend`.
+maintaining an expressive labeling system. For example, instead of a label called
+`platform-dev-backend`, we use `#platform :dev ~backend`.
 
 | Special character | Label type  | Rules        | Examples                            |
 |:------------------|:------------|:-------------|:------------------------------------|
@@ -435,7 +435,7 @@ maintaining an expressive labelling system. For example, instead of a label call
 |Ritual |Frequency | Description | DRI|
 |-------|:---------|:------------|:---|
 | Weekly update reminder | Weekly | On Thursday, Charlie starts a thread in the `#help-manage` channel and asks managers to reply to the thread with a summary of what their team did in the past week. | Charlie Chance |
-| Weekly update | Weekly | On Friday, Charlie updates the KPIs in the ["🌈 Weekly updates" spreadsheet](https://docs.google.com/spreadsheets/d/1Hso0LxqwrRVINCyW_n436bNHmoqhoLhC8bcbvLPOs9A/edit#gid=0), combines the updates from managers into a single message, and adds any hiring announcements. Charlie posts the company update in the `#general` channel. | Charlie Chance |
+| Weekly update | Weekly | On Friday, Charlie updates the KPIs in the ["🌈 Weekly updates" spreadsheet](https://docs.google.com/spreadsheets/d/1Hso0LxqwrRVINCyW_n436bNHmoqhoLhC8bcbvLPOs9A/edit#gid=0), combines the updates from managers into a single message and adds any hiring announcements. Charlie posts the company update in the `#general` channel. | Charlie Chance |
 
 ## Slack channels
 

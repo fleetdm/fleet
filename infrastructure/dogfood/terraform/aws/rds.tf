@@ -6,6 +6,7 @@ resource "random_password" "database_password" {
 // possibility of providing this capability in the future.
 resource "aws_secretsmanager_secret" "database_password_secret" { #tfsec:ignore:aws-ssm-secret-use-customer-key:exp:2022-07-01
   name = "/fleet/database/password/master"
+  recovery_window_in_days = 0
 }
 
 resource "aws_secretsmanager_secret_version" "database_password_secret_version" {

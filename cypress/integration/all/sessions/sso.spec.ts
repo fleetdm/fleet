@@ -47,4 +47,8 @@ describe("SSO Sessions", () => {
     // Log in should fail
     cy.contains("Password");
   });
+  it("displays an error message when status is set", () => {
+    cy.visit("/login?status=account_disabled");
+    cy.getAttached(".flash-message");
+  });
 });

@@ -307,10 +307,15 @@ func writePreRemove(opt Options, path string) error {
 	// We add `|| true` in case the service is not running
 	// or has been manually disabled already. Otherwise,
 	// uninstallation fails.
+	//
+	// "pkill fleet-desktop" is required because the application
+	// runs as user (separate from sudo command that launched it),
+	// so on some systems it's not killed properly.
 	if err := ioutil.WriteFile(path, []byte(`#!/bin/sh
 
 systemctl stop orbit.service || true
 systemctl disable orbit.service || true
+pkill fleet-desktop || true
 `), constant.DefaultFileMode); err != nil {
 		return fmt.Errorf("write file: %w", err)
 	}

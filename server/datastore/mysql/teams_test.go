@@ -29,6 +29,7 @@ func TestTeams(t *testing.T) {
 		{"EnrollSecrets", testTeamsEnrollSecrets},
 		{"TeamAgentOptions", testTeamsAgentOptions},
 		{"TeamsDeleteRename", testTeamsDeleteRename},
+		{"DeleteIntegrationsFromTeams", testTeamsDeleteIntegrationsFromTeams},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -317,4 +318,109 @@ func testTeamsAgentOptions(t *testing.T, ds *Datastore) {
 	teamAgentOptions2, err := ds.TeamAgentOptions(context.Background(), team2.ID)
 	require.NoError(t, err)
 	require.JSONEq(t, string(agentOptions), string(*teamAgentOptions2))
+}
+
+func testTeamsDeleteIntegrationsFromTeams(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+
+	urla, urlb, urlc, urld, urle, urlf, urlg :=
+		"http://a.com", "http://b.com", "http://c.com", "http://d.com", "http://e.com", "http://f.com", "http://g.com"
+
+	// create some teams
+	team1, err := ds.NewTeam(ctx, &fleet.Team{
+		Name: "team1",
+		Config: fleet.TeamConfig{
+			Integrations: fleet.TeamIntegrations{
+				Jira: []*fleet.TeamJiraIntegration{
+					{URL: urla, ProjectKey: "A"},
+					{URL: urlb, ProjectKey: "B"},
+				},
+				Zendesk: []*fleet.TeamZendeskIntegration{
+					{URL: urlc, GroupID: 1},
+					{URL: urld, GroupID: 2},
+				},
+			},
+		},
+	})
+	require.NoError(t, err)
+
+	team2, err := ds.NewTeam(ctx, &fleet.Team{
+		Name: "team2",
+		Config: fleet.TeamConfig{
+			Integrations: fleet.TeamIntegrations{
+				Jira: []*fleet.TeamJiraIntegration{
+					{URL: urla, ProjectKey: "A"},
+					{URL: urle, ProjectKey: "E"},
+				},
+				Zendesk: []*fleet.TeamZendeskIntegration{
+					{URL: urlc, GroupID: 1},
+					{URL: urlf, GroupID: 3},
+				},
+			},
+		},
+	})
+	require.NoError(t, err)
+
+	team3, err := ds.NewTeam(ctx, &fleet.Team{
+		Name: "team3",
+		Config: fleet.TeamConfig{
+			Integrations: fleet.TeamIntegrations{
+				Jira: []*fleet.TeamJiraIntegration{
+					{URL: urle, ProjectKey: "E"},
+				},
+				Zendesk: []*fleet.TeamZendeskIntegration{
+					{URL: urlf, GroupID: 3},
+				},
+			},
+		},
+	})
+	require.NoError(t, err)
+
+	assertIntgURLs := func(wantTm1, wantTm2, wantTm3 []string) {
+		// assert that the integrations' URLs of each team corresponds to the
+		// expected values
+		expected := [][]string{wantTm1, wantTm2, wantTm3}
+		for i, id := range []uint{team1.ID, team2.ID, team3.ID} {
+			tm, err := ds.Team(ctx, id)
+			require.NoError(t, err)
+
+			var urls []string
+			for _, j := range tm.Config.Integrations.Jira {
+				urls = append(urls, j.URL)
+			}
+			for _, z := range tm.Config.Integrations.Zendesk {
+				urls = append(urls, z.URL)
+			}
+
+			want := expected[i]
+			require.ElementsMatch(t, want, urls)
+		}
+	}
+
+	// delete nothing
+	err = ds.DeleteIntegrationsFromTeams(context.Background(), fleet.Integrations{})
+	require.NoError(t, err)
+	assertIntgURLs([]string{urla, urlb, urlc, urld}, []string{urla, urle, urlc, urlf}, []string{urle, urlf})
+
+	// delete a, b, c (in the url) so that team1 and team2 are impacted
+	err = ds.DeleteIntegrationsFromTeams(context.Background(), fleet.Integrations{
+		Jira: []*fleet.JiraIntegration{
+			{URL: urla, ProjectKey: "A"},
+			{URL: urlb, ProjectKey: "B"},
+		},
+		Zendesk: []*fleet.ZendeskIntegration{
+			{URL: urlc, GroupID: 1},
+		},
+	})
+	require.NoError(t, err)
+	assertIntgURLs([]string{urld}, []string{urle, urlf}, []string{urle, urlf})
+
+	// delete g, no team is impacted
+	err = ds.DeleteIntegrationsFromTeams(context.Background(), fleet.Integrations{
+		Jira: []*fleet.JiraIntegration{
+			{URL: urlg, ProjectKey: "G"},
+		},
+	})
+	require.NoError(t, err)
+	assertIntgURLs([]string{urld}, []string{urle, urlf}, []string{urle, urlf})
 }

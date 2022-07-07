@@ -123,7 +123,7 @@ parasails.registerPage('state-of-device-management', {
           labels: ['Yes', 'No',],
           datasets: [{
             label: 'percent',
-            data: [54.2, 45.9],
+            data: [54, 46],
             backgroundColor: ['#A182DF', '#E59CC4'],
           }]
         },
@@ -181,10 +181,10 @@ parasails.registerPage('state-of-device-management', {
           {label: 'Non-profit, K-12 education', percent: '7.32', color: '#CB73A3'},
         ],
         percentWorkingRemote: [
-          {label: '100 percent of workspace', percent: '27', color: '#A182DF'},
-          {label: '50 percent of workspace', percent: '27', color: '#E59CC4'},
-          {label: '25 percent of workspace', percent: '25', color: '#F1AC8C'},
-          {label: '0 percent of workspace', percent: '21', color: '#91D4C7'},
+          {label: '100 percent of workforce', percent: '27', color: '#A182DF'},
+          {label: '50 percent of workforce', percent: '27', color: '#E59CC4'},
+          {label: '25 percent of workforce', percent: '25', color: '#F1AC8C'},
+          {label: '0 percent of workforce', percent: '21', color: '#91D4C7'},
         ],
       },
       partOne: {
@@ -399,7 +399,7 @@ parasails.registerPage('state-of-device-management', {
               fullWidth: false,
               position: chartHasLegendOnBottom ? 'bottom' : 'right',
               // removing the default onClick event from the chart's legend
-              onClick: (click)=>{console.log(click);},
+              onClick: ()=>{return;},
               labels: {
                 padding: 16,
                 generateLabels: (chart) => {
@@ -428,10 +428,8 @@ parasails.registerPage('state-of-device-management', {
       if(this.redrawnCharts.length < 1) {
         // Iterating through charts drawn on the page. If the window width is below 768px, we'll change the configuration and update the charts.
         for(let index in this.chartsDrawnOnPage) {
-          console.log(this.chartsDrawnOnPage[index]);
           // If a bottom legend position was specified, we'll ignore it.
           let chartHasLegendOnBottomAtAllWidths = this.chartsDrawnOnPage[index].aspectRatio === 0.8;
-          console.log(this.chartsDrawnOnPage[index] + ' ' + 'chartHasLegendOnBottomAtAllWidths: '+ chartHasLegendOnBottomAtAllWidths);
           if(window.innerWidth < 768 && !chartHasLegendOnBottomAtAllWidths){
             this.redrawnCharts.push(this.chartsDrawnOnPage[index]);
             this.chartsDrawnOnPage[index].aspectRatio = 1;
@@ -450,7 +448,6 @@ parasails.registerPage('state-of-device-management', {
             this.chartsDrawnOnPage[index].resize();
           }
         }
-        console.log(this.chartsDrawnOnPage);
       } else {
         // Iterating through the charts that have been redrawn and changing them back to their original configuration.
         for(let index in this.redrawnCharts) {
@@ -473,7 +470,6 @@ parasails.registerPage('state-of-device-management', {
             this.redrawnCharts[index].resize();
           }
         }
-        console.log(this.redrawnCharts);
       }
     },
 

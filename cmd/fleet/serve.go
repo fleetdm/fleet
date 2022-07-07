@@ -29,6 +29,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/datastore/cached_mysql"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
+	"github.com/fleetdm/fleet/v4/server/datastore/mysqlredis"
 	"github.com/fleetdm/fleet/v4/server/datastore/redis"
 	"github.com/fleetdm/fleet/v4/server/datastore/s3"
 	"github.com/fleetdm/fleet/v4/server/errorstore"
@@ -100,7 +101,7 @@ the way that the Fleet server works.
 
 			if devLicense {
 				// This license key is valid for development only
-				config.License.Key = "eyJhbGciOiJFUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJGbGVldCBEZXZpY2UgTWFuYWdlbWVudCBJbmMuIiwiZXhwIjoxNjU2NjMzNjAwLCJzdWIiOiJkZXZlbG9wbWVudC1vbmx5IiwiZGV2aWNlcyI6MTAwLCJub3RlIjoiZm9yIGRldmVsb3BtZW50IG9ubHkiLCJ0aWVyIjoicHJlbWl1bSIsImlhdCI6MTY0MTIzMjI3OX0.WriTJfRA-R-ffN_sJwYSkllLGzgDxs1xTUCJX7W02BA5FTGfIYq9CCvcTXAgR5GeMuLEOBs21tY-jpSc6GNe6Q"
+				config.License.Key = "eyJhbGciOiJFUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJGbGVldCBEZXZpY2UgTWFuYWdlbWVudCBJbmMuIiwiZXhwIjoxNzUxMjQxNjAwLCJzdWIiOiJkZXZlbG9wbWVudC1vbmx5IiwiZGV2aWNlcyI6MTAwLCJub3RlIjoiZm9yIGRldmVsb3BtZW50IG9ubHkiLCJ0aWVyIjoicHJlbWl1bSIsImlhdCI6MTY1NjY5NDA4N30.dvfterOvfTGdrsyeWYH9_lPnyovxggM5B7tkSl1q1qgFYk_GgOIxbaqIZ6gJlL0cQuBF9nt5NgV0AUT9RmZUaA"
 			} else if devExpiredLicense {
 				// An expired license key
 				config.License.Key = "eyJhbGciOiJFUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJGbGVldCBEZXZpY2UgTWFuYWdlbWVudCBJbmMuIiwiZXhwIjoxNjI5NzYzMjAwLCJzdWIiOiJEZXYgbGljZW5zZSAoZXhwaXJlZCkiLCJkZXZpY2VzIjo1MDAwMDAsIm5vdGUiOiJUaGlzIGxpY2Vuc2UgaXMgdXNlZCB0byBmb3IgZGV2ZWxvcG1lbnQgcHVycG9zZXMuIiwidGllciI6ImJhc2ljIiwiaWF0IjoxNjI5OTA0NzMyfQ.AOppRkl1Mlc_dYKH9zwRqaTcL0_bQzs7RM3WSmxd3PeCH9CxJREfXma8gm0Iand6uIWw8gHq5Dn0Ivtv80xKvQ"
@@ -291,6 +292,13 @@ the way that the Fleet server works.
 			level.Info(logger).Log("component", "redis", "mode", redisPool.Mode())
 
 			ds = cached_mysql.New(ds)
+			var dsOpts []mysqlredis.Option
+			if license.DeviceCount > 0 && config.License.EnforceHostLimit {
+				dsOpts = append(dsOpts, mysqlredis.WithEnforcedHostLimit(license.DeviceCount))
+			}
+			redisWrapperDS := mysqlredis.New(ds, redisPool, dsOpts...)
+			ds = redisWrapperDS
+
 			resultStore := pubsub.NewRedisQueryResults(redisPool, config.Redis.DuplicateResults)
 			liveQueryStore := live_query.NewRedisLiveQuery(redisPool)
 			ssoSessionStore := sso.NewSessionStore(redisPool)
@@ -330,10 +338,11 @@ the way that the Fleet server works.
 				}
 			}
 
-			// TODO: gather all the different contexts and use just one
 			ctx, cancelFunc := context.WithCancel(context.Background())
 			defer cancelFunc()
-			svc, err := service.NewService(ctx, ds, task, resultStore, logger, osqueryLogger, config, mailService, clock.C, ssoSessionStore, liveQueryStore, carveStore, *license, failingPolicySet, geoIP)
+			eh := errorstore.NewHandler(ctx, redisPool, logger, config.Logging.ErrorRetentionPeriod)
+			ctx = ctxerr.NewContext(ctx, eh)
+			svc, err := service.NewService(ctx, ds, task, resultStore, logger, osqueryLogger, config, mailService, clock.C, ssoSessionStore, liveQueryStore, carveStore, *license, failingPolicySet, geoIP, redisWrapperDS)
 			if err != nil {
 				initFatal(err, "initializing service")
 			}
@@ -345,7 +354,7 @@ the way that the Fleet server works.
 				}
 			}
 
-			cancelBackground := runCrons(ds, task, kitlog.With(logger, "component", "crons"), config, license, failingPolicySet)
+			runCrons(ctx, ds, task, kitlog.With(logger, "component", "crons"), config, license, failingPolicySet, redisWrapperDS)
 
 			// Flush seen hosts every second
 			hostsAsyncCfg := config.Osquery.AsyncConfigForTask(configpkg.AsyncTaskHostLastSeen)
@@ -410,14 +419,16 @@ the way that the Fleet server works.
 			{
 				// a list of dependencies which could affect the status of the app if unavailable.
 				deps := map[string]interface{}{
-					"datastore":          ds,
-					"query_result_store": resultStore,
+					"mysql": ds,
+					"redis": resultStore,
 				}
 
 				// convert all dependencies to health.Checker if they implement the healthz methods.
 				for name, dep := range deps {
 					if hc, ok := dep.(health.Checker); ok {
 						healthCheckers[name] = hc
+					} else {
+						initFatal(errors.New(name+" should be a health.Checker"), "initializing health checks")
 					}
 				}
 
@@ -425,8 +436,6 @@ the way that the Fleet server works.
 
 			// Instantiate a gRPC service to handle launcher requests.
 			launcher := launcher.New(svc, logger, grpc.NewServer(), healthCheckers)
-
-			eh := errorstore.NewHandler(ctx, redisPool, logger, config.Logging.ErrorRetentionPeriod)
 
 			rootMux := http.NewServeMux()
 			rootMux.Handle("/healthz", service.PrometheusMetricsHandler("healthz", health.Handler(httpLogger, healthCheckers)))
@@ -505,8 +514,6 @@ the way that the Fleet server works.
 				writeTimeout = liveQueryRestPeriod
 			}
 
-			httpSrvCtx := ctxerr.NewContext(ctx, eh)
-
 			// Create the handler based on whether tracing should be there
 			var handler http.Handler
 			if config.Logging.TracingEnabled && config.Logging.TracingType == "elasticapm" {
@@ -524,7 +531,7 @@ the way that the Fleet server works.
 				IdleTimeout:       5 * time.Minute,
 				MaxHeaderBytes:    1 << 18, // 0.25 MB (262144 bytes)
 				BaseContext: func(l net.Listener) context.Context {
-					return httpSrvCtx
+					return ctx
 				},
 			}
 			srv.SetKeepAlivesEnabled(config.Server.Keepalive)
@@ -549,7 +556,6 @@ the way that the Fleet server works.
 				ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 				defer cancel()
 				errs <- func() error {
-					cancelBackground()
 					cancelFunc()
 					launcher.GracefulStop()
 					return srv.Shutdown(ctx)
@@ -627,30 +633,28 @@ func trySendStatistics(ctx context.Context, ds fleet.Datastore, frequency time.D
 }
 
 func runCrons(
+	ctx context.Context,
 	ds fleet.Datastore,
 	task *async.Task,
 	logger kitlog.Logger,
 	config configpkg.FleetConfig,
 	license *fleet.LicenseInfo,
 	failingPoliciesSet fleet.FailingPolicySet,
-) context.CancelFunc {
-	ctx, cancelBackground := context.WithCancel(context.Background())
-
+	enrollHostLimiter fleet.EnrollHostLimiter,
+) {
 	ourIdentifier, err := server.GenerateRandomText(64)
 	if err != nil {
-		initFatal(errors.New("Error generating random instance identifier"), "")
+		initFatal(ctxerr.New(ctx, "generating random instance identifier"), "")
 	}
 
 	// StartCollectors starts a goroutine per collector, using ctx to cancel.
 	task.StartCollectors(ctx, kitlog.With(logger, "cron", "async_task"))
 
-	go cronDB(ctx, ds, kitlog.With(logger, "cron", "cleanups"), ourIdentifier, license)
+	go cronDB(ctx, ds, kitlog.With(logger, "cron", "cleanups"), ourIdentifier, license, enrollHostLimiter)
 	go cronVulnerabilities(
 		ctx, ds, kitlog.With(logger, "cron", "vulnerabilities"), ourIdentifier, config)
 	go cronWebhooks(ctx, ds, kitlog.With(logger, "cron", "webhooks"), ourIdentifier, failingPoliciesSet, 1*time.Hour)
 	go cronWorker(ctx, ds, kitlog.With(logger, "cron", "worker"), ourIdentifier)
-
-	return cancelBackground
 }
 
 // Support for TLS security profiles, we set up the TLS configuation based on

@@ -1,1 +1,0 @@
-* Added `/api/_version_/fleet/device/{token}/policies` to retrieve policies for a device. This endpoint can only be accessed with a premium license.

@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net"
 	"os"
+	"regexp"
 	"strconv"
 	"strings"
 	"time"
@@ -48,10 +49,12 @@ func (q *DetailQuery) RunsForPlatform(platform string) bool {
 	return false
 }
 
-// detailQueries defines the detail queries that should be run on the host, as
+// hostDetailQueries defines the detail queries that should be run on the host, as
 // well as how the results of those queries should be ingested into the
-// fleet.Host data model. This map should not be modified at runtime.
-var detailQueries = map[string]DetailQuery{
+// fleet.Host data model (via IngestFunc).
+//
+// This map should not be modified at runtime.
+var hostDetailQueries = map[string]DetailQuery{
 	"network_interface": {
 		Query: `select ia.address, id.mac, id.interface
                         from interface_details id join interface_addresses ia
@@ -127,7 +130,17 @@ var detailQueries = map[string]DetailQuery{
 				return nil
 			}
 
-			if rows[0]["major"] != "0" || rows[0]["minor"] != "0" || rows[0]["patch"] != "0" {
+			if strings.Contains(strings.ToLower(rows[0]["name"]), "ubuntu") {
+				// Ubuntu takes a different approach to updating patch IDs so we instead use
+				// the version string provided after removing the code name
+				regx := regexp.MustCompile(`\(.*\)`)
+				vers := regx.ReplaceAllString(rows[0]["version"], "")
+				host.OSVersion = fmt.Sprintf(
+					"%s %s",
+					rows[0]["name"],
+					strings.TrimSpace(vers),
+				)
+			} else if rows[0]["major"] != "0" || rows[0]["minor"] != "0" || rows[0]["patch"] != "0" {
 				host.OSVersion = fmt.Sprintf(
 					"%s %s.%s.%s",
 					rows[0]["name"],
@@ -306,20 +319,38 @@ FROM logical_drives WHERE file_system = 'NTFS' LIMIT 1;`,
 		Platforms:  []string{"windows"},
 		IngestFunc: ingestDiskSpace,
 	},
+}
+
+// extraDetailQueries defines extra detail queries that should be run on the host, as
+// well as how the results of those queries should be ingested into the hosts related tables
+// (via DirectIngestFunc).
+//
+// This map should not be modified at runtime.
+var extraDetailQueries = map[string]DetailQuery{
 	"mdm": {
 		Query:            `select enrolled, server_url, installed_from_dep from mdm;`,
 		DirectIngestFunc: directIngestMDM,
 		Platforms:        []string{"darwin"},
+		Discovery:        discoveryTable("mdm"),
 	},
 	"munki_info": {
 		Query:            `select version from munki_info;`,
 		DirectIngestFunc: directIngestMunkiInfo,
 		Platforms:        []string{"darwin"},
+		Discovery:        discoveryTable("munki_info"),
 	},
 	"google_chrome_profiles": {
 		Query:            `SELECT email FROM google_chrome_profiles WHERE NOT ephemeral AND email <> ''`,
 		DirectIngestFunc: directIngestChromeProfiles,
 		Discovery:        discoveryTable("google_chrome_profiles"),
+	},
+	"battery": {
+		Query:            `SELECT serial_number, cycle_count, health FROM battery;`,
+		Platforms:        []string{"darwin"},
+		DirectIngestFunc: directIngestBattery,
+		// the "battery" table doesn't need a Discovery query as it is an official
+		// osquery table on darwin (https://osquery.io/schema/5.3.0#battery), it is
+		// always present.
 	},
 	OrbitInfoQueryName: OrbitInfoDetailQuery,
 }
@@ -339,9 +370,9 @@ func discoveryTable(tableName string) string {
 	return fmt.Sprintf("SELECT 1 FROM osquery_registry WHERE active = true AND registry = 'table' AND name = '%s';", tableName)
 }
 
-const usersQueryStr = `WITH cached_groups AS (select * from groups) 
- SELECT uid, username, type, groupname, shell 
- FROM users LEFT JOIN cached_groups USING (gid) 
+const usersQueryStr = `WITH cached_groups AS (select * from groups)
+ SELECT uid, username, type, groupname, shell
+ FROM users LEFT JOIN cached_groups USING (gid)
  WHERE type <> 'special' AND shell NOT LIKE '%/false' AND shell NOT LIKE '%/nologin' AND shell NOT LIKE '%/shutdown' AND shell NOT LIKE '%/halt' AND username NOT LIKE '%$' AND username NOT LIKE '\_%' ESCAPE '\' AND NOT (username = 'sync' AND shell ='/bin/sync' AND directory <> '')`
 
 func withCachedUsers(query string) string {
@@ -604,6 +635,28 @@ func directIngestChromeProfiles(ctx context.Context, logger log.Logger, host *fl
 	return ds.ReplaceHostDeviceMapping(ctx, host.ID, mapping)
 }
 
+func directIngestBattery(ctx context.Context, logger log.Logger, host *fleet.Host, ds fleet.Datastore, rows []map[string]string, failed bool) error {
+	if failed {
+		level.Error(logger).Log("op", "directIngestBattery", "err", "failed")
+		return nil
+	}
+
+	mapping := make([]*fleet.HostBattery, 0, len(rows))
+	for _, row := range rows {
+		cycleCount, err := strconv.ParseInt(EmptyToZero(row["cycle_count"]), 10, 64)
+		if err != nil {
+			return err
+		}
+		mapping = append(mapping, &fleet.HostBattery{
+			HostID:       host.ID,
+			SerialNumber: row["serial_number"],
+			CycleCount:   int(cycleCount),
+			Health:       row["health"],
+		})
+	}
+	return ds.ReplaceHostBatteries(ctx, host.ID, mapping)
+}
+
 func directIngestOrbitInfo(ctx context.Context, logger log.Logger, host *fleet.Host, ds fleet.Datastore, rows []map[string]string, failed bool) error {
 	if len(rows) != 1 {
 		return ctxerr.Errorf(ctx, "invalid number of orbit_info rows: %d", len(rows))
@@ -851,7 +904,10 @@ func directIngestMunkiInfo(ctx context.Context, logger log.Logger, host *fleet.H
 
 func GetDetailQueries(ac *fleet.AppConfig, fleetConfig config.FleetConfig) map[string]DetailQuery {
 	generatedMap := make(map[string]DetailQuery)
-	for key, query := range detailQueries {
+	for key, query := range hostDetailQueries {
+		generatedMap[key] = query
+	}
+	for key, query := range extraDetailQueries {
 		generatedMap[key] = query
 	}
 

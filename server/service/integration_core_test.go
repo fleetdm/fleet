@@ -59,7 +59,7 @@ func (s *integrationTestSuite) TearDownTest() {
 	}
 
 	// recalculate software counts will remove the software entries
-	require.NoError(t, s.ds.CalculateHostsPerSoftware(context.Background(), time.Now()))
+	require.NoError(t, s.ds.SyncHostsSoftware(context.Background(), time.Now()))
 
 	lbls, err := s.ds.ListLabels(ctx, fleet.TeamFilter{}, fleet.ListOptions{})
 	require.NoError(t, err)
@@ -97,8 +97,8 @@ func (s *integrationTestSuite) TearDownTest() {
 		require.NoError(t, err)
 	}
 
-	// CalculateHostsPerSoftware performs a cleanup.
-	err = s.ds.CalculateHostsPerSoftware(ctx, time.Now())
+	// SyncHostsSoftware performs a cleanup.
+	err = s.ds.SyncHostsSoftware(ctx, time.Now())
 	require.NoError(t, err)
 }
 
@@ -493,7 +493,7 @@ func (s *integrationTestSuite) TestVulnerableSoftware() {
 				CPEID:      soft1.GeneratedCPEID,
 				CVE:        "cve-123-123-132",
 			},
-		}, fleet.NVD,
+		}, fleet.NVDSource,
 	)
 	require.NoError(t, err)
 	require.Equal(t, 1, int(n))
@@ -545,7 +545,7 @@ func (s *integrationTestSuite) TestVulnerableSoftware() {
 
 	// calculate hosts counts
 	hostsCountTs := time.Now().UTC()
-	require.NoError(t, s.ds.CalculateHostsPerSoftware(context.Background(), hostsCountTs))
+	require.NoError(t, s.ds.SyncHostsSoftware(context.Background(), hostsCountTs))
 
 	// now the list software endpoint returns the software
 	lsResp = listSoftwareResponse{}
@@ -4086,7 +4086,7 @@ func (s *integrationTestSuite) TestPaginateListSoftware() {
 	}
 
 	// add CVEs for the first 10 software, which are the least used (lower hosts_count)
-	n, err := s.ds.InsertVulnerabilities(context.Background(), vulns, fleet.NVD)
+	n, err := s.ds.InsertVulnerabilities(context.Background(), vulns, fleet.NVDSource)
 	require.NoError(t, err)
 	require.Equal(t, 10, int(n))
 
@@ -4126,7 +4126,7 @@ func (s *integrationTestSuite) TestPaginateListSoftware() {
 
 	// calculate hosts counts
 	hostsCountTs := time.Now().UTC()
-	require.NoError(t, s.ds.CalculateHostsPerSoftware(context.Background(), hostsCountTs))
+	require.NoError(t, s.ds.SyncHostsSoftware(context.Background(), hostsCountTs))
 
 	// now the list software endpoint returns the software, get the first page without vulns
 	lsResp = listSoftwareResponse{}
@@ -4627,6 +4627,10 @@ func (s *integrationTestSuite) TestDeviceAuthenticatedEndpoints() {
 	})
 	require.NoError(t, s.ds.SetOrUpdateMDMData(context.Background(), hosts[0].ID, true, "url", false))
 	require.NoError(t, s.ds.SetOrUpdateMunkiVersion(context.Background(), hosts[0].ID, "1.3.0"))
+	// create a battery for hosts[0]
+	require.NoError(t, s.ds.ReplaceHostBatteries(context.Background(), hosts[0].ID, []*fleet.HostBattery{
+		{HostID: hosts[0].ID, SerialNumber: "a", CycleCount: 1, Health: "Good"},
+	}))
 
 	// create an auth token for hosts[0]
 	token := "much_valid"
@@ -4652,6 +4656,8 @@ func (s *integrationTestSuite) TestDeviceAuthenticatedEndpoints() {
 	require.False(t, getHostResp.Host.RefetchRequested)
 	require.Equal(t, "http://example.com/logo", getHostResp.OrgLogoURL)
 	require.Nil(t, getHostResp.Host.Policies)
+	require.NotNil(t, getHostResp.Host.Batteries)
+	require.Equal(t, &fleet.HostBattery{CycleCount: 1, Health: "Good"}, (*getHostResp.Host.Batteries)[0])
 	hostDevResp := getHostResp.Host
 
 	// make request for same host on the host details API endpoint, responses should match, except for policies
@@ -4766,12 +4772,12 @@ func (s *integrationTestSuite) TestDefaultTransparencyURL() {
 	require.Equal(t, fleet.DefaultTransparencyURL, acResp.FleetDesktop.TransparencyURL)
 
 	// confirm device endpoint returns initial default url
-	deviceResp := &getDeviceHostResponse{}
-	rawResp := s.DoRawNoAuth("GET", "/api/latest/fleet/device/"+token, nil, http.StatusOK)
+	deviceResp := &transparencyURLResponse{}
+	rawResp := s.DoRawNoAuth("GET", "/api/latest/fleet/device/"+token+"/transparency", nil, http.StatusTemporaryRedirect)
 	json.NewDecoder(rawResp.Body).Decode(deviceResp)
 	rawResp.Body.Close()
 	require.NoError(t, deviceResp.Err)
-	require.Equal(t, fleet.DefaultTransparencyURL, deviceResp.TransparencyURL)
+	require.Equal(t, fleet.DefaultTransparencyURL, rawResp.Header.Get("Location"))
 
 	// empty string applies default url
 	acResp = appConfigResponse{}
@@ -4780,24 +4786,24 @@ func (s *integrationTestSuite) TestDefaultTransparencyURL() {
 	require.Equal(t, fleet.DefaultTransparencyURL, acResp.FleetDesktop.TransparencyURL)
 
 	// device endpoint returns default url
-	deviceResp = &getDeviceHostResponse{}
-	rawResp = s.DoRawNoAuth("GET", "/api/latest/fleet/device/"+token, nil, http.StatusOK)
+	deviceResp = &transparencyURLResponse{}
+	rawResp = s.DoRawNoAuth("GET", "/api/latest/fleet/device/"+token+"/transparency", nil, http.StatusTemporaryRedirect)
 	json.NewDecoder(rawResp.Body).Decode(deviceResp)
 	rawResp.Body.Close()
 	require.NoError(t, deviceResp.Err)
-	require.Equal(t, fleet.DefaultTransparencyURL, deviceResp.TransparencyURL)
+	require.Equal(t, fleet.DefaultTransparencyURL, rawResp.Header.Get("Location"))
 
 	// modify transparency url with custom url fails
 	acResp = appConfigResponse{}
 	s.DoJSON("PATCH", "/api/latest/fleet/config", fleet.AppConfig{FleetDesktop: fleet.FleetDesktopSettings{TransparencyURL: "customURL"}}, http.StatusUnprocessableEntity, &acResp)
 
 	// device endpoint still returns default url
-	deviceResp = &getDeviceHostResponse{}
-	rawResp = s.DoRawNoAuth("GET", "/api/latest/fleet/device/"+token, nil, http.StatusOK)
+	deviceResp = &transparencyURLResponse{}
+	rawResp = s.DoRawNoAuth("GET", "/api/latest/fleet/device/"+token+"/transparency", nil, http.StatusTemporaryRedirect)
 	json.NewDecoder(rawResp.Body).Decode(deviceResp)
 	rawResp.Body.Close()
 	require.NoError(t, deviceResp.Err)
-	require.Equal(t, fleet.DefaultTransparencyURL, deviceResp.TransparencyURL)
+	require.Equal(t, fleet.DefaultTransparencyURL, rawResp.Header.Get("Location"))
 }
 
 func (s *integrationTestSuite) TestModifyUser() {
@@ -5103,6 +5109,103 @@ func (s *integrationTestSuite) TestHostsReportDownload() {
 	require.Len(t, rows[3], 3)
 	require.Equal(t, []string{"0", "TestIntegrations/TestHostsReportDownloadfoo.local0"}, rows[3][:2])
 	t.Log(rows)
+}
+
+func (s *integrationTestSuite) TestSSODisabled() {
+	t := s.T()
+
+	var initiateResp initiateSSOResponse
+	s.DoJSON("POST", "/api/v1/fleet/sso", struct{}{}, http.StatusBadRequest, &initiateResp)
+
+	var callbackResp callbackSSOResponse
+	// callback without SAML response
+	s.DoJSON("POST", "/api/v1/fleet/sso/callback", nil, http.StatusBadRequest, &callbackResp)
+	// callback with invalid SAML response
+	s.DoJSON("POST", "/api/v1/fleet/sso/callback?SAMLResponse=zz", nil, http.StatusBadRequest, &callbackResp)
+	// callback with valid SAML response (<samlp:AuthnRequest></samlp:AuthnRequest>)
+	res := s.DoRaw("POST", "/api/v1/fleet/sso/callback?SAMLResponse=PHNhbWxwOkF1dGhuUmVxdWVzdD48L3NhbWxwOkF1dGhuUmVxdWVzdD4%3D", nil, http.StatusOK)
+	defer res.Body.Close()
+	body, err := io.ReadAll(res.Body)
+	require.NoError(t, err)
+	require.Contains(t, string(body), "/login?status=org_disabled") // html contains a script that redirects to this path
+}
+
+func (s *integrationTestSuite) TestFleetSandboxDemoLogin() {
+	t := s.T()
+
+	validEmail := testUsers["user1"].Email
+	validPwd := testUsers["user1"].PlaintextPassword
+	wrongPwd := "nope"
+	hdrs := map[string]string{"Content-Type": "application/x-www-form-urlencoded"}
+
+	os.Unsetenv("FLEET_DEMO") // ensure it is not accidentally set
+
+	// without the FLEET_DEMO env var set, the login always fails
+	formBody := make(url.Values)
+	formBody.Set("email", validEmail)
+	formBody.Set("password", validPwd)
+	res := s.DoRawWithHeaders("POST", "/api/v1/fleet/demologin", []byte(formBody.Encode()), http.StatusInternalServerError, hdrs)
+	require.NotEqual(t, http.StatusOK, res.StatusCode)
+
+	// with the FLEET_DEMO env var set, the login works as expected, validating
+	// the credentials
+	os.Setenv("FLEET_DEMO", "1")
+	defer os.Unsetenv("FLEET_DEMO")
+
+	formBody.Set("email", validEmail)
+	formBody.Set("password", wrongPwd)
+	res = s.DoRawWithHeaders("POST", "/api/v1/fleet/demologin", []byte(formBody.Encode()), http.StatusUnauthorized, hdrs)
+	require.Equal(t, http.StatusUnauthorized, res.StatusCode)
+
+	formBody.Set("email", validEmail)
+	formBody.Set("password", validPwd)
+	res = s.DoRawWithHeaders("POST", "/api/v1/fleet/demologin", []byte(formBody.Encode()), http.StatusOK, hdrs)
+	resBody, err := io.ReadAll(res.Body)
+	require.NoError(t, err)
+	require.Equal(t, http.StatusOK, res.StatusCode)
+	require.Contains(t, string(resBody), `window.location = "/"`)
+	require.Regexp(t, `window.localStorage.setItem\('FLEET::auth_token', '[^']+'\)`, string(resBody))
+}
+
+func (s *integrationTestSuite) TestGetHostBatteries() {
+	t := s.T()
+
+	host, err := s.ds.NewHost(context.Background(), &fleet.Host{
+		DetailUpdatedAt: time.Now(),
+		LabelUpdatedAt:  time.Now(),
+		PolicyUpdatedAt: time.Now(),
+		SeenTime:        time.Now(),
+		NodeKey:         strings.ReplaceAll(t.Name(), "/", "_") + "1",
+		UUID:            t.Name() + "1",
+		Hostname:        t.Name() + "foo.local",
+		PrimaryIP:       "192.168.1.1",
+		PrimaryMac:      "30-65-EC-6F-C4-58",
+	})
+	require.NoError(t, err)
+
+	bats := []*fleet.HostBattery{
+		{HostID: host.ID, SerialNumber: "a", CycleCount: 1, Health: "Good"},
+		{HostID: host.ID, SerialNumber: "b", CycleCount: 2, Health: "Poor"},
+	}
+	require.NoError(t, s.ds.ReplaceHostBatteries(context.Background(), host.ID, bats))
+
+	var getHostResp getHostResponse
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", host.ID), nil, http.StatusOK, &getHostResp)
+	require.Equal(t, host.ID, getHostResp.Host.ID)
+	// only cycle count and health are returned
+	require.ElementsMatch(t, []*fleet.HostBattery{
+		{CycleCount: 1, Health: "Good"},
+		{CycleCount: 2, Health: "Poor"},
+	}, *getHostResp.Host.Batteries)
+
+	// same for get host by identifier
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/identifier/%s", host.NodeKey), nil, http.StatusOK, &getHostResp)
+	require.Equal(t, host.ID, getHostResp.Host.ID)
+	// only cycle count and health are returned
+	require.ElementsMatch(t, []*fleet.HostBattery{
+		{CycleCount: 1, Health: "Good"},
+		{CycleCount: 2, Health: "Poor"},
+	}, *getHostResp.Host.Batteries)
 }
 
 // this test can be deleted once the "v1" version is removed.

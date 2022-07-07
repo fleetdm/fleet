@@ -223,6 +223,12 @@
             tbody {
               .name__cell {
                 width: $col-md;
+                a {
+                  text-decoration: none;
+                  &:hover {
+                    text-decoration: underline;
+                  }
+                }
               }
               .version__cell {
                 width: 0;

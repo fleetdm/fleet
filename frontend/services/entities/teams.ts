@@ -1,9 +1,14 @@
 /* eslint-disable  @typescript-eslint/explicit-module-boundary-types */
 import sendRequest from "services";
-import { IEnrollSecret } from "interfaces/enroll_secret";
-import { INewMembersBody, IRemoveMembersBody, ITeam } from "interfaces/team";
 import endpoints from "utilities/endpoints";
-import { IWebhook } from "interfaces/webhook";
+import { pick } from "lodash";
+
+import { IEnrollSecret } from "interfaces/enroll_secret";
+import {
+  INewMembersBody,
+  IRemoveMembersBody,
+  ITeamConfig,
+} from "interfaces/team";
 
 interface ILoadTeamsParams {
   page?: number;
@@ -11,21 +16,21 @@ interface ILoadTeamsParams {
   globalFilter?: string;
 }
 
+/**
+ * The response body expected for the "Get team" endpoint.
+ * See https://fleetdm.com/docs/using-fleet/rest-api#get-team
+ */
+export interface ILoadTeamResponse {
+  team: ITeamConfig;
+}
+
 export interface ILoadTeamsResponse {
-  teams: ITeam[];
+  teams: ITeamConfig[];
 }
 
 export interface ITeamFormData {
   name: string;
 }
-
-interface ITeamWebhooks {
-  webhook_settings: {
-    [key: string]: IWebhook;
-  };
-}
-
-type ITeamUpdateData = ITeamFormData | ITeamWebhooks;
 
 export default {
   create: (formData: ITeamFormData) => {
@@ -39,7 +44,7 @@ export default {
 
     return sendRequest("DELETE", path);
   },
-  load: (teamId: number) => {
+  load: (teamId: number): Promise<ILoadTeamResponse> => {
     const { TEAMS } = endpoints;
     const path = `${TEAMS}/${teamId}`;
 
@@ -64,18 +69,38 @@ export default {
 
     return sendRequest("GET", path);
   },
-  update: (updateParams: ITeamUpdateData, teamId?: number) => {
-    // we are grouping this update with the config api update function
-    // on the ManagePoliciesPage to streamline updating the
-    // webhook settings globally or for a team - see ManagePoliciesPage line 208
+  update: (
+    { name, webhook_settings, integrations }: Partial<ITeamConfig>,
+    teamId?: number
+  ): Promise<ITeamConfig> => {
     if (typeof teamId === "undefined") {
       return Promise.reject("Invalid usage: missing team id");
     }
 
     const { TEAMS } = endpoints;
     const path = `${TEAMS}/${teamId}`;
+    const requestBody: Record<string, unknown> = {};
+    if (name) {
+      requestBody.name = name;
+    }
+    if (webhook_settings) {
+      requestBody.webhook_settings = webhook_settings;
+    }
+    if (integrations) {
+      const { jira, zendesk } = integrations;
+      const teamIntegrationProps = [
+        "enable_failing_policies",
+        "group_id",
+        "project_key",
+        "url",
+      ];
+      requestBody.integrations = {
+        jira: jira?.map((j) => pick(j, teamIntegrationProps)),
+        zendesk: zendesk?.map((z) => pick(z, teamIntegrationProps)),
+      };
+    }
 
-    return sendRequest("PATCH", path, updateParams);
+    return sendRequest("PATCH", path, requestBody);
   },
   addMembers: (teamId: number, newMembers: INewMembersBody) => {
     const { TEAMS_MEMBERS } = endpoints;

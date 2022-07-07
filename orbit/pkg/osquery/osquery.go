@@ -19,11 +19,6 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
-const (
-	extensionSocketName        = "orbit-osquery.em"
-	windowsExtensionSocketPath = `\\.\pipe\orbit-osquery-extension`
-)
-
 // Runner is a specialized runner for osquery. It is designed with Execute and
 // Interrupt functions to be compatible with oklog/run.
 type Runner struct {
@@ -62,6 +57,12 @@ func NewRunner(path string, options ...Option) (*Runner, error) {
 		if err != nil {
 			return nil, fmt.Errorf("apply option: %w", err)
 		}
+	}
+
+	// Attempt to cleanup any extension socket leftover from previous runs.
+	// In some cases it's not cleaned up properly by osquery before exit.
+	if err := os.Remove(r.ExtensionSocketPath()); err != nil && !errors.Is(err, os.ErrNotExist) {
+		log.Error().Err(err).Msg("clean-up extension socket")
 	}
 
 	return r, nil
@@ -185,10 +186,13 @@ func (r *Runner) Interrupt(err error) {
 }
 
 func (r *Runner) ExtensionSocketPath() string {
+	const (
+		extensionSocketName        = "orbit-osquery.em"
+		windowsExtensionSocketPath = `\\.\pipe\orbit-osquery-extension`
+	)
 	if runtime.GOOS == "windows" {
 		return windowsExtensionSocketPath
 	}
-
 	return filepath.Join(r.dataPath, extensionSocketName)
 }
 

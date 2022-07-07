@@ -52,3 +52,36 @@ func NewOperationType(val string) OperationType {
 		return Equals
 	}
 }
+
+func (op OperationType) String() string {
+	switch op {
+	case Equals:
+		return "equals"
+	case NotEqual:
+		return "not equal"
+	case CaseInsensitiveEquals:
+		return "case insensitive equals"
+	case CaseInsensitiveNotEqual:
+		return "case insensitive not equal"
+	case GreaterThan:
+		return "greater than"
+	case LessThan:
+		return "less than"
+	case GreaterThanOrEqual:
+		return "greater than or equal"
+	case LessThanOrEqual:
+		return "less than or equal"
+	case BitwiseAnd:
+		return "bitwise and"
+	case BitwiseOr:
+		return "bitwise or"
+	case PatternMatch:
+		return "pattern match"
+	case SubsetOf:
+		return "subset of"
+	case SupersetOf:
+		return "superset of"
+	default:
+		return "equals"
+	}
+}

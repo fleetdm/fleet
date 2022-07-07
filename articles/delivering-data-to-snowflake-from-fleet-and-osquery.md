@@ -2,7 +2,7 @@
 
 ## A comprehensive guide by Tom Larkin.
 
-![Fleet + Snowflake](../website/assets/images/articles/delivering-data-to-snowflake-from-fleet-and-osquery-cover-700x393@2x.png)
+![Fleet + Snowflake](../website/assets/images/articles/delivering-data-to-snowflake-from-fleet-and-osquery-cover-1600x900@2x.jpg)
 
 Tom Larkin, IT engineer at Snowflake, put together an incredible guide for moving data from osquery and Fleet into Snowflake and kindly gave us permission to share his insights on our blog.
 
@@ -173,4 +173,4 @@ When I get more time, and as we progress with solutions like this I will likely 
 <meta name="authorFullName" value="Tom Larkin">
 <meta name="publishedOn" value="2022-02-01">
 <meta name="articleTitle" value="Delivering data to Snowflake from Fleet and osquery.">
-<meta name="articleImageUrl" value="../website/assets/images/articles/delivering-data-to-snowflake-from-fleet-and-osquery-cover-700x393@2x.png">
+<meta name="articleImageUrl" value="../website/assets/images/articles/delivering-data-to-snowflake-from-fleet-and-osquery-cover-1600x900@2x.jpg">

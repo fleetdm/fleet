@@ -98,7 +98,15 @@ Occasionally, users will email or Slack questions about product usage. We will t
 ## Customer contracts
 Fleet's subscription agreement is available at [fleetdm.com/terms](https://fleetdm.com/terms). 
 
-Fleet employees can find a summary of contract terms [here](https://docs.google.com/spreadsheets/d/1gAenC948YWG2NwcaVHleUvX0LzS8suyMFpjaBqxHQNg/edit?usp=sharing).
+Fleeties can find a summary of contract terms in the relevant [customer's Salesforce opportunity.](https://fleetdm.lightning.force.com/lightning/o/Opportunity/list?filterName=Recent)
+
+## Contract glossary
+
+| Term           | Definition                                                |
+|:---------------|:----------------------------------------------------------|
+| Effective date | The start date for the subscription service. |
+| Close date | The date the last party to the contract signed the agreement. |
+| Invoice date | The date that Fleet sent the invoice to the customer. |
 
 ## Rituals
 
@@ -110,7 +118,7 @@ The following table lists the Customer's group's rituals, frequency, and Directl
 | Customer Slack channel monitoring | Daily | Continuously monitor Slack for customer feedback, feature requests, reported bugs, etc., and respond in less than an hour.   | Tony Gauda        |
 | Customer follow-up | Daily | Follow-up and tag appropriate personnel for follow-up on customer items in progress and items that remain unresolved. | Tony Gauda |
 | Internal follow-up | Daily | Go through Fleet's internal Slack channels to check for any relevant new information or tasks from other teams. | Tony Gauda |
-| Customer debriefs | Weekly | Discuss customer questions, requests, and issues with the Product team. | Tony Gauda  |
+| Customer debriefs | Weekly | [Discuss customer questions, requests, and issues with the Product team.](https://docs.google.com/document/d/15Zn6qdm9NyNM7C9kLKtvgMKsuY4Hpgo7lABOBhw7olI/edit?usp=sharing) | Tony Gauda  |
 | Stand-up | Weekly | Meet with the Engineering team three to four times a week to share information and prioritize issues. | Tony Gauda |
 | Customer request backlog | Weekly | Check-in before product office hours to make sure that all information necessary has been gathered before presenting customer requests and feedback to the Product team. | Tony Gauda |
 | Product office hours | Weekly | Present tickets and items brought to Fleet's attention by customers that are interesting from a product perspective and advocate for customer requests. | Tony Gauda |

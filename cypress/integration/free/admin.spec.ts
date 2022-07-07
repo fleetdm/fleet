@@ -132,7 +132,7 @@ const getConfig = {
     tier: "premium",
     organization: "development-only",
     device_count: 100,
-    expiration: "2022-06-30T20:00:00-04:00",
+    expiration: "2099-06-30T20:00:00-04:00",
     note: "for development only",
   },
   logging: {
@@ -695,6 +695,15 @@ describe(
       beforeEach(() => {
         cy.loginWithCySession("anna@organization.com", GOOD_PASSWORD);
         cy.visit("/settings/users");
+      });
+      it("hides access to Fleet Desktop settings", () => {
+        cy.visit("settings/organization");
+        cy.getAttached(".app-settings__form-nav-list").within(() => {
+          cy.findByText(/organization info/i).should("exist");
+          cy.findByText(/fleet desktop/i).should("not.exist");
+        });
+        cy.visit("settings/organization/fleet-desktop");
+        cy.findAllByText(/access denied/i).should("exist");
       });
       it("hides access team settings", () => {
         cy.findByText(/teams/i).should("not.exist");
