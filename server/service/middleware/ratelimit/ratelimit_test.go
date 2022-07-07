@@ -3,7 +3,6 @@ package ratelimit
 import (
 	"context"
 	"errors"
-	"fmt"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -51,7 +50,7 @@ func TestLimitOnlyWhenError(t *testing.T) {
 	_, err = wrapped(context.Background(), struct{}{})
 	assert.NoError(t, err)
 
-	failingEndpoint := func(context.Context, interface{}) (interface{}, error) { return nil, fmt.Errorf("error") }
+	failingEndpoint := func(context.Context, interface{}) (interface{}, error) { return nil, errors.New("error") }
 	wrappedFailer := limiter.Limit(
 		"test_limit", throttled.RateQuota{MaxRate: throttled.PerHour(1), MaxBurst: 0},
 	)(failingEndpoint)
