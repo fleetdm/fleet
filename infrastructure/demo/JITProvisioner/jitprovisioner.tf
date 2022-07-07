@@ -135,7 +135,7 @@ resource "docker_registry_image" "jitprovisioner" {
 }
 
 resource "aws_security_group" "jitprovisioner" {
-  name   = "${var.prefix}-lambda"
+  name   = local.full_name
   vpc_id = var.vpc.vpc_id
   egress {
     from_port        = 0

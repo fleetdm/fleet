@@ -78,14 +78,14 @@ resource "aws_acm_certificate" "main" {
 
 resource "aws_acm_certificate_validation" "main" {
   certificate_arn         = aws_acm_certificate.main.arn
-  validation_record_fqdns = [for r in cloudflare_record.main : r.hostname]
+  validation_record_fqdns = [for r in cloudflare_record.cert : r.hostname]
 }
 
 data "cloudflare_zone" "main" {
   name = "fleetdm.com"
 }
 
-resource "cloudflare_record" "main" {
+resource "cloudflare_record" "cert" {
   for_each = { for o in aws_acm_certificate.main.domain_validation_options.* : o.resource_record_name => o... }
   zone_id  = data.cloudflare_zone.main.id
   name     = replace(each.value[0].resource_record_name, ".fleetdm.com.", "")
@@ -93,4 +93,20 @@ resource "cloudflare_record" "main" {
   value    = replace(each.value[0].resource_record_value, "/.$/", "")
   ttl      = 1
   proxied  = false
+}
+
+resource "cloudflare_record" "main" {
+  zone_id = data.cloudflare_zone.main.id
+  name    = "sandbox"
+  type    = "CNAME"
+  value   = aws_lb.main.dns_name
+  proxied = false
+}
+
+resource "cloudflare_record" "wildcard" {
+  zone_id = data.cloudflare_zone.main.id
+  name    = "*.sandbox"
+  type    = "CNAME"
+  value   = aws_lb.main.dns_name
+  proxied = false
 }

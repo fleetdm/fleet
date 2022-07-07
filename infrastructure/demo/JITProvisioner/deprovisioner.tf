@@ -257,3 +257,7 @@ resource "docker_registry_image" "deprovisioner" {
     pull_parent = true
   }
 }
+
+output "deprovisioner_role" {
+  value = aws_iam_role.deprovisioner
+}

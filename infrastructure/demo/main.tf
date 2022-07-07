@@ -86,10 +86,10 @@ module "vpc" {
   cidr = "10.11.0.0/16"
 
   azs                 = ["us-east-2a", "us-east-2b", "us-east-2c"]
-  private_subnets     = ["10.11.1.0/24", "10.11.2.0/24", "10.11.3.0/24"]
-  public_subnets      = ["10.11.11.0/24", "10.11.12.0/24", "10.11.13.0/24"]
-  database_subnets    = ["10.11.21.0/24", "10.11.22.0/24", "10.11.23.0/24"]
-  elasticache_subnets = ["10.11.31.0/24", "10.11.32.0/24", "10.11.33.0/24"]
+  private_subnets     = ["10.11.16.0/20", "10.11.32.0/20", "10.11.48.0/20"]
+  public_subnets      = ["10.11.128.0/24", "10.11.129.0/24", "10.11.130.0/24"]
+  database_subnets    = ["10.11.131.0/24", "10.11.132.0/24", "10.11.133.0/24"]
+  elasticache_subnets = ["10.11.134.0/24", "10.11.135.0/24", "10.11.136.0/24"]
 
   create_database_subnet_group       = false
   create_database_subnet_route_table = true
@@ -109,7 +109,7 @@ module "shared-infrastructure" {
   prefix                  = local.prefix
   vpc                     = module.vpc
   allowed_security_groups = [module.pre-provisioner.lambda_security_group.id]
-  eks_allowed_roles       = [module.pre-provisioner.lambda_role]
+  eks_allowed_roles       = [module.pre-provisioner.lambda_role, module.jit-provisioner.deprovisioner_role]
   base_domain             = local.base_domain
 }
 
@@ -180,6 +180,21 @@ module "remote_state" {
     aws         = aws
     aws.replica = aws.replica
   }
+}
+
+resource "aws_s3_bucket_public_access_block" "state" {
+  bucket = module.remote_state.state_bucket.id
+
+  block_public_acls   = true
+  block_public_policy = true
+}
+
+resource "aws_s3_bucket_public_access_block" "replica" {
+  bucket   = module.remote_state.replica_bucket[0].id
+  provider = aws.replica
+
+  block_public_acls   = true
+  block_public_policy = true
 }
 
 resource "aws_ecs_cluster" "main" {

@@ -42,8 +42,8 @@ provider "mysql" {
   password = jsondecode(data.aws_secretsmanager_secret_version.mysql.secret_string)["password"]
 }
 
-variable "eks_cluster" {}
 variable "mysql_secret" {}
+variable "eks_cluster" {}
 
 data "aws_secretsmanager_secret_version" "mysql" {
   secret_id = var.mysql_secret
