@@ -140,6 +140,11 @@ module "jit-provisioner" {
   base_domain    = local.base_domain
 }
 
+module "monitoring" {
+  source = "./Monitoring"
+  prefix = local.prefix
+}
+
 resource "aws_dynamodb_table" "lifecycle-table" {
   name         = "${local.prefix}-lifecycle"
   billing_mode = "PAY_PER_REQUEST"
@@ -180,21 +185,6 @@ module "remote_state" {
     aws         = aws
     aws.replica = aws.replica
   }
-}
-
-resource "aws_s3_bucket_public_access_block" "state" {
-  bucket = module.remote_state.state_bucket.id
-
-  block_public_acls   = true
-  block_public_policy = true
-}
-
-resource "aws_s3_bucket_public_access_block" "replica" {
-  bucket   = module.remote_state.replica_bucket[0].id
-  provider = aws.replica
-
-  block_public_acls   = true
-  block_public_policy = true
 }
 
 resource "aws_ecs_cluster" "main" {

@@ -79,6 +79,11 @@ data "aws_iam_policy_document" "jitprovisioner" {
     ]
     resources = [var.dynamodb_table.arn, "${var.dynamodb_table.arn}/*"]
   }
+
+  statement {
+    actions   = ["states:StartExecution"]
+    resources = [aws_sfn_state_machine.main.arn]
+  }
 }
 
 resource "aws_iam_role_policy_attachment" "jitprovisioner" {
@@ -106,7 +111,7 @@ resource "aws_lambda_function" "jitprovisioner" {
   environment {
     variables = {
       DYNAMODB_LIFECYCLE_TABLE = var.dynamodb_table.id
-      LIFECYCLE_SFN            = aws_sfn_state_machine.main.id
+      LIFECYCLE_SFN            = aws_sfn_state_machine.main.arn
       FLEET_BASE_URL           = "${var.base_domain}"
     }
   }

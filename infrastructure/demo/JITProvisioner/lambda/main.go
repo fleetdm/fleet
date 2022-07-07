@@ -101,19 +101,26 @@ func getFleetInstance() (ret LifecycleRecord, err error) {
 	}
 }
 
-func triggerSFN(id string) (err error) {
+func triggerSFN(id, expiry string) (err error) {
+	var endTime time.Time
 	log.Print("Triggering state machine")
+	if endTime, err = time.Parse(time.RFC3339, expiry); err != nil {
+		return
+	}
 	sfnInStr, err := json.Marshal(struct {
-		Id string
+		InstanceId string `json:"instanceId"`
+		WaitTime   int    `json:"waitTime"`
 	}{
-		Id: id,
+		InstanceId: id,
+		WaitTime:   int(endTime.Sub(time.Now()).Seconds()),
 	})
 	if err != nil {
 		return
 	}
 	sfnIn := sfn.StartExecutionInput{
 		Input: aws.String(string(sfnInStr)),
-		Name:  aws.String(options.LifecycleSFN),
+		Name:  aws.String(id),
+        StateMachineArn: aws.String(options.LifecycleSFN),
 	}
 	_, err = sfn.New(session.New()).StartExecution(&sfnIn)
 	return
@@ -132,10 +139,10 @@ func Health(c *gin.Context, in *HealthInput) (ret *HealthOutput, err error) {
 }
 
 type NewFleetInput struct {
-	Email             string    `json:"email" validate:"required,email"`
-	Name              string    `json:"name" validate:"required"`
+	Email             string `json:"email" validate:"required,email"`
+	Name              string `json:"name" validate:"required"`
 	SandboxExpiration string `json:"sandbox_expiration" validate:"required"`
-	Password          string    `json:"password" validate:"required"`
+	Password          string `json:"password" validate:"required"`
 }
 type NewFleetOutput struct {
 	URL string
@@ -149,7 +156,7 @@ func NewFleet(c *gin.Context, in *NewFleetInput) (ret *NewFleetOutput, err error
 		return
 	}
 	log.Print("Creating fleet client")
-    ret.URL = fmt.Sprintf("https://%s.%s", fleet.ID, options.FleetBaseURL)
+	ret.URL = fmt.Sprintf("https://%s.%s", fleet.ID, options.FleetBaseURL)
 	log.Print(ret.URL)
 	client, err := service.NewClient(ret.URL, true, "", "")
 	if err != nil {
@@ -158,7 +165,10 @@ func NewFleet(c *gin.Context, in *NewFleetInput) (ret *NewFleetOutput, err error
 	}
 	log.Print("Creating admin user")
 	client.Setup(in.Email, in.Name, in.Password, fleet.ID)
-	//triggerSFN(fleet.ID)
+	if err = triggerSFN(fleet.ID, in.SandboxExpiration); err != nil {
+		log.Print(err)
+		return
+	}
 	return
 }
 
