@@ -6,7 +6,7 @@ import Dropdown from "components/forms/fields/Dropdown";
 import Spinner from "components/Spinner";
 import { IIntegration, IIntegrations } from "interfaces/integration";
 import IntegrationForm from "../IntegrationForm";
-import ExternalURLIcon from "../../../../../../assets/images/icon-external-url-12x12@2x.png";
+import ExternalLinkIcon from "../../../../../../assets/images/icon-external-link-12x12@2x.png";
 
 const baseClass = "create-integration-modal";
 
@@ -72,7 +72,7 @@ const CreateIntegrationModal = ({
               rel="noopener noreferrer"
             >
               Suggest a new destination&nbsp;
-              <img alt="Open external link" src={ExternalURLIcon} />
+              <img src={ExternalLinkIcon} alt="Open external link" />
             </a>
           </div>
           <IntegrationForm

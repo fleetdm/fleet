@@ -12,7 +12,7 @@ import validateYaml from "components/forms/validators/validate_yaml";
 import InfoBanner from "components/InfoBanner/InfoBanner";
 // @ts-ignore
 import YamlAce from "components/YamlAce";
-import OpenNewTabIcon from "../../../../../../assets/images/open-new-tab-12x12@2x.png";
+import ExternalLinkIcon from "../../../../../../assets/images/icon-external-link-12x12@2x.png";
 import { IAppConfigFormProps, IAppConfigFormErrors } from "../constants";
 
 const baseClass = "app-config-form";
@@ -77,13 +77,17 @@ const Agents = ({
             Fleet.
             <br />
             <a
+              className={`${baseClass}__learn-more ${baseClass}__learn-more--inline`}
               href="https://fleetdm.com/docs/using-fleet/fleet-ui#configuring-agent-options"
-              className={`${baseClass}__learn-more`}
               target="_blank"
               rel="noopener noreferrer"
             >
               Learn more about agent options&nbsp;
-              <img className="icon" src={OpenNewTabIcon} alt="open new tab" />
+              <img
+                className="icon"
+                src={ExternalLinkIcon}
+                alt="Open external link"
+              />
             </a>
           </p>
           {isPremiumTier ? (

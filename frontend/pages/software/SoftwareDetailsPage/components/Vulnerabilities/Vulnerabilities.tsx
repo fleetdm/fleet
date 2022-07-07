@@ -6,7 +6,7 @@ import { GITHUB_NEW_ISSUE_LINK } from "utilities/constants";
 import TableContainer from "components/TableContainer";
 
 import generateVulnTableHeaders from "./VulnTableConfig";
-import ExternalLinkIcon from "../../../../../../assets/images/open-new-tab-12x12@2x.png";
+import ExternalLinkIcon from "../../../../../../assets/images/icon-external-link-12x12@2x.png";
 
 const baseClass = "vulnerabilities";
 
@@ -28,8 +28,12 @@ const NoVulnsDetected = (): JSX.Element => {
             target="_blank"
             rel="noopener noreferrer"
           >
-            File an issue on GitHub{" "}
-            <img alt="External link" src={ExternalLinkIcon} />
+            File an issue on GitHub&nbsp;
+            <img
+              alt="Open external link"
+              className="icon-external"
+              src={ExternalLinkIcon}
+            />
           </a>
         </p>
       </div>

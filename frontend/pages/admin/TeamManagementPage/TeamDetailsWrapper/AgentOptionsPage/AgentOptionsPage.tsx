@@ -14,7 +14,7 @@ import validateYaml from "components/forms/validators/validate_yaml";
 // @ts-ignore
 import OsqueryOptionsForm from "components/forms/admin/OsqueryOptionsForm";
 import InfoBanner from "components/InfoBanner/InfoBanner";
-import OpenNewTabIcon from "../../../../../../assets/images/open-new-tab-12x12@2x.png";
+import ExternalLinkIcon from "../../../../../../assets/images/icon-external-link-12x12@2x.png";
 
 const baseClass = "agent-options";
 
@@ -98,8 +98,12 @@ const AgentOptionsPage = ({
           target="_blank"
           rel="noopener noreferrer"
         >
-          Go to Fleet docs{" "}
-          <img className="icon" src={OpenNewTabIcon} alt="open new tab" />
+          Go to Fleet docs&nbsp;
+          <img
+            className="icon"
+            src={ExternalLinkIcon}
+            alt="Open external link"
+          />
         </a>
       </InfoBanner>
       <div className={`${baseClass}__form-wrapper`}>

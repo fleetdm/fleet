@@ -9,6 +9,7 @@ import {
 } from "./HostPoliciesTable/HostPoliciesTableConfig";
 import PolicyFailingCount from "./HostPoliciesTable/PolicyFailingCount";
 import { isValidPolicyResponse } from "../../../ManageHostsPage/helpers";
+import ExternalLinkIcon from "../../../../../../assets/images/icon-external-link-12x12@2x.png";
 
 interface IPoliciesProps {
   policies: IHostPolicy[];
@@ -73,9 +74,9 @@ const Policies = ({
                   target="_blank"
                   rel="noopener noreferrer"
                 >
-                  why the response might not be updating
+                  why the response might not be updating&nbsp;{" "}
+                  <img src={ExternalLinkIcon} alt="Open external link" />
                 </a>
-                .
               </p>
             </InfoBanner>
           )}

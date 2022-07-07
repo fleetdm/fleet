@@ -26,8 +26,8 @@ import SandboxDemoMessage from "components/Sandbox/SandboxDemoMessage";
 import MainContent from "components/MainContent";
 import SidePanelContent from "components/SidePanelContent";
 
-import ExternalURLIcon from "../../../assets/images/icon-external-url-12x12@2x.png";
 import UserSidePanel from "./UserSidePanel";
+import ExternalLinkIcon from "../../../assets/images/icon-external-link-12x12@2x.png";
 
 const baseClass = "user-settings";
 
@@ -193,13 +193,13 @@ const UserSettingsPage = ({
                 target="_blank"
                 rel="noopener noreferrer"
               >
-                API-only user
+                API-only user&nbsp;
+                <img
+                  alt="Open external link"
+                  className="icon-external"
+                  src={ExternalLinkIcon}
+                />
               </a>
-              <img
-                alt="Open external link"
-                className="icon-external"
-                src={ExternalURLIcon}
-              />
               &nbsp;instead.
             </p>
           </InfoBanner>
@@ -214,13 +214,13 @@ const UserSettingsPage = ({
               target="_blank"
               rel="noopener noreferrer"
             >
-              session duration configuration
+              session duration configuration&nbsp;
+              <img
+                alt="Open external link"
+                className="icon-external"
+                src={ExternalLinkIcon}
+              />
             </a>
-            <img
-              alt="Open external link"
-              className="icon-external"
-              src={ExternalURLIcon}
-            />
           </p>
           <div className="modal-cta-wrap">
             <Button onClick={onToggleApiTokenModal} type="button">

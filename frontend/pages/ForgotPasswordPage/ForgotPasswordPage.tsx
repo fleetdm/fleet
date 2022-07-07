@@ -10,7 +10,7 @@ import ForgotPasswordForm from "components/forms/ForgotPasswordForm";
 import StackedWhiteBoxes from "components/StackedWhiteBoxes";
 import AuthenticationFormWrapper from "components/AuthenticationFormWrapper";
 import Spinner from "components/Spinner";
-import ExternalURLIcon from "../../../assets/images/icon-external-url-12x12@2x.png";
+import ExternalLinkIcon from "../../../assets/images/icon-external-link-12x12@2x.png";
 
 const ForgotPasswordPage = () => {
   const [email, setEmail] = useState("");
@@ -59,13 +59,13 @@ const ForgotPasswordPage = () => {
               target="_blank"
               rel="noopener noreferrer"
             >
-              Password reset FAQ
+              Password reset FAQ&nbsp;
+              <img
+                alt="Open external link"
+                className="icon-external"
+                src={ExternalLinkIcon}
+              />
             </a>
-            <img
-              alt="external link icon"
-              className="icon-external"
-              src={ExternalURLIcon}
-            />
           </p>
         </div>
       );

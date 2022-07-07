@@ -2,6 +2,7 @@ import React from "react";
 
 import DifferentialIcon from "../../../../assets/images/icon-plus-minus-black-16x16@2x.png";
 import SnapshotIcon from "../../../../assets/images/icon-snapshot-black-16x14@2x.png";
+import ExternalLinkIcon from "../../../../assets/images/icon-external-link-12x12@2x.png";
 
 const baseClass = "pack-info-side-panel";
 
@@ -59,9 +60,13 @@ const PackInfoSidePanel = () => {
           target="_blank"
           rel="noopener noreferrer"
         >
-          documentation
+          documentation &nbsp;
+          <img
+            src={ExternalLinkIcon}
+            alt="Open external link"
+            id="new-tab-icon"
+          />
         </a>
-        .
       </p>
     </div>
   );

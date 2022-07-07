@@ -6,7 +6,7 @@ import { formatFloatAsPercentage } from "utilities/helpers";
 import HeaderCell from "components/TableContainer/DataTable/HeaderCell/HeaderCell";
 import TextCell from "components/TableContainer/DataTable/TextCell";
 import TooltipWrapper from "components/TooltipWrapper";
-import ExternalLinkIcon from "../../../../../../assets/images/open-new-tab-12x12@2x.png";
+import ExternalLinkIcon from "../../../../../../assets/images/icon-external-link-12x12@2x.png";
 
 interface IHeaderProps {
   column: {
@@ -75,8 +75,12 @@ const generateVulnTableHeaders = (isPremiumTier: boolean): IDataColumn[] => {
             rel="noopener noreferrer"
           >
             <span>
-              {value}
-              <img alt={`link to ${value}`} src={ExternalLinkIcon} />
+              {value}&nbsp;
+              <img
+                alt={`link to ${value}`}
+                className="icon-external"
+                src={ExternalLinkIcon}
+              />
             </span>
           </a>
         );
