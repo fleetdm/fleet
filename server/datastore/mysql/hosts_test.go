@@ -4381,6 +4381,10 @@ func testCountHostsNotResponding(t *testing.T, ds *Datastore) {
 	})
 	require.NoError(t, err)
 
+	count, err := countHostsNotRespondingDB(ctx, ds.writer, ds.logger, config)
+	require.NoError(t, err)
+	require.Equal(t, 0, count)
+
 	// not responsive
 	_, err = ds.NewHost(ctx, &fleet.Host{
 		ID:                  2,
@@ -4396,6 +4400,10 @@ func testCountHostsNotResponding(t *testing.T, ds *Datastore) {
 	})
 	require.NoError(t, err)
 
+	count, err = countHostsNotRespondingDB(ctx, ds.writer, ds.logger, config)
+	require.NoError(t, err)
+	require.Equal(t, 1, count) // count increased by 1
+
 	// responsive
 	_, err = ds.NewHost(ctx, &fleet.Host{
 		OsqueryHostID:       "3",
@@ -4409,6 +4417,10 @@ func testCountHostsNotResponding(t *testing.T, ds *Datastore) {
 		SeenTime:            time.Now().Add(-48 * time.Hour),
 	})
 	require.NoError(t, err)
+
+	count, err = countHostsNotRespondingDB(ctx, ds.writer, ds.logger, config)
+	require.NoError(t, err)
+	require.Equal(t, 1, count) // count unchanged
 
 	// not responsive
 	_, err = ds.NewHost(ctx, &fleet.Host{
@@ -4424,6 +4436,10 @@ func testCountHostsNotResponding(t *testing.T, ds *Datastore) {
 	})
 	require.NoError(t, err)
 
+	count, err = countHostsNotRespondingDB(ctx, ds.writer, ds.logger, config)
+	require.NoError(t, err)
+	require.Equal(t, 2, count) // count increased by 1
+
 	// was responsive but hasn't been seen in past 7 days so it is not counted
 	_, err = ds.NewHost(ctx, &fleet.Host{
 		OsqueryHostID:       "5",
@@ -4438,7 +4454,26 @@ func testCountHostsNotResponding(t *testing.T, ds *Datastore) {
 	})
 	require.NoError(t, err)
 
-	count, err := countHostsNotRespondingDB(ctx, ds.writer, config)
+	count, err = countHostsNotRespondingDB(ctx, ds.writer, ds.logger, config)
 	require.NoError(t, err)
-	require.Equal(t, 2, count)
+	require.Equal(t, 2, count) // count unchanged
+
+	// distributed interval (1h1m) is greater than osquery detail interval (1h)
+	// so measurement period for non-responsiveness is 2h2m
+	_, err = ds.NewHost(ctx, &fleet.Host{
+		OsqueryHostID:       "6",
+		NodeKey:             "6",
+		Platform:            "linux",
+		Hostname:            "host6",
+		DistributedInterval: uint((1*time.Hour + 1*time.Minute).Seconds()),        // 1h1m
+		DetailUpdatedAt:     time.Now().Add(-2 * time.Hour).Add(-1 * time.Minute), // 2h1m
+		LabelUpdatedAt:      time.Now().Add(-2 * time.Hour).Add(-1 * time.Minute),
+		PolicyUpdatedAt:     time.Now().Add(-2 * time.Hour).Add(-1 * time.Minute),
+		SeenTime:            time.Now(),
+	})
+	require.NoError(t, err)
+
+	count, err = countHostsNotRespondingDB(ctx, ds.writer, ds.logger, config)
+	require.NoError(t, err)
+	require.Equal(t, 2, count) // count unchanged
 }

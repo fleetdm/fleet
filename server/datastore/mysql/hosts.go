@@ -15,6 +15,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/go-kit/kit/log"
 	"github.com/go-kit/kit/log/level"
 	"github.com/jmoiron/sqlx"
 )
@@ -1919,25 +1920,29 @@ func (ds *Datastore) ListHostBatteries(ctx context.Context, hid uint) ([]*fleet.
 //     - host.DistributedInterval is usually 10s.
 //     - svc.config.Osquery.DetailUpdateInterval is usually 1h.
 //   - Count only includes hosts seen during the last 7 days.
-func countHostsNotRespondingDB(ctx context.Context, db sqlx.QueryerContext, config config.FleetConfig) (int, error,
+func countHostsNotRespondingDB(ctx context.Context, db sqlx.QueryerContext, logger log.Logger, config config.FleetConfig) (int, error,
 ) {
-	interval := config.Osquery.DetailUpdateInterval.Seconds() * 2
+	interval := config.Osquery.DetailUpdateInterval.Seconds()
 
 	// The `WHERE` clause is intended to capture where Fleet hasn't received a distributed write
 	// from the host during the interval since the host was last seen. Thus we assume the host
 	// is having some issue in executing distributed queries or sending the results.
 	sql := `
 	SELECT
-	  COUNT(*)
+	  h.host_id
 	FROM (SELECT * FROM hosts JOIN host_seen_times ON hosts.id = host_seen_times.host_id) h
 	WHERE 
-	  TIME_TO_SEC(TIMEDIFF(h.seen_time, h.detail_updated_at)) >= GREATEST(h.distributed_interval, ?)
+	  TIME_TO_SEC(TIMEDIFF(h.seen_time, h.detail_updated_at)) >= (GREATEST(h.distributed_interval, ?) * 2)
 	  AND TIMEDIFF(DATE_ADD(h.seen_time, INTERVAL 7 DAY), NOW()) > 0
 `
 
-	var count int
-	if err := sqlx.GetContext(ctx, db, &count, sql, interval); err != nil {
-		return count, ctxerr.Wrap(ctx, err, "count hosts not responding")
+	var ids []int
+	if err := sqlx.SelectContext(ctx, db, &ids, sql, interval); err != nil {
+		return len(ids), ctxerr.Wrap(ctx, err, "count hosts not responding")
 	}
-	return count, nil
+	if len(ids) > 0 {
+		// We log to help troubleshooting in case this happens.
+		level.Info(logger).Log("err", fmt.Sprintf("hosts detected that are not responding distributed queries %v", ids))
+	}
+	return len(ids), nil
 }
