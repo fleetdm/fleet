@@ -23,3 +23,7 @@ context to have access to the `fleetctl` binary. To build the image, run:
 ```
 make fleetctl-docker
 ```
+
+### Publishing
+
+There's a GitHub workflow to build and publish this image to Docker Hub, currently it has to be triggered [manually](https://docs.github.com/en/actions/managing-workflow-runs/manually-running-a-workflow).
