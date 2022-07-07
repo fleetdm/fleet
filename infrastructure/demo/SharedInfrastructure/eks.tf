@@ -152,33 +152,33 @@ resource "aws_lb_target_group" "eks" {
   }
 }
 
-#resource "kubernetes_manifest" "targetgroupbinding" {
-#  manifest = {
-#    "apiVersion" = "elbv2.k8s.aws/v1beta1"
-#    "kind"       = "TargetGroupBinding"
-#    "metadata" = {
-#      "name"      = "haproxy"
-#      "namespace" = "kube-system"
-#    }
-#    "spec" = {
-#      "targetGroupARN" = aws_lb_target_group.eks.arn
-#      "serviceRef" = {
-#        "name" = helm_release.haproxy_ingress.name
-#        "port" = 80
-#      }
-#      "targetType" = "instance"
-#      "networking" = {
-#        "ingress" = [{
-#          "from" = [{
-#            "securityGroup" = {
-#              "groupID" = aws_security_group.lb.id
-#            }
-#          }]
-#          "ports" = [{
-#            "protocol" = "TCP"
-#          }]
-#        }]
-#      }
-#    }
-#  }
-#}
+resource "kubernetes_manifest" "targetgroupbinding" {
+  manifest = {
+    "apiVersion" = "elbv2.k8s.aws/v1beta1"
+    "kind"       = "TargetGroupBinding"
+    "metadata" = {
+      "name"      = "haproxy"
+      "namespace" = "kube-system"
+    }
+    "spec" = {
+      "targetGroupARN" = aws_lb_target_group.eks.arn
+      "serviceRef" = {
+        "name" = helm_release.haproxy_ingress.name
+        "port" = 80
+      }
+      "targetType" = "instance"
+      "networking" = {
+        "ingress" = [{
+          "from" = [{
+            "securityGroup" = {
+              "groupID" = aws_security_group.lb.id
+            }
+          }]
+          "ports" = [{
+            "protocol" = "TCP"
+          }]
+        }]
+      }
+    }
+  }
+}
