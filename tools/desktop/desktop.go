@@ -177,9 +177,9 @@ func createMacOSApp(version, authority string, notarize bool) error {
 	buildExec.Stderr = os.Stderr
 	buildExec.Stdout = os.Stdout
 
-	zlog.Info().Str("command", buildExec.String()).Msg("Build fleet-desktop executable amd64")
+	zlog.Info().Str("command", buildExec.String()).Msg("Build fleet-desktop executable arm64")
 	if err := buildExec.Run(); err != nil {
-		return fmt.Errorf("compile for amd64: %w", err)
+		return fmt.Errorf("compile for arm64: %w", err)
 	}
 
 	// Make the fat exe and remove the separate binaries
@@ -338,12 +338,11 @@ func makeFatExecutable(outPath string, inPaths ...string) error {
 	// Decide on whether we're doing fat32 or fat64.
 	sixtyfour := false
 	if inputs[len(inputs)-1].offset >= 1<<32 || len(inputs[len(inputs)-1].data) >= 1<<32 {
-		sixtyfour = true
 		// fat64 doesn't seem to work:
 		//   - the resulting binary won't run.
 		//   - the resulting binary is parseable by lipo, but reports that the contained files are "hidden".
 		//   - the native OSX lipo can't make a fat64.
-		return fmt.Errorf("files too large to fit into a fat binary")
+		return errors.New("files too large to fit into a fat binary")
 	}
 
 	// Make output file.
