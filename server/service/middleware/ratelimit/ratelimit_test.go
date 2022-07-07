@@ -3,6 +3,7 @@ package ratelimit
 import (
 	"context"
 	"errors"
+	"fmt"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -29,6 +30,37 @@ func TestLimit(t *testing.T) {
 
 	// Hits rate limit
 	_, err = wrapped(context.Background(), struct{}{})
+	assert.Error(t, err)
+	var rle Error
+	assert.True(t, errors.As(err, &rle))
+}
+
+func TestLimitOnlyWhenError(t *testing.T) {
+	t.Parallel()
+
+	store, _ := memstore.New(1)
+	limiter := NewErrorMiddleware(store)
+	endpoint := func(context.Context, interface{}) (interface{}, error) { return struct{}{}, nil }
+	wrapped := limiter.Limit(
+		"test_limit", throttled.RateQuota{MaxRate: throttled.PerHour(1), MaxBurst: 0},
+	)(endpoint)
+
+	// Does NOT hit any rate limits because the endpoint doesn't fail
+	_, err := wrapped(context.Background(), struct{}{})
+	assert.NoError(t, err)
+	_, err = wrapped(context.Background(), struct{}{})
+	assert.NoError(t, err)
+
+	failingEndpoint := func(context.Context, interface{}) (interface{}, error) { return nil, fmt.Errorf("error") }
+	wrappedFailer := limiter.Limit(
+		"test_limit", throttled.RateQuota{MaxRate: throttled.PerHour(1), MaxBurst: 0},
+	)(failingEndpoint)
+
+	_, err = wrappedFailer(context.Background(), struct{}{})
+	assert.NoError(t, err)
+
+	// Hits rate limit now that it fails
+	_, err = wrappedFailer(context.Background(), struct{}{})
 	assert.Error(t, err)
 	var rle Error
 	assert.True(t, errors.As(err, &rle))
