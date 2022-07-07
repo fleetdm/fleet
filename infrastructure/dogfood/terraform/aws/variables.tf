@@ -108,10 +108,10 @@ variable "fleet_license" {
 
 variable "cloudwatch_log_retention" {
   description = "number of days to keep logs around for fleet services"
-  default = 1
+  default     = 1
 }
 
 variable "rds_backup_retention_period" {
   description = "number of days to keep snapshot backups"
-  default = 7
+  default     = 7
 }
