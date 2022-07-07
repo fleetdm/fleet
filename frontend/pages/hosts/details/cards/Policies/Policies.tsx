@@ -74,7 +74,7 @@ const Policies = ({
                   target="_blank"
                   rel="noopener noreferrer"
                 >
-                  why the response might not be updating&nbsp;{" "}
+                  why the response might not be updating&nbsp;
                   <img src={ExternalLinkIcon} alt="Open external link" />
                 </a>
               </p>

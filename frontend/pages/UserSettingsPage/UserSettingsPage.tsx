@@ -195,9 +195,9 @@ const UserSettingsPage = ({
               >
                 API-only user&nbsp;
                 <img
-                  alt="Open external link"
                   className="icon-external"
                   src={ExternalLinkIcon}
+                  alt="Open external link"
                 />
               </a>
               &nbsp;instead.
@@ -216,9 +216,9 @@ const UserSettingsPage = ({
             >
               session duration configuration&nbsp;
               <img
-                alt="Open external link"
                 className="icon-external"
                 src={ExternalLinkIcon}
+                alt="Open external link"
               />
             </a>
           </p>
