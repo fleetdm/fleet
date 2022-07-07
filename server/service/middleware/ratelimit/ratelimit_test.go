@@ -60,13 +60,14 @@ func TestLimitOnlyWhenError(t *testing.T) {
 	_, err = wrapped(context.Background(), struct{}{})
 	assert.NoError(t, err)
 
-	failingEndpoint := func(context.Context, interface{}) (interface{}, error) { return nil, errors.New("error") }
+	expectedError := errors.New("error")
+	failingEndpoint := func(context.Context, interface{}) (interface{}, error) { return nil, expectedError }
 	wrappedFailer := limiter.Limit(
 		"test_limit", throttled.RateQuota{MaxRate: throttled.PerHour(1), MaxBurst: 0},
 	)(failingEndpoint)
 
 	_, err = wrappedFailer(context.Background(), struct{}{})
-	assert.NoError(t, err)
+	assert.ErrorIs(t, err, expectedError)
 
 	// Hits rate limit now that it fails
 	_, err = wrappedFailer(context.Background(), struct{}{})
