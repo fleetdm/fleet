@@ -26,7 +26,7 @@ describe("Fleet Desktop", () => {
         cy.findByText(/is filevault enabled/i).click();
       });
       cy.getAttached(".policy-details-modal").within(() => {
-        cy.findByText(/click turn on fileVault/i).should("exist");
+        cy.findByText(/click turn on filevault/i).should("exist");
       });
     });
   });

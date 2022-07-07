@@ -351,23 +351,6 @@ Cypress.Commands.add("getEmails", () => {
     });
 });
 
-// TODO: create a bash command to seedDeviceUser
-// TODO: lucas will make a PR to create a bash command that will insert into the database using this script
-Cypress.Commands.add("seedDeviceUser", () => {
-  // const authToken = window.localStorage.getItem("FLEET::auth_token");
-  cy.exec("bash ./tools/api/fleet/teams/create_free", {
-    // TODO
-    env: {
-      TOKEN: authToken,
-      CURL_FLAGS: "-k",
-      SERVER_URL: Cypress.config().baseUrl,
-      // clear any value for FLEET_ENV_PATH since we set the environment explicitly just above
-      FLEET_ENV_PATH: "",
-      SHELL,
-    },
-  });
-});
-
 Cypress.Commands.add("seedFree", () => {
   const authToken = window.localStorage.getItem("FLEET::auth_token");
   cy.exec("bash ./tools/api/fleet/teams/create_free", {
