@@ -34,6 +34,16 @@ func TestLimit(t *testing.T) {
 	assert.True(t, errors.As(err, &rle))
 }
 
+func TestNewErrorMiddlewarePanics(t *testing.T) {
+	defer func() {
+		if r := recover(); r == nil {
+			t.Errorf("The code did not panic")
+		}
+	}()
+
+	NewErrorMiddleware(nil)
+}
+
 func TestLimitOnlyWhenError(t *testing.T) {
 	t.Parallel()
 
