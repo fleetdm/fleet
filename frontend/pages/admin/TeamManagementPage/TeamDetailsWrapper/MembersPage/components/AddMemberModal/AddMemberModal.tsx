@@ -73,7 +73,7 @@ const AddMemberModal = ({
             variant="brand"
             onClick={onFormSubmit}
           >
-            Add Member
+            Add member
           </Button>
           <Button
             className={`${baseClass}__btn`}

@@ -73,7 +73,6 @@ const DEBOUNCE_DELAY = 500;
 const STALE_TIME = 60000;
 
 const isLabel = (entity: ISelectTargetsEntity) => "label_type" in entity;
-const isHost = (entity: ISelectTargetsEntity) => "hostname" in entity;
 
 const parseLabels = (list?: ILabelSummary[]) => {
   const allHosts = list?.filter((l) => l.name === "All Hosts") || [];
@@ -324,13 +323,18 @@ const SelectTargets = ({
 
   const renderTargetsCount = (): JSX.Element | null => {
     if (isFetchingCounts) {
-      return <i style={{ color: "#8b8fa2" }}>Checking for online hosts...</i>;
+      return (
+        <>
+          <Spinner small />
+          <i style={{ color: "#8b8fa2" }}>Counting hosts</i>
+        </>
+      );
     }
 
     if (errorCounts) {
       return (
         <b style={{ color: "#d66c7b", margin: 0 }}>
-          There was a problem checking online hosts. Please try again later.
+          There was a problem counting hosts. Please try again later.
         </b>
       );
     }
