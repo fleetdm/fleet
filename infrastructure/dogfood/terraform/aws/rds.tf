@@ -78,6 +78,7 @@ module "aurora_mysql" {
   create_random_password              = false
   database_name                       = var.database_name
   enable_http_endpoint                = false
+  backup_retention_period = var.
   #performance_insights_enabled        = true
 
   vpc_id                = module.vpc.vpc_id
