@@ -274,16 +274,17 @@ When deciding whether to describe Fleet as open source or open core, define who 
 
 | Term | Meaning | 
 |:------ |:-----------------|
-| **Antivirus** | A class of programs designed to detect, block, and clear away malware from devices, networks, and IT systems. |
+| **antivirus** | A class of programs designed to detect, block, and clear away malware from devices, networks, and IT systems. |
 | **API** | (Application Programming Interface) a software go-between that allows applications to communicate.  |
 | **automation** | A system that operates without needing intervention from a human to do so. |
 | **AWS** | (Amazon Web Services) An ever-evolving cloud computing platform designed to allow application providers, ISVs, and vendors to host applications. |
 | **CI/CD** | (Continuous Integration and Continuous Delivery/Continuous Deployment) A software development practice where cumulative code changes are made regularly and accurately. |
 | **CLI** | (Command Line Interface) A tool for managing Fleet from the command line. |
-| **client platform engineer** | A person who constructs, evaluates, and deploys solutions to administrate a fleet of "clients" or end-users and does so in a scaleable manner. |
+| **Client Platform Engineer (CPE)** | See: CPE. |
 | **cloud** | Data storage and access through the internet instead of a device's hard drive. |
 | **command line** | A horizontal row on an interface for text to allow you to type in a variety of commands. Also, see "CLI." |
 | **compliance** | The act of being in line with the established risk-based expectations to preserve the strength and confidentiality of data stored, used, and transmitted. |
+| **CPE** | (Client Platform Engineer) A person who constructs, evaluates, and deploys solutions to administrate a fleet of "clients" or end-users and does so in a scaleable manner. |
 | **CVE** | (Common Vulnerabilities and Exposures) A system that provides a technique for sharing information publicly. |
 | **data leaks** | When crucial and confidential data is unwittingly exposed physically, on the Internet, or any other way. This includes misplaced hard drives or devices. |
 | **device management** | The process of overseeing the execution, process, and upkeep of a device, be it physical or virtual. |
@@ -312,13 +313,13 @@ When deciding whether to describe Fleet as open source or open core, define who 
 | **OS** | (Operating System) Software that provides the groundwork and instructions for a device's basic functions, including application use and controlling peripherals. |
 | **osquery**  | A tool that assembles low-level operating system analytics and monitoring. |
 | **out-of-policy device** | A device that is fails any security or vulnerability policy created in Fleet. |
-| **Permissions** | Users have different abilities depending on the access level they have. |
+| **permissions** | Users have different abilities depending on the access level they have. |
 | **platform** | The primary hardware device and operating system software where applications can be run. |
 | **policies** | Yes or no questions you can ask using Fleet about your host devices. |
 | **policy compliance** | The state of whether a device is passing or failing policies created in Fleet. |
 | **queries** | Questions you can ask an end-user device's operating system via Fleet. |
 | **SAML** | (Security Assertion Markup Language) A standard that allows identity providers (IdP) to authorize credentials for service providers; enabling SSO (Single Sign-On). |
-| **Security audits** | A thorough assessment of an organization's data systems. |
+| **security audits** | A thorough assessment of an organization's data systems. |
 | **security engineers** | The responsible individual for the management and up-keep of an organization's security system. |
 | **SIEM** | (Security Information and Event Management) Technology that assembles data, security warnings, and events into one platform and provides almost real-time analyzed data to help you better monitor your organization's security. |
 | **Site Reliability Engineers (SREs)** | Those who apply scripting and automation to IT jobs such as support and maintenance. |
