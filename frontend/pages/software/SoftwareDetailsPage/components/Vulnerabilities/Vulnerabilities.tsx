@@ -30,9 +30,9 @@ const NoVulnsDetected = (): JSX.Element => {
           >
             File an issue on GitHub&nbsp;
             <img
-              alt="Open external link"
               className="icon-external"
               src={ExternalLinkIcon}
+              alt="Open external link"
             />
           </a>
         </p>

@@ -61,9 +61,9 @@ const ForgotPasswordPage = () => {
             >
               Password reset FAQ&nbsp;
               <img
-                alt="Open external link"
                 className="icon-external"
                 src={ExternalLinkIcon}
+                alt="Open external link"
               />
             </a>
           </p>
