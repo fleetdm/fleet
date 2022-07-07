@@ -835,7 +835,7 @@ Fleet remediates vulnerabilities related to vulnerable dependencies, but we do n
 
 We use [Dependabot](https://github.com/dependabot) to create pull requests to update vulnerable dependencies. You can find these PRs by filtering on the [*Dependabot*](https://github.com/fleetdm/fleet/pulls?q=is%3Apr+author%3Aapp%2Fdependabot+) author in the repository.
 
-We ensure the fixes to vulnerable dependencies are also performed according to our remediation timeline. We fix as many dependencies as possible in a single release.
+We make sure the fixes to vulnerable dependencies are also performed according to our remediation timeline. We fix as many dependencies as possible in a single release.
 
 ## Trust report
 
@@ -854,8 +854,8 @@ The following table lists the Security group's rituals, frequency, and Directly 
 | YubiKey adoption | Monthly | Track YubiKey adoption in Google workspace and follow up with those that aren't using it. | Guillaume Ross |
 | Dogfood policy update | Monthly | Edit Fleet dogfood policies that check for Chrome, Docker, and macOS version numbers. | Guillaume Ross |
 | Security blog post | Monthly | Publish a security-related blog post to Fleet's blog. | Guillaume Ross |
-| Security lunch & learn | Monthly | Educational live stream session on cybersecurity for Fleet employees, sessions are later shared for public consumption on YouTube. | Guillaume Ross |
-| MDM device enrollment | Quarterly | Provide export of MDM enrolled devices to ops team. | Guillaume Ross |
+| Security lunch & learn | Monthly | Educational live stream session on cybersecurity for Fleet employees; sessions are later shared for public consumption on YouTube. | Guillaume Ross |
+| MDM device enrollment | Quarterly | Provide export of MDM enrolled devices to the ops team. | Guillaume Ross |
 | Access revalidation | Quarterly | Review critical access groups to make sure they contain only relevant people. | Guillaume Ross |
 | Snyk scan | Quarterly | Scan Fleet repo with Snyk to identify important vulnerabilities that GitHub did not identify. | Guillaume Ross |
 | Security conference review | Quarterly | Look at upcoming security conferences and work with the growth team to determine whether Fleet should submit to attend. | Guillaume Ross |
