@@ -171,7 +171,7 @@ func TestTranslateSoftwareToCPE(t *testing.T) {
 		},
 	}
 
-	ds.AllSoftwareWithoutCPEIteratorFunc = func(ctx context.Context) (fleet.SoftwareIterator, error) {
+	ds.AllSoftwareWithoutCPEIteratorFunc = func(ctx context.Context, excludedPlatforms []string) (fleet.SoftwareIterator, error) {
 		return iterator, nil
 	}
 

@@ -636,11 +636,30 @@ func (si *softwareIterator) Next() bool {
 	return si.rows.Next()
 }
 
-func (ds *Datastore) AllSoftwareWithoutCPEIterator(ctx context.Context) (fleet.SoftwareIterator, error) {
-	sql := `SELECT s.* FROM software s LEFT JOIN software_cpe sc on (s.id=sc.software_id) WHERE sc.id is null`
+// AllSoftwareWithoutCPEIterator Returns an iterator for the 'software' table, filtering out
+// software entries with CPEs and from the platforms included in the 'excludedPlatforms' param.
+func (ds *Datastore) AllSoftwareWithoutCPEIterator(ctx context.Context, excludedPlatforms []string) (fleet.SoftwareIterator, error) {
+	var err error
+	var args []interface{}
+
+	stmt := `SELECT s.* FROM software s LEFT JOIN software_cpe sc ON (s.id=sc.software_id) WHERE sc.id IS NULL`
 	// The rows.Close call is done by the caller once iteration using the
 	// returned fleet.SoftwareIterator is done.
-	rows, err := ds.reader.QueryxContext(ctx, sql) //nolint:sqlclosecheck
+	if excludedPlatforms != nil {
+		stmt += ` AND s.id NOT IN (
+			SELECT software_id
+			FROM host_software hs
+			INNER JOIN hosts h on hs.host_id = h.id
+			WHERE h.platform IN (?)
+		)`
+
+		stmt, args, err = sqlx.In(stmt, excludedPlatforms)
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "loads cpes")
+		}
+	}
+
+	rows, err := ds.reader.QueryxContext(ctx, stmt, args...) //nolint:sqlclosecheck
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "load host software")
 	}

@@ -14,6 +14,7 @@ type Platform string
 // OvalFilePrefix is the file prefix used when saving an OVAL artifact.
 const OvalFilePrefix = "fleet_oval"
 
+// SupportedHostPlatforms are the host's platforms for which we are using OVAL for vulnerability detection.
 var SupportedHostPlatforms = []string{"ubuntu", "rhel", "amzn"}
 
 // getMajorMinorVer returns the major and minor version of an 'os_version'.

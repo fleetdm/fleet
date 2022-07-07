@@ -136,7 +136,7 @@ func testSoftwareCPE(t *testing.T, ds *Datastore) {
 	err := ds.UpdateHostSoftware(context.Background(), host1.ID, software1)
 	require.NoError(t, err)
 
-	iterator, err := ds.AllSoftwareWithoutCPEIterator(context.Background())
+	iterator, err := ds.AllSoftwareWithoutCPEIterator(context.Background(), nil)
 	defer iterator.Close()
 	require.NoError(t, err)
 
@@ -165,7 +165,7 @@ func testSoftwareCPE(t *testing.T, ds *Datastore) {
 	err = ds.AddCPEForSoftware(context.Background(), fleet.Software{ID: id}, "some:cpe")
 	require.NoError(t, err)
 
-	iterator, err = ds.AllSoftwareWithoutCPEIterator(context.Background())
+	iterator, err = ds.AllSoftwareWithoutCPEIterator(context.Background(), nil)
 	defer iterator.Close()
 	require.NoError(t, err)
 
