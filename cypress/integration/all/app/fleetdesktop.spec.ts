@@ -28,7 +28,8 @@ describe("Fleet Desktop", () => {
       cy.getAttached(".info-grid").within(() => {
         cy.findByText(/private ip address/i)
           .next()
-          .contains(/172.21.0.2/i);
+          .findByText(/---/i)
+          .should("not.exist");
       });
       cy.getAttached(".device-user__action-button-container").within(() => {
         cy.getAttached('img[alt="Host info icon"]').click();
