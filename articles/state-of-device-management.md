@@ -1,4 +1,4 @@
-# State of Device Management report 2022.
+# State of Device Management report 2022
 
 ![State of device management](../website/assets/images/articles/state-of-device-management-report-1600x900@2x.png)
 
