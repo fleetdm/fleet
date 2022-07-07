@@ -15,6 +15,6 @@ We hope you consider these insights and findings as you build your device manage
 <meta name="category" value="report">
 <meta name="authorFullName" value="Mike McNeil">
 <meta name="authorGitHubUsername" value="mikermcneil">
-<meta name="publishedOn" value="2022-06-20">
+<meta name="publishedOn" value="2022-07-07">
 <meta name="articleTitle" value="State of Device Management report 2022">
 <meta name="articleImageUrl" value="../website/assets/images/articles/state-of-device-management-report-1600x900@2x.png">
