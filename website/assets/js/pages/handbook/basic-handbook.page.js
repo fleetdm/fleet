@@ -57,11 +57,6 @@ parasails.registerPage('basic-handbook', {
             pageTitle: page.title,
             url: page.url,
             pageLinks: page.linksForHandbookIndex,
-            relatedPages: this.markdownPages.filter(relatedPage => {
-              if(relatedPage.handbookSection === page.handbookSection && relatedPage.url !== page.url) {
-                return relatedPage;
-              }
-            }),
           };
           handbookPages.push(handbookPage);
         }

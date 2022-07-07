@@ -6,19 +6,19 @@ Security policies are the foundation of our security program and guide team memb
 
 For information about each of our security policies, see:
 
-- [Information security policy, and acceptable use policy](/handbook/security/security-policies#information-security-policy-and-acceptable-use-policy)
-- [Access control policy](/handbook/security/security-policies#access-control-policy)
-- [Asset management policy](/handbook/security/security-policies#asset-management-policy)
-- [Business continuity and disaster recovery policy](/handbook/security/security-policies#business-continuity-and-disaster-recovery-policy)
-- [Data management policy](/handbook/security/security-policies#data-management-policy)
-- [Encryption policy](/handbook/security/security-policies#encryption-policy)
-- [Human resources security policy](/handbook/security/security-policies#human-resources-security-policy)
-- [Incident response policy](/handbook/security/security-policies#incident-response-policy)
-- [Operations security and change management policy](/handbook/security/security-policies#operations-security-and-change-management-policy)
-- [Risk management policy](/handbook/security/security-policies#risk-management-policy)
-- [Secure software development and product security policy](/handbook/security/security-policies#secure-software-development-and-product-security-policy)
-- [Security policy management policy](/handbook/security/security-policies#security-policy-management-policy)
-- [Third-party management policy](/handbook/security/security-policies#third-party-management-policy)
+- [Information security policy, and acceptable use policy](./security-policies.md#information-security-policy-and-acceptable-use-policy)
+- [Access control policy](./security-policies.md#access-control-policy)
+- [Asset management policy](./security-policies.md#asset-management-policy)
+- [Business continuity and disaster recovery policy](./security-policies.md#business-continuity-and-disaster-recovery-policy)
+- [Data management policy](./security-policies.md#data-management-policy)
+- [Encryption policy](./security-policies.md#encryption-policy)
+- [Human resources security policy](./security-policies.md#human-resources-security-policy)
+- [Incident response policy](./security-policies.md#incident-response-policy)
+- [Operations security and change management policy](./security-policies.md#operations-security-and-change-management-policy)
+- [Risk management policy](./security-policies.md#risk-management-policy)
+- [Secure software development and product security policy](./security-policies.md#secure-software-development-and-product-security-policy)
+- [Security policy management policy](./security-policies.md#security-policy-management-policy)
+- [Third-party management policy](./security-policies.md#third-party-management-policy)
 
 ## Account recovery process
 
