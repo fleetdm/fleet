@@ -7,6 +7,7 @@ on:
       - 'website/**'
       - 'docs/**'
       - 'handbook/**'
+      - 'articles/**'
       
 permissions:
   contents: read
