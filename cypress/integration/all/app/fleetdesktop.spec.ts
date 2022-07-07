@@ -37,7 +37,7 @@ describe("Fleet Desktop", () => {
         cy.getAttached(".device-user-info__btn").click();
       });
     });
-    it("renders and searches the host's software,  links to filter hosts by software", () => {
+    it("renders and searches the host's software", () => {
       cy.getAttached(".react-tabs__tab-list").within(() => {
         cy.findByText(/software/i).click();
       });
