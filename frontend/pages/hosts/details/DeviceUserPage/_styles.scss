@@ -12,13 +12,6 @@
   background-color: $ui-off-white;
   gap: $pad-medium;
 
-  a {
-    font-size: $x-small;
-    color: $core-vibrant-blue;
-    font-weight: $bold;
-    text-decoration: none;
-  }
-
   .header {
     flex: 100%;
     display: flex;
@@ -291,13 +284,6 @@
     flex-direction: column;
     align-items: center;
     margin: $pad-xlarge 0;
-
-    a {
-      font-size: $x-small;
-      color: $core-vibrant-blue;
-      font-weight: $bold;
-      text-decoration: none;
-    }
 
     &__inner {
       display: flex;

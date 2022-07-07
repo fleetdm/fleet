@@ -99,11 +99,7 @@ const AgentOptionsPage = ({
           rel="noopener noreferrer"
         >
           Go to Fleet docs&nbsp;
-          <img
-            className="icon"
-            src={ExternalLinkIcon}
-            alt="Open external link"
-          />
+          <img src={ExternalLinkIcon} alt="Open external link" />
         </a>
       </InfoBanner>
       <div className={`${baseClass}__form-wrapper`}>
