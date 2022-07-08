@@ -129,7 +129,6 @@ type SoftwareCPE struct {
 // SoftwareVulnerability identifies a vulnerability on a specific software.
 type SoftwareVulnerability struct {
 	SoftwareID uint   `db:"software_id"`
-	CPEID      uint   `db:"cpe_id"`
 	CVE        string `db:"cve"`
 }
 

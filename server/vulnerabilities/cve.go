@@ -213,7 +213,6 @@ func checkCVEs(
 							}
 							matchingVulns = append(matchingVulns, fleet.SoftwareVulnerability{
 								SoftwareID: softwareCPE.SoftwareID,
-								CPEID:      softwareCPE.ID,
 								CVE:        cveID,
 							})
 						}
