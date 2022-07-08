@@ -104,7 +104,7 @@ The following table lists the Growth group's rituals, frequency, and Directly Re
 | Podcast outreach      | Weekly | Conduct podcast outreach twice a week.     | Drew Baker        |
 | Weekly update      | Weekly | Update the Growth KPIs in the ["🌈 Weekly updates" spreadsheet](https://docs.google.com/spreadsheets/d/1Hso0LxqwrRVINCyW_n436bNHmoqhoLhC8bcbvLPOs9A/edit#gid=0). | Drew Baker        |
 | Monthly conference checks    | Monthly | Check for conference openings and sponsorship opportunities on the 1st of every month. | Drew Baker|
-| Freshen up pinned posts | Quarterly | Swap out or remove pinned posts on the brand Twitter account and LinkedIn company page. | Tim Kern | 
+| Freshen up pinned posts | Quarterly | Swap out or remove pinned posts on the brand Twitter account and LinkedIn company page. | Drew Baker | 
 
 
 ## Slack channels
