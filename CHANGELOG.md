@@ -31,7 +31,7 @@
 
 * Fixed SQL generated for OS version policies to reduce false negatives
 
-* Added the number of hosts enrolled by OS and OS version to anonymous usage statistics.
+* Added the number of hosts enrolled by operating system (OS) and OS version to anonymous usage statistics.
 
 * Added the weekly active users count to anonymous usage statistics.
 
