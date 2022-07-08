@@ -5,7 +5,7 @@
 
 * Added native support for M1 Macs.
 
-* Added battery health tracking to **Host Details**.
+* Added battery health tracking to **Host details** page.
 
 * Improved reporting of error states on the health dashboard and added separate health checks for MySQL and Redis with `/healthz?check=mysql` and `/healthz?check=redis`.
 
