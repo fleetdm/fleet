@@ -6,9 +6,8 @@ import (
 	"encoding/json"
 	"errors"
 	"io/fs"
-	"io/ioutil"
 	"os"
-	"path"
+	"path/filepath"
 	"testing"
 
 	"github.com/go-kit/kit/log"
@@ -20,7 +19,7 @@ func TestFilesystemLogger(t *testing.T) {
 	ctx := context.Background()
 	tempPath := t.TempDir()
 	require.NoError(t, os.Chmod(tempPath, 0755))
-	fileName := path.Join(tempPath, "filesystemLogWriter")
+	fileName := filepath.Join(tempPath, "filesystemLogWriter")
 	lgr, err := NewFilesystemLogWriter(fileName, log.NewNopLogger(), false, false)
 	require.Nil(t, err)
 	defer os.Remove(fileName)
@@ -66,7 +65,7 @@ func TestFilesystemLogger(t *testing.T) {
 func TestFilesystemLoggerPermission(t *testing.T) {
 	tempPath := t.TempDir()
 	require.NoError(t, os.Chmod(tempPath, 0000))
-	fileName := path.Join(tempPath, "filesystemLogWriter")
+	fileName := filepath.Join(tempPath, "filesystemLogWriter")
 	for _, tc := range []struct {
 		name     string
 		rotation bool
@@ -84,16 +83,11 @@ func TestFilesystemLoggerPermission(t *testing.T) {
 
 func BenchmarkFilesystemLogger(b *testing.B) {
 	ctx := context.Background()
-	tempPath, err := ioutil.TempDir("", "test")
-	if err != nil {
-		b.Fatal("temp dir failed", err)
-	}
-	fileName := path.Join(tempPath, "filesystemLogWriter")
+	fileName := filepath.Join(b.TempDir(), "filesystemLogWriter")
 	lgr, err := NewFilesystemLogWriter(fileName, log.NewNopLogger(), false, false)
 	if err != nil {
 		b.Fatal("new failed ", err)
 	}
-	defer os.Remove(fileName)
 
 	var logs []json.RawMessage
 	for i := 0; i < 50; i++ {
@@ -125,16 +119,11 @@ func BenchmarkLumberjackWithCompression(b *testing.B) {
 
 func benchLumberjack(b *testing.B, compression bool) {
 	ctx := context.Background()
-	tempPath, err := ioutil.TempDir("", "test")
-	if err != nil {
-		b.Fatal("temp dir failed", err)
-	}
-	fileName := path.Join(tempPath, "lumberjack")
+	fileName := filepath.Join(b.TempDir(), "lumberjack")
 	lgr, err := NewFilesystemLogWriter(fileName, log.NewNopLogger(), true, compression)
 	if err != nil {
 		b.Fatal("new failed ", err)
 	}
-	defer os.Remove(fileName)
 
 	var logs []json.RawMessage
 	for i := 0; i < 50; i++ {

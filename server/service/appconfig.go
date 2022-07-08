@@ -75,6 +75,14 @@ func getAppConfigEndpoint(ctx context.Context, request interface{}, svc fleet.Se
 		hostExpirySettings = config.HostExpirySettings
 		agentOptions = config.AgentOptions
 	}
+
+	transparencyURL := fleet.DefaultTransparencyURL
+	// Fleet Premium license is required for custom transparency url
+	if license.Tier == "premium" && config.FleetDesktop.TransparencyURL != "" {
+		transparencyURL = config.FleetDesktop.TransparencyURL
+	}
+	fleetDesktop := fleet.FleetDesktopSettings{TransparencyURL: transparencyURL}
+
 	hostSettings := config.HostSettings
 	response := appConfigResponse{
 		AppConfig: fleet.AppConfig{
@@ -87,6 +95,8 @@ func getAppConfigEndpoint(ctx context.Context, request interface{}, svc fleet.Se
 			SSOSettings:        ssoSettings,
 			HostExpirySettings: hostExpirySettings,
 			AgentOptions:       agentOptions,
+
+			FleetDesktop: fleetDesktop,
 
 			WebhookSettings: config.WebhookSettings,
 			Integrations:    config.Integrations,
@@ -112,12 +122,17 @@ func (svc *Service) AppConfig(ctx context.Context) (*fleet.AppConfig, error) {
 	}
 
 	if ac.SMTPSettings.SMTPPassword != "" {
-		ac.SMTPSettings.SMTPPassword = "********"
+		ac.SMTPSettings.SMTPPassword = fleet.MaskedPassword
 	}
 
 	for _, jiraIntegration := range ac.Integrations.Jira {
-		jiraIntegration.APIToken = "********"
+		jiraIntegration.APIToken = fleet.MaskedPassword
 	}
+
+	for _, zdIntegration := range ac.Integrations.Zendesk {
+		zdIntegration.APIToken = fleet.MaskedPassword
+	}
+
 	return ac, nil
 }
 
@@ -150,8 +165,13 @@ func modifyAppConfigEndpoint(ctx context.Context, request interface{}, svc fleet
 	}
 
 	if response.SMTPSettings.SMTPPassword != "" {
-		response.SMTPSettings.SMTPPassword = "********"
+		response.SMTPSettings.SMTPPassword = fleet.MaskedPassword
 	}
+
+	if license.Tier != "premium" || response.FleetDesktop.TransparencyURL == "" {
+		response.FleetDesktop.TransparencyURL = fleet.DefaultTransparencyURL
+	}
+
 	return response, nil
 }
 
@@ -160,19 +180,28 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte) (*fleet.AppCo
 		return nil, err
 	}
 
-	appConfig, err := svc.AppConfig(ctx)
+	// we need the config from the datastore because API tokens are obfuscated at the service layer
+	// we will retrieve the obfuscated config before we return
+	appConfig, err := svc.ds.AppConfig(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	license, err := svc.License(ctx)
 	if err != nil {
 		return nil, err
 	}
 
 	oldSmtpSettings := appConfig.SMTPSettings
-	var oldJiraSettings []*fleet.JiraIntegration
-	if len(appConfig.Integrations.Jira) > 0 {
-		oldJiraSettings = make([]*fleet.JiraIntegration, len(appConfig.Integrations.Jira))
-		for i, settings := range appConfig.Integrations.Jira {
-			oldSettings := *settings
-			oldJiraSettings[i] = &oldSettings
-		}
+
+	storedJiraByProjectKey, err := fleet.IndexJiraIntegrations(appConfig.Integrations.Jira)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "modify AppConfig")
+	}
+
+	storedZendeskByGroupID, err := fleet.IndexZendeskIntegrations(appConfig.Integrations.Zendesk)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "modify AppConfig")
 	}
 
 	// TODO(mna): this ports the validations from the old validationMiddleware
@@ -182,6 +211,17 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte) (*fleet.AppCo
 	var newAppConfig fleet.AppConfig
 	if err := json.Unmarshal(p, &newAppConfig); err != nil {
 		return nil, ctxerr.Wrap(ctx, err)
+	}
+
+	if newAppConfig.FleetDesktop.TransparencyURL != "" {
+		if license.Tier != "premium" {
+			invalid.Append("transparency_url", ErrMissingLicense.Error())
+			return nil, ctxerr.Wrap(ctx, invalid)
+		}
+		if _, err := url.Parse(newAppConfig.FleetDesktop.TransparencyURL); err != nil {
+			invalid.Append("transparency_url", err.Error())
+			return nil, ctxerr.Wrap(ctx, invalid)
+		}
 	}
 
 	validateSSOSettings(newAppConfig, appConfig, invalid)
@@ -196,7 +236,8 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte) (*fleet.AppCo
 		return nil, ctxerr.Wrap(ctx, &badRequestError{message: err.Error()})
 	}
 
-	validateVulnerabilitiesAutomation(appConfig, invalid)
+	fleet.ValidateEnabledVulnerabilitiesIntegrations(appConfig.WebhookSettings.VulnerabilitiesWebhook, appConfig.Integrations, invalid)
+	fleet.ValidateEnabledFailingPoliciesIntegrations(appConfig.WebhookSettings.FailingPoliciesWebhook, appConfig.Integrations, invalid)
 	if invalid.HasErrors() {
 		return nil, ctxerr.Wrap(ctx, invalid)
 	}
@@ -213,28 +254,51 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte) (*fleet.AppCo
 			}
 		}
 		appConfig.SMTPSettings.SMTPConfigured = true
-	} else if appConfig.SMTPSettings.SMTPEnabled {
+	} else {
 		appConfig.SMTPSettings.SMTPConfigured = false
 	}
 
-	// if Jira integration settings are modified or added, test it.
-	newJiraSettings := appConfig.Integrations.Jira
-	for i, settings := range newJiraSettings {
-		if i < len(oldJiraSettings) && *oldJiraSettings[i] == *settings {
-			// unchanged
-			continue
+	delJira, err := fleet.ValidateJiraIntegrations(ctx, storedJiraByProjectKey, newAppConfig.Integrations.Jira)
+	if err != nil {
+		if errors.As(err, &fleet.IntegrationTestError{}) {
+			return nil, ctxerr.Wrap(ctx, &badRequestError{message: err.Error()})
 		}
+		return nil, ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("Jira integration", err.Error()))
+	}
+	appConfig.Integrations.Jira = newAppConfig.Integrations.Jira
 
-		// new or updated, test it
-		if err := svc.makeTestJiraRequest(ctx, settings); err != nil {
-			return nil, ctxerr.Wrapf(ctx, err, "Jira integration at index %d", i)
+	delZendesk, err := fleet.ValidateZendeskIntegrations(ctx, storedZendeskByGroupID, newAppConfig.Integrations.Zendesk)
+	if err != nil {
+		if errors.As(err, &fleet.IntegrationTestError{}) {
+			return nil, ctxerr.Wrap(ctx, &badRequestError{message: err.Error()})
 		}
+		return nil, ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("Zendesk integration", err.Error()))
+	}
+	appConfig.Integrations.Zendesk = newAppConfig.Integrations.Zendesk
+
+	// if any integration was deleted, remove it from any team that uses it
+	if len(delJira)+len(delZendesk) > 0 {
+		if err := svc.ds.DeleteIntegrationsFromTeams(ctx, fleet.Integrations{Jira: delJira, Zendesk: delZendesk}); err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "delete integrations from teams")
+		}
+	}
+
+	// reset transparency url to empty for downgraded licenses
+	if license.Tier != "premium" && appConfig.FleetDesktop.TransparencyURL != "" {
+		appConfig.FleetDesktop.TransparencyURL = ""
 	}
 
 	if err := svc.ds.SaveAppConfig(ctx, appConfig); err != nil {
 		return nil, err
 	}
-	return appConfig, nil
+
+	// retrieve new app config with obfuscated secrets
+	obfuscatedConfig, err := svc.AppConfig(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	return obfuscatedConfig, nil
 }
 
 func validateSSOSettings(p fleet.AppConfig, existing *fleet.AppConfig, invalid *fleet.InvalidArgumentError) {
@@ -261,22 +325,6 @@ func validateSSOSettings(p fleet.AppConfig, existing *fleet.AppConfig, invalid *
 				invalid.Append("idp_name", "required")
 			}
 		}
-	}
-}
-
-func validateVulnerabilitiesAutomation(merged *fleet.AppConfig, invalid *fleet.InvalidArgumentError) {
-	webhookEnabled := merged.WebhookSettings.VulnerabilitiesWebhook.Enable
-	var jiraEnabledCount int
-	for _, jira := range merged.Integrations.Jira {
-		if jira.EnableSoftwareVulnerabilities {
-			jiraEnabledCount++
-		}
-	}
-	if webhookEnabled && jiraEnabledCount > 0 {
-		invalid.Append("vulnerabilities", "cannot enable both webhook vulnerabilities and jira integration automations")
-	}
-	if jiraEnabledCount > 1 {
-		invalid.Append("vulnerabilities", "cannot enable more than one jira integration")
 	}
 }
 

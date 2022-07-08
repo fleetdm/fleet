@@ -23,12 +23,14 @@ import (
 
 func main() {
 	var (
-		jiraURL        = flag.String("jira-url", "", "The Jira instance URL")
-		jiraUsername   = flag.String("jira-username", "", "The Jira username")
-		jiraProjectKey = flag.String("jira-project-key", "", "The Jira project key")
-		fleetURL       = flag.String("fleet-url", "https://localhost:8080", "The Fleet server URL")
-		cve            = flag.String("cve", "", "The CVE to create a Jira issue for")
-		hostsCount     = flag.Int("hosts-count", 1, "The number of hosts to match the CVE")
+		jiraURL             = flag.String("jira-url", "", "The Jira instance URL")
+		jiraUsername        = flag.String("jira-username", "", "The Jira username")
+		jiraProjectKey      = flag.String("jira-project-key", "", "The Jira project key")
+		fleetURL            = flag.String("fleet-url", "https://localhost:8080", "The Fleet server URL")
+		cve                 = flag.String("cve", "", "The CVE to create a Jira issue for")
+		hostsCount          = flag.Int("hosts-count", 1, "The number of hosts to match the CVE or failing policy")
+		failingPolicyID     = flag.Int("failing-policy-id", 0, "The failing policy ID")
+		failingPolicyTeamID = flag.Int("failing-policy-team-id", 0, "The Team ID of the failing policy")
 	)
 
 	flag.Parse()
@@ -45,8 +47,12 @@ func main() {
 		fmt.Fprintf(os.Stderr, "-jira-project-key is required")
 		os.Exit(1)
 	}
-	if *cve == "" {
-		fmt.Fprintf(os.Stderr, "-cve is required")
+	if *cve == "" && *failingPolicyID == 0 {
+		fmt.Fprintf(os.Stderr, "one of -cve or -failing-policy-id is required")
+		os.Exit(1)
+	}
+	if *cve != "" && *failingPolicyID != 0 {
+		fmt.Fprintf(os.Stderr, "only one of -cve or -failing-policy-id is allowed")
 		os.Exit(1)
 	}
 	if *hostsCount <= 0 {
@@ -62,16 +68,6 @@ func main() {
 
 	logger := kitlog.NewLogfmtLogger(os.Stdout)
 
-	client, err := externalsvc.NewJiraClient(&externalsvc.JiraOptions{
-		BaseURL:           *jiraURL,
-		BasicAuthUsername: *jiraUsername,
-		BasicAuthPassword: jiraPassword,
-		ProjectKey:        *jiraProjectKey,
-	})
-	if err != nil {
-		log.Fatal(err)
-	}
-
 	ds := new(mock.Store)
 	ds.HostsByCVEFunc = func(ctx context.Context, cve string) ([]*fleet.HostShort, error) {
 		hosts := make([]*fleet.HostShort, *hostsCount)
@@ -80,18 +76,68 @@ func main() {
 		}
 		return hosts, nil
 	}
-
-	jira := &worker.Jira{
-		FleetURL:   *fleetURL,
-		Datastore:  ds,
-		Log:        logger,
-		JiraClient: client,
+	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+		return &fleet.AppConfig{
+			Integrations: fleet.Integrations{
+				Jira: []*fleet.JiraIntegration{
+					{
+						EnableSoftwareVulnerabilities: *cve != "",
+						URL:                           *jiraURL,
+						Username:                      *jiraUsername,
+						APIToken:                      jiraPassword,
+						ProjectKey:                    *jiraProjectKey,
+						EnableFailingPolicies:         *failingPolicyID > 0,
+					},
+				},
+			},
+		}, nil
+	}
+	ds.TeamFunc = func(ctx context.Context, tid uint) (*fleet.Team, error) {
+		return &fleet.Team{
+			ID:   tid,
+			Name: fmt.Sprintf("team-test-%d", tid),
+			Config: fleet.TeamConfig{
+				Integrations: fleet.TeamIntegrations{
+					Jira: []*fleet.TeamJiraIntegration{
+						{
+							URL:                   *jiraURL,
+							ProjectKey:            *jiraProjectKey,
+							EnableFailingPolicies: *failingPolicyID > 0,
+						},
+					},
+				},
+			},
+		}, nil
 	}
 
-	argsJSON := json.RawMessage(fmt.Sprintf(`{"cve":%q}`, *cve))
+	jira := &worker.Jira{
+		FleetURL:  *fleetURL,
+		Datastore: ds,
+		Log:       logger,
+		NewClientFunc: func(opts *externalsvc.JiraOptions) (worker.JiraClient, error) {
+			return externalsvc.NewJiraClient(opts)
+		},
+	}
 
-	err = jira.Run(context.Background(), argsJSON)
-	if err != nil {
+	var argsJSON json.RawMessage
+	if *cve != "" {
+		argsJSON = json.RawMessage(fmt.Sprintf(`{"cve":%q}`, *cve))
+	} else if *failingPolicyID > 0 {
+		jsonStr := fmt.Sprintf(`{"failing_policy":{"policy_id": %d, "policy_name": "test-policy-%[1]d", `, *failingPolicyID)
+		if *failingPolicyTeamID > 0 {
+			jsonStr += fmt.Sprintf(`"team_id":%d, `, *failingPolicyTeamID)
+		}
+		jsonStr += `"hosts": `
+		hosts := make([]fleet.PolicySetHost, 0, *hostsCount)
+		for i := 1; i <= *hostsCount; i++ {
+			hosts = append(hosts, fleet.PolicySetHost{ID: uint(i), Hostname: fmt.Sprintf("host-test-%d", i)})
+		}
+		b, _ := json.Marshal(hosts)
+		jsonStr += string(b) + "}}"
+		argsJSON = json.RawMessage(jsonStr)
+	}
+
+	if err := jira.Run(context.Background(), argsJSON); err != nil {
 		log.Fatal(err)
 	}
 }

@@ -9,39 +9,44 @@ import (
 	"net/http/httptest"
 	"os"
 	"regexp"
+	"sort"
 	"strings"
 	"sync/atomic"
 	"testing"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/datastore/redis/redistest"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	kitlog "github.com/go-kit/kit/log"
 	pkgErrors "github.com/pkg/errors" //nolint:depguard
-	"github.com/rotisserie/eris"      //nolint:depguard
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
+
+var eh = ctxerr.MockHandler{}
+var ctxb = context.Background()
+var ctx = ctxerr.NewContext(ctxb, eh)
 
 func alwaysErrors() error { return pkgErrors.New("always errors") }
 
 func alwaysCallsAlwaysErrors() error { return alwaysErrors() }
 
-func alwaysErisErrors() error { return eris.New("always eris errors") }
+func alwaysFleetErrors() error { return ctxerr.New(ctx, "always fleet errors") }
 
 func alwaysNewError(eh *Handler) error {
-	err := eris.New("always new errors")
+	err := ctxerr.New(ctx, "always new errors")
 	eh.Store(err)
 	return err
 }
 
 func alwaysNewErrorTwo(eh *Handler) error {
-	err := eris.New("always new errors two")
+	err := ctxerr.New(ctx, "always new errors two")
 	eh.Store(err)
 	return err
 }
 
-func alwaysWrappedErr() error { return eris.Wrap(io.EOF, "always EOF") }
+func alwaysWrappedErr() error { return ctxerr.Wrap(ctx, io.EOF, "always EOF") }
 
 func TestHashErr(t *testing.T) {
 	t.Run("without stack trace, same error is same hash", func(t *testing.T) {
@@ -51,62 +56,49 @@ func TestHashErr(t *testing.T) {
 	})
 
 	t.Run("different location, same error is different hash", func(t *testing.T) {
-		err1 := alwaysErisErrors()
-		err2 := alwaysErisErrors()
+		err1 := alwaysFleetErrors()
+		err2 := alwaysFleetErrors()
 		assert.NotEqual(t, hashError(err1), hashError(err2))
 	})
 
 	t.Run("same error, wrapped, same hash", func(t *testing.T) {
-		eris1 := alwaysErisErrors()
+		ferror1 := alwaysFleetErrors()
 
-		w1, w2 := fmt.Errorf("wrap: %w", eris1), pkgErrors.Wrap(eris1, "wrap")
+		w1, w2 := fmt.Errorf("wrap: %w", ferror1), pkgErrors.Wrap(ferror1, "wrap")
 		h1, h2 := hashError(w1), hashError(w2)
 		assert.Equal(t, h1, h2)
 	})
 
 	t.Run("generates json", func(t *testing.T) {
-		var m map[string]interface{}
+		var m []interface{}
 
 		generatedErr := pkgErrors.New("some err")
 		res, jsonBytes, err := hashAndMarshalError(generatedErr)
 		require.NoError(t, err)
 		assert.Equal(t, "mWoqz7iS1IPOZXGhpzHLl_DVQOyemWxCmvkpLz8uEZk=", res)
-		assert.True(t, strings.HasPrefix(jsonBytes, `{
-  "external": "some err`))
 		require.NoError(t, json.Unmarshal([]byte(jsonBytes), &m))
 
 		generatedErr2 := pkgErrors.New("some other err")
 		res, jsonBytes, err = hashAndMarshalError(generatedErr2)
 		require.NoError(t, err)
 		assert.Equal(t, "8AXruOzQmQLF4H3SrzLxXSwFQgZ8DcbkoF1owo0RhTs=", res)
-		assert.True(t, strings.HasPrefix(jsonBytes, `{
-  "external": "some other err`))
 		require.NoError(t, json.Unmarshal([]byte(jsonBytes), &m))
 	})
 }
 
-func TestHashErrEris(t *testing.T) {
+func TestHashErrFleetError(t *testing.T) {
 	t.Run("Marshal", func(t *testing.T) {
-		wd, err := os.Getwd()
-		require.NoError(t, err)
+		var m []interface{}
 
-		generatedErr := eris.New("some err")
+		generatedErr := ctxerr.New(ctx, "some err")
 		res, jsonBytes, err := hashAndMarshalError(generatedErr)
 		require.NoError(t, err)
 		assert.NotEmpty(t, res)
-
-		assert.Regexp(t, regexp.MustCompile(fmt.Sprintf(`\{
-  "root": \{
-    "message": "some err",
-    "stack": \[
-      "errorstore.TestHashErrEris\.func\d+:%s/errors_test\.go:\d+"
-    \]
-  \}
-\}`, regexp.QuoteMeta(wd))), jsonBytes)
+		require.NoError(t, json.Unmarshal([]byte(jsonBytes), &m))
 	})
 
 	t.Run("HashWrapped", func(t *testing.T) {
-		// hashing an eris error that wraps a root error hashes to the same
+		// hashing a fleet error that wraps a root error hashes to the same
 		// value if it is from the same location, even if wrapped differently
 		// afterwards.
 		err := alwaysWrappedErr()
@@ -118,8 +110,8 @@ func TestHashErrEris(t *testing.T) {
 	})
 
 	t.Run("HashNew", func(t *testing.T) {
-		err := alwaysErisErrors()
-		werr := eris.Wrap(err, "wrap eris")
+		err := alwaysFleetErrors()
+		werr := ctxerr.Wrap(ctx, err, "wrap ctxterr")
 		werr1, werr2 := pkgErrors.Wrap(err, "wrap pkg"), fmt.Errorf("wrap fmt: %w", err)
 		wantHash := hashError(err)
 		h0, h1, h2 := hashError(werr), hashError(werr1), hashError(werr2)
@@ -130,8 +122,8 @@ func TestHashErrEris(t *testing.T) {
 
 	t.Run("HashSameRootDifferentLocation", func(t *testing.T) {
 		err1 := alwaysWrappedErr()
-		err2 := func() error { return eris.Wrap(io.EOF, "always EOF") }()
-		err3 := func() error { return eris.Wrap(io.EOF, "always EOF") }()
+		err2 := func() error { return ctxerr.Wrap(ctx, io.EOF, "always EOF") }()
+		err3 := func() error { return ctxerr.Wrap(ctx, io.EOF, "always EOF") }()
 		h1, h2, h3 := hashError(err1), hashError(err2), hashError(err3)
 		assert.NotEqual(t, h1, h2)
 		assert.NotEqual(t, h1, h3)
@@ -143,12 +135,12 @@ func TestUnwrapAll(t *testing.T) {
 	root := sql.ErrNoRows
 	werr := pkgErrors.Wrap(root, "pkg wrap")
 	gerr := fmt.Errorf("fmt wrap: %w", werr)
-	eerr := eris.Wrap(gerr, "eris wrap")
-	eerr2 := eris.Wrap(eerr, "eris wrap 2")
+	eerr := ctxerr.Wrap(ctx, gerr, "fleet wrap")
+	eerr2 := ctxerr.Wrap(ctx, eerr, "fleet wrap 2")
 
-	uw := eris.Cause(eerr2)
+	uw := ctxerr.Cause(eerr2)
 	assert.Equal(t, uw, root)
-	assert.Nil(t, eris.Cause(nil))
+	assert.Nil(t, ctxerr.Cause(nil))
 }
 
 func TestErrorHandler(t *testing.T) {
@@ -197,18 +189,18 @@ func TestErrorHandler(t *testing.T) {
 
 	t.Run("standalone", func(t *testing.T) {
 		pool := redistest.SetupRedis(t, "error:", false, false, false)
-		t.Run("collects errors", func(t *testing.T) { testErrorHandlerCollectsErrors(t, pool, wd) })
-		t.Run("collects different errors", func(t *testing.T) { testErrorHandlerCollectsDifferentErrors(t, pool, wd) })
+		t.Run("collects errors", func(t *testing.T) { testErrorHandlerCollectsErrors(t, pool, wd, false) })
+		t.Run("collects different errors", func(t *testing.T) { testErrorHandlerCollectsDifferentErrors(t, pool, wd, false) })
 	})
 
 	t.Run("cluster", func(t *testing.T) {
 		pool := redistest.SetupRedis(t, "error:", true, true, false)
-		t.Run("collects errors", func(t *testing.T) { testErrorHandlerCollectsErrors(t, pool, wd) })
-		t.Run("collects different errors", func(t *testing.T) { testErrorHandlerCollectsDifferentErrors(t, pool, wd) })
+		t.Run("collects errors", func(t *testing.T) { testErrorHandlerCollectsErrors(t, pool, wd, false) })
+		t.Run("collects different errors", func(t *testing.T) { testErrorHandlerCollectsDifferentErrors(t, pool, wd, false) })
 	})
 }
 
-func testErrorHandlerCollectsErrors(t *testing.T, pool fleet.RedisPool, wd string) {
+func testErrorHandlerCollectsErrors(t *testing.T, pool fleet.RedisPool, wd string, flush bool) {
 	ctx, cancelFunc := context.WithCancel(context.Background())
 	defer cancelFunc()
 
@@ -234,27 +226,40 @@ func testErrorHandlerCollectsErrors(t *testing.T, pool fleet.RedisPool, wd strin
 
 	<-chDone
 
-	errors, err := eh.Flush()
+	errors, err := eh.Retrieve(flush)
 	require.NoError(t, err)
 	require.Len(t, errors, 1)
 
-	assert.Regexp(t, regexp.MustCompile(fmt.Sprintf(`\{
-  "root": \{
+	assert.Regexp(t, regexp.MustCompile(`\[
+  \{
     "message": "always new errors",
+    "data": \{
+      "timestamp": ".+"
+    \},
     "stack": \[
-      "errorstore\.TestErrorHandler\.func\d\.\d+:%s/errors_test\.go:\d+",
-      "errorstore\.testErrorHandlerCollectsErrors:%[1]s/errors_test\.go:\d+",
-      "errorstore\.alwaysNewError:%s/errors_test\.go:\d+"
+      "github\.com\/fleetdm\/fleet\/v4\/server\/errorstore\.alwaysNewError \(errors_test\.go\:\d+\)",
+      "github\.com\/fleetdm\/fleet\/v4\/server\/errorstore\.testErrorHandlerCollectsErrors \(errors_test\.go\:\d+\)",
+      "github\.com\/fleetdm\/fleet\/v4\/server\/errorstore\.TestErrorHandler\.func\d\.\d \(errors_test\.go\:\d+\)",
+      ".+",
+      ".+"
     \]
-  \}`, wd, wd)), errors[0])
+  \}
+\]`), string(errors[0].Chain))
 
-	// and then errors are gone
-	errors, err = eh.Flush()
+	errors, err = eh.Retrieve(flush)
 	require.NoError(t, err)
-	assert.Len(t, errors, 0)
+	if flush {
+		assert.Len(t, errors, 0)
+	} else {
+		assert.Len(t, errors, 1)
+	}
+
+	// ensure we clear errors before returning
+	_, err = eh.Retrieve(true)
+	require.NoError(t, err)
 }
 
-func testErrorHandlerCollectsDifferentErrors(t *testing.T, pool fleet.RedisPool, wd string) {
+func testErrorHandlerCollectsDifferentErrors(t *testing.T, pool fleet.RedisPool, wd string, flush bool) {
 	ctx, cancelFunc := context.WithCancel(context.Background())
 	defer cancelFunc()
 
@@ -290,77 +295,145 @@ func testErrorHandlerCollectsDifferentErrors(t *testing.T, pool fleet.RedisPool,
 
 	<-chDone
 
-	errors, err := eh.Flush()
+	errors, err := eh.Retrieve(flush)
 	require.NoError(t, err)
 	require.Len(t, errors, 4)
 
 	// order is not guaranteed by scan keys
 	for _, jsonErr := range errors {
-		if strings.Contains(jsonErr, "new errors two") {
-			assert.Regexp(t, regexp.MustCompile(fmt.Sprintf(`\{
-  "root": \{
+		msg := string(jsonErr.Chain)
+		if strings.Contains(msg, "new errors two") {
+			assert.Regexp(t, regexp.MustCompile(`\[
+  \{
     "message": "always new errors two",
+    "data": \{
+      "timestamp": ".+"
+    \},
     "stack": \[
-      "errorstore\.TestErrorHandler\.func\d\.\d+:%s/errors_test\.go:\d+",
-      "errorstore\.testErrorHandlerCollectsDifferentErrors:%[1]s/errors_test\.go:\d+",
-      "errorstore\.alwaysNewErrorTwo:%[1]s/errors_test\.go:\d+"
+      "github\.com\/fleetdm\/fleet\/v4\/server\/errorstore\.alwaysNewErrorTwo \(errors_test\.go\:\d+\)",
+      "github\.com\/fleetdm\/fleet\/v4\/server\/errorstore\.testErrorHandlerCollectsDifferentErrors \(errors_test\.go\:\d+\)",
+      "github\.com\/fleetdm\/fleet\/v4\/server\/errorstore\.TestErrorHandler\.func\d\.\d \(errors_test\.go\:\d+\)",
+      ".+",
+      ".+"
     \]
-  \}`, wd)), jsonErr)
+  \}
+\]`), msg)
 		} else {
-			assert.Regexp(t, regexp.MustCompile(fmt.Sprintf(`\{
-  "root": \{
+			assert.Regexp(t, regexp.MustCompile(`\[
+  \{
     "message": "always new errors",
+    "data": \{
+      "timestamp": ".+"
+    \},
     "stack": \[
-      "errorstore\.TestErrorHandler\.func\d\.\d+:%s/errors_test\.go:\d+",
-      "errorstore\.testErrorHandlerCollectsDifferentErrors:%[1]s/errors_test\.go:\d+",
-      "errorstore\.alwaysNewError:%[1]s/errors_test\.go:\d+"
+      "github\.com\/fleetdm\/fleet\/v4\/server\/errorstore\.alwaysNewError \(errors_test\.go\:\d+\)",
+      "github\.com\/fleetdm\/fleet\/v4\/server\/errorstore\.testErrorHandlerCollectsDifferentErrors \(errors_test\.go\:\d+\)",
+      "github\.com\/fleetdm\/fleet\/v4\/server\/errorstore\.TestErrorHandler\.func\d.\d \(errors_test\.go\:\d+\)",
+      ".+",
+      ".+"
     \]
-  \}`, wd)), jsonErr)
+  \}
+\]`), msg)
 		}
 	}
+
+	// ensure we clear errors before returning
+	_, err = eh.Retrieve(true)
+	require.NoError(t, err)
 }
 
 func TestHttpHandler(t *testing.T) {
-	pool := redistest.SetupRedis(t, "error:", false, false, false)
-	ctx, cancelFunc := context.WithCancel(context.Background())
-	defer cancelFunc()
+	setupTest := func(t *testing.T) *Handler {
+		pool := redistest.SetupRedis(t, "error:", false, false, false)
+		ctx, cancelFunc := context.WithCancel(context.Background())
+		defer cancelFunc()
 
-	var storeCalls int32 = 2
+		var storeCalls int32 = 3
 
-	chGo, chDone := make(chan struct{}), make(chan struct{})
-	testOnStart := func() {
-		close(chGo)
-	}
-	testOnStore := func(err error) {
-		require.NoError(t, err)
-		if atomic.AddInt32(&storeCalls, -1) == 0 {
-			close(chDone)
+		chGo, chDone := make(chan struct{}), make(chan struct{})
+		testOnStart := func() {
+			close(chGo)
 		}
+		testOnStore := func(err error) {
+			require.NoError(t, err)
+			if atomic.AddInt32(&storeCalls, -1) == 0 {
+				close(chDone)
+			}
+		}
+
+		eh := newTestHandler(ctx, pool, kitlog.NewNopLogger(), time.Minute, testOnStart, testOnStore)
+
+		<-chGo
+		// simulate two errors, one happening twice
+		err1 := ctxerr.New(ctx, "err1")
+		err2 := ctxerr.New(ctx, "err2")
+		eh.Store(err1)
+		eh.Store(err2)
+		eh.Store(err1)
+		<-chDone
+
+		return eh
 	}
 
-	eh := newTestHandler(ctx, pool, kitlog.NewNopLogger(), time.Minute, testOnStart, testOnStore)
-
-	<-chGo
-	// store two errors
-	alwaysNewError(eh)
-	alwaysNewErrorTwo(eh)
-	<-chDone
-
-	req := httptest.NewRequest("GET", "/", nil)
-	res := httptest.NewRecorder()
-	eh.ServeHTTP(res, req)
-
-	require.Equal(t, res.Code, 200)
-	var errs []struct {
-		Root struct {
-			Message string
-		}
-		Wrap []struct {
-			Message string
-		}
+	type errResp struct {
+		Count int
+		Chain []struct{ Message string }
 	}
-	require.NoError(t, json.Unmarshal(res.Body.Bytes(), &errs))
-	require.Len(t, errs, 2)
-	require.NotEmpty(t, errs[0].Root.Message)
-	require.NotEmpty(t, errs[1].Root.Message)
+
+	var errs []errResp
+
+	sortByCount := func(errs []errResp) {
+		sort.Slice(errs, func(i, j int) bool {
+			return errs[i].Count > errs[j].Count
+		})
+	}
+
+	t.Run("retrieves errors", func(t *testing.T) {
+		eh := setupTest(t)
+		req := httptest.NewRequest("GET", "/", nil)
+		res := httptest.NewRecorder()
+		eh.ServeHTTP(res, req)
+
+		require.Equal(t, res.Code, 200)
+		require.NoError(t, json.Unmarshal(res.Body.Bytes(), &errs))
+		require.Len(t, errs, 2)
+		require.NotEmpty(t, errs[0].Chain[0].Message)
+		require.NotEmpty(t, errs[1].Chain[0].Message)
+
+		sortByCount(errs)
+		require.Equal(t, 2, errs[0].Count)
+		require.Equal(t, 1, errs[1].Count)
+	})
+
+	t.Run("flushes errors after retrieving if the flush flag is true", func(t *testing.T) {
+		eh := setupTest(t)
+		req := httptest.NewRequest("GET", "/?flush=true", nil)
+		res := httptest.NewRecorder()
+		eh.ServeHTTP(res, req)
+
+		require.Equal(t, res.Code, 200)
+		require.NoError(t, json.Unmarshal(res.Body.Bytes(), &errs))
+		require.Len(t, errs, 2)
+		require.NotEmpty(t, errs[0].Chain[0].Message)
+		require.NotEmpty(t, errs[1].Chain[0].Message)
+
+		sortByCount(errs)
+		require.Equal(t, 2, errs[0].Count)
+		require.Equal(t, 1, errs[1].Count)
+
+		req = httptest.NewRequest("GET", "/?flush=true", nil)
+		res = httptest.NewRecorder()
+		eh.ServeHTTP(res, req)
+		require.NoError(t, json.Unmarshal(res.Body.Bytes(), &errs))
+		require.Len(t, errs, 0)
+	})
+
+	t.Run("fails with correct status code if the flush flag is invalid", func(t *testing.T) {
+		eh := setupTest(t)
+		req := httptest.NewRequest("GET", "/?flush=invalid", nil)
+		res := httptest.NewRecorder()
+		eh.ServeHTTP(res, req)
+
+		require.Equal(t, res.Code, 400)
+	})
 }

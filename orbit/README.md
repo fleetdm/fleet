@@ -4,7 +4,12 @@
 
 Orbit is an [osquery](https://github.com/osquery/osquery) runtime and autoupdater. With Orbit, it's easy to deploy osquery, manage configurations, and stay up to date. Orbit eases the deployment of osquery connected with a [Fleet server](https://github.com/fleetdm/fleet), and is a (near) drop-in replacement for osquery in a variety of deployment scenarios.
 
-Orbit is the recommended agent for Fleet. But Orbit can be used with or without Fleet, and Fleet can be used with or without Orbit.
+Orbit is the recommended agent for Fleet. But Orbit can be used with or without Fleet, and Fleet can
+be used with or without Orbit.
+
+# Documentation
+
+- [Releasing Orbit](docs/Releasing-Orbit.md)
 
 ## Try Orbit
 
@@ -172,23 +177,14 @@ After successful notarization, the generated "ticket" is automatically stapled t
 If the `logger_path` configuration is set to `filesystem`, Orbit will store osquery's "result" and
 "status" logs to the following directories:
   - Windows: C:\Program Files\Orbit\osquery_log
-  - macOS: /var/lib/orbit/osquery_log
-  - Linux: /var/lib/orbit/osquery_log
+  - macOS: /opt/orbit/osquery_log
+  - Linux: /opt/orbit/osquery_log
 
 #### Orbit Development
 
-For ease of development of Orbit, `fleetctl package` allows the generation of a package with a
-custom orbit executable using the `FLEETCTL_ORBIT_DEV_BUILD_PATH` environment variable:
-```sh
-FLEETCTL_ORBIT_DEV_BUILD_PATH=$(pwd)/orbit.exe ./build/fleetctl package --type=msi --fleet-url=https://localhost:8080 --enroll-secret=the_secret_value
-Generating your osquery installer...
-2022/01/03 20:31:10 root pinning is not supported in Spec 1.0.19
-WARNING: You are attempting to override orbit with a dev build.
-Press Enter to continue, or Control-c to exit.
-[...]
-```
+##### Run Orbit From Source
 
-If you want to run orbit from source directly, you can do the following:
+To execute orbit from source directly, run the following command:
 
 ```sh
 go run github.com/fleetdm/fleet/v4/orbit/cmd/orbit \
@@ -210,6 +206,11 @@ go run github.com/fleetdm/fleet/v4/orbit/cmd/orbit \
     -- --flagfile=flagfile.txt --verbose
 ```
 
+##### Generate Installer Packages from Orbit Source
+
+The `fleetctl package` command generates installers by fetching the targets/executables from a [TUF](https://theupdateframework.io/) repository.
+To generate an installer that contains an Orbit built from source you need to setup a local TUF repository.
+The following document explains how you can generate a TUF repository, and installers that use it [tools/tuf/test](../tools/tuf/test/README.md).
 
 ### Troubleshooting
 
@@ -232,7 +233,16 @@ Use the "Add or remove programs" dialog to remove Orbit.
 
 #### Linux
 
-Run the [cleanup script](./tools/cleanup/cleanup_linux.sh).
+Uninstall the package with the corresponding package manager:
+
+- Ubuntu
+```sh
+sudo apt remove fleet-osquery -y
+```
+- CentOS
+```sh
+sudo rpm -e fleet-osquery-X.Y.Z.x86_64
+```
 
 #### macOS
 

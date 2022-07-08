@@ -10,14 +10,12 @@ import { addGravatarUrlToResource } from "utilities/helpers";
 
 import { IActivity, ActivityType } from "interfaces/activity";
 
+import DataError from "components/DataError";
 import Avatar from "components/Avatar";
 import Button from "components/buttons/Button";
 import Spinner from "components/Spinner";
 // @ts-ignore
 import FleetIcon from "components/icons/FleetIcon";
-
-import ErrorIcon from "../../../../../assets/images/icon-error-16x16@2x.png";
-import OpenNewTabIcon from "../../../../../assets/images/open-new-tab-12x12@2x.png";
 
 const baseClass = "activity-feed";
 
@@ -104,6 +102,9 @@ const ActivityFeed = ({
           setShowMore(false);
         }
       },
+      onError: () => {
+        setShowActivityFeedTitle(true);
+      },
     }
   );
 
@@ -137,28 +138,7 @@ const ActivityFeed = ({
   };
 
   const renderError = () => {
-    return (
-      <div className={`${baseClass}__error`}>
-        <div className={`${baseClass}__inner`}>
-          <span className="info__header">
-            <img src={ErrorIcon} alt="error icon" id="error-icon" />
-            Something&apos;s gone wrong.
-          </span>
-          <span className="info__data">Refresh the page or log in again.</span>
-          <span className="info__data">
-            If this keeps happening, please&nbsp;
-            <a
-              href="https://github.com/fleetdm/fleet/issues"
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              file an issue
-              <img src={OpenNewTabIcon} alt="open new tab" id="new-tab-icon" />
-            </a>
-          </span>
-        </div>
-      </div>
-    );
+    return <DataError card />;
   };
 
   const renderNoActivities = () => {

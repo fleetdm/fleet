@@ -5,7 +5,7 @@
 
     .policy-page__warning {
       margin: 0;
-      margin-top: $pad-large;
+      margin-bottom: $pad-large;
     }
 
     .form-field--input {
@@ -226,6 +226,19 @@
     .fleet-checkbox__label {
       transform: translateY(2px);
     }
+  }
+
+  &__button-wrap--modal-save {
+    display: flex;
+  }
+
+  &__button--modal-save {
+    width: 106px;
+  }
+
+  &__save {
+    display: flex;
+    width: 64px;
   }
 
   &__platform-error {

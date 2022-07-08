@@ -21,7 +21,6 @@ linters-settings:
     list-type: blacklist
     include-go-root: false
     packages-with-error-message:
-      - github.com/rotisserie/eris: "use ctxerr.New or ctxerr.Wrap[f] instead"
       - github.com/pkg/errors: "use ctxerr if a context.Context is available or stdlib errors.New / fmt.Errorf with the %w verb"
   
   gosec:
@@ -33,7 +32,7 @@ linters-settings:
       - ruleguard
     settings:
       ruleguard:
-        rules: "tools/ci/rules.go"
+        rules: "./tools/ci/rules.go"
 
   gofmt:
     # simplify code: gofmt with `-s` option, true by default

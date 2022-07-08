@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"testing"
 	"time"
@@ -43,17 +44,27 @@ func TestHostDetails(t *testing.T) {
 	ds.ListPacksForHostFunc = func(ctx context.Context, hid uint) ([]*fleet.Pack, error) {
 		return expectedPacks, nil
 	}
-	ds.LoadHostSoftwareFunc = func(ctx context.Context, host *fleet.Host) error {
+	ds.LoadHostSoftwareFunc = func(ctx context.Context, host *fleet.Host, includeCVEScores bool) error {
 		return nil
 	}
 	ds.ListPoliciesForHostFunc = func(ctx context.Context, host *fleet.Host) ([]*fleet.HostPolicy, error) {
 		return nil, nil
 	}
+	expectedBats := []*fleet.HostBattery{{HostID: host.ID, SerialNumber: "a"}}
+	ds.ListHostBatteriesFunc = func(ctx context.Context, hostID uint) ([]*fleet.HostBattery, error) {
+		return expectedBats, nil
+	}
 
-	hostDetail, err := svc.getHostDetails(test.UserContext(test.UserAdmin), host)
+	opts := fleet.HostDetailOptions{
+		IncludeCVEScores: false,
+		IncludePolicies:  false,
+	}
+	hostDetail, err := svc.getHostDetails(test.UserContext(test.UserAdmin), host, opts)
 	require.NoError(t, err)
 	assert.Equal(t, expectedLabels, hostDetail.Labels)
 	assert.Equal(t, expectedPacks, hostDetail.Packs)
+	require.NotNil(t, hostDetail.Batteries)
+	assert.Equal(t, expectedBats, *hostDetail.Batteries)
 }
 
 func TestHostAuth(t *testing.T) {
@@ -72,7 +83,7 @@ func TestHostAuth(t *testing.T) {
 		}
 		return globalHost, nil
 	}
-	ds.HostFunc = func(ctx context.Context, id uint, skipLoadingExtras bool) (*fleet.Host, error) {
+	ds.HostFunc = func(ctx context.Context, id uint) (*fleet.Host, error) {
 		if id == 1 {
 			return teamHost, nil
 		}
@@ -87,7 +98,7 @@ func TestHostAuth(t *testing.T) {
 	ds.ListHostsFunc = func(ctx context.Context, filter fleet.TeamFilter, opt fleet.HostListOptions) ([]*fleet.Host, error) {
 		return nil, nil
 	}
-	ds.LoadHostSoftwareFunc = func(ctx context.Context, host *fleet.Host) error {
+	ds.LoadHostSoftwareFunc = func(ctx context.Context, host *fleet.Host, includeCVEScores bool) error {
 		return nil
 	}
 	ds.ListLabelsForHostFunc = func(ctx context.Context, hid uint) ([]*fleet.Label, error) {
@@ -100,6 +111,9 @@ func TestHostAuth(t *testing.T) {
 		return nil
 	}
 	ds.ListPoliciesForHostFunc = func(ctx context.Context, host *fleet.Host) ([]*fleet.HostPolicy, error) {
+		return nil, nil
+	}
+	ds.ListHostBatteriesFunc = func(ctx context.Context, hostID uint) ([]*fleet.HostBattery, error) {
 		return nil, nil
 	}
 	ds.DeleteHostsFunc = func(ctx context.Context, ids []uint) error {
@@ -182,17 +196,21 @@ func TestHostAuth(t *testing.T) {
 	for _, tt := range testCases {
 		t.Run(tt.name, func(t *testing.T) {
 			ctx := viewer.NewContext(context.Background(), viewer.Viewer{User: tt.user})
+			opts := fleet.HostDetailOptions{
+				IncludeCVEScores: false,
+				IncludePolicies:  false,
+			}
 
-			_, err := svc.GetHost(ctx, 1)
+			_, err := svc.GetHost(ctx, 1, opts)
 			checkAuthErr(t, tt.shouldFailTeamRead, err)
 
-			_, err = svc.HostByIdentifier(ctx, "1")
+			_, err = svc.HostByIdentifier(ctx, "1", opts)
 			checkAuthErr(t, tt.shouldFailTeamRead, err)
 
-			_, err = svc.GetHost(ctx, 2)
+			_, err = svc.GetHost(ctx, 2, opts)
 			checkAuthErr(t, tt.shouldFailGlobalRead, err)
 
-			_, err = svc.HostByIdentifier(ctx, "2")
+			_, err = svc.HostByIdentifier(ctx, "2", opts)
 			checkAuthErr(t, tt.shouldFailGlobalRead, err)
 
 			err = svc.DeleteHost(ctx, 1)
@@ -218,7 +236,7 @@ func TestHostAuth(t *testing.T) {
 		})
 	}
 
-	// List, GetHostSummary, FlushSeenHost work for all
+	// List, GetHostSummary work for all
 }
 
 func TestListHosts(t *testing.T) {
@@ -253,21 +271,29 @@ func TestGetHostSummary(t *testing.T) {
 	ds.GenerateHostStatusStatisticsFunc = func(ctx context.Context, filter fleet.TeamFilter, now time.Time, platform *string) (*fleet.HostSummary, error) {
 		return &fleet.HostSummary{
 			OnlineCount:      1,
-			OfflineCount:     2,
+			OfflineCount:     5, // offline hosts also includes mia hosts as of Fleet 4.15
 			MIACount:         3,
 			NewCount:         4,
 			TotalsHostsCount: 5,
+			Platforms:        []*fleet.HostSummaryPlatform{{Platform: "darwin", HostsCount: 1}, {Platform: "debian", HostsCount: 2}, {Platform: "centos", HostsCount: 3}, {Platform: "ubuntu", HostsCount: 4}},
 		}, nil
+	}
+	ds.LabelsSummaryFunc = func(ctx context.Context) ([]*fleet.LabelSummary, error) {
+		return []*fleet.LabelSummary{{ID: 1, Name: "All hosts", Description: "All hosts enrolled in Fleet", LabelType: fleet.LabelTypeBuiltIn}, {ID: 10, Name: "Other label", Description: "Not a builtin label", LabelType: fleet.LabelTypeRegular}}, nil
 	}
 
 	summary, err := svc.GetHostSummary(test.UserContext(test.UserAdmin), nil, nil)
 	require.NoError(t, err)
 	require.Nil(t, summary.TeamID)
 	require.Equal(t, uint(1), summary.OnlineCount)
-	require.Equal(t, uint(2), summary.OfflineCount)
+	require.Equal(t, uint(5), summary.OfflineCount)
 	require.Equal(t, uint(3), summary.MIACount)
 	require.Equal(t, uint(4), summary.NewCount)
 	require.Equal(t, uint(5), summary.TotalsHostsCount)
+	require.Len(t, summary.Platforms, 4)
+	require.Equal(t, uint(9), summary.AllLinuxCount)
+	require.Len(t, summary.BuiltinLabels, 1)
+	require.Equal(t, "All hosts", summary.BuiltinLabels[0].Name)
 
 	_, err = svc.GetHostSummary(test.UserContext(test.UserNoRoles), nil, nil)
 	require.NoError(t, err)
@@ -453,7 +479,7 @@ func TestEmptyTeamOSVersions(t *testing.T) {
 			return &fleet.OSVersions{CountsUpdatedAt: time.Now(), OSVersions: testVersions}, nil
 		}
 		if *teamID == 4 {
-			return nil, fmt.Errorf("some unknown error")
+			return nil, errors.New("some unknown error")
 		}
 
 		return nil, notFoundError{}
@@ -470,12 +496,12 @@ func TestEmptyTeamOSVersions(t *testing.T) {
 	assert.Empty(t, vers.OSVersions)
 
 	// team does not exist
-	vers, err = svc.OSVersions(test.UserContext(test.UserAdmin), ptr.Uint(3), ptr.String("darwin"))
+	_, err = svc.OSVersions(test.UserContext(test.UserAdmin), ptr.Uint(3), ptr.String("darwin"))
 	require.Error(t, err)
 	require.Equal(t, "not found", fmt.Sprint(err))
 
 	// some unknown error
-	vers, err = svc.OSVersions(test.UserContext(test.UserAdmin), ptr.Uint(4), ptr.String("darwin"))
+	_, err = svc.OSVersions(test.UserContext(test.UserAdmin), ptr.Uint(4), ptr.String("darwin"))
 	require.Error(t, err)
 	require.Equal(t, "some unknown error", fmt.Sprint(err))
 }

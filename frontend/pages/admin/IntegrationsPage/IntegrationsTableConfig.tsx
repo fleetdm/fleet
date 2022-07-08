@@ -5,11 +5,13 @@ import DropdownCell from "components/TableContainer/DataTable/DropdownCell";
 
 import {
   IJiraIntegration,
-  IJiraIntegrationIndexed,
+  IZendeskIntegration,
+  IIntegrationTableData as IIntegrationCompleteData,
 } from "interfaces/integration";
 import { IDropdownOption } from "interfaces/dropdownOption";
 
 import JiraIcon from "../../../../assets/images/icon-jira-24x24@2x.png";
+import ZendeskIcon from "../../../../assets/images/icon-zendesk-32x24@2x.png";
 
 interface IHeaderProps {
   column: {
@@ -20,7 +22,7 @@ interface IHeaderProps {
 
 interface IRowProps {
   row: {
-    original: IJiraIntegrationIndexed;
+    original: IIntegrationTableData;
   };
 }
 interface ICellProps extends IRowProps {
@@ -47,7 +49,7 @@ interface IDataColumn {
   sortType?: string;
 }
 
-export interface IIntegrationTableData extends IJiraIntegration {
+export interface IIntegrationTableData extends IIntegrationCompleteData {
   actions: IDropdownOption[];
   name: string;
 }
@@ -57,7 +59,7 @@ export interface IIntegrationTableData extends IJiraIntegration {
 const generateTableHeaders = (
   actionSelectHandler: (
     value: string,
-    integration: IJiraIntegrationIndexed
+    integration: IIntegrationTableData
   ) => void
 ): IDataColumn[] => {
   return [
@@ -66,8 +68,20 @@ const generateTableHeaders = (
       Header: "",
       disableSortBy: true,
       sortType: "caseInsensitive",
-      accessor: "logo",
-      Cell: () => <img src={JiraIcon} alt="jira-icon" />,
+      accessor: "type",
+      Cell: (cellProps: ICellProps) => {
+        return (
+          <div className={"logo-cell"}>
+            <img
+              src={cellProps.cell.value === "jira" ? JiraIcon : ZendeskIcon}
+              alt="integration-icon"
+              className={
+                cellProps.cell.value === "jira" ? "jira-icon" : "zendesk-icon"
+              }
+            />
+          </div>
+        );
+      },
     },
     {
       title: "Name",
@@ -101,11 +115,6 @@ const generateTableHeaders = (
 const generateActionDropdownOptions = (): IDropdownOption[] => {
   return [
     {
-      label: "Edit",
-      disabled: false,
-      value: "edit",
-    },
-    {
       label: "Delete",
       disabled: false,
       value: "delete",
@@ -113,28 +122,55 @@ const generateActionDropdownOptions = (): IDropdownOption[] => {
   ];
 };
 
-const enhanceIntegrationData = (
-  integrations: IJiraIntegrationIndexed[]
+const enhanceJiraData = (
+  jiraIntegrations: IJiraIntegration[]
 ): IIntegrationTableData[] => {
-  return Object.values(integrations).map((integration) => {
+  return jiraIntegrations.map((integration, index) => {
     return {
       url: integration.url,
       username: integration.username,
-      api_token: integration.api_token,
-      project_key: integration.project_key,
-      actions: generateActionDropdownOptions(),
-      enable_software_vulnerabilities:
+      apiToken: integration.api_token,
+      projectKey: integration.project_key,
+      enableSoftwareVulnerabilities:
         integration.enable_software_vulnerabilities,
       name: `${integration.url} - ${integration.project_key}`,
-      index: integration.index,
+      actions: generateActionDropdownOptions(),
+      originalIndex: index,
+      type: "jira",
     };
   });
 };
 
-const generateDataSet = (
-  integrations: IJiraIntegrationIndexed[]
+const enhanceZendeskData = (
+  zendeskIntegrations: IZendeskIntegration[]
 ): IIntegrationTableData[] => {
-  return [...enhanceIntegrationData(integrations)];
+  return zendeskIntegrations.map((integration, index) => {
+    return {
+      url: integration.url,
+      email: integration.email,
+      apiToken: integration.api_token,
+      groupId: integration.group_id,
+      enableSoftwareVulnerabilities:
+        integration.enable_software_vulnerabilities,
+      name: `${integration.url} - ${integration.group_id}`,
+      actions: generateActionDropdownOptions(),
+      originalIndex: index,
+      type: "zendesk",
+    };
+  });
 };
 
-export { generateTableHeaders, generateDataSet };
+const combineDataSets = (
+  jiraIntegrations: IJiraIntegration[],
+  zendeskIntegrations: IZendeskIntegration[]
+): IIntegrationTableData[] => {
+  const combine = [
+    ...enhanceJiraData(jiraIntegrations),
+    ...enhanceZendeskData(zendeskIntegrations),
+  ];
+  return combine.map((integration, index) => {
+    return { ...integration, tableIndex: index };
+  });
+};
+
+export { generateTableHeaders, combineDataSets };

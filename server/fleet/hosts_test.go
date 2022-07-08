@@ -28,12 +28,12 @@ func TestHostStatus(t *testing.T) {
 
 		{mockClock.Now().Add(-1 * time.Second), 10, 10, StatusOnline},
 		{mockClock.Now().Add(-2 * time.Minute), 10, 10, StatusOffline},
-		{mockClock.Now().Add(-31 * 24 * time.Hour), 10, 10, StatusMIA},
+		{mockClock.Now().Add(-31 * 24 * time.Hour), 10, 10, StatusOffline}, // As of Fleet 4.15, StatusMIA is deprecated in favor of StatusOffline
 
 		// Ensure behavior is reasonable if we don't have the values
 		{mockClock.Now().Add(-1 * time.Second), 0, 0, StatusOnline},
 		{mockClock.Now().Add(-2 * time.Minute), 0, 0, StatusOffline},
-		{mockClock.Now().Add(-31 * 24 * time.Hour), 0, 0, StatusMIA},
+		{mockClock.Now().Add(-31 * 24 * time.Hour), 0, 0, StatusOffline}, // As of Fleet 4.15, StatusMIA is deprecated in favor of StatusOffline
 	}
 
 	for _, tt := range testCases {

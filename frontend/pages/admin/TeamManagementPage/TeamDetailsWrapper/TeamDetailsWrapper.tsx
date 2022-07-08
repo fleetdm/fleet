@@ -10,7 +10,10 @@ import { NotificationContext } from "context/notification";
 import { AppContext } from "context/app";
 import PATHS from "router/paths";
 import { ITeam, ITeamSummary } from "interfaces/team";
-import teamsAPI from "services/entities/teams";
+import teamsAPI, {
+  ILoadTeamsResponse,
+  ITeamFormData,
+} from "services/entities/teams";
 import usersAPI, { IGetMeResponse } from "services/entities/users";
 import enrollSecretsAPI from "services/entities/enroll_secret";
 import {
@@ -28,7 +31,6 @@ import TeamsDropdown from "components/TeamsDropdown";
 import { getNextLocationPath } from "pages/admin/UserManagementPage/helpers/userManagementHelpers";
 import DeleteTeamModal from "../components/DeleteTeamModal";
 import EditTeamModal from "../components/EditTeamModal";
-import { IEditTeamFormData } from "../components/EditTeamModal/EditTeamModal";
 import DeleteSecretModal from "../../../../components/DeleteSecretModal";
 import SecretEditorModal from "../../../../components/SecretEditorModal";
 import AddHostsModal from "../../../../components/AddHostsModal";
@@ -57,10 +59,6 @@ const teamDetailsSubNav: ITeamDetailsSubNavItem[] = [
   },
 ];
 
-interface ITeamsResponse {
-  teams: ITeam[];
-}
-
 interface ITeamDetailsPageProps {
   children: JSX.Element;
   params: {
@@ -75,8 +73,8 @@ interface ITeamDetailsPageProps {
 
 const generateUpdateData = (
   currentTeam: ITeamSummary,
-  formData: IEditTeamFormData
-): IEditTeamFormData | null => {
+  formData: ITeamFormData
+): ITeamFormData | null => {
   if (currentTeam.name !== formData.name) {
     return {
       name: formData.name,
@@ -129,6 +127,8 @@ const TeamDetailsWrapper = ({
   const [backendValidators, setBackendValidators] = useState<{
     [key: string]: string;
   }>({});
+  const [teamIsRemoving, setTeamIsRemoving] = useState<boolean>(false);
+  const [teamIsEditing, setTeamIsEditing] = useState<boolean>(false);
 
   const { refetch: refetchMe } = useQuery(["me"], () => usersAPI.me(), {
     enabled: false,
@@ -142,11 +142,11 @@ const TeamDetailsWrapper = ({
     data: teams,
     isLoading: isLoadingTeams,
     refetch: refetchTeams,
-  } = useQuery<ITeamsResponse, Error, ITeam[]>(
+  } = useQuery<ILoadTeamsResponse, Error, ITeam[]>(
     ["teams"],
     () => teamsAPI.loadAll(),
     {
-      select: (data: ITeamsResponse) =>
+      select: (data: ILoadTeamsResponse) =>
         data.teams.sort((a, b) => sortUtils.caseInsensitiveAsc(a.name, b.name)),
       onSuccess: (responseTeams: ITeam[]) => {
         const findTeam = responseTeams.find(
@@ -284,7 +284,7 @@ const TeamDetailsWrapper = ({
       return false;
     }
 
-    toggleDeleteTeamModal();
+    setTeamIsRemoving(true);
 
     try {
       await teamsAPI.destroy(currentTeam.id);
@@ -294,11 +294,14 @@ const TeamDetailsWrapper = ({
       renderFlash("error", "Something went wrong removing the team");
       console.error(response);
       return false;
+    } finally {
+      toggleDeleteTeamModal();
+      setTeamIsRemoving(false);
     }
   }, [toggleDeleteTeamModal, currentTeam?.id]);
 
   const onEditSubmit = useCallback(
-    async (formData: IEditTeamFormData) => {
+    async (formData: ITeamFormData) => {
       const updatedAttrs =
         currentTeam && generateUpdateData(currentTeam, formData);
 
@@ -311,6 +314,8 @@ const TeamDetailsWrapper = ({
         toggleEditTeamModal();
         return;
       }
+
+      setTeamIsEditing(true);
 
       try {
         await teamsAPI.update(updatedAttrs, currentTeam.id);
@@ -338,6 +343,8 @@ const TeamDetailsWrapper = ({
         }
 
         return false;
+      } finally {
+        setTeamIsEditing(false);
       }
     },
     [toggleEditTeamModal, currentTeam, setBackendValidators]
@@ -519,6 +526,7 @@ const TeamDetailsWrapper = ({
           onCancel={toggleDeleteTeamModal}
           onSubmit={onDeleteSubmit}
           name={currentTeam.name}
+          isLoading={teamIsRemoving}
         />
       )}
       {showEditTeamModal && (
@@ -527,6 +535,7 @@ const TeamDetailsWrapper = ({
           onSubmit={onEditSubmit}
           defaultName={currentTeam.name}
           backendValidators={backendValidators}
+          isLoading={teamIsEditing}
         />
       )}
       {children}

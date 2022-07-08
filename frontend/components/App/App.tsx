@@ -69,15 +69,22 @@ const App = ({ children, location, router }: IAppProps): JSX.Element => {
       setAvailableTeams(available_teams);
       fetchConfig();
     } catch (error) {
-      console.log(error);
-      local.removeItem("auth_token");
-      window.location.href = "/login";
+      if (!location?.pathname.includes("/login/reset")) {
+        console.log(error);
+        local.removeItem("auth_token");
+
+        // if this is not the device user page,
+        // redirect to login
+        if (!location?.pathname.includes("/device/")) {
+          window.location.href = "/login";
+        }
+      }
     }
     return true;
   };
 
   useEffect(() => {
-    if (authToken()) {
+    if (authToken() && !location?.pathname.includes("/device/")) {
       fetchCurrentUser();
     }
   }, [location?.pathname]);
@@ -90,7 +97,8 @@ const App = ({ children, location, router }: IAppProps): JSX.Element => {
       typeof isOnlyObserver !== "undefined" &&
       !isOnlyObserver &&
       typeof isAnyTeamMaintainerOrTeamAdmin !== "undefined" &&
-      !isAnyTeamMaintainerOrTeamAdmin;
+      !isAnyTeamMaintainerOrTeamAdmin &&
+      !location?.pathname.includes("/device/");
 
     const getEnrollSecret = async () => {
       try {

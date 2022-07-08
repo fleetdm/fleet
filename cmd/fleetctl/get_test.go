@@ -115,7 +115,7 @@ func TestGetTeams(t *testing.T) {
 	for _, tt := range testCases {
 		t.Run(tt.name, func(t *testing.T) {
 			license := tt.license
-			_, ds := runServerWithMockedDS(t, service.TestServerOpts{License: license})
+			_, ds := runServerWithMockedDS(t, &service.TestServerOpts{License: license})
 
 			agentOpts := json.RawMessage(`{"config":{"foo":"bar"},"overrides":{"platforms":{"darwin":{"foo":"override"}}}}`)
 			ds.ListTeamsFunc = func(ctx context.Context, filter fleet.TeamFilter, opt fleet.ListOptions) ([]*fleet.Team, error) {
@@ -159,6 +159,9 @@ spec:
     description: team1 description
     host_count: 0
     id: 42
+    integrations:
+      jira: null
+      zendesk: null
     name: team1
     user_count: 99
     webhook_settings:
@@ -183,6 +186,9 @@ spec:
     description: team2 description
     host_count: 0
     id: 43
+    integrations:
+      jira: null
+      zendesk: null
     name: team2
     user_count: 87
     webhook_settings:
@@ -192,8 +198,8 @@ spec:
         host_batch_size: 0
         policy_ids: null
 `
-			expectedJson := `{"kind":"team","apiVersion":"v1","spec":{"team":{"id":42,"created_at":"1999-03-10T02:45:06.371Z","name":"team1","description":"team1 description","webhook_settings":{"failing_policies_webhook":{"enable_failing_policies_webhook":false,"destination_url":"","policy_ids":null,"host_batch_size":0}},"user_count":99,"host_count":0}}}
-{"kind":"team","apiVersion":"v1","spec":{"team":{"id":43,"created_at":"1999-03-10T02:45:06.371Z","name":"team2","description":"team2 description","agent_options":{"config":{"foo":"bar"},"overrides":{"platforms":{"darwin":{"foo":"override"}}}},"webhook_settings":{"failing_policies_webhook":{"enable_failing_policies_webhook":false,"destination_url":"","policy_ids":null,"host_batch_size":0}},"user_count":87,"host_count":0}}}
+			expectedJson := `{"kind":"team","apiVersion":"v1","spec":{"team":{"id":42,"created_at":"1999-03-10T02:45:06.371Z","name":"team1","description":"team1 description","webhook_settings":{"failing_policies_webhook":{"enable_failing_policies_webhook":false,"destination_url":"","policy_ids":null,"host_batch_size":0}},"integrations":{"jira":null,"zendesk":null},"user_count":99,"host_count":0}}}
+{"kind":"team","apiVersion":"v1","spec":{"team":{"id":43,"created_at":"1999-03-10T02:45:06.371Z","name":"team2","description":"team2 description","agent_options":{"config":{"foo":"bar"},"overrides":{"platforms":{"darwin":{"foo":"override"}}}},"webhook_settings":{"failing_policies_webhook":{"enable_failing_policies_webhook":false,"destination_url":"","policy_ids":null,"host_batch_size":0}},"integrations":{"jira":null,"zendesk":null},"user_count":87,"host_count":0}}}
 `
 			if tt.shouldHaveExpiredBanner {
 				expectedJson = expiredBanner.String() + expectedJson
@@ -209,7 +215,7 @@ spec:
 }
 
 func TestGetTeamsByName(t *testing.T) {
-	_, ds := runServerWithMockedDS(t, service.TestServerOpts{License: &fleet.LicenseInfo{Tier: fleet.TierPremium, Expiration: time.Now().Add(24 * time.Hour)}})
+	_, ds := runServerWithMockedDS(t, &service.TestServerOpts{License: &fleet.LicenseInfo{Tier: fleet.TierPremium, Expiration: time.Now().Add(24 * time.Hour)}})
 
 	ds.ListTeamsFunc = func(ctx context.Context, filter fleet.TeamFilter, opt fleet.ListOptions) ([]*fleet.Team, error) {
 		require.Equal(t, "test1", opt.MatchQuery)
@@ -292,7 +298,7 @@ func TestGetHosts(t *testing.T) {
 		}, nil
 	}
 
-	ds.LoadHostSoftwareFunc = func(ctx context.Context, host *fleet.Host) error {
+	ds.LoadHostSoftwareFunc = func(ctx context.Context, host *fleet.Host, includeCVEScores bool) error {
 		return nil
 	}
 	ds.ListLabelsForHostFunc = func(ctx context.Context, hid uint) ([]*fleet.Label, error) {
@@ -300,6 +306,9 @@ func TestGetHosts(t *testing.T) {
 	}
 	ds.ListPacksForHostFunc = func(ctx context.Context, hid uint) (packs []*fleet.Pack, err error) {
 		return make([]*fleet.Pack, 0), nil
+	}
+	ds.ListHostBatteriesFunc = func(ctx context.Context, hid uint) (batteries []*fleet.HostBattery, err error) {
+		return nil, nil
 	}
 	defaultPolicyQuery := "select 1 from osquery_info where start_time > 1;"
 	ds.ListPoliciesForHostFunc = func(ctx context.Context, host *fleet.Host) ([]*fleet.HostPolicy, error) {
@@ -335,13 +344,13 @@ func TestGetHosts(t *testing.T) {
 		}, nil
 	}
 
-	expectedText := `+------+------------+----------+-----------------+--------+
-| UUID |  HOSTNAME  | PLATFORM | OSQUERY VERSION | STATUS |
-+------+------------+----------+-----------------+--------+
-|      | test_host  |          |                 | mia    |
-+------+------------+----------+-----------------+--------+
-|      | test_host2 |          |                 | mia    |
-+------+------------+----------+-----------------+--------+
+	expectedText := `+------+------------+----------+-----------------+---------+
+| UUID |  HOSTNAME  | PLATFORM | OSQUERY VERSION | STATUS  |
++------+------------+----------+-----------------+---------+
+|      | test_host  |          |                 | offline |
++------+------------+----------+-----------------+---------+
+|      | test_host2 |          |                 | offline |
++------+------------+----------+-----------------+---------+
 `
 
 	jsonPrettify := func(t *testing.T, v string) string {
@@ -434,6 +443,8 @@ func TestGetConfig(t *testing.T) {
 apiVersion: v1
 kind: config
 spec:
+  fleet_desktop:
+    transparency_url: https://fleetdm.com/transparency
   host_expiry_settings:
     host_expiry_enabled: false
     host_expiry_window: 0
@@ -442,6 +453,7 @@ spec:
     enable_software_inventory: false
   integrations:
     jira: null
+    zendesk: null
   org_info:
     org_logo_url: ""
     org_name: ""
@@ -492,7 +504,7 @@ spec:
       enable_vulnerabilities_webhook: false
       host_batch_size: 0
 `
-		expectedJson := `{"kind":"config","apiVersion":"v1","spec":{"org_info":{"org_name":"","org_logo_url":""},"server_settings":{"server_url":"","live_query_disabled":false,"enable_analytics":false,"deferred_save_host":false},"smtp_settings":{"enable_smtp":false,"configured":false,"sender_address":"","server":"","port":0,"authentication_type":"","user_name":"","password":"","enable_ssl_tls":false,"authentication_method":"","domain":"","verify_ssl_certs":false,"enable_start_tls":false},"host_expiry_settings":{"host_expiry_enabled":false,"host_expiry_window":0},"host_settings":{"enable_host_users":true,"enable_software_inventory":false},"sso_settings":{"entity_id":"","issuer_uri":"","idp_image_url":"","metadata":"","metadata_url":"","idp_name":"","enable_sso":false,"enable_sso_idp_login":false},"vulnerability_settings":{"databases_path":"/some/path"},"webhook_settings":{"host_status_webhook":{"enable_host_status_webhook":false,"destination_url":"","host_percentage":0,"days_count":0},"failing_policies_webhook":{"enable_failing_policies_webhook":false,"destination_url":"","policy_ids":null,"host_batch_size":0},"vulnerabilities_webhook":{"enable_vulnerabilities_webhook":false,"destination_url":"","host_batch_size":0},"interval":"0s"},"integrations":{"jira":null}}}
+		expectedJson := `{"kind":"config","apiVersion":"v1","spec":{"org_info":{"org_name":"","org_logo_url":""},"server_settings":{"server_url":"","live_query_disabled":false,"enable_analytics":false,"deferred_save_host":false},"smtp_settings":{"enable_smtp":false,"configured":false,"sender_address":"","server":"","port":0,"authentication_type":"","user_name":"","password":"","enable_ssl_tls":false,"authentication_method":"","domain":"","verify_ssl_certs":false,"enable_start_tls":false},"host_expiry_settings":{"host_expiry_enabled":false,"host_expiry_window":0},"host_settings":{"enable_host_users":true,"enable_software_inventory":false},"sso_settings":{"entity_id":"","issuer_uri":"","idp_image_url":"","metadata":"","metadata_url":"","idp_name":"","enable_sso":false,"enable_sso_idp_login":false},"fleet_desktop":{"transparency_url":"https://fleetdm.com/transparency"},"vulnerability_settings":{"databases_path":"/some/path"},"webhook_settings":{"host_status_webhook":{"enable_host_status_webhook":false,"destination_url":"","host_percentage":0,"days_count":0},"failing_policies_webhook":{"enable_failing_policies_webhook":false,"destination_url":"","policy_ids":null,"host_batch_size":0},"vulnerabilities_webhook":{"enable_vulnerabilities_webhook":false,"destination_url":"","host_batch_size":0},"interval":"0s"},"integrations":{"jira":null,"zendesk":null}}}
 `
 
 		assert.Equal(t, expectedYaml, runAppForTest(t, []string{"get", "config"}))
@@ -505,6 +517,8 @@ spec:
 apiVersion: v1
 kind: config
 spec:
+  fleet_desktop:
+    transparency_url: https://fleetdm.com/transparency
   host_expiry_settings:
     host_expiry_enabled: false
     host_expiry_window: 0
@@ -513,6 +527,7 @@ spec:
     enable_software_inventory: false
   integrations:
     jira: null
+    zendesk: null
   license:
     expiration: "0001-01-01T00:00:00Z"
     tier: free
@@ -594,7 +609,7 @@ spec:
       enable_vulnerabilities_webhook: false
       host_batch_size: 0
 `
-		expectedJson := `{"kind":"config","apiVersion":"v1","spec":{"org_info":{"org_name":"","org_logo_url":""},"server_settings":{"server_url":"","live_query_disabled":false,"enable_analytics":false,"deferred_save_host":false},"smtp_settings":{"enable_smtp":false,"configured":false,"sender_address":"","server":"","port":0,"authentication_type":"","user_name":"","password":"","enable_ssl_tls":false,"authentication_method":"","domain":"","verify_ssl_certs":false,"enable_start_tls":false},"host_expiry_settings":{"host_expiry_enabled":false,"host_expiry_window":0},"host_settings":{"enable_host_users":true,"enable_software_inventory":false},"sso_settings":{"entity_id":"","issuer_uri":"","idp_image_url":"","metadata":"","metadata_url":"","idp_name":"","enable_sso":false,"enable_sso_idp_login":false},"vulnerability_settings":{"databases_path":"/some/path"},"webhook_settings":{"host_status_webhook":{"enable_host_status_webhook":false,"destination_url":"","host_percentage":0,"days_count":0},"failing_policies_webhook":{"enable_failing_policies_webhook":false,"destination_url":"","policy_ids":null,"host_batch_size":0},"vulnerabilities_webhook":{"enable_vulnerabilities_webhook":false,"destination_url":"","host_batch_size":0},"interval":"0s"},"integrations":{"jira":null},"update_interval":{"osquery_detail":"1h0m0s","osquery_policy":"1h0m0s"},"vulnerabilities":{"databases_path":"","periodicity":"0s","cpe_database_url":"","cve_feed_prefix_url":"","current_instance_checks":"","disable_data_sync":false,"recent_vulnerability_max_age":"0s"},"license":{"tier":"free","expiration":"0001-01-01T00:00:00Z"},"logging":{"debug":true,"json":false,"result":{"plugin":"filesystem","config":{"enable_log_compression":false,"enable_log_rotation":false,"result_log_file":"/dev/null","status_log_file":"/dev/null"}},"status":{"plugin":"filesystem","config":{"enable_log_compression":false,"enable_log_rotation":false,"result_log_file":"/dev/null","status_log_file":"/dev/null"}}}}}
+		expectedJson := `{"kind":"config","apiVersion":"v1","spec":{"org_info":{"org_name":"","org_logo_url":""},"server_settings":{"server_url":"","live_query_disabled":false,"enable_analytics":false,"deferred_save_host":false},"smtp_settings":{"enable_smtp":false,"configured":false,"sender_address":"","server":"","port":0,"authentication_type":"","user_name":"","password":"","enable_ssl_tls":false,"authentication_method":"","domain":"","verify_ssl_certs":false,"enable_start_tls":false},"host_expiry_settings":{"host_expiry_enabled":false,"host_expiry_window":0},"host_settings":{"enable_host_users":true,"enable_software_inventory":false},"sso_settings":{"entity_id":"","issuer_uri":"","idp_image_url":"","metadata":"","metadata_url":"","idp_name":"","enable_sso":false,"enable_sso_idp_login":false},"fleet_desktop":{"transparency_url":"https://fleetdm.com/transparency"},"vulnerability_settings":{"databases_path":"/some/path"},"webhook_settings":{"host_status_webhook":{"enable_host_status_webhook":false,"destination_url":"","host_percentage":0,"days_count":0},"failing_policies_webhook":{"enable_failing_policies_webhook":false,"destination_url":"","policy_ids":null,"host_batch_size":0},"vulnerabilities_webhook":{"enable_vulnerabilities_webhook":false,"destination_url":"","host_batch_size":0},"interval":"0s"},"integrations":{"jira":null,"zendesk":null},"update_interval":{"osquery_detail":"1h0m0s","osquery_policy":"1h0m0s"},"vulnerabilities":{"databases_path":"","periodicity":"0s","cpe_database_url":"","cve_feed_prefix_url":"","current_instance_checks":"","disable_data_sync":false,"recent_vulnerability_max_age":"0s"},"license":{"tier":"free","expiration":"0001-01-01T00:00:00Z"},"logging":{"debug":true,"json":false,"result":{"plugin":"filesystem","config":{"enable_log_compression":false,"enable_log_rotation":false,"result_log_file":"/dev/null","status_log_file":"/dev/null"}},"status":{"plugin":"filesystem","config":{"enable_log_compression":false,"enable_log_rotation":false,"result_log_file":"/dev/null","status_log_file":"/dev/null"}}}}}
 `
 
 		assert.Equal(t, expectedYaml, runAppForTest(t, []string{"get", "config", "--include-server-config"}))
@@ -603,12 +618,12 @@ spec:
 	})
 }
 
-func TestGetSoftawre(t *testing.T) {
+func TestGetSoftware(t *testing.T) {
 	_, ds := runServerWithMockedDS(t)
 
 	foo001 := fleet.Software{
 		Name: "foo", Version: "0.0.1", Source: "chrome_extensions", GenerateCPE: "somecpe",
-		Vulnerabilities: fleet.VulnerabilitiesSlice{
+		Vulnerabilities: fleet.Vulnerabilities{
 			{CVE: "cve-321-432-543", DetailsLink: "https://nvd.nist.gov/vuln/detail/cve-321-432-543"},
 			{CVE: "cve-333-444-555", DetailsLink: "https://nvd.nist.gov/vuln/detail/cve-333-444-555"},
 		},
@@ -671,12 +686,61 @@ spec:
   version: 0.0.3
   vulnerabilities: null
 `
-	expectedJson := `{"kind":"software","apiVersion":"1","spec":[{"id":0,"name":"foo","version":"0.0.1","source":"chrome_extensions","generated_cpe":"somecpe","vulnerabilities":[{"cve":"cve-321-432-543","details_link":"https://nvd.nist.gov/vuln/detail/cve-321-432-543"},{"cve":"cve-333-444-555","details_link":"https://nvd.nist.gov/vuln/detail/cve-333-444-555"}]},{"id":0,"name":"foo","version":"0.0.2","source":"chrome_extensions","generated_cpe":"","vulnerabilities":null},{"id":0,"name":"foo","version":"0.0.3","source":"chrome_extensions","generated_cpe":"someothercpewithoutvulns","vulnerabilities":null},{"id":0,"name":"bar","version":"0.0.3","bundle_identifier":"bundle","source":"deb_packages","generated_cpe":"","vulnerabilities":null}]}
+
+	expectedJson := `
+{
+  "kind": "software",
+  "apiVersion": "1",
+  "spec": [
+    {
+      "id": 0,
+      "name": "foo",
+      "version": "0.0.1",
+      "source": "chrome_extensions",
+      "generated_cpe": "somecpe",
+      "vulnerabilities": [
+        {
+          "cve": "cve-321-432-543",
+          "details_link": "https://nvd.nist.gov/vuln/detail/cve-321-432-543"
+        },
+        {
+          "cve": "cve-333-444-555",
+          "details_link": "https://nvd.nist.gov/vuln/detail/cve-333-444-555"
+        }
+      ]
+    },
+    {
+      "id": 0,
+      "name": "foo",
+      "version": "0.0.2",
+      "source": "chrome_extensions",
+      "generated_cpe": "",
+      "vulnerabilities": null
+    },
+    {
+      "id": 0,
+      "name": "foo",
+      "version": "0.0.3",
+      "source": "chrome_extensions",
+      "generated_cpe": "someothercpewithoutvulns",
+      "vulnerabilities": null
+    },
+    {
+      "id": 0,
+      "name": "bar",
+      "version": "0.0.3",
+      "bundle_identifier": "bundle",
+      "source": "deb_packages",
+      "generated_cpe": "",
+      "vulnerabilities": null
+    }
+  ]
+}
 `
 
 	assert.Equal(t, expected, runAppForTest(t, []string{"get", "software"}))
-	assert.Equal(t, expectedYaml, runAppForTest(t, []string{"get", "software", "--yaml"}))
-	assert.Equal(t, expectedJson, runAppForTest(t, []string{"get", "software", "--json"}))
+	assert.YAMLEq(t, expectedYaml, runAppForTest(t, []string{"get", "software", "--yaml"}))
+	assert.JSONEq(t, expectedJson, runAppForTest(t, []string{"get", "software", "--json"}))
 
 	runAppForTest(t, []string{"get", "software", "--json", "--team", "999"})
 	require.NotNil(t, gotTeamID)

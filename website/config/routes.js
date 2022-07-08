@@ -68,15 +68,15 @@ module.exports.routes = {
     }
   },
 
-  'r|/((device-management|securing|releases|engineering|guides|announcements|use-cases)/(.+))$|': {
+  'r|/((device-management|securing|releases|engineering|guides|announcements|use-cases|podcasts|report)/(.+))$|': {
     skipAssets: false,
     action: 'articles/view-basic-article',
     locals: {
       currentPage: 'articles',
     }
-  },// handles /device-management/foo, /securing/foo, /releases/foo, /engineering/foo, /guides/foo, /announcements/foo, /use-cases/foo
+  },// handles /device-management/foo, /securing/foo, /releases/foo, /engineering/foo, /guides/foo, /announcements/foo, /use-cases/foo, /podcasts/foo, /report/foo
 
-  'r|^/((device-management|securing|releases|engineering|guides|announcements|use-cases|articles))/*$|category': {
+  'r|^/((device-management|securing|releases|engineering|guides|announcements|use-cases|articles|podcasts|report))/*$|category': {
     skipAssets: false,
     action: 'articles/view-articles',
     locals: {
@@ -170,6 +170,24 @@ module.exports.routes = {
     }
   },
 
+  'GET /reports/state-of-device-management': {
+    action: 'reports/view-state-of-device-management',
+    locals: {
+      pageTitleForMeta: 'State of device management | Fleet for osquery',
+      pageDescriptionForMeta: 'We surveyed 200+ security practitioners to discover the state of device management in 2022. Click here to learn about their struggles and best practices.',
+      headerCTAHidden: true,
+    }
+  },
+
+  'GET /overview': {
+    action: 'view-sales-one-pager',
+    locals: {
+      pageTitleForMeta: 'Overview | Fleet for osquery',
+      pageDescriptionForMeta: 'Fleet helps security and IT teams protect their devices. We\'re the single source of truth for workstation and server telemetry. Click to learn more!',
+      layout: 'layouts/layout-landing'
+    },
+  },
+
 
 
   //  ╦  ╔═╗╔═╗╔═╗╔═╗╦ ╦  ╦═╗╔═╗╔╦╗╦╦═╗╔═╗╔═╗╔╦╗╔═╗
@@ -233,6 +251,7 @@ module.exports.routes = {
   // Things that are not webpages here (in the Sails app) yet, but could be in the future.  For now they are just
   // redirects to somewhere else EXTERNAL to the Sails app.
   'GET /security':               'https://github.com/fleetdm/fleet/security/policy',
+  'GET /trust':                  'https://app.vanta.com/fleet/trust/5i2ulsbd76k619q9leaoh0',
   'GET /hall-of-fame':           'https://github.com/fleetdm/fleet/pulse',
   'GET /apply':                  'https://fleet-device-management.breezy.hr',
   'GET /jobs':                   'https://fleet-device-management.breezy.hr',

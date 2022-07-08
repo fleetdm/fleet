@@ -170,7 +170,7 @@
         <div purpose="right-sidebar" class="order-first order-lg-last p-0 pb-2 pb-lg-0 pr-lg-0 right-sidebar" v-if="!thisPage.title.includes('FAQ')">
 
           <p class="font-weight-bold pb-2 m-0 mb-2" v-if="!_.isEmpty(subtopics)">On this page:</p>
-          <div purpose="subtopics">
+          <div purpose="subtopics" v-if="!_.isEmpty(subtopics)">
             <ul class="p-0 m-0">
               <!-- <li v-for="(subtopic, index) in subtopics" :class="pl-lg-2 pb-3 pb-1g-2 subtopic" :key="index">
                 <a :class="getActiveSubtopicClass(currentLocation, subtopic.url)" :href="subtopic.url">{{subtopic.title}}</a>
@@ -183,7 +183,15 @@
               </li>
             </ul>
           </div>
-
+          <div class="d-none d-lg-block" purpose="swag-cta">
+            <a class="d-flex flex-column align-items-center justify-content-center" href="https://kqphpqst851.typeform.com/to/ZfA3sOu0" target="_blank">
+              <img style="height: auto; width: 54px; margin-right: 5px;" alt="A very nice Fleet branded shirt" src="/images/fleet-shirt-60x55@2x.png">
+              <p class="mb-0"><strong>Request Fleet swag</strong></p>
+              <span>
+                It's free <img purpose="right-arrow" class="d-inline" style="height: 16px; width: auto; margin-bottom: 2px;" alt="right arrow" src="/images/arrow-right-red-16x16@2x.png" />
+              </span>
+            </a>
+          </div>
           <!-- <div v-if="!_.isEmpty(relatedTopics)">
             <h6 class="d-none d-lg-block font-weight-bold py-2">Related topics</h6>
             <ul class="d-none d-lg-block p-0">
@@ -209,22 +217,19 @@
             )
           ) %>
 
-          <div class="d-block pb-3" v-if="thisPage.title === 'Learn how to use Fleet'">
-            <h3 style="font-size: 24px; line-height: 28px;">Next steps</h3>
+          <div class="d-block" purpose="slack-cta">
+            <h3 class="pt-0" style="font-size: 24px; line-height: 28px;">Need more help?</h3>
             <div class="d-sm-flex">
-              <a href="/docs/deploying" class="d-flex btn btn-primary btn-md justify-content-center mr-sm-3" purpose="next-steps-button">
-                Learn how to deploy Fleet
-              </a>
               <a href="/slack" target="_blank" class="d-flex btn btn-md btn-outline-secondary justify-content-center align-items-center mt-3 mt-sm-0" purpose="next-steps-button">
                 <img class="pr-3" alt="Slack logo" src="/images/logo-slack-24x24@2x.png"/>
-                Ask for help on Slack
+                Ask the community on Slack
               </a>
             </div>
           </div>
-          <div class="d-block" v-else>
-            <h3 class="pb-4 m-0">Is there something missing?</h3>
+          <div class="d-block">
+            <h3 class="pt-0 pb-4 m-0">Did we miss anything?</h3>
             <p>
-              If you notice something we’ve missed, or that could be improved, please click <a :href="'https://github.com/fleetdm/fleet/edit/main/docs/'+thisPage.sectionRelativeRepoPath" target="_blank">here</a> to edit this page.
+              If you notice something we've missed or could be improved on, please follow <a :href="'https://github.com/fleetdm/fleet/edit/main/docs/'+thisPage.sectionRelativeRepoPath" target="_blank">this link</a> and submit a pull request to the Fleet repo.
             </p>
           </div>
 

@@ -4,11 +4,6 @@
     color: $core-vibrant-blue;
     font-weight: $bold;
     text-decoration: none;
-
-    img {
-      transform: scale(0.5);
-      vertical-align: bottom;
-    }
   }
 
   &__header-wrap {
@@ -45,10 +40,6 @@
 
     .fleeticon-offline {
       color: $ui-error;
-    }
-
-    .fleeticon-mia {
-      color: $core-fleet-black;
     }
   }
 
@@ -275,6 +266,11 @@
 
       &__inner-text {
         width: 485px;
+        img {
+          width: 12px;
+          position: relative;
+          top: 1px;
+        }
       }
     }
   }

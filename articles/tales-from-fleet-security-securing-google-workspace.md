@@ -1,5 +1,7 @@
 # Tales from Fleet security: securing Google Workspace
 
+![Securing Google Workspace](../website/assets/images/articles/tales-from-fleet-security-securing-google-workspace-cover-1600x900@2x.jpg)
+
 At Fleet, we collaborate using various SaaS tools, from GitHub to Google Workspace and Slack. Since we use our Google identities for many of these, Workspace is the most critical one from a security point of view.
 
 Our high-level goals are to:
@@ -14,7 +16,7 @@ We focused on strengthening authentication, monitoring, email security, access t
 
 Expressed on the [Cyber Defense Matrix](https://cyberdefensematrix.com/), we want to identify users correctly, using 2FA, to protect applications, in this case, the applications in Google Workspace. We also want to protect data contained in our Google Workspace environment by implementing access controls to limit third-party applications’ access to it.
 
-![Cyber Defense Matrix](https://miro.medium.com/1*XoGaXKI51QyIFYcyXv9Zgw.png)
+![Cyber Defense Matrix](../website/assets/images/articles/tales-from-fleet-security-securing-google-workspace-1-800x450@2x.png)
 
 ## Challenges
 
@@ -68,3 +70,5 @@ In my next post, I’ll cover how we deployed the [OSSF scorecard](https://githu
 <meta name="authorGitHubUsername" value="GuillaumeRoss">
 <meta name="publishedOn" value="2022-03-25">
 <meta name="articleTitle" value="Tales from Fleet security: securing Google Workspace">
+<meta name="articleImageUrl" value="../website/assets/images/articles/tales-from-fleet-security-securing-google-workspace-cover-1600x900@2x.jpg">
+

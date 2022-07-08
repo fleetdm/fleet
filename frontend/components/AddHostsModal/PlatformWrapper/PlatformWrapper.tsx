@@ -16,6 +16,7 @@ import Button from "components/buttons/Button";
 import RevealButton from "components/buttons/RevealButton";
 // @ts-ignore
 import InputField from "components/forms/fields/InputField";
+import Checkbox from "components/forms/fields/Checkbox";
 import TooltipWrapper from "components/TooltipWrapper";
 import TabsWrapper from "components/TabsWrapper";
 
@@ -104,26 +105,26 @@ const PlatformWrapper = ({
 # Enrollment
 --host_identifier=instance
 --enroll_secret_path=secret.txt
---enroll_tls_endpoint=/api/latest/osquery/enroll
+--enroll_tls_endpoint=/api/osquery/enroll
 # Configuration
 --config_plugin=tls
---config_tls_endpoint=/api/latest/osquery/config
+--config_tls_endpoint=/api/osquery/config
 --config_refresh=10
 # Live query
 --disable_distributed=false
 --distributed_plugin=tls
 --distributed_interval=10
 --distributed_tls_max_attempts=3
---distributed_tls_read_endpoint=/api/latest/osquery/distributed/read
---distributed_tls_write_endpoint=/api/latest/osquery/distributed/write
+--distributed_tls_read_endpoint=/api/osquery/distributed/read
+--distributed_tls_write_endpoint=/api/osquery/distributed/write
 # Logging
 --logger_plugin=tls
---logger_tls_endpoint=/api/latest/osquery/log
+--logger_tls_endpoint=/api/osquery/log
 --logger_tls_period=10
 # File carving
 --disable_carver=false
---carver_start_endpoint=/api/latest/osquery/carve/begin
---carver_continue_endpoint=/api/latest/osquery/carve/block
+--carver_start_endpoint=/api/osquery/carve/begin
+--carver_continue_endpoint=/api/osquery/carve/block
 --carver_block_size=2000000`;
 
   let enrollSecret: string;
@@ -404,7 +405,7 @@ const PlatformWrapper = ({
     }
     return (
       <>
-        {/* <Checkbox
+        <Checkbox
           name="include-fleet-desktop"
           onChange={() => setIncludeFleetDesktop(!includeFleetDesktop)}
           value={includeFleetDesktop}
@@ -419,7 +420,7 @@ const PlatformWrapper = ({
               Fleet Desktop
             </TooltipWrapper>
           </>
-        </Checkbox> */}
+        </Checkbox>
         <InputField
           disabled
           inputWrapperClass={`${baseClass}__installer-input ${baseClass}__installer-input-${platform}`}

@@ -1,3 +1,7 @@
+import CONSTANTS from "../../support/constants";
+
+const { GOOD_PASSWORD } = CONSTANTS;
+
 const getConfig = {
   org_info: {
     org_name: "Fleet Test",
@@ -128,7 +132,7 @@ const getConfig = {
     tier: "premium",
     organization: "development-only",
     device_count: 100,
-    expiration: "2022-06-30T20:00:00-04:00",
+    expiration: "2099-06-30T20:00:00-04:00",
     note: "for development only",
   },
   logging: {
@@ -281,7 +285,7 @@ describe("Premium tier - Global Admin user", () => {
   });
 
   beforeEach(() => {
-    cy.loginWithCySession("anna@organization.com", "user123#");
+    cy.loginWithCySession("anna@organization.com", GOOD_PASSWORD);
   });
   describe("Navigation", () => {
     beforeEach(() => cy.visit("/dashboard"));
@@ -347,6 +351,12 @@ describe("Premium tier - Global Admin user", () => {
         console.log(JSON.stringify(configStub));
       });
     });
+    // it(`displays "Probability of exploit" column`, () => {
+    //   cy.getAttached("thead").within(() => {
+    //     cy.findByText(/vulnerabilities/i).should("not.exist");
+    //     cy.findByText(/probability of exploit/i).should("exist");
+    //   });
+    // });
     it("allows admin to create webhook software vulnerability automation", () => {
       cy.getAttached(".manage-software-page__header-wrap").within(() => {
         cy.findByRole("button", { name: /manage automations/i }).click();
@@ -544,9 +554,9 @@ describe("Premium tier - Global Admin user", () => {
       cy.findByText(/gatekeeper enabled/i).click();
       cy.getAttached(".policy-form__button-wrap").within(() => {
         cy.findByRole("button", { name: /run/i }).should("exist");
-        cy.findByRole("button", { name: /save policy/i }).click();
+        cy.getAttached(".policy-form__save").click();
       });
-      cy.findByRole("button", { name: /^Save$/ }).click();
+      cy.getAttached(".policy-form__button--modal-save").click();
       cy.findByText(/policy created/i).should("exist");
       cy.findByText(/gatekeeper enabled/i).should("exist");
     });
@@ -636,7 +646,11 @@ describe("Premium tier - Global Admin user", () => {
       });
       // Access the Settings - Team details page
       cy.getAttached("tbody").within(() => {
-        cy.findByText(/apples/i).click();
+        cy.getAttached(".name__cell .button--text-link")
+          .eq(0)
+          .within(() => {
+            cy.findByText(/apples/i).click();
+          });
       });
       cy.findByText(/apples/i).should("exist");
       cy.findByText(/manage users with global access here/i).should("exist");
@@ -667,6 +681,26 @@ describe("Premium tier - Global Admin user", () => {
         cy.findByLabelText(/email/i).should("exist");
         cy.findByLabelText(/password/i).should("exist");
       });
+    });
+    it("allows access to Fleet Desktop settings", () => {
+      cy.visit("settings/organization");
+      cy.getAttached(".app-settings__form-nav-list").within(() => {
+        cy.findByText(/organization info/i).should("exist");
+        cy.findByText(/fleet desktop/i)
+          .should("exist")
+          .click();
+      });
+      cy.getAttached("[id=transparency_url")
+        .should("have.value", "https://fleetdm.com/transparency")
+        .clear()
+        .type("example.com/transparency");
+      cy.findByRole("button", { name: /save/i }).click();
+      cy.findByText(/successfully updated/i).should("exist");
+      cy.visit("settings/organization/fleet-desktop");
+      cy.getAttached("[id=transparency_url").should(
+        "have.value",
+        "example.com/transparency"
+      );
     });
   });
   describe("User profile page", () => {

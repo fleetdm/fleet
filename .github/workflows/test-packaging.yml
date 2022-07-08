@@ -30,6 +30,7 @@ jobs:
 
     steps:
     - name: Install Docker
+      timeout-minutes: 60
       if: matrix.os == 'macos-latest'
       # From https://github.com/docker/for-mac/issues/2359#issuecomment-943131345
       run: |
@@ -45,7 +46,7 @@ jobs:
       run: docker pull fleetdm/wix:latest &
 
     - name: Install Go
-      uses: actions/setup-go@f6164bd8c8acb4a71fb2791a8b6c4024ff038dab # v2
+      uses: actions/setup-go@b22fbbc2921299758641fab08929b4ac52b32923 # v2
       with:
         go-version: ${{ matrix.go-version }}
 
@@ -62,8 +63,14 @@ jobs:
     - name: Build DEB
       run: ./build/fleetctl package --type deb --enroll-secret=foo --fleet-url=https://localhost:8080
 
+    - name: Build DEB with Fleet Desktop
+      run: ./build/fleetctl package --type deb --enroll-secret=foo --fleet-url=https://localhost:8080 --fleet-desktop
+      
     - name: Build RPM
       run: ./build/fleetctl package --type rpm --enroll-secret=foo --fleet-url=https://localhost:8080
+      
+    - name: Build RPM with Fleet Desktop
+      run: ./build/fleetctl package --type rpm --enroll-secret=foo --fleet-url=https://localhost:8080 --fleet-desktop
 
     - name: Build MSI
       run: ./build/fleetctl package --type msi --enroll-secret=foo --fleet-url=https://localhost:8080

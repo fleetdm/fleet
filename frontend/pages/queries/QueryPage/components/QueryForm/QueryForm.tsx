@@ -37,6 +37,8 @@ interface IQueryFormProps {
   showOpenSchemaActionText: boolean;
   storedQuery: IQuery | undefined;
   isStoredQueryLoading: boolean;
+  isQuerySaving: boolean;
+  isQueryUpdating: boolean;
   onCreateQuery: (formData: IQueryFormData) => void;
   onOsqueryTableSelect: (tableName: string) => void;
   goToSelectTargets: () => void;
@@ -64,6 +66,8 @@ const QueryForm = ({
   showOpenSchemaActionText,
   storedQuery,
   isStoredQueryLoading,
+  isQuerySaving,
+  isQueryUpdating,
   onCreateQuery,
   onOsqueryTableSelect,
   goToSelectTargets,
@@ -438,11 +442,6 @@ const QueryForm = ({
   const renderForGlobalAdminOrAnyMaintainer = (
     <>
       <form className={`${baseClass}__wrapper`} autoComplete="off">
-        {isSaveAsNewLoading && (
-          <div className={`${baseClass}__loading-overlay`}>
-            <Spinner />
-          </div>
-        )}
         <div className={`${baseClass}__title-bar`}>
           <div className="name-description">
             {renderName()}
@@ -494,7 +493,7 @@ const QueryForm = ({
                   onClick={promptSaveAsNewQuery()}
                   disabled={false}
                 >
-                  Save as new
+                  {isSaveAsNewLoading ? <Spinner /> : "Save as new"}
                 </Button>
               )}
               <div className="query-form__button-wrap--save-query-button">
@@ -517,7 +516,7 @@ const QueryForm = ({
                       !hasTeamMaintainerPermissions
                     }
                   >
-                    Save
+                    {isQueryUpdating ? <Spinner /> : "Save"}
                   </Button>
                 </div>{" "}
                 <ReactTooltip
@@ -555,6 +554,7 @@ const QueryForm = ({
           onCreateQuery={onCreateQuery}
           setIsSaveModalOpen={setIsSaveModalOpen}
           backendValidators={backendValidators}
+          isLoading={isQuerySaving}
         />
       )}
     </>

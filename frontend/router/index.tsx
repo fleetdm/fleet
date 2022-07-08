@@ -18,11 +18,13 @@ import App from "components/App";
 import AuthenticatedAdminRoutes from "components/AuthenticatedAdminRoutes";
 import AuthAnyAdminRoutes from "components/AuthAnyAdminRoutes";
 import AuthenticatedRoutes from "components/AuthenticatedRoutes";
+import UnauthenticatedRoutes from "components/UnauthenticatedRoutes";
 import AuthGlobalAdminMaintainerRoutes from "components/AuthGlobalAdminMaintainerRoutes";
 import AuthAnyMaintainerAnyAdminRoutes from "components/AuthAnyMaintainerAnyAdminRoutes";
 import ConfirmInvitePage from "pages/ConfirmInvitePage";
 import ConfirmSSOInvitePage from "pages/ConfirmSSOInvitePage";
 import CoreLayout from "layouts/CoreLayout";
+import GatedLayout from "layouts/GatedLayout";
 import DeviceUserPage from "pages/hosts/details/DeviceUserPage";
 import EditPackPage from "pages/packs/EditPackPage";
 import EmailTokenRedirect from "components/EmailTokenRedirect";
@@ -42,6 +44,7 @@ import PolicyPage from "pages/policies/PolicyPage";
 import QueryPage from "pages/queries/QueryPage";
 import RegistrationPage from "pages/RegistrationPage";
 import ResetPasswordPage from "pages/ResetPasswordPage";
+import SoftwareDetailsPage from "pages/software/SoftwareDetailsPage";
 import ApiOnlyUser from "pages/ApiOnlyUser";
 import Fleet403 from "pages/errors/Fleet403";
 import Fleet404 from "pages/errors/Fleet404";
@@ -75,16 +78,23 @@ const AppWrapper = ({ children, router, location }: IAppWrapperProps) => (
 const routes = (
   <Router history={browserHistory}>
     <Route path={PATHS.ROOT} component={AppWrapper}>
-      <Route path="setup" component={RegistrationPage} />
-      <Route path="previewlogin" component={LoginPreviewPage} />
-      <Route path="login" component={LoginPage} />
-      <Route path="login/invites/:invite_token" component={ConfirmInvitePage} />
-      <Route
-        path="login/ssoinvites/:invite_token"
-        component={ConfirmSSOInvitePage}
-      />
-      <Route path="login/forgot" component={ForgotPasswordPage} />
-      <Route path="login/reset" component={ResetPasswordPage} />
+      <Route component={UnauthenticatedRoutes as RouteComponent}>
+        <Route component={GatedLayout}>
+          <Route path="setup" component={RegistrationPage} />
+          <Route path="previewlogin" component={LoginPreviewPage} />
+          <Route path="login" component={LoginPage} />
+          <Route
+            path="login/invites/:invite_token"
+            component={ConfirmInvitePage}
+          />
+          <Route
+            path="login/ssoinvites/:invite_token"
+            component={ConfirmSSOInvitePage}
+          />
+          <Route path="login/forgot" component={ForgotPasswordPage} />
+          <Route path="login/reset" component={ResetPasswordPage} />
+        </Route>
+      </Route>
       <Route component={AuthenticatedRoutes as RouteComponent}>
         <Route path="email/change/:token" component={EmailTokenRedirect} />
         <Route path="logout" component={LogoutPage} />
@@ -128,6 +138,7 @@ const routes = (
           <Route path="software">
             <IndexRedirect to={"manage"} />
             <Route path="manage" component={ManageSoftwarePage} />
+            <Route path=":software_id" component={SoftwareDetailsPage} />
           </Route>
           <Route component={AuthGlobalAdminMaintainerRoutes}>
             <Route path="packs">

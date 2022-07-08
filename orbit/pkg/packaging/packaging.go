@@ -60,6 +60,9 @@ type Options struct {
 	Desktop bool
 	// OrbitUpdateInterval is the interval that Orbit will use to check for updates.
 	OrbitUpdateInterval time.Duration
+	// LegacyVarLibSymlink indicates whether Orbit is legacy (< 0.0.11),
+	// which assumes it is installed under /var/lib.
+	LegacyVarLibSymlink bool
 }
 
 func initializeTempDir() (string, error) {
@@ -104,7 +107,7 @@ func InitializeUpdates(updateOpt update.Options) (*UpdatesData, error) {
 	}
 	updateOpt.LocalStore = localStore
 
-	updater, err := update.New(updateOpt)
+	updater, err := update.NewUpdater(updateOpt)
 	if err != nil {
 		return nil, fmt.Errorf("failed to init updater: %w", err)
 	}
@@ -162,10 +165,6 @@ func InitializeUpdates(updateOpt update.Options) (*UpdatesData, error) {
 		}
 	}
 
-	if devBuildPath := os.Getenv("FLEETCTL_ORBIT_DEV_BUILD_PATH"); devBuildPath != "" {
-		updater.CopyDevBuild("orbit", devBuildPath)
-	}
-
 	return &UpdatesData{
 		OrbitPath:    orbitPath,
 		OrbitVersion: orbitCustom.Version,
@@ -185,7 +184,7 @@ func writeSecret(opt Options, orbitRoot string) error {
 		return fmt.Errorf("mkdir: %w", err)
 	}
 
-	if err := ioutil.WriteFile(path, []byte(opt.EnrollSecret), 0o600); err != nil {
+	if err := os.WriteFile(path, []byte(opt.EnrollSecret), constant.DefaultFileMode); err != nil {
 		return fmt.Errorf("write file: %w", err)
 	}
 
@@ -193,18 +192,18 @@ func writeSecret(opt Options, orbitRoot string) error {
 }
 
 func writeOsqueryFlagfile(opt Options, orbitRoot string) error {
-	dstPath := filepath.Join(orbitRoot, "osquery.flags")
+	path := filepath.Join(orbitRoot, "osquery.flags")
 
 	if opt.OsqueryFlagfile == "" {
 		// Write empty flagfile
-		if err := os.WriteFile(dstPath, []byte(""), constant.DefaultFileMode); err != nil {
+		if err := os.WriteFile(path, []byte(""), constant.DefaultFileMode); err != nil {
 			return fmt.Errorf("write empty flagfile: %w", err)
 		}
 
 		return nil
 	}
 
-	if err := file.Copy(opt.OsqueryFlagfile, dstPath, constant.DefaultFileMode); err != nil {
+	if err := file.Copy(opt.OsqueryFlagfile, path, constant.DefaultFileMode); err != nil {
 		return fmt.Errorf("copy flagfile: %w", err)
 	}
 
@@ -217,9 +216,12 @@ func writeOsqueryFlagfile(opt Options, orbitRoot string) error {
 var osqueryCerts []byte
 
 func writeOsqueryCertPEM(opt Options, orbitRoot string) error {
-	dstPath := filepath.Join(orbitRoot, "certs.pem")
+	path := filepath.Join(orbitRoot, "certs.pem")
+	if err := secure.MkdirAll(filepath.Dir(path), constant.DefaultDirMode); err != nil {
+		return fmt.Errorf("mkdir: %w", err)
+	}
 
-	if err := ioutil.WriteFile(dstPath, osqueryCerts, 0o644); err != nil {
+	if err := os.WriteFile(path, osqueryCerts, 0o644); err != nil {
 		return fmt.Errorf("write file: %w", err)
 	}
 

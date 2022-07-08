@@ -51,6 +51,14 @@ parasails.registerPage('articles', {
           this.articleCategory = 'Product';
           this.categoryDescription = 'Learn how you can use Fleet to accomplish your goals.';
           break;
+        case 'podcasts':
+          this.articleCategory = 'Podcasts';
+          this.categoryDescription = 'Listen to the Future of Device Management podcast';
+          break;
+        case 'report':
+          this.articleCategory = 'Reports';
+          this.categoryDescription = '';
+          break;
       }
     }
     // Sorting articles on the page based on their 'publishedOn' date.

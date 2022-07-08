@@ -11,7 +11,19 @@ import (
 	"github.com/go-kit/kit/log/level"
 )
 
-const maxRetries = 5
+const (
+	maxRetries = 5
+	// nvdCVEURL is the base link to a CVE on the NVD website, only the CVE code
+	// needs to be appended to make it a valid link.
+	nvdCVEURL = "https://nvd.nist.gov/vuln/detail/"
+)
+
+const (
+	// types of integrations - jobs like Jira and Zendesk support different
+	// integrations, this identifies the integration type of a message.
+	intgTypeVuln          = "vuln"
+	intgTypeFailingPolicy = "failingPolicy"
+)
 
 // Job defines an interface for jobs that can be run by the Worker
 type Job interface {
@@ -20,6 +32,15 @@ type Job interface {
 
 	// Run performs the actual work.
 	Run(ctx context.Context, argsJSON json.RawMessage) error
+}
+
+// failingPolicyArgs are the args common to all integrations that can process
+// failing policies.
+type failingPolicyArgs struct {
+	PolicyID   uint                  `json:"policy_id"`
+	PolicyName string                `json:"policy_name"`
+	Hosts      []fleet.PolicySetHost `json:"hosts"`
+	TeamID     *uint                 `json:"team_id,omitempty"`
 }
 
 // Worker runs jobs. NOT SAFE FOR CONCURRENT USE.

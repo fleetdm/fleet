@@ -46,7 +46,7 @@ func (ts *withServer) SetupSuite(dbName string) {
 	ts.withDS.SetupSuite(dbName)
 
 	rs := pubsub.NewInmemQueryResults()
-	users, server := RunServerForTestsWithDS(ts.s.T(), ts.ds, TestServerOpts{Rs: rs})
+	users, server := RunServerForTestsWithDS(ts.s.T(), ts.ds, &TestServerOpts{Rs: rs})
 	ts.server = server
 	ts.users = users
 	ts.token = ts.getTestAdminToken()

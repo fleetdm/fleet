@@ -26,11 +26,11 @@ Fleetctl also provides a quick way to work with all the data exposed by Fleet wi
 
 ## Using fleetctl
 
-You can use `fleetctl` to accomplish many tasks you would typically need to do through the UI(User Interface). You can even set up or apply configuration files to the Fleet server.
+You can use `fleetctl` to accomplish many tasks you would typically need to do through the Fleet UI. You can even set up or apply configuration files to the Fleet server.
 
 ### Available commands
 
-Much of the functionality available in the Fleet UI is also available in `fleetctl`. You can run queries, add and remove users, generate install packages to add new hosts, get information about existing hosts, and more! The following commands are available for use with `fleetctl`:
+Much of the functionality available in the Fleet UI is also available in `fleetctl`. You can run queries, add and remove users, generate osquery installers to add new hosts, get information about existing hosts, and more! The following commands are available for use with `fleetctl`:
 
    | Command                    | Description                                                        |
    |:---------------------------|:-------------------------------------------------------------------|
@@ -142,7 +142,7 @@ It's possible to specify the password via the `--password` flag or the `$PASSWOR
 To run a simple query against all hosts, you might run something like the following:
 
 ```
-fleetctl query --query 'select * from osquery_info;' --labels='All Hosts' > results.json
+fleetctl query --query 'SELECT * FROM osquery_info;' --labels='All Hosts' > results.json
 ⠂  100% responded (100% online) | 1/1 targeted hosts (1/1 online)
 ^C
 ```
@@ -248,7 +248,7 @@ apiVersion: v1
 kind: query
 spec:
   name: processes
-  query: select * from processes
+  query: SELECT * FROM processes
 ```
 
 ## Using fleetctl with an API-only user
@@ -269,53 +269,41 @@ If you'd like your API-only user to have a different access level than the defau
 fleetctl user create --name "API User" --email api@example.com --password temp!pass --api-only --global-role admin
 ```
 
-### Reset the password
-
-> If you are using the most recent version of Fleet, you can skip to the [next section](#using-fleetctl-as-the-new-user).
-
-In versions prior to Fleet 4.13, a password reset is needed before the new user can perform queries. Since an API-only user cannot log in to the Fleet UI, this is done through the REST API. We'll be doing this through the terminal using `curl`.
-
-First, log in to the new user account using `fleetctl login`. Once you're logged in successfully to the API-only user, set up a variable to hold the user's token:
-
-```
-token=$(fleetctl config get token | rev | cut -d ' ' -f 1 | rev)
-```
-
-Then use `curl` to send a required password reset request to the REST API through the terminal:
-
-```
-curl -d '{"new_password":"NewPassGoesHere"}' -H "Authorization: Bearer ${token}" -X POST https://fleet.corp.example.com/api/v1/fleet/perform_required_password_reset
-```
-
-If you see a response like this, the request was successful:
-
-```
-{
-  "user": {
-    "created_at": "2022-03-16T20:42:00Z",
-    "updated_at": "2022-03-16T20:42:00Z",
-    "id": 52,
-    "name": "API User",
-    "email": "api@example.com",
-    "force_password_reset": false,
-    "gravatar_url": "",
-    "sso_enabled": false,
-    "global_role": "observer",
-    "api_only": true,
-    "teams": []
-  }
-}
-```
-
-While the original token is no longer valid, it's never a bad idea to clear variables out once you're done with them:
-
-```
-unset token
-```
-
 ### Use fleetctl as the new user
 
 Now that your new user is all set up, you will need to log in with `fleetctl login`. You'll now be able to perform tasks using `fleetctl` as your new API-only user.
+
+> If you are using a version of Fleet older than `4.13.0`, you will need to [reset the API-only user's password](https://github.com/fleetdm/fleet/blob/a1eba3d5b945cb3339004dd1181526c137dc901c/docs/Using-Fleet/fleetctl-CLI.md#reset-the-password) before running queries.
+
+### Get the API token of an API-only user
+To get the API key of an API-only user, you need to call the Login API with the credentials supplied during user creation.
+
+For example, say the credentials provided were `api@fleetdm.com` for the email and `foobar12345` for the password. You may call the [Log in API](https://fleetdm.com/docs/using-fleet/rest-api#log-in) like so:
+
+```sh
+curl --location --request POST 'https://myfleetdomain.com/api/v1/fleet/login' \
+--header 'Content-Type: application/json' \
+--data-raw '{
+    "email": "api@fleetdm.com",
+    "password": "foobar12345"
+}'
+```
+
+The [Log in API](https://fleetdm.com/docs/using-fleet/rest-api#log-in) will return a response similar to the one below with the API token included that will not expire.
+
+```json
+{
+    "user": {
+        "id": 82,
+        "name": "API User",
+        "email": "api@fleetdm.com",
+        "global_role": "observer",
+        "api_only": true
+    },
+    "available_teams": [],
+    "token": "foo_token"
+}
+```
 
 ### Switching users
 
@@ -476,5 +464,25 @@ parts to 10,000.
 The value must be small enough that HTTP requests do not time out.
 
 Start with a default of 2MiB for MySQL (2097152 bytes), and 5MiB for S3/Minio (5242880 bytes).
+
+## Debugging Fleet
+
+`fleetctl` provides debugging capabilities about the running Fleet server via the `debug` command. To see a complete list of all the options run:
+
+```
+fleetctl debug --help
+```
+
+To generate a full debugging archive, run:
+
+```
+fleetctl debug archive
+```
+
+This will generate a `tar.gz` file with:
+
+- `prof` archives that can be inspected via `go tools pprof <archive_name_here>`.
+- A file containing a set of all the errors that happened in the server during the interval of time defined by the [logging_error_retention_period](../Deploying/Configuration.md#logging-error-retention-period) configuration.
+- Files containing database-specific information.
 
 <meta name="pageOrderInSection" value="300">

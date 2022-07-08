@@ -9,6 +9,8 @@
           <div purpose="category-filter" :class="[ filter === 'security' ? 'selected' : '']" @click="filterBy('security')">Security</div>
           <div purpose="category-filter" :class="[ filter === 'announcements' ? 'selected' : '']" @click="filterBy('announcements')">Announcements</div>
           <div purpose="category-filter" :class="[ filter === 'guides' ? 'selected' : '']" @click="filterBy('guides')">Guides</div>
+          <div purpose="category-filter" :class="[ filter === 'podcasts' ? 'selected' : '']" @click="filterBy('podcasts')">Podcasts</div>
+          <div purpose="category-filter" :class="[ filter === 'releases' ? 'selected' : '']" @click="filterBy('releases')">Releases</div>
         </div>
 <!--         <div purpose="search" class="p-2 mt-3 mt-lg-0 d-flex flex-row">
           <img class="search" alt="search" src="/images/icon-search-16x16@2x.png">
@@ -28,18 +30,16 @@
             <a purpose="category-link" :href="article.url.split('/')[1]" class="pb-2">{{article.meta.category}}</a>
             <a purpose="article-title" :href="article.url"><h5>{{article.meta.articleTitle}}</h5></a>
             <div purpose="article-details" class="d-flex mt-auto flex-row align-items-center">
-              <span><js-timestamp format="billing" :at="article.meta.publishedOn"></js-timestamp></span>
-              <span class="px-2">|</span>
               <img alt="The author's GitHub profile picture" style="height: 32px; width: 32px; border-radius: 100%;" :src="'https://github.com/'+article.meta.authorGitHubUsername+'.png?size=200'">
               <p class="pl-2 font-weight-bold">{{article.meta.authorFullName}}</p>
             </div>
           </div>
         </div>
-        <div purpose="article-card" class="card invisible mb-0">
+        <div purpose="article-card" class="card invisible mb-0 d-none d-sm-flex">
         </div>
-        <div purpose="article-card" class="card invisible mb-0">
+        <div purpose="article-card" class="card invisible mb-0 d-none d-sm-flex">
         </div>
-        <div purpose="article-card" class="card invisible mb-0">
+        <div purpose="article-card" class="card invisible mb-0 d-none d-sm-flex">
         </div>
       </div>
       <div v-else>

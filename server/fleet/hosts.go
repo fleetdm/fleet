@@ -1,6 +1,7 @@
 package fleet
 
 import (
+	"context"
 	"encoding/json"
 	"time"
 )
@@ -34,6 +35,9 @@ const (
 
 type HostListOptions struct {
 	ListOptions
+
+	// DeviceMapping joins device user email mapping for each host if available
+	DeviceMapping bool
 
 	// AdditionalFilters selects which host additional fields should be
 	// populated.
@@ -127,10 +131,15 @@ type Host struct {
 	PercentDiskSpaceAvailable float64 `json:"percent_disk_space_available" db:"percent_disk_space_available" csv:"percent_disk_space_available"`
 
 	HostIssues `json:"issues,omitempty" csv:"-"`
+
+	// DeviceMapping is in fact included in the CSV export, but it is not directly
+	// encoded from this column, it is processed before marshaling, hence why the
+	// struct tag here has csv:"-".
+	DeviceMapping *json.RawMessage `json:"device_mapping,omitempty" db:"device_mapping" csv:"-"`
 }
 
 type HostIssues struct {
-	TotalIssuesCount     int `json:"total_issues_count" db:"total_issues_count" csv:"-"`
+	TotalIssuesCount     int `json:"total_issues_count" db:"total_issues_count" csv:"issues"` // when exporting in CSV, we want that value as the "issues" column
 	FailingPoliciesCount int `json:"failing_policies_count" db:"failing_policies_count" csv:"-"`
 }
 
@@ -147,7 +156,12 @@ type HostDetail struct {
 	// Packs is the list of packs the host is a member of.
 	Packs []*Pack `json:"packs"`
 	// Policies is the list of policies and whether it passes for the host
-	Policies []*HostPolicy `json:"policies"`
+	Policies *[]*HostPolicy `json:"policies,omitempty"`
+	// Batteries is the list of batteries for the host. It is a pointer to a
+	// slice so that when set, it gets marhsaled even if the slice is empty,
+	// but when unset, it doesn't get marshaled (e.g. we don't return that
+	// information for the List Hosts endpoint).
+	Batteries *[]*HostBattery `json:"batteries,omitempty"`
 }
 
 const (
@@ -160,11 +174,13 @@ const (
 type HostSummary struct {
 	TeamID           *uint                  `json:"team_id,omitempty"`
 	TotalsHostsCount uint                   `json:"totals_hosts_count" db:"total"`
-	Platforms        []*HostSummaryPlatform `json:"platforms"`
 	OnlineCount      uint                   `json:"online_count" db:"online"`
 	OfflineCount     uint                   `json:"offline_count" db:"offline"`
 	MIACount         uint                   `json:"mia_count" db:"mia"`
 	NewCount         uint                   `json:"new_count" db:"new"`
+	AllLinuxCount    uint                   `json:"all_linux_count"`
+	BuiltinLabels    []*LabelSummary        `json:"builtin_labels"`
+	Platforms        []*HostSummaryPlatform `json:"platforms"`
 }
 
 // HostSummaryPlatform represents the hosts statistics for a given platform,
@@ -178,6 +194,7 @@ type HostSummaryPlatform struct {
 func (h *Host) Status(now time.Time) HostStatus {
 	// The logic in this function should remain synchronized with
 	// GenerateHostStatusStatistics and CountHostsInTargets
+	// NOTE: As of Fleet 4.15 StatusMIA is deprecated and will be removed in Fleet 5.0
 
 	onlineInterval := h.ConfigTLSRefresh
 	if h.DistributedInterval < h.ConfigTLSRefresh {
@@ -188,8 +205,6 @@ func (h *Host) Status(now time.Time) HostStatus {
 	onlineInterval += OnlineIntervalBuffer
 
 	switch {
-	case h.SeenTime.Add(MIADuration).Before(now):
-		return StatusMIA
 	case h.SeenTime.Add(time.Duration(onlineInterval) * time.Second).Before(now):
 		return StatusOffline
 	default:
@@ -216,7 +231,7 @@ var HostLinuxOSs = []string{
 	"linux", "ubuntu", "debian", "rhel", "centos", "sles", "kali", "gentoo", "amzn",
 }
 
-func isLinux(hostPlatform string) bool {
+func IsLinux(hostPlatform string) bool {
 	for _, linuxPlatform := range HostLinuxOSs {
 		if linuxPlatform == hostPlatform {
 			return true
@@ -233,7 +248,7 @@ func isLinux(hostPlatform string) bool {
 // Returns empty string if hostPlatform is unknnown.
 func PlatformFromHost(hostPlatform string) string {
 	switch {
-	case isLinux(hostPlatform):
+	case IsLinux(hostPlatform):
 		return "linux"
 	case hostPlatform == "darwin", hostPlatform == "windows":
 		return hostPlatform
@@ -276,6 +291,15 @@ type HostMDM struct {
 	ServerURL        string `json:"server_url"`
 }
 
+// HostBattery represents a host's battery, as reported by the osquery battery
+// table.
+type HostBattery struct {
+	HostID       uint   `json:"-" db:"host_id"`
+	SerialNumber string `json:"-" db:"serial_number"`
+	CycleCount   int    `json:"cycle_count" db:"cycle_count"`
+	Health       string `json:"health" db:"health"`
+}
+
 type MacadminsData struct {
 	Munki *HostMunkiInfo `json:"munki"`
 	MDM   *HostMDM       `json:"mobile_device_management"`
@@ -314,4 +338,16 @@ type OSVersion struct {
 	HostsCount int    `json:"hosts_count"`
 	Name       string `json:"name"`
 	Platform   string `json:"platform"`
+}
+
+type HostDetailOptions struct {
+	IncludeCVEScores bool
+	IncludePolicies  bool
+}
+
+// EnrollHostLimiter defines the methods to support enforcement of enrolled
+// hosts limit, as defined by the user's license.
+type EnrollHostLimiter interface {
+	CanEnrollNewHost(ctx context.Context) (ok bool, err error)
+	SyncEnrolledHostIDs(ctx context.Context) error
 }

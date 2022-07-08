@@ -12,7 +12,7 @@ import PATHS from "router/paths";
 import configAPI from "services/entities/config";
 import hostAPI from "services/entities/hosts";
 import queryAPI from "services/entities/queries";
-import teamAPI from "services/entities/teams";
+import teamAPI, { ILoadTeamsResponse } from "services/entities/teams";
 import { AppContext } from "context/app";
 import { PolicyContext } from "context/policy";
 import { NotificationContext } from "context/notification";
@@ -54,6 +54,8 @@ import PolicyDetailsModal from "../cards/Policies/HostPoliciesTable/PolicyDetail
 import DeleteHostModal from "./modals/DeleteHostModal";
 import RenderOSPolicyModal from "./modals/OSPolicyModal";
 
+import parseOsVersion from "./modals/OSPolicyModal/helpers";
+
 import BackChevron from "../../../../../assets/images/icon-chevron-down-9x6@2x.png";
 import DeleteIcon from "../../../../../assets/images/icon-action-delete-14x14@2x.png";
 import QueryIcon from "../../../../../assets/images/icon-action-query-16x16@2x.png";
@@ -68,10 +70,6 @@ interface IHostDetailsProps {
 
 interface IFleetQueriesResponse {
   queries: IQuery[];
-}
-
-interface ITeamsResponse {
-  teams: ITeam[];
 }
 
 interface IHostResponse {
@@ -163,7 +161,7 @@ const HostDetailsPage = ({
     select: (data: IFleetQueriesResponse) => data.queries,
   });
 
-  const { data: teams } = useQuery<ITeamsResponse, Error, ITeam[]>(
+  const { data: teams } = useQuery<ILoadTeamsResponse, Error, ITeam[]>(
     "teams",
     () => teamAPI.loadAll(),
     {
@@ -172,7 +170,7 @@ const HostDetailsPage = ({
       refetchOnReconnect: false,
       refetchOnWindowFocus: false,
       retry: false,
-      select: (data: ITeamsResponse) => data.teams,
+      select: (data: ILoadTeamsResponse) => data.teams,
     }
   );
 
@@ -185,11 +183,7 @@ const HostDetailsPage = ({
       refetchOnReconnect: false,
       refetchOnWindowFocus: false,
       retry: false,
-      select: (data: IDeviceMappingResponse) =>
-        data.device_mapping &&
-        data.device_mapping.filter(
-          (deviceUser) => deviceUser.email && deviceUser.email.length
-        ),
+      select: (data: IDeviceMappingResponse) => data.device_mapping,
     }
   );
 
@@ -336,15 +330,7 @@ const HostDetailsPage = ({
     ])
   );
 
-  const operatingSystem = host?.os_version.slice(
-    0,
-    host?.os_version.lastIndexOf(" ")
-  );
-  const operatingSystemVersion = host?.os_version.slice(
-    host?.os_version.lastIndexOf(" ") + 1
-  );
-  const osPolicyLabel = `Is ${operatingSystem}, version ${operatingSystemVersion} or later, installed?`;
-  const osPolicy = `SELECT 1 from os_version WHERE name = '${operatingSystem}' AND major || '.' || minor || '.' || patch >= '${operatingSystemVersion}';`;
+  const [osPolicyLabel, osPolicyQuery] = parseOsVersion(host?.os_version);
 
   const aboutData = normalizeEmptyValues(
     pick(host, [
@@ -356,6 +342,8 @@ const HostDetailsPage = ({
       "primary_ip",
       "public_ip",
       "geolocation",
+      "batteries",
+      "detail_updated_at",
     ])
   );
 
@@ -393,7 +381,7 @@ const HostDetailsPage = ({
     setLastEditedQueryDescription(
       "Checks to see if the required minimum operating system version is installed."
     );
-    setLastEditedQueryBody(osPolicy);
+    setLastEditedQueryBody(osPolicyQuery);
     setLastEditedQueryResolution("");
     router.replace(NEW_POLICY);
   };
@@ -600,6 +588,7 @@ const HostDetailsPage = ({
               isLoading={isLoadingHost}
               software={hostSoftware}
               softwareInventoryEnabled={hostSettings?.enable_software_inventory}
+              deviceType={host?.platform === "darwin" ? "macos" : ""}
             />
           </TabPanel>
           <TabPanel>
@@ -655,7 +644,7 @@ const HostDetailsPage = ({
           onCancel={() => setShowOSPolicyModal(false)}
           onCreateNewPolicy={onCreateNewPolicy}
           titleData={titleData}
-          osPolicy={osPolicy}
+          osPolicy={osPolicyQuery}
           osPolicyLabel={osPolicyLabel}
         />
       )}

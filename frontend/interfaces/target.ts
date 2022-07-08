@@ -1,6 +1,6 @@
 import PropTypes from "prop-types";
 import hostInterface, { IHost } from "interfaces/host";
-import labelInterface, { ILabel } from "interfaces/label";
+import labelInterface, { ILabel, ILabelSummary } from "interfaces/label";
 import teamInterface, { ITeam } from "interfaces/team";
 
 export default PropTypes.oneOfType([
@@ -28,7 +28,7 @@ export interface ISelectHost extends IHost {
   target_type?: string;
 }
 
-export interface ISelectLabel extends ILabel {
+export interface ISelectLabel extends ILabelSummary {
   target_type?: string;
 }
 
@@ -39,9 +39,9 @@ export interface ISelectTeam extends ITeam {
 export type ISelectTargetsEntity = ISelectHost | ISelectLabel | ISelectTeam;
 
 export interface ISelectedTargets {
-  hosts: (number | string)[];
-  labels: (number | string)[];
-  teams: (number | string)[];
+  hosts: number[];
+  labels: number[];
+  teams: number[];
 }
 
 export interface IPackTargets {

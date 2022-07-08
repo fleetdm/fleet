@@ -1,8 +1,6 @@
 # Deploying Fleet on AWS with Terraform
 
-![Deploying Fleet on AWS with Terraform](https://miro.medium.com/1*IzLHvDlUTDj3SXzLUQqPYA.png)
-
-There are many ways to deploy Fleet. Last time, we looked at deploying [Fleet on Render](./articles/deploying-fleet-on-render.md). This time, we’re going to deploy Fleet on AWS with Terraform IaC (infrastructure as code).
+There are many ways to deploy Fleet. Last time, we looked at deploying [Fleet on Render](https://fleetdm.com/guides/deploying-fleet-on-render). This time, we’re going to deploy Fleet on AWS with Terraform IaC (infrastructure as code).
 
 Deploying on AWS with Fleet’s reference architecture will get you a fully functional Fleet instance that can scale to your needs
 
@@ -11,7 +9,7 @@ Deploying on AWS with Fleet’s reference architecture will get you a fully func
 - AWS CLI installed
 - Terraform installed (version 1.04 or greater)
 - AWS Account and IAM user capable of creating resources
-- Clone [Fleet](https://github.com/fleetdm/fleet) or copy the [terraform files](https://github.com/fleetdm/fleet/tree/fleet-v4.7.0/tools/terraform)
+- Clone [Fleet](https://github.com/fleetdm/fleet) or copy the [Terraform files](https://github.com/fleetdm/fleet/tree/main/infrastructure/dogfood/terraform/aws)
 
 ## Bootstrapping
 
@@ -40,7 +38,7 @@ After typing `yes` you should have a new S3 bucket named `<prefix>-terraform-rem
 ## Infastructure
 https://github.com/fleetdm/fleet/tools/terraform
 
-Using the buckets and table we just created, we’ll update the [remote state](https://github.com/fleetdm/fleet/tree/fleet-v4.7.0/tools/terraform/main.tf) to expect the same values:
+Using the buckets and table we just created, we’ll update the [remote state](https://github.com/fleetdm/fleet/tree/main/infrastructure/dogfood/terraform/aws/main.tf) to expect the same values:
 
 ```
 terraform {
@@ -86,7 +84,7 @@ You should see the planned output, and you will need to confirm the creation. Re
 
 Let’s say we own `queryops.com` and have an ACM certificate issued to it. We want to host Fleet at `fleet.queryops.com` so in this case, we’ll need to hand nameserver authority over to `fleet.queryops.com` before ACM will verify via DNS and issue the certificate. To make this work, we need to create an `NS` record on `queryops.com`, and put the same `NS` records that get created after terraform creates the `fleet.queryops.com` hosted zone.
 
-![Route 53 QueryOps Hosted Zone](https://miro.medium.com/1*hAUEUWBezneuydgClWzChw.png)
+![Route 53 QueryOps Hosted Zone](../website/assets/images/articles/deploying-fleet-on-aws-with-terraform-1-622x250@2x.png)
 
 Once `terraform apply` finishes you should see output similar to:
 
@@ -138,7 +136,7 @@ aws ecs run-task --cluster fleet-backend --task-definition fleet-migrate:4 --lau
 
 Running this command should kick off the migration task, and Fleet should be ready to go.
 
-![AWS Console ECS Clusters](https://miro.medium.com/1*vw5pH-2T0zxtH7GtxLBskA.png)
+![AWS Console ECS Clusters](../website/assets/images/articles/deploying-fleet-on-aws-with-terraform-2-640x313@2x.png)
 
 Navigating to `https://fleet.queryops.com` we should be greeted with the Setup page.
 
@@ -152,4 +150,4 @@ Setting up all the required infrastructure to run a dedicated web service in AWS
 <meta name="authorFullName" value="Ben Edwards">
 <meta name="publishedOn" value="2021-11-30">
 <meta name="articleTitle" value="Deploying Fleet on AWS with Terraform">
-<meta name="articleImageUrl" value="https://miro.medium.com/1*IzLHvDlUTDj3SXzLUQqPYA.png">
+<meta name="articleImageUrl" value="../website/assets/images/articles/deploying-fleet-on-aws-with-terraform-cover-1600x900@2x.jpg">

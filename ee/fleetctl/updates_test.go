@@ -129,7 +129,7 @@ func assertFileExists(t *testing.T, path string) {
 	assert.True(t, st.Mode().IsRegular(), "should be regular file: %s", path)
 }
 
-func assertVersion(t *testing.T, expected int, versionFunc func() (int, error)) {
+func assertVersion(t *testing.T, expected int64, versionFunc func() (int64, error)) {
 	t.Helper()
 	actual, err := versionFunc()
 	require.NoError(t, err)
@@ -217,7 +217,7 @@ func TestUpdatesIntegration(t *testing.T) {
 	// Initialize an update client
 	localStore, err := filestore.New(filepath.Join(tmpDir, "tuf-metadata.json"))
 	require.NoError(t, err)
-	updater, err := update.New(update.Options{
+	updater, err := update.NewUpdater(update.Options{
 		RootDirectory: tmpDir,
 		ServerURL:     server.URL,
 		RootKeys:      roots,
@@ -354,7 +354,7 @@ func TestUpdatesIntegration(t *testing.T) {
 	tmpDir = t.TempDir()
 	localStore, err = filestore.New(filepath.Join(tmpDir, "tuf-metadata.json"))
 	require.NoError(t, err)
-	updater, err = update.New(update.Options{RootDirectory: tmpDir, ServerURL: server.URL, RootKeys: roots, LocalStore: localStore})
+	updater, err = update.NewUpdater(update.Options{RootDirectory: tmpDir, ServerURL: server.URL, RootKeys: roots, LocalStore: localStore})
 	require.NoError(t, err)
 	require.NoError(t, updater.UpdateMetadata())
 }

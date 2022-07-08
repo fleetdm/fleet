@@ -140,6 +140,36 @@ export const DEFAULT_POLICIES = [
       "To enable System Integrity Protection, on the failing device, run the following command in the Terminal app: /usr/sbin/spctl --master-enable.",
     platform: "darwin",
   },
+  {
+    key: 13,
+    query: "SELECT 1 FROM alf WHERE global_state >= 1;",
+    name: "Firewall enabled (macOS)",
+    description: "Checks if the firewall is enabled.",
+    resolution:
+      "In System Preferences, open Security & Privacy, navigate to the Firewall tab and click Turn On Firewall.",
+    platform: "darwin",
+  },
+  {
+    key: 14,
+    query:
+      "SELECT 1 FROM managed_policies WHERE name='askForPassword' AND value='1';",
+    name: "Screen lock enabled via MDM profile (macOS)",
+    description: "Checks that a MDM profile configures the screen lock",
+    resolution:
+      "Contact your IT administrator to help you enroll your computer in your organization's MDM. If already enrolled, ask your IT administrator to enable the screen lock feature in the profile configuration.",
+    platform: "darwin",
+  },
+  {
+    key: 15,
+    query:
+      "SELECT 1 FROM registry WHERE path = 'HKEY_LOCAL_MACHINE\\Software\\Microsoft\\Windows\\CurrentVersion\\Policies\\System\\InactivityTimeoutSecs' AND CAST(data as INTEGER) <= 1800;",
+    name: "Screen lock enabled (Windows)",
+    description:
+      "Checks if the screen lock is enabled and configured to lock the system within 30 minutes or less.",
+    resolution:
+      "Ask your IT administrator to enable the Interactive Logon: Machine inactivity limit setting with a value of 1800 seconds or lower.",
+    platform: "windows",
+  },
 ] as IPolicyNew[];
 
 export const FREQUENCY_DROPDOWN_OPTIONS = [
@@ -162,6 +192,8 @@ export const LOGGING_TYPE_OPTIONS = [
     value: "differential_ignore_removals",
   },
 ];
+
+export const MAX_OSQUERY_SCHEDULED_QUERY_INTERVAL = 604800;
 
 export const MIN_OSQUERY_VERSION_OPTIONS = [
   { label: "All", value: "" },
@@ -338,13 +370,6 @@ export const DEFAULT_CREATE_USER_ERRORS = {
   name: "",
   password: "",
   sso_enabled: null,
-};
-
-export const DEFAULT_CREATE_INTEGRATION_ERRORS = {
-  url: "",
-  username: "",
-  password: "",
-  projectKey: "",
 };
 
 export const DEFAULT_CREATE_LABEL_ERRORS = {

@@ -1,11 +1,10 @@
-import React, { useState, useEffect } from "react";
-import { useQuery } from "react-query";
-import { ILabel } from "interfaces/label";
+import React, { useEffect } from "react";
 import paths from "router/paths";
 
+import { ILabelSummary } from "interfaces/label";
 import { PLATFORM_NAME_TO_LABEL_NAME } from "utilities/constants";
-import hostCountAPI from "services/entities/host_count";
-import labelsAPI from "services/entities/labels";
+
+import DataError from "components/DataError";
 
 import WindowsIcon from "../../../../../assets/images/icon-windows-48x48@2x.png";
 import LinuxIcon from "../../../../../assets/images/icon-linux-48x48@2x.png";
@@ -15,109 +14,51 @@ const baseClass = "hosts-summary";
 
 interface IHostSummaryProps {
   currentTeamId: number | undefined;
-  macCount: string | undefined;
-  windowsCount: string | undefined;
+  macCount: number;
+  windowsCount: number;
+  linuxCount: number;
   isLoadingHostsSummary: boolean;
   showHostsUI: boolean;
+  errorHosts: boolean;
   selectedPlatform: string;
-  setTotalCount: (count: string | undefined) => void;
+  labels?: ILabelSummary[];
   setActionURL?: (url: string) => void;
-}
-
-interface ILabelsResponse {
-  labels: ILabel[];
-}
-
-interface IHostCountResponse {
-  count: number;
 }
 
 const HostsSummary = ({
   currentTeamId,
   macCount,
   windowsCount,
+  linuxCount,
   isLoadingHostsSummary,
   showHostsUI,
+  errorHosts,
   selectedPlatform,
-  setTotalCount,
+  labels,
   setActionURL,
 }: IHostSummaryProps): JSX.Element => {
   const { MANAGE_HOSTS } = paths;
-  const [linuxCount, setLinuxCount] = useState<string | undefined>();
 
   const getLabel = (
     labelString: string,
-    labels: ILabel[]
-  ): ILabel | undefined => {
-    return Object.values(labels).find((label: ILabel) => {
+    summaryLabels: ILabelSummary[]
+  ): ILabelSummary | undefined => {
+    return Object.values(summaryLabels).find((label: ILabelSummary) => {
       return label.label_type === "builtin" && label.name === labelString;
     });
   };
-
-  const { data: labels } = useQuery<ILabelsResponse, Error, ILabel[]>(
-    ["labels", currentTeamId, selectedPlatform],
-    () => labelsAPI.loadAll(),
-    {
-      select: (data: ILabelsResponse) => data.labels,
-    }
-  );
-
-  useQuery<IHostCountResponse, Error, number>(
-    [
-      "linux host count",
-      currentTeamId,
-      selectedPlatform,
-      macCount,
-      windowsCount,
-    ],
-    () => {
-      const linuxLabel = getLabel("All Linux", labels || []);
-      return (
-        hostCountAPI.load({
-          selectedLabels: [`labels/${linuxLabel?.id}`],
-          teamId: currentTeamId,
-        }) || { count: 0 }
-      );
-    },
-    {
-      select: (data: IHostCountResponse) => data.count,
-      enabled: !!labels,
-      onSuccess: (data: number) => {
-        setLinuxCount(data.toLocaleString("en-US"));
-
-        // after we get the linux count, we can
-        // determine which count to use based on the platform
-        switch (selectedPlatform) {
-          case "darwin":
-            setTotalCount(macCount);
-            break;
-          case "windows":
-            setTotalCount(windowsCount);
-            break;
-          case "linux":
-            setTotalCount(data.toLocaleString("en-US"));
-            break;
-          default:
-            // will be set in the parent to the server's total
-            setTotalCount(undefined);
-            break;
-        }
-      },
-    }
-  );
 
   // build the manage hosts URL
   useEffect(() => {
     if (labels) {
       let hostsURL = MANAGE_HOSTS;
 
-      // platform must go first since it's a URL slug rather than params
       if (selectedPlatform) {
         const labelValue =
           PLATFORM_NAME_TO_LABEL_NAME[
             selectedPlatform as keyof typeof PLATFORM_NAME_TO_LABEL_NAME
           ];
-        hostsURL += `/${getLabel(labelValue, labels)?.slug}`;
+        hostsURL += `/manage/labels/${getLabel(labelValue, labels)?.id}`;
       }
 
       if (currentTeamId) {
@@ -128,7 +69,7 @@ const HostsSummary = ({
     }
   }, [labels, selectedPlatform, currentTeamId]);
 
-  // Renders opaque information as host information is loading
+  // Renders semi-transparent screen as host information is loading
   let opacity = { opacity: 0 };
   if (showHostsUI) {
     opacity = isLoadingHostsSummary ? { opacity: 0.4 } : { opacity: 1 };
@@ -192,6 +133,10 @@ const HostsSummary = ({
         );
     }
   };
+
+  if (errorHosts && !isLoadingHostsSummary) {
+    return <DataError card />;
+  }
 
   return (
     <div

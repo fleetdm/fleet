@@ -50,8 +50,8 @@ module.exports = {
               let formattedTags = [];
               for (let tag of tagsToFormat) {
                 if(tag !== '') {// « Ignoring any blank tags caused by trailing commas in the YAML.
-                  // Formatting tags in sentence case, and removing any extra whitespace.
-                  formattedTags.push(_.capitalize(_.trim(tag)));
+                  // Removing any extra whitespace from tags and changing them to be in lower case.
+                  formattedTags.push(_.trim(tag.toLowerCase()));
                 }
               }
               // Removing any duplicate tags.
@@ -200,32 +200,33 @@ module.exports = {
               // > • What about images referenced in markdown files? :: They need to be referenced using an absolute URL src-- e.g. ![](https://fleetdm.com/images/foo.png)   See also https://github.com/fleetdm/fleet/issues/706#issuecomment-884641081 for reasoning.
               // > • What about GitHub-style emojis like `:white_check_mark:`?  :: Use actual unicode emojis instead.  Need to revisit this?  Visit https://github.com/fleetdm/fleet/pull/1380/commits/19a6e5ffc70bf41569293db44100e976f3e2bda7 for more info.
               let mdString = await sails.helpers.fs.read(pageSourcePath);
-              mdString = mdString.replace(/(```)([a-zA-Z0-9\-]*)(\s*\n)/g, '$1\n' + '<!-- __LANG=%' + '$2' + '%__ -->' + '$3'); // « Based on the github-flavored markdown's language annotation, (e.g. ```js```) add a temporary marker to code blocks that can be parsed post-md-compilation when this is HTML.  Note: This is an HTML comment because it is easy to over-match and "accidentally" add it underneath each code block as well (being an HTML comment ensures it doesn't show up or break anything).  For more information, see https://github.com/uncletammy/doc-templater/blob/2969726b598b39aa78648c5379e4d9503b65685e/lib/compile-markdown-tree-from-remote-git-repo.js#L198-L202
+              mdString = mdString.replace(/(?=\n)(\s*)(`{3,4})([a-zA-Z0-9\-]*)([\s*\n])/g, '$1$2' + '$1<!-- __LANG=%' + '$3' + '%__ -->' + '$4'); // « Based on the github-flavored markdown's language annotation, (e.g. ```js```) add a temporary marker to code blocks that can be parsed post-md-compilation when this is HTML.  Note: This is an HTML comment because it is easy to over-match and "accidentally" add it underneath each code block as well (being an HTML comment ensures it doesn't show up or break anything).  For more information, see https://github.com/uncletammy/doc-templater/blob/2969726b598b39aa78648c5379e4d9503b65685e/lib/compile-markdown-tree-from-remote-git-repo.js#L198-L202
+              mdString = mdString.replace(/(<call-to-action[\s\S]+[^>\n+])\n+(>)/g, '$1$2'); // « Removes any newlines that might exist before the closing `>` when the <call-to-action> compontent is added to markdown files.
               let htmlString = await sails.helpers.strings.toHtml(mdString);
               htmlString = (// « Add the appropriate class to the `<code>` based on the temporary "LANG" markers that were just added above
                 htmlString
                 .replace(// Interpret `js` as `javascript`
                   // $1     $2     $3   $4
-                  /(<code)([^>]*)(>\s*)(\&lt;!-- __LANG=\%js\%__ --\&gt;)\s*/gm,
+                  /(<code)([^>]*)(>\s*)(\s\&lt;!-- __LANG=\%js\%__ --\&gt;)\s*/gm,
                   '$1 class="javascript"$2$3'
                 )
                 .replace(// Interpret `sh` and `bash` as `bash`
                   // $1     $2     $3   $4
-                  /(<code)([^>]*)(>\s*)(\&lt;!-- __LANG=\%(bash|sh)\%__ --\&gt;)\s*/gm,
+                  /(<code)([^>]*)(>\s*)(\s\&lt;!-- __LANG=\%(bash|sh)\%__ --\&gt;)\s*/gm,
                   '$1 class="bash"$2$3'
                 )
                 .replace(// When unspecified, default to `text`
                   // $1     $2     $3   $4
-                  /(<code)([^>]*)(>\s*)(\&lt;!-- __LANG=\%\%__ --\&gt;)\s*/gm,
+                  /(<code)([^>]*)(>\s*)(\s\&lt;!-- __LANG=\%\%__ --\&gt;)\s*/gm,
                   '$1 class="nohighlight"$2$3'
                 )
                 .replace(// Nab the rest, leaving the code language as-is.
                   // $1     $2     $3   $4               $5    $6
-                  /(<code)([^>]*)(>\s*)(\&lt;!-- __LANG=\%)([^%]+)(\%__ --\&gt;)\s*/gm,
+                  /(<code)([^>]*)(>\s*)(\s\&lt;!-- __LANG=\%)([^%]+)(\%__ --\&gt;)\s*/gm,
                   '$1 class="$5"$2$3'
                 )
                 .replace(// Finally, remove any "LANG" markers that have been added inside of a nested code block
-                  /(```)\n\&lt;\!\-+\s\_+LANG\=\%+\_+\s\-+\&gt;/gm,
+                  /((&#96;)+)\n\&lt;\!\-+\s\_+LANG\=\%+\_+\s\-+\&gt;/gm,
                   '$1'
                 )
               );
@@ -276,6 +277,48 @@ module.exports = {
 
               });//∞
 
+              // Modify images in the /articles folder
+              if (sectionRepoPath === 'articles/') {
+                // modifying relative links e.g. `../website/assets/images/articles/foo-200x300@2x.png`
+                htmlString = htmlString.replace(/((?<=(src))="(\.\/[^"]+|\.\.\/[^"]+)?")/g, (srcString)=>{
+                  let oldRelPath = srcString.match(/="(\.\/[^"]+|\.\.\/[^"]+)"/)[1];
+                  let referencedPageSourcePath = path.resolve(path.join(topLvlRepoPath, sectionRepoPath, pageRelSourcePath), '../', oldRelPath);
+                  // If the relative link goes to the image is in the website's assets folder (`website/assets/`) we'll modify the relative link
+                  // to work on fleetdm.com e.g. ('../website/assets/images/articles/foo-300x900@2x.png' -> '/images/articles/foo-200x300@2x.png')
+                  let isWebsiteAsset = referencedPageSourcePath.match(/(?<=\/website\/assets)(\/images\/(.+))/g)[0];
+                  if(isWebsiteAsset) {
+                    return '="'+isWebsiteAsset+'"';
+                  } else {
+                    // If the relative link doesn't go to the `website/assets/` folder, we'll throw an error.
+                    throw new Error(`Failed compiling markdown content: An article page has an invalid image link ${srcString} at "${path.join(topLvlRepoPath, pageSourcePath)}".  To resolve, ensure this image has been added to 'website/assets/images/articles/' and link to it using a relative link e.g. '../website/assets/images/articles/foo-200x300@2x.png' OR a link to the image on fleetdm.com e.g. 'https://fleetdm.com/images/articles/foo-200x300@2x.png`);
+                  }
+                });//∞
+
+                // Modify links to images hosted on fleetdm.com to link directly to the file in the `website/assets/` folder
+                htmlString = htmlString.replace(/((?<=(src))="https?:\/\/([^"]+)")/g, (srcString)=>{
+                  let isExternal = ! srcString.match(/=\"https?:\/\/([^\.|blog]+\.)*fleetdm\.com/g);
+                  if (!isExternal) {
+                    return srcString.replace(/=\"https?:\/\//, '').replace(/^fleetdm\.com/, '="');
+                  } else {
+                    return srcString;
+                  }
+                });//∞
+
+              }
+
+              // Find all H2s in handbook pages for the generated handbook index
+              let linksForHandbookIndex = [];
+              if(sectionRepoPath === 'handbook/') {
+                for (let link of (mdString.match(/(\n\#\#\s.+)\n/g, '$1')||[])) {
+                  let sectionInHandbookPage =  {};
+                  // Remove any preceeding #s and any trailing newlines from the matched link
+                  sectionInHandbookPage.headingText = link.replace(/\n## /, '').replace(/\n/g, '');
+                  // Build the relative hash link for the matched heading
+                  sectionInHandbookPage.hashLink = rootRelativeUrlPath+'#'+_.kebabCase(sectionInHandbookPage.headingText);
+                  linksForHandbookIndex.push(sectionInHandbookPage);
+                }
+              }
+
               // Extract metadata from markdown.
               // > • Parsing meta tags (consider renaming them to just <meta>- or by now there's probably a more standard way of embedding semantics in markdown files; prefer to use that): https://github.com/uncletammy/doc-templater/blob/2969726b598b39aa78648c5379e4d9503b65685e/lib/compile-markdown-tree-from-remote-git-repo.js#L180-L183
               // >   See also https://github.com/mikermcneil/machinepack-markdown/blob/5d8cee127e8ce45c702ec9bbb2b4f9bc4b7fafac/machines/parse-docmeta-tags.js#L42-L47
@@ -316,6 +359,7 @@ module.exports = {
 
               // If the page has a pageOrderInSection meta tag, we'll use that to sort pages in their bottom level sections.
               let pageOrderInSection;
+              // Add handbook pages to pageOrderInSection check, add pageOrderInSection meta tags to each handbook page.
               if(sectionRepoPath === 'docs/') {
                 // Set a flag to determine if the page is a readme (e.g. /docs/Using-Fleet/configuration-files/readme.md) or a FAQ page.
                 // READMEs in subfolders and FAQ pages don't have pageOrderInSection values, they are always sorted at the end of sections.
@@ -363,7 +407,7 @@ module.exports = {
                 if(embeddedMetadata.category) {
                   // Throwing an error if the article has an invalid category.
                   embeddedMetadata.category = embeddedMetadata.category.toLowerCase();
-                  let validArticleCategories = ['product', 'security', 'engineering', 'success stories', 'announcements', 'guides', 'releases' ];
+                  let validArticleCategories = ['product', 'security', 'engineering', 'success stories', 'announcements', 'guides', 'releases', 'podcasts', 'report' ];
                   if(!validArticleCategories.includes(embeddedMetadata.category)) {
                     throw new Error(`Failed compiling markdown content: An article page has an invalid category meta tag (<meta name="category" value="${embeddedMetadata.category}">) at "${path.join(topLvlRepoPath, pageSourcePath)}". To resolve, change the meta tag to a valid category, one of: ${validArticleCategories}`);
                   }
@@ -373,9 +417,25 @@ module.exports = {
                 }
                 if(embeddedMetadata.articleImageUrl) {
                   // Checking the value of `articleImageUrl` meta tags, and throwing an error if it is not a link to an image.
-                  let isValidImageUrl = embeddedMetadata.articleImageUrl.match(/^https?:\/\/(.+)(\.png|\.jpg|\.jpeg)$/g);
-                  if(!isValidImageUrl) {
-                    throw new Error(`Failed compiling markdown content: An article page has an invalid a articleImageUrl meta tag (<meta name="articleImageUrl" value="${embeddedMetadata.articleImageUrl}">) at "${path.join(topLvlRepoPath, pageSourcePath)}".  To resolve, change the value of the meta tag to be a URL`);
+                  let isValidImage = embeddedMetadata.articleImageUrl.match(/^(https?:\/\/|\.\.)(.+)(\.png|\.jpg|\.jpeg)$/g);
+                  if(!isValidImage) {
+                    throw new Error(`Failed compiling markdown content: An article page has an invalid a articleImageUrl meta tag (<meta name="articleImageUrl" value="${embeddedMetadata.articleImageUrl}">) at "${path.join(topLvlRepoPath, pageSourcePath)}".  To resolve, change the value of the meta tag to be a URL or repo relative link to an image`);
+                  }
+                  let isURL = embeddedMetadata.articleImageUrl.match(/https?:\/\/(.+)/g);
+                  let isExternal = ! embeddedMetadata.articleImageUrl.match(/https?:\/\/([^\.|blog]+\.)*fleetdm\.com/g);
+                  let inWebsiteAssetFolder = embeddedMetadata.articleImageUrl.match(/(?<=\.\.\/website\/assets)(\/images\/(.+))/g);
+                  // Modifying the value of the `articleImageUrl` meta tag
+                  if (isURL) {
+                    if (!isExternal) { // If the image is hosted on fleetdm.com, we'll modify the meta value to reference the file directly in the `website/assets/` folder
+                      embeddedMetadata.articleImageUrl = embeddedMetadata.articleImageUrl.replace(/https?:\/\//, '').replace(/^fleetdm\.com/, '');
+                    } else { // If the value is a link to an image that is not hosted on fleetdm.com, we won't modify it.
+                      // TODO: Enable this error once our Medium articles and their assets have been fully migrated.
+                      // throw new Error(`Failed compiling markdown content: An article page has an invalid a articleImageUrl meta tag (<meta name="articleImageUrl" value="${embeddedMetadata.articleImageUrl}">) at "${path.join(topLvlRepoPath, pageSourcePath)}".  To resolve, change the value of the meta tag to be an image that will be hosted on fleetdm.com`);
+                    }
+                  } else if(inWebsiteAssetFolder) { // If the `articleImageUrl` value is a relative link to the `website/assets/` folder, we'll modify the value to link directly to that folder.
+                    embeddedMetadata.articleImageUrl = embeddedMetadata.articleImageUrl.replace(/^\.\.\/website\/assets/g, '');
+                  } else { // If the value is not a url and the relative link does not go to the 'website/assets/' folder, we'll throw an error.
+                    throw new Error(`Failed compiling markdown content: An article page has an invalid a articleImageUrl meta tag (<meta name="articleImageUrl" value="${embeddedMetadata.articleImageUrl}">) at "${path.join(topLvlRepoPath, pageSourcePath)}".  To resolve, change the value of the meta tag to be a URL or repo relative link to an image in the 'website/assets/images' folder`);
                   }
                 }
                 // For article pages, we'll attach the category to the `rootRelativeUrlPath`.
@@ -417,7 +477,8 @@ module.exports = {
                 htmlId: htmlId,
                 pageOrderInSectionPath: pageOrderInSection,
                 sectionRelativeRepoPath: sectionRelativeRepoPath,
-                meta: _.omit(embeddedMetadata, ['title', 'pageOrderInSection'])
+                meta: _.omit(embeddedMetadata, ['title', 'pageOrderInSection']),
+                linksForHandbookIndex: linksForHandbookIndex.length > 0 ? linksForHandbookIndex : undefined,
               });
             }
           }//∞ </each source file>

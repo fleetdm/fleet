@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { useDebouncedCallback } from "use-debounce";
 
 import { ISoftware } from "interfaces/software";
@@ -11,7 +11,10 @@ import TableContainer from "components/TableContainer";
 import EmptyState from "../EmptyState";
 import SoftwareVulnCount from "./SoftwareVulnCount";
 
-import generateSoftwareTableHeaders from "./SoftwareTableConfig";
+import {
+  generateSoftwareTableHeaders,
+  generateSoftwareTableData,
+} from "./SoftwareTableConfig";
 
 const baseClass = "host-details";
 
@@ -23,6 +26,7 @@ interface ISoftwareTableProps {
   isLoading: boolean;
   software: ISoftware[];
   deviceUser?: boolean;
+  deviceType?: string;
   softwareInventoryEnabled?: boolean;
 }
 
@@ -30,18 +34,9 @@ const SoftwareTable = ({
   isLoading,
   software,
   deviceUser,
+  deviceType,
   softwareInventoryEnabled,
 }: ISoftwareTableProps): JSX.Element => {
-  const tableSoftware: ITableSoftware[] = software.map((s) => {
-    return {
-      ...s,
-      vulnerabilities:
-        s.vulnerabilities?.map((v) => {
-          return v.cve;
-        }) || [],
-    };
-  });
-
   const [searchString, setSearchString] = useState("");
   const [filterVuln, setFilterVuln] = useState(false);
   const [filters, setFilters] = useState({
@@ -60,6 +55,13 @@ const SoftwareTable = ({
     300
   );
 
+  const tableSoftware = useMemo(() => generateSoftwareTableData(software), [
+    software,
+  ]);
+  const tableHeaders = useMemo(() => generateSoftwareTableHeaders(deviceUser), [
+    deviceUser,
+  ]);
+
   const onVulnFilterChange = (value: boolean) => {
     setFilterVuln(value);
   };
@@ -76,13 +78,11 @@ const SoftwareTable = ({
     );
   };
 
-  const tableHeaders = generateSoftwareTableHeaders(deviceUser);
-
   const EmptySoftwareSearch = () => (
     <EmptyState title="software" reason="empty-search" />
   );
 
-  if (!softwareInventoryEnabled) {
+  if (softwareInventoryEnabled === false) {
     return (
       <div className="section section--software">
         <p className="section__header">Software</p>
@@ -104,27 +104,30 @@ const SoftwareTable = ({
             />
           )}
           {software && (
-            <TableContainer
-              columns={tableHeaders}
-              data={tableSoftware}
-              filters={filters}
-              isLoading={isLoading}
-              defaultSortHeader={"name"}
-              defaultSortDirection={"asc"}
-              inputPlaceHolder={
-                "Search software by name or vulnerabilities (CVEs)"
-              }
-              onQueryChange={onQueryChange}
-              resultsTitle={"software items"}
-              emptyComponent={EmptySoftwareSearch}
-              showMarkAllPages={false}
-              isAllPagesSelected={false}
-              searchable
-              customControl={renderVulnFilterDropdown}
-              isClientSidePagination
-              isClientSideFilter
-              highlightOnHover
-            />
+            <div className={deviceType || ""}>
+              <TableContainer
+                columns={tableHeaders}
+                data={tableSoftware || []}
+                filters={filters}
+                isLoading={isLoading}
+                defaultSortHeader={"name"}
+                defaultSortDirection={"asc"}
+                inputPlaceHolder={
+                  "Search software by name or vulnerabilities ( CVEs)"
+                }
+                onQueryChange={onQueryChange}
+                resultsTitle={"software items"}
+                emptyComponent={EmptySoftwareSearch}
+                showMarkAllPages={false}
+                isAllPagesSelected={false}
+                searchable
+                customControl={renderVulnFilterDropdown}
+                isClientSidePagination
+                pageSize={20}
+                isClientSideFilter
+                highlightOnHover
+              />
+            </div>
           )}
         </>
       ) : (

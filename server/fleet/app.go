@@ -23,7 +23,8 @@ func (c AppConfig) AuthzType() string {
 }
 
 const (
-	AppConfigKind = "config"
+	AppConfigKind  = "config"
+	MaskedPassword = "********"
 )
 
 // ModifyAppConfigRequest contains application configuration information
@@ -113,6 +114,8 @@ type AppConfig struct {
 	SMTPTest bool `json:"smtp_test,omitempty"`
 	// SSOSettings is single sign on settings
 	SSOSettings SSOSettings `json:"sso_settings"`
+	// FleetDesktop holds settings for Fleet Desktop that can be changed via the API.
+	FleetDesktop FleetDesktopSettings `json:"fleet_desktop"`
 
 	// VulnerabilitySettings defines how fleet will behave while scanning for vulnerabilities in the host software
 	VulnerabilitySettings VulnerabilitySettings `json:"vulnerability_settings"`
@@ -210,21 +213,6 @@ type VulnerabilitiesWebhookSettings struct {
 	HostBatchSize int `json:"host_batch_size"`
 }
 
-// JiraIntegration configures an instance of an integration with the Jira
-// system.
-type JiraIntegration struct {
-	URL                           string `json:"url"`
-	Username                      string `json:"username"`
-	APIToken                      string `json:"api_token"`
-	ProjectKey                    string `json:"project_key"`
-	EnableSoftwareVulnerabilities bool   `json:"enable_software_vulnerabilities"`
-}
-
-// Integrations configures the integrations with external systems.
-type Integrations struct {
-	Jira []*JiraIntegration `json:"jira"`
-}
-
 func (c *AppConfig) ApplyDefaultsForNewInstalls() {
 	c.ServerSettings.EnableAnalytics = true
 
@@ -274,6 +262,15 @@ type HostSettings struct {
 	EnableSoftwareInventory bool             `json:"enable_software_inventory"`
 	AdditionalQueries       *json.RawMessage `json:"additional_queries,omitempty"`
 }
+
+// FleetDesktopSettings contains settings used to configure Fleet Desktop.
+type FleetDesktopSettings struct {
+	// TransparencyURL is the URL used for the “Transparency” link in the Fleet Desktop menu.
+	TransparencyURL string `json:"transparency_url"`
+}
+
+// DefaultTransparencyURL is the default URL used for the “Transparency” link in the Fleet Desktop menu.
+const DefaultTransparencyURL = "https://fleetdm.com/transparency"
 
 type OrderDirection int
 
@@ -449,3 +446,8 @@ type KafkaRESTConfig struct {
 	ResultTopic string `json:"result_topic"`
 	ProxyHost   string `json:"proxyhost"`
 }
+
+// DeviceAPIFeatures specifies a list of features supported
+// by the current API version. Each field in the struct is
+// meant to be a boolean value.
+type DeviceAPIFeatures struct{}

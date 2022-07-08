@@ -45,6 +45,8 @@ const ConfirmInvitePage = ({
     const { create } = usersAPI;
     const { LOGIN } = paths;
 
+    setUserErrors({});
+
     try {
       await create(formData);
 

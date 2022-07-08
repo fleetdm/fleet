@@ -1,3 +1,7 @@
+import CONSTANTS from "../../support/constants";
+
+const { GOOD_PASSWORD } = CONSTANTS;
+
 describe("Premium tier - Observer user", () => {
   before(() => {
     Cypress.session.clearAllSavedSessions();
@@ -16,7 +20,7 @@ describe("Premium tier - Observer user", () => {
 
   describe("Global observer", () => {
     beforeEach(() => {
-      cy.loginWithCySession("oliver@organization.com", "user123#");
+      cy.loginWithCySession("oliver@organization.com", GOOD_PASSWORD);
     });
     describe("Navigation", () => {
       beforeEach(() => cy.visit("/dashboard"));
@@ -241,7 +245,7 @@ describe("Premium tier - Observer user", () => {
 
   describe("Team observer", () => {
     beforeEach(() => {
-      cy.loginWithCySession("toni@organization.com", "user123#");
+      cy.loginWithCySession("toni@organization.com", GOOD_PASSWORD);
     });
     describe("Nav restrictions", () => {
       it("should restrict navigation according to role-based access controls", () => {

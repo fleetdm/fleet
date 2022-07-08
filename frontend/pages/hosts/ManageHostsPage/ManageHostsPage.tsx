@@ -8,8 +8,8 @@ import { format } from "date-fns";
 import FileSaver from "file-saver";
 
 import enrollSecretsAPI from "services/entities/enroll_secret";
-import labelsAPI from "services/entities/labels";
-import teamsAPI from "services/entities/teams";
+import labelsAPI, { ILabelsResponse } from "services/entities/labels";
+import teamsAPI, { ILoadTeamsResponse } from "services/entities/teams";
 import globalPoliciesAPI from "services/entities/global_policies";
 import teamPoliciesAPI from "services/entities/team_policies";
 import hostsAPI, {
@@ -50,7 +50,7 @@ import HostSidePanel from "components/side_panels/HostSidePanel";
 import LabelForm from "components/forms/LabelForm";
 import QuerySidePanel from "components/side_panels/QuerySidePanel";
 import TableContainer from "components/TableContainer";
-import TableDataError from "components/TableDataError";
+import TableDataError from "components/DataError";
 import { IActionButtonProps } from "components/TableContainer/DataTable/ActionButton";
 import TeamsDropdown from "components/TeamsDropdown";
 import Spinner from "components/Spinner";
@@ -85,7 +85,6 @@ import EditColumnsModal from "./components/EditColumnsModal/EditColumnsModal";
 import TransferHostModal from "./components/TransferHostModal";
 import DeleteHostModal from "./components/DeleteHostModal";
 import DeleteLabelModal from "./components/DeleteLabelModal";
-import SoftwareVulnerabilities from "./components/SoftwareVulnerabilities";
 import EditColumnsIcon from "../../../../assets/images/icon-edit-columns-16x16@2x.png";
 import PencilIcon from "../../../../assets/images/icon-pencil-14x14@2x.png";
 import TrashIcon from "../../../../assets/images/icon-trash-14x14@2x.png";
@@ -102,15 +101,8 @@ interface IManageHostsProps {
   location: any; // no type in react-router v3
 }
 
-interface ILabelsResponse {
-  labels: ILabel[];
-}
 interface IPolicyAPIResponse {
   policy: IPolicy;
-}
-
-interface ITeamsResponse {
-  teams: ITeam[];
 }
 
 interface ITableQueryProps {
@@ -332,12 +324,12 @@ const ManageHostsPage = ({
     data: teams,
     isLoading: isLoadingTeams,
     refetch: refetchTeams,
-  } = useQuery<ITeamsResponse, Error, ITeam[]>(
+  } = useQuery<ILoadTeamsResponse, Error, ITeam[]>(
     ["teams"],
     () => teamsAPI.loadAll(),
     {
       enabled: !!isPremiumTier,
-      select: (data: ITeamsResponse) =>
+      select: (data: ILoadTeamsResponse) =>
         data.teams.sort((a, b) => sortUtils.caseInsensitiveAsc(a.name, b.name)),
       onSuccess: (responseTeams: ITeam[]) => {
         if (!currentTeam && !isOnGlobalTeam && responseTeams.length) {
@@ -478,7 +470,7 @@ const ManageHostsPage = ({
     if (options.sortBy) {
       delete options.sortBy;
     }
-    retrieveHostCount(options);
+    retrieveHostCount(omit(options, "device_mapping"));
   };
 
   let teamSync = false;
@@ -519,6 +511,7 @@ const ManageHostsPage = ({
       softwareId,
       page: tableQueryData ? tableQueryData.pageIndex : 0,
       perPage: tableQueryData ? tableQueryData.pageSize : 100,
+      device_mapping: true,
     };
 
     if (isEqual(options, currentQueryOptions)) {
@@ -526,7 +519,7 @@ const ManageHostsPage = ({
     }
     if (teamSync) {
       retrieveHosts(options);
-      retrieveHostCount(options);
+      retrieveHostCount(omit(options, "device_mapping"));
       setCurrentQueryOptions(options);
     }
   }, [availableTeams, currentTeam, location, labels]);
@@ -1279,6 +1272,27 @@ const ManageHostsPage = ({
   ) => {
     evt.preventDefault();
 
+    const hiddenColumnsStorage = localStorage.getItem("hostHiddenColumns");
+    let currentHiddenColumns = [];
+    let visibleColumns;
+    if (hiddenColumnsStorage) {
+      currentHiddenColumns = JSON.parse(hiddenColumnsStorage);
+    }
+
+    if (config && currentUser) {
+      const tableColumns = generateVisibleTableColumns(
+        currentHiddenColumns,
+        config,
+        currentUser,
+        currentTeam
+      );
+
+      const columnAccessors = tableColumns
+        .map((column) => (column.accessor ? column.accessor : ""))
+        .filter((element) => element);
+      visibleColumns = columnAccessors.join(",");
+    }
+
     let options = {
       selectedLabels: selectedFilters,
       globalFilter: searchQuery,
@@ -1287,6 +1301,7 @@ const ManageHostsPage = ({
       policyId,
       policyResponse,
       softwareId,
+      visibleColumns,
     };
 
     options = {
@@ -1329,17 +1344,19 @@ const ManageHostsPage = ({
         }`}
       >
         <span>{`${count} host${count === 1 ? "" : "s"}`}</span>
-        {/* Export all columns initially in 4.13 release but feature being pushed
-        back by product until we build client side filtering to export only selected columns
-        <Button
-          className={`${baseClass}__export-btn`}
-          onClick={onExportHostsResults}
-          variant="text-link"
-        >
-          <>
-            Export hosts <img alt="" src={DownloadIcon} />
-          </>
-        </Button> */}
+        {count ? (
+          <Button
+            className={`${baseClass}__export-btn`}
+            onClick={onExportHostsResults}
+            variant="text-link"
+          >
+            <>
+              Export hosts <img alt="" src={DownloadIcon} />
+            </>
+          </Button>
+        ) : (
+          <></>
+        )}
       </div>
     );
   }, [isHostCountLoading, filteredHostCount]);
@@ -1363,13 +1380,6 @@ const ManageHostsPage = ({
             renderSoftwareFilterBlock()}
         </div>
       );
-    }
-    return null;
-  };
-
-  const renderSoftwareVulnerabilities = () => {
-    if (softwareId && softwareDetails) {
-      return <SoftwareVulnerabilities software={softwareDetails} />;
     }
     return null;
   };
@@ -1494,14 +1504,16 @@ const ManageHostsPage = ({
       },
     ];
 
+    const tableColumns = generateVisibleTableColumns(
+      hiddenColumns,
+      config,
+      currentUser,
+      currentTeam
+    );
+
     return (
       <TableContainer
-        columns={generateVisibleTableColumns(
-          hiddenColumns,
-          config,
-          currentUser,
-          currentTeam
-        )}
+        columns={tableColumns}
         data={hosts}
         isLoading={isHostsLoading || isHostCountLoading}
         manualSortBy
@@ -1586,7 +1598,7 @@ const ManageHostsPage = ({
           <div className="header-wrap">
             {renderHeader()}
             <div className={`${baseClass} button-wrap`}>
-              {canEnrollHosts && (
+              {canEnrollHosts && !hasHostErrors && !hasHostCountErrors && (
                 <Button
                   onClick={() => setShowEnrollSecretModal(true)}
                   className={`${baseClass}__enroll-hosts button`}
@@ -1596,6 +1608,8 @@ const ManageHostsPage = ({
                 </Button>
               )}
               {canEnrollHosts &&
+                !hasHostErrors &&
+                !hasHostCountErrors &&
                 !(
                   getStatusSelected() === ALL_HOSTS_LABEL &&
                   selectedLabel?.count === 0
@@ -1614,13 +1628,7 @@ const ManageHostsPage = ({
             </div>
           </div>
           {renderActiveFilterBlock()}
-          {renderNoEnrollSecretBanner() ||
-            (renderSoftwareVulnerabilities() && (
-              <div className={`${baseClass}__info-banners`}>
-                {renderNoEnrollSecretBanner()}
-                {renderSoftwareVulnerabilities()}
-              </div>
-            ))}
+          {renderNoEnrollSecretBanner()}
           {renderTable()}
         </div>
       )}

@@ -1,0 +1,21 @@
+FROM --platform=linux/amd64 golang:1.18.3-bullseye
+LABEL maintainer="Fleet Developers <hello@fleetdm.com>"
+
+RUN apt-get update && apt-get install -y \
+	gcc \
+	libgtk-3-dev \
+	libayatana-appindicator3-dev \
+	&& rm -rf /var/lib/apt/lists/*
+
+RUN mkdir -p /usr/src/fleet
+RUN mkdir -p /output
+
+WORKDIR /usr/src/fleet
+
+COPY orbit ./orbit
+COPY server ./server
+COPY ee ./ee
+COPY pkg ./pkg
+COPY go.mod go.sum ./
+
+CMD /bin/bash

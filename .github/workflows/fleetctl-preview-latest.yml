@@ -1,0 +1,83 @@
+name: Test latest changes in fleetctl preview
+
+# Tests the `fleetctl preview` command with latest changes in fleetctl and
+# docs/01-Using-Fleet/standard-query-library/standard-query-library.yml
+
+on:
+  push:
+    branches:
+      - main
+      - patch-*
+    paths:
+      # TODO: Reduce to cmd/fleetctl/**.go and packages used by it.
+      - '**.go'
+      - 'docs/01-Using-Fleet/standard-query-library/standard-query-library.yml'
+  pull_request:
+    paths:
+      # TODO: Reduce to cmd/fleetctl/**.go and packages used by it.
+      - '**.go'
+      - 'docs/01-Using-Fleet/standard-query-library/standard-query-library.yml'
+  workflow_dispatch: # Manual
+
+permissions:
+  contents: read
+
+jobs:
+  test-preview:
+    timeout-minutes: 60
+    strategy:
+      matrix:
+        # Doesn't work on Windows because Linux Docker containers are not supported.
+        os: [ubuntu-latest, macos-latest]
+        go-version: ['1.17.9']
+    runs-on: ${{ matrix.os }}
+    steps:
+
+    - name: Install Docker
+      # Docker needs to be installed manually on macOS.
+      if: contains(matrix.os, 'macos')
+      # From https://github.com/docker/for-mac/issues/2359#issuecomment-943131345
+      run: |
+        brew install --cask docker
+        sudo /Applications/Docker.app/Contents/MacOS/Docker --unattended --install-privileged-components
+        open -a /Applications/Docker.app --args --unattended --accept-license
+        echo "Waiting for Docker to start up..."
+        while ! /Applications/Docker.app/Contents/Resources/bin/docker info &>/dev/null; do sleep 1; done
+        echo "Docker is ready."
+
+    - name: Install Go
+      uses: actions/setup-go@b22fbbc2921299758641fab08929b4ac52b32923 # v2
+      with:
+        go-version: ${{ matrix.go-version }}
+
+    - name: Checkout Code
+      uses: actions/checkout@629c2de402a417ea7690ca6ce3f33229e27606a5 # v2
+
+    - name: Build Fleetctl
+      run: make fleetctl
+
+    - name: Run fleetctl preview
+      shell: bash
+      run: |
+        ./build/fleetctl preview --std-query-lib-file-path $(pwd)/docs/01-Using-Fleet/standard-query-library/standard-query-library.yml
+        sleep 10
+        ./build/fleetctl get hosts | tee hosts.txt
+        [ $( cat hosts.txt | grep online | wc -l) -eq 8 ]
+
+    - name: Get fleet logs
+      run: |
+        FLEET_LICENSE_KEY=foo docker compose -f ~/.fleet/preview/docker-compose.yml logs fleet01 fleet02 > fleet-logs.txt
+        # Copying logs, otherwise the upload-artifact action uploads the logs in a hidden folder (.fleet)
+        cp ~/.fleet/preview/orbit.log orbit.log
+        cp -r ~/.fleet/preview/logs osquery_result_status_logs
+      shell: bash
+
+    - name: Upload logs
+      if: always()
+      uses: actions/upload-artifact@3cea5372237819ed00197afe530f5a7ea3e805c8 # v2
+      with:
+        name: ${{ matrix.os }}-log
+        path: |
+          fleet-logs.txt
+          orbit.log
+          osquery_result_status_logs

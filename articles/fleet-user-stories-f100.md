@@ -2,9 +2,9 @@
 
 ## Cloud Security Technical Lead — F100 security and networking company.
 
-![Two people talking about Fleet](https://miro.medium.com/1*7BTPQ_RRbL9h9YkxT8caDQ.jpeg)
+![Two people talking about Fleet](../website/assets/images/articles/fleet-user-stories-f100-cover-800x450@2x.jpeg)
 
-When we spoke recently, our next Fleet user (who’s name and employer must remain anonymous for contractual reasons) gave us candid insights into how osquery and Fleet has been adopted at their F100 security and networking company.
+When we spoke recently, our next Fleet user (whose name and employer must remain anonymous for contractual reasons) gave us candid insights into how osquery and Fleet has been adopted at their F100 security and networking company.
 
 ### How did you first get started using osquery?
 
@@ -45,4 +45,4 @@ I love Fleet. It was stupid simple to set up once we were engaged with y’all. 
 <meta name="authorFullName" value="Mike Thomas">
 <meta name="publishedOn" value="2021-09-29">
 <meta name="articleTitle" value="Fleet user stories — F100">
-<meta name="articleImageUrl" value="https://miro.medium.com/1*7BTPQ_RRbL9h9YkxT8caDQ.jpeg">
+<meta name="articleImageUrl" value="../website/assets/images/articles/fleet-user-stories-f100-cover-800x450@2x.jpeg">

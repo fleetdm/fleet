@@ -19,6 +19,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/service/async"
 	"github.com/fleetdm/fleet/v4/server/sso"
+	"github.com/fleetdm/fleet/v4/server/test"
 	kitlog "github.com/go-kit/kit/log"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -26,11 +27,11 @@ import (
 	"github.com/throttled/throttled/v2/store/memstore"
 )
 
-func newTestService(t *testing.T, ds fleet.Datastore, rs fleet.QueryResultStore, lq fleet.LiveQueryStore, opts ...TestServerOpts) fleet.Service {
+func newTestService(t *testing.T, ds fleet.Datastore, rs fleet.QueryResultStore, lq fleet.LiveQueryStore, opts ...*TestServerOpts) fleet.Service {
 	return newTestServiceWithConfig(t, ds, config.TestConfig(), rs, lq, opts...)
 }
 
-func newTestServiceWithConfig(t *testing.T, ds fleet.Datastore, fleetConfig config.FleetConfig, rs fleet.QueryResultStore, lq fleet.LiveQueryStore, opts ...TestServerOpts) fleet.Service {
+func newTestServiceWithConfig(t *testing.T, ds fleet.Datastore, fleetConfig config.FleetConfig, rs fleet.QueryResultStore, lq fleet.LiveQueryStore, opts ...*TestServerOpts) fleet.Service {
 	mailer := &mockMailService{SendEmailFn: func(e fleet.Email) error { return nil }}
 	license := &fleet.LicenseInfo{Tier: fleet.TierFree}
 	writer, err := logging.NewFilesystemLogWriter(
@@ -47,8 +48,26 @@ func newTestServiceWithConfig(t *testing.T, ds fleet.Datastore, fleetConfig conf
 
 	var ssoStore sso.SessionStore
 
-	var failingPolicySet fleet.FailingPolicySet = NewMemFailingPolicySet()
+	var (
+		failingPolicySet  fleet.FailingPolicySet  = NewMemFailingPolicySet()
+		enrollHostLimiter fleet.EnrollHostLimiter = nopEnrollHostLimiter{}
+	)
 	var c clock.Clock = clock.C
+	if len(opts) > 0 {
+		if opts[0].Clock != nil {
+			c = opts[0].Clock
+		}
+	}
+
+	task := async.NewTask(ds, nil, c, config.OsqueryConfig{})
+	if len(opts) > 0 {
+		if opts[0].Task != nil {
+			task = opts[0].Task
+		} else {
+			opts[0].Task = task
+		}
+	}
+
 	if len(opts) > 0 {
 		if opts[0].Logger != nil {
 			logger = opts[0].Logger
@@ -62,15 +81,12 @@ func newTestServiceWithConfig(t *testing.T, ds fleet.Datastore, fleetConfig conf
 		if opts[0].FailingPolicySet != nil {
 			failingPolicySet = opts[0].FailingPolicySet
 		}
-		if opts[0].Clock != nil {
-			c = opts[0].Clock
+		if opts[0].EnrollHostLimiter != nil {
+			enrollHostLimiter = opts[0].EnrollHostLimiter
 		}
 	}
-	task := &async.Task{
-		Datastore:    ds,
-		AsyncEnabled: false,
-	}
-	svc, err := NewService(context.Background(), ds, task, rs, logger, osqlogger, fleetConfig, mailer, c, ssoStore, lq, ds, *license, failingPolicySet, &fleet.NoOpGeoIP{})
+
+	svc, err := NewService(context.Background(), ds, task, rs, logger, osqlogger, fleetConfig, mailer, c, ssoStore, lq, ds, *license, failingPolicySet, &fleet.NoOpGeoIP{}, enrollHostLimiter)
 	if err != nil {
 		panic(err)
 	}
@@ -85,7 +101,7 @@ func newTestServiceWithConfig(t *testing.T, ds fleet.Datastore, fleetConfig conf
 
 func newTestServiceWithClock(t *testing.T, ds fleet.Datastore, rs fleet.QueryResultStore, lq fleet.LiveQueryStore, c clock.Clock) fleet.Service {
 	testConfig := config.TestConfig()
-	svc := newTestServiceWithConfig(t, ds, testConfig, rs, lq, TestServerOpts{
+	svc := newTestServiceWithConfig(t, ds, testConfig, rs, lq, &TestServerOpts{
 		Clock: c,
 	})
 	return svc
@@ -121,17 +137,17 @@ var testUsers = map[string]struct {
 	GlobalRole        *string
 }{
 	"admin1": {
-		PlaintextPassword: "foobarbaz1234!",
+		PlaintextPassword: test.GoodPassword,
 		Email:             "admin1@example.com",
 		GlobalRole:        ptr.String(fleet.RoleAdmin),
 	},
 	"user1": {
-		PlaintextPassword: "foobarbaz1234!",
+		PlaintextPassword: test.GoodPassword,
 		Email:             "user1@example.com",
 		GlobalRole:        ptr.String(fleet.RoleMaintainer),
 	},
 	"user2": {
-		PlaintextPassword: "bazfoo1234!",
+		PlaintextPassword: test.GoodPassword,
 		Email:             "user2@example.com",
 		GlobalRole:        ptr.String(fleet.RoleObserver),
 	},
@@ -156,9 +172,11 @@ type TestServerOpts struct {
 	Pool                fleet.RedisPool
 	FailingPolicySet    fleet.FailingPolicySet
 	Clock               clock.Clock
+	Task                *async.Task
+	EnrollHostLimiter   fleet.EnrollHostLimiter
 }
 
-func RunServerForTestsWithDS(t *testing.T, ds fleet.Datastore, opts ...TestServerOpts) (map[string]fleet.User, *httptest.Server) {
+func RunServerForTestsWithDS(t *testing.T, ds fleet.Datastore, opts ...*TestServerOpts) (map[string]fleet.User, *httptest.Server) {
 	var rs fleet.QueryResultStore
 	if len(opts) > 0 && opts[0].Rs != nil {
 		rs = opts[0].Rs
@@ -351,4 +369,14 @@ func (m *memFailingPolicySet) ListSets() ([]uint, error) {
 		policyIDs = append(policyIDs, policyID)
 	}
 	return policyIDs, nil
+}
+
+type nopEnrollHostLimiter struct{}
+
+func (nopEnrollHostLimiter) CanEnrollNewHost(ctx context.Context) (bool, error) {
+	return true, nil
+}
+
+func (nopEnrollHostLimiter) SyncEnrolledHostIDs(ctx context.Context) error {
+	return nil
 }

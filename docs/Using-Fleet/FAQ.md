@@ -127,7 +127,7 @@ Both queries will run as scheduled on applicable hosts. If there are any hosts t
 
 Live query results are never logged to the filesystem of the Fleet server. See [Where are my query results?](#where-are-my-query-results).
 
-## Why does my query work locally with osquery, but not in Fleet?
+## Why does my query work locally with osquery but not in Fleet?
 
 If you're seeing query results using `osqueryi` but not through Fleet, the most likely culprit is a permissions issue. Check out the [osquery docs](https://osquery.readthedocs.io/en/stable/deployment/process-auditing/#full-disk-access) for more details and instructions for setting up Full Disk Access. 
 
@@ -251,7 +251,7 @@ If you are trying to run `fleetctl preview` and seeing errors about self-signed 
 
 ## Can I audit actions taken in Fleet?
 
-The [REST API `activities` endpoint](./REST-API.md#activities) provides a full breakdown of actions taken on packs, queries, policies and teams (Available in Fleet Premium) through the UI, the REST API or `fleetctl`.  
+The [REST API `activities` endpoint](./REST-API.md#activities) provides a full breakdown of actions taken on packs, queries, policies, and teams (Available in Fleet Premium) through the UI, the REST API, or `fleetctl`.  
 
 ## How often is the software inventory updated?
 
@@ -259,7 +259,7 @@ By default, Fleet will query hosts for software inventory hourly. If you'd like 
 
 ## Can I group results from multiple hosts?
 
-There are a few ways you can go about getting counts of hosts that meet a specific criteria using the REST API. You can use [`GET /api/v1/fleet/hosts`](./REST-API.md#list-hosts) or the [`fleetctl` CLI](./fleetctl-CLI.md#available-commands) to gather a list of all hosts and then work with that data however you'd like. For example, you could retreive all hosts using `fleetctl get hosts` and then use `jq` to pull out the data you need. The following example would give you a count of hosts by their OS version:
+There are a few ways you can go about getting counts of hosts that meet specific criteria using the REST API. You can use [`GET /api/v1/fleet/hosts`](./REST-API.md#list-hosts) or the [`fleetctl` CLI](./fleetctl-CLI.md#available-commands) to gather a list of all hosts and then work with that data however you'd like. For example, you could retrieve all hosts using `fleetctl get hosts` and then use `jq` to pull out the data you need. The following example would give you a count of hosts by their OS version:
 
 ```
 $ fleetctl get hosts --json | jq '.spec .os_version' | sort | uniq -c
@@ -273,4 +273,54 @@ $ fleetctl get hosts --json | jq '.spec .os_version' | sort | uniq -c
    3 "macOS 12.3.0"
    6 "macOS 12.3.1"
 ```
+
+## Will updating fleetctl lead to loss of data in Preview?
+
+No, you won't experience data loss when you update fleetctl. Note that you can run `fleetctl preview --tag v#.#.#` if you want to run Preview on a previous version. Just replace # with the version numbers of interest.
+
+## Can I disable usage statistics via the config file or a CLI flag?
+Apart from an admin [disabling usage](https://fleetdm.com/docs/using-fleet/usage-statistics#disable-usage-statistics) statistics on the Fleet UI, you can edit your `fleet.yml` config file to disable usage statistics. Look for the `server_settings` in your `fleet.yml` and set `enable_analytics: false`. Do note there is no CLI flag option to disable usage statistics at this time.
+
+## How do I downgrade from Fleet Premium to Fleet Free?
+
+How to downgrade from Fleet Premium to Fleet Free:
+
+First, back up your users and update all team-level users to global users:
+
+1. Run the `fleetctl get user_roles > user_roles.yml` command. Save the `user_roles.yml` file so
+   that, if you choose to upgrade later, you can restore user roles.
+2. Head to the **Settings > Users** page in the Fleet UI.
+3. For each user that has any team listed under the **Teams** column, select **Actions > Edit**,
+   then select
+   **Global user**, and then select **Save**. If a user shouldn't have global access, delete this user.
+
+Next, move all team-level scheduled queries to the global level:
+1. Head to the **Schedule** page in the Fleet UI.
+2. For each scheduled query that belongs to a team, copy the name in the **Query** column, select
+   **All teams** in the top dropdown, select **Schedule a query**, past the name in the **Select
+   query** field, choose the frequency, and select **Schedule**.
+3. Delete each scheduled query that belongs to a team because they will no longer run on any hosts
+   following the downgrade process.
+
+Next, move all team level policies to the global level:
+1. Head to the **Policies** page in the Fleet UI.
+2. For each policy that belongs to a team, copy the **Name**, **Description**, **Resolve**,
+  and **Query**. Then, select **All teams** in the top dropdown, select **Add a policy**, select
+  **create your own policy**, paste each item in the appropriate field, and select **Save**.
+3. Delete each policy that belongs to a team because they will no longer run on any hosts
+following the downgrade process.
+
+Next, back up your teams:
+1. Run the `fleetctl get teams > teams.yml` command. Save the `teams.yml` file so
+that, if you choose to upgrade later, you can restore teams.
+2. Head to the **Settings > Teams** page in the Fleet UI.
+3. Delete all teams. This will move all hosts to the global level.
+
+Lastly, remove your Fleet Premium license key:
+1. Remove your license key from your Fleet configuration. Documentation on where the license key is
+   located in your configuration is [here](https://fleetdm.com/docs/deploying/configuration#license).
+2. Restart your Fleet server.
+
+
+
 

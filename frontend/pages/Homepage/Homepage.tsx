@@ -3,11 +3,12 @@ import { useQuery } from "react-query";
 import { AppContext } from "context/app";
 import { find } from "lodash";
 
-import hostSummaryAPI from "services/entities/host_summary";
-import teamsAPI from "services/entities/teams";
 import { IHostSummary, IHostSummaryPlatforms } from "interfaces/host_summary";
+import { ILabelSummary } from "interfaces/label";
 import { IOsqueryPlatform } from "interfaces/platform";
 import { ITeam } from "interfaces/team";
+import hostSummaryAPI from "services/entities/host_summary";
+import teamsAPI, { ILoadTeamsResponse } from "services/entities/teams";
 import sortUtils from "utilities/sort";
 import { PLATFORM_DROPDOWN_OPTIONS } from "utilities/constants";
 
@@ -27,10 +28,6 @@ import Munki from "./cards/Munki";
 import OperatingSystems from "./cards/OperatingSystems";
 import ExternalURLIcon from "../../../assets/images/icon-external-url-12x12@2x.png";
 
-interface ITeamsResponse {
-  teams: ITeam[];
-}
-
 const baseClass = "homepage";
 
 const Homepage = (): JSX.Element => {
@@ -45,11 +42,12 @@ const Homepage = (): JSX.Element => {
   } = useContext(AppContext);
 
   const [selectedPlatform, setSelectedPlatform] = useState<string>("");
-  const [totalCount, setTotalCount] = useState<string | undefined>();
-  const [macCount, setMacCount] = useState<string>("0");
-  const [windowsCount, setWindowsCount] = useState<string>("0");
-  const [onlineCount, setOnlineCount] = useState<string | undefined>();
-  const [offlineCount, setOfflineCount] = useState<string | undefined>();
+  const [labels, setLabels] = useState<ILabelSummary[]>();
+  const [macCount, setMacCount] = useState<number>(0);
+  const [windowsCount, setWindowsCount] = useState<number>(0);
+  const [linuxCount, setLinuxCount] = useState<number>(0);
+  const [onlineCount, setOnlineCount] = useState<number>(0);
+  const [offlineCount, setOfflineCount] = useState<number>(0);
   const [showActivityFeedTitle, setShowActivityFeedTitle] = useState<boolean>(
     false
   );
@@ -61,12 +59,12 @@ const Homepage = (): JSX.Element => {
   );
   const [showHostsUI, setShowHostsUI] = useState<boolean>(false); // Hides UI on first load only
 
-  const { data: teams } = useQuery<ITeamsResponse, Error, ITeam[]>(
+  const { data: teams } = useQuery<ILoadTeamsResponse, Error, ITeam[]>(
     ["teams"],
     () => teamsAPI.loadAll(),
     {
       enabled: !!isPremiumTier,
-      select: (data: ITeamsResponse) =>
+      select: (data: ILoadTeamsResponse) =>
         data.teams.sort((a, b) => sortUtils.caseInsensitiveAsc(a.name, b.name)),
       onSuccess: (responseTeams) => {
         if (!currentTeam && !isOnGlobalTeam && responseTeams.length) {
@@ -76,11 +74,11 @@ const Homepage = (): JSX.Element => {
     }
   );
 
-  const { data: hostSummaryData, isFetching: isHostSummaryFetching } = useQuery<
-    IHostSummary,
-    Error,
-    IHostSummary
-  >(
+  const {
+    data: hostSummaryData,
+    isFetching: isHostSummaryFetching,
+    error: errorHosts,
+  } = useQuery<IHostSummary, Error, IHostSummary>(
     ["host summary", currentTeam, selectedPlatform],
     () =>
       hostSummaryAPI.getSummary({
@@ -90,16 +88,21 @@ const Homepage = (): JSX.Element => {
     {
       select: (data: IHostSummary) => data,
       onSuccess: (data: IHostSummary) => {
-        setOnlineCount(data.online_count.toLocaleString("en-US"));
-        setOfflineCount(data.offline_count.toLocaleString("en-US"));
+        setLabels(data.builtin_labels);
+        setOnlineCount(data.online_count);
+        setOfflineCount(data.offline_count);
+
         const macHosts = data.platforms?.find(
           (platform: IHostSummaryPlatforms) => platform.platform === "darwin"
         ) || { platform: "darwin", hosts_count: 0 };
-        setMacCount(macHosts.hosts_count.toLocaleString("en-US"));
+
         const windowsHosts = data.platforms?.find(
           (platform: IHostSummaryPlatforms) => platform.platform === "windows"
         ) || { platform: "windows", hosts_count: 0 };
-        setWindowsCount(windowsHosts.hosts_count.toLocaleString("en-US"));
+
+        setMacCount(macHosts.hosts_count);
+        setWindowsCount(windowsHosts.hosts_count);
+        setLinuxCount(data.all_linux_count);
         setShowHostsUI(true);
       },
     }
@@ -117,15 +120,8 @@ const Homepage = (): JSX.Element => {
       text: "View all hosts",
     },
     total_host_count: (() => {
-      if (!isHostSummaryFetching) {
-        if (totalCount) {
-          return totalCount;
-        }
-
-        return (
-          hostSummaryData?.totals_hosts_count.toLocaleString("en-US") ||
-          undefined
-        );
+      if (!isHostSummaryFetching && !errorHosts) {
+        return `${hostSummaryData?.totals_hosts_count}` || undefined;
       }
 
       return undefined;
@@ -136,10 +132,12 @@ const Homepage = (): JSX.Element => {
         currentTeamId={currentTeam?.id}
         macCount={macCount}
         windowsCount={windowsCount}
+        linuxCount={linuxCount}
         isLoadingHostsSummary={isHostSummaryFetching}
         showHostsUI={showHostsUI}
         selectedPlatform={selectedPlatform}
-        setTotalCount={setTotalCount}
+        labels={labels}
+        errorHosts={!!errorHosts}
       />
     ),
   });

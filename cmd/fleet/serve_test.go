@@ -53,6 +53,13 @@ func TestMaybeSendStatistics(t *testing.T) {
 			VulnDetectionEnabled:      true,
 			SystemUsersEnabled:        true,
 			HostsStatusWebHookEnabled: true,
+			NumWeeklyActiveUsers:      111,
+			HostsEnrolledByOperatingSystem: map[string][]fleet.HostsCountByOSVersion{
+				"linux": {
+					fleet.HostsCountByOSVersion{Version: "1.2.3", NumEnrolled: 22},
+				},
+			},
+			StoredErrors: []byte(`[]`),
 		}, true, nil
 	}
 	recorded := false
@@ -64,7 +71,7 @@ func TestMaybeSendStatistics(t *testing.T) {
 	err := trySendStatistics(context.Background(), ds, fleet.StatisticsFrequency, ts.URL, &fleet.LicenseInfo{Tier: "premium"})
 	require.NoError(t, err)
 	assert.True(t, recorded)
-	assert.Equal(t, `{"anonymousIdentifier":"ident","fleetVersion":"1.2.3","licenseTier":"premium","numHostsEnrolled":999,"numUsers":99,"numTeams":9,"numPolicies":0,"numLabels":3,"softwareInventoryEnabled":true,"vulnDetectionEnabled":true,"systemUsersEnabled":true,"hostsStatusWebHookEnabled":true}`, requestBody)
+	assert.Equal(t, `{"anonymousIdentifier":"ident","fleetVersion":"1.2.3","licenseTier":"premium","numHostsEnrolled":999,"numUsers":99,"numTeams":9,"numPolicies":0,"numLabels":3,"softwareInventoryEnabled":true,"vulnDetectionEnabled":true,"systemUsersEnabled":true,"hostsStatusWebHookEnabled":true,"numWeeklyActiveUsers":111,"hostsEnrolledByOperatingSystem":{"linux":[{"version":"1.2.3","numEnrolled":22}]},"storedErrors":[]}`, requestBody)
 }
 
 func TestMaybeSendStatisticsSkipsSendingIfNotNeeded(t *testing.T) {
@@ -502,6 +509,56 @@ func TestBasicAuthHandler(t *testing.T) {
 				expStatusCode = http.StatusOK
 			}
 			require.Equal(t, w.Result().StatusCode, expStatusCode)
+		})
+	}
+}
+
+func TestDebugMux(t *testing.T) {
+	h1 := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { w.WriteHeader(200) })
+	h2 := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { w.WriteHeader(400) })
+
+	cases := []struct {
+		desc string
+		mux  debugMux
+		tok  string
+		want int
+	}{
+		{
+			"only fleet auth handler, no token",
+			debugMux{fleetAuthenticatedHandler: h1},
+			"",
+			200,
+		},
+		{
+			"only fleet auth handler, with token",
+			debugMux{fleetAuthenticatedHandler: h1},
+			"token",
+			200,
+		},
+		{
+			"both handlers, no token",
+			debugMux{fleetAuthenticatedHandler: h1, tokenAuthenticatedHandler: h2},
+			"",
+			200,
+		},
+		{
+			"both handlers, with token",
+			debugMux{fleetAuthenticatedHandler: h1, tokenAuthenticatedHandler: h2},
+			"token",
+			400,
+		},
+	}
+
+	for _, c := range cases {
+		t.Run(c.desc, func(t *testing.T) {
+			path := "/debug/pprof"
+			if c.tok != "" {
+				path += "?token=" + c.tok
+			}
+			req := httptest.NewRequest("GET", path, nil)
+			res := httptest.NewRecorder()
+			c.mux.ServeHTTP(res, req)
+			require.Equal(t, c.want, res.Code)
 		})
 	}
 }

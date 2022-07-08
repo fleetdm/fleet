@@ -1,3 +1,7 @@
+import CONSTANTS from "../../support/constants";
+
+const { GOOD_PASSWORD } = CONSTANTS;
+
 const getConfig = {
   org_info: {
     org_name: "Fleet Test",
@@ -128,7 +132,7 @@ const getConfig = {
     tier: "premium",
     organization: "development-only",
     device_count: 100,
-    expiration: "2022-06-30T20:00:00-04:00",
+    expiration: "2099-06-30T20:00:00-04:00",
     note: "for development only",
   },
   logging: {
@@ -286,7 +290,7 @@ describe(
     });
     describe("Navigation", () => {
       beforeEach(() => {
-        cy.loginWithCySession("anna@organization.com", "user123#");
+        cy.loginWithCySession("anna@organization.com", GOOD_PASSWORD);
         cy.visit("/dashboard");
       });
       it("displays intended admin top navigation", () => {
@@ -313,7 +317,7 @@ describe(
     });
     describe("Dashboard", () => {
       beforeEach(() => {
-        cy.loginWithCySession("anna@organization.com", "user123#");
+        cy.loginWithCySession("anna@organization.com", GOOD_PASSWORD);
         cy.visit("/dashboard");
       });
       it("displays cards for all platforms", () => {
@@ -412,7 +416,7 @@ describe(
     });
     describe("Manage hosts page", () => {
       beforeEach(() => {
-        cy.loginWithCySession("anna@organization.com", "user123#");
+        cy.loginWithCySession("anna@organization.com", GOOD_PASSWORD);
         cy.visit("/hosts/manage");
       });
       it("verifies teams is disabled on Manage Host page", () => {
@@ -435,7 +439,7 @@ describe(
     });
     describe("Host details tests", () => {
       beforeEach(() => {
-        cy.loginWithCySession("anna@organization.com", "user123#");
+        cy.loginWithCySession("anna@organization.com", GOOD_PASSWORD);
         cy.visit("/hosts/1");
       });
       it("verifies teams is disabled on Host Details page", () => {
@@ -459,7 +463,7 @@ describe(
     });
     describe("Manage software page", () => {
       beforeEach(() => {
-        cy.loginWithCySession("anna@organization.com", "user123#");
+        cy.loginWithCySession("anna@organization.com", GOOD_PASSWORD);
         cy.intercept("GET", "/api/latest/fleet/config", getConfig).as(
           "getIntegrations"
         );
@@ -468,6 +472,12 @@ describe(
           console.log(JSON.stringify(configStub));
         });
       });
+      // it(`displays "Vulnerabilities" column`, () => {
+      //   cy.getAttached("thead").within(() => {
+      //     cy.findByText(/vulnerabilities/i).should("exist");
+      //     cy.findByText(/probability of exploit/i).should("not.exist");
+      //   });
+      // });
       it("allows admin to create webhook software vulnerability automation", () => {
         cy.getAttached(".manage-software-page__header-wrap").within(() => {
           cy.findByRole("button", { name: /manage automations/i }).click();
@@ -586,7 +596,7 @@ describe(
     });
     describe("Query pages", () => {
       beforeEach(() => {
-        cy.loginWithCySession("anna@organization.com", "user123#");
+        cy.loginWithCySession("anna@organization.com", GOOD_PASSWORD);
         cy.visit("/queries/manage");
       });
       it("allows admin add a new query", () => {
@@ -637,7 +647,7 @@ describe(
     });
     describe("Manage policies page", () => {
       beforeEach(() => {
-        cy.loginWithCySession("anna@organization.com", "user123#");
+        cy.loginWithCySession("anna@organization.com", GOOD_PASSWORD);
         cy.visit("/policies/manage");
       });
       it("allows admin to click 'Manage automations' button", () => {
@@ -683,8 +693,17 @@ describe(
         return false;
       });
       beforeEach(() => {
-        cy.loginWithCySession("anna@organization.com", "user123#");
+        cy.loginWithCySession("anna@organization.com", GOOD_PASSWORD);
         cy.visit("/settings/users");
+      });
+      it("hides access to Fleet Desktop settings", () => {
+        cy.visit("settings/organization");
+        cy.getAttached(".app-settings__form-nav-list").within(() => {
+          cy.findByText(/organization info/i).should("exist");
+          cy.findByText(/fleet desktop/i).should("not.exist");
+        });
+        cy.visit("settings/organization/fleet-desktop");
+        cy.findAllByText(/access denied/i).should("exist");
       });
       it("hides access team settings", () => {
         cy.findByText(/teams/i).should("not.exist");
@@ -727,7 +746,7 @@ describe(
     });
     describe("User profile page", () => {
       beforeEach(() => {
-        cy.loginWithCySession("anna@organization.com", "user123#");
+        cy.loginWithCySession("anna@organization.com", GOOD_PASSWORD);
         cy.visit("/profile");
       });
       it("verifies teams is disabled for the Profile page", () => {

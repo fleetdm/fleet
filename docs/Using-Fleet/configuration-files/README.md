@@ -50,7 +50,7 @@ kind: query
 spec:
   name: docker_processes
   description: The docker containers processes that are running on a system.
-  query: select * from docker_container_processes;
+  query: SELECT * FROM docker_container_processes;
 ```
 
 To define multiple queries in a file, concatenate multiple `query` resources together in a single file with `---`. For example, consider a file that you might store at `queries/osquery_monitoring.yml`:
@@ -131,7 +131,7 @@ kind: label
 spec:
   name: slack_not_running
   query: >
-    SELECT * from system_info
+    SELECT * FROM system_info
     WHERE NOT EXISTS (
       SELECT *
       FROM processes
@@ -235,8 +235,8 @@ spec:
     # must take care to keep the data returned by these queries small in
     # order to mitigate potential performance impacts on the Fleet server.
     additional_queries:
-      time: select * from time
-      macs: select mac from interface_details
+      time: SELECT * FROM time
+      macs: SELECT mac FROM interface_details
   org_info:
     org_logo_url: "https://example.org/logo.png"
     org_name: Example Org
@@ -255,7 +255,7 @@ spec:
     server: mail.example.org
     user_name: test_user
     verify_ssl_certs: true
-  vulnerability_settings":
+  vulnerability_settings:
     databases_path: ""
   webhook_settings:
     host_status_webhook:
@@ -389,7 +389,7 @@ spec:
         darwin:
           auto_table_construction:
             tcc_system_entries:
-              query: "select service, client, allowed, prompt_count, last_modified from access"
+              query: "SELECT service, client, allowed, prompt_count, last_modified FROM access"
               path: "/Library/Application Support/com.apple.TCC/TCC.db"
               columns:
                 - "service"

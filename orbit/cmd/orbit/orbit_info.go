@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 
+	"github.com/fleetdm/fleet/v4/orbit/pkg/build"
 	orbit_table "github.com/fleetdm/fleet/v4/orbit/pkg/table"
 	"github.com/osquery/osquery-go/plugin/table"
 )
@@ -29,7 +30,7 @@ func (o orbitInfoExtension) Columns() []table.ColumnDefinition {
 
 // GenerateFunc partially implements orbit_table.Extension.
 func (o orbitInfoExtension) GenerateFunc(_ context.Context, _ table.QueryContext) ([]map[string]string, error) {
-	v := version
+	v := build.Version
 	if v == "" {
 		v = "unknown"
 	}

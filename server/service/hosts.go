@@ -1,9 +1,14 @@
 package service
 
 import (
+	"bytes"
 	"context"
+	"encoding/csv"
+	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/authz"
@@ -19,10 +24,11 @@ import (
 // rendering in the UI.
 type HostResponse struct {
 	*fleet.Host
-	Status      fleet.HostStatus   `json:"status"`
-	DisplayText string             `json:"display_text"`
-	Labels      []fleet.Label      `json:"labels,omitempty"`
-	Geolocation *fleet.GeoLocation `json:"geolocation,omitempty"`
+	Status           fleet.HostStatus   `json:"status" csv:"status"`
+	DisplayText      string             `json:"display_text" csv:"display_text"`
+	Labels           []fleet.Label      `json:"labels,omitempty" csv:"-"`
+	Geolocation      *fleet.GeoLocation `json:"geolocation,omitempty" csv:"-"`
+	CSVDeviceMapping string             `json:"-" db:"-" csv:"device_mapping"`
 }
 
 func hostResponseForHost(ctx context.Context, svc fleet.Service, host *fleet.Host) (*HostResponse, error) {
@@ -52,12 +58,6 @@ func hostDetailResponseForHost(ctx context.Context, svc fleet.Service, host *fle
 	}, nil
 }
 
-func (svc *Service) FlushSeenHosts(ctx context.Context) error {
-	// No authorization check because this is used only internally.
-	hostIDs := svc.seenHostSet.getAndClearHostIDs()
-	return svc.ds.MarkHostsSeen(ctx, hostIDs, svc.clock.Now())
-}
-
 ////////////////////////////////////////////////////////////////////////////////
 // List Hosts
 ////////////////////////////////////////////////////////////////////////////////
@@ -76,18 +76,21 @@ func (r listHostsResponse) error() error { return r.Err }
 
 func listHostsEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
 	req := request.(*listHostsRequest)
+
+	var software *fleet.Software
+	if req.Opts.SoftwareIDFilter != nil {
+		var err error
+		software, err = svc.SoftwareByID(ctx, *req.Opts.SoftwareIDFilter, false)
+		if err != nil {
+			return listHostsResponse{Err: err}, nil
+		}
+	}
+
 	hosts, err := svc.ListHosts(ctx, req.Opts)
 	if err != nil {
 		return listHostsResponse{Err: err}, nil
 	}
 
-	var software *fleet.Software
-	if req.Opts.SoftwareIDFilter != nil {
-		software, err = svc.SoftwareByID(ctx, *req.Opts.SoftwareIDFilter)
-		if err != nil {
-			return listHostsResponse{Err: err}, nil
-		}
-	}
 	hostResponses := make([]HostResponse, len(hosts))
 	for i, host := range hosts {
 		h, err := hostResponseForHost(ctx, svc, host)
@@ -112,14 +115,6 @@ func (svc *Service) ListHosts(ctx context.Context, opt fleet.HostListOptions) ([
 	filter := fleet.TeamFilter{User: vc.User, IncludeObserver: true}
 
 	return svc.ds.ListHosts(ctx, filter, opt)
-}
-
-func (svc *Service) SoftwareByID(ctx context.Context, id uint) (*fleet.Software, error) {
-	if err := svc.authz.Authorize(ctx, &fleet.Host{}, fleet.ActionList); err != nil {
-		return nil, err
-	}
-
-	return svc.ds.SoftwareByID(ctx, id)
 }
 
 /////////////////////////////////////////////////////////////////////////////////
@@ -244,6 +239,88 @@ func (svc *Service) countHostFromFilters(ctx context.Context, labelID *uint, opt
 }
 
 /////////////////////////////////////////////////////////////////////////////////
+// Search
+/////////////////////////////////////////////////////////////////////////////////
+
+type searchHostsRequest struct {
+	// MatchQuery is the query SQL
+	MatchQuery string `json:"query"`
+	// QueryID is the ID of a saved query to run (used to determine if this is a
+	// query that observers can run).
+	QueryID *uint `json:"query_id"`
+	// ExcludedHostIDs is the list of IDs selected on the caller side
+	// (e.g. the UI) that will be excluded from the returned payload.
+	ExcludedHostIDs []uint `json:"excluded_host_ids"`
+}
+
+type searchHostsResponse struct {
+	Hosts []*hostSearchResult `json:"hosts"`
+	Err   error               `json:"error,omitempty"`
+}
+
+func (r searchHostsResponse) error() error { return r.Err }
+
+func searchHostsEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
+	req := request.(*searchHostsRequest)
+
+	hosts, err := svc.SearchHosts(ctx, req.MatchQuery, req.QueryID, req.ExcludedHostIDs)
+	if err != nil {
+		return searchHostsResponse{Err: err}, nil
+	}
+
+	results := []*hostSearchResult{}
+
+	for _, h := range hosts {
+		results = append(results,
+			&hostSearchResult{
+				HostResponse{
+					Host:   h,
+					Status: h.Status(time.Now()),
+				},
+				h.Hostname,
+			},
+		)
+	}
+
+	return searchHostsResponse{
+		Hosts: results,
+	}, nil
+}
+
+func (svc *Service) SearchHosts(ctx context.Context, matchQuery string, queryID *uint, excludedHostIDs []uint) ([]*fleet.Host, error) {
+	if err := svc.authz.Authorize(ctx, &fleet.Host{}, fleet.ActionRead); err != nil {
+		return nil, err
+	}
+
+	vc, ok := viewer.FromContext(ctx)
+	if !ok {
+		return nil, fleet.ErrNoContext
+	}
+
+	includeObserver := false
+	if queryID != nil {
+		canRun, err := svc.ds.ObserverCanRunQuery(ctx, *queryID)
+		if err != nil {
+			return nil, err
+		}
+		includeObserver = canRun
+	}
+
+	filter := fleet.TeamFilter{User: vc.User, IncludeObserver: includeObserver}
+
+	results := []*fleet.Host{}
+
+	hosts, err := svc.ds.SearchHosts(ctx, filter, matchQuery, excludedHostIDs...)
+	if err != nil {
+		return nil, err
+	}
+
+	results = append(results, hosts...)
+
+	return results, nil
+}
+
+/////////////////////////////////////////////////////////////////////////////////
 // Get host
 /////////////////////////////////////////////////////////////////////////////////
 
@@ -260,7 +337,11 @@ func (r getHostResponse) error() error { return r.Err }
 
 func getHostEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
 	req := request.(*getHostRequest)
-	host, err := svc.GetHost(ctx, req.ID)
+	opts := fleet.HostDetailOptions{
+		IncludeCVEScores: false,
+		IncludePolicies:  true, // intentionally true to preserve existing behavior
+	}
+	host, err := svc.GetHost(ctx, req.ID, opts)
 	if err != nil {
 		return getHostResponse{Err: err}, nil
 	}
@@ -273,7 +354,7 @@ func getHostEndpoint(ctx context.Context, request interface{}, svc fleet.Service
 	return getHostResponse{Host: resp}, nil
 }
 
-func (svc *Service) GetHost(ctx context.Context, id uint) (*fleet.HostDetail, error) {
+func (svc *Service) GetHost(ctx context.Context, id uint, opts fleet.HostDetailOptions) (*fleet.HostDetail, error) {
 	alreadyAuthd := svc.authz.IsAuthenticatedWith(ctx, authz.AuthnDeviceToken)
 	if !alreadyAuthd {
 		// First ensure the user has access to list hosts, then check the specific
@@ -283,7 +364,7 @@ func (svc *Service) GetHost(ctx context.Context, id uint) (*fleet.HostDetail, er
 		}
 	}
 
-	host, err := svc.ds.Host(ctx, id, false)
+	host, err := svc.ds.Host(ctx, id)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "get host")
 	}
@@ -295,7 +376,12 @@ func (svc *Service) GetHost(ctx context.Context, id uint) (*fleet.HostDetail, er
 		}
 	}
 
-	return svc.getHostDetails(ctx, host)
+	hostDetails, err := svc.getHostDetails(ctx, host, opts)
+	if err != nil {
+		return nil, err
+	}
+
+	return hostDetails, nil
 }
 
 func (svc *Service) checkWriteForHostIDs(ctx context.Context, ids []uint) error {
@@ -352,11 +438,35 @@ func (svc *Service) GetHostSummary(ctx context.Context, teamID *uint, platform *
 	}
 	filter := fleet.TeamFilter{User: vc.User, IncludeObserver: true, TeamID: teamID}
 
-	summary, err := svc.ds.GenerateHostStatusStatistics(ctx, filter, svc.clock.Now(), platform)
+	hostSummary, err := svc.ds.GenerateHostStatusStatistics(ctx, filter, svc.clock.Now(), platform)
 	if err != nil {
 		return nil, err
 	}
-	return summary, nil
+
+	linuxCount := uint(0)
+	for _, p := range hostSummary.Platforms {
+		if fleet.IsLinux(p.Platform) {
+			linuxCount += p.HostsCount
+		}
+	}
+	hostSummary.AllLinuxCount = linuxCount
+
+	labelsSummary, err := svc.ds.LabelsSummary(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	// TODO: should query for "All linux" label be updated to use `platform` from `os_version` table
+	// so that the label tracks the way platforms are handled here in the host summary?
+	var builtinLabels []*fleet.LabelSummary
+	for _, l := range labelsSummary {
+		if l.LabelType == fleet.LabelTypeBuiltIn {
+			builtinLabels = append(builtinLabels, l)
+		}
+	}
+	hostSummary.BuiltinLabels = builtinLabels
+
+	return hostSummary, nil
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -369,7 +479,11 @@ type hostByIdentifierRequest struct {
 
 func hostByIdentifierEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
 	req := request.(*hostByIdentifierRequest)
-	host, err := svc.HostByIdentifier(ctx, req.Identifier)
+	opts := fleet.HostDetailOptions{
+		IncludeCVEScores: false,
+		IncludePolicies:  true, // intentionally true to preserve existing behavior
+	}
+	host, err := svc.HostByIdentifier(ctx, req.Identifier, opts)
 	if err != nil {
 		return getHostResponse{Err: err}, nil
 	}
@@ -384,7 +498,7 @@ func hostByIdentifierEndpoint(ctx context.Context, request interface{}, svc flee
 	}, nil
 }
 
-func (svc *Service) HostByIdentifier(ctx context.Context, identifier string) (*fleet.HostDetail, error) {
+func (svc *Service) HostByIdentifier(ctx context.Context, identifier string, opts fleet.HostDetailOptions) (*fleet.HostDetail, error) {
 	if err := svc.authz.Authorize(ctx, &fleet.Host{}, fleet.ActionList); err != nil {
 		return nil, err
 	}
@@ -399,7 +513,12 @@ func (svc *Service) HostByIdentifier(ctx context.Context, identifier string) (*f
 		return nil, err
 	}
 
-	return svc.getHostDetails(ctx, host)
+	hostDetails, err := svc.getHostDetails(ctx, host, opts)
+	if err != nil {
+		return nil, err
+	}
+
+	return hostDetails, nil
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -583,8 +702,8 @@ func (svc *Service) RefetchHost(ctx context.Context, id uint) error {
 	return nil
 }
 
-func (svc *Service) getHostDetails(ctx context.Context, host *fleet.Host) (*fleet.HostDetail, error) {
-	if err := svc.ds.LoadHostSoftware(ctx, host); err != nil {
+func (svc *Service) getHostDetails(ctx context.Context, host *fleet.Host, opts fleet.HostDetailOptions) (*fleet.HostDetail, error) {
+	if err := svc.ds.LoadHostSoftware(ctx, host, opts.IncludeCVEScores); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "load host software")
 	}
 
@@ -598,12 +717,32 @@ func (svc *Service) getHostDetails(ctx context.Context, host *fleet.Host) (*flee
 		return nil, ctxerr.Wrap(ctx, err, "get packs for host")
 	}
 
-	policies, err := svc.ds.ListPoliciesForHost(ctx, host)
+	bats, err := svc.ds.ListHostBatteries(ctx, host.ID)
 	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "get policies for host")
+		return nil, ctxerr.Wrap(ctx, err, "get batteries for host")
 	}
 
-	return &fleet.HostDetail{Host: *host, Labels: labels, Packs: packs, Policies: policies}, nil
+	var policies *[]*fleet.HostPolicy
+	if opts.IncludePolicies {
+		hp, err := svc.ds.ListPoliciesForHost(ctx, host)
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "get policies for host")
+		}
+
+		if hp == nil {
+			hp = []*fleet.HostPolicy{}
+		}
+
+		policies = &hp
+	}
+
+	return &fleet.HostDetail{
+		Host:      *host,
+		Labels:    labels,
+		Packs:     packs,
+		Policies:  policies,
+		Batteries: &bats,
+	}, nil
 }
 
 func (svc *Service) hostIDsFromFilters(ctx context.Context, opt fleet.HostListOptions, lid *uint) ([]uint, error) {
@@ -837,20 +976,98 @@ type hostsReportRequest struct {
 	Opts    fleet.HostListOptions `url:"host_options"`
 	LabelID *uint                 `query:"label_id,optional"`
 	Format  string                `query:"format"`
+	Columns string                `query:"columns,optional"`
 }
 
 type hostsReportResponse struct {
-	Hosts []*fleet.Host `json:"-"` // they get rendered explicitly, in csv
-	Err   error         `json:"error,omitempty"`
+	Columns []string        `json:"-"` // used to control the generated csv, see the hijackRender method
+	Hosts   []*HostResponse `json:"-"` // they get rendered explicitly, in csv
+	Err     error           `json:"error,omitempty"`
 }
 
 func (r hostsReportResponse) error() error { return r.Err }
 
 func (r hostsReportResponse) hijackRender(ctx context.Context, w http.ResponseWriter) {
+	// post-process the Device Mappings for CSV rendering
+	for _, h := range r.Hosts {
+		if h.DeviceMapping != nil {
+			// return the list of emails, comma-separated, as part of that single CSV field
+			var dms []struct {
+				Email string `json:"email"`
+			}
+			if err := json.Unmarshal(*h.DeviceMapping, &dms); err != nil {
+				// log the error but keep going
+				logging.WithErr(ctx, err)
+				continue
+			}
+
+			var sb strings.Builder
+			for i, dm := range dms {
+				if i > 0 {
+					sb.WriteString(",")
+				}
+				sb.WriteString(dm.Email)
+			}
+			h.CSVDeviceMapping = sb.String()
+		}
+	}
+
+	var buf bytes.Buffer
+	if err := gocsv.Marshal(r.Hosts, &buf); err != nil {
+		logging.WithErr(ctx, err)
+		encodeError(ctx, ctxerr.New(ctx, "failed to generate CSV file"), w)
+		return
+	}
+
+	returnAll := len(r.Columns) == 0
+
+	var outRows [][]string
+	if !returnAll {
+		// read back the CSV to filter out any unwanted columns
+		recs, err := csv.NewReader(&buf).ReadAll()
+		if err != nil {
+			logging.WithErr(ctx, err)
+			encodeError(ctx, ctxerr.New(ctx, "failed to generate CSV file"), w)
+			return
+		}
+
+		if len(recs) > 0 {
+			// map the header names to their field index
+			hdrs := make(map[string]int, len(recs))
+			for i, hdr := range recs[0] {
+				hdrs[hdr] = i
+			}
+
+			outRows = make([][]string, len(recs))
+			for i, rec := range recs {
+				for _, col := range r.Columns {
+					colIx, ok := hdrs[col]
+					if !ok {
+						// invalid column name - it would be nice to catch this in the
+						// endpoint before processing the results, but it would require
+						// duplicating the list of columns from the Host's struct tags to a
+						// map and keep this in sync, for what is essentially a programmer
+						// mistake that should be caught and corrected early.
+						encodeError(ctx, &badRequestError{message: fmt.Sprintf("invalid column name: %q", col)}, w)
+						return
+					}
+					outRows[i] = append(outRows[i], rec[colIx])
+				}
+			}
+		}
+	}
+
 	w.Header().Add("Content-Disposition", fmt.Sprintf(`attachment; filename="Hosts %s.csv"`, time.Now().Format("2006-01-02")))
 	w.Header().Set("Content-Type", "text/csv")
 	w.WriteHeader(http.StatusOK)
-	if err := gocsv.Marshal(r.Hosts, w); err != nil {
+
+	var err error
+	if returnAll {
+		_, err = io.Copy(w, &buf)
+	} else {
+		err = csv.NewWriter(w).WriteAll(outRows)
+	}
+	if err != nil {
 		logging.WithErr(ctx, err)
 	}
 }
@@ -869,13 +1086,27 @@ func hostsReportEndpoint(ctx context.Context, request interface{}, svc fleet.Ser
 		return hostsReportResponse{Err: err}, nil
 	}
 
-	// Those are not supported when listing hosts in a label, so that's just to
-	// make the output consistent whether a label is used or not.
-	req.Opts.DisableFailingPolicies = true
+	req.Opts.DisableFailingPolicies = false
 	req.Opts.AdditionalFilters = nil
 	req.Opts.Page = 0
 	req.Opts.PerPage = 0 // explicitly disable any limit, we want all matching hosts
 	req.Opts.After = ""
+	req.Opts.DeviceMapping = false
+
+	rawCols := strings.Split(req.Columns, ",")
+	var cols []string
+	for _, rawCol := range rawCols {
+		if rawCol = strings.TrimSpace(rawCol); rawCol != "" {
+			cols = append(cols, rawCol)
+			if rawCol == "device_mapping" {
+				req.Opts.DeviceMapping = true
+			}
+		}
+	}
+	if len(cols) == 0 {
+		// enable device_mapping retrieval, as no column means all columns
+		req.Opts.DeviceMapping = true
+	}
 
 	var (
 		hosts []*fleet.Host
@@ -890,7 +1121,16 @@ func hostsReportEndpoint(ctx context.Context, request interface{}, svc fleet.Ser
 	if err != nil {
 		return hostsReportResponse{Err: err}, nil
 	}
-	return hostsReportResponse{Hosts: hosts}, nil
+
+	hostResps := make([]*HostResponse, len(hosts))
+	for i, h := range hosts {
+		hr, err := hostResponseForHost(ctx, svc, h)
+		if err != nil {
+			return hostsReportResponse{Err: err}, nil
+		}
+		hostResps[i] = hr
+	}
+	return hostsReportResponse{Columns: cols, Hosts: hostResps}, nil
 }
 
 type osVersionsRequest struct {

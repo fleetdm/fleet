@@ -866,6 +866,19 @@ The license key provided to Fleet customers which provides access to Fleet Premi
     key: foobar
   ```
 
+##### license_enforce_host_limit
+
+Whether Fleet should enforce the host limit of the license, if true, attempting to enroll new hosts when the limit is reached will fail.
+
+- Default value: `false`
+- Environment variable: `FLEET_LICENSE_ENFORCE_HOST_LIMIT`
+- Config file format:
+
+  ```
+  license:
+    enforce_host_limit: true
+  ```
+
 ##### Example YAML
 
 ```yaml
@@ -874,6 +887,7 @@ kind: config
 spec:
  license:
     key: foobar
+    enforce_host_limit: false
 ```
 
 #### Session
@@ -1067,9 +1081,15 @@ to the amount of time it takes for Fleet to give the host the label queries.
 
 ##### osquery_enable_async_host_processing
 
-**Experimental feature**. Enable asynchronous processing of hosts query results. Currently, only supported for label query execution and policy membership results. This may improve performance and CPU usage of the Fleet instances and MySQL database servers for setups with a large number of hosts, while requiring more resources from Redis server(s).
+**Experimental feature**. Enable asynchronous processing of hosts' query results. Currently, only supported for label query execution, policy membership results, and hosts' last seen timestamp. This may improve the performance and CPU usage of the Fleet instances and MySQL database servers for setups with a large number of hosts while requiring more resources from Redis server(s).
 
 Note that currently, if both the failing policies webhook *and* this `osquery.enable_async_host_processing` option are set, some failing policies webhooks could be missing (some transitions from succeeding to failing or vice-versa could happen without triggering a webhook request).
+
+It can be set to a single boolean value ("true" or "false"), which controls all async host processing tasks, or it can be set for specific async tasks using a syntax similar to an URL query string or parameters in a Data Source Name (DSN) string, e.g., "label_membership=true&policy_membership=true". When using the per-task syntax, omitted tasks get the default value. The supported async task names are:
+
+* `label_membership` for updating the hosts' label query execution;
+* `policy_membership` for updating the hosts' policy membership results;
+* `host_last_seen` for updating the hosts' last seen timestamp.
 
 - Default value: false
 - Environment variable: `FLEET_OSQUERY_ENABLE_ASYNC_HOST_PROCESSING`
@@ -1083,6 +1103,8 @@ Note that currently, if both the failing policies webhook *and* this `osquery.en
 ##### osquery_async_host_collect_interval
 
 Applies only when `osquery_enable_async_host_processing` is enabled. Sets the interval at which the host data will be collected into the database. Each Fleet instance will attempt to do the collection at this interval (with some optional jitter added, see `osquery_async_host_collect_max_jitter_percent`), with only one succeeding to get the exclusive lock.
+
+It can be set to a single duration value (e.g., "30s"), which defines the interval for all async host processing tasks, or it can be set for specific async tasks using a syntax similar to an URL query string or parameters in a Data Source Name (DSN) string, e.g., "label_membership=10s&policy_membership=1m". When using the per-task syntax, omitted tasks get the default value. See [osquery_enable_async_host_processing](#osquery_enable_async_host_processing) for the supported async task names.
 
 - Default value: 30s
 - Environment variable: `FLEET_OSQUERY_ASYNC_HOST_COLLECT_INTERVAL`
@@ -1109,6 +1131,8 @@ Applies only when `osquery_enable_async_host_processing` is enabled. A number in
 ##### osquery_async_host_collect_lock_timeout
 
 Applies only when `osquery_enable_async_host_processing` is enabled. Timeout of the lock acquired by a Fleet instance to collect host data into the database. If the collection runs for too long or the instance crashes unexpectedly, the lock will be automatically released after this duration and another Fleet instance can proceed with the next collection.
+
+It can be set to a single duration value (e.g., "1m"), which defines the lock timeout for all async host processing tasks, or it can be set for specific async tasks using a syntax similar to an URL query string or parameters in a Data Source Name (DSN) string, e.g., "label_membership=2m&policy_membership=5m". When using the per-task syntax, omitted tasks get the default value. See [osquery_enable_async_host_processing](#osquery_enable_async_host_processing) for the supported async task names.
 
 - Default value: 1m
 - Environment variable: `FLEET_OSQUERY_ASYNC_HOST_COLLECT_LOCK_TIMEOUT`
@@ -1186,7 +1210,7 @@ Applies only when `osquery_enable_async_host_processing` is enabled. Maximum num
 
 ##### osquery_async_host_redis_scan_keys_count
 
-Applies only when `osquery_enable_async_host_processing` is enabled. Order of magnitude (e.g. 10, 100, 1000, etc.) of keys to scan in a single SCAN request for keys to process when collecting host data into the database.
+Applies only when `osquery_enable_async_host_processing` is enabled. Order of magnitude (e.g., 10, 100, 1000, etc.) of set members to scan in a single ZSCAN/SSCAN request for items to process when collecting host data into the database.
 
 - Default value: 1000
 - Environment variable: `FLEET_OSQUERY_ASYNC_HOST_REDIS_SCAN_KEYS_COUNT`
@@ -2310,51 +2334,51 @@ Environment="NO_PROXY=localhost,127.0.0.1,::1"
 
 After modifying the configuration you will need to reload and restart the Fleet service, as explained above.
 
-## Configuring single sign on (SSO)
+## Configuring single sign-on (SSO)
 
-Fleet supports SAML single sign on capability.
+Fleet supports SAML single sign-on capability.
 
-Fleet supports both SP-initiated SAML login and IDP-initiated login, however IDP-initiated login must be enabled in the web interface's SAML single sign on options.
+Fleet supports both SP-initiated SAML login and IDP-initiated login however, IDP-initiated login must be enabled in the web interface's SAML single sign-on options.
 
 Fleet supports the SAML Web Browser SSO Profile using the HTTP Redirect Binding.
 
-_**Note that the email being used in the SAML Assertion must match a user that already exists in Fleet.**_
+_**Note: The email used in the SAML Assertion must match a user that already exists in Fleet.**_
 
 ### Identity provider (IDP) configuration
 
 Setting up the service provider (Fleet) with an identity provider generally requires the following information:
 
-- _Assertion Consumer Service_ - This is the call back URL that the identity provider
-  will use to send security assertions to Fleet. In Okta, this field is called _single sign on URL_. On Google it is "ACS URL." The value that you supply will be a fully qualified URL consisting of your Fleet web address and the callback path `/api/v1/fleet/sso/callback`. For example, if your Fleet web address is https://fleet.example.com, then the value you would use in the identity provider configuration would be:
+- _Assertion Consumer Service_ - This is the call-back URL that the identity provider
+  will use to send security assertions to Fleet. In Okta, this field is called _single sign-on URL_. On Google, it is "ACS URL." The value you supply will be a fully qualified URL consisting of your Fleet web address and the call-back path `/api/v1/fleet/sso/callback`. For example, if your Fleet web address is https://fleet.example.com, then the value you would use in the identity provider configuration would be:
 
   ```
   https://fleet.example.com/api/v1/fleet/sso/callback
   ```
 
-- _Entity ID_ - This value is an identifier that you choose. It identifies your Fleet instance as the service provider that issues authorization requests. The value must exactly match the Entity ID that you define in the Fleet SSO configuration.
+- _Entity ID_ - This value is an identifier that you choose. It identifies your Fleet instance as the service provider that issues authorization requests. The value must match the Entity ID that you define in the Fleet SSO configuration.
 
 - _Name ID Format_ - The value should be `urn:oasis:names:tc:SAML:1.1:nameid-format:emailAddress`. This may be shortened in the IDP setup to something like `email` or `EmailAddress`.
 
 - _Subject Type (Application username in Okta)_ - `email`.
 
-After supplying the above information, the IDP will generate an issuer URI and a metadata that will be used to configure Fleet as a service provider.
+After supplying the above information, the IDP will generate an issuer URI and metadata that will be used to configure Fleet as a service provider.
 
 ### Fleet SSO configuration
 
-A Fleet user must be assigned the Admin role to configure Fleet for SSO. In Fleet, SSO configuration settings are located in **Settings > Organization settings > SAML single sign on options**.
+A Fleet user must be assigned the Admin role to configure Fleet for SSO. In Fleet, SSO configuration settings are located in **Settings > Organization settings > SAML single sign-on options**.
 
-If your IDP supports dynamic configuration, like Okta, you only need to provide an _identity provider name_ and _entity ID_, then paste a link in the metadata URL field.
+If your IDP supports dynamic configuration, like Okta, you only need to provide an _identity provider name_ and _entity ID_, then paste a link in the metadata URL field. Make sure you create the SSO application within your IDP before configuring it in Fleet.
 
 Otherwise, the following values are required:
 
-- _Identity provider name_ - A human readable name of the IDP. This is rendered on the login page.
+- _Identity provider name_ - A human-readable name of the IDP. This is rendered on the login page.
 
 - _Entity ID_ - A URI that identifies your Fleet instance as the issuer of authorization
-  requests (eg. `fleet.example.com`). This much match the _Entity ID_ configured with the IDP.
+  requests (e.g., `fleet.example.com`). This much match the _Entity ID_ configured with the IDP.
 
-- _Issuer URI_ - This value is obtained from the IDP.
+- _Issuer URI_ - Obtain this value from the IDP.
 
-- _Metadata URL_ - This value is obtained from the IDP and is used by Fleet to
+- _Metadata URL_ - Obtain this value from the IDP and is used by Fleet to
   issue authorization requests to the IDP.
 
 - _Metadata_ - If the IDP does not provide a metadata URL, the metadata must
@@ -2367,23 +2391,27 @@ Otherwise, the following values are required:
 
 ### Creating SSO users in Fleet
 
-When an admin creates a new user to Fleet, they may select the `Enable single sign on` option. The
-SSO enabled users will not be able to sign in with a regular user ID and password.
+When an admin creates a new user in Fleet, they may select the `Enable single sign on` option. The
+SSO-enabled users will not be able to sign in with a regular user ID and password.
 
-It is strongly recommended that at least one admin user is set up to use the traditional password
-based log in so that there is a fallback method for logging into Fleet in the event of SSO
+It is strongly recommended that at least one admin user is set up to use the traditional password-based login so that there is a fallback method for logging into Fleet in the event of SSO
 configuration problems.
 
+> Individual users must also be set up on the IDP before signing in to Fleet.
 ### Enabling SSO for existing users in Fleet
-As an admin, you can enable SSO for existing users in Fleet. To do this, go to the Settings page, then click on the Users tab. Locate the user you want to enable SSO for and on the actions dropdown menu for that user, click on "Enable single sign on".
+As an admin, you can enable SSO for existing users in Fleet. To do this, go to the Settings page, then click on the Users tab. Locate the user you want to enable SSO for and on the Actions dropdown menu for that user, click on "Enable single sign-on."
 
 #### Okta IDP configuration
 
 ![Example Okta IDP Configuration](https://raw.githubusercontent.com/fleetdm/fleet/main/docs/images/okta-idp-setup.png)
 
-> The names of the items required to configure an identity provider may vary from provider to provider and may not conform to the SAML spec.
+Once configured, you will need to retrieve the Issuer URI from the `View Setup Instructions` and metadata URL from the `Identity Provider metadata` link within the application `Sign on` settings. See below for where to find them:
 
-> Individual users must also be setup on the IDP before they can sign in to Fleet.
+![Where to find SSO links for Fleet](https://raw.githubusercontent.com/fleetdm/fleet/main/docs/images/okta-retrieve-links.png)
+
+> The Provider Sign-on URL within the `View Setup Instructions` has a similar format as the Provider SAML Metadata URL, but this link provides a redirect to _sign into_ the application, not the metadata necessary for dynamic configuration.
+
+> The names of the items required to configure an identity provider may vary from provider to provider and may not conform to the SAML spec.
 
 #### Google Workspace IDP Configuration
 
@@ -2401,13 +2429,13 @@ Follow these steps to configure Fleet SSO with Google Workspace. This will requi
 
   ![Download metadata and copy the SSO URL](https://raw.githubusercontent.com/fleetdm/fleet/main/docs/images/google-sso-configuration-step-3.png)
 
-4. In Fleet, navigate to the _Organization Settings_ page. Configure the _SAML single sign on options_ section.
+4. In Fleet, navigate to the _Organization Settings_ page. Configure the _SAML single sign-on options_ section.
 
-  - Check the _Enable single sign on_ checkbox.
-  - For _Identity provider name_ use `Google`.
+  - Check the _Enable single sign-on_ checkbox.
+  - For _Identity provider name_, use `Google`.
   - For _Entity ID_, use a unique identifier such as `fleet.example.com`. Note that Google seems to error when the provided ID includes `https://`.
-  - For _Issuer URI_, paste the _SSO URL_ copied from step 3.
-  - For _Metadata_, paste the contents of the downloaded metadata XML from step 3.
+  - For _Issuer URI_, paste the _SSO URL_ copied from step three.
+  - For _Metadata_, paste the contents of the downloaded metadata XML from step three.
   - All other fields can be left blank.
 
   Click _Update settings_ at the bottom of the page.
@@ -2416,10 +2444,10 @@ Follow these steps to configure Fleet SSO with Google Workspace. This will requi
 
 5. In Google Workspace, configure the _Service provider details_.
 
-  - For _ACS URL_, use `https://<your_fleet_url>/api/v1/fleet/sso/callback` (eg. `https://fleet.example.com/api/v1/fleet/sso/callback`).
-  - For Entity ID, use **the same unique identifier from step 4** (eg. `fleet.example.com`).
-  - For _Name ID format_ choose `EMAIL`.
-  - For _Name ID_ choose `Basic Information > Primary email`.
+  - For _ACS URL_, use `https://<your_fleet_url>/api/v1/fleet/sso/callback` (e.g., `https://fleet.example.com/api/v1/fleet/sso/callback`).
+  - For Entity ID, use **the same unique identifier from step four** (e.g., `fleet.example.com`).
+  - For _Name ID format_, choose `EMAIL`.
+  - For _Name ID_, choose `Basic Information > Primary email`.
   - All other fields can be left blank.
 
   Click _Continue_ at the bottom of the page.
@@ -2442,15 +2470,15 @@ Follow these steps to configure Fleet SSO with Google Workspace. This will requi
 
 ## Feature flags
 
-Fleet features are sometimes gated behind feature flags. This will usually be due to not-yet-stable APIs, or not-fully-tested performance characteristics.
+Fleet features are sometimes gated behind feature flags. This will usually be due to not-yet-stable APIs or not-fully-tested performance characteristics.
 
 Feature flags on the server are controlled by environment variables prefixed with `FLEET_BETA_`.
 
 #### Sentry
 
-##### dsn
+##### DSN
 
-If set then `fleet serve` will capture errors and panics and push them to Sentry.
+If set then `Fleet serve` will capture errors and panics and push them to Sentry.
 
 - Default value: `""`
 - Environment variable: `FLEET_SENTRY_DSN`
@@ -2468,7 +2496,7 @@ If set then `fleet serve` will capture errors and panics and push them to Sentry
 ##### basic_auth.username
 
 Username to use for HTTP Basic Auth on the `/metrics` endpoint.
-If not set then the prometheus `/metrics` endpoint is disabled.
+If not set, then the Prometheus `/metrics` endpoint is disabled.
 
 - Default value: `""`
 - Environment variable: `FLEET_PROMETHEUS_BASIC_AUTH_USERNAME`
@@ -2483,7 +2511,7 @@ If not set then the prometheus `/metrics` endpoint is disabled.
 ##### basic_auth.password
 
 Password to use for HTTP Basic Auth on the `/metrics` endpoint.
-If not set then the prometheus `/metrics` endpoint is disabled.
+If not set then the Prometheus `/metrics` endpoint is disabled.
 
 - Default value: `""`
 - Environment variable: `FLEET_PROMETHEUS_BASIC_AUTH_PASSWORD`

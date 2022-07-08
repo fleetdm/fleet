@@ -69,7 +69,9 @@ func (svc *Service) AuthenticateHost(ctx context.Context, nodeKey string) (*flee
 	// updating the seen time for these hosts. This seems to be an acceptable
 	// tradeoff as an online host will continue to check in and quickly be
 	// marked online again.
-	svc.seenHostSet.addHostID(host.ID)
+	if err := svc.task.RecordHostLastSeen(ctx, host.ID); err != nil {
+		logging.WithErr(ctx, ctxerr.Wrap(ctx, err, "record host last seen"))
+	}
 	host.SeenTime = svc.clock.Now()
 
 	return host, svc.debugEnabledForHost(ctx, host.ID), nil
@@ -124,6 +126,13 @@ func (svc *Service) EnrollAgent(ctx context.Context, enrollSecret, hostIdentifie
 	}
 
 	hostIdentifier = getHostIdentifier(svc.logger, svc.config.Osquery.HostIdentifier, hostIdentifier, hostDetails)
+	canEnroll, err := svc.enrollHostLimiter.CanEnrollNewHost(ctx)
+	if err != nil {
+		return "", osqueryError{message: "can enroll host check failed: " + err.Error(), nodeInvalid: true}
+	}
+	if !canEnroll {
+		return "", osqueryError{message: fmt.Sprintf("enroll host failed: maximum number of hosts reached: %d", svc.license.DeviceCount), nodeInvalid: true}
+	}
 
 	host, err := svc.ds.EnrollHost(ctx, hostIdentifier, nodeKey, secret.TeamID, svc.config.Osquery.EnrollCooldown)
 	if err != nil {
@@ -488,6 +497,9 @@ func getDistributedQueriesEndpoint(ctx context.Context, request interface{}, svc
 	}, nil
 }
 
+// orbitInfoRefetchAfterEnrollDur value assumes the default distributed_interval value set by Fleet of 10s.
+const orbitInfoRefetchAfterEnrollDur = 1 * time.Minute
+
 func (svc *Service) GetDistributedQueries(ctx context.Context) (queries map[string]string, discovery map[string]string, accelerate uint, err error) {
 	// skipauth: Authorization is currently for user endpoints only.
 	svc.authz.SkipAuthorization(ctx)
@@ -509,6 +521,20 @@ func (svc *Service) GetDistributedQueries(ctx context.Context) (queries map[stri
 	}
 	for name, query := range detailDiscovery {
 		discovery[name] = query
+	}
+
+	// The following is added to improve Fleet Desktop's UX at install time.
+	//
+	// At install (enroll) time, the "orbit_info" extension takes longer to load than the first
+	// query check-in (distributed/read request).
+	// To avoid having to wait for the next check-in to ingest the data (after
+	// svc.config.Osquery.DetailUpdateInterval, 1h by default),
+	// we make the best effort to retrieve such "device auth token" from the device, but with a
+	// limit of orbitInfoRefetchAfterEnrollDur to not generate too much write database overhead
+	// (writes to `host_device_auth` table).
+	if svc.clock.Now().Sub(host.LastEnrolledAt) < orbitInfoRefetchAfterEnrollDur {
+		queries[hostDetailQueryPrefix+osquery_utils.OrbitInfoQueryName] = osquery_utils.OrbitInfoDetailQuery.Query
+		discovery[hostDetailQueryPrefix+osquery_utils.OrbitInfoQueryName] = osquery_utils.OrbitInfoDetailQuery.Discovery
 	}
 
 	labelQueries, err := svc.labelQueriesForHost(ctx, host)

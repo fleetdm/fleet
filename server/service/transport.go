@@ -13,6 +13,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/ptr"
+	kithttp "github.com/go-kit/kit/transport/http"
 	"github.com/gorilla/mux"
 )
 
@@ -24,6 +25,9 @@ func encodeResponse(ctx context.Context, w http.ResponseWriter, response interfa
 	// page and the error will be logged
 	if page, ok := response.(htmlPage); ok {
 		w.Header().Set("Content-Type", "text/html; charset=UTF-8")
+		if coder, ok := page.error().(kithttp.StatusCoder); ok {
+			w.WriteHeader(coder.StatusCode())
+		}
 		_, err := io.WriteString(w, page.html())
 		return err
 	}
@@ -258,6 +262,15 @@ func hostListOptionsFromRequest(r *http.Request) (fleet.HostListOptions, error) 
 			return hopt, err
 		}
 		hopt.DisableFailingPolicies = boolVal
+	}
+
+	deviceMapping := r.URL.Query().Get("device_mapping")
+	if deviceMapping != "" {
+		boolVal, err := strconv.ParseBool(deviceMapping)
+		if err != nil {
+			return hopt, err
+		}
+		hopt.DeviceMapping = boolVal
 	}
 
 	return hopt, nil

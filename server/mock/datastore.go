@@ -7,7 +7,6 @@ import (
 )
 
 //go:generate mockimpl -o datastore_mock.go "s *DataStore" "fleet.Datastore"
-//go:generate mockimpl -o datastore_query_results.go "s *QueryResultStore" "fleet.QueryResultStore"
 
 var _ fleet.Datastore = (*Store)(nil)
 

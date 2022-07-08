@@ -12,7 +12,7 @@ import (
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
-	"github.com/fleetdm/fleet/v4/server/live_query"
+	"github.com/fleetdm/fleet/v4/server/live_query/live_query_mock"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/pubsub"
 	"github.com/stretchr/testify/assert"
@@ -31,20 +31,26 @@ type liveQueriesTestSuite struct {
 	withServer
 	suite.Suite
 
-	lq    *live_query.MockLiveQuery
+	lq    *live_query_mock.MockLiveQuery
 	hosts []*fleet.Host
 }
 
+// SetupTest partially implements suite.SetupTestSuite.
+func (s *liveQueriesTestSuite) SetupTest() {
+	s.lq.Mock.Test(s.T())
+}
+
+// SetupSuite partially implements suite.SetupAllSuite.
 func (s *liveQueriesTestSuite) SetupSuite() {
 	require.NoError(s.T(), os.Setenv("FLEET_LIVE_QUERY_REST_PERIOD", "5s"))
 
 	s.withDS.SetupSuite("liveQueriesTestSuite")
 
 	rs := pubsub.NewInmemQueryResults()
-	lq := new(live_query.MockLiveQuery)
+	lq := live_query_mock.New(s.T())
 	s.lq = lq
 
-	users, server := RunServerForTestsWithDS(s.T(), s.ds, TestServerOpts{Lq: lq, Rs: rs})
+	users, server := RunServerForTestsWithDS(s.T(), s.ds, &TestServerOpts{Lq: lq, Rs: rs})
 	s.server = server
 	s.users = users
 	s.token = getTestAdminToken(s.T(), s.server)
@@ -66,6 +72,7 @@ func (s *liveQueriesTestSuite) SetupSuite() {
 	}
 }
 
+// TearDownTest partially implements suite.TearDownTestSuite.
 func (s *liveQueriesTestSuite) TearDownTest() {
 	// reset the mock
 	s.lq.Mock = mock.Mock{}

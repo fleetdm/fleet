@@ -18,6 +18,24 @@ export interface ILoadHostsOptions {
   policyId?: number;
   policyResponse?: string;
   softwareId?: number;
+  device_mapping?: boolean;
+  columns?: string;
+  visibleColumns?: string;
+}
+
+export interface IExportHostsOptions {
+  sortBy: ISortOption[];
+  page?: number;
+  perPage?: number;
+  selectedLabels?: string[];
+  globalFilter?: string;
+  teamId?: number;
+  policyId?: number;
+  policyResponse?: string;
+  softwareId?: number;
+  device_mapping?: boolean;
+  columns?: string;
+  visibleColumns?: string;
 }
 
 export type ILoadHostDetailsExtension = "device_mapping" | "macadmins";
@@ -50,68 +68,62 @@ export default {
       },
     });
   },
-  exportHosts: (options: ILoadHostsOptions | undefined) => {
-    const { HOSTS_REPORT, LABEL_HOSTS } = endpoints;
+  exportHosts: (options: IExportHostsOptions) => {
+    const { HOSTS_REPORT } = endpoints;
+    const sortBy = options.sortBy;
     const selectedLabels = options?.selectedLabels || [];
     const globalFilter = options?.globalFilter || "";
-    const sortBy = options?.sortBy || [];
     const teamId = options?.teamId || null;
     const policyId = options?.policyId || null;
-    const policyResponse = options?.policyResponse || null;
+    const policyResponse = options?.policyResponse || "passing";
     const softwareId = options?.softwareId || null;
+    const visibleColumns = options?.visibleColumns || null;
 
-    let orderKeyParam = "";
-    let orderDirection = "";
-    if (sortBy.length !== 0) {
-      const sortItem = sortBy[0];
-      orderKeyParam += `&order_key=${sortItem.key}`;
-      orderDirection = `&order_direction=${sortItem.direction}`;
+    if (!sortBy.length) {
+      throw Error("sortBy is a required field.");
     }
 
-    let searchQuery = "";
+    const orderKeyParam = `?order_key=${sortBy[0].key}`;
+    const orderDirection = `&order_direction=${sortBy[0].direction}`;
+
+    let path = `${HOSTS_REPORT}${orderKeyParam}${orderDirection}`;
+
     if (globalFilter !== "") {
-      searchQuery = `&query=${globalFilter}`;
+      path += `&query=${globalFilter}`;
     }
-
-    let path = "";
     const labelPrefix = "labels/";
 
     // Handle multiple filters
-    const label = selectedLabels.find((f) => f.includes(labelPrefix));
-    const status = selectedLabels.find((f) => !f.includes(labelPrefix));
-    const isValidStatus =
-      status === "new" ||
-      status === "online" ||
-      status === "offline" ||
-      status === "mia";
+    const label = selectedLabels.find((f) => f.includes(labelPrefix)) || "";
+    const status = selectedLabels.find((f) => !f.includes(labelPrefix)) || "";
+    const statusFilterList = ["new", "online", "offline"];
+    const isStatusFilter = statusFilterList.includes(status);
 
-    if (label) {
-      const lid = label.substr(labelPrefix.length);
-      path = `${LABEL_HOSTS(
-        parseInt(lid, 10)
-      )}?${searchQuery}${orderKeyParam}${orderDirection}`;
-
-      // connect status if applicable
-      if (status && isValidStatus) {
-        path += `&status=${status}`;
-      }
-    } else if (status && isValidStatus) {
-      path = `${HOSTS_REPORT}?&status=${status}${searchQuery}${orderKeyParam}${orderDirection}`;
-    } else {
-      path = `${HOSTS_REPORT}?${searchQuery}${orderKeyParam}${orderDirection}`;
+    if (isStatusFilter) {
+      path += `&status=${status}`;
     }
 
     if (teamId) {
       path += `&team_id=${teamId}`;
     }
 
+    // Label OR policy_id OR software_id are valid filters.
+    if (label) {
+      const lid = label.substr(labelPrefix.length);
+      path += `&label_id=${parseInt(lid, 10)}`;
+    }
+
     if (!label && policyId) {
       path += `&policy_id=${policyId}`;
-      path += `&policy_response=${policyResponse || "passing"}`; // TODO: confirm whether there should be a default if there is an id but no response sepcified
+      path += `&policy_response=${policyResponse}`;
     }
-    // TODO: consider how to check for mutually exclusive scenarios with label, policy and software
+
     if (!label && !policyId && softwareId) {
       path += `&software_id=${softwareId}`;
+    }
+
+    if (visibleColumns) {
+      path += `&columns=${visibleColumns}`;
     }
 
     path += "&format=csv";
@@ -129,6 +141,8 @@ export default {
     const policyId = options?.policyId || null;
     const policyResponse = options?.policyResponse || null;
     const softwareId = options?.softwareId || null;
+    const device_mapping = options?.device_mapping || null;
+    const columns = options?.columns || null;
 
     // TODO: add this query param logic to client class
     const pagination = `page=${page}&per_page=${perPage}`;
@@ -153,10 +167,7 @@ export default {
     const label = selectedLabels.find((f) => f.includes(labelPrefix));
     const status = selectedLabels.find((f) => !f.includes(labelPrefix));
     const isValidStatus =
-      status === "new" ||
-      status === "online" ||
-      status === "offline" ||
-      status === "mia";
+      status === "new" || status === "online" || status === "offline";
 
     if (label) {
       const lid = label.substr(labelPrefix.length);
@@ -185,6 +196,14 @@ export default {
     // TODO: consider how to check for mutually exclusive scenarios with label, policy and software
     if (!label && !policyId && softwareId) {
       path += `&software_id=${softwareId}`;
+    }
+
+    if (device_mapping) {
+      path += "&device_mapping=true";
+    }
+
+    if (columns) {
+      path += `&columns=${columns}`;
     }
 
     return sendRequest("GET", path);

@@ -1,4 +1,7 @@
 .section--software {
+  .text-muted {
+    color: $ui-fleet-black-50;
+  }
   .table-container__header-left {
     .controls {
       // vulnerable software dropdown filter
@@ -36,13 +39,16 @@
   }
 
   .data-table-block {
+    .last_used_tooltip {
+      text-align: center;
+    }
     .data-table__table {
       thead {
         .name__header {
           width: $col-md;
         }
         .version__header {
-          width: 0px;
+          width: $col-sm;
         }
         .source__header {
           display: none;
@@ -50,6 +56,12 @@
         }
         .hosts_count__header {
           border-right: 0;
+        }
+        .last_opened_at__header {
+          display: none;
+        }
+        .linkToFilteredHosts__header {
+          min-width: 110px;
         }
         @media (min-width: $break-990) {
           .version__header {
@@ -67,7 +79,6 @@
       tbody {
         .name__cell,
         .version__cell {
-          overflow: hidden;
           white-space: nowrap;
           text-overflow: ellipsis;
         }
@@ -86,6 +97,9 @@
               display: flex;
             }
           }
+        }
+        .last_opened_at__cell {
+          display: none;
         }
         @media (min-width: $break-1400) {
           .source__cell {
@@ -117,6 +131,7 @@
             height: 16px;
             width: 16px;
             vertical-align: middle;
+            margin-bottom: 4px;
           }
 
           .link-text {
@@ -132,7 +147,28 @@
       }
     }
   }
-  .text-muted {
-    color: $ui-fleet-black-50;
+
+  // Only show this column to macos users
+  .macos .data-table-block .data-table__table {
+    @media (min-width: $break-990) {
+      thead .version__header {
+        width: $col-sm;
+      }
+    }
+    @media (min-width: $break-1400) {
+      thead {
+        .vulnerabilities__header {
+          width: $col-md;
+        }
+        .last_opened_at__header {
+          display: table-cell;
+        }
+      }
+      tbody {
+        .last_opened_at__cell {
+          display: table-cell;
+        }
+      }
+    }
   }
 }

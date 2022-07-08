@@ -26,7 +26,7 @@ describe("Policies flow (empty)", () => {
         .type(
           "{selectall}SELECT 1 FROM users WHERE username = 'backup' LIMIT 1;"
         );
-      cy.findByRole("button", { name: /save policy/i }).click();
+      cy.getAttached(".policy-form__save").click();
       cy.getAttached(".policy-form__policy-save-modal-name")
         .click()
         .type("Does the device have a user named 'backup'?");
@@ -36,7 +36,7 @@ describe("Policies flow (empty)", () => {
       cy.getAttached(".policy-form__policy-save-modal-resolution")
         .click()
         .type("Create a user named 'backup'");
-      cy.findByRole("button", { name: /^Save$/ }).click();
+      cy.getAttached(".policy-form__button--modal-save").click();
       cy.findByText(/policy created/i).should("exist");
     });
 
@@ -45,9 +45,9 @@ describe("Policies flow (empty)", () => {
         cy.findByText(/add a policy/i).click();
       });
       cy.findByText(/gatekeeper enabled/i).click();
-      cy.findByRole("button", { name: /save policy/i }).click();
+      cy.getAttached(".policy-form__save").click();
       cy.getAttached(".policy-form__button-wrap--modal").within(() => {
-        cy.findAllByRole("button", { name: /^Save$/ }).click();
+        cy.getAttached(".policy-form__button--modal-save").click();
       });
       cy.findByText(/policy created/i).should("exist");
     });
@@ -188,7 +188,7 @@ describe("Policies flow (empty)", () => {
           testCompatibility(el, i, [true, false, false]);
         });
       });
-      cy.findByRole("button", { name: /save policy/i }).click(); // open save policy modal
+      cy.getAttached(".policy-form__save").click();
 
       cy.getAttached(".platform-selector").within(() => {
         cy.getAttached(".fleet-checkbox__input").each((el, i) => {
@@ -204,7 +204,7 @@ describe("Policies flow (empty)", () => {
       cy.getAttached(".add-policy-modal__modal").within(() => {
         cy.findByText("Automatic login disabled (macOS)").click();
       });
-      cy.findByRole("button", { name: /save policy/i }).click(); // open save policy modal
+      cy.getAttached(".policy-form__save").click();
 
       cy.getAttached(".platform-selector").within(() => {
         cy.getAttached(".fleet-checkbox__input").each((el, i) => {
@@ -215,7 +215,7 @@ describe("Policies flow (empty)", () => {
           testSelections(el, i, [false, false, false]);
         });
       });
-      cy.findByRole("button", { name: /^Save$/ }).should("be.disabled");
+      cy.getAttached(".policy-form__button--modal-save").should("be.disabled");
     });
 
     it("allows user to overide preselected platforms when saving new policy", () => {
@@ -231,7 +231,7 @@ describe("Policies flow (empty)", () => {
           testCompatibility(el, i, [true, false, false]);
         });
       });
-      cy.findByRole("button", { name: /save policy/i }).click(); // open save policy modal
+      cy.getAttached(".policy-form__save").click();
 
       cy.getAttached(".platform-selector").within(() => {
         cy.getAttached(".fleet-checkbox__input").each((el, i) => {
@@ -243,7 +243,7 @@ describe("Policies flow (empty)", () => {
           testSelections(el, i, [false, false, true]);
         });
       });
-      cy.findByRole("button", { name: /^Save$/ }).click();
+      cy.getAttached(".policy-form__button--modal-save").click();
       cy.findByText(/policy created/i).should("exist");
 
       // confirm that new policy was saved with user-selected platforms
@@ -268,8 +268,8 @@ describe("Policies flow (empty)", () => {
       cy.getAttached(".add-policy-modal__modal").within(() => {
         cy.findByText("Antivirus healthy (macOS)").click();
       });
-      cy.findByRole("button", { name: /save policy/i }).click();
-      cy.findByRole("button", { name: /^Save$/ }).click();
+      cy.getAttached(".policy-form__save").click();
+      cy.getAttached(".policy-form__button--modal-save").click();
       cy.findByText(/policy created/i).should("exist");
 
       // edit platform selections for policy
@@ -400,6 +400,29 @@ describe("Policies flow (seeded)", () => {
       cy.getAttached(".manage-automations-modal").within(() => {
         cy.getAttached(".fleet-checkbox__input").should("be.checked");
       });
+      // reset slider for subsequent tests
+      cy.getAttached(".manage-automations-modal").within(() => {
+        cy.getAttached(".fleet-slider").click();
+      });
+      cy.findByRole("button", { name: /^Save$/ }).click();
+    });
+    it("creates a failing policies integration", () => {
+      cy.getAttached(".button-wrap").within(() => {
+        cy.findByRole("button", { name: /manage automations/i }).click();
+      });
+      cy.getAttached(".manage-automations-modal").within(() => {
+        cy.getAttached(".fleet-slider").click();
+        cy.getAttached(".fleet-checkbox__input").check({ force: true });
+      });
+      cy.getAttached("#ticket-radio-btn").next().click();
+
+      cy.findByText(/you have no integrations/i).should("exist");
+      cy.getAttached(".manage-automations-modal__add-integration-link").click();
+      // should be redirected to integrations settings page
+      cy.getAttached(".table-container").within(() => {
+        cy.findByText(/set up integration/i).should("exist");
+      });
+      // TODO: add tests for selecting integration
     });
   });
   describe("Platform compatibility", () => {

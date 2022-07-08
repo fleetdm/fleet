@@ -1,4 +1,5 @@
 import React, { useCallback, useContext, useState, useEffect } from "react";
+import { useErrorHandler } from "react-error-boundary";
 import { useQuery } from "react-query";
 import { Params } from "react-router/lib/Router";
 import { Link } from "react-router";
@@ -9,7 +10,7 @@ import configAPI from "services/entities/config";
 import deepDifference from "utilities/deep_difference";
 import { IConfig } from "interfaces/config";
 import { IApiError } from "interfaces/errors";
-
+import Spinner from "components/Spinner";
 import PATHS from "router/paths";
 import Info from "./cards/Info";
 import WebAddress from "./cards/WebAddress";
@@ -19,6 +20,7 @@ import AgentOptions from "./cards/Agents";
 import HostStatusWebhook from "./cards/HostStatusWebhook";
 import Statistics from "./cards/Statistics";
 import Advanced from "./cards/Advanced";
+import FleetDesktop from "./cards/FleetDesktop";
 
 interface IAppSettingsPageProps {
   params: Params;
@@ -29,16 +31,18 @@ export const baseClass = "app-settings";
 const AppSettingsPage = ({
   params: { section: sectionTitle },
 }: IAppSettingsPageProps): JSX.Element => {
+  const { isFreeTier, isPremiumTier, setConfig } = useContext(AppContext);
   const { renderFlash } = useContext(NotificationContext);
-  const { setConfig } = useContext(AppContext);
+
+  const handlePageError = useErrorHandler();
 
   const [activeSection, setActiveSection] = useState<string>("info");
 
-  const {
-    data: appConfig,
-    isLoading: isLoadingConfig,
-    refetch: refetchConfig,
-  } = useQuery<IConfig, Error, IConfig>(["config"], () => configAPI.loadAll(), {
+  const { data: appConfig, isLoading, refetch: refetchConfig } = useQuery<
+    IConfig,
+    Error,
+    IConfig
+  >(["config"], () => configAPI.loadAll(), {
     select: (data: IConfig) => data,
     onSuccess: (data) => {
       setConfig(data);
@@ -50,7 +54,7 @@ const AppSettingsPage = ({
   };
 
   const onFormSubmit = useCallback(
-    (formData: IConfig) => {
+    (formData: Partial<IConfig>) => {
       if (!appConfig) {
         return false;
       }
@@ -87,13 +91,16 @@ const AppSettingsPage = ({
   );
 
   useEffect(() => {
+    if (isFreeTier && sectionTitle === "fleet-desktop") {
+      handlePageError({ status: 403 });
+    }
     if (sectionTitle) {
       setActiveSection(sectionTitle);
     }
-  }, [sectionTitle]);
+  }, [isFreeTier, sectionTitle]);
 
   const renderSection = () => {
-    if (!isLoadingConfig && appConfig) {
+    if (!isLoading && appConfig) {
       return (
         <>
           {activeSection === "info" && (
@@ -123,6 +130,13 @@ const AppSettingsPage = ({
           {activeSection === "advanced" && (
             <Advanced appConfig={appConfig} handleSubmit={onFormSubmit} />
           )}
+          {isPremiumTier && activeSection === "fleet-desktop" && (
+            <FleetDesktop
+              appConfig={appConfig}
+              isPremiumTier={isPremiumTier}
+              handleSubmit={onFormSubmit}
+            />
+          )}
         </>
       );
     }
@@ -135,88 +149,106 @@ const AppSettingsPage = ({
       <p className={`${baseClass}__page-description`}>
         Set your organization information and configure SSO and SMTP
       </p>
-      <div className={`${baseClass}__settings-form`}>
-        <nav>
-          <ul className={`${baseClass}__form-nav-list`}>
-            <li>
-              <Link
-                className={`${baseClass}__nav-link ${isNavItemActive("info")}
+      {isLoading ? (
+        <Spinner />
+      ) : (
+        <div className={`${baseClass}__settings-form`}>
+          <nav>
+            <ul className={`${baseClass}__form-nav-list`}>
+              <li>
+                <Link
+                  className={`${baseClass}__nav-link ${isNavItemActive("info")}
                 }`}
-                to={PATHS.ADMIN_SETTINGS_INFO}
-              >
-                Organization info
-              </Link>
-            </li>
-            <li>
-              <Link
-                className={`${baseClass}__nav-link ${isNavItemActive(
-                  "webaddress"
-                )}`}
-                to={PATHS.ADMIN_SETTINGS_WEBADDRESS}
-              >
-                Fleet web address
-              </Link>
-            </li>
-            <li>
-              <Link
-                className={`${baseClass}__nav-link ${isNavItemActive("sso")}`}
-                to={PATHS.ADMIN_SETTINGS_SSO}
-              >
-                Single sign-on options
-              </Link>
-            </li>
-            <li>
-              <Link
-                className={`${baseClass}__nav-link$ ${isNavItemActive("smtp")}`}
-                to={PATHS.ADMIN_SETTINGS_SMTP}
-              >
-                SMTP options
-              </Link>
-            </li>
-            <li>
-              <Link
-                className={`${baseClass}__nav-link ${isNavItemActive(
-                  "agents"
-                )}`}
-                to={PATHS.ADMIN_SETTINGS_AGENTS}
-              >
-                Global agent options
-              </Link>
-            </li>
-            <li>
-              <Link
-                className={`${baseClass}__nav-link ${isNavItemActive(
-                  "host-status-webhook"
-                )}`}
-                to={PATHS.ADMIN_SETTINGS_HOST_STATUS_WEBHOOK}
-              >
-                Host status webhook
-              </Link>
-            </li>
-            <li>
-              <Link
-                className={`${baseClass}__nav-link ${isNavItemActive(
-                  "statistics"
-                )}`}
-                to={PATHS.ADMIN_SETTINGS_STATISTICS}
-              >
-                Usage statistics
-              </Link>
-            </li>
-            <li>
-              <Link
-                className={`${baseClass}__nav-link ${isNavItemActive(
-                  "advanced"
-                )}`}
-                to={PATHS.ADMIN_SETTINGS_ADVANCED}
-              >
-                Advanced options
-              </Link>
-            </li>
-          </ul>
-        </nav>
-        {renderSection()}
-      </div>
+                  to={PATHS.ADMIN_SETTINGS_INFO}
+                >
+                  Organization info
+                </Link>
+              </li>
+              <li>
+                <Link
+                  className={`${baseClass}__nav-link ${isNavItemActive(
+                    "webaddress"
+                  )}`}
+                  to={PATHS.ADMIN_SETTINGS_WEBADDRESS}
+                >
+                  Fleet web address
+                </Link>
+              </li>
+              <li>
+                <Link
+                  className={`${baseClass}__nav-link ${isNavItemActive("sso")}`}
+                  to={PATHS.ADMIN_SETTINGS_SSO}
+                >
+                  Single sign-on options
+                </Link>
+              </li>
+              <li>
+                <Link
+                  className={`${baseClass}__nav-link$ ${isNavItemActive(
+                    "smtp"
+                  )}`}
+                  to={PATHS.ADMIN_SETTINGS_SMTP}
+                >
+                  SMTP options
+                </Link>
+              </li>
+              <li>
+                <Link
+                  className={`${baseClass}__nav-link ${isNavItemActive(
+                    "agents"
+                  )}`}
+                  to={PATHS.ADMIN_SETTINGS_AGENTS}
+                >
+                  Global agent options
+                </Link>
+              </li>
+              <li>
+                <Link
+                  className={`${baseClass}__nav-link ${isNavItemActive(
+                    "host-status-webhook"
+                  )}`}
+                  to={PATHS.ADMIN_SETTINGS_HOST_STATUS_WEBHOOK}
+                >
+                  Host status webhook
+                </Link>
+              </li>
+              <li>
+                <Link
+                  className={`${baseClass}__nav-link ${isNavItemActive(
+                    "statistics"
+                  )}`}
+                  to={PATHS.ADMIN_SETTINGS_STATISTICS}
+                >
+                  Usage statistics
+                </Link>
+              </li>
+              {isPremiumTier && (
+                <li>
+                  <Link
+                    className={`${baseClass}__nav-link ${isNavItemActive(
+                      "fleet-desktop"
+                    )}`}
+                    to={PATHS.ADMIN_SETTINGS_FLEET_DESKTOP}
+                  >
+                    Fleet Desktop
+                  </Link>
+                </li>
+              )}
+              <li>
+                <Link
+                  className={`${baseClass}__nav-link ${isNavItemActive(
+                    "advanced"
+                  )}`}
+                  to={PATHS.ADMIN_SETTINGS_ADVANCED}
+                >
+                  Advanced options
+                </Link>
+              </li>
+            </ul>
+          </nav>
+          {renderSection()}
+        </div>
+      )}
     </div>
   );
 };

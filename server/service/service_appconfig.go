@@ -7,11 +7,11 @@ import (
 	"strings"
 
 	"github.com/fleetdm/fleet/v4/server"
+	authz_ctx "github.com/fleetdm/fleet/v4/server/contexts/authz"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mail"
-	"github.com/fleetdm/fleet/v4/server/service/externalsvc"
 )
 
 // mailError is set when an error performing mail operations
@@ -81,29 +81,15 @@ func (svc *Service) sendTestEmail(ctx context.Context, config *fleet.AppConfig) 
 	return nil
 }
 
-func (svc *Service) makeTestJiraRequest(ctx context.Context, jiraSettings *fleet.JiraIntegration) error {
-	client, err := externalsvc.NewJiraClient(&externalsvc.JiraOptions{
-		BaseURL:           jiraSettings.URL,
-		BasicAuthUsername: jiraSettings.Username,
-		BasicAuthPassword: jiraSettings.APIToken,
-		ProjectKey:        jiraSettings.ProjectKey,
-	})
-	if err != nil {
-		return &badRequestError{message: fmt.Sprintf("jira integration request failed: %s", err.Error())}
-	}
-	if _, err := client.GetProject(ctx); err != nil {
-		return &badRequestError{message: fmt.Sprintf("jira integration request failed: %s", err.Error())}
-	}
-	return nil
-}
-
 func cleanupURL(url string) string {
 	return strings.TrimRight(strings.Trim(url, " \t\n"), "/")
 }
 
 func (svc *Service) License(ctx context.Context) (*fleet.LicenseInfo, error) {
-	if err := svc.authz.Authorize(ctx, &fleet.AppConfig{}, fleet.ActionRead); err != nil {
-		return nil, err
+	if !svc.authz.IsAuthenticatedWith(ctx, authz_ctx.AuthnDeviceToken) {
+		if err := svc.authz.Authorize(ctx, &fleet.AppConfig{}, fleet.ActionRead); err != nil {
+			return nil, err
+		}
 	}
 
 	return &svc.license, nil

@@ -61,6 +61,9 @@ const QueryEditor = ({
     lastEditedQueryObserverCanRun,
   } = useContext(QueryContext);
 
+  const [isQuerySaving, setIsQuerySaving] = useState<boolean>(false);
+  const [isQueryUpdating, setIsQueryUpdating] = useState<boolean>(false);
+
   useEffect(() => {
     if (storedQueryError) {
       renderFlash(
@@ -75,6 +78,7 @@ const QueryEditor = ({
   }>({});
 
   const onSaveQueryFormSubmit = debounce(async (formData: IQueryFormData) => {
+    setIsQuerySaving(true);
     try {
       const { query }: { query: IQuery } = await createQuery(formData);
       router.push(PATHS.EDIT_QUERY(query));
@@ -90,6 +94,8 @@ const QueryEditor = ({
           "Something went wrong creating your query. Please try again."
         );
       }
+    } finally {
+      setIsQuerySaving(false);
     }
   });
 
@@ -97,6 +103,8 @@ const QueryEditor = ({
     if (!queryIdForEdit) {
       return false;
     }
+
+    setIsQueryUpdating(true);
 
     const updatedQuery = deepDifference(formData, {
       lastEditedQueryName,
@@ -119,6 +127,8 @@ const QueryEditor = ({
         );
       }
     }
+
+    setIsQueryUpdating(false);
 
     return false;
   };
@@ -146,6 +156,8 @@ const QueryEditor = ({
         onOpenSchemaSidebar={onOpenSchemaSidebar}
         renderLiveQueryWarning={renderLiveQueryWarning}
         backendValidators={backendValidators}
+        isQuerySaving={isQuerySaving}
+        isQueryUpdating={isQueryUpdating}
       />
     </div>
   );
