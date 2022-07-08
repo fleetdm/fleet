@@ -413,7 +413,7 @@ func selectSoftwareSQL(opts fleet.SoftwareListOptions) (string, []interface{}, e
 			"s.release",
 			"s.vendor",
 			"s.arch",
-			"scv.cpe_id", // for join on sub query
+			goqu.I("scp.id").As("cpe_id"), // for join on sub query
 			goqu.COALESCE(goqu.I("scp.cpe"), "").As("generated_cpe"),
 		).
 		Join( // filter software that is not associated with any hosts
@@ -442,7 +442,7 @@ func selectSoftwareSQL(opts fleet.SoftwareListOptions) (string, []interface{}, e
 
 	if opts.VulnerableOnly {
 		ds = ds.
-			Join(
+			LeftJoin(
 				goqu.I("software_cpe").As("scp"),
 				goqu.On(
 					goqu.I("s.id").Eq(goqu.I("scp.software_id")),
@@ -513,7 +513,7 @@ func selectSoftwareSQL(opts fleet.SoftwareListOptions) (string, []interface{}, e
 
 	ds = ds.GroupBy(
 		"s.id",
-		"scv.cpe_id",
+		"scp.id",
 		"generated_cpe",
 	)
 
