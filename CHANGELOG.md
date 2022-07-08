@@ -13,7 +13,7 @@
 
 * Fixed osquery tables that report incorrect platforms.
 
-* Added `docker_container_envs` table to the **Query Builder** UI.
+* Added `docker_container_envs` table to the osquery table schema on the **Query* page.
 
 * Added `software_id` column to the `software_cve` table.
 
