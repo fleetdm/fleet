@@ -681,7 +681,7 @@ spec:
 apiVersion: v1
 kind: policy
 spec:
-  name: Suspicious autostart (Windowså)
+  name: Suspicious autostart (Windows)
   query: SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM startup_items WHERE path = "regsvr32" AND args LIKE "%http%");
   description: "Checks for an autostart that is attempting to load a dynamic link library (DLL) from the internet."
   resolution: "Remove the suspicious startup entry."
