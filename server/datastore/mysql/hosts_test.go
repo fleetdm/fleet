@@ -4323,15 +4323,18 @@ func testHostsReplaceHostBatteries(t *testing.T, ds *Datastore) {
 	// update "a", remove "b", add "c"
 	h1Bat = []*fleet.HostBattery{
 		{HostID: h1.ID, SerialNumber: "a", CycleCount: 2, Health: "Good"},
-		{HostID: h1.ID, SerialNumber: "c", CycleCount: 3, Health: "Bad"},
+		{HostID: h1.ID, SerialNumber: "c", CycleCount: 3, Health: strings.Repeat("z", 100)},
 	}
 
 	err = ds.ReplaceHostBatteries(ctx, h1.ID, h1Bat)
 	require.NoError(t, err)
 
 	bat1, err = ds.ListHostBatteries(ctx, h1.ID)
+	bat1Expected := []*fleet.HostBattery{
+		{HostID: h1.ID, SerialNumber: "a", CycleCount: 2, Health: "Good"},
+		{HostID: h1.ID, SerialNumber: "c", CycleCount: 3, Health: strings.Repeat("z", 40)}}
 	require.NoError(t, err)
-	require.ElementsMatch(t, h1Bat, bat1)
+	require.ElementsMatch(t, bat1Expected, bat1)
 
 	// add "d" to h2
 	h2Bat := []*fleet.HostBattery{
