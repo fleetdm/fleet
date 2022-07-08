@@ -15,7 +15,6 @@
 
 * Added `docker_container_envs` table to the osquery table schema on the **Query* page.
 
-* Added `software_id` column to the `software_cve` table.
 
 * Updated Fleet host detail query so that the `os_version` for Ubuntu hosts reflects the accurate patch number.
 
