@@ -415,7 +415,6 @@ func selectSoftwareSQL(opts fleet.SoftwareListOptions) (string, []interface{}, e
 			"s.arch",
 			"scv.cpe_id", // for join on sub query
 			goqu.COALESCE(goqu.I("scp.cpe"), "").As("generated_cpe"),
-			goqu.COALESCE(goqu.I("scp.id"), 0).As("generated_cpe_id"),
 		).
 		Join( // filter software that is not associated with any hosts
 			goqu.I("host_software").As("hs"),
@@ -516,7 +515,6 @@ func selectSoftwareSQL(opts fleet.SoftwareListOptions) (string, []interface{}, e
 		"s.id",
 		"scv.cpe_id",
 		"generated_cpe",
-		"generated_cpe_id",
 	)
 
 	// Pagination is a bit more complex here due to left join with software_cve table and aggregated columns from cve_meta table.
@@ -535,7 +533,6 @@ func selectSoftwareSQL(opts fleet.SoftwareListOptions) (string, []interface{}, e
 			"s.vendor",
 			"s.arch",
 			"s.generated_cpe",
-			"s.generated_cpe_id",
 			"scv.cve",
 		).
 		LeftJoin(
@@ -1148,7 +1145,6 @@ func (ds *Datastore) ListSoftwareForVulnDetection(
 			goqu.I("s.release"),
 			goqu.I("s.arch"),
 			goqu.I("cpe.cpe").As("generated_cpe"),
-			goqu.I("cpe.id").As("generated_cpe_id"),
 		).
 		Where(goqu.C("host_id").Eq(hostID))
 

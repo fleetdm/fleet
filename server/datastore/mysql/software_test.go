@@ -254,7 +254,6 @@ func testSoftwareLoadVulnerabilities(t *testing.T, ds *Datastore) {
 	require.NotNil(t, softByID)
 	require.Len(t, softByID.Vulnerabilities, 2)
 
-	require.NotZero(t, host.Software[0].GeneratedCPEID)
 	assert.Equal(t, "somecpe", host.Software[0].GenerateCPE)
 	require.Len(t, host.Software[0].Vulnerabilities, 2)
 	assert.Equal(t, "CVE-2022-0001", host.Software[0].Vulnerabilities[0].CVE)
@@ -264,7 +263,6 @@ func testSoftwareLoadVulnerabilities(t *testing.T, ds *Datastore) {
 	assert.Equal(t,
 		"https://nvd.nist.gov/vuln/detail/CVE-2022-0002", host.Software[0].Vulnerabilities[1].DetailsLink)
 
-	require.NotZero(t, host.Software[1].GeneratedCPEID)
 	assert.Equal(t, "someothercpewithoutvulns", host.Software[1].GenerateCPE)
 	require.Len(t, host.Software[1].Vulnerabilities, 0)
 }
