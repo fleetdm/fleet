@@ -490,8 +490,7 @@ func (s *integrationTestSuite) TestVulnerableSoftware() {
 		context.Background(), []fleet.SoftwareVulnerability{
 			{
 				SoftwareID: soft1.ID,
-				// CPEID:      soft1.GeneratedCPEID,
-				CVE: "cve-123-123-132",
+				CVE:        "cve-123-123-132",
 			},
 		}, fleet.NVDSource,
 	)
@@ -4080,8 +4079,7 @@ func (s *integrationTestSuite) TestPaginateListSoftware() {
 	for i, sw := range hosts[0].Software[:10] {
 		vulns = append(vulns, fleet.SoftwareVulnerability{
 			SoftwareID: sw.ID,
-			// CPEID:      sw.GeneratedCPEID,
-			CVE: fmt.Sprintf("cve-123-123-%03d", i),
+			CVE:        fmt.Sprintf("cve-123-123-%03d", i),
 		})
 	}
 
