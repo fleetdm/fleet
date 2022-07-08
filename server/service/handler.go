@@ -397,6 +397,8 @@ func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetC
 
 	// device-authenticated endpoints
 	de := newDeviceAuthenticatedEndpointer(svc, logger, opts, r, apiVersions...)
+	// We allow a quota of 720 because in the onboarding of a Fleet Desktop takes a few tries until it authenticates
+	// properly
 	desktopQuota := throttled.RateQuota{MaxRate: throttled.PerHour(720), MaxBurst: 100}
 	de.WithCustomMiddleware(
 		errorLimiter.Limit("get_device_host", desktopQuota),
