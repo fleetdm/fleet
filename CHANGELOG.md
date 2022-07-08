@@ -28,7 +28,7 @@
 
 * Added support for scanning RHEL based and Fedora hosts for vulnerable software using OVAL definitions.
 
-* Fixed SQL generated for OS version policies to reduce false negatives
+* Fixed SQL generated for operating system version policies to reduce false negatives
 
 * Added the number of hosts enrolled by operating system (OS) and OS version to anonymous usage statistics.
 
