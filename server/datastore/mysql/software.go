@@ -413,8 +413,8 @@ func selectSoftwareSQL(opts fleet.SoftwareListOptions) (string, []interface{}, e
 			"s.release",
 			"s.vendor",
 			"s.arch",
-			goqu.I("scp.id").As("cpe_id"), // for join on sub query
-			goqu.COALESCE(goqu.I("scp.cpe"), "").As("generated_cpe"),
+			// goqu.I("scp.id").As("cpe_id"), // for join on sub query
+			// goqu.COALESCE(goqu.I("scp.cpe"), "").As("generated_cpe"),
 		).
 		Join( // filter software that is not associated with any hosts
 			goqu.I("host_software").As("hs"),
@@ -442,12 +442,12 @@ func selectSoftwareSQL(opts fleet.SoftwareListOptions) (string, []interface{}, e
 
 	if opts.VulnerableOnly {
 		ds = ds.
-			LeftJoin(
-				goqu.I("software_cpe").As("scp"),
-				goqu.On(
-					goqu.I("s.id").Eq(goqu.I("scp.software_id")),
-				),
-			).
+			// LeftJoin(
+			// 	goqu.I("software_cpe").As("scp"),
+			// 	goqu.On(
+			// 		goqu.I("s.id").Eq(goqu.I("scp.software_id")),
+			// 	),
+			// ).
 			Join(
 				goqu.I("software_cve").As("scv"),
 				goqu.On(
@@ -456,12 +456,12 @@ func selectSoftwareSQL(opts fleet.SoftwareListOptions) (string, []interface{}, e
 			)
 	} else {
 		ds = ds.
-			LeftJoin(
-				goqu.I("software_cpe").As("scp"),
-				goqu.On(
-					goqu.I("s.id").Eq(goqu.I("scp.software_id")),
-				),
-			).
+			// LeftJoin(
+			// 	goqu.I("software_cpe").As("scp"),
+			// 	goqu.On(
+			// 		goqu.I("s.id").Eq(goqu.I("scp.software_id")),
+			// 	),
+			// ).
 			LeftJoin(
 				goqu.I("software_cve").As("scv"),
 				goqu.On(goqu.I("s.id").Eq(goqu.I("scv.software_id"))),
@@ -513,8 +513,8 @@ func selectSoftwareSQL(opts fleet.SoftwareListOptions) (string, []interface{}, e
 
 	ds = ds.GroupBy(
 		"s.id",
-		"scp.id",
-		"generated_cpe",
+		// "scp.id",
+		// "generated_cpe",
 	)
 
 	// Pagination is a bit more complex here due to left join with software_cve table and aggregated columns from cve_meta table.
@@ -532,17 +532,23 @@ func selectSoftwareSQL(opts fleet.SoftwareListOptions) (string, []interface{}, e
 			"s.release",
 			"s.vendor",
 			"s.arch",
-			"s.generated_cpe",
+			// "s.generated_cpe",
 			"scv.cve",
+			goqu.COALESCE(goqu.I("scp.cpe"), "").As("generated_cpe"),
+		).
+		LeftJoin(
+			goqu.I("software_cpe").As("scp"),
+			goqu.On(
+				goqu.I("s.id").Eq(goqu.I("scp.software_id")),
+			),
 		).
 		LeftJoin(
 			goqu.I("software_cve").As("scv"),
 			goqu.On(goqu.I("scv.software_id").Eq(goqu.I("s.id"))),
-		).
-		LeftJoin(
-			goqu.I("cve_meta").As("c"),
-			goqu.On(goqu.I("c.cve").Eq(goqu.I("scv.cve"))),
-		)
+		).LeftJoin(
+		goqu.I("cve_meta").As("c"),
+		goqu.On(goqu.I("c.cve").Eq(goqu.I("scv.cve"))),
+	)
 
 	// select optional columns
 	if opts.IncludeCVEScores {
