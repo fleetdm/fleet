@@ -90,8 +90,7 @@ const FleetDesktop = ({
               target="_blank"
               rel="noopener noreferrer"
             >
-              {" "}
-              https://fleetdm.com/transparency{" "}
+              https://fleetdm.com/transparency&nbsp;
               <img
                 className="icon"
                 src={ExternalLinkIcon}

@@ -31,7 +31,6 @@ const expirationMessage = (
       please head to the Fleet documentation&nbsp;
       <img src={ExternalLinkIcon} alt="Open external link" id="new-tab-icon" />
     </a>
-    .
   </>
 );
 
