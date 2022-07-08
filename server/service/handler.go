@@ -397,27 +397,27 @@ func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetC
 
 	// device-authenticated endpoints
 	de := newDeviceAuthenticatedEndpointer(svc, logger, opts, r, apiVersions...)
-	quota := throttled.RateQuota{MaxRate: throttled.PerHour(10), MaxBurst: 9}
+	desktopQuota := throttled.RateQuota{MaxRate: throttled.PerHour(720), MaxBurst: 100}
 	de.WithCustomMiddleware(
-		errorLimiter.Limit("get_device_host", quota),
+		errorLimiter.Limit("get_device_host", desktopQuota),
 	).GET("/api/_version_/fleet/device/{token}", getDeviceHostEndpoint, getDeviceHostRequest{})
 	de.WithCustomMiddleware(
-		errorLimiter.Limit("refetch_device_host", quota),
+		errorLimiter.Limit("refetch_device_host", desktopQuota),
 	).POST("/api/_version_/fleet/device/{token}/refetch", refetchDeviceHostEndpoint, refetchDeviceHostRequest{})
 	de.WithCustomMiddleware(
-		errorLimiter.Limit("get_device_mapping", quota),
+		errorLimiter.Limit("get_device_mapping", desktopQuota),
 	).GET("/api/_version_/fleet/device/{token}/device_mapping", listDeviceHostDeviceMappingEndpoint, listDeviceHostDeviceMappingRequest{})
 	de.WithCustomMiddleware(
-		errorLimiter.Limit("get_device_macadmins", quota),
+		errorLimiter.Limit("get_device_macadmins", desktopQuota),
 	).GET("/api/_version_/fleet/device/{token}/macadmins", getDeviceMacadminsDataEndpoint, getDeviceMacadminsDataRequest{})
 	de.WithCustomMiddleware(
-		errorLimiter.Limit("get_device_policies", quota),
+		errorLimiter.Limit("get_device_policies", desktopQuota),
 	).GET("/api/_version_/fleet/device/{token}/policies", listDevicePoliciesEndpoint, listDevicePoliciesRequest{})
 	de.WithCustomMiddleware(
-		errorLimiter.Limit("get_device_api_features", quota),
+		errorLimiter.Limit("get_device_api_features", desktopQuota),
 	).GET("/api/_version_/fleet/device/{token}/api_features", deviceAPIFeaturesEndpoint, deviceAPIFeaturesRequest{})
 	de.WithCustomMiddleware(
-		errorLimiter.Limit("get_device_transparency", quota),
+		errorLimiter.Limit("get_device_transparency", desktopQuota),
 	).GET("/api/_version_/fleet/device/{token}/transparency", transparencyURL, transparencyURLRequest{})
 
 	// host-authenticated endpoints
@@ -470,6 +470,7 @@ func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetC
 	// the handler.
 	ne.UsePathPrefix().PathHandler("GET", "/api/_version_/fleet/results/", makeStreamDistributedQueryCampaignResultsHandler(svc, logger))
 
+	quota := throttled.RateQuota{MaxRate: throttled.PerHour(10), MaxBurst: 90}
 	limiter := ratelimit.NewMiddleware(limitStore)
 	ne.
 		WithCustomMiddleware(limiter.Limit("forgot_password", quota)).
