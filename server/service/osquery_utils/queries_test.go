@@ -481,8 +481,8 @@ func TestDirectIngestBattery(t *testing.T) {
 	}
 
 	err := directIngestBattery(context.Background(), log.NewNopLogger(), &host, ds, []map[string]string{
-		{"serial_number": "a", "cycle_count": "2", "health": "good"},
-		{"serial_number": "a", "cycle_count": "2", "health": strings.Repeat("z", 100)},
+		{"serial_number": "a", "cycle_count": "2", "health": "Good"},
+		{"serial_number": "c", "cycle_count": "2", "health": strings.Repeat("z", 100)},
 	}, false)
 
 	require.NoError(t, err)
