@@ -62,6 +62,14 @@ interface IDeviceUserCellProps {
     original: IHost;
   };
 }
+interface IDiskSpaceCellProps {
+  cell: {
+    value: any;
+  };
+  row: {
+    original: IHost;
+  };
+}
 
 const condenseDeviceUsers = (users: IDeviceUser[]): string[] => {
   if (!users?.length) {
@@ -176,7 +184,47 @@ const allHostTableHeaders: IDataColumn[] = [
     ),
   },
   {
-    title: "OS",
+    title: "Disk space",
+    Header: (cellProps: IHeaderProps) => (
+      <HeaderCell
+        value={cellProps.column.title}
+        isSortedDesc={cellProps.column.isSortedDesc}
+      />
+    ),
+    accessor: "gigs_disk_space_available",
+    Cell: (cellProps: IDiskSpaceCellProps): JSX.Element => {
+      console.log("cellProps", cellProps);
+      if (cellProps.cell.value === 0) {
+        return <>No data available</>;
+      }
+      return (
+        <>
+          <span
+            className={`graph-cell`}
+            data-tip
+            data-for={`disk-space__${cellProps.row.original.id}`}
+          >
+            Graph goes here
+          </span>
+          <ReactTooltip
+            place="top"
+            type="dark"
+            effect="solid"
+            backgroundColor="#3e4771"
+            id={`device_mapping__${cellProps.row.original.id}`}
+            data-html
+          >
+            <span className={`tooltip__tooltip-text`}>
+              Tooltip text goes here
+            </span>
+          </ReactTooltip>{" "}
+          <span>{cellProps.cell.value} GB</span>
+        </>
+      );
+    },
+  },
+  {
+    title: "Operating system",
     Header: (cellProps: IHeaderProps) => (
       <HeaderCell
         value={cellProps.column.title}
