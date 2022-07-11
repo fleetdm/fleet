@@ -75,14 +75,6 @@ interface IDeviceUserCellProps {
     original: IHost;
   };
 }
-interface IDiskSpaceCellProps {
-  cell: {
-    value: any;
-  };
-  row: {
-    original: IHost;
-  };
-}
 
 const condenseDeviceUsers = (users: IDeviceUser[]): string[] => {
   if (!users?.length) {
@@ -207,6 +199,51 @@ const allHostTableHeaders: IDataColumn[] = [
     accessor: "gigs_disk_space_available",
     Cell: (cellProps: INumberCellProps): JSX.Element => {
       const { id, percent_disk_space_available } = cellProps.row.original;
+
+      const diskSpaceTooltip = () => {
+        const diskSpaceAvailable = cellProps.cell.value;
+        switch (true) {
+          case diskSpaceAvailable < 16:
+            return (
+              <span className={`tooltip-text`}>
+                Not enough disk space <br />
+                available to install most <br />
+                small operating systems <br />
+                updates.
+              </span>
+            );
+          case diskSpaceAvailable < 32:
+            return (
+              <span className={`tooltip-text`}>
+                Not enough disk space <br />
+                available to install most <br />
+                large operating systems <br />
+                updates.
+              </span>
+            );
+          default:
+            return (
+              <span className={`tooltip-text`}>
+                Enough disk space available <br />
+                to install most operating <br />
+                systems updates.
+              </span>
+            );
+        }
+      };
+
+      const diskSpaceIndicator = () => {
+        const diskSpaceAvailable = cellProps.cell.value;
+        switch (true) {
+          case diskSpaceAvailable < 16:
+            return "red";
+          case diskSpaceAvailable < 32:
+            return "yellow";
+          default:
+            return "green";
+        }
+      };
+
       if (cellProps.cell.value === 0) {
         return <>No data available</>;
       }
