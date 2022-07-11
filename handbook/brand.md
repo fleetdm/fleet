@@ -307,7 +307,7 @@ When deciding whether to describe Fleet as open source or open core, define who 
 | **Linux** | An open source operating system. |
 | **Logica** | An IT and management consultancy company based in the United Kingdom. |
 | **macOS** | The operating system used in all of Apple's Mac computers. |
-| **Munki** | Open-source tools that manage installing and configuring software when used in conjunction with a web server-based repository. |
+| **Munki** | Open-source software deployment tool for macOS. |
 | **open core** | Is the business model where a company has a core version of a product with some of the features as (FOSS) Free Open Source Software in addition to a paid commercial version that is proprietary software. |
 | **open source** | Software with intentionally public code for the sake of transparency. |
 | **OS** | (Operating System) Software that provides the groundwork and instructions for a device's basic functions, including application use and controlling peripherals. |
