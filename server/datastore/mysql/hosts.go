@@ -1924,16 +1924,28 @@ func countHostsNotRespondingDB(ctx context.Context, db sqlx.QueryerContext, logg
 ) {
 	interval := config.Osquery.DetailUpdateInterval.Seconds()
 
-	// The `WHERE` clause is intended to capture where Fleet hasn't received a distributed write
+	// The primary `WHERE` clause is intended to capture where Fleet hasn't received a distributed write
 	// from the host during the interval since the host was last seen. Thus we assume the host
 	// is having some issue in executing distributed queries or sending the results.
+	// The subquery `WHERE` clause excludes from the count any hosts that were inactive during the
+	// current seven-day statistics reporting period.
 	sql := `
-	SELECT
-	  h.host_id
-	FROM (SELECT * FROM hosts JOIN host_seen_times ON hosts.id = host_seen_times.host_id) h
-	WHERE 
-	  TIME_TO_SEC(TIMEDIFF(h.seen_time, h.detail_updated_at)) >= (GREATEST(h.distributed_interval, ?) * 2)
-	  AND TIMEDIFF(DATE_ADD(h.seen_time, INTERVAL 7 DAY), NOW()) > 0
+SELECT
+  h.host_id
+FROM (
+  SELECT
+	  *
+  FROM
+	  hosts
+	  JOIN (
+		  SELECT
+			  *
+		  FROM
+			  host_seen_times
+		  WHERE
+			  host_seen_times.seen_time >= DATE_SUB(NOW(), INTERVAL 7 DAY)) hst ON hosts.id = hst.host_id) h
+WHERE
+  TIME_TO_SEC(TIMEDIFF(h.seen_time, h.detail_updated_at)) >= (GREATEST(h.distributed_interval, ?) * 2)
 `
 
 	var ids []int
