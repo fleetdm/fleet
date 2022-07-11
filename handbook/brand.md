@@ -322,7 +322,7 @@ When deciding whether to describe Fleet as open source or open core, define who 
 | **security audits** | An assessment of an organization's security posture. |
 | **security engineer** | Individual for managing and implementing security systems in an organization. |
 | **SIEM** | (Security Information and Event Management) Technology that assembles data, security warnings, and events into one platform and provides almost real-time analyzed data to help you better monitor your organization's security. |
-| **Site Reliability Engineers (SREs)** | Those who apply scripting and automation to IT jobs such as support and maintenance. |
+| **Site Reliability Engineers (SREs)** | Individuals who apply site reliability principles to improve reliability and scalability of systems in a systematic manner. |
 | **Slack** | A business application for messaging. |
 | **Splunk** | Software that is primarily used for searching, monitoring, and analyzing data in near real-time. |
 | **SQL** | (Structured Query Language) A language used to manage databases and complete a variety of operations tasks within said databases. |
