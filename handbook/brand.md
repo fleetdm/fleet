@@ -299,7 +299,7 @@ When deciding whether to describe Fleet as open source or open core, define who 
 | **Firewall** | A device or software that is used to block unwanted network traffic. |
 | **fleetctl** | Can be used to accomplish many tasks you would typically need to do through the UI (User Interface). |
 | **Fleetctl CLI** | (Pronounced "Fleet control") A CLI tool for managing Fleet from the command line. Fleetctl enables a GitOps workflow with Fleet and osquery. |
-| **GitHub** | A website that is a cloud-based service to help developers with code management, storage, tracking, and controlling changes. |
+| **GitHub** | Cloud-based service for software development and version control using Git. |
 | **historical compliance** | The ability to view past behavior around established risk-based controls to safeguard the integrity, confidentiality, and access of data storage, processing, or transfers. |
 | **IETF** | (Internet Engineering Task Force) An organization that defines standardizing operations of internet protocols |
 | **Internet Engineering Task Force (IETF)** | See: IETF |
