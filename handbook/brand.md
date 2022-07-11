@@ -319,7 +319,7 @@ When deciding whether to describe Fleet as open source or open core, define who 
 | **policy compliance** | The state of whether a device is passing or failing policies created in Fleet. |
 | **queries** | Questions you can ask an end-user device's operating system via Fleet. |
 | **SAML** | (Security Assertion Markup Language) A standard that allows identity providers (IdP) to authorize credentials for service providers; enabling SSO (Single Sign-On). |
-| **security audits** | A thorough assessment of an organization's data systems. |
+| **security audits** | An assessment of an organization's security posture. |
 | **security engineers** | The responsible individual for the management and up-keep of an organization's security system. |
 | **SIEM** | (Security Information and Event Management) Technology that assembles data, security warnings, and events into one platform and provides almost real-time analyzed data to help you better monitor your organization's security. |
 | **Site Reliability Engineers (SREs)** | Those who apply scripting and automation to IT jobs such as support and maintenance. |
