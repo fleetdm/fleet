@@ -1,6 +1,7 @@
 package upgrade
 
 import (
+	"os"
 	"testing"
 	"time"
 
@@ -8,7 +9,17 @@ import (
 )
 
 func TestUpgradeAToB(t *testing.T) {
-	f := NewFleet(t, "v4.15.0")
+	versionA := os.Getenv("FLEET_VERSION_A")
+	if versionA == "" {
+		t.Skip("Missing environment variable FLEET_VERSION_A")
+	}
+
+	versionB := os.Getenv("FLEET_VERSION_B")
+	if versionA == "" {
+		t.Skip("Missing environment variable FLEET_VERSION_B")
+	}
+
+	f := NewFleet(t, versionA)
 
 	client, err := f.Client()
 	require.NoError(t, err)
@@ -32,7 +43,7 @@ func TestUpgradeAToB(t *testing.T) {
 		return true
 	}, 5*time.Minute, 5*time.Second)
 
-	err = f.Upgrade("v4.16.0")
+	err = f.Upgrade(versionB)
 	require.NoError(t, err)
 
 	// enroll another host with the new version
