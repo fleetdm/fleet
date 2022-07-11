@@ -301,9 +301,9 @@ describe("Premium tier - Team Admin user", () => {
       cy.findByText(/gatekeeper enabled/i).click();
       cy.getAttached(".policy-form__button-wrap").within(() => {
         cy.findByRole("button", { name: /run/i }).should("exist");
-        cy.findByRole("button", { name: /save policy/i }).click();
+        cy.getAttached(".policy-form__save").click();
       });
-      cy.findByRole("button", { name: /^Save$/ }).click();
+      cy.getAttached(".policy-form__button--modal-save").click();
       cy.findByText(/policy created/i).should("exist");
     });
     it("allows team admin to edit a team policy", () => {

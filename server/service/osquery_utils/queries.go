@@ -651,7 +651,10 @@ func directIngestBattery(ctx context.Context, logger log.Logger, host *fleet.Hos
 			HostID:       host.ID,
 			SerialNumber: row["serial_number"],
 			CycleCount:   int(cycleCount),
-			Health:       row["health"],
+			// database type is VARCHAR(40) and since there isn't a
+			// canonical list of strings we can get for health, we
+			// truncate the value just in case.
+			Health: fmt.Sprintf("%.40s", row["health"]),
 		})
 	}
 	return ds.ReplaceHostBatteries(ctx, host.ID, mapping)

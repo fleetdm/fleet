@@ -501,11 +501,13 @@ Google drive.
 
 Each week Reed Haynes follows the [directions in this document](https://docs.google.com/document/d/1MkM57cLNzkN51Hqq5CyBG4HaauAaf446ZhwWJlVho0M/edit?usp=sharing) (internal doc) and a backup copy of the Product office hours document is created and dropped in the [Product office hours backup folder](https://drive.google.com/drive/folders/1WTSSLxA-P3OlspkMKjlRXKjzZsDRoe-4?usp=sharing) in the shared drive.
 
-## Usage analytics
+## Usage statistics
 
-In order to understand the usage of the Fleet product, we [collect analytics](https://fleetdm.com/docs/using-fleet/usage-statistics) from installations where this functionality is enabled.
+In order to understand the usage of the Fleet product, we [collect statistics](https://fleetdm.com/docs/using-fleet/usage-statistics) from installations where this functionality is enabled.
 
-Fleet team members can view these statistics in the Google spreadsheet[Fleet usage](https://docs.google.com/spreadsheets/d/1Mh7Vf4kJL8b5TWlHxcX7mYwaakZMg_ZGNLY3kl1VI-c/edit#gid=0) available in Drive.
+Fleet team members can view these statistics in the Google spreadsheet [Fleet
+usage](https://docs.google.com/spreadsheets/d/1Mh7Vf4kJL8b5TWlHxcX7mYwaakZMg_ZGNLY3kl1VI-c/edit#gid=0)
+available in Google Drive.
 
 ## Rituals
 
