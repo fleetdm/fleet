@@ -1,4 +1,4 @@
-import React, { useCallback, useState, useEffect } from "react";
+import React, { useCallback, useState } from "react";
 
 import { INewMembersBody, ITeam } from "interfaces/team";
 import endpoints from "utilities/endpoints";
