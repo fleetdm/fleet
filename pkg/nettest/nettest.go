@@ -62,9 +62,25 @@ func Retryable(err error) bool {
 	}
 	// Using the exact same error check used in:
 	// https://github.com/golang/go/blob/a5d61be040ed20b5774bff1b6b578c6d393ab332/src/net/http/serve_test.go#L1417
+	//
+	// Also we use raw string matching because this method is used on raw error strings (returned by commands).
 	if errStr := err.Error(); (strings.Contains(errStr, "timeout") && strings.Contains(errStr, "TLS handshake")) ||
-		strings.Contains(errStr, "unexpected EOF") {
+		strings.Contains(errStr, "unexpected EOF") || strings.Contains(errStr, "connection reset by peer") ||
+		strings.Contains(errStr, "unexpected http response") || strings.Contains(errStr, "context deadline exceeded") {
 		return true
 	}
 	return false
+}
+
+// RunWithNetRetry runs the given function and retries in case of network errors (see Retryable).
+func RunWithNetRetry(t *testing.T, fn func() error) error {
+	for {
+		err := fn()
+		if err != nil && Retryable(err) {
+			time.Sleep(5 * time.Second)
+			t.Logf("%s: retrying error: %s", t.Name(), err)
+			continue
+		}
+		return err
+	}
 }

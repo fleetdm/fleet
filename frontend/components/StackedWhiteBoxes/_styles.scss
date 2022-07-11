@@ -21,7 +21,8 @@
     min-height: 360px;
     box-sizing: border-box;
     padding: $pad-xxlarge;
-    font-weight: 300;
+    font-weight: $regular;
+    position: relative;
 
     &-text {
       color: $core-fleet-black;
@@ -48,18 +49,12 @@
     width: 100%;
 
     &-link {
-      transition: color 150ms ease-in-out;
-      color: $core-fleet-blue;
-      text-decoration: none;
       position: absolute;
-      top: 10px;
-      right: 15px;
-      cursor: pointer;
-      font-weight: bold;
-      font-size: 30px;
-
-      &:hover {
-        color: $core-vibrant-blue;
+      top: 36px;
+      right: 36px;
+      img {
+        width: 16px;
+        height: 16px;
       }
     }
   }

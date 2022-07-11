@@ -82,13 +82,11 @@ func main() {
 				Jira: []*fleet.JiraIntegration{
 					{
 						EnableSoftwareVulnerabilities: *cve != "",
-						TeamJiraIntegration: fleet.TeamJiraIntegration{
-							URL:                   *jiraURL,
-							Username:              *jiraUsername,
-							APIToken:              jiraPassword,
-							ProjectKey:            *jiraProjectKey,
-							EnableFailingPolicies: *failingPolicyID > 0,
-						},
+						URL:                           *jiraURL,
+						Username:                      *jiraUsername,
+						APIToken:                      jiraPassword,
+						ProjectKey:                    *jiraProjectKey,
+						EnableFailingPolicies:         *failingPolicyID > 0,
 					},
 				},
 			},
@@ -103,8 +101,6 @@ func main() {
 					Jira: []*fleet.TeamJiraIntegration{
 						{
 							URL:                   *jiraURL,
-							Username:              *jiraUsername,
-							APIToken:              jiraPassword,
 							ProjectKey:            *jiraProjectKey,
 							EnableFailingPolicies: *failingPolicyID > 0,
 						},

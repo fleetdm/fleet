@@ -885,9 +885,9 @@ None.
     }
   },
   "license": {
-    "tier": "free",
-    "expiration": "0001-01-01T00:00:00Z"
-  },
+     "tier": "free",
+     "expiration": "0001-01-01T00:00:00Z"
+   },
   "logging": {
       "debug": false,
       "json": false,
@@ -908,13 +908,6 @@ None.
               "enable_log_compression": false
           }
       }
-  },
-  "license": {
-    "tier": "free",
-    "organization": "fleet",
-    "device_count": 100,
-    "expiration": "2021-12-31T19:00:00-05:00",
-    "note": ""
   },
   "vulnerability_settings": {
     "databases_path": ""
@@ -1014,6 +1007,7 @@ Modifies the Fleet's configuration with the supplied information.
 | host_expiry_enabled   | boolean | body | _Host expiry settings_. When enabled, allows automatic cleanup of hosts that have not communicated with Fleet in some number of days.                                                  |
 | host_expiry_window    | integer | body | _Host expiry settings_. If a host has not communicated with Fleet in the specified number of days, it will be removed.                                                                 |
 | agent_options         | objects | body | The agent_options spec that is applied to all hosts. In Fleet 4.0.0 the `api/v1/fleet/spec/osquery_options` endpoints were removed.                                                    |
+| transparency_url      | string  | body | _Fleet Desktop_. The URL used to display transparency information to users of Fleet Desktop. **Requires Fleet Premium license**                                                           |
 | enable_host_status_webhook    | boolean | body | _webhook_settings.host_status_webhook settings_. Whether or not the host status webhook is enabled.                                                                 |
 | destination_url       | string | body | _webhook_settings.host_status_webhook settings_. The URL to deliver the webhook request to.                                                     |
 | host_percentage       | integer | body | _webhook_settings.host_status_webhook settings_. The minimum percentage of hosts that must fail to check in to Fleet in order to trigger the webhook request.                                                              |
@@ -2133,7 +2127,13 @@ If the scheduled queries haven't run on the host yet, the stats have zero values
     "issues": {
       "failing_policies_count": 2,
       "total_issues_count": 2
-    }
+    },
+    "batteries": [
+      {
+        "cycle_count": 999,
+        "health": "Good"
+      }
+    ]
   }
 }
 ```
@@ -2200,7 +2200,13 @@ Returns the information of the host specified using the `uuid`, `osquery_host_id
     "team_name": null,
     "gigs_disk_space_available": 45.86,
     "percent_disk_space_available": 73,
-    "pack_stats": null
+    "pack_stats": null,
+    "batteries": [
+      {
+        "cycle_count": 999,
+        "health": "Good"
+      }
+    ]
   }
 }
 ```
@@ -2619,6 +2625,7 @@ created_at,updated_at,id,detail_updated_at,label_updated_at,policy_updated_at,la
 - [Create label](#create-label)
 - [Modify label](#modify-label)
 - [Get label](#get-label)
+- [Get labels summary](#get-labels-sumary)
 - [List labels](#list-labels)
 - [List hosts in a label](#list-hosts-in-a-label)
 - [Delete label](#delete-label)
@@ -2765,6 +2772,57 @@ Returns the specified label.
 }
 ```
 
+### Get labels summary
+
+Returns a list of all the labels in Fleet.
+
+`GET /api/v1/fleet/labels/summary`
+
+#### Example
+
+`GET /api/v1/fleet/labels/summary`
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "labels": [
+    {
+      "id": 6,
+      "name": "All Hosts",
+      "description": "All hosts which have enrolled in Fleet",
+      "label_type": "builtin",
+    },
+    {
+      "id": 7,
+      "name": "macOS",
+      "description": "All macOS hosts",
+      "label_type": "builtin",
+    },
+    {
+      "id": 8,
+      "name": "Ubuntu Linux",
+      "description": "All Ubuntu hosts",
+      "label_type": "builtin",
+    },
+    {
+      "id": 9,
+      "name": "CentOS Linux",
+      "description": "All CentOS hosts",
+      "label_type": "builtin",
+    },
+    {
+      "id": 10,
+      "name": "MS Windows",
+      "description": "All Windows hosts",
+      "label_type": "builtin",
+    },
+  ]
+}
+```
+
 ### List labels
 
 Returns a list of all the labels in Fleet.
@@ -2774,8 +2832,7 @@ Returns a list of all the labels in Fleet.
 #### Parameters
 
 | Name            | Type    | In    | Description                                                                                                                   |
-| --------------- | ------- | ----- | ----------------------------------------------------------------------------------------------------------------------------- |
-| id              | integer | path  | **Required**. The label's id.                                                                                                 |
+| --------------- | ------- | ----- | ----------------------------------------------------------------------------------------------------------------------------- |                                                                                               |
 | order_key       | string  | query | What to order results by. Can be any column in the labels table.                                                              |
 | order_direction | string  | query | **Requires `order_key`**. The direction of the order given the order key. Options include `asc` and `desc`. Default is `asc`. |
 
@@ -5453,18 +5510,14 @@ _Available in Fleet Premium_
 | &nbsp;&nbsp;&nbsp;&nbsp;destination_url                 | string  | body | The URL to deliver the webhook requests to.                                                                                                                  |
 | &nbsp;&nbsp;&nbsp;&nbsp;policy_ids                      | array   | body | List of policy IDs to enable failing policies webhook.                                                                                                       |
 | &nbsp;&nbsp;&nbsp;&nbsp;host_batch_size                 | integer | body | Maximum number of hosts to batch on failing policy webhook requests. The default, 0, means no batching (all hosts failing a policy are sent on one request). |
-| integrations                                            | object  | body | Integrations settings for the team.                                                                                                                      |
+| integrations                                            | object  | body | Integrations settings for the team. Note that integrations referenced here must already exist globally, created by a call to [Modify configuration](#modify-configuration).     |
 | &nbsp;&nbsp;jira                                        | array   | body | Jira integrations configuration. |
-| &nbsp;&nbsp;&nbsp;&nbsp;url                             | string  | body | The URL of the Jira server to integrate with. |
-| &nbsp;&nbsp;&nbsp;&nbsp;username                        | string  | body | The Jira username to use for this Jira integration. |
-| &nbsp;&nbsp;&nbsp;&nbsp;api_token                       | string  | body | The API token of the Jira username to use for this Jira integration. |
-| &nbsp;&nbsp;&nbsp;&nbsp;project_key                     | string  | body | The Jira project key to use for this integration. Jira tickets will be created in this project. |
+| &nbsp;&nbsp;&nbsp;&nbsp;url                             | string  | body | The URL of the Jira server to use. |
+| &nbsp;&nbsp;&nbsp;&nbsp;project_key                     | string  | body | The project key of the Jira integration to use. Jira tickets will be created in this project. |
 | &nbsp;&nbsp;&nbsp;&nbsp;enable_failing_policies         | boolean | body | Whether or not that Jira integration is enabled for failing policies. Only one failing policy automation can be enabled at a given time (enable_failing_policies_webhook and enable_failing_policies). |
 | &nbsp;&nbsp;zendesk                                     | array   | body | Zendesk integrations configuration. |
-| &nbsp;&nbsp;&nbsp;&nbsp;url                             | string  | body | The URL of the Zendesk server to integrate with. |
-| &nbsp;&nbsp;&nbsp;&nbsp;email                           | string  | body | The Zendesk user email to use for this Zendesk integration. |
-| &nbsp;&nbsp;&nbsp;&nbsp;api_token                       | string  | body | The Zendesk API token to use for this Zendesk integration. |
-| &nbsp;&nbsp;&nbsp;&nbsp;group_id                        | integer | body | The Zendesk group id to use for this integration. Zendesk tickets will be created in this group. |
+| &nbsp;&nbsp;&nbsp;&nbsp;url                             | string  | body | The URL of the Zendesk server to use. |
+| &nbsp;&nbsp;&nbsp;&nbsp;group_id                        | integer | body | The Zendesk group id to use. Zendesk tickets will be created in this group. |
 | &nbsp;&nbsp;&nbsp;&nbsp;enable_failing_policies         | boolean | body | Whether or not that Zendesk integration is enabled for failing policies. Only one failing policy automation can be enabled at a given time (enable_failing_policies_webhook and enable_failing_policies). |
 
 #### Example (add users to a team)
@@ -6407,19 +6460,23 @@ The server only stores and returns a single instance of each error.
 ```json
 [
   {
-    "external": "example error",
-    "root": {
-      "message": "timestamp: 2022-05-06T11:40:32-03:00",
-      "stack": [
-        "http.initALPNRequest.ServeHTTP:/usr/local/Cellar/go/1.17.6/libexec/src/net/http/server.go:3480",
-        "http.serverHandler.ServeHTTP:/usr/local/Cellar/go/1.17.6/libexec/src/net/http/server.go:2879",
-        "service.(*authEndpointer).makeEndpoint.func1:/Users/robertodip/projects/fleet/server/service/endpoint_utils.go:439",
-        "...",
-        "service.listSoftwareEndpoint:/Users/robertodip/projects/fleet/server/service/software.go:30",
-        "ctxerr.New:/Users/robertodip/projects/fleet/server/contexts/ctxerr/ctxerr.go:67",
-        "ctxerr.ensureCommonMetadata:/Users/robertodip/projects/fleet/server/contexts/ctxerr/ctxerr.go:112"
-      ]
-    }
+    "count": "3",
+    "chain": [
+      {
+        "message": "Authorization header required"
+      },
+      {
+        "message": "missing FleetError in chain",
+        "data": {
+          "timestamp": "2022-06-03T14:16:01-03:00"
+        },
+        "stack": [
+          "github.com/fleetdm/fleet/v4/server/contexts/ctxerr.Handle (ctxerr.go:262)",
+          "github.com/fleetdm/fleet/v4/server/service.encodeError (transport_error.go:80)",
+          "github.com/go-kit/kit/transport/http.Server.ServeHTTP (server.go:124)"
+        ]
+      }
+    ]
   }
 ]
 ```

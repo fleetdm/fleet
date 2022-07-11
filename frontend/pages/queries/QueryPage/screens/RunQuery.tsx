@@ -9,6 +9,7 @@ import queryAPI from "services/entities/queries";
 import campaignHelpers from "utilities/campaign_helpers";
 import debounce from "utilities/debounce";
 import { BASE_URL, DEFAULT_CAMPAIGN_STATE } from "utilities/constants";
+
 import local from "utilities/local";
 import { ICampaign, ICampaignState } from "interfaces/campaign";
 import { IQuery } from "interfaces/query";
@@ -19,7 +20,7 @@ import QueryResults from "../components/QueryResults";
 interface IRunQueryProps {
   storedQuery: IQuery | undefined;
   selectedTargets: ITarget[];
-  queryIdForEdit: number | null;
+  queryId: number | null;
   setSelectedTargets: (value: ITarget[]) => void;
   goToQueryEditor: () => void;
   targetsTotalCount: number;
@@ -28,7 +29,7 @@ interface IRunQueryProps {
 const RunQuery = ({
   storedQuery,
   selectedTargets,
-  queryIdForEdit,
+  queryId,
   setSelectedTargets,
   goToQueryEditor,
   targetsTotalCount,
@@ -153,34 +154,32 @@ const RunQuery = ({
     try {
       const isStoredQueryEdited = storedQuery?.query !== lastEditedQueryBody;
 
-      // because we are not using the saved query id if user edits the SQL
-      const queryId = isStoredQueryEdited ? null : queryIdForEdit;
       const returnedCampaign = await queryAPI.run({
         query: lastEditedQueryBody,
-        queryId,
+        queryId: isStoredQueryEdited ? null : queryId, // we treat edited SQL as a new query
         selected,
       });
 
       connectAndRunLiveQuery(returnedCampaign);
     } catch (campaignError: any) {
-      if (campaignError === "resource already created") {
+      const err = campaignError.toString();
+      if (err.includes("no hosts targeted")) {
+        renderFlash(
+          "error",
+          "Your target selections did not include any hosts. Please try again."
+        );
+      } else if (err.includes("resource already created")) {
         renderFlash(
           "error",
           "A campaign with the provided query text has already been created"
         );
-      }
-
-      if ("message" in campaignError) {
-        const { message } = campaignError;
-
-        if (message === "forbidden") {
-          renderFlash(
-            "error",
-            "It seems you do not have the rights to run this query. If you believe this is in error, please contact your administrator."
-          );
-        } else {
-          renderFlash("error", "Something has gone wrong. Please try again.");
-        }
+      } else if (err.includes("forbidden") || err.includes("unauthorized")) {
+        renderFlash(
+          "error",
+          "It seems you do not have the rights to run this query. If you believe this is in error, please contact your administrator."
+        );
+      } else {
+        renderFlash("error", "Something has gone wrong. Please try again.");
       }
 
       return teardownDistributedQuery();

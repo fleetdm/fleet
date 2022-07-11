@@ -4,61 +4,72 @@ import (
 	_ "embed"
 	"errors"
 	"fmt"
-	"log"
 	"net/url"
 	"os"
 	"path"
+	"path/filepath"
+	"runtime"
 	"time"
 
 	"github.com/fleetdm/fleet/v4/pkg/open"
 	"github.com/fleetdm/fleet/v4/server/service"
 	"github.com/getlantern/systray"
+	"github.com/rs/zerolog"
+	"github.com/rs/zerolog/log"
+	"gopkg.in/natefinch/lumberjack.v2"
 )
 
+// version is set at compile time via -ldflags
 var version = "unknown"
 
 func main() {
+	setupLogs()
+
 	// Our TUF provided targets must support launching with "--help".
 	if len(os.Args) > 1 && os.Args[1] == "--help" {
 		fmt.Println("Fleet Desktop application executable")
 		return
 	}
-	log.Printf("fleet-desktop version=%s\n", version)
+	log.Info().Msgf("fleet-desktop version=%s", version)
 
 	devURL := os.Getenv("FLEET_DESKTOP_DEVICE_URL")
 	if devURL == "" {
-		log.Println("missing URL environment FLEET_DESKTOP_DEVICE_URL")
-		os.Exit(1)
+		log.Fatal().Msg("missing URL environment FLEET_DESKTOP_DEVICE_URL")
 	}
 	deviceURL, err := url.Parse(devURL)
 	if err != nil {
-		log.Printf("invalid URL argument: %s\n", err)
-		os.Exit(1)
+		log.Fatal().Err(err).Msg("invalid URL argument")
 	}
 
 	basePath := deviceURL.Scheme + "://" + deviceURL.Host
 	deviceToken := path.Base(deviceURL.Path)
+	transparencyURL := basePath + "/api/latest/fleet/device/" + deviceToken + "/transparency"
 
 	onReady := func() {
-		log.Println("ready")
+		log.Info().Msg("ready")
 
 		systray.SetTemplateIcon(icoBytes, icoBytes)
 		systray.SetTooltip("Fleet Device Management Menu.")
+
+		// Add a disabled menu item with the current version
+		versionItem := systray.AddMenuItem(fmt.Sprintf("Fleet Desktop v%s", version), "")
+		versionItem.Disable()
+		systray.AddSeparator()
+
 		myDeviceItem := systray.AddMenuItem("Initializing...", "")
 		myDeviceItem.Disable()
 		transparencyItem := systray.AddMenuItem("Transparency", "")
+		transparencyItem.Disable()
 
 		var insecureSkipVerify bool
 		if os.Getenv("FLEET_DESKTOP_INSECURE") != "" {
 			insecureSkipVerify = true
 		}
+		rootCA := os.Getenv("FLEET_DESKTOP_FLEET_ROOT_CA")
 
-		// TODO: figure out the right rootCA to pass to the client
-		client, err := service.NewDeviceClient(basePath, deviceToken, insecureSkipVerify, "")
-
+		client, err := service.NewDeviceClient(basePath, deviceToken, insecureSkipVerify, rootCA)
 		if err != nil {
-			log.Printf("unable to initialize request client: %s", err)
-			os.Exit(1)
+			log.Fatal().Err(err).Msg("unable to initialize request client")
 		}
 
 		// Perform API test call to enable the "My device" item as soon
@@ -78,12 +89,13 @@ func main() {
 						myDeviceItem.SetTitle("My device")
 						myDeviceItem.Enable()
 						myDeviceItem.SetTooltip("")
+						transparencyItem.Enable()
 						return
 					}
 
 					// To ease troubleshooting we set the tooltip as the error.
 					myDeviceItem.SetTooltip(err.Error())
-					log.Printf("get device URL: %s", err)
+					log.Error().Err(err).Msg("get device URL")
 
 					<-ticker.C
 				}
@@ -110,19 +122,22 @@ func main() {
 				default:
 					// To ease troubleshooting we set the tooltip as the error.
 					myDeviceItem.SetTooltip(err.Error())
-					log.Printf("get device URL: %s", err)
+					log.Error().Err(err).Msg("get device URL")
 					continue
 				}
 
-				status := "🟢"
+				failedPolicyCount := 0
 				for _, policy := range policies {
 					if policy.Response != "pass" {
-						status = "🔴"
-						break
+						failedPolicyCount++
 					}
 				}
 
-				myDeviceItem.SetTitle(status + " My device")
+				if failedPolicyCount > 0 {
+					myDeviceItem.SetTitle(fmt.Sprintf("🔴 My device (%d)", failedPolicyCount))
+				} else {
+					myDeviceItem.SetTitle("🟢 My device")
+				}
 				myDeviceItem.Enable()
 			}
 		}()
@@ -132,19 +147,94 @@ func main() {
 				select {
 				case <-myDeviceItem.ClickedCh:
 					if err := open.Browser(deviceURL.String()); err != nil {
-						log.Printf("open browser my device: %s", err)
+						log.Error().Err(err).Msg("open browser my device")
 					}
 				case <-transparencyItem.ClickedCh:
-					if err := open.Browser("https://fleetdm.com/transparency"); err != nil {
-						log.Printf("open browser transparency: %s", err)
+					if err := open.Browser(transparencyURL); err != nil {
+						log.Error().Err(err).Msg("open browser transparency")
 					}
 				}
 			}
 		}()
 	}
 	onExit := func() {
-		log.Println("exit")
+		log.Info().Msg("exit")
 	}
 
 	systray.Run(onReady, onExit)
+}
+
+// setupLogs configures our logging system to write logs to rolling files and
+// stderr, if for some reason we can't write a log file the logs are still
+// printed to stderr.
+func setupLogs() {
+	stderrOut := zerolog.ConsoleWriter{Out: os.Stderr, TimeFormat: time.RFC3339Nano, NoColor: true}
+
+	dir, err := logDir()
+	if err != nil {
+		log.Logger = log.Output(stderrOut)
+		log.Error().Err(err).Msg("find directory for logs")
+		return
+	}
+
+	dir = filepath.Join(dir, "Fleet")
+
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		log.Logger = log.Output(stderrOut)
+		log.Error().Err(err).Msg("make directories for log files")
+		return
+	}
+
+	logFile := &lumberjack.Logger{
+		Filename:   filepath.Join(dir, "fleet-desktop.log"),
+		MaxSize:    25, // megabytes
+		MaxBackups: 3,
+		MaxAge:     28, // days
+	}
+
+	log.Logger = log.Output(zerolog.MultiLevelWriter(
+		zerolog.ConsoleWriter{Out: logFile, TimeFormat: time.RFC3339Nano, NoColor: true},
+		stderrOut,
+	))
+}
+
+// logDir returns the default root directory to use for application-level logs.
+//
+// On Unix systems, it returns $XDG_STATE_HOME as specified by
+// https://specifications.freedesktop.org/basedir-spec/basedir-spec-latest.html if
+// non-empty, else $HOME/.local/state.
+// On Darwin, it returns $HOME/Library/Logs.
+// On Windows, it returns %LocalAppData%
+//
+// If the location cannot be determined (for example, $HOME is not defined),
+// then it will return an error.
+func logDir() (string, error) {
+	var dir string
+
+	switch runtime.GOOS {
+	case "windows":
+		dir = os.Getenv("LocalAppData")
+		if dir == "" {
+			return "", errors.New("%LocalAppData% is not defined")
+		}
+
+	case "darwin":
+		dir = os.Getenv("HOME")
+		if dir == "" {
+			return "", errors.New("$HOME is not defined")
+		}
+		dir += "/Library/Logs"
+
+	default: // Unix
+		dir = os.Getenv("XDG_STATE_HOME")
+		if dir == "" {
+			dir = os.Getenv("HOME")
+			if dir == "" {
+				return "", errors.New("neither $XDG_STATE_HOME nor $HOME are defined")
+			}
+			dir += "/.local/state"
+		}
+	}
+
+	return dir, nil
 }

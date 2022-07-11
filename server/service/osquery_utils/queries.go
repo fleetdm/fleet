@@ -4,6 +4,8 @@ import (
 	"context"
 	"fmt"
 	"net"
+	"os"
+	"regexp"
 	"strconv"
 	"strings"
 	"time"
@@ -47,10 +49,12 @@ func (q *DetailQuery) RunsForPlatform(platform string) bool {
 	return false
 }
 
-// detailQueries defines the detail queries that should be run on the host, as
+// hostDetailQueries defines the detail queries that should be run on the host, as
 // well as how the results of those queries should be ingested into the
-// fleet.Host data model. This map should not be modified at runtime.
-var detailQueries = map[string]DetailQuery{
+// fleet.Host data model (via IngestFunc).
+//
+// This map should not be modified at runtime.
+var hostDetailQueries = map[string]DetailQuery{
 	"network_interface": {
 		Query: `select ia.address, id.mac, id.interface
                         from interface_details id join interface_addresses ia
@@ -126,7 +130,17 @@ var detailQueries = map[string]DetailQuery{
 				return nil
 			}
 
-			if rows[0]["major"] != "0" || rows[0]["minor"] != "0" || rows[0]["patch"] != "0" {
+			if strings.Contains(strings.ToLower(rows[0]["name"]), "ubuntu") {
+				// Ubuntu takes a different approach to updating patch IDs so we instead use
+				// the version string provided after removing the code name
+				regx := regexp.MustCompile(`\(.*\)`)
+				vers := regx.ReplaceAllString(rows[0]["version"], "")
+				host.OSVersion = fmt.Sprintf(
+					"%s %s",
+					rows[0]["name"],
+					strings.TrimSpace(vers),
+				)
+			} else if rows[0]["major"] != "0" || rows[0]["minor"] != "0" || rows[0]["patch"] != "0" {
 				host.OSVersion = fmt.Sprintf(
 					"%s %s.%s.%s",
 					rows[0]["name"],
@@ -305,20 +319,38 @@ FROM logical_drives WHERE file_system = 'NTFS' LIMIT 1;`,
 		Platforms:  []string{"windows"},
 		IngestFunc: ingestDiskSpace,
 	},
+}
+
+// extraDetailQueries defines extra detail queries that should be run on the host, as
+// well as how the results of those queries should be ingested into the hosts related tables
+// (via DirectIngestFunc).
+//
+// This map should not be modified at runtime.
+var extraDetailQueries = map[string]DetailQuery{
 	"mdm": {
 		Query:            `select enrolled, server_url, installed_from_dep from mdm;`,
 		DirectIngestFunc: directIngestMDM,
 		Platforms:        []string{"darwin"},
+		Discovery:        discoveryTable("mdm"),
 	},
 	"munki_info": {
 		Query:            `select version from munki_info;`,
 		DirectIngestFunc: directIngestMunkiInfo,
 		Platforms:        []string{"darwin"},
+		Discovery:        discoveryTable("munki_info"),
 	},
 	"google_chrome_profiles": {
 		Query:            `SELECT email FROM google_chrome_profiles WHERE NOT ephemeral AND email <> ''`,
 		DirectIngestFunc: directIngestChromeProfiles,
 		Discovery:        discoveryTable("google_chrome_profiles"),
+	},
+	"battery": {
+		Query:            `SELECT serial_number, cycle_count, health FROM battery;`,
+		Platforms:        []string{"darwin"},
+		DirectIngestFunc: directIngestBattery,
+		// the "battery" table doesn't need a Discovery query as it is an official
+		// osquery table on darwin (https://osquery.io/schema/5.3.0#battery), it is
+		// always present.
 	},
 	OrbitInfoQueryName: OrbitInfoDetailQuery,
 }
@@ -338,14 +370,22 @@ func discoveryTable(tableName string) string {
 	return fmt.Sprintf("SELECT 1 FROM osquery_registry WHERE active = true AND registry = 'table' AND name = '%s';", tableName)
 }
 
+const usersQueryStr = `WITH cached_groups AS (select * from groups)
+ SELECT uid, username, type, groupname, shell
+ FROM users LEFT JOIN cached_groups USING (gid)
+ WHERE type <> 'special' AND shell NOT LIKE '%/false' AND shell NOT LIKE '%/nologin' AND shell NOT LIKE '%/shutdown' AND shell NOT LIKE '%/halt' AND username NOT LIKE '%$' AND username NOT LIKE '\_%' ESCAPE '\' AND NOT (username = 'sync' AND shell ='/bin/sync' AND directory <> '')`
+
+func withCachedUsers(query string) string {
+	return fmt.Sprintf(query, usersQueryStr)
+}
+
 var softwareMacOS = DetailQuery{
 	// Note that we create the cached_users CTE (the WITH clause) in order to suggest to SQLite
 	// that it generates the users once instead of once for each UNIONed query. We use CROSS JOIN to
 	// ensure that the nested loops in the query generation are ordered correctly for the _extensions
 	// tables that need a uid parameter. CROSS JOIN ensures that SQLite does not reorder the loop
 	// nesting, which is important as described in https://youtu.be/hcn3HIcHAAo?t=77.
-	Query: `
-WITH cached_users AS (SELECT * FROM users)
+	Query: withCachedUsers(`WITH cached_users AS (%s)
 SELECT
   name AS name,
   bundle_short_version AS version,
@@ -408,7 +448,7 @@ SELECT
   'homebrew_packages' AS source,
   0 AS last_opened_at
 FROM homebrew_packages;
-`,
+`),
 	Platforms:        []string{"darwin"},
 	DirectIngestFunc: directIngestSoftware,
 }
@@ -422,8 +462,7 @@ var scheduledQueryStats = DetailQuery{
 }
 
 var softwareLinux = DetailQuery{
-	Query: `
-WITH cached_users AS (SELECT * FROM users)
+	Query: withCachedUsers(`WITH cached_users AS (%s)
 SELECT
   name AS name,
   version AS version,
@@ -503,14 +542,13 @@ SELECT
   '' AS vendor,
   '' AS arch
 FROM python_packages;
-`,
+`),
 	Platforms:        fleet.HostLinuxOSs,
 	DirectIngestFunc: directIngestSoftware,
 }
 
 var softwareWindows = DetailQuery{
-	Query: `
-WITH cached_users AS (SELECT * FROM users WHERE directory <> '')
+	Query: withCachedUsers(`WITH cached_users AS (%s)
 SELECT
   name AS name,
   version AS version,
@@ -566,7 +604,7 @@ SELECT
   'Package (Python)' AS type,
   'python_packages' AS source
 FROM python_packages;
-`,
+`),
 	Platforms:        []string{"windows"},
 	DirectIngestFunc: directIngestSoftware,
 }
@@ -576,11 +614,7 @@ var usersQuery = DetailQuery{
 	// the `groups` table only once. Without doing this, on some Windows systems (Domain Controllers)
 	// with many user accounts and groups, this query could be very expensive as the `groups` table
 	// was generated once for each user.
-	Query: `
-WITH cached_groups AS (select * from groups)
-SELECT uid, username, type, groupname, shell
-FROM users LEFT JOIN cached_groups USING (gid)
-WHERE type <> 'special' AND shell NOT LIKE '%/false' AND shell NOT LIKE '%/nologin' AND shell NOT LIKE '%/shutdown' AND shell NOT LIKE '%/halt' AND username NOT LIKE '%$' AND username NOT LIKE '\_%' ESCAPE '\' AND NOT (username = 'sync' AND shell ='/bin/sync')`,
+	Query:            usersQueryStr,
 	DirectIngestFunc: directIngestUsers,
 }
 
@@ -599,6 +633,31 @@ func directIngestChromeProfiles(ctx context.Context, logger log.Logger, host *fl
 		})
 	}
 	return ds.ReplaceHostDeviceMapping(ctx, host.ID, mapping)
+}
+
+func directIngestBattery(ctx context.Context, logger log.Logger, host *fleet.Host, ds fleet.Datastore, rows []map[string]string, failed bool) error {
+	if failed {
+		level.Error(logger).Log("op", "directIngestBattery", "err", "failed")
+		return nil
+	}
+
+	mapping := make([]*fleet.HostBattery, 0, len(rows))
+	for _, row := range rows {
+		cycleCount, err := strconv.ParseInt(EmptyToZero(row["cycle_count"]), 10, 64)
+		if err != nil {
+			return err
+		}
+		mapping = append(mapping, &fleet.HostBattery{
+			HostID:       host.ID,
+			SerialNumber: row["serial_number"],
+			CycleCount:   int(cycleCount),
+			// database type is VARCHAR(40) and since there isn't a
+			// canonical list of strings we can get for health, we
+			// truncate the value just in case.
+			Health: fmt.Sprintf("%.40s", row["health"]),
+		})
+	}
+	return ds.ReplaceHostBatteries(ctx, host.ID, mapping)
 }
 
 func directIngestOrbitInfo(ctx context.Context, logger log.Logger, host *fleet.Host, ds fleet.Datastore, rows []map[string]string, failed bool) error {
@@ -848,7 +907,10 @@ func directIngestMunkiInfo(ctx context.Context, logger log.Logger, host *fleet.H
 
 func GetDetailQueries(ac *fleet.AppConfig, fleetConfig config.FleetConfig) map[string]DetailQuery {
 	generatedMap := make(map[string]DetailQuery)
-	for key, query := range detailQueries {
+	for key, query := range hostDetailQueries {
+		generatedMap[key] = query
+	}
+	for key, query := range extraDetailQueries {
 		generatedMap[key] = query
 	}
 
@@ -864,6 +926,20 @@ func GetDetailQueries(ac *fleet.AppConfig, fleetConfig config.FleetConfig) map[s
 
 	if fleetConfig.App.EnableScheduledQueryStats {
 		generatedMap["scheduled_query_stats"] = scheduledQueryStats
+	}
+
+	for _, env := range os.Environ() {
+		prefix := "FLEET_DANGEROUS_REPLACE_"
+		if !strings.HasPrefix(env, prefix) {
+			continue
+		}
+		if i := strings.Index(env, "="); i >= 0 {
+			queryName := strings.ToLower(strings.TrimPrefix(env[:i], prefix))
+			newQuery := env[i+1:]
+			query := generatedMap[queryName]
+			query.Query = newQuery
+			generatedMap[queryName] = query
+		}
 	}
 
 	return generatedMap

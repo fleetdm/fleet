@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -278,6 +279,23 @@ func (ds *Datastore) DeleteUser(ctx context.Context, id uint) error {
 func amountUsersDB(ctx context.Context, db sqlx.QueryerContext) (int, error) {
 	var amount int
 	err := sqlx.GetContext(ctx, db, &amount, `SELECT count(*) FROM users`)
+	if err != nil {
+		return 0, err
+	}
+	return amount, nil
+}
+
+func amountActiveUsersSinceDB(ctx context.Context, db sqlx.QueryerContext, since time.Time) (int, error) {
+	var amount int
+	err := sqlx.GetContext(ctx, db, &amount, `
+    SELECT count(*)
+    FROM users u
+    WHERE EXISTS (
+      SELECT 1
+      FROM sessions ssn
+      WHERE ssn.user_id = u.id AND
+      ssn.accessed_at >= ?
+    )`, since)
 	if err != nil {
 		return 0, err
 	}

@@ -8,8 +8,8 @@ import { format } from "date-fns";
 import FileSaver from "file-saver";
 
 import enrollSecretsAPI from "services/entities/enroll_secret";
-import labelsAPI from "services/entities/labels";
-import teamsAPI from "services/entities/teams";
+import labelsAPI, { ILabelsResponse } from "services/entities/labels";
+import teamsAPI, { ILoadTeamsResponse } from "services/entities/teams";
 import globalPoliciesAPI from "services/entities/global_policies";
 import teamPoliciesAPI from "services/entities/team_policies";
 import hostsAPI, {
@@ -85,7 +85,6 @@ import EditColumnsModal from "./components/EditColumnsModal/EditColumnsModal";
 import TransferHostModal from "./components/TransferHostModal";
 import DeleteHostModal from "./components/DeleteHostModal";
 import DeleteLabelModal from "./components/DeleteLabelModal";
-import SoftwareVulnerabilities from "./components/SoftwareVulnerabilities";
 import EditColumnsIcon from "../../../../assets/images/icon-edit-columns-16x16@2x.png";
 import PencilIcon from "../../../../assets/images/icon-pencil-14x14@2x.png";
 import TrashIcon from "../../../../assets/images/icon-trash-14x14@2x.png";
@@ -102,15 +101,8 @@ interface IManageHostsProps {
   location: any; // no type in react-router v3
 }
 
-interface ILabelsResponse {
-  labels: ILabel[];
-}
 interface IPolicyAPIResponse {
   policy: IPolicy;
-}
-
-interface ITeamsResponse {
-  teams: ITeam[];
 }
 
 interface ITableQueryProps {
@@ -332,12 +324,12 @@ const ManageHostsPage = ({
     data: teams,
     isLoading: isLoadingTeams,
     refetch: refetchTeams,
-  } = useQuery<ITeamsResponse, Error, ITeam[]>(
+  } = useQuery<ILoadTeamsResponse, Error, ITeam[]>(
     ["teams"],
     () => teamsAPI.loadAll(),
     {
       enabled: !!isPremiumTier,
-      select: (data: ITeamsResponse) =>
+      select: (data: ILoadTeamsResponse) =>
         data.teams.sort((a, b) => sortUtils.caseInsensitiveAsc(a.name, b.name)),
       onSuccess: (responseTeams: ITeam[]) => {
         if (!currentTeam && !isOnGlobalTeam && responseTeams.length) {
@@ -1392,13 +1384,6 @@ const ManageHostsPage = ({
     return null;
   };
 
-  const renderSoftwareVulnerabilities = () => {
-    if (softwareId && softwareDetails) {
-      return <SoftwareVulnerabilities software={softwareDetails} />;
-    }
-    return null;
-  };
-
   const renderForm = () => {
     if (isAddLabel) {
       return (
@@ -1643,13 +1628,7 @@ const ManageHostsPage = ({
             </div>
           </div>
           {renderActiveFilterBlock()}
-          {renderNoEnrollSecretBanner() ||
-            (renderSoftwareVulnerabilities() && (
-              <div className={`${baseClass}__info-banners`}>
-                {renderNoEnrollSecretBanner()}
-                {renderSoftwareVulnerabilities()}
-              </div>
-            ))}
+          {renderNoEnrollSecretBanner()}
           {renderTable()}
         </div>
       )}

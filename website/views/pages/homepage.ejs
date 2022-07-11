@@ -1,7 +1,7 @@
 <div id="homepage" v-cloak>
 
-  <div style="max-height: 1160px;">
-    <div style="padding-top: 114px" purpose="hero-banner">
+  <div style="max-height: 1240px;">
+    <div purpose="hero-banner">
       <div purpose="hero-clouds">
         <div class="container-lg">
           <div class="container-fluid text-center pt-3 pt-sm-5">
@@ -13,7 +13,7 @@
               Quickly deploy <a target="_blank" style="color: white; text-decoration-line: underline;" href="https://osquery.io/">osquery</a> and secure 300,000+ devices on top of a stable core technology.
             </h6>
             <div style="max-width: 500px;" class="mt-5 mx-auto mb-0 d-sm-flex justify-content-center">
-              <a purpose="top-try-it-out-btn" class="d-sm-flex align-items-center justify-content-center btn btn-block btn-primary mx-auto mx-sm-0" href="/get-started">Try it out</a>
+              <a purpose="top-try-it-out-btn" class="d-sm-flex align-items-center justify-content-center btn btn-block btn-primary mx-auto mx-sm-0" href="/get-started?tryitnow">Try it out</a>
               <a style="max-width: 220px;" class="btn btn-lg btn-white pl-4 mx-auto mx-sm-0" purpose="animated-arrow-button-white" target="_blank" href="https://calendly.com/fleetdm/demo?utm_source=homepage+demo+top">Schedule a demo
               </a>
             </div>
@@ -131,15 +131,24 @@
         <a style="max-width: 220px" class="btn btn-block btn-md btn-primary mx-4" href="/get-started?tryitnow">
           Try it out
         </a>
-        <a style="max-width: 220px" class="btn btn-block btn-lg btn-white pl-0 m-0" purpose="animated-arrow-button-red" target="_blank" href="https://calendly.com/fleetdm/demo?utm_source=homepage+demo+top">
+        <a style="max-width: 220px" class="btn btn-block btn-lg btn-white pl-0 m-0" purpose="animated-arrow-button-red" target="_blank" href="https://calendly.com/fleetdm/demo?utm_source=homepage+demo+mid">
           Schedule a demo
         </a>
       </div>
     </div>
   </div>
-
-  <div id="testimonials" style="background: #F4F6FA;">
-    <div class="container-lg text-center justify-content-center py-5 mx-auto mt-5">
+  <div purpose="report-banner-container">
+    <div purpose="report-banner-cta" class="d-flex flex-column flex-lg-row justify-content-center align-items-center container">
+      <img class="mb-3 mb-lg-0" style="width: 309px; height: 138px" alt="State of device management" src="/images/state-of-device-management-hero-394x177@2x.png">
+      <div class="d-flex flex-column">
+        <h4 class="text-center text-lg-left">State of device management report</h4>
+        <p class="mb-0">We surveyed 200+ security practitioners in charge of device management.<br class="d-none d-sm-block"> Here’s what we learned about their struggles, frustrations, and desires.</p>
+        <a purpose="animated-arrow-button-red" class="btn pl-0 mx-auto ml-lg-0 pb-0" href="/reports/state-of-device-management">Read the report</a>
+      </div>
+    </div>
+  </div>
+  <div id="testimonials" style="background: #F4F6FA; position: relative">
+    <div class="container-lg text-center justify-content-center py-5 mx-auto">
       <h3 class="px-4 mt-5 mb-3">Community driven, and built on open core technology.</h3>
       <p style="max-width: 860px" class="px-3 px-xs-5 px-md-4 mx-auto">
         That’s good news, since it means there are lots of other developers and security practitioners talking about Fleet, dreaming up features, and contributing patches.

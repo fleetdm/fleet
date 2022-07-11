@@ -1,1 +1,0 @@
-* Modified `GET /api/_version_/fleet/device/{token}` to only include policies for premium users.

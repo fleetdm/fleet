@@ -82,13 +82,11 @@ func main() {
 				Zendesk: []*fleet.ZendeskIntegration{
 					{
 						EnableSoftwareVulnerabilities: *cve != "",
-						TeamZendeskIntegration: fleet.TeamZendeskIntegration{
-							URL:                   *zendeskURL,
-							Email:                 *zendeskEmail,
-							APIToken:              zendeskToken,
-							GroupID:               *zendeskGroupID,
-							EnableFailingPolicies: *failingPolicyID > 0,
-						},
+						URL:                           *zendeskURL,
+						Email:                         *zendeskEmail,
+						APIToken:                      zendeskToken,
+						GroupID:                       *zendeskGroupID,
+						EnableFailingPolicies:         *failingPolicyID > 0,
 					},
 				},
 			},
@@ -103,8 +101,6 @@ func main() {
 					Zendesk: []*fleet.TeamZendeskIntegration{
 						{
 							URL:                   *zendeskURL,
-							Email:                 *zendeskEmail,
-							APIToken:              zendeskToken,
 							GroupID:               *zendeskGroupID,
 							EnableFailingPolicies: *failingPolicyID > 0,
 						},

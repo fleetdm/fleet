@@ -2,7 +2,7 @@
 
 ## Account recovery process
 
-As an all-remote company, we do not have the luxury of seeing each other or are able to ask for help in person. Instead, we require live video confirmation of someone's identity before performing recovery and this applies to all Fleet company accounts, from internal systems to SaaS accounts.
+As an all-remote company, we do not have the luxury of seeing each other or being able to ask for help in person. Instead, we require live video confirmation of someone's identity before performing recovery, and this applies to all Fleet company accounts, from internal systems to SaaS accounts.
 
 | Participant | Role                                                                                                                                                 |
 | ----------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -20,10 +20,10 @@ Here are the steps we take for the recovery process:
 * If the recoverer does not know the requester well enough to positively identify them visually, the
   recoverer can ask a colleague whom they recognize to act as the identifier. **All three must be
   live on a video call at the same time.**
-*  For example, if the recoverer does not recognize Guillaume but can recognize Zach, they should ask Zach to identify Guillaume. Using the requester's manager or a direct teammate is recommended, as it increases the chances they see each other on video frequently.
-4. If the recoverer recognizes the requester, or has the identity confirmed by the person acting as
+*  For example, if the recoverer does not recognize Guillaume but can recognize Zach, they should ask Zach to identify Guillaume. Using the requester's manager or a direct teammate is recommended, as it increases the chances they frequently see each other on video.
+4. If the recoverer recognizes the requester or has the identity confirmed by the person acting as
    the identifier, they can perform the recovery and update the thread in *#help-login*.
-* If the recoverer is not 100% satisfied with identification, they do **NOT** proceed, and post to #g-security to engage the security team immediately.
+* If the recoverer is not 100% satisfied with identification, they do **NOT** proceed and post to #g-security to engage the security team immediately.
 
 
 ## How we protect end-user devices
@@ -34,14 +34,14 @@ We follow the guiding principles below to secure our company-owned devices.
 
 * Our devices should give contributors the freedom to work from anywhere.
 * To allow maximum freedom in where and how we work, we assume that "Safe" networks do not exist. Contributors should be able to work on a coffee shop's Wi-Fi as if it were their home or work network.
-* To limit the impact on user experience, we do not dictate security configurations unless the security benefit is significant (only if it dramatically reduces risk for the company, customers, or open source users).
-* By using techniques such as Two-Factor Authentication (2FA), code reviews, and more, we can further empower contributors to work comfortably from any location - on any network.
+* To limit the impact on user experience, we do not dictate security configurations unless the security benefit is significant (only if it dramatically reduces the risk for the company, customers, or open source users).
+* By using techniques such as Two-Factor Authentication (2FA), code reviews, and more, we can further empower contributors to work comfortably from anywhere - on any network.
 
 
 ### macOS devices
 > *Find more information about the process of implementing security on the Fleet blog. The first [Tales from Fleet security: securing the startup](https://blog.fleetdm.com/tales-from-fleet-security-securing-the-startup-448ea590ea3a) article covers the process of securing our laptops.*
 
-We use configuration profiles to standardize security settings for our Mac devices. We use [CIS Benchmark for macOS 12](https://www.cisecurity.org/benchmark/apple_os) as our configuration baseline and adapt it to:
+We use configuration profiles to standardize security settings for our Mac devices. We use [CIS Benchmark for macOS 12](https://www.cisecurity.org/benchmark/apple_os) as our configuration baseline and adapt it to
 * suit a remote team.
 * balance the need for productivity and security.
 * limit the impact on the daily use of our devices.
@@ -50,7 +50,7 @@ We use configuration profiles to standardize security settings for our Mac devic
 
 
 
-Our policy applies to Fleet-owned laptops purchased via Apple's DEP (Device Enrollment Program) which will retroactively be applied to every company-owned Mac consists of the below. 
+Our policy applies to Fleet-owned laptops purchased via Apple's DEP (Device Enrollment Program), which will retroactively be applied to every company-owned Mac, consists of the below. 
 
 #### Enabling automatic updates
 
@@ -68,7 +68,7 @@ Our policy applies to Fleet-owned laptops purchased via Apple's DEP (Device Enro
 
 Keeping software up-to-date helps to improve the resilience of our Mac fleet. Software updates include security updates that fix vulnerabilities that could otherwise be exploited. Browsers, for example, are often exposed to untrusted code, have a significant attack surface, and are frequently attacked.
 
-macOS includes [malware protection tools](https://support.apple.com/en-ca/guide/security/sec469d47bd8/web) such as *Xprotect*. This is an antivirus technology based on [YARA](https://github.com/VirusTotal/yara), and MRT (Malware Removal Tool), a tool built by Apple to remove common malware from systems that are infected.
+macOS includes [malware protection tools](https://support.apple.com/en-ca/guide/security/sec469d47bd8/web) such as *Xprotect*. This is an antivirus technology based on [YARA](https://github.com/VirusTotal/yara) and MRT (Malware Removal Tool), a tool built by Apple to remove common malware from systems that are infected.
 By enabling these settings, we:
 
 * Ensure the operating system is kept up to date.
@@ -79,9 +79,9 @@ This improves the resilience of our Mac fleet.
 
 **User experience impacts**
 
-* Updates are required, which can be disruptive. For this reason, we allow the user to **postpone the installation 5 times**.
+* Updates are required, which can be disruptive. For this reason, we allow the user to **postpone the installation five times**.
 * Critical security updates are automatically downloaded, which could result in bandwidth use on slow or expensive links. For this reason, we limit automatic downloads to critical security updates only, while feature updates, which are typically larger, are downloaded at the time of installation selected by the user.
-* Enforced updates **do not** include significant macOS releases (e.g., 11➡️12). Those updates are tracked and enforced separately, as the impact can be more significant. We require installing the latest macOS version within 3 months of release or when known vulnerabilities remain unpatched on the older version.
+* Enforced updates **do not** include significant macOS releases (e.g., 11➡️12). Those updates are tracked and enforced separately, as the impact can be more significant. We require installing the latest macOS version within three months of release or when known vulnerabilities remain unpatched on the older version.
 
 #### Time and date
 
@@ -103,15 +103,15 @@ An accurate time is important for two main reasons
 
 | #     | Setting                                                                                  |
 | ----- | ---------------------------------------------------------------------------------------- |
-| 5.2.2 | Ensure password minimum length is configured (our minimum: 8 characters)                                             |
+| 5.2.2 | Ensure  minimum password length is configured (our minimum: eight characters)                                             |
 | 5.2.3 | Ensure complex password must contain alphabetic characters is configured                 |
 | 5.8   | Ensure a password is required to wake the computer from sleep or screen saver is enabled |
 
 **Why?**
 
-This category of settings is special because there are more settings that we do *not* configure than those we do.
+This category of settings is unique because there are more settings that we do *not* configure than those we do.
 
-We follow the CIS benchmark where it makes sense and in this case, take guidance from [NIST SP800-63B - Digital Identity Guidelines](https://pages.nist.gov/800-63-3/sp800-63b.html), especially [Appendix A -Strength of Memorized Secrets](https://pages.nist.gov/800-63-3/sp800-63b.html#appA).
+We follow the CIS benchmark where it makes sense and, in this case, take guidance from [NIST SP800-63B - Digital Identity Guidelines](https://pages.nist.gov/800-63-3/sp800-63b.html), especially [Appendix A -Strength of Memorized Secrets](https://pages.nist.gov/800-63-3/sp800-63b.html#appA).
 
 * We do NOT enforce special complexity beyond requiring letters to be in the password.
 
@@ -121,9 +121,9 @@ Length is the most important factor when determining a secure password; while en
 
 As we use recent Macs with T2 chips or Apple Silicon, brute-force attacks against the hardware are [mitigated](https://www.apple.com/mideast/mac/docs/Apple_T2_Security_Chip_Overview.pdf).
 
-* We DO require passwords to be a minimum of 8 characters long with letters.
+* We DO require passwords to be a minimum of eight characters long with letters.
 
-Since we can't eliminate the risk of passwords being cracked remotely, we require passwords to be a minimum of 8 characters long with letters, a length reasonably hard to crack over the network, and the minimum recommendation by SP800-63B.
+Since we can't eliminate the risk of passwords being cracked remotely, we require passwords to be a minimum of eight characters long with letters, a length reasonably hard to crack over the network and the minimum recommendation by SP800-63B.
 
 
 **User experience impact**
@@ -165,9 +165,9 @@ Since we can't eliminate the risk of passwords being cracked remotely, we requir
 
 **Why?**
 
-* Using FileVault protects the data on our laptops, including confidential data and session material (browser cookies), SSH keys, and more. Using FileVault ensures a lost laptop is a minor inconvenience and not an incident. We escrow the keys to be sure we can recover the data if needed.
-* [Gatekeeper](https://support.apple.com/en-ca/HT202491) is a macOS feature that ensures users can safely open software on their Mac. With Gatekeeper enabled, users may execute only trustworthy apps (signed by the software developer and/or checked for malicious software by Apple). This is a useful first line of defense to have.
-* Using the firewall will ensure that we limit the exposure to our devices, while stealth mode makes them more challeging to discover. 
+* Using FileVault protects the data on our laptops, including confidential data and session material (browser cookies), SSH keys, and more. Using FileVault makes sure a lost laptop is a minor inconvenience and not an incident. We escrow the keys to be sure we can recover the data if needed.
+* [Gatekeeper](https://support.apple.com/en-ca/HT202491) is a macOS feature that makes sure users can safely open software on their Mac. With Gatekeeper enabled, users may execute only trustworthy apps (signed by the software developer and/or checked for malicious software by Apple). This is a useful first line of defense to have.
+* Using the firewall will make sure that we limit the exposure to our devices, while stealth mode makes them more challenging to discover. 
 * Firewall logging allows us to troubleshoot and investigate whether the firewall blocks applications or connections.
 
 **User experience impacts**
@@ -188,8 +188,8 @@ Since we can't eliminate the risk of passwords being cracked remotely, we requir
 
 **Why?**
 
-* Fleet contributors are free to work from wherever they choose. If a laptop is lost or forgotten, automatic login exposes sensitive company data and poses a critical security risk. 
-* Password hints can sometimes be easier to guess than the password itself. Since we support contributors remotely via MDM and do not require users to change passwords frequently, we eliminate the need for passwords hints and their associated risk.
+* Fleet contributors are free to work from wherever they choose. Automatic login exposes sensitive company data and poses a critical security risk if a laptop is lost or stolen. 
+* Password hints can sometimes be easier to guess than the password itself. Since we support contributors remotely via MDM and do not require users to change passwords frequently, we eliminate the need for password hints and their associated risk.
 * Since company laptops are issued primarily for work and tied to a single contributor's identity, guest accounts are not permitted.
 * Automatic login would defeat the purpose of even requiring passwords to unlock computers.
 
@@ -200,7 +200,7 @@ Since we can't eliminate the risk of passwords being cracked remotely, we requir
 * Guest accounts are not available.
 
 #### iCloud
-We do not apply ultra restrictive Data Loss Prevention style policies to our devices. Instead, by using our company Google Drive, we ensure that the most critical company data never reaches our laptops, so it can remain secure while our laptops can remain productive.
+We do not apply ultra restrictive Data Loss Prevention style policies to our devices. Instead, by using our company Google Drive, we make sure that the most critical company data never reaches our laptops, so it can remain secure while our laptops can remain productive.
 
 
 | #       | Setting                                                   |
@@ -208,11 +208,11 @@ We do not apply ultra restrictive Data Loss Prevention style policies to our dev
 | 2.6.1.4 | Ensure iCloud Drive Documents and Desktop sync is disabled |
 
 **Why?**
-* We do not use managed Apple IDs, and allow contributors to use their own iCloud accounts. We disable iCloud Documents and Desktop sync to avoid accidental copying of data to iCloud, but we do allow iCloud drive.
+* We do not use managed Apple IDs and allow contributors to use their own iCloud accounts. We disable iCloud Documents and Desktop sync to avoid accidentally copying data to iCloud, but we do allow iCloud drive.
 
 **User experience impact**
 
-* iCloud remains permitted, but the Desktop and Documents folders will not be synchronized. Ensure you put your documents in our Google Drive so you do not lose them if your laptop has an issue.
+* iCloud remains permitted, but the Desktop and Documents folders will not be synchronized. Make sure you put your documents in our Google Drive, so you do not lose them if your laptop has an issue.
 
 #### Miscellaneous security settings
 
@@ -226,8 +226,8 @@ We do not apply ultra restrictive Data Loss Prevention style policies to our dev
 **Why?**
 
 * Limiting ad tracking has privacy benefits and no downside.
-* Protecting keyboard entry into Terminal.app could prevent malicious applications or non-malicious but inappropriate applications from receiving passwords.
-* Library validation ensures that an attacker can't trick applications into loading a software library in a different location, leaving it open to abuse.
+* Protecting keyboard entry into Terminal.app could prevent malicious or non-malicious but inappropriate applications from receiving passwords.
+* Library validation makes sure that an attacker can't trick applications into loading a software library in a different location, leaving it open to abuse.
 * Safari opening files automatically can lead to negative scenarios where files are downloaded and automatically opened in another application. Though the setting relates to files deemed "safe," it includes PDFs and other file formats where malicious documents exploiting vulnerabilities have been seen before.
 
 **User experience impact**
@@ -249,11 +249,11 @@ We do not apply ultra restrictive Data Loss Prevention style policies to our dev
 
 **User experience impacts**
 
-* Some misconfigured "captive portals," typically used in hotels and airports, might be unusable with DoH due to how they are configured. This can be worked around by using the hotspot on your phone, and if you have to use this network for an extended period of time, there are usually workarounds to preform to connect to them. Navigating to http://1.1.1.1 often resolves the issue.
+* Some misconfigured "captive portals," typically used in hotels and airports, might be unusable with DoH due to how they are configured. This can be worked around by using the hotspot on your phone, and if you have to use this network for an extended period of time, there are usually workarounds to perform to connect to them. Navigating to http://1.1.1.1 often resolves the issue.
 * If you are trying to reach a site and believe it is being blocked accidentally, please submit it to Cloudflare. This should be extremely rare. If it is not, please let the security team know.
 * If your ISP's DNS service goes down, you'll be able to continue working. 😎
 
-*Note: If you are from another organization, reading this to help create your own configuration, remember implementing DoH in an office environment where other network controls are in place has other downsides than it would for a remote company. In those cases, **disabling** DoH makes more sense, so network controls can retain visibility. Please evaluate your situation before implementing any of our recommendations at your organization, especially DoH.*
+*Note: If you are from another organization, reading this to help create your own configuration, remember implementing DoH in an office environment where other network controls are in place has other downsides than it would for a remote company. **Disabling** DoH makes more sense in those cases so that network controls can retain visibility. Please evaluate your situation before implementing any of our recommendations at your organization, especially DoH.*
 
 #### Deploy osquery
 | #  | Setting                |
@@ -262,7 +262,7 @@ We do not apply ultra restrictive Data Loss Prevention style policies to our dev
 
 ***Why?***
 
-We use osquery and Fleet to monitor our own devices. This is used for vulnerability detection, security posture tracking, and for incident response when necessary.
+We use osquery and Fleet to monitor our own devices. This is used for vulnerability detection, security posture tracking, and incident response when necessary.
 
 
 ### Chrome configuration
@@ -282,9 +282,9 @@ We configure Chrome on company-owned devices with a basic policy.
 
 **User experience impact**
 
-* Chrome needs to be restarted within 48 hours of patch installation. The automatic restart happens after 19:00 and before 6:00 if the computer is running and tabs are restored (except for incognito tabs).
+* Chrome must be restarted within 48 hours of patch installation. The automatic restart happens after 19:00 and before 6:00 if the computer is running and tabs are restored (except for incognito tabs).
 * Ads considered intrusive are blocked.
-* uBlock Origin is enabled by default, and is 100% configurable, improving security and the performance of browsing.
+* uBlock Origin is enabled by default, and is 100% configurable, improving security and browsing performance.
 * Endpoint Verification is used to make access decisions based on the security posture of the device. For example, an outdated Mac could be prevented access to Google Drive.
 
 ### Personal mobile devices
@@ -296,11 +296,11 @@ is kept up to date.
 
 If you do not already have a pair of hardware security keys, order [YubiKey 5C NFC security
 keys](https://www.yubico.com/ca/product/yubikey-5c-nfc-pack-of-2/) with your company card, or ask
-for help in [#help-login](https://fleetdm.com/handbook/security#slack-channels) to get you one if you do not have a company card.
+for help in [#help-login](https://fleetdm.com/handbook/security#slack-channels) to get one if you do not have a company card.
 
 ### Are they YubiKeys or security keys?
 
-We use YubiKeys, a brand of hardware security keys that support the FIDO U2F protocol. You can use
+We use YubiKeys, a hardware security key brand that supports the FIDO U2F protocol. You can use
 both terms interchangeably at Fleet. We use YubiKeys because they support more authentication protocols than regular
 security keys.
 
@@ -317,12 +317,12 @@ information on the security of different types of 2FA.
 
 ### Goals
 
-Our goals with security keys are to:
+Our goals with security keys are to
 
 1. eliminate the risk of credential phishing.
 2. maintain the best user experience possible.
-3. ensure team members can access systems as needed, and that recovery procedures exist in case of a lost key.
-4. ensure recovery mechanisms are safe to prevent attackers from bypassing 2FA completely.
+3. make sure team members can access systems as needed, and that recovery procedures exist in case of a lost key.
+4. make sure recovery mechanisms are safe to prevent attackers from bypassing 2FA completely.
 
 ### Setting up security keys on Google
 
@@ -358,7 +358,7 @@ identified" warning.
 
 1. Configure your two security keys to [access
    GitHub](https://github.com/settings/two_factor_authentication/configure).
-2. If you are using a Mac, feel free to add it as a security key on GitHub. This brings most of the
+2. If you use a Mac, feel free to add it as a security key on GitHub. This brings most of the
    advantages of the hardware security key but allows you to log in by simply touching Touch ID as
    your second factor.
 
@@ -393,14 +393,13 @@ worries, just enroll it again!
 
 5. I lost all of my keys, and I'm locked out! What do I do?
 
-**Answer**: Post in the `#help-login` channel, or if you are locked out of Slack, contact your
-manager. You will be provided a way to log back in and make your phone your security key until you
+**Answer**: Post in the `#help-login` channel, or contact your manager if you find yourself locked out of Slack. You will be provided a way to log back in and make your phone your security key until you
 receive new ones.
 
 6. Can I use security keys to log in from any device?
 
 **Answer**: The keys we use, YubiKeys 5C NFC, work over USB-C as well as NFC. They can be used on
-Mac/PC, Android and iPhone and iPad Pro with USB-C port. If some application or device does
+Mac/PC, Android, iPhone, and iPad Pro with USB-C port. If some application or device does
 not support it, you can always browse to [g.co/sc](https://g.co/sc) from a device that supports
 security keys to generate a temporary code for the device that does not.
 
@@ -410,11 +409,11 @@ security keys to generate a temporary code for the device that does not.
 mobile, you'd need the keys to set up the app only.
 
 ## GitHub security
-Since Fleet makes open source software, we need to host and collaborate on code. We do this using GitHub.
+Since Fleet makes open source software; we need to host and collaborate on code. We do this using GitHub.
 
 This section covers our GitHub configuration. Like everything we do, we aim for the right level of security and productivity.
 
-Because our code is open source, we are much more concerned about the integrity of the code than its confidentiality.
+Because our code is open source, we are much more concerned about its integrity than its confidentiality.
 This is why our configuration aims to protect what is in the code, but we spend no
 effort preventing "leaks" since almost everything is public anyway.
 
@@ -453,16 +452,16 @@ charges a [4x premium](https://sso.tax/) for this feature.
 | Base permissions          | Write   | Admin is too powerful, as it allows reconfiguring the repositories themselves. Selecting *Write* provides the perfect balance!                 |
 | Repository creation       | None    | We want to limit repository creation and eventually automate it with the [GitHub Terraform provider](https://github.com/integrations/terraform-provider-github).     |
 | Repository forking        | ✅  | By default, we allow repository forking.                                                                                      |
-| Pages creation            | None    | We do not use GitHub pages, so we disable them to ensure people use our actual website or handbook, which are also in GitHub. |
+| Pages creation            | None    | We do not use GitHub pages, so we disable them to make certain people use our actual website or handbook, which are also in GitHub. |
 
 #### Admin repository permissions
 
 | Admin privileges feature                                                   | Member privileges feature | Note                                                                                                                                                                          |
 | -------------------------------------------------------------------------- | ------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Allow members to change repository visibilities for this organization      | 🚫                   | Most of our repos are public, but for the few that are private we want to require org admin privileges to make them public                                                    |
+| Allow members to change repository visibilities for this organization      | 🚫                   | Most of our repos are public, but for the few that are private, we want to require org admin privileges to make them public                                                    |
 | Allow members to delete or transfer repositories for this organization     | 🚫                   | We want to require org admin privileges to be able to delete or transfer any repository.                                                                                       |
 | Allow repository administrators to delete issues for this organization     | 🚫                   | We want to require org admin privileges to be able to delete issues, which is something that is very rarely needed but could be, for example, if we received GitHub issue spam. |
-| Allow members to see the comment author's profile name in private repositories | 🚫                   | We barely use private repositories and have no need for this.                                                                                                                |
+| Allow members to see the comment author's profile name in private repositories | 🚫                   | We barely use private repositories and do not need this.                                                                                                                |
 | Allow users with read access to create discussions                         | 🚫                   | We do not currently use discussions and want people to use issues as much as possible.                                                                                       |
 | Allow members to create teams                                              | 🚫                   | We automate the management of GitHub teams with the [GitHub Terraform provider](https://github.com/integrations/terraform-provider-github).                            |
 
@@ -481,7 +480,7 @@ Located in the Branches section of repository settings, we create a rule for **m
 | ---------------------------------------------------------------- | ----- | --------------------------------------------------------------------------------------------------------------------- |
 | Require a pull request before merging                            | ✅     | We enforce code reviews, which require PRs.                                                                           |
 | Require approvals                                                | 1️⃣   | We require approval from one person in the team.                                                                      |
-| Dismiss stale pull request approvals when new commits are pushed | ✅     | Without this, someone could get approval for a small, very nice PR and then change everything about it!                   |
+| Dismiss stale pull request approvals when new commits are pushed | ✅     | Without this, someone could get approval for a small, very nice PR and change everything about it!                   |
 | Require review from Code Owners                                  | 🗓     | We are working towards enabling this as our team grows and allows for more flexibility                                    |
 | Restrict who can dismiss pull request reviews                    | 🚫     | As we are a team working in multiple timezones, we want to allow dismissing reviews and getting another one.          |
 | Allow specified actors to bypass required pull requests          | 🚫     | We do not want anyone pushing directly to main.                                                                       |
@@ -491,7 +490,7 @@ Located in the Branches section of repository settings, we create a rule for **m
 | Require linear history                                           | 🚫     | We do not currently use or enforce practices to generate a linear history.                                                                                                                      |
 | Include administrators                                           | ✅     | We want these rules to apply to *everyone*.                                                                           |
 | Restrict who can push to matching branches                       | 🚫     | Anyone in our organization should be able to merge PRs that get reviewed, and nobody should be able to push directly. |
-| Allow force pushes                                               | 🚫     | We do not have a need this, so we do not allow it.                                                             |
+| Allow force pushes                                               | 🚫     | We do not need this, so we do not allow it.                                                             |
 | Allow deletions                                                  | 🚫     | We do not want ANYONE to be able to delete the *main* branch.                                                         |
 
 ### Scanning tools
@@ -511,13 +510,13 @@ and fuzzing options.
 #### Dependabot
 As described in *Code security and analysis*, we use Dependabot for security updates to libraries.
 Our [dependabot.yml](https://github.com/fleetdm/fleet/blob/main/.github/dependabot.yml) only
-mentions GitHub actions. Security updates to all other dependencies are performed by Dependabot automatically, even though we do not configure all package managers explicitly in the configuration file, as is specified in the repository configuration. As GitHub actions have no impact on the Fleet software itself, we are
+mentions GitHub actions. Security updates to all other dependencies are performed by Dependabot automatically, even though we do not configure all package managers explicitly in the configuration file, as specified in the repository configuration. As GitHub actions have no impact on the Fleet software itself, we are
 simply more aggressive in updating actions even if the update does not resolve a vulnerability.
 
 ### Actions configuration
 We configure GitHub Actions to have *Read repository contents permission* by default. This is
 located in *organization/settings/actions*. As our code is open source, we allow all GitHub actions
-but limit their default privileges, so they do not create any additional risk. Additional permissions
+but limit their default privileges so they do not create any additional risk. Additional permissions
 needed can be configured in the YAML file for each workflow.
 
 We pin actions to specific versions using a complete hash.
@@ -526,16 +525,16 @@ We pin actions to specific versions using a complete hash.
 We manage our GitHub configuration, creation of repositories, and team memberships manually. In the
 future, we will consider automating most of it using the [Terraform
 provider](https://github.com/integrations/terraform-provider-github) for GitHub. Our strategy for
-this will be similar to what is described in [this blog post](https://oops.computer/posts/github_automation/).
+this will be similar to what [this blog post](https://oops.computer/posts/github_automation/) describes.
 
 ## Google Workspace security
 Google Workspace is our collaboration tool and the source of truth for our user identities.
-A Google Workspace account has access to email, calendar, files, and external applications integrated with Google Authentication or SAML.
+A Google Workspace account gives access to email, calendar, files, and external applications integrated with Google Authentication or SAML.
 At the same time, third-party applications installed by users can access the same data.
 
-To reduce the risk of malicious or vulnerable apps being used to steal data, we configure Google Workspace beyond the default settings. Our current configuration balances security and productivity and is a starting point for any organization looking to improve the security of Google Workspace.
+We configure Google Workspace beyond the default settings to reduce the risk of malicious or vulnerable apps being used to steal data. Our current configuration balances security and productivity and is a starting point for any organization looking to improve the security of Google Workspace.
 
-As Google frequently adds new features, feel free to submit a PR to edit this file if you discover a new one that we should use!
+As Google frequently adds new features, feel free to submit a PR to edit this file if you discover a new one we should use!
 
 ### Authentication
 We cannot overstate the importance of securing authentication, especially in a platform that includes email and is used as a directory to log in to multiple applications.
@@ -547,8 +546,8 @@ Google's name for Two-Factor Authentication (2FA) or Multi-Factor Authentication
 | ----------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------- |
 | No 2FA                                                                        | Credential theft is easy, and passwords are often leaked or easy to guess.                                |
 | SMS/Phone-based 2FA                                                           | Puts trust in the phone number itself, which attackers can hijack by [social engineering phone companies](https://www.vice.com/en/topic/sim-hijacking).      |
-| Time-based one-time password (TOTP - Google Authenticator type 6 digit codes) | Phishable as long as the attacker uses it within its short lifetime by intercepting the login form. |
-| App-based push notifications                                                  | Harder to phish than TOTP, but by sending a lot of prompts to a phone, a user might accidentally accept a nefarious notification.       |
+| Time-based one-time password (TOTP - Google Authenticator type six digit codes) | Phishable as long as the attacker uses it within its short lifetime by intercepting the login form. |
+| App-based push notifications                                                  | These are harder to phish than TOTP, but by sending a lot of prompts to a phone, a user might accidentally accept a nefarious notification.       |
 | Hardware security keys                                                        | [Most secure](https://krebsonsecurity.com/2018/07/google-security-keys-neutralized-employee-phishing/) but requires extra hardware or a recent smartphone. Configure this as soon as you receive your Fleet YubiKeys                                                                |
 
 ##### 2-Step verification in Google Workspace
@@ -578,7 +577,7 @@ As we enforce the use of 2-SV, passwords are less critical to the security of ou
 
 Enforcing 2FA is a much more valuable control than enforcing the expiration of passwords, which usually results in users changing only a small portion of the password and following predictable patterns.
 
-We apply the following settings to *Security/Password management* to all users as the minimum baseline.
+We apply the following *Security/Password management* settings to all users as the minimum baseline.
 
 
 | Setting name                                                            | Value         |
@@ -602,16 +601,16 @@ We apply the following settings to *Security/Account Recovery* to all users as t
 | Allow super admins to recover their account                | Off   |
 | Allow users and non-super admins to recover their account | Off   |
 
-First, we ensure we have a handful of administrators. Then, by not requiring password expiration, the number of issues related to passwords is reduced. Lastly, we can support locked-out users manually as the volume of issues is minimal.
+First, we make sure we have a handful of administrators. Then, by not requiring password expiration, the number of issues related to passwords is reduced. Lastly, we can support locked-out users manually as the volume of issues is minimal.
 
 #### Less secure apps
 Less secure apps use legacy protocols that do not support secure authentication methods. We disable them, and as they are becoming rare, we have not noticed any issues from this setting.
 
-We apply the following settings to *Security/Less Secure Apps* to all users as the minimum baseline.
+We apply the following *Security/Less Secure Apps* settings to all users as the minimum baseline.
 
 | Setting name                                                                                            | Value                                            |
 | ------------------------------------------------------------------------------------------------------- | ------------------------------------------------ |
-| Control user access to apps that use less secure sign-in technology and make accounts more vulnerable.  | Disable access to less secure apps (Recommended) |
+| Control user access to apps that use less secure sign-in technology makes accounts more vulnerable.  | Disable access to less secure apps (Recommended) |
 
 #### API access
 Google Workspace makes it easy for users to add tools to their workflows while having these tools authenticate to their Google applications and data via OAuth. We mark all Google services as *restricted* but do allow the use of OAuth for simple authentication and the use of less dangerous privileges on Gmail and Drive. We then approve applications that require more privileges on a case-by-case basis.
@@ -638,15 +637,15 @@ We have also created the following custom alerts.
 | ------------------------------------------- | ----------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | -------------------- |
 | Out of domain email forwarding              | Login audit log, filtered by event  | Attackers in control of an email account often configure forwarding to establish persistence.                                                              | Alert Center + Email |
 | 2-step Verification disable                 | Login audit log, filtered by event  | Though we enforce 2-SV, if we accidentally allow removing it, we want to know as soon as someone does so.                                                               | Alert Center + Email |
-| 2-step Verification Scratch Codes Generated | Admin audit log, filtered by event  | Scratch codes can be used to bypass 2-SV. An attacker with elevated privileges could leverage this to log in as a user.                           | Alert Center + Email |
+| 2-step Verification Scratch Codes Generated | Admin audit log, filtered by event  | Use scratch codes to bypass 2-SV. An attacker with elevated privileges could leverage this to log in as a user.                           | Alert Center + Email |
 | Change Allowed 2-step Verification Methods  | Admin audit log, filtered by event  | We want to detect accidental or malicious downgrades of 2-SV configuration.                                                                                              | Alert Center + Email |
-| Change 2-Step Verification Start Date       | Admin audit log, filtered by event  | We want to detect accidental or malicious "downgrades" of 2-SV configuration.                                                                                              | Alert Center + Email |
+| Change 2-Step Verification Start Date       | Admin audit log, filtered by event  | We want to detect accidental or malicious "downgrades" of the 2-SV configuration.                                                                                              | Alert Center + Email |
 | Alert Deletion                              | Admin audit log, filtered by event  | For alerts to be a reliable control, we need to alert on alerts being disabled or changed.                                                                                | Alert Center + Email |
 | Alert Criteria Change                       | Admin audit log, filtered by event  | For alerts to be a reliable control, we need to alert on alerts being disabled or changed.                                                                                | Alert Center + Email |
 | Alert Receivers Change                      | Admin audit log, filtered by event  | For alerts to be a reliable control, we need to alert on alerts being disabled or changed.                                                                                | Alert Center + Email |
-| Dangerous download warning                  | Chrome audit log, filtered by event | As we roll out more Chrome security features we want to track the things getting blocked to evaluate the usefulness of the feature and potential false positives. | Alert Center         |
-| Malware transfer                            | Chrome audit log, filtered by event | As we roll out more Chrome security features we want to track the things getting blocked to evaluate the usefulness of the feature and potential false positives. | Alert Center         |
-| Password reuse                              | Chrome audit log, filtered by event | As we roll out more Chrome security features we want to track the things getting blocked to evaluate the usefulness of the feature and potential false positives | Alert Center         |
+| Dangerous download warning                  | Chrome audit log, filtered by event | As we roll out more Chrome security features, we want to track the things getting blocked to evaluate the usefulness of the feature and potential false positives. | Alert Center         |
+| Malware transfer                            | Chrome audit log, filtered by event | As we roll out more Chrome security features, we want to track the things getting blocked to evaluate the usefulness of the feature and potential false positives. | Alert Center         |
+| Password reuse                              | Chrome audit log, filtered by event | As we roll out more Chrome security features, we want to track the things getting blocked to evaluate the usefulness of the feature and potential false positives | Alert Center         |
 
 
 ### Gmail
@@ -654,17 +653,17 @@ We have also created the following custom alerts.
 #### Email authentication
 Email authentication makes it harder for other senders to pretend to be from Fleet. This improves trust in emails from fleetdm.com and makes it more difficult for anyone attempting to impersonate Fleet.
 
-We authenticate email with [DKIM](https://support.google.com/a/answer/174124?product_name=UnuFlow&hl=en&visit_id=637806265550953415-394435698&rd=1&src=supportwidget0&hl=en) and have a [DMARC](https://support.google.com/a/answer/2466580) policy to define how our outgoing email should be defined.
+We authenticate email with [DKIM](https://support.google.com/a/answer/174124?product_name=UnuFlow&hl=en&visit_id=637806265550953415-394435698&rd=1&src=supportwidget0&hl=en) and have a [DMARC](https://support.google.com/a/answer/2466580) policy to decide how our outgoing email should be defined.
 
-The DKIM configuration under *Apps/Google Workspace/Settings for Gmail/Authenticate Email* simply consists of generating the key, publishing it to DNS, then enabling the feature 48 hours later.
+The DKIM configuration under *Apps/Google Workspace/Settings for Gmail/Authenticate Email* simply consists of generating the key, publishing it to DNS, then enabling the feature 48-hours later.
 
 [DMARC](https://support.google.com/a/answer/2466580) is configured separately at the DNS level once DKIM is enforced.
 
 #### Email security
 
-Google Workspace includes multiple options in *Apps/Google Workspace/Settings for Gmail/Safety* related to how inbound email is handled.
+Google Workspace includes multiple options in *Apps/Google Workspace/Settings for Gmail/Safety* related to how it handles inbound email.
 
-As email is one of the main vectors used by attackers, we ensure we protect it as much as possible. Attachments are frequently used to send malware. We apply the following settings to block common tactics.
+As email is one of the main vectors used by attackers, we make certain we protect it as much as possible. Attachments are frequently used to send malware. We apply the following settings to block common tactics.
 
 | Category                    | Setting name                                                    | Value   | Action                               | Note                                                                                                   |
 | --------------------------- | --------------------------------------------------------------- | ------- | ------------------------------------ | ------------------------------------------------------------------------------------------------------ |
@@ -686,11 +685,11 @@ As email is one of the main vectors used by attackers, we ensure we protect it a
 | Spoofing and authentication | Apply future recommended settings automatically                 | On      |                                      |                                                                                                        |
 | Manage quarantines | Notify periodically when messages are quarantine                   | On      |                                      |                                                                                                        |
 
-We enable *Apply future recommended settings automatically* to ensure we are secure by default. We would prefer to adjust this after seeing emails quarantined accidentally rather than missing out on new security features for email security.
+We enable *Apply future recommended settings automatically* to make certain we are secure by default. We would prefer to adjust this after seeing emails quarantined accidentally rather than missing out on new security features for email security.
 
 #### End-user access
 
-We recommend using the Gmail web interface on computers and the Gmail app on mobile devices. The user interface on the official applications includes security information that is not visible in standard mail clients (e.g., Mail on macOS). We do allow a few of them at the moment for specific workflows. 
+We recommend using the Gmail web interface on computers and the Gmail app on mobile devices. The user interface on the official applications includes security information not visible in standard mail clients (e.g., Mail on macOS). We do allow a few of them at the moment for specific workflows. 
 
 | Category                         | Setting name                                                                                                                                      | Value                                                                                                                                                                                                                        | Note                                                                                                                                                                                                                                                  |
 | -------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -717,7 +716,7 @@ We use Google Drive and related applications for internal and external collabora
 | Sharing options           | When sharing outside of Fleet Device Management is allowed, users in Fleet Device Management can make files and published web content visible to anyone with the link | Enabled                                     |                                                                                                                                                                                                                                                                                                                                                                                              |
 | Sharing options           | Access Checker                                                                                                                                                        | Recipients only, or Fleet Device Management |                                                                                                                                                                                                                                                                                                                                                                                              |
 | Sharing options           | Distributing content outside of Fleet Device Management                                                                                                               | Only users in Fleet Device Management       | This prevents external contributors from sharing to other external contributors                                                                                                                                                                                                                                                                                                              |
-| Link sharing default      | When users in Fleet Device Management create items, the default link sharing access will be:                                                                          | Off                                         | We want the owners of new files to make a conscious decision around sharing, and to be secure by default                                                                                                                                                                                                                                                                                     |
+| Link sharing default      | When users in Fleet Device Management create items, the default link sharing access will be:                                                                          | Off                                         | We want the owners of new files to make a conscious decision around sharing and to be secure by default                                                                                                                                                                                                                                                                                     |
 | Security update for files | Security update                                                                                                                                                       | Apply security update to all affected files |                                                                                                                                                                                                                                                                                                                                                                                              |
 | Security update for files | Allow users to remove/apply the security update for files they own or manage                                                                                          | Enabled                                     | We have very few files impacted by [updates to link sharing](https://support.google.com/a/answer/10685032?amp;visit_id=637807141073031168-526258799&amp;rd=1&product_name=UnuFlow&p=update_drives&visit_id=637807141073031168-526258799&rd=2&src=supportwidget0). For some files meant to be public, we want users to be able to revert to the old URL that is more easily guessed.  |
 
@@ -727,7 +726,7 @@ We use Google Drive and related applications for internal and external collabora
 | ------------------------------------ | ------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------- |
 | Offline                              | Control offline access using device policies                             | Enabled                                                                                                                         |                                                                                                                        |
 | Smart Compose                        | Allow users to see Smart Compose suggestions                             | Enabled                                                                                                                         |                                                                                                                        |
-| Google Drive for desktop             | Allow Google Drive for desktop in your organization                      | Off                                                                                                                             | To limit the amount of data stored on computers, we currently do not allow local sync. We may enable it in the future  |
+| Google Drive for desktop             | Allow Google Drive for desktop in your organization                      | Off                                                                                                                             | To limit the amount of data stored on computers, we currently do not allow local sync. We may enable it in the future.  |
 | Drive                                | Drive                                                                    | Do not allow Backup and Sync in your organization                                                                               |                                                                                                                        |
 | Drive SDK                            | Allow users to access Google Drive with the Drive SDK API                | Enabled                                                                                                                         | The applications trusted for access to Drive are controlled but require this to work.                                 |
 | Add-Ons                              | Allow users to install Google Docs add-ons from add-ons store            | Enabled                                                                                                                         | The applications trusted for access to Drive are controlled but require this to work.                                 |
@@ -816,7 +815,7 @@ Fleet remediates vulnerabilities related to vulnerable dependencies, but we do n
 
 We use [Dependabot](https://github.com/dependabot) to create pull requests to update vulnerable dependencies. You can find these PRs by filtering on the [*Dependabot*](https://github.com/fleetdm/fleet/pulls?q=is%3Apr+author%3Aapp%2Fdependabot+) author in the repository.
 
-We ensure the fixes to vulnerable dependencies are also performed according to our remediation timeline. We fix as many dependencies as possible in a single release.
+We make sure the fixes to vulnerable dependencies are also performed according to our remediation timeline. We fix as many dependencies as possible in a single release.
 
 ## Trust report
 
@@ -835,8 +834,8 @@ The following table lists the Security group's rituals, frequency, and Directly 
 | YubiKey adoption | Monthly | Track YubiKey adoption in Google workspace and follow up with those that aren't using it. | Guillaume Ross |
 | Dogfood policy update | Monthly | Edit Fleet dogfood policies that check for Chrome, Docker, and macOS version numbers. | Guillaume Ross |
 | Security blog post | Monthly | Publish a security-related blog post to Fleet's blog. | Guillaume Ross |
-| Security lunch & learn | Monthly | Educational live stream session on cybersecurity for Fleet employees, sessions are later shared for public consumption on YouTube. | Guillaume Ross |
-| MDM device enrollment | Quarterly | Provide export of MDM enrolled devices to ops team. | Guillaume Ross |
+| Security lunch & learn | Monthly | Educational live stream session on cybersecurity for Fleet employees; sessions are later shared for public consumption on YouTube. | Guillaume Ross |
+| MDM device enrollment | Quarterly | Provide export of MDM enrolled devices to the ops team. | Guillaume Ross |
 | Access revalidation | Quarterly | Review critical access groups to make sure they contain only relevant people. | Guillaume Ross |
 | Snyk scan | Quarterly | Scan Fleet repo with Snyk to identify important vulnerabilities that GitHub did not identify. | Guillaume Ross |
 | Security conference review | Quarterly | Look at upcoming security conferences and work with the growth team to determine whether Fleet should submit to attend. | Guillaume Ross |

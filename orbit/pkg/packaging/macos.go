@@ -131,6 +131,9 @@ func BuildPkg(opt Options) (string, error) {
 	}
 
 	filename := "fleet-osquery.pkg"
+	if opt.NativeTooling {
+		filename = filepath.Join("build", filename)
+	}
 	if err := file.Copy(generatedPath, filename, constant.DefaultFileMode); err != nil {
 		return "", fmt.Errorf("rename pkg: %w", err)
 	}
@@ -248,8 +251,11 @@ func xarBom(opt Options, rootPath string) error {
 
 	// Make bom
 	var cmdMkbom *exec.Cmd
-	switch runtime.GOOS {
-	case "darwin":
+	var isDarwin = runtime.GOOS == "darwin"
+	var isLinuxNative = runtime.GOOS == "linux" && opt.NativeTooling
+
+	switch {
+	case isDarwin, isLinuxNative:
 		cmdMkbom = exec.Command("mkbom", filepath.Join(rootPath, "root"), filepath.Join("flat", "base.pkg", "Bom"))
 		cmdMkbom.Dir = rootPath
 	default:
@@ -261,8 +267,8 @@ func xarBom(opt Options, rootPath string) error {
 			"/root/root", "/root/flat/base.pkg/Bom",
 		)
 	}
-	cmdMkbom.Stdout = os.Stdout
-	cmdMkbom.Stderr = os.Stderr
+
+	cmdMkbom.Stdout, cmdMkbom.Stderr = os.Stdout, os.Stderr
 	if err := cmdMkbom.Run(); err != nil {
 		return fmt.Errorf("mkbom: %w", err)
 	}
@@ -286,8 +292,8 @@ func xarBom(opt Options, rootPath string) error {
 
 	// Make xar
 	var cmdXar *exec.Cmd
-	switch runtime.GOOS {
-	case "darwin":
+	switch {
+	case isDarwin, isLinuxNative:
 		cmdXar = exec.Command("xar", append([]string{"--compression", "none", "-cf", filepath.Join("..", "orbit.pkg")}, files...)...)
 		cmdXar.Dir = filepath.Join(rootPath, "flat")
 	default:
@@ -297,9 +303,8 @@ func xarBom(opt Options, rootPath string) error {
 		)
 		cmdXar.Args = append(cmdXar.Args, append([]string{"--compression", "none", "-cf", "/root/orbit.pkg"}, files...)...)
 	}
-	cmdXar.Stdout = os.Stdout
-	cmdXar.Stderr = os.Stderr
 
+	cmdXar.Stdout, cmdXar.Stderr = os.Stdout, os.Stderr
 	if err := cmdXar.Run(); err != nil {
 		return fmt.Errorf("run xar: %w", err)
 	}

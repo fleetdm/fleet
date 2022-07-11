@@ -1,7 +1,7 @@
 name: Test packaging
 
 # This workflow tests packaging of Fleet-osquery with the
-# `fleetctl package' command. It fetches the targets: orbit,
+# `fleetctl package` command. It fetches the targets: orbit,
 # osquery and fleet-desktop from the default (Fleet's) TUF server,
 # https://tuf.fleetctl.com.
 
@@ -30,6 +30,7 @@ jobs:
 
     steps:
     - name: Install Docker
+      timeout-minutes: 60
       if: matrix.os == 'macos-latest'
       # From https://github.com/docker/for-mac/issues/2359#issuecomment-943131345
       run: |

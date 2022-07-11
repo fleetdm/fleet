@@ -32,7 +32,7 @@ func TestZendeskRun(t *testing.T) {
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 		return &fleet.AppConfig{Integrations: fleet.Integrations{
 			Zendesk: []*fleet.ZendeskIntegration{
-				{EnableSoftwareVulnerabilities: true, TeamZendeskIntegration: fleet.TeamZendeskIntegration{EnableFailingPolicies: true}},
+				{EnableSoftwareVulnerabilities: true, EnableFailingPolicies: true},
 			},
 		}}, nil
 	}
@@ -156,6 +156,7 @@ func TestZendeskQueueFailingPolicyJob(t *testing.T) {
 			&fleet.Policy{PolicyData: fleet.PolicyData{ID: 1, Name: "p1"}}, []fleet.PolicySetHost{{ID: 1, Hostname: "h1"}})
 		require.NoError(t, err)
 		require.True(t, ds.NewJobFuncInvoked)
+		ds.NewJobFuncInvoked = false
 	})
 
 	t.Run("success team", func(t *testing.T) {
@@ -167,6 +168,7 @@ func TestZendeskQueueFailingPolicyJob(t *testing.T) {
 			&fleet.Policy{PolicyData: fleet.PolicyData{ID: 1, Name: "p1", TeamID: ptr.Uint(2)}}, []fleet.PolicySetHost{{ID: 1, Hostname: "h1"}})
 		require.NoError(t, err)
 		require.True(t, ds.NewJobFuncInvoked)
+		ds.NewJobFuncInvoked = false
 	})
 
 	t.Run("failure", func(t *testing.T) {
@@ -178,6 +180,18 @@ func TestZendeskQueueFailingPolicyJob(t *testing.T) {
 		require.Error(t, err)
 		require.ErrorIs(t, err, io.EOF)
 		require.True(t, ds.NewJobFuncInvoked)
+		ds.NewJobFuncInvoked = false
+	})
+
+	t.Run("no host", func(t *testing.T) {
+		ds.NewJobFunc = func(ctx context.Context, job *fleet.Job) (*fleet.Job, error) {
+			return job, nil
+		}
+		err := QueueZendeskFailingPolicyJob(ctx, ds, logger,
+			&fleet.Policy{PolicyData: fleet.PolicyData{ID: 1, Name: "p1"}}, []fleet.PolicySetHost{})
+		require.NoError(t, err)
+		require.False(t, ds.NewJobFuncInvoked)
+		ds.NewJobFuncInvoked = false
 	})
 }
 
@@ -203,7 +217,10 @@ func TestZendeskRunClientUpdate(t *testing.T) {
 		globalCount++
 		return &fleet.AppConfig{Integrations: fleet.Integrations{
 			Zendesk: []*fleet.ZendeskIntegration{
-				{TeamZendeskIntegration: fleet.TeamZendeskIntegration{GroupID: 0, EnableFailingPolicies: true}},
+				{GroupID: 0, EnableFailingPolicies: true},
+				{GroupID: 1, EnableFailingPolicies: false}, // the team integration will use the group IDs 1-3
+				{GroupID: 2, EnableFailingPolicies: false},
+				{GroupID: 3, EnableFailingPolicies: false},
 			},
 		}}, nil
 	}
@@ -278,6 +295,6 @@ func TestZendeskRunClientUpdate(t *testing.T) {
 
 	// it should've created 3 clients - the global one, and the first 2 calls with team 123
 	require.Equal(t, []int64{0, 1, 2}, groupIDs)
-	require.Equal(t, 2, globalCount)
+	require.Equal(t, 5, globalCount) // app config is requested every time
 	require.Equal(t, 3, teamCount)
 }

@@ -2,17 +2,21 @@ package main
 
 import (
 	"bytes"
+	"compress/bzip2"
 	"crypto/tls"
 	"embed"
 	"encoding/json"
 	"errors"
 	"flag"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"log"
 	"math/rand"
 	"net/http"
 	"os"
+	"path/filepath"
+	"strconv"
 	"strings"
 	"sync"
 	"text/template"
@@ -412,8 +416,47 @@ func (a *agent) HostUsersMacOS() []fleet.HostUser {
 	return users
 }
 
+func extract(src, dst string) {
+	srcF, err := os.Open(src)
+	if err != nil {
+		panic(err)
+	}
+	defer srcF.Close()
+
+	dstF, err := os.Create(dst)
+	if err != nil {
+		panic(err)
+	}
+	defer dstF.Close()
+
+	r := bzip2.NewReader(srcF)
+	// ignoring "G110: Potential DoS vulnerability via decompression bomb", as this is test code.
+	_, err = io.Copy(dstF, r) //nolint:gosec
+	if err != nil {
+		panic(err)
+	}
+}
+
 func loadUbuntuSoftware(ver string) []fleet.Software {
-	var r []fleet.Software
+	srcPath := filepath.Join(
+		"..",
+		"..",
+		"server",
+		"vulnerabilities",
+		"testdata",
+		"ubuntu",
+		"software",
+		fmt.Sprintf("ubuntu_%s-software.json.bz2", ver),
+	)
+
+	tmpDir, err := ioutil.TempDir("", "osquery-perf")
+	if err != nil {
+		panic(err)
+	}
+	defer os.RemoveAll(tmpDir)
+	dstPath := filepath.Join(tmpDir, fmt.Sprintf("%s-software.json", ver))
+
+	extract(srcPath, dstPath)
 
 	type softwareJSON struct {
 		Name    string `json:"name"`
@@ -421,7 +464,7 @@ func loadUbuntuSoftware(ver string) []fleet.Software {
 	}
 
 	var software []softwareJSON
-	contents, err := ioutil.ReadFile(fmt.Sprintf("ubuntu_%s-vulnerable_software.json", ver))
+	contents, err := ioutil.ReadFile(dstPath)
 	if err != nil {
 		log.Printf("reading vuln software for ubuntu %s: %s\n", ver, err)
 		return nil
@@ -433,6 +476,7 @@ func loadUbuntuSoftware(ver string) []fleet.Software {
 		return nil
 	}
 
+	var r []fleet.Software
 	for _, fi := range software {
 		r = append(r, fleet.Software{
 			Name:    fi.Name,
@@ -617,6 +661,27 @@ func (a *agent) googleChromeProfiles() []map[string]string {
 	return result
 }
 
+func (a *agent) batteries() []map[string]string {
+	count := rand.Intn(3) // return between 0 and 2 batteries
+	result := make([]map[string]string, count)
+	for i := range result {
+		health := "Good"
+		cycleCount := rand.Intn(2000)
+		switch {
+		case cycleCount > 1500:
+			health = "Poor"
+		case cycleCount > 1000:
+			health = "Fair"
+		}
+		result[i] = map[string]string{
+			"serial_number": fmt.Sprintf("%04d", i),
+			"cycle_count":   strconv.Itoa(cycleCount),
+			"health":        health,
+		}
+	}
+	return result
+}
+
 func (a *agent) processQuery(name, query string) (handled bool, results []map[string]string, status *fleet.OsqueryStatus) {
 	const (
 		hostPolicyQueryPrefix = "fleet_policy_query_"
@@ -650,6 +715,12 @@ func (a *agent) processQuery(name, query string) (handled bool, results []map[st
 		ss := fleet.OsqueryStatus(rand.Intn(2))
 		if ss == fleet.StatusOK {
 			results = a.googleChromeProfiles()
+		}
+		return true, results, &ss
+	case name == hostDetailQueryPrefix+"battery":
+		ss := fleet.OsqueryStatus(rand.Intn(2))
+		if ss == fleet.StatusOK {
+			results = a.batteries()
 		}
 		return true, results, &ss
 	default:
@@ -742,6 +813,7 @@ func main() {
 		"mac10.14.6.tmpl",
 
 		// Uncomment this to add ubuntu hosts with vulnerable software
+		// "partial_ubuntu.tmpl",
 		// "ubuntu_16.04.tmpl",
 		// "ubuntu_18.04.tmpl",
 		// "ubuntu_20.04.tmpl",
@@ -755,7 +827,6 @@ func main() {
 		tmpl, err := template.ParseFS(templatesFS, t)
 		if err != nil {
 			log.Fatal("parse templates: ", err)
-			continue
 		}
 		tmpls = append(tmpls, tmpl)
 	}
@@ -774,6 +845,9 @@ func main() {
 
 	for i := 0; i < *hostCount; i++ {
 		tmpl := tmpls[i%len(tmpls)]
+		if strings.HasPrefix(tmpl.Name(), "partial") {
+			continue
+		}
 		a := newAgent(i+1, *serverURL, *enrollSecret, tmpl, *configInterval, *queryInterval,
 			softwareEntityCount{
 				entityCount: entityCount{

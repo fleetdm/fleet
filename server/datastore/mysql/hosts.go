@@ -282,6 +282,7 @@ var hostRefs = []string{
 	"host_mdm",
 	"host_munki_info",
 	"host_device_auth",
+	"host_batteries",
 }
 
 func (ds *Datastore) DeleteHost(ctx context.Context, hid uint) error {
@@ -375,13 +376,33 @@ LIMIT
 	return &host, nil
 }
 
-func amountEnrolledHostsDB(ctx context.Context, db sqlx.QueryerContext) (int, error) {
-	var amount int
-	err := sqlx.GetContext(ctx, db, &amount, `SELECT count(*) FROM hosts`)
-	if err != nil {
-		return 0, err
+func amountEnrolledHostsByOSDB(ctx context.Context, db sqlx.QueryerContext) (byOS map[string][]fleet.HostsCountByOSVersion, totalCount int, err error) {
+	var hostsByOS []struct {
+		Platform  string `db:"platform"`
+		OSVersion string `db:"os_version"`
+		NumHosts  int    `db:"num_hosts"`
 	}
-	return amount, nil
+
+	const stmt = `
+    SELECT platform, os_version, count(*) as num_hosts
+    FROM hosts
+    GROUP BY platform, os_version
+  `
+	if err := sqlx.SelectContext(ctx, db, &hostsByOS, stmt); err != nil {
+		return nil, 0, err
+	}
+
+	byOS = make(map[string][]fleet.HostsCountByOSVersion)
+	for _, h := range hostsByOS {
+		totalCount += h.NumHosts
+		byVersion := byOS[h.Platform]
+		byVersion = append(byVersion, fleet.HostsCountByOSVersion{
+			Version:     h.OSVersion,
+			NumEnrolled: h.NumHosts,
+		})
+		byOS[h.Platform] = byVersion
+	}
+	return byOS, totalCount, nil
 }
 
 func (ds *Datastore) ListHosts(ctx context.Context, filter fleet.TeamFilter, opt fleet.HostListOptions) ([]*fleet.Host, error) {
@@ -546,17 +567,31 @@ func (ds *Datastore) CountHosts(ctx context.Context, filter fleet.TeamFilter, op
 	return count, nil
 }
 
-func (ds *Datastore) CleanupIncomingHosts(ctx context.Context, now time.Time) error {
-	sqlStatement := `
+func (ds *Datastore) CleanupIncomingHosts(ctx context.Context, now time.Time) ([]uint, error) {
+	var ids []uint
+	selectIDs := `
+    SELECT
+      id
+    FROM
+      hosts
+    WHERE
+      hostname = '' AND
+      osquery_version = '' AND
+      created_at < (? - INTERVAL 5 MINUTE)`
+	if err := ds.writer.SelectContext(ctx, &ids, selectIDs, now); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "load incoming hosts to cleanup")
+	}
+
+	cleanupHosts := `
 		DELETE FROM hosts
 		WHERE hostname = '' AND osquery_version = ''
 		AND created_at < (? - INTERVAL 5 MINUTE)
 	`
-	if _, err := ds.writer.ExecContext(ctx, sqlStatement, now); err != nil {
-		return ctxerr.Wrap(ctx, err, "cleanup incoming hosts")
+	if _, err := ds.writer.ExecContext(ctx, cleanupHosts, now); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "cleanup incoming hosts")
 	}
 
-	return nil
+	return ids, nil
 }
 
 func (ds *Datastore) GenerateHostStatusStatistics(ctx context.Context, filter fleet.TeamFilter, now time.Time, platform *string) (*fleet.HostSummary, error) {
@@ -882,8 +917,11 @@ func (ds *Datastore) HostIDsByName(ctx context.Context, filter fleet.TeamFilter,
 
 func (ds *Datastore) HostByIdentifier(ctx context.Context, identifier string) (*fleet.Host, error) {
 	stmt := `
-		SELECT * FROM hosts
-		WHERE ? IN (hostname, osquery_host_id, node_key, uuid)
+		SELECT h.*, COALESCE(hst.seen_time, h.created_at) AS seen_time
+		FROM hosts h
+		LEFT JOIN host_seen_times hst
+		ON (h.id = hst.host_id)
+		WHERE ? IN (h.hostname, h.osquery_host_id, h.node_key, h.uuid)
 		LIMIT 1
 	`
 	host := &fleet.Host{}
@@ -1062,13 +1100,13 @@ func (ds *Datastore) ListPoliciesForHost(ctx context.Context, host *fleet.Host) 
 	return policies, nil
 }
 
-func (ds *Datastore) CleanupExpiredHosts(ctx context.Context) error {
+func (ds *Datastore) CleanupExpiredHosts(ctx context.Context) ([]uint, error) {
 	ac, err := appConfigDB(ctx, ds.reader)
 	if err != nil {
-		return ctxerr.Wrap(ctx, err, "getting app config")
+		return nil, ctxerr.Wrap(ctx, err, "getting app config")
 	}
 	if !ac.HostExpirySettings.HostExpiryEnabled {
-		return nil
+		return nil, nil
 	}
 
 	// Usual clean up queries used to be like this:
@@ -1077,8 +1115,10 @@ func (ds *Datastore) CleanupExpiredHosts(ctx context.Context) error {
 	// so instead, we get the ids one by one and delete things one by one
 	// it might take longer, but it should lock only the row we need
 
-	rows, err := ds.writer.QueryContext(
+	var ids []uint
+	err = ds.writer.SelectContext(
 		ctx,
+		&ids,
 		`SELECT h.id FROM hosts h
 		LEFT JOIN host_seen_times hst
 		ON h.id = hst.host_id
@@ -1086,30 +1126,21 @@ func (ds *Datastore) CleanupExpiredHosts(ctx context.Context) error {
 		ac.HostExpirySettings.HostExpiryWindow,
 	)
 	if err != nil {
-		return ctxerr.Wrap(ctx, err, "getting expired host ids")
+		return nil, ctxerr.Wrap(ctx, err, "getting expired host ids")
 	}
-	defer rows.Close()
 
-	for rows.Next() {
-		var id uint
-		err := rows.Scan(&id)
-		if err != nil {
-			return ctxerr.Wrap(ctx, err, "scanning expired host id")
-		}
+	for _, id := range ids {
 		err = ds.DeleteHost(ctx, id)
 		if err != nil {
-			return err
+			return nil, err
 		}
-	}
-	if err := rows.Err(); err != nil {
-		return ctxerr.Wrap(ctx, err, "expired hosts, row err")
 	}
 
 	_, err = ds.writer.ExecContext(ctx, `DELETE FROM host_seen_times WHERE seen_time < DATE_SUB(NOW(), INTERVAL ? DAY)`, ac.HostExpirySettings.HostExpiryWindow)
 	if err != nil {
-		return ctxerr.Wrap(ctx, err, "deleting expired host seen times")
+		return nil, ctxerr.Wrap(ctx, err, "deleting expired host seen times")
 	}
-	return nil
+	return ids, nil
 }
 
 func (ds *Datastore) ListHostDeviceMapping(ctx context.Context, id uint) ([]*fleet.HostDeviceMapping, error) {
@@ -1212,6 +1243,71 @@ func (ds *Datastore) ReplaceHostDeviceMapping(ctx context.Context, hid uint, map
 			if _, err := tx.ExecContext(ctx, stmt, args...); err != nil {
 				return ctxerr.Wrap(ctx, err, "insert host emails")
 			}
+		}
+		return nil
+	})
+}
+
+func (ds *Datastore) ReplaceHostBatteries(ctx context.Context, hid uint, mappings []*fleet.HostBattery) error {
+	const (
+		replaceStmt = `
+    INSERT INTO
+      host_batteries (
+        host_id,
+        serial_number,
+        cycle_count,
+        health
+      )
+    VALUES
+      %s
+    ON DUPLICATE KEY UPDATE
+      cycle_count = VALUES(cycle_count),
+      health = VALUES(health),
+      updated_at = CURRENT_TIMESTAMP
+`
+		valuesPart = `(?, ?, ?, ?),`
+
+		deleteExceptStmt = `
+    DELETE FROM
+      host_batteries
+    WHERE
+      host_id = ? AND
+      serial_number NOT IN (?)
+`
+		deleteAllStmt = `
+    DELETE FROM
+      host_batteries
+    WHERE
+      host_id = ?
+`
+	)
+
+	replaceArgs := make([]interface{}, 0, len(mappings)*4)
+	deleteNotIn := make([]string, 0, len(mappings))
+	for _, hb := range mappings {
+		deleteNotIn = append(deleteNotIn, hb.SerialNumber)
+		replaceArgs = append(replaceArgs, hid, hb.SerialNumber, hb.CycleCount, hb.Health)
+	}
+
+	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		// first, insert the new batteries or update the existing ones
+		if len(replaceArgs) > 0 {
+			if _, err := tx.ExecContext(ctx, fmt.Sprintf(replaceStmt, strings.TrimSuffix(strings.Repeat(valuesPart, len(mappings)), ",")), replaceArgs...); err != nil {
+				return ctxerr.Wrap(ctx, err, "upsert host batteries")
+			}
+		}
+
+		// then, delete the old ones
+		if len(deleteNotIn) > 0 {
+			delStmt, args, err := sqlx.In(deleteExceptStmt, hid, deleteNotIn)
+			if err != nil {
+				return ctxerr.Wrap(ctx, err, "generating host batteries delete NOT IN statement")
+			}
+			if _, err := tx.ExecContext(ctx, delStmt, args...); err != nil {
+				return ctxerr.Wrap(ctx, err, "delete host batteries")
+			}
+		} else if _, err := tx.ExecContext(ctx, deleteAllStmt, hid); err != nil {
+			return ctxerr.Wrap(ctx, err, "delete all host batteries")
 		}
 		return nil
 	})
@@ -1743,6 +1839,28 @@ ON DUPLICATE KEY UPDATE
 	return nil
 }
 
+// EnrolledHostIDs returns the complete list of host IDs.
+func (ds *Datastore) EnrolledHostIDs(ctx context.Context) ([]uint, error) {
+	const stmt = `SELECT id FROM hosts`
+
+	var ids []uint
+	if err := sqlx.SelectContext(ctx, ds.reader, &ids, stmt); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "get enrolled host IDs")
+	}
+	return ids, nil
+}
+
+// CountEnrolledHosts returns the current number of enrolled hosts.
+func (ds *Datastore) CountEnrolledHosts(ctx context.Context) (int, error) {
+	const stmt = `SELECT count(*) FROM hosts`
+
+	var count int
+	if err := sqlx.SelectContext(ctx, ds.reader, &count, stmt); err != nil {
+		return 0, ctxerr.Wrap(ctx, err, "count enrolled host")
+	}
+	return count, nil
+}
+
 func (ds *Datastore) HostIDsByOSVersion(
 	ctx context.Context,
 	osVersion fleet.OSVersion,
@@ -1770,4 +1888,24 @@ func (ds *Datastore) HostIDsByOSVersion(
 	}
 
 	return ids, nil
+}
+
+func (ds *Datastore) ListHostBatteries(ctx context.Context, hid uint) ([]*fleet.HostBattery, error) {
+	const stmt = `
+    SELECT
+      host_id,
+      serial_number,
+      cycle_count,
+      health
+    FROM
+      host_batteries
+    WHERE
+      host_id = ?
+`
+
+	var batteries []*fleet.HostBattery
+	if err := sqlx.SelectContext(ctx, ds.reader, &batteries, stmt, hid); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "select host batteries")
+	}
+	return batteries, nil
 }

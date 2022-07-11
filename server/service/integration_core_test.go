@@ -59,7 +59,7 @@ func (s *integrationTestSuite) TearDownTest() {
 	}
 
 	// recalculate software counts will remove the software entries
-	require.NoError(t, s.ds.CalculateHostsPerSoftware(context.Background(), time.Now()))
+	require.NoError(t, s.ds.SyncHostsSoftware(context.Background(), time.Now()))
 
 	lbls, err := s.ds.ListLabels(ctx, fleet.TeamFilter{}, fleet.ListOptions{})
 	require.NoError(t, err)
@@ -97,8 +97,8 @@ func (s *integrationTestSuite) TearDownTest() {
 		require.NoError(t, err)
 	}
 
-	// CalculateHostsPerSoftware performs a cleanup.
-	err = s.ds.CalculateHostsPerSoftware(ctx, time.Now())
+	// SyncHostsSoftware performs a cleanup.
+	err = s.ds.SyncHostsSoftware(ctx, time.Now())
 	require.NoError(t, err)
 }
 
@@ -493,7 +493,7 @@ func (s *integrationTestSuite) TestVulnerableSoftware() {
 				CPEID:      soft1.GeneratedCPEID,
 				CVE:        "cve-123-123-132",
 			},
-		}, fleet.NVD,
+		}, fleet.NVDSource,
 	)
 	require.NoError(t, err)
 	require.Equal(t, 1, int(n))
@@ -545,7 +545,7 @@ func (s *integrationTestSuite) TestVulnerableSoftware() {
 
 	// calculate hosts counts
 	hostsCountTs := time.Now().UTC()
-	require.NoError(t, s.ds.CalculateHostsPerSoftware(context.Background(), hostsCountTs))
+	require.NoError(t, s.ds.SyncHostsSoftware(context.Background(), hostsCountTs))
 
 	// now the list software endpoint returns the software
 	lsResp = listSoftwareResponse{}
@@ -2403,6 +2403,14 @@ func (s *integrationTestSuite) TestLabels() {
 	}
 	builtInsCount := len(listResp.Labels)
 
+	// labels summary has the built-in ones
+	var summaryResp getLabelsSummaryResponse
+	s.DoJSON("GET", "/api/latest/fleet/labels/summary", nil, http.StatusOK, &summaryResp)
+	assert.Len(t, summaryResp.Labels, builtInsCount)
+	for _, lbl := range summaryResp.Labels {
+		assert.Equal(t, fleet.LabelTypeBuiltIn, lbl.LabelType)
+	}
+
 	// create a label without name, an error
 	var createResp createLabelResponse
 	s.DoJSON("POST", "/api/latest/fleet/labels", &fleet.LabelPayload{Query: ptr.String("select 1")}, http.StatusUnprocessableEntity, &createResp)
@@ -2433,6 +2441,10 @@ func (s *integrationTestSuite) TestLabels() {
 	// list labels
 	s.DoJSON("GET", "/api/latest/fleet/labels", nil, http.StatusOK, &listResp, "per_page", strconv.Itoa(builtInsCount+1))
 	assert.Len(t, listResp.Labels, builtInsCount+1)
+
+	// labels summary
+	s.DoJSON("GET", "/api/latest/fleet/labels/summary", nil, http.StatusOK, &summaryResp)
+	assert.Len(t, summaryResp.Labels, builtInsCount+1)
 
 	// next page is empty
 	s.DoJSON("GET", "/api/latest/fleet/labels", nil, http.StatusOK, &listResp, "per_page", "2", "page", "1", "query", t.Name())
@@ -2481,6 +2493,13 @@ func (s *integrationTestSuite) TestLabels() {
 	s.DoJSON("GET", "/api/latest/fleet/labels", nil, http.StatusOK, &listResp, "per_page", strconv.Itoa(builtInsCount+1))
 	assert.Len(t, listResp.Labels, builtInsCount)
 	for _, lbl := range listResp.Labels {
+		assert.Equal(t, fleet.LabelTypeBuiltIn, lbl.LabelType)
+	}
+
+	// labels summary, only the built-ins remains
+	s.DoJSON("GET", "/api/latest/fleet/labels/summary", nil, http.StatusOK, &summaryResp)
+	assert.Len(t, summaryResp.Labels, builtInsCount)
+	for _, lbl := range summaryResp.Labels {
 		assert.Equal(t, fleet.LabelTypeBuiltIn, lbl.LabelType)
 	}
 
@@ -4067,7 +4086,7 @@ func (s *integrationTestSuite) TestPaginateListSoftware() {
 	}
 
 	// add CVEs for the first 10 software, which are the least used (lower hosts_count)
-	n, err := s.ds.InsertVulnerabilities(context.Background(), vulns, fleet.NVD)
+	n, err := s.ds.InsertVulnerabilities(context.Background(), vulns, fleet.NVDSource)
 	require.NoError(t, err)
 	require.Equal(t, 10, int(n))
 
@@ -4107,7 +4126,7 @@ func (s *integrationTestSuite) TestPaginateListSoftware() {
 
 	// calculate hosts counts
 	hostsCountTs := time.Now().UTC()
-	require.NoError(t, s.ds.CalculateHostsPerSoftware(context.Background(), hostsCountTs))
+	require.NoError(t, s.ds.SyncHostsSoftware(context.Background(), hostsCountTs))
 
 	// now the list software endpoint returns the software, get the first page without vulns
 	lsResp = listSoftwareResponse{}
@@ -4248,6 +4267,88 @@ func (s *integrationTestSuite) TestSearchTargets() {
 	require.Len(t, searchResp.Targets.Labels, 1)
 	require.Len(t, searchResp.Targets.Teams, 0)
 	require.Contains(t, searchResp.Targets.Hosts[0].Hostname, "foo.local1")
+}
+
+func (s *integrationTestSuite) TestSearchHosts() {
+	t := s.T()
+
+	hosts := s.createHosts(t)
+
+	// no search criteria
+	var searchResp searchHostsResponse
+	s.DoJSON("POST", "/api/latest/fleet/hosts/search", searchHostsRequest{}, http.StatusOK, &searchResp)
+	require.Len(t, searchResp.Hosts, len(hosts)) // no request params
+
+	searchResp = searchHostsResponse{}
+	s.DoJSON("POST", "/api/latest/fleet/hosts/search", searchHostsRequest{ExcludedHostIDs: []uint{}}, http.StatusOK, &searchResp)
+	require.Len(t, searchResp.Hosts, len(hosts)) // no omitted host id
+
+	searchResp = searchHostsResponse{}
+	s.DoJSON("POST", "/api/latest/fleet/hosts/search", searchHostsRequest{ExcludedHostIDs: []uint{hosts[1].ID}}, http.StatusOK, &searchResp)
+	require.Len(t, searchResp.Hosts, len(hosts)-1) // one omitted host id
+
+	searchResp = searchHostsResponse{}
+	s.DoJSON("POST", "/api/latest/fleet/hosts/search", searchHostsRequest{MatchQuery: "foo.local1"}, http.StatusOK, &searchResp)
+	require.Len(t, searchResp.Hosts, 1)
+	require.Contains(t, searchResp.Hosts[0].Hostname, "foo.local1")
+}
+
+func (s *integrationTestSuite) TestCountTargets() {
+	t := s.T()
+
+	team, err := s.ds.NewTeam(context.Background(), &fleet.Team{Name: "TestTeam"})
+	require.NoError(t, err)
+	require.Equal(t, "TestTeam", team.Name)
+
+	hosts := s.createHosts(t)
+
+	lblIDs, err := s.ds.LabelIDsByName(context.Background(), []string{"All Hosts"})
+	require.NoError(t, err)
+	require.Len(t, lblIDs, 1)
+
+	for i := range hosts {
+		err = s.ds.RecordLabelQueryExecutions(context.Background(), hosts[i], map[uint]*bool{lblIDs[0]: ptr.Bool(true)}, time.Now(), false)
+		require.NoError(t, err)
+	}
+
+	var hostIDs []uint
+	for _, h := range hosts {
+		hostIDs = append(hostIDs, h.ID)
+	}
+
+	err = s.ds.AddHostsToTeam(context.Background(), ptr.Uint(team.ID), []uint{hostIDs[0]})
+	require.NoError(t, err)
+
+	var countResp countTargetsResponse
+	// sleep to reduce flake in last seen time so that online/offline counts can be tested
+	time.Sleep(1 * time.Second)
+
+	// none selected
+	s.DoJSON("POST", "/api/latest/fleet/targets/count", countTargetsRequest{}, http.StatusOK, &countResp)
+	require.Equal(t, uint(0), countResp.TargetsCount)
+	require.Equal(t, uint(0), countResp.TargetsOnline)
+	require.Equal(t, uint(0), countResp.TargetsOffline)
+
+	// all hosts label selected
+	countResp = countTargetsResponse{}
+	s.DoJSON("POST", "/api/latest/fleet/targets/count", countTargetsRequest{Selected: fleet.HostTargets{LabelIDs: lblIDs}}, http.StatusOK, &countResp)
+	require.Equal(t, uint(3), countResp.TargetsCount)
+	require.Equal(t, uint(1), countResp.TargetsOnline)
+	require.Equal(t, uint(2), countResp.TargetsOffline)
+
+	// team selected
+	countResp = countTargetsResponse{}
+	s.DoJSON("POST", "/api/latest/fleet/targets/count", countTargetsRequest{Selected: fleet.HostTargets{TeamIDs: []uint{team.ID}}}, http.StatusOK, &countResp)
+	require.Equal(t, uint(1), countResp.TargetsCount)
+	require.Equal(t, uint(1), countResp.TargetsOnline)
+	require.Equal(t, uint(0), countResp.TargetsOffline)
+
+	// host id selected
+	countResp = countTargetsResponse{}
+	s.DoJSON("POST", "/api/latest/fleet/targets/count", countTargetsRequest{Selected: fleet.HostTargets{HostIDs: []uint{hosts[1].ID}}}, http.StatusOK, &countResp)
+	require.Equal(t, uint(1), countResp.TargetsCount)
+	require.Equal(t, uint(0), countResp.TargetsOnline)
+	require.Equal(t, uint(1), countResp.TargetsOffline)
 }
 
 func (s *integrationTestSuite) TestStatus() {
@@ -4526,6 +4627,10 @@ func (s *integrationTestSuite) TestDeviceAuthenticatedEndpoints() {
 	})
 	require.NoError(t, s.ds.SetOrUpdateMDMData(context.Background(), hosts[0].ID, true, "url", false))
 	require.NoError(t, s.ds.SetOrUpdateMunkiVersion(context.Background(), hosts[0].ID, "1.3.0"))
+	// create a battery for hosts[0]
+	require.NoError(t, s.ds.ReplaceHostBatteries(context.Background(), hosts[0].ID, []*fleet.HostBattery{
+		{HostID: hosts[0].ID, SerialNumber: "a", CycleCount: 1, Health: "Good"},
+	}))
 
 	// create an auth token for hosts[0]
 	token := "much_valid"
@@ -4551,6 +4656,8 @@ func (s *integrationTestSuite) TestDeviceAuthenticatedEndpoints() {
 	require.False(t, getHostResp.Host.RefetchRequested)
 	require.Equal(t, "http://example.com/logo", getHostResp.OrgLogoURL)
 	require.Nil(t, getHostResp.Host.Policies)
+	require.NotNil(t, getHostResp.Host.Batteries)
+	require.Equal(t, &fleet.HostBattery{CycleCount: 1, Health: "Good"}, (*getHostResp.Host.Batteries)[0])
 	hostDevResp := getHostResp.Host
 
 	// make request for same host on the host details API endpoint, responses should match, except for policies
@@ -4624,6 +4731,79 @@ func (s *integrationTestSuite) TestDeviceAuthenticatedEndpoints() {
 	json.NewDecoder(res.Body).Decode(&getHostResp)
 	res.Body.Close()
 	require.Nil(t, listPoliciesResp.Policies)
+
+	// get list of api features
+	apiFeaturesResp := deviceAPIFeaturesResponse{}
+	res = s.DoRawNoAuth("GET", "/api/latest/fleet/device/"+token+"/api_features", nil, http.StatusOK)
+	json.NewDecoder(res.Body).Decode(&apiFeaturesResp)
+	res.Body.Close()
+	require.Nil(t, apiFeaturesResp.Err)
+	require.NotNil(t, apiFeaturesResp.Features)
+}
+
+// TestDefaultTransparencyURL tests that Fleet Free licensees are restricted to the default transparency url.
+func (s *integrationTestSuite) TestDefaultTransparencyURL() {
+	t := s.T()
+
+	host, err := s.ds.NewHost(context.Background(), &fleet.Host{
+		DetailUpdatedAt: time.Now(),
+		LabelUpdatedAt:  time.Now(),
+		PolicyUpdatedAt: time.Now(),
+		SeenTime:        time.Now().Add(-1 * time.Minute),
+		OsqueryHostID:   t.Name(),
+		NodeKey:         t.Name(),
+		UUID:            uuid.New().String(),
+		Hostname:        fmt.Sprintf("%sfoo.local", t.Name()),
+		Platform:        "darwin",
+	})
+	require.NoError(t, err)
+
+	// create device token for host
+	token := "token_test_default_transparency_url"
+	mysql.ExecAdhocSQL(t, s.ds, func(db sqlx.ExtContext) error {
+		_, err := db.ExecContext(context.Background(), `INSERT INTO host_device_auth (host_id, token) VALUES (?, ?)`, host.ID, token)
+		return err
+	})
+
+	// confirm initial default url
+	acResp := appConfigResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/config", nil, http.StatusOK, &acResp)
+	require.NotNil(t, acResp)
+	require.Equal(t, fleet.DefaultTransparencyURL, acResp.FleetDesktop.TransparencyURL)
+
+	// confirm device endpoint returns initial default url
+	deviceResp := &transparencyURLResponse{}
+	rawResp := s.DoRawNoAuth("GET", "/api/latest/fleet/device/"+token+"/transparency", nil, http.StatusTemporaryRedirect)
+	json.NewDecoder(rawResp.Body).Decode(deviceResp)
+	rawResp.Body.Close()
+	require.NoError(t, deviceResp.Err)
+	require.Equal(t, fleet.DefaultTransparencyURL, rawResp.Header.Get("Location"))
+
+	// empty string applies default url
+	acResp = appConfigResponse{}
+	s.DoJSON("PATCH", "/api/latest/fleet/config", fleet.AppConfig{FleetDesktop: fleet.FleetDesktopSettings{TransparencyURL: ""}}, http.StatusOK, &acResp)
+	require.NotNil(t, acResp)
+	require.Equal(t, fleet.DefaultTransparencyURL, acResp.FleetDesktop.TransparencyURL)
+
+	// device endpoint returns default url
+	deviceResp = &transparencyURLResponse{}
+	rawResp = s.DoRawNoAuth("GET", "/api/latest/fleet/device/"+token+"/transparency", nil, http.StatusTemporaryRedirect)
+	json.NewDecoder(rawResp.Body).Decode(deviceResp)
+	rawResp.Body.Close()
+	require.NoError(t, deviceResp.Err)
+	require.Equal(t, fleet.DefaultTransparencyURL, rawResp.Header.Get("Location"))
+
+	// modify transparency url with custom url fails
+	acResp = appConfigResponse{}
+	s.DoJSON("PATCH", "/api/latest/fleet/config", fleet.AppConfig{FleetDesktop: fleet.FleetDesktopSettings{TransparencyURL: "customURL"}}, http.StatusUnprocessableEntity, &acResp)
+
+	// device endpoint still returns default url
+	deviceResp = &transparencyURLResponse{}
+	rawResp = s.DoRawNoAuth("GET", "/api/latest/fleet/device/"+token+"/transparency", nil, http.StatusTemporaryRedirect)
+	json.NewDecoder(rawResp.Body).Decode(deviceResp)
+	rawResp.Body.Close()
+	require.NoError(t, deviceResp.Err)
+	require.Equal(t, fleet.DefaultTransparencyURL, rawResp.Header.Get("Location"))
 }
 
 func (s *integrationTestSuite) TestModifyUser() {
@@ -4929,6 +5109,103 @@ func (s *integrationTestSuite) TestHostsReportDownload() {
 	require.Len(t, rows[3], 3)
 	require.Equal(t, []string{"0", "TestIntegrations/TestHostsReportDownloadfoo.local0"}, rows[3][:2])
 	t.Log(rows)
+}
+
+func (s *integrationTestSuite) TestSSODisabled() {
+	t := s.T()
+
+	var initiateResp initiateSSOResponse
+	s.DoJSON("POST", "/api/v1/fleet/sso", struct{}{}, http.StatusBadRequest, &initiateResp)
+
+	var callbackResp callbackSSOResponse
+	// callback without SAML response
+	s.DoJSON("POST", "/api/v1/fleet/sso/callback", nil, http.StatusBadRequest, &callbackResp)
+	// callback with invalid SAML response
+	s.DoJSON("POST", "/api/v1/fleet/sso/callback?SAMLResponse=zz", nil, http.StatusBadRequest, &callbackResp)
+	// callback with valid SAML response (<samlp:AuthnRequest></samlp:AuthnRequest>)
+	res := s.DoRaw("POST", "/api/v1/fleet/sso/callback?SAMLResponse=PHNhbWxwOkF1dGhuUmVxdWVzdD48L3NhbWxwOkF1dGhuUmVxdWVzdD4%3D", nil, http.StatusOK)
+	defer res.Body.Close()
+	body, err := io.ReadAll(res.Body)
+	require.NoError(t, err)
+	require.Contains(t, string(body), "/login?status=org_disabled") // html contains a script that redirects to this path
+}
+
+func (s *integrationTestSuite) TestFleetSandboxDemoLogin() {
+	t := s.T()
+
+	validEmail := testUsers["user1"].Email
+	validPwd := testUsers["user1"].PlaintextPassword
+	wrongPwd := "nope"
+	hdrs := map[string]string{"Content-Type": "application/x-www-form-urlencoded"}
+
+	os.Unsetenv("FLEET_DEMO") // ensure it is not accidentally set
+
+	// without the FLEET_DEMO env var set, the login always fails
+	formBody := make(url.Values)
+	formBody.Set("email", validEmail)
+	formBody.Set("password", validPwd)
+	res := s.DoRawWithHeaders("POST", "/api/v1/fleet/demologin", []byte(formBody.Encode()), http.StatusInternalServerError, hdrs)
+	require.NotEqual(t, http.StatusOK, res.StatusCode)
+
+	// with the FLEET_DEMO env var set, the login works as expected, validating
+	// the credentials
+	os.Setenv("FLEET_DEMO", "1")
+	defer os.Unsetenv("FLEET_DEMO")
+
+	formBody.Set("email", validEmail)
+	formBody.Set("password", wrongPwd)
+	res = s.DoRawWithHeaders("POST", "/api/v1/fleet/demologin", []byte(formBody.Encode()), http.StatusUnauthorized, hdrs)
+	require.Equal(t, http.StatusUnauthorized, res.StatusCode)
+
+	formBody.Set("email", validEmail)
+	formBody.Set("password", validPwd)
+	res = s.DoRawWithHeaders("POST", "/api/v1/fleet/demologin", []byte(formBody.Encode()), http.StatusOK, hdrs)
+	resBody, err := io.ReadAll(res.Body)
+	require.NoError(t, err)
+	require.Equal(t, http.StatusOK, res.StatusCode)
+	require.Contains(t, string(resBody), `window.location = "/"`)
+	require.Regexp(t, `window.localStorage.setItem\('FLEET::auth_token', '[^']+'\)`, string(resBody))
+}
+
+func (s *integrationTestSuite) TestGetHostBatteries() {
+	t := s.T()
+
+	host, err := s.ds.NewHost(context.Background(), &fleet.Host{
+		DetailUpdatedAt: time.Now(),
+		LabelUpdatedAt:  time.Now(),
+		PolicyUpdatedAt: time.Now(),
+		SeenTime:        time.Now(),
+		NodeKey:         strings.ReplaceAll(t.Name(), "/", "_") + "1",
+		UUID:            t.Name() + "1",
+		Hostname:        t.Name() + "foo.local",
+		PrimaryIP:       "192.168.1.1",
+		PrimaryMac:      "30-65-EC-6F-C4-58",
+	})
+	require.NoError(t, err)
+
+	bats := []*fleet.HostBattery{
+		{HostID: host.ID, SerialNumber: "a", CycleCount: 1, Health: "Good"},
+		{HostID: host.ID, SerialNumber: "b", CycleCount: 2, Health: "Poor"},
+	}
+	require.NoError(t, s.ds.ReplaceHostBatteries(context.Background(), host.ID, bats))
+
+	var getHostResp getHostResponse
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", host.ID), nil, http.StatusOK, &getHostResp)
+	require.Equal(t, host.ID, getHostResp.Host.ID)
+	// only cycle count and health are returned
+	require.ElementsMatch(t, []*fleet.HostBattery{
+		{CycleCount: 1, Health: "Good"},
+		{CycleCount: 2, Health: "Poor"},
+	}, *getHostResp.Host.Batteries)
+
+	// same for get host by identifier
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/identifier/%s", host.NodeKey), nil, http.StatusOK, &getHostResp)
+	require.Equal(t, host.ID, getHostResp.Host.ID)
+	// only cycle count and health are returned
+	require.ElementsMatch(t, []*fleet.HostBattery{
+		{CycleCount: 1, Health: "Good"},
+		{CycleCount: 2, Health: "Poor"},
+	}, *getHostResp.Host.Batteries)
 }
 
 // this test can be deleted once the "v1" version is removed.

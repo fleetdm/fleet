@@ -68,3 +68,4 @@ As of Fleet 4.0.0, Fleet Device Management Inc. periodically collects anonymous 
 <meta name="authorGitHubUsername" value="noahtalerman">
 <meta name="publishedOn" value="2021-06-30">
 <meta name="articleTitle" value="Fleet 4.0.0 released with Role-based access control and Teams features">
+<meta name="articleImageUrl" value="../website/assets/images/articles/fleet-4.0.0-cover-1600x900@2x.jpg">

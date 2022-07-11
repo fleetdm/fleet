@@ -1,5 +1,7 @@
 # Tales from Fleet security: securing the startup
 
+![Securing Google Workspace](../website/assets/images/articles/tales-from-fleet-security-securing-the-startup-cover-1600x900@2x.jpg)
+
 Fleet is an all-remote company that makes open-source software. Openness is one of our core [values](https://fleetdm.com/handbook/company#values).
 
 In this blog series, I will explain the process behind security here at Fleet. We document the how and why in our [handbook](https://fleetdm.com/handbook/security), but blogging is a better medium for covering the process that allowed us to reach those conclusions.
@@ -85,3 +87,4 @@ In my next article, I’ll cover how we [secured Google Workspace](https://fleet
 <meta name="authorGitHubUsername" value="GuillaumeRoss">
 <meta name="publishedOn" value="2022-03-17">
 <meta name="articleTitle" value="Tales from Fleet security: securing the startup">
+<meta name="articleImageUrl" value="../website/assets/images/articles/tales-from-fleet-security-securing-the-startup-cover-1600x900@2x.jpg">	

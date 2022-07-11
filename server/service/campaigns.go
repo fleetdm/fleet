@@ -67,7 +67,7 @@ func (svc *Service) NewDistributedQueryCampaign(ctx context.Context, queryString
 			return nil, err
 		}
 		query = &fleet.Query{
-			Name:     fmt.Sprintf("distributed_%s_%d", vc.Email(), time.Now().Unix()),
+			Name:     fmt.Sprintf("distributed_%s_%d", vc.Email(), time.Now().UnixNano()),
 			Query:    queryString,
 			Saved:    false,
 			AuthorID: ptr.Uint(vc.UserID()),

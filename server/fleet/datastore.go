@@ -5,6 +5,8 @@ import (
 	"encoding/json"
 	"errors"
 	"time"
+
+	"github.com/fleetdm/fleet/v4/server/health"
 )
 
 type CarveStore interface {
@@ -23,6 +25,8 @@ type CarveStore interface {
 
 // Datastore combines all the interfaces in the Fleet DAL
 type Datastore interface {
+	health.Checker
+
 	CarveStore
 
 	///////////////////////////////////////////////////////////////////////////////
@@ -66,6 +70,9 @@ type Datastore interface {
 	ListQueries(ctx context.Context, opt ListQueryOptions) ([]*Query, error)
 	// QueryByName looks up a query by name.
 	QueryByName(ctx context.Context, name string, opts ...OptionalArg) (*Query, error)
+	// ObserverCanRunQuery returns whether a user with an observer role is permitted to run the
+	// identified query
+	ObserverCanRunQuery(ctx context.Context, queryID uint) (bool, error)
 
 	///////////////////////////////////////////////////////////////////////////////
 	// CampaignStore defines the distributed query campaign related datastore methods
@@ -179,11 +186,15 @@ type Datastore interface {
 
 	MarkHostsSeen(ctx context.Context, hostIDs []uint, t time.Time) error
 	SearchHosts(ctx context.Context, filter TeamFilter, query string, omit ...uint) ([]*Host, error)
+	// EnrolledHostIDs returns the full list of enrolled host IDs.
+	EnrolledHostIDs(ctx context.Context) ([]uint, error)
+	CountEnrolledHosts(ctx context.Context) (int, error)
+
 	// CleanupIncomingHosts deletes hosts that have enrolled but never updated their status details. This clears dead
 	// "incoming hosts" that never complete their registration.
 	// A host is considered incoming if both the hostname and osquery_version fields are empty. This means that multiple
 	// different osquery queries failed to populate details.
-	CleanupIncomingHosts(ctx context.Context, now time.Time) error
+	CleanupIncomingHosts(ctx context.Context, now time.Time) ([]uint, error)
 	// GenerateHostStatusStatistics retrieves the count of online, offline, MIA and new hosts.
 	GenerateHostStatusStatistics(ctx context.Context, filter TeamFilter, now time.Time, platform *string) (*HostSummary, error)
 	// HostIDsByName Retrieve the IDs associated with the given hostnames
@@ -207,6 +218,8 @@ type Datastore interface {
 	CountHosts(ctx context.Context, filter TeamFilter, opt HostListOptions) (int, error)
 	CountHostsInLabel(ctx context.Context, filter TeamFilter, lid uint, opt HostListOptions) (int, error)
 	ListHostDeviceMapping(ctx context.Context, id uint) ([]*HostDeviceMapping, error)
+	// ListHostBatteries returns the list of batteries for the given host ID.
+	ListHostBatteries(ctx context.Context, id uint) ([]*HostBattery, error)
 
 	// LoadHostByDeviceAuthToken loads the host identified by the device auth token.
 	// If the token is invalid it returns a NotFoundError.
@@ -313,7 +326,7 @@ type Datastore interface {
 	SaveScheduledQuery(ctx context.Context, sq *ScheduledQuery) (*ScheduledQuery, error)
 	DeleteScheduledQuery(ctx context.Context, id uint) error
 	ScheduledQuery(ctx context.Context, id uint) (*ScheduledQuery, error)
-	CleanupExpiredHosts(ctx context.Context) error
+	CleanupExpiredHosts(ctx context.Context) ([]uint, error)
 
 	///////////////////////////////////////////////////////////////////////////////
 	// TeamStore
@@ -336,6 +349,9 @@ type Datastore interface {
 	SearchTeams(ctx context.Context, filter TeamFilter, matchQuery string, omit ...uint) ([]*Team, error)
 	// TeamEnrollSecrets lists the enroll secrets for the team.
 	TeamEnrollSecrets(ctx context.Context, teamID uint) ([]*EnrollSecret, error)
+	// DeleteIntegrationsFromTeams deletes integrations used by teams, as they
+	// are being deleted from the global configuration.
+	DeleteIntegrationsFromTeams(ctx context.Context, deletedIntgs Integrations) error
 
 	///////////////////////////////////////////////////////////////////////////////
 	// SoftwareStore
@@ -354,13 +370,13 @@ type Datastore interface {
 	// ListSoftwareByHostIDShort lists software by host ID, but does not include CPEs or vulnerabilites.
 	// It is meant to be used when only minimal software fields are required eg when updating host software.
 	ListSoftwareByHostIDShort(ctx context.Context, hostID uint) ([]Software, error)
-	// CalculateHostsPerSoftware calculates the number of hosts having each
+	// SyncHostsSoftware calculates the number of hosts having each
 	// software installed and stores that information in the software_host_counts
 	// table.
 	//
 	// After aggregation, it cleans up unused software (e.g. software installed
 	// on removed hosts, software uninstalled on hosts, etc.)
-	CalculateHostsPerSoftware(ctx context.Context, updatedAt time.Time) error
+	SyncHostsSoftware(ctx context.Context, updatedAt time.Time) error
 	HostsBySoftwareIDs(ctx context.Context, softwareIDs []uint) ([]*HostShort, error)
 	HostsByCVE(ctx context.Context, cve string) ([]*HostShort, error)
 	InsertCVEMeta(ctx context.Context, cveMeta []CVEMeta) error
@@ -411,10 +427,8 @@ type Datastore interface {
 
 	ListSoftware(ctx context.Context, opt SoftwareListOptions) ([]Software, error)
 	CountSoftware(ctx context.Context, opt SoftwareListOptions) (int, error)
-	// ListVulnerableSoftwareBySource lists all the vulnerable software that matches the given source.
-	ListVulnerableSoftwareBySource(ctx context.Context, source string) ([]SoftwareWithCPE, error)
 	// DeleteVulnerabilities deletes the given list of vulnerabilities identified by CPE+CVE.
-	DeleteVulnerabilitiesByCPECVE(ctx context.Context, vulnerabilities []SoftwareVulnerability) error
+	DeleteSoftwareVulnerabilities(ctx context.Context, vulnerabilities []SoftwareVulnerability) error
 
 	///////////////////////////////////////////////////////////////////////////////
 	// Team Policies
@@ -520,6 +534,9 @@ type Datastore interface {
 	SetOrUpdateMDMData(ctx context.Context, hostID uint, enrolled bool, serverURL string, installedFromDep bool) error
 
 	ReplaceHostDeviceMapping(ctx context.Context, id uint, mappings []*HostDeviceMapping) error
+
+	// ReplaceHostBatteries creates or updates the battery mappings of a host.
+	ReplaceHostBatteries(ctx context.Context, id uint, mappings []*HostBattery) error
 
 	// VerifyEnrollSecret checks that the provided secret matches an active enroll secret. If it is successfully
 	// matched, that secret is returned. Otherwise, an error is returned.

@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { useDebouncedCallback } from "use-debounce";
 
 import { ISoftware } from "interfaces/software";
@@ -11,7 +11,10 @@ import TableContainer from "components/TableContainer";
 import EmptyState from "../EmptyState";
 import SoftwareVulnCount from "./SoftwareVulnCount";
 
-import generateSoftwareTableHeaders from "./SoftwareTableConfig";
+import {
+  generateSoftwareTableHeaders,
+  generateSoftwareTableData,
+} from "./SoftwareTableConfig";
 
 const baseClass = "host-details";
 
@@ -34,16 +37,6 @@ const SoftwareTable = ({
   deviceType,
   softwareInventoryEnabled,
 }: ISoftwareTableProps): JSX.Element => {
-  const tableSoftware: ITableSoftware[] = software.map((s) => {
-    return {
-      ...s,
-      vulnerabilities:
-        s.vulnerabilities?.map((v) => {
-          return v.cve;
-        }) || [],
-    };
-  });
-
   const [searchString, setSearchString] = useState("");
   const [filterVuln, setFilterVuln] = useState(false);
   const [filters, setFilters] = useState({
@@ -62,6 +55,13 @@ const SoftwareTable = ({
     300
   );
 
+  const tableSoftware = useMemo(() => generateSoftwareTableData(software), [
+    software,
+  ]);
+  const tableHeaders = useMemo(() => generateSoftwareTableHeaders(deviceUser), [
+    deviceUser,
+  ]);
+
   const onVulnFilterChange = (value: boolean) => {
     setFilterVuln(value);
   };
@@ -77,8 +77,6 @@ const SoftwareTable = ({
       />
     );
   };
-
-  const tableHeaders = generateSoftwareTableHeaders(deviceUser);
 
   const EmptySoftwareSearch = () => (
     <EmptyState title="software" reason="empty-search" />
@@ -109,7 +107,7 @@ const SoftwareTable = ({
             <div className={deviceType || ""}>
               <TableContainer
                 columns={tableHeaders}
-                data={tableSoftware}
+                data={tableSoftware || []}
                 filters={filters}
                 isLoading={isLoading}
                 defaultSortHeader={"name"}
@@ -125,6 +123,7 @@ const SoftwareTable = ({
                 searchable
                 customControl={renderVulnFilterDropdown}
                 isClientSidePagination
+                pageSize={20}
                 isClientSideFilter
                 highlightOnHover
               />

@@ -1,7 +1,76 @@
+
+* Fleet Premium and Fleet Free: Fleet desktop is officially out of beta. Fleet Desktop shows users exactly what's going on with their device and gives them the tools they need to make sure that their it is secure and aligned with policies. They just need to click an icon in their menu bar. 
+
+* Fleet Premium and Fleet Free: Fleet's osquery installer is officially out of beta. Orbit is a lightweight wrapper for osquery that allows you to easily deploy, configure and keep osquery up-to-date across your organization. 
+
+* Added native support for M1 Macs.
+
+* Added battery health tracking to **Host details** page.
+
+* Improved reporting of error states on the health dashboard and added separate health checks for MySQL and Redis with `/healthz?check=mysql` and `/healthz?check=redis`.
+
+* Improved SSO login failure messaging.
+
+* Fixed osquery tables that report incorrect platforms.
+
+* Added `docker_container_envs` table to the osquery table schema on the **Query* page.
+
+
+* Updated Fleet host detail query so that the `os_version` for Ubuntu hosts reflects the accurate patch number.
+
+* Improved accuracy of `software_host_counts` by removing hosts from the count if software has been uninstalled.
+
+* Improved accuracy of the `last_restarted` date. 
+
+* Fixed `/api/_version_/fleet/hosts/identifier/{identifier}` to return the correct value for `host.status`.
+
+* Improved logging when fleetctl encounters permissions errors.
+
+* Added support for scanning RHEL based and Fedora hosts for vulnerable software using OVAL definitions.
+
+* Fixed SQL generated for operating system version policies to reduce false negatives
+
+* Added the number of hosts enrolled by operating system (OS) and OS version to anonymous usage statistics.
+
+* Added the weekly active users count to anonymous usage statistics.
+
+## Fleet 4.16.0 (Jun 20, 2022)
+
+* Fleet Premium: Added the ability to set a Custom URL for the "Transparency" link included in Fleet Desktop. This allows you to use custom branding, as well as gives you control over what information you want to share with your end-users. 
+
+* Fleet Premium: Added scoring to vulnerability detection, including EPSS probability score, CVSS base score, and known exploits. This helps you to quickly categorize which threats need attention today, next week, next month, or "someday."
+
+* Added a ticket-workflow for policy automations. Configured Fleet to automatically create a Jira issue or Zendesk ticket when one or more hosts fail a specific policy.
+
+* Added [Open Vulnerability and Assement Language](https://access.redhat.com/solutions/4161) (`OVAL`) processing for Ubuntu hosts. This increases the accuracy of detected vulnerabilities. 
+
+* Added software details page to the Fleet UI.
+
+* Improved live query experience by saving the state of selected targets and adding count of visible results when filtering columns.
+
+* Fixed an issue where the **Device user** page redirected to login if an expired session token was present. 
+
+* Fixed an issue that caused a delay in availability of **My device** in Fleet Desktop.
+
+* Added support for custom headers for requests made to `fleet` instances by the `fleetctl` command.
+
+* Updated to an improved `users` query in every query we send to osquery.
+
+* Fixed `no such table` errors for `mdm` and `munki_info` for vanilla osquery MacOS hosts.
+
+* Fixed data inconsistencies in policy counts caused when a host was re-enrolled without a team or in a different one.
+
+* Fixed a bug affecting `fleetctl debug` `archive` and `errors` commands on Windows.
+
+* Added `/api/_version_/fleet/device/{token}/policies` to retrieve policies for a specific device. This endpoint can only be accessed with a premium license.
+
+* Added `POST /targets/search` and `POST /targets/count` API endpoints.
+
+* Updated `GET /software`, `GET /software/{:id}`, and `GET /software/count` endpoints to no include software that has been removed from hosts, but not cleaned up yet (orphaned).
+
 ## Fleet 4.15.0 (May 26, 2022)
 
-* Expanded beta support for vulnerability reporting to include both Zendesk and Jira integration. This allows users to configure Fleet to
-  automatically create a Zendesk ticket or Jira issue when a new vulnerability (CVE) is detected on your hosts.
+* Expanded beta support for vulnerability reporting to include both Zendesk and Jira integration. This allows users to configure Fleet to automatically create a Zendesk ticket or Jira issue when a new vulnerability (CVE) is detected on your hosts.
 
 * Expanded beta support for Fleet Desktop to Mac and Windows hosts. Fleet Desktop allows the device user to see
 information about their device. To add Fleet Desktop to a host, generate a Fleet-osquery installer with `fleetctl package` and include the `--fleet-desktop` flag. Then, open this installer on the device.
@@ -70,7 +139,7 @@ includes Fleet Desktop. Then, open this installer on the device.
 
 * Improved the empty states and forms on the **Policies** page, **Queries** page, and **Host details** page in the Fleet UI.
 
-- All duration settings returned by `fleetctl get config --include-server-config` were changed from
+* All duration settings returned by `fleetctl get config --include-server-config` were changed from
 nanoseconds to an easy to read format.
 
 * Fixed a bug in which the "Bundle identifier" tooltips displayed on **Host details > Software** did not
@@ -1452,7 +1521,7 @@ repository. Please follow changes and releases there.
 
 * Added GCP PubSub logging plugin. Thanks to Michael Samuel for adding this capability.
 
-* Improved escaping for target search in live query interface. It is now easier to target hosts with + and - characters in the name.
+* Improved escaping for target search in live query interface. It is now easier to target hosts with + and * characters in the name.
 
 * Server and browser performance improved to reduced loading of hosts in frontend. Host status will only update on page load when over 100 hosts are present.
 

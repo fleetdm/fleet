@@ -1,7 +1,6 @@
 package oval
 
 import (
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"testing"
@@ -14,9 +13,7 @@ import (
 func TestSync(t *testing.T) {
 	t.Run("#removeOldDefs", func(t *testing.T) {
 		t.Run("with empty dir", func(t *testing.T) {
-			path, err := ioutil.TempDir("", "oval_test")
-			defer os.RemoveAll(path)
-			require.NoError(t, err)
+			path := t.TempDir()
 			date := time.Now()
 
 			result, err := removeOldDefs(date, path)
@@ -32,9 +29,7 @@ func TestSync(t *testing.T) {
 			today := time.Now()
 			yesterday := today.Add(-24 * time.Hour)
 
-			path, err := ioutil.TempDir("", "oval_test")
-			defer os.RemoveAll(path)
-			require.NoError(t, err)
+			path := t.TempDir()
 
 			otherFile1 := filepath.Join(path, "my_lyrics.json")
 			newDef := filepath.Join(path, ovalPlatform.ToFilename(today, "json"))

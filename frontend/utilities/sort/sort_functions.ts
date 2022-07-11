@@ -1,3 +1,13 @@
+const booleanAsc = (a: unknown, b: unknown): number => {
+  if (!a && !!b) {
+    return -1;
+  }
+  if (!!a && !b) {
+    return 1;
+  }
+  return 0;
+};
+
 const caseInsensitiveAsc = (a: any, b: any): number => {
   a = typeof a === "string" ? a.toLowerCase() : a;
   b = typeof b === "string" ? b.toLowerCase() : b;
@@ -47,6 +57,7 @@ const hasLength = (a: unknown[], b: unknown[]): number => {
 };
 
 export default {
+  booleanAsc,
   caseInsensitiveAsc,
   dateStringsAsc,
   hasLength,

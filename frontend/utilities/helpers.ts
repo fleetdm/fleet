@@ -85,9 +85,30 @@ const labelStubs = [
   },
 ];
 
+const isLabel = (target: ISelectTargetsEntity) => {
+  return "label_type" in target;
+};
+const isHost = (target: ISelectTargetsEntity) => {
+  return "hostname" in target;
+};
+
 const filterTarget = (targetType: string) => {
   return (target: ISelectTargetsEntity) => {
-    return target.target_type === targetType ? [target.id] : [];
+    const id =
+      typeof target.id !== "number" ? parseInt(target.id, 10) : target.id;
+    if ("target_type" in target) {
+      return target.target_type === targetType && !isNaN(id) ? [id] : [];
+    }
+    switch (targetType) {
+      case "hosts":
+        return isHost(target) && !isNaN(id) ? [id] : [];
+      case "labels":
+        return isLabel(target) && !isNaN(id) ? [id] : [];
+      case "teams":
+        return !isHost(target) && !isLabel(target) && !isNaN(id) ? [id] : [];
+      default:
+        return [];
+    }
   };
 };
 
@@ -205,6 +226,15 @@ export const frontendFormattedConfig = (config: IConfig) => {
   };
 };
 
+export const formatFloatAsPercentage = (float: number): string => {
+  const formatter = Intl.NumberFormat("en-US", {
+    maximumSignificantDigits: 2,
+    style: "percent",
+  });
+
+  return formatter.format(float);
+};
+
 const formatLabelResponse = (response: any): ILabel[] => {
   const labels = response.labels.map((label: ILabel) => {
     return {
@@ -222,17 +252,15 @@ export const formatSelectedTargetsForApi = (
   selectedTargets: ISelectTargetsEntity[]
 ): ISelectedTargets => {
   const targets = selectedTargets || [];
-  const hosts = flatMap(targets, filterTarget("hosts"));
-  const labels = flatMap(targets, filterTarget("labels"));
-  const teams = flatMap(targets, filterTarget("teams"));
-
-  const sortIds = (ids: Array<number | string>) =>
-    ids.sort((a, b) => Number(a) - Number(b));
+  // TODO: can flatMap be removed?
+  const hostIds = flatMap(targets, filterTarget("hosts"));
+  const labelIds = flatMap(targets, filterTarget("labels"));
+  const teamIds = flatMap(targets, filterTarget("teams"));
 
   return {
-    hosts: sortIds(hosts),
-    labels: sortIds(labels),
-    teams: sortIds(teams),
+    hosts: hostIds.sort(),
+    labels: labelIds.sort(),
+    teams: teamIds.sort(),
   };
 };
 
@@ -563,6 +591,26 @@ export const humanHostUptime = (uptimeInNanoseconds: number): string => {
   return formatDistanceToNow(new Date(restartDate), { addSuffix: true });
 };
 
+export const humanHostLastRestart = (
+  detailUpdatedAt: string,
+  uptime: number
+): string => {
+  const currentDate = new Date();
+  const updatedDate = new Date(detailUpdatedAt);
+  const millisecondsLastUpdated = currentDate.getTime() - updatedDate.getTime();
+
+  // Sum of calculated milliseconds since last updated with uptime
+  const millisecondsLastRestart =
+    millisecondsLastUpdated + uptime / NANOSECONDS_PER_MILLISECOND;
+
+  const restartDate = new Date();
+  restartDate.setMilliseconds(
+    restartDate.getMilliseconds() - millisecondsLastRestart
+  );
+
+  return formatDistanceToNow(new Date(restartDate), { addSuffix: true });
+};
+
 export const humanHostLastSeen = (lastSeen: string): string => {
   return format(new Date(lastSeen), "MMM d yyyy, HH:mm:ss");
 };
@@ -758,6 +806,7 @@ export default {
   addGravatarUrlToResource,
   formatConfigDataForServer,
   formatLabelResponse,
+  formatFloatAsPercentage,
   formatScheduledQueryForClient,
   formatScheduledQueryForServer,
   formatGlobalScheduledQueryForClient,

@@ -68,15 +68,15 @@ module.exports.routes = {
     }
   },
 
-  'r|/((device-management|securing|releases|engineering|guides|announcements|use-cases|podcasts)/(.+))$|': {
+  'r|/((device-management|securing|releases|engineering|guides|announcements|use-cases|podcasts|report)/(.+))$|': {
     skipAssets: false,
     action: 'articles/view-basic-article',
     locals: {
       currentPage: 'articles',
     }
-  },// handles /device-management/foo, /securing/foo, /releases/foo, /engineering/foo, /guides/foo, /announcements/foo, /use-cases/foo
+  },// handles /device-management/foo, /securing/foo, /releases/foo, /engineering/foo, /guides/foo, /announcements/foo, /use-cases/foo, /podcasts/foo, /report/foo
 
-  'r|^/((device-management|securing|releases|engineering|guides|announcements|use-cases|articles|podcasts))/*$|category': {
+  'r|^/((device-management|securing|releases|engineering|guides|announcements|use-cases|articles|podcasts|report))/*$|category': {
     skipAssets: false,
     action: 'articles/view-articles',
     locals: {
@@ -174,8 +174,18 @@ module.exports.routes = {
     action: 'reports/view-state-of-device-management',
     locals: {
       pageTitleForMeta: 'State of device management | Fleet for osquery',
-      pageDescriptionForMeta: '',
+      pageDescriptionForMeta: 'We surveyed 200+ security practitioners to discover the state of device management in 2022. Click here to learn about their struggles and best practices.',
+      headerCTAHidden: true,
     }
+  },
+
+  'GET /overview': {
+    action: 'view-sales-one-pager',
+    locals: {
+      pageTitleForMeta: 'Overview | Fleet for osquery',
+      pageDescriptionForMeta: 'Fleet helps security and IT teams protect their devices. We\'re the single source of truth for workstation and server telemetry. Click to learn more!',
+      layout: 'layouts/layout-landing'
+    },
   },
 
 

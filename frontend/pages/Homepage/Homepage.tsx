@@ -3,15 +3,12 @@ import { useQuery } from "react-query";
 import { AppContext } from "context/app";
 import { find } from "lodash";
 
-import hostSummaryAPI from "services/entities/host_summary";
-import teamsAPI from "services/entities/teams";
-import {
-  IHostSummary,
-  IHostSummaryLabel,
-  IHostSummaryPlatforms,
-} from "interfaces/host_summary";
+import { IHostSummary, IHostSummaryPlatforms } from "interfaces/host_summary";
+import { ILabelSummary } from "interfaces/label";
 import { IOsqueryPlatform } from "interfaces/platform";
 import { ITeam } from "interfaces/team";
+import hostSummaryAPI from "services/entities/host_summary";
+import teamsAPI, { ILoadTeamsResponse } from "services/entities/teams";
 import sortUtils from "utilities/sort";
 import { PLATFORM_DROPDOWN_OPTIONS } from "utilities/constants";
 
@@ -31,10 +28,6 @@ import Munki from "./cards/Munki";
 import OperatingSystems from "./cards/OperatingSystems";
 import ExternalURLIcon from "../../../assets/images/icon-external-url-12x12@2x.png";
 
-interface ITeamsResponse {
-  teams: ITeam[];
-}
-
 const baseClass = "homepage";
 
 const Homepage = (): JSX.Element => {
@@ -49,7 +42,7 @@ const Homepage = (): JSX.Element => {
   } = useContext(AppContext);
 
   const [selectedPlatform, setSelectedPlatform] = useState<string>("");
-  const [labels, setLabels] = useState<IHostSummaryLabel[]>();
+  const [labels, setLabels] = useState<ILabelSummary[]>();
   const [macCount, setMacCount] = useState<number>(0);
   const [windowsCount, setWindowsCount] = useState<number>(0);
   const [linuxCount, setLinuxCount] = useState<number>(0);
@@ -66,12 +59,12 @@ const Homepage = (): JSX.Element => {
   );
   const [showHostsUI, setShowHostsUI] = useState<boolean>(false); // Hides UI on first load only
 
-  const { data: teams } = useQuery<ITeamsResponse, Error, ITeam[]>(
+  const { data: teams } = useQuery<ILoadTeamsResponse, Error, ITeam[]>(
     ["teams"],
     () => teamsAPI.loadAll(),
     {
       enabled: !!isPremiumTier,
-      select: (data: ITeamsResponse) =>
+      select: (data: ILoadTeamsResponse) =>
         data.teams.sort((a, b) => sortUtils.caseInsensitiveAsc(a.name, b.name)),
       onSuccess: (responseTeams) => {
         if (!currentTeam && !isOnGlobalTeam && responseTeams.length) {
@@ -81,11 +74,11 @@ const Homepage = (): JSX.Element => {
     }
   );
 
-  const { data: hostSummaryData, isFetching: isHostSummaryFetching } = useQuery<
-    IHostSummary,
-    Error,
-    IHostSummary
-  >(
+  const {
+    data: hostSummaryData,
+    isFetching: isHostSummaryFetching,
+    error: errorHosts,
+  } = useQuery<IHostSummary, Error, IHostSummary>(
     ["host summary", currentTeam, selectedPlatform],
     () =>
       hostSummaryAPI.getSummary({
@@ -127,7 +120,7 @@ const Homepage = (): JSX.Element => {
       text: "View all hosts",
     },
     total_host_count: (() => {
-      if (!isHostSummaryFetching) {
+      if (!isHostSummaryFetching && !errorHosts) {
         return `${hostSummaryData?.totals_hosts_count}` || undefined;
       }
 
@@ -144,6 +137,7 @@ const Homepage = (): JSX.Element => {
         showHostsUI={showHostsUI}
         selectedPlatform={selectedPlatform}
         labels={labels}
+        errorHosts={!!errorHosts}
       />
     ),
   });

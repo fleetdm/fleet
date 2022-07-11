@@ -10,16 +10,16 @@ REVSHORT = $(shell git rev-parse --short HEAD)
 USER = $(shell whoami)
 DOCKER_IMAGE_NAME = fleetdm/fleet
 
-ifdef RACE_ENABLED
-RACE_ENABLED_VAR := $(RACE_ENABLED)
+ifdef GO_TEST_EXTRA_FLAGS
+GO_TEST_EXTRA_FLAGS_VAR := $(GO_TEST_EXTRA_FLAGS)
 else
-RACE_ENABLED_VAR := false
+GO_TEST_EXTRA_FLAGS_VAR :=
 endif
 
-ifdef GO_TEST_TIMEOUT
-GO_TEST_TIMEOUT_VAR := $(GO_TEST_TIMEOUT)
+ifdef GO_BUILD_RACE_ENABLED
+GO_BUILD_RACE_ENABLED_VAR := true
 else
-GO_TEST_TIMEOUT_VAR := 10m
+GO_BUILD_RACE_ENABLED_VAR := false
 endif
 
 ifneq ($(OS), Windows_NT)
@@ -113,16 +113,24 @@ help:
 build: fleet fleetctl
 
 fleet: .prefix .pre-build .pre-fleet
-	CGO_ENABLED=1 go build -tags full,fts5,netgo -o build/${OUTPUT} -ldflags ${KIT_VERSION} ./cmd/fleet
+	CGO_ENABLED=1 go build -race=${GO_BUILD_RACE_ENABLED_VAR} -tags full,fts5,netgo -o build/${OUTPUT} -ldflags ${KIT_VERSION} ./cmd/fleet
+
+fleet-dev: GO_BUILD_RACE_ENABLED_VAR=true
+fleet-dev: fleet
 
 fleetctl: .prefix .pre-build .pre-fleetctl
-	CGO_ENABLED=0 go build -o build/fleetctl -ldflags ${KIT_VERSION} ./cmd/fleetctl
+	# Race requires cgo
+	$(eval CGO_ENABLED := $(shell [[ "${GO_BUILD_RACE_ENABLED_VAR}" = "true" ]] && echo 1 || echo 0))
+	CGO_ENABLED=${CGO_ENABLED} go build -race=${GO_BUILD_RACE_ENABLED_VAR} -o build/fleetctl -ldflags ${KIT_VERSION} ./cmd/fleetctl
+
+fleetctl-dev: GO_BUILD_RACE_ENABLED_VAR=true
+fleetctl-dev: fleetctl
 
 lint-js:
 	yarn lint
 
 lint-go:
-	golangci-lint run --skip-dirs ./node_modules
+	golangci-lint run --skip-dirs ./node_modules --timeout 10m
 
 lint: lint-go lint-js
 
@@ -130,7 +138,7 @@ dump-test-schema:
 	go run ./tools/dbutils ./server/datastore/mysql/schema.sql
 
 test-go: dump-test-schema generate-mock
-	go test -tags full,fts5,netgo -timeout=${GO_TEST_TIMEOUT_VAR} -race=${RACE_ENABLED_VAR} -parallel 8 -coverprofile=coverage.txt -covermode=atomic ./cmd/... ./ee/... ./orbit/pkg/... ./orbit/cmd/orbit ./pkg/... ./server/... ./tools/...
+	go test -tags full,fts5,netgo ${GO_TEST_EXTRA_FLAGS_VAR} -parallel 8 -coverprofile=coverage.txt -covermode=atomic ./cmd/... ./ee/... ./orbit/pkg/... ./orbit/cmd/orbit ./pkg/... ./server/... ./tools/...
 
 analyze-go:
 	go test -tags full,fts5,netgo -race -cover ./...
@@ -166,7 +174,7 @@ generate-dev: .prefix
 
 generate-mock: .prefix
 	go install github.com/groob/mockimpl@latest
-	go generate github.com/fleetdm/fleet/v4/server/mock
+	go generate github.com/fleetdm/fleet/v4/server/mock github.com/fleetdm/fleet/v4/server/mock/mockresult
 
 deps: deps-js deps-go
 
@@ -196,6 +204,9 @@ docker-push-release: docker-build-release
 	docker push "${DOCKER_IMAGE_NAME}:${DOCKER_IMAGE_TAG}"
 	docker push fleetdm/fleet:${VERSION}
 	docker push fleetdm/fleet:latest
+
+fleetctl-docker: xp-fleetctl
+	docker build -t fleetdm/fleetctl --platform=linux/amd64 -f tools/fleetctl-docker/Dockerfile .
 
 .pre-binary-bundle:
 	rm -rf build/binary-bundle
@@ -251,11 +262,28 @@ e2e-setup:
 	./build/fleetctl user create --context e2e --email=observer@example.com --name observer --password=password123# --global-role=observer
 	./build/fleetctl user create --context e2e --email=sso_user@example.com --name "SSO user" --sso=true
 
+# Setup e2e test environment and pre-populate database with software and vulnerabilities fixtures.
+#
+# Use in lieu of `e2e-setup` for tests that depend on these fixtures
+e2e-setup-with-software:
+	curl 'https://localhost:8642/api/v1/setup' \
+		--data-raw '{"server_url":"https://localhost:8642","org_info":{"org_name":"Fleet Test"},"admin":{"admin":true,"email":"admin@example.com","name":"Admin","password":"password123#","password_confirmation":"password123#"}}' \
+		--compressed \
+		--insecure
+	./tools/backup_db/restore_e2e_software_test.sh
+
 e2e-serve-free: e2e-reset-db
 	./build/fleet serve --mysql_address=localhost:3307 --mysql_username=root --mysql_password=toor --mysql_database=e2e --server_address=0.0.0.0:8642
 
 e2e-serve-premium: e2e-reset-db
 	./build/fleet serve  --dev_license --mysql_address=localhost:3307 --mysql_username=root --mysql_password=toor --mysql_database=e2e --server_address=0.0.0.0:8642
+
+# Associate a host with a Fleet Desktop token.
+#
+# Usage:
+# make e2e-set-desktop-token host_id=1 token=foo
+e2e-set-desktop-token:
+	docker-compose exec -T mysql_test bash -c 'echo "INSERT INTO e2e.host_device_auth (host_id, token) VALUES ($(host_id), \"$(token)\") ON DUPLICATE KEY UPDATE token=VALUES(token)" | MYSQL_PWD=toor mysql -uroot'
 
 changelog:
 	sh -c "find changes -type f | grep -v .keep | xargs -I {} sh -c 'grep \"\S\" {}; echo' > new-CHANGELOG.md"
@@ -294,7 +322,7 @@ ifneq ($(shell uname), Darwin)
 	@exit 1
 endif
 	$(eval TMP_DIR := $(shell mktemp -d))
-	curl -L https://pkg.osquery.io/darwin/osquery-$(version).pkg --output $(TMP_DIR)/osquery-$(version).pkg
+	curl -L https://github.com/osquery/osquery/releases/download/$(version)/osquery-$(version).pkg --output $(TMP_DIR)/osquery-$(version).pkg
 	pkgutil --expand $(TMP_DIR)/osquery-$(version).pkg $(TMP_DIR)/osquery_pkg_expanded
 	rm -rf $(TMP_DIR)/osquery_pkg_payload_expanded
 	mkdir -p $(TMP_DIR)/osquery_pkg_payload_expanded

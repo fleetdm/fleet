@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"net/http"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	hostctx "github.com/fleetdm/fleet/v4/server/contexts/host"
@@ -111,7 +112,7 @@ func refetchDeviceHostEndpoint(ctx context.Context, request interface{}, svc fle
 	host, ok := hostctx.FromContext(ctx)
 	if !ok {
 		err := ctxerr.Wrap(ctx, fleet.NewAuthRequiredError("internal error: missing host from request context"))
-		return getHostResponse{Err: err}, nil
+		return refetchHostResponse{Err: err}, nil
 	}
 
 	err := svc.RefetchHost(ctx, host.ID)
@@ -137,7 +138,7 @@ func listDeviceHostDeviceMappingEndpoint(ctx context.Context, request interface{
 	host, ok := hostctx.FromContext(ctx)
 	if !ok {
 		err := ctxerr.Wrap(ctx, fleet.NewAuthRequiredError("internal error: missing host from request context"))
-		return getHostResponse{Err: err}, nil
+		return listHostDeviceMappingResponse{Err: err}, nil
 	}
 
 	dms, err := svc.ListHostDeviceMapping(ctx, host.ID)
@@ -163,7 +164,7 @@ func getDeviceMacadminsDataEndpoint(ctx context.Context, request interface{}, sv
 	host, ok := hostctx.FromContext(ctx)
 	if !ok {
 		err := ctxerr.Wrap(ctx, fleet.NewAuthRequiredError("internal error: missing host from request context"))
-		return getHostResponse{Err: err}, nil
+		return getMacadminsDataResponse{Err: err}, nil
 	}
 
 	data, err := svc.MacadminsData(ctx, host.ID)
@@ -196,7 +197,7 @@ func listDevicePoliciesEndpoint(ctx context.Context, request interface{}, svc fl
 	host, ok := hostctx.FromContext(ctx)
 	if !ok {
 		err := ctxerr.Wrap(ctx, fleet.NewAuthRequiredError("internal error: missing host from request context"))
-		return getHostResponse{Err: err}, nil
+		return listDevicePoliciesResponse{Err: err}, nil
 	}
 
 	data, err := svc.ListDevicePolicies(ctx, host)
@@ -213,4 +214,71 @@ func (svc *Service) ListDevicePolicies(ctx context.Context, host *fleet.Host) ([
 	svc.authz.SkipAuthorization(ctx)
 
 	return nil, fleet.ErrMissingLicense
+}
+
+////////////////////////////////////////////////////////////////////////////////
+// Device API features
+////////////////////////////////////////////////////////////////////////////////
+
+type deviceAPIFeaturesRequest struct {
+	Token string `url:"token"`
+}
+
+func (r *deviceAPIFeaturesRequest) deviceAuthToken() string {
+	return r.Token
+}
+
+type deviceAPIFeaturesResponse struct {
+	Err      error                   `json:"error,omitempty"`
+	Features fleet.DeviceAPIFeatures `json:"features"`
+}
+
+func (r deviceAPIFeaturesResponse) error() error { return r.Err }
+
+func deviceAPIFeaturesEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
+	return deviceAPIFeaturesResponse{Features: fleet.DeviceAPIFeatures{}}, nil
+}
+
+////////////////////////////////////////////////////////////////////////////////
+// Transparency URL Redirect
+////////////////////////////////////////////////////////////////////////////////
+
+type transparencyURLRequest struct {
+	Token string `url:"token"`
+}
+
+func (r *transparencyURLRequest) deviceAuthToken() string {
+	return r.Token
+}
+
+type transparencyURLResponse struct {
+	RedirectURL string `json:"-"` // used to control the redirect, see hijackRender method
+	Err         error  `json:"error,omitempty"`
+}
+
+func (r transparencyURLResponse) hijackRender(ctx context.Context, w http.ResponseWriter) {
+	w.Header().Set("Location", r.RedirectURL)
+	w.WriteHeader(http.StatusTemporaryRedirect)
+}
+
+func (r transparencyURLResponse) error() error { return r.Err }
+
+func transparencyURL(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
+	config, err := svc.AppConfig(ctx)
+	if err != nil {
+		return transparencyURLResponse{Err: err}, nil
+	}
+
+	license, err := svc.License(ctx)
+	if err != nil {
+		return transparencyURLResponse{Err: err}, nil
+	}
+
+	transparencyURL := fleet.DefaultTransparencyURL
+	// Fleet Premium license is required for custom transparency url
+	if license.Tier == "premium" && config.FleetDesktop.TransparencyURL != "" {
+		transparencyURL = config.FleetDesktop.TransparencyURL
+	}
+
+	return transparencyURLResponse{RedirectURL: transparencyURL}, nil
 }
