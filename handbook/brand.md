@@ -296,7 +296,7 @@ When deciding whether to describe Fleet as open source or open core, define who 
 | **encryption** | The act of converting data into a cipher that requires a key to be deciphered. |
 | **end-users** | Someone using a distributed device. This could be a computer or a mobile device. |
 | **FileVault** | The macOS feature to encrypt entire drives. |
-| **Firewall** | A network security device that monitors in and out of your network. |
+| **Firewall** | A device or software that is used to block unwanted network traffic. |
 | **fleetctl** | Can be used to accomplish many tasks you would typically need to do through the UI (User Interface). |
 | **Fleetctl CLI** | (Pronounced "Fleet control") A CLI tool for managing Fleet from the command line. Fleetctl enables a GitOps workflow with Fleet and osquery. |
 | **GitHub** | A website that is a cloud-based service to help developers with code management, storage, tracking, and controlling changes. |
