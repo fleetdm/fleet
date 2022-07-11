@@ -304,7 +304,7 @@ When deciding whether to describe Fleet as open source or open core, define who 
 | **IETF** | (Internet Engineering Task Force) An organization that defines standardizing operations of internet protocols |
 | **Internet Engineering Task Force (IETF)** | See: IETF |
 | **IR** | (Incident Response) The actions one takes in response to a security breach or cyberattack. |
-| **Linux** | An open source operating system that is also community developed. |
+| **Linux** | An open source operating system. |
 | **Logica** | An IT and management consultancy company based in the United Kingdom. |
 | **macOS** | The operating system used in all of Apple's Mac computers. |
 | **Munki** | Open-source tools that manage installing and configuring software when used in conjunction with a web server-based repository. |
