@@ -413,13 +413,19 @@ func selectSoftwareSQL(opts fleet.SoftwareListOptions) (string, []interface{}, e
 			"s.release",
 			"s.vendor",
 			"s.arch",
-			// goqu.I("scp.id").As("cpe_id"), // for join on sub query
-			// goqu.COALESCE(goqu.I("scp.cpe"), "").As("generated_cpe"),
+			goqu.I("scp.cpe").As("generated_cpe"),
 		).
 		Join( // filter software that is not associated with any hosts
 			goqu.I("host_software").As("hs"),
 			goqu.On(
 				goqu.I("hs.software_id").Eq(goqu.I("s.id")),
+			),
+		).
+		// Include this in the sub-query in case we want to sort by 'generated_cpe'
+		LeftJoin(
+			goqu.I("software_cpe").As("scp"),
+			goqu.On(
+				goqu.I("s.id").Eq(goqu.I("scp.software_id")),
 			),
 		)
 
@@ -442,26 +448,12 @@ func selectSoftwareSQL(opts fleet.SoftwareListOptions) (string, []interface{}, e
 
 	if opts.VulnerableOnly {
 		ds = ds.
-			// LeftJoin(
-			// 	goqu.I("software_cpe").As("scp"),
-			// 	goqu.On(
-			// 		goqu.I("s.id").Eq(goqu.I("scp.software_id")),
-			// 	),
-			// ).
 			Join(
 				goqu.I("software_cve").As("scv"),
-				goqu.On(
-					goqu.I("s.id").Eq(goqu.I("scv.software_id")),
-				),
+				goqu.On(goqu.I("s.id").Eq(goqu.I("scv.software_id"))),
 			)
 	} else {
 		ds = ds.
-			// LeftJoin(
-			// 	goqu.I("software_cpe").As("scp"),
-			// 	goqu.On(
-			// 		goqu.I("s.id").Eq(goqu.I("scp.software_id")),
-			// 	),
-			// ).
 			LeftJoin(
 				goqu.I("software_cve").As("scv"),
 				goqu.On(goqu.I("s.id").Eq(goqu.I("scv.software_id"))),
@@ -513,11 +505,17 @@ func selectSoftwareSQL(opts fleet.SoftwareListOptions) (string, []interface{}, e
 
 	ds = ds.GroupBy(
 		"s.id",
-		// "scp.id",
-		// "generated_cpe",
+		"s.name",
+		"s.version",
+		"s.source",
+		"s.bundle_identifier",
+		"s.release",
+		"s.vendor",
+		"s.arch",
+		"generated_cpe",
 	)
 
-	// Pagination is a bit more complex here due to left join with software_cve table and aggregated columns from cve_meta table.
+	// Pagination is a bit more complex here due to the join with software_cve table and aggregated columns from cve_meta table.
 	// Apply order by again after joining on sub query
 	ds = appendListOptionsToSelect(ds, opts.ListOptions)
 
@@ -532,23 +530,17 @@ func selectSoftwareSQL(opts fleet.SoftwareListOptions) (string, []interface{}, e
 			"s.release",
 			"s.vendor",
 			"s.arch",
-			// "s.generated_cpe",
+			goqu.COALESCE(goqu.I("s.generated_cpe"), "").As("generated_cpe"),
 			"scv.cve",
-			goqu.COALESCE(goqu.I("scp.cpe"), "").As("generated_cpe"),
-		).
-		LeftJoin(
-			goqu.I("software_cpe").As("scp"),
-			goqu.On(
-				goqu.I("s.id").Eq(goqu.I("scp.software_id")),
-			),
 		).
 		LeftJoin(
 			goqu.I("software_cve").As("scv"),
 			goqu.On(goqu.I("scv.software_id").Eq(goqu.I("s.id"))),
-		).LeftJoin(
-		goqu.I("cve_meta").As("c"),
-		goqu.On(goqu.I("c.cve").Eq(goqu.I("scv.cve"))),
-	)
+		).
+		LeftJoin(
+			goqu.I("cve_meta").As("c"),
+			goqu.On(goqu.I("c.cve").Eq(goqu.I("scv.cve"))),
+		)
 
 	// select optional columns
 	if opts.IncludeCVEScores {
