@@ -293,7 +293,7 @@ When deciding whether to describe Fleet as open source or open core, define who 
 | **DRI** | The person who is singularly responsible for a given aspect of the open source project, the product, or the company. |
 | **EDR** | (Endpoint Detection and Response) Security software that continually audits end-user devices to identify and respond to threats such as malware and ransomware. Also, see EDTR. |
 | **EDTR** | (Endpoint Detection and Threat Response) Security software that continually audits end-user devices to identify and respond to threats such as malware and ransomware. Also, see EDR. |
-| **encryption** | The method used to turn data into secret code. This code keeps the data from being decipherable. |
+| **encryption** | The act of converting data into a cipher that requires a key to be deciphered. |
 | **end-users** | Someone using a distributed device. This could be a computer or a mobile device. |
 | **Filevault** | A program used on a mac to encrypt data. |
 | **Firewall** | A network security device that monitors in and out of your network. |
