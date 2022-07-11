@@ -9,7 +9,6 @@ import (
 	"path/filepath"
 	"regexp"
 	"runtime"
-	"strings"
 	"sync"
 	"time"
 
@@ -18,7 +17,6 @@ import (
 	"github.com/facebookincubator/nvdtools/providers/nvd"
 	"github.com/facebookincubator/nvdtools/wfn"
 	"github.com/fleetdm/fleet/v4/server/fleet"
-	"github.com/fleetdm/fleet/v4/server/vulnerabilities/oval"
 	kitlog "github.com/go-kit/kit/log"
 	"github.com/go-kit/kit/log/level"
 )
@@ -112,26 +110,13 @@ func TranslateCPEToCVE(
 		return nil, nil
 	}
 
-	// TODO: Update this when working on https://github.com/fleetdm/fleet/issues/6538
-	// After we have established that there are no new CPE entries for OVAL platforms, then we don't
-	// need to filter out CPE entries from OVAL platforms any more.
-	//
-	// Skip software from platforms supported by OVAL
-	CPEs, err := ds.ListSoftwareCPEs(ctx, oval.SupportedHostPlatforms)
+	CPEs, err := ds.ListSoftwareCPEs(ctx)
 	if err != nil {
 		return nil, err
 	}
 
 	var parsed []softwareCPEWithNVDMeta
 	for _, CPE := range CPEs {
-		// TODO: Update this when working on https://github.com/fleetdm/fleet/issues/6538
-		// We will be removing any dummies CPEs so this check will not be needed any more.
-		//
-		// Skip dummy CPEs
-		if strings.HasPrefix(CPE.CPE, "none") {
-			continue
-		}
-
 		attr, err := wfn.Parse(CPE.CPE)
 		if err != nil {
 			return nil, err

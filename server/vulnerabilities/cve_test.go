@@ -45,10 +45,10 @@ type threadSafeDSMock struct {
 	*mock.Store
 }
 
-func (d *threadSafeDSMock) ListSoftwareCPEs(ctx context.Context, excludedPlatforms []string) ([]fleet.SoftwareCPE, error) {
+func (d *threadSafeDSMock) ListSoftwareCPEs(ctx context.Context) ([]fleet.SoftwareCPE, error) {
 	d.mu.Lock()
 	defer d.mu.Unlock()
-	return d.Store.ListSoftwareCPEs(ctx, excludedPlatforms)
+	return d.Store.ListSoftwareCPEs(ctx)
 }
 
 func (d *threadSafeDSMock) InsertVulnerabilities(ctx context.Context, vulns []fleet.SoftwareVulnerability, src fleet.VulnerabilitySource) (int64, error) {
@@ -73,7 +73,7 @@ func TestTranslateCPEToCVE(t *testing.T) {
 
 	for _, tt := range cvetests {
 		t.Run(tt.cpe, func(t *testing.T) {
-			ds.ListSoftwareCPEsFunc = func(ctx context.Context, excludedPlatforms []string) ([]fleet.SoftwareCPE, error) {
+			ds.ListSoftwareCPEsFunc = func(ctx context.Context) ([]fleet.SoftwareCPE, error) {
 				return []fleet.SoftwareCPE{
 					{CPE: tt.cpe},
 				}, nil
@@ -108,7 +108,7 @@ func TestTranslateCPEToCVE(t *testing.T) {
 			{CPE: "cpe:2.3:a:mozilla:firefox:-:*:*:*:*:*:*:*", ID: 2, SoftwareID: 2},
 			{CPE: "cpe:2.3:a:haxx:curl:-:*:*:*:*:*:*:*", ID: 3, SoftwareID: 3},
 		}
-		ds.ListSoftwareCPEsFunc = func(ctx context.Context, excludedPlatforms []string) ([]fleet.SoftwareCPE, error) {
+		ds.ListSoftwareCPEsFunc = func(ctx context.Context) ([]fleet.SoftwareCPE, error) {
 			return softwareCPEs, nil
 		}
 
