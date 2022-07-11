@@ -10,16 +10,16 @@ REVSHORT = $(shell git rev-parse --short HEAD)
 USER = $(shell whoami)
 DOCKER_IMAGE_NAME = fleetdm/fleet
 
-ifdef RACE_ENABLED
-RACE_ENABLED_VAR := $(RACE_ENABLED)
+ifdef GO_TEST_EXTRA_FLAGS
+GO_TEST_EXTRA_FLAGS_VAR := $(GO_TEST_EXTRA_FLAGS)
 else
-RACE_ENABLED_VAR := false
+GO_TEST_EXTRA_FLAGS_VAR :=
 endif
 
-ifdef GO_TEST_TIMEOUT
-GO_TEST_TIMEOUT_VAR := $(GO_TEST_TIMEOUT)
+ifdef GO_BUILD_RACE_ENABLED
+GO_BUILD_RACE_ENABLED_VAR := true
 else
-GO_TEST_TIMEOUT_VAR := 10m
+GO_BUILD_RACE_ENABLED_VAR := false
 endif
 
 ifneq ($(OS), Windows_NT)
@@ -113,13 +113,18 @@ help:
 build: fleet fleetctl
 
 fleet: .prefix .pre-build .pre-fleet
-	CGO_ENABLED=1 go build -race=${RACE_ENABLED_VAR} -tags full,fts5,netgo -o build/${OUTPUT} -ldflags ${KIT_VERSION} ./cmd/fleet
+	CGO_ENABLED=1 go build -race=${GO_BUILD_RACE_ENABLED_VAR} -tags full,fts5,netgo -o build/${OUTPUT} -ldflags ${KIT_VERSION} ./cmd/fleet
 
-fleet-dev: RACE_ENABLED_VAR=true
+fleet-dev: GO_BUILD_RACE_ENABLED_VAR=true
 fleet-dev: fleet
 
 fleetctl: .prefix .pre-build .pre-fleetctl
-	CGO_ENABLED=0 go build -o build/fleetctl -ldflags ${KIT_VERSION} ./cmd/fleetctl
+	# Race requires cgo
+	$(eval CGO_ENABLED := $(shell [[ "${GO_BUILD_RACE_ENABLED_VAR}" = "true" ]] && echo 1 || echo 0))
+	CGO_ENABLED=${CGO_ENABLED} go build -race=${GO_BUILD_RACE_ENABLED_VAR} -o build/fleetctl -ldflags ${KIT_VERSION} ./cmd/fleetctl
+
+fleetctl-dev: GO_BUILD_RACE_ENABLED_VAR=true
+fleetctl-dev: fleetctl
 
 lint-js:
 	yarn lint
@@ -133,7 +138,7 @@ dump-test-schema:
 	go run ./tools/dbutils ./server/datastore/mysql/schema.sql
 
 test-go: dump-test-schema generate-mock
-	go test -tags full,fts5,netgo -timeout=${GO_TEST_TIMEOUT_VAR} -race=${RACE_ENABLED_VAR} -parallel 8 -coverprofile=coverage.txt -covermode=atomic ./cmd/... ./ee/... ./orbit/pkg/... ./orbit/cmd/orbit ./pkg/... ./server/... ./tools/...
+	go test -tags full,fts5,netgo ${GO_TEST_EXTRA_FLAGS_VAR} -parallel 8 -coverprofile=coverage.txt -covermode=atomic ./cmd/... ./ee/... ./orbit/pkg/... ./orbit/cmd/orbit ./pkg/... ./server/... ./tools/...
 
 analyze-go:
 	go test -tags full,fts5,netgo -race -cover ./...
