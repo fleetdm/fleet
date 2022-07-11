@@ -130,6 +130,7 @@ const HostSummary = ({
     ) {
       return (
         <span className="info-flex__data">
+<<<<<<< HEAD
           <div
             className="info-flex__disk-space-wrapper tooltip"
             data-tip
@@ -145,6 +146,17 @@ const HostSummary = ({
                 }}
               />
             </div>
+=======
+          <div className="info-flex__disk-space">
+            <div
+              className={`info-flex__disk-space-${diskSpaceIndicator()}`}
+              style={{
+                width: `${100 - titleData.percent_disk_space_available}%`,
+              }}
+              data-tip
+              data-for="disk-space-tooltip"
+            />
+>>>>>>> 8ad68fceb (Host details disk space revamped, Sentence casing)
           </div>
           <ReactTooltip
             place="bottom"
