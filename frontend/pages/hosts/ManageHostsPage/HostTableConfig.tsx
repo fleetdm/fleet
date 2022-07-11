@@ -75,6 +75,14 @@ interface IDeviceUserCellProps {
     original: IHost;
   };
 }
+interface IDiskSpaceCellProps {
+  cell: {
+    value: any;
+  };
+  row: {
+    original: IHost;
+  };
+}
 
 const condenseDeviceUsers = (users: IDeviceUser[]): string[] => {
   if (!users?.length) {
