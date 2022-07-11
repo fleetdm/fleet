@@ -3,7 +3,7 @@
 ### [Building Fleet](./Building-Fleet.md) 
 Learn about building the code, development infrastructure, and database migrations.
 
-### [Testing](./Testing.md) 
+### [Testing](./Testing-and-local-development.md) 
 Look at Fleet's full test suite and integration tests.
 
 ### [Migrations](./Migrations.md)

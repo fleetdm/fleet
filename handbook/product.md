@@ -232,7 +232,7 @@ The goal of quality assurance is to catch unexpected behavior before release:
 
 ### Collecting bugs
 
-All QA steps should be possible using `fleetctl preview`. Please refer to [docs/Contributing/Testing.md](https://fleetdm.com/docs/contributing/testing) for flows that cannot be completed using `fleetctl preview`.
+All QA steps should be possible using `fleetctl preview`. Please refer to [docs/Contributing/Testing-and-local-development.md](https://fleetdm.com/docs/contributing/testing) for flows that cannot be completed using `fleetctl preview`.
 
 Please start the manual QA process by creating a blank GitHub issue. As you complete each
 flow, record a list of the bugs you encounter in this new issue. Each item in this list should

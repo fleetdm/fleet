@@ -1,4 +1,4 @@
-# Testing & local development
+# Testing and local development
 
 - [License key](#license-key)
 - [Simulated hosts](#hosts)
