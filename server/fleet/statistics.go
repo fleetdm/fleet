@@ -21,14 +21,7 @@ type StatisticsPayload struct {
 	NumWeeklyActiveUsers           int                                `json:"numWeeklyActiveUsers"`
 	HostsEnrolledByOperatingSystem map[string][]HostsCountByOSVersion `json:"hostsEnrolledByOperatingSystem"`
 	StoredErrors                   json.RawMessage                    `json:"storedErrors"`
-	// NumHostsNotResponding is the count of hosts that haven't submitted results for distributed queries.
-	//
-	// Notes:
-	//   - We use `2 * interval`, because of the artificial jitter added to the intervals in Fleet.
-	//   - Default values for:
-	//     - host.DistributedInterval is usually 10s.
-	//     - svc.config.Osquery.DetailUpdateInterval is usually 1h.
-	//   - Count only includes hosts seen during the last 7 days.
+	// NumHostsNotResponding is a count of hosts that connect to Fleet successfully but fail to submit results for distributed queries.
 	NumHostsNotResponding int `json:"numHostsNotResponding"`
 }
 

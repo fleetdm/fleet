@@ -1930,20 +1930,10 @@ func countHostsNotRespondingDB(ctx context.Context, db sqlx.QueryerContext, logg
 	// The subquery `WHERE` clause excludes from the count any hosts that were inactive during the
 	// current seven-day statistics reporting period.
 	sql := `
-SELECT
-  h.host_id
-FROM (
-  SELECT
-	  *
-  FROM
-	  hosts
-	  JOIN (
-		  SELECT
-			  *
-		  FROM
-			  host_seen_times
-		  WHERE
-			  host_seen_times.seen_time >= DATE_SUB(NOW(), INTERVAL 7 DAY)) hst ON hosts.id = hst.host_id) h
+SELECT h.host_id FROM (
+  SELECT * FROM hosts JOIN host_seen_times hst ON hosts.id = hst.host_id
+  WHERE hst.seen_time >= DATE_SUB(NOW(), INTERVAL 7 DAY)
+) h
 WHERE
   TIME_TO_SEC(TIMEDIFF(h.seen_time, h.detail_updated_at)) >= (GREATEST(h.distributed_interval, ?) * 2)
 `
