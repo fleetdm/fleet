@@ -60,7 +60,7 @@ WHERE cpe LIKE 'none:%' AND id >= ? AND id < ?;`
 	fmt.Println("Removing cpe_id from software_cve...")
 
 	const removeFkStmt = `
-ALTER TABLE software_cve DROP FOREIGN KEY software_cve_ibfk_1; 
+ALTER TABLE software_cve DROP FOREIGN KEY software_cve_ibfk_1, ALGORITHM=INPLACE, LOCK=NONE; 
 `
 	_, err := tx.Exec(removeFkStmt)
 	if err != nil {
