@@ -54,6 +54,17 @@ interface ICellProps {
   };
 }
 
+interface INumberCellProps {
+  cell: {
+    value: number;
+  };
+  row: {
+    original: IHost;
+    getToggleRowSelectedProps: () => IGetToggleAllRowsSelectedProps;
+    toggleRowSelected: () => void;
+  };
+}
+
 interface IDeviceUserCellProps {
   cell: {
     value: IDeviceUser[];
@@ -192,8 +203,8 @@ const allHostTableHeaders: IDataColumn[] = [
       />
     ),
     accessor: "gigs_disk_space_available",
-    Cell: (cellProps: IDiskSpaceCellProps): JSX.Element => {
-      console.log("cellProps", cellProps);
+    Cell: (cellProps: INumberCellProps): JSX.Element => {
+      const { id, percent_disk_space_available } = cellProps.row.original;
       if (cellProps.cell.value === 0) {
         return <>No data available</>;
       }
