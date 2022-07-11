@@ -295,7 +295,7 @@ When deciding whether to describe Fleet as open source or open core, define who 
 | **EDTR** | (Endpoint Detection and Threat Response) Security software that continually audits end-user devices to identify and respond to threats such as malware and ransomware. Also, see EDR. |
 | **encryption** | The act of converting data into a cipher that requires a key to be deciphered. |
 | **end-users** | Someone using a distributed device. This could be a computer or a mobile device. |
-| **Filevault** | A program used on a mac to encrypt data. |
+| **FileVault** | The macOS feature to encrypt entire drives. |
 | **Firewall** | A network security device that monitors in and out of your network. |
 | **fleetctl** | Can be used to accomplish many tasks you would typically need to do through the UI (User Interface). |
 | **Fleetctl CLI** | (Pronounced "Fleet control") A CLI tool for managing Fleet from the command line. Fleetctl enables a GitOps workflow with Fleet and osquery. |
