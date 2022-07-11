@@ -5,7 +5,7 @@
 
 * Added native support for M1 Macs.
 
-* Added battery health tracking to **Host Details**.
+* Added battery health tracking to **Host details** page.
 
 * Improved reporting of error states on the health dashboard and added separate health checks for MySQL and Redis with `/healthz?check=mysql` and `/healthz?check=redis`.
 
@@ -13,9 +13,7 @@
 
 * Fixed osquery tables that report incorrect platforms.
 
-* Added `docker_container_envs` table to the **Query Builder** UI.
-
-* Added `software_id` column to the `software_cve` table.
+* Added `docker_container_envs` table to the osquery table schema on the **Query* page.
 
 * Updated Fleet host detail query so that the `os_version` for Ubuntu hosts reflects the accurate patch number.
 
@@ -29,9 +27,9 @@
 
 * Added support for scanning RHEL based and Fedora hosts for vulnerable software using OVAL definitions.
 
-* Fixed SQL generated for OS version policies to reduce false negatives
+* Fixed SQL generated for operating system version policies to reduce false negatives
 
-* Added the number of hosts enrolled by OS and OS version to anonymous usage statistics.
+* Added the number of hosts enrolled by operating system (OS) and OS version to anonymous usage statistics.
 
 * Added the weekly active users count to anonymous usage statistics.
 
