@@ -7,9 +7,13 @@ on:
       - patch-*
     paths:
       - '**.go'
+      - 'go.mod'
+      - 'go.sum'
   pull_request:
     paths:
       - '**.go'
+      - 'go.mod'
+      - 'go.sum'
   workflow_dispatch: # Manual
   schedule:
     - cron: '0 4 * * *'
