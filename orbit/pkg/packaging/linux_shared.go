@@ -184,6 +184,9 @@ func buildNFPM(opt Options, pkger nfpm.Packager) (string, error) {
 		},
 	}
 	filename := pkger.ConventionalFileName(info)
+	if opt.NativeTooling {
+		filename = filepath.Join("build", filename)
+	}
 
 	out, err := secure.OpenFile(filename, os.O_CREATE|os.O_RDWR, constant.DefaultFileMode)
 	if err != nil {

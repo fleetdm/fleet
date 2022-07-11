@@ -320,7 +320,26 @@ The CEO will then reply in `#g-people` to indicate that the offer is approved.
    - You can do this between you and CorpNet by selecting "Foreign Qualification," placing the order and emailing the confirmation to the rep for Payroll registration (this is a short turnaround).
    - You can do this on your own by visiting the state's "Secretary of State" website and checking that the company name is available. To register online, you'll need the EIN, business address, information about the owners and their percentages, the first date of business, sales within the state, and the business type (usually get an email right away for approval ~24-48 hrs). 
 
+
 For more information, check out [Fleet - who does what](https://docs.google.com/spreadsheets/d/1FFOudmHmfVFIk-hdIWoPFsvMPmsjnRB8/edit?usp=sharing&ouid=102440584423243016963&rtpof=true&sd=true).
+
+### Taxes and compliance
+
+From time to time, you may get notices in the mail from the IRS and/or state agencies regarding your company’s withholding and/or unemployment tax accounts. Many of these notices can be resolved on your own by verifying and/or updating the settings in your Gusto account. 
+
+If the notice is regarding an upcoming change to your deposit schedule or unemployment tax rate, Charlie will make the change in Gusto. Including: 
+ - Update your unemployment tax rate.
+ - Update your federal deposit schedule.
+ - Update your state deposit schedule.
+
+**Important** Agencies do not send notices to Gusto directly so it’s important that you read and take action before any listed deadlines or effective dates of requested changes.
+
+Notices you should report to Gusto
+If you can't resolve the notice on your own, are unsure what the notice is in reference to, or the tax notice has a missing payment or balance owed, follow the steps in the Report and upload a tax notice in Gusto.
+
+In Gusto, cick "How to review your notice" to help you understand what kind of notice you received and what additional action you can take to help speed up the time it takes to resolve the issue.
+
+For more information about how Fleet and our accounting team work together, check out [Fleet - who does what](https://docs.google.com/spreadsheets/d/1FFOudmHmfVFIk-hdIWoPFsvMPmsjnRB8/edit#gid=829046836) (private doc).
 
 ## Team member onboarding
 

@@ -3,7 +3,7 @@ import React from "react";
 import ReactTooltip from "react-tooltip";
 
 import { IMDMData, IMunkiData, IDeviceUser } from "interfaces/host";
-import { humanHostUptime, humanHostEnrolled } from "utilities/helpers";
+import { humanHostLastRestart, humanHostEnrolled } from "utilities/helpers";
 
 interface IAboutProps {
   aboutData: { [key: string]: any };
@@ -138,14 +138,17 @@ const About = ({
   };
 
   const renderBattery = () => {
-    if (typeof aboutData.batteries !== "object") {
+    if (
+      aboutData.batteries === null ||
+      typeof aboutData.batteries !== "object"
+    ) {
       return null;
     }
     return (
       <div className="info-grid__block">
         <span className="info-grid__header">Battery</span>
         <span className="info-grid__data">
-          {aboutData.batteries[0]?.health}
+          {aboutData.batteries?.[0]?.health}
         </span>
       </div>
     );
@@ -159,7 +162,10 @@ const About = ({
           <div className="info-grid__block">
             <span className="info-grid__header">Last restarted</span>
             <span className="info-grid__data">
-              {wrapFleetHelper(humanHostUptime, aboutData.uptime)}
+              {humanHostLastRestart(
+                aboutData.detail_updated_at,
+                aboutData.uptime
+              )}
             </span>
           </div>
           <div className="info-grid__block">
@@ -193,7 +199,10 @@ const About = ({
         <div className="info-grid__block">
           <span className="info-grid__header">Last restarted</span>
           <span className="info-grid__data">
-            {wrapFleetHelper(humanHostUptime, aboutData.uptime)}
+            {humanHostLastRestart(
+              aboutData.detail_updated_at,
+              aboutData.uptime
+            )}
           </span>
         </div>
         <div className="info-grid__block">
