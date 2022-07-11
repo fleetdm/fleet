@@ -333,7 +333,7 @@ When deciding whether to describe Fleet as open source or open core, define who 
 | **Transport Layer Security (TLS)** | See: TLS |
 | **UI** | (User Interface) An interactive space in a program that concentrates on style and intuitive use. |
 | **URL** | Uniform resource locator. Specifies where a web resource is located (ex: https://fleetdm.com/articles/) |
-| **vulnerabilities** | An exploitable weakness that can lead to unapproved access to a computer system. |
+| **vulnerabilities** | An exploitable weakness that can lead to unauthorized access or other negative consequences to a computer system. |
 | **Windows** | Microsoft's graphical operating system. |
 | **YAML** | A data serialized language that has features derived from Perl, C, HTML, and other languages and is often used to write configuration files. |
 
