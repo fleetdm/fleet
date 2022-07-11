@@ -30,7 +30,7 @@ func TestUpgradeAToB(t *testing.T) {
 		}
 
 		return true
-	}, 5 * time.Minute, 5 * time.Second)
+	}, 5*time.Minute, 5*time.Second)
 
 	err = f.Upgrade("v4.16.0")
 	require.NoError(t, err)
@@ -52,5 +52,5 @@ func TestUpgradeAToB(t *testing.T) {
 		}
 
 		return true
-	}, 5 * time.Minute, 5 * time.Second)
+	}, 5*time.Minute, 5*time.Second)
 }

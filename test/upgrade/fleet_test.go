@@ -47,6 +47,7 @@ type Fleet struct {
 // NewFleet starts fleet and it's dependencies with the specified version.
 func NewFleet(t *testing.T, version string) *Fleet {
 	// don't use test name because it will be normalized
+	//nolint:gosec // does not need to be secure for tests
 	projectName := "fleet-test-" + strconv.FormatUint(rand.Uint64(), 16)
 
 	dockerClient, err := client.NewClientWithOpts(client.FromEnv)
@@ -256,7 +257,7 @@ func (f *Fleet) waitFleet(slot string) error {
 func (f *Fleet) cleanup() {
 	output, err := f.execCompose(nil, "down", "-v", "--remove-orphans")
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "stop fleet: %v %s", err, string(output))
+		fmt.Fprintf(os.Stderr, "stop fleet: %v %s", err, output)
 	}
 }
 
