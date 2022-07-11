@@ -75,6 +75,10 @@
         }
       }
 
+      &__disk-space-wrapper {
+        display: inline-block;
+      }
+
       &__disk-space {
         display: inline-block;
         height: 4px;
@@ -83,6 +87,7 @@
         border-radius: 2px;
         margin-right: $pad-small;
         overflow: hidden;
+        margin-bottom: 2px;
       }
 
       &__disk-space-green {

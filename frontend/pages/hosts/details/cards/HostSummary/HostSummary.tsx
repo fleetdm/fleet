@@ -173,15 +173,19 @@ const HostSummary = ({
     ) {
       return (
         <span className="info-flex__data">
-          <div className="info-flex__disk-space">
-            <div
-              className={`info-flex__disk-space-${diskSpaceIndicator()}`}
-              style={{
-                width: `${100 - titleData.percent_disk_space_available}%`,
-              }}
-              data-tip
-              data-for="disk-space-tooltip"
-            />
+          <div
+            className="info-flex__disk-space-wrapper"
+            data-tip
+            data-for="disk-space-tooltip"
+          >
+            <div className="info-flex__disk-space">
+              <div
+                className={`info-flex__disk-space-${diskSpaceIndicator()}`}
+                style={{
+                  width: `${100 - titleData.percent_disk_space_available}%`,
+                }}
+              />
+            </div>
           </div>
           <ReactTooltip
             place="bottom"
