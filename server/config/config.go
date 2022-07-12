@@ -306,6 +306,13 @@ type HTTPBasicAuthConfig struct {
 	Password string `json:"password" yaml:"password"`
 }
 
+// PackagingConfig holds configuration to build and retrieve Fleet packages
+type PackagingConfig struct {
+	// GlobalEnrollSecret is the enroll secret that will be used to enroll
+	// hosts in the global scope
+	GlobalEnrollSecret string `yaml:"global_enroll_secret"`
+}
+
 // FleetConfig stores the application configuration. Each subcategory is
 // broken up into it's own struct, defined above. When editing any of these
 // structs, Manager.addConfigs and Manager.LoadConfig should be
@@ -333,6 +340,7 @@ type FleetConfig struct {
 	Sentry           SentryConfig
 	GeoIP            GeoIPConfig
 	Prometheus       PrometheusConfig
+	Packaging        PackagingConfig
 }
 
 type TLS struct {
@@ -643,6 +651,9 @@ func (man Manager) addConfigs() {
 	// Prometheus
 	man.addConfigString("prometheus.basic_auth.username", "", "Prometheus username for HTTP Basic Auth")
 	man.addConfigString("prometheus.basic_auth.password", "", "Prometheus password for HTTP Basic Auth")
+
+	// Packaging config
+	man.addConfigString("packaging.global_enroll_secret", "", "Enroll secret to be used for the global domain (instead of randomly generating one)")
 }
 
 // LoadConfig will load the config variables into a fully initialized
@@ -835,6 +846,9 @@ func (man Manager) LoadConfig() FleetConfig {
 				Username: man.getConfigString("prometheus.basic_auth.username"),
 				Password: man.getConfigString("prometheus.basic_auth.password"),
 			},
+		},
+		Packaging: PackagingConfig{
+			GlobalEnrollSecret: man.getConfigString("packaging.global_enroll_secret"),
 		},
 	}
 
