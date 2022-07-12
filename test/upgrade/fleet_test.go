@@ -237,6 +237,7 @@ func (f *Fleet) waitFleet(slot string) error {
 
 	if err := backoff.Retry(
 		func() error {
+			//nolint:gosec // G107: Ok to trust docker here
 			resp, err := http.Get(healthURL)
 			if err != nil {
 				return err
