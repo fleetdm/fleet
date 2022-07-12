@@ -209,7 +209,7 @@ type ExpiryInput struct {
 	ID string `query:"id" validate:"required"`
 }
 type ExpiryOutput struct {
-	Timestamp string
+    Timestamp string `json:"timestamp"`
 }
 
 func GetExpiry(c *gin.Context, in *ExpiryInput) (ret *ExpiryOutput, err error) {
