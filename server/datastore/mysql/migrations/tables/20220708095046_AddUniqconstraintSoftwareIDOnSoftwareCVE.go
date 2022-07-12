@@ -21,6 +21,7 @@ SELECT software_id, cve, COUNT(1) FROM software_cve GROUP BY software_id, cve HA
 	if err != nil {
 		return errors.Wrap(err, "selecting duplicates")
 	}
+	defer rows.Close()
 
 	type criteria struct {
 		softwareID uint
@@ -41,6 +42,11 @@ SELECT software_id, cve, COUNT(1) FROM software_cve GROUP BY software_id, cve HA
 		fmt.Printf("Found duplicated row software_id: %d, cve:%s\n", softwareID, cve)
 		criterias = append(criterias, criteria{softwareID: softwareID, cve: cve, count: count})
 	}
+
+	if err := rows.Err(); err != nil {
+		return errors.Wrap(err, "scanning duplicate rows")
+	}
+	rows.Close()
 
 	for _, c := range criterias {
 		if _, err := tx.Exec(
