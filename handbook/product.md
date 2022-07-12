@@ -398,9 +398,9 @@ All tooltips change the cursor to a question mark on hover. All tooltips have a 
 
 There are two types of tooltips. The two types of tooltips have some unique styles:
 
-1. Tooltips for text (column headers, input titles, inline text) appear when hovering over text with a dashed underline. These tooltips use left aligned text.
+1. Tooltips for text (column headers, input titles, inline text) appear when hovering over any text with a dashed underline. These tooltips use left-aligned text.
 
-2. Tooltips for buttons, bubbles, table row elements, and other non-text elements appear when hovering over the element. These tooltips use center aligned text. These tooltips include a centered arrow.
+2. Tooltips for buttons, bubbles, table row elements, and other non-text elements appear when hovering over the element. These tooltips use center-aligned text. These tooltips include a centered arrow.
 
 ## Release 
 
