@@ -7,6 +7,10 @@ resource "aws_lb" "main" {
   enable_deletion_protection = true
 }
 
+output "lb" {
+  value = aws_lb.main
+}
+
 resource "aws_security_group" "lb" {
   name   = "${var.prefix}-lb"
   vpc_id = var.vpc.vpc_id

@@ -117,6 +117,10 @@ resource "aws_lambda_function" "jitprovisioner" {
   }
 }
 
+output "jitprovisioner" {
+  value = aws_lambda_function.jitprovisioner
+}
+
 resource "random_uuid" "jitprovisioner" {
   keepers = {
     lambda = data.archive_file.jitprovisioner.output_sha

@@ -108,10 +108,10 @@ func triggerSFN(id, expiry string) (err error) {
 		return
 	}
 	sfnInStr, err := json.Marshal(struct {
-		InstanceId string `json:"instanceId"`
+		InstanceID string `json:"instanceID"`
 		WaitTime   int    `json:"waitTime"`
 	}{
-		InstanceId: id,
+		InstanceID: id,
 		WaitTime:   int(endTime.Sub(time.Now()).Seconds()),
 	})
 	if err != nil {

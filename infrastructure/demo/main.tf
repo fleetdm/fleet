@@ -141,8 +141,13 @@ module "jit-provisioner" {
 }
 
 module "monitoring" {
-  source = "./Monitoring"
-  prefix = local.prefix
+  source         = "./Monitoring"
+  prefix         = local.prefix
+  slack_webhook  = var.slack_webhook
+  lb             = module.shared-infrastructure.lb
+  jitprovisioner = module.jit-provisioner.jitprovisioner
+  deprovisioner  = module.jit-provisioner.deprovisioner
+  dynamodb_table = aws_dynamodb_table.lifecycle-table
 }
 
 resource "aws_dynamodb_table" "lifecycle-table" {
@@ -195,3 +200,5 @@ resource "aws_ecs_cluster" "main" {
     value = "enabled"
   }
 }
+
+variable "slack_webhook" {}

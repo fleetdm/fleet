@@ -236,6 +236,10 @@ resource "aws_sfn_state_machine" "main" {
 EOF
 }
 
+output "deprovisioner" {
+  value = aws_sfn_state_machine.main
+}
+
 resource "random_uuid" "deprovisioner" {
   keepers = {
     lambda = data.archive_file.deprovisioner.output_sha
