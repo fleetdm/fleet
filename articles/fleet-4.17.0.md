@@ -9,7 +9,7 @@ For update instructions, see our [upgrade guide](https://fleetdm.com/docs/deploy
 ## Highlights
 - Manage osquery across your organization. 
 - Engage with your users through Fleet Desktop.
-- Battery condition added to **Host Details** for MacOS.
+- Battery condition added to **Host Details** for macOS.
 
 ## Manage osquery across your organization.
 **Available in Fleet Free and Fleet Premium**
