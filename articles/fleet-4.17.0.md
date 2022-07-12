@@ -62,7 +62,7 @@ In 4.17.0, we also:
 
 * Improved accuracy of the `last_restarted` date. 
 
-* Fixed `/api/_version_/fleet/hosts/identifier/{identifier}` to return the correct value for `host.status`.
+* Fixed `/api/v1/fleet/hosts/identifier/{identifier}` to return the correct value for `host.status`.
 
 * Improved logging when fleetctl encounters permissions errors.
 
