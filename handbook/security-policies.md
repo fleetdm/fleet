@@ -21,7 +21,7 @@ Effective security is a team effort. This involves the participation and support
 All Fleet employees and long-term collaborators are expected to read and electronically sign the *acceptable use of end-user computing* policy. They should also be aware of the others and consult them as needed. This is to make sure systems built and used are done in a compliant manner.
 
 ### Acceptable use of end-user computing
-*Created from [JupiterOne/security-policy-templates](https://github.com/JupiterOne/security-policy-templates). [CC BY-SA 4 license](https://creativecommons.org/licenses/by-sa/4.0/)*
+_Created from [JupiterOne/security-policy-templates](https://github.com/JupiterOne/security-policy-templates). [CC BY-SA 4 license](https://creativecommons.org/licenses/by-sa/4.0/)_
 
 | Policy owner   | Effective date |
 | -------------- | -------------- |
