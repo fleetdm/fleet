@@ -632,7 +632,7 @@ func (si *softwareIterator) Next() bool {
 }
 
 // AllSoftwareWithoutCPEIterator Returns an iterator for the 'software' table, filtering out
-// software entries without CPEs and from the platforms included in the 'excludedPlatforms' param.
+// software entries with CPEs and from the platforms included in the 'excludedPlatforms' param.
 func (ds *Datastore) AllSoftwareWithoutCPEIterator(ctx context.Context, excludedPlatforms []string) (fleet.SoftwareIterator, error) {
 	var err error
 	var args []interface{}
