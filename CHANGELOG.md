@@ -15,7 +15,6 @@
 
 * Added `docker_container_envs` table to the osquery table schema on the **Query* page.
 
-
 * Updated Fleet host detail query so that the `os_version` for Ubuntu hosts reflects the accurate patch number.
 
 * Improved accuracy of `software_host_counts` by removing hosts from the count if software has been uninstalled.
