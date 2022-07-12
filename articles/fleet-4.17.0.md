@@ -19,7 +19,7 @@ Fleet's osquery installer (Orbit) is out of beta! Orbit is a lightweight wrapper
 
 Future plans for the installer include adding the ability to manage `osquery` extensions and enrollment flags across your organization without needing to reinstall anything or ssh in to individual machines. A simple, one-stop shop for remotely managing `osquery`.
 
-You can generate your installer using [`fleetctl package`](https://fleetdm.com/docs/deploying/fleetctl-agent-updates#packaging-with-orbit). If you're enrolling your host to a Fleet server, he best place to find the full command with flags specific to your Fleet instance is **Hosts > Add hosts** in the Fleet UI. Once the installer has been generated, just extract the file and run it on the host!
+You can generate your installer using the [`fleetctl`] CLI tool. (https://fleetdm.com/docs/deploying/fleetctl-agent-updates#packaging-with-orbit). If you're enrolling your host to a Fleet server, he best place to find the full command with flags specific to your Fleet instance is **Hosts > Add hosts** in the Fleet UI. Once the installer has been generated, just extract the file and run it on the host!
 
 [Read more about bringing Orbit out of beta.](https://github.com/fleetdm/fleet/issues/5454)
 
