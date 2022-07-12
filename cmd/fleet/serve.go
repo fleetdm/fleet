@@ -269,15 +269,15 @@ the way that the Fleet server works.
 					initFatal(err, "loading enroll secrets")
 				}
 
-				var gotSecret bool
+				var globalEnrollSecret string
 				for _, secret := range secrets {
 					if secret.TeamID == nil {
-						gotSecret = true
+						globalEnrollSecret = secret.Secret
 						break
 					}
 				}
 
-				if gotSecret {
+				if globalEnrollSecret != "" && globalEnrollSecret != config.Packaging.GlobalEnrollSecret {
 					fmt.Printf("################################################################################\n" +
 						"# WARNING:\n" +
 						"#  You have provided a global enroll secret config, but there's\n" +
