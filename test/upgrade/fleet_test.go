@@ -3,6 +3,7 @@ package upgrade
 import (
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"math/rand"
 	"net/http"
@@ -207,14 +208,14 @@ func (f *Fleet) getPublicPort(serviceName string, privatePort uint16) (uint16, e
 		return 0, err
 	}
 	if len(containers) == 0 {
-		return 0, fmt.Errorf("no containers found")
+		return 0, errors.New("no containers found")
 	}
 	for _, port := range containers[0].Ports {
 		if port.PrivatePort == privatePort {
 			return port.PublicPort, nil
 		}
 	}
-	return 0, fmt.Errorf("private port not found")
+	return 0, errors.New("private port not found")
 }
 
 func (f *Fleet) waitFleet(slot string) error {
@@ -227,7 +228,7 @@ func (f *Fleet) waitFleet(slot string) error {
 		return err
 	}
 	if len(containers) == 0 {
-		return fmt.Errorf("no fleet container found")
+		return errors.New("no fleet container found")
 	}
 	port := containers[0].Ports[0].PublicPort
 	healthURL := fmt.Sprintf("http://localhost:%d/healthz", port)
@@ -304,7 +305,7 @@ func (f *Fleet) StartHost() (string, error) {
 		return "", err
 	}
 	if len(enrollSecretSpec.Secrets) == 0 {
-		return "", fmt.Errorf("no enroll secret found")
+		return "", errors.New("no enroll secret found")
 	}
 
 	enrollSecret := enrollSecretSpec.Secrets[0].Secret
