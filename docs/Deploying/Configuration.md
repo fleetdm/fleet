@@ -2542,8 +2542,8 @@ cryptographically secure pseudo random string. For example, using `openssl`:
 openssl rand -base64 24
 ```
 
-When this config is set, the value for the global enroll token is overriden in
-the database.
+This config only takes effect if you don't have a global enroll secret already
+stored in your database.
 
 - Default value: `""`
 - Environment variable: `FLEET_PACKAGING_GLOBAL_ENROLL_SECRET`
