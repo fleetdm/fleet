@@ -321,7 +321,7 @@
 
     <%/* Stripe.js */%>
     <script src="https://js.stripe.com/v3/"></script>
-    
+
     <%/* Linkedin Ads Insight tag */%>
     <script type="text/javascript">
     _linkedin_partner_id = "4365817";
@@ -361,7 +361,7 @@
               hamburgerMenuIcon.src = '/images/icon-hamburger-16x14@2x.png'
               return;
           }
-          if(scrollTop > lastScrollTop && scrollTop > window.innerHeight) {
+          if(scrollTop > lastScrollTop && scrollTop > window.innerHeight * 1.5) {
             header.classList.add('translate-y-0');
           } else {
             if(header.classList.contains('homepage-header') && scrollTop > 16) {
