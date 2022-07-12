@@ -263,6 +263,13 @@ the way that the Fleet server works.
 				}
 			}
 
+			// If a global enroll secret is provided, replace the current enroll
+			// secret with it. This global value is also used as the default enroll
+			// secret in the middleware if the application is not setup yet.
+			if config.Packaging.GlobalEnrollSecret != "" {
+				ds.ApplyEnrollSecrets(cmd.Context(), nil, []*fleet.EnrollSecret{{Secret: config.Packaging.GlobalEnrollSecret}})
+			}
+
 			redisPool, err := redis.NewPool(redis.PoolConfig{
 				Server:                    config.Redis.Address,
 				Password:                  config.Redis.Password,

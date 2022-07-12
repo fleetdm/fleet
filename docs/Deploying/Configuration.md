@@ -2522,3 +2522,27 @@ If not set then the Prometheus `/metrics` endpoint is disabled.
     basic_auth:
       password: "bar"
   ```
+
+#### Packaging
+
+Configurations used to control how Fleet interacts with the packaging server.
+These features are currently only intended to be used within Fleet Sandbox, but
+this is subject to change.
+
+##### packaging.global_enroll_secret
+
+Enroll secret to use for adding hosts to the global scope. If this value is
+set, the server won't allow to change the enroll token via the config
+endpoints.
+
+When this config is set, the value for the global enroll token is overriden in
+the database.
+
+- Default value: `""`
+- Environment variable: `FLEET_PACKAGING_GLOBAL_ENROLL_SECRET`
+- Config file format:
+
+  ```yaml
+  packaging:
+    global_enroll_secret: "xyz"
+  ```
