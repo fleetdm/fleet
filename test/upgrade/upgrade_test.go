@@ -15,7 +15,7 @@ func TestUpgradeAToB(t *testing.T) {
 	}
 
 	versionB := os.Getenv("FLEET_VERSION_B")
-	if versionA == "" {
+	if versionB == "" {
 		t.Skip("Missing environment variable FLEET_VERSION_B")
 	}
 
