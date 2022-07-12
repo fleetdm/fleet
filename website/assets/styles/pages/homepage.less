@@ -106,6 +106,9 @@
     padding: 27px 87px 34px 87px;
     img {
       margin-right: 60px;
+      height: auto;
+      width: 100%;
+      max-width: 309px;
     }
     a {
       font-weight: 400;
@@ -141,6 +144,9 @@
   }
 
   @media (max-width: 990px) {
+    [purpose='hero-banner'] {
+      padding-top: 172px;
+    }
     [purpose='tweets'] {
       [purpose='tweet-card'] {
         flex: 1 1 295px;
@@ -170,7 +176,7 @@
 
   }
 
-  @media (max-width: 768px) {
+  @media (max-width: 769px) {
     [purpose='tweets'] {
       padding-left: 52px;
       padding-right: 52px;
@@ -182,7 +188,7 @@
       background: linear-gradient(0deg, rgba(255, 255, 255, 1) 0%, rgba(255, 255, 255, 1) 23%, rgba(255, 255, 255, 0) 48%, rgba(255, 255, 255, 0) 100%);
     }
     [purpose='hero-banner'] {
-      padding-top: 172px;
+      padding-top: 222px;
     }
     [purpose='report-banner-container'] {
       padding-right: 15px;
@@ -198,6 +204,11 @@
       };
     }
   }
+  @media (max-width: 605px){
+    [purpose='hero-banner'] {
+      padding-top: 242px;
+    }
+  }
 
   @media (max-width: 600px) {
     [purpose='log-destination'] {
@@ -205,12 +216,13 @@
       p {
         display: none;
       }
+
     }
   }
 
-  @media (max-width: 576px) {
+  @media (max-width: 575px) {
     h1 {
-      font-size: 32px;
+      font-size: 28px;
       line-height: 36px;
     }
     h6 {
@@ -228,13 +240,22 @@
       }
     }
     [purpose='hero-banner'] {
-      padding-top: 192px;
+      padding-top: 216px;
     }
   }
-
+  @media (max-width: 395px){
+    [purpose='hero-banner'] {
+      padding-top: 236px;
+    }
+  }
   @media (max-width: 355px) {
     [purpose='log-destination'] {
       flex-basis: 80px;
+    }
+  }
+  @media (max-width: 330px) {
+    [purpose='hero-banner'] {
+      padding-top: 256px;
     }
   }
 
