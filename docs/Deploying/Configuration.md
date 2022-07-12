@@ -2525,15 +2525,22 @@ If not set then the Prometheus `/metrics` endpoint is disabled.
 
 #### Packaging
 
-Configurations used to control how Fleet interacts with the packaging server.
-These features are currently only intended to be used within Fleet Sandbox, but
-this is subject to change.
+Configurations used to control how Fleet interacts with the (coming soon)
+packaging server.  These features are currently only intended to be used within
+Fleet Sandbox, but this is subject to change.
 
 ##### packaging.global_enroll_secret
 
 Enroll secret to use for adding hosts to the global scope. If this value is
-set, the server won't allow to change the enroll token via the config
+set, the server won't allow changes to the enroll secret via the config
 endpoints.
+
+This value should be treated as a secret, we recommend using a
+cryptographically secure pseudo random string. For example, using `openssl`:
+
+```
+openssl rand -base64 24
+```
 
 When this config is set, the value for the global enroll token is overriden in
 the database.
