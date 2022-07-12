@@ -33,6 +33,7 @@ linters-settings:
     settings:
       ruleguard:
         rules: "./tools/ci/rules.go"
+        failOn: all
 
   gofmt:
     # simplify code: gofmt with `-s` option, true by default
