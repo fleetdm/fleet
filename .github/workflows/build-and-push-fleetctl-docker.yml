@@ -40,5 +40,7 @@ jobs:
         run: make fleetctl-docker
 
       - name: Push to Docker
-        run: docker push fleetdm/fleetctl:${{ inputs.image_tag }}
+        run: |
+          docker tag fleetdm/fleetctl fleetdm/fleetctl:${{ inputs.image_tag }}
+          docker push fleetdm/fleetctl:${{ inputs.image_tag }}
 
