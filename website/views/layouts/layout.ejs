@@ -106,7 +106,7 @@
           <a href="/" style="max-width: 118px;">
             <% /* The homepage-header on the homepage has a white fleet logo */ %>
             <% if (isHomepage) { %>
-            <img alt="Fleet logo" src="/images/logo-white-118x48@2x.png" style="width: 118px; height: 48px;"/>
+            <img alt="Fleet logo" src="/images/logo-white-162x92@2x.png" style="width: 162px; height: 92px;"/>
             <% } else { %>
             <img alt="Fleet logo" src="/images/logo-blue-162x92@2x.png" style="height: 92px; width: 162px;"/>
             <% } %>
@@ -349,34 +349,29 @@
     <script>
         var lastScrollTop = 0;
         var header = document.querySelector('.header') || document.querySelector('.homepage-header')
-
         window.addEventListener('scroll', windowScrolled)
 
         function windowScrolled() {
-            var scrollTop = window.pageYOffset || document.documentElement.scrollTop
-            var fleetLogo = header.querySelector('img')
-            var hamburgerMenuIcon = header.querySelector('.btn.btn-link > img')
-
-            if(scrollTop == 0 && header.classList.contains('homepage-header')) {
-                header.classList.remove('sticky')
-                fleetLogo.src = '/images/logo-white-118x48@2x.png'
-                fleetLogo.style = 'width: 118px; height: 48px;'
-                hamburgerMenuIcon.src = '/images/icon-hamburger-16x14@2x.png'
-
-                return;
+          var scrollTop = window.pageYOffset || document.documentElement.scrollTop
+          var fleetLogo = header.querySelector('img')
+          var hamburgerMenuIcon = header.querySelector('.btn.btn-link > img')
+          if(scrollTop == 0 && header.classList.contains('homepage-header')) {
+              header.classList.remove('sticky')
+              fleetLogo.src = '/images/logo-white-162x92@2x.png'
+              hamburgerMenuIcon.src = '/images/icon-hamburger-16x14@2x.png'
+              return;
+          }
+          if(scrollTop > lastScrollTop && scrollTop > window.innerHeight) {
+            header.classList.add('translate-y-0');
+          } else {
+            if(header.classList.contains('homepage-header') && scrollTop > 16) {
+              header.classList.add('sticky')
+              fleetLogo.src = '/images/logo-blue-162x92@2x.png'
+              hamburgerMenuIcon.src="/images/icon-hamburger-blue-16x14@2x.png"
             }
-            if (scrollTop > lastScrollTop && scrollTop > window.innerHeight * 1.5) {
-                header.classList.add('translate-y-0');
-             } else {
-                if(header.classList.contains('homepage-header') && scrollTop > header.clientHeight) {
-                    header.classList.add('sticky')
-                    fleetLogo.src = '/images/logo-blue-162x92@2x.png'
-                    fleetLogo.style = 'height: 92px; width: 162px;'
-                    hamburgerMenuIcon.src="/images/icon-hamburger-blue-16x14@2x.png"
-                }
-                header.classList.remove('translate-y-0');
-            }
-            lastScrollTop = scrollTop
+              header.classList.remove('translate-y-0');
+          }
+          lastScrollTop = scrollTop;
         }
     </script>
 
