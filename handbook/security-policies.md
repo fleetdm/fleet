@@ -21,7 +21,7 @@ Effective security is a team effort. This involves the participation and support
 All Fleet employees and long-term collaborators are expected to read and electronically sign the *acceptable use of end-user computing* policy. They should also be aware of the others and consult them as needed. This is to make sure systems built and used are done in a compliant manner.
 
 ### Acceptable use of end-user computing
-*Created from [JupiterOne/security-policy-templates](https://github.com/JupiterOne/security-policy-templates). [CC BY-SA 4 license](https://creativecommons.org/licenses/by-sa/4.0/)*
+> _Created from [JupiterOne/security-policy-templates](https://github.com/JupiterOne/security-policy-templates). [CC BY-SA 4 license](https://creativecommons.org/licenses/by-sa/4.0/)_
 
 | Policy owner   | Effective date |
 | -------------- | -------------- |
@@ -56,7 +56,7 @@ Fleet requires all workforce members to comply with the following acceptable use
 13. The use of Fleet company accounts on "shared" computers, such as hotel kiosk systems, is strictly prohibited.
 
 ## Access control policy
-*Created from [JupiterOne/security-policy-templates](https://github.com/JupiterOne/security-policy-templates). [CC BY-SA 4 license](https://creativecommons.org/licenses/by-sa/4.0/)*
+> _Created from [JupiterOne/security-policy-templates](https://github.com/JupiterOne/security-policy-templates). [CC BY-SA 4 license](https://creativecommons.org/licenses/by-sa/4.0/)_
 
 | Policy owner   | Effective date |
 | -------------- | -------------- |
@@ -113,7 +113,7 @@ Fleet policy requires that:
 2. use of high privilege accounts must only be performed when absolutely necessary.
 
 ## Asset management policy
-*Created from [JupiterOne/security-policy-templates](https://github.com/JupiterOne/security-policy-templates). [CC BY-SA 4 license](https://creativecommons.org/licenses/by-sa/4.0/)*
+> _Created from [JupiterOne/security-policy-templates](https://github.com/JupiterOne/security-policy-templates). [CC BY-SA 4 license](https://creativecommons.org/licenses/by-sa/4.0/)_
 
 | Policy owner   | Effective date |
 | -------------- | -------------- |
@@ -130,7 +130,7 @@ Fleet policy requires that:
 3. All company-owned computer purchases must be tracked.
 
 ## Business continuity and disaster recovery policy
-*Created from [JupiterOne/security-policy-templates](https://github.com/JupiterOne/security-policy-templates). [CC BY-SA 4 license](https://creativecommons.org/licenses/by-sa/4.0/)*
+> _Created from [JupiterOne/security-policy-templates](https://github.com/JupiterOne/security-policy-templates). [CC BY-SA 4 license](https://creativecommons.org/licenses/by-sa/4.0/)_
 
 | Policy owner   | Effective date |
 | -------------- | -------------- |
@@ -211,7 +211,7 @@ This section discusses activities necessary for restoring full Fleet automatic u
 If the Fleet automatic updater environment has been restored, the continuity plan can be deactivated. If the disaster impacted the company and not the service or both, make sure that any leftover systems created temporarily are destroyed.
 
 ## Data management policy
-*Created from [JupiterOne/security-policy-templates](https://github.com/JupiterOne/security-policy-templates). [CC BY-SA 4 license](https://creativecommons.org/licenses/by-sa/4.0/)*
+> _Created from [JupiterOne/security-policy-templates](https://github.com/JupiterOne/security-policy-templates). [CC BY-SA 4 license](https://creativecommons.org/licenses/by-sa/4.0/)_
 
 This policy outlines the requirements and controls/procedures Fleet has implemented to manage the end-to-end data lifecycle, from data creation/acquisition to retention and deletion.
 
@@ -320,7 +320,7 @@ Most Fleet data is **public** yet retained and backed up not due to our data han
 
 
 ## Encryption policy
-*Created from [JupiterOne/security-policy-templates](https://github.com/JupiterOne/security-policy-templates). [CC BY-SA 4 license](https://creativecommons.org/licenses/by-sa/4.0/)*
+> _Created from [JupiterOne/security-policy-templates](https://github.com/JupiterOne/security-policy-templates). [CC BY-SA 4 license](https://creativecommons.org/licenses/by-sa/4.0/)_
 
 | Policy owner   | Effective date |
 | -------------- | -------------- |
@@ -355,7 +355,7 @@ Encryption and key management for local disk encryption of end-user devices foll
 4. Transmission encryption keys are limited to use for one year and then must be regenerated.
 
 ## Human resources security policy
-*Created from [JupiterOne/security-policy-templates](https://github.com/JupiterOne/security-policy-templates). [CC BY-SA 4 license](https://creativecommons.org/licenses/by-sa/4.0/)*
+> _Created from [JupiterOne/security-policy-templates](https://github.com/JupiterOne/security-policy-templates). [CC BY-SA 4 license](https://creativecommons.org/licenses/by-sa/4.0/)_
 
 | Policy owner   | Effective date |
 | -------------- | -------------- |
@@ -395,7 +395,7 @@ Fleet policy requires that:
 13. An [anonymous](https://docs.google.com/forms/d/e/1FAIpQLSdv2abLfCUUSxFCrSwh4Ou5yF80c4V2K_POoYbHt3EU1IY-sQ/viewform?vc=0&c=0&w=1&flr=0&fbzx=4276110450338060288) form to report unethical behavior will be provided to employees.
 
 ## Incident response policy
-*Created from [JupiterOne/security-policy-templates](https://github.com/JupiterOne/security-policy-templates). [CC BY-SA 4 license](https://creativecommons.org/licenses/by-sa/4.0/). Based on the SANS incident response process.*
+> _Created from [JupiterOne/security-policy-templates](https://github.com/JupiterOne/security-policy-templates). [CC BY-SA 4 license](https://creativecommons.org/licenses/by-sa/4.0/). Based on the SANS incident response process._
 
 Fleet policy requires that:
 
@@ -672,7 +672,7 @@ incident response plan annually.
 
 
 ### Information security roles and responsibilities
-*Created from [Vanta](https://www.vanta.com/) policy templates.*
+> _Created from [Vanta](https://www.vanta.com/) policy templates._
 
 | Policy owner   | Effective date |
 | -------------- | -------------- |
@@ -692,7 +692,7 @@ CTO                                             | Oversight over information sec
 | Head of business operations                     | Responsible for oversight over third-party risk management process; responsible for review of vendor service contracts                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       |
 
 ## Operations security and change management policy
-*Created from [JupiterOne/security-policy-templates](https://github.com/JupiterOne/security-policy-templates). [CC BY-SA 4 license](https://creativecommons.org/licenses/by-sa/4.0/)*
+> _Created from [JupiterOne/security-policy-templates](https://github.com/JupiterOne/security-policy-templates). [CC BY-SA 4 license](https://creativecommons.org/licenses/by-sa/4.0/)_
 
 | Policy owner   | Effective date |
 | -------------- | -------------- |
@@ -713,7 +713,7 @@ Fleet policy requires
     fully documented and validated for each request.
 
 ## Risk management policy
-*Created from [JupiterOne/security-policy-templates](https://github.com/JupiterOne/security-policy-templates). [CC BY-SA 4 license](https://creativecommons.org/licenses/by-sa/4.0/)*
+> _Created from [JupiterOne/security-policy-templates](https://github.com/JupiterOne/security-policy-templates). [CC BY-SA 4 license](https://creativecommons.org/licenses/by-sa/4.0/)_
 
 | Policy owner   | Effective date |
 | -------------- | -------------- |
@@ -745,7 +745,7 @@ All other risks must be individually reviewed and managed.
 
 
 ## Secure software development and product security policy 
-*Created from [JupiterOne/security-policy-templates](https://github.com/JupiterOne/security-policy-templates). [CC BY-SA 4 license](https://creativecommons.org/licenses/by-sa/4.0/)*
+> _Created from [JupiterOne/security-policy-templates](https://github.com/JupiterOne/security-policy-templates). [CC BY-SA 4 license](https://creativecommons.org/licenses/by-sa/4.0/)_
 
 Fleet policy requires that:
 
@@ -775,7 +775,7 @@ Fleet policy requires that:
 10. Any exception to the remediation of a finding must be documented and approved by the security team or CTO.
 
 ## Security policy management policy
-*Created from [JupiterOne/security-policy-templates](https://github.com/JupiterOne/security-policy-templates). [CC BY-SA 4 license](https://creativecommons.org/licenses/by-sa/4.0/)*
+> _Created from [JupiterOne/security-policy-templates](https://github.com/JupiterOne/security-policy-templates). [CC BY-SA 4 license](https://creativecommons.org/licenses/by-sa/4.0/)_
 
 | Policy owner   | Effective date |
 | -------------- | -------------- |
@@ -807,7 +807,7 @@ Fleet policy requires that:
     the expiration date.
 
 ## Third-party management policy
-*Created from [JupiterOne/security-policy-templates](https://github.com/JupiterOne/security-policy-templates). [CC BY-SA 4 license](https://creativecommons.org/licenses/by-sa/4.0/)*
+> _Created from [JupiterOne/security-policy-templates](https://github.com/JupiterOne/security-policy-templates). [CC BY-SA 4 license](https://creativecommons.org/licenses/by-sa/4.0/)_
 
 | Policy owner   | Effective date |
 | -------------- | -------------- |
