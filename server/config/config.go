@@ -76,13 +76,14 @@ const (
 
 // ServerConfig defines configs related to the Fleet server
 type ServerConfig struct {
-	Address    string
-	Cert       string
-	Key        string
-	TLS        bool
-	TLSProfile string `yaml:"tls_compatibility"`
-	URLPrefix  string `yaml:"url_prefix"`
-	Keepalive  bool   `yaml:"keepalive"`
+	Address        string
+	Cert           string
+	Key            string
+	TLS            bool
+	TLSProfile     string `yaml:"tls_compatibility"`
+	URLPrefix      string `yaml:"url_prefix"`
+	Keepalive      bool   `yaml:"keepalive"`
+	SandboxEnabled bool   `yaml:"sandbox_enabled"`
 }
 
 // AuthConfig defines configs related to user authorization
@@ -449,7 +450,9 @@ func (man Manager) addConfigs() {
 	man.addConfigString("server.url_prefix", "",
 		"URL prefix used on server and frontend endpoints")
 	man.addConfigBool("server.keepalive", true,
-		"Controls wether HTTP keep-alives are enabled.")
+		"Controls whether HTTP keep-alives are enabled.")
+	man.addConfigBool("server.sandbox_enabled", false,
+		"When enabled, Fleet limits some features for the Sandbox")
 
 	// Auth
 	man.addConfigInt("auth.bcrypt_cost", 12,
@@ -694,13 +697,14 @@ func (man Manager) LoadConfig() FleetConfig {
 			ReadTimeout:               man.getConfigDuration("redis.read_timeout"),
 		},
 		Server: ServerConfig{
-			Address:    man.getConfigString("server.address"),
-			Cert:       man.getConfigString("server.cert"),
-			Key:        man.getConfigString("server.key"),
-			TLS:        man.getConfigBool("server.tls"),
-			TLSProfile: man.getConfigTLSProfile(),
-			URLPrefix:  man.getConfigString("server.url_prefix"),
-			Keepalive:  man.getConfigBool("server.keepalive"),
+			Address:        man.getConfigString("server.address"),
+			Cert:           man.getConfigString("server.cert"),
+			Key:            man.getConfigString("server.key"),
+			TLS:            man.getConfigBool("server.tls"),
+			TLSProfile:     man.getConfigTLSProfile(),
+			URLPrefix:      man.getConfigString("server.url_prefix"),
+			Keepalive:      man.getConfigBool("server.keepalive"),
+			SandboxEnabled: man.getConfigBool("server.sandbox_enabled"),
 		},
 		Auth: AuthConfig{
 			BcryptCost:  man.getConfigInt("auth.bcrypt_cost"),
