@@ -1164,7 +1164,7 @@ func testDeleteSoftwareVulnerabilities(t *testing.T, ds *Datastore) {
 
 	err = ds.DeleteSoftwareVulnerabilities(ctx, []fleet.SoftwareVulnerability{
 		{
-			SoftwareID: 999, // unknown CPE
+			SoftwareID: 999, // unknown software
 			CVE:        "CVE-2022-0003",
 		},
 	})
