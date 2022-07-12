@@ -15,7 +15,7 @@ For update instructions, see our [upgrade guide](https://fleetdm.com/docs/deploy
 **Available in Fleet Free and Fleet Premium**
 
 ![Manage osquery across your organization..](../website/assets/images/articles/fleet-4.17.0-1-1600x900@2x.jpg)
-Fleet's osquery installer is out of beta! Orbit is a lightweight wrapper for osquery that automates the process of installing, updating and configuring osquery on all of your devices. Even if you're not using Fleet!
+Fleet's osquery installer (Orbit) is out of beta! Orbit is a lightweight wrapper for osquery that automates the process of installing, updating and configuring osquery on all of your devices. Even if you're not using Fleet!
 
 Future plans for the installer include adding the ability to manage `osquery` extensions and enrollment flags across your organization without needing to reinstall anything or ssh in to individual machines. A simple, one-stop shop for remotely managing `osquery`.
 
