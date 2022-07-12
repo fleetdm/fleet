@@ -263,11 +263,33 @@ the way that the Fleet server works.
 				}
 			}
 
-			// If a global enroll secret is provided, replace the current enroll
-			// secret with it. This global value is also used as the default enroll
-			// secret in the middleware if the application is not setup yet.
 			if config.Packaging.GlobalEnrollSecret != "" {
-				ds.ApplyEnrollSecrets(cmd.Context(), nil, []*fleet.EnrollSecret{{Secret: config.Packaging.GlobalEnrollSecret}})
+				secrets, err := ds.GetEnrollSecrets(cmd.Context(), nil)
+				if err != nil {
+					initFatal(err, "loading enroll secrets")
+				}
+
+				var globalEnrollSecret string
+				for _, secret := range secrets {
+					if secret.TeamID == nil {
+						globalEnrollSecret = secret.Secret
+						break
+					}
+				}
+
+				if globalEnrollSecret != config.Packaging.GlobalEnrollSecret {
+					fmt.Printf("################################################################################\n" +
+						"# WARNING:\n" +
+						"#  You have provided a global enroll secret config, but there's" +
+						"#  already a different one set up for your application." +
+						"#\n" +
+						"#  This is generally an error and the provided value will be" +
+						"#  ignored, if you really need to configure an enroll secret please" +
+						"#  remove the global enroll secret from the database manually.\n" +
+						"################################################################################\n")
+				} else {
+					ds.ApplyEnrollSecrets(cmd.Context(), nil, []*fleet.EnrollSecret{{Secret: config.Packaging.GlobalEnrollSecret}})
+				}
 			}
 
 			redisPool, err := redis.NewPool(redis.PoolConfig{
