@@ -23,7 +23,7 @@ The best email configuration ever is not enough to protect from BEC and other ty
 
 If you think you can't fall victim to these emails, you probably have not received one that was sufficiently well-targeted and delivered at precisely the right time.
 
-As defenders, we often say that while we must always be perfect, attackers only need to succeed once. As [Joe Slowik](https://www.dragos.com/blog/industry-news/the-myth-of-the-adversary-advantage/) explained in this excellent blog post a couple of years ago, that is seldom true. As defenders, we have the high ground, but we often fail to leverage it.
+As defenders, we often say that while we must always be perfect, attackers only need to succeed once. As [Joe Slowik](https://www.dragos.com/blog/industry-news/the-myth-of-the-adversary-advantage/) explained in this excellent blog post a couple of years ago, that is seldom true. We defenders have the high ground, but we often fail to leverage it.
 
 Since we know the attackers are looking for money, instead of trying to train people to be perfect at spotting scams, which is impossible, let's secure the cash!
 
@@ -32,7 +32,7 @@ Since we know the attackers are looking for money, instead of trying to train pe
 If someone can break into your bank accounts directly, they won't need to come up with a convincing email or text message to convince you to move money. It is therefore critical to enable the most advanced security features your bank offers. Unfortunately, in North America, many banks fail to offer any 2FA or only offer SMS-based 2FA, which is the weakest form of 2FA but is still better than nothing.
 
 0. Keep the number of people with online banking access as low as possible.
-1. If available, enable 2FA. Prefer FIDO U2F (very rare right now with banks) where possible and app-based 2FA otherwise. As a last resort, use SMS 2FA.
+1. If available, enable 2FA. FIDO U2F, although very rare right now with banks, is preferable. Otherwise, use app-based 2FA. As a last resort, use SMS 2FA.
 2. If a setting exists to make 2FA prompt either *always* or *when the risk level is high*, set it to *always*. Weaker options leave the doors wide open for someone to bypass 2FA.
 
 Some banks allow organizational-level controls, but most do not. You might have to talk to everyone with access to your online banking and check their 2FA configuration, but if you don't have more than a handful, it's worth doing.
