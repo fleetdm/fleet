@@ -102,13 +102,6 @@ func WithJob(id string, fn JobFn) Option {
 	}
 }
 
-// errHandler handles errors returned by a Job
-func errHandler(ctx context.Context, logger log.Logger, jobID string, err error) {
-	level.Error(logger).Log("err", jobID, "details", err)
-	sentry.CaptureException(err)
-	ctxerr.Handle(ctx, err)
-}
-
 // New creates and returns a Schedule.
 // Jobs are added with the WithJob Option.
 //
