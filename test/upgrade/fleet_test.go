@@ -41,7 +41,6 @@ type Fleet struct {
 	ActiveSlot  string
 	Token       string
 
-	HTTPClient   *http.Client
 	dockerClient client.ContainerAPIClient
 }
 
@@ -238,7 +237,7 @@ func (f *Fleet) waitFleet(slot string) error {
 
 	if err := backoff.Retry(
 		func() error {
-			resp, err := f.HTTPClient.Get(healthURL)
+			resp, err := http.Get(healthURL)
 			if err != nil {
 				return err
 			}
