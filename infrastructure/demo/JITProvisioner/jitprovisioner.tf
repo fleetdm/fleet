@@ -84,6 +84,11 @@ data "aws_iam_policy_document" "jitprovisioner" {
     actions   = ["states:StartExecution"]
     resources = [aws_sfn_state_machine.main.arn]
   }
+
+  statement {
+    actions   = ["states:DescribeExecution"]
+    resources = ["*"]
+  }
 }
 
 resource "aws_iam_role_policy_attachment" "jitprovisioner" {

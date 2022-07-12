@@ -9,6 +9,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/aws/arn"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/dynamodb"
 	"github.com/aws/aws-sdk-go/service/dynamodb/dynamodbattribute"
@@ -21,6 +22,7 @@ import (
 	_ "go.elastic.co/apm/v2"
 	"log"
 	"math/rand"
+	"strings"
 	"time"
 )
 
@@ -37,6 +39,37 @@ type LifecycleRecord struct {
 	ID      string
 	State   string
 	RedisDB int `dynamodbav:"redis_db"`
+}
+
+func getExpiry(id string) (ret time.Time, err error) {
+	var execArn arn.ARN
+	var exec *sfn.DescribeExecutionOutput
+	var input struct {
+		WaitTime int `json:"waitTime"`
+	}
+
+	execArn, err = arn.Parse(options.LifecycleSFN)
+	if err != nil {
+		return
+	}
+	execArn.Resource = fmt.Sprintf("execution:%s:%s", strings.Split(execArn.Resource, ":")[1], id)
+
+	exec, err = sfn.New(session.New()).DescribeExecution(&sfn.DescribeExecutionInput{
+		ExecutionArn: aws.String(execArn.String()),
+	})
+	if err != nil {
+		return
+	}
+
+	if err = json.Unmarshal([]byte(*exec.Input), &input); err != nil {
+		return
+	}
+	var dur time.Duration
+	if dur, err = time.ParseDuration(fmt.Sprintf("%ds", input.WaitTime)); err != nil {
+		return
+	}
+	ret = exec.StartDate.Add(dur)
+	return
 }
 
 func claimFleet(fleet LifecycleRecord, svc *dynamodb.DynamoDB) (err error) {
@@ -118,9 +151,9 @@ func triggerSFN(id, expiry string) (err error) {
 		return
 	}
 	sfnIn := sfn.StartExecutionInput{
-		Input: aws.String(string(sfnInStr)),
-		Name:  aws.String(id),
-        StateMachineArn: aws.String(options.LifecycleSFN),
+		Input:           aws.String(string(sfnInStr)),
+		Name:            aws.String(id),
+		StateMachineArn: aws.String(options.LifecycleSFN),
 	}
 	_, err = sfn.New(session.New()).StartExecution(&sfnIn)
 	return
@@ -172,6 +205,23 @@ func NewFleet(c *gin.Context, in *NewFleetInput) (ret *NewFleetOutput, err error
 	return
 }
 
+type ExpiryInput struct {
+	ID string `query:"id" validate:"required"`
+}
+type ExpiryOutput struct {
+	Timestamp string
+}
+
+func GetExpiry(c *gin.Context, in *ExpiryInput) (ret *ExpiryOutput, err error) {
+	ret = &ExpiryOutput{}
+	var expiry time.Time
+	if expiry, err = getExpiry(in.ID); err != nil {
+		return
+	}
+	ret.Timestamp = expiry.Format(time.RFC3339)
+	return
+}
+
 func main() {
 	rand.Seed(time.Now().Unix())
 	var err error
@@ -197,5 +247,6 @@ func main() {
 	f.GET("/openapi.json", nil, f.OpenAPI(infos, "json"))
 	f.GET("/health", nil, tonic.Handler(Health, 200))
 	f.POST("/new", nil, tonic.Handler(NewFleet, 200))
+	f.GET("/expires", nil, tonic.Handler(GetExpiry, 200))
 	algnhsa.ListenAndServe(r, nil)
 }
