@@ -277,14 +277,14 @@ the way that the Fleet server works.
 					}
 				}
 
-				if globalEnrollSecret != config.Packaging.GlobalEnrollSecret {
+				if globalEnrollSecret != "" {
 					fmt.Printf("################################################################################\n" +
 						"# WARNING:\n" +
-						"#  You have provided a global enroll secret config, but there's" +
-						"#  already a different one set up for your application." +
+						"#  You have provided a global enroll secret config, but there's\n" +
+						"#  already one set up for your application.\n" +
 						"#\n" +
-						"#  This is generally an error and the provided value will be" +
-						"#  ignored, if you really need to configure an enroll secret please" +
+						"#  This is generally an error and the provided value will be\n" +
+						"#  ignored, if you really need to configure an enroll secret please\n" +
 						"#  remove the global enroll secret from the database manually.\n" +
 						"################################################################################\n")
 				} else {
