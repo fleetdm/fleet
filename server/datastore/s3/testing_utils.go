@@ -8,6 +8,7 @@ import (
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/s3"
 	"github.com/fleetdm/fleet/v4/server/config"
+	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/stretchr/testify/require"
 )
 
@@ -41,17 +42,17 @@ func setupInstallerStore(tb testing.TB, bucket, prefix string) *InstallerStore {
 	return store
 }
 
-func seedInstallerStore(tb testing.TB, store *InstallerStore, enrollSecret string) []*Installer {
+func seedInstallerStore(tb testing.TB, store *InstallerStore, enrollSecret string) []*fleet.Installer {
 	checkEnv(tb)
-	installers := []*Installer{
-		{enrollSecret, "pkg", false},
-		{enrollSecret, "msi", false},
-		{enrollSecret, "deb", false},
-		{enrollSecret, "rpm", false},
-		{enrollSecret, "pkg", true},
-		{enrollSecret, "msi", true},
-		{enrollSecret, "deb", true},
-		{enrollSecret, "rpm", true},
+	installers := []*fleet.Installer{
+		{EnrollSecret: enrollSecret, Kind: "pkg", Desktop: false},
+		{EnrollSecret: enrollSecret, Kind: "msi", Desktop: false},
+		{EnrollSecret: enrollSecret, Kind: "deb", Desktop: false},
+		{EnrollSecret: enrollSecret, Kind: "rpm", Desktop: false},
+		{EnrollSecret: enrollSecret, Kind: "pkg", Desktop: true},
+		{EnrollSecret: enrollSecret, Kind: "msi", Desktop: true},
+		{EnrollSecret: enrollSecret, Kind: "deb", Desktop: true},
+		{EnrollSecret: enrollSecret, Kind: "rpm", Desktop: true},
 	}
 
 	for _, i := range installers {
@@ -61,12 +62,12 @@ func seedInstallerStore(tb testing.TB, store *InstallerStore, enrollSecret strin
 	return installers
 }
 
-func uploadMockInstaller(tb testing.TB, store *InstallerStore, installer *Installer) {
+func uploadMockInstaller(tb testing.TB, store *InstallerStore, installer *fleet.Installer) {
 	checkEnv(tb)
 	_, err := store.s3client.PutObject(&s3.PutObjectInput{
 		Bucket: &store.bucket,
 		Body:   aws.ReadSeekCloser(strings.NewReader(mockInstallerContents)),
-		Key:    aws.String(installer.key()),
+		Key:    aws.String(keyForInstaller(*installer)),
 	})
 	require.NoError(tb, err)
 }
