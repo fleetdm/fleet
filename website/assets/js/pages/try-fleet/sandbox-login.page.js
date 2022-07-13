@@ -41,7 +41,7 @@ parasails.registerPage('sandbox-login', {
 
     submittedLoginForm: async function() {
       this.syncing = true;
-      window.location = '/try-fleet/sandbox'
+      window.location = '/try-fleet/sandbox';
     }
   }
 });
