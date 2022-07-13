@@ -28,13 +28,13 @@ const (
 // CarveStore is a type implementing the CarveStore interface
 // relying on AWS S3 storage
 type CarveStore struct {
-	*datastore
+	*s3Store
 	metadatadb fleet.CarveStore
 }
 
 // NewCarveStore creates a new store with the given config
 func NewCarveStore(config config.S3Config, metadatadb fleet.CarveStore) (*CarveStore, error) {
-	s3Store, err := newDatastore(config)
+	s3Store, err := newS3Store(config)
 	if err != nil {
 		return nil, err
 	}
