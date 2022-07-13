@@ -245,6 +245,12 @@ const generateTableHeaders = (currentUser: IUser): IDataColumn[] => {
                 !isAnyTeamMaintainerOrTeamAdmin ||
                 row.original.author_id === currentUser.id
               }
+              className={`${
+                !(
+                  !isAnyTeamMaintainerOrTeamAdmin ||
+                  row.original.author_id === currentUser.id
+                ) && "tooltip"
+              }`}
             >
               <Checkbox {...checkboxProps} />
             </div>{" "}

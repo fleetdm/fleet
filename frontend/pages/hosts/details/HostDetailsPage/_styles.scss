@@ -207,7 +207,6 @@
       margin-right: $pad-small;
 
       .refetch-btn {
-        cursor: default;
         font-size: $x-small;
         height: 38px;
         margin-right: $pad-small;
@@ -230,7 +229,7 @@
         opacity: 25%;
 
         &:hover {
-          cursor: default;
+          cursor: help;
         }
       }
 
@@ -441,6 +440,13 @@
       width: auto;
     }
 
+    &:hover {
+      cursor: help;
+    }
+  }
+
+  .vulnerabilities-tooltip,
+  .host-details__query-button.button--disabled {
     &:hover {
       cursor: help;
     }

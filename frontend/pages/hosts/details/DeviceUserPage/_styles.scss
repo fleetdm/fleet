@@ -229,7 +229,7 @@
         opacity: 25%;
 
         &:hover {
-          cursor: default;
+          cursor: help;
         }
       }
 
@@ -539,4 +539,10 @@
   margin: 0;
   padding: 0;
   display: flex;
+}
+
+.vulnerabilities-tooltip {
+  &:hover {
+    cursor: help;
+  }
 }

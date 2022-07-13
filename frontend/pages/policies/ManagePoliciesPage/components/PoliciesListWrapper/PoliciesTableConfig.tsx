@@ -162,7 +162,7 @@ const generateTableHeaders = (options: {
             return (
               <>
                 <span
-                  className="text-cell text-muted has-not-run"
+                  className="text-cell text-muted has-not-run tooltip"
                   data-tip
                   data-for={`passing_${cellProps.row.original.id.toString()}`}
                 >
@@ -212,7 +212,7 @@ const generateTableHeaders = (options: {
             return (
               <>
                 <span
-                  className="text-cell text-muted has-not-run"
+                  className="text-cell text-muted has-not-run tooltip"
                   data-tip
                   data-for={`failing_${cellProps.row.original.id.toString()}`}
                 >

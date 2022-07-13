@@ -209,7 +209,9 @@ export const generateSoftwareTableHeaders = (
           <>
             <span
               className={`vulnerabilities ${
-                vulnerabilities.length > 1 ? "text-muted" : ""
+                vulnerabilities.length > 1
+                  ? "text-muted vulnerabilities-tooltip"
+                  : ""
               }`}
               data-tip
               data-for={`vulnerabilities__${cellProps.row.original.id}`}

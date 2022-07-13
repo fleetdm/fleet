@@ -93,6 +93,12 @@
     margin-left: 12px;
   }
 
+  &__btn.button--disabled {
+    &:hover {
+      cursor: help;
+    }
+  }
+
   &__invite-admin {
     margin-bottom: 8px;
   }
