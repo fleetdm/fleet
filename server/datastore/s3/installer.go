@@ -19,13 +19,13 @@ const (
 // Installer describes an installer in an S3 bucket
 type Installer struct {
 	enrollSecret string
-	ext          string
+	kind         string
 	desktop      bool
 }
 
 // key builds an S3 key to search for the installer
 func (p Installer) key() string {
-	file := fmt.Sprintf("%s.%s", executable, p.ext)
+	file := fmt.Sprintf("%s.%s", executable, p.kind)
 	dir := ""
 	if p.desktop {
 		dir = desktopPath
