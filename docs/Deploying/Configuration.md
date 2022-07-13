@@ -2579,7 +2579,8 @@ Prefix to prepend when searching for installers.
   ```
   packaging:
     s3:
-      prefix: carves-go-here/
+      prefix:
+        installers-go-here/
   ```
 
 ##### packaging_s3_access_key_id
@@ -2632,7 +2633,7 @@ AWS STS role ARN to use for S3 authentication.
 ##### packaging_s3_endpoint_url
 
 AWS S3 Endpoint URL. Override when using a different S3 compatible object storage backend (such as Minio),
-or running s3 locally with localstack. Leave this blank to use the default S3 service endpoint.
+or running s3 locally with localstack. Leave this blank to use the default AWS S3 service endpoint.
 
 - Default value: ""
 - Environment variable: `FLEET_PACKAGING_S3_ENDPOINT_URL`
@@ -2702,7 +2703,7 @@ spec:
   packaging:
     s3:
       bucket: some-bucket
-      prefix: installers/
+      prefix: installers-go-here/
       access_key_id: AKIAIOSFODNN7EXAMPLE
       secret_access_key: wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY
       sts_assume_role_arn: arn:aws:iam::1234567890:role/some-s3-role
