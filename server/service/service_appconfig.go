@@ -42,9 +42,12 @@ func (svc *Service) NewAppConfig(ctx context.Context, p fleet.AppConfig) (*fleet
 	}
 
 	// Set up a default enroll secret
-	secret, err := server.GenerateRandomText(fleet.EnrollSecretDefaultLength)
-	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "generate enroll secret string")
+	secret := svc.config.Packaging.GlobalEnrollSecret
+	if secret == "" {
+		secret, err = server.GenerateRandomText(fleet.EnrollSecretDefaultLength)
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "generate enroll secret string")
+		}
 	}
 	secrets := []*fleet.EnrollSecret{
 		{

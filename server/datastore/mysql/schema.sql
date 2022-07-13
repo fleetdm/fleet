@@ -141,7 +141,7 @@ CREATE TABLE `host_batteries` (
   `host_id` int(10) unsigned NOT NULL,
   `serial_number` varchar(255) NOT NULL,
   `cycle_count` int(10) NOT NULL,
-  `health` varchar(10) NOT NULL,
+  `health` varchar(40) NOT NULL,
   `created_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
   `updated_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`),
