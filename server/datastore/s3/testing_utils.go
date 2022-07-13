@@ -98,8 +98,8 @@ func cleanupStore(tb testing.TB, store *InstallerStore) {
 }
 
 func checkEnv(tb testing.TB) {
-	if _, ok := os.LookupEnv("FILE_STORAGE_TEST"); !ok {
-		tb.Skip("set FILE_STORAGE_TEST environment variable to run S3-based tests")
+	if _, ok := os.LookupEnv("MINIO_STORAGE_TEST"); !ok {
+		tb.Skip("set MINIO_STORAGE_TEST environment variable to run S3-based tests")
 
 	}
 }
