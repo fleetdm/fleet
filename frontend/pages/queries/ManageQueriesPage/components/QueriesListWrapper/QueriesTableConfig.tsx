@@ -18,7 +18,7 @@ import HeaderCell from "components/TableContainer/DataTable/HeaderCell/HeaderCel
 import PlatformCell from "components/TableContainer/DataTable/PlatformCell";
 import TextCell from "components/TableContainer/DataTable/TextCell";
 import PillCell from "components/TableContainer/DataTable/PillCell";
-import TooltipWrapper from "components/ElementTooltipWrapper";
+import TooltipWrapper from "components/TooltipWrapper";
 
 interface IQueryRow {
   id: string;
