@@ -1,5 +1,6 @@
 services:
   mysql:
+    platform: ${FLEET_MYSQL_PLATFORM:-linux/x86_64}
     image: mysql:5.7
     environment:
       MYSQL_ROOT_PASSWORD: toor
