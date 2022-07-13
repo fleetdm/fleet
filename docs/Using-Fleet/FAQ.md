@@ -283,6 +283,8 @@ Apart from an admin [disabling usage](https://fleetdm.com/docs/using-fleet/usage
 
 ## How do I downgrade from Fleet Premium to Fleet Free?
 
+If you'd like to renew your Fleet Premium license key, please contact us [here](https://fleetdm.com/company/contact).
+
 How to downgrade from Fleet Premium to Fleet Free:
 
 First, back up your users and update all team-level users to global users:
@@ -320,7 +322,3 @@ Lastly, remove your Fleet Premium license key:
 1. Remove your license key from your Fleet configuration. Documentation on where the license key is
    located in your configuration is [here](https://fleetdm.com/docs/deploying/configuration#license).
 2. Restart your Fleet server.
-
-
-
-
