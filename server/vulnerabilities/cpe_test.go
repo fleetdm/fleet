@@ -37,19 +37,42 @@ func TestCPEFromSoftware(t *testing.T) {
 	require.NoError(t, err)
 
 	// checking an non existent version returns empty
-	cpe, err := CPEFromSoftware(db, &fleet.Software{Name: "Vendor Product-1.app", Version: "2.3.4", Source: "apps"})
+	cpe, err := CPEFromSoftware(db, &fleet.Software{Name: "Vendor Product-1.app", Version: "2.3.4", Source: "apps"}, nil)
 	require.NoError(t, err)
 	require.Equal(t, "", cpe)
 
 	// checking a version that exists works
-	cpe, err = CPEFromSoftware(db, &fleet.Software{Name: "Vendor Product-1.app", Version: "1.2.3", Source: "apps"})
+	cpe, err = CPEFromSoftware(db, &fleet.Software{Name: "Vendor Product-1.app", Version: "1.2.3", Source: "apps"}, nil)
 	require.NoError(t, err)
 	require.Equal(t, "cpe:2.3:a:vendor:product-1:1.2.3:*:*:*:*:macos:*:*", cpe)
 
 	// follows many deprecations
-	cpe, err = CPEFromSoftware(db, &fleet.Software{Name: "Vendor2 Product2.app", Version: "0.3", Source: "apps"})
+	cpe, err = CPEFromSoftware(db, &fleet.Software{Name: "Vendor2 Product2.app", Version: "0.3", Source: "apps"}, nil)
 	require.NoError(t, err)
 	require.Equal(t, "cpe:2.3:a:vendor2:product4:999:*:*:*:*:macos:*:*", cpe)
+
+	// handles translations
+	translations := CPETranslations{
+		{
+			Match: CPETranslationMatch{
+				Name:   []string{"X"},
+				Source: []string{"apps"},
+			},
+			Translation: CPETranslation{
+				Product: []string{"product-1"},
+				Vendor:  []string{"vendor"},
+			},
+		},
+	}
+	software := &fleet.Software{
+		Name:    "X",
+		Version: "2.3.4",
+		Source:  "apps",
+	}
+	cpe, err = CPEFromSoftware(db, software, translations)
+	require.NoError(t, err)
+	require.Equal(t, "", cpe)
+	// cpe, err := CPEFromSoftware(db, &fleet.Software{Name: "Vendor Product-1.app", Version: "2.3.4", Source: "apps"}, nil)
 }
 
 func TestSyncCPEDatabase(t *testing.T) {
@@ -69,22 +92,22 @@ func TestSyncCPEDatabase(t *testing.T) {
 
 	// and this works afterwards
 	software := &fleet.Software{Name: "1Password.app", Version: "7.2.3", Source: "apps"}
-	cpe, err := CPEFromSoftware(db, software)
+	cpe, err := CPEFromSoftware(db, software, nil)
 	require.NoError(t, err)
 	require.Equal(t, "cpe:2.3:a:1password:1password:7.2.3:beta0:*:*:*:macos:*:*", cpe)
 
-	npmCPE, err := CPEFromSoftware(db, &fleet.Software{Name: "Adaltas Mixme 0.4.0 for Node.js", Version: "0.4.0", Source: "npm_packages"})
+	npmCPE, err := CPEFromSoftware(db, &fleet.Software{Name: "Adaltas Mixme 0.4.0 for Node.js", Version: "0.4.0", Source: "npm_packages"}, nil)
 	require.NoError(t, err)
 	assert.Equal(t, "cpe:2.3:a:adaltas:mixme:0.4.0:*:*:*:*:node.js:*:*", npmCPE)
 
-	windowsCPE, err := CPEFromSoftware(db, &fleet.Software{Name: "HP Storage Data Protector 8.0 for Windows 8", Version: "8.0", Source: "programs"})
+	windowsCPE, err := CPEFromSoftware(db, &fleet.Software{Name: "HP Storage Data Protector 8.0 for Windows 8", Version: "8.0", Source: "programs"}, nil)
 	require.NoError(t, err)
 	assert.Equal(t, "cpe:2.3:a:hp:storage_data_protector:8.0:-:*:*:*:windows_7:*:*", windowsCPE)
 
 	// but now we truncate to make sure searching for cpe fails
 	err = os.Truncate(dbPath, 0)
 	require.NoError(t, err)
-	_, err = CPEFromSoftware(db, software)
+	_, err = CPEFromSoftware(db, software, nil)
 	require.Error(t, err)
 
 	// and we make the db older than the release
@@ -106,7 +129,7 @@ func TestSyncCPEDatabase(t *testing.T) {
 	require.NoError(t, err)
 	defer db.Close()
 
-	cpe, err = CPEFromSoftware(db, software)
+	cpe, err = CPEFromSoftware(db, software, nil)
 	require.NoError(t, err)
 	require.Equal(t, "cpe:2.3:a:1password:1password:7.2.3:beta0:*:*:*:macos:*:*", cpe)
 

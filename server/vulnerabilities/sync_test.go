@@ -71,3 +71,16 @@ func TestLoadCVEMeta(t *testing.T) {
 	require.Equal(t, float64(0.01843), *meta.EPSSProbability)
 	require.Equal(t, true, *meta.CISAKnownExploit)
 }
+
+func TestDownloadCPETranslations(t *testing.T) {
+	nettest.Run(t)
+
+	client := fleethttp.NewClient()
+
+	tempDir := t.TempDir()
+
+	err := DownloadCPETranslations(tempDir, client)
+	require.NoError(t, err)
+
+	assert.FileExists(t, filepath.Join(tempDir, cpeTranslationsFilename))
+}

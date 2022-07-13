@@ -32,6 +32,10 @@ func Sync(vulnPath string, cpeDatabaseURL string) error {
 		return fmt.Errorf("sync CPE database: %w", err)
 	}
 
+	if err := DownloadCPETranslations(vulnPath, client); err != nil {
+		return fmt.Errorf("sync CPE translations: %w", err)
+	}
+
 	if err := DownloadNVDCVEFeed(vulnPath, ""); err != nil {
 		return fmt.Errorf("sync NVD CVE feed: %w", err)
 	}
