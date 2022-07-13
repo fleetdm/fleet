@@ -104,10 +104,7 @@ const PillCell = ({
         id={`${customIdPrefix || "pill"}__${id?.toString() || uniqueId()}`}
         data-html
       >
-        <span
-          className={`tooltip ${generateClassTag(pillText)}__tooltip-text`}
-          style={{ textAlign: "center" }}
-        >
+        <span className={`tooltip ${generateClassTag(pillText)}__tooltip-text`}>
           {tooltipText()}
         </span>
       </ReactTooltip>

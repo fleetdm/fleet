@@ -256,9 +256,9 @@ const generateTableHeaders = (currentUser: IUser): IDataColumn[] => {
               id={`${"select-checkbox"}__${row.original.id}`}
               data-html
             >
-              <div style={{ width: "196px", textAlign: "center" }}>
+              <>
                 You can only delete a<br /> query if you are the author.
-              </div>
+              </>
             </ReactTooltip>
           </>
         );

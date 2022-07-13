@@ -487,12 +487,10 @@ const ManageAutomationsModal = ({
             id="save-automation-button"
             data-html
           >
-            <div
-              className={`tooltip`}
-              style={{ width: "152px", textAlign: "center" }}
-            >
-              Add an integration to create tickets for vulnerability automations
-            </div>
+            <>
+              Add an integration to create
+              <br /> tickets for vulnerability automations.
+            </>
           </ReactTooltip>
         </div>
       </div>

@@ -382,13 +382,6 @@
     align-items: center;
   }
 
-  &__tooltip-text {
-    font-size: $x-small;
-    display: flex;
-    justify-content: center;
-    text-align: center;
-  }
-
   &__device_mapping {
     .device_mapping--tooltip {
       flex-direction: column;
