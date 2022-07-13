@@ -1,8 +1,6 @@
 services:
   mysql:
     image: mysql:5.7
-    platform: linux/x86_64
-    command: mysqld --event-scheduler=ON
     environment:
       MYSQL_ROOT_PASSWORD: toor
       MYSQL_DATABASE: fleet

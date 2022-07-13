@@ -38,7 +38,6 @@ type Fleet struct {
 	ProjectName string
 	FilePath    string
 	Version     string
-	ActiveSlot  string
 	Token       string
 
 	dockerClient client.ContainerAPIClient
@@ -59,7 +58,6 @@ func NewFleet(t *testing.T, version string) *Fleet {
 		ProjectName:  projectName,
 		FilePath:     "docker-compose.yaml",
 		Version:      version,
-		ActiveSlot:   slotA,
 		dockerClient: dockerClient,
 	}
 
@@ -334,7 +332,7 @@ func (f *Fleet) StartHost() (string, error) {
 // Upgrade upgrades fleet to a specified version.
 func (f *Fleet) Upgrade(toVersion string) error {
 	env := map[string]string{
-		"FLEET_VERSION_B": toVersion,
+		"FLEET_VERSION_B": toVersion + "asdf",
 	}
 
 	// run migrations using fleet-b
