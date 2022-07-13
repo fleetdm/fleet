@@ -14,7 +14,7 @@ terraform {
 data "aws_region" "current" {}
 
 locals {
-  name      = "jitprovisioner"
+  name      = "jit"
   full_name = "${var.prefix}-${local.name}"
 }
 

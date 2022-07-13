@@ -246,6 +246,14 @@ resource "random_uuid" "deprovisioner" {
   }
 }
 
+resource "local_file" "backend-config" {
+  content = templatefile("${path.module}/deprovisioner/backend-template.conf",
+    {
+      remote_state = var.remote_state
+  })
+  filename = "${path.module}/deprovisioner/deploy_terraform/backend.conf"
+}
+
 data "archive_file" "deprovisioner" {
   type        = "zip"
   output_path = "${path.module}/.deprovisioner.zip"
@@ -260,6 +268,10 @@ resource "docker_registry_image" "deprovisioner" {
     context     = "${path.module}/deprovisioner/"
     pull_parent = true
   }
+
+  depends_on = [
+    local_file.backend-config
+  ]
 }
 
 output "deprovisioner_role" {

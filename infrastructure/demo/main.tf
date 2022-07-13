@@ -21,12 +21,7 @@ terraform {
       version = "~> 3.18.0"
     }
   }
-  backend "s3" {
-    bucket         = "fleet-loadtesting-tfstate"
-    key            = "demo-environment"
-    region         = "us-east-2"
-    dynamodb_table = "fleet-loadtesting-tfstate"
-  }
+  backend "s3" {}
 }
 
 provider "aws" {
@@ -74,7 +69,7 @@ data "git_repository" "tf" {
 }
 
 locals {
-  prefix      = "fleet-demo"
+  prefix      = "sandbox-prod"
   base_domain = "sandbox.fleetdm.com"
 }
 
