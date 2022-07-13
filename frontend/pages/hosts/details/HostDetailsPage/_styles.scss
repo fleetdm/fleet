@@ -74,6 +74,10 @@
 
       &__disk-space-wrapper {
         display: inline-block;
+
+        &:hover {
+          cursor: help;
+        }
       }
 
       &__disk-space {
