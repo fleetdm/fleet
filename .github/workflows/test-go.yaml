@@ -73,6 +73,7 @@ jobs:
           NETWORK_TEST=1 \
           REDIS_TEST=1 \
           MYSQL_TEST=1 \
+          FILE_STORAGE_TEST=1 \
           make test-go 2>&1 | tee /tmp/gotest.log | gotestfmt
 
     - name: Upload to Codecov

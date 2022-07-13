@@ -3,8 +3,8 @@ package s3
 import (
 	"context"
 	"fmt"
+	"io"
 	"path"
-	"time"
 
 	"github.com/aws/aws-sdk-go/service/s3"
 	"github.com/fleetdm/fleet/v4/server/config"
@@ -50,22 +50,19 @@ func NewInstallerStore(config config.S3Config) (*InstallerStore, error) {
 // Exists checks if an installer exists in the S3 bucket
 func (i *InstallerStore) Exists(ctx context.Context, installer Installer) (bool, error) {
 	key := installer.key()
-	_, err := i.s3client.HeadObject(&s3.HeadObjectInput{Key: &key})
+	_, err := i.s3client.HeadObject(&s3.HeadObjectInput{Bucket: &i.bucket, Key: &key})
 	if err != nil {
 		return false, err
 	}
 	return true, nil
 }
 
-// GetLink returns a pre-signed S3 link that can be used to download the
-// installer
-func (i *InstallerStore) GetLink(ctx context.Context, installer Installer) (string, error) {
+// Get retrieves the requested installer from S3
+func (i *InstallerStore) Get(ctx context.Context, installer Installer) (io.ReadCloser, error) {
 	key := installer.key()
-	req, _ := i.s3client.GetObjectRequest(&s3.GetObjectInput{Key: &key})
-
-	url, err := req.Presign(5 * time.Minute)
+	req, err := i.s3client.GetObject(&s3.GetObjectInput{Bucket: &i.bucket, Key: &key})
 	if err != nil {
-		return "", ctxerr.Wrap(ctx, err, "presigned link for installer")
+		return nil, ctxerr.Wrap(ctx, err, "get installer from storage")
 	}
-	return url, nil
+	return req.Body, nil
 }
