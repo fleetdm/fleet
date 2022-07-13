@@ -281,7 +281,7 @@ When deciding whether to describe Fleet as open source or open core, define who 
 | **CI/CD** | (Continuous Integration and Continuous Delivery/Continuous Deployment) A software development practice where cumulative code changes are made regularly and accurately. |
 | **CLI** | (Command Line Interface) A tool for managing Fleet from the command line. |
 | **Client Platform Engineer (CPE)** | See: CPE. |
-| **cloud** | Data storage and access through the internet instead of a device's hard drive. |
+| **cloud** | Data storage, networking, servers, databases, software, intelligence, and analytics through the internet instead of a device's hard drive. |
 | **command line** | A horizontal row on an interface for text to allow you to type in a variety of commands. Also, see "CLI." |
 | **compliance** | The act of being in line with the established risk-based expectations to preserve the strength and confidentiality of data stored, used, and transmitted. |
 | **CPE** | (Client Platform Engineer) A person who constructs, evaluates, and deploys solutions to administrate a fleet of "clients" or end-users and does so in a scaleable manner. |
