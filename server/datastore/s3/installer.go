@@ -17,6 +17,16 @@ const (
 	executable  = "fleet-osquery"
 )
 
+// keyForInstaller builds an S3 key to search for the installer
+func keyForInstaller(i fleet.Installer) string {
+	file := fmt.Sprintf("%s.%s", executable, i.Kind)
+	dir := ""
+	if i.Desktop {
+		dir = desktopPath
+	}
+	return path.Join(i.EnrollSecret, dir, file)
+}
+
 // InstallerStore contains methods to retrieve installers from S3
 type InstallerStore struct {
 	*s3store
@@ -29,16 +39,6 @@ func NewInstallerStore(config config.S3Config) (*InstallerStore, error) {
 		return nil, err
 	}
 	return &InstallerStore{s3Store}, nil
-}
-
-// keyForInstaller builds an S3 key to search for the installer
-func keyForInstaller(i fleet.Installer) string {
-	file := fmt.Sprintf("%s.%s", executable, i.Kind)
-	dir := ""
-	if i.Desktop {
-		dir = desktopPath
-	}
-	return path.Join(i.EnrollSecret, dir, file)
 }
 
 // Exists checks if an installer exists in the S3 bucket
