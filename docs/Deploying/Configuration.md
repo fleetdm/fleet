@@ -2568,7 +2568,21 @@ Name of the S3 bucket to use to store pre-built Orbit installers.
       bucket: some-bucket
   ```
 
-##### s3_access_key_id
+##### packaging.s3_prefix
+
+Prefix to prepend when searching for installers.
+
+- Default value: ""
+- Environment variable: `FLEET_PACKAGING_S3_PREFIX`
+- Config file format:
+
+  ```
+  packaging:
+    s3:
+      prefix: carves-go-here/
+  ```
+
+##### packaging.s3_access_key_id
 
 AWS access key ID to use for S3 authentication.
 
@@ -2587,7 +2601,7 @@ The IAM identity used in this context must be allowed to perform the following a
       access_key_id: AKIAIOSFODNN7EXAMPLE
   ```
 
-##### s3_secret_access_key
+##### packaging.s3_secret_access_key
 
 AWS secret access key to use for S3 authentication.
 
@@ -2601,7 +2615,7 @@ AWS secret access key to use for S3 authentication.
       secret_access_key: wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY
   ```
 
-##### s3_sts_assume_role_arn
+##### packaging.s3_sts_assume_role_arn
 
 AWS STS role ARN to use for S3 authentication.
 
@@ -2615,7 +2629,7 @@ AWS STS role ARN to use for S3 authentication.
       sts_assume_role_arn: arn:aws:iam::1234567890:role/some-s3-role
   ```
 
-##### s3_endpoint_url
+##### packaging.s3_endpoint_url
 
 AWS S3 Endpoint URL. Override when using a different S3 compatible object storage backend (such as Minio),
 or running s3 locally with localstack. Leave this blank to use the default S3 service endpoint.
@@ -2630,7 +2644,7 @@ or running s3 locally with localstack. Leave this blank to use the default S3 se
       endpoint_url: http://localhost:9000
   ```
 
-##### s3_disable_ssl
+##### packaging.s3_disable_ssl
 
 AWS S3 Disable SSL. Useful for local testing.
 
@@ -2644,7 +2658,7 @@ AWS S3 Disable SSL. Useful for local testing.
       disable_ssl: false
   ```
 
-##### s3_force_s3_path_style
+##### packaging.s3_force_s3_path_style
 
 AWS S3 Force S3 Path Style. Set this to `true` to force the request to use path-style addressing,
 i.e., `http://s3.amazonaws.com/BUCKET/KEY`. By default, the S3 client
@@ -2663,7 +2677,7 @@ See [here](http://docs.aws.amazon.com/AmazonS3/latest/dev/VirtualHosting.html) f
       force_s3_path_style: false
   ```
 
-##### s3_region
+##### packaging.s3_region
 
 AWS S3 Region. Leave blank to enable region discovery.
 
