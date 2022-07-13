@@ -332,7 +332,7 @@ func (f *Fleet) StartHost() (string, error) {
 // Upgrade upgrades fleet to a specified version.
 func (f *Fleet) Upgrade(toVersion string) error {
 	env := map[string]string{
-		"FLEET_VERSION_B": toVersion + "asdf",
+		"FLEET_VERSION_B": toVersion,
 	}
 
 	// run migrations using fleet-b
