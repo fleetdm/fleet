@@ -14,7 +14,7 @@ module.exports = {
     },
 
     redirect: {
-      description: 'The user has been redirected to their Fleet sandbox instance',
+      description: 'This user does not have a Fleet Sandbox instance.',
       responseType: 'redirect'
     }
 
@@ -30,27 +30,31 @@ module.exports = {
 
 
     // Check if the user has a fleetSandboxURL
-    if(this.req.me.fleetSandboxURL) {
+    if(!this.req.me.fleetSandboxURL) {
+      // If the user doesn't have a fleetSandboxURL they will be taken to the sandbox page.
+      throw {redirect: '/try-fleet/new-sandbox'}
+    } else {
+      // Get the userRecord to send to the
+      let userRecord = await User.findOne({id: this.req.me.id});
 
-      // Check if this sandbox instance is expired.
-      if(this.req.me.fleetSandboxExpiresAt > Date.now()) {
-        // Setting this.req.me.fleetSandboxURL to a variable to pass in to sails.helper.flow.until()
-        let sandboxURL = this.req.me.fleetSandboxURL;
-        // If this is a valid fleet sandbox instance, we'll check the /healthz endpoint before redirecting the user to their sandbox.
-        await sails.helpers.flow.until(async function () {
-          let serverResponse = await sails.helpers.http.sendHttpRequest('GET', sandboxURL+'/healthz').timeout(5000).tolerate('non200Response').tolerate('requestFailed');
-          if(serverResponse) {
-            return serverResponse.statusCode === 200;
-          }
-        });
-        throw {redirect: this.req.me.fleetSandboxURL+'?demoKey='+this.req.me.fleetSandboxDemoKey};
-      }
+      // Setting this.req.me.fleetSandboxURL to a variable to pass in to sails.helper.flow.until()
+      let sandboxURL = this.req.me.fleetSandboxURL;
+      // If this is a valid fleet sandbox instance, we'll check the /healthz endpoint before redirecting the user to their sandbox.
+      await sails.helpers.flow.until(async function () {
+        let serverResponse = await sails.helpers.http.sendHttpRequest('GET', sandboxURL+'/healthz')
+        .timeout(5000)
+        .tolerate('non200Response')
+        .tolerate('requestFailed');
+        if(serverResponse) {
+          return serverResponse.statusCode === 200;
+        }
+      });
+      // Respond with view.
+      return {
+        sandboxUser: userRecord,
+      };
     }
 
-
-    // If the user doesn't have a fleetSandboxURL, or their Fleet Sandbox instance is expired, they will be taken to the sandbox page.
-    // Respond with view.
-    return;
   }
 
 

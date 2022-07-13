@@ -37,6 +37,7 @@ module.exports.policies = {
   'articles/*': true,
   'reports/*': true,
   'view-sales-one-pager': true,
-  'try-fleet/*': true,
+  'try-fleet/view-register': true,
+  'try-fleet/view-sandbox-login': true,
 
 };

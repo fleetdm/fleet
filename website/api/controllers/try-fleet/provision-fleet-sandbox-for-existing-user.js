@@ -20,8 +20,6 @@ module.exports = {
 
   exits: {
 
-
-
     success: {
       decription: 'The user has successfully provisioned a Fleet Sandbox Instanace and has been redirected to it'
     },
@@ -39,7 +37,7 @@ module.exports = {
   fn: async function ({userID}) {
 
     // Find user record (User.findOne({id: userID}))
-    let user = await User.findOne({id: userID}).decrypt();
+    let user = await User.findOne({id: userID});
     if(user.fleetSandboxURL) {
       return 'userHasExistingSandbox';
     }
@@ -50,44 +48,40 @@ module.exports = {
     // Create a key to send to the Fleet Sandbox instance, This key will be provided when the user logs in to their fleet sandbox instance
     let fleetSandboxDemoKey = await sails.helpers.strings.random('url-friendly');
 
-    // Send a POSt request to the cloud provisioner API
+    // Send a POST request to the cloud provisioner API
     let cloudProvisionerResponse = await sails.helpers.http.post(sails.config.custom.fleetSandboxProvisionerURL, {
       'name': user.firstName + ' ' + user.lastName,
       'email': user.emailAddress,
       'password': user.password,
-      'sandbox_expiration': new Date(user.fleetSandboxExpiresAt).toISOString(), // sending expiration_timestamp as an ISO string.
-      'fleetSandboxKey': user.fleetSandboxKey,
-      'apiSecret': sails.config.custom.fleetSandboxProvisionerSecret,
+      'sandbox_expiration': new Date(fleetSandboxExpiresAt).toISOString(), // sending expiration_timestamp as an ISO string.
+      // 'apiSecret': sails.config.custom.fleetSandboxProvisionerSecret,
     })
     .timeout(5000)
     .intercept('non200Response', 'couldNotProvisionSandbox');
 
     let fleetSandboxURL;
-    if(cloudProvisionerResponse.url) {
-      fleetSandboxURL = cloudProvisionerResponse.url;
-
-      // Update this user's record with the fleetSandboxURL, fleetSandboxExpiresAt, and fleetSandboxKey.
+    if(!cloudProvisionerResponse.URL) {
+      throw 'couldNotProvisionSandbox';
+    } else {
+      fleetSandboxURL = cloudProvisionerResponse.URL;
+      // Update this user's record with the fleetSandboxURL and fleetSandboxExpiresAt
       await User.updateOne({id: user.id}).set({
-        fleetSandboxURL: cloudProvisionerResponse.url,
+        fleetSandboxURL: cloudProvisionerResponse.URL,
         fleetSandboxExpiresAt: fleetSandboxExpiresAt,
-        fleetSandboxDemoKey: fleetSandboxDemoKey,
       });
-
-    // Poll the Fleet Sandbox Instance's /healthz endpoint until it returns a 200 response
-      await sails.helpers.flow.until(async function () {
-        let serverResponse = await sails.helpers.http.sendHttpRequest('GET', cloudProvisionerResponse.url+'/healthz').timeout(5000).tolerate('non200Response').tolerate('requestFailed');
-        if(serverResponse) {
+      // Poll the Fleet Sandbox Instance's /healthz endpoint until it returns a 200 response
+      await sails.helpers.flow.until( async function () {
+        let serverResponse = await sails.helpers.http.sendHttpRequest('GET', cloudProvisionerResponse.URL+'/healthz').timeout(5000).tolerate('non200Response').tolerate('requestFailed');
+        if(serverResponse && serverResponse.statusCode) {
           return serverResponse.statusCode === 200;
         }
       });
-    } else {
-      throw 'couldNotProvisionSandbox';
-    }
 
-    // When the Fleet Sandbox instance is ready, we'll return the fleetSandboxUrl and the fleetSandboxKey
-    return {
-      fleetSandboxURL,
-      fleetSandboxDemoKey
+      // When the Fleet Sandbox instance is ready, we'll return the fleetSandboxUrl and the fleetSandboxKey
+      return {
+        fleetSandboxURL,
+        fleetSandboxDemoKey
+      }
     }
 
   }

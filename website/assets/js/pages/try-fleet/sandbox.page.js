@@ -6,8 +6,6 @@ parasails.registerPage('sandbox', {
     // Main syncing/loading state for this page.
     syncing: false,
 
-    hasSandbox: false,
-
     isSandboxExpired: false,
 
   },
@@ -19,12 +17,10 @@ parasails.registerPage('sandbox', {
     //…
   },
   mounted: async function() {
-    //
-    if(this.me.fleetSandboxUrl) {
-      this.hasSandbox = true;
-      if(this.me.fleetSandboxExpiresAt < Date.now()) {
-        this.isSandboxExpired = true;
-      }
+    if(this.me.fleetSandboxExpiresAt < Date.now()) {
+      this.isSandboxExpired = true;
+    } else {
+      document.forms['demologin'].submit();
     }
   },
 
@@ -34,11 +30,6 @@ parasails.registerPage('sandbox', {
   methods: {
 
     // For a logged in user who does not have a Fleet sandbox instance
-    clickProvisionFleetSandbox: async function() {
-      this.syncing = true;
-      let newSandboxInstance = await Cloud.provisionFleetSandboxForExistingUser.with({userID: this.me.id});
-      window.location = newSandboxInstance.fleetSandboxURL +'?demoKey='+newSandboxInstance.fleetSandboxDemoKey;
-    },
 
   }
 });

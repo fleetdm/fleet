@@ -209,6 +209,13 @@ module.exports.routes = {
     },
   },
 
+  'GET /try-fleet/new-sandbox': {
+    action: 'try-fleet/view-new-sandbox',
+    locals: {
+      layout: 'layouts/layout-sandbox',
+    },
+  },
+
   'GET /try-fleet/forgot-password': {
     action: 'entrance/view-forgot-password',
     locals: {
