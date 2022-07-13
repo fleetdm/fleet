@@ -411,6 +411,10 @@
       height: 16px;
       width: auto;
     }
+
+    &:hover {
+      cursor: help;
+    }
   }
 
   .buttons {

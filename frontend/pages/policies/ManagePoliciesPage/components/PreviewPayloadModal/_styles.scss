@@ -74,5 +74,9 @@
       height: 16px;
       vertical-align: top;
     }
+
+    &:hover {
+      cursor: help;
+    }
   }
 }
