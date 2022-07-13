@@ -2,7 +2,7 @@
 
 ![Security compliance goals](../website/assets/images/articles/security-compliance-goals-cover-800x450@2x.jpg)
 
-Pursuing security compliance is a long journey. It isn’t so much taking a road trip as it’s setting sail on the open ocean. Regulatory changes can knock you off course. Learning a new technology can take the wind out of your sails. And no matter how hard you try, you can never reach the horizon.
+Pursuing security compliance is a long journey. It isn’t so much taking a road trip as it’s setting sail on the open ocean. Regulatory changes can knock you off course. Learning new technology can take the wind out of your sails. And no matter how hard you try, you can never reach the horizon.
 
 Are you feeling a little seasick? Don’t worry. There are ways to navigate the waters of security compliance and still enjoy smooth sailing.
 
@@ -20,33 +20,41 @@ Answering questions like these is the first step to becoming compliant. After al
 
 Achieving the highest level of compliance for your industry is an admirable goal. But pursuing compliance perfection could tie up daily business operations.
 
-For instance, if your organization has 30 employees who use MacBooks, it might be possible to make sure they all have the latest version of macOS installed. That goal gets more challenging to achieve as those MacBooks multiply and employees elect to use other operating systems, devices, or even servers. Maybe then you just want to make sure they have auto updates enabled.
+For instance, if your organization has 30 employees who use MacBooks, it might be possible to make sure they all have the latest version of macOS installed. That goal gets more challenging to achieve as those MacBooks multiply to the hundreds or even thousands. Maybe then you just want to make sure they’re on Big Sur.
 
-Be sure to set goals based on the resources you have available, and try not to let perfection stand in the way of progress.
+With scale comes complexity — especially for enterprise companies. Different teams need different tools to get the job done. Databases must balance security with accessibility. Updating legacy platforms could disrupt employees’ routines.
+
+Holding so many people, teams, and departments to the highest security standards takes a lot of work. And, at the end of the day, you might just be getting in the way.
+
+Be sure to set goals based on the resources you have available — and try not to let perfection stand in the way of progress.
 
 ## Limit the scope
 
-While your industry may have compliance standards, these recommendations may not apply to your entire organization.
+While your industry probably has compliance standards, these recommendations may not apply to your entire organization.
 
 Let’s look at the [Payment Card Industry Data Security Standard](https://www.pcisecuritystandards.org/) or PCI DSS. This is a set of standards that aims to protect debit and credit card transactions against data theft and fraud. This is pretty important if your organization plans to accept card payments. But how many of your teams are in the position to collect payments — or even interact with customers?
 
-There may be processes that apply to your entire company, like using multi-factor authentication. These types of requirements have a great impact on improving security. But this isn’t always the case. Some of the requirements either don't make sense, or have very limited impact on actual security. Knowing which compliance standards apply to which teams will help lighten the load across your organization.
+There may be processes that apply to your entire company, like using multi-factor authentication. Security requirements like these make a real difference, but this isn’t always the case. Some guidelines either don't make sense for your business, or they don’t do much to actually improve security. Knowing which compliance standards apply to which teams will help lighten the load across your organization.
 
-## Delegate to team leads
+## Partner with technical experts
 
-Ultimately, your CISO, Head of Security or Chief Compliance Officer is responsible for ensuring compliance, depending on the structure of your organization. Asking them to check the progress of each team and individual, in addition to their other responsibilities, isn’t exactly efficient (or fair).
+Ultimately, your Chief Information Security Officer, Head of Security or Chief Compliance Officer is responsible for ensuring compliance, depending on the structure of your organization. Asking them to check the progress of each team and individual, in addition to their other responsibilities, isn’t exactly efficient (or fair).
 
-Your company could hire more security specialists, like devops engineers. Some organizations have thousands on staff, but we know this isn’t always a realistic option. The good news is that you don’t necessarily need more security and compliance people — just more people with security skills.
+Your company could hire more security specialists. Some organizations have thousands on staff, but we know this isn’t always a realistic option. The good news is that you don’t necessarily need more security and compliance people — just more people with security skills.
 
-The lead devops engineers know exactly how your cloud environments are configured at scale, and when given visibility into what needs to be done, are the people with the best skills to get it done properly. Provide your technical experts with the reasoning behind the compliance requirements as well as with the visibility they need to know which systems are or aren't compliant.
+IT professionals and system administrators are in the perfect position to help you measure compliance progress. They have the skills to keep your company’s devices secure. Applying those skills in time can be difficult. Make it easy for technical experts to see the compliance status of each system.
+
+Now, your technical experts have more visibility. What should they do with it? If you explain the reasons behind compliance requirements, they can look for security issues proactively — and prevent concerns from becoming problems.
 
 ## Fleet makes tracking compliance easy
 
-Your team leads don’t need a crash course in security and compliance to measure compliance progress. With Fleet, you can create [policies](https://fleetdm.com/securing/what-are-fleet-policies) that ask questions about your devices — questions you can customize to meet your compliance goals. You can then group these custom queries with [teams](https://fleetdm.com/docs/using-fleet/teams), eliminating unnecessary processes and lowering the level of effort for your organization.
+A little insight goes a long way. The right tools will take you even further. Fleet lets you create [policies](https://fleetdm.com/securing/what-are-fleet-policies) that ask questions about your devices — questions you can customize to meet your compliance goals. You can group these custom queries with [teams](https://fleetdm.com/docs/using-fleet/teams), eliminating unnecessary processes and lowering the level of effort for your organization.
 
-Fleet also lets you [assign users different levels of access](https://fleetdm.com/docs/using-fleet/permissions): Observer, Maintainer, and Admin. So, your Head of Security can create policies and assign them to different teams — preparing team leads to run queries for up-to-the-minute data on devices. Though that might not be necessary. Fleet policies automatically refresh every hour.
+If a device doesn’t comply with one of your policies, [Fleet can automatically create tickets in external systems](https://fleetdm.com/docs/using-fleet/automations#policy-automations) — so employees can fix the problem right away.
 
-Fleet policies, teams, and permissions empower employees at every level of your organization to share the responsibility of measuring compliance. With more hands on deck, reaching your goals will be a breeze. You can even enable [policy automations](https://fleetdm.com/docs/using-fleet/automations#policy-automations) that let you create tickets in external systems when a policy fails.
+Fleet also lets you [assign users different levels of access](https://fleetdm.com/docs/using-fleet/permissions): Observer, Maintainer, and Admin. So, your CISO can create policies and assign them to different teams — preparing technical experts to run queries for up-to-the-minute data on devices. Though that might not be necessary. Fleet policies automatically refresh every hour.
+
+Fleet policies, teams, and permissions empower employees at every level of your organization to share the responsibility of measuring compliance. With more hands on deck, going after your goals will be a breeze.
 
 
 <meta name="category" value="product">
