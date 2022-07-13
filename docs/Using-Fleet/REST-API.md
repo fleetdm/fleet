@@ -824,6 +824,7 @@ None.
     "org_name": "fleet",
     "org_logo_url": ""
   },
+  "sandbox_enabled": true,
   "server_settings": {
     "server_url": "https://localhost:8080",
     "live_query_disabled": false,
