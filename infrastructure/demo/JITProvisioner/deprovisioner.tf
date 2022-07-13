@@ -214,7 +214,7 @@ resource "aws_sfn_state_machine" "main" {
           }
         },
         "Cluster": "${var.ecs_cluster.arn}",
-        "TaskDefinition": "${aws_ecs_task_definition.deprovisioner.arn}",
+        "TaskDefinition": "${replace(aws_ecs_task_definition.deprovisioner.arn, "/:\\d+$/", "")}",
         "Overrides": {
           "ContainerOverrides": [
             {
