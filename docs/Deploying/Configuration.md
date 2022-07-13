@@ -2529,7 +2529,7 @@ Configurations used to control how Fleet interacts with the (coming soon)
 packaging server.  These features are currently only intended to be used within
 Fleet Sandbox, but this is subject to change.
 
-##### packaging.global_enroll_secret
+##### packaging_global_enroll_secret
 
 Enroll secret to use for adding hosts to the global scope. If this value is
 set, the server won't allow changes to the enroll secret via the config
@@ -2554,7 +2554,7 @@ stored in your database.
     global_enroll_secret: "xyz"
   ```
 
-##### packaging.s3_bucket
+##### packaging_s3_bucket
 
 Name of the S3 bucket to use to store pre-built Orbit installers.
 
@@ -2568,7 +2568,7 @@ Name of the S3 bucket to use to store pre-built Orbit installers.
       bucket: some-bucket
   ```
 
-##### packaging.s3_prefix
+##### packaging_s3_prefix
 
 Prefix to prepend when searching for installers.
 
@@ -2582,7 +2582,7 @@ Prefix to prepend when searching for installers.
       prefix: carves-go-here/
   ```
 
-##### packaging.s3_access_key_id
+##### packaging_s3_access_key_id
 
 AWS access key ID to use for S3 authentication.
 
@@ -2601,7 +2601,7 @@ The IAM identity used in this context must be allowed to perform the following a
       access_key_id: AKIAIOSFODNN7EXAMPLE
   ```
 
-##### packaging.s3_secret_access_key
+##### packaging_s3_secret_access_key
 
 AWS secret access key to use for S3 authentication.
 
@@ -2615,7 +2615,7 @@ AWS secret access key to use for S3 authentication.
       secret_access_key: wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY
   ```
 
-##### packaging.s3_sts_assume_role_arn
+##### packaging_s3_sts_assume_role_arn
 
 AWS STS role ARN to use for S3 authentication.
 
@@ -2629,7 +2629,7 @@ AWS STS role ARN to use for S3 authentication.
       sts_assume_role_arn: arn:aws:iam::1234567890:role/some-s3-role
   ```
 
-##### packaging.s3_endpoint_url
+##### packaging_s3_endpoint_url
 
 AWS S3 Endpoint URL. Override when using a different S3 compatible object storage backend (such as Minio),
 or running s3 locally with localstack. Leave this blank to use the default S3 service endpoint.
@@ -2644,7 +2644,7 @@ or running s3 locally with localstack. Leave this blank to use the default S3 se
       endpoint_url: http://localhost:9000
   ```
 
-##### packaging.s3_disable_ssl
+##### packaging_s3_disable_ssl
 
 AWS S3 Disable SSL. Useful for local testing.
 
@@ -2658,7 +2658,7 @@ AWS S3 Disable SSL. Useful for local testing.
       disable_ssl: false
   ```
 
-##### packaging.s3_force_s3_path_style
+##### packaging_s3_force_s3_path_style
 
 AWS S3 Force S3 Path Style. Set this to `true` to force the request to use path-style addressing,
 i.e., `http://s3.amazonaws.com/BUCKET/KEY`. By default, the S3 client
@@ -2677,7 +2677,7 @@ See [here](http://docs.aws.amazon.com/AmazonS3/latest/dev/VirtualHosting.html) f
       force_s3_path_style: false
   ```
 
-##### packaging.s3_region
+##### packaging_s3_region
 
 AWS S3 Region. Leave blank to enable region discovery.
 
