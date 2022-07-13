@@ -142,13 +142,6 @@
 
                 &__disk-space-wrapper {
                   display: inline-block;
-<<<<<<< HEAD
-
-                  &:hover {
-                    cursor: help;
-                  }
-=======
->>>>>>> 6f11c08e3 (Set width, remove unused imports)
                 }
 
                 &__disk-space {
@@ -176,15 +169,12 @@
                   background-color: $ui-error;
                   height: 100%;
                 }
-<<<<<<< HEAD
 
                 .tooltip__tooltip-text {
                   display: block;
                   white-space: normal;
                   max-width: 160px;
                 }
-=======
->>>>>>> 6f11c08e3 (Set width, remove unused imports)
               }
             }
           }
