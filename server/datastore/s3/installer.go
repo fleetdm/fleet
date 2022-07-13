@@ -47,18 +47,21 @@ func NewInstallerStore(config config.S3Config) (*InstallerStore, error) {
 	return &InstallerStore{s3Store}, nil
 }
 
-// CanAccess checks if an installer exists in the S3 bucket
-func (i *InstallerStore) CanAccess(ctx context.Context, installer Installer) bool {
+// Exists checks if an installer exists in the S3 bucket
+func (i *InstallerStore) Exists(ctx context.Context, installer Installer) (bool, error) {
 	key := installer.key()
-	_, err := i.s3client.HeadObject(&s3.HeadObjectInput{Bucket: &i.bucket, Key: &key})
-	return err != nil
+	_, err := i.s3client.HeadObject(&s3.HeadObjectInput{Key: &key})
+	if err != nil {
+		return false, err
+	}
+	return true, nil
 }
 
 // GetLink returns a pre-signed S3 link that can be used to download the
 // installer
 func (i *InstallerStore) GetLink(ctx context.Context, installer Installer) (string, error) {
 	key := installer.key()
-	req, _ := i.s3client.GetObjectRequest(&s3.GetObjectInput{Bucket: &i.bucket, Key: &key})
+	req, _ := i.s3client.GetObjectRequest(&s3.GetObjectInput{Key: &key})
 
 	url, err := req.Presign(5 * time.Minute)
 	if err != nil {

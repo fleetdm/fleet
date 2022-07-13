@@ -15,12 +15,14 @@ func TestCanAccess(t *testing.T) {
 		name      string
 		installer Installer
 		expected  bool
+		err       error
 	}{{}}
 
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
-			out := store.CanAccess(ctx, c.installer)
-			require.Equal(t, c.expected, out)
+			out, outerr := store.Exists(ctx, c.installer)
+			require.Equal(t, out, c.expected)
+			require.Equal(t, outerr, c.err)
 		})
 	}
 }
