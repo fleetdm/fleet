@@ -221,7 +221,6 @@ export const generateSoftwareTableHeaders = (
             </span>
             <ReactTooltip
               place="top"
-              type="dark"
               effect="solid"
               backgroundColor="#3e4771"
               id={`vulnerabilities__${cellProps.row.original.id}`}
@@ -263,7 +262,6 @@ export const generateSoftwareTableHeaders = (
             </span>
             <ReactTooltip
               place="top"
-              type="dark"
               effect="solid"
               backgroundColor="#3e4771"
               id={`last_used__${cellProps.row.original.id}`}

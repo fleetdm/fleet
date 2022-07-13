@@ -65,7 +65,6 @@ const HostSummary = ({
         </div>
         <ReactTooltip
           place="bottom"
-          type="dark"
           effect="solid"
           id="refetch-tooltip"
           backgroundColor="#3e4771"
@@ -92,7 +91,6 @@ const HostSummary = ({
         </span>
         <ReactTooltip
           place="bottom"
-          type="dark"
           effect="solid"
           backgroundColor="#3e4771"
           id="host-issue-count"

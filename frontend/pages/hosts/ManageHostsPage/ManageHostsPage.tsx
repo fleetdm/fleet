@@ -1111,7 +1111,6 @@ const ManageHostsPage = ({
             </span>
             <ReactTooltip
               place="bottom"
-              type="dark"
               effect="solid"
               backgroundColor="#3e4771"
               id="software-filter-tooltip"

@@ -281,7 +281,6 @@ const IntegrationForm = ({
         <ReactTooltip
           className={`create-integration-tooltip`}
           place="bottom"
-          type="dark"
           effect="solid"
           backgroundColor="#3e4771"
           id="create-integration-button"

@@ -522,7 +522,6 @@ const QueryForm = ({
                 <ReactTooltip
                   className={`save-query-button-tooltip`}
                   place="bottom"
-                  type="dark"
                   effect="solid"
                   backgroundColor="#3e4771"
                   id="save-query-button"

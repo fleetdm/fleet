@@ -18,7 +18,7 @@ import HeaderCell from "components/TableContainer/DataTable/HeaderCell/HeaderCel
 import PlatformCell from "components/TableContainer/DataTable/PlatformCell";
 import TextCell from "components/TableContainer/DataTable/TextCell";
 import PillCell from "components/TableContainer/DataTable/PillCell";
-import TooltipWrapper from "components/TooltipWrapper";
+import TooltipWrapper from "components/ElementTooltipWrapper";
 
 interface IQueryRow {
   id: string;
@@ -251,7 +251,6 @@ const generateTableHeaders = (currentUser: IUser): IDataColumn[] => {
             <ReactTooltip
               className="select-checkbox-tooltip"
               place="bottom"
-              type="dark"
               effect="solid"
               backgroundColor="#3e4771"
               id={`${"select-checkbox"}__${row.original.id}`}

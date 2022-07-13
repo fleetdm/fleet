@@ -218,8 +218,6 @@ const allHostTableHeaders: IDataColumn[] = [
               {numUsers === 1 ? users[0] : `${numUsers} users`}
             </span>
             <ReactTooltip
-              place="top"
-              type="dark"
               effect="solid"
               backgroundColor="#3e4771"
               id={`device_mapping__${cellProps.row.original.id}`}

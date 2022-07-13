@@ -503,7 +503,6 @@ const HostDetailsPage = ({
         </div>
         <ReactTooltip
           place="bottom"
-          type="dark"
           effect="solid"
           id="query"
           backgroundColor="#3e4771"

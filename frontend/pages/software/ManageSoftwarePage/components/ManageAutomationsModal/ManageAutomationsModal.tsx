@@ -482,7 +482,6 @@ const ManageAutomationsModal = ({
           <ReactTooltip
             className={`save-automation-button-tooltip`}
             place="bottom"
-            type="dark"
             effect="solid"
             backgroundColor="#3e4771"
             id="save-automation-button"

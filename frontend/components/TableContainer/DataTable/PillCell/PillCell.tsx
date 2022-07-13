@@ -99,7 +99,6 @@ const PillCell = ({
       <ReactTooltip
         place="bottom"
         // offset={getTooltipOffset(pillText)}
-        type="dark"
         effect="solid"
         backgroundColor="#3e4771"
         id={`${customIdPrefix || "pill"}__${id?.toString() || uniqueId()}`}

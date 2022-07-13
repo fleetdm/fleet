@@ -170,7 +170,6 @@ const generateTableHeaders = (options: {
                 </span>
                 <ReactTooltip
                   place="bottom"
-                  type="dark"
                   effect="solid"
                   backgroundColor="#3e4771"
                   id={`passing_${cellProps.row.original.id.toString()}`}
@@ -221,7 +220,6 @@ const generateTableHeaders = (options: {
                 </span>
                 <ReactTooltip
                   place="bottom"
-                  type="dark"
                   effect="solid"
                   backgroundColor="#3e4771"
                   id={`failing_${cellProps.row.original.id.toString()}`}
