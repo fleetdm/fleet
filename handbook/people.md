@@ -320,6 +320,27 @@ The CEO will then reply in `#g-people` to indicate that the offer is approved.
    - You can do this between you and CorpNet by selecting "Foreign Qualification," placing the order and emailing the confirmation to the rep for Payroll registration (this is a short turnaround).
    - You can do this on your own by visiting the state's "Secretary of State" website and checking that the company name is available. To register online, you'll need the EIN, business address, information about the owners and their percentages, the first date of business, sales within the state, and the business type (usually get an email right away for approval ~24-48 hrs). 
 
+
+For more information, check out [Fleet - who does what](https://docs.google.com/spreadsheets/d/1FFOudmHmfVFIk-hdIWoPFsvMPmsjnRB8/edit?usp=sharing&ouid=102440584423243016963&rtpof=true&sd=true).
+
+### Taxes and compliance
+
+From time to time, you may get notices in the mail from the IRS and/or state agencies regarding your company’s withholding and/or unemployment tax accounts. You can resolve many of these notices on your own by verifying and/or updating the settings in your Gusto account. 
+
+If the notice is regarding an upcoming change to your deposit schedule or unemployment tax rate, Charlie will make the change in Gusto. Including: 
+ - Update your unemployment tax rate.
+ - Update your federal deposit schedule.
+ - Update your state deposit schedule.
+
+**Important** Agencies do not send notices to Gusto directly, so it’s important that you read and take action before any listed deadlines or effective dates of requested changes.
+
+Notices you should report to Gusto.
+If you can't resolve the notice on your own, are unsure what the notice is in reference to, or the tax notice has a missing payment or balance owed, follow the steps in the Report and upload a tax notice in Gusto.
+
+In Gusto, click **How to review your notice** to help you understand what kind of notice you received and what additional action you can take to help speed up the time it takes to resolve the issue.
+
+For more information about how Fleet and our accounting team work together, check out [Fleet - who does what](https://docs.google.com/spreadsheets/d/1FFOudmHmfVFIk-hdIWoPFsvMPmsjnRB8/edit#gid=829046836) (private doc).
+
 ## Team member onboarding
 
 It's important that every team member at Fleet takes the time to get fully trained and onboarded. 
@@ -467,12 +488,12 @@ We like to regularly share updates about how Fleet is growing with our investors
 ## Participating in the program
 
 ### Eligibility
-TODO
+TODO: document eligibility qualifications
 
 ### How to apply
- 1. TODO: Create a merge request to add yourself to the [rotation schedule]()TODO.
- 2. Assign your manager and ask them to approve (but not to merge) the merge request.
- 3. TODO: Once your manager approves the merge request, assign the merge request to Charlie, link to the merge request in the #ceo-shadow channel, and @mention Charlie in the message.
+ 1. TODO: Create a pull request to add yourself to the [rotation schedule](insert link here)TODO: create template for pull request
+ 2. Assign your manager and ask them to approve (but not merge) the pull request.
+ 3. TODO: Once your manager approves the pull request, assign the pull request to Charlie, link to the pull request in the #ceo-shadow channel, and @mention Charlie in the message.
 
 ### Parental participation 
  TODO: (parent-friendly scheduling options)
@@ -483,7 +504,7 @@ TODO
  The shadow should be available for the full two weeks.
 
 ### Rotation schedule 
- TODO: (this is a chart: start date, end date, see one, teach one)
+ TODO: (This is a chart: start date, end date, see one, teach one.)
 
 ### Preparing for the program
 
@@ -492,67 +513,54 @@ TODO
  2. Plan to observe and ask questions.
  3. Don't plan to do any of your usual work.
  4. Be ready to add a number of [handbook](https://fleetdm.com/handbook) updates during your shadow period.
- 5. Participating in the shadow program is a privilege where you will be exposed to confidential information.
- 6. Give feedback to and receive feedback from the CEO
+ 5. Participating in the shadow program is a privilege that will expose you to confidential information.
+ 6. Give feedback to and receive feedback from the CEO.
 
 ### What to wear
-TODO: Casual
+ Casual
 
 ### Pre-program tasks
-
-### Create an onboarding issue 
- TODO:(onboarding and offboarding issues are created for the two week program)
-
-### Consider creating goals
+ 1. Create an onboarding issue 
+ TODO:(onboarding and offboarding issues are created for the two-week program)
+ 2. Consider creating goals
  For inspiration, here is [an example](https://gitlab.com/nmccorrison/ceo-shadow/-/issues/1#my-goals) of a CEO Shadow who added goals to their onboarding issue.
-
-### Practice your introduction
+ 3. Practice your introduction
  See [CEO Shadow Introductions](https://about.gitlab.com/handbook/ceo/shadow/#ceo-shadow-introductions) for specifics.
-
-### Coffee chat with co-shadow
-  Try to schedule coffee chats with your co-shadow before you start the program
-
-### Coffee Chat with CEO shadow alumni
+ 4. Coffee chat with co-shadow
+  Try to schedule coffee chats with your co-shadow before you start the program.
+ 5. Coffee Chat with CEO shadow alumni
  Feel free to schedule a coffee chat with any of the CEO Shadow Alumni. There's a link to the alumni chart dropped here too. 
-
-### Coffee chat with the CLO 
- TODO
-
-### Explore the CEO shadow project
+ 6. Explore the CEO shadow project
  TODO: private board
-
-### Review the CEO's calendar
- Anticipate your week. Look ahead in the schedule and plan accordingly 
-
-### Review the CEO handbook (TODO: insert link here)
- TODO: how to communicate and interact with CEO
-
-### Review acronyms 
+ 7. Review the CEO's calendar
+ Anticipate your week. Look ahead in the schedule and plan accordingly. 
+ 8. Review the CEO handbook (TODO: insert link here)
+ TODO: How to communicate and interact with the CEO.
+ 9. Review acronyms 
  TODO: add resource link (KPIs, OKRs, xMAU, SpU, ARR, keep a financial dictionary handy)
 
 ### What to expect during the program 
- TODO: Broken down by tasks like handbooking, and "for meetings"
+ TODO: Broken down by tasks like handbooking and "for meetings."
 
 ### Tasks
-
-### Collecting and managing tasks 
- TODO: (there is a project board that is privately linked here)
+ 1. Collecting and managing tasks 
+ TODO: (There is a project board that is privately linked here.)
 
 ### Tweetstorm
-A tweet storm is a series of Twitter posts usually made as replies in a single thread on a topic. CEO shadows may be asked to draft the tweets in relation to a public live streamed video recording or some other media content.
+A tweetstorm is a series of Twitter posts usually made as replies in a single thread on a topic. CEO shadows may be asked to draft the tweets related to a public live-streamed video recording or other media content.
 
 ### Meetings & events
 
 ### CEO's calendar
- 1. review the CEO's calendar
- 2. how to update your zoom name so that it shows "CEO shadow"
- 3. how to add CEO calendar to google calendar (we already do this in onboarding)
- 4. details about invites to events that are marked private (like interviews)
- 5. meetings with those outside of GitLab may not be on Zoom. Prior to the call, check the CEO's calendar and load any other conferencing programs that may be needed. It may be necessary to dial in via phone for audio-conferences.
+ 1. Review the CEO's calendar.
+ 2. How to update your zoom name to show "CEO shadow."
+ 3. How to add CEO calendar to google calendar (we already do this in onboarding).
+ 4. Details about invites to events marked private (like interviews).
+ 5. Meetings with those outside of GitLab may not be on Zoom. Prior to the call, check the CEO's calendar and load any other conferencing programs that may be needed. It may be necessary to dial in via phone for audio conferences.
 
 ### Types of meetings
  1. Fleet Meetings
-  - 1-1s with reports.
+  - 1:1s with reports.
   - Interviews with candidates.
   - Conversations with board members.
  2. Social calls
@@ -564,21 +572,21 @@ A tweet storm is a series of Twitter posts usually made as replies in a single t
 TODO
 
 ### Responsibilities
- TODO: this is a chart outlining responsibilities based on meeting types
+ TODO: this is a chart outlining responsibilities based on meeting types.
 
 ### Email best practices
-TODO: In order to ensure continuity across CEO shadow participants. Always, cc TDOD on emails as part of the program. This ensures that even after you've left the program the response and follow-up can be tracked
+TODO: In order to keep continuity across CEO shadow participants. Always, cc (TODO: email group) on emails as part of the program. This makes sure that even after you've left the program, the response and follow-up can be tracked.
 
 ### Considerations for other companies starting CEO shadow programs
 GitLab co-founder and CEO Sid Sijbrandij [answered questions in a YouTube livestream](https://youtu.be/ExG8_bnIAMI) from Sam Altman, as the two discussed considerations for implementing a CEO Shadow program in other organizations. Key takeaways are documented below.
 
- 1. CEOs should not optimize meetings for Shadows. They are learning by being in the room, either in-person or virtual, and it's OK if the Shadow doesn't fully understand everything.
+ 1. CEOs should not optimize meetings for Shadows. They  learn by being in the room, either in-person or virtual, and it's OK if the Shadow doesn't fully understand everything.
  2. A well-designed CEO Shadow program shouldn't burden a CEO; in fact, Shadows should actively make a CEO's day easier by assisting with notes and changing relevant portions of the company handbook upon request.
- 11. Non-obvious benefits for a CEO (and their organization) include CEO empathy and humanizing a CEO, such that team members are more comfortable contributing input to an executive. Shadow alumni are able to translate real-world examples of [assuming positive intent](https://about.gitlab.com/handbook/values/#assume-positive-intent) from their time in the program to their direct reports, further fortifying company culture.
- 12. Ensure that CEO Shadows do not plan to do any of their usual work. Shadows should prepare their team as if they were on vacation. Attempting to shadow the CEO while also maintaining a full workload creates undue stress for the CEO Shadow.
+ 3. Non-obvious benefits for a CEO (and their organization) include CEO empathy and humanizing a CEO, such that team members are more comfortable contributing input to an executive. Shadow alumni can translate real-world examples of [assuming positive intent](https://about.gitlab.com/handbook/values/#assume-positive-intent) from their time in the program to their direct reports, further fortifying company culture.
+ 4. Make certain that CEO Shadows do not plan to do any of their usual work. Shadows should prepare their team as if they were on vacation. Attempting to shadow the CEO while also maintaining a full workload creates undue stress for the CEO Shadow.
 
 ### Alumni 
-TODO: (this is a chart with info on CEO alumni) (they use a slack channel for CEO-shadow-alumni)
+TODO: (This is a chart with info on CEO alumni) (Create a slack channel for CEO-shadow-alumni)
 
 ### Recruiting progress checkup
 

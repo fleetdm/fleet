@@ -1,1 +1,0 @@
-* Added `status` query string parameter in redirect to `/login` on SSO authentication failure, to assist the frontend in displaying a helpful error message.

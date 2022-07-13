@@ -5084,6 +5084,40 @@
     ]
   },
   {
+    "name": "docker_container_envs",
+    "description": "Docker container environment variables.",
+    "url": "https://github.com/osquery/osquery/blob/master/specs/posix/docker_container_envs.table",
+    "platforms": ["darwin", "linux"],
+    "evented": false,
+    "cacheable": false,
+    "columns": [
+      {
+        "name": "id",
+        "description": "Container ID",
+        "type": "text",
+        "hidden": false,
+        "required": false,
+        "index": true
+      },
+      {
+        "name": "key",
+        "description": "Environment variable name",
+        "type": "text",
+        "hidden": false,
+        "required": false,
+        "index": false
+      },
+      {
+        "name": "value",
+        "description": "Environment variable value",
+        "type": "text",
+        "hidden": false,
+        "required": false,
+        "index": false
+      }
+    ]
+  },
+  {
     "name": "docker_container_fs_changes",
     "description": "Changes to files or directories on container's filesystem.",
     "url": "https://github.com/osquery/osquery/blob/master/specs/posix/docker_container_fs_changes.table",
@@ -11253,7 +11287,7 @@
     "name": "lxd_certificates",
     "description": "LXD certificates information.",
     "url": "https://github.com/osquery/osquery/blob/master/specs/posix/lxd_certificates.table",
-    "platforms": ["darwin", "linux"],
+    "platforms": ["linux"],
     "evented": false,
     "cacheable": false,
     "columns": [
@@ -11295,7 +11329,7 @@
     "name": "lxd_cluster",
     "description": "LXD cluster information.",
     "url": "https://github.com/osquery/osquery/blob/master/specs/posix/lxd_cluster.table",
-    "platforms": ["darwin", "linux"],
+    "platforms": ["linux"],
     "evented": false,
     "cacheable": false,
     "columns": [
@@ -11361,7 +11395,7 @@
     "name": "lxd_cluster_members",
     "description": "LXD cluster members information.",
     "url": "https://github.com/osquery/osquery/blob/master/specs/posix/lxd_cluster_members.table",
-    "platforms": ["darwin", "linux"],
+    "platforms": ["linux"],
     "evented": false,
     "cacheable": false,
     "columns": [
@@ -11411,7 +11445,7 @@
     "name": "lxd_images",
     "description": "LXD images information.",
     "url": "https://github.com/osquery/osquery/blob/master/specs/posix/lxd_images.table",
-    "platforms": ["darwin", "linux"],
+    "platforms": ["linux"],
     "evented": false,
     "cacheable": false,
     "columns": [
@@ -11573,7 +11607,7 @@
     "name": "lxd_instance_config",
     "description": "LXD instance configuration information.",
     "url": "https://github.com/osquery/osquery/blob/master/specs/posix/lxd_instance_config.table",
-    "platforms": ["darwin", "linux"],
+    "platforms": ["linux"],
     "evented": false,
     "cacheable": false,
     "columns": [
@@ -11607,7 +11641,7 @@
     "name": "lxd_instance_devices",
     "description": "LXD instance devices information.",
     "url": "https://github.com/osquery/osquery/blob/master/specs/posix/lxd_instance_devices.table",
-    "platforms": ["darwin", "linux"],
+    "platforms": ["linux"],
     "evented": false,
     "cacheable": false,
     "columns": [
@@ -11657,7 +11691,7 @@
     "name": "lxd_instances",
     "description": "LXD instances information.",
     "url": "https://github.com/osquery/osquery/blob/master/specs/posix/lxd_instances.table",
-    "platforms": ["darwin", "linux"],
+    "platforms": ["linux"],
     "evented": false,
     "cacheable": false,
     "columns": [
@@ -11755,7 +11789,7 @@
     "name": "lxd_networks",
     "description": "LXD network information.",
     "url": "https://github.com/osquery/osquery/blob/master/specs/posix/lxd_networks.table",
-    "platforms": ["darwin", "linux"],
+    "platforms": ["linux"],
     "evented": false,
     "cacheable": false,
     "columns": [
@@ -11869,7 +11903,7 @@
     "name": "lxd_storage_pools",
     "description": "LXD storage pool information.",
     "url": "https://github.com/osquery/osquery/blob/master/specs/posix/lxd_storage_pools.table",
-    "platforms": ["darwin", "linux"],
+    "platforms": ["linux"],
     "evented": false,
     "cacheable": false,
     "columns": [
@@ -16069,7 +16103,7 @@
     "name": "process_open_pipes",
     "description": "Pipes and partner processes for each process.",
     "url": "https://github.com/osquery/osquery/blob/master/specs/posix/process_open_pipes.table",
-    "platforms": ["darwin", "linux"],
+    "platforms": ["linux"],
     "evented": false,
     "cacheable": false,
     "columns": [

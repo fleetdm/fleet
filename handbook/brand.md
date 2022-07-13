@@ -471,6 +471,7 @@ These groups maintain the following [Slack channels](https://fleetdm.com/handboo
 | `#help-finance`             | Nathan Holliday
 | `#help-brex-memos`          | Nathan Holliday
 | `#help-p1`		      | Mike McNeil
+| `#help-operations`          | Charlie Chance and Nathan Holiday _(multiple DRIs, for the sake of coverage)_
 
 
 <meta name="maintainedBy" value="mike-j-thomas">

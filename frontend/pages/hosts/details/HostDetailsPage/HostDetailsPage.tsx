@@ -342,6 +342,8 @@ const HostDetailsPage = ({
       "primary_ip",
       "public_ip",
       "geolocation",
+      "batteries",
+      "detail_updated_at",
     ])
   );
 

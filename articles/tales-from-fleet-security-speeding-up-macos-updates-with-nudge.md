@@ -1,5 +1,7 @@
 # Tales from Fleet security: speeding up macOS updates with Nudge
 
+![SOC 2 type 1 certified](../website/assets/images/articles/tales-from-fleet-nudge-cover-1600x900@2x.jpg)
+
 To keep Fleet secure, we manage vulnerabilities on all of our company workstations, all of which are laptops. 
 
 We manage vulnerabilities by:
@@ -66,3 +68,4 @@ Feel free to drop in our [#Fleet](https://fleetdm.com/slack) Slack Channel to di
 <meta name="authorGitHubUsername" value="GuillaumeRoss">
 <meta name="publishedOn" value="2022-07-05">
 <meta name="articleTitle" value="Tales from Fleet security: speeding up macOS updates with Nudge">
+<meta name="articleImageUrl" value="../website/assets/images/articles/tales-from-fleet-nudge-cover-1600x900@2x.jpg">

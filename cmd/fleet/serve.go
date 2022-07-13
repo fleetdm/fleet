@@ -263,6 +263,37 @@ the way that the Fleet server works.
 				}
 			}
 
+			if config.Packaging.GlobalEnrollSecret != "" {
+				secrets, err := ds.GetEnrollSecrets(cmd.Context(), nil)
+				if err != nil {
+					initFatal(err, "loading enroll secrets")
+				}
+
+				var globalEnrollSecret string
+				for _, secret := range secrets {
+					if secret.TeamID == nil {
+						globalEnrollSecret = secret.Secret
+						break
+					}
+				}
+
+				if globalEnrollSecret != "" {
+					if globalEnrollSecret != config.Packaging.GlobalEnrollSecret {
+						fmt.Printf("################################################################################\n" +
+							"# WARNING:\n" +
+							"#  You have provided a global enroll secret config, but there's\n" +
+							"#  already one set up for your application.\n" +
+							"#\n" +
+							"#  This is generally an error and the provided value will be\n" +
+							"#  ignored, if you really need to configure an enroll secret please\n" +
+							"#  remove the global enroll secret from the database manually.\n" +
+							"################################################################################\n")
+					}
+				} else {
+					ds.ApplyEnrollSecrets(cmd.Context(), nil, []*fleet.EnrollSecret{{Secret: config.Packaging.GlobalEnrollSecret}})
+				}
+			}
+
 			redisPool, err := redis.NewPool(redis.PoolConfig{
 				Server:                    config.Redis.Address,
 				Password:                  config.Redis.Password,
