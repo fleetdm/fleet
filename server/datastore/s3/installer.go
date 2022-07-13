@@ -35,12 +35,12 @@ func (p Installer) key() string {
 
 // InstallerStore contains methods to retrieve installers from S3
 type InstallerStore struct {
-	*s3Store
+	*s3store
 }
 
 // NewInstallerStore creates a new instance with the given S3 config
 func NewInstallerStore(config config.S3Config) (*InstallerStore, error) {
-	s3Store, err := newS3Store(config)
+	s3Store, err := newS3store(config)
 	if err != nil {
 		return nil, err
 	}

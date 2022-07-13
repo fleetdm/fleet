@@ -15,14 +15,14 @@ import (
 
 const awsRegionHint = "us-east-1"
 
-type s3Store struct {
+type s3store struct {
 	s3client *s3.S3
 	bucket   string
 	prefix   string
 }
 
-// newS3Store initializes an S3 Datastore
-func newS3Store(config config.S3Config) (*s3Store, error) {
+// newS3store initializes an S3 Datastore
+func newS3store(config config.S3Config) (*s3store, error) {
 	conf := &aws.Config{}
 
 	// Use default auth provire if no static credentials were provided
@@ -65,7 +65,7 @@ func newS3Store(config config.S3Config) (*s3Store, error) {
 		config.Region = region
 	}
 
-	return &s3Store{
+	return &s3store{
 		s3client: s3.New(sess, &aws.Config{Region: &config.Region}),
 		bucket:   config.Bucket,
 		prefix:   config.Prefix,
