@@ -541,6 +541,7 @@
   display: flex;
 }
 
+.users-tooltip,
 .vulnerabilities-tooltip {
   &:hover {
     cursor: help;

@@ -97,13 +97,17 @@ const About = ({
         <span className="info-grid__data">
           {numUsers > 1 ? (
             <>
-              <span data-tip data-for={`device_mapping`}>
+              <span
+                data-tip
+                data-for="device_mapping"
+                className="users-tooltip"
+              >
                 {`${numUsers} users`}
               </span>
               <ReactTooltip
                 effect="solid"
                 backgroundColor="#3e4771"
-                id={`device_mapping`}
+                id="device_mapping"
                 data-html
               >
                 <span className={`tooltip__tooltip-text`}>{tooltipText}</span>
