@@ -142,28 +142,26 @@ the account verification message.)`,
 
       // Send a POST request to the cloud provisioner API
       let cloudProvisionerResponse = await sails.helpers.http.post(sails.config.custom.fleetSandboxProvisionerURL, {
-        'name': firstName + ' ' + lastName,
-        'email': emailAddress,
-        'password': newUserRecord.password, //« Sending the hashed password to the Fleet Sandbox instance
-        'sandbox_expiration': new Date(fleetSandboxExpiresAt).toISOString(), // sending expiration_timestamp as an ISO string.
-        'fleetSandboxDemoKey': fleetSandboxDemoKey,
-        'apiSecret': sails.config.custom.fleetSandboxProvisionerSecret,
+        "name": firstName + ' ' + lastName,
+        "email": emailAddress,
+        "password": newUserRecord.password, //« Sending the hashed password to the Fleet Sandbox instance
+        "sandbox_expiration": new Date(fleetSandboxExpiresAt).toISOString(), // sending expiration_timestamp as an ISO string.
       })
       .timeout(5000)
       .intercept('non200Response', 'couldNotProvisionSandbox');
 
-      if(cloudProvisionerResponse.url) {
+      if(cloudProvisionerResponse.URL) {
         // Update the user's record with the fleetSandboxURL, fleetSandboxExpiresAt, and fleetSandboxKey.
         await User.updateOne({id: newUserRecord.id}).set({
-          fleetSandboxURL: cloudProvisionerResponse.url,
+          fleetSandboxURL: cloudProvisionerResponse.URL,
           fleetSandboxExpiresAt: fleetSandboxExpiresAt,
-          fleetSandboxDemoKey: fleetSandboxDemoKey,
+          // fleetSandboxDemoKey: fleetSandboxDemoKey,
         });
         // Start polling the /healthz endpoint of the created Fleet Sandbox instance, once it returns a 200 response, we'll continue.
         await sails.helpers.flow.until( async function () {
-          let serverResponse = await sails.helpers.http.sendHttpRequest('GET', cloudProvisionerResponse.url+'/healthz').timeout(5000).tolerate('non200Response').tolerate('requestFailed');
+          let serverResponse = await sails.helpers.http.sendHttpRequest('GET', cloudProvisionerResponse.URL+'/healthz').timeout(5000).tolerate('non200Response').tolerate('requestFailed');
           if(serverResponse && serverResponse.statusCode) {
-           return serverResponse.statusCode === 200;
+            return serverResponse.statusCode === 200;
           }
         });
       } else {
