@@ -34,7 +34,11 @@ module.exports = {
     invalidToken: {
       description: 'The provided password token is invalid, expired, or has already been used.',
       responseType: 'expired'
-    }
+    },
+
+    couldNotChangeSandboxPassword: {
+      description: 'An error occurred while resetting the password on this user\'s Fleet sandbox instance',
+    },
 
   },
 
@@ -52,10 +56,30 @@ module.exports = {
     if (!userRecord || userRecord.passwordResetTokenExpiresAt <= Date.now()) {
       throw 'invalidToken';
     }
-
     // Hash the new password.
     var hashed = await sails.helpers.passwords.hashPassword(password);
 
+
+    if(userRecord.fleetSandboxURL) {
+
+    // If this is a fleet sandbox user, we will need to reset their password on their Fleet sandbox instance, since we have the password they signed up with we can send the original password to the sandbox instance.
+      let authToken = await sails.helpers.http.post(userRecord.fleetSandboxURL+'/api/v1/fleet/login', {
+        "email": userRecord.emailAddress,
+        "password": userRecord.password
+      }).intercept('non200Response', 'couldNotChangeSandboxPassword');
+
+      if(authToken) {
+        // If we received a token from the fleet instance, we'll use that to update this users password.
+        let responseFromChangePassword = await sails.helpers.http.post(
+          userRecord.fleetSandboxURL+'/api/v1/fleet/change_password',
+          {
+            "old_password": userRecord.password,
+            "new_password": hashed,
+          },
+          {"Authorization": "Bearer "+authToken.token},
+        ).intercept('non200Response', 'couldNotChangeSandboxPassword');
+      }
+    }
     // Store the user's new password and clear their reset token so it can't be used again.
     await User.updateOne({ id: userRecord.id })
     .set({

@@ -15,8 +15,13 @@ parasails.registerPage('new-password', {
 
     // Form rules
     formRules: {
-      password: {required: true, minLength: 8},
-      confirmPassword: {required: true, minLength: 8, sameAs: 'password'},
+      password: {required: true,
+       minLength: 12,
+       custom: (password)=>{
+         return !! password.match(/[\!\@\#\$\%\^\&\*]/) && password.match(/\d/) && password.match(/\w/);
+       }
+      },
+      confirmPassword: {required: true, minLength: 12, sameAs: 'password'},
     },
 
     // Server error state for the form
@@ -45,7 +50,11 @@ parasails.registerPage('new-password', {
       // > (Note that we re-enable the syncing state here.  This is on purpose--
       // > to make sure the spinner stays there until the page navigation finishes.)
       this.syncing = true;
-      window.location = '/customers/login';
+      if(this.redirectToSandbox){
+        window.location = '/try-fleet/sandbox';
+      } else {
+        window.location = '/customers/login';
+      }
     },
 
   }

@@ -32,7 +32,10 @@ parasails.registerPage('forgot-password', {
     //…
   },
   mounted: async function() {
-    //…
+    if(this.redirectToSandbox) {
+      // If this user is requesting a password reset from the sandbox login, we'll add a passwordResetRequestedFrom value to the formData.
+      this.formData.passwordResetRequestedFrom = 'sandbox';
+    }
   },
 
   //  ╦╔╗╔╔╦╗╔═╗╦═╗╔═╗╔═╗╔╦╗╦╔═╗╔╗╔╔═╗
