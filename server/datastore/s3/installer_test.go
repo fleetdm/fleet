@@ -15,7 +15,7 @@ func TestInstallerExists(t *testing.T) {
 	defer cleanupStore(t, store)
 
 	t.Run("returns true for existing installers", func(t *testing.T) {
-		installers := seedInstallerStore(t, store, "abc")
+		installers := seedInstallerStore(t, store, "enroll-secret")
 
 		for _, i := range installers {
 			exists, err := store.Exists(ctx, *i)
@@ -51,7 +51,7 @@ func TestGetInstaller(t *testing.T) {
 	defer cleanupStore(t, store)
 
 	t.Run("gets a blob with the file contents for each installer", func(t *testing.T) {
-		installers := seedInstallerStore(t, store, "abc")
+		installers := seedInstallerStore(t, store, "enroll-secret")
 
 		for _, i := range installers {
 			blob, err := store.Get(ctx, *i)
