@@ -34,12 +34,12 @@ type CarveStore struct {
 
 // NewCarveStore creates a new store with the given config
 func NewCarveStore(config config.S3Config, metadatadb fleet.CarveStore) (*CarveStore, error) {
-	s3Store, err := newS3store(config)
+	s3store, err := newS3store(config)
 	if err != nil {
 		return nil, err
 	}
 
-	return &CarveStore{s3Store, metadatadb}, nil
+	return &CarveStore{s3store, metadatadb}, nil
 }
 
 // generateS3Key builds S3 key from carve metadata

@@ -34,11 +34,11 @@ type InstallerStore struct {
 
 // NewInstallerStore creates a new instance with the given S3 config
 func NewInstallerStore(config config.S3Config) (*InstallerStore, error) {
-	s3Store, err := newS3store(config)
+	s3store, err := newS3store(config)
 	if err != nil {
 		return nil, err
 	}
-	return &InstallerStore{s3Store}, nil
+	return &InstallerStore{s3store}, nil
 }
 
 // Exists checks if an installer exists in the S3 bucket
