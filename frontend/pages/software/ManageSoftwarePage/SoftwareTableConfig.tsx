@@ -164,7 +164,6 @@ const generateVulnColumnHeader = () => {
               : `${vulnerabilities.length} vulnerabilities`}
           </span>
           <ReactTooltip
-            place="top"
             effect="solid"
             backgroundColor="#3e4771"
             id={`vulnerabilities__${cellProps.row.original.id}`}

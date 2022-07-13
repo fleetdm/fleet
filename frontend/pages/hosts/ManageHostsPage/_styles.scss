@@ -125,6 +125,9 @@
                     height: 16px;
                     vertical-align: sub;
                   }
+                  &:hover {
+                    cursor: help;
+                  }
                 }
               }
               .device_mapping__cell {
