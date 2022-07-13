@@ -314,7 +314,7 @@ When deciding whether to describe Fleet as open source or open core, define who 
 | **osquery**  | A tool that assembles low-level operating system analytics and monitoring. |
 | **out-of-policy device** | A device that is fails any security or vulnerability policy created in Fleet. |
 | **permissions** | Users have different abilities depending on the access level they have. |
-| **platform** | The primary hardware device and operating system software where applications can be run. |
+| **platform** | Any software or hardware for hosting an application, data, or service. |
 | **policies** | Yes or no questions you can ask using Fleet about your host devices. |
 | **policy compliance** | The state of whether a device is passing or failing policies created in Fleet. |
 | **queries** | Questions you can ask an end-user device's operating system via Fleet. |
