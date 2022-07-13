@@ -67,7 +67,7 @@ func uploadMockInstaller(tb testing.TB, store *InstallerStore, installer *fleet.
 	_, err := store.s3client.PutObject(&s3.PutObjectInput{
 		Bucket: &store.bucket,
 		Body:   aws.ReadSeekCloser(strings.NewReader(mockInstallerContents)),
-		Key:    aws.String(keyForInstaller(*installer)),
+		Key:    aws.String(store.keyForInstaller(*installer)),
 	})
 	require.NoError(tb, err)
 }
