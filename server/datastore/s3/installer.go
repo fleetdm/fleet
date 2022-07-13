@@ -18,9 +18,9 @@ const (
 
 // Installer describes an installer in an S3 bucket
 type Installer struct {
-	secret  string
-	ext     string
-	desktop bool
+	enrollSecret string
+	ext          string
+	desktop      bool
 }
 
 // key builds an S3 key to search for the installer
@@ -30,7 +30,7 @@ func (p Installer) key() string {
 	if p.desktop {
 		dir = desktopPath
 	}
-	return path.Join(p.secret, dir, file)
+	return path.Join(p.enrollSecret, dir, file)
 }
 
 // InstallerStore contains methods to retrieve installers from S3
