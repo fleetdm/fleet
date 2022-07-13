@@ -599,7 +599,13 @@ Weekly, Charlie looks in the [Fleeties spreadsheet](https://docs.google.com/spre
 
 ### Payroll
 
-Many of these processes are automated, but it's vital check Gusto and Pilot manually for accuracy.
+Many of these processes are automated, but it's vital to check Gusto and Pilot manually for accuracy.
+
+| Unique payrolls              | Action                       | DRI                          |
+|:-----------------------------|:-----------------------------|:-----------------------------|
+| Commissions                  | "Off-cycle" payroll          | Charlie
+| Sign-on bonus                | "Bonus" payroll              | Charlie
+| Performance bonus            | "Bonus" payroll              | Charlie
 
 ## BizOps
 
