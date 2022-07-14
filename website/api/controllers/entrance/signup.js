@@ -154,7 +154,7 @@ the account verification message.)`,
           fleetSandboxExpiresAt: fleetSandboxExpiresAt,
         });
         // Start polling the /healthz endpoint of the created Fleet Sandbox instance, once it returns a 200 response, we'll continue.
-        await sails.helpers.flow.until( async function () {
+        await sails.helpers.flow.until( async()=>{
           let serverResponse = await sails.helpers.http.sendHttpRequest('GET', cloudProvisionerResponse.URL+'/healthz')
           .timeout(5000)
           .tolerate('non200Response')

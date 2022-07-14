@@ -1,7 +1,6 @@
 <div id="sandbox" v-cloak>
   <div v-if="!isSandboxExpired">
-    <form
-      method="post" action="<%=sandboxUser.fleetSandboxURL%>/api/latest/fleet/demologin"id="demologin">
+    <form method="post" action="<%=sandboxUser.fleetSandboxURL%>/api/latest/fleet/demologin" id="demologin">
       <input type="hidden" name="email" :value="sandboxUser.emailAddress" />
       <input type="hidden" name="password" :value="sandboxUser.password" />
       <input class="d-none" type="submit"/>

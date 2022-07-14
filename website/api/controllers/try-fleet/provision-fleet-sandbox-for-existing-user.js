@@ -70,7 +70,7 @@ module.exports = {
         fleetSandboxExpiresAt: fleetSandboxExpiresAt,
       });
       // Poll the Fleet Sandbox Instance's /healthz endpoint until it returns a 200 response
-      await sails.helpers.flow.until( async function () {
+      await sails.helpers.flow.until( async()=>{
         let serverResponse = await sails.helpers.http.sendHttpRequest('GET', cloudProvisionerResponse.URL+'/healthz').timeout(5000).tolerate('non200Response').tolerate('requestFailed');
         if(serverResponse && serverResponse.statusCode) {
           return serverResponse.statusCode === 200;

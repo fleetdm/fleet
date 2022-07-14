@@ -40,7 +40,7 @@ module.exports = {
       // Setting this.req.me.fleetSandboxURL to a variable to pass in to sails.helper.flow.until()
       let sandboxURL = this.req.me.fleetSandboxURL;
       // If this is a valid fleet sandbox instance, we'll check the /healthz endpoint before redirecting the user to their sandbox.
-      await sails.helpers.flow.until(async function () {
+      await sails.helpers.flow.until(async()=>{
         let serverResponse = await sails.helpers.http.sendHttpRequest('GET', sandboxURL+'/healthz')
         .timeout(5000)
         .tolerate('non200Response')
