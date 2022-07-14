@@ -288,7 +288,7 @@ Each group is associated with an engineering manager (EM), who, with their group
 
 Each group's PM works closely with engineers within their group:
 - The PM **prioritizes** work and defines **what** to iteratively build and release next within their group's domain to best serve the group's goals and the company's goals as a whole. The PM communicates **why** this work is prioritized and works with engineering to come up with the best possible **how**.
-- The PM is responsible for epics. Sometimes initiatives require multiple issues that may, or may not, include multiple development groups. These initiatives are tracked as GitHub issues with the "epic" label. To make sure that all issues associated with the epic (child issues) make it into a release, one PM is assigned to the epic. It's the PM's responsibility to track progress and close the epic when the initiative is complete.
+- The PM is responsible for epics. Sometimes initiatives require multiple issues that may, or may not, include multiple development groups. These initiatives are tracked as GitHub issues with the "epic" label. One PM is assigned to the epic to make sure that all issues associated with the epic (child issues) make it into a release. It's the PM's responsibility to track progress and close the epic when the initiative is complete.
 - The EM (along with engineers) defines **how** to implement that definition within the surface area of code, processes, and rituals owned by their group while serving their group’s goals and the company's goals as a whole.
 
 ### Interface group
