@@ -17,7 +17,7 @@ func TestInstallerExists(t *testing.T) {
 		installers := seedInstallerStore(t, store, "enroll-secret")
 
 		for _, i := range installers {
-			exists, err := store.Exists(ctx, *i)
+			exists, err := store.Exists(ctx, i)
 			require.NoError(t, err)
 			require.Equal(t, exists, true)
 		}
@@ -52,7 +52,7 @@ func TestGetInstaller(t *testing.T) {
 		installers := seedInstallerStore(t, store, "enroll-secret")
 
 		for _, i := range installers {
-			blob, err := store.Get(ctx, *i)
+			blob, err := store.Get(ctx, i)
 			require.NoError(t, err)
 			contents, err := io.ReadAll(blob)
 			require.NoError(t, err)
