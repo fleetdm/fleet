@@ -2,7 +2,7 @@
 
 All of the Fleet API routes currently support `v1` in the URL path.
 
-When Fleet 5 is released, the Fleet API will use a new versioning (specified below) and support for `v1` will be removed.
+When Fleet 5 is released, the Fleet API will use date versioning (specified below) and support for `v1` will be removed.
 
 ## Why do we need to version the API?
 
