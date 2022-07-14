@@ -81,7 +81,7 @@ module.exports = {
       return {
         fleetSandboxURL,
         fleetSandboxDemoKey
-      }
+      };
     }
 
   }

@@ -32,7 +32,7 @@ module.exports = {
     // Check if the user has a fleetSandboxURL
     if(!this.req.me.fleetSandboxURL) {
       // If the user doesn't have a fleetSandboxURL they will be taken to the sandbox page.
-      throw {redirect: '/try-fleet/new-sandbox'}
+      throw {redirect: '/try-fleet/new-sandbox'};
     } else {
       // Get the userRecord to send to the
       let userRecord = await User.findOne({id: this.req.me.id});

@@ -178,7 +178,7 @@ module.exports.routes = {
       headerCTAHidden: true,
     }
   },
-  
+
   'GET /overview': {
     action: 'view-sales-one-pager',
     locals: {

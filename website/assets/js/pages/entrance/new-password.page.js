@@ -15,11 +15,12 @@ parasails.registerPage('new-password', {
 
     // Form rules
     formRules: {
-      password: {required: true,
-       minLength: 12,
-       custom: (password)=>{
-         return !! password.match(/[\!\@\#\$\%\^\&\*]/) && password.match(/\d/) && password.match(/\w/);
-       }
+      password: {
+        required: true,
+        minLength: 12,
+        custom: (password)=>{
+          return !! password.match(/[\!\@\#\$\%\^\&\*]/) && password.match(/\d/) && password.match(/\w/);
+        }
       },
       confirmPassword: {required: true, minLength: 12, sameAs: 'password'},
     },
