@@ -541,7 +541,7 @@ This group maintains the following [Slack channels](https://fleetdm.com/handbook
 |:------------------------------------|:--------------------------------------------------------------------|
 | `#help-product`                     | Noah Talerman                                                       |
 | `#help-qa`                          | Reed Haynes                                                         |
-| `#g-platform`                       | Zach Wasserman                                                      |
+| `#g-platform`                       | Mo Zhu                                                              |
 | `#g-interface`                      | Noah Talerman                                                       |
 | `#g-agent`                          | Mo Zhu                                                              |
 
