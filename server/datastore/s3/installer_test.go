@@ -12,7 +12,6 @@ import (
 func TestInstallerExists(t *testing.T) {
 	ctx := context.Background()
 	store := setupInstallerStore(t, "installers", "random-prefix")
-	defer cleanupStore(t, store)
 
 	t.Run("returns true for existing installers", func(t *testing.T) {
 		installers := seedInstallerStore(t, store, "enroll-secret")
@@ -48,7 +47,6 @@ func TestInstallerExists(t *testing.T) {
 func TestGetInstaller(t *testing.T) {
 	ctx := context.Background()
 	store := setupInstallerStore(t, "installers", "random-prefix")
-	defer cleanupStore(t, store)
 
 	t.Run("gets a blob with the file contents for each installer", func(t *testing.T) {
 		installers := seedInstallerStore(t, store, "enroll-secret")

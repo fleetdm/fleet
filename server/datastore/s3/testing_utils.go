@@ -39,6 +39,8 @@ func setupInstallerStore(tb testing.TB, bucket, prefix string) *InstallerStore {
 		CreateBucketConfiguration: &s3.CreateBucketConfiguration{},
 	})
 
+	tb.Cleanup(func() { cleanupStore(tb, store) })
+
 	return store
 }
 
