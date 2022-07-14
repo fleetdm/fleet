@@ -547,7 +547,7 @@ TODO: (This is a chart with info on CEO alumni) (Create a slack channel for CEO-
 
 ### OKR planning
 
-OKRs help inform what to prioritize and communicate company goals while encouraging cross-team collaboration.
+OKRs help to inform what to prioritize and communicate company goals while encouraging cross-team collaboration.
 
 At the end of the quarter and key points throughout the quarter (every three weeks), we review the status of each OKR (depending on the KR, either 100% or ≥70% completion is considered "success")
 
@@ -581,7 +581,7 @@ We like to celebrate our achievements weekly in `#general`.
 
 Weekly update principles
    - Each department's update is 20-40 words or less.
-   - Erring on the side of refering to items that are completely done and/or mentioning news that is potentially very exciting to folks throughout the company.
+   - Erring on the side of referring to items that are completely done and/or mentioning news that is potentially very exciting to folks throughout the company.
 
 ### Investor and advisor updates
 
