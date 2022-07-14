@@ -1045,11 +1045,11 @@ func (ds *Datastore) InsertVulnerabilities(
 		return 0, nil
 	}
 
-	values := strings.TrimSuffix(strings.Repeat("(?,?,?),", len(vulns)), ",")
-	sql := fmt.Sprintf(`INSERT IGNORE INTO software_cve (cpe_id, cve, source) VALUES %s`, values)
+	values := strings.TrimSuffix(strings.Repeat("(?,?,?,?),", len(vulns)), ",")
+	sql := fmt.Sprintf(`INSERT IGNORE INTO software_cve (cpe_id, cve, source, software_id) VALUES %s`, values)
 
 	for _, v := range vulns {
-		args = append(args, v.CPEID, v.CVE, source)
+		args = append(args, v.CPEID, v.CVE, source, v.SoftwareID)
 	}
 	res, err := ds.writer.ExecContext(ctx, sql, args...)
 	if err != nil {

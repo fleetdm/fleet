@@ -5130,6 +5130,43 @@ func (s *integrationTestSuite) TestSSODisabled() {
 	require.Contains(t, string(body), "/login?status=org_disabled") // html contains a script that redirects to this path
 }
 
+func (s *integrationTestSuite) TestFleetSandboxDemoLogin() {
+	t := s.T()
+
+	validEmail := testUsers["user1"].Email
+	validPwd := testUsers["user1"].PlaintextPassword
+	wrongPwd := "nope"
+	hdrs := map[string]string{"Content-Type": "application/x-www-form-urlencoded"}
+
+	os.Unsetenv("FLEET_DEMO") // ensure it is not accidentally set
+
+	// without the FLEET_DEMO env var set, the login always fails
+	formBody := make(url.Values)
+	formBody.Set("email", validEmail)
+	formBody.Set("password", validPwd)
+	res := s.DoRawWithHeaders("POST", "/api/v1/fleet/demologin", []byte(formBody.Encode()), http.StatusInternalServerError, hdrs)
+	require.NotEqual(t, http.StatusOK, res.StatusCode)
+
+	// with the FLEET_DEMO env var set, the login works as expected, validating
+	// the credentials
+	os.Setenv("FLEET_DEMO", "1")
+	defer os.Unsetenv("FLEET_DEMO")
+
+	formBody.Set("email", validEmail)
+	formBody.Set("password", wrongPwd)
+	res = s.DoRawWithHeaders("POST", "/api/v1/fleet/demologin", []byte(formBody.Encode()), http.StatusUnauthorized, hdrs)
+	require.Equal(t, http.StatusUnauthorized, res.StatusCode)
+
+	formBody.Set("email", validEmail)
+	formBody.Set("password", validPwd)
+	res = s.DoRawWithHeaders("POST", "/api/v1/fleet/demologin", []byte(formBody.Encode()), http.StatusOK, hdrs)
+	resBody, err := io.ReadAll(res.Body)
+	require.NoError(t, err)
+	require.Equal(t, http.StatusOK, res.StatusCode)
+	require.Contains(t, string(resBody), `window.location = "/"`)
+	require.Regexp(t, `window.localStorage.setItem\('FLEET::auth_token', '[^']+'\)`, string(resBody))
+}
+
 func (s *integrationTestSuite) TestGetHostBatteries() {
 	t := s.T()
 

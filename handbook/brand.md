@@ -327,7 +327,7 @@ When conducting an incident post-mortem, answer the following three questions:
 
 1. Impact: What impact did this error have? How many humans experienced this error, if any, and who were they?
 2. Root Cause: Why did this error happen?
-3. Side effects: did this error have any side effects? e.g., did it corrupt any data? Did code that was supposed to run afterwards and “finish something up” not run, and did it leave anything in the database or other systems in a broken state requiring repair? This typically involves checking the line in the source code that threw the error.
+3. Side effects: did this error have any side effects? e.g., did it corrupt any data? Did code that was supposed to run afterward and “finish something up” not run, and did it leave anything in the database or other systems in a broken state requiring repair? This typically involves checking the line in the source code that threw the error.
 
 ### When can I merge a change to the website?
 When merging a PR to master, remember that whatever you merge to master gets deployed live immediately. So if the PR's changes contain anything that you don't think is appropriate to be seen publicly by all guests of [fleetdm.com](https://fleetdm.com/), please do not merge.
@@ -407,6 +407,7 @@ These groups maintain the following [Slack channels](https://fleetdm.com/handboo
 | `#help-finance`             | Nathan Holliday
 | `#help-brex-memos`          | Nathan Holliday
 | `#help-p1`		      | Mike McNeil
+| `#help-operations`          | Charlie Chance and Nathan Holiday _(multiple DRIs, for the sake of coverage)_
 
 
 <meta name="maintainedBy" value="mike-j-thomas">

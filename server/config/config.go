@@ -76,13 +76,14 @@ const (
 
 // ServerConfig defines configs related to the Fleet server
 type ServerConfig struct {
-	Address    string
-	Cert       string
-	Key        string
-	TLS        bool
-	TLSProfile string `yaml:"tls_compatibility"`
-	URLPrefix  string `yaml:"url_prefix"`
-	Keepalive  bool   `yaml:"keepalive"`
+	Address        string
+	Cert           string
+	Key            string
+	TLS            bool
+	TLSProfile     string `yaml:"tls_compatibility"`
+	URLPrefix      string `yaml:"url_prefix"`
+	Keepalive      bool   `yaml:"keepalive"`
+	SandboxEnabled bool   `yaml:"sandbox_enabled"`
 }
 
 // AuthConfig defines configs related to user authorization
@@ -305,6 +306,15 @@ type HTTPBasicAuthConfig struct {
 	Password string `json:"password" yaml:"password"`
 }
 
+// PackagingConfig holds configuration to build and retrieve Fleet packages
+type PackagingConfig struct {
+	// GlobalEnrollSecret is the enroll secret that will be used to enroll
+	// hosts in the global scope
+	GlobalEnrollSecret string `yaml:"global_enroll_secret"`
+	// S3 configuration used to retrieve pre-built installers
+	S3 S3Config `yaml:"s3"`
+}
+
 // FleetConfig stores the application configuration. Each subcategory is
 // broken up into it's own struct, defined above. When editing any of these
 // structs, Manager.addConfigs and Manager.LoadConfig should be
@@ -332,6 +342,7 @@ type FleetConfig struct {
 	Sentry           SentryConfig
 	GeoIP            GeoIPConfig
 	Prometheus       PrometheusConfig
+	Packaging        PackagingConfig
 }
 
 type TLS struct {
@@ -449,7 +460,9 @@ func (man Manager) addConfigs() {
 	man.addConfigString("server.url_prefix", "",
 		"URL prefix used on server and frontend endpoints")
 	man.addConfigBool("server.keepalive", true,
-		"Controls wether HTTP keep-alives are enabled.")
+		"Controls whether HTTP keep-alives are enabled.")
+	man.addConfigBool("server.sandbox_enabled", false,
+		"When enabled, Fleet limits some features for the Sandbox")
 
 	// Auth
 	man.addConfigInt("auth.bcrypt_cost", 12,
@@ -640,6 +653,18 @@ func (man Manager) addConfigs() {
 	// Prometheus
 	man.addConfigString("prometheus.basic_auth.username", "", "Prometheus username for HTTP Basic Auth")
 	man.addConfigString("prometheus.basic_auth.password", "", "Prometheus password for HTTP Basic Auth")
+
+	// Packaging config
+	man.addConfigString("packaging.global_enroll_secret", "", "Enroll secret to be used for the global domain (instead of randomly generating one)")
+	man.addConfigString("packaging.s3.bucket", "", "Bucket where to retrieve installers")
+	man.addConfigString("packaging.s3.prefix", "", "Prefix under which installers are stored")
+	man.addConfigString("packaging.s3.region", "", "AWS Region (if blank region is derived)")
+	man.addConfigString("packaging.s3.endpoint_url", "", "AWS Service Endpoint to use (leave blank for default service endpoints)")
+	man.addConfigString("packaging.s3.access_key_id", "", "Access Key ID for AWS authentication")
+	man.addConfigString("packaging.s3.secret_access_key", "", "Secret Access Key for AWS authentication")
+	man.addConfigString("packaging.s3.sts_assume_role_arn", "", "ARN of role to assume for AWS")
+	man.addConfigBool("packaging.s3.disable_ssl", false, "Disable SSL (typically for local testing)")
+	man.addConfigBool("packaging.s3.force_s3_path_style", false, "Set this to true to force path-style addressing, i.e., `http://s3.amazonaws.com/BUCKET/KEY`")
 }
 
 // LoadConfig will load the config variables into a fully initialized
@@ -694,13 +719,14 @@ func (man Manager) LoadConfig() FleetConfig {
 			ReadTimeout:               man.getConfigDuration("redis.read_timeout"),
 		},
 		Server: ServerConfig{
-			Address:    man.getConfigString("server.address"),
-			Cert:       man.getConfigString("server.cert"),
-			Key:        man.getConfigString("server.key"),
-			TLS:        man.getConfigBool("server.tls"),
-			TLSProfile: man.getConfigTLSProfile(),
-			URLPrefix:  man.getConfigString("server.url_prefix"),
-			Keepalive:  man.getConfigBool("server.keepalive"),
+			Address:        man.getConfigString("server.address"),
+			Cert:           man.getConfigString("server.cert"),
+			Key:            man.getConfigString("server.key"),
+			TLS:            man.getConfigBool("server.tls"),
+			TLSProfile:     man.getConfigTLSProfile(),
+			URLPrefix:      man.getConfigString("server.url_prefix"),
+			Keepalive:      man.getConfigBool("server.keepalive"),
+			SandboxEnabled: man.getConfigBool("server.sandbox_enabled"),
 		},
 		Auth: AuthConfig{
 			BcryptCost:  man.getConfigInt("auth.bcrypt_cost"),
@@ -831,6 +857,9 @@ func (man Manager) LoadConfig() FleetConfig {
 				Username: man.getConfigString("prometheus.basic_auth.username"),
 				Password: man.getConfigString("prometheus.basic_auth.password"),
 			},
+		},
+		Packaging: PackagingConfig{
+			GlobalEnrollSecret: man.getConfigString("packaging.global_enroll_secret"),
 		},
 	}
 

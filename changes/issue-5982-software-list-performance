@@ -1,1 +1,0 @@
-* Improved performance of endpoints listing software with host counts by ensuring we properly remove counts from `software_host_counts` of software that is not longer used by hosts.

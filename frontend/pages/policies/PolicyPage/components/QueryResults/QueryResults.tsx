@@ -239,10 +239,7 @@ const QueryResults = ({
         onClick={onStopQuery}
         variant="alert"
       >
-        <>
-          <Spinner isInButton />
-          Stop
-        </>
+        <>Stop</>
       </Button>
     </div>
   );

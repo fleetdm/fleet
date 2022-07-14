@@ -26,11 +26,11 @@ Fleetctl also provides a quick way to work with all the data exposed by Fleet wi
 
 ## Using fleetctl
 
-You can use `fleetctl` to accomplish many tasks you would typically need to do through the UI(User Interface). You can even set up or apply configuration files to the Fleet server.
+You can use `fleetctl` to accomplish many tasks you would typically need to do through the Fleet UI. You can even set up or apply configuration files to the Fleet server.
 
 ### Available commands
 
-Much of the functionality available in the Fleet UI is also available in `fleetctl`. You can run queries, add and remove users, generate install packages to add new hosts, get information about existing hosts, and more! The following commands are available for use with `fleetctl`:
+Much of the functionality available in the Fleet UI is also available in `fleetctl`. You can run queries, add and remove users, generate osquery installers to add new hosts, get information about existing hosts, and more! The following commands are available for use with `fleetctl`:
 
    | Command                    | Description                                                        |
    |:---------------------------|:-------------------------------------------------------------------|
@@ -273,7 +273,37 @@ fleetctl user create --name "API User" --email api@example.com --password temp!p
 
 Now that your new user is all set up, you will need to log in with `fleetctl login`. You'll now be able to perform tasks using `fleetctl` as your new API-only user.
 
-> If you are using a version of Fleet older than `4.13.0`, you will need to [reset the API-only user's password](https://github.com/fleetdm/fleet/blob/a1eba3d5b945cb3339004dd1181526c137dc901c/docs/Using-Fleet/fleetctl-CLI.md#reset-the-password) before running queries. 
+> If you are using a version of Fleet older than `4.13.0`, you will need to [reset the API-only user's password](https://github.com/fleetdm/fleet/blob/a1eba3d5b945cb3339004dd1181526c137dc901c/docs/Using-Fleet/fleetctl-CLI.md#reset-the-password) before running queries.
+
+### Get the API token of an API-only user
+To get the API key of an API-only user, you need to call the Login API with the credentials supplied during user creation.
+
+For example, say the credentials provided were `api@fleetdm.com` for the email and `foobar12345` for the password. You may call the [Log in API](https://fleetdm.com/docs/using-fleet/rest-api#log-in) like so:
+
+```sh
+curl --location --request POST 'https://myfleetdomain.com/api/v1/fleet/login' \
+--header 'Content-Type: application/json' \
+--data-raw '{
+    "email": "api@fleetdm.com",
+    "password": "foobar12345"
+}'
+```
+
+The [Log in API](https://fleetdm.com/docs/using-fleet/rest-api#log-in) will return a response similar to the one below with the API token included that will not expire.
+
+```json
+{
+    "user": {
+        "id": 82,
+        "name": "API User",
+        "email": "api@fleetdm.com",
+        "global_role": "observer",
+        "api_only": true
+    },
+    "available_teams": [],
+    "token": "foo_token"
+}
+```
 
 ### Switching users
 
@@ -323,8 +353,8 @@ Given a working flagfile for connecting osquery agents to Fleet, add the followi
 ```
 --disable_carver=false
 --carver_disable_function=false
---carver_start_endpoint=/api/osquery/carve/begin
---carver_continue_endpoint=/api/osquery/carve/block
+--carver_start_endpoint=/api/v1/osquery/carve/begin
+--carver_continue_endpoint=/api/v1/osquery/carve/block
 --carver_block_size=2097152
 ```
 
