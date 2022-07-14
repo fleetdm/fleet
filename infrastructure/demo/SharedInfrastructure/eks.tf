@@ -77,6 +77,18 @@ module "aws-eks-accelerator-for-terraform" {
     username = data.aws_iam_role.admin.id
     groups   = ["system:masters"]
   }])
+
+  fargate_profiles = {
+    default = {
+      fargate_profile_name = "default"
+      fargate_profile_namespaces = [
+        {
+          namespace = "default"
+        }
+      ]
+      subnet_ids = flatten([var.vpc.private_subnets])
+    }
+  }
 }
 
 data "aws_eks_cluster" "cluster" {

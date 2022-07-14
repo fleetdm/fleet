@@ -147,6 +147,11 @@ resource "helm_release" "main" {
     name  = "replicas"
     value = "2"
   }
+
+  set {
+    name  = "imageTag"
+    value = "v4.17.0"
+  }
 }
 
 resource "aws_dynamodb_table_item" "main" {

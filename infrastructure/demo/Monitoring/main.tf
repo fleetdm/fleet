@@ -206,7 +206,7 @@ resource "aws_cloudwatch_metric_alarm" "totalInstances" {
 
 resource "aws_cloudwatch_metric_alarm" "unclaimed" {
   alarm_name          = "${var.prefix}-lifecycle-unclaimed"
-  comparison_operator = "GreaterThanThreshold"
+  comparison_operator = "LessThanThreshold"
   evaluation_periods  = "1"
   metric_name         = "instances"
   namespace           = "Fleet/sandbox"
