@@ -8,13 +8,13 @@ NAME:
    installerstore - Utility to upload pre-built installers to a file storage (AWS S3, MinIO, etc.)
 
 USAGE:
-   installerstore --enroll-secret xyz --bucket installers ~/path/to/file.pkg
+   installerstore --enroll-secret=xyz --bucket=installers ~/path/to/file.pkg
 
 COMMANDS:
    help, h  Shows a list of commands or help for one command
 
 GLOBAL OPTIONS:
-   --fleet-desktop value                                     Wether or not the installer includes Fleet Desktop [$INSTALLER_FLEET_DESKTOP]
+   --fleet-desktop value                                     Whether or not the installer includes Fleet Desktop [$INSTALLER_FLEET_DESKTOP]
    --enroll-secret value                                     Enroll secret associated with the installer [$INSTALLER_ENROLL_SECRET]
    --bucket value                                            Bucket where to store installers [$INSTALLER_BUCKET]
    --prefix value                                            Prefix under which installers are stored [$INSTALLER_PREFIX]
