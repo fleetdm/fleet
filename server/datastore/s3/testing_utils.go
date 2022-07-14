@@ -1,6 +1,7 @@
 package s3
 
 import (
+	"context"
 	"os"
 	"strings"
 	"testing"
@@ -44,34 +45,34 @@ func setupInstallerStore(tb testing.TB, bucket, prefix string) *InstallerStore {
 	return store
 }
 
-func seedInstallerStore(tb testing.TB, store *InstallerStore, enrollSecret string) []*fleet.Installer {
+func seedInstallerStore(tb testing.TB, store *InstallerStore, enrollSecret string) []fleet.Installer {
 	checkEnv(tb)
-	installers := []*fleet.Installer{
-		{EnrollSecret: enrollSecret, Kind: "pkg", Desktop: false},
-		{EnrollSecret: enrollSecret, Kind: "msi", Desktop: false},
-		{EnrollSecret: enrollSecret, Kind: "deb", Desktop: false},
-		{EnrollSecret: enrollSecret, Kind: "rpm", Desktop: false},
-		{EnrollSecret: enrollSecret, Kind: "pkg", Desktop: true},
-		{EnrollSecret: enrollSecret, Kind: "msi", Desktop: true},
-		{EnrollSecret: enrollSecret, Kind: "deb", Desktop: true},
-		{EnrollSecret: enrollSecret, Kind: "rpm", Desktop: true},
+	installers := []fleet.Installer{
+		mockInstaller(enrollSecret, "pkg", true),
+		mockInstaller(enrollSecret, "msi", true),
+		mockInstaller(enrollSecret, "deb", true),
+		mockInstaller(enrollSecret, "rpm", true),
+		mockInstaller(enrollSecret, "pkg", false),
+		mockInstaller(enrollSecret, "msi", false),
+		mockInstaller(enrollSecret, "deb", false),
+		mockInstaller(enrollSecret, "rpm", false),
 	}
 
 	for _, i := range installers {
-		uploadMockInstaller(tb, store, i)
+		_, err := store.Put(context.Background(), i)
+		require.NoError(tb, err)
 	}
 
 	return installers
 }
 
-func uploadMockInstaller(tb testing.TB, store *InstallerStore, installer *fleet.Installer) {
-	checkEnv(tb)
-	_, err := store.s3client.PutObject(&s3.PutObjectInput{
-		Bucket: &store.bucket,
-		Body:   aws.ReadSeekCloser(strings.NewReader(mockInstallerContents)),
-		Key:    aws.String(store.keyForInstaller(*installer)),
-	})
-	require.NoError(tb, err)
+func mockInstaller(secret, kind string, desktop bool) fleet.Installer {
+	return fleet.Installer{
+		EnrollSecret: secret,
+		Kind:         kind,
+		Desktop:      desktop,
+		Content:      aws.ReadSeekCloser(strings.NewReader(mockInstallerContents)),
+	}
 }
 
 func cleanupStore(tb testing.TB, store *InstallerStore) {
@@ -102,6 +103,5 @@ func cleanupStore(tb testing.TB, store *InstallerStore) {
 func checkEnv(tb testing.TB) {
 	if _, ok := os.LookupEnv("MINIO_STORAGE_TEST"); !ok {
 		tb.Skip("set MINIO_STORAGE_TEST environment variable to run S3-based tests")
-
 	}
 }

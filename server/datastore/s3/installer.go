@@ -51,6 +51,17 @@ func (i *InstallerStore) Get(ctx context.Context, installer fleet.Installer) (io
 	return req.Body, nil
 }
 
+// Put uploads an installer to S3
+func (i *InstallerStore) Put(ctx context.Context, installer fleet.Installer) (string, error) {
+	key := i.keyForInstaller(installer)
+	_, err := i.s3client.PutObject(&s3.PutObjectInput{
+		Bucket: &i.bucket,
+		Body:   installer.Content,
+		Key:    &key,
+	})
+	return key, err
+}
+
 // keyForInstaller builds an S3 key to search for the installer
 func (i *InstallerStore) keyForInstaller(installer fleet.Installer) string {
 	file := fmt.Sprintf("%s.%s", executable, installer.Kind)
