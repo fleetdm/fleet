@@ -47,16 +47,15 @@ func setupInstallerStore(tb testing.TB, bucket, prefix string) *InstallerStore {
 
 func seedInstallerStore(tb testing.TB, store *InstallerStore, enrollSecret string) []fleet.Installer {
 	checkEnv(tb)
-	content := aws.ReadSeekCloser(strings.NewReader(mockInstallerContents))
 	installers := []fleet.Installer{
-		{EnrollSecret: enrollSecret, Kind: "pkg", Desktop: false, Content: content},
-		{EnrollSecret: enrollSecret, Kind: "msi", Desktop: false, Content: content},
-		{EnrollSecret: enrollSecret, Kind: "deb", Desktop: false, Content: content},
-		{EnrollSecret: enrollSecret, Kind: "rpm", Desktop: false, Content: content},
-		{EnrollSecret: enrollSecret, Kind: "pkg", Desktop: true, Content: content},
-		{EnrollSecret: enrollSecret, Kind: "msi", Desktop: true, Content: content},
-		{EnrollSecret: enrollSecret, Kind: "deb", Desktop: true, Content: content},
-		{EnrollSecret: enrollSecret, Kind: "rpm", Desktop: true, Content: content},
+		mockInstaller(enrollSecret, "pkg", true),
+		mockInstaller(enrollSecret, "msi", true),
+		mockInstaller(enrollSecret, "deb", true),
+		mockInstaller(enrollSecret, "rpm", true),
+		mockInstaller(enrollSecret, "pkg", false),
+		mockInstaller(enrollSecret, "msi", false),
+		mockInstaller(enrollSecret, "deb", false),
+		mockInstaller(enrollSecret, "rpm", false),
 	}
 
 	for _, i := range installers {
@@ -65,6 +64,15 @@ func seedInstallerStore(tb testing.TB, store *InstallerStore, enrollSecret strin
 	}
 
 	return installers
+}
+
+func mockInstaller(secret, kind string, desktop bool) fleet.Installer {
+	return fleet.Installer{
+		EnrollSecret: secret,
+		Kind:         kind,
+		Desktop:      desktop,
+		Content:      aws.ReadSeekCloser(strings.NewReader(mockInstallerContents)),
+	}
 }
 
 func cleanupStore(tb testing.TB, store *InstallerStore) {
