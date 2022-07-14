@@ -393,6 +393,119 @@ When conducting an incident post-mortem, answer the following three questions:
 2. Root Cause: Why did this error happen?
 3. Side effects: did this error have any side effects? e.g., did it corrupt any data? Did code that was supposed to run afterward and “finish something up” not run, and did it leave anything in the database or other systems in a broken state requiring repair? This typically involves checking the line in the source code that threw the error.
 
+# Article formatting guidelines
+
+To publish an article, you will need to create a Pull Request for fleetdm.com with a file of your article, formatted in <ins><strong>Markdown</strong></ins>.
+
+### On this page
+- [Layout](#heading=h.7116hdoxal2s)
+- [Images & screenshots](#heading=h.f2zdns6kprrh)
+- [Meta tags](#heading=h.4ayd6zwgnyo1)
+- [Customizable CTA](#heading=h.2nnazmktmx29)
+- [Other pages of interest](#heading=h.3ii71mq08q0d)
+
+## Layout
+The following layout guide aims to help you create consistently formatted articles. For an existing article example, check out the [Markdown](https://raw.githubusercontent.com/fleetdm/fleet/main/articles/tales-from-fleet-security-speeding-up-macos-updates-with-nudge.md) and the [finished result](https://fleetdm.com/securing/tales-from-fleet-security-speeding-up-macos-updates-with-nudge).
+
+### Hero image
+Consider adding a hero image for a more significant impact. Get in touch with Digital Experience via #content on Slack to make a request. 
+
+### Table of contents
+For long articles or guides, consider adding a table of contents.
+
+### Introduction
+It’s good practice to start your article with a clear summary of what you will be discussing.
+
+### Main content
+The main body of your article.
+
+### Conclusion
+It’s a good idea to finish your article with a clear closing statement.
+
+### Add a customizable CTA
+Add a CTA at the end of your article. See [Customizable CTA](#heading=h.2nnazmktmx29) below for instructions on creating a CTA tailored to your article topic.
+
+## Images & screenshots
+Images are a great way to help engage your readers. But consider the following before including images or screenshots in your article:
+
+- Does the image add value?
+- Is your image likely to go out of date soon? (Consider the long-term maintenance of your article.
+
+## Meta tags
+These tags help … summary of what these are for (todo)
+
+`<meta name="articleTitle" value="Deploying Fleet on Render">
+<meta name="authorFullName" value="Ben Edwards">
+<meta name="authorGitHubUsername" value="edwardsb">
+<meta name="category" value="guides">
+<meta name="publishedOn" value="2021-11-21">
+<meta name="articleImageUrl" value="../website/assets/images/articles/deploying-fleet-on-render-cover-1600x900@2x.jpg">`
+
+## `articleTitle`
+The title of your article. Avoid long titles. As a rule of thumb, your title should not exceed two lines at desktop browser resolution. This is roughly 75 characters (including spaces).
+
+## `authorFullName`
+Add the author’s full name here. Our system does not currently support multiple authors.
+
+## `authorGitHubUsername`
+Add the author’s GitHub username to populate the author’s headshot.
+
+## `category`
+Choose only __one__ of the following categories for your article.
+
+- __Announcements__: company or product announcements (including breaking changes), news, or events.
+- __Engineering__: posts about engineering at Fleet and other engineering-related topics.
+- __Guides__: help articles for using and deploying Fleet.
+- __Podcasts__: podcast-related posts.
+- __Product__: posts related to Fleet features.
+- __Releases__: release posts, security, and patch releases.
+- __Reports__: posts about the industry, data, surveys, etc.
+- __Security__: posts about how we approach security at Fleet and other security-related topics.
+- Success stories: stories from users or customers successfully using Fleet. 
+
+## `publishedOn`
+The date that the article was published. Please follow the correct date format, e.g., __2021-09-29__.
+
+## `articleImageUrl`
+The relative url path for the article cover image. Article images are stored in ../website/assets/images/articles/ See <ins>fleetdm.com image conventions</ins> (todo).
+
+## Customizable CTA
+Use the following code snippet to include an inline CTA (call to action) in your article:
+
+`<call-to-action 
+title=”Give Fleet a try”
+text=”Get up and running with a text environment of Fleet within minutes.”
+primary-button-text=”Get started” 
+primary-button-href=”/get-started?try-it-now” 
+secondary-button-text=”Schedule a demo”
+secondary-button-href=”calendly.com/fleetdm/demo”>
+</call-to-action>`
+___________INSERT_IMAGE_______________
+> Tip: paste the code-snippet at the end of your article, or, when creating long articles, consider adding a CTA mid-way through.
+
+## `title`
+The main call to action text
+
+## `text`
+The proposition statement for your call to action
+
+## `primary-button-text`
+The main call to action interaction. E.g., “Get started.”
+
+## `primary-button-href`
+The URL link for your primary CTA.
+
+## `secondary-button-text` (optional)
+The secondary call to action interaction. E.g., “Schedule a demo.”
+
+## `secondary-button-href` 
+The URL link for your secondary CTA.
+
+# Other pages of interest
+- [Process for submitting and publishing articles](https://docs.google.com/document/d/1owejJ7PjCVm0e21QNXjzw7SRMa3FdkRxb8WoHkKxWRE/edit?usp=sharing)
+- <ins><strong>Markdown guide</strong></ins> (todo)
+- <ins><strong>Writing style guide</strong></ins> (todo)
+
 ### When can I merge a change to the website?
 When merging a PR to master, remember that whatever you merge to master gets deployed live immediately. So if the PR's changes contain anything that you don't think is appropriate to be seen publicly by all guests of [fleetdm.com](https://fleetdm.com/), please do not merge.
 
