@@ -1,3 +1,13 @@
+## Orbit 1.0.0 (July 14, 2022)
+
+- Update the dropdown in Fleet Desktop to show the number of failing policies along with the status.
+
+- Disable the 'Transparency' menu item in Fleet Desktop until the device is successfully connected to the Fleet server.
+
+- Corrected the macOS logging path for Fleet Desktop to `~/Library/Logs`.
+
+- Added cleanup of osquery extension socket to Orbit at startup.
+
 ## Orbit 0.0.13 (Jun 16, 2022)
 
 - Orbit is now a Universal Binary supporting Intel and M1 on macOS machines without Rosetta.
