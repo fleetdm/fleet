@@ -6,6 +6,7 @@ import (
 	"io"
 	"path"
 
+	"github.com/aws/aws-sdk-go/aws/awserr"
 	"github.com/aws/aws-sdk-go/service/s3"
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
@@ -35,20 +36,29 @@ func NewInstallerStore(config config.S3Config) (*InstallerStore, error) {
 func (i *InstallerStore) Exists(ctx context.Context, installer fleet.Installer) (bool, error) {
 	key := i.keyForInstaller(installer)
 	_, err := i.s3client.HeadObject(&s3.HeadObjectInput{Bucket: &i.bucket, Key: &key})
+
 	if err != nil {
-		return false, err
+		if aerr, ok := err.(awserr.Error); ok {
+			switch aerr.Code() {
+			case s3.ErrCodeNoSuchKey, s3.ErrCodeNoSuchBucket, "NotFound":
+				return false, nil
+			}
+		}
+
+		return false, ctxerr.Wrap(ctx, err, "checking existence on file store")
 	}
+
 	return true, nil
 }
 
 // Get retrieves the requested installer from S3
-func (i *InstallerStore) Get(ctx context.Context, installer fleet.Installer) (io.ReadCloser, error) {
+func (i *InstallerStore) Get(ctx context.Context, installer fleet.Installer) (*io.ReadCloser, *int64, error) {
 	key := i.keyForInstaller(installer)
 	req, err := i.s3client.GetObject(&s3.GetObjectInput{Bucket: &i.bucket, Key: &key})
 	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "get installer from storage")
+		return nil, nil, ctxerr.Wrap(ctx, err, "get installer from storage")
 	}
-	return req.Body, nil
+	return &req.Body, req.ContentLength, nil
 }
 
 // Put uploads an installer to S3

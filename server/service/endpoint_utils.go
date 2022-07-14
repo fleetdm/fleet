@@ -363,6 +363,10 @@ func (e *authEndpointer) DELETE(path string, f handlerFunc, v interface{}) {
 	e.handleEndpoint(path, f, v, "DELETE")
 }
 
+func (e *authEndpointer) HEAD(path string, f handlerFunc, v interface{}) {
+	e.handleEndpoint(path, f, v, "HEAD")
+}
+
 // PathHandler registers a handler for the verb and path. The pathHandler is
 // a function that receives the actual path to which it will be mounted, and
 // returns the actual http.Handler that will handle this endpoint. This is for

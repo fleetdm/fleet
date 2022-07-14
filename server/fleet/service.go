@@ -3,6 +3,7 @@ package fleet
 import (
 	"context"
 	"encoding/json"
+	"io"
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server/websocket"
@@ -469,4 +470,10 @@ type Service interface {
 
 	/// Geolocation
 	LookupGeoIP(ctx context.Context, ip string) *GeoLocation
+
+	///////////////////////////////////////////////////////////////////////////////
+	// Installers
+
+	CheckInstallerExistence(ctx context.Context, installer Installer) error
+	GetInstaller(ctx context.Context, installer Installer) (*io.ReadCloser, *int64, error)
 }

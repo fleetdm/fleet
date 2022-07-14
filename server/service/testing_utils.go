@@ -51,6 +51,7 @@ func newTestServiceWithConfig(t *testing.T, ds fleet.Datastore, fleetConfig conf
 	var (
 		failingPolicySet  fleet.FailingPolicySet  = NewMemFailingPolicySet()
 		enrollHostLimiter fleet.EnrollHostLimiter = nopEnrollHostLimiter{}
+		is                fleet.InstallerStore
 	)
 	var c clock.Clock = clock.C
 	if len(opts) > 0 {
@@ -84,9 +85,12 @@ func newTestServiceWithConfig(t *testing.T, ds fleet.Datastore, fleetConfig conf
 		if opts[0].EnrollHostLimiter != nil {
 			enrollHostLimiter = opts[0].EnrollHostLimiter
 		}
+
+		// allow to explicitly set installer store to nil
+		is = opts[0].Is
 	}
 
-	svc, err := NewService(context.Background(), ds, task, rs, logger, osqlogger, fleetConfig, mailer, c, ssoStore, lq, ds, *license, failingPolicySet, &fleet.NoOpGeoIP{}, enrollHostLimiter)
+	svc, err := NewService(context.Background(), ds, task, rs, logger, osqlogger, fleetConfig, mailer, c, ssoStore, lq, ds, is, *license, failingPolicySet, &fleet.NoOpGeoIP{}, enrollHostLimiter)
 	if err != nil {
 		panic(err)
 	}
@@ -174,6 +178,7 @@ type TestServerOpts struct {
 	Clock               clock.Clock
 	Task                *async.Task
 	EnrollHostLimiter   fleet.EnrollHostLimiter
+	Is                  fleet.InstallerStore
 }
 
 func RunServerForTestsWithDS(t *testing.T, ds fleet.Datastore, opts ...*TestServerOpts) (map[string]fleet.User, *httptest.Server) {
