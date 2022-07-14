@@ -127,7 +127,7 @@ func TestAdminCreateValidate(t *testing.T) {
 			errContains: []string{"password"},
 		},
 		{
-			payload:     UserPayload{Name: ptr.String("Foo"), Email: ptr.String("foo@example.com"), Password: ptr.String("foo"), InviteToken: ptr.String("foo")},
+			payload:     UserPayload{Name: ptr.String("Foo"), Email: ptr.String("foo@example.com"), Password: ptr.String("Foofoofoo1337#"), InviteToken: ptr.String("foo")},
 			errContains: []string{"invite_token"},
 		},
 		{
@@ -143,6 +143,7 @@ func TestAdminCreateValidate(t *testing.T) {
 				require.NoError(t, err)
 			} else {
 				ierr := err.(*InvalidArgumentError)
+				require.Equal(t, len(tc.errContains), len(*ierr))
 				for _, expected := range tc.errContains {
 					assertContainsErrorName(t, *ierr, expected)
 				}
@@ -191,6 +192,7 @@ func TestInviteCreateValidate(t *testing.T) {
 			} else {
 				ierr := err.(*InvalidArgumentError)
 				for _, expected := range tc.errContains {
+					require.Equal(t, len(tc.errContains), len(*ierr))
 					assertContainsErrorName(t, *ierr, expected)
 				}
 			}
