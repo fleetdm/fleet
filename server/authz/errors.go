@@ -34,7 +34,7 @@ func ForbiddenWithInternal(internal string, subject *fleet.User, object, action 
 }
 
 // Error implements the error interface.
-func (e Forbidden) Error() string {
+func (e *Forbidden) Error() string {
 	return ForbiddenErrorMessage
 }
 
