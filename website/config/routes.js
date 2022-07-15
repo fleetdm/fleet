@@ -26,15 +26,6 @@ module.exports.routes = {
     }
   },
 
-  // 'GET /get-started': {
-  //   action: 'view-get-started' ,
-  //   locals: {
-  //     currentPage: 'get started',
-  //     pageTitleForMeta: 'Get started | Fleet for osquery',
-  //     pageDescriptionForMeta: 'Learn about getting started with Fleet.'
-  //   }
-  // },
-
   'GET /pricing': {
     action: 'view-pricing',
     locals: {
