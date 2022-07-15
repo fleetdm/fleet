@@ -145,7 +145,7 @@ Navigating to `https://fleet.queryops.com` we should be greeted with the Setup p
 Setting up all the required infrastructure to run a dedicated web service in AWS can be a daunting task. The Fleet team’s goal is to provide a solid base to build from. As most AWS environments have their own specific needs and requirements, this base is intended to be modified and tailored to your specific needs.
 
 
-<meta name="category" value="guides">
+<meta name="category" value="deploy">
 <meta name="authorGitHubUsername" value="edwardsb">
 <meta name="authorFullName" value="Ben Edwards">
 <meta name="publishedOn" value="2021-11-30">
