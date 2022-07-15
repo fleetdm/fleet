@@ -81,6 +81,17 @@ data "aws_iam_policy_document" "jitprovisioner" {
   }
 
   statement {
+    actions = [ #tfsec:ignore:aws-iam-no-policy-wildcards
+      "kms:Encrypt*",
+      "kms:Decrypt*",
+      "kms:ReEncrypt*",
+      "kms:GenerateDataKey*",
+      "kms:Describe*"
+    ]
+    resources = [var.kms_key.arn]
+  }
+
+  statement {
     actions   = ["states:StartExecution"]
     resources = [aws_sfn_state_machine.main.arn]
   }
@@ -104,6 +115,7 @@ resource "aws_lambda_function" "jitprovisioner" {
   function_name                  = "${var.prefix}-lambda"
   role                           = aws_iam_role.jitprovisioner.arn
   reserved_concurrent_executions = -1
+  kms_key_arn                    = var.kms_key.arn
   timeout                        = 10
   memory_size                    = 512
   vpc_config {
@@ -149,8 +161,9 @@ resource "docker_registry_image" "jitprovisioner" {
 }
 
 resource "aws_security_group" "jitprovisioner" {
-  name   = local.full_name
-  vpc_id = var.vpc.vpc_id
+  name        = local.full_name
+  vpc_id      = var.vpc.vpc_id
+  description = local.full_name
   egress {
     from_port        = 0
     to_port          = 0

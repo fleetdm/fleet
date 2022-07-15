@@ -106,6 +106,7 @@ resource "aws_iam_role" "lifecycle-lambda" {
 
 resource "aws_kms_key" "ecr" {
   deletion_window_in_days = 10
+  enable_key_rotation     = true
 }
 
 resource "aws_ecr_repository" "main" {
@@ -165,6 +166,7 @@ resource "aws_lambda_function" "lifecycle" {
   image_uri                      = docker_registry_image.lifecycle-lambda.name
   package_type                   = "Image"
   function_name                  = "${local.full_name}-lifecycle-lambda"
+  kms_key_arn                    = var.kms_key.arn
   role                           = aws_iam_role.lifecycle-lambda.arn
   reserved_concurrent_executions = -1
   timeout                        = 10

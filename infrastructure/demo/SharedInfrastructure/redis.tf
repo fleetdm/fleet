@@ -38,26 +38,16 @@ resource "aws_elasticache_parameter_group" "main" { #tfsec:ignore:aws-vpc-add-de
 }
 
 resource "aws_security_group" "redis" { #tfsec:ignore:aws-cloudwatch-log-group-customer-key tfsec:ignore:aws-vpc-add-description-to-security-group
-  name   = var.prefix
-  vpc_id = var.vpc.vpc_id
-}
+  name        = "${var.prefix}-redis"
+  vpc_id      = var.vpc.vpc_id
+  description = "${var.prefix}-redis"
 
-resource "aws_security_group_rule" "ingress" { #tfsec:ignore:aws-vpc-add-description-to-security-group-rule
-  type              = "ingress"
-  from_port         = "6379"
-  to_port           = "6379"
-  protocol          = "tcp"
-  cidr_blocks       = var.vpc.private_subnets_cidr_blocks
-  security_group_id = aws_security_group.redis.id
-}
-
-resource "aws_security_group_rule" "egress" { #tfsec:ignore:aws-vpc-add-description-to-security-group-rule
-  type              = "egress"
-  from_port         = 0
-  to_port           = 0
-  protocol          = "-1"
-  cidr_blocks       = ["0.0.0.0/0"] #tfsec:ignore:aws-vpc-no-public-egress-sgr
-  security_group_id = aws_security_group.redis.id
+  ingress {
+    from_port   = 6379
+    to_port     = 6397
+    protocol    = "TCP"
+    cidr_blocks = var.vpc.private_subnets_cidr_blocks
+  }
 }
 
 output "redis_cluster" {

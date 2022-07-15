@@ -12,8 +12,9 @@ output "lb" {
 }
 
 resource "aws_security_group" "lb" {
-  name   = "${var.prefix}-lb"
-  vpc_id = var.vpc.vpc_id
+  name        = "${var.prefix}-lb"
+  vpc_id      = var.vpc.vpc_id
+  description = "${var.prefix}-lb"
 
   ingress {
     from_port   = 80
@@ -42,7 +43,7 @@ resource "aws_lb_listener" "main" {
   load_balancer_arn = aws_lb.main.arn
   port              = "443"
   protocol          = "HTTPS"
-  ssl_policy        = "ELBSecurityPolicy-2016-08"
+  ssl_policy        = "ELBSecurityPolicy-TLS-1-2-Ext-2018-06"
   certificate_arn   = aws_acm_certificate.main.arn
 
   default_action {

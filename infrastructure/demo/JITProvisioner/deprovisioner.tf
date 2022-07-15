@@ -95,7 +95,7 @@ data "aws_iam_policy_document" "deprovisioner" {
       "kms:GenerateDataKey*",
       "kms:Describe*"
     ]
-    resources = [aws_kms_key.ecr.arn]
+    resources = [aws_kms_key.ecr.arn, var.kms_key.arn]
   }
 
   statement {
@@ -166,15 +166,6 @@ resource "aws_security_group" "deprovisioner" {
   name        = "${local.full_name}-deprovisioner"
   description = "security group for ${local.full_name}-deprovisioner"
   vpc_id      = var.vpc.vpc_id
-
-  ingress {
-    description      = "egress to all"
-    from_port        = 0
-    to_port          = 0
-    protocol         = "-1"
-    cidr_blocks      = ["0.0.0.0/0"]
-    ipv6_cidr_blocks = ["::/0"]
-  }
 
   egress {
     description      = "egress to all"

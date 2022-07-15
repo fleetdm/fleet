@@ -73,6 +73,37 @@ locals {
   base_domain = "sandbox.fleetdm.com"
 }
 
+data "aws_iam_policy_document" "kms" {
+  statement {
+    actions = ["kms:*"]
+    principals {
+      type        = "AWS"
+      identifiers = ["arn:aws:iam::${data.aws_caller_identity.current.account_id}:root"]
+    }
+    resources = ["*"]
+  }
+  statement {
+    actions = [
+      "kms:Encrypt*",
+      "kms:Decrypt*",
+      "kms:ReEncrypt*",
+      "kms:GenerateDataKey*",
+      "kms:Describe*",
+    ]
+    resources = ["*"]
+    principals {
+      type = "Service"
+      # TODO hard coded region
+      identifiers = ["logs.us-east-2.amazonaws.com"]
+    }
+  }
+}
+
+resource "aws_kms_key" "main" {
+  policy              = data.aws_iam_policy_document.kms.json
+  enable_key_rotation = true
+}
+
 module "vpc" {
   source  = "terraform-aws-modules/vpc/aws"
   version = "3.12.0"
@@ -80,6 +111,7 @@ module "vpc" {
   name = local.prefix
   cidr = "10.11.0.0/16"
 
+  # TODO hard coded AZs
   azs                 = ["us-east-2a", "us-east-2b", "us-east-2c"]
   private_subnets     = ["10.11.16.0/20", "10.11.32.0/20", "10.11.48.0/20"]
   public_subnets      = ["10.11.128.0/24", "10.11.129.0/24", "10.11.130.0/24"]
@@ -112,6 +144,7 @@ module "pre-provisioner" {
   source         = "./PreProvisioner"
   prefix         = local.prefix
   vpc            = module.vpc
+  kms_key        = aws_kms_key.main
   dynamodb_table = aws_dynamodb_table.lifecycle-table
   remote_state   = module.remote_state
   mysql_secret   = module.shared-infrastructure.mysql_secret
@@ -125,6 +158,7 @@ module "jit-provisioner" {
   source         = "./JITProvisioner"
   prefix         = local.prefix
   vpc            = module.vpc
+  kms_key        = aws_kms_key.main
   dynamodb_table = aws_dynamodb_table.lifecycle-table
   remote_state   = module.remote_state
   mysql_secret   = module.shared-infrastructure.mysql_secret
@@ -139,6 +173,7 @@ module "monitoring" {
   source         = "./Monitoring"
   prefix         = local.prefix
   slack_webhook  = var.slack_webhook
+  kms_key        = aws_kms_key.main
   lb             = module.shared-infrastructure.lb
   jitprovisioner = module.jit-provisioner.jitprovisioner
   deprovisioner  = module.jit-provisioner.deprovisioner
@@ -149,6 +184,14 @@ resource "aws_dynamodb_table" "lifecycle-table" {
   name         = "${local.prefix}-lifecycle"
   billing_mode = "PAY_PER_REQUEST"
   hash_key     = "ID"
+
+  server_side_encryption {
+    enabled     = true
+    kms_key_arn = aws_kms_key.main.arn
+  }
+  point_in_time_recovery {
+    enabled = true
+  }
 
   attribute {
     name = "ID"

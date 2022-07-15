@@ -19,7 +19,9 @@ locals {
 }
 
 resource "aws_cloudwatch_log_group" "main" {
-  name = local.full_name
+  name              = local.full_name
+  kms_key_id        = var.kms_key.arn
+  retention_in_days = 30
 }
 
 data "aws_iam_policy_document" "events-assume-role" {
@@ -132,7 +134,7 @@ data "aws_iam_policy_document" "lambda" {
       "kms:GenerateDataKey*",
       "kms:Describe*"
     ]
-    resources = [aws_kms_key.ecr.arn]
+    resources = [aws_kms_key.ecr.arn, var.kms_key.arn]
   }
 
   statement {
@@ -155,15 +157,6 @@ resource "aws_security_group" "lambda" {
   name        = local.full_name
   description = "security group for ${local.full_name}"
   vpc_id      = var.vpc.vpc_id
-
-  ingress {
-    description      = "egress to all"
-    from_port        = 0
-    to_port          = 0
-    protocol         = "-1"
-    cidr_blocks      = ["0.0.0.0/0"]
-    ipv6_cidr_blocks = ["::/0"]
-  }
 
   egress {
     description      = "egress to all"
@@ -251,6 +244,7 @@ resource "aws_ecs_task_definition" "main" {
 
 resource "aws_kms_key" "ecr" {
   deletion_window_in_days = 10
+  enable_key_rotation     = true
 }
 
 resource "aws_ecr_repository" "main" {

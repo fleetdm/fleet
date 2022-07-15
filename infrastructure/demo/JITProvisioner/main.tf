@@ -19,11 +19,14 @@ locals {
 }
 
 resource "aws_cloudwatch_log_group" "main" {
-  name = local.full_name
+  name              = local.full_name
+  kms_key_id        = var.kms_key.arn
+  retention_in_days = 30
 }
 
 resource "aws_kms_key" "ecr" {
   deletion_window_in_days = 10
+  enable_key_rotation     = true
 }
 
 resource "aws_ecr_repository" "main" {

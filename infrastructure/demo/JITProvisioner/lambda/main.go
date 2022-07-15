@@ -24,6 +24,7 @@ import (
 	"math/rand"
 	"strings"
 	"time"
+	"errors"
 )
 
 type OptionsStruct struct {
@@ -140,6 +141,9 @@ func triggerSFN(id, expiry string) (err error) {
 	if endTime, err = time.Parse(time.RFC3339, expiry); err != nil {
 		return
 	}
+	if int(endTime.Sub(time.Now()).Seconds()) < 0 {
+	    return errors.New("Expiry time is in the past")
+    }
 	sfnInStr, err := json.Marshal(struct {
 		InstanceID string `json:"instanceID"`
 		WaitTime   int    `json:"waitTime"`
@@ -197,7 +201,10 @@ func NewFleet(c *gin.Context, in *NewFleetInput) (ret *NewFleetOutput, err error
 		return
 	}
 	log.Print("Creating admin user")
-	client.Setup(in.Email, in.Name, in.Password, fleet.ID)
+	if _, err = client.Setup(in.Email, in.Name, in.Password, fleet.ID); err != nil {
+	    log.Print(err)
+	    return
+    }
 	if err = triggerSFN(fleet.ID, in.SandboxExpiration); err != nil {
 		log.Print(err)
 		return

@@ -8,3 +8,4 @@ variable "redis_cluster" {}
 variable "alb_listener" {}
 variable "base_domain" {}
 variable "ecs_cluster" {}
+variable "kms_key" {}
