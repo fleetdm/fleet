@@ -22,7 +22,7 @@ Achieving the highest level of compliance for your industry is an admirable goal
 
 For instance, if your organization has 30 employees who use MacBooks, it might be possible to make sure they all have the latest version of macOS installed. That goal gets more challenging to achieve as those MacBooks multiply to the hundreds or even thousands. Maybe then you just want to make sure they’re on Big Sur.
 
-With scale comes complexity — especially for enterprise companies. Different teams need different tools to get the job done. Databases must balance security with accessibility. Updating legacy platforms could disrupt employees’ routines.
+With scale comes complexity — especially for large companies. Different teams need different tools to get the job done. Databases must balance security with accessibility. Updating legacy platforms, when possible at all, could disrupt availability.
 
 Holding so many people, teams, and departments to the highest security standards takes a lot of work. And, at the end of the day, you might just be getting in the way.
 
@@ -32,9 +32,9 @@ Be sure to set goals based on the resources you have available — and try not t
 
 While your industry probably has compliance standards, these recommendations may not apply to your entire organization.
 
-Let’s look at the [Payment Card Industry Data Security Standard](https://www.pcisecuritystandards.org/) or PCI DSS. This is a set of standards that aims to protect debit and credit card transactions against data theft and fraud. This is pretty important if your organization plans to accept card payments. But how many of your teams are in the position to collect payments — or even interact with customers?
+Let’s look at the [Payment Card Industry Data Security Standard](https://www.pcisecuritystandards.org/) or PCI DSS. This is a set of standards that aims to protect credit card data against data theft and fraud. This is pretty important if your organization plans to accept card payments. But how many of your teams are in the position to collect payments — or even interact with customers?
 
-There may be processes that apply to your entire company, like using multi-factor authentication. Security requirements like these make a real difference, but this isn’t always the case. Some guidelines either don't make sense for your business, or they don’t do much to actually improve security. Knowing which compliance standards apply to which teams will help lighten the load across your organization.
+There may be controls that apply to your entire company, like using multi-factor authentication. Security requirements like these make a real difference, and should be done even if you have no compliance requirement, but this isn’t always the case. Some guidelines either don't make sense for your business, or they don’t do much to actually improve security. Knowing which compliance standards apply to which teams and systems will help lighten the load across your organization, especially around audit season.
 
 ## Partner with technical experts
 
@@ -42,7 +42,7 @@ Ultimately, your Chief Information Security Officer, Head of Security or Chief C
 
 Your company could hire more security specialists. Some organizations have thousands on staff, but we know this isn’t always a realistic option. The good news is that you don’t necessarily need more security and compliance people — just more people with security skills.
 
-IT professionals and system administrators are in the perfect position to help you measure compliance progress. They have the skills to keep your company’s devices secure. Applying those skills in time can be difficult. Make it easy for technical experts to see the compliance status of each system.
+IT professionals and system administrators are in the perfect position to help you measure and improve compliance progress. They have the skills to keep your company’s devices secure. Applying those skills in time can be difficult. Make it easy for technical experts to see the compliance status of each system.
 
 Now, your technical experts have more visibility. What should they do with it? If you explain the reasons behind compliance requirements, they can look for security issues proactively — and prevent concerns from becoming problems.
 
