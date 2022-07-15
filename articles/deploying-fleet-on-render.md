@@ -142,7 +142,7 @@ fleetctl apply -f standard-query-library.yaml
 That’s it! We have successfully deployed and configured a Fleet instance! Render makes this process super easy, and you can even enable auto-scaling and let the app grow with your needs.
 
 
-<meta name="category" value="guides">
+<meta name="category" value="deploy">
 <meta name="authorGitHubUsername" value="edwardsb">
 <meta name="authorFullName" value="Ben Edwards">
 <meta name="publishedOn" value="2021-11-21">
