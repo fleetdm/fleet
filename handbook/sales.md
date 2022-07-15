@@ -19,16 +19,23 @@ At times, our sales team will reach out to prospective customers before they com
 - Be personable.
 - Ask for the meeting with a proposed time.
 
-## Writing for the Sales team
+## Principles for writing for the Sales team
 
-When writing for Fleet, we have some standards that cross over into the Sales team’s work. One universal rule we abide by is to capitalize using sentence-case with only capitalizing the first word (unless it’s a proper noun).
+### We want to abide by the following principles in our communications:
 
-Working to engage
-Meeting scheduled
-Working to convert
-Direct Numerical Control (DNC)
+First, maintain convention so people can expect what fields will look like when revisiting autmations outside of Salesforce. This could lead to misunderstanding jargon, and making wrong decisions that break automated integrations and cause business problems. One way we do this is by capitalizing in sentence-case where only the first word is capitalized (unless it’s a proper noun). See the below examples.
 
-Notice that “Direct Numerical Control (DNC)” is capitalized and written out next to its acronym to be explicit about what it is while also teaching you the acronym. We use acronyms as proper nouns for clarity.
+| Good job! ✅          | Don't do this. ❌    |
+|:----------------------|:---------------------|
+| Bad data              | Bad Data
+
+The second principle is to be explicit, which again goes back to people understanding what they are reading and how to use terms to get proper use of automations outside of Salesforce. In the case of acronyms, that means expanding and treating them as proper nouns. Note the template for including acronyms is in the first column below.
+
+| Good job! ✅          | Don't do this. ❌    |
+|:----------------------|:---------------------|
+| Do Not Contact (DNC)  | DNC
+
+
 
 ## Intro deck
 
