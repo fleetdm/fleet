@@ -118,7 +118,7 @@ Which should return all the commands typed in the shell, and I got an output lik
 ![Output of running a query on the shell_history table](../website/assets/images/articles/enrolling-a-digital-ocean-droplet-in-a-fleet-instance-5-1554x254@2x.png)
 
 
-<meta name="category" value="guides">
+<meta name="category" value="deploy">
 <meta name="authorGitHubUsername" value="DominusKelvin">
 <meta name="authorFullName" value="Kelvin Omereshone">
 <meta name="publishedOn" value="2022-05-26">
