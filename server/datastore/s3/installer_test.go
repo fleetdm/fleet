@@ -11,41 +11,6 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestInstallerExists(t *testing.T) {
-	ctx := context.Background()
-	store := SetupTestInstallerStore(t, "installers-unit-test", "exists-prefix")
-
-	t.Run("returns true for existing installers", func(t *testing.T) {
-		installers := SeedTestInstallerStore(t, store, "enroll-secret")
-
-		for _, i := range installers {
-			exists, err := store.Exists(ctx, i)
-			require.NoError(t, err)
-			require.Equal(t, exists, true)
-		}
-	})
-
-	t.Run("returns false for non-existing installers", func(t *testing.T) {
-		i := fleet.Installer{
-			EnrollSecret: "non-existent",
-			Kind:         "pkg",
-			Desktop:      false,
-		}
-		exists, err := store.Exists(ctx, i)
-		require.NoError(t, err)
-		require.Equal(t, exists, false)
-
-		i = fleet.Installer{
-			EnrollSecret: "non-existent",
-			Kind:         "pkg",
-			Desktop:      true,
-		}
-		exists, err = store.Exists(ctx, i)
-		require.NoError(t, err)
-		require.Equal(t, exists, false)
-	})
-}
-
 func TestGetInstaller(t *testing.T) {
 	ctx := context.Background()
 	store := SetupTestInstallerStore(t, "installers-unit-test", "get-prefix")

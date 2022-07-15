@@ -6,7 +6,6 @@ import (
 	"io"
 	"path"
 
-	"github.com/aws/aws-sdk-go/aws/awserr"
 	"github.com/aws/aws-sdk-go/service/s3"
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
@@ -30,25 +29,6 @@ func NewInstallerStore(config config.S3Config) (*InstallerStore, error) {
 		return nil, err
 	}
 	return &InstallerStore{s3store}, nil
-}
-
-// Exists checks if an installer exists in the S3 bucket
-func (i *InstallerStore) Exists(ctx context.Context, installer fleet.Installer) (bool, error) {
-	key := i.keyForInstaller(installer)
-	_, err := i.s3client.HeadObject(&s3.HeadObjectInput{Bucket: &i.bucket, Key: &key})
-
-	if err != nil {
-		if aerr, ok := err.(awserr.Error); ok {
-			switch aerr.Code() {
-			case s3.ErrCodeNoSuchKey, s3.ErrCodeNoSuchBucket, "NotFound":
-				return false, nil
-			}
-		}
-
-		return false, ctxerr.Wrap(ctx, err, "checking existence on file store")
-	}
-
-	return true, nil
 }
 
 // Get retrieves the requested installer from S3
