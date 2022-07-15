@@ -231,7 +231,7 @@ module.exports.routes = {
   'GET /docs/using-fleet/updating-fleet': '/docs/deploying/upgrading-fleet',
   'GET /blog':                   '/articles',
   'GET /brand':                  '/logos',
-  'GET /g':                      '/?meet-fleet',
+  'GET /g':                      (req,res)=>{ return res.redirect(sails.config.custom.baseUrl+'?meet-fleet'+req.url.split('/g')[1])},
 
   // Sitemap
   // =============================================================================================================
