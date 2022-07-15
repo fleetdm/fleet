@@ -38,11 +38,11 @@ type Fleet struct {
 	// ProjectName is the docker compose project name
 	ProjectName string
 	// FilePath is the path to the docker-compose.yml
-	FilePath    string
+	FilePath string
 	// Version is the active fleet version.
-	Version     string
+	Version string
 	// Token is the fleet token used for authentication
-	Token       string
+	Token string
 
 	dockerClient client.ContainerAPIClient
 }
