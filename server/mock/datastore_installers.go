@@ -11,26 +11,16 @@ import (
 
 var _ fleet.InstallerStore = (*InstallerStore)(nil)
 
-type ExistsFunc func(ctx context.Context, installer fleet.Installer) (bool, error)
-
 type GetFunc func(ctx context.Context, installer fleet.Installer) (*io.ReadCloser, *int64, error)
 
 type PutFunc func(ctx context.Context, installer fleet.Installer) (string, error)
 
 type InstallerStore struct {
-	ExistsFunc        ExistsFunc
-	ExistsFuncInvoked bool
-
 	GetFunc        GetFunc
 	GetFuncInvoked bool
 
 	PutFunc        PutFunc
 	PutFuncInvoked bool
-}
-
-func (s *InstallerStore) Exists(ctx context.Context, installer fleet.Installer) (bool, error) {
-	s.ExistsFuncInvoked = true
-	return s.ExistsFunc(ctx, installer)
 }
 
 func (s *InstallerStore) Get(ctx context.Context, installer fleet.Installer) (*io.ReadCloser, *int64, error) {
