@@ -77,7 +77,7 @@ So there we go. Simple, human readable timestamps with osquery.
 
 Let us know if you can think of any other example scenarios you’d like us to cover.
 
-<meta name="category" value="product">
+<meta name="category" value="guides">
 <meta name="authorFullName" value="Mike Thomas">
 <meta name="authorGitHubUsername" value="mike-j-thomas">
 <meta name="publishedOn" value="2021-06-15">
