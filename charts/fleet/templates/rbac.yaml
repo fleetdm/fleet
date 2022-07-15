@@ -6,7 +6,7 @@ metadata:
     chart: fleet
     heritage: {{ .Release.Service }}
     release: {{ .Release.Name }}
-  name: {{ .Values.fleetName }}
+  name: fleet
   namespace: {{ .Release.Namespace }}
 rules:
 - apiGroups:
@@ -29,14 +29,14 @@ metadata:
     chart: fleet
     heritage: {{ .Release.Service }}
     release: {{ .Release.Name }}
-  name: {{ .Values.fleetName }}
+  name: fleet
   namespace: {{ .Release.Namespace }}
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: Role
-  name: {{ .Values.fleetName }}
+  name: fleet
 subjects:
 - apiGroup: ""
   kind: ServiceAccount
-  name: {{ .Values.fleetName }}
+  name: fleet
   namespace: {{ .Release.Namespace }}

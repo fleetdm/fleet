@@ -2,7 +2,7 @@
 apiVersion: networking.gke.io/v1
 kind: ManagedCertificate
 metadata:
-  name: {{ .Values.fleetName }}
+  name: fleet
 spec:
   domains:
   - {{ .Values.hostName }}

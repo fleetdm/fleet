@@ -6,11 +6,11 @@ This directory contains a Helm Chart that makes deploying Fleet on Kubernetes ea
 
 #### 1. Create namespace
 
-This Helm chart optionally provisions a Kubernetes namespace. Alternatively, you can add one with `kubectl create namespace <name>` or by creating a YAML file containing the namespace and applying it to your cluster.
+This Helm chart does not auto-provision a namespace. You can add one with `kubectl create namespace <name>` or by creating a YAML file containing a service and applying it to your cluster.
 
 #### 2. Create the necessary secrets
 
-This Helm chart optionally creates Kubernetes `Secret`s for MySQL and Redis necessary for Fleet to operate. If you manually create them instead, at a minimum, secrets for the MySQL password must be created. For example, if you are deploying into a namespace called `fleet`:
+This Helm chart does not create the Kubernetes `Secret`s necessary for Fleet to operate. At a minimum, secrets for the MySQL password must be created. For example, if you are deploying into a namespace called `fleet`:
 
 ```yaml
 ---

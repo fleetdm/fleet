@@ -7,7 +7,7 @@ metadata:
     chart: fleet
     heritage: {{ .Release.Service }}
     release: {{ .Release.Name }}
-  name: {{ .Values.fleetName }}
+  name: fleet
   namespace: {{ .Release.Namespace }}
 spec:
   replicas: {{ .Values.replicas }}
@@ -24,21 +24,18 @@ spec:
 {{- toYaml . | trim | nindent 8 }}
 {{- end }}
       labels:
-{{- with .Values.podLabels }}
-{{- toYaml . | trim | nindent 8 }}
-{{- end }}
         app: fleet
         chart: fleet
         heritage: {{ .Release.Service }}
         release: {{ .Release.Name }}
     spec:
       containers:
-      - name: {{ .Values.fleetName }}
+      - name: fleet
         command: [/usr/bin/fleet]
         args: ["serve"]
         image: fleetdm/fleet:{{ .Values.imageTag }}
         ports:
-        - name: {{ .Values.fleetName }}
+        - name: fleet
           containerPort: {{ .Values.fleet.listenPort }}
         resources:
           limits:
@@ -277,7 +274,7 @@ spec:
         {{- if or (.Values.fleet.tls.enabled) (.Values.mysql.tls.enabled) (eq .Values.osquery.logging.statusPlugin "filesystem") (eq .Values.osquery.logging.resultPlugin "filesystem") }}
         volumeMounts:
           {{- if .Values.fleet.tls.enabled }}
-          - name: {{ .Values.fleetName }}-tls
+          - name: fleet-tls
             readOnly: true
             mountPath: /secrets/tls
           {{- end }}
@@ -322,7 +319,7 @@ spec:
       {{- if or (.Values.fleet.tls.enabled) (.Values.mysql.tls.enabled) (eq .Values.osquery.logging.statusPlugin "filesystem") (eq .Values.osquery.logging.resultPlugin "filesystem") }}
       volumes:
         {{- if .Values.fleet.tls.enabled }}
-        - name: {{ .Values.fleetName }}-tls
+        - name: fleet-tls
           secret:
             secretName: "{{ .Values.fleet.secretName }}"
         {{- end }}

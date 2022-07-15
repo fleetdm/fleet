@@ -6,7 +6,7 @@ metadata:
     chart: fleet
     heritage: {{ .Release.Service }}
     release: {{ .Release.Name }}
-  name: {{ .Values.fleetName }}
+  name: fleet
   namespace: {{ .Release.Namespace }}
 spec:
   selector:
@@ -15,7 +15,7 @@ spec:
     heritage: {{ .Release.Service }}
     release: {{ .Release.Name }}
   ports:
-  - name: {{ .Values.fleetName }}
+  - name: fleet
     port: {{ .Values.fleet.listenPort }}
   {{- if .Values.gke.ingress.useGKEIngress }}
   type: NodePort

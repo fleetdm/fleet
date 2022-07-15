@@ -15,5 +15,5 @@ metadata:
     chart: fleet
     heritage: {{ .Release.Service }}
     release: {{ .Release.Name }}
-  name: {{ .Values.fleetName }}
+  name: fleet
   namespace: {{ .Release.Namespace }}
