@@ -59,7 +59,7 @@ To deploy osquery at scale across your organization’s devices, an osquery mana
 
 Ready to give Fleet a try? Head over to our [get started page](https://fleetdm.com/get-started), and you can be up and running with a sandbox environment in less than 5 minutes. Alternatively, check out the [docs](https://fleetdm.com/docs) to learn how to deploy Fleet across your organization.
 
-<meta name="category" value="product">
+<meta name="category" value="guides">
 <meta name="authorGitHubUsername" value="dominuskelvin">
 <meta name="authorFullName" value="Kelvin Omereshone">
 <meta name="publishedOn" value="2022-04-04">
