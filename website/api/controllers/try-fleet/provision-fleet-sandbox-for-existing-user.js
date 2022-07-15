@@ -55,11 +55,9 @@ module.exports = {
     .timeout(5000)
     .intercept('non200Response', 'couldNotProvisionSandbox');
 
-    let fleetSandboxURL;
     if(!cloudProvisionerResponse.URL) {
       throw 'couldNotProvisionSandbox';
     } else {
-      fleetSandboxURL = cloudProvisionerResponse.URL;
       // Update this user's record with the fleetSandboxURL and fleetSandboxExpiresAt
       await User.updateOne({id: user.id}).set({
         fleetSandboxURL: cloudProvisionerResponse.URL,

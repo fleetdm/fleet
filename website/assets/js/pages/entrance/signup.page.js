@@ -22,7 +22,7 @@ parasails.registerPage('signup', {
         custom: (password)=>{
           return !! password.match(/[\!\@\#\$\%\^\&\*]/) && password.match(/\d/) && password.match(/\w/);
         },
-       },
+      },
     },
     // Syncing / loading state
     syncing: false,
