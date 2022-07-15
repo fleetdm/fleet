@@ -2,19 +2,28 @@ package tables
 
 import (
 	"database/sql"
-	"fmt"
+	"log"
+	"os"
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server"
 	"github.com/pkg/errors"
 )
 
+var (
+	InfoLogger *log.Logger
+	WarnLogger *log.Logger
+)
+
 func init() {
 	MigrationClient.AddMigration(Up_20220708095046, Down_20220708095046)
+
+	InfoLogger = log.New(os.Stdout, "INFO: ", log.Ltime)
+	WarnLogger = log.New(os.Stderr, "WARNING: ", log.Ltime)
 }
 
 func removeDups(tx *sql.Tx) error {
-	fmt.Println("Removing duplicates in the software_cve table")
+	InfoLogger.Println("Removing duplicates in the software_cve table")
 
 	const selectStmt = `
 SELECT software_id, cve, COUNT(1) 
@@ -43,7 +52,7 @@ HAVING COUNT(1) > 1;`
 			return errors.Wrap(err, "scanning duplicate rows")
 		}
 
-		fmt.Printf("Found duplicated row software_id: %d, cve:%s\n", softwareID, cve)
+		InfoLogger.Printf("Found duplicated row software_id: %d, cve:%s\n", softwareID, cve)
 		criterias = append(criterias, criteria{softwareID: softwareID, cve: cve, count: count})
 	}
 
@@ -65,20 +74,19 @@ HAVING COUNT(1) > 1;`
 }
 
 func addUniqConstraint(tx *sql.Tx) error {
-	fmt.Println("Adding unique constraint on (cve, software_id) to software_cve table...")
+	InfoLogger.Println("Adding unique constraint on (cve, software_id) to software_cve table...")
 	_, err := tx.Exec(`
 	ALTER TABLE software_cve ADD CONSTRAINT unq_software_id_cve UNIQUE (software_id, cve), ALGORITHM=INPLACE, LOCK=NONE;
 `)
 	if err != nil {
 		return errors.Wrapf(err, "adding unique constraint to software_id on software_cve")
 	}
-	fmt.Println("Done Adding unique constraint on (cve, software_id) to software_cve table...")
-
+	InfoLogger.Println("Done adding unique constraint on (cve, software_id) to software_cve table...")
 	return nil
 }
 
 func acquireLock(tx *sql.Tx, identifier string) (bool, error) {
-	fmt.Println("Trying to acquire lock...")
+	InfoLogger.Println("Trying to acquire lock...")
 
 	r, err := tx.Exec(
 		`INSERT IGNORE INTO locks (name, owner, expires_at) VALUES (?, ?, ?)`,
@@ -92,7 +100,7 @@ func acquireLock(tx *sql.Tx, identifier string) (bool, error) {
 		return false, errors.Wrapf(err, "trying to acquire lock")
 	}
 	if rowsAffected > 0 {
-		fmt.Println("Lock acquired...")
+		InfoLogger.Println("Lock acquired...")
 		return true, nil
 	}
 
@@ -109,11 +117,11 @@ func releaseLock(tx *sql.Tx, identifier string) error {
 func Up_20220708095046(tx *sql.Tx) error {
 	identifier, err := server.GenerateRandomText(64)
 	if err != nil {
-		fmt.Println("Could not generate identifier for lock, might not be able to remove duplicates in a reliable way...")
+		WarnLogger.Println("Could not generate identifier for lock, might not be able to remove duplicates in a reliable way...")
 	} else {
 		locked, err := acquireLock(tx, identifier)
 		if !locked || err != nil {
-			fmt.Println("Could not acquire lock, might not be able to remove duplicates in a reliable way...")
+			WarnLogger.Println("Could not acquire lock, might not be able to remove duplicates in a reliable way...")
 		} else {
 			defer releaseLock(tx, identifier)
 		}
