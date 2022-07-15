@@ -34,11 +34,15 @@ module.exports = {
       // If the user doesn't have a fleetSandboxURL they will be taken to the sandbox page.
       throw {redirect: '/try-fleet/new-sandbox'};
     } else {
-      // Get the userRecord to send to the
+      // If this user's Fleet Sandbox instance is expired, we'll show the sandbox page with sandboxExpired: true
+      if(this.req.me.fleetSandboxExpiresAt < Date.now()) {
+        throw {redirect: '/try-fleet/sandbox-expired' };
+      }
+      // Get the userRecord so we can send their hashed password to the sandbox instance
       let userRecord = await User.findOne({id: this.req.me.id});
 
-      // Setting this.req.me.fleetSandboxURL to a variable to pass in to sails.helper.flow.until()
       let sandboxURL = this.req.me.fleetSandboxURL;
+
       // If this is a valid fleet sandbox instance, we'll check the /healthz endpoint before redirecting the user to their sandbox.
       await sails.helpers.flow.until(async()=>{
         let serverResponse = await sails.helpers.http.sendHttpRequest('GET', sandboxURL+'/healthz')

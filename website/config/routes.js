@@ -209,6 +209,13 @@ module.exports.routes = {
     },
   },
 
+  'GET /try-fleet/sandbox-expired': {
+   action: 'try-fleet/view-sandbox-expired',
+   locals: {
+     layout: 'layouts/layout-sandbox',
+   },
+  },
+
   'GET /try-fleet/new-sandbox': {
     action: 'try-fleet/view-new-sandbox',
     locals: {
