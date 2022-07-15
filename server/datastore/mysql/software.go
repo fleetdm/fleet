@@ -373,8 +373,8 @@ func listSoftwareDB(
 			ids[result.ID] = idx
 		}
 
-		// handle null cve from left join also skip any non-cve entries
-		if result.CVE != nil && strings.HasPrefix(strings.ToLower(*result.CVE), "cve") {
+		// handle null cve from left join
+		if result.CVE != nil {
 			cveID := *result.CVE
 			cve := fleet.CVE{
 				CVE:         cveID,

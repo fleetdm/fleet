@@ -514,10 +514,7 @@ func testSoftwareList(t *testing.T, ds *Datastore) {
 	vulns := []fleet.SoftwareVulnerability{
 		{SoftwareID: host1.Software[0].ID, CPEID: host1.Software[0].GeneratedCPEID, CVE: "CVE-2022-0001"},
 		{SoftwareID: host1.Software[0].ID, CPEID: host1.Software[0].GeneratedCPEID, CVE: "CVE-2022-0002"},
-		{SoftwareID: host1.Software[0].ID, CPEID: host1.Software[0].GeneratedCPEID, CVE: "USN-5469-1"},
-		{SoftwareID: host1.Software[0].ID, CPEID: host1.Software[0].GeneratedCPEID, CVE: "USN-5469-1"},
 		{SoftwareID: host3.Software[0].ID, CPEID: host3.Software[0].GeneratedCPEID, CVE: "CVE-2022-0003"},
-		{SoftwareID: host3.Software[0].ID, CPEID: host3.Software[0].GeneratedCPEID, CVE: "RHSA-2022:5555"},
 	}
 
 	_, err := ds.InsertVulnerabilities(context.Background(), vulns, fleet.NVDSource)
