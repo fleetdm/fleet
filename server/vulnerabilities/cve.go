@@ -2,7 +2,6 @@ package vulnerabilities
 
 import (
 	"context"
-	"database/sql"
 	"fmt"
 	"io/fs"
 	"net/url"
@@ -18,7 +17,6 @@ import (
 	feednvd "github.com/facebookincubator/nvdtools/cvefeed/nvd"
 	"github.com/facebookincubator/nvdtools/providers/nvd"
 	"github.com/facebookincubator/nvdtools/wfn"
-	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/vulnerabilities/oval"
 	kitlog "github.com/go-kit/kit/log"
@@ -213,7 +211,7 @@ func checkCVEs(
 							})
 						}
 
-						newCount, err := ds.InsertVulnerabilities(ctx, matchingVulns, fleet.NVD)
+						newCount, err := ds.InsertVulnerabilities(ctx, matchingVulns, fleet.NVDSource)
 						if err != nil {
 							level.Error(logger).Log("cpe processing", "error", "err", err)
 							continue // do not report a recent vuln that failed to be inserted in the DB
@@ -255,27 +253,4 @@ func checkCVEs(
 
 	wg.Wait()
 	return results, nil
-}
-
-// TODO (juan): Remove this after OVAL centos
-// PostProcess performs additional processing over the results of
-// the main vulnerability processing run (TranslateSoftwareToCPE+TranslateCPEToCVE).
-func PostProcess(
-	ctx context.Context,
-	ds fleet.Datastore,
-	vulnPath string,
-	logger kitlog.Logger,
-	config config.FleetConfig,
-) error {
-	dbPath := filepath.Join(vulnPath, "cpe.sqlite")
-	db, err := sql.Open("sqlite3", dbPath)
-	if err != nil {
-		return fmt.Errorf("failed to open cpe database: %w", err)
-	}
-	defer db.Close()
-
-	if err := centosPostProcessing(ctx, ds, db, logger, config); err != nil {
-		return err
-	}
-	return nil
 }

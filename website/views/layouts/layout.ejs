@@ -15,7 +15,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
     <meta name="twitter:card" content="summary" />
     <meta name="twitter:site" content="https://fleetdm.com" />
-    <meta name="twitter:title" content="<%= typeof pageTitleForMeta !== 'undefined' ? pageTitleForMeta : 'Open source device management' %>" />
+    <meta name="twitter:title" content="<%= typeof pageTitleForMeta !== 'undefined' ? pageTitleForMeta : 'Fleet for osquery | Open source device management' %>" />
     <meta name="twitter:description" content="<%= typeof pageDescriptionForMeta !== 'undefined' ? pageDescriptionForMeta : 'Open source software, built on osquery. With Fleet you can ask important questions about your devices. Whatever operating system, wherever they live.' %>" />
     <meta name="twitter:image" content="<%= typeof pageImageForMeta !== 'undefined' ? 'https://fleetdm.com' + pageImageForMeta : 'https://fleetdm.com/images/fleet-logo-square@2x.png' %>" />
     <% /* Script tags should normally be included further down the page- but any
@@ -106,7 +106,7 @@
           <a href="/" style="max-width: 118px;">
             <% /* The homepage-header on the homepage has a white fleet logo */ %>
             <% if (isHomepage) { %>
-            <img alt="Fleet logo" src="/images/logo-white-118x48@2x.png" style="width: 118px; height: 48px;"/>
+            <img alt="Fleet logo" src="/images/logo-white-162x92@2x.png" style="width: 162px; height: 92px;"/>
             <% } else { %>
             <img alt="Fleet logo" src="/images/logo-blue-162x92@2x.png" style="height: 92px; width: 162px;"/>
             <% } %>
@@ -153,6 +153,8 @@
                   <span>GUIDES</span>
                   <a class="pl-3" href="/guides/deploying-fleet-on-aws-with-terraform">Deploy on AWS with Terraform</a>
                   <a class="pl-3" href="/guides/deploying-fleet-on-render">Deploy on Render</a>
+                  <a class="pl-3" href="/guides/deploy-fleet-on-hetzner-cloud">Deploy on Hetzner Cloud with Cloud-init & Docker</a>
+                  <a class="pl-3" href="/guides">See more</a>
                 </div>
               </div>
               <hr>
@@ -160,7 +162,14 @@
               <div class="d-block">
                 <div id="mobileNavbarToggleCommunity" purpose="mobile-dropdown" class="collapse" data-parent="#mobileDropdowns">
                   <a href="/slack" target="_blank">Chat</a>
-                  <a href="/articles">Articles</a>
+                  <a href="/podcasts">Podcasts</a>
+                  <a href="/reports/state-of-device-management">State of device management</a>
+                  <span>ARTICLES</span>
+                  <a href="/securing">Security</a>
+                  <a href="/engineering">Engineering</a>
+                  <a href="/announcements">Announcements</a>
+                  <a href="/articles">See more</a>
+                  <span>RESOURCES</span>
                   <a href="/handbook">Handbook</a>
                   <a href="/logos">Logos & artwork</a>
                 </div>
@@ -193,13 +202,24 @@
                 <span class="muted dropdown-header">GUIDES</span>
                 <a class="dropdown-item mb-1" href="/guides/deploying-fleet-on-aws-with-terraform">Deploy on AWS with Terraform</a>
                 <a class="dropdown-item" href="/guides/deploying-fleet-on-render">Deploy on Render</a>
+                <a class="dropdown-item" href="/guides/deploy-fleet-on-hetzner-cloud">Deploy on Hetzner Cloud with Cloud-init & Docker</a>
+                <a class="dropdown-item" href="/guides">See more</a>
               </div>
             </div>
             <div purpose="dropdown-button" class="btn-group">
               <a class="dropdown-toggle d-flex align-items-center py-2 px-3" data-toggle="dropdown">Community</a>
               <div purpose="header-dropdown" class="dropdown-menu">
                 <a class="dropdown-item mb-1" href="/slack" target="_blank">Chat</a>
-                <a class="dropdown-item mb-1" href="/articles">Articles</a>
+                <a class="dropdown-item mb-1" href="/podcasts">Podcasts</a>
+                <a class="dropdown-item mb-1" href="/reports/state-of-device-management">State of device management</a>
+                <div class="dropdown-divider"></div>
+                <span class="muted dropdown-header">ARTICLES</span>
+                <a class="dropdown-item mb-1" href="/securing">Security</a>
+                <a class="dropdown-item mb-1" href="/engineering">Engineering</a>
+                <a class="dropdown-item mb-1" href="/announcements">Announcements</a>
+                <a class="dropdown-item mb-1" href="/articles">See more</a>
+                <div class="dropdown-divider"></div>
+                <span class="muted dropdown-header">RESOURCES</span>
                 <a class="dropdown-item mb-1" href="/handbook">Handbook</a>
                 <a class="dropdown-item" href="/logos">Logos & artwork</a>
               </div>
@@ -301,7 +321,7 @@
 
     <%/* Stripe.js */%>
     <script src="https://js.stripe.com/v3/"></script>
-    
+
     <%/* Linkedin Ads Insight tag */%>
     <script type="text/javascript">
     _linkedin_partner_id = "4365817";
@@ -329,34 +349,29 @@
     <script>
         var lastScrollTop = 0;
         var header = document.querySelector('.header') || document.querySelector('.homepage-header')
-
         window.addEventListener('scroll', windowScrolled)
 
         function windowScrolled() {
-            var scrollTop = window.pageYOffset || document.documentElement.scrollTop
-            var fleetLogo = header.querySelector('img')
-            var hamburgerMenuIcon = header.querySelector('.btn.btn-link > img')
-
-            if(scrollTop == 0 && header.classList.contains('homepage-header')) {
-                header.classList.remove('sticky')
-                fleetLogo.src = '/images/logo-white-118x48@2x.png'
-                fleetLogo.style = 'width: 118px; height: 48px;'
-                hamburgerMenuIcon.src = '/images/icon-hamburger-16x14@2x.png'
-
-                return;
+          var scrollTop = window.pageYOffset || document.documentElement.scrollTop
+          var fleetLogo = header.querySelector('img')
+          var hamburgerMenuIcon = header.querySelector('.btn.btn-link > img')
+          if(scrollTop == 0 && header.classList.contains('homepage-header')) {
+              header.classList.remove('sticky')
+              fleetLogo.src = '/images/logo-white-162x92@2x.png'
+              hamburgerMenuIcon.src = '/images/icon-hamburger-16x14@2x.png'
+              return;
+          }
+          if(scrollTop > lastScrollTop && scrollTop > window.innerHeight * 1.5) {
+            header.classList.add('translate-y-0');
+          } else {
+            if(header.classList.contains('homepage-header') && scrollTop > 16) {
+              header.classList.add('sticky')
+              fleetLogo.src = '/images/logo-blue-162x92@2x.png'
+              hamburgerMenuIcon.src="/images/icon-hamburger-blue-16x14@2x.png"
             }
-            if (scrollTop > lastScrollTop && scrollTop > window.innerHeight * 1.5) {
-                header.classList.add('translate-y-0');
-             } else {
-                if(header.classList.contains('homepage-header') && scrollTop > header.clientHeight) {
-                    header.classList.add('sticky')
-                    fleetLogo.src = '/images/logo-blue-162x92@2x.png'
-                    fleetLogo.style = 'height: 92px; width: 162px;'
-                    hamburgerMenuIcon.src="/images/icon-hamburger-blue-16x14@2x.png"
-                }
-                header.classList.remove('translate-y-0');
-            }
-            lastScrollTop = scrollTop
+              header.classList.remove('translate-y-0');
+          }
+          lastScrollTop = scrollTop;
         }
     </script>
 
@@ -416,6 +431,7 @@
     <script src="/js/pages/query-detail.page.js"></script>
     <script src="/js/pages/query-library.page.js"></script>
     <script src="/js/pages/reports/state-of-device-management.page.js"></script>
+    <script src="/js/pages/sales-one-pager.page.js"></script>
     <script src="/js/pages/transparency.page.js"></script>
     <!--SCRIPTS END-->
 

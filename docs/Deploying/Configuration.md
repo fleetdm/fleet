@@ -2334,51 +2334,51 @@ Environment="NO_PROXY=localhost,127.0.0.1,::1"
 
 After modifying the configuration you will need to reload and restart the Fleet service, as explained above.
 
-## Configuring single sign on (SSO)
+## Configuring single sign-on (SSO)
 
-Fleet supports SAML single sign on capability.
+Fleet supports SAML single sign-on capability.
 
-Fleet supports both SP-initiated SAML login and IDP-initiated login, however IDP-initiated login must be enabled in the web interface's SAML single sign on options.
+Fleet supports both SP-initiated SAML login and IDP-initiated login however, IDP-initiated login must be enabled in the web interface's SAML single sign-on options.
 
 Fleet supports the SAML Web Browser SSO Profile using the HTTP Redirect Binding.
 
-_**Note that the email being used in the SAML Assertion must match a user that already exists in Fleet.**_
+_**Note: The email used in the SAML Assertion must match a user that already exists in Fleet.**_
 
 ### Identity provider (IDP) configuration
 
 Setting up the service provider (Fleet) with an identity provider generally requires the following information:
 
-- _Assertion Consumer Service_ - This is the call back URL that the identity provider
-  will use to send security assertions to Fleet. In Okta, this field is called _single sign on URL_. On Google it is "ACS URL." The value that you supply will be a fully qualified URL consisting of your Fleet web address and the callback path `/api/v1/fleet/sso/callback`. For example, if your Fleet web address is https://fleet.example.com, then the value you would use in the identity provider configuration would be:
+- _Assertion Consumer Service_ - This is the call-back URL that the identity provider
+  will use to send security assertions to Fleet. In Okta, this field is called _single sign-on URL_. On Google, it is "ACS URL." The value you supply will be a fully qualified URL consisting of your Fleet web address and the call-back path `/api/v1/fleet/sso/callback`. For example, if your Fleet web address is https://fleet.example.com, then the value you would use in the identity provider configuration would be:
 
   ```
   https://fleet.example.com/api/v1/fleet/sso/callback
   ```
 
-- _Entity ID_ - This value is an identifier that you choose. It identifies your Fleet instance as the service provider that issues authorization requests. The value must exactly match the Entity ID that you define in the Fleet SSO configuration.
+- _Entity ID_ - This value is an identifier that you choose. It identifies your Fleet instance as the service provider that issues authorization requests. The value must match the Entity ID that you define in the Fleet SSO configuration.
 
 - _Name ID Format_ - The value should be `urn:oasis:names:tc:SAML:1.1:nameid-format:emailAddress`. This may be shortened in the IDP setup to something like `email` or `EmailAddress`.
 
 - _Subject Type (Application username in Okta)_ - `email`.
 
-After supplying the above information, the IDP will generate an issuer URI and a metadata that will be used to configure Fleet as a service provider.
+After supplying the above information, the IDP will generate an issuer URI and metadata that will be used to configure Fleet as a service provider.
 
 ### Fleet SSO configuration
 
-A Fleet user must be assigned the Admin role to configure Fleet for SSO. In Fleet, SSO configuration settings are located in **Settings > Organization settings > SAML single sign on options**.
+A Fleet user must be assigned the Admin role to configure Fleet for SSO. In Fleet, SSO configuration settings are located in **Settings > Organization settings > SAML single sign-on options**.
 
-If your IDP supports dynamic configuration, like Okta, you only need to provide an _identity provider name_ and _entity ID_, then paste a link in the metadata URL field. Make sure that you create the SSO application within your IDP before configuring it in Fleet.
+If your IDP supports dynamic configuration, like Okta, you only need to provide an _identity provider name_ and _entity ID_, then paste a link in the metadata URL field. Make sure you create the SSO application within your IDP before configuring it in Fleet.
 
 Otherwise, the following values are required:
 
-- _Identity provider name_ - A human readable name of the IDP. This is rendered on the login page.
+- _Identity provider name_ - A human-readable name of the IDP. This is rendered on the login page.
 
 - _Entity ID_ - A URI that identifies your Fleet instance as the issuer of authorization
-  requests (eg. `fleet.example.com`). This much match the _Entity ID_ configured with the IDP.
+  requests (e.g., `fleet.example.com`). This much match the _Entity ID_ configured with the IDP.
 
-- _Issuer URI_ - This value is obtained from the IDP.
+- _Issuer URI_ - Obtain this value from the IDP.
 
-- _Metadata URL_ - This value is obtained from the IDP and is used by Fleet to
+- _Metadata URL_ - Obtain this value from the IDP and is used by Fleet to
   issue authorization requests to the IDP.
 
 - _Metadata_ - If the IDP does not provide a metadata URL, the metadata must
@@ -2391,16 +2391,15 @@ Otherwise, the following values are required:
 
 ### Creating SSO users in Fleet
 
-When an admin creates a new user to Fleet, they may select the `Enable single sign on` option. The
-SSO enabled users will not be able to sign in with a regular user ID and password.
+When an admin creates a new user in Fleet, they may select the `Enable single sign on` option. The
+SSO-enabled users will not be able to sign in with a regular user ID and password.
 
-It is strongly recommended that at least one admin user is set up to use the traditional password
-based log in so that there is a fallback method for logging into Fleet in the event of SSO
+It is strongly recommended that at least one admin user is set up to use the traditional password-based login so that there is a fallback method for logging into Fleet in the event of SSO
 configuration problems.
 
-> Individual users must also be set up on the IDP before they can sign in to Fleet.
+> Individual users must also be set up on the IDP before signing in to Fleet.
 ### Enabling SSO for existing users in Fleet
-As an admin, you can enable SSO for existing users in Fleet. To do this, go to the Settings page, then click on the Users tab. Locate the user you want to enable SSO for and on the actions dropdown menu for that user, click on "Enable single sign on".
+As an admin, you can enable SSO for existing users in Fleet. To do this, go to the Settings page, then click on the Users tab. Locate the user you want to enable SSO for and on the Actions dropdown menu for that user, click on "Enable single sign-on."
 
 #### Okta IDP configuration
 
@@ -2410,7 +2409,7 @@ Once configured, you will need to retrieve the Issuer URI from the `View Setup I
 
 ![Where to find SSO links for Fleet](https://raw.githubusercontent.com/fleetdm/fleet/main/docs/images/okta-retrieve-links.png)
 
-> The Provider Sign-on URL within the `View Setup Instructions` has a similar format as the Provider SAML Metadata URL, but this link provides a redirect to _sign-in_ the application, not the metadata necessary for dynamic configuration.
+> The Provider Sign-on URL within the `View Setup Instructions` has a similar format as the Provider SAML Metadata URL, but this link provides a redirect to _sign into_ the application, not the metadata necessary for dynamic configuration.
 
 > The names of the items required to configure an identity provider may vary from provider to provider and may not conform to the SAML spec.
 
@@ -2430,13 +2429,13 @@ Follow these steps to configure Fleet SSO with Google Workspace. This will requi
 
   ![Download metadata and copy the SSO URL](https://raw.githubusercontent.com/fleetdm/fleet/main/docs/images/google-sso-configuration-step-3.png)
 
-4. In Fleet, navigate to the _Organization Settings_ page. Configure the _SAML single sign on options_ section.
+4. In Fleet, navigate to the _Organization Settings_ page. Configure the _SAML single sign-on options_ section.
 
-  - Check the _Enable single sign on_ checkbox.
-  - For _Identity provider name_ use `Google`.
+  - Check the _Enable single sign-on_ checkbox.
+  - For _Identity provider name_, use `Google`.
   - For _Entity ID_, use a unique identifier such as `fleet.example.com`. Note that Google seems to error when the provided ID includes `https://`.
-  - For _Issuer URI_, paste the _SSO URL_ copied from step 3.
-  - For _Metadata_, paste the contents of the downloaded metadata XML from step 3.
+  - For _Issuer URI_, paste the _SSO URL_ copied from step three.
+  - For _Metadata_, paste the contents of the downloaded metadata XML from step three.
   - All other fields can be left blank.
 
   Click _Update settings_ at the bottom of the page.
@@ -2445,10 +2444,10 @@ Follow these steps to configure Fleet SSO with Google Workspace. This will requi
 
 5. In Google Workspace, configure the _Service provider details_.
 
-  - For _ACS URL_, use `https://<your_fleet_url>/api/v1/fleet/sso/callback` (eg. `https://fleet.example.com/api/v1/fleet/sso/callback`).
-  - For Entity ID, use **the same unique identifier from step 4** (eg. `fleet.example.com`).
-  - For _Name ID format_ choose `EMAIL`.
-  - For _Name ID_ choose `Basic Information > Primary email`.
+  - For _ACS URL_, use `https://<your_fleet_url>/api/v1/fleet/sso/callback` (e.g., `https://fleet.example.com/api/v1/fleet/sso/callback`).
+  - For Entity ID, use **the same unique identifier from step four** (e.g., `fleet.example.com`).
+  - For _Name ID format_, choose `EMAIL`.
+  - For _Name ID_, choose `Basic Information > Primary email`.
   - All other fields can be left blank.
 
   Click _Continue_ at the bottom of the page.
@@ -2471,15 +2470,15 @@ Follow these steps to configure Fleet SSO with Google Workspace. This will requi
 
 ## Feature flags
 
-Fleet features are sometimes gated behind feature flags. This will usually be due to not-yet-stable APIs, or not-fully-tested performance characteristics.
+Fleet features are sometimes gated behind feature flags. This will usually be due to not-yet-stable APIs or not-fully-tested performance characteristics.
 
 Feature flags on the server are controlled by environment variables prefixed with `FLEET_BETA_`.
 
 #### Sentry
 
-##### dsn
+##### DSN
 
-If set then `fleet serve` will capture errors and panics and push them to Sentry.
+If set then `Fleet serve` will capture errors and panics and push them to Sentry.
 
 - Default value: `""`
 - Environment variable: `FLEET_SENTRY_DSN`
@@ -2497,7 +2496,7 @@ If set then `fleet serve` will capture errors and panics and push them to Sentry
 ##### basic_auth.username
 
 Username to use for HTTP Basic Auth on the `/metrics` endpoint.
-If not set then the prometheus `/metrics` endpoint is disabled.
+If not set, then the Prometheus `/metrics` endpoint is disabled.
 
 - Default value: `""`
 - Environment variable: `FLEET_PROMETHEUS_BASIC_AUTH_USERNAME`
@@ -2512,7 +2511,7 @@ If not set then the prometheus `/metrics` endpoint is disabled.
 ##### basic_auth.password
 
 Password to use for HTTP Basic Auth on the `/metrics` endpoint.
-If not set then the prometheus `/metrics` endpoint is disabled.
+If not set then the Prometheus `/metrics` endpoint is disabled.
 
 - Default value: `""`
 - Environment variable: `FLEET_PROMETHEUS_BASIC_AUTH_PASSWORD`
@@ -2523,3 +2522,190 @@ If not set then the prometheus `/metrics` endpoint is disabled.
     basic_auth:
       password: "bar"
   ```
+
+#### Packaging
+
+Configurations used to control how Fleet interacts with the (coming soon)
+packaging server.  These features are currently only intended to be used within
+Fleet Sandbox, but this is subject to change.
+
+##### packaging_global_enroll_secret
+
+Enroll secret to use for adding hosts to the global scope. If this value is
+set, the server won't allow changes to the enroll secret via the config
+endpoints.
+
+This value should be treated as a secret, we recommend using a
+cryptographically secure pseudo random string. For example, using `openssl`:
+
+```
+openssl rand -base64 24
+```
+
+This config only takes effect if you don't have a global enroll secret already
+stored in your database.
+
+- Default value: `""`
+- Environment variable: `FLEET_PACKAGING_GLOBAL_ENROLL_SECRET`
+- Config file format:
+
+  ```yaml
+  packaging:
+    global_enroll_secret: "xyz"
+  ```
+
+##### packaging_s3_bucket
+
+Name of the S3 bucket to use to store pre-built Orbit installers.
+
+- Default value: ""
+- Environment variable: `FLEET_PACKAGING_S3_BUCKET`
+- Config file format:
+
+  ```
+  packaging:
+    s3:
+      bucket: some-bucket
+  ```
+
+##### packaging_s3_prefix
+
+Prefix to prepend when searching for installers.
+
+- Default value: ""
+- Environment variable: `FLEET_PACKAGING_S3_PREFIX`
+- Config file format:
+
+  ```
+  packaging:
+    s3:
+      prefix:
+        installers-go-here/
+  ```
+
+##### packaging_s3_access_key_id
+
+AWS access key ID to use for S3 authentication.
+
+If `s3_access_key_id` and `s3_secret_access_key` are omitted, Fleet will try to use
+[the default credential provider chain](https://docs.aws.amazon.com/sdk-for-go/v1/developer-guide/configuring-sdk.html#specifying-credentials).
+
+The IAM identity used in this context must be allowed to perform the following actions on the bucket: `s3:GetObject`, `s3:ListBucket`.
+
+- Default value: ""
+- Environment variable: `FLEET_PACKAGING_S3_ACCESS_KEY_ID`
+- Config file format:
+
+  ```
+  packaging:
+    s3:
+      access_key_id: AKIAIOSFODNN7EXAMPLE
+  ```
+
+##### packaging_s3_secret_access_key
+
+AWS secret access key to use for S3 authentication.
+
+- Default value: ""
+- Environment variable: `FLEET_PACKAGING_S3_SECRET_ACCESS_KEY`
+- Config file format:
+
+  ```
+  packaging:
+    s3:
+      secret_access_key: wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY
+  ```
+
+##### packaging_s3_sts_assume_role_arn
+
+AWS STS role ARN to use for S3 authentication.
+
+- Default value: ""
+- Environment variable: `FLEET_PACKAGING_S3_STS_ASSUME_ROLE_ARN`
+- Config file format:
+
+  ```
+  packaging:
+    s3:
+      sts_assume_role_arn: arn:aws:iam::1234567890:role/some-s3-role
+  ```
+
+##### packaging_s3_endpoint_url
+
+AWS S3 Endpoint URL. Override when using a different S3 compatible object storage backend (such as Minio),
+or running s3 locally with localstack. Leave this blank to use the default AWS S3 service endpoint.
+
+- Default value: ""
+- Environment variable: `FLEET_PACKAGING_S3_ENDPOINT_URL`
+- Config file format:
+
+  ```
+  packaging:
+    s3:
+      endpoint_url: http://localhost:9000
+  ```
+
+##### packaging_s3_disable_ssl
+
+AWS S3 Disable SSL. Useful for local testing.
+
+- Default value: false
+- Environment variable: `FLEET_PACKAGING_S3_DISABLE_SSL`
+- Config file format:
+
+  ```
+  packaging:
+    s3:
+      disable_ssl: false
+  ```
+
+##### packaging_s3_force_s3_path_style
+
+AWS S3 Force S3 Path Style. Set this to `true` to force the request to use path-style addressing,
+i.e., `http://s3.amazonaws.com/BUCKET/KEY`. By default, the S3 client
+will use virtual hosted bucket addressing when possible
+(`http://BUCKET.s3.amazonaws.com/KEY`).
+
+See [here](http://docs.aws.amazon.com/AmazonS3/latest/dev/VirtualHosting.html) for details.
+
+- Default value: false
+- Environment variable: `FLEET_PACKAGING_S3_FORCE_S3_PATH_STYLE`
+- Config file format:
+
+  ```
+  packaging:
+    s3:
+      force_s3_path_style: false
+  ```
+
+##### packaging_s3_region
+
+AWS S3 Region. Leave blank to enable region discovery.
+
+Minio users must set this to any nonempty value (eg. `minio`), as Minio does not support region discovery.
+
+- Default value: ""
+- Environment variable: `FLEET_PACKAGING_S3_REGION`
+- Config file format:
+
+  ```
+  packaging:
+    s3:
+      region: us-east-1
+  ```
+
+##### Example YAML
+
+```yaml
+apiVersion: v1
+kind: config
+spec:
+  packaging:
+    s3:
+      bucket: some-bucket
+      prefix: installers-go-here/
+      access_key_id: AKIAIOSFODNN7EXAMPLE
+      secret_access_key: wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY
+      sts_assume_role_arn: arn:aws:iam::1234567890:role/some-s3-role
+      region: us-east-1
+```

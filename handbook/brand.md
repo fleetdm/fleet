@@ -270,6 +270,70 @@ When deciding whether to describe Fleet as open source or open core, define who 
 
 > For simplicity and to avoid conflicts with other uses of the word "core" (such as "core product" or "core team"), Fleet is always described as simply **"open source"** in all writing and verbal communication. In specific situations, e.g., discussing the distinction between various kinds of open source, it can be appropriate to mention **"open core"** to clarify your meaning. If ever in doubt, go with "open source."
 
+## Commonly used terms
+
+| Term | Meaning | 
+|:------ |:-----------------|
+| **antivirus** | A class of programs designed to detect, block, and clear away malware from devices, networks, and IT systems. |
+| **API** | (Application Programming Interface) a software go-between that allows applications to communicate.  |
+| **automation** | A system that operates without needing intervention from a human to do so. |
+| **AWS** | (Amazon Web Services) An ever-evolving cloud computing platform designed to allow application providers, ISVs, and vendors to host applications. |
+| **CI/CD** | (Continuous Integration and Continuous Delivery/Continuous Deployment) A software development practice where cumulative code changes are made regularly and accurately. |
+| **CLI** | (Command Line Interface) A tool for managing Fleet from the command line. |
+| **Client Platform Engineer (CPE)** | See: CPE. |
+| **cloud** | Data storage, networking, servers, databases, software, intelligence, and analytics through the internet instead of a device's hard drive. |
+| **command line** | A horizontal row on an interface for text to allow you to type in a variety of commands. Also, see "CLI." |
+| **compliance** | The act of being in line with the established risk-based expectations to preserve the strength and confidentiality of data stored, used, and transmitted. |
+| **CPE** | (Client Platform Engineer) A person who constructs, evaluates, and deploys solutions to administrate a fleet of "clients" or end-users and does so in a scaleable manner. |
+| **CVE** | (Common Vulnerabilities and Exposures) A system that provides a technique for sharing information publicly. |
+| **data leaks** | When crucial and confidential data is unwittingly exposed physically, on the Internet, or any other way. This includes misplaced hard drives or devices. |
+| **device management** | The process of overseeing the execution, process, and upkeep of a device, be it physical or virtual. |
+| **DevOps** | Practices that incorporate both software development (Dev) and IT operations (Ops). |
+| **Docker** | An open source platform that allows one to manage containerized applications. |
+| **DRI** | The person who is singularly responsible for a given aspect of the open source project, the product, or the company. |
+| **EDR** | (Endpoint Detection and Response) Security software that continually audits end-user devices to identify and respond to threats such as malware and ransomware. Also, see EDTR. |
+| **EDTR** | (Endpoint Detection and Threat Response) Security software that continually audits end-user devices to identify and respond to threats such as malware and ransomware. Also, see EDR. |
+| **encryption** | The act of converting data into a cipher that requires a key to be deciphered. |
+| **end-users** | Someone using a distributed device or service. This could be a computer or a mobile device. |
+| **FileVault** | The macOS feature to encrypt entire drives. |
+| **Firewall** | A device or software that is used to block unwanted network traffic. |
+| **fleetctl** | A CLI tool for managing Fleet from the command line. It can be used to accomplish many tasks you would typically need to do through the UI (User Interface). Also, fleetctl enables a GitOps workflow with Fleet and osquery. |
+| **GitHub** | Cloud-based service for software development and version control using Git. |
+| **historical compliance** | The ability to view past behavior around established risk-based controls to safeguard the integrity, confidentiality, and access of data storage, processing, or transfers. |
+| **IETF** | (Internet Engineering Task Force) An organization that defines standardizing operations of internet protocols |
+| **Internet Engineering Task Force (IETF)** | See: IETF |
+| **IR** | (Incident Response) The actions one takes in response to a security breach or cyberattack. |
+| **Linux** | An open source operating system. |
+| **Logica** | An IT and management consultancy company based in the United Kingdom. |
+| **macOS** | The operating system used in all of Apple's Mac computers. |
+| **Munki** | Open-source software deployment tool for macOS. |
+| **open core** | Is the business model where a company has a core version of a product with some of the features as (FOSS) Free Open Source Software in addition to a paid commercial version that is proprietary software. |
+| **open source** | Software with intentionally public code for the sake of transparency. |
+| **OS** | (Operating System) Software that provides the groundwork and instructions for a device's basic functions, including application use and controlling peripherals. |
+| **osquery**  | A tool that assembles low-level operating system analytics and monitoring. |
+| **out-of-policy device** | A device that is fails any security or vulnerability policy created in Fleet. |
+| **permissions** | Users have different abilities depending on the access level they have. |
+| **platform** | Any software or hardware for hosting an application, data, or service. |
+| **policies** | Yes or no questions you can ask using Fleet about your host devices. |
+| **policy compliance** | The state of whether a device is passing or failing policies created in Fleet. |
+| **queries** | Questions you can ask an end-user device's operating system via Fleet. |
+| **SAML** | (Security Assertion Markup Language) A standard that allows identity providers (IdP) to authorize credentials for service providers; enabling SSO (Single Sign-On). |
+| **security audits** | An assessment of an organization's security posture. |
+| **security engineer** | Individual for managing and implementing security systems in an organization. |
+| **SIEM** | (Security Information and Event Management) Technology that assembles data, security warnings, and events into one platform and provides almost real-time analyzed data to help you better monitor your organization's security. |
+| **Site Reliability Engineers (SREs)** | Individuals who apply site reliability principles to improve reliability and scalability of systems in a systematic manner. |
+| **SQL** | (Structured Query Language) A language used to manage databases and complete a variety of operations tasks within said databases. |
+| **SRE** | See "Site Reliabilty Engineers." |
+| **SSO authentication** | (Single Sign-On authentication) Allows identity providers (IdP) to authorize credentials for service providers once and use that as the authentication for multiple outside accounts. |
+| **TLS** | (Transport Layer Security) An Internet Engineering Task Force (IETF) standardized protocol that authenticates and provides privacy and data protection over computer networks. |
+| **token** | A physical Two-Factor Authentication (2FA) login security device to prove one's identity. |
+| **Transport Layer Security (TLS)** | See: TLS |
+| **UI** | (User Interface) An interactive space in a program that concentrates on style and intuitive use. |
+| **URL** | Uniform resource locator. Specifies where a web resource is located (ex: https://fleetdm.com/articles/) |
+| **vulnerabilities** | An exploitable weakness that can lead to unauthorized access or other negative consequences to a computer system. |
+| **Windows** | Microsoft's graphical operating system. |
+| **YAML** | A data serialized language that has features derived from Perl, C, HTML, and other languages and is often used to write configuration files. |
+
 ## Brand resources
 
 To download official Fleet logos, product screenshots, and wallpapers, head over to our [brand resources](https://fleetdm.com/logos) page.
@@ -294,6 +358,24 @@ Use "bcc" so recipients don't see each other's email addresses and send an email
 
 ## Fleet website
 
+### Using Figma?
+Fleet EE
+- All product design work is done in the Fleet EE (scratchpad) Figma doc. Check out the README for how to use this doc.
+
+Fleet website
+- All website design work is done in the fleetdm.com (current, dev-ready) Figma file.
+
+Shared design system
+- Shared logos, typography styles, and UI components can be found in Design system.
+
+> The Figma docs in Design System contain the master components that are referenced throughout all other Figma files. Use caution when modifying these components, as changes will be reflected in the master Fleet EE (scratchpad) and fleetdm.com (current, dev-ready) Figma docs.
+
+Marketing assets
+- Product screenshots and artwork for social media, articles, and other marketing assets can be found in Collateral.
+
+### Which logo should I use?
+The "official" Fleet logo and other assets can be found at:  https://fleetdm.com/logos
+
 ### Responding to a 5xx error on fleetdm.com
 Production systems can fail for various reasons, and it can be frustrating to users when they do, and customer experience is significant to Fleet. In the event of system failure, Fleet will:
 * investigate the problem to determine the root cause.
@@ -302,6 +384,14 @@ Production systems can fail for various reasons, and it can be frustrating to us
 * understand and remediate the problem.
 * notify impacted users of any steps they need to take (if any).  If a customer paid with a credit card and had a bad experience, default to refunding their money.
 * Conduct an incident post-mortem to determine any additional steps we need (including monitoring) to take to prevent this class of problems from happening in the future.
+
+#### Incident post-mortems
+
+When conducting an incident post-mortem, answer the following three questions:
+
+1. Impact: What impact did this error have? How many humans experienced this error, if any, and who were they?
+2. Root Cause: Why did this error happen?
+3. Side effects: did this error have any side effects? e.g., did it corrupt any data? Did code that was supposed to run afterward and “finish something up” not run, and did it leave anything in the database or other systems in a broken state requiring repair? This typically involves checking the line in the source code that threw the error.
 
 ### When can I merge a change to the website?
 When merging a PR to master, remember that whatever you merge to master gets deployed live immediately. So if the PR's changes contain anything that you don't think is appropriate to be seen publicly by all guests of [fleetdm.com](https://fleetdm.com/), please do not merge.
@@ -344,6 +434,10 @@ In Figma:
   * Avoid using SVGs or icon fonts.
 3. Click the __Export__ button.
 
+### Vulnerability monitoring
+
+Every week, we run `npm audit --only=prod` to check for vulnerabilities on the production dependencies of fleetdm.com. Once we have a solution to configure GitHub's Dependabot to ignore devDependencies, this manual process can be replaced with Dependabot.
+
 ## Rituals
 
 The following table lists the Brand group's rituals, frequency, and Directly Responsible Individual (DRI).
@@ -361,6 +455,7 @@ The following table lists the Brand group's rituals, frequency, and Directly Res
 | Handbook editor pass | Monthly | Edit for copy and content. | Desmi Dizney |
 | Browser compatibility check | Monthly | Check browser compatibility for the website | Eric Shaw |
 | OKR planning  | Quarterly | Plan next quarter's OKRs | Mike Thomas |
+| Website vulnerability check  | Weekly | Checking for vulnerabilities on fleetdm.com | Eric Shaw |
 
 ## Slack channels
 
@@ -376,6 +471,7 @@ These groups maintain the following [Slack channels](https://fleetdm.com/handboo
 | `#help-finance`             | Nathan Holliday
 | `#help-brex-memos`          | Nathan Holliday
 | `#help-p1`		      | Mike McNeil
+| `#help-operations`          | Charlie Chance and Nathan Holiday _(multiple DRIs, for the sake of coverage)_
 
 
 <meta name="maintainedBy" value="mike-j-thomas">

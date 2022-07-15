@@ -161,7 +161,7 @@ Use the stop and reset subcommands to manage the server and dependencies once st
 			osqueryBranch := c.String(previewConfigFlagName)
 			fmt.Printf("Downloading dependencies from %s into %s...\n", osqueryBranch, previewDir)
 			if err := downloadFiles(osqueryBranch); err != nil {
-				return fmt.Errorf("Error downloading dependencies: %w", err)
+				return fmt.Errorf("downloading dependencies: %w", err)
 			}
 
 			if err := os.Chdir(previewDir); err != nil {

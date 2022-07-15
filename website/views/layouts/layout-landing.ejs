@@ -7,16 +7,16 @@
 %><!DOCTYPE html>
 <html>
   <head>
-    <title>Fleet for osquery | Open source device management</title>
-    <meta name="description" content="Open source software, built on osquery. With Fleet you can ask important questions about your devices. Whatever operating system, wherever they live." />
+    <title><%= typeof pageTitleForMeta !== 'undefined' ? pageTitleForMeta : 'Fleet for osquery | Open source device management' %></title>
+    <meta name="description" content="<%= typeof pageDescriptionForMeta !== 'undefined' ? pageDescriptionForMeta : 'Open source software, built on osquery. With Fleet you can ask important questions about your devices. Whatever operating system, wherever they live.' %>" />
 
     <% /* Viewport tag for sensible mobile support */ %>
     <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
     <meta name="twitter:card" content="summary" />
     <meta name="twitter:site" content="https://fleetdm.com" />
-    <meta name="twitter:title" content="Fleet for osquery | Open source device management" />
-    <meta name="twitter:description" content="Open source software, built on osquery. With Fleet you can ask important questions about your devices. Whatever operating system, wherever they live." />
-    <meta name="twitter:image" content="https://fleetdm.com/images/fleet-logo-square@2x.png" />
+    <meta name="twitter:title" content="<%= typeof pageTitleForMeta !== 'undefined' ? pageTitleForMeta : 'Fleet for osquery | Open source device management' %>" />
+    <meta name="twitter:description" content="<%= typeof pageDescriptionForMeta !== 'undefined' ? pageDescriptionForMeta : 'Open source software, built on osquery. With Fleet you can ask important questions about your devices. Whatever operating system, wherever they live.' %>" />
+    <meta name="twitter:image" content="<%= typeof pageImageForMeta !== 'undefined' ? 'https://fleetdm.com' + pageImageForMeta : 'https://fleetdm.com/images/fleet-logo-square@2x.png' %>" />
     <% /* Script tags should normally be included further down the page- but any
     scripts that load fonts (e.g. Fontawesome ≥v5) are special exceptions to the
     rule. (Include them up here along with any hard-coded «link» tags for Typekit,
@@ -225,6 +225,7 @@
     <script src="/js/pages/query-detail.page.js"></script>
     <script src="/js/pages/query-library.page.js"></script>
     <script src="/js/pages/reports/state-of-device-management.page.js"></script>
+    <script src="/js/pages/sales-one-pager.page.js"></script>
     <script src="/js/pages/transparency.page.js"></script>
     <!--SCRIPTS END-->
 

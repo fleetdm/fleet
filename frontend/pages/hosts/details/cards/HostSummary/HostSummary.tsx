@@ -123,6 +123,49 @@ const HostSummary = ({
   );
 
   const renderDiskSpace = () => {
+    const diskSpaceTooltip = () => {
+      const diskSpaceAvailable = titleData.gigs_disk_space_available;
+      switch (true) {
+        case diskSpaceAvailable < 16:
+          return (
+            <span className={`${baseClass}__tooltip-text`}>
+              Not enough disk space <br />
+              available to install most <br />
+              small operating systems <br />
+              updates.
+            </span>
+          );
+        case diskSpaceAvailable < 32:
+          return (
+            <span className={`${baseClass}__tooltip-text`}>
+              Not enough disk space <br />
+              available to install most <br />
+              large operating systems <br />
+              updates.
+            </span>
+          );
+        default:
+          return (
+            <span className={`${baseClass}__tooltip-text`}>
+              Enough disk space available <br />
+              to install most operating <br />
+              systems updates.
+            </span>
+          );
+      }
+    };
+
+    const diskSpaceIndicator = () => {
+      const diskSpaceAvailable = titleData.gigs_disk_space_available;
+      switch (true) {
+        case diskSpaceAvailable < 16:
+          return "red";
+        case diskSpaceAvailable < 32:
+          return "yellow";
+        default:
+          return "green";
+      }
+    };
     if (
       titleData &&
       (titleData.gigs_disk_space_available > 0 ||
@@ -130,18 +173,29 @@ const HostSummary = ({
     ) {
       return (
         <span className="info-flex__data">
-          <div className="info-flex__disk-space">
-            <div
-              className={
-                titleData.percent_disk_space_available > 20
-                  ? "info-flex__disk-space-used"
-                  : "info-flex__disk-space-warning"
-              }
-              style={{
-                width: `${100 - titleData.percent_disk_space_available}%`,
-              }}
-            />
+          <div
+            className="info-flex__disk-space-wrapper"
+            data-tip
+            data-for="disk-space-tooltip"
+          >
+            <div className="info-flex__disk-space">
+              <div
+                className={`info-flex__disk-space-${diskSpaceIndicator()}`}
+                style={{
+                  width: `${100 - titleData.percent_disk_space_available}%`,
+                }}
+              />
+            </div>
           </div>
+          <ReactTooltip
+            place="bottom"
+            type="dark"
+            effect="solid"
+            id="disk-space-tooltip"
+            backgroundColor="#3e4771"
+          >
+            {diskSpaceTooltip()}
+          </ReactTooltip>
           {titleData.gigs_disk_space_available} GB available
         </span>
       );

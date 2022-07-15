@@ -12,6 +12,8 @@ import (
 
 var _ fleet.Datastore = (*DataStore)(nil)
 
+type HealthCheckFunc func() error
+
 type NewCarveFunc func(ctx context.Context, metadata *fleet.CarveMetadata) (*fleet.CarveMetadata, error)
 
 type UpdateCarveFunc func(ctx context.Context, metadata *fleet.CarveMetadata) error
@@ -177,6 +179,8 @@ type CountHostsFunc func(ctx context.Context, filter fleet.TeamFilter, opt fleet
 type CountHostsInLabelFunc func(ctx context.Context, filter fleet.TeamFilter, lid uint, opt fleet.HostListOptions) (int, error)
 
 type ListHostDeviceMappingFunc func(ctx context.Context, id uint) ([]*fleet.HostDeviceMapping, error)
+
+type ListHostBatteriesFunc func(ctx context.Context, id uint) ([]*fleet.HostBattery, error)
 
 type LoadHostByDeviceAuthTokenFunc func(ctx context.Context, authToken string) (*fleet.Host, error)
 
@@ -344,9 +348,7 @@ type ListSoftwareFunc func(ctx context.Context, opt fleet.SoftwareListOptions) (
 
 type CountSoftwareFunc func(ctx context.Context, opt fleet.SoftwareListOptions) (int, error)
 
-type ListVulnerableSoftwareBySourceFunc func(ctx context.Context, source string) ([]fleet.SoftwareWithCPE, error)
-
-type DeleteVulnerabilitiesByCPECVEFunc func(ctx context.Context, vulnerabilities []fleet.SoftwareVulnerability) error
+type DeleteSoftwareVulnerabilitiesFunc func(ctx context.Context, vulnerabilities []fleet.SoftwareVulnerability) error
 
 type NewTeamPolicyFunc func(ctx context.Context, teamID uint, authorID *uint, args fleet.PolicyPayload) (*fleet.Policy, error)
 
@@ -402,6 +404,8 @@ type SetOrUpdateMDMDataFunc func(ctx context.Context, hostID uint, enrolled bool
 
 type ReplaceHostDeviceMappingFunc func(ctx context.Context, id uint, mappings []*fleet.HostDeviceMapping) error
 
+type ReplaceHostBatteriesFunc func(ctx context.Context, id uint, mappings []*fleet.HostBattery) error
+
 type VerifyEnrollSecretFunc func(ctx context.Context, secret string) (*fleet.EnrollSecret, error)
 
 type EnrollHostFunc func(ctx context.Context, osqueryHostId string, nodeKey string, teamID *uint, cooldown time.Duration) (*fleet.Host, error)
@@ -419,6 +423,9 @@ type InnoDBStatusFunc func(ctx context.Context) (string, error)
 type ProcessListFunc func(ctx context.Context) ([]fleet.MySQLProcess, error)
 
 type DataStore struct {
+	HealthCheckFunc        HealthCheckFunc
+	HealthCheckFuncInvoked bool
+
 	NewCarveFunc        NewCarveFunc
 	NewCarveFuncInvoked bool
 
@@ -667,6 +674,9 @@ type DataStore struct {
 
 	ListHostDeviceMappingFunc        ListHostDeviceMappingFunc
 	ListHostDeviceMappingFuncInvoked bool
+
+	ListHostBatteriesFunc        ListHostBatteriesFunc
+	ListHostBatteriesFuncInvoked bool
 
 	LoadHostByDeviceAuthTokenFunc        LoadHostByDeviceAuthTokenFunc
 	LoadHostByDeviceAuthTokenFuncInvoked bool
@@ -917,11 +927,8 @@ type DataStore struct {
 	CountSoftwareFunc        CountSoftwareFunc
 	CountSoftwareFuncInvoked bool
 
-	ListVulnerableSoftwareBySourceFunc        ListVulnerableSoftwareBySourceFunc
-	ListVulnerableSoftwareBySourceFuncInvoked bool
-
-	DeleteVulnerabilitiesByCPECVEFunc        DeleteVulnerabilitiesByCPECVEFunc
-	DeleteVulnerabilitiesByCPECVEFuncInvoked bool
+	DeleteSoftwareVulnerabilitiesFunc        DeleteSoftwareVulnerabilitiesFunc
+	DeleteSoftwareVulnerabilitiesFuncInvoked bool
 
 	NewTeamPolicyFunc        NewTeamPolicyFunc
 	NewTeamPolicyFuncInvoked bool
@@ -1004,6 +1011,9 @@ type DataStore struct {
 	ReplaceHostDeviceMappingFunc        ReplaceHostDeviceMappingFunc
 	ReplaceHostDeviceMappingFuncInvoked bool
 
+	ReplaceHostBatteriesFunc        ReplaceHostBatteriesFunc
+	ReplaceHostBatteriesFuncInvoked bool
+
 	VerifyEnrollSecretFunc        VerifyEnrollSecretFunc
 	VerifyEnrollSecretFuncInvoked bool
 
@@ -1027,6 +1037,11 @@ type DataStore struct {
 
 	ProcessListFunc        ProcessListFunc
 	ProcessListFuncInvoked bool
+}
+
+func (s *DataStore) HealthCheck() error {
+	s.HealthCheckFuncInvoked = true
+	return s.HealthCheckFunc()
 }
 
 func (s *DataStore) NewCarve(ctx context.Context, metadata *fleet.CarveMetadata) (*fleet.CarveMetadata, error) {
@@ -1444,6 +1459,11 @@ func (s *DataStore) ListHostDeviceMapping(ctx context.Context, id uint) ([]*flee
 	return s.ListHostDeviceMappingFunc(ctx, id)
 }
 
+func (s *DataStore) ListHostBatteries(ctx context.Context, id uint) ([]*fleet.HostBattery, error) {
+	s.ListHostBatteriesFuncInvoked = true
+	return s.ListHostBatteriesFunc(ctx, id)
+}
+
 func (s *DataStore) LoadHostByDeviceAuthToken(ctx context.Context, authToken string) (*fleet.Host, error) {
 	s.LoadHostByDeviceAuthTokenFuncInvoked = true
 	return s.LoadHostByDeviceAuthTokenFunc(ctx, authToken)
@@ -1859,14 +1879,9 @@ func (s *DataStore) CountSoftware(ctx context.Context, opt fleet.SoftwareListOpt
 	return s.CountSoftwareFunc(ctx, opt)
 }
 
-func (s *DataStore) ListVulnerableSoftwareBySource(ctx context.Context, source string) ([]fleet.SoftwareWithCPE, error) {
-	s.ListVulnerableSoftwareBySourceFuncInvoked = true
-	return s.ListVulnerableSoftwareBySourceFunc(ctx, source)
-}
-
-func (s *DataStore) DeleteVulnerabilitiesByCPECVE(ctx context.Context, vulnerabilities []fleet.SoftwareVulnerability) error {
-	s.DeleteVulnerabilitiesByCPECVEFuncInvoked = true
-	return s.DeleteVulnerabilitiesByCPECVEFunc(ctx, vulnerabilities)
+func (s *DataStore) DeleteSoftwareVulnerabilities(ctx context.Context, vulnerabilities []fleet.SoftwareVulnerability) error {
+	s.DeleteSoftwareVulnerabilitiesFuncInvoked = true
+	return s.DeleteSoftwareVulnerabilitiesFunc(ctx, vulnerabilities)
 }
 
 func (s *DataStore) NewTeamPolicy(ctx context.Context, teamID uint, authorID *uint, args fleet.PolicyPayload) (*fleet.Policy, error) {
@@ -2002,6 +2017,11 @@ func (s *DataStore) SetOrUpdateMDMData(ctx context.Context, hostID uint, enrolle
 func (s *DataStore) ReplaceHostDeviceMapping(ctx context.Context, id uint, mappings []*fleet.HostDeviceMapping) error {
 	s.ReplaceHostDeviceMappingFuncInvoked = true
 	return s.ReplaceHostDeviceMappingFunc(ctx, id, mappings)
+}
+
+func (s *DataStore) ReplaceHostBatteries(ctx context.Context, id uint, mappings []*fleet.HostBattery) error {
+	s.ReplaceHostBatteriesFuncInvoked = true
+	return s.ReplaceHostBatteriesFunc(ctx, id, mappings)
 }
 
 func (s *DataStore) VerifyEnrollSecret(ctx context.Context, secret string) (*fleet.EnrollSecret, error) {

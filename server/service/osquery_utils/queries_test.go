@@ -6,6 +6,7 @@ import (
 	"errors"
 	"os"
 	"sort"
+	"strings"
 	"testing"
 	"time"
 
@@ -293,7 +294,7 @@ func sortedKeysCompare(t *testing.T, m map[string]DetailQuery, expectedKeys []st
 
 func TestGetDetailQueries(t *testing.T) {
 	queriesNoConfig := GetDetailQueries(nil, config.FleetConfig{})
-	require.Len(t, queriesNoConfig, 12)
+	require.Len(t, queriesNoConfig, 13)
 	baseQueries := []string{
 		"network_interface",
 		"os_version",
@@ -307,15 +308,16 @@ func TestGetDetailQueries(t *testing.T) {
 		"munki_info",
 		"google_chrome_profiles",
 		"orbit_info",
+		"battery",
 	}
 	sortedKeysCompare(t, queriesNoConfig, baseQueries)
 
 	queriesWithUsers := GetDetailQueries(&fleet.AppConfig{HostSettings: fleet.HostSettings{EnableHostUsers: true}}, config.FleetConfig{App: config.AppConfig{EnableScheduledQueryStats: true}})
-	require.Len(t, queriesWithUsers, 14)
+	require.Len(t, queriesWithUsers, 15)
 	sortedKeysCompare(t, queriesWithUsers, append(baseQueries, "users", "scheduled_query_stats"))
 
 	queriesWithUsersAndSoftware := GetDetailQueries(&fleet.AppConfig{HostSettings: fleet.HostSettings{EnableHostUsers: true, EnableSoftwareInventory: true}}, config.FleetConfig{App: config.AppConfig{EnableScheduledQueryStats: true}})
-	require.Len(t, queriesWithUsersAndSoftware, 17)
+	require.Len(t, queriesWithUsersAndSoftware, 18)
 	sortedKeysCompare(t, queriesWithUsersAndSoftware,
 		append(baseQueries, "users", "software_macos", "software_linux", "software_windows", "scheduled_query_stats"))
 }
@@ -371,6 +373,27 @@ func TestDetailQueriesOSVersion(t *testing.T) {
 
 	assert.NoError(t, ingest(context.Background(), log.NewNopLogger(), &host, rows))
 	assert.Equal(t, "Arch Linux 1.2.3", host.OSVersion)
+
+	// Simulate Ubuntu host with incorrect `patch`` number
+	require.NoError(t, json.Unmarshal([]byte(`
+[{
+    "hostname": "kube2",
+    "arch": "x86_64",
+    "build": "",
+    "codename": "bionic",
+    "major": "18",
+    "minor": "4",
+    "name": "Ubuntu",
+    "patch": "0",
+    "platform": "ubuntu",
+    "platform_like": "debian",
+    "version": "18.04.5 LTS (Bionic Beaver)"
+}]`),
+		&rows,
+	))
+
+	assert.NoError(t, ingest(context.Background(), log.NewNopLogger(), &host, rows))
+	assert.Equal(t, "Ubuntu 18.04.5 LTS", host.OSVersion)
 }
 
 func TestDirectIngestMDM(t *testing.T) {
@@ -441,6 +464,29 @@ func TestDirectIngestChromeProfiles(t *testing.T) {
 
 	require.NoError(t, err)
 	require.True(t, ds.ReplaceHostDeviceMappingFuncInvoked)
+}
+
+func TestDirectIngestBattery(t *testing.T) {
+	ds := new(mock.Store)
+	ds.ReplaceHostBatteriesFunc = func(ctx context.Context, id uint, mappings []*fleet.HostBattery) error {
+		require.Equal(t, mappings, []*fleet.HostBattery{
+			{HostID: uint(1), SerialNumber: "a", CycleCount: 2, Health: "Good"},
+			{HostID: uint(1), SerialNumber: "c", CycleCount: 3, Health: strings.Repeat("z", 40)},
+		})
+		return nil
+	}
+
+	host := fleet.Host{
+		ID: 1,
+	}
+
+	err := directIngestBattery(context.Background(), log.NewNopLogger(), &host, ds, []map[string]string{
+		{"serial_number": "a", "cycle_count": "2", "health": "Good"},
+		{"serial_number": "c", "cycle_count": "3", "health": strings.Repeat("z", 100)},
+	}, false)
+
+	require.NoError(t, err)
+	require.True(t, ds.ReplaceHostBatteriesFuncInvoked)
 }
 
 func TestDangerousReplaceQuery(t *testing.T) {

@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net"
 	"os"
+	"regexp"
 	"strconv"
 	"strings"
 	"time"
@@ -129,7 +130,17 @@ var hostDetailQueries = map[string]DetailQuery{
 				return nil
 			}
 
-			if rows[0]["major"] != "0" || rows[0]["minor"] != "0" || rows[0]["patch"] != "0" {
+			if strings.Contains(strings.ToLower(rows[0]["name"]), "ubuntu") {
+				// Ubuntu takes a different approach to updating patch IDs so we instead use
+				// the version string provided after removing the code name
+				regx := regexp.MustCompile(`\(.*\)`)
+				vers := regx.ReplaceAllString(rows[0]["version"], "")
+				host.OSVersion = fmt.Sprintf(
+					"%s %s",
+					rows[0]["name"],
+					strings.TrimSpace(vers),
+				)
+			} else if rows[0]["major"] != "0" || rows[0]["minor"] != "0" || rows[0]["patch"] != "0" {
 				host.OSVersion = fmt.Sprintf(
 					"%s %s.%s.%s",
 					rows[0]["name"],
@@ -333,6 +344,14 @@ var extraDetailQueries = map[string]DetailQuery{
 		DirectIngestFunc: directIngestChromeProfiles,
 		Discovery:        discoveryTable("google_chrome_profiles"),
 	},
+	"battery": {
+		Query:            `SELECT serial_number, cycle_count, health FROM battery;`,
+		Platforms:        []string{"darwin"},
+		DirectIngestFunc: directIngestBattery,
+		// the "battery" table doesn't need a Discovery query as it is an official
+		// osquery table on darwin (https://osquery.io/schema/5.3.0#battery), it is
+		// always present.
+	},
 	OrbitInfoQueryName: OrbitInfoDetailQuery,
 }
 
@@ -351,9 +370,9 @@ func discoveryTable(tableName string) string {
 	return fmt.Sprintf("SELECT 1 FROM osquery_registry WHERE active = true AND registry = 'table' AND name = '%s';", tableName)
 }
 
-const usersQueryStr = `WITH cached_groups AS (select * from groups) 
- SELECT uid, username, type, groupname, shell 
- FROM users LEFT JOIN cached_groups USING (gid) 
+const usersQueryStr = `WITH cached_groups AS (select * from groups)
+ SELECT uid, username, type, groupname, shell
+ FROM users LEFT JOIN cached_groups USING (gid)
  WHERE type <> 'special' AND shell NOT LIKE '%/false' AND shell NOT LIKE '%/nologin' AND shell NOT LIKE '%/shutdown' AND shell NOT LIKE '%/halt' AND username NOT LIKE '%$' AND username NOT LIKE '\_%' ESCAPE '\' AND NOT (username = 'sync' AND shell ='/bin/sync' AND directory <> '')`
 
 func withCachedUsers(query string) string {
@@ -614,6 +633,31 @@ func directIngestChromeProfiles(ctx context.Context, logger log.Logger, host *fl
 		})
 	}
 	return ds.ReplaceHostDeviceMapping(ctx, host.ID, mapping)
+}
+
+func directIngestBattery(ctx context.Context, logger log.Logger, host *fleet.Host, ds fleet.Datastore, rows []map[string]string, failed bool) error {
+	if failed {
+		level.Error(logger).Log("op", "directIngestBattery", "err", "failed")
+		return nil
+	}
+
+	mapping := make([]*fleet.HostBattery, 0, len(rows))
+	for _, row := range rows {
+		cycleCount, err := strconv.ParseInt(EmptyToZero(row["cycle_count"]), 10, 64)
+		if err != nil {
+			return err
+		}
+		mapping = append(mapping, &fleet.HostBattery{
+			HostID:       host.ID,
+			SerialNumber: row["serial_number"],
+			CycleCount:   int(cycleCount),
+			// database type is VARCHAR(40) and since there isn't a
+			// canonical list of strings we can get for health, we
+			// truncate the value just in case.
+			Health: fmt.Sprintf("%.40s", row["health"]),
+		})
+	}
+	return ds.ReplaceHostBatteries(ctx, host.ID, mapping)
 }
 
 func directIngestOrbitInfo(ctx context.Context, logger log.Logger, host *fleet.Host, ds fleet.Datastore, rows []map[string]string, failed bool) error {

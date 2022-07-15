@@ -5,7 +5,8 @@ resource "random_password" "database_password" {
 // Customer keys are not supported in our Fleet Terraforms at the moment. We will evaluate the
 // possibility of providing this capability in the future.
 resource "aws_secretsmanager_secret" "database_password_secret" { #tfsec:ignore:aws-ssm-secret-use-customer-key:exp:2022-07-01
-  name = "/fleet/database/password/master"
+  name                    = "/fleet/database/password/master"
+  recovery_window_in_days = 0
 }
 
 resource "aws_secretsmanager_secret_version" "database_password_secret_version" {
@@ -77,7 +78,8 @@ module "aurora_mysql" {
   create_random_password              = false
   database_name                       = var.database_name
   enable_http_endpoint                = false
-  #performance_insights_enabled        = true
+  backup_retention_period             = var.rds_backup_retention_period
+  #performance_insights_enabled       = true
 
   vpc_id                = module.vpc.vpc_id
   subnets               = module.vpc.database_subnets

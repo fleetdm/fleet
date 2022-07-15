@@ -591,6 +591,26 @@ export const humanHostUptime = (uptimeInNanoseconds: number): string => {
   return formatDistanceToNow(new Date(restartDate), { addSuffix: true });
 };
 
+export const humanHostLastRestart = (
+  detailUpdatedAt: string,
+  uptime: number
+): string => {
+  const currentDate = new Date();
+  const updatedDate = new Date(detailUpdatedAt);
+  const millisecondsLastUpdated = currentDate.getTime() - updatedDate.getTime();
+
+  // Sum of calculated milliseconds since last updated with uptime
+  const millisecondsLastRestart =
+    millisecondsLastUpdated + uptime / NANOSECONDS_PER_MILLISECOND;
+
+  const restartDate = new Date();
+  restartDate.setMilliseconds(
+    restartDate.getMilliseconds() - millisecondsLastRestart
+  );
+
+  return formatDistanceToNow(new Date(restartDate), { addSuffix: true });
+};
+
 export const humanHostLastSeen = (lastSeen: string): string => {
   return format(new Date(lastSeen), "MMM d yyyy, HH:mm:ss");
 };

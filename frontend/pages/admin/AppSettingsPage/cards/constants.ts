@@ -124,6 +124,15 @@ export const usageStatsPreview = {
       },
     ],
   },
+  storedErrors: [
+    {
+      count: 3,
+      loc: [
+        "github.com/fleetdm/fleet/v4/server/example.example:12",
+        "github.com/fleetdm/fleet/v4/server/example.example:130",
+      ],
+    },
+  ],
 };
 
 export default {

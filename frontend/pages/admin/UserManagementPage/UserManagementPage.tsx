@@ -290,6 +290,15 @@ const UserManagementPage = ({ router }: IUserManagementProps): JSX.Element => {
   const onEditUser = (formData: any) => {
     const userData = getUser(userEditing.type, userEditing.id);
 
+    let userUpdatedFlashMessage = `Successfully edited ${formData.name}`;
+    if (userData?.email !== formData.email) {
+      userUpdatedFlashMessage += `: A confirmation email was sent from ${config?.smtp_settings.sender_address} to ${formData.email}`;
+    }
+    const userUpdatedEmailError =
+      "A user with this email address already exists";
+    const userUpdatedPasswordError = "Password must meet the criteria below";
+    const userUpdatedError = `Could not edit ${userEditing?.name}. Please try again.`;
+
     setIsEditingUser(true);
     if (userEditing.type === "invite") {
       return (
@@ -297,68 +306,29 @@ const UserManagementPage = ({ router }: IUserManagementProps): JSX.Element => {
         invitesAPI
           .update(userData.id, formData)
           .then(() => {
-            renderFlash("success", `Successfully edited ${userEditing?.name}`);
+            renderFlash("success", userUpdatedFlashMessage);
             toggleEditUserModal();
             refetchInvites();
           })
           .catch((userErrors: { data: IApiError }) => {
             if (userErrors.data.errors[0].reason.includes("already exists")) {
               setEditUserErrors({
-                email: "A user with this email address already exists",
+                email: userUpdatedEmailError,
               });
             } else if (
               userErrors.data.errors[0].reason.includes("required criteria")
             ) {
               setEditUserErrors({
-                password: "Password must meet the criteria below",
+                password: userUpdatedPasswordError,
               });
             } else {
-              renderFlash(
-                "error",
-                `Could not edit ${userEditing?.name}. Please try again.`
-              );
+              renderFlash("error", userUpdatedError);
             }
           })
           .finally(() => {
             setIsEditingUser(false);
           })
       );
-    }
-
-    if (currentUser?.id === userEditing.id) {
-      return (
-        userData &&
-        usersAPI
-          .update(userData.id, formData)
-          .then(() => {
-            renderFlash("success", `Successfully edited ${userEditing?.name}`);
-            toggleEditUserModal();
-            refetchUsers();
-          })
-          .catch((userErrors: { data: IApiError }) => {
-            if (userErrors.data.errors[0].reason.includes("already exists")) {
-              setEditUserErrors({
-                email: "A user with this email address already exists",
-              });
-            } else if (
-              userErrors.data.errors[0].reason.includes("required criteria")
-            ) {
-              setEditUserErrors({
-                password: "Password must meet the criteria below",
-              });
-            }
-            renderFlash(
-              "error",
-              `Could not edit ${userEditing?.name}. Please try again.`
-            );
-          })
-      );
-    }
-
-    let userUpdatedFlashMessage = `Successfully edited ${formData.name}`;
-
-    if (userData?.email !== formData.email) {
-      userUpdatedFlashMessage += `: A confirmation email was sent from ${config?.smtp_settings.sender_address} to ${formData.email}`;
     }
 
     return (
@@ -373,20 +343,20 @@ const UserManagementPage = ({ router }: IUserManagementProps): JSX.Element => {
         .catch((userErrors: { data: IApiError }) => {
           if (userErrors.data.errors[0].reason.includes("already exists")) {
             setEditUserErrors({
-              email: "A user with this email address already exists",
+              email: userUpdatedEmailError,
             });
           } else if (
             userErrors.data.errors[0].reason.includes("required criteria")
           ) {
             setEditUserErrors({
-              password: "Password must meet the criteria below",
+              password: userUpdatedPasswordError,
             });
           } else {
-            renderFlash(
-              "error",
-              `Could not edit ${userEditing?.name}. Please try again.`
-            );
+            renderFlash("error", userUpdatedError);
           }
+        })
+        .finally(() => {
+          setIsEditingUser(false);
         })
     );
   };
@@ -566,7 +536,7 @@ const UserManagementPage = ({ router }: IUserManagementProps): JSX.Element => {
     loadingUsersError || loadingInvitesError || loadingTeamsError;
 
   let tableData: unknown = [];
-  if (!loadingTableData) {
+  if (!loadingTableData && !tableDataError) {
     tableData = combineUsersAndInvites(users, invites, currentUser?.id);
   }
 

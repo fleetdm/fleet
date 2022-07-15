@@ -5,6 +5,8 @@ import (
 	"encoding/json"
 	"errors"
 	"time"
+
+	"github.com/fleetdm/fleet/v4/server/health"
 )
 
 type CarveStore interface {
@@ -23,6 +25,8 @@ type CarveStore interface {
 
 // Datastore combines all the interfaces in the Fleet DAL
 type Datastore interface {
+	health.Checker
+
 	CarveStore
 
 	///////////////////////////////////////////////////////////////////////////////
@@ -214,6 +218,8 @@ type Datastore interface {
 	CountHosts(ctx context.Context, filter TeamFilter, opt HostListOptions) (int, error)
 	CountHostsInLabel(ctx context.Context, filter TeamFilter, lid uint, opt HostListOptions) (int, error)
 	ListHostDeviceMapping(ctx context.Context, id uint) ([]*HostDeviceMapping, error)
+	// ListHostBatteries returns the list of batteries for the given host ID.
+	ListHostBatteries(ctx context.Context, id uint) ([]*HostBattery, error)
 
 	// LoadHostByDeviceAuthToken loads the host identified by the device auth token.
 	// If the token is invalid it returns a NotFoundError.
@@ -421,10 +427,8 @@ type Datastore interface {
 
 	ListSoftware(ctx context.Context, opt SoftwareListOptions) ([]Software, error)
 	CountSoftware(ctx context.Context, opt SoftwareListOptions) (int, error)
-	// ListVulnerableSoftwareBySource lists all the vulnerable software that matches the given source.
-	ListVulnerableSoftwareBySource(ctx context.Context, source string) ([]SoftwareWithCPE, error)
 	// DeleteVulnerabilities deletes the given list of vulnerabilities identified by CPE+CVE.
-	DeleteVulnerabilitiesByCPECVE(ctx context.Context, vulnerabilities []SoftwareVulnerability) error
+	DeleteSoftwareVulnerabilities(ctx context.Context, vulnerabilities []SoftwareVulnerability) error
 
 	///////////////////////////////////////////////////////////////////////////////
 	// Team Policies
@@ -530,6 +534,9 @@ type Datastore interface {
 	SetOrUpdateMDMData(ctx context.Context, hostID uint, enrolled bool, serverURL string, installedFromDep bool) error
 
 	ReplaceHostDeviceMapping(ctx context.Context, id uint, mappings []*HostDeviceMapping) error
+
+	// ReplaceHostBatteries creates or updates the battery mappings of a host.
+	ReplaceHostBatteries(ctx context.Context, id uint, mappings []*HostBattery) error
 
 	// VerifyEnrollSecret checks that the provided secret matches an active enroll secret. If it is successfully
 	// matched, that secret is returned. Otherwise, an error is returned.
