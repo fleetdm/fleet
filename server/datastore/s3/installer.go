@@ -32,13 +32,13 @@ func NewInstallerStore(config config.S3Config) (*InstallerStore, error) {
 }
 
 // Get retrieves the requested installer from S3
-func (i *InstallerStore) Get(ctx context.Context, installer fleet.Installer) (*io.ReadCloser, *int64, error) {
+func (i *InstallerStore) Get(ctx context.Context, installer fleet.Installer) (io.ReadCloser, int64, error) {
 	key := i.keyForInstaller(installer)
 	req, err := i.s3client.GetObject(&s3.GetObjectInput{Bucket: &i.bucket, Key: &key})
 	if err != nil {
-		return nil, nil, ctxerr.Wrap(ctx, err, "get installer from storage")
+		return nil, int64(0), ctxerr.Wrap(ctx, err, "get installer from storage")
 	}
-	return &req.Body, req.ContentLength, nil
+	return req.Body, *req.ContentLength, nil
 }
 
 // Put uploads an installer to S3

@@ -11,7 +11,7 @@ import (
 
 var _ fleet.InstallerStore = (*InstallerStore)(nil)
 
-type GetFunc func(ctx context.Context, installer fleet.Installer) (*io.ReadCloser, *int64, error)
+type GetFunc func(ctx context.Context, installer fleet.Installer) (io.ReadCloser, int64, error)
 
 type PutFunc func(ctx context.Context, installer fleet.Installer) (string, error)
 
@@ -23,7 +23,7 @@ type InstallerStore struct {
 	PutFuncInvoked bool
 }
 
-func (s *InstallerStore) Get(ctx context.Context, installer fleet.Installer) (*io.ReadCloser, *int64, error) {
+func (s *InstallerStore) Get(ctx context.Context, installer fleet.Installer) (io.ReadCloser, int64, error) {
 	s.GetFuncInvoked = true
 	return s.GetFunc(ctx, installer)
 }

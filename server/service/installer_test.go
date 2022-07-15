@@ -69,8 +69,8 @@ func TestGetInstaller(t *testing.T) {
 
 	t.Run("errors if there's a problem checking the blob storage", func(t *testing.T) {
 		ctx, ds, is, svc := setup(t)
-		is.GetFunc = func(ctx context.Context, installer fleet.Installer) (*io.ReadCloser, *int64, error) {
-			return nil, nil, ctxerr.New(ctx, "test error")
+		is.GetFunc = func(ctx context.Context, installer fleet.Installer) (io.ReadCloser, int64, error) {
+			return nil, int64(0), ctxerr.New(ctx, "test error")
 		}
 		_, _, err := svc.GetInstaller(ctx, fleet.Installer{})
 		require.Error(t, err)
@@ -81,17 +81,17 @@ func TestGetInstaller(t *testing.T) {
 
 	t.Run("returns binary data with the installer", func(t *testing.T) {
 		ctx, ds, is, svc := setup(t)
-		is.GetFunc = func(ctx context.Context, installer fleet.Installer) (*io.ReadCloser, *int64, error) {
+		is.GetFunc = func(ctx context.Context, installer fleet.Installer) (io.ReadCloser, int64, error) {
 			str := "test"
 			length := int64(len(str))
 			reader := io.NopCloser(strings.NewReader(str))
-			return &reader, &length, nil
+			return reader, length, nil
 		}
 		blob, length, err := svc.GetInstaller(ctx, fleet.Installer{})
 		require.NoError(t, err)
-		body, err := io.ReadAll(*blob)
+		body, err := io.ReadAll(blob)
 		require.Equal(t, "test", string(body))
-		require.EqualValues(t, *length, len(body))
+		require.EqualValues(t, length, len(body))
 		require.NoError(t, err)
 		require.True(t, ds.VerifyEnrollSecretFuncInvoked)
 		require.True(t, is.GetFuncInvoked)

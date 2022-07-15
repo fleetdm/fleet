@@ -21,10 +21,10 @@ func TestGetInstaller(t *testing.T) {
 		for _, i := range installers {
 			blob, length, err := store.Get(ctx, i)
 			require.NoError(t, err)
-			contents, err := io.ReadAll(*blob)
+			contents, err := io.ReadAll(blob)
 			require.NoError(t, err)
 			require.Equal(t, "mock", string(contents))
-			require.EqualValues(t, *length, len(contents))
+			require.EqualValues(t, length, len(contents))
 		}
 	})
 
@@ -67,9 +67,9 @@ func TestInstallerPut(t *testing.T) {
 	ri, l, err := store.Get(context.Background(), i)
 	require.NoError(t, err)
 
-	rc, err := io.ReadAll(*ri)
+	rc, err := io.ReadAll(ri)
 	require.NoError(t, err)
-	require.EqualValues(t, len(mockInstallerContents), *l)
+	require.EqualValues(t, len(mockInstallerContents), l)
 
 	require.Equal(t, mockInstallerContents, string(rc))
 }

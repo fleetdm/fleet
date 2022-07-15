@@ -27,7 +27,7 @@ type CarveStore interface {
 // InstallerStore is used to communicate to a blob storage containing pre-built
 // fleet-osquery installers
 type InstallerStore interface {
-	Get(ctx context.Context, installer Installer) (*io.ReadCloser, *int64, error)
+	Get(ctx context.Context, installer Installer) (io.ReadCloser, int64, error)
 	Put(ctx context.Context, installer Installer) (string, error)
 }
 
