@@ -35,10 +35,8 @@ func setupInstallerStore(tb testing.TB, bucket, prefix string) *InstallerStore {
 	})
 	require.Nil(tb, err)
 
-	store.s3client.CreateBucket(&s3.CreateBucketInput{
-		Bucket:                    &bucket,
-		CreateBucketConfiguration: &s3.CreateBucketConfiguration{},
-	})
+	err = store.CreateTestBucket(bucket)
+	require.NoError(tb, err)
 
 	tb.Cleanup(func() { cleanupStore(tb, store) })
 

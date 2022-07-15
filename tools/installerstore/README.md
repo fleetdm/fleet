@@ -25,6 +25,7 @@ GLOBAL OPTIONS:
    --sts-assume-role-arn value                               ARN of role to assume for AWS [$INSTALLER_STS_ASSUME_ROLE_ARN]
    --disable-ssl                                             Disable SSL (typically for local testing) (default: false) [$INSTALLER_DISABLE_SSL]
    --force-s3-path-style http://s3.amazonaws.com/BUCKET/KEY  Set this to true to force path-style addressing, i.e., http://s3.amazonaws.com/BUCKET/KEY (default: false) [$INSTALLER_FORCE_S3_PATH_STYLE]
+   --create-bucket                                           Set this to true to create the bucket if it doesn't exist. Only recommended for local testing. (default: false) [$INSTALLER_CREATE_BUCKET]
    --help, -h                                                show help (default: false)
 ```
 
@@ -43,5 +44,10 @@ go run tools/installerstore/main.go \
   --secret-access-key=minio123! \
   --disable-ssl=true \
   --force-s3-path-style=true \
+  --create-bucket=true \
   fleet-osquery.pkg
 ```
+
+Tip: MinIO provides an UI you can use to explore your local buckets. If you're
+running the Fleet server in development, it shoud be available at
+http://localhost:9001.

@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/aws/awserr"
 	"github.com/aws/aws-sdk-go/aws/credentials"
 	"github.com/aws/aws-sdk-go/aws/credentials/stscreds"
 	"github.com/aws/aws-sdk-go/aws/session"
@@ -70,4 +71,23 @@ func newS3store(config config.S3Config) (*s3store, error) {
 		bucket:   config.Bucket,
 		prefix:   config.Prefix,
 	}, nil
+}
+
+// CreateTestBucket creates a bucket with the provided name and a default
+// bucket config. Only recommended for local testing.
+func (s *s3store) CreateTestBucket(name string) error {
+	_, err := s.s3client.CreateBucket(&s3.CreateBucketInput{
+		Bucket:                    &name,
+		CreateBucketConfiguration: &s3.CreateBucketConfiguration{},
+	})
+
+	// Don't error if the bucket already exists
+	if aerr, ok := err.(awserr.Error); ok {
+		switch aerr.Code() {
+		case s3.ErrCodeBucketAlreadyExists, s3.ErrCodeBucketAlreadyOwnedByYou:
+			return nil
+		}
+	}
+
+	return err
 }
