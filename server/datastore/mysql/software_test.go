@@ -514,7 +514,10 @@ func testSoftwareList(t *testing.T, ds *Datastore) {
 	vulns := []fleet.SoftwareVulnerability{
 		{SoftwareID: host1.Software[0].ID, CPEID: host1.Software[0].GeneratedCPEID, CVE: "CVE-2022-0001"},
 		{SoftwareID: host1.Software[0].ID, CPEID: host1.Software[0].GeneratedCPEID, CVE: "CVE-2022-0002"},
+		{SoftwareID: host1.Software[0].ID, CPEID: host1.Software[0].GeneratedCPEID, CVE: "USN-5469-1"},
+		{SoftwareID: host1.Software[0].ID, CPEID: host1.Software[0].GeneratedCPEID, CVE: "USN-5469-1"},
 		{SoftwareID: host3.Software[0].ID, CPEID: host3.Software[0].GeneratedCPEID, CVE: "CVE-2022-0003"},
+		{SoftwareID: host3.Software[0].ID, CPEID: host3.Software[0].GeneratedCPEID, CVE: "RHSA-2022:5555"},
 	}
 
 	_, err := ds.InsertVulnerabilities(context.Background(), vulns, fleet.NVDSource)
@@ -1471,7 +1474,7 @@ func testInsertVulnerabilities(t *testing.T, ds *Datastore) {
 	ctx := context.Background()
 
 	t.Run("no vulnerabilities to insert", func(t *testing.T) {
-		r, err := ds.InsertVulnerabilities(ctx, nil, fleet.OVALSource)
+		r, err := ds.InsertVulnerabilities(ctx, nil, fleet.UbuntuOVALSource)
 		require.Zero(t, r)
 		require.NoError(t, err)
 	})
@@ -1496,7 +1499,7 @@ func testInsertVulnerabilities(t *testing.T, ds *Datastore) {
 			})
 		}
 
-		n, err := ds.InsertVulnerabilities(ctx, vulns, fleet.OVALSource)
+		n, err := ds.InsertVulnerabilities(ctx, vulns, fleet.UbuntuOVALSource)
 		require.NoError(t, err)
 		require.Equal(t, 1, int(n))
 
@@ -1529,11 +1532,11 @@ func testInsertVulnerabilities(t *testing.T, ds *Datastore) {
 			})
 		}
 
-		n, err := ds.InsertVulnerabilities(ctx, vulns, fleet.OVALSource)
+		n, err := ds.InsertVulnerabilities(ctx, vulns, fleet.UbuntuOVALSource)
 		require.NoError(t, err)
 		require.Equal(t, 1, int(n))
 
-		n, err = ds.InsertVulnerabilities(ctx, vulns, fleet.OVALSource)
+		n, err = ds.InsertVulnerabilities(ctx, vulns, fleet.UbuntuOVALSource)
 		require.NoError(t, err)
 		require.Equal(t, 0, int(n))
 
