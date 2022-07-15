@@ -36,7 +36,7 @@ module.exports = {
 
   fn: async function ({userID}) {
 
-    // Find user record (User.findOne({id: userID}))
+    // Find user record
     let user = await User.findOne({id: userID});
     if(user.fleetSandboxURL) {
       return 'userHasExistingSandbox';
@@ -45,16 +45,12 @@ module.exports = {
     // Creating an expiration JS timestamp for the Fleet sandbox instance. NOTE: We send this value to the cloud provisioner API as an ISO 8601 string.
     let fleetSandboxExpiresAt = Date.now() + (24*60*60*1000);
 
-    // Create a key to send to the Fleet Sandbox instance, This key will be provided when the user logs in to their fleet sandbox instance
-    let fleetSandboxDemoKey = await sails.helpers.strings.random('url-friendly');
-
     // Send a POST request to the cloud provisioner API
     let cloudProvisionerResponse = await sails.helpers.http.post(sails.config.custom.fleetSandboxProvisionerURL, {
       'name': user.firstName + ' ' + user.lastName,
       'email': user.emailAddress,
       'password': user.password,
       'sandbox_expiration': new Date(fleetSandboxExpiresAt).toISOString(), // sending expiration_timestamp as an ISO string.
-      // 'apiSecret': sails.config.custom.fleetSandboxProvisionerSecret,
     })
     .timeout(5000)
     .intercept('non200Response', 'couldNotProvisionSandbox');
@@ -76,14 +72,9 @@ module.exports = {
           return serverResponse.statusCode === 200;
         }
       });
-
-      // When the Fleet Sandbox instance is ready, we'll return the fleetSandboxUrl and the fleetSandboxKey
-      return {
-        fleetSandboxURL,
-        fleetSandboxDemoKey
-      };
     }
 
+    return;
   }
 
 
