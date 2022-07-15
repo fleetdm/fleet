@@ -474,6 +474,5 @@ type Service interface {
 	///////////////////////////////////////////////////////////////////////////////
 	// Installers
 
-	CheckInstallerExistence(ctx context.Context, installer Installer) error
 	GetInstaller(ctx context.Context, installer Installer) (*io.ReadCloser, *int64, error)
 }

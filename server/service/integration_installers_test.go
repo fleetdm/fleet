@@ -43,31 +43,6 @@ func TestIntegrationsInstallers(t *testing.T) {
 	suite.Run(t, testingSuite)
 }
 
-func (s *integrationInstallersTestSuite) TestInstallerHeadCheck() {
-	// make sure FLEET_DEMO is not set
-	os.Unsetenv("FLEET_DEMO")
-	validURL := installerURL(enrollSecret, "pkg", false)
-	s.Do("HEAD", validURL, nil, http.StatusInternalServerError)
-
-	os.Setenv("FLEET_DEMO", "1")
-	defer os.Unsetenv("FLEET_DEMO")
-
-	// works when FLEET_DEMO is set
-	s.Do("HEAD", validURL, nil, http.StatusOK)
-
-	// unauthorized requests
-	s.DoRawNoAuth("GET", validURL, nil, http.StatusUnauthorized)
-	s.token = "invalid"
-	s.Do("GET", validURL, nil, http.StatusUnauthorized)
-	s.token = s.cachedAdminToken
-
-	// wrong enroll secret
-	s.Do("HEAD", installerURL("wrong-enroll", "pkg", false), nil, http.StatusInternalServerError)
-
-	// non-existent package
-	s.Do("HEAD", installerURL(enrollSecret, "exe", false), nil, http.StatusNotFound)
-}
-
 func (s *integrationInstallersTestSuite) TestInstallerGet() {
 	t := s.T()
 
