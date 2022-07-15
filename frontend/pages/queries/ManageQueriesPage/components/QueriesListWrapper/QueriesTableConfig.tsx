@@ -245,21 +245,26 @@ const generateTableHeaders = (currentUser: IUser): IDataColumn[] => {
                 !isAnyTeamMaintainerOrTeamAdmin ||
                 row.original.author_id === currentUser.id
               }
+              className={`${
+                !(
+                  !isAnyTeamMaintainerOrTeamAdmin ||
+                  row.original.author_id === currentUser.id
+                ) && "tooltip"
+              }`}
             >
               <Checkbox {...checkboxProps} />
             </div>{" "}
             <ReactTooltip
               className="select-checkbox-tooltip"
               place="bottom"
-              type="dark"
               effect="solid"
               backgroundColor="#3e4771"
               id={`${"select-checkbox"}__${row.original.id}`}
               data-html
             >
-              <div style={{ width: "196px", textAlign: "center" }}>
+              <>
                 You can only delete a<br /> query if you are the author.
-              </div>
+              </>
             </ReactTooltip>
           </>
         );

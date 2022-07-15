@@ -210,7 +210,9 @@ const allHostTableHeaders: IDataColumn[] = [
         return (
           <>
             <span
-              className={`text-cell ${users.length > 1 ? "text-muted" : ""}`}
+              className={`text-cell ${
+                users.length > 1 ? "text-muted tooltip" : ""
+              }`}
               data-tip
               data-for={`device_mapping__${cellProps.row.original.id}`}
               data-tip-disable={users.length <= 1}
@@ -218,8 +220,6 @@ const allHostTableHeaders: IDataColumn[] = [
               {numUsers === 1 ? users[0] : `${numUsers} users`}
             </span>
             <ReactTooltip
-              place="top"
-              type="dark"
               effect="solid"
               backgroundColor="#3e4771"
               id={`device_mapping__${cellProps.row.original.id}`}

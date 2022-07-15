@@ -51,7 +51,7 @@ const HostSummary = ({
           <Button
             className={`
               button
-              ${!isOnline ? "refetch-offline" : ""} 
+              ${!isOnline ? "refetch-offline tooltip" : ""} 
               ${showRefetchSpinner ? "refetch-spinner" : "refetch-btn"}
             `}
             disabled={!isOnline}
@@ -65,7 +65,6 @@ const HostSummary = ({
         </div>
         <ReactTooltip
           place="bottom"
-          type="dark"
           effect="solid"
           id="refetch-tooltip"
           backgroundColor="#3e4771"
@@ -83,7 +82,7 @@ const HostSummary = ({
       <span className="info-flex__header">Issues</span>
       <span className="info-flex__data">
         <span
-          className="host-issue tooltip__tooltip-icon"
+          className="host-issue tooltip tooltip__tooltip-icon"
           data-tip
           data-for="host-issue-count"
           data-tip-disable={false}
@@ -92,7 +91,6 @@ const HostSummary = ({
         </span>
         <ReactTooltip
           place="bottom"
-          type="dark"
           effect="solid"
           backgroundColor="#3e4771"
           id="host-issue-count"
@@ -174,7 +172,7 @@ const HostSummary = ({
       return (
         <span className="info-flex__data">
           <div
-            className="info-flex__disk-space-wrapper"
+            className="info-flex__disk-space-wrapper tooltip"
             data-tip
             data-for="disk-space-tooltip"
           >

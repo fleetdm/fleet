@@ -74,10 +74,6 @@
 
       &__disk-space-wrapper {
         display: inline-block;
-
-        &:hover {
-          cursor: help;
-        }
       }
 
       &__disk-space {
@@ -207,7 +203,6 @@
       margin-right: $pad-small;
 
       .refetch-btn {
-        cursor: default;
         font-size: $x-small;
         height: 38px;
         margin-right: $pad-small;
@@ -228,10 +223,6 @@
 
       .refetch-offline {
         opacity: 25%;
-
-        &:hover {
-          cursor: default;
-        }
       }
 
       .refetch-spinner {
@@ -432,13 +423,6 @@
     margin-top: $pad-small;
     overflow: scroll;
     box-shadow: inset -8px 0 17px -10px #e8edf4;
-  }
-
-  &__tooltip-text {
-    font-size: $x-small;
-    display: flex;
-    justify-content: center;
-    text-align: center;
   }
 
   .tooltip__tooltip-icon {

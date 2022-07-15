@@ -77,10 +77,6 @@
 
       &__disk-space-wrapper {
         display: inline-block;
-
-        &:hover {
-          cursor: help;
-        }
       }
 
       &__disk-space {
@@ -227,10 +223,6 @@
 
       .refetch-offline {
         opacity: 25%;
-
-        &:hover {
-          cursor: default;
-        }
       }
 
       .refetch-spinner {
@@ -380,13 +372,6 @@
   &__action-button-container {
     display: flex;
     align-items: center;
-  }
-
-  &__tooltip-text {
-    font-size: $x-small;
-    display: flex;
-    justify-content: center;
-    text-align: center;
   }
 
   &__device_mapping {
