@@ -19,6 +19,17 @@ At times, our sales team will reach out to prospective customers before they com
 - Be personable.
 - Ask for the meeting with a proposed time.
 
+## Writing for the Sales team
+
+When writing for Fleet, we have some standards that cross over into the Sales team’s work. One universal rule we abide by is to capitalize using sentence-case with only capitalizing the first word (unless it’s a proper noun).
+
+Working to engage
+Meeting scheduled
+Working to convert
+Direct Numerical Control (DNC)
+
+Notice that “Direct Numerical Control (DNC)” is capitalized and written out next to its acronym to be explicit about what it is while also teaching you the acronym. We use acronyms as proper nouns for clarity.
+
 ## Intro deck
 
 Fleet's intro deck adds additional detail to our pitch. Find it in [Google Slides](https://docs.google.com/presentation/d/1sMCld6OPPG-LzJojmoSPxnOt17H-KYYfl5QFbBO29Fk/edit?usp=sharing).
