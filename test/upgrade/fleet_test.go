@@ -35,9 +35,13 @@ func init() {
 
 // Fleet represents the fleet server and its dependencies used for testing.
 type Fleet struct {
+	// ProjectName is the docker compose project name
 	ProjectName string
+	// FilePath is the path to the docker-compose.yml
 	FilePath    string
+	// Version is the active fleet version.
 	Version     string
+	// Token is the fleet token used for authentication
 	Token       string
 
 	dockerClient client.ContainerAPIClient
@@ -76,13 +80,7 @@ func (f *Fleet) Start() error {
 	}
 	_, err := f.execCompose(env, "pull", "--parallel")
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "fail to pull: %v\n", err)
-		fmt.Fprintf(os.Stderr, "retrying pull...\n")
-
-		_, err := f.execCompose(env, "pull", "--parallel")
-		if err != nil {
-			return err
-		}
+		return err
 	}
 
 	// start mysql and wait until ready
