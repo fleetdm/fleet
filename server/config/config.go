@@ -311,6 +311,8 @@ type PackagingConfig struct {
 	// GlobalEnrollSecret is the enroll secret that will be used to enroll
 	// hosts in the global scope
 	GlobalEnrollSecret string `yaml:"global_enroll_secret"`
+	// S3 configuration used to retrieve pre-built installers
+	S3 S3Config `yaml:"s3"`
 }
 
 // FleetConfig stores the application configuration. Each subcategory is
@@ -654,6 +656,15 @@ func (man Manager) addConfigs() {
 
 	// Packaging config
 	man.addConfigString("packaging.global_enroll_secret", "", "Enroll secret to be used for the global domain (instead of randomly generating one)")
+	man.addConfigString("packaging.s3.bucket", "", "Bucket where to retrieve installers")
+	man.addConfigString("packaging.s3.prefix", "", "Prefix under which installers are stored")
+	man.addConfigString("packaging.s3.region", "", "AWS Region (if blank region is derived)")
+	man.addConfigString("packaging.s3.endpoint_url", "", "AWS Service Endpoint to use (leave blank for default service endpoints)")
+	man.addConfigString("packaging.s3.access_key_id", "", "Access Key ID for AWS authentication")
+	man.addConfigString("packaging.s3.secret_access_key", "", "Secret Access Key for AWS authentication")
+	man.addConfigString("packaging.s3.sts_assume_role_arn", "", "ARN of role to assume for AWS")
+	man.addConfigBool("packaging.s3.disable_ssl", false, "Disable SSL (typically for local testing)")
+	man.addConfigBool("packaging.s3.force_s3_path_style", false, "Set this to true to force path-style addressing, i.e., `http://s3.amazonaws.com/BUCKET/KEY`")
 }
 
 // LoadConfig will load the config variables into a fully initialized

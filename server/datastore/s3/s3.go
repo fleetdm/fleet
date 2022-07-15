@@ -11,22 +11,18 @@ import (
 	"github.com/aws/aws-sdk-go/service/s3"
 	"github.com/aws/aws-sdk-go/service/s3/s3manager"
 	"github.com/fleetdm/fleet/v4/server/config"
-	"github.com/fleetdm/fleet/v4/server/fleet"
 )
 
 const awsRegionHint = "us-east-1"
 
-// Datastore is a type implementing the CarveStore interface
-// relying on AWS S3 storage
-type Datastore struct {
-	metadatadb fleet.CarveStore
-	s3client   *s3.S3
-	bucket     string
-	prefix     string
+type s3store struct {
+	s3client *s3.S3
+	bucket   string
+	prefix   string
 }
 
-// New initializes an S3 Datastore
-func New(config config.S3Config, metadatadb fleet.CarveStore) (*Datastore, error) {
+// newS3store initializes an S3 Datastore
+func newS3store(config config.S3Config) (*s3store, error) {
 	conf := &aws.Config{}
 
 	// Use default auth provire if no static credentials were provided
@@ -69,10 +65,9 @@ func New(config config.S3Config, metadatadb fleet.CarveStore) (*Datastore, error
 		config.Region = region
 	}
 
-	return &Datastore{
-		metadatadb: metadatadb,
-		s3client:   s3.New(sess, &aws.Config{Region: &config.Region}),
-		bucket:     config.Bucket,
-		prefix:     config.Prefix,
+	return &s3store{
+		s3client: s3.New(sess, &aws.Config{Region: &config.Region}),
+		bucket:   config.Bucket,
+		prefix:   config.Prefix,
 	}, nil
 }

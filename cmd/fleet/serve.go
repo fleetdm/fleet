@@ -199,7 +199,7 @@ the way that the Fleet server works.
 			}
 
 			if config.S3.Bucket != "" {
-				carveStore, err = s3.New(config.S3, ds)
+				carveStore, err = s3.NewCarveStore(config.S3, ds)
 				if err != nil {
 					initFatal(err, "initializing S3 carvestore")
 				}
@@ -683,7 +683,7 @@ func runCrons(
 
 	go cronDB(ctx, ds, kitlog.With(logger, "cron", "cleanups"), ourIdentifier, license, enrollHostLimiter)
 	go cronVulnerabilities(
-		ctx, ds, kitlog.With(logger, "cron", "vulnerabilities"), ourIdentifier, config)
+		ctx, ds, kitlog.With(logger, "cron", "vulnerabilities"), ourIdentifier, config.Vulnerabilities)
 	go cronWebhooks(ctx, ds, kitlog.With(logger, "cron", "webhooks"), ourIdentifier, failingPoliciesSet, 1*time.Hour)
 	go cronWorker(ctx, ds, kitlog.With(logger, "cron", "worker"), ourIdentifier)
 }
