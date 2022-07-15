@@ -168,7 +168,7 @@ Remember, data sharing is data caring, and IT teams that collect robust data lik
 When I get more time, and as we progress with solutions like this I will likely share more of our data journeys in my blog. This is mind-blowing to me, as I have never had a setup at any job where I can get data from our end-user device fleet this fast. I don’t know how to describe this other than it is just pure magic.
 
 
-<meta name="category" value="guides">
+<meta name="category" value="deploy">
 <meta name="authorGitHubUsername" value="t-lark">
 <meta name="authorFullName" value="Tom Larkin">
 <meta name="publishedOn" value="2022-02-01">
