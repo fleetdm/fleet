@@ -23,7 +23,8 @@ const PillCell = ({
 
   const pillClassName = classnames(
     "data-table__pill",
-    `data-table__pill--${generateClassTag(pillText)}`
+    `data-table__pill--${generateClassTag(pillText)}`,
+    "tooltip"
   );
 
   const disable = () => {

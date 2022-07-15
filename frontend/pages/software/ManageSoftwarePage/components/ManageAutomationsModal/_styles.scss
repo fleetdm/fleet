@@ -64,10 +64,4 @@
       text-decoration: underline;
     }
   }
-
-  &__btn.button--disabled {
-    &:hover {
-      cursor: help;
-    }
-  }
 }

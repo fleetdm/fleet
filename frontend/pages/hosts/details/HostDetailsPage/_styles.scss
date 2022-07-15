@@ -74,10 +74,6 @@
 
       &__disk-space-wrapper {
         display: inline-block;
-
-        &:hover {
-          cursor: help;
-        }
       }
 
       &__disk-space {
@@ -227,10 +223,6 @@
 
       .refetch-offline {
         opacity: 25%;
-
-        &:hover {
-          cursor: help;
-        }
       }
 
       .refetch-spinner {
@@ -438,18 +430,6 @@
       vertical-align: middle;
       height: 16px;
       width: auto;
-    }
-
-    &:hover {
-      cursor: help;
-    }
-  }
-
-  .users-tooltip,
-  .vulnerabilities-tooltip,
-  .host-details__query-button.button--disabled {
-    &:hover {
-      cursor: help;
     }
   }
 }

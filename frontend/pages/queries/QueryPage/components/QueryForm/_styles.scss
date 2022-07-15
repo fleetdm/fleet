@@ -228,10 +228,4 @@
     z-index: 1;
     align-items: center;
   }
-
-  &__save.button--disabled {
-    &:hover {
-      cursor: help;
-    }
-  }
 }

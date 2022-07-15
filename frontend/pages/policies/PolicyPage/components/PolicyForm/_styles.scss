@@ -288,11 +288,4 @@
       margin-right: $pad-medium;
     }
   }
-
-  &__save.button--disabled,
-  &__run.button--disabled {
-    &:hover {
-      cursor: help;
-    }
-  }
 }

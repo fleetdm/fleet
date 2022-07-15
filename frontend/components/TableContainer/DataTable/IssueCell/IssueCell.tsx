@@ -20,7 +20,7 @@ const IssueCell = ({ issues, rowId }: IIssueCellProps<any>): JSX.Element => {
   return (
     <>
       <span
-        className={`host-issue tooltip__tooltip-icon`}
+        className={`host-issue tooltip tooltip__tooltip-icon`}
         data-tip
         data-for={`host-issue__${rowId.toString()}`}
         data-tip-disable={false}

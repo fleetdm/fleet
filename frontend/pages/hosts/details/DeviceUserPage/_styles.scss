@@ -77,10 +77,6 @@
 
       &__disk-space-wrapper {
         display: inline-block;
-
-        &:hover {
-          cursor: help;
-        }
       }
 
       &__disk-space {
@@ -227,10 +223,6 @@
 
       .refetch-offline {
         opacity: 25%;
-
-        &:hover {
-          cursor: help;
-        }
       }
 
       .refetch-spinner {
@@ -404,10 +396,6 @@
       height: 16px;
       width: auto;
     }
-
-    &:hover {
-      cursor: help;
-    }
   }
 
   .buttons {
@@ -539,11 +527,4 @@
   margin: 0;
   padding: 0;
   display: flex;
-}
-
-.users-tooltip,
-.vulnerabilities-tooltip {
-  &:hover {
-    cursor: help;
-  }
 }

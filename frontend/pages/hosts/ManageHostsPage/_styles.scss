@@ -125,9 +125,6 @@
                     height: 16px;
                     vertical-align: sub;
                   }
-                  &:hover {
-                    cursor: help;
-                  }
                 }
               }
               .device_mapping__cell {
@@ -136,12 +133,6 @@
                 }
                 .text-muted {
                   color: $ui-fleet-black-50;
-                }
-
-                .device-mapping-tooltip {
-                  &:hover {
-                    cursor: help;
-                  }
                 }
               }
             }
@@ -250,10 +241,6 @@
 
   &__software-filter-name-card {
     margin-left: 0px;
-
-    &:hover {
-      cursor: help;
-    }
   }
 
   &__enroll-hosts {

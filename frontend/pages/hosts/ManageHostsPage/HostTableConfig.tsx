@@ -211,7 +211,7 @@ const allHostTableHeaders: IDataColumn[] = [
           <>
             <span
               className={`text-cell ${
-                users.length > 1 ? "text-muted device-mapping-tooltip" : ""
+                users.length > 1 ? "text-muted tooltip" : ""
               }`}
               data-tip
               data-for={`device_mapping__${cellProps.row.original.id}`}
