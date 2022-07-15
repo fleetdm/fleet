@@ -29,7 +29,7 @@ First, maintain naming conventions so people can expect what fields will look li
 |:----------------------|:---------------------|
 | Bad data              | Bad Data
 
-The second principle is to be explicit, which again goes back to people understanding what they are reading and how to use terms to get proper use of automations outside of Salesforce. In the case of acronyms, that means expanding and treating them as proper nouns. Note the template for including acronyms is in the first column below.
+The second principle is to be explicit, which goes back to people understanding what they are reading and how to use terms for proper use of automations outside of Salesforce. In the case of acronyms, that means expanding and treating them as proper nouns. Note the template for including acronyms is in the first column below.
 
 | Good job! ✅          | Don't do this. ❌    |
 |:----------------------|:---------------------|
