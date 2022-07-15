@@ -23,7 +23,7 @@ At times, our sales team will reach out to prospective customers before they com
 
 ### We want to abide by the following principles in our communications:
 
-First, maintain convention so people can expect what fields will look like when revisiting autmations outside of Salesforce. This could lead to misunderstanding jargon, and making wrong decisions that break automated integrations and cause business problems. One way we do this is by capitalizing in sentence-case where only the first word is capitalized (unless it’s a proper noun). See the below examples.
+First, maintain naming conventions so people can expect what fields will look like when revisiting automations outside of Salesforce. This helps them avoid misunderstanding jargon and making mistakes that break automated integrations and cause business problems. One way we do this is by using sentence case where only the first word is capitalized (unless it’s a proper noun). See the below examples.
 
 | Good job! ✅          | Don't do this. ❌    |
 |:----------------------|:---------------------|
