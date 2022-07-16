@@ -316,7 +316,7 @@ osquery:
 			os.Clearenv()
 			for _, env := range c.envVars {
 				kv := strings.SplitN(env, "=", 2)
-				os.Setenv(kv[0], kv[1])
+				t.Setenv(kv[0], kv[1])
 			}
 
 			var loadedCfg FleetConfig

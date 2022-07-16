@@ -3199,7 +3199,7 @@ func (s *integrationTestSuite) TestExternalIntegrationsConfig() {
 	}`), http.StatusOK)
 
 	// set environmental varible to use Zendesk test client
-	os.Setenv("TEST_ZENDESK_CLIENT", "true")
+	t.Setenv("TEST_ZENDESK_CLIENT", "true")
 	// create zendesk integration
 	s.DoRaw("PATCH", "/api/v1/fleet/config", []byte(fmt.Sprintf(`{
 		"integrations": {
@@ -5149,8 +5149,7 @@ func (s *integrationTestSuite) TestFleetSandboxDemoLogin() {
 
 	// with the FLEET_DEMO env var set, the login works as expected, validating
 	// the credentials
-	os.Setenv("FLEET_DEMO", "1")
-	defer os.Unsetenv("FLEET_DEMO")
+	t.Setenv("FLEET_DEMO", "1")
 
 	formBody.Set("email", validEmail)
 	formBody.Set("password", wrongPwd)
