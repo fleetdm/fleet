@@ -190,16 +190,15 @@ Our handbook and docs pages are written in Markdown and are editable from our we
 >
 > Check the “Files changed” section on the Open a pull request page to double-check your proposed changes.
 
-### How to edit recently merged Pull Requests for the handbook and docs
+### How to edit recently merged Pull Requests for the handbook
 
-We approach editing retrospectively for pull requests (PRs) to handbook and docs pages. Remember our goal above about moving quickly and reducing time to value for our contributors? By editing for typos and grammatical errors after-the-fact, we avoid the editor becoming a bottleneck who blocks PRs from being merged quickly. Here's how to do it:
+We approach editing retrospectively for pull requests (PRs) to handbook pages. Remember our goal above about moving quickly and reducing time to value for our contributors? By editing for typos and grammatical errors after-the-fact, we avoid the editor becoming a bottleneck who blocks PRs from being merged quickly. Here's how to do it:
 
 > **Note:** Contributors are not required to request reviews from editors for handbook and docs changes.
 
 1. Check that the previous day's edits are formatted correctly on the website (more on this in the note below.)
-2. Use GitHub's history feed to see a list of all changes made over time to the handbook and docs. You can access the history feeds from the following links: 
+2. Use GitHub's history feed to see a list of all changes made over time to the handbook and docs. You can access the history feeds with the following link: 
   - [Handbook history](https://github.com/fleetdm/fleet/commits/main/handbook) 
-  - [Docs history](https://github.com/fleetdm/fleet/commits/main/docs)
 3. From the list of recently merged PRs, look at the files changed for each and then:
   - Scan for typos and grammatical errors.
   - Check that the tone aligns with our [Communicating as Fleet](https://fleetdm.com/handbook/brand#communicating-as-fleet) guidelines and that Grammarly's tone detector is on-brand.
@@ -210,6 +209,13 @@ We approach editing retrospectively for pull requests (PRs) to handbook and docs
 6. Watch [this short video](https://www.loom.com/share/95d4525a7aae482b9f9a9470d446ce9c) to see this process in action.
 
 > **Note:** The Fleet website may render Markdown differently from GitHub's rich text preview. It's essential to check that PRs merged by the editor are displaying as expected on the site. It can take a few minutes for merged PRs to appear on the live site, and therefore easy to move on and forget. It's good to start the ritual by looking at the site to check that the previous day's edits are displaying as they should.
+
+### Editing docs pull requests with Markdown changes
+
+- When someone creates a pull request for a doc that affects Markdown files, they’ll need to request a review from the editor, Desmi Dizney. 
+- If Desmi finds no edits are needed, he will merge the PR. 
+- If Desmi only finds grammatical errors, he will make his edits and merge the pull request. However, if any of these edits have even a small chance of changing the meaning, Desmi will request a review of his work from that week’s on-call core engineer and remove himself from being a reviewer. 
+- If the on-call core engineer has questions about Desmi’s completed review, they can contact him directly via Slack to resolve these promptly.
 
 ### How to edit articles, release posts, and press releases
 
@@ -444,7 +450,7 @@ The following table lists the Brand group's rituals, frequency, and Directly Res
 
 | Ritual                       | Frequency                | Description                                         | DRI               |
 |:-----------------------------|:-----------------------------|:----------------------------------------------------|-------------------|
-| Documentation quality | Daily | Review pull requests to the docs for spelling, punctuation, and grammar. | Desmi Dizney |
+| Documentation quality | On request | Review pull requests to the docs for spelling, punctuation, and grammar. | Desmi Dizney |
 | Handbook quality | Daily | Review pull requests to the handbook for spelling, punctuation, and grammar. | Desmi Dizney |
 | Tweet review | Daily | Review tweets for tone and brand consistency. | Mike Thomas |
 | Article review | Weekly | Review articles for tone and brand consistency. | Mike Thomas |
