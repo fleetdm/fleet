@@ -198,7 +198,6 @@ We approach editing retrospectively for pull requests (PRs) to handbook pages. R
 
 1. Check that the previous day's edits are formatted correctly on the website (more on this in the note below.)
 2. Use the [Handbook history](https://github.com/fleetdm/fleet/commits/main/handbook) feed in GitHub to see a list of changes made to the handbook.
-  - [Handbook history](https://github.com/fleetdm/fleet/commits/main/handbook) 
 3. From the list of recently merged PRs, look at the files changed for each and then:
   - Scan for typos and grammatical errors.
   - Check that the tone aligns with our [Communicating as Fleet](https://fleetdm.com/handbook/brand#communicating-as-fleet) guidelines and that Grammarly's tone detector is on-brand.
