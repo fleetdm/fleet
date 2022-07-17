@@ -210,7 +210,7 @@ We approach editing retrospectively for pull requests (PRs) to handbook pages. R
 
 > **Note:** The Fleet website may render Markdown differently from GitHub's rich text preview. It's essential to check that PRs merged by the editor are displaying as expected on the site. It can take a few minutes for merged PRs to appear on the live site, and therefore easy to move on and forget. It's good to start the ritual by looking at the site to check that the previous day's edits are displaying as they should.
 
-### Editing docs pull requests with Markdown changes
+### How to edit Markdown pull requests for the docs
 
 - When someone creates a pull request for a doc that affects Markdown files, they’ll need to request a review from the editor, Desmi Dizney. 
 - If Desmi finds no edits are needed, he will merge the PR. 
