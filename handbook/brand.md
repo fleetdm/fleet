@@ -197,7 +197,7 @@ We approach editing retrospectively for pull requests (PRs) to handbook pages. R
 > **Note:** Contributors are not required to request reviews from editors for handbook and docs changes.
 
 1. Check that the previous day's edits are formatted correctly on the website (more on this in the note below.)
-2. Use GitHub's history feed to see a list of all changes made over time to the handbook and docs. You can access the history feeds with the following link: 
+2. Use the [Handbook history](https://github.com/fleetdm/fleet/commits/main/handbook) feed in GitHub to see a list of changes made to the handbook.
   - [Handbook history](https://github.com/fleetdm/fleet/commits/main/handbook) 
 3. From the list of recently merged PRs, look at the files changed for each and then:
   - Scan for typos and grammatical errors.
