@@ -358,6 +358,8 @@ When someone asks a question in a public channel, it's pretty safe to assume tha
 
 Our goal is to answer every question with a link to the docs and/or result in a documentation update.
 
+Remember, when submitting any pull request that changes Markdown files in the docs, request an editor review from Desmi Dizney.
+
 ### Tracking
 
 When responding to a question or issue in the [#fleet](https://osquery.slack.com/join/shared_invite/zt-h29zm0gk-s2DBtGUTW4CFel0f0IjTEw#/) channel of the osquery Slack workspace, push the thread to Zapier using the `TODO: Update docs` Zap. This will add information about the thread to the [Slack Questions Spreadsheet](https://docs.google.com/spreadsheets/d/15AgmjlnV4oRW5m94N5q7DjeBBix8MANV9XLWRktMDGE/edit#gid=336721544). In the `Notes` field, you can include any information that you think will be helpful when making weekly doc updates. That may be something like
