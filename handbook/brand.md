@@ -192,7 +192,7 @@ Our handbook and docs pages are written in Markdown and are editable from our we
 
 ### How to edit recently merged pull requests for the handbook
 
-We approach editing retrospectively for pull requests (PRs) to handbook pages. Remember our goal above about moving quickly and reducing time to value for our contributors? By editing for typos and grammatical errors after-the-fact, we avoid the editor becoming a bottleneck who blocks PRs from being merged quickly. Here's how to do it:
+We approach editing retrospectively for pull requests (PRs) to handbook pages. Remember our goal above about moving quickly and reducing time to value for our contributors? We avoid the editor becoming a bottleneck for merging quickly by editing for typos and grammatical errors after-the-fact. Here's how to do it:
 
 > **Note:** Contributors are not required to request reviews from editors for handbook and docs changes.
 
