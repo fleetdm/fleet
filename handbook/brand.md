@@ -190,7 +190,7 @@ Our handbook and docs pages are written in Markdown and are editable from our we
 >
 > Check the “Files changed” section on the Open a pull request page to double-check your proposed changes.
 
-### How to edit recently merged Pull Requests for the handbook
+### How to edit recently merged pull requests for the handbook
 
 We approach editing retrospectively for pull requests (PRs) to handbook pages. Remember our goal above about moving quickly and reducing time to value for our contributors? By editing for typos and grammatical errors after-the-fact, we avoid the editor becoming a bottleneck who blocks PRs from being merged quickly. Here's how to do it:
 
