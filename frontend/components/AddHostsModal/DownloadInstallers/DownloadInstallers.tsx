@@ -64,7 +64,7 @@ const DownloadInstallers = ({
   enrollSecret,
   onCancel,
 }: IDownloadInstallersProps): JSX.Element => {
-  const [includeDesktop, setIncludeDesktop] = useState(false); // TODO: confirm default false for includeDesktop
+  const [includeDesktop, setIncludeDesktop] = useState(true); // TODO: confirm default false for includeDesktop
   const [isDownloadError, setIsDownloadError] = useState(false);
   const [isDownloading, setIsDownloading] = useState(false);
   const [isDownloadSuccess, setIsDownloadSuccess] = useState(false);
