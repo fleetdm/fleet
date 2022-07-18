@@ -219,6 +219,11 @@ func addMetrics(r *mux.Router) {
 	r.Walk(walkFn)
 }
 
+// desktopRateLimitMaxBurst is the max burst used for device request rate limiting.
+//
+// Defined as const to be used in tests.
+const desktopRateLimitMaxBurst = 100
+
 func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetConfig,
 	logger kitlog.Logger, limitStore throttled.GCRAStore, opts []kithttp.ServerOption,
 	extra extraHandlerOpts,
@@ -401,7 +406,7 @@ func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetC
 	de := newDeviceAuthenticatedEndpointer(svc, logger, opts, r, apiVersions...)
 	// We allow a quota of 720 because in the onboarding of a Fleet Desktop takes a few tries until it authenticates
 	// properly
-	desktopQuota := throttled.RateQuota{MaxRate: throttled.PerHour(720), MaxBurst: 100}
+	desktopQuota := throttled.RateQuota{MaxRate: throttled.PerHour(720), MaxBurst: desktopRateLimitMaxBurst}
 	de.WithCustomMiddleware(
 		errorLimiter.Limit("get_device_host", desktopQuota),
 	).GET("/api/_version_/fleet/device/{token}", getDeviceHostEndpoint, getDeviceHostRequest{})
