@@ -4,10 +4,10 @@
 import React from "react";
 import { Column } from "react-table";
 import ReactTooltip from "react-tooltip";
-import { diskSpaceIndicator, diskSpaceTooltip } from "utilities/helpers";
 
 import { IDeviceUser, IHost } from "interfaces/host";
 import Checkbox from "components/forms/fields/Checkbox";
+import renderDiskSpaceGraph from "components/DiskSpaceGraph";
 import HeaderCell from "components/TableContainer/DataTable/HeaderCell/HeaderCell";
 import IssueCell from "components/TableContainer/DataTable/IssueCell/IssueCell";
 import LinkCell from "components/TableContainer/DataTable/LinkCell/LinkCell";
@@ -204,38 +204,11 @@ const allHostTableHeaders: IDataColumn[] = [
       if (cellProps.cell.value === 0) {
         return <>No data available</>;
       }
-      return (
-        <>
-          <div
-            className="gigs_disk_space_available__cell__disk-space-wrapper"
-            data-tip
-            data-for={`disk-space__${id}`}
-          >
-            <div className="gigs_disk_space_available__cell__disk-space">
-              <div
-                className={`gigs_disk_space_available__cell__disk-space-${diskSpaceIndicator(
-                  cellProps.cell.value
-                )}`}
-                style={{
-                  width: `${100 - percent_disk_space_available}%`,
-                }}
-              />
-            </div>
-          </div>
-          <ReactTooltip
-            place="bottom"
-            type="dark"
-            effect="solid"
-            backgroundColor="#3e4771"
-            id={`disk-space__${id}`}
-            data-html
-          >
-            <span className={`tooltip__tooltip-text`}>
-              {diskSpaceTooltip(cellProps.cell.value)}
-            </span>
-          </ReactTooltip>{" "}
-          <span>{cellProps.cell.value} GB</span>
-        </>
+      return renderDiskSpaceGraph(
+        "gigs_disk_space_available__cell",
+        cellProps.cell.value,
+        percent_disk_space_available,
+        `disk-space__${id}`
       );
     },
   },

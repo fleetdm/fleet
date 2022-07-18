@@ -3,9 +3,8 @@ import React from "react";
 import ReactTooltip from "react-tooltip";
 
 import Button from "components/buttons/Button";
+import renderDiskSpaceGraph from "components/DiskSpaceGraph";
 import {
-  diskSpaceIndicator,
-  diskSpaceTooltip,
   humanHostMemory,
   humanHostDetailUpdated,
   wrapFleetHelper,
@@ -128,37 +127,11 @@ const HostSummary = ({
       (titleData.gigs_disk_space_available > 0 ||
         titleData.percent_disk_space_available > 0)
     ) {
-      return (
-        <span className="info-flex__data">
-          <div
-            className="info-flex__disk-space-wrapper tooltip"
-            data-tip
-            data-for="disk-space-tooltip"
-          >
-            <div className="info-flex__disk-space">
-              <div
-                className={`info-flex__disk-space-${diskSpaceIndicator(
-                  titleData.gigs_disk_space_available
-                )}`}
-                style={{
-                  width: `${100 - titleData.percent_disk_space_available}%`,
-                }}
-              />
-            </div>
-          </div>
-          <ReactTooltip
-            place="bottom"
-            type="dark"
-            effect="solid"
-            id="disk-space-tooltip"
-            backgroundColor="#3e4771"
-          >
-            <span className={`${baseClass}__tooltip-text`}>
-              {diskSpaceTooltip(titleData.gigs_disk_space_available)}
-            </span>
-          </ReactTooltip>
-          {titleData.gigs_disk_space_available} GB available
-        </span>
+      return renderDiskSpaceGraph(
+        "info-flex",
+        titleData.gigs_disk_space_available,
+        titleData.percent_disk_space_available,
+        "disk-space-tooltip"
       );
     }
     return <span className="info-flex__data">No data available</span>;
