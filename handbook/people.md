@@ -95,7 +95,7 @@ For team members working in jurisdictions that require certain mandatory sick le
 
 When you take any time off, you should follow this process:
 - Let your manager and team know as soon as possible (e.g., post a message in your team's Slack channel with when and how long).
-- Find someone to cover anything that needs covering while you're out and communicate what they need to be able to take over the responsibilities as well as who to refer to for help. (i.e., meetings, planned tasks, unfinished business, important Slack/email threads, anything where someone might be depending on you).
+- Find someone to cover anything that needs covering while you're out and communicate what they need to take over the responsibilities as well as who to refer to for help (e.g., meetings, planned tasks, unfinished business, important Slack/email threads, anything where someone might be depending on you).
 - Mark an all-day "Out of office" event in Google Calendar for the day(s) you're taking off.
 
 If you can’t complete the above because you need to take the day off quickly due to an emergency, let your manager know and they will help you complete the handoff.
