@@ -28,7 +28,7 @@ Detail the minimum time needed for new or updated content to be live (published)
 |:------ |:-----------------|:-------------------------------|-----------|
 | Articles | **Queued** – see _(TODO: Publishing articles on fleetdm.com)_. | **Absorb** (pair or feedback as needed) – see [How to edit articles, release posts, and press releases](http://localhost:2024/handbook/brand#how-to-edit-articles-release-posts-and-press-releases). | three business days |
 | Ads | **Gated**. Request review from Digital Experience – see _(TODO: Creating an ad campaign)_. | **Feedback** or **pair** | five business days |
-| Docs | **Gated**. Request review from Noah Talerman – see _(TODO: Adding to the docs)_. | **Absorb** – see [How to edit recently merged Pull Requests for the handbook and docs](http://localhost:2024/handbook/brand#how-to-edit-recently-merged-pull-requests-for-the-handbook-and-docs). For non-grammar-related revisions: **Feedback** or **pair** with contributor, and request review from Noah Talerman. | two business days |
+| Docs | **Gated**. Request review from Desmi Dizney – see _(TODO: Adding to the docs)_. | **Absorb** – see [How to edit Markdown pull requests for the docs](http://localhost:2024/handbook/brand#how-to-edit-markdown-pull-requests-for-the-docs). For non-grammar-related revisions: **Feedback** or **pair** with contributor, and request review from the [on-call engineer](https://fleetdm.com/handbook/engineering#oncall-rotation). | two business days |
 | Docs (REST API) | **Gated**. Request review from Luke Heath – see _(TODO: Adding to the docs (REST API))_. | **Absorb** – see [How to edit recently merged Pull Requests for the handbook and docs](http://localhost:2024/handbook/brand#how-to-edit-recently-merged-pull-requests-for-the-handbook-and-docs). For non-grammar-related revisions: **Feedback** or **pair** with contributor, and request review from Luke Heath. | two business days |
 | Handbook | **Gated**. Request review from page DRI – see _(TODO: Adding to the handbook)_. | **Absorb** and request review from page DRI – see [How to edit recently merged Pull Requests for the handbook and docs](http://localhost:2024/handbook/brand#how-to-edit-recently-merged-pull-requests-for-the-handbook-and-docs). | two business days |
 | Social media (Twitter, FB, LinkedIn.) | **Instant** – see [Posting on social media as Fleet](https://fleetdm.com/handbook/growth#posting-on-social-media-as-fleet). | **Pair** or **absorb** (pair if possible otherwise, silently fix ASAP by editing or deleting the post. Consider that some or many people may have already seen the post, and decide accordingly – see [How to edit social media posts](http://localhost:2024/handbook/brand#how-to-edit-social-media-posts).) | one business day |
@@ -190,16 +190,14 @@ Our handbook and docs pages are written in Markdown and are editable from our we
 >
 > Check the “Files changed” section on the Open a pull request page to double-check your proposed changes.
 
-### How to edit recently merged Pull Requests for the handbook and docs
+### How to edit recently merged pull requests for the handbook
 
-We approach editing retrospectively for pull requests (PRs) to handbook and docs pages. Remember our goal above about moving quickly and reducing time to value for our contributors? By editing for typos and grammatical errors after-the-fact, we avoid the editor becoming a bottleneck who blocks PRs from being merged quickly. Here's how to do it:
+We approach editing retrospectively for pull requests (PRs) to handbook pages. Remember our goal above about moving quickly and reducing time to value for our contributors? We avoid the editor becoming a bottleneck for merging quickly by editing for typos and grammatical errors after-the-fact. Here's how to do it:
 
-> **Note:** Contributors are not required to request reviews from editors for handbook and docs changes.
+> **Note:** Contributors are not required to request reviews from editors for handbook changes.
 
 1. Check that the previous day's edits are formatted correctly on the website (more on this in the note below.)
-2. Use GitHub's history feed to see a list of all changes made over time to the handbook and docs. You can access the history feeds from the following links: 
-  - [Handbook history](https://github.com/fleetdm/fleet/commits/main/handbook) 
-  - [Docs history](https://github.com/fleetdm/fleet/commits/main/docs)
+2. Use the [Handbook history](https://github.com/fleetdm/fleet/commits/main/handbook) feed in GitHub to see a list of changes made to the handbook.
 3. From the list of recently merged PRs, look at the files changed for each and then:
   - Scan for typos and grammatical errors.
   - Check that the tone aligns with our [Communicating as Fleet](https://fleetdm.com/handbook/brand#communicating-as-fleet) guidelines and that Grammarly's tone detector is on-brand.
@@ -210,6 +208,12 @@ We approach editing retrospectively for pull requests (PRs) to handbook and docs
 6. Watch [this short video](https://www.loom.com/share/95d4525a7aae482b9f9a9470d446ce9c) to see this process in action.
 
 > **Note:** The Fleet website may render Markdown differently from GitHub's rich text preview. It's essential to check that PRs merged by the editor are displaying as expected on the site. It can take a few minutes for merged PRs to appear on the live site, and therefore easy to move on and forget. It's good to start the ritual by looking at the site to check that the previous day's edits are displaying as they should.
+
+### How to edit Markdown pull requests for the docs
+
+- When someone creates a pull request for a doc that affects Markdown files, they’ll need to request a review from the editor. 
+- If no edits are needed, the editor will merge the PR. 
+- If an edit changes the meaning, or if unsure, the editor should request a review from the [on-call engineer](https://fleetdm.com/handbook/engineering#oncall-rotation) and remove themselves as a reviewer.
 
 ### How to edit articles, release posts, and press releases
 
@@ -444,7 +448,7 @@ The following table lists the Brand group's rituals, frequency, and Directly Res
 
 | Ritual                       | Frequency                | Description                                         | DRI               |
 |:-----------------------------|:-----------------------------|:----------------------------------------------------|-------------------|
-| Documentation quality | Daily | Review pull requests to the docs for spelling, punctuation, and grammar. | Desmi Dizney |
+| Documentation quality | On request | Review pull requests to the docs for spelling, punctuation, and grammar. | Desmi Dizney |
 | Handbook quality | Daily | Review pull requests to the handbook for spelling, punctuation, and grammar. | Desmi Dizney |
 | Tweet review | Daily | Review tweets for tone and brand consistency. | Mike Thomas |
 | Article review | Weekly | Review articles for tone and brand consistency. | Mike Thomas |
