@@ -214,7 +214,6 @@ We approach editing retrospectively for pull requests (PRs) to handbook pages. R
 - When someone creates a pull request for a doc that affects Markdown files, they’ll need to request a review from the editor. 
 - If no edits are needed, the editor will merge the PR. 
 - If an edit changes the meaning, or if unsure, the editor should request a review from the [on-call engineer](https://fleetdm.com/handbook/engineering#oncall-rotation) and remove themselves as a reviewer.
-- If the on-call engineer has questions about the editor’s completed review, they can contact them directly via Slack to resolve these promptly.
 
 ### How to edit articles, release posts, and press releases
 
