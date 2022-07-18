@@ -4,6 +4,8 @@ import ReactTooltip from "react-tooltip";
 
 import Button from "components/buttons/Button";
 import {
+  diskSpaceIndicator,
+  diskSpaceTooltip,
   humanHostMemory,
   humanHostDetailUpdated,
   wrapFleetHelper,
@@ -121,49 +123,6 @@ const HostSummary = ({
   );
 
   const renderDiskSpace = () => {
-    const diskSpaceTooltip = () => {
-      const diskSpaceAvailable = titleData.gigs_disk_space_available;
-      switch (true) {
-        case diskSpaceAvailable < 16:
-          return (
-            <span className={`${baseClass}__tooltip-text`}>
-              Not enough disk space <br />
-              available to install most <br />
-              small operating systems <br />
-              updates.
-            </span>
-          );
-        case diskSpaceAvailable < 32:
-          return (
-            <span className={`${baseClass}__tooltip-text`}>
-              Not enough disk space <br />
-              available to install most <br />
-              large operating systems <br />
-              updates.
-            </span>
-          );
-        default:
-          return (
-            <span className={`${baseClass}__tooltip-text`}>
-              Enough disk space available <br />
-              to install most operating <br />
-              systems updates.
-            </span>
-          );
-      }
-    };
-
-    const diskSpaceIndicator = () => {
-      const diskSpaceAvailable = titleData.gigs_disk_space_available;
-      switch (true) {
-        case diskSpaceAvailable < 16:
-          return "red";
-        case diskSpaceAvailable < 32:
-          return "yellow";
-        default:
-          return "green";
-      }
-    };
     if (
       titleData &&
       (titleData.gigs_disk_space_available > 0 ||
@@ -178,7 +137,9 @@ const HostSummary = ({
           >
             <div className="info-flex__disk-space">
               <div
-                className={`info-flex__disk-space-${diskSpaceIndicator()}`}
+                className={`info-flex__disk-space-${diskSpaceIndicator(
+                  titleData.gigs_disk_space_available
+                )}`}
                 style={{
                   width: `${100 - titleData.percent_disk_space_available}%`,
                 }}
@@ -192,7 +153,9 @@ const HostSummary = ({
             id="disk-space-tooltip"
             backgroundColor="#3e4771"
           >
-            {diskSpaceTooltip()}
+            <span className={`${baseClass}__tooltip-text`}>
+              {diskSpaceTooltip(titleData.gigs_disk_space_available)}
+            </span>
           </ReactTooltip>
           {titleData.gigs_disk_space_available} GB available
         </span>

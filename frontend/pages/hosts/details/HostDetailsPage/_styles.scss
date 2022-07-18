@@ -102,6 +102,12 @@
         height: 100%;
       }
 
+      #disk-space-tooltip {
+        display: block;
+        white-space: normal;
+        max-width: 160px;
+      }
+
       &__header {
         color: $core-fleet-black;
         font-weight: $bold;
