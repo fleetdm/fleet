@@ -37,7 +37,7 @@ func TestGetInstaller(t *testing.T) {
 		blob, length, err := store.Get(ctx, i)
 		require.Error(t, err)
 		require.Nil(t, blob)
-		require.Nil(t, length)
+		require.Zero(t, length)
 
 		i = fleet.Installer{
 			EnrollSecret: "non-existent",
@@ -47,7 +47,7 @@ func TestGetInstaller(t *testing.T) {
 		blob, length, err = store.Get(ctx, i)
 		require.Error(t, err)
 		require.Nil(t, blob)
-		require.Nil(t, length)
+		require.Zero(t, length)
 	})
 }
 

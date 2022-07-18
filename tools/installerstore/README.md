@@ -37,7 +37,7 @@ command from the root of the repo:
 ```
 go run tools/installerstore/main.go \
   --enroll-secret=xyz \
-  --bucket=installers \
+  --bucket=installers-dev \
   --region=minio \
   --endpoint-url=localhost:9000 \
   --access-key-id=minio \
