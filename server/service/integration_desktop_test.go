@@ -214,7 +214,7 @@ func (s *integrationTestSuite) TestDesktopRateLimit() {
 	headers := map[string]string{
 		"X-Forwarded-For": "1.2.3.4",
 	}
-	for i := 0; i < DesktopRateLimitMaxBurst+1; i++ { // rate limiting off-by-one
+	for i := 0; i < desktopRateLimitMaxBurst+1; i++ { // rate limiting off-by-one
 		s.DoRawWithHeaders("GET", "/api/latest/fleet/device/"+uuid.NewString(), nil, http.StatusUnauthorized, headers).Body.Close()
 	}
 	s.DoRawWithHeaders("GET", "/api/latest/fleet/device/"+uuid.NewString(), nil, http.StatusTooManyRequests, headers).Body.Close()
