@@ -5,7 +5,6 @@ import ReactTooltip from "react-tooltip";
 import { formatDistanceToNow } from "date-fns";
 
 import { ISoftware } from "interfaces/software";
-import { IVulnerability } from "interfaces/vulnerability";
 
 import PATHS from "router/paths";
 import HeaderCell from "components/TableContainer/DataTable/HeaderCell/HeaderCell";
@@ -191,7 +190,6 @@ export const generateSoftwareTableHeaders = (
       Cell: (cellProps: IVulnCellProps): JSX.Element => {
         const vulnerabilities = cellProps.cell.value || [];
 
-        console.log("vulnerabilities", vulnerabilities);
         const tooltipText = condenseVulnerabilities(vulnerabilities).map(
           (value) => {
             return (
