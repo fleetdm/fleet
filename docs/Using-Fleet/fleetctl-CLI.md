@@ -254,7 +254,7 @@ spec:
 ## Using fleetctl with an API-only user
 
 When running automated workflows using the Fleet API, we recommend using the API key from a specially-created API-only user rather than using the API key of a regular user. A regular user's API key expires regularly for security purposes, requiring regular update. Meanwhile, an API-only user's key does not expire.
-An API-only user does not have access to the Fleet GUI. Instead, it's only purpose is to interact with the API programmatically or from fleetctl.
+An API-only user does not have access to the Fleet UI. Instead, it's only purpose is to interact with the API programmatically or from fleetctl.
 
 ### Create an API-only user
 
