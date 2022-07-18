@@ -1,4 +1,6 @@
 
+## Fleet 4.17.0 (July 8, 2022)
+
 * Fleet Premium and Fleet Free: Fleet desktop is officially out of beta. Fleet Desktop shows users exactly what's going on with their device and gives them the tools they need to make sure that their it is secure and aligned with policies. They just need to click an icon in their menu bar. 
 
 * Fleet Premium and Fleet Free: Fleet's osquery installer is officially out of beta. Orbit is a lightweight wrapper for osquery that allows you to easily deploy, configure and keep osquery up-to-date across your organization. 
@@ -14,7 +16,6 @@
 * Fixed osquery tables that report incorrect platforms.
 
 * Added `docker_container_envs` table to the osquery table schema on the **Query* page.
-
 
 * Updated Fleet host detail query so that the `os_version` for Ubuntu hosts reflects the accurate patch number.
 

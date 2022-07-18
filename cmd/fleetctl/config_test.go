@@ -3,7 +3,6 @@ package main
 import (
 	"net/http"
 	"net/http/httptest"
-	"os"
 	"path/filepath"
 	"testing"
 
@@ -155,7 +154,7 @@ func TestCustomHeadersConfig(t *testing.T) {
 		w.WriteHeader(http.StatusOK)
 	}))
 	defer srv.Close()
-	os.Setenv("FLEET_SERVER_ADDRESS", srv.URL)
+	t.Setenv("FLEET_SERVER_ADDRESS", srv.URL)
 
 	runAppForTest(t, []string{
 		"config", "set",

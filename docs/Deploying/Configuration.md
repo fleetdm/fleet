@@ -2522,3 +2522,190 @@ If not set then the Prometheus `/metrics` endpoint is disabled.
     basic_auth:
       password: "bar"
   ```
+
+#### Packaging
+
+Configurations used to control how Fleet interacts with the (coming soon)
+packaging server.  These features are currently only intended to be used within
+Fleet Sandbox, but this is subject to change.
+
+##### packaging_global_enroll_secret
+
+Enroll secret to use for adding hosts to the global scope. If this value is
+set, the server won't allow changes to the enroll secret via the config
+endpoints.
+
+This value should be treated as a secret, we recommend using a
+cryptographically secure pseudo random string. For example, using `openssl`:
+
+```
+openssl rand -base64 24
+```
+
+This config only takes effect if you don't have a global enroll secret already
+stored in your database.
+
+- Default value: `""`
+- Environment variable: `FLEET_PACKAGING_GLOBAL_ENROLL_SECRET`
+- Config file format:
+
+  ```yaml
+  packaging:
+    global_enroll_secret: "xyz"
+  ```
+
+##### packaging_s3_bucket
+
+Name of the S3 bucket to use to store pre-built Orbit installers.
+
+- Default value: ""
+- Environment variable: `FLEET_PACKAGING_S3_BUCKET`
+- Config file format:
+
+  ```
+  packaging:
+    s3:
+      bucket: some-bucket
+  ```
+
+##### packaging_s3_prefix
+
+Prefix to prepend when searching for installers.
+
+- Default value: ""
+- Environment variable: `FLEET_PACKAGING_S3_PREFIX`
+- Config file format:
+
+  ```
+  packaging:
+    s3:
+      prefix:
+        installers-go-here/
+  ```
+
+##### packaging_s3_access_key_id
+
+AWS access key ID to use for S3 authentication.
+
+If `s3_access_key_id` and `s3_secret_access_key` are omitted, Fleet will try to use
+[the default credential provider chain](https://docs.aws.amazon.com/sdk-for-go/v1/developer-guide/configuring-sdk.html#specifying-credentials).
+
+The IAM identity used in this context must be allowed to perform the following actions on the bucket: `s3:GetObject`, `s3:ListBucket`.
+
+- Default value: ""
+- Environment variable: `FLEET_PACKAGING_S3_ACCESS_KEY_ID`
+- Config file format:
+
+  ```
+  packaging:
+    s3:
+      access_key_id: AKIAIOSFODNN7EXAMPLE
+  ```
+
+##### packaging_s3_secret_access_key
+
+AWS secret access key to use for S3 authentication.
+
+- Default value: ""
+- Environment variable: `FLEET_PACKAGING_S3_SECRET_ACCESS_KEY`
+- Config file format:
+
+  ```
+  packaging:
+    s3:
+      secret_access_key: wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY
+  ```
+
+##### packaging_s3_sts_assume_role_arn
+
+AWS STS role ARN to use for S3 authentication.
+
+- Default value: ""
+- Environment variable: `FLEET_PACKAGING_S3_STS_ASSUME_ROLE_ARN`
+- Config file format:
+
+  ```
+  packaging:
+    s3:
+      sts_assume_role_arn: arn:aws:iam::1234567890:role/some-s3-role
+  ```
+
+##### packaging_s3_endpoint_url
+
+AWS S3 Endpoint URL. Override when using a different S3 compatible object storage backend (such as Minio),
+or running s3 locally with localstack. Leave this blank to use the default AWS S3 service endpoint.
+
+- Default value: ""
+- Environment variable: `FLEET_PACKAGING_S3_ENDPOINT_URL`
+- Config file format:
+
+  ```
+  packaging:
+    s3:
+      endpoint_url: http://localhost:9000
+  ```
+
+##### packaging_s3_disable_ssl
+
+AWS S3 Disable SSL. Useful for local testing.
+
+- Default value: false
+- Environment variable: `FLEET_PACKAGING_S3_DISABLE_SSL`
+- Config file format:
+
+  ```
+  packaging:
+    s3:
+      disable_ssl: false
+  ```
+
+##### packaging_s3_force_s3_path_style
+
+AWS S3 Force S3 Path Style. Set this to `true` to force the request to use path-style addressing,
+i.e., `http://s3.amazonaws.com/BUCKET/KEY`. By default, the S3 client
+will use virtual hosted bucket addressing when possible
+(`http://BUCKET.s3.amazonaws.com/KEY`).
+
+See [here](http://docs.aws.amazon.com/AmazonS3/latest/dev/VirtualHosting.html) for details.
+
+- Default value: false
+- Environment variable: `FLEET_PACKAGING_S3_FORCE_S3_PATH_STYLE`
+- Config file format:
+
+  ```
+  packaging:
+    s3:
+      force_s3_path_style: false
+  ```
+
+##### packaging_s3_region
+
+AWS S3 Region. Leave blank to enable region discovery.
+
+Minio users must set this to any nonempty value (eg. `minio`), as Minio does not support region discovery.
+
+- Default value: ""
+- Environment variable: `FLEET_PACKAGING_S3_REGION`
+- Config file format:
+
+  ```
+  packaging:
+    s3:
+      region: us-east-1
+  ```
+
+##### Example YAML
+
+```yaml
+apiVersion: v1
+kind: config
+spec:
+  packaging:
+    s3:
+      bucket: some-bucket
+      prefix: installers-go-here/
+      access_key_id: AKIAIOSFODNN7EXAMPLE
+      secret_access_key: wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY
+      sts_assume_role_arn: arn:aws:iam::1234567890:role/some-s3-role
+      region: us-east-1
+```

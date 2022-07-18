@@ -4,49 +4,59 @@
 
 This Information Security Policy is intended to protect Fleet Device Management Inc's employees, contractors, partners, customers, and the company from illegal or damaging actions by individuals, either knowingly or unknowingly.
 
-Internet/Intranet/Extranet-related systems, including but not limited to computer equipment, software, operating systems, storage media, network accounts providing electronic mail, web browsing, and file transfers, are the property of Fleet Device Management Inc. These systems are to be used for business purposes in serving the interests of the company, and of our clients and customers in the course of normal operations.
+Internet/Intranet/Extranet-related systems are the property of Fleet Device Management Inc. This includes but not limited to
 
-Effective security is a team effort involving the participation and support of every Fleet Device Management Inc employee or contractor who deals with information and/or information systems. It is the responsibility of every team member to read and understand this policy and conduct their activities accordingly.
+- computer equipment.
+- software.
+- operating systems.
+- storage media.
+- network accounts providing electronic mail.
+- web browsing.
+- file transfers
 
-All Fleet employees and long-term collaborators are expected to read and electronically sign the *acceptable use of end-user computing* policy as well as to be aware of the others and consult them as needed to make sure systems built and used are done in a compliant manner.
+These systems are to be used for business purposes, serving the interests of the company, and of our clients and customers in the course of normal operations.
+
+Effective security is a team effort. This involves the participation and support of every Fleet Device Management Inc employee or contractor who deals with information and/or information systems. It is every team member's responsibility to read and understand this policy so they know how to conduct their activities accordingly.
+
+All Fleet employees and long-term collaborators are expected to read and electronically sign the *acceptable use of end-user computing* policy. They should also be aware of the others and consult them as needed. This is to make sure systems built and used are done in a compliant manner.
 
 ### Acceptable use of end-user computing
-*Created from [JupiterOne/security-policy-templates](https://github.com/JupiterOne/security-policy-templates). [CC BY-SA 4 license](https://creativecommons.org/licenses/by-sa/4.0/)*
+> _Created from [JupiterOne/security-policy-templates](https://github.com/JupiterOne/security-policy-templates). [CC BY-SA 4 license](https://creativecommons.org/licenses/by-sa/4.0/)_
 
 | Policy owner   | Effective date |
 | -------------- | -------------- |
 | @GuillaumeRoss | 2022-06-01     |
 
-Fleet requires all workforce members to comply with the following acceptable use requirements and procedures, such as
+Fleet requires all workforce members to comply with the following acceptable use requirements and procedures:
 
-1. the use of Fleet computing systems is subject to monitoring by Fleet IT and/or Security teams.
+1. The use of Fleet computing systems is subject to monitoring by Fleet IT and/or Security teams.
 
 2. Fleet team members must not leave computing devices (including laptops and smart devices) used for business purposes, including company-provided and BYOD devices, unattended in public.
 
-3. device encryption must be enabled for all mobile devices accessing company data, such as whole-disk encryption for all laptops.
+3. Device encryption must be enabled for all mobile devices accessing company data, such as whole-disk encryption for all laptops.
 
-4. using only legal software with a valid license installed through the internal "app store" or trusted sources. Well-documented open source software can be used. If in doubt, ask in *#g-security*.  
+4. Teams must exclussively use legal software with a valid license installed through the internal "app store" or trusted sources. Well-documented open source software can be used. If in doubt, ask in *#g-security*.  
 
-5. avoiding sharing credentials. Secrets must be stored safely, using features such as GitHub secrets. For accounts and other sensitive data that need to be shared, use the company-provided password manager.
+5. Avoid sharing credentials. Secrets must be stored safely, using features such as GitHub secrets. For accounts and other sensitive data that need to be shared, use the company-provided password manager.
 
-6. sanitizing and removing any sensitive or confidential information prior to posting. At Fleet, we are public by default. Sensitive information from logs, screenshots, or other types of data (memory dumps, for example),should not be shared.
+6. Sanitize and remove any sensitive or confidential information prior to posting. At Fleet, we are public by default. Sensitive information from logs, screenshots, or other types of data (memory dumps, for example), should not be shared.
 
-7. anti-malware or equivalent protection and monitoring must be installed and enabled on all endpoint systems that may be affected by malware, including workstations, laptops, and servers.
+7. Anti-malware or equivalent protection and monitoring must be installed and enabled on all endpoint systems that may be affected by malware, including workstations, laptops, and servers.
 
-8. it being strictly forbidden to download or store any secrets used to sign Orbit installer updates on end-user computing devices, including laptops, workstations, and mobile devices.
+8. It is strictly forbidden to download or store any secrets used to sign Orbit installer updates on end-user computing devices, including laptops, workstations, and mobile devices.
 
-9. only allowing company-owned and managed computers to connect directly to Fleet autoupdater production environments.
+9. Only allow company-owned and managed computers to connect directly to Fleet autoupdater production environments.
 
-10. enforcing the policy that Fleet team members must not let anyone else use Fleet-provided and managed workstations unsupervised, including family members and support personnel of vendors. Use screen sharing instead of allowing them to access your system directly.
+10. Enforce the policy that Fleet team members must not let anyone else use Fleet-provided and managed workstations unsupervised, including family members and support personnel of vendors. Use screen sharing instead of allowing them to access your system directly.
 
-11. Requiring device's operating system must be kept up to date. Fleet-managed systems will receive prompts for updates to be installed, and BYOD devices are to be updated by the team member using them or they might lose access. 
+11. Require device's operating system must be kept up to date. Fleet-managed systems will receive prompts for updates to be installed, and BYOD devices are to be updated by the team member using them or they might lose access. 
 
-12. Requiring team members must not store sensitive data on portable storage.
+12. Require team members must not store sensitive data on portable storage.
 
-13. Not allowing the use of Fleet company accounts on "shared" computers, such as hotel kiosk systems, is strictly prohibited.
+13. The use of Fleet company accounts on "shared" computers, such as hotel kiosk systems, is strictly prohibited.
 
 ## Access control policy
-*Created from [JupiterOne/security-policy-templates](https://github.com/JupiterOne/security-policy-templates). [CC BY-SA 4 license](https://creativecommons.org/licenses/by-sa/4.0/)*
+> _Created from [JupiterOne/security-policy-templates](https://github.com/JupiterOne/security-policy-templates). [CC BY-SA 4 license](https://creativecommons.org/licenses/by-sa/4.0/)_
 
 | Policy owner   | Effective date |
 | -------------- | -------------- |
@@ -103,7 +113,7 @@ Fleet policy requires that:
 2. use of high privilege accounts must only be performed when absolutely necessary.
 
 ## Asset management policy
-*Created from [JupiterOne/security-policy-templates](https://github.com/JupiterOne/security-policy-templates). [CC BY-SA 4 license](https://creativecommons.org/licenses/by-sa/4.0/)*
+> _Created from [JupiterOne/security-policy-templates](https://github.com/JupiterOne/security-policy-templates). [CC BY-SA 4 license](https://creativecommons.org/licenses/by-sa/4.0/)_
 
 | Policy owner   | Effective date |
 | -------------- | -------------- |
@@ -120,7 +130,7 @@ Fleet policy requires that:
 3. All company-owned computer purchases must be tracked.
 
 ## Business continuity and disaster recovery policy
-*Created from [JupiterOne/security-policy-templates](https://github.com/JupiterOne/security-policy-templates). [CC BY-SA 4 license](https://creativecommons.org/licenses/by-sa/4.0/)*
+> _Created from [JupiterOne/security-policy-templates](https://github.com/JupiterOne/security-policy-templates). [CC BY-SA 4 license](https://creativecommons.org/licenses/by-sa/4.0/)_
 
 | Policy owner   | Effective date |
 | -------------- | -------------- |
@@ -201,7 +211,7 @@ This section discusses activities necessary for restoring full Fleet automatic u
 If the Fleet automatic updater environment has been restored, the continuity plan can be deactivated. If the disaster impacted the company and not the service or both, make sure that any leftover systems created temporarily are destroyed.
 
 ## Data management policy
-*Created from [JupiterOne/security-policy-templates](https://github.com/JupiterOne/security-policy-templates). [CC BY-SA 4 license](https://creativecommons.org/licenses/by-sa/4.0/)*
+> _Created from [JupiterOne/security-policy-templates](https://github.com/JupiterOne/security-policy-templates). [CC BY-SA 4 license](https://creativecommons.org/licenses/by-sa/4.0/)_
 
 This policy outlines the requirements and controls/procedures Fleet has implemented to manage the end-to-end data lifecycle, from data creation/acquisition to retention and deletion.
 
@@ -310,7 +320,7 @@ Most Fleet data is **public** yet retained and backed up not due to our data han
 
 
 ## Encryption policy
-*Created from [JupiterOne/security-policy-templates](https://github.com/JupiterOne/security-policy-templates). [CC BY-SA 4 license](https://creativecommons.org/licenses/by-sa/4.0/)*
+> _Created from [JupiterOne/security-policy-templates](https://github.com/JupiterOne/security-policy-templates). [CC BY-SA 4 license](https://creativecommons.org/licenses/by-sa/4.0/)_
 
 | Policy owner   | Effective date |
 | -------------- | -------------- |
@@ -345,7 +355,7 @@ Encryption and key management for local disk encryption of end-user devices foll
 4. Transmission encryption keys are limited to use for one year and then must be regenerated.
 
 ## Human resources security policy
-*Created from [JupiterOne/security-policy-templates](https://github.com/JupiterOne/security-policy-templates). [CC BY-SA 4 license](https://creativecommons.org/licenses/by-sa/4.0/)*
+> _Created from [JupiterOne/security-policy-templates](https://github.com/JupiterOne/security-policy-templates). [CC BY-SA 4 license](https://creativecommons.org/licenses/by-sa/4.0/)_
 
 | Policy owner   | Effective date |
 | -------------- | -------------- |
@@ -385,7 +395,7 @@ Fleet policy requires that:
 13. An [anonymous](https://docs.google.com/forms/d/e/1FAIpQLSdv2abLfCUUSxFCrSwh4Ou5yF80c4V2K_POoYbHt3EU1IY-sQ/viewform?vc=0&c=0&w=1&flr=0&fbzx=4276110450338060288) form to report unethical behavior will be provided to employees.
 
 ## Incident response policy
-*Created from [JupiterOne/security-policy-templates](https://github.com/JupiterOne/security-policy-templates). [CC BY-SA 4 license](https://creativecommons.org/licenses/by-sa/4.0/). Based on the SANS incident response process.*
+> _Created from [JupiterOne/security-policy-templates](https://github.com/JupiterOne/security-policy-templates). [CC BY-SA 4 license](https://creativecommons.org/licenses/by-sa/4.0/). Based on the SANS incident response process._
 
 Fleet policy requires that:
 
@@ -662,7 +672,7 @@ incident response plan annually.
 
 
 ### Information security roles and responsibilities
-*Created from [Vanta](https://www.vanta.com/) policy templates.*
+> _Created from [Vanta](https://www.vanta.com/) policy templates._
 
 | Policy owner   | Effective date |
 | -------------- | -------------- |
@@ -682,7 +692,7 @@ CTO                                             | Oversight over information sec
 | Head of business operations                     | Responsible for oversight over third-party risk management process; responsible for review of vendor service contracts                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       |
 
 ## Operations security and change management policy
-*Created from [JupiterOne/security-policy-templates](https://github.com/JupiterOne/security-policy-templates). [CC BY-SA 4 license](https://creativecommons.org/licenses/by-sa/4.0/)*
+> _Created from [JupiterOne/security-policy-templates](https://github.com/JupiterOne/security-policy-templates). [CC BY-SA 4 license](https://creativecommons.org/licenses/by-sa/4.0/)_
 
 | Policy owner   | Effective date |
 | -------------- | -------------- |
@@ -703,7 +713,7 @@ Fleet policy requires
     fully documented and validated for each request.
 
 ## Risk management policy
-*Created from [JupiterOne/security-policy-templates](https://github.com/JupiterOne/security-policy-templates). [CC BY-SA 4 license](https://creativecommons.org/licenses/by-sa/4.0/)*
+> _Created from [JupiterOne/security-policy-templates](https://github.com/JupiterOne/security-policy-templates). [CC BY-SA 4 license](https://creativecommons.org/licenses/by-sa/4.0/)_
 
 | Policy owner   | Effective date |
 | -------------- | -------------- |
@@ -735,7 +745,7 @@ All other risks must be individually reviewed and managed.
 
 
 ## Secure software development and product security policy 
-*Created from [JupiterOne/security-policy-templates](https://github.com/JupiterOne/security-policy-templates). [CC BY-SA 4 license](https://creativecommons.org/licenses/by-sa/4.0/)*
+> _Created from [JupiterOne/security-policy-templates](https://github.com/JupiterOne/security-policy-templates). [CC BY-SA 4 license](https://creativecommons.org/licenses/by-sa/4.0/)_
 
 Fleet policy requires that:
 
@@ -765,7 +775,7 @@ Fleet policy requires that:
 10. Any exception to the remediation of a finding must be documented and approved by the security team or CTO.
 
 ## Security policy management policy
-*Created from [JupiterOne/security-policy-templates](https://github.com/JupiterOne/security-policy-templates). [CC BY-SA 4 license](https://creativecommons.org/licenses/by-sa/4.0/)*
+> _Created from [JupiterOne/security-policy-templates](https://github.com/JupiterOne/security-policy-templates). [CC BY-SA 4 license](https://creativecommons.org/licenses/by-sa/4.0/)_
 
 | Policy owner   | Effective date |
 | -------------- | -------------- |
@@ -797,7 +807,7 @@ Fleet policy requires that:
     the expiration date.
 
 ## Third-party management policy
-*Created from [JupiterOne/security-policy-templates](https://github.com/JupiterOne/security-policy-templates). [CC BY-SA 4 license](https://creativecommons.org/licenses/by-sa/4.0/)*
+> _Created from [JupiterOne/security-policy-templates](https://github.com/JupiterOne/security-policy-templates). [CC BY-SA 4 license](https://creativecommons.org/licenses/by-sa/4.0/)_
 
 | Policy owner   | Effective date |
 | -------------- | -------------- |

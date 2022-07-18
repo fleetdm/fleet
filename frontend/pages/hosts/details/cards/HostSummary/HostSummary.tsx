@@ -4,6 +4,8 @@ import ReactTooltip from "react-tooltip";
 
 import Button from "components/buttons/Button";
 import {
+  diskSpaceIndicator,
+  diskSpaceTooltip,
   humanHostMemory,
   humanHostDetailUpdated,
   wrapFleetHelper,
@@ -51,7 +53,7 @@ const HostSummary = ({
           <Button
             className={`
               button
-              ${!isOnline ? "refetch-offline" : ""} 
+              ${!isOnline ? "refetch-offline tooltip" : ""} 
               ${showRefetchSpinner ? "refetch-spinner" : "refetch-btn"}
             `}
             disabled={!isOnline}
@@ -65,7 +67,6 @@ const HostSummary = ({
         </div>
         <ReactTooltip
           place="bottom"
-          type="dark"
           effect="solid"
           id="refetch-tooltip"
           backgroundColor="#3e4771"
@@ -83,7 +84,7 @@ const HostSummary = ({
       <span className="info-flex__header">Issues</span>
       <span className="info-flex__data">
         <span
-          className="host-issue tooltip__tooltip-icon"
+          className="host-issue tooltip tooltip__tooltip-icon"
           data-tip
           data-for="host-issue-count"
           data-tip-disable={false}
@@ -92,7 +93,6 @@ const HostSummary = ({
         </span>
         <ReactTooltip
           place="bottom"
-          type="dark"
           effect="solid"
           backgroundColor="#3e4771"
           id="host-issue-count"
@@ -130,18 +130,33 @@ const HostSummary = ({
     ) {
       return (
         <span className="info-flex__data">
-          <div className="info-flex__disk-space">
-            <div
-              className={
-                titleData.percent_disk_space_available > 20
-                  ? "info-flex__disk-space-used"
-                  : "info-flex__disk-space-warning"
-              }
-              style={{
-                width: `${100 - titleData.percent_disk_space_available}%`,
-              }}
-            />
+          <div
+            className="info-flex__disk-space-wrapper tooltip"
+            data-tip
+            data-for="disk-space-tooltip"
+          >
+            <div className="info-flex__disk-space">
+              <div
+                className={`info-flex__disk-space-${diskSpaceIndicator(
+                  titleData.gigs_disk_space_available
+                )}`}
+                style={{
+                  width: `${100 - titleData.percent_disk_space_available}%`,
+                }}
+              />
+            </div>
           </div>
+          <ReactTooltip
+            place="bottom"
+            type="dark"
+            effect="solid"
+            id="disk-space-tooltip"
+            backgroundColor="#3e4771"
+          >
+            <span className={`${baseClass}__tooltip-text`}>
+              {diskSpaceTooltip(titleData.gigs_disk_space_available)}
+            </span>
+          </ReactTooltip>
           {titleData.gigs_disk_space_available} GB available
         </span>
       );

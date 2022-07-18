@@ -32,6 +32,11 @@ func Analyze(
 ) ([]fleet.SoftwareVulnerability, error) {
 	platform := NewPlatform(ver.Platform, ver.Name)
 
+	source := fleet.UbuntuOVALSource
+	if platform.IsRedHat() {
+		source = fleet.RHELOVALSource
+	}
+
 	if !platform.IsSupported() {
 		return nil, nil
 	}
@@ -103,7 +108,7 @@ func Analyze(
 	}
 
 	err = batchProcess(toInsertSet, func(v []fleet.SoftwareVulnerability) error {
-		n, err := ds.InsertVulnerabilities(ctx, v, fleet.OVALSource)
+		n, err := ds.InsertVulnerabilities(ctx, v, source)
 		if err != nil {
 			return err
 		}

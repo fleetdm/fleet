@@ -13,6 +13,8 @@ import LinkCell from "components/TableContainer/DataTable/LinkCell/LinkCell";
 import StatusCell from "components/TableContainer/DataTable/StatusCell/StatusCell";
 import TextCell from "components/TableContainer/DataTable/TextCell/TextCell";
 import {
+  diskSpaceIndicator,
+  diskSpaceTooltip,
   humanHostMemory,
   humanHostUptime,
   humanHostLastSeen,
@@ -46,6 +48,17 @@ interface IHeaderProps {
 interface ICellProps {
   cell: {
     value: string;
+  };
+  row: {
+    original: IHost;
+    getToggleRowSelectedProps: () => IGetToggleAllRowsSelectedProps;
+    toggleRowSelected: () => void;
+  };
+}
+
+interface INumberCellProps {
+  cell: {
+    value: number;
   };
   row: {
     original: IHost;
@@ -176,7 +189,57 @@ const allHostTableHeaders: IDataColumn[] = [
     ),
   },
   {
-    title: "OS",
+    title: "Disk space available",
+    Header: (cellProps: IHeaderProps) => (
+      <HeaderCell
+        value={cellProps.column.title}
+        isSortedDesc={cellProps.column.isSortedDesc}
+      />
+    ),
+    accessor: "gigs_disk_space_available",
+    Cell: (cellProps: INumberCellProps): JSX.Element => {
+      const { id, percent_disk_space_available } = cellProps.row.original;
+
+      if (cellProps.cell.value === 0) {
+        return <>No data available</>;
+      }
+      return (
+        <>
+          <div
+            className="gigs_disk_space_available__cell__disk-space-wrapper"
+            data-tip
+            data-for={`disk-space__${id}`}
+          >
+            <div className="gigs_disk_space_available__cell__disk-space">
+              <div
+                className={`gigs_disk_space_available__cell__disk-space-${diskSpaceIndicator(
+                  cellProps.cell.value
+                )}`}
+                style={{
+                  width: `${100 - percent_disk_space_available}%`,
+                }}
+              />
+            </div>
+          </div>
+          <ReactTooltip
+            place="bottom"
+            type="dark"
+            effect="solid"
+            backgroundColor="#3e4771"
+            id={`disk-space__${id}`}
+            data-html
+          >
+            <span className={`tooltip__tooltip-text`}>
+              {diskSpaceTooltip(cellProps.cell.value)}
+            </span>
+          </ReactTooltip>{" "}
+          <span>{cellProps.cell.value} GB</span>
+        </>
+      );
+    },
+  },
+  {
+    title: "Operating system",
     Header: (cellProps: IHeaderProps) => (
       <HeaderCell
         value={cellProps.column.title}
@@ -210,7 +273,9 @@ const allHostTableHeaders: IDataColumn[] = [
         return (
           <>
             <span
-              className={`text-cell ${users.length > 1 ? "text-muted" : ""}`}
+              className={`text-cell ${
+                users.length > 1 ? "text-muted tooltip" : ""
+              }`}
               data-tip
               data-for={`device_mapping__${cellProps.row.original.id}`}
               data-tip-disable={users.length <= 1}
@@ -218,8 +283,6 @@ const allHostTableHeaders: IDataColumn[] = [
               {numUsers === 1 ? users[0] : `${numUsers} users`}
             </span>
             <ReactTooltip
-              place="top"
-              type="dark"
               effect="solid"
               backgroundColor="#3e4771"
               id={`device_mapping__${cellProps.row.original.id}`}
