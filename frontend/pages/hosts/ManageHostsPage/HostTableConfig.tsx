@@ -4,6 +4,7 @@
 import React from "react";
 import { Column } from "react-table";
 import ReactTooltip from "react-tooltip";
+import { diskSpaceIndicator, diskSpaceTooltip } from "utilities/helpers";
 
 import { IDeviceUser, IHost } from "interfaces/host";
 import Checkbox from "components/forms/fields/Checkbox";
@@ -198,50 +199,6 @@ const allHostTableHeaders: IDataColumn[] = [
     Cell: (cellProps: INumberCellProps): JSX.Element => {
       const { id, percent_disk_space_available } = cellProps.row.original;
 
-      const diskSpaceTooltip = () => {
-        const diskSpaceAvailable = cellProps.cell.value;
-        switch (true) {
-          case diskSpaceAvailable < 16:
-            return (
-              <span className={`tooltip-text`}>
-                Not enough disk space <br />
-                available to install most <br />
-                small operating systems <br />
-                updates.
-              </span>
-            );
-          case diskSpaceAvailable < 32:
-            return (
-              <span className={`tooltip-text`}>
-                Not enough disk space <br />
-                available to install most <br />
-                large operating systems <br />
-                updates.
-              </span>
-            );
-          default:
-            return (
-              <span className={`tooltip-text`}>
-                Enough disk space available <br />
-                to install most operating <br />
-                systems updates.
-              </span>
-            );
-        }
-      };
-
-      const diskSpaceIndicator = () => {
-        const diskSpaceAvailable = cellProps.cell.value;
-        switch (true) {
-          case diskSpaceAvailable < 16:
-            return "red";
-          case diskSpaceAvailable < 32:
-            return "yellow";
-          default:
-            return "green";
-        }
-      };
-
       if (cellProps.cell.value === 0) {
         return <>No data available</>;
       }
@@ -254,7 +211,9 @@ const allHostTableHeaders: IDataColumn[] = [
           >
             <div className="gigs_disk_space_available__cell__disk-space">
               <div
-                className={`gigs_disk_space_available__cell__disk-space-${diskSpaceIndicator()}`}
+                className={`gigs_disk_space_available__cell__disk-space-${diskSpaceIndicator(
+                  cellProps.cell.value
+                )}`}
                 style={{
                   width: `${100 - percent_disk_space_available}%`,
                 }}
@@ -270,7 +229,7 @@ const allHostTableHeaders: IDataColumn[] = [
             data-html
           >
             <span className={`tooltip__tooltip-text`}>
-              {diskSpaceTooltip()}
+              {diskSpaceTooltip(cellProps.cell.value)}
             </span>
           </ReactTooltip>{" "}
           <span>{cellProps.cell.value} GB</span>

@@ -173,6 +173,12 @@
                   background-color: $ui-error;
                   height: 100%;
                 }
+
+                .tooltip__tooltip-text {
+                  display: block;
+                  white-space: normal;
+                  max-width: 160px;
+                }
               }
             }
           }
