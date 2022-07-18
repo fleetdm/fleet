@@ -67,9 +67,7 @@ const PlatformWrapper = ({
   const { config, isPreviewMode } = useContext(AppContext);
   const { renderFlash } = useContext(NotificationContext);
   const [copyMessage, setCopyMessage] = useState<Record<string, string>>({});
-  const [includeFleetDesktop, setIncludeFleetDesktop] = useState<boolean>(
-    false
-  );
+  const [includeFleetDesktop, setIncludeFleetDesktop] = useState<boolean>(true);
   const [showPlainOsquery, setShowPlainOsquery] = useState<boolean>(false);
 
   const {
