@@ -314,13 +314,6 @@ const ManageHostsPage = ({
     }
   );
 
-  // const addHostsTeam = currentTeam
-  //   ? { name: currentTeam.name, secrets: teamSecrets || null }
-  //   : {
-  //       name: "No team",
-  //       secrets: globalSecrets || null,
-  //     };
-
   const {
     data: teams,
     isLoading: isLoadingTeams,

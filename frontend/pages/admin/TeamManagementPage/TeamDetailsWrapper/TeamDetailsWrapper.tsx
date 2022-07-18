@@ -490,7 +490,7 @@ const TeamDetailsWrapper = ({
           onCancel={toggleAddHostsModal}
           isLoading={isLoadingTeams}
           enrollSecret={teamSecrets?.[0]?.secret}
-          // isSandboxMode={false}
+          // isSandboxMode={false} // TODO: confirm intended modal for sandbox mode
         />
       )}
       {showManageEnrollSecretsModal && (

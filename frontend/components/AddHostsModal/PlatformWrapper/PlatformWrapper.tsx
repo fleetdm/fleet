@@ -53,7 +53,7 @@ const platformSubNav: IPlatformSubNav[] = [
   },
 ];
 
-interface IGenerateInstallersProps {
+interface IPlatformWrapperProps {
   enrollSecret: string;
   onCancel: () => void;
 }
@@ -63,7 +63,7 @@ const baseClass = "platform-wrapper";
 const PlatformWrapper = ({
   enrollSecret,
   onCancel,
-}: IGenerateInstallersProps): JSX.Element => {
+}: IPlatformWrapperProps): JSX.Element => {
   const { config, isPreviewMode } = useContext(AppContext);
   const { renderFlash } = useContext(NotificationContext);
   const [copyMessage, setCopyMessage] = useState<Record<string, string>>({});
