@@ -60,8 +60,6 @@ Fleet Desktop is supported on macOS, Windows, and Linux. Check out the supported
 and versions [here
 on GitHub](https://github.com/fleetdm/fleet/issues/5684#issuecomment-1123906753). 
 
-Fleet Desktop is currently in beta. Check out the remaining work to bring Fleet Desktop out of beta [here on GitHub](https://github.com/fleetdm/fleet/issues/5684).
-
 ### Adding multiple hosts
 
 If you're managing an enterprise environment with multiple hosts, you likely have an enterprise deployment tool like [Munki](https://www.munki.org/munki/), [Jamf Pro](https://www.jamf.com/products/jamf-pro/), [Chef](https://www.chef.io/), [Ansible](https://www.ansible.com/), or [Puppet](https://puppet.com/) to deliver software to your hosts.
