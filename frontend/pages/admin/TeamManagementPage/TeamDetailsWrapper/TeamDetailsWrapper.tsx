@@ -487,10 +487,15 @@ const TeamDetailsWrapper = ({
       </TabsWrapper>
       {showAddHostsModal && (
         <AddHostsModal
-          onCancel={toggleAddHostsModal}
-          isLoading={isLoadingTeams}
+          currentTeam={currentTeam}
           enrollSecret={teamSecrets?.[0]?.secret}
-          // isSandboxMode={false} // TODO: confirm intended modal for sandbox mode
+          isLoading={isLoadingTeams}
+          // TODO: Currently, prepacked installers in Fleet Sandbox use the global enroll secret,
+          // and Fleet Sandbox runs Fleet Free so explicitly setting isSandboxMode here is an
+          // additional precaution/reminder to revisit this in connection with future changes.
+          // See https://github.com/fleetdm/fleet/issues/4970#issuecomment-1187679407.
+          isSandboxMode={false}
+          onCancel={toggleAddHostsModal}
         />
       )}
       {showManageEnrollSecretsModal && (

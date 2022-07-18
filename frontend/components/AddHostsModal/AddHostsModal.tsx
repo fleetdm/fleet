@@ -11,7 +11,7 @@ import DownloadInstallers from "./DownloadInstallers/DownloadInstallers";
 const baseClass = "add-hosts-modal";
 
 interface IAddHostsModal {
-  currentTeam?: ITeamSummary; // TODO: sort out team installers
+  currentTeam?: ITeamSummary;
   enrollSecret?: string;
   isLoading: boolean;
   isSandboxMode?: boolean;
@@ -33,7 +33,11 @@ const AddHostsModal = ({
       return <DataError />;
     }
 
-    return isSandboxMode ? (
+    // TODO: Currently, prepacked installers in Fleet Sandbox use the global enroll secret,
+    // and Fleet Sandbox runs Fleet Free so the currentTeam check here is an
+    // additional precaution/reminder to revisit this in connection with future changes.
+    // See https://github.com/fleetdm/fleet/issues/4970#issuecomment-1187679407.
+    return isSandboxMode && !currentTeam ? (
       <DownloadInstallers onCancel={onCancel} enrollSecret={enrollSecret} />
     ) : (
       <PlatformWrapper onCancel={onCancel} enrollSecret={enrollSecret} />

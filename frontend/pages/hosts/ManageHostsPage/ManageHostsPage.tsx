@@ -1182,14 +1182,19 @@ const ManageHostsPage = ({
 
   const renderAddHostsModal = () => {
     const enrollSecret =
-      currentTeam && !isSandboxMode // sandbox only supports gloal enroll secrets for installer downloads
+      // TODO: Currently, prepacked installers in Fleet Sandbox use the global enroll secret,
+      // and Fleet Sandbox runs Fleet Free so the isSandboxMode check here is an
+      // additional precaution/reminder to revisit this in connection with future changes.
+      // See https://github.com/fleetdm/fleet/issues/4970#issuecomment-1187679407.
+      currentTeam && !isSandboxMode
         ? teamSecrets?.[0].secret
         : globalSecrets?.[0].secret;
     return (
       <AddHostsModal
+        currentTeam={currentTeam}
         enrollSecret={enrollSecret}
         isLoading={isLoadingTeams || isGlobalSecretsLoading}
-        isSandboxMode={!!isSandboxMode} // TODO: if team selected what modal do we show sandbox?
+        isSandboxMode={!!isSandboxMode}
         onCancel={toggleAddHostsModal}
       />
     );
