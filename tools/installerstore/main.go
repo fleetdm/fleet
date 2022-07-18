@@ -127,7 +127,7 @@ func main() {
 			return fmt.Errorf("there was a problem uploading the installer with key %s: %w", key, err)
 		}
 
-		fmt.Printf(`installer uploaded to bucket "%s" with key "%s"\n`, bucket, key)
+		fmt.Printf("installer uploaded to bucket '%s' with key '%s'\n", bucket, key)
 		return nil
 	}
 

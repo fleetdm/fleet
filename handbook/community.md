@@ -93,7 +93,9 @@ Community team members can reach the engineering oncall for assistance by writin
 ## Fleet docs
 
 ### Markdown
-Fleet's documentation and handbook are written in [Markdown](https://about.gitlab.com/handbook/markdown-guide/). Using Markdown lets us keep our documentation consistently formatted and viewable directly from the Fleet GitHub repo. The Markdown files in the `/docs` and `/handbook` folders are converted to HTML for the Fleet website.
+Fleet's documentation and handbook are written in [Markdown](https://about.gitlab.com/handbook/markdown-guide/). Using Markdown lets us keep our documentation consistently formatted and viewable directly from the Fleet GitHub repo. The Markdown files in the `/docs` and `/handbook` folders are converted to HTML for the Fleet website. 
+
+> **Note** that when you make a Markdown change to any doc you'll want to request the editor, Desmi Dizney for review. For more information see [How to edit Markdown pull requests for the docs](https://fleetdm.com/handbook/brand###how-to-edit-markdown-pull-requests-for-the-docs).
 
 When making changes to the Fleet docs or handbook, there are a few differences in how the Markdown will render on GitHub and the Fleet website.
 
@@ -355,6 +357,8 @@ For PRs that will not be merged:
 When someone asks a question in a public channel, it's pretty safe to assume that they aren't the only person looking for an answer to the same question. To make our docs as helpful as possible, the Community team gathers these questions and uses them to make a weekly documentation update. 
 
 Our goal is to answer every question with a link to the docs and/or result in a documentation update.
+
+> **Remember**, when submitting any pull request that changes Markdown files in the docs, request an editor review from Desmi Dizney.
 
 ### Tracking
 
