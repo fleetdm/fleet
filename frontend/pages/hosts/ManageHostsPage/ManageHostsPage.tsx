@@ -1092,12 +1092,13 @@ const ManageHostsPage = ({
         <div className={`${baseClass}__software-filter-block`}>
           <div>
             <span
-              className="software-filter-tooltip"
               data-tip
               data-for="software-filter-tooltip"
               data-tip-disable={!name || !version}
             >
-              <div className={`${baseClass}__software-filter-name-card`}>
+              <div
+                className={`${baseClass}__software-filter-name-card tooltip`}
+              >
                 {buttonText}
                 <Button
                   className={`${baseClass}__clear-policies-filter`}
@@ -1111,7 +1112,6 @@ const ManageHostsPage = ({
             </span>
             <ReactTooltip
               place="bottom"
-              type="dark"
               effect="solid"
               backgroundColor="#3e4771"
               id="software-filter-tooltip"

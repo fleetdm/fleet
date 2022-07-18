@@ -95,6 +95,8 @@ To generate a trial license key for a larger deployment, [create an opportunity 
 ## Documentation updates
 Occasionally, users will email or Slack questions about product usage. We will track these requests and occasionally update our documentation to simplify things for our users. We have a Zapier integration that will automatically create an entry in our customer questions Google doc (in Slack, right-click on the customer question and select send to Zapier). At the end of the week, one of our team members will take each request in the spreadsheet and make any helpful documentation updates to help prevent similar questions in the future.
 
+> **Note** When submitting any pull request that changes Markdown files in the docs, request an editor review from Desmi Dizney.
+
 ## Customer contracts
 Fleet's subscription agreement is available at [fleetdm.com/terms](https://fleetdm.com/terms). 
 

@@ -269,7 +269,6 @@ func CreateNamedMySQLDS(t *testing.T, name string) *Datastore {
 		t.Skip("MySQL tests are disabled")
 	}
 
-	t.Parallel()
 	ds := initializeDatabase(t, name, new(DatastoreTestOptions))
 	t.Cleanup(func() { ds.Close() })
 	return ds
