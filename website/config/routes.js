@@ -211,6 +211,8 @@ module.exports.routes = {
   'GET /try-fleet':                  '/get-started',
   'GET /docs/deploying/fleet-public-load-testing': '/docs/deploying/load-testing',
   'GET /handbook/customer-experience': '/handbook/customers',
+  'GET /docs/contributing/testing':  '/docs/contributing/testing-and-local-development',
+
 
 
 
