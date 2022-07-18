@@ -88,7 +88,7 @@ func (svc *Service) GetInstaller(ctx context.Context, installer fleet.Installer)
 
 	reader, length, err := svc.installerStore.Get(ctx, installer)
 	if err != nil {
-		return nil, int64(0), ctxerr.New(ctx, "unable to retrieve installer from store")
+		return nil, int64(0), ctxerr.Wrap(ctx, err, "unable to retrieve installer from store")
 	}
 
 	return reader, length, nil

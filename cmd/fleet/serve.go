@@ -297,6 +297,7 @@ the way that the Fleet server works.
 							"#  ignored, if you really need to configure an enroll secret please\n" +
 							"#  remove the global enroll secret from the database manually.\n" +
 							"################################################################################\n")
+						os.Exit(1)
 					}
 				} else {
 					ds.ApplyEnrollSecrets(cmd.Context(), nil, []*fleet.EnrollSecret{{Secret: config.Packaging.GlobalEnrollSecret}})

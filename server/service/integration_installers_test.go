@@ -73,7 +73,7 @@ func (s *integrationInstallersTestSuite) TestInstallerGet() {
 	s.Do("GET", installerURL("wrong-enroll", "pkg", false), nil, http.StatusInternalServerError)
 
 	// non-existent package
-	s.Do("GET", installerURL(enrollSecret, "exe", false), nil, http.StatusInternalServerError)
+	s.Do("GET", installerURL(enrollSecret, "exe", false), nil, http.StatusNotFound)
 }
 
 func installerURL(secret, kind string, desktop bool) string {
