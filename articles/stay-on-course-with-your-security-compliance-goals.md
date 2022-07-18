@@ -20,7 +20,7 @@ Answering questions like these is the first step to becoming compliant. After al
 
 Achieving the highest level of compliance for your industry is an admirable goal. But pursuing compliance perfection could tie up daily business operations.
 
-For instance, if your organization has 30 employees who use MacBooks, it might be possible to make sure they all have the latest version of macOS installed. That goal gets more challenging to achieve as those MacBooks multiply to the hundreds or even thousands. Maybe then you just want to make sure they’re on Big Sur.
+For instance, if your organization has 30 employees who use MacBooks, it might be possible to make sure they all have the latest version of macOS installed. That goal gets more challenging to achieve as those MacBooks multiply to the hundreds or even thousands. In which case, you should focus on MacBooks accessing critical systems first. Then you can make sure most MacBooks across your organization are up to date within 30 days of a patch being released.
 
 With scale comes complexity — especially for large companies. Different teams need different tools to get the job done. Databases must balance security with accessibility. Updating legacy platforms, when possible at all, could disrupt availability.
 
@@ -38,7 +38,7 @@ There may be controls that apply to your entire company, like using multi-factor
 
 ## Partner with technical experts
 
-Ultimately, your Chief Information Security Officer, Head of Security or Chief Compliance Officer is responsible for ensuring compliance, depending on the structure of your organization. Asking them to check the progress of each team and individual, in addition to their other responsibilities, isn’t exactly efficient (or fair).
+Ultimately, your Chief Information Security Officer, Head of Security or Chief Compliance Officer is responsible for ensuring compliance, depending on the structure of your organization. While security and compliance teams are often responsible for tracking compliance, they don't usually implement the controls on every platform. How could this scale?
 
 Your company could hire more security specialists. Some organizations have thousands on staff, but we know this isn’t always a realistic option. The good news is that you don’t necessarily need more security and compliance people — just more people with security skills.
 
