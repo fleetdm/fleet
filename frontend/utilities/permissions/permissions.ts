@@ -2,7 +2,8 @@ import { IUser } from "interfaces/user";
 import { IConfig } from "interfaces/config";
 
 export const isSandboxMode = (config: IConfig): boolean => {
-  return !!config.sandbox_enabled; // TODO: confirm null/undefined config should treated as false based on final API spec
+  console.log("sandbox_enabled: ", config.sandbox_enabled);
+  return !!config.sandbox_enabled; // TODO: confirm whether null/undefined config should treated as false based on final API spec
 };
 
 export const isFreeTier = (config: IConfig): boolean => {

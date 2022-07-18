@@ -137,6 +137,7 @@ const ManageHostsPage = ({
     isOnlyObserver,
     isPremiumTier,
     isFreeTier,
+    isSandboxMode,
     setCurrentTeam,
   } = useContext(AppContext);
   const { renderFlash } = useContext(NotificationContext);
@@ -313,12 +314,12 @@ const ManageHostsPage = ({
     }
   );
 
-  const addHostsTeam = currentTeam
-    ? { name: currentTeam.name, secrets: teamSecrets || null }
-    : {
-        name: "No team",
-        secrets: globalSecrets || null,
-      };
+  // const addHostsTeam = currentTeam
+  //   ? { name: currentTeam.name, secrets: teamSecrets || null }
+  //   : {
+  //       name: "No team",
+  //       secrets: globalSecrets || null,
+  //     };
 
   const {
     data: teams,
@@ -1186,9 +1187,20 @@ const ManageHostsPage = ({
     />
   );
 
-  const renderAddHostsModal = () => (
-    <AddHostsModal onCancel={toggleAddHostsModal} selectedTeam={addHostsTeam} />
-  );
+  const renderAddHostsModal = () => {
+    const enrollSecret =
+      currentTeam && !isSandboxMode // sandbox only supports gloal enroll secrets for installer downloads
+        ? teamSecrets?.[0].secret
+        : globalSecrets?.[0].secret;
+    return (
+      <AddHostsModal
+        enrollSecret={enrollSecret}
+        isLoading={isLoadingTeams || isGlobalSecretsLoading}
+        isSandboxMode={!!isSandboxMode} // TODO: if team selected what modal do we show sandbox?
+        onCancel={toggleAddHostsModal}
+      />
+    );
+  };
 
   const renderTransferHostModal = () => {
     if (!teams) {
@@ -1343,7 +1355,9 @@ const ManageHostsPage = ({
           isHostCountLoading ? "count-loading" : ""
         }`}
       >
-        <span>{`${count} host${count === 1 ? "" : "s"}`}</span>
+        {count !== undefined && (
+          <span>{`${count} host${count === 1 ? "" : "s"}`}</span>
+        )}
         {count ? (
           <Button
             className={`${baseClass}__export-btn`}

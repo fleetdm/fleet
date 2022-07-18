@@ -53,17 +53,17 @@ const platformSubNav: IPlatformSubNav[] = [
   },
 ];
 
-interface IPlatformWrapperProp {
-  selectedTeam: ITeam | { name: string; secrets: IEnrollSecret[] | null };
+interface IGenerateInstallersProps {
+  enrollSecret: string;
   onCancel: () => void;
 }
 
 const baseClass = "platform-wrapper";
 
 const PlatformWrapper = ({
-  selectedTeam,
+  enrollSecret,
   onCancel,
-}: IPlatformWrapperProp): JSX.Element => {
+}: IGenerateInstallersProps): JSX.Element => {
   const { config, isPreviewMode } = useContext(AppContext);
   const { renderFlash } = useContext(NotificationContext);
   const [copyMessage, setCopyMessage] = useState<Record<string, string>>({});
@@ -126,11 +126,6 @@ const PlatformWrapper = ({
 --carver_start_endpoint=/api/v1/osquery/carve/begin
 --carver_continue_endpoint=/api/v1/osquery/carve/block
 --carver_block_size=2000000`;
-
-  let enrollSecret: string;
-  if (selectedTeam.secrets) {
-    enrollSecret = selectedTeam.secrets[0].secret;
-  }
 
   const onDownloadEnrollSecret = (evt: React.MouseEvent) => {
     evt.preventDefault();

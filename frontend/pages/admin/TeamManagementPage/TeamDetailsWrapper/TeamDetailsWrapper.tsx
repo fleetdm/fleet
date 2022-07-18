@@ -488,10 +488,9 @@ const TeamDetailsWrapper = ({
       {showAddHostsModal && (
         <AddHostsModal
           onCancel={toggleAddHostsModal}
-          selectedTeam={{
-            name: currentTeam.name,
-            secrets: teamSecrets || null,
-          }}
+          isLoading={isLoadingTeams}
+          enrollSecret={teamSecrets?.[0]?.secret}
+          // isSandboxMode={false}
         />
       )}
       {showManageEnrollSecretsModal && (
