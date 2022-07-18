@@ -4,7 +4,6 @@
 import React from "react";
 import { Column } from "react-table";
 import ReactTooltip from "react-tooltip";
-import { diskSpaceIndicator, diskSpaceTooltip } from "utilities/helpers";
 
 import { IDeviceUser, IHost } from "interfaces/host";
 import Checkbox from "components/forms/fields/Checkbox";
@@ -14,6 +13,8 @@ import LinkCell from "components/TableContainer/DataTable/LinkCell/LinkCell";
 import StatusCell from "components/TableContainer/DataTable/StatusCell/StatusCell";
 import TextCell from "components/TableContainer/DataTable/TextCell/TextCell";
 import {
+  diskSpaceIndicator,
+  diskSpaceTooltip,
   humanHostMemory,
   humanHostUptime,
   humanHostLastSeen,
