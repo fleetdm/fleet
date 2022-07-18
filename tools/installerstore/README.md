@@ -39,6 +39,7 @@ go run tools/installerstore/main.go \
   --enroll-secret=xyz \
   --bucket=installers-dev \
   --region=minio \
+  --prefix=dev-prefix \
   --endpoint-url=localhost:9000 \
   --access-key-id=minio \
   --secret-access-key=minio123! \

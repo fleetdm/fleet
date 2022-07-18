@@ -72,6 +72,7 @@ func applyDevFlags(cfg *config.FleetConfig) {
 	cfg.Packaging.S3 = config.S3Config{
 		Bucket:           "installers-dev",
 		Region:           "minio",
+		Prefix:           "dev-prefix",
 		EndpointURL:      "localhost:9000",
 		AccessKeyID:      "minio",
 		SecretAccessKey:  "minio123!",
