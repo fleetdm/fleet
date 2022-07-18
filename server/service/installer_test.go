@@ -3,7 +3,6 @@ package service
 import (
 	"context"
 	"io"
-	"os"
 	"strings"
 	"testing"
 
@@ -16,8 +15,7 @@ import (
 )
 
 func setup(t *testing.T) (context.Context, *mock.Store, *mock.InstallerStore, fleet.Service) {
-	os.Setenv("FLEET_DEMO", "1")
-	t.Cleanup(func() { os.Unsetenv("FLEET_DEMO") })
+	t.Setenv("FLEET_DEMO", "1")
 	ctx := test.UserContext(test.UserAdmin)
 	ds := new(mock.Store)
 	is := new(mock.InstallerStore)
