@@ -90,15 +90,12 @@ const formatSoftwareType = (source: string) => {
   return DICT[source] || "Unknown";
 };
 
-const condenseVulnerabilities = (vulns: IVulnerability[]): string[] => {
+const condenseVulnerabilities = (vulns: string[]): string[] => {
   const condensed =
-    (vulns?.length &&
-      vulns
-        .slice(-3)
-        .map((v) => v.cve)
-        .reverse()) ||
-    [];
-  return vulns?.length > 3
+    (vulns?.length && vulns.length === 4
+      ? vulns.slice(-4).reverse()
+      : vulns.slice(-3).reverse()) || [];
+  return vulns?.length > 4
     ? condensed.concat(`+${vulns?.length - 3} more`)
     : condensed;
 };
@@ -113,7 +110,7 @@ export const generateSoftwareTableData = (
   return software.map((s) => {
     return {
       ...s,
-      vulnerabilities: condenseVulnerabilities(s.vulnerabilities || []),
+      vulnerabilities: s.vulnerabilities?.map((v) => v.cve) || [],
     };
   });
 };
@@ -193,14 +190,18 @@ export const generateSoftwareTableHeaders = (
       filter: "hasLength", // filters out rows where vulnerabilities has no length if filter value is `true`
       Cell: (cellProps: IVulnCellProps): JSX.Element => {
         const vulnerabilities = cellProps.cell.value || [];
-        const tooltipText = vulnerabilities?.map((value) => {
-          return (
-            <span key={`vuln_${value}`}>
-              {value}
-              <br />
-            </span>
-          );
-        });
+
+        console.log("vulnerabilities", vulnerabilities);
+        const tooltipText = condenseVulnerabilities(vulnerabilities).map(
+          (value) => {
+            return (
+              <span key={`vuln_${value}`}>
+                {value}
+                <br />
+              </span>
+            );
+          }
+        );
 
         if (!vulnerabilities?.length) {
           return <span className="vulnerabilities text-muted">---</span>;
