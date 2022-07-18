@@ -1,6 +1,6 @@
 # Fleet Desktop Says “Hello, World!”
 
-INSERT HEADLINE SCREENSHOT
+![Fleet Desktop v1 preview](../website/assets/images/articles/fleet-desktop-says-hello-world-cover.png)
 
 We are thrilled to announce that Fleet Desktop is out of Beta! Over the past few months, we’ve dogfooded Fleet Desktop internally and validated its usability and scalability. It is now ready for production deployment across your host fleet.
 
@@ -12,7 +12,7 @@ __Self Remediation.__ When a host is found to be out of compliance with one or m
 
 When users click on “My device,” they will be shown which policies are failing and steps for resolving the policy failures.
 
-INSERT SCREENSHOT
+![An example of a policy and resolution steps provided to the end user](../website/assets/images/articles/fleet-desktop-says-hello-world-1.png)
 
 By exposing this information, your end users are informed and empowered to self-remediate security issues without requiring time and attention from your IT or security team.
 
