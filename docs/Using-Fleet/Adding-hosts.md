@@ -46,10 +46,6 @@ Also, remember to replace both `AC_USERNAME` and `AC_PASSWORD` environment varia
 
 Hosts without Fleet Desktop currently installed require a new installer to be generated and run on the target host.
 
-> Fleet Desktop is supported on macOS, Windows, and Linux. Check out the supported Linux distributions
-> and versions [here
-> on GitHub](https://github.com/fleetdm/fleet/issues/5684#issuecomment-1123906753). 
-
 How to generate an installer that includes Fleet Desktop in the Fleet GUI:
 1. On the top bar in the Fleet UI, select **Hosts > Add hosts**.
 2. Select the **Include Fleet Desktop** checkbox.
@@ -58,7 +54,12 @@ How to generate an installer that includes Fleet Desktop in the Fleet GUI:
 
 Alternatively, you can generate an installer that includes Fleet Desktop in `fleetctl package` by appending the `--fleet-desktop` flag.
 
+> Fleet Desktop is supported on macOS, Windows, and Linux. Check out the supported Linux distributions
+> and versions [here
+> on GitHub](https://github.com/fleetdm/fleet/issues/5684#issuecomment-1123906753). 
+
 Once installed on the target host, Fleet Desktop will be managed by Orbit. To learn more about Orbit updates, see [here](https://fleetdm.com/docs/deploying/fleetctl-agent-updates).
+To prevent this auto-update behavior, you can turn off auto-updates via the `--disable-updates` flag or you can set a specific channel using the `--desktop-channel` flag.
 
 ### Adding multiple hosts
 
