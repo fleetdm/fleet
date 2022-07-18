@@ -90,7 +90,9 @@ func evalCriteria(c *Criteria, OSTstResults map[int]bool, pkgTstResults map[int]
 	return result, nil
 }
 
-// CveVulnerabilities Returns only CVE vulnerabilities.
+// CveVulnerabilities Returns only CVE vulnerabilities, excluding any 'advisory'
+// entries. 'Advisory' entries are excluded because we only want to report entries for which we
+// might have a NVD link.
 func (d Definition) CveVulnerabilities() []string {
 	var r []string
 	for _, v := range d.Vulnerabilities {
