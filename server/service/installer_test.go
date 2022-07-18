@@ -72,7 +72,7 @@ func TestGetInstaller(t *testing.T) {
 		}
 		_, _, err := svc.GetInstaller(ctx, fleet.Installer{})
 		require.Error(t, err)
-		require.ErrorContains(t, err, "unable to retrieve installer from store")
+		require.ErrorContains(t, err, "test error")
 		require.True(t, ds.VerifyEnrollSecretFuncInvoked)
 		require.True(t, is.GetFuncInvoked)
 	})

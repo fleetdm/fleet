@@ -26,7 +26,7 @@ func (p installerNotFoundError) Error() string {
 	return "installer not found"
 }
 
-func (p *installerNotFoundError) IsNotFound() bool {
+func (p installerNotFoundError) IsNotFound() bool {
 	return true
 }
 
