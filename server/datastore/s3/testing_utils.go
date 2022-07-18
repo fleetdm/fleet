@@ -20,7 +20,9 @@ const (
 	mockInstallerContents = "mock"
 )
 
-func setupInstallerStore(tb testing.TB, bucket, prefix string) *InstallerStore {
+// SetupTestInstallerStore creates a new store with minio as a back-end
+// for local testing
+func SetupTestInstallerStore(tb testing.TB, bucket, prefix string) *InstallerStore {
 	checkEnv(tb)
 
 	store, err := NewInstallerStore(config.S3Config{
@@ -43,7 +45,8 @@ func setupInstallerStore(tb testing.TB, bucket, prefix string) *InstallerStore {
 	return store
 }
 
-func seedInstallerStore(tb testing.TB, store *InstallerStore, enrollSecret string) []fleet.Installer {
+// SeedTestInstallerStore adds mock installers to the given store
+func SeedTestInstallerStore(tb testing.TB, store *InstallerStore, enrollSecret string) []fleet.Installer {
 	checkEnv(tb)
 	installers := []fleet.Installer{
 		mockInstaller(enrollSecret, "pkg", true),

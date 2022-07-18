@@ -860,6 +860,17 @@ func (man Manager) LoadConfig() FleetConfig {
 		},
 		Packaging: PackagingConfig{
 			GlobalEnrollSecret: man.getConfigString("packaging.global_enroll_secret"),
+			S3: S3Config{
+				Bucket:           man.getConfigString("packaging.s3.bucket"),
+				Prefix:           man.getConfigString("packaging.s3.prefix"),
+				Region:           man.getConfigString("packaging.s3.region"),
+				EndpointURL:      man.getConfigString("packaging.s3.endpoint_url"),
+				AccessKeyID:      man.getConfigString("packaging.s3.access_key_id"),
+				SecretAccessKey:  man.getConfigString("packaging.s3.secret_access_key"),
+				StsAssumeRoleArn: man.getConfigString("packaging.s3.sts_assume_role_arn"),
+				DisableSSL:       man.getConfigBool("packaging.s3.disable_ssl"),
+				ForceS3PathStyle: man.getConfigBool("packaging.s3.force_s3_path_style"),
+			},
 		},
 	}
 
