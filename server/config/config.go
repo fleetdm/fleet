@@ -25,12 +25,12 @@ const (
 
 // MysqlConfig defines configs related to MySQL
 type MysqlConfig struct {
-	Protocol        string
-	Address         string
-	Username        string
-	Password        string
+	Protocol        string `yaml:"protocol"`
+	Address         string `yaml:"address"`
+	Username        string `yaml:"username"`
+	Password        string `yaml:"password"`
 	PasswordPath    string `yaml:"password_path"`
-	Database        string
+	Database        string `yaml:"database"`
 	TLSCert         string `yaml:"tls_cert"`
 	TLSKey          string `yaml:"tls_key"`
 	TLSCA           string `yaml:"tls_ca"`
@@ -39,6 +39,7 @@ type MysqlConfig struct {
 	MaxOpenConns    int    `yaml:"max_open_conns"`
 	MaxIdleConns    int    `yaml:"max_idle_conns"`
 	ConnMaxLifetime int    `yaml:"conn_max_lifetime"`
+	SQLMode         string `yaml:"sql_mode"`
 }
 
 // RedisConfig defines configs related to Redis

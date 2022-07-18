@@ -974,3 +974,14 @@ func TestDebugs(t *testing.T) {
 	require.NoError(t, err)
 	require.Greater(t, len(processList), 0)
 }
+
+func TestANSIQuotesEnabled(t *testing.T) {
+
+	// Ensure sql_mode=ANSI_QUOTES is enabled for tests
+	ds := CreateMySQLDS(t)
+
+	var sqlMode string
+	err := ds.writer.GetContext(context.Background(), &sqlMode, `SELECT @@SQL_MODE`)
+	require.NoError(t, err)
+	require.Contains(t, sqlMode, "ANSI_QUOTES")
+}
