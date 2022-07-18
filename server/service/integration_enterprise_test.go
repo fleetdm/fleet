@@ -6,7 +6,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
-	"os"
 	"strings"
 	"testing"
 	"time"
@@ -649,7 +648,7 @@ func (s *integrationEnterpriseTestSuite) TestExternalIntegrationsTeamConfig() {
 	}}, http.StatusOK, &tmResp)
 
 	// set environmental varible to use Zendesk test client
-	os.Setenv("TEST_ZENDESK_CLIENT", "true")
+	t.Setenv("TEST_ZENDESK_CLIENT", "true")
 
 	// add an unknown automation - does not exist at the global level
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), fleet.TeamPayload{Integrations: &fleet.TeamIntegrations{
