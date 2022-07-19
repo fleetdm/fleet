@@ -178,7 +178,7 @@ apiVersion: v1
 kind: team
 spec:
   team:
-    name: Client Platform Engineerin
+    name: Client Platform Engineering
     agent_options:
       config:
         decorators:
@@ -191,7 +191,7 @@ spec:
           distributed_plugin: tls
           distributed_tls_max_attempts: 3
           logger_plugin: tls
-          logger_tls_endpoint: /api/osquery/log
+          logger_tls_endpoint: /api/v1/osquery/log
           logger_tls_period: 10
           pack_delimiter: /
       overrides: {}

@@ -12,6 +12,7 @@
 - [Redis REPL](#redis-repl)
 - [Testing SSO](#testing-sso)
 - [Testing Kinesis Logging](#testing-kinesis-logging)
+- [Testing pre-built installers](#testing-pre-built-installers)
 
 ## License key
 
@@ -50,7 +51,7 @@ REDIS_TEST=1 MYSQL_TEST=1 make test
 To run all Go unit tests, run the following:
 
 ```
-REDIS_TEST=1 MYSQL_TEST=1 make test-go
+REDIS_TEST=1 MYSQL_TEST=1 MINIO_STORAGE_TEST=1 make test-go
 ```
 
 ### Go linters
@@ -403,3 +404,22 @@ awslocal kinesis get-records --shard-iterator AAAAAAAAAAERtiUrWGI0sq99TtpKnmDu6h
     ],
 [...]
 ```
+
+## Testing pre-built installers
+
+Pre-built installers are kept in a blob storage like AWS S3. As part of your your local development there's a [MinIO](https://min.io/) instance running on http://localhost:9000. To test the pre-built installers functionality locally:
+
+1. Build the installers you want using `fleetctl package`. Be sure to include the `--insecure` flag
+   for local testing.
+2. Use the [installerstore](../../tools/installerstore/README.md) tool to upload them to your MinIO instance.
+3. Configure your fleet server setting `FLEET_PACKAGING_GLOBAL_ENROLL_SECRET` to match your global enroll secret.
+4. Set `FLEET_DEMO=1`, as the endpoint to retrieve the installer is only available in the sandbox.
+
+```
+FLEET_DEMO=1 FLEET_PACKAGING_GLOBAL_ENROLL_SECRET=xyz  ./build/fleet serve --dev 
+```
+
+Be sure to replace the `FLEET_PACKAGING_GLOBAL_ENROLL_SECRET` value above with the global enroll
+secret from the `fleetctl package` command used to build the installers. 
+
+MinIO also offers a web interface at http://localhost:9001. Credentials are `minio` / `minio123!`.

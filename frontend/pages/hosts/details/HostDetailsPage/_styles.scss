@@ -72,6 +72,10 @@
         }
       }
 
+      &__disk-space-wrapper {
+        display: inline-block;
+      }
+
       &__disk-space {
         display: inline-block;
         height: 4px;
@@ -80,16 +84,28 @@
         border-radius: 2px;
         margin-right: $pad-small;
         overflow: hidden;
+        margin-bottom: 2px;
       }
 
-      &__disk-space-used {
+      &__disk-space-green {
         background-color: $ui-success;
         height: 100%;
       }
 
-      &__disk-space-warning {
+      &__disk-space-yellow {
         background-color: $ui-warning;
         height: 100%;
+      }
+
+      &__disk-space-red {
+        background-color: $ui-error;
+        height: 100%;
+      }
+
+      #disk-space-tooltip {
+        display: block;
+        white-space: normal;
+        max-width: 160px;
       }
 
       &__header {
@@ -193,7 +209,6 @@
       margin-right: $pad-small;
 
       .refetch-btn {
-        cursor: default;
         font-size: $x-small;
         height: 38px;
         margin-right: $pad-small;
@@ -214,10 +229,6 @@
 
       .refetch-offline {
         opacity: 25%;
-
-        &:hover {
-          cursor: default;
-        }
       }
 
       .refetch-spinner {
@@ -418,13 +429,6 @@
     margin-top: $pad-small;
     overflow: scroll;
     box-shadow: inset -8px 0 17px -10px #e8edf4;
-  }
-
-  &__tooltip-text {
-    font-size: $x-small;
-    display: flex;
-    justify-content: center;
-    text-align: center;
   }
 
   .tooltip__tooltip-icon {

@@ -202,17 +202,15 @@ func TestCronVulnerabilitiesCreatesDatabasesPath(t *testing.T) {
 	vulnPath := path.Join(t.TempDir(), "something")
 	require.NoDirExists(t, vulnPath)
 
-	fleetConfig := config.FleetConfig{
-		Vulnerabilities: config.VulnerabilitiesConfig{
-			DatabasesPath:         vulnPath,
-			Periodicity:           10 * time.Second,
-			CurrentInstanceChecks: "auto",
-		},
+	config := config.VulnerabilitiesConfig{
+		DatabasesPath:         vulnPath,
+		Periodicity:           10 * time.Second,
+		CurrentInstanceChecks: "auto",
 	}
 
 	// We cancel right away so cronsVulnerailities finishes. The logic we are testing happens before the loop starts
 	cancelFunc()
-	cronVulnerabilities(ctx, ds, kitlog.NewNopLogger(), "AAA", fleetConfig)
+	cronVulnerabilities(ctx, ds, kitlog.NewNopLogger(), "AAA", config)
 
 	require.DirExists(t, vulnPath)
 }
@@ -237,17 +235,15 @@ func TestCronVulnerabilitiesAcceptsExistingDbPath(t *testing.T) {
 		return nil
 	}
 
-	fleetConfig := config.FleetConfig{
-		Vulnerabilities: config.VulnerabilitiesConfig{
-			DatabasesPath:         t.TempDir(),
-			Periodicity:           10 * time.Second,
-			CurrentInstanceChecks: "auto",
-		},
+	config := config.VulnerabilitiesConfig{
+		DatabasesPath:         t.TempDir(),
+		Periodicity:           10 * time.Second,
+		CurrentInstanceChecks: "auto",
 	}
 
 	// We cancel right away so cronsVulnerailities finishes. The logic we are testing happens before the loop starts
 	cancelFunc()
-	cronVulnerabilities(ctx, ds, logger, "AAA", fleetConfig)
+	cronVulnerabilities(ctx, ds, logger, "AAA", config)
 
 	require.Contains(t, buf.String(), `"waiting":"on ticker"`)
 }
@@ -276,17 +272,15 @@ func TestCronVulnerabilitiesQuitsIfErrorVulnPath(t *testing.T) {
 	_, err := os.Create(fileVulnPath)
 	require.NoError(t, err)
 
-	fleetConfig := config.FleetConfig{
-		Vulnerabilities: config.VulnerabilitiesConfig{
-			DatabasesPath:         fileVulnPath,
-			Periodicity:           10 * time.Second,
-			CurrentInstanceChecks: "auto",
-		},
+	config := config.VulnerabilitiesConfig{
+		DatabasesPath:         fileVulnPath,
+		Periodicity:           10 * time.Second,
+		CurrentInstanceChecks: "auto",
 	}
 
 	// We cancel right away so cronsVulnerailities finishes. The logic we are testing happens before the loop starts
 	cancelFunc()
-	cronVulnerabilities(ctx, ds, logger, "AAA", fleetConfig)
+	cronVulnerabilities(ctx, ds, logger, "AAA", config)
 
 	require.Contains(t, buf.String(), `"databases-path":"creation failed, returning"`)
 }
@@ -312,17 +306,15 @@ func TestCronVulnerabilitiesSkipCreationIfStatic(t *testing.T) {
 	vulnPath := path.Join(t.TempDir(), "something")
 	require.NoDirExists(t, vulnPath)
 
-	fleetConfig := config.FleetConfig{
-		Vulnerabilities: config.VulnerabilitiesConfig{
-			DatabasesPath:         vulnPath,
-			Periodicity:           10 * time.Second,
-			CurrentInstanceChecks: "1",
-		},
+	config := config.VulnerabilitiesConfig{
+		DatabasesPath:         vulnPath,
+		Periodicity:           10 * time.Second,
+		CurrentInstanceChecks: "1",
 	}
 
 	// We cancel right away so cronsVulnerailities finishes. The logic we are testing happens before the loop starts
 	cancelFunc()
-	cronVulnerabilities(ctx, ds, logger, "AAA", fleetConfig)
+	cronVulnerabilities(ctx, ds, logger, "AAA", config)
 
 	require.NoDirExists(t, vulnPath)
 }

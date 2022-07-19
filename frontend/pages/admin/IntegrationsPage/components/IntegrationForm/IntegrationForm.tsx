@@ -281,18 +281,14 @@ const IntegrationForm = ({
         <ReactTooltip
           className={`create-integration-tooltip`}
           place="bottom"
-          type="dark"
           effect="solid"
           backgroundColor="#3e4771"
           id="create-integration-button"
           data-html
         >
-          <div
-            className={`tooltip`}
-            style={{ width: "152px", textAlign: "center" }}
-          >
-            Complete all fields to save the integration.
-          </div>
+          <>
+            Complete all fields to save <br /> the integration.
+          </>
         </ReactTooltip>
         <Button
           className={`${baseClass}__btn`}

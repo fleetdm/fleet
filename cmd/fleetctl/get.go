@@ -977,14 +977,14 @@ func getSoftwareCommand() *cli.Command {
 				return errors.New("Can't specify both yaml and json flags.")
 			}
 
-			var teamID *uint
+			query := url.Values{}
 
-			teamIDFlag := c.Uint(teamFlagName)
-			if teamIDFlag != 0 {
-				teamID = &teamIDFlag
+			teamID := c.Uint(teamFlagName)
+			if teamID != 0 {
+				query.Set("team_id", strconv.FormatUint(uint64(teamID), 10))
 			}
 
-			software, err := client.ListSoftware(teamID)
+			software, err := client.ListSoftware(query.Encode())
 			if err != nil {
 				return fmt.Errorf("could not list software: %w", err)
 			}

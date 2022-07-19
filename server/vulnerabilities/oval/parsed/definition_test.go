@@ -8,6 +8,26 @@ import (
 )
 
 func TestOvalParsedDefinition(t *testing.T) {
+	t.Run("#CveVulnerabilities", func(t *testing.T) {
+		t.Run("only returns cve vulnerabilities", func(t *testing.T) {
+			sut := Definition{
+				Vulnerabilities: []string{
+					"CVE-2022-0001",
+					"CVE-2022-0002",
+					"USN-5469-1",
+					"CVE-2022-0003",
+					"RHSA-2022:5555",
+				},
+			}
+
+			require.ElementsMatch(t, sut.CveVulnerabilities(), []string{
+				"CVE-2022-0001",
+				"CVE-2022-0002",
+				"CVE-2022-0003",
+			})
+		})
+	})
+
 	t.Run("#Eval", func(t *testing.T) {
 		t.Run("no root criteria", func(t *testing.T) {
 			sut := Definition{}

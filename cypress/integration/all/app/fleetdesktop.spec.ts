@@ -21,9 +21,9 @@ describe("Fleet Desktop", () => {
       cy.findByText(/my device/i).should("exist");
       cy.getAttached(".status--online").should("exist");
       cy.getAttached(".info-flex").within(() => {
-        cy.findByText(/operating system/i)
-          .next()
-          .contains(/ubuntu 20/i);
+        cy.findByText(/ubuntu 20/i)
+          .prev()
+          .contains(/operating system/i);
       });
       cy.getAttached(".info-grid").within(() => {
         cy.findByText(/private ip address/i)

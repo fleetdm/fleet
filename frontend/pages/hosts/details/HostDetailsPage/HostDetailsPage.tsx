@@ -489,7 +489,12 @@ const HostDetailsPage = ({
             </>
           </Button>
         )}
-        <div data-tip data-for="query" data-tip-disable={isOnline}>
+        <div
+          data-tip
+          data-for="query"
+          data-tip-disable={isOnline}
+          className={`${!isOnline && "tooltip"}`}
+        >
           <Button
             onClick={() => setShowQueryHostModal(true)}
             variant="text-icon"
@@ -503,7 +508,6 @@ const HostDetailsPage = ({
         </div>
         <ReactTooltip
           place="bottom"
-          type="dark"
           effect="solid"
           id="query"
           backgroundColor="#3e4771"

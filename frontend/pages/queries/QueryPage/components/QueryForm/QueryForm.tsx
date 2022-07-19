@@ -522,18 +522,16 @@ const QueryForm = ({
                 <ReactTooltip
                   className={`save-query-button-tooltip`}
                   place="bottom"
-                  type="dark"
                   effect="solid"
                   backgroundColor="#3e4771"
                   id="save-query-button"
                   data-html
                 >
-                  <div
-                    className={`tooltip`}
-                    style={{ width: "152px", textAlign: "center" }}
-                  >
-                    You can only save changes to a query if you are the author.
-                  </div>
+                  <>
+                    You can only save
+                    <br /> changes to a query if you
+                    <br /> are the author.
+                  </>
                 </ReactTooltip>
               </div>
             </>
