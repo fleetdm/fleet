@@ -121,15 +121,6 @@ const HostSummary = ({
     </div>
   );
 
-  const renderDiskSpace = () => {
-    return renderDiskSpaceGraph(
-      "info-flex",
-      titleData.gigs_disk_space_available,
-      titleData.percent_disk_space_available,
-      "disk-space-tooltip"
-    );
-  };
-
   const renderSummary = () => {
     return (
       <div className="info-flex">
@@ -149,7 +140,12 @@ const HostSummary = ({
         {!deviceUser && isPremiumTier && renderHostTeam()}
         <div className="info-flex__item info-flex__item--title">
           <span className="info-flex__header">Disk space</span>
-          {renderDiskSpace()}
+          {renderDiskSpaceGraph(
+            "info-flex",
+            titleData.gigs_disk_space_available,
+            titleData.percent_disk_space_available,
+            "disk-space-tooltip"
+          )}
         </div>
         <div className="info-flex__item info-flex__item--title">
           <span className="info-flex__header">Memory</span>
