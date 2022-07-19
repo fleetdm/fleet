@@ -62,7 +62,7 @@ const renderDiskSpaceGraph = (
           {diskSpaceTooltip()}
         </span>
       </ReactTooltip>
-      {gigsDiskSpaceAvailable} GB available
+      {gigsDiskSpaceAvailable} GB{baseClass === "info-flex" && " available"}
     </span>
   );
 };
