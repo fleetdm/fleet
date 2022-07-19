@@ -320,6 +320,27 @@ The CEO will then reply in `#g-people` to indicate that the offer is approved.
    - You can do this between you and CorpNet by selecting "Foreign Qualification," placing the order and emailing the confirmation to the rep for Payroll registration (this is a short turnaround).
    - You can do this on your own by visiting the state's "Secretary of State" website and checking that the company name is available. To register online, you'll need the EIN, business address, information about the owners and their percentages, the first date of business, sales within the state, and the business type (usually get an email right away for approval ~24-48 hrs). 
 
+
+For more information, check out [Fleet - who does what](https://docs.google.com/spreadsheets/d/1FFOudmHmfVFIk-hdIWoPFsvMPmsjnRB8/edit?usp=sharing&ouid=102440584423243016963&rtpof=true&sd=true).
+
+### Taxes and compliance
+
+From time to time, you may get notices in the mail from the IRS and/or state agencies regarding your company’s withholding and/or unemployment tax accounts. You can resolve many of these notices on your own by verifying and/or updating the settings in your Gusto account. 
+
+If the notice is regarding an upcoming change to your deposit schedule or unemployment tax rate, Charlie will make the change in Gusto. Including: 
+ - Update your unemployment tax rate.
+ - Update your federal deposit schedule.
+ - Update your state deposit schedule.
+
+**Important** Agencies do not send notices to Gusto directly, so it’s important that you read and take action before any listed deadlines or effective dates of requested changes.
+
+Notices you should report to Gusto.
+If you can't resolve the notice on your own, are unsure what the notice is in reference to, or the tax notice has a missing payment or balance owed, follow the steps in the Report and upload a tax notice in Gusto.
+
+In Gusto, click **How to review your notice** to help you understand what kind of notice you received and what additional action you can take to help speed up the time it takes to resolve the issue.
+
+For more information about how Fleet and our accounting team work together, check out [Fleet - who does what](https://docs.google.com/spreadsheets/d/1FFOudmHmfVFIk-hdIWoPFsvMPmsjnRB8/edit#gid=829046836) (private doc).
+
 ## Team member onboarding
 
 It's important that every team member at Fleet takes the time to get fully trained and onboarded. 
@@ -419,52 +440,7 @@ We consider Salesforce to be our Rolodex for customer information. During the on
 4. Sign DocuSign sent to the email.
 5. The order will be processed in ~30m.
 
-## PeopleOps
-
-### OKR planning
-
-OKRs help inform what to prioritize and communicate company goals while encouraging cross-team collaboration.
-
-At the end of the quarter and key points throughout the quarter (every three weeks), we review the status of each OKR (depending on the KR, either 100% or ≥70% completion is considered "success")
-
-- Review topdown and departmental OKRs as they are turned in.
-- OKRs are finalized one week from when topdown OKRs were initially reviewed.
-- Finalized OKRs are shared company-wide and at the "All hands" meeting and, at least to some degree, become public.
-- Throughout the quarter, Mike and Zach have OKR preplanning meetings (every three weeks) to prepare OKRs for the upcoming quarter. 
-
-### 1:1 Mike:Sid document preparation
-
-Every two weeks, our CEO Mike has a 1:1 meeting with our Investor Sid. The Digital Experience Team completes four parts while constructing the associated document. 
-
- - After the 1:1 meeting has happened, Charlie makes a copy of the original document, labels it "yyyy-mm-dd Backup copy of Mike from Fleet & Sid," and moves it to a private folder. 
- - Charlie will change the permissions on the new copy to share it with Mike and Zach and set Mike to be the file's owner. If there are any agenda items labeled "TODO," Charlie will comment in the backup copy to assign them to Mike.
- - Charlie prepares the original document by deleting the agenda items in the "Hallway" and "Feedback" sections, leaving only the "Vision" section.
- - Charlie will update the monthly "All Hands" link and grant Sid viewing access. 
- - Charlie will send Mike links to the new document and the backup copy in a direct message in Slack. 
- - The day before the meeting, Charlie will prepare the "Vision" section of the original document. Charlie will collect and update information related to annual recurring revenue, new members in the `#fleet` channel in the osquery Slack, the number of new customers and opportunities from Salesforce, the total number of devices using Fleet, the company's current headcount, and banking information.
-
-### Workiversaries
-
-We're happy you've ventured a trip around the sun with Fleet. Let's celebrate!
-
-- Each Friday, if there are any upcoming workiversaries in the next seven days, People Operations posts about them in #g-people and tags @mikermcneil to let them know.
-
-### Weekly updates
-
-We like to celebrate our achievements weekly in `#general`.
-  - Every Thursday night, Charlie creates a thread in #help-manage requesting weekly updates, and managers will reply to the thread with their weekly updates.
-  - Friday afternoons, Charlie updates the KPIs in the [weekly updates spreadsheet](https://docs.google.com/spreadsheets/d/1Hso0LxqwrRVINCyW_n436bNHmoqhoLhC8bcbvLPOs9A/edit#gid=0), and Friday nights, Charlie will post the updates in #general.
-
-Weekly update principles
-   - Each department's update is 20-40 words or less.
-   - Erring on the side of refering to items that are completely done and/or mentioning news that is potentially very exciting to folks throughout the company.
-
-### Investor and advisor updates
-
-We like to regularly share updates about how Fleet is growing with our investors and advisors. 
-  - Charlie tracks the most recent updates with investors and advisors and coordinates emails, zoom calls, or the investor or advisor's preferred method of communication with @mikermcneil and preps materials as needed. 
-
-## Participating in the program
+## Participating in the CEO shadow program
 
 ### Eligibility
 TODO: document eligibility qualifications
@@ -567,6 +543,51 @@ GitLab co-founder and CEO Sid Sijbrandij [answered questions in a YouTube livest
 ### Alumni 
 TODO: (This is a chart with info on CEO alumni) (Create a slack channel for CEO-shadow-alumni)
 
+## PeopleOps
+
+### OKR planning
+
+OKRs help to inform what to prioritize and communicate company goals while encouraging cross-team collaboration.
+
+At the end of the quarter and key points throughout the quarter (every three weeks), we review the status of each OKR (depending on the KR, either 100% or ≥70% completion is considered "success")
+
+- Review topdown and departmental OKRs as they are turned in.
+- OKRs are finalized one week from when topdown OKRs were initially reviewed.
+- Finalized OKRs are shared company-wide and at the "All hands" meeting and, at least to some degree, become public.
+- Throughout the quarter, Mike and Zach have OKR preplanning meetings (every three weeks) to prepare OKRs for the upcoming quarter. 
+
+### 1:1 Mike:Sid document preparation
+
+Every two weeks, our CEO Mike has a 1:1 meeting with our Investor Sid. The Digital Experience Team completes four parts while constructing the associated document. 
+
+ - After the 1:1 meeting has happened, Charlie makes a copy of the original document, labels it "yyyy-mm-dd Backup copy of Mike from Fleet & Sid," and moves it to a private folder. 
+ - Charlie will change the permissions on the new copy to share it with Mike and Zach and set Mike to be the file's owner. If there are any agenda items labeled "TODO," Charlie will comment in the backup copy to assign them to Mike.
+ - Charlie prepares the original document by deleting the agenda items in the "Hallway" and "Feedback" sections, leaving only the "Vision" section.
+ - Charlie will update the monthly "All Hands" link and grant Sid viewing access. 
+ - Charlie will send Mike links to the new document and the backup copy in a direct message in Slack. 
+ - The day before the meeting, Charlie will prepare the "Vision" section of the original document. Charlie will collect and update information related to annual recurring revenue, new members in the `#fleet` channel in the osquery Slack, the number of new customers and opportunities from Salesforce, the total number of devices using Fleet, the company's current headcount, and banking information.
+
+### Workiversaries
+
+We're happy you've ventured a trip around the sun with Fleet. Let's celebrate!
+
+- Each Friday, if there are any upcoming workiversaries in the next seven days, People Operations posts about them in #g-people and tags @mikermcneil to let them know.
+
+### Weekly updates
+
+We like to celebrate our achievements weekly in `#general`.
+  - Every Thursday night, Charlie creates a thread in #help-manage requesting weekly updates, and managers will reply to the thread with their weekly updates.
+  - Friday afternoons, Charlie updates the KPIs in the [weekly updates spreadsheet](https://docs.google.com/spreadsheets/d/1Hso0LxqwrRVINCyW_n436bNHmoqhoLhC8bcbvLPOs9A/edit#gid=0), and Friday nights, Charlie will post the updates in #general.
+
+Weekly update principles
+   - Each department's update is 20-40 words or less.
+   - Erring on the side of referring to items that are completely done and/or mentioning news that is potentially very exciting to folks throughout the company.
+
+### Investor and advisor updates
+
+We like to regularly share updates about how Fleet is growing with our investors and advisors. 
+  - Charlie tracks the most recent updates with investors and advisors and coordinates emails, zoom calls, or the investor or advisor's preferred method of communication with @mikermcneil and preps materials as needed. 
+
 ### Recruiting progress checkup
 
 Weekly, Charlie looks in the [Fleeties spreadsheet](https://docs.google.com/spreadsheets/d/1OSLn-ZCbGSjPusHPiR5dwQhheH1K8-xqyZdsOe9y7qc/edit#gid=0) and reports on each open position:
@@ -578,7 +599,13 @@ Weekly, Charlie looks in the [Fleeties spreadsheet](https://docs.google.com/spre
 
 ### Payroll
 
-Many of these processes are automated, but it's vital check Gusto and Pilot manually for accuracy.
+Many of these processes are automated, but it's vital to check Gusto and Pilot manually for accuracy.
+
+| Unique payrolls              | Action                       | DRI                          |
+|:-----------------------------|:-----------------------------|:-----------------------------|
+| Commissions                  | "Off-cycle" payroll          | Charlie
+| Sign-on bonus                | "Bonus" payroll              | Charlie
+| Performance bonus            | "Bonus" payroll              | Charlie
 
 ## BizOps
 

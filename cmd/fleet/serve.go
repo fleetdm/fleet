@@ -177,6 +177,7 @@ the way that the Fleet server works.
 
 			var ds fleet.Datastore
 			var carveStore fleet.CarveStore
+			var installerStore fleet.InstallerStore
 			mailService := mail.NewService()
 
 			opts := []mysql.DBOption{mysql.Logger(logger), mysql.WithFleetConfig(&config)}
@@ -199,12 +200,20 @@ the way that the Fleet server works.
 			}
 
 			if config.S3.Bucket != "" {
-				carveStore, err = s3.New(config.S3, ds)
+				carveStore, err = s3.NewCarveStore(config.S3, ds)
 				if err != nil {
 					initFatal(err, "initializing S3 carvestore")
 				}
 			} else {
 				carveStore = ds
+			}
+
+			if config.Packaging.S3.Bucket != "" {
+				var err error
+				installerStore, err = s3.NewInstallerStore(config.Packaging.S3)
+				if err != nil {
+					initFatal(err, "initializing S3 installer store")
+				}
 			}
 
 			migrationStatus, err := ds.MigrationStatus(cmd.Context())
@@ -260,6 +269,38 @@ the way that the Fleet server works.
 			if initializingDS, ok := ds.(initializer); ok {
 				if err := initializingDS.Initialize(); err != nil {
 					initFatal(err, "loading built in data")
+				}
+			}
+
+			if config.Packaging.GlobalEnrollSecret != "" {
+				secrets, err := ds.GetEnrollSecrets(cmd.Context(), nil)
+				if err != nil {
+					initFatal(err, "loading enroll secrets")
+				}
+
+				var globalEnrollSecret string
+				for _, secret := range secrets {
+					if secret.TeamID == nil {
+						globalEnrollSecret = secret.Secret
+						break
+					}
+				}
+
+				if globalEnrollSecret != "" {
+					if globalEnrollSecret != config.Packaging.GlobalEnrollSecret {
+						fmt.Printf("################################################################################\n" +
+							"# WARNING:\n" +
+							"#  You have provided a global enroll secret config, but there's\n" +
+							"#  already one set up for your application.\n" +
+							"#\n" +
+							"#  This is generally an error and the provided value will be\n" +
+							"#  ignored, if you really need to configure an enroll secret please\n" +
+							"#  remove the global enroll secret from the database manually.\n" +
+							"################################################################################\n")
+						os.Exit(1)
+					}
+				} else {
+					ds.ApplyEnrollSecrets(cmd.Context(), nil, []*fleet.EnrollSecret{{Secret: config.Packaging.GlobalEnrollSecret}})
 				}
 			}
 
@@ -342,7 +383,7 @@ the way that the Fleet server works.
 			defer cancelFunc()
 			eh := errorstore.NewHandler(ctx, redisPool, logger, config.Logging.ErrorRetentionPeriod)
 			ctx = ctxerr.NewContext(ctx, eh)
-			svc, err := service.NewService(ctx, ds, task, resultStore, logger, osqueryLogger, config, mailService, clock.C, ssoSessionStore, liveQueryStore, carveStore, *license, failingPolicySet, geoIP, redisWrapperDS)
+			svc, err := service.NewService(ctx, ds, task, resultStore, logger, osqueryLogger, config, mailService, clock.C, ssoSessionStore, liveQueryStore, carveStore, installerStore, *license, failingPolicySet, geoIP, redisWrapperDS)
 			if err != nil {
 				initFatal(err, "initializing service")
 			}
@@ -652,7 +693,7 @@ func runCrons(
 
 	go cronDB(ctx, ds, kitlog.With(logger, "cron", "cleanups"), ourIdentifier, config, license, enrollHostLimiter)
 	go cronVulnerabilities(
-		ctx, ds, kitlog.With(logger, "cron", "vulnerabilities"), ourIdentifier, config)
+		ctx, ds, kitlog.With(logger, "cron", "vulnerabilities"), ourIdentifier, config.Vulnerabilities)
 	go cronWebhooks(ctx, ds, kitlog.With(logger, "cron", "webhooks"), ourIdentifier, failingPoliciesSet, 1*time.Hour)
 	go cronWorker(ctx, ds, kitlog.With(logger, "cron", "worker"), ourIdentifier)
 }

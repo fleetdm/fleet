@@ -4309,7 +4309,7 @@ func testHostsReplaceHostBatteries(t *testing.T, ds *Datastore) {
 
 	h1Bat := []*fleet.HostBattery{
 		{HostID: h1.ID, SerialNumber: "a", CycleCount: 1, Health: "Good"},
-		{HostID: h1.ID, SerialNumber: "b", CycleCount: 2, Health: "Good"},
+		{HostID: h1.ID, SerialNumber: "b", CycleCount: 2, Health: "Check Battery"},
 	}
 	err = ds.ReplaceHostBatteries(ctx, h1.ID, h1Bat)
 	require.NoError(t, err)
