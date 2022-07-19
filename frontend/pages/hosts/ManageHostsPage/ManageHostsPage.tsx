@@ -314,13 +314,6 @@ const ManageHostsPage = ({
     }
   );
 
-  const addHostsTeam = currentTeam
-    ? { name: currentTeam.name, secrets: teamSecrets || null }
-    : {
-        name: "No team",
-        secrets: globalSecrets || null,
-      };
-
   const {
     data: teams,
     isLoading: isLoadingTeams,
@@ -1187,9 +1180,25 @@ const ManageHostsPage = ({
     />
   );
 
-  const renderAddHostsModal = () => (
-    <AddHostsModal onCancel={toggleAddHostsModal} selectedTeam={addHostsTeam} />
-  );
+  const renderAddHostsModal = () => {
+    const enrollSecret =
+      // TODO: Currently, prepacked installers in Fleet Sandbox use the global enroll secret,
+      // and Fleet Sandbox runs Fleet Free so the isSandboxMode check here is an
+      // additional precaution/reminder to revisit this in connection with future changes.
+      // See https://github.com/fleetdm/fleet/issues/4970#issuecomment-1187679407.
+      currentTeam && !isSandboxMode
+        ? teamSecrets?.[0].secret
+        : globalSecrets?.[0].secret;
+    return (
+      <AddHostsModal
+        currentTeam={currentTeam}
+        enrollSecret={enrollSecret}
+        isLoading={isLoadingTeams || isGlobalSecretsLoading}
+        isSandboxMode={!!isSandboxMode}
+        onCancel={toggleAddHostsModal}
+      />
+    );
+  };
 
   const renderTransferHostModal = () => {
     if (!teams) {
@@ -1344,7 +1353,9 @@ const ManageHostsPage = ({
           isHostCountLoading ? "count-loading" : ""
         }`}
       >
-        <span>{`${count} host${count === 1 ? "" : "s"}`}</span>
+        {count !== undefined && (
+          <span>{`${count} host${count === 1 ? "" : "s"}`}</span>
+        )}
         {count ? (
           <Button
             className={`${baseClass}__export-btn`}
