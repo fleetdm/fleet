@@ -1,4 +1,4 @@
-# Fleet Desktop says “Hello, World!”
+# Fleet Desktop says “Hello, world!”
 
 ![Fleet Desktop v1 preview](../website/assets/images/articles/fleet-desktop-says-hello-world-cover.png)
 
@@ -8,7 +8,7 @@ We are thrilled to announce that Fleet Desktop is out of Beta! Over the past few
 
 Fleet Desktop is a menubar icon available on macOS, Windows, and Linux. At its core, Fleet Desktop gives your end users visibility into the security posture of their machine. This unlocks two key benefits:
 
-__Self remediation.__ When a host is found to be out of compliance with one or more policies configured in Fleet, Fleet Desktop will display the red error icon and list the number of failing policies, as seen in the screenshot above.
+__Self remediation.__ When Fleet finds a host is out of compliance with one or more policies configured in Fleet, Fleet Desktop will display the red error icon and list the number of failing policies, as seen in the screenshot above.
 
 When users click on “My device,” they will be shown which policies are failing and steps for resolving the policy failures.
 
