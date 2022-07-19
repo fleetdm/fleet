@@ -23,6 +23,14 @@ body {
     opacity: 1; // Overrides 0.9 default opacity
     text-align: center;
   }
+
+  .button--disabled,
+  .fleet-checkbox__tick--disabled,
+  .tooltip {
+    &:hover {
+      cursor: help;
+    }
+  }
 }
 
 .wrapper,

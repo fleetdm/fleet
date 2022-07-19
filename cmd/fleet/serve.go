@@ -177,6 +177,7 @@ the way that the Fleet server works.
 
 			var ds fleet.Datastore
 			var carveStore fleet.CarveStore
+			var installerStore fleet.InstallerStore
 			mailService := mail.NewService()
 
 			opts := []mysql.DBOption{mysql.Logger(logger), mysql.WithFleetConfig(&config)}
@@ -205,6 +206,14 @@ the way that the Fleet server works.
 				}
 			} else {
 				carveStore = ds
+			}
+
+			if config.Packaging.S3.Bucket != "" {
+				var err error
+				installerStore, err = s3.NewInstallerStore(config.Packaging.S3)
+				if err != nil {
+					initFatal(err, "initializing S3 installer store")
+				}
 			}
 
 			migrationStatus, err := ds.MigrationStatus(cmd.Context())
@@ -288,6 +297,7 @@ the way that the Fleet server works.
 							"#  ignored, if you really need to configure an enroll secret please\n" +
 							"#  remove the global enroll secret from the database manually.\n" +
 							"################################################################################\n")
+						os.Exit(1)
 					}
 				} else {
 					ds.ApplyEnrollSecrets(cmd.Context(), nil, []*fleet.EnrollSecret{{Secret: config.Packaging.GlobalEnrollSecret}})
@@ -373,7 +383,7 @@ the way that the Fleet server works.
 			defer cancelFunc()
 			eh := errorstore.NewHandler(ctx, redisPool, logger, config.Logging.ErrorRetentionPeriod)
 			ctx = ctxerr.NewContext(ctx, eh)
-			svc, err := service.NewService(ctx, ds, task, resultStore, logger, osqueryLogger, config, mailService, clock.C, ssoSessionStore, liveQueryStore, carveStore, *license, failingPolicySet, geoIP, redisWrapperDS)
+			svc, err := service.NewService(ctx, ds, task, resultStore, logger, osqueryLogger, config, mailService, clock.C, ssoSessionStore, liveQueryStore, carveStore, installerStore, *license, failingPolicySet, geoIP, redisWrapperDS)
 			if err != nil {
 				initFatal(err, "initializing service")
 			}

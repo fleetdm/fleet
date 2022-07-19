@@ -2,6 +2,7 @@ package oval_parsed
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
 )
@@ -26,25 +27,25 @@ type Definition struct {
 // Tests results can come from two sources:
 // - OSTstResults: Test results from making assertions against the installed OS Version
 // - pkTstResults: Tests results from making assertions against the installed software packages.
-func (r Definition) Eval(OSTstResults map[int]bool, pkgTstResults map[int][]fleet.Software) bool {
-	if r.Criteria == nil || (len(OSTstResults) == 0 && len(pkgTstResults) == 0) {
+func (d Definition) Eval(OSTstResults map[int]bool, pkgTstResults map[int][]fleet.Software) bool {
+	if d.Criteria == nil || (len(OSTstResults) == 0 && len(pkgTstResults) == 0) {
 		return false
 	}
 
-	rEval, err := evalCriteria(r.Criteria, OSTstResults, pkgTstResults)
+	rEval, err := evalCriteria(d.Criteria, OSTstResults, pkgTstResults)
 	if err != nil {
 		return false
 	}
 	return rEval
 }
 
-func (r Definition) CollectTestIds() []int {
-	if r.Criteria == nil {
+func (d Definition) CollectTestIds() []int {
+	if d.Criteria == nil {
 		return nil
 	}
 
 	var results []int
-	queue := []*Criteria{r.Criteria}
+	queue := []*Criteria{d.Criteria}
 
 	for len(queue) > 0 {
 		next := queue[0]
@@ -87,4 +88,17 @@ func evalCriteria(c *Criteria, OSTstResults map[int]bool, pkgTstResults map[int]
 	}
 
 	return result, nil
+}
+
+// CveVulnerabilities Returns only CVE vulnerabilities, excluding any 'advisory'
+// entries. 'Advisory' entries are excluded because we only want to report entries for which we
+// might have a NVD link.
+func (d Definition) CveVulnerabilities() []string {
+	var r []string
+	for _, v := range d.Vulnerabilities {
+		if strings.HasPrefix(strings.ToLower(v), "cve") {
+			r = append(r, v)
+		}
+	}
+	return r
 }

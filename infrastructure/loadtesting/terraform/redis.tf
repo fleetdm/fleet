@@ -46,7 +46,7 @@ resource "aws_security_group_rule" "ingress" { #tfsec:ignore:aws-vpc-add-descrip
   from_port         = "6379"
   to_port           = "6379"
   protocol          = "tcp"
-  cidr_blocks       = data.terraform_remote_state.shared.outputs.vpc.private_subnets_cidr_blocks
+  cidr_blocks       = concat(data.terraform_remote_state.shared.outputs.vpc.private_subnets_cidr_blocks, local.vpn_cidr_blocks)
   security_group_id = aws_security_group.redis.id
 }
 

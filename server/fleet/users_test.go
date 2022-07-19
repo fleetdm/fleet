@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"testing"
 
+	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"golang.org/x/crypto/bcrypt"
@@ -97,4 +98,113 @@ func TestSaltAndHashPassword(t *testing.T) {
 		err = bcrypt.CompareHashAndPassword(hashed, []byte(fmt.Sprint("invalidpassword", salt)))
 		require.Error(t, err)
 	}
+}
+
+func TestAdminCreateValidate(t *testing.T) {
+	testCases := []struct {
+		payload UserPayload
+		// if errContains is empty then no error is expected
+		errContains []string
+	}{
+		{
+			payload:     UserPayload{},
+			errContains: []string{"name", "email", "password"},
+		},
+		{
+			payload:     UserPayload{Name: ptr.String(""), Email: ptr.String(""), Password: ptr.String("")},
+			errContains: []string{"name", "email", "password"},
+		},
+		{
+			payload:     UserPayload{Name: ptr.String("Foo"), Email: ptr.String(""), Password: ptr.String("")},
+			errContains: []string{"email", "password"},
+		},
+		{
+			payload:     UserPayload{Name: ptr.String("Foo"), Email: ptr.String("foo@example.com"), Password: ptr.String("")},
+			errContains: []string{"password"},
+		},
+		{
+			payload:     UserPayload{Name: ptr.String("Foo"), Email: ptr.String("foo@example.com"), Password: ptr.String("foo")},
+			errContains: []string{"password"},
+		},
+		{
+			payload:     UserPayload{Name: ptr.String("Foo"), Email: ptr.String("foo@example.com"), Password: ptr.String("Foofoofoo1337#"), InviteToken: ptr.String("foo")},
+			errContains: []string{"invite_token"},
+		},
+		{
+			payload:     UserPayload{Name: ptr.String("Foo"), Email: ptr.String("foo@example.com"), Password: ptr.String("Foofoofoo1337#")},
+			errContains: nil,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run("", func(t *testing.T) {
+			err := tc.payload.VerifyAdminCreate()
+			if len(tc.errContains) == 0 {
+				require.NoError(t, err)
+			} else {
+				ierr := err.(*InvalidArgumentError)
+				require.Equal(t, len(tc.errContains), len(*ierr))
+				for _, expected := range tc.errContains {
+					assertContainsErrorName(t, *ierr, expected)
+				}
+			}
+		})
+	}
+}
+
+func TestInviteCreateValidate(t *testing.T) {
+	testCases := []struct {
+		payload UserPayload
+		// if errContains is empty then no error is expected
+		errContains []string
+	}{
+		{
+			payload:     UserPayload{},
+			errContains: []string{"name", "email", "password", "invite_token"},
+		},
+		{
+			payload:     UserPayload{Name: ptr.String(""), Email: ptr.String(""), Password: ptr.String("")},
+			errContains: []string{"name", "email", "password", "invite_token"},
+		},
+		{
+			payload:     UserPayload{Name: ptr.String("Foo"), Email: ptr.String(""), Password: ptr.String("")},
+			errContains: []string{"email", "password", "invite_token"},
+		},
+		{
+			payload:     UserPayload{Name: ptr.String("Foo"), Email: ptr.String("foo@example.com"), Password: ptr.String("")},
+			errContains: []string{"password", "invite_token"},
+		},
+		{
+			payload:     UserPayload{Name: ptr.String("Foo"), Email: ptr.String("foo@example.com"), Password: ptr.String("foo")},
+			errContains: []string{"password", "invite_token"},
+		},
+		{
+			payload:     UserPayload{Name: ptr.String("Foo"), Email: ptr.String("foo@example.com"), Password: ptr.String("Foofoofoo1337#"), InviteToken: ptr.String("foo")},
+			errContains: nil,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run("", func(t *testing.T) {
+			err := tc.payload.VerifyInviteCreate()
+			if len(tc.errContains) == 0 {
+				require.NoError(t, err)
+			} else {
+				ierr := err.(*InvalidArgumentError)
+				for _, expected := range tc.errContains {
+					require.Equal(t, len(tc.errContains), len(*ierr))
+					assertContainsErrorName(t, *ierr, expected)
+				}
+			}
+		})
+	}
+}
+
+func assertContainsErrorName(t *testing.T, invalid InvalidArgumentError, name string) {
+	for _, argErr := range invalid {
+		if argErr.name == name {
+			return
+		}
+	}
+	t.Errorf("%v does not contain error %s", invalid, name)
 }

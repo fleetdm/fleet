@@ -13,4 +13,11 @@ locals {
     "ELASTIC_APM_TRANSACTION_SAMPLE_RATE" : "0.004"
     "ELASTIC_APM_SERVICE_VERSION" : "${var.tag}-${split(":", data.docker_registry_image.dockerhub.sha256_digest)[1]}"
   }, var.fleet_config) : { name = k, value = v }]
+  # Private Subnets from VPN VPC
+  vpn_cidr_blocks = [
+    "10.255.1.0/24",
+    "10.255.2.0/24",
+    "10.255.3.0/24",
+  ]
+
 }

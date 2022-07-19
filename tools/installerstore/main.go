@@ -17,11 +17,12 @@ func main() {
 	app := cli.NewApp()
 	app.Name = "installerstore"
 	app.Usage = "Utility to upload pre-built installers to a file storage (AWS S3, MinIO, etc.)"
-	app.UsageText = "installerstore --enroll-secret xyz --bucket installers ~/path/to/file.pkg"
+	app.UsageText = "installerstore --enroll-secret=xyz --bucket=installers ~/path/to/file.pkg"
+	app.ExitErrHandler = exitErrHandler
 	app.Flags = []cli.Flag{
 		&cli.StringFlag{
 			Name:    "fleet-desktop",
-			Usage:   "Wether or not the installer includes Fleet Desktop",
+			Usage:   "Whether or not the installer includes Fleet Desktop",
 			EnvVars: []string{"INSTALLER_FLEET_DESKTOP"},
 		},
 		&cli.StringFlag{
@@ -76,11 +77,17 @@ func main() {
 			Usage:   "Set this to true to force path-style addressing, i.e., `http://s3.amazonaws.com/BUCKET/KEY`",
 			EnvVars: []string{"INSTALLER_FORCE_S3_PATH_STYLE"},
 		},
+		&cli.BoolFlag{
+			Name:    "create-bucket",
+			Usage:   "Set this to true to create the bucket if it doesn't exist. Only recommended for local testing.",
+			EnvVars: []string{"INSTALLER_CREATE_BUCKET"},
+		},
 	}
 
 	app.Action = func(c *cli.Context) error {
+		bucket := c.String("bucket")
 		store, err := s3.NewInstallerStore(config.S3Config{
-			Bucket:           c.String("bucket"),
+			Bucket:           bucket,
 			Prefix:           c.String("prefix"),
 			Region:           c.String("region"),
 			EndpointURL:      c.String("endpoint-url"),
@@ -91,7 +98,13 @@ func main() {
 			ForceS3PathStyle: c.Bool("force-s3-path-style"),
 		})
 		if err != nil {
-			return fmt.Errorf("unable to setup store: %v", err)
+			return fmt.Errorf("unable to setup store: %w", err)
+		}
+
+		if c.Bool("create-bucket") {
+			if err := store.CreateTestBucket(bucket); err != nil {
+				return fmt.Errorf("unable to create bucket: %w", err)
+			}
 		}
 
 		fp := c.Args().Get(0)
@@ -101,7 +114,7 @@ func main() {
 
 		r, err := os.Open(fp)
 		if err != nil {
-			return fmt.Errorf("there was an error opening %s", fp)
+			return fmt.Errorf("there was an error opening %s: %w", fp, err)
 		}
 
 		key, err := store.Put(context.Background(), fleet.Installer{
@@ -111,12 +124,20 @@ func main() {
 			Content:      r,
 		})
 		if err != nil {
-			return fmt.Errorf("there was a problem uploading the installer with key %s", key)
+			return fmt.Errorf("there was a problem uploading the installer with key %s: %w", key, err)
 		}
 
-		fmt.Printf("installer uploaded with key %s\n", key)
+		fmt.Printf("installer uploaded to bucket '%s' with key '%s'\n", bucket, key)
 		return nil
 	}
 
 	app.Run(os.Args)
+}
+
+func exitErrHandler(c *cli.Context, err error) {
+	if err == nil {
+		return
+	}
+	fmt.Fprintf(c.App.ErrWriter, "Error: %+v\n", err)
+	cli.OsExiter(1)
 }

@@ -26,6 +26,7 @@ type Service struct {
 	ds             fleet.Datastore
 	task           *async.Task
 	carveStore     fleet.CarveStore
+	installerStore fleet.InstallerStore
 	resultStore    fleet.QueryResultStore
 	liveQueryStore fleet.LiveQueryStore
 	logger         kitlog.Logger
@@ -67,6 +68,7 @@ func NewService(
 	sso sso.SessionStore,
 	lq fleet.LiveQueryStore,
 	carveStore fleet.CarveStore,
+	installerStore fleet.InstallerStore,
 	license fleet.LicenseInfo,
 	failingPolicySet fleet.FailingPolicySet,
 	geoIP fleet.GeoIP,
@@ -81,6 +83,7 @@ func NewService(
 		ds:                ds,
 		task:              task,
 		carveStore:        carveStore,
+		installerStore:    installerStore,
 		resultStore:       resultStore,
 		liveQueryStore:    lq,
 		logger:            logger,

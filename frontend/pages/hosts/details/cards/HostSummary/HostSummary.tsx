@@ -4,6 +4,8 @@ import ReactTooltip from "react-tooltip";
 
 import Button from "components/buttons/Button";
 import {
+  diskSpaceIndicator,
+  diskSpaceTooltip,
   humanHostMemory,
   humanHostDetailUpdated,
   wrapFleetHelper,
@@ -51,7 +53,7 @@ const HostSummary = ({
           <Button
             className={`
               button
-              ${!isOnline ? "refetch-offline" : ""} 
+              ${!isOnline ? "refetch-offline tooltip" : ""} 
               ${showRefetchSpinner ? "refetch-spinner" : "refetch-btn"}
             `}
             disabled={!isOnline}
@@ -65,7 +67,6 @@ const HostSummary = ({
         </div>
         <ReactTooltip
           place="bottom"
-          type="dark"
           effect="solid"
           id="refetch-tooltip"
           backgroundColor="#3e4771"
@@ -83,7 +84,7 @@ const HostSummary = ({
       <span className="info-flex__header">Issues</span>
       <span className="info-flex__data">
         <span
-          className="host-issue tooltip__tooltip-icon"
+          className="host-issue tooltip tooltip__tooltip-icon"
           data-tip
           data-for="host-issue-count"
           data-tip-disable={false}
@@ -92,7 +93,6 @@ const HostSummary = ({
         </span>
         <ReactTooltip
           place="bottom"
-          type="dark"
           effect="solid"
           backgroundColor="#3e4771"
           id="host-issue-count"
@@ -123,49 +123,6 @@ const HostSummary = ({
   );
 
   const renderDiskSpace = () => {
-    const diskSpaceTooltip = () => {
-      const diskSpaceAvailable = titleData.gigs_disk_space_available;
-      switch (true) {
-        case diskSpaceAvailable < 16:
-          return (
-            <span className={`${baseClass}__tooltip-text`}>
-              Not enough disk space <br />
-              available to install most <br />
-              small operating systems <br />
-              updates.
-            </span>
-          );
-        case diskSpaceAvailable < 32:
-          return (
-            <span className={`${baseClass}__tooltip-text`}>
-              Not enough disk space <br />
-              available to install most <br />
-              large operating systems <br />
-              updates.
-            </span>
-          );
-        default:
-          return (
-            <span className={`${baseClass}__tooltip-text`}>
-              Enough disk space available <br />
-              to install most operating <br />
-              systems updates.
-            </span>
-          );
-      }
-    };
-
-    const diskSpaceIndicator = () => {
-      const diskSpaceAvailable = titleData.gigs_disk_space_available;
-      switch (true) {
-        case diskSpaceAvailable < 16:
-          return "red";
-        case diskSpaceAvailable < 32:
-          return "yellow";
-        default:
-          return "green";
-      }
-    };
     if (
       titleData &&
       (titleData.gigs_disk_space_available > 0 ||
@@ -174,13 +131,15 @@ const HostSummary = ({
       return (
         <span className="info-flex__data">
           <div
-            className="info-flex__disk-space-wrapper"
+            className="info-flex__disk-space-wrapper tooltip"
             data-tip
             data-for="disk-space-tooltip"
           >
             <div className="info-flex__disk-space">
               <div
-                className={`info-flex__disk-space-${diskSpaceIndicator()}`}
+                className={`info-flex__disk-space-${diskSpaceIndicator(
+                  titleData.gigs_disk_space_available
+                )}`}
                 style={{
                   width: `${100 - titleData.percent_disk_space_available}%`,
                 }}
@@ -194,7 +153,9 @@ const HostSummary = ({
             id="disk-space-tooltip"
             backgroundColor="#3e4771"
           >
-            {diskSpaceTooltip()}
+            <span className={`${baseClass}__tooltip-text`}>
+              {diskSpaceTooltip(titleData.gigs_disk_space_available)}
+            </span>
           </ReactTooltip>
           {titleData.gigs_disk_space_available} GB available
         </span>
