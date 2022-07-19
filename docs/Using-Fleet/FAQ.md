@@ -31,9 +31,9 @@
 - [How often is the software inventory updated?](#how-often-is-the-software-inventory-updated)
 - [Can I group results from multiple hosts?](#can-i-group-results-from-multiple-hosts)
 
-## What do I need to do to switch from Kolide Fleet to FleetDM Fleet?
+## Upgrading Fleet
 
-The upgrade from kolide/fleet to fleetdm/fleet works the same as any minor version upgrade has in the past.
+The upgrade from Kolide/fleet to fleetdm/fleet works the same as any minor version upgrade has in the past.
 
 Minor version upgrades in Kolide Fleet often included database migrations and the recommendation to back up the database before migrating. The same goes for the new Fleet.
 
