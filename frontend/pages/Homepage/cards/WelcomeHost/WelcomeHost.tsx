@@ -24,12 +24,18 @@ interface IHostResponse {
   host: IHost;
 }
 
+interface IWelcomeHostCardProps {
+  totalsHostsCount: number;
+}
+
 const baseClass = "welcome-host";
 const HOST_ID = 1;
 const policyPass = "pass";
 const policyFail = "fail";
 
-const WelcomeHost = (): JSX.Element => {
+const WelcomeHost = ({
+  totalsHostsCount,
+}: IWelcomeHostCardProps): JSX.Element => {
   const { renderFlash } = useContext(NotificationContext);
   const [refetchStartTime, setRefetchStartTime] = useState<number | null>(null);
   const [currentPolicyShown, setCurrentPolicyShown] = useState<IHostPolicy>();
@@ -51,6 +57,7 @@ const WelcomeHost = (): JSX.Element => {
     {
       select: (data: IHostResponse) => data.host,
       onSuccess: (returnedHost) => {
+        console.log("returnedHost", returnedHost);
         setShowRefetchLoadingSpinner(returnedHost.refetch_requested);
 
         const anyPassingOrFailingPolicy = returnedHost?.policies?.find(
@@ -136,7 +143,10 @@ const WelcomeHost = (): JSX.Element => {
     );
   }
 
-  if (loadingHostError) {
+  if (
+    loadingHostError ||
+    (totalsHostsCount === 1 && host && host.status === "offline")
+  ) {
     return (
       <div className={baseClass}>
         <div className={`${baseClass}__error`}>
@@ -194,7 +204,7 @@ const WelcomeHost = (): JSX.Element => {
     );
   }
 
-  if (host) {
+  if (totalsHostsCount === 1 && host && host.status === "online") {
     return (
       <div className={baseClass}>
         <div className={`${baseClass}__intro`}>
@@ -204,20 +214,17 @@ const WelcomeHost = (): JSX.Element => {
               {host.hostname}
               <img alt="" src={LinkArrow} />
             </Link>
-            <p>
-              Your device is successully connected to this local preview of
-              Fleet.
-            </p>
+            <p>Your host is successully connected to Fleet.</p>
           </div>
         </div>
         <div className={`${baseClass}__blurb`}>
           <p>
-            Fleet already ran the following checks to assess the security of
+            Fleet already ran the following policies to assess the security of
             your device:{" "}
           </p>
         </div>
         <div className={`${baseClass}__policies`}>
-          {host.policies?.slice(0, 10).map((p) => {
+          {host.policies?.slice(0, 3).map((p) => {
             if (p.response) {
               return (
                 <div className="policy-block">
@@ -240,17 +247,15 @@ const WelcomeHost = (): JSX.Element => {
 
             return null;
           })}
-          {host.policies?.length > 10 && (
+          {host.policies?.length > 3 && (
             <Link to={PATHS.HOST_DETAILS(host)} className="external-link">
-              Go to Host details to see all checks
+              Go to Host details to see all policies
               <img alt="" src={LinkArrow} />
             </Link>
           )}
         </div>
         <div className={`${baseClass}__blurb`}>
-          <p>
-            Resolved a failing check? Refetch your device information to verify.
-          </p>
+          <p>Resolved a failing policy? Refetch your host vitals to verify.</p>
         </div>
         <div className={`${baseClass}__refetch`}>
           <Button

@@ -37,6 +37,7 @@ const Homepage = (): JSX.Element => {
     isPremiumTier,
     isFreeTier,
     isPreviewMode,
+    isSandboxMode,
     isOnGlobalTeam,
     setCurrentTeam,
   } = useContext(AppContext);
@@ -88,6 +89,7 @@ const Homepage = (): JSX.Element => {
     {
       select: (data: IHostSummary) => data,
       onSuccess: (data: IHostSummary) => {
+        console.log("data", data);
         setLabels(data.builtin_labels);
         setOnlineCount(data.online_count);
         setOfflineCount(data.offline_count);
@@ -156,11 +158,19 @@ const Homepage = (): JSX.Element => {
 
   const WelcomeHostCard = useInfoCard({
     title: "Welcome to Fleet",
-    children: <WelcomeHost />,
+    showTitle: true,
+    children: (
+      <WelcomeHost
+        totalsHostsCount={
+          (hostSummaryData && hostSummaryData.totals_hosts_count) || 0
+        }
+      />
+    ),
   });
 
   const LearnFleetCard = useInfoCard({
     title: "Learn how to use Fleet",
+    showTitle: true,
     children: <LearnFleet />,
   });
 
@@ -252,7 +262,7 @@ const Homepage = (): JSX.Element => {
 
   const allLayout = () => (
     <div className={`${baseClass}__section`}>
-      {isPreviewMode && (
+      {hostSummaryData && hostSummaryData?.totals_hosts_count > 2 && (
         <>
           {WelcomeHostCard}
           {LearnFleetCard}
