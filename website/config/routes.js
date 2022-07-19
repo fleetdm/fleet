@@ -199,13 +199,6 @@ module.exports.routes = {
     },
   },
 
-  'GET /try-fleet/new-sandbox': {
-    action: 'try-fleet/view-new-sandbox',
-    locals: {
-      layout: 'layouts/layout-sandbox',
-    },
-  },
-
   'GET /try-fleet/forgot-password': {
     action: 'entrance/view-forgot-password',
     locals: {
@@ -320,5 +313,4 @@ module.exports.routes = {
   'POST /api/v1/customers/save-billing-info-and-subscribe': { action: 'customers/save-billing-info-and-subscribe' },
   'POST /api/v1/entrance/update-password-and-login':    { action: 'entrance/update-password-and-login' },
   'POST /api/v1/deliver-demo-signup':                   { action: 'deliver-demo-signup' },
-  'POST /api/v1/try-fleet/provision-fleet-sandbox-for-existing-user': { action: 'try-fleet/provision-fleet-sandbox-for-existing-user' },
 };
