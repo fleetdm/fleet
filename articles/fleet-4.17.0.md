@@ -58,7 +58,7 @@ In 4.17.0, we also:
 
 * Updated Fleet host detail query so that the `os_version` for Ubuntu hosts reflects the accurate patch number.
 
-* Improved accuracy of `software_host_counts` by removing hosts from the count if software has been uninstalled.
+* Improved accuracy of `software_host_counts` by removing hosts from the count if any software has been uninstalled.
 
 * Improved accuracy of the `last_restarted` date. 
 
@@ -66,11 +66,11 @@ In 4.17.0, we also:
 
 * Improved logging when fleetctl encounters permissions errors.
 
-* Added support for scanning RHEL based and Fedora hosts for vulnerable software using OVAL definitions.
+* Added support for scanning RHEL-based and Fedora hosts for vulnerable software using OVAL definitions.
 
 * Fixed SQL generated for operating system version policies to reduce false negatives
 
-* Added the number of hosts enrolled by operating system (OS) and OS version to anonymous usage statistics.
+* Added the number of hosts enrolled by Operating System (OS) and its version to anonymous usage statistics.
 
 * Added the weekly active users count to anonymous usage statistics.
 
