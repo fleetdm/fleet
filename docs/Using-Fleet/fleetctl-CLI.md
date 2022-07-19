@@ -253,7 +253,7 @@ spec:
 
 ## Using fleetctl with an API-only user
 
-When running automated workflows using the Fleet API, we recommend a regular user's API key rather than using the API key of a regular user. A regular user's API key expires frequently for security purposes, requiring routine updates. Meanwhile, an API-only user's key does not expire.
+When running automated workflows using the Fleet API, we recommend an API-only user's API key rather than the API key of a regular user. A regular user's API key expires frequently for security purposes, requiring routine updates. Meanwhile, an API-only user's key does not expire.
 An API-only user does not have access to the Fleet UI. Instead, it's only purpose is to interact with the API programmatically or from fleetctl.
 
 ### Create an API-only user
@@ -311,7 +311,7 @@ The [Log in API](https://fleetdm.com/docs/using-fleet/rest-api#log-in) will retu
 
 ### Switching users
 
-To use `fleetctl` with your regular user account but occasionally need to use your API user for specific cases, you can set up your `fleetctl` config with a new `context` to hold the credentials for your API-only user:
+To use `fleetctl` with your regular user account but occasionally use your API-only user for specific cases, you can set up your `fleetctl` config with a new `context` to hold the credentials of your API-only user:
 
 ```
 fleetctl config set --address https://dogfood.fleetdm.com --context api
