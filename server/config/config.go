@@ -404,6 +404,7 @@ func (man Manager) addConfigs() {
 		man.addConfigInt(prefix+".max_open_conns", 50, "MySQL maximum open connection handles"+usageSuffix)
 		man.addConfigInt(prefix+".max_idle_conns", 50, "MySQL maximum idle connection handles"+usageSuffix)
 		man.addConfigInt(prefix+".conn_max_lifetime", 0, "MySQL maximum amount of time a connection may be reused"+usageSuffix)
+		man.addConfigString(prefix+".sql_mode", "", "MySQL sql_mode"+usageSuffix)
 	}
 	// MySQL
 	addMysqlConfig("mysql", "localhost:3306", ".")

@@ -307,6 +307,20 @@ Maximum amount of time, in seconds, a connection may be reused.
   	conn_max_lifetime: 50
   ```
 
+##### mysql_sql_mode
+
+Sets the connection `sql_mode`. See [MySQL Reference](https://dev.mysql.com/doc/refman/5.7/en/sql-mode.html) for more details.
+This setting should not usually be used.
+
+- Default value: `""`
+- Environment variable: `FLEET_MYSQL_SQL_MODE`
+- Config file format:
+
+  ```
+  mysql:
+  	sql_mode: ANSI
+  ```
+
 ##### Example YAML
 
 ```yaml
