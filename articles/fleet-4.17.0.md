@@ -1,6 +1,6 @@
 # Fleet 4.17.0 | Better osquery management, user engagement, improved host vitals.
 
-![Fleet 4.17.0](../website/assets/images/articles/4.17.0-cover-1600x900@2x.jpg)
+![Fleet 4.17.0](../website/assets/images/articles/fleet-4.17.0-cover-1600x900@2x.jpg)
 
 Fleet 4.17.0 is up and running. Check out the full [changelog](https://github.com/fleetdm/fleet/releases/tag/fleet-v4.17.0) or continue reading to get the highlights.
 
@@ -19,7 +19,7 @@ Fleet's osquery installer (Orbit) is out of beta! Orbit is a lightweight wrapper
 
 Future plans for the installer include adding the ability to manage `osquery` extensions and enrollment flags across your organization without needing to reinstall anything or ssh in to individual machines. A simple, one-stop shop for remotely managing `osquery`.
 
-You can generate your installer using the [`fleetctl` CLI tool](https://fleetdm.com/docs/using-fleet/adding-hosts#osquery-installer). If you're enrolling your host to a Fleet server, he best place to find the full command with flags specific to your Fleet instance is **Hosts > Add hosts** in the Fleet UI. Once the installer has been generated, just extract the file and run it on the host!
+You can generate your installer using the [`fleetctl` CLI tool](https://fleetdm.com/docs/using-fleet/adding-hosts#osquery-installer). If you're enrolling your host to a Fleet server, the best place to find the full command with flags specific to your Fleet instance is **Hosts > Add hosts** in the Fleet UI. Once the installer has been generated, just extract the file and run it on the host!
 
 [Read more about bringing Orbit out of beta.](https://github.com/fleetdm/fleet/issues/5454)
 

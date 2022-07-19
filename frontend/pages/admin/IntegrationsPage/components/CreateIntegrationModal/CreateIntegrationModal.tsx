@@ -3,8 +3,6 @@ import React, { useState, useEffect } from "react";
 import Modal from "components/Modal";
 // @ts-ignore
 import Dropdown from "components/forms/fields/Dropdown";
-// @ts-ignore
-import FleetIcon from "components/icons/FleetIcon";
 import Spinner from "components/Spinner";
 import { IIntegration, IIntegrations } from "interfaces/integration";
 import IntegrationForm from "../IntegrationForm";

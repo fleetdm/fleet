@@ -28,7 +28,7 @@ Detail the minimum time needed for new or updated content to be live (published)
 |:------ |:-----------------|:-------------------------------|-----------|
 | Articles | **Queued** – see _(TODO: Publishing articles on fleetdm.com)_. | **Absorb** (pair or feedback as needed) – see [How to edit articles, release posts, and press releases](http://localhost:2024/handbook/brand#how-to-edit-articles-release-posts-and-press-releases). | three business days |
 | Ads | **Gated**. Request review from Digital Experience – see _(TODO: Creating an ad campaign)_. | **Feedback** or **pair** | five business days |
-| Docs | **Gated**. Request review from Noah Talerman – see _(TODO: Adding to the docs)_. | **Absorb** – see [How to edit recently merged Pull Requests for the handbook and docs](http://localhost:2024/handbook/brand#how-to-edit-recently-merged-pull-requests-for-the-handbook-and-docs). For non-grammar-related revisions: **Feedback** or **pair** with contributor, and request review from Noah Talerman. | two business days |
+| Docs | **Gated**. Request review from Desmi Dizney – see _(TODO: Adding to the docs)_. | **Absorb** – see [How to edit Markdown pull requests for the docs](http://localhost:2024/handbook/brand#how-to-edit-markdown-pull-requests-for-the-docs). For non-grammar-related revisions: **Feedback** or **pair** with contributor, and request review from the [on-call engineer](https://fleetdm.com/handbook/engineering#oncall-rotation). | two business days |
 | Docs (REST API) | **Gated**. Request review from Luke Heath – see _(TODO: Adding to the docs (REST API))_. | **Absorb** – see [How to edit recently merged Pull Requests for the handbook and docs](http://localhost:2024/handbook/brand#how-to-edit-recently-merged-pull-requests-for-the-handbook-and-docs). For non-grammar-related revisions: **Feedback** or **pair** with contributor, and request review from Luke Heath. | two business days |
 | Handbook | **Gated**. Request review from page DRI – see _(TODO: Adding to the handbook)_. | **Absorb** and request review from page DRI – see [How to edit recently merged Pull Requests for the handbook and docs](http://localhost:2024/handbook/brand#how-to-edit-recently-merged-pull-requests-for-the-handbook-and-docs). | two business days |
 | Social media (Twitter, FB, LinkedIn.) | **Instant** – see [Posting on social media as Fleet](https://fleetdm.com/handbook/growth#posting-on-social-media-as-fleet). | **Pair** or **absorb** (pair if possible otherwise, silently fix ASAP by editing or deleting the post. Consider that some or many people may have already seen the post, and decide accordingly – see [How to edit social media posts](http://localhost:2024/handbook/brand#how-to-edit-social-media-posts).) | one business day |
@@ -190,16 +190,14 @@ Our handbook and docs pages are written in Markdown and are editable from our we
 >
 > Check the “Files changed” section on the Open a pull request page to double-check your proposed changes.
 
-### How to edit recently merged Pull Requests for the handbook and docs
+### How to edit recently merged pull requests for the handbook
 
-We approach editing retrospectively for pull requests (PRs) to handbook and docs pages. Remember our goal above about moving quickly and reducing time to value for our contributors? By editing for typos and grammatical errors after-the-fact, we avoid the editor becoming a bottleneck who blocks PRs from being merged quickly. Here's how to do it:
+We approach editing retrospectively for pull requests (PRs) to handbook pages. Remember our goal above about moving quickly and reducing time to value for our contributors? We avoid the editor becoming a bottleneck for merging quickly by editing for typos and grammatical errors after-the-fact. Here's how to do it:
 
-> **Note:** Contributors are not required to request reviews from editors for handbook and docs changes.
+> **Note:** Contributors are not required to request reviews from editors for handbook changes.
 
 1. Check that the previous day's edits are formatted correctly on the website (more on this in the note below.)
-2. Use GitHub's history feed to see a list of all changes made over time to the handbook and docs. You can access the history feeds from the following links: 
-  - [Handbook history](https://github.com/fleetdm/fleet/commits/main/handbook) 
-  - [Docs history](https://github.com/fleetdm/fleet/commits/main/docs)
+2. Use the [Handbook history](https://github.com/fleetdm/fleet/commits/main/handbook) feed in GitHub to see a list of changes made to the handbook.
 3. From the list of recently merged PRs, look at the files changed for each and then:
   - Scan for typos and grammatical errors.
   - Check that the tone aligns with our [Communicating as Fleet](https://fleetdm.com/handbook/brand#communicating-as-fleet) guidelines and that Grammarly's tone detector is on-brand.
@@ -210,6 +208,12 @@ We approach editing retrospectively for pull requests (PRs) to handbook and docs
 6. Watch [this short video](https://www.loom.com/share/95d4525a7aae482b9f9a9470d446ce9c) to see this process in action.
 
 > **Note:** The Fleet website may render Markdown differently from GitHub's rich text preview. It's essential to check that PRs merged by the editor are displaying as expected on the site. It can take a few minutes for merged PRs to appear on the live site, and therefore easy to move on and forget. It's good to start the ritual by looking at the site to check that the previous day's edits are displaying as they should.
+
+### How to edit Markdown pull requests for the docs
+
+- When someone creates a pull request for a doc that affects Markdown files, they’ll need to request a review from the editor. 
+- If no edits are needed, the editor will merge the PR. 
+- If an edit changes the meaning, or if unsure, the editor should request a review from the [on-call engineer](https://fleetdm.com/handbook/engineering#oncall-rotation) and remove themselves as a reviewer.
 
 ### How to edit articles, release posts, and press releases
 
@@ -269,6 +273,70 @@ When deciding whether to describe Fleet as open source or open core, define who 
 - If talking to enterprise customers or media outlets, e.g., Hacker News, use **"open core."**
 
 > For simplicity and to avoid conflicts with other uses of the word "core" (such as "core product" or "core team"), Fleet is always described as simply **"open source"** in all writing and verbal communication. In specific situations, e.g., discussing the distinction between various kinds of open source, it can be appropriate to mention **"open core"** to clarify your meaning. If ever in doubt, go with "open source."
+
+## Commonly used terms
+
+| Term | Meaning | 
+|:------ |:-----------------|
+| **antivirus** | A class of programs designed to detect, block, and clear away malware from devices, networks, and IT systems. |
+| **API** | (Application Programming Interface) a software go-between that allows applications to communicate.  |
+| **automation** | A system that operates without needing intervention from a human to do so. |
+| **AWS** | (Amazon Web Services) An ever-evolving cloud computing platform designed to allow application providers, ISVs, and vendors to host applications. |
+| **CI/CD** | (Continuous Integration and Continuous Delivery/Continuous Deployment) A software development practice where cumulative code changes are made regularly and accurately. |
+| **CLI** | (Command Line Interface) A tool for managing Fleet from the command line. |
+| **Client Platform Engineer (CPE)** | See: CPE. |
+| **cloud** | Data storage, networking, servers, databases, software, intelligence, and analytics through the internet instead of a device's hard drive. |
+| **command line** | A horizontal row on an interface for text to allow you to type in a variety of commands. Also, see "CLI." |
+| **compliance** | The act of being in line with the established risk-based expectations to preserve the strength and confidentiality of data stored, used, and transmitted. |
+| **CPE** | (Client Platform Engineer) A person who constructs, evaluates, and deploys solutions to administrate a fleet of "clients" or end-users and does so in a scaleable manner. |
+| **CVE** | (Common Vulnerabilities and Exposures) A system that provides a technique for sharing information publicly. |
+| **data leaks** | When crucial and confidential data is unwittingly exposed physically, on the Internet, or any other way. This includes misplaced hard drives or devices. |
+| **device management** | The process of overseeing the execution, process, and upkeep of a device, be it physical or virtual. |
+| **DevOps** | Practices that incorporate both software development (Dev) and IT operations (Ops). |
+| **Docker** | An open source platform that allows one to manage containerized applications. |
+| **DRI** | The person who is singularly responsible for a given aspect of the open source project, the product, or the company. |
+| **EDR** | (Endpoint Detection and Response) Security software that continually audits end-user devices to identify and respond to threats such as malware and ransomware. Also, see EDTR. |
+| **EDTR** | (Endpoint Detection and Threat Response) Security software that continually audits end-user devices to identify and respond to threats such as malware and ransomware. Also, see EDR. |
+| **encryption** | The act of converting data into a cipher that requires a key to be deciphered. |
+| **end-users** | Someone using a distributed device or service. This could be a computer or a mobile device. |
+| **FileVault** | The macOS feature to encrypt entire drives. |
+| **Firewall** | A device or software that is used to block unwanted network traffic. |
+| **fleetctl** | A CLI tool for managing Fleet from the command line. It can be used to accomplish many tasks you would typically need to do through the UI (User Interface). Also, fleetctl enables a GitOps workflow with Fleet and osquery. |
+| **GitHub** | Cloud-based service for software development and version control using Git. |
+| **historical compliance** | The ability to view past behavior around established risk-based controls to safeguard the integrity, confidentiality, and access of data storage, processing, or transfers. |
+| **IETF** | (Internet Engineering Task Force) An organization that defines standardizing operations of internet protocols |
+| **Internet Engineering Task Force (IETF)** | See: IETF |
+| **IR** | (Incident Response) The actions one takes in response to a security breach or cyberattack. |
+| **Linux** | An open source operating system. |
+| **Logica** | An IT and management consultancy company based in the United Kingdom. |
+| **macOS** | The operating system used in all of Apple's Mac computers. |
+| **Munki** | Open-source software deployment tool for macOS. |
+| **open core** | Is the business model where a company has a core version of a product with some of the features as (FOSS) Free Open Source Software in addition to a paid commercial version that is proprietary software. |
+| **open source** | Software with intentionally public code for the sake of transparency. |
+| **OS** | (Operating System) Software that provides the groundwork and instructions for a device's basic functions, including application use and controlling peripherals. |
+| **osquery**  | A tool that assembles low-level operating system analytics and monitoring. |
+| **out-of-policy device** | A device that is fails any security or vulnerability policy created in Fleet. |
+| **permissions** | Users have different abilities depending on the access level they have. |
+| **platform** | Any software or hardware for hosting an application, data, or service. |
+| **policies** | Yes or no questions you can ask using Fleet about your host devices. |
+| **policy compliance** | The state of whether a device is passing or failing policies created in Fleet. |
+| **queries** | Questions you can ask an end-user device's operating system via Fleet. |
+| **SAML** | (Security Assertion Markup Language) A standard that allows identity providers (IdP) to authorize credentials for service providers; enabling SSO (Single Sign-On). |
+| **security audits** | An assessment of an organization's security posture. |
+| **security engineer** | Individual for managing and implementing security systems in an organization. |
+| **SIEM** | (Security Information and Event Management) Technology that assembles data, security warnings, and events into one platform and provides almost real-time analyzed data to help you better monitor your organization's security. |
+| **Site Reliability Engineers (SREs)** | Individuals who apply site reliability principles to improve reliability and scalability of systems in a systematic manner. |
+| **SQL** | (Structured Query Language) A language used to manage databases and complete a variety of operations tasks within said databases. |
+| **SRE** | See "Site Reliabilty Engineers." |
+| **SSO authentication** | (Single Sign-On authentication) Allows identity providers (IdP) to authorize credentials for service providers once and use that as the authentication for multiple outside accounts. |
+| **TLS** | (Transport Layer Security) An Internet Engineering Task Force (IETF) standardized protocol that authenticates and provides privacy and data protection over computer networks. |
+| **token** | A physical Two-Factor Authentication (2FA) login security device to prove one's identity. |
+| **Transport Layer Security (TLS)** | See: TLS |
+| **UI** | (User Interface) An interactive space in a program that concentrates on style and intuitive use. |
+| **URL** | Uniform resource locator. Specifies where a web resource is located (ex: https://fleetdm.com/articles/) |
+| **vulnerabilities** | An exploitable weakness that can lead to unauthorized access or other negative consequences to a computer system. |
+| **Windows** | Microsoft's graphical operating system. |
+| **YAML** | A data serialized language that has features derived from Perl, C, HTML, and other languages and is often used to write configuration files. |
 
 ## Brand resources
 
@@ -380,7 +448,7 @@ The following table lists the Brand group's rituals, frequency, and Directly Res
 
 | Ritual                       | Frequency                | Description                                         | DRI               |
 |:-----------------------------|:-----------------------------|:----------------------------------------------------|-------------------|
-| Documentation quality | Daily | Review pull requests to the docs for spelling, punctuation, and grammar. | Desmi Dizney |
+| Documentation quality | On request | Review pull requests to the docs for spelling, punctuation, and grammar. | Desmi Dizney |
 | Handbook quality | Daily | Review pull requests to the handbook for spelling, punctuation, and grammar. | Desmi Dizney |
 | Tweet review | Daily | Review tweets for tone and brand consistency. | Mike Thomas |
 | Article review | Weekly | Review articles for tone and brand consistency. | Mike Thomas |

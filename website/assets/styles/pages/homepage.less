@@ -1,14 +1,20 @@
 #homepage {
 
+  h1 {
+    font-size: 42px;
+    line-height: 48px;
+  }
+
   h3 {
-    font-weight: @bold;
+    font-size: 24px;
     line-height: 40px;
+    font-weight: @bold;
   }
 
   h6 {
     font-family: Nunito Sans;
-    font-size: 24px;
-    line-height: 36px;
+    font-size: 20px;
+    line-height: 32px;
   }
 
   .btn {
@@ -88,6 +94,20 @@
       border-radius: 16px;
     }
   }
+  [purpose='features'] {
+    padding-bottom: 120px;
+    p {
+      margin-bottom: 0px;
+    }
+    [purpose='features-text-left'] {
+      max-width: 500px;
+      padding-right: 80px;
+    }
+    [purpose='features-text-right'] {
+      max-width: 500px;
+      padding-left: 80px;
+    }
+  }
 
   [purpose='report-banner-container'] {
     background: linear-gradient(#FFF 50%, #F4F6FA 50%);
@@ -152,12 +172,24 @@
         flex: 1 1 295px;
       }
     }
+    [purpose='features'] {
+      padding-bottom: 80px;
+      [purpose='features-text-left'] {
+        padding-right: 0px;
+        padding-bottom: 40px;
+      }
+      [purpose='features-text-right'] {
+        padding-left: 0px;
+        padding-bottom: 40px;
+
+      }
+    }
+
     [purpose='report-banner-cta'] {
       padding: 27px 43px 34px 43px;
       img {
         margin-right: 0px;
       }
-
     }
     [purpose='report-banner-container'] {
       padding-right: 20px;
@@ -185,10 +217,11 @@
       }
     }
     [purpose='hero-clouds'] {
-      background: linear-gradient(0deg, rgba(255, 255, 255, 1) 0%, rgba(255, 255, 255, 1) 23%, rgba(255, 255, 255, 0) 48%, rgba(255, 255, 255, 0) 100%);
+      background: linear-gradient(0deg, rgba(255, 255, 255, 1) 0%, rgba(255, 255, 255, 1) 23%, rgba(255, 255, 255, 0) 40%, rgba(255, 255, 255, 0) 100%);
     }
     [purpose='hero-banner'] {
       padding-top: 222px;
+      background-size: 100% 125%;
     }
     [purpose='report-banner-container'] {
       padding-right: 15px;
@@ -222,8 +255,12 @@
 
   @media (max-width: 575px) {
     h1 {
-      font-size: 28px;
-      line-height: 36px;
+      font-size: 26px;
+      line-height: 34px;
+    }
+    h3 {
+      font-size: 20px;
+      line-height: 32px;
     }
     h6 {
       font-size: 18px;

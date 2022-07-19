@@ -92,8 +92,12 @@ Community team members can reach the engineering oncall for assistance by writin
 
 ## Fleet docs
 
+### How to request a review for Markdown changes to the docs
+
+When creating a pull request for Markdown changes in the docs, request a review from Desmi Dizney, who will do an editor pass, and then hand over the review to the [on-call engineer](https://fleetdm.com/handbook/engineering#oncall-rotation) if necessary.
+
 ### Markdown
-Fleet's documentation and handbook are written in [Markdown](https://about.gitlab.com/handbook/markdown-guide/). Using Markdown lets us keep our documentation consistently formatted and viewable directly from the Fleet GitHub repo. The Markdown files in the `/docs` and `/handbook` folders are converted to HTML for the Fleet website.
+Fleet's documentation and handbook are written in [Markdown](https://about.gitlab.com/handbook/markdown-guide/). Using Markdown lets us keep our documentation consistently formatted and viewable directly from the Fleet GitHub repo. The Markdown files in the `/docs` and `/handbook` folders are converted to HTML for the Fleet website. 
 
 When making changes to the Fleet docs or handbook, there are a few differences in how the Markdown will render on GitHub and the Fleet website.
 
@@ -355,6 +359,8 @@ For PRs that will not be merged:
 When someone asks a question in a public channel, it's pretty safe to assume that they aren't the only person looking for an answer to the same question. To make our docs as helpful as possible, the Community team gathers these questions and uses them to make a weekly documentation update. 
 
 Our goal is to answer every question with a link to the docs and/or result in a documentation update.
+
+> **Remember**, when submitting any pull request that changes Markdown files in the docs, request an editor review from Desmi Dizney.
 
 ### Tracking
 

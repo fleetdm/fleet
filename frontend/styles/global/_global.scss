@@ -18,6 +18,19 @@ body {
 html,
 body {
   height: 100%;
+
+  .__react_component_tooltip.show {
+    opacity: 1; // Overrides 0.9 default opacity
+    text-align: center;
+  }
+
+  .button--disabled,
+  .fleet-checkbox__tick--disabled,
+  .tooltip {
+    &:hover {
+      cursor: help;
+    }
+  }
 }
 
 .wrapper,
