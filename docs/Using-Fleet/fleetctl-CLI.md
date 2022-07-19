@@ -311,7 +311,7 @@ The [Log in API](https://fleetdm.com/docs/using-fleet/rest-api#log-in) will retu
 
 ### Switching users
 
-If you would still like to use `fleetctl` with your regular user account, but occassionally need to use your API user for specific cases, you can set up your `fleetctl` config with a new `context` to hold the credentials for your API-only user:
+To use `fleetctl` with your regular user account but occasionally need to use your API user for specific cases, you can set up your `fleetctl` config with a new `context` to hold the credentials for your API-only user:
 
 ```
 fleetctl config set --address https://dogfood.fleetdm.com --context api
