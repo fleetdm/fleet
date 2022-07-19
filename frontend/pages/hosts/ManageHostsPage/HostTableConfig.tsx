@@ -201,9 +201,6 @@ const allHostTableHeaders: IDataColumn[] = [
     Cell: (cellProps: INumberCellProps): JSX.Element => {
       const { id, percent_disk_space_available } = cellProps.row.original;
 
-      if (cellProps.cell.value === 0) {
-        return <>No data available</>;
-      }
       return renderDiskSpaceGraph(
         "gigs_disk_space_available__cell",
         cellProps.cell.value,

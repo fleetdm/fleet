@@ -29,6 +29,11 @@ const renderDiskSpaceGraph = (
         return "Enough disk space available to install most operating systems updates.";
     }
   };
+
+  if (gigsDiskSpaceAvailable === 0) {
+    return <span className={`${baseClass}__data`}>No data available</span>;
+  }
+
   return (
     <span className={`${baseClass}__data`}>
       <div

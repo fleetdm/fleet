@@ -122,19 +122,12 @@ const HostSummary = ({
   );
 
   const renderDiskSpace = () => {
-    if (
-      titleData &&
-      (titleData.gigs_disk_space_available > 0 ||
-        titleData.percent_disk_space_available > 0)
-    ) {
-      return renderDiskSpaceGraph(
-        "info-flex",
-        titleData.gigs_disk_space_available,
-        titleData.percent_disk_space_available,
-        "disk-space-tooltip"
-      );
-    }
-    return <span className="info-flex__data">No data available</span>;
+    return renderDiskSpaceGraph(
+      "info-flex",
+      titleData.gigs_disk_space_available,
+      titleData.percent_disk_space_available,
+      "disk-space-tooltip"
+    );
   };
 
   const renderSummary = () => {
