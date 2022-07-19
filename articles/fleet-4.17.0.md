@@ -54,7 +54,7 @@ In 4.17.0, we also:
 
 * Fixed osquery tables that report incorrect platforms.
 
-* Added `docker_container_envs` table to the osquery table schema on the **Query* page.**
+* Added `docker_container_envs` table to the osquery table schema on the **Query** page.
 
 * Updated Fleet host detail query so that the `os_version` for Ubuntu hosts reflects the accurate patch number.
 
