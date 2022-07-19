@@ -1,4 +1,4 @@
-# Fleet Desktop Says “Hello, World!”
+# Fleet Desktop says “Hello, World!”
 
 ![Fleet Desktop v1 preview](../website/assets/images/articles/fleet-desktop-says-hello-world-cover.png)
 
@@ -8,7 +8,7 @@ We are thrilled to announce that Fleet Desktop is out of Beta! Over the past few
 
 Fleet Desktop is a menubar icon available on macOS, Windows, and Linux. At its core, Fleet Desktop gives your end users visibility into the security posture of their machine. This unlocks two key benefits:
 
-__Self Remediation.__ When a host is found to be out of compliance with one or more policies configured in Fleet, Fleet Desktop will display the red error icon and list the number of failing policies, as seen in the screenshot above.
+__Self remediation.__ When a host is found to be out of compliance with one or more policies configured in Fleet, Fleet Desktop will display the red error icon and list the number of failing policies, as seen in the screenshot above.
 
 When users click on “My device,” they will be shown which policies are failing and steps for resolving the policy failures.
 
@@ -16,7 +16,7 @@ When users click on “My device,” they will be shown which policies are faili
 
 By exposing this information, your end users are informed and empowered to self-remediate security issues without requiring time and attention from your IT or security team.
 
-__Scope Transparency.__ A frequent question from end users is a half-joking half-concerned, “so you can see everything I do, right?” With our scope transparency feature, we clear up that ambiguity and tension between end users and IT teams.
+__Scope transparency.__ A frequent question from end users is a half-joking half-concerned, “so you can see everything I do, right?” With our scope transparency feature, we clear up that ambiguity and tension between end users and IT teams.
 
 When a Fleet Desktop user clicks “Transparency,” they will be taken to [https://fleetdm.com/transparency](https://fleetdm.com/transparency). 
 This page explains what Fleet and osquery can and cannot see on their computers. We also link to an article on dos and don’ts for a work computer. 
@@ -27,6 +27,6 @@ To install Fleet Desktop on your end users machines, you will need to generate a
 
 Once installed, Fleet Desktop’s versioning is thereafter managed by our agent manager, Orbit.
 
-## Wrapping Up
+## Wrapping up
 Over the past few months, we’ve been dogfooding Fleet Desktop internally. We think your end users will appreciate the information about the security posture of their device and feel empowered 
 to self-remediate any outstanding security issues. Your IT and security team will appreciate the results.
