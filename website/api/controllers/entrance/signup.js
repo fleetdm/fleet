@@ -138,12 +138,18 @@ the account verification message.)`,
       let fleetSandboxExpiresAt = Date.now() + (24*60*60*1000);
 
       // Send a POST request to the cloud provisioner API
-      let cloudProvisionerResponse = await sails.helpers.http.post('https://sandbox.fleetdm.com/new', {
-        'name': firstName + ' ' + lastName,
-        'email': emailAddress,
-        'password': newUserRecord.password, //« Sending the hashed password to the Fleet Sandbox instance
-        'sandbox_expiration': new Date(fleetSandboxExpiresAt).toISOString(), // sending expiration_timestamp as an ISO string.
-      })
+      let cloudProvisionerResponse = await sails.helpers.http.post(
+        'https://sandbox.fleetdm.com/new',
+        {
+          'name': firstName + ' ' + lastName,
+          'email': emailAddress,
+          'password': newUserRecord.password, //« Sending the hashed password to the Fleet Sandbox instance
+          'sandbox_expiration': new Date(fleetSandboxExpiresAt).toISOString(), // sending expiration_timestamp as an ISO string.
+        },
+        {
+          'Authorization: '+sails.config.custom.cloudProvisionerAPISecret,
+        }
+      )
       .timeout(5000)
       .intercept('non200Response', 'couldNotProvisionSandbox');
 
@@ -162,7 +168,7 @@ the account verification message.)`,
           if(serverResponse && serverResponse.statusCode) {
             return serverResponse.statusCode === 200;
           }
-        });
+        }, 10000);
       } else {
         throw 'couldNotProvisionSandbox';
       }
