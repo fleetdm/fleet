@@ -1,3 +1,11 @@
+FROM rust:latest AS builder
+
+ARG transporter_url=https://itunesconnect.apple.com/WebObjects/iTunesConnect.woa/ra/resources/download/public/Transporter__Linux/bin
+
+RUN cargo install apple-codesign \
+  && curl -sSf $transporter_url -o transporter_install.sh \
+  && sh transporter_install.sh --target transporter --accept --noexec
+
 FROM debian:stable-slim
 
 RUN apt-get update \
@@ -9,6 +17,8 @@ RUN apt-get update \
 # copy macOS dependencies
 COPY --from=fleetdm/bomutils:latest /usr/bin/mkbom /usr/local/bin/xar /usr/bin/
 COPY --from=fleetdm/bomutils:latest /usr/local/lib /usr/local/lib/
+COPY --from=builder /transporter/itms /usr/local/
+COPY --from=builder /usr/local/cargo/bin/rcodesign /usr/local/bin
 
 # copy Windows dependencies
 COPY --from=fleetdm/wix:latest /home/wine /home/wine

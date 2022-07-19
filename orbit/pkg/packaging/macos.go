@@ -2,6 +2,7 @@ package packaging
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"io/ioutil"
 	"os"
@@ -116,6 +117,8 @@ func BuildPkg(opt Options) (string, error) {
 	}
 
 	generatedPath := filepath.Join(tmpDir, "orbit.pkg")
+	isDarwin := runtime.GOOS == "darwin"
+	isLinuxNative := runtime.GOOS == "linux" && opt.NativeTooling
 
 	if len(opt.SignIdentity) != 0 {
 		log.Info().Str("identity", opt.SignIdentity).Msg("productsign package")
@@ -124,9 +127,25 @@ func BuildPkg(opt Options) (string, error) {
 		}
 	}
 
+	cert, certOK := os.LookupEnv("MACOS_DEVID_CERTIFICATE")
+	if isLinuxNative && certOK {
+		if err := RSign(generatedPath, cert); err != nil {
+			return "", fmt.Errorf("rcodesign: %w", err)
+		}
+	}
+
 	if opt.Notarize {
-		if err := NotarizeStaple(generatedPath, "com.fleetdm.orbit"); err != nil {
-			return "", err
+		switch {
+		case isDarwin:
+			if err := NotarizeStaple(generatedPath, "com.fleetdm.orbit"); err != nil {
+				return "", err
+			}
+		case isLinuxNative:
+			if err := RNotarizeStaple(generatedPath); err != nil {
+				return "", err
+			}
+		default:
+			return "", errors.New("notarization is not supported in this platform")
 		}
 	}
 
