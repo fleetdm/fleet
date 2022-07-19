@@ -212,7 +212,6 @@ module.exports.routes = {
       layout: 'layouts/layout-customer',
       pageTitleForMeta: 'Forgot password | Fleet for osquery',
       pageDescriptionForMeta: 'Recover the password for your Fleet account.',
-      redirectToSandbox: true,
     }
   },
 
@@ -222,7 +221,6 @@ module.exports.routes = {
       layout: 'layouts/layout-customer',
       pageTitleForMeta: 'New password | Fleet for osquery',
       pageDescriptionForMeta: 'Change the password for your Fleet account.',
-      redirectToSandbox: true,
     }
   },
 
