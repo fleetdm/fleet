@@ -147,7 +147,7 @@ the account verification message.)`,
           'sandbox_expiration': new Date(fleetSandboxExpiresAt).toISOString(), // sending expiration_timestamp as an ISO string.
         },
         {
-          'Authorization: '+sails.config.custom.cloudProvisionerAPISecret,
+          'Authorization: '+sails.config.custom.cloudProvisionerSecret,
         }
       )
       .timeout(5000)
