@@ -14,8 +14,6 @@ import LinkCell from "components/TableContainer/DataTable/LinkCell/LinkCell";
 import StatusCell from "components/TableContainer/DataTable/StatusCell/StatusCell";
 import TextCell from "components/TableContainer/DataTable/TextCell/TextCell";
 import {
-  diskSpaceIndicator,
-  diskSpaceTooltip,
   humanHostMemory,
   humanHostUptime,
   humanHostLastSeen,
