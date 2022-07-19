@@ -80,10 +80,19 @@ func addUniqConstraint(tx *sql.Tx) error {
 
 func acquireLock(tx *sql.Tx, identifier string) (bool, error) {
 	logger.Info.Println("Trying to acquire lock...")
+	name := "vulnerabilities"
+
+	_, err := tx.Exec(
+		`DELETE FROM locks WHERE expires_at < CURRENT_TIMESTAMP and name = ?`,
+		name,
+	)
+	if err != nil {
+		return false, errors.Wrapf(err, "trying to acquire lock")
+	}
 
 	r, err := tx.Exec(
 		`INSERT IGNORE INTO locks (name, owner, expires_at) VALUES (?, ?, ?)`,
-		"vulnerabilities", identifier, time.Now().Add(30*time.Minute),
+		name, identifier, time.Now().Add(30*time.Minute),
 	)
 	if err != nil {
 		return false, errors.Wrapf(err, "trying to acquire lock")
