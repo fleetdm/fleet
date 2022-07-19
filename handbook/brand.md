@@ -395,7 +395,7 @@ When conducting an incident post-mortem, answer the following three questions:
 
 # Article formatting guidelines
 
-To publish an article, you will need to create a Pull Request for fleetdm.com with a file of your article, formatted in <ins><strong>Markdown</strong></ins>.
+To publish an article, you will need to create a Pull Request for fleetdm.com with a file of your article, formatted in [Markdown](TODO).
 
 ### On this page
 - [Layout](#heading=h.7116hdoxal2s)
