@@ -275,7 +275,7 @@ fleetctl user create --name "API User" --email api@example.com --password temp!p
 
 ### Use fleetctl as an API-only user
 
-To use fleetctl with an API-only user, you will need to log in with `fleetctl login`. Once done, you'll now be able to perform tasks using `fleetctl` as your new API-only user.
+To use fleetctl with an API-only user, you will need to log in with `fleetctl login`. Once done, you'll be able to perform tasks using `fleetctl` as your new API-only user.
 
 > If you are using a version of Fleet older than `4.13.0`, you will need to [reset the API-only user's password](https://github.com/fleetdm/fleet/blob/a1eba3d5b945cb3339004dd1181526c137dc901c/docs/Using-Fleet/fleetctl-CLI.md#reset-the-password) before running queries.
 
@@ -319,7 +319,7 @@ fleetctl config set --address https://dogfood.fleetdm.com --context api
 [+] Set the address config key to "https://dogfood.fleetdm.com" in the "api" context
 ```
 
-Thereafter, you can use  the `--context api` flag whenever you need to use the API-only user's identity, rather than logging in and out to switch accounts:
+From there on, you can use  the `--context api` flag whenever you need to use the API-only user's identity, rather than logging in and out to switch accounts:
 
 ```
 fleetctl login --context admin
