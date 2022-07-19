@@ -66,7 +66,6 @@ module.exports = {
 
     organization: {
       type: 'string',
-      required: false,
       description: 'The organization the user works for.',
       maxLength: 120,
       example: 'The Sails Company',
