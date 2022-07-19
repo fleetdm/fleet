@@ -5,14 +5,14 @@ import ExternalURLIcon from "../../../assets/images/icon-external-url-12x12@2x.p
 
 interface ISandboxErrorMessageProps {
   message: string;
-  demoLinkSrc: string;
+  utmSource: string;
 }
 
 const baseClass = "sandbox-error-message";
 
 const SandboxErrorMessage = ({
   message,
-  demoLinkSrc,
+  utmSource,
 }: ISandboxErrorMessageProps) => {
   return (
     <div className={baseClass}>
@@ -20,7 +20,7 @@ const SandboxErrorMessage = ({
       <p className={`${baseClass}__link-message`}>
         Want to learn more?
         <a
-          href={`https://calendly.com/fleetdm/demo?utm_source=${demoLinkSrc}`}
+          href={`https://calendly.com/fleetdm/demo?utm_source=${utmSource}`}
           target="_blank"
           rel="noreferrer"
         >
@@ -37,8 +37,10 @@ const SandboxErrorMessage = ({
 };
 
 interface ISandboxGateProps {
+  /** message to display in the sandbox error */
   message: string;
-  demoLinkSrc: string;
+  /** UTM (Urchin Tracking Module) source text that is added to the demo link */
+  utmSource: string;
   children: ReactNode;
 }
 
@@ -48,7 +50,7 @@ interface ISandboxGateProps {
  */
 const SandboxGate = ({
   message,
-  demoLinkSrc,
+  utmSource,
   children,
 }: ISandboxGateProps): JSX.Element => {
   const { isSandboxMode } = useContext(AppContext);
@@ -56,7 +58,7 @@ const SandboxGate = ({
   return (
     <>
       {isSandboxMode ? (
-        <SandboxErrorMessage message={message} demoLinkSrc={demoLinkSrc} />
+        <SandboxErrorMessage message={message} utmSource={utmSource} />
       ) : (
         <>{children}</>
       )}

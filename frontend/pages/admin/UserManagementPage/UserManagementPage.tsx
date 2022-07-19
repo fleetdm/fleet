@@ -18,7 +18,7 @@ const UserManagementPage = ({ router }: IUserManagementProps): JSX.Element => {
       </p>
       <SandboxGate
         message="User management is only available in self-managed Fleet"
-        demoLinkSrc="fleet-ui-users-page"
+        utmSource="fleet-ui-users-page"
       >
         <UsersTable router={router} />
       </SandboxGate>

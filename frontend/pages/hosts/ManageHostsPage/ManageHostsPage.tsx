@@ -137,6 +137,7 @@ const ManageHostsPage = ({
     isOnlyObserver,
     isPremiumTier,
     isFreeTier,
+    isSandboxMode,
     setCurrentTeam,
   } = useContext(AppContext);
   const { renderFlash } = useContext(NotificationContext);
@@ -1598,15 +1599,18 @@ const ManageHostsPage = ({
           <div className="header-wrap">
             {renderHeader()}
             <div className={`${baseClass} button-wrap`}>
-              {canEnrollHosts && !hasHostErrors && !hasHostCountErrors && (
-                <Button
-                  onClick={() => setShowEnrollSecretModal(true)}
-                  className={`${baseClass}__enroll-hosts button`}
-                  variant="inverse"
-                >
-                  <span>Manage enroll secret</span>
-                </Button>
-              )}
+              {!isSandboxMode &&
+                canEnrollHosts &&
+                !hasHostErrors &&
+                !hasHostCountErrors && (
+                  <Button
+                    onClick={() => setShowEnrollSecretModal(true)}
+                    className={`${baseClass}__enroll-hosts button`}
+                    variant="inverse"
+                  >
+                    <span>Manage enroll secret</span>
+                  </Button>
+                )}
               {canEnrollHosts &&
                 !hasHostErrors &&
                 !hasHostCountErrors &&

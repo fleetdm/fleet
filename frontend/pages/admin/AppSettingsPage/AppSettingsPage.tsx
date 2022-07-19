@@ -20,7 +20,7 @@ const AppSettingsPage = ({ params }: IAppSettingsPageProps): JSX.Element => {
       </p>
       <SandboxGate
         message="Organization settings are only available in self-managed Fleet"
-        demoLinkSrc="fleet-ui-organization-settings-page"
+        utmSource="fleet-ui-organization-settings-page"
       >
         <OrgSettingsForm section={section} />
       </SandboxGate>

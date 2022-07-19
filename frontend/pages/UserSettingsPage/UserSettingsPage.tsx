@@ -313,7 +313,7 @@ const UserSettingsPage = ({
     <div className={wrapperStyles}>
       <SandboxGate
         message="Account management is only available in self-managed Fleet"
-        demoLinkSrc="fleet-ui-my-account-page"
+        utmSource="fleet-ui-my-account-page"
       >
         <div className={`${baseClass}__manage body-wrap`}>
           <h1>My account</h1>
