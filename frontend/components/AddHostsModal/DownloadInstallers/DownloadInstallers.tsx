@@ -90,8 +90,7 @@ const DownloadInstallers = ({
       });
       FileSaver.saveAs(file);
       setIsDownloadSuccess(true);
-    } catch (err) {
-      console.log(err);
+    } catch {
       setIsDownloadError(true);
     } finally {
       setIsDownloading(false);
@@ -101,11 +100,13 @@ const DownloadInstallers = ({
   const onClickSelector = (type: IInstallerType) => {
     if (isDownloading) {
       // do nothing
-    } else if (type === selectedInstaller) {
-      setSelectedInstaller(undefined);
-    } else {
-      setSelectedInstaller(type);
+      return;
     }
+    if (type === selectedInstaller) {
+      setSelectedInstaller(undefined);
+      return;
+    }
+    setSelectedInstaller(type);
   };
 
   if (isDownloadError) {
@@ -156,7 +157,7 @@ const DownloadInstallers = ({
       </div>
       <Checkbox
         name="include-fleet-desktop"
-        onChange={() => setIncludeDesktop(!includeDesktop)}
+        onChange={(value: boolean) => setIncludeDesktop(value)}
         value={includeDesktop}
       >
         <>

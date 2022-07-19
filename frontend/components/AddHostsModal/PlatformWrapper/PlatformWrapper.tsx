@@ -400,7 +400,7 @@ const PlatformWrapper = ({
       <>
         <Checkbox
           name="include-fleet-desktop"
-          onChange={() => setIncludeFleetDesktop(!includeFleetDesktop)}
+          onChange={(value: boolean) => setIncludeFleetDesktop(value)}
           value={includeFleetDesktop}
         >
           <>
