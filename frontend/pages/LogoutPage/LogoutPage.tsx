@@ -1,6 +1,7 @@
 import { useContext, useEffect } from "react";
 import { InjectedRouter } from "react-router";
 
+import { AppContext } from "context/app";
 import { NotificationContext } from "context/notification";
 import sessionsAPI from "services/entities/sessions";
 import { clearToken } from "utilities/local";
@@ -10,6 +11,7 @@ interface ILogoutPageProps {
 }
 
 const LogoutPage = ({ router }: ILogoutPageProps) => {
+  const { isSandboxMode } = useContext(AppContext);
   const { renderFlash } = useContext(NotificationContext);
 
   useEffect(() => {
@@ -18,7 +20,9 @@ const LogoutPage = ({ router }: ILogoutPageProps) => {
         await sessionsAPI.destroy();
         clearToken();
         setTimeout(() => {
-          window.location.href = "/";
+          window.location.href = isSandboxMode
+            ? "https://www.fleetdm.com"
+            : "/";
         }, 500);
       } catch (response) {
         console.error(response);
