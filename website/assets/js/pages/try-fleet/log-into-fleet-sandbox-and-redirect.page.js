@@ -22,8 +22,6 @@ parasails.registerPage('log-into-fleet-sandbox-and-redirect', {
   //  ║║║║ ║ ║╣ ╠╦╝╠═╣║   ║ ║║ ║║║║╚═╗
   //  ╩╝╚╝ ╩ ╚═╝╩╚═╩ ╩╚═╝ ╩ ╩╚═╝╝╚╝╚═╝
   methods: {
-
-    // For a logged in user who does not have a Fleet sandbox instance
-
+    //…
   }
 });

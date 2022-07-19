@@ -140,13 +140,13 @@ the account verification message.)`,
       // Send a POST request to the cloud provisioner API
       let cloudProvisionerResponse = await sails.helpers.http.post(
         'https://sandbox.fleetdm.com/new',
-        {
+        { // Request body
           'name': firstName + ' ' + lastName,
           'email': emailAddress,
           'password': newUserRecord.password, //« Sending the hashed password to the Fleet Sandbox instance
           'sandbox_expiration': new Date(fleetSandboxExpiresAt).toISOString(), // sending expiration_timestamp as an ISO string.
         },
-        {
+        { // Request headers
           'Authorization':sails.config.custom.cloudProvisionerSecret
         }
       )
