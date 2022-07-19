@@ -10,13 +10,15 @@ module.exports = {
   exits: {
 
     success: {
-      viewTemplatePath: 'pages/try-fleet/sandbox'
+      viewTemplatePath: 'pages/try-fleet/log-into-fleet-sandbox-and-redirect',
+      description: 'This user is being logged into their Fleet Sandbox instance.'
     },
 
     redirect: {
-      description: 'This user does not have a Fleet Sandbox instance.',
+      description: 'This user does not have a Fleet Sandbox instance, or their instance has expired.',
       responseType: 'redirect'
     }
+
 
   },
 
@@ -39,7 +41,7 @@ module.exports = {
         throw {redirect: '/try-fleet/sandbox-expired' };
       }
       // Get the userRecord so we can send their hashed password to the sandbox instance
-      let userRecord = await User.findOne({id: this.req.me.id});
+      let sandboxUser = await User.findOne({id: this.req.me.id});
 
       let sandboxURL = this.req.me.fleetSandboxURL;
 
@@ -55,7 +57,7 @@ module.exports = {
       });
       // Respond with view.
       return {
-        sandboxUser: userRecord,
+        sandboxUser,
       };
     }
 
