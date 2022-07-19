@@ -7,7 +7,7 @@ import { IInvite } from "interfaces/invite";
 import { IUser } from "interfaces/user";
 import { IDropdownOption } from "interfaces/dropdownOption";
 import { generateRole, generateTeam, greyCell } from "utilities/helpers";
-import DropdownCell from "../../../components/TableContainer/DataTable/DropdownCell";
+import DropdownCell from "../../../../../components/TableContainer/DataTable/DropdownCell";
 
 interface IHeaderProps {
   column: {
