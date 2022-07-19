@@ -178,7 +178,7 @@ apiVersion: v1
 kind: team
 spec:
   team:
-    name: Client Platform Engineerin
+    name: Client Platform Engineering
     agent_options:
       config:
         decorators:
