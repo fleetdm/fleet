@@ -15,51 +15,35 @@ module.exports = {
     },
 
     redirect: {
-      description: 'This user does not have a Fleet Sandbox instance, or their instance has expired.',
+      description: 'This user\'s Fleet Sandbox instance is expired.',
       responseType: 'redirect'
-    }
-
+    },
 
   },
 
 
   fn: async function () {
 
-    // If the user is not logged in, redirect them to the Fleet sandbox registration page.
-    if (!this.req.me) {
-      throw {redirect: '/try-fleet/register'};
-    }
-
-
-    // Check if the user has a fleetSandboxURL
     if(!this.req.me.fleetSandboxURL) {
-      // If the user doesn't have a fleetSandboxURL they will be taken to the sandbox page.
-      throw {redirect: '/try-fleet/new-sandbox'};
-    } else {
-      // If this user's Fleet Sandbox instance is expired, we'll show the sandbox page with sandboxExpired: true
-      if(this.req.me.fleetSandboxExpiresAt < Date.now()) {
-        throw {redirect: '/try-fleet/sandbox-expired' };
-      }
-      // Get the userRecord so we can send their hashed password to the sandbox instance
-      let sandboxUser = await User.findOne({id: this.req.me.id});
-
-      let sandboxURL = this.req.me.fleetSandboxURL;
-
-      // If this is a valid fleet sandbox instance, we'll check the /healthz endpoint before redirecting the user to their sandbox.
-      await sails.helpers.flow.until(async()=>{
-        let serverResponse = await sails.helpers.http.sendHttpRequest('GET', sandboxURL+'/healthz')
-        .timeout(5000)
-        .tolerate('non200Response')
-        .tolerate('requestFailed');
-        if(serverResponse) {
-          return serverResponse.statusCode === 200;
-        }
-      });
-      // Respond with view.
-      return {
-        sandboxUser,
-      };
+      throw new Error(`Consistency violation: The logged-in user's (${this.req.me.emailAddress}) fleetSandboxURL has somehow gone missing!`);
     }
+
+    if(!this.req.me.fleetSandboxExpiresAt) {
+      throw new Error(`Consistency violation: The logged-in user's (${this.req.me.emailAddress}) fleetSandboxExpiresAt has somehow gone missing!`);
+    }
+
+    // If this user's Fleet Sandbox instance is expired, we'll redirect them to the sandbox-expired page
+    if(this.req.me.fleetSandboxExpiresAt < Date.now()){
+      throw {redirect: '/try-fleet/sandbox-expired' };
+    }
+
+    // Get the userRecord so we can send their hashed password to the sandbox instance
+    let sandboxUser = await User.findOne({id: this.req.me.id});
+
+    // Respond with view.
+    return {
+      sandboxUser,
+    };
 
   }
 
