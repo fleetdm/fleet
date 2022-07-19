@@ -667,6 +667,7 @@ func (man Manager) LoadConfig() FleetConfig {
 			MaxOpenConns:    man.getConfigInt(prefix + ".max_open_conns"),
 			MaxIdleConns:    man.getConfigInt(prefix + ".max_idle_conns"),
 			ConnMaxLifetime: man.getConfigInt(prefix + ".conn_max_lifetime"),
+			SQLMode:         man.getConfigString(prefix + ".sql_mode"),
 		}
 	}
 
