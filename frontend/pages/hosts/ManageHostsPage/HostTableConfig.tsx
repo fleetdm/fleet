@@ -81,11 +81,16 @@ const condenseDeviceUsers = (users: IDeviceUser[]): string[] => {
     return [];
   }
   const condensed =
-    users
-      .slice(-3)
-      .map((u) => u.email)
-      .reverse() || [];
-  return users.length > 3
+    users.length === 4
+      ? users
+          .slice(-4)
+          .map((u) => u.email)
+          .reverse()
+      : users
+          .slice(-3)
+          .map((u) => u.email)
+          .reverse() || [];
+  return users.length > 4
     ? condensed.concat(`+${users.length - 3} more`) // TODO: confirm limit
     : condensed;
 };
