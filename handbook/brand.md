@@ -530,7 +530,7 @@ Use the following code snippet to include an inline CTA (call to action) in your
 </call-to-action>
 ```
 
-![Customizable CTA example](/images/cta-example-1-900x320@2x.jpg)
+![Customizable CTA example](../website/assets/images/cta-example-1-900x320@2x.jpg)
 
 > __Tip__: paste the code-snippet at the end of your article, or, when creating long articles, consider adding a CTA mid-way through.
 
@@ -567,7 +567,7 @@ In the following example we will modify `title`, `text`, `primary-button-text`, 
 </call-to-action>
 ```
 
-![Customizable CTA example](/images/cta-example-2-900x280@2x.jpg)
+![Customizable CTA example](../website/assets/images/cta-example-2-900x280@2x.jpg)
 
 ### Other pages of interest
 - [Process for submitting and publishing articles](https://docs.google.com/document/d/1owejJ7PjCVm0e21QNXjzw7SRMa3FdkRxb8WoHkKxWRE/edit?usp=sharing)
