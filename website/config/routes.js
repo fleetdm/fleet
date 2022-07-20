@@ -252,7 +252,7 @@ module.exports.routes = {
   'GET /legal/terms':            'https://docs.google.com/document/d/1OM6YDVIs7bP8wg6iA3VG13X086r64tWDqBSRudG4a0Y/edit',
   'GET /legal/privacy':          'https://docs.google.com/document/d/17i_g1aGpnuSmlqj35-yHJiwj7WRrLdC_Typc1Yb7aBE/edit',
   'GET /logout':                 '/api/v1/account/logout',
-  'GET /defcon':            'https://kqphpqst851.typeform.com/to/Y6NYxM5A',
+  'GET /defcon':                 'https://kqphpqst851.typeform.com/to/Y6NYxM5A',
 
   //  ╦ ╦╔═╗╔╗ ╦ ╦╔═╗╔═╗╦╔═╔═╗
   //  ║║║║╣ ╠╩╗╠═╣║ ║║ ║╠╩╗╚═╗
