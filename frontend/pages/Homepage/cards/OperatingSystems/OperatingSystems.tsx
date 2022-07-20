@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React from "react";
 import { useQuery } from "react-query";
 
 import { IOsqueryPlatform } from "interfaces/platform";
@@ -10,7 +10,7 @@ import { PLATFORM_DISPLAY_NAMES } from "utilities/constants";
 import TableContainer from "components/TableContainer";
 import Spinner from "components/Spinner";
 import TableDataError from "components/DataError";
-import renderLastUpdatedText from "components/LastUpdatedText";
+import LastUpdatedText from "components/LastUpdatedText";
 
 import generateTableHeaders from "./OperatingSystemsTableConfig";
 
@@ -79,7 +79,10 @@ const OperatingSystems = ({
         setShowOperatingSystemsUI(true);
         setTitleDetail &&
           setTitleDetail(
-            renderLastUpdatedText(data.counts_updated_at, "operating systems")
+            <LastUpdatedText
+              lastUpdatedAt={data.counts_updated_at}
+              whatToRetrieve={"operating systems"}
+            />
           );
       },
       onError: () => {
