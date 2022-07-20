@@ -48,7 +48,7 @@ parasails.registerPage('articles', {
           this.categoryDescription = 'The latest news from Fleet.';
           break;
         case 'deploy':
-          this.articleCategory = 'Product';
+          this.articleCategory = 'Deployment guides';
           this.categoryDescription = 'Learn more about how to deploy Fleet.';
           break;
         case 'podcasts':
