@@ -37,7 +37,7 @@ Looking at the matching vulnerability element (`<vuln:Vulnerability Ordinal="47"
 <vuln:ProductStatuses>
     <vuln:Status Type="Known Affected">
     ...
-        <vuln:ProductID>11923</vuln:ProductID>
+        <vuln:ProductID>11931</vuln:ProductID>
     ...
     </vuln:Status>
 </vuln:ProductStatuses>
