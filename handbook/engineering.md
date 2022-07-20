@@ -131,7 +131,7 @@ Documentation on completing the release process can be found
 
 The oncall engineer is a second-line responder to questions raised by customers and community members. The Community team is responsible for the first response to GitHub issues, pull requests, and Slack messages in the osquery and other public Slacks. The Customer team is responsible for the first response to messages in private customer Slack channels. We are targeting 1 hour response times (during business hours) for interactions and ask the oncall engineer to promptly address any questions sent their way. At times, the oncall engineer may be asked to take over the first response duties when the customer/community team members are unavailable.
 
-Pull requests may be routed through the oncall engineer for review. For PRs to the Fleet documentation, the content editor will request review from the oncall. For PRs from the community, the community contact will request review from the oncall. In either case, if the oncall has the knowledge and confidence to review, they should go ahead and do so. Otherwise, they should request review from an engineer with the appropriate domain knowledge.
+Pull requests may be routed through the oncall engineer for review. For PRs to the Fleet documentation, the content editor will request review from the oncall. For PRs from the community, the community contact will request review from the oncall. In either case, if the oncall has the knowledge and confidence to review, they should go ahead and do so. Otherwise, they should request review from an engineer with the appropriate domain knowledge. It is the oncall's responsibility to ensure that these PRs are moved forward (either by review with feedback or merge).
 
 Additionally, the oncall engineer is asked to attend all the customer success meetings during the week. The engineer should receive calendar invitations for the appropriate meetings. This has a dual purpose of providing more context for how our customers use Fleet, and also the engineer should actively participate and provide input where appropriate (if not sure, please ask your manager or the head of customer engineering).
 
@@ -152,12 +152,12 @@ Every week, the oncall engineer changes. Here are some tips for making this hand
    Click `@oncall`. In the right sidebar, click "Edit Members." Remove the former oncall, and add
    yourself.
 
-2. Hand off newer conversations. For more recent threads, the former oncall can unsubscribe from the
+2. Hand off newer conversations (Slack threads, issues, PRs, etc.). For more recent threads, the former oncall can unsubscribe from the
    thread, and the new oncall should subscribe. The former oncall should explicitly share each of
-   these threads, and the new on-call can select "Get notified about new replies" in the "..." menu.
+   these threads, and the new oncall can select "Get notified about new replies" in the "..." menu.
    The former oncall can select "Turn off notifications for replies" in that same menu. It can be
    helpful for the former oncall to remain available for any conversations they were deeply involved
-   in, so use your judgment on which threads to hand off.
+   in, so use your judgment on which threads to hand off. Anything not clearly handed off remains the responsibility of the former oncall.
 
 ### The rotation
 
