@@ -2132,7 +2132,7 @@ If the scheduled queries haven't run on the host yet, the stats have zero values
     "batteries": [
       {
         "cycle_count": 999,
-        "health": "Good"
+        "health": "Normal"
       }
     ]
   }
@@ -2205,7 +2205,7 @@ Returns the information of the host specified using the `uuid`, `osquery_host_id
     "batteries": [
       {
         "cycle_count": 999,
-        "health": "Good"
+        "health": "Normal"
       }
     ]
   }
