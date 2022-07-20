@@ -61,7 +61,7 @@ func (s *integrationTestSuite) TestDeviceAuthenticatedEndpoints() {
 	require.Equal(t, "http://example.com/logo", getHostResp.OrgLogoURL)
 	require.Nil(t, getHostResp.Host.Policies)
 	require.NotNil(t, getHostResp.Host.Batteries)
-	require.Equal(t, &fleet.HostBattery{CycleCount: 1, Health: "Good"}, (*getHostResp.Host.Batteries)[0])
+	require.Equal(t, &fleet.HostBattery{CycleCount: 1, Health: "Normal"}, (*getHostResp.Host.Batteries)[0])
 	hostDevResp := getHostResp.Host
 
 	// make request for same host on the host details API endpoint, responses should match, except for policies
