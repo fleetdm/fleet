@@ -65,7 +65,7 @@ const Homepage = (): JSX.Element => {
   const [showSoftwareUI, setShowSoftwareUI] = useState<boolean>(false);
   const [showMunkiUI, setShowMunkiUI] = useState<boolean>(false);
   const [showMDMUI, setShowMDMUI] = useState<boolean>(false);
-  const [showAddHostModal, setShowAddHostModal] = useState<boolean>(false);
+  const [showAddHostsModal, setShowAddHostsModal] = useState<boolean>(false);
   const [showOperatingSystemsUI, setShowOperatingSystemsUI] = useState<boolean>(
     false
   );
@@ -142,8 +142,8 @@ const Homepage = (): JSX.Element => {
     setCurrentTeam(selectedTeam);
   };
 
-  const toggleAddHostModal = () => {
-    setShowAddHostModal(!showAddHostModal);
+  const toggleAddHostsModal = () => {
+    setShowAddHostsModal(!showAddHostsModal);
   };
 
   const HostsSummaryCard = useInfoCard({
@@ -195,7 +195,7 @@ const Homepage = (): JSX.Element => {
         totalsHostsCount={
           (hostSummaryData && hostSummaryData.totals_hosts_count) || 0
         }
-        toggleAddHostModal={toggleAddHostModal}
+        toggleAddHostsModal={toggleAddHostsModal}
       />
     ),
   });
@@ -329,7 +329,7 @@ const Homepage = (): JSX.Element => {
     }
   };
 
-  const renderAddHostModal = () => {
+  const renderAddHostsModal = () => {
     const enrollSecret = globalSecrets?.[0].secret;
     return (
       <AddHostsModal
@@ -337,7 +337,7 @@ const Homepage = (): JSX.Element => {
         enrollSecret={enrollSecret}
         isLoading={isLoadingTeams || isGlobalSecretsLoading}
         isSandboxMode={!!isSandboxMode}
-        onCancel={toggleAddHostModal}
+        onCancel={toggleAddHostsModal}
       />
     );
   };
@@ -389,7 +389,7 @@ const Homepage = (): JSX.Element => {
           </>
         </div>
         {renderCards()}
-        {showAddHostModal && renderAddHostModal()}
+        {showAddHostsModal && renderAddHostsModal()}
       </div>
     </div>
   );

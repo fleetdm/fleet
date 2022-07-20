@@ -26,7 +26,7 @@ interface IHostResponse {
 
 interface IWelcomeHostCardProps {
   totalsHostsCount: number;
-  toggleAddHostModal: (showAddHostModal: boolean) => void;
+  toggleAddHostsModal: (showAddHostsModal: boolean) => void;
 }
 
 const baseClass = "welcome-host";
@@ -36,7 +36,7 @@ const policyFail = "fail";
 
 const WelcomeHost = ({
   totalsHostsCount,
-  toggleAddHostModal,
+  toggleAddHostsModal,
 }: IWelcomeHostCardProps): JSX.Element => {
   const { renderFlash } = useContext(NotificationContext);
   const [refetchStartTime, setRefetchStartTime] = useState<number | null>(null);
@@ -153,10 +153,10 @@ const WelcomeHost = ({
             "hosts."
           </p>
           <Button
-            onClick={toggleAddHostModal}
+            onClick={toggleAddHostsModal}
             className={`${baseClass}__add-host button button--brand`}
           >
-            <span>Add host</span>
+            <span>Add hosts</span>
           </Button>
         </div>
       </div>

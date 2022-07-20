@@ -90,6 +90,11 @@
       }
     }
   }
+  &__loading {
+    .loading-spinner {
+      margin: $pad-medium auto;
+    }
+  }
   &__refetch {
     display: flex;
     align-items: center;
