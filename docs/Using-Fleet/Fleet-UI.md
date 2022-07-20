@@ -35,7 +35,7 @@ The Fleet application allows you to specify options returned to osqueryd when it
 
 ### Global agent options
 
-Global agent options are applied to all hosts enrolled in Fleet.
+Global agent options are applied to all hosts enrolled in Fleet unless they are enrolled in a team.
 
 Only user's with the Admin role can edit global agent options.
 
@@ -53,7 +53,7 @@ To configure global agent options, head to **Settings > Organization settings > 
 
 Team agent options are applied to all hosts assigned to a specific team in Fleet.
 
-Team agent options *override* global agent options.
+Team agent options *override* global agent options. Only options defined in the Team's agent options will be applied to hosts enrolled in that team. 
 
 Let's say you have two teams in Fleet. One team is named "Workstations" and the other named "Servers." If you edit the agent options for the "Workstations" team, the hosts assigned to this team will now receive these agent options *instead of* the global agent options. The hosts assigned to the "Servers" team will still receive the global agent options.
 

@@ -50,6 +50,22 @@ To create a team:
 
 3. Enter your new team's name and select "Save."
 
+## Apply agent options to a team
+
+You can set up team-specific agent options. If you set agent options for your team, any host enrolled to that team will be configured with the team's agent options instead of your organization's [Global agent options](./Fleet-UI.md#global-agent-options). Make sure you include any global agent options that you also want applied to your team. 
+
+To set agent options for a team:
+
+1. In the top navigation select "Settings" and then, in the sub-navigation, select "Teams."
+
+2. Find and select your team. 
+
+3. Select the "Agent options" tab. 
+
+4. Edit the options in the `YAML` editor. 
+
+5. Click "Save options" on the right.
+
 ## Automatically adding hosts to a team
 
 Hosts can only belong to one team in Fleet.

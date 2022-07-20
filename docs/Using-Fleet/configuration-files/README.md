@@ -171,7 +171,7 @@ spec:
 
 `Applies only to Fleet Premium`
 
-The following is an example configuration file for a Team.
+The following is an example configuration file for a Team. 
 
 ```yaml
 apiVersion: v1
@@ -199,6 +199,9 @@ spec:
       - secret: RzTlxPvugG4o4O5IKS/HqEDJUmI1hwBoffff
       - secret: JZ/C/Z7ucq22dt/zjx2kEuDBN0iLjqfz
 ```
+
+> Please note that `agent_options` defined in a team configuration are the only agent options applied to hosts enrolled in that team. The `agent_options` defined here should include any necessary agent options defined in your Organization settings that you want applied to hosts enrolled in the team as well. 
+
 ### Organization settings
 
 The following file describes organization settings applied to the Fleet server.
