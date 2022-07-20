@@ -178,7 +178,7 @@ export const DEFAULT_POLICIES = [
     description:
       "Checks that the password policy requires at least 10 characters. Requires osquery 5.4.0 or newer.",
     resolution:
-      "Contact your IT administrator to ensure your Mac is receiving configuration profiles for password length.",
+      "Contact your IT administrator to make sure your Mac is receiving configuration profiles for password length.",
     platform: "darwin",
   },
 ] as IPolicyNew[];
