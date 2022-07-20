@@ -1,6 +1,6 @@
 # Fleet 4.17.0 | Better osquery management, user engagement, improved host vitals.
 
-![Fleet 4.17.0](../website/assets/images/articles/fleet-4.17.0-cover-1600x900@2x.jpg)
+![Fleet 4.17.0](../website/assets/images/articles/fleet-4.17.0-hero-1600x900@2x.jpg)
 
 Fleet 4.17.0 is up and running. Check out the full [changelog](https://github.com/fleetdm/fleet/releases/tag/fleet-v4.17.0) or continue reading to get the highlights.
 
@@ -54,7 +54,7 @@ In 4.17.0, we also:
 
 * Fixed osquery tables that report incorrect platforms.
 
-* Added `docker_container_envs` table to the osquery table schema on the **Query* page.
+* Added `docker_container_envs` table to the osquery table schema on the **Query** page.
 
 * Updated Fleet host detail query so that the `os_version` for Ubuntu hosts reflects the accurate patch number.
 

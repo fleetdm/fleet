@@ -9,7 +9,9 @@ jobs:
   publish:
     # Only run it when the push is to the fleetdm/fleet repo. Otherwise the secrets for pushing to
     # Docker will not be available.
-    if: github.repository_owner == 'fleetdm' 
+    #
+    # Also not run if author is dependabot (it doesn't have access to Github secrets).
+    if: ${{ (github.repository == 'fleetdm/fleet') && (github.actor != 'dependabot[bot]') }}
     runs-on: ubuntu-latest
     environment: Docker Hub
     steps:
