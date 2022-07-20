@@ -319,6 +319,9 @@ func newDB(conf *config.MysqlConfig, opts *dbOptions) (*sqlx.DB, error) {
 		driverName = "mysql-mw"
 		sql.Register(driverName, sqlmw.Driver(mysql.MySQLDriver{}, opts.interceptor))
 	}
+	if opts.sqlMode != "" {
+		conf.SQLMode = opts.sqlMode
+	}
 
 	dsn := generateMysqlConnectionString(*conf)
 	db, err := sqlx.Open(driverName, dsn)
@@ -832,20 +835,31 @@ func registerTLS(conf config.MysqlConfig) error {
 // generateMysqlConnectionString returns a MySQL connection string using the
 // provided configuration.
 func generateMysqlConnectionString(conf config.MysqlConfig) string {
-	tz := url.QueryEscape("'-00:00'")
+	params := url.Values{
+		"charset":              []string{"utf8mb4"},
+		"parseTime":            []string{"true"},
+		"loc":                  []string{"UTC"},
+		"time_zone":            []string{"'-00:00'"},
+		"clientFoundRows":      []string{"true"},
+		"allowNativePasswords": []string{"true"},
+		"group_concat_max_len": []string{"4194304"},
+	}
+	if conf.TLSConfig != "" {
+		params.Set("tls", conf.TLSConfig)
+	}
+	if conf.SQLMode != "" {
+		params.Set("sql_mode", conf.SQLMode)
+	}
+
 	dsn := fmt.Sprintf(
-		"%s:%s@%s(%s)/%s?charset=utf8mb4&parseTime=true&loc=UTC&time_zone=%s&clientFoundRows=true&allowNativePasswords=true&group_concat_max_len=4194304",
+		"%s:%s@%s(%s)/%s?%s",
 		conf.Username,
 		conf.Password,
 		conf.Protocol,
 		conf.Address,
 		conf.Database,
-		tz,
+		params.Encode(),
 	)
-
-	if conf.TLSConfig != "" {
-		dsn = fmt.Sprintf("%s&tls=%s", dsn, conf.TLSConfig)
-	}
 
 	return dsn
 }

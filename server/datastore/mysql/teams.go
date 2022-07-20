@@ -293,7 +293,7 @@ func amountTeamsDB(ctx context.Context, db sqlx.QueryerContext) (int, error) {
 
 // TeamAgentOptions loads the agents options of a team.
 func (ds *Datastore) TeamAgentOptions(ctx context.Context, tid uint) (*json.RawMessage, error) {
-	sql := `SELECT config->"$.agent_options" FROM teams WHERE id = ?`
+	sql := `SELECT config->'$.agent_options' FROM teams WHERE id = ?`
 	var agentOptions *json.RawMessage
 	if err := sqlx.GetContext(ctx, ds.reader, &agentOptions, sql, tid); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "select team")
