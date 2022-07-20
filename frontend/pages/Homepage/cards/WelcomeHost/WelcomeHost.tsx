@@ -150,7 +150,7 @@ const WelcomeHost = ({
           <p>Add your personal device to assess the security of your device.</p>
           <p>
             In Fleet, laptops, workstations, and servers are referred to as
-            "hosts."
+            &quot;hosts.&quot;
           </p>
           <Button
             onClick={toggleAddHostsModal}
