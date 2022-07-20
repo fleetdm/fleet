@@ -26,6 +26,7 @@ interface IHostResponse {
 
 interface IWelcomeHostCardProps {
   totalsHostsCount: number;
+  toggleAddHostModal: (showAddHostModal: boolean) => void;
 }
 
 const baseClass = "welcome-host";
@@ -35,6 +36,7 @@ const policyFail = "fail";
 
 const WelcomeHost = ({
   totalsHostsCount,
+  toggleAddHostModal,
 }: IWelcomeHostCardProps): JSX.Element => {
   const { renderFlash } = useContext(NotificationContext);
   const [refetchStartTime, setRefetchStartTime] = useState<number | null>(null);
@@ -136,17 +138,34 @@ const WelcomeHost = ({
     return (
       <div className={baseClass}>
         <div className={`${baseClass}__loading`}>
-          <p>Adding your device to Fleet</p>
           <Spinner />
         </div>
       </div>
     );
   }
 
-  if (
-    loadingHostError ||
-    (totalsHostsCount === 1 && host && host.status === "offline")
-  ) {
+  console.log("loadingHostError", loadingHostError);
+  if (loadingHostError || totalsHostsCount === 0) {
+    return (
+      <div className={baseClass}>
+        <div className={`${baseClass}__empty-hosts`}>
+          <p>Add your personal device to assess the security of your device.</p>
+          <p>
+            In Fleet, laptops, workstations, and servers are referred to as
+            "hosts."
+          </p>
+          <Button
+            onClick={toggleAddHostModal}
+            className={`${baseClass}__add-host button button--brand`}
+          >
+            <span>Add host</span>
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
+  if (totalsHostsCount === 1 && host && host.status === "offline") {
     return (
       <div className={baseClass}>
         <div className={`${baseClass}__error`}>

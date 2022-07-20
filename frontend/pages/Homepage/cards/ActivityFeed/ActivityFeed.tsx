@@ -145,11 +145,10 @@ const ActivityFeed = ({
     return (
       <div className={`${baseClass}__no-activities`}>
         <p>
-          <b>This is the start of your Fleet activities.</b>
+          <b>Fleet has not recorded any activity.</b>
         </p>
         <p>
-          Did you recently edit your queries, update your packs, or run a live
-          query? Try again in a few seconds as the system catches up.
+          Try editing a query, updating your policies, or running a live query.
         </p>
       </div>
     );
