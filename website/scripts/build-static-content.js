@@ -207,26 +207,26 @@ module.exports = {
                 htmlString
                 .replace(// Interpret `js` as `javascript`
                   // $1     $2     $3   $4
-                  /(<code)([^>]*)(>\s*)(\s\&lt;!-- __LANG=\%js\%__ --\&gt;)\s*/gm,
+                  /(<code)([^>]*)(>\s*)(\s?\&lt;!-- __LANG=\%js\%__ --\&gt;)\s*/gm,
                   '$1 class="javascript"$2$3'
                 )
                 .replace(// Interpret `sh` and `bash` as `bash`
                   // $1     $2     $3   $4
-                  /(<code)([^>]*)(>\s*)(\s\&lt;!-- __LANG=\%(bash|sh)\%__ --\&gt;)\s*/gm,
+                  /(<code)([^>]*)(>\s*)(\s?\&lt;!-- __LANG=\%(bash|sh)\%__ --\&gt;)\s*/gm,
                   '$1 class="bash"$2$3'
                 )
                 .replace(// When unspecified, default to `text`
                   // $1     $2     $3   $4
-                  /(<code)([^>]*)(>\s*)(\s\&lt;!-- __LANG=\%\%__ --\&gt;)\s*/gm,
+                  /(<code)([^>]*)(>\s*)(\s?\&lt;!-- __LANG=\%\%__ --\&gt;)\s*/gm,
                   '$1 class="nohighlight"$2$3'
                 )
                 .replace(// Nab the rest, leaving the code language as-is.
                   // $1     $2     $3   $4               $5    $6
-                  /(<code)([^>]*)(>\s*)(\s\&lt;!-- __LANG=\%)([^%]+)(\%__ --\&gt;)\s*/gm,
+                  /(<code)([^>]*)(>\s*)(\s?\&lt;!-- __LANG=\%)([^%]+)(\%__ --\&gt;)\s*/gm,
                   '$1 class="$5"$2$3'
                 )
                 .replace(// Finally, remove any "LANG" markers that have been added inside of a nested code block
-                  /((&#96;)+)\n\&lt;\!\-+\s\_+LANG\=\%+\_+\s\-+\&gt;/gm,
+                  /((&#96;)+)\n\&lt;\!\-+\s?\_+LANG\=\%+\_+\s\-+\&gt;/gm,
                   '$1'
                 )
               );
