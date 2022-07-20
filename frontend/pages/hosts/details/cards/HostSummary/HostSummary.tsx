@@ -3,7 +3,7 @@ import React from "react";
 import ReactTooltip from "react-tooltip";
 
 import Button from "components/buttons/Button";
-import renderDiskSpaceGraph from "components/DiskSpaceGraph";
+import DiskSpaceGraph from "components/DiskSpaceGraph";
 import {
   humanHostMemory,
   humanHostDetailUpdated,
@@ -140,12 +140,12 @@ const HostSummary = ({
         {!deviceUser && isPremiumTier && renderHostTeam()}
         <div className="info-flex__item info-flex__item--title">
           <span className="info-flex__header">Disk space</span>
-          {renderDiskSpaceGraph(
-            "info-flex",
-            titleData.gigs_disk_space_available,
-            titleData.percent_disk_space_available,
-            "disk-space-tooltip"
-          )}
+          <DiskSpaceGraph
+            baseClass="info-flex"
+            gigsDiskSpaceAvailable={titleData.gigs_disk_space_available}
+            percentDiskSpaceAvailable={titleData.percent_disk_space_available}
+            id={"disk-space-tooltip"}
+          />
         </div>
         <div className="info-flex__item info-flex__item--title">
           <span className="info-flex__header">Memory</span>

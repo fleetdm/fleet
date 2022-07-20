@@ -7,7 +7,7 @@ import ReactTooltip from "react-tooltip";
 
 import { IDeviceUser, IHost } from "interfaces/host";
 import Checkbox from "components/forms/fields/Checkbox";
-import renderDiskSpaceGraph from "components/DiskSpaceGraph";
+import DiskSpaceGraph from "components/DiskSpaceGraph";
 import HeaderCell from "components/TableContainer/DataTable/HeaderCell/HeaderCell";
 import IssueCell from "components/TableContainer/DataTable/IssueCell/IssueCell";
 import LinkCell from "components/TableContainer/DataTable/LinkCell/LinkCell";
@@ -199,11 +199,13 @@ const allHostTableHeaders: IDataColumn[] = [
     Cell: (cellProps: INumberCellProps): JSX.Element => {
       const { id, percent_disk_space_available } = cellProps.row.original;
 
-      return renderDiskSpaceGraph(
-        "gigs_disk_space_available__cell",
-        cellProps.cell.value,
-        percent_disk_space_available,
-        `disk-space__${id}`
+      return (
+        <DiskSpaceGraph
+          baseClass="gigs_disk_space_available__cell"
+          gigsDiskSpaceAvailable={cellProps.cell.value}
+          percentDiskSpaceAvailable={percent_disk_space_available}
+          id={`disk-space__${id}`}
+        />
       );
     },
   },

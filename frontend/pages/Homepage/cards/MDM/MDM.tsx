@@ -7,7 +7,7 @@ import { IMacadminAggregate, IDataTableMDMFormat } from "interfaces/macadmins";
 import TableContainer from "components/TableContainer";
 import Spinner from "components/Spinner";
 import TableDataError from "components/DataError";
-import renderLastUpdatedText from "components/LastUpdatedText";
+import LastUpdatedText from "components/LastUpdatedText";
 import generateTableHeaders from "./MDMTableConfig";
 
 interface IMDMCardProps {
@@ -68,7 +68,10 @@ const MDM = ({
       setShowMDMUI(true);
       setTitleDetail &&
         setTitleDetail(
-          renderLastUpdatedText(counts_updated_at, "MDM enrollment")
+          <LastUpdatedText
+            lastUpdatedAt={counts_updated_at}
+            whatToRetrieve={"MDM enrollment"}
+          />
         );
       setFormattedMDMData([
         {

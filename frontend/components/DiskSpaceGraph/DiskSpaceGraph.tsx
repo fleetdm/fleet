@@ -2,12 +2,19 @@ import React from "react";
 
 import ReactTooltip from "react-tooltip";
 
-const renderDiskSpaceGraph = (
-  baseClass: string,
-  gigsDiskSpaceAvailable: number,
-  percentDiskSpaceAvailable: number,
-  id: string
-): JSX.Element => {
+interface IDiskSpaceGraphProps {
+  baseClass: string;
+  gigsDiskSpaceAvailable: number | string;
+  percentDiskSpaceAvailable: number;
+  id: string;
+}
+
+const DiskSpaceGraph = ({
+  baseClass,
+  gigsDiskSpaceAvailable,
+  percentDiskSpaceAvailable,
+  id,
+}: IDiskSpaceGraphProps): JSX.Element => {
   const diskSpaceIndicator = () => {
     switch (true) {
       case gigsDiskSpaceAvailable < 16:
@@ -30,7 +37,7 @@ const renderDiskSpaceGraph = (
     }
   };
 
-  if (gigsDiskSpaceAvailable === 0) {
+  if (gigsDiskSpaceAvailable === 0 || gigsDiskSpaceAvailable === "---") {
     return <span className={`${baseClass}__data`}>No data available</span>;
   }
 
@@ -67,4 +74,4 @@ const renderDiskSpaceGraph = (
   );
 };
 
-export default renderDiskSpaceGraph;
+export default DiskSpaceGraph;
