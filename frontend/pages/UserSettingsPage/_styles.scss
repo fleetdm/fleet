@@ -2,6 +2,10 @@
   display: flex;
   align-items: stretch;
 
+  &__sandboxMode {
+    margin-top: 70px;
+  }
+
   h1 {
     margin: 0 0 $pad-xlarge;
   }
@@ -135,7 +139,7 @@
       top: 1px;
     }
   }
-  
+
   .secret-field__secret-input {
     margin-bottom: 8px;
   }

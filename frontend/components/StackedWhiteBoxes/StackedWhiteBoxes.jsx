@@ -3,7 +3,6 @@ import PropTypes from "prop-types";
 import { Link } from "react-router";
 import classnames from "classnames";
 
-import FleetIcon from "components/icons/FleetIcon";
 import CloseIcon from "../../../assets/images/icon-close-fleet-black-16x16@2x.png";
 
 const baseClass = "stacked-white-boxes";

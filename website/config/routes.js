@@ -162,14 +162,6 @@ module.exports.routes = {
     }
   },
 
-  'GET /g': {
-    action: 'view-landing',
-    locals: {
-      layout: 'layouts/layout-landing',
-      currentPage: 'landing',
-    }
-  },
-
   'GET /reports/state-of-device-management': {
     action: 'reports/view-state-of-device-management',
     locals: {
@@ -239,6 +231,7 @@ module.exports.routes = {
   'GET /docs/using-fleet/updating-fleet': '/docs/deploying/upgrading-fleet',
   'GET /blog':                   '/articles',
   'GET /brand':                  '/logos',
+  'GET /g':                       (req,res)=> { let originalQueryStringWithAmp = req.url.match(/\?(.+)$/) ? '&'+req.url.match(/\?(.+)$/)[1] : ''; return res.redirect(301, sails.config.custom.baseUrl+'/?meet-fleet'+originalQueryStringWithAmp); },
 
   // Sitemap
   // =============================================================================================================

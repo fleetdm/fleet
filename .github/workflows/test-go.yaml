@@ -36,7 +36,7 @@ jobs:
 
     steps:
     - name: Install Go
-      uses: actions/setup-go@b22fbbc2921299758641fab08929b4ac52b32923 # v2
+      uses: actions/setup-go@84cbf8094393cdc5fe1fe1671ff2647332956b1a # v2
       with:
         go-version: ${{ matrix.go-version }}
 
@@ -49,7 +49,7 @@ jobs:
     # Pre-starting dependencies here means they are ready to go when we need them.
     - name: Start Infra Dependencies
       # Use & to background this
-      run: FLEET_MYSQL_IMAGE=${{ matrix.mysql }} docker-compose up -d mysql_test redis redis-cluster-1 redis-cluster-2 redis-cluster-3 redis-cluster-4 redis-cluster-5 redis-cluster-6 redis-cluster-setup &
+      run: FLEET_MYSQL_IMAGE=${{ matrix.mysql }} docker-compose up -d mysql_test redis redis-cluster-1 redis-cluster-2 redis-cluster-3 redis-cluster-4 redis-cluster-5 redis-cluster-6 redis-cluster-setup minio &
 
     # It seems faster not to cache Go dependencies
     - name: Install Go Dependencies
@@ -73,6 +73,7 @@ jobs:
           NETWORK_TEST=1 \
           REDIS_TEST=1 \
           MYSQL_TEST=1 \
+          MINIO_STORAGE_TEST=1 \
           make test-go 2>&1 | tee /tmp/gotest.log | gotestfmt
 
     - name: Upload to Codecov

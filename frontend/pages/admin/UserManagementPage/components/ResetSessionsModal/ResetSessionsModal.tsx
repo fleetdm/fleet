@@ -7,23 +7,17 @@ const baseClass = "reset-sessions-modal";
 
 interface IResetSessionsModal {
   user: IUser;
-  modalBaseClass: string;
   onResetConfirm: (user: IUser) => void;
   onResetCancel: () => void;
 }
 
 const ResetSessionsModal = ({
   user,
-  modalBaseClass,
   onResetConfirm,
   onResetCancel,
 }: IResetSessionsModal): JSX.Element => {
   return (
-    <Modal
-      title="Reset sessions"
-      onExit={onResetCancel}
-      className={`${modalBaseClass}__${baseClass}`}
-    >
+    <Modal title="Reset sessions" onExit={onResetCancel}>
       <div className={baseClass}>
         <p>
           This user will be logged out of Fleet.

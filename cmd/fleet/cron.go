@@ -36,11 +36,11 @@ func cronVulnerabilities(
 	ds fleet.Datastore,
 	logger kitlog.Logger,
 	identifier string,
-	config config.FleetConfig,
+	config config.VulnerabilitiesConfig,
 ) {
 	logger = kitlog.With(logger, "cron", lockKeyVulnerabilities)
 
-	if config.Vulnerabilities.CurrentInstanceChecks == "no" || config.Vulnerabilities.CurrentInstanceChecks == "0" {
+	if config.CurrentInstanceChecks == "no" || config.CurrentInstanceChecks == "0" {
 		level.Info(logger).Log("vulnerability scanning", "host not configured to check for vulnerabilities")
 		return
 	}
@@ -53,7 +53,7 @@ func cronVulnerabilities(
 
 	vulnDisabled := false
 	if appConfig.VulnerabilitySettings.DatabasesPath == "" &&
-		config.Vulnerabilities.DatabasesPath == "" {
+		config.DatabasesPath == "" {
 		level.Info(logger).Log("vulnerability scanning", "not configured")
 		vulnDisabled = true
 	}
@@ -64,10 +64,10 @@ func cronVulnerabilities(
 
 	vulnPath := appConfig.VulnerabilitySettings.DatabasesPath
 	if vulnPath == "" {
-		vulnPath = config.Vulnerabilities.DatabasesPath
+		vulnPath = config.DatabasesPath
 	}
-	if config.Vulnerabilities.DatabasesPath != "" && config.Vulnerabilities.DatabasesPath != vulnPath {
-		vulnPath = config.Vulnerabilities.DatabasesPath
+	if config.DatabasesPath != "" && config.DatabasesPath != vulnPath {
+		vulnPath = config.DatabasesPath
 		level.Info(logger).Log(
 			"databases_path", "fleet config takes precedence over app config when both are configured",
 			"result", vulnPath)
@@ -76,10 +76,10 @@ func cronVulnerabilities(
 	if !vulnDisabled {
 		level.Info(logger).Log("databases-path", vulnPath)
 	}
-	level.Info(logger).Log("periodicity", config.Vulnerabilities.Periodicity)
+	level.Info(logger).Log("periodicity", config.Periodicity)
 
 	if !vulnDisabled {
-		if config.Vulnerabilities.CurrentInstanceChecks == "auto" {
+		if config.CurrentInstanceChecks == "auto" {
 			level.Debug(logger).Log("current instance checks", "auto", "trying to create databases-path", vulnPath)
 			err := os.MkdirAll(vulnPath, 0o755)
 			if err != nil {
@@ -95,12 +95,12 @@ func cronVulnerabilities(
 		select {
 		case <-ticker.C:
 			level.Debug(logger).Log("waiting", "done")
-			ticker.Reset(config.Vulnerabilities.Periodicity)
+			ticker.Reset(config.Periodicity)
 		case <-ctx.Done():
 			level.Debug(logger).Log("exit", "done with cron.")
 			return
 		}
-		if config.Vulnerabilities.CurrentInstanceChecks == "auto" {
+		if config.CurrentInstanceChecks == "auto" {
 			if locked, err := ds.Lock(ctx, lockKeyVulnerabilities, identifier, 1*time.Hour); err != nil {
 				errHandler(ctx, logger, "error acquiring lock", err)
 				continue
@@ -154,7 +154,7 @@ func cronVulnerabilities(
 			collectVulns := vulnAutomationEnabled != ""
 			nvdVulns := checkNVDVulnerabilities(ctx, ds, logger, vulnPath, config, collectVulns)
 			ovalVulns := checkOvalVulnerabilities(ctx, ds, logger, vulnPath, config, collectVulns)
-			recentVulns := filterRecentVulns(ctx, ds, logger, nvdVulns, ovalVulns, config.Vulnerabilities.RecentVulnerabilityMaxAge)
+			recentVulns := filterRecentVulns(ctx, ds, logger, nvdVulns, ovalVulns, config.RecentVulnerabilityMaxAge)
 
 			if len(recentVulns) > 0 {
 				switch vulnAutomationEnabled {
@@ -254,10 +254,10 @@ func checkOvalVulnerabilities(
 	ds fleet.Datastore,
 	logger kitlog.Logger,
 	vulnPath string,
-	config config.FleetConfig,
+	config config.VulnerabilitiesConfig,
 	collectVulns bool,
 ) []fleet.SoftwareVulnerability {
-	if config.Vulnerabilities.DisableDataSync {
+	if config.DisableDataSync {
 		return nil
 	}
 
@@ -304,11 +304,11 @@ func checkNVDVulnerabilities(
 	ds fleet.Datastore,
 	logger kitlog.Logger,
 	vulnPath string,
-	config config.FleetConfig,
+	config config.VulnerabilitiesConfig,
 	collectVulns bool,
 ) []fleet.SoftwareVulnerability {
-	if !config.Vulnerabilities.DisableDataSync {
-		err := vulnerabilities.Sync(vulnPath, config.Vulnerabilities.CPEDatabaseURL)
+	if !config.DisableDataSync {
+		err := vulnerabilities.Sync(vulnPath, config.CPEDatabaseURL)
 		if err != nil {
 			errHandler(ctx, logger, "syncing vulnerability database", err)
 			return nil

@@ -30,6 +30,8 @@
 - [Can I audit actions taken in Fleet?](#can-i-audit-actions-taken-in-fleet)
 - [How often is the software inventory updated?](#how-often-is-the-software-inventory-updated)
 - [Can I group results from multiple hosts?](#can-i-group-results-from-multiple-hosts)
+- [Will updating fleetctl lead to loss of data in fleetctl preview?](will-updating-fleetctl-lead-to-loss-of-data-in-fleetctl-preview?)
+- [How do I downgrade from Fleet Premium to Fleet Free?](how-do-i-downgrade-from-fleet-premium-to-fleet-free)
 
 ## What do I need to do to switch from Kolide Fleet to FleetDM Fleet?
 
@@ -274,7 +276,7 @@ $ fleetctl get hosts --json | jq '.spec .os_version' | sort | uniq -c
    6 "macOS 12.3.1"
 ```
 
-## Will updating fleetctl lead to loss of data in Preview?
+## Will updating fleetctl lead to loss of data in fleetctl preview?
 
 No, you won't experience data loss when you update fleetctl. Note that you can run `fleetctl preview --tag v#.#.#` if you want to run Preview on a previous version. Just replace # with the version numbers of interest.
 
@@ -282,6 +284,8 @@ No, you won't experience data loss when you update fleetctl. Note that you can r
 Apart from an admin [disabling usage](https://fleetdm.com/docs/using-fleet/usage-statistics#disable-usage-statistics) statistics on the Fleet UI, you can edit your `fleet.yml` config file to disable usage statistics. Look for the `server_settings` in your `fleet.yml` and set `enable_analytics: false`. Do note there is no CLI flag option to disable usage statistics at this time.
 
 ## How do I downgrade from Fleet Premium to Fleet Free?
+
+If you'd like to renew your Fleet Premium license key, please contact us [here](https://fleetdm.com/company/contact).
 
 How to downgrade from Fleet Premium to Fleet Free:
 
@@ -321,6 +325,6 @@ Lastly, remove your Fleet Premium license key:
    located in your configuration is [here](https://fleetdm.com/docs/deploying/configuration#license).
 2. Restart your Fleet server.
 
+## If I use a software orchestration tool (Ansible, Chef, Puppet, etc.) to manage agent options, do I have to apply the same options in the Fleet UI?
 
-
-
+No. The agent options set using your software orchestration tool will override the default agent options that appear in the **Settings > Organization settings > Global agent options** page. On this page, if you hit the **Save** button, the options that appear in the Fleet UI will override the agent options set using your software orchestration.
