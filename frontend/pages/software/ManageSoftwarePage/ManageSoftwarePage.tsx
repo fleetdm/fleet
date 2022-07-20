@@ -38,7 +38,7 @@ import TableDataError from "components/DataError";
 import TeamsDropdownHeader, {
   ITeamsDropdownState,
 } from "components/PageHeader/TeamsDropdownHeader";
-import renderLastUpdatedText from "components/LastUpdatedText";
+import LastUpdatedText from "components/LastUpdatedText";
 
 import generateSoftwareTableHeaders from "./SoftwareTableConfig";
 import ManageAutomationsModal from "./components/ManageAutomationsModal";
@@ -389,7 +389,10 @@ const ManageSoftwarePage = ({
           }`}
         >
           <span>{`${count} software item${count === 1 ? "" : "s"}`}</span>
-          {renderLastUpdatedText(lastUpdatedAt, "software")}
+          <LastUpdatedText
+            lastUpdatedAt={lastUpdatedAt}
+            whatToRetrieve={"software"}
+          />
         </div>
       );
     }
