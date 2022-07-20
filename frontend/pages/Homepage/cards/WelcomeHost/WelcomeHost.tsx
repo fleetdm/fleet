@@ -59,7 +59,6 @@ const WelcomeHost = ({
     {
       select: (data: IHostResponse) => data.host,
       onSuccess: (returnedHost) => {
-        console.log("returnedHost", returnedHost);
         setShowRefetchLoadingSpinner(returnedHost.refetch_requested);
 
         const anyPassingOrFailingPolicy = returnedHost?.policies?.find(
@@ -144,7 +143,6 @@ const WelcomeHost = ({
     );
   }
 
-  console.log("loadingHostError", loadingHostError);
   if (loadingHostError || totalsHostsCount === 0) {
     return (
       <div className={baseClass}>
