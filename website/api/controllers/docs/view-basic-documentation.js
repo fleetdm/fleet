@@ -37,34 +37,20 @@ module.exports = {
     let SECTION_URL_PREFIX = '/docs';
 
     // Serve appropriate page content.
+    // Note that this action also serves the '/docs' landing page, as well as individual doc pages.
+    // 
     // > Inspired by https://github.com/sailshq/sailsjs.com/blob/b53c6e6a90c9afdf89e5cae00b9c9dd3f391b0e7/api/controllers/documentation/view-documentation.js
-    let thisPage = _.find(sails.config.builtStaticContent.markdownPages, {
-      url: _.trimRight(SECTION_URL_PREFIX + '/' + _.trim(pageUrlSuffix, '/'), '/')
-    });
-    // console.log('pageUrlSuffix:',pageUrlSuffix);
-    // console.log('SECTION_URL_PREFIX + "/" + _.trim(pageUrlSuffix, "/"):',SECTION_URL_PREFIX + '/' + _.trim(pageUrlSuffix, '/'));
-    // console.log('thisPage:',thisPage);
-
-    // Setting a flag if the pageUrlSuffix doesn't match any existing page, or if the page it matches doesn't exactly match the pageUrlSuffix provided
-    // Note: because this also handles the docs landing page and a pageUrlSuffix might not have provided, we set this flag to false if the url is just '/docs'
-    let needsRedirectMaybe = (!thisPage || (thisPage.url !== '/docs/'+pageUrlSuffix && thisPage.url !== '/docs'));
-
-    if (needsRedirectMaybe) {
-      // Creating a lower case, repeating-slashless pageUrlSuffix
-      let multipleSlashesRegex = /\/{2,}/g;
-      let modifiedPageUrlSuffix = pageUrlSuffix.toLowerCase().replace(multipleSlashesRegex, '/');
-      // Finding the appropriate page content using the modified pageUrlSuffix.
-      let revisedPage = _.find(sails.config.builtStaticContent.markdownPages, {
-        url: _.trimRight(SECTION_URL_PREFIX + '/' + _.trim(modifiedPageUrlSuffix, '/'), '/')
-      });
-      if(revisedPage) {
-        // If we matched a page with the modified pageUrlSuffix, then redirect to that.
-        throw {redirect: revisedPage.url};
-      } else {
-        // If no page was found, throw a 404 error.
+    let thisPage = _.find(sails.config.builtStaticContent.markdownPages, { url: SECTION_URL_PREFIX + '/' + pageUrlSuffix });
+    if (!thisPage) {// If there's no matching page, try a revised version of the URL suffix that's lowercase, with internal slashes deduped, and any trailing slash or whitespace trimmed
+      let revisedPageUrlSuffix = pageUrlSuffix.toLowerCase().replace(/\/+/g, '/').replace(/\/+\s*$/,'');
+      thisPage = _.find(sails.config.builtStaticContent.markdownPages, { url: SECTION_URL_PREFIX + '/' + revisedPageUrlSuffix });
+      if (thisPage) {// If we matched a page with the revised suffix, then redirect to that rather than rendering it, so the URL gets cleaned up.
+        throw {redirect: thisPage.url};
+      } else {// If no page could be found even with the revised suffix, then throw a 404 error.
         throw 'notFound';
       }
     }
+
     // Setting the meta title for this page.
     let pageTitleForMeta;
     if(thisPage.title === 'Readme.md') {
