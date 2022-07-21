@@ -31,7 +31,6 @@ import WelcomeHost from "./cards/WelcomeHost";
 import MDM from "./cards/MDM";
 import Munki from "./cards/Munki";
 import OperatingSystems from "./cards/OperatingSystems";
-// import Modal from "components/Modal";
 import AddHostsModal from "../../components/AddHostsModal";
 import ExternalURLIcon from "../../../assets/images/icon-external-url-12x12@2x.png";
 
