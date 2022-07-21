@@ -177,7 +177,11 @@ Common scenarios (based on the latest 10 migrations):
 - Adding a new column: append `LOCK=NONE` to the `ALTER` statement. Two notes:
     - `AUTO_INCREMENT` are the exception as they don't support `LOCK=NONE`
     - We'll have to get rid of all `SELECT *` statements, otherwise adding a
-      column is not backwards compatible.
+      column is not backwards compatible. For the cases were we explicitly want
+      a `SELECT *` kind of logic (to prevent bugs and make sure all tables are
+      fetched), from @chiip: using introspection + generators we could build
+      something that fetches all the columns for a table and a given Fleet
+      version.
 - Renaming a column: don’t rename, instead use three different Fleet versions:
   - `vN+1`:  add a new column with `LOCK=NONE`, allow `NULL` values
     so the current running version can read and write without problems.
