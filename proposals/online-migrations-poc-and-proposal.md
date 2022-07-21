@@ -174,8 +174,10 @@ Another way to tackle this problem could be with the combination of:
 
 Common scenarios (based on the latest 10 migrations):
 
-- Adding a new column: append `LOCK=NONE` to the `ALTER` statement (except for
-  `AUTO_INCREMENT` columns)
+- Adding a new column: append `LOCK=NONE` to the `ALTER` statement. Two notes:
+    - `AUTO_INCREMENT` are the exception as they don't support `LOCK=NONE`
+    - We'll have to get rid of all `SELECT *` statements, otherwise adding a
+      column is not backwards compatible.
 - Renaming a column: don’t rename, instead use three different Fleet versions:
   - `vN+1`:  add a new column with `LOCK=NONE`, allow `NULL` values
     so the current running version can read and write without problems.
@@ -222,7 +224,7 @@ CREATE VIEW cve_meta AS SELECT * FROM cve_scores;
    neither of the Fleet versions make use of `cve_scores`, so we can rename the
    table and get rid of the view in the migrations for `vN+2`:
 
-```
+```sql
 RENAME TABLE
    cve_meta TO cve_meta_view,
    cve_scores to cve_meta;
