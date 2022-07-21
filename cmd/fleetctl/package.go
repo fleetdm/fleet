@@ -163,16 +163,22 @@ func packageCommand() *cli.Command {
 				Destination: &opt.MacOSDevIDCertificatePassword,
 			},
 			&cli.StringFlag{
-				Name:        "app-store-connect-api-key",
+				Name:        "app-store-connect-api-key-id",
 				Usage:       "App Store Connect API key used for notarization",
-				EnvVars:     []string{"FLEETCTL_APP_STORE_CONNECT_API_KEY"},
-				Destination: &opt.AppStoreConnectAPIKey,
+				EnvVars:     []string{"FLEETCTL_APP_STORE_CONNECT_API_KEY_ID"},
+				Destination: &opt.AppStoreConnectAPIKeyID,
 			},
 			&cli.StringFlag{
-				Name:        "app-store-connect-api-issuer",
+				Name:        "app-store-connect-api-key-issuer",
 				Usage:       "Issuer of the App Store Connect API key provided via --app-store-connect-api-key",
-				EnvVars:     []string{"FLEETCTL_APP_STORE_CONNECT_API_ISSUER"},
-				Destination: &opt.AppStoreConnectAPIIssuer,
+				EnvVars:     []string{"FLEETCTL_APP_STORE_CONNECT_API_KEY_ISSUER"},
+				Destination: &opt.AppStoreConnectAPIKeyIssuer,
+			},
+			&cli.StringFlag{
+				Name:        "app-store-connect-api-key-content",
+				Usage:       "Contents of the .p8 App Store Connect API key",
+				EnvVars:     []string{"FLEETCTL_APP_STORE_CONNECT_API_KEY_CONTENT"},
+				Destination: &opt.AppStoreConnectAPIKeyContent,
 			},
 		},
 		Action: func(c *cli.Context) error {

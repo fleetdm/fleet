@@ -6,6 +6,8 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+
+	"github.com/fleetdm/fleet/v4/pkg/secure"
 )
 
 func rSign(pkgPath, cert, certPwd string) error {
@@ -33,14 +35,19 @@ func rSign(pkgPath, cert, certPwd string) error {
 	return nil
 }
 
-func rNotarizeStaple(path, apiIssuer, apiKey string) error {
+func rNotarizeStaple(pkg, apiKeyID, apiKeyIssuer, apiKeyContent string) error {
+	path, err := writeAPIKeys(apiKeyIssuer, apiKeyID, apiKeyContent)
+	defer os.Remove(path)
+	if err != nil {
+		return fmt.Errorf("writing API keys: %e", err)
+	}
 	var outBuf bytes.Buffer
 	cmd := exec.Command("rcodesign",
 		"notarize",
-		"--api-issuer", apiIssuer,
-		"--api-key", apiKey,
+		"--api-issuer", apiKeyIssuer,
+		"--api-key", apiKeyID,
 		"--staple",
-		path,
+		pkg,
 	)
 	cmd.Stdout = &outBuf
 	cmd.Stderr = &outBuf
@@ -49,4 +56,23 @@ func rNotarizeStaple(path, apiIssuer, apiKey string) error {
 		return fmt.Errorf("rcodesign notarize: %w", err)
 	}
 	return nil
+}
+
+func writeAPIKeys(issuer, id, content string) (string, error) {
+	homedir, err := os.UserHomeDir()
+	if err != nil {
+		return "", fmt.Errorf("finding home dir: %e", err)
+	}
+
+	path := filepath.Join(homedir, ".appstoreconnect", "private_keys")
+	if err = secure.MkdirAll(path, 0o600); err != nil {
+		return "", fmt.Errorf("finding home dir: %e", err)
+	}
+
+	keyPath := filepath.Join(path, fmt.Sprintf("AuthKey_%s.p8", id))
+	if err = os.WriteFile(keyPath, []byte(content), 0o600); err != nil {
+		return "", fmt.Errorf("writing api key contents: %e", err)
+	}
+
+	return keyPath, nil
 }
