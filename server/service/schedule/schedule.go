@@ -6,8 +6,6 @@ package schedule
 
 import (
 	"context"
-	"errors"
-	"fmt"
 	"sync"
 	"time"
 
@@ -46,32 +44,15 @@ type Schedule struct {
 	jobs []Job
 }
 
-// Job represents a job that may be scheduled.
+// JobFn is the signature of a Job.
+type JobFn func(context.Context) error
+
+// Job represents a job that can be added to Scheduler.
 type Job struct {
-	// id is the unique identifier for the job.
-	id string
-	// jobber represents the job itself, comprising a run function
-	// and other struct fields as needed to set any dependencies.
-	jobber Jobber
-}
-
-// run performs the job by executing the run function of the jobber
-func (j *Job) run(ctx context.Context) (err error) {
-	defer func() {
-		if r := recover(); r != nil {
-			err = errors.New(fmt.Sprintf("%v", r))
-		}
-	}()
-
-	if err := j.jobber.run(ctx); err != nil {
-		return err
-	}
-	return nil
-}
-
-// Jobber is the interface used by Schedule to run a scheduled Job.
-type Jobber interface {
-	run(context.Context) error
+	// ID is the unique identifier for the job.
+	ID string
+	// Fn is the job itself.
+	Fn func(context.Context) error
 }
 
 // Locker allows a Schedule to acquire a lock before running jobs.
@@ -112,12 +93,12 @@ func WithAltLockID(name string) Option {
 // WithJob adds a job to the Schedule.
 //
 // Each job is executed in the order they are added.
-// Each job is represented by a jobber, comprising a run function
-// and other struct fields as needed to set any dependencies.
-func WithJob(id string, jobber Jobber) Option {
+func WithJob(id string, fn JobFn) Option {
 	return func(s *Schedule) {
-		job := Job{id, jobber}
-		s.jobs = append(s.jobs, job)
+		s.jobs = append(s.jobs, Job{
+			ID: id,
+			Fn: fn,
+		})
 	}
 }
 
@@ -209,9 +190,9 @@ func (s *Schedule) Start() {
 				}
 
 				for _, job := range s.jobs {
-					level.Debug(s.logger).Log("msg", "starting", "jobID", job.id)
-					if err := job.run(s.ctx); err != nil {
-						level.Error(s.logger).Log("err", job.id, "details", err)
+					level.Debug(s.logger).Log("msg", "starting", "jobID", job.ID)
+					if err := job.Fn(s.ctx); err != nil {
+						level.Error(s.logger).Log("err", job.ID, "details", err)
 						sentry.CaptureException(err)
 						ctxerr.Handle(s.ctx, err)
 					}

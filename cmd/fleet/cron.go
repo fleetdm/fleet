@@ -694,7 +694,7 @@ func startCleanupsAndAggregationSchedule(
 	).Start()
 }
 
-func startSendStatsSchedule(ctx context.Context, instanceID string, ds fleet.Datastore, license *fleet.LicenseInfo, logger kitlog.Logger) {
+func startSendStatsSchedule(ctx context.Context, instanceID string, ds fleet.Datastore, config config.FleetConfig, license *fleet.LicenseInfo, logger kitlog.Logger) {
 	schedule.New(
 		ctx, "stats", instanceID, 1*time.Hour, ds,
 		schedule.WithLogger(kitlog.With(logger, "cron", "stats")),
@@ -703,13 +703,13 @@ func startSendStatsSchedule(ctx context.Context, instanceID string, ds fleet.Dat
 			func(ctx context.Context) error {
 				// NOTE(mna): this is not a route from the fleet server (not in server/service/handler.go) so it
 				// will not automatically support the /latest/ versioning. Leaving it as /v1/ for that reason.
-				return trySendStatistics(ctx, ds, fleet.StatisticsFrequency, "https://fleetdm.com/api/v1/webhooks/receive-usage-analytics", license)
+				return trySendStatistics(ctx, ds, fleet.StatisticsFrequency, "https://fleetdm.com/api/v1/webhooks/receive-usage-analytics", config, license)
 			},
 		),
 	).Start()
 }
 
-func trySendStatistics(ctx context.Context, ds fleet.Datastore, frequency time.Duration, url string, license *fleet.LicenseInfo) error {
+func trySendStatistics(ctx context.Context, ds fleet.Datastore, frequency time.Duration, url string, config config.FleetConfig, license *fleet.LicenseInfo) error {
 	ac, err := ds.AppConfig(ctx)
 	if err != nil {
 		return err
@@ -718,7 +718,7 @@ func trySendStatistics(ctx context.Context, ds fleet.Datastore, frequency time.D
 		return nil
 	}
 
-	stats, shouldSend, err := ds.ShouldSendStatistics(ctx, frequency, license)
+	stats, shouldSend, err := ds.ShouldSendStatistics(ctx, frequency, config, license)
 	if err != nil {
 		return err
 	}

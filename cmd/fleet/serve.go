@@ -25,6 +25,7 @@ import (
 	"github.com/fleetdm/fleet/v4/ee/server/licensing"
 	eeservice "github.com/fleetdm/fleet/v4/ee/server/service"
 	"github.com/fleetdm/fleet/v4/server"
+	"github.com/fleetdm/fleet/v4/server/config"
 	configpkg "github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/datastore/cached_mysql"
@@ -400,7 +401,7 @@ the way that the Fleet server works.
 				initFatal(errors.New("Error generating random instance identifier"), "")
 			}
 			runCrons(ctx, ds, task, kitlog.With(logger, "component", "crons"), config, license, failingPolicySet, instanceID)
-			if err := startSchedules(ctx, ds, logger, license, redisWrapperDS, instanceID); err != nil {
+			if err := startSchedules(ctx, ds, logger, config, license, redisWrapperDS, instanceID); err != nil {
 				initFatal(err, "failed to register schedules")
 			}
 
@@ -679,12 +680,13 @@ func startSchedules(
 	ctx context.Context,
 	ds fleet.Datastore,
 	logger kitlog.Logger,
+	config config.FleetConfig,
 	license *fleet.LicenseInfo,
 	enrollHostLimiter fleet.EnrollHostLimiter,
 	instanceID string,
 ) error {
 	startCleanupsAndAggregationSchedule(ctx, instanceID, ds, logger, enrollHostLimiter)
-	startSendStatsSchedule(ctx, instanceID, ds, license, logger)
+	startSendStatsSchedule(ctx, instanceID, ds, config, license, logger)
 
 	return nil
 }
