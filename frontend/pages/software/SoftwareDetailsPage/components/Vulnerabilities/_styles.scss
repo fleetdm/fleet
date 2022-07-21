@@ -43,7 +43,7 @@
           @media (max-width: $tooltip-break-1000) {
             .cisa_known_exploit__header {
               .component__tooltip-wrapper__tip-text {
-                max-width: 100px; // Prevents horizontal scrolling off viewport
+                max-width: 200px; // Prevents horizontal scrolling off viewport
                 white-space: normal;
               }
             }
