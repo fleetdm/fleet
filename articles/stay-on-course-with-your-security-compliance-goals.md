@@ -57,7 +57,7 @@ Fleet also lets you [assign users different levels of access](https://fleetdm.co
 Fleet policies, teams, and permissions empower employees at every level of your organization to share the responsibility of measuring compliance. With more hands on deck, going after your goals will be a breeze.
 
 
-<meta name="category" value="product">
+<meta name="category" value="security">
 <meta name="authorFullName" value="Chris McGillicuddy">
 <meta name="authorGitHubUsername" value="chris-mcgillicuddy">
 <meta name="publishedOn" value="2022-07-18">

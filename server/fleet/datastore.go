@@ -7,6 +7,7 @@ import (
 	"io"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/health"
 )
 
@@ -399,7 +400,7 @@ type Datastore interface {
 	///////////////////////////////////////////////////////////////////////////////
 	// StatisticsStore
 
-	ShouldSendStatistics(ctx context.Context, frequency time.Duration, license *LicenseInfo) (StatisticsPayload, bool, error)
+	ShouldSendStatistics(ctx context.Context, frequency time.Duration, config config.FleetConfig, license *LicenseInfo) (StatisticsPayload, bool, error)
 	RecordStatisticsSent(ctx context.Context) error
 
 	///////////////////////////////////////////////////////////////////////////////

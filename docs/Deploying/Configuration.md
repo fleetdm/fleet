@@ -14,22 +14,22 @@
 
 ## Configuring the Fleet binary
 
-For information on how to run the `fleet` binary, detailed usage information can be found by running `fleet --help`. This document is a more detailed version of the information presented in the help output text. If you prefer to use a CLI instead of a web browser, we hope that you like the binary interface to the Fleet application!
+For information on how to run the `fleet` binary, find detailed usage information by running `fleet --help`. This document is a more detailed version of the data presented in the help output text. If you prefer to use a CLI instead of a web browser, we hope  you like the binary interface of the Fleet application!
 
 ### High-level configuration overview
 
-To get the most out of running the Fleet server, it is helpful to establish a mutual understanding of what the desired architecture looks like and what it's trying to accomplish.
+In order to get the most out of running the Fleet server, it is helpful to establish a mutual understanding of what the desired architecture looks like and what it's trying to accomplish.
 
 Your Fleet server's two main purposes are:
 
 - To serve as your [osquery TLS server](https://osquery.readthedocs.io/en/stable/deployment/remote/)
 - To serve the Fleet web UI, which allows you to manage osquery configuration, query hosts, etc.
 
-The Fleet server allows you persist configuration, manage users, etc. Thus, it needs a database. Fleet uses MySQL and requires you to supply configurations to connect to a MySQL server. It is also possible to configure connection to a MySQL replica in addition to the primary, to be used for reading only. Fleet also uses Redis to perform some more high-speed data access action throughout the lifecycle of the application (for example, distributed query result ingestion). Thus, Fleet also requires that you supply Redis connection configurations.
+The Fleet server allows you to persist configuration, manage users, etc. Thus, it needs a database. Fleet uses MySQL and requires you to supply configurations to connect to a MySQL server. It is also possible to configure your connection to a MySQL replica in addition to the primary. This is for reading only. Fleet also uses Redis to perform more high-speed data access action throughout the applications lifecycle (for example, distributed query result ingestion). Thus, Fleet also requires that you supply Redis connection configurations.
 
-Fleet can scale to hundreds of thousands of devices with a single Redis instance, and is also compatible with Redis Cluster. Fleet does not support Redis Sentinel.
+Fleet can scale to hundreds of thousands of devices with a single Redis instance and is also compatible with Redis Cluster. Fleet does not support Redis Sentinel.
 
-Since Fleet is a web application, when you run Fleet there are some other configurations that must be defined, such as:
+Since Fleet is a web application, when you run it there are other configurations that must be defined, such as:
 
 - The TLS certificates that Fleet should use to terminate TLS.
 
@@ -42,7 +42,7 @@ Since Fleet is an osquery TLS server, you are also able to define configurations
 
 ### Commands
 
-The `fleet` binary contains several "commands". Similarly to how `git` has many commands (`git status`, `git commit`, etc), the `fleet` binary accepts the following commands:
+The `fleet` binary contains several "commands." Similarly to how `git` has many commands (`git status`, `git commit`, etc.), the `fleet` binary accepts the following commands:
 
 - `fleet prepare db`
 - `fleet serve`
@@ -53,11 +53,11 @@ The `fleet` binary contains several "commands". Similarly to how `git` has many 
 
 #### How do you specify options?
 
-In order of precedence, options can be specified via:
+You can specify options in the order of precedence via
 
-- A configuration file (in YAML format)
-- Environment variables
-- Command-line flags
+- a configuration file (in YAML format).
+- environment variables.
+- command-line flags.
 
 For example, all of the following ways of launching Fleet are equivalent:
 
@@ -128,19 +128,19 @@ mysql_read_replica:
   address: 127.0.0.1:3307
 ```
 
-Basically, just capitalize the option and prepend `FLEET_` to it in order to get the environment variable. The conversion works the same the opposite way.
+Basically, just capitalize the option and prepend `FLEET_` to it to get the environment variable. The conversion works the same the opposite way.
 
 All duration-based settings accept valid time units of `s`, `m`, `h`.
 
 #### MySQL
 
-This section describes the configuration options for the primary - if you also want to setup a read replica, the options are the same, except that the yaml section is `mysql_read_replica`, and the flags have the `mysql_read_replica_` prefix instead of `mysql_` (the corresponding environment variables follow the same transformation). Note that there is no default value for `mysql_read_replica_address`, it must be set explicitly for Fleet to use a read replica, and it is recommended in that case to set a non-zero value for `mysql_read_replica_conn_max_lifetime` as in some environments, the replica's address may dynamically change to point
+This section describes the configuration options for the primary. Suppose you also want to set up a read replica. In that case the options are the same, except that the YAML section is `mysql_read_replica`, and the flags have the `mysql_read_replica_` prefix instead of `mysql_` (the corresponding environment variables follow the same transformation). Note that there is no default value for `mysql_read_replica_address`, it must be set explicitly for Fleet to use a read replica, and it is recommended in that case to set a non-zero value for `mysql_read_replica_conn_max_lifetime` as in some environments, the replica's address may dynamically change to point
 from the primary to an actual distinct replica based on auto-scaling options, so existing idle connections need to be recycled
 periodically.
 
 ##### mysql_address
 
-The address of the MySQL server which Fleet should connect to. Include the hostname and port.
+For the address of the MySQL server that Fleet should connect to, include the hostname and port.
 
 - Default value: `localhost:3306`
 - Environment variable: `FLEET_MYSQL_ADDRESS`
@@ -153,7 +153,7 @@ The address of the MySQL server which Fleet should connect to. Include the hostn
 
 ##### mysql_database
 
-The name of the MySQL database which Fleet will use.
+This is the name of the MySQL database which Fleet will use.
 
 - Default value: `fleet`
 - Environment variable: `FLEET_MYSQL_DATABASE`
@@ -218,7 +218,7 @@ The path to a PEM encoded certificate of MYSQL's CA for client certificate authe
 
 ##### mysql_tls_cert
 
-The path to a PEM encoded certificate use for tls authentication.
+The path to a PEM encoded certificate is used for TLS authentication.
 
 - Default value: none
 - Environment variable: `FLEET_MYSQL_TLS_CERT`
@@ -231,7 +231,7 @@ The path to a PEM encoded certificate use for tls authentication.
 
 ##### mysql_tls_key
 
-The path to a PEM encoded private key use for tls authentication.
+The path to a PEM encoded private key uses for TLS authentication.
 
 - Default value: none
 - Environment variable: `FLEET_MYSQL_TLS_KEY`
@@ -244,7 +244,7 @@ The path to a PEM encoded private key use for tls authentication.
 
 ##### mysql_tls_config
 
-The tls value in a MYSQL DSN. Can be `true`,`false`,`skip-verify` or the CN value of the certificate.
+The TLS value in an MYSQL DSN. Can be `true`,`false`,`skip-verify`, or the CN value of the certificate.
 
 - Default value: none
 - Environment variable: `FLEET_MYSQL_TLS_CONFIG`
@@ -257,7 +257,7 @@ The tls value in a MYSQL DSN. Can be `true`,`false`,`skip-verify` or the CN valu
 
 ##### mysql_tls_server_name
 
-The server name or IP address used by the client certificate.
+This is the server name or IP address used by the client certificate.
 
 - Default value: none
 - Environment variable: `FLEET_MYSQL_TLS_SERVER_NAME`
@@ -270,7 +270,7 @@ The server name or IP address used by the client certificate.
 
 ##### mysql_max_open_conns
 
-Maximum open connections to database
+The maximum open connections to the database.
 
 - Default value: 50
 - Environment variable: `FLEET_MYSQL_MAX_OPEN_CONNS`
@@ -283,7 +283,7 @@ Maximum open connections to database
 
 ##### mysql_max_idle_conns
 
-Maximum idle connections to database. This value should be equal to or less than `mysql_max_open_conns`
+The maximum idle connections to the database. This value should be equal to or less than `mysql_max_open_conns`.
 
 - Default value: 50
 - Environment variable: `FLEET_MYSQL_MAX_IDLE_CONNS`
@@ -296,7 +296,7 @@ Maximum idle connections to database. This value should be equal to or less than
 
 ##### mysql_conn_max_lifetime
 
-Maximum amount of time, in seconds, a connection may be reused.
+The maximum amount of time, in seconds, a connection may be reused.
 
 - Default value: 0 (Unlimited)
 - Environment variable: `FLEET_MYSQL_CONN_MAX_LIFETIME`
@@ -305,6 +305,20 @@ Maximum amount of time, in seconds, a connection may be reused.
   ```
   mysql:
   	conn_max_lifetime: 50
+  ```
+
+##### mysql_sql_mode
+
+Sets the connection `sql_mode`. See [MySQL Reference](https://dev.mysql.com/doc/refman/5.7/en/sql-mode.html) for more details.
+This setting should not usually be used.
+
+- Default value: `""`
+- Environment variable: `FLEET_MYSQL_SQL_MODE`
+- Config file format:
+
+  ```
+  mysql:
+  	sql_mode: ANSI
   ```
 
 ##### Example YAML
@@ -324,20 +338,20 @@ spec:
 
 #### Redis
 
-Note that a TLS connection to a Redis instance can be tested by running the
-`tlsconnect` Go program in `tools/redis-tests`, e.g. from the root of the repository:
+Note that to test a TLS connection to a Redis instance, run the
+`tlsconnect` Go program in `tools/redis-tests`, e.g., from the root of the repository:
 
 ```
 $ go run ./tools/redis-tests/tlsconnect.go -addr <redis_address> -cacert <redis_tls_ca> -cert <redis_tls_cert> -key <redis_tls_key>
 # run `go run ./tools/redis-tests/tlsconnect.go -h` for the full list of supported flags
 ```
 
-By default, this will setup a Redis pool for that configuration and execute a
+By default, this will set up a Redis pool for that configuration and execute a
 `PING` command with a TLS connection, printing any error it encounters.
 
 ##### redis_address
 
-The address of the Redis server which Fleet should connect to. Include the hostname and port.
+For the address of the Redis server that Fleet should connect to, include the hostname and port.
 
 - Default value: `localhost:6379`
 - Environment variable: `FLEET_REDIS_ADDRESS`
@@ -389,7 +403,7 @@ Use a TLS connection to the Redis server.
 
 ##### redis_duplicate_results
 
-Whether or not to duplicate Live Query results to another Redis channel named `LQDuplicate`. This is useful in a scenario that would involve shipping the Live Query results outside of Fleet, near-realtime.
+Whether or not to duplicate Live Query results to another Redis channel named `LQDuplicate`. This is useful in a scenario involving shipping the Live Query results outside of Fleet, near-realtime.
 
 - Default value: `false`
 - Environment variable: `FLEET_REDIS_DUPLICATE_RESULTS`
@@ -415,7 +429,7 @@ Timeout for redis connection.
 
 ##### redis_keep_alive
 
-Interval between keep alive probes.
+The interval between keep-alive probes.
 
 - Default value: 10s
 - Environment variable: `FLEET_REDIS_KEEP_ALIVE`
@@ -428,8 +442,8 @@ Interval between keep alive probes.
 
 ##### redis_connect_retry_attempts
 
-Maximum number of attempts to retry a failed connection to a redis node. Only
-certain type of errors are retried, such as connection timeouts.
+The maximum number of attempts to retry a failed connection to a Redis node. Only
+certain types of errors are retried, such as connection timeouts.
 
 - Default value: 0 (no retry)
 - Environment variable: `FLEET_REDIS_CONNECT_RETRY_ATTEMPTS`
@@ -474,7 +488,7 @@ to Redis Cluster setups, ignored in standalone Redis.
 
 ##### redis_tls_cert
 
-The path to a PEM-encoded certificate used for tls authentication.
+This is the path to a PEM-encoded certificate used for TLS authentication.
 
 - Default value: none
 - Environment variable: `FLEET_REDIS_TLS_CERT`
@@ -487,7 +501,7 @@ The path to a PEM-encoded certificate used for tls authentication.
 
 ##### redis_tls_key
 
-The path to a PEM-encoded private key used for tls authentication.
+This is the path to a PEM-encoded private key used for TLS authentication.
 
 - Default value: none
 - Environment variable: `FLEET_REDIS_TLS_KEY`
@@ -500,7 +514,7 @@ The path to a PEM-encoded private key used for tls authentication.
 
 ##### redis_tls_ca
 
-The path to a PEM-encoded certificate of Redis' CA for client certificate authentication.
+This is the path to a PEM-encoded certificate of Redis' CA for client certificate authentication.
 
 - Default value: none
 - Environment variable: `FLEET_REDIS_TLS_CA`
@@ -539,7 +553,7 @@ The timeout for the Redis TLS handshake part of the connection. A value of 0 mea
 
 ##### redis_max_idle_conns
 
-Maximum idle connections to Redis. This value should be equal to or less than `redis_max_open_conns`.
+The maximum idle connections to Redis. This value should be equal to or less than `redis_max_open_conns`.
 
 - Default value: 3
 - Environment variable: `FLEET_REDIS_MAX_IDLE_CONNS`
@@ -552,7 +566,7 @@ Maximum idle connections to Redis. This value should be equal to or less than `r
 
 ##### redis_max_open_conns
 
-Maximum open connections to Redis. A value of 0 means no limit.
+The maximum open connections to Redis. A value of 0 means no limit.
 
 - Default value: 0
 - Environment variable: `FLEET_REDIS_MAX_OPEN_CONNS`
@@ -565,7 +579,7 @@ Maximum open connections to Redis. A value of 0 means no limit.
 
 ##### redis_conn_max_lifetime
 
-Maximum amount of time a Redis connection may be reused. A value of 0 means no limit.
+The maximum time a Redis connection may be reused. A value of 0 means no limit.
 
 - Default value: 0 (Unlimited)
 - Environment variable: `FLEET_REDIS_CONN_MAX_LIFETIME`
@@ -578,7 +592,7 @@ Maximum amount of time a Redis connection may be reused. A value of 0 means no l
 
 ##### redis_idle_timeout
 
-Maximum amount of time a Redis connection may stay idle. A value of 0 means no limit.
+The maximum time a Redis connection may stay idle. A value of 0 means no limit.
 
 - Default value: 240s
 - Environment variable: `FLEET_REDIS_IDLE_TIMEOUT`
@@ -591,7 +605,7 @@ Maximum amount of time a Redis connection may stay idle. A value of 0 means no l
 
 ##### redis_conn_wait_timeout
 
-Maximum amount of time to wait for a Redis connection if the max_open_conns
+The maximum time to wait for a Redis connection if the max_open_conns
 limit is reached. A value of 0 means no wait. This is ignored if Redis is not
 running in cluster mode.
 
@@ -606,7 +620,7 @@ running in cluster mode.
 
 ##### redis_read_timeout
 
-Maximum amount of time to wait to receive a response from a Redis server.
+The maximum time to wait to receive a response from a Redis server.
 A value of 0 means no timeout.
 
 - Default value: 10s
@@ -620,7 +634,7 @@ A value of 0 means no timeout.
 
 ##### redis_write_timeout
 
-Maximum amount of time to wait to send a command to a Redis server.
+The maximum time to wait to send a command to a Redis server.
 A value of 0 means no timeout.
 
 - Default value: 10s
@@ -2632,8 +2646,8 @@ AWS STS role ARN to use for S3 authentication.
 
 ##### packaging_s3_endpoint_url
 
-AWS S3 Endpoint URL. Override when using a different S3 compatible object storage backend (such as Minio),
-or running s3 locally with localstack. Leave this blank to use the default AWS S3 service endpoint.
+AWS S3 Endpoint URL. Override when using a different S3 compatible object storage backend (such as Minio)
+or running s3 locally with LocalStack. Leave this blank to use the default AWS S3 service endpoint.
 
 - Default value: ""
 - Environment variable: `FLEET_PACKAGING_S3_ENDPOINT_URL`
@@ -2682,7 +2696,7 @@ See [here](http://docs.aws.amazon.com/AmazonS3/latest/dev/VirtualHosting.html) f
 
 AWS S3 Region. Leave blank to enable region discovery.
 
-Minio users must set this to any nonempty value (eg. `minio`), as Minio does not support region discovery.
+Minio users must set this to any non-empty value (e.g., `minio`), as Minio does not support region discovery.
 
 - Default value: ""
 - Environment variable: `FLEET_PACKAGING_S3_REGION`

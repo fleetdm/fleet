@@ -133,6 +133,7 @@ export const usageStatsPreview = {
       ],
     },
   ],
+  numHostsNotResponding: 9,
 };
 
 export default {

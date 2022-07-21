@@ -32,7 +32,7 @@ resource "aws_secretsmanager_secret_version" "database_password_secret_version" 
 //  vpc_id                = module.vpc.vpc_id
 //  subnets               = module.vpc.database_subnets
 //  create_security_group = true
-//  allowed_cidr_blocks   = module.vpc.private_subnets_cidr_blocks
+//  allowed_cidr_blocks   = concat(module.vpc.private_subnets_cidr_blocks, var.extra_security_group_cidrs)
 //
 //  replica_scale_enabled = false
 //  replica_count         = 0
@@ -84,7 +84,7 @@ module "aurora_mysql" {
   vpc_id                = module.vpc.vpc_id
   subnets               = module.vpc.database_subnets
   create_security_group = true
-  allowed_cidr_blocks   = module.vpc.private_subnets_cidr_blocks
+  allowed_cidr_blocks   = concat(module.vpc.private_subnets_cidr_blocks, var.extra_security_group_cidrs)
 
   replica_count         = 1
   replica_scale_enabled = true

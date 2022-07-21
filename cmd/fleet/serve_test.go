@@ -26,6 +26,8 @@ import (
 func TestMaybeSendStatistics(t *testing.T) {
 	ds := new(mock.Store)
 
+	fleetConfig := config.FleetConfig{Osquery: config.OsqueryConfig{DetailUpdateInterval: 1 * time.Hour}}
+
 	requestBody := ""
 
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -39,7 +41,7 @@ func TestMaybeSendStatistics(t *testing.T) {
 		return &fleet.AppConfig{ServerSettings: fleet.ServerSettings{EnableAnalytics: true}}, nil
 	}
 
-	ds.ShouldSendStatisticsFunc = func(ctx context.Context, frequency time.Duration, license *fleet.LicenseInfo) (fleet.StatisticsPayload, bool, error) {
+	ds.ShouldSendStatisticsFunc = func(ctx context.Context, frequency time.Duration, config config.FleetConfig, license *fleet.LicenseInfo) (fleet.StatisticsPayload, bool, error) {
 		return fleet.StatisticsPayload{
 			AnonymousIdentifier:       "ident",
 			FleetVersion:              "1.2.3",
@@ -68,14 +70,16 @@ func TestMaybeSendStatistics(t *testing.T) {
 		return nil
 	}
 
-	err := trySendStatistics(context.Background(), ds, fleet.StatisticsFrequency, ts.URL, &fleet.LicenseInfo{Tier: "premium"})
+	err := trySendStatistics(context.Background(), ds, fleet.StatisticsFrequency, ts.URL, fleetConfig, &fleet.LicenseInfo{Tier: "premium"})
 	require.NoError(t, err)
 	assert.True(t, recorded)
-	assert.Equal(t, `{"anonymousIdentifier":"ident","fleetVersion":"1.2.3","licenseTier":"premium","numHostsEnrolled":999,"numUsers":99,"numTeams":9,"numPolicies":0,"numLabels":3,"softwareInventoryEnabled":true,"vulnDetectionEnabled":true,"systemUsersEnabled":true,"hostsStatusWebHookEnabled":true,"numWeeklyActiveUsers":111,"hostsEnrolledByOperatingSystem":{"linux":[{"version":"1.2.3","numEnrolled":22}]},"storedErrors":[]}`, requestBody)
+	assert.Equal(t, `{"anonymousIdentifier":"ident","fleetVersion":"1.2.3","licenseTier":"premium","numHostsEnrolled":999,"numUsers":99,"numTeams":9,"numPolicies":0,"numLabels":3,"softwareInventoryEnabled":true,"vulnDetectionEnabled":true,"systemUsersEnabled":true,"hostsStatusWebHookEnabled":true,"numWeeklyActiveUsers":111,"hostsEnrolledByOperatingSystem":{"linux":[{"version":"1.2.3","numEnrolled":22}]},"storedErrors":[],"numHostsNotResponding":0}`, requestBody)
 }
 
 func TestMaybeSendStatisticsSkipsSendingIfNotNeeded(t *testing.T) {
 	ds := new(mock.Store)
+
+	fleetConfig := config.FleetConfig{Osquery: config.OsqueryConfig{DetailUpdateInterval: 1 * time.Hour}}
 
 	called := false
 
@@ -88,7 +92,7 @@ func TestMaybeSendStatisticsSkipsSendingIfNotNeeded(t *testing.T) {
 		return &fleet.AppConfig{ServerSettings: fleet.ServerSettings{EnableAnalytics: true}}, nil
 	}
 
-	ds.ShouldSendStatisticsFunc = func(ctx context.Context, frequency time.Duration, license *fleet.LicenseInfo) (fleet.StatisticsPayload, bool, error) {
+	ds.ShouldSendStatisticsFunc = func(ctx context.Context, frequency time.Duration, cfg config.FleetConfig, license *fleet.LicenseInfo) (fleet.StatisticsPayload, bool, error) {
 		return fleet.StatisticsPayload{}, false, nil
 	}
 	recorded := false
@@ -97,7 +101,7 @@ func TestMaybeSendStatisticsSkipsSendingIfNotNeeded(t *testing.T) {
 		return nil
 	}
 
-	err := trySendStatistics(context.Background(), ds, fleet.StatisticsFrequency, ts.URL, &fleet.LicenseInfo{Tier: "premium"})
+	err := trySendStatistics(context.Background(), ds, fleet.StatisticsFrequency, ts.URL, fleetConfig, &fleet.LicenseInfo{Tier: "premium"})
 	require.NoError(t, err)
 	assert.False(t, recorded)
 	assert.False(t, called)
@@ -105,6 +109,8 @@ func TestMaybeSendStatisticsSkipsSendingIfNotNeeded(t *testing.T) {
 
 func TestMaybeSendStatisticsSkipsIfNotConfigured(t *testing.T) {
 	ds := new(mock.Store)
+
+	fleetConfig := config.FleetConfig{Osquery: config.OsqueryConfig{DetailUpdateInterval: 1 * time.Hour}}
 
 	called := false
 
@@ -117,7 +123,7 @@ func TestMaybeSendStatisticsSkipsIfNotConfigured(t *testing.T) {
 		return &fleet.AppConfig{}, nil
 	}
 
-	err := trySendStatistics(context.Background(), ds, fleet.StatisticsFrequency, ts.URL, &fleet.LicenseInfo{Tier: "premium"})
+	err := trySendStatistics(context.Background(), ds, fleet.StatisticsFrequency, ts.URL, fleetConfig, &fleet.LicenseInfo{Tier: "premium"})
 	require.NoError(t, err)
 	assert.False(t, called)
 }

@@ -3,9 +3,8 @@ import React from "react";
 import ReactTooltip from "react-tooltip";
 
 import Button from "components/buttons/Button";
+import DiskSpaceGraph from "components/DiskSpaceGraph";
 import {
-  diskSpaceIndicator,
-  diskSpaceTooltip,
   humanHostMemory,
   humanHostDetailUpdated,
   wrapFleetHelper,
@@ -122,48 +121,6 @@ const HostSummary = ({
     </div>
   );
 
-  const renderDiskSpace = () => {
-    if (
-      titleData &&
-      (titleData.gigs_disk_space_available > 0 ||
-        titleData.percent_disk_space_available > 0)
-    ) {
-      return (
-        <span className="info-flex__data">
-          <div
-            className="info-flex__disk-space-wrapper tooltip"
-            data-tip
-            data-for="disk-space-tooltip"
-          >
-            <div className="info-flex__disk-space">
-              <div
-                className={`info-flex__disk-space-${diskSpaceIndicator(
-                  titleData.gigs_disk_space_available
-                )}`}
-                style={{
-                  width: `${100 - titleData.percent_disk_space_available}%`,
-                }}
-              />
-            </div>
-          </div>
-          <ReactTooltip
-            place="bottom"
-            type="dark"
-            effect="solid"
-            id="disk-space-tooltip"
-            backgroundColor="#3e4771"
-          >
-            <span className={`${baseClass}__tooltip-text`}>
-              {diskSpaceTooltip(titleData.gigs_disk_space_available)}
-            </span>
-          </ReactTooltip>
-          {titleData.gigs_disk_space_available} GB available
-        </span>
-      );
-    }
-    return <span className="info-flex__data">No data available</span>;
-  };
-
   const renderSummary = () => {
     return (
       <div className="info-flex">
@@ -183,7 +140,12 @@ const HostSummary = ({
         {!deviceUser && isPremiumTier && renderHostTeam()}
         <div className="info-flex__item info-flex__item--title">
           <span className="info-flex__header">Disk space</span>
-          {renderDiskSpace()}
+          <DiskSpaceGraph
+            baseClass="info-flex"
+            gigsDiskSpaceAvailable={titleData.gigs_disk_space_available}
+            percentDiskSpaceAvailable={titleData.percent_disk_space_available}
+            id={"disk-space-tooltip"}
+          />
         </div>
         <div className="info-flex__item info-flex__item--title">
           <span className="info-flex__header">Memory</span>
