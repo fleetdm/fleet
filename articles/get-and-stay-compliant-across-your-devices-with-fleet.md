@@ -95,7 +95,7 @@ Thanks to automation and open source tools like osquery and Fleet, compliance is
 
 
 
-<meta name="category" value="product">
+<meta name="category" value="security">
 <meta name="authorFullName" value="Drew Baker">
 <meta name="authorGitHubUsername" value="DrewBakerfdm">
 <meta name="publishedOn" value="2022-03-09">

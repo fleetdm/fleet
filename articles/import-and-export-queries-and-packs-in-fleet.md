@@ -37,7 +37,7 @@ Here’s how you can do this in 2 quick fleetctl commands.
 
 Let us know if you can think of any other example scenarios you’d like us to cover.
 
-<meta name="category" value="product">
+<meta name="category" value="guides">
 <meta name="authorGitHubUsername" value="noahtalerman">
 <meta name="authorFullName" value="Noah Talerman">
 <meta name="publishedOn" value="2021-02-16">

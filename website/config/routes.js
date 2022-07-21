@@ -68,15 +68,15 @@ module.exports.routes = {
     }
   },
 
-  'r|/((device-management|securing|releases|engineering|guides|announcements|use-cases|podcasts|report)/(.+))$|': {
+  'r|/((device-management|securing|releases|engineering|guides|announcements|podcasts|report|deploy)/(.+))$|': {
     skipAssets: false,
     action: 'articles/view-basic-article',
     locals: {
       currentPage: 'articles',
     }
-  },// handles /device-management/foo, /securing/foo, /releases/foo, /engineering/foo, /guides/foo, /announcements/foo, /use-cases/foo, /podcasts/foo, /report/foo
+  },// Handles /device-management/foo, /securing/foo, /releases/foo, /engineering/foo, /guides/foo, /announcements/foo, /deploy/foo, /podcasts/foo, /report/foo
 
-  'r|^/((device-management|securing|releases|engineering|guides|announcements|use-cases|articles|podcasts|report))/*$|category': {
+  'r|^/((device-management|securing|releases|engineering|guides|announcements|articles|podcasts|report|deploy))/*$|category': {
     skipAssets: false,
     action: 'articles/view-articles',
     locals: {
@@ -203,6 +203,8 @@ module.exports.routes = {
   'GET /try-fleet':                  '/get-started',
   'GET /docs/deploying/fleet-public-load-testing': '/docs/deploying/load-testing',
   'GET /handbook/customer-experience': '/handbook/customers',
+  'GET /guides/deploy-fleet-on-hetzner-cloud': '/deploy/deploy-fleet-on-hetzner-cloud',
+  'GET /use-cases/stay-on-course-with-your-security-compliance-goals': '/guides/stay-on-course-with-your-security-compliance-goals',
 
 
 
