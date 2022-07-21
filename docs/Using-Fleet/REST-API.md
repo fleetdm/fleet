@@ -91,7 +91,7 @@ Authenticates the user with the specified credentials. Use the token returned fr
 
 | Name     | Type   | In   | Description                                   |
 | -------- | ------ | ---- | --------------------------------------------- |
-| email    | string | body | **Required**. The user's email.               |
+| email    | string | body | **Required** . The user's email.               |
 | password | string | body | **Required**. The user's plain text password. |
 
 #### Example
@@ -2626,7 +2626,7 @@ created_at,updated_at,id,detail_updated_at,label_updated_at,policy_updated_at,la
 - [Create label](#create-label)
 - [Modify label](#modify-label)
 - [Get label](#get-label)
-- [Get labels summary](#get-labels-sumary)
+- [Get labels summary](#get-labels-summary)
 - [List labels](#list-labels)
 - [List hosts in a label](#list-hosts-in-a-label)
 - [Delete label](#delete-label)
