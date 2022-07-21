@@ -4,7 +4,7 @@
 
 [![Run Tests](https://github.com/fleetdm/fleet/actions/workflows/test.yml/badge.svg)](https://github.com/fleetdm/fleet/actions/workflows/test.yml) &nbsp; [![Go Report Card](https://goreportcard.com/badge/github.com/fleetdm/fleet)](https://goreportcard.com/report/github.com/fleetdm/fleet) &nbsp; [![CII Best Practices](https://bestpractices.coreinfrastructure.org/projects/5537/badge)](https://bestpractices.coreinfrastructure.org/projects/5537) &nbsp; [![Twitter Follow](https://img.shields.io/twitter/follow/fleetctl.svg?style=social&maxAge=3600)](https://twitter.com/fleetctl) &nbsp; 
 
-Fleet is the lightweight telemetry platform for servers and workstations. Get comprehensive, customizable data from all your devices and operating systems – without the downtime risk.
+Fleet is the lightweight, open source telemetry platform for servers and workstations. Deploy osquery with Fleet to get comprehensive, customizable data from all your devices and operating systems – without the downtime risk.
 
 ## Try Fleet
 
