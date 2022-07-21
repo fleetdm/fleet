@@ -15,6 +15,33 @@ html, body {
   position: relative;
   padding-bottom: @footer-height;
 }
+.homepage-cta-banner {
+  background-color: #FFF;
+  color: #000;
+
+  a {
+    color: #000;
+  }
+}
+.non-homepage-cta-banner {
+  background-color: @core-fleet-black;
+  color: #FFF;
+  a {
+    color: #FFF;
+  }
+}
+[purpose='header-report-cta'] {
+  p {
+    font-size: 14px;
+    line-height: 20px;
+  }
+  a {
+    font-size: 14px;
+    line-height: 20px;
+    font-weight: 700;
+    text-decoration: underline;
+  }
+}
 
 [purpose='page-header'] {
     // rules for sticky nav transitions
@@ -106,18 +133,6 @@ html, body {
       }
     }
   }
-  [purpose='header-report-cta'] {
-    p {
-      font-size: 14px;
-      line-height: 20px;
-    }
-    a {
-      font-size: 14px;
-      line-height: 20px;
-      font-weight: 700;
-      text-decoration: underline;
-    }
-  }
 } // Homepage header styles
 &.homepage-header {
   z-index: 9999;
@@ -154,14 +169,6 @@ html, body {
       cursor: pointer;
     }
   }
-  [purpose='header-report-cta'] {
-    background-color: #FFF;
-    color: #000;
-
-    a {
-      color: #000;
-    }
-  }
 } // Non-homepage header styles
 &.header {
     left: 0;
@@ -191,13 +198,6 @@ html, body {
       color: #192147;
       font-weight: @bold;
       cursor: pointer;
-    }
-  }
-  [purpose='header-report-cta'] {
-    background-color: @core-fleet-black;
-    color: #FFF;
-    a {
-      color: #FFF;
     }
   }
 }
