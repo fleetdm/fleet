@@ -121,7 +121,7 @@ func BuildPkg(opt Options) (string, error) {
 	isLinuxNative := runtime.GOOS == "linux" && opt.NativeTooling
 
 	if len(opt.SignIdentity) != 0 {
-		if len(opt.MacOSDevIDCertificate) != 0 {
+		if len(opt.MacOSDevIDCertificateContent) != 0 {
 			return "", errors.New("providing a sign identity and a Dev ID certificate is not supported")
 		}
 
@@ -131,7 +131,7 @@ func BuildPkg(opt Options) (string, error) {
 		}
 	}
 
-	if isLinuxNative && len(opt.MacOSDevIDCertificate) > 0 {
+	if isLinuxNative && len(opt.MacOSDevIDCertificateContent) > 0 {
 		if len(opt.SignIdentity) != 0 {
 			return "", errors.New("providing a sign identity and a Dev ID certificate is not supported")
 		}
@@ -140,7 +140,7 @@ func BuildPkg(opt Options) (string, error) {
 			return "", errors.New("missing password for Dev ID certificate")
 		}
 
-		if err := rSign(generatedPath, opt.MacOSDevIDCertificate, opt.MacOSDevIDCertificatePassword); err != nil {
+		if err := rSign(generatedPath, opt.MacOSDevIDCertificateContent, opt.MacOSDevIDCertificatePassword); err != nil {
 			return "", fmt.Errorf("rcodesign: %w", err)
 		}
 	}

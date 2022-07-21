@@ -151,10 +151,10 @@ func packageCommand() *cli.Command {
 				Destination: &opt.NativeTooling,
 			},
 			&cli.StringFlag{
-				Name:        "macos-devid-certificate",
-				Usage:       "Provide a Dev ID certificate, note that this value must be the full certificate content",
-				EnvVars:     []string{"FLEETCTL_MACOS_DEVID_CERTIFICATE"},
-				Destination: &opt.MacOSDevIDCertificate,
+				Name:        "macos-devid-certificate-content",
+				Usage:       "Dev ID certificate content",
+				EnvVars:     []string{"FLEETCTL_MACOS_DEVID_CERTIFICATE_CONTENT"},
+				Destination: &opt.MacOSDevIDCertificateContent,
 			},
 			&cli.StringFlag{
 				Name:        "macos-devid-certificate-password",
