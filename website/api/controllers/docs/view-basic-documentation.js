@@ -38,7 +38,6 @@ module.exports = {
 
     // Serve appropriate page content.
     // Note that this action also serves the '/docs' landing page, as well as individual doc pages.
-    // 
     // > Inspired by https://github.com/sailshq/sailsjs.com/blob/b53c6e6a90c9afdf89e5cae00b9c9dd3f391b0e7/api/controllers/documentation/view-documentation.js
     let thisPage = _.find(sails.config.builtStaticContent.markdownPages, { url: SECTION_URL_PREFIX + '/' + pageUrlSuffix });
     if (!thisPage) {// If there's no matching page, try a revised version of the URL suffix that's lowercase, with internal slashes deduped, and any trailing slash or whitespace trimmed
