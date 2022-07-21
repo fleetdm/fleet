@@ -15,7 +15,7 @@ import StatusCell from "components/TableContainer/DataTable/StatusCell/StatusCel
 import TextCell from "components/TableContainer/DataTable/TextCell/TextCell";
 import {
   humanHostMemory,
-  humanHostUptime,
+  humanHostLastRestart,
   humanHostLastSeen,
   humanHostDetailUpdated,
   hostTeamName,
@@ -324,7 +324,7 @@ const allHostTableHeaders: IDataColumn[] = [
     Cell: (cellProps: ICellProps) => <TextCell value={cellProps.cell.value} />,
   },
   {
-    title: "Uptime",
+    title: "Last restarted",
     Header: (cellProps: IHeaderProps) => (
       <HeaderCell
         value={cellProps.column.title}
@@ -332,9 +332,13 @@ const allHostTableHeaders: IDataColumn[] = [
       />
     ),
     accessor: "uptime",
-    Cell: (cellProps: ICellProps) => (
-      <TextCell value={cellProps.cell.value} formatter={humanHostUptime} />
-    ),
+    Cell: (cellProps: ICellProps) => {
+      const { uptime, detail_updated_at } = cellProps.row.original;
+
+      return (
+        <TextCell value={humanHostLastRestart(detail_updated_at, uptime)} />
+      );
+    },
   },
   {
     title: "CPU",
