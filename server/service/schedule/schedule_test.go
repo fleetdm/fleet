@@ -18,15 +18,42 @@ func (nopLocker) Lock(context.Context, string, string, time.Duration) (bool, err
 	return true, nil
 }
 
+type testJobber struct {
+	name        string
+	jobRan      bool
+	jobRunCount int
+	shouldFail  bool
+	shouldPanic bool
+	log         func()
+}
+
+func (j *testJobber) run(ctx context.Context) error {
+	j.jobRan = true
+	j.jobRunCount += 1
+
+	if j.log != nil {
+		j.log()
+	}
+	if j.shouldFail {
+		j.fail(ctx)
+	}
+	if j.shouldPanic {
+		panic("panicked!!")
+	}
+
+	return nil
+}
+
+func (j *testJobber) fail(ctx context.Context) error {
+	return errors.New(j.name)
+}
+
 func TestNewSchedule(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 
-	jobRan := false
+	j := &testJobber{jobRan: false}
 	s := New(ctx, "test_new_schedule", "test_instance", 10*time.Millisecond, nopLocker{},
-		WithJob("test_job", func(ctx context.Context) error {
-			jobRan = true
-			return nil
-		}),
+		WithJob("test_job", j),
 	)
 	s.Start()
 
@@ -35,7 +62,7 @@ func TestNewSchedule(t *testing.T) {
 
 	select {
 	case <-s.Done():
-		require.True(t, jobRan)
+		require.True(t, j.jobRan)
 	case <-time.After(5 * time.Second):
 		t.Error("timeout")
 	}
@@ -58,12 +85,9 @@ func TestScheduleLocker(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 
 	locker := counterLocker{}
-	jobRunCount := 0
+	j := &testJobber{}
 	s := New(ctx, "test_schedule_locker", "test_instance", 10*time.Millisecond, &locker,
-		WithJob("test_job", func(ctx context.Context) error {
-			jobRunCount++
-			return nil
-		}),
+		WithJob("test_job", j),
 	)
 	s.Start()
 
@@ -72,7 +96,7 @@ func TestScheduleLocker(t *testing.T) {
 
 	select {
 	case <-s.Done():
-		require.Equal(t, locker.count, jobRunCount)
+		require.Equal(t, locker.count, j.jobRunCount)
 	case <-time.After(5 * time.Second):
 		t.Error("timeout")
 	}
@@ -105,11 +129,8 @@ func TestMultipleSchedules(t *testing.T) {
 			interval:   10 * time.Millisecond,
 			jobs: []Job{
 				{
-					ID: "test_job_1",
-					Fn: func(ctx context.Context) error {
-						setJobRun("test_job_1")
-						return nil
-					},
+					id:     "test_job_1",
+					jobber: &testJobber{log: func() { setJobRun("test_job_1") }},
 				},
 			},
 		},
@@ -119,11 +140,8 @@ func TestMultipleSchedules(t *testing.T) {
 			interval:   100 * time.Millisecond,
 			jobs: []Job{
 				{
-					ID: "test_job_2",
-					Fn: func(ctx context.Context) error {
-						setJobRun("test_job_2")
-						return nil
-					},
+					id:     "test_job_2",
+					jobber: &testJobber{log: func() { setJobRun("test_job_2") }},
 				},
 			},
 		},
@@ -133,26 +151,21 @@ func TestMultipleSchedules(t *testing.T) {
 			interval:   100 * time.Millisecond,
 			jobs: []Job{
 				{
-					ID: "test_job_3",
-					Fn: func(ctx context.Context) error {
-						setJobRun("test_job_3")
-						return errors.New("job 3") // job 3 fails, job 4 should still run.
-					},
+					id: "test_job_3",
+					// job 3 fails, job 4 should still run.
+					jobber: &testJobber{name: "test_job_3", shouldFail: true, log: func() { setJobRun("test_job_3") }},
 				},
 				{
-					ID: "test_job_4",
-					Fn: func(ctx context.Context) error {
-						setJobRun("test_job_4")
-						return nil
-					},
+					id:     "test_job_4",
+					jobber: &testJobber{name: "test_job_4", log: func() { setJobRun("test_job_4") }},
 				},
 			},
 		},
 	} {
 		var opts []Option
 		for _, job := range tc.jobs {
-			opts = append(opts, WithJob(job.ID, job.Fn))
-			jobNames = append(jobNames, job.ID)
+			opts = append(opts, WithJob(job.id, job.jobber))
+			jobNames = append(jobNames, job.id)
 		}
 		s := New(ctx, tc.name, tc.instanceID, tc.interval, nopLocker{}, opts...)
 		s.Start()
@@ -182,18 +195,15 @@ func TestMultipleJobsInOrder(t *testing.T) {
 	jobs := make(chan int)
 
 	s := New(ctx, "test_schedule", "test_instance", 100*time.Millisecond, nopLocker{},
-		WithJob("test_job_1", func(ctx context.Context) error {
+		WithJob("test_job_1", &testJobber{log: func() {
 			jobs <- 1
-			return nil
-		}),
-		WithJob("test_job_2", func(ctx context.Context) error {
+		}}),
+		WithJob("test_job_2", &testJobber{shouldFail: true, log: func() {
 			jobs <- 2
-			return errors.New("test_job_2")
-		}),
-		WithJob("test_job_3", func(ctx context.Context) error {
+		}}),
+		WithJob("test_job_3", &testJobber{log: func() {
 			jobs <- 3
-			return nil
-		}),
+		}}),
 	)
 	s.Start()
 
@@ -235,15 +245,13 @@ func TestMultipleJobsInOrder(t *testing.T) {
 func TestConfigReloadCheck(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 
-	jobRan := false
+	job := &testJobber{}
+
 	s := New(ctx, "test_schedule", "test_instance", 200*time.Millisecond, nopLocker{},
 		WithConfigReloadInterval(100*time.Millisecond, func(_ context.Context) (time.Duration, error) {
 			return 50 * time.Millisecond, nil
 		}),
-		WithJob("test_job", func(ctx context.Context) error {
-			jobRan = true
-			return nil
-		}),
+		WithJob("test_job", job),
 	)
 
 	require.Equal(t, s.getSchedInterval(), 200*time.Millisecond)
@@ -258,7 +266,32 @@ func TestConfigReloadCheck(t *testing.T) {
 	case <-s.Done():
 		require.Equal(t, s.getSchedInterval(), 50*time.Millisecond)
 		require.Equal(t, s.configReloadInterval, 100*time.Millisecond)
-		require.True(t, jobRan)
+		require.True(t, job.jobRan)
+	case <-time.After(5 * time.Second):
+		t.Error("timeout")
+	}
+}
+
+func TestJobPanicRecover(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+
+	j1 := &testJobber{name: "test_job_1", jobRan: false, shouldPanic: true}
+	j2 := &testJobber{name: "test_job_2", jobRan: false}
+
+	s := New(ctx, "test_new_schedule", "test_instance", 10*time.Millisecond, nopLocker{},
+		WithJob(j1.name, j1),
+		WithJob(j2.name, j2),
+	)
+	s.Start()
+
+	time.Sleep(1 * time.Second)
+	cancel()
+
+	select {
+	case <-s.Done():
+		require.True(t, j1.jobRan)
+		// j2 should still run even though j1 panicked
+		require.True(t, j2.jobRan)
 	case <-time.After(5 * time.Second):
 		t.Error("timeout")
 	}
