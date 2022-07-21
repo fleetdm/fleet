@@ -8,7 +8,6 @@ parasails.registerPage('basic-handbook', {
     breadcrumbs: [],
     subtopics: [],
     handbookIndexLinks: [],
-    pagesInSameSection: [],
 
   },
 
@@ -52,7 +51,7 @@ parasails.registerPage('basic-handbook', {
     if(this.isHandbookLandingPage) {
       let handbookPages = [];
       for (let page of this.markdownPages) {
-        if(_.startsWith(page.url, '/handbook') && !page.title.match(/^readme\.md$/i) && !page.url.match(/\/handbook\/\w+\/\w+/g)) {
+        if(_.startsWith(page.url, '/handbook') && !page.title.match(/^readme\.md$/i)) {
           let handbookPage = {
             pageTitle: page.title,
             url: page.url,
