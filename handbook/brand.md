@@ -474,7 +474,7 @@ Add a CTA at the end of your article. See [Customizable CTA](#customizable-cta) 
 Images are a great way to help engage your readers. But consider the following before including images or screenshots in your article:
 
 - Does the image add value?
-- Is your image likely to go out of date soon? (Consider the long-term maintenance of your article.
+- Is your image likely to go out of date soon? (Consider the long-term maintenance of your article.)
 
 ### Meta tags
 These tags help pass information to the website about the article to display and store it. 
