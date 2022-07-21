@@ -440,7 +440,7 @@ Every week, we run `npm audit --only=prod` to check for vulnerabilities on the p
 
 ## Article formatting guidelines
 
-To publish an article, you will need to create a Pull Request for fleetdm.com with a file of your article, formatted in Markdown (todo).
+To publish an article, you will need to create a Pull Request for a new file, formatted in Markdown (todo), in [https://github.com/fleetdm/fleet/tree/main/articles](https://github.com/fleetdm/fleet/tree/main/articles).
 
 #### On this page
 - [Layout](#layout)
