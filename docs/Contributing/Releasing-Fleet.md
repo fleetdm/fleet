@@ -142,12 +142,13 @@ Any issue that meets the patch release criteria is sent to the [DRI for release 
 
 5. The DRI for creating the patch release branch notifies the [DRI for release testing/QA](https://fleetdm.com/handbook/product#rituals) that the branch is available for completing [smoke tests](https://github.com/fleetdm/fleet/blob/main/.github/ISSUE_TEMPLATE/smoke-tests.md).
 
-6. DRI for release testing/QA makes sure someone follows the standard release instructions at the top of this document. Be sure that modifications to the changelog and config files are commited _on the `patch-*` branch_. When the patch has been released, return to finish the following steps.
+6. The DRI for release testing/QA makes sure the standard release instructions at the top of this document are followed. Be sure that modifications to the changelog and config files are commited _on the `patch-*` branch_.
 
-7. Zach Wasserman cherry-picks the commit containing the changelog updates into a new branch, and merge that commit
-   into `main` through a Pull Request.
+7. The DRI for release testing/QA notifies Zach Wasserman that the patch release is ready. Zach Wasserman releases the patch.
 
-8. **Important!** Zach Wasserman manually checks the database migrations. Any migrations that are not cherry-picked in a patch must have a _higher_ timestamp than migrations that were cherry-picked. If there are new migrations that were not cherry-picked, verify that those migrations have higher timestamps. If they do not, submit a new Pull Request to increase the timestamps and ensure that migrations are run in the appropriate order.
+8. The DRI for creating patch the release branch cherry-picks the commit containing the changelog updates into a new branch, and merge that commit into `main` through a Pull Request.
+
+9. **Important!** The DRI for creating patch the release branch manually checks the database migrations. Any migrations that are not cherry-picked in a patch must have a _higher_ timestamp than migrations that were cherry-picked. If there are new migrations that were not cherry-picked, verify that those migrations have higher timestamps. If they do not, submit a new Pull Request to increase the timestamps and ensure that migrations are run in the appropriate order.
 
    TODO [#2850](https://github.com/fleetdm/fleet/issues/2850): Improve docs/tooling for this.
 
