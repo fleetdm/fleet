@@ -40,10 +40,10 @@
             width: $col-sm;
           }
 
-          @media (max-width: $tooltip-sm-break-1000) {
+          @media (max-width: $tooltip-break-1000) {
             .cisa_known_exploit__header {
               .component__tooltip-wrapper__tip-text {
-                max-width: $col-sm;
+                max-width: 100px; // Prevents horizontal scrolling off viewport
                 white-space: normal;
               }
             }
