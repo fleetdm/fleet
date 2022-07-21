@@ -165,17 +165,6 @@ module.exports = {
             } else {
               fallbackPageTitle = sails.helpers.strings.toSentenceCase(path.basename(pageSourcePath, path.extname(pageSourcePath)));
             }
-            // Determine the handbookSection for handbook pages and modify the pageUnextensionedLowercasedRelPath for pages with the same name as their parent folder.
-            let handbookSection = undefined;
-            if(sectionRepoPath === 'handbook/') {
-              let splitPageUnextensionedLowercasedRelPath = pageUnextensionedLowercasedRelPath.split('/');
-              // Set the handbookSection for this page to be the subfolder that this handbook page is in. This value will be added to the handbook page's configuration.
-              handbookSection = splitPageUnextensionedLowercasedRelPath[0];
-              if(splitPageUnextensionedLowercasedRelPath[0] === splitPageUnextensionedLowercasedRelPath[1] && !splitPageUnextensionedLowercasedRelPath[3]){
-                // If this page has the same name as the subfolder it's in, we'll modify the pageUnextensionedLowercasedRelPath to remove the page name before we use it to determine the final url. Example: growth/growth -> growth
-                pageUnextensionedLowercasedRelPath = pageUnextensionedLowercasedRelPath.replace(('/'+splitPageUnextensionedLowercasedRelPath[0]), '');
-              }
-            }
 
             // Determine URL for this page
             let rootRelativeUrlPath = (
@@ -490,7 +479,6 @@ module.exports = {
                 sectionRelativeRepoPath: sectionRelativeRepoPath,
                 meta: _.omit(embeddedMetadata, ['title', 'pageOrderInSection']),
                 linksForHandbookIndex: linksForHandbookIndex.length > 0 ? linksForHandbookIndex : undefined,
-                handbookSection: handbookSection ? handbookSection : undefined,
               });
             }
           }//∞ </each source file>
