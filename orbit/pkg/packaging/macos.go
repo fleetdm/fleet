@@ -152,11 +152,11 @@ func BuildPkg(opt Options) (string, error) {
 				return "", err
 			}
 		case isLinuxNative:
-			if len(opt.MacOSAppstoreConnectAPIKey) == 0 || len(opt.MacOSAppstoreConnectAPIIssuer) == 0 {
-				return "", errors.New("both an Appstore Connect API key and issuer must be set for native notarization")
+			if len(opt.AppStoreConnectAPIKey) == 0 || len(opt.AppStoreConnectAPIIssuer) == 0 {
+				return "", errors.New("both an App Store Connect API key and issuer must be set for native notarization")
 			}
 
-			if err := rNotarizeStaple(generatedPath, opt.MacOSAppstoreConnectAPIKey, opt.MacOSAppstoreConnectAPIIssuer); err != nil {
+			if err := rNotarizeStaple(generatedPath, opt.AppStoreConnectAPIKey, opt.AppStoreConnectAPIIssuer); err != nil {
 				return "", err
 			}
 		default:

@@ -70,10 +70,10 @@ type Options struct {
 	MacOSDevIDCertificate string
 	// MacOSDevIDCertificate is the password for MacOSDevIDCertificate
 	MacOSDevIDCertificatePassword string
-	// MacOSAppstoreConnectAPIKey is the Appstore Connect API key provided by Apple
-	MacOSAppstoreConnectAPIKey string
-	// MacOSAppstoreConnectAPIIssuer is the issuer of MacOSAppstoreConnectAPIKey
-	MacOSAppstoreConnectAPIIssuer string
+	// AppStoreConnectAPIKey is the Appstore Connect API key provided by Apple
+	AppStoreConnectAPIKey string
+	// AppStoreConnectAPIIssuer is the issuer of AppStoreConnectAPIKey
+	AppStoreConnectAPIIssuer string
 }
 
 func initializeTempDir() (string, error) {
