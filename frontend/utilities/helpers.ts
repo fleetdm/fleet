@@ -18,7 +18,6 @@ import {
 } from "interfaces/target";
 import { ITeam, ITeamSummary } from "interfaces/team";
 import { IUser } from "interfaces/user";
-import { IVulnerability } from "interfaces/vulnerability";
 
 import stringUtils from "utilities/strings";
 import sortUtils from "utilities/sort";

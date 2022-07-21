@@ -5,6 +5,7 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
+	"runtime"
 	"testing"
 
 	"github.com/fleetdm/fleet/v4/orbit/pkg/packaging"
@@ -37,6 +38,10 @@ func TestPackage(t *testing.T) {
 	err = ioutil.WriteFile(fleetCertificate, []byte("undefined"), os.FileMode(0o644))
 	require.NoError(t, err)
 	runAppCheckErr(t, []string{"package", "--type=deb", fmt.Sprintf("--fleet-certificate=%s", fleetCertificate)}, fmt.Sprintf("failed to read certificate %q: invalid PEM file", fleetCertificate))
+
+	if runtime.GOOS != "linux" {
+		runAppCheckErr(t, []string{"package", "--type=msi", "--native-tooling"}, "native on non-linux platforms fails")
+	}
 
 	t.Run("deb", func(t *testing.T) {
 		runAppForTest(t, []string{"package", "--type=deb", "--insecure", "--disable-open-folder"})

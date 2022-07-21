@@ -1,0 +1,2 @@
+- Updated the regexp we use for detecting the major/minor version on OS platforms to account for any
+  string after the version part.

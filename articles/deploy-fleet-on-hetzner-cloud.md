@@ -707,7 +707,7 @@ Now that you’re ready to use Fleet and have a host installed. Here's some next
 - Import Fleet's [standard query library](https://fleetdm.com/docs/using-fleet/standard-query-library) to start asking questions about your hosts.
 - To run a more secure setup, consider creating a dedicated `fleet` user with Docker's support for user [namespaces](https://docs.docker.com/engine/security/userns-remap/). 
 
-<meta name="category" value="guides">
+<meta name="category" value="deploy">
 <meta name="authorGitHubUsername" value="ksatter">
 <meta name="authorFullName" value="Katheryn Satterlee">
 <meta name="publishedOn" value="2022-06-27">

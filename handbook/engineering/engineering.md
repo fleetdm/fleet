@@ -118,12 +118,12 @@ Release blocking bugs are exempt from the freeze period and are defined by the s
 2. Security concerns
 3. Issues with features targeted for current release
 
-Non-release blocking bugs may include known issues that were not targeted for the current release, or newly documented behaviors that reproduce in older stable versions. These may be addressed during a release period by mutual agreement between the [Product](./../product.md) and Engineering teams.
+Non-release blocking bugs may include known issues that were not targeted for the current release, or newly documented behaviors that reproduce in older stable versions. These may be addressed during a release period by mutual agreement between the [Product](./product.md) and Engineering teams.
 
 ### Release day
 
 Documentation on completing the release process can be found
-[here](./../../docs/Contributing/Releasing-Fleet.md).
+[here](../docs/Contributing/Releasing-Fleet.md).
 
 ## Oncall rotation
 
@@ -307,9 +307,9 @@ The following rituals are engaged in by the  directly responsible individual (DR
 
 ## Slack channels
 
-The following [Slack channels are maintained](https://fleetdm.com/handbook/company#why-group-slack-channels) by this group:
+The following [Slack channels are maintained](https://fleetdm.com/handbook/company#group-slack-channels) by this group:
 
-| Slack channel                       | [DRI](https://fleetdm.com/handbook/company#why-group-slack-channels)|
+| Slack channel                       | [DRI](https://fleetdm.com/handbook/company#why-group-slack-channels) |
 |:------------------------------------|:--------------------------------------------------------------------|
 | `#help-engineering`                 | Zach Wasserman
 | `#g-platform`                       | Tomás Touceda

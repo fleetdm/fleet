@@ -94,17 +94,19 @@ The following table lists the Growth group's rituals, frequency, and Directly Re
 |:-----------------------------|:-----------------------------|:----------------------------------------------------|-------------------|
 | Daily tweet         | Daily | Post Fleet content on Twitter.     | Drew Baker        |
 | Daily LinkedIn post        | Daily | Post Fleet content to LinkedIn.   | Drew Baker        |
+| Check Twitter messages | Daily | Check and reply to messages on the Fleet Twitter account. Disregard requests unrelated to Fleet. | Drew Baker | 
 | Social engagement     | Weekly | Participate in 50 social media engagements per week.| Drew Baker        |  
-| Osquery Jobs          | Weekly | Post to @osqueryjobs twice a week.            | Drew Baker        |
+| Osquery jobs          | Weekly | Post to @osqueryjobs twice a week.            | Drew Baker        |
 | Enrich Salesforce leads       | Weekly | Follow the Salesforce lead enrichment process every Friday.    | Drew Baker        |
 | Outside contributions | Weekly | Check pull requests for outside contributions every Monday. | Drew Baker|
 | Weekly article       | Weekly | Publish an article and promote it on social media. | Drew Baker|
-| Missed Demo Follow up | Weekly | Email all leads who missed a scheduled demo | Andrew Bare |
+| Missed demo follow up | Weekly | Email all leads who missed a scheduled demo | Andrew Bare |
 | Weekly ins and outs   | Weekly | Track Growth team ins and outs.        | Tim Kern          |
 | Podcast outreach      | Weekly | Conduct podcast outreach twice a week.     | Drew Baker        |
-| Weekly Update      | Weekly | Update the Growth KPIs in the ["🌈 Weekly updates" spreadsheet](https://docs.google.com/spreadsheets/d/1Hso0LxqwrRVINCyW_n436bNHmoqhoLhC8bcbvLPOs9A/edit#gid=0). | Drew Baker        |
+| Weekly update      | Weekly | Update the Growth KPIs in the ["🌈 Weekly updates" spreadsheet](https://docs.google.com/spreadsheets/d/1Hso0LxqwrRVINCyW_n436bNHmoqhoLhC8bcbvLPOs9A/edit#gid=0). | Drew Baker        |
+| Update the "Release" field on the #g-growth board   | Every 3 weeks | <ul><li>Go to the [Growth board](https://github.com/orgs/fleetdm/projects/38/settings/fields/2654827)</li><li>add a 3-week iteration with the correct release number</li></ul> | Tim Kern        |
 | Monthly conference checks    | Monthly | Check for conference openings and sponsorship opportunities on the 1st of every month. | Drew Baker|
-| 
+| Freshen up pinned posts | Quarterly | Swap out or remove pinned posts on the brand Twitter account and LinkedIn company page. | Drew Baker | 
 
 
 ## Slack channels

@@ -6,10 +6,14 @@ import TooltipWrapper from "components/TooltipWrapper";
 
 const baseClass = "component__last-updated-text";
 
-const renderLastUpdatedText = (
-  lastUpdatedAt: string,
-  whatToRetrieve: string
-): JSX.Element => {
+interface ILastUpdatedTextProps {
+  lastUpdatedAt: string;
+  whatToRetrieve: string;
+}
+const LastUpdatedText = ({
+  lastUpdatedAt,
+  whatToRetrieve,
+}: ILastUpdatedTextProps): JSX.Element => {
   if (!lastUpdatedAt || lastUpdatedAt === "0001-01-01T00:00:00Z") {
     lastUpdatedAt = "never";
   } else {
@@ -23,7 +27,7 @@ const renderLastUpdatedText = (
   return (
     <span className={baseClass}>
       <TooltipWrapper
-        tipContent={`Fleet periodically queries all hosts to retrieve ${whatToRetrieve}`}
+        tipContent={`Fleet periodically queries all hosts to retrieve ${whatToRetrieve}.`}
       >
         {`Updated ${lastUpdatedAt}`}
       </TooltipWrapper>
@@ -31,4 +35,4 @@ const renderLastUpdatedText = (
   );
 };
 
-export default renderLastUpdatedText;
+export default LastUpdatedText;

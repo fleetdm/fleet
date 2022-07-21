@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
-	"os"
 	"sort"
 	"sync"
 	"testing"
@@ -42,7 +41,7 @@ func (s *liveQueriesTestSuite) SetupTest() {
 
 // SetupSuite partially implements suite.SetupAllSuite.
 func (s *liveQueriesTestSuite) SetupSuite() {
-	require.NoError(s.T(), os.Setenv("FLEET_LIVE_QUERY_REST_PERIOD", "5s"))
+	s.T().Setenv("FLEET_LIVE_QUERY_REST_PERIOD", "5s")
 
 	s.withDS.SetupSuite("liveQueriesTestSuite")
 

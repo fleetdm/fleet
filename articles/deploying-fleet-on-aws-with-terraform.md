@@ -1,6 +1,6 @@
 # Deploying Fleet on AWS with Terraform
 
-There are many ways to deploy Fleet. Last time, we looked at deploying [Fleet on Render](https://fleetdm.com/guides/deploying-fleet-on-render). This time, we’re going to deploy Fleet on AWS with Terraform IaC (infrastructure as code).
+There are many ways to deploy Fleet. Last time, we looked at deploying [Fleet on Render](https://fleetdm.com/deploy/deploying-fleet-on-render). This time, we’re going to deploy Fleet on AWS with Terraform IaC (infrastructure as code).
 
 Deploying on AWS with Fleet’s reference architecture will get you a fully functional Fleet instance that can scale to your needs
 
@@ -13,41 +13,46 @@ Deploying on AWS with Fleet’s reference architecture will get you a fully func
 
 ## Bootstrapping
 
-To bootstrap our [remote state](https://www.terraform.io/docs/language/state/remote.html) resources, we’ll create a S3 bucket and DynamoDB table. You can use the resources in [`remote-state`](https://www.terraform.io/docs/language/state/remote.html) as an example. Override the `prefix` terraform variable to get unique resources.
+To bootstrap our [remote state](https://www.terraform.io/docs/language/state/remote.html) resources, we’ll create a S3 bucket and DynamoDB table using the values defined in `remote-state/main.tf`. Override the `prefix` terraform variable to get unique resources and the `region` variable to use you preferred AWS region.
 
-1. `terraform init`
-2. `terraform workspace new prod`
-3. `terraform apply -var prefix=queryops`
+From the `/remote-state` directory, run:
 
-You should be able to see all the resources that Terraform will create — the **S3 bucket** and the **dynamodb** table:
+2. `terraform init`
+3. `terraform workspace new prod`
+4. `terraform apply -var prefix="<prefix>" -var region="<region>"`
 
-```
-Plan: 3 to add, 0 to change, 0 to destroy.
+  You should be able to see all the resources that Terraform will create — the **S3 bucket** and the **dynamodb** table:
 
-Do you want to perform these actions in workspace "dev"?
+  ```
+  Plan: 3 to add, 0 to change, 0 to destroy.
 
-Terraform will perform the actions described above.
+  Do you want to perform these actions in workspace "dev"?
 
-Only 'yes' will be accepted to approve.
+  Terraform will perform the actions described above.
 
-Enter a value:
-```
+  Only 'yes' will be accepted to approve.
 
-After typing `yes` you should have a new S3 bucket named `<prefix>-terraform-remote-state` And the table `<prefix>-terraform-state-lock`. Keep these handy because we’ll need them in the following steps.
+  Enter a value:
+  ```
+
+  After typing `yes` you should have a new S3 bucket named `<prefix>-terraform-remote-state` And the table `<prefix>-terraform-state-lock`. Keep these handy because we’ll need them in the following steps.
+
+Now that the remote state is configured, we can move on to setting up the infrastructure for Fleet. 
 
 ## Infastructure
-https://github.com/fleetdm/fleet/tools/terraform
+https://github.com/fleetdm/fleet/tree/main/infrastructure/dogfood/terraform/aws
 
-Using the buckets and table we just created, we’ll update the [remote state](https://github.com/fleetdm/fleet/tree/main/infrastructure/dogfood/terraform/aws/main.tf) to expect the same values:
+
+Next, we’ll update the terraform setup in the `/aws` directory's [main.tf](https://github.com/fleetdm/fleet/tree/main/infrastructure/dogfood/terraform/aws/main.tf) to use the S3 Bucket and DynamoDB created above:
 
 ```
 terraform {
   // bootstrapped in ./remote-state
   backend "s3" {
-    bucket         = "queryops-terraform-remote-state"
-    region         = "us-east-2"
-    key            = "fleet/"
-    dynamodb_table = "queryops-terraform-state-lock"
+    bucket         = "<prefix>-terraform-remote-state"
+    region         = "<region>"
+    key            = "fleet"
+    dynamodb_table = "<prefix>-terraform-state-lock"
   }
   required_providers {
     aws = {
@@ -58,7 +63,7 @@ terraform {
 }
 ```
 
-We’ll also need a `tfvars` file to make some environment-specific variable overrides. Create a file in the same directory named `prod.tfvars` and paste the contents (note the bucket names will have to be unique for your environment):
+We’ll also need a `tfvars` file to make some environment-specific variable overrides. Create a file in the `/aws` directory named `prod.tfvars`, and copy/paste the variables below (note the bucket names will have to be unique for your environment):
 
 ```
 fleet_backend_cpu         = 1024
@@ -66,21 +71,23 @@ fleet_backend_mem         = 4096 //software inventory requires 4GB
 redis_instance            = "cache.t3.micro"
 fleet_min_capacity        = 1
 fleet_max_capacity        = 5
-domain_fleetdm            = fleet.queryops.com // YOUR DOMAIN HERE
+domain_fleetdm            = <domain> //YOUR FLEET DOMAIN
 software_inventory        = "1"
 vulnerabilities_path      = "/fleet/vuln"
-osquery_results_s3_bucket = "queryops-osquery-results-archive-dev"
-osquery_status_s3_bucket  = "queryops-osquery-status-archive-dev"
-file_carve_bucket         = "queryops-file-carve"
+osquery_results_s3_bucket = "<name>-osquery-results-archive-dev"
+osquery_status_s3_bucket  = "<name>-osquery-status-archive-dev"
 ```
 
-Now we’re ready to apply the terraform:
+
+Now we’re ready to apply the terraform. From the `/aws` directory, Run:
 
 1. `terraform init`
 2. `terraform workspace new prod`
 3. `terraform apply -var-file=prod.tfvars`
 
-You should see the planned output, and you will need to confirm the creation. Review this output, and type `yes` when you are ready. This process should take 5–10 minutes.
+You should see the planned output, and you will need to confirm the creation. Review this output, and type `yes` when you are ready. 
+
+During this process, terraform will create a `hosted zone` with an `NS` record for your domain and request a certificate from [AWS Certificate Manager (ACM)](https://aws.amazon.com/certificate-manager/). While the process is running, you'll need to add the `NS` records to your domain as well. 
 
 Let’s say we own `queryops.com` and have an ACM certificate issued to it. We want to host Fleet at `fleet.queryops.com` so in this case, we’ll need to hand nameserver authority over to `fleet.queryops.com` before ACM will verify via DNS and issue the certificate. To make this work, we need to create an `NS` record on `queryops.com`, and put the same `NS` records that get created after terraform creates the `fleet.queryops.com` hosted zone.
 
@@ -145,7 +152,7 @@ Navigating to `https://fleet.queryops.com` we should be greeted with the Setup p
 Setting up all the required infrastructure to run a dedicated web service in AWS can be a daunting task. The Fleet team’s goal is to provide a solid base to build from. As most AWS environments have their own specific needs and requirements, this base is intended to be modified and tailored to your specific needs.
 
 
-<meta name="category" value="guides">
+<meta name="category" value="deploy">
 <meta name="authorGitHubUsername" value="edwardsb">
 <meta name="authorFullName" value="Ben Edwards">
 <meta name="publishedOn" value="2021-11-30">

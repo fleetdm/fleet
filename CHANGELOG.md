@@ -1,3 +1,39 @@
+
+
+* Fleet Premium and Fleet Free: Fleet desktop is officially out of beta. This application shows users exactly what's going on with their device and gives them the tools they need to make sure it is secure and aligned with policies. They just need to click an icon in their menu bar. 
+
+* Fleet Premium and Fleet Free: Fleet's osquery installer is officially out of beta. Orbit is a lightweight wrapper for osquery that allows you to easily deploy, configure and keep osquery up-to-date across your organization. 
+
+* Added native support for M1 Macs.
+
+* Added battery health tracking to **Host details** page.
+
+* Improved reporting of error states on the health dashboard and added separate health checks for MySQL and Redis with `/healthz?check=mysql` and `/healthz?check=redis`.
+
+* Improved SSO login failure messaging.
+
+* Fixed osquery tables that report incorrect platforms.
+
+* Added `docker_container_envs` table to the osquery table schema on the **Query* page.
+
+* Updated Fleet host detail query so that the `os_version` for Ubuntu hosts reflects the accurate patch number.
+
+* Improved accuracy of `software_host_counts` by removing hosts from the count if any software has been uninstalled.
+
+* Improved accuracy of the `last_restarted` date. 
+
+* Fixed `/api/_version_/fleet/hosts/identifier/{identifier}` to return the correct value for `host.status`.
+
+* Improved logging when fleetctl encounters permissions errors.
+
+* Added support for scanning RHEL-based and Fedora hosts for vulnerable software using OVAL definitions.
+
+* Fixed SQL generated for operating system version policies to reduce false negatives
+
+* Added the number of hosts enrolled by Operating System (OS) and its version to anonymous usage statistics.
+
+* Added the weekly active users count to anonymous usage statistics.
+
 ## Fleet 4.16.0 (Jun 20, 2022)
 
 * Fleet Premium: Added the ability to set a Custom URL for the "Transparency" link included in Fleet Desktop. This allows you to use custom branding, as well as gives you control over what information you want to share with your end-users. 

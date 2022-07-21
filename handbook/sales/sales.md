@@ -19,6 +19,24 @@ At times, our sales team will reach out to prospective customers before they com
 - Be personable.
 - Ask for the meeting with a proposed time.
 
+## Principles for writing for the Sales team
+
+### We want to abide by the following principles in our communications:
+
+First, maintain naming conventions so people can expect what fields will look like when revisiting automations outside of Salesforce. This helps them avoid misunderstanding jargon and making mistakes that break automated integrations and cause business problems. One way we do this is by using sentence case where only the first word is capitalized (unless it’s a proper noun). See the below examples.
+
+| Good job! ✅          | Don't do this. ❌    |
+|:----------------------|:---------------------|
+| Bad data              | Bad Data
+
+The second principle is to be explicit, which goes back to people understanding what they are reading and how to use terms for proper use of automations outside of Salesforce. In the case of acronyms, that means expanding and treating them as proper nouns. Note the template for including acronyms is in the first column below.
+
+| Good job! ✅          | Don't do this. ❌    |
+|:----------------------|:---------------------|
+| Do Not Contact (DNC)  | DNC
+
+
+
 ## Intro deck
 
 Fleet's intro deck adds additional detail to our pitch. Find it in [Google Slides](https://docs.google.com/presentation/d/1sMCld6OPPG-LzJojmoSPxnOt17H-KYYfl5QFbBO29Fk/edit?usp=sharing).
