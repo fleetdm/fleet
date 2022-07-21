@@ -21,6 +21,8 @@ At times, our sales team will reach out to prospective customers before they com
 
 ## Sales team writing principles
 
+When writing for the Sales team, we want to abide by the following principles in our communications.
+
 ### Maintain naming conventions
 
 Maintain naming conventions so people can expect what fields will look like when revisiting automations outside of Salesforce. This helps them avoid misunderstanding jargon and making mistakes that break automated integrations and cause business problems. One way we do this is by using sentence case where only the first word is capitalized (unless it’s a proper noun). See the below examples.
