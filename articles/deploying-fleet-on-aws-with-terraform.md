@@ -1,6 +1,6 @@
 # Deploying Fleet on AWS with Terraform
 
-There are many ways to deploy Fleet. Last time, we looked at deploying [Fleet on Render](https://fleetdm.com/guides/deploying-fleet-on-render). This time, we’re going to deploy Fleet on AWS with Terraform IaC (infrastructure as code).
+There are many ways to deploy Fleet. Last time, we looked at deploying [Fleet on Render](https://fleetdm.com/deploy/deploying-fleet-on-render). This time, we’re going to deploy Fleet on AWS with Terraform IaC (infrastructure as code).
 
 Deploying on AWS with Fleet’s reference architecture will get you a fully functional Fleet instance that can scale to your needs
 
@@ -145,7 +145,7 @@ Navigating to `https://fleet.queryops.com` we should be greeted with the Setup p
 Setting up all the required infrastructure to run a dedicated web service in AWS can be a daunting task. The Fleet team’s goal is to provide a solid base to build from. As most AWS environments have their own specific needs and requirements, this base is intended to be modified and tailored to your specific needs.
 
 
-<meta name="category" value="guides">
+<meta name="category" value="deploy">
 <meta name="authorGitHubUsername" value="edwardsb">
 <meta name="authorFullName" value="Ben Edwards">
 <meta name="publishedOn" value="2021-11-30">

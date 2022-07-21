@@ -131,7 +131,7 @@ FROM (
 With this query as a building block, osquery provides the capability to generate rich process trees. Consider using this with an osquery TLS server such as [Fleet](https://fleetdm.com/) to examine this information on multiple machines at once.
 
 
-<meta name="category" value="product">
+<meta name="category" value="guides">
 <meta name="authorGitHubUsername" value="zwass">
 <meta name="authorFullName" value="Zach Wasserman">
 <meta name="publishedOn" value="2020-03-17">

@@ -407,7 +407,7 @@ module.exports = {
                 if(embeddedMetadata.category) {
                   // Throwing an error if the article has an invalid category.
                   embeddedMetadata.category = embeddedMetadata.category.toLowerCase();
-                  let validArticleCategories = ['product', 'security', 'engineering', 'success stories', 'announcements', 'guides', 'releases', 'podcasts', 'report' ];
+                  let validArticleCategories = ['deploy', 'security', 'engineering', 'success stories', 'announcements', 'guides', 'releases', 'podcasts', 'report' ];
                   if(!validArticleCategories.includes(embeddedMetadata.category)) {
                     throw new Error(`Failed compiling markdown content: An article page has an invalid category meta tag (<meta name="category" value="${embeddedMetadata.category}">) at "${path.join(topLvlRepoPath, pageSourcePath)}". To resolve, change the meta tag to a valid category, one of: ${validArticleCategories}`);
                   }
@@ -442,7 +442,7 @@ module.exports = {
                 // If the article is categorized as 'product' we'll replace the category with 'use-cases', or if it is categorized as 'success story' we'll replace it with 'device-management'
                 rootRelativeUrlPath = (
                   '/' +
-                  (embeddedMetadata.category === 'product' ? 'use-cases' : embeddedMetadata.category === 'success stories' ? 'device-management' : embeddedMetadata.category === 'security' ? 'securing' : embeddedMetadata.category) + '/' +
+                  (embeddedMetadata.category === 'success stories' ? 'device-management' : embeddedMetadata.category === 'security' ? 'securing' : embeddedMetadata.category) + '/' +
                   (pageUnextensionedLowercasedRelPath.split(/\//).map((fileOrFolderName) => encodeURIComponent(fileOrFolderName.replace(/^[0-9]+[\-]+/,''))).join('/'))
                 );
               }
