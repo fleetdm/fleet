@@ -52,7 +52,7 @@ type Job struct {
 	// ID is the unique identifier for the job.
 	ID string
 	// Fn is the job itself.
-	Fn func(context.Context) error
+	Fn JobFn
 }
 
 // Locker allows a Schedule to acquire a lock before running jobs.
