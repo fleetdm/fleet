@@ -3,17 +3,19 @@ package main
 import (
 	"context"
 	"fmt"
+	"log"
+	"math/rand"
+	"os"
+	"os/exec"
+
 	"github.com/aws/aws-lambda-go/lambda"
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/dynamodb"
 	"github.com/aws/aws-sdk-go/service/dynamodb/dynamodbattribute"
+	fleetctl "github.com/fleetdm/fleet/v4/cmd/fleetctl/lib"
 	"github.com/google/uuid"
 	flags "github.com/jessevdk/go-flags"
-	"log"
-	"math/rand"
-	"os"
-	"os/exec"
 )
 
 type OptionsStruct struct {
@@ -154,6 +156,7 @@ func handler(ctx context.Context, name NullEvent) error {
 	if unclaimedCount >= options.QueuedInstances {
 		return nil
 	}
+
 	numToReady := min(options.MaxInstances-totalCount, options.QueuedInstances-unclaimedCount)
 	// deploy terraform to initialize everything
 	for i := int64(0); i < numToReady; i++ {
@@ -174,7 +177,10 @@ func handler(ctx context.Context, name NullEvent) error {
 }
 
 func main() {
-	var err error
+	err := fleetctl.PackageAction(fleetctl.PackageConfig{
+		PackageBaseConfig: fleetctl.PackageBaseConfig{FleetURL: ""},
+	})
+
 	log.SetFlags(log.LstdFlags | log.Lshortfile)
 	// Get config from environment
 	parser := flags.NewParser(&options, flags.Default)
