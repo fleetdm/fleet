@@ -1743,7 +1743,7 @@ If an installer with the provided parameters is found, the installer is returned
 
 `Status: 400`
 
-If an installer with the provided parameters doesn't exist.
+This error occurs if an installer with the provided parameters doesn't exist.
 
 
 <meta name="pageOrderInSection" value="800">
