@@ -15,7 +15,7 @@
     "sails-hook-organics": "^2.2.0",
     "sails-hook-orm": "^3.0.2",
     "sails-hook-sockets": "^2.0.1",
-    "sails-postgresql": "^2.0.0"
+    "sails-postgresql": "^5.0.0"
   },
   "devDependencies": {
     "eslint": "5.16.0",
