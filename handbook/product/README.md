@@ -414,7 +414,7 @@ with customers and users.
 
 ### Blog post
 
-The product team is responsible for providing the [growth team](./../growth.md) with the necessary information for writing
+The product team is responsible for providing the [growth team](../growth/README.md) with the necessary information for writing
 the release blog post. This is accomplished by filing a release blog post issue and adding
 the issue to the growth board on GitHub.
 
@@ -426,7 +426,7 @@ Find an example release blog post issue [here](https://github.com/fleetdm/fleet/
 
 ### Customer announcement
 
-The product team is responsible for providing the [customer success team](./../customers.md) with the necessary information
+The product team is responsible for providing the [customer success team](../customers/README.md) with the necessary information
 for writing a release customer announcement. This is accomplished by filing a release customer announcement issue and adding
 the issue to the customer success board on GitHub. 
 
