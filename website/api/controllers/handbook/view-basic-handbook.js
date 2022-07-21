@@ -36,11 +36,16 @@ module.exports = {
 
     let SECTION_URL_PREFIX = '/handbook';
 
-    // Lookup appropriate page content, redirecting if capitalization or slashes.
-    // Note that this action also serves the '/handbook' landing page, as well as individual content pages therein.
+    // Lookup appropriate page content, tolerating (but redirecting to fix) any unexpected capitalization or slashes.
+    // Note that this action serves the '/handbook' landing page, as well as individual content pages therein.
     // (See also view-basic-documentation.js for the implementation this is based on)
-    let thisPage = _.find(sails.config.builtStaticContent.markdownPages, { url: SECTION_URL_PREFIX + '/' + pageUrlSuffix });
-    if (!thisPage) {// If there's no matching page, try a revised version of the URL suffix that's lowercase, with internal slashes deduped, and any trailing slash or whitespace trimmed
+    let thisPage = _.find(sails.config.builtStaticContent.markdownPages, {
+      url: (
+        !pageUrlSuffix? SECTION_URL_PREFIX// « landing page (guaranteed to exist)
+        : SECTION_URL_PREFIX + '/' + pageUrlSuffix// « individual content page
+      )
+    });
+    if (!thisPage) {// If there's no EXACTLY matching content page, try a revised version of the URL suffix that's lowercase, with internal slashes deduped, and any trailing slash or whitespace trimmed
       let revisedPageUrlSuffix = pageUrlSuffix.toLowerCase().replace(/\/+/g, '/').replace(/\/+\s*$/,'');
       thisPage = _.find(sails.config.builtStaticContent.markdownPages, { url: SECTION_URL_PREFIX + '/' + revisedPageUrlSuffix });
       if (thisPage) {// If we matched a page with the revised suffix, then redirect to that rather than rendering it, so the URL gets cleaned up.
