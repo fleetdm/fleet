@@ -152,9 +152,27 @@ func packageCommand() *cli.Command {
 			},
 			&cli.StringFlag{
 				Name:        "macos-devid-certificate",
-				Usage:       "Provide a Dev ID certificate, note that this value must be the full certificate contents.",
+				Usage:       "Provide a Dev ID certificate, note that this value must be the full certificate content",
 				EnvVars:     []string{"FLEETCTL_MACOS_DEVID_CERTIFICATE"},
 				Destination: &opt.MacOSDevIDCertificate,
+			},
+			&cli.StringFlag{
+				Name:        "macos-devid-certificate-password",
+				Usage:       "Password for the certificate provided via --macos-devid-certificate",
+				EnvVars:     []string{"FLEETCTL_MACOS_DEVID_CERTIFICATE_PASSWORD"},
+				Destination: &opt.MacOSDevIDCertificatePassword,
+			},
+			&cli.StringFlag{
+				Name:        "macos-ac-api-issuer",
+				Usage:       "Password for the certificate provided via --macos-devid-certificate",
+				EnvVars:     []string{"FLEETCTL_MACOS_APPSTORE_CONNECT_API_ISSUER"},
+				Destination: &opt.MacOSAppstoreConnectAPIIssuer,
+			},
+			&cli.StringFlag{
+				Name:        "macos-devid-certificate-password",
+				Usage:       "Password for the certificate provided via --macos-devid-certificate",
+				EnvVars:     []string{"FLEETCTL_MACOS_APPSTORE_CONNECT_API_KEY"},
+				Destination: &opt.MacOSAppstoreConnectAPIKey,
 			},
 		},
 		Action: func(c *cli.Context) error {

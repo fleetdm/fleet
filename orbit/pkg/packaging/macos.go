@@ -136,12 +136,11 @@ func BuildPkg(opt Options) (string, error) {
 			return "", errors.New("providing a sign identity and a Dev ID certificate is not supported")
 		}
 
-		certPwd, ok := os.LookupEnv("MACOS_DEVID_CERTIFICATE_PASSWORD")
-		if !ok {
-			return "", errors.New("MACOS_DEVID_CERTIFICATE_PASSWORD must be set in environment")
+		if len(opt.MacOSDevIDCertificatePassword) == 0 {
+			return "", errors.New("missing password for Dev ID certificate")
 		}
 
-		if err := rSign(generatedPath, opt.MacOSDevIDCertificate, certPwd); err != nil {
+		if err := rSign(generatedPath, opt.MacOSDevIDCertificate, opt.MacOSDevIDCertificatePassword); err != nil {
 			return "", fmt.Errorf("rcodesign: %w", err)
 		}
 	}
@@ -153,17 +152,11 @@ func BuildPkg(opt Options) (string, error) {
 				return "", err
 			}
 		case isLinuxNative:
-			apiIssuer, ok := os.LookupEnv("AC_API_ISSUER")
-			if !ok {
-				return "", errors.New("AC_API_ISSUER must be set in environment")
+			if len(opt.MacOSAppstoreConnectAPIKey) == 0 || len(opt.MacOSAppstoreConnectAPIIssuer) == 0 {
+				return "", errors.New("both an Appstore Connect API key and issuer must be set for native notarization")
 			}
 
-			apiKey, ok := os.LookupEnv("AC_API_KEY")
-			if !ok {
-				return "", errors.New("AC_API_KEY must be set in environment")
-			}
-
-			if err := rNotarizeStaple(generatedPath, apiIssuer, apiKey); err != nil {
+			if err := rNotarizeStaple(generatedPath, opt.MacOSAppstoreConnectAPIKey, opt.MacOSAppstoreConnectAPIIssuer); err != nil {
 				return "", err
 			}
 		default:

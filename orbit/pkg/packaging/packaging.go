@@ -68,6 +68,12 @@ type Options struct {
 	NativeTooling bool
 	// MacOSDevIDCertificate is used to sign a macOS package via NativeTooling
 	MacOSDevIDCertificate string
+	// MacOSDevIDCertificate is the password for MacOSDevIDCertificate
+	MacOSDevIDCertificatePassword string
+	// MacOSAppstoreConnectAPIKey is the Appstore Connect API key provided by Apple
+	MacOSAppstoreConnectAPIKey string
+	// MacOSAppstoreConnectAPIIssuer is the issuer of MacOSAppstoreConnectAPIKey
+	MacOSAppstoreConnectAPIIssuer string
 }
 
 func initializeTempDir() (string, error) {
