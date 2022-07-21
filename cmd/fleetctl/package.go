@@ -150,6 +150,12 @@ func packageCommand() *cli.Command {
 				EnvVars:     []string{"FLEETCTL_NATIVE_TOOLING"},
 				Destination: &opt.NativeTooling,
 			},
+			&cli.StringFlag{
+				Name:        "macos-devid-certificate",
+				Usage:       "Provide a Dev ID certificate, note that this value must be the full certificate contents.",
+				EnvVars:     []string{"FLEETCTL_MACOS_DEVID_CERTIFICATE"},
+				Destination: &opt.MacOSDevIDCertificate,
+			},
 		},
 		Action: func(c *cli.Context) error {
 			if opt.FleetURL != "" || opt.EnrollSecret != "" {

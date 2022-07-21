@@ -2,20 +2,15 @@ package packaging
 
 import (
 	"bytes"
-	"errors"
 	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
 )
 
-func RSign(pkgPath, cert string) error {
-	certPwd, ok := os.LookupEnv("MACOS_DEVID_CERTIFICATE_PASSWORD")
-	if !ok {
-		return errors.New("MACOS_DEVID_CERTIFICATE_PASSWORD must be set in environment")
-	}
-
+func rSign(pkgPath, cert, certPwd string) error {
 	certPath := filepath.Join(os.TempDir(), "cert.p12")
+	defer os.Remove(certPath)
 	err := os.WriteFile(certPath, []byte(cert), 0o600)
 	if err != nil {
 		return fmt.Errorf("writing cert data: %e", err)
@@ -38,17 +33,7 @@ func RSign(pkgPath, cert string) error {
 	return nil
 }
 
-func RNotarizeStaple(path string) error {
-	apiIssuer, ok := os.LookupEnv("AC_API_ISSUER")
-	if !ok {
-		return errors.New("AC_API_ISSUER must be set in environment")
-	}
-
-	apiKey, ok := os.LookupEnv("AC_API_KEY")
-	if !ok {
-		return errors.New("AC_API_KEY must be set in environment")
-	}
-
+func rNotarizeStaple(path, apiIssuer, apiKey string) error {
 	var outBuf bytes.Buffer
 	cmd := exec.Command("rcodesign",
 		"notarize",

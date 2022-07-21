@@ -121,15 +121,27 @@ func BuildPkg(opt Options) (string, error) {
 	isLinuxNative := runtime.GOOS == "linux" && opt.NativeTooling
 
 	if len(opt.SignIdentity) != 0 {
+		if len(opt.MacOSDevIDCertificate) != 0 {
+			return "", errors.New("providing a sign identity and a Dev ID certificate is not supported")
+		}
+
 		log.Info().Str("identity", opt.SignIdentity).Msg("productsign package")
 		if err := signPkg(generatedPath, opt.SignIdentity); err != nil {
 			return "", fmt.Errorf("productsign: %w", err)
 		}
 	}
 
-	cert, certOK := os.LookupEnv("MACOS_DEVID_CERTIFICATE")
-	if isLinuxNative && certOK {
-		if err := RSign(generatedPath, cert); err != nil {
+	if isLinuxNative && len(opt.MacOSDevIDCertificate) > 0 {
+		if len(opt.SignIdentity) != 0 {
+			return "", errors.New("providing a sign identity and a Dev ID certificate is not supported")
+		}
+
+		certPwd, ok := os.LookupEnv("MACOS_DEVID_CERTIFICATE_PASSWORD")
+		if !ok {
+			return "", errors.New("MACOS_DEVID_CERTIFICATE_PASSWORD must be set in environment")
+		}
+
+		if err := rSign(generatedPath, opt.MacOSDevIDCertificate, certPwd); err != nil {
 			return "", fmt.Errorf("rcodesign: %w", err)
 		}
 	}
@@ -141,7 +153,17 @@ func BuildPkg(opt Options) (string, error) {
 				return "", err
 			}
 		case isLinuxNative:
-			if err := RNotarizeStaple(generatedPath); err != nil {
+			apiIssuer, ok := os.LookupEnv("AC_API_ISSUER")
+			if !ok {
+				return "", errors.New("AC_API_ISSUER must be set in environment")
+			}
+
+			apiKey, ok := os.LookupEnv("AC_API_KEY")
+			if !ok {
+				return "", errors.New("AC_API_KEY must be set in environment")
+			}
+
+			if err := rNotarizeStaple(generatedPath, apiIssuer, apiKey); err != nil {
 				return "", err
 			}
 		default:

@@ -66,6 +66,8 @@ type Options struct {
 	// Native tooling is used to determine if the package should be built
 	// natively instead of via Docker images.
 	NativeTooling bool
+	// MacOSDevIDCertificate is used to sign a macOS package via NativeTooling
+	MacOSDevIDCertificate string
 }
 
 func initializeTempDir() (string, error) {
