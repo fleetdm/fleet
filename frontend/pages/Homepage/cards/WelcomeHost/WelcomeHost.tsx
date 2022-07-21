@@ -231,7 +231,7 @@ const WelcomeHost = ({
               {host.hostname}
               <img alt="" src={LinkArrow} />
             </Link>
-            <p>Your host is successully connected to Fleet.</p>
+            <p>Your host is successfully connected to Fleet.</p>
           </div>
         </div>
         <div className={`${baseClass}__blurb`}>
