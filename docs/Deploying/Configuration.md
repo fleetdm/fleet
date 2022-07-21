@@ -2646,8 +2646,8 @@ AWS STS role ARN to use for S3 authentication.
 
 ##### packaging_s3_endpoint_url
 
-AWS S3 Endpoint URL. Override when using a different S3 compatible object storage backend (such as Minio),
-or running s3 locally with localstack. Leave this blank to use the default AWS S3 service endpoint.
+AWS S3 Endpoint URL. Override when using a different S3 compatible object storage backend (such as Minio)
+or running s3 locally with LocalStack. Leave this blank to use the default AWS S3 service endpoint.
 
 - Default value: ""
 - Environment variable: `FLEET_PACKAGING_S3_ENDPOINT_URL`
@@ -2696,7 +2696,7 @@ See [here](http://docs.aws.amazon.com/AmazonS3/latest/dev/VirtualHosting.html) f
 
 AWS S3 Region. Leave blank to enable region discovery.
 
-Minio users must set this to any nonempty value (eg. `minio`), as Minio does not support region discovery.
+Minio users must set this to any non-empty value (e.g., `minio`), as Minio does not support region discovery.
 
 - Default value: ""
 - Environment variable: `FLEET_PACKAGING_S3_REGION`
