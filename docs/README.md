@@ -1,6 +1,6 @@
 # Fleet Documentation
 
-Welcome to the documentation for the Fleet osquery fleet manager.
+Welcome to the documentation for Fleet, the lightweight telemetry platform for servers and workstations.
 
 ### [Using Fleet](./Using-Fleet/README.md)
 Resources for using the Fleet UI, fleetctl CLI, and Fleet REST API.
