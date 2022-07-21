@@ -5,11 +5,13 @@ module.exports = {
 
   description: 'Display "Blog article" page.',
 
-  urlWildcardSuffix: 'slug',
+
+  urlWildcardSuffix: 'pageUrlSuffix',
+
 
   inputs: {
-    slug : {
-      description: 'The relative path to the blog page from within this route.',
+    pageUrlSuffix : {
+      description: 'The relative path to the blog article page from within this route.',
       example: 'guides/deploying-fleet-on-render',
       type: 'string',
       defaultsTo: ''
@@ -25,19 +27,20 @@ module.exports = {
   },
 
 
-  fn: async function ({slug}) {
+  fn: async function ({pageUrlSuffix}) {
 
     if (!_.isObject(sails.config.builtStaticContent) || !_.isArray(sails.config.builtStaticContent.markdownPages) || !sails.config.builtStaticContent.compiledPagePartialsAppPath) {
       throw {badConfig: 'builtStaticContent.markdownPages'};
     }
 
-    let thisPage = _.find(sails.config.builtStaticContent.markdownPages, { url: '/' + slug });
-    if (!thisPage) {// If there's no matching page, try a revised version of the slug that's lowercase, with internal slashes deduped, and any trailing slash or whitespace trimmed
-      let revisedSlug = slug.toLowerCase().replace(/\/+/g, '/').replace(/\/+\s*$/,'');
-      let revisedPage = _.find(sails.config.builtStaticContent.markdownPages, { url: '/' + revisedSlug });
-      if(revisedPage) {// If we matched a page with the revised slug, then redirect to that rather than rendering it, so the URL gets cleaned up.
-        throw {redirect: revisedPage.url};
-      } else {// If no page could be found even with the revised slug, then throw a 404 error.
+    // Serve appropriate page content.
+    let thisPage = _.find(sails.config.builtStaticContent.markdownPages, { url: '/' + pageUrlSuffix });
+    if (!thisPage) {// If there's no matching page, try a revised version of the URL suffix that's lowercase, with internal slashes deduped, and any trailing slash or whitespace trimmed
+      let revisedPageUrlSuffix = pageUrlSuffix.toLowerCase().replace(/\/+/g, '/').replace(/\/+\s*$/,'');
+      thisPage = _.find(sails.config.builtStaticContent.markdownPages, { url: '/' + revisedPageUrlSuffix });
+      if (thisPage) {// If we matched a page with the revised suffix, then redirect to that rather than rendering it, so the URL gets cleaned up.
+        throw {redirect: thisPage.url};
+      } else {// If no page could be found even with the revised suffix, then throw a 404 error.
         throw 'notFound';
       }
     }
