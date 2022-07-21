@@ -1,4 +1,4 @@
-# Fleet Documentation
+# Fleet documentation
 
 Welcome to the documentation for Fleet, the lightweight telemetry platform for servers and workstations.
 
