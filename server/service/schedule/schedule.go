@@ -6,7 +6,6 @@ package schedule
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"sync"
 	"time"
@@ -261,7 +260,7 @@ func (s *Schedule) Start() {
 func runJob(ctx context.Context, fn JobFn) (err error) {
 	defer func() {
 		if r := recover(); r != nil {
-			err = errors.New(fmt.Sprintf("%v", r))
+			err = fmt.Errorf("%v", r)
 		}
 	}()
 
