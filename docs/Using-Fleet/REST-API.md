@@ -476,8 +476,8 @@ Returns a list of the activities that have been performed in Fleet. The followin
 
 #### Parameters
 
-| Name            | Type    | In    | Description                                                                                                                   |
-| --------------- | ------- | ----- | ----------------------------------------------------------------------------------------------------------------------------- |
+| Name            | Type    | In    | Description                                                 |
+|:--------------- |:------- |:----- |:------------------------------------------------------------|
 | page            | integer | query | Page number of the results to fetch.                                                                                          |
 | per_page        | integer | query | Results per page.                                                                                                             |
 | order_key       | string  | query | What to order results by. Can be any column in the `activites` table.                                                         |
