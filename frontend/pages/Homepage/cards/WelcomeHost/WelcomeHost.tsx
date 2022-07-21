@@ -143,7 +143,7 @@ const WelcomeHost = ({
     );
   }
 
-  if (loadingHostError || totalsHostsCount === 0) {
+  if (loadingHostError) {
     return (
       <div className={baseClass}>
         <div className={`${baseClass}__empty-hosts`}>
