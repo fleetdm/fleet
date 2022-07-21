@@ -30,18 +30,18 @@ module.exports = {
     if (!_.isObject(sails.config.builtStaticContent) || !_.isArray(sails.config.builtStaticContent.markdownPages) || !sails.config.builtStaticContent.compiledPagePartialsAppPath) {
       throw {badConfig: 'builtStaticContent.markdownPages'};
     }
-    
-    let thisPage = _.find(sails.config.builtStaticContent.markdownPages, { url: _.trimRight('/' + slug) });
-    if (!thisPage) {// If there's no matching page, try a revised version of the slug that's lowercase, with internal slashes deduped, and any trailing slash trimmed
-      let revisedSlug = slug.toLowerCase().replace(/\/+/g, '/').replace(/\/+$/,'');
-      let revisedPage = _.find(sails.config.builtStaticContent.markdownPages, { url: _.trimRight('/' + revisedSlug) });
+
+    let thisPage = _.find(sails.config.builtStaticContent.markdownPages, { url: '/' + slug });
+    if (!thisPage) {// If there's no matching page, try a revised version of the slug that's lowercase, with internal slashes deduped, and any trailing slash or whitespace trimmed
+      let revisedSlug = slug.toLowerCase().replace(/\/+/g, '/').replace(/\/+\s*$/,'');
+      let revisedPage = _.find(sails.config.builtStaticContent.markdownPages, { url: '/' + revisedSlug });
       if(revisedPage) {// If we matched a page with the revised slug, then redirect to that rather than rendering it, so the URL gets cleaned up.
         throw {redirect: revisedPage.url};
       } else {// If no page could be found even with the revised slug, then throw a 404 error.
         throw 'notFound';
       }
     }
-    
+
     // Setting the pages meta title and description from the articles meta tags.
     // Note: Every article page will have a 'articleTitle' and a 'authorFullName' meta tag.
     // if they are undefined, we'll use the generic title and description set in layout.ejs
