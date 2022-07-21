@@ -263,3 +263,30 @@ func TestConfigReloadCheck(t *testing.T) {
 		t.Error("timeout")
 	}
 }
+
+func TestJobPanicRecover(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+
+	jobRan := false
+
+	s := New(ctx, "test_new_schedule", "test_instance", 10*time.Millisecond, nopLocker{},
+		WithJob("job_1", func(ctx context.Context) error {
+			panic("job_1")
+		}),
+		WithJob("job_2", func(ctx context.Context) error {
+			jobRan = true
+			return nil
+		}))
+	s.Start()
+
+	time.Sleep(1 * time.Second)
+	cancel()
+
+	select {
+	case <-s.Done():
+		// job 2 should still run even though job 1 panicked
+		require.True(t, jobRan)
+	case <-time.After(5 * time.Second):
+		t.Error("timeout")
+	}
+}

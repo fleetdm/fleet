@@ -6,6 +6,8 @@ package schedule
 
 import (
 	"context"
+	"errors"
+	"fmt"
 	"sync"
 	"time"
 
@@ -191,7 +193,7 @@ func (s *Schedule) Start() {
 
 				for _, job := range s.jobs {
 					level.Debug(s.logger).Log("msg", "starting", "jobID", job.ID)
-					if err := job.Fn(s.ctx); err != nil {
+					if err := runJob(s.ctx, job.Fn); err != nil {
 						level.Error(s.logger).Log("err", job.ID, "details", err)
 						sentry.CaptureException(err)
 						ctxerr.Handle(s.ctx, err)
@@ -253,6 +255,20 @@ func (s *Schedule) Start() {
 		level.Debug(s.logger).Log("msg", "done")
 		close(s.done) // communicates that the scheduler has finished running its goroutines
 	}()
+}
+
+// runJob executes the job function with panic recovery
+func runJob(ctx context.Context, fn JobFn) (err error) {
+	defer func() {
+		if r := recover(); r != nil {
+			err = errors.New(fmt.Sprintf("%v", r))
+		}
+	}()
+
+	if err := fn(ctx); err != nil {
+		return err
+	}
+	return nil
 }
 
 // Done returns a channel that will be closed when the scheduler's context is done
