@@ -64,6 +64,8 @@ func writeAPIKeys(issuer, id, content string) (string, error) {
 		return "", fmt.Errorf("finding home dir: %e", err)
 	}
 
+	// The underliying tools (rcodesign and Transporter) expect to find a
+	// certificate key in this path.
 	path := filepath.Join(homedir, ".appstoreconnect", "private_keys")
 	if err = secure.MkdirAll(path, 0o600); err != nil {
 		return "", fmt.Errorf("finding home dir: %e", err)
