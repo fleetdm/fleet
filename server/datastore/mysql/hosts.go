@@ -12,8 +12,10 @@ import (
 
 	"github.com/cenkalti/backoff/v4"
 	"github.com/doug-martin/goqu/v9"
+	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/go-kit/kit/log"
 	"github.com/go-kit/kit/log/level"
 	"github.com/jmoiron/sqlx"
 )
@@ -1908,4 +1910,41 @@ func (ds *Datastore) ListHostBatteries(ctx context.Context, hid uint) ([]*fleet.
 		return nil, ctxerr.Wrap(ctx, err, "select host batteries")
 	}
 	return batteries, nil
+}
+
+// countHostNotResponding counts the hosts that haven't been submitting results for sent queries.
+//
+// Notes:
+//   - We use `2 * interval`, because of the artificial jitter added to the intervals in Fleet.
+//   - Default values for:
+//     - host.DistributedInterval is usually 10s.
+//     - svc.config.Osquery.DetailUpdateInterval is usually 1h.
+//   - Count only includes hosts seen during the last 7 days.
+func countHostsNotRespondingDB(ctx context.Context, db sqlx.QueryerContext, logger log.Logger, config config.FleetConfig) (int, error,
+) {
+	interval := config.Osquery.DetailUpdateInterval.Seconds()
+
+	// The primary `WHERE` clause is intended to capture where Fleet hasn't received a distributed write
+	// from the host during the interval since the host was last seen. Thus we assume the host
+	// is having some issue in executing distributed queries or sending the results.
+	// The subquery `WHERE` clause excludes from the count any hosts that were inactive during the
+	// current seven-day statistics reporting period.
+	sql := `
+SELECT h.host_id FROM (
+  SELECT * FROM hosts JOIN host_seen_times hst ON hosts.id = hst.host_id
+  WHERE hst.seen_time >= DATE_SUB(NOW(), INTERVAL 7 DAY)
+) h
+WHERE
+  TIME_TO_SEC(TIMEDIFF(h.seen_time, h.detail_updated_at)) >= (GREATEST(h.distributed_interval, ?) * 2)
+`
+
+	var ids []int
+	if err := sqlx.SelectContext(ctx, db, &ids, sql, interval); err != nil {
+		return len(ids), ctxerr.Wrap(ctx, err, "count hosts not responding")
+	}
+	if len(ids) > 0 {
+		// We log to help troubleshooting in case this happens.
+		level.Info(logger).Log("err", fmt.Sprintf("hosts detected that are not responding distributed queries %v", ids))
+	}
+	return len(ids), nil
 }
