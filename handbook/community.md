@@ -186,6 +186,15 @@ Keep headings brief, organized, and in a logical order:
 
 Try to stay within three or four heading levels. Complicated documents may use more, but pages with a simpler structure are easier to read.
 
+To do this in Markdown follow the example in the table below.
+
+| Markdown option one | Rendered heading |
+|:--------------------|:-----------------------------|
+| `# Heading 1` | <h1>Heading 1</h1> 
+| `# Heading 2` | <h2>Heading 2</h2>
+| `# Heading 3` | <h3>Heading 3</h3>
+| `# Heading 4` | <h4>Heading 4</h4>
+
 ### SQL statements
 
 When adding SQL statements, all SQL reserved words should be uppercase, and all identifiers (such as tables and columns) should be lowercase. Here is an example:
@@ -202,10 +211,45 @@ However, the `fleetdm.com/docs` compilation process does not account for relativ
 This is why it’s essential to follow the file path exactly when adding a link to Fleet docs.
 When directly linking to a specific section, always format the spaces within a section name to use a hyphen instead of an underscore. For example, when linking to the `osquery_result_log_plugin` section of the configuration reference docs, use a relative link like the following: `./Configuration.md#osquery-result-log-plugin`.
 
+For link completely outside of Fleet include the entire URL. E.g., `[Visit GitHub's homepage](https://github.com/)`.
+
+The above will render as: [Visit GitHub's homepage](https://github.com/).
+
+To add a tooltip when you hover over a link put what you want it to display inside of quotes after the link. Note that the tooltip quote is inside of the parentheses.
+`[Visit GitHub's homepage](https://github.com/ "A link with a tooltip.").`
+
+This will render as: [Visit GitHub's homepage](https://github.com/ "A link with a tooltip.✍️").
+
+If you have to use a single link manytimes on a page it's easier to separate the link. Put these at the bottom of your document them with numbers as such:
+
+`[1]: <https://github.com/> "Add a name for reference."`
+
+[1]: <https://github.com/> "Add a name for reference."
+
+Then reference the number instead of the entire URL.
+
+`[Visit GitHub's homepage](1)`  
+
+This will render as: [Visit GitHub's homepage](1).
+
+
 ### Linking to a location on GitHub
 When adding a link to a location on GitHub outside of `/docs`, be sure to use the canonical form of the URL.
 
 Navigate to the file's location on GitHub, and press "y" to transform the URL into its canonical form.
+
+### Malito Links
+To create malito link out of a URL, incase it in angle brackets like so:
+
+`<https://fleetdm.com>`
+
+This will render as: <https://fleetdm.com>
+
+The same concept works with email addresses.
+
+`<fake@fleetdm.com>`
+
+This will render as: <fake@fleetdm.com>
 
 ### How to fix a broken link
 For instances when a broken link is discovered on fleetdm.com, always check if the link is a relative link to a directory outside of `/docs`. 
@@ -219,6 +263,7 @@ An example of a link that lives outside of `/docs` is:
 If the link lives outside `/docs`, head to the file's location on GitHub (in this case, [https://github.com/fleetdm/fleet/blob/main/tools/app/prometheus.yml)](https://github.com/fleetdm/fleet/blob/main/tools/app/prometheus.yml)), and press "y" to transform the URL into its canonical form (a version of the link that will always point to the same version of the file) ([https://github.com/fleetdm/fleet/blob/194ad5963b0d55bdf976aa93f3de6cabd590c97a/tools/app/prometheus.yml](https://github.com/fleetdm/fleet/blob/194ad5963b0d55bdf976aa93f3de6cabd590c97a/tools/app/prometheus.yml)). Replace the relative link with this link in the Markdown file. 
 
 > Note that the instructions above also apply to adding links in the Fleet handbook.
+
 
 ### Ordering a page in the Fleet docs
 The order we display documentation pages on fleetdm.com is determined by `pageOrderInSection` meta tags. These pages are sorted in their respective sections in **ascending** order by the `pageOrderInSection` value. Every Markdown file (except readme and faq pages) in the `docs/` folder must have a meta tag with a positive 'pageOrderInSection' value.
@@ -242,7 +287,27 @@ When adding images to the Fleet documentation, follow these guidelines:
 Images can be added to the docs using the Markdown image link format, e.g., `![Schedule Query Sidebar](https://raw.githubusercontent.com/fleetdm/fleet/main/docs/images/schedule-query-modal.png)`
 The images used in the docs live in `docs/images/`. Note that you must provide the URL of the image in the Fleet GitHub repo for it to display properly on both GitHub and the Fleet website.
 
+Image formatting is a lot like linking text. The link will need to be added using the following repository path of fleet>website>assets>images. Follow the below teplate.
+`![Name image for reference](Link to image in the Fleet repository)`
+`*Insert caption here.*`
+
+Notice on the line below the image formatting there is an italicized caption, incased in asterisks is`*Insert caption here.*` Observe how the below example is written in Markdown and then redered.
+
+`![Deploying Fleet on AWS with Terraform](../website/assets/images/articles/saving-over-100x-on-egress-switching-from-aws-to-hetzner-cover-800x533@2x.jpeg)`
+`*Egrets? No, egress.*`
+
+![Deploying Fleet on AWS with Terraform](../website/assets/images/articles/saving-over-100x-on-egress-switching-from-aws-to-hetzner-cover-800x533@2x.jpeg)
+*Egrets? No, egress.*
+
 > Note that the instructions above also apply to adding images in the Fleet handbook.
+
+### Escaping backticks
+
+Notating code can be done with a backtick on either side of the code. If you have a term or sentence that uses a mixture of code and text use double backticks before and after the entire term or sentence and add single ones only around the code. Se the example in the table below.
+
+| Markdown | Rendered output |
+|:-----------|------------------|
+|```` `` Sometimes we need to talk about `code` in your Markdown file. `` ````| ``Sometimes we need to talk about `code` in your Markdown file.`` |
 
 ### Adding a mermaid diagram to the Fleet Docs
 
