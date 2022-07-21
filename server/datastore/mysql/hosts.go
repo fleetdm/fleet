@@ -1892,6 +1892,12 @@ func (ds *Datastore) HostIDsByOSVersion(
 	return ids, nil
 }
 
+// ListHostBatteries returns battery information as reported by osquery for the identified host.
+//
+// Note: Because of a known osquery issue with M1 Macs, we are ignoring the stored `health` value
+// in the db and replacing it at the service layer with custom a value determined by the cycle
+// count. See https://github.com/fleetdm/fleet/pull/6782#discussion_r926103758.
+// TODO: Update once the underlying osquery issue has been resolved.
 func (ds *Datastore) ListHostBatteries(ctx context.Context, hid uint) ([]*fleet.HostBattery, error) {
 	const stmt = `
     SELECT

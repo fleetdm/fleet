@@ -722,6 +722,18 @@ func (svc *Service) getHostDetails(ctx context.Context, host *fleet.Host, opts f
 		return nil, ctxerr.Wrap(ctx, err, "get batteries for host")
 	}
 
+	// Due to a known osquery issue with M1 Macs, we are ignoring the stored value in the db
+	// and replacing it at the service layer with custom values determined by the cycle count.
+	// See https://github.com/fleetdm/fleet/issues/6763.
+	// TODO: Update once the underlying osquery issue has been resolved.
+	for _, b := range bats {
+		if b.CycleCount < 1000 {
+			b.Health = "Normal"
+		} else {
+			b.Health = "Replacement recommended"
+		}
+	}
+
 	var policies *[]*fleet.HostPolicy
 	if opts.IncludePolicies {
 		hp, err := svc.ds.ListPoliciesForHost(ctx, host)
