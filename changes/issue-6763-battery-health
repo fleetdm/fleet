@@ -1,3 +1,0 @@
-- Modified `GET /host/:id` endpoint to calculate battery health based on the cycle count reported by
-  osquery such that “Normal” corresponds to cycle count < 1000 and “Replacement recommended”
-  corresponds to cycle count >= 1000.
