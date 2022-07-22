@@ -40,6 +40,7 @@ import sortUtils from "utilities/sort";
 import {
   DEFAULT_CREATE_LABEL_ERRORS,
   HOSTS_SEARCH_BOX_PLACEHOLDER,
+  HOSTS_SEARCH_BOX_TOOLTIP,
   PLATFORM_LABEL_DISPLAY_NAMES,
   PolicyResponse,
 } from "utilities/constants";
@@ -1548,9 +1549,7 @@ const ManageHostsPage = ({
         isAllPagesSelected={isAllMatchingHostsSelected}
         searchable
         renderCount={renderHostCount}
-        searchToolTipText={
-          "Search hosts by hostname, UUID, machine serial or private IP address"
-        }
+        searchToolTipText={HOSTS_SEARCH_BOX_TOOLTIP}
         emptyComponent={EmptyHosts}
         customControl={renderStatusDropdown}
         onActionButtonClick={toggleEditColumnsModal}
