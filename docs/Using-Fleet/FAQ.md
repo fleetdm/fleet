@@ -33,11 +33,11 @@
 
 ## Upgrading Fleet
 
-The upgrade from Kolide/fleet to fleetdm/fleet works the same as any minor version upgrade has in the past.
+To migrate to Fleet from Kolide Fleet, please follow the steps outlined in the Upgrading Fleet section of the documentation.
 
 Minor version upgrades in Kolide Fleet often included database migrations and the recommendation to back up the database before migrating. The same goes for the new Fleet.
 
-To migrate from `kolide/fleet` to the new Fleet, please follow the steps outlined in the [Upgrading Fleet section](../Deploying/Upgrading-Fleet.md) of the documentation.
+To migrate from Kolide Fleet to the new Fleet, please follow the steps outlined in the [Upgrading Fleet section](../Deploying/Upgrading-Fleet.md) of the documentation.
 
 ## Has anyone stress tested Fleet? How many hosts can the Fleet server handle?
 
