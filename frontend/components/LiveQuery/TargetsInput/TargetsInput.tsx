@@ -1,8 +1,9 @@
 import React from "react";
 import { Row } from "react-table";
+import { isEmpty, pullAllBy } from "lodash";
 
 import { IHost } from "interfaces/host";
-import { isEmpty, pullAllBy } from "lodash";
+import { HOSTS_SEARCH_BOX_PLACEHOLDER } from "utilities/constants";
 
 import DataError from "components/DataError";
 // @ts-ignore
@@ -56,7 +57,7 @@ const TargetsInput = ({
           tabIndex={tabIndex}
           iconPosition="start"
           label="Target specific hosts"
-          placeholder="Search hosts by hostname, UUID, MAC address"
+          placeholder={HOSTS_SEARCH_BOX_PLACEHOLDER}
           onChange={setSearchText}
         />
         {isActiveSearch && (
