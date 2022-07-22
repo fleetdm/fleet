@@ -13,13 +13,15 @@ Deploying on AWS with Fleet’s reference architecture will get you a fully func
 
 ## Bootstrapping
 
-To bootstrap our [remote state](https://www.terraform.io/docs/language/state/remote.html) resources, we’ll create a S3 bucket and DynamoDB table using the values defined in `remote-state/main.tf`. Override the `prefix` terraform variable to get unique resources and the `region` variable to use you preferred AWS region.
+To bootstrap our [remote state](https://www.terraform.io/docs/language/state/remote.html) resources, we’ll create a S3 bucket and DynamoDB table using the values defined in `remote-state/main.tf`. We'll override the `prefix` terraform variable to get unique resources and the `region` variable to use the same region set in the AWS CLI (you can run `aws configure get region` to see what region is set).
 
 From the `/remote-state` directory, run:
 
-2. `terraform init`
-3. `terraform workspace new prod`
-4. `terraform apply -var prefix="<prefix>" -var region="<region>"`
+1. `terraform init`
+2. `terraform workspace new <prefix>-fleet`
+3. `terraform apply -var prefix="<prefix>" -var region="<region>"`
+
+> You can use any name for your new workspace, but it needs to be unique across AWS. We used `<prefix>-prod` here to improve the chances that is the case. 
 
   You should be able to see all the resources that Terraform will create — the **S3 bucket** and the **dynamodb** table:
 
@@ -36,6 +38,8 @@ From the `/remote-state` directory, run:
   ```
 
   After typing `yes` you should have a new S3 bucket named `<prefix>-terraform-remote-state` And the table `<prefix>-terraform-state-lock`. Keep these handy because we’ll need them in the following steps.
+
+  You may see a warning during this process. It is safe to ignore. 
 
 Now that the remote state is configured, we can move on to setting up the infrastructure for Fleet. 
 
@@ -63,7 +67,7 @@ terraform {
 }
 ```
 
-We’ll also need a `tfvars` file to make some environment-specific variable overrides. Create a file in the `/aws` directory named `prod.tfvars`, and copy/paste the variables below (note the bucket names will have to be unique for your environment):
+We’ll also need a `tfvars` file to make some environment-specific variable overrides. Create a file in the `/aws` directory named `prod.tfvars`, and copy/paste the variables below:
 
 ```
 fleet_backend_cpu         = 1024
@@ -71,19 +75,20 @@ fleet_backend_mem         = 4096 //software inventory requires 4GB
 redis_instance            = "cache.t3.micro"
 fleet_min_capacity        = 1
 fleet_max_capacity        = 5
-domain_fleetdm            = <domain> //YOUR FLEET DOMAIN
+domain_fleetdm            = "<your_fleet_domain>"
 software_inventory        = "1"
 vulnerabilities_path      = "/fleet/vuln"
-osquery_results_s3_bucket = "<name>-osquery-results-archive-dev"
-osquery_status_s3_bucket  = "<name>-osquery-status-archive-dev"
+osquery_results_s3_bucket = "<prefix>-osquery-results-archive-prod"
+osquery_status_s3_bucket  = "<prefix>-osquery-status-archive-prod"
 ```
 
+> Feel free to use whatever values you would like for the `osquery_results_s3_bucket` and `osquery_status_s3_bucket`. Just keep in mind that they need to be unique across AWS. 
 
 Now we’re ready to apply the terraform. From the `/aws` directory, Run:
 
 1. `terraform init`
 2. `terraform workspace new prod`
-3. `terraform apply -var-file=prod.tfvars`
+3. `terraform apply - --var-file=prod.tfvars`
 
 You should see the planned output, and you will need to confirm the creation. Review this output, and type `yes` when you are ready. 
 
@@ -129,23 +134,29 @@ redis_cluster_members = toset([
 target_group_arn_suffix = "targetgroup/fleetdm/0f3bec83c8b02f58"
 ```
 
-We can use the output here to create an AWS ECS Task that will migrate the database and prepare it for use.
+We'll need some of these values in the next step.
+
+## Prepare the database
+
+Now all we need to do is prepare the database for use. We'll run an AWS ECS Task that will migrate the database and prepare it for use.
 
 ```
-aws ecs run-task --cluster fleet-backend --task-definition fleet-migrate:<latest_version> --launch-type FARGATE --network-configuration "awsvpcConfiguration={subnets=[<private_subnet_id>],securityGroups=[<desired_security_group>]}"
+aws ecs run-task --cluster fleet-backend --task-definition fleet-migrate:<latest_migration_version> --launch-type FARGATE --network-configuration "awsvpcConfiguration={subnets=[<private_subnet_id>],securityGroups=[<desired_security_group>]}"
 ```
 
-Where `<private_subnet_id>` is one of the private subnets, and `<desired_security_group>` is the security group from the output for example:
+Where `<migration_version>` is `fleet-migration-task-revision`, `<private_subnet_id>` is one of the private subnets, and `<desired_security_group>` is the security group from the previous output. 
+
+For the example output from `terraform apply` in the previous step, the command would look like this:
 
 ```
 aws ecs run-task --cluster fleet-backend --task-definition fleet-migrate:4 --launch-type FARGATE --network-configuration "awsvpcConfiguration={subnets=[subnet-03a54736c942cd1e4],securityGroups=[sg-00c9fa9632d7e03ca]}"
 ```
 
-Running this command should kick off the migration task, and Fleet should be ready to go.
+Running this command will kick off the migration task, and Fleet will be ready to go.
 
 ![AWS Console ECS Clusters](../website/assets/images/articles/deploying-fleet-on-aws-with-terraform-2-640x313@2x.png)
 
-Navigating to `https://fleet.queryops.com` we should be greeted with the Setup page.
+At this point, you can go to your Fleet domain and start [using Fleet](https://fleetdm.com/docs/using-fleet)!
 
 ## Conclusion
 
