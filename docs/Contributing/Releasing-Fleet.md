@@ -81,7 +81,9 @@ Note: Please prefix versions with `fleet-v` (e.g., `fleet-v4.0.0`) in git tags, 
    ### Binary Checksum
 
    **SHA256**
+
    <COPY FROM checksums.txt>
+   
    ```
 
    When editing is complete, publish the release.
