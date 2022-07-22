@@ -39,6 +39,7 @@ import deepDifference from "utilities/deep_difference";
 import sortUtils from "utilities/sort";
 import {
   DEFAULT_CREATE_LABEL_ERRORS,
+  HOSTS_SEARCH_BOX_PLACEHOLDER,
   PLATFORM_LABEL_DISPLAY_NAMES,
   PolicyResponse,
 } from "utilities/constants";
@@ -1537,7 +1538,7 @@ const ManageHostsPage = ({
         actionButtonIcon={EditColumnsIcon}
         actionButtonVariant={"text-icon"}
         additionalQueries={JSON.stringify(selectedFilters)}
-        inputPlaceHolder={"Search hostname, UUID, serial number, or IPv4"}
+        inputPlaceHolder={HOSTS_SEARCH_BOX_PLACEHOLDER}
         primarySelectActionButtonText={"Delete"}
         primarySelectActionButtonIcon={"delete"}
         primarySelectActionButtonVariant={"text-icon"}

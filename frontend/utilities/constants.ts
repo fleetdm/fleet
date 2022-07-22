@@ -360,6 +360,9 @@ export const PLATFORM_NAME_TO_LABEL_NAME = {
   linux: "All Linux",
 };
 
+export const HOSTS_SEARCH_BOX_PLACEHOLDER =
+  "Search hostname, UUID, serial number, or IPv4";
+
 export const VULNERABLE_DROPDOWN_OPTIONS = [
   {
     disabled: false,
