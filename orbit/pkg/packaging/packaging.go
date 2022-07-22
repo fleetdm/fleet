@@ -1,4 +1,7 @@
 // Package packaging provides tools for building Orbit installation packages.
+//
+// The functions exported by this package are not safe for concurrent use at
+// the moment.
 package packaging
 
 import (
