@@ -5745,6 +5745,7 @@ _Available in Fleet Premium_
 ## Translator
 
 - [Translate IDs](#translate-i-ds)
+
 ### Translate IDs
 
 Transforms a host name into a host id. For example, the Fleet UI use this endpoint when sending live queries to a set of hosts.
