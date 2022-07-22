@@ -3,7 +3,7 @@
 
 <iframe allow="autoplay *; encrypted-media *; fullscreen *; clipboard-write" frameborder="0" height="175" style="width:100%;max-width:660px;overflow:hidden;background:transparent;" sandbox="allow-forms allow-popups allow-same-origin allow-scripts allow-storage-access-by-user-activation allow-top-navigation-by-user-activation" src="https://embed.podcasts.apple.com/gb/podcast/ep-3-chris-long-from-osquery-sceptic-to-believer/id1627079895?i=1000570741414"></iframe>
 
-Listen to the episode on [Apple](https://podcasts.apple.com/gb/podcast/ep-3-chris-long-from-osquery-sceptic-to-believer/id1627079895?i=1000570741414), [Spotify](https://open.spotify.com/episode/4XGrIZnd699m763j1iOvl6?si=-qztEmjOQiK3E_lnYb-8Yw), [Google Podcasts]()or [PodBean](https://futureofdevicemanagement.podbean.com/e/ep-3-chris-long-from-osquery-sceptic-to-believer/)
+Listen to the episode on [Apple](https://podcasts.apple.com/gb/podcast/ep-3-chris-long-from-osquery-sceptic-to-believer/id1627079895?i=1000570741414), [Spotify](https://open.spotify.com/episode/4XGrIZnd699m763j1iOvl6?si=-qztEmjOQiK3E_lnYb-8Yw), or [PodBean](https://futureofdevicemanagement.podbean.com/e/ep-3-chris-long-from-osquery-sceptic-to-believer/)
 
 Chris Long is a Staff Security Engineer at [Material Security](https://material.security/), and you might know him from some of his open-source work at [Detection Lab](https://detectionlab.network/). In the episode today, we talk about his work with Facebook and Uber using osquery, and his thoughts on the present and future state of cybersecurity. 
 
