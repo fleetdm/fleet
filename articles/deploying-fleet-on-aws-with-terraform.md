@@ -181,7 +181,7 @@ Then apply the updates:
 
 `terraform apply --var-file=prod.tfvars`
 
-
+Once the process completes, your Fleet instance is ready to use! Check out the documentation for more details on [using Fleet](https://fleetdm.com/docs/using-fleet). 
 
 ## Conclusion
 
