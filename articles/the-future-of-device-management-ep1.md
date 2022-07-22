@@ -25,5 +25,5 @@ In today’s episode of the Future of Device Management podcast, we speak with [
 <meta name="authorGitHubUsername" value="zwass">
 <meta name="authorFullName" value="Zach Wasserman">
 <meta name="publishedOn" value="2022-06-06">
-<meta name="articleTitle" value="Future of device management episode 1">
+<meta name="articleTitle" value="Future of device management episode 3">
 <meta name="articleImageUrl" value="../website/assets/images/articles/future-of-device-management-ep1-cover-1600x900@2x.jpg">
