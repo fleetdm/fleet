@@ -6,7 +6,7 @@ Deploying on AWS with Fleet’s reference architecture will get you a fully func
 
 ## Prerequisites:
 
-- AWS CLI installed
+- AWS CLI installed and configured.
 - Terraform installed (version 1.04 or greater)
 - AWS Account and IAM user capable of creating resources
 - Clone [Fleet](https://github.com/fleetdm/fleet) or copy the [Terraform files](https://github.com/fleetdm/fleet/tree/main/infrastructure/dogfood/terraform/aws)
@@ -18,10 +18,8 @@ To bootstrap our [remote state](https://www.terraform.io/docs/language/state/rem
 From the `/remote-state` directory, run:
 
 1. `terraform init`
-2. `terraform workspace new <prefix>-fleet`
-3. `terraform apply -var prefix="<prefix>" -var region="<region>"`
-
-> You can use any name for your new workspace, but it needs to be unique across AWS. We used `<prefix>-prod` here to improve the chances that is the case. 
+2. `terraform workspace new <your_org>-fleet-remote-state`
+3. `terraform apply -var prefix="<your_org>-fleet" -var region="<region>"`
 
   You should be able to see all the resources that Terraform will create — the **S3 bucket** and the **dynamodb** table:
 
@@ -37,7 +35,7 @@ From the `/remote-state` directory, run:
   Enter a value:
   ```
 
-  After typing `yes` you should have a new S3 bucket named `<prefix>-terraform-remote-state` And the table `<prefix>-terraform-state-lock`. Keep these handy because we’ll need them in the following steps.
+  After typing `yes` you should have a new S3 bucket named `<your_org>-fleet-terraform-remote-state` And the table `<your_org>-fleet-terraform-state-lock`. Keep these handy because we’ll need them in the following steps.
 
   You may see a warning during this process. It is safe to ignore. 
 
@@ -53,10 +51,10 @@ Next, we’ll update the terraform setup in the `/aws` directory's [main.tf](htt
 terraform {
   // bootstrapped in ./remote-state
   backend "s3" {
-    bucket         = "<prefix>-terraform-remote-state"
+    bucket         = "<your_org>-fleet-terraform-remote-state"
     region         = "<region>"
-    key            = "fleet/"
-    dynamodb_table = "<prefix>-terraform-state-lock"
+    key            = "<your_org>-fleet"
+    dynamodb_table = "<your_org>-fleet-terraform-state-lock"
   }
   required_providers {
     aws = {
@@ -70,25 +68,28 @@ terraform {
 We’ll also need a `tfvars` file to make some environment-specific variable overrides. Create a file in the `/aws` directory named `prod.tfvars`, and copy/paste the variables below:
 
 ```
+prefix                    = "<your_org>-fleet-prod"
 fleet_backend_cpu         = 1024
 fleet_backend_mem         = 4096 //software inventory requires 4GB
 redis_instance            = "cache.t3.micro"
-fleet_min_capacity        = 1
-fleet_max_capacity        = 5
+fleet_min_capacity        = 0
+fleet_max_capacity        = 0
 domain_fleetdm            = "<your_fleet_domain>"
 software_inventory        = "1"
 vulnerabilities_path      = "/fleet/vuln"
-osquery_results_s3_bucket = "<prefix>-osquery-results-archive-prod"
-osquery_status_s3_bucket  = "<prefix>-osquery-status-archive-prod"
+osquery_results_s3_bucket = "<your_org>-fleet-prod-osquery-results-archive"
+osquery_status_s3_bucket  = "<your_org>-fleet-prod-osquery-status-archive"
+fleet_min_capacity        = 0
+fleet_max_capacity        = 0
 ```
 
-> Feel free to use whatever values you would like for the `osquery_results_s3_bucket` and `osquery_status_s3_bucket`. Just keep in mind that they need to be unique across AWS. 
+Feel free to use whatever values you would like for the `osquery_results_s3_bucket` and `osquery_status_s3_bucket`. Just keep in mind that they need to be unique across AWS. We're setting the initial capacity for `fleet` to `0` to prevent the fleet service from attempting to start until setup is complete. 
 
 Now we’re ready to apply the terraform. From the `/aws` directory, Run:
 
 1. `terraform init`
-2. `terraform workspace new prod`
-3. `terraform apply - --var-file=prod.tfvars`
+2. `terraform workspace new <your_org>-fleet-prod`
+3. `terraform apply --var-file=prod.tfvars`
 
 You should see the planned output, and you will need to confirm the creation. Review this output, and type `yes` when you are ready. 
 
@@ -156,7 +157,32 @@ Running this command will kick off the migration task, and Fleet will be ready t
 
 ![AWS Console ECS Clusters](../website/assets/images/articles/deploying-fleet-on-aws-with-terraform-2-640x313@2x.png)
 
-At this point, you can go to your Fleet domain and start [using Fleet](https://fleetdm.com/docs/using-fleet)!
+At this point, you can go to your Fleet domain and start [using Fleet](https://fleetdm.com/docs/using-fleet). 
+
+## Start the Fleet service
+
+Now that Fleet has everything it needs, we're ready to start the service. 
+
+First, we'll need to edit our production variables to increase Fleet's capacity and allow the service to start. In the `prod.tvars` file, update `fleet_min_capacity` and `fleet_max_capacity`:
+
+```
+fleet_backend_cpu         = 1024
+fleet_backend_mem         = 4096 //software inventory requires 4GB
+redis_instance            = "cache.t3.micro"
+fleet_min_capacity        = 1
+fleet_max_capacity        = 5
+domain_fleetdm            = "<your_fleet_domain>"
+software_inventory        = "1"
+vulnerabilities_path      = "/fleet/vuln"
+osquery_results_s3_bucket = "<your_org>-osquery-results-archive-prod"
+osquery_status_s3_bucket  = "<your_org>-osquery-status-archive-prod"
+```
+
+Then apply the updates:
+
+`terraform apply --var-file=prod.tfvars`
+
+
 
 ## Conclusion
 
