@@ -52,6 +52,9 @@
       tbody {
         .name__cell {
           width: $col-lg;
+          .text-cell {
+            min-width: 100%;
+          }
         }
         .interval__cell {
           width: 0;

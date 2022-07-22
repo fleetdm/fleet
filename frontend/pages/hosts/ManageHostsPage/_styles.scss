@@ -135,6 +135,12 @@
                   color: $ui-fleet-black-50;
                 }
               }
+
+              .os_version__cell {
+                .text-cell {
+                  min-width: 100%;
+                }
+              }
             }
           }
         }

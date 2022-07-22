@@ -19,6 +19,9 @@
       tbody {
         .query_name__cell {
           width: $col-lg;
+          .text-cell {
+            min-width: 100%;
+          }
         }
         .frequency__cell {
           width: $col-md;
