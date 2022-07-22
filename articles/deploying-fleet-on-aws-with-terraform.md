@@ -79,8 +79,6 @@ software_inventory        = "1"
 vulnerabilities_path      = "/fleet/vuln"
 osquery_results_s3_bucket = "<your_org>-fleet-prod-osquery-results-archive"
 osquery_status_s3_bucket  = "<your_org>-fleet-prod-osquery-status-archive"
-fleet_min_capacity        = 0
-fleet_max_capacity        = 0
 ```
 
 Feel free to use whatever values you would like for the `osquery_results_s3_bucket` and `osquery_status_s3_bucket`. Just keep in mind that they need to be unique across AWS. We're setting the initial capacity for `fleet` to `0` to prevent the fleet service from attempting to start until setup is complete. 
@@ -166,6 +164,7 @@ Now that Fleet has everything it needs, we're ready to start the service.
 First, we'll need to edit our production variables to increase Fleet's capacity and allow the service to start. In the `prod.tvars` file, update `fleet_min_capacity` and `fleet_max_capacity`:
 
 ```
+prefix                    = "<your_org>-fleet-prod"
 fleet_backend_cpu         = 1024
 fleet_backend_mem         = 4096 //software inventory requires 4GB
 redis_instance            = "cache.t3.micro"
@@ -174,8 +173,8 @@ fleet_max_capacity        = 5
 domain_fleetdm            = "<your_fleet_domain>"
 software_inventory        = "1"
 vulnerabilities_path      = "/fleet/vuln"
-osquery_results_s3_bucket = "<your_org>-osquery-results-archive-prod"
-osquery_status_s3_bucket  = "<your_org>-osquery-status-archive-prod"
+osquery_results_s3_bucket = "<your_org>-fleet-prod-osquery-results-archive"
+osquery_status_s3_bucket  = "<your_org>-fleet-prod-osquery-status-archive"
 ```
 
 Then apply the updates:
