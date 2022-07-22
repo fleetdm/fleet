@@ -807,7 +807,6 @@ export default {
   generateRole,
   generateTeam,
   greyCell,
-  humanHostUptime,
   humanHostLastSeen,
   humanHostEnrolled,
   humanHostMemory,
