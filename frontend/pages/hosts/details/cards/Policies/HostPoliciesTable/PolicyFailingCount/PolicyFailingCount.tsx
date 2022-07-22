@@ -5,11 +5,14 @@ import IssueIcon from "../../../../../../../../assets/images/icon-issue-fleet-bl
 
 const baseClass = "policy-failing-count";
 
-const PolicyFailingCount = (policyProps: {
+interface IPolicyFailingCountProps {
   policyList: IHostPolicy[];
-}): JSX.Element | null => {
-  const { policyList } = policyProps;
-
+  deviceUser?: boolean;
+}
+const PolicyFailingCount = ({
+  policyList,
+  deviceUser,
+}: IPolicyFailingCountProps): JSX.Element | null => {
   const failCount = policyList.reduce((sum, policy) => {
     return policy.response === "fail" ? sum + 1 : sum;
   }, 0);
@@ -24,7 +27,8 @@ const PolicyFailingCount = (policyProps: {
       <p>
         Click a policy below to see if there are steps you can take to resolve
         the issue
-        {failCount > 1 ? "s" : ""}.
+        {failCount > 1 ? "s" : ""}.{" "}
+        {deviceUser && " Once resolved, click “Refetch” above to confirm."}
       </p>
     </div>
   ) : null;
