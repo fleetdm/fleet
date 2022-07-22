@@ -8,7 +8,7 @@
 
 * Fixed a bug affecting exporting live query results.
 
-* Fixed a bug in the Fleet UI affection live query result counts.
+* Fixed a bug in the Fleet UI affecting live query result counts.
 
 * Improved **Battery Health** processing to better reflect the health of batteries for M1 Macs.
 
