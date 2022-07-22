@@ -35,6 +35,10 @@ const SandboxExpiryMessage = (): JSX.Element => {
 
 const baseClass = "main-content";
 
+/**
+ * A component that controls the layout and styling of the main content region
+ * of the application.
+ */
 const MainContent = ({
   children,
   className,

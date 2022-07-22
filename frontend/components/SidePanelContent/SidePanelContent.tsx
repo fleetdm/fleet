@@ -8,6 +8,10 @@ interface ISidePanelContentProps {
 
 const baseClass = "side-panel-content";
 
+/**
+ * A component that controls the layout and styling of the side panel region of
+ * the application.
+ */
 const SidePanelContent = ({
   children,
   className,

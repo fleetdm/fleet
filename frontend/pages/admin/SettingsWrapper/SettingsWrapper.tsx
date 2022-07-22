@@ -5,6 +5,7 @@ import PATHS from "router/paths";
 import { AppContext } from "context/app";
 
 import TabsWrapper from "components/TabsWrapper";
+import MainContent from "components/MainContent";
 
 interface ISettingSubNavItem {
   name: string;
@@ -63,28 +64,30 @@ const SettingsWrapper = ({
   };
 
   return (
-    <div className={`${baseClass} body-wrap`}>
-      <TabsWrapper>
-        <h1>Settings</h1>
-        <Tabs
-          selectedIndex={getTabIndex(pathname)}
-          onSelect={(i) => navigateToNav(i)}
-        >
-          <TabList>
-            {settingsSubNav.map((navItem) => {
-              // Bolding text when the tab is active causes a layout shift
-              // so we add a hidden pseudo element with the same text string
-              return (
-                <Tab key={navItem.name} data-text={navItem.name}>
-                  {navItem.name}
-                </Tab>
-              );
-            })}
-          </TabList>
-        </Tabs>
-      </TabsWrapper>
-      {children}
-    </div>
+    <MainContent className={baseClass}>
+      <div className={`${baseClass}_wrapper`}>
+        <TabsWrapper>
+          <h1>Settings</h1>
+          <Tabs
+            selectedIndex={getTabIndex(pathname)}
+            onSelect={(i) => navigateToNav(i)}
+          >
+            <TabList>
+              {settingsSubNav.map((navItem) => {
+                // Bolding text when the tab is active causes a layout shift
+                // so we add a hidden pseudo element with the same text string
+                return (
+                  <Tab key={navItem.name} data-text={navItem.name}>
+                    {navItem.name}
+                  </Tab>
+                );
+              })}
+            </TabList>
+          </Tabs>
+        </TabsWrapper>
+        {children}
+      </div>
+    </MainContent>
   );
 };
 

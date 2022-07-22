@@ -84,7 +84,7 @@ const HostSidePanel = ({
   });
 
   return (
-    <SecondarySidePanelContainer className={`${baseClass}`}>
+    <>
       <PanelGroup
         groupItems={allHostLabels}
         onLabelClick={onLabelClick}
@@ -134,7 +134,7 @@ const HostSidePanel = ({
         selectedFilter={selectedFilter}
         type="label"
       />
-    </SecondarySidePanelContainer>
+    </>
   );
 };
 

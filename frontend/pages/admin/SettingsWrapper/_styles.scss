@@ -6,16 +6,6 @@
     align-items: center;
     height: 38px;
     position: relative;
-
-    // fake padding for h1 while sticky
-    &::before {
-      content: "";
-      width: 100%;
-      height: $pad-xxlarge;
-      position: absolute;
-      top: -$pad-xxlarge;
-      background-color: $core-white;
-    }
   }
 
   .app-settings {

@@ -16,6 +16,7 @@ import TeamsDropdown from "components/TeamsDropdown";
 import Spinner from "components/Spinner";
 // @ts-ignore
 import Dropdown from "components/forms/fields/Dropdown";
+import MainContent from "components/MainContent";
 import useInfoCard from "./components/InfoCard";
 import HostsStatus from "./cards/HostsStatus";
 import HostsSummary from "./cards/HostsSummary";
@@ -290,8 +291,8 @@ const Homepage = (): JSX.Element => {
   };
 
   return (
-    <div className={baseClass}>
-      <div className={`${baseClass}__wrapper body-wrap`}>
+    <MainContent className={baseClass}>
+      <div className={`${baseClass}__wrapper`}>
         <div className={`${baseClass}__header`}>
           <div className={`${baseClass}__text`}>
             <div className={`${baseClass}__title`}>
@@ -337,7 +338,7 @@ const Homepage = (): JSX.Element => {
         </div>
         {renderCards()}
       </div>
-    </div>
+    </MainContent>
   );
 };
 
