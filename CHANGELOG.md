@@ -1,3 +1,18 @@
+## Fleet 4.17.1 (Jul 22, 2022)
+
+* Fixed a bug causing an error when converting users to SSO login. 
+
+* Fixed a bug causing the **Edit User** modal to hang when editing multiple users.
+
+* Fixed a bug that caused Ubuntu hosts to display an inaccurate OS version. 
+
+* Fixed a bug affecting exporting live query results.
+
+* Fixed a bug in the Fleet UI affecting live query result counts.
+
+* Improved **Battery Health** processing to better reflect the health of batteries for M1 Macs.
+
+## Fleet 4.17.0 (Jul 8, 2022)
 
 ## Fleet 4.17.0 (July 8, 2022)
 
