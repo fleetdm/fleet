@@ -4,7 +4,7 @@
 
 * Fixed a bug causing the **Edit User** modal to hang when editing multiple users.
 
-* Fixed a bug that caused Ububtu hosts to display an inaccurate OS version. 
+* Fixed a bug that caused Ubuntu hosts to display an inaccurate OS version. 
 
 * Fixed a bug affecting exporting live query results.
 
