@@ -46,7 +46,9 @@ module.exports = {
       )
     });
     if (!thisPage) {// If there's no EXACTLY matching content page, try a revised version of the URL suffix that's lowercase, with internal slashes deduped, and any trailing slash or whitespace trimmed
-      let revisedPageUrlSuffix = pageUrlSuffix.toLowerCase().replace(/\/+/g, '/').replace(/^\/+\s*|\/+\s*$/,'');
+      console.log('A',pageUrlSuffix);
+      let revisedPageUrlSuffix = pageUrlSuffix.toLowerCase().replace(/\/+/g, '/').replace(/^\s*\/+/,'').replace(/\/+\s*$/,'');
+      console.log('B',revisedPageUrlSuffix);
       thisPage = _.find(sails.config.builtStaticContent.markdownPages, { url: SECTION_URL_PREFIX + '/' + revisedPageUrlSuffix });
       if (thisPage) {// If we matched a page with the revised suffix, then redirect to that rather than rendering it, so the URL gets cleaned up.
         throw {redirect: thisPage.url};
