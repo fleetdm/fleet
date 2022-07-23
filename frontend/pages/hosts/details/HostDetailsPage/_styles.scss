@@ -234,6 +234,7 @@
     .react-tabs__tab {
       padding: 6px 0px 16px 0px;
       margin-right: $pad-xxlarge;
+      display: inline-block;
     }
 
     .react-tabs__tab--selected {
