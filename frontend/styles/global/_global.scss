@@ -24,11 +24,16 @@ body {
     text-align: center;
   }
 
-  .button--disabled,
-  .fleet-checkbox__tick--disabled,
   .tooltip {
     &:hover {
       cursor: help;
+    }
+
+    .button--disabled,
+    .fleet-checkbox__tick--disabled {
+      &:hover {
+        cursor: help;
+      }
     }
   }
 }

@@ -172,7 +172,6 @@
       margin-right: $pad-small;
 
       .refetch-btn {
-        cursor: default;
         font-size: $x-small;
         height: 38px;
         margin-right: $pad-small;
@@ -184,10 +183,6 @@
           content: url(../assets/images/icon-refetch-12x12@2x.png);
           transform: scale(0.5);
           height: 28px;
-        }
-
-        &:hover {
-          cursor: pointer;
         }
       }
 
