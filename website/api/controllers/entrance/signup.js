@@ -36,8 +36,7 @@ the account verification message.)`,
     },
 
     organization: {
-      required: false, //« Change organization to be required: false.
-      defaultsTo: '', //« Add a default value
+      defaultsTo: '',
       type: 'string',
       maxLength: 120,
       example: 'The Sails company',
@@ -58,9 +57,7 @@ the account verification message.)`,
       description: 'The user\'s last name.',
     },
 
-    // Add optional input
     signupReason: {
-      required: false,
       defaultsTo: 'Buy a license',
       type: 'string',
       isIn: ['Buy a license', 'Try Fleet Sandbox'],
@@ -87,8 +84,8 @@ the account verification message.)`,
       description: 'The provided email address is already in use.',
     },
 
-    couldNotProvisionSandbox: {
-      description: 'An error occurred while trying to provision the Fleet Sandbox Instance'
+    newSandboxNotResponding: {
+      description: 'The newly provisioned Fleet Sandbox instance for this new user is taking too long to respond.'
     }
 
 
@@ -130,48 +127,57 @@ the account verification message.)`,
         stripeCustomerId
       });
     }
+    // Creating an expiration JS timestamp for the Fleet sandbox instance. NOTE: We send this value to the cloud provisioner API as an ISO 8601 string.
+    let fleetSandboxExpiresAt = Date.now() + (24*60*60*1000);
 
-    // If "Try Fleet Sandbox" was provided as the signupReason, this is a user signing up to try Fleet Sandbox.
-    if(signupReason === 'Try Fleet Sandbox') {
-
-      // Creating an expiration JS timestamp for the Fleet sandbox instance. NOTE: We send this value to the cloud provisioner API as an ISO 8601 string.
-      let fleetSandboxExpiresAt = Date.now() + (24*60*60*1000);
-
-      // Send a POST request to the cloud provisioner API
-      let cloudProvisionerResponse = await sails.helpers.http.post(
-        'https://sandbox.fleetdm.com/new',
-        { // Request body
-          'name': firstName + ' ' + lastName,
-          'email': emailAddress,
-          'password': newUserRecord.password, //« Sending the hashed password to the Fleet Sandbox instance
-          'sandbox_expiration': new Date(fleetSandboxExpiresAt).toISOString(), // sending expiration_timestamp as an ISO string.
-        },
-        { // Request headers
-          'Authorization':sails.config.custom.cloudProvisionerSecret
-        }
-      )
-      .timeout(5000)
-      .intercept('non200Response', 'couldNotProvisionSandbox');
-
-      if(cloudProvisionerResponse.URL) {
-        // Update the user's record with the fleetSandboxURL, fleetSandboxExpiresAt, and fleetSandboxKey.
-        await User.updateOne({id: newUserRecord.id}).set({
-          fleetSandboxURL: cloudProvisionerResponse.URL,
-          fleetSandboxExpiresAt: fleetSandboxExpiresAt,
-        });
-        // Start polling the /healthz endpoint of the created Fleet Sandbox instance, once it returns a 200 response, we'll continue.
-        await sails.helpers.flow.until( async()=>{
-          let serverResponse = await sails.helpers.http.sendHttpRequest('GET', cloudProvisionerResponse.URL+'/healthz')
-          .timeout(5000)
-          .tolerate('non200Response')
-          .tolerate('requestFailed');
-          if(serverResponse && serverResponse.statusCode) {
-            return serverResponse.statusCode === 200;
-          }
-        }, 10000);
-      } else {
-        throw 'couldNotProvisionSandbox';
+    // Send a POST request to the cloud provisioner API
+    let cloudProvisionerResponse = await sails.helpers.http.post(
+      'https://sandbox.fleetdm.com/new',
+      { // Request body
+        'name': firstName + ' ' + lastName,
+        'email': emailAddress,
+        'password': newUserRecord.password, //« Sending the hashed password to the Fleet Sandbox instance
+        'sandbox_expiration': new Date(fleetSandboxExpiresAt).toISOString(), // sending expiration_timestamp as an ISO string.
+      },
+      { // Request headers
+        'Authorization':sails.config.custom.cloudProvisionerSecret
       }
+    )
+    .timeout(5000)
+    .intercept('non200Response', ()=>{
+      // If we recieved a non-200 response from the Cloud Provisioner API, we'll delete the incomplete User record, and throw a 500 error
+      await User.destroyOne({id: newUserRecord.id});
+      throw new Error('When attempting to provision a new user\'s Fleet Sandbox instance, the Cloud provisioner gave a non 200 response. The incomplete user record has been deleted, and the user will be asked to try signing up again.')
+    });
+
+    if(!cloudProvisionerResponse.URL) {
+      // If we didn't receive a URL in the response from the Cloud Provisioner API, we'll delete the new User record before throwing an error and the user will need to try to sign up again.
+      await User.destroyOne({id: newUserRecord.id});
+      throw new Error(
+        `When provisioning a Fleet Sandbox instance for this new user, the 200 response from the Cloud Provisioner API did not contain a URL of a Sandbox instance.
+        The newly created User record has been deleted, and the user will be asked to try signing up again.
+        Here is the response from the Cloud Provisioner API: ${cloudProvisionerResponse}`
+       );
+    } else {
+      // Update the user's record with the fleetSandboxURL, fleetSandboxExpiresAt, and fleetSandboxKey.
+      await User.updateOne({id: newUserRecord.id}).set({
+        fleetSandboxURL: cloudProvisionerResponse.URL,
+        fleetSandboxExpiresAt: fleetSandboxExpiresAt,
+      });
+    }
+
+    // If "Try Fleet Sandbox" was provided as the signupReason, this is a user signing up to try Fleet Sandbox, and we'll make sure their Sandbox instance is live before we continue.
+    if(signupReason === 'Try Fleet Sandbox') {
+      // Start polling the /healthz endpoint of the created Fleet Sandbox instance, once it returns a 200 response, we'll continue.
+      await sails.helpers.flow.until( async()=>{
+        let serverResponse = await sails.helpers.http.sendHttpRequest('GET', cloudProvisionerResponse.URL+'/healthz')
+        .timeout(5000)
+        .tolerate('non200Response')
+        .tolerate('requestFailed');
+        if(serverResponse && serverResponse.statusCode) {
+          return serverResponse.statusCode === 200;
+        }
+      }, 10000).intercept('tookTooLong', 'newSandboxNotResponding');
     }
 
     // Store the user's new id in their session.

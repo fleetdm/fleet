@@ -19,7 +19,6 @@ module.exports = {
     passwordResetRequestedFrom: {
       type: 'string',
       description: 'The section of the website that the user has requested the password reset from.',
-      required: false,
       defaultsTo: 'customers',
     }
 
