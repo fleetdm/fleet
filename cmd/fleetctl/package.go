@@ -153,7 +153,7 @@ func packageCommand() *cli.Command {
 			&cli.StringFlag{
 				Name:        "macos-devid-pem-content",
 				Usage:       "Dev ID certificate keypair content in PEM format",
-				EnvVars:     []string{"FLEETCTL_MACOS_DEVID_CERTIFICATE_CONTENT"},
+				EnvVars:     []string{"FLEETCTL_MACOS_DEVID_PEM_CONTENT"},
 				Destination: &opt.MacOSDevIDCertificateContent,
 			},
 			&cli.StringFlag{
