@@ -4,10 +4,16 @@ import ExternalURLIcon from "../../../../assets/images/icon-external-url-black-1
 
 const baseClass = "sandbox-expiry-message";
 
-const SandboxExpiryMessage = (): JSX.Element => {
+interface ISandboxExpiryMessageProps {
+  expiry: string;
+}
+
+const SandboxExpiryMessage = ({
+  expiry,
+}: ISandboxExpiryMessageProps): JSX.Element => {
   return (
     <div className={baseClass}>
-      <p>Your Fleet Sandbox Expires in about 20 hours.</p>
+      <p>Your Fleet Sandbox expires in {expiry}.</p>
       <a
         href="https://fleetdm.com/docs/deploying"
         target="_blank"

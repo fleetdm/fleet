@@ -1,8 +1,11 @@
-import React, { ReactChild } from "react";
+import React, { ReactChild, useContext } from "react";
 import classnames from "classnames";
+import { formatDistanceToNow } from "date-fns";
 
 import SandboxExpiryMessage from "components/Sandbox/SandboxExpiryMessage";
 import SandboxGate from "components/Sandbox/SandboxGate";
+import { AppContext } from "context/app";
+import exp from "constants";
 
 interface IMainContentProps {
   children: ReactChild;
@@ -23,10 +26,18 @@ const MainContent = ({
   className,
 }: IMainContentProps): JSX.Element => {
   const classes = classnames(baseClass, className);
+  const { sandboxExpiry } = useContext(AppContext);
+
+  const expiry =
+    sandboxExpiry === undefined
+      ? "..."
+      : formatDistanceToNow(new Date(sandboxExpiry));
 
   return (
     <div className={classes}>
-      <SandboxGate fallbackComponent={() => <SandboxExpiryMessage />} />
+      <SandboxGate
+        fallbackComponent={() => <SandboxExpiryMessage expiry={expiry} />}
+      />
       {children}
     </div>
   );
