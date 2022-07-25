@@ -23,6 +23,15 @@ html, body {
     color: #000;
   }
 }
+// Apply this margin when there is a CTA banner on the homepage
+.homepage-cta-banner + .homepage-header-margin {
+  margin-top: 60px
+}
+@media (max-width: 767px) {
+  .homepage-cta-banner + .homepage-header-margin {
+    margin-top: 110px
+  }
+}
 .non-homepage-cta-banner {
   background-color: @core-fleet-black;
   color: #FFF;
@@ -45,7 +54,7 @@ html, body {
 
 [purpose='page-header'] {
     // rules for sticky nav transitions
-    transition-property: all;
+    transition-property: background-color,display, transform;
     transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
     transition-duration: 500ms;
 

@@ -118,7 +118,7 @@
             <a class="mb-0 d-block text-center d-lg-inline text-lg-left" href="/reports/state-of-device-management">Click here to learn about their struggles and best practices.</a>
           </div>
       </div>
-      <div class="<%= isHomepage ? 'homepage-header' : 'header' %>" purpose="page-header">
+      <div class="<%= isHomepage ? 'homepage-header' : 'header' %> <%= !headerCTAHidden ? 'homepage-header-margin' : null %>" purpose="page-header">
         <div style="max-width: 1248px; height: 94px;" class="container-fluid d-flex justify-content-between align-items-center pt-3 pb-3 px-3 px-md-4">
           <a href="/" style="max-width: 118px;">
             <% /* The homepage-header on the homepage has a white fleet logo */ %>
@@ -362,10 +362,6 @@
         var header = document.querySelector('.header') || document.querySelector('.homepage-header')
         var ctaBanner = document.querySelector('[purpose="header-report-cta"]')
 
-        if (ctaBanner && header.classList.contains('homepage-header')) {
-          header.style.marginTop = window.innerWidth <= 800 ? '110px' : '60px'
-        }
-
         window.addEventListener('scroll', windowScrolled)
 
         function windowScrolled() {
@@ -375,7 +371,7 @@
           if(scrollTop == 0 && header.classList.contains('homepage-header')) {
               if (ctaBanner) {
                 header.style.position = null
-                header.style.marginTop = window.innerWidth <= 800 ? '110px' : '60px'
+                header.classList.add('homepage-header-margin')
               }
               header.classList.remove('sticky')
               fleetLogo.src = '/images/logo-white-162x92@2x.png'
@@ -389,7 +385,7 @@
               header.classList.add('sticky')
               if (ctaBanner) {
                 header.style.position = 'sticky'
-                header.style.marginTop = null
+                header.classList.remove('homepage-header-margin')
               }
               fleetLogo.src = '/images/logo-blue-162x92@2x.png'
               hamburgerMenuIcon.src="/images/icon-hamburger-blue-16x14@2x.png"
