@@ -268,16 +268,7 @@ func (ds *Datastore) ScheduledQueryIDsByName(ctx context.Context, packAndSchedQu
 	return result, nil
 }
 
-// the number of inserted rows per single INSERT statement is only limited
-// by the `max_allowed_packet` setting in MySQL (typically 1-4MB). Scheduled
-// Query Stats rows are small as they are mostly integers, so 1000 seems like
-// a reasonable size to use. There's also a limit on number of placeholders
-// which seems to be around 64K, again not a problem here.
-var asyncBatchScheduledQueryStatsSize = 1000 // var so it can be changed for tests
-
-// TODO(mna): it should receive the batch size, which should be the one configured
-// in fleet (AsyncHostInsertBatch)
-func (ds *Datastore) AsyncBatchSaveHostsScheduledQueryStats(ctx context.Context, stats map[uint][]fleet.ScheduledQueryStats) (int, error) {
+func (ds *Datastore) AsyncBatchSaveHostsScheduledQueryStats(ctx context.Context, stats map[uint][]fleet.ScheduledQueryStats, batchSize int) (int, error) {
 	// NOTE: this implementation must be kept in sync with the non-async version
 	// in SaveHostPackStats (in hosts.go) - that is, the behaviour per host must
 	// be the same.
@@ -345,7 +336,7 @@ func (ds *Datastore) AsyncBatchSaveHostsScheduledQueryStats(ctx context.Context,
 				stat.WallTime)
 			batchCount++
 
-			if batchCount >= asyncBatchScheduledQueryStatsSize {
+			if batchCount >= batchSize {
 				stmt := fmt.Sprintf(stmt, strings.TrimSuffix(strings.Repeat(values, batchCount), ","))
 				if _, err := ds.writer.ExecContext(ctx, stmt, batchArgs...); err != nil {
 					return countExecs, ctxerr.Wrap(ctx, err, "insert batch of scheduled query stats")

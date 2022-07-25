@@ -198,7 +198,7 @@ func (t *Task) collectScheduledQueryStats(ctx context.Context, ds fleet.Datastor
 		batchStatsByHost[hid] = batchStats
 	}
 
-	countExecs, err := ds.AsyncBatchSaveHostsScheduledQueryStats(ctx, batchStatsByHost)
+	countExecs, err := ds.AsyncBatchSaveHostsScheduledQueryStats(ctx, batchStatsByHost, cfg.InsertBatch)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "batch-save scheduled query stats for hosts")
 	}

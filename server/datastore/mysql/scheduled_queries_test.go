@@ -484,10 +484,6 @@ func testScheduledQueriesAsyncBatchSaveStats(t *testing.T, ds *Datastore) {
 	ctx := context.Background()
 	lastExec := time.Now() // don't care about that value in the test, it just needs to be set
 
-	oldBatchSize := asyncBatchScheduledQueryStatsSize
-	asyncBatchScheduledQueryStatsSize = 2
-	defer func() { asyncBatchScheduledQueryStatsSize = oldBatchSize }()
-
 	user := test.NewUser(t, ds, "user", "user@example.com", true)
 
 	h1 := test.NewHost(t, ds, "foo1.local", "192.168.1.1", "1", "1", time.Now())
@@ -526,8 +522,9 @@ func testScheduledQueriesAsyncBatchSaveStats(t *testing.T, ds *Datastore) {
 		}
 	}
 
+	const batchSize = 2
 	// save without any stats
-	execs, err := ds.AsyncBatchSaveHostsScheduledQueryStats(ctx, nil)
+	execs, err := ds.AsyncBatchSaveHostsScheduledQueryStats(ctx, nil, batchSize)
 	require.NoError(t, err)
 	require.Equal(t, 0, execs)
 
@@ -537,7 +534,7 @@ func testScheduledQueriesAsyncBatchSaveStats(t *testing.T, ds *Datastore) {
 			{ScheduledQueryID: sq1.ID, Executions: 1, LastExecuted: lastExec},
 		},
 	}
-	execs, err = ds.AsyncBatchSaveHostsScheduledQueryStats(ctx, m)
+	execs, err = ds.AsyncBatchSaveHostsScheduledQueryStats(ctx, m, batchSize)
 	require.NoError(t, err)
 	require.Equal(t, 1, execs)
 	assertStats(m)
@@ -549,7 +546,7 @@ func testScheduledQueriesAsyncBatchSaveStats(t *testing.T, ds *Datastore) {
 			{ScheduledQueryID: sq2.ID, Executions: 3, LastExecuted: lastExec},
 		},
 	}
-	execs, err = ds.AsyncBatchSaveHostsScheduledQueryStats(ctx, m)
+	execs, err = ds.AsyncBatchSaveHostsScheduledQueryStats(ctx, m, batchSize)
 	require.NoError(t, err)
 	require.Equal(t, 1, execs)
 	assertStats(m)
@@ -562,7 +559,7 @@ func testScheduledQueriesAsyncBatchSaveStats(t *testing.T, ds *Datastore) {
 			{ScheduledQueryID: sq3.ID, Executions: 6, LastExecuted: lastExec},
 		},
 	}
-	execs, err = ds.AsyncBatchSaveHostsScheduledQueryStats(ctx, m)
+	execs, err = ds.AsyncBatchSaveHostsScheduledQueryStats(ctx, m, batchSize)
 	require.NoError(t, err)
 	require.Equal(t, 2, execs)
 	assertStats(m)
@@ -576,7 +573,7 @@ func testScheduledQueriesAsyncBatchSaveStats(t *testing.T, ds *Datastore) {
 			{ScheduledQueryID: sq2.ID, Executions: 8, LastExecuted: lastExec},
 		},
 	}
-	execs, err = ds.AsyncBatchSaveHostsScheduledQueryStats(ctx, m)
+	execs, err = ds.AsyncBatchSaveHostsScheduledQueryStats(ctx, m, batchSize)
 	require.NoError(t, err)
 	require.Equal(t, 1, execs)
 	assertStats(m)
@@ -591,7 +588,7 @@ func testScheduledQueriesAsyncBatchSaveStats(t *testing.T, ds *Datastore) {
 			{ScheduledQueryID: sq3.ID, Executions: 11, LastExecuted: lastExec},
 		},
 	}
-	execs, err = ds.AsyncBatchSaveHostsScheduledQueryStats(ctx, m)
+	execs, err = ds.AsyncBatchSaveHostsScheduledQueryStats(ctx, m, batchSize)
 	require.NoError(t, err)
 	require.Equal(t, 2, execs)
 	assertStats(m)
@@ -612,7 +609,7 @@ func testScheduledQueriesAsyncBatchSaveStats(t *testing.T, ds *Datastore) {
 			{ScheduledQueryID: sq3.ID, Executions: 18, LastExecuted: lastExec},
 		},
 	}
-	execs, err = ds.AsyncBatchSaveHostsScheduledQueryStats(ctx, m)
+	execs, err = ds.AsyncBatchSaveHostsScheduledQueryStats(ctx, m, batchSize)
 	require.NoError(t, err)
 	require.Equal(t, 4, execs)
 	assertStats(m)

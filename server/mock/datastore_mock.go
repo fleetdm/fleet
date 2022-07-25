@@ -383,7 +383,7 @@ type TeamAgentOptionsFunc func(ctx context.Context, teamID uint) (*json.RawMessa
 
 type SaveHostPackStatsFunc func(ctx context.Context, hostID uint, stats []fleet.PackStats) error
 
-type AsyncBatchSaveHostsScheduledQueryStatsFunc func(ctx context.Context, stats map[uint][]fleet.ScheduledQueryStats) (int, error)
+type AsyncBatchSaveHostsScheduledQueryStatsFunc func(ctx context.Context, stats map[uint][]fleet.ScheduledQueryStats, batchSize int) (int, error)
 
 type UpdateHostSoftwareFunc func(ctx context.Context, hostID uint, software []fleet.Software) error
 
@@ -1975,9 +1975,9 @@ func (s *DataStore) SaveHostPackStats(ctx context.Context, hostID uint, stats []
 	return s.SaveHostPackStatsFunc(ctx, hostID, stats)
 }
 
-func (s *DataStore) AsyncBatchSaveHostsScheduledQueryStats(ctx context.Context, stats map[uint][]fleet.ScheduledQueryStats) (int, error) {
+func (s *DataStore) AsyncBatchSaveHostsScheduledQueryStats(ctx context.Context, stats map[uint][]fleet.ScheduledQueryStats, batchSize int) (int, error) {
 	s.AsyncBatchSaveHostsScheduledQueryStatsFuncInvoked = true
-	return s.AsyncBatchSaveHostsScheduledQueryStatsFunc(ctx, stats)
+	return s.AsyncBatchSaveHostsScheduledQueryStatsFunc(ctx, stats, batchSize)
 }
 
 func (s *DataStore) UpdateHostSoftware(ctx context.Context, hostID uint, software []fleet.Software) error {

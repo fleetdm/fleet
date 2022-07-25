@@ -508,7 +508,7 @@ type Datastore interface {
 	// pack stats of scheduled queries. It is the async and batch version of
 	// SaveHostPackStats. It returns the number of INSERT-ON DUPLICATE UPDATE
 	// statements that were executed (for reporting purpose) or an error.
-	AsyncBatchSaveHostsScheduledQueryStats(ctx context.Context, stats map[uint][]ScheduledQueryStats) (int, error)
+	AsyncBatchSaveHostsScheduledQueryStats(ctx context.Context, stats map[uint][]ScheduledQueryStats, batchSize int) (int, error)
 
 	// UpdateHostSoftware updates the software list of a host.
 	// The update consists of deleting existing entries that are not in the given `software`
