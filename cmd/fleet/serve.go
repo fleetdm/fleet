@@ -649,7 +649,7 @@ const (
 	lockKeyWorker                  = "worker"
 )
 
-func trySendStatistics(ctx context.Context, ds fleet.Datastore, frequency time.Duration, url string, license *fleet.LicenseInfo) error {
+func trySendStatistics(ctx context.Context, ds fleet.Datastore, frequency time.Duration, url string, config configpkg.FleetConfig, license *fleet.LicenseInfo) error {
 	ac, err := ds.AppConfig(ctx)
 	if err != nil {
 		return err
@@ -658,7 +658,7 @@ func trySendStatistics(ctx context.Context, ds fleet.Datastore, frequency time.D
 		return nil
 	}
 
-	stats, shouldSend, err := ds.ShouldSendStatistics(ctx, frequency, license)
+	stats, shouldSend, err := ds.ShouldSendStatistics(ctx, frequency, config, license)
 	if err != nil {
 		return err
 	}
@@ -691,7 +691,7 @@ func runCrons(
 	// StartCollectors starts a goroutine per collector, using ctx to cancel.
 	task.StartCollectors(ctx, kitlog.With(logger, "cron", "async_task"))
 
-	go cronDB(ctx, ds, kitlog.With(logger, "cron", "cleanups"), ourIdentifier, license, enrollHostLimiter)
+	go cronDB(ctx, ds, kitlog.With(logger, "cron", "cleanups"), ourIdentifier, config, license, enrollHostLimiter)
 	go cronVulnerabilities(
 		ctx, ds, kitlog.With(logger, "cron", "vulnerabilities"), ourIdentifier, config.Vulnerabilities)
 	go cronWebhooks(ctx, ds, kitlog.With(logger, "cron", "webhooks"), ourIdentifier, failingPoliciesSet, 1*time.Hour)

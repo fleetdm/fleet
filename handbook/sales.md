@@ -19,23 +19,25 @@ At times, our sales team will reach out to prospective customers before they com
 - Be personable.
 - Ask for the meeting with a proposed time.
 
-## Principles for writing for the Sales team
+## Sales team writing principles
 
-### We want to abide by the following principles in our communications:
+When writing for the Sales team, we want to abide by the following principles in our communications.
 
-First, maintain naming conventions so people can expect what fields will look like when revisiting automations outside of Salesforce. This helps them avoid misunderstanding jargon and making mistakes that break automated integrations and cause business problems. One way we do this is by using sentence case where only the first word is capitalized (unless it’s a proper noun). See the below examples.
+### Maintain naming conventions
+
+Maintain naming conventions so people can expect what fields will look like when revisiting automations outside of Salesforce. This helps them avoid misunderstanding jargon and making mistakes that break automated integrations and cause business problems. One way we do this is by using sentence case where only the first word is capitalized (unless it’s a proper noun). See the below examples.
 
 | Good job! ✅          | Don't do this. ❌    |
 |:----------------------|:---------------------|
 | Bad data              | Bad Data
 
-The second principle is to be explicit, which goes back to people understanding what they are reading and how to use terms for proper use of automations outside of Salesforce. In the case of acronyms, that means expanding and treating them as proper nouns. Note the template for including acronyms is in the first column below.
+### Be explicit
+
+Being explicit helps people to understand what they are reading and how to use terms for proper use of automations outside of Salesforce. In the case of acronyms, that means expanding and treating them as proper nouns. Note the template for including acronyms is in the first column below.
 
 | Good job! ✅          | Don't do this. ❌    |
 |:----------------------|:---------------------|
 | Do Not Contact (DNC)  | DNC
-
-
 
 ## Intro deck
 
@@ -88,7 +90,6 @@ Directly Responsible Individuals (DRI) engage in the ritual(s) below at the freq
 [Salesforce contributor experience checkup](./sales.md#salesforcecontributorexperiencecheckups)| Monthly | Make sure all users see a detailed view of contacts, opportunities, accounts, and leads. | Nathan Holliday |
 | TODO  | TODO | TODO | TODO 
 | TODO  | TODO | TODO | TODO 
-
 
 ## Slack channels
 

@@ -26,15 +26,15 @@ Detail the minimum time needed for new or updated content to be live (published)
 
 | Content | To publish | To revise (for editors) | Timeframe |
 |:------ |:-----------------|:-------------------------------|-----------|
-| Articles | **Queued** – see _(TODO: Publishing articles on fleetdm.com)_. | **Absorb** (pair or feedback as needed) – see [How to edit articles, release posts, and press releases](http://localhost:2024/handbook/brand#how-to-edit-articles-release-posts-and-press-releases). | three business days |
+| Articles | **Queued** – see _(TODO: Publishing articles on fleetdm.com)_. | **Absorb** (pair or feedback as needed) – see [How to edit articles, release posts, and press releases](#how-to-edit-articles-release-posts-and-press-releases). | three business days |
 | Ads | **Gated**. Request review from Digital Experience – see _(TODO: Creating an ad campaign)_. | **Feedback** or **pair** | five business days |
-| Docs | **Gated**. Request review from Desmi Dizney – see _(TODO: Adding to the docs)_. | **Absorb** – see [How to edit Markdown pull requests for the docs](http://localhost:2024/handbook/brand#how-to-edit-markdown-pull-requests-for-the-docs). For non-grammar-related revisions: **Feedback** or **pair** with contributor, and request review from the [on-call engineer](https://fleetdm.com/handbook/engineering#oncall-rotation). | two business days |
-| Docs (REST API) | **Gated**. Request review from Luke Heath – see _(TODO: Adding to the docs (REST API))_. | **Absorb** – see [How to edit recently merged Pull Requests for the handbook and docs](http://localhost:2024/handbook/brand#how-to-edit-recently-merged-pull-requests-for-the-handbook-and-docs). For non-grammar-related revisions: **Feedback** or **pair** with contributor, and request review from Luke Heath. | two business days |
-| Handbook | **Gated**. Request review from page DRI – see _(TODO: Adding to the handbook)_. | **Absorb** and request review from page DRI – see [How to edit recently merged Pull Requests for the handbook and docs](http://localhost:2024/handbook/brand#how-to-edit-recently-merged-pull-requests-for-the-handbook-and-docs). | two business days |
-| Social media (Twitter, FB, LinkedIn.) | **Instant** – see [Posting on social media as Fleet](https://fleetdm.com/handbook/growth#posting-on-social-media-as-fleet). | **Pair** or **absorb** (pair if possible otherwise, silently fix ASAP by editing or deleting the post. Consider that some or many people may have already seen the post, and decide accordingly – see [How to edit social media posts](http://localhost:2024/handbook/brand#how-to-edit-social-media-posts).) | one business day |
+| Docs | **Gated**. Request review from Desmi Dizney – see _(TODO: Adding to the docs)_. | **Absorb** – see [How to edit Markdown pull requests for the docs](#how-to-edit-markdown-pull-requests-for-the-docs). For non-grammar-related revisions: **Feedback** or **pair** with contributor, and request review from the [on-call engineer](https://fleetdm.com/handbook/engineering#oncall-rotation). | two business days |
+| Docs (REST API) | **Gated**. Request review from Luke Heath – see _(TODO: Adding to the docs (REST API))_. | **Absorb** – see [How to edit recently merged Pull Requests for the handbook and docs](#how-to-edit-recently-merged-pull-requests-for-the-handbook). For non-grammar-related revisions: **Feedback** or **pair** with contributor, and request review from Luke Heath. | two business days |
+| Handbook | **Gated**. Request review from page DRI – see _(TODO: Adding to the handbook)_. | **Absorb** and request review from page DRI – see [How to edit recently merged Pull Requests for the handbook and docs](#how-to-edit-recently-merged-pull-requests-for-the-handbook-and-docs). | two business days |
+| Social media (Twitter, FB, LinkedIn.) | **Instant** – see [Posting on social media as Fleet](https://fleetdm.com/handbook/growth#posting-on-social-media-as-fleet). | **Pair** or **absorb** (pair if possible otherwise, silently fix ASAP by editing or deleting the post. Consider that some or many people may have already seen the post, and decide accordingly – see [How to edit social media posts](#how-to-edit-social-media-posts).) | one business day |
 | Newsletter/email blast | **Gated**. Request review from Digital Experience – see _(TODO: Creating an email campaign)_. | **Feedback** or **pair** | five business days |
-| Press release | **Queued** – see _(TODO: Publishing a press release)_ | **Feedback** or **pair** – see [How to edit articles, release posts, and press releases](http://localhost:2024/handbook/brand#how-to-edit-articles-release-posts-and-press-releases) | three business days |
-| Release post | **Queued** – see _(TODO: Publishing release posts)_ | **Feedback** or **pair** – see [How to edit articles, release posts, and press releases](http://localhost:2024/handbook/brand#how-to-edit-articles-release-posts-and-press-releases) | three business days |
+| Press release | **Queued** – see _(TODO: Publishing a press release)_ | **Feedback** or **pair** – see [How to edit articles, release posts, and press releases](#how-to-edit-articles-release-posts-and-press-releases) | three business days |
+| Release post | **Queued** – see _(TODO: Publishing release posts)_ | **Feedback** or **pair** – see [How to edit articles, release posts, and press releases](#how-to-edit-articles-release-posts-and-press-releases) | three business days |
 | Website (text change) | **Gated** – see _(TODO: Adding content to fleetdm.com)_. | **Feedback** or **pair** | three business days |
 | YouTube | **Queued** – see _(TODO: Publishing on YouTube as Fleet.)_ | **Absorb** for revisions to the description. **Pair** or **absorb** for video content (pair if possible otherwise, silently fix ASAP by deleting the post. Consider that the video may also have been promoted on social media – see Social media (Twitter, FB, LinkedIn) above. | three business days |
 
@@ -442,6 +442,142 @@ In Figma:
 
 Every week, we run `npm audit --only=prod` to check for vulnerabilities on the production dependencies of fleetdm.com. Once we have a solution to configure GitHub's Dependabot to ignore devDependencies, this manual process can be replaced with Dependabot.
 
+## Article formatting guidelines
+
+To publish an article, you will need to create a Pull Request for a new file, formatted in Markdown (todo), in [https://github.com/fleetdm/fleet/tree/main/articles](https://github.com/fleetdm/fleet/tree/main/articles).
+
+#### On this page
+- [Layout](#layout)
+- [Images and screenshots](#images-and-screenshots)
+- [Meta tags](#meta-tags)
+- [Customizable CTA](#customizable-cta)
+- [Other pages of interest](#other-pages-of-interest)
+
+### Layout
+The following layout guide aims to help you create consistently formatted articles. For an existing article example, check out the [Markdown](https://raw.githubusercontent.com/fleetdm/fleet/main/articles/tales-from-fleet-security-speeding-up-macos-updates-with-nudge.md) and the [finished result](https://fleetdm.com/securing/tales-from-fleet-security-speeding-up-macos-updates-with-nudge).
+
+#### Hero image
+Consider adding a hero image for a more significant impact. Get in touch with Digital Experience via #content on Slack to make a request. 
+
+#### Table of contents
+For long articles or guides, consider adding a table of contents.
+
+#### Introduction
+It’s good practice to start your article with a clear summary of what you will be discussing.
+
+#### Main content
+The main body of your article.
+
+#### Conclusion
+It’s a good idea to finish your article with a clear closing statement.
+
+#### Add a customizable CTA
+Add a CTA at the end of your article. See [Customizable CTA](#customizable-cta) below for instructions on creating a CTA tailored to your article topic.
+
+### Images and screenshots
+Images are a great way to help engage your readers. But consider the following before including images or screenshots in your article:
+
+- Does the image add value?
+- Is your image likely to go out of date soon? (Consider the long-term maintenance of your article.)
+
+### Meta tags
+These tags help pass information to the website about the article to display and store it. 
+
+```
+<meta name="articleTitle" value="Deploying Fleet on Render">
+<meta name="authorFullName" value="Ben Edwards">
+<meta name="authorGitHubUsername" value="edwardsb">
+<meta name="category" value="guides">
+<meta name="publishedOn" value="2021-11-21">
+<meta name="articleImageUrl" value="../website/assets/images/articles/deploying-fleet-on-render-cover-1600x900@2x.jpg">
+```
+
+#### `articleTitle`
+The title of your article. Avoid long titles. As a rule of thumb, your title should not exceed two lines at desktop browser resolution. This is roughly 75 characters (including spaces).
+
+#### `authorFullName`
+Add the author’s full name here. Our system does not currently support multiple authors.
+
+#### `authorGitHubUsername`
+Add the author’s GitHub username to populate the author’s headshot.
+
+#### `category`
+Choose only __one__ of the following categories for your article.
+
+- __Announcements__: company or product announcements (including breaking changes), news, or events.
+- __Engineering__: posts about engineering at Fleet and other engineering-related topics.
+- __Guides__: help articles for using and deploying Fleet.
+- __Podcasts__: podcast-related posts.
+- __Product__: posts related to Fleet features.
+- __Releases__: release posts, security, and patch releases.
+- __Reports__: posts about the industry, data, surveys, etc.
+- __Security__: posts about how we approach security at Fleet and other security-related topics.
+- Success stories: stories from users or customers successfully using Fleet. 
+
+#### `publishedOn`
+The date that the article was published. Please follow the correct date format, e.g., __2021-09-29__.
+
+#### `articleImageUrl`
+The relative url path for the article cover image. Article images are stored in `../website/assets/images/articles/` See [How to export images for the website](https://fleetdm.com/handbook/brand#how-to-export-images-for-the-website).
+
+### Customizable CTA
+Use the following code snippet to include an inline CTA (call to action) in your article:
+
+```
+<call-to-action 
+  title=”All the data you need, without the performance hit.”
+  text=”Fleet is the lightweight telemetry platform for servers and workstations.”
+  primary-button-text=”Try Fleet Free” 
+  primary-button-href=”/get-started?try-it-now” 
+  secondary-button-text=”Schedule a demo”
+  secondary-button-href=”calendly.com/fleetdm/demo”>
+</call-to-action>
+```
+
+![Customizable CTA example](../images/cta-example-1-900x320@2x.jpg)
+
+> __Tip__: paste the code-snippet at the end of your article, or, when creating long articles, consider adding a CTA mid-way through.
+
+#### How to modify the customizable CTA
+You can customize the CTA to promote what's relevant to your article.
+
+##### `title`
+The main call to action text
+
+##### `text`
+The proposition statement for your call to action
+
+##### `primary-button-text`
+The main call to action interaction. E.g., “Get started.”
+
+##### `primary-button-href`
+The URL link for your primary CTA.
+
+##### `secondary-button-text` (optional)
+The secondary call to action interaction. E.g., “Schedule a demo.”
+
+##### `secondary-button-href` 
+The URL link for your secondary CTA.
+
+#### Example
+In the following example we will modify `title`, `text`, `primary-button-text`, and also remove `secondary-button-text` and `secondary-button-href` to create a call to action that promotes a job opening at Fleet.
+
+```
+<call-to-action 
+  title=”We're hiring remote engineers, worldwide.”
+  text=”Are you interested in working full time in Fleet's public GitHub repository?”
+  primary-button-text=”Apply now” 
+  primary-button-href=”https://fleetdm.com/jobs” 
+</call-to-action>
+```
+
+![Customizable CTA example](../images/cta-example-2-900x280@2x.jpg)
+
+### Other pages of interest
+- [Process for submitting and publishing articles](https://docs.google.com/document/d/1owejJ7PjCVm0e21QNXjzw7SRMa3FdkRxb8WoHkKxWRE/edit?usp=sharing)
+- Markdown guide (todo)
+- Writing style guide (todo)
+
 ## Rituals
 
 The following table lists the Brand group's rituals, frequency, and Directly Responsible Individual (DRI).
@@ -475,7 +611,7 @@ These groups maintain the following [Slack channels](https://fleetdm.com/handboo
 | `#help-finance`             | Nathan Holliday
 | `#help-brex-memos`          | Nathan Holliday
 | `#help-p1`		      | Mike McNeil
-| `#help-operations`          | Charlie Chance and Nathan Holiday _(multiple DRIs, for the sake of coverage)_
+| `#help-operations`          | Nathan Holliday
 
 
 <meta name="maintainedBy" value="mike-j-thomas">

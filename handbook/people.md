@@ -94,11 +94,11 @@ For team members working in jurisdictions that require certain mandatory sick le
 ### Taking time off
 
 When you take any time off, you should follow this process:
-- Let your manager and team know as soon as possible(e.g., post a message in your team's Slack channel).
-- Find someone to cover anything that needs covering while you're out(i.e., meetings, planned tasks, unfinished business, important Slack/email threads, anything where someone might be depending on you).
+- Let your manager and team know as soon as possible (i.e., post a message in your team's Slack channel with when and how long).
+- Find someone to cover anything that needs covering while you're out and communicate what they need to take over the responsibilities as well as who to refer to for help (e.g., meetings, planned tasks, unfinished business, important Slack/email threads, anything where someone might be depending on you).
 - Mark an all-day "Out of office" event in Google Calendar for the day(s) you're taking off.
 
-If you can’t complete the above because you need to take the day off quickly due to an emergency, let your team know, and they will help you.
+If you can’t complete the above because you need to take the day off quickly due to an emergency, let your manager know and they will help you complete the handoff.
 
 If you ever want to take a day off, and the only thing stopping you is internal (Fleetie-only) meetings, don’t stress. Consider, “Is this a meeting that I can reschedule to another day, or is this a meeting that can go on without me and not interfere with the company’s plans?” 
 
