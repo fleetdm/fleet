@@ -471,6 +471,7 @@ func (s *integrationTestSuite) TestVulnerableSoftware() {
 	}
 	require.NoError(t, s.ds.UpdateHostSoftware(context.Background(), host.ID, software))
 	require.NoError(t, s.ds.LoadHostSoftware(context.Background(), host, false))
+	require.NoError(t, s.ds.SyncHostsSoftware(context.Background(), time.Now()))
 
 	soft1 := host.Software[0]
 	if soft1.Name != "bar" {
