@@ -15,8 +15,8 @@ var macosPackageInfoTemplate = template.Must(template.New("").Option("missingkey
 `))
 
 // This template is used to generate a Distribution Definition file, which
-// controls the experience of the installer (how the default dir, what packages
-// installs, etc.)
+// controls the experience of the installer (the default dir, what options the
+// user has, etc.)
 //
 // Reference:
 // https://developer.apple.com/library/archive/documentation/DeveloperTools/Reference/DistributionDefinitionRef/Chapters/Distribution_XML_Ref.html
