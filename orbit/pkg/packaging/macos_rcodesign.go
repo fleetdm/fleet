@@ -10,10 +10,10 @@ import (
 	"github.com/fleetdm/fleet/v4/pkg/secure"
 )
 
-func rSign(pkgPath, cert, certPwd string) error {
-	certPath := filepath.Join(os.TempDir(), "cert.p12")
-	defer os.Remove(certPath)
-	err := os.WriteFile(certPath, []byte(cert), 0o600)
+func rSign(pkgPath, cert string) error {
+	pemPath := filepath.Join(os.TempDir(), "cert.pem")
+	defer os.Remove(pemPath)
+	err := os.WriteFile(pemPath, []byte(cert), 0o600)
 	if err != nil {
 		return fmt.Errorf("writing cert data: %e", err)
 	}
@@ -22,9 +22,8 @@ func rSign(pkgPath, cert, certPwd string) error {
 	cmd := exec.Command(
 		"rcodesign",
 		"sign",
-		"--p12-file", certPath,
-		"--p12-password", certPwd,
 		pkgPath,
+		"--pem-source", pemPath,
 	)
 	cmd.Stdout = &outBuf
 	cmd.Stderr = &outBuf
@@ -44,10 +43,10 @@ func rNotarizeStaple(pkg, apiKeyID, apiKeyIssuer, apiKeyContent string) error {
 	var outBuf bytes.Buffer
 	cmd := exec.Command("rcodesign",
 		"notarize",
+		pkg,
 		"--api-issuer", apiKeyIssuer,
 		"--api-key", apiKeyID,
 		"--staple",
-		pkg,
 	)
 	cmd.Stdout = &outBuf
 	cmd.Stderr = &outBuf

@@ -151,16 +151,10 @@ func packageCommand() *cli.Command {
 				Destination: &opt.NativeTooling,
 			},
 			&cli.StringFlag{
-				Name:        "macos-devid-certificate-content",
-				Usage:       "Dev ID certificate content",
+				Name:        "macos-devid-pem-content",
+				Usage:       "Dev ID certificate keypair content in PEM format",
 				EnvVars:     []string{"FLEETCTL_MACOS_DEVID_CERTIFICATE_CONTENT"},
 				Destination: &opt.MacOSDevIDCertificateContent,
-			},
-			&cli.StringFlag{
-				Name:        "macos-devid-certificate-password",
-				Usage:       "Password for the certificate provided via --macos-devid-certificate",
-				EnvVars:     []string{"FLEETCTL_MACOS_DEVID_CERTIFICATE_PASSWORD"},
-				Destination: &opt.MacOSDevIDCertificatePassword,
 			},
 			&cli.StringFlag{
 				Name:        "app-store-connect-api-key-id",
@@ -170,7 +164,7 @@ func packageCommand() *cli.Command {
 			},
 			&cli.StringFlag{
 				Name:        "app-store-connect-api-key-issuer",
-				Usage:       "Issuer of the App Store Connect API key provided via --app-store-connect-api-key",
+				Usage:       "Issuer of the App Store Connect API key",
 				EnvVars:     []string{"FLEETCTL_APP_STORE_CONNECT_API_KEY_ISSUER"},
 				Destination: &opt.AppStoreConnectAPIKeyIssuer,
 			},

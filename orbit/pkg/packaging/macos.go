@@ -136,11 +136,7 @@ func BuildPkg(opt Options) (string, error) {
 			return "", errors.New("providing a sign identity and a Dev ID certificate is not supported")
 		}
 
-		if len(opt.MacOSDevIDCertificatePassword) == 0 {
-			return "", errors.New("missing password for Dev ID certificate")
-		}
-
-		if err := rSign(generatedPath, opt.MacOSDevIDCertificateContent, opt.MacOSDevIDCertificatePassword); err != nil {
+		if err := rSign(generatedPath, opt.MacOSDevIDCertificateContent); err != nil {
 			return "", fmt.Errorf("rcodesign: %w", err)
 		}
 	}

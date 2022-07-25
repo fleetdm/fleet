@@ -26,7 +26,11 @@ var macosDistributionTemplate = template.Must(template.New("").Option("missingke
     <choice id="choiceBase" title="Fleet osquery" enabled="false" selected="true" description="Standard installation for Fleet osquery.">
         <pkg-ref id="{{.Identifier}}.base.pkg"/>
     </choice>
-    <pkg-ref id="{{.Identifier}}.base.pkg" version="{{.Version}}" auth="root">#base.pkg</pkg-ref>
+    <pkg-ref id="{{.Identifier}}.base.pkg" version="{{.Version}}" auth="root">
+      <bundle-version>
+        <bundle id="{{.Identifier}}" path="{{.Identifier}}.base.pkg" />
+      </bundle-version>
+    </pkg-ref>
 </installer-gui-script>
 `))
 

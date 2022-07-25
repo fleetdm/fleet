@@ -66,10 +66,9 @@ type Options struct {
 	// Native tooling is used to determine if the package should be built
 	// natively instead of via Docker images.
 	NativeTooling bool
-	// MacOSDevIDCertificateContent is used to sign a macOS package via NativeTooling
+	// MacOSDevIDCertificateContent is a string containing a PEM keypair used to
+	// sign a macOS package via NativeTooling
 	MacOSDevIDCertificateContent string
-	// MacOSDevIDCertificate is the password for MacOSDevIDCertificateContent
-	MacOSDevIDCertificatePassword string
 	// AppStoreConnectAPIKeyID is the Appstore Connect API key provided by Apple
 	AppStoreConnectAPIKeyID string
 	// AppStoreConnectAPIKeyIssuer is the issuer of App Store API Key
