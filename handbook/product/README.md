@@ -96,7 +96,7 @@ The product team is responsible for product design tasks. These include drafting
 changes to the Fleet product, reviewing and collecting feedback from engineering, sales, customer success, and marketing counterparts, and delivering
 these changes to the engineering team. 
 
-Look here for more information about [Using Figma](https://fleetdm.com/handbook/brand#fleet-website).
+Look here for more information about [Using Figma](https://fleetdm.com/handbook/digital-experience#fleet-website).
 
 ### Drafting
 
@@ -414,7 +414,7 @@ with customers and users.
 
 ### Blog post
 
-The product team is responsible for providing the [growth team](./brand.md) with the necessary information for writing
+The product team is responsible for providing the [growth team](../growth/README.md) with the necessary information for writing
 the release blog post. This is accomplished by filing a release blog post issue and adding
 the issue to the growth board on GitHub.
 
@@ -426,7 +426,7 @@ Find an example release blog post issue [here](https://github.com/fleetdm/fleet/
 
 ### Customer announcement
 
-The product team is responsible for providing the [customer success team](./customers.md) with the necessary information
+The product team is responsible for providing the [customer success team](../customers/README.md) with the necessary information
 for writing a release customer announcement. This is accomplished by filing a release customer announcement issue and adding
 the issue to the customer success board on GitHub. 
 
@@ -535,9 +535,9 @@ Directly Responsible Individuals (DRI) engage in the ritual(s) below at the freq
 
 ## Slack channels
 
-This group maintains the following [Slack channels](https://fleetdm.com/handbook/company#group-slack-channels):
+This group maintains the following [Slack channels](https://fleetdm.com/handbook/company#why-group-slack-channels):
 
-| Slack channel                       | [DRI](https://fleetdm.com/handbook/company#group-slack-channels)    |
+| Slack channel                       | [DRI](https://fleetdm.com/handbook/company#why-group-slack-channels)|
 |:------------------------------------|:--------------------------------------------------------------------|
 | `#help-product`                     | Noah Talerman                                                       |
 | `#help-qa`                          | Reed Haynes                                                         |

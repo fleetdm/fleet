@@ -1,5 +1,25 @@
 # Security
 
+## Security policies
+
+Security policies are the foundation of our security program and guide team members in understanding the who, what, and why regarding security at Fleet.
+
+For information about each of our security policies, see:
+
+- [Information security policy, and acceptable use policy](./security-policies.md#information-security-policy-and-acceptable-use-policy)
+- [Access control policy](./security-policies.md#access-control-policy)
+- [Asset management policy](./security-policies.md#asset-management-policy)
+- [Business continuity and disaster recovery policy](./security-policies.md#business-continuity-and-disaster-recovery-policy)
+- [Data management policy](./security-policies.md#data-management-policy)
+- [Encryption policy](./security-policies.md#encryption-policy)
+- [Human resources security policy](./security-policies.md#human-resources-security-policy)
+- [Incident response policy](./security-policies.md#incident-response-policy)
+- [Operations security and change management policy](./security-policies.md#operations-security-and-change-management-policy)
+- [Risk management policy](./security-policies.md#risk-management-policy)
+- [Secure software development and product security policy](./security-policies.md#secure-software-development-and-product-security-policy)
+- [Security policy management policy](./security-policies.md#security-policy-management-policy)
+- [Third-party management policy](./security-policies.md#third-party-management-policy)
+
 ## Account recovery process
 
 As an all-remote company, we do not have the luxury of seeing each other or being able to ask for help in person. Instead, we require live video confirmation of someone's identity before performing recovery, and this applies to all Fleet company accounts, from internal systems to SaaS accounts.
@@ -844,9 +864,9 @@ The following table lists the Security group's rituals, frequency, and Directly 
 
 ## Slack channels
 
-This group maintains the following [Slack channels](https://fleetdm.com/handbook/company#group-slack-channels):
+This group maintains the following [Slack channels](https://fleetdm.com/handbook/company#why-group-slack-channels):
 
-| Slack channel                       | [DRI](https://fleetdm.com/handbook/company#group-slack-channels)    |
+| Slack channel                       | [DRI](https://fleetdm.com/handbook/company#why-group-slack-channels)    |
 |:------------------------------------|:--------------------------------------------------------------------|
 | `#g-security`                       | Guillaume Ross
 | `#help-login`                       | Guillaume Ross

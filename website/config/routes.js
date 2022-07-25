@@ -205,6 +205,7 @@ module.exports.routes = {
   'GET /handbook/customer-experience': '/handbook/customers',
   'GET /guides/deploy-fleet-on-hetzner-cloud': '/deploy/deploy-fleet-on-hetzner-cloud',
   'GET /use-cases/stay-on-course-with-your-security-compliance-goals': '/guides/stay-on-course-with-your-security-compliance-goals',
+  'GET /handbook/brand': '/handbook/digital-experience',
 
 
 
