@@ -1,6 +1,6 @@
 # Fleet Desktop says “Hello, world!”
 
-![Fleet Desktop v1 preview](../website/assets/images/articles/fleet-desktop-says-hello-world-cover.png)
+![Fleet Desktop v1 preview](../website/assets/images/articles/fleet-desktop-says-hello-world-cover-1600x900@2x.jpg)
 
 We are thrilled to announce that Fleet Desktop is out of Beta! Over the past few months, we’ve dogfooded Fleet Desktop internally and validated its usability and scalability. It is now ready for production deployment across your host fleet.
 
@@ -12,7 +12,7 @@ __Self remediation.__ When Fleet finds a host is out of compliance with one or m
 
 When users click on “My device,” they will be shown which policies are failing and steps for resolving the policy failures.
 
-![An example of a policy and resolution steps provided to the end user](../website/assets/images/articles/fleet-desktop-says-hello-world-1.png)
+![An example of a policy and resolution steps provided to the end user](../website/assets/images/articles/fleet-desktop-says-hello-world-1600x900@2x.jpg)
 
 By exposing this information, your end users are informed and empowered to self-remediate security issues without requiring time and attention from your IT or security team.
 
@@ -30,3 +30,10 @@ Once installed, Fleet Desktop’s versioning is thereafter managed by our agent 
 ## Wrapping up
 Over the past few months, we’ve been dogfooding Fleet Desktop internally. We think your end users will appreciate the information about the security posture of their device and feel empowered 
 to self-remediate any outstanding security issues. Your IT and security team will appreciate the results.
+
+<meta name="category" value="announcements">
+<meta name="authorGitHubUsername" value="zhumo">
+<meta name="authorFullName" value="Mo Zhu">
+<meta name="publishedOn" value="2022-07-25">
+<meta name="articleTitle" value="Fleet Desktop says “Hello, world!">
+<meta name="articleImageUrl" value="../website/assets/images/articles/fleet-desktop-says-hello-world-cover-1600x900@2x.jpg">
