@@ -250,7 +250,7 @@ export const generateSoftwareTableHeaders = (
           <>
             <span
               className={`last-used ${
-                lastUsed === "Unavailable" ? "text-muted" : ""
+                lastUsed === "Unavailable" ? "text-muted tooltip" : ""
               }`}
               data-tip
               data-for={`last_used__${cellProps.row.original.id}`}
