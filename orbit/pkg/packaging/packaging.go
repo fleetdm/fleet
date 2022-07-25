@@ -66,6 +66,15 @@ type Options struct {
 	// Native tooling is used to determine if the package should be built
 	// natively instead of via Docker images.
 	NativeTooling bool
+	// MacOSDevIDCertificateContent is a string containing a PEM keypair used to
+	// sign a macOS package via NativeTooling
+	MacOSDevIDCertificateContent string
+	// AppStoreConnectAPIKeyID is the Appstore Connect API key provided by Apple
+	AppStoreConnectAPIKeyID string
+	// AppStoreConnectAPIKeyIssuer is the issuer of App Store API Key
+	AppStoreConnectAPIKeyIssuer string
+	// AppStoreConnectAPIKeyContent is the content of the App Store API Key
+	AppStoreConnectAPIKeyContent string
 }
 
 func initializeTempDir() (string, error) {

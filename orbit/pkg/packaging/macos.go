@@ -2,6 +2,7 @@ package packaging
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"io/ioutil"
 	"os"
@@ -116,17 +117,46 @@ func BuildPkg(opt Options) (string, error) {
 	}
 
 	generatedPath := filepath.Join(tmpDir, "orbit.pkg")
+	isDarwin := runtime.GOOS == "darwin"
+	isLinuxNative := runtime.GOOS == "linux" && opt.NativeTooling
 
 	if len(opt.SignIdentity) != 0 {
+		if len(opt.MacOSDevIDCertificateContent) != 0 {
+			return "", errors.New("providing a sign identity and a Dev ID certificate is not supported")
+		}
+
 		log.Info().Str("identity", opt.SignIdentity).Msg("productsign package")
 		if err := signPkg(generatedPath, opt.SignIdentity); err != nil {
 			return "", fmt.Errorf("productsign: %w", err)
 		}
 	}
 
+	if isLinuxNative && len(opt.MacOSDevIDCertificateContent) > 0 {
+		if len(opt.SignIdentity) != 0 {
+			return "", errors.New("providing a sign identity and a Dev ID certificate is not supported")
+		}
+
+		if err := rSign(generatedPath, opt.MacOSDevIDCertificateContent); err != nil {
+			return "", fmt.Errorf("rcodesign: %w", err)
+		}
+	}
+
 	if opt.Notarize {
-		if err := NotarizeStaple(generatedPath, "com.fleetdm.orbit"); err != nil {
-			return "", err
+		switch {
+		case isDarwin:
+			if err := NotarizeStaple(generatedPath, "com.fleetdm.orbit"); err != nil {
+				return "", err
+			}
+		case isLinuxNative:
+			if len(opt.AppStoreConnectAPIKeyID) == 0 || len(opt.AppStoreConnectAPIKeyIssuer) == 0 {
+				return "", errors.New("both an App Store Connect API key and issuer must be set for native notarization")
+			}
+
+			if err := rNotarizeStaple(generatedPath, opt.AppStoreConnectAPIKeyID, opt.AppStoreConnectAPIKeyIssuer, opt.AppStoreConnectAPIKeyContent); err != nil {
+				return "", err
+			}
+		default:
+			return "", errors.New("notarization is not supported in this platform")
 		}
 	}
 
