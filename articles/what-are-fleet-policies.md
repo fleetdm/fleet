@@ -1,7 +1,5 @@
 # What are Fleet policies?
 
-![The policies page of Fleet](../website/assets/images/articles/get-and-stay-compliant-across-your-devices-with-fleet-1-700x523@2x.jpeg)
-
 Fleet policies are a great way to quickly monitor your devices by asking yes or no questions about them. Policies are also an easy way to make sure you maintain data integrity, confidentiality, and security. Whether you’re checking in on a small set of devices, or a fleet of thousands, policies give quick insight into their status and IT compliance. For example, suppose one of your defined controls makes sure that all of your macOS devices have Gatekeeper enabled. In that case, the Security team can create a policy to quickly and easily return a yes or no response from all of your enrolled devices.
 
 Read more about [getting and staying compliant across your fleet.](https://fleetdm.com/use-cases/get-and-stay-compliant-across-your-devices-with-fleet)
@@ -10,7 +8,7 @@ Read more about [getting and staying compliant across your fleet.](https://fleet
 
 Standards can change based on business needs, industry best practices, or for any number of reasons. Teams grow, software requirements change, and new vulnerabilities are discovered every day. [Fleet makes adding and modifying policies easy](https://fleetdm.com/docs/using-fleet/rest-api#add-policy). To reduce the barrier of entry with Fleet for our less-technical users, we’ve introduced our standard templates that allow users to choose from a library of pre-made policies. Of course, those handy with [osquery](https://osquery.io/) and SQL can still create custom policies to their heart’s content. Simply click “Add a policy” from the “Policies” page in Fleet or select an existing policy to edit its query.
 
-![Add a policy modal in Fleet](../website/assets/images/articles/what-are-fleet-policies-1.png)
+![Add a policy modal in Fleet](../website/assets/images/articles/what-are-fleet-policies-1-1080x720@2x.png)
 
 ## Identifying out-of-policy devices
 
@@ -54,4 +52,4 @@ Policies and automation help your security and IT teams feel confident that devi
 <meta name="authorFullName" value="Andrew Baker">
 <meta name="publishedOn" value="2022-05-20">
 <meta name="articleTitle" value="What are Fleet policies?">
-<meta name="articleImageUrl" value="../website/assets/images/articles/get-and-stay-compliant-across-your-devices-with-fleet-1-700x523@2x.jpeg">
+<meta name="articleImageUrl" value="../website/assets/images/articles/what-are-fleet-policies-cover-1600x900@2x.jpg">

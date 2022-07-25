@@ -138,7 +138,6 @@ const LoginPage = ({ router, location }: ILoginPageProps) => {
 
   return (
     <AuthenticationFormWrapper>
-      <LoginSuccessfulPage />
       <LoginForm
         onChangeFunc={onChange}
         handleSubmit={onSubmit}

@@ -5,7 +5,6 @@ import ReactTooltip from "react-tooltip";
 import { formatDistanceToNow } from "date-fns";
 
 import { ISoftware } from "interfaces/software";
-import { IVulnerability } from "interfaces/vulnerability";
 
 import PATHS from "router/paths";
 import HeaderCell from "components/TableContainer/DataTable/HeaderCell/HeaderCell";
@@ -90,15 +89,12 @@ const formatSoftwareType = (source: string) => {
   return DICT[source] || "Unknown";
 };
 
-const condenseVulnerabilities = (vulns: IVulnerability[]): string[] => {
+const condenseVulnerabilities = (vulns: string[]): string[] => {
   const condensed =
-    (vulns?.length &&
-      vulns
-        .slice(-3)
-        .map((v) => v.cve)
-        .reverse()) ||
-    [];
-  return vulns?.length > 3
+    (vulns?.length && vulns.length === 4
+      ? vulns.slice(-4).reverse()
+      : vulns.slice(-3).reverse()) || [];
+  return vulns?.length > 4
     ? condensed.concat(`+${vulns?.length - 3} more`)
     : condensed;
 };
@@ -113,7 +109,7 @@ export const generateSoftwareTableData = (
   return software.map((s) => {
     return {
       ...s,
-      vulnerabilities: condenseVulnerabilities(s.vulnerabilities || []),
+      vulnerabilities: s.vulnerabilities?.map((v) => v.cve) || [],
     };
   });
 };
@@ -193,14 +189,17 @@ export const generateSoftwareTableHeaders = (
       filter: "hasLength", // filters out rows where vulnerabilities has no length if filter value is `true`
       Cell: (cellProps: IVulnCellProps): JSX.Element => {
         const vulnerabilities = cellProps.cell.value || [];
-        const tooltipText = vulnerabilities?.map((value) => {
-          return (
-            <span key={`vuln_${value}`}>
-              {value}
-              <br />
-            </span>
-          );
-        });
+
+        const tooltipText = condenseVulnerabilities(vulnerabilities).map(
+          (value) => {
+            return (
+              <span key={`vuln_${value}`}>
+                {value}
+                <br />
+              </span>
+            );
+          }
+        );
 
         if (!vulnerabilities?.length) {
           return <span className="vulnerabilities text-muted">---</span>;
@@ -209,7 +208,7 @@ export const generateSoftwareTableHeaders = (
           <>
             <span
               className={`vulnerabilities ${
-                vulnerabilities.length > 1 ? "text-muted" : ""
+                vulnerabilities.length > 1 ? "text-muted tooltip" : ""
               }`}
               data-tip
               data-for={`vulnerabilities__${cellProps.row.original.id}`}
@@ -220,8 +219,6 @@ export const generateSoftwareTableHeaders = (
                 : `${vulnerabilities.length} vulnerabilities`}
             </span>
             <ReactTooltip
-              place="top"
-              type="dark"
               effect="solid"
               backgroundColor="#3e4771"
               id={`vulnerabilities__${cellProps.row.original.id}`}
@@ -262,8 +259,6 @@ export const generateSoftwareTableHeaders = (
               {lastUsed}
             </span>
             <ReactTooltip
-              place="top"
-              type="dark"
               effect="solid"
               backgroundColor="#3e4771"
               id={`last_used__${cellProps.row.original.id}`}

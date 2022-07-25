@@ -1,6 +1,6 @@
-# Fleet 4.16.0 brings more customization, beefs up vulnerability management and adds value to integrations. 
+# Fleet 4.16.0 | more customization, beefed up vuln management, Jira added to integrations. 
 
-![Fleet 4.16.0](<../website/assets/images/articles/4.16.0-cover-1600x900@2x.jpg>)
+![Fleet 4.16.0](../website/assets/images/articles/4.16.0-cover-1600x900@2x.jpg)
 
 Fleet 4.16.0 is up and running. Check out the full [changelog](https://github.com/fleetdm/fleet/releases/tag/fleet-v4.16.0) or continue reading to get the highlights.
 
@@ -15,7 +15,7 @@ For update instructions, see our [upgrade guide](https://fleetdm.com/docs/deploy
 ## Customize your organization's "Transparency" landing page
 **Available in Fleet Premium**
 
-![Customize your "Transparency" landing page.](<../website/assets/images/articles/fleet-4.16.0-custom-transparency-link-1600x900@2x.jpg>)
+![Customize your "Transparency" landing page.](../website/assets/images/articles/fleet-4.16.0-1-1600x900@2x.jpg)
 Fleet Desktop gives end-users a **Transparency** landing page to see what information Fleet is able to access.
 
 Fleet 4.16.0 adds settings for a custom **Transparency** URL. This allows you to use custom branding, as well as giving you control over what information you want to share with your end-users. 
@@ -23,13 +23,13 @@ Fleet 4.16.0 adds settings for a custom **Transparency** URL. This allows you to
 ## Prioritize your vulnerability management efforts
 **Available in Fleet Premium**
 
-![Prioritize your vulnerability management efforts](<../website/assets/images/articles/fleet-4.16.0-probability-of-exploit-1600x900@2x.jpg>)
+![Prioritize your vulnerability management efforts](<../website/assets/images/articles/fleet-4.16.0-2-1600x900@2x.jpg>)
 We've added [EPSS probability scores](https://www.first.org/epss/), [CVSS base scores](https://nvd.nist.gov/), and [CISA's](https://www.cisa.gov/) known exploits to Fleet's vulnerability detection. This allows you to quickly categorize which threats need attention today, next week, next month, or "someday."
 
 ## Automatically create Jira issues or Zendesk tickets for failing policies.
 **Available in Fleet Free & Fleet Premium**
 
-![Automatically create Jira issues or Zendesk tickets for failing policies](../website/assets/images/articles/fleet-4.16.0-manage-ticket-automation-1600x900@2x.jpg)
+![Automatically create Jira issues or Zendesk tickets for failing policies](../website/assets/images/articles/fleet-4.16.0-3-1600x900@2x.jpg)
 We've expanded our integration efforts to include Policies. You can configure Fleet to automatically create a Jira issue or Zendesk ticket when one or more hosts fails a specific policy. To add policies to your integrations in the Fleet UI, go to **Policies >> Manage Automations** and select the policies you'd like to monitor and the integration to use. 
 
 > Zendesk integration is currently in beta.
@@ -79,5 +79,5 @@ Visit our [Update guide](https://fleetdm.com/docs/deploying/upgrading-fleet) in 
 <meta name="authorFullName" value="Kathy Satterlee">
 <meta name="authorGitHubUsername" value="ksatter">
 <meta name="publishedOn" value="2022-06-16">
-<meta name="articleTitle" value="Fleet 4.16.0 gives you the option to customize the information you share to end-users in Fleet Desktop, beefs up vulnerability management and adds additional workflows to Jira and Zendesk integrations.">
-<meta name="articleImageUrl" value="../website/assets/images/articles/4.16.0-cover-1600x900@2x.jpg">
+<meta name="articleTitle" value="Fleet 4.16.0 | more customization, beefed up vuln management, Jira added to integrations.">
+<meta name="articleImageUrl" value="../website/assets/images/articles/fleet-4.16.0-cover-1600x900@2x.jpg">

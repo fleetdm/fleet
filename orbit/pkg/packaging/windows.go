@@ -100,7 +100,7 @@ func BuildMSI(opt Options) (string, error) {
 		}
 	}
 
-	if err := wix.Heat(tmpDir); err != nil {
+	if err := wix.Heat(tmpDir, opt.NativeTooling); err != nil {
 		return "", fmt.Errorf("package root files: %w", err)
 	}
 
@@ -108,15 +108,18 @@ func BuildMSI(opt Options) (string, error) {
 		return "", fmt.Errorf("transform heat: %w", err)
 	}
 
-	if err := wix.Candle(tmpDir); err != nil {
+	if err := wix.Candle(tmpDir, opt.NativeTooling); err != nil {
 		return "", fmt.Errorf("build package: %w", err)
 	}
 
-	if err := wix.Light(tmpDir); err != nil {
+	if err := wix.Light(tmpDir, opt.NativeTooling); err != nil {
 		return "", fmt.Errorf("build package: %w", err)
 	}
 
 	filename := "fleet-osquery.msi"
+	if opt.NativeTooling {
+		filename = filepath.Join("build", filename)
+	}
 	if err := file.Copy(filepath.Join(tmpDir, "orbit.msi"), filename, constant.DefaultFileMode); err != nil {
 		return "", fmt.Errorf("rename msi: %w", err)
 	}

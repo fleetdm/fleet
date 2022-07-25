@@ -309,7 +309,7 @@ The following rituals are engaged in by the  directly responsible individual (DR
 
 The following [Slack channels are maintained](https://fleetdm.com/handbook/company#group-slack-channels) by this group:
 
-| Slack channel                       | [DRI](https://fleetdm.com/handbook/company#group-slack-channels)    |
+| Slack channel                       | [DRI](https://fleetdm.com/handbook/company#why-group-slack-channels) |
 |:------------------------------------|:--------------------------------------------------------------------|
 | `#help-engineering`                 | Zach Wasserman
 | `#g-platform`                       | Tomás Touceda

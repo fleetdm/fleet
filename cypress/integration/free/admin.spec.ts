@@ -132,7 +132,7 @@ const getConfig = {
     tier: "premium",
     organization: "development-only",
     device_count: 100,
-    expiration: "2022-06-30T20:00:00-04:00",
+    expiration: "2099-06-30T20:00:00-04:00",
     note: "for development only",
   },
   logging: {
@@ -698,7 +698,7 @@ describe(
       });
       it("hides access to Fleet Desktop settings", () => {
         cy.visit("settings/organization");
-        cy.getAttached(".app-settings__form-nav-list").within(() => {
+        cy.getAttached(".org-settings-form__form-nav-list").within(() => {
           cy.findByText(/organization info/i).should("exist");
           cy.findByText(/fleet desktop/i).should("not.exist");
         });

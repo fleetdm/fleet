@@ -60,4 +60,4 @@ Visit our [update guide](https://fleetdm.com/docs/using-fleet/updating-fleet) in
 <meta name="authorGitHubUsername" value="mike-j-thomas">
 <meta name="publishedOn" value="2021-09-07">
 <meta name="articleTitle" value="Fleet 4.3.0">
-<meta name="articleImageUrl" value="../website/assets/images/articles/fleet-4.3.0-cover-700x393@2x.jpg">
+<meta name="articleImageUrl" value="../website/assets/images/articles/fleet-4.3.0-cover-1600x900@2x.jpg">

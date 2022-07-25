@@ -1,6 +1,6 @@
 # 4 tips for GitHub Actions usability (+2 bonus tips for debugging)
 
-![4 tips for GitHub Actions usability (+2 bonus tips for debugging)](../website/assets/images/articles/4-tips-for-github-actions-usability-cover-800x450@2x.jpeg)
+![4 tips for GitHub Actions usability (+2 bonus tips for debugging)](../website/assets/images/articles/4-tips-for-github-actions-usability-cover-1600x900@2x.jpg)
 
 Here at Fleet, we make [extensive use of GitHub Actions](https://github.com/fleetdm/fleet/tree/main/.github/workflows), and we want to share some tips that we’ve learned along the way. These tips can help save time and money while getting the most value from GitHub Actions.
 
@@ -132,4 +132,4 @@ Are you interested in working full-time in [Fleet’s public GitHub repository](
 <meta name="authorFullName" value="Zach Wasserman">
 <meta name="publishedOn" value="2022-01-03">
 <meta name="articleTitle" value="4 tips for GitHub Actions usability (+2 bonus tips for debugging)">
-<meta name="articleImageUrl" value="../website/assets/images/articles/4-tips-for-github-actions-usability-cover-800x450@2x.jpeg">
+<meta name="articleImageUrl" value="../website/assets/images/articles/4-tips-for-github-actions-usability-cover-1600x900@2x.jpg">

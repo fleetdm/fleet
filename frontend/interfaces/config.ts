@@ -117,6 +117,7 @@ export interface IConfig {
     org_name: string;
     org_logo_url: string;
   };
+  sandbox_enabled: boolean;
   server_settings: {
     server_url: string;
     live_query_disabled: boolean;

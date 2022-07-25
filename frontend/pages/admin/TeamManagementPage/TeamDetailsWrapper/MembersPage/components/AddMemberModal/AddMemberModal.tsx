@@ -1,4 +1,4 @@
-import React, { useCallback, useState, useEffect } from "react";
+import React, { useCallback, useState } from "react";
 
 import { INewMembersBody, ITeam } from "interfaces/team";
 import endpoints from "utilities/endpoints";
@@ -73,7 +73,7 @@ const AddMemberModal = ({
             variant="brand"
             onClick={onFormSubmit}
           >
-            Add Member
+            Add member
           </Button>
           <Button
             className={`${baseClass}__btn`}

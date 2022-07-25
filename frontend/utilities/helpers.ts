@@ -18,7 +18,6 @@ import {
 } from "interfaces/target";
 import { ITeam, ITeamSummary } from "interfaces/team";
 import { IUser } from "interfaces/user";
-import { IVulnerability } from "interfaces/vulnerability";
 
 import stringUtils from "utilities/strings";
 import sortUtils from "utilities/sort";
@@ -586,6 +585,26 @@ export const humanHostUptime = (uptimeInNanoseconds: number): string => {
   const restartDate = new Date();
   restartDate.setMilliseconds(
     restartDate.getMilliseconds() - uptimeMilliseconds
+  );
+
+  return formatDistanceToNow(new Date(restartDate), { addSuffix: true });
+};
+
+export const humanHostLastRestart = (
+  detailUpdatedAt: string,
+  uptime: number
+): string => {
+  const currentDate = new Date();
+  const updatedDate = new Date(detailUpdatedAt);
+  const millisecondsLastUpdated = currentDate.getTime() - updatedDate.getTime();
+
+  // Sum of calculated milliseconds since last updated with uptime
+  const millisecondsLastRestart =
+    millisecondsLastUpdated + uptime / NANOSECONDS_PER_MILLISECOND;
+
+  const restartDate = new Date();
+  restartDate.setMilliseconds(
+    restartDate.getMilliseconds() - millisecondsLastRestart
   );
 
   return formatDistanceToNow(new Date(restartDate), { addSuffix: true });

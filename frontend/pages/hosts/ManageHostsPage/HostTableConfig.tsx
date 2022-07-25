@@ -7,6 +7,7 @@ import ReactTooltip from "react-tooltip";
 
 import { IDeviceUser, IHost } from "interfaces/host";
 import Checkbox from "components/forms/fields/Checkbox";
+import DiskSpaceGraph from "components/DiskSpaceGraph";
 import HeaderCell from "components/TableContainer/DataTable/HeaderCell/HeaderCell";
 import IssueCell from "components/TableContainer/DataTable/IssueCell/IssueCell";
 import LinkCell from "components/TableContainer/DataTable/LinkCell/LinkCell";
@@ -54,6 +55,17 @@ interface ICellProps {
   };
 }
 
+interface INumberCellProps {
+  cell: {
+    value: number;
+  };
+  row: {
+    original: IHost;
+    getToggleRowSelectedProps: () => IGetToggleAllRowsSelectedProps;
+    toggleRowSelected: () => void;
+  };
+}
+
 interface IDeviceUserCellProps {
   cell: {
     value: IDeviceUser[];
@@ -68,11 +80,16 @@ const condenseDeviceUsers = (users: IDeviceUser[]): string[] => {
     return [];
   }
   const condensed =
-    users
-      .slice(-3)
-      .map((u) => u.email)
-      .reverse() || [];
-  return users.length > 3
+    users.length === 4
+      ? users
+          .slice(-4)
+          .map((u) => u.email)
+          .reverse()
+      : users
+          .slice(-3)
+          .map((u) => u.email)
+          .reverse() || [];
+  return users.length > 4
     ? condensed.concat(`+${users.length - 3} more`) // TODO: confirm limit
     : condensed;
 };
@@ -176,7 +193,29 @@ const allHostTableHeaders: IDataColumn[] = [
     ),
   },
   {
-    title: "OS",
+    title: "Disk space available",
+    Header: (cellProps: IHeaderProps) => (
+      <HeaderCell
+        value={cellProps.column.title}
+        isSortedDesc={cellProps.column.isSortedDesc}
+      />
+    ),
+    accessor: "gigs_disk_space_available",
+    Cell: (cellProps: INumberCellProps): JSX.Element => {
+      const { id, percent_disk_space_available } = cellProps.row.original;
+
+      return (
+        <DiskSpaceGraph
+          baseClass="gigs_disk_space_available__cell"
+          gigsDiskSpaceAvailable={cellProps.cell.value}
+          percentDiskSpaceAvailable={percent_disk_space_available}
+          id={`disk-space__${id}`}
+        />
+      );
+    },
+  },
+  {
+    title: "Operating system",
     Header: (cellProps: IHeaderProps) => (
       <HeaderCell
         value={cellProps.column.title}
@@ -210,7 +249,9 @@ const allHostTableHeaders: IDataColumn[] = [
         return (
           <>
             <span
-              className={`text-cell ${users.length > 1 ? "text-muted" : ""}`}
+              className={`text-cell ${
+                users.length > 1 ? "text-muted tooltip" : ""
+              }`}
               data-tip
               data-for={`device_mapping__${cellProps.row.original.id}`}
               data-tip-disable={users.length <= 1}
@@ -218,8 +259,6 @@ const allHostTableHeaders: IDataColumn[] = [
               {numUsers === 1 ? users[0] : `${numUsers} users`}
             </span>
             <ReactTooltip
-              place="top"
-              type="dark"
               effect="solid"
               backgroundColor="#3e4771"
               id={`device_mapping__${cellProps.row.original.id}`}

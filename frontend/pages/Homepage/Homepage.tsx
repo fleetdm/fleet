@@ -74,11 +74,11 @@ const Homepage = (): JSX.Element => {
     }
   );
 
-  const { data: hostSummaryData, isFetching: isHostSummaryFetching } = useQuery<
-    IHostSummary,
-    Error,
-    IHostSummary
-  >(
+  const {
+    data: hostSummaryData,
+    isFetching: isHostSummaryFetching,
+    error: errorHosts,
+  } = useQuery<IHostSummary, Error, IHostSummary>(
     ["host summary", currentTeam, selectedPlatform],
     () =>
       hostSummaryAPI.getSummary({
@@ -120,7 +120,7 @@ const Homepage = (): JSX.Element => {
       text: "View all hosts",
     },
     total_host_count: (() => {
-      if (!isHostSummaryFetching) {
+      if (!isHostSummaryFetching && !errorHosts) {
         return `${hostSummaryData?.totals_hosts_count}` || undefined;
       }
 
@@ -137,6 +137,7 @@ const Homepage = (): JSX.Element => {
         showHostsUI={showHostsUI}
         selectedPlatform={selectedPlatform}
         labels={labels}
+        errorHosts={!!errorHosts}
       />
     ),
   });

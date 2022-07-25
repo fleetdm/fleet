@@ -1,6 +1,6 @@
 # Osquery: a tool to easily ask questions about operating systems
 
-![osquery](../website/assets/images/articles/osquery-a-tool-to-easily-ask-questions-about-operating-systems-cover-800x450@2x.png)
+![osquery](../website/assets/images/articles/osquery-a-tool-to-easily-ask-questions-about-operating-systems-cover-1600x900@2x.jpg)
 
 ## What is osquery?
 Osquery is an easy-to-use operating system monitoring tool that uses SQL to expose a device’s operating system as a highly performant relational database. But what does that mean? In short, osquery allows you to ask questions about your operating system. More than that, though:
@@ -59,9 +59,9 @@ To deploy osquery at scale across your organization’s devices, an osquery mana
 
 Ready to give Fleet a try? Head over to our [get started page](https://fleetdm.com/get-started), and you can be up and running with a sandbox environment in less than 5 minutes. Alternatively, check out the [docs](https://fleetdm.com/docs) to learn how to deploy Fleet across your organization.
 
-<meta name="category" value="product">
+<meta name="category" value="guides">
 <meta name="authorGitHubUsername" value="dominuskelvin">
 <meta name="authorFullName" value="Kelvin Omereshone">
 <meta name="publishedOn" value="2022-04-04">
 <meta name="articleTitle" value="Osquery: a tool to easily ask questions about operating systems">
-<meta name="articleImageUrl" value="../website/assets/images/articles/osquery-a-tool-to-easily-ask-questions-about-operating-systems-cover-800x450@2x.png">
+<meta name="articleImageUrl" value="../website/assets/images/articles/osquery-a-tool-to-easily-ask-questions-about-operating-systems-cover-1600x900@2x.jpg">

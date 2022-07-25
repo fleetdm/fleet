@@ -72,26 +72,6 @@
         }
       }
 
-      &__disk-space {
-        display: inline-block;
-        height: 4px;
-        width: 50px;
-        background-color: $ui-fleet-blue-15;
-        border-radius: 2px;
-        margin-right: $pad-small;
-        overflow: hidden;
-      }
-
-      &__disk-space-used {
-        background-color: $ui-success;
-        height: 100%;
-      }
-
-      &__disk-space-warning {
-        background-color: $ui-warning;
-        height: 100%;
-      }
-
       &__header {
         color: $core-fleet-black;
         font-weight: $bold;
@@ -193,7 +173,6 @@
       margin-right: $pad-small;
 
       .refetch-btn {
-        cursor: default;
         font-size: $x-small;
         height: 38px;
         margin-right: $pad-small;
@@ -214,10 +193,6 @@
 
       .refetch-offline {
         opacity: 25%;
-
-        &:hover {
-          cursor: default;
-        }
       }
 
       .refetch-spinner {
@@ -259,6 +234,7 @@
     .react-tabs__tab {
       padding: 6px 0px 16px 0px;
       margin-right: $pad-xxlarge;
+      display: inline-block;
     }
 
     .react-tabs__tab--selected {
@@ -418,13 +394,6 @@
     margin-top: $pad-small;
     overflow: scroll;
     box-shadow: inset -8px 0 17px -10px #e8edf4;
-  }
-
-  &__tooltip-text {
-    font-size: $x-small;
-    display: flex;
-    justify-content: center;
-    text-align: center;
   }
 
   .tooltip__tooltip-icon {

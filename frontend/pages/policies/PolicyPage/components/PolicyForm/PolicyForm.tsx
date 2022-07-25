@@ -37,6 +37,7 @@ interface IPolicyFormProps {
   storedPolicy: IPolicy | undefined;
   isStoredPolicyLoading: boolean;
   isCreatingNewPolicy: boolean;
+  isUpdatingPolicy: boolean;
   onCreatePolicy: (formData: IPolicyFormData) => void;
   onOsqueryTableSelect: (tableName: string) => void;
   goToSelectTargets: () => void;
@@ -64,6 +65,7 @@ const PolicyForm = ({
   storedPolicy,
   isStoredPolicyLoading,
   isCreatingNewPolicy,
+  isUpdatingPolicy,
   onCreatePolicy,
   onOsqueryTableSelect,
   goToSelectTargets,
@@ -84,6 +86,7 @@ const PolicyForm = ({
   const [isEditingResolution, setIsEditingResolution] = useState<boolean>(
     false
   );
+  const [isPolicySaving, setIsPolicySaving] = useState<boolean>(false);
 
   // Note: The PolicyContext values should always be used for any mutable policy data such as query name
   // The storedPolicy prop should only be used to access immutable metadata such as author id
@@ -486,7 +489,7 @@ const PolicyForm = ({
                 onClick={promptSavePolicy()}
                 disabled={isEditMode && !isAnyPlatformSelected}
               >
-                <>{!isEditMode ? "Save policy" : "Save"}</>
+                <>{isUpdatingPolicy ? <Spinner /> : "Save"}</>
               </Button>
             )}
             <Button
@@ -501,7 +504,6 @@ const PolicyForm = ({
           <ReactTooltip
             className={`${baseClass}__button-wrap--tooltip`}
             place="bottom"
-            type="dark"
             effect="solid"
             id={`${baseClass}__button-wrap--tooltip`}
             backgroundColor="#3e4771"

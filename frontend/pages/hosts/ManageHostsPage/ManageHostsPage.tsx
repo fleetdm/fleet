@@ -39,6 +39,8 @@ import deepDifference from "utilities/deep_difference";
 import sortUtils from "utilities/sort";
 import {
   DEFAULT_CREATE_LABEL_ERRORS,
+  HOSTS_SEARCH_BOX_PLACEHOLDER,
+  HOSTS_SEARCH_BOX_TOOLTIP,
   PLATFORM_LABEL_DISPLAY_NAMES,
   PolicyResponse,
 } from "utilities/constants";
@@ -137,6 +139,7 @@ const ManageHostsPage = ({
     isOnlyObserver,
     isPremiumTier,
     isFreeTier,
+    isSandboxMode,
     setCurrentTeam,
   } = useContext(AppContext);
   const { renderFlash } = useContext(NotificationContext);
@@ -312,13 +315,6 @@ const ManageHostsPage = ({
       select: (data: IEnrollSecretsResponse) => data.secrets,
     }
   );
-
-  const addHostsTeam = currentTeam
-    ? { name: currentTeam.name, secrets: teamSecrets || null }
-    : {
-        name: "No team",
-        secrets: globalSecrets || null,
-      };
 
   const {
     data: teams,
@@ -1092,12 +1088,13 @@ const ManageHostsPage = ({
         <div className={`${baseClass}__software-filter-block`}>
           <div>
             <span
-              className="software-filter-tooltip"
               data-tip
               data-for="software-filter-tooltip"
               data-tip-disable={!name || !version}
             >
-              <div className={`${baseClass}__software-filter-name-card`}>
+              <div
+                className={`${baseClass}__software-filter-name-card tooltip`}
+              >
                 {buttonText}
                 <Button
                   className={`${baseClass}__clear-policies-filter`}
@@ -1111,7 +1108,6 @@ const ManageHostsPage = ({
             </span>
             <ReactTooltip
               place="bottom"
-              type="dark"
               effect="solid"
               backgroundColor="#3e4771"
               id="software-filter-tooltip"
@@ -1186,9 +1182,25 @@ const ManageHostsPage = ({
     />
   );
 
-  const renderAddHostsModal = () => (
-    <AddHostsModal onCancel={toggleAddHostsModal} selectedTeam={addHostsTeam} />
-  );
+  const renderAddHostsModal = () => {
+    const enrollSecret =
+      // TODO: Currently, prepacked installers in Fleet Sandbox use the global enroll secret,
+      // and Fleet Sandbox runs Fleet Free so the isSandboxMode check here is an
+      // additional precaution/reminder to revisit this in connection with future changes.
+      // See https://github.com/fleetdm/fleet/issues/4970#issuecomment-1187679407.
+      currentTeam && !isSandboxMode
+        ? teamSecrets?.[0].secret
+        : globalSecrets?.[0].secret;
+    return (
+      <AddHostsModal
+        currentTeam={currentTeam}
+        enrollSecret={enrollSecret}
+        isLoading={isLoadingTeams || isGlobalSecretsLoading}
+        isSandboxMode={!!isSandboxMode}
+        onCancel={toggleAddHostsModal}
+      />
+    );
+  };
 
   const renderTransferHostModal = () => {
     if (!teams) {
@@ -1343,7 +1355,9 @@ const ManageHostsPage = ({
           isHostCountLoading ? "count-loading" : ""
         }`}
       >
-        <span>{`${count} host${count === 1 ? "" : "s"}`}</span>
+        {count !== undefined && (
+          <span>{`${count} host${count === 1 ? "" : "s"}`}</span>
+        )}
         {count ? (
           <Button
             className={`${baseClass}__export-btn`}
@@ -1525,7 +1539,7 @@ const ManageHostsPage = ({
         actionButtonIcon={EditColumnsIcon}
         actionButtonVariant={"text-icon"}
         additionalQueries={JSON.stringify(selectedFilters)}
-        inputPlaceHolder={"Search hostname, UUID, serial number, or IPv4"}
+        inputPlaceHolder={HOSTS_SEARCH_BOX_PLACEHOLDER}
         primarySelectActionButtonText={"Delete"}
         primarySelectActionButtonIcon={"delete"}
         primarySelectActionButtonVariant={"text-icon"}
@@ -1535,9 +1549,7 @@ const ManageHostsPage = ({
         isAllPagesSelected={isAllMatchingHostsSelected}
         searchable
         renderCount={renderHostCount}
-        searchToolTipText={
-          "Search hosts by hostname, UUID, machine serial or private IP address"
-        }
+        searchToolTipText={HOSTS_SEARCH_BOX_TOOLTIP}
         emptyComponent={EmptyHosts}
         customControl={renderStatusDropdown}
         onActionButtonClick={toggleEditColumnsModal}
@@ -1598,15 +1610,18 @@ const ManageHostsPage = ({
           <div className="header-wrap">
             {renderHeader()}
             <div className={`${baseClass} button-wrap`}>
-              {canEnrollHosts && !hasHostErrors && !hasHostCountErrors && (
-                <Button
-                  onClick={() => setShowEnrollSecretModal(true)}
-                  className={`${baseClass}__enroll-hosts button`}
-                  variant="inverse"
-                >
-                  <span>Manage enroll secret</span>
-                </Button>
-              )}
+              {!isSandboxMode &&
+                canEnrollHosts &&
+                !hasHostErrors &&
+                !hasHostCountErrors && (
+                  <Button
+                    onClick={() => setShowEnrollSecretModal(true)}
+                    className={`${baseClass}__enroll-hosts button`}
+                    variant="inverse"
+                  >
+                    <span>Manage enroll secret</span>
+                  </Button>
+                )}
               {canEnrollHosts &&
                 !hasHostErrors &&
                 !hasHostCountErrors &&

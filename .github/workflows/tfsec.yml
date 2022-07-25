@@ -25,12 +25,12 @@ jobs:
         uses: actions/checkout@61b9e3751b92087fd0b06925ba6dd6314e06f089 
 
       - name: tfsec
-        uses: tfsec/tfsec-sarif-action@56bc584a8377626a31e511056772298ccfa69501 
+        uses: tfsec/tfsec-sarif-action@5d34a982aa8927c5dd8566d25ef248d526aac1f4 
         with:
           sarif_file: tfsec.sarif
 
       - name: Upload SARIF file
-        uses: github/codeql-action/upload-sarif@a3a6c128d771b6b9bdebb1c9d0583ebd2728a108 # v1
+        uses: github/codeql-action/upload-sarif@3e7e3b32d0fb8283594bb0a76cc60a00918b0969 # v1
         with:
           # Path to SARIF file relative to the root of the repository
           sarif_file: tfsec.sarif  

@@ -157,6 +157,11 @@
     margin-left: 16px;
     font-size: $x-small;
     display: flex;
+    align-items: center;
+
+    .loading-spinner {
+      margin-left: -12px;
+    }
 
     span {
       font-weight: 700;

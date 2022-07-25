@@ -11,6 +11,7 @@ import (
 	"html/template"
 	"net/http"
 	"net/url"
+	"os"
 	"strings"
 	"time"
 
@@ -593,4 +594,90 @@ func (svc *Service) validateSession(ctx context.Context, session *fleet.Session)
 	}
 
 	return svc.ds.MarkSessionAccessed(ctx, session)
+}
+
+////////////////////////////////////////////////////////////////////////////////
+// Demo Login
+////////////////////////////////////////////////////////////////////////////////
+
+// This is a special kind of login where the username and password come in form values rather than
+// JSON as is typical for API requests. This is intended to support logins from demo environments,
+// when users are being redirected from fleetdm.com.
+
+type demologinRequest struct {
+	Email    string
+	Password string
+}
+
+func (demologinRequest) DecodeRequest(ctx context.Context, r *http.Request) (interface{}, error) {
+	err := r.ParseForm()
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, &badRequestError{message: err.Error()}, "decode demo login")
+	}
+
+	return demologinRequest{
+		Email:    r.FormValue("email"),
+		Password: r.FormValue("password"),
+	}, nil
+}
+
+type demologinResponse struct {
+	content string
+	Err     error `json:"error,omitempty"`
+}
+
+func (r demologinResponse) error() error { return r.Err }
+
+// If html is present we return a web page
+func (r demologinResponse) html() string { return r.content }
+
+func makeDemologinEndpoint(urlPrefix string) handlerFunc {
+	return func(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
+		req := request.(demologinRequest)
+
+		// Undocumented FLEET_DEMO environment variable, as this endpoint is intended only to be
+		// used in the Fleet Sandbox demo environment.
+		if os.Getenv("FLEET_DEMO") != "1" {
+			return nil, errors.New("this endpoint only enabled in demo mode")
+		}
+
+		_, sess, err := svc.Login(ctx, req.Email, req.Password)
+
+		// This endpoint handles errors slightly differently in that we want to still return the
+		// HTML page redirect to login if there was some error, so we can't just return the response
+		// error without doing the rest of the logic.
+
+		session := struct {
+			Token string
+		}{}
+		var resp demologinResponse
+		if err != nil {
+			resp.Err = err
+		}
+		if sess != nil {
+			session.Token = sess.Key
+		}
+
+		relayStateLoadPage := `<!DOCTYPE html>
+     <script type='text/javascript'>
+     window.localStorage.setItem('FLEET::auth_token', '{{ .Token }}');
+     window.location = "/";
+     </script>
+     <body>
+     Redirecting to Fleet...
+     </body>
+     </html>
+    `
+		tmpl, err := template.New("demologin").Parse(relayStateLoadPage)
+		if err != nil {
+			return nil, err
+		}
+		var writer bytes.Buffer
+		err = tmpl.Execute(&writer, session)
+		if err != nil {
+			return nil, err
+		}
+		resp.content = writer.String()
+		return resp, nil
+	}
 }

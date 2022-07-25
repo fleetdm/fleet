@@ -19,7 +19,7 @@ var SupportedHostPlatforms = []string{"ubuntu", "rhel", "amzn"}
 // getMajorMinorVer returns the major and minor version of an 'os_version'.
 // ex: 'Ubuntu 20.4.0' => '(20, 04)'
 func getMajorMinorVer(osVersion string) (string, string) {
-	re := regexp.MustCompile(` (?P<major>\d+)\.?(?P<minor>\d+)?\.?(\*|\d+)?$`)
+	re := regexp.MustCompile(` (?P<major>\d+)\.?(?P<minor>\d+)?`)
 	m := re.FindStringSubmatch(osVersion)
 
 	if len(m) < 2 {

@@ -38,6 +38,7 @@ interface IQueryFormProps {
   storedQuery: IQuery | undefined;
   isStoredQueryLoading: boolean;
   isQuerySaving: boolean;
+  isQueryUpdating: boolean;
   onCreateQuery: (formData: IQueryFormData) => void;
   onOsqueryTableSelect: (tableName: string) => void;
   goToSelectTargets: () => void;
@@ -66,6 +67,7 @@ const QueryForm = ({
   storedQuery,
   isStoredQueryLoading,
   isQuerySaving,
+  isQueryUpdating,
   onCreateQuery,
   onOsqueryTableSelect,
   goToSelectTargets,
@@ -440,11 +442,6 @@ const QueryForm = ({
   const renderForGlobalAdminOrAnyMaintainer = (
     <>
       <form className={`${baseClass}__wrapper`} autoComplete="off">
-        {isSaveAsNewLoading && (
-          <div className={`${baseClass}__loading-overlay`}>
-            <Spinner />
-          </div>
-        )}
         <div className={`${baseClass}__title-bar`}>
           <div className="name-description">
             {renderName()}
@@ -496,7 +493,7 @@ const QueryForm = ({
                   onClick={promptSaveAsNewQuery()}
                   disabled={false}
                 >
-                  Save as new
+                  {isSaveAsNewLoading ? <Spinner /> : "Save as new"}
                 </Button>
               )}
               <div className="query-form__button-wrap--save-query-button">
@@ -519,24 +516,22 @@ const QueryForm = ({
                       !hasTeamMaintainerPermissions
                     }
                   >
-                    Save
+                    {isQueryUpdating ? <Spinner /> : "Save"}
                   </Button>
                 </div>{" "}
                 <ReactTooltip
                   className={`save-query-button-tooltip`}
                   place="bottom"
-                  type="dark"
                   effect="solid"
                   backgroundColor="#3e4771"
                   id="save-query-button"
                   data-html
                 >
-                  <div
-                    className={`tooltip`}
-                    style={{ width: "152px", textAlign: "center" }}
-                  >
-                    You can only save changes to a query if you are the author.
-                  </div>
+                  <>
+                    You can only save
+                    <br /> changes to a query if you
+                    <br /> are the author.
+                  </>
                 </ReactTooltip>
               </div>
             </>

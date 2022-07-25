@@ -1,14 +1,12 @@
 # How to install osquery and enroll macOS devices into Fleet
 
-![Enroll Linux devices into Fleet](../website/assets/images/articles/install-osquery-and-enroll-macos-devices-into-fleet-cover@2x.jpg)
-
 The easiest way to install osquery and enroll macOS devices into your Fleet instance is to use the Fleet osquery installer.
 
 Alternatively, you can run a preview environment of Fleet locally (which automatically adds your device to the locally running Fleet server). Check out the [Getting Started](https://fleetdm.com/get-started) guide for instructions on setting that up.
 
 ## Prerequisites
 
-Before installing osquery on macOS and enrolling that macOS device, you will need to have access to a Fleet server (see [Deploying Fleet on Render](https://fleetdm.com/guides/deploying-fleet-on-render) for an example.)
+Before installing osquery on macOS and enrolling that macOS device, you will need to have access to a Fleet server (see [Deploying Fleet on Render](https://fleetdm.com/deploy/deploying-fleet-on-render) for an example.)
 
 You will also need to install the `fleetctl` CLI tool if you don’t have it already. `fleetctl` can be installed via `npm` by running the command below:
 
@@ -39,7 +37,7 @@ fleetctl.exe - version 4.8.0
 
 Head over to the Hosts page on Fleet and click on the “Generate installer” button, which will present a pop-up that allows you to choose the type of installer you want to generate. Make sure you are on the “macOS” tab and click on the clipboard icon to copy the installation command for macOS.
 
-![Generate installer](../website/assets/images/articles/install-osquery-and-enroll-macos-devices-into-fleet-1@2x.png)
+![Generate installer](../website/assets/images/articles/install-osquery-and-enroll-macos-devices-into-fleet-1-454x225@2x.png)
 *Generate installer for osquery on macOS*
 
 Head over to your command line, paste the copied command, and then hit enter.
@@ -60,4 +58,4 @@ Fleet makes it easy to install osquery and enrol macOS devices with fleetctl. If
 <meta name="authorGitHubUsername" value="dominuskelvin">
 <meta name="publishedOn" value="2022-01-13">
 <meta name="articleTitle" value="How to install osquery and enroll macOS devices into Fleet">
-<meta name="articleImageUrl" value="../website/assets/images/articles/install-osquery-and-enroll-macos-devices-into-fleet-cover@2x.jpg">
+<meta name="articleImageUrl" value="../website/assets/images/articles/install-osquery-and-enroll-macos-devices-into-fleet-cover-1600x900@2x.jpg">

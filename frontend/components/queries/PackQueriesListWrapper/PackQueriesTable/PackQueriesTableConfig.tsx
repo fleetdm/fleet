@@ -4,11 +4,7 @@
 import React from "react";
 import { find } from "lodash";
 
-import {
-  performanceIndicator,
-  secondsToDhms,
-  abbreviateTimeUnits,
-} from "utilities/helpers";
+import { performanceIndicator, secondsToDhms } from "utilities/helpers";
 import { IScheduledQuery } from "interfaces/scheduled_query";
 import { IDropdownOption } from "interfaces/dropdownOption";
 
@@ -125,7 +121,7 @@ const generateTableHeaders = (
       accessor: "interval",
       Cell: (cellProps: ICellProps) => (
         <TextCell
-          formatter={(val) => abbreviateTimeUnits(secondsToDhms(val))}
+          formatter={(val) => secondsToDhms(val)}
           value={cellProps.cell.value}
         />
       ),

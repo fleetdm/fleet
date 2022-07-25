@@ -65,4 +65,4 @@ Visit our [upgrade guide](https://fleetdm.com/docs/deploying/upgrading-fleet) in
 <meta name="authorGitHubUsername" value="mike-j-thomas">
 <meta name="publishedOn" value="2022-02-14">
 <meta name="articleTitle" value="Fleet 4.10.0 brings new features and improvements for vulnerability analysts.">
-<meta name="articleImageUrl" value="../website/assets/images/articles/fleet-4.10.0-cover-700x393@2x.png">
+<meta name="articleImageUrl" value="../website/assets/images/articles/fleet-4.10.0-cover-1600x900@2x.jpg">

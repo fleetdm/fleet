@@ -147,5 +147,6 @@ type VulnerabilitySource int
 
 const (
 	NVDSource VulnerabilitySource = iota
-	OVALSource
+	UbuntuOVALSource
+	RHELOVALSource
 )

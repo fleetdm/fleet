@@ -60,6 +60,9 @@
         .last_opened_at__header {
           display: none;
         }
+        .linkToFilteredHosts__header {
+          min-width: 110px;
+        }
         @media (min-width: $break-990) {
           .version__header {
             width: $col-md;
@@ -128,6 +131,7 @@
             height: 16px;
             width: 16px;
             vertical-align: middle;
+            margin-bottom: 4px;
           }
 
           .link-text {

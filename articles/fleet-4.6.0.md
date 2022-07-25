@@ -91,4 +91,4 @@ Visit our [update guide](https://fleetdm.com/docs/using-fleet/updating-fleet) in
 <meta name="authorGitHubUsername" value="mike-j-thomas">
 <meta name="publishedOn" value="2021-11-19">
 <meta name="articleTitle" value="Fleet 4.6.0 with osquery installer, enroll secret management, and improved host vitals">
-<meta name="articleImageUrl" value="../website/assets/images/articles/fleet-4.6.0-cover-700x393@2x.png">
+<meta name="articleImageUrl" value="../website/assets/images/articles/fleet-4.6.0-cover-1600x900@2x.jpg">

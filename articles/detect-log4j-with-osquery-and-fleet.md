@@ -1,6 +1,6 @@
 # Detect Log4j with osquery (and Fleet)
 
-![Detect Log4j with osquery (and Fleet)](../website/assets/images/articles/detect-log4j-with-osquery-and-fleet-cover-800x400@2x.png)
+![Detect Log4j with osquery (and Fleet)](../website/assets/images/articles/detect-log4j-with-osquery-and-fleet-1600x900@2x.jpg)
 
 [Log4j](https://logging.apache.org/log4j/2.x/) is a widely used Java-based logging library that has been under active development since 1999 by The Apache Software Foundation. Security researchers have found a zero-day vulnerability [CVE-2021–44228](https://nvd.nist.gov/vuln/detail/CVE-2021-44228) that is actively being exploited in the wild to take control of an affected computer remotely.
 
@@ -125,4 +125,4 @@ WHERE path IN (SELECT path FROM target_jars)
 <meta name="authorGitHubUsername" value="zwass">
 <meta name="publishedOn" value="2021-12-15">
 <meta name="articleTitle" value="Detect Log4j with osquery (and Fleet)">
-<meta name="articleImageUrl" value="../website/assets/images/articles/detect-log4j-with-osquery-and-fleet-cover-800x400@2x.png">
+<meta name="articleImageUrl" value="../website/assets/images/articles/detect-log4j-with-osquery-and-fleet-1600x900@2x.jpg">

@@ -56,6 +56,7 @@ type InitialStateType = {
   currentTeam: ITeamSummary | undefined;
   enrollSecret: IEnrollSecret[] | null;
   isPreviewMode: boolean | undefined;
+  isSandboxMode: boolean | undefined;
   isFreeTier: boolean | undefined;
   isPremiumTier: boolean | undefined;
   isGlobalAdmin: boolean | undefined;
@@ -87,6 +88,7 @@ const initialState = {
   currentTeam: undefined,
   enrollSecret: null,
   isPreviewMode: false,
+  isSandboxMode: false,
   isFreeTier: undefined,
   isPremiumTier: undefined,
   isGlobalAdmin: undefined,
@@ -125,6 +127,7 @@ const setPermissions = (
   }
 
   return {
+    isSandboxMode: permissions.isSandboxMode(config),
     isFreeTier: permissions.isFreeTier(config),
     isPremiumTier: permissions.isPremiumTier(config),
     isGlobalAdmin: permissions.isGlobalAdmin(user),
@@ -180,6 +183,7 @@ const reducer = (state: InitialStateType, action: IAction) => {
     }
     case ACTIONS.SET_CONFIG: {
       const { config } = action;
+      // config.sandbox_enabled = true; // TODO: uncomment for sandbox dev
 
       return {
         ...state,
@@ -211,6 +215,7 @@ const AppProvider = ({ children }: Props): JSX.Element => {
     currentTeam: state.currentTeam,
     enrollSecret: state.enrollSecret,
     isPreviewMode: detectPreview(),
+    isSandboxMode: state.isSandboxMode,
     isFreeTier: state.isFreeTier,
     isPremiumTier: state.isPremiumTier,
     isGlobalAdmin: state.isGlobalAdmin,

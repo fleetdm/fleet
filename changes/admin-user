@@ -1,0 +1,1 @@
+* Enforce the same password requirements when admins create users directly as are already applied for users created through invites.

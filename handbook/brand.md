@@ -26,15 +26,15 @@ Detail the minimum time needed for new or updated content to be live (published)
 
 | Content | To publish | To revise (for editors) | Timeframe |
 |:------ |:-----------------|:-------------------------------|-----------|
-| Articles | **Queued** – see _(TODO: Publishing articles on fleetdm.com)_. | **Absorb** (pair or feedback as needed) – see [How to edit articles, release posts, and press releases](http://localhost:2024/handbook/brand#how-to-edit-articles-release-posts-and-press-releases). | three business days |
+| Articles | **Queued** – see _(TODO: Publishing articles on fleetdm.com)_. | **Absorb** (pair or feedback as needed) – see [How to edit articles, release posts, and press releases](#how-to-edit-articles-release-posts-and-press-releases). | three business days |
 | Ads | **Gated**. Request review from Digital Experience – see _(TODO: Creating an ad campaign)_. | **Feedback** or **pair** | five business days |
-| Docs | **Gated**. Request review from Noah Talerman – see _(TODO: Adding to the docs)_. | **Absorb** – see [How to edit recently merged Pull Requests for the handbook and docs](http://localhost:2024/handbook/brand#how-to-edit-recently-merged-pull-requests-for-the-handbook-and-docs). For non-grammar-related revisions: **Feedback** or **pair** with contributor, and request review from Noah Talerman. | two business days |
-| Docs (REST API) | **Gated**. Request review from Luke Heath – see _(TODO: Adding to the docs (REST API))_. | **Absorb** – see [How to edit recently merged Pull Requests for the handbook and docs](http://localhost:2024/handbook/brand#how-to-edit-recently-merged-pull-requests-for-the-handbook-and-docs). For non-grammar-related revisions: **Feedback** or **pair** with contributor, and request review from Luke Heath. | two business days |
-| Handbook | **Gated**. Request review from page DRI – see _(TODO: Adding to the handbook)_. | **Absorb** and request review from page DRI – see [How to edit recently merged Pull Requests for the handbook and docs](http://localhost:2024/handbook/brand#how-to-edit-recently-merged-pull-requests-for-the-handbook-and-docs). | two business days |
-| Social media (Twitter, FB, LinkedIn.) | **Instant** – see [Posting on social media as Fleet](https://fleetdm.com/handbook/growth#posting-on-social-media-as-fleet). | **Pair** or **absorb** (pair if possible otherwise, silently fix ASAP by editing or deleting the post. Consider that some or many people may have already seen the post, and decide accordingly – see [How to edit social media posts](http://localhost:2024/handbook/brand#how-to-edit-social-media-posts).) | one business day |
+| Docs | **Gated**. Request review from Desmi Dizney – see _(TODO: Adding to the docs)_. | **Absorb** – see [How to edit Markdown pull requests for the docs](#how-to-edit-markdown-pull-requests-for-the-docs). For non-grammar-related revisions: **Feedback** or **pair** with contributor, and request review from the [on-call engineer](https://fleetdm.com/handbook/engineering#oncall-rotation). | two business days |
+| Docs (REST API) | **Gated**. Request review from Luke Heath – see _(TODO: Adding to the docs (REST API))_. | **Absorb** – see [How to edit recently merged Pull Requests for the handbook and docs](#how-to-edit-recently-merged-pull-requests-for-the-handbook). For non-grammar-related revisions: **Feedback** or **pair** with contributor, and request review from Luke Heath. | two business days |
+| Handbook | **Gated**. Request review from page DRI – see _(TODO: Adding to the handbook)_. | **Absorb** and request review from page DRI – see [How to edit recently merged Pull Requests for the handbook and docs](#how-to-edit-recently-merged-pull-requests-for-the-handbook-and-docs). | two business days |
+| Social media (Twitter, FB, LinkedIn.) | **Instant** – see [Posting on social media as Fleet](https://fleetdm.com/handbook/growth#posting-on-social-media-as-fleet). | **Pair** or **absorb** (pair if possible otherwise, silently fix ASAP by editing or deleting the post. Consider that some or many people may have already seen the post, and decide accordingly – see [How to edit social media posts](#how-to-edit-social-media-posts).) | one business day |
 | Newsletter/email blast | **Gated**. Request review from Digital Experience – see _(TODO: Creating an email campaign)_. | **Feedback** or **pair** | five business days |
-| Press release | **Queued** – see _(TODO: Publishing a press release)_ | **Feedback** or **pair** – see [How to edit articles, release posts, and press releases](http://localhost:2024/handbook/brand#how-to-edit-articles-release-posts-and-press-releases) | three business days |
-| Release post | **Queued** – see _(TODO: Publishing release posts)_ | **Feedback** or **pair** – see [How to edit articles, release posts, and press releases](http://localhost:2024/handbook/brand#how-to-edit-articles-release-posts-and-press-releases) | three business days |
+| Press release | **Queued** – see _(TODO: Publishing a press release)_ | **Feedback** or **pair** – see [How to edit articles, release posts, and press releases](#how-to-edit-articles-release-posts-and-press-releases) | three business days |
+| Release post | **Queued** – see _(TODO: Publishing release posts)_ | **Feedback** or **pair** – see [How to edit articles, release posts, and press releases](#how-to-edit-articles-release-posts-and-press-releases) | three business days |
 | Website (text change) | **Gated** – see _(TODO: Adding content to fleetdm.com)_. | **Feedback** or **pair** | three business days |
 | YouTube | **Queued** – see _(TODO: Publishing on YouTube as Fleet.)_ | **Absorb** for revisions to the description. **Pair** or **absorb** for video content (pair if possible otherwise, silently fix ASAP by deleting the post. Consider that the video may also have been promoted on social media – see Social media (Twitter, FB, LinkedIn) above. | three business days |
 
@@ -190,16 +190,14 @@ Our handbook and docs pages are written in Markdown and are editable from our we
 >
 > Check the “Files changed” section on the Open a pull request page to double-check your proposed changes.
 
-### How to edit recently merged Pull Requests for the handbook and docs
+### How to edit recently merged pull requests for the handbook
 
-We approach editing retrospectively for pull requests (PRs) to handbook and docs pages. Remember our goal above about moving quickly and reducing time to value for our contributors? By editing for typos and grammatical errors after-the-fact, we avoid the editor becoming a bottleneck who blocks PRs from being merged quickly. Here's how to do it:
+We approach editing retrospectively for pull requests (PRs) to handbook pages. Remember our goal above about moving quickly and reducing time to value for our contributors? We avoid the editor becoming a bottleneck for merging quickly by editing for typos and grammatical errors after-the-fact. Here's how to do it:
 
-> **Note:** Contributors are not required to request reviews from editors for handbook and docs changes.
+> **Note:** Contributors are not required to request reviews from editors for handbook changes.
 
 1. Check that the previous day's edits are formatted correctly on the website (more on this in the note below.)
-2. Use GitHub's history feed to see a list of all changes made over time to the handbook and docs. You can access the history feeds from the following links: 
-  - [Handbook history](https://github.com/fleetdm/fleet/commits/main/handbook) 
-  - [Docs history](https://github.com/fleetdm/fleet/commits/main/docs)
+2. Use the [Handbook history](https://github.com/fleetdm/fleet/commits/main/handbook) feed in GitHub to see a list of changes made to the handbook.
 3. From the list of recently merged PRs, look at the files changed for each and then:
   - Scan for typos and grammatical errors.
   - Check that the tone aligns with our [Communicating as Fleet](https://fleetdm.com/handbook/brand#communicating-as-fleet) guidelines and that Grammarly's tone detector is on-brand.
@@ -210,6 +208,12 @@ We approach editing retrospectively for pull requests (PRs) to handbook and docs
 6. Watch [this short video](https://www.loom.com/share/95d4525a7aae482b9f9a9470d446ce9c) to see this process in action.
 
 > **Note:** The Fleet website may render Markdown differently from GitHub's rich text preview. It's essential to check that PRs merged by the editor are displaying as expected on the site. It can take a few minutes for merged PRs to appear on the live site, and therefore easy to move on and forget. It's good to start the ritual by looking at the site to check that the previous day's edits are displaying as they should.
+
+### How to edit Markdown pull requests for the docs
+
+- When someone creates a pull request for a doc that affects Markdown files, they’ll need to request a review from the editor. 
+- If no edits are needed, the editor will merge the PR. 
+- If an edit changes the meaning, or if unsure, the editor should request a review from the [on-call engineer](https://fleetdm.com/handbook/engineering#oncall-rotation) and remove themselves as a reviewer.
 
 ### How to edit articles, release posts, and press releases
 
@@ -270,6 +274,70 @@ When deciding whether to describe Fleet as open source or open core, define who 
 
 > For simplicity and to avoid conflicts with other uses of the word "core" (such as "core product" or "core team"), Fleet is always described as simply **"open source"** in all writing and verbal communication. In specific situations, e.g., discussing the distinction between various kinds of open source, it can be appropriate to mention **"open core"** to clarify your meaning. If ever in doubt, go with "open source."
 
+## Commonly used terms
+
+| Term | Meaning | 
+|:------ |:-----------------|
+| **antivirus** | A class of programs designed to detect, block, and clear away malware from devices, networks, and IT systems. |
+| **API** | (Application Programming Interface) a software go-between that allows applications to communicate.  |
+| **automation** | A system that operates without needing intervention from a human to do so. |
+| **AWS** | (Amazon Web Services) An ever-evolving cloud computing platform designed to allow application providers, ISVs, and vendors to host applications. |
+| **CI/CD** | (Continuous Integration and Continuous Delivery/Continuous Deployment) A software development practice where cumulative code changes are made regularly and accurately. |
+| **CLI** | (Command Line Interface) A tool for managing Fleet from the command line. |
+| **Client Platform Engineer (CPE)** | See: CPE. |
+| **cloud** | Data storage, networking, servers, databases, software, intelligence, and analytics through the internet instead of a device's hard drive. |
+| **command line** | A horizontal row on an interface for text to allow you to type in a variety of commands. Also, see "CLI." |
+| **compliance** | The act of being in line with the established risk-based expectations to preserve the strength and confidentiality of data stored, used, and transmitted. |
+| **CPE** | (Client Platform Engineer) A person who constructs, evaluates, and deploys solutions to administrate a fleet of "clients" or end-users and does so in a scaleable manner. |
+| **CVE** | (Common Vulnerabilities and Exposures) A system that provides a technique for sharing information publicly. |
+| **data leaks** | When crucial and confidential data is unwittingly exposed physically, on the Internet, or any other way. This includes misplaced hard drives or devices. |
+| **device management** | The process of overseeing the execution, process, and upkeep of a device, be it physical or virtual. |
+| **DevOps** | Practices that incorporate both software development (Dev) and IT operations (Ops). |
+| **Docker** | An open source platform that allows one to manage containerized applications. |
+| **DRI** | The person who is singularly responsible for a given aspect of the open source project, the product, or the company. |
+| **EDR** | (Endpoint Detection and Response) Security software that continually audits end-user devices to identify and respond to threats such as malware and ransomware. Also, see EDTR. |
+| **EDTR** | (Endpoint Detection and Threat Response) Security software that continually audits end-user devices to identify and respond to threats such as malware and ransomware. Also, see EDR. |
+| **encryption** | The act of converting data into a cipher that requires a key to be deciphered. |
+| **end-users** | Someone using a distributed device or service. This could be a computer or a mobile device. |
+| **FileVault** | The macOS feature to encrypt entire drives. |
+| **Firewall** | A device or software that is used to block unwanted network traffic. |
+| **fleetctl** | A CLI tool for managing Fleet from the command line. It can be used to accomplish many tasks you would typically need to do through the UI (User Interface). Also, fleetctl enables a GitOps workflow with Fleet and osquery. |
+| **GitHub** | Cloud-based service for software development and version control using Git. |
+| **historical compliance** | The ability to view past behavior around established risk-based controls to safeguard the integrity, confidentiality, and access of data storage, processing, or transfers. |
+| **IETF** | (Internet Engineering Task Force) An organization that defines standardizing operations of internet protocols |
+| **Internet Engineering Task Force (IETF)** | See: IETF |
+| **IR** | (Incident Response) The actions one takes in response to a security breach or cyberattack. |
+| **Linux** | An open source operating system. |
+| **Logica** | An IT and management consultancy company based in the United Kingdom. |
+| **macOS** | The operating system used in all of Apple's Mac computers. |
+| **Munki** | Open-source software deployment tool for macOS. |
+| **open core** | Is the business model where a company has a core version of a product with some of the features as (FOSS) Free Open Source Software in addition to a paid commercial version that is proprietary software. |
+| **open source** | Software with intentionally public code for the sake of transparency. |
+| **OS** | (Operating System) Software that provides the groundwork and instructions for a device's basic functions, including application use and controlling peripherals. |
+| **osquery**  | A tool that assembles low-level operating system analytics and monitoring. |
+| **out-of-policy device** | A device that is fails any security or vulnerability policy created in Fleet. |
+| **permissions** | Users have different abilities depending on the access level they have. |
+| **platform** | Any software or hardware for hosting an application, data, or service. |
+| **policies** | Yes or no questions you can ask using Fleet about your host devices. |
+| **policy compliance** | The state of whether a device is passing or failing policies created in Fleet. |
+| **queries** | Questions you can ask an end-user device's operating system via Fleet. |
+| **SAML** | (Security Assertion Markup Language) A standard that allows identity providers (IdP) to authorize credentials for service providers; enabling SSO (Single Sign-On). |
+| **security audits** | An assessment of an organization's security posture. |
+| **security engineer** | Individual for managing and implementing security systems in an organization. |
+| **SIEM** | (Security Information and Event Management) Technology that assembles data, security warnings, and events into one platform and provides almost real-time analyzed data to help you better monitor your organization's security. |
+| **Site Reliability Engineers (SREs)** | Individuals who apply site reliability principles to improve reliability and scalability of systems in a systematic manner. |
+| **SQL** | (Structured Query Language) A language used to manage databases and complete a variety of operations tasks within said databases. |
+| **SRE** | See "Site Reliabilty Engineers." |
+| **SSO authentication** | (Single Sign-On authentication) Allows identity providers (IdP) to authorize credentials for service providers once and use that as the authentication for multiple outside accounts. |
+| **TLS** | (Transport Layer Security) An Internet Engineering Task Force (IETF) standardized protocol that authenticates and provides privacy and data protection over computer networks. |
+| **token** | A physical Two-Factor Authentication (2FA) login security device to prove one's identity. |
+| **Transport Layer Security (TLS)** | See: TLS |
+| **UI** | (User Interface) An interactive space in a program that concentrates on style and intuitive use. |
+| **URL** | Uniform resource locator. Specifies where a web resource is located (ex: https://fleetdm.com/articles/) |
+| **vulnerabilities** | An exploitable weakness that can lead to unauthorized access or other negative consequences to a computer system. |
+| **Windows** | Microsoft's graphical operating system. |
+| **YAML** | A data serialized language that has features derived from Perl, C, HTML, and other languages and is often used to write configuration files. |
+
 ## Brand resources
 
 To download official Fleet logos, product screenshots, and wallpapers, head over to our [brand resources](https://fleetdm.com/logos) page.
@@ -327,7 +395,7 @@ When conducting an incident post-mortem, answer the following three questions:
 
 1. Impact: What impact did this error have? How many humans experienced this error, if any, and who were they?
 2. Root Cause: Why did this error happen?
-3. Side effects: did this error have any side effects? e.g., did it corrupt any data? Did code that was supposed to run afterwards and “finish something up” not run, and did it leave anything in the database or other systems in a broken state requiring repair? This typically involves checking the line in the source code that threw the error.
+3. Side effects: did this error have any side effects? e.g., did it corrupt any data? Did code that was supposed to run afterward and “finish something up” not run, and did it leave anything in the database or other systems in a broken state requiring repair? This typically involves checking the line in the source code that threw the error.
 
 ### When can I merge a change to the website?
 When merging a PR to master, remember that whatever you merge to master gets deployed live immediately. So if the PR's changes contain anything that you don't think is appropriate to be seen publicly by all guests of [fleetdm.com](https://fleetdm.com/), please do not merge.
@@ -374,13 +442,149 @@ In Figma:
 
 Every week, we run `npm audit --only=prod` to check for vulnerabilities on the production dependencies of fleetdm.com. Once we have a solution to configure GitHub's Dependabot to ignore devDependencies, this manual process can be replaced with Dependabot.
 
+## Article formatting guidelines
+
+To publish an article, you will need to create a Pull Request for a new file, formatted in Markdown (todo), in [https://github.com/fleetdm/fleet/tree/main/articles](https://github.com/fleetdm/fleet/tree/main/articles).
+
+#### On this page
+- [Layout](#layout)
+- [Images and screenshots](#images-and-screenshots)
+- [Meta tags](#meta-tags)
+- [Customizable CTA](#customizable-cta)
+- [Other pages of interest](#other-pages-of-interest)
+
+### Layout
+The following layout guide aims to help you create consistently formatted articles. For an existing article example, check out the [Markdown](https://raw.githubusercontent.com/fleetdm/fleet/main/articles/tales-from-fleet-security-speeding-up-macos-updates-with-nudge.md) and the [finished result](https://fleetdm.com/securing/tales-from-fleet-security-speeding-up-macos-updates-with-nudge).
+
+#### Hero image
+Consider adding a hero image for a more significant impact. Get in touch with Digital Experience via #content on Slack to make a request. 
+
+#### Table of contents
+For long articles or guides, consider adding a table of contents.
+
+#### Introduction
+It’s good practice to start your article with a clear summary of what you will be discussing.
+
+#### Main content
+The main body of your article.
+
+#### Conclusion
+It’s a good idea to finish your article with a clear closing statement.
+
+#### Add a customizable CTA
+Add a CTA at the end of your article. See [Customizable CTA](#customizable-cta) below for instructions on creating a CTA tailored to your article topic.
+
+### Images and screenshots
+Images are a great way to help engage your readers. But consider the following before including images or screenshots in your article:
+
+- Does the image add value?
+- Is your image likely to go out of date soon? (Consider the long-term maintenance of your article.)
+
+### Meta tags
+These tags help pass information to the website about the article to display and store it. 
+
+```
+<meta name="articleTitle" value="Deploying Fleet on Render">
+<meta name="authorFullName" value="Ben Edwards">
+<meta name="authorGitHubUsername" value="edwardsb">
+<meta name="category" value="guides">
+<meta name="publishedOn" value="2021-11-21">
+<meta name="articleImageUrl" value="../website/assets/images/articles/deploying-fleet-on-render-cover-1600x900@2x.jpg">
+```
+
+#### `articleTitle`
+The title of your article. Avoid long titles. As a rule of thumb, your title should not exceed two lines at desktop browser resolution. This is roughly 75 characters (including spaces).
+
+#### `authorFullName`
+Add the author’s full name here. Our system does not currently support multiple authors.
+
+#### `authorGitHubUsername`
+Add the author’s GitHub username to populate the author’s headshot.
+
+#### `category`
+Choose only __one__ of the following categories for your article.
+
+- __Announcements__: company or product announcements (including breaking changes), news, or events.
+- __Engineering__: posts about engineering at Fleet and other engineering-related topics.
+- __Guides__: help articles for using and deploying Fleet.
+- __Podcasts__: podcast-related posts.
+- __Product__: posts related to Fleet features.
+- __Releases__: release posts, security, and patch releases.
+- __Reports__: posts about the industry, data, surveys, etc.
+- __Security__: posts about how we approach security at Fleet and other security-related topics.
+- Success stories: stories from users or customers successfully using Fleet. 
+
+#### `publishedOn`
+The date that the article was published. Please follow the correct date format, e.g., __2021-09-29__.
+
+#### `articleImageUrl`
+The relative url path for the article cover image. Article images are stored in `../website/assets/images/articles/` See [How to export images for the website](https://fleetdm.com/handbook/brand#how-to-export-images-for-the-website).
+
+### Customizable CTA
+Use the following code snippet to include an inline CTA (call to action) in your article:
+
+```
+<call-to-action 
+  title=”All the data you need, without the performance hit.”
+  text=”Fleet is the lightweight telemetry platform for servers and workstations.”
+  primary-button-text=”Try Fleet Free” 
+  primary-button-href=”/get-started?try-it-now” 
+  secondary-button-text=”Schedule a demo”
+  secondary-button-href=”calendly.com/fleetdm/demo”>
+</call-to-action>
+```
+
+![Customizable CTA example](../images/cta-example-1-900x320@2x.jpg)
+
+> __Tip__: paste the code-snippet at the end of your article, or, when creating long articles, consider adding a CTA mid-way through.
+
+#### How to modify the customizable CTA
+You can customize the CTA to promote what's relevant to your article.
+
+##### `title`
+The main call to action text
+
+##### `text`
+The proposition statement for your call to action
+
+##### `primary-button-text`
+The main call to action interaction. E.g., “Get started.”
+
+##### `primary-button-href`
+The URL link for your primary CTA.
+
+##### `secondary-button-text` (optional)
+The secondary call to action interaction. E.g., “Schedule a demo.”
+
+##### `secondary-button-href` 
+The URL link for your secondary CTA.
+
+#### Example
+In the following example we will modify `title`, `text`, `primary-button-text`, and also remove `secondary-button-text` and `secondary-button-href` to create a call to action that promotes a job opening at Fleet.
+
+```
+<call-to-action 
+  title=”We're hiring remote engineers, worldwide.”
+  text=”Are you interested in working full time in Fleet's public GitHub repository?”
+  primary-button-text=”Apply now” 
+  primary-button-href=”https://fleetdm.com/jobs” 
+</call-to-action>
+```
+
+![Customizable CTA example](../images/cta-example-2-900x280@2x.jpg)
+
+### Other pages of interest
+- [Process for submitting and publishing articles](https://docs.google.com/document/d/1owejJ7PjCVm0e21QNXjzw7SRMa3FdkRxb8WoHkKxWRE/edit?usp=sharing)
+- Markdown guide (todo)
+- Writing style guide (todo)
+
 ## Rituals
 
 The following table lists the Brand group's rituals, frequency, and Directly Responsible Individual (DRI).
 
 | Ritual                       | Frequency                | Description                                         | DRI               |
 |:-----------------------------|:-----------------------------|:----------------------------------------------------|-------------------|
-| Documentation quality | Daily | Review pull requests to the docs for spelling, punctuation, and grammar. | Desmi Dizney |
+| Documentation quality | On request | Review pull requests to the docs for spelling, punctuation, and grammar. | Desmi Dizney |
 | Handbook quality | Daily | Review pull requests to the handbook for spelling, punctuation, and grammar. | Desmi Dizney |
 | Tweet review | Daily | Review tweets for tone and brand consistency. | Mike Thomas |
 | Article review | Weekly | Review articles for tone and brand consistency. | Mike Thomas |
@@ -407,6 +611,7 @@ These groups maintain the following [Slack channels](https://fleetdm.com/handboo
 | `#help-finance`             | Nathan Holliday
 | `#help-brex-memos`          | Nathan Holliday
 | `#help-p1`		      | Mike McNeil
+| `#help-operations`          | Nathan Holliday
 
 
 <meta name="maintainedBy" value="mike-j-thomas">

@@ -66,8 +66,8 @@
     }
     h3 {
       font-size: 20px;
-      margin-top: 40px;
-      margin-bottom: 24px;
+      margin-top: 16px;
+      margin-bottom: 16px;
     }
     h4 {
       font-size: 16px;
@@ -105,6 +105,14 @@
       color: @core-fleet-black;
     }
     pre {
+      code:not(.nohighlight) {
+        background: none;
+        padding: 0px;
+        font-family: @code-font;
+        font-size: 13px;
+        line-height: 16px;
+        color: @core-fleet-black;
+      }
       padding: 24px;
       border: 1px solid #E2E4EA;
       border-radius: 6px;
@@ -141,7 +149,7 @@
   [purpose='bottom-cta'] {
     padding-bottom: 80px;
     [purpose='next-steps-button'] {
-      padding: 16px 32px;
+      padding: 16px 24px;
       line-height: 24px;
       font-size: 16px;
       img {

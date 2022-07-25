@@ -1,4 +1,6 @@
-# Enrolling a DigitalOcean Droplet Server on a Fleet instance
+# Enrolling a DigitalOcean Droplet server on a Fleet instance
+
+![Enrolling a DigitalOcean Droplet server on a Fleet instance](../website/assets/images/articles/enrolling-a-digitalocean-droplet-server-on-a-fleet-instance-cover-1600x900@2x.jpg)
 
 Here's a scenario: you have an Ubuntu server created as a Droplet on DigitalOcean. You want to deploy an osquery agent on that server and connect to your Fleet Instance.
 
@@ -70,7 +72,7 @@ rm -rf fleetctl_v4.14.0_linux/ fleetctl_v4.14.0_linux.tar.gz
 
 With that clean-up out of the way, execute the fleetctl binary and pass the `--version` flag to it.
 
-![fleetctl version](../website/assets/images/articles/enrolling-a-digital-ocean-droplet-in-a-fleet-instance-fleetctl-version.png)
+![fleetctl version](../website/assets/images/articles/enrolling-a-digital-ocean-droplet-in-a-fleet-instance-1-1007x197@2x.png)
 
 If you get an output similar to the example above everything you did leading up to this point was successful. You can now move on to create the osquery installer.
 
@@ -84,12 +86,12 @@ With fleetctl, you can create an osquery installer for several OSes. Since we ar
 
 Once you execute that command and everything is successful, you will see an output similar to the one below.
 
-![Successfully generated an installer message](../website/assets/images/articles/enrolling-a-digital-ocean-droplet-in-a-fleet-instance-successfully-generated-an-installer.png)
+![Successfully generated an installer message](../website/assets/images/articles/enrolling-a-digital-ocean-droplet-in-a-fleet-instance-2-1462x196@2x.png)
 
 
 From the output we know that a .deb file was generated in the root directory of our Droplet server. We can verify that by runnings `ls`
 
-![The osquery installer](../website/assets/images/articles/enrolling-a-digital-ocean-droplet-in-a-fleet-instance-run-ls-to-see-installer.png)
+![The osquery installer](../website/assets/images/articles/enrolling-a-digital-ocean-droplet-in-a-fleet-instance-3-1462x196@2x.png)
 
 Finally, let’s execute that installer.
 
@@ -101,7 +103,7 @@ This will execute the installer which will, in turn, install the osquery agent a
 
 If you visit your Fleet instance, and check for hosts, you should see your Droplet listed as one of your added hosts.
 
-![Droplet online in Fleet instance](../website/assets/images/articles/enrolling-a-digital-ocean-droplet-in-a-fleet-instance-droplet-on-your-fleet-instance.png)
+![Droplet online in Fleet instance](../website/assets/images/articles/enrolling-a-digital-ocean-droplet-in-a-fleet-instance-4-1085x54@2x.png)
 
 That’s it: you’ve successfully deployed an osquery agent on a DigitalOcean Droplet. You will see the name of your Droplet and not fleet-box(the original name). You can now start running queries against that Droplet in your Fleet instance.
 
@@ -113,7 +115,7 @@ SELECT * FROM shell_history;
 
 Which should return all the commands typed in the shell, and I got an output like this:
 
-![Output of running a query on the shell_history table](../website/assets/images/articles/enrolling-a-digital-ocean-droplet-in-a-fleet-instance-shell-history.png)
+![Output of running a query on the shell_history table](../website/assets/images/articles/enrolling-a-digital-ocean-droplet-in-a-fleet-instance-5-1554x254@2x.png)
 
 
 <meta name="category" value="guides">
@@ -121,3 +123,4 @@ Which should return all the commands typed in the shell, and I got an output lik
 <meta name="authorFullName" value="Kelvin Omereshone">
 <meta name="publishedOn" value="2022-05-26">
 <meta name="articleTitle" value="Enrolling a DigitalOcean Droplet on a Fleet instance">
+<meta name="articleImageUrl" value="../website/assets/images/articles/enrolling-a-digitalocean-droplet-server-on-a-fleet-instance-cover-1600x900@2x.jpg">

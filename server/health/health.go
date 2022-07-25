@@ -17,8 +17,28 @@ type Checker interface {
 // Handler responds with either:
 // 200 OK if the server can successfully communicate with it's backends or
 // 500 if any of the backends are reporting an issue.
-func Handler(logger log.Logger, checkers map[string]Checker) http.HandlerFunc {
+func Handler(logger log.Logger, allCheckers map[string]Checker) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
+		checkers := make(map[string]Checker)
+		checks, ok := r.URL.Query()["check"]
+		if ok {
+			if len(checks) == 0 {
+				http.Error(w, "checks must not be empty", http.StatusBadRequest)
+				return
+			}
+			for _, checkName := range checks {
+				check, ok := allCheckers[checkName]
+				if !ok {
+					http.Error(w, "the provided check is not valid", http.StatusBadRequest)
+					return
+				}
+				checkers[checkName] = check
+			}
+
+		} else {
+			checkers = allCheckers
+		}
+
 		healthy := CheckHealth(logger, checkers)
 		if !healthy {
 			w.WriteHeader(http.StatusInternalServerError)

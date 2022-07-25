@@ -16,7 +16,7 @@ jobs:
     strategy:
       matrix:
         # Doesn't work on Windows because Linux Docker containers are not supported.
-        os: [ubuntu-20.04, ubuntu-18.04, macos-10.15, macos-11]
+        os: [ubuntu-20.04, ubuntu-18.04, macos-11, macos-12]
     runs-on: ${{ matrix.os }}
     steps:
     - name: Install Docker
@@ -68,6 +68,7 @@ jobs:
         SLACK_WEBHOOK_TYPE: INCOMING_WEBHOOK
 
     - name: Get fleet logs
+      if: always()
       run: |
         FLEET_LICENSE_KEY=foo docker compose -f ~/.fleet/preview/docker-compose.yml logs fleet01 fleet02 > fleet-logs.txt
         # Copying logs, otherwise the upload-artifact action uploads the logs in a hidden folder (.fleet)

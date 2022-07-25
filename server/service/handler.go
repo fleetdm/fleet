@@ -219,6 +219,11 @@ func addMetrics(r *mux.Router) {
 	r.Walk(walkFn)
 }
 
+// desktopRateLimitMaxBurst is the max burst used for device request rate limiting.
+//
+// Defined as const to be used in tests.
+const desktopRateLimitMaxBurst = 100
+
 func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetConfig,
 	logger kitlog.Logger, limitStore throttled.GCRAStore, opts []kithttp.ServerOption,
 	extra extraHandlerOpts,
@@ -355,6 +360,8 @@ func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetC
 
 	ue.GET("/api/_version_/fleet/activities", listActivitiesEndpoint, listActivitiesRequest{})
 
+	ue.GET("/api/_version_/fleet/download_installer/{enroll_secret}/{kind}", getInstallerEndpoint, installerRequest{})
+
 	ue.GET("/api/_version_/fleet/packs/{id:[0-9]+}/scheduled", getScheduledQueriesInPackEndpoint, getScheduledQueriesInPackRequest{})
 	ue.EndingAtVersion("v1").POST("/api/_version_/fleet/schedule", scheduleQueryEndpoint, scheduleQueryRequest{})
 	ue.StartingAtVersion("2022-04").POST("/api/_version_/fleet/packs/schedule", scheduleQueryEndpoint, scheduleQueryRequest{})
@@ -393,15 +400,34 @@ func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetC
 	ue.GET("/api/_version_/fleet/status/result_store", statusResultStoreEndpoint, nil)
 	ue.GET("/api/_version_/fleet/status/live_query", statusLiveQueryEndpoint, nil)
 
+	errorLimiter := ratelimit.NewErrorMiddleware(limitStore)
+
 	// device-authenticated endpoints
 	de := newDeviceAuthenticatedEndpointer(svc, logger, opts, r, apiVersions...)
-	de.GET("/api/_version_/fleet/device/{token}", getDeviceHostEndpoint, getDeviceHostRequest{})
-	de.POST("/api/_version_/fleet/device/{token}/refetch", refetchDeviceHostEndpoint, refetchDeviceHostRequest{})
-	de.GET("/api/_version_/fleet/device/{token}/device_mapping", listDeviceHostDeviceMappingEndpoint, listDeviceHostDeviceMappingRequest{})
-	de.GET("/api/_version_/fleet/device/{token}/macadmins", getDeviceMacadminsDataEndpoint, getDeviceMacadminsDataRequest{})
-	de.GET("/api/_version_/fleet/device/{token}/policies", listDevicePoliciesEndpoint, listDevicePoliciesRequest{})
-	de.GET("/api/_version_/fleet/device/{token}/api_features", deviceAPIFeaturesEndpoint, deviceAPIFeaturesRequest{})
-	de.GET("/api/_version_/fleet/device/{token}/transparency", transparencyURL, transparencyURLRequest{})
+	// We allow a quota of 720 because in the onboarding of a Fleet Desktop takes a few tries until it authenticates
+	// properly
+	desktopQuota := throttled.RateQuota{MaxRate: throttled.PerHour(720), MaxBurst: desktopRateLimitMaxBurst}
+	de.WithCustomMiddleware(
+		errorLimiter.Limit("get_device_host", desktopQuota),
+	).GET("/api/_version_/fleet/device/{token}", getDeviceHostEndpoint, getDeviceHostRequest{})
+	de.WithCustomMiddleware(
+		errorLimiter.Limit("refetch_device_host", desktopQuota),
+	).POST("/api/_version_/fleet/device/{token}/refetch", refetchDeviceHostEndpoint, refetchDeviceHostRequest{})
+	de.WithCustomMiddleware(
+		errorLimiter.Limit("get_device_mapping", desktopQuota),
+	).GET("/api/_version_/fleet/device/{token}/device_mapping", listDeviceHostDeviceMappingEndpoint, listDeviceHostDeviceMappingRequest{})
+	de.WithCustomMiddleware(
+		errorLimiter.Limit("get_device_macadmins", desktopQuota),
+	).GET("/api/_version_/fleet/device/{token}/macadmins", getDeviceMacadminsDataEndpoint, getDeviceMacadminsDataRequest{})
+	de.WithCustomMiddleware(
+		errorLimiter.Limit("get_device_policies", desktopQuota),
+	).GET("/api/_version_/fleet/device/{token}/policies", listDevicePoliciesEndpoint, listDevicePoliciesRequest{})
+	de.WithCustomMiddleware(
+		errorLimiter.Limit("get_device_api_features", desktopQuota),
+	).GET("/api/_version_/fleet/device/{token}/api_features", deviceAPIFeaturesEndpoint, deviceAPIFeaturesRequest{})
+	de.WithCustomMiddleware(
+		errorLimiter.Limit("get_device_transparency", desktopQuota),
+	).GET("/api/_version_/fleet/device/{token}/transparency", transparencyURL, transparencyURLRequest{})
 
 	// host-authenticated endpoints
 	he := newHostAuthenticatedEndpointer(svc, logger, opts, r, apiVersions...)
@@ -445,6 +471,7 @@ func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetC
 	ne.POST("/api/v1/fleet/sso", initiateSSOEndpoint, initiateSSORequest{})
 	ne.POST("/api/v1/fleet/sso/callback", makeCallbackSSOEndpoint(config.Server.URLPrefix), callbackSSORequest{})
 	ne.GET("/api/v1/fleet/sso", settingsSSOEndpoint, nil)
+
 	// the websocket distributed query results endpoint is a bit different - the
 	// provided path is a prefix, not an exact match, and it is not a go-kit
 	// endpoint but a raw http.Handler. It uses the NoAuthEndpointer because
@@ -452,9 +479,10 @@ func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetC
 	// the handler.
 	ne.UsePathPrefix().PathHandler("GET", "/api/_version_/fleet/results/", makeStreamDistributedQueryCampaignResultsHandler(svc, logger))
 
+	quota := throttled.RateQuota{MaxRate: throttled.PerHour(10), MaxBurst: 90}
 	limiter := ratelimit.NewMiddleware(limitStore)
 	ne.
-		WithCustomMiddleware(limiter.Limit("forgot_password", throttled.RateQuota{MaxRate: throttled.PerHour(10), MaxBurst: 9})).
+		WithCustomMiddleware(limiter.Limit("forgot_password", quota)).
 		POST("/api/_version_/fleet/forgot_password", forgotPasswordEndpoint, forgotPasswordRequest{})
 
 	loginRateLimit := throttled.PerMin(10)
@@ -464,6 +492,10 @@ func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetC
 
 	ne.WithCustomMiddleware(limiter.Limit("login", throttled.RateQuota{MaxRate: loginRateLimit, MaxBurst: 9})).
 		POST("/api/_version_/fleet/login", loginEndpoint, loginRequest{})
+
+	// Fleet Sandbox demo login (always errors unless FLEET_DEMO environment variable is set)
+	ne.WithCustomMiddleware(limiter.Limit("login", throttled.RateQuota{MaxRate: loginRateLimit, MaxBurst: 9})).
+		POST("/api/_version_/fleet/demologin", makeDemologinEndpoint(config.Server.URLPrefix), demologinRequest{})
 }
 
 func newServer(e endpoint.Endpoint, decodeFn kithttp.DecodeRequestFunc, opts []kithttp.ServerOption) http.Handler {

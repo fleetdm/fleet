@@ -170,6 +170,17 @@ export const DEFAULT_POLICIES = [
       "Ask your IT administrator to enable the Interactive Logon: Machine inactivity limit setting with a value of 1800 seconds or lower.",
     platform: "windows",
   },
+  {
+    key: 16,
+    query:
+      "SELECT 1 FROM (SELECT cast(lengthtxt as integer(2)) minlength FROM (SELECT SUBSTRING(length, 1, 2) AS lengthtxt FROM (SELECT policy_description, policy_identifier, split(policy_content, '{', 1) AS length FROM password_policy WHERE policy_identifier LIKE '%minLength')) WHERE minlength >= 10);",
+    name: "Password requires 10 or more characters (macOS)",
+    description:
+      "Checks that the password policy requires at least 10 characters. Requires osquery 5.4.0 or newer.",
+    resolution:
+      "Contact your IT administrator to confirm that your Mac is receiving configuration profiles for password length.",
+    platform: "darwin",
+  },
 ] as IPolicyNew[];
 
 export const FREQUENCY_DROPDOWN_OPTIONS = [
@@ -348,6 +359,12 @@ export const PLATFORM_NAME_TO_LABEL_NAME = {
   windows: "MS Windows",
   linux: "All Linux",
 };
+
+export const HOSTS_SEARCH_BOX_PLACEHOLDER =
+  "Search hostname, UUID, serial number, or IPv4";
+
+export const HOSTS_SEARCH_BOX_TOOLTIP =
+  "Search hosts by hostname, UUID, machine serial or private IP address";
 
 export const VULNERABLE_DROPDOWN_OPTIONS = [
   {

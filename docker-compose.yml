@@ -2,21 +2,23 @@
 version: "2"
 services:
   # To test with MariaDB, set FLEET_MYSQL_IMAGE to mariadb:10.6 or the like.
+  # To run in macOS M1, set FLEET_MYSQL_IMAGE=arm64v8/mysql:oracle FLEET_MYSQL_PLATFORM=linux/arm64/v8
   mysql:
     image: ${FLEET_MYSQL_IMAGE:-mysql:5.7}
-    platform: linux/x86_64
+    platform: ${FLEET_MYSQL_PLATFORM:-linux/x86_64}
     volumes:
       - mysql-persistent-volume:/tmp
-    command: [
+    command:
+      [
         "mysqld",
         "--datadir=/tmp/mysqldata",
-        "--event-scheduler=ON",
         # These 3 keys run MySQL with GTID consistency enforced to avoid issues with production deployments that use it.
         "--enforce-gtid-consistency=ON",
         "--log-bin=bin.log",
-        "--server-id=master-01",
+        "--server-id=master-01"
       ]
-    environment: &mysql-default-environment
+    environment:
+      &mysql-default-environment
       MYSQL_ROOT_PASSWORD: toor
       MYSQL_DATABASE: fleet
       MYSQL_USER: fleet
@@ -26,20 +28,20 @@ services:
 
   mysql_test:
     image: ${FLEET_MYSQL_IMAGE:-mysql:5.7}
-    platform: linux/x86_64
+    platform: ${FLEET_MYSQL_PLATFORM:-linux/x86_64}
     # innodb-file-per-table=OFF gives ~20% speedup for test runs.
-    command: [
+    command:
+      [
         "mysqld",
         "--datadir=/tmpfs",
         "--slow_query_log=1",
         "--log_output=TABLE",
         "--log-queries-not-using-indexes",
-        "--event-scheduler=ON",
         "--innodb-file-per-table=OFF",
         # These 3 keys run MySQL with GTID consistency enforced to avoid issues with production deployments that use it.
         "--enforce-gtid-consistency=ON",
         "--log-bin=bin.log",
-        "--server-id=master-01",
+        "--server-id=master-01"
       ]
     environment: *mysql-default-environment
     ports:
@@ -194,6 +196,7 @@ services:
 volumes:
   mysql-persistent-volume:
   data-minio:
+
 
 networks:
   cluster_network:

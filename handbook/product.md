@@ -392,6 +392,16 @@ For text links that navigates the user to a different page within the Fleet UI, 
 
 For a link that navigates the user to an external site (e.g., fleetdm.com/docs), use the `$core-blue` color and `xs-bold` styling for the link's text. Also, place the link-out icon to the right of the link's text.
 
+**Tooltips**
+
+All tooltips change the cursor to a question mark on hover. All tooltips have a solid background color. 
+
+There are two types of tooltips. The two types of tooltips have some unique styles:
+
+1. Tooltips for text (column headers, input titles, inline text) appear when hovering over any text with a dashed underline. These tooltips use left-aligned text.
+
+2. Tooltips for buttons, bubbles, table row elements, and other non-text elements appear when hovering over the element. These tooltips use center-aligned text. These tooltips include a centered arrow.
+
 ## Release 
 
 This section outlines the communication between the product team, growth team, product team,
@@ -501,11 +511,13 @@ Google drive.
 
 Each week Reed Haynes follows the [directions in this document](https://docs.google.com/document/d/1MkM57cLNzkN51Hqq5CyBG4HaauAaf446ZhwWJlVho0M/edit?usp=sharing) (internal doc) and a backup copy of the Product office hours document is created and dropped in the [Product office hours backup folder](https://drive.google.com/drive/folders/1WTSSLxA-P3OlspkMKjlRXKjzZsDRoe-4?usp=sharing) in the shared drive.
 
-## Usage analytics
+## Usage statistics
 
-In order to understand the usage of the Fleet product, we [collect analytics](https://fleetdm.com/docs/using-fleet/usage-statistics) from installations where this functionality is enabled.
+In order to understand the usage of the Fleet product, we [collect statistics](https://fleetdm.com/docs/using-fleet/usage-statistics) from installations where this functionality is enabled.
 
-Fleet team members can view these statistics in the Google spreadsheet[Fleet usage](https://docs.google.com/spreadsheets/d/1Mh7Vf4kJL8b5TWlHxcX7mYwaakZMg_ZGNLY3kl1VI-c/edit#gid=0) available in Drive.
+Fleet team members can view these statistics in the Google spreadsheet [Fleet
+usage](https://docs.google.com/spreadsheets/d/1Mh7Vf4kJL8b5TWlHxcX7mYwaakZMg_ZGNLY3kl1VI-c/edit#gid=0)
+available in Google Drive.
 
 ## Rituals
 
@@ -529,7 +541,7 @@ This group maintains the following [Slack channels](https://fleetdm.com/handbook
 |:------------------------------------|:--------------------------------------------------------------------|
 | `#help-product`                     | Noah Talerman                                                       |
 | `#help-qa`                          | Reed Haynes                                                         |
-| `#g-platform`                       | Zach Wasserman                                                      |
+| `#g-platform`                       | Mo Zhu                                                              |
 | `#g-interface`                      | Noah Talerman                                                       |
 | `#g-agent`                          | Mo Zhu                                                              |
 

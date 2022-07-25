@@ -144,6 +144,12 @@ func packageCommand() *cli.Command {
 				Usage:       "Disable opening the folder at the end",
 				Destination: &disableOpenFolder,
 			},
+			&cli.BoolFlag{
+				Name:        "native-tooling",
+				Usage:       "Build the package using native tooling (only available in Linux)",
+				EnvVars:     []string{"FLEETCTL_NATIVE_TOOLING"},
+				Destination: &opt.NativeTooling,
+			},
 		},
 		Action: func(c *cli.Context) error {
 			if opt.FleetURL != "" || opt.EnrollSecret != "" {
@@ -158,6 +164,10 @@ func packageCommand() *cli.Command {
 
 			if runtime.GOOS == "windows" && c.String("type") != "msi" {
 				return errors.New("Windows can only build MSI packages.")
+			}
+
+			if opt.NativeTooling && runtime.GOOS != "linux" {
+				return errors.New("native tooling is only available in Linux")
 			}
 
 			if opt.FleetCertificate != "" {

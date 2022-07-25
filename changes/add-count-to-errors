@@ -1,1 +1,0 @@
-* Added a count value to errors retrieved by the `/debug/errors` API, with the number of times the error occurred.

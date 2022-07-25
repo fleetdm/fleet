@@ -1,6 +1,6 @@
 # Get and stay compliant across your devices with Fleet.
 
-![A laptop using Fleet](../website/assets/images/articles/get-and-stay-compliant-across-your-devices-with-fleet-cover-700x385@2x.png)
+![A laptop using Fleet](../website/assets/images/articles/get-and-stay-compliant-across-your-devices-with-fleet-cover-1600x900@2x.jpg)
 
 It’s essential for organizations to protect their systems and information — especially when customer data could be exposed. Security and IT teams are required to develop internal processes and controls and comply with specific laws and regulatory standards related to their industry. These controls and standards can often change, as do the threats and vulnerabilities they are serving to protect, so setting up and staying compliant across your devices can be tricky — even more so for organizations with complicated infrastructures, or workforces spread out across the globe.
 
@@ -95,9 +95,9 @@ Thanks to automation and open source tools like osquery and Fleet, compliance is
 
 
 
-<meta name="category" value="product">
+<meta name="category" value="security">
 <meta name="authorFullName" value="Drew Baker">
 <meta name="authorGitHubUsername" value="DrewBakerfdm">
 <meta name="publishedOn" value="2022-03-09">
 <meta name="articleTitle" value="Get and stay compliant across your devices with Fleet.">
-<meta name="articleImageUrl" value="../website/assets/images/articles/get-and-stay-compliant-across-your-devices-with-fleet-cover-700x385@2x.png">
+<meta name="articleImageUrl" value="../website/assets/images/articles/get-and-stay-compliant-across-your-devices-with-fleet-cover-1600x900@2x.jpg">

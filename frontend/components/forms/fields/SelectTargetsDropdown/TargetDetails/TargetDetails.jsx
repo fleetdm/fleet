@@ -114,11 +114,11 @@ class TargetDetails extends Component {
               </td>
             </tr>
             <tr>
-              <th>Operating System</th>
+              <th>Operating system</th>
               <td>{osVersion}</td>
             </tr>
             <tr>
-              <th>Osquery Version</th>
+              <th>Osquery version</th>
               <td>{osqueryVersion}</td>
             </tr>
             <tr>

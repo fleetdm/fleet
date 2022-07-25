@@ -27,6 +27,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/live_query/live_query_mock"
 	"github.com/fleetdm/fleet/v4/server/logging"
 	"github.com/fleetdm/fleet/v4/server/mock"
+	mockresult "github.com/fleetdm/fleet/v4/server/mock/mockresult"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/pubsub"
 	"github.com/fleetdm/fleet/v4/server/service/async"
@@ -1261,7 +1262,7 @@ func TestNewDistributedQueryCampaign(t *testing.T) {
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 		return &fleet.AppConfig{}, nil
 	}
-	rs := &mock.QueryResultStore{
+	rs := &mockresult.QueryResultStore{
 		HealthCheckFunc: func() error {
 			return nil
 		},
@@ -1844,16 +1845,6 @@ func TestUpdateHostIntervals(t *testing.T) {
 	}
 }
 
-type notFoundError struct{}
-
-func (e notFoundError) Error() string {
-	return "not found"
-}
-
-func (e notFoundError) IsNotFound() bool {
-	return true
-}
-
 func TestAuthenticationErrors(t *testing.T) {
 	ms := new(mock.Store)
 	ms.LoadHostByNodeKeyFunc = func(ctx context.Context, nodeKey string) (*fleet.Host, error) {
@@ -2053,7 +2044,7 @@ func TestDistributedQueriesReloadsHostIfDetailsAreIn(t *testing.T) {
 
 func TestObserversCanOnlyRunDistributedCampaigns(t *testing.T) {
 	ds := new(mock.Store)
-	rs := &mock.QueryResultStore{
+	rs := &mockresult.QueryResultStore{
 		HealthCheckFunc: func() error {
 			return nil
 		},
@@ -2126,7 +2117,7 @@ func TestObserversCanOnlyRunDistributedCampaigns(t *testing.T) {
 
 func TestTeamMaintainerCanRunNewDistributedCampaigns(t *testing.T) {
 	ds := new(mock.Store)
-	rs := &mock.QueryResultStore{
+	rs := &mockresult.QueryResultStore{
 		HealthCheckFunc: func() error {
 			return nil
 		},

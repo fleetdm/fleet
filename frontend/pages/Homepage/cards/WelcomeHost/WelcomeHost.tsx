@@ -95,7 +95,6 @@ const WelcomeHost = (): JSX.Element => {
       },
       onError: (error) => {
         console.error(error);
-        renderFlash("error", `Unable to load host. Please try again.`);
       },
     }
   );

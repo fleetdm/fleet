@@ -342,6 +342,8 @@ const HostDetailsPage = ({
       "primary_ip",
       "public_ip",
       "geolocation",
+      "batteries",
+      "detail_updated_at",
     ])
   );
 
@@ -487,7 +489,12 @@ const HostDetailsPage = ({
             </>
           </Button>
         )}
-        <div data-tip data-for="query" data-tip-disable={isOnline}>
+        <div
+          data-tip
+          data-for="query"
+          data-tip-disable={isOnline}
+          className={`${!isOnline && "tooltip"}`}
+        >
           <Button
             onClick={() => setShowQueryHostModal(true)}
             variant="text-icon"
@@ -501,7 +508,6 @@ const HostDetailsPage = ({
         </div>
         <ReactTooltip
           place="bottom"
-          type="dark"
           effect="solid"
           id="query"
           backgroundColor="#3e4771"
@@ -554,7 +560,14 @@ const HostDetailsPage = ({
             <Tab>Details</Tab>
             <Tab>Software</Tab>
             <Tab>Schedule</Tab>
-            <Tab>Policies</Tab>
+            <Tab>
+              {titleData.issues.failing_policies_count > 0 && (
+                <span className="count">
+                  {titleData.issues.failing_policies_count}
+                </span>
+              )}
+              Policies
+            </Tab>
           </TabList>
           <TabPanel>
             <AboutCard

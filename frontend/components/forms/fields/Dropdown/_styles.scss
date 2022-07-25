@@ -97,7 +97,7 @@
   &--single {
     > .Select-control {
       .Select-value {
-        line-height: 40px;
+        line-height: 36px;
         border: none;
         top: 1px;
         right: 1px;
@@ -223,15 +223,19 @@
   .Select-placeholder {
     color: $core-fleet-blue;
     font-size: $small;
-    line-height: 40px;
+    line-height: 36px;
     padding: 0 $pad-medium;
     box-sizing: border-box;
   }
   .Select-input {
     color: $core-fleet-blue;
     font-size: $small;
-    padding-left: 2px;
     box-sizing: border-box;
+
+    input {
+      line-height: 36px;
+      padding: 1px;
+    }
   }
 
   &.Select--multi {

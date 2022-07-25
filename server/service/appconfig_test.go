@@ -11,10 +11,12 @@ import (
 	"net/url"
 	"testing"
 
+	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mock"
 	"github.com/fleetdm/fleet/v4/server/ptr"
+	"github.com/fleetdm/fleet/v4/server/test"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -178,6 +180,28 @@ func TestEnrollSecretAuth(t *testing.T) {
 			checkAuthErr(t, tt.shouldFailRead, err)
 		})
 	}
+}
+
+func TestApplyEnrollSecretWithGlobalEnrollConfig(t *testing.T) {
+	ds := new(mock.Store)
+	ds.ApplyEnrollSecretsFunc = func(ctx context.Context, teamID *uint, secrets []*fleet.EnrollSecret) error {
+		return nil
+	}
+
+	cfg := config.TestConfig()
+	svc := newTestServiceWithConfig(t, ds, cfg, nil, nil)
+	ctx := test.UserContext(test.UserAdmin)
+	err := svc.ApplyEnrollSecretSpec(ctx, &fleet.EnrollSecretSpec{Secrets: []*fleet.EnrollSecret{{Secret: "ABC"}}})
+	require.True(t, ds.ApplyEnrollSecretsFuncInvoked)
+	require.NoError(t, err)
+
+	// try to change the enroll secret with the config set
+	ds.ApplyEnrollSecretsFuncInvoked = false
+	cfg.Packaging.GlobalEnrollSecret = "xyz"
+	svc = newTestServiceWithConfig(t, ds, cfg, nil, nil)
+	err = svc.ApplyEnrollSecretSpec(ctx, &fleet.EnrollSecretSpec{Secrets: []*fleet.EnrollSecret{{Secret: "DEF"}}})
+	require.Error(t, err)
+	require.False(t, ds.ApplyEnrollSecretsFuncInvoked)
 }
 
 func TestCertificateChain(t *testing.T) {

@@ -114,7 +114,7 @@ The `community_id` column can then be used to correlate the events logged by net
 On Linux, the `socket_events` table may produce additional utility as it captures all socket connections, not only those active at the time of query execution.
 
 
-<meta name="category" value="product">
+<meta name="category" value="guides">
 <meta name="authorFullName" value="Zach Wasserman">
 <meta name="authorGitHubUsername" value="zwass">
 <meta name="publishedOn" value="2021-06-02">

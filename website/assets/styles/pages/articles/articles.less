@@ -3,7 +3,7 @@
   padding-right: 24px;
 
   [purpose='categories-and-search'] {
-    padding-top: 80px;
+    padding-top: 40px;
     padding-bottom: 40px;
     [purpose='search'] {
       border: 1px solid #C5C7D1;
@@ -41,6 +41,7 @@
       margin-left: 10px;
       margin-right: 10px;
       margin-bottom: 40px;
+      border: none;
       border-radius: 16px;
       box-shadow: 0px 4px 16px rgba(0, 0, 0, 0.1);
       img {
@@ -51,7 +52,7 @@
         padding: 24px 24px 32px 24px;
         [purpose='category-link'] {
           text-transform: uppercase;
-          color: @core-vibrant-blue;
+          color: @core-fleet-black-50;
           font-size: 12px;
           font-weight: 700;
           text-decoration: none;
@@ -115,9 +116,14 @@
     padding-left: 40px;
     padding-right: 40px;
     [purpose='categories-and-search'] {
-      padding-top: 60px;
+      padding-top: 40px;
       [purpose='search'] {
         width: 100%;
+      }
+      [purpose='categories'] {
+        [purpose='category-filter'] {
+          margin-right: 24px;
+        }
       }
     }
     [purpose='category-title'] {

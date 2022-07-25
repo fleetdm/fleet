@@ -95,10 +95,24 @@ To generate a trial license key for a larger deployment, [create an opportunity 
 ## Documentation updates
 Occasionally, users will email or Slack questions about product usage. We will track these requests and occasionally update our documentation to simplify things for our users. We have a Zapier integration that will automatically create an entry in our customer questions Google doc (in Slack, right-click on the customer question and select send to Zapier). At the end of the week, one of our team members will take each request in the spreadsheet and make any helpful documentation updates to help prevent similar questions in the future.
 
+> **Note** When submitting any pull request that changes Markdown files in the docs, request an editor review from Desmi Dizney.
+
 ## Customer contracts
 Fleet's subscription agreement is available at [fleetdm.com/terms](https://fleetdm.com/terms). 
 
 Fleeties can find a summary of contract terms in the relevant [customer's Salesforce opportunity.](https://fleetdm.lightning.force.com/lightning/o/Opportunity/list?filterName=Recent)
+
+## Customer DRI change
+Sometimes there is a change in the champion within the customer organization.
+    1. Get an introduction to the new DRIs including names, roles, contact information
+    2. Make sure they're in the Slack channel
+    3. Invite them to the success meetings
+    4. In the first meeting understand proficiency level of osquery
+        a. Make sure the meeting time is still convenient for their team
+        b. Understand needs and goals for visibility
+        c. Offer training to get them up to speed
+        d. White glove experience
+
 
 ## Contract glossary
 

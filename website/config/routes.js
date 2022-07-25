@@ -68,15 +68,15 @@ module.exports.routes = {
     }
   },
 
-  'r|/((device-management|securing|releases|engineering|guides|announcements|use-cases|podcasts)/(.+))$|': {
+  'r|/((device-management|securing|releases|engineering|guides|announcements|podcasts|report|deploy)/(.+))$|': {
     skipAssets: false,
     action: 'articles/view-basic-article',
     locals: {
       currentPage: 'articles',
     }
-  },// handles /device-management/foo, /securing/foo, /releases/foo, /engineering/foo, /guides/foo, /announcements/foo, /use-cases/foo
+  },// Handles /device-management/foo, /securing/foo, /releases/foo, /engineering/foo, /guides/foo, /announcements/foo, /deploy/foo, /podcasts/foo, /report/foo
 
-  'r|^/((device-management|securing|releases|engineering|guides|announcements|use-cases|articles|podcasts))/*$|category': {
+  'r|^/((device-management|securing|releases|engineering|guides|announcements|articles|podcasts|report|deploy))/*$|category': {
     skipAssets: false,
     action: 'articles/view-articles',
     locals: {
@@ -162,14 +162,6 @@ module.exports.routes = {
     }
   },
 
-  'GET /g': {
-    action: 'view-landing',
-    locals: {
-      layout: 'layouts/layout-landing',
-      currentPage: 'landing',
-    }
-  },
-
   'GET /reports/state-of-device-management': {
     action: 'reports/view-state-of-device-management',
     locals: {
@@ -211,6 +203,8 @@ module.exports.routes = {
   'GET /try-fleet':                  '/get-started',
   'GET /docs/deploying/fleet-public-load-testing': '/docs/deploying/load-testing',
   'GET /handbook/customer-experience': '/handbook/customers',
+  'GET /guides/deploy-fleet-on-hetzner-cloud': '/deploy/deploy-fleet-on-hetzner-cloud',
+  'GET /use-cases/stay-on-course-with-your-security-compliance-goals': '/guides/stay-on-course-with-your-security-compliance-goals',
 
 
 
@@ -239,6 +233,7 @@ module.exports.routes = {
   'GET /docs/using-fleet/updating-fleet': '/docs/deploying/upgrading-fleet',
   'GET /blog':                   '/articles',
   'GET /brand':                  '/logos',
+  'GET /g':                       (req,res)=> { let originalQueryStringWithAmp = req.url.match(/\?(.+)$/) ? '&'+req.url.match(/\?(.+)$/)[1] : ''; return res.redirect(301, sails.config.custom.baseUrl+'/?meet-fleet'+originalQueryStringWithAmp); },
 
   // Sitemap
   // =============================================================================================================
@@ -259,6 +254,7 @@ module.exports.routes = {
   'GET /legal/terms':            'https://docs.google.com/document/d/1OM6YDVIs7bP8wg6iA3VG13X086r64tWDqBSRudG4a0Y/edit',
   'GET /legal/privacy':          'https://docs.google.com/document/d/17i_g1aGpnuSmlqj35-yHJiwj7WRrLdC_Typc1Yb7aBE/edit',
   'GET /logout':                 '/api/v1/account/logout',
+  'GET /defcon':                 'https://kqphpqst851.typeform.com/to/Y6NYxM5A',
 
   //  ╦ ╦╔═╗╔╗ ╦ ╦╔═╗╔═╗╦╔═╔═╗
   //  ║║║║╣ ╠╩╗╠═╣║ ║║ ║╠╩╗╚═╗

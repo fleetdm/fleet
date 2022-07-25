@@ -5,8 +5,10 @@ import (
 	"fmt"
 	"net/http"
 
+	authz_ctx "github.com/fleetdm/fleet/v4/server/contexts/authz"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/go-kit/kit/endpoint"
+	kithttp "github.com/go-kit/kit/transport/http"
 	"github.com/throttled/throttled/v2"
 )
 
@@ -43,6 +45,57 @@ func (m *Middleware) Limit(keyName string, quota throttled.RateQuota) endpoint.M
 			}
 
 			return next(ctx, req)
+		}
+	}
+}
+
+// ErrorMiddleware is a rate limiter that performs limits only when there is an error in the request
+type ErrorMiddleware struct {
+	store throttled.GCRAStore
+}
+
+// NewErrorMiddleware creates a new instance of ErrorMiddleware
+func NewErrorMiddleware(store throttled.GCRAStore) *ErrorMiddleware {
+	if store == nil {
+		panic("nil store")
+	}
+
+	return &ErrorMiddleware{store: store}
+}
+
+// Limit returns a new middleware function enforcing the provided quota only when errors occur in the next middleware
+func (m *ErrorMiddleware) Limit(keyName string, quota throttled.RateQuota) endpoint.Middleware {
+	return func(next endpoint.Endpoint) endpoint.Endpoint {
+		limiter, err := throttled.NewGCRARateLimiter(m.store, quota)
+		if err != nil {
+			panic(err)
+		}
+
+		return func(ctx context.Context, req interface{}) (response interface{}, err error) {
+			xForwardedFor, _ := ctx.Value(kithttp.ContextKeyRequestXForwardedFor).(string)
+			ipKeyName := fmt.Sprintf("%s-%s", keyName, xForwardedFor)
+
+			// RateLimit with quantity 0 will never get limited=true, so we check result.Remaining instead
+			_, result, err := limiter.RateLimit(ipKeyName, 0)
+			if err != nil {
+				return nil, ctxerr.Wrap(ctx, err, "check rate limit")
+			}
+			if result.Remaining == 0 {
+				// We need to set authentication as checked, otherwise we end up returning HTTP 500 errors.
+				if az, ok := authz_ctx.FromContext(ctx); ok {
+					az.SetChecked()
+				}
+				return nil, ctxerr.Wrap(ctx, &ratelimitError{result: result})
+			}
+
+			resp, err := next(ctx, req)
+			if err != nil {
+				_, _, rateErr := limiter.RateLimit(ipKeyName, 1)
+				if rateErr != nil {
+					return nil, ctxerr.Wrap(ctx, err, "check rate limit")
+				}
+			}
+			return resp, err
 		}
 	}
 }

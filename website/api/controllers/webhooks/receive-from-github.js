@@ -62,6 +62,8 @@ module.exports = {
       'juan-fdz-hawa',
       'roperzh',
       'zhumo',
+      'ghernandez345',
+      `chris-mcgillicuddy`,
     ];
 
     let GREEN_LABEL_COLOR = 'C2E0C6';// « Used in multiple places below.  (FUTURE: Use the "+" prefix for this instead of color.  2022-05-05)

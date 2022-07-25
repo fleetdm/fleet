@@ -24,49 +24,55 @@ Fleet Device Management Inc. periodically collects anonymous information about y
   "vulnDetectionEnabled": true,
   "systemUsersEnabled": true,
   "hostStatusWebhookEnabled": true,
-  "numWeeklyActiveUsers": 999,
   "hostsEnrolledByOperatingSystem": {
     "macos": [
       {
         "version": "12.3.1",
         "numEnrolled": 999
-      }
+      },
+      ...
     ],
     "windows": [
       {
         "version": "10, version 21H2 (W)",
         "numEnrolled": 999
-      }
+      },
+      ...
     ],
     "ubuntuLinux": [
       {
         "version": "22.04 'Jammy Jellyfish' (LTS)",
         "numEnrolled": 999
-      }
+      },
+      ...
     ],
     "centosLinux": [
       {
         "version": "12.3.1",
         "numEnrolled": 999
-      }
+      },
+      ...
     ],
     "debianLinux": [
       {
         "version": "11 (Bullseye)",
         "numEnrolled": 999
-      }
+      },
+      ...
     ],
     "redhatLinux": [
       {
         "version": "9",
         "numEnrolled": 999
-      }
+      },
+      ...
     ],
     "amazonLinux": [
       {
         "version": "AMI",
         "numEnrolled": 999
-      }
+      },
+      ...
     ]
   },
   "storedErrors": [
@@ -76,8 +82,10 @@ Fleet Device Management Inc. periodically collects anonymous information about y
         "github.com/fleetdm/fleet/v4/server/example.example:12",
         "github.com/fleetdm/fleet/v4/server/example.example:130",
       ]
-    }
-  ]
+    },
+    ...
+  ],
+  "numHostsNotResponding": 9
 }
 ```
 

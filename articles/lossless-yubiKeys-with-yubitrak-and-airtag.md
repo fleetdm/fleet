@@ -1,6 +1,6 @@
 # Lossless YubiKeys with Yubitrak and AirTag
 
-![Yubitrak seen connected to a Mac](../website/assets/images/articles/lossless-yubikeys-with-yubitrak-and-airtag-cover-2016x1512@2x.jpeg)
+![Yubitrak seen connected to a Mac](../website/assets/images/articles/lossless-yubikeys-with-yubitrak-and-airtag-cover-1600x900@2x.jpg)
 
 As a long-time fan of the [FIDO Alliance](https://fidoalliance.org/), I have built quite a collection of hardware security keys over the years.
 
@@ -45,4 +45,4 @@ If you think this could be a good idea as conference swag, let us know in the [#
 <meta name="authorFullName" value="Guillaume Ross">
 <meta name="publishedOn" value="2022-06-16">
 <meta name="articleTitle" value="Lossless YubiKeys with Yubitrak and AirTag">
-<meta name="articleImageUrl" value="../website/assets/images/articles/lossless-yubikeys-with-yubitrak-and-airtag-cover-2016x1512@2x.jpeg">
+<meta name="articleImageUrl" value="../website/assets/images/articles/lossless-yubikeys-with-yubitrak-and-airtag-cover-1600x900@2x.jpg">

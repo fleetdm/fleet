@@ -112,7 +112,7 @@ func refetchDeviceHostEndpoint(ctx context.Context, request interface{}, svc fle
 	host, ok := hostctx.FromContext(ctx)
 	if !ok {
 		err := ctxerr.Wrap(ctx, fleet.NewAuthRequiredError("internal error: missing host from request context"))
-		return getHostResponse{Err: err}, nil
+		return refetchHostResponse{Err: err}, nil
 	}
 
 	err := svc.RefetchHost(ctx, host.ID)
@@ -138,7 +138,7 @@ func listDeviceHostDeviceMappingEndpoint(ctx context.Context, request interface{
 	host, ok := hostctx.FromContext(ctx)
 	if !ok {
 		err := ctxerr.Wrap(ctx, fleet.NewAuthRequiredError("internal error: missing host from request context"))
-		return getHostResponse{Err: err}, nil
+		return listHostDeviceMappingResponse{Err: err}, nil
 	}
 
 	dms, err := svc.ListHostDeviceMapping(ctx, host.ID)
@@ -164,7 +164,7 @@ func getDeviceMacadminsDataEndpoint(ctx context.Context, request interface{}, sv
 	host, ok := hostctx.FromContext(ctx)
 	if !ok {
 		err := ctxerr.Wrap(ctx, fleet.NewAuthRequiredError("internal error: missing host from request context"))
-		return getHostResponse{Err: err}, nil
+		return getMacadminsDataResponse{Err: err}, nil
 	}
 
 	data, err := svc.MacadminsData(ctx, host.ID)
@@ -197,7 +197,7 @@ func listDevicePoliciesEndpoint(ctx context.Context, request interface{}, svc fl
 	host, ok := hostctx.FromContext(ctx)
 	if !ok {
 		err := ctxerr.Wrap(ctx, fleet.NewAuthRequiredError("internal error: missing host from request context"))
-		return getHostResponse{Err: err}, nil
+		return listDevicePoliciesResponse{Err: err}, nil
 	}
 
 	data, err := svc.ListDevicePolicies(ctx, host)
@@ -229,8 +229,8 @@ func (r *deviceAPIFeaturesRequest) deviceAuthToken() string {
 }
 
 type deviceAPIFeaturesResponse struct {
-	Err      error `json:"error,omitempty"`
-	Features fleet.DeviceAPIFeatures
+	Err      error                   `json:"error,omitempty"`
+	Features fleet.DeviceAPIFeatures `json:"features"`
 }
 
 func (r deviceAPIFeaturesResponse) error() error { return r.Err }

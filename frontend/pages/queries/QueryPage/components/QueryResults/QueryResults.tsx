@@ -187,7 +187,7 @@ const QueryResults = ({
           isMultiColumnFilter
           showMarkAllPages={false}
           isAllPagesSelected={false}
-          resultsTitle={tableType === "results" ? "hosts" : tableType}
+          resultsTitle={tableType}
           customControl={() => renderTableButtons(tableType)}
           setExportRows={
             tableType === "errors" ? setFilteredErrors : setFilteredResults
@@ -241,10 +241,7 @@ const QueryResults = ({
         onClick={onStopQuery}
         variant="alert"
       >
-        <>
-          <Spinner isInButton />
-          Stop
-        </>
+        <>Stop</>
       </Button>
     </div>
   );

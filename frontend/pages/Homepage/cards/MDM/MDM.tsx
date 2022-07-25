@@ -6,7 +6,8 @@ import { IMacadminAggregate, IDataTableMDMFormat } from "interfaces/macadmins";
 
 import TableContainer from "components/TableContainer";
 import Spinner from "components/Spinner";
-import renderLastUpdatedText from "components/LastUpdatedText";
+import TableDataError from "components/DataError";
+import LastUpdatedText from "components/LastUpdatedText";
 import generateTableHeaders from "./MDMTableConfig";
 
 interface IMDMCardProps {
@@ -48,41 +49,46 @@ const MDM = ({
     IDataTableMDMFormat[]
   >([]);
 
-  const { isFetching: isMDMFetching } = useQuery<IMacadminAggregate, Error>(
-    ["MDM", currentTeamId],
-    () => macadminsAPI.loadAll(currentTeamId),
-    {
-      keepPreviousData: true,
-      onSuccess: (data) => {
-        const {
-          counts_updated_at,
-          mobile_device_management_enrollment_status,
-        } = data.macadmins;
-        const {
-          enrolled_manual_hosts_count,
-          enrolled_automated_hosts_count,
-          unenrolled_hosts_count,
-        } = mobile_device_management_enrollment_status;
+  const { isFetching: isMDMFetching, error: errorMDM } = useQuery<
+    IMacadminAggregate,
+    Error
+  >(["MDM", currentTeamId], () => macadminsAPI.loadAll(currentTeamId), {
+    keepPreviousData: true,
+    onSuccess: (data) => {
+      const {
+        counts_updated_at,
+        mobile_device_management_enrollment_status,
+      } = data.macadmins;
+      const {
+        enrolled_manual_hosts_count,
+        enrolled_automated_hosts_count,
+        unenrolled_hosts_count,
+      } = mobile_device_management_enrollment_status;
 
-        setShowMDMUI(true);
-        setTitleDetail &&
-          setTitleDetail(
-            renderLastUpdatedText(counts_updated_at, "MDM enrollment")
-          );
-        setFormattedMDMData([
-          {
-            status: "Enrolled (manual)",
-            hosts: enrolled_manual_hosts_count,
-          },
-          {
-            status: "Enrolled (automatic)",
-            hosts: enrolled_automated_hosts_count,
-          },
-          { status: "Unenrolled", hosts: unenrolled_hosts_count },
-        ]);
-      },
-    }
-  );
+      setShowMDMUI(true);
+      setTitleDetail &&
+        setTitleDetail(
+          <LastUpdatedText
+            lastUpdatedAt={counts_updated_at}
+            whatToRetrieve={"MDM enrollment"}
+          />
+        );
+      setFormattedMDMData([
+        {
+          status: "Enrolled (manual)",
+          hosts: enrolled_manual_hosts_count,
+        },
+        {
+          status: "Enrolled (automatic)",
+          hosts: enrolled_automated_hosts_count,
+        },
+        { status: "Unenrolled", hosts: unenrolled_hosts_count },
+      ]);
+    },
+    onError: () => {
+      setShowMDMUI(true);
+    },
+  });
 
   const tableHeaders = generateTableHeaders();
 
@@ -97,22 +103,26 @@ const MDM = ({
         </div>
       )}
       <div style={opacity}>
-        <TableContainer
-          columns={tableHeaders}
-          data={formattedMDMData}
-          isLoading={isMDMFetching}
-          defaultSortHeader={DEFAULT_SORT_HEADER}
-          defaultSortDirection={DEFAULT_SORT_DIRECTION}
-          hideActionButton
-          resultsTitle={"MDM"}
-          emptyComponent={EmptyMDM}
-          showMarkAllPages={false}
-          isAllPagesSelected={false}
-          disableCount
-          disableActionButton
-          disablePagination
-          pageSize={PAGE_SIZE}
-        />
+        {errorMDM ? (
+          <TableDataError card />
+        ) : (
+          <TableContainer
+            columns={tableHeaders}
+            data={formattedMDMData}
+            isLoading={isMDMFetching}
+            defaultSortHeader={DEFAULT_SORT_HEADER}
+            defaultSortDirection={DEFAULT_SORT_DIRECTION}
+            hideActionButton
+            resultsTitle={"MDM"}
+            emptyComponent={EmptyMDM}
+            showMarkAllPages={false}
+            isAllPagesSelected={false}
+            disableCount
+            disableActionButton
+            disablePagination
+            pageSize={PAGE_SIZE}
+          />
+        )}
       </div>
     </div>
   );

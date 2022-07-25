@@ -9,7 +9,8 @@ import { PLATFORM_DISPLAY_NAMES } from "utilities/constants";
 
 import TableContainer from "components/TableContainer";
 import Spinner from "components/Spinner";
-import renderLastUpdatedText from "components/LastUpdatedText";
+import TableDataError from "components/DataError";
+import LastUpdatedText from "components/LastUpdatedText";
 
 import generateTableHeaders from "./OperatingSystemsTableConfig";
 
@@ -48,7 +49,7 @@ const OperatingSystems = ({
   setShowOperatingSystemsUI,
   setTitleDetail,
 }: IOperatingSystemsCardProps): JSX.Element => {
-  const { data: osInfo, error, isFetching } = useQuery<
+  const { data: osInfo, error: errorOS, isFetching } = useQuery<
     IOperatingSystemsResponse,
     Error,
     IOperatingSystemsResponse,
@@ -78,8 +79,14 @@ const OperatingSystems = ({
         setShowOperatingSystemsUI(true);
         setTitleDetail &&
           setTitleDetail(
-            renderLastUpdatedText(data.counts_updated_at, "operating systems")
+            <LastUpdatedText
+              lastUpdatedAt={data.counts_updated_at}
+              whatToRetrieve={"operating systems"}
+            />
           );
+      },
+      onError: () => {
+        setShowOperatingSystemsUI(true);
       },
     }
   );
@@ -91,28 +98,32 @@ const OperatingSystems = ({
 
   return (
     <div className={baseClass}>
-      {!showOperatingSystemsUI && (
+      {!showOperatingSystemsUI && !errorOS && (
         <div className="spinner">
           <Spinner />
         </div>
       )}
       <div style={opacity}>
-        <TableContainer
-          columns={tableHeaders}
-          data={osInfo?.os_versions || []}
-          isLoading={isFetching}
-          defaultSortHeader={DEFAULT_SORT_HEADER}
-          defaultSortDirection={DEFAULT_SORT_DIRECTION}
-          hideActionButton
-          resultsTitle={"Operating systems"}
-          emptyComponent={() => EmptyOperatingSystems(selectedPlatform)}
-          showMarkAllPages={false}
-          isAllPagesSelected={false}
-          disableCount
-          disableActionButton
-          isClientSidePagination
-          pageSize={PAGE_SIZE}
-        />
+        {errorOS ? (
+          <TableDataError card />
+        ) : (
+          <TableContainer
+            columns={tableHeaders}
+            data={osInfo?.os_versions || []}
+            isLoading={isFetching}
+            defaultSortHeader={DEFAULT_SORT_HEADER}
+            defaultSortDirection={DEFAULT_SORT_DIRECTION}
+            hideActionButton
+            resultsTitle={"Operating systems"}
+            emptyComponent={() => EmptyOperatingSystems(selectedPlatform)}
+            showMarkAllPages={false}
+            isAllPagesSelected={false}
+            disableCount
+            disableActionButton
+            isClientSidePagination
+            pageSize={PAGE_SIZE}
+          />
+        )}
       </div>
     </div>
   );

@@ -22,7 +22,7 @@ linters-settings:
     include-go-root: false
     packages-with-error-message:
       - github.com/pkg/errors: "use ctxerr if a context.Context is available or stdlib errors.New / fmt.Errorf with the %w verb"
-  
+
   gosec:
     config:
       G306: "0644"
@@ -33,6 +33,7 @@ linters-settings:
     settings:
       ruleguard:
         rules: "./tools/ci/rules.go"
+        failOn: all
 
   gofmt:
     # simplify code: gofmt with `-s` option, true by default
@@ -81,7 +82,7 @@ issues:
         - gosec
     - path: cmd/fleetctl/preview.go
       linters:
-        - gosec  
+        - gosec
     # Orbit gosec exclusions https://github.com/fleetdm/fleet/issues/4452
     - path: orbit/pkg/update/update.go
       linters:
@@ -109,10 +110,10 @@ issues:
         - gosec
     - path: pkg/certificate/certificate.go
       linters:
-        - gosec 
+        - gosec
     - path: pkg/download/download.go
       linters:
-        - gosec  
+        - gosec
     # server gosec exclusions https://github.com/fleetdm/fleet/issues/4455
     - path: server/mail/mail.go
       linters:
@@ -164,10 +165,10 @@ issues:
         - gosec
     - path: server/logging/kinesis_test.go
       linters:
-        - gosec    
+        - gosec
     - path: server/config/config.go
       linters:
-        - gosec  
+        - gosec
     - path: server/datastore/redis/ratelimit_store.go
       linters:
         - gosec
@@ -182,19 +183,19 @@ issues:
         - gosec
     - path: server/service/client.go
       linters:
-        - gosec  
+        - gosec
     - path: server/service/users.go
       linters:
-        - gosec    
+        - gosec
     - path: server/service/appconfig_test.go
       linters:
-        - gosec        
+        - gosec
     - path: server/service/service_campaign_test.go
       linters:
-        - gosec  
+        - gosec
     - path: server/datastore/mysql/software_test.go
       linters:
-        - gosec  
+        - gosec
     # tools gosec exclusions https://github.com/fleetdm/fleet/issues/4456
     - path: tools/dbutils/schema_generator.go
       linters:

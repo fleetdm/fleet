@@ -3,7 +3,7 @@ import React from "react";
 import ReactTooltip from "react-tooltip";
 
 import { IMDMData, IMunkiData, IDeviceUser } from "interfaces/host";
-import { humanHostUptime, humanHostEnrolled } from "utilities/helpers";
+import { humanHostLastRestart, humanHostEnrolled } from "utilities/helpers";
 
 interface IAboutProps {
   aboutData: { [key: string]: any };
@@ -97,15 +97,13 @@ const About = ({
         <span className="info-grid__data">
           {numUsers > 1 ? (
             <>
-              <span data-tip data-for={`device_mapping`}>
+              <span data-tip data-for="device_mapping" className="tooltip">
                 {`${numUsers} users`}
               </span>
               <ReactTooltip
-                place="top"
-                type="dark"
                 effect="solid"
                 backgroundColor="#3e4771"
-                id={`device_mapping`}
+                id="device_mapping"
                 data-html
               >
                 <span className={`tooltip__tooltip-text`}>{tooltipText}</span>
@@ -137,6 +135,23 @@ const About = ({
     );
   };
 
+  const renderBattery = () => {
+    if (
+      aboutData.batteries === null ||
+      typeof aboutData.batteries !== "object"
+    ) {
+      return null;
+    }
+    return (
+      <div className="info-grid__block">
+        <span className="info-grid__header">Battery condition</span>
+        <span className="info-grid__data">
+          {aboutData.batteries?.[0]?.health}
+        </span>
+      </div>
+    );
+  };
+
   if (deviceUser) {
     return (
       <div className="section about">
@@ -145,7 +160,10 @@ const About = ({
           <div className="info-grid__block">
             <span className="info-grid__header">Last restarted</span>
             <span className="info-grid__data">
-              {wrapFleetHelper(humanHostUptime, aboutData.uptime)}
+              {humanHostLastRestart(
+                aboutData.detail_updated_at,
+                aboutData.uptime
+              )}
             </span>
           </div>
           <div className="info-grid__block">
@@ -160,6 +178,7 @@ const About = ({
           </div>
           {renderSerialAndIPs()}
           {renderDeviceUser()}
+          {renderBattery()}
         </div>
       </div>
     );
@@ -178,7 +197,10 @@ const About = ({
         <div className="info-grid__block">
           <span className="info-grid__header">Last restarted</span>
           <span className="info-grid__data">
-            {wrapFleetHelper(humanHostUptime, aboutData.uptime)}
+            {humanHostLastRestart(
+              aboutData.detail_updated_at,
+              aboutData.uptime
+            )}
           </span>
         </div>
         <div className="info-grid__block">
@@ -190,6 +212,7 @@ const About = ({
         {renderMdmData()}
         {renderDeviceUser()}
         {renderGeolocation()}
+        {renderBattery()}
       </div>
     </div>
   );

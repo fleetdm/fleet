@@ -92,8 +92,12 @@ Community team members can reach the engineering oncall for assistance by writin
 
 ## Fleet docs
 
+### How to request a review for Markdown changes to the docs
+
+When creating a pull request for Markdown changes in the docs, request a review from Desmi Dizney, who will do an editor pass, and then hand over the review to the [on-call engineer](https://fleetdm.com/handbook/engineering#oncall-rotation) if necessary.
+
 ### Markdown
-Fleet's documentation and handbook are written in [Markdown](https://about.gitlab.com/handbook/markdown-guide/). Using Markdown lets us keep our documentation consistently formatted and viewable directly from the Fleet GitHub repo. The Markdown files in the `/docs` and `/handbook` folders are converted to HTML for the Fleet website.
+Fleet's documentation and handbook are written in [Markdown](https://about.gitlab.com/handbook/markdown-guide/). Using Markdown lets us keep our documentation consistently formatted and viewable directly from the Fleet GitHub repo. The Markdown files in the `/docs` and `/handbook` folders are converted to HTML for the Fleet website. 
 
 When making changes to the Fleet docs or handbook, there are a few differences in how the Markdown will render on GitHub and the Fleet website.
 
@@ -356,6 +360,8 @@ When someone asks a question in a public channel, it's pretty safe to assume tha
 
 Our goal is to answer every question with a link to the docs and/or result in a documentation update.
 
+> **Remember**, when submitting any pull request that changes Markdown files in the docs, request an editor review from Desmi Dizney.
+
 ### Tracking
 
 When responding to a question or issue in the [#fleet](https://osquery.slack.com/join/shared_invite/zt-h29zm0gk-s2DBtGUTW4CFel0f0IjTEw#/) channel of the osquery Slack workspace, push the thread to Zapier using the `TODO: Update docs` Zap. This will add information about the thread to the [Slack Questions Spreadsheet](https://docs.google.com/spreadsheets/d/15AgmjlnV4oRW5m94N5q7DjeBBix8MANV9XLWRktMDGE/edit#gid=336721544). In the `Notes` field, you can include any information that you think will be helpful when making weekly doc updates. That may be something like
@@ -398,7 +404,8 @@ The following table lists the Community group's rituals, frequency, and Directly
 | Ritual                       | Frequency                | Description                                         | DRI               |
 |:-----------------------------|:-----------------------------|:----------------------------------------------------|-------------------|
 | Community Slack  | Daily   | Check Fleet and osquery Slack channels for community questions, make sure questions are responded to and logged. | Kathy Satterlee |
-| Social media check-in     |  Daily | Check social media for community questions and make sure to respond to them.  Generate dev advocacy-related content. | Kelvin Omereshone   |
+| Social media check-in |  Daily | Check social media for community questions and make sure to respond to them. Generate dev advocacy-related content. | Kelvin Omereshone   |
+| Issue check-in | Daily | Check GitHub for new issues submitted by the community, check the status of existing requests, and follow up when needed. | Kathy Satterlee |
 | Outside contributor follow-up | Weekly | Bring pull requests from outside contributors to engineering and make sure they are merged promptly and promoted. | Kathy Satterlee |
 | Documentation update | Weekly | Turn questions answered from Fleet and osquery Slack into FAQs in Fleet’s docs. | Kathy Satterlee |
 | StackOverflow  | Weekly | Search StackOverflow for “osquery,” answer questions with Grammarly, and find a way to feature Fleet in your StackOverflow profile prominently. | Rotation: Community team |

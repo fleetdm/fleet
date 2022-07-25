@@ -4,7 +4,11 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"io"
 	"time"
+
+	"github.com/fleetdm/fleet/v4/server/config"
+	"github.com/fleetdm/fleet/v4/server/health"
 )
 
 type CarveStore interface {
@@ -21,8 +25,17 @@ type CarveStore interface {
 	CleanupCarves(ctx context.Context, now time.Time) (expired int, err error)
 }
 
+// InstallerStore is used to communicate to a blob storage containing pre-built
+// fleet-osquery installers
+type InstallerStore interface {
+	Get(ctx context.Context, installer Installer) (io.ReadCloser, int64, error)
+	Put(ctx context.Context, installer Installer) (string, error)
+}
+
 // Datastore combines all the interfaces in the Fleet DAL
 type Datastore interface {
+	health.Checker
+
 	CarveStore
 
 	///////////////////////////////////////////////////////////////////////////////
@@ -392,7 +405,7 @@ type Datastore interface {
 	///////////////////////////////////////////////////////////////////////////////
 	// StatisticsStore
 
-	ShouldSendStatistics(ctx context.Context, frequency time.Duration, license *LicenseInfo) (StatisticsPayload, bool, error)
+	ShouldSendStatistics(ctx context.Context, frequency time.Duration, config config.FleetConfig, license *LicenseInfo) (StatisticsPayload, bool, error)
 	RecordStatisticsSent(ctx context.Context) error
 
 	///////////////////////////////////////////////////////////////////////////////

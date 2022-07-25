@@ -4,7 +4,7 @@ The Fleet sales team embodies [our values](https://fleetdm.com/handbook/company#
 
 ## Outreach one-pager
 
-Our one-pager offers a summary of what Fleet does. It can help stakeholders become familiar with the company and product while also being a useful tool the Growth team uses for sales outreach. Find Fleet's outreach one-pager in this [Google Doc](https://drive.google.com/file/d/1Xh94y5EoGIm8SY_gNX0ZFdJgSE2T0A6_/view?usp=sharing).
+Our one-pager offers a summary of what Fleet does. It can help stakeholders become familiar with the company and product while also being a useful tool the Growth team uses for sales outreach. Find Fleet's outreach one-pager in this [Google Doc](https://drive.google.com/file/d/1CVbMCZPjOPcp5xEd2PPWRs1ySv5e1tIF/view?usp=sharing).
 
 ## Our cold approach
 
@@ -18,6 +18,26 @@ At times, our sales team will reach out to prospective customers before they com
 - Keep an enthusiastic and warm tone.
 - Be personable.
 - Ask for the meeting with a proposed time.
+
+## Sales team writing principles
+
+When writing for the Sales team, we want to abide by the following principles in our communications.
+
+### Maintain naming conventions
+
+Maintain naming conventions so people can expect what fields will look like when revisiting automations outside of Salesforce. This helps them avoid misunderstanding jargon and making mistakes that break automated integrations and cause business problems. One way we do this is by using sentence case where only the first word is capitalized (unless it’s a proper noun). See the below examples.
+
+| Good job! ✅          | Don't do this. ❌    |
+|:----------------------|:---------------------|
+| Bad data              | Bad Data
+
+### Be explicit
+
+Being explicit helps people to understand what they are reading and how to use terms for proper use of automations outside of Salesforce. In the case of acronyms, that means expanding and treating them as proper nouns. Note the template for including acronyms is in the first column below.
+
+| Good job! ✅          | Don't do this. ❌    |
+|:----------------------|:---------------------|
+| Do Not Contact (DNC)  | DNC
 
 ## Intro deck
 
@@ -70,7 +90,6 @@ Directly Responsible Individuals (DRI) engage in the ritual(s) below at the freq
 [Salesforce contributor experience checkup](./sales.md#salesforcecontributorexperiencecheckups)| Monthly | Make sure all users see a detailed view of contacts, opportunities, accounts, and leads. | Nathan Holliday |
 | TODO  | TODO | TODO | TODO 
 | TODO  | TODO | TODO | TODO 
-
 
 ## Slack channels
 

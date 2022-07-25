@@ -132,7 +132,7 @@ const getConfig = {
     tier: "premium",
     organization: "development-only",
     device_count: 100,
-    expiration: "2022-06-30T20:00:00-04:00",
+    expiration: "2099-06-30T20:00:00-04:00",
     note: "for development only",
   },
   logging: {
@@ -554,9 +554,9 @@ describe("Premium tier - Global Admin user", () => {
       cy.findByText(/gatekeeper enabled/i).click();
       cy.getAttached(".policy-form__button-wrap").within(() => {
         cy.findByRole("button", { name: /run/i }).should("exist");
-        cy.findByRole("button", { name: /save policy/i }).click();
+        cy.getAttached(".policy-form__save").click();
       });
-      cy.findByRole("button", { name: /^Save$/ }).click();
+      cy.getAttached(".policy-form__button--modal-save").click();
       cy.findByText(/policy created/i).should("exist");
       cy.findByText(/gatekeeper enabled/i).should("exist");
     });
@@ -684,7 +684,7 @@ describe("Premium tier - Global Admin user", () => {
     });
     it("allows access to Fleet Desktop settings", () => {
       cy.visit("settings/organization");
-      cy.getAttached(".app-settings__form-nav-list").within(() => {
+      cy.getAttached(".org-settings-form__form-nav-list").within(() => {
         cy.findByText(/organization info/i).should("exist");
         cy.findByText(/fleet desktop/i)
           .should("exist")

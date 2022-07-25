@@ -97,4 +97,4 @@ Visit our [update guide](https://fleetdm.com/docs/using-fleet/updating-fleet) in
 <meta name="authorGitHubUsername" value="mike-j-thomas">
 <meta name="publishedOn" value="2021-11-02">
 <meta name="articleTitle" value="Fleet 4.5.0 with new team admin role, live OS compatibility checking, query performance impact, and a new-look dashboard">
-<meta name="articleImageUrl" value="../website/assets/images/articles/fleet-4.5.0-cover-700x393@2x.png">
+<meta name="articleImageUrl" value="../website/assets/images/articles/fleet-4.5.0-cover-1600x900@2x.jpg">

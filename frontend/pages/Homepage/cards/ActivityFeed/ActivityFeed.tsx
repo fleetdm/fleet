@@ -102,6 +102,9 @@ const ActivityFeed = ({
           setShowMore(false);
         }
       },
+      onError: () => {
+        setShowActivityFeedTitle(true);
+      },
     }
   );
 
@@ -135,7 +138,7 @@ const ActivityFeed = ({
   };
 
   const renderError = () => {
-    return <DataError />;
+    return <DataError card />;
   };
 
   const renderNoActivities = () => {

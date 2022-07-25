@@ -8,10 +8,14 @@ import ErrorIcon from "../../../assets/images/icon-error-16x16@2x.png";
 
 const baseClass = "data-error";
 
-const DataError = (): JSX.Element => {
+interface IDataErrorProps {
+  card?: boolean;
+}
+
+const DataError = ({ card }: IDataErrorProps): JSX.Element => {
   return (
     <div className={`${baseClass}`}>
-      <div className={`${baseClass}__inner`}>
+      <div className={`${baseClass}__${card ? "card" : "inner"}`}>
         <div className="info">
           <span className="info__header">
             <img src={ErrorIcon} alt="error icon" id="error-icon" />
@@ -21,7 +25,7 @@ const DataError = (): JSX.Element => {
           <span className="info__data">
             If this keeps happening, please&nbsp;
             <a
-              href="https://github.com/fleetdm/fleet/issues"
+              href="https://github.com/fleetdm/fleet/issues/new/choose"
               target="_blank"
               rel="noopener noreferrer"
             >

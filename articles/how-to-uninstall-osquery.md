@@ -1,7 +1,5 @@
 # How to uninstall osquery
 
-![The osquery logo](../website/assets/images/articles/how-to-uninstall-osquery-cover-700x393@2x.png)
-
 This article walks you through the steps to remove osquery from your device. Remember that if you enrolled this device in a Fleet instance, it would display as an offline host in the Fleet UI until you manually remove it.
 
 ## On macOS:
@@ -57,6 +55,6 @@ Are you running into trouble uninstalling osquery on macOS, Windows, or Linux? G
 <meta name="category" value="guides">
 <meta name="authorFullName" value="Eric Shaw">
 <meta name="authorGitHubUsername" value="eashaw">
-<meta name="publishedOn" value="2021-11-08">
+<meta name="publishedOn" value="2021-09-08">
 <meta name="articleTitle" value="How to uninstall osquery">
-<meta name="articleImageUrl" value="../website/assets/images/articles/how-to-uninstall-osquery-cover-700x393@2x.png">
+<meta name="articleImageUrl" value="../website/assets/images/articles/how-to-uninstall-osquery-cover-1600x900@2x.jpg">

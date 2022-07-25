@@ -1,2 +1,0 @@
-- Update Fleet host detail query so `os_version` for Ubuntu hosts reflects the accurate patch number in the
-  point release

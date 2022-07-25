@@ -50,7 +50,7 @@ jobs:
 
     # Download fleet and fleetctl binaries from last successful build on main
     - name: Download binaries
-      uses: dawidd6/action-download-artifact@b2abf1705491048a2d7074f7d90513044fd25d39 #v2.16.0
+      uses: dawidd6/action-download-artifact@6765a42d86407a3d532749069ac03705ad82ebc6 #v2.16.0
       with:
         workflow: build-binaries.yaml
         branch: main
@@ -113,7 +113,7 @@ jobs:
    steps:
     # Download fleet and fleetctl binaries from last successful build on main
     - name: Download binaries
-      uses: dawidd6/action-download-artifact@b2abf1705491048a2d7074f7d90513044fd25d39 #v2.16.0
+      uses: dawidd6/action-download-artifact@6765a42d86407a3d532749069ac03705ad82ebc6 #v2.16.0
       with:
         workflow: build-binaries.yaml
         branch: main
@@ -202,7 +202,7 @@ jobs:
         fleetctl config set --address ${{ needs.gen.outputs.address }} --token ${{ needs.login.outputs.token }}
 
     - name: Install Go
-      uses: actions/setup-go@b22fbbc2921299758641fab08929b4ac52b32923 # v2
+      uses: actions/setup-go@84cbf8094393cdc5fe1fe1671ff2647332956b1a # v2
       with:
         go-version: ${{ matrix.go-version }}
 

@@ -7,10 +7,13 @@ import (
 	"encoding/json"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 )
 
 var _ fleet.Datastore = (*DataStore)(nil)
+
+type HealthCheckFunc func() error
 
 type NewCarveFunc func(ctx context.Context, metadata *fleet.CarveMetadata) (*fleet.CarveMetadata, error)
 
@@ -314,7 +317,7 @@ type NewActivityFunc func(ctx context.Context, user *fleet.User, activityType st
 
 type ListActivitiesFunc func(ctx context.Context, opt fleet.ListOptions) ([]*fleet.Activity, error)
 
-type ShouldSendStatisticsFunc func(ctx context.Context, frequency time.Duration, license *fleet.LicenseInfo) (fleet.StatisticsPayload, bool, error)
+type ShouldSendStatisticsFunc func(ctx context.Context, frequency time.Duration, config config.FleetConfig, license *fleet.LicenseInfo) (fleet.StatisticsPayload, bool, error)
 
 type RecordStatisticsSentFunc func(ctx context.Context) error
 
@@ -425,6 +428,9 @@ type InnoDBStatusFunc func(ctx context.Context) (string, error)
 type ProcessListFunc func(ctx context.Context) ([]fleet.MySQLProcess, error)
 
 type DataStore struct {
+	HealthCheckFunc        HealthCheckFunc
+	HealthCheckFuncInvoked bool
+
 	NewCarveFunc        NewCarveFunc
 	NewCarveFuncInvoked bool
 
@@ -1042,6 +1048,11 @@ type DataStore struct {
 
 	ProcessListFunc        ProcessListFunc
 	ProcessListFuncInvoked bool
+}
+
+func (s *DataStore) HealthCheck() error {
+	s.HealthCheckFuncInvoked = true
+	return s.HealthCheckFunc()
 }
 
 func (s *DataStore) NewCarve(ctx context.Context, metadata *fleet.CarveMetadata) (*fleet.CarveMetadata, error) {
@@ -1799,9 +1810,9 @@ func (s *DataStore) ListActivities(ctx context.Context, opt fleet.ListOptions) (
 	return s.ListActivitiesFunc(ctx, opt)
 }
 
-func (s *DataStore) ShouldSendStatistics(ctx context.Context, frequency time.Duration, license *fleet.LicenseInfo) (fleet.StatisticsPayload, bool, error) {
+func (s *DataStore) ShouldSendStatistics(ctx context.Context, frequency time.Duration, config config.FleetConfig, license *fleet.LicenseInfo) (fleet.StatisticsPayload, bool, error) {
 	s.ShouldSendStatisticsFuncInvoked = true
-	return s.ShouldSendStatisticsFunc(ctx, frequency, license)
+	return s.ShouldSendStatisticsFunc(ctx, frequency, config, license)
 }
 
 func (s *DataStore) RecordStatisticsSent(ctx context.Context) error {

@@ -824,6 +824,7 @@ None.
     "org_name": "fleet",
     "org_logo_url": ""
   },
+  "sandbox_enabled": true,
   "server_settings": {
     "server_url": "https://localhost:8080",
     "live_query_disabled": false,
@@ -885,9 +886,9 @@ None.
     }
   },
   "license": {
-    "tier": "free",
-    "expiration": "0001-01-01T00:00:00Z"
-  },
+     "tier": "free",
+     "expiration": "0001-01-01T00:00:00Z"
+   },
   "logging": {
       "debug": false,
       "json": false,
@@ -908,13 +909,6 @@ None.
               "enable_log_compression": false
           }
       }
-  },
-  "license": {
-    "tier": "free",
-    "organization": "fleet",
-    "device_count": 100,
-    "expiration": "2021-12-31T19:00:00-05:00",
-    "note": ""
   },
   "vulnerability_settings": {
     "databases_path": ""
@@ -1736,11 +1730,8 @@ None.
 | team_id                 | integer | query | _Available in Fleet Premium_ Filters the hosts to only include hosts in the specified team.                                                                                                                                                                                                                                                 |
 | policy_id               | integer | query | The ID of the policy to filter hosts by. `policy_response` must also be specified with `policy_id`.                                                                                                                                                                                                                                         |
 | policy_response         | string  | query | Valid options are `passing` or `failing`.  `policy_id` must also be specified with `policy_response`.                                                                                                                                                                                                                                       |
-| software_id             | integer | query | The ID of the software to filter hosts by.                                                                                                                                                                                                                                         |
-           |
-| device_mapping          | boolean | query | Indicates whether `device_mapping` should be included
-for each host. See ["Get host's Google Chrome profiles](#get-host's-google-chrome-profiles) for
-more information about this feature.
+| software_id             | integer | query | The ID of the software to filter hosts by.                                                         |
+| device_mapping          | boolean | query | Indicates whether `device_mapping` should be included for each host. See ["Get host's Google Chrome profiles](#get-host's-google-chrome-profiles) for more information about this feature.
 ### Get host's Google Chrome profiles
 If `additional_info_filters` is not specified, no `additional` information will be returned.
 
@@ -2138,7 +2129,7 @@ If the scheduled queries haven't run on the host yet, the stats have zero values
     "batteries": [
       {
         "cycle_count": 999,
-        "health": "Good"
+        "health": "Normal"
       }
     ]
   }
@@ -2211,7 +2202,7 @@ Returns the information of the host specified using the `uuid`, `osquery_host_id
     "batteries": [
       {
         "cycle_count": 999,
-        "health": "Good"
+        "health": "Normal"
       }
     ]
   }
@@ -5754,6 +5745,7 @@ _Available in Fleet Premium_
 ## Translator
 
 - [Translate IDs](#translate-i-ds)
+
 ### Translate IDs
 
 Transforms a host name into a host id. For example, the Fleet UI use this endpoint when sending live queries to a set of hosts.

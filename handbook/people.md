@@ -94,11 +94,11 @@ For team members working in jurisdictions that require certain mandatory sick le
 ### Taking time off
 
 When you take any time off, you should follow this process:
-- Let your manager and team know as soon as possible(e.g., post a message in your team's Slack channel).
-- Find someone to cover anything that needs covering while you're out(i.e., meetings, planned tasks, unfinished business, important Slack/email threads, anything where someone might be depending on you).
+- Let your manager and team know as soon as possible (i.e., post a message in your team's Slack channel with when and how long).
+- Find someone to cover anything that needs covering while you're out and communicate what they need to take over the responsibilities as well as who to refer to for help (e.g., meetings, planned tasks, unfinished business, important Slack/email threads, anything where someone might be depending on you).
 - Mark an all-day "Out of office" event in Google Calendar for the day(s) you're taking off.
 
-If you can’t complete the above because you need to take the day off quickly due to an emergency, let your team know, and they will help you.
+If you can’t complete the above because you need to take the day off quickly due to an emergency, let your manager know and they will help you complete the handoff.
 
 If you ever want to take a day off, and the only thing stopping you is internal (Fleetie-only) meetings, don’t stress. Consider, “Is this a meeting that I can reschedule to another day, or is this a meeting that can go on without me and not interfere with the company’s plans?” 
 
@@ -320,6 +320,27 @@ The CEO will then reply in `#g-people` to indicate that the offer is approved.
    - You can do this between you and CorpNet by selecting "Foreign Qualification," placing the order and emailing the confirmation to the rep for Payroll registration (this is a short turnaround).
    - You can do this on your own by visiting the state's "Secretary of State" website and checking that the company name is available. To register online, you'll need the EIN, business address, information about the owners and their percentages, the first date of business, sales within the state, and the business type (usually get an email right away for approval ~24-48 hrs). 
 
+
+For more information, check out [Fleet - who does what](https://docs.google.com/spreadsheets/d/1FFOudmHmfVFIk-hdIWoPFsvMPmsjnRB8/edit?usp=sharing&ouid=102440584423243016963&rtpof=true&sd=true).
+
+### Taxes and compliance
+
+From time to time, you may get notices in the mail from the IRS and/or state agencies regarding your company’s withholding and/or unemployment tax accounts. You can resolve many of these notices on your own by verifying and/or updating the settings in your Gusto account. 
+
+If the notice is regarding an upcoming change to your deposit schedule or unemployment tax rate, Charlie will make the change in Gusto. Including: 
+ - Update your unemployment tax rate.
+ - Update your federal deposit schedule.
+ - Update your state deposit schedule.
+
+**Important** Agencies do not send notices to Gusto directly, so it’s important that you read and take action before any listed deadlines or effective dates of requested changes.
+
+Notices you should report to Gusto.
+If you can't resolve the notice on your own, are unsure what the notice is in reference to, or the tax notice has a missing payment or balance owed, follow the steps in the Report and upload a tax notice in Gusto.
+
+In Gusto, click **How to review your notice** to help you understand what kind of notice you received and what additional action you can take to help speed up the time it takes to resolve the issue.
+
+For more information about how Fleet and our accounting team work together, check out [Fleet - who does what](https://docs.google.com/spreadsheets/d/1FFOudmHmfVFIk-hdIWoPFsvMPmsjnRB8/edit#gid=829046836) (private doc).
+
 ## Team member onboarding
 
 It's important that every team member at Fleet takes the time to get fully trained and onboarded. 
@@ -341,7 +362,7 @@ During their first week at Fleet, new team members are asked to schedule a contr
 - talk about Google calendar.
 - give you a quick tour of the Fleet Google drive folder.
 
-### Sightseeing Tour
+### Sightseeing tour
 
 During their onboarding at Fleet, new team members are asked to schedule a sightseeing tour call with People operations. During this call, the new team member will participate in an interactive tour that includes:
 
@@ -419,11 +440,114 @@ We consider Salesforce to be our Rolodex for customer information. During the on
 4. Sign DocuSign sent to the email.
 5. The order will be processed in ~30m.
 
+## Participating in the CEO shadow program
+
+### Eligibility
+TODO: document eligibility qualifications
+
+### How to apply
+ 1. TODO: Create a pull request to add yourself to the [rotation schedule](insert link here)TODO: create template for pull request
+ 2. Assign your manager and ask them to approve (but not merge) the pull request.
+ 3. TODO: Once your manager approves the pull request, assign the pull request to Charlie, link to the pull request in the #ceo-shadow channel, and @mention Charlie in the message.
+
+### Parental participation 
+ TODO: (parent-friendly scheduling options)
+
+### Rotation rhythm
+ 1. See one, you are trained by the outgoing person.
+ 2. Teach one, you train the incoming person.
+ The shadow should be available for the full two weeks.
+
+### Rotation schedule 
+ TODO: (This is a chart: start date, end date, see one, teach one.)
+
+### Preparing for the program
+
+### Important things to note
+ 1. This is not a performance evaluation.
+ 2. Plan to observe and ask questions.
+ 3. Don't plan to do any of your usual work.
+ 4. Be ready to add a number of [handbook](https://fleetdm.com/handbook) updates during your shadow period.
+ 5. Participating in the shadow program is a privilege that will expose you to confidential information.
+ 6. Give feedback to and receive feedback from the CEO.
+
+### What to wear
+ Casual
+
+### Pre-program tasks
+ 1. Create an onboarding issue 
+ TODO:(onboarding and offboarding issues are created for the two-week program)
+ 2. Consider creating goals
+ For inspiration, here is [an example](https://gitlab.com/nmccorrison/ceo-shadow/-/issues/1#my-goals) of a CEO Shadow who added goals to their onboarding issue.
+ 3. Practice your introduction
+ See [CEO Shadow Introductions](https://about.gitlab.com/handbook/ceo/shadow/#ceo-shadow-introductions) for specifics.
+ 4. Coffee chat with co-shadow
+  Try to schedule coffee chats with your co-shadow before you start the program.
+ 5. Coffee Chat with CEO shadow alumni
+ Feel free to schedule a coffee chat with any of the CEO Shadow Alumni. There's a link to the alumni chart dropped here too. 
+ 6. Explore the CEO shadow project
+ TODO: private board
+ 7. Review the CEO's calendar
+ Anticipate your week. Look ahead in the schedule and plan accordingly. 
+ 8. Review the CEO handbook (TODO: insert link here)
+ TODO: How to communicate and interact with the CEO.
+ 9. Review acronyms 
+ TODO: add resource link (KPIs, OKRs, xMAU, SpU, ARR, keep a financial dictionary handy)
+
+### What to expect during the program 
+ TODO: Broken down by tasks like handbooking and "for meetings."
+
+### Tasks
+ 1. Collecting and managing tasks 
+ TODO: (There is a project board that is privately linked here.)
+
+### Tweetstorm
+A tweetstorm is a series of Twitter posts usually made as replies in a single thread on a topic. CEO shadows may be asked to draft the tweets related to a public live-streamed video recording or other media content.
+
+### Meetings & events
+
+### CEO's calendar
+ 1. Review the CEO's calendar.
+ 2. How to update your zoom name to show "CEO shadow."
+ 3. How to add CEO calendar to google calendar (we already do this in onboarding).
+ 4. Details about invites to events marked private (like interviews).
+ 5. Meetings with those outside of GitLab may not be on Zoom. Prior to the call, check the CEO's calendar and load any other conferencing programs that may be needed. It may be necessary to dial in via phone for audio conferences.
+
+### Types of meetings
+ 1. Fleet Meetings
+  - 1:1s with reports.
+  - Interviews with candidates.
+  - Conversations with board members.
+ 2. Social calls
+ 3. Media Briefings
+ 4. Candidate Interviews
+ 5. Personal Meetings
+
+### Removing yourself from personal CEO documents
+TODO
+
+### Responsibilities
+ TODO: this is a chart outlining responsibilities based on meeting types.
+
+### Email best practices
+TODO: In order to keep continuity across CEO shadow participants. Always, cc (TODO: email group) on emails as part of the program. This makes sure that even after you've left the program, the response and follow-up can be tracked.
+
+### Considerations for other companies starting CEO shadow programs
+GitLab co-founder and CEO Sid Sijbrandij [answered questions in a YouTube livestream](https://youtu.be/ExG8_bnIAMI) from Sam Altman, as the two discussed considerations for implementing a CEO Shadow program in other organizations. Key takeaways are documented below.
+
+ 1. CEOs should not optimize meetings for Shadows. They  learn by being in the room, either in-person or virtual, and it's OK if the Shadow doesn't fully understand everything.
+ 2. A well-designed CEO Shadow program shouldn't burden a CEO; in fact, Shadows should actively make a CEO's day easier by assisting with notes and changing relevant portions of the company handbook upon request.
+ 3. Non-obvious benefits for a CEO (and their organization) include CEO empathy and humanizing a CEO, such that team members are more comfortable contributing input to an executive. Shadow alumni can translate real-world examples of [assuming positive intent](https://about.gitlab.com/handbook/values/#assume-positive-intent) from their time in the program to their direct reports, further fortifying company culture.
+ 4. Make certain that CEO Shadows do not plan to do any of their usual work. Shadows should prepare their team as if they were on vacation. Attempting to shadow the CEO while also maintaining a full workload creates undue stress for the CEO Shadow.
+
+### Alumni 
+TODO: (This is a chart with info on CEO alumni) (Create a slack channel for CEO-shadow-alumni)
+
 ## PeopleOps
 
-### OKR Planning
+### OKR planning
 
-OKRs help inform what to prioritize and communicate company goals while encouraging cross-team collaboration.
+OKRs help to inform what to prioritize and communicate company goals while encouraging cross-team collaboration.
 
 At the end of the quarter and key points throughout the quarter (every three weeks), we review the status of each OKR (depending on the KR, either 100% or ≥70% completion is considered "success")
 
@@ -432,7 +556,7 @@ At the end of the quarter and key points throughout the quarter (every three wee
 - Finalized OKRs are shared company-wide and at the "All hands" meeting and, at least to some degree, become public.
 - Throughout the quarter, Mike and Zach have OKR preplanning meetings (every three weeks) to prepare OKRs for the upcoming quarter. 
 
-### 1:1 Mike:Sid Document Preparation
+### 1:1 Mike:Sid document preparation
 
 Every two weeks, our CEO Mike has a 1:1 meeting with our Investor Sid. The Digital Experience Team completes four parts while constructing the associated document. 
 
@@ -441,7 +565,7 @@ Every two weeks, our CEO Mike has a 1:1 meeting with our Investor Sid. The Digit
  - Charlie prepares the original document by deleting the agenda items in the "Hallway" and "Feedback" sections, leaving only the "Vision" section.
  - Charlie will update the monthly "All Hands" link and grant Sid viewing access. 
  - Charlie will send Mike links to the new document and the backup copy in a direct message in Slack. 
- - The day before the meeting, Nathan will prepare the "Vision" section of the original document. Nathan will collect and update information related to annual recurring revenue, new members in the `#fleet` channel in the osquery Slack, the number of new customers and opportunities from Salesforce, the total number of devices using Fleet, the company's current headcount, and banking information.
+ - The day before the meeting, Charlie will prepare the "Vision" section of the original document. Charlie will collect and update information related to annual recurring revenue, new members in the `#fleet` channel in the osquery Slack, the number of new customers and opportunities from Salesforce, the total number of devices using Fleet, the company's current headcount, and banking information.
 
 ### Workiversaries
 
@@ -457,9 +581,9 @@ We like to celebrate our achievements weekly in `#general`.
 
 Weekly update principles
    - Each department's update is 20-40 words or less.
-   - Erring on the side of refering to items that are completely done and/or mentioning news that is potentially very exciting to folks throughout the company.
+   - Erring on the side of referring to items that are completely done and/or mentioning news that is potentially very exciting to folks throughout the company.
 
-### Investor and Advisor updates
+### Investor and advisor updates
 
 We like to regularly share updates about how Fleet is growing with our investors and advisors. 
   - Charlie tracks the most recent updates with investors and advisors and coordinates emails, zoom calls, or the investor or advisor's preferred method of communication with @mikermcneil and preps materials as needed. 
@@ -475,7 +599,13 @@ Weekly, Charlie looks in the [Fleeties spreadsheet](https://docs.google.com/spre
 
 ### Payroll
 
-Many of these processes are automated, but it's vital check Gusto and Pilot manually for accuracy.
+Many of these processes are automated, but it's vital to check Gusto and Pilot manually for accuracy.
+
+| Unique payrolls              | Action                       | DRI                          |
+|:-----------------------------|:-----------------------------|:-----------------------------|
+| Commissions                  | "Off-cycle" payroll          | Charlie
+| Sign-on bonus                | "Bonus" payroll              | Charlie
+| Performance bonus            | "Bonus" payroll              | Charlie
 
 ## BizOps
 
@@ -483,7 +613,7 @@ Many of these processes are automated, but it's vital check Gusto and Pilot manu
 
 Create a new issue for the current month and year named "Closing out YYYY-MM" using the [monthly accounting issue template](https://github.com/fleetdm/confidential/blob/main/.github/ISSUE_TEMPLATE/5-monthly-accounting.md) in GitHub and complete all of the tasks in the issue.  
 
-### Commission Payroll
+### Commission payroll
 
 - Update [commission calculator](https://docs.google.com/spreadsheets/d/1vw6Q7kCC7-FdG5Fgx3ghgUdQiF2qwxk6njgK6z8_O9U/edit) with new revenue from any deals that are closed/won (have a subscription agreement signed by both parties) and have an **effective start date** within the previous month.
   - Find detailed notes on this process in [Notes - Run commission payroll in Gusto](https://docs.google.com/document/d/1FQLpGxvHPW6X801HYYLPs5y8o943mmasQD3m9k_c0so/edit#). 
