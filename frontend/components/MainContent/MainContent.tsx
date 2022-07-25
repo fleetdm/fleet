@@ -1,7 +1,8 @@
-import classnames from "classnames";
 import React, { ReactChild } from "react";
+import classnames from "classnames";
 
-import ExternalURLIcon from "../../../assets/images/icon-external-url-black-12x12@2x.png";
+import SandboxExpiryMessage from "components/Sandbox/SandboxExpiryMessage";
+import SandboxGate from "components/Sandbox/SandboxGate";
 
 interface IMainContentProps {
   children: ReactChild;
@@ -10,28 +11,6 @@ interface IMainContentProps {
    */
   className?: string;
 }
-
-const messageClassName = "sandbox-expiry-message";
-
-const SandboxExpiryMessage = (): JSX.Element => {
-  return (
-    <div className={messageClassName}>
-      <p>Your Fleet Sandbox Expires in about 20 hours.</p>
-      <a
-        href="https://fleetdm.com/docs/deploying"
-        target="_blank"
-        rel="noreferrer"
-      >
-        Learn how to renew or downgrade
-        <img
-          alt="Open external link"
-          className="icon-external"
-          src={ExternalURLIcon}
-        />
-      </a>
-    </div>
-  );
-};
 
 const baseClass = "main-content";
 
@@ -47,7 +26,7 @@ const MainContent = ({
 
   return (
     <div className={classes}>
-      <SandboxExpiryMessage />
+      <SandboxGate fallbackComponent={() => <SandboxExpiryMessage />} />
       {children}
     </div>
   );

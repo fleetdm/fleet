@@ -1,6 +1,4 @@
 .user-settings {
-  display: flex;
-  align-items: stretch;
 
   &__sandboxMode {
     margin-top: 70px;
@@ -13,13 +11,6 @@
   h2 {
     font-size: $x-small;
     font-weight: $bold;
-  }
-
-  a {
-    font-size: $x-small;
-    color: $core-vibrant-blue;
-    font-weight: $bold;
-    text-decoration: none;
   }
 
   &__manage {
@@ -35,7 +26,10 @@
   .modal__modal_container {
     width: 400px;
     a {
-      font-weight: bold;
+      font-size: $x-small;
+      color: $core-vibrant-blue;
+      font-weight: $bold;
+      text-decoration: none;
     }
     img.icon-external {
       width: 12px;

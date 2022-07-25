@@ -22,7 +22,8 @@ import Modal from "components/Modal";
 import UserSettingsForm from "components/forms/UserSettingsForm";
 import InfoBanner from "components/InfoBanner";
 import SecretField from "components/SecretField";
-import SandboxGate from "components/SandboxGate";
+import SandboxGate from "components/Sandbox/SandboxGate";
+import SandboxDemoMessage from "components/Sandbox/SandboxDemoMessage";
 import MainContent from "components/MainContent";
 import SidePanelContent from "components/SidePanelContent";
 
@@ -235,38 +236,35 @@ const UserSettingsPage = ({
     return null;
   }
 
-  const wrapperStyles = classnames(baseClass, {
-    [`${baseClass}__sandboxMode`]: isSandboxMode,
-  });
-
   return (
     <>
-      <MainContent>
-        <div className={wrapperStyles}>
-          <SandboxGate
-            message="Account management is only available in self-managed Fleet"
-            utmSource="fleet-ui-my-account-page"
-          >
-            <div className={`${baseClass}__manage`}>
-              <h1>My account</h1>
-              <UserSettingsForm
-                formData={currentUser}
-                handleSubmit={handleSubmit}
-                onCancel={onCancel}
-                pendingEmail={pendingEmail}
-                serverErrors={errors}
-                smtpConfigured={config?.smtp_settings.configured}
-              />
-            </div>
-            {renderEmailModal()}
-            {renderPasswordModal()}
-            {renderApiTokenModal()}
-          </SandboxGate>
-        </div>
+      <MainContent className={baseClass}>
+        <SandboxGate
+          fallbackComponent={() => (
+            <SandboxDemoMessage
+              className={`${baseClass}__sandboxMode`}
+              message="Account management is only available in self-managed Fleet"
+              utmSource="fleet-ui-my-account-page"
+            />
+          )}
+        >
+          <div className={`${baseClass}__manage`}>
+            <h1>My account</h1>
+            <UserSettingsForm
+              formData={currentUser}
+              handleSubmit={handleSubmit}
+              onCancel={onCancel}
+              pendingEmail={pendingEmail}
+              serverErrors={errors}
+              smtpConfigured={config?.smtp_settings.configured}
+            />
+          </div>
+          {renderEmailModal()}
+          {renderPasswordModal()}
+          {renderApiTokenModal()}
+        </SandboxGate>
       </MainContent>
-
-      {/* TODO: change after SandboxGate extension */}
-      {!isSandboxMode && (
+      <SandboxGate>
         <SidePanelContent>
           <UserSidePanel
             currentUser={currentUser}
@@ -274,7 +272,7 @@ const UserSettingsPage = ({
             onGetApiToken={onShowApiTokenModal}
           />
         </SidePanelContent>
-      )}
+      </SandboxGate>
     </>
   );
 };
