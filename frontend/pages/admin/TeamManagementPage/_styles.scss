@@ -25,10 +25,6 @@
       tbody {
         .name__cell {
           max-width: $col-md;
-          .link-cell {
-            min-width: 100%;
-            text-align: left;
-          }
         }
 
         .host_count__cell {
