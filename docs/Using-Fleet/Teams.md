@@ -54,6 +54,26 @@ To create a team:
 
 You can set up team-specific agent options. If you set agent options for your team, any host enrolled to that team will be configured with the team's agent options instead of your organization's [Global agent options](./Fleet-UI.md#global-agent-options). Make sure you include any global agent options that you also want applied to your team. 
 
+Example team agent options:
+
+```YAML
+config:
+  decorators:
+    load:
+      - SELECT uuid AS host_uuid FROM system_info;
+      - SELECT hostname AS hostname FROM system_info;
+  options:
+    disable_distributed: false
+    distributed_interval: 10
+    distributed_plugin: tls
+    distributed_tls_max_attempts: 3
+    logger_plugin: tls
+    logger_tls_endpoint: /api/v1/osquery/log
+    logger_tls_period: 10
+    pack_delimiter: /
+  overrides: {}
+```
+
 To set agent options for a team:
 
 1. In the top navigation select "Settings" and then, in the sub-navigation, select "Teams."
@@ -66,6 +86,7 @@ To set agent options for a team:
 
 5. Click "Save options" on the right.
 
+> Please note that you can only apply agent options here and cannot apply a [full team configuration](./configuration-files/README.md#teams). 
 ## Automatically adding hosts to a team
 
 Hosts can only belong to one team in Fleet.
