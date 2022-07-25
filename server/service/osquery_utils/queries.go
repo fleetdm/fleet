@@ -742,6 +742,7 @@ func directIngestScheduledQueryStats(ctx context.Context, logger log.Logger, hos
 			},
 		)
 	}
+	// TODO(mna): pass the async task object to this function, and record the stats via the task instead.
 	if err := ds.SaveHostPackStats(ctx, host.ID, packStats); err != nil {
 		return ctxerr.Wrap(ctx, err, "save host pack stats")
 	}
