@@ -199,24 +199,6 @@ module.exports.routes = {
     },
   },
 
-  'GET /try-fleet/forgot-password': {
-    action: 'entrance/view-forgot-password',
-    locals: {
-      layout: 'layouts/layout-customer',
-      pageTitleForMeta: 'Forgot password | Fleet for osquery',
-      pageDescriptionForMeta: 'Recover the password for your Fleet account.',
-    }
-  },
-
-  'GET /try-fleet/new-password': {
-    action: 'entrance/view-new-password',
-    locals: {
-      layout: 'layouts/layout-customer',
-      pageTitleForMeta: 'New password | Fleet for osquery',
-      pageDescriptionForMeta: 'Change the password for your Fleet account.',
-    }
-  },
-
   //  ╦  ╔═╗╔═╗╔═╗╔═╗╦ ╦  ╦═╗╔═╗╔╦╗╦╦═╗╔═╗╔═╗╔╦╗╔═╗
   //  ║  ║╣ ║ ╦╠═╣║  ╚╦╝  ╠╦╝║╣  ║║║╠╦╝║╣ ║   ║ ╚═╗
   //  ╩═╝╚═╝╚═╝╩ ╩╚═╝ ╩   ╩╚═╚═╝═╩╝╩╩╚═╚═╝╚═╝ ╩ ╚═╝

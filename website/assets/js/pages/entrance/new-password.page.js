@@ -51,11 +51,7 @@ parasails.registerPage('new-password', {
       // > (Note that we re-enable the syncing state here.  This is on purpose--
       // > to make sure the spinner stays there until the page navigation finishes.)
       this.syncing = true;
-      if(this.redirectToSandbox){
-        window.location = '/try-fleet/sandbox';
-      } else {
-        window.location = '/customers/login';
-      }
+      window.location = '/customers/login';
     },
 
   }

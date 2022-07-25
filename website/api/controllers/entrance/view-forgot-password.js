@@ -24,17 +24,11 @@ module.exports = {
 
   fn: async function () {
 
-    let redirectToSandbox = false;
-    if(this.req.url = '/try-fleet/forgot-password'){
-      redirectToSandbox = true;
-    }
     if (this.req.me) {
       throw {redirect: '/'};
     }
 
-    return {
-      redirectToSandbox
-    };
+    return {};
 
   }
 

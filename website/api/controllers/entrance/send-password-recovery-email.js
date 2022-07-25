@@ -16,12 +16,6 @@ module.exports = {
       required: true
     },
 
-    passwordResetRequestedFrom: {
-      type: 'string',
-      description: 'The section of the website that the user has requested the password reset from.',
-      defaultsTo: 'customers',
-    }
-
   },
 
 
@@ -34,7 +28,7 @@ module.exports = {
   },
 
 
-  fn: async function ({emailAddress, passwordResetRequestedFrom}) {
+  fn: async function ({emailAddress}) {
 
     // Find the record for this user.
     // (Even if no such user exists, pretend it worked to discourage sniffing.)
@@ -42,10 +36,6 @@ module.exports = {
     if (!userRecord) {
       return;
     }//•
-    let passwordResetLocation = '/customers/new-password';
-    if(passwordResetRequestedFrom === 'sandbox'){
-      passwordResetLocation = '/try-fleet/new-password';
-    }
     // Come up with a pseudorandom, probabilistically-unique token for use
     // in our password recovery email.
     var token = await sails.helpers.strings.random('url-friendly');
@@ -64,7 +54,6 @@ module.exports = {
       subject: 'Password reset instructions',
       template: 'email-reset-password',
       templateData: {
-        passwordResetLocation: passwordResetLocation,
         token: token
       }
     });

@@ -45,15 +45,10 @@ module.exports = {
     if (!userRecord || userRecord.passwordResetTokenExpiresAt <= Date.now()) {
       throw 'invalidOrExpiredToken';
     }
-    let redirectToSandbox = false;
-    if(this.req.url = '/try-fleet/forgot-password'){
-      redirectToSandbox = true;
-    }
 
     // Grab token and include it in view locals
     return {
-      token,
-      redirectToSandbox
+      token
     };
 
   }
