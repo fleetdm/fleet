@@ -20,8 +20,13 @@ import (
 
 // See helful docs in http://bomutils.dyndns.org/tutorial.html
 
-// BuildPkg builds a macOS .pkg. So far this is tested only on macOS but in theory it works with bomutils on
-// Linux.
+// BuildPkg builds a macOS .pkg.
+//
+// Building packages works out of the box in macOS, but it's also supported on
+// Linux given that the necessary dependencies are installed and
+// Options.NativeTooling is `true`
+//
+// Note: this function is not safe for concurrent use
 func BuildPkg(opt Options) (string, error) {
 	// Initialize directories
 	tmpDir, err := initializeTempDir()
