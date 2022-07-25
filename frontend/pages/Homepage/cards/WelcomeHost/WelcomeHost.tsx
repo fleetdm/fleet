@@ -244,21 +244,21 @@ const WelcomeHost = ({
           {host.policies?.slice(0, 3).map((p) => {
             if (p.response) {
               return (
-                <div className="policy-block">
-                  <div className="info">
-                    <img
-                      alt={p.response}
-                      src={p.response === policyPass ? IconPassed : IconError}
-                    />
-                    {p.name}
-                  </div>
-                  <Button
-                    variant="text-icon"
-                    onClick={() => handlePolicyModal(p.id)}
-                  >
+                <Button
+                  variant="text-icon"
+                  onClick={() => handlePolicyModal(p.id)}
+                >
+                  <div className="policy-block">
+                    <div className="info">
+                      <img
+                        alt={p.response}
+                        src={p.response === policyPass ? IconPassed : IconError}
+                      />
+                      {p.name}
+                    </div>
                     <img alt="" src={IconChevron} />
-                  </Button>
-                </div>
+                  </div>
+                </Button>
               );
             }
 
