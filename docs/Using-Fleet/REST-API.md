@@ -476,8 +476,8 @@ Returns a list of the activities that have been performed in Fleet. The followin
 
 #### Parameters
 
-| Name            | Type    | In    | Description                                                                                                                   |
-| --------------- | ------- | ----- | ----------------------------------------------------------------------------------------------------------------------------- |
+| Name            | Type    | In    | Description                                                 |
+|:--------------- |:------- |:----- |:------------------------------------------------------------|
 | page            | integer | query | Page number of the results to fetch.                                                                                          |
 | per_page        | integer | query | Results per page.                                                                                                             |
 | order_key       | string  | query | What to order results by. Can be any column in the `activites` table.                                                         |
@@ -2623,7 +2623,7 @@ created_at,updated_at,id,detail_updated_at,label_updated_at,policy_updated_at,la
 - [Create label](#create-label)
 - [Modify label](#modify-label)
 - [Get label](#get-label)
-- [Get labels summary](#get-labels-sumary)
+- [Get labels summary](#get-labels-summary)
 - [List labels](#list-labels)
 - [List hosts in a label](#list-hosts-in-a-label)
 - [Delete label](#delete-label)
