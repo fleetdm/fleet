@@ -148,9 +148,6 @@ const DeviceUserPage = ({
           // exit early because refectch is pending so we can avoid unecessary steps below
         }
       },
-      onError: (error) => {
-        console.log(error);
-      },
     }
   );
 
