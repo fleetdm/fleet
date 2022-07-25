@@ -1,7 +1,6 @@
 import React, { useState, useContext, useCallback } from "react";
 import { Params } from "react-router/lib/Router";
 import { useQuery } from "react-query";
-import { useErrorHandler } from "react-error-boundary";
 import { Tab, Tabs, TabList, TabPanel } from "react-tabs";
 
 import classnames from "classnames";
@@ -12,7 +11,7 @@ import deviceUserAPI from "services/entities/device_user";
 import { IHost, IDeviceMappingResponse } from "interfaces/host";
 import { ISoftware } from "interfaces/software";
 import { IHostPolicy } from "interfaces/policy";
-import PageError from "components/DataError";
+import DeviceUserError from "components/DeviceUserError";
 // @ts-ignore
 import OrgLogoIcon from "components/icons/OrgLogoIcon";
 import Spinner from "components/Spinner";
@@ -51,7 +50,6 @@ const DeviceUserPage = ({
 }: IDeviceUserPageProps): JSX.Element => {
   const deviceAuthToken = device_auth_token;
   const { renderFlash } = useContext(NotificationContext);
-  const handlePageError = useErrorHandler();
 
   const [isPremiumTier, setIsPremiumTier] = useState<boolean>(false);
   const [showInfoModal, setShowInfoModal] = useState<boolean>(false);
@@ -150,7 +148,9 @@ const DeviceUserPage = ({
           // exit early because refectch is pending so we can avoid unecessary steps below
         }
       },
-      onError: (error) => handlePageError(error),
+      onError: (error) => {
+        console.log(error);
+      },
     }
   );
 
@@ -316,7 +316,7 @@ const DeviceUserPage = ({
           </ul>
         </div>
       </nav>
-      {loadingDeviceUserError ? <PageError /> : renderDeviceUserPage()}
+      {loadingDeviceUserError ? <DeviceUserError /> : renderDeviceUserPage()}
     </div>
   );
 };
