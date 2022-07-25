@@ -144,7 +144,7 @@ the account verification message.)`,
       }
     )
     .timeout(5000)
-    .intercept('non200Response', ()=>{
+    .intercept('non200Response', async ()=>{
       // If we recieved a non-200 response from the Cloud Provisioner API, we'll delete the incomplete User record, and throw a 500 error
       await User.destroyOne({id: newUserRecord.id});
       throw new Error('When attempting to provision a new user\'s Fleet Sandbox instance, the Cloud provisioner gave a non 200 response. The incomplete user record has been deleted, and the user will be asked to try signing up again.')
