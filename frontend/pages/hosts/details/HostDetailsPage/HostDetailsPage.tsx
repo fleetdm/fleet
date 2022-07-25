@@ -560,7 +560,14 @@ const HostDetailsPage = ({
             <Tab>Details</Tab>
             <Tab>Software</Tab>
             <Tab>Schedule</Tab>
-            <Tab>Policies</Tab>
+            <Tab>
+              {titleData.issues.failing_policies_count > 0 && (
+                <span className="count">
+                  {titleData.issues.failing_policies_count}
+                </span>
+              )}
+              Policies
+            </Tab>
           </TabList>
           <TabPanel>
             <AboutCard

@@ -178,7 +178,7 @@ export const DEFAULT_POLICIES = [
     description:
       "Checks that the password policy requires at least 10 characters. Requires osquery 5.4.0 or newer.",
     resolution:
-      "Contact your IT administrator to ensure your Mac is receiving configuration profiles for password length.",
+      "Contact your IT administrator to confirm that your Mac is receiving configuration profiles for password length.",
     platform: "darwin",
   },
 ] as IPolicyNew[];
@@ -359,6 +359,12 @@ export const PLATFORM_NAME_TO_LABEL_NAME = {
   windows: "MS Windows",
   linux: "All Linux",
 };
+
+export const HOSTS_SEARCH_BOX_PLACEHOLDER =
+  "Search hostname, UUID, serial number, or IPv4";
+
+export const HOSTS_SEARCH_BOX_TOOLTIP =
+  "Search hosts by hostname, UUID, machine serial or private IP address";
 
 export const VULNERABLE_DROPDOWN_OPTIONS = [
   {
