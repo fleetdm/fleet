@@ -395,7 +395,7 @@ the way that the Fleet server works.
 				}
 			}
 
-			runCrons(ctx, ds, task, kitlog.With(logger, "component", "crons"), &config, license, failingPolicySet, redisWrapperDS)
+			runCrons(ctx, ds, task, kitlog.With(logger, "component", "crons"), config, license, failingPolicySet, redisWrapperDS)
 
 			// Flush seen hosts every second
 			hostsAsyncCfg := config.Osquery.AsyncConfigForTask(configpkg.AsyncTaskHostLastSeen)
@@ -678,7 +678,7 @@ func runCrons(
 	ds fleet.Datastore,
 	task *async.Task,
 	logger kitlog.Logger,
-	config *configpkg.FleetConfig,
+	config configpkg.FleetConfig,
 	license *fleet.LicenseInfo,
 	failingPoliciesSet fleet.FailingPolicySet,
 	enrollHostLimiter fleet.EnrollHostLimiter,
@@ -691,7 +691,7 @@ func runCrons(
 	// StartCollectors starts a goroutine per collector, using ctx to cancel.
 	task.StartCollectors(ctx, kitlog.With(logger, "cron", "async_task"))
 
-	go cronDB(ctx, ds, kitlog.With(logger, "cron", "cleanups"), ourIdentifier, config, license, enrollHostLimiter)
+	go cronDB(ctx, ds, kitlog.With(logger, "cron", "cleanups"), ourIdentifier, &config, license, enrollHostLimiter)
 	go cronVulnerabilities(
 		ctx, ds, kitlog.With(logger, "cron", "vulnerabilities"), ourIdentifier, &config.Vulnerabilities)
 	go cronWebhooks(ctx, ds, kitlog.With(logger, "cron", "webhooks"), ourIdentifier, failingPoliciesSet, 1*time.Hour)
