@@ -157,7 +157,7 @@ the account verification message.)`,
         `When provisioning a Fleet Sandbox instance for this new user, the 200 response from the Cloud Provisioner API did not contain a URL of a Sandbox instance.
         The newly created User record has been deleted, and the user will be asked to try signing up again.
         Here is the response from the Cloud Provisioner API: ${cloudProvisionerResponse}`
-       );
+      );
     } else {
       // Update the user's record with the fleetSandboxURL, fleetSandboxExpiresAt, and fleetSandboxKey.
       await User.updateOne({id: newUserRecord.id}).set({
