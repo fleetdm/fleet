@@ -6,6 +6,7 @@ import { AppContext } from "context/app";
 
 import TabsWrapper from "components/TabsWrapper";
 import MainContent from "components/MainContent";
+import classnames from "classnames";
 
 interface ISettingSubNavItem {
   name: string;
@@ -49,7 +50,7 @@ const SettingsWrapper = ({
   location: { pathname },
   router,
 }: ISettingsWrapperProp): JSX.Element => {
-  const { isPremiumTier } = useContext(AppContext);
+  const { isPremiumTier, isSandboxMode } = useContext(AppContext);
 
   if (isPremiumTier && settingsSubNav.length === 3) {
     settingsSubNav.push({
@@ -63,8 +64,13 @@ const SettingsWrapper = ({
     router.push(navPath);
   };
 
+  // we add a conditional sandbox-mode class here as we will need to make some
+  // styling changes on the settings page to have the sticky elements work
+  // with the sandbox mode expiry message
+  const classNames = classnames(baseClass, { "sandbox-mode": isSandboxMode });
+
   return (
-    <MainContent className={baseClass}>
+    <MainContent className={classNames}>
       <div className={`${baseClass}_wrapper`}>
         <TabsWrapper>
           <h1>Settings</h1>
