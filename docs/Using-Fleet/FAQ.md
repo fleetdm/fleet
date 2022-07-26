@@ -35,7 +35,6 @@
 
 To migrate to Fleet from Kolide Fleet, please follow the steps outlined in the Upgrading Fleet section of the documentation.
 
-Minor version upgrades in Kolide Fleet often included database migrations and the recommendation to back up the database before migrating. The same goes for the new Fleet.
 
 
 ## Has anyone stress tested Fleet? How many hosts can the Fleet server handle?
