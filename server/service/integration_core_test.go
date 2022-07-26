@@ -471,7 +471,6 @@ func (s *integrationTestSuite) TestVulnerableSoftware() {
 	}
 	require.NoError(t, s.ds.UpdateHostSoftware(context.Background(), host.ID, software))
 	require.NoError(t, s.ds.LoadHostSoftware(context.Background(), host, false))
-	require.NoError(t, s.ds.SyncHostsSoftware(context.Background(), time.Now()))
 
 	soft1 := host.Software[0]
 	if soft1.Name != "bar" {
@@ -522,11 +521,6 @@ func (s *integrationTestSuite) TestVulnerableSoftware() {
 	assert.Contains(t, string(bodyBytes), expectedJSONSoft2)
 	assert.Contains(t, string(bodyBytes), expectedJSONSoft1)
 
-	countReq := countSoftwareRequest{}
-	countResp := countSoftwareResponse{}
-	s.DoJSON("GET", "/api/latest/fleet/software/count", countReq, http.StatusOK, &countResp)
-	assert.Equal(t, 3, countResp.Count)
-
 	// no software host counts have been calculated yet, so this returns nothing
 	var lsResp listSoftwareResponse
 	resp = s.Do("GET", "/api/latest/fleet/software", nil, http.StatusOK, "vulnerable", "true", "order_key", "generated_cpe", "order_direction", "desc")
@@ -538,14 +532,19 @@ func (s *integrationTestSuite) TestVulnerableSoftware() {
 	require.Len(t, lsResp.Software, 0)
 	assert.Nil(t, lsResp.CountsUpdatedAt)
 
+	// calculate hosts counts
+	hostsCountTs := time.Now().UTC()
+	require.NoError(t, s.ds.SyncHostsSoftware(context.Background(), hostsCountTs))
+
+	countReq := countSoftwareRequest{}
+	countResp := countSoftwareResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/software/count", countReq, http.StatusOK, &countResp)
+	assert.Equal(t, 3, countResp.Count)
+
 	// the software/count endpoint is different, it doesn't care about hosts counts
 	countResp = countSoftwareResponse{}
 	s.DoJSON("GET", "/api/latest/fleet/software/count", countReq, http.StatusOK, &countResp, "vulnerable", "true", "order_key", "generated_cpe", "order_direction", "desc")
 	assert.Equal(t, 1, countResp.Count)
-
-	// calculate hosts counts
-	hostsCountTs := time.Now().UTC()
-	require.NoError(t, s.ds.SyncHostsSoftware(context.Background(), hostsCountTs))
 
 	// now the list software endpoint returns the software
 	lsResp = listSoftwareResponse{}
