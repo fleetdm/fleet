@@ -140,7 +140,7 @@ the account verification message.)`,
           return serverResponse.statusCode === 200;
         }
       }, 10000).intercept('tookTooLong', ()=>{
-        throw new Error('This newly provisioned Fleet Sandbox instance is taking too long to respond.')
+        throw new Error('This newly provisioned Fleet Sandbox instance is taking too long to respond.');
       });
     }
 
