@@ -1,4 +1,4 @@
-parasails.registerPage('log-into-fleet-sandbox-and-redirect', {
+parasails.registerPage('sandbox-teleporter', {
   //  ╦╔╗╔╦╔╦╗╦╔═╗╦    ╔═╗╔╦╗╔═╗╔╦╗╔═╗
   //  ║║║║║ ║ ║╠═╣║    ╚═╗ ║ ╠═╣ ║ ║╣
   //  ╩╝╚╝╩ ╩ ╩╩ ╩╩═╝  ╚═╝ ╩ ╩ ╩ ╩ ╚═╝
@@ -15,6 +15,7 @@ parasails.registerPage('log-into-fleet-sandbox-and-redirect', {
     //…
   },
   mounted: async function() {
+    // Confused?  Understandable, this approach is a bit unusual.  See this page's view action for more info on what this code is doing and why, as well as a link where you can read more information.
     document.forms['demologin'].submit();
   },
 

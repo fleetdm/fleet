@@ -1,4 +1,5 @@
-<div id="log-into-fleet-sandbox-and-redirect" v-cloak>
+<div id="sandbox-teleporter" v-cloak>
+  <!-- Confused?  Understandable, this approach is a bit unusual. See this page's view action for more info on what this code is doing and why, as well as a link where you can read more information. -->
   <form method="post" action="<%=me.fleetSandboxURL%>/api/latest/fleet/demologin" id="demologin">
     <input type="hidden" name="email" :value="me.emailAddress" />
     <input type="hidden" name="password" :value="me.fleetSandboxDemoKey" />
