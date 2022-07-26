@@ -2,6 +2,8 @@
 
 ## Headings
 
+The fewer " # " the larger the heading.
+
 | Markdown option one | Rendered heading |
 |:--------------------|:-----------------------------|
 | `# Heading 1` | <h1>Heading 1</h1> |
@@ -38,7 +40,6 @@ See the Markdown examples of unordered lists below.
 | `- 7\. What a lucky number.`  <br> `- It's nothing like 13.` |  <ul><li> 7\. What a lucky number.  </li><li> It's nothing like 13. </li></ul> |
 |`- Line one`  <br><br> &nbsp;&nbsp;&nbsp;&nbsp;`Your paragraph goes here.`  <br><br>   `- Line two` | <ul><li> Line one  </li></ul> &nbsp;&nbsp;&nbsp;&nbsp; Your paragraph goes here <br> <br><ul><li> Line two. </li></ul> |
 
-
 Nest lists inside other unordered lists using Markdown by including four spaces before each item you desire to indent.
 
 `- Line one `
@@ -49,7 +50,7 @@ Nest lists inside other unordered lists using Markdown by including four spaces 
   &nbsp;&nbsp;&nbsp;&nbsp;  `- Indent two`
 `- Line four`
 
-This is how it will render 
+This renders as 
 
 - Line one 
     - Indent one
