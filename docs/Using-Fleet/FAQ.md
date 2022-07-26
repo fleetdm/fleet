@@ -31,7 +31,7 @@
 - [How often is the software inventory updated?](#how-often-is-the-software-inventory-updated)
 - [Can I group results from multiple hosts?](#can-i-group-results-from-multiple-hosts)
 
-## Upgrading Fleet
+## How can I switch to Fleet from Kolide Fleet?
 
 To migrate to Fleet from Kolide Fleet, please follow the steps outlined in the Upgrading Fleet section of the documentation.
 
