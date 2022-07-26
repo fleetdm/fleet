@@ -30,10 +30,6 @@ module.exports = {
     badPassword: {
       description: `The provided password does not match the user's current password.`,
       responseType: 'unauthorized'
-    },
-
-    couldNotChangeSandboxPassword: {
-      description: 'An error occurred while changing this user\'s password on their Fleet sandbox instance',
     }
   },
 

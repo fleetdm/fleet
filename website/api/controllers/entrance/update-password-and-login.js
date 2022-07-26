@@ -34,11 +34,7 @@ module.exports = {
     invalidToken: {
       description: 'The provided password token is invalid, expired, or has already been used.',
       responseType: 'expired'
-    },
-
-    couldNotChangeSandboxPassword: {
-      description: 'An error occurred while resetting the password on this user\'s Fleet sandbox instance',
-    },
+    }
 
   },
 

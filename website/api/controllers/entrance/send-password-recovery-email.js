@@ -14,7 +14,7 @@ module.exports = {
       example: 'rydahl@example.com',
       type: 'string',
       required: true
-    },
+    }
 
   },
 
@@ -36,6 +36,7 @@ module.exports = {
     if (!userRecord) {
       return;
     }//•
+
     // Come up with a pseudorandom, probabilistically-unique token for use
     // in our password recovery email.
     var token = await sails.helpers.strings.random('url-friendly');
@@ -54,6 +55,7 @@ module.exports = {
       subject: 'Password reset instructions',
       template: 'email-reset-password',
       templateData: {
+        firstName: userRecord.firstName,
         token: token
       }
     });
