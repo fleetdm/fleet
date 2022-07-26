@@ -108,5 +108,21 @@ This renders as
 
 > *Important*: To avoid spam, we *NEVER* user mailto links in the handbook or docs.
 
+Constructing a table
+You'll want to begin by creating a header. Separate each column with a pipe "|" and separate rows by beginning a new line in markdown. Your header should look something like this:
+
+| Category one | Category two | Category three |
+The next line in Markdown contains no text. In between the pipes, add three or more dashes "---" to form a break. On either the left, right, or both sides you can add a colon ":" to specify left, right, or center alignment.
+
+```
+| Category one | Category two | Category three |
+|:---|---:|:---:|
+| Left alignment | Right alignment | Center Alignment |
+```
+
+| Category one &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; | Category two &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; | Category three  &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; |
+|:---|---:|:---:|
+| Left alignment | Right alignment | Center Alignment |
+
 <meta name="maintainedBy" value="mike-j-thomas">
 <meta name="title" value="Markdown-guide">
