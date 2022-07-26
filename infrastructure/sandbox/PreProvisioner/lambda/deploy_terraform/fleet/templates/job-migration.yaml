@@ -28,7 +28,7 @@ spec:
         command: [/usr/bin/fleet]
         args: ["prepare","db","--no-prompt"]
         image: fleetdm/fleet:{{ .Values.imageTag }}
-        imagePullPolicy: always
+        imagePullPolicy: Always
         resources:
           limits:
             cpu: {{ .Values.resources.limits.cpu }}
