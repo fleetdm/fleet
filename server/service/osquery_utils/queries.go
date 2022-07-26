@@ -14,6 +14,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/contexts/publicip"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/service/async"
 	"github.com/go-kit/kit/log"
 	"github.com/go-kit/kit/log/level"
 	"github.com/spf13/cast"
@@ -33,7 +34,12 @@ type DetailQuery struct {
 	IngestFunc func(ctx context.Context, logger log.Logger, host *fleet.Host, rows []map[string]string) error
 	// DirectIngestFunc gathers results from a query and directly works with the datastore to
 	// persist them. This is usually used for host data that is stored in a separate table.
+	// DirectTaskIngestFunc must not be set if this is set.
 	DirectIngestFunc func(ctx context.Context, logger log.Logger, host *fleet.Host, ds fleet.Datastore, rows []map[string]string, failed bool) error
+	// DirectTaskIngestFunc is similar to DirectIngestFunc except that it uses a task to
+	// ingest the results. This is for ingestion that can be either sync or async.
+	// DirectIngestFunc must not be set if this is set.
+	DirectTaskIngestFunc func(ctx context.Context, logger log.Logger, host *fleet.Host, task *async.Task, rows []map[string]string, failed bool) error
 }
 
 // RunsForPlatform determines whether this detail query should run on the given platform
@@ -458,7 +464,7 @@ var scheduledQueryStats = DetailQuery{
 			SELECT *,
 				(SELECT value from osquery_flags where name = 'pack_delimiter') AS delimiter
 			FROM osquery_schedule`,
-	DirectIngestFunc: directIngestScheduledQueryStats,
+	DirectTaskIngestFunc: directIngestScheduledQueryStats,
 }
 
 var softwareLinux = DetailQuery{
@@ -674,7 +680,7 @@ func directIngestOrbitInfo(ctx context.Context, logger log.Logger, host *fleet.H
 	return nil
 }
 
-func directIngestScheduledQueryStats(ctx context.Context, logger log.Logger, host *fleet.Host, ds fleet.Datastore, rows []map[string]string, failed bool) error {
+func directIngestScheduledQueryStats(ctx context.Context, logger log.Logger, host *fleet.Host, task *async.Task, rows []map[string]string, failed bool) error {
 	if failed {
 		level.Error(logger).Log("op", "directIngestScheduledQueryStats", "err", "failed")
 		return nil
@@ -742,9 +748,8 @@ func directIngestScheduledQueryStats(ctx context.Context, logger log.Logger, hos
 			},
 		)
 	}
-	// TODO(mna): pass the async task object to this function, and record the stats via the task instead.
-	if err := ds.SaveHostPackStats(ctx, host.ID, packStats); err != nil {
-		return ctxerr.Wrap(ctx, err, "save host pack stats")
+	if err := task.RecordScheduledQueryStats(ctx, host.ID, packStats, time.Now()); err != nil {
+		return ctxerr.Wrap(ctx, err, "record host pack stats")
 	}
 
 	return nil

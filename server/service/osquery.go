@@ -958,10 +958,16 @@ func (svc *Service) directIngestDetailQuery(ctx context.Context, host *fleet.Hos
 	if !ok {
 		return false, osqueryError{message: "unknown detail query " + name}
 	}
-	// TODO(mna): maybe add a DirectTaskIngestFunc and call it if set, with svc.task instead
-	// of svc.ds.
 	if query.DirectIngestFunc != nil {
 		err = query.DirectIngestFunc(ctx, svc.logger, host, svc.ds, rows, failed)
+		if err != nil {
+			return false, osqueryError{
+				message: fmt.Sprintf("ingesting query %s: %s", name, err.Error()),
+			}
+		}
+		return true, nil
+	} else if query.DirectTaskIngestFunc != nil {
+		err = query.DirectTaskIngestFunc(ctx, svc.logger, host, svc.task, rows, failed)
 		if err != nil {
 			return false, osqueryError{
 				message: fmt.Sprintf("ingesting query %s: %s", name, err.Error()),
