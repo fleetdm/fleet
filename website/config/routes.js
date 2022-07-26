@@ -26,6 +26,15 @@ module.exports.routes = {
     }
   },
 
+  'GET /fleetctl-preview': {
+    action: 'view-get-started',
+    locals: {
+      currentPage: 'get started',
+      pageTitleForMeta: 'fleetctl preview | Fleet for osquery'
+      pageDescriptionForMeta: 'Learn about getting started with Fleet using fleetctl.'
+    }
+  }
+
   'GET /pricing': {
     action: 'view-pricing',
     locals: {
@@ -186,7 +195,7 @@ module.exports.routes = {
   },
 
   'GET /try-fleet/sandbox': {
-    action: 'try-fleet/view-sandbox-or-redirect',
+    action: 'try-fleet/view-sandbox-teleporter-or-redirect-because-expired',
     locals: {
       layout: 'layouts/layout-sandbox',
     },
@@ -198,6 +207,7 @@ module.exports.routes = {
       layout: 'layouts/layout-sandbox',
     },
   },
+
 
   //  ╦  ╔═╗╔═╗╔═╗╔═╗╦ ╦  ╦═╗╔═╗╔╦╗╦╦═╗╔═╗╔═╗╔╦╗╔═╗
   //  ║  ║╣ ║ ╦╠═╣║  ╚╦╝  ╠╦╝║╣  ║║║╠╦╝║╣ ║   ║ ╚═╗
