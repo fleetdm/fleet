@@ -130,32 +130,14 @@ var hostDetailQueries = map[string]DetailQuery{
 				return nil
 			}
 
-			if strings.Contains(strings.ToLower(rows[0]["name"]), "ubuntu") {
-				// Ubuntu takes a different approach to updating patch IDs so we instead use
-				// the version string provided after removing the code name
-				regx := regexp.MustCompile(`\(.*\)`)
-				vers := regx.ReplaceAllString(rows[0]["version"], "")
-				host.OSVersion = fmt.Sprintf(
-					"%s %s",
-					rows[0]["name"],
-					strings.TrimSpace(vers),
-				)
-			} else if rows[0]["major"] != "0" || rows[0]["minor"] != "0" || rows[0]["patch"] != "0" {
-				host.OSVersion = fmt.Sprintf(
-					"%s %s.%s.%s",
-					rows[0]["name"],
-					rows[0]["major"],
-					rows[0]["minor"],
-					rows[0]["patch"],
-				)
-			} else {
-				host.OSVersion = fmt.Sprintf(
-					"%s %s",
-					rows[0]["name"],
-					rows[0]["build"],
-				)
-			}
-			host.OSVersion = strings.Trim(host.OSVersion, ".")
+			host.OSVersion = fmt.Sprintf("%v %v", rows[0]["name"], parseOSVersion(
+				rows[0]["name"],
+				rows[0]["version"],
+				rows[0]["major"],
+				rows[0]["minor"],
+				rows[0]["patch"],
+				rows[0]["build"],
+			))
 
 			if build, ok := rows[0]["build"]; ok {
 				host.Build = build
@@ -352,6 +334,9 @@ var extraDetailQueries = map[string]DetailQuery{
 		// osquery table on darwin (https://osquery.io/schema/5.3.0#battery), it is
 		// always present.
 	},
+	"os_windows":   osWindows,
+	"os_unix_like": osUnixLike,
+
 	OrbitInfoQueryName: OrbitInfoDetailQuery,
 }
 
@@ -616,6 +601,91 @@ var usersQuery = DetailQuery{
 	// was generated once for each user.
 	Query:            usersQueryStr,
 	DirectIngestFunc: directIngestUsers,
+}
+
+// osWindows defines the detail query for selected operating system data from hosts on a Windows platform
+var osWindows = DetailQuery{
+	Query:            `SELECT name, version, arch, kernel_version FROM ((SELECT name, arch FROM os_version) JOIN (SELECT data as version FROM registry WHERE path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\DisplayVersion')) JOIN (SELECT version as kernel_version FROM kernel_info)`,
+	Platforms:        []string{"windows"},
+	DirectIngestFunc: directIngestOSWindows,
+}
+
+// directIngestOSUnixLike ingests selected operating system data from a host on a Windows platform
+func directIngestOSWindows(ctx context.Context, logger log.Logger, host *fleet.Host, ds fleet.Datastore, rows []map[string]string, failed bool) error {
+	if failed {
+		level.Error(logger).Log("op", "directIngestOSWindows", "err", "failed")
+		return nil
+	}
+	if len(rows) != 1 {
+		return ctxerr.Errorf(ctx, "directIngestOSWindows invalid number of rows: %d", len(rows))
+	}
+
+	hostOS := fleet.OperatingSystem{
+		Name:          rows[0]["name"],
+		Version:       rows[0]["version"],
+		Arch:          rows[0]["arch"],
+		KernelVersion: rows[0]["kernel_version"],
+	}
+
+	if err := ds.UpdateHostOperatingSystem(ctx, host.ID, hostOS); err != nil {
+		return ctxerr.Wrap(ctx, err, "directIngestOSWindows update host operating system")
+	}
+	return nil
+}
+
+// osUnixLike defines the detail query for selected operating system data from a host on a Unix-like platform
+// (e.g., darwin or linux operating systems)
+var osUnixLike = DetailQuery{
+	Query:            `SELECT name, version, major, minor, patch, build, arch, kernel_version FROM os_version JOIN (SELECT version as kernel_version FROM kernel_info)`,
+	Platforms:        append(fleet.HostLinuxOSs, "darwin"),
+	DirectIngestFunc: directIngestOSUnixLike,
+}
+
+// directIngestOSUnixLike ingests selected operating system data from a host on a Unix-like platform
+// (e.g., darwin or linux operating systems)
+func directIngestOSUnixLike(ctx context.Context, logger log.Logger, host *fleet.Host, ds fleet.Datastore, rows []map[string]string, failed bool) error {
+	if failed {
+		level.Error(logger).Log("op", "directIngestOSUnixLike", "err", "failed")
+		return nil
+	}
+	if len(rows) != 1 {
+		return ctxerr.Errorf(ctx, "directIngestOSUnixLike invalid number of rows: %d", len(rows))
+	}
+	name := rows[0]["name"]
+	version := rows[0]["version"]
+	major := rows[0]["major"]
+	minor := rows[0]["minor"]
+	patch := rows[0]["patch"]
+	build := rows[0]["build"]
+	arch := rows[0]["arch"]
+	kernelVersion := rows[0]["kernel_version"]
+
+	hostOS := fleet.OperatingSystem{Name: name, Arch: arch, KernelVersion: kernelVersion}
+	hostOS.Version = parseOSVersion(name, version, major, minor, patch, build)
+
+	if err := ds.UpdateHostOperatingSystem(ctx, host.ID, hostOS); err != nil {
+		return ctxerr.Wrap(ctx, err, "directIngestOSUnixLike update host operating system")
+	}
+	return nil
+}
+
+// parseOSVersion returns a point release string for an operating system. Parsing rules
+// depend on available data, which varies between operating systems.
+func parseOSVersion(name string, version string, major string, minor string, patch string, build string) string {
+	var osVersion string
+	if strings.Contains(strings.ToLower(name), "ubuntu") {
+		// Ubuntu takes a different approach to updating patch IDs so we instead use
+		// the version string provided after removing the code name.
+		regx := regexp.MustCompile(`\(.*\)`)
+		osVersion = strings.TrimSpace(regx.ReplaceAllString(version, ""))
+	} else if major != "0" || minor != "0" || patch != "0" {
+		osVersion = fmt.Sprintf("%s.%s.%s", major, minor, patch)
+	} else {
+		osVersion = build
+	}
+	osVersion = strings.Trim(osVersion, ".")
+
+	return osVersion
 }
 
 func directIngestChromeProfiles(ctx context.Context, logger log.Logger, host *fleet.Host, ds fleet.Datastore, rows []map[string]string, failed bool) error {
