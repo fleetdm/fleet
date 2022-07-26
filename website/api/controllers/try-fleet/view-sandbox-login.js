@@ -1,7 +1,7 @@
 module.exports = {
 
 
-  friendlyName: 'View login',
+  friendlyName: 'View Sandbox login',
 
 
   description: 'Display the "Sandbox Login" page. Note: This page is the "login" page skinned for Fleet Sandbox.',
