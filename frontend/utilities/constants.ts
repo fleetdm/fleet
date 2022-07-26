@@ -208,6 +208,17 @@ export const MAX_OSQUERY_SCHEDULED_QUERY_INTERVAL = 604800;
 
 export const MIN_OSQUERY_VERSION_OPTIONS = [
   { label: "All", value: "" },
+  { label: "5.4.0 +", value: "5.4.0" },
+  { label: "5.3.0 +", value: "5.3.0" },
+  { label: "5.2.3 +", value: "5.2.4" },
+  { label: "5.2.2 +", value: "5.2.2" },
+  { label: "5.2.1 +", value: "5.2.1" },
+  { label: "5.2.0 +", value: "5.2.0" },
+  { label: "5.1.0 +", value: "5.1.0" },
+  { label: "5.0.1 +", value: "5.0.1" },
+  { label: "5.0.0 +", value: "5.0.0" },
+  { label: "4.9.0 +", value: "4.9.0" },
+  { label: "4.8.0 +", value: "4.8.0" },
   { label: "4.7.0 +", value: "4.7.0" },
   { label: "4.6.0 +", value: "4.6.0" },
   { label: "4.5.1 +", value: "4.5.1" },
