@@ -41,7 +41,7 @@ const RenderOSPolicyModal = ({
         .catch(() => setCopyMessage("Copy failed"));
 
       // Clear message after 1 second
-      setTimeout(() => setCopyMessage(""), 1000);
+      setTimeout(() => setCopyMessage(""), 6000);
 
       return false;
     };

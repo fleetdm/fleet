@@ -223,19 +223,14 @@
   .Select-placeholder {
     color: $core-fleet-blue;
     font-size: $small;
-    line-height: 36px;
-    padding: 0 $pad-medium;
+    line-height: 34px;
     box-sizing: border-box;
   }
   .Select-input {
     color: $core-fleet-blue;
     font-size: $small;
     box-sizing: border-box;
-
-    input {
-      line-height: 36px;
-      padding: 1px;
-    }
+    line-height: 34px;
   }
 
   &.Select--multi {
@@ -247,7 +242,6 @@
 
     .Select-multi-value-wrapper {
       flex-grow: 1;
-      padding: $pad-xsmall;
 
       .Select-value {
         margin-top: 2px;
