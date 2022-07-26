@@ -40,6 +40,7 @@ type MysqlConfig struct {
 	MaxIdleConns    int    `yaml:"max_idle_conns"`
 	ConnMaxLifetime int    `yaml:"conn_max_lifetime"`
 	SQLMode         string `yaml:"sql_mode"`
+	MultiStatements bool   `yaml:"multi_statements"`
 }
 
 // RedisConfig defines configs related to Redis
@@ -318,6 +319,77 @@ type PackagingConfig struct {
 	S3 S3Config `yaml:"s3"`
 }
 
+// MDMAppleConfig holds all the configuration for Apple MDM.
+type MDMAppleConfig struct {
+	// Enable enables MDM functionality on Fleet.
+	Enable bool
+
+	// SCEP holds the SCEP protocol and server configuration.
+	SCEP MDMAppleSCEPConfig
+	// MDM holds the MDM core protocol and server configuration.
+	MDM MDMAppleMDMConfig
+}
+
+// MDMAppleMDMConfig holds the Apple MDM core protocol and server configuration.
+type MDMAppleMDMConfig struct {
+	// PushCert contains the Apple Push Notification Service (APNS) certificate
+	PushCert MDMApplePushCert
+}
+
+// MDMApplePushCert holds the Apple Push Notification Service (APNS) certificate.
+type MDMApplePushCert struct {
+	// PEMCert contains the PEM-encoded certificate.
+	PEMCert []byte
+	// PEMKey contains the unencrypted PEM-encoded private key.
+	PEMKey []byte
+}
+
+// MDMAppleSCEPConfig holds SCEP protocol and server configuration.
+type MDMAppleSCEPConfig struct {
+	// CA holds all the configuration for the SCEP CA certificate.
+	CA SCEPCAConfig
+	// Signer holds the SCEP signer configuration.
+	Signer SCEPSignerConfig
+	// Challenge is the SCEP challenge for SCEP enrollment requests.
+	Challenge string
+}
+
+// SCEPSignerConfig holds the SCEP signer configuration.
+type SCEPSignerConfig struct {
+	// ValidityDays are the days signed client certificates will be valid.
+	ValidityDays int
+	// AllowRenewalDays are the allowable renewal days for certificates.
+	AllowRenewalDays int
+}
+
+// SCEPCAConfig holds SCEP CA certificate configuration.
+type SCEPCAConfig struct {
+	// Passphrase used to encrypt/decrypt the CA private key.
+	Passphrase string
+	// ValidityYears are the years the CA certificate will be valid.
+	//
+	// Value used only during setup (CA certificate creation).
+	ValidityYears int64
+	// CN is the Common Name to set in the CA certificate.
+	//
+	// Value used only during setup (CA certificate creation).
+	CN string
+	// Organization is the organization string
+	// to set in the CA certificate.
+	//
+	// Value used only during setup (CA certificate creation).
+	Organization string
+	// OrganizationUnit is the organization unit string
+	// to set in the CA certificate.
+	//
+	// Value used only during setup (CA certificate creation).
+	OrganizationalUnit string
+	// Country is the country to set in the CA certificate.
+	//
+	// Value used only during setup (CA certificate creation).
+	Country string
+}
+
 // FleetConfig stores the application configuration. Each subcategory is
 // broken up into it's own struct, defined above. When editing any of these
 // structs, Manager.addConfigs and Manager.LoadConfig should be
@@ -346,6 +418,7 @@ type FleetConfig struct {
 	GeoIP            GeoIPConfig
 	Prometheus       PrometheusConfig
 	Packaging        PackagingConfig
+	MDMApple         MDMAppleConfig
 }
 
 type TLS struct {
@@ -675,6 +748,22 @@ func (man Manager) addConfigs() {
 	man.addConfigString("packaging.s3.sts_assume_role_arn", "", "ARN of role to assume for AWS")
 	man.addConfigBool("packaging.s3.disable_ssl", false, "Disable SSL (typically for local testing)")
 	man.addConfigBool("packaging.s3.force_s3_path_style", false, "Set this to true to force path-style addressing, i.e., `http://s3.amazonaws.com/BUCKET/KEY`")
+
+	// MDM Apple config
+	man.addConfigBool("mdm.apple.enable", false, "Enable MDM Apple functionality")
+	// MDM Apple SCEP config
+	// TODO(lucas): Define proper default values for all the MDM configuration.
+	man.addConfigString("mdm.apple.scep.ca.passphrase", "", "Passphrase for encrypting/decrypting the SCEP CA private key")
+	man.addConfigInt("mdm.apple.scep.ca.years", 10, "Validity of the SCEP CA certificate in years")
+	man.addConfigString("mdm.apple.scep.ca.cn", "Fleet", "Common name to set in the SCEP CA certificate")
+	man.addConfigString("mdm.apple.scep.ca.organization", "Fleet", "Organization to set in the SCEP CA certificate")
+	man.addConfigString("mdm.apple.scep.ca.organizational_unit", "Fleet", "Organizational unit to set in the SCEP CA certificate")
+	man.addConfigString("mdm.apple.scep.ca.country", "United States", "Country to set in the SCEP CA certificate")
+	man.addConfigInt("mdm.apple.scep.signer.validity_days", 3650, "Days signed client certificates will be valid")
+	man.addConfigInt("mdm.apple.scep.signer.allow_renewal_days", 14, "Allowable renewal days for client certificates")
+	man.addConfigString("mdm.apple.scep.challenge", "", "SCEP static challenge for enrollment")
+	man.addConfigString("mdm.apple.mdm.push.cert_pem", "", "MDM APNS PEM-encoded certificate")
+	man.addConfigString("mdm.apple.mdm.push.key_pem", "", "MDM APNS PEM-encoded private key")
 }
 
 // LoadConfig will load the config variables into a fully initialized
@@ -881,6 +970,30 @@ func (man Manager) LoadConfig() FleetConfig {
 				StsAssumeRoleArn: man.getConfigString("packaging.s3.sts_assume_role_arn"),
 				DisableSSL:       man.getConfigBool("packaging.s3.disable_ssl"),
 				ForceS3PathStyle: man.getConfigBool("packaging.s3.force_s3_path_style"),
+			},
+		},
+		MDMApple: MDMAppleConfig{
+			Enable: man.getConfigBool("mdm.apple.enable"),
+			SCEP: MDMAppleSCEPConfig{
+				CA: SCEPCAConfig{
+					Passphrase:         man.getConfigString("mdm.apple.scep.ca.passphrase"),
+					ValidityYears:      int64(man.getConfigInt("mdm.apple.scep.ca.years")),
+					CN:                 man.getConfigString("mdm.apple.scep.ca.cn"),
+					Organization:       man.getConfigString("mdm.apple.scep.ca.organization"),
+					OrganizationalUnit: man.getConfigString("mdm.apple.scep.ca.organizational_unit"),
+					Country:            man.getConfigString("mdm.apple.scep.ca.country"),
+				},
+				Signer: SCEPSignerConfig{
+					ValidityDays:     man.getConfigInt("mdm.apple.scep.signer.validity_days"),
+					AllowRenewalDays: man.getConfigInt("mdm.apple.scep.signer.allow_renewal_days"),
+				},
+				Challenge: man.getConfigString("mdm.apple.scep.challenge"),
+			},
+			MDM: MDMAppleMDMConfig{
+				PushCert: MDMApplePushCert{
+					PEMCert: []byte(man.getConfigString("mdm.apple.mdm.push.cert_pem")),
+					PEMKey:  []byte(man.getConfigString("mdm.apple.mdm.push.key_pem")),
+				},
 			},
 		},
 	}

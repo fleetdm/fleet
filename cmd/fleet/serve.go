@@ -1,14 +1,18 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"crypto/sha256"
 	"crypto/subtle"
 	"crypto/tls"
+	"crypto/x509"
 	"database/sql/driver"
+	"encoding/pem"
 	"errors"
 	"fmt"
 	"io/ioutil"
+	stdlog "log"
 	"math/rand"
 	"net"
 	"net/http"
@@ -18,6 +22,7 @@ import (
 	"regexp"
 	"strings"
 	"syscall"
+	"text/template"
 	"time"
 
 	"github.com/WatchBeam/clock"
@@ -46,10 +51,22 @@ import (
 	"github.com/fleetdm/fleet/v4/server/service/redis_policy_set"
 	"github.com/fleetdm/fleet/v4/server/sso"
 	"github.com/getsentry/sentry-go"
+	"github.com/go-kit/kit/log"
 	kitlog "github.com/go-kit/kit/log"
 	"github.com/go-kit/kit/log/level"
 	kitprometheus "github.com/go-kit/kit/metrics/prometheus"
 	"github.com/kolide/kit/version"
+	"github.com/micromdm/nanomdm/certverify"
+	nanomdm_httpapi "github.com/micromdm/nanomdm/http/api"
+	httpmdm "github.com/micromdm/nanomdm/http/mdm"
+	nanomdm_stdlogfmt "github.com/micromdm/nanomdm/log/stdlogfmt"
+	"github.com/micromdm/nanomdm/push/buford"
+	nanomdm_pushsvc "github.com/micromdm/nanomdm/push/service"
+	nanomdm_service "github.com/micromdm/nanomdm/service"
+	"github.com/micromdm/nanomdm/service/certauth"
+	"github.com/micromdm/nanomdm/service/nanomdm"
+	"github.com/micromdm/scep/v2/depot"
+	scepserver "github.com/micromdm/scep/v2/server"
 	"github.com/ngrok/sqlmw"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
@@ -194,11 +211,13 @@ the way that the Fleet server works.
 			if config.Logging.TracingEnabled {
 				opts = append(opts, mysql.TracingEnabled(&config.Logging))
 			}
+			opts = append(opts, mysql.WithMDMApple(config.MDMApple.Enable))
 
-			ds, err = mysql.New(config.Mysql, clock.C, opts...)
+			mds, err := mysql.New(config.Mysql, clock.C, opts...)
 			if err != nil {
 				initFatal(err, "initializing datastore")
 			}
+			ds = mds
 
 			if config.S3.Bucket != "" {
 				carveStore, err = s3.NewCarveStore(config.S3, ds)
@@ -222,50 +241,14 @@ the way that the Fleet server works.
 				initFatal(err, "retrieving migration status")
 			}
 
-			switch migrationStatus.StatusCode {
-			case fleet.AllMigrationsCompleted:
-				// OK
-			case fleet.UnknownMigrations:
-				fmt.Printf("################################################################################\n"+
-					"# WARNING:\n"+
-					"#   Your Fleet database has unrecognized migrations. This could happen when\n"+
-					"#   running an older version of Fleet on a newer migrated database.\n"+
-					"#\n"+
-					"#   Unknown migrations: tables=%v, data=%v.\n"+
-					"################################################################################\n",
-					migrationStatus.UnknownTable, migrationStatus.UnknownData)
-				if dev {
-					os.Exit(1)
-				}
-			case fleet.SomeMigrationsCompleted:
-				fmt.Printf("################################################################################\n"+
-					"# WARNING:\n"+
-					"#   Your Fleet database is missing required migrations. This is likely to cause\n"+
-					"#   errors in Fleet.\n"+
-					"#\n"+
-					"#   Missing migrations: tables=%v, data=%v.\n"+
-					"#\n"+
-					"#   Run `%s prepare db` to perform migrations.\n"+
-					"#\n"+
-					"#   To run the server without performing migrations:\n"+
-					"#     - Set environment variable FLEET_UPGRADES_ALLOW_MISSING_MIGRATIONS=1, or,\n"+
-					"#     - Set config updates.allow_mising_migrations to true, or,\n"+
-					"#     - Use command line argument --upgrades_allow_missing_migrations=true\n"+
-					"################################################################################\n",
-					migrationStatus.MissingTable, migrationStatus.MissingData, os.Args[0])
-				if !config.Upgrades.AllowMissingMigrations {
-					os.Exit(1)
-				}
-			case fleet.NoMigrationsCompleted:
-				fmt.Printf("################################################################################\n"+
-					"# ERROR:\n"+
-					"#   Your Fleet database is not initialized. Fleet cannot start up.\n"+
-					"#\n"+
-					"#   Run `%s prepare db` to initialize the database.\n"+
-					"################################################################################\n",
-					os.Args[0])
-				os.Exit(1)
+			migrationStatusCheck(migrationStatus, config.Upgrades.AllowMissingMigrations, dev, "fleet")
+
+			mdmAppleMigrationStatus, err := mds.MigrationMDMAppleStatus(cmd.Context())
+			if err != nil {
+				initFatal(err, "retrieving mdm apple migration status")
 			}
+
+			migrationStatusCheck(mdmAppleMigrationStatus, config.Upgrades.AllowMissingMigrations, dev, "mdm_apple")
 
 			if initializingDS, ok := ds.(initializer); ok {
 				if err := initializingDS.Initialize(); err != nil {
@@ -494,6 +477,127 @@ the way that the Fleet server works.
 			rootMux.Handle("/version", service.PrometheusMetricsHandler("version", version.Handler()))
 			rootMux.Handle("/assets/", service.PrometheusMetricsHandler("static_assets", service.ServeStaticAssets("/assets/")))
 
+			if config.MDMApple.Enable {
+				// (1) SCEP
+				scepCAKeyPassphrase := []byte(config.MDMApple.SCEP.CA.Passphrase)
+				if len(scepCAKeyPassphrase) == 0 {
+					err := errors.New("missing passphrase for SCEP CA private key")
+					initFatal(err, "initialize mdm apple scep depot")
+				}
+				mdmAppleSCEPDepot, err := mds.NewMDMAppleSCEPDepot()
+				if err != nil {
+					initFatal(err, "initialize mdm apple scep depot")
+				}
+				scepCACrt, scepCAKey, err := mdmAppleSCEPDepot.LoadCA(scepCAKeyPassphrase)
+				if err != nil {
+					initFatal(err, "initialize mdm apple scep depot CA")
+				}
+				var signer scepserver.CSRSigner = depot.NewSigner(
+					mdmAppleSCEPDepot,
+					depot.WithCAPass(string(scepCAKeyPassphrase)),
+					depot.WithValidityDays(config.MDMApple.SCEP.Signer.ValidityDays),
+					depot.WithAllowRenewalDays(config.MDMApple.SCEP.Signer.AllowRenewalDays),
+				)
+				scepChallenge := config.MDMApple.SCEP.Challenge
+				if scepChallenge == "" {
+					err := errors.New("missing SCEP challenge")
+					initFatal(err, "initialize mdm apple scep service")
+				}
+				signer = scepserver.ChallengeMiddleware(scepChallenge, signer)
+				scepService, err := scepserver.NewService(scepCACrt, scepCAKey, signer,
+					scepserver.WithLogger(kitlog.With(logger, "component", "mdm-apple-scep")),
+				)
+				if err != nil {
+					initFatal(err, "initialize mdm apple scep service")
+				}
+				scepLogger := log.With(logger, "component", "http-mdm-apple-scep")
+				e := scepserver.MakeServerEndpoints(scepService)
+				e.GetEndpoint = scepserver.EndpointLoggingMiddleware(scepLogger)(e.GetEndpoint)
+				e.PostEndpoint = scepserver.EndpointLoggingMiddleware(scepLogger)(e.PostEndpoint)
+				scepHandler := scepserver.MakeHTTPHandler(e, scepService, scepLogger)
+				rootMux.Handle("/mdm/apple/scep", scepHandler)
+
+				// (2) MDM Core (for devices)
+				// TODO(lucas): Using bare minimum to run MDM in Fleet. Revisit
+				// https://github.com/micromdm/nanomdm/blob/92c977e42859ba56e73d1fc2377732a9ab6e5e01/cmd/nanomdm/main.go
+				// to allow for more configuration/options.
+				scepCAPEMBlock := &pem.Block{
+					Type:  "CERTIFICATE",
+					Bytes: scepCACrt.Raw,
+				}
+				scepCAPEM := pem.EncodeToMemory(scepCAPEMBlock)
+				certVerifier, err := certverify.NewPoolVerifier(scepCAPEM, x509.ExtKeyUsageClientAuth)
+				if err != nil {
+					initFatal(err, "initialize mdm apple certificate pool verifier")
+				}
+				mdmStorage, err := mds.NewMDMAppleMDMStorage()
+				if err != nil {
+					initFatal(err, "initialize mdm apple MySQL storage")
+				}
+				mdmLogger := nanomdm_stdlogfmt.New(
+					nanomdm_stdlogfmt.WithLogger(
+						stdlog.New(
+							log.NewStdlibAdapter(
+								log.With(logger, "component", "http-mdm-apple-mdm")),
+							"", stdlog.LstdFlags,
+						),
+					),
+					nanomdm_stdlogfmt.WithDebugFlag(config.Logging.Debug),
+				)
+				nanomdmService := nanomdm.New(mdmStorage, nanomdm.WithLogger(mdmLogger))
+				var mdmService nanomdm_service.CheckinAndCommandService = nanomdmService
+				mdmService = certauth.New(mdmService, mdmStorage)
+				var mdmHandler http.Handler
+				mdmHandler = httpmdm.CheckinAndCommandHandler(mdmService, mdmLogger.With("handler", "checkin-command"))
+				mdmHandler = httpmdm.CertVerifyMiddleware(mdmHandler, certVerifier, mdmLogger.With("handler", "cert-verify"))
+				mdmHandler = httpmdm.CertExtractMdmSignatureMiddleware(mdmHandler, mdmLogger.With("handler", "cert-extract"))
+				rootMux.Handle("/mdm/apple/mdm", mdmHandler)
+
+				// (3) MDM Admin API
+				// TODO(lucas): None of the API endpoints have authentication yet.
+				// We should use Fleet admin bearer token authentication.
+				const (
+					endpointAPIPushCert = "/mdm/apple/api/v1/pushcert"
+					endpointAPIPush     = "/mdm/apple/api/v1/push/"
+					endpointAPIEnqueue  = "/mdm/apple/api/v1/enqueue/"
+				)
+				pushProviderFactory := buford.NewPushProviderFactory()
+				pushService := nanomdm_pushsvc.New(mdmStorage, mdmStorage, pushProviderFactory, mdmLogger.With("service", "push"))
+				pushCertHandler := nanomdm_httpapi.StorePushCertHandler(mdmStorage, mdmLogger.With("handler", "store-cert"))
+				rootMux.Handle(endpointAPIPushCert, pushCertHandler)
+				var pushHandler http.Handler
+				pushHandler = nanomdm_httpapi.PushHandler(pushService, mdmLogger.With("handler", "push"))
+				pushHandler = http.StripPrefix(endpointAPIPush, pushHandler)
+				rootMux.Handle(endpointAPIPush, pushHandler)
+				var enqueueHandler http.Handler
+				enqueueHandler = nanomdm_httpapi.RawCommandEnqueueHandler(mdmStorage, pushService, mdmLogger.With("handler", "enqueue"))
+				enqueueHandler = http.StripPrefix(endpointAPIEnqueue, enqueueHandler)
+				rootMux.Handle(endpointAPIEnqueue, enqueueHandler)
+
+				// (3) Host .mobileconfig enroll profile
+				// TODO(lucas): The enroll profile must be protected by SSO. Currently the endpoint is unauthenticated.
+				topic, err := mdmStorage.CurrentTopic(ctx)
+				if err != nil {
+					initFatal(err, "loading MDM Push certificate topic")
+				}
+				mobileConfig, err := generateMobileConfig(
+					"https://"+config.Server.Address+"/mdm/apple/scep",
+					"https://"+config.Server.Address+"/mdm/apple/mdm",
+					scepChallenge,
+					topic,
+				)
+				if err != nil {
+					initFatal(err, "generating .mobileconfig enroll profile")
+				}
+				rootMux.HandleFunc("/mdm/apple/api/enroll", func(w http.ResponseWriter, r *http.Request) {
+					w.Header().Add("Content-Type", "application/x-apple-aspen-config")
+					_, err := w.Write(mobileConfig)
+					if err != nil {
+						log.With(logger, "handler", "enroll-profile").Log("err", err)
+					}
+				})
+			}
+
 			if config.Prometheus.BasicAuth.Username != "" && config.Prometheus.BasicAuth.Password != "" {
 				metricsHandler := basicAuthHandler(config.Prometheus.BasicAuth.Username, config.Prometheus.BasicAuth.Password, service.PrometheusMetricsHandler("metrics", promhttp.Handler()))
 				rootMux.Handle("/metrics", metricsHandler)
@@ -626,6 +730,103 @@ the way that the Fleet server works.
 	return serveCmd
 }
 
+// mobileConfigTemplate is the template Fleet uses to assemble a .mobileconfig enroll profile to serve to devices.
+//
+// TODO(lucas): Tweak the remaining configuration.
+// Downloaded from:
+// https://github.com/micromdm/nanomdm/blob/3b1eb0e4e6538b6644633b18dedc6d8645853cb9/docs/enroll.mobileconfig
+//
+// TODO(lucas): Support enroll profile signing?
+var mobileConfigTemplate = template.Must(template.New(".mobileconfig").Parse(`
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>PayloadContent</key>
+	<array>
+		<dict>
+			<key>PayloadContent</key>
+			<dict>
+				<key>Key Type</key>
+				<string>RSA</string>
+				<key>Challenge</key>
+				<string>{{ .SCEPChallenge }}</string>
+				<key>Key Usage</key>
+				<integer>5</integer>
+				<key>Keysize</key>
+				<integer>2048</integer>
+				<key>URL</key>
+				<string>{{ .SCEPServerURL }}</string>
+			</dict>
+			<key>PayloadIdentifier</key>
+			<string>com.github.micromdm.scep</string>
+			<key>PayloadType</key>
+			<string>com.apple.security.scep</string>
+			<key>PayloadUUID</key>
+			<string>CB90E976-AD44-4B69-8108-8095E6260978</string>
+			<key>PayloadVersion</key>
+			<integer>1</integer>
+		</dict>
+		<dict>
+			<key>AccessRights</key>
+			<integer>8191</integer>
+			<key>CheckOutWhenRemoved</key>
+			<true/>
+			<key>IdentityCertificateUUID</key>
+			<string>CB90E976-AD44-4B69-8108-8095E6260978</string>
+			<key>PayloadIdentifier</key>
+			<string>com.github.micromdm.nanomdm.mdm</string>
+			<key>PayloadType</key>
+			<string>com.apple.mdm</string>
+			<key>PayloadUUID</key>
+			<string>96B11019-B54C-49DC-9480-43525834DE7B</string>
+			<key>PayloadVersion</key>
+			<integer>1</integer>
+			<key>ServerCapabilities</key>
+			<array>
+				<string>com.apple.mdm.per-user-connections</string>
+			</array>
+			<key>ServerURL</key>
+			<string>{{ .MDMServerURL }}</string>
+			<key>SignMessage</key>
+			<true/>
+			<key>Topic</key>
+			<string>{{ .Topic }}</string>
+		</dict>
+	</array>
+	<key>PayloadDisplayName</key>
+	<string>Enrollment Profile</string>
+	<key>PayloadIdentifier</key>
+	<string>com.github.micromdm.nanomdm</string>
+	<key>PayloadScope</key>
+	<string>System</string>
+	<key>PayloadType</key>
+	<string>Configuration</string>
+	<key>PayloadUUID</key>
+	<string>F9760DD4-F2D1-4F29-8D2C-48D52DD0A9B3</string>
+	<key>PayloadVersion</key>
+	<integer>1</integer>
+</dict>
+</plist>`))
+
+func generateMobileConfig(scepServerURL, mdmServerURL, scepChallenge, topic string) ([]byte, error) {
+	var contents bytes.Buffer
+	if err := mobileConfigTemplate.Execute(&contents, struct {
+		SCEPServerURL string
+		MDMServerURL  string
+		SCEPChallenge string
+		Topic         string
+	}{
+		SCEPServerURL: scepServerURL,
+		MDMServerURL:  mdmServerURL,
+		SCEPChallenge: scepChallenge,
+		Topic:         topic,
+	}); err != nil {
+		return nil, fmt.Errorf("execute template: %w", err)
+	}
+	return contents.Bytes(), nil
+}
+
 // basicAuthHandler wraps the given handler behind HTTP Basic Auth.
 func basicAuthHandler(username, password string, next http.Handler) http.HandlerFunc {
 	hashFn := func(s string) []byte {
@@ -649,6 +850,57 @@ func basicAuthHandler(username, password string, next http.Handler) http.Handler
 
 		w.Header().Set("WWW-Authenticate", `Basic realm="restricted", charset="UTF-8"`)
 		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+	}
+}
+
+// migrationStatusCheck checks the status of the db migrations, prints warnings to stdout and
+// exits if db migrations are not in the correct state.
+//
+// This method is to be used by fleet cli commands (prints messages to stdout).
+func migrationStatusCheck(status *fleet.MigrationStatus, allowMissingMigrations, dev bool, dbName string) {
+	switch status.StatusCode {
+	case fleet.AllMigrationsCompleted:
+		// OK
+	case fleet.UnknownMigrations:
+		fmt.Printf("################################################################################\n"+
+			"# WARNING:\n"+
+			"#   Your %q database has unrecognized migrations. This could happen when\n"+
+			"#   running an older version of Fleet on a newer migrated database.\n"+
+			"#\n"+
+			"#   Unknown migrations: tables=%v, data=%v.\n"+
+			"################################################################################\n",
+			dbName, status.UnknownTable, status.UnknownData)
+		if dev {
+			os.Exit(1)
+		}
+	case fleet.SomeMigrationsCompleted:
+		fmt.Printf("################################################################################\n"+
+			"# WARNING:\n"+
+			"#   Your %q database is missing required migrations. This is likely to cause\n"+
+			"#   errors in Fleet.\n"+
+			"#\n"+
+			"#   Missing migrations: tables=%v, data=%v.\n"+
+			"#\n"+
+			"#   Run `%s prepare db` to perform migrations.\n"+
+			"#\n"+
+			"#   To run the server without performing migrations:\n"+
+			"#     - Set environment variable FLEET_UPGRADES_ALLOW_MISSING_MIGRATIONS=1, or,\n"+
+			"#     - Set config updates.allow_mising_migrations to true, or,\n"+
+			"#     - Use command line argument --upgrades_allow_missing_migrations=true\n"+
+			"################################################################################\n",
+			dbName, status.MissingTable, status.MissingData, os.Args[0])
+		if !allowMissingMigrations {
+			os.Exit(1)
+		}
+	case fleet.NoMigrationsCompleted:
+		fmt.Printf("################################################################################\n"+
+			"# ERROR:\n"+
+			"#   Your %q database is not initialized. Fleet cannot start up.\n"+
+			"#\n"+
+			"#   Run `%s prepare db` to initialize the database.\n"+
+			"################################################################################\n",
+			dbName, os.Args[0])
+		os.Exit(1)
 	}
 }
 

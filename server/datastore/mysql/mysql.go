@@ -22,15 +22,19 @@ import (
 	"github.com/doug-martin/goqu/v9/exp"
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
+	mdm_apple_migrations_data "github.com/fleetdm/fleet/v4/server/datastore/mysql/mdm_apple_migrations/data"
+	mdm_apple_migrations_tables "github.com/fleetdm/fleet/v4/server/datastore/mysql/mdm_apple_migrations/tables"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql/migrations/data"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql/migrations/tables"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/mdm/apple/scep/scep_mysql"
 	"github.com/fleetdm/goose"
 	"github.com/go-kit/kit/log"
 	"github.com/go-kit/kit/log/level"
 	"github.com/go-sql-driver/mysql"
 	"github.com/hashicorp/go-multierror"
 	"github.com/jmoiron/sqlx"
+	nanomdm_mysql "github.com/micromdm/nanomdm/storage/mysql"
 	"github.com/ngrok/sqlmw"
 	semconv "go.opentelemetry.io/otel/semconv/v1.4.0"
 )
@@ -55,8 +59,9 @@ type dbReader interface {
 // Datastore is an implementation of fleet.Datastore interface backed by
 // MySQL
 type Datastore struct {
-	reader dbReader // so it cannot be used to perform writes
-	writer *sqlx.DB
+	reader         dbReader // so it cannot be used to perform writes
+	writer         *sqlx.DB
+	appleMDMWriter *sqlx.DB
 
 	logger log.Logger
 	clock  clock.Clock
@@ -100,6 +105,69 @@ func (ds *Datastore) loadOrPrepareStmt(ctx context.Context, query string) *sqlx.
 		ds.stmtCache[query] = stmt
 	}
 	return stmt
+}
+
+// NewMDMAppleSCEPDepot returns a *scep_mysql.MySQLDepot that uses the Datastore
+// underlying MySQL writer *sql.DB.
+//
+// TODO(lucas): Discuss alternative approaches.
+func (ds *Datastore) NewMDMAppleSCEPDepot() (*scep_mysql.MySQLDepot, error) {
+	s, err := scep_mysql.NewMySQLDepot(ds.appleMDMWriter.DB)
+	if err != nil {
+		return nil, err
+	}
+	return s, nil
+}
+
+// NewMDMAppleMDMStorage retursn a *nanomdm_mysql.MySQLStorage that uses the Datastore
+// underlying MySQL writer *sql.DB.
+//
+// TODO(lucas): Discuss alternative approaches.
+func (ds *Datastore) NewMDMAppleMDMStorage() (*NanoMDMStorage, error) {
+	s, err := nanomdm_mysql.New(nanomdm_mysql.WithDB(ds.appleMDMWriter.DB))
+	if err != nil {
+		return nil, err
+	}
+	return &NanoMDMStorage{
+		MySQLStorage: s,
+		dbWriter:     ds.appleMDMWriter.DB,
+	}, nil
+}
+
+// NanoMDMStorage wraps a *nanomdm_mysql.MySQLStorage and implements further functionality.
+type NanoMDMStorage struct {
+	*nanomdm_mysql.MySQLStorage
+	dbWriter *sql.DB
+}
+
+// SetCurrentTopic sets the current MDM Push Certificate topic to use.
+func (n *NanoMDMStorage) SetCurrentTopic(ctx context.Context, topic string) error {
+	_, err := n.dbWriter.ExecContext(ctx, `
+INSERT INTO mdm_apple_current_push_topic
+	(topic) 
+VALUES 
+	(?)
+ON DUPLICATE KEY UPDATE
+	topic = VALUES(topic)`,
+		topic,
+	)
+	return err
+}
+
+// CurrentTopic returns the current MDM Push Certificate topic in use.
+//
+// Returns a fleet.NotFoundError if there isn't one set.
+func (n *NanoMDMStorage) CurrentTopic(ctx context.Context) (string, error) {
+	var topic string
+	if err := n.dbWriter.QueryRowContext(ctx,
+		`SELECT topic from mdm_apple_current_push_topic`,
+	).Scan(&topic); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return "", notFound("topic")
+		}
+		return "", err
+	}
+	return topic, nil
 }
 
 type txFn func(sqlx.ExtContext) error
@@ -254,9 +322,20 @@ func New(config config.MysqlConfig, c clock.Clock, opts ...DBOption) (*Datastore
 		}
 	}
 
+	var dbAppleMDMWriter *sqlx.DB
+	if options.mdmApple {
+		configMDMApple := config
+		configMDMApple.Database = "mdm_apple"
+		dbAppleMDMWriter, err = newDB(&configMDMApple, options)
+		if err != nil {
+			return nil, err
+		}
+	}
+
 	ds := &Datastore{
 		writer:              dbWriter,
 		reader:              dbReader,
+		appleMDMWriter:      dbAppleMDMWriter,
 		logger:              options.logger,
 		clock:               c,
 		config:              config,
@@ -322,6 +401,9 @@ func newDB(conf *config.MysqlConfig, opts *dbOptions) (*sqlx.DB, error) {
 	if opts.sqlMode != "" {
 		conf.SQLMode = opts.sqlMode
 	}
+	if opts.multiStatements {
+		conf.MultiStatements = true
+	}
 
 	dsn := generateMysqlConnectionString(*conf)
 	db, err := sqlx.Open(driverName, dsn)
@@ -386,23 +468,33 @@ func (ds *Datastore) MigrateData(ctx context.Context) error {
 	return data.MigrationClient.Up(ds.writer.DB, "")
 }
 
+func (ds *Datastore) MigrateMDMAppleTables(ctx context.Context) error {
+	return mdm_apple_migrations_tables.MigrationClient.Up(ds.appleMDMWriter.DB, "")
+}
+
+func (ds *Datastore) MigrateMDMAppleData(ctx context.Context) error {
+	return mdm_apple_migrations_data.MigrationClient.Up(ds.appleMDMWriter.DB, "")
+}
+
 // loadMigrations manually loads the applied migrations in ascending
 // order (goose doesn't provide such functionality).
 //
 // Returns two lists of version IDs (one for "table" and one for "data").
 func (ds *Datastore) loadMigrations(
 	ctx context.Context,
+	writer *sql.DB,
+	reader dbReader,
 ) (tableRecs []int64, dataRecs []int64, err error) {
 	// We need to run the following to trigger the creation of the migration status tables.
-	tables.MigrationClient.GetDBVersion(ds.writer.DB)
-	data.MigrationClient.GetDBVersion(ds.writer.DB)
+	tables.MigrationClient.GetDBVersion(writer)
+	data.MigrationClient.GetDBVersion(writer)
 	// version_id > 0 to skip the bootstrap migration that creates the migration tables.
-	if err := sqlx.SelectContext(ctx, ds.reader, &tableRecs,
+	if err := sqlx.SelectContext(ctx, reader, &tableRecs,
 		"SELECT version_id FROM "+tables.MigrationClient.TableName+" WHERE version_id > 0 AND is_applied ORDER BY id ASC",
 	); err != nil {
 		return nil, nil, err
 	}
-	if err := sqlx.SelectContext(ctx, ds.reader, &dataRecs,
+	if err := sqlx.SelectContext(ctx, reader, &dataRecs,
 		"SELECT version_id FROM "+data.MigrationClient.TableName+" WHERE version_id > 0 AND is_applied ORDER BY id ASC",
 	); err != nil {
 		return nil, nil, err
@@ -413,29 +505,39 @@ func (ds *Datastore) loadMigrations(
 // MigrationStatus will return the current status of the migrations
 // comparing the known migrations in code and the applied migrations in the database.
 //
-// It assumes some deployments may perform migrations out of order.
+// It assumes some deployments may have performed migrations out of order.
 func (ds *Datastore) MigrationStatus(ctx context.Context) (*fleet.MigrationStatus, error) {
 	if tables.MigrationClient.Migrations == nil || data.MigrationClient.Migrations == nil {
 		return nil, errors.New("unexpected nil migrations list")
 	}
-	appliedTable, appliedData, err := ds.loadMigrations(ctx)
+	appliedTable, appliedData, err := ds.loadMigrations(ctx, ds.writer.DB, ds.reader)
 	if err != nil {
 		return nil, fmt.Errorf("cannot load migrations: %w", err)
 	}
+	return compareMigrations(
+		tables.MigrationClient.Migrations,
+		data.MigrationClient.Migrations,
+		appliedTable,
+		appliedData,
+	), nil
+}
+
+//
+//
+// It assumes some deployments may have performed migrations out of order.
+func compareMigrations(knownTable goose.Migrations, knownData goose.Migrations, appliedTable, appliedData []int64) *fleet.MigrationStatus {
 	if len(appliedTable) == 0 && len(appliedData) == 0 {
 		return &fleet.MigrationStatus{
 			StatusCode: fleet.NoMigrationsCompleted,
-		}, nil
+		}
 	}
 
-	knownTable := tables.MigrationClient.Migrations
 	missingTable, unknownTable, equalTable := compareVersions(
 		getVersionsFromMigrations(knownTable),
 		appliedTable,
 		knownUnknownTableMigrations,
 	)
 
-	knownData := data.MigrationClient.Migrations
 	missingData, unknownData, equalData := compareVersions(
 		getVersionsFromMigrations(knownData),
 		appliedData,
@@ -445,7 +547,7 @@ func (ds *Datastore) MigrationStatus(ctx context.Context) (*fleet.MigrationStatu
 	if equalData && equalTable {
 		return &fleet.MigrationStatus{
 			StatusCode: fleet.AllMigrationsCompleted,
-		}, nil
+		}
 	}
 
 	// The following code assumes there cannot be migrations missing on
@@ -455,7 +557,7 @@ func (ds *Datastore) MigrationStatus(ctx context.Context) (*fleet.MigrationStatu
 			StatusCode:   fleet.UnknownMigrations,
 			UnknownTable: unknownTable,
 			UnknownData:  unknownData,
-		}, nil
+		}
 	}
 
 	// len(missingTable) > 0 || len(missingData) > 0
@@ -463,7 +565,24 @@ func (ds *Datastore) MigrationStatus(ctx context.Context) (*fleet.MigrationStatu
 		StatusCode:   fleet.SomeMigrationsCompleted,
 		MissingTable: missingTable,
 		MissingData:  missingData,
-	}, nil
+	}
+}
+
+// MigrationMDMAppleStatus returns the current status of the MDM Apple migrations
+// comparing the known migrations in code and the applied migrations in the database.
+//
+// It assumes some deployments may have performed migrations out of order.
+func (ds *Datastore) MigrationMDMAppleStatus(ctx context.Context) (*fleet.MigrationStatus, error) {
+	appliedTable, appliedData, err := ds.loadMigrations(ctx, ds.appleMDMWriter.DB, ds.appleMDMWriter)
+	if err != nil {
+		return nil, fmt.Errorf("cannot load migrations: %w", err)
+	}
+	return compareMigrations(
+		mdm_apple_migrations_tables.MigrationClient.Migrations,
+		mdm_apple_migrations_data.MigrationClient.Migrations,
+		appliedTable,
+		appliedData,
+	), nil
 }
 
 var (
@@ -843,12 +962,16 @@ func generateMysqlConnectionString(conf config.MysqlConfig) string {
 		"clientFoundRows":      []string{"true"},
 		"allowNativePasswords": []string{"true"},
 		"group_concat_max_len": []string{"4194304"},
+		"multiStatements":      []string{"false"},
 	}
 	if conf.TLSConfig != "" {
 		params.Set("tls", conf.TLSConfig)
 	}
 	if conf.SQLMode != "" {
 		params.Set("sql_mode", conf.SQLMode)
+	}
+	if conf.MultiStatements {
+		params.Set("multiStatements", "true")
 	}
 
 	dsn := fmt.Sprintf(

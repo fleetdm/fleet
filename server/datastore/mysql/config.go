@@ -25,6 +25,8 @@ type dbOptions struct {
 	tracingConfig       *config.LoggingConfig
 	minLastOpenedAtDiff time.Duration
 	sqlMode             string
+	mdmApple            bool
+	multiStatements     bool
 }
 
 // Logger adds a logger to the datastore.
@@ -81,6 +83,20 @@ func WithFleetConfig(conf *config.FleetConfig) DBOption {
 func SQLMode(mode string) DBOption {
 	return func(o *dbOptions) error {
 		o.sqlMode = mode
+		return nil
+	}
+}
+
+func WithMDMApple(v bool) DBOption {
+	return func(o *dbOptions) error {
+		o.mdmApple = v
+		return nil
+	}
+}
+
+func WithMultiStatements(v bool) DBOption {
+	return func(o *dbOptions) error {
+		o.multiStatements = v
 		return nil
 	}
 }
