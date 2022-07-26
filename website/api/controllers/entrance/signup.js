@@ -89,7 +89,7 @@ the account verification message.)`,
   fn: async function ({emailAddress, password, firstName, lastName, organization, signupReason}) {
 
     if(!sails.config.custom.cloudProvisionerSecret){
-      throw new Error('The authorization token for the cloud provisioner API (sails.config.custom.cloudProvisionerSecret) is missing! If you just want to test aspects of fleetdm.com locally, and are OK with the cloud provisioner failing if you try to use it, you can set a fake secret when starting a local server by lifting the server with "sails_custom__cloudProvisionerSecret=test sails lift"')
+      throw new Error('The authorization token for the cloud provisioner API (sails.config.custom.cloudProvisionerSecret) is missing! If you just want to test aspects of fleetdm.com locally, and are OK with the cloud provisioner failing if you try to use it, you can set a fake secret when starting a local server by lifting the server with "sails_custom__cloudProvisionerSecret=test sails lift"');
     }
 
     var newEmailAddress = emailAddress.toLowerCase();
@@ -142,7 +142,7 @@ the account verification message.)`,
         if(healthCheckResponse) {
           return true;
         }
-      }, 10000).intercept('tookTooLong', (err)=>{
+      }, 10000).intercept('tookTooLong', ()=>{
         return new Error('This newly provisioned Fleet Sandbox instance (for '+emailAddress+') is taking too long to respond with a 2xx status code, even after repeatedly polling the health check endpoint.  Note that failed requests and non-2xx responses from the health check endpoint were ignored during polling.  Search for a bit of non-dynamic text from this error message in the fleetdm.com source code for more info on exactly how this polling works.');
       });
     }
