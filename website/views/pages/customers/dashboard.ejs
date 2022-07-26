@@ -163,8 +163,7 @@
             <input class="form-control" type="password" id="password" :class="[formErrors.newPassword ? 'is-invalid' : '']" v-model.trim="formData.newPassword">
             <div class="invalid-feedback" v-if="formErrors.newPassword === 'minLength'">Password too short!</div>
             <div class="invalid-feedback" v-else-if="formErrors.newPassword">Please enter your new password.</div>
-            <div class="invalid-feedback mt-2" v-else-if="formErrors.password === 'custom'">Passwords must contain at least one letter, number and special character (!@#$%^&*).</div>
-            <p class="mt-2"> Minimum length is 12 characters</p>
+            <p class="mt-2"> Minimum length is 8 characters</p>
           </div>
           <cloud-error v-if="cloudError === 'badPassword'">Incorrect current password.</cloud-error>
           <cloud-error v-else-if="cloudError"></cloud-error>

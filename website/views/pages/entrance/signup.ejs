@@ -17,7 +17,6 @@
                 <div class="form-group">
                   <label for="password">Choose a password</label>
                   <input class="form-control" id="password" type="password"  :class="[formErrors.password ? 'is-invalid' : '']" v-model.trim="formData.password" autocomplete="new-password" @input="typeClearOneFormError('password')">
-                  <div class="invalid-feedback mt-2" v-if="formErrors.password === 'custom'">Passwords must be at least 12 characters long, and must contain at least one letter, number and special character (!@#$%^&*).</div>
                   <div class="invalid-feedback" v-if="formErrors.password === 'minLength'">Password too short.</div>
                   <div class="invalid-feedback" v-if="formErrors.password === 'required'">Please enter a password.</div>
                   <p class="mt-2"> Minimum length is 8 characters</p>

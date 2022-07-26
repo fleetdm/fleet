@@ -11,14 +11,7 @@ parasails.registerPage('register', {
     // Form rules
     formRules: {
       emailAddress: {required: true, isEmail: true},
-      password: {
-        required: true,
-        minLength: 12,
-        // Custom password validation to ensure it contains at least one letter, one number, and one special character. TODO: full list of special characters
-        custom: (password)=>{
-          return !! password.match(/[\!\@\#\$\%\^\&\*]/) && password.match(/\d/) && password.match(/\w/);
-        }
-      },
+      password: {required: true, minLength: 8},
     },
     // Syncing / loading state
     syncing: false,
@@ -46,7 +39,7 @@ parasails.registerPage('register', {
       argins.firstName = argins.emailAddress.split('@')[0];
       argins.lastName = argins.emailAddress.split('@')[1];
       argins.signupReason = 'Try Fleet Sandbox';
-      await Cloud.signup.with(argins);
+      return await Cloud.signup.with(argins);
     },
 
     // After the form is submitted, we'll redirect the user to their Fleet sandbox instance.

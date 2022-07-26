@@ -18,7 +18,6 @@
           <div class="form-group mb-3">
             <input id="password" type="password" class="form-control d-flex w-100" :class="[formErrors.password ? 'is-invalid' : '']" v-model.trim="formData.password" placeholder="Choose a password">
             <div class="invalid-feedback mt-2" v-if="formErrors.password === 'minLength'">Password too short.</div>
-            <div class="invalid-feedback mt-2" v-if="formErrors.password === 'custom'">Passwords must be at least 12 characters long, and must contain at least one letter, number and special character (!@#$%^&*).</div>
             <div class="invalid-feedback mt-2" v-if="formErrors.password === 'required'">Please enter a password.</div>
           </div>
           <ajax-button style="height: 53px;" purpose="submit-button" spinner="true" type="submit" :syncing="syncing" class="btn btn-block btn-lg btn-info" v-if="!cloudError">Sign up</ajax-button>
