@@ -1,7 +1,7 @@
 <div id="log-into-fleet-sandbox-and-redirect" v-cloak>
-  <form method="post" action="<%=sandboxUser.fleetSandboxURL%>/api/latest/fleet/demologin" id="demologin">
-    <input type="hidden" name="email" :value="sandboxUser.emailAddress" />
-    <input type="hidden" name="password" :value="sandboxUser.password" />
+  <form method="post" action="<%=me.fleetSandboxURL%>/api/latest/fleet/demologin" id="demologin">
+    <input type="hidden" name="email" :value="me.emailAddress" />
+    <input type="hidden" name="password" :value="me.fleetSandboxDemoKey" />
     <input class="d-none" type="submit"/>
   </form>
 </div>

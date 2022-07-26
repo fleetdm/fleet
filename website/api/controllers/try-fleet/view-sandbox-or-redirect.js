@@ -32,18 +32,17 @@ module.exports = {
       throw new Error(`Consistency violation: The logged-in user's (${this.req.me.emailAddress}) fleetSandboxExpiresAt has somehow gone missing!`);
     }
 
+    if(!this.req.me.fleetSandboxDemoKey) {
+      throw new Error(`Consistency violation: The logged-in user's (${this.req.me.emailAddress}) fleetSandboxDemoKey has somehow gone missing!`);
+    }
+
     // If this user's Fleet Sandbox instance is expired, we'll redirect them to the sandbox-expired page
     if(this.req.me.fleetSandboxExpiresAt < Date.now()){
       throw {redirect: '/try-fleet/sandbox-expired' };
     }
 
-    // Get the userRecord so we can send their hashed password to the sandbox instance
-    let sandboxUser = await User.findOne({id: this.req.me.id});
-
     // Respond with view.
-    return {
-      sandboxUser,
-    };
+    return {};
 
   }
 

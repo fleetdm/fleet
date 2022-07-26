@@ -84,18 +84,65 @@ the account verification message.)`,
       description: 'The provided email address is already in use.',
     },
 
-    newSandboxNotResponding: {
-      description: 'The newly provisioned Fleet Sandbox instance for this new user is taking too long to respond.'
-    }
-
 
   },
 
-  // Add sandboxExpirationTimestamp to inputs
   fn: async function ({emailAddress, password, firstName, lastName, organization, signupReason}) {
 
     var newEmailAddress = emailAddress.toLowerCase();
 
+    // Provisioning a Fleet sandbox instance for the new user. Note: Because this is the only place where we provision Sandbox instances, We'll provision a Sandbox instance BEFORE
+    // creating the new User record. This way, if this fails, we won't save the new record to the database, and the user will see an error on the signup form asking them to try again.
+
+    // Creating an expiration JS timestamp for the Fleet sandbox instance. NOTE: We send this value to the cloud provisioner API as an ISO 8601 string.
+    let fleetSandboxExpiresAt = Date.now() + (24*60*60*1000);
+
+    // Creating a fleetSandboxDemoKey, this will be used for the user's password when we log them into their Sandbox instance.
+    let fleetSandboxDemoKey = await sails.helpers.strings.uuid();
+
+    // Send a POST request to the cloud provisioner API
+    let cloudProvisionerResponse = await sails.helpers.http.post(
+      'https://sandbox.fleetdm.com/new',
+      { // Request body
+        'name': firstName + ' ' + lastName,
+        'email': newEmailAddress,
+        'password': fleetSandboxDemoKey,
+        'sandbox_expiration': new Date(fleetSandboxExpiresAt).toISOString(), // sending expiration_timestamp as an ISO string.
+      },
+      { // Request headers
+        'Authorization':sails.config.custom.cloudProvisionerSecret
+      }
+    )
+    .timeout(5000)
+    .intercept('non200Response', ()=>{
+      // If we recieved a non-200 response from the Cloud Provisioner API, we'll throw a 500 error.
+      throw new Error('When attempting to provision a new user\'s Fleet Sandbox instance, the Cloud provisioner gave a non 200 response. The incomplete user record has not been saved in the database, and the user will be asked to try signing up again.');
+    });
+
+    if(!cloudProvisionerResponse.URL) {
+      // If we didn't receive a URL in the response from the Cloud Provisioner API, we'll throwing an error before we save the new user record and the user will need to try to sign up again.
+      throw new Error(
+        `When provisioning a Fleet Sandbox instance for this new user, the 200 response from the Cloud Provisioner API did not contain a URL of a Sandbox instance.
+        The newly created User record has been deleted, and the user will be asked to try signing up again.
+        Here is the response from the Cloud Provisioner API: ${cloudProvisionerResponse}`
+      );
+    }
+
+    // If "Try Fleet Sandbox" was provided as the signupReason, this is a user signing up to try Fleet Sandbox, and we'll make sure their Sandbox instance is live before we continue.
+    if(signupReason === 'Try Fleet Sandbox') {
+      // Start polling the /healthz endpoint of the created Fleet Sandbox instance, once it returns a 200 response, we'll continue.
+      await sails.helpers.flow.until( async()=>{
+        let serverResponse = await sails.helpers.http.sendHttpRequest('GET', cloudProvisionerResponse.URL+'/healthz')
+        .timeout(5000)
+        .tolerate('non200Response')
+        .tolerate('requestFailed');
+        if(serverResponse && serverResponse.statusCode) {
+          return serverResponse.statusCode === 200;
+        }
+      }, 10000).intercept('tookTooLong', ()=>{
+        throw new Error('This newly provisioned Fleet Sandbox instance is taking too long to respond.')
+      });
+    }
 
     // Build up data for the new user record and save it to the database.
     // (Also use `fetch` to retrieve the new ID so that we can use it below.)
@@ -106,6 +153,9 @@ the account verification message.)`,
       signupReason,
       emailAddress: newEmailAddress,
       password: await sails.helpers.passwords.hashPassword(password),
+      fleetSandboxURL: cloudProvisionerResponse.URL,
+      fleetSandboxExpiresAt,
+      fleetSandboxDemoKey,
       tosAcceptedByIp: this.req.ip
     }, sails.config.custom.verifyEmailAddresses? {
       emailProofToken: await sails.helpers.strings.random('url-friendly'),
@@ -126,58 +176,6 @@ the account verification message.)`,
       .set({
         stripeCustomerId
       });
-    }
-    // Creating an expiration JS timestamp for the Fleet sandbox instance. NOTE: We send this value to the cloud provisioner API as an ISO 8601 string.
-    let fleetSandboxExpiresAt = Date.now() + (24*60*60*1000);
-
-    // Send a POST request to the cloud provisioner API
-    let cloudProvisionerResponse = await sails.helpers.http.post(
-      'https://sandbox.fleetdm.com/new',
-      { // Request body
-        'name': firstName + ' ' + lastName,
-        'email': emailAddress,
-        'password': newUserRecord.password, //« Sending the hashed password to the Fleet Sandbox instance
-        'sandbox_expiration': new Date(fleetSandboxExpiresAt).toISOString(), // sending expiration_timestamp as an ISO string.
-      },
-      { // Request headers
-        'Authorization':sails.config.custom.cloudProvisionerSecret
-      }
-    )
-    .timeout(5000)
-    .intercept('non200Response', async ()=>{
-      // If we recieved a non-200 response from the Cloud Provisioner API, we'll delete the incomplete User record, and throw a 500 error
-      await User.destroyOne({id: newUserRecord.id});
-      throw new Error('When attempting to provision a new user\'s Fleet Sandbox instance, the Cloud provisioner gave a non 200 response. The incomplete user record has been deleted, and the user will be asked to try signing up again.');
-    });
-
-    if(!cloudProvisionerResponse.URL) {
-      // If we didn't receive a URL in the response from the Cloud Provisioner API, we'll delete the new User record before throwing an error and the user will need to try to sign up again.
-      await User.destroyOne({id: newUserRecord.id});
-      throw new Error(
-        `When provisioning a Fleet Sandbox instance for this new user, the 200 response from the Cloud Provisioner API did not contain a URL of a Sandbox instance.
-        The newly created User record has been deleted, and the user will be asked to try signing up again.
-        Here is the response from the Cloud Provisioner API: ${cloudProvisionerResponse}`
-      );
-    } else {
-      // Update the user's record with the fleetSandboxURL, fleetSandboxExpiresAt, and fleetSandboxKey.
-      await User.updateOne({id: newUserRecord.id}).set({
-        fleetSandboxURL: cloudProvisionerResponse.URL,
-        fleetSandboxExpiresAt: fleetSandboxExpiresAt,
-      });
-    }
-
-    // If "Try Fleet Sandbox" was provided as the signupReason, this is a user signing up to try Fleet Sandbox, and we'll make sure their Sandbox instance is live before we continue.
-    if(signupReason === 'Try Fleet Sandbox') {
-      // Start polling the /healthz endpoint of the created Fleet Sandbox instance, once it returns a 200 response, we'll continue.
-      await sails.helpers.flow.until( async()=>{
-        let serverResponse = await sails.helpers.http.sendHttpRequest('GET', cloudProvisionerResponse.URL+'/healthz')
-        .timeout(5000)
-        .tolerate('non200Response')
-        .tolerate('requestFailed');
-        if(serverResponse && serverResponse.statusCode) {
-          return serverResponse.statusCode === 200;
-        }
-      }, 10000).intercept('tookTooLong', 'newSandboxNotResponding');
     }
 
     // Store the user's new id in their session.

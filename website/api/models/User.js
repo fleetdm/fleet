@@ -178,8 +178,13 @@ without necessarily having a billing card.`
 
     fleetSandboxExpiresAt: {
       type: 'number',
-      description: 'An JS timestamp (epoch ms) representing when this user`s fleet sandbox instance will expire',
+      description: 'An JS timestamp (epoch ms) representing when this user\'s fleet sandbox instance will expire',
       example: '1502844074211',
+    },
+
+    fleetSandboxDemoKey: {
+      type: 'string',
+      description: 'The UUID that is used as the password of this user\'s Fleet Sandbox instance that is generated when the user signs up. Only used to log the user into their Fleet Sandbox instance while it is still live.',
     }
 
     //  ╔═╗╔╦╗╔╗ ╔═╗╔╦╗╔═╗

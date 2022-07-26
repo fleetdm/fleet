@@ -59,32 +59,6 @@ module.exports = {
     // Hash the new password.
     var hashed = await sails.helpers.passwords.hashPassword(password);
 
-
-    // If this is a Fleet Sandbox user, we will need to update their password on their Fleet sandbox instance.
-    if(userRecord.fleetSandboxURL) {
-
-      // If the user's Fleet Sandbox instance is still valid, we'll use their old password to get the authorization token from the sandbox and use it to change their password.
-      if(userRecord.fleetSandboxExpiresAt < Date.now()) {
-        let authToken = await sails.helpers.http.post(userRecord.fleetSandboxURL+'/api/v1/fleet/login', {
-          'email': userRecord.emailAddress,
-          'password': userRecord.password
-        }).intercept('non200Response', 'couldNotChangeSandboxPassword');
-
-        if(!authToken.token) {
-          throw 'couldNotChangeSandboxPassword';
-        } else {
-          // If we received a token from the fleet instance, we'll use that to update this users password.
-          await sails.helpers.http.post(
-            userRecord.fleetSandboxURL+'/api/v1/fleet/change_password',
-            {
-              'old_password': userRecord.password,
-              'new_password': hashed,
-            },
-            {'Authorization': 'Bearer '+authToken.token},
-          ).intercept('non200Response', 'couldNotChangeSandboxPassword');
-        }
-      }
-    }
     // Store the user's new password and clear their reset token so it can't be used again.
     await User.updateOne({ id: userRecord.id })
     .set({
