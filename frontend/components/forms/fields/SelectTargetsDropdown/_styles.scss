@@ -70,18 +70,17 @@
     .Select-input {
       height: 53px;
       margin: 0;
-      padding: 0 0 0 12px;
+      padding: 0 0 0 10px;
 
       > input {
-        line-height: 30px;
-        padding: 8px 0;
+        line-height: 36px;
         color: $core-fleet-black;
         font-size: $small;
       }
     }
 
     .Select-placeholder {
-      line-height: 55px;
+      line-height: 53px;
       font-size: $small;
     }
 
