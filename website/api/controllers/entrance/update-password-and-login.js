@@ -52,6 +52,7 @@ module.exports = {
     if (!userRecord || userRecord.passwordResetTokenExpiresAt <= Date.now()) {
       throw 'invalidToken';
     }
+
     // Hash the new password.
     var hashed = await sails.helpers.passwords.hashPassword(password);
 

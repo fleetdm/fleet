@@ -48,7 +48,7 @@ module.exports = {
 
     // Grab token and include it in view locals
     return {
-      token
+      token,
     };
 
   }
