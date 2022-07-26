@@ -32,11 +32,10 @@ the account verification message.)`,
       type: 'string',
       maxLength: 200,
       example: 'passwordlol',
-      description: 'The unencrypted password to use for the new account.'
+      description: 'The unhashed (plain text) password to use for the new account.'
     },
 
     organization: {
-      defaultsTo: '',
       type: 'string',
       maxLength: 120,
       example: 'The Sails company',
@@ -58,9 +57,9 @@ the account verification message.)`,
     },
 
     signupReason: {
-      defaultsTo: 'Buy a license',
       type: 'string',
       isIn: ['Buy a license', 'Try Fleet Sandbox'],
+      defaultsTo: 'Buy a license',
     }
 
   },
