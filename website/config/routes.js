@@ -33,7 +33,7 @@ module.exports.routes = {
       pageTitleForMeta: 'fleetctl preview | Fleet for osquery',
       pageDescriptionForMeta: 'Learn about getting started with Fleet using fleetctl.'
     }
-  }
+  },
 
   'GET /pricing': {
     action: 'view-pricing',
