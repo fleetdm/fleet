@@ -42,7 +42,6 @@ Note: Please prefix versions with `fleet-v` (e.g., `fleet-v4.0.0`) in git tags, 
    `HEAD` of the `main` branch points to the commit with these changes.
 
 2. Tag and push the new release in Git:
-
    ```sh
    git tag fleet-v<VERSION>
    git push origin fleet-v<VERSION>
@@ -64,7 +63,6 @@ Note: Please prefix versions with `fleet-v` (e.g., `fleet-v4.0.0`) in git tags, 
 3. Edit the draft release on the [GitHub releases page](https://github.com/fleetdm/fleet/releases).
    Use the version number as the release title. Use the below template for the release description
    (replace items in <> with the appropriate values):
-
    ```
    ### Changes
 
@@ -83,7 +81,6 @@ Note: Please prefix versions with `fleet-v` (e.g., `fleet-v4.0.0`) in git tags, 
    **SHA256**
 
    <COPY FROM checksums.txt>
-   
    ```
 
    When editing is complete, publish the release.
@@ -125,20 +122,17 @@ must be created and relevant changes cherry-picked onto that branch:
 
 1. Create the new branch, starting from the git tag of the prior release. Patch branches should be
    prefixed with `patch-`. In this example we are creating `4.3.1`:
-
    ```
    git checkout fleet-v4.3.0
    git checkout --branch patch-fleet-v4.3.1
    ```
 
 2. Cherry pick the necessary commits into the new branch:
-
    ```
    git cherry-pick d34db33f
    ```
 
 3. Push the branch to github.com/fleetdm/fleet:
-
    ```
    git push origin patch-fleet-v4.3.1
    ```
