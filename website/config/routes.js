@@ -30,7 +30,7 @@ module.exports.routes = {
     action: 'view-get-started',
     locals: {
       currentPage: 'get started',
-      pageTitleForMeta: 'fleetctl preview | Fleet for osquery'
+      pageTitleForMeta: 'fleetctl preview | Fleet for osquery',
       pageDescriptionForMeta: 'Learn about getting started with Fleet using fleetctl.'
     }
   }
