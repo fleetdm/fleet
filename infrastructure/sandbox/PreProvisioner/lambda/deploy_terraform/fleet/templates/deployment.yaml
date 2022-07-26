@@ -34,6 +34,7 @@ spec:
     spec:
       containers:
       - name: {{ .Values.fleetName }}
+        imagePullPolicy: always
         command: [/usr/bin/fleet]
         args: ["serve"]
         image: fleetdm/fleet:{{ .Values.imageTag }}
