@@ -104,7 +104,7 @@ the account verification message.)`,
     let fleetSandboxDemoKey = await sails.helpers.strings.uuid();
 
     // Send a POST request to the cloud provisioner API
-    let cloudProvisionerResponseDataData = await sails.helpers.http.post(
+    let cloudProvisionerResponseData = await sails.helpers.http.post(
       'https://sandbox.fleetdm.com/new',
       { // Request body
         'name': firstName + ' ' + lastName,
@@ -117,7 +117,6 @@ the account verification message.)`,
       }
     )
     .timeout(5000)
-    .retry()
     .intercept(['requestFailed', 'non200Response'], (err)=>{
       // If we recieved a non-200 response from the cloud provisioner API, we'll throw a 500 error.
       return new Error('When attempting to provision a new user\'s Fleet Sandbox instance, the cloud provisioner gave a non 200 response. The incomplete user record has not been saved in the database, and the user will be asked to try signing up again. Raw response received from provisioner: '+err.stack);
