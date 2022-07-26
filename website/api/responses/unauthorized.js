@@ -36,6 +36,7 @@ module.exports = function unauthorized() {
     if (req.session.userId) {
       delete req.session.userId;
     }
+
     return res.redirect('/login');
   }
 
