@@ -23,6 +23,7 @@ import Button from "components/buttons/Button";
 import Dropdown from "components/forms/fields/Dropdown";
 import Spinner from "components/Spinner";
 import TableDataError from "components/DataError";
+import MainContent from "components/MainContent";
 import QueriesListWrapper from "./components/QueriesListWrapper";
 import RemoveQueryModal from "./components/RemoveQueryModal";
 
@@ -183,8 +184,8 @@ const ManageQueriesPage = ({
   const isTableDataLoading = isFetchingFleetQueries || queriesList === null;
 
   return (
-    <div className={baseClass}>
-      <div className={`${baseClass}__wrapper body-wrap`}>
+    <MainContent className={baseClass}>
+      <div className={`${baseClass}__wrapper`}>
         <div className={`${baseClass}__header-wrap`}>
           <div className={`${baseClass}__header`}>
             <div className={`${baseClass}__text`}>
@@ -233,7 +234,7 @@ const ManageQueriesPage = ({
           />
         )}
       </div>
-    </div>
+    </MainContent>
   );
 };
 
