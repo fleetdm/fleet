@@ -36,11 +36,7 @@ module.exports = function unauthorized() {
     if (req.session.userId) {
       delete req.session.userId;
     }
-    if(req.url.match(/\/try-fleet\//)) {
-      return res.redirect('/try-fleet/login');
-    } else {
-      return res.redirect('/customers/login');
-    }
+    return res.redirect('/login');
   }
 
 };
