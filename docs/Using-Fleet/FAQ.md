@@ -33,7 +33,7 @@
 
 ## How can I switch to Fleet from Kolide Fleet?
 
-To migrate to Fleet from Kolide Fleet, please follow the steps outlined in the Upgrading Fleet section of the documentation.
+To migrate to Fleet from Kolide Fleet, please follow the steps outlined in the [Upgrading Fleet section](../Deploying/Upgrading-Fleet.md) of the documentation.
 
 
 
