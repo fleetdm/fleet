@@ -15,7 +15,7 @@ For information on how to install Fleet Desktop, visit: [Adding Hosts](https://f
 ## Upgrading Fleet Desktop
 Once installed, Fleet Desktop will be automatically updated via Orbit. To learn more, visit: [Self-managed agent updates](https://fleetdm.com/docs/deploying/fleetctl-agent-updates#self-managed-agent-updates).
 
-## Custom Transparency Link
+## Custom transparency link
 For organizations with complex security postures, they can direct end users to a resource of their choice to serve custom content.
 
 > The custom transparency link is only available for users with Fleet Premium
