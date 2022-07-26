@@ -60,7 +60,7 @@ const UserSidePanel = ({
     });
 
   return (
-    <>
+    <div className={baseClass}>
       <div className={`${baseClass}__change-avatar`}>
         <Avatar user={currentUser} className={`${baseClass}__avatar`} />
         <a href="http://en.gravatar.com/emails/">Change photo at Gravatar</a>
@@ -115,7 +115,7 @@ const UserSidePanel = ({
           Privacy policy
         </a>
       </span>
-    </>
+    </div>
   );
 };
 
