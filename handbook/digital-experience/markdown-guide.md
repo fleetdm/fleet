@@ -2,8 +2,6 @@
 
 ## Headings
 
-
-
 | Markdown option one | Rendered heading |
 |:--------------------|:-----------------------------|
 | `# Heading 1` | <h1>Heading 1</h1> |
@@ -41,7 +39,7 @@ See the Markdown examples of unordered lists below.
 |`- Line one`  <br><br> &nbsp;&nbsp;&nbsp;&nbsp;`Your paragraph goes here.`  <br><br>   `- Line two` | <ul><li> Line one  </li></ul> &nbsp;&nbsp;&nbsp;&nbsp; Your paragraph goes here <br> <br><ul><li> Line two. </li></ul> |
 
 
-To nest lists inside of other unordered lists using Markdown by including four spaces before each item you desire to indent.
+Nest lists inside other unordered lists using Markdown by including four spaces before each item you desire to indent.
 
 `- Line one `
    &nbsp;&nbsp;&nbsp;&nbsp; `- Indent one`
@@ -67,31 +65,31 @@ Type **command + K** for a simple link template.
 
 `This is how you create a term with [a link ](https://fleetdm.com/handbook/brand#commonly-used-terms)`
 
-This renders as:
+This renders as
 
 This is how you create a term with [a link ](https://fleetdm.com/handbook/brand#commonly-used-terms)
 
 `This is how you create a term with [a tooltip and a link ](https://fleetdm.com/handbook/brand#commonly-used-terms "add information to a term when someone hovers")`
 
-This reders as:
+This renders as
 
 This is how you create a term with [a tooltip and a link ](https://fleetdm.com/handbook/brand#commonly-used-terms "add information to a term when someone hovers")
 
 This is how you make separate a link to reference elsewhere in the page.
 
 `[1]: <https://fleetdm.com/> "Fleet can help you."`
-`[This is a separted link](1)`
+`[This is a separated link](1)`
 
-This renders as:
+This renders as
 
 [1]: <https://fleetdm.com/> "Fleet can help you."
-[This is a separted link](1)
+[This is a separated link](1)
 
-To create mailto link out of a URL, incase it in angle brackets like so:
+To create mailto link out of a URL, encase it in angle brackets like so:
 
 `<https://fleetdm.com>`
 
-This will render as: 
+This renders as
 
 <https://fleetdm.com>
 
@@ -103,11 +101,11 @@ Add angle brackets " < > " around a URL to turn it into a link.
 
 `<fake@fleetdm.com>`
 
-This will render as:
+This renders as
 
 <fake@fleetdm.com>
 
-> *Important* To avoid spam, we *NEVER* user mailto links in the handbook or docs.
+> *Important*: To avoid spam, we *NEVER* user mailto links in the handbook or docs.
 
 <meta name="maintainedBy" value="mike-j-thomas">
 <meta name="title" value="Markdown-guide">
