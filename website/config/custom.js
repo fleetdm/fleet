@@ -109,6 +109,8 @@ module.exports.custom = {
     'handbook/community': ['dominuskelvin', 'ksatter'],
     'handbook/README.md': '*',// (any fleetie can update this page and merge their change without waiting for their change to be approved)
 
+    'tools/fleetctl-npm/README.md': ['mike-j-thomas'],//« brandfront for fleetctl package on npm
+
     'website': 'mikermcneil',// (default for website)
     'website/views': 'eashaw',
     'website/assets': 'eashaw',
