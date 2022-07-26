@@ -578,6 +578,10 @@ In the following example we will modify `title`, `text`, `primary-button-text`, 
 - Markdown guide (todo)
 - Writing style guide (todo)
 
+## Markdown
+
+Fleet's documentation, handbook, and articles are written in Markdown. Here's our handy guide to [Fleet-flavored Markdown](./markdown-guide.md).  
+
 ## Rituals
 
 The following table lists the Brand group's rituals, frequency, and Directly Responsible Individual (DRI).
