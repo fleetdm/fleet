@@ -35,8 +35,6 @@
 
 To migrate to Fleet from Kolide Fleet, please follow the steps outlined in the [Upgrading Fleet section](../Deploying/Upgrading-Fleet.md) of the documentation.
 
-
-
 ## Has anyone stress tested Fleet? How many hosts can the Fleet server handle?
 
 Fleet has been stress tested to 150,000 online hosts and 400,000 total enrolled hosts. Production deployments exist with over 100,000 hosts and numerous production deployments manage tens of thousands of hosts.
