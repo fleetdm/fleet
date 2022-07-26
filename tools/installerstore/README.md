@@ -32,7 +32,9 @@ GLOBAL OPTIONS:
 ### Example
 
 To upload a file for testing to your local MinIO server, you can run this
-command from the root of the repo:
+command from the root of the repo (be sure to replace the `--enroll-secret` 
+string with the value you wish to test and set the `--fleet-desktop` boolean 
+to your desired value):
 
 ```
 go run tools/installerstore/main.go \
@@ -46,6 +48,7 @@ go run tools/installerstore/main.go \
   --disable-ssl=true \
   --force-s3-path-style=true \
   --create-bucket=true \
+  --fleet-desktop=true \
   fleet-osquery.pkg
 ```
 

@@ -124,7 +124,7 @@ This will import the Index Pattern that allows Kibana to read the osquery data, 
 
 The dashboard created in this tutorial serves as a great starting point for monitoring the performance of osquery in your organization. Take the time to determine what your priorities are, and modify the dashboard to suit your needs.
 
-<meta name="category" value="product">
+<meta name="category" value="guides">
 <meta name="authorFullName" value="Zach Wasserman">
 <meta name="authorGitHubUsername" value="zwass">
 <meta name="publishedOn" value="2021-05-26">

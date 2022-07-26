@@ -3,10 +3,15 @@ import { useQuery } from "react-query";
 import { AppContext } from "context/app";
 import { find } from "lodash";
 
+import {
+  IEnrollSecret,
+  IEnrollSecretsResponse,
+} from "interfaces/enroll_secret";
 import { IHostSummary, IHostSummaryPlatforms } from "interfaces/host_summary";
 import { ILabelSummary } from "interfaces/label";
 import { IOsqueryPlatform } from "interfaces/platform";
 import { ITeam } from "interfaces/team";
+import enrollSecretsAPI from "services/entities/enroll_secret";
 import hostSummaryAPI from "services/entities/host_summary";
 import teamsAPI, { ILoadTeamsResponse } from "services/entities/teams";
 import sortUtils from "utilities/sort";
@@ -26,6 +31,7 @@ import WelcomeHost from "./cards/WelcomeHost";
 import MDM from "./cards/MDM";
 import Munki from "./cards/Munki";
 import OperatingSystems from "./cards/OperatingSystems";
+import AddHostsModal from "../../components/AddHostsModal";
 import ExternalURLIcon from "../../../assets/images/icon-external-url-12x12@2x.png";
 
 const baseClass = "homepage";
@@ -34,9 +40,13 @@ const Homepage = (): JSX.Element => {
   const {
     config,
     currentTeam,
+    isGlobalAdmin,
+    isGlobalMaintainer,
+    isTeamAdmin,
+    isTeamMaintainer,
     isPremiumTier,
     isFreeTier,
-    isPreviewMode,
+    isSandboxMode,
     isOnGlobalTeam,
     setCurrentTeam,
   } = useContext(AppContext);
@@ -54,25 +64,30 @@ const Homepage = (): JSX.Element => {
   const [showSoftwareUI, setShowSoftwareUI] = useState<boolean>(false);
   const [showMunkiUI, setShowMunkiUI] = useState<boolean>(false);
   const [showMDMUI, setShowMDMUI] = useState<boolean>(false);
+  const [showAddHostsModal, setShowAddHostsModal] = useState<boolean>(false);
   const [showOperatingSystemsUI, setShowOperatingSystemsUI] = useState<boolean>(
     false
   );
   const [showHostsUI, setShowHostsUI] = useState<boolean>(false); // Hides UI on first load only
 
-  const { data: teams } = useQuery<ILoadTeamsResponse, Error, ITeam[]>(
-    ["teams"],
-    () => teamsAPI.loadAll(),
-    {
-      enabled: !!isPremiumTier,
-      select: (data: ILoadTeamsResponse) =>
-        data.teams.sort((a, b) => sortUtils.caseInsensitiveAsc(a.name, b.name)),
-      onSuccess: (responseTeams) => {
-        if (!currentTeam && !isOnGlobalTeam && responseTeams.length) {
-          setCurrentTeam(responseTeams[0]);
-        }
-      },
-    }
-  );
+  const canEnrollHosts =
+    isGlobalAdmin || isGlobalMaintainer || isTeamAdmin || isTeamMaintainer;
+  const canEnrollGlobalHosts = isGlobalAdmin || isGlobalMaintainer;
+
+  const { data: teams, isLoading: isLoadingTeams } = useQuery<
+    ILoadTeamsResponse,
+    Error,
+    ITeam[]
+  >(["teams"], () => teamsAPI.loadAll(), {
+    enabled: !!isPremiumTier,
+    select: (data: ILoadTeamsResponse) =>
+      data.teams.sort((a, b) => sortUtils.caseInsensitiveAsc(a.name, b.name)),
+    onSuccess: (responseTeams) => {
+      if (!currentTeam && !isOnGlobalTeam && responseTeams.length) {
+        setCurrentTeam(responseTeams[0]);
+      }
+    },
+  });
 
   const {
     data: hostSummaryData,
@@ -108,9 +123,26 @@ const Homepage = (): JSX.Element => {
     }
   );
 
+  const {
+    isLoading: isGlobalSecretsLoading,
+    data: globalSecrets,
+    refetch: refetchGlobalSecrets,
+  } = useQuery<IEnrollSecretsResponse, Error, IEnrollSecret[]>(
+    ["global secrets"],
+    () => enrollSecretsAPI.getGlobalEnrollSecrets(),
+    {
+      enabled: !!canEnrollGlobalHosts,
+      select: (data: IEnrollSecretsResponse) => data.secrets,
+    }
+  );
+
   const handleTeamSelect = (teamId: number) => {
     const selectedTeam = find(teams, ["id", teamId]);
     setCurrentTeam(selectedTeam);
+  };
+
+  const toggleAddHostsModal = () => {
+    setShowAddHostsModal(!showAddHostsModal);
   };
 
   const HostsSummaryCard = useInfoCard({
@@ -156,11 +188,20 @@ const Homepage = (): JSX.Element => {
 
   const WelcomeHostCard = useInfoCard({
     title: "Welcome to Fleet",
-    children: <WelcomeHost />,
+    showTitle: true,
+    children: (
+      <WelcomeHost
+        totalsHostsCount={
+          (hostSummaryData && hostSummaryData.totals_hosts_count) || 0
+        }
+        toggleAddHostsModal={toggleAddHostsModal}
+      />
+    ),
   });
 
   const LearnFleetCard = useInfoCard({
     title: "Learn how to use Fleet",
+    showTitle: true,
     children: <LearnFleet />,
   });
 
@@ -252,16 +293,14 @@ const Homepage = (): JSX.Element => {
 
   const allLayout = () => (
     <div className={`${baseClass}__section`}>
-      {isPreviewMode && (
+      {hostSummaryData && hostSummaryData?.totals_hosts_count < 2 && (
         <>
           {WelcomeHostCard}
           {LearnFleetCard}
         </>
       )}
       {SoftwareCard}
-      {!isPreviewMode && !currentTeam && isOnGlobalTeam && (
-        <>{ActivityFeedCard}</>
-      )}
+      {!currentTeam && isOnGlobalTeam && <>{ActivityFeedCard}</>}
     </div>
   );
 
@@ -287,6 +326,19 @@ const Homepage = (): JSX.Element => {
       default:
         return allLayout();
     }
+  };
+
+  const renderAddHostsModal = () => {
+    const enrollSecret = globalSecrets?.[0].secret;
+    return (
+      <AddHostsModal
+        currentTeam={currentTeam}
+        enrollSecret={enrollSecret}
+        isLoading={isLoadingTeams || isGlobalSecretsLoading}
+        isSandboxMode={!!isSandboxMode}
+        onCancel={toggleAddHostsModal}
+      />
+    );
   };
 
   return (
@@ -336,6 +388,7 @@ const Homepage = (): JSX.Element => {
           </>
         </div>
         {renderCards()}
+        {showAddHostsModal && renderAddHostsModal()}
       </div>
     </div>
   );

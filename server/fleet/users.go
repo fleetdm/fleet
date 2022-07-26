@@ -144,28 +144,7 @@ type UserPayload struct {
 
 func (p *UserPayload) VerifyInviteCreate() error {
 	invalid := &InvalidArgumentError{}
-	if p.Name == nil {
-		invalid.Append("name", "Full name missing required argument")
-	} else if *p.Name == "" {
-		invalid.Append("name", "Full name cannot be empty")
-	}
-
-	// we don't need a password for single sign on
-	if p.SSOInvite == nil || !*p.SSOInvite {
-		if p.Password == nil {
-			invalid.Append("password", "Password missing required argument")
-		} else if *p.Password == "" {
-			invalid.Append("password", "Password cannot be empty")
-		} else if err := ValidatePasswordRequirements(*p.Password); err != nil {
-			invalid.Append("password", err.Error())
-		}
-	}
-
-	if p.Email == nil {
-		invalid.Append("email", "Email missing required argument")
-	} else if *p.Email == "" {
-		invalid.Append("email", "Email cannot be empty")
-	}
+	p.verifyCreateShared(invalid)
 
 	if p.InviteToken == nil {
 		invalid.Append("invite_token", "Invite token missing required argument")
@@ -181,6 +160,19 @@ func (p *UserPayload) VerifyInviteCreate() error {
 
 func (p *UserPayload) VerifyAdminCreate() error {
 	invalid := &InvalidArgumentError{}
+	p.verifyCreateShared(invalid)
+
+	if p.InviteToken != nil {
+		invalid.Append("invite_token", "Invite token should not be specified with admin user creation")
+	}
+
+	if invalid.HasErrors() {
+		return invalid
+	}
+	return nil
+}
+
+func (p *UserPayload) verifyCreateShared(invalid *InvalidArgumentError) {
 	if p.Name == nil {
 		invalid.Append("name", "Full name missing required argument")
 	} else if *p.Name == "" {
@@ -193,8 +185,9 @@ func (p *UserPayload) VerifyAdminCreate() error {
 			invalid.Append("password", "Password missing required argument")
 		} else if *p.Password == "" {
 			invalid.Append("password", "Password cannot be empty")
+		} else if err := ValidatePasswordRequirements(*p.Password); err != nil {
+			invalid.Append("password", err.Error())
 		}
-		// Skip password validation in the case of admin created users
 	}
 
 	if p.SSOEnabled != nil && *p.SSOEnabled && p.Password != nil && len(*p.Password) > 0 {
@@ -206,15 +199,6 @@ func (p *UserPayload) VerifyAdminCreate() error {
 	} else if *p.Email == "" {
 		invalid.Append("email", "Email cannot be empty")
 	}
-
-	if p.InviteToken != nil {
-		invalid.Append("invite_token", "Invite token should not be specified with admin user creation")
-	}
-
-	if invalid.HasErrors() {
-		return invalid
-	}
-	return nil
 }
 
 func (p *UserPayload) VerifyModify(ownUser bool) error {

@@ -14,7 +14,7 @@ on:
   workflow_dispatch:
 
 env:
-  FLEET_DESKTOP_VERSION: 0.0.3
+  FLEET_DESKTOP_VERSION: 1.0.0
 
 permissions:
   contents: read

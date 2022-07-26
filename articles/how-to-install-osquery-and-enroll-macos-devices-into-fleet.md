@@ -6,7 +6,7 @@ Alternatively, you can run a preview environment of Fleet locally (which automat
 
 ## Prerequisites
 
-Before installing osquery on macOS and enrolling that macOS device, you will need to have access to a Fleet server (see [Deploying Fleet on Render](https://fleetdm.com/guides/deploying-fleet-on-render) for an example.)
+Before installing osquery on macOS and enrolling that macOS device, you will need to have access to a Fleet server (see [Deploying Fleet on Render](https://fleetdm.com/deploy/deploying-fleet-on-render) for an example.)
 
 You will also need to install the `fleetctl` CLI tool if you don’t have it already. `fleetctl` can be installed via `npm` by running the command below:
 

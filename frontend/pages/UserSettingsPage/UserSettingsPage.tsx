@@ -1,6 +1,7 @@
-import React, { useState, useContext, useEffect } from "react";
+import React, { useState, useContext, useEffect, ReactElement } from "react";
 import { InjectedRouter } from "react-router";
 import { formatDistanceToNow } from "date-fns";
+import classnames from "classnames";
 
 import { AppContext } from "context/app";
 import { NotificationContext } from "context/notification";
@@ -28,6 +29,7 @@ import Modal from "components/Modal";
 import UserSettingsForm from "components/forms/UserSettingsForm";
 import InfoBanner from "components/InfoBanner";
 import SecretField from "components/SecretField";
+import SandboxGate from "components/SandboxGate";
 import ExternalURLIcon from "../../../assets/images/icon-external-url-12x12@2x.png";
 
 const baseClass = "user-settings";
@@ -36,9 +38,14 @@ interface IUserSettingsPageProps {
   router: InjectedRouter;
 }
 
-const UserSettingsPage = ({ router }: IUserSettingsPageProps) => {
-  const { config, currentUser, isPremiumTier } = useContext(AppContext);
+const UserSettingsPage = ({
+  router,
+}: IUserSettingsPageProps): JSX.Element | null => {
+  const { config, currentUser, isPremiumTier, isSandboxMode } = useContext(
+    AppContext
+  );
   const { renderFlash } = useContext(NotificationContext);
+
   const [pendingEmail, setPendingEmail] = useState<string>("");
   const [showEmailModal, setShowEmailModal] = useState<boolean>(false);
   const [showPasswordModal, setShowPasswordModal] = useState<boolean>(false);
@@ -92,11 +99,6 @@ const UserSettingsPage = ({ router }: IUserSettingsPageProps) => {
 
   const onToggleApiTokenModal = () => {
     setShowApiTokenModal(!showApiTokenModal);
-    return false;
-  };
-
-  const onToggleSecret = () => {
-    setRevealSecret(!revealSecret);
     return false;
   };
 
@@ -284,7 +286,7 @@ const UserSettingsPage = ({ router }: IUserSettingsPageProps) => {
   };
 
   if (!currentUser) {
-    return false;
+    return null;
   }
 
   const {
@@ -303,81 +305,92 @@ const UserSettingsPage = ({ router }: IUserSettingsPageProps) => {
       addSuffix: true,
     });
 
+  const wrapperStyles = classnames(baseClass, {
+    [`${baseClass}__sandboxMode`]: isSandboxMode,
+  });
+
   return (
-    <div className={baseClass}>
-      <div className={`${baseClass}__manage body-wrap`}>
-        <h1>My account</h1>
-        <UserSettingsForm
-          formData={currentUser}
-          handleSubmit={handleSubmit}
-          onCancel={onCancel}
-          pendingEmail={pendingEmail}
-          serverErrors={errors}
-          smtpConfigured={config?.smtp_settings.configured}
-        />
-      </div>
-      <div className={`${baseClass}__additional body-wrap`}>
-        <div className={`${baseClass}__change-avatar`}>
-          <Avatar user={currentUser} className={`${baseClass}__avatar`} />
-          <a href="http://en.gravatar.com/emails/">Change photo at Gravatar</a>
+    <div className={wrapperStyles}>
+      <SandboxGate
+        message="Account management is only available in self-managed Fleet"
+        utmSource="fleet-ui-my-account-page"
+      >
+        <div className={`${baseClass}__manage body-wrap`}>
+          <h1>My account</h1>
+          <UserSettingsForm
+            formData={currentUser}
+            handleSubmit={handleSubmit}
+            onCancel={onCancel}
+            pendingEmail={pendingEmail}
+            serverErrors={errors}
+            smtpConfigured={config?.smtp_settings.configured}
+          />
         </div>
-        {isPremiumTier && (
+        <div className={`${baseClass}__additional body-wrap`}>
+          <div className={`${baseClass}__change-avatar`}>
+            <Avatar user={currentUser} className={`${baseClass}__avatar`} />
+            <a href="http://en.gravatar.com/emails/">
+              Change photo at Gravatar
+            </a>
+          </div>
+          {isPremiumTier && (
+            <div className={`${baseClass}__more-info-detail`}>
+              <p className={`${baseClass}__header`}>Teams</p>
+              <p
+                className={`${baseClass}__description ${baseClass}__teams ${greyCell(
+                  teamsText
+                )}`}
+              >
+                {teamsText}
+              </p>
+            </div>
+          )}
           <div className={`${baseClass}__more-info-detail`}>
-            <p className={`${baseClass}__header`}>Teams</p>
+            <p className={`${baseClass}__header`}>Role</p>
             <p
-              className={`${baseClass}__description ${baseClass}__teams ${greyCell(
-                teamsText
+              className={`${baseClass}__description ${baseClass}__role ${greyCell(
+                roleText
               )}`}
             >
-              {teamsText}
+              {roleText}
             </p>
           </div>
-        )}
-        <div className={`${baseClass}__more-info-detail`}>
-          <p className={`${baseClass}__header`}>Role</p>
-          <p
-            className={`${baseClass}__description ${baseClass}__role ${greyCell(
-              roleText
-            )}`}
+          <div className={`${baseClass}__more-info-detail`}>
+            <p className={`${baseClass}__header`}>Password</p>
+          </div>
+          <Button
+            onClick={onShowPasswordModal}
+            disabled={ssoEnabled}
+            className={`${baseClass}__button`}
           >
-            {roleText}
+            Change password
+          </Button>
+          <p className={`${baseClass}__last-updated`}>
+            Last changed: {lastUpdatedAt}
           </p>
-        </div>
-        <div className={`${baseClass}__more-info-detail`}>
-          <p className={`${baseClass}__header`}>Password</p>
-        </div>
-        <Button
-          onClick={onShowPasswordModal}
-          disabled={ssoEnabled}
-          className={`${baseClass}__button`}
-        >
-          Change password
-        </Button>
-        <p className={`${baseClass}__last-updated`}>
-          Last changed: {lastUpdatedAt}
-        </p>
-        <Button
-          onClick={onShowApiTokenModal}
-          className={`${baseClass}__button`}
-        >
-          Get API token
-        </Button>
-        <span
-          className={`${baseClass}__version`}
-        >{`Fleet ${versionData?.version} • Go ${versionData?.go_version}`}</span>
-        <span className={`${baseClass}__privacy-policy`}>
-          <a
-            href="https://fleetdm.com/legal/privacy"
-            target="_blank"
-            rel="noopener noreferrer"
+          <Button
+            onClick={onShowApiTokenModal}
+            className={`${baseClass}__button`}
           >
-            Privacy policy
-          </a>
-        </span>
-      </div>
-      {renderEmailModal()}
-      {renderPasswordModal()}
-      {renderApiTokenModal()}
+            Get API token
+          </Button>
+          <span
+            className={`${baseClass}__version`}
+          >{`Fleet ${versionData?.version} • Go ${versionData?.go_version}`}</span>
+          <span className={`${baseClass}__privacy-policy`}>
+            <a
+              href="https://fleetdm.com/legal/privacy"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              Privacy policy
+            </a>
+          </span>
+        </div>
+        {renderEmailModal()}
+        {renderPasswordModal()}
+        {renderApiTokenModal()}
+      </SandboxGate>
     </div>
   );
 };
