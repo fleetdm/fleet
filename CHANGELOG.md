@@ -1,4 +1,5 @@
 
+## Fleet 4.17.0 (July 8, 2022)
 
 * Fleet Premium and Fleet Free: Fleet desktop is officially out of beta. This application shows users exactly what's going on with their device and gives them the tools they need to make sure it is secure and aligned with policies. They just need to click an icon in their menu bar. 
 
