@@ -328,3 +328,18 @@ Lastly, remove your Fleet Premium license key:
 ## If I use a software orchestration tool (Ansible, Chef, Puppet, etc.) to manage agent options, do I have to apply the same options in the Fleet UI?
 
 No. The agent options set using your software orchestration tool will override the default agent options that appear in the **Settings > Organization settings > Global agent options** page. On this page, if you hit the **Save** button, the options that appear in the Fleet UI will override the agent options set using your software orchestration.
+
+## How can I uninstall Orbit/Fleet Desktop?
+To uninstal Orbit/Fleet Desktop follow the below instructions for your Operating System.
+
+### MacOS
+Run the Orbit [cleanup script](https://github.com/fleetdm/fleet/blob/main/orbit/tools/cleanup/cleanup_macos.sh)
+
+### Windows
+Use the "Add or remove programs" dialog to remove Orbit.
+
+### Ubuntu
+Run `sudo apt remove fleet-osquery -y`
+
+### CentOS
+Run `sudo rpm -e fleet-osquery-X.Y.Z.x86_64`
