@@ -88,6 +88,10 @@ the account verification message.)`,
 
   fn: async function ({emailAddress, password, firstName, lastName, organization, signupReason}) {
 
+    if(!sails.config.custom.cloudProvisionerSecret){
+      throw new Error('The authorization token for the cloud provisioner API (sails.config.custom.cloudProvisionerSecret) is missing! If you just want to test aspects of fleetdm.com locally, and are OK with the cloud provisioner failing if you try to use it, you can set a fake secret when starting a local server by lifting the server with "sails_custom__cloudProvisionerSecret=test sails lift"')
+    }
+
     var newEmailAddress = emailAddress.toLowerCase();
 
     // Provisioning a Fleet sandbox instance for the new user. Note: Because this is the only place where we provision Sandbox instances, We'll provision a Sandbox instance BEFORE
@@ -100,12 +104,12 @@ the account verification message.)`,
     let fleetSandboxDemoKey = await sails.helpers.strings.uuid();
 
     // Send a POST request to the cloud provisioner API
-    let cloudProvisionerResponse = await sails.helpers.http.post(
+    let cloudProvisionerResponseDataData = await sails.helpers.http.post(
       'https://sandbox.fleetdm.com/new',
       { // Request body
         'name': firstName + ' ' + lastName,
         'email': newEmailAddress,
-        'password': fleetSandboxDemoKey,
+        'password': fleetSandboxDemoKey, //« this provisioner API was originally designed to accept passwords, but rather than specifying the real plaintext password, since users always access Fleet Sandbox from their fleetdm.com account anyway, this generated demo key is used instead to avoid any confusion
         'sandbox_expiration': new Date(fleetSandboxExpiresAt).toISOString(), // sending expiration_timestamp as an ISO string.
       },
       { // Request headers
@@ -113,17 +117,18 @@ the account verification message.)`,
       }
     )
     .timeout(5000)
-    .intercept('non200Response', ()=>{
-      // If we recieved a non-200 response from the Cloud Provisioner API, we'll throw a 500 error.
-      throw new Error('When attempting to provision a new user\'s Fleet Sandbox instance, the Cloud provisioner gave a non 200 response. The incomplete user record has not been saved in the database, and the user will be asked to try signing up again.');
+    .retry()
+    .intercept(['requestFailed', 'non200Response'], (err)=>{
+      // If we recieved a non-200 response from the cloud provisioner API, we'll throw a 500 error.
+      return new Error('When attempting to provision a new user\'s Fleet Sandbox instance, the cloud provisioner gave a non 200 response. The incomplete user record has not been saved in the database, and the user will be asked to try signing up again. Raw response received from provisioner: '+err.stack);
     });
 
-    if(!cloudProvisionerResponse.URL) {
-      // If we didn't receive a URL in the response from the Cloud Provisioner API, we'll throwing an error before we save the new user record and the user will need to try to sign up again.
+    if(!cloudProvisionerResponseData.URL) {
+      // If we didn't receive a URL in the response from the cloud provisioner API, we'll throwing an error before we save the new user record and the user will need to try to sign up again.
       throw new Error(
-        `When provisioning a Fleet Sandbox instance for this new user, the 200 response from the Cloud Provisioner API did not contain a URL of a Sandbox instance.
-        The newly created User record has been deleted, and the user will be asked to try signing up again.
-        Here is the response from the Cloud Provisioner API: ${cloudProvisionerResponse}`
+        `When provisioning a Fleet Sandbox instance for this new user, the response data from the cloud provisioner API was malformed. It did not contain a valid Fleet Sandbox instance URL in its expected "URL" property.
+        The newly created User record , and the user will be asked to try signing up again.
+        Here is the malformed response data (parsed response body) from the cloud provisioner API: ${cloudProvisionerResponseData}`
       );
     }
 
@@ -131,15 +136,15 @@ the account verification message.)`,
     if(signupReason === 'Try Fleet Sandbox') {
       // Start polling the /healthz endpoint of the created Fleet Sandbox instance, once it returns a 200 response, we'll continue.
       await sails.helpers.flow.until( async()=>{
-        let serverResponse = await sails.helpers.http.sendHttpRequest('GET', cloudProvisionerResponse.URL+'/healthz')
+        let healthCheckResponse = await sails.helpers.http.sendHttpRequest('GET', cloudProvisionerResponseData.URL+'/healthz')
         .timeout(5000)
         .tolerate('non200Response')
         .tolerate('requestFailed');
-        if(serverResponse && serverResponse.statusCode) {
-          return serverResponse.statusCode === 200;
+        if(healthCheckResponse) {
+          return true;
         }
-      }, 10000).intercept('tookTooLong', ()=>{
-        throw new Error('This newly provisioned Fleet Sandbox instance is taking too long to respond.');
+      }, 10000).intercept('tookTooLong', (err)=>{
+        return new Error('This newly provisioned Fleet Sandbox instance (for '+emailAddress+') is taking too long to respond with a 2xx status code, even after repeatedly polling the health check endpoint.  Note that failed requests and non-2xx responses from the health check endpoint were ignored during polling.  Search for a bit of non-dynamic text from this error message in the fleetdm.com source code for more info on exactly how this polling works.');
       });
     }
 
@@ -151,7 +156,7 @@ the account verification message.)`,
       organization,
       emailAddress: newEmailAddress,
       password: await sails.helpers.passwords.hashPassword(password),
-      fleetSandboxURL: cloudProvisionerResponse.URL,
+      fleetSandboxURL: cloudProvisionerResponseData.URL,
       fleetSandboxExpiresAt,
       fleetSandboxDemoKey,
       tosAcceptedByIp: this.req.ip
