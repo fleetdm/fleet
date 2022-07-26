@@ -30,8 +30,11 @@
 
   .copy-message {
     position: absolute;
-    top: -32px;
-    right: 10px;
+    right: 44px;
+    background-color: $ui-light-grey;
+    border: solid 1px #e2e4ea;
+    border-radius: 10px;
+    padding: 2px 6px;
   }
 
   .buttons {
