@@ -582,8 +582,11 @@ export const inMilliseconds = (nanoseconds: number): number => {
 
 export const humanHostLastRestart = (
   detailUpdatedAt: string,
-  uptime: number
+  uptime: number | string
 ): string => {
+  if (typeof uptime === "string") {
+    return "---";
+  }
   const currentDate = new Date();
   const updatedDate = new Date(detailUpdatedAt);
   const millisecondsLastUpdated = currentDate.getTime() - updatedDate.getTime();
