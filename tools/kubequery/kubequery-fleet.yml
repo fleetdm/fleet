@@ -86,7 +86,7 @@ data:
     --config_tls_endpoint=/api/v1/osquery/config
     --config_refresh=10
     # Live query
-    --disable_distributed=falseg
+    --disable_distributed=false
     --distributed_plugin=tls
     --distributed_interval=10
     --distributed_tls_max_attempts=3
@@ -157,7 +157,6 @@ spec:
         app.kubernetes.io/part-of: kubequery
         app.kubernetes.io/version: latest
     spec:
-      hostname: my-cluster # TODO: Give a friendly cluster name
       securityContext:
         runAsNonRoot: true
         runAsUser: 1000
