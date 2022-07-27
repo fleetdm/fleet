@@ -235,6 +235,16 @@ module.exports = {
             event: 'APPROVE'
           }, baseHeaders);
 
+          // Since we're only using a single instance, and because the worst case scenario is that we refreeze some
+          // all-markdown PRs that had already been frozen, instead of using the database, we'll just use a little
+          // in-memory pocket here of PRs seen by this instance of the Sails app.  To get around any issues with this,
+          // users can edit and resave the PR description to trigger their PR to be unfrozen.
+          // FUTURE: Go through the trouble to migrate the database and make a little Platform model to hold this state in.
+          // TODO
+
+          // await Platform.create({});
+          // (await Platform.find().limit(1))[0];
+
           // If "main" is explicitly frozen, and this PR is auto-approved, then unfreeze it because it (no longer)
           // contains changes to files that should not be changed during the freeze.
 

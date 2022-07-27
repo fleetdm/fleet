@@ -45,6 +45,7 @@
     "HistoricalUsageSnapshot": true,
     "Quote": true,
     "Subscription": true,
+    "Platform": true,
 
     // …and any others.
     // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
