@@ -118,7 +118,7 @@
             <a class="mb-0 d-block text-center d-lg-inline text-lg-left" href="/reports/state-of-device-management">Click here to learn about their struggles and best practices.</a>
           </div>
       </div>
-      <div class="<%= isHomepage ? 'homepage-header' : 'header' %> <%= !headerCTAHidden ? 'homepage-header-padding' : null %>" purpose="page-header">
+      <div class="<%= isHomepage ? 'homepage-header' : 'header' %> <%= !headerCTAHidden ? 'homepage-header-top' : null %>" purpose="page-header">
         <div style="max-width: 1248px; height: 94px;" class="container-fluid d-flex justify-content-between align-items-center pt-3 pb-3 px-3 px-md-4">
           <a href="/" style="max-width: 118px;">
             <% /* The homepage-header on the homepage has a white fleet logo */ %>
@@ -370,8 +370,7 @@
           var hamburgerMenuIcon = header.querySelector('.btn.btn-link > img')
           if(scrollTop == 0 && header.classList.contains('homepage-header')) {
               if (ctaBanner) {
-                header.style.position = null
-                header.classList.add('homepage-header-padding')
+                header.classList.add('homepage-header-top')
               }
               header.classList.remove('sticky')
               fleetLogo.src = '/images/logo-white-162x92@2x.png'
@@ -381,16 +380,15 @@
           if(scrollTop > lastScrollTop && scrollTop > window.innerHeight * 1.5) {
             header.classList.add('translate-y-0');
           } else {
-            if(header.classList.contains('homepage-header') && scrollTop > 16) {
+            // If the header is touching the top of the viewport
+            if(header.getBoundingClientRect().y <= 0) {
+              header.classList.remove('homepage-header-top')
               header.classList.add('sticky')
-              if (ctaBanner) {
-                header.style.position = 'sticky'
-                header.classList.remove('homepage-header-padding')
-              }
+
               fleetLogo.src = '/images/logo-blue-162x92@2x.png'
               hamburgerMenuIcon.src="/images/icon-hamburger-blue-16x14@2x.png"
             }
-              header.classList.remove('translate-y-0');
+            header.classList.remove('translate-y-0');
           }
           lastScrollTop = scrollTop;
         }
