@@ -242,7 +242,12 @@ module.exports = {
         // [?] https://docs.mergefreeze.com/web-api#get-freeze-status
         let isMainBranchFrozen = (
           await sails.helpers.http.get('https://www.mergefreeze.com/api/branches/fleetdm/fleet/main', { access_token: sails.config.custom.mergeFreezeAccessToken }) //eslint-disable-line camelcase
-        ).frozen;
+        ).frozen || (
+          // TODO: Remove this timeboxed hack to consider the repo frozen
+          // for a while as a workaround for an issue where the MergeFreeze API
+          // reports that the repo is not frozen, when it actually is frozen.
+          Date.now() < (new Date('Jul 28, 2022 14:00 UTC')).getTime()
+        );
 
         // Now, if appropriate, auto-approve the change.
         if (isAutoApproved) {
