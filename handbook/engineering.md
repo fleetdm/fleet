@@ -137,7 +137,7 @@ Additionally, the on-call engineer is asked to attend all the customer success m
 
 ### Clearing the plate
 
-Engineering managers are asked to be aware of the [oncall rotation](https://docs.google.com/document/d/1FNQdu23wc1S9Yo6x5k04uxT2RwT77CIMzLLeEI2U7JA/edit#), and schedule a light workload for engineers while they are oncall. While it varies considerably week by week, the oncall responsibilities can sometimes take up a substantial portion of the engineer's time.
+Engineering managers are asked to be aware of the [on-call rotation](https://docs.google.com/document/d/1FNQdu23wc1S9Yo6x5k04uxT2RwT77CIMzLLeEI2U7JA/edit#) and schedule a light workload for engineers while they are on-call. While it varies week to week considerably, the on-call responsibilities can sometimes take up a substantial portion of the engineer's time.
 
 ### How to reach the oncall
 
