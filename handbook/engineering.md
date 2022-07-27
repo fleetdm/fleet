@@ -152,7 +152,7 @@ Every week, the oncall engineer changes. Here are some tips for making this hand
    Click `@oncall`. In the right sidebar, click "Edit Members." Remove the former oncall, and add
    yourself.
 
-2. Hand off newer conversations (Slack threads, issues, PRs, etc.). For more recent threads, the former oncall can unsubscribe from the
+2. Handoff newer conversations (Slack threads, issues, PRs, etc.). For more recent threads, the former on-call can unsubscribe from the
    thread, and the new oncall should subscribe. The former oncall should explicitly share each of
    these threads, and the new oncall can select "Get notified about new replies" in the "..." menu.
    The former oncall can select "Turn off notifications for replies" in that same menu. It can be
