@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/fleetdm/fleet/v4/server/authz"
+	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mock"
@@ -15,11 +16,12 @@ import (
 )
 
 func setup(t *testing.T) (context.Context, *mock.Store, *mock.InstallerStore, fleet.Service) {
-	t.Setenv("FLEET_DEMO", "1")
 	ctx := test.UserContext(test.UserAdmin)
 	ds := new(mock.Store)
 	is := new(mock.InstallerStore)
-	svc := newTestService(t, ds, nil, nil, &TestServerOpts{Is: is})
+	cfg := config.TestConfig()
+	cfg.Server.SandboxEnabled = true
+	svc := newTestServiceWithConfig(t, ds, cfg, nil, nil, &TestServerOpts{Is: is})
 	ds.VerifyEnrollSecretFunc = func(ctx context.Context, enrollSecret string) (*fleet.EnrollSecret, error) {
 		return &fleet.EnrollSecret{Secret: "xyz"}, nil
 
