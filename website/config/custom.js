@@ -95,7 +95,7 @@ module.exports.custom = {
   *                                                                          *
   ***************************************************************************/
   githubRepoDRIByPath: {
-    'README.md': 'mike-j-thomas',// (github brandfront)
+    'README.md': 'chris-mcgillicuddy',// (github brandfront)
 
     'handbook': ['desmi-dizney', 'mike-j-thomas', 'mikermcneil'],// (default for handbook)
     'handbook/company': 'mikermcneil',
