@@ -133,7 +133,7 @@ The on-call engineer is a second-line responder to questions raised by customers
 
 Pull requests may be routed through the oncall engineer for review. For PRs to the Fleet documentation, the content editor (Desmi) will request review from the oncall. For PRs from the community, the community contact will request review from the oncall. In either case, if the oncall has the knowledge and confidence to review, they should go ahead and do so. Otherwise, they should request review from an engineer with the appropriate domain knowledge. It is the oncall's responsibility to ensure that these PRs are moved forward (either by review with feedback or merge).
 
-Additionally, the oncall engineer is asked to attend all the customer success meetings during the week. The engineer will receive calendar invitations from Tony for the appropriate meetings. This has a dual purpose of providing more context for how our customers use Fleet, and also the engineer should actively participate and provide input where appropriate (if not sure, please ask your manager or Tony).
+Additionally, the on-call engineer is asked to attend all the customer success meetings during the week. The engineer will receive calendar invitations from Tony for the appropriate meetings. This has a dual purpose of providing more context for how our customers use Fleet. Also, the engineer should actively participate and provide input where appropriate (if not sure, please ask your manager or Tony).
 
 ### Clearing the plate
 
