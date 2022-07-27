@@ -5,5 +5,9 @@
     <input type="hidden" name="password" :value="me.fleetSandboxDemoKey" />
     <input class="d-none" type="submit"/>
   </form>
+  <div class="d-flex flex-column align-items-center justify-content-center h-100">
+    <div purpose="loading-spinner">
+    </div>
+  </div>
 </div>
 <%- /* Expose server-rendered data as window.SAILS_LOCALS :: */ exposeLocalsToBrowser() %>
