@@ -157,7 +157,7 @@ Every week, the oncall engineer changes. Here are some tips for making this hand
    these threads and the new on-call can select "Get notified about new replies" in the "..." menu.
    The former oncall can select "Turn off notifications for replies" in that same menu. It can be
    helpful for the former oncall to remain available for any conversations they were deeply involved
-   in, so use your judgment on which threads to hand off. Anything not clearly handed off remains the responsibility of the former oncall.
+   in, so use your judgment on which threads to hand off. Anything not clearly handed off remains the responsibility of the former on-call engineer.
 
 ### The rotation
 
