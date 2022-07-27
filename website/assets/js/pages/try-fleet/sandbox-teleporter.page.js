@@ -24,7 +24,7 @@ parasails.registerPage('sandbox-teleporter', {
       if(event.persisted) {
         window.location = '/';
       }
-    }
+    };
     // Confused?  Understandable, this approach is a bit unusual.  See this page's view action for more info on what this code is doing and why, as well as a link where you can read more information.
     document.forms['demologin'].submit();
   },
