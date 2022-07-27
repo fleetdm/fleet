@@ -489,6 +489,157 @@ func TestDirectIngestBattery(t *testing.T) {
 	require.True(t, ds.ReplaceHostBatteriesFuncInvoked)
 }
 
+func TestDirectIngestOSWindows(t *testing.T) {
+	ds := new(mock.Store)
+
+	testHost := fleet.Host{
+		ID: 1,
+	}
+	testOS := fleet.OperatingSystem{
+		Name:          "Microsoft Windows 11 Enterprise",
+		Version:       "21H2",
+		Arch:          "64-bit",
+		KernelVersion: "10.0.22000.795",
+	}
+
+	ds.UpdateHostOperatingSystemFunc = func(ctx context.Context, hostID uint, hostOS fleet.OperatingSystem) error {
+		require.Equal(t, testHost.ID, hostID)
+		require.Equal(t, testOS, hostOS)
+		return nil
+	}
+
+	err := directIngestOSWindows(context.Background(), log.NewNopLogger(), &testHost, ds, []map[string]string{
+		{"name": "Microsoft Windows 11 Enterprise", "version": "21H2", "arch": "64-bit", "kernel_version": "10.0.22000.795"},
+	}, false)
+
+	require.NoError(t, err)
+	require.True(t, ds.UpdateHostOperatingSystemFuncInvoked)
+}
+
+func TestDirectIngestOSUnixLike(t *testing.T) {
+	ds := new(mock.Store)
+
+	for i, tc := range []struct {
+		data     []map[string]string
+		expected fleet.OperatingSystem
+	}{
+		{
+			data: []map[string]string{
+				{
+					"name":           "macOS",
+					"version":        "12.5",
+					"major":          "12",
+					"minor":          "5",
+					"patch":          "0",
+					"build":          "21G72",
+					"arch":           "x86_64",
+					"kernel_version": "21.6.0",
+				},
+			},
+			expected: fleet.OperatingSystem{
+				Name:          "macOS",
+				Version:       "12.5.0",
+				Arch:          "x86_64",
+				KernelVersion: "21.6.0",
+			},
+		},
+		{
+			data: []map[string]string{
+				{
+					"name":           "Ubuntu",
+					"version":        "20.04.2 LTS (Focal Fossa)",
+					"major":          "20",
+					"minor":          "4",
+					"patch":          "0",
+					"build":          "",
+					"arch":           "x86_64",
+					"kernel_version": "5.10.76-linuxkit",
+				},
+			},
+			expected: fleet.OperatingSystem{
+				Name:          "Ubuntu",
+				Version:       "20.04.2 LTS",
+				Arch:          "x86_64",
+				KernelVersion: "5.10.76-linuxkit",
+			},
+		},
+		{
+			data: []map[string]string{
+				{
+					"name":           "CentOS Linux",
+					"version":        "CentOS Linux release 7.9.2009 (Core)",
+					"major":          "7",
+					"minor":          "9",
+					"patch":          "2009",
+					"build":          "",
+					"arch":           "x86_64",
+					"kernel_version": "5.10.76-linuxkit",
+				},
+			},
+			expected: fleet.OperatingSystem{
+				Name:          "CentOS Linux",
+				Version:       "7.9.2009",
+				Arch:          "x86_64",
+				KernelVersion: "5.10.76-linuxkit",
+			},
+		},
+		{
+			data: []map[string]string{
+				{
+					"name":           "Debian GNU/Linux",
+					"version":        "10 (buster)",
+					"major":          "10",
+					"minor":          "0",
+					"patch":          "0",
+					"build":          "",
+					"arch":           "x86_64",
+					"kernel_version": "5.10.76-linuxkit",
+				},
+			},
+			expected: fleet.OperatingSystem{
+				Name:          "Debian GNU/Linux",
+				Version:       "10.0.0",
+				Arch:          "x86_64",
+				KernelVersion: "5.10.76-linuxkit",
+			},
+		},
+		{
+			data: []map[string]string{
+				{
+					"name":           "CentOS Linux",
+					"version":        "CentOS Linux release 7.9.2009 (Core)",
+					"major":          "7",
+					"minor":          "9",
+					"patch":          "2009",
+					"build":          "",
+					"arch":           "x86_64",
+					"kernel_version": "5.10.76-linuxkit",
+				},
+			},
+			expected: fleet.OperatingSystem{
+				Name:          "CentOS Linux",
+				Version:       "7.9.2009",
+				Arch:          "x86_64",
+				KernelVersion: "5.10.76-linuxkit",
+			},
+		},
+	} {
+		t.Run(tc.expected.Name, func(t *testing.T) {
+			ds.UpdateHostOperatingSystemFunc = func(ctx context.Context, hostID uint, hostOS fleet.OperatingSystem) error {
+				require.Equal(t, uint(i), hostID)
+				require.Equal(t, tc.expected, hostOS)
+				return nil
+			}
+
+			err := directIngestOSUnixLike(context.Background(), log.NewNopLogger(), &fleet.Host{ID: uint(i)}, ds, tc.data, false)
+
+			require.NoError(t, err)
+			require.True(t, ds.UpdateHostOperatingSystemFuncInvoked)
+			ds.UpdateHostOperatingSystemFuncInvoked = false
+		})
+	}
+}
+
 func TestDangerousReplaceQuery(t *testing.T) {
 	queries := GetDetailQueries(&fleet.AppConfig{HostSettings: fleet.HostSettings{EnableHostUsers: true}}, config.FleetConfig{})
 	originalQuery := queries["users"].Query
