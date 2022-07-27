@@ -154,7 +154,7 @@ Every week, the oncall engineer changes. Here are some tips for making this hand
 
 2. Handoff newer conversations (Slack threads, issues, PRs, etc.). For more recent threads, the former on-call can unsubscribe from the
    thread, and the new oncall should subscribe. The former oncall should explicitly share each of
-   these threads, and the new oncall can select "Get notified about new replies" in the "..." menu.
+   these threads and the new on-call can select "Get notified about new replies" in the "..." menu.
    The former oncall can select "Turn off notifications for replies" in that same menu. It can be
    helpful for the former oncall to remain available for any conversations they were deeply involved
    in, so use your judgment on which threads to hand off. Anything not clearly handed off remains the responsibility of the former oncall.
