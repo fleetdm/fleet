@@ -27,7 +27,13 @@ module.exports = {
 
     let GitHub = require('machinepack-github');
 
-    let IS_FROZEN = false;// « Set this to `true` whenever a freeze is in effect, then set it back to `false` when the freeze ends.
+    // Is this in use?
+    // > For context on the history of this bit of code, which has gone been
+    // > implemented a couple of different ways, and gone back and forth, check out:
+    // > https://github.com/fleetdm/fleet/pull/5628#issuecomment-1196175485
+    // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+    // let IS_FROZEN = false;// « Set this to `true` whenever a freeze is in effect, then set it back to `false` when the freeze ends.
+    // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
     let GITHUB_USERNAMES_OF_BOTS_AND_MAINTAINERS = [// « Used in multiple places below.
       'sailsbot',
@@ -70,6 +76,10 @@ module.exports = {
     let GREEN_LABEL_COLOR = 'C2E0C6';// « Used in multiple places below.  (FUTURE: Use the "+" prefix for this instead of color.  2022-05-05)
 
     let GITHUB_USERNAME_OF_DRI_FOR_LABELS = 'noahtalerman';// « Used below (FUTURE: Remove this capability as Fleet has outgrown it.  2022-05-05)
+
+    if (!sails.config.custom.mergeFreezeAccessToken) {
+      throw new Error('An access token for the MergeFreeze API (sails.config.custom.mergeFreezeAccessToken) is required to enable automated unfreezing/freezing of changes based on the files they change.  Please ask for help in #g-digital-experience, whether you are testing locally or using this as a live webhook.');
+    }
 
     if (!sails.config.custom.slackWebhookUrlForGithubBot) {
       throw new Error('No Slack webhook URL configured for the GitHub bot to notify with alerts!  (Please set `sails.config.custom.slackWebhookUrlForGithubBot`.)');
@@ -224,12 +234,59 @@ module.exports = {
           await sails.helpers.http.post(`https://api.github.com/repos/${owner}/${repo}/pulls/${prNumber}/reviews`, {
             event: 'APPROVE'
           }, baseHeaders);
-        } else if (IS_FROZEN) {
-          // [?] https://docs.github.com/en/rest/reference/pulls#create-a-review-for-a-pull-request
-          await sails.helpers.http.post(`https://api.github.com/repos/${owner}/${repo}/pulls/${prNumber}/reviews`, {
-            event: 'REQUEST_CHANGES',
-            body: 'The repository is currently frozen for an upcoming release.  \n> After the freeze has ended, please dismiss this review.  \n\nIn case of emergency, you can dismiss this review and merge now.'
-          }, baseHeaders);
+
+          // If "main" is explicitly frozen, and this PR is auto-approved, then unfreeze it because it (no longer)
+          // contains changes to files that should not be changed during the freeze.
+
+          // [?] https://docs.mergefreeze.com/web-api#get-freeze-status
+          let mainBranchMergeFreezeReport = await sails.helpers.http.get('https://www.mergefreeze.com/api/branches/fleetdm/fleet/main', { access_token: sails.config.custom.mergeFreezeAccessToken });//eslint-disable-line camelcase
+          if (mainBranchMergeFreezeReport.frozen) {
+
+            // [?] See May 6th, 2022 changelog where this otherwise undocumented code sample comes from:
+            // (https://www.mergefreeze.com/news - but as of July 26, 2022, doesn't seem to be documented here: https://docs.mergefreeze.com/web-api#post-freeze-status)
+            // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+            // > You may now freeze or unfreeze a single PR (while maintaining the overall freeze) via the Web API.
+            // ```
+            // curl -d "frozen=true&user_name=Scooby Doo&unblocked_prs=[3]" -X POST https://www.mergefreeze.com/api/branches/mergefreeze/core/master/?access_token=[Your access token]
+            // ```
+            // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+            await sails.helpers.http.post(`https://www.mergefreeze.com/api/branches/fleetdm/fleet/main?access_token=${encodeURIComponent(sails.config.custom.mergeFreezeAccessToken)}`, {
+              frozen: false,
+              user_name: 'fleet-release',//eslint-disable-line camelcase
+              unblocked_prs: [prNumber],//eslint-disable-line camelcase
+            });
+          }//ﬁ
+
+        } else {
+
+          // If "main" is explicitly frozen, and this PR is not auto-approved, then freeze it because it (now) contains changes to files
+          // that should not be changed during the freeze.
+
+          // [?] https://docs.mergefreeze.com/web-api#get-freeze-status
+          let mainBranchMergeFreezeReport = await sails.helpers.http.get('https://www.mergefreeze.com/api/branches/fleetdm/fleet/main', { access_token: sails.config.custom.mergeFreezeAccessToken });//eslint-disable-line camelcase
+
+          if (mainBranchMergeFreezeReport.frozen) {
+            // [?] See explanation above.
+            await sails.helpers.http.post(`https://www.mergefreeze.com/api/branches/fleetdm/fleet/main?access_token=${encodeURIComponent(sails.config.custom.mergeFreezeAccessToken)}`, {
+              frozen: true,
+              user_name: 'fleet-release',//eslint-disable-line camelcase
+              unblocked_prs: [prNumber],//eslint-disable-line camelcase
+            });
+          }//ﬁ
+
+          // Is this in use?
+          // > For context on the history of this bit of code, which has gone been
+          // > implemented a couple of different ways, and gone back and forth, check out:
+          // > https://github.com/fleetdm/fleet/pull/5628#issuecomment-1196175485
+          // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+          // if (IS_FROZEN) {
+          //   // [?] https://docs.github.com/en/rest/reference/pulls#create-a-review-for-a-pull-request
+          //   await sails.helpers.http.post(`https://api.github.com/repos/${owner}/${repo}/pulls/${prNumber}/reviews`, {
+          //     event: 'REQUEST_CHANGES',
+          //     body: 'The repository is currently frozen for an upcoming release.  \n> After the freeze has ended, please dismiss this review.  \n\nIn case of emergency, you can dismiss this review and merge now.'
+          //   }, baseHeaders);
+          // }//ﬁ
+          // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
         }
 
       }
