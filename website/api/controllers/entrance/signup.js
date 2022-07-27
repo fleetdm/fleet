@@ -94,6 +94,11 @@ the account verification message.)`,
 
     var newEmailAddress = emailAddress.toLowerCase();
 
+    // Checking if a user with this email address exists in our database before we send a request to the cloud provisioner.
+    if(await User.findOne({emailAddress: newEmailAddress})) {
+      throw 'emailAlreadyInUse';
+    }
+
     // Provisioning a Fleet sandbox instance for the new user. Note: Because this is the only place where we provision Sandbox instances, We'll provision a Sandbox instance BEFORE
     // creating the new User record. This way, if this fails, we won't save the new record to the database, and the user will see an error on the signup form asking them to try again.
 
@@ -119,14 +124,14 @@ the account verification message.)`,
     .timeout(5000)
     .intercept(['requestFailed', 'non200Response'], (err)=>{
       // If we recieved a non-200 response from the cloud provisioner API, we'll throw a 500 error.
-      return new Error('When attempting to provision a new user\'s Fleet Sandbox instance, the cloud provisioner gave a non 200 response. The incomplete user record has not been saved in the database, and the user will be asked to try signing up again. Raw response received from provisioner: '+err.stack);
+      return new Error('When attempting to provision a new user who just signed up ('+emailAddress+'), the cloud provisioner gave a non 200 response. The incomplete user record has not been saved in the database, and the user will be asked to try signing up again. Raw response received from provisioner: '+err.stack);
     });
 
     if(!cloudProvisionerResponseData.URL) {
       // If we didn't receive a URL in the response from the cloud provisioner API, we'll throwing an error before we save the new user record and the user will need to try to sign up again.
       throw new Error(
-        `When provisioning a Fleet Sandbox instance for this new user, the response data from the cloud provisioner API was malformed. It did not contain a valid Fleet Sandbox instance URL in its expected "URL" property.
-        The newly created User record , and the user will be asked to try signing up again.
+        `When provisioning a Fleet Sandbox instance for a new user who just signed up (${emailAddress}), the response data from the cloud provisioner API was malformed. It did not contain a valid Fleet Sandbox instance URL in its expected "URL" property.
+        The incomplete user record has not been saved in the database, and the user will be asked to try signing up again.
         Here is the malformed response data (parsed response body) from the cloud provisioner API: ${cloudProvisionerResponseData}`
       );
     }
@@ -164,7 +169,6 @@ the account verification message.)`,
       emailProofTokenExpiresAt: Date.now() + sails.config.custom.emailProofTokenTTL,
       emailStatus: 'unconfirmed'
     }:{}))
-    .intercept('E_UNIQUE', 'emailAlreadyInUse')
     .intercept({name: 'UsageError'}, 'invalid')
     .fetch();
 
