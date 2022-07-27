@@ -615,4 +615,4 @@ These groups maintain the following [Slack channels](https://fleetdm.com/handboo
 
 
 <meta name="maintainedBy" value="mike-j-thomas">
-<meta name="title" value="💓 Digital experience">
+<meta name="title" value="💓 Digital Experience">
