@@ -169,6 +169,7 @@ the account verification message.)`,
       emailProofTokenExpiresAt: Date.now() + sails.config.custom.emailProofTokenTTL,
       emailStatus: 'unconfirmed'
     }:{}))
+    .intercept('E_UNIQUE', 'emailAlreadyInUse')
     .intercept({name: 'UsageError'}, 'invalid')
     .fetch();
 
