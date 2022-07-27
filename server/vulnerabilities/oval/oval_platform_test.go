@@ -24,6 +24,7 @@ func TestOvalPlatform(t *testing.T) {
 			{"ubuntu", "Ubuntu 18.4.0", "ubuntu_1804"},
 			{"ubuntu", "Ubuntu 18.4", "ubuntu_1804"},
 			{"ubuntu", "Ubuntu 18.4.0 ", "ubuntu_1804"},
+			{"ubuntu", "Ubuntu 18.4.0 LTS asdfasd", "ubuntu_1804"},
 			{"rhel", "CentOS Linux 7.9.2009", "rhel_07"},
 			{"amzn", "Amazon Linux 2.0.0", "amzn_02"},
 			{"rhel", "Fedora Linux 12.0.0", "rhel_06"},
@@ -51,6 +52,7 @@ func TestOvalPlatform(t *testing.T) {
 			{"rhel", "Fedora Linux 34.0.0", "rhel_09"},
 			{"rhel", "Fedora Linux 35.0.0", "rhel_09"},
 			{"rhel", "Fedora Linux 36.0.0", "rhel_09"},
+			{"ubuntu", "Ubuntu 20.04.2 LTS", "ubuntu_2004"},
 		}
 
 		for _, c := range cases {

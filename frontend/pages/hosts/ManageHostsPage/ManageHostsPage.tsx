@@ -39,6 +39,8 @@ import deepDifference from "utilities/deep_difference";
 import sortUtils from "utilities/sort";
 import {
   DEFAULT_CREATE_LABEL_ERRORS,
+  HOSTS_SEARCH_BOX_PLACEHOLDER,
+  HOSTS_SEARCH_BOX_TOOLTIP,
   PLATFORM_LABEL_DISPLAY_NAMES,
   PolicyResponse,
 } from "utilities/constants";
@@ -54,6 +56,8 @@ import TableDataError from "components/DataError";
 import { IActionButtonProps } from "components/TableContainer/DataTable/ActionButton";
 import TeamsDropdown from "components/TeamsDropdown";
 import Spinner from "components/Spinner";
+import MainContent from "components/MainContent";
+import SidePanelContent from "components/SidePanelContent";
 
 import { getValidatedTeamId } from "utilities/helpers";
 import {
@@ -1399,31 +1403,27 @@ const ManageHostsPage = ({
   const renderForm = () => {
     if (isAddLabel) {
       return (
-        <div className="body-wrap">
-          <LabelForm
-            onCancel={onCancelLabel}
-            onOsqueryTableSelect={onOsqueryTableSelect}
-            handleSubmit={onSaveAddLabel}
-            baseError={labelsError?.message || ""}
-            backendValidators={labelValidator}
-          />
-        </div>
+        <LabelForm
+          onCancel={onCancelLabel}
+          onOsqueryTableSelect={onOsqueryTableSelect}
+          handleSubmit={onSaveAddLabel}
+          baseError={labelsError?.message || ""}
+          backendValidators={labelValidator}
+        />
       );
     }
 
     if (isEditLabel) {
       return (
-        <div className="body-wrap">
-          <LabelForm
-            selectedLabel={selectedLabel}
-            onCancel={onCancelLabel}
-            onOsqueryTableSelect={onOsqueryTableSelect}
-            handleSubmit={onEditLabel}
-            baseError={labelsError?.message || ""}
-            backendValidators={labelValidator}
-            isEdit
-          />
-        </div>
+        <LabelForm
+          selectedLabel={selectedLabel}
+          onCancel={onCancelLabel}
+          onOsqueryTableSelect={onOsqueryTableSelect}
+          handleSubmit={onEditLabel}
+          baseError={labelsError?.message || ""}
+          backendValidators={labelValidator}
+          isEdit
+        />
       );
     }
 
@@ -1537,7 +1537,7 @@ const ManageHostsPage = ({
         actionButtonIcon={EditColumnsIcon}
         actionButtonVariant={"text-icon"}
         additionalQueries={JSON.stringify(selectedFilters)}
-        inputPlaceHolder={"Search hostname, UUID, serial number, or IPv4"}
+        inputPlaceHolder={HOSTS_SEARCH_BOX_PLACEHOLDER}
         primarySelectActionButtonText={"Delete"}
         primarySelectActionButtonIcon={"delete"}
         primarySelectActionButtonVariant={"text-icon"}
@@ -1547,9 +1547,7 @@ const ManageHostsPage = ({
         isAllPagesSelected={isAllMatchingHostsSelected}
         searchable
         renderCount={renderHostCount}
-        searchToolTipText={
-          "Search hosts by hostname, UUID, machine serial or private IP address"
-        }
+        searchToolTipText={HOSTS_SEARCH_BOX_TOOLTIP}
         emptyComponent={EmptyHosts}
         customControl={renderStatusDropdown}
         onActionButtonClick={toggleEditColumnsModal}
@@ -1603,51 +1601,56 @@ const ManageHostsPage = ({
   }
 
   return (
-    <div className="has-sidebar">
-      {renderForm()}
-      {!isAddLabel && !isEditLabel && (
-        <div className={`${baseClass} body-wrap`}>
-          <div className="header-wrap">
-            {renderHeader()}
-            <div className={`${baseClass} button-wrap`}>
-              {!isSandboxMode &&
-                canEnrollHosts &&
-                !hasHostErrors &&
-                !hasHostCountErrors && (
-                  <Button
-                    onClick={() => setShowEnrollSecretModal(true)}
-                    className={`${baseClass}__enroll-hosts button`}
-                    variant="inverse"
-                  >
-                    <span>Manage enroll secret</span>
-                  </Button>
-                )}
-              {canEnrollHosts &&
-                !hasHostErrors &&
-                !hasHostCountErrors &&
-                !(
-                  getStatusSelected() === ALL_HOSTS_LABEL &&
-                  selectedLabel?.count === 0
-                ) &&
-                !(
-                  getStatusSelected() === ALL_HOSTS_LABEL &&
-                  filteredHostCount === 0
-                ) && (
-                  <Button
-                    onClick={toggleAddHostsModal}
-                    className={`${baseClass}__add-hosts button button--brand`}
-                  >
-                    <span>Add hosts</span>
-                  </Button>
-                )}
+    <>
+      <MainContent>
+        <>
+          {renderForm()}
+          {!isAddLabel && !isEditLabel && (
+            <div className={`${baseClass}`}>
+              <div className="header-wrap">
+                {renderHeader()}
+                <div className={`${baseClass} button-wrap`}>
+                  {!isSandboxMode &&
+                    canEnrollHosts &&
+                    !hasHostErrors &&
+                    !hasHostCountErrors && (
+                      <Button
+                        onClick={() => setShowEnrollSecretModal(true)}
+                        className={`${baseClass}__enroll-hosts button`}
+                        variant="inverse"
+                      >
+                        <span>Manage enroll secret</span>
+                      </Button>
+                    )}
+                  {canEnrollHosts &&
+                    !hasHostErrors &&
+                    !hasHostCountErrors &&
+                    !(
+                      getStatusSelected() === ALL_HOSTS_LABEL &&
+                      selectedLabel?.count === 0
+                    ) &&
+                    !(
+                      getStatusSelected() === ALL_HOSTS_LABEL &&
+                      filteredHostCount === 0
+                    ) && (
+                      <Button
+                        onClick={toggleAddHostsModal}
+                        className={`${baseClass}__add-hosts button button--brand`}
+                      >
+                        <span>Add hosts</span>
+                      </Button>
+                    )}
+                </div>
+              </div>
+              {renderActiveFilterBlock()}
+              {renderNoEnrollSecretBanner()}
+              {renderTable()}
             </div>
-          </div>
-          {renderActiveFilterBlock()}
-          {renderNoEnrollSecretBanner()}
-          {renderTable()}
-        </div>
-      )}
-      {renderSidePanel()}
+          )}
+        </>
+      </MainContent>
+      <SidePanelContent>{renderSidePanel()}</SidePanelContent>
+
       {canEnrollHosts && showDeleteSecretModal && renderDeleteSecretModal()}
       {canEnrollHosts && showSecretEditorModal && renderSecretEditorModal()}
       {canEnrollHosts && showEnrollSecretModal && renderEnrollSecretModal()}
@@ -1656,7 +1659,7 @@ const ManageHostsPage = ({
       {showAddHostsModal && renderAddHostsModal()}
       {showTransferHostModal && renderTransferHostModal()}
       {showDeleteHostModal && renderDeleteHostModal()}
-    </div>
+    </>
   );
 };
 

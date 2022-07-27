@@ -39,6 +39,7 @@ import TeamsDropdownHeader, {
   ITeamsDropdownState,
 } from "components/PageHeader/TeamsDropdownHeader";
 import LastUpdatedText from "components/LastUpdatedText";
+import MainContent from "components/MainContent";
 
 import generateSoftwareTableHeaders from "./SoftwareTableConfig";
 import ManageAutomationsModal from "./components/ManageAutomationsModal";
@@ -489,8 +490,8 @@ const ManageSoftwarePage = ({
   return !availableTeams || !config ? (
     <Spinner />
   ) : (
-    <div className={baseClass}>
-      <div className={`${baseClass}__wrapper body-wrap`}>
+    <MainContent>
+      <div className={`${baseClass}__wrapper`}>
         {renderHeader()}
         <div className={`${baseClass}__table`}>
           {softwareError && !isFetchingSoftware ? (
@@ -553,7 +554,7 @@ const ManageSoftwarePage = ({
           />
         )}
       </div>
-    </div>
+    </MainContent>
   );
 };
 

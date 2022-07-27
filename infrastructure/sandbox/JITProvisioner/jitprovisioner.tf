@@ -130,8 +130,14 @@ resource "aws_lambda_function" "jitprovisioner" {
       DYNAMODB_LIFECYCLE_TABLE = var.dynamodb_table.id
       LIFECYCLE_SFN            = aws_sfn_state_machine.main.arn
       FLEET_BASE_URL           = "${var.base_domain}"
+      AUTHORIZATION_PSK        = random_password.authorization.result
     }
   }
+}
+
+resource "random_password" "authorization" {
+  length  = 16
+  special = false
 }
 
 output "jitprovisioner" {

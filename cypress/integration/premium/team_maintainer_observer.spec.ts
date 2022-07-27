@@ -304,7 +304,7 @@ describe("Premium tier - Team observer/maintainer user", () => {
       it("should render elements according to role-based access controls", () => {
         cy.visit("/profile");
         // See 2 Teams in the Team section and Various in the Role section
-        cy.getAttached(".user-settings__additional").within(() => {
+        cy.getAttached(".user-side-panel").within(() => {
           cy.findByText("Teams")
             .next()
             .contains(/2 teams/i);
