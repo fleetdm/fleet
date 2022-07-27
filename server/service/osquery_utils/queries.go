@@ -363,7 +363,9 @@ var OrbitInfoDetailQuery = DetailQuery{
 	// TODO(mna): the query would now be generated dynamically depending on the host
 	// to include WHERE device_auth_token = {the host's current token}. Is it the first
 	// time we have dynamic (per host) queries? I can't seem to find other cases. If so I think
-	// adding a field (e.g. DynamicQuery: func(ctx, host) (string, error)).
+	// adding a field (e.g. DynamicQuery: func(ctx, host) (string, error)). This function would
+	// create the token if none existed yet, so that immediately when a host enrolls it gets
+	// a valid token (and then a cron job takes care of rotating it).
 	Query:            `SELECT * FROM orbit_info`,
 	DirectIngestFunc: directIngestOrbitInfo,
 	Discovery:        discoveryTable("orbit_info"),
