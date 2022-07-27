@@ -3,7 +3,7 @@
   // we make sure certain view locals exist that are commonly used in this layout.ejs file.  This ensures we
   // don't have to do `typeof` checks below.
   var me;
-  var isHomepage;
+  var hideHeaderOnThisPage;
 %><!DOCTYPE html>
 <html>
   <head>
@@ -94,26 +94,15 @@
   </head>
   <body>
     <div style="padding-bottom: 60px; background-color: #FFF;" purpose="page-wrap">
-
-      <div style="background-color: #FFFFFF;" class="header" purpose="page-header">
+      <div style="background-color: #FFFFFF;" class="header <%= hideHeaderOnThisPage ? 'd-none' : 'd-flex' %>" purpose="page-header">
         <div style="max-width: 1248px; height: 94px;" class="container-fluid d-flex justify-content-between align-items-center pt-3 pb-3 px-3 px-md-4">
           <a href="/" style="max-width: 118px;">
-            <% /* The homepage-header on the homepage has a white fleet logo */ %>
-            <% if (isHomepage) { %>
-            <img alt="Fleet logo" src="/images/logo-white-118x48@2x.png" style="width: 118px; height: 48px;"/>
-            <% } else { %>
             <img alt="Fleet logo" src="/images/logo-blue-162x92@2x.png" style="height: 92px; width: 162px;"/>
-            <% } %>
           </a>
           <div class="d-flex d-lg-none">
             <button purpose="header-btn" style="font-size: 16px; text-decoration: none;" class="btn btn-link d-flex align-items-center" data-toggle="collapse" data-target="#navbarToggleExternalContent">
               <span class="mr-2">Menu</span>
-              <% /* The hamburger icon on the homepage is white */ %>
-              <% if (isHomepage) { %>
-              <img alt="An icon indicating that interacting with this button will open the navigation menu." src="/images/icon-hamburger-16x14@2x.png" style="width: 16px;" />
-              <% } else { %>
               <img alt="An icon indicating that interacting with this button will open the navigation menu." src="/images/icon-hamburger-blue-16x14@2x.png" style="width: 16px;" />
-              <% } %>
             </button>
           </div>
           <%/* Mobile Navigation menu */%>
@@ -187,12 +176,12 @@
               <a class="dropdown-toggle d-flex align-items-center py-2 px-3" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">Documentation</a>
               <div purpose="header-dropdown" class="dropdown-menu">
                 <a class="dropdown-item mb-1" href="/docs">Docs</a>
-                <a class="dropdown-item mb-1" href="https://github.com/fleetdm/fleet/releases">Releases</a>
+                <a class="dropdown-item mb-1" href="/releases">Releases</a>
                 <a class="dropdown-item mb-1" href="/queries">Query library</a>
                 <div class="dropdown-divider"></div>
                 <span class="muted dropdown-header">GUIDES</span>
-                <a class="dropdown-item mb-1" href="/guides/deploying-fleet-on-aws-with-terraform">Deploy on AWS with Terraform</a>
-                <a class="dropdown-item" href="/guides/deploying-fleet-on-render">Deploy on Render</a>
+                <a class="dropdown-item" href="/deploy">Deployment guides</a>
+                <a class="dropdown-item" href="/guides">How-to guides</a>
               </div>
             </div>
             <div purpose="dropdown-button" class="btn-group">
@@ -206,7 +195,6 @@
                 <a class="dropdown-item mb-1" href="/securing">Security</a>
                 <a class="dropdown-item mb-1" href="/engineering">Engineering</a>
                 <a class="dropdown-item mb-1" href="/announcements">Announcements</a>
-                <a class="dropdown-item mb-1" href="/articles">See more</a>
                 <div class="dropdown-divider"></div>
                 <span class="muted dropdown-header">RESOURCES</span>
                 <a class="dropdown-item mb-1" href="/handbook">Handbook</a>
@@ -218,7 +206,7 @@
               <iframe src="//ghbtns.com/github-btn.html?user=fleetdm&amp;repo=fleet&amp;type=watch&amp;count=true"
               allowtransparency="true" frameborder="0" scrolling="0" width="100" height="20"></iframe>
             </span>
-            <a href="/logout?redirectTo=sandbox" class="justify-content-end px-3 py-2 text-decoration-none <%= _.has(me, 'id') ? 'd-flex' : 'd-none' %>" style="text-decoration: none; line-height: 23px;">Log out</a>
+            <a href="/logout" class="justify-content-end pl-4 py-2 text-decoration-none <%= _.has(me, 'id') ? 'd-flex' : 'd-none' %>" style="text-decoration: none; line-height: 23px;">Log out</a>
           </div>
         </div>
       </div>
@@ -423,6 +411,18 @@
     <script>
     $(function() {
       $('[data-hide-until-rendered]').removeClass('invisible'); // Note: invisible is a bootstrap 4 class
+    });
+    <%/* Adding hover events to header dropdown menus*/%>
+    $(function(){
+      $('[purpose=dropdown-button]').hover(
+        function() {
+          $(this).children('.dropdown-menu').addClass('show');
+          $(this).children('.dropdown-toggle').attr('aria-expanded', true);
+        },
+        function() {
+        $(this).children('.dropdown-menu').removeClass('show');
+        $(this).children('.dropdown-toggle').attr('aria-expanded', false);
+      });
     });
     </script>
 

@@ -3,7 +3,6 @@ module.exports = {
 
   friendlyName: 'View sandbox teleporter or redirect because sandbox expired',
 
-
   description:
     `Display "Sandbox teleporter" page (an auto-submitting interstitial HTML form used as a hack to grab a bit of HTML
     from the Fleet Sandbox instance, which sets browser localstorage to consider this user logged in and "teleports" them,
@@ -48,7 +47,9 @@ module.exports = {
     }
 
     // Respond with view.
-    return {};
+    return {
+      hideHeaderOnThisPage: true,
+    };
 
   }
 
