@@ -230,7 +230,9 @@ module.exports = {
 
         // Check whether the "main" branch is currently frozen (i.e. a feature freeze)
         // [?] https://docs.mergefreeze.com/web-api#get-freeze-status
-        let isMainBranchFrozen = (await sails.helpers.http.get('https://www.mergefreeze.com/api/branches/fleetdm/fleet/main', { access_token: sails.config.custom.mergeFreezeAccessToken })).frozen;//eslint-disable-line camelcase
+        let isMainBranchFrozen = (
+          await sails.helpers.http.get('https://www.mergefreeze.com/api/branches/fleetdm/fleet/main', { access_token: sails.config.custom.mergeFreezeAccessToken }) //eslint-disable-line camelcase
+        ).frozen;
 
         // Now, if appropriate, auto-approve the change.
         if (isAutoApproved) {
@@ -246,14 +248,20 @@ module.exports = {
           // FUTURE: Go through the trouble to migrate the database and make a little Platform model to hold this state in.
           // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
           // Grab the set of GitHub pull request numbers the bot considers "unfrozen".
+          sails.log('look up sails.pocketOfPrNumbersUnfrozen',sails.pocketOfPrNumbersUnfrozen);
           sails.pocketOfPrNumbersUnfrozen = sails.pocketOfPrNumbersUnfrozen || [];
+          sails.log('after defaulting if falsy, sails.pocketOfPrNumbersUnfrozen',sails.pocketOfPrNumbersUnfrozen);
           // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
           // If "main" is explicitly frozen, then unfreeze this PR because it no longer contains
           // (or maybe never did contain) changes to freezeworthy files.
           if (isMainBranchFrozen) {
 
+            sails.log('Autoapproved, main branch is frozen...');
+            sails.log('prNumber',prNumber);
+            sails.log('sails.pocketOfPrNumbersUnfrozen before',sails.pocketOfPrNumbersUnfrozen);
             sails.pocketOfPrNumbersUnfrozen = _.union(sails.pocketOfPrNumbersUnfrozen, [ prNumber ]);
+            sails.log('sails.pocketOfPrNumbersUnfrozen after',sails.pocketOfPrNumbersUnfrozen);
 
             // [?] See May 6th, 2022 changelog, which includes this code sample:
             // (https://www.mergefreeze.com/news)
@@ -277,7 +285,11 @@ module.exports = {
           // (or maybe always did contain) changes to freezeworthy files.
           if (isMainBranchFrozen) {
 
+            sails.log('Not autoapproved, main branch is frozen...');
+            sails.log('prNumber',prNumber);
+            sails.log('sails.pocketOfPrNumbersUnfrozen before',sails.pocketOfPrNumbersUnfrozen);
             sails.pocketOfPrNumbersUnfrozen = _.difference(sails.pocketOfPrNumbersUnfrozen, [ prNumber ]);
+            sails.log('sails.pocketOfPrNumbersUnfrozen after',sails.pocketOfPrNumbersUnfrozen);
 
             // [?] See explanation above.
             await sails.helpers.http.post(`https://www.mergefreeze.com/api/branches/fleetdm/fleet/main?access_token=${encodeURIComponent(sails.config.custom.mergeFreezeAccessToken)}`, {
