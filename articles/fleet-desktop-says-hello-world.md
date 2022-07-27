@@ -8,15 +8,21 @@ We are thrilled to announce that Fleet Desktop is out of Beta! Over the past few
 
 Fleet Desktop is a menubar icon available on macOS, Windows, and Linux. At its core, Fleet Desktop gives your end users visibility into the security posture of their machine. This unlocks two key benefits:
 
-__Self remediation.__ When Fleet finds a host is out of compliance with one or more policies configured in Fleet, Fleet Desktop will display the red error icon and list the number of failing policies, as seen in the screenshot above.
+### Self remediation
+
+When Fleet finds a host is out of compliance with one or more policies configured in Fleet, Fleet Desktop will display the red error icon and list the number of failing policies, as seen in the screenshot above.
 
 When users click on “My device,” they will be shown which policies are failing and steps for resolving the policy failures.
 
-![An example of a policy and resolution steps provided to the end user](../website/assets/images/articles/fleet-desktop-says-hello-world-1600x900@2x.jpg)
-
 By exposing this information, your end users are informed and empowered to self-remediate security issues without requiring time and attention from your IT or security team.
 
-__Scope transparency.__ A frequent question from end users is a half-joking half-concerned, “so you can see everything I do, right?” With our scope transparency feature, we clear up that ambiguity and tension between end users and IT teams.
+<div class="video-container" style="position: relative; width: 100%; padding-bottom: 56.25%; margin-top: 24px; margin-bottom: 40px;">
+	<iframe class="video" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; border: 0;" src="https://www.youtube.com/embed/hik4YnCLU58" allowfullscreen></iframe>
+</div>
+
+### Scope transparency
+
+A frequent question from end users is a half-joking half-concerned, “so you can see everything I do, right?” With our scope transparency feature, we clear up that ambiguity and tension between end users and IT teams.
 
 When a Fleet Desktop user clicks “Transparency,” they will be taken to [https://fleetdm.com/transparency](https://fleetdm.com/transparency). 
 This page explains what Fleet and osquery can and cannot see on their computers. We also link to an article on dos and don’ts for a work computer. 
