@@ -59,7 +59,6 @@
     "HistoricalUsageSnapshot": false,
     "Quote": false,
     "Subscription": false,
-    "Platform": false,
     // ...and any other backend globals (e.g. `"Organization": false`)
     // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
   }
