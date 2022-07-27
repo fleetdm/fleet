@@ -71,7 +71,11 @@ const EnrollSecretRow = ({
     return (
       <span className={`${baseClass}__name`}>
         <span className="buttons">
-          {copyMessage && <span>{`${copyMessage} `}</span>}
+          {copyMessage && (
+            <span
+              className={`${baseClass}__copy-message`}
+            >{`${copyMessage} `}</span>
+          )}
           <Button
             variant="unstyled"
             className={`${baseClass}__secret-copy-icon`}
