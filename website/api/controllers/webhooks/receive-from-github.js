@@ -27,6 +27,16 @@ module.exports = {
 
     let GitHub = require('machinepack-github');
 
+    // Since we're only using a single instance, and because the worst case scenario is that we refreeze some
+    // all-markdown PRs that had already been frozen, instead of using the database, we'll just use a little
+    // in-memory pocket here of PRs seen by this instance of the Sails app.  To get around any issues with this,
+    // users can edit and resave the PR description to trigger their PR to be unfrozen.
+    // FUTURE: Go through the trouble to migrate the database and make a little Platform model to hold this state in.
+    // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+    // Grab the set of GitHub pull request numbers the bot considers "unfrozen".
+    sails.pocketOfPrNumbersUnfrozen = sails.pocketOfPrNumbersUnfrozen || [];
+    // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+
     // Is this in use?
     // > For context on the history of this bit of code, which has gone been
     // > implemented a couple of different ways, and gone back and forth, check out:
@@ -241,27 +251,12 @@ module.exports = {
             event: 'APPROVE'
           }, baseHeaders);
 
-          // Since we're only using a single instance, and because the worst case scenario is that we refreeze some
-          // all-markdown PRs that had already been frozen, instead of using the database, we'll just use a little
-          // in-memory pocket here of PRs seen by this instance of the Sails app.  To get around any issues with this,
-          // users can edit and resave the PR description to trigger their PR to be unfrozen.
-          // FUTURE: Go through the trouble to migrate the database and make a little Platform model to hold this state in.
-          // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-          // Grab the set of GitHub pull request numbers the bot considers "unfrozen".
-          sails.log('look up sails.pocketOfPrNumbersUnfrozen',sails.pocketOfPrNumbersUnfrozen);
-          sails.pocketOfPrNumbersUnfrozen = sails.pocketOfPrNumbersUnfrozen || [];
-          sails.log('after defaulting if falsy, sails.pocketOfPrNumbersUnfrozen',sails.pocketOfPrNumbersUnfrozen);
-          // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-
           // If "main" is explicitly frozen, then unfreeze this PR because it no longer contains
           // (or maybe never did contain) changes to freezeworthy files.
           if (isMainBranchFrozen) {
 
-            sails.log('Autoapproved, main branch is frozen...');
-            sails.log('prNumber',prNumber);
-            sails.log('sails.pocketOfPrNumbersUnfrozen before',sails.pocketOfPrNumbersUnfrozen);
             sails.pocketOfPrNumbersUnfrozen = _.union(sails.pocketOfPrNumbersUnfrozen, [ prNumber ]);
-            sails.log('sails.pocketOfPrNumbersUnfrozen after',sails.pocketOfPrNumbersUnfrozen);
+            sails.log('#'+prNumber+' autoapproved, main branch is frozen...  prNumbers unfrozen:',sails.pocketOfPrNumbersUnfrozen);
 
             // [?] See May 6th, 2022 changelog, which includes this code sample:
             // (https://www.mergefreeze.com/news)
@@ -285,11 +280,8 @@ module.exports = {
           // (or maybe always did contain) changes to freezeworthy files.
           if (isMainBranchFrozen) {
 
-            sails.log('Not autoapproved, main branch is frozen...');
-            sails.log('prNumber',prNumber);
-            sails.log('sails.pocketOfPrNumbersUnfrozen before',sails.pocketOfPrNumbersUnfrozen);
             sails.pocketOfPrNumbersUnfrozen = _.difference(sails.pocketOfPrNumbersUnfrozen, [ prNumber ]);
-            sails.log('sails.pocketOfPrNumbersUnfrozen after',sails.pocketOfPrNumbersUnfrozen);
+            sails.log('#'+prNumber+' not autoapproved, main branch is frozen...  prNumbers unfrozen:',sails.pocketOfPrNumbersUnfrozen);
 
             // [?] See explanation above.
             await sails.helpers.http.post(`https://www.mergefreeze.com/api/branches/fleetdm/fleet/main?access_token=${encodeURIComponent(sails.config.custom.mergeFreezeAccessToken)}`, {
