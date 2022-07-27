@@ -63,7 +63,13 @@ const UserSidePanel = ({
     <div className={baseClass}>
       <div className={`${baseClass}__change-avatar`}>
         <Avatar user={currentUser} className={`${baseClass}__avatar`} />
-        <a href="http://en.gravatar.com/emails/">Change photo at Gravatar</a>
+        <a
+          href="https://en.gravatar.com/emails/"
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          Change photo at Gravatar
+        </a>
       </div>
       {isPremiumTier && (
         <div className={`${baseClass}__more-info-detail`}>

@@ -1,4 +1,4 @@
-# Brand
+# Digital Experience
 
 ## Publishing Fleet content 
 
@@ -611,8 +611,8 @@ These groups maintain the following [Slack channels](https://fleetdm.com/handboo
 | `#help-finance`             | Nathan Holliday
 | `#help-brex-memos`          | Nathan Holliday
 | `#help-p1`		      | Mike McNeil
-| `#help-operations`          | Nathan Holliday
+| `#help-operations-and-contract-reviews`          | Nathan Holliday
 
 
 <meta name="maintainedBy" value="mike-j-thomas">
-<meta name="title" value="💓 Brand">
+<meta name="title" value="💓 Digital Experience">

@@ -1,5 +1,4 @@
 .user-settings {
-
   &__sandboxMode {
     margin-top: 70px;
   }
@@ -51,7 +50,11 @@
   }
 
   .token-message {
-    font-size: $xx-small;
     margin-bottom: 2rem;
+  }
+
+  &__button-wrap {
+    display: flex;
+    justify-content: flex-end;
   }
 }
