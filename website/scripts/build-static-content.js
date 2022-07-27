@@ -200,8 +200,8 @@ module.exports = {
               // > • What about images referenced in markdown files? :: They need to be referenced using an absolute URL src-- e.g. ![](https://fleetdm.com/images/foo.png)   See also https://github.com/fleetdm/fleet/issues/706#issuecomment-884641081 for reasoning.
               // > • What about GitHub-style emojis like `:white_check_mark:`?  :: Use actual unicode emojis instead.  Need to revisit this?  Visit https://github.com/fleetdm/fleet/pull/1380/commits/19a6e5ffc70bf41569293db44100e976f3e2bda7 for more info.
               let mdString = await sails.helpers.fs.read(pageSourcePath);
-              mdString = mdString.replace(/(<call-to-action[\s\S]+[^>\n+])\n+(>)/g, '$1$2'); // « Removes any newlines that might exist before the closing `>` when the <call-to-action> compontent is added to markdown files.
               mdString = mdString.replace(/(```)([a-zA-Z0-9\-]*)(\s*\n)/g, '$1\n' + '<!-- __LANG=%' + '$2' + '%__ -->' + '$3'); // « Based on the github-flavored markdown's language annotation, (e.g. ```js```) add a temporary marker to code blocks that can be parsed post-md-compilation when this is HTML.  Note: This is an HTML comment because it is easy to over-match and "accidentally" add it underneath each code block as well (being an HTML comment ensures it doesn't show up or break anything).  For more information, see https://github.com/uncletammy/doc-templater/blob/2969726b598b39aa78648c5379e4d9503b65685e/lib/compile-markdown-tree-from-remote-git-repo.js#L198-L202
+              mdString = mdString.replace(/(<call-to-action[\s\S]+[^>\n+])\n+(>)/g, '$1$2'); // « Removes any newlines that might exist before the closing `>` when the <call-to-action> compontent is added to markdown files.
               let htmlString = await sails.helpers.strings.toHtml(mdString);
               htmlString = (// « Add the appropriate class to the `<code>` based on the temporary "LANG" markers that were just added above
                 htmlString
@@ -227,8 +227,8 @@ module.exports = {
                 )
               );
               // Throw an error if the compiled Markdown contains nested codeblocks. Note: We're checking this after the markdown has been compiled because backticks (`) within codeblocks will be replaced with HTML entities (&#96;) and nested triple backticks can be easy to overmatch.
-              if(htmlString.match(/(&#96;){3}[\s\S]+(&#96;){3}/g)){
-                throw new Error('The compiled markdown has a nested codeblock in '+pageSourcePath+'. To resolve this error, remove the codeblock nested within a codeblock from this file.');
+              if(htmlString.match(/(&#96;){3,4}[\s\S]+(&#96;){3}/g)){
+                throw new Error('The compiled markdown has a codeblock (\`\`\`) nested inside of another codeblock (\`\`\`\`) at '+pageSourcePath+'. To resolve this error, remove the codeblock nested inside another codeblock from this file.');
               }
               htmlString = htmlString.replace(/\(\(([^())]*)\)\)/g, '<bubble type="$1" class="colors"><span is="bubble-heart"></span></bubble>');// « Replace ((bubble))s with HTML. For more background, see https://github.com/fleetdm/fleet/issues/706#issuecomment-884622252
               htmlString = htmlString.replace(/(href="(\.\/[^"]+|\.\.\/[^"]+)")/g, (hrefString)=>{// « Modify path-relative links like `./…` and `../…` to make them absolute.  (See https://github.com/fleetdm/fleet/issues/706#issuecomment-884641081 for more background)
