@@ -68,22 +68,20 @@
     }
 
     .Select-input {
-      height: 46px;
+      height: 53px;
       margin: 0;
-      padding: 0 0 0 $pad-medium;
+      padding: 0 0 0 10px;
 
       > input {
-        line-height: 30px;
-        padding: 8px 0;
+        line-height: 36px;
         color: $core-fleet-black;
         font-size: $small;
       }
     }
 
     .Select-placeholder {
-      line-height: 50px;
+      line-height: 53px;
       font-size: $small;
-      padding: 0 $pad-medium;
     }
 
     .Select-arrow-zone {
