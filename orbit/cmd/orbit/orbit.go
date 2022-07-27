@@ -213,6 +213,9 @@ func main() {
 			return fmt.Errorf("initialize root dir: %w", err)
 		}
 
+		// TODO(mna): only "load" will now be done at startup, and the token will remain empty
+		// (and unusable) until we receive a valid one from the server (ie. until the first
+		// distributed read reply with the `osquery_info` table execution).
 		deviceAuthToken, err := loadOrGenerateToken(c.String("root-dir"))
 		if err != nil {
 			return fmt.Errorf("load identifier file: %w", err)
@@ -497,6 +500,7 @@ func main() {
 		registerExtensionRunner(&g, r.ExtensionSocketPath(), deviceAuthToken)
 
 		if c.Bool("fleet-desktop") {
+			// TODO(mna): pass the device token's file path instead of the token itself.
 			desktopRunner := newDesktopRunner(desktopPath, fleetURL, deviceAuthToken, c.String("fleet-certificate"), c.Bool("insecure"))
 			g.Add(desktopRunner.actor())
 		}

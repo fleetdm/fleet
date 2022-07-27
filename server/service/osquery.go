@@ -523,6 +523,11 @@ func (svc *Service) GetDistributedQueries(ctx context.Context) (queries map[stri
 		discovery[name] = query
 	}
 
+	// TODO(mna): I think the following "Fleet Desktop Improvement" is still required, as the
+	// extension might not be loaded when the initial orbit_info query is sent by the server
+	// with the valid token, so we should try to resend it ASAP even if the interval is not
+	// passed yet. Except it wouldn't be to "retrieve" the token, but to send it.
+
 	// The following is added to improve Fleet Desktop's UX at install time.
 	//
 	// At install (enroll) time, the "orbit_info" extension takes longer to load than the first
@@ -609,6 +614,8 @@ func (svc *Service) detailQueriesForHost(ctx context.Context, host *fleet.Host) 
 	detailQueries := osquery_utils.GetDetailQueries(config, svc.config)
 	for name, query := range detailQueries {
 		if query.RunsForPlatform(host.Platform) {
+			// TODO(mna): if query.DynamicQuery is not nil, call it to generate the query,
+			// otherwise use the static Query field as-is.
 			queryName := hostDetailQueryPrefix + name
 			queries[queryName] = query.Query
 			discoveryQuery := query.Discovery
