@@ -228,6 +228,10 @@ module.exports = {
           isGithubUserMaintainerOrDoesntMatter: GITHUB_USERNAMES_OF_BOTS_AND_MAINTAINERS.includes(sender.login.toLowerCase())
         });
 
+        // Check whether the "main" branch is currently frozen (i.e. a feature freeze)
+        // [?] https://docs.mergefreeze.com/web-api#get-freeze-status
+        let isMainBranchFrozen = (await sails.helpers.http.get('https://www.mergefreeze.com/api/branches/fleetdm/fleet/main', { access_token: sails.config.custom.mergeFreezeAccessToken })).frozen;//eslint-disable-line camelcase
+
         // Now, if appropriate, auto-approve the change.
         if (isAutoApproved) {
           // [?] https://docs.github.com/en/rest/reference/pulls#create-a-review-for-a-pull-request
@@ -240,20 +244,20 @@ module.exports = {
           // in-memory pocket here of PRs seen by this instance of the Sails app.  To get around any issues with this,
           // users can edit and resave the PR description to trigger their PR to be unfrozen.
           // FUTURE: Go through the trouble to migrate the database and make a little Platform model to hold this state in.
-          // TODO
+          // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+          // Grab the set of GitHub pull request numbers the bot considers "unfrozen".
+          sails.pocketOfPrNumbersUnfrozen = sails.pocketOfPrNumbersUnfrozen || [];
+          // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
-          // await Platform.create({});
-          // (await Platform.find().limit(1))[0];
+          // If "main" is explicitly frozen, then unfreeze this PR because it no longer contains
+          // (or maybe never did contain) changes to freezeworthy files.
+          if (isMainBranchFrozen) {
 
-          // If "main" is explicitly frozen, and this PR is auto-approved, then unfreeze it because it (no longer)
-          // contains changes to files that should not be changed during the freeze.
+            sails.pocketOfPrNumbersUnfrozen = _.union(sails.pocketOfPrNumbersUnfrozen, [ prNumber ]);
 
-          // [?] https://docs.mergefreeze.com/web-api#get-freeze-status
-          let mainBranchMergeFreezeReport = await sails.helpers.http.get('https://www.mergefreeze.com/api/branches/fleetdm/fleet/main', { access_token: sails.config.custom.mergeFreezeAccessToken });//eslint-disable-line camelcase
-          if (mainBranchMergeFreezeReport.frozen) {
-
-            // [?] See May 6th, 2022 changelog where this otherwise undocumented code sample comes from:
-            // (https://www.mergefreeze.com/news - but as of July 26, 2022, doesn't seem to be documented here: https://docs.mergefreeze.com/web-api#post-freeze-status)
+            // [?] See May 6th, 2022 changelog, which includes this code sample:
+            // (https://www.mergefreeze.com/news)
+            // (but as of July 26, 2022, I didn't see it documented here: https://docs.mergefreeze.com/web-api#post-freeze-status)
             // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
             // > You may now freeze or unfreeze a single PR (while maintaining the overall freeze) via the Web API.
             // ```
@@ -261,26 +265,25 @@ module.exports = {
             // ```
             // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
             await sails.helpers.http.post(`https://www.mergefreeze.com/api/branches/fleetdm/fleet/main?access_token=${encodeURIComponent(sails.config.custom.mergeFreezeAccessToken)}`, {
-              frozen: false,
+              frozen: true,
               user_name: 'fleet-release',//eslint-disable-line camelcase
-              unblocked_prs: [prNumber],//eslint-disable-line camelcase
+              unblocked_prs: sails.pocketOfPrNumbersUnfrozen,//eslint-disable-line camelcase
             });
+
           }//ﬁ
 
         } else {
+          // If "main" is explicitly frozen, then freeze this PR because it now contains
+          // (or maybe always did contain) changes to freezeworthy files.
+          if (isMainBranchFrozen) {
 
-          // If "main" is explicitly frozen, and this PR is not auto-approved, then freeze it because it (now) contains changes to files
-          // that should not be changed during the freeze.
+            sails.pocketOfPrNumbersUnfrozen = _.difference(sails.pocketOfPrNumbersUnfrozen, [ prNumber ]);
 
-          // [?] https://docs.mergefreeze.com/web-api#get-freeze-status
-          let mainBranchMergeFreezeReport = await sails.helpers.http.get('https://www.mergefreeze.com/api/branches/fleetdm/fleet/main', { access_token: sails.config.custom.mergeFreezeAccessToken });//eslint-disable-line camelcase
-
-          if (mainBranchMergeFreezeReport.frozen) {
             // [?] See explanation above.
             await sails.helpers.http.post(`https://www.mergefreeze.com/api/branches/fleetdm/fleet/main?access_token=${encodeURIComponent(sails.config.custom.mergeFreezeAccessToken)}`, {
               frozen: true,
               user_name: 'fleet-release',//eslint-disable-line camelcase
-              unblocked_prs: [prNumber],//eslint-disable-line camelcase
+              unblocked_prs: sails.pocketOfPrNumbersUnfrozen,//eslint-disable-line camelcase
             });
           }//ﬁ
 
