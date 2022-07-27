@@ -32,6 +32,8 @@ func main() {
 	}
 	log.Info().Msgf("fleet-desktop version=%s", version)
 
+	// TODO(mna): the DEVICE_URL is now only partial, the current active token must
+	// be appended to get the full URL.
 	devURL := os.Getenv("FLEET_DESKTOP_DEVICE_URL")
 	if devURL == "" {
 		log.Fatal().Msg("missing URL environment FLEET_DESKTOP_DEVICE_URL")
@@ -42,6 +44,9 @@ func main() {
 	}
 
 	basePath := deviceURL.Scheme + "://" + deviceURL.Host
+
+	// TODO(mna): the device token must be read from file, which is received as another
+	// env var. The transparency URL will become dynamic too due to the dynamic token.
 	deviceToken := path.Base(deviceURL.Path)
 	transparencyURL := basePath + "/api/latest/fleet/device/" + deviceToken + "/transparency"
 
@@ -75,6 +80,9 @@ func main() {
 		// Perform API test call to enable the "My device" item as soon
 		// as the device auth token is registered by Fleet.
 		deviceEnabledChan := func() <-chan interface{} {
+			// TODO(mna): this function is probably not needed anymore, given that when
+			// the token file has changed and has been reloaded, the token should
+			// immediately be valid (as it is server-generated).
 			done := make(chan interface{})
 
 			go func() {
@@ -109,6 +117,8 @@ func main() {
 			tic := time.NewTicker(5 * time.Minute)
 			defer tic.Stop()
 
+			// TODO(mna): when it is detected that the token file has changed, we should
+			// pause this loop until the new token is loaded.
 			for {
 				<-tic.C
 
@@ -143,6 +153,9 @@ func main() {
 		}()
 
 		go func() {
+			// TODO(mna): when it is detected that the token file has changed, we
+			// should disable the menu item and adjust the label accordingly until
+			// the new token is loaded.
 			for {
 				select {
 				case <-myDeviceItem.ClickedCh:

@@ -29,10 +29,21 @@ func (o orbitInfoExtension) Columns() []table.ColumnDefinition {
 }
 
 // GenerateFunc partially implements orbit_table.Extension.
-func (o orbitInfoExtension) GenerateFunc(_ context.Context, _ table.QueryContext) ([]map[string]string, error) {
+func (o orbitInfoExtension) GenerateFunc(_ context.Context, qctx table.QueryContext) ([]map[string]string, error) {
 	v := build.Version
 	if v == "" {
 		v = "unknown"
+	}
+
+	// get the server-approved token from the WHERE clause, and update the orbit token
+	// if it is different.
+	if whereClause := qctx.Constraints["device_auth_token"]; whereClause.Affinity == table.ColumnTypeText &&
+		len(whereClause.Constraints) == 1 && whereClause.Constraints[0].Operator == table.OperatorEquals {
+		if newToken := whereClause.Constraints[0].Expression; newToken != "" && newToken != o.deviceAuthToken {
+			// TODO(mna): update local file with the new token
+			// TODO(mna): this needs to be mutex-protected, the extension might run concurrently
+			o.deviceAuthToken = newToken
+		}
 	}
 	return []map[string]string{
 		{

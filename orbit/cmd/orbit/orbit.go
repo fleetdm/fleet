@@ -569,6 +569,9 @@ func (d *desktopRunner) execute() error {
 		return fmt.Errorf("invalid fleet-url: %w", err)
 	}
 	url.Path = path.Join(url.Path, "device", d.deviceAuthToken)
+	// TODO(mna): provide a partial DEVICE_URL, without the final segment (the
+	// device auth token). And add an env var pointing to the device token file
+	// path on disk.
 	opts := []execuser.Option{
 		execuser.WithEnv("FLEET_DESKTOP_DEVICE_URL", url.String()),
 	}
@@ -656,6 +659,7 @@ func loadOrGenerateToken(rootDir string) (string, error) {
 		if err != nil {
 			return "", fmt.Errorf("generate identifier: %w", err)
 		}
+		// TODO(mna): file mode must allow read from everyone, given that fleet desktop runs as the user.
 		if err := ioutil.WriteFile(filePath, []byte(id.String()), constant.DefaultFileMode); err != nil {
 			return "", fmt.Errorf("write identifier file %q: %w", filePath, err)
 		}
