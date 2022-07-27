@@ -55,6 +55,12 @@ module.exports = {
       }
     }
 
+    let showSwagForm = false;
+    // Check the cf-ipcountry header
+    if(this.req.headers['cf-ipcountry'] === 'US') {
+      showSwagForm = true;
+    }
+
     // Respond with view.
     return {
       path: require('path'),
@@ -69,6 +75,7 @@ module.exports = {
         thisPage.meta.description ? thisPage.meta.description // « custom meta description for this page, if provided in markdown
         : 'Documentation for Fleet for osquery.'// « otherwise use the generic description
       ),
+      showSwagForm
     };
 
   }
