@@ -248,7 +248,7 @@ const PlatformWrapper = ({
       // Clear message after 1 second
       setTimeout(
         () => setCopyMessage((prev) => ({ ...prev, [platform]: "" })),
-        6000
+        1000
       );
 
       return false;
