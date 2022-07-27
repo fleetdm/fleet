@@ -24,6 +24,7 @@ type dbOptions struct {
 	interceptor         sqlmw.Interceptor
 	tracingConfig       *config.LoggingConfig
 	minLastOpenedAtDiff time.Duration
+	sqlMode             string
 }
 
 // Logger adds a logger to the datastore.
@@ -72,6 +73,14 @@ func TracingEnabled(lconfig *config.LoggingConfig) DBOption {
 func WithFleetConfig(conf *config.FleetConfig) DBOption {
 	return func(o *dbOptions) error {
 		o.minLastOpenedAtDiff = conf.Osquery.MinSoftwareLastOpenedAtDiff
+		return nil
+	}
+}
+
+// SQLMode allows setting a custom sql_mode string.
+func SQLMode(mode string) DBOption {
+	return func(o *dbOptions) error {
+		o.sqlMode = mode
 		return nil
 	}
 }

@@ -21,7 +21,7 @@ For more information about the recent security breach, take a look at [Microsoft
 ### Could this post be more helpful?
 Let us know if you can think of any other example scenarios you’d like us to cover.
 
-<meta name="category" value="product">
+<meta name="category" value="guides">
 <meta name="authorGitHubUsername" value="mike-j-thomas">
 <meta name="authorFullName" value="Mike Thomas">
 <meta name="publishedOn" value="2021-05-11">

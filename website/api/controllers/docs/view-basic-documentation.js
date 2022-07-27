@@ -36,46 +36,24 @@ module.exports = {
 
     let SECTION_URL_PREFIX = '/docs';
 
-    // Serve appropriate page content.
+    // Lookup appropriate page content, tolerating (but redirecting to fix) any unexpected capitalization or slashes.
+    // Note that this action serves the '/docs' landing page, as well as individual doc pages.
     // > Inspired by https://github.com/sailshq/sailsjs.com/blob/b53c6e6a90c9afdf89e5cae00b9c9dd3f391b0e7/api/controllers/documentation/view-documentation.js
     let thisPage = _.find(sails.config.builtStaticContent.markdownPages, {
-      url: _.trimRight(SECTION_URL_PREFIX + '/' + _.trim(pageUrlSuffix, '/'), '/')
+      url: (
+        !pageUrlSuffix? SECTION_URL_PREFIX// « landing page (guaranteed to exist)
+        : SECTION_URL_PREFIX + '/' + pageUrlSuffix// « individual content page
+      )
     });
-    // console.log('pageUrlSuffix:',pageUrlSuffix);
-    // console.log('SECTION_URL_PREFIX + "/" + _.trim(pageUrlSuffix, "/"):',SECTION_URL_PREFIX + '/' + _.trim(pageUrlSuffix, '/'));
-    // console.log('thisPage:',thisPage);
-
-    // Setting a flag if the pageUrlSuffix doesn't match any existing page, or if the page it matches doesn't exactly match the pageUrlSuffix provided
-    // Note: because this also handles the docs landing page and a pageUrlSuffix might not have provided, we set this flag to false if the url is just '/docs'
-    let needsRedirectMaybe = (!thisPage || (thisPage.url !== '/docs/'+pageUrlSuffix && thisPage.url !== '/docs'));
-
-    if (needsRedirectMaybe) {
-      // Creating a lower case, repeating-slashless pageUrlSuffix
-      let multipleSlashesRegex = /\/{2,}/g;
-      let modifiedPageUrlSuffix = pageUrlSuffix.toLowerCase().replace(multipleSlashesRegex, '/');
-      // Finding the appropriate page content using the modified pageUrlSuffix.
-      let revisedPage = _.find(sails.config.builtStaticContent.markdownPages, {
-        url: _.trimRight(SECTION_URL_PREFIX + '/' + _.trim(modifiedPageUrlSuffix, '/'), '/')
-      });
-      if(revisedPage) {
-        // If we matched a page with the modified pageUrlSuffix, then redirect to that.
-        throw {redirect: revisedPage.url};
-      } else {
-        // If no page was found, throw a 404 error.
+    if (!thisPage) {// If there's no EXACTLY matching content page, try a revised version of the URL suffix that's lowercase, with all slashes deduped, and any leading or trailing slash removed (leading slashes are only possible if this is a regex, rather than "/*" route)
+      let revisedPageUrlSuffix = pageUrlSuffix.toLowerCase().replace(/\/+/g, '/').replace(/^\/+/,'').replace(/\/+$/,'');
+      thisPage = _.find(sails.config.builtStaticContent.markdownPages, { url: SECTION_URL_PREFIX + '/' + revisedPageUrlSuffix });
+      if (thisPage) {// If we matched a page with the revised suffix, then redirect to that rather than rendering it, so the URL gets cleaned up.
+        throw {redirect: thisPage.url};
+      } else {// If no page could be found even with the revised suffix, then throw a 404 error.
         throw 'notFound';
       }
     }
-    // Setting the meta title for this page.
-    let pageTitleForMeta;
-    if(thisPage.title === 'Readme.md') {
-      // If thisPage.title is 'Readme.md', we're on the docs landing page and we'll follow the title format of the other top level pages.
-      pageTitleForMeta = 'Documentation | Fleet for osquery';
-    } else {
-      // Otherwise we'll use the page title provided and format it accordingly.
-      pageTitleForMeta = thisPage.title + ' | Fleet documentation';
-    }
-    // Setting the meta description for this page if one was provided, otherwise setting a generic description.
-    let pageDescriptionForMeta = thisPage.meta.description ? thisPage.meta.description : 'Documentation for Fleet for osquery.';
 
     // Respond with view.
     return {
@@ -83,8 +61,14 @@ module.exports = {
       thisPage: thisPage,
       markdownPages: sails.config.builtStaticContent.markdownPages,
       compiledPagePartialsAppPath: sails.config.builtStaticContent.compiledPagePartialsAppPath,
-      pageTitleForMeta,
-      pageDescriptionForMeta,
+      pageTitleForMeta: (
+        thisPage.title !== 'Readme.md' ? thisPage.title + ' | Fleet documentation'// « custom meta title for this page, if provided in markdown
+        : 'Documentation | Fleet for osquery' // « otherwise we're on the landing page for this section of the site, so we'll follow the title format of other top-level pages
+      ),
+      pageDescriptionForMeta: (
+        thisPage.meta.description ? thisPage.meta.description // « custom meta description for this page, if provided in markdown
+        : 'Documentation for Fleet for osquery.'// « otherwise use the generic description
+      ),
     };
 
   }

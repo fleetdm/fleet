@@ -91,30 +91,6 @@ const isHost = (target: ISelectTargetsEntity) => {
   return "hostname" in target;
 };
 
-export const diskSpaceIndicator = (diskSpaceAvailable: number) => {
-  switch (true) {
-    case diskSpaceAvailable < 16:
-      return "red";
-    case diskSpaceAvailable < 32:
-      return "yellow";
-    default:
-      return "green";
-  }
-};
-
-export const diskSpaceTooltip = (
-  diskSpaceAvailable: number
-): string | undefined => {
-  switch (true) {
-    case diskSpaceAvailable < 16:
-      return "Not enough disk space available to install most small operating systems updates.";
-    case diskSpaceAvailable < 32:
-      return "Not enough disk space available to install most large operating systems updates.";
-    default:
-      return "Enough disk space available to install most operating systems updates.";
-  }
-};
-
 const filterTarget = (targetType: string) => {
   return (target: ISelectTargetsEntity) => {
     const id =
@@ -604,16 +580,6 @@ export const inMilliseconds = (nanoseconds: number): number => {
   return nanoseconds / NANOSECONDS_PER_MILLISECOND;
 };
 
-export const humanHostUptime = (uptimeInNanoseconds: number): string => {
-  const uptimeMilliseconds = inMilliseconds(uptimeInNanoseconds);
-  const restartDate = new Date();
-  restartDate.setMilliseconds(
-    restartDate.getMilliseconds() - uptimeMilliseconds
-  );
-
-  return formatDistanceToNow(new Date(restartDate), { addSuffix: true });
-};
-
 export const humanHostLastRestart = (
   detailUpdatedAt: string,
   uptime: number
@@ -827,8 +793,6 @@ export const wrapFleetHelper = (
 
 export default {
   addGravatarUrlToResource,
-  diskSpaceIndicator,
-  diskSpaceTooltip,
   formatConfigDataForServer,
   formatLabelResponse,
   formatFloatAsPercentage,
@@ -843,7 +807,6 @@ export default {
   generateRole,
   generateTeam,
   greyCell,
-  humanHostUptime,
   humanHostLastSeen,
   humanHostEnrolled,
   humanHostMemory,

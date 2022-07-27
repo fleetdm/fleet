@@ -8,8 +8,6 @@
 
   span {
     display: flex;
-    align-items: center;
-    padding: 0;
   }
 
   form,
@@ -17,17 +15,8 @@
     display: inline-flex;
   }
 
-  &__checkboxes {
-    padding-top: 0;
-    padding-bottom: $pad-small;
-  }
   &__platform-checkbox-wrapper {
     padding-left: 12px;
     margin: 0;
-
-    .fleet-checkbox__label {
-      transform: translateY(2px);
-      padding-left: $pad-xsmall;
-    }
   }
 }

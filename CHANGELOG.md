@@ -1,7 +1,7 @@
 
 ## Fleet 4.17.0 (July 8, 2022)
 
-* Fleet Premium and Fleet Free: Fleet desktop is officially out of beta. Fleet Desktop shows users exactly what's going on with their device and gives them the tools they need to make sure that their it is secure and aligned with policies. They just need to click an icon in their menu bar. 
+* Fleet Premium and Fleet Free: Fleet desktop is officially out of beta. This application shows users exactly what's going on with their device and gives them the tools they need to make sure it is secure and aligned with policies. They just need to click an icon in their menu bar. 
 
 * Fleet Premium and Fleet Free: Fleet's osquery installer is officially out of beta. Orbit is a lightweight wrapper for osquery that allows you to easily deploy, configure and keep osquery up-to-date across your organization. 
 
@@ -19,7 +19,7 @@
 
 * Updated Fleet host detail query so that the `os_version` for Ubuntu hosts reflects the accurate patch number.
 
-* Improved accuracy of `software_host_counts` by removing hosts from the count if software has been uninstalled.
+* Improved accuracy of `software_host_counts` by removing hosts from the count if any software has been uninstalled.
 
 * Improved accuracy of the `last_restarted` date. 
 
@@ -27,11 +27,11 @@
 
 * Improved logging when fleetctl encounters permissions errors.
 
-* Added support for scanning RHEL based and Fedora hosts for vulnerable software using OVAL definitions.
+* Added support for scanning RHEL-based and Fedora hosts for vulnerable software using OVAL definitions.
 
 * Fixed SQL generated for operating system version policies to reduce false negatives
 
-* Added the number of hosts enrolled by operating system (OS) and OS version to anonymous usage statistics.
+* Added the number of hosts enrolled by Operating System (OS) and its version to anonymous usage statistics.
 
 * Added the weekly active users count to anonymous usage statistics.
 

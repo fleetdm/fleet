@@ -688,7 +688,7 @@ func testUsersChangePassword(t *testing.T, ds *mysql.Datastore) {
 			user:        users["admin1@example.com"],
 			oldPassword: test.GoodPassword2,
 			newPassword: test.GoodPassword,
-			wantErr:     fleet.NewInvalidArgumentError("new_password", "cannot reuse old password"),
+			wantErr:     fleet.NewInvalidArgumentError("new_password", "Cannot reuse old password"),
 		},
 		{ // all good
 			user:        users["user1@example.com"],
@@ -809,7 +809,7 @@ func TestPerformRequiredPasswordReset(t *testing.T) {
 
 			// should error when using same password
 			_, err = svc.PerformRequiredPasswordReset(ctx, tt.PlaintextPassword)
-			require.Equal(t, "validation failed: new_password cannot reuse old password", err.Error())
+			require.Equal(t, "validation failed: new_password Cannot reuse old password", err.Error())
 
 			// should succeed with good new password
 			u, err := svc.PerformRequiredPasswordReset(ctx, test.GoodPassword2)
@@ -843,7 +843,7 @@ func TestResetPassword(t *testing.T) {
 		{ // prevent reuse
 			token:       "abcd",
 			newPassword: test.GoodPassword2,
-			wantErr:     fleet.NewInvalidArgumentError("new_password", "cannot reuse old password"),
+			wantErr:     fleet.NewInvalidArgumentError("new_password", "Cannot reuse old password"),
 		},
 		{ // bad token
 			token:       "dcbaz",

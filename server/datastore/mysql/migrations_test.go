@@ -1,7 +1,6 @@
 package mysql
 
 import (
-	"bytes"
 	"context"
 	"os/exec"
 	"testing"
@@ -67,11 +66,9 @@ func TestMigrations(t *testing.T) {
 		// Command run inside container
 		"mysqldump", "-u"+testUsername, "-p"+testPassword, "TestMigrations", "--compact", "--skip-comments",
 	)
-	var stdoutBuf bytes.Buffer
-	cmd.Stdout = &stdoutBuf
-	require.NoError(t, cmd.Run())
 
-	require.NotEmpty(t, stdoutBuf.String())
+	output, err := cmd.CombinedOutput()
+	require.NoError(t, err, "mysqldump: %s", string(output))
 }
 
 func createMySQLDSForMigrationTests(t *testing.T, dbName string) *Datastore {

@@ -105,6 +105,7 @@
       .table-container__header-left {
         .controls {
           display: flex;
+          align-items: center;
         }
       }
     }
@@ -133,51 +134,6 @@
                 }
                 .text-muted {
                   color: $ui-fleet-black-50;
-                }
-              }
-
-              .gigs_disk_space_available__cell {
-                overflow: auto;
-                white-space: nowrap;
-
-                &__disk-space-wrapper {
-                  display: inline-block;
-
-                  &:hover {
-                    cursor: help;
-                  }
-                }
-
-                &__disk-space {
-                  display: inline-block;
-                  height: 4px;
-                  width: 50px;
-                  background-color: $ui-fleet-blue-15;
-                  border-radius: 2px;
-                  margin-right: $pad-small;
-                  overflow: hidden;
-                  margin-bottom: 2px;
-                }
-
-                &__disk-space-green {
-                  background-color: $ui-success;
-                  height: 100%;
-                }
-
-                &__disk-space-yellow {
-                  background-color: $ui-warning;
-                  height: 100%;
-                }
-
-                &__disk-space-red {
-                  background-color: $ui-error;
-                  height: 100%;
-                }
-
-                .tooltip__tooltip-text {
-                  display: block;
-                  white-space: normal;
-                  max-width: 160px;
                 }
               }
             }

@@ -253,7 +253,8 @@ spec:
 
 ## Using fleetctl with an API-only user
 
-Now that `fleetctl` and the Fleet server is configured, it can be helpful to create an API-only user to use when running automated workflows. An API-only user can be given a role based on the abilities it needs. The default access level is `Observer`. For more information on roles, see the [user permissions documentation](./Permissions.md#user-permissions).
+When running automated workflows using the Fleet API, we recommend an API-only user's API key rather than the API key of a regular user. A regular user's API key expires frequently for security purposes, requiring routine updates. Meanwhile, an API-only user's key does not expire.
+An API-only user does not have access to the Fleet UI. Instead, it's only purpose is to interact with the API programmatically or from fleetctl.
 
 ### Create an API-only user
 
@@ -263,15 +264,18 @@ To create your new API-only user, run `fleetctl user create` and pass values for
 fleetctl user create --name "API User" --email api@example.com --password temp!pass --api-only
 ```
 
+### Permissions for an API-only user
+An API-only user can be given the same permissions as a regular user. The default access level is `Observer`. For more information on permissions, see the [user permissions documentation](./Permissions.md#user-permissions).
+
 If you'd like your API-only user to have a different access level than the default `Observer` role, you can specify what level of access the new user should have using the `--global-role` flag:
 
 ```
 fleetctl user create --name "API User" --email api@example.com --password temp!pass --api-only --global-role admin
 ```
 
-### Use fleetctl as the new user
+### Use fleetctl as an API-only user
 
-Now that your new user is all set up, you will need to log in with `fleetctl login`. You'll now be able to perform tasks using `fleetctl` as your new API-only user.
+To use fleetctl with an API-only user, you will need to log in with `fleetctl login`. Once done, you'll be able to perform tasks using `fleetctl` as your new API-only user.
 
 > If you are using a version of Fleet older than `4.13.0`, you will need to [reset the API-only user's password](https://github.com/fleetdm/fleet/blob/a1eba3d5b945cb3339004dd1181526c137dc901c/docs/Using-Fleet/fleetctl-CLI.md#reset-the-password) before running queries.
 
@@ -307,15 +311,15 @@ The [Log in API](https://fleetdm.com/docs/using-fleet/rest-api#log-in) will retu
 
 ### Switching users
 
-If you would like to use your API user by default for automated workflows and still use `fleetctl` with your standard user account, you can set up your `fleetctl` config with a new `context` to hold the credentials for your admin user using the `--context` flag:
+To use `fleetctl` with your regular user account but occasionally use your API-only user for specific cases, you can set up your `fleetctl` config with a new `context` to hold the credentials of your API-only user:
 
 ```
-fleetctl config set --address https://fleet.corp.example.com --context admin
-[+] Context "admin" not found, creating it with default values
-[+] Set the address config key to "https://dogfood.fleetdm.com" in the "admin" context
+fleetctl config set --address https://dogfood.fleetdm.com --context api
+[+] Context "api" not found, creating it with default values
+[+] Set the address config key to "https://dogfood.fleetdm.com" in the "api" context
 ```
 
-Then log in using the `context` you just created and your usual Fleet credentials:
+From there on, you can use  the `--context api` flag whenever you need to use the API-only user's identity, rather than logging in and out to switch accounts:
 
 ```
 fleetctl login --context admin
@@ -325,20 +329,7 @@ Password:
 [+] Fleet login successful and context configured!
 ```
 
-Now, you can use the `context` flag to indicate which profile should be used rather than logging in and out every time you need to switch accounts. Running a command with no context will use the default profile (currently the new API-only user with `Observer` privileges):
-
-```
-fleetctl user create --email test@example.com --name "New User"
-Error: Failed to create user: POST /api/latest/v1/users/admin received status 403 forbidden: forbidden
-```
-
-The user creation failed because the API-only user doesn't have the right permissions. Running the command with the admin `context` specified will succeed:
-
-```
-$ fleetctl user create --email test@example.com --name "New User" --context admin
-Enter password for user:
-Enter password for user (confirm):
-```
+Running a command with no context will use the default profile.
 
 ## File carving
 

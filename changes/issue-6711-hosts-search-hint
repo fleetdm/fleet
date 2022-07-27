@@ -1,0 +1,2 @@
+- Removed MAC address from placeholder text for the select targets search box and updated text to
+reflect currently supported search values: hostname, UUID, serial number, or IPv4.

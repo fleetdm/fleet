@@ -256,6 +256,7 @@ const IntegrationForm = ({
                 formData.apiToken === "" ||
                 formData.groupId === 0)
           }
+          className={"tooltip"}
         >
           <Button
             className={`${baseClass}__btn`}
