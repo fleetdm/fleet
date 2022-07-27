@@ -32,7 +32,7 @@ func (s *integrationSandboxTestSuite) SetupSuite() {
 	cfg.Server.SandboxEnabled = true
 
 	is := s3.SetupTestInstallerStore(t, "integration-tests", "")
-	users, server := RunServerForTestsWithDS(t, s.ds, &TestServerOpts{FleetConfig: &cfg})
+	users, server := RunServerForTestsWithDS(t, s.ds, &TestServerOpts{FleetConfig: &cfg, Is: is})
 	s.server = server
 	s.users = users
 	s.token = s.getTestAdminToken()
