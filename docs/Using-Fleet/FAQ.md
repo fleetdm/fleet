@@ -1,6 +1,6 @@
 # Using Fleet FAQ
 
-- [How can I switch to Fleet from Kolide Fleet?(#how-can-i-switch-to-fleet-from-kolide-fleet)
+- [How can I switch to Fleet from Kolide Fleet?](#how-can-i-switch-to-fleet-from-kolide-fleet)
 - [Has anyone stress tested Fleet? How many clients can the Fleet server handle?](#has-anyone-stress-tested-fleet-how-many-clients-can-the-fleet-server-handle)
 - [Can I target my hosts using their enroll secrets?](#can-I-target-my-hosts-using-their-enroll-secrets)
 - [How often do labels refresh? Is the refresh frequency configurable?](#how-often-do-labels-refresh-is-the-refresh-frequency-configurable)
