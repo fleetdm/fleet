@@ -59,7 +59,7 @@ html, body {
 
 [purpose='page-header'] {
     // rules for sticky nav transitions
-    transition-property: background-color, display, transform;
+    transition-property: display, transform;
     transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
     transition-duration: 500ms;
 
@@ -158,6 +158,7 @@ html, body {
   &.sticky {
     position: fixed;
     background-color: #fff;
+    border-color: transparent;
     color: #192147;
 
     .btn.btn-link {
