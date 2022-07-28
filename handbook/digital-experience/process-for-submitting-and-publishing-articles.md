@@ -10,10 +10,10 @@ This guide includes all you need to know about Fleet’s editorial process and h
 - [Who can publish articles?](#who-can-publish-articles)
 - [Communication](#communication)
 - [Schedule](#schedule)
-- [How to submit articles](#how-to-submit-articles)
+- [How to submit an article](#how-to-submit-an-article)
 - [Review process](#review-process)
 - [Pre-publication checklist](#pre-publication-checklist)
-- [After publication](after-publication)
+- [After publication](#after-publication)
 - [Related pages](#related-pages)
 
 ## Article DRIs
@@ -35,7 +35,7 @@ Use [#help-content-calendar](https://fleetdm.slack.com/archives/C03PH3BBVSM) on 
 
 ## Schedule
 
-Publishing occurs according to our [content calendar](https://docs.google.com/spreadsheets/d/1IzpoIfTc7cqc9g8w20fQfap3GFcrqgOaiPrpCkowcvA/edit?usp=sharing). However, that is subject to change based on the news/information that needs to be posted. For time-sensitive articles, consult with Tim Kern in [#help-content-calendar](https://fleetdm.slack.com/archives/C03PH3BBVSM) on Slack.
+Publishing occurs according to our [content calendar](https://docs.google.com/spreadsheets/d/1IzpoIfTc7cqc9g8w20fQfap3GFcrqgOaiPrpCkowcvA/edit?usp=sharing). However, that is subject to change based on the news or information that needs to be posted. For time-sensitive articles, consult with Tim Kern in [#help-content-calendar](https://fleetdm.slack.com/archives/C03PH3BBVSM) on Slack.
 
 ## How to submit an article
 
@@ -43,7 +43,7 @@ Publishing occurs according to our [content calendar](https://docs.google.com/sp
 2. Create a Pull Request for fleetdm.com with a file of your article, formatted in Markdown (todo).
 3. Include any relevant images or any image suggestions or requests that you may have.
 
-> IMPORTANT: Your PR is not confidential. If the information in your article is confidential, please prepare your article in a Google Doc, or create a draft PR ~1 hour before publication time to keep your article private.
+> **IMPORTANT**: Your PR is not confidential. If the information in your article is confidential, please prepare your article in a Google Doc, or create a draft PR ~1 hour before publication time to keep your article private.
 
 Todo: Demonstrate creating an article via Loom
 
@@ -77,7 +77,7 @@ Articles are an official voice of Fleet. Therefore, we carefully review publishe
 
 ## After publication
 
-After your article is published to <fleetdm.com>, the Growth team will schedule your post to be promoted across our social media channels.
+After your article is published, the Growth team will schedule your post to be promoted across our social media channels.
 
 > Consider also promoting your article on your personal channels to help achieve a bigger impact. Depending on the article, the Growth team make a request in [#help-promote](https://fleetdm.slack.com/archives/C026W5TC10V) on Slack.
 
@@ -95,4 +95,4 @@ After your article is published to <fleetdm.com>, the Growth team will schedule 
 - Process for fleetdm.com text changes (todo)
 
 <meta name="maintainedBy" value="timmy-k">
-<meta name="title" value="Process for submitting and formatting articles">
+<meta name="title" value="Process for submitting and publishing articles">
