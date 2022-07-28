@@ -580,7 +580,17 @@ In the following example we will modify `title`, `text`, `primary-button-text`, 
 
 ## Markdown
 
-Fleet's documentation, handbook, and articles are written in Markdown. Here's our handy guide to [Fleet-flavored Markdown](./markdown-guide.md).  
+We use Markdown language to write the majority of our content. Areas that we use Markdown include:
+
+- Fleet documentation
+- Fleet handbook
+- Articles published on the Fleet website
+- GitHub issues
+- GitHub comments
+- Pull requests
+- Markdown documents inside our GitHub repositories
+
+> Read our [Markdown guide](./markdown-guide.md) for more information, or if you are new to Markdown. 
 
 ## Rituals
 
