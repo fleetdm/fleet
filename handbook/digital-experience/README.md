@@ -274,6 +274,20 @@ When deciding whether to describe Fleet as open source or open core, define who 
 
 > For simplicity and to avoid conflicts with other uses of the word "core" (such as "core product" or "core team"), Fleet is always described as simply **"open source"** in all writing and verbal communication. In specific situations, e.g., discussing the distinction between various kinds of open source, it can be appropriate to mention **"open core"** to clarify your meaning. If ever in doubt, go with "open source."
 
+## Markdown
+
+We use Markdown language to write the majority of our content. Areas that we use Markdown include:
+
+- Fleet documentation
+- Fleet handbook
+- Articles published on the Fleet website
+- GitHub issues
+- GitHub comments
+- Pull requests
+- Markdown documents inside our GitHub repositories
+
+Read our [Markdown guide](./markdown-guide.md) for more information, or if you are new to Markdown.
+
 ## Commonly used terms
 
 | Term | Meaning | 
@@ -576,21 +590,7 @@ In the following example we will modify `title`, `text`, `primary-button-text`, 
 ### Other pages of interest
 - [Process for submitting and publishing articles](https://docs.google.com/document/d/1owejJ7PjCVm0e21QNXjzw7SRMa3FdkRxb8WoHkKxWRE/edit?usp=sharing)
 - Markdown guide (todo)
-- Writing style guide (todo)
-
-## Markdown
-
-We use Markdown language to write the majority of our content. Areas that we use Markdown include:
-
-- Fleet documentation
-- Fleet handbook
-- Articles published on the Fleet website
-- GitHub issues
-- GitHub comments
-- Pull requests
-- Markdown documents inside our GitHub repositories
-
-> Read our [Markdown guide](./markdown-guide.md) for more information, or if you are new to Markdown. 
+- Writing style guide (todo) 
 
 ## Rituals
 
