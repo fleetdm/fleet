@@ -1,6 +1,5 @@
-import React, { useState, useContext } from "react";
+import React, { useState, useContext, useEffect } from "react";
 import { InjectedRouter } from "react-router";
-import classnames from "classnames";
 
 import { AppContext } from "context/app";
 import { NotificationContext } from "context/notification";
@@ -49,6 +48,22 @@ const UserSettingsPage = ({
   const [showApiTokenModal, setShowApiTokenModal] = useState<boolean>(false);
   const [errors, setErrors] = useState<{ [key: string]: string }>({});
   const [userErrors, setUserErrors] = useState<{ [key: string]: string }>({});
+
+  useEffect(() => {
+    if (showApiTokenModal) {
+      const listener = (event: KeyboardEvent) => {
+        if (event.code === "Enter" || event.code === "NumpadEnter") {
+          event.preventDefault();
+          onToggleApiTokenModal();
+        }
+      };
+
+      document.addEventListener("keydown", listener);
+      return () => {
+        document.removeEventListener("keydown", listener);
+      };
+    }
+  }, [showApiTokenModal]);
 
   const onCancel = (evt: React.MouseEvent<HTMLButtonElement>) => {
     evt.preventDefault();
