@@ -22,7 +22,7 @@ Over the course of a year (and 29 releases), we’ve seen over 2,700 commits to 
 
 ## What's next?
 
-On the road ahead we plan to continue releasing iterative steps to bring value to our users, and the osquery community, by providing a privacy-friendly, self-service, and open source device management solution. He’s a little teaser of what’s to come in the months ahead:
+On the road ahead we plan to continue releasing iterative steps to bring value to our users, and the osquery community, by providing a privacy-friendly, self-service, and open source device management solution. Here’s a little teaser of what’s to come in the months ahead:
 
 - Improvements to vulnerability detection — vulnerable software across all devices and ability to ignore certain vulnerabilities.
 - Improvements to the software inventory — last used date, installation date.
