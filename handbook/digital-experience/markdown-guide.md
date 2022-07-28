@@ -4,7 +4,7 @@
 
 The fewer " # " the larger the heading.
 
-| Markdown option one | Rendered heading |
+| Markdown | Rendered heading |
 |:--------------------|:-----------------------------|
 | `# Heading 1` | <h1>Heading 1</h1> |
 | `## Heading 2` | <h2>Heading 2</h2> |
