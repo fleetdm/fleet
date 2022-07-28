@@ -206,7 +206,7 @@ no shadows
 
 We have excluded anyone with an email domain from @cooley.com or @formationfinancial.com from Gong's recording feature. These are professional services firms working with Fleet on internal matters, and calls with them are considered internal.  
 
-Our goal in using Gong and recording calls is to capture insights from sales, customer, and community meetings, and to improve the way we position and sell our product.  It is never our intent to make anyone uncomfortable, and we hope you reach out to either our DRI for Gong, Nathan Holliday, or Mike McNeil if you have questions or concerns.  
+Our goal in using Gong and recording calls is to capture insights from sales, customer, and community meetings and improve how we position and sell our product. We never intend to make anyone uncomfortable, and we hope you reach out to our DRI for Gong, Nathan Holliday, or Mike McNeil if you have questions or concerns.  
 
 ## Slack
 
