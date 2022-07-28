@@ -294,12 +294,15 @@ const Homepage = (): JSX.Element => {
 
   const allLayout = () => (
     <div className={`${baseClass}__section`}>
-      {hostSummaryData && hostSummaryData?.totals_hosts_count < 2 && (
-        <>
-          {WelcomeHostCard}
-          {LearnFleetCard}
-        </>
-      )}
+      {!currentTeam &&
+        canEnrollGlobalHosts &&
+        hostSummaryData &&
+        hostSummaryData?.totals_hosts_count < 2 && (
+          <>
+            {WelcomeHostCard}
+            {LearnFleetCard}
+          </>
+        )}
       {SoftwareCard}
       {!currentTeam && isOnGlobalTeam && <>{ActivityFeedCard}</>}
     </div>
