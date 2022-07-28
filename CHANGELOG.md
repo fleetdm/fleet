@@ -1,3 +1,39 @@
+## Fleet 4.18.0 (July 28, 2022)
+
+* Added a Call to Action to the failing policy banner in Fleet Desktop.
+
+* Improved styling for tooltips, dropdowns, copied text, checkboxes and buttons. 
+
+* Fixed a bug present when converting a user to SSO login. 
+
+* Fixed a bug causing the edit user modal to hang after editing one user.
+
+* Fixed a bug in the FleetUI causing text to be truncated in tables. 
+
+* Fixed a bug affecting software vulnerabilities count in Host Details.
+
+* Fixed Select Targets search box and updated to reflect currently supported search values: hostname, UUID, serial number, or IPv4.
+
+* Improved disk space reporting in Host Details. 
+
+* Updated frequency formating for Packs to match Schedules. 
+
+* Fixed a bug causing only one line to be exported from live query results. 
+
+* Replaced `hosts` count with `results` count for live queries.
+
+* Replaced "Uptime" with "Last restarted" column in Host Details.
+
+* Removed vulnerabilities that do not correspond to a CVE in Fleet UI and API
+
+* Added standard password requirements when users are created by an admin.
+
+* Updated the regexp we use for detecting the major/minor version on OS platforms.
+
+* Improved calculation of battery health based on cycle count. “Normal” corresponds to cycle count < 1000 and “Replacement recommended”
+  corresponds to cycle count >= 1000.
+
+* Fixed an issue with double quotes usage in SQL query, caused by enabling `ANSI_QUOTES` in MySQL.
 
 ## Fleet 4.17.0 (July 8, 2022)
 
