@@ -1,6 +1,5 @@
 import React, { useContext, useEffect, useState } from "react";
 import { AxiosResponse } from "axios";
-import { InjectedRouter } from "react-router";
 import { QueryClient, QueryClientProvider } from "react-query";
 import classnames from "classnames";
 
@@ -26,7 +25,6 @@ import Spinner from "components/Spinner";
 
 interface IAppProps {
   children: JSX.Element;
-  router: InjectedRouter;
   location:
     | {
         pathname: string;
@@ -34,7 +32,9 @@ interface IAppProps {
     | undefined;
 }
 
-const App = ({ children, location, router }: IAppProps): JSX.Element => {
+const baseClass = "app";
+
+const App = ({ children, location }: IAppProps): JSX.Element => {
   const queryClient = new QueryClient();
   const {
     currentUser,
@@ -45,6 +45,7 @@ const App = ({ children, location, router }: IAppProps): JSX.Element => {
     setCurrentUser,
     setConfig,
     setEnrollSecret,
+    setSandboxExpiry,
   } = useContext(AppContext);
 
   const [isLoading, setIsLoading] = useState<boolean>(false);
@@ -52,6 +53,10 @@ const App = ({ children, location, router }: IAppProps): JSX.Element => {
   const fetchConfig = async () => {
     try {
       const config = await configAPI.loadAll();
+      if (config.sandbox_enabled) {
+        const timestamp = await configAPI.loadSandboxExpiry();
+        setSandboxExpiry(timestamp as string);
+      }
       setConfig(config);
     } catch (error) {
       console.error(error);
@@ -133,7 +138,6 @@ const App = ({ children, location, router }: IAppProps): JSX.Element => {
     return <Fleet500 />;
   };
 
-  const wrapperStyles = classnames("wrapper");
   return isLoading ? (
     <Spinner />
   ) : (
@@ -146,7 +150,7 @@ const App = ({ children, location, router }: IAppProps): JSX.Element => {
                 fallbackRender={renderErrorOverlay}
                 resetKeys={[location?.pathname]}
               >
-                <div className={wrapperStyles}>{children}</div>
+                <div className={baseClass}>{children}</div>
               </ErrorBoundary>
             </NotificationProvider>
           </PolicyProvider>

@@ -150,6 +150,30 @@ func packageCommand() *cli.Command {
 				EnvVars:     []string{"FLEETCTL_NATIVE_TOOLING"},
 				Destination: &opt.NativeTooling,
 			},
+			&cli.StringFlag{
+				Name:        "macos-devid-pem-content",
+				Usage:       "Dev ID certificate keypair content in PEM format",
+				EnvVars:     []string{"FLEETCTL_MACOS_DEVID_PEM_CONTENT"},
+				Destination: &opt.MacOSDevIDCertificateContent,
+			},
+			&cli.StringFlag{
+				Name:        "app-store-connect-api-key-id",
+				Usage:       "App Store Connect API key used for notarization",
+				EnvVars:     []string{"FLEETCTL_APP_STORE_CONNECT_API_KEY_ID"},
+				Destination: &opt.AppStoreConnectAPIKeyID,
+			},
+			&cli.StringFlag{
+				Name:        "app-store-connect-api-key-issuer",
+				Usage:       "Issuer of the App Store Connect API key",
+				EnvVars:     []string{"FLEETCTL_APP_STORE_CONNECT_API_KEY_ISSUER"},
+				Destination: &opt.AppStoreConnectAPIKeyIssuer,
+			},
+			&cli.StringFlag{
+				Name:        "app-store-connect-api-key-content",
+				Usage:       "Contents of the .p8 App Store Connect API key",
+				EnvVars:     []string{"FLEETCTL_APP_STORE_CONNECT_API_KEY_CONTENT"},
+				Destination: &opt.AppStoreConnectAPIKeyContent,
+			},
 		},
 		Action: func(c *cli.Context) error {
 			if opt.FleetURL != "" || opt.EnrollSecret != "" {

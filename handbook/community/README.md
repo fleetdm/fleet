@@ -82,7 +82,7 @@ You will need to install the following tools to use it:
 
 There are several locations in Fleet's public and internal documentation that can be helpful when answering questions raised by the community:
 
-1. Find the frequently asked question (FAQ) documents in each section in the `/docs` folder. These documents are the [Using Fleet FAQ](../docs/Using-Fleet/FAQ.md), [Deploying FAQ](../docs/Deploying/FAQ.md), and [Contributing FAQ](../docs/Contributing/FAQ.md).
+1. Find the frequently asked question (FAQ) documents in each section in the `/docs` folder. These documents are the [Using Fleet FAQ](./../../docs/Using-Fleet/FAQ.md), [Deploying FAQ](./../../docs/Deploying/FAQ.md), and [Contributing FAQ](./../../docs/Contributing/FAQ.md).
 
 2. Use the [internal FAQ](https://docs.google.com/document/d/1I6pJ3vz0EE-qE13VmpE2G3gd5zA1m3bb_u8Q2G3Gmp0/edit#heading=h.ltavvjy511qv) document.
 
@@ -304,7 +304,7 @@ When a new pull request is submitted by a community contributor (someone not a m
 
         - Additions or fixes to the Standard Query Library (as long as the SQL works properly and is attributed correctly).
     - If a review is needed:
-        - Request a review from the [Product DRI](./product.md#product-dris). They should approve extensive changes and new features. Ask in the #g-product channel in Fleet's Slack for more information.
+        - Request a review from the [Product DRI](../people/README.md#directly-responsible-individuals). They should approve extensive changes and new features. Ask in the #g-product channel in Fleet's Slack for more information.
         - Tag the DRI and the contributor in a comment on the PR, letting everyone know why an additional review is needed. Make sure to say thanks!
         - Find any related open issues and make a note in the comments.
 

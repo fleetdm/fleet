@@ -18,6 +18,7 @@ import (
 )
 
 // BuildMSI builds a Windows .msi.
+// Note: this function is not safe for concurrent use
 func BuildMSI(opt Options) (string, error) {
 	tmpDir, err := initializeTempDir()
 	if err != nil {

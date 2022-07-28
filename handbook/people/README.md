@@ -303,7 +303,7 @@ The CEO will then reply in `#g-people` to indicate that the offer is approved.
 
    - **For international team members:** People Ops enters the new team member's information into [Pilot](https://pilot.co/) to kick off their hiring process. Pilot creates an agreement for the new team member, and People Ops reviews it to make sure everything looks correct. After People Ops confirms the information about the new hire, Pilot invites the new team member to enter the rest of their information and informs People Ops via email when a new Fleetie signs their agreement.
 
-4. **As soon as we have a signed agreement with a new team member:** People Ops reaches out to the new team member to provide them with a [work device](#purchasing-a-company-issued-device) and a pair of [YubiKeys](./security.md#hardware-security-keys). People Ops then requests a screenshot or link to the new Fleetie's preferred device and configuration. People Ops orders their device and Yubikeys using his Brex card and has them shipped directly to the new team member.
+4. **As soon as we have a signed agreement with a new team member:** People Ops reaches out to the new team member to provide them with a [work device](#purchasing-a-company-issued-device) and a pair of [YubiKeys](./../security.md#hardware-security-keys). People Ops then requests a screenshot or link to the new Fleetie's preferred device and configuration. People Ops orders their device and Yubikeys using his Brex card and has them shipped directly to the new team member.
 
    >*If the new team member is in the US and requests a MacBook, It will be purchased using our Apple business account. For MacBooks purchased with this account, Apple will ship pre-configured and enrolled in our MDM.*
 
@@ -646,7 +646,7 @@ The following table lists the People group's rituals, frequency, and Directly Re
 
 ## Slack channels
 
-Please see [Brand > Slack channels](https://fleetdm.com/handbook/brand#slack-channels).
+Please see [Digital Experience > Slack channels](https://fleetdm.com/handbook/digital-experience#slack-channels).
 
 
 <meta name="maintainedBy" value="charlottechance">
