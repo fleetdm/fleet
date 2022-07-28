@@ -11,11 +11,11 @@ Google Groups mailing lists have much weaker protection, and the Gmail security 
 ## Attack goal
 The attacker(s) seemed interested in obtaining copies of unpaid invoices from Fleet to our customers. 
 
-As this seems to have been attempted by a BEC group, we think they likely wanted to obtain unpaid invoices so they could trick our customers into paying an actual invoice into the wrong bank account. Even people well trained against these types of scams could fall to it, especially if the actual invoice they receive is the one they expected all along!
+As this seems to have been attempted by a BEC group, we think they likely wanted to obtain unpaid invoices so they could trick our customers into paying an actual invoice into the wrong bank account. 
 
-## Pretext
+Even people well trained against these types of scams could fall to it, especially if the actual invoice they receive is the one they expected all along!
+
 To obtain these invoices, the attacker impersonated a salesperson. Salespeople requesting copies of invoices could make sense, as they are often paid commissions or bonuses on sales and might get in touch with clients to make sure invoices are well received.
-
 
 ## How it got through
 As we have employee impersonation protection enabled, we were surprised that such a simple malicious email made it through the Gmail filters.
@@ -24,7 +24,7 @@ The attacker sent the message to a _group/mailing list_, not an individual. The 
 
 Once Google Groups processes the email, it forwards it to internal and external recipients. Since Groups is the one sending the message, with a *from* that is now in the domain used for Google Workspace, the DKIM signature is valid. Internal recipients receive it without additional filtering, as it is a trusted internal email. External recipients receive it with a very high chance of delivery as the message is authenticated correctly and comes from a domain they interact with regularly.
 
-From a UI point of view, the recipient can easily mistake the message for a legitimate one, as the domain name is either replaced with the legitimate domain, or gets the mention "via legitimatedomain.com" added.
+From a UI point of view, the recipient can easily mistake the message for a legitimate one, as the domain name is either replaced with the legitimate domain or gets the mention "via legitimatedomain.com" added.
 
 ![With via added](../website/assets/images/articles/tales-from-fleet-security-google-groups-scams-1-1156x298@2x.png)
 
@@ -81,17 +81,18 @@ We communicate internally almost exclusively using Slack. Unlike email, imperson
 
 ## Recommendations
 
-1. Warn and train all employees to be even more careful with mail sent to a mailing list.
-2. Use a tool like [emailspooftest](https://emailspooftest.com/) as recommended by Material Security to test your filters. Try a regular user, then a group. 
+1. Warn and train all employees to be even more careful with mail sent to a mailing list, specifically that if an email is sent "via" your domain, it has a high probability of being spoofed.
+2. Use a tool like [emailspooftest](https://emailspooftest.com/) as recommended by Material Security to test your filters. Try a regular user, then a group. Adjust your assumptions.
 3. Limit the amount of Google Groups that can receive external emails.
+4. Limit the amount of internal users that can send email "on behalf" of a group, to prevent legitimate email being sent "via" the group and making people accustomed to seeing them.
 4. When possible, avoid using common/obvious names for mailing lists.
 5. Apply Material Security's [recommendation](https://material.security/blog/identify-google-groups-vulnerable-to-spam-and-spoofing) to flag unauthenticated email to groups.
-6. Train your accounting teams to never respond to such requests via email, but to contact individuals through a safer way.
-7. Train your accounting teams to share files using something such as Google Drive, with explicit sharing to other employees within the domain. That way, even if someone agrees to give our fake sales person access to invoices, the person who will get access is the real sales person.
-
-With the explosion in BEC cases, we really hope Google introduces more advanced spam filtering to Google Groups. We should not have to consider running email through a generic standard gmail account and forwarding it from there instead of using Google Groups!
+6. Train your accounting teams to never respond to such requests via email, but to contact individuals through a safer way, such as Slack.
+7. Train your accounting teams to share files using services such as Google Drive, with explicit sharing to other employees within the domain. That way, even if someone agrees to give our fake salesperson access to invoices, the person who will get access is the real employee.
 
 **Special request**: If you use Google Workspace with Groups for mailing lists, please perform the [emailspooftest](https://emailspooftest.com/) tests and open a support case with Google asking them to get Groups protection on par with Gmail. Without that happening, all the security we apply to individual accounts is moot, unless you somehow have an entire company that does not need any mailing lists!
+
+With the explosion in BEC cases, we really hope Google introduces more advanced spam filtering to Google Groups. We should not have to consider running email through a generic standard gmail account and forwarding it from there instead of using Google Groups!
 
 ### Want to discuss this further?
 
