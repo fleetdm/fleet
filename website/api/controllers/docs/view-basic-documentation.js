@@ -57,7 +57,7 @@ module.exports = {
 
     let showSwagForm = false;
     // Check the cf-ipcountry header
-    if(this.req.headers['cf-ipcountry'] === 'US') {
+    if(this.req.headers['cf-ipcountry'] === 'US' && this.req.headers['cf-iplongitude'] > -125) {
       showSwagForm = true;
     }
 
