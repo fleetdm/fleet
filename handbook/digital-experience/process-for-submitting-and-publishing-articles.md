@@ -6,15 +6,15 @@ This guide includes all you need to know about Fleet’s editorial process and h
 
 ### On this page
 
-- Article DRIs
-- Who can publish articles?
-- Communication
-- Schedule
-- How to submit articles
-- Review process
-- Pre-publication checklist
-- After publication
-- Related pages
+- [Article DRIs](#article-dris)
+- [Who can publish articles?](#who-can-publish-articles)
+- [Communication](#communication)
+- [Schedule](#schedule)
+- [How to submit articles](#how-to-submit-articles)
+- [Review process](#review-process)
+- [Pre-publication checklist](#pre-publication-checklist)
+- [After publication](after-publication)
+- [Related pages](#related-pages)
 
 ## Article DRIs
 
