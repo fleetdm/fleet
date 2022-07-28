@@ -45,10 +45,23 @@
   }
 
   &__results-count {
+    display: flex;
+    align-items: baseline;
     font-size: $x-small;
     font-weight: $bold;
     color: $core-fleet-black;
     margin: 0;
+
+    :first-child {
+      margin-right: $pad-small;
+    }
+
+    .count-error {
+      color: $ui-error;
+    }
+    .count-loading {
+      color: $ui-fleet-black-50;
+    }
 
     &.stack-table-controls {
       padding-top: $pad-large;

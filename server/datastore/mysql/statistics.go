@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server"
+	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/jmoiron/sqlx"
@@ -17,7 +18,7 @@ type statistics struct {
 	Identifier string `db:"anonymous_identifier"`
 }
 
-func (ds *Datastore) ShouldSendStatistics(ctx context.Context, frequency time.Duration, license *fleet.LicenseInfo) (fleet.StatisticsPayload, bool, error) {
+func (ds *Datastore) ShouldSendStatistics(ctx context.Context, frequency time.Duration, config config.FleetConfig, license *fleet.LicenseInfo) (fleet.StatisticsPayload, bool, error) {
 	computeStats := func(stats *fleet.StatisticsPayload, since time.Time) error {
 		enrolledHostsByOS, amountEnrolledHosts, err := amountEnrolledHostsByOSDB(ctx, ds.writer)
 		if err != nil {
@@ -51,6 +52,10 @@ func (ds *Datastore) ShouldSendStatistics(ctx context.Context, frequency time.Du
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "statistics error store")
 		}
+		amountHostsNotResponding, err := countHostsNotRespondingDB(ctx, ds.writer, ds.logger, config)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "amount hosts not responding")
+		}
 
 		stats.NumHostsEnrolled = amountEnrolledHosts
 		stats.NumUsers = amountUsers
@@ -64,6 +69,7 @@ func (ds *Datastore) ShouldSendStatistics(ctx context.Context, frequency time.Du
 		stats.NumWeeklyActiveUsers = amountWeeklyUsers
 		stats.HostsEnrolledByOperatingSystem = enrolledHostsByOS
 		stats.StoredErrors = storedErrs
+		stats.NumHostsNotResponding = amountHostsNotResponding
 		return nil
 	}
 

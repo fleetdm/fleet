@@ -46,7 +46,7 @@ resource "aws_security_group_rule" "ingress" {
   from_port         = "6379"
   to_port           = "6379"
   protocol          = "tcp"
-  cidr_blocks       = module.vpc.private_subnets_cidr_blocks
+  cidr_blocks       = concat(module.vpc.private_subnets_cidr_blocks, var.extra_security_group_cidrs)
   security_group_id = aws_security_group.redis.id
 }
 

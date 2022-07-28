@@ -6,6 +6,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/ptr"
@@ -31,7 +32,7 @@ func TestStatistics(t *testing.T) {
 }
 
 func testStatisticsShouldSend(t *testing.T, ds *Datastore) {
-	var eh = ctxerr.MockHandler{}
+	eh := ctxerr.MockHandler{}
 	// Mock the error handler to always return an error
 	eh.RetrieveImpl = func(flush bool) ([]*ctxerr.StoredError, error) {
 		require.False(t, flush)
@@ -39,8 +40,10 @@ func testStatisticsShouldSend(t *testing.T, ds *Datastore) {
 			{Count: 10, Chain: json.RawMessage(`[{"stack": ["a","b","c","d"]}]`)},
 		}, nil
 	}
-	var ctxb = context.Background()
-	var ctx = ctxerr.NewContext(ctxb, eh)
+	ctxb := context.Background()
+	ctx := ctxerr.NewContext(ctxb, eh)
+
+	fleetConfig := config.FleetConfig{Osquery: config.OsqueryConfig{DetailUpdateInterval: 1 * time.Hour}}
 
 	// Create new host for test
 	_, err := ds.NewHost(ctx, &fleet.Host{
@@ -125,7 +128,7 @@ func testStatisticsShouldSend(t *testing.T, ds *Datastore) {
 	license := &fleet.LicenseInfo{Tier: "premium"}
 
 	// First time running, we send statistics
-	stats, shouldSend, err := ds.ShouldSendStatistics(ctx, fleet.StatisticsFrequency, license)
+	stats, shouldSend, err := ds.ShouldSendStatistics(ctx, fleet.StatisticsFrequency, fleetConfig, license)
 	require.NoError(t, err)
 	assert.True(t, shouldSend)
 	assert.NotEmpty(t, stats.AnonymousIdentifier)
@@ -149,7 +152,7 @@ func testStatisticsShouldSend(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 
 	// If we try right away, it shouldn't ask to send
-	stats, shouldSend, err = ds.ShouldSendStatistics(ctx, fleet.StatisticsFrequency, license)
+	stats, shouldSend, err = ds.ShouldSendStatistics(ctx, fleet.StatisticsFrequency, fleetConfig, license)
 	require.NoError(t, err)
 	assert.False(t, shouldSend)
 
@@ -221,7 +224,7 @@ func testStatisticsShouldSend(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 
 	// Lower the frequency to trigger an "outdated" sent
-	stats, shouldSend, err = ds.ShouldSendStatistics(ctx, time.Millisecond, license)
+	stats, shouldSend, err = ds.ShouldSendStatistics(ctx, time.Millisecond, fleetConfig, license)
 	require.NoError(t, err)
 	assert.True(t, shouldSend)
 	assert.Equal(t, firstIdentifier, stats.AnonymousIdentifier)
@@ -252,7 +255,7 @@ func testStatisticsShouldSend(t *testing.T, ds *Datastore) {
 	// wait a bit and resend statistics
 	time.Sleep(1100 * time.Millisecond) // ensure the DB timestamp is not in the same second
 
-	stats, shouldSend, err = ds.ShouldSendStatistics(ctx, time.Millisecond, license)
+	stats, shouldSend, err = ds.ShouldSendStatistics(ctx, time.Millisecond, fleetConfig, license)
 	require.NoError(t, err)
 	assert.True(t, shouldSend)
 	assert.Equal(t, firstIdentifier, stats.AnonymousIdentifier)
@@ -260,4 +263,26 @@ func testStatisticsShouldSend(t *testing.T, ds *Datastore) {
 	assert.Equal(t, stats.NumUsers, 2)
 	assert.Equal(t, stats.NumWeeklyActiveUsers, 1)
 	assert.Equal(t, string(stats.StoredErrors), `[{"count":10,"loc":["a","b","c"]}]`)
+
+	// Add host to test hosts not responding stats
+	_, err = ds.NewHost(ctx, &fleet.Host{
+		DetailUpdatedAt: time.Now().Add(-3 * time.Hour),
+		LabelUpdatedAt:  time.Now(),
+		PolicyUpdatedAt: time.Now(),
+		SeenTime:        time.Now(),
+		NodeKey:         "6",
+		UUID:            "6",
+		Hostname:        "non-responsive.local",
+		PrimaryIP:       "192.168.1.6",
+		PrimaryMac:      "30-65-EC-6F-C4-66",
+		OsqueryHostID:   "NR",
+	})
+	require.NoError(t, err)
+
+	stats, shouldSend, err = ds.ShouldSendStatistics(ctx, time.Millisecond, fleetConfig, license)
+	require.NoError(t, err)
+	assert.True(t, shouldSend)
+	assert.Equal(t, firstIdentifier, stats.AnonymousIdentifier)
+	assert.Equal(t, 6, stats.NumHostsEnrolled)
+	assert.Equal(t, 1, stats.NumHostsNotResponding)
 }

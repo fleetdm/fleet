@@ -84,7 +84,8 @@ Fleet Device Management Inc. periodically collects anonymous information about y
       ]
     },
     ...
-  ]
+  ],
+  "numHostsNotResponding": 9
 }
 ```
 

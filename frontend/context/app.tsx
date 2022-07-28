@@ -13,6 +13,7 @@ enum ACTIONS {
   SET_CURRENT_TEAM = "SET_CURRENT_TEAM",
   SET_CONFIG = "SET_CONFIG",
   SET_ENROLL_SECRET = "SET_ENROLL_SECRET",
+  SET_SANDBOX_EXPIRY = "SET_SANDBOX_EXPIRY",
 }
 
 interface ISetAvailableTeamsAction {
@@ -38,12 +39,18 @@ interface ISetEnrollSecretAction {
   enrollSecret: IEnrollSecret[];
 }
 
+interface ISetSandboxExpiryAction {
+  type: ACTIONS.SET_SANDBOX_EXPIRY;
+  sandboxExpiry: string;
+}
+
 type IAction =
   | ISetAvailableTeamsAction
   | ISetConfigAction
   | ISetCurrentTeamAction
   | ISetCurrentUserAction
-  | ISetEnrollSecretAction;
+  | ISetEnrollSecretAction
+  | ISetSandboxExpiryAction;
 
 type Props = {
   children: ReactNode;
@@ -72,11 +79,13 @@ type InitialStateType = {
   isTeamAdmin: boolean | undefined;
   isOnlyObserver: boolean | undefined;
   isNoAccess: boolean | undefined;
+  sandboxExpiry?: string;
   setAvailableTeams: (availableTeams: ITeamSummary[]) => void;
   setCurrentUser: (user: IUser) => void;
   setCurrentTeam: (team: ITeamSummary | undefined) => void;
   setConfig: (config: IConfig) => void;
   setEnrollSecret: (enrollSecret: IEnrollSecret[]) => void;
+  setSandboxExpiry: (sandboxExpiry: string) => void;
 };
 
 export type IAppContext = InitialStateType;
@@ -109,6 +118,7 @@ const initialState = {
   setCurrentTeam: () => null,
   setConfig: () => null,
   setEnrollSecret: () => null,
+  setSandboxExpiry: () => null,
 };
 
 const detectPreview = () => {
@@ -198,6 +208,13 @@ const reducer = (state: InitialStateType, action: IAction) => {
         enrollSecret,
       };
     }
+    case ACTIONS.SET_SANDBOX_EXPIRY: {
+      const { sandboxExpiry } = action;
+      return {
+        ...state,
+        sandboxExpiry,
+      };
+    }
     default:
       return state;
   }
@@ -214,6 +231,7 @@ const AppProvider = ({ children }: Props): JSX.Element => {
     currentUser: state.currentUser,
     currentTeam: state.currentTeam,
     enrollSecret: state.enrollSecret,
+    sandboxExpiry: state.sandboxExpiry,
     isPreviewMode: detectPreview(),
     isSandboxMode: state.isSandboxMode,
     isFreeTier: state.isFreeTier,
@@ -245,6 +263,9 @@ const AppProvider = ({ children }: Props): JSX.Element => {
     },
     setEnrollSecret: (enrollSecret: IEnrollSecret[]) => {
       dispatch({ type: ACTIONS.SET_ENROLL_SECRET, enrollSecret });
+    },
+    setSandboxExpiry: (sandboxExpiry: string) => {
+      dispatch({ type: ACTIONS.SET_SANDBOX_EXPIRY, sandboxExpiry });
     },
   };
 

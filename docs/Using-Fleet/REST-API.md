@@ -476,8 +476,8 @@ Returns a list of the activities that have been performed in Fleet. The followin
 
 #### Parameters
 
-| Name            | Type    | In    | Description                                                                                                                   |
-| --------------- | ------- | ----- | ----------------------------------------------------------------------------------------------------------------------------- |
+| Name            | Type    | In    | Description                                                 |
+|:--------------- |:------- |:----- |:------------------------------------------------------------|
 | page            | integer | query | Page number of the results to fetch.                                                                                          |
 | per_page        | integer | query | Results per page.                                                                                                             |
 | order_key       | string  | query | What to order results by. Can be any column in the `activites` table.                                                         |
@@ -824,7 +824,6 @@ None.
     "org_name": "fleet",
     "org_logo_url": ""
   },
-  "sandbox_enabled": true,
   "server_settings": {
     "server_url": "https://localhost:8080",
     "live_query_disabled": false,
@@ -1730,11 +1729,8 @@ None.
 | team_id                 | integer | query | _Available in Fleet Premium_ Filters the hosts to only include hosts in the specified team.                                                                                                                                                                                                                                                 |
 | policy_id               | integer | query | The ID of the policy to filter hosts by. `policy_response` must also be specified with `policy_id`.                                                                                                                                                                                                                                         |
 | policy_response         | string  | query | Valid options are `passing` or `failing`.  `policy_id` must also be specified with `policy_response`.                                                                                                                                                                                                                                       |
-| software_id             | integer | query | The ID of the software to filter hosts by.                                                                                                                                                                                                                                         |
-           |
-| device_mapping          | boolean | query | Indicates whether `device_mapping` should be included
-for each host. See ["Get host's Google Chrome profiles](#get-host's-google-chrome-profiles) for
-more information about this feature.
+| software_id             | integer | query | The ID of the software to filter hosts by.                                                         |
+| device_mapping          | boolean | query | Indicates whether `device_mapping` should be included for each host. See ["Get host's Google Chrome profiles](#get-host's-google-chrome-profiles) for more information about this feature.
 ### Get host's Google Chrome profiles
 If `additional_info_filters` is not specified, no `additional` information will be returned.
 
@@ -2132,7 +2128,7 @@ If the scheduled queries haven't run on the host yet, the stats have zero values
     "batteries": [
       {
         "cycle_count": 999,
-        "health": "Good"
+        "health": "Normal"
       }
     ]
   }
@@ -2205,7 +2201,7 @@ Returns the information of the host specified using the `uuid`, `osquery_host_id
     "batteries": [
       {
         "cycle_count": 999,
-        "health": "Good"
+        "health": "Normal"
       }
     ]
   }
@@ -2626,7 +2622,7 @@ created_at,updated_at,id,detail_updated_at,label_updated_at,policy_updated_at,la
 - [Create label](#create-label)
 - [Modify label](#modify-label)
 - [Get label](#get-label)
-- [Get labels summary](#get-labels-sumary)
+- [Get labels summary](#get-labels-summary)
 - [List labels](#list-labels)
 - [List hosts in a label](#list-hosts-in-a-label)
 - [Delete label](#delete-label)
@@ -5748,6 +5744,7 @@ _Available in Fleet Premium_
 ## Translator
 
 - [Translate IDs](#translate-i-ds)
+
 ### Translate IDs
 
 Transforms a host name into a host id. For example, the Fleet UI use this endpoint when sending live queries to a set of hosts.

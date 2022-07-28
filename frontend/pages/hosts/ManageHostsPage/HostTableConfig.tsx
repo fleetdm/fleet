@@ -7,16 +7,15 @@ import ReactTooltip from "react-tooltip";
 
 import { IDeviceUser, IHost } from "interfaces/host";
 import Checkbox from "components/forms/fields/Checkbox";
+import DiskSpaceGraph from "components/DiskSpaceGraph";
 import HeaderCell from "components/TableContainer/DataTable/HeaderCell/HeaderCell";
 import IssueCell from "components/TableContainer/DataTable/IssueCell/IssueCell";
 import LinkCell from "components/TableContainer/DataTable/LinkCell/LinkCell";
 import StatusCell from "components/TableContainer/DataTable/StatusCell/StatusCell";
 import TextCell from "components/TableContainer/DataTable/TextCell/TextCell";
 import {
-  diskSpaceIndicator,
-  diskSpaceTooltip,
   humanHostMemory,
-  humanHostUptime,
+  humanHostLastRestart,
   humanHostLastSeen,
   humanHostDetailUpdated,
   hostTeamName,
@@ -205,41 +204,13 @@ const allHostTableHeaders: IDataColumn[] = [
     Cell: (cellProps: INumberCellProps): JSX.Element => {
       const { id, percent_disk_space_available } = cellProps.row.original;
 
-      if (cellProps.cell.value === 0) {
-        return <>No data available</>;
-      }
       return (
-        <>
-          <div
-            className="gigs_disk_space_available__cell__disk-space-wrapper"
-            data-tip
-            data-for={`disk-space__${id}`}
-          >
-            <div className="gigs_disk_space_available__cell__disk-space">
-              <div
-                className={`gigs_disk_space_available__cell__disk-space-${diskSpaceIndicator(
-                  cellProps.cell.value
-                )}`}
-                style={{
-                  width: `${100 - percent_disk_space_available}%`,
-                }}
-              />
-            </div>
-          </div>
-          <ReactTooltip
-            place="bottom"
-            type="dark"
-            effect="solid"
-            backgroundColor="#3e4771"
-            id={`disk-space__${id}`}
-            data-html
-          >
-            <span className={`tooltip__tooltip-text`}>
-              {diskSpaceTooltip(cellProps.cell.value)}
-            </span>
-          </ReactTooltip>{" "}
-          <span>{cellProps.cell.value} GB</span>
-        </>
+        <DiskSpaceGraph
+          baseClass="gigs_disk_space_available__cell"
+          gigsDiskSpaceAvailable={cellProps.cell.value}
+          percentDiskSpaceAvailable={percent_disk_space_available}
+          id={`disk-space__${id}`}
+        />
       );
     },
   },
@@ -353,7 +324,7 @@ const allHostTableHeaders: IDataColumn[] = [
     Cell: (cellProps: ICellProps) => <TextCell value={cellProps.cell.value} />,
   },
   {
-    title: "Uptime",
+    title: "Last restarted",
     Header: (cellProps: IHeaderProps) => (
       <HeaderCell
         value={cellProps.column.title}
@@ -361,9 +332,13 @@ const allHostTableHeaders: IDataColumn[] = [
       />
     ),
     accessor: "uptime",
-    Cell: (cellProps: ICellProps) => (
-      <TextCell value={cellProps.cell.value} formatter={humanHostUptime} />
-    ),
+    Cell: (cellProps: ICellProps) => {
+      const { uptime, detail_updated_at } = cellProps.row.original;
+
+      return (
+        <TextCell value={humanHostLastRestart(detail_updated_at, uptime)} />
+      );
+    },
   },
   {
     title: "CPU",
