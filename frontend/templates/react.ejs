@@ -2,25 +2,24 @@
 <html>
   <head>
     <% if (isProduction) { %>
-    <!-- this script is added in production to add google analytics on sandbox instances -->
+    {{ if .ServerType == 'sandbox' }}
+    <!-- these scripts are added in production to add google analytics on sandbox instances -->
+    <script
+      async
+      type="text/javascript"
+      src="https://www.googletagmanager.com/gtag/js?id=G-JC3DRNY1GV"
+    ></script>
     <script type="text/javascript">
-      const isSandbox = window.location.hostname.includes("sandbox");
-      if (isSandbox) {
-        const head = document.getElementsByTagName("head")[0];
-        const gaScript = document.createElement("script");
-        gaScript.async = true;
-        gaScript.type = "text/javascript";
-        gaScript.src =
-          "https://www.googletagmanager.com/gtag/js?id=G-JC3DRNY1GV";
-
-        const gaInlineJs = document.createElement("script");
-        gaInlineJs.type = "text/javascript";
-        gaInlineJs.text =
-          "window.dataLayer = window.dataLayer || []; function gtag(){dataLayer.push(arguments);} gtag('js', new Date()); gtag('config', 'G-JC3DRNY1GV');";
-
-        head.append(gaScript, gaInlineJs);
+      window.dataLayer = window.dataLayer || [];
+      function gtag() {
+        dataLayer.push(arguments);
       }
+      gtag("js", new Date());
+      gtag("config", "G-JC3DRNY1GV");
     </script>
+    {{
+      end
+    }}
     <% } %>
 
     <meta charset="UTF-8" />
