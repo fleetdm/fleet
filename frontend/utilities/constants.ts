@@ -199,7 +199,7 @@ export const LOGGING_TYPE_OPTIONS = [
   { label: "Snapshot", value: "snapshot" },
   { label: "Differential", value: "differential" },
   {
-    label: "Differential (Ignore Removals)",
+    label: "Differential (ignore removals)",
     value: "differential_ignore_removals",
   },
 ];
@@ -382,7 +382,7 @@ export const VULNERABLE_DROPDOWN_OPTIONS = [
     disabled: false,
     label: "All software",
     value: false,
-    helpText: "All sofware installed on your hosts.",
+    helpText: "All software installed on your hosts.",
   },
   {
     disabled: false,
