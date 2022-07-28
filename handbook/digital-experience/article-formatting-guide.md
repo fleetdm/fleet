@@ -1,4 +1,4 @@
-# Article formatting guidelines
+# Article formatting guide
 
 To publish an article, you will need to create a Pull Request for a new file, formatted in Markdown (todo), in [https://github.com/fleetdm/fleet/tree/main/articles](https://github.com/fleetdm/fleet/tree/main/articles).
 
@@ -135,4 +135,4 @@ In the following example we will modify `title`, `text`, `primary-button-text`, 
 - Writing style guide (todo)
 
 <meta name="maintainedBy" value="mike-j-thomas">
-<meta name="title" value="Article formatting guidelines">
+<meta name="title" value="Article formatting guide">
