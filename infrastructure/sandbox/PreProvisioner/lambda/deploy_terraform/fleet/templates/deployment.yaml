@@ -50,8 +50,6 @@ spec:
             memory: {{ .Values.resources.requests.memory }}
         env:
           ## BEGIN FLEET SECTION
-          - name: FLEET_DEMO
-            value: "1"
           - name: FLEET_SERVER_SANDBOX_ENABLED
             value: "1"
           - name: FLEET_SERVER_ADDRESS

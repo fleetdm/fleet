@@ -179,6 +179,7 @@ type TestServerOpts struct {
 	Task                *async.Task
 	EnrollHostLimiter   fleet.EnrollHostLimiter
 	Is                  fleet.InstallerStore
+	FleetConfig         *config.FleetConfig
 }
 
 func RunServerForTestsWithDS(t *testing.T, ds fleet.Datastore, opts ...*TestServerOpts) (map[string]fleet.User, *httptest.Server) {
@@ -190,7 +191,11 @@ func RunServerForTestsWithDS(t *testing.T, ds fleet.Datastore, opts ...*TestServ
 	if len(opts) > 0 && opts[0].Lq != nil {
 		lq = opts[0].Lq
 	}
-	svc := newTestService(t, ds, rs, lq, opts...)
+	cfg := config.TestConfig()
+	if len(opts) > 0 && opts[0].FleetConfig != nil {
+		cfg = *opts[0].FleetConfig
+	}
+	svc := newTestServiceWithConfig(t, ds, cfg, rs, lq, opts...)
 	users := map[string]fleet.User{}
 	if len(opts) == 0 || (len(opts) > 0 && !opts[0].SkipCreateTestUsers) {
 		users = createTestUsers(t, ds)
@@ -201,7 +206,7 @@ func RunServerForTestsWithDS(t *testing.T, ds fleet.Datastore, opts ...*TestServ
 	}
 
 	limitStore, _ := memstore.New(0)
-	r := MakeHandler(svc, config.FleetConfig{}, logger, limitStore, WithLoginRateLimit(throttled.PerMin(100)))
+	r := MakeHandler(svc, cfg, logger, limitStore, WithLoginRateLimit(throttled.PerMin(100)))
 	server := httptest.NewServer(r)
 	t.Cleanup(func() {
 		server.Close()

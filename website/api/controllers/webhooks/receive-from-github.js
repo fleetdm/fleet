@@ -240,9 +240,9 @@ module.exports = {
 
         // Check whether the "main" branch is currently frozen (i.e. a feature freeze)
         // [?] https://docs.mergefreeze.com/web-api#get-freeze-status
-        let isMainBranchFrozen = (
-          await sails.helpers.http.get('https://www.mergefreeze.com/api/branches/fleetdm/fleet/main', { access_token: sails.config.custom.mergeFreezeAccessToken }) //eslint-disable-line camelcase
-        ).frozen || (
+        let mergeFreezeMainBranchStatusReport = await sails.helpers.http.get('https://www.mergefreeze.com/api/branches/fleetdm/fleet/main', { access_token: sails.config.custom.mergeFreezeAccessToken }); //eslint-disable-line camelcase
+        sails.log('#'+prNumber+' is under consideration...  The MergeFreeze API claims that it current main branch "frozen" status is:',mergeFreezeMainBranchStatusReport.frozen);
+        let isMainBranchFrozen = mergeFreezeMainBranchStatusReport.frozen || (
           // TODO: Remove this timeboxed hack to consider the repo frozen
           // for a while as a workaround for an issue where the MergeFreeze API
           // reports that the repo is not frozen, when it actually is frozen.
@@ -273,7 +273,6 @@ module.exports = {
             // ```
             // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
             await sails.helpers.http.post(`https://www.mergefreeze.com/api/branches/fleetdm/fleet/main?access_token=${encodeURIComponent(sails.config.custom.mergeFreezeAccessToken)}`, {
-              frozen: true,
               user_name: 'fleet-release',//eslint-disable-line camelcase
               unblocked_prs: sails.pocketOfPrNumbersUnfrozen,//eslint-disable-line camelcase
             });
@@ -290,7 +289,6 @@ module.exports = {
 
             // [?] See explanation above.
             await sails.helpers.http.post(`https://www.mergefreeze.com/api/branches/fleetdm/fleet/main?access_token=${encodeURIComponent(sails.config.custom.mergeFreezeAccessToken)}`, {
-              frozen: true,
               user_name: 'fleet-release',//eslint-disable-line camelcase
               unblocked_prs: sails.pocketOfPrNumbersUnfrozen,//eslint-disable-line camelcase
             });
