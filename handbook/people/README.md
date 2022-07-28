@@ -178,7 +178,7 @@ We configure our Zoom meetings to let participants join before the host starts t
 
 ### Gong
 
-Capturing video from meetings with customers, propsects, and community members outside the company is an important part of building world-class sales and customer success teams, and is a widespread practice across the industry.
+Capturing video from meetings with customers, prospects, and community members outside the company is an important part of building world-class sales and customer success teams and is a widespread practice across the industry.
 
 At Fleet, we use Gong to capture Zoom meetings and share them company-wide if a team member with a Gong license attends certain meetings, generally those with at least one person from outside of Fleet in attendance.  
 
