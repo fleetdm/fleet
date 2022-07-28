@@ -603,7 +603,7 @@ These groups maintain the following [Slack channels](https://fleetdm.com/handboo
 
 | Slack channel               | [DRI](https://fleetdm.com/handbook/company#group-slack-channels)    |
 |:----------------------------|:--------------------------------------------------------------------|
-| `#g-digital-experience`     | Mike Thomas and Eric Shaw _(multiple DRIs, for the sake of timezones)_
+| `#g-digital-experience`     | Mike Thomas
 | `#oooh-websites`            | Mike Thomas
 | `#oooh-automation`          | Mike McNeil
 | `#g-people`                 | Charlie Chance
