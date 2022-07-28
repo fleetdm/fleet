@@ -35,17 +35,5 @@
     "html.format.templating": true,
     "html.format.wrapAttributes": "preserve",
     "html.format.wrapLineLength": 0,
-    "prettier.requireConfig": true,
-    "grammarly.selectors": [
-        {
-            "language": "markdown",
-            "scheme": "file",
-            "pattern": "articles/tales-from-fleet-security-google-groups-spam.md"
-        },
-        {
-            "language": "markdown",
-            "scheme": "file",
-            "pattern": "articles/tales-from-fleet-security-google-groups-scams.md"
-        }
-    ]
+    "prettier.requireConfig": true
 }
