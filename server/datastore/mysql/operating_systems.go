@@ -83,18 +83,18 @@ func getOperatingSystemDB(ctx context.Context, tx sqlx.ExtContext, hostOS fleet.
 // operating system id.
 func maybeUpdateHostOperatingSystemDB(ctx context.Context, tx sqlx.ExtContext, hostID uint, osID uint) error {
 	switch storedID, err := getIDHostOperatingSystemDB(ctx, tx, hostID); {
-	case storedID == osID:
-		// ok
 	case errors.Is(err, sql.ErrNoRows):
 		if err := insertHostOperatingSystemDB(ctx, tx, hostID, osID); err != nil {
 			return ctxerr.Wrap(ctx, err, "insert host operating system")
 		}
+	case err != nil:
+		return ctxerr.Wrap(ctx, err, "get host operating system")
 	case storedID != osID:
 		if err := updateHostOperatingSystemDB(ctx, tx, hostID, osID); err != nil {
 			return ctxerr.Wrap(ctx, err, "update host operating system")
 		}
 	default:
-		return ctxerr.Wrap(ctx, err, "get host operating system")
+		// no update necessary
 	}
 	return nil
 }
@@ -103,7 +103,7 @@ func maybeUpdateHostOperatingSystemDB(ctx context.Context, tx sqlx.ExtContext, h
 // operating system ID for the given host ID.
 func getIDHostOperatingSystemDB(ctx context.Context, tx sqlx.ExtContext, hostID uint) (uint, error) {
 	var id uint
-	stmt := "SELECT os_id FROM host_operating_system WHERE host_id = ? LIMIT 1"
+	stmt := "SELECT os_id FROM host_operating_system WHERE host_id = ?"
 	if err := sqlx.GetContext(ctx, tx, &id, stmt, hostID); err != nil {
 		return 0, err
 	}
@@ -116,7 +116,7 @@ func getIDHostOperatingSystemDB(ctx context.Context, tx sqlx.ExtContext, hostID 
 func getHostOperatingSystemDB(ctx context.Context, tx sqlx.ExtContext, hostID uint) (*fleet.OperatingSystem, error) {
 	var os fleet.OperatingSystem
 	// TODO: can osquery host have more than one os?
-	stmt := "SELECT * FROM operating_systems os WHERE os.id = (SELECT os_id FROM host_operating_system WHERE host_id = ? LIMIT 1) LIMIT 1"
+	stmt := "SELECT * FROM operating_systems os WHERE os.id = (SELECT os_id FROM host_operating_system WHERE host_id = ?)"
 	if err := sqlx.GetContext(ctx, tx, &os, stmt, hostID); err != nil {
 		return nil, err
 	}

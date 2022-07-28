@@ -78,7 +78,7 @@ func TestUpdateHostOperatingSystem(t *testing.T) {
 
 	// new host with existing os
 	testNewHostID := uint(43)
-	err = ds.UpdateHostOperatingSystem(ctx, uint(testNewHostID), testOS)
+	err = ds.UpdateHostOperatingSystem(ctx, testNewHostID, testOS)
 	require.NoError(t, err)
 	list, err = ds.ListOperatingSystems(ctx)
 	require.NoError(t, err)
@@ -88,7 +88,7 @@ func TestUpdateHostOperatingSystem(t *testing.T) {
 	require.Equal(t, true, isSameOS(t, testOS, *storedOS))
 
 	// no change
-	err = ds.UpdateHostOperatingSystem(ctx, uint(testNewHostID), testOS)
+	err = ds.UpdateHostOperatingSystem(ctx, testNewHostID, testOS)
 	require.NoError(t, err)
 	list, err = ds.ListOperatingSystems(ctx)
 	require.NoError(t, err)

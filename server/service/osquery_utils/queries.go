@@ -334,8 +334,31 @@ var extraDetailQueries = map[string]DetailQuery{
 		// osquery table on darwin (https://osquery.io/schema/5.3.0#battery), it is
 		// always present.
 	},
-	"os_windows":   osWindows,
-	"os_unix_like": osUnixLike,
+	"os_windows": {
+		Query: `
+	SELECT name, version, arch, kernel_version 
+	FROM ((
+		SELECT name, arch 
+		FROM os_version) 
+		JOIN (
+			SELECT data as version 
+			FROM registry 
+			WHERE path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\DisplayVersion')) 
+		JOIN (
+			SELECT version as kernel_version 
+			FROM kernel_info)`,
+		Platforms:        []string{"windows"},
+		DirectIngestFunc: directIngestOSWindows,
+	},
+	"os_unix_like": {
+		Query: `
+	SELECT name, version, major, minor, patch, build, arch, kernel_version 
+	FROM os_version 
+	JOIN (
+		SELECT version as kernel_version FROM kernel_info)`,
+		Platforms:        append(fleet.HostLinuxOSs, "darwin"),
+		DirectIngestFunc: directIngestOSUnixLike,
+	},
 
 	OrbitInfoQueryName: OrbitInfoDetailQuery,
 }
@@ -603,14 +626,7 @@ var usersQuery = DetailQuery{
 	DirectIngestFunc: directIngestUsers,
 }
 
-// osWindows defines the detail query for selected operating system data from hosts on a Windows platform
-var osWindows = DetailQuery{
-	Query:            `SELECT name, version, arch, kernel_version FROM ((SELECT name, arch FROM os_version) JOIN (SELECT data as version FROM registry WHERE path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\DisplayVersion')) JOIN (SELECT version as kernel_version FROM kernel_info)`,
-	Platforms:        []string{"windows"},
-	DirectIngestFunc: directIngestOSWindows,
-}
-
-// directIngestOSUnixLike ingests selected operating system data from a host on a Windows platform
+// directIngestOSWindows ingests selected operating system data from a host on a Windows platform
 func directIngestOSWindows(ctx context.Context, logger log.Logger, host *fleet.Host, ds fleet.Datastore, rows []map[string]string, failed bool) error {
 	if failed {
 		level.Error(logger).Log("op", "directIngestOSWindows", "err", "failed")
@@ -631,14 +647,6 @@ func directIngestOSWindows(ctx context.Context, logger log.Logger, host *fleet.H
 		return ctxerr.Wrap(ctx, err, "directIngestOSWindows update host operating system")
 	}
 	return nil
-}
-
-// osUnixLike defines the detail query for selected operating system data from a host on a Unix-like platform
-// (e.g., darwin or linux operating systems)
-var osUnixLike = DetailQuery{
-	Query:            `SELECT name, version, major, minor, patch, build, arch, kernel_version FROM os_version JOIN (SELECT version as kernel_version FROM kernel_info)`,
-	Platforms:        append(fleet.HostLinuxOSs, "darwin"),
-	DirectIngestFunc: directIngestOSUnixLike,
 }
 
 // directIngestOSUnixLike ingests selected operating system data from a host on a Unix-like platform

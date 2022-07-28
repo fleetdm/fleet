@@ -415,10 +415,11 @@ CREATE TABLE `network_interfaces` (
 CREATE TABLE `operating_systems` (
   `id` int(10) unsigned NOT NULL AUTO_INCREMENT,
   `name` varchar(255) NOT NULL,
-  `version` varchar(255) NOT NULL,
-  `arch` varchar(255) NOT NULL,
-  `kernel_version` varchar(255) NOT NULL,
-  PRIMARY KEY (`id`)
+  `version` varchar(200) NOT NULL,
+  `arch` varchar(100) NOT NULL,
+  `kernel_version` varchar(200) NOT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `unique_os` (`name`,`version`,`arch`,`kernel_version`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 /*!40101 SET character_set_client = @saved_cs_client */;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;

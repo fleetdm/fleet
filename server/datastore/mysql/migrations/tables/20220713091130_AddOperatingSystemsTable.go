@@ -14,11 +14,12 @@ func Up_20220713091130(tx *sql.Tx) error {
 	_, err := tx.Exec(`
 CREATE TABLE operating_systems (
     id INT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
-    name VARCHAR(255) NOT NULL,
-	version VARCHAR(255) NOT NULL,
-	arch VARCHAR(255) NOT NULL,
-	kernel_version VARCHAR(255) NOT NULL
-)
+    name VARCHAR(191) NOT NULL,
+	version VARCHAR(191) NOT NULL,
+	arch VARCHAR(191) NOT NULL,
+	kernel_version VARCHAR(191) NOT NULL,
+	CONSTRAINT unique_os UNIQUE (name, version, arch, kernel_version)
+);
 	`)
 	if err != nil {
 		return errors.Wrapf(err, "create table")
