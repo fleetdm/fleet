@@ -15,6 +15,20 @@ let plugins = [
   new HtmlWebpackPlugin({
     filename: "../frontend/templates/react.tmpl",
     inject: false,
+    // we want to expose isProduction to our template and the plugin forces us to
+    // write it like this.
+    templateParameters: (compilation, assets, assetTags, options) => {
+      return {
+        compilation,
+        webpackConfig: compilation.options,
+        htmlWebpackPlugin: {
+          tags: assetTags,
+          files: assets,
+          options,
+        },
+        isProduction: process.env.NODE_ENV === "production",
+      };
+    },
     template: "frontend/templates/react.ejs",
   }),
   new WebpackNotifierPlugin({

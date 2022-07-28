@@ -1,24 +1,57 @@
 <!DOCTYPE html>
 <html>
   <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <% if (isProduction) { %>
+    <!-- this script is added in production to add google analytics on sandbox instances -->
+    <script type="text/javascript">
+      const isSandbox = window.location.hostname.includes("sandbox");
+      if (isSandbox) {
+        const head = document.getElementsByTagName("head")[0];
+        const gaScript = document.createElement("script");
+        gaScript.async = true;
+        gaScript.type = "text/javascript";
+        gaScript.src =
+          "https://www.googletagmanager.com/gtag/js?id=G-JC3DRNY1GV";
 
-    <meta name="robots" content="noindex">
+        const gaInlineJs = document.createElement("script");
+        gaInlineJs.type = "text/javascript";
+        gaInlineJs.text =
+          "window.dataLayer = window.dataLayer || []; function gtag(){dataLayer.push(arguments);} gtag('js', new Date()); gtag('config', 'G-JC3DRNY1GV');";
 
-    <link rel="stylesheet" type="text/css" href="{{.URLPrefix}}<%= htmlWebpackPlugin.files.css[0] %>">
-    <link rel="shortcut icon" href="{{.URLPrefix}}/assets/favicon.ico">
+        head.append(gaScript, gaInlineJs);
+      }
+    </script>
+    <% } %>
+
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+
+    <meta name="robots" content="noindex" />
+
+    <link
+      rel="stylesheet"
+      type="text/css"
+      href="{{.URLPrefix}}<%= htmlWebpackPlugin.files.css[0] %>"
+    />
+    <link rel="shortcut icon" href="{{.URLPrefix}}/assets/favicon.ico" />
 
     <title>Fleet for osquery</title>
     <script type="text/javascript">
-        var urlPrefix = "{{.URLPrefix}}";
+      var urlPrefix = "{{.URLPrefix}}";
     </script>
   </head>
   <body>
     <div id="app"></div>
-    <script async defer src="{{.URLPrefix}}<%= htmlWebpackPlugin.files.js[0] %>" onload="this.parentElement.removeChild(this)"></script>
+    <script
+      async
+      defer
+      src="{{.URLPrefix}}<%= htmlWebpackPlugin.files.js[0] %>"
+      onload="this.parentElement.removeChild(this)"
+    ></script>
     <!-- Because iOS hates interactive stuff, we have to kill it with fire -->
-    <script>document.addEventListener("touchstart", function() {},false);</script>
+    <script>
+      document.addEventListener("touchstart", function () {}, false);
+    </script>
     <!-- End Apple Hate -->
   </body>
 </html>
