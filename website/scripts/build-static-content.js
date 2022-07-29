@@ -166,7 +166,8 @@ module.exports = {
               fallbackPageTitle = sails.helpers.strings.toSentenceCase(path.basename(pageSourcePath, path.extname(pageSourcePath)));
             }
 
-            // Determine URL for this page
+            // Determine URL for this page. Note: The URL of article pages will be modified to include the articles category after we process the meta tags.
+            // TODO: Move metadata processing before this, so all URL determining logic can happen at once.
             let rootRelativeUrlPath = (
               (
                 SECTION_INFOS_BY_SECTION_REPO_PATHS[sectionRepoPath].urlPrefix +
@@ -176,12 +177,6 @@ module.exports = {
                 )
               ).replace(RX_README_FILENAME, '')// « Interpret README files as special and map it to the URL representing its containing folder.
             );
-
-            // Assert uniqueness of URL paths.
-            if (rootRelativeUrlPathsSeen.includes(rootRelativeUrlPath)) {
-              throw new Error('Failed compiling markdown content: Files as currently named would result in colliding (duplicate) URLs for the website.  To resolve, rename the pages whose names are too similar.  Duplicate detected: ' + rootRelativeUrlPath);
-            }//•
-            rootRelativeUrlPathsSeen.push(rootRelativeUrlPath);
 
             if (path.extname(pageSourcePath) !== '.md') {// If this file doesn't end in `.md`: skip it (we won't create a page for it)
               // > Inspired by https://github.com/uncletammy/doc-templater/blob/2969726b598b39aa78648c5379e4d9503b65685e/lib/compile-markdown-tree-from-remote-git-repo.js#L275-L276
@@ -197,7 +192,7 @@ module.exports = {
               // >
               // > For more info about how these additional features work, see: https://github.com/fleetdm/fleet/issues/706#issuecomment-884622252
               // >
-              // > • What about images referenced in markdown files? :: They need to be referenced using an absolute URL src-- e.g. ![](https://fleetdm.com/images/foo.png)   See also https://github.com/fleetdm/fleet/issues/706#issuecomment-884641081 for reasoning.
+              // > • What about images referenced in markdown files? :: For documentation and handbook files, they need to be referenced using an absolute URL of the src-- e.g. ![](https://raw.githubusercontent.com/fleetdm/fleet/main/docs/images/foo.png). For articles, you can use the absolute URL of the src - e.g. ![](https://fleetdm.com/images/articles/foo.png) OR the relative repo path e.g. ![](../website/assets/images/articles/foo.png). See also https://github.com/fleetdm/fleet/issues/706#issuecomment-884641081 for reasoning.
               // > • What about GitHub-style emojis like `:white_check_mark:`?  :: Use actual unicode emojis instead.  Need to revisit this?  Visit https://github.com/fleetdm/fleet/pull/1380/commits/19a6e5ffc70bf41569293db44100e976f3e2bda7 for more info.
               let mdString = await sails.helpers.fs.read(pageSourcePath);
               mdString = mdString.replace(/(```)([a-zA-Z0-9\-]*)(\s*\n)/g, '$1\n' + '<!-- __LANG=%' + '$2' + '%__ -->' + '$3'); // « Based on the github-flavored markdown's language annotation, (e.g. ```js```) add a temporary marker to code blocks that can be parsed post-md-compilation when this is HTML.  Note: This is an HTML comment because it is easy to over-match and "accidentally" add it underneath each code block as well (being an HTML comment ensures it doesn't show up or break anything).  For more information, see https://github.com/uncletammy/doc-templater/blob/2969726b598b39aa78648c5379e4d9503b65685e/lib/compile-markdown-tree-from-remote-git-repo.js#L198-L202
@@ -359,7 +354,6 @@ module.exports = {
 
               // If the page has a pageOrderInSection meta tag, we'll use that to sort pages in their bottom level sections.
               let pageOrderInSection;
-              // Add handbook pages to pageOrderInSection check, add pageOrderInSection meta tags to each handbook page.
               if(sectionRepoPath === 'docs/') {
                 // Set a flag to determine if the page is a readme (e.g. /docs/Using-Fleet/configuration-files/readme.md) or a FAQ page.
                 // READMEs in subfolders and FAQ pages don't have pageOrderInSection values, they are always sorted at the end of sections.
@@ -404,16 +398,15 @@ module.exports = {
                   // Throwing an error if the article is missing a 'publishedOn' meta tag
                   throw new Error(`Failed compiling markdown content: An article page is missing a publishedOn meta tag (<meta name="publishedOn" value="2022-04-19">) at "${path.join(topLvlRepoPath, pageSourcePath)}".  To resolve, add a meta tag with the ISO formatted date the article was published on`);
                 }
-                if(embeddedMetadata.category) {
+                if(!embeddedMetadata.category) {
+                  // Throwing an error if the article is missing a category meta tag
+                  throw new Error(`Failed compiling markdown content: An article page is missing a category meta tag (<meta name="category" value="guides">) at "${path.join(topLvlRepoPath, pageSourcePath)}".  To resolve, add a meta tag with the category of the article`);
+                } else {
                   // Throwing an error if the article has an invalid category.
-                  embeddedMetadata.category = embeddedMetadata.category.toLowerCase();
                   let validArticleCategories = ['deploy', 'security', 'engineering', 'success stories', 'announcements', 'guides', 'releases', 'podcasts', 'report' ];
                   if(!validArticleCategories.includes(embeddedMetadata.category)) {
                     throw new Error(`Failed compiling markdown content: An article page has an invalid category meta tag (<meta name="category" value="${embeddedMetadata.category}">) at "${path.join(topLvlRepoPath, pageSourcePath)}". To resolve, change the meta tag to a valid category, one of: ${validArticleCategories}`);
                   }
-                } else {
-                  // throwing an error if the article is missing a category meta tag
-                  throw new Error(`Failed compiling markdown content: An article page is missing a category meta tag (<meta name="category" value="guides">) at "${path.join(topLvlRepoPath, pageSourcePath)}".  To resolve, add a meta tag with the category of the article`);
                 }
                 if(embeddedMetadata.articleImageUrl) {
                   // Checking the value of `articleImageUrl` meta tags, and throwing an error if it is not a link to an image.
@@ -428,9 +421,8 @@ module.exports = {
                   if (isURL) {
                     if (!isExternal) { // If the image is hosted on fleetdm.com, we'll modify the meta value to reference the file directly in the `website/assets/` folder
                       embeddedMetadata.articleImageUrl = embeddedMetadata.articleImageUrl.replace(/https?:\/\//, '').replace(/^fleetdm\.com/, '');
-                    } else { // If the value is a link to an image that is not hosted on fleetdm.com, we won't modify it.
-                      // TODO: Enable this error once our Medium articles and their assets have been fully migrated.
-                      // throw new Error(`Failed compiling markdown content: An article page has an invalid a articleImageUrl meta tag (<meta name="articleImageUrl" value="${embeddedMetadata.articleImageUrl}">) at "${path.join(topLvlRepoPath, pageSourcePath)}".  To resolve, change the value of the meta tag to be an image that will be hosted on fleetdm.com`);
+                    } else { // If the value is a link to an image that is not hosted on fleetdm.com, we'll throw an error.
+                      throw new Error(`Failed compiling markdown content: An article page has an invalid a articleImageUrl meta tag (<meta name="articleImageUrl" value="${embeddedMetadata.articleImageUrl}">) at "${path.join(topLvlRepoPath, pageSourcePath)}".  To resolve, change the value of the meta tag to be an image that will be hosted on fleetdm.com`);
                     }
                   } else if(inWebsiteAssetFolder) { // If the `articleImageUrl` value is a relative link to the `website/assets/` folder, we'll modify the value to link directly to that folder.
                     embeddedMetadata.articleImageUrl = embeddedMetadata.articleImageUrl.replace(/^\.\.\/website\/assets/g, '');
@@ -442,7 +434,7 @@ module.exports = {
                 // If the article is categorized as 'product' we'll replace the category with 'use-cases', or if it is categorized as 'success story' we'll replace it with 'device-management'
                 rootRelativeUrlPath = (
                   '/' +
-                  (embeddedMetadata.category === 'success stories' ? 'device-management' : embeddedMetadata.category === 'security' ? 'securing' : embeddedMetadata.category) + '/' +
+                  (encodeURIComponent(embeddedMetadata.category === 'success stories' ? 'device-management' : embeddedMetadata.category === 'security' ? 'securing' : embeddedMetadata.category)) + '/' +
                   (pageUnextensionedLowercasedRelPath.split(/\//).map((fileOrFolderName) => encodeURIComponent(fileOrFolderName.replace(/^[0-9]+[\-]+/,''))).join('/'))
                 );
               }
@@ -456,6 +448,12 @@ module.exports = {
                 '--'+
                 sails.helpers.strings.random.with({len:10})// if two files in different folders happen to have the same filename, there is a 1/16^10 chance of a collision (this is small enough- worst case, the build fails at the uniqueness check and we rerun it.)
               ).replace(/[^a-z0-9\-]/ig,'');
+
+              // Assert uniqueness of URL paths.
+              if (rootRelativeUrlPathsSeen.includes(rootRelativeUrlPath)) {
+                throw new Error('Failed compiling markdown content: Files as currently named would result in colliding (duplicate) URLs for the website.  To resolve, rename the pages whose names are too similar.  Duplicate detected: ' + rootRelativeUrlPath);
+              }//•
+              rootRelativeUrlPathsSeen.push(rootRelativeUrlPath);
 
               // Generate HTML file
               let htmlOutputPath = path.resolve(sails.config.appPath, path.join(APP_PATH_TO_COMPILED_PAGE_PARTIALS, htmlId+'.ejs'));
