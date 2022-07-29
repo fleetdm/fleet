@@ -186,23 +186,7 @@ While some other Fleeties may have a Gong seat if it becomes necessary in their 
 
 To access a recording saved in Gong, visit [app.gong.io](app.gong.io) and sign in with SSO. Everyone at Fleet has access, whether they have a Gong seat or not, and you can explore and search through any uploaded call transcripts unless someone marks them as private (though the best practice would be not to record any calls you don't want to be captured). If you ever make a mistake and need to delete something, you can delete the video in Gong or reach out to Nathan Holliday or Mike McNeil for help. They will delete it immediately without watching the video. Note that any recording stopped within 60 seconds of the start of the recording is not saved in Gong, and there will be no saved record of it. There is a chance that Gong still may save some in Zoom. To counter this, Nathan Holliday will periodically delete all recordings found in Zoom's storage without viewing them.
 
-Most folks at Fleet should see no difference in their meetings if they aren't interfacing with external parties. For those with a Gong seat or scheduling a call with someone in attendance that has a Gong seat who does not wish for their Zoom call with an external party to record, the following words and phrases in the title will disable the Gong recording for the call:
-1 on 1
-1 : 1 
-one on one
-confidential
-privileged
-interview
-sensitive
-private
-1:1
-1-1
-1x1
-1<>1
-one-on-one
-internal
-no shadows
-[no shadows]
+Most folks at Fleet should see no difference in their meetings if they aren't interfacing with external parties. For those with a Gong seat or scheduling a call with someone in attendance that has a Gong seat who does not wish for their Zoom call with an external party to record, words and phrases in the Zoom call title will disable the Gong recording for the call. 1 on 1, 1:1, confidential, interview, internal and no shadows are some commonly used words that will disable Gong. A complete list can be found [here](https://docs.google.com/document/d/1OOxLajvqf-on5I8viN7k6aCzqEWS2B24_mE47OefutE/edit?usp=sharing).
 
 We have excluded anyone with an email domain from @cooley.com or @formationfinancial.com from Gong's recording feature. These are professional services firms working with Fleet on internal matters, and calls with them are considered internal.  
 
