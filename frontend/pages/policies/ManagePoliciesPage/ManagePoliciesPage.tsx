@@ -28,7 +28,7 @@ import MainContent from "components/MainContent";
 import PoliciesListWrapper from "./components/PoliciesListWrapper";
 import ManageAutomationsModal from "./components/ManageAutomationsModal";
 import AddPolicyModal from "./components/AddPolicyModal";
-import RemovePoliciesModal from "./components/RemovePoliciesModal";
+import DeletePoliciesModal from "./components/DeletePoliciesModal";
 
 interface IManagePoliciesPageProps {
   router: InjectedRouter;
@@ -86,7 +86,7 @@ const ManagePolicyPage = ({
   );
   const [showPreviewPayloadModal, setShowPreviewPayloadModal] = useState(false);
   const [showAddPolicyModal, setShowAddPolicyModal] = useState(false);
-  const [showRemovePoliciesModal, setShowRemovePoliciesModal] = useState(false);
+  const [showDeletePoliciesModal, setShowDeletePoliciesModal] = useState(false);
   const [showInheritedPolicies, setShowInheritedPolicies] = useState(false);
 
   useEffect(() => {
@@ -197,8 +197,8 @@ const ManagePolicyPage = ({
 
   const toggleAddPolicyModal = () => setShowAddPolicyModal(!showAddPolicyModal);
 
-  const toggleRemovePoliciesModal = () =>
-    setShowRemovePoliciesModal(!showRemovePoliciesModal);
+  const toggleDeletePoliciesModal = () =>
+    setShowDeletePoliciesModal(!showDeletePoliciesModal);
 
   const toggleShowInheritedPolicies = () =>
     setShowInheritedPolicies(!showInheritedPolicies);
@@ -232,12 +232,12 @@ const ManagePolicyPage = ({
     toggleAddPolicyModal();
   };
 
-  const onRemovePoliciesClick = (selectedTableIds: number[]): void => {
-    toggleRemovePoliciesModal();
+  const onDeletePoliciesClick = (selectedTableIds: number[]): void => {
+    toggleDeletePoliciesModal();
     setSelectedPolicyIds(selectedTableIds);
   };
 
-  const onRemovePoliciesSubmit = async () => {
+  const onDeletePoliciesSubmit = async () => {
     const id = currentTeam?.id;
     setIsRemovingPolicy(true);
     try {
@@ -263,7 +263,7 @@ const ManagePolicyPage = ({
         }. Please try again.`
       );
     } finally {
-      toggleRemovePoliciesModal();
+      toggleDeletePoliciesModal();
       setIsRemovingPolicy(false);
     }
   };
@@ -426,7 +426,7 @@ const ManagePolicyPage = ({
                   isFetchingConfig
                 }
                 onAddPolicyClick={onAddPolicyClick}
-                onRemovePoliciesClick={onRemovePoliciesClick}
+                onDeletePoliciesClick={onDeletePoliciesClick}
                 canAddOrRemovePolicy={canAddOrRemovePolicy}
                 currentTeam={currentTeam}
                 currentAutomatedPolicies={currentAutomatedPolicies}
@@ -442,7 +442,7 @@ const ManagePolicyPage = ({
                 policiesList={globalPolicies || []}
                 isLoading={isFetchingGlobalPolicies || isFetchingConfig}
                 onAddPolicyClick={onAddPolicyClick}
-                onRemovePoliciesClick={onRemovePoliciesClick}
+                onDeletePoliciesClick={onDeletePoliciesClick}
                 canAddOrRemovePolicy={canAddOrRemovePolicy}
                 currentTeam={currentTeam}
                 currentAutomatedPolicies={currentAutomatedPolicies}
@@ -478,7 +478,7 @@ const ManagePolicyPage = ({
                 <PoliciesListWrapper
                   isLoading={isFetchingGlobalPolicies}
                   policiesList={globalPolicies || []}
-                  onRemovePoliciesClick={noop}
+                  onDeletePoliciesClick={noop}
                   resultsTitle="policies"
                   canAddOrRemovePolicy={canAddOrRemovePolicy}
                   tableType="inheritedPolicies"
@@ -507,11 +507,11 @@ const ManagePolicyPage = ({
             teamName={currentTeam?.name}
           />
         )}
-        {showRemovePoliciesModal && (
-          <RemovePoliciesModal
+        {showDeletePoliciesModal && (
+          <DeletePoliciesModal
             isLoading={isRemovingPolicy}
-            onCancel={toggleRemovePoliciesModal}
-            onSubmit={onRemovePoliciesSubmit}
+            onCancel={toggleDeletePoliciesModal}
+            onSubmit={onDeletePoliciesSubmit}
           />
         )}
       </div>

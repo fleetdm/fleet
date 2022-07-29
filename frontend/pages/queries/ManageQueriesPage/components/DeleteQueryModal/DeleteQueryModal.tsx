@@ -1,22 +1,22 @@
-import React, { useEffect } from "react";
+import React from "react";
 
 import Modal from "components/Modal";
 import Button from "components/buttons/Button";
 import Spinner from "components/Spinner";
 
-const baseClass = "remove-query-modal";
+const baseClass = "delete-query-modal";
 
-interface IRemoveQueryModalProps {
+interface IDeleteQueryModalProps {
   isLoading: boolean;
   onCancel: () => void;
   onSubmit: () => void;
 }
 
-const RemoveQueryModal = ({
+const DeleteQueryModal = ({
   isLoading,
   onCancel,
   onSubmit,
-}: IRemoveQueryModalProps): JSX.Element => {
+}: IDeleteQueryModalProps): JSX.Element => {
   return (
     <Modal
       title={"Delete query"}
@@ -45,4 +45,4 @@ const RemoveQueryModal = ({
   );
 };
 
-export default RemoveQueryModal;
+export default DeleteQueryModal;

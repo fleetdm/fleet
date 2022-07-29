@@ -20,7 +20,7 @@ interface IQueryTableData extends IQuery {
 interface IQueriesListWrapperProps {
   queriesList: IQueryTableData[] | null;
   isLoading: boolean;
-  onRemoveQueryClick: (selectedTableQueryIds: number[]) => void;
+  onDeleteQueryClick: (selectedTableQueryIds: number[]) => void;
   onCreateQueryClick: () => void;
   searchable: boolean;
   customControl?: () => JSX.Element;
@@ -31,7 +31,7 @@ interface IQueriesListWrapperProps {
 const QueriesListWrapper = ({
   queriesList,
   isLoading,
-  onRemoveQueryClick,
+  onDeleteQueryClick,
   onCreateQueryClick,
   searchable,
   customControl,
@@ -124,7 +124,7 @@ const QueriesListWrapper = ({
         inputPlaceHolder="Search by name"
         searchable={searchable}
         disablePagination
-        onPrimarySelectActionClick={onRemoveQueryClick}
+        onPrimarySelectActionClick={onDeleteQueryClick}
         primarySelectActionButtonVariant="text-icon"
         primarySelectActionButtonIcon="delete"
         primarySelectActionButtonText={"Delete"}

@@ -5,15 +5,15 @@ import Button from "components/buttons/Button";
 
 const baseClass = "remove-pack-modal";
 
-interface IRemovePackModalProps {
+interface IDeletePackModalProps {
   onCancel: () => void;
   onSubmit: () => void;
 }
 
-const RemovePackModal = ({
+const DeletePackModal = ({
   onCancel,
   onSubmit,
-}: IRemovePackModalProps): JSX.Element => {
+}: IDeletePackModalProps): JSX.Element => {
   return (
     <Modal
       title={"Delete pack"}
@@ -45,4 +45,4 @@ const RemovePackModal = ({
   );
 };
 
-export default RemovePackModal;
+export default DeletePackModal;

@@ -30,7 +30,7 @@ interface IWelcomeHostCardProps {
 }
 
 const baseClass = "welcome-host";
-const HOST_ID = 20;
+const HOST_ID = 1;
 const policyPass = "pass";
 const policyFail = "fail";
 

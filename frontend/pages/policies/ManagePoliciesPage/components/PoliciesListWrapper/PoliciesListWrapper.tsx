@@ -25,7 +25,7 @@ interface IPoliciesListWrapperProps {
   policiesList: IPolicyStats[];
   isLoading: boolean;
   onAddPolicyClick?: () => void;
-  onRemovePoliciesClick: (selectedTableIds: number[]) => void;
+  onDeletePoliciesClick: (selectedTableIds: number[]) => void;
   resultsTitle?: string;
   canAddOrRemovePolicy?: boolean;
   tableType?: string;
@@ -37,7 +37,7 @@ const PoliciesListWrapper = ({
   policiesList,
   isLoading,
   onAddPolicyClick,
-  onRemovePoliciesClick,
+  onDeletePoliciesClick,
   resultsTitle,
   canAddOrRemovePolicy,
   tableType,
@@ -134,7 +134,7 @@ const PoliciesListWrapper = ({
           showMarkAllPages={false}
           isAllPagesSelected={false}
           disablePagination
-          onPrimarySelectActionClick={onRemovePoliciesClick}
+          onPrimarySelectActionClick={onDeletePoliciesClick}
           primarySelectActionButtonVariant="text-icon"
           primarySelectActionButtonIcon="delete"
           primarySelectActionButtonText={"Delete"}
