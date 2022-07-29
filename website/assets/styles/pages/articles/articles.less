@@ -82,6 +82,31 @@
     }
   }
 
+  table {
+        border: 1px solid @border-lt-gray;
+        table-layout: fixed;
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 16px;
+        line-height: 24px;
+        margin-bottom: 16px;
+        word-wrap: break-word;
+
+        th {
+          font-weight: @bold;
+          font-family: @header-font;
+          border: 1px solid @border-lt-gray;
+          padding: 8px 7px 7px 8px;
+        }
+
+        td {
+
+          font-family: @main-font;
+          border: 1px solid @border-lt-gray;
+          padding: 8px 7px 7px 8px;
+        }
+      }
+
 
   @media (min-width: 1200px) {
     [purpose='categories-and-search'] {
