@@ -16,6 +16,8 @@ import { IPolicyFormData, IPolicy } from "interfaces/policy";
 import { ITarget } from "interfaces/target";
 import { ITeam } from "interfaces/team";
 
+import useToggleSidePanel from "hooks/useToggleSidePanel";
+
 import QuerySidePanel from "components/side_panels/QuerySidePanel";
 import QueryEditor from "pages/policies/PolicyPage/screens/QueryEditor";
 import SelectTargets from "components/LiveQuery/SelectTargets";
@@ -98,11 +100,7 @@ const PolicyPage = ({
   const [targetedTeams, setTargetedTeams] = useState<ITeam[]>([]);
   const [targetsTotalCount, setTargetsTotalCount] = useState<number>(0);
   const [isLiveQueryRunnable, setIsLiveQueryRunnable] = useState<boolean>(true);
-  const [isSidebarOpen, setIsSidebarOpen] = useState<boolean>(true);
-  const [
-    showOpenSchemaActionText,
-    setShowOpenSchemaActionText,
-  ] = useState<boolean>(false);
+  const { isSidePanelOpen, toggleSidePanel } = useToggleSidePanel(true);
 
   const {
     isLoading: isStoredPolicyLoading,
@@ -167,20 +165,8 @@ const PolicyPage = ({
     detectIsFleetQueryRunnable();
   }, []);
 
-  useEffect(() => {
-    setShowOpenSchemaActionText(!isSidebarOpen);
-  }, [isSidebarOpen]);
-
   const onOsqueryTableSelect = (tableName: string) => {
     setSelectedOsqueryTable(tableName);
-  };
-
-  const onCloseSchemaSidebar = () => {
-    setIsSidebarOpen(false);
-  };
-
-  const onOpenSchemaSidebar = () => {
-    setIsSidebarOpen(true);
   };
 
   const renderLiveQueryWarning = (): JSX.Element | null => {
@@ -212,14 +198,14 @@ const PolicyPage = ({
       router,
       baseClass,
       policyIdForEdit: policyId,
-      showOpenSchemaActionText,
+      showOpenSchemaActionText: !isSidePanelOpen,
       storedPolicy,
       isStoredPolicyLoading,
       storedPolicyError,
       createPolicy,
       onOsqueryTableSelect,
       goToSelectTargets: () => setStep(QUERIES_PAGE_STEPS[2]),
-      onOpenSchemaSidebar,
+      onOpenSchemaSidebar: toggleSidePanel,
       renderLiveQueryWarning,
     };
 
@@ -258,9 +244,9 @@ const PolicyPage = ({
   };
 
   const isFirstStep = step === QUERIES_PAGE_STEPS[1];
-  const showSidebar =
+  const showSidePanel =
     isFirstStep &&
-    isSidebarOpen &&
+    isSidePanelOpen &&
     (isGlobalAdmin || isGlobalMaintainer || isAnyTeamMaintainerOrTeamAdmin);
 
   return (
@@ -268,12 +254,12 @@ const PolicyPage = ({
       <MainContent className={baseClass}>
         <div className={`${baseClass}__wrapper`}>{renderScreen()}</div>
       </MainContent>
-      {showSidebar && (
+      {showSidePanel && (
         <SidePanelContent>
           <QuerySidePanel
             onOsqueryTableSelect={onOsqueryTableSelect}
             selectedOsqueryTable={selectedOsqueryTable}
-            onClose={onCloseSchemaSidebar}
+            onClose={toggleSidePanel}
           />
         </SidePanelContent>
       )}

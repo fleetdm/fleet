@@ -20,6 +20,8 @@ import MainContent from "components/MainContent";
 import SidePanelContent from "components/SidePanelContent";
 import SelectTargets from "components/LiveQuery/SelectTargets";
 
+import useToggleSidePanel from "hooks/useToggleSidePanel";
+
 import QueryEditor from "pages/queries/QueryPage/screens/QueryEditor";
 import RunQuery from "pages/queries/QueryPage/screens/RunQuery";
 import ExternalURLIcon from "../../../../assets/images/icon-external-url-12x12@2x.png";
@@ -75,11 +77,7 @@ const QueryPage = ({
   const [targetedTeams, setTargetedTeams] = useState<ITeam[]>([]);
   const [targetsTotalCount, setTargetsTotalCount] = useState<number>(0);
   const [isLiveQueryRunnable, setIsLiveQueryRunnable] = useState<boolean>(true);
-  const [isSidebarOpen, setIsSidebarOpen] = useState<boolean>(true);
-  const [
-    showOpenSchemaActionText,
-    setShowOpenSchemaActionText,
-  ] = useState<boolean>(false);
+  const { isSidePanelOpen, toggleSidePanel } = useToggleSidePanel(true);
 
   // disabled on page load so we can control the number of renders
   // else it will re-populate the context on occasion
@@ -147,20 +145,8 @@ const QueryPage = ({
     setLastEditedQueryObserverCanRun(DEFAULT_QUERY.observer_can_run);
   }, []);
 
-  useEffect(() => {
-    setShowOpenSchemaActionText(!isSidebarOpen);
-  }, [isSidebarOpen]);
-
   const onOsqueryTableSelect = (tableName: string) => {
     setSelectedOsqueryTable(tableName);
-  };
-
-  const onCloseSchemaSidebar = () => {
-    setIsSidebarOpen(false);
-  };
-
-  const onOpenSchemaSidebar = () => {
-    setIsSidebarOpen(true);
   };
 
   const renderLiveQueryWarning = (): JSX.Element | null => {
@@ -192,14 +178,14 @@ const QueryPage = ({
       router,
       baseClass,
       queryIdForEdit: queryId,
-      showOpenSchemaActionText,
+      showOpenSchemaActionText: !isSidePanelOpen,
       storedQuery,
       isStoredQueryLoading,
       storedQueryError,
       createQuery,
       onOsqueryTableSelect,
       goToSelectTargets: () => setStep(QUERIES_PAGE_STEPS[2]),
-      onOpenSchemaSidebar,
+      onOpenSchemaSidebar: toggleSidePanel,
       renderLiveQueryWarning,
     };
 
@@ -240,9 +226,9 @@ const QueryPage = ({
   };
 
   const isFirstStep = step === QUERIES_PAGE_STEPS[1];
-  const showSidebar =
+  const showSidePanel =
     isFirstStep &&
-    isSidebarOpen &&
+    isSidePanelOpen &&
     (isGlobalAdmin || isGlobalMaintainer || isAnyTeamMaintainerOrTeamAdmin);
 
   return (
@@ -250,12 +236,12 @@ const QueryPage = ({
       <MainContent className={baseClass}>
         <div className={`${baseClass}_wrapper`}>{renderScreen()}</div>
       </MainContent>
-      {showSidebar && (
+      {showSidePanel && (
         <SidePanelContent>
           <QuerySidePanel
             onOsqueryTableSelect={onOsqueryTableSelect}
             selectedOsqueryTable={selectedOsqueryTable}
-            onClose={onCloseSchemaSidebar}
+            onClose={toggleSidePanel}
           />
         </SidePanelContent>
       )}
