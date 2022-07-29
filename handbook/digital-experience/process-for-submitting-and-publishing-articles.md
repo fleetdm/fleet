@@ -73,7 +73,7 @@ Articles are official Fleet communication. We carefully review published content
 - Do all links work correctly and open in a new window?
 - Does the article contain the correct [meta tags](./article-formatting-guide.md#meta-tags)
 - Has artwork been created by Digital Experience?
-- Does the article have a clear [CTA (call to action)](./article-formatting-guide.md#customizable-cta)?
+- Does the article have a clear [call to action (CTA)](./article-formatting-guide.md#customizable-cta)?
 
 ## After publication
 
