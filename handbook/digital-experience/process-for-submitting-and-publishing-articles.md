@@ -79,7 +79,7 @@ Articles are official Fleet communication. We carefully review published content
 
 After your article is published, the Growth team will schedule your post to be promoted across our social media channels.
 
-> Consider also promoting your article on your personal channels to help achieve a bigger impact. Depending on the article, the Growth team make a request in [#help-promote](https://fleetdm.slack.com/archives/C026W5TC10V) on Slack.
+> Consider promoting your article on your personal channels to help achieve a bigger impact. Depending on the article, the Growth team may make a request in [#help-promote](https://fleetdm.slack.com/archives/C026W5TC10V) on Slack.
 
 ### Related pages
 
