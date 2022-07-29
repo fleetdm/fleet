@@ -35,7 +35,7 @@ Use [#help-content-calendar](https://fleetdm.slack.com/archives/C03PH3BBVSM) on 
 
 ## Schedule
 
-Publishing occurs according to our [content calendar](https://docs.google.com/spreadsheets/d/1IzpoIfTc7cqc9g8w20fQfap3GFcrqgOaiPrpCkowcvA/edit?usp=sharing). However, that is subject to change based on the news or information that needs to be posted. For time-sensitive articles, consult with Tim Kern in [#help-content-calendar](https://fleetdm.slack.com/archives/C03PH3BBVSM) on Slack.
+Publishing occurs according to our [content calendar](https://docs.google.com/spreadsheets/d/1IzpoIfTc7cqc9g8w20fQfap3GFcrqgOaiPrpCkowcvA/edit?usp=sharing). However, publication dates are subject to change based on the news or information that needs to be posted. For time-sensitive articles, consult with Tim Kern in [#help-content-calendar](https://fleetdm.slack.com/archives/C03PH3BBVSM) on Slack.
 
 ## How to submit an article
 
