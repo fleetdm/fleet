@@ -411,10 +411,10 @@ Pre-built installers are kept in a blob storage like AWS S3. As part of your you
    for local testing.
 2. Use the [installerstore](../../tools/installerstore/README.md) tool to upload them to your MinIO instance.
 3. Configure your fleet server setting `FLEET_PACKAGING_GLOBAL_ENROLL_SECRET` to match your global enroll secret.
-4. Set `FLEET_DEMO=1`, as the endpoint to retrieve the installer is only available in the sandbox.
+4. Set `FLEET_SERVER_SANDBOX_ENABLED=1`, as the endpoint to retrieve the installer is only available in the sandbox.
 
 ```
-FLEET_DEMO=1 FLEET_PACKAGING_GLOBAL_ENROLL_SECRET=xyz  ./build/fleet serve --dev 
+FLEET_SERVER_SANDBOX_ENABLED=1 FLEET_PACKAGING_GLOBAL_ENROLL_SECRET=xyz  ./build/fleet serve --dev 
 ```
 
 Be sure to replace the `FLEET_PACKAGING_GLOBAL_ENROLL_SECRET` value above with the global enroll
