@@ -25,22 +25,23 @@ const (
 
 // MysqlConfig defines configs related to MySQL
 type MysqlConfig struct {
-	Protocol        string `yaml:"protocol"`
-	Address         string `yaml:"address"`
-	Username        string `yaml:"username"`
-	Password        string `yaml:"password"`
-	PasswordPath    string `yaml:"password_path"`
-	Database        string `yaml:"database"`
-	TLSCert         string `yaml:"tls_cert"`
-	TLSKey          string `yaml:"tls_key"`
-	TLSCA           string `yaml:"tls_ca"`
-	TLSServerName   string `yaml:"tls_server_name"`
-	TLSConfig       string `yaml:"tls_config"` // tls=customValue in DSN
-	MaxOpenConns    int    `yaml:"max_open_conns"`
-	MaxIdleConns    int    `yaml:"max_idle_conns"`
-	ConnMaxLifetime int    `yaml:"conn_max_lifetime"`
-	SQLMode         string `yaml:"sql_mode"`
-	MultiStatements bool   `yaml:"multi_statements"`
+	Protocol         string `yaml:"protocol"`
+	Address          string `yaml:"address"`
+	Username         string `yaml:"username"`
+	Password         string `yaml:"password"`
+	PasswordPath     string `yaml:"password_path"`
+	Database         string `yaml:"database"`
+	TLSCert          string `yaml:"tls_cert"`
+	TLSKey           string `yaml:"tls_key"`
+	TLSCA            string `yaml:"tls_ca"`
+	TLSServerName    string `yaml:"tls_server_name"`
+	TLSConfig        string `yaml:"tls_config"` // tls=customValue in DSN
+	MaxOpenConns     int    `yaml:"max_open_conns"`
+	MaxIdleConns     int    `yaml:"max_idle_conns"`
+	ConnMaxLifetime  int    `yaml:"conn_max_lifetime"`
+	SQLMode          string `yaml:"sql_mode"`
+	MultiStatements  bool   `yaml:"multi_statements"`
+	DisableParseTime bool   `yaml:"parse_time"`
 }
 
 // RedisConfig defines configs related to Redis
@@ -328,6 +329,28 @@ type MDMAppleConfig struct {
 	SCEP MDMAppleSCEPConfig
 	// MDM holds the MDM core protocol and server configuration.
 	MDM MDMAppleMDMConfig
+	// DEP holds the MDM DEP configuration.
+	DEP MDMAppleDEP
+}
+
+// MDMAppleDEP holds the Apple DEP (Device Enrollment Program) configuration.
+type MDMAppleDEP struct {
+	// ServerURL is the Fleet URL to set in the `configuration_web_url` and `url` fields
+	// of the DEP profile.
+	//
+	// Value used only during DEP setup.
+	ServerURL string
+	// EncryptedAuthToken holds the contents of the token .p7m file downloaded from ABM.
+	//
+	// Value used only during DEP setup.
+	EncryptedAuthToken []byte
+	// SyncPeriodicity is the duration between DEP device syncing (fetching and setting
+	// of DEP profiles).
+	SyncPeriodicity time.Duration
+	// SyncDeviceLimit limits the number of device to sync per API request.
+	//
+	// If set to 0, then it uses server default (100), maximum allowed value 1000.
+	SyncDeviceLimit int
 }
 
 // MDMAppleMDMConfig holds the Apple MDM core protocol and server configuration.
@@ -764,6 +787,10 @@ func (man Manager) addConfigs() {
 	man.addConfigString("mdm.apple.scep.challenge", "", "SCEP static challenge for enrollment")
 	man.addConfigString("mdm.apple.mdm.push.cert_pem", "", "MDM APNS PEM-encoded certificate")
 	man.addConfigString("mdm.apple.mdm.push.key_pem", "", "MDM APNS PEM-encoded private key")
+	man.addConfigString("mdm.apple.dep.server_url", "", "URL of the Fleet server to be set in the DEP profile")
+	man.addConfigString("mdm.apple.dep.encrypted_auth_token", "", "MDM DEP Encrypted Auth Token (.p7m)")
+	man.addConfigDuration("mdm.apple.dep.sync_periodicity", 1*time.Hour, "How much time to wait between device fetching + assigning of DEP profile")
+	man.addConfigInt("mdm.apple.dep.sync_device_limit", 0, "Maximum number of devices to return on DEP sync/fetch requests (0 uses Apple default)")
 }
 
 // LoadConfig will load the config variables into a fully initialized
@@ -994,6 +1021,12 @@ func (man Manager) LoadConfig() FleetConfig {
 					PEMCert: []byte(man.getConfigString("mdm.apple.mdm.push.cert_pem")),
 					PEMKey:  []byte(man.getConfigString("mdm.apple.mdm.push.key_pem")),
 				},
+			},
+			DEP: MDMAppleDEP{
+				ServerURL:          man.getConfigString("mdm.apple.dep.server_url"),
+				EncryptedAuthToken: []byte(man.getConfigString("mdm.apple.dep.encrypted_auth_token")),
+				SyncPeriodicity:    man.getConfigDuration("mdm.apple.dep.sync_periodicity"),
+				SyncDeviceLimit:    man.getConfigInt("mdm.apple.dep.sync_device_limit"),
 			},
 		},
 	}

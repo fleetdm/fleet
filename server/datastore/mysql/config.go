@@ -27,6 +27,7 @@ type dbOptions struct {
 	sqlMode             string
 	mdmApple            bool
 	multiStatements     bool
+	disableParseTime    bool
 }
 
 // Logger adds a logger to the datastore.

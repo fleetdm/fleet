@@ -29,6 +29,7 @@ import (
 	"github.com/e-dard/netbug"
 	"github.com/fleetdm/fleet/v4/ee/server/licensing"
 	eeservice "github.com/fleetdm/fleet/v4/ee/server/service"
+	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
 	"github.com/fleetdm/fleet/v4/server"
 	"github.com/fleetdm/fleet/v4/server/config"
 	configpkg "github.com/fleetdm/fleet/v4/server/config"
@@ -56,6 +57,11 @@ import (
 	"github.com/go-kit/kit/log/level"
 	kitprometheus "github.com/go-kit/kit/metrics/prometheus"
 	"github.com/kolide/kit/version"
+	"github.com/micromdm/nanodep/client"
+	"github.com/micromdm/nanodep/godep"
+	nanodep_stdlogfmt "github.com/micromdm/nanodep/log/stdlogfmt"
+	"github.com/micromdm/nanodep/proxy"
+	depsync "github.com/micromdm/nanodep/sync"
 	"github.com/micromdm/nanomdm/certverify"
 	nanomdm_httpapi "github.com/micromdm/nanomdm/http/api"
 	httpmdm "github.com/micromdm/nanomdm/http/mdm"
@@ -580,22 +586,88 @@ the way that the Fleet server works.
 				if err != nil {
 					initFatal(err, "loading MDM Push certificate topic")
 				}
-				mobileConfig, err := generateMobileConfig(
-					"https://"+config.Server.Address+"/mdm/apple/scep",
-					"https://"+config.Server.Address+"/mdm/apple/mdm",
-					scepChallenge,
-					topic,
-				)
-				if err != nil {
-					initFatal(err, "generating .mobileconfig enroll profile")
-				}
+
 				rootMux.HandleFunc("/mdm/apple/api/enroll", func(w http.ResponseWriter, r *http.Request) {
-					w.Header().Add("Content-Type", "application/x-apple-aspen-config")
-					_, err := w.Write(mobileConfig)
+					mobileConfig, err := generateMobileConfig(
+						"https://"+config.MDMApple.DEP.ServerURL+"/mdm/apple/scep",
+						"https://"+config.MDMApple.DEP.ServerURL+"/mdm/apple/mdm",
+						scepChallenge,
+						topic,
+					)
 					if err != nil {
 						log.With(logger, "handler", "enroll-profile").Log("err", err)
 					}
+					w.Header().Add("Content-Type", "application/x-apple-aspen-config")
+					if _, err := w.Write(mobileConfig); err != nil {
+						log.With(logger, "handler", "enroll-profile").Log("err", err)
+					}
 				})
+
+				// (4) Set up DEP Apple proxy.
+				depStorage, err := mds.NewMDMAppleDEPStorage()
+				if err != nil {
+					initFatal(err, "initialize mdm apple dep storage")
+				}
+				depLogger := nanodep_stdlogfmt.New(stdlog.Default(), config.Logging.Debug)
+				p := proxy.New(
+					client.NewTransport(http.DefaultTransport, http.DefaultClient, depStorage, nil),
+					depStorage,
+					depLogger.With("component", "proxy"),
+				)
+				var proxyHandler http.Handler = proxy.ProxyDEPNameHandler(p, depLogger.With("handler", "proxy"))
+				proxyHandler = http.StripPrefix("/mdm/apple/proxy/", proxyHandler)
+				proxyHandler = delHeaderMiddleware(proxyHandler, "Authorization")
+				rootMux.Handle("/mdm/apple/proxy/", proxyHandler)
+
+				// (5) Create DEP assigner and start syncer routine.
+				httpClient := fleethttp.NewClient()
+				depClient := godep.NewClient(depStorage, httpClient)
+				assignerOpts := []depsync.AssignerOption{
+					depsync.WithAssignerLogger(depLogger.With("component", "assigner")),
+				}
+				if config.Logging.Debug {
+					assignerOpts = append(assignerOpts, depsync.WithDebug())
+				}
+				// TODO(lucas): Define as variable somewhere global, as prepare step also
+				// uses this value.
+				const depName = "fleet"
+				assigner := depsync.NewAssigner(
+					depClient,
+					depName,
+					depStorage,
+					assignerOpts...,
+				)
+				depSyncerCallback := func(ctx context.Context, isFetch bool, resp *godep.DeviceResponse) error {
+					go func() {
+						err := assigner.ProcessDeviceResponse(ctx, resp)
+						if err != nil {
+							depLogger.Info("msg", "assigner process device response", "err", err)
+						}
+					}()
+					return nil
+				}
+				syncNow := make(chan struct{})
+				syncerOpts := []depsync.SyncerOption{
+					depsync.WithLogger(depLogger.With("component", "syncer")),
+					depsync.WithSyncNow(syncNow),
+					depsync.WithCallback(depSyncerCallback),
+					depsync.WithDuration(config.MDMApple.DEP.SyncPeriodicity),
+					depsync.WithLimit(config.MDMApple.DEP.SyncDeviceLimit),
+				}
+				syncer := depsync.NewSyncer(
+					depClient,
+					depName,
+					depStorage,
+					syncerOpts...,
+				)
+				go func() {
+					defer close(syncNow)
+
+					err = syncer.Run(ctx)
+					if err != nil {
+						depLogger.Info("msg", "syncer run", "err", err)
+					}
+				}()
 			}
 
 			if config.Prometheus.BasicAuth.Username != "" && config.Prometheus.BasicAuth.Password != "" {
@@ -728,6 +800,14 @@ the way that the Fleet server works.
 	serveCmd.PersistentFlags().BoolVar(&devExpiredLicense, "dev_expired_license", false, "Enable expired development license")
 
 	return serveCmd
+}
+
+// delHeaderMiddleware deletes header from the HTTP request headers before calling h.
+func delHeaderMiddleware(h http.Handler, header string) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		r.Header.Del(header)
+		h.ServeHTTP(w, r)
+	}
 }
 
 // mobileConfigTemplate is the template Fleet uses to assemble a .mobileconfig enroll profile to serve to devices.

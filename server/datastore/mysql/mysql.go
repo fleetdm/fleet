@@ -34,6 +34,7 @@ import (
 	"github.com/go-sql-driver/mysql"
 	"github.com/hashicorp/go-multierror"
 	"github.com/jmoiron/sqlx"
+	nanodep_mysql "github.com/micromdm/nanodep/storage/mysql"
 	nanomdm_mysql "github.com/micromdm/nanomdm/storage/mysql"
 	"github.com/ngrok/sqlmw"
 	semconv "go.opentelemetry.io/otel/semconv/v1.4.0"
@@ -119,7 +120,7 @@ func (ds *Datastore) NewMDMAppleSCEPDepot() (*scep_mysql.MySQLDepot, error) {
 	return s, nil
 }
 
-// NewMDMAppleMDMStorage retursn a *nanomdm_mysql.MySQLStorage that uses the Datastore
+// NewMDMAppleMDMStorage returns a *nanomdm_mysql.MySQLStorage that uses the Datastore
 // underlying MySQL writer *sql.DB.
 //
 // TODO(lucas): Discuss alternative approaches.
@@ -168,6 +169,18 @@ func (n *NanoMDMStorage) CurrentTopic(ctx context.Context) (string, error) {
 		return "", err
 	}
 	return topic, nil
+}
+
+// NewMDMAppleDEPStorage returns a *nanodep_mysql.MySQLStorage that uses the Datastore
+// underlying MySQL writer *sql.DB.
+//
+// TODO(lucas): Discuss alternative approaches.
+func (ds *Datastore) NewMDMAppleDEPStorage() (*nanodep_mysql.MySQLStorage, error) {
+	s, err := nanodep_mysql.New(nanodep_mysql.WithDB(ds.appleMDMWriter.DB))
+	if err != nil {
+		return nil, err
+	}
+	return s, nil
 }
 
 type txFn func(sqlx.ExtContext) error
@@ -326,6 +339,8 @@ func New(config config.MysqlConfig, c clock.Clock, opts ...DBOption) (*Datastore
 	if options.mdmApple {
 		configMDMApple := config
 		configMDMApple.Database = "mdm_apple"
+		// TODO(lucas): Check if we can get around with having parseTime=true.
+		configMDMApple.DisableParseTime = true
 		dbAppleMDMWriter, err = newDB(&configMDMApple, options)
 		if err != nil {
 			return nil, err
@@ -403,6 +418,9 @@ func newDB(conf *config.MysqlConfig, opts *dbOptions) (*sqlx.DB, error) {
 	}
 	if opts.multiStatements {
 		conf.MultiStatements = true
+	}
+	if opts.disableParseTime {
+		conf.DisableParseTime = true
 	}
 
 	dsn := generateMysqlConnectionString(*conf)
@@ -972,6 +990,9 @@ func generateMysqlConnectionString(conf config.MysqlConfig) string {
 	}
 	if conf.MultiStatements {
 		params.Set("multiStatements", "true")
+	}
+	if conf.DisableParseTime {
+		params.Set("parseTime", "false")
 	}
 
 	dsn := fmt.Sprintf(
