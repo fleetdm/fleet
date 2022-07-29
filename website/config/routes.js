@@ -270,7 +270,7 @@ module.exports.routes = {
   'GET /legal/privacy':          'https://docs.google.com/document/d/17i_g1aGpnuSmlqj35-yHJiwj7WRrLdC_Typc1Yb7aBE/edit',
   'GET /logout':                 '/api/v1/account/logout',
   'GET /defcon':                 'https://kqphpqst851.typeform.com/to/Y6NYxM5A',
-  'GET /osquery-stickers'        'https://kqphpqst851.typeform.com/to/JxJ8YnxG',
+  'GET /osquery-stickers':        'https://kqphpqst851.typeform.com/to/JxJ8YnxG',
 
   //  ╦ ╦╔═╗╔╗ ╦ ╦╔═╗╔═╗╦╔═╔═╗
   //  ║║║║╣ ╠╩╗╠═╣║ ║║ ║╠╩╗╚═╗
