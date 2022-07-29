@@ -49,7 +49,7 @@ Todo: Demonstrate creating an article via Loom
 
 ## Review process
 
-Articles are an official voice of Fleet. Therefore, we carefully review published content to make sure Fleet, the company and the product, are accurately represented.
+Articles are official Fleet communication. We carefully review published content to make sure Fleet, the company and the product, are accurately represented.
 
 - Digital Experience will review your article for spelling, punctuation, and grammar, as well as for tone and brand consistency. 
 - In some cases, a technical review by a member of Engineering or Security may be necessary. 
