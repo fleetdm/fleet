@@ -407,6 +407,26 @@ Then hit send!  After all of the signatures are there, the completed document wi
  - Charlie will post the information to `#g-people` and tag the CEO for approval.
  - After CEO approval, Charlie will issue a new contractor agreement with the updated fee via DocuSign.
 
+## Getting paid at Fleet
+
+### Running Payroll n Gusto:
+| Unique payrolls              | Action                       | DRI                          |
+|:-----------------------------|:-----------------------------|:-----------------------------|
+| Commissions                  | "Off-cycle" payroll          | Charlie
+| Sign-on bonus                | "Bonus" payroll              | Charlie
+| Performance bonus            | "Bonus" payroll              | Charlie                     
+| Ramp                         | "Off-cycle" payroll          | Charlie 
+| Accelerations                | "Off-cycle" payroll          | Charlie
+
+For Fleet's US contractors, running payroll is a manual process. 
+The steps for doing this are highlighted in this loom, TODO. 
+1. Time tools
+2. Time tracking
+3. Review hours
+4. Adjust time frame to match current payroll period (the 27th through 26th of the month)
+5. Sync hours
+6. Run contractor payroll
+
 ## Zapier and DocuSign
 
 We use Zapier to automate how completed DocuSign envelopes are formatted and stored. This process ensures we store signed documents in the correct folder and that filenames are formatted consistently. 
@@ -600,12 +620,8 @@ Weekly, Charlie looks in the [Fleeties spreadsheet](https://docs.google.com/spre
 ### Payroll
 
 Many of these processes are automated, but it's vital to check Gusto and Pilot manually for accuracy.
-
-| Unique payrolls              | Action                       | DRI                          |
-|:-----------------------------|:-----------------------------|:-----------------------------|
-| Commissions                  | "Off-cycle" payroll          | Charlie
-| Sign-on bonus                | "Bonus" payroll              | Charlie
-| Performance bonus            | "Bonus" payroll              | Charlie
+ - Salary employees are automated in Gusto and Pilot
+ - Contractors are a manual process in Gusto and Pilot
 
 ## BizOps
 
