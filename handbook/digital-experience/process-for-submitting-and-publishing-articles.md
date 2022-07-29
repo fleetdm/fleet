@@ -40,7 +40,7 @@ Publishing occurs according to our [content calendar](https://docs.google.com/sp
 ## How to submit an article
 
 1. Familiarize yourself with our [article formatting guide](./article-formatting-guide) and writing style guide (todo).
-2. Create a Pull Request for fleetdm.com with a file of your article, formatted in Markdown (todo).
+2. Create a pull request for fleetdm.com with a file of your article, formatted in Markdown (todo).
 3. Include any relevant images, image suggestions, or other design requests you may have.
 
 > **IMPORTANT**: Your PR is not confidential. If the information in your article is confidential, please prepare your article in a Google Doc, or create a draft PR ~1 hour before publication time to keep your article private.
