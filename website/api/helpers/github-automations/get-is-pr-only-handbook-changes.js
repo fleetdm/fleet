@@ -25,7 +25,7 @@ module.exports = {
   fn: async function ({prNumber}) {
 
     require('assert')(sails.config.custom.githubAccessToken);
-    let DRI_BY_PATH = sails.config.custom.githubRepoDRIByPath;
+
     let owner = 'fleetdm';
     let repo = 'fleet';
     let baseHeaders = {
