@@ -1,9 +1,11 @@
 <!DOCTYPE html>
 <html>
   <head>
+    <!-- isProduction comes from build time webpack config -->
     <% if (isProduction) { %>
-    {{ if .ServerType == 'sandbox' }}
-    <!-- these scripts are added in production to add google analytics on sandbox instances -->
+    <!-- ServerType comes from runtime server -->
+    {{ if (eq .ServerType "sandbox") }}
+    <!-- these scripts are to add google analytics on production sandbox instances -->
     <script
       async
       type="text/javascript"
