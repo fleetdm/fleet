@@ -30,7 +30,7 @@ interface IWelcomeHostCardProps {
 }
 
 const baseClass = "welcome-host";
-const HOST_ID = 1;
+const HOST_ID = 20;
 const policyPass = "pass";
 const policyFail = "fail";
 
@@ -296,6 +296,7 @@ const WelcomeHost = ({
           <Modal
             title={currentPolicyShown?.name || ""}
             onExit={() => setShowPolicyModal(false)}
+            onEnter={() => setShowPolicyModal(false)}
             className={`${baseClass}__policy-modal`}
           >
             <>

@@ -166,7 +166,9 @@ const ManageAutomationsModal = ({
     );
   };
 
-  const onSubmit = () => {
+  const onSubmit = (evt: React.MouseEvent<HTMLFormElement> | KeyboardEvent) => {
+    evt.preventDefault();
+
     const newPolicyIds: number[] = [];
     policyItems?.forEach((p) => p.isChecked && newPolicyIds.push(p.id));
 
@@ -245,6 +247,19 @@ const ManageAutomationsModal = ({
 
     setErrors(newErrors);
   };
+
+  useEffect(() => {
+    const listener = (event: KeyboardEvent) => {
+      if (event.code === "Enter" || event.code === "NumpadEnter") {
+        event.preventDefault();
+        onSubmit(event);
+      }
+    };
+    document.addEventListener("keydown", listener);
+    return () => {
+      document.removeEventListener("keydown", listener);
+    };
+  }, [onSubmit]);
 
   const renderWebhook = () => {
     return (
@@ -325,12 +340,7 @@ const ManageAutomationsModal = ({
   return showPreviewModal ? (
     renderPreview()
   ) : (
-    <Modal
-      onExit={onExit}
-      onEnter={onSubmit}
-      title={"Manage automations"}
-      className={baseClass}
-    >
+    <Modal onExit={onExit} title={"Manage automations"} className={baseClass}>
       <>
         {isAutomationsLoading ? (
           <Spinner />
