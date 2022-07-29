@@ -14,21 +14,13 @@ const DeleteLabelModal = ({
   onSubmit,
   onCancel,
 }: IDeleteLabelModalProps): JSX.Element => {
-  useEffect(() => {
-    const listener = (event: KeyboardEvent) => {
-      if (event.code === "Enter" || event.code === "NumpadEnter") {
-        event.preventDefault();
-        onSubmit();
-      }
-    };
-    document.addEventListener("keydown", listener);
-    return () => {
-      document.removeEventListener("keydown", listener);
-    };
-  }, []);
-
   return (
-    <Modal title="Delete label" onExit={onCancel} className={baseClass}>
+    <Modal
+      title="Delete label"
+      onExit={onCancel}
+      onEnter={onSubmit}
+      className={baseClass}
+    >
       <>
         <p>Are you sure you wish to delete this label?</p>
         <div className="modal-cta-wrap">

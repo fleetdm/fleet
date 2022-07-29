@@ -17,21 +17,13 @@ const RemovePoliciesModal = ({
   onCancel,
   onSubmit,
 }: IRemovePoliciesModalProps): JSX.Element => {
-  useEffect(() => {
-    const listener = (event: KeyboardEvent) => {
-      if (event.code === "Enter" || event.code === "NumpadEnter") {
-        event.preventDefault();
-        onSubmit();
-      }
-    };
-    document.addEventListener("keydown", listener);
-    return () => {
-      document.removeEventListener("keydown", listener);
-    };
-  }, []);
-
   return (
-    <Modal title={"Delete policies"} onExit={onCancel} className={baseClass}>
+    <Modal
+      title={"Delete policies"}
+      onExit={onCancel}
+      onEnter={onSubmit}
+      className={baseClass}
+    >
       <>
         {isLoading ? (
           <Spinner />

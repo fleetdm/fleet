@@ -49,22 +49,6 @@ const UserSettingsPage = ({
   const [errors, setErrors] = useState<{ [key: string]: string }>({});
   const [userErrors, setUserErrors] = useState<{ [key: string]: string }>({});
 
-  useEffect(() => {
-    if (showApiTokenModal) {
-      const listener = (event: KeyboardEvent) => {
-        if (event.code === "Enter" || event.code === "NumpadEnter") {
-          event.preventDefault();
-          onToggleApiTokenModal();
-        }
-      };
-
-      document.addEventListener("keydown", listener);
-      return () => {
-        document.removeEventListener("keydown", listener);
-      };
-    }
-  }, [showApiTokenModal]);
-
   const onCancel = (evt: React.MouseEvent<HTMLButtonElement>) => {
     evt.preventDefault();
     return router.goBack();
@@ -194,7 +178,11 @@ const UserSettingsPage = ({
     }
 
     return (
-      <Modal title="Get API token" onExit={onToggleApiTokenModal}>
+      <Modal
+        title="Get API token"
+        onExit={onToggleApiTokenModal}
+        onEnter={onToggleApiTokenModal}
+      >
         <>
           <InfoBanner>
             <p>

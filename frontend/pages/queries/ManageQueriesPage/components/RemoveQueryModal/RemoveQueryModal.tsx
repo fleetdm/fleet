@@ -17,21 +17,13 @@ const RemoveQueryModal = ({
   onCancel,
   onSubmit,
 }: IRemoveQueryModalProps): JSX.Element => {
-  useEffect(() => {
-    const listener = (event: KeyboardEvent) => {
-      if (event.code === "Enter" || event.code === "NumpadEnter") {
-        event.preventDefault();
-        onSubmit();
-      }
-    };
-    document.addEventListener("keydown", listener);
-    return () => {
-      document.removeEventListener("keydown", listener);
-    };
-  }, []);
-
   return (
-    <Modal title={"Delete query"} onExit={onCancel} className={baseClass}>
+    <Modal
+      title={"Delete query"}
+      onExit={onCancel}
+      onEnter={onSubmit}
+      className={baseClass}
+    >
       <>
         {isLoading ? (
           <Spinner />
