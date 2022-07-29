@@ -1,0 +1,1 @@
+* Improved vulnerability detection on MacOS to remove false positives and added the ability to define custom rules for CPE matching.
