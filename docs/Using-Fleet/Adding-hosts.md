@@ -46,7 +46,7 @@ Also, remember to replace both `AC_USERNAME` and `AC_PASSWORD` environment varia
 
 Hosts without Fleet Desktop currently installed require a new installer to be generated and run on the target host.
 
-How to generate an installer that includes Fleet Desktop in the Fleet GUI:
+How to generate an installer that includes Fleet Desktop in the Fleet UI:
 1. On the top bar in the Fleet UI, select **Hosts > Add hosts**.
 2. Select the **Include Fleet Desktop** checkbox.
 3. Select the clipboard icon to copy the `fleetctl package` command. 
