@@ -1,6 +1,10 @@
 ## Fleet 4.18.0 (July 28, 2022)
 
-* Added a Call to Action to the failing policy banner in Fleet Desktop.
+* Added a Call to Action to the failing policy banner in Fleet Desktop. This empowers end-users to manage their device's compliance. 
+
+* Introduced rate limiting for device authorized endpoints to improve the security of Fleet Desktop. 
+
+* Added automated tests for Fleet upgrades. See what happens when upgrading Fleet from version `A` to version `B` before installing on your server. 
 
 * Improved styling for tooltips, dropdowns, copied text, checkboxes and buttons. 
 
