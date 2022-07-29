@@ -1,6 +1,6 @@
 # Process for submitting and publishing articles
 
-This guide includes all you need to know about Fleet’s editorial process and how articles are handled between submission and publication.
+This guide includes everything you need to know about Fleet’s editorial process between submission and publication.
 
 > For help with formatting your article, check out our [article formatting guide](./article-formatting-guide).
 
