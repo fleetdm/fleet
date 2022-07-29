@@ -63,7 +63,7 @@ Articles are official Fleet communication. We carefully review published content
 | Non-urgent posts | Three business days | 
 | Posts requiring a technical review | Three business days |
 
-> Review times for posts requiring a technical review may vary depending on the Engineering and Security team’s schedule. E.g., if a review coincides with a product release.
+> Review times for posts requiring a technical review may vary depending on the Engineering and Security teams' schedules. E.g., if a review coincides with a product release.
 
 ## Pre-publication checklist
 
