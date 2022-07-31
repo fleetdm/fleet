@@ -11,7 +11,6 @@ import (
 	"html/template"
 	"net/http"
 	"net/url"
-	"os"
 	"strings"
 	"time"
 
@@ -635,9 +634,7 @@ func makeDemologinEndpoint(urlPrefix string) handlerFunc {
 	return func(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
 		req := request.(demologinRequest)
 
-		// Undocumented FLEET_DEMO environment variable, as this endpoint is intended only to be
-		// used in the Fleet Sandbox demo environment.
-		if os.Getenv("FLEET_DEMO") != "1" {
+		if !svc.SandboxEnabled() {
 			return nil, errors.New("this endpoint only enabled in demo mode")
 		}
 

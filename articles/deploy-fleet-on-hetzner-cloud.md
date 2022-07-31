@@ -709,7 +709,7 @@ Now that you’re ready to use Fleet and have a host installed. Here's some next
 
 <meta name="category" value="deploy">
 <meta name="authorGitHubUsername" value="ksatter">
-<meta name="authorFullName" value="Katheryn Satterlee">
+<meta name="authorFullName" value="Kathy Satterlee">
 <meta name="publishedOn" value="2022-06-27">
 <meta name="articleTitle" value="Deploy Fleet on Hetzner Cloud with Cloud-init & Docker">
 <meta name="articleImageUrl" value="../website/assets/images/articles/deploying-fleet-on-hetzner-1600x900@2x.jpg">

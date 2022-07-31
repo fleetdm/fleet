@@ -89,7 +89,7 @@ data "aws_iam_policy_document" "lifecycle-lambda" {
       "kms:GenerateDataKey*",
       "kms:Describe*"
     ]
-    resources = [aws_kms_key.ecr.arn]
+    resources = [aws_kms_key.ecr.arn, var.kms_key.arn]
   }
 
   statement {

@@ -691,9 +691,9 @@ func runCrons(
 	// StartCollectors starts a goroutine per collector, using ctx to cancel.
 	task.StartCollectors(ctx, kitlog.With(logger, "cron", "async_task"))
 
-	go cronDB(ctx, ds, kitlog.With(logger, "cron", "cleanups"), ourIdentifier, config, license, enrollHostLimiter)
+	go cronDB(ctx, ds, kitlog.With(logger, "cron", "cleanups"), ourIdentifier, &config, license, enrollHostLimiter)
 	go cronVulnerabilities(
-		ctx, ds, kitlog.With(logger, "cron", "vulnerabilities"), ourIdentifier, config.Vulnerabilities)
+		ctx, ds, kitlog.With(logger, "cron", "vulnerabilities"), ourIdentifier, &config.Vulnerabilities)
 	go cronWebhooks(ctx, ds, kitlog.With(logger, "cron", "webhooks"), ourIdentifier, failingPoliciesSet, 1*time.Hour)
 	go cronWorker(ctx, ds, kitlog.With(logger, "cron", "worker"), ourIdentifier)
 }

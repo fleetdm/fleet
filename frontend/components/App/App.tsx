@@ -32,6 +32,8 @@ interface IAppProps {
     | undefined;
 }
 
+const baseClass = "app";
+
 const App = ({ children, location }: IAppProps): JSX.Element => {
   const queryClient = new QueryClient();
   const {
@@ -136,7 +138,6 @@ const App = ({ children, location }: IAppProps): JSX.Element => {
     return <Fleet500 />;
   };
 
-  const wrapperStyles = classnames("wrapper");
   return isLoading ? (
     <Spinner />
   ) : (
@@ -149,7 +150,7 @@ const App = ({ children, location }: IAppProps): JSX.Element => {
                 fallbackRender={renderErrorOverlay}
                 resetKeys={[location?.pathname]}
               >
-                <div className={wrapperStyles}>{children}</div>
+                <div className={baseClass}>{children}</div>
               </ErrorBoundary>
             </NotificationProvider>
           </PolicyProvider>
