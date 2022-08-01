@@ -6,6 +6,7 @@ require (
 	github.com/akrylysov/algnhsa v0.12.1
 	github.com/aws/aws-sdk-go v1.44.25
 	github.com/fleetdm/fleet/v4 v4.1.0
+	github.com/gin-contrib/cors v1.3.0
 	github.com/gin-gonic/gin v1.7.7
 	github.com/jessevdk/go-flags v1.5.0
 	github.com/loopfz/gadgeto v0.11.2

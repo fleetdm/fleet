@@ -216,7 +216,7 @@ func TestCronVulnerabilitiesCreatesDatabasesPath(t *testing.T) {
 
 	// We cancel right away so cronsVulnerailities finishes. The logic we are testing happens before the loop starts
 	cancelFunc()
-	cronVulnerabilities(ctx, ds, kitlog.NewNopLogger(), "AAA", config)
+	cronVulnerabilities(ctx, ds, kitlog.NewNopLogger(), "AAA", &config)
 
 	require.DirExists(t, vulnPath)
 }
@@ -249,7 +249,7 @@ func TestCronVulnerabilitiesAcceptsExistingDbPath(t *testing.T) {
 
 	// We cancel right away so cronsVulnerailities finishes. The logic we are testing happens before the loop starts
 	cancelFunc()
-	cronVulnerabilities(ctx, ds, logger, "AAA", config)
+	cronVulnerabilities(ctx, ds, logger, "AAA", &config)
 
 	require.Contains(t, buf.String(), `"waiting":"on ticker"`)
 }
@@ -286,7 +286,7 @@ func TestCronVulnerabilitiesQuitsIfErrorVulnPath(t *testing.T) {
 
 	// We cancel right away so cronsVulnerailities finishes. The logic we are testing happens before the loop starts
 	cancelFunc()
-	cronVulnerabilities(ctx, ds, logger, "AAA", config)
+	cronVulnerabilities(ctx, ds, logger, "AAA", &config)
 
 	require.Contains(t, buf.String(), `"databases-path":"creation failed, returning"`)
 }
@@ -320,7 +320,7 @@ func TestCronVulnerabilitiesSkipCreationIfStatic(t *testing.T) {
 
 	// We cancel right away so cronsVulnerailities finishes. The logic we are testing happens before the loop starts
 	cancelFunc()
-	cronVulnerabilities(ctx, ds, logger, "AAA", config)
+	cronVulnerabilities(ctx, ds, logger, "AAA", &config)
 
 	require.NoDirExists(t, vulnPath)
 }

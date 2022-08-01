@@ -23,6 +23,8 @@ import RevealButton from "components/buttons/RevealButton";
 import Spinner from "components/Spinner";
 import TeamsDropdown from "components/TeamsDropdown";
 import TableDataError from "components/DataError";
+import MainContent from "components/MainContent";
+
 import PoliciesListWrapper from "./components/PoliciesListWrapper";
 import ManageAutomationsModal from "./components/ManageAutomationsModal";
 import AddPolicyModal from "./components/AddPolicyModal";
@@ -344,8 +346,8 @@ const ManagePolicyPage = ({
   return !availableTeams ? (
     <Spinner />
   ) : (
-    <div className={baseClass}>
-      <div className={`${baseClass}__wrapper body-wrap`}>
+    <MainContent className={baseClass}>
+      <div className={`${baseClass}__wrapper`}>
         <div className={`${baseClass}__header-wrap`}>
           <div className={`${baseClass}__header`}>
             <div className={`${baseClass}__text`}>
@@ -513,7 +515,7 @@ const ManagePolicyPage = ({
           />
         )}
       </div>
-    </div>
+    </MainContent>
   );
 };
 

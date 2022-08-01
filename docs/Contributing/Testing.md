@@ -116,20 +116,18 @@ NETWORK_TEST=1 make test-go
 
 ### Viewing test coverage
 
-When you run `make test` or `make test-go` from the root of the repository, test coverage reports are generated in every subpackage. For example, the `server` subpackage will have a coverage report generated in `./server/server.cover`
+When you run `make test` or `make test-go` from the root of the repository, a test coverage report is generated at the root of the repo in a filed named `coverage.txt`
 
 To explore a test coverage report on a line-by-line basis in the browser, run the following:
 
 ```bash
-# substitute ./datastore/datastore.cover, etc
-go tool cover -html=./server/server.cover
+go tool cover -html=coverage.txt
 ```
 
 To view test a test coverage report in a terminal, run the following:
 
 ```bash
-# substitute ./datastore/datastore.cover, etc
-go tool cover -func=./server/server.cover
+go tool cover -func=coverage.txt
 ```
 
 ## End-to-end tests
@@ -413,10 +411,10 @@ Pre-built installers are kept in a blob storage like AWS S3. As part of your you
    for local testing.
 2. Use the [installerstore](../../tools/installerstore/README.md) tool to upload them to your MinIO instance.
 3. Configure your fleet server setting `FLEET_PACKAGING_GLOBAL_ENROLL_SECRET` to match your global enroll secret.
-4. Set `FLEET_DEMO=1`, as the endpoint to retrieve the installer is only available in the sandbox.
+4. Set `FLEET_SERVER_SANDBOX_ENABLED=1`, as the endpoint to retrieve the installer is only available in the sandbox.
 
 ```
-FLEET_DEMO=1 FLEET_PACKAGING_GLOBAL_ENROLL_SECRET=xyz  ./build/fleet serve --dev 
+FLEET_SERVER_SANDBOX_ENABLED=1 FLEET_PACKAGING_GLOBAL_ENROLL_SECRET=xyz  ./build/fleet serve --dev 
 ```
 
 Be sure to replace the `FLEET_PACKAGING_GLOBAL_ENROLL_SECRET` value above with the global enroll

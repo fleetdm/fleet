@@ -44,7 +44,7 @@ class Dropdown extends Component {
     disabled: false,
     multi: false,
     name: "targets",
-    placeholder: "Select One...",
+    placeholder: "Select one...",
     parseTarget: false,
     tooltip: "",
   };
