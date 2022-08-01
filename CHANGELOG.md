@@ -1,4 +1,4 @@
-## Fleet 4.18.0 (July 28, 2022)
+## Fleet 4.18.0 (Aug 1, 2022)
 
 * Added a Call to Action to the failing policy banner in Fleet Desktop. This empowers end-users to manage their device's compliance. 
 
