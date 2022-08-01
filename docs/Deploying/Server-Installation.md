@@ -445,7 +445,7 @@ spec:
     spec:
       containers:
       - name: fleet
-        image: fleetdm/fleet:4.17.0
+        image: fleetdm/fleet:4.17.1
         env:
           - name: FLEET_MYSQL_ADDRESS
             valueFrom:
