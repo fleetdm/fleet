@@ -121,7 +121,7 @@ variable "extra_security_group_cidrs" {
   default     = []
   type        = list(string)
   validation {
-    condition     = alltrue([for cidr in var.extra_security_group_cidrs: can(cidrhost(cidr, 32))])
+    condition     = alltrue([for cidr in var.extra_security_group_cidrs : can(cidrhost(cidr, 32))])
     error_message = "The extra security groups must be a list of valid CIDRs."
   }
 }
