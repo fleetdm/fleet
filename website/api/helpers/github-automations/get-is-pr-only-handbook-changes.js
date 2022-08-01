@@ -24,13 +24,13 @@ module.exports = {
 
   fn: async function ({prNumber}) {
 
-    require('assert')(sails.config.custom.coolGitHubToken);
+    require('assert')(sails.config.custom.githubAccessToken);
 
     let owner = 'fleetdm';
     let repo = 'fleet';
     let baseHeaders = {
       'User-Agent': 'Fleet labels',
-      'Authorization': `token ${sails.config.custom.coolGitHubToken}`
+      'Authorization': `token ${sails.config.custom.githubAccessToken}`
     };
 
     // Check the path of each file that this PR makes changes to
