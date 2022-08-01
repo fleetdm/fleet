@@ -56,8 +56,8 @@ module.exports = {
     }
 
     let showSwagForm = false;
-    // Check the requesting user's cf-ipcountry to see if they're in the US, and their cf-iplongitude header to see if they're in the contiguous US.
-    if(this.req.headers['cf-ipcountry'] === 'US' && this.req.headers['cf-iplongitude'] > -125) {
+    // Due to shipping costs, we'll check the requesting user's cf-ipcountry to see if they're in the US, and their cf-iplongitude header to see if they're in the contiguous US.
+    if(this.req.get('cf-ipcountry') === 'US' && this.req.get('cf-iplongitude') > -125) {
       showSwagForm = true;
     }
 
