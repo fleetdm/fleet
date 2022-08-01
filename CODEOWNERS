@@ -1,23 +1,30 @@
 # Go engineers are automatically added as reviewers when changes are made to go
+
 # files or related backend files.
-*.go @fleetdm/go
+
+\*.go @fleetdm/go
 go.sum @fleetdm/go
 go.mod @fleetdm/go
 /server/ @fleetdm/go
 /cmd/ @fleetdm/go
 
 # Infra/terraform
-*.tf @edwardsb @zwinnerman-fleetdm @rfairburn
+
+\*.tf @edwardsb @zwinnerman-fleetdm @rfairburn
 /infrastructure/ @zwinnerman-fleetdm @edwardsb @rfairburn
 
 # GitHub settings + actions
+
 /.github/ @fleetdm/g-platform
 
 # Changelog
+
 CHANGELOG.md @noahtalerman
 
 # Markdown docs
-/docs/*.md @Desmi-Dizney
+
+\*.md @Desmi-Dizney
 
 # API documentation
+
 /docs/Using-Fleet/REST-API.md @ksatter
