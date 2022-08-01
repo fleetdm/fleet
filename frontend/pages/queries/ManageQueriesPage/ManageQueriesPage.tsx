@@ -100,7 +100,7 @@ const ManageQueriesPage = ({
   const [showDeleteQueryModal, setShowDeleteQueryModal] = useState<boolean>(
     false
   );
-  const [queryIsRemoving, setQueryIsRemoving] = useState<boolean>(false);
+  const [queryIsDeleting, setQueryIsDeleting] = useState<boolean>(false);
 
   const {
     data: fleetQueries,
@@ -145,7 +145,7 @@ const ManageQueriesPage = ({
   const onDeleteQuerySubmit = useCallback(async () => {
     const queryOrQueries = selectedQueryIds.length === 1 ? "query" : "queries";
 
-    setQueryIsRemoving(true);
+    setQueryIsDeleting(true);
 
     const deleteQueries = selectedQueryIds.map((id) =>
       fleetQueriesAPI.destroy(id)
@@ -153,19 +153,19 @@ const ManageQueriesPage = ({
 
     try {
       await Promise.all(deleteQueries).then(() => {
-        renderFlash("success", `Successfully removed ${queryOrQueries}.`);
+        renderFlash("success", `Successfully deleted ${queryOrQueries}.`);
         setResetSelectedRows(true);
         refetchFleetQueries();
       });
-      renderFlash("success", `Successfully removed ${queryOrQueries}.`);
+      renderFlash("success", `Successfully deleted ${queryOrQueries}.`);
     } catch (errorResponse) {
       renderFlash(
         "error",
-        `There was an error removing your ${queryOrQueries}. Please try again later.`
+        `There was an error deleting your ${queryOrQueries}. Please try again later.`
       );
     } finally {
       toggleDeleteQueryModal();
-      setQueryIsRemoving(false);
+      setQueryIsDeleting(false);
     }
   }, [refetchFleetQueries, selectedQueryIds, toggleDeleteQueryModal]);
 
@@ -228,7 +228,7 @@ const ManageQueriesPage = ({
         </div>
         {showDeleteQueryModal && (
           <DeleteQueryModal
-            isLoading={queryIsRemoving}
+            isLoading={queryIsDeleting}
             onCancel={toggleDeleteQueryModal}
             onSubmit={onDeleteQuerySubmit}
           />
