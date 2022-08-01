@@ -31,7 +31,7 @@ interface IDataColumn {
   disableSortBy?: boolean;
 }
 
-const munkiTableHeaders = [
+const enrollmentTableHeaders = [
   {
     title: "Status",
     Header: "Status",
@@ -47,8 +47,8 @@ const munkiTableHeaders = [
   },
 ];
 
-const generateTableHeaders = (): IDataColumn[] => {
-  return munkiTableHeaders;
+const generateEnrollmentTableHeaders = (): IDataColumn[] => {
+  return enrollmentTableHeaders;
 };
 
-export default generateTableHeaders;
+export default generateEnrollmentTableHeaders;

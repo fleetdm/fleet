@@ -274,7 +274,7 @@ const Homepage = (): JSX.Element => {
   });
 
   const MDMCard = useInfoCard({
-    title: "Mobile device management (MDM) enrollment",
+    title: "Mobile device management (MDM)",
     showTitle: showMDMUI,
     description: (
       <p>

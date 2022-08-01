@@ -358,4 +358,89 @@ const labels = {
   ],
 };
 
-export default { count, hosts, labels };
+const macAdmins = {
+  macadmins: {
+    counts_updated_at: "2021-03-21 12:32:44",
+    munki_versions: [
+      {
+        version: "5.5",
+        hosts_count: 8360,
+      },
+      {
+        version: "5.4",
+        hosts_count: 1700,
+      },
+      {
+        version: "5.3",
+        hosts_count: 400,
+      },
+      {
+        version: "5.2.3",
+        hosts_count: 112,
+      },
+      {
+        version: "5.2.2",
+        hosts_count: 50,
+      },
+    ],
+    mobile_device_management_enrollment_status: {
+      enrolled_manual_hosts_count: 124,
+      enrolled_automated_hosts_count: 124,
+      unenrolled_hosts_count: 112,
+    },
+    mobile_device_management_solution: [
+      {
+        name: "SimpleMDM",
+        server_url: "https://a.simplemdm.com/mdm",
+        hosts_count: 8360,
+      },
+      {
+        name: "Intune",
+        server_url: "https://a.intune.com/mdm",
+        hosts_count: 1700,
+      },
+      {
+        name: "Solution 3",
+        server_url: "https://a.solution3.com/mdm",
+        hosts_count: 10,
+      },
+      {
+        name: "Solution 4",
+        server_url: "https://a.solution4.com/mdm",
+        hosts_count: 20,
+      },
+      {
+        name: "Solution 5",
+        server_url: "https://a.solution5.com/mdm",
+        hosts_count: 30,
+      },
+      {
+        name: "Solution 6",
+        server_url: "https://a.solution6.com/mdm",
+        hosts_count: 40,
+      },
+      {
+        name: "Solution 7",
+        server_url: "https://a.solutionnumber7.com/mdm",
+        hosts_count: 35,
+      },
+      {
+        name: "Solution 8",
+        server_url: "https://a.solution8.com/mdm",
+        hosts_count: 45,
+      },
+      {
+        name: "Solution 9",
+        server_url: "https://a.solutionnumber9.com/mdm",
+        hosts_count: 350,
+      },
+      {
+        name: "Solution 10",
+        server_url: "https://a.solutionx.com/mdm",
+        hosts_count: 450,
+      },
+    ],
+  },
+};
+
+export default { count, hosts, labels, macAdmins };

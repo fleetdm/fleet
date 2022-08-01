@@ -37,38 +37,41 @@
 
       thead {
         .name__header {
-          width: 60%;
-        }
-        .version__header {
           width: 30%;
-          padding-right: 0;
+        }
+        .server_url__header {
+          width: 30%;
         }
         .hosts_count__header {
           border-right: 0;
           padding-right: 0;
           width: 60px;
         }
-        .id__header {
-          padding: 0;
-          border-left: 0;
-          width: 40px;
+        .linkToFilteredHosts__header {
+          width: 140px;
         }
       }
 
       tbody {
-        .name__cell,
-        .version__cell {
+        .name__cell {
           overflow: hidden;
           white-space: nowrap;
           text-overflow: ellipsis;
         }
-        .id__cell {
-          padding: 0;
-          width: 40px;
-        }
-        .vulnerabilities__cell {
+        .mdm-solution-link {
+          visibility: hidden;
+          text-overflow: none;
           img {
-            transform: scale(0.5);
+            vertical-align: text-top;
+            width: 16px;
+          }
+        }
+        tr {
+          &:hover {
+            .mdm-solution-link {
+              visibility: visible;
+              text-overflow: none;
+            }
           }
         }
       }
