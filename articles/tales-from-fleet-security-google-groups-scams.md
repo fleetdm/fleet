@@ -1,5 +1,7 @@
 # Tales from Fleet security: scams targeting Google Groups
 
+![Tales from Fleet security: scams targeting Google Groups](../website/assets/images/articles/tales-from-fleet-security-google-groups-scams-cover-1600x900@2x.jpg)
+
 Our handbook contains detailed information on how we have configured Google Workspace [to block spam and phishing](https://fleetdm.com/handbook/security#email-security). Gmail has some exciting email security features, such as flagging or blocking mail from people with the same name as employees or quarantining it.
 
 These features are great for protecting from business email compromise (BEC) and other types of social engineering attacks.
@@ -26,7 +28,7 @@ Once Google Groups processes the email, it forwards it to internal and external 
 
 From a UI point of view, the recipient can easily mistake the message for a legitimate one, as the domain name is either replaced with the legitimate domain or gets the mention "via legitimatedomain.com" added.
 
-![With via added](../website/assets/images/articles/tales-from-fleet-security-google-groups-scams-1-1156x298@2x.png)
+![With via added](../website/assets/images/articles/tales-from-fleet-security-google-groups-scams-1-1600x900@2x.jpg)
 
 Our mistake was assuming the message went through the same filters as those used for regular email. In reality, Google Groups uses different technologies for filtering spam, and the more advanced Gmail features do not apply.
 
@@ -72,9 +74,10 @@ Chris and Material tested and realized that Google Groups delivered five out of 
 We performed the same tests at Fleet, using [emailspooftest](https://emailspooftest.com/). Our results were slightly different, but we successfully sent two very suspicious email messages to a mailing list. When we sent the same type of email to an individual, Gmail blocked each attempt.
 
 ## How we noticed and stopped the attack
+
 At Fleet, we have many excellent employees and contractors with an excellent eye for detail. We share information about potential scams, including phishing messages, over Slack so the entire company is always aware of the suspicious stuff we see.
 
-The person who got the request found it, if not necessarily suspicious, at least ouf of the ordinary. They contacted someone else to ask if that type of request was normal. This second person confirmed that it was not a genuine request and that, in any case, unpaid invoices should never be shared like this, even if the request came from an actual employee.
+The person who received the email found it, if not necessarily suspicious, at least out of the ordinary. They contacted someone else to ask if that type of request was normal. This second person confirmed that it was not a genuine request and that, in any case, unpaid invoices should never be shared like this, even if the request came from an actual employee.
 
 We communicate internally almost exclusively using Slack. Unlike email, impersonating someone on Slack would require compromising accounts configured with Two-Factor Authentication, making it a much more appropriate channel to discuss anything sensitive.
 
@@ -107,5 +110,5 @@ Stay tuned for our next article in the Tales from Fleet security series!
 <meta name="authorGitHubUsername" value="GuillaumeRoss">
 <meta name="publishedOn" value="2022-08-05">
 <meta name="articleTitle" value="Tales from Fleet security: scams targeting Google Groups">
-<meta name="articleImageUrl" value="../website/assets/images/articles/tales-from-fleet-security-securing-google-workspace-cover-1600x900@2x.jpg">
+<meta name="articleImageUrl" value="../website/assets/images/articles/tales-from-fleet-security-google-groups-scams-cover-1600x900@2x.jpg">
 
