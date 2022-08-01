@@ -104,7 +104,7 @@ const ManagePacksPage = ({ router }: IManagePacksPageProps): JSX.Element => {
       .catch(() => {
         renderFlash(
           "error",
-          `Unable to remove ${packOrPacks}. Please try again.`
+          `Unable to delete ${packOrPacks}. Please try again.`
         );
       })
       .finally(() => {

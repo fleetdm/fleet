@@ -94,10 +94,10 @@ const getTooltip = (osqueryPolicyMs: number): JSX.Element => {
 // more info here https://react-table.tanstack.com/docs/api/useTable#cell-properties
 const generateTableHeaders = (options: {
   selectedTeamId: number | undefined | null;
-  canAddOrRemovePolicy: boolean | undefined;
+  canAddOrDeletePolicy: boolean | undefined;
   tableType: string | undefined;
 }): IDataColumn[] => {
-  const { selectedTeamId, tableType, canAddOrRemovePolicy } = options;
+  const { selectedTeamId, tableType, canAddOrDeletePolicy } = options;
 
   switch (tableType) {
     case "inheritedPolicies":
@@ -242,7 +242,7 @@ const generateTableHeaders = (options: {
         },
       ];
 
-      if (!canAddOrRemovePolicy) {
+      if (!canAddOrDeletePolicy) {
         return tableHeaders;
       }
 

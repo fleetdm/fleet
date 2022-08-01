@@ -4,7 +4,7 @@ import Modal from "components/Modal";
 import Button from "components/buttons/Button";
 import Spinner from "components/Spinner";
 
-const baseClass = "remove-policies-modal";
+const baseClass = "delete-policies-modal";
 
 interface IDeletePoliciesModalProps {
   isLoading: boolean;

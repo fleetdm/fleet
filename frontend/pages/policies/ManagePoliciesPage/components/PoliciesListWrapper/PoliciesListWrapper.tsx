@@ -27,7 +27,7 @@ interface IPoliciesListWrapperProps {
   onAddPolicyClick?: () => void;
   onDeletePoliciesClick: (selectedTableIds: number[]) => void;
   resultsTitle?: string;
-  canAddOrRemovePolicy?: boolean;
+  canAddOrDeletePolicy?: boolean;
   tableType?: string;
   currentTeam: ITeamSummary | undefined;
   currentAutomatedPolicies?: number[];
@@ -39,7 +39,7 @@ const PoliciesListWrapper = ({
   onAddPolicyClick,
   onDeletePoliciesClick,
   resultsTitle,
-  canAddOrRemovePolicy,
+  canAddOrDeletePolicy,
   tableType,
   currentTeam,
   currentAutomatedPolicies,
@@ -89,7 +89,7 @@ const PoliciesListWrapper = ({
                 changes.
               </p>
             </div>
-            {canAddOrRemovePolicy && (
+            {canAddOrDeletePolicy && (
               <div className={`${baseClass}__action-button-container`}>
                 <Button
                   variant="brand"
@@ -109,7 +109,7 @@ const PoliciesListWrapper = ({
   return (
     <div
       className={`${baseClass} ${
-        canAddOrRemovePolicy ? "" : "hide-selection-column"
+        canAddOrDeletePolicy ? "" : "hide-selection-column"
       }`}
     >
       {isLoading ? (
@@ -119,7 +119,7 @@ const PoliciesListWrapper = ({
           resultsTitle={resultsTitle || "policies"}
           columns={generateTableHeaders({
             selectedTeamId: currentTeam?.id,
-            canAddOrRemovePolicy,
+            canAddOrDeletePolicy,
             tableType,
           })}
           data={generateDataSet(
