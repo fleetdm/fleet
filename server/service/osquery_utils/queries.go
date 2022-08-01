@@ -360,12 +360,6 @@ const OrbitInfoQueryName = "orbit_info"
 
 // OrbitInfoDetailQuery holds the query and ingestion function for the orbit_info table extension.
 var OrbitInfoDetailQuery = DetailQuery{
-	// TODO(mna): the query would now be generated dynamically depending on the host
-	// to include WHERE device_auth_token = {the host's current token}. Is it the first
-	// time we have dynamic (per host) queries? I can't seem to find other cases. If so I think
-	// adding a field (e.g. DynamicQuery: func(ctx, host) (string, error)). This function would
-	// create the token if none existed yet, so that immediately when a host enrolls it gets
-	// a valid token (and then a cron job takes care of rotating it).
 	Query:            `SELECT * FROM orbit_info`,
 	DirectIngestFunc: directIngestOrbitInfo,
 	Discovery:        discoveryTable("orbit_info"),
@@ -671,16 +665,9 @@ func directIngestOrbitInfo(ctx context.Context, logger log.Logger, host *fleet.H
 		return ctxerr.Errorf(ctx, "invalid number of orbit_info rows: %d", len(rows))
 	}
 	deviceAuthToken := rows[0]["device_auth_token"]
-	// TODO(mna): it should still be an error if the device auth token is empty, because
-	// we should not receive results for this query without having sent the query itself,
-	// and it should always contain the currently valid token, but I'm not sure it makes
-	// sense to make it an error here.
 	if deviceAuthToken == "" {
 		return ctxerr.New(ctx, "empty orbit_info.device_auth_token")
 	}
-	// TODO(mna): we don't set/update the auth token provided by orbit now, the fleet server
-	// controls generation of the token. So basically, this ingestion would become a no-op?
-	// Or maybe just the len(rows) sanity check...
 	if err := ds.SetOrUpdateDeviceAuthToken(ctx, host.ID, deviceAuthToken); err != nil {
 		return ctxerr.Wrap(ctx, err, "set or update device_auth_token")
 	}

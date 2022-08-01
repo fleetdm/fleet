@@ -813,12 +813,24 @@ func (ds *Datastore) LoadHostByDeviceAuthToken(ctx context.Context, authToken st
 
 // SetOrUpdateDeviceAuthToken inserts or updates the auth token for a host.
 func (ds *Datastore) SetOrUpdateDeviceAuthToken(ctx context.Context, hostID uint, authToken string) error {
-	return ds.updateOrInsert(
-		ctx,
-		`UPDATE host_device_auth SET token = ? WHERE host_id = ?`,
-		`INSERT INTO host_device_auth (token, host_id) VALUES (?, ?)`,
-		authToken, hostID,
-	)
+	// Note that by not specifying "updated_at = VALUES(updated_at)" in the UPDATE part
+	// of the statement, it inherits the default behaviour which is that the updated_at
+	// timestamp will NOT be changed if the new token is the same as the old token
+	// (which is exactly what we want). The updated_at timestamp WILL be updated if the
+	// new token is different.
+	const stmt = `
+		INSERT INTO
+			host_device_auth ( host_id, token )
+		VALUES
+			(?, ?)
+		ON DUPLICATE KEY UPDATE
+			token = VALUES(token)
+`
+	_, err := ds.writer.ExecContext(ctx, stmt, hostID, authToken)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "upsert host's device auth token")
+	}
+	return nil
 }
 
 func (ds *Datastore) MarkHostsSeen(ctx context.Context, hostIDs []uint, t time.Time) error {

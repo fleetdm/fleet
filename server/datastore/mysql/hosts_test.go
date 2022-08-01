@@ -22,6 +22,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/test"
+	"github.com/jmoiron/sqlx"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -3891,6 +3892,14 @@ func testHostsSetOrUpdateDeviceAuthToken(t *testing.T, ds *Datastore) {
 	})
 	require.NoError(t, err)
 
+	loadUpdatedAt := func(hostID uint) time.Time {
+		var ts time.Time
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			return sqlx.GetContext(context.Background(), q, &ts, `SELECT updated_at FROM host_device_auth WHERE host_id = ?`, hostID)
+		})
+		return ts
+	}
+
 	token1 := "token1"
 	err = ds.SetOrUpdateDeviceAuthToken(context.Background(), host.ID, token1)
 	require.NoError(t, err)
@@ -3898,6 +3907,7 @@ func testHostsSetOrUpdateDeviceAuthToken(t *testing.T, ds *Datastore) {
 	token2 := "token2"
 	err = ds.SetOrUpdateDeviceAuthToken(context.Background(), host2.ID, token2)
 	require.NoError(t, err)
+	h2T1 := loadUpdatedAt(host2.ID)
 
 	h, err := ds.LoadHostByDeviceAuthToken(context.Background(), token1)
 	require.NoError(t, err)
@@ -3907,9 +3917,13 @@ func testHostsSetOrUpdateDeviceAuthToken(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.Equal(t, host2.ID, h.ID)
 
+	time.Sleep(time.Second) // ensure the mysql timestamp is different
+
 	token2Updated := "token2_updated"
 	err = ds.SetOrUpdateDeviceAuthToken(context.Background(), host2.ID, token2Updated)
 	require.NoError(t, err)
+	h2T2 := loadUpdatedAt(host2.ID)
+	require.True(t, h2T2.After(h2T1))
 
 	h, err = ds.LoadHostByDeviceAuthToken(context.Background(), token1)
 	require.NoError(t, err)
@@ -3922,6 +3936,14 @@ func testHostsSetOrUpdateDeviceAuthToken(t *testing.T, ds *Datastore) {
 	_, err = ds.LoadHostByDeviceAuthToken(context.Background(), token2)
 	require.Error(t, err)
 	assert.ErrorIs(t, err, sql.ErrNoRows)
+
+	time.Sleep(time.Second) // ensure the mysql timestamp is different
+
+	// update with the same token, should not change the updated_at timestamp
+	err = ds.SetOrUpdateDeviceAuthToken(context.Background(), host2.ID, token2Updated)
+	require.NoError(t, err)
+	h2T3 := loadUpdatedAt(host2.ID)
+	require.True(t, h2T2.Equal(h2T3))
 }
 
 func testOSVersions(t *testing.T, ds *Datastore) {
