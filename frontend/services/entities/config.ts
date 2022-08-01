@@ -56,7 +56,9 @@ export default {
         params: { id: instanceId },
         responseType: "json",
         headers: {
-          Authorization: `Bearer ${token}`,
+          "Access-Control-Request-Method": "GET",
+          "Access-Control-Request-Headers": "content-type",
+          Origin: `https://'${instanceId}.sandbox.fleetdm.com`,
         },
       });
       return data.timestamp;
