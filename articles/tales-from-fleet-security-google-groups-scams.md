@@ -30,7 +30,7 @@ From a UI point of view, the recipient can easily mistake the message for a legi
 
 ![With via added](../website/assets/images/articles/tales-from-fleet-security-google-groups-scams-1-1600x900@2x.jpg)
 
-Our mistake was assuming the message went through the same filters as those used for regular email. In reality, Google Groups uses different technologies for filtering spam, and the more advanced Gmail features do not apply.
+Our mistake was assuming the message went through the same filters used for regular email. In reality, Google Groups uses different technologies for filtering spam, and the more advanced Gmail features do not apply.
 
 
 ### Email processing
@@ -44,7 +44,7 @@ id4[Internal recipients]
 id5[External recipients]
 id6[Gmail antispam/phishing]
 id7[Google group weaker antispam/phishing]
-id8[Email displayed with group email address and employee name]
+id8[Email displayed with a group email address and employee name]
 
 id1--Creates real email account with employee name-->id2
 id2--SPF and DKIM succeed-->id7
@@ -63,19 +63,19 @@ We contacted Google to ask why this message made it through filters. They confir
 
 We then asked if any of the advanced spam filter rules from Gmail worked in Google Groups:
 
-> Indeed currently the 'Advanced Safety phishing and malware protection' feature, which is within the 'Admin console' https://admin.google.com > 'Apps' > 'Google Workspace' > 'Gmail' > 'Safety' > 'Spoofing and authentication' > the option for 'Protect against spoofing of employee names' only applies to users as recipients and not the groups, I'm afraid at the moment the only option available for group in that section is called 'Protect your Groups from inbound emails spoofing your domain
+> Indeed. Currently, the **Advanced Safety phishing and malware protection** feature, which is within the **Admin console' https://admin.google.com > Apps > Google Workspace > Gmail > Safety > Spoofing and authentication > **the option for **Protect against spoofing of employee names** only applies to users as recipients and not the groups, I'm afraid at the moment the only option available for groups in that section is called **Protect your Groups from inbound emails spoofing your domain**.
 
 In this case, the attacker didn't spoof our domain, so enabling this feature did not help. 
 
 Two weeks after this happened, we saw a [Tweet](https://twitter.com/Centurion/status/1549780307544379392?s=20&t=aehcFzyPfH_56fCLGpRddA) by Chris Long at Material security, who had written a [blog post](https://material.security/blog/identify-google-groups-vulnerable-to-spam-and-spoofing) on this topic.
 
-Chris and Material tested and realized that Google Groups delivered five out of six types of spoofed emails while Gmail blocked all six. They also figured out why the original email was replaced with the mailing list email, as Google Groups replaced it when the DMARC policy would cause the delivery to fail. 
+Chris and Material tested and realized that Google Groups delivered five out of six types of spoofed emails while Gmail blocked all six. They also figured out why the original email was replaced with the mailing list email, as Google Groups replaced it when the DMARC policy caused the delivery to fail. 
 
 We performed the same tests at Fleet, using [emailspooftest](https://emailspooftest.com/). Our results were slightly different, but we successfully sent two very suspicious email messages to a mailing list. When we sent the same type of email to an individual, Gmail blocked each attempt.
 
 ## How we noticed and stopped the attack
 
-At Fleet, we have many excellent employees and contractors with an excellent eye for detail. We share information about potential scams, including phishing messages, over Slack so the entire company is always aware of the suspicious stuff we see.
+At Fleet, we have excellent employees and contractors with amazing eyes for detail. We share information about potential scams, including phishing messages, over Slack, so the entire company is always aware of the suspicious stuff we see.
 
 The person who received the email found it, if not necessarily suspicious, at least out of the ordinary. They contacted someone else to ask if that type of request was normal. This second person confirmed that it was not a genuine request and that, in any case, unpaid invoices should never be shared like this, even if the request came from an actual employee.
 
@@ -86,16 +86,16 @@ We communicate internally almost exclusively using Slack. Unlike email, imperson
 
 1. Warn and train all employees to be even more careful with mail sent to a mailing list, specifically that if an email is sent "via" your domain, it has a high probability of being spoofed.
 2. Use a tool like [emailspooftest](https://emailspooftest.com/) as recommended by Material Security to test your filters. Try a regular user, then a group. Adjust your assumptions.
-3. Limit the amount of Google Groups that can receive external emails.
-4. Limit the amount of internal users that can send email "on behalf" of a group, to prevent legitimate email being sent "via" the group and making people accustomed to seeing them.
-4. When possible, avoid using common/obvious names for mailing lists.
-5. Apply Material Security's [recommendation](https://material.security/blog/identify-google-groups-vulnerable-to-spam-and-spoofing) to flag unauthenticated email to groups.
-6. Train your accounting teams to never respond to such requests via email, but to contact individuals through a safer way, such as Slack.
-7. Train your accounting teams to share files using services such as Google Drive, with explicit sharing to other employees within the domain. That way, even if someone agrees to give our fake salesperson access to invoices, the person who will get access is the real employee.
+3. Limit the number of Google Groups that can receive external emails.
+4. Limit the number of internal users that can send emails "on behalf" of a group, to prevent legitimate emails from being sent "via" the group and makeing people accustomed to seeing them.
+4. Avoid using common/obvious names for mailing lists.
+5. Apply Material Security's [recommendation](https://material.security/blog/identify-google-groups-vulnerable-to-spam-and-spoofing) to flag unauthenticated emails to groups.
+6. Train your accounting teams to never respond to such requests via email but to contact individuals through a safer way, such as Slack.
+7. Train your accounting teams to share files using services such as Google Drive, with explicit sharing to other employees within the domain. That way, even if someone agrees to give our fake salesperson access to invoices, the person who will get access is the actual employee.
 
-**Special request**: If you use Google Workspace with Groups for mailing lists, please perform the [emailspooftest](https://emailspooftest.com/) tests and open a support case with Google asking them to get Groups protection on par with Gmail. Without that happening, all the security we apply to individual accounts is moot, unless you somehow have an entire company that does not need any mailing lists!
+**Special request**: If you use Google Workspace with Groups for mailing lists, please perform the [emailspooftest](https://emailspooftest.com/) tests and open a support case with Google asking them to get Groups protection on par with Gmail. Without that happening, all the security we apply to individual accounts is moot unless you somehow have an entire company that does not need any mailing lists!
 
-With the explosion in BEC cases, we really hope Google introduces more advanced spam filtering to Google Groups. We should not have to consider running email through a generic standard gmail account and forwarding it from there instead of using Google Groups!
+With the BEC cases explosion, we hope Google introduces more advanced spam filtering to Google Groups. We should not have to consider running email through a generic standard Gmail account and forwarding it from there instead of using Google Groups!
 
 ### Want to discuss this further?
 
