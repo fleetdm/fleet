@@ -497,9 +497,6 @@ func getDistributedQueriesEndpoint(ctx context.Context, request interface{}, svc
 	}, nil
 }
 
-// orbitInfoRefetchAfterEnrollDur value assumes the default distributed_interval value set by Fleet of 10s.
-const orbitInfoRefetchAfterEnrollDur = 1 * time.Minute
-
 func (svc *Service) GetDistributedQueries(ctx context.Context) (queries map[string]string, discovery map[string]string, accelerate uint, err error) {
 	// skipauth: Authorization is currently for user endpoints only.
 	svc.authz.SkipAuthorization(ctx)
@@ -523,24 +520,12 @@ func (svc *Service) GetDistributedQueries(ctx context.Context) (queries map[stri
 		discovery[name] = query
 	}
 
-	// TODO(mna): I think the following "Fleet Desktop Improvement" is still required, as the
-	// extension might not be loaded when the initial orbit_info query is sent by the server
-	// with the valid token, so we should try to resend it ASAP even if the interval is not
-	// passed yet. Except it wouldn't be to "retrieve" the token, but to send it.
-
-	// The following is added to improve Fleet Desktop's UX at install time.
-	//
-	// At install (enroll) time, the "orbit_info" extension takes longer to load than the first
-	// query check-in (distributed/read request).
-	// To avoid having to wait for the next check-in to ingest the data (after
-	// svc.config.Osquery.DetailUpdateInterval, 1h by default),
-	// we make the best effort to retrieve such "device auth token" from the device, but with a
-	// limit of orbitInfoRefetchAfterEnrollDur to not generate too much write database overhead
-	// (writes to `host_device_auth` table).
-	if svc.clock.Now().Sub(host.LastEnrolledAt) < orbitInfoRefetchAfterEnrollDur {
-		queries[hostDetailQueryPrefix+osquery_utils.OrbitInfoQueryName] = osquery_utils.OrbitInfoDetailQuery.Query
-		discovery[hostDetailQueryPrefix+osquery_utils.OrbitInfoQueryName] = osquery_utils.OrbitInfoDetailQuery.Discovery
-	}
+	// We always request the `orbit_info` query results, as orbit is responsible for rotating
+	// the device auth token. To prevent excessive writes to host_device_auth table, the
+	// write method (SetOrUpdateDeviceAuthToken) is handled by the cached_mysql package.
+	// See #6348.
+	queries[hostDetailQueryPrefix+osquery_utils.OrbitInfoQueryName] = osquery_utils.OrbitInfoDetailQuery.Query
+	discovery[hostDetailQueryPrefix+osquery_utils.OrbitInfoQueryName] = osquery_utils.OrbitInfoDetailQuery.Discovery
 
 	labelQueries, err := svc.labelQueriesForHost(ctx, host)
 	if err != nil {

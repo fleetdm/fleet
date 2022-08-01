@@ -44,10 +44,6 @@ func cronDB(ctx context.Context, ds fleet.Datastore, logger kitlog.Logger, ident
 			return
 		}
 
-		// TODO(mna): cron job here to rotate the device auth tokens, if the interval works
-		// for that purpose (rotate each hour?). If not, use a distinct cron func with its
-		// own appropriate interval?
-
 		if locked, err := ds.Lock(ctx, lockKeyLeader, identifier, 1*time.Hour); err != nil {
 			level.Error(logger).Log("msg", "Error acquiring lock", "err", err)
 			continue
