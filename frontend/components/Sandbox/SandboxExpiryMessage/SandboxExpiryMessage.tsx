@@ -1,6 +1,6 @@
 import React from "react";
 
-import ExternalURLIcon from "../../../../assets/images/icon-external-url-black-12x12@2x.png";
+import ExternalLinkIcon from "../../../../assets/images/icon-external-link-black-12x12@2x.png";
 
 const baseClass = "sandbox-expiry-message";
 
@@ -22,7 +22,7 @@ const SandboxExpiryMessage = ({ expiry }: ISandboxExpiryMessageProps) => {
         <img
           alt="Open external link"
           className="icon-external"
-          src={ExternalURLIcon}
+          src={ExternalLinkIcon}
         />
       </span>
     </a>
