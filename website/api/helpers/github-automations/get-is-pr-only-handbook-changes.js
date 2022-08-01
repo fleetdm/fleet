@@ -24,13 +24,13 @@ module.exports = {
 
   fn: async function ({prNumber}) {
 
-    require('assert')(sails.config.custom.githubAccessToken);
+    require('assert')(sails.config.custom.coolGitHubToken);
 
     let owner = 'fleetdm';
     let repo = 'fleet';
     let baseHeaders = {
       'User-Agent': 'Fleet labels',
-      'Authorization': `token ${sails.config.custom.githubAccessToken}`
+      'Authorization': `token ${sails.config.custom.coolGitHubToken}`
     };
 
     // Check the path of each file that this PR makes changes to
@@ -44,15 +44,7 @@ module.exports = {
       }, baseHeaders).retry(), 'filename');// (don't worry, it's the whole path, not the filename)
 
       isHandbookOnlyPR = _.all(changedPaths, (changedPath)=>{
-        changedPath = changedPath.replace(/\/+$/,'');// « trim trailing slashes, just in case (b/c otherwise could loop forever)
-
-        let numRemainingPathsToCheck = changedPath.split('/').length;
-        while (numRemainingPathsToCheck > 0) {
-          if(_.startsWith(changedPath, 'handbook/')) {
-            return true;
-          }
-          numRemainingPathsToCheck--;
-        }//∞
+        return changedPath.match(/^handbook\//);
       });//∞
 
       if (isHandbookOnlyPR) {
