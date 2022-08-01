@@ -1,5 +1,5 @@
-FROM golang:1.18-alpine AS builder
-RUN apk update && apk add --no-cache git curl openssl unzip
+FROM fleetdm/fleetctl:v4.17.1
+RUN apt update; apt install -y curl openssl unzip
 WORKDIR /build
 COPY . .
 RUN go get -d -v

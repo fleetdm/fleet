@@ -8,6 +8,7 @@ import (
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/dynamodb"
 	"github.com/aws/aws-sdk-go/service/dynamodb/dynamodbattribute"
+	"github.com/fleetdm/fleet/v4/orbit/pkg/packaging"
 	"github.com/google/uuid"
 	flags "github.com/jessevdk/go-flags"
 	"log"
@@ -24,6 +25,10 @@ type OptionsStruct struct {
 }
 
 var options = OptionsStruct{}
+
+func buildPackages() {
+
+}
 
 type LifecycleRecord struct {
 	ID    string
