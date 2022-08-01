@@ -375,11 +375,11 @@ describe("Policies flow (seeded)", () => {
           });
       });
       cy.findByRole("button", { name: /delete/i }).click();
-      cy.getAttached(".remove-policies-modal").within(() => {
+      cy.getAttached(".delete-policies-modal").within(() => {
         cy.findByRole("button", { name: /cancel/i }).should("exist");
         cy.findByRole("button", { name: /delete/i }).click();
       });
-      cy.findByText(/removed policy/i).should("exist");
+      cy.findByText(/deleted policy/i).should("exist");
       cy.findByText(/backup/i).should("not.exist");
     });
     it("creates a failing policies webhook", () => {
