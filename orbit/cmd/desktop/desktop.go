@@ -4,9 +4,7 @@ import (
 	_ "embed"
 	"errors"
 	"fmt"
-	"net/url"
 	"os"
-	"path"
 	"path/filepath"
 	"runtime"
 	"time"
@@ -32,23 +30,17 @@ func main() {
 	}
 	log.Info().Msgf("fleet-desktop version=%s", version)
 
-	// TODO(mna): the DEVICE_URL is now only partial, the current active token must
-	// be appended to get the full URL.
-	devURL := os.Getenv("FLEET_DESKTOP_DEVICE_URL")
-	if devURL == "" {
-		log.Fatal().Msg("missing URL environment FLEET_DESKTOP_DEVICE_URL")
+	var tokUpdater *tokenUpdater
+	tokenFile := os.Getenv("FLEET_DESKTOP_IDENTIFIER_FILE")
+	partialURL := os.Getenv("FLEET_DESKTOP_PARTIAL_DEVICE_URL")
+	deviceURL := os.Getenv("FLEET_DESKTOP_DEVICE_URL")
+	if tokenFile != "" && partialURL != "" {
+		// TODO: rotation enabled
+	} else if deviceURL != "" {
+		// TODO: old orbit, no token rotation
+	} else {
+		log.Fatal().Msg("missing environment variables FLEET_DESKTOP_IDENTIFIER_FILE and FLEET_DESKTOP_PARTIAL_DEVICE_URL (or FLEET_DESKTOP_DEVICE_URL)")
 	}
-	deviceURL, err := url.Parse(devURL)
-	if err != nil {
-		log.Fatal().Err(err).Msg("invalid URL argument")
-	}
-
-	basePath := deviceURL.Scheme + "://" + deviceURL.Host
-
-	// TODO(mna): the device token must be read from file, which is received as another
-	// env var. The transparency URL will become dynamic too due to the dynamic token.
-	deviceToken := path.Base(deviceURL.Path)
-	transparencyURL := basePath + "/api/latest/fleet/device/" + deviceToken + "/transparency"
 
 	onReady := func() {
 		log.Info().Msg("ready")
