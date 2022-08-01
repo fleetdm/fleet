@@ -308,7 +308,7 @@ func (svc *Service) ModifyUser(ctx context.Context, userID uint, p fleet.UserPay
 			// and the old password must be provided (validated by p.VerifyModify above)
 			// and must be valid. If changed by admin, then this is not required.
 			if err := vc.User.ValidatePassword(*p.NewPassword); err == nil {
-				return nil, ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("new_password", "cannot reuse old password"))
+				return nil, ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("new_password", "Cannot reuse old password"))
 			}
 			if err := vc.User.ValidatePassword(*p.Password); err != nil {
 				return nil, ctxerr.Wrap(ctx, fleet.NewPermissionError("incorrect password"))
@@ -510,7 +510,7 @@ func (svc *Service) ChangePassword(ctx context.Context, oldPass, newPass string)
 		return ctxerr.New(ctx, "change password for single sign on user not allowed")
 	}
 	if err := vc.User.ValidatePassword(newPass); err == nil {
-		return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("new_password", "cannot reuse old password"))
+		return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("new_password", "Cannot reuse old password"))
 	}
 	if err := vc.User.ValidatePassword(oldPass); err != nil {
 		return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("old_password", "old password does not match"))
@@ -806,7 +806,7 @@ func (svc *Service) PerformRequiredPasswordReset(ctx context.Context, password s
 
 	// prevent setting the same password
 	if err := user.ValidatePassword(password); err == nil {
-		return nil, fleet.NewInvalidArgumentError("new_password", "cannot reuse old password")
+		return nil, fleet.NewInvalidArgumentError("new_password", "Cannot reuse old password")
 	}
 
 	if err := fleet.ValidatePasswordRequirements(password); err != nil {
@@ -896,7 +896,7 @@ func (svc *Service) ResetPassword(ctx context.Context, token, password string) e
 
 	// prevent setting the same password
 	if err := user.ValidatePassword(password); err == nil {
-		return fleet.NewInvalidArgumentError("new_password", "cannot reuse old password")
+		return fleet.NewInvalidArgumentError("new_password", "Cannot reuse old password")
 	}
 
 	// password requirements are validated as part of `setNewPassword``

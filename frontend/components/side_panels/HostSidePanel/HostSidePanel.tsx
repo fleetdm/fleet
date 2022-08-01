@@ -47,11 +47,7 @@ const HostSidePanel = ({
   );
 
   if (isLabelsLoading || !labels) {
-    return (
-      <SecondarySidePanelContainer className={`${baseClass}`}>
-        <Spinner />
-      </SecondarySidePanelContainer>
-    );
+    return <Spinner />;
   }
 
   const allHostLabels = filter(labels, { type: "all" });
@@ -84,7 +80,7 @@ const HostSidePanel = ({
   });
 
   return (
-    <SecondarySidePanelContainer className={`${baseClass}`}>
+    <div className={baseClass}>
       <PanelGroup
         groupItems={allHostLabels}
         onLabelClick={onLabelClick}
@@ -134,7 +130,7 @@ const HostSidePanel = ({
         selectedFilter={selectedFilter}
         type="label"
       />
-    </SecondarySidePanelContainer>
+    </div>
   );
 };
 

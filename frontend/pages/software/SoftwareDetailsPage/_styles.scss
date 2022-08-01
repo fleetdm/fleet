@@ -1,12 +1,10 @@
 .software-details-page {
-  display: flex;
-  flex-wrap: wrap;
-  flex-grow: 1;
-  align-content: flex-start;
-  padding-bottom: 50px;
-  min-width: 0;
   background-color: $ui-off-white;
-  gap: $pad-medium;
+
+  &__wrapper {
+    display: grid;
+    gap: $pad-medium;
+  }
 
   a {
     font-size: $x-small;
@@ -85,14 +83,6 @@
   .name {
     font-size: $large;
     font-weight: $bold;
-  }
-
-  &__wrapper {
-    border: solid 1px $ui-fleet-blue-15;
-    border-radius: 6px;
-    margin-top: $pad-small;
-    overflow: scroll;
-    box-shadow: inset -8px 0 17px -10px #e8edf4;
   }
 
   &__back-link {

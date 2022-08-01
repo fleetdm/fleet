@@ -5,6 +5,8 @@ import PATHS from "router/paths";
 import { AppContext } from "context/app";
 
 import TabsWrapper from "components/TabsWrapper";
+import MainContent from "components/MainContent";
+import classnames from "classnames";
 
 interface ISettingSubNavItem {
   name: string;
@@ -48,7 +50,7 @@ const SettingsWrapper = ({
   location: { pathname },
   router,
 }: ISettingsWrapperProp): JSX.Element => {
-  const { isPremiumTier } = useContext(AppContext);
+  const { isPremiumTier, isSandboxMode } = useContext(AppContext);
 
   if (isPremiumTier && settingsSubNav.length === 3) {
     settingsSubNav.push({
@@ -62,29 +64,36 @@ const SettingsWrapper = ({
     router.push(navPath);
   };
 
+  // we add a conditional sandbox-mode class here as we will need to make some
+  // styling changes on the settings page to have the sticky elements work
+  // with the sandbox mode expiry message
+  const classNames = classnames(baseClass, { "sandbox-mode": isSandboxMode });
+
   return (
-    <div className={`${baseClass} body-wrap`}>
-      <TabsWrapper>
-        <h1>Settings</h1>
-        <Tabs
-          selectedIndex={getTabIndex(pathname)}
-          onSelect={(i) => navigateToNav(i)}
-        >
-          <TabList>
-            {settingsSubNav.map((navItem) => {
-              // Bolding text when the tab is active causes a layout shift
-              // so we add a hidden pseudo element with the same text string
-              return (
-                <Tab key={navItem.name} data-text={navItem.name}>
-                  {navItem.name}
-                </Tab>
-              );
-            })}
-          </TabList>
-        </Tabs>
-      </TabsWrapper>
-      {children}
-    </div>
+    <MainContent className={classNames}>
+      <div className={`${baseClass}_wrapper`}>
+        <TabsWrapper>
+          <h1>Settings</h1>
+          <Tabs
+            selectedIndex={getTabIndex(pathname)}
+            onSelect={(i) => navigateToNav(i)}
+          >
+            <TabList>
+              {settingsSubNav.map((navItem) => {
+                // Bolding text when the tab is active causes a layout shift
+                // so we add a hidden pseudo element with the same text string
+                return (
+                  <Tab key={navItem.name} data-text={navItem.name}>
+                    {navItem.name}
+                  </Tab>
+                );
+              })}
+            </TabList>
+          </Tabs>
+        </TabsWrapper>
+        {children}
+      </div>
+    </MainContent>
   );
 };
 

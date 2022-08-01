@@ -57,14 +57,28 @@
     margin-top: $pad-large;
     margin-bottom: $pad-large;
 
+    > * {
+      margin: 4px 0;
+    }
+
+    button {
+      height: auto;
+      width: 100%;
+      img {
+        transform: scale(0.58) rotate(-90deg);
+        position: relative;
+        top: 1px;
+      }
+    }
+
     .policy-block {
+      width: 100%;
       padding: $pad-small 12px;
       border: 1px solid $ui-fleet-black-25;
       border-radius: 6px;
       display: flex;
       justify-content: space-between;
       align-items: center;
-      margin: 10px 0;
 
       .info {
         font-size: $small;
@@ -79,15 +93,11 @@
           top: -1px;
         }
       }
-      button {
-        height: auto;
-
-        img {
-          transform: scale(0.58) rotate(-90deg);
-          position: relative;
-          top: 1px;
-        }
-      }
+    }
+  }
+  &__loading {
+    .loading-spinner {
+      margin: $pad-medium auto;
     }
   }
   &__refetch {

@@ -3,6 +3,8 @@
 import sendRequest from "services";
 import endpoints from "utilities/endpoints";
 import { IConfig } from "interfaces/config";
+import axios, { AxiosError } from "axios";
+import local from "utilities/local";
 
 export default {
   loadAll: (): Promise<IConfig> => {
@@ -38,5 +40,29 @@ export default {
     const { CONFIG } = endpoints;
 
     return sendRequest("PATCH", CONFIG, formData);
+  },
+
+  // This API call is made to a specific endpoint that is different than our
+  // other ones. This is why we have implmented the call with axios here instead
+  // of using our sendRequest method.
+  loadSandboxExpiry: async () => {
+    const instanceId = window.location.host.split(".")[0];
+    const url = "https://sandbox.fleetdm.com/expires";
+    const token = local.getItem("auth_token");
+
+    try {
+      const { data } = await axios.get<{ timestamp: string }>(url, {
+        url,
+        params: { id: instanceId },
+        responseType: "json",
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+      return data.timestamp;
+    } catch (error) {
+      const axiosError = error as AxiosError;
+      return axiosError.response;
+    }
   },
 };
