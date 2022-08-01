@@ -599,8 +599,6 @@ func (svc *Service) detailQueriesForHost(ctx context.Context, host *fleet.Host) 
 	detailQueries := osquery_utils.GetDetailQueries(config, svc.config)
 	for name, query := range detailQueries {
 		if query.RunsForPlatform(host.Platform) {
-			// TODO(mna): if query.DynamicQuery is not nil, call it to generate the query,
-			// otherwise use the static Query field as-is.
 			queryName := hostDetailQueryPrefix + name
 			queries[queryName] = query.Query
 			discoveryQuery := query.Discovery
