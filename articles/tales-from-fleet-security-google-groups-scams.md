@@ -57,7 +57,7 @@ id4-->id8
 
 ```
 
-We contacted Google to ask why this message made it through filters. They confirmed that the filters are different on Groups vs Gmail (emphasis ours):
+We contacted Google to ask why this message made it through filters. They confirmed that the filters are different on Groups vs Gmail (emphasis ours) in a response to our issue:
 
 > Regarding your case, I understand that you see in the header this emails passing the authentication methods when it goes to group, in the message headers for emails sent to a group, you will see two authentication checks, the one done to your Group, because it comes from your group to your domain, that always passes as it is expected due to your domain is fully authenticated with SPF, DKIM and DMARC policy, and there is another authentication check for the original sender below on the message header, still the authentication methods are always checked by the the Groups spam moderation filter, as well by the users spam filter, which are **separate spam filters**. 
 
