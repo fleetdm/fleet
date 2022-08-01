@@ -3855,13 +3855,19 @@ func testHostsLoadHostByDeviceAuthToken(t *testing.T, ds *Datastore) {
 	err = ds.SetOrUpdateDeviceAuthToken(context.Background(), host.ID, validToken)
 	require.NoError(t, err)
 
-	_, err = ds.LoadHostByDeviceAuthToken(context.Background(), "nosuchtoken")
+	_, err = ds.LoadHostByDeviceAuthToken(context.Background(), "nosuchtoken", time.Hour)
 	require.Error(t, err)
 	assert.ErrorIs(t, err, sql.ErrNoRows)
 
-	h, err := ds.LoadHostByDeviceAuthToken(context.Background(), validToken)
+	h, err := ds.LoadHostByDeviceAuthToken(context.Background(), validToken, time.Hour)
 	require.NoError(t, err)
 	require.Equal(t, host.ID, h.ID)
+
+	time.Sleep(2 * time.Second) // make sure the token expires
+
+	_, err = ds.LoadHostByDeviceAuthToken(context.Background(), validToken, time.Second) // 1s TTL
+	require.Error(t, err)
+	assert.ErrorIs(t, err, sql.ErrNoRows)
 }
 
 func testHostsSetOrUpdateDeviceAuthToken(t *testing.T, ds *Datastore) {
@@ -3909,11 +3915,11 @@ func testHostsSetOrUpdateDeviceAuthToken(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	h2T1 := loadUpdatedAt(host2.ID)
 
-	h, err := ds.LoadHostByDeviceAuthToken(context.Background(), token1)
+	h, err := ds.LoadHostByDeviceAuthToken(context.Background(), token1, time.Hour)
 	require.NoError(t, err)
 	require.Equal(t, host.ID, h.ID)
 
-	h, err = ds.LoadHostByDeviceAuthToken(context.Background(), token2)
+	h, err = ds.LoadHostByDeviceAuthToken(context.Background(), token2, time.Hour)
 	require.NoError(t, err)
 	require.Equal(t, host2.ID, h.ID)
 
@@ -3925,15 +3931,15 @@ func testHostsSetOrUpdateDeviceAuthToken(t *testing.T, ds *Datastore) {
 	h2T2 := loadUpdatedAt(host2.ID)
 	require.True(t, h2T2.After(h2T1))
 
-	h, err = ds.LoadHostByDeviceAuthToken(context.Background(), token1)
+	h, err = ds.LoadHostByDeviceAuthToken(context.Background(), token1, time.Hour)
 	require.NoError(t, err)
 	require.Equal(t, host.ID, h.ID)
 
-	h, err = ds.LoadHostByDeviceAuthToken(context.Background(), token2Updated)
+	h, err = ds.LoadHostByDeviceAuthToken(context.Background(), token2Updated, time.Hour)
 	require.NoError(t, err)
 	require.Equal(t, host2.ID, h.ID)
 
-	_, err = ds.LoadHostByDeviceAuthToken(context.Background(), token2)
+	_, err = ds.LoadHostByDeviceAuthToken(context.Background(), token2, time.Hour)
 	require.Error(t, err)
 	assert.ErrorIs(t, err, sql.ErrNoRows)
 

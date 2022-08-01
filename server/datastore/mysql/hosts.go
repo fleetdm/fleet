@@ -787,8 +787,8 @@ func (ds *Datastore) LoadHostByNodeKey(ctx context.Context, nodeKey string) (*fl
 }
 
 // LoadHostByDeviceAuthToken loads the whole host identified by the device auth token.
-// If the token is invalid it returns a NotFoundError.
-func (ds *Datastore) LoadHostByDeviceAuthToken(ctx context.Context, authToken string) (*fleet.Host, error) {
+// If the token is invalid or expired it returns a NotFoundError.
+func (ds *Datastore) LoadHostByDeviceAuthToken(ctx context.Context, authToken string, tokenTTL time.Duration) (*fleet.Host, error) {
 	const query = `
     SELECT
       h.*
@@ -798,10 +798,11 @@ func (ds *Datastore) LoadHostByDeviceAuthToken(ctx context.Context, authToken st
       hosts h
     ON
       hda.host_id = h.id
-    WHERE hda.token = ?`
+    WHERE hda.token = ? AND
+		hda.updated_at >= DATE_SUB(NOW(), INTERVAL ? SECOND)`
 
 	var host fleet.Host
-	switch err := sqlx.GetContext(ctx, ds.reader, &host, query, authToken); {
+	switch err := sqlx.GetContext(ctx, ds.reader, &host, query, authToken, tokenTTL.Seconds()); {
 	case err == nil:
 		return &host, nil
 	case errors.Is(err, sql.ErrNoRows):
