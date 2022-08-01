@@ -1,1 +1,1 @@
-* Fixed an issue with double quotes usage in sql query. Caused by enabling `ANSI_QUOTES` in MySQL.
+* Fixed an issue with double quotes usage in SQL query, caused by enabling `ANSI_QUOTES` in MySQL.

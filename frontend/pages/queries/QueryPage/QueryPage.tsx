@@ -16,8 +16,11 @@ import { IQueryFormData, IQuery } from "interfaces/query";
 import { ITarget } from "interfaces/target";
 
 import QuerySidePanel from "components/side_panels/QuerySidePanel";
-import QueryEditor from "pages/queries/QueryPage/screens/QueryEditor";
+import MainContent from "components/MainContent";
+import SidePanelContent from "components/SidePanelContent";
 import SelectTargets from "components/LiveQuery/SelectTargets";
+
+import QueryEditor from "pages/queries/QueryPage/screens/QueryEditor";
 import RunQuery from "pages/queries/QueryPage/screens/RunQuery";
 import ExternalURLIcon from "../../../../assets/images/icon-external-url-12x12@2x.png";
 
@@ -237,23 +240,26 @@ const QueryPage = ({
   };
 
   const isFirstStep = step === QUERIES_PAGE_STEPS[1];
-  const sidebarClass = isFirstStep && isSidebarOpen && "has-sidebar";
   const showSidebar =
     isFirstStep &&
     isSidebarOpen &&
     (isGlobalAdmin || isGlobalMaintainer || isAnyTeamMaintainerOrTeamAdmin);
 
   return (
-    <div className={`${baseClass} ${sidebarClass}`}>
-      <div className={`${baseClass}__content`}>{renderScreen()}</div>
+    <>
+      <MainContent className={baseClass}>
+        <div className={`${baseClass}_wrapper`}>{renderScreen()}</div>
+      </MainContent>
       {showSidebar && (
-        <QuerySidePanel
-          onOsqueryTableSelect={onOsqueryTableSelect}
-          selectedOsqueryTable={selectedOsqueryTable}
-          onClose={onCloseSchemaSidebar}
-        />
+        <SidePanelContent>
+          <QuerySidePanel
+            onOsqueryTableSelect={onOsqueryTableSelect}
+            selectedOsqueryTable={selectedOsqueryTable}
+            onClose={onCloseSchemaSidebar}
+          />
+        </SidePanelContent>
       )}
-    </div>
+    </>
   );
 };
 

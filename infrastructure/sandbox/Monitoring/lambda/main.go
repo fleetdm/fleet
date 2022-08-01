@@ -23,12 +23,13 @@ type LifecycleRecord struct {
 	State string
 }
 
-func getInstancesCount() (int64, int64, error) {
+func getInstancesCount(c context.Context) (int64, int64, error) {
 	log.Print("getInstancesCount")
 	svc := dynamodb.New(session.New())
 	// Example iterating over at most 3 pages of a Scan operation.
 	var count, unclaimedCount int64
-	err := svc.ScanPages(
+	err := svc.ScanPagesWithContext(
+		c,
 		&dynamodb.ScanInput{
 			TableName: aws.String(options.LifecycleTable),
 		},
@@ -55,7 +56,11 @@ func getInstancesCount() (int64, int64, error) {
 type NullEvent struct{}
 
 func handler(ctx context.Context, name NullEvent) error {
-	totalCount, unclaimedCount, err := getInstancesCount()
+	totalCount, unclaimedCount, err := getInstancesCount(ctx)
+	if err != nil {
+		log.Print(err)
+		return err
+	}
 	svc := cloudwatch.New(session.New())
 	log.Printf("Publishing %d, %d", totalCount, unclaimedCount)
 	_, err = svc.PutMetricData(&cloudwatch.PutMetricDataInput{
@@ -104,7 +109,7 @@ func main() {
 			log.Fatal(err)
 		}
 	}
-	if options.LambdaExecutionEnv == "AWS_Lambda_go1.x" {
+	if options.LambdaExecutionEnv != "" {
 		lambda.Start(handler)
 	} else {
 		if err = handler(context.Background(), NullEvent{}); err != nil {

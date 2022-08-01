@@ -15,6 +15,8 @@ import packsAPI from "services/entities/packs";
 import PackForm from "components/forms/packs/PackForm";
 // @ts-ignore
 import PackInfoSidePanel from "components/side_panels/PackInfoSidePanel";
+import MainContent from "components/MainContent";
+import SidePanelContent from "components/SidePanelContent";
 
 interface IPackComposerPageProps {
   router: InjectedRouter;
@@ -22,7 +24,7 @@ interface IPackComposerPageProps {
 
 const baseClass = "pack-composer";
 
-const PackComposerPage = ({ router }: IPackComposerPageProps) => {
+const PackComposerPage = ({ router }: IPackComposerPageProps): JSX.Element => {
   const { isPremiumTier } = useContext(AppContext);
   const { renderFlash } = useContext(NotificationContext);
 
@@ -64,16 +66,20 @@ const PackComposerPage = ({ router }: IPackComposerPageProps) => {
   };
 
   return (
-    <div className="has-sidebar">
-      <PackForm
-        className={`${baseClass}__pack-form body-wrap`}
-        handleSubmit={handleSubmit}
-        onFetchTargets={onFetchTargets}
-        selectedTargetsCount={selectedTargetsCount}
-        isPremiumTier={isPremiumTier}
-      />
-      <PackInfoSidePanel />
-    </div>
+    <>
+      <MainContent className={baseClass}>
+        <PackForm
+          className={`${baseClass}__pack-form`}
+          handleSubmit={handleSubmit}
+          onFetchTargets={onFetchTargets}
+          selectedTargetsCount={selectedTargetsCount}
+          isPremiumTier={isPremiumTier}
+        />
+      </MainContent>
+      <SidePanelContent>
+        <PackInfoSidePanel />
+      </SidePanelContent>
+    </>
   );
 };
 

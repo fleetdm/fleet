@@ -1,0 +1,28 @@
+.sandbox-expiry-message {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px $pad-large;
+  margin-bottom: $pad-large;
+  background-color: $ui-expiry-message;
+  border: 1px solid #ECE0BB;
+  border-radius: $border-radius;
+  font-size: $xx-small;
+
+  p {
+    margin: 0;
+  }
+
+  a {
+    display: flex;
+    align-items: center;
+    color: $core-fleet-black;
+    font-weight: $bold;
+    text-align: right;
+
+    .icon-external {
+      width: 12px;
+      padding-left: $pad-xsmall;
+    }
+  }
+}
