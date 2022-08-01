@@ -58,7 +58,7 @@ export default {
         headers: {
           "Access-Control-Request-Method": "GET",
           "Access-Control-Request-Headers": "content-type",
-          Origin: `https://'${instanceId}.sandbox.fleetdm.com`,
+          Origin: `https://${instanceId}.sandbox.fleetdm.com`,
         },
       });
       return data.timestamp;
