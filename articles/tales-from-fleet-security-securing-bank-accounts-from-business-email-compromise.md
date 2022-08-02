@@ -94,14 +94,15 @@ If you require advanced training before implementing these basic controls, you f
 
 ## Checklist
 
-- [ ] Access to email requires 2FA
-- [ ] Phishing and spam filters are configured with strict settings to prevent user and domain spoofing
-- [ ] Access to online banking requires 2FA
-- [ ] Configuration changes require dual control
-- [ ] Alerting is enabled
-- [ ] Money transfers require a second or third approval with sensible thresholds 
-- [ ] ACH filtering is in place in allow list mode
-- [ ] All employees with access to online banking have received BEC training 
+- Access to email requires 2FA
+- Phishing and spam filters are configured with strict settings to prevent user and domain spoofing
+- Access to online banking requires 2FA
+- Configuration changes require dual control
+- Alerting is enabled
+- Money transfers require a second or third approval with sensible thresholds 
+- ACH filtering is in place in allow list mode
+- All employees with access to online banking have received BEC training
+
 ## Next
 
 Stay tuned for more articles in this series, where we describe how we secure Fleet. If you have any comments or questions, feel free to post them in the [#Fleet channel](http://fleetdm.com/slack) of the osquery Slack!
