@@ -4,7 +4,7 @@ The tests located in `test/upgrade` are intended to test fleet upgrades with onl
 To run the tests, you need to specify the from and to versions. For example
 
 ```
-$ FLEET_VERSION_A=v4.16.0 FLEET_VERSION_B=v4.17.0 go test ./test/upgrade
+$ FLEET_VERSION_A=v4.16.0 FLEET_VERSION_B=v4.18.0 go test ./test/upgrade
 ```
 
 Ensure that Docker is installed with Compose V2.
