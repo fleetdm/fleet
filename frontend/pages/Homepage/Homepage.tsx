@@ -313,7 +313,8 @@ const Homepage = (): JSX.Element => {
   const allLayout = () => {
     return (
       <div className={`${baseClass}__section`}>
-        {canEnrollHosts &&
+        {!currentTeam &&
+          canEnrollGlobalHosts &&
           hostSummaryData &&
           hostSummaryData?.totals_hosts_count < 2 && (
             <>
