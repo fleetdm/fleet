@@ -2,6 +2,7 @@ package tables
 
 import (
 	"database/sql"
+	"fmt"
 
 	"github.com/pkg/errors"
 )
@@ -11,6 +12,7 @@ func init() {
 }
 
 func Up_20220802135510(tx *sql.Tx) error {
+	fmt.Println("Creating table mobile_device_management_solutions...")
 	_, err := tx.Exec(`
 CREATE TABLE mobile_device_management_solutions (
   id            INT(10) UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
@@ -24,6 +26,35 @@ CREATE TABLE mobile_device_management_solutions (
 	if err != nil {
 		return errors.Wrapf(err, "create table")
 	}
+	fmt.Println("Done creating table mobile_device_management_solutions...")
+
+	fmt.Println("Adding column mdm_id to table host_mdm...")
+	// adding as NULLable to prevent costly migration for users with many hosts,
+	// the mdm_id will be lazily populated as MDM query results get returned by
+	// hosts.
+	_, err = tx.Exec(`ALTER TABLE host_mdm ADD COLUMN mdm_id INT(10) UNSIGNED NULL;`)
+	if err != nil {
+		return errors.Wrapf(err, "alter table")
+	}
+	fmt.Println("Done adding column mdm_id to table host_mdm...")
+
+	fmt.Println("Adding index on mdm_id of table host_mdm...")
+	_, err = tx.Exec(`CREATE INDEX host_mdm_mdm_id_idx ON host_mdm (mdm_id);`)
+	if err != nil {
+		return errors.Wrapf(err, "create mdm id index")
+	}
+	fmt.Println("Done adding index on mdm_id of table host_mdm...")
+
+	// those are boolean fields, but indexing is still likely to speed things up
+	// significantly, because a) we will filter on a combination of both booleans and
+	// b) it's unlikely that enrolled/unenrolled ratio will be close to 50%.
+	// see https://stackoverflow.com/questions/10524651/is-there-any-performance-gain-in-indexing-a-boolean-field
+	fmt.Println("Adding index on enrolled, installed_from_dep of table host_mdm...")
+	_, err = tx.Exec(`CREATE INDEX host_mdm_enrolled_installed_from_dep_idx ON host_mdm (enrolled, installed_from_dep);`)
+	if err != nil {
+		return errors.Wrapf(err, "create enrollment status index")
+	}
+	fmt.Println("Done adding index on enrolled, installed_from_dep of table host_mdm...")
 
 	return nil
 }
