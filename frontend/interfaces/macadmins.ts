@@ -15,6 +15,7 @@ export interface IMDMAggregateStatus {
 }
 
 export interface IMDMSolution {
+  id: number;
   name: string;
   server_url: string;
   hosts_count: number;
