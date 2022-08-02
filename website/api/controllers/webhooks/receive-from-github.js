@@ -27,7 +27,23 @@ module.exports = {
 
     let GitHub = require('machinepack-github');
 
-    let IS_FROZEN = false;// « Set this to `true` whenever a freeze is in effect, then set it back to `false` when the freeze ends.
+    // Since we're only using a single instance, and because the worst case scenario is that we refreeze some
+    // all-markdown PRs that had already been frozen, instead of using the database, we'll just use a little
+    // in-memory pocket here of PRs seen by this instance of the Sails app.  To get around any issues with this,
+    // users can edit and resave the PR description to trigger their PR to be unfrozen.
+    // FUTURE: Go through the trouble to migrate the database and make a little Platform model to hold this state in.
+    // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+    // Grab the set of GitHub pull request numbers the bot considers "unfrozen".
+    sails.pocketOfPrNumbersUnfrozen = sails.pocketOfPrNumbersUnfrozen || [];
+    // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+
+    // Is this in use?
+    // > For context on the history of this bit of code, which has gone been
+    // > implemented a couple of different ways, and gone back and forth, check out:
+    // > https://github.com/fleetdm/fleet/pull/5628#issuecomment-1196175485
+    // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+    // let IS_FROZEN = false;// « Set this to `true` whenever a freeze is in effect, then set it back to `false` when the freeze ends.
+    // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
     let GITHUB_USERNAMES_OF_BOTS_AND_MAINTAINERS = [// « Used in multiple places below.
       'sailsbot',
@@ -63,12 +79,17 @@ module.exports = {
       'roperzh',
       'zhumo',
       'ghernandez345',
-      `chris-mcgillicuddy`,
+      'chris-mcgillicuddy',
+      'rfairburn',
     ];
 
     let GREEN_LABEL_COLOR = 'C2E0C6';// « Used in multiple places below.  (FUTURE: Use the "+" prefix for this instead of color.  2022-05-05)
 
     let GITHUB_USERNAME_OF_DRI_FOR_LABELS = 'noahtalerman';// « Used below (FUTURE: Remove this capability as Fleet has outgrown it.  2022-05-05)
+
+    if (!sails.config.custom.mergeFreezeAccessToken) {
+      throw new Error('An access token for the MergeFreeze API (sails.config.custom.mergeFreezeAccessToken) is required to enable automated unfreezing/freezing of changes based on the files they change.  Please ask for help in #g-digital-experience, whether you are testing locally or using this as a live webhook.');
+    }
 
     if (!sails.config.custom.slackWebhookUrlForGithubBot) {
       throw new Error('No Slack webhook URL configured for the GitHub bot to notify with alerts!  (Please set `sails.config.custom.slackWebhookUrlForGithubBot`.)');
@@ -217,18 +238,85 @@ module.exports = {
           isGithubUserMaintainerOrDoesntMatter: GITHUB_USERNAMES_OF_BOTS_AND_MAINTAINERS.includes(sender.login.toLowerCase())
         });
 
+        let isHandbookPR = await sails.helpers.githubAutomations.getIsPrOnlyHandbookChanges.with({prNumber: prNumber});
+
+        // Check whether the "main" branch is currently frozen (i.e. a feature freeze)
+        // [?] https://docs.mergefreeze.com/web-api#get-freeze-status
+        let mergeFreezeMainBranchStatusReport = await sails.helpers.http.get('https://www.mergefreeze.com/api/branches/fleetdm/fleet/main', { access_token: sails.config.custom.mergeFreezeAccessToken }); //eslint-disable-line camelcase
+        sails.log('#'+prNumber+' is under consideration...  The MergeFreeze API claims that it current main branch "frozen" status is:',mergeFreezeMainBranchStatusReport.frozen);
+        let isMainBranchFrozen = mergeFreezeMainBranchStatusReport.frozen || (
+          // TODO: Remove this timeboxed hack to consider the repo frozen
+          // for a while as a workaround for an issue where the MergeFreeze API
+          // reports that the repo is not frozen, when it actually is frozen.
+          Date.now() < (new Date('Jul 28, 2022 14:00 UTC')).getTime()
+        );
+
+        // Add the #handbook label to PRs that only make changes to the handbook.
+        if(isHandbookPR) {
+          // [?] https://docs.github.com/en/rest/issues/labels#add-labels-to-an-issue
+          await sails.helpers.http.post(`https://api.github.com/repos/${owner}/${repo}/issues/${prNumber}/labels`, {
+            labels: ['#handbook']
+          }, baseHeaders);
+        }
+
         // Now, if appropriate, auto-approve the change.
         if (isAutoApproved) {
           // [?] https://docs.github.com/en/rest/reference/pulls#create-a-review-for-a-pull-request
           await sails.helpers.http.post(`https://api.github.com/repos/${owner}/${repo}/pulls/${prNumber}/reviews`, {
             event: 'APPROVE'
           }, baseHeaders);
-        } else if (IS_FROZEN) {
-          // [?] https://docs.github.com/en/rest/reference/pulls#create-a-review-for-a-pull-request
-          await sails.helpers.http.post(`https://api.github.com/repos/${owner}/${repo}/pulls/${prNumber}/reviews`, {
-            event: 'REQUEST_CHANGES',
-            body: 'The repository is currently frozen for an upcoming release.  \n> After the freeze has ended, please dismiss this review.  \n\nIn case of emergency, you can dismiss this review and merge now.'
-          }, baseHeaders);
+
+          // If "main" is explicitly frozen, then unfreeze this PR because it no longer contains
+          // (or maybe never did contain) changes to freezeworthy files.
+          if (isMainBranchFrozen) {
+
+            sails.pocketOfPrNumbersUnfrozen = _.union(sails.pocketOfPrNumbersUnfrozen, [ prNumber ]);
+            sails.log('#'+prNumber+' autoapproved, main branch is frozen...  prNumbers unfrozen:',sails.pocketOfPrNumbersUnfrozen);
+
+            // [?] See May 6th, 2022 changelog, which includes this code sample:
+            // (https://www.mergefreeze.com/news)
+            // (but as of July 26, 2022, I didn't see it documented here: https://docs.mergefreeze.com/web-api#post-freeze-status)
+            // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+            // > You may now freeze or unfreeze a single PR (while maintaining the overall freeze) via the Web API.
+            // ```
+            // curl -d "frozen=true&user_name=Scooby Doo&unblocked_prs=[3]" -X POST https://www.mergefreeze.com/api/branches/mergefreeze/core/master/?access_token=[Your access token]
+            // ```
+            // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+            await sails.helpers.http.post(`https://www.mergefreeze.com/api/branches/fleetdm/fleet/main?access_token=${encodeURIComponent(sails.config.custom.mergeFreezeAccessToken)}`, {
+              user_name: 'fleet-release',//eslint-disable-line camelcase
+              unblocked_prs: sails.pocketOfPrNumbersUnfrozen,//eslint-disable-line camelcase
+            });
+
+          }//ﬁ
+
+        } else {
+          // If "main" is explicitly frozen, then freeze this PR because it now contains
+          // (or maybe always did contain) changes to freezeworthy files.
+          if (isMainBranchFrozen) {
+
+            sails.pocketOfPrNumbersUnfrozen = _.difference(sails.pocketOfPrNumbersUnfrozen, [ prNumber ]);
+            sails.log('#'+prNumber+' not autoapproved, main branch is frozen...  prNumbers unfrozen:',sails.pocketOfPrNumbersUnfrozen);
+
+            // [?] See explanation above.
+            await sails.helpers.http.post(`https://www.mergefreeze.com/api/branches/fleetdm/fleet/main?access_token=${encodeURIComponent(sails.config.custom.mergeFreezeAccessToken)}`, {
+              user_name: 'fleet-release',//eslint-disable-line camelcase
+              unblocked_prs: sails.pocketOfPrNumbersUnfrozen,//eslint-disable-line camelcase
+            });
+          }//ﬁ
+
+          // Is this in use?
+          // > For context on the history of this bit of code, which has gone been
+          // > implemented a couple of different ways, and gone back and forth, check out:
+          // > https://github.com/fleetdm/fleet/pull/5628#issuecomment-1196175485
+          // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+          // if (IS_FROZEN) {
+          //   // [?] https://docs.github.com/en/rest/reference/pulls#create-a-review-for-a-pull-request
+          //   await sails.helpers.http.post(`https://api.github.com/repos/${owner}/${repo}/pulls/${prNumber}/reviews`, {
+          //     event: 'REQUEST_CHANGES',
+          //     body: 'The repository is currently frozen for an upcoming release.  \n> After the freeze has ended, please dismiss this review.  \n\nIn case of emergency, you can dismiss this review and merge now.'
+          //   }, baseHeaders);
+          // }//ﬁ
+          // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
         }
 
       }

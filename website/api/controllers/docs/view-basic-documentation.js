@@ -45,14 +45,20 @@ module.exports = {
         : SECTION_URL_PREFIX + '/' + pageUrlSuffix// « individual content page
       )
     });
-    if (!thisPage) {// If there's no EXACTLY matching content page, try a revised version of the URL suffix that's lowercase, with internal slashes deduped, and any trailing slash or whitespace trimmed
-      let revisedPageUrlSuffix = pageUrlSuffix.toLowerCase().replace(/\/+/g, '/').replace(/^\/+\s*|\/+\s*$/,'');
+    if (!thisPage) {// If there's no EXACTLY matching content page, try a revised version of the URL suffix that's lowercase, with all slashes deduped, and any leading or trailing slash removed (leading slashes are only possible if this is a regex, rather than "/*" route)
+      let revisedPageUrlSuffix = pageUrlSuffix.toLowerCase().replace(/\/+/g, '/').replace(/^\/+/,'').replace(/\/+$/,'');
       thisPage = _.find(sails.config.builtStaticContent.markdownPages, { url: SECTION_URL_PREFIX + '/' + revisedPageUrlSuffix });
       if (thisPage) {// If we matched a page with the revised suffix, then redirect to that rather than rendering it, so the URL gets cleaned up.
         throw {redirect: thisPage.url};
       } else {// If no page could be found even with the revised suffix, then throw a 404 error.
         throw 'notFound';
       }
+    }
+
+    let showSwagForm = false;
+    // Due to shipping costs, we'll check the requesting user's cf-ipcountry to see if they're in the US, and their cf-iplongitude header to see if they're in the contiguous US.
+    if(this.req.get('cf-ipcountry') === 'US' && this.req.get('cf-iplongitude') > -125) {
+      showSwagForm = true;
     }
 
     // Respond with view.
@@ -69,6 +75,7 @@ module.exports = {
         thisPage.meta.description ? thisPage.meta.description // « custom meta description for this page, if provided in markdown
         : 'Documentation for Fleet for osquery.'// « otherwise use the generic description
       ),
+      showSwagForm
     };
 
   }

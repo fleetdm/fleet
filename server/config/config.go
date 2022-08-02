@@ -468,6 +468,12 @@ func (man Manager) addConfigs() {
 	man.addConfigBool("server.sandbox_enabled", false,
 		"When enabled, Fleet limits some features for the Sandbox")
 
+	// Hide the sandbox flag as we don't want it to be discoverable for users for now
+	sandboxFlag := man.command.PersistentFlags().Lookup(flagNameFromConfigKey("server.sandbox_enabled"))
+	if sandboxFlag != nil {
+		sandboxFlag.Hidden = true
+	}
+
 	// Auth
 	man.addConfigInt("auth.bcrypt_cost", 12,
 		"Bcrypt iterations")

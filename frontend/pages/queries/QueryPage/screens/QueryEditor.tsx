@@ -138,7 +138,7 @@ const QueryEditor = ({
   }
 
   return (
-    <div className={`${baseClass}__form body-wrap`}>
+    <div className={`${baseClass}__form`}>
       <Link to={PATHS.MANAGE_QUERIES} className={`${baseClass}__back-link`}>
         <img src={BackChevron} alt="back chevron" id="back-chevron" />
         <span>Back to queries</span>

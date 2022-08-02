@@ -580,16 +580,6 @@ export const inMilliseconds = (nanoseconds: number): number => {
   return nanoseconds / NANOSECONDS_PER_MILLISECOND;
 };
 
-export const humanHostUptime = (uptimeInNanoseconds: number): string => {
-  const uptimeMilliseconds = inMilliseconds(uptimeInNanoseconds);
-  const restartDate = new Date();
-  restartDate.setMilliseconds(
-    restartDate.getMilliseconds() - uptimeMilliseconds
-  );
-
-  return formatDistanceToNow(new Date(restartDate), { addSuffix: true });
-};
-
 export const humanHostLastRestart = (
   detailUpdatedAt: string,
   uptime: number
@@ -817,7 +807,6 @@ export default {
   generateRole,
   generateTeam,
   greyCell,
-  humanHostUptime,
   humanHostLastSeen,
   humanHostEnrolled,
   humanHostMemory,

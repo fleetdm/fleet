@@ -1,10 +1,4 @@
 .manage-queries-page {
-  a {
-    font-size: $x-small;
-    color: $core-vibrant-blue;
-    font-weight: $bold;
-    text-decoration: none;
-  }
 
   &__header-wrap {
     height: 38px;
@@ -255,6 +249,13 @@
           font-size: $x-small;
           margin: 0;
           margin-bottom: $pad-large;
+
+          a {
+              font-size: $x-small;
+              color: $core-vibrant-blue;
+              font-weight: $bold;
+              text-decoration: none;
+            }
         }
 
         .no-filter-results {
@@ -263,6 +264,8 @@
           width: 350px;
         }
       }
+
+
 
       &__inner-text {
         width: 485px;

@@ -16,7 +16,7 @@ describe("Reset sessions", () => {
     });
     it("resets a user's session generating a new api token", () => {
       cy.visit("/profile");
-      cy.getAttached(".user-settings__additional").within(() => {
+      cy.getAttached(".user-side-panel").within(() => {
         cy.findByRole("button", { name: /get api token/i }).click();
       });
       cy.getAttached(".secret-field__secret-input").within(() => {
@@ -24,9 +24,7 @@ describe("Reset sessions", () => {
         cy.getAttached("input").invoke("val").as("token1");
       });
       cy.visit("/settings/users");
-      cy.getAttached("div.Select-placeholder", /actions/i)
-        .eq(0)
-        .click();
+      cy.getAttached("div.Select-placeholder").eq(0).click();
       cy.contains(/reset sessions/i).click();
 
       cy.get(".modal__modal_container").within(() => {
@@ -40,7 +38,7 @@ describe("Reset sessions", () => {
       });
       cy.login();
       cy.visit("/profile");
-      cy.getAttached(".user-settings__additional").within(() => {
+      cy.getAttached(".user-side-panel").within(() => {
         cy.findByRole("button", { name: /get api token/i }).click();
       });
       cy.getAttached(".modal__content").within(() => {
