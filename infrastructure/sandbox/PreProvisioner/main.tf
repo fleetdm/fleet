@@ -234,6 +234,14 @@ resource "aws_ecs_task_definition" "main" {
             name  = "TF_VAR_redis_address"
             value = "${var.redis_cluster.primary_endpoint_address}:6379"
           },
+          {
+            name  = "FLEET_BASE_URL"
+            value = var.base_domain
+          },
+          {
+            name  = "INSTALLER_BUCKET"
+            value = var.installer_bucket.id
+          },
         ])
       }
   ])
