@@ -167,7 +167,7 @@ module.exports = {
             }
 
             // Determine URL for this page. Note: The URL of article pages will be modified to include the articles category after we process the meta tags.
-            // TODO: Move metadata processing before this, so all URL determining logic can happen at once.
+            // TODO: Move metadata processing before this, so all URL determining logic can happen at once.  (For more info, see https://github.com/fleetdm/confidential/issues/1537 )
             let rootRelativeUrlPath = (
               (
                 SECTION_INFOS_BY_SECTION_REPO_PATHS[sectionRepoPath].urlPrefix +
