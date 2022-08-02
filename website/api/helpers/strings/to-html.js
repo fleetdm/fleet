@@ -114,7 +114,7 @@ module.exports = {
 
     // Creating a custom table renderer to add Bootstrap's responsive table styles to markdown tables.
     customRenderer.table = function(header, body) {
-      return `<div class="table-responsive-xl"><table class="table">\n<thead>\n${header}\n</thead>\n<tbody>${body}\n</tbody>\n</table>\n</div>`
+      return `<div class="table-responsive-xl"><table class="table">\n<thead>\n${header}\n</thead>\n<tbody>${body}\n</tbody>\n</table>\n</div>`;
     };
 
     markedOpts.renderer = customRenderer;
