@@ -9,7 +9,7 @@ module.exports = {
 
   inputs: {
     dry: { type: 'boolean', description: 'Whether to make this a dry run.  (.sailsrc file will not be overwritten.  HTML files will not be generated.)' },
-    local: { type: 'boolean', description: 'Whether to send requests to the GitHub API when running this script. If this option is set to `true`, query contributer profiles will not be populated', defaultsTo: false },
+    local: { type: 'boolean', description: 'Whether to send requests to the GitHub API when running this script. If this option is set to `true`, query contributer profiles will not be populated'},
   },
 
 
