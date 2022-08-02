@@ -96,7 +96,7 @@
     li::marker {
       color: @core-vibrant-blue;
     }
-    code:not(.nohighlight):not(.mermaid) {
+    code {
       background: #F1F0FF;
       padding: 4px 8px;
       font-family: @code-font;
@@ -105,7 +105,7 @@
       color: @core-fleet-black;
     }
     pre {
-      code:not(.nohighlight) {
+      code {
         background: none;
         padding: 0px;
         font-family: @code-font;
@@ -134,6 +134,30 @@
       background: #fff;
     }
     blockquote {
+      margin: 24px 0 32px;
+      padding-top: 34px;
+      border-radius: 8px;
+      display: inline-flex;
+    }
+    blockquote[purpose='quote'] {
+      font-style: italic;
+      line-height: 36px;
+      font-size: 24px;
+    }
+    blockquote[purpose='extended'] {
+      font-style: italic;
+      line-height: 24px;
+      font-size: 16px;
+    }
+    blockquote[purpose='extended']::before,
+    blockquote[purpose='quote']::before {
+      content: '“';
+      font-size: 64px;
+      margin-top: 14px;
+      padding-right: 8px;
+      color: @core-vibrant-blue;
+    }
+    blockquote[purpose='tip'] {
       margin: 16px 0 32px;
       background: #F7F7FC;
       border: 1px solid @core-vibrant-blue-50;

@@ -109,7 +109,13 @@ module.exports = {
 
     // Creating a custom blockquote renderer function to add info icons to each blockquote
     customRenderer.blockquote = function(quote) {
-      return `<blockquote><img src="/images/icon-info-16x16@2x.png" alt="An icon indicating that this section has important information"><div class="d-block">`+quote+`</div></blockquote>\n`;
+      if(quote.match(/^\<!--\s?quote\s?--\>/i)){
+        return `<blockquote purpose="quote">${quote}</blockquote>`
+      } else if (quote.match(/^\<!--\s?large-?quote\s?--\>/i)) {
+        return `<blockquote purpose="extended">${quote}</blockquote>`
+      } else {
+        return `<blockquote purpose="tip"><img src="/images/icon-info-16x16@2x.png" alt="An icon indicating that this section has important information"><div class="d-block">\n${quote}\n</div></blockquote>`;
+      }
     };
 
     markedOpts.renderer = customRenderer;
