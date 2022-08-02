@@ -95,9 +95,10 @@ module.exports = {
         }, []);
 
         let githubDataByUsername = {};
+
         if(local) {// If the local flag was provided, we'll skip querying GitHubs API
           sails.log('Local run: Skipping GitHub API requests for contributer profiles.\nNOTE: The names of contributors in the standard query library will be set to the contributors GitHub username instead of the name on their profile. To see how the standard query library will look on fleetdm.com, run this script without the `--local` flag.');
-          // Because we're not querying github to get the real names for contributer profiles, we'll use their gitHub handle as
+          // Because we're not querying GitHub to get the real names for contributer profiles, we'll use their GitHub username as their name and their handle
           for (let query of queries) {
             let usernames = query.contributors.split(',');
             let contributorProfiles = [];
@@ -111,7 +112,7 @@ module.exports = {
             }
             query.contributors = contributorProfiles;
           }
-        } else { // If the local flag was not provided, we'll query GitHub's API to get additional information about each contributor.
+        } else {// If the local flag was not provided, we'll query GitHub's API to get additional information about each contributor.
           await sails.helpers.flow.simultaneouslyForEach(githubUsernames, async(username)=>{
             githubDataByUsername[username] = await sails.helpers.http.get.with({
               url: 'https://api.github.com/users/' + encodeURIComponent(username),
