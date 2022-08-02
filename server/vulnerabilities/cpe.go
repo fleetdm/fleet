@@ -234,16 +234,18 @@ func DownloadCPETranslations(vulnPath string, client *http.Client) error {
 // using the standard logic. This may be due to unexpected vendor or product names.
 //
 // Example:
-//   [
-//     {
-//       "match": {
-//         "bundle_identifier": ["com.1password.1password"]
-//       },
-//       "translation": {
-//         "product": ["1password"],
-//         "vendor": ["agilebits"]
+//
+//     [
+//       {
+//         "match": {
+//           "bundle_identifier": ["com.1password.1password"]
+//         },
+//         "translation": {
+//           "product": ["1password"],
+//           "vendor": ["agilebits"]
+//         }
 //       }
-//     }
+//     ]
 type CPETranslations []CPETranslationEntry
 
 func (c CPETranslations) Translate(s *fleet.Software) (CPETranslation, bool) {
@@ -269,18 +271,39 @@ type CPETranslationMatch struct {
 }
 
 func (c CPETranslationMatch) Matches(s *fleet.Software) bool {
-	for _, name := range c.Name {
-		if name != s.Name {
+	if len(c.Name) > 0 {
+		found := false
+		for _, name := range c.Name {
+			if name == s.Name {
+				found = true
+				break
+			}
+		}
+		if !found {
 			return false
 		}
 	}
-	for _, bundleID := range c.BundleIdentifier {
-		if bundleID != s.BundleIdentifier {
+	if len(c.BundleIdentifier) > 0 {
+		found := false
+		for _, bundleID := range c.BundleIdentifier {
+			if bundleID == s.BundleIdentifier {
+				found = true
+				break
+			}
+		}
+		if !found {
 			return false
 		}
 	}
-	for _, source := range c.Source {
-		if source != s.Source {
+	if len(c.Source) > 0 {
+		found := false
+		for _, source := range c.Source {
+			if source == s.Source {
+				found = true
+				break
+			}
+		}
+		if !found {
 			return false
 		}
 	}

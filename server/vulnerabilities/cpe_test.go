@@ -50,12 +50,26 @@ func TestCPEFromSoftware(t *testing.T) {
 	cpe, err = CPEFromSoftware(db, &fleet.Software{Name: "Vendor2 Product2.app", Version: "0.3", BundleIdentifier: "vendor2", Source: "apps"}, nil)
 	require.NoError(t, err)
 	require.Equal(t, "cpe:2.3:a:vendor2:product4:999:*:*:*:*:macos:*:*", cpe)
+}
 
-	// handles translations
+func TestCPETranslations(t *testing.T) {
+	tempDir := t.TempDir()
+
+	items, err := cpedict.Decode(strings.NewReader(XmlCPETestDict))
+	require.NoError(t, err)
+
+	dbPath := filepath.Join(tempDir, "cpe.sqlite")
+
+	err = GenerateCPEDB(dbPath, items)
+	require.NoError(t, err)
+
+	db, err := sqliteDB(dbPath)
+	require.NoError(t, err)
+
 	translations := CPETranslations{
 		{
-			Match: CPETranslationMatch{
-				Name:   []string{"X"},
+			Match: CPETranslationMatch{ // (name = X OR Y) AND (source = apps)
+				Name:   []string{"X", "Y"},
 				Source: []string{"apps"},
 			},
 			Translation: CPETranslation{
@@ -64,14 +78,39 @@ func TestCPEFromSoftware(t *testing.T) {
 			},
 		},
 	}
-	software := &fleet.Software{
-		Name:    "X",
-		Version: "1.2.3",
-		Source:  "apps",
+
+	tt := []struct {
+		Name     string
+		Software *fleet.Software
+		Expected string
+	}{
+		{
+			Name: "simple match",
+			Software: &fleet.Software{
+				Name:    "X",
+				Version: "1.2.3",
+				Source:  "apps",
+			},
+			Expected: "cpe:2.3:a:vendor:product-1:1.2.3:*:*:*:*:macos:*:*",
+		},
+		{
+			Name: "match name or",
+			Software: &fleet.Software{
+				Name:    "Y",
+				Version: "1.2.3",
+				Source:  "apps",
+			},
+			Expected: "cpe:2.3:a:vendor:product-1:1.2.3:*:*:*:*:macos:*:*",
+		},
 	}
-	cpe, err = CPEFromSoftware(db, software, translations)
-	require.NoError(t, err)
-	require.Equal(t, "cpe:2.3:a:vendor:product-1:1.2.3:*:*:*:*:macos:*:*", cpe)
+
+	for _, tc := range tt {
+		t.Run(tc.Name, func(t *testing.T) {
+			cpe, err := CPEFromSoftware(db, tc.Software, translations)
+			require.NoError(t, err)
+			require.Equal(t, tc.Expected, cpe)
+		})
+	}
 }
 
 func TestSyncCPEDatabase(t *testing.T) {
