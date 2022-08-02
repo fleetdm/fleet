@@ -22,7 +22,8 @@ func sqliteDB(dbPath string) (*sqlx.DB, error) {
 
 func applyCPEDatabaseSchema(db *sqlx.DB) error {
 	// Use a new table cpe_2 containing new columns vendor, product. view cpe used for backwards compatibility
-	// with old fleet versions that use "select * from cpe ...)
+	// with old fleet versions that use "select * from cpe ...". When creating the view, we need to
+	// select rowid because it is used for joins between the cpe and cpe_search tables
 	_, err := db.Exec(`
 CREATE TABLE IF NOT EXISTS cpe_2 (
     cpe23 TEXT NOT NULL,
