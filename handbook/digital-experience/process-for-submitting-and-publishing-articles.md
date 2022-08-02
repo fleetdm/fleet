@@ -95,4 +95,4 @@ After your article is published, the Growth team will schedule your post to be p
 - Process for fleetdm.com text changes (todo)
 
 <meta name="maintainedBy" value="timmy-k">
-<meta name="title" value="Process for submitting and publishing articles">
+<meta name="title" value="process for submitting and publishing articles">
