@@ -130,6 +130,10 @@ To set up a canonical development environment via Docker, run the following from
 docker-compose up
 ```
 
+> Note: you can customize the DB Docker image via the environment variables FLEET_MYSQL_IMAGE and FLEET_MYSQL_PLATFORM. For example:
+> - To run in macOS M1, set FLEET_MYSQL_IMAGE=arm64v8/mysql:oracle FLEET_MYSQL_PLATFORM=linux/arm64/v8
+> - To test with MariaDB, set FLEET_MYSQL_IMAGE to mariadb:10.6 or the like.
+
 #### Stopping the local development environment
 
 If you'd like to shut down the virtual infrastructure created by Docker, run the following from the root of the repository:
