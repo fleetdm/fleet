@@ -445,6 +445,12 @@ module.exports = {
                 );
               }
 
+              // Assert uniqueness of URL paths.
+              if (rootRelativeUrlPathsSeen.includes(rootRelativeUrlPath)) {
+                throw new Error('Failed compiling markdown content: Files as currently named would result in colliding (duplicate) URLs for the website.  To resolve, rename the pages whose names are too similar.  Duplicate detected: ' + rootRelativeUrlPath);
+              }//•
+              rootRelativeUrlPathsSeen.push(rootRelativeUrlPath);
+
               // Determine unique HTML id
               // > • This will become the filename of the resulting HTML.
               let htmlId = (
@@ -454,12 +460,6 @@ module.exports = {
                 '--'+
                 sails.helpers.strings.random.with({len:10})// if two files in different folders happen to have the same filename, there is a 1/16^10 chance of a collision (this is small enough- worst case, the build fails at the uniqueness check and we rerun it.)
               ).replace(/[^a-z0-9\-]/ig,'');
-
-              // Assert uniqueness of URL paths.
-              if (rootRelativeUrlPathsSeen.includes(rootRelativeUrlPath)) {
-                throw new Error('Failed compiling markdown content: Files as currently named would result in colliding (duplicate) URLs for the website.  To resolve, rename the pages whose names are too similar.  Duplicate detected: ' + rootRelativeUrlPath);
-              }//•
-              rootRelativeUrlPathsSeen.push(rootRelativeUrlPath);
 
               // Generate HTML file
               let htmlOutputPath = path.resolve(sails.config.appPath, path.join(APP_PATH_TO_COMPILED_PAGE_PARTIALS, htmlId+'.ejs'));
