@@ -532,7 +532,7 @@ Directly Responsible Individuals (DRI) engage in the ritual(s) below at the freq
 | 👀 Product review      | Every three weeks | Fleeties present features and improvements in the upcoming release. A discussion is held about bugs, fixes and changes to be made prior to release.  | Noah Talerman |
 | Product office hours doc prep | Weekly | Every week a backup doc is created to accompany the Product office hours event | Reed Haynes |
 | Release testing/QA | Every three weeks | Every release cycle, by end of day Wednesday of release week, all issues move to "Ready for release" on the 🚀Release board. | Reed Haynes |
-| Release testing/QA report | Every three weeks | Every release cycle, on the Monday of release week, Zach Wasserman is updated on status of testing. | Reed Haynes |
+| Release testing/QA report | Every three weeks | Every release cycle, on the Monday of release week, the (DRI for the release ritual)[https://fleetdm.com/handbook/engineering#rituals] is updated on status of testing. | Reed Haynes |
 
 
 ## Slack channels
