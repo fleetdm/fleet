@@ -254,8 +254,8 @@ module.exports = {
         // Add the #handbook label to PRs that only make changes to the handbook.
         if(isHandbookPR) {
           // [?] https://docs.github.com/en/rest/issues/labels#add-labels-to-an-issue
-          await sails.helpers.http.post(`https://api.github.com/repos/${owner}/${repo}/issue/${prNumber}/labels`, {
-            labels: '#handbook'
+          await sails.helpers.http.post(`https://api.github.com/repos/${owner}/${repo}/issues/${prNumber}/labels`, {
+            labels: ['#handbook']
           }, baseHeaders);
         }
 
