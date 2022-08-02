@@ -177,6 +177,7 @@ the way that the Fleet server works.
 
 			var ds fleet.Datastore
 			var carveStore fleet.CarveStore
+			var installerStore fleet.InstallerStore
 			mailService := mail.NewService()
 
 			opts := []mysql.DBOption{mysql.Logger(logger), mysql.WithFleetConfig(&config)}
@@ -205,6 +206,14 @@ the way that the Fleet server works.
 				}
 			} else {
 				carveStore = ds
+			}
+
+			if config.Packaging.S3.Bucket != "" {
+				var err error
+				installerStore, err = s3.NewInstallerStore(config.Packaging.S3)
+				if err != nil {
+					initFatal(err, "initializing S3 installer store")
+				}
 			}
 
 			migrationStatus, err := ds.MigrationStatus(cmd.Context())
@@ -288,6 +297,7 @@ the way that the Fleet server works.
 							"#  ignored, if you really need to configure an enroll secret please\n" +
 							"#  remove the global enroll secret from the database manually.\n" +
 							"################################################################################\n")
+						os.Exit(1)
 					}
 				} else {
 					ds.ApplyEnrollSecrets(cmd.Context(), nil, []*fleet.EnrollSecret{{Secret: config.Packaging.GlobalEnrollSecret}})
@@ -373,7 +383,7 @@ the way that the Fleet server works.
 			defer cancelFunc()
 			eh := errorstore.NewHandler(ctx, redisPool, logger, config.Logging.ErrorRetentionPeriod)
 			ctx = ctxerr.NewContext(ctx, eh)
-			svc, err := service.NewService(ctx, ds, task, resultStore, logger, osqueryLogger, config, mailService, clock.C, ssoSessionStore, liveQueryStore, carveStore, *license, failingPolicySet, geoIP, redisWrapperDS)
+			svc, err := service.NewService(ctx, ds, task, resultStore, logger, osqueryLogger, config, mailService, clock.C, ssoSessionStore, liveQueryStore, carveStore, installerStore, *license, failingPolicySet, geoIP, redisWrapperDS)
 			if err != nil {
 				initFatal(err, "initializing service")
 			}
@@ -427,7 +437,10 @@ the way that the Fleet server works.
 
 			var apiHandler, frontendHandler http.Handler
 			{
-				frontendHandler = service.PrometheusMetricsHandler("get_frontend", service.ServeFrontend(config.Server.URLPrefix, httpLogger))
+				frontendHandler = service.PrometheusMetricsHandler(
+					"get_frontend",
+					service.ServeFrontend(config.Server.URLPrefix, config.Server.SandboxEnabled, httpLogger),
+				)
 				apiHandler = service.MakeHandler(svc, config, httpLogger, limiterStore)
 
 				setupRequired, err := svc.SetupRequired(context.Background())
@@ -639,7 +652,7 @@ const (
 	lockKeyWorker                  = "worker"
 )
 
-func trySendStatistics(ctx context.Context, ds fleet.Datastore, frequency time.Duration, url string, license *fleet.LicenseInfo) error {
+func trySendStatistics(ctx context.Context, ds fleet.Datastore, frequency time.Duration, url string, config configpkg.FleetConfig, license *fleet.LicenseInfo) error {
 	ac, err := ds.AppConfig(ctx)
 	if err != nil {
 		return err
@@ -648,7 +661,7 @@ func trySendStatistics(ctx context.Context, ds fleet.Datastore, frequency time.D
 		return nil
 	}
 
-	stats, shouldSend, err := ds.ShouldSendStatistics(ctx, frequency, license)
+	stats, shouldSend, err := ds.ShouldSendStatistics(ctx, frequency, config, license)
 	if err != nil {
 		return err
 	}
@@ -681,9 +694,9 @@ func runCrons(
 	// StartCollectors starts a goroutine per collector, using ctx to cancel.
 	task.StartCollectors(ctx, kitlog.With(logger, "cron", "async_task"))
 
-	go cronDB(ctx, ds, kitlog.With(logger, "cron", "cleanups"), ourIdentifier, license, enrollHostLimiter)
+	go cronDB(ctx, ds, kitlog.With(logger, "cron", "cleanups"), ourIdentifier, &config, license, enrollHostLimiter)
 	go cronVulnerabilities(
-		ctx, ds, kitlog.With(logger, "cron", "vulnerabilities"), ourIdentifier, config.Vulnerabilities)
+		ctx, ds, kitlog.With(logger, "cron", "vulnerabilities"), ourIdentifier, &config.Vulnerabilities)
 	go cronWebhooks(ctx, ds, kitlog.With(logger, "cron", "webhooks"), ourIdentifier, failingPoliciesSet, 1*time.Hour)
 	go cronWorker(ctx, ds, kitlog.With(logger, "cron", "worker"), ourIdentifier)
 }

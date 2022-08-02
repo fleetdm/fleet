@@ -13,6 +13,7 @@ import PATHS from "router/paths";
 import Button from "components/buttons/Button";
 import TableDataError from "components/DataError";
 import Spinner from "components/Spinner";
+import MainContent from "components/MainContent";
 import PacksListWrapper from "./components/PacksListWrapper";
 import RemovePackModal from "./components/RemovePackModal";
 
@@ -152,8 +153,8 @@ const ManagePacksPage = ({ router }: IManagePacksPageProps): JSX.Element => {
   };
 
   return (
-    <div className={baseClass}>
-      <div className={`${baseClass}__wrapper body-wrap`}>
+    <MainContent className={baseClass}>
+      <div className={`${baseClass}__wrapper`}>
         <div className={`${baseClass}__header-wrap`}>
           <div className={`${baseClass}__header`}>
             <div className={`${baseClass}__text`}>
@@ -202,7 +203,7 @@ const ManagePacksPage = ({ router }: IManagePacksPageProps): JSX.Element => {
           />
         )}
       </div>
-    </div>
+    </MainContent>
   );
 };
 

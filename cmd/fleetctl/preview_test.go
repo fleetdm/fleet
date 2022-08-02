@@ -2,7 +2,6 @@ package main
 
 import (
 	"bytes"
-	"os"
 	"path/filepath"
 	"regexp"
 	"strings"
@@ -15,7 +14,7 @@ import (
 func TestPreview(t *testing.T) {
 	nettest.Run(t)
 
-	os.Setenv("FLEET_SERVER_ADDRESS", "https://localhost:8412")
+	t.Setenv("FLEET_SERVER_ADDRESS", "https://localhost:8412")
 	testOverridePreviewDirectory = t.TempDir()
 	configPath := filepath.Join(t.TempDir(), "config")
 	t.Log("config path: ", configPath)

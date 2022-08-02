@@ -306,7 +306,7 @@ describe("Premium tier - Observer user", () => {
     describe("User profile page", () => {
       it("should render elements according to role-based access controls", () => {
         cy.visit("/profile");
-        cy.getAttached(".user-settings__additional").within(() => {
+        cy.getAttached(".user-side-panel").within(() => {
           cy.findByText(/team/i)
             .next()
             .contains(/apples/i);

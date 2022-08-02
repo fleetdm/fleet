@@ -6,6 +6,7 @@ import (
 	"io"
 	"path"
 
+	"github.com/aws/aws-sdk-go/aws/awserr"
 	"github.com/aws/aws-sdk-go/service/s3"
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
@@ -16,6 +17,18 @@ const (
 	desktopPath = "desktop"
 	executable  = "fleet-osquery"
 )
+
+type installerNotFoundError struct{}
+
+var _ fleet.NotFoundError = (*installerNotFoundError)(nil)
+
+func (p installerNotFoundError) Error() string {
+	return "installer not found"
+}
+
+func (p installerNotFoundError) IsNotFound() bool {
+	return true
+}
 
 // InstallerStore contains methods to retrieve installers from S3
 type InstallerStore struct {
@@ -31,24 +44,23 @@ func NewInstallerStore(config config.S3Config) (*InstallerStore, error) {
 	return &InstallerStore{s3store}, nil
 }
 
-// Exists checks if an installer exists in the S3 bucket
-func (i *InstallerStore) Exists(ctx context.Context, installer fleet.Installer) (bool, error) {
-	key := i.keyForInstaller(installer)
-	_, err := i.s3client.HeadObject(&s3.HeadObjectInput{Bucket: &i.bucket, Key: &key})
-	if err != nil {
-		return false, err
-	}
-	return true, nil
-}
-
 // Get retrieves the requested installer from S3
-func (i *InstallerStore) Get(ctx context.Context, installer fleet.Installer) (io.ReadCloser, error) {
+func (i *InstallerStore) Get(ctx context.Context, installer fleet.Installer) (io.ReadCloser, int64, error) {
 	key := i.keyForInstaller(installer)
 	req, err := i.s3client.GetObject(&s3.GetObjectInput{Bucket: &i.bucket, Key: &key})
+
 	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "get installer from storage")
+		if aerr, ok := err.(awserr.Error); ok {
+			switch aerr.Code() {
+			case s3.ErrCodeNoSuchKey, s3.ErrCodeNoSuchBucket, "NotFound":
+				return nil, int64(0), installerNotFoundError{}
+			}
+		}
+
+		return nil, int64(0), ctxerr.Wrap(ctx, err, "retrieving installer from store")
 	}
-	return req.Body, nil
+
+	return req.Body, *req.ContentLength, nil
 }
 
 // Put uploads an installer to S3

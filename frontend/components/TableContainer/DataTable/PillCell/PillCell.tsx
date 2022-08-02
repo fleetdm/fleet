@@ -23,7 +23,8 @@ const PillCell = ({
 
   const pillClassName = classnames(
     "data-table__pill",
-    `data-table__pill--${generateClassTag(pillText)}`
+    `data-table__pill--${generateClassTag(pillText)}`,
+    "tooltip"
   );
 
   const disable = () => {
@@ -99,16 +100,12 @@ const PillCell = ({
       <ReactTooltip
         place="bottom"
         // offset={getTooltipOffset(pillText)}
-        type="dark"
         effect="solid"
         backgroundColor="#3e4771"
         id={`${customIdPrefix || "pill"}__${id?.toString() || uniqueId()}`}
         data-html
       >
-        <span
-          className={`tooltip ${generateClassTag(pillText)}__tooltip-text`}
-          style={{ textAlign: "center" }}
-        >
+        <span className={`tooltip ${generateClassTag(pillText)}__tooltip-text`}>
           {tooltipText()}
         </span>
       </ReactTooltip>

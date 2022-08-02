@@ -504,7 +504,6 @@ const PolicyForm = ({
           <ReactTooltip
             className={`${baseClass}__button-wrap--tooltip`}
             place="bottom"
-            type="dark"
             effect="solid"
             id={`${baseClass}__button-wrap--tooltip`}
             backgroundColor="#3e4771"

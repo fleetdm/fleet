@@ -144,7 +144,7 @@ The following permissions are the minimum required to apply AWS terraform resour
 
 ### GCP
 
-GCP reference architecture can be found [here](https://github.com/fleetdm/fleet/tree/main/tools/terraform/gcp). This configuration includes:
+GCP reference architecture can be found in [the Fleet repository](https://github.com/fleetdm/fleet/tree/main/infrastructure/dogfood/terraform/gcp). This configuration includes:
 
 - Cloud Run (Fleet backend)
 - Cloud SQL MySQL 5.7 (Fleet database)

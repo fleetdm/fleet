@@ -23,11 +23,19 @@ body {
     opacity: 1; // Overrides 0.9 default opacity
     text-align: center;
   }
-}
 
-.wrapper,
-.wrapper > div {
-  min-height: 100vh;
+  .tooltip {
+    &:hover {
+      cursor: help;
+    }
+
+    .button--disabled,
+    .fleet-checkbox__tick--disabled {
+      &:hover {
+        cursor: help;
+      }
+    }
+  }
 }
 
 h1,
@@ -48,11 +56,6 @@ a {
   color: $core-vibrant-blue;
   font-weight: bold;
   text-decoration: none;
-}
-
-.wrapper {
-  background: $gradients-dark-gradient-vertical;
-  margin: 0;
 }
 
 .body-wrap {

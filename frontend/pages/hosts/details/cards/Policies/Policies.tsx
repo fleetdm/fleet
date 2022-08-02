@@ -61,9 +61,9 @@ const Policies = ({
       {policies.length > 0 && (
         <>
           {failingResponses?.length > 0 && (
-            <PolicyFailingCount policyList={policies} />
+            <PolicyFailingCount policyList={policies} deviceUser={deviceUser} />
           )}
-          {noResponses?.length > 0 && (
+          {noResponses?.length > 0 && !deviceUser && (
             <InfoBanner>
               <p>
                 This host is not updating the response for some policies. Check

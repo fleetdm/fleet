@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/http"
 
+	authz_ctx "github.com/fleetdm/fleet/v4/server/contexts/authz"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/go-kit/kit/endpoint"
 	kithttp "github.com/go-kit/kit/transport/http"
@@ -80,6 +81,10 @@ func (m *ErrorMiddleware) Limit(keyName string, quota throttled.RateQuota) endpo
 				return nil, ctxerr.Wrap(ctx, err, "check rate limit")
 			}
 			if result.Remaining == 0 {
+				// We need to set authentication as checked, otherwise we end up returning HTTP 500 errors.
+				if az, ok := authz_ctx.FromContext(ctx); ok {
+					az.SetChecked()
+				}
 				return nil, ctxerr.Wrap(ctx, &ratelimitError{result: result})
 			}
 

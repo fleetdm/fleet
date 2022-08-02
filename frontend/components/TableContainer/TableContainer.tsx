@@ -334,8 +334,6 @@ const TableContainer = ({
                 />
               </div>
               <ReactTooltip
-                place="top"
-                type="dark"
                 effect="solid"
                 backgroundColor="#3e4771"
                 id="search-tooltip"

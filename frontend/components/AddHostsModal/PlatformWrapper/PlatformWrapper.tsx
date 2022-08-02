@@ -53,23 +53,21 @@ const platformSubNav: IPlatformSubNav[] = [
   },
 ];
 
-interface IPlatformWrapperProp {
-  selectedTeam: ITeam | { name: string; secrets: IEnrollSecret[] | null };
+interface IPlatformWrapperProps {
+  enrollSecret: string;
   onCancel: () => void;
 }
 
 const baseClass = "platform-wrapper";
 
 const PlatformWrapper = ({
-  selectedTeam,
+  enrollSecret,
   onCancel,
-}: IPlatformWrapperProp): JSX.Element => {
+}: IPlatformWrapperProps): JSX.Element => {
   const { config, isPreviewMode } = useContext(AppContext);
   const { renderFlash } = useContext(NotificationContext);
   const [copyMessage, setCopyMessage] = useState<Record<string, string>>({});
-  const [includeFleetDesktop, setIncludeFleetDesktop] = useState<boolean>(
-    false
-  );
+  const [includeFleetDesktop, setIncludeFleetDesktop] = useState<boolean>(true);
   const [showPlainOsquery, setShowPlainOsquery] = useState<boolean>(false);
 
   const {
@@ -126,11 +124,6 @@ const PlatformWrapper = ({
 --carver_start_endpoint=/api/v1/osquery/carve/begin
 --carver_continue_endpoint=/api/v1/osquery/carve/block
 --carver_block_size=2000000`;
-
-  let enrollSecret: string;
-  if (selectedTeam.secrets) {
-    enrollSecret = selectedTeam.secrets[0].secret;
-  }
 
   const onDownloadEnrollSecret = (evt: React.MouseEvent) => {
     evt.preventDefault();
@@ -407,7 +400,7 @@ const PlatformWrapper = ({
       <>
         <Checkbox
           name="include-fleet-desktop"
-          onChange={() => setIncludeFleetDesktop(!includeFleetDesktop)}
+          onChange={(value: boolean) => setIncludeFleetDesktop(value)}
           value={includeFleetDesktop}
         >
           <>

@@ -32,7 +32,7 @@ WHERE url = 'http://ipapi.co/json';
 Other techniques
 A common technique for geolocation of macOS devices with osquery is to use the `wifi_survey` table in combination with the [Google Geolocation API](https://developers.google.com/maps/documentation/geolocation/intro#wifi_access_point_object). This strategy has become more difficult to use due to security controls introduced in macOS 10.15, and poses privacy concerns due to the precision of the location data returned by the API.
 
-<meta name="category" value="product">
+<meta name="category" value="guides">
 <meta name="authorGitHubUsername" value="zwass">
 <meta name="authorFullName" value="Zach Wasserman">
 <meta name="publishedOn" value="2021-05-11">

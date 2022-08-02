@@ -493,7 +493,7 @@ func TestDangerousReplaceQuery(t *testing.T) {
 	queries := GetDetailQueries(&fleet.AppConfig{HostSettings: fleet.HostSettings{EnableHostUsers: true}}, config.FleetConfig{})
 	originalQuery := queries["users"].Query
 
-	require.NoError(t, os.Setenv("FLEET_DANGEROUS_REPLACE_USERS", "select * from blah"))
+	t.Setenv("FLEET_DANGEROUS_REPLACE_USERS", "select * from blah")
 	queries = GetDetailQueries(&fleet.AppConfig{HostSettings: fleet.HostSettings{EnableHostUsers: true}}, config.FleetConfig{})
 	assert.NotEqual(t, originalQuery, queries["users"].Query)
 

@@ -44,7 +44,7 @@ func connectMySQL(t testing.TB, testName string, opts *DatastoreTestOptions) *Da
 		replicaConf.Database += testReplicaDatabaseSuffix
 		replicaOpt = Replica(&replicaConf)
 	}
-	ds, err := New(config, clock.NewMockClock(), Logger(log.NewNopLogger()), LimitAttempts(1), replicaOpt)
+	ds, err := New(config, clock.NewMockClock(), Logger(log.NewNopLogger()), LimitAttempts(1), replicaOpt, SQLMode("ANSI_QUOTES"))
 	require.Nil(t, err)
 
 	if opts.Replica {
@@ -269,7 +269,6 @@ func CreateNamedMySQLDS(t *testing.T, name string) *Datastore {
 		t.Skip("MySQL tests are disabled")
 	}
 
-	t.Parallel()
 	ds := initializeDatabase(t, name, new(DatastoreTestOptions))
 	t.Cleanup(func() { ds.Close() })
 	return ds

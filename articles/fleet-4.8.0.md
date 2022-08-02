@@ -2,7 +2,7 @@
 
 Thank you for all the hard work of our contributors and Fleet team members. Before the year closes, we’re excited to bring yet another update with Fleet 4.8.0!
 
-![Fleet 4.8.0](../website/assets/images/articles/fleet-4.8.0-cover-700x393@2x.png)
+![Fleet 4.8.0](../website/assets/images/articles/fleet-4.8.0-cover-1600x900@2x.jpg)
 
 At Fleet, we aim to help users maintain control of their environments and gain the valuable information necessary to start 2022 in confidence. We’re kicking off the new year with policy automations, enhanced searchability, and a multitude of additional features, bug fixes, and improvements:
 

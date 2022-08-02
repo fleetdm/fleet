@@ -1845,16 +1845,6 @@ func TestUpdateHostIntervals(t *testing.T) {
 	}
 }
 
-type notFoundError struct{}
-
-func (e notFoundError) Error() string {
-	return "not found"
-}
-
-func (e notFoundError) IsNotFound() bool {
-	return true
-}
-
 func TestAuthenticationErrors(t *testing.T) {
 	ms := new(mock.Store)
 	ms.LoadHostByNodeKeyFunc = func(ctx context.Context, nodeKey string) (*fleet.Host, error) {

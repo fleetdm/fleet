@@ -23,7 +23,8 @@
 
   .section--vulnerabilities {
     .component__tooltip-wrapper__tip-text {
-      max-width: none;
+      max-width: $col-md;
+      white-space: normal;
     }
 
     .data-table-block {
@@ -37,6 +38,15 @@
           }
           .cvss_score__header {
             width: $col-sm;
+          }
+
+          @media (max-width: $tooltip-break-1000) {
+            .cisa_known_exploit__header {
+              .component__tooltip-wrapper__tip-text {
+                max-width: 200px; // Prevents horizontal scrolling off viewport
+                white-space: normal;
+              }
+            }
           }
         }
 
