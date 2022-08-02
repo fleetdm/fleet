@@ -96,6 +96,30 @@
     li::marker {
       color: @core-vibrant-blue;
     }
+    [purpose='checklist-item'] {
+      display: flex;
+      input[type='checkbox'] {
+        margin-left: -18px;
+        min-width: 16px;
+        min-height: 16px;
+        align-self: center;
+      }
+      input:checked,:active {
+        accent-color: @core-vibrant-blue;
+      }
+      [purpose='task'] {
+        margin-left: 16px;
+        input {
+          display: none;
+        }
+        p {
+          margin-bottom: 0px;
+        }
+      }
+    }
+    [purpose='checklist-item']::marker {
+      display: none;
+    }
     code:not(.nohighlight):not(.mermaid) {
       background: #F1F0FF;
       padding: 4px 8px;

@@ -547,6 +547,30 @@
         border-top: 1px solid @core-fleet-black-25;
         border-bottom: 1px solid @core-fleet-black-25;
       }
+      [purpose='checklist-item'] {
+        display: flex;
+        input[type='checkbox'] {
+          margin-left: -18px;
+          min-width: 16px;
+          min-height: 16px;
+          align-self: center;
+        }
+        input:checked,:active {
+          accent-color: @core-vibrant-blue;
+        }
+        [purpose='task'] {
+          margin-left: 8px;
+          input {
+            display: none;
+          }
+          p {
+            margin-bottom: 0px;
+          }
+        }
+      }
+      [purpose='checklist-item']::marker {
+        display: none;
+      }
 
     }
 
