@@ -57,6 +57,7 @@ const WelcomeHost = ({
     ["host"],
     () => hostAPI.loadHostDetails(HOST_ID),
     {
+      retry: false,
       select: (data: IHostResponse) => data.host,
       onSuccess: (returnedHost) => {
         setShowRefetchLoadingSpinner(returnedHost.refetch_requested);

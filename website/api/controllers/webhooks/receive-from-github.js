@@ -238,6 +238,8 @@ module.exports = {
           isGithubUserMaintainerOrDoesntMatter: GITHUB_USERNAMES_OF_BOTS_AND_MAINTAINERS.includes(sender.login.toLowerCase())
         });
 
+        let isHandbookPR = await sails.helpers.githubAutomations.getIsPrOnlyHandbookChanges.with({prNumber: prNumber});
+
         // Check whether the "main" branch is currently frozen (i.e. a feature freeze)
         // [?] https://docs.mergefreeze.com/web-api#get-freeze-status
         let mergeFreezeMainBranchStatusReport = await sails.helpers.http.get('https://www.mergefreeze.com/api/branches/fleetdm/fleet/main', { access_token: sails.config.custom.mergeFreezeAccessToken }); //eslint-disable-line camelcase
@@ -248,6 +250,14 @@ module.exports = {
           // reports that the repo is not frozen, when it actually is frozen.
           Date.now() < (new Date('Jul 28, 2022 14:00 UTC')).getTime()
         );
+
+        // Add the #handbook label to PRs that only make changes to the handbook.
+        if(isHandbookPR) {
+          // [?] https://docs.github.com/en/rest/issues/labels#add-labels-to-an-issue
+          await sails.helpers.http.post(`https://api.github.com/repos/${owner}/${repo}/issues/${prNumber}/labels`, {
+            labels: ['#handbook']
+          }, baseHeaders);
+        }
 
         // Now, if appropriate, auto-approve the change.
         if (isAutoApproved) {
