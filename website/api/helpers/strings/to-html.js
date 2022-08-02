@@ -112,6 +112,17 @@ module.exports = {
       return `<blockquote><img src="/images/icon-info-16x16@2x.png" alt="An icon indicating that this section has important information"><div class="d-block">`+quote+`</div></blockquote>\n`;
     };
 
+    // Custom renderer function to enable checkboxes in Markdown lists.
+    customRenderer.listitem = function(text, task, checked){
+      if(!task){ // « If a listitem has a checkbox (- [ ]), we'll add a new checkbox, and hide the
+        return `<li>${text}</li>`;
+      } else if(checked) {// If this checkbox was checked in Markdown (- [x]), we'll add a disabled checked checkbox, and hide the original checkbox with CSS
+        return `<li purpose="checklist-item"><input disabled="" type="checkbox" checked><span purpose="task">${text}</span></li>`;
+      } else {// If the checkbox was not checked, we'll add a checkbox that can be checked by users, and hide the original checkbox with CSS.
+        return `<li purpose="checklist-item"><input type="checkbox"><span purpose="task">${text}</span></li>`;
+      }
+    };
+
     markedOpts.renderer = customRenderer;
     // Now actually compile the markdown to HTML.
     marked(inputs.mdString, markedOpts, function afterwards (err, htmlString) {
