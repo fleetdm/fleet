@@ -25,7 +25,8 @@ interface IMDMCardProps {
 }
 
 const DEFAULT_SORT_DIRECTION = "desc";
-const DEFAULT_SORT_HEADER = "hosts_count";
+const SOLUTIONS_DEFAULT_SORT_HEADER = "hosts_count";
+const ENROLLMENT_DEFAULT_SORT_HEADER = "hosts";
 const PAGE_SIZE = 8;
 const baseClass = "home-mdm";
 
@@ -148,7 +149,7 @@ const MDM = ({
                   columns={solutionsTableHeaders}
                   data={solutions}
                   isLoading={isMDMFetching}
-                  defaultSortHeader={DEFAULT_SORT_HEADER}
+                  defaultSortHeader={SOLUTIONS_DEFAULT_SORT_HEADER}
                   defaultSortDirection={DEFAULT_SORT_DIRECTION}
                   hideActionButton
                   resultsTitle={"MDM"}
@@ -169,7 +170,7 @@ const MDM = ({
                   columns={enrollmentTableHeaders}
                   data={formattedMDMData}
                   isLoading={isMDMFetching}
-                  defaultSortHeader={DEFAULT_SORT_HEADER}
+                  defaultSortHeader={ENROLLMENT_DEFAULT_SORT_HEADER}
                   defaultSortDirection={DEFAULT_SORT_DIRECTION}
                   hideActionButton
                   resultsTitle={"MDM"}

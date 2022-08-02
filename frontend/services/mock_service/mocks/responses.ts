@@ -443,4 +443,180 @@ const macAdmins = {
   },
 };
 
-export default { count, hosts, labels, macAdmins };
+const macAdminsApples = {
+  macadmins: {
+    counts_updated_at: "2022-05-21 12:32:44",
+    munki_versions: [
+      {
+        version: "5.5",
+        hosts_count: 830,
+      },
+      {
+        version: "5.4",
+        hosts_count: 170,
+      },
+      {
+        version: "5.3",
+        hosts_count: 40,
+      },
+      {
+        version: "5.2.3",
+        hosts_count: 12,
+      },
+      {
+        version: "5.2.2",
+        hosts_count: 5,
+      },
+    ],
+    mobile_device_management_enrollment_status: {
+      enrolled_manual_hosts_count: 14,
+      enrolled_automated_hosts_count: 24,
+      unenrolled_hosts_count: 11,
+    },
+    mobile_device_management_solution: [
+      {
+        name: "SimpleMDM",
+        server_url: "https://a.simplemdm.com/mdm",
+        hosts_count: 80,
+      },
+      {
+        name: "Intune",
+        server_url: "https://a.intune.com/mdm",
+        hosts_count: 10,
+      },
+      {
+        name: "Solution 3",
+        server_url: "https://a.solution3.com/mdm",
+        hosts_count: 1,
+      },
+      {
+        name: "Solution 4",
+        server_url: "https://a.solution4.com/mdm",
+        hosts_count: 2,
+      },
+      {
+        name: "Solution 5",
+        server_url: "https://a.solution5.com/mdm",
+        hosts_count: 3,
+      },
+      {
+        name: "Solution 6",
+        server_url: "https://a.solution6.com/mdm",
+        hosts_count: 4,
+      },
+      {
+        name: "Solution 7",
+        server_url: "https://a.solutionnumber7.com/mdm",
+        hosts_count: 35,
+      },
+      {
+        name: "Solution 8",
+        server_url: "https://a.solution8.com/mdm",
+        hosts_count: 45,
+      },
+      {
+        name: "Solution 9",
+        server_url: "https://a.solutionnumber9.com/mdm",
+        hosts_count: 50,
+      },
+      {
+        name: "Solution 10",
+        server_url: "https://a.solutionx.com/mdm",
+        hosts_count: 450,
+      },
+    ],
+  },
+};
+
+const macAdminsOranges = {
+  macadmins: {
+    counts_updated_at: "2022-05-21 12:32:44",
+    munki_versions: [
+      {
+        version: "5.5",
+        hosts_count: 8990,
+      },
+      {
+        version: "5.4",
+        hosts_count: 1790,
+      },
+      {
+        version: "5.3",
+        hosts_count: 940,
+      },
+      {
+        version: "5.2.3",
+        hosts_count: 172,
+      },
+      {
+        version: "5.2.2",
+        hosts_count: 775,
+      },
+    ],
+    mobile_device_management_enrollment_status: {
+      enrolled_manual_hosts_count: 174,
+      enrolled_automated_hosts_count: 274,
+      unenrolled_hosts_count: 711,
+    },
+    mobile_device_management_solution: [
+      {
+        name: "SimpleMDM",
+        server_url: "https://a.simplemdm.com/mdm",
+        hosts_count: 880,
+      },
+      {
+        name: "Intune",
+        server_url: "https://a.intune.com/mdm",
+        hosts_count: 180,
+      },
+      {
+        name: "Solution 3",
+        server_url: "https://a.solution3.com/mdm",
+        hosts_count: 81,
+      },
+      {
+        name: "Solution 4",
+        server_url: "https://a.solution4.com/mdm",
+        hosts_count: 28,
+      },
+      {
+        name: "Solution 5",
+        server_url: "https://a.solution5.com/mdm",
+        hosts_count: 38,
+      },
+      {
+        name: "Solution 6",
+        server_url: "https://a.solution6.com/mdm",
+        hosts_count: 94,
+      },
+      {
+        name: "Solution 7",
+        server_url: "https://a.solutionnumber7.com/mdm",
+        hosts_count: 375,
+      },
+      {
+        name: "Solution 8",
+        server_url: "https://a.solution8.com/mdm",
+        hosts_count: 645,
+      },
+      {
+        name: "Solution 9",
+        server_url: "https://a.solutionnumber9.com/mdm",
+        hosts_count: 550,
+      },
+      {
+        name: "Solution 10",
+        server_url: "https://a.solutionx.com/mdm",
+        hosts_count: 50,
+      },
+    ],
+  },
+};
+export default {
+  count,
+  hosts,
+  labels,
+  macAdmins,
+  macAdminsApples,
+  macAdminsOranges,
+};
