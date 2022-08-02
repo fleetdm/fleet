@@ -16,7 +16,7 @@ Unfortunately, hoping a company creates a niche product is not a winning strateg
 do something about it. Why not 3D print a case that could hold my YubiKey securely, along with an
 AirTag?
 
-![Yubitrak seen from the top with an Airtag](../website/assets/images/articles/lossless-yubikeys-with-yubitrak-and-airtag-2-2016x1512@2x.jpeg)
+![Yubitrak seen from the top with an Airtag](../website/assets/images/articles/lossless-yubikeys-with-yubitrak-and-airtag-2-2016x1512@2x.jpg)
 
 
 Many would say: why don't you just put it on your keychain? Then put the AirTag on the same keychain! While that works, I use Yubikeys many times a day to sign in to different sites and to sign [git commits](https://developers.yubico.com/PGP/Git_signing.html). I definitely wouldn't want my actual keys stuck to my laptop all day. The real reason, however, is that this is way more *fun*.

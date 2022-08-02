@@ -61,10 +61,10 @@ module.exports = {
     // Most of the js modules written by us need to be rewritten into TS. Until then
     // we use ts-ignore comment to ignore the error TS gives us from not having those modules
     // declared (TS7016). This is done on purpose as there is not time to rewrite everything in TS.
-    '@typescript-eslint/ban-ts-comment': 'off',
+    "@typescript-eslint/ban-ts-comment": "off",
 
-    'no-shadow': 'off', // replaced by ts-eslint rule below
-    '@typescript-eslint/no-shadow': 'error',
+    "no-shadow": "off", // replaced by ts-eslint rule below
+    "@typescript-eslint/no-shadow": "error",
 
     // There is a bug with these rules in our version of jsx-a11y plugin (5.1.1)
     // To upgrade our version of the plugin we would need to make more changes
@@ -73,14 +73,6 @@ module.exports = {
     "jsx-a11y/anchor-has-content": "off",
   },
   overrides: [
-    {
-      files: ["*.ts", "*.tsx"],
-      rules: {
-        // Set to warn for now at the beginning to make migration easier
-        // but want to change this to error when we can.
-        "@typescript-eslint/explicit-module-boundary-types": ["warn"],
-      },
-    },
     {
       files: ["cypress/**/*.ts"],
       // Set to turn off jest linting error on cypress library
