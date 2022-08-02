@@ -1349,10 +1349,11 @@ func (ds *Datastore) SetOrUpdateMunkiVersion(ctx context.Context, hostID uint, v
 }
 
 func (ds *Datastore) SetOrUpdateMDMData(ctx context.Context, hostID uint, enrolled bool, serverURL string, installedFromDep bool) error {
+	// TODO(mna): load mdm id based on name extracted from server URL (unless name is unknown)
 	return ds.updateOrInsert(
 		ctx,
-		`UPDATE host_mdm SET enrolled = ?, server_url = ?, installed_from_dep = ? WHERE host_id = ?`,
-		`INSERT INTO host_mdm (enrolled, server_url, installed_from_dep, host_id) VALUES (?, ?, ?, ?)`,
+		`UPDATE host_mdm SET enrolled = ?, server_url = ?, installed_from_dep = ?, mdm_id = ? WHERE host_id = ?`,
+		`INSERT INTO host_mdm (enrolled, server_url, installed_from_dep, host_id, mdm_id) VALUES (?, ?, ?, ?, ?)`,
 		enrolled, serverURL, installedFromDep, hostID,
 	)
 }

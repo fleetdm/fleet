@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"errors"
+	"strings"
 	"time"
 )
 
@@ -303,12 +304,33 @@ type HostMDM struct {
 // List of well-known MDM solution names. Those correspond to names stored in
 // the mobile_device_management_solutions table, created via (data) migrations.
 const (
+	UnknownMDMName        = "---"
 	WellKnownMDMKandji    = "Kandji"
 	WellKnownMDMJamf      = "Jamf"
 	WellKnownMDMVMWare    = "VMware Workspace ONE"
 	WellKnownMDMIntune    = "Intune"
 	WellKnownMDMSimpleMDM = "SimpleMDM"
 )
+
+// MDMNameFromServerURL returns the MDM solution name corresponding to the
+// given server URL. If no match is found, it returns the unknown MDM name.
+func MDMNameFromServerURL(serverURL string) string {
+	checks := map[string]string{
+		"kandji":    WellKnownMDMKandji,
+		"jamf":      WellKnownMDMJamf,
+		"airwatch":  WellKnownMDMVMWare,
+		"microsoft": WellKnownMDMIntune,
+		"simplemdm": WellKnownMDMSimpleMDM,
+	}
+
+	serverURL = strings.ToLower(serverURL)
+	for check, name := range checks {
+		if strings.Contains(serverURL, check) {
+			return name
+		}
+	}
+	return UnknownMDMName
+}
 
 func (h *HostMDM) EnrollmentStatus() string {
 	switch {
