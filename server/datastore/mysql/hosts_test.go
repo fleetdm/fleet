@@ -3528,31 +3528,31 @@ func testHostMDMAndMunki(t *testing.T, ds *Datastore) {
 	_, err = ds.GetMunkiVersion(context.Background(), 123)
 	require.True(t, fleet.IsNotFound(err))
 
-	_, _, _, err = ds.GetMDM(context.Background(), 432)
+	_, err = ds.GetMDM(context.Background(), 432)
 	require.True(t, fleet.IsNotFound(err), err)
 
 	require.NoError(t, ds.SetOrUpdateMDMData(context.Background(), 432, true, "url", false))
 
-	enrolled, serverURL, installedFromDep, err := ds.GetMDM(context.Background(), 432)
+	hmdm, err := ds.GetMDM(context.Background(), 432)
 	require.NoError(t, err)
-	assert.True(t, enrolled)
-	assert.Equal(t, "url", serverURL)
-	assert.False(t, installedFromDep)
+	assert.True(t, hmdm.Enrolled)
+	assert.Equal(t, "url", hmdm.ServerURL)
+	assert.False(t, hmdm.InstalledFromDep)
 
 	require.NoError(t, ds.SetOrUpdateMDMData(context.Background(), 455, true, "url2", true))
 	require.NoError(t, ds.SetOrUpdateMDMData(context.Background(), 432, false, "url3", true))
 
-	enrolled, serverURL, installedFromDep, err = ds.GetMDM(context.Background(), 432)
+	hmdm, err = ds.GetMDM(context.Background(), 432)
 	require.NoError(t, err)
-	assert.False(t, enrolled)
-	assert.Equal(t, "url3", serverURL)
-	assert.True(t, installedFromDep)
+	assert.False(t, hmdm.Enrolled)
+	assert.Equal(t, "url3", hmdm.ServerURL)
+	assert.True(t, hmdm.InstalledFromDep)
 
-	enrolled, serverURL, installedFromDep, err = ds.GetMDM(context.Background(), 455)
+	hmdm, err = ds.GetMDM(context.Background(), 455)
 	require.NoError(t, err)
-	assert.True(t, enrolled)
-	assert.Equal(t, "url2", serverURL)
-	assert.True(t, installedFromDep)
+	assert.True(t, hmdm.Enrolled)
+	assert.Equal(t, "url2", hmdm.ServerURL)
+	assert.True(t, hmdm.InstalledFromDep)
 }
 
 func testAggregatedHostMDMAndMunki(t *testing.T, ds *Datastore) {

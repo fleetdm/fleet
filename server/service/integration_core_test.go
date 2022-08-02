@@ -2238,6 +2238,16 @@ func (s *integrationTestSuite) TestListHostsDeviceMappingSize() {
 	require.Len(t, dm, testSize)
 }
 
+type macadminsDataResponse struct {
+	Macadmins *struct {
+		Munki *fleet.HostMunkiInfo `json:"munki"`
+		MDM   *struct {
+			EnrollmentStatus string `json:"enrollment_status"`
+			ServerURL        string `json:"server_url"`
+		} `json:"mobile_device_management"`
+	} `json:"macadmins"`
+}
+
 func (s *integrationTestSuite) TestGetMacadminsData() {
 	t := s.T()
 
@@ -2306,7 +2316,7 @@ func (s *integrationTestSuite) TestGetMacadminsData() {
 	require.NoError(t, s.ds.SetOrUpdateMDMData(ctx, hostAll.ID, true, "url", false))
 	require.NoError(t, s.ds.SetOrUpdateMunkiVersion(ctx, hostAll.ID, "1.3.0"))
 
-	macadminsData := getMacadminsDataResponse{}
+	macadminsData := macadminsDataResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/macadmins", hostAll.ID), nil, http.StatusOK, &macadminsData)
 	require.NotNil(t, macadminsData.Macadmins)
 	assert.Equal(t, "url", macadminsData.Macadmins.MDM.ServerURL)
@@ -2316,7 +2326,7 @@ func (s *integrationTestSuite) TestGetMacadminsData() {
 	require.NoError(t, s.ds.SetOrUpdateMDMData(ctx, hostAll.ID, true, "url2", true))
 	require.NoError(t, s.ds.SetOrUpdateMunkiVersion(ctx, hostAll.ID, "1.5.0"))
 
-	macadminsData = getMacadminsDataResponse{}
+	macadminsData = macadminsDataResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/macadmins", hostAll.ID), nil, http.StatusOK, &macadminsData)
 	require.NotNil(t, macadminsData.Macadmins)
 	assert.Equal(t, "url2", macadminsData.Macadmins.MDM.ServerURL)
@@ -2325,7 +2335,7 @@ func (s *integrationTestSuite) TestGetMacadminsData() {
 
 	require.NoError(t, s.ds.SetOrUpdateMDMData(ctx, hostAll.ID, false, "url2", false))
 
-	macadminsData = getMacadminsDataResponse{}
+	macadminsData = macadminsDataResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/macadmins", hostAll.ID), nil, http.StatusOK, &macadminsData)
 	require.NotNil(t, macadminsData.Macadmins)
 	assert.Equal(t, "Unenrolled", macadminsData.Macadmins.MDM.EnrollmentStatus)

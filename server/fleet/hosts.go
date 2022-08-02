@@ -2,7 +2,9 @@ package fleet
 
 import (
 	"context"
+	"database/sql"
 	"encoding/json"
+	"errors"
 	"time"
 )
 
@@ -286,9 +288,44 @@ type HostMunkiInfo struct {
 	Version string `json:"version"`
 }
 
+// HostMDM represents a host_mdm row, with information about the MDM solution
+// used by a host. Note that it uses a different JSON representation than its
+// struct - it implements a custom JSON marshaler.
 type HostMDM struct {
-	EnrollmentStatus string `json:"enrollment_status"`
-	ServerURL        string `json:"server_url"`
+	HostID           uint          `db:"host_id" json:"-"`
+	Enrolled         bool          `db:"enrolled" json:"-"`
+	ServerURL        string        `db:"server_url" json:"-"`
+	InstalledFromDep bool          `db:"installed_from_dep" json:"-"`
+	MDMID            sql.NullInt64 `db:"mdm_id" json:"-"`
+}
+
+func (h *HostMDM) EnrollmentStatus() string {
+	switch {
+	case h.Enrolled && !h.InstalledFromDep:
+		return "Enrolled (manual)"
+	case h.Enrolled && h.InstalledFromDep:
+		return "Enrolled (automated)"
+	default:
+		return "Unenrolled"
+	}
+}
+
+func (h *HostMDM) MarshalJSON() ([]byte, error) {
+	var jsonMDM struct {
+		EnrollmentStatus string `json:"enrollment_status"`
+		ServerURL        string `json:"server_url"`
+	}
+
+	jsonMDM.ServerURL = h.ServerURL
+	jsonMDM.EnrollmentStatus = h.EnrollmentStatus()
+	return json.Marshal(jsonMDM)
+}
+
+func (h *HostMDM) UnmarshalJSON(b []byte) error {
+	// fail attempts to unmarshal in this struct, to prevent using e.g.
+	// getMacadminsDataResponse in tests, as it can't unmarshal in a meaningful
+	// way.
+	return errors.New("JSON unmarshaling is not supported for HostMDM")
 }
 
 // HostBattery represents a host's battery, as reported by the osquery battery

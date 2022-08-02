@@ -14,7 +14,6 @@ func Up_20220802140603(tx *sql.Tx) error {
 			name,
 			server_url
 		) VALUES
-			('---', ''),
 			('Kandji', ''),
 			('Jamf', ''),
 			('VMware Workspace ONE', ''),

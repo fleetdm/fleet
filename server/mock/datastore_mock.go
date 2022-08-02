@@ -191,7 +191,7 @@ type ListPoliciesForHostFunc func(ctx context.Context, host *fleet.Host) ([]*fle
 
 type GetMunkiVersionFunc func(ctx context.Context, hostID uint) (string, error)
 
-type GetMDMFunc func(ctx context.Context, hostID uint) (enrolled bool, serverURL string, installedFromDep bool, err error)
+type GetMDMFunc func(ctx context.Context, hostID uint) (*fleet.HostMDM, error)
 
 type AggregatedMunkiVersionFunc func(ctx context.Context, teamID *uint) ([]fleet.AggregatedMunkiVersion, time.Time, error)
 
@@ -1485,7 +1485,7 @@ func (s *DataStore) GetMunkiVersion(ctx context.Context, hostID uint) (string, e
 	return s.GetMunkiVersionFunc(ctx, hostID)
 }
 
-func (s *DataStore) GetMDM(ctx context.Context, hostID uint) (enrolled bool, serverURL string, installedFromDep bool, err error) {
+func (s *DataStore) GetMDM(ctx context.Context, hostID uint) (*fleet.HostMDM, error) {
 	s.GetMDMFuncInvoked = true
 	return s.GetMDMFunc(ctx, hostID)
 }

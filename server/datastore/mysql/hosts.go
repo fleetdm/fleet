@@ -1370,20 +1370,20 @@ func (ds *Datastore) GetMunkiVersion(ctx context.Context, hostID uint) (string, 
 	return version, nil
 }
 
-func (ds *Datastore) GetMDM(ctx context.Context, hostID uint) (bool, string, bool, error) {
-	dest := struct {
-		Enrolled         bool   `db:"enrolled"`
-		ServerURL        string `db:"server_url"`
-		InstalledFromDep bool   `db:"installed_from_dep"`
-	}{}
-	err := sqlx.GetContext(ctx, ds.reader, &dest, `SELECT enrolled, server_url, installed_from_dep FROM host_mdm WHERE host_id = ?`, hostID)
+func (ds *Datastore) GetMDM(ctx context.Context, hostID uint) (*fleet.HostMDM, error) {
+	var hmdm fleet.HostMDM
+	err := sqlx.GetContext(ctx, ds.reader, &hmdm, `
+		SELECT
+			host_id, enrolled, server_url, installed_from_dep, mdm_id
+		FROM host_mdm
+		WHERE host_id = ?`, hostID)
 	if err != nil {
 		if err == sql.ErrNoRows {
-			return false, "", false, ctxerr.Wrap(ctx, notFound("MDM").WithID(hostID))
+			return nil, ctxerr.Wrap(ctx, notFound("MDM").WithID(hostID))
 		}
-		return false, "", false, ctxerr.Wrapf(ctx, err, "getting data from host_mdm for host_id %d", hostID)
+		return nil, ctxerr.Wrapf(ctx, err, "getting data from host_mdm for host_id %d", hostID)
 	}
-	return dest.Enrolled, dest.ServerURL, dest.InstalledFromDep, nil
+	return &hmdm, nil
 }
 
 func (ds *Datastore) AggregatedMunkiVersion(ctx context.Context, teamID *uint) ([]fleet.AggregatedMunkiVersion, time.Time, error) {

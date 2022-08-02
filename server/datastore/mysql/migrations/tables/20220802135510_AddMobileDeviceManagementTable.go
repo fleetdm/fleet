@@ -31,7 +31,7 @@ CREATE TABLE mobile_device_management_solutions (
 	fmt.Println("Adding column mdm_id to table host_mdm...")
 	// adding as NULLable to prevent costly migration for users with many hosts,
 	// the mdm_id will be lazily populated as MDM query results get returned by
-	// hosts.
+	// hosts. A NULL mdm_id is treated as an "unknown" mdm solution.
 	_, err = tx.Exec(`ALTER TABLE host_mdm ADD COLUMN mdm_id INT(10) UNSIGNED NULL;`)
 	if err != nil {
 		return errors.Wrapf(err, "alter table")
