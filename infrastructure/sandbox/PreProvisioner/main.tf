@@ -138,6 +138,17 @@ data "aws_iam_policy_document" "lambda" {
   }
 
   statement {
+    actions = [
+      "s3:*Object",
+      "s3:ListBucket",
+    ]
+    resources = [
+      var.installer_bucket.arn,
+      "${var.installer_bucket.arn}/*"
+    ]
+  }
+
+  statement {
     actions   = ["*"]
     resources = ["*"]
   }
