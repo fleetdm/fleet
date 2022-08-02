@@ -33,26 +33,17 @@ module.exports = {
       'Authorization': `token ${sails.config.custom.githubAccessToken}`
     };
 
-    // Check the path of each file that this PR makes changes to
-    return await sails.helpers.flow.build(async()=>{
+    // [?] https://docs.github.com/en/rest/reference/pulls#list-pull-requests-files
+    let changedPaths = _.pluck(await sails.helpers.http.get(`https://api.github.com/repos/${owner}/${repo}/pulls/${prNumber}/files`, {
+      per_page: 100,//eslint-disable-line camelcase
+    }, baseHeaders).retry(), 'filename');// (don't worry, it's the whole path, not the filename)
 
-      let isHandbookOnlyPR = false;
+    // Check the path of each file that this PR makes changes to.
+    let isHandbookOnlyPR = _.all(changedPaths, (changedPath)=>{
+      return changedPath.match(/^handbook\//);
+    });//∞
 
-      // [?] https://docs.github.com/en/rest/reference/pulls#list-pull-requests-files
-      let changedPaths = _.pluck(await sails.helpers.http.get(`https://api.github.com/repos/${owner}/${repo}/pulls/${prNumber}/files`, {
-        per_page: 100,//eslint-disable-line camelcase
-      }, baseHeaders).retry(), 'filename');// (don't worry, it's the whole path, not the filename)
-
-      isHandbookOnlyPR = _.all(changedPaths, (changedPath)=>{
-        return changedPath.match(/^handbook\//);
-      });//∞
-
-      if (isHandbookOnlyPR) {
-        return true;
-      } else {
-        return false;
-      }
-    });
+    return isHandbookOnlyPR;
 
   }
 
