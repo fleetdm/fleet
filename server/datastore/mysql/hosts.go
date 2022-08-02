@@ -1374,9 +1374,13 @@ func (ds *Datastore) GetMDM(ctx context.Context, hostID uint) (*fleet.HostMDM, e
 	var hmdm fleet.HostMDM
 	err := sqlx.GetContext(ctx, ds.reader, &hmdm, `
 		SELECT
-			host_id, enrolled, server_url, installed_from_dep, mdm_id
-		FROM host_mdm
-		WHERE host_id = ?`, hostID)
+			hm.host_id, hm.enrolled, hm.server_url, hm.installed_from_dep, hm.mdm_id, mdms.name
+		FROM
+			host_mdm hm
+		LEFT OUTER JOIN
+			mobile_device_management_solutions mdms
+		ON hm.mdm_id = mdms.id
+		WHERE hm.host_id = ?`, hostID)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return nil, ctxerr.Wrap(ctx, notFound("MDM").WithID(hostID))

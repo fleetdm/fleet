@@ -3538,6 +3538,8 @@ func testHostMDMAndMunki(t *testing.T, ds *Datastore) {
 	assert.True(t, hmdm.Enrolled)
 	assert.Equal(t, "url", hmdm.ServerURL)
 	assert.False(t, hmdm.InstalledFromDep)
+	assert.False(t, hmdm.MDMID.Valid)
+	assert.False(t, hmdm.Name.Valid)
 
 	require.NoError(t, ds.SetOrUpdateMDMData(context.Background(), 455, true, "url2", true))
 	require.NoError(t, ds.SetOrUpdateMDMData(context.Background(), 432, false, "url3", true))
@@ -3547,12 +3549,19 @@ func testHostMDMAndMunki(t *testing.T, ds *Datastore) {
 	assert.False(t, hmdm.Enrolled)
 	assert.Equal(t, "url3", hmdm.ServerURL)
 	assert.True(t, hmdm.InstalledFromDep)
+	assert.False(t, hmdm.MDMID.Valid)
+	assert.False(t, hmdm.Name.Valid)
 
 	hmdm, err = ds.GetMDM(context.Background(), 455)
 	require.NoError(t, err)
 	assert.True(t, hmdm.Enrolled)
 	assert.Equal(t, "url2", hmdm.ServerURL)
 	assert.True(t, hmdm.InstalledFromDep)
+	assert.False(t, hmdm.MDMID.Valid)
+	assert.False(t, hmdm.Name.Valid)
+
+	// TODO(mna): once SetOrUpdateMDMData is modified to get the name/mdm_id from the URL,
+	// add a test to get MDM with a corresponding name.
 }
 
 func testAggregatedHostMDMAndMunki(t *testing.T, ds *Datastore) {
