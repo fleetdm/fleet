@@ -56,7 +56,7 @@ variable "database_name" {
 
 variable "fleet_image" {
   description = "the name of the container image to run"
-  default     = "fleetdm/fleet:v4.17.0"
+  default     = "fleetdm/fleet:v4.18.0"
 }
 
 variable "software_inventory" {
@@ -114,4 +114,14 @@ variable "cloudwatch_log_retention" {
 variable "rds_backup_retention_period" {
   description = "number of days to keep snapshot backups"
   default     = 7
+}
+
+variable "extra_security_group_cidrs" {
+  description = "extra list of CIDRs to allow extra networks (such as a VPN) access to Redis/MySQL"
+  default     = []
+  type        = list(string)
+  validation {
+    condition     = alltrue([for cidr in var.extra_security_group_cidrs : can(cidrhost(cidr, 32))])
+    error_message = "The extra security groups must be a list of valid CIDRs."
+  }
 }

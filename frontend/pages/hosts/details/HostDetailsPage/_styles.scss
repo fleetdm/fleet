@@ -1,12 +1,10 @@
 .host-details {
-  display: flex;
-  flex-wrap: wrap;
-  flex-grow: 1;
-  align-content: flex-start;
-  padding-bottom: 50px;
-  min-width: 0;
   background-color: $ui-off-white;
-  gap: $pad-medium;
+
+  &__wrapper {
+    display: grid;
+    gap: 1rem;
+  }
 
   a {
     font-size: $x-small;
@@ -185,10 +183,6 @@
           transform: scale(0.5);
           height: 28px;
         }
-
-        &:hover {
-          cursor: pointer;
-        }
       }
 
       .refetch-offline {
@@ -234,6 +228,7 @@
     .react-tabs__tab {
       padding: 6px 0px 16px 0px;
       margin-right: $pad-xxlarge;
+      display: inline-block;
     }
 
     .react-tabs__tab--selected {
@@ -385,14 +380,6 @@
       justify-content: start;
       text-align: left;
     }
-  }
-
-  &__wrapper {
-    border: solid 1px $ui-fleet-blue-15;
-    border-radius: 6px;
-    margin-top: $pad-small;
-    overflow: scroll;
-    box-shadow: inset -8px 0 17px -10px #e8edf4;
   }
 
   .tooltip__tooltip-icon {

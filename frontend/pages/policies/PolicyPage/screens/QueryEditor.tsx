@@ -158,7 +158,7 @@ const QueryEditor = ({
   const backPath = policyTeamId ? `?team_id=${policyTeamId}` : "";
 
   return (
-    <div className={`${baseClass}__form body-wrap`}>
+    <div className={`${baseClass}__form`}>
       <Link
         to={`${PATHS.MANAGE_POLICIES}/${backPath}`}
         className={`${baseClass}__back-link`}

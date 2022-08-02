@@ -22,6 +22,7 @@ env:
   TF_VAR_fleet_license: ${{ secrets.DOGFOOD_LICENSE_KEY }}
   TF_VAR_cloudwatch_log_retention: 30
   TF_VAR_rds_backup_retention_period: 30
+  TF_VAR_extra_security_group_cidrs: '["10.255.1.0/24", "10.255.2.0/24", "10.255.3.0/24"]'
 
 permissions:
   id-token: write
