@@ -166,8 +166,14 @@ module.exports = {
               fallbackPageTitle = sails.helpers.strings.toSentenceCase(path.basename(pageSourcePath, path.extname(pageSourcePath)));
             }
 
-            // Determine URL for this page. Note: The URL of article pages will be modified to include the articles category after we process the meta tags.
-            // TODO: Move metadata processing before this, so all URL determining logic can happen at once.  (For more info, see https://github.com/fleetdm/confidential/issues/1537 )
+            // Determine URL for this page.
+            // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+            // Note: If this is an article page, then the rootRelativeUrlPath will be further modified below to
+            // also include the article's category: https://github.com/fleetdm/fleet/blob/9d2acb5751f4cebfb211ae1f15c9289143b5b79c/website/scripts/build-static-content.js#L441-L447
+            // > TODO: Try eliminating this exception by moving the processing of all page metadata upwards, so
+            // > that it occurs before this spot in the file, so that all URL-determining logic can happen here,
+            // > all in one place.  (For more context, see https://github.com/fleetdm/confidential/issues/1537 )
+            // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
             let rootRelativeUrlPath = (
               (
                 SECTION_INFOS_BY_SECTION_REPO_PATHS[sectionRepoPath].urlPrefix +
