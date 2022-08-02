@@ -253,6 +253,10 @@ resource "aws_ecs_task_definition" "main" {
             name  = "INSTALLER_BUCKET"
             value = var.installer_bucket.id
           },
+          {
+            name  = "TF_VAR_installer_bucket"
+            value = var.installer_bucket.id
+          },
         ])
       }
   ])

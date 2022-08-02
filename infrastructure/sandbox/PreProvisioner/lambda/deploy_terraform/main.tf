@@ -48,6 +48,8 @@ variable "redis_address" {}
 variable "redis_database" {}
 variable "lifecycle_table" {}
 variable "base_domain" {}
+variable "enroll_secret" {}
+variable "installer_bucket" {}
 
 resource "mysql_user" "main" {
   user               = terraform.workspace
@@ -151,6 +153,21 @@ resource "helm_release" "main" {
   set {
     name  = "imageTag"
     value = "main"
+  }
+
+  set {
+    name  = "packaging.enrollSecret"
+    value = var.enroll_secret
+  }
+
+  set {
+    name  = "packaging.s3.bucket"
+    value = var.installer_bucket
+  }
+
+  set {
+    name  = "packaging.s3.prefix"
+    value = terraform.workspace
   }
 }
 
