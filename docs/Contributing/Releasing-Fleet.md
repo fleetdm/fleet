@@ -144,7 +144,7 @@ Any issue that meets the patch release criteria is sent to the [DRI for release 
 
 6. The DRI for release testing/QA makes sure the standard release instructions at the top of this document are followed. Be sure that modifications to the changelog and config files are commited _on the `patch-*` branch_.
 
-7. The DRI for release testing/QA notifies Zach Wasserman that the patch release is ready. Zach Wasserman releases the patch.
+7. The DRI for release testing/QA notifies the [DRI for the release ritual](https://fleetdm.com/handbook/engineering#rituals) that the patch release is ready. The DRI for the release ritual releases the patch.
 
 8. The DRI for creating patch the release branch cherry-picks the commit containing the changelog updates into a new branch, and merge that commit into `main` through a Pull Request.
 
