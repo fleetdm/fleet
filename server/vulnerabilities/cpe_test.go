@@ -235,3 +235,39 @@ func TestSyncsCPEFromURL(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, "Hello world!", string(stored))
 }
+
+func TestLegacyCPEDB(t *testing.T) {
+
+	// Older versions of fleet used "select * ..." when querying from the cpe and cpe_search tables
+	// Ensure that this still works when generating the new cpe database.
+	type IndexedCPEItem struct {
+		ID         int     `json:"id" db:"rowid"`
+		Title      string  `json:"title" db:"title"`
+		Version    *string `json:"version" db:"version"`
+		TargetSW   *string `json:"target_sw" db:"target_sw"`
+		CPE23      string  `json:"cpe23" db:"cpe23"`
+		Deprecated bool    `json:"deprecated" db:"deprecated"`
+	}
+	tempDir := t.TempDir()
+
+	items, err := cpedict.Decode(strings.NewReader(XmlCPETestDict))
+	require.NoError(t, err)
+
+	dbPath := filepath.Join(tempDir, "cpe.sqlite")
+
+	err = GenerateCPEDB(dbPath, items)
+	require.NoError(t, err)
+
+	db, err := sqliteDB(dbPath)
+	require.NoError(t, err)
+
+	query := `SELECT rowid, * FROM cpe WHERE rowid in (
+				  SELECT rowid FROM cpe_search WHERE title MATCH ?
+				) and version = ? order by deprecated asc`
+
+	var indexedCPEs []IndexedCPEItem
+	err = db.Select(&indexedCPEs, query, "product", "1.2.3")
+	require.NoError(t, err)
+
+	require.Len(t, indexedCPEs, 1)
+}

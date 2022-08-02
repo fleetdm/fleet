@@ -39,8 +39,6 @@ SELECT
     rowid,
     cpe23,
     title,
-    vendor,
-    product,
     version,
     target_sw,
     deprecated
