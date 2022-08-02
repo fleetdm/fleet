@@ -40,6 +40,6 @@ to self-remediate any outstanding security issues. Your IT and security team wil
 <meta name="category" value="announcements">
 <meta name="authorGitHubUsername" value="zhumo">
 <meta name="authorFullName" value="Mo Zhu">
-<meta name="publishedOn" value="2022-07-25">
+<meta name="publishedOn" value="2022-08-02">
 <meta name="articleTitle" value="Fleet Desktop says “Hello, world!”">
 <meta name="articleImageUrl" value="../website/assets/images/articles/fleet-desktop-says-hello-world-cover-1600x900@2x.jpg">
