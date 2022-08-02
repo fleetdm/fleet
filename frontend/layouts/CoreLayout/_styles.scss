@@ -11,7 +11,7 @@
   position: relative;
   background-color: $core-white;
   display: flex;
-  @media (max-width: $break-768) {
+  @media (max-width: $break-768 - 1px) {
     display: none;
   }
 }
@@ -23,7 +23,7 @@
   top: 0;
   left: 0;
   z-index: 100;
-  @media (max-width: $break-768) {
+  @media (max-width: $break-768 - 1px) {
     display: none;
   }
 }
@@ -40,7 +40,7 @@
   justify-content: center;
   gap: $pad-medium;
 
-  @media (min-width: $break-768) {
+  @media (min-width: 768px) {
     display: none;
   }
 
