@@ -350,7 +350,7 @@ module.exports = {
               let pageTitle;
               if (embeddedMetadata.title) {// Attempt to use custom title, if one was provided.
                 if (embeddedMetadata.title.length > 40) {
-                  throw new Error(`Failed compiling markdown content: Invalid custom title (<meta name="title" value="${embeddedMetadata.title}">) embedded in "${path.join(topLvlRepoPath, sectionRepoPath)}".  To resolve, try changing the title to a different, valid value, then rebuild.`);
+                  throw new Error(`Failed compiling markdown content: Invalid custom title (<meta name="title" value="${embeddedMetadata.title}">) embedded in "${path.join(topLvlRepoPath, sectionRepoPath)}".  To resolve, try changing the title to a shorter (less than 40 characters), valid value, then rebuild.`);
                 }//•
                 pageTitle = embeddedMetadata.title;
               } else {// Otherwise use the automatically-determined fallback title.
