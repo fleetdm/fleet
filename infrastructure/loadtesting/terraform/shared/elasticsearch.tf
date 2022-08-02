@@ -67,6 +67,10 @@ resource "aws_security_group_rule" "es-egress" {
   security_group_id = aws_security_group.elasticsearch.id
 }
 
+data "external" "git_data" {
+    program = ["/bin/bash", "-c", "jq -n --arg branch `git rev-parse --abbrev-ref HEAD` '{\"branch\":$branch}'"]
+}
+
 resource "aws_autoscaling_group" "elasticstack" {
   name                      = "${local.prefix}-elasticstack"
   max_size                  = 1
@@ -116,7 +120,7 @@ resource "aws_autoscaling_group" "elasticstack" {
 
   tag {
     key                 = "ansible_branch"
-    value               = data.git_repository.tf.branch
+    value               = data.external.git_data.branch
     propagate_at_launch = true
   }
 }

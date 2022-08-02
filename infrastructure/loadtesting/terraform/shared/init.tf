@@ -19,10 +19,6 @@ terraform {
       source  = "kreuzwerker/docker"
       version = "~> 2.16.0"
     }
-    git = {
-      source  = "paultyng/git"
-      version = "~> 0.1.0"
-    }
   }
   backend "s3" {
     bucket               = "fleet-terraform-state20220408141538466600000002"
@@ -37,10 +33,6 @@ terraform {
 }
 
 data "aws_caller_identity" "current" {}
-
-data "git_repository" "tf" {
-  path = "${path.module}/../../../../"
-}
 
 resource "random_pet" "main" {
   length = 1

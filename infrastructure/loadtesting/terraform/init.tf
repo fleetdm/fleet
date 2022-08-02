@@ -19,10 +19,6 @@ terraform {
       source  = "kreuzwerker/docker"
       version = "~> 2.16.0"
     }
-    git = {
-      source  = "paultyng/git"
-      version = "~> 0.1.0"
-    }
   }
   backend "s3" {
     bucket               = "fleet-terraform-state20220408141538466600000002"
@@ -46,12 +42,6 @@ provider "docker" {
     username = data.aws_ecr_authorization_token.token.user_name
     password = data.aws_ecr_authorization_token.token.password
   }
-}
-
-provider "git" {}
-
-data "git_repository" "tf" {
-  path = "${path.module}/../../../"
 }
 
 data "terraform_remote_state" "shared" {
