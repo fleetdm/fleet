@@ -9,12 +9,17 @@ import (
 	"github.com/aws/aws-sdk-go/service/dynamodb"
 	"github.com/aws/aws-sdk-go/service/dynamodb/dynamodbattribute"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/packaging"
+	"github.com/fleetdm/fleet/v4/server"
+	"github.com/fleetdm/fleet/v4/server/config"
+	"github.com/fleetdm/fleet/v4/server/datastore/s3"
+	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/google/uuid"
 	flags "github.com/jessevdk/go-flags"
 	"log"
 	"math/rand"
 	"os"
 	"os/exec"
+	"path/filepath"
 )
 
 type OptionsStruct struct {
@@ -22,12 +27,61 @@ type OptionsStruct struct {
 	LifecycleTable     string `long:"dynamodb-lifecycle-table" env:"DYNAMODB_LIFECYCLE_TABLE" required:"true"`
 	MaxInstances       int64  `long:"max-instances" env:"MAX_INSTANCES" required:"true"`
 	QueuedInstances    int64  `long:"queued-instances" env:"QUEUED_INSTANCES" required:"true"`
+	FleetBaseURL       string `long:"fleet-base-url" env:"FLEET_BASE_URL" required:"true"`
+	InstallerBucket    string `long:"installer-bucket" env:"INSTALLER_BUCKET" required:"true"`
 }
 
 var options = OptionsStruct{}
 
-func buildPackages() {
+func buildPackages(instanceID, enrollSecret string) (err error) {
+	funcs := []func(packaging.Options) (string, error){
+		packaging.BuildPkg,
+		packaging.BuildDeb,
+		packaging.BuildRPM,
+		packaging.BuildMSI,
+	}
+	pkgopts := packaging.Options{
+		FleetURL:     fmt.Sprintf("https://%s.%s", options.FleetBaseURL, instanceID),
+		EnrollSecret: enrollSecret,
+	}
+	store, err := s3.NewInstallerStore(config.S3Config{
+		Bucket: options.InstallerBucket,
+	})
 
+	// Build non-desktop
+	for _, buildFunc := range funcs {
+		var filename string
+		filename, err = buildFunc(pkgopts)
+		if err != nil {
+			log.Print(err)
+			return
+		}
+		var r *os.File
+		r, err = os.Open(filename)
+		if err != nil {
+			return err
+		}
+		_, err = store.Put(context.Background(), fleet.Installer{
+			EnrollSecret: enrollSecret,
+			Kind:         filepath.Ext(filename)[1:],
+			Desktop:      pkgopts.Desktop,
+			Content:      r,
+		})
+		if err != nil {
+			return
+		}
+	}
+
+	// Build desktop
+	pkgopts.Desktop = true
+	for _, buildFunc := range funcs {
+		_, err = buildFunc(pkgopts)
+		if err != nil {
+			log.Print(err)
+			return
+		}
+	}
+	return
 }
 
 type LifecycleRecord struct {
@@ -95,7 +149,7 @@ func initTerraform() error {
 	return err
 }
 
-func runTerraform(workspace string, redis_database int) error {
+func runTerraform(workspace string, redis_database int, enrollSecret string) error {
 	err := runCmd([]string{
 		"workspace",
 		"new",
@@ -110,6 +164,8 @@ func runTerraform(workspace string, redis_database int) error {
 		"-no-color",
 		"-var",
 		fmt.Sprintf("redis_database=%d", redis_database),
+		"-var",
+		fmt.Sprintf("enroll_secret=%s", enrollSecret),
 	})
 	return err
 }
@@ -171,7 +227,15 @@ func handler(ctx context.Context, name NullEvent) error {
 		if err != nil {
 			return err
 		}
-		if err := runTerraform(fmt.Sprintf("t%s", uuid.New().String()[:8]), redisDatabase); err != nil {
+		enrollSecret, err := server.GenerateRandomText(fleet.EnrollSecretDefaultLength)
+		if err != nil {
+			return err
+		}
+		instanceID := fmt.Sprintf("t%s", uuid.New().String()[:8])
+		if err := runTerraform(instanceID, redisDatabase, enrollSecret); err != nil {
+			return err
+		}
+		if err = buildPackages(instanceID, enrollSecret); err != nil {
 			return err
 		}
 	}
