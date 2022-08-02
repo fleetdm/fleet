@@ -37,17 +37,17 @@ func TestCPEFromSoftware(t *testing.T) {
 	require.NoError(t, err)
 
 	// checking an non existent version returns empty
-	cpe, err := CPEFromSoftware(db, &fleet.Software{Name: "Vendor Product-1.app", Version: "2.3.4", Source: "apps"}, nil)
+	cpe, err := CPEFromSoftware(db, &fleet.Software{Name: "Vendor Product-1.app", Version: "2.3.4", BundleIdentifier: "vendor", Source: "apps"}, nil)
 	require.NoError(t, err)
 	require.Equal(t, "", cpe)
 
 	// checking a version that exists works
-	cpe, err = CPEFromSoftware(db, &fleet.Software{Name: "Vendor Product-1.app", Version: "1.2.3", Source: "apps"}, nil)
+	cpe, err = CPEFromSoftware(db, &fleet.Software{Name: "Vendor Product-1.app", Version: "1.2.3", BundleIdentifier: "vendor", Source: "apps"}, nil)
 	require.NoError(t, err)
 	require.Equal(t, "cpe:2.3:a:vendor:product-1:1.2.3:*:*:*:*:macos:*:*", cpe)
 
 	// follows many deprecations
-	cpe, err = CPEFromSoftware(db, &fleet.Software{Name: "Vendor2 Product2.app", Version: "0.3", Source: "apps"}, nil)
+	cpe, err = CPEFromSoftware(db, &fleet.Software{Name: "Vendor2 Product2.app", Version: "0.3", BundleIdentifier: "vendor2", Source: "apps"}, nil)
 	require.NoError(t, err)
 	require.Equal(t, "cpe:2.3:a:vendor2:product4:999:*:*:*:*:macos:*:*", cpe)
 
@@ -66,13 +66,12 @@ func TestCPEFromSoftware(t *testing.T) {
 	}
 	software := &fleet.Software{
 		Name:    "X",
-		Version: "2.3.4",
+		Version: "1.2.3",
 		Source:  "apps",
 	}
 	cpe, err = CPEFromSoftware(db, software, translations)
 	require.NoError(t, err)
-	require.Equal(t, "", cpe)
-	// cpe, err := CPEFromSoftware(db, &fleet.Software{Name: "Vendor Product-1.app", Version: "2.3.4", Source: "apps"}, nil)
+	require.Equal(t, "cpe:2.3:a:vendor:product-1:1.2.3:*:*:*:*:macos:*:*", cpe)
 }
 
 func TestSyncCPEDatabase(t *testing.T) {

@@ -296,7 +296,7 @@ type CPETranslation struct {
 func CPEFromSoftware(db *sqlx.DB, software *fleet.Software, translations CPETranslations) (string, error) {
 	version := sanitizeVersion(software.Version)
 
-	ds := goqu.Dialect("sqlite").From(goqu.I("cpe").As("c")).
+	ds := goqu.Dialect("sqlite").From(goqu.I("cpe_2").As("c")).
 		Select(
 			"c.rowid",
 			"c.title",
@@ -444,7 +444,7 @@ SELECT
     cpe23,
     deprecated
 FROM
-    cpe
+    cpe_2
 WHERE
     cpe23 IN (
         SELECT cpe23 FROM deprecated_by d WHERE d.cpe_id = ?
