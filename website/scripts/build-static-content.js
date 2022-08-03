@@ -107,7 +107,7 @@ module.exports = {
                 name: username,
                 handle: username,
                 avatarUrl: 'https://placekitten.com/200/200',
-                htmlUrl: 'https://github.com/'+username,
+                htmlUrl: 'https://github.com/'+encodeURIComponent(username),
               });
             }
             query.contributors = contributorProfiles;
