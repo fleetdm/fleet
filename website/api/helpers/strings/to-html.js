@@ -114,7 +114,7 @@ module.exports = {
 
     // Custom renderer function to enable checkboxes in Markdown lists.
     customRenderer.listitem = function(text, task, checked){
-      if(!task){ // « If a listitem has a checkbox (- [ ]), we'll add a new checkbox, and hide the
+      if(!task){ // « If a list item does not have a checkbox, we'll render it normally.
         return `<li>${text}</li>`;
       } else if(checked) {// If this checkbox was checked in Markdown (- [x]), we'll add a disabled checked checkbox, and hide the original checkbox with CSS
         return `<li purpose="checklist-item"><input disabled="" type="checkbox" checked><span purpose="task">${text}</span></li>`;
