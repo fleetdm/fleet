@@ -11,6 +11,8 @@ import SiteTopNav from "components/top_nav/SiteTopNav";
 import { INotification } from "interfaces/notification";
 import { licenseExpirationWarning } from "utilities/helpers";
 
+import smallScreenImage from "../../../assets/images/small-screen-160x80@2x.png";
+
 interface ICoreLayoutProps {
   children: React.ReactNode;
   router: InjectedRouter; // v3
@@ -104,6 +106,13 @@ const CoreLayout = ({ children, router }: ICoreLayoutProps) => {
 
   return (
     <div className="app-wrap">
+      <div className="overlay">
+        <img src={smallScreenImage} alt="Unsupported screen size" />
+        <div className="overlay__text">
+          <h1>This screen size is not supported yet.</h1>
+          <p>Please enlarge your browser or try again on a computer.</p>
+        </div>
+      </div>
       <nav className="site-nav">
         <SiteTopNav
           config={config}
