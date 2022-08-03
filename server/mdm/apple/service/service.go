@@ -60,6 +60,8 @@ func Setup(ctx context.Context, mux *http.ServeMux, config SetupConfig) error {
 	return nil
 }
 
+// TODO(lucas): None of the API endpoints have authentication yet.
+// We should use Fleet admin bearer token authentication.
 func registerServices(ctx context.Context, mux *http.ServeMux, config SetupConfig) error {
 	scepCACrt, err := registerSCEP(mux, config)
 	if err != nil {
@@ -142,12 +144,10 @@ func registerMDM(mux *http.ServeMux, config SetupConfig, scepCACrt *x509.Certifi
 	mdmHandler = httpmdm.CertExtractMdmSignatureMiddleware(mdmHandler, mdmLogger.With("handler", "cert-extract"))
 	mux.Handle("/mdm/apple/mdm", mdmHandler)
 
-	// TODO(lucas): None of the API endpoints have authentication yet.
-	// We should use Fleet admin bearer token authentication.
 	const (
-		endpointAPIPushCert = "/mdm/apple/api/v1/pushcert"
-		endpointAPIPush     = "/mdm/apple/api/v1/push/"
-		endpointAPIEnqueue  = "/mdm/apple/api/v1/enqueue/"
+		endpointAPIPushCert = "/mdm/apple/mdm/api/v1/pushcert"
+		endpointAPIPush     = "/mdm/apple/mdm/api/v1/push/"
+		endpointAPIEnqueue  = "/mdm/apple/mdm/api/v1/enqueue/"
 	)
 	pushProviderFactory := buford.NewPushProviderFactory()
 	pushService := nanomdm_pushsvc.New(config.MDMStorage, config.MDMStorage, pushProviderFactory, mdmLogger.With("service", "push"))
