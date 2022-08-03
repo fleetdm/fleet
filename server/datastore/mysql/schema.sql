@@ -380,14 +380,13 @@ INSERT INTO `migration_status_tables` VALUES (1,0,1,'2020-01-01 01:01:01'),(2,20
 CREATE TABLE `mobile_device_management_solutions` (
   `id` int(10) unsigned NOT NULL AUTO_INCREMENT,
   `name` varchar(100) NOT NULL,
-  `server_url` varchar(255) NOT NULL DEFAULT '',
+  `server_url` varchar(255) NOT NULL,
   `created_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
   `updated_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`),
-  UNIQUE KEY `idx_mobile_device_management_solutions_name` (`name`)
-) ENGINE=InnoDB AUTO_INCREMENT=6 DEFAULT CHARSET=utf8mb4;
+  UNIQUE KEY `idx_mobile_device_management_solutions_name` (`name`,`server_url`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 /*!40101 SET character_set_client = @saved_cs_client */;
-INSERT INTO `mobile_device_management_solutions` VALUES (1,'Kandji','','2022-08-03 14:03:27','2022-08-03 14:03:27'),(2,'Jamf','','2022-08-03 14:03:27','2022-08-03 14:03:27'),(3,'VMware Workspace ONE','','2022-08-03 14:03:27','2022-08-03 14:03:27'),(4,'Intune','','2022-08-03 14:03:27','2022-08-03 14:03:27'),(5,'SimpleMDM','','2022-08-03 14:03:27','2022-08-03 14:03:27');
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!40101 SET character_set_client = utf8 */;
 CREATE TABLE `network_interfaces` (

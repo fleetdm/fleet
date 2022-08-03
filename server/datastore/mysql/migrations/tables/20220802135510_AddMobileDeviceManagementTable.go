@@ -17,11 +17,11 @@ func Up_20220802135510(tx *sql.Tx) error {
 CREATE TABLE mobile_device_management_solutions (
   id            INT(10) UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
   name          VARCHAR(100) NOT NULL,
-  server_url    VARCHAR(255) DEFAULT '' NOT NULL,
+  server_url    VARCHAR(255) NOT NULL,
   created_at    TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at    TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
 
-  UNIQUE KEY idx_mobile_device_management_solutions_name (name)
+  UNIQUE KEY idx_mobile_device_management_solutions_name (name, server_url)
 )`)
 	if err != nil {
 		return errors.Wrapf(err, "create table")
@@ -31,7 +31,7 @@ CREATE TABLE mobile_device_management_solutions (
 	fmt.Println("Adding column mdm_id to table host_mdm...")
 	// adding as NULLable to prevent costly migration for users with many hosts,
 	// the mdm_id will be lazily populated as MDM query results get returned by
-	// hosts. A NULL mdm_id is treated as an "unknown" mdm solution.
+	// hosts.
 	_, err = tx.Exec(`ALTER TABLE host_mdm ADD COLUMN mdm_id INT(10) UNSIGNED NULL;`)
 	if err != nil {
 		return errors.Wrapf(err, "alter table")
@@ -55,23 +55,6 @@ CREATE TABLE mobile_device_management_solutions (
 		return errors.Wrapf(err, "create enrollment status index")
 	}
 	fmt.Println("Done adding index on enrolled, installed_from_dep of table host_mdm...")
-
-	fmt.Println("Seeding mobile_device_management_solutions data...")
-	_, err = tx.Exec(`
-		INSERT INTO mobile_device_management_solutions (
-			name,
-			server_url
-		) VALUES
-			('Kandji', ''),
-			('Jamf', ''),
-			('VMware Workspace ONE', ''),
-			('Intune', ''),
-			('SimpleMDM', '')
-		`)
-	if err != nil {
-		return errors.Wrapf(err, "insert mdm solutions")
-	}
-	fmt.Println("Done seeding mobile_device_management_solutions data...")
 
 	return nil
 }
