@@ -46,6 +46,7 @@ func buildPackages(instanceID, enrollSecret string) (err error) {
 	}
 	store, err := s3.NewInstallerStore(config.S3Config{
 		Bucket: options.InstallerBucket,
+		Prefix: instanceID,
 	})
 
 	// Build non-desktop
@@ -58,6 +59,7 @@ func buildPackages(instanceID, enrollSecret string) (err error) {
 		}
 		var r *os.File
 		r, err = os.Open(filename)
+		defer r.Close()
 		if err != nil {
 			return err
 		}
@@ -75,9 +77,25 @@ func buildPackages(instanceID, enrollSecret string) (err error) {
 	// Build desktop
 	pkgopts.Desktop = true
 	for _, buildFunc := range funcs {
-		_, err = buildFunc(pkgopts)
+		var filename string
+		filename, err = buildFunc(pkgopts)
 		if err != nil {
 			log.Print(err)
+			return
+		}
+		var r *os.File
+		r, err = os.Open(filename)
+		defer r.Close()
+		if err != nil {
+			return err
+		}
+		_, err = store.Put(context.Background(), fleet.Installer{
+			EnrollSecret: enrollSecret,
+			Kind:         filepath.Ext(filename)[1:],
+			Desktop:      pkgopts.Desktop,
+			Content:      r,
+		})
+		if err != nil {
 			return
 		}
 	}
