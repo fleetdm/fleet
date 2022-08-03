@@ -30,7 +30,10 @@
 
       thead {
         .name__header {
-          width: 60%;
+          width: 40%;
+        }
+        .type__header {
+          width: 9%;
         }
         .version__header {
           width: 30%;
@@ -39,29 +42,64 @@
         .hosts_count__header {
           border-right: 0;
           padding-right: 0;
-          width: 60px;
+          width: 9%;
         }
         .id__header {
           padding: 0;
           border-left: 0;
           width: 40px;
         }
+        .linkToFilteredHosts__header {
+          width: 140px;
+        }
       }
 
       tbody {
-        .name__cell,
-        .version__cell {
-          overflow: hidden;
-          white-space: nowrap;
-          text-overflow: ellipsis;
-        }
-        .id__cell {
-          padding: 0;
-          width: 40px;
-        }
-        .vulnerabilities__cell {
-          img {
-            transform: scale(0.5);
+        tr {
+          .name__cell,
+          .version__cell {
+            overflow: hidden;
+            white-space: nowrap;
+            text-overflow: ellipsis;
+
+            &:hover {
+              overflow: visible;
+              white-space: normal;
+            }
+
+            .text-cell {
+              &:hover {
+                overflow: visible;
+                white-space: normal;
+              }
+            }
+          }
+
+          .id__cell {
+            padding: 0;
+            width: 40px;
+          }
+
+          .vulnerabilities__cell {
+            img {
+              transform: scale(0.5);
+            }
+          }
+
+          .issue-link {
+            visibility: hidden;
+            text-overflow: none;
+            img {
+              vertical-align: text-top;
+              width: 16px;
+            }
+          }
+
+          &:hover {
+            .issue-link {
+              visibility: visible;
+              text-overflow: none;
+            }
           }
         }
       }

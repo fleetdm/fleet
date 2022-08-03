@@ -385,11 +385,13 @@ const macAdmins = {
     ],
     munki_issues: [
       {
+        id: 1,
         name: "Could not retrieve managed install primary manifest",
         type: "error",
         hosts_count: 2851,
       },
       {
+        id: 2,
         name:
           "Could not process item Figma for optional install. No pkginfo found in catalogs: release",
         type: "warning",
@@ -483,11 +485,13 @@ const macAdminsApples = {
     ],
     munki_issues: [
       {
+        id: 1,
         name: "Could not retrieve managed install primary manifest",
         type: "error",
         hosts_count: 51,
       },
       {
+        id: 2,
         name:
           "Could not process item Figma for optional install. No pkginfo found in catalogs: release",
         type: "warning",
@@ -581,11 +585,13 @@ const macAdminsOranges = {
     ],
     munki_issues: [
       {
+        id: 1,
         name: "Could not retrieve managed install primary manifest",
         type: "error",
         hosts_count: 1,
       },
       {
+        id: 2,
         name:
           "Could not process item Figma for optional install. No pkginfo found in catalogs: release",
         type: "warning",

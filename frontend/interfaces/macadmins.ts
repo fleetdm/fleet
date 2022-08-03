@@ -9,6 +9,7 @@ export interface IMunkiVersionsAggregate {
 }
 
 export interface IMunkiIssuesAggregate {
+  id: number;
   name: string;
   type: string;
   hosts_count: number;
