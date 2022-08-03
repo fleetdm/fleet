@@ -288,8 +288,8 @@ resource "aws_ecs_task_definition" "main" {
             valueFrom = "${aws_secretsmanager_secret.apple-signing-secrets.arn}:APP_STORE_CONNECT_API_KEY_ISSUER::"
           },
           {
-            name      = "MACOS_DEV_ID_CERTIFICATE_CONTENT"
-            valueFrom = "${aws_secretsmanager_secret.apple-signing-secrets.arn}:MACOS_DEV_ID_CERTIFICATE_CONTENT::"
+            name      = "APP_STORE_CONNECT_API_KEY_CONTENT"
+            valueFrom = "${aws_secretsmanager_secret.apple-signing-secrets.arn}:APP_STORE_CONNECT_API_KEY_CONTENT::"
           }
         ])
       }
