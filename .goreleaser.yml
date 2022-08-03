@@ -101,7 +101,7 @@ dockers:
     goarch: amd64
     ids:
       - fleetctl
-    dockerfile: tools/docker/fleetctl.Dockerfile
+    dockerfile: tools/fleetctl-docker/Dockerfile
     image_templates:
       - 'fleetdm/fleetctl:latest'
       - 'fleetdm/fleetctl:{{ .Tag }}'
