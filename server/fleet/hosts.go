@@ -394,10 +394,18 @@ type AggregatedMDMStatus struct {
 	HostsCount                  int `json:"hosts_count" db:"hosts_count"`
 }
 
+type AggregatedMDMSolutions struct {
+	MDMID      *uint  `json:"id,omitempty" db:"mdm_id"`
+	Name       string `json:"name" db:"name"`
+	HostsCount int    `json:"hosts_count" db:"hosts_count"`
+	ServerURL  string `json:"server_url" db:"server_url"`
+}
+
 type AggregatedMacadminsData struct {
 	CountsUpdatedAt time.Time                `json:"counts_updated_at"`
 	MunkiVersions   []AggregatedMunkiVersion `json:"munki_versions"`
 	MDMStatus       AggregatedMDMStatus      `json:"mobile_device_management_enrollment_status"`
+	MDMSolutions    []AggregatedMDMSolutions `json:"mobile_device_management_solution"`
 }
 
 // HostShort is a minimal host representation returned when querying hosts.

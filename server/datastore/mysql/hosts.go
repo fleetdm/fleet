@@ -1473,6 +1473,9 @@ func (ds *Datastore) GenerateAggregatedMunkiAndMDM(ctx context.Context) error {
 		if err := ds.generateAggregatedMDMStatus(ctx, &id); err != nil {
 			return ctxerr.Wrap(ctx, err, "generating aggregated mdm status")
 		}
+		if err := ds.generateAggregatedMDMSolutions(ctx, &id); err != nil {
+			return ctxerr.Wrap(ctx, err, "generating aggregated mdm solutions")
+		}
 	}
 
 	if err := ds.generateAggregatedMunkiVersion(ctx, nil); err != nil {
@@ -1480,6 +1483,9 @@ func (ds *Datastore) GenerateAggregatedMunkiAndMDM(ctx context.Context) error {
 	}
 	if err := ds.generateAggregatedMDMStatus(ctx, nil); err != nil {
 		return ctxerr.Wrap(ctx, err, "generating aggregated mdm status")
+	}
+	if err := ds.generateAggregatedMDMSolutions(ctx, nil); err != nil {
+		return ctxerr.Wrap(ctx, err, "generating aggregated mdm solutions")
 	}
 	return nil
 }
@@ -1562,6 +1568,52 @@ ON DUPLICATE KEY UPDATE
 	)
 	if err != nil {
 		return ctxerr.Wrapf(ctx, err, "inserting stats for mdm_status id %d", id)
+	}
+	return nil
+}
+
+func (ds *Datastore) generateAggregatedMDMSolutions(ctx context.Context, teamID *uint) error {
+	id := uint(0)
+
+	var results []fleet.AggregatedMDMSolutions
+	query := `SELECT
+				hm.mdm_id,
+				hm.server_url,
+				COALESCE(mdms.name, ?) as name,
+				COUNT(DISTINCT hm.host_id) as hosts_count
+			 FROM host_mdm hm
+			 LEFT OUTER JOIN mobile_device_management_solutions mdms
+			 ON hm.mdm_id = mdms.id
+`
+	args := []interface{}{fleet.UnknownMDMName}
+	if teamID != nil {
+		args = append(args, *teamID)
+		query += ` JOIN hosts h ON (h.id = hm.host_id) WHERE h.team_id = ?`
+		id = *teamID
+	}
+	query += ` GROUP BY 1, 2, 3`
+	err := sqlx.SelectContext(ctx, ds.reader, &results, query, args...)
+	if err != nil {
+		return ctxerr.Wrapf(ctx, err, "getting aggregated data from host_mdm")
+	}
+
+	resultsJSON, err := json.Marshal(results)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "marshaling stats")
+	}
+
+	_, err = ds.writer.ExecContext(ctx,
+		`
+INSERT INTO aggregated_stats (id, type, json_value)
+VALUES (?, ?, ?)
+ON DUPLICATE KEY UPDATE
+    json_value = VALUES(json_value),
+    updated_at = CURRENT_TIMESTAMP
+`,
+		id, "mdm_solutions", resultsJSON,
+	)
+	if err != nil {
+		return ctxerr.Wrapf(ctx, err, "inserting stats for mdm_solutions id %d", id)
 	}
 	return nil
 }
