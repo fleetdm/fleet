@@ -96,6 +96,11 @@ func releaseLock(tx *sql.Tx, identifier string) error {
 }
 
 func Up_20220708095046(tx *sql.Tx) error {
+	// Since we will be adding a uniqueness constrain on (software_id, cve) - we need to remove any
+	// possible duplicates. Also because there's a chance we remove the duplicate rows before adding
+	// the constraint and new duplicates get generated in between, we need to try to acquire the
+	// vulnerability lock. In case the lock can't be acquired a warning is issued and the migration
+	// will proceed without it.
 	identifier, err := server.GenerateRandomText(64)
 	if err != nil {
 		logger.Warn.Println("Could not generate identifier for lock, might not be able to remove duplicates in a reliable way...")
