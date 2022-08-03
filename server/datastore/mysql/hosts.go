@@ -1360,11 +1360,6 @@ func (ds *Datastore) SetOrUpdateMDMData(ctx context.Context, hostID uint, enroll
 			mdmID = &id
 		}
 	}
-	if mdmID != nil {
-		fmt.Println(">>>>>> MDM ID: ", *mdmID)
-	} else {
-		fmt.Println(">>>>>> MDM ID IS NIL ")
-	}
 	return ds.updateOrInsert(
 		ctx,
 		`UPDATE host_mdm SET enrolled = ?, server_url = ?, installed_from_dep = ?, mdm_id = ? WHERE host_id = ?`,

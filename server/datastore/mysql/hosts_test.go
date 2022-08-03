@@ -3569,7 +3569,18 @@ func testHostMDMAndMunki(t *testing.T, ds *Datastore) {
 	assert.Equal(t, "https://simplemdm.com", hmdm.ServerURL)
 	assert.False(t, hmdm.InstalledFromDep)
 	assert.True(t, hmdm.MDMID.Valid)
-	assert.Equal(t, fleet.WellKnownMDMKandji, hmdm.Name.String)
+	assert.Equal(t, fleet.WellKnownMDMSimpleMDM, hmdm.Name.String)
+
+	// switch to no known mdm
+	require.NoError(t, ds.SetOrUpdateMDMData(context.Background(), 455, false, "https://nope.com", false))
+
+	hmdm, err = ds.GetMDM(context.Background(), 455)
+	require.NoError(t, err)
+	assert.False(t, hmdm.Enrolled)
+	assert.Equal(t, "https://nope.com", hmdm.ServerURL)
+	assert.False(t, hmdm.InstalledFromDep)
+	assert.False(t, hmdm.MDMID.Valid)
+	assert.False(t, hmdm.Name.Valid)
 }
 
 func testAggregatedHostMDMAndMunki(t *testing.T, ds *Datastore) {

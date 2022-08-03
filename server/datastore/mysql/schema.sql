@@ -385,8 +385,9 @@ CREATE TABLE `mobile_device_management_solutions` (
   `updated_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`),
   UNIQUE KEY `idx_mobile_device_management_solutions_name` (`name`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+) ENGINE=InnoDB AUTO_INCREMENT=6 DEFAULT CHARSET=utf8mb4;
 /*!40101 SET character_set_client = @saved_cs_client */;
+INSERT INTO `mobile_device_management_solutions` VALUES (1,'Kandji','','2022-08-03 13:42:09','2022-08-03 13:42:09'),(2,'Jamf','','2022-08-03 13:42:09','2022-08-03 13:42:09'),(3,'VMware Workspace ONE','','2022-08-03 13:42:09','2022-08-03 13:42:09'),(4,'Intune','','2022-08-03 13:42:09','2022-08-03 13:42:09'),(5,'SimpleMDM','','2022-08-03 13:42:09','2022-08-03 13:42:09');
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!40101 SET character_set_client = utf8 */;
 CREATE TABLE `network_interfaces` (

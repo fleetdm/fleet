@@ -56,6 +56,23 @@ CREATE TABLE mobile_device_management_solutions (
 	}
 	fmt.Println("Done adding index on enrolled, installed_from_dep of table host_mdm...")
 
+	fmt.Println("Seeding mobile_device_management_solutions data...")
+	_, err = tx.Exec(`
+		INSERT INTO mobile_device_management_solutions (
+			name,
+			server_url
+		) VALUES
+			('Kandji', ''),
+			('Jamf', ''),
+			('VMware Workspace ONE', ''),
+			('Intune', ''),
+			('SimpleMDM', '')
+		`)
+	if err != nil {
+		return errors.Wrapf(err, "insert mdm solutions")
+	}
+	fmt.Println("Done seeding mobile_device_management_solutions data...")
+
 	return nil
 }
 
