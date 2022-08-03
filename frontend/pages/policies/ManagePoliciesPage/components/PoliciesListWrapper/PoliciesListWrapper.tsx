@@ -10,7 +10,7 @@ import Button from "components/buttons/Button";
 import Spinner from "components/Spinner";
 import TableContainer from "components/TableContainer";
 import { generateTableHeaders, generateDataSet } from "./PoliciesTableConfig";
-import policySvg from "../../../../../../assets/images/no-policy-323x138@2x.png";
+import policyImage from "../../../../../../assets/images/no-policy-323x138@2x.png";
 
 const baseClass = "policies-list-wrapper";
 const noPoliciesClass = "no-policies";
@@ -54,7 +54,7 @@ const PoliciesListWrapper = ({
         className={`${noPoliciesClass} ${currentTeam?.id && "no-team-policy"}`}
       >
         <div className={`${noPoliciesClass}__inner`}>
-          <img src={policySvg} alt="No Policies" />
+          <img src={policyImage} alt="No Policies" />
           <div className={`${noPoliciesClass}__inner-text`}>
             <p>
               <b>
