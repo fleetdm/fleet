@@ -261,25 +261,25 @@
      border-radius: 8px;
      display: inline-flex;
     }
-    blockquote[purpose='quote'] {
+    [purpose='quote'] {
      font-style: italic;
      line-height: 36px;
      font-size: 24px;
     }
-    blockquote[purpose='extended'] {
+    [purpose='large-quote'] {
      font-style: italic;
      line-height: 24px;
      font-size: 16px;
     }
-    blockquote[purpose='extended']::before,
-    blockquote[purpose='quote']::before {
+    [purpose='large-quote']::before,
+    [purpose='quote']::before {
      content: '“';
      font-size: 64px;
      margin-top: 14px;
      padding-right: 8px;
      color: @core-vibrant-blue;
     }
-    blockquote[purpose='tip'] {
+    [purpose='tip'] {
      margin: 16px 0 32px;
      background: #F7F7FC;
      border: 1px solid @core-vibrant-blue-50;
