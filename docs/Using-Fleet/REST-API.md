@@ -2441,7 +2441,9 @@ Retrieves a host's MDM enrollment status, MDM server URL, and Munki version.
     },
     "mobile_device_management": {
       "enrollment_status": "Enrolled (automated)",
-      "server_url": "http://some.url/mdm"
+      "server_url": "http://some.url/mdm",
+      "name": "MDM Vendor Name",
+      "mdm_id": 999
     }
   }
 }
