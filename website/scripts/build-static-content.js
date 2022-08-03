@@ -9,11 +9,11 @@ module.exports = {
 
   inputs: {
     dry: { type: 'boolean', description: 'Whether to make this a dry run.  (.sailsrc file will not be overwritten.  HTML files will not be generated.)' },
-    local: { type: 'boolean', description: 'Whether to send requests to the GitHub API when running this script. If this option is set to `true`, query contributer profiles will not be populated'},
+    skipGithubRequests: { type: 'boolean', description: 'Whether to minimize requests to the GitHub API which usually can be skipped during local development, such as requests used for fetching GitHub avatar URLs'},
   },
 
 
-  fn: async function ({ dry, local }) {
+  fn: async function ({ dry, skipGithubRequests }) {
 
     let path = require('path');
     let YAML = require('yaml');
@@ -96,8 +96,8 @@ module.exports = {
 
         let githubDataByUsername = {};
 
-        if(local) {// If the local flag was provided, we'll skip querying GitHubs API
-          sails.log('Local run: Skipping GitHub API requests for contributer profiles.\nNOTE: The names of contributors in the standard query library will be set to the contributors GitHub username instead of the name on their profile. To see how the standard query library will look on fleetdm.com, run this script without the `--local` flag.');
+        if(skipGithubRequests) {// If the --skipGithubRequests flag was provided, we'll skip querying GitHubs API
+          sails.log('Skipping GitHub API requests for contributer profiles.\nNOTE: The contributors in the standard query library will be populated with fake data. To see how the standard query library will look on fleetdm.com, run this script without the `--skipGithubRequests` flag.');
           // Because we're not querying GitHub to get the real names for contributer profiles, we'll use their GitHub username as their name and their handle
           for (let query of queries) {
             let usernames = query.contributors.split(',');
@@ -106,20 +106,20 @@ module.exports = {
               contributorProfiles.push({
                 name: username,
                 handle: username,
-                avatarUrl: 'https://github.com/'+username+'.png?size=200',
+                avatarUrl: 'https://placekitten.com/200/200',
                 htmlUrl: 'https://github.com/'+username,
               });
             }
             query.contributors = contributorProfiles;
           }
-        } else {// If the local flag was not provided, we'll query GitHub's API to get additional information about each contributor.
+        } else {// If the --skipGithubRequests flag was not provided, we'll query GitHub's API to get additional information about each contributor.
           await sails.helpers.flow.simultaneouslyForEach(githubUsernames, async(username)=>{
             githubDataByUsername[username] = await sails.helpers.http.get.with({
               url: 'https://api.github.com/users/' + encodeURIComponent(username),
               headers: { 'User-Agent': 'Fleet-Standard-Query-Library', Accept: 'application/vnd.github.v3+json' }
             }).catch((err)=>{// If the above GET requests return a non 200 response we'll look for signs that the user has hit their GitHub API rate limit.
-              if (err.raw.statusCode === 403 && err.raw.headers['x-ratelimit-remaining'] === '0') {// If the user has reached their GitHub API rate limit, we'll throw an error that suggest they run this script with the `--local` flag.
-                throw new Error('GitHub API rate limit exceeded. If running in a development environment use the `--local` flag to skip querying the GitHub API. See full error for more details:\n'+err);
+              if (err.raw.statusCode === 403 && err.raw.headers['x-ratelimit-remaining'] === '0') {// If the user has reached their GitHub API rate limit, we'll throw an error that suggest they run this script with the `--skipGithubRequests` flag.
+                throw new Error('GitHub API rate limit exceeded. If you\'re running this script in a development environment, use the `--skipGithubRequests` flag to skip querying the GitHub API. See full error for more details:\n'+err);
               } else {// If the error was not because of the user's API rate limit, we'll display the full error
                 throw err;
               }
