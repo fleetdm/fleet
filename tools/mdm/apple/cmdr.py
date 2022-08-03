@@ -1,5 +1,8 @@
 #!/usr/bin/env python3
 
+# NOTE: Tool downloaded as-is from:
+# https://github.com/micromdm/nanomdm/blob/main/tools/cmdr.py
+
 import argparse
 import plistlib
 import uuid
