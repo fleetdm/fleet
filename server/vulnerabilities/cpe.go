@@ -147,7 +147,7 @@ func cleanAppName(appName string) string {
 var onlyAlphaNumeric = regexp.MustCompile(`[^a-zA-Z0-9]+`)
 
 // sanitizeMatch sanitizes the search string for sqlite fts queries. Replaces all special characters with spaces.
-func santizeMatch(s string) string {
+func sanitizeMatch(s string) string {
 	return onlyAlphaNumeric.ReplaceAllString(s, " ")
 }
 
@@ -156,14 +156,8 @@ var sanitizeVersionRe = regexp.MustCompile(`[^a-zA-Z0-9_-]+`)
 // sanitizeVersion attempts to sanitize versions and attempt to make it dot separated.
 // Eg Zoom reports version as "5.11.1 (8356)". In the NVD CPE dictionary it should be 5.11.1.8356.
 func sanitizeVersion(version string) string {
-	parts := onlyAlphaNumeric.Split(version, -1)
+	parts := sanitizeVersionRe.Split(version, -1)
 	return strings.Trim(strings.Join(parts, "."), ".")
-}
-
-// TODO: add more vendors
-var macOSVendors = map[string]string{
-	"com.postmanlabs.mac":           "getpostman",
-	"org.virtualbox.app.VirtualBox": "oracle",
 }
 
 const cpeTranslationsFilename = "cpe_translations.json"
@@ -424,7 +418,7 @@ func CPEFromSoftware(db *sqlx.DB, software *fleet.Software, translations CPETran
 		}
 
 		// sanitize name for full text search on title
-		nameTerms := onlyAlphaNumeric.ReplaceAllString(name, " ")
+		nameTerms := sanitizeMatch(name)
 		ds = ds.Where(
 			goqu.L("cs.title MATCH ?", nameTerms),
 		)
