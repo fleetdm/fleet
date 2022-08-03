@@ -90,192 +90,6 @@ There are several locations in Fleet's public and internal documentation that ca
 
 Community team members can reach the engineering oncall for assistance by writing a message with `@oncall` in the `#help-engineering` channel of the Fleet Slack.
 
-## Fleet docs
-
-### How to request a review for Markdown changes to the docs
-
-When creating a pull request for Markdown changes in the docs, request a review from Desmi Dizney, who will do an editor pass, and then hand over the review to the [on-call engineer](https://fleetdm.com/handbook/engineering#oncall-rotation) if necessary.
-
-### Markdown
-Fleet's documentation and handbook are written in [Markdown](https://about.gitlab.com/handbook/markdown-guide/). Using Markdown lets us keep our documentation consistently formatted and viewable directly from the Fleet GitHub repo. The Markdown files in the `/docs` and `/handbook` folders are converted to HTML for the Fleet website. 
-
-When making changes to the Fleet docs or handbook, there are a few differences in how the Markdown will render on GitHub and the Fleet website.
-
-#### Linebreaks and newlines
-Any time you need to add a line break in Markdown, you should add a new line. It is vital to make sure paragraphs are separated by new lines. Otherwise, they will render as the same HTML element.
-
-For example, if you were adding this section to the docs:
-
-```
-line one
-line two
-```
-
-The Markdown would render on the Fleet website as
-
-line one
-line two
-
-To make sure formatting is consistent across GitHub and the Fleet website, you need to add a new line anywhere you want a line break. For example, if we separate the lines with a new line:
-
-```
-line one
-
-line two
-```
-
-
-The Markdown will render correctly as
-
-line one
-
-line two
-
-#### Ordered lists
-
-Content nested within an ordered list needs to be indented. If the list is not formatted correctly, the number will reset on each list item.
-
-For example, this list:
-
-```
-1. Item one
-
-Paragraph about item one
-
-2. Item two
-```
-
-On the Fleet website, this ordered list would be rendered as
-
-1. Item one
-
-Paragraph about item one
-
-2. Item two
-
-To make sure that ordered lists increment on the Fleet website, you can indent the content nested within the list. For example, the same ordered list with indentation:
-
-```
-1. Item one
-
-   Paragraph about item one
-
-2. Item two
-```
-
-This ordered list will render correctly as
-
-1. Item one
-
-   Paragraph about item one
-
-2. Item two
-
-### Docs style guide
-
-#### Headings
-
-Headings help readers quickly scan content to find what they need. Organize page content using clear headings specific to the topic they describe.
-
-Keep headings brief, organized, and in a logical order:
-
-* H1: Page title
-* H2: Main headings
-* H3: Subheadings
-* H4: Sub-subheadings (headings nested under subheadings)
-
-Try to stay within three or four heading levels. Complicated documents may use more, but pages with a simpler structure are easier to read.
-
-### SQL statements
-
-When adding SQL statements, all SQL reserved words should be uppercase, and all identifiers (such as tables and columns) should be lowercase. Here is an example:
-
-```sql
-   SELECT days, hours, total_seconds FROM uptime;
-```
-
-### Adding a link to the Fleet docs
-
-You can link documentation pages to each other using relative paths. For example, in `docs/Using-Fleet/Fleet-UI.md`, you can link to `docs/Using-Fleet/Permissions.md` by writing `[permissions](./Permissions.md)`. This will automatically be transformed into the appropriate URL for `fleetdm.com/docs`.
-
-However, the `fleetdm.com/docs` compilation process does not account for relative links to directories **outside** of `/docs`.
-This is why it’s essential to follow the file path exactly when adding a link to Fleet docs.
-When directly linking to a specific section, always format the spaces within a section name to use a hyphen instead of an underscore. For example, when linking to the `osquery_result_log_plugin` section of the configuration reference docs, use a relative link like the following: `./Configuration.md#osquery-result-log-plugin`.
-
-### Linking to a location on GitHub
-When adding a link to a location on GitHub outside of `/docs`, be sure to use the canonical form of the URL.
-
-Navigate to the file's location on GitHub, and press "y" to transform the URL into its canonical form.
-
-### How to fix a broken link
-For instances when a broken link is discovered on fleetdm.com, always check if the link is a relative link to a directory outside of `/docs`. 
-
-An example of a link that lives outside of `/docs` is:
-
-```
-../../tools/app/prometheus
-```
-
-If the link lives outside `/docs`, head to the file's location on GitHub (in this case, [https://github.com/fleetdm/fleet/blob/main/tools/app/prometheus.yml)](https://github.com/fleetdm/fleet/blob/main/tools/app/prometheus.yml)), and press "y" to transform the URL into its canonical form (a version of the link that will always point to the same version of the file) ([https://github.com/fleetdm/fleet/blob/194ad5963b0d55bdf976aa93f3de6cabd590c97a/tools/app/prometheus.yml](https://github.com/fleetdm/fleet/blob/194ad5963b0d55bdf976aa93f3de6cabd590c97a/tools/app/prometheus.yml)). Replace the relative link with this link in the Markdown file. 
-
-> Note that the instructions above also apply to adding links in the Fleet handbook.
-
-### Ordering a page in the Fleet docs
-The order we display documentation pages on fleetdm.com is determined by `pageOrderInSection` meta tags. These pages are sorted in their respective sections in **ascending** order by the `pageOrderInSection` value. Every Markdown file (except readme and faq pages) in the `docs/` folder must have a meta tag with a positive 'pageOrderInSection' value.
-
-
-We leave large gaps between values to make future changes easier. For example, the first page in the "Using Fleet" section of the docs has a `pageOrderInSection` value of 100, and the next page has a value of 200. The significant difference between values allows us to add, remove and reorder pages without changing the value of multiple pages at a time.
-
-When adding or reordering a page, try to leave as much room between values as possible. If you were adding a new page that would go between the two pages from the example above, you would add `<meta name="pageOrderInSection" value="150">` to the page.
-
-### Adding an image to the Fleet docs
-Try to keep images in the docs at a minimum. Images can be a quick way to help users understand a concept or direct them towards a specific user interface(UI) element. Still, too many can make the documentation feel cluttered and more difficult to maintain.
-
-When adding images to the Fleet documentation, follow these guidelines:
-- UI screenshots should be a 4:3 aspect ratio (1280x960). This is an optimal size for the container width of the docs and ensures that content in screenshots is as clear as possible to view in the docs (and especially on mobile devices).
-- You can set up a custom preset in the Google Chrome device toolbar (in Developer Tools) to quickly adjust your browser to the correct size for taking a screenshot.
-- Keep the images as simple as possible to maintain. Screenshots can get out of date quickly as UIs change.
-- Exclude unnecessary images. Images should be used to help emphasize information in the docs, not replace it.
-- Minimize images per doc page. For doc maintainers and users, more than one or two per page can get overwhelming.
-- The goal is for the docs to look good on every form factor, from 320px window width all the way up to infinity. Full window screenshots and images with too much padding on the sides will be less than the width of the user's screen. When adding a large image, make sure it is easily readable at all widths.
-
-Images can be added to the docs using the Markdown image link format, e.g., `![Schedule Query Sidebar](https://raw.githubusercontent.com/fleetdm/fleet/main/docs/images/schedule-query-modal.png)`
-The images used in the docs live in `docs/images/`. Note that you must provide the URL of the image in the Fleet GitHub repo for it to display properly on both GitHub and the Fleet website.
-
-> Note that the instructions above also apply to adding images in the Fleet handbook.
-
-### Adding a mermaid diagram to the Fleet Docs
-
-The Fleet Docs support diagrams that are written in mermaid.js syntax. Take a look at the [Mermaid docs](https://mermaid-js.github.io/mermaid/#/README) to learn about the syntax language and what types of diagrams you can display.
-
-To add a mermaid diagram to the docs, you need to add a code block and specify that it is written in the mermaid language by adding `mermaid` to the opening backticks (i.e., ` ```mermaid`).
-
-For example, the following code block is a mermaid diagram that has **not** been specified as a mermaid code block:
-
-```
-graph TD;
-    A-->D
-    B-->D
-    C-->D
-    D-->E
-```
-Once we specify the `mermaid` as the language in the code block, it will render as a mermaid diagram on fleetdm.com and GitHub.
-
-```mermaid
-graph TD;
-    A-->D
-    B-->D
-    C-->D
-    D-->E
-```
-
-If the mermaid syntax is incorrect, the diagram will be replaced with an image displaying an error, as shown in the following example where the code block was written with **intentional** syntax errors:
-
-```mermaid
-graph TD;
-    A--D
-```
-
 ## Pull requests
 
 The most important thing when community members contribute to Fleet is to show them we value their time and effort. We need to get eyes on community pull requests quickly (within one business day) and get them merged or give feedback as soon as we can.
@@ -289,7 +103,6 @@ Each business day, the Community Engagement DRI will check open pull requests to
 1. check for new pull requests (PRs) from the Fleet community. 
 2. approve and merge any community PRs that are ready to go.
 3. make sure there aren't any existing community PRs waiting for a follow-up from Fleet. 
-
 
 #### Identify community contributions
 
@@ -410,7 +223,6 @@ The following table lists the Community group's rituals, frequency, and Directly
 | Documentation update | Weekly | Turn questions answered from Fleet and osquery Slack into FAQs in Fleet’s docs. | Kathy Satterlee |
 | StackOverflow  | Weekly | Search StackOverflow for “osquery,” answer questions with Grammarly, and find a way to feature Fleet in your StackOverflow profile prominently. | Rotation: Community team |
 
-
 ## Slack channels
 
 This group maintains the following [Slack channels](https://fleetdm.com/handbook/company#group-slack-channels):
@@ -418,9 +230,6 @@ This group maintains the following [Slack channels](https://fleetdm.com/handbook
 | Slack channel               | [DRI](https://fleetdm.com/handbook/company#group-slack-channels)    |
 |:----------------------------|:--------------------------------------------------------------------|
 | `#g-community`              | Kathy Satterlee
-
-
-
 
 <meta name="maintainedBy" value="ksatter">
 <meta name="title" value="🪂 Community">
