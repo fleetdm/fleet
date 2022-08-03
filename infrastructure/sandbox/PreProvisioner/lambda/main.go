@@ -20,6 +20,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"time"
 )
 
 type OptionsStruct struct {
@@ -79,6 +80,7 @@ func buildPackages(instanceID, enrollSecret string) (err error) {
 		UpdateURL:                    "https://tuf.fleetctl.com",
 		Identifier:                   "com.fleetdm.orbit",
 		StartService:                 true,
+		NativeTooling:                true,
 		OrbitChannel:                 "stable",
 		OsquerydChannel:              "stable",
 		DesktopChannel:               "stable",
