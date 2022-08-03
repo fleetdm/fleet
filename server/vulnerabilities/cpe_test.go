@@ -218,16 +218,18 @@ func TestTranslateSoftwareToCPE(t *testing.T) {
 	iterator := &fakeSoftwareIterator{
 		softwares: []*fleet.Software{
 			{
-				ID:      1,
-				Name:    "Product",
-				Version: "1.2.3",
-				Source:  "apps",
+				ID:               1,
+				Name:             "Product",
+				Version:          "1.2.3",
+				BundleIdentifier: "vendor",
+				Source:           "apps",
 			},
 			{
-				ID:      2,
-				Name:    "Product2",
-				Version: "0.3",
-				Source:  "apps",
+				ID:               2,
+				Name:             "Product2",
+				Version:          "0.3",
+				BundleIdentifier: "vendor2",
+				Source:           "apps",
 			},
 		},
 	}
