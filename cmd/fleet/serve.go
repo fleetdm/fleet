@@ -1,18 +1,14 @@
 package main
 
 import (
-	"bytes"
 	"context"
 	"crypto/sha256"
 	"crypto/subtle"
 	"crypto/tls"
-	"crypto/x509"
 	"database/sql/driver"
-	"encoding/pem"
 	"errors"
 	"fmt"
 	"io/ioutil"
-	stdlog "log"
 	"math/rand"
 	"net"
 	"net/http"
@@ -22,14 +18,12 @@ import (
 	"regexp"
 	"strings"
 	"syscall"
-	"text/template"
 	"time"
 
 	"github.com/WatchBeam/clock"
 	"github.com/e-dard/netbug"
 	"github.com/fleetdm/fleet/v4/ee/server/licensing"
 	eeservice "github.com/fleetdm/fleet/v4/ee/server/service"
-	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
 	"github.com/fleetdm/fleet/v4/server"
 	"github.com/fleetdm/fleet/v4/server/config"
 	configpkg "github.com/fleetdm/fleet/v4/server/config"
@@ -46,33 +40,17 @@ import (
 	"github.com/fleetdm/fleet/v4/server/live_query"
 	"github.com/fleetdm/fleet/v4/server/logging"
 	"github.com/fleetdm/fleet/v4/server/mail"
+	mdm_apple_service "github.com/fleetdm/fleet/v4/server/mdm/apple/service"
 	"github.com/fleetdm/fleet/v4/server/pubsub"
 	"github.com/fleetdm/fleet/v4/server/service"
 	"github.com/fleetdm/fleet/v4/server/service/async"
 	"github.com/fleetdm/fleet/v4/server/service/redis_policy_set"
 	"github.com/fleetdm/fleet/v4/server/sso"
 	"github.com/getsentry/sentry-go"
-	"github.com/go-kit/kit/log"
 	kitlog "github.com/go-kit/kit/log"
 	"github.com/go-kit/kit/log/level"
 	kitprometheus "github.com/go-kit/kit/metrics/prometheus"
 	"github.com/kolide/kit/version"
-	"github.com/micromdm/nanodep/client"
-	"github.com/micromdm/nanodep/godep"
-	nanodep_stdlogfmt "github.com/micromdm/nanodep/log/stdlogfmt"
-	"github.com/micromdm/nanodep/proxy"
-	depsync "github.com/micromdm/nanodep/sync"
-	"github.com/micromdm/nanomdm/certverify"
-	nanomdm_httpapi "github.com/micromdm/nanomdm/http/api"
-	httpmdm "github.com/micromdm/nanomdm/http/mdm"
-	nanomdm_stdlogfmt "github.com/micromdm/nanomdm/log/stdlogfmt"
-	"github.com/micromdm/nanomdm/push/buford"
-	nanomdm_pushsvc "github.com/micromdm/nanomdm/push/service"
-	nanomdm_service "github.com/micromdm/nanomdm/service"
-	"github.com/micromdm/nanomdm/service/certauth"
-	"github.com/micromdm/nanomdm/service/nanomdm"
-	"github.com/micromdm/scep/v2/depot"
-	scepserver "github.com/micromdm/scep/v2/server"
 	"github.com/ngrok/sqlmw"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
@@ -247,14 +225,15 @@ the way that the Fleet server works.
 				initFatal(err, "retrieving migration status")
 			}
 
-			migrationStatusCheck(migrationStatus, config.Upgrades.AllowMissingMigrations, dev, "fleet")
+			migrationStatusCheck(migrationStatus, config.Upgrades.AllowMissingMigrations, dev, config.Mysql.Database)
 
-			mdmAppleMigrationStatus, err := mds.MigrationMDMAppleStatus(cmd.Context())
-			if err != nil {
-				initFatal(err, "retrieving mdm apple migration status")
+			if config.MDMApple.Enable {
+				mdmAppleMigrationStatus, err := mds.MigrationMDMAppleStatus(cmd.Context())
+				if err != nil {
+					initFatal(err, "retrieving mdm apple migration status")
+				}
+				migrationStatusCheck(mdmAppleMigrationStatus, config.Upgrades.AllowMissingMigrations, dev, config.Mysql.DatabaseMDMApple)
 			}
-
-			migrationStatusCheck(mdmAppleMigrationStatus, config.Upgrades.AllowMissingMigrations, dev, "mdm_apple")
 
 			if initializingDS, ok := ds.(initializer); ok {
 				if err := initializingDS.Initialize(); err != nil {
@@ -484,190 +463,28 @@ the way that the Fleet server works.
 			rootMux.Handle("/assets/", service.PrometheusMetricsHandler("static_assets", service.ServeStaticAssets("/assets/")))
 
 			if config.MDMApple.Enable {
-				// (1) SCEP
-				scepCAKeyPassphrase := []byte(config.MDMApple.SCEP.CA.Passphrase)
-				if len(scepCAKeyPassphrase) == 0 {
-					err := errors.New("missing passphrase for SCEP CA private key")
-					initFatal(err, "initialize mdm apple scep depot")
-				}
-				mdmAppleSCEPDepot, err := mds.NewMDMAppleSCEPDepot()
+				scepStorage, err := mds.NewMDMAppleSCEPDepot()
 				if err != nil {
-					initFatal(err, "initialize mdm apple scep depot")
-				}
-				scepCACrt, scepCAKey, err := mdmAppleSCEPDepot.LoadCA(scepCAKeyPassphrase)
-				if err != nil {
-					initFatal(err, "initialize mdm apple scep depot CA")
-				}
-				var signer scepserver.CSRSigner = depot.NewSigner(
-					mdmAppleSCEPDepot,
-					depot.WithCAPass(string(scepCAKeyPassphrase)),
-					depot.WithValidityDays(config.MDMApple.SCEP.Signer.ValidityDays),
-					depot.WithAllowRenewalDays(config.MDMApple.SCEP.Signer.AllowRenewalDays),
-				)
-				scepChallenge := config.MDMApple.SCEP.Challenge
-				if scepChallenge == "" {
-					err := errors.New("missing SCEP challenge")
-					initFatal(err, "initialize mdm apple scep service")
-				}
-				signer = scepserver.ChallengeMiddleware(scepChallenge, signer)
-				scepService, err := scepserver.NewService(scepCACrt, scepCAKey, signer,
-					scepserver.WithLogger(kitlog.With(logger, "component", "mdm-apple-scep")),
-				)
-				if err != nil {
-					initFatal(err, "initialize mdm apple scep service")
-				}
-				scepLogger := log.With(logger, "component", "http-mdm-apple-scep")
-				e := scepserver.MakeServerEndpoints(scepService)
-				e.GetEndpoint = scepserver.EndpointLoggingMiddleware(scepLogger)(e.GetEndpoint)
-				e.PostEndpoint = scepserver.EndpointLoggingMiddleware(scepLogger)(e.PostEndpoint)
-				scepHandler := scepserver.MakeHTTPHandler(e, scepService, scepLogger)
-				rootMux.Handle("/mdm/apple/scep", scepHandler)
-
-				// (2) MDM Core (for devices)
-				// TODO(lucas): Using bare minimum to run MDM in Fleet. Revisit
-				// https://github.com/micromdm/nanomdm/blob/92c977e42859ba56e73d1fc2377732a9ab6e5e01/cmd/nanomdm/main.go
-				// to allow for more configuration/options.
-				scepCAPEMBlock := &pem.Block{
-					Type:  "CERTIFICATE",
-					Bytes: scepCACrt.Raw,
-				}
-				scepCAPEM := pem.EncodeToMemory(scepCAPEMBlock)
-				certVerifier, err := certverify.NewPoolVerifier(scepCAPEM, x509.ExtKeyUsageClientAuth)
-				if err != nil {
-					initFatal(err, "initialize mdm apple certificate pool verifier")
+					initFatal(err, "initialize mdm apple scep storage")
 				}
 				mdmStorage, err := mds.NewMDMAppleMDMStorage()
 				if err != nil {
 					initFatal(err, "initialize mdm apple MySQL storage")
 				}
-				mdmLogger := nanomdm_stdlogfmt.New(
-					nanomdm_stdlogfmt.WithLogger(
-						stdlog.New(
-							log.NewStdlibAdapter(
-								log.With(logger, "component", "http-mdm-apple-mdm")),
-							"", stdlog.LstdFlags,
-						),
-					),
-					nanomdm_stdlogfmt.WithDebugFlag(config.Logging.Debug),
-				)
-				nanomdmService := nanomdm.New(mdmStorage, nanomdm.WithLogger(mdmLogger))
-				var mdmService nanomdm_service.CheckinAndCommandService = nanomdmService
-				mdmService = certauth.New(mdmService, mdmStorage)
-				var mdmHandler http.Handler
-				mdmHandler = httpmdm.CheckinAndCommandHandler(mdmService, mdmLogger.With("handler", "checkin-command"))
-				mdmHandler = httpmdm.CertVerifyMiddleware(mdmHandler, certVerifier, mdmLogger.With("handler", "cert-verify"))
-				mdmHandler = httpmdm.CertExtractMdmSignatureMiddleware(mdmHandler, mdmLogger.With("handler", "cert-extract"))
-				rootMux.Handle("/mdm/apple/mdm", mdmHandler)
-
-				// (3) MDM Admin API
-				// TODO(lucas): None of the API endpoints have authentication yet.
-				// We should use Fleet admin bearer token authentication.
-				const (
-					endpointAPIPushCert = "/mdm/apple/api/v1/pushcert"
-					endpointAPIPush     = "/mdm/apple/api/v1/push/"
-					endpointAPIEnqueue  = "/mdm/apple/api/v1/enqueue/"
-				)
-				pushProviderFactory := buford.NewPushProviderFactory()
-				pushService := nanomdm_pushsvc.New(mdmStorage, mdmStorage, pushProviderFactory, mdmLogger.With("service", "push"))
-				pushCertHandler := nanomdm_httpapi.StorePushCertHandler(mdmStorage, mdmLogger.With("handler", "store-cert"))
-				rootMux.Handle(endpointAPIPushCert, pushCertHandler)
-				var pushHandler http.Handler
-				pushHandler = nanomdm_httpapi.PushHandler(pushService, mdmLogger.With("handler", "push"))
-				pushHandler = http.StripPrefix(endpointAPIPush, pushHandler)
-				rootMux.Handle(endpointAPIPush, pushHandler)
-				var enqueueHandler http.Handler
-				enqueueHandler = nanomdm_httpapi.RawCommandEnqueueHandler(mdmStorage, pushService, mdmLogger.With("handler", "enqueue"))
-				enqueueHandler = http.StripPrefix(endpointAPIEnqueue, enqueueHandler)
-				rootMux.Handle(endpointAPIEnqueue, enqueueHandler)
-
-				// (3) Host .mobileconfig enroll profile
-				// TODO(lucas): The enroll profile must be protected by SSO. Currently the endpoint is unauthenticated.
-				topic, err := mdmStorage.CurrentTopic(ctx)
-				if err != nil {
-					initFatal(err, "loading MDM Push certificate topic")
-				}
-
-				rootMux.HandleFunc("/mdm/apple/api/enroll", func(w http.ResponseWriter, r *http.Request) {
-					mobileConfig, err := generateMobileConfig(
-						"https://"+config.MDMApple.DEP.ServerURL+"/mdm/apple/scep",
-						"https://"+config.MDMApple.DEP.ServerURL+"/mdm/apple/mdm",
-						scepChallenge,
-						topic,
-					)
-					if err != nil {
-						log.With(logger, "handler", "enroll-profile").Log("err", err)
-					}
-					w.Header().Add("Content-Type", "application/x-apple-aspen-config")
-					if _, err := w.Write(mobileConfig); err != nil {
-						log.With(logger, "handler", "enroll-profile").Log("err", err)
-					}
-				})
-
-				// (4) Set up DEP Apple proxy.
 				depStorage, err := mds.NewMDMAppleDEPStorage()
 				if err != nil {
 					initFatal(err, "initialize mdm apple dep storage")
 				}
-				depLogger := nanodep_stdlogfmt.New(stdlog.Default(), config.Logging.Debug)
-				p := proxy.New(
-					client.NewTransport(http.DefaultTransport, http.DefaultClient, depStorage, nil),
-					depStorage,
-					depLogger.With("component", "proxy"),
-				)
-				var proxyHandler http.Handler = proxy.ProxyDEPNameHandler(p, depLogger.With("handler", "proxy"))
-				proxyHandler = http.StripPrefix("/mdm/apple/proxy/", proxyHandler)
-				proxyHandler = delHeaderMiddleware(proxyHandler, "Authorization")
-				rootMux.Handle("/mdm/apple/proxy/", proxyHandler)
-
-				// (5) Create DEP assigner and start syncer routine.
-				httpClient := fleethttp.NewClient()
-				depClient := godep.NewClient(depStorage, httpClient)
-				assignerOpts := []depsync.AssignerOption{
-					depsync.WithAssignerLogger(depLogger.With("component", "assigner")),
+				if err := mdm_apple_service.Setup(ctx, rootMux, mdm_apple_service.SetupConfig{
+					MDMConfig:    config.MDMApple,
+					Logger:       logger,
+					MDMStorage:   mdmStorage,
+					SCEPStorage:  scepStorage,
+					DEPStorage:   depStorage,
+					LoggingDebug: config.Logging.Debug,
+				}); err != nil {
+					initFatal(err, "setup mdm apple services")
 				}
-				if config.Logging.Debug {
-					assignerOpts = append(assignerOpts, depsync.WithDebug())
-				}
-				// TODO(lucas): Define as variable somewhere global, as prepare step also
-				// uses this value.
-				const depName = "fleet"
-				assigner := depsync.NewAssigner(
-					depClient,
-					depName,
-					depStorage,
-					assignerOpts...,
-				)
-				depSyncerCallback := func(ctx context.Context, isFetch bool, resp *godep.DeviceResponse) error {
-					go func() {
-						err := assigner.ProcessDeviceResponse(ctx, resp)
-						if err != nil {
-							depLogger.Info("msg", "assigner process device response", "err", err)
-						}
-					}()
-					return nil
-				}
-				syncNow := make(chan struct{})
-				syncerOpts := []depsync.SyncerOption{
-					depsync.WithLogger(depLogger.With("component", "syncer")),
-					depsync.WithSyncNow(syncNow),
-					depsync.WithCallback(depSyncerCallback),
-					depsync.WithDuration(config.MDMApple.DEP.SyncPeriodicity),
-					depsync.WithLimit(config.MDMApple.DEP.SyncDeviceLimit),
-				}
-				syncer := depsync.NewSyncer(
-					depClient,
-					depName,
-					depStorage,
-					syncerOpts...,
-				)
-				go func() {
-					defer close(syncNow)
-
-					err = syncer.Run(ctx)
-					if err != nil {
-						depLogger.Info("msg", "syncer run", "err", err)
-					}
-				}()
 			}
 
 			if config.Prometheus.BasicAuth.Username != "" && config.Prometheus.BasicAuth.Password != "" {
@@ -800,111 +617,6 @@ the way that the Fleet server works.
 	serveCmd.PersistentFlags().BoolVar(&devExpiredLicense, "dev_expired_license", false, "Enable expired development license")
 
 	return serveCmd
-}
-
-// delHeaderMiddleware deletes header from the HTTP request headers before calling h.
-func delHeaderMiddleware(h http.Handler, header string) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		r.Header.Del(header)
-		h.ServeHTTP(w, r)
-	}
-}
-
-// mobileConfigTemplate is the template Fleet uses to assemble a .mobileconfig enroll profile to serve to devices.
-//
-// TODO(lucas): Tweak the remaining configuration.
-// Downloaded from:
-// https://github.com/micromdm/nanomdm/blob/3b1eb0e4e6538b6644633b18dedc6d8645853cb9/docs/enroll.mobileconfig
-//
-// TODO(lucas): Support enroll profile signing?
-var mobileConfigTemplate = template.Must(template.New(".mobileconfig").Parse(`
-<?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-<plist version="1.0">
-<dict>
-	<key>PayloadContent</key>
-	<array>
-		<dict>
-			<key>PayloadContent</key>
-			<dict>
-				<key>Key Type</key>
-				<string>RSA</string>
-				<key>Challenge</key>
-				<string>{{ .SCEPChallenge }}</string>
-				<key>Key Usage</key>
-				<integer>5</integer>
-				<key>Keysize</key>
-				<integer>2048</integer>
-				<key>URL</key>
-				<string>{{ .SCEPServerURL }}</string>
-			</dict>
-			<key>PayloadIdentifier</key>
-			<string>com.github.micromdm.scep</string>
-			<key>PayloadType</key>
-			<string>com.apple.security.scep</string>
-			<key>PayloadUUID</key>
-			<string>CB90E976-AD44-4B69-8108-8095E6260978</string>
-			<key>PayloadVersion</key>
-			<integer>1</integer>
-		</dict>
-		<dict>
-			<key>AccessRights</key>
-			<integer>8191</integer>
-			<key>CheckOutWhenRemoved</key>
-			<true/>
-			<key>IdentityCertificateUUID</key>
-			<string>CB90E976-AD44-4B69-8108-8095E6260978</string>
-			<key>PayloadIdentifier</key>
-			<string>com.github.micromdm.nanomdm.mdm</string>
-			<key>PayloadType</key>
-			<string>com.apple.mdm</string>
-			<key>PayloadUUID</key>
-			<string>96B11019-B54C-49DC-9480-43525834DE7B</string>
-			<key>PayloadVersion</key>
-			<integer>1</integer>
-			<key>ServerCapabilities</key>
-			<array>
-				<string>com.apple.mdm.per-user-connections</string>
-			</array>
-			<key>ServerURL</key>
-			<string>{{ .MDMServerURL }}</string>
-			<key>SignMessage</key>
-			<true/>
-			<key>Topic</key>
-			<string>{{ .Topic }}</string>
-		</dict>
-	</array>
-	<key>PayloadDisplayName</key>
-	<string>Enrollment Profile</string>
-	<key>PayloadIdentifier</key>
-	<string>com.github.micromdm.nanomdm</string>
-	<key>PayloadScope</key>
-	<string>System</string>
-	<key>PayloadType</key>
-	<string>Configuration</string>
-	<key>PayloadUUID</key>
-	<string>F9760DD4-F2D1-4F29-8D2C-48D52DD0A9B3</string>
-	<key>PayloadVersion</key>
-	<integer>1</integer>
-</dict>
-</plist>`))
-
-func generateMobileConfig(scepServerURL, mdmServerURL, scepChallenge, topic string) ([]byte, error) {
-	var contents bytes.Buffer
-	if err := mobileConfigTemplate.Execute(&contents, struct {
-		SCEPServerURL string
-		MDMServerURL  string
-		SCEPChallenge string
-		Topic         string
-	}{
-		SCEPServerURL: scepServerURL,
-		MDMServerURL:  mdmServerURL,
-		SCEPChallenge: scepChallenge,
-		Topic:         topic,
-	}); err != nil {
-		return nil, fmt.Errorf("execute template: %w", err)
-	}
-	return contents.Bytes(), nil
 }
 
 // basicAuthHandler wraps the given handler behind HTTP Basic Auth.

@@ -88,6 +88,7 @@ func SQLMode(mode string) DBOption {
 	}
 }
 
+// WithMDMApple can be used to enable/disable Apple MDM MySQL DB.
 func WithMDMApple(v bool) DBOption {
 	return func(o *dbOptions) error {
 		o.mdmApple = v
@@ -95,6 +96,7 @@ func WithMDMApple(v bool) DBOption {
 	}
 }
 
+// WithMultiStatements enables/disables MySQL multi-statements support.
 func WithMultiStatements(v bool) DBOption {
 	return func(o *dbOptions) error {
 		o.multiStatements = v

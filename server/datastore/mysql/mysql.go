@@ -145,8 +145,8 @@ type NanoMDMStorage struct {
 func (n *NanoMDMStorage) SetCurrentTopic(ctx context.Context, topic string) error {
 	_, err := n.dbWriter.ExecContext(ctx, `
 INSERT INTO mdm_apple_current_push_topic
-	(topic) 
-VALUES 
+	(topic)
+VALUES
 	(?)
 ON DUPLICATE KEY UPDATE
 	topic = VALUES(topic)`,
@@ -338,7 +338,7 @@ func New(config config.MysqlConfig, c clock.Clock, opts ...DBOption) (*Datastore
 	var dbAppleMDMWriter *sqlx.DB
 	if options.mdmApple {
 		configMDMApple := config
-		configMDMApple.Database = "mdm_apple"
+		configMDMApple.Database = configMDMApple.DatabaseMDMApple
 		// TODO(lucas): Check if we can get around with having parseTime=true.
 		configMDMApple.DisableParseTime = true
 		dbAppleMDMWriter, err = newDB(&configMDMApple, options)
@@ -486,10 +486,15 @@ func (ds *Datastore) MigrateData(ctx context.Context) error {
 	return data.MigrationClient.Up(ds.writer.DB, "")
 }
 
+// MigrateMDMAppleTables applies the table migrations for the Apple MDM schema.
 func (ds *Datastore) MigrateMDMAppleTables(ctx context.Context) error {
 	return mdm_apple_migrations_tables.MigrationClient.Up(ds.appleMDMWriter.DB, "")
 }
 
+// MigrateMDMAppleData applies the data migrations for the Apple MDM schema.
+//
+// MDM for Apple has no data migrations but this is defined to allow for code reuse
+// of status checking and migration defined in this package.
 func (ds *Datastore) MigrateMDMAppleData(ctx context.Context) error {
 	return mdm_apple_migrations_data.MigrationClient.Up(ds.appleMDMWriter.DB, "")
 }

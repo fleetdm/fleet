@@ -42,6 +42,7 @@ type MysqlConfig struct {
 	SQLMode          string `yaml:"sql_mode"`
 	MultiStatements  bool   `yaml:"multi_statements"`
 	DisableParseTime bool   `yaml:"parse_time"`
+	DatabaseMDMApple string `yaml:"database_mdm_apple"`
 }
 
 // RedisConfig defines configs related to Redis
@@ -513,6 +514,8 @@ func (man Manager) addConfigs() {
 		man.addConfigInt(prefix+".max_idle_conns", 50, "MySQL maximum idle connection handles"+usageSuffix)
 		man.addConfigInt(prefix+".conn_max_lifetime", 0, "MySQL maximum amount of time a connection may be reused"+usageSuffix)
 		man.addConfigString(prefix+".sql_mode", "", "MySQL sql_mode"+usageSuffix)
+		man.addConfigString(prefix+".database_mdm_apple", "mdm_apple",
+			"MySQL database name"+usageSuffix)
 	}
 	// MySQL
 	addMysqlConfig("mysql", "localhost:3306", ".")
@@ -773,9 +776,8 @@ func (man Manager) addConfigs() {
 	man.addConfigBool("packaging.s3.force_s3_path_style", false, "Set this to true to force path-style addressing, i.e., `http://s3.amazonaws.com/BUCKET/KEY`")
 
 	// MDM Apple config
-	man.addConfigBool("mdm.apple.enable", false, "Enable MDM Apple functionality")
-	// MDM Apple SCEP config
 	// TODO(lucas): Define proper default values for all the MDM configuration.
+	man.addConfigBool("mdm.apple.enable", false, "Enable MDM Apple functionality")
 	man.addConfigString("mdm.apple.scep.ca.passphrase", "", "Passphrase for encrypting/decrypting the SCEP CA private key")
 	man.addConfigInt("mdm.apple.scep.ca.years", 10, "Validity of the SCEP CA certificate in years")
 	man.addConfigString("mdm.apple.scep.ca.cn", "Fleet", "Common name to set in the SCEP CA certificate")
@@ -800,21 +802,22 @@ func (man Manager) LoadConfig() FleetConfig {
 
 	loadMysqlConfig := func(prefix string) MysqlConfig {
 		return MysqlConfig{
-			Protocol:        man.getConfigString(prefix + ".protocol"),
-			Address:         man.getConfigString(prefix + ".address"),
-			Username:        man.getConfigString(prefix + ".username"),
-			Password:        man.getConfigString(prefix + ".password"),
-			PasswordPath:    man.getConfigString(prefix + ".password_path"),
-			Database:        man.getConfigString(prefix + ".database"),
-			TLSCert:         man.getConfigString(prefix + ".tls_cert"),
-			TLSKey:          man.getConfigString(prefix + ".tls_key"),
-			TLSCA:           man.getConfigString(prefix + ".tls_ca"),
-			TLSServerName:   man.getConfigString(prefix + ".tls_server_name"),
-			TLSConfig:       man.getConfigString(prefix + ".tls_config"),
-			MaxOpenConns:    man.getConfigInt(prefix + ".max_open_conns"),
-			MaxIdleConns:    man.getConfigInt(prefix + ".max_idle_conns"),
-			ConnMaxLifetime: man.getConfigInt(prefix + ".conn_max_lifetime"),
-			SQLMode:         man.getConfigString(prefix + ".sql_mode"),
+			Protocol:         man.getConfigString(prefix + ".protocol"),
+			Address:          man.getConfigString(prefix + ".address"),
+			Username:         man.getConfigString(prefix + ".username"),
+			Password:         man.getConfigString(prefix + ".password"),
+			PasswordPath:     man.getConfigString(prefix + ".password_path"),
+			Database:         man.getConfigString(prefix + ".database"),
+			TLSCert:          man.getConfigString(prefix + ".tls_cert"),
+			TLSKey:           man.getConfigString(prefix + ".tls_key"),
+			TLSCA:            man.getConfigString(prefix + ".tls_ca"),
+			TLSServerName:    man.getConfigString(prefix + ".tls_server_name"),
+			TLSConfig:        man.getConfigString(prefix + ".tls_config"),
+			MaxOpenConns:     man.getConfigInt(prefix + ".max_open_conns"),
+			MaxIdleConns:     man.getConfigInt(prefix + ".max_idle_conns"),
+			ConnMaxLifetime:  man.getConfigInt(prefix + ".conn_max_lifetime"),
+			SQLMode:          man.getConfigString(prefix + ".sql_mode"),
+			DatabaseMDMApple: man.getConfigString(prefix + ".database_mdm_apple"),
 		}
 	}
 

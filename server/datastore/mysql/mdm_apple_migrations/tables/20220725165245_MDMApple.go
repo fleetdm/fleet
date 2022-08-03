@@ -32,10 +32,10 @@ func Up_20220725165245(tx *sql.Tx) error {
 
 		-- The unique_value column and its constraint enforces a one-row table.
 		-- TODO(lucas): Discuss other alternatives.
-    	unique_value ENUM('unique') NOT NULL,
-    	UNIQUE (unique_value),
+		unique_value ENUM('unique') NOT NULL,
+		UNIQUE (unique_value),
 
-    	CHECK (topic != '')
+		CHECK (topic != '')
 	);`)
 	if err != nil {
 		return fmt.Errorf("failed to create mdm_apple_current_push_topic: %w", err)
