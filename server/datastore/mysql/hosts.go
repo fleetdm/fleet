@@ -1318,16 +1318,16 @@ func (ds *Datastore) ReplaceHostBatteries(ctx context.Context, hid uint, mapping
 func (ds *Datastore) updateOrInsert(ctx context.Context, updateQuery string, insertQuery string, args ...interface{}) error {
 	res, err := ds.writer.ExecContext(ctx, updateQuery, args...)
 	if err != nil {
-		return ctxerr.Wrap(ctx, err)
+		return ctxerr.Wrap(ctx, err, "update")
 	}
 	affected, err := res.RowsAffected()
 	if err != nil {
-		return ctxerr.Wrap(ctx, err)
+		return ctxerr.Wrap(ctx, err, "rows affected by update")
 	}
 	if affected == 0 {
 		_, err = ds.writer.ExecContext(ctx, insertQuery, args...)
 	}
-	return ctxerr.Wrap(ctx, err)
+	return ctxerr.Wrap(ctx, err, "insert")
 }
 
 func (ds *Datastore) SetOrUpdateMunkiVersion(ctx context.Context, hostID uint, version string) error {
@@ -1349,12 +1349,20 @@ func (ds *Datastore) SetOrUpdateMunkiVersion(ctx context.Context, hostID uint, v
 }
 
 func (ds *Datastore) SetOrUpdateMDMData(ctx context.Context, hostID uint, enrolled bool, serverURL string, installedFromDep bool) error {
-	// TODO(mna): load mdm id based on name extracted from server URL (unless name is unknown)
+	// load mdm id based on name extracted from server URL (unless name is unknown)
+	var mdmID *uint
+	if mdmName := fleet.MDMNameFromServerURL(serverURL); mdmName != fleet.UnknownMDMName {
+		var id uint
+		if err := sqlx.GetContext(ctx, ds.reader, &id, `SELECT id FROM mobile_device_management_solutions WHERE name = ?`, mdmName); err != nil {
+			return ctxerr.Wrap(ctx, err, "get mdm id from name")
+		}
+		mdmID = &id
+	}
 	return ds.updateOrInsert(
 		ctx,
 		`UPDATE host_mdm SET enrolled = ?, server_url = ?, installed_from_dep = ?, mdm_id = ? WHERE host_id = ?`,
-		`INSERT INTO host_mdm (enrolled, server_url, installed_from_dep, host_id, mdm_id) VALUES (?, ?, ?, ?, ?)`,
-		enrolled, serverURL, installedFromDep, hostID,
+		`INSERT INTO host_mdm (enrolled, server_url, installed_from_dep, mdm_id, host_id) VALUES (?, ?, ?, ?, ?)`,
+		enrolled, serverURL, installedFromDep, mdmID, hostID,
 	)
 }
 
