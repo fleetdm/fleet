@@ -1,19 +1,14 @@
-import et from "date-fns/esm/locale/et/index.js";
 import React, { useState, useRef, useLayoutEffect } from "react";
+import { uniqueId } from "lodash";
+
+import ReactTooltip from "react-tooltip";
 
 interface ITextCellProps {
   value: string | number | boolean;
-  formatter?: (val: any) => string; // string, number, or null
-  greyed?: string;
   classes?: string;
 }
 
-const TextCell = ({
-  value,
-  formatter = (val) => val, // identity function if no formatter is provided
-  greyed,
-  classes = "w250",
-}: ITextCellProps): JSX.Element => {
+const TextCell = ({ value, classes = "w250" }: ITextCellProps): JSX.Element => {
   const ref = useRef<HTMLInputElement>(null);
 
   const [offsetWidth, setOffsetWidth] = useState(0);
@@ -26,22 +21,35 @@ const TextCell = ({
     }
   }, []);
 
-  console.log("\n\n\n\noffsetWidth", offsetWidth);
-  console.log("scrollWidth", scrollWidth);
-  let val = value;
-
-  if (typeof value === "boolean") {
-    val = value.toString();
-  }
-
-  const hover = (evt: React.MouseEvent) => {
-    console.log("evt.target", evt.target);
-  };
+  const id = uniqueId();
+  const tooltipDisabled = offsetWidth === scrollWidth;
 
   return (
-    <span ref={ref} className={`text-cell ${classes} ${greyed || ""} `}>
-      {formatter(val)}
-    </span>
+    <div ref={ref} className={`${classes}`}>
+      <div
+        className={"data-table__truncated-text"}
+        data-tip
+        data-for={id}
+        data-tip-disable={tooltipDisabled}
+      >
+        <span
+          className={`data-table__truncated-text--cell ${
+            !tooltipDisabled && "truncated"
+          }`}
+        >
+          {value}
+        </span>
+      </div>
+      <ReactTooltip
+        place="bottom"
+        effect="solid"
+        backgroundColor="#3e4771"
+        id={id}
+        data-html
+      >
+        <span className={`tooltip tooltip-text`}>{value}</span>
+      </ReactTooltip>
+    </div>
   );
 };
 

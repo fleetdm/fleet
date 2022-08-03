@@ -5,6 +5,7 @@ import PATHS from "router/paths";
 import { IMunkiIssuesAggregate } from "interfaces/macadmins";
 import HeaderCell from "components/TableContainer/DataTable/HeaderCell";
 import TextCell from "components/TableContainer/DataTable/TextCell";
+import TruncatedTextCell from "components/TableContainer/DataTable/TruncatedTextCell";
 import TooltipWrapper from "components/TooltipWrapper";
 
 import Chevron from "../../../../../assets/images/icon-chevron-right-9x6@2x.png";
@@ -59,7 +60,9 @@ const munkiIssuesTableHeaders = [
     },
     disableSortBy: true,
     accessor: "name",
-    Cell: (cellProps: ICellProps) => <TextCell value={cellProps.cell.value} />,
+    Cell: (cellProps: ICellProps) => (
+      <TruncatedTextCell value={cellProps.cell.value} />
+    ),
   },
   {
     title: "Type",

@@ -56,23 +56,10 @@
 
       tbody {
         tr {
-          .name__cell,
           .version__cell {
             overflow: hidden;
             white-space: nowrap;
             text-overflow: ellipsis;
-
-            &:hover {
-              overflow: visible;
-              white-space: normal;
-            }
-
-            .text-cell {
-              &:hover {
-                overflow: visible;
-                white-space: normal;
-              }
-            }
           }
 
           .id__cell {
