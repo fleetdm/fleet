@@ -10,9 +10,7 @@ import (
 )
 
 const (
-	directoryReference   = "ORBITROOT"
-	linuxPathSeparator   = "/"
-	windowsPathSeparator = "\\"
+	directoryReference = "ORBITROOT"
 )
 
 // Heat runs the WiX Heat command on the provided directory.
