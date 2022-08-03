@@ -16,7 +16,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
 	"github.com/fleetdm/fleet/v4/server/mdm/apple"
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/scep/scep_mysql"
-	"github.com/go-kit/kit/log"
 	kitlog "github.com/go-kit/kit/log"
 	"github.com/micromdm/nanodep/client"
 	"github.com/micromdm/nanodep/godep"
@@ -103,7 +102,7 @@ func registerSCEP(mux *http.ServeMux, config SetupConfig) (*x509.Certificate, er
 	if err != nil {
 		return nil, fmt.Errorf("initialize SCEP service: %w", err)
 	}
-	scepLogger := log.With(config.Logger, "component", "http-mdm-apple-scep")
+	scepLogger := kitlog.With(config.Logger, "component", "http-mdm-apple-scep")
 	e := scepserver.MakeServerEndpoints(scepService)
 	e.GetEndpoint = scepserver.EndpointLoggingMiddleware(scepLogger)(e.GetEndpoint)
 	e.PostEndpoint = scepserver.EndpointLoggingMiddleware(scepLogger)(e.PostEndpoint)
@@ -128,8 +127,8 @@ func registerMDM(mux *http.ServeMux, config SetupConfig, scepCACrt *x509.Certifi
 	mdmLogger := nanomdm_stdlogfmt.New(
 		nanomdm_stdlogfmt.WithLogger(
 			stdlog.New(
-				log.NewStdlibAdapter(
-					log.With(config.Logger, "component", "http-mdm-apple-mdm")),
+				kitlog.NewStdlibAdapter(
+					kitlog.With(config.Logger, "component", "http-mdm-apple-mdm")),
 				"", stdlog.LstdFlags,
 			),
 		),
@@ -170,7 +169,7 @@ func registerEnroll(ctx context.Context, mux *http.ServeMux, config SetupConfig)
 	if err != nil {
 		return fmt.Errorf("load push certificate topic: %w", err)
 	}
-	enrollLogger := log.With(config.Logger, "handler", "enroll-profile")
+	enrollLogger := kitlog.With(config.Logger, "handler", "enroll-profile")
 	mux.HandleFunc("/mdm/apple/api/enroll", func(w http.ResponseWriter, r *http.Request) {
 		mobileConfig, err := generateMobileConfig(
 			"https://"+config.MDMConfig.DEP.ServerURL+"/mdm/apple/scep",
@@ -191,8 +190,8 @@ func registerEnroll(ctx context.Context, mux *http.ServeMux, config SetupConfig)
 
 func registerDEPProxy(mux *http.ServeMux, config SetupConfig) {
 	stdLogger := stdlog.New(
-		log.NewStdlibAdapter(
-			log.With(config.Logger, "component", "http-mdm-apple-dep")),
+		kitlog.NewStdlibAdapter(
+			kitlog.With(config.Logger, "component", "http-mdm-apple-dep")),
 		"", stdlog.LstdFlags,
 	)
 	depLogger := nanodep_stdlogfmt.New(stdLogger, config.LoggingDebug)
@@ -209,8 +208,8 @@ func registerDEPProxy(mux *http.ServeMux, config SetupConfig) {
 
 func startDEPRoutine(ctx context.Context, config SetupConfig) error {
 	stdLogger := stdlog.New(
-		log.NewStdlibAdapter(
-			log.With(config.Logger, "component", "mdm-apple-dep-routine")),
+		kitlog.NewStdlibAdapter(
+			kitlog.With(config.Logger, "component", "mdm-apple-dep-routine")),
 		"", stdlog.LstdFlags,
 	)
 	depLogger := nanodep_stdlogfmt.New(stdLogger, config.LoggingDebug)
