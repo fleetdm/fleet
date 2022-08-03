@@ -8,11 +8,8 @@ import (
 	"github.com/pkg/errors"
 )
 
-var logger *Logger
-
 func init() {
 	MigrationClient.AddMigration(Up_20220708095046, Down_20220708095046)
-	logger = NewLogger()
 }
 
 func removeDups(tx *sql.Tx) error {
