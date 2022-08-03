@@ -112,6 +112,11 @@ module.exports = {
       return `<blockquote><img src="/images/icon-info-16x16@2x.png" alt="An icon indicating that this section has important information"><div class="d-block">`+quote+`</div></blockquote>\n`;
     };
 
+    // Creating a custom table renderer to add Bootstrap's responsive table styles to markdown tables.
+    customRenderer.table = function(headerHtml, bodyHtml) {
+      return `<div class="table-responsive-xl"><table class="table">\n<thead>\n${headerHtml}\n</thead>\n<tbody>${bodyHtml}\n</tbody>\n</table>\n</div>`;
+    };
+
     markedOpts.renderer = customRenderer;
     // Now actually compile the markdown to HTML.
     marked(inputs.mdString, markedOpts, function afterwards (err, htmlString) {
