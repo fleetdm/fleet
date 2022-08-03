@@ -178,7 +178,7 @@ resource "aws_dynamodb_table_item" "main" {
   item = <<ITEM
 {
   "ID": {"S": "${terraform.workspace}"},
-  "State": {"S": "unclaimed"},
+  "State": {"S": "provisioned"},
   "redis_db": {"N": "${var.redis_database}"}
 }
 ITEM

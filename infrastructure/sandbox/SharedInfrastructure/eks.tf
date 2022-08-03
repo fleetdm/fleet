@@ -48,6 +48,24 @@ data "aws_iam_role" "admin" {
   name = "admin"
 }
 
+data "aws_iam_policy_document" "fargate" {
+  statement {
+    actions = [
+      "s3:*Object",
+      "s3:ListBucket",
+    ]
+    resources = [
+      aws_s3_bucket.installers.arn,
+      "${aws_s3_bucket.installers.arn}/*"
+    ]
+  }
+}
+
+resource "aws_iam_policy" "fargate" {
+  name   = "${var.prefix}-fargate"
+  policy = data.aws_iam_policy_document.fargate.json
+}
+
 module "aws-eks-accelerator-for-terraform" {
   source       = "github.com/aws-samples/aws-eks-accelerator-for-terraform.git"
   cluster_name = var.prefix
@@ -80,7 +98,8 @@ module "aws-eks-accelerator-for-terraform" {
 
   fargate_profiles = {
     default = {
-      fargate_profile_name = "default"
+      additional_iam_policies = [aws_iam_policy.fargate.arn]
+      fargate_profile_name    = "default"
       fargate_profile_namespaces = [
         {
           namespace = "default"

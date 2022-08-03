@@ -33,6 +33,35 @@ type OptionsStruct struct {
 
 var options = OptionsStruct{}
 
+func FinishFleet(instanceID string) (err error) {
+	log.Printf("Finishing instance: %s", instanceID)
+	svc := dynamodb.New(session.New())
+	// Perform a conditional update to claim the item
+	input := &dynamodb.UpdateItemInput{
+		ConditionExpression: aws.String("#fleet_state = :v1"),
+		TableName:           aws.String(options.LifecycleTable),
+		Key: map[string]*dynamodb.AttributeValue{
+			"ID": {
+				S: aws.String(instanceID),
+			},
+		},
+		UpdateExpression:         aws.String("set #fleet_state = :v2"),
+		ExpressionAttributeNames: map[string]*string{"#fleet_state": aws.String("State")},
+		ExpressionAttributeValues: map[string]*dynamodb.AttributeValue{
+			":v1": {
+				S: aws.String("provisioned"),
+			},
+			":v2": {
+				S: aws.String("unclaimed"),
+			},
+		},
+	}
+	if _, err = svc.UpdateItem(input); err != nil {
+		return
+	}
+	return
+}
+
 func buildPackages(instanceID, enrollSecret string) (err error) {
 	funcs := []func(packaging.Options) (string, error){
 		packaging.BuildPkg,
@@ -99,7 +128,7 @@ func buildPackages(instanceID, enrollSecret string) (err error) {
 			return
 		}
 	}
-	return
+	return FinishFleet(instanceID)
 }
 
 type LifecycleRecord struct {
