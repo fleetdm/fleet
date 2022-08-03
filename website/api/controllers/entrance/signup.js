@@ -136,8 +136,19 @@ the account verification message.)`,
       );
     }
 
-    // If "Try Fleet Sandbox" was provided as the signupReason, this is a user signing up to try Fleet Sandbox, and we'll make sure their Sandbox instance is live before we continue.
+    // If "Try Fleet Sandbox" was provided as the signupReason, we'll send a request to Zapier to add this user to our CRM and make sure their Sandbox instance is live before we continue.
     if(signupReason === 'Try Fleet Sandbox') {
+      // Send a POST request to Zapier
+      await sails.helpers.http.post(
+        'https://hooks.zapier.com/hooks/catch/3627242/bqsf4rj/',
+        { 'emailAddress': newEmailAddress},
+        {'x-webhook-secret': sails.config.custom.zapierSandboxWebhookSecret}
+      )
+      .timeout(5000)
+      .tolerate(['non200Response', 'requestFailed'], (err)=>{
+        sails.log.warn(`When a new user signed up for Fleet Sandbox, A lead/contact could not be verified in the CRM for this email address: ${newEmailAddress}. Raw error: ${err}`);
+        return;
+      });
       // Start polling the /healthz endpoint of the created Fleet Sandbox instance, once it returns a 200 response, we'll continue.
       await sails.helpers.flow.until( async()=>{
         let healthCheckResponse = await sails.helpers.http.sendHttpRequest('GET', cloudProvisionerResponseData.URL+'/healthz')
