@@ -146,7 +146,7 @@ the account verification message.)`,
       )
       .timeout(5000)
       .tolerate(['non200Response', 'requestFailed'], (err)=>{
-        sails.log.warn(`When a new user signed up for Fleet Sandbox, A lead/contact could not be verified in the CRM for this email address: ${newEmailAddress}. Raw error: ${err}`);
+        sails.log.warn(`When a new user signed up for Fleet Sandbox, a lead/contact could not be verified in the CRM for this email address: ${newEmailAddress}. Raw error: ${err}`);
         return;
       });
       // Start polling the /healthz endpoint of the created Fleet Sandbox instance, once it returns a 200 response, we'll continue.
