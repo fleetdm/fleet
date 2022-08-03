@@ -178,6 +178,19 @@
         font-size: 16px;
       }
     }
+    [purpose='embedded-content'] {
+      position: relative;
+      margin-bottom: 40px;
+      width: 100%;
+      padding-bottom: 57%;
+      iframe {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+      }
+    }
     table {
       table-layout: auto;
       border: 1px solid @border-lt-gray;
@@ -195,9 +208,6 @@
         border: 1px solid @border-lt-gray;
         padding: 8px 7px 7px 8px;
       }
-    }
-    iframe {
-      align-self: center;
     }
   }
   [purpose='bottom-cta'] {
