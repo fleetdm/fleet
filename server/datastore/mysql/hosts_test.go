@@ -3541,7 +3541,7 @@ func testHostMDMAndMunki(t *testing.T, ds *Datastore) {
 	assert.False(t, hmdm.MDMID.Valid)
 	assert.False(t, hmdm.Name.Valid)
 
-	require.NoError(t, ds.SetOrUpdateMDMData(context.Background(), 455, true, "url2", true))
+	require.NoError(t, ds.SetOrUpdateMDMData(context.Background(), 455, true, "https://kandji.io", true)) // kandji mdm name
 	require.NoError(t, ds.SetOrUpdateMDMData(context.Background(), 432, false, "url3", true))
 
 	hmdm, err = ds.GetMDM(context.Background(), 432)
@@ -3555,13 +3555,21 @@ func testHostMDMAndMunki(t *testing.T, ds *Datastore) {
 	hmdm, err = ds.GetMDM(context.Background(), 455)
 	require.NoError(t, err)
 	assert.True(t, hmdm.Enrolled)
-	assert.Equal(t, "url2", hmdm.ServerURL)
+	assert.Equal(t, "https://kandji.io", hmdm.ServerURL)
 	assert.True(t, hmdm.InstalledFromDep)
-	assert.False(t, hmdm.MDMID.Valid)
-	assert.False(t, hmdm.Name.Valid)
+	assert.True(t, hmdm.MDMID.Valid)
+	assert.Equal(t, fleet.WellKnownMDMKandji, hmdm.Name.String)
 
-	// TODO(mna): once SetOrUpdateMDMData is modified to get the name/mdm_id from the URL,
-	// add a test to get MDM with a corresponding name.
+	// switch to simplemdm in an update
+	require.NoError(t, ds.SetOrUpdateMDMData(context.Background(), 455, true, "https://simplemdm.com", false)) // now simplemdm name
+
+	hmdm, err = ds.GetMDM(context.Background(), 455)
+	require.NoError(t, err)
+	assert.True(t, hmdm.Enrolled)
+	assert.Equal(t, "https://simplemdm.com", hmdm.ServerURL)
+	assert.False(t, hmdm.InstalledFromDep)
+	assert.True(t, hmdm.MDMID.Valid)
+	assert.Equal(t, fleet.WellKnownMDMKandji, hmdm.Name.String)
 }
 
 func testAggregatedHostMDMAndMunki(t *testing.T, ds *Datastore) {

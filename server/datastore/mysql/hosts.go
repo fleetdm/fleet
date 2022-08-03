@@ -1353,10 +1353,17 @@ func (ds *Datastore) SetOrUpdateMDMData(ctx context.Context, hostID uint, enroll
 	var mdmID *uint
 	if mdmName := fleet.MDMNameFromServerURL(serverURL); mdmName != fleet.UnknownMDMName {
 		var id uint
-		if err := sqlx.GetContext(ctx, ds.reader, &id, `SELECT id FROM mobile_device_management_solutions WHERE name = ?`, mdmName); err != nil {
+		switch err := sqlx.GetContext(ctx, ds.reader, &id, `SELECT id FROM mobile_device_management_solutions WHERE name = ?`, mdmName); {
+		case err != nil && !errors.Is(err, sql.ErrNoRows):
 			return ctxerr.Wrap(ctx, err, "get mdm id from name")
+		case err == nil:
+			mdmID = &id
 		}
-		mdmID = &id
+	}
+	if mdmID != nil {
+		fmt.Println(">>>>>> MDM ID: ", *mdmID)
+	} else {
+		fmt.Println(">>>>>> MDM ID IS NIL ")
 	}
 	return ds.updateOrInsert(
 		ctx,
