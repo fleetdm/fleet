@@ -2,7 +2,7 @@ package main
 
 import (
 	"github.com/akrylysov/algnhsa"
-	//"github.com/gin-contrib/cors" TODO: use cors
+	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
 	flags "github.com/jessevdk/go-flags"
 	//"github.com/juju/errors"
@@ -249,6 +249,7 @@ func main() {
 
 	r := gin.Default()
 	r.Use(apmgin.Middleware(r))
+	r.Use(cors.Default())
 	f := fizz.NewFromEngine(r)
 	infos := &openapi.Info{
 		Title:       "Fleet Demo JITProvisioner",

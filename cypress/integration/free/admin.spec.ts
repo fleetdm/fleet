@@ -750,12 +750,12 @@ describe(
         cy.visit("/profile");
       });
       it("verifies teams is disabled for the Profile page", () => {
-        cy.getAttached(".user-settings__additional").within(() => {
+        cy.getAttached(".user-side-panel").within(() => {
           cy.findByText(/teams/i).should("not.exist");
         });
       });
       it("renders elements according to role-based access controls", () => {
-        cy.getAttached(".user-settings__additional").within(() => {
+        cy.getAttached(".user-side-panel").within(() => {
           cy.findByText("Role").next().contains(/admin/i);
         });
       });

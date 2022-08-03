@@ -21,6 +21,7 @@ import TeamsDropdown from "components/TeamsDropdown";
 import Spinner from "components/Spinner";
 // @ts-ignore
 import Dropdown from "components/forms/fields/Dropdown";
+import MainContent from "components/MainContent";
 import useInfoCard from "./components/InfoCard";
 import HostsStatus from "./cards/HostsStatus";
 import HostsSummary from "./cards/HostsSummary";
@@ -132,6 +133,24 @@ const Homepage = (): JSX.Element => {
     () => enrollSecretsAPI.getGlobalEnrollSecrets(),
     {
       enabled: !!canEnrollGlobalHosts,
+      select: (data: IEnrollSecretsResponse) => data.secrets,
+    }
+  );
+
+  const {
+    isLoading: isTeamSecretsLoading,
+    data: teamSecrets,
+    refetch: refetchTeamSecrets,
+  } = useQuery<IEnrollSecretsResponse, Error, IEnrollSecret[]>(
+    ["team secrets", currentTeam],
+    () => {
+      if (currentTeam) {
+        return enrollSecretsAPI.getTeamEnrollSecrets(currentTeam.id);
+      }
+      return { secrets: [] };
+    },
+    {
+      enabled: !!currentTeam?.id && !!canEnrollHosts,
       select: (data: IEnrollSecretsResponse) => data.secrets,
     }
   );
@@ -291,18 +310,23 @@ const Homepage = (): JSX.Element => {
     ),
   });
 
-  const allLayout = () => (
-    <div className={`${baseClass}__section`}>
-      {hostSummaryData && hostSummaryData?.totals_hosts_count < 2 && (
-        <>
-          {WelcomeHostCard}
-          {LearnFleetCard}
-        </>
-      )}
-      {SoftwareCard}
-      {!currentTeam && isOnGlobalTeam && <>{ActivityFeedCard}</>}
-    </div>
-  );
+  const allLayout = () => {
+    return (
+      <div className={`${baseClass}__section`}>
+        {!currentTeam &&
+          canEnrollGlobalHosts &&
+          hostSummaryData &&
+          hostSummaryData?.totals_hosts_count < 2 && (
+            <>
+              {WelcomeHostCard}
+              {LearnFleetCard}
+            </>
+          )}
+        {SoftwareCard}
+        {!currentTeam && isOnGlobalTeam && <>{ActivityFeedCard}</>}
+      </div>
+    );
+  };
 
   const macOSLayout = () => (
     <div className={`${baseClass}__section`}>
@@ -329,7 +353,15 @@ const Homepage = (): JSX.Element => {
   };
 
   const renderAddHostsModal = () => {
-    const enrollSecret = globalSecrets?.[0].secret;
+    const enrollSecret =
+      // TODO: Currently, prepacked installers in Fleet Sandbox use the global enroll secret,
+      // and Fleet Sandbox runs Fleet Free so the isSandboxMode check here is an
+      // additional precaution/reminder to revisit this in connection with future changes.
+      // See https://github.com/fleetdm/fleet/issues/4970#issuecomment-1187679407.
+      currentTeam && !isSandboxMode
+        ? teamSecrets?.[0].secret
+        : globalSecrets?.[0].secret;
+
     return (
       <AddHostsModal
         currentTeam={currentTeam}
@@ -342,8 +374,8 @@ const Homepage = (): JSX.Element => {
   };
 
   return (
-    <div className={baseClass}>
-      <div className={`${baseClass}__wrapper body-wrap`}>
+    <MainContent className={baseClass}>
+      <div className={`${baseClass}__wrapper`}>
         <div className={`${baseClass}__header`}>
           <div className={`${baseClass}__text`}>
             <div className={`${baseClass}__title`}>
@@ -390,7 +422,7 @@ const Homepage = (): JSX.Element => {
         {renderCards()}
         {showAddHostsModal && renderAddHostsModal()}
       </div>
-    </div>
+    </MainContent>
   );
 };
 

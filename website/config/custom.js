@@ -95,7 +95,7 @@ module.exports.custom = {
   *                                                                          *
   ***************************************************************************/
   githubRepoDRIByPath: {
-    'README.md': 'mike-j-thomas',// (github brandfront)
+    'README.md': 'chris-mcgillicuddy',// (github brandfront)
 
     'handbook': ['desmi-dizney', 'mike-j-thomas', 'mikermcneil'],// (default for handbook)
     'handbook/company': 'mikermcneil',
@@ -108,6 +108,8 @@ module.exports.custom = {
     'handbook/customers': 'tgauda',
     'handbook/community': ['dominuskelvin', 'ksatter'],
     'handbook/README.md': '*',// (any fleetie can update this page and merge their change without waiting for their change to be approved)
+
+    'tools/fleetctl-npm/README.md': ['mike-j-thomas'],//« brandfront for fleetctl package on npm
 
     'website': 'mikermcneil',// (default for website)
     'website/views': 'eashaw',
