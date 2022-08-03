@@ -1,4 +1,4 @@
-# Process for submitting and publishing articles
+# How to submit and publish an article
 
 This guide includes everything you need to know about Fleet’s editorial process between submission and publication.
 
@@ -14,7 +14,6 @@ This guide includes everything you need to know about Fleet’s editorial proces
 - [Review process](#review-process)
 - [Pre-publication checklist](#pre-publication-checklist)
 - [After publication](#after-publication)
-- [Related pages](#related-pages)
 
 ## Article DRIs
 
@@ -44,8 +43,6 @@ Publishing occurs according to our [content calendar](https://docs.google.com/sp
 3. Include any relevant images, image suggestions, or other design requests you may have.
 
 > **IMPORTANT**: Your PR is not confidential. If the information in your article is confidential, please prepare your article in a Google Doc, or create a draft PR ~1 hour before publication time to keep your article private.
-
-Todo: Demonstrate creating an article via Loom
 
 ## Review process
 
@@ -81,18 +78,5 @@ After your article is published, the Growth team will schedule your post to be p
 
 > Consider promoting your article on your personal channels to help achieve a bigger impact. Depending on the article, the Growth team may make a request in [#help-promote](https://fleetdm.slack.com/archives/C026W5TC10V) on Slack.
 
-### Related pages
-
-- Process for making an announcement (todo)
-- Process for publishing a press release (todo)
-- Process for publishing a release post (todo)
-- Process for publishing a newsletter/email blast (todo)
-- Process for adding to the docs & docs API (todo)
-- Process for adding to the handbook (todo)
-- Process for posting to social media (todo)
-- Process for posting to YouTube (todo)
-- Process for creating an ad campaign (todo)
-- Process for fleetdm.com text changes (todo)
-
 <meta name="maintainedBy" value="timmy-k">
-<meta name="title" value="process for submitting and publishing articles">
+<meta name="title" value="How to submit and publish an article">
