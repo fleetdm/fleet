@@ -3538,7 +3538,9 @@ func testHostMDMAndMunki(t *testing.T, ds *Datastore) {
 	assert.True(t, hmdm.Enrolled)
 	assert.Equal(t, "url", hmdm.ServerURL)
 	assert.False(t, hmdm.InstalledFromDep)
-	assert.False(t, hmdm.MDMID.Valid)
+	require.NotNil(t, hmdm.MDMID)
+	assert.NotZero(t, *hmdm.MDMID)
+	urlMDMID := *hmdm.MDMID
 	assert.Equal(t, fleet.UnknownMDMName, hmdm.Name)
 
 	require.NoError(t, ds.SetOrUpdateMDMData(context.Background(), 455, true, "https://kandji.io", true)) // kandji mdm name
@@ -3549,7 +3551,9 @@ func testHostMDMAndMunki(t *testing.T, ds *Datastore) {
 	assert.False(t, hmdm.Enrolled)
 	assert.Equal(t, "url3", hmdm.ServerURL)
 	assert.True(t, hmdm.InstalledFromDep)
-	assert.False(t, hmdm.MDMID.Valid)
+	require.NotNil(t, hmdm.MDMID)
+	assert.NotZero(t, *hmdm.MDMID)
+	assert.NotEqual(t, urlMDMID, *hmdm.MDMID)
 	assert.Equal(t, fleet.UnknownMDMName, hmdm.Name)
 
 	hmdm, err = ds.GetMDM(context.Background(), 455)
@@ -3557,7 +3561,8 @@ func testHostMDMAndMunki(t *testing.T, ds *Datastore) {
 	assert.True(t, hmdm.Enrolled)
 	assert.Equal(t, "https://kandji.io", hmdm.ServerURL)
 	assert.True(t, hmdm.InstalledFromDep)
-	assert.True(t, hmdm.MDMID.Valid)
+	require.NotNil(t, hmdm.MDMID)
+	assert.NotZero(t, *hmdm.MDMID)
 	assert.Equal(t, fleet.WellKnownMDMKandji, hmdm.Name)
 
 	// switch to simplemdm in an update
@@ -3568,18 +3573,20 @@ func testHostMDMAndMunki(t *testing.T, ds *Datastore) {
 	assert.True(t, hmdm.Enrolled)
 	assert.Equal(t, "https://simplemdm.com", hmdm.ServerURL)
 	assert.False(t, hmdm.InstalledFromDep)
-	assert.True(t, hmdm.MDMID.Valid)
+	require.NotNil(t, hmdm.MDMID)
+	assert.NotZero(t, *hmdm.MDMID)
 	assert.Equal(t, fleet.WellKnownMDMSimpleMDM, hmdm.Name)
 
-	// switch to no known mdm
-	require.NoError(t, ds.SetOrUpdateMDMData(context.Background(), 455, false, "https://nope.com", false))
+	// switch back to "url"
+	require.NoError(t, ds.SetOrUpdateMDMData(context.Background(), 455, false, "url", false))
 
 	hmdm, err = ds.GetMDM(context.Background(), 455)
 	require.NoError(t, err)
 	assert.False(t, hmdm.Enrolled)
-	assert.Equal(t, "https://nope.com", hmdm.ServerURL)
+	assert.Equal(t, "url", hmdm.ServerURL)
 	assert.False(t, hmdm.InstalledFromDep)
-	assert.False(t, hmdm.MDMID.Valid)
+	require.NotNil(t, hmdm.MDMID)
+	assert.Equal(t, urlMDMID, *hmdm.MDMID) // id is the same as created previously for that url
 	assert.Equal(t, fleet.UnknownMDMName, hmdm.Name)
 }
 

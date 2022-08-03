@@ -2,7 +2,6 @@ package fleet
 
 import (
 	"context"
-	"database/sql"
 	"encoding/json"
 	"errors"
 	"strings"
@@ -293,12 +292,12 @@ type HostMunkiInfo struct {
 // used by a host. Note that it uses a different JSON representation than its
 // struct - it implements a custom JSON marshaler.
 type HostMDM struct {
-	HostID           uint          `db:"host_id" json:"-"`
-	Enrolled         bool          `db:"enrolled" json:"-"`
-	ServerURL        string        `db:"server_url" json:"-"`
-	InstalledFromDep bool          `db:"installed_from_dep" json:"-"`
-	MDMID            sql.NullInt64 `db:"mdm_id" json:"-"`
-	Name             string        `db:"name" json:"-"`
+	HostID           uint   `db:"host_id" json:"-"`
+	Enrolled         bool   `db:"enrolled" json:"-"`
+	ServerURL        string `db:"server_url" json:"-"`
+	InstalledFromDep bool   `db:"installed_from_dep" json:"-"`
+	MDMID            *uint  `db:"mdm_id" json:"-"`
+	Name             string `db:"name" json:"-"`
 }
 
 // List of well-known MDM solution names. Those correspond to names stored in
@@ -354,10 +353,7 @@ func (h *HostMDM) MarshalJSON() ([]byte, error) {
 	jsonMDM.ServerURL = h.ServerURL
 	jsonMDM.EnrollmentStatus = h.EnrollmentStatus()
 	jsonMDM.Name = h.Name
-	if h.MDMID.Valid {
-		id := uint(h.MDMID.Int64)
-		jsonMDM.MDMID = &id
-	}
+	jsonMDM.MDMID = h.MDMID
 	return json.Marshal(jsonMDM)
 }
 

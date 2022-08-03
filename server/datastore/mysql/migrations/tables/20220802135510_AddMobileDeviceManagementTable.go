@@ -13,6 +13,9 @@ func init() {
 
 func Up_20220802135510(tx *sql.Tx) error {
 	fmt.Println("Creating table mobile_device_management_solutions...")
+
+	// An mdm ID identifies a Vendor + Server URL combination (e.g. Jamf + https://company.jamfcloud.com)
+	// A distinct server URL for the same vendor results in different MDM ID.
 	_, err := tx.Exec(`
 CREATE TABLE mobile_device_management_solutions (
   id            INT(10) UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
