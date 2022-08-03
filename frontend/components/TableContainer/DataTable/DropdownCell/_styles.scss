@@ -66,13 +66,13 @@
     &.is-open {
       .Select-control .Select-placeholder {
         color: $core-vibrant-blue;
+        top: 0;
       }
-      .Select-arrow {
-        margin-top: 4px;
-        margin-bottom: -2px;
-      }
-      .Select-placeholder {
-        margin-top: 1px;
+
+      .Select-control {
+        .Select-arrow {
+          top: 0;
+        }
       }
     }
   }

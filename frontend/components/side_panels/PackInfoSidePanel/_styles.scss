@@ -1,10 +1,4 @@
 .pack-info-side-panel {
-  background-color: $core-white;
-  bottom: 0;
-  border-left: 1px solid $ui-fleet-blue-15;
-  box-sizing: border-box;
-  overflow: scroll;
-
   &__title {
     font-size: $medium;
     font-weight: $regular;

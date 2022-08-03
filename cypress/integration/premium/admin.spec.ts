@@ -706,7 +706,7 @@ describe("Premium tier - Global Admin user", () => {
   describe("User profile page", () => {
     it("renders elements according to role-based access controls", () => {
       cy.visit("/profile");
-      cy.getAttached(".user-settings__additional").within(() => {
+      cy.getAttached(".user-side-panel").within(() => {
         cy.findByText(/team/i)
           .next()
           .contains(/global/i);

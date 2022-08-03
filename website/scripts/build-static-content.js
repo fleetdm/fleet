@@ -9,10 +9,11 @@ module.exports = {
 
   inputs: {
     dry: { type: 'boolean', description: 'Whether to make this a dry run.  (.sailsrc file will not be overwritten.  HTML files will not be generated.)' },
+    skipGithubRequests: { type: 'boolean', description: 'Whether to minimize requests to the GitHub API which usually can be skipped during local development, such as requests used for fetching GitHub avatar URLs'},
   },
 
 
-  fn: async function ({ dry }) {
+  fn: async function ({ dry, skipGithubRequests }) {
 
     let path = require('path');
     let YAML = require('yaml');
@@ -93,28 +94,51 @@ module.exports = {
           return list;
         }, []);
 
-        // Talk to GitHub and get additional information about each contributor.
         let githubDataByUsername = {};
-        await sails.helpers.flow.simultaneouslyForEach(githubUsernames, async(username)=>{
-          githubDataByUsername[username] = await sails.helpers.http.get.with({
-            url: 'https://api.github.com/users/' + encodeURIComponent(username),
-            headers: { 'User-Agent': 'Fleet-Standard-Query-Library', Accept: 'application/vnd.github.v3+json' }
-          });
-        });//∞
 
-        // Now expand queries with relevant profile data for the contributors.
-        for (let query of queries) {
-          let usernames = query.contributors.split(',');
-          let contributorProfiles = [];
-          for (let username of usernames) {
-            contributorProfiles.push({
-              name: githubDataByUsername[username].name,
-              handle: githubDataByUsername[username].login,
-              avatarUrl: githubDataByUsername[username].avatar_url,
-              htmlUrl: githubDataByUsername[username].html_url,
-            });
+        if(skipGithubRequests) {// If the --skipGithubRequests flag was provided, we'll skip querying GitHubs API
+          sails.log('Skipping GitHub API requests for contributer profiles.\nNOTE: The contributors in the standard query library will be populated with fake data. To see how the standard query library will look on fleetdm.com, run this script without the `--skipGithubRequests` flag.');
+          // Because we're not querying GitHub to get the real names for contributer profiles, we'll use their GitHub username as their name and their handle
+          for (let query of queries) {
+            let usernames = query.contributors.split(',');
+            let contributorProfiles = [];
+            for (let username of usernames) {
+              contributorProfiles.push({
+                name: username,
+                handle: username,
+                avatarUrl: 'https://placekitten.com/200/200',
+                htmlUrl: 'https://github.com/'+encodeURIComponent(username),
+              });
+            }
+            query.contributors = contributorProfiles;
           }
-          query.contributors = contributorProfiles;
+        } else {// If the --skipGithubRequests flag was not provided, we'll query GitHub's API to get additional information about each contributor.
+          await sails.helpers.flow.simultaneouslyForEach(githubUsernames, async(username)=>{
+            githubDataByUsername[username] = await sails.helpers.http.get.with({
+              url: 'https://api.github.com/users/' + encodeURIComponent(username),
+              headers: { 'User-Agent': 'Fleet-Standard-Query-Library', Accept: 'application/vnd.github.v3+json' }
+            }).catch((err)=>{// If the above GET requests return a non 200 response we'll look for signs that the user has hit their GitHub API rate limit.
+              if (err.raw.statusCode === 403 && err.raw.headers['x-ratelimit-remaining'] === '0') {// If the user has reached their GitHub API rate limit, we'll throw an error that suggest they run this script with the `--skipGithubRequests` flag.
+                throw new Error('GitHub API rate limit exceeded. If you\'re running this script in a development environment, use the `--skipGithubRequests` flag to skip querying the GitHub API. See full error for more details:\n'+err);
+              } else {// If the error was not because of the user's API rate limit, we'll display the full error
+                throw err;
+              }
+            });
+          });//∞
+          // Now expand queries with relevant profile data for the contributors.
+          for (let query of queries) {
+            let usernames = query.contributors.split(',');
+            let contributorProfiles = [];
+            for (let username of usernames) {
+              contributorProfiles.push({
+                name: githubDataByUsername[username].name,
+                handle: githubDataByUsername[username].login,
+                avatarUrl: githubDataByUsername[username].avatar_url,
+                htmlUrl: githubDataByUsername[username].html_url,
+              });
+            }
+            query.contributors = contributorProfiles;
+          }
         }
 
         // Attach to what will become configuration for the Sails app.
@@ -166,7 +190,14 @@ module.exports = {
               fallbackPageTitle = sails.helpers.strings.toSentenceCase(path.basename(pageSourcePath, path.extname(pageSourcePath)));
             }
 
-            // Determine URL for this page
+            // Determine URL for this page.
+            // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+            // Note: If this is an article page, then the rootRelativeUrlPath will be further modified below to
+            // also include the article's category: https://github.com/fleetdm/fleet/blob/9d2acb5751f4cebfb211ae1f15c9289143b5b79c/website/scripts/build-static-content.js#L441-L447
+            // > TODO: Try eliminating this exception by moving the processing of all page metadata upwards, so
+            // > that it occurs before this spot in the file, so that all URL-determining logic can happen here,
+            // > all in one place.  (For more context, see https://github.com/fleetdm/confidential/issues/1537 )
+            // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
             let rootRelativeUrlPath = (
               (
                 SECTION_INFOS_BY_SECTION_REPO_PATHS[sectionRepoPath].urlPrefix +
@@ -176,12 +207,6 @@ module.exports = {
                 )
               ).replace(RX_README_FILENAME, '')// « Interpret README files as special and map it to the URL representing its containing folder.
             );
-
-            // Assert uniqueness of URL paths.
-            if (rootRelativeUrlPathsSeen.includes(rootRelativeUrlPath)) {
-              throw new Error('Failed compiling markdown content: Files as currently named would result in colliding (duplicate) URLs for the website.  To resolve, rename the pages whose names are too similar.  Duplicate detected: ' + rootRelativeUrlPath);
-            }//•
-            rootRelativeUrlPathsSeen.push(rootRelativeUrlPath);
 
             if (path.extname(pageSourcePath) !== '.md') {// If this file doesn't end in `.md`: skip it (we won't create a page for it)
               // > Inspired by https://github.com/uncletammy/doc-templater/blob/2969726b598b39aa78648c5379e4d9503b65685e/lib/compile-markdown-tree-from-remote-git-repo.js#L275-L276
@@ -197,39 +222,39 @@ module.exports = {
               // >
               // > For more info about how these additional features work, see: https://github.com/fleetdm/fleet/issues/706#issuecomment-884622252
               // >
-              // > • What about images referenced in markdown files? :: They need to be referenced using an absolute URL src-- e.g. ![](https://fleetdm.com/images/foo.png)   See also https://github.com/fleetdm/fleet/issues/706#issuecomment-884641081 for reasoning.
+              // > • What about images referenced in markdown files? :: For documentation and handbook files, they need to be referenced using an absolute URL of the src-- e.g. ![](https://raw.githubusercontent.com/fleetdm/fleet/main/docs/images/foo.png). For articles, you can use the absolute URL of the src - e.g. ![](https://fleetdm.com/images/articles/foo.png) OR the relative repo path e.g. ![](../website/assets/images/articles/foo.png). See also https://github.com/fleetdm/fleet/issues/706#issuecomment-884641081 for reasoning.
               // > • What about GitHub-style emojis like `:white_check_mark:`?  :: Use actual unicode emojis instead.  Need to revisit this?  Visit https://github.com/fleetdm/fleet/pull/1380/commits/19a6e5ffc70bf41569293db44100e976f3e2bda7 for more info.
               let mdString = await sails.helpers.fs.read(pageSourcePath);
-              mdString = mdString.replace(/(?=\n)(\s*)(`{3,4})([a-zA-Z0-9\-]*)([\s*\n])/g, '$1$2' + '$1<!-- __LANG=%' + '$3' + '%__ -->' + '$4'); // « Based on the github-flavored markdown's language annotation, (e.g. ```js```) add a temporary marker to code blocks that can be parsed post-md-compilation when this is HTML.  Note: This is an HTML comment because it is easy to over-match and "accidentally" add it underneath each code block as well (being an HTML comment ensures it doesn't show up or break anything).  For more information, see https://github.com/uncletammy/doc-templater/blob/2969726b598b39aa78648c5379e4d9503b65685e/lib/compile-markdown-tree-from-remote-git-repo.js#L198-L202
+              mdString = mdString.replace(/(```)([a-zA-Z0-9\-]*)(\s*\n)/g, '$1\n' + '<!-- __LANG=%' + '$2' + '%__ -->' + '$3'); // « Based on the github-flavored markdown's language annotation, (e.g. ```js```) add a temporary marker to code blocks that can be parsed post-md-compilation when this is HTML.  Note: This is an HTML comment because it is easy to over-match and "accidentally" add it underneath each code block as well (being an HTML comment ensures it doesn't show up or break anything).  For more information, see https://github.com/uncletammy/doc-templater/blob/2969726b598b39aa78648c5379e4d9503b65685e/lib/compile-markdown-tree-from-remote-git-repo.js#L198-L202
               mdString = mdString.replace(/(<call-to-action[\s\S]+[^>\n+])\n+(>)/g, '$1$2'); // « Removes any newlines that might exist before the closing `>` when the <call-to-action> compontent is added to markdown files.
               let htmlString = await sails.helpers.strings.toHtml(mdString);
               htmlString = (// « Add the appropriate class to the `<code>` based on the temporary "LANG" markers that were just added above
                 htmlString
                 .replace(// Interpret `js` as `javascript`
                   // $1     $2     $3   $4
-                  /(<code)([^>]*)(>\s*)(\s\&lt;!-- __LANG=\%js\%__ --\&gt;)\s*/gm,
+                  /(<code)([^>]*)(>\s*)(\&lt;!-- __LANG=\%js\%__ --\&gt;)\s*/gm,
                   '$1 class="javascript"$2$3'
                 )
                 .replace(// Interpret `sh` and `bash` as `bash`
                   // $1     $2     $3   $4
-                  /(<code)([^>]*)(>\s*)(\s\&lt;!-- __LANG=\%(bash|sh)\%__ --\&gt;)\s*/gm,
+                  /(<code)([^>]*)(>\s*)(\&lt;!-- __LANG=\%(bash|sh)\%__ --\&gt;)\s*/gm,
                   '$1 class="bash"$2$3'
                 )
                 .replace(// When unspecified, default to `text`
                   // $1     $2     $3   $4
-                  /(<code)([^>]*)(>\s*)(\s\&lt;!-- __LANG=\%\%__ --\&gt;)\s*/gm,
+                  /(<code)([^>]*)(>\s*)(\&lt;!-- __LANG=\%\%__ --\&gt;)\s*/gm,
                   '$1 class="nohighlight"$2$3'
                 )
-                .replace(// Nab the rest, leaving the code language as-is.
+                .replace(// Finally, nab the rest, leaving the code language as-is.
                   // $1     $2     $3   $4               $5    $6
-                  /(<code)([^>]*)(>\s*)(\s\&lt;!-- __LANG=\%)([^%]+)(\%__ --\&gt;)\s*/gm,
+                  /(<code)([^>]*)(>\s*)(\&lt;!-- __LANG=\%)([^%]+)(\%__ --\&gt;)\s*/gm,
                   '$1 class="$5"$2$3'
                 )
-                .replace(// Finally, remove any "LANG" markers that have been added inside of a nested code block
-                  /((&#96;)+)\n\&lt;\!\-+\s\_+LANG\=\%+\_+\s\-+\&gt;/gm,
-                  '$1'
-                )
               );
+              // Throw an error if the compiled Markdown contains nested codeblocks (nested codeblocks meaning 3 backtick codeblocks nested inside a 4 backtick codeblock, or vice versa). Note: We're checking this after the markdown has been compiled because backticks (`) within codeblocks will be replaced with HTML entities (&#96;) and nested triple backticks can be easy to overmatch.
+              if(htmlString.match(/(&#96;){3,4}[\s\S]+(&#96;){3}/g)){
+                throw new Error('The compiled markdown has a codeblock (\`\`\`) nested inside of another codeblock (\`\`\`\`) at '+pageSourcePath+'. To resolve this error, remove the codeblock nested inside another codeblock from this file.');
+              }
               htmlString = htmlString.replace(/\(\(([^())]*)\)\)/g, '<bubble type="$1" class="colors"><span is="bubble-heart"></span></bubble>');// « Replace ((bubble))s with HTML. For more background, see https://github.com/fleetdm/fleet/issues/706#issuecomment-884622252
               htmlString = htmlString.replace(/(href="(\.\/[^"]+|\.\.\/[^"]+)")/g, (hrefString)=>{// « Modify path-relative links like `./…` and `../…` to make them absolute.  (See https://github.com/fleetdm/fleet/issues/706#issuecomment-884641081 for more background)
                 let oldRelPath = hrefString.match(/href="(\.\/[^"]+|\.\.\/[^"]+)"/)[1];
@@ -349,7 +374,7 @@ module.exports = {
               let pageTitle;
               if (embeddedMetadata.title) {// Attempt to use custom title, if one was provided.
                 if (embeddedMetadata.title.length > 40) {
-                  throw new Error(`Failed compiling markdown content: Invalid custom title (<meta name="title" value="${embeddedMetadata.title}">) embedded in "${path.join(topLvlRepoPath, sectionRepoPath)}".  To resolve, try changing the title to a different, valid value, then rebuild.`);
+                  throw new Error(`Failed compiling markdown content: Invalid custom title (<meta name="title" value="${embeddedMetadata.title}">) embedded in "${path.join(topLvlRepoPath, sectionRepoPath)}".  To resolve, try changing the title to a shorter (less than 40 characters), valid value, then rebuild.`);
                 }//•
                 pageTitle = embeddedMetadata.title;
               } else {// Otherwise use the automatically-determined fallback title.
@@ -359,7 +384,6 @@ module.exports = {
 
               // If the page has a pageOrderInSection meta tag, we'll use that to sort pages in their bottom level sections.
               let pageOrderInSection;
-              // Add handbook pages to pageOrderInSection check, add pageOrderInSection meta tags to each handbook page.
               if(sectionRepoPath === 'docs/') {
                 // Set a flag to determine if the page is a readme (e.g. /docs/Using-Fleet/configuration-files/readme.md) or a FAQ page.
                 // READMEs in subfolders and FAQ pages don't have pageOrderInSection values, they are always sorted at the end of sections.
@@ -404,16 +428,15 @@ module.exports = {
                   // Throwing an error if the article is missing a 'publishedOn' meta tag
                   throw new Error(`Failed compiling markdown content: An article page is missing a publishedOn meta tag (<meta name="publishedOn" value="2022-04-19">) at "${path.join(topLvlRepoPath, pageSourcePath)}".  To resolve, add a meta tag with the ISO formatted date the article was published on`);
                 }
-                if(embeddedMetadata.category) {
+                if(!embeddedMetadata.category) {
+                  // Throwing an error if the article is missing a category meta tag
+                  throw new Error(`Failed compiling markdown content: An article page is missing a category meta tag (<meta name="category" value="guides">) at "${path.join(topLvlRepoPath, pageSourcePath)}".  To resolve, add a meta tag with the category of the article`);
+                } else {
                   // Throwing an error if the article has an invalid category.
-                  embeddedMetadata.category = embeddedMetadata.category.toLowerCase();
                   let validArticleCategories = ['deploy', 'security', 'engineering', 'success stories', 'announcements', 'guides', 'releases', 'podcasts', 'report' ];
                   if(!validArticleCategories.includes(embeddedMetadata.category)) {
                     throw new Error(`Failed compiling markdown content: An article page has an invalid category meta tag (<meta name="category" value="${embeddedMetadata.category}">) at "${path.join(topLvlRepoPath, pageSourcePath)}". To resolve, change the meta tag to a valid category, one of: ${validArticleCategories}`);
                   }
-                } else {
-                  // throwing an error if the article is missing a category meta tag
-                  throw new Error(`Failed compiling markdown content: An article page is missing a category meta tag (<meta name="category" value="guides">) at "${path.join(topLvlRepoPath, pageSourcePath)}".  To resolve, add a meta tag with the category of the article`);
                 }
                 if(embeddedMetadata.articleImageUrl) {
                   // Checking the value of `articleImageUrl` meta tags, and throwing an error if it is not a link to an image.
@@ -428,9 +451,8 @@ module.exports = {
                   if (isURL) {
                     if (!isExternal) { // If the image is hosted on fleetdm.com, we'll modify the meta value to reference the file directly in the `website/assets/` folder
                       embeddedMetadata.articleImageUrl = embeddedMetadata.articleImageUrl.replace(/https?:\/\//, '').replace(/^fleetdm\.com/, '');
-                    } else { // If the value is a link to an image that is not hosted on fleetdm.com, we won't modify it.
-                      // TODO: Enable this error once our Medium articles and their assets have been fully migrated.
-                      // throw new Error(`Failed compiling markdown content: An article page has an invalid a articleImageUrl meta tag (<meta name="articleImageUrl" value="${embeddedMetadata.articleImageUrl}">) at "${path.join(topLvlRepoPath, pageSourcePath)}".  To resolve, change the value of the meta tag to be an image that will be hosted on fleetdm.com`);
+                    } else { // If the value is a link to an image that will not be hosted on fleetdm.com, we'll throw an error.
+                      throw new Error(`Failed compiling markdown content: An article page has an invalid a articleImageUrl meta tag (<meta name="articleImageUrl" value="${embeddedMetadata.articleImageUrl}">) at "${path.join(topLvlRepoPath, pageSourcePath)}".  To resolve, change the value of the meta tag to be an image that will be hosted on fleetdm.com`);
                     }
                   } else if(inWebsiteAssetFolder) { // If the `articleImageUrl` value is a relative link to the `website/assets/` folder, we'll modify the value to link directly to that folder.
                     embeddedMetadata.articleImageUrl = embeddedMetadata.articleImageUrl.replace(/^\.\.\/website\/assets/g, '');
@@ -442,10 +464,16 @@ module.exports = {
                 // If the article is categorized as 'product' we'll replace the category with 'use-cases', or if it is categorized as 'success story' we'll replace it with 'device-management'
                 rootRelativeUrlPath = (
                   '/' +
-                  (embeddedMetadata.category === 'success stories' ? 'device-management' : embeddedMetadata.category === 'security' ? 'securing' : embeddedMetadata.category) + '/' +
+                  (encodeURIComponent(embeddedMetadata.category === 'success stories' ? 'device-management' : embeddedMetadata.category === 'security' ? 'securing' : embeddedMetadata.category)) + '/' +
                   (pageUnextensionedLowercasedRelPath.split(/\//).map((fileOrFolderName) => encodeURIComponent(fileOrFolderName.replace(/^[0-9]+[\-]+/,''))).join('/'))
                 );
               }
+
+              // Assert uniqueness of URL paths.
+              if (rootRelativeUrlPathsSeen.includes(rootRelativeUrlPath)) {
+                throw new Error('Failed compiling markdown content: Files as currently named would result in colliding (duplicate) URLs for the website.  To resolve, rename the pages whose names are too similar.  Duplicate detected: ' + rootRelativeUrlPath);
+              }//•
+              rootRelativeUrlPathsSeen.push(rootRelativeUrlPath);
 
               // Determine unique HTML id
               // > • This will become the filename of the resulting HTML.
