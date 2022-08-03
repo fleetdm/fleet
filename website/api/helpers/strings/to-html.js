@@ -117,9 +117,9 @@ module.exports = {
       if(!hasCheckbox){ // « If a list item does not have a checkbox, we'll render it normally.
         return `<li>${innerHtml}</li>`;
       } else if(isChecked) {// If this checkbox was checked in Markdown (- [x]), we'll add a disabled checked checkbox, and hide the original checkbox with CSS
-        return `<li purpose="checklist-item"><input disabled="" type="checkbox" checked><span purpose="task">${innerHtml}</span></li>`;
-      } else {// If the checkbox was not checked, we'll add a checkbox that can be checked by users, and hide the original checkbox with CSS.
-        return `<li purpose="checklist-item"><input disabled="" type="checkbox"><span purpose="task">${innerHtml}</span></li>`;
+        return `<li purpose="checklist-item"><input disabled type="checkbox" checked><span purpose="task">${innerHtml}</span></li>`;
+      } else {// If the checkbox was not checked, we'll add a non-checked disabled checkbox, and hide the original checkbox with CSS.
+        return `<li purpose="checklist-item"><input disabled type="checkbox"><span purpose="task">${innerHtml}</span></li>`;
       }
     };
 
