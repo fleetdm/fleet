@@ -2315,6 +2315,29 @@ func (s *integrationTestSuite) TestGetMacadminsData() {
 	require.NoError(t, err)
 	require.NotNil(t, hostOnlyMDM)
 
+	hostMDMNoID, err := s.ds.NewHost(ctx, &fleet.Host{
+		DetailUpdatedAt: time.Now(),
+		LabelUpdatedAt:  time.Now(),
+		PolicyUpdatedAt: time.Now(),
+		SeenTime:        time.Now(),
+		NodeKey:         t.Name() + "5",
+		UUID:            t.Name() + "5",
+		Hostname:        t.Name() + "foo.local5",
+		PrimaryIP:       "192.168.1.5",
+		PrimaryMac:      "30-65-EC-6F-D5-5A",
+		OsqueryHostID:   "5",
+	})
+	require.NoError(t, err)
+	require.NotNil(t, hostMDMNoID)
+
+	// insert a host_mdm row for hostMDMNoID without any mdm_id
+	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx,
+			`INSERT INTO host_mdm (host_id, enrolled, server_url, installed_from_dep) VALUES (?, ?, ?, ?)`,
+			hostMDMNoID.ID, true, "https://simplemdm.com", true)
+		return err
+	})
+
 	require.NoError(t, s.ds.SetOrUpdateMDMData(ctx, hostAll.ID, true, "url", false))
 	require.NoError(t, s.ds.SetOrUpdateMunkiVersion(ctx, hostAll.ID, "1.3.0"))
 
@@ -2352,11 +2375,13 @@ func (s *integrationTestSuite) TestGetMacadminsData() {
 	assert.NotZero(t, *macadminsData.Macadmins.MDM.MDMID)
 
 	// nothing returns null
+	macadminsData = macadminsDataResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/macadmins", hostNothing.ID), nil, http.StatusOK, &macadminsData)
 	require.Nil(t, macadminsData.Macadmins)
 
 	// only munki info returns null on mdm
 	require.NoError(t, s.ds.SetOrUpdateMunkiVersion(ctx, hostOnlyMunki.ID, "3.2.0"))
+	macadminsData = macadminsDataResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/macadmins", hostOnlyMunki.ID), nil, http.StatusOK, &macadminsData)
 	require.NotNil(t, macadminsData.Macadmins)
 	require.Nil(t, macadminsData.Macadmins.MDM)
@@ -2365,6 +2390,7 @@ func (s *integrationTestSuite) TestGetMacadminsData() {
 
 	// only mdm returns null on munki info
 	require.NoError(t, s.ds.SetOrUpdateMDMData(ctx, hostOnlyMDM.ID, true, "https://kandji.io", true))
+	macadminsData = macadminsDataResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/macadmins", hostOnlyMDM.ID), nil, http.StatusOK, &macadminsData)
 	require.NotNil(t, macadminsData.Macadmins)
 	require.NotNil(t, macadminsData.Macadmins.MDM)
@@ -2373,6 +2399,16 @@ func (s *integrationTestSuite) TestGetMacadminsData() {
 	assert.NotZero(t, *macadminsData.Macadmins.MDM.MDMID)
 	require.Nil(t, macadminsData.Macadmins.Munki)
 	assert.Equal(t, "https://kandji.io", macadminsData.Macadmins.MDM.ServerURL)
+	assert.Equal(t, "Enrolled (automated)", macadminsData.Macadmins.MDM.EnrollmentStatus)
+
+	// host without mdm_id still works, returns nil id and unknown name
+	macadminsData = macadminsDataResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/macadmins", hostMDMNoID.ID), nil, http.StatusOK, &macadminsData)
+	require.NotNil(t, macadminsData.Macadmins)
+	require.NotNil(t, macadminsData.Macadmins.MDM)
+	assert.Equal(t, fleet.UnknownMDMName, macadminsData.Macadmins.MDM.Name)
+	assert.Nil(t, macadminsData.Macadmins.MDM.MDMID)
+	require.Nil(t, macadminsData.Macadmins.Munki)
 	assert.Equal(t, "Enrolled (automated)", macadminsData.Macadmins.MDM.EnrollmentStatus)
 
 	// generate aggregated data
@@ -2394,9 +2430,9 @@ func (s *integrationTestSuite) TestGetMacadminsData() {
 		},
 	})
 	assert.Equal(t, agg.Macadmins.MDMStatus.EnrolledManualHostsCount, 0)
-	assert.Equal(t, agg.Macadmins.MDMStatus.EnrolledAutomatedHostsCount, 1)
+	assert.Equal(t, agg.Macadmins.MDMStatus.EnrolledAutomatedHostsCount, 2)
 	assert.Equal(t, agg.Macadmins.MDMStatus.UnenrolledHostsCount, 1)
-	assert.Equal(t, agg.Macadmins.MDMStatus.HostsCount, 2)
+	assert.Equal(t, agg.Macadmins.MDMStatus.HostsCount, 3)
 
 	team, err := s.ds.NewTeam(context.Background(), &fleet.Team{
 		Name:        "team1" + t.Name(),
