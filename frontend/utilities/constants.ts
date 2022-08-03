@@ -30,7 +30,7 @@ export const DEFAULT_POLICIES = [
       "SELECT 1 FROM managed_policies WHERE domain = 'com.apple.Terminal' AND name = 'SecureKeyboardEntry' AND value = 1 LIMIT 1;",
     name: "Antivirus healthy (macOS)",
     description:
-      "Checks the version of Malware Removal Tool (MRT) and the built-in macOS AV (Xprotect). Replace version numbers with latest version regularly.",
+      "Checks the version of Malware Removal Tool (MRT) and the built-in macOS AV (Xprotect). Replace version numbers with the latest version regularly.",
     resolution:
       "To enable automatic security definition updates, on the failing device, select System Preferences > Software Update > Advanced > Turn on Install system data files and security updates.",
     platform: "darwin",
@@ -52,7 +52,7 @@ export const DEFAULT_POLICIES = [
       "SELECT 1 FROM managed_policies WHERE domain = 'com.apple.loginwindow' AND name = 'com.apple.login.mcx.DisableAutoLoginClient' AND value = 1 LIMIT 1;",
     name: "Automatic login disabled (macOS)",
     description:
-      "Required: You’re already enforcing a policy via Moble Device Management (MDM). Checks to make sure that the device user cannot log in to the device without a password.",
+      "Required: You’re already enforcing a policy via Mobile Device Management (MDM). Checks to make sure that the device user cannot log in to the device without a password.",
     resolution:
       "The following example profile includes a setting to disable automatic login: https://github.com/gregneagle/profiles/blob/fecc73d66fa17b6fa78b782904cb47cdc1913aeb/loginwindow.mobileconfig#L64-L65.",
     platform: "darwin",
@@ -105,7 +105,7 @@ export const DEFAULT_POLICIES = [
       "SELECT 1 FROM managed_policies WHERE domain = 'com.apple.loginwindow' AND name = 'DisableGuestAccount' AND value = 1 LIMIT 1;",
     name: "Guest users disabled (macOS)",
     description:
-      "Required: You’re already enforcing a policy via Moble Device Management (MDM). Checks to make sure that guest accounts cannot be used to log in to the device without a password.",
+      "Required: You’re already enforcing a policy via Mobile Device Management (MDM). Checks to make sure that guest accounts cannot be used to log in to the device without a password.",
     resolution:
       "The following example profile includes a setting to disable guest users: https://github.com/gregneagle/profiles/blob/fecc73d66fa17b6fa78b782904cb47cdc1913aeb/loginwindow.mobileconfig#L68-L71.",
     platform: "darwin",
@@ -125,7 +125,7 @@ export const DEFAULT_POLICIES = [
       "SELECT 1 FROM managed_policies WHERE domain = 'com.apple.Terminal' AND name = 'SecureKeyboardEntry' AND value = 1 LIMIT 1;",
     name: "Secure keyboard entry for Terminal.app enabled (macOS)",
     description:
-      "Required: You’re already enforcing a policy via Moble Device Management (MDM). Checks to make sure that the Secure Keyboard Entry setting is enabled.",
+      "Required: You’re already enforcing a policy via Mobile Device Management (MDM). Checks to make sure that the Secure Keyboard Entry setting is enabled.",
     resolution: "",
     platform: "darwin",
   },
@@ -199,7 +199,7 @@ export const LOGGING_TYPE_OPTIONS = [
   { label: "Snapshot", value: "snapshot" },
   { label: "Differential", value: "differential" },
   {
-    label: "Differential (Ignore Removals)",
+    label: "Differential (ignore removals)",
     value: "differential_ignore_removals",
   },
 ];
@@ -208,6 +208,17 @@ export const MAX_OSQUERY_SCHEDULED_QUERY_INTERVAL = 604800;
 
 export const MIN_OSQUERY_VERSION_OPTIONS = [
   { label: "All", value: "" },
+  { label: "5.4.0 +", value: "5.4.0" },
+  { label: "5.3.0 +", value: "5.3.0" },
+  { label: "5.2.3 +", value: "5.2.4" },
+  { label: "5.2.2 +", value: "5.2.2" },
+  { label: "5.2.1 +", value: "5.2.1" },
+  { label: "5.2.0 +", value: "5.2.0" },
+  { label: "5.1.0 +", value: "5.1.0" },
+  { label: "5.0.1 +", value: "5.0.1" },
+  { label: "5.0.0 +", value: "5.0.0" },
+  { label: "4.9.0 +", value: "4.9.0" },
+  { label: "4.8.0 +", value: "4.8.0" },
   { label: "4.7.0 +", value: "4.7.0" },
   { label: "4.6.0 +", value: "4.6.0" },
   { label: "4.5.1 +", value: "4.5.1" },
@@ -371,7 +382,7 @@ export const VULNERABLE_DROPDOWN_OPTIONS = [
     disabled: false,
     label: "All software",
     value: false,
-    helpText: "All sofware installed on your hosts.",
+    helpText: "All software installed on your hosts.",
   },
   {
     disabled: false,

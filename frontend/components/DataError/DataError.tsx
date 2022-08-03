@@ -1,6 +1,3 @@
-/**
- * Component when there is an error retrieving schedule set up in fleet
- */
 import React from "react";
 
 import OpenNewTabIcon from "../../../assets/images/open-new-tab-12x12@2x.png";

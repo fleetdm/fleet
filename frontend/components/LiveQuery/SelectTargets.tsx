@@ -381,7 +381,7 @@ const SelectTargets = ({
   }
 
   return (
-    <div className={`${baseClass}__wrapper body-wrap`}>
+    <div className={`${baseClass}__wrapper`}>
       <h1>Select targets</h1>
       <div className={`${baseClass}__target-selectors`}>
         {!!labels?.allHosts.length &&
