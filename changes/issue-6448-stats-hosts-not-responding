@@ -1,2 +1,0 @@
-- Added statistics for number of hosts per deployment that have not submitted results for distibuted
-  queries to statistics payload delivered to fleetdm.com

@@ -118,6 +118,22 @@ module.exports = {
       }
     };
 
+    // Custom renderer function to enable checkboxes in Markdown lists.
+    customRenderer.listitem = function(innerHtml, hasCheckbox, isChecked) {
+      if(!hasCheckbox){ // « If a list item does not have a checkbox, we'll render it normally.
+        return `<li>${innerHtml}</li>`;
+      } else if(isChecked) {// If this checkbox was checked in Markdown (- [x]), we'll add a disabled checked checkbox, and hide the original checkbox with CSS
+        return `<li purpose="checklist-item"><input disabled type="checkbox" checked><span purpose="task">${innerHtml}</span></li>`;
+      } else {// If the checkbox was not checked, we'll add a non-checked disabled checkbox, and hide the original checkbox with CSS.
+        return `<li purpose="checklist-item"><input disabled type="checkbox"><span purpose="task">${innerHtml}</span></li>`;
+      }
+    };
+
+    // Creating a custom table renderer to add Bootstrap's responsive table styles to markdown tables.
+    customRenderer.table = function(headerHtml, bodyHtml) {
+      return `<div class="table-responsive-xl"><table class="table">\n<thead>\n${headerHtml}\n</thead>\n<tbody>${bodyHtml}\n</tbody>\n</table>\n</div>`;
+    };
+
     markedOpts.renderer = customRenderer;
     // Now actually compile the markdown to HTML.
     marked(inputs.mdString, markedOpts, function afterwards (err, htmlString) {

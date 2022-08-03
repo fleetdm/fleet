@@ -402,16 +402,21 @@ func (svc Service) ApplyTeamSpecs(ctx context.Context, specs []*fleet.TeamSpec) 
 
 		team.Name = spec.Name
 		team.Config.AgentOptions = spec.AgentOptions
-		team.Secrets = secrets
+		if len(secrets) > 0 {
+			team.Secrets = secrets
+		}
 
 		_, err = svc.ds.SaveTeam(ctx, team)
 		if err != nil {
 			return err
 		}
 
-		err = svc.ds.ApplyEnrollSecrets(ctx, ptr.Uint(team.ID), secrets)
-		if err != nil {
-			return err
+		// only replace enroll secrets if at least one is provided (#6774)
+		if len(secrets) > 0 {
+			err = svc.ds.ApplyEnrollSecrets(ctx, ptr.Uint(team.ID), secrets)
+			if err != nil {
+				return err
+			}
 		}
 	}
 

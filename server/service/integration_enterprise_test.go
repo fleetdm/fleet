@@ -54,7 +54,8 @@ func (s *integrationEnterpriseTestSuite) TestTeamSpecs() {
 
 	s.Do("POST", "/api/latest/fleet/teams", team, http.StatusOK)
 
-	// updates a team
+	// updates a team, no secret is provided so it will keep the one generated
+	// automatically when the team was created.
 	agentOpts := json.RawMessage(`{"config": {"foo": "bar"}, "overrides": {"platforms": {"darwin": {"foo": "override"}}}}`)
 	teamSpecs := applyTeamSpecsRequest{Specs: []*fleet.TeamSpec{{Name: teamName, AgentOptions: &agentOpts}}}
 	s.Do("POST", "/api/latest/fleet/spec/teams", teamSpecs, http.StatusOK)
@@ -62,7 +63,7 @@ func (s *integrationEnterpriseTestSuite) TestTeamSpecs() {
 	team, err := s.ds.TeamByName(context.Background(), teamName)
 	require.NoError(t, err)
 
-	assert.Len(t, team.Secrets, 0)
+	assert.Len(t, team.Secrets, 1)
 	require.JSONEq(t, string(agentOpts), string(*team.Config.AgentOptions))
 
 	// creates a team with default agent options
@@ -84,7 +85,7 @@ func (s *integrationEnterpriseTestSuite) TestTeamSpecs() {
 	require.NoError(t, err)
 
 	defaultOpts := `{"config": {"options": {"logger_plugin": "tls", "pack_delimiter": "/", "logger_tls_period": 10, "distributed_plugin": "tls", "disable_distributed": false, "logger_tls_endpoint": "/api/osquery/log", "distributed_interval": 10, "distributed_tls_max_attempts": 3}, "decorators": {"load": ["SELECT uuid AS host_uuid FROM system_info;", "SELECT hostname AS hostname FROM system_info;"]}}, "overrides": {}}`
-	assert.Len(t, team.Secrets, 0)
+	assert.Len(t, team.Secrets, 0) // no secret gets created automatically when creating a team via apply spec
 	require.NotNil(t, team.Config.AgentOptions)
 	require.JSONEq(t, defaultOpts, string(*team.Config.AgentOptions))
 
