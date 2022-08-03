@@ -1,17 +1,5 @@
 # eBPF & the future of osquery on Linux
 
-
-><!--quote--> Break lamps and curl up into a ball. Whatever stares at human while pushing stuff off a table scratch at door to be let outside, get let out then scratch at door immmediately after to be let back in. Gimme attention gimme attention, just kidding i don't want it anymore meow.
-
-><!--large-quote--> When we build the Markdown, how do we tackle a situation where we need to drop a larger block of quoted text into an article, such as this? Is there a way to specify a class in the Markdown that sets the style to 16px font-size with 24px lineheight? Cat-ipsum from here: Break lamps and curl up into a ball. Whatever stares at human while pushing stuff off a table scratch at door to be let outside, get let out then scratch at door immmediately after to be let back in yet gimme attention gimme attention gimme attention gimme attention gimme attention just kidding i don't want it anymore meow.
-
-
->Lorem ipsum dolor sit amet, consectetur adipiscing elit. Nunc luctus, libero et facilisis congue, arcu odio laoreet erat, id convallis nibh velit in nisi [this is a link](https://example.com).
-
-
-
-
-
 ![eBPF & the future of osquery on Linux](../website/assets/images/articles/ebpf-the-future-of-osquery-on-linux-cover-700x394@2x.png)
 
 What is the state of event instrumentation with osquery on Linux today? How is the Audit framework meeting Linux visibility needs, and what are the shortcomings of the approach? What is eBPF and how will it open new opportunities for osquery instrumentation on Linux?
