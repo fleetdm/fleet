@@ -149,6 +149,12 @@ data "aws_iam_policy_document" "lambda" {
   }
 
   statement {
+    actions   = ["secretsmanager:GetSecretValue"]
+    resources = [aws_secretsmanager_secret.apple-signing-secrets.arn]
+  }
+
+  # TODO: limit this, this is for terraform
+  statement {
     actions   = ["*"]
     resources = ["*"]
   }
@@ -181,6 +187,16 @@ resource "aws_security_group" "lambda" {
 
 data "aws_eks_cluster" "cluster" {
   name = var.eks_cluster.eks_cluster_id
+}
+
+resource "aws_secretsmanager_secret" "apple-signing-secrets" {
+  name                    = "${local.full_name}-apple-signing-secrets"
+  kms_key_id              = var.kms_key.id
+  recovery_window_in_days = 0
+}
+
+data "aws_secretsmanager_secret_version" "apple-signing-secrets" {
+  secret_id = aws_secretsmanager_secret.apple-signing-secrets.id
 }
 
 resource "aws_ecs_task_definition" "main" {
@@ -256,7 +272,25 @@ resource "aws_ecs_task_definition" "main" {
           {
             name  = "TF_VAR_installer_bucket"
             value = var.installer_bucket.id
+          }
+        ]),
+        secrets = concat([
+          {
+            name      = "MACOS_DEV_ID_CERTIFICATE_CONTENT"
+            valueFrom = "${aws_secretsmanager_secret.apple-signing-secrets.arn}:MACOS_DEV_ID_CERTIFICATE_CONTENT::"
           },
+          {
+            name      = "APP_STORE_CONNECT_API_KEY_ID"
+            valueFrom = "${aws_secretsmanager_secret.apple-signing-secrets.arn}:APP_STORE_CONNECT_API_KEY_ID::"
+          },
+          {
+            name      = "APP_STORE_CONNECT_API_KEY_ISSUER"
+            valueFrom = "${aws_secretsmanager_secret.apple-signing-secrets.arn}:APP_STORE_CONNECT_API_KEY_ISSUER::"
+          },
+          {
+            name      = "MACOS_DEV_ID_CERTIFICATE_CONTENT"
+            valueFrom = "${aws_secretsmanager_secret.apple-signing-secrets.arn}:MACOS_DEV_ID_CERTIFICATE_CONTENT::"
+          }
         ])
       }
   ])

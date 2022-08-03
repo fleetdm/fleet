@@ -23,12 +23,16 @@ import (
 )
 
 type OptionsStruct struct {
-	LambdaExecutionEnv string `long:"lambda-execution-environment" env:"AWS_EXECUTION_ENV"`
-	LifecycleTable     string `long:"dynamodb-lifecycle-table" env:"DYNAMODB_LIFECYCLE_TABLE" required:"true"`
-	MaxInstances       int64  `long:"max-instances" env:"MAX_INSTANCES" required:"true"`
-	QueuedInstances    int64  `long:"queued-instances" env:"QUEUED_INSTANCES" required:"true"`
-	FleetBaseURL       string `long:"fleet-base-url" env:"FLEET_BASE_URL" required:"true"`
-	InstallerBucket    string `long:"installer-bucket" env:"INSTALLER_BUCKET" required:"true"`
+	LambdaExecutionEnv           string `long:"lambda-execution-environment" env:"AWS_EXECUTION_ENV"`
+	LifecycleTable               string `long:"dynamodb-lifecycle-table" env:"DYNAMODB_LIFECYCLE_TABLE" required:"true"`
+	MaxInstances                 int64  `long:"max-instances" env:"MAX_INSTANCES" required:"true"`
+	QueuedInstances              int64  `long:"queued-instances" env:"QUEUED_INSTANCES" required:"true"`
+	FleetBaseURL                 string `long:"fleet-base-url" env:"FLEET_BASE_URL" required:"true"`
+	InstallerBucket              string `long:"installer-bucket" env:"INSTALLER_BUCKET" required:"true"`
+	MacOSDevIDCertificateContent string `long:"macos-dev-id-certificate-content" env:"MACOS_DEV_ID_CERTIFICATE_CONTENT" required:"true"`
+	AppStoreConnectAPIKeyID      string `long:"app-store-connect-api-key-id" env:"APP_STORE_CONNECT_API_KEY_ID" required:"true"`
+	AppStoreConnectAPIKeyIssuer  string `long:"app-store-connect-api-key-issuer" env:"APP_STORE_CONNECT_API_KEY_ISSUER" required:"true"`
+	AppStoreConnectAPIKeyContent string `long:"app-store-connect-api-key-content" env:"APP_STORE_CONNECT_API_KEY_CONTENT" required:"true"`
 }
 
 var options = OptionsStruct{}
@@ -70,8 +74,19 @@ func buildPackages(instanceID, enrollSecret string) (err error) {
 		packaging.BuildMSI,
 	}
 	pkgopts := packaging.Options{
-		FleetURL:     fmt.Sprintf("https://%s.%s", options.FleetBaseURL, instanceID),
-		EnrollSecret: enrollSecret,
+		FleetURL:                     fmt.Sprintf("https://%s.%s", options.FleetBaseURL, instanceID),
+		EnrollSecret:                 enrollSecret,
+		UpdateURL:                    "https://tuf.fleetctl.com",
+		Identifier:                   "com.fleetdm.orbit",
+		StartService:                 true,
+		OrbitChannel:                 "stable",
+		OsquerydChannel:              "stable",
+		DesktopChannel:               "stable",
+		OrbitUpdateInterval:          15 * time.Minute,
+		MacOSDevIDCertificateContent: options.MacOSDevIDCertificateContent,
+		AppStoreConnectAPIKeyID:      options.AppStoreConnectAPIKeyID,
+		AppStoreConnectAPIKeyIssuer:  options.AppStoreConnectAPIKeyIssuer,
+		AppStoreConnectAPIKeyContent: options.AppStoreConnectAPIKeyContent,
 	}
 	store, err := s3.NewInstallerStore(config.S3Config{
 		Bucket: options.InstallerBucket,
