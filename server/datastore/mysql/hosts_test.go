@@ -3539,7 +3539,7 @@ func testHostMDMAndMunki(t *testing.T, ds *Datastore) {
 	assert.Equal(t, "url", hmdm.ServerURL)
 	assert.False(t, hmdm.InstalledFromDep)
 	assert.False(t, hmdm.MDMID.Valid)
-	assert.False(t, hmdm.Name.Valid)
+	assert.Equal(t, fleet.UnknownMDMName, hmdm.Name)
 
 	require.NoError(t, ds.SetOrUpdateMDMData(context.Background(), 455, true, "https://kandji.io", true)) // kandji mdm name
 	require.NoError(t, ds.SetOrUpdateMDMData(context.Background(), 432, false, "url3", true))
@@ -3550,7 +3550,7 @@ func testHostMDMAndMunki(t *testing.T, ds *Datastore) {
 	assert.Equal(t, "url3", hmdm.ServerURL)
 	assert.True(t, hmdm.InstalledFromDep)
 	assert.False(t, hmdm.MDMID.Valid)
-	assert.False(t, hmdm.Name.Valid)
+	assert.Equal(t, fleet.UnknownMDMName, hmdm.Name)
 
 	hmdm, err = ds.GetMDM(context.Background(), 455)
 	require.NoError(t, err)
@@ -3558,7 +3558,7 @@ func testHostMDMAndMunki(t *testing.T, ds *Datastore) {
 	assert.Equal(t, "https://kandji.io", hmdm.ServerURL)
 	assert.True(t, hmdm.InstalledFromDep)
 	assert.True(t, hmdm.MDMID.Valid)
-	assert.Equal(t, fleet.WellKnownMDMKandji, hmdm.Name.String)
+	assert.Equal(t, fleet.WellKnownMDMKandji, hmdm.Name)
 
 	// switch to simplemdm in an update
 	require.NoError(t, ds.SetOrUpdateMDMData(context.Background(), 455, true, "https://simplemdm.com", false)) // now simplemdm name
@@ -3569,7 +3569,7 @@ func testHostMDMAndMunki(t *testing.T, ds *Datastore) {
 	assert.Equal(t, "https://simplemdm.com", hmdm.ServerURL)
 	assert.False(t, hmdm.InstalledFromDep)
 	assert.True(t, hmdm.MDMID.Valid)
-	assert.Equal(t, fleet.WellKnownMDMSimpleMDM, hmdm.Name.String)
+	assert.Equal(t, fleet.WellKnownMDMSimpleMDM, hmdm.Name)
 
 	// switch to no known mdm
 	require.NoError(t, ds.SetOrUpdateMDMData(context.Background(), 455, false, "https://nope.com", false))
@@ -3580,7 +3580,7 @@ func testHostMDMAndMunki(t *testing.T, ds *Datastore) {
 	assert.Equal(t, "https://nope.com", hmdm.ServerURL)
 	assert.False(t, hmdm.InstalledFromDep)
 	assert.False(t, hmdm.MDMID.Valid)
-	assert.False(t, hmdm.Name.Valid)
+	assert.Equal(t, fleet.UnknownMDMName, hmdm.Name)
 }
 
 func testAggregatedHostMDMAndMunki(t *testing.T, ds *Datastore) {
