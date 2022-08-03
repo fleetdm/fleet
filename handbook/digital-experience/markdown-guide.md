@@ -2,7 +2,7 @@
 
 ## Headings
 
-The fewer " # " the larger the heading.
+Try to stay within three or four heading levels. Complicated documents may use more, but pages with a simpler structure are easier to read.
 
 | Markdown | Rendered heading |
 |:--------------------|:-----------------------------|
@@ -13,106 +13,81 @@ The fewer " # " the larger the heading.
 
 ## Emphasis
 
-| Markdown option one | HTML | Rendered Text |
-|:--------------------|:-----------------------------|:-----------------------------|
-| `**Bold**` | ```<strong>Bold</strong> ``` | <strong>Bold</strong> |
-| `*Italic*` |  ```<em>Italic</em> ``` | <em>Italic</em> |
-| `***Bold italic***` | ```<em><strong>Bold italic</strong></em> ``` | <em><strong>Bold italic</strong></em> |
-| `~~Strikethrough~~` | ```<s>Strikethrough</s> ``` | <s>Strikethrough</s> |
-|  | `<ins>Underline</ins>` | <ins>Underline</ins> |
+| Markdown | Rendered text |
+|:--------------------|:-----------------------------|
+| `**Bold**` | <strong>Bold</strong> |
+| `*Italic*` | <em>Italic</em> |
+| `***Bold italic***` | <em><strong>Bold italic</strong></em> |
+| `~~Strikethrough~~` | <s>Strikethrough</s> |
 
+## Lists
 
-## Ordered lists
+### Ordered lists
 
-| Markdown | HTML | Rendered List |
-|:-------------  |:---------------------------|:-----------------------------|
-| `1. Line one`  <br> `2. Line two`  <br> `3. Line three ` <br> `4. Line four`   |``` <ol>```<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;```<li>Line one</li>``` <br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;```<li>Line two</li>``` <br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;```<li>Line three</li>```  <br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;```<li>Line four</li>``` <br> ```</ol>``` | 1. Line one  <br> 2. Line two  <br> 3. Line three  <br> 4. Line four|
-| `1. Line one` <br> `4. Line two` <br> `2. Line three` <br> `5. Line four`| ``` <ol>```<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;```<li>Line one</li>``` <br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;```<li>Line two</li>``` <br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;```<li>Line three</li>``` <br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;```<li>Line four</li>``` <br> ```</ol>``` | 1. Line one  <br> 2. Line two  <br> 3. Line three  <br> 4. Line four |
-| `1. Line one` <br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;`1. Indent one` <br> `2. Line two`  <br> `3. Line three` <br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; `1. Indent one`<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; `2. Indent two` <br> `4. Line four`   |``` <ol>```<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;```<li>Line one</li>``` <br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;``` <ol>``` <br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;```<li>Indent one</li>```<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;```<li>Line two</li>``` <br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;```<li>Line three</li>```<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;```<ol>```<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;```<li>Indent one </li>```<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; ```<li>Indent two</li>```<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;```<li>Line four</li>``` <br> ```</ol>``` | 1. Line one<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;1. Indent one <br> 2. Line two  <br> 3. Line three <br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 1. Indent one<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 2. Indent two <br> 4. Line four  |
+| Markdown | Rendered list |
+|:-------------|:-----------------------------|
+| <pre>1. Line one<br>2. Line two  <br>3. Line three<br>4. Line four</pre> | 1. Line one<br>2. Line two<br> 3. Line three<br>4. Line four |
+| <pre>1. Line one<br>1. Indent one<br>2. Line two<br>3. Line three<br>1. Indent one<br>2. Indent two<br>4. Line four</pre> | 1. Line one<br>&nbsp;1. Indent one<br>2. Line two<br>3. Line three<br>&nbsp;1. Indent one<br>&nbsp;2. Indent two<br>4. Line four |
 
-## Unordered lists
+### Unordered lists
 
-See the Markdown examples of unordered lists below.
-
-| Markdown option one | Rendered List&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;|
-|:-------------  |:--------------------------------------------|
-| `- Line one`  <br> `- Line two`  <br> `- Line three ` <br> `- Line four` | <ul><li>Line one</li><li>Line two</li><li>Line three</li><li>Line four</li></ul> |
-| `- 7\. What a lucky number.`  <br> `- It's nothing like 13.` |  <ul><li> 7\. What a lucky number.  </li><li> It's nothing like 13. </li></ul> |
-|`- Line one`  <br><br> &nbsp;&nbsp;&nbsp;&nbsp;`Your paragraph goes here.`  <br><br>   `- Line two` | <ul><li> Line one  </li></ul> &nbsp;&nbsp;&nbsp;&nbsp; Your paragraph goes here <br> <br><ul><li> Line two. </li></ul> |
-
-Nest lists inside other unordered lists using Markdown by including four spaces before each item you desire to indent.
-
-`- Line one `
-   &nbsp;&nbsp;&nbsp;&nbsp; `- Indent one`
-`- Line two`
-`- Line three`
-   &nbsp;&nbsp;&nbsp;&nbsp; `- Indent one`
-  &nbsp;&nbsp;&nbsp;&nbsp;  `- Indent two`
-`- Line four`
-
-This renders as 
-
-- Line one 
-    - Indent one
-- Line two
-- Line three
-    - Indent one
-    - Indent two
-- Line four
+| Markdown | Rendered list |
+|:-------------|:-----------------------------|
+| <pre>- Line one<br>- Line two  <br>- Line three<br>- Line four</pre> | - Line one<br>- Line two<br>- Line three<br>- Line four |
+| <pre>- Line one<br> - Indent one<br>- Line two<br>- Line three<br> - Indent one<br> - Indent two<br>- Line four</pre> | - Line one<br>&nbsp;- Indent one<br>- Line two<br>- Line three<br>&nbsp;- Indent one<br>&nbsp;- Indent two<br>- Line four |
 
 ## Links
 
-Type **command + K** for a simple link template. 
+The Fleet website currently supports the following Markdown link types.
 
-`This is how you create a term with [a link ](https://fleetdm.com/handbook/brand#commonly-used-terms)`
+### Inline link
 
-This renders as
+It's a classic.
 
-This is how you create a term with [a link ](https://fleetdm.com/handbook/brand#commonly-used-terms)
+#### Example
 
-`This is how you create a term with [a tooltip and a link ](https://fleetdm.com/handbook/brand#commonly-used-terms "add information to a term when someone hovers")`
+`[This is an inline link](https://domain.com/example.md)`
 
-This renders as
+#### Rendered output
 
-This is how you create a term with [a tooltip and a link ](https://fleetdm.com/handbook/brand#commonly-used-terms "add information to a term when someone hovers")
+[This is an inline link](https://domain.com/example.md)
 
-This is how you make separate a link to reference elsewhere in the page.
+### Link with a tooltip
 
-`[1]: <https://fleetdm.com/> "Fleet can help you."`
-`[This is a separated link](1)`
+Adding a tooltip to your link is a great way to provide additional information.
 
-This renders as
+#### Example
 
-[1]: <https://fleetdm.com/> "Fleet can help you."
-[This is a separated link](1)
+`[This is link with a tooltip](https://domain.com/example.md "You're awesome!")`
 
-To create mailto link out of a URL, encase it in angle brackets like so:
+#### Rendered output
+
+[This is link with a tooltip](https://domain.com/example.md "You're awesome!")
+
+### URLs
+
+Add angle brackets "< >" around a URL to turn it into a link.
+
+#### Example
 
 `<https://fleetdm.com>`
 
-This renders as
+#### Rendered output
 
 <https://fleetdm.com>
 
-The same concept works with email addresses.
+### Emails
 
-## Mailto links
+To create a mailto link... oh wait, I'm not going to tell you.
 
-Add angle brackets " < > " around a URL to turn it into a link.
+> **Important**: To avoid spam, we **NEVER** use mailto links.
 
-`<fake@fleetdm.com>`
+## Tables
 
-This renders as
+To create a table, start with the header by separating rows with pipes (" | ").
+Use dashes (at least 3) to separate the header, and add colons to align the text in the table columns.
 
-<fake@fleetdm.com>
-
-> *Important*: To avoid spam, we *NEVER* user mailto links in the handbook or docs.
-
-Constructing a table
-You'll want to begin by creating a header. Separate each column with a pipe "|" and separate rows by beginning a new line in markdown. Your header should look something like this:
-
-| Category one | Category two | Category three |
-The next line in Markdown contains no text. In between the pipes, add three or more dashes "---" to form a break. On either the left, right, or both sides you can add a colon ":" to specify left, right, or center alignment.
+#### Example
 
 ```
 | Category one | Category two | Category three |
@@ -120,7 +95,9 @@ The next line in Markdown contains no text. In between the pipes, add three or m
 | Left alignment | Right alignment | Center Alignment |
 ```
 
-| Category one &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; | Category two &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; | Category three  &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; |
+#### Rendered output
+
+| Category one | Category two | Category three |
 |:---|---:|:---:|
 | Left alignment | Right alignment | Center Alignment |
 
