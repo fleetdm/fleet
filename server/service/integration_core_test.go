@@ -2324,7 +2324,8 @@ func (s *integrationTestSuite) TestGetMacadminsData() {
 	assert.Equal(t, "url", macadminsData.Macadmins.MDM.ServerURL)
 	assert.Equal(t, "Enrolled (manual)", macadminsData.Macadmins.MDM.EnrollmentStatus)
 	assert.Equal(t, fleet.UnknownMDMName, macadminsData.Macadmins.MDM.Name)
-	assert.Nil(t, macadminsData.Macadmins.MDM.MDMID)
+	require.NotNil(t, macadminsData.Macadmins.MDM.MDMID)
+	assert.NotZero(t, *macadminsData.Macadmins.MDM.MDMID)
 	assert.Equal(t, "1.3.0", macadminsData.Macadmins.Munki.Version)
 
 	require.NoError(t, s.ds.SetOrUpdateMDMData(ctx, hostAll.ID, true, "https://simplemdm.com", true))
@@ -2347,7 +2348,8 @@ func (s *integrationTestSuite) TestGetMacadminsData() {
 	require.NotNil(t, macadminsData.Macadmins)
 	assert.Equal(t, "Unenrolled", macadminsData.Macadmins.MDM.EnrollmentStatus)
 	assert.Equal(t, fleet.UnknownMDMName, macadminsData.Macadmins.MDM.Name)
-	assert.Nil(t, macadminsData.Macadmins.MDM.MDMID)
+	require.NotNil(t, macadminsData.Macadmins.MDM.MDMID)
+	assert.NotZero(t, *macadminsData.Macadmins.MDM.MDMID)
 
 	// nothing returns null
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/macadmins", hostNothing.ID), nil, http.StatusOK, &macadminsData)
