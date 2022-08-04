@@ -6,7 +6,7 @@ This guide includes everything you need to know about Fleet’s editorial proces
 
 ### On this page
 
-- [Article DRIs](#article-dris)
+- [Article DRIs](#article-dr-is)
 - [Who can publish articles?](#who-can-publish-articles)
 - [Communication](#communication)
 - [Schedule](#schedule)
