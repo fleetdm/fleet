@@ -99,9 +99,9 @@ func (s *integrationSandboxTestSuite) TestInstallerGet() {
 }
 
 func installerURL(secret, kind string, desktop bool) string {
-	url := fmt.Sprintf("/api/latest/fleet/download_installer/%s/%s", secret, kind)
+	url := fmt.Sprintf("/api/latest/fleet/download_installer/%s?enroll_secret=%s", secret, kind)
 	if desktop {
-		url = url + "?desktop=1"
+		url = url + "&desktop=1"
 	}
 	return url
 }
