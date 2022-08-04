@@ -1,6 +1,8 @@
 # Article formatting guide
 
-To publish an article, you will need to create a Pull Request for a new file, formatted in Markdown (todo), in [https://github.com/fleetdm/fleet/tree/main/articles](https://github.com/fleetdm/fleet/tree/main/articles).
+To publish an article, you will need to create a Pull Request for a new file, formatted in Markdown, in [https://github.com/fleetdm/fleet/tree/main/articles](https://github.com/fleetdm/fleet/tree/main/articles).
+
+> Learn how to write Fleet-flavored Markdown in our [Markdown guide](./markdown-guide).
 
 ### On this page
 - [Layout](#layout)
@@ -131,7 +133,7 @@ In the following example we will modify `title`, `text`, `primary-button-text`, 
 
 ## Related pages
 - [How to submit and publish an article](./how-to-submit-and-publish-an-article.md)
-- Markdown guide (todo)
+- [Markdown guide](./markdown-guide)
 - Writing style guide (todo)
 
 <meta name="maintainedBy" value="mike-j-thomas">
