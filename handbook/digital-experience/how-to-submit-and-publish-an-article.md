@@ -78,5 +78,10 @@ After your article is published, the Growth team will schedule your post to be p
 
 > Consider promoting your article on your personal channels to help achieve a bigger impact. Depending on the article, the Growth team may make a request in [#help-promote](https://fleetdm.slack.com/archives/C026W5TC10V) on Slack.
 
+## Related pages
+- [Article formatting guide](./article-formatting-guide)
+- [Markdown guide](./markdown-guide)
+- Writing style guide (todo)
+
 <meta name="maintainedBy" value="timmy-k">
 <meta name="title" value="How to submit and publish an article">
