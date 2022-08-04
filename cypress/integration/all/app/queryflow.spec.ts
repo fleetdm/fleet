@@ -17,7 +17,7 @@ describe("Query flow (empty)", () => {
       cy.visit("/queries/manage");
     });
     it("creates a new query", () => {
-      cy.getAttached(".queries-list-wrapper__create-button").click();
+      cy.getAttached(".queries-table__create-button").click();
       cy.getAttached(".ace_scroller")
         .click({ force: true })
         .type("{selectall}SELECT * FROM windows_crashes;");

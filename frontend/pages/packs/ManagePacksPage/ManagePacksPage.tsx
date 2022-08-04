@@ -14,7 +14,7 @@ import Button from "components/buttons/Button";
 import TableDataError from "components/DataError";
 import Spinner from "components/Spinner";
 import MainContent from "components/MainContent";
-import PacksListWrapper from "./components/PacksListWrapper";
+import PacksTable from "./components/PacksTable";
 import DeletePackModal from "./components/DeletePackModal";
 
 const baseClass = "manage-packs-page";
@@ -43,7 +43,7 @@ const renderTable = (
   const isTableDataLoading = isLoadingPacks || packs === null;
 
   return (
-    <PacksListWrapper
+    <PacksTable
       onDeletePackClick={onDeletePackClick}
       onEnablePackClick={onEnablePackClick}
       onDisablePackClick={onDisablePackClick}

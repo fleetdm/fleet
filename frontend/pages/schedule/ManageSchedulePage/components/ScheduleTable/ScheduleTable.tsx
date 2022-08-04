@@ -21,7 +21,7 @@ import {
 } from "./ScheduleTableConfig";
 import scheduleSvg from "../../../../../../assets/images/no-schedule-322x138@2x.png";
 
-const baseClass = "schedule-list-wrapper";
+const baseClass = "schedule-table";
 const noScheduleClass = "no-schedule";
 
 const TAGGED_TEMPLATES = {
@@ -29,7 +29,7 @@ const TAGGED_TEMPLATES = {
     return `${teamId ? `/?team_id=${teamId}` : ""}`;
   },
 };
-interface IScheduleListWrapperProps {
+interface IScheduleTableProps {
   router: InjectedRouter; // v3
   onRemoveScheduledQueryClick?: (selectIds: number[]) => void;
   onEditScheduledQueryClick?: (selectedQuery: IEditScheduledQuery) => void;
@@ -42,7 +42,7 @@ interface IScheduleListWrapperProps {
   loadingTeamQueriesTableData: boolean;
 }
 
-const ScheduleListWrapper = ({
+const ScheduleTable = ({
   router,
   onRemoveScheduledQueryClick,
   allScheduledQueriesList,
@@ -53,7 +53,7 @@ const ScheduleListWrapper = ({
   selectedTeamData,
   loadingInheritedQueriesTableData,
   loadingTeamQueriesTableData,
-}: IScheduleListWrapperProps): JSX.Element => {
+}: IScheduleTableProps): JSX.Element => {
   const { MANAGE_PACKS, MANAGE_HOSTS } = paths;
 
   const handleAdvanced = () => router.push(MANAGE_PACKS);
@@ -186,12 +186,12 @@ const ScheduleListWrapper = ({
         disablePagination
         onPrimarySelectActionClick={onRemoveScheduledQueryClick}
         primarySelectActionButtonVariant="text-icon"
-        primarySelectActionButtonIcon="delete"
-        primarySelectActionButtonText={"Delete"}
+        primarySelectActionButtonIcon="remove"
+        primarySelectActionButtonText={"Remove"}
         emptyComponent={NoScheduledQueries}
       />
     </div>
   );
 };
 
-export default ScheduleListWrapper;
+export default ScheduleTable;

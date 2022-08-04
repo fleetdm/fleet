@@ -11,13 +11,13 @@ import generateTableHeaders from "./QueriesTableConfig";
 
 import OpenNewTabIcon from "../../../../../../assets/images/open-new-tab-12x12@2x.png";
 
-const baseClass = "queries-list-wrapper";
+const baseClass = "queries-table";
 const noQueriesClass = "no-queries";
 interface IQueryTableData extends IQuery {
   performance: string;
   platforms: string[];
 }
-interface IQueriesListWrapperProps {
+interface IQueriesTableProps {
   queriesList: IQueryTableData[] | null;
   isLoading: boolean;
   onDeleteQueryClick: (selectedTableQueryIds: number[]) => void;
@@ -28,7 +28,7 @@ interface IQueriesListWrapperProps {
   isOnlyObserver?: boolean;
 }
 
-const QueriesListWrapper = ({
+const QueriesTable = ({
   queriesList,
   isLoading,
   onDeleteQueryClick,
@@ -37,7 +37,7 @@ const QueriesListWrapper = ({
   customControl,
   selectedDropdownFilter,
   isOnlyObserver,
-}: IQueriesListWrapperProps): JSX.Element | null => {
+}: IQueriesTableProps): JSX.Element | null => {
   const { currentUser } = useContext(AppContext);
   const [searchString, setSearchString] = useState<string>("");
 
@@ -139,4 +139,4 @@ const QueriesListWrapper = ({
   ) : null;
 };
 
-export default QueriesListWrapper;
+export default QueriesTable;
