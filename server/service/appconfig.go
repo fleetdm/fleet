@@ -33,7 +33,10 @@ type appConfigResponse struct {
 	License *fleet.LicenseInfo `json:"license,omitempty"`
 	// Logging is loaded on the fly rather than from the database.
 	Logging *fleet.Logging `json:"logging,omitempty"`
-	Err     error          `json:"error,omitempty"`
+	// SandboxEnabled is true if fleet serve was ran with server.sandbox_enabled=true
+	SandboxEnabled bool `json:"sandbox_enabled,omitempty"`
+
+	Err error `json:"error,omitempty"`
 }
 
 func (r appConfigResponse) error() error { return r.Err }
@@ -105,8 +108,13 @@ func getAppConfigEndpoint(ctx context.Context, request interface{}, svc fleet.Se
 		Vulnerabilities: vulnConfig,
 		License:         license,
 		Logging:         loggingConfig,
+		SandboxEnabled:  svc.SandboxEnabled(),
 	}
 	return response, nil
+}
+
+func (svc *Service) SandboxEnabled() bool {
+	return svc.config.Server.SandboxEnabled
 }
 
 func (svc *Service) AppConfig(ctx context.Context) (*fleet.AppConfig, error) {
@@ -360,6 +368,10 @@ func (svc *Service) ApplyEnrollSecretSpec(ctx context.Context, spec *fleet.Enrol
 		if s.Secret == "" {
 			return ctxerr.New(ctx, "enroll secret must not be empty")
 		}
+	}
+
+	if svc.config.Packaging.GlobalEnrollSecret != "" {
+		return ctxerr.New(ctx, "enroll secret cannot be changed when fleet_packaging.global_enroll_secret is set")
 	}
 
 	return svc.ds.ApplyEnrollSecrets(ctx, nil, spec.Secrets)

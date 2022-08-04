@@ -3,6 +3,7 @@ package fleet
 import (
 	"context"
 	"encoding/json"
+	"io"
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server/websocket"
@@ -285,6 +286,7 @@ type Service interface {
 	NewAppConfig(ctx context.Context, p AppConfig) (info *AppConfig, err error)
 	AppConfig(ctx context.Context) (info *AppConfig, err error)
 	ModifyAppConfig(ctx context.Context, p []byte) (info *AppConfig, err error)
+	SandboxEnabled() bool
 
 	// ApplyEnrollSecretSpec adds and updates the enroll secrets specified in the spec.
 	ApplyEnrollSecretSpec(ctx context.Context, spec *EnrollSecretSpec) error
@@ -468,4 +470,9 @@ type Service interface {
 
 	/// Geolocation
 	LookupGeoIP(ctx context.Context, ip string) *GeoLocation
+
+	///////////////////////////////////////////////////////////////////////////////
+	// Installers
+
+	GetInstaller(ctx context.Context, installer Installer) (io.ReadCloser, int64, error)
 }

@@ -218,7 +218,7 @@ kind: query
 spec:
   name: Get active user accounts on servers
   platforms: Linux
-  description: Domain Joined environments normally have root or other service only account and users are SSH-ing using their Domain Accounts.
+  description: Domain Joined environments normally have root or other service only accounts and users are SSH-ing using their Domain Accounts.
   query: SELECT * FROM shadow WHERE password_status='active' and username!='root';
   purpose: informational
   tags: hunting, inventory, Active Directory
@@ -243,7 +243,7 @@ kind: query
 spec:
   name: Get Docker contained processes on a system
   platforms: macOS, Linux
-  description: Docker containers Processes, can be used on normal system or a kubenode.
+  description: Docker containers Processes, can be used on normal systems or a kubenode.
   query: SELECT c.id, c.name, c.image, c.image_id, c.command, c.created, c.state, c.status, p.cmdline  FROM docker_containers c CROSS JOIN docker_container_processes p using(id);
   purpose: Informational
   tags: built-in, containers, inventory
@@ -276,7 +276,7 @@ kind: query
 spec:
   name: Get processes that no longer exist on disk
   platforms: Linux, macOS, Windows
-  description: Lists all processes of which the binary which launched them no longer exists on disk. Attackers often delete files from disk after launching process to mask presence.
+  description: Lists all processes of which the binary which launched them no longer exists on disk. Attackers often delete files from disk after launching a process to mask presence.
   query: SELECT name, path, pid FROM processes WHERE on_disk = 0;
   purpose: Incident response
   tags: hunting, built-in
@@ -332,7 +332,7 @@ spec:
   name: Get malicious Python backdoors
   platforms: macOS, Linux, Windows
   description: Watches for the backdoored Python packages installed on the system. See (http://www.nbu.gov.sk/skcsirt-sa-20170909-pypi/index.html)
-  query: SELECT CASE cnt WHEN 0 THEN "NONE_INSTALLED" ELSE "INSTALLED" END AS "Malicious Python Packages", package_name, package_version FROM (SELECT COUNT(name) AS cnt, name AS package_name, version AS package_version, path AS package_path FROM python_packages WHERE package_name IN ('acqusition', 'apidev-coop', 'bzip', 'crypt', 'django-server', 'pwd', 'setup-tools', 'telnet', 'urlib3', 'urllib'));
+  query: SELECT CASE cnt WHEN 0 THEN "NONE_INSTALLED" ELSE "INSTALLED" END AS "Malicious Python Packages", package_name, package_version FROM (SELECT COUNT(name) AS cnt, name AS package_name, version AS package_version, path AS package_path FROM python_packages WHERE package_name IN ('acquisition', 'apidev-coop', 'bzip', 'crypt', 'django-server', 'pwd', 'setup-tools', 'telnet', 'urlib3', 'urllib'));
   purpose: Informational
   tags: hunting, inventory, malware
   contributors: alphabrevity
@@ -386,7 +386,7 @@ kind: query
 spec:
   name: Get servers with root login in the last 24 hours
   platforms: macOS, Linux, Windows
-  description: Returns servers with root login in the last 24 hours and the time the users where logged in.
+  description: Returns servers with root login in the last 24 hours and the time the users were logged in.
   query: SELECT * FROM last WHERE username = "root" AND time > (( SELECT unix_time FROM time ) - 86400 );
   purpose: Informational
   tags: hunting
@@ -397,7 +397,7 @@ kind: query
 spec:
   name: Detect active processes with Log4j running
   platforms: macOS, Linux
-  description: 'Returns a list of active processes and the Jar paths which are using Log4j. Version numbers are usually within the Jar filename. Note: This query is resource intensive and has caused problems on systems with limited swap space. Test on some systems before running this widely.'
+  description: "Returns a list of active processes and the Jar paths which are using Log4j. Version numbers are usually within the Jar filename. Note: This query is resource intensive and has caused problems on systems with limited swap space. Test on some systems before running this widely."
   query: |
     WITH target_jars AS (
       SELECT DISTINCT path
@@ -491,7 +491,8 @@ spec:
   name: Full disk encryption enabled (Windows)
   query: SELECT 1 FROM bitlocker_info where protection_status = 1;
   description: Checks to make sure that full disk encryption is enabled on Windows devices.
-  resolution: "To get additional information, run the following osquery query on the failing device: SELECT * FROM bitlocker_info. In the
+  resolution:
+    "To get additional information, run the following osquery query on the failing device: SELECT * FROM bitlocker_info. In the
     query results, if protection_status is 2, then the status cannot be determined. If it is 0, it is
     considered unprotected. Use the additional results (percent_encrypted, conversion_status, etc.) to
     help narrow down the specific reason why Windows considers the volume unprotected."
@@ -541,7 +542,7 @@ kind: policy
 spec:
   name: Automatic login disabled (macOS)
   query: SELECT 1 FROM managed_policies WHERE domain = 'com.apple.loginwindow' AND name = 'com.apple.login.mcx.DisableAutoLoginClient' AND value = 1 LIMIT 1;
-  description: "Required: You’re already enforcing a policy via Moble Device Management (MDM). Checks to make sure that the device user cannot log in to the device without a password."
+  description: "Required: You’re already enforcing a policy via Mobile Device Management (MDM). Checks to make sure that the device user cannot log in to the device without a password."
   resolution: "The following example profile includes a setting to disable automatic login: https://github.com/gregneagle/profiles/blob/fecc73d66fa17b6fa78b782904cb47cdc1913aeb/loginwindow.mobileconfig#L64-L65."
   platforms: macOS
   tags: compliance, hardening, built-in
@@ -553,7 +554,7 @@ kind: policy
 spec:
   name: Guest users disabled (macOS)
   query: SELECT 1 FROM managed_policies WHERE domain = 'com.apple.loginwindow' AND name = 'DisableGuestAccount' AND value = 1 LIMIT 1;
-  description: "Required: You’re already enforcing a policy via Moble Device Management (MDM). Checks to make sure that guest accounts cannot be used to log in to the device without a password."
+  description: "Required: You’re already enforcing a policy via Mobile Device Management (MDM). Checks to make sure that guest accounts cannot be used to log in to the device without a password."
   resolution: "The following example profile includes a setting to disable guest users: https://github.com/gregneagle/profiles/blob/fecc73d66fa17b6fa78b782904cb47cdc1913aeb/loginwindow.mobileconfig#L68-L71."
   platforms: macOS
   tags: compliance, hardening, built-in
@@ -565,7 +566,7 @@ kind: policy
 spec:
   name: Secure keyboard entry for Terminal.app enabled (macOS)
   query: SELECT 1 FROM managed_policies WHERE domain = 'com.apple.Terminal' AND name = 'SecureKeyboardEntry' AND value = 1 LIMIT 1;
-  description: "Required: You’re already enforcing a policy via Moble Device Management (MDM). Checks to make sure that the Secure Keyboard Entry setting is enabled."
+  description: "Required: You’re already enforcing a policy via Mobile Device Management (MDM). Checks to make sure that the Secure Keyboard Entry setting is enabled."
   platforms: macOS
   tags: compliance, hardening, built-in
   platform: darwin
@@ -609,8 +610,9 @@ kind: policy
 spec:
   name: Antivirus healthy (macOS)
   query: SELECT score FROM (SELECT case when COUNT(*) = 2 then 1 ELSE 0 END AS score FROM plist WHERE (key = 'CFBundleShortVersionString' AND path = '/Library/Apple/System/Library/CoreServices/XProtect.bundle/Contents/Info.plist' AND value>=2155) OR (key = 'CFBundleShortVersionString' AND path = '/Library/Apple/System/Library/CoreServices/MRT.app/Contents/Info.plist' and value>=1.88)) WHERE score == 1;
-  description: Checks the version of Malware Removal Tool (MRT) and the built-in macOS AV (Xprotect). Replace version numbers with latest version regularly.
-  resolution: To enable automatic security definition updates, on the failing device, select System
+  description: Checks the version of Malware Removal Tool (MRT) and the built-in macOS AV (Xprotect). Replace version numbers with the latest version regularly.
+  resolution:
+    To enable automatic security definition updates, on the failing device, select System
     Preferences > Software Update > Advanced > Turn on Install system data files and security
     updates.
   platforms: macOS
@@ -681,12 +683,13 @@ spec:
 apiVersion: v1
 kind: policy
 spec:
-  name: Suspicious AutoStart (Windows regsvr32 http)
+  name: Suspicious autostart (Windows)
   query: SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM startup_items WHERE path = "regsvr32" AND args LIKE "%http%");
-  description: "Checks for an autostart that is attempting to load a DLL from the internet"
-  resolution: "Remove the suspicious startup entry"
+  description: "Checks for an autostart that is attempting to load a dynamic link library (DLL) from the internet."
+  resolution: "Remove the suspicious startup entry."
   platforms: Windows
   tags: malware, hunting
+  platform: windows
   contributors: kswagler-rh
 ---
 apiVersion: v1
@@ -724,12 +727,11 @@ spec:
   tags: compliance, hardening, built-in
   platform: windows
   contributors: GuillaumeRoss
-  
 ---
 apiVersion: v1
 kind: policy
 spec:
-  name: Capable of running macOS 13 (Ventura)
+  name: Capable of running macOS Ventura, version 13 (macOS)
   query: SELECT 1 FROM (SELECT value from kolide_ioreg where c = 'IOPlatformExpertDevice' and d = 1 and r=1 and key = 'model' UNION SELECT value from kolide_ioreg where c = 'IOPlatformExpertDevice' and d = 1 and r=1 and key = 'board-id' UNION SELECT value from kolide_ioreg where c = 'IOPlatformExpertDevice' and d = 1 and r=1 and key = 'bridge-model') WHERE (value like 'iMac18,1' or value like 'iMac18,3' or value like 'iMac19,1' or value like 'iMac18,2' or value like 'iMac19,2' or value like 'iMac20,1' or value like 'iMac20,2' or value like 'iMac21,1' or value like 'iMac21,2' or value like 'iMacPro1,1' or value like 'Mac13,1' or value like 'Mac13,2' or value like 'Mac14,2' or value like 'Mac14,7' or value like 'MacBook10,1' or value like 'MacBookAir8,2' or value like 'MacBookAir8,1' or value like 'MacBookAir9,1' or value like 'MacBookAir10,1' or value like 'MacBookPro14,1' or value like 'MacBookPro14,2' or value like 'MacBookPro14,3' or value like 'MacBookPro15,1' or value like 'MacBookPro15,2' or value like 'MacBookPro15,3' or value like 'MacBookPro15,4' or value like 'MacBookPro16,1' or value like 'MacBookPro16,2' or value like 'MacBookPro16,3' or value like 'MacBookPro16,4' or value like 'MacBookPro17,1' or value like 'MacBookPro18,1' or value like 'MacBookPro18,2' or value like 'MacBookPro18,3' or value like 'MacBookPro18,4' or value like 'Macmini8,1' or value like 'Macmini9,1' or value like 'MacPro7,1' or value like 'VirtualMac2,1' or value like 'Mac-0CFF9C7C2B63DF8D' or value like 'MacBookAir8,1' or value like 'MacBookAir9,1' or value like 'MacBookAir10,1' or value like 'MacBookPro14,1' or value like 'MacBookPro14,2' or value like 'MacBookPro14,3' or value like 'MacBookPro15,1' or value like 'MacBookPro15,2' or value like 'MacBookPro15,3' or value like 'MacBookPro15,4' or value like 'MacBookPro16,1' or value like 'MacBookPro16,2' or value like 'MacBookPro16,3' or value like 'MacBookPro16,4' or value like 'MacBookPro17,1' or value like 'MacBookPro18,1' or value like 'MacBookPro18,2' or value like 'MacBookPro18,3' or value like 'MacBookPro18,4' or value like 'Macmini8,1' or value like 'Macmini9,1' or value like 'MacPro7,1' or value like 'VirtualMac2,1' or value like 'Mac-0CFF9C7C2B63DF8D' or value like 'Mac-112818653D3AABFC' or value like 'Mac-1E7E29AD0135F9BC' or value like 'Mac-226CB3C6A851A671' or value like 'Mac-27AD2F918AE68F61' or value like 'Mac-4B682C642B45593E' or value like 'Mac-53FDB3D8DB8CA971' or value like 'Mac-551B86E5744E2388' or value like 'Mac-5F9802EFE386AA28' or value like 'Mac-63001698E7A34814' or value like 'Mac-77F17D7DA9285301' or value like 'Mac-7BA5B2D9E42DDD94' or value like 'Mac-77F17D7DA9285or value like 'Mac-77F17D7DA9285301' or value like 'Mac-7BA5B2DFE22DDD8C' or value like 'Mac-827FAC58A8FDFA22' or value like 'Mac-827FB448E656EC26' or value like 'Mac-937A206F2EE63C01' or value like 'Mac-A61BADE1FDAD7B05' or value like 'Mac-AA95B1DDAB278B95' or value like 'Mac-AF89B6D9451A490B' or value like 'Mac-B4831CEBD52A0C4C' or value like 'Mac-BE088AF8C5EB4FA2' or value like 'Mac-CAD6701F7CEA0921' or value like 'Mac-CFF7D910A743CAAF' or value like 'Mac-E1008331FDC96864' or value like 'Mac-E7203C0F68AA0004' or value like 'Mac-EE2EBD4B90B839A8' or value like 'J132AP' or value like 'J137AP' or value like 'J140AAP' or value like 'J140KAP' or value like 'J152FAP' or value like 'J160AP' or value like 'J174AP' or value like 'J185AP' or value like 'J185FAP' or value like 'J213AP' or value like 'J214AP' or value like 'J214KAP' or value like 'J215AP' or value like 'J223AP' or value like 'J230AP' or value like 'J230KAP' or value like 'J274AP' or value like 'J293AP' or value like 'J313AP' or value like 'J314cAP' or value like 'J314sAP' or value like 'J316cAP' or value like 'J316sAP' or value like 'J375cAP' or value like 'J375dAP' or value like 'J413AP' or value like 'J456AP' or value like 'J457AP' or value like 'J493AP' or value like 'J680AP' or value like 'J780AP' or value like 'VMA2MACOSAP' or value like 'VMM-x86_64' or value like 'X589AMLUAP' or value like 'X86LEGACYAP') limit 1;
   description: "Checks that the hardware is capable of running macOS Ventura. This requires Kolide's osquery extension that does not come with Fleet. You will need to build and deploy the extension before using this policy."
   resolution: "Contact your IT administrator to help you procure a new macOS device capable of running macOS Ventura."
@@ -737,3 +739,15 @@ spec:
   tags: compliance, inventory, hardware
   platform: darwin
   contributors: erikng
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: Password requires 10 or more characters (macOS)
+  query: SELECT 1 FROM (SELECT cast(lengthtxt as integer(2)) minlength FROM (SELECT SUBSTRING(length, 1, 2) AS lengthtxt FROM (SELECT policy_description, policy_identifier, split(policy_content, '{', 1) AS length FROM password_policy WHERE policy_identifier LIKE '%minLength')) WHERE minlength >= 10);
+  description: "Checks that the password policy requires at least 10 characters. Requires osquery 5.4.0 or newer."
+  resolution: "Contact your IT administrator to make sure your Mac is receiving configuration profiles for password length."
+  platforms: macOS
+  tags: compliance, hardening, built-in
+  platform: darwin
+  contributors: GuillaumeRoss

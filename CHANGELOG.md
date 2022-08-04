@@ -1,3 +1,87 @@
+## Fleet 4.18.0 (Aug 1, 2022)
+
+* Added a Call to Action to the failing policy banner in Fleet Desktop. This empowers end-users to manage their device's compliance. 
+
+* Introduced rate limiting for device authorized endpoints to improve the security of Fleet Desktop. 
+
+* Improved styling for tooltips, dropdowns, copied text, checkboxes and buttons. 
+
+* Fixed a bug in the Fleet UI causing text to be truncated in tables. 
+
+* Fixed a bug affecting software vulnerabilities count in Host Details.
+
+* Fixed "Select Targets" search box and updated to reflect currently supported search values: hostname, UUID, serial number, or IPv4.
+
+* Improved disk space reporting in Host Details. 
+
+* Updated frequency formatting for Packs to match Schedules. 
+
+* Replaced "hosts" count with "results" count for live queries.
+
+* Replaced "Uptime" with "Last restarted" column in Host Details.
+
+* Removed vulnerabilities that do not correspond to a CVE in Fleet UI and API.
+
+* Added standard password requirements when users are created by an admin.
+
+* Updated the regexp we use for detecting the major/minor version on OS platforms.
+
+* Improved calculation of battery health based on cycle count. “Normal” corresponds to cycle count < 1000 and “Replacement recommended” corresponds to cycle count >= 1000.
+
+* Fixed an issue with double quotes usage in SQL query, caused by enabling `ANSI_QUOTES` in MySQL.
+
+* Added automated tests for Fleet upgrades.
+
+## Fleet 4.17.1 (Jul 22, 2022)
+
+* Fixed a bug causing an error when converting users to SSO login. 
+
+* Fixed a bug causing the **Edit User** modal to hang when editing multiple users.
+
+* Fixed a bug that caused Ubuntu hosts to display an inaccurate OS version. 
+
+* Fixed a bug affecting exporting live query results.
+
+* Fixed a bug in the Fleet UI affecting live query result counts.
+
+* Improved **Battery Health** processing to better reflect the health of batteries for M1 Macs.
+
+## Fleet 4.17.0 (Jul 8, 2022)
+
+* Fleet Premium and Fleet Free: Fleet desktop is officially out of beta. This application shows users exactly what's going on with their device and gives them the tools they need to make sure it is secure and aligned with policies. They just need to click an icon in their menu bar. 
+
+* Fleet Premium and Fleet Free: Fleet's osquery installer is officially out of beta. Orbit is a lightweight wrapper for osquery that allows you to easily deploy, configure and keep osquery up-to-date across your organization. 
+
+* Added native support for M1 Macs.
+
+* Added battery health tracking to **Host details** page.
+
+* Improved reporting of error states on the health dashboard and added separate health checks for MySQL and Redis with `/healthz?check=mysql` and `/healthz?check=redis`.
+
+* Improved SSO login failure messaging.
+
+* Fixed osquery tables that report incorrect platforms.
+
+* Added `docker_container_envs` table to the osquery table schema on the **Query* page.
+
+* Updated Fleet host detail query so that the `os_version` for Ubuntu hosts reflects the accurate patch number.
+
+* Improved accuracy of `software_host_counts` by removing hosts from the count if any software has been uninstalled.
+
+* Improved accuracy of the `last_restarted` date. 
+
+* Fixed `/api/_version_/fleet/hosts/identifier/{identifier}` to return the correct value for `host.status`.
+
+* Improved logging when fleetctl encounters permissions errors.
+
+* Added support for scanning RHEL-based and Fedora hosts for vulnerable software using OVAL definitions.
+
+* Fixed SQL generated for operating system version policies to reduce false negatives
+
+* Added the number of hosts enrolled by Operating System (OS) and its version to anonymous usage statistics.
+
+* Added the weekly active users count to anonymous usage statistics.
+
 ## Fleet 4.16.0 (Jun 20, 2022)
 
 * Fleet Premium: Added the ability to set a Custom URL for the "Transparency" link included in Fleet Desktop. This allows you to use custom branding, as well as gives you control over what information you want to share with your end-users. 

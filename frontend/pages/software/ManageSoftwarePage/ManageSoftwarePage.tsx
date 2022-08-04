@@ -38,7 +38,8 @@ import TableDataError from "components/DataError";
 import TeamsDropdownHeader, {
   ITeamsDropdownState,
 } from "components/PageHeader/TeamsDropdownHeader";
-import renderLastUpdatedText from "components/LastUpdatedText";
+import LastUpdatedText from "components/LastUpdatedText";
+import MainContent from "components/MainContent";
 
 import generateSoftwareTableHeaders from "./SoftwareTableConfig";
 import ManageAutomationsModal from "./components/ManageAutomationsModal";
@@ -389,7 +390,10 @@ const ManageSoftwarePage = ({
           }`}
         >
           <span>{`${count} software item${count === 1 ? "" : "s"}`}</span>
-          {renderLastUpdatedText(lastUpdatedAt, "software")}
+          <LastUpdatedText
+            lastUpdatedAt={lastUpdatedAt}
+            whatToRetrieve={"software"}
+          />
         </div>
       );
     }
@@ -486,8 +490,8 @@ const ManageSoftwarePage = ({
   return !availableTeams || !config ? (
     <Spinner />
   ) : (
-    <div className={baseClass}>
-      <div className={`${baseClass}__wrapper body-wrap`}>
+    <MainContent>
+      <div className={`${baseClass}__wrapper`}>
         {renderHeader()}
         <div className={`${baseClass}__table`}>
           {softwareError && !isFetchingSoftware ? (
@@ -550,7 +554,7 @@ const ManageSoftwarePage = ({
           />
         )}
       </div>
-    </div>
+    </MainContent>
   );
 };
 

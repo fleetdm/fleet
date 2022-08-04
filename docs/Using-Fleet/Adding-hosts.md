@@ -38,29 +38,28 @@ The above command should be run on a macOS device as notarizing and signing of m
 
 Also, remember to replace both `AC_USERNAME` and `AC_PASSWORD` environment variables with your Apple ID and a valid [app-specific](https://support.apple.com/en-ca/HT204397) password, respectively.
 
-### Fleet Desktop
+### Including Fleet Desktop
 
 > Fleet Desktop requires a Fleet version of 4.12.0 and above. To check your Fleet version, select
 > the avatar on the right side of the top bar and select **My account**. Your Fleet version is
 > displayed below the **Get API token** button.
 
-How to install Fleet Desktop on your hosts:
+Hosts without Fleet Desktop currently installed require a new installer to be generated and run on the target host.
+
+How to generate an installer that includes Fleet Desktop in the Fleet UI:
 1. On the top bar in the Fleet UI, select **Hosts > Add hosts**.
 2. Select the **Include Fleet Desktop** checkbox.
 3. Select the clipboard icon to copy the `fleetctl package` command. 
 4. In your terminal application, paste and run the copied command.
 
-When you install the generated osquery installer on a host, Fleet Desktop will be installed on this
-host and the Fleet icon will appear on the host's menu bar.
+Alternatively, you can generate an installer that includes Fleet Desktop in `fleetctl package` by appending the `--fleet-desktop` flag.
 
-Read more about the Self-service and Scope transparency features included with Fleet Desktop in [the
-4.15.0 release article](https://fleetdm.com/releases/fleet-4.15.0).
+> Fleet Desktop is supported on macOS, Windows, and Linux. Check out the supported Linux distributions
+> and versions [here
+> on GitHub](https://github.com/fleetdm/fleet/issues/5684#issuecomment-1123906753). 
 
-Fleet Desktop is supported on macOS, Windows, and Linux. Check out the supported Linux distributions
-and versions [here
-on GitHub](https://github.com/fleetdm/fleet/issues/5684#issuecomment-1123906753). 
-
-Fleet Desktop is currently in beta. Check out the remaining work to bring Fleet Desktop out of beta [here on GitHub](https://github.com/fleetdm/fleet/issues/5684).
+Once installed on the target host, Fleet Desktop will be managed by Orbit. To learn more about Orbit updates, see [here](https://fleetdm.com/docs/deploying/fleetctl-agent-updates).
+To prevent this auto-update behavior, you can turn off auto-updates via the `--disable-updates` flag or you can set a specific channel using the `--desktop-channel` flag.
 
 ### Adding multiple hosts
 
@@ -94,7 +93,7 @@ The following command-line flags allow you to configure an osquery installer fur
 |Flag | Options|
 |------|--------|
 |  --type |  **Required** - Type of package to build.<br> Options: `pkg`(macOS),`msi`(Windows), `deb`(Debian based Linux), `rpm`(RHEL, CentOS, etc.)|
-|--fleet-desktop |      Include Fleet Desktop. Fleet Desktop is currently in beta. |
+|--fleet-desktop |      Include Fleet Desktop. |
 |--enroll-secret |      Enroll secret for authenticating to Fleet server |
 |--fleet-url |          URL (`host:port`) of Fleet server |
 |--fleet-certificate |  Path to server certificate bundle |
@@ -104,8 +103,10 @@ The following command-line flags allow you to configure an osquery installer fur
 | --service   |             Install osquery with a persistence service (launchd, systemd, etc.) (default: `true`) |
 |--sign-identity |      Identity to use for macOS codesigning |
 | --notarize |             Whether to notarize macOS packages (default: `false`) |
+| --disable-updates |   Disable auto updates on the generated package (default: false) |
 |--osqueryd-channel |   Update channel of osqueryd to use (default: `stable`) |
 |--orbit-channel |      Update channel of Orbit to use (default: `stable`) |
+|--desktop-channel |    Update channel of desktop to use (default: `stable`) |
 |--update-url |         URL for update server (default: `https://tuf.fleetctl.com`) |
 |--update-roots |       Root key JSON metadata for update server (from fleetctl updates roots) |
 | --debug     |             Enable debug logging (default: `false`) |
@@ -158,18 +159,18 @@ sudo osqueryd \
  --tls_server_certs=/etc/osquery/fleet.crt \
  --tls_hostname=fleet.example.com \
  --host_identifier=uuid \
- --enroll_tls_endpoint=/api/osquery/enroll \
+ --enroll_tls_endpoint=/api/v1/osquery/enroll \
  --config_plugin=tls \
- --config_tls_endpoint=/api/osquery/config \
+ --config_tls_endpoint=/api/v1/osquery/config \
  --config_refresh=10 \
  --disable_distributed=false \
  --distributed_plugin=tls \
  --distributed_interval=10 \
  --distributed_tls_max_attempts=3 \
- --distributed_tls_read_endpoint=/api/osquery/distributed/read \
- --distributed_tls_write_endpoint=/api/osquery/distributed/write \
+ --distributed_tls_read_endpoint=/api/v1/osquery/distributed/read \
+ --distributed_tls_write_endpoint=/api/v1/osquery/distributed/write \
  --logger_plugin=tls \
- --logger_tls_endpoint=/api/osquery/log \
+ --logger_tls_endpoint=/api/v1/osquery/log \
  --logger_tls_period=10
 ```
 

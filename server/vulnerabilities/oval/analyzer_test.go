@@ -172,6 +172,10 @@ func assertVulns(
 			continue
 		}
 
+		if !strings.HasPrefix(strings.ToLower(row[0]), "cve") {
+			continue
+		}
+
 		expected = append(expected, row[0])
 	}
 	require.NotEmpty(t, expected)

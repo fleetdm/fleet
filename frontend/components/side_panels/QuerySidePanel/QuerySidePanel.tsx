@@ -12,7 +12,6 @@ import FleetIcon from "components/icons/FleetIcon";
 import TooltipWrapper from "components/TooltipWrapper";
 
 // @ts-ignore
-import SecondarySidePanelContainer from "../SecondarySidePanelContainer";
 import AppleIcon from "../../../../assets/images/icon-apple-dark-20x20@2x.png";
 import LinuxIcon from "../../../../assets/images/icon-linux-dark-20x20@2x.png";
 import WindowsIcon from "../../../../assets/images/icon-windows-dark-20x20@2x.png";
@@ -90,7 +89,7 @@ const QuerySidePanel = ({
   const { description, platforms } = selectedOsqueryTable || {};
   const iconClasses = classnames([`${baseClass}__icon`], "icon");
   return (
-    <SecondarySidePanelContainer className={baseClass}>
+    <>
       <div
         role="button"
         className={`${baseClass}__close-button`}
@@ -161,7 +160,7 @@ const QuerySidePanel = ({
         <h2 className={`${baseClass}__header`}>Columns</h2>
         <ul className={`${baseClass}__column-list`}>{renderColumns()}</ul>
       </div>
-    </SecondarySidePanelContainer>
+    </>
   );
 };
 

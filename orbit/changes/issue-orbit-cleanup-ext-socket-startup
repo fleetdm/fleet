@@ -1,1 +1,0 @@
-* Added cleanup of osquery extension socket to Orbit at startup.

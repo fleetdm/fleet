@@ -97,15 +97,13 @@ const About = ({
         <span className="info-grid__data">
           {numUsers > 1 ? (
             <>
-              <span data-tip data-for={`device_mapping`}>
+              <span data-tip data-for="device_mapping" className="tooltip">
                 {`${numUsers} users`}
               </span>
               <ReactTooltip
-                place="top"
-                type="dark"
                 effect="solid"
                 backgroundColor="#3e4771"
-                id={`device_mapping`}
+                id="device_mapping"
                 data-html
               >
                 <span className={`tooltip__tooltip-text`}>{tooltipText}</span>
@@ -138,14 +136,17 @@ const About = ({
   };
 
   const renderBattery = () => {
-    if (typeof aboutData.batteries !== "object") {
+    if (
+      aboutData.batteries === null ||
+      typeof aboutData.batteries !== "object"
+    ) {
       return null;
     }
     return (
       <div className="info-grid__block">
-        <span className="info-grid__header">Battery</span>
+        <span className="info-grid__header">Battery condition</span>
         <span className="info-grid__data">
-          {aboutData.batteries[0]?.health}
+          {aboutData.batteries?.[0]?.health}
         </span>
       </div>
     );

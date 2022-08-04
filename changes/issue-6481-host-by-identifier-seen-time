@@ -1,1 +1,0 @@
-* Fixed `/api/_version_/fleet/hosts/identifier/{identifier}` to return the correct value for `host.status`.

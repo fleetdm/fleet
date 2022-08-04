@@ -144,10 +144,7 @@ func TestApplyTeamSpecs(t *testing.T) {
 		return nil
 	}
 
-	tmpFile, err := ioutil.TempFile(t.TempDir(), "*.yml")
-	require.NoError(t, err)
-
-	tmpFile.WriteString(`
+	filename := writeTmpYml(t, `
 ---
 apiVersion: v1
 kind: team
@@ -168,11 +165,43 @@ spec:
 `)
 
 	newAgentOpts := json.RawMessage(`{"config":{"something":"else"}}`)
-
-	require.Equal(t, "[+] applied 2 teams\n", runAppForTest(t, []string{"apply", "-f", tmpFile.Name()}))
+	require.Equal(t, "[+] applied 2 teams\n", runAppForTest(t, []string{"apply", "-f", filename}))
 	assert.JSONEq(t, string(agentOpts), string(*teamsByName["team2"].Config.AgentOptions))
 	assert.JSONEq(t, string(newAgentOpts), string(*teamsByName["team1"].Config.AgentOptions))
 	assert.Equal(t, []*fleet.EnrollSecret{{Secret: "AAA"}}, enrolledSecretsCalled[uint(42)])
+	assert.True(t, ds.ApplyEnrollSecretsFuncInvoked)
+	ds.ApplyEnrollSecretsFuncInvoked = false
+
+	filename = writeTmpYml(t, `
+apiVersion: v1
+kind: team
+spec:
+  team:
+    name: team1
+`)
+
+	require.Equal(t, "[+] applied 1 teams\n", runAppForTest(t, []string{"apply", "-f", filename}))
+	assert.Equal(t, []*fleet.EnrollSecret{{Secret: "AAA"}}, enrolledSecretsCalled[uint(42)])
+	assert.False(t, ds.ApplyEnrollSecretsFuncInvoked)
+
+	filename = writeTmpYml(t, `
+apiVersion: v1
+kind: team
+spec:
+  team:
+    agent_options:
+      config:
+        something: other
+    name: team1
+    secrets:
+      - secret: BBB
+`)
+
+	newAgentOpts = json.RawMessage(`{"config":{"something":"other"}}`)
+	require.Equal(t, "[+] applied 1 teams\n", runAppForTest(t, []string{"apply", "-f", filename}))
+	assert.JSONEq(t, string(newAgentOpts), string(*teamsByName["team1"].Config.AgentOptions))
+	assert.Equal(t, []*fleet.EnrollSecret{{Secret: "BBB"}}, enrolledSecretsCalled[uint(42)])
+	assert.True(t, ds.ApplyEnrollSecretsFuncInvoked)
 }
 
 func writeTmpYml(t *testing.T, contents string) string {

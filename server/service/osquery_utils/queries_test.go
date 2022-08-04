@@ -6,6 +6,7 @@ import (
 	"errors"
 	"os"
 	"sort"
+	"strings"
 	"testing"
 	"time"
 
@@ -465,11 +466,34 @@ func TestDirectIngestChromeProfiles(t *testing.T) {
 	require.True(t, ds.ReplaceHostDeviceMappingFuncInvoked)
 }
 
+func TestDirectIngestBattery(t *testing.T) {
+	ds := new(mock.Store)
+	ds.ReplaceHostBatteriesFunc = func(ctx context.Context, id uint, mappings []*fleet.HostBattery) error {
+		require.Equal(t, mappings, []*fleet.HostBattery{
+			{HostID: uint(1), SerialNumber: "a", CycleCount: 2, Health: "Good"},
+			{HostID: uint(1), SerialNumber: "c", CycleCount: 3, Health: strings.Repeat("z", 40)},
+		})
+		return nil
+	}
+
+	host := fleet.Host{
+		ID: 1,
+	}
+
+	err := directIngestBattery(context.Background(), log.NewNopLogger(), &host, ds, []map[string]string{
+		{"serial_number": "a", "cycle_count": "2", "health": "Good"},
+		{"serial_number": "c", "cycle_count": "3", "health": strings.Repeat("z", 100)},
+	}, false)
+
+	require.NoError(t, err)
+	require.True(t, ds.ReplaceHostBatteriesFuncInvoked)
+}
+
 func TestDangerousReplaceQuery(t *testing.T) {
 	queries := GetDetailQueries(&fleet.AppConfig{HostSettings: fleet.HostSettings{EnableHostUsers: true}}, config.FleetConfig{})
 	originalQuery := queries["users"].Query
 
-	require.NoError(t, os.Setenv("FLEET_DANGEROUS_REPLACE_USERS", "select * from blah"))
+	t.Setenv("FLEET_DANGEROUS_REPLACE_USERS", "select * from blah")
 	queries = GetDetailQueries(&fleet.AppConfig{HostSettings: fleet.HostSettings{EnableHostUsers: true}}, config.FleetConfig{})
 	assert.NotEqual(t, originalQuery, queries["users"].Query)
 

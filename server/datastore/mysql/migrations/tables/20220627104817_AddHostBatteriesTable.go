@@ -19,7 +19,7 @@ CREATE TABLE host_batteries (
   host_id       INT(10) UNSIGNED NOT NULL,
   serial_number VARCHAR(255) NOT NULL,
   cycle_count   INT(10) NOT NULL,
-  health        VARCHAR(10) NOT NULL,
+  health        VARCHAR(40) NOT NULL,
   created_at    TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at    TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
 

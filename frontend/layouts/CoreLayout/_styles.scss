@@ -11,7 +11,9 @@
   position: relative;
   background-color: $core-white;
   display: flex;
-  flex-direction: column;
+  @media (max-width: $break-768 - 1px) {
+    display: none;
+  }
 }
 
 .site-nav {
@@ -21,4 +23,41 @@
   top: 0;
   left: 0;
   z-index: 100;
+  @media (max-width: $break-768 - 1px) {
+    display: none;
+  }
+}
+
+.overlay {
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  z-index: 3;
+  background-color: #fff;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: $pad-medium;
+
+  @media (min-width: 768px) {
+    display: none;
+  }
+
+  img {
+    width: 160px;
+  }
+
+  &__text {
+    text-align: center;
+
+    h1 {
+      font-size: $small;
+      font-weight: $bold;
+    }
+
+    p {
+      font-size: $xx-small;
+    }
+  }
 }

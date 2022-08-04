@@ -12,7 +12,6 @@ services:
       [
         "mysqld",
         "--datadir=/tmp/mysqldata",
-        "--event-scheduler=ON",
         # These 3 keys run MySQL with GTID consistency enforced to avoid issues with production deployments that use it.
         "--enforce-gtid-consistency=ON",
         "--log-bin=bin.log",
@@ -38,7 +37,6 @@ services:
         "--slow_query_log=1",
         "--log_output=TABLE",
         "--log-queries-not-using-indexes",
-        "--event-scheduler=ON",
         "--innodb-file-per-table=OFF",
         # These 3 keys run MySQL with GTID consistency enforced to avoid issues with production deployments that use it.
         "--enforce-gtid-consistency=ON",

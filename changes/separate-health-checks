@@ -1,1 +1,0 @@
-- Allow separate health checks for MySQL and Redis with `/healthz?check=mysql` and `/healthz?check=redis`.

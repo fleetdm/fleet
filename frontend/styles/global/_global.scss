@@ -18,11 +18,24 @@ body {
 html,
 body {
   height: 100%;
-}
 
-.wrapper,
-.wrapper > div {
-  min-height: 100vh;
+  .__react_component_tooltip.show {
+    opacity: 1; // Overrides 0.9 default opacity
+    text-align: center;
+  }
+
+  .tooltip {
+    &:hover {
+      cursor: help;
+    }
+
+    .button--disabled,
+    .fleet-checkbox__tick--disabled {
+      &:hover {
+        cursor: help;
+      }
+    }
+  }
 }
 
 h1,
@@ -43,11 +56,6 @@ a {
   color: $core-vibrant-blue;
   font-weight: bold;
   text-decoration: none;
-}
-
-.wrapper {
-  background: $gradients-dark-gradient-vertical;
-  margin: 0;
 }
 
 .body-wrap {

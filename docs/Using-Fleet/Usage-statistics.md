@@ -4,7 +4,7 @@
 ℹ️  In Fleet 4.0, Usage statistics were introduced.
 ```
 
-Fleet Device Management Inc. periodically collects anonymous information about your instance.
+Fleet Device Management Inc. periodically collects information about your instance.
 
 ## What is included in usage statistics in Fleet?
 
@@ -15,6 +15,7 @@ Fleet Device Management Inc. periodically collects anonymous information about y
   "anonymousIdentifier": "9pnzNmrES3mQG66UQtd29cYTiX2+fZ4CYxDvh495720=",
   "fleetVersion": "x.x.x",
   "licenseTier": "free",
+  "organization": "Fleet",
   "numHostsEnrolled": 999,
   "numUsers": 999,
   "numTeams": 999,
@@ -23,11 +24,73 @@ Fleet Device Management Inc. periodically collects anonymous information about y
   "softwareInventoryEnabled": true,
   "vulnDetectionEnabled": true,
   "systemUsersEnabled": true,
-  "hostStatusWebhookEnabled": true
+  "hostStatusWebhookEnabled": true,
+  "hostsEnrolledByOperatingSystem": {
+    "macos": [
+      {
+        "version": "12.3.1",
+        "numEnrolled": 999
+      },
+      ...
+    ],
+    "windows": [
+      {
+        "version": "10, version 21H2 (W)",
+        "numEnrolled": 999
+      },
+      ...
+    ],
+    "ubuntuLinux": [
+      {
+        "version": "22.04 'Jammy Jellyfish' (LTS)",
+        "numEnrolled": 999
+      },
+      ...
+    ],
+    "centosLinux": [
+      {
+        "version": "12.3.1",
+        "numEnrolled": 999
+      },
+      ...
+    ],
+    "debianLinux": [
+      {
+        "version": "11 (Bullseye)",
+        "numEnrolled": 999
+      },
+      ...
+    ],
+    "redhatLinux": [
+      {
+        "version": "9",
+        "numEnrolled": 999
+      },
+      ...
+    ],
+    "amazonLinux": [
+      {
+        "version": "AMI",
+        "numEnrolled": 999
+      },
+      ...
+    ]
+  },
+  "storedErrors": [
+    {
+      "count": 3,
+      "loc": [
+        "github.com/fleetdm/fleet/v4/server/example.example:12",
+        "github.com/fleetdm/fleet/v4/server/example.example:130",
+      ]
+    },
+    ...
+  ],
+  "numHostsNotResponding": 9
 }
 ```
 
-- All statistics are anonymous and contain no personal information about any particular device, organization, or person.
+- Statistics contain no personal information about any particular device or person.
 
 - Sending Usage statistics from your Fleet instance is optional and can be disabled.
 

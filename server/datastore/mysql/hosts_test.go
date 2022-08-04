@@ -18,6 +18,7 @@ import (
 
 	"github.com/WatchBeam/clock"
 	"github.com/fleetdm/fleet/v4/server"
+	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/test"
@@ -119,6 +120,7 @@ func TestHosts(t *testing.T) {
 		{"HostIDsByOSVersion", testHostIDsByOSVersion},
 		{"ShouldCleanTeamPolicies", testShouldCleanTeamPolicies},
 		{"ReplaceHostBatteries", testHostsReplaceHostBatteries},
+		{"CountHostsNotResponding", testCountHostsNotResponding},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -4307,7 +4309,7 @@ func testHostsReplaceHostBatteries(t *testing.T, ds *Datastore) {
 
 	h1Bat := []*fleet.HostBattery{
 		{HostID: h1.ID, SerialNumber: "a", CycleCount: 1, Health: "Good"},
-		{HostID: h1.ID, SerialNumber: "b", CycleCount: 2, Health: "Good"},
+		{HostID: h1.ID, SerialNumber: "b", CycleCount: 2, Health: "Check Battery"},
 	}
 	err = ds.ReplaceHostBatteries(ctx, h1.ID, h1Bat)
 	require.NoError(t, err)
@@ -4359,4 +4361,119 @@ func testHostsReplaceHostBatteries(t *testing.T, ds *Datastore) {
 	bat2, err = ds.ListHostBatteries(ctx, h2.ID)
 	require.NoError(t, err)
 	require.ElementsMatch(t, h2Bat, bat2)
+}
+
+func testCountHostsNotResponding(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+	config := config.FleetConfig{Osquery: config.OsqueryConfig{DetailUpdateInterval: 1 * time.Hour}}
+
+	// responsive
+	_, err := ds.NewHost(ctx, &fleet.Host{
+		OsqueryHostID:       "1",
+		NodeKey:             "1",
+		Platform:            "linux",
+		Hostname:            "host1",
+		DistributedInterval: 10,
+		DetailUpdatedAt:     time.Now().Add(-1 * time.Hour),
+		LabelUpdatedAt:      time.Now(),
+		PolicyUpdatedAt:     time.Now(),
+		SeenTime:            time.Now(),
+	})
+	require.NoError(t, err)
+
+	count, err := countHostsNotRespondingDB(ctx, ds.writer, ds.logger, config)
+	require.NoError(t, err)
+	require.Equal(t, 0, count)
+
+	// not responsive
+	_, err = ds.NewHost(ctx, &fleet.Host{
+		ID:                  2,
+		OsqueryHostID:       "2",
+		NodeKey:             "2",
+		Platform:            "linux",
+		Hostname:            "host2",
+		DistributedInterval: 10,
+		DetailUpdatedAt:     time.Now().Add(-3 * time.Hour),
+		LabelUpdatedAt:      time.Now().Add(-3 * time.Hour),
+		PolicyUpdatedAt:     time.Now().Add(-3 * time.Hour),
+		SeenTime:            time.Now(),
+	})
+	require.NoError(t, err)
+
+	count, err = countHostsNotRespondingDB(ctx, ds.writer, ds.logger, config)
+	require.NoError(t, err)
+	require.Equal(t, 1, count) // count increased by 1
+
+	// responsive
+	_, err = ds.NewHost(ctx, &fleet.Host{
+		OsqueryHostID:       "3",
+		NodeKey:             "3",
+		Platform:            "linux",
+		Hostname:            "host3",
+		DistributedInterval: 10,
+		DetailUpdatedAt:     time.Now().Add(-49 * time.Hour),
+		LabelUpdatedAt:      time.Now().Add(-48 * time.Hour),
+		PolicyUpdatedAt:     time.Now().Add(-48 * time.Hour),
+		SeenTime:            time.Now().Add(-48 * time.Hour),
+	})
+	require.NoError(t, err)
+
+	count, err = countHostsNotRespondingDB(ctx, ds.writer, ds.logger, config)
+	require.NoError(t, err)
+	require.Equal(t, 1, count) // count unchanged
+
+	// not responsive
+	_, err = ds.NewHost(ctx, &fleet.Host{
+		OsqueryHostID:       "4",
+		NodeKey:             "4",
+		Platform:            "linux",
+		Hostname:            "host4",
+		DistributedInterval: 10,
+		DetailUpdatedAt:     time.Now().Add(-51 * time.Hour),
+		LabelUpdatedAt:      time.Now().Add(-48 * time.Hour),
+		PolicyUpdatedAt:     time.Now().Add(-48 * time.Hour),
+		SeenTime:            time.Now().Add(-48 * time.Hour),
+	})
+	require.NoError(t, err)
+
+	count, err = countHostsNotRespondingDB(ctx, ds.writer, ds.logger, config)
+	require.NoError(t, err)
+	require.Equal(t, 2, count) // count increased by 1
+
+	// was responsive but hasn't been seen in past 7 days so it is not counted
+	_, err = ds.NewHost(ctx, &fleet.Host{
+		OsqueryHostID:       "5",
+		NodeKey:             "5",
+		Platform:            "linux",
+		Hostname:            "host5",
+		DistributedInterval: 10,
+		DetailUpdatedAt:     time.Now().Add(-8 * 24 * time.Hour).Add(-1 * time.Hour),
+		LabelUpdatedAt:      time.Now().Add(-8 * 24 * time.Hour),
+		PolicyUpdatedAt:     time.Now().Add(-8 * 24 * time.Hour),
+		SeenTime:            time.Now().Add(-8 * 24 * time.Hour),
+	})
+	require.NoError(t, err)
+
+	count, err = countHostsNotRespondingDB(ctx, ds.writer, ds.logger, config)
+	require.NoError(t, err)
+	require.Equal(t, 2, count) // count unchanged
+
+	// distributed interval (1h1m) is greater than osquery detail interval (1h)
+	// so measurement period for non-responsiveness is 2h2m
+	_, err = ds.NewHost(ctx, &fleet.Host{
+		OsqueryHostID:       "6",
+		NodeKey:             "6",
+		Platform:            "linux",
+		Hostname:            "host6",
+		DistributedInterval: uint((1*time.Hour + 1*time.Minute).Seconds()),        // 1h1m
+		DetailUpdatedAt:     time.Now().Add(-2 * time.Hour).Add(-1 * time.Minute), // 2h1m
+		LabelUpdatedAt:      time.Now().Add(-2 * time.Hour).Add(-1 * time.Minute),
+		PolicyUpdatedAt:     time.Now().Add(-2 * time.Hour).Add(-1 * time.Minute),
+		SeenTime:            time.Now(),
+	})
+	require.NoError(t, err)
+
+	count, err = countHostsNotRespondingDB(ctx, ds.writer, ds.logger, config)
+	require.NoError(t, err)
+	require.Equal(t, 2, count) // count unchanged
 }

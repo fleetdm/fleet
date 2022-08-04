@@ -9,6 +9,7 @@ type StatisticsPayload struct {
 	AnonymousIdentifier            string                             `json:"anonymousIdentifier"`
 	FleetVersion                   string                             `json:"fleetVersion"`
 	LicenseTier                    string                             `json:"licenseTier"`
+	Organization                   string                             `json:"organization"`
 	NumHostsEnrolled               int                                `json:"numHostsEnrolled"`
 	NumUsers                       int                                `json:"numUsers"`
 	NumTeams                       int                                `json:"numTeams"`
@@ -21,6 +22,8 @@ type StatisticsPayload struct {
 	NumWeeklyActiveUsers           int                                `json:"numWeeklyActiveUsers"`
 	HostsEnrolledByOperatingSystem map[string][]HostsCountByOSVersion `json:"hostsEnrolledByOperatingSystem"`
 	StoredErrors                   json.RawMessage                    `json:"storedErrors"`
+	// NumHostsNotResponding is a count of hosts that connect to Fleet successfully but fail to submit results for distributed queries.
+	NumHostsNotResponding int `json:"numHostsNotResponding"`
 }
 
 type HostsCountByOSVersion struct {

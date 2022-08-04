@@ -1,7 +1,7 @@
 package main
 
 import (
-	"os"
+	"bytes"
 	"path/filepath"
 	"regexp"
 	"strings"
@@ -14,7 +14,7 @@ import (
 func TestPreview(t *testing.T) {
 	nettest.Run(t)
 
-	os.Setenv("FLEET_SERVER_ADDRESS", "https://localhost:8412")
+	t.Setenv("FLEET_SERVER_ADDRESS", "https://localhost:8412")
 	testOverridePreviewDirectory = t.TempDir()
 	configPath := filepath.Join(t.TempDir(), "config")
 	t.Log("config path: ", configPath)
@@ -23,12 +23,21 @@ func TestPreview(t *testing.T) {
 		require.Equal(t, "", runAppForTest(t, []string{"preview", "--config", configPath, "stop"}))
 	})
 
-	output := runAppForTest(t, []string{"preview", "--config", configPath, "--tag", "main", "--disable-open-browser"})
+	var output *bytes.Buffer
+	nettest.RunWithNetRetry(t, func() error {
+		var err error
+		output, err = runAppNoChecks([]string{
+			"preview", "--config", configPath,
+			"--tag", "main",
+			"--disable-open-browser",
+		})
+		return err
+	})
 
 	queriesRe := regexp.MustCompile(`applied ([0-9]+) queries`)
 	policiesRe := regexp.MustCompile(`applied ([0-9]+) policies`)
-	require.True(t, queriesRe.MatchString(output))
-	require.True(t, policiesRe.MatchString(output))
+	require.True(t, queriesRe.MatchString(output.String()))
+	require.True(t, policiesRe.MatchString(output.String()))
 
 	// run some sanity checks on the preview environment
 

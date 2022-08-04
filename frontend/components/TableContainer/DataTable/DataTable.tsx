@@ -230,7 +230,7 @@ const DataTable = ({
 
   useEffect(() => {
     setExportRows && setExportRows(rows);
-  }, [tableState.filters]);
+  }, [tableState.filters, rows.length]);
 
   // Listen for changes to filters if clientSideFilter is enabled
 

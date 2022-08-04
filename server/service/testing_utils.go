@@ -51,6 +51,7 @@ func newTestServiceWithConfig(t *testing.T, ds fleet.Datastore, fleetConfig conf
 	var (
 		failingPolicySet  fleet.FailingPolicySet  = NewMemFailingPolicySet()
 		enrollHostLimiter fleet.EnrollHostLimiter = nopEnrollHostLimiter{}
+		is                fleet.InstallerStore
 	)
 	var c clock.Clock = clock.C
 	if len(opts) > 0 {
@@ -84,9 +85,12 @@ func newTestServiceWithConfig(t *testing.T, ds fleet.Datastore, fleetConfig conf
 		if opts[0].EnrollHostLimiter != nil {
 			enrollHostLimiter = opts[0].EnrollHostLimiter
 		}
+
+		// allow to explicitly set installer store to nil
+		is = opts[0].Is
 	}
 
-	svc, err := NewService(context.Background(), ds, task, rs, logger, osqlogger, fleetConfig, mailer, c, ssoStore, lq, ds, *license, failingPolicySet, &fleet.NoOpGeoIP{}, enrollHostLimiter)
+	svc, err := NewService(context.Background(), ds, task, rs, logger, osqlogger, fleetConfig, mailer, c, ssoStore, lq, ds, is, *license, failingPolicySet, &fleet.NoOpGeoIP{}, enrollHostLimiter)
 	if err != nil {
 		panic(err)
 	}
@@ -174,6 +178,8 @@ type TestServerOpts struct {
 	Clock               clock.Clock
 	Task                *async.Task
 	EnrollHostLimiter   fleet.EnrollHostLimiter
+	Is                  fleet.InstallerStore
+	FleetConfig         *config.FleetConfig
 }
 
 func RunServerForTestsWithDS(t *testing.T, ds fleet.Datastore, opts ...*TestServerOpts) (map[string]fleet.User, *httptest.Server) {
@@ -185,7 +191,11 @@ func RunServerForTestsWithDS(t *testing.T, ds fleet.Datastore, opts ...*TestServ
 	if len(opts) > 0 && opts[0].Lq != nil {
 		lq = opts[0].Lq
 	}
-	svc := newTestService(t, ds, rs, lq, opts...)
+	cfg := config.TestConfig()
+	if len(opts) > 0 && opts[0].FleetConfig != nil {
+		cfg = *opts[0].FleetConfig
+	}
+	svc := newTestServiceWithConfig(t, ds, cfg, rs, lq, opts...)
 	users := map[string]fleet.User{}
 	if len(opts) == 0 || (len(opts) > 0 && !opts[0].SkipCreateTestUsers) {
 		users = createTestUsers(t, ds)
@@ -196,7 +206,7 @@ func RunServerForTestsWithDS(t *testing.T, ds fleet.Datastore, opts ...*TestServ
 	}
 
 	limitStore, _ := memstore.New(0)
-	r := MakeHandler(svc, config.FleetConfig{}, logger, limitStore, WithLoginRateLimit(throttled.PerMin(100)))
+	r := MakeHandler(svc, cfg, logger, limitStore, WithLoginRateLimit(throttled.PerMin(100)))
 	server := httptest.NewServer(r)
 	t.Cleanup(func() {
 		server.Close()

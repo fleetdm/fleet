@@ -102,19 +102,6 @@
   &__table {
     .table-container {
       &__header-left {
-        .manage-software-page__count {
-          display: flex;
-
-          :first-child {
-            margin-right: $pad-small;
-          }
-          .count-error {
-            color: $ui-error;
-          }
-          .count-loading {
-            color: $ui-fleet-black-50;
-          }
-        }
         .controls {
           .form-field--dropdown {
             margin: 0;

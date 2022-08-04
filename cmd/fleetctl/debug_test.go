@@ -11,7 +11,6 @@ import (
 	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
-	"os"
 	"path/filepath"
 	"strings"
 	"sync/atomic"
@@ -78,7 +77,7 @@ func TestDebugConnectionCommand(t *testing.T) {
 			fmt.Fprint(w, `{"error": "error", "node_invalid": true}`)
 		}))
 		defer srv.Close()
-		os.Setenv("FLEET_SERVER_ADDRESS", srv.URL)
+		t.Setenv("FLEET_SERVER_ADDRESS", srv.URL)
 
 		// get the certificate of the TLS server
 		certPath := rawCertToPemFile(t, srv.Certificate().Raw)
@@ -95,7 +94,7 @@ func TestDebugConnectionCommand(t *testing.T) {
 			fmt.Fprint(w, `{"error": "error", "node_invalid": true}`)
 		}))
 		defer srv.Close()
-		os.Setenv("FLEET_SERVER_ADDRESS", srv.URL)
+		t.Setenv("FLEET_SERVER_ADDRESS", srv.URL)
 
 		// get the invalid certificate (for example.com)
 		dir := t.TempDir()
@@ -160,7 +159,7 @@ func TestDebugCheckAPIEndpoint(t *testing.T) {
 		srv.Close()
 	})
 
-	os.Setenv("FLEET_SERVER_ADDRESS", srv.URL)
+	t.Setenv("FLEET_SERVER_ADDRESS", srv.URL)
 	cli, base, err := rawHTTPClientFromConfig(Context{Address: srv.URL, TLSSkipVerify: true})
 	require.NoError(t, err)
 	for i, c := range cases {

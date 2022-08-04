@@ -7,6 +7,7 @@ import (
 )
 
 //go:generate mockimpl -o datastore_mock.go "s *DataStore" "fleet.Datastore"
+//go:generate mockimpl -o datastore_installers.go "s *InstallerStore" "fleet.InstallerStore"
 
 var _ fleet.Datastore = (*Store)(nil)
 

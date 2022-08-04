@@ -18,7 +18,6 @@ import {
 } from "interfaces/target";
 import { ITeam, ITeamSummary } from "interfaces/team";
 import { IUser } from "interfaces/user";
-import { IVulnerability } from "interfaces/vulnerability";
 
 import stringUtils from "utilities/strings";
 import sortUtils from "utilities/sort";
@@ -581,16 +580,6 @@ export const inMilliseconds = (nanoseconds: number): number => {
   return nanoseconds / NANOSECONDS_PER_MILLISECOND;
 };
 
-export const humanHostUptime = (uptimeInNanoseconds: number): string => {
-  const uptimeMilliseconds = inMilliseconds(uptimeInNanoseconds);
-  const restartDate = new Date();
-  restartDate.setMilliseconds(
-    restartDate.getMilliseconds() - uptimeMilliseconds
-  );
-
-  return formatDistanceToNow(new Date(restartDate), { addSuffix: true });
-};
-
 export const humanHostLastRestart = (
   detailUpdatedAt: string,
   uptime: number
@@ -818,7 +807,6 @@ export default {
   generateRole,
   generateTeam,
   greyCell,
-  humanHostUptime,
   humanHostLastSeen,
   humanHostEnrolled,
   humanHostMemory,

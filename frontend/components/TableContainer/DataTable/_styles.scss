@@ -178,19 +178,18 @@
         }
         .w400 {
           max-width: calc(400px - 48px);
+          min-width: 100%;
+          text-align: left;
         }
         .w250 {
           max-width: calc(250px - 48px);
+          min-width: 100%;
+          text-align: left;
         }
       }
       .highlight-on-hover:hover {
         background-color: $ui-off-white;
       }
-    }
-
-    .tooltip {
-      display: flex;
-      justify-content: center;
     }
   }
 
