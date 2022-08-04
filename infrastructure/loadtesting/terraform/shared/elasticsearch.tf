@@ -159,7 +159,7 @@ resource "aws_iam_role_policy_attachment" "role_attachment_es" {
   role       = aws_iam_role.elasticstack.name
 }
 
-resource "aws_iam_role_policy_attachment" "role_attachment_es" {
+resource "aws_iam_role_policy_attachment" "role_attachment_cloudwatch" {
   policy_arn = "arn:aws:iam::aws:policy/CloudWatchAgentServerPolicy"
   role       = aws_iam_role.elasticstack.name
 }
