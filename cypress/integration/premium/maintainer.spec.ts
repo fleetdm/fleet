@@ -264,7 +264,7 @@ describe("Premium tier - Maintainer user", () => {
             });
         });
         cy.findByRole("button", { name: /delete/i }).click();
-        cy.getAttached(".remove-policies-modal").within(() => {
+        cy.getAttached(".delete-policies-modal").within(() => {
           cy.findByRole("button", { name: /delete/i }).should("exist");
           cy.findByRole("button", { name: /cancel/i }).click();
         });

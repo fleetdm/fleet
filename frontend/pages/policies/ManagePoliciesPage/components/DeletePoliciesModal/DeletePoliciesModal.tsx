@@ -1,37 +1,29 @@
-import React, { useEffect } from "react";
+import React from "react";
 
 import Modal from "components/Modal";
 import Button from "components/buttons/Button";
 import Spinner from "components/Spinner";
 
-const baseClass = "remove-policies-modal";
+const baseClass = "delete-policies-modal";
 
-interface IRemovePoliciesModalProps {
+interface IDeletePoliciesModalProps {
   isLoading: boolean;
   onCancel: () => void;
   onSubmit: () => void;
 }
 
-const RemovePoliciesModal = ({
+const DeletePoliciesModal = ({
   isLoading,
   onCancel,
   onSubmit,
-}: IRemovePoliciesModalProps): JSX.Element => {
-  useEffect(() => {
-    const listener = (event: KeyboardEvent) => {
-      if (event.code === "Enter" || event.code === "NumpadEnter") {
-        event.preventDefault();
-        onSubmit();
-      }
-    };
-    document.addEventListener("keydown", listener);
-    return () => {
-      document.removeEventListener("keydown", listener);
-    };
-  }, []);
-
+}: IDeletePoliciesModalProps): JSX.Element => {
   return (
-    <Modal title={"Delete policies"} onExit={onCancel} className={baseClass}>
+    <Modal
+      title={"Delete policies"}
+      onExit={onCancel}
+      onEnter={onSubmit}
+      className={baseClass}
+    >
       <>
         {isLoading ? (
           <Spinner />
@@ -62,4 +54,4 @@ const RemovePoliciesModal = ({
   );
 };
 
-export default RemovePoliciesModal;
+export default DeletePoliciesModal;

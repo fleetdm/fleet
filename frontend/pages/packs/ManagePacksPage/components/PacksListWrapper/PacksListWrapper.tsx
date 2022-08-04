@@ -11,7 +11,7 @@ const baseClass = "packs-list-wrapper";
 const noPacksClass = "no-packs";
 
 interface IPacksListWrapperProps {
-  onRemovePackClick: (selectedTablePackIds: number[]) => void;
+  onDeletePackClick: (selectedTablePackIds: number[]) => void;
   onEnablePackClick: (selectedTablePackIds: number[]) => void;
   onDisablePackClick: (selectedTablePackIds: number[]) => void;
   onCreatePackClick: (
@@ -22,7 +22,7 @@ interface IPacksListWrapperProps {
 }
 
 const PacksListWrapper = ({
-  onRemovePackClick,
+  onDeletePackClick,
   onEnablePackClick,
   onDisablePackClick,
   onCreatePackClick,
@@ -122,7 +122,7 @@ const PacksListWrapper = ({
         inputPlaceHolder="Search by name"
         searchable={packs && packs.length > 0}
         disablePagination
-        onPrimarySelectActionClick={onRemovePackClick}
+        onPrimarySelectActionClick={onDeletePackClick}
         primarySelectActionButtonVariant="text-icon"
         primarySelectActionButtonIcon="delete"
         primarySelectActionButtonText={"Delete"}

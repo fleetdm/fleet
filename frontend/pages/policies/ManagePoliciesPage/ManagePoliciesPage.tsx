@@ -28,7 +28,7 @@ import MainContent from "components/MainContent";
 import PoliciesListWrapper from "./components/PoliciesListWrapper";
 import ManageAutomationsModal from "./components/ManageAutomationsModal";
 import AddPolicyModal from "./components/AddPolicyModal";
-import RemovePoliciesModal from "./components/RemovePoliciesModal";
+import DeletePoliciesModal from "./components/DeletePoliciesModal";
 
 interface IManagePoliciesPageProps {
   router: InjectedRouter;
@@ -79,14 +79,14 @@ const ManagePolicyPage = ({
   const [isAutomationsLoading, setIsAutomationsLoading] = useState<boolean>(
     false
   );
-  const [isRemovingPolicy, setIsRemovingPolicy] = useState<boolean>(false);
+  const [isDeletingPolicy, setIsDeletingPolicy] = useState<boolean>(false);
   const [selectedPolicyIds, setSelectedPolicyIds] = useState<number[]>([]);
   const [showManageAutomationsModal, setShowManageAutomationsModal] = useState(
     false
   );
   const [showPreviewPayloadModal, setShowPreviewPayloadModal] = useState(false);
   const [showAddPolicyModal, setShowAddPolicyModal] = useState(false);
-  const [showRemovePoliciesModal, setShowRemovePoliciesModal] = useState(false);
+  const [showDeletePoliciesModal, setShowDeletePoliciesModal] = useState(false);
   const [showInheritedPolicies, setShowInheritedPolicies] = useState(false);
 
   useEffect(() => {
@@ -126,7 +126,7 @@ const ManagePolicyPage = ({
     }
   );
 
-  const canAddOrRemovePolicy =
+  const canAddOrDeletePolicy =
     isGlobalAdmin || isGlobalMaintainer || isTeamMaintainer || isTeamAdmin;
   const canManageAutomations = isGlobalAdmin || isTeamAdmin;
 
@@ -140,7 +140,7 @@ const ManagePolicyPage = ({
       return configAPI.loadAll();
     },
     {
-      enabled: canAddOrRemovePolicy,
+      enabled: canAddOrDeletePolicy,
       onSuccess: (data) => {
         setConfig(data);
       },
@@ -156,7 +156,7 @@ const ManagePolicyPage = ({
     ["teams", teamId],
     () => teamsAPI.load(teamId),
     {
-      enabled: !!teamId && canAddOrRemovePolicy,
+      enabled: !!teamId && canAddOrDeletePolicy,
       select: (data) => data.team,
       staleTime: 5000,
     }
@@ -197,8 +197,8 @@ const ManagePolicyPage = ({
 
   const toggleAddPolicyModal = () => setShowAddPolicyModal(!showAddPolicyModal);
 
-  const toggleRemovePoliciesModal = () =>
-    setShowRemovePoliciesModal(!showRemovePoliciesModal);
+  const toggleDeletePoliciesModal = () =>
+    setShowDeletePoliciesModal(!showDeletePoliciesModal);
 
   const toggleShowInheritedPolicies = () =>
     setShowInheritedPolicies(!showInheritedPolicies);
@@ -232,14 +232,14 @@ const ManagePolicyPage = ({
     toggleAddPolicyModal();
   };
 
-  const onRemovePoliciesClick = (selectedTableIds: number[]): void => {
-    toggleRemovePoliciesModal();
+  const onDeletePoliciesClick = (selectedTableIds: number[]): void => {
+    toggleDeletePoliciesModal();
     setSelectedPolicyIds(selectedTableIds);
   };
 
-  const onRemovePoliciesSubmit = async () => {
+  const onDeletePoliciesSubmit = async () => {
     const id = currentTeam?.id;
-    setIsRemovingPolicy(true);
+    setIsDeletingPolicy(true);
     try {
       const request = id
         ? teamPoliciesAPI.destroy(id, selectedPolicyIds)
@@ -248,7 +248,7 @@ const ManagePolicyPage = ({
       await request.then(() => {
         renderFlash(
           "success",
-          `Successfully removed ${
+          `Successfully deleted ${
             selectedPolicyIds?.length === 1 ? "policy" : "policies"
           }.`
         );
@@ -258,13 +258,13 @@ const ManagePolicyPage = ({
     } catch {
       renderFlash(
         "error",
-        `Unable to remove ${
+        `Unable to delete ${
           selectedPolicyIds?.length === 1 ? "policy" : "policies"
         }. Please try again.`
       );
     } finally {
-      toggleRemovePoliciesModal();
-      setIsRemovingPolicy(false);
+      toggleDeletePoliciesModal();
+      setIsDeletingPolicy(false);
     }
   };
 
@@ -384,7 +384,7 @@ const ManagePolicyPage = ({
                     <span>Manage automations</span>
                   </Button>
                 )}
-              {canAddOrRemovePolicy && (
+              {canAddOrDeletePolicy && (
                 <div className={`${baseClass}__action-button-container`}>
                   <Button
                     variant="brand"
@@ -426,8 +426,8 @@ const ManagePolicyPage = ({
                   isFetchingConfig
                 }
                 onAddPolicyClick={onAddPolicyClick}
-                onRemovePoliciesClick={onRemovePoliciesClick}
-                canAddOrRemovePolicy={canAddOrRemovePolicy}
+                onDeletePoliciesClick={onDeletePoliciesClick}
+                canAddOrDeletePolicy={canAddOrDeletePolicy}
                 currentTeam={currentTeam}
                 currentAutomatedPolicies={currentAutomatedPolicies}
               />
@@ -442,8 +442,8 @@ const ManagePolicyPage = ({
                 policiesList={globalPolicies || []}
                 isLoading={isFetchingGlobalPolicies || isFetchingConfig}
                 onAddPolicyClick={onAddPolicyClick}
-                onRemovePoliciesClick={onRemovePoliciesClick}
-                canAddOrRemovePolicy={canAddOrRemovePolicy}
+                onDeletePoliciesClick={onDeletePoliciesClick}
+                canAddOrDeletePolicy={canAddOrDeletePolicy}
                 currentTeam={currentTeam}
                 currentAutomatedPolicies={currentAutomatedPolicies}
               />
@@ -478,9 +478,9 @@ const ManagePolicyPage = ({
                 <PoliciesListWrapper
                   isLoading={isFetchingGlobalPolicies}
                   policiesList={globalPolicies || []}
-                  onRemovePoliciesClick={noop}
+                  onDeletePoliciesClick={noop}
                   resultsTitle="policies"
-                  canAddOrRemovePolicy={canAddOrRemovePolicy}
+                  canAddOrDeletePolicy={canAddOrDeletePolicy}
                   tableType="inheritedPolicies"
                   currentTeam={currentTeam}
                 />
@@ -507,11 +507,11 @@ const ManagePolicyPage = ({
             teamName={currentTeam?.name}
           />
         )}
-        {showRemovePoliciesModal && (
-          <RemovePoliciesModal
-            isLoading={isRemovingPolicy}
-            onCancel={toggleRemovePoliciesModal}
-            onSubmit={onRemovePoliciesSubmit}
+        {showDeletePoliciesModal && (
+          <DeletePoliciesModal
+            isLoading={isDeletingPolicy}
+            onCancel={toggleDeletePoliciesModal}
+            onSubmit={onDeletePoliciesSubmit}
           />
         )}
       </div>

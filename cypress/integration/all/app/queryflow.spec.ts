@@ -110,10 +110,10 @@ describe("Query flow (seeded)", () => {
           });
         });
       cy.findByRole("button", { name: /delete/i }).click();
-      cy.getAttached(".remove-query-modal .modal-cta-wrap").within(() => {
+      cy.getAttached(".delete-query-modal .modal-cta-wrap").within(() => {
         cy.findByRole("button", { name: /delete/i }).click();
       });
-      cy.findByText(/successfully removed query/i).should("be.visible");
+      cy.findByText(/successfully deleted query/i).should("be.visible");
       cy.findByText(/detect presence of authorized ssh keys/i).should(
         "not.exist"
       );
