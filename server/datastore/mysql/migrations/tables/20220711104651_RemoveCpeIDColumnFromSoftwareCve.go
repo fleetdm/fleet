@@ -2,7 +2,6 @@ package tables
 
 import (
 	"database/sql"
-	"fmt"
 
 	"github.com/pkg/errors"
 )
@@ -12,7 +11,7 @@ func init() {
 }
 
 func Up_20220711104651(tx *sql.Tx) error {
-	fmt.Println("Deleting dummy software_cpe entries...")
+	logger.Info.Println("Deleting dummy software_cpe entries...")
 
 	var min int
 	var max int
@@ -32,9 +31,9 @@ DELETE FROM software_cpe
 WHERE cpe LIKE 'none:%' AND id >= ? AND id < ?;`
 
 	if min == 0 && max == 0 {
-		fmt.Println("Nothing to delete ...")
+		logger.Info.Println("Nothing to delete ...")
 	} else {
-		fmt.Printf("Deleting aprox %d records... \n", max-min)
+		logger.Info.Printf("Deleting aprox %d records... \n", max-min)
 	}
 
 	start := min
@@ -55,9 +54,9 @@ WHERE cpe LIKE 'none:%' AND id >= ? AND id < ?;`
 		}
 	}
 
-	fmt.Println("Done deleting dummy cpe_id entries...")
+	logger.Info.Println("Done deleting dummy cpe_id entries...")
 
-	fmt.Println("Removing cpe_id from software_cve...")
+	logger.Info.Println("Removing cpe_id from software_cve...")
 
 	const removeFkStmt = `
 ALTER TABLE software_cve DROP FOREIGN KEY software_cve_ibfk_1, ALGORITHM=INPLACE, LOCK=NONE; 
@@ -83,7 +82,7 @@ ALTER TABLE software_cve DROP COLUMN cpe_id, ALGORITHM=INPLACE, LOCK=NONE;
 		return errors.Wrapf(err, "removing cpe_id column from software_cve")
 	}
 
-	fmt.Println("Done removing cpe_id from software_cve...")
+	logger.Info.Println("Done removing cpe_id from software_cve...")
 
 	return nil
 }
