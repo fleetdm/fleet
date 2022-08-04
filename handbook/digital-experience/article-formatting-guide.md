@@ -1,13 +1,15 @@
-# Article formatting guidelines
+# Article formatting guide
 
-To publish an article, you will need to create a Pull Request for a new file, formatted in Markdown (todo), in [https://github.com/fleetdm/fleet/tree/main/articles](https://github.com/fleetdm/fleet/tree/main/articles).
+To publish an article, you will need to create a Pull Request for a new file, formatted in Markdown, in [https://github.com/fleetdm/fleet/tree/main/articles](https://github.com/fleetdm/fleet/tree/main/articles).
+
+> Learn how to write Fleet-flavored Markdown in our [Markdown guide](./markdown-guide).
 
 ### On this page
 - [Layout](#layout)
 - [Images and screenshots](#images-and-screenshots)
 - [Meta tags](#meta-tags)
 - [Customizable CTA](#customizable-cta)
-- [Other pages of interest](#other-pages-of-interest)
+- [Related pages](#related-pages)
 
 ## Layout
 The following layout guide aims to help you create consistently formatted articles. For an existing article example, check out the [Markdown](https://raw.githubusercontent.com/fleetdm/fleet/main/articles/tales-from-fleet-security-speeding-up-macos-updates-with-nudge.md) and the [finished result](https://fleetdm.com/securing/tales-from-fleet-security-speeding-up-macos-updates-with-nudge).
@@ -129,10 +131,10 @@ In the following example we will modify `title`, `text`, `primary-button-text`, 
 
 ![Customizable CTA example](../../images/cta-example-2-900x280@2x.jpg)
 
-## Other pages of interest
-- [Process for submitting and publishing articles](https://docs.google.com/document/d/1owejJ7PjCVm0e21QNXjzw7SRMa3FdkRxb8WoHkKxWRE/edit?usp=sharing)
-- Markdown guide (todo)
+## Related pages
+- [How to submit and publish an article](./how-to-submit-and-publish-an-article.md)
+- [Markdown guide](./markdown-guide)
 - Writing style guide (todo)
 
 <meta name="maintainedBy" value="mike-j-thomas">
-<meta name="title" value="Article formatting guidelines">
+<meta name="title" value="Article formatting guide">

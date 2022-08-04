@@ -369,7 +369,7 @@ type Datastore interface {
 	ListSoftwareForVulnDetection(ctx context.Context, hostID uint) ([]Software, error)
 	ListSoftwareVulnerabilities(ctx context.Context, hostIDs []uint) (map[uint][]SoftwareVulnerability, error)
 	LoadHostSoftware(ctx context.Context, host *Host, includeCVEScores bool) error
-	AllSoftwareWithoutCPEIterator(ctx context.Context) (SoftwareIterator, error)
+	AllSoftwareWithoutCPEIterator(ctx context.Context, excludedPlatforms []string) (SoftwareIterator, error)
 	AddCPEForSoftware(ctx context.Context, software Software, cpe string) error
 	ListSoftwareCPEs(ctx context.Context, excludedPlatforms []string) ([]SoftwareCPE, error)
 	// InsertVulnerabilities inserts the given vulnerabilities in the datastore, returns the number

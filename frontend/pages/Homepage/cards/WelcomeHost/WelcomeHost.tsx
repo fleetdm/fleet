@@ -297,6 +297,7 @@ const WelcomeHost = ({
           <Modal
             title={currentPolicyShown?.name || ""}
             onExit={() => setShowPolicyModal(false)}
+            onEnter={() => setShowPolicyModal(false)}
             className={`${baseClass}__policy-modal`}
           >
             <>

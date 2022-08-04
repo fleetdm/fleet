@@ -1,37 +1,29 @@
-import React, { useEffect } from "react";
+import React from "react";
 
 import Modal from "components/Modal";
 import Button from "components/buttons/Button";
 import Spinner from "components/Spinner";
 
-const baseClass = "remove-query-modal";
+const baseClass = "delete-query-modal";
 
-interface IRemoveQueryModalProps {
+interface IDeleteQueryModalProps {
   isLoading: boolean;
   onCancel: () => void;
   onSubmit: () => void;
 }
 
-const RemoveQueryModal = ({
+const DeleteQueryModal = ({
   isLoading,
   onCancel,
   onSubmit,
-}: IRemoveQueryModalProps): JSX.Element => {
-  useEffect(() => {
-    const listener = (event: KeyboardEvent) => {
-      if (event.code === "Enter" || event.code === "NumpadEnter") {
-        event.preventDefault();
-        onSubmit();
-      }
-    };
-    document.addEventListener("keydown", listener);
-    return () => {
-      document.removeEventListener("keydown", listener);
-    };
-  }, []);
-
+}: IDeleteQueryModalProps): JSX.Element => {
   return (
-    <Modal title={"Delete query"} onExit={onCancel} className={baseClass}>
+    <Modal
+      title={"Delete query"}
+      onExit={onCancel}
+      onEnter={onSubmit}
+      className={baseClass}
+    >
       <>
         {isLoading ? (
           <Spinner />
@@ -53,4 +45,4 @@ const RemoveQueryModal = ({
   );
 };
 
-export default RemoveQueryModal;
+export default DeleteQueryModal;

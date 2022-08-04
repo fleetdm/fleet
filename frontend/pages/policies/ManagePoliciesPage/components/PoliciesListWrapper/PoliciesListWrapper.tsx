@@ -25,9 +25,9 @@ interface IPoliciesListWrapperProps {
   policiesList: IPolicyStats[];
   isLoading: boolean;
   onAddPolicyClick?: () => void;
-  onRemovePoliciesClick: (selectedTableIds: number[]) => void;
+  onDeletePoliciesClick: (selectedTableIds: number[]) => void;
   resultsTitle?: string;
-  canAddOrRemovePolicy?: boolean;
+  canAddOrDeletePolicy?: boolean;
   tableType?: string;
   currentTeam: ITeamSummary | undefined;
   currentAutomatedPolicies?: number[];
@@ -37,9 +37,9 @@ const PoliciesListWrapper = ({
   policiesList,
   isLoading,
   onAddPolicyClick,
-  onRemovePoliciesClick,
+  onDeletePoliciesClick,
   resultsTitle,
-  canAddOrRemovePolicy,
+  canAddOrDeletePolicy,
   tableType,
   currentTeam,
   currentAutomatedPolicies,
@@ -89,7 +89,7 @@ const PoliciesListWrapper = ({
                 changes.
               </p>
             </div>
-            {canAddOrRemovePolicy && (
+            {canAddOrDeletePolicy && (
               <div className={`${baseClass}__action-button-container`}>
                 <Button
                   variant="brand"
@@ -109,7 +109,7 @@ const PoliciesListWrapper = ({
   return (
     <div
       className={`${baseClass} ${
-        canAddOrRemovePolicy ? "" : "hide-selection-column"
+        canAddOrDeletePolicy ? "" : "hide-selection-column"
       }`}
     >
       {isLoading ? (
@@ -119,7 +119,7 @@ const PoliciesListWrapper = ({
           resultsTitle={resultsTitle || "policies"}
           columns={generateTableHeaders({
             selectedTeamId: currentTeam?.id,
-            canAddOrRemovePolicy,
+            canAddOrDeletePolicy,
             tableType,
           })}
           data={generateDataSet(
@@ -134,7 +134,7 @@ const PoliciesListWrapper = ({
           showMarkAllPages={false}
           isAllPagesSelected={false}
           disablePagination
-          onPrimarySelectActionClick={onRemovePoliciesClick}
+          onPrimarySelectActionClick={onDeletePoliciesClick}
           primarySelectActionButtonVariant="text-icon"
           primarySelectActionButtonIcon="delete"
           primarySelectActionButtonText={"Delete"}

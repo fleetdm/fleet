@@ -15,7 +15,7 @@ import TableDataError from "components/DataError";
 import Spinner from "components/Spinner";
 import MainContent from "components/MainContent";
 import PacksListWrapper from "./components/PacksListWrapper";
-import RemovePackModal from "./components/RemovePackModal";
+import DeletePackModal from "./components/DeletePackModal";
 
 const baseClass = "manage-packs-page";
 
@@ -28,7 +28,7 @@ interface IPacksResponse {
 }
 
 const renderTable = (
-  onRemovePackClick: (selectedTablePackIds: number[]) => void,
+  onDeletePackClick: (selectedTablePackIds: number[]) => void,
   onEnablePackClick: (selectedTablePackIds: number[]) => void,
   onDisablePackClick: (selectedTablePackIds: number[]) => void,
   onCreatePackClick: React.MouseEventHandler<HTMLButtonElement>,
@@ -44,7 +44,7 @@ const renderTable = (
 
   return (
     <PacksListWrapper
-      onRemovePackClick={onRemovePackClick}
+      onDeletePackClick={onDeletePackClick}
       onEnablePackClick={onEnablePackClick}
       onDisablePackClick={onDisablePackClick}
       onCreatePackClick={onCreatePackClick}
@@ -61,7 +61,7 @@ const ManagePacksPage = ({ router }: IManagePacksPageProps): JSX.Element => {
   const onCreatePackClick = () => router.push(PATHS.NEW_PACK);
 
   const [selectedPackIds, setSelectedPackIds] = useState<number[]>([]);
-  const [showRemovePackModal, setShowRemovePackModal] = useState<boolean>(
+  const [showDeletePackModal, setShowDeletePackModal] = useState<boolean>(
     false
   );
 
@@ -81,16 +81,16 @@ const ManagePacksPage = ({ router }: IManagePacksPageProps): JSX.Element => {
     }
   );
 
-  const toggleRemovePackModal = useCallback(() => {
-    setShowRemovePackModal(!showRemovePackModal);
-  }, [showRemovePackModal, setShowRemovePackModal]);
+  const toggleDeletePackModal = useCallback(() => {
+    setShowDeletePackModal(!showDeletePackModal);
+  }, [showDeletePackModal, setShowDeletePackModal]);
 
-  const onRemovePackClick = (selectedTablePackIds: number[]) => {
-    toggleRemovePackModal();
+  const onDeletePackClick = (selectedTablePackIds: number[]) => {
+    toggleDeletePackModal();
     setSelectedPackIds(selectedTablePackIds);
   };
 
-  const onRemovePackSubmit = useCallback(() => {
+  const onDeletePackSubmit = useCallback(() => {
     const packOrPacks = selectedPackIds.length === 1 ? "pack" : "packs";
 
     const promises = selectedPackIds.map((id: number) => {
@@ -104,14 +104,14 @@ const ManagePacksPage = ({ router }: IManagePacksPageProps): JSX.Element => {
       .catch(() => {
         renderFlash(
           "error",
-          `Unable to remove ${packOrPacks}. Please try again.`
+          `Unable to delete ${packOrPacks}. Please try again.`
         );
       })
       .finally(() => {
         refetchPacks();
-        toggleRemovePackModal();
+        toggleDeletePackModal();
       });
-  }, [refetchPacks, selectedPackIds, toggleRemovePackModal]);
+  }, [refetchPacks, selectedPackIds, toggleDeletePackModal]);
 
   const onEnableDisablePackSubmit = useCallback(
     (selectedTablePackIds: number[], disablePack: boolean) => {
@@ -186,7 +186,7 @@ const ManagePacksPage = ({ router }: IManagePacksPageProps): JSX.Element => {
             <Spinner />
           ) : (
             renderTable(
-              onRemovePackClick,
+              onDeletePackClick,
               onEnablePackClick,
               onDisablePackClick,
               onCreatePackClick,
@@ -196,10 +196,10 @@ const ManagePacksPage = ({ router }: IManagePacksPageProps): JSX.Element => {
             )
           )}
         </div>
-        {showRemovePackModal && (
-          <RemovePackModal
-            onCancel={toggleRemovePackModal}
-            onSubmit={onRemovePackSubmit}
+        {showDeletePackModal && (
+          <DeletePackModal
+            onCancel={toggleDeletePackModal}
+            onSubmit={onDeletePackSubmit}
           />
         )}
       </div>

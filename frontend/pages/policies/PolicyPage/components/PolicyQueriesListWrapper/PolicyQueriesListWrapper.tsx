@@ -15,14 +15,14 @@ interface IPoliciesListWrapperProps {
   policyHostsList: IHostPolicyQuery[];
   isLoading: boolean;
   resultsTitle?: string;
-  canAddOrRemovePolicy?: boolean;
+  canAddOrDeletePolicy?: boolean;
 }
 
 const PoliciesListWrapper = ({
   policyHostsList,
   isLoading,
   resultsTitle,
-  canAddOrRemovePolicy,
+  canAddOrDeletePolicy,
 }: IPoliciesListWrapperProps): JSX.Element => {
   const NoPolicyQueries = () => {
     return (
@@ -35,7 +35,7 @@ const PoliciesListWrapper = ({
   return (
     <div
       className={`${baseClass} ${
-        canAddOrRemovePolicy ? "" : "hide-selection-column"
+        canAddOrDeletePolicy ? "" : "hide-selection-column"
       }`}
     >
       <TableContainer
