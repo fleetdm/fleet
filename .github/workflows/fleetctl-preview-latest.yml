@@ -42,7 +42,7 @@ jobs:
         sudo /Applications/Docker.app/Contents/MacOS/Docker --unattended --install-privileged-components
         open -a /Applications/Docker.app --args --unattended --accept-license
         echo "Waiting for Docker to start up..."
-        while ! /Applications/Docker.app/Contents/Resources/bin/docker info &>/dev/null; do sleep 1; done
+        while ! /Applications/Docker.app/Contents/Resources/bin/docker info; do sleep 1; done
         echo "Docker is ready."
 
     - name: Install Go
