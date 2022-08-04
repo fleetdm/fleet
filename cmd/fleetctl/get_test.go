@@ -11,6 +11,7 @@ import (
 
 	"github.com/ghodss/yaml"
 
+	"github.com/fleetdm/fleet/v4/pkg/spec"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/service"
@@ -406,7 +407,7 @@ func TestGetHosts(t *testing.T) {
 			name:       "get hosts --yaml test_host",
 			goldenFile: "expectedHostDetailResponseYaml.yml",
 			scanner: func(s string) []string {
-				return splitYaml(s)
+				return spec.SplitYaml(s)
 			},
 			args:       []string{"get", "hosts", "--yaml", "test_host"},
 			prettifier: yamlPrettify,
