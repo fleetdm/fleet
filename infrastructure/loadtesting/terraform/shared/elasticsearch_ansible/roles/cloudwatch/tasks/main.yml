@@ -1,0 +1,9 @@
+---
+- package: name=amazon-cloudwatch-agent
+- template:
+    src: config.json
+    dest: /opt/aws/amazon-cloudwatch-agent/bin/config.json
+    mode: 0444
+    owner: root
+    group: root
+

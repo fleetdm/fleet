@@ -7,3 +7,4 @@
     - role: elasticsearch
     - role: elasticapm
     - role: kibana
+    - role: cloudwatch
