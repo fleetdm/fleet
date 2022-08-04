@@ -11,19 +11,17 @@ make fleet-dev
 
 ## 2. Setup APNS Push Certificate and Key
 
-From https://developer.apple.com/account:
-	Download push certificate and private key to:
-		- ~/mdm-apple-test/mdmcert.download.push.pem
-		- ~/mdm-apple-test/mdmcert.download.push.key
+From https://developer.apple.com/account, download push certificate and private key to:
+- ~/mdm-apple-test/mdmcert.download.push.pem
+- ~/mdm-apple-test/mdmcert.download.push.key
 
 What we did for this test is:
-	- Zach has an account in https://mdmcert.download/
-	- Generate CSR with `mdmctl mdmcert.download -new -email=zach@fleetdm.com`
-		- this generates a private key too, place it in `~/mdm-apple-test/mdmcert.download.push.key`
-	- Zach received a certificate `mdm_signed_request.20220712_121945_1267.plist.b64.p7`
-	- Decrypt the received CSR with `mdmctl mdmcert.download -decrypt=/Users/luk/Downloads/mdm_signed_request.20220712_121945_1267.plist.b64.p7`
-	- Zach uploads the decrypted CSR to identity.apple.com and downloads the final certificate.
-		- place certificate in `~/mdm-apple-test/mdmcert.download.push.pem`
+- Zach has an account in https://mdmcert.download/
+- Generate CSR with `mdmctl mdmcert.download -new -email=zach@fleetdm.com` (this step generates a private key too, place it in `~/mdm-apple-test/mdmcert.download.push.key`)
+- Zach received a certificate `mdm_signed_request.20220712_121945_1267.plist.b64.p7`
+- Decrypt the received CSR with `mdmctl mdmcert.download -decrypt=/Users/luk/Downloads/mdm_signed_request.20220712_121945_1267.plist.b64.p7`
+- Zach uploads the decrypted CSR to identity.apple.com and downloads the final certificate.
+- Place certificate in `~/mdm-apple-test/mdmcert.download.push.pem`
 
 ## 2. Fleet prepare commands
 
