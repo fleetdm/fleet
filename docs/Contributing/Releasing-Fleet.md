@@ -135,7 +135,7 @@ Any issue that meets the patch release criteria is sent to the [DRI for release 
    Action](https://github.com/fleetdm/fleet/actions/workflows/goreleaser-snapshot-fleet.yaml) will
    be invoked to push a container image for QA with `fleetctl preview` (eg. `fleetctl preview --tag patch-fleet-v4.3.1`).
 
-4. The DRI for creating the patch release branch cherry checks in the GitHub UI that Actions ran successfully for this branch.
+4. The DRI for creating the patch release branch checks in the GitHub UI that Actions ran successfully for this branch.
 
 5. The DRI for creating the patch release branch notifies the [DRI for release testing/QA](https://fleetdm.com/handbook/product#rituals) that the branch is available for completing [smoke tests](https://github.com/fleetdm/fleet/blob/main/.github/ISSUE_TEMPLATE/smoke-tests.md).
 
