@@ -146,6 +146,7 @@ the account verification message.)`,
       )
       .timeout(5000)
       .tolerate(['non200Response', 'requestFailed'], (err)=>{
+        // Note that Zapier responds with a 2xx status code even if something goes wrong, so just because this message is not logged doesn't mean everything is hunky dory.  More info: https://github.com/fleetdm/fleet/pull/6380#issuecomment-1204395762
         sails.log.warn(`When a new user signed up for Fleet Sandbox, a lead/contact could not be verified in the CRM for this email address: ${newEmailAddress}. Raw error: ${err}`);
         return;
       });
