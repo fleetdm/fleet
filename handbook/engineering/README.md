@@ -314,6 +314,7 @@ The following rituals are engaged in by the  directly responsible individual (DR
 | Engineering group discussions | Weekly | See "Group Weeklies".  | Zach Wasserman |
 | On-call handoff | Weekly | Hand off the on-call engineering responsibilities to the next on-call engineer. | Zach Wasserman |
 | Release ritual | Every three weeks | Go through the process of releasing the next iteration of Fleet. | Zach Wasserman |
+| Create patch release branch | Every patch release | Go through the process of creating a patch release branch, cherry picking commits, and pushing the branch to github.com/fleetdm/fleet. | Luke Heath |
 
 ## Slack channels
 

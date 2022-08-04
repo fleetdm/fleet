@@ -32,20 +32,6 @@ const EnrollSecretModal = ({
   setSelectedSecret,
   globalSecrets,
 }: IEnrollSecretModal): JSX.Element => {
-  useEffect(() => {
-    const listener = (event: KeyboardEvent) => {
-      if (event.code === "Enter" || event.code === "NumpadEnter") {
-        event.preventDefault();
-        onReturnToApp();
-      }
-    };
-
-    document.addEventListener("keydown", listener);
-    return () => {
-      document.removeEventListener("keydown", listener);
-    };
-  }, []);
-
   const renderTeam = () => {
     if (typeof selectedTeam === "string") {
       selectedTeam = parseInt(selectedTeam, 10);
@@ -65,6 +51,7 @@ const EnrollSecretModal = ({
   return (
     <Modal
       onExit={onReturnToApp}
+      onEnter={onReturnToApp}
       title={"Manage enroll secrets"}
       className={baseClass}
     >

@@ -15,6 +15,7 @@ import (
 	"github.com/fleetdm/fleet/v4/pkg/download"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/vulnerabilities/oval"
 	kitlog "github.com/go-kit/kit/log"
 	"github.com/go-kit/kit/log/level"
 	"github.com/google/go-github/v37/github"
@@ -225,7 +226,8 @@ func TranslateSoftwareToCPE(
 ) error {
 	dbPath := filepath.Join(vulnPath, cpeDatabaseFilename)
 
-	iterator, err := ds.AllSoftwareWithoutCPEIterator(ctx)
+	// Skip software from platforms for which we will be using OVAL for vulnerability detection.
+	iterator, err := ds.AllSoftwareWithoutCPEIterator(ctx, oval.SupportedHostPlatforms)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "all software iterator")
 	}
@@ -248,11 +250,7 @@ func TranslateSoftwareToCPE(
 			continue
 		}
 		if cpe == "" {
-			// The schema for storing CVEs requires that a CPE for every software exists,
-			// having that constraint in place works fine when the only source for vulnerabilities
-			// is the NVD dataset but breaks down when we look at other sources for vulnerabilities (like OVAL) - this is
-			// why we set a default value for CPEs.
-			cpe = fmt.Sprintf("none:%d", software.ID)
+			continue
 		}
 		err = ds.AddCPEForSoftware(ctx, *software, cpe)
 		if err != nil {

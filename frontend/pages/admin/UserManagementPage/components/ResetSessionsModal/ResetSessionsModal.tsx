@@ -17,7 +17,11 @@ const ResetSessionsModal = ({
   onResetCancel,
 }: IResetSessionsModal): JSX.Element => {
   return (
-    <Modal title="Reset sessions" onExit={onResetCancel}>
+    <Modal
+      title="Reset sessions"
+      onExit={onResetCancel}
+      onEnter={() => onResetConfirm(user)}
+    >
       <div className={baseClass}>
         <p>
           This user will be logged out of Fleet.

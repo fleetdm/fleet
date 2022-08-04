@@ -19,23 +19,15 @@ const RemovePackQueryModal = ({
   selectedQuery,
   selectedQueryIds,
 }: IRemovePackQueryModalProps): JSX.Element => {
-  useEffect(() => {
-    const listener = (event: KeyboardEvent) => {
-      if (event.code === "Enter" || event.code === "NumpadEnter") {
-        event.preventDefault();
-        onSubmit();
-      }
-    };
-    document.addEventListener("keydown", listener);
-    return () => {
-      document.removeEventListener("keydown", listener);
-    };
-  }, []);
-
   const queryOrQueries =
     selectedQuery || selectedQueryIds?.length === 1 ? "query" : "queries";
   return (
-    <Modal title={"Remove queries"} onExit={onCancel} className={baseClass}>
+    <Modal
+      title={"Remove queries"}
+      onExit={onCancel}
+      onEnter={onSubmit}
+      className={baseClass}
+    >
       <div className={baseClass}>
         Are you sure you want to remove the selected {queryOrQueries} from your
         pack?

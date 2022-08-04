@@ -15,11 +15,9 @@ describe("Policies flow (empty)", () => {
       cy.visit("/policies/manage");
     });
     it("creates a custom policy", () => {
-      cy.getAttached(".policies-list-wrapper__action-button-container").within(
-        () => {
-          cy.findByText(/add a policy/i).click();
-        }
-      );
+      cy.getAttached(".policies-table__action-button-container").within(() => {
+        cy.findByText(/add a policy/i).click();
+      });
       cy.findByText(/create your own policy/i).click();
       cy.getAttached(".ace_scroller")
         .click({ force: true })
@@ -375,11 +373,11 @@ describe("Policies flow (seeded)", () => {
           });
       });
       cy.findByRole("button", { name: /delete/i }).click();
-      cy.getAttached(".remove-policies-modal").within(() => {
+      cy.getAttached(".delete-policies-modal").within(() => {
         cy.findByRole("button", { name: /cancel/i }).should("exist");
         cy.findByRole("button", { name: /delete/i }).click();
       });
-      cy.findByText(/removed policy/i).should("exist");
+      cy.findByText(/deleted policy/i).should("exist");
       cy.findByText(/backup/i).should("not.exist");
     });
     it("creates a failing policies webhook", () => {
