@@ -2,7 +2,7 @@
 
 # files or related backend files.
 
-\*.go @fleetdm/go
+*.go @fleetdm/go
 go.sum @fleetdm/go
 go.mod @fleetdm/go
 /server/ @fleetdm/go
@@ -10,7 +10,7 @@ go.mod @fleetdm/go
 
 # Infra/terraform
 
-\*.tf @edwardsb @zwinnerman-fleetdm @rfairburn
+*.tf @edwardsb @zwinnerman-fleetdm @rfairburn
 /infrastructure/ @zwinnerman-fleetdm @edwardsb @rfairburn
 
 # GitHub settings + actions
@@ -23,7 +23,7 @@ CHANGELOG.md @noahtalerman
 
 # Markdown docs
 
-\*.md @Desmi-Dizney
+*.md @Desmi-Dizney
 
 # API documentation
 
