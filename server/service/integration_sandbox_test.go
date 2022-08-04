@@ -15,7 +15,7 @@ import (
 	"github.com/stretchr/testify/suite"
 )
 
-const enrollSecret = "xyz"
+const enrollSecret = "xyz/abc$@"
 
 type integrationSandboxTestSuite struct {
 	suite.Suite
@@ -99,7 +99,7 @@ func (s *integrationSandboxTestSuite) TestInstallerGet() {
 }
 
 func installerURL(secret, kind string, desktop bool) string {
-	url := fmt.Sprintf("/api/latest/fleet/download_installer/%s?enroll_secret=%s", secret, kind)
+	url := fmt.Sprintf("/api/latest/fleet/download_installer/%s?enroll_secret=%s", kind, secret)
 	if desktop {
 		url = url + "&desktop=1"
 	}
