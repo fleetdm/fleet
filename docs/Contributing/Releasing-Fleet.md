@@ -125,7 +125,7 @@ Any issue that meets the patch release criteria is sent to the [DRI for release 
    git cherry-pick d34db33f
    ```
 
-3. The DRI for creating the patch release branch cherry pushes the branch to github.com/fleetdm/fleet:
+3. The DRI for creating the patch release branch pushes the branch to github.com/fleetdm/fleet:
 
    ```
    git push origin patch-fleet-v4.3.1
