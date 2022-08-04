@@ -24,7 +24,7 @@ import Dropdown from "components/forms/fields/Dropdown";
 import Spinner from "components/Spinner";
 import TableDataError from "components/DataError";
 import MainContent from "components/MainContent";
-import QueriesListWrapper from "./components/QueriesListWrapper";
+import QueriesTable from "./components/QueriesTable";
 import DeleteQueryModal from "./components/DeleteQueryModal";
 
 const baseClass = "manage-queries-page";
@@ -214,7 +214,7 @@ const ManageQueriesPage = ({
           {!isTableDataLoading && fleetQueriesError ? (
             <TableDataError />
           ) : (
-            <QueriesListWrapper
+            <QueriesTable
               queriesList={queriesList}
               isLoading={isTableDataLoading}
               onCreateQueryClick={onCreateQueryClick}

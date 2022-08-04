@@ -234,7 +234,7 @@ describe("Premium tier - Maintainer user", () => {
         cy.findByText(/manage hosts/i).should("not.exist");
       });
       it("allows global maintainer to add a new policy", () => {
-        cy.getAttached(".policies-list-wrapper__action-button-container")
+        cy.getAttached(".policies-table__action-button-container")
           .findByRole("button", { name: /add a policy/i })
           .click();
         // Add a default policy

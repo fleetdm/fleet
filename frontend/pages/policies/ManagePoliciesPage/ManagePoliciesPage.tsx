@@ -25,7 +25,7 @@ import TeamsDropdown from "components/TeamsDropdown";
 import TableDataError from "components/DataError";
 import MainContent from "components/MainContent";
 
-import PoliciesListWrapper from "./components/PoliciesListWrapper";
+import PoliciesTable from "./components/PoliciesTable";
 import ManageAutomationsModal from "./components/ManageAutomationsModal";
 import AddPolicyModal from "./components/AddPolicyModal";
 import DeletePoliciesModal from "./components/DeletePoliciesModal";
@@ -418,7 +418,7 @@ const ManagePolicyPage = ({
             (isFetchingTeamPolicies ? (
               <Spinner />
             ) : (
-              <PoliciesListWrapper
+              <PoliciesTable
                 policiesList={teamPolicies || []}
                 isLoading={
                   isFetchingTeamPolicies ||
@@ -438,7 +438,7 @@ const ManagePolicyPage = ({
             (isFetchingGlobalPolicies ? (
               <Spinner />
             ) : (
-              <PoliciesListWrapper
+              <PoliciesTable
                 policiesList={globalPolicies || []}
                 isLoading={isFetchingGlobalPolicies || isFetchingConfig}
                 onAddPolicyClick={onAddPolicyClick}
@@ -475,7 +475,7 @@ const ManagePolicyPage = ({
               (isFetchingGlobalPolicies ? (
                 <Spinner />
               ) : (
-                <PoliciesListWrapper
+                <PoliciesTable
                   isLoading={isFetchingGlobalPolicies}
                   policiesList={globalPolicies || []}
                   onDeletePoliciesClick={noop}
