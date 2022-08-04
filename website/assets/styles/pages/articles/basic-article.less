@@ -158,10 +158,9 @@
       background: #fff;
     }
     blockquote {
-      margin: 24px 0 32px;
-      padding-top: 34px;
-      border-radius: 8px;
-      display: inline-flex;
+      margin: 24px 0 32px 32px;
+      display: block;
+      position: relative;
     }
     [purpose='quote'] {
       font-style: italic;
@@ -175,9 +174,12 @@
     }
     [purpose='large-quote']::before,
     [purpose='quote']::before {
+      display: inline;
+      position: absolute;
       content: '“';
+      top: 16px;
+      left: -34px;
       font-size: 64px;
-      margin-top: 14px;
       padding-right: 8px;
       color: @core-vibrant-blue;
     }

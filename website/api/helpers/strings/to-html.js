@@ -107,15 +107,9 @@ module.exports = {
       }
     };
 
-    // Creating a custom blockquote renderer function to render blockquotes with different styles based on the html comment preceeding the blockquote text.
+    // Creating a custom blockquote renderer function to render blockquotes as tip blockquotes.
     customRenderer.blockquote = function(blockquoteHtml) {
-      if(blockquoteHtml.match(/^\<!--\s?quote\s?--\>/i)){// If the blockquoteHTML starts with <!--quote--> or <!-- quote -->, it will be rendered with as a normal blockquote with purpose="quote" added
-        return `<blockquote purpose="quote"><div class="d-block">${blockquoteHtml}</div></blockquote>`;
-      } else if (blockquoteHtml.match(/^\<!--\s?large-quote\s?--\>/i)) {// If the blockquoteHTML starts with <!--large-quote--> or <!-- large-quote -->, it will be rendered as a normal blockquote with purpose="extended" added
-        return `<blockquote purpose="large-quote"><div class="d-block">${blockquoteHtml}<div></blockquote>`;
-      } else {// If the blockquote is not marked as a quote or large-quote, we'll render it as a tip block.
-        return `<blockquote purpose="tip"><img src="/images/icon-info-16x16@2x.png" alt="An icon indicating that this section has important information"><div class="d-block">\n${blockquoteHtml}\n</div></blockquote>`;
-      }
+      return `<blockquote purpose="tip"><img src="/images/icon-info-16x16@2x.png" alt="An icon indicating that this section has important information"><div class="d-block">\n${blockquoteHtml}\n</div></blockquote>`;
     };
 
     // Custom renderer function to enable checkboxes in Markdown lists.
