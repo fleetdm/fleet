@@ -42,11 +42,10 @@ jobs:
         sudo /Applications/Docker.app/Contents/MacOS/Docker --unattended --install-privileged-components
         open -a /Applications/Docker.app --args --unattended --accept-license
         echo "Waiting for Docker to start up..."
-        while ! /Applications/Docker.app/Contents/Resources/bin/docker info; do sleep 1; done
+        # while ! /Applications/Docker.app/Contents/Resources/bin/docker info; do sleep 1; done
         echo "Docker is ready."
 
-    - name: Debug on failure
-      if: failure()
+    - name: Debug 
       uses: mxschmitt/action-tmate@8b4e4ac71822ed7e0ad5fb3d1c33483e9e8fb270 # v3.11
       with:
         limit-access-to-actor: true
