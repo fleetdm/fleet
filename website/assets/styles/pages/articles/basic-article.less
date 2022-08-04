@@ -96,7 +96,31 @@
     li::marker {
       color: @core-vibrant-blue;
     }
-    code:not(.nohighlight) {
+    [purpose='checklist-item'] {
+      display: flex;
+      input[type='checkbox'] {
+        margin-left: -18px;
+        min-width: 16px;
+        min-height: 16px;
+        align-self: center;
+      }
+      input:checked, input:active {
+        accent-color: @core-vibrant-blue;
+      }
+      [purpose='task'] {
+        margin-left: 16px;
+        input {
+          display: none;
+        }
+        p {
+          margin-bottom: 0px;
+        }
+      }
+    }
+    [purpose='checklist-item']::marker {
+      display: none;
+    }
+    code:not(.nohighlight):not(.mermaid) {
       background: #F1F0FF;
       padding: 4px 8px;
       font-family: @code-font;
@@ -121,6 +145,18 @@
       background: #F9FAFC;
       white-space: break-spaces;
     }
+    code.mermaid:not([data-processed='true']) {
+      opacity: 0;
+    }
+    code.mermaid {
+      color: @core-fleet-black-75;
+      margin-bottom: 16px 0px 32px;
+      font-family: @code-font;
+      display: inline-block;
+      margin-left: auto;
+      margin-right: auto;
+      background: #fff;
+    }
     blockquote {
       margin: 16px 0 32px;
       background: #F7F7FC;
@@ -142,8 +178,36 @@
         font-size: 16px;
       }
     }
-    iframe {
-      align-self: center;
+    [purpose='embedded-content'] {
+      position: relative;
+      margin-bottom: 40px;
+      width: 100%;
+      padding-bottom: 57%;
+      iframe {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+      }
+    }
+    table {
+      table-layout: auto;
+      border: 1px solid @border-lt-gray;
+      border-collapse: collapse;
+      font-size: 16px;
+      line-height: 28px;
+      margin-bottom: 16px;
+      max-width: 100%;
+      th {
+        font-weight: @bold;
+        border: 1px solid @border-lt-gray;
+        padding: 8px 7px 7px 8px;
+      }
+      td {
+        border: 1px solid @border-lt-gray;
+        padding: 8px 7px 7px 8px;
+      }
     }
   }
   [purpose='bottom-cta'] {

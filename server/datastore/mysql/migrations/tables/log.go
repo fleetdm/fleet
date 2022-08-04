@@ -16,3 +16,5 @@ func NewLogger() *Logger {
 		Warn: log.New(os.Stderr, "WARNING: ", log.Ltime),
 	}
 }
+
+var logger = NewLogger()

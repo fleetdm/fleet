@@ -14,6 +14,10 @@ var macosPackageInfoTemplate = template.Must(template.New("").Option("missingkey
 </pkg-info>
 `))
 
+// This template is used to generate a Distribution Definition file, which
+// controls the experience of the installer (the default dir, what options the
+// user has, etc.)
+//
 // Reference:
 // https://developer.apple.com/library/archive/documentation/DeveloperTools/Reference/DistributionDefinitionRef/Chapters/Distribution_XML_Ref.html
 var macosDistributionTemplate = template.Must(template.New("").Option("missingkey=error").Parse(
@@ -26,7 +30,14 @@ var macosDistributionTemplate = template.Must(template.New("").Option("missingke
     <choice id="choiceBase" title="Fleet osquery" enabled="false" selected="true" description="Standard installation for Fleet osquery.">
         <pkg-ref id="{{.Identifier}}.base.pkg"/>
     </choice>
+    {{/* base.pkg specified here is the foldername that contains the package contents */}}
     <pkg-ref id="{{.Identifier}}.base.pkg" version="{{.Version}}" auth="root">#base.pkg</pkg-ref>
+    {{/* this ref is collapsed with the previous, having a bundle version helps our notarization tools */}}
+    <pkg-ref id="{{.Identifier}}.base.pkg">
+      <bundle-version>
+        <bundle id="{{.Identifier}}" path="" />
+      </bundle-version>
+    </pkg-ref>
 </installer-gui-script>
 `))
 
@@ -44,6 +55,8 @@ ln -sf /opt/orbit /var/lib/orbit
 DAEMON_LABEL="com.fleetdm.orbit"
 DAEMON_PLIST="/Library/LaunchDaemons/${DAEMON_LABEL}.plist"
 
+# Stop the previous desktop agent
+pkill fleet-desktop || true
 # Remove any pre-existing version of the config
 launchctl bootout "system/${DAEMON_LABEL}"
 # Add the daemon to the launchd system

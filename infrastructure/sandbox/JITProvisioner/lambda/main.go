@@ -2,11 +2,12 @@ package main
 
 import (
 	"github.com/akrylysov/algnhsa"
-	//"github.com/gin-contrib/cors" TODO: use cors
+	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
 	flags "github.com/jessevdk/go-flags"
 	//"github.com/juju/errors"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/arn"
@@ -24,7 +25,6 @@ import (
 	"math/rand"
 	"strings"
 	"time"
-	"errors"
 )
 
 type OptionsStruct struct {
@@ -32,6 +32,7 @@ type OptionsStruct struct {
 	LifecycleTable     string `long:"dynamodb-lifecycle-table" env:"DYNAMODB_LIFECYCLE_TABLE" required:"true"`
 	LifecycleSFN       string `long:"lifecycle-sfn" env:"LIFECYCLE_SFN" required:"true"`
 	FleetBaseURL       string `long:"fleet-base-url" env:"FLEET_BASE_URL" required:"true"`
+	AuthorizationPSK   string `long:"authorization-psk" env:"AUTHORIZATION_PSK" required:"true"`
 }
 
 var options = OptionsStruct{}
@@ -142,8 +143,8 @@ func triggerSFN(id, expiry string) (err error) {
 		return
 	}
 	if int(endTime.Sub(time.Now()).Seconds()) < 0 {
-	    return errors.New("Expiry time is in the past")
-    }
+		return errors.New("Expiry time is in the past")
+	}
 	sfnInStr, err := json.Marshal(struct {
 		InstanceID string `json:"instanceID"`
 		WaitTime   int    `json:"waitTime"`
@@ -180,12 +181,17 @@ type NewFleetInput struct {
 	Name              string `json:"name" validate:"required"`
 	SandboxExpiration string `json:"sandbox_expiration" validate:"required"`
 	Password          string `json:"password" validate:"required"`
+	Authorization     string `header:"Authorization" validate:"required"`
 }
 type NewFleetOutput struct {
 	URL string
 }
 
 func NewFleet(c *gin.Context, in *NewFleetInput) (ret *NewFleetOutput, err error) {
+	if in.Authorization != options.AuthorizationPSK {
+		err = errors.New("Unauthorized")
+		return
+	}
 	ret = &NewFleetOutput{}
 	fleet, err := getFleetInstance()
 	if err != nil {
@@ -201,10 +207,10 @@ func NewFleet(c *gin.Context, in *NewFleetInput) (ret *NewFleetOutput, err error
 		return
 	}
 	log.Print("Creating admin user")
-	if _, err = client.Setup(in.Email, in.Name, in.Password, fleet.ID); err != nil {
-	    log.Print(err)
-	    return
-    }
+	if _, err = client.Setup(in.Email, in.Name, in.Password, "Fleet Sandbox"); err != nil {
+		log.Print(err)
+		return
+	}
 	if err = triggerSFN(fleet.ID, in.SandboxExpiration); err != nil {
 		log.Print(err)
 		return
@@ -216,16 +222,14 @@ type ExpiryInput struct {
 	ID string `query:"id" validate:"required"`
 }
 type ExpiryOutput struct {
-    Timestamp string `json:"timestamp"`
+	Timestamp time.Time `json:"timestamp"`
 }
 
 func GetExpiry(c *gin.Context, in *ExpiryInput) (ret *ExpiryOutput, err error) {
 	ret = &ExpiryOutput{}
-	var expiry time.Time
-	if expiry, err = getExpiry(in.ID); err != nil {
+	if ret.Timestamp, err = getExpiry(in.ID); err != nil {
 		return
 	}
-	ret.Timestamp = expiry.Format(time.RFC3339)
 	return
 }
 
@@ -245,6 +249,7 @@ func main() {
 
 	r := gin.Default()
 	r.Use(apmgin.Middleware(r))
+	r.Use(cors.Default())
 	f := fizz.NewFromEngine(r)
 	infos := &openapi.Info{
 		Title:       "Fleet Demo JITProvisioner",

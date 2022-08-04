@@ -29,7 +29,7 @@ func errHandler(ctx context.Context, logger kitlog.Logger, msg string, err error
 	ctxerr.Handle(ctx, err)
 }
 
-func cronDB(ctx context.Context, ds fleet.Datastore, logger kitlog.Logger, identifier string, config config.FleetConfig, license *fleet.LicenseInfo, enrollHostLimiter fleet.EnrollHostLimiter) {
+func cronDB(ctx context.Context, ds fleet.Datastore, logger kitlog.Logger, identifier string, config *config.FleetConfig, license *fleet.LicenseInfo, enrollHostLimiter fleet.EnrollHostLimiter) {
 	logger = kitlog.With(logger, "cron", lockKeyLeader)
 
 	ticker := time.NewTicker(10 * time.Second)
@@ -95,7 +95,7 @@ func cronDB(ctx context.Context, ds fleet.Datastore, logger kitlog.Logger, ident
 
 		// NOTE(mna): this is not a route from the fleet server (not in server/service/handler.go) so it
 		// will not automatically support the /latest/ versioning. Leaving it as /v1/ for that reason.
-		err = trySendStatistics(ctx, ds, fleet.StatisticsFrequency, "https://fleetdm.com/api/v1/webhooks/receive-usage-analytics", config, license)
+		err = trySendStatistics(ctx, ds, fleet.StatisticsFrequency, "https://fleetdm.com/api/v1/webhooks/receive-usage-analytics", *config, license)
 		if err != nil {
 			errHandler(ctx, logger, "sending statistics", err)
 		}
@@ -109,7 +109,7 @@ func cronVulnerabilities(
 	ds fleet.Datastore,
 	logger kitlog.Logger,
 	identifier string,
-	config config.VulnerabilitiesConfig,
+	config *config.VulnerabilitiesConfig,
 ) {
 	logger = kitlog.With(logger, "cron", lockKeyVulnerabilities)
 
@@ -327,7 +327,7 @@ func checkOvalVulnerabilities(
 	ds fleet.Datastore,
 	logger kitlog.Logger,
 	vulnPath string,
-	config config.VulnerabilitiesConfig,
+	config *config.VulnerabilitiesConfig,
 	collectVulns bool,
 ) []fleet.SoftwareVulnerability {
 	if config.DisableDataSync {
@@ -377,7 +377,7 @@ func checkNVDVulnerabilities(
 	ds fleet.Datastore,
 	logger kitlog.Logger,
 	vulnPath string,
-	config config.VulnerabilitiesConfig,
+	config *config.VulnerabilitiesConfig,
 	collectVulns bool,
 ) []fleet.SoftwareVulnerability {
 	if !config.DisableDataSync {
