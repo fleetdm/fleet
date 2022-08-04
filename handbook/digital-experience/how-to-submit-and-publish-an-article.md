@@ -30,7 +30,7 @@ Everyone is welcome to suggest article ideas or submit drafts. Reach out to Tim 
 
 ## Communication
 
-Use [#help-content-calendar](https://fleetdm.slack.com/archives/C03PH3BBVSM) channel in Slack for questions and updates related to articles.
+Use the [#help-content-calendar](https://fleetdm.slack.com/archives/C03PH3BBVSM) channel in Slack for questions and updates related to articles.
 
 ## Schedule
 
