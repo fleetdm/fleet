@@ -272,7 +272,23 @@ resource "aws_ecs_task_definition" "main" {
           {
             name  = "TF_VAR_installer_bucket"
             value = var.installer_bucket.id
-          }
+          },
+          {
+            name  = "TF_VAR_installer_bucket_arn"
+            value = var.installer_bucket.arn
+          },
+          {
+            name  = "TF_VAR_oidc_provider_arn"
+            value = var.oidc_provider_arn
+          },
+          {
+            name  = "TF_VAR_oidc_provider"
+            value = var.oidc_provider
+          },
+          {
+            name  = "TF_VAR_kms_key_arn"
+            value = var.kms_key.arn
+          },
         ]),
         secrets = concat([
           {

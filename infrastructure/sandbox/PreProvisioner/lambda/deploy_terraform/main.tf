@@ -50,6 +50,10 @@ variable "lifecycle_table" {}
 variable "base_domain" {}
 variable "enroll_secret" {}
 variable "installer_bucket" {}
+variable "installer_bucket_arn" {}
+variable "oidc_provider_arn" {}
+variable "oidc_provider" {}
+variable "kms_key_arn" {}
 
 resource "mysql_user" "main" {
   user               = terraform.workspace
@@ -169,6 +173,68 @@ resource "helm_release" "main" {
     name  = "packaging.s3.prefix"
     value = terraform.workspace
   }
+
+  set {
+    name  = "serviceAccountAnnotations.eks\\.amazonaws\\.com/role-arn"
+    value = aws_iam_role.main.arn
+  }
+}
+
+data "aws_iam_policy_document" "main" {
+  statement {
+    actions = [
+      "s3:*Object",
+      "s3:ListBucket",
+    ]
+    resources = [
+      var.installer_bucket_arn,
+      "${var.installer_bucket_arn}/${terraform.workspace}/*"
+    ]
+  }
+  statement {
+    actions = [
+      "kms:DescribeKey",
+      "kms:GenerateDataKey",
+      "kms:Decrypt",
+    ]
+    resources = [var.kms_key_arn]
+  }
+}
+
+resource "aws_iam_policy" "main" {
+  name   = terraform.workspace
+  policy = data.aws_iam_policy_document.main.json
+}
+
+resource "aws_iam_role_policy_attachment" "main" {
+  role       = aws_iam_role.main.id
+  policy_arn = aws_iam_policy.main.arn
+}
+
+data "aws_iam_policy_document" "main-assume-role" {
+  statement {
+    principals {
+      type        = "Federated"
+      identifiers = [var.oidc_provider_arn]
+    }
+    actions = ["sts:AssumeRoleWithWebIdentity"]
+    condition {
+      test     = "StringEquals"
+      variable = "${var.oidc_provider}:aud"
+      values   = ["sts.amazonaws.com"]
+    }
+    condition {
+      test     = "StringEquals"
+      variable = "${var.oidc_provider}:sub"
+      values   = ["system:serviceaccount:default:${terraform.workspace}"]
+    }
+  }
+}
+
+resource "aws_iam_role" "main" {
+  name_prefix        = terraform.workspace
+  path               = "/sandbox/"
+  assume_role_policy = data.aws_iam_policy_document.main-assume-role.json
 }
 
 resource "aws_dynamodb_table_item" "main" {

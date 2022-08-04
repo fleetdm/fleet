@@ -75,7 +75,7 @@ func buildPackages(instanceID, enrollSecret string) (err error) {
 		packaging.BuildMSI,
 	}
 	pkgopts := packaging.Options{
-		FleetURL:                     fmt.Sprintf("https://%s.%s", options.FleetBaseURL, instanceID),
+		FleetURL:                     fmt.Sprintf("https://%s.%s", instanceID, options.FleetBaseURL),
 		EnrollSecret:                 enrollSecret,
 		UpdateURL:                    "https://tuf.fleetctl.com",
 		Identifier:                   "com.fleetdm.orbit",

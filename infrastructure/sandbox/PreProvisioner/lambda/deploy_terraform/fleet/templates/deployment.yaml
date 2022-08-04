@@ -52,6 +52,8 @@ spec:
           ## BEGIN FLEET SECTION
           - name: FLEET_SERVER_SANDBOX_ENABLED
             value: "1"
+          - name: FLEET_LICENSE_ENFORCE_HOST_LIMIT
+            value: "true"
           {{- if ne .Values.packaging.enrollSecret "" }}
           - name: FLEET_PACKAGING_GLOBAL_ENROLL_SECRET
             value: "{{ .Values.packaging.enrollSecret }}"
