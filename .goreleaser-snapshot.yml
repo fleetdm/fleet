@@ -69,6 +69,8 @@ dockers:
     ids:
       - fleetctl
     dockerfile: tools/fleetctl-docker/Dockerfile
+    build_flag_templates:
+      - "--build-arg binpath=./cmd/fleetctl/fleetctl"
     image_templates:
       - 'fleetdm/fleetctl:{{ .ShortCommit }}'
 
