@@ -143,7 +143,7 @@ Any issue that meets the patch release criteria is sent to the [DRI for release 
 
 7. The DRI for release testing/QA notifies the [DRI for the release ritual](https://fleetdm.com/handbook/engineering#rituals) that the patch release is ready. The DRI for the release ritual releases the patch.
 
-8. The DRI for creating patch the release branch cherry-picks the commit containing the changelog updates into a new branch, and merge that commit into `main` through a Pull Request.
+8. The DRI for creating the patch release branch cherry-picks the commit containing the changelog updates into a new branch, and merges that commit into `main` through a Pull Request.
 
 9. **Important!** The DRI for creating patch the release branch manually checks the database migrations. Any migrations that are not cherry-picked in a patch must have a _higher_ timestamp than migrations that were cherry-picked. If there are new migrations that were not cherry-picked, verify that those migrations have higher timestamps. If they do not, submit a new Pull Request to increase the timestamps and ensure that migrations are run in the appropriate order.
 
