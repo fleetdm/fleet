@@ -547,7 +547,7 @@ describe("Premium tier - Global Admin user", () => {
   describe("Manage policies page", () => {
     beforeEach(() => cy.visit("/policies/manage"));
     it("allows global admin to add a new policy", () => {
-      cy.getAttached(".policies-list-wrapper__action-button-container")
+      cy.getAttached(".policies-table__action-button-container")
         .findByRole("button", { name: /add a policy/i })
         .click();
       // Add a default policy

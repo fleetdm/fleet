@@ -12,7 +12,7 @@ import TableContainer from "components/TableContainer";
 import { generateTableHeaders, generateDataSet } from "./PoliciesTableConfig";
 import policyImage from "../../../../../../assets/images/no-policy-323x138@2x.png";
 
-const baseClass = "policies-list-wrapper";
+const baseClass = "policies-table";
 const noPoliciesClass = "no-policies";
 
 const TAGGED_TEMPLATES = {
@@ -21,7 +21,7 @@ const TAGGED_TEMPLATES = {
   },
 };
 
-interface IPoliciesListWrapperProps {
+interface IPoliciesTableProps {
   policiesList: IPolicyStats[];
   isLoading: boolean;
   onAddPolicyClick?: () => void;
@@ -33,7 +33,7 @@ interface IPoliciesListWrapperProps {
   currentAutomatedPolicies?: number[];
 }
 
-const PoliciesListWrapper = ({
+const PoliciesTable = ({
   policiesList,
   isLoading,
   onAddPolicyClick,
@@ -43,7 +43,7 @@ const PoliciesListWrapper = ({
   tableType,
   currentTeam,
   currentAutomatedPolicies,
-}: IPoliciesListWrapperProps): JSX.Element => {
+}: IPoliciesTableProps): JSX.Element => {
   const { MANAGE_HOSTS } = paths;
 
   const { config } = useContext(AppContext);
@@ -147,4 +147,4 @@ const PoliciesListWrapper = ({
   );
 };
 
-export default PoliciesListWrapper;
+export default PoliciesTable;

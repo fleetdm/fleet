@@ -7,10 +7,10 @@ import TableContainer from "components/TableContainer";
 import { IActionButtonProps } from "components/TableContainer/DataTable/ActionButton";
 import { generateTableHeaders, generateDataSet } from "./PacksTableConfig";
 
-const baseClass = "packs-list-wrapper";
+const baseClass = "packs-table";
 const noPacksClass = "no-packs";
 
-interface IPacksListWrapperProps {
+interface IPacksTableProps {
   onDeletePackClick: (selectedTablePackIds: number[]) => void;
   onEnablePackClick: (selectedTablePackIds: number[]) => void;
   onDisablePackClick: (selectedTablePackIds: number[]) => void;
@@ -21,14 +21,14 @@ interface IPacksListWrapperProps {
   isLoading: boolean;
 }
 
-const PacksListWrapper = ({
+const PacksTable = ({
   onDeletePackClick,
   onEnablePackClick,
   onDisablePackClick,
   onCreatePackClick,
   packs,
   isLoading,
-}: IPacksListWrapperProps): JSX.Element => {
+}: IPacksTableProps): JSX.Element => {
   const [filteredPacks, setFilteredPacks] = useState<IPack[] | undefined>(
     packs
   );
@@ -133,4 +133,4 @@ const PacksListWrapper = ({
   );
 };
 
-export default PacksListWrapper;
+export default PacksTable;

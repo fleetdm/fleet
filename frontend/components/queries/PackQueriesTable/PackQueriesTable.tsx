@@ -12,9 +12,9 @@ import {
 } from "./PackQueriesTable/PackQueriesTableConfig";
 import AddQueryIcon from "../../../../assets/images/icon-plus-16x16@2x.png";
 
-const baseClass = "pack-queries-list-wrapper";
+const baseClass = "pack-queries-table";
 
-interface IPackQueriesListWrapperProps {
+interface IPackQueriesTableProps {
   onAddPackQuery: () => void;
   onEditPackQuery: (selectedQuery: IScheduledQuery) => void;
   onRemovePackQueries: (selectedTableQueryIds: number[]) => void;
@@ -22,13 +22,13 @@ interface IPackQueriesListWrapperProps {
   isLoadingPackQueries: boolean;
 }
 
-const PackQueriesListWrapper = ({
+const PackQueriesTable = ({
   onAddPackQuery,
   onEditPackQuery,
   onRemovePackQueries,
   scheduledQueries,
   isLoadingPackQueries,
-}: IPackQueriesListWrapperProps): JSX.Element => {
+}: IPackQueriesTableProps): JSX.Element => {
   const [querySearchText, setQuerySearchText] = useState<string>("");
 
   // NOTE: this is called once on the initial rendering. The initial render of
@@ -115,4 +115,4 @@ const PackQueriesListWrapper = ({
   );
 };
 
-export default PackQueriesListWrapper;
+export default PackQueriesTable;

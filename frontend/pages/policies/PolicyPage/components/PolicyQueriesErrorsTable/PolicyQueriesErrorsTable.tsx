@@ -8,22 +8,22 @@ import {
   generateDataSet,
 } from "./PolicyQueriesErrorsTableConfig";
 
-const baseClass = "policies-queries-list-wrapper";
+const baseClass = "policies-queries-table";
 const noPolicyQueries = "no-policy-queries";
 
-interface IPoliciesListWrapperProps {
+interface IPoliciesTableProps {
   errorsList: ICampaignError[];
   isLoading: boolean;
   resultsTitle?: string;
   canAddOrDeletePolicy?: boolean;
 }
 
-const PoliciesListWrapper = ({
+const PoliciesTable = ({
   errorsList,
   isLoading,
   resultsTitle,
   canAddOrDeletePolicy,
-}: IPoliciesListWrapperProps): JSX.Element => {
+}: IPoliciesTableProps): JSX.Element => {
   const NoPolicyQueries = () => {
     return (
       <div className={`${noPolicyQueries}__inner`}>
@@ -60,4 +60,4 @@ const PoliciesListWrapper = ({
   );
 };
 
-export default PoliciesListWrapper;
+export default PoliciesTable;
