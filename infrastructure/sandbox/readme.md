@@ -1,6 +1,8 @@
 ## Terraform for the Fleet Demo Environment
 This folder holds the infrastructure code for Fleet's demo environment.
 
+This readme itself is intended for infrastructure developers. If you aren't an infrastructure developer, please see https://sandbox.fleetdm.com/openapi.json for documentation.
+
 ### Instance state machine
 ```
 provisioned -> unclaimed -> claimed -> [destroyed]
