@@ -138,20 +138,24 @@ module "shared-infrastructure" {
   allowed_security_groups = [module.pre-provisioner.lambda_security_group.id]
   eks_allowed_roles       = [module.pre-provisioner.lambda_role, module.jit-provisioner.deprovisioner_role]
   base_domain             = local.base_domain
+  kms_key                 = aws_kms_key.main
 }
 
 module "pre-provisioner" {
-  source         = "./PreProvisioner"
-  prefix         = local.prefix
-  vpc            = module.vpc
-  kms_key        = aws_kms_key.main
-  dynamodb_table = aws_dynamodb_table.lifecycle-table
-  remote_state   = module.remote_state
-  mysql_secret   = module.shared-infrastructure.mysql_secret
-  eks_cluster    = module.shared-infrastructure.eks_cluster
-  redis_cluster  = module.shared-infrastructure.redis_cluster
-  ecs_cluster    = aws_ecs_cluster.main
-  base_domain    = local.base_domain
+  source            = "./PreProvisioner"
+  prefix            = local.prefix
+  vpc               = module.vpc
+  kms_key           = aws_kms_key.main
+  dynamodb_table    = aws_dynamodb_table.lifecycle-table
+  remote_state      = module.remote_state
+  mysql_secret      = module.shared-infrastructure.mysql_secret
+  eks_cluster       = module.shared-infrastructure.eks_cluster
+  redis_cluster     = module.shared-infrastructure.redis_cluster
+  ecs_cluster       = aws_ecs_cluster.main
+  base_domain       = local.base_domain
+  installer_bucket  = module.shared-infrastructure.installer_bucket
+  oidc_provider_arn = module.shared-infrastructure.oidc_provider_arn
+  oidc_provider     = module.shared-infrastructure.oidc_provider
 }
 
 module "jit-provisioner" {
