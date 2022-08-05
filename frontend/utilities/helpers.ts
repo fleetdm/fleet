@@ -749,7 +749,7 @@ export const getValidatedTeamId = (
   teamId: number,
   currentUser: IUser | null,
   isOnGlobalTeam: boolean
-): number => {
+) => {
   let currentUserTeams: ITeamSummary[] = [];
   if (isOnGlobalTeam) {
     currentUserTeams = teams;
@@ -761,7 +761,7 @@ export const getValidatedTeamId = (
   const validatedTeamId =
     !isNaN(teamId) && teamId > 0 && currentUserTeamIds.includes(teamId)
       ? teamId
-      : 0;
+      : undefined;
 
   return validatedTeamId;
 };
