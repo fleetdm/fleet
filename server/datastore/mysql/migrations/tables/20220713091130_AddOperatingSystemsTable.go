@@ -18,8 +18,8 @@ CREATE TABLE operating_systems (
 	version VARCHAR(191) NOT NULL,
 	arch VARCHAR(191) NOT NULL,
 	kernel_version VARCHAR(191) NOT NULL,
-	CONSTRAINT unique_os UNIQUE (name, version, arch, kernel_version)
-);
+    UNIQUE KEY idx_unique_os (name, version, arch, kernel_version)
+)
 	`)
 	if err != nil {
 		return errors.Wrapf(err, "create table")

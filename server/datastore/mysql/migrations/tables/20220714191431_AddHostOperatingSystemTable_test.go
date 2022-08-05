@@ -12,6 +12,18 @@ func TestUp_20220714191431(t *testing.T) {
 	applyNext(t, db)
 
 	stmt := `
+INSERT INTO operating_systems (
+    name,
+    version,
+    arch,
+    kernel_version
+)
+VALUES (?, ?, ?, ?), (?, ?, ?, ?)
+`
+	_, err := db.Exec(stmt, "Ubuntu", "22.04 LTS", "x86_64", "5.10.76-linuxkit", "Ubuntu", "22.06 LTS", "x86_64", "5.10.76-linuxkit")
+	require.NoError(t, err)
+
+	stmt = `
 INSERT INTO host_operating_system (
     host_id,
     os_id
@@ -19,7 +31,7 @@ INSERT INTO host_operating_system (
 VALUES (?, ?)
 `
 	// new host id, new os id
-	_, err := db.Exec(stmt, 111, 1)
+	_, err = db.Exec(stmt, 111, 1)
 	require.NoError(t, err)
 
 	// new host id, new os id
@@ -30,11 +42,15 @@ VALUES (?, ?)
 	_, err = db.Exec(stmt, 333, 2)
 	require.NoError(t, err)
 
-	// duplicate host id, new os id
+	// new host id, non-existent os id, foreign key error
+	_, err = db.Exec(stmt, 444, 4)
+	require.Error(t, err)
+
+	// duplicate host id, new os id, primary key error
 	_, err = db.Exec(stmt, 111, 4)
 	require.Error(t, err)
 
-	// duplicate host id, duplicate os id
+	// duplicate host id, duplicate os id, primary key error
 	_, err = db.Exec(stmt, 111, 2)
 	require.Error(t, err)
 

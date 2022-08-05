@@ -14,9 +14,10 @@ func Up_20220714191431(tx *sql.Tx) error {
 	_, err := tx.Exec(`
 CREATE TABLE host_operating_system (
     host_id INT UNSIGNED NOT NULL PRIMARY KEY,
-    os_id INT UNSIGNED NOT NULL
-)
-	`)
+    os_id INT UNSIGNED NOT NULL,
+	FOREIGN KEY fk_operating_systems_id (os_id) REFERENCES operating_systems(id) ON DELETE CASCADE,
+	INDEX idx_host_operating_system_id (os_id)
+)`)
 	if err != nil {
 		return errors.Wrapf(err, "create table")
 	}

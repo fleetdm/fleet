@@ -195,7 +195,9 @@ CREATE TABLE `host_munki_info` (
 CREATE TABLE `host_operating_system` (
   `host_id` int(10) unsigned NOT NULL,
   `os_id` int(10) unsigned NOT NULL,
-  PRIMARY KEY (`host_id`)
+  PRIMARY KEY (`host_id`),
+  KEY `idx_host_operating_system_id` (`os_id`),
+  CONSTRAINT `host_operating_system_ibfk_1` FOREIGN KEY (`os_id`) REFERENCES `operating_systems` (`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 /*!40101 SET character_set_client = @saved_cs_client */;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
@@ -414,12 +416,12 @@ CREATE TABLE `network_interfaces` (
 /*!40101 SET character_set_client = utf8 */;
 CREATE TABLE `operating_systems` (
   `id` int(10) unsigned NOT NULL AUTO_INCREMENT,
-  `name` varchar(255) NOT NULL,
-  `version` varchar(200) NOT NULL,
-  `arch` varchar(100) NOT NULL,
-  `kernel_version` varchar(200) NOT NULL,
+  `name` varchar(191) NOT NULL,
+  `version` varchar(191) NOT NULL,
+  `arch` varchar(191) NOT NULL,
+  `kernel_version` varchar(191) NOT NULL,
   PRIMARY KEY (`id`),
-  UNIQUE KEY `unique_os` (`name`,`version`,`arch`,`kernel_version`)
+  UNIQUE KEY `idx_unique_os` (`name`,`version`,`arch`,`kernel_version`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 /*!40101 SET character_set_client = @saved_cs_client */;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;

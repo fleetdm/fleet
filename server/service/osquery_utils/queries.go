@@ -336,26 +336,38 @@ var extraDetailQueries = map[string]DetailQuery{
 	},
 	"os_windows": {
 		Query: `
-	SELECT name, version, arch, kernel_version 
-	FROM ((
-		SELECT name, arch 
-		FROM os_version) 
-		JOIN (
-			SELECT data as version 
-			FROM registry 
-			WHERE path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\DisplayVersion')) 
-		JOIN (
-			SELECT version as kernel_version 
-			FROM kernel_info)`,
+	SELECT
+		os.name,
+		os.arch,
+		r.version AS version,
+		k.version AS kernel_version
+	FROM
+		os_version os,
+		kernel_info k,
+		(
+			SELECT
+				data AS version
+			FROM
+				registry
+			WHERE
+				path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\DisplayVersion') r`,
 		Platforms:        []string{"windows"},
 		DirectIngestFunc: directIngestOSWindows,
 	},
 	"os_unix_like": {
 		Query: `
-	SELECT name, version, major, minor, patch, build, arch, kernel_version 
-	FROM os_version 
-	JOIN (
-		SELECT version as kernel_version FROM kernel_info)`,
+	SELECT
+		os.name,
+		os.major,
+		os.minor,
+		os.patch,
+		os.build,
+		os.arch,
+		os.version AS version,
+		k.version AS kernel_version
+	FROM
+		os_version os,
+		kernel_info k`,
 		Platforms:        append(fleet.HostLinuxOSs, "darwin"),
 		DirectIngestFunc: directIngestOSUnixLike,
 	},

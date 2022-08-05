@@ -1,4 +1,2 @@
-- Added `operating_systems` table to database
-- Added `host_operating_system` table to database
 - Added new host detail queries to ingest operating system name, version, architecture, and
   kernel version
