@@ -156,6 +156,7 @@ const MDM = ({
                   emptyComponent={EmptyMDMSolutions}
                   showMarkAllPages={false}
                   isAllPagesSelected={false}
+                  isClientSidePagination
                   disableCount
                   disableActionButton
                   pageSize={PAGE_SIZE}
