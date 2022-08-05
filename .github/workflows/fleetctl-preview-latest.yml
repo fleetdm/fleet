@@ -28,22 +28,10 @@ jobs:
     strategy:
       matrix:
         # Doesn't work on Windows because Linux Docker containers are not supported.
-        os: [ubuntu-latest, macos-12]
+        os: [ubuntu-latest, macos-latest]
         go-version: ['1.17.9']
     runs-on: ${{ matrix.os }}
     steps:
-
-    - name: Install Docker
-      # Docker needs to be installed manually on macOS.
-      if: contains(matrix.os, 'macos')
-      # From https://github.com/docker/for-mac/issues/2359#issuecomment-943131345
-      run: |
-        brew install --cask docker
-        sudo /Applications/Docker.app/Contents/MacOS/Docker --unattended --install-privileged-components
-        open -a /Applications/Docker.app --args --unattended --accept-license
-        echo "Waiting for Docker to start up..."
-        # while ! /Applications/Docker.app/Contents/Resources/bin/docker info; do sleep 1; done
-        echo "Docker is ready."
 
     - name: Debug 
       uses: mxschmitt/action-tmate@8b4e4ac71822ed7e0ad5fb3d1c33483e9e8fb270 # v3.11
