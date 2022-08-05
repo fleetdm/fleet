@@ -81,7 +81,7 @@ parasails.registerPage('articles', {
         if (a.meta['publishedOn'] > b.meta['publishedOn']) {
           return -1;
         }
-        if ( b.meta['publishedOn'] < a.meta['publishedOn']){
+        if (b.meta['publishedOn'] > a.meta['publishedOn']){
           return 1;
         }
       });

@@ -36,7 +36,7 @@ func cronVulnerabilities(
 	ds fleet.Datastore,
 	logger kitlog.Logger,
 	identifier string,
-	config config.VulnerabilitiesConfig,
+	config *config.VulnerabilitiesConfig,
 ) {
 	logger = kitlog.With(logger, "cron", lockKeyVulnerabilities)
 
@@ -254,7 +254,7 @@ func checkOvalVulnerabilities(
 	ds fleet.Datastore,
 	logger kitlog.Logger,
 	vulnPath string,
-	config config.VulnerabilitiesConfig,
+	config *config.VulnerabilitiesConfig,
 	collectVulns bool,
 ) []fleet.SoftwareVulnerability {
 	if config.DisableDataSync {
@@ -304,7 +304,7 @@ func checkNVDVulnerabilities(
 	ds fleet.Datastore,
 	logger kitlog.Logger,
 	vulnPath string,
-	config config.VulnerabilitiesConfig,
+	config *config.VulnerabilitiesConfig,
 	collectVulns bool,
 ) []fleet.SoftwareVulnerability {
 	if !config.DisableDataSync {

@@ -62,6 +62,7 @@ func TestMaybeSendStatistics(t *testing.T) {
 				},
 			},
 			StoredErrors: []byte(`[]`),
+			Organization: "Fleet",
 		}, true, nil
 	}
 	recorded := false
@@ -73,7 +74,7 @@ func TestMaybeSendStatistics(t *testing.T) {
 	err := trySendStatistics(context.Background(), ds, fleet.StatisticsFrequency, ts.URL, fleetConfig, &fleet.LicenseInfo{Tier: "premium"})
 	require.NoError(t, err)
 	assert.True(t, recorded)
-	assert.Equal(t, `{"anonymousIdentifier":"ident","fleetVersion":"1.2.3","licenseTier":"premium","numHostsEnrolled":999,"numUsers":99,"numTeams":9,"numPolicies":0,"numLabels":3,"softwareInventoryEnabled":true,"vulnDetectionEnabled":true,"systemUsersEnabled":true,"hostsStatusWebHookEnabled":true,"numWeeklyActiveUsers":111,"hostsEnrolledByOperatingSystem":{"linux":[{"version":"1.2.3","numEnrolled":22}]},"storedErrors":[],"numHostsNotResponding":0}`, requestBody)
+	assert.Equal(t, `{"anonymousIdentifier":"ident","fleetVersion":"1.2.3","licenseTier":"premium","organization":"Fleet","numHostsEnrolled":999,"numUsers":99,"numTeams":9,"numPolicies":0,"numLabels":3,"softwareInventoryEnabled":true,"vulnDetectionEnabled":true,"systemUsersEnabled":true,"hostsStatusWebHookEnabled":true,"numWeeklyActiveUsers":111,"hostsEnrolledByOperatingSystem":{"linux":[{"version":"1.2.3","numEnrolled":22}]},"storedErrors":[],"numHostsNotResponding":0}`, requestBody)
 }
 
 func TestMaybeSendStatisticsSkipsSendingIfNotNeeded(t *testing.T) {
@@ -216,7 +217,7 @@ func TestCronVulnerabilitiesCreatesDatabasesPath(t *testing.T) {
 
 	// We cancel right away so cronsVulnerailities finishes. The logic we are testing happens before the loop starts
 	cancelFunc()
-	cronVulnerabilities(ctx, ds, kitlog.NewNopLogger(), "AAA", config)
+	cronVulnerabilities(ctx, ds, kitlog.NewNopLogger(), "AAA", &config)
 
 	require.DirExists(t, vulnPath)
 }
@@ -249,7 +250,7 @@ func TestCronVulnerabilitiesAcceptsExistingDbPath(t *testing.T) {
 
 	// We cancel right away so cronsVulnerailities finishes. The logic we are testing happens before the loop starts
 	cancelFunc()
-	cronVulnerabilities(ctx, ds, logger, "AAA", config)
+	cronVulnerabilities(ctx, ds, logger, "AAA", &config)
 
 	require.Contains(t, buf.String(), `"waiting":"on ticker"`)
 }
@@ -286,7 +287,7 @@ func TestCronVulnerabilitiesQuitsIfErrorVulnPath(t *testing.T) {
 
 	// We cancel right away so cronsVulnerailities finishes. The logic we are testing happens before the loop starts
 	cancelFunc()
-	cronVulnerabilities(ctx, ds, logger, "AAA", config)
+	cronVulnerabilities(ctx, ds, logger, "AAA", &config)
 
 	require.Contains(t, buf.String(), `"databases-path":"creation failed, returning"`)
 }
@@ -320,7 +321,7 @@ func TestCronVulnerabilitiesSkipCreationIfStatic(t *testing.T) {
 
 	// We cancel right away so cronsVulnerailities finishes. The logic we are testing happens before the loop starts
 	cancelFunc()
-	cronVulnerabilities(ctx, ds, logger, "AAA", config)
+	cronVulnerabilities(ctx, ds, logger, "AAA", &config)
 
 	require.NoDirExists(t, vulnPath)
 }

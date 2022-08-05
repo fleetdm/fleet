@@ -1,13 +1,6 @@
 # Introduction
 
-- [Overview](#overview)
-- [Fleet vs Fleet Preview](#Fleet-vs-Fleet-Preview)
-- [Infrastructure dependencies](#infrastructure-dependencies)
-  - [MySQL](#mysql)
-  - [Redis](#redis)
-  - [TLS certificate](#tls-certificate)
-
-![Fleet's architecture diagram](https://raw.githubusercontent.com/fleetdm/fleet/main/docs/images/fleet-architecture-diagram.png)
+<!-- TODO: video -->
 
 Fleet is the most widely used open source osquery manager in the world. Fleet enables programmable live queries, streaming logs, and realtime visibility of 100,000+ servers, containers, and laptops. It's especially useful for IT, security, and compliance use cases.
 
@@ -32,6 +25,8 @@ If you want to enroll real hosts or deploy to a more scalable environment we rec
 ## Infrastructure dependencies
 
 Fleet currently has three infrastructure dependencies: MySQL, Redis, and a TLS certificate.
+
+![Fleet's architecture diagram](https://raw.githubusercontent.com/fleetdm/fleet/main/docs/images/fleet-architecture-diagram.png)
 
 ### MySQL
 

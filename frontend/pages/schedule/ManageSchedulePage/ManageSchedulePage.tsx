@@ -28,7 +28,8 @@ import RevealButton from "components/buttons/RevealButton";
 import Spinner from "components/Spinner";
 import TeamsDropdown from "components/TeamsDropdown";
 import TableDataError from "components/DataError";
-import ScheduleListWrapper from "./components/ScheduleListWrapper";
+import MainContent from "components/MainContent";
+import ScheduleTable from "./components/ScheduleTable";
 import ScheduleEditorModal from "./components/ScheduleEditorModal";
 import RemoveScheduledQueryModal from "./components/RemoveScheduledQueryModal";
 
@@ -54,7 +55,7 @@ const renderTable = (
   return allScheduledQueriesError || errorQueries ? (
     <TableDataError />
   ) : (
-    <ScheduleListWrapper
+    <ScheduleTable
       router={router}
       onRemoveScheduledQueryClick={onRemoveScheduledQueryClick}
       onEditScheduledQueryClick={onEditScheduledQueryClick}
@@ -81,7 +82,7 @@ const renderAllTeamsTable = (
     <TableDataError />
   ) : (
     <div className={`${baseClass}__all-teams-table`}>
-      <ScheduleListWrapper
+      <ScheduleTable
         router={router}
         inheritedQueries
         allScheduledQueriesList={allTeamsScheduledQueriesList}
@@ -432,8 +433,8 @@ const ManageSchedulePage = ({
   );
 
   return (
-    <div className={baseClass}>
-      <div className={`${baseClass}__wrapper body-wrap`}>
+    <MainContent className={baseClass}>
+      <div className={`${baseClass}__wrapper`}>
         <div className={`${baseClass}__header-wrap`}>
           <div className={`${baseClass}__header`}>
             <div className={`${baseClass}__text`}>
@@ -564,7 +565,7 @@ const ManageSchedulePage = ({
           />
         )}
       </div>
-    </div>
+    </MainContent>
   );
 };
 

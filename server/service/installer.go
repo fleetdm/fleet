@@ -5,7 +5,6 @@ import (
 	"errors"
 	"io"
 	"net/http"
-	"os"
 	"strconv"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
@@ -14,8 +13,8 @@ import (
 )
 
 type installerRequest struct {
-	EnrollSecret string `url:"enroll_secret"`
 	Kind         string `url:"kind"`
+	EnrollSecret string `query:"enroll_secret"`
 	Desktop      bool   `query:"desktop,optional"`
 }
 
@@ -71,9 +70,7 @@ func (svc *Service) GetInstaller(ctx context.Context, installer fleet.Installer)
 		return nil, int64(0), err
 	}
 
-	// Undocumented FLEET_DEMO environment variable, as this endpoint is intended only to be
-	// used in the Fleet Sandbox demo environment.
-	if os.Getenv("FLEET_DEMO") != "1" {
+	if !svc.SandboxEnabled() {
 		return nil, int64(0), errors.New("this endpoint only enabled in demo mode")
 	}
 

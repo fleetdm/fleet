@@ -52,7 +52,6 @@ func (r UbuntuResult) Eval(ver fleet.OSVersion, software []fleet.Software) ([]fl
 				for _, v := range d.CveVulnerabilities() {
 					vuln = append(vuln, fleet.SoftwareVulnerability{
 						SoftwareID: software.ID,
-						CPEID:      software.GeneratedCPEID,
 						CVE:        v,
 					})
 				}

@@ -14,8 +14,8 @@ import Spinner from "components/Spinner";
 import TabsWrapper from "components/TabsWrapper";
 import InfoBanner from "components/InfoBanner";
 import TooltipWrapper from "components/TooltipWrapper";
-import PolicyQueryListWrapper from "../PolicyQueriesListWrapper/PolicyQueriesListWrapper";
-import PolicyQueriesErrorsListWrapper from "../PolicyQueriesErrorsListWrapper/PolicyQueriesErrorsListWrapper";
+import PolicyQueryTable from "../PolicyQueriesTable/PolicyQueriesTable";
+import PolicyQueriesErrorsTable from "../PolicyQueriesErrorsTable/PolicyQueriesErrorsTable";
 
 import DownloadIcon from "../../../../../../assets/images/icon-download-12x12@2x.png";
 
@@ -174,7 +174,7 @@ const QueryResults = ({
             </Button>
           </div>
         </div>
-        <PolicyQueryListWrapper
+        <PolicyQueryTable
           isLoading={false}
           policyHostsList={hostsOnline}
           resultsTitle="hosts"
@@ -204,7 +204,7 @@ const QueryResults = ({
             </Button>
           </div>
         </div>
-        <PolicyQueriesErrorsListWrapper
+        <PolicyQueriesErrorsTable
           isLoading={false}
           errorsList={errors}
           resultsTitle="errors"

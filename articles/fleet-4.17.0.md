@@ -35,7 +35,7 @@ To include Fleet Desktop in your installer package, add the `--fleet-desktop` fl
 
 [Read more about bringing Fleet Desktop out of beta.](https://github.com/fleetdm/fleet/issues/5684)
 
-## Battery condition added to Host Details for MacOS.
+## Battery condition added to Host Details for macOS.
 **Available in Fleet Free & Fleet Premium**
 
 ![Battery condition added to Host Details.](../website/assets/images/articles/fleet-4.17.0-3-1600x900@2x.jpg)
