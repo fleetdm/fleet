@@ -220,12 +220,12 @@ data "aws_iam_policy_document" "main-assume-role" {
     actions = ["sts:AssumeRoleWithWebIdentity"]
     condition {
       test     = "StringEquals"
-      variable = "${var.oidc_provider_arn}:aud"
+      variable = "${var.oidc_provider}:aud"
       values   = ["sts.amazonaws.com"]
     }
     condition {
       test     = "StringEquals"
-      variable = "${var.oidc_provider_arn}:sub"
+      variable = "${var.oidc_provider}:sub"
       values   = ["system:serviceaccount:default:${terraform.workspace}"]
     }
   }
