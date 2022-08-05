@@ -100,6 +100,7 @@ import {
   IMDMSolution,
   IMDMAggregateStatus,
 } from "interfaces/macadmins";
+import { mkdtempSync } from "fs";
 
 interface IManageHostsProps {
   route: RouteProps;
@@ -276,7 +277,7 @@ const ManageHostsPage = ({
       ? parseInt(queryParams?.software_id, 10)
       : undefined;
   const mdmSolutionId = parseInt(queryParams?.mdm_solution, 10);
-  const mdmEnrollment = queryParams?.mdm_enrollment_status;
+  const mdmEnrollmentStatus = queryParams?.mdm_enrollment_status;
   const { active_label: activeLabel, label_id: labelID } = routeParams;
 
   // ===== filter matching
@@ -439,11 +440,16 @@ const ManageHostsPage = ({
     }
 
     try {
-      const { hosts: returnedHosts, software } = await hostsAPI.loadHosts(
-        options
-      );
+      const {
+        hosts: returnedHosts,
+        software,
+        mdmEnrollment,
+        mdmSolution,
+      } = await hostsAPI.loadHosts(options);
       setHosts(returnedHosts);
       software && setSoftwareDetails(software);
+      mdmEnrollment && setMDMEnrollmentDetails(software);
+      mdmSolution && setMDMSolutionDetails(software);
     } catch (error) {
       console.error(error);
       setHasHostErrors(true);
@@ -1154,16 +1160,15 @@ const ManageHostsPage = ({
 
   const renderMDMSolutionFilterBlock = () => {
     if (mdmSolutionDetails) {
-      // TODO
-      const { name, version } = mdmSolutionDetails;
-      const buttonText = name && version ? `${name} ${version}` : "";
+      const { name, server_url } = mdmSolutionDetails;
+      const buttonText = `${name !== "Unknown" && name} ${server_url}`;
       return (
         <div className={`${baseClass}__mdm-solution-filter-block`}>
           <div>
             <span
               data-tip
               data-for="mdm-solution-filter-tooltip"
-              data-tip-disable={!name || !version}
+              data-tip-disable={!name || !server_url}
             >
               <div
                 className={`${baseClass}__mdm-solution-filter-name-card tooltip`}
@@ -1187,8 +1192,8 @@ const ManageHostsPage = ({
               data-html
             >
               <span className={`tooltip__tooltip-text`}>
-                {`Hosts with ${name}`},<br />
-                {`${version} installed`}
+                Host enrolled
+                {name !== "Unknown" && ` to ${name}`} at {server_url}
               </span>
             </ReactTooltip>
           </div>
@@ -1199,25 +1204,38 @@ const ManageHostsPage = ({
   };
 
   const renderMDMEnrollmentFilterBlock = () => {
-    if (mdmEnrollmentDetails) {
-      const { name, version } = mdmEnrollmentDetails;
-      // TODO
-      const buttonText = name && version ? `${name} ${version}` : "";
+    if (mdmEnrollmentStatus) {
+      const buttonText = () => {
+        switch (mdmEnrollmentStatus) {
+          case "automatic":
+            return "MDM enrolled (automatic)";
+          case "manual":
+            return "MDM enrolled (manual)";
+          default:
+            return "Unenrolled";
+        }
+      };
+      const tooltipText = () => {
+        switch (mdmEnrollmentStatus) {
+          case "Enrolled (automatic)":
+            return "Hosts automatically enrolled to an MDM solution the first time the host is used. Administrators might have a higher level of control over these hosts.";
+          case "Enrolled (manual)":
+            return "Hosts manually enrolled to an MDM solution by a user or administrator.";
+          default:
+            return "Hosts not enrolled to an MDM solution.";
+        }
+      };
       return (
         <div className={`${baseClass}__mdm-enrollment-filter-block`}>
           <div>
-            <span
-              data-tip
-              data-for="mdm-enrollment-filter-tooltip"
-              data-tip-disable={!name || !version}
-            >
+            <span data-tip data-for="mdm-enrollment-filter-tooltip">
               <div className={`${baseClass}__mdm-enrollment-name-card tooltip`}>
                 {buttonText}
                 <Button
                   className={`${baseClass}__clear-mdm-enrollment-filter`}
                   onClick={handleClearMDMEnrollmentFilter}
                   variant={"small-text-icon"}
-                  title={buttonText}
+                  title={buttonText()}
                 >
                   <img src={CloseIcon} alt="Remove MDM enrollment filter" />
                 </Button>
@@ -1230,10 +1248,7 @@ const ManageHostsPage = ({
               id="mdm-enrollment-filter-tooltip"
               data-html
             >
-              <span className={`tooltip__tooltip-text`}>
-                {`Hosts with ${name}`},<br />
-                {`${version} installed`}
-              </span>
+              <span className={`tooltip__tooltip-text`}>{tooltipText()}</span>
             </ReactTooltip>
           </div>
         </div>
@@ -1513,7 +1528,7 @@ const ManageHostsPage = ({
             !policyId &&
             !showSelectedLabel &&
             renderMDMSolutionFilterBlock()}
-          {!!mdmEnrollment &&
+          {!!mdmEnrollmentStatus &&
             !policyId &&
             !showSelectedLabel &&
             renderMDMEnrollmentFilterBlock()}
