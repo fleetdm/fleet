@@ -244,6 +244,29 @@ The images used in the docs live in `docs/images/`. Note that you must provide t
 
 > Note that the instructions above also apply to adding images in the Fleet handbook.
 
+### Adding a video to the Fleet docs
+
+You can embed a video at the top of a doc page. The video must be uploaded to YouTube first. Using the standard YouTube embed code causes issues on mobile. So, we wrote our own code to make sure the video fits every screen size.
+
+Copy and paste this code where you want to embed the video in the doc.
+
+```
+<div purpose=”embedded-content”>
+	<iframe class="video" src="YOUTUBE EMBED URL GOES HERE" allowfullscreen></iframe>
+</div>
+```
+
+You’ll notice a section to enter the YouTube embed URL. Here’s how to find it:
+
+1. Open the YouTube video in your browser.
+2. Click **Share** (located below the title).
+3. Select the **Embed** option.
+4. Copy the URL from the embed code.
+
+You’ll know you have the right URL if you see “embed” after the domain.
+
+Paste the YouTube embed URL in the code we provided.
+
 ### Adding a mermaid diagram to the Fleet Docs
 
 The Fleet Docs support diagrams that are written in mermaid.js syntax. Take a look at the [Mermaid docs](https://mermaid-js.github.io/mermaid/#/README) to learn about the syntax language and what types of diagrams you can display.
