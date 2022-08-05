@@ -49,7 +49,6 @@ import Button from "components/buttons/Button";
 // @ts-ignore
 import Dropdown from "components/forms/fields/Dropdown";
 import HostSidePanel from "components/side_panels/HostSidePanel";
-import LabelForm from "components/forms/LabelForm";
 import QuerySidePanel from "components/side_panels/QuerySidePanel";
 import TableContainer from "components/TableContainer";
 import TableDataError from "components/DataError";
@@ -73,10 +72,10 @@ import {
   DEFAULT_SORT_HEADER,
   DEFAULT_SORT_DIRECTION,
   HOST_SELECT_STATUSES,
-  isAcceptableStatus,
-  getNextLocationPath,
-} from "./helpers";
+} from "./constants";
+import { isAcceptableStatus, getNextLocationPath } from "./helpers";
 
+import LabelForm from "../components/LabelForm";
 import DeleteSecretModal from "../../../components/DeleteSecretModal";
 import SecretEditorModal from "../../../components/SecretEditorModal";
 import AddHostsModal from "../../../components/AddHostsModal";
