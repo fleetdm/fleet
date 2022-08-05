@@ -5,6 +5,7 @@ import { IDataTableMDMFormat } from "interfaces/macadmins";
 
 import PATHS from "router/paths";
 import TextCell from "components/TableContainer/DataTable/TextCell";
+import TooltipWrapper from "components/TooltipWrapper";
 import Chevron from "../../../../../assets/images/icon-chevron-right-9x6@2x.png";
 
 // NOTE: cellProps come from react-table
@@ -46,11 +47,43 @@ const enrollmentTableHeaders = [
     Header: "Status",
     disableSortBy: true,
     accessor: "status",
-    Cell: (cellProps: ICellProps) => <TextCell value={cellProps.cell.value} />,
+    Cell: (cellProps: IStringCellProps) => {
+      const tooltipText = (status: string): string => {
+        if (status === "Enrolled (automatic)") {
+          return `
+                <span>
+                  Hosts automatically enrolled to an MDM solution <br/>
+                  the first time the host is used. Administrators <br />
+                  might have a higher level of control over these <br />
+                  hosts.
+                </span>
+              `;
+        }
+        return `
+                <span>
+                  Hosts manually enrolled to an MDM solution by a<br />
+                  user or administrator.
+                </span>
+              `;
+      };
+
+      if (cellProps.cell.value === "Unenrolled") {
+        return <TextCell value={cellProps.cell.value} />;
+      }
+      return (
+        <span className="name-container">
+          <TooltipWrapper tipContent={tooltipText(cellProps.cell.value)}>
+            {cellProps.cell.value}
+          </TooltipWrapper>
+        </span>
+      );
+    },
+    sortType: "caseInsensitive",
   },
   {
     title: "Hosts",
     Header: "Hosts",
+    disableSortBy: true,
     accessor: "hosts",
     Cell: (cellProps: ICellProps) => <TextCell value={cellProps.cell.value} />,
   },
@@ -63,7 +96,7 @@ const enrollmentTableHeaders = [
     Cell: (cellProps: IStringCellProps) => {
       return (
         <Link
-          to={`${PATHS.MANAGE_HOSTS}?mdm_solution=${cellProps.row.original.status}`}
+          to={`${PATHS.MANAGE_HOSTS}?enrollment_status=${cellProps.row.original.status}`}
           className={`mdm-solution-link`}
         >
           View all hosts{" "}

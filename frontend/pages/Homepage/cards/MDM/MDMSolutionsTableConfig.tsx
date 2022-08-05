@@ -47,7 +47,12 @@ const solutionsTableHeaders = [
     Header: "Name",
     disableSortBy: true,
     accessor: "name",
-    Cell: (cellProps: ICellProps) => <TextCell value={cellProps.cell.value} />,
+    Cell: (cellProps: ICellProps) => (
+      <TextCell
+        greyed={cellProps.cell.value === "Unknown"}
+        value={cellProps.cell.value}
+      />
+    ),
   },
   {
     title: "Server URL",
@@ -76,7 +81,7 @@ const solutionsTableHeaders = [
     Cell: (cellProps: IStringCellProps) => {
       return (
         <Link
-          to={`${PATHS.MANAGE_HOSTS}?mdm_solution=${cellProps.row.original.name}`}
+          to={`${PATHS.MANAGE_HOSTS}?solution_id=${cellProps.row.original.id}`}
           className={`mdm-solution-link`}
         >
           View all hosts{" "}
