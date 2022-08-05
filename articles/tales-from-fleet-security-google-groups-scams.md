@@ -6,7 +6,7 @@ Our handbook contains detailed information on how we have configured Google Work
 
 These features are great for protecting from business email compromise (BEC) and other types of social engineering attacks.
 
-With this configuration, many of the less targetted, basic attempts at BEC get filtered, which is why an attempt we received a few weeks ago caught our attention. 
+With this configuration, many of the less targeted, basic attempts at BEC get filtered, which is why an attempt we received a few weeks ago caught our attention. 
 
 Google Groups mailing lists have much weaker protection, and the Gmail security settings could create a false sense of security.
 
