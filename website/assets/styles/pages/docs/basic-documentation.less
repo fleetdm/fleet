@@ -446,24 +446,49 @@
         padding-top: 0px;
       }
       blockquote {
+        margin: 24px 0 32px 32px;
+        display: block;
+        position: relative;
+      }
+      [purpose='quote'] {
+        font-style: italic;
+        line-height: 36px;
+        font-size: 24px;
+      }
+      [purpose='large-quote'] {
+        font-style: italic;
+        line-height: 24px;
+        font-size: 16px;
+      }
+      [purpose='large-quote']::before, [purpose='quote']::before {
+        display: inline;
+        position: absolute;
+        content: '“';
+        top: 16px;
+        left: -32px;
+        font-size: 64px;
+        padding-right: 8px;
+        color: @core-vibrant-blue;
+      }
+      [purpose='tip'] {
         margin: 16px 0 32px;
         background: #F7F7FC;
         border: 1px solid @core-vibrant-blue-50;
         padding: 16px;
         border-radius: 8px;
         display: inline-flex;
-      img {
-        display: flex;
-        margin: 4px 12px 0 0;
-        height: 16px;
-        width: 16px;
-        padding: 0px;
-      }
-      p {
-        display: block;
-        margin-bottom: 0px;
-        line-height: 24px;
-        font-size: 16px;
+        img {
+          display: flex;
+          margin: 4px 12px 0 0;
+          height: 16px;
+          width: 16px;
+          padding: 0px;
+        }
+        p {
+          display: block;
+          margin-bottom: 0px;
+          line-height: 24px;
+          font-size: 16px;
         }
       }
 
