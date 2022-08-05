@@ -415,14 +415,6 @@ func selectSoftwareSQL(opts fleet.SoftwareListOptions) (string, []interface{}, e
 			"s.arch",
 			goqu.I("scp.cpe").As("generated_cpe"),
 		).
-
-		// Include this in the sub-query in case we want to sort by 'generated_cpe'
-		LeftJoin(
-			goqu.I("software_cpe").As("scp"),
-			goqu.On(
-				goqu.I("s.id").Eq(goqu.I("scp.software_id")),
-			),
-		).
 		// Include this in the sub-query in case we want to sort by 'generated_cpe'
 		LeftJoin(
 			goqu.I("software_cpe").As("scp"),
