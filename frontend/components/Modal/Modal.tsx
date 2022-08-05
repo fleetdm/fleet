@@ -7,6 +7,7 @@ const baseClass = "modal";
 export interface IModalProps {
   children: JSX.Element;
   onExit: () => void;
+  onEnter?: () => void;
   title: string | JSX.Element;
   className?: string;
 }
@@ -14,6 +15,7 @@ export interface IModalProps {
 const Modal = ({
   children,
   onExit,
+  onEnter,
   title,
   className,
 }: IModalProps): JSX.Element => {
@@ -33,6 +35,22 @@ const Modal = ({
       document.removeEventListener("keydown", closeWithEscapeKey);
     };
   }, []);
+
+  useEffect(() => {
+    if (onEnter) {
+      const closeOrSaveWithEnterKey = (event: KeyboardEvent) => {
+        if (event.code === "Enter" || event.code === "NumpadEnter") {
+          event.preventDefault();
+          onEnter();
+        }
+      };
+
+      document.addEventListener("keydown", closeOrSaveWithEnterKey);
+      return () => {
+        document.removeEventListener("keydown", closeOrSaveWithEnterKey);
+      };
+    }
+  }, [onEnter]);
 
   const modalContainerClassName = classnames(
     `${baseClass}__modal_container`,

@@ -7,14 +7,12 @@ const baseClass = "reset-password-modal";
 
 interface IResetPasswordModal {
   user: IUser;
-  modalBaseClass: string;
   onResetConfirm: (user: IUser) => void;
   onResetCancel: () => void;
 }
 
 const ResetPasswordModal = ({
   user,
-  modalBaseClass,
   onResetConfirm,
   onResetCancel,
 }: IResetPasswordModal): JSX.Element => {
@@ -22,7 +20,7 @@ const ResetPasswordModal = ({
     <Modal
       title="Require password reset"
       onExit={onResetCancel}
-      className={`${modalBaseClass}__${baseClass}`}
+      onEnter={() => onResetConfirm(user)}
     >
       <div className={baseClass}>
         <p>

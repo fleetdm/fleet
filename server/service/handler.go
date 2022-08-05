@@ -219,6 +219,11 @@ func addMetrics(r *mux.Router) {
 	r.Walk(walkFn)
 }
 
+// desktopRateLimitMaxBurst is the max burst used for device request rate limiting.
+//
+// Defined as const to be used in tests.
+const desktopRateLimitMaxBurst = 100
+
 func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetConfig,
 	logger kitlog.Logger, limitStore throttled.GCRAStore, opts []kithttp.ServerOption,
 	extra extraHandlerOpts,
@@ -355,6 +360,8 @@ func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetC
 
 	ue.GET("/api/_version_/fleet/activities", listActivitiesEndpoint, listActivitiesRequest{})
 
+	ue.GET("/api/_version_/fleet/download_installer/{kind}", getInstallerEndpoint, installerRequest{})
+
 	ue.GET("/api/_version_/fleet/packs/{id:[0-9]+}/scheduled", getScheduledQueriesInPackEndpoint, getScheduledQueriesInPackRequest{})
 	ue.EndingAtVersion("v1").POST("/api/_version_/fleet/schedule", scheduleQueryEndpoint, scheduleQueryRequest{})
 	ue.StartingAtVersion("2022-04").POST("/api/_version_/fleet/packs/schedule", scheduleQueryEndpoint, scheduleQueryRequest{})
@@ -399,7 +406,7 @@ func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetC
 	de := newDeviceAuthenticatedEndpointer(svc, logger, opts, r, apiVersions...)
 	// We allow a quota of 720 because in the onboarding of a Fleet Desktop takes a few tries until it authenticates
 	// properly
-	desktopQuota := throttled.RateQuota{MaxRate: throttled.PerHour(720), MaxBurst: 100}
+	desktopQuota := throttled.RateQuota{MaxRate: throttled.PerHour(720), MaxBurst: desktopRateLimitMaxBurst}
 	de.WithCustomMiddleware(
 		errorLimiter.Limit("get_device_host", desktopQuota),
 	).GET("/api/_version_/fleet/device/{token}", getDeviceHostEndpoint, getDeviceHostRequest{})
@@ -486,7 +493,7 @@ func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetC
 	ne.WithCustomMiddleware(limiter.Limit("login", throttled.RateQuota{MaxRate: loginRateLimit, MaxBurst: 9})).
 		POST("/api/_version_/fleet/login", loginEndpoint, loginRequest{})
 
-	// Fleet Sandbox demo login (always errors unless FLEET_DEMO environment variable is set)
+	// Fleet Sandbox demo login (always errors unless config.server.sandbox_enabled is set)
 	ne.WithCustomMiddleware(limiter.Limit("login", throttled.RateQuota{MaxRate: loginRateLimit, MaxBurst: 9})).
 		POST("/api/_version_/fleet/demologin", makeDemologinEndpoint(config.Server.URLPrefix), demologinRequest{})
 }

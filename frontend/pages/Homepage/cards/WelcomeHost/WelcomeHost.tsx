@@ -24,12 +24,20 @@ interface IHostResponse {
   host: IHost;
 }
 
+interface IWelcomeHostCardProps {
+  totalsHostsCount: number;
+  toggleAddHostsModal: (showAddHostsModal: boolean) => void;
+}
+
 const baseClass = "welcome-host";
 const HOST_ID = 1;
 const policyPass = "pass";
 const policyFail = "fail";
 
-const WelcomeHost = (): JSX.Element => {
+const WelcomeHost = ({
+  totalsHostsCount,
+  toggleAddHostsModal,
+}: IWelcomeHostCardProps): JSX.Element => {
   const { renderFlash } = useContext(NotificationContext);
   const [refetchStartTime, setRefetchStartTime] = useState<number | null>(null);
   const [currentPolicyShown, setCurrentPolicyShown] = useState<IHostPolicy>();
@@ -49,6 +57,7 @@ const WelcomeHost = (): JSX.Element => {
     ["host"],
     () => hostAPI.loadHostDetails(HOST_ID),
     {
+      retry: false,
       select: (data: IHostResponse) => data.host,
       onSuccess: (returnedHost) => {
         setShowRefetchLoadingSpinner(returnedHost.refetch_requested);
@@ -129,7 +138,6 @@ const WelcomeHost = (): JSX.Element => {
     return (
       <div className={baseClass}>
         <div className={`${baseClass}__loading`}>
-          <p>Adding your device to Fleet</p>
           <Spinner />
         </div>
       </div>
@@ -137,6 +145,26 @@ const WelcomeHost = (): JSX.Element => {
   }
 
   if (loadingHostError) {
+    return (
+      <div className={baseClass}>
+        <div className={`${baseClass}__empty-hosts`}>
+          <p>Add your personal device to assess the security of your device.</p>
+          <p>
+            In Fleet, laptops, workstations, and servers are referred to as
+            &quot;hosts.&quot;
+          </p>
+          <Button
+            onClick={toggleAddHostsModal}
+            className={`${baseClass}__add-host button button--brand`}
+          >
+            <span>Add hosts</span>
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
+  if (totalsHostsCount === 1 && host && host.status === "offline") {
     return (
       <div className={baseClass}>
         <div className={`${baseClass}__error`}>
@@ -194,7 +222,7 @@ const WelcomeHost = (): JSX.Element => {
     );
   }
 
-  if (host) {
+  if (totalsHostsCount === 1 && host && host.status === "online") {
     return (
       <div className={baseClass}>
         <div className={`${baseClass}__intro`}>
@@ -204,53 +232,48 @@ const WelcomeHost = (): JSX.Element => {
               {host.hostname}
               <img alt="" src={LinkArrow} />
             </Link>
-            <p>
-              Your device is successully connected to this local preview of
-              Fleet.
-            </p>
+            <p>Your host is successfully connected to Fleet.</p>
           </div>
         </div>
         <div className={`${baseClass}__blurb`}>
           <p>
-            Fleet already ran the following checks to assess the security of
+            Fleet already ran the following policies to assess the security of
             your device:{" "}
           </p>
         </div>
         <div className={`${baseClass}__policies`}>
-          {host.policies?.slice(0, 10).map((p) => {
+          {host.policies?.slice(0, 3).map((p) => {
             if (p.response) {
               return (
-                <div className="policy-block">
-                  <div className="info">
-                    <img
-                      alt={p.response}
-                      src={p.response === policyPass ? IconPassed : IconError}
-                    />
-                    {p.name}
-                  </div>
-                  <Button
-                    variant="text-icon"
-                    onClick={() => handlePolicyModal(p.id)}
-                  >
+                <Button
+                  variant="text-icon"
+                  onClick={() => handlePolicyModal(p.id)}
+                >
+                  <div className="policy-block">
+                    <div className="info">
+                      <img
+                        alt={p.response}
+                        src={p.response === policyPass ? IconPassed : IconError}
+                      />
+                      {p.name}
+                    </div>
                     <img alt="" src={IconChevron} />
-                  </Button>
-                </div>
+                  </div>
+                </Button>
               );
             }
 
             return null;
           })}
-          {host.policies?.length > 10 && (
+          {host.policies?.length > 3 && (
             <Link to={PATHS.HOST_DETAILS(host)} className="external-link">
-              Go to Host details to see all checks
+              Go to Host details to see all policies
               <img alt="" src={LinkArrow} />
             </Link>
           )}
         </div>
         <div className={`${baseClass}__blurb`}>
-          <p>
-            Resolved a failing check? Refetch your device information to verify.
-          </p>
+          <p>Resolved a failing policy? Refetch your host vitals to verify.</p>
         </div>
         <div className={`${baseClass}__refetch`}>
           <Button
@@ -274,6 +297,7 @@ const WelcomeHost = (): JSX.Element => {
           <Modal
             title={currentPolicyShown?.name || ""}
             onExit={() => setShowPolicyModal(false)}
+            onEnter={() => setShowPolicyModal(false)}
             className={`${baseClass}__policy-modal`}
           >
             <>

@@ -14,12 +14,13 @@ type Platform string
 // OvalFilePrefix is the file prefix used when saving an OVAL artifact.
 const OvalFilePrefix = "fleet_oval"
 
+// SupportedHostPlatforms are the host's platforms for which we are using OVAL for vulnerability detection.
 var SupportedHostPlatforms = []string{"ubuntu", "rhel", "amzn"}
 
 // getMajorMinorVer returns the major and minor version of an 'os_version'.
 // ex: 'Ubuntu 20.4.0' => '(20, 04)'
 func getMajorMinorVer(osVersion string) (string, string) {
-	re := regexp.MustCompile(` (?P<major>\d+)\.?(?P<minor>\d+)?\.?(\*|\d+)?$`)
+	re := regexp.MustCompile(` (?P<major>\d+)\.?(?P<minor>\d+)?`)
 	m := re.FindStringSubmatch(osVersion)
 
 	if len(m) < 2 {

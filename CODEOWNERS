@@ -11,10 +11,13 @@ go.mod @fleetdm/go
 /infrastructure/ @zwinnerman-fleetdm @edwardsb @rfairburn
 
 # GitHub settings + actions
-/.github/ @g-platform
+/.github/ @fleetdm/g-platform
 
 # Changelog
 CHANGELOG.md @noahtalerman
+
+# Markdown docs
+*.md @Desmi-Dizney
 
 # API documentation
 /docs/Using-Fleet/REST-API.md @ksatter

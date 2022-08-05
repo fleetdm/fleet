@@ -16,7 +16,7 @@ export default PropTypes.shape({
 });
 
 /**
- * The id, name, and optional description for a team entity
+ * The id, name, description, and host count for a team entity
  */
 export interface ITeamSummary {
   id: number;

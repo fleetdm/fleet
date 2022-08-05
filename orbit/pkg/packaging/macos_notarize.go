@@ -13,7 +13,7 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
-// Notarize will do the Notarization step. Note that the provided path must be a .zip or a .dmg.
+// Notarize will do the Notarization step. Note that the provided path must be a .zip, .dmg or .pkg.
 func Notarize(path, bundleIdentifier string) error {
 	username, ok := os.LookupEnv("AC_USERNAME")
 	if !ok {
@@ -46,7 +46,7 @@ func Notarize(path, bundleIdentifier string) error {
 	return nil
 }
 
-// Staple will do the "stapling" step of Notarization. Note that this only works on .app and .dmg
+// Staple will do the "stapling" step of Notarization. Note that this only works on .app, .pkg and .dmg
 // (not .zip or plain binaries).
 func Staple(path string) error {
 	if err := staple.Staple(context.Background(), &staple.Options{File: path}); err != nil {

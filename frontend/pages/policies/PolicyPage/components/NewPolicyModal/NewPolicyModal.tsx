@@ -162,7 +162,6 @@ const NewPolicyModal = ({
               <ReactTooltip
                 className={`${baseClass}__button--modal-save-tooltip`}
                 place="bottom"
-                type="dark"
                 effect="solid"
                 id={`${baseClass}__button--modal-save-tooltip`}
                 backgroundColor="#3e4771"

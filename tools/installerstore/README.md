@@ -25,23 +25,33 @@ GLOBAL OPTIONS:
    --sts-assume-role-arn value                               ARN of role to assume for AWS [$INSTALLER_STS_ASSUME_ROLE_ARN]
    --disable-ssl                                             Disable SSL (typically for local testing) (default: false) [$INSTALLER_DISABLE_SSL]
    --force-s3-path-style http://s3.amazonaws.com/BUCKET/KEY  Set this to true to force path-style addressing, i.e., http://s3.amazonaws.com/BUCKET/KEY (default: false) [$INSTALLER_FORCE_S3_PATH_STYLE]
+   --create-bucket                                           Set this to true to create the bucket if it doesn't exist. Only recommended for local testing. (default: false) [$INSTALLER_CREATE_BUCKET]
    --help, -h                                                show help (default: false)
 ```
 
 ### Example
 
 To upload a file for testing to your local MinIO server, you can run this
-command from the root of the repo:
+command from the root of the repo (be sure to replace the `--enroll-secret` 
+string with the value you wish to test and set the `--fleet-desktop` boolean 
+to your desired value):
 
 ```
 go run tools/installerstore/main.go \
   --enroll-secret=xyz \
-  --bucket=installers \
+  --bucket=installers-dev \
   --region=minio \
+  --prefix=dev-prefix \
   --endpoint-url=localhost:9000 \
   --access-key-id=minio \
   --secret-access-key=minio123! \
   --disable-ssl=true \
   --force-s3-path-style=true \
+  --create-bucket=true \
+  --fleet-desktop=true \
   fleet-osquery.pkg
 ```
+
+Tip: MinIO provides an UI you can use to explore your local buckets. If you're
+running the Fleet server in development, it shoud be available at
+http://localhost:9001.

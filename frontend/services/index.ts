@@ -1,11 +1,16 @@
-import axios, { AxiosError, AxiosResponse } from "axios";
+import axios, {
+  AxiosError,
+  AxiosResponse,
+  ResponseType as AxiosResponseType,
+} from "axios";
 import local from "utilities/local";
 import URL_PREFIX from "router/url_prefix";
 
 const sendRequest = async (
   method: "GET" | "POST" | "PATCH" | "DELETE",
   path: string,
-  data?: unknown
+  data?: unknown,
+  responseType: AxiosResponseType = "json"
 ): Promise<any> => {
   const { origin } = global.window.location;
 
@@ -17,6 +22,7 @@ const sendRequest = async (
       method,
       url,
       data,
+      responseType,
       headers: {
         Authorization: `Bearer ${token}`,
       },

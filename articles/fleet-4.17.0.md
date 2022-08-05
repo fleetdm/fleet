@@ -1,6 +1,6 @@
 # Fleet 4.17.0 | Better osquery management, user engagement, improved host vitals.
 
-![Fleet 4.17.0](../website/assets/images/articles/fleet-4.17.0-cover-1600x900@2x.jpg)
+![Fleet 4.17.0](../website/assets/images/articles/fleet-4.17.0-hero-1600x900@2x.jpg)
 
 Fleet 4.17.0 is up and running. Check out the full [changelog](https://github.com/fleetdm/fleet/releases/tag/fleet-v4.17.0) or continue reading to get the highlights.
 
@@ -19,7 +19,7 @@ Fleet's osquery installer (Orbit) is out of beta! Orbit is a lightweight wrapper
 
 Future plans for the installer include adding the ability to manage `osquery` extensions and enrollment flags across your organization without needing to reinstall anything or ssh in to individual machines. A simple, one-stop shop for remotely managing `osquery`.
 
-You can generate your installer using the [`fleetctl` CLI tool](https://fleetdm.com/docs/using-fleet/adding-hosts#osquery-installer). If you're enrolling your host to a Fleet server, he best place to find the full command with flags specific to your Fleet instance is **Hosts > Add hosts** in the Fleet UI. Once the installer has been generated, just extract the file and run it on the host!
+You can generate your installer using the [`fleetctl` CLI tool](https://fleetdm.com/docs/using-fleet/adding-hosts#osquery-installer). If you're enrolling your host to a Fleet server, the best place to find the full command with flags specific to your Fleet instance is **Hosts > Add hosts** in the Fleet UI. Once the installer has been generated, just extract the file and run it on the host!
 
 [Read more about bringing Orbit out of beta.](https://github.com/fleetdm/fleet/issues/5454)
 
@@ -35,7 +35,7 @@ To include Fleet Desktop in your installer package, add the `--fleet-desktop` fl
 
 [Read more about bringing Fleet Desktop out of beta.](https://github.com/fleetdm/fleet/issues/5684)
 
-## Battery condition added to Host Details for MacOS.
+## Battery condition added to Host Details for macOS.
 **Available in Fleet Free & Fleet Premium**
 
 ![Battery condition added to Host Details.](../website/assets/images/articles/fleet-4.17.0-3-1600x900@2x.jpg)
@@ -54,11 +54,11 @@ In 4.17.0, we also:
 
 * Fixed osquery tables that report incorrect platforms.
 
-* Added `docker_container_envs` table to the osquery table schema on the **Query* page.
+* Added `docker_container_envs` table to the osquery table schema on the **Query** page.
 
 * Updated Fleet host detail query so that the `os_version` for Ubuntu hosts reflects the accurate patch number.
 
-* Improved accuracy of `software_host_counts` by removing hosts from the count if software has been uninstalled.
+* Improved accuracy of `software_host_counts` by removing hosts from the count if any software has been uninstalled.
 
 * Improved accuracy of the `last_restarted` date. 
 
@@ -66,11 +66,11 @@ In 4.17.0, we also:
 
 * Improved logging when fleetctl encounters permissions errors.
 
-* Added support for scanning RHEL based and Fedora hosts for vulnerable software using OVAL definitions.
+* Added support for scanning RHEL-based and Fedora hosts for vulnerable software using OVAL definitions.
 
 * Fixed SQL generated for operating system version policies to reduce false negatives
 
-* Added the number of hosts enrolled by operating system (OS) and OS version to anonymous usage statistics.
+* Added the number of hosts enrolled by Operating System (OS) and its version to anonymous usage statistics.
 
 * Added the weekly active users count to anonymous usage statistics.
 

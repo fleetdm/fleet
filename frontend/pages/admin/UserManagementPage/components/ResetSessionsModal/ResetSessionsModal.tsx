@@ -7,14 +7,12 @@ const baseClass = "reset-sessions-modal";
 
 interface IResetSessionsModal {
   user: IUser;
-  modalBaseClass: string;
   onResetConfirm: (user: IUser) => void;
   onResetCancel: () => void;
 }
 
 const ResetSessionsModal = ({
   user,
-  modalBaseClass,
   onResetConfirm,
   onResetCancel,
 }: IResetSessionsModal): JSX.Element => {
@@ -22,7 +20,7 @@ const ResetSessionsModal = ({
     <Modal
       title="Reset sessions"
       onExit={onResetCancel}
-      className={`${modalBaseClass}__${baseClass}`}
+      onEnter={() => onResetConfirm(user)}
     >
       <div className={baseClass}>
         <p>

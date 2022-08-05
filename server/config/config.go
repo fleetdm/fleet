@@ -25,12 +25,12 @@ const (
 
 // MysqlConfig defines configs related to MySQL
 type MysqlConfig struct {
-	Protocol        string
-	Address         string
-	Username        string
-	Password        string
+	Protocol        string `yaml:"protocol"`
+	Address         string `yaml:"address"`
+	Username        string `yaml:"username"`
+	Password        string `yaml:"password"`
 	PasswordPath    string `yaml:"password_path"`
-	Database        string
+	Database        string `yaml:"database"`
 	TLSCert         string `yaml:"tls_cert"`
 	TLSKey          string `yaml:"tls_key"`
 	TLSCA           string `yaml:"tls_ca"`
@@ -39,6 +39,7 @@ type MysqlConfig struct {
 	MaxOpenConns    int    `yaml:"max_open_conns"`
 	MaxIdleConns    int    `yaml:"max_idle_conns"`
 	ConnMaxLifetime int    `yaml:"conn_max_lifetime"`
+	SQLMode         string `yaml:"sql_mode"`
 }
 
 // RedisConfig defines configs related to Redis
@@ -413,6 +414,7 @@ func (man Manager) addConfigs() {
 		man.addConfigInt(prefix+".max_open_conns", 50, "MySQL maximum open connection handles"+usageSuffix)
 		man.addConfigInt(prefix+".max_idle_conns", 50, "MySQL maximum idle connection handles"+usageSuffix)
 		man.addConfigInt(prefix+".conn_max_lifetime", 0, "MySQL maximum amount of time a connection may be reused"+usageSuffix)
+		man.addConfigString(prefix+".sql_mode", "", "MySQL sql_mode"+usageSuffix)
 	}
 	// MySQL
 	addMysqlConfig("mysql", "localhost:3306", ".")
@@ -463,6 +465,12 @@ func (man Manager) addConfigs() {
 		"Controls whether HTTP keep-alives are enabled.")
 	man.addConfigBool("server.sandbox_enabled", false,
 		"When enabled, Fleet limits some features for the Sandbox")
+
+	// Hide the sandbox flag as we don't want it to be discoverable for users for now
+	sandboxFlag := man.command.PersistentFlags().Lookup(flagNameFromConfigKey("server.sandbox_enabled"))
+	if sandboxFlag != nil {
+		sandboxFlag.Hidden = true
+	}
 
 	// Auth
 	man.addConfigInt("auth.bcrypt_cost", 12,
@@ -688,6 +696,7 @@ func (man Manager) LoadConfig() FleetConfig {
 			MaxOpenConns:    man.getConfigInt(prefix + ".max_open_conns"),
 			MaxIdleConns:    man.getConfigInt(prefix + ".max_idle_conns"),
 			ConnMaxLifetime: man.getConfigInt(prefix + ".conn_max_lifetime"),
+			SQLMode:         man.getConfigString(prefix + ".sql_mode"),
 		}
 	}
 
@@ -860,6 +869,17 @@ func (man Manager) LoadConfig() FleetConfig {
 		},
 		Packaging: PackagingConfig{
 			GlobalEnrollSecret: man.getConfigString("packaging.global_enroll_secret"),
+			S3: S3Config{
+				Bucket:           man.getConfigString("packaging.s3.bucket"),
+				Prefix:           man.getConfigString("packaging.s3.prefix"),
+				Region:           man.getConfigString("packaging.s3.region"),
+				EndpointURL:      man.getConfigString("packaging.s3.endpoint_url"),
+				AccessKeyID:      man.getConfigString("packaging.s3.access_key_id"),
+				SecretAccessKey:  man.getConfigString("packaging.s3.secret_access_key"),
+				StsAssumeRoleArn: man.getConfigString("packaging.s3.sts_assume_role_arn"),
+				DisableSSL:       man.getConfigBool("packaging.s3.disable_ssl"),
+				ForceS3PathStyle: man.getConfigBool("packaging.s3.force_s3_path_style"),
+			},
 		},
 	}
 

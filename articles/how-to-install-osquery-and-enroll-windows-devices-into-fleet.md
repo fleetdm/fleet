@@ -6,7 +6,7 @@ Alternatively, you can run a preview environment of Fleet locally (which automat
 
 ## Prerequisites
 
-Before installing osquery on Windows and enrolling that Windows device, you will need access to a Fleet server (see [Deploying Fleet on Render](https://fleetdm.com/guides/deploying-fleet-on-render) for an example.)
+Before installing osquery on Windows and enrolling that Windows device, you will need access to a Fleet server (see [Deploying Fleet on Render](https://fleetdm.com/deploy/deploying-fleet-on-render) for an example.)
 
 If you don’t already have it, you will also need to install the `fleetctl` CLI tool. `fleetctl` can be installed via `npm` by running the following command:
 
@@ -35,7 +35,7 @@ fleetctl.exe - version 4.8.0
 
 ## Installing osquery
 
-Head over to the Hosts page on Fleet and click on the “Generate installer” button, which will present a pop-up that allows you to choose the type of installer you want to generate. Make sure you are on the “Windows” tab and click on the clipboard icon.
+Head over to the Hosts page on Fleet and click on the “Add hosts” button, which will present a pop-up that allows you to choose the type of installer you want to generate. Make sure you are on the “Windows” tab and click on the clipboard icon.
 
 ![Generate installer](../website/assets/images/articles/install-osquery-and-enroll-windows-devices-into-fleet-1-700x365@2x.png)
 *Windows osquery Installer command on Fleet UI*

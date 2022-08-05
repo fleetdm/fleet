@@ -146,7 +146,7 @@ const generateVulnTableHeaders = (isPremiumTier: boolean): IDataColumn[] => {
         const titleWithToolTip = (
           <TooltipWrapper
             tipContent={`
-            The vulnerability has been actively exploited in the wild. This data is reported by<br />
+            The vulnerability has been actively exploited in the wild. This data is reported by 
             the Cybersecurity and Infrustructure Security Agency (CISA).
           `}
           >

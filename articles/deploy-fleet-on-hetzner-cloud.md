@@ -707,9 +707,9 @@ Now that you’re ready to use Fleet and have a host installed. Here's some next
 - Import Fleet's [standard query library](https://fleetdm.com/docs/using-fleet/standard-query-library) to start asking questions about your hosts.
 - To run a more secure setup, consider creating a dedicated `fleet` user with Docker's support for user [namespaces](https://docs.docker.com/engine/security/userns-remap/). 
 
-<meta name="category" value="guides">
+<meta name="category" value="deploy">
 <meta name="authorGitHubUsername" value="ksatter">
-<meta name="authorFullName" value="Katheryn Satterlee">
+<meta name="authorFullName" value="Kathy Satterlee">
 <meta name="publishedOn" value="2022-06-27">
 <meta name="articleTitle" value="Deploy Fleet on Hetzner Cloud with Cloud-init & Docker">
 <meta name="articleImageUrl" value="../website/assets/images/articles/deploying-fleet-on-hetzner-1600x900@2x.jpg">

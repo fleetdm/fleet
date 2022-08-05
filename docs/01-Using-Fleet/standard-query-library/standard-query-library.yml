@@ -218,7 +218,7 @@ kind: query
 spec:
   name: Get active user accounts on servers
   platforms: Linux
-  description: Domain Joined environments normally have root or other service only account and users are SSH-ing using their Domain Accounts.
+  description: Domain Joined environments normally have root or other service only accounts and users are SSH-ing using their Domain Accounts.
   query: SELECT * FROM shadow WHERE password_status='active' and username!='root';
   purpose: informational
   tags: hunting, inventory, Active Directory
@@ -243,7 +243,7 @@ kind: query
 spec:
   name: Get Docker contained processes on a system
   platforms: macOS, Linux
-  description: Docker containers Processes, can be used on normal system or a kubenode.
+  description: Docker containers Processes, can be used on normal systems or a kubenode.
   query: SELECT c.id, c.name, c.image, c.image_id, c.command, c.created, c.state, c.status, p.cmdline  FROM docker_containers c CROSS JOIN docker_container_processes p using(id);
   purpose: Informational
   tags: built-in, containers, inventory
@@ -276,7 +276,7 @@ kind: query
 spec:
   name: Get processes that no longer exist on disk
   platforms: Linux, macOS, Windows
-  description: Lists all processes of which the binary which launched them no longer exists on disk. Attackers often delete files from disk after launching process to mask presence.
+  description: Lists all processes of which the binary which launched them no longer exists on disk. Attackers often delete files from disk after launching a process to mask presence.
   query: SELECT name, path, pid FROM processes WHERE on_disk = 0;
   purpose: Incident response
   tags: hunting, built-in
@@ -332,7 +332,7 @@ spec:
   name: Get malicious Python backdoors
   platforms: macOS, Linux, Windows
   description: Watches for the backdoored Python packages installed on the system. See (http://www.nbu.gov.sk/skcsirt-sa-20170909-pypi/index.html)
-  query: SELECT CASE cnt WHEN 0 THEN "NONE_INSTALLED" ELSE "INSTALLED" END AS "Malicious Python Packages", package_name, package_version FROM (SELECT COUNT(name) AS cnt, name AS package_name, version AS package_version, path AS package_path FROM python_packages WHERE package_name IN ('acqusition', 'apidev-coop', 'bzip', 'crypt', 'django-server', 'pwd', 'setup-tools', 'telnet', 'urlib3', 'urllib'));
+  query: SELECT CASE cnt WHEN 0 THEN "NONE_INSTALLED" ELSE "INSTALLED" END AS "Malicious Python Packages", package_name, package_version FROM (SELECT COUNT(name) AS cnt, name AS package_name, version AS package_version, path AS package_path FROM python_packages WHERE package_name IN ('acquisition', 'apidev-coop', 'bzip', 'crypt', 'django-server', 'pwd', 'setup-tools', 'telnet', 'urlib3', 'urllib'));
   purpose: Informational
   tags: hunting, inventory, malware
   contributors: alphabrevity
@@ -386,7 +386,7 @@ kind: query
 spec:
   name: Get servers with root login in the last 24 hours
   platforms: macOS, Linux, Windows
-  description: Returns servers with root login in the last 24 hours and the time the users where logged in.
+  description: Returns servers with root login in the last 24 hours and the time the users were logged in.
   query: SELECT * FROM last WHERE username = "root" AND time > (( SELECT unix_time FROM time ) - 86400 );
   purpose: Informational
   tags: hunting
@@ -397,7 +397,7 @@ kind: query
 spec:
   name: Detect active processes with Log4j running
   platforms: macOS, Linux
-  description: 'Returns a list of active processes and the Jar paths which are using Log4j. Version numbers are usually within the Jar filename. Note: This query is resource intensive and has caused problems on systems with limited swap space. Test on some systems before running this widely.'
+  description: "Returns a list of active processes and the Jar paths which are using Log4j. Version numbers are usually within the Jar filename. Note: This query is resource intensive and has caused problems on systems with limited swap space. Test on some systems before running this widely."
   query: |
     WITH target_jars AS (
       SELECT DISTINCT path
@@ -491,7 +491,8 @@ spec:
   name: Full disk encryption enabled (Windows)
   query: SELECT 1 FROM bitlocker_info where protection_status = 1;
   description: Checks to make sure that full disk encryption is enabled on Windows devices.
-  resolution: "To get additional information, run the following osquery query on the failing device: SELECT * FROM bitlocker_info. In the
+  resolution:
+    "To get additional information, run the following osquery query on the failing device: SELECT * FROM bitlocker_info. In the
     query results, if protection_status is 2, then the status cannot be determined. If it is 0, it is
     considered unprotected. Use the additional results (percent_encrypted, conversion_status, etc.) to
     help narrow down the specific reason why Windows considers the volume unprotected."
@@ -541,7 +542,7 @@ kind: policy
 spec:
   name: Automatic login disabled (macOS)
   query: SELECT 1 FROM managed_policies WHERE domain = 'com.apple.loginwindow' AND name = 'com.apple.login.mcx.DisableAutoLoginClient' AND value = 1 LIMIT 1;
-  description: "Required: You’re already enforcing a policy via Moble Device Management (MDM). Checks to make sure that the device user cannot log in to the device without a password."
+  description: "Required: You’re already enforcing a policy via Mobile Device Management (MDM). Checks to make sure that the device user cannot log in to the device without a password."
   resolution: "The following example profile includes a setting to disable automatic login: https://github.com/gregneagle/profiles/blob/fecc73d66fa17b6fa78b782904cb47cdc1913aeb/loginwindow.mobileconfig#L64-L65."
   platforms: macOS
   tags: compliance, hardening, built-in
@@ -553,7 +554,7 @@ kind: policy
 spec:
   name: Guest users disabled (macOS)
   query: SELECT 1 FROM managed_policies WHERE domain = 'com.apple.loginwindow' AND name = 'DisableGuestAccount' AND value = 1 LIMIT 1;
-  description: "Required: You’re already enforcing a policy via Moble Device Management (MDM). Checks to make sure that guest accounts cannot be used to log in to the device without a password."
+  description: "Required: You’re already enforcing a policy via Mobile Device Management (MDM). Checks to make sure that guest accounts cannot be used to log in to the device without a password."
   resolution: "The following example profile includes a setting to disable guest users: https://github.com/gregneagle/profiles/blob/fecc73d66fa17b6fa78b782904cb47cdc1913aeb/loginwindow.mobileconfig#L68-L71."
   platforms: macOS
   tags: compliance, hardening, built-in
@@ -565,7 +566,7 @@ kind: policy
 spec:
   name: Secure keyboard entry for Terminal.app enabled (macOS)
   query: SELECT 1 FROM managed_policies WHERE domain = 'com.apple.Terminal' AND name = 'SecureKeyboardEntry' AND value = 1 LIMIT 1;
-  description: "Required: You’re already enforcing a policy via Moble Device Management (MDM). Checks to make sure that the Secure Keyboard Entry setting is enabled."
+  description: "Required: You’re already enforcing a policy via Mobile Device Management (MDM). Checks to make sure that the Secure Keyboard Entry setting is enabled."
   platforms: macOS
   tags: compliance, hardening, built-in
   platform: darwin
@@ -609,8 +610,9 @@ kind: policy
 spec:
   name: Antivirus healthy (macOS)
   query: SELECT score FROM (SELECT case when COUNT(*) = 2 then 1 ELSE 0 END AS score FROM plist WHERE (key = 'CFBundleShortVersionString' AND path = '/Library/Apple/System/Library/CoreServices/XProtect.bundle/Contents/Info.plist' AND value>=2155) OR (key = 'CFBundleShortVersionString' AND path = '/Library/Apple/System/Library/CoreServices/MRT.app/Contents/Info.plist' and value>=1.88)) WHERE score == 1;
-  description: Checks the version of Malware Removal Tool (MRT) and the built-in macOS AV (Xprotect). Replace version numbers with latest version regularly.
-  resolution: To enable automatic security definition updates, on the failing device, select System
+  description: Checks the version of Malware Removal Tool (MRT) and the built-in macOS AV (Xprotect). Replace version numbers with the latest version regularly.
+  resolution:
+    To enable automatic security definition updates, on the failing device, select System
     Preferences > Software Update > Advanced > Turn on Install system data files and security
     updates.
   platforms: macOS
@@ -744,7 +746,7 @@ spec:
   name: Password requires 10 or more characters (macOS)
   query: SELECT 1 FROM (SELECT cast(lengthtxt as integer(2)) minlength FROM (SELECT SUBSTRING(length, 1, 2) AS lengthtxt FROM (SELECT policy_description, policy_identifier, split(policy_content, '{', 1) AS length FROM password_policy WHERE policy_identifier LIKE '%minLength')) WHERE minlength >= 10);
   description: "Checks that the password policy requires at least 10 characters. Requires osquery 5.4.0 or newer."
-  resolution: "Contact your IT administrator to ensure your Mac is receiving configuration profiles for password length."
+  resolution: "Contact your IT administrator to make sure your Mac is receiving configuration profiles for password length."
   platforms: macOS
   tags: compliance, hardening, built-in
   platform: darwin

@@ -60,7 +60,7 @@ Writing the query with this `JOIN` ensures that osquery first generates the list
 
 Note: It is important to use `CROSS JOIN` as this tells the query optimizer not to reorder the evaluation of the tables. If we use a regular `JOIN` it is possible that reordering could result in the original error being encountered (because the `chrome_extensions` table generates with no `uid` in its context).
 
-<meta name="category" value="product">
+<meta name="category" value="guides">
 <meta name="authorGitHubUsername" value="zwass">
 <meta name="authorFullName" value="Zach Wasserman">
 <meta name="publishedOn" value="2021-05-06">

@@ -1,8 +1,9 @@
-import { snakeCase } from "lodash";
+import { snakeCase, reduce } from "lodash";
 
 import sendRequest from "services";
 import endpoints from "utilities/endpoints";
 import { ISoftware } from "interfaces/software";
+import { buildQueryStringFromParams, QueryParams } from "utilities/url";
 
 interface IGetSoftwareProps {
   page?: number;
@@ -32,19 +33,15 @@ type ISoftwareParams = Partial<IGetSoftwareProps>;
 const ORDER_KEY = "name";
 const ORDER_DIRECTION = "asc";
 
-const buildQueryStringFromParams = (params: ISoftwareParams) => {
-  const filteredParams = Object.entries(params).filter(
-    ([key, value]) => !!value
+const convertParamsToSnakeCase = (params: ISoftwareParams) => {
+  return reduce<typeof params, QueryParams>(
+    params,
+    (result, val, key) => {
+      result[snakeCase(key)] = val;
+      return result;
+    },
+    {}
   );
-  if (!filteredParams.length) {
-    return "";
-  }
-  return `?${filteredParams
-    .map(
-      ([key, value]) =>
-        `${encodeURIComponent(snakeCase(key))}=${encodeURIComponent(value)}`
-    )
-    .join("&")}`;
 };
 
 export default {
@@ -58,21 +55,19 @@ export default {
     teamId,
   }: ISoftwareParams): Promise<ISoftwareResponse> => {
     const { SOFTWARE } = endpoints;
-    const pagination = perPage ? `page=${page}&per_page=${perPage}` : "";
-    const sort = `order_key=${orderKey}&order_direction=${orderDir}`;
-    let path = `${SOFTWARE}?${pagination}&${sort}`;
+    const queryParams = {
+      page,
+      perPage,
+      orderKey,
+      orderDirection: orderDir,
+      teamId,
+      query,
+      vulnerable,
+    };
 
-    if (teamId) {
-      path += `&team_id=${teamId}`;
-    }
-
-    if (query) {
-      path += `&query=${encodeURIComponent(query)}`;
-    }
-
-    if (vulnerable) {
-      path += `&vulnerable=${vulnerable}`;
-    }
+    const snakeCaseParams = convertParamsToSnakeCase(queryParams);
+    const queryString = buildQueryStringFromParams(snakeCaseParams);
+    const path = `${SOFTWARE}?${queryString}`;
 
     try {
       return sendRequest("GET", path);
@@ -84,9 +79,10 @@ export default {
   count: async (params: ISoftwareParams): Promise<ISoftwareCountResponse> => {
     const { SOFTWARE } = endpoints;
     const path = `${SOFTWARE}/count`;
-    const queryString = buildQueryStringFromParams(params);
+    const snakeCaseParams = convertParamsToSnakeCase(params);
+    const queryString = buildQueryStringFromParams(snakeCaseParams);
 
-    return sendRequest("GET", path.concat(queryString));
+    return sendRequest("GET", path.concat(`?${queryString}`));
   },
 
   getSoftwareById: async (

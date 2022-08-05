@@ -4,8 +4,10 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"io"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/health"
 )
 
@@ -21,6 +23,13 @@ type CarveStore interface {
 	// CleanupCarves will mark carves older than 24 hours expired, and delete the associated data blocks. This behaves
 	// differently for carves stored in S3 (check the implementation godoc comment for more details)
 	CleanupCarves(ctx context.Context, now time.Time) (expired int, err error)
+}
+
+// InstallerStore is used to communicate to a blob storage containing pre-built
+// fleet-osquery installers
+type InstallerStore interface {
+	Get(ctx context.Context, installer Installer) (io.ReadCloser, int64, error)
+	Put(ctx context.Context, installer Installer) (string, error)
 }
 
 // Datastore combines all the interfaces in the Fleet DAL
@@ -360,7 +369,7 @@ type Datastore interface {
 	ListSoftwareForVulnDetection(ctx context.Context, hostID uint) ([]Software, error)
 	ListSoftwareVulnerabilities(ctx context.Context, hostIDs []uint) (map[uint][]SoftwareVulnerability, error)
 	LoadHostSoftware(ctx context.Context, host *Host, includeCVEScores bool) error
-	AllSoftwareWithoutCPEIterator(ctx context.Context) (SoftwareIterator, error)
+	AllSoftwareWithoutCPEIterator(ctx context.Context, excludedPlatforms []string) (SoftwareIterator, error)
 	AddCPEForSoftware(ctx context.Context, software Software, cpe string) error
 	ListSoftwareCPEs(ctx context.Context, excludedPlatforms []string) ([]SoftwareCPE, error)
 	// InsertVulnerabilities inserts the given vulnerabilities in the datastore, returns the number
@@ -391,7 +400,7 @@ type Datastore interface {
 	///////////////////////////////////////////////////////////////////////////////
 	// StatisticsStore
 
-	ShouldSendStatistics(ctx context.Context, frequency time.Duration, license *LicenseInfo) (StatisticsPayload, bool, error)
+	ShouldSendStatistics(ctx context.Context, frequency time.Duration, config config.FleetConfig, license *LicenseInfo) (StatisticsPayload, bool, error)
 	RecordStatisticsSent(ctx context.Context) error
 
 	///////////////////////////////////////////////////////////////////////////////

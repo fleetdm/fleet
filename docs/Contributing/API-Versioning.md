@@ -1,5 +1,9 @@
 # API versioning
 
+All of the Fleet API routes currently support `v1` in the URL path.
+
+When Fleet 5 is released, the Fleet API will use date versioning (specified below) and support for `v1` will be removed.
+
 ## Why do we need to version the API?
 
 The API is a product, just like fleetctl and the web UI. It has its users, mostly fleetctl and the web UI, but third-party developers also work with it.

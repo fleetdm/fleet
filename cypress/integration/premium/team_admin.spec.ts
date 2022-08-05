@@ -349,7 +349,7 @@ describe("Premium tier - Team Admin user", () => {
           });
       });
       cy.findByRole("button", { name: /delete/i }).click();
-      cy.getAttached(".remove-policies-modal").within(() => {
+      cy.getAttached(".delete-policies-modal").within(() => {
         cy.findByRole("button", { name: /delete/i }).should("exist");
         cy.findByRole("button", { name: /cancel/i }).click();
       });
@@ -403,7 +403,7 @@ describe("Premium tier - Team Admin user", () => {
   describe("User profile page", () => {
     it("should render elements according to role-based access controls", () => {
       cy.visit("/profile");
-      cy.getAttached(".user-settings__additional").within(() => {
+      cy.getAttached(".user-side-panel").within(() => {
         cy.findByText(/team/i)
           .next()
           .contains(/mystic/i); // Updated team name
