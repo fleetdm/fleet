@@ -9,6 +9,7 @@ type StatisticsPayload struct {
 	AnonymousIdentifier            string                             `json:"anonymousIdentifier"`
 	FleetVersion                   string                             `json:"fleetVersion"`
 	LicenseTier                    string                             `json:"licenseTier"`
+	Organization                   string                             `json:"organization"`
 	NumHostsEnrolled               int                                `json:"numHostsEnrolled"`
 	NumUsers                       int                                `json:"numUsers"`
 	NumTeams                       int                                `json:"numTeams"`

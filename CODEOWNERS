@@ -17,7 +17,7 @@ go.mod @fleetdm/go
 CHANGELOG.md @noahtalerman
 
 # Markdown docs
-/docs/*.md @Desmi-Dizney
+*.md @Desmi-Dizney
 
 # API documentation
 /docs/Using-Fleet/REST-API.md @ksatter

@@ -77,6 +77,7 @@ const SecretEditorModal = ({
   return (
     <Modal
       onExit={toggleSecretEditorModal}
+      onEnter={onSaveSecretClick}
       title={selectedSecret ? "Edit secret" : "Add secret"}
       className={baseClass}
     >

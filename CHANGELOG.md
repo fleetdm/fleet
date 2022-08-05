@@ -1,5 +1,52 @@
+## Fleet 4.18.0 (Aug 1, 2022)
 
-## Fleet 4.17.0 (July 8, 2022)
+* Added a Call to Action to the failing policy banner in Fleet Desktop. This empowers end-users to manage their device's compliance. 
+
+* Introduced rate limiting for device authorized endpoints to improve the security of Fleet Desktop. 
+
+* Improved styling for tooltips, dropdowns, copied text, checkboxes and buttons. 
+
+* Fixed a bug in the Fleet UI causing text to be truncated in tables. 
+
+* Fixed a bug affecting software vulnerabilities count in Host Details.
+
+* Fixed "Select Targets" search box and updated to reflect currently supported search values: hostname, UUID, serial number, or IPv4.
+
+* Improved disk space reporting in Host Details. 
+
+* Updated frequency formatting for Packs to match Schedules. 
+
+* Replaced "hosts" count with "results" count for live queries.
+
+* Replaced "Uptime" with "Last restarted" column in Host Details.
+
+* Removed vulnerabilities that do not correspond to a CVE in Fleet UI and API.
+
+* Added standard password requirements when users are created by an admin.
+
+* Updated the regexp we use for detecting the major/minor version on OS platforms.
+
+* Improved calculation of battery health based on cycle count. “Normal” corresponds to cycle count < 1000 and “Replacement recommended” corresponds to cycle count >= 1000.
+
+* Fixed an issue with double quotes usage in SQL query, caused by enabling `ANSI_QUOTES` in MySQL.
+
+* Added automated tests for Fleet upgrades.
+
+## Fleet 4.17.1 (Jul 22, 2022)
+
+* Fixed a bug causing an error when converting users to SSO login. 
+
+* Fixed a bug causing the **Edit User** modal to hang when editing multiple users.
+
+* Fixed a bug that caused Ubuntu hosts to display an inaccurate OS version. 
+
+* Fixed a bug affecting exporting live query results.
+
+* Fixed a bug in the Fleet UI affecting live query result counts.
+
+* Improved **Battery Health** processing to better reflect the health of batteries for M1 Macs.
+
+## Fleet 4.17.0 (Jul 8, 2022)
 
 * Fleet Premium and Fleet Free: Fleet desktop is officially out of beta. This application shows users exactly what's going on with their device and gives them the tools they need to make sure it is secure and aligned with policies. They just need to click an icon in their menu bar. 
 
