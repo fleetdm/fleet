@@ -94,9 +94,19 @@ const enrollmentTableHeaders = [
     disableGlobalFilter: true,
     accessor: "linkToFilteredHosts",
     Cell: (cellProps: IStringCellProps) => {
+      const statusParam = () => {
+        switch (cellProps.row.original.status) {
+          case "Enrolled (automatic)":
+            return "automatic";
+          case "Enrolled (manual)":
+            return "manual";
+          default:
+            return "unenrolled";
+        }
+      };
       return (
         <Link
-          to={`${PATHS.MANAGE_HOSTS}?enrollment_status=${cellProps.row.original.status}`}
+          to={`${PATHS.MANAGE_HOSTS}?mdm_enrollment_status=${statusParam()}`}
           className={`mdm-solution-link`}
         >
           View all hosts{" "}
