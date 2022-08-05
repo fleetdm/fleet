@@ -4,6 +4,7 @@ import { Link } from "react-router";
 import { IMDMSolution } from "interfaces/macadmins";
 
 import PATHS from "router/paths";
+import { greyCell } from "utilities/helpers";
 import HeaderCell from "components/TableContainer/DataTable/HeaderCell";
 import TextCell from "components/TableContainer/DataTable/TextCell";
 import Chevron from "../../../../../assets/images/icon-chevron-right-9x6@2x.png";
@@ -49,7 +50,7 @@ const solutionsTableHeaders = [
     accessor: "name",
     Cell: (cellProps: ICellProps) => (
       <TextCell
-        greyed={cellProps.cell.value === "Unknown"}
+        greyed={greyCell(cellProps.cell.value)}
         value={cellProps.cell.value}
       />
     ),

@@ -547,16 +547,16 @@ export const generateTeam = (
   return `${teams.length + 1} teams`; // global role and one or more teams
 };
 
-export const greyCell = (roleOrTeamText: string): string => {
-  const GREYED_TEXT = ["Global", "Unassigned", "Various", "No Team"];
+export const greyCell = (roleOrTeamText: string): boolean => {
+  const GREYED_TEXT = ["Global", "Unassigned", "Various", "No Team", "Unknown"];
 
   if (
     GREYED_TEXT.includes(roleOrTeamText) ||
     roleOrTeamText.includes(" teams")
   ) {
-    return "grey-cell";
+    return true;
   }
-  return "";
+  return false;
 };
 
 const setupData = (formData: any) => {
