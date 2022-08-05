@@ -35,7 +35,7 @@ fleetctl.exe - version 4.8.0
 
 ## Installing osquery
 
-Head over to the Hosts page on Fleet and click on the “Generate installer” button, which will present a pop-up that allows you to choose the type of installer you want to generate. Make sure you are on the “Windows” tab and click on the clipboard icon.
+Head over to the Hosts page on Fleet and click on the “Add hosts” button, which will present a pop-up that allows you to choose the type of installer you want to generate. Make sure you are on the “Windows” tab and click on the clipboard icon.
 
 ![Generate installer](../website/assets/images/articles/install-osquery-and-enroll-windows-devices-into-fleet-1-700x365@2x.png)
 *Windows osquery Installer command on Fleet UI*
