@@ -4,6 +4,10 @@ There are many ways to deploy Fleet. Last time, we looked at deploying [Fleet on
 
 Deploying on AWS with Fleet’s reference architecture will get you a fully functional Fleet instance that can scale to your needs
 
+<div class="video-container" style="position: relative; width: 100%; padding-bottom: 56.25%; margin-top: 24px; margin-bottom: 40px;">
+	<iframe class="video" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; border: 0;" src="https://www.youtube.com/embed/vMcP0tM6g_o" allowfullscreen></iframe>
+</div>
+
 ## Prerequisites:
 
 - AWS CLI installed and configured.

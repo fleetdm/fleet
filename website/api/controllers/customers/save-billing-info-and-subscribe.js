@@ -89,7 +89,7 @@ module.exports = {
       customer: this.req.me.stripeCustomerId,
       items: [
         {
-          price: sails.config.custom.stripeSubscriptionProduct,
+          price: sails.config.custom.stripeSubscriptionPriceId,
           quantity: quoteRecord.numberOfHosts,
         },
       ],

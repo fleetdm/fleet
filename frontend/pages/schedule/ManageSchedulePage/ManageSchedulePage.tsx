@@ -29,7 +29,7 @@ import Spinner from "components/Spinner";
 import TeamsDropdown from "components/TeamsDropdown";
 import TableDataError from "components/DataError";
 import MainContent from "components/MainContent";
-import ScheduleListWrapper from "./components/ScheduleListWrapper";
+import ScheduleTable from "./components/ScheduleTable";
 import ScheduleEditorModal from "./components/ScheduleEditorModal";
 import RemoveScheduledQueryModal from "./components/RemoveScheduledQueryModal";
 
@@ -55,7 +55,7 @@ const renderTable = (
   return allScheduledQueriesError || errorQueries ? (
     <TableDataError />
   ) : (
-    <ScheduleListWrapper
+    <ScheduleTable
       router={router}
       onRemoveScheduledQueryClick={onRemoveScheduledQueryClick}
       onEditScheduledQueryClick={onEditScheduledQueryClick}
@@ -82,7 +82,7 @@ const renderAllTeamsTable = (
     <TableDataError />
   ) : (
     <div className={`${baseClass}__all-teams-table`}>
-      <ScheduleListWrapper
+      <ScheduleTable
         router={router}
         inheritedQueries
         allScheduledQueriesList={allTeamsScheduledQueriesList}

@@ -15,9 +15,11 @@ export default {
     includeDesktop,
     installerType,
   }: IDownloadInstallerRequestParams): Promise<BlobPart> => {
-    const path = `${ENDPOINTS.DOWNLOAD_INSTALLER}/${encodeURIComponent(
+    const path = `${
+      ENDPOINTS.DOWNLOAD_INSTALLER
+    }/${installerType}?desktop=${includeDesktop}&enroll_secret=${encodeURIComponent(
       enrollSecret
-    )}/${installerType}?desktop=${includeDesktop}`;
+    )}`;
     console.log("path: ", path);
 
     return sendRequest("GET", path, undefined, "blob");

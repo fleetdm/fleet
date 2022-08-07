@@ -105,7 +105,7 @@ func setupCommand() *cli.Command {
 				return fmt.Errorf("error setting token for the current context: %w", err)
 			}
 
-			fmt.Println("Fleet Device Management Inc. periodically collects anonymous information about your instance.\nSending usage statistics from your Fleet instance is optional and can be disabled in settings.")
+			fmt.Println("Fleet Device Management Inc. periodically collects information about your instance.\nSending usage statistics from your Fleet instance is optional and can be disabled in settings.")
 			fmt.Println("[+] Fleet setup successful and context configured!")
 
 			return nil

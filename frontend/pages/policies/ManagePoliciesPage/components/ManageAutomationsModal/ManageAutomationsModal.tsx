@@ -166,9 +166,7 @@ const ManageAutomationsModal = ({
     );
   };
 
-  const onClickSave = (
-    evt: React.MouseEvent<HTMLFormElement> | KeyboardEvent
-  ) => {
+  const onSubmit = (evt: React.MouseEvent<HTMLFormElement> | KeyboardEvent) => {
     evt.preventDefault();
 
     const newPolicyIds: number[] = [];
@@ -254,14 +252,14 @@ const ManageAutomationsModal = ({
     const listener = (event: KeyboardEvent) => {
       if (event.code === "Enter" || event.code === "NumpadEnter") {
         event.preventDefault();
-        onClickSave(event);
+        onSubmit(event);
       }
     };
     document.addEventListener("keydown", listener);
     return () => {
       document.removeEventListener("keydown", listener);
     };
-  }, [onClickSave]);
+  }, [onSubmit]);
 
   const renderWebhook = () => {
     return (
@@ -446,7 +444,7 @@ const ManageAutomationsModal = ({
                 className={`${baseClass}__btn`}
                 type="submit"
                 variant="brand"
-                onClick={onClickSave}
+                onClick={onSubmit}
               >
                 Save
               </Button>
