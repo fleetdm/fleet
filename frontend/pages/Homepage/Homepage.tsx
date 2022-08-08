@@ -137,6 +137,24 @@ const Homepage = (): JSX.Element => {
     }
   );
 
+  const {
+    isLoading: isTeamSecretsLoading,
+    data: teamSecrets,
+    refetch: refetchTeamSecrets,
+  } = useQuery<IEnrollSecretsResponse, Error, IEnrollSecret[]>(
+    ["team secrets", currentTeam],
+    () => {
+      if (currentTeam) {
+        return enrollSecretsAPI.getTeamEnrollSecrets(currentTeam.id);
+      }
+      return { secrets: [] };
+    },
+    {
+      enabled: !!currentTeam?.id && !!canEnrollHosts,
+      select: (data: IEnrollSecretsResponse) => data.secrets,
+    }
+  );
+
   const handleTeamSelect = (teamId: number) => {
     const selectedTeam = find(teams, ["id", teamId]);
     setCurrentTeam(selectedTeam);
@@ -292,18 +310,23 @@ const Homepage = (): JSX.Element => {
     ),
   });
 
-  const allLayout = () => (
-    <div className={`${baseClass}__section`}>
-      {hostSummaryData && hostSummaryData?.totals_hosts_count < 2 && (
-        <>
-          {WelcomeHostCard}
-          {LearnFleetCard}
-        </>
-      )}
-      {SoftwareCard}
-      {!currentTeam && isOnGlobalTeam && <>{ActivityFeedCard}</>}
-    </div>
-  );
+  const allLayout = () => {
+    return (
+      <div className={`${baseClass}__section`}>
+        {!currentTeam &&
+          canEnrollGlobalHosts &&
+          hostSummaryData &&
+          hostSummaryData?.totals_hosts_count < 2 && (
+            <>
+              {WelcomeHostCard}
+              {LearnFleetCard}
+            </>
+          )}
+        {SoftwareCard}
+        {!currentTeam && isOnGlobalTeam && <>{ActivityFeedCard}</>}
+      </div>
+    );
+  };
 
   const macOSLayout = () => (
     <div className={`${baseClass}__section`}>
@@ -330,7 +353,15 @@ const Homepage = (): JSX.Element => {
   };
 
   const renderAddHostsModal = () => {
-    const enrollSecret = globalSecrets?.[0].secret;
+    const enrollSecret =
+      // TODO: Currently, prepacked installers in Fleet Sandbox use the global enroll secret,
+      // and Fleet Sandbox runs Fleet Free so the isSandboxMode check here is an
+      // additional precaution/reminder to revisit this in connection with future changes.
+      // See https://github.com/fleetdm/fleet/issues/4970#issuecomment-1187679407.
+      currentTeam && !isSandboxMode
+        ? teamSecrets?.[0].secret
+        : globalSecrets?.[0].secret;
+
     return (
       <AddHostsModal
         currentTeam={currentTeam}

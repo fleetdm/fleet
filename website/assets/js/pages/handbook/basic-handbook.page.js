@@ -75,7 +75,7 @@ parasails.registerPage('basic-handbook', {
     this.subtopics = (() => {
       let subtopics;
       if(!this.isHandbookLandingPage){
-        subtopics = $('#body-content').find('h2').map((_, el) => el.innerText);
+        subtopics = $('#body-content').find('h2.markdown-heading').map((_, el) => el.innerText);
       } else {
         subtopics = $('#body-content').find('h3').map((_, el) => el.innerText);
       }

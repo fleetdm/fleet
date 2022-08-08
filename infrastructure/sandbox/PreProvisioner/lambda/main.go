@@ -8,22 +8,145 @@ import (
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/dynamodb"
 	"github.com/aws/aws-sdk-go/service/dynamodb/dynamodbattribute"
+	"github.com/fleetdm/fleet/v4/orbit/pkg/packaging"
+	"github.com/fleetdm/fleet/v4/server"
+	"github.com/fleetdm/fleet/v4/server/config"
+	"github.com/fleetdm/fleet/v4/server/datastore/s3"
+	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/google/uuid"
 	flags "github.com/jessevdk/go-flags"
 	"log"
 	"math/rand"
 	"os"
 	"os/exec"
+	"path/filepath"
+	"time"
 )
 
 type OptionsStruct struct {
-	LambdaExecutionEnv string `long:"lambda-execution-environment" env:"AWS_EXECUTION_ENV"`
-	LifecycleTable     string `long:"dynamodb-lifecycle-table" env:"DYNAMODB_LIFECYCLE_TABLE" required:"true"`
-	MaxInstances       int64  `long:"max-instances" env:"MAX_INSTANCES" required:"true"`
-	QueuedInstances    int64  `long:"queued-instances" env:"QUEUED_INSTANCES" required:"true"`
+	LambdaExecutionEnv           string `long:"lambda-execution-environment" env:"AWS_EXECUTION_ENV"`
+	LifecycleTable               string `long:"dynamodb-lifecycle-table" env:"DYNAMODB_LIFECYCLE_TABLE" required:"true"`
+	MaxInstances                 int64  `long:"max-instances" env:"MAX_INSTANCES" required:"true"`
+	QueuedInstances              int64  `long:"queued-instances" env:"QUEUED_INSTANCES" required:"true"`
+	FleetBaseURL                 string `long:"fleet-base-url" env:"FLEET_BASE_URL" required:"true"`
+	InstallerBucket              string `long:"installer-bucket" env:"INSTALLER_BUCKET" required:"true"`
+	MacOSDevIDCertificateContent string `long:"macos-dev-id-certificate-content" env:"MACOS_DEV_ID_CERTIFICATE_CONTENT" required:"true"`
+	AppStoreConnectAPIKeyID      string `long:"app-store-connect-api-key-id" env:"APP_STORE_CONNECT_API_KEY_ID" required:"true"`
+	AppStoreConnectAPIKeyIssuer  string `long:"app-store-connect-api-key-issuer" env:"APP_STORE_CONNECT_API_KEY_ISSUER" required:"true"`
+	AppStoreConnectAPIKeyContent string `long:"app-store-connect-api-key-content" env:"APP_STORE_CONNECT_API_KEY_CONTENT" required:"true"`
 }
 
 var options = OptionsStruct{}
+
+func FinishFleet(instanceID string) (err error) {
+	log.Printf("Finishing instance: %s", instanceID)
+	svc := dynamodb.New(session.New())
+	// Perform a conditional update to claim the item
+	input := &dynamodb.UpdateItemInput{
+		ConditionExpression: aws.String("#fleet_state = :v1"),
+		TableName:           aws.String(options.LifecycleTable),
+		Key: map[string]*dynamodb.AttributeValue{
+			"ID": {
+				S: aws.String(instanceID),
+			},
+		},
+		UpdateExpression:         aws.String("set #fleet_state = :v2"),
+		ExpressionAttributeNames: map[string]*string{"#fleet_state": aws.String("State")},
+		ExpressionAttributeValues: map[string]*dynamodb.AttributeValue{
+			":v1": {
+				S: aws.String("provisioned"),
+			},
+			":v2": {
+				S: aws.String("unclaimed"),
+			},
+		},
+	}
+	if _, err = svc.UpdateItem(input); err != nil {
+		return
+	}
+	return
+}
+
+func buildPackages(instanceID, enrollSecret string) (err error) {
+	funcs := []func(packaging.Options) (string, error){
+		packaging.BuildPkg,
+		packaging.BuildDeb,
+		packaging.BuildRPM,
+		packaging.BuildMSI,
+	}
+	pkgopts := packaging.Options{
+		FleetURL:                     fmt.Sprintf("https://%s.%s", instanceID, options.FleetBaseURL),
+		EnrollSecret:                 enrollSecret,
+		UpdateURL:                    "https://tuf.fleetctl.com",
+		Identifier:                   "com.fleetdm.orbit",
+		StartService:                 true,
+		NativeTooling:                true,
+		OrbitChannel:                 "stable",
+		OsquerydChannel:              "stable",
+		DesktopChannel:               "stable",
+		OrbitUpdateInterval:          15 * time.Minute,
+		MacOSDevIDCertificateContent: options.MacOSDevIDCertificateContent,
+		AppStoreConnectAPIKeyID:      options.AppStoreConnectAPIKeyID,
+		AppStoreConnectAPIKeyIssuer:  options.AppStoreConnectAPIKeyIssuer,
+		AppStoreConnectAPIKeyContent: options.AppStoreConnectAPIKeyContent,
+	}
+	store, err := s3.NewInstallerStore(config.S3Config{
+		Bucket: options.InstallerBucket,
+		Prefix: instanceID,
+	})
+
+	// Build non-desktop
+	for _, buildFunc := range funcs {
+		var filename string
+		filename, err = buildFunc(pkgopts)
+		if err != nil {
+			log.Print(err)
+			return
+		}
+		var r *os.File
+		r, err = os.Open(filename)
+		defer r.Close()
+		if err != nil {
+			return err
+		}
+		_, err = store.Put(context.Background(), fleet.Installer{
+			EnrollSecret: enrollSecret,
+			Kind:         filepath.Ext(filename)[1:],
+			Desktop:      pkgopts.Desktop,
+			Content:      r,
+		})
+		if err != nil {
+			return
+		}
+	}
+
+	// Build desktop
+	pkgopts.Desktop = true
+	for _, buildFunc := range funcs {
+		var filename string
+		filename, err = buildFunc(pkgopts)
+		if err != nil {
+			log.Print(err)
+			return
+		}
+		var r *os.File
+		r, err = os.Open(filename)
+		defer r.Close()
+		if err != nil {
+			return err
+		}
+		_, err = store.Put(context.Background(), fleet.Installer{
+			EnrollSecret: enrollSecret,
+			Kind:         filepath.Ext(filename)[1:],
+			Desktop:      pkgopts.Desktop,
+			Content:      r,
+		})
+		if err != nil {
+			return
+		}
+	}
+	return FinishFleet(instanceID)
+}
 
 type LifecycleRecord struct {
 	ID    string
@@ -90,7 +213,7 @@ func initTerraform() error {
 	return err
 }
 
-func runTerraform(workspace string, redis_database int) error {
+func runTerraform(workspace string, redis_database int, enrollSecret string) error {
 	err := runCmd([]string{
 		"workspace",
 		"new",
@@ -105,6 +228,8 @@ func runTerraform(workspace string, redis_database int) error {
 		"-no-color",
 		"-var",
 		fmt.Sprintf("redis_database=%d", redis_database),
+		"-var",
+		fmt.Sprintf("enroll_secret=%s", enrollSecret),
 	})
 	return err
 }
@@ -166,7 +291,15 @@ func handler(ctx context.Context, name NullEvent) error {
 		if err != nil {
 			return err
 		}
-		if err := runTerraform(fmt.Sprintf("t%s", uuid.New().String()[:8]), redisDatabase); err != nil {
+		enrollSecret, err := server.GenerateRandomText(fleet.EnrollSecretDefaultLength)
+		if err != nil {
+			return err
+		}
+		instanceID := fmt.Sprintf("t%s", uuid.New().String()[:8])
+		if err := runTerraform(instanceID, redisDatabase, enrollSecret); err != nil {
+			return err
+		}
+		if err = buildPackages(instanceID, enrollSecret); err != nil {
 			return err
 		}
 	}

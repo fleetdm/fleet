@@ -30,7 +30,7 @@ export const DEFAULT_POLICIES = [
       "SELECT 1 FROM managed_policies WHERE domain = 'com.apple.Terminal' AND name = 'SecureKeyboardEntry' AND value = 1 LIMIT 1;",
     name: "Antivirus healthy (macOS)",
     description:
-      "Checks the version of Malware Removal Tool (MRT) and the built-in macOS AV (Xprotect). Replace version numbers with latest version regularly.",
+      "Checks the version of Malware Removal Tool (MRT) and the built-in macOS AV (Xprotect). Replace version numbers with the latest version regularly.",
     resolution:
       "To enable automatic security definition updates, on the failing device, select System Preferences > Software Update > Advanced > Turn on Install system data files and security updates.",
     platform: "darwin",
@@ -199,7 +199,7 @@ export const LOGGING_TYPE_OPTIONS = [
   { label: "Snapshot", value: "snapshot" },
   { label: "Differential", value: "differential" },
   {
-    label: "Differential (Ignore Removals)",
+    label: "Differential (ignore removals)",
     value: "differential_ignore_removals",
   },
 ];
@@ -382,7 +382,7 @@ export const VULNERABLE_DROPDOWN_OPTIONS = [
     disabled: false,
     label: "All software",
     value: false,
-    helpText: "All sofware installed on your hosts.",
+    helpText: "All software installed on your hosts.",
   },
   {
     disabled: false,

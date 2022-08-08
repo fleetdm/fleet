@@ -465,8 +465,8 @@ If the `name` is not already associated with an existing team, this API route cr
 | Name          | Type   | In   | Description                                                                                                                                                                                                                                             |
 | ------------- | ------ | ---- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | name          | string | body | **Required.** The team's name.                                                                                                                                                                                                                          |
-| agent_options | string | body | **Required.** The agent options spec that is applied to the hosts assigned to the specified to team. These agent options completely override the global agent options specified in the [`GET /api/v1/fleet/config API route`](#get-configuration)  |
-| secrets       | list   | body | **Required.** A list of plain text strings is used as the enroll secrets.                                                                                                                                                                                  |
+| agent_options | string | body | The agent options spec that is applied to the hosts assigned to the specified to team. These agent options completely override the global agent options specified in the [`GET /api/v1/fleet/config API route`](#get-configuration)                     |
+| secrets       | list   | body | A list of plain text strings is used as the enroll secrets. Existing secrets are replaced with this list, or left unmodified if this list is empty.                                                                                                     |
 
 #### Example
 
@@ -1713,18 +1713,18 @@ Returns the URL to open when clicking the "Transparency" menu item in Fleet Desk
 
 Redirects to the transparency URL.
 
-### Download an installer 
+### Download an installer
 
 Downloads a pre-built fleet-osquery installer with the given parameters.
 
-`GET /api/_version_/fleet/download_installer/{enroll_secret}/{kind}`
+`GET /api/_version_/fleet/download_installer/{kind}`
 
 #### Parameters
 
 | Name          | Type    | In    | Description                                                        |
 | ------------- | ------- | ----- | ------------------------------------------------------------------ |
-| enroll_secret | string  | path  | The global enroll secret.                                          |
 | kind          | string  | path  | The installer kind: pkg, msi, deb or rpm.                          |
+| enroll_secret | string  | query | The global enroll secret.                                          |
 | desktop       | boolean | query | Set to `true` to ask for an installer that includes Fleet Desktop. |
 
 ##### Default response

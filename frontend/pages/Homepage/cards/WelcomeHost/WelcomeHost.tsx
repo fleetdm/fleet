@@ -57,6 +57,7 @@ const WelcomeHost = ({
     ["host"],
     () => hostAPI.loadHostDetails(HOST_ID),
     {
+      retry: false,
       select: (data: IHostResponse) => data.host,
       onSuccess: (returnedHost) => {
         setShowRefetchLoadingSpinner(returnedHost.refetch_requested);
@@ -296,6 +297,7 @@ const WelcomeHost = ({
           <Modal
             title={currentPolicyShown?.name || ""}
             onExit={() => setShowPolicyModal(false)}
+            onEnter={() => setShowPolicyModal(false)}
             className={`${baseClass}__policy-modal`}
           >
             <>

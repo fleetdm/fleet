@@ -220,6 +220,7 @@ module.exports.routes = {
   'GET /use-cases/stay-on-course-with-your-security-compliance-goals': '/guides/stay-on-course-with-your-security-compliance-goals',
   'GET /use-cases/using-elasticsearch-and-kibana-to-visualize-osquery-performance': '/guides/using-elasticsearch-and-kibana-to-visualize-osquery-performance',
   'GET /use-cases/work-may-be-watching-but-it-might-not-be-as-bad-as-you-think': '/securing/work-may-be-watching-but-it-might-not-be-as-bad-as-you-think',
+  'GET /docs/contributing/testing':  '/docs/contributing/testing-and-local-development',
 
 
 
@@ -270,6 +271,8 @@ module.exports.routes = {
   'GET /legal/privacy':          'https://docs.google.com/document/d/17i_g1aGpnuSmlqj35-yHJiwj7WRrLdC_Typc1Yb7aBE/edit',
   'GET /logout':                 '/api/v1/account/logout',
   'GET /defcon':                 'https://kqphpqst851.typeform.com/to/Y6NYxM5A',
+  'GET /osquery-stickers':       'https://kqphpqst851.typeform.com/to/JxJ8YnxG',
+  'GET /swag':                   'https://kqphpqst851.typeform.com/to/Y6NYxM5A',
 
   //  ╦ ╦╔═╗╔╗ ╦ ╦╔═╗╔═╗╦╔═╔═╗
   //  ║║║║╣ ╠╩╗╠═╣║ ║║ ║╠╩╗╚═╗

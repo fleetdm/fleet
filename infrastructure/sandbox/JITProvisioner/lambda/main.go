@@ -207,7 +207,7 @@ func NewFleet(c *gin.Context, in *NewFleetInput) (ret *NewFleetOutput, err error
 		return
 	}
 	log.Print("Creating admin user")
-	if _, err = client.Setup(in.Email, in.Name, in.Password, fleet.ID); err != nil {
+	if _, err = client.Setup(in.Email, in.Name, in.Password, "Fleet Sandbox"); err != nil {
 		log.Print(err)
 		return
 	}

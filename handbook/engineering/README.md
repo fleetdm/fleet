@@ -127,7 +127,17 @@ Documentation on completing the release process can be found
 
 ## Oncall rotation
 
-The oncall engineer is a second-line responder to questions raised by customers and community members. The Community team is responsible for the first response to GitHub issues, pull requests, and Slack messages in the osquery and other public Slacks. The Customer team is responsible for the first response to messages in private customer Slack channels.
+### Responsibilities
+
+The on-call engineer is a second-line responder to questions raised by customers and community members. The community contact (Kathy) is responsible for the first response to GitHub issues, pull requests, and Slack messages in the osquery and other public Slacks. Kathy is also responsible for the first response to messages in private customer Slack channels. We respond within 1-hour (during business hours) for interactions and ask the on-call engineer to address any questions sent their way promptly. When Kathy is unavailable, the on-call engineer may sometimes be asked to take over the first response duties.
+
+Pull requests may be routed through the on-call engineer for review. For PRs to the Fleet documentation, the content editor (Desmi) will request a review from the on-call. For PRs from the community, the community contact will a request review from the on-call. In either case, if the on-call has the knowledge and confidence to review, they should go ahead and do so. Otherwise, they should request a review from an engineer with the appropriate domain knowledge. It is the on-call engineer's responsibility to confirm that these PRs are moved forward (either by review with feedback or merge).
+
+Additionally, the on-call engineer is asked to attend all the customer success meetings during the week. The engineer will receive calendar invitations from Tony for the appropriate meetings. This has a dual purpose of providing more context for how our customers use Fleet. Also, the engineer should actively participate and provide input where appropriate (if not sure, please ask your manager or Tony).
+
+### Clearing the plate
+
+Engineering managers are asked to be aware of the [on-call rotation](https://docs.google.com/document/d/1FNQdu23wc1S9Yo6x5k04uxT2RwT77CIMzLLeEI2U7JA/edit#) and schedule a light workload for engineers while they are on-call. While it varies week to week considerably, the on-call responsibilities can sometimes take up a substantial portion of the engineer's time.
 
 ### How to reach the oncall
 
@@ -142,12 +152,12 @@ Every week, the oncall engineer changes. Here are some tips for making this hand
    Click `@oncall`. In the right sidebar, click "Edit Members." Remove the former oncall, and add
    yourself.
 
-2. Hand off newer conversations. For more recent threads, the former -call can unsubscribe from the
+2. Handoff newer conversations (Slack threads, issues, PRs, etc.). For more recent threads, the former on-call can unsubscribe from the
    thread, and the new oncall should subscribe. The former oncall should explicitly share each of
-   these threads, and the new on-call can select "Get notified about new replies" in the "..." menu.
+   these threads and the new on-call can select "Get notified about new replies" in the "..." menu.
    The former oncall can select "Turn off notifications for replies" in that same menu. It can be
    helpful for the former oncall to remain available for any conversations they were deeply involved
-   in, so use your judgment on which threads to hand off.
+   in, so use your judgment on which threads to hand off. Anything not clearly handed off remains the responsibility of the former on-call engineer.
 
 ### The rotation
 
@@ -304,6 +314,7 @@ The following rituals are engaged in by the  directly responsible individual (DR
 | Engineering group discussions | Weekly | See "Group Weeklies".  | Zach Wasserman |
 | On-call handoff | Weekly | Hand off the on-call engineering responsibilities to the next on-call engineer. | Zach Wasserman |
 | Release ritual | Every three weeks | Go through the process of releasing the next iteration of Fleet. | Zach Wasserman |
+| Create patch release branch | Every patch release | Go through the process of creating a patch release branch, cherry picking commits, and pushing the branch to github.com/fleetdm/fleet. | Luke Heath |
 
 ## Slack channels
 
