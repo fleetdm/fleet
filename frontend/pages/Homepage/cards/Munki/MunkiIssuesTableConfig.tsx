@@ -12,7 +12,7 @@ import Chevron from "../../../../../assets/images/icon-chevron-right-9x6@2x.png"
 
 const TAGGED_TEMPLATES = {
   hostsByMunkiIssue: (munkiIssueId: number) => {
-    return `?issue_id=${munkiIssueId}`;
+    return `?munki_issue_id=${munkiIssueId}`;
   },
 };
 

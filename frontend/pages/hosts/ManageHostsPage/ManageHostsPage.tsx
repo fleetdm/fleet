@@ -36,6 +36,7 @@ import { IHost } from "interfaces/host";
 import { ILabel } from "interfaces/label";
 import { IMDMSolution } from "interfaces/macadmins";
 import { IOperatingSystemVersion } from "interfaces/operating_system";
+import { IMunkiIssuesAggregate } from "interfaces/macadmins";
 import { IPolicy } from "interfaces/policy";
 import { ISoftware } from "interfaces/software";
 import { ITeam } from "interfaces/team";
@@ -223,6 +224,10 @@ const ManageHostsPage = ({
     mdmSolutionDetails,
     setMDMSolutionDetails,
   ] = useState<IMDMSolution | null>(null);
+  const [
+    munkiIssueDetails,
+    setMunkiIssueeDetails,
+  ] = useState<IMunkiIssuesAggregate | null>(null);
   const [tableQueryData, setTableQueryData] = useState<ITableQueryProps>();
   const [
     currentQueryOptions,
@@ -248,6 +253,7 @@ const ManageHostsPage = ({
       : undefined;
   const mdmEnrollmentStatus = queryParams?.mdm_enrollment_status;
   const { os_id: osId, os_name: osName, os_version: osVersion } = queryParams;
+  const munkiIssueId = parseInt(queryParams?.munki_issue_id, 10);
   const { active_label: activeLabel, label_id: labelID } = routeParams;
 
   // ===== filter matching
@@ -427,11 +433,13 @@ const ManageHostsPage = ({
         hosts: returnedHosts,
         software,
         mobile_device_management_solution,
+        munki_issue_id,
       } = await hostsAPI.loadHosts(options);
       setHosts(returnedHosts);
       software && setSoftwareDetails(software);
       mobile_device_management_solution &&
         setMDMSolutionDetails(mobile_device_management_solution);
+      munki_issue_id && setMunkiIssueeDetails(munki_issue_id);
     } catch (error) {
       console.error(error);
       setHasHostErrors(true);
@@ -682,6 +690,35 @@ const ManageHostsPage = ({
         queryParams: omit(queryParams, ["mdm_enrollment_status"]),
       })
     );
+  };
+
+  const handleChangeMunkiIssueFilter = (response: PolicyResponse) => {
+    handleResetPageIndex();
+
+    router.replace(
+      getNextLocationPath({
+        pathPrefix: PATHS.MANAGE_HOSTS,
+        routeTemplate,
+        routeParams,
+        queryParams: Object.assign({}, queryParams, {
+          munki_issue_id: munkiIssueId,
+        }),
+      })
+    );
+  };
+
+  const handleClearMunkiIssueFilter = () => {
+    handleResetPageIndex();
+
+    router.replace(
+      getNextLocationPath({
+        pathPrefix: PATHS.MANAGE_HOSTS,
+        routeTemplate,
+        routeParams,
+        queryParams: omit(queryParams, ["munki_issue"]),
+      })
+    );
+    setMunkiIssueeDetails(null);
   };
 
   const handleTeamSelect = (teamId: number) => {
@@ -1321,6 +1358,42 @@ const ManageHostsPage = ({
     );
   };
 
+  const renderMunkiIssueFilterBlock = () => {
+    if (munkiIssueDetails) {
+      return (
+        <div className={`${baseClass}__munki-issue-filter-block`}>
+          <div>
+            <span data-tip data-for="munki-issue-filter-tooltip">
+              <div className={`${baseClass}__munki-issue-name-card tooltip`}>
+                <Button
+                  className={`${baseClass}__clear-munki-issue-filter`}
+                  onClick={handleClearMunkiIssueFilter}
+                  variant={"small-text-icon"}
+                  title={munkiIssueDetails.name}
+                >
+                  <img src={CloseIcon} alt="Remove Munki issue filter" />
+                </Button>
+              </div>
+            </span>
+            <ReactTooltip
+              place="bottom"
+              effect="solid"
+              backgroundColor="#3e4771"
+              id="munki-issue-filter-tooltip"
+              data-html
+            >
+              <span className={`tooltip__tooltip-text`}>
+                Hosts that reported this Munki issue the last time Munki ran on
+                each host.
+              </span>
+            </ReactTooltip>
+          </div>
+        </div>
+      );
+    }
+    return null;
+  };
+
   const renderEditColumnsModal = () => {
     if (!config || !currentUser) {
       return null;
@@ -1594,6 +1667,10 @@ const ManageHostsPage = ({
             !mdmId &&
             !mdmEnrollmentStatus &&
             renderOSFilterBlock()}
+          {!!munkiIssueDetails &&
+            !policyId &&
+            !showSelectedLabel &&
+            renderMunkiIssueFilterBlock()}
         </div>
       );
     }
