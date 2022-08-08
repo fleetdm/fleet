@@ -105,7 +105,6 @@ module.exports = {
     if (!sails.config.custom.githubAccessToken) {
       throw new Error('No GitHub access token configured!  (Please set `sails.config.custom.githubAccessToken`.)');
     }//•
-    let credentials = { accessToken: sails.config.custom.githubAccessToken };
 
     let issueOrPr = (pr || issue || undefined);
 
@@ -354,7 +353,10 @@ module.exports = {
         await sails.helpers.flow.simultaneouslyForEach(greenLabels, async(greenLabel)=>{
           await sails.helpers.http.delete('https://api.github.com/repos/'+encodeURIComponent(owner)+'/'+encodeURIComponent(repo)+'/issues/'+encodeURIComponent(issueNumber)+'/labels/'+encodeURIComponent(greenLabel.name),
             {},
-            baseHeaders
+            {
+              'User-Agent': 'Fleetie Pie',
+              'Authorization': 'token '+sails.config.custom.githubAccessToken
+            }
           );
         });//∞ß
       }//ﬁ
