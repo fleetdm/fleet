@@ -678,8 +678,12 @@ export const performanceIndicator = (
   return "Excessive";
 };
 
-export const secondsToHumanReadable = (s: number): string =>
-  formatDistanceStrict(0, s * 1000, { includeSeconds: false });
+export const secondsToHumanReadable = (s: number): string => {
+  if (s === 604800) {
+    return "1 week";
+  }
+  return formatDistanceStrict(0, s * 1000);
+};
 
 export const secondsToHms = (d: number): string => {
   const h = Math.floor(d / 3600);
