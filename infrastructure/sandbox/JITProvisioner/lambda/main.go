@@ -47,7 +47,7 @@ func applyConfig(c* gin.Context, url, token string) (err error) {
 	}
 	client.SetToken(token)
 
-	buf, err := os.ReadFile("/tmp/dat")
+	buf, err := os.ReadFile("standard-query-library.yml")
 	if err != nil {
 	    log.Print(err)
 	    return

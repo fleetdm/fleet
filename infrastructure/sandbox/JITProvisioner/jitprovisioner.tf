@@ -172,6 +172,9 @@ resource "docker_registry_image" "jitprovisioner" {
     context     = "${path.module}/lambda/"
     pull_parent = true
   }
+  depends_on = [
+    local_file.standard-query-library
+  ]
 }
 
 resource "aws_security_group" "jitprovisioner" {
