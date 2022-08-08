@@ -5,14 +5,12 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io"
 	"net/http"
 	"net/url"
 	"os"
 	"path/filepath"
 	"regexp"
 	"strings"
-	"time"
 
 	"github.com/doug-martin/goqu/v9"
 	"github.com/fleetdm/fleet/v4/pkg/download"
@@ -29,15 +27,7 @@ const (
 	repo  = "nvd"
 )
 
-type NVDRelease struct {
-	Etag      string
-	CreatedAt time.Time
-	CPEURL    string
-}
-
-var cpeSqliteRegex = regexp.MustCompile(`^cpe-.*\.sqlite\.gz$`)
-
-func GetLatestNVDRelease(client *http.Client) (*NVDRelease, error) {
+func GetLatestNVDRelease(client *http.Client) (*github.RepositoryRelease, error) {
 	ghclient := github.NewClient(client)
 	ctx := context.Background()
 	releases, _, err := ghclient.Repositories.ListReleases(ctx, owner, repo, &github.ListOptions{Page: 0, PerPage: 10})
@@ -45,84 +35,64 @@ func GetLatestNVDRelease(client *http.Client) (*NVDRelease, error) {
 		return nil, err
 	}
 
-	if len(releases) == 0 {
-		return nil, nil
-	}
-
-	cpeURL := ""
-
-	// TODO: get not draft release
-
-	for _, asset := range releases[0].Assets {
-		if asset != nil {
-			matched := cpeSqliteRegex.MatchString(asset.GetName())
-			if !matched {
-				continue
-			}
-			cpeURL = asset.GetBrowserDownloadURL()
+	for _, release := range releases {
+		// skip draft releases
+		if !release.GetDraft() {
+			return release, nil
 		}
 	}
 
-	return &NVDRelease{
-		Etag:      releases[0].GetName(),
-		CreatedAt: releases[0].GetCreatedAt().Time,
-		CPEURL:    cpeURL,
-	}, nil
+	return nil, fmt.Errorf("no nvd release found")
 }
 
-type syncOpts struct {
-	url string
-}
+const cpeDBFilename = "cpe.sqlite"
 
-type CPESyncOption func(*syncOpts)
+var cpeDBRegex = regexp.MustCompile(`^cpe-.*\.sqlite\.gz$`)
 
-func WithCPEURL(url string) CPESyncOption {
-	return func(o *syncOpts) {
-		o.url = url
-	}
-}
-
-const cpeDatabaseFilename = "cpe.sqlite"
-
-// DownloadCPEDatabase downloads the CPE database from the
-// latest release of github.com/fleetdm/nvd to the given dbPath.
-// An alternative URL can be set via the WithCPEURL option.
-//
-// It won't download the database if the database has already been downloaded and
-// has an mtime after the release date.
-func DownloadCPEDatabase(
+// DownloadCPEDB downloads the CPE database to the given vulnPath. If cpeDBURL is empty, attempts to download it
+// from the latest release of github.com/fleetdm/nvd. Skips downloading if CPE database is newer than the release.
+func DownloadCPEDB(
 	vulnPath string,
 	client *http.Client,
-	opts ...CPESyncOption,
+	cpeDBURL string,
 ) error {
-	var o syncOpts
-	for _, fn := range opts {
-		fn(&o)
-	}
+	path := filepath.Join(vulnPath, cpeDBFilename)
 
-	dbPath := filepath.Join(vulnPath, cpeDatabaseFilename)
-
-	if o.url == "" {
-		nvdRelease, err := GetLatestNVDRelease(client)
+	if cpeDBURL == "" {
+		release, err := GetLatestNVDRelease(client)
 		if err != nil {
 			return err
 		}
-		stat, err := os.Stat(dbPath)
-		if err != nil {
-			if !errors.Is(err, os.ErrNotExist) {
-				return err
+		stat, err := os.Stat(path)
+		switch {
+		case errors.Is(err, os.ErrNotExist):
+			// okay
+		case err != nil:
+			return err
+		default:
+			if stat.ModTime().After(release.CreatedAt.Time) {
+				// file is newer than release, do nothing
+				return nil
 			}
-		} else if !nvdRelease.CreatedAt.After(stat.ModTime()) {
-			return nil
 		}
-		o.url = nvdRelease.CPEURL
+
+		for _, asset := range release.Assets {
+			if cpeDBRegex.MatchString(asset.GetName()) {
+				cpeDBURL = asset.GetBrowserDownloadURL()
+				break
+			}
+		}
+		if cpeDBURL == "" {
+			return fmt.Errorf("failed to find cpe database in nvd release")
+
+		}
 	}
 
-	u, err := url.Parse(o.url)
+	u, err := url.Parse(cpeDBURL)
 	if err != nil {
 		return err
 	}
-	if err := download.DownloadAndExtract(client, u, dbPath); err != nil {
+	if err := download.DownloadAndExtract(client, u, path); err != nil {
 		return err
 	}
 
@@ -177,49 +147,48 @@ func loadCPETranslations(path string) (CPETranslations, error) {
 	return translations, nil
 }
 
-func DownloadCPETranslations(vulnPath string, client *http.Client) error {
-	ghClient := github.NewClient(client)
+// DownloadCPETranslations downloads the CPE translations to the given vulnPath. If cpeTranslationsURL is empty, attempts to download it
+// from the latest release of github.com/fleetdm/nvd. Skips downloading if CPE translations is newer than the release.
+func DownloadCPETranslations(vulnPath string, client *http.Client, cpeTranslationsURL string) error {
+	path := filepath.Join(vulnPath, cpeTranslationsFilename)
 
-	opts := &github.RepositoryContentGetOptions{
-		Ref: "michal-6628-macos-vuln",
+	if cpeTranslationsURL == "" {
+		release, err := GetLatestNVDRelease(client)
+		if err != nil {
+			return err
+		}
+		stat, err := os.Stat(path)
+		switch {
+		case errors.Is(err, os.ErrNotExist):
+			// okay
+		case err != nil:
+			return err
+		default:
+			if stat.ModTime().After(release.CreatedAt.Time) {
+				// file is newer than release, do nothing
+				return nil
+			}
+		}
+
+		for _, asset := range release.Assets {
+			if cpeTranslationsFilename == asset.GetName() {
+				cpeTranslationsURL = asset.GetBrowserDownloadURL()
+				break
+			}
+		}
+		if cpeTranslationsURL == "" {
+			return fmt.Errorf("failed to find cpe translations in nvd release")
+
+		}
 	}
-	r, resp, err := ghClient.Repositories.DownloadContents(context.Background(), "fleetdm", "nvd", cpeTranslationsFilename, opts)
+
+	u, err := url.Parse(cpeTranslationsURL)
 	if err != nil {
 		return err
 	}
-	if resp.StatusCode != http.StatusOK {
-		return fmt.Errorf("github response non 200 status code: %d", resp.StatusCode)
+	if err := download.DownloadAndExtract(client, u, path); err != nil {
+		return err
 	}
-
-	tmpFile, err := os.CreateTemp(vulnPath, cpeTranslationsFilename)
-	if err != nil {
-		return fmt.Errorf("create temporary file: %w", err)
-	}
-	defer tmpFile.Close()
-
-	// Clean up tmp file if not moved
-	moved := false
-	defer func() {
-		if !moved {
-			os.Remove(tmpFile.Name())
-		}
-	}()
-
-	if _, err := io.Copy(tmpFile, r); err != nil {
-		return fmt.Errorf("write temporary file: %w", err)
-	}
-
-	if err := tmpFile.Close(); err != nil {
-		return fmt.Errorf("write and close temporary file: %w", err)
-	}
-
-	path := filepath.Join(vulnPath, cpeTranslationsFilename)
-
-	if err := os.Rename(tmpFile.Name(), path); err != nil {
-		return fmt.Errorf("rename temporary file: %w", err)
-	}
-
-	moved = true
 
 	return nil
 }
@@ -490,7 +459,7 @@ func TranslateSoftwareToCPE(
 	vulnPath string,
 	logger kitlog.Logger,
 ) error {
-	dbPath := filepath.Join(vulnPath, cpeDatabaseFilename)
+	dbPath := filepath.Join(vulnPath, cpeDBFilename)
 
 	iterator, err := ds.AllSoftwareWithoutCPEIterator(ctx)
 	if err != nil {

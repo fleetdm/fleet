@@ -274,6 +274,7 @@ type VulnerabilitiesConfig struct {
 	DatabasesPath             string        `json:"databases_path" yaml:"databases_path"`
 	Periodicity               time.Duration `json:"periodicity" yaml:"periodicity"`
 	CPEDatabaseURL            string        `json:"cpe_database_url" yaml:"cpe_database_url"`
+	CPETranslationsURL        string        `json:"cpe_translations_url" yaml:"cpe_translations_url"`
 	CVEFeedPrefixURL          string        `json:"cve_feed_prefix_url" yaml:"cve_feed_prefix_url"`
 	CurrentInstanceChecks     string        `json:"current_instance_checks" yaml:"current_instance_checks"`
 	DisableDataSync           bool          `json:"disable_data_sync" yaml:"disable_data_sync"`
@@ -639,6 +640,8 @@ func (man Manager) addConfigs() {
 		"How much time to wait between processing software for vulnerabilities.")
 	man.addConfigString("vulnerabilities.cpe_database_url", "",
 		"URL from which to get the latest CPE database. If empty, defaults to the official Github link.")
+	man.addConfigString("vulnerabilities.cpe_translations_url", "",
+		"URL from which to get the latest CPE translations. If empty, defaults to the official Github link.")
 	man.addConfigString("vulnerabilities.cve_feed_prefix_url", "",
 		"Prefix URL for the CVE data feed. If empty, default to https://nvd.nist.gov/")
 	man.addConfigString("vulnerabilities.current_instance_checks", "auto",
@@ -847,6 +850,7 @@ func (man Manager) LoadConfig() FleetConfig {
 			DatabasesPath:             man.getConfigString("vulnerabilities.databases_path"),
 			Periodicity:               man.getConfigDuration("vulnerabilities.periodicity"),
 			CPEDatabaseURL:            man.getConfigString("vulnerabilities.cpe_database_url"),
+			CPETranslationsURL:        man.getConfigString("vulnerabilities.cpe_translations_url"),
 			CVEFeedPrefixURL:          man.getConfigString("vulnerabilities.cve_feed_prefix_url"),
 			CurrentInstanceChecks:     man.getConfigString("vulnerabilities.current_instance_checks"),
 			DisableDataSync:           man.getConfigBool("vulnerabilities.disable_data_sync"),

@@ -121,6 +121,7 @@ func (svc *Service) VulnerabilitiesConfig(ctx context.Context) (*fleet.Vulnerabi
 		DatabasesPath:             svc.config.Vulnerabilities.DatabasesPath,
 		Periodicity:               svc.config.Vulnerabilities.Periodicity,
 		CPEDatabaseURL:            svc.config.Vulnerabilities.CPEDatabaseURL,
+		CPETranslationsURL:        svc.config.Vulnerabilities.CPETranslationsURL,
 		CVEFeedPrefixURL:          svc.config.Vulnerabilities.CVEFeedPrefixURL,
 		CurrentInstanceChecks:     svc.config.Vulnerabilities.CurrentInstanceChecks,
 		DisableDataSync:           svc.config.Vulnerabilities.DisableDataSync,

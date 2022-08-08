@@ -381,7 +381,13 @@ func checkNVDVulnerabilities(
 	collectVulns bool,
 ) []fleet.SoftwareVulnerability {
 	if !config.DisableDataSync {
-		err := vulnerabilities.Sync(vulnPath, config.CPEDatabaseURL)
+		opts := vulnerabilities.SyncOptions{
+			VulnPath:           config.DatabasesPath,
+			CPEDBURL:           config.CPEDatabaseURL,
+			CPETranslationsURL: config.CPETranslationsURL,
+			CVEFeedPrefixURL:   config.CVEFeedPrefixURL,
+		}
+		err := vulnerabilities.Sync(opts)
 		if err != nil {
 			errHandler(ctx, logger, "syncing vulnerability database", err)
 			return nil

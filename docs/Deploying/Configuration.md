@@ -2055,7 +2055,10 @@ How often vulnerabilities are checked. This is also the interval at which the co
 
 ##### cpe_database_url
 
-URL to fetch the CPE dictionary database from. Some users want to control where Fleet gets its database from. When Fleet sees this value defined, it downloads the file directly. It expects a file in the same format as can be found in https://github.com/fleetdm/nvd/releases. If this value is not defined, Fleet checks for the latest release in Github and only downloads it if needed.
+URL to fetch the CPE dictionary database from. Some users want to control where Fleet gets its database from.
+When Fleet sees this value defined, it downloads the file directly.
+It expects a file in the same format as can be found in https://github.com/fleetdm/nvd/releases.
+If this value is not defined, Fleet checks for the latest release in Github and only downloads it if needed.
 
 - Default value: `""`
 - Environment variable: `FLEET_VULNERABILITIES_CPE_DATABASE_URL`
@@ -2065,16 +2068,35 @@ URL to fetch the CPE dictionary database from. Some users want to control where 
   	cpe_database_url: ""
   ```
 
+##### cpe_translations_url
+
+URL to fetch the CPE translations from.
+Translations are used when matching software to CPE entries in the CPE database that would otherwise be missed for various reasons.
+When Fleet sees this value defined, it downloads the file directly.
+It expects a file in the same format as can be found in https://github.com/fleetdm/nvd/releases.
+If this value is not defined, Fleet checks for the latest release in Github and only downloads it if needed.
+
+- Default value: `""`
+- Environment variable: `FLEET_VULNERABILITIES_CPE_TRANSLATIONS_URL`
+- Config file format:
+  ```
+  vulnerabilities:
+  	cpe_translations_url: ""
+  ```
+
 ##### cve_feed_prefix_url
 
-Similarly to the CPE dictionary, we allow users to define where to get the CVE feeds from. In this case, the url should be a host that serves the files in the path /feeds/json/cve/1.1/. Fleet expects to find there all the JSON Feeds that can be found in https://nvd.nist.gov/vuln/data-feeds. When not defined, Fleet downloads from the nvd.nist.gov host.
+Similarly to the CPE dictionary, we allow users to define where to get the CVE feeds from.
+In this case, the url should be a host that serves the files in the path /feeds/json/cve/1.1/.
+Fleet expects to find there all the JSON Feeds that can be found in https://nvd.nist.gov/vuln/data-feeds.
+When not defined, Fleet downloads from the nvd.nist.gov host.
 
 - Default value: `""`
 - Environment variable: `FLEET_VULNERABILITIES_CVE_FEED_PREFIX_URL`
 - Config file format:
   ```
   vulnerabilities:
-  	cve_database_url: ""
+  	cve_feed_prefix_url: ""
   ```
 
 ##### current_instance_checks

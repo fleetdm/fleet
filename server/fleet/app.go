@@ -400,6 +400,7 @@ type VulnerabilitiesConfig struct {
 	DatabasesPath             string        `json:"databases_path"`
 	Periodicity               time.Duration `json:"periodicity"`
 	CPEDatabaseURL            string        `json:"cpe_database_url"`
+	CPETranslationsURL        string        `json:"cpe_translations_url"`
 	CVEFeedPrefixURL          string        `json:"cve_feed_prefix_url"`
 	CurrentInstanceChecks     string        `json:"current_instance_checks"`
 	DisableDataSync           bool          `json:"disable_data_sync"`

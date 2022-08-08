@@ -24,27 +24,34 @@ import (
 	"github.com/go-kit/kit/log/level"
 )
 
+type SyncOptions struct {
+	VulnPath           string
+	CPEDBURL           string
+	CPETranslationsURL string
+	CVEFeedPrefixURL   string
+}
+
 // Sync downloads all the vulnerability data sources.
-func Sync(vulnPath string, cpeDatabaseURL string) error {
+func Sync(opts SyncOptions) error {
 	client := fleethttp.NewClient()
 
-	if err := DownloadCPEDatabase(vulnPath, client, WithCPEURL(cpeDatabaseURL)); err != nil {
+	if err := DownloadCPEDB(opts.VulnPath, client, opts.CPEDBURL); err != nil {
 		return fmt.Errorf("sync CPE database: %w", err)
 	}
 
-	if err := DownloadCPETranslations(vulnPath, client); err != nil {
+	if err := DownloadCPETranslations(opts.VulnPath, client, opts.CPETranslationsURL); err != nil {
 		return fmt.Errorf("sync CPE translations: %w", err)
 	}
 
-	if err := DownloadNVDCVEFeed(vulnPath, ""); err != nil {
+	if err := DownloadNVDCVEFeed(opts.VulnPath, opts.CVEFeedPrefixURL); err != nil {
 		return fmt.Errorf("sync NVD CVE feed: %w", err)
 	}
 
-	if err := DownloadEPSSFeed(vulnPath, client); err != nil {
+	if err := DownloadEPSSFeed(opts.VulnPath, client); err != nil {
 		return fmt.Errorf("sync EPSS CVE feed: %w", err)
 	}
 
-	if err := DownloadCISAKnownExploitsFeed(vulnPath, client); err != nil {
+	if err := DownloadCISAKnownExploitsFeed(opts.VulnPath, client); err != nil {
 		return fmt.Errorf("sync CISA known exploits feed: %w", err)
 	}
 
