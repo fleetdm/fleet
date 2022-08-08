@@ -2,24 +2,24 @@ import React, { useContext } from "react";
 import { useErrorHandler } from "react-error-boundary";
 import { AppContext } from "context/app";
 
-interface IAuthAnyAdminRoutesProps {
+interface IAuthenticatedAdminRoutesProps {
   children: JSX.Element;
 }
 
 /**
- * Checks if a user is any maintainer or any admin when routing
+ * Checks if a global admin when routing
  */
-const AuthAnyAdminRoutes = ({
+const AuthenticatedGlobalAdminRoutes = ({
   children,
-}: IAuthAnyAdminRoutesProps): JSX.Element | null => {
+}: IAuthenticatedAdminRoutesProps) => {
   const handlePageError = useErrorHandler();
-  const { currentUser, isGlobalAdmin, isAnyTeamAdmin } = useContext(AppContext);
+  const { currentUser, isGlobalAdmin } = useContext(AppContext);
 
   if (!currentUser) {
     return null;
   }
 
-  if (!isGlobalAdmin && !isAnyTeamAdmin) {
+  if (!isGlobalAdmin) {
     handlePageError({ status: 403 });
     return null;
   }
@@ -27,4 +27,4 @@ const AuthAnyAdminRoutes = ({
   return <>{children}</>;
 };
 
-export default AuthAnyAdminRoutes;
+export default AuthenticatedGlobalAdminRoutes;
