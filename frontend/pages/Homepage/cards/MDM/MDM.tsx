@@ -16,6 +16,7 @@ import TableDataError from "components/DataError";
 import LastUpdatedText from "components/LastUpdatedText";
 import generateSolutionsTableHeaders from "./MDMSolutionsTableConfig";
 import generateEnrollmentTableHeaders from "./MDMEnrollmentTableConfig";
+
 interface IMDMCardProps {
   showMDMUI: boolean;
   currentTeamId: number | undefined;

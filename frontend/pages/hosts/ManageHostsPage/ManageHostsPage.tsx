@@ -32,6 +32,7 @@ import {
 import { IApiError } from "interfaces/errors";
 import { IHost } from "interfaces/host";
 import { ILabel, ILabelFormData } from "interfaces/label";
+import { IMDMSolution, IMDMAggregateStatus } from "interfaces/macadmins";
 import { IPolicy } from "interfaces/policy";
 import { ISoftware } from "interfaces/software";
 import { ITeam } from "interfaces/team";
@@ -95,12 +96,6 @@ import CloseIcon from "../../../../assets/images/icon-close-vibrant-blue-16x16@2
 import CloseIconBlack from "../../../../assets/images/icon-close-fleet-black-16x16@2x.png";
 import PolicyIcon from "../../../../assets/images/icon-policy-fleet-black-12x12@2x.png";
 import DownloadIcon from "../../../../assets/images/icon-download-12x12@2x.png";
-import {
-  IMacadminAggregate,
-  IMDMSolution,
-  IMDMAggregateStatus,
-} from "interfaces/macadmins";
-import { mkdtempSync } from "fs";
 
 interface IManageHostsProps {
   route: RouteProps;
