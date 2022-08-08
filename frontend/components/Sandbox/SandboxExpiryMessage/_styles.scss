@@ -9,11 +9,18 @@
   border-radius: $border-radius;
   font-size: $xx-small;
 
+  color: $core-fleet-black;
+  font-weight: $regular;
+
+  &:hover {
+    cursor: pointer;
+  }
+
   p {
     margin: 0;
   }
 
-  a {
+  span {
     display: flex;
     align-items: center;
     color: $core-fleet-black;
