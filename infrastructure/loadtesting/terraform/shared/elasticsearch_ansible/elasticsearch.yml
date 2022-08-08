@@ -8,3 +8,4 @@
     - role: elasticapm
     - role: kibana
     - role: cloudwatch
+    - role: ssh
