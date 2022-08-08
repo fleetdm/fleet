@@ -2,10 +2,7 @@
 // disable this rule as it was throwing an error in Header and Cell component
 // definitions for the selection row for some reason when we dont really need it.
 import React from "react";
-import {
-  performanceIndicator,
-  secondsToHumanReadable,
-} from "utilities/helpers";
+import { performanceIndicator, secondsToDhms } from "utilities/helpers";
 
 // @ts-ignore
 import Checkbox from "components/forms/fields/Checkbox";
@@ -133,7 +130,7 @@ const generateTableHeaders = (
       disableSortBy: true,
       accessor: "interval",
       Cell: (cellProps: INumberCellProps): JSX.Element => (
-        <TextCell value={secondsToHumanReadable(cellProps.cell.value)} />
+        <TextCell value={secondsToDhms(cellProps.cell.value)} />
       ),
     },
     {
@@ -194,7 +191,7 @@ const generateInheritedQueriesTableHeaders = (): IDataColumn[] => {
       disableSortBy: true,
       accessor: "interval",
       Cell: (cellProps: INumberCellProps): JSX.Element => (
-        <TextCell value={secondsToHumanReadable(cellProps.cell.value)} />
+        <TextCell value={secondsToDhms(cellProps.cell.value)} />
       ),
     },
     {

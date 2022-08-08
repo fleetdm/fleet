@@ -2,10 +2,7 @@ import React from "react";
 import { uniqueId } from "lodash";
 
 import { IQueryStats } from "interfaces/query_stats";
-import {
-  performanceIndicator,
-  secondsToHumanReadable,
-} from "utilities/helpers";
+import { performanceIndicator, secondsToDhms } from "utilities/helpers";
 
 import TextCell from "components/TableContainer/DataTable/TextCell";
 import PillCell from "components/TableContainer/DataTable/PillCell";
@@ -105,7 +102,7 @@ const enhanceScheduleData = (query_stats: IQueryStats[]): IScheduleTable[] => {
     };
     return {
       query_name: query.query_name,
-      frequency: secondsToHumanReadable(query.interval),
+      frequency: secondsToDhms(query.interval),
       performance: [
         performanceIndicator(scheduledQueryPerformance),
         query.scheduled_query_id || uniqueId(),
