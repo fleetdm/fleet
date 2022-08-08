@@ -3,7 +3,6 @@ import md5 from "js-md5";
 import {
   format,
   formatDistanceToNow,
-  formatDistanceStrict,
   isAfter,
   intervalToDuration,
   formatDuration,
