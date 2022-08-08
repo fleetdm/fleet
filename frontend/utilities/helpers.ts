@@ -1,6 +1,11 @@
 import { isEmpty, flatMap, omit, pick, size, memoize, reduce } from "lodash";
 import md5 from "js-md5";
-import { format, formatDistanceToNow, isAfter } from "date-fns";
+import {
+  format,
+  formatDistanceToNow,
+  formatDistanceStrict,
+  isAfter,
+} from "date-fns";
 import yaml from "js-yaml";
 
 import { IConfig } from "interfaces/config";
@@ -672,6 +677,9 @@ export const performanceIndicator = (
   }
   return "Excessive";
 };
+
+export const secondsToHumanReadable = (s: number): string =>
+  formatDistanceStrict(0, s * 1000, { includeSeconds: false });
 
 export const secondsToHms = (d: number): string => {
   const h = Math.floor(d / 3600);
