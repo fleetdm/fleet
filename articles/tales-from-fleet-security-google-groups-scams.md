@@ -59,11 +59,15 @@ id4-->id8
 
 We contacted Google to ask why this message made it through filters. They confirmed that the filters are different on Groups vs Gmail (emphasis ours) in a response to our issue:
 
-> Regarding your case, I understand that you see in the header this emails passing the authentication methods when it goes to group, in the message headers for emails sent to a group, you will see two authentication checks, the one done to your Group, because it comes from your group to your domain, that always passes as it is expected due to your domain is fully authenticated with SPF, DKIM and DMARC policy, and there is another authentication check for the original sender below on the message header, still the authentication methods are always checked by the the Groups spam moderation filter, as well by the users spam filter, which are **separate spam filters**. 
+<blockquote purpose="large-quote">
+Regarding your case, I understand that you see in the header this emails passing the authentication methods when it goes to group, in the message headers for emails sent to a group, you will see two authentication checks, the one done to your Group, because it comes from your group to your domain, that always passes as it is expected due to your domain is fully authenticated with SPF, DKIM and DMARC policy, and there is another authentication check for the original sender below on the message header, still the authentication methods are always checked by the the Groups spam moderation filter, as well by the users spam filter, which are <strong>separate spam filters</strong>.
+</blockquote> 
 
 We then asked if any of the advanced spam filter rules from Gmail worked in Google Groups:
 
-> Indeed. Currently, the **Advanced Safety phishing and malware protection** feature, which is within the **Admin console' https://admin.google.com > Apps > Google Workspace > Gmail > Safety > Spoofing and authentication > **the option for **Protect against spoofing of employee names** only applies to users as recipients and not the groups, I'm afraid at the moment the only option available for groups in that section is called **Protect your Groups from inbound emails spoofing your domain**.
+<blockquote purpose="large-quote">
+Indeed. Currently, the <strong>Advanced Safety phishing and malware protection</strong> feature, which is within the <strong>Admin console' https://admin.google.com > Apps > Google Workspace > Gmail > Safety > Spoofing and authentication ></strong> the option for <strong>Protect against spoofing of employee names</strong> only applies to users as recipients and not the groups, I'm afraid at the moment the only option available for groups in that section is called <strong>Protect your Groups from inbound emails spoofing your domain</strong>.
+</blockquote>
 
 In this case, the attacker didn't spoof our domain, so enabling this feature did not help. 
 
