@@ -15,6 +15,7 @@ import (
 	"github.com/aws/aws-sdk-go/service/dynamodb"
 	"github.com/aws/aws-sdk-go/service/dynamodb/dynamodbattribute"
 	"github.com/aws/aws-sdk-go/service/sfn"
+	_ "github.com/fleetdm/fleet/v4/pkg/spec"
 	"github.com/fleetdm/fleet/v4/server/service"
 	"github.com/loopfz/gadgeto/tonic"
 	"github.com/wI2L/fizz"
