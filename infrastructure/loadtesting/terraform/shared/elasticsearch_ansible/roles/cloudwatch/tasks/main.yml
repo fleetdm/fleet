@@ -7,6 +7,6 @@
     owner: root
     group: root
 - systemd:
-  name: amazon-cloudwatch-agent.service
-  enabled: true
-  state: started
+    name: amazon-cloudwatch-agent.service
+    enabled: true
+    state: started
