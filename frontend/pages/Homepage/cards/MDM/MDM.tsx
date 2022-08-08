@@ -20,7 +20,6 @@ interface IMDMCardProps {
   showMDMUI: boolean;
   currentTeamId: number | undefined;
   setShowMDMUI: (showMDMTitle: boolean) => void;
-  // setActionURL?: (url: string) => void; // software example
   setTitleDetail?: (content: JSX.Element | string | null) => void;
 }
 
@@ -113,12 +112,7 @@ const MDM = ({
   });
 
   const onTabChange = (index: number) => {
-    // const { MANAGE_SOFTWARE } = paths; // software example
     setNavTabIndex(index);
-    // setActionURL &&
-    //   setActionURL(
-    //     index === 1 ? `${MANAGE_SOFTWARE}?vulnerable=true` : MANAGE_SOFTWARE
-    //   );  // software example
   };
 
   const solutionsTableHeaders = generateSolutionsTableHeaders();
