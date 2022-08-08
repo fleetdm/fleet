@@ -6,7 +6,6 @@ import {
   performanceIndicator,
   secondsToHumanReadable,
 } from "utilities/helpers";
-import formatDuration from "date-fns/formatDuration";
 
 // @ts-ignore
 import Checkbox from "components/forms/fields/Checkbox";
@@ -194,12 +193,9 @@ const generateInheritedQueriesTableHeaders = (): IDataColumn[] => {
       Header: "Frequency",
       disableSortBy: true,
       accessor: "interval",
-      Cell: (cellProps: INumberCellProps): JSX.Element => {
-        console.log("cellProps.cell.value", cellProps.cell.value);
-        return (
-          <TextCell value={secondsToHumanReadable(cellProps.cell.value)} />
-        );
-      },
+      Cell: (cellProps: INumberCellProps): JSX.Element => (
+        <TextCell value={secondsToHumanReadable(cellProps.cell.value)} />
+      ),
     },
     {
       title: "Performance impact",
