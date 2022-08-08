@@ -3,7 +3,6 @@ TOKEN=`curl -X PUT "http://169.254.169.254/latest/api/token" -H "X-aws-ec2-metad
 PLAYBOOK_PATH=`curl -H "X-aws-ec2-metadata-token: $TOKEN" http://169.254.169.254/latest/meta-data/tags/instance/ansible_playbook_path`
 PLAYBOOK_FILE=`curl -H "X-aws-ec2-metadata-token: $TOKEN" http://169.254.169.254/latest/meta-data/tags/instance/ansible_playbook_file`
 BRANCH=`curl -H "X-aws-ec2-metadata-token: $TOKEN" http://169.254.169.254/latest/meta-data/tags/instance/ansible_branch`
-export AWS_REGION=`curl -H "X-aws-ec2-metadata-token: $TOKEN" http://169.254.169.254/latest/meta-data/placement/region`
 PATH="${PATH}:/usr/local/bin"
 cd /home/ansible/ansible/"${PLAYBOOK_PATH}"
 git checkout "${BRANCH}"
