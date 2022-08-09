@@ -17,9 +17,10 @@ INSERT INTO operating_systems (
     name,
     version,
     arch,
-    kernel_version
+    kernel_version,
+	platform
 )
-VALUES (?, ?, ?, ?)
+VALUES (?, ?, ?, ?, ?)
 `
 
 	var (
@@ -27,31 +28,34 @@ VALUES (?, ?, ?, ?)
 		version        string
 		arch           string
 		kernel_version string
+		platform       string
 	)
 
 	// add first operating system
-	_, err := db.Exec(stmt, "Ubuntu", "22.04 LTS", "x86_64", "5.10.76-linuxkit")
+	_, err := db.Exec(stmt, "Ubuntu", "22.04 LTS", "x86_64", "5.10.76-linuxkit", "ubuntu")
 	require.NoError(t, err)
 
-	err = db.QueryRow(`SELECT name, version, arch, kernel_version FROM operating_systems WHERE name = ? AND version = ?`, "Ubuntu", "22.04 LTS").
-		Scan(&name, &version, &arch, &kernel_version)
+	err = db.QueryRow(`SELECT name, version, arch, kernel_version, platform FROM operating_systems WHERE name = ? AND version = ?`, "Ubuntu", "22.04 LTS").
+		Scan(&name, &version, &arch, &kernel_version, &platform)
 	require.NoError(t, err)
 	require.Equal(t, "Ubuntu", name)
 	require.Equal(t, "22.04 LTS", version)
 	require.Equal(t, "x86_64", arch)
 	require.Equal(t, "5.10.76-linuxkit", kernel_version)
+	require.Equal(t, "ubuntu", platform)
 
 	// add second operating system
-	_, err = db.Exec(stmt, "Ubuntu", "22.06 LTS", "x86_64", "5.10.76-linuxkit")
+	_, err = db.Exec(stmt, "Ubuntu", "22.06 LTS", "x86_64", "5.10.76-linuxkit", "ubuntu")
 	require.NoError(t, err)
 
-	err = db.QueryRow(`SELECT name, version, arch, kernel_version FROM operating_systems WHERE name = ? AND version = ?`, "Ubuntu", "22.06 LTS").
-		Scan(&name, &version, &arch, &kernel_version)
+	err = db.QueryRow(`SELECT name, version, arch, kernel_version, platform FROM operating_systems WHERE name = ? AND version = ?`, "Ubuntu", "22.06 LTS").
+		Scan(&name, &version, &arch, &kernel_version, &platform)
 	require.NoError(t, err)
 	require.Equal(t, "Ubuntu", name)
 	require.Equal(t, "22.06 LTS", version)
 	require.Equal(t, "x86_64", arch)
 	require.Equal(t, "5.10.76-linuxkit", kernel_version)
+	require.Equal(t, "ubuntu", platform)
 
 	// test host operating systems table
 	stmt = `
