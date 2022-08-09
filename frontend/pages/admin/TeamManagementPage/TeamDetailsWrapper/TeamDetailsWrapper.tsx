@@ -128,6 +128,7 @@ const TeamDetailsWrapper = ({
     [key: string]: string;
   }>({});
   const [isUpdatingTeams, setIsUpdatingTeams] = useState<boolean>(false);
+  const [isUpdatingSecret, setIsUpdatingSecret] = useState<boolean>(false);
   const { refetch: refetchMe } = useQuery(["me"], () => usersAPI.me(), {
     enabled: false,
     onSuccess: ({ user, available_teams }: IGetMeResponse) => {
@@ -233,7 +234,7 @@ const TeamDetailsWrapper = ({
     if (enrollSecretString) {
       newSecrets.push({ secret: enrollSecretString });
     }
-
+    setIsUpdatingSecret(true);
     try {
       await enrollSecretsAPI.modifyTeamEnrollSecrets(teamIdFromURL, newSecrets);
       refetchTeamSecrets();
@@ -252,6 +253,8 @@ const TeamDetailsWrapper = ({
           selectedSecret ? "edit" : "add"
         } enroll secret. Please try again.`
       );
+    } finally {
+      setIsUpdatingSecret(false);
     }
   };
 
@@ -262,7 +265,7 @@ const TeamDetailsWrapper = ({
     const newSecrets = currentSecrets.filter(
       (s) => s.secret !== selectedSecret?.secret
     );
-
+    setIsUpdatingSecret(true);
     try {
       await enrollSecretsAPI.modifyTeamEnrollSecrets(teamIdFromURL, newSecrets);
       refetchTeamSecrets();
@@ -272,6 +275,8 @@ const TeamDetailsWrapper = ({
     } catch (error) {
       console.error(error);
       renderFlash("error", "Could not delete enroll secret. Please try again.");
+    } finally {
+      setIsUpdatingSecret(false);
     }
   };
 
@@ -501,6 +506,7 @@ const TeamDetailsWrapper = ({
             onSaveSecret={onSaveSecret}
             toggleSecretEditorModal={toggleSecretEditorModal}
             selectedSecret={selectedSecret}
+            isUpdatingSecret={isUpdatingSecret}
           />
         )}
         {showDeleteSecretModal && (
@@ -509,6 +515,7 @@ const TeamDetailsWrapper = ({
             selectedTeam={teamIdFromURL}
             teams={teams || []}
             toggleDeleteSecretModal={toggleDeleteSecretModal}
+            isUpdatingSecret={isUpdatingSecret}
           />
         )}
         {showDeleteTeamModal && (

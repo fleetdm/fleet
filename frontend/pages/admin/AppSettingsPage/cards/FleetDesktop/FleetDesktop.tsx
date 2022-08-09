@@ -22,6 +22,7 @@ const FleetDesktop = ({
   appConfig,
   handleSubmit,
   isPremiumTier,
+  isUpdatingSettings,
 }: IAppConfigFormProps): JSX.Element => {
   const [formData, setFormData] = useState<
     Pick<IConfigFormData, "transparency_url">
@@ -102,6 +103,8 @@ const FleetDesktop = ({
         type="submit"
         variant="brand"
         disabled={Object.keys(formErrors).length > 0}
+        className="save-loading"
+        spinner={isUpdatingSettings}
       >
         Save
       </Button>

@@ -28,7 +28,7 @@ class ChangeEmailForm extends Component {
           label="Password"
           type="password"
         />
-        <div className="modal-btn-wrap">
+        <div className="modal-cta-wrap">
           <Button type="submit" variant="brand">
             Submit
           </Button>

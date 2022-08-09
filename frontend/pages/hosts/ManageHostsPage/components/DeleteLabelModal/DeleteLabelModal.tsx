@@ -8,11 +8,13 @@ const baseClass = "delete-label-modal";
 interface IDeleteLabelModalProps {
   onSubmit: () => void;
   onCancel: () => void;
+  isUpdatingLabel: boolean;
 }
 
 const DeleteLabelModal = ({
   onSubmit,
   onCancel,
+  isUpdatingLabel,
 }: IDeleteLabelModalProps): JSX.Element => {
   return (
     <Modal
@@ -24,11 +26,16 @@ const DeleteLabelModal = ({
       <>
         <p>Are you sure you wish to delete this label?</p>
         <div className="modal-cta-wrap">
+          <Button
+            onClick={onSubmit}
+            variant="alert"
+            className="delete-loading"
+            spinner={isUpdatingLabel}
+          >
+            Delete
+          </Button>
           <Button onClick={onCancel} variant="inverse-alert">
             Cancel
-          </Button>
-          <Button onClick={onSubmit} variant="alert">
-            Delete
           </Button>
         </div>
       </>

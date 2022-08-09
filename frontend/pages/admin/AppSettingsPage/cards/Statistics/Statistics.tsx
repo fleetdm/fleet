@@ -17,6 +17,7 @@ const baseClass = "app-config-form";
 const Statistics = ({
   appConfig,
   handleSubmit,
+  isUpdatingSettings,
 }: IAppConfigFormProps): JSX.Element => {
   const [
     showUsageStatsPreviewModal,
@@ -125,7 +126,12 @@ const Statistics = ({
             </Button>
           </div>
         </div>
-        <Button type="submit" variant="brand">
+        <Button
+          type="submit"
+          variant="brand"
+          className="save-loading"
+          spinner={isUpdatingSettings}
+        >
           Save
         </Button>
       </form>

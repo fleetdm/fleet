@@ -21,6 +21,7 @@ const Agents = ({
   appConfig,
   handleSubmit,
   isPremiumTier,
+  isUpdatingSettings,
 }: IAppConfigFormProps): JSX.Element => {
   const { ADMIN_TEAMS } = paths;
 
@@ -122,6 +123,8 @@ const Agents = ({
         type="submit"
         variant="brand"
         disabled={Object.keys(formErrors).length > 0}
+        className="save-loading"
+        spinner={isUpdatingSettings}
       >
         Save
       </Button>

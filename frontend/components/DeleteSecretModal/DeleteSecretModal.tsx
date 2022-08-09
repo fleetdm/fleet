@@ -8,6 +8,7 @@ interface IDeleteSecretModal {
   teams: ITeam[];
   onDeleteSecret: () => void;
   toggleDeleteSecretModal: () => void;
+  isUpdatingSecret: boolean;
 }
 
 const baseClass = "delete-secret-modal";
@@ -17,6 +18,7 @@ const DeleteSecretModal = ({
   teams,
   onDeleteSecret,
   toggleDeleteSecretModal,
+  isUpdatingSecret,
 }: IDeleteSecretModal): JSX.Element => {
   const renderTeam = () => {
     if (typeof selectedTeam === "string") {
@@ -49,7 +51,13 @@ const DeleteSecretModal = ({
           <p>You cannot undo this action.</p>
         </div>
         <div className="modal-cta-wrap">
-          <Button type="button" variant="alert" onClick={onDeleteSecret}>
+          <Button
+            type="button"
+            variant="alert"
+            onClick={onDeleteSecret}
+            className="delete-loading"
+            spinner={isUpdatingSecret}
+          >
             Delete
           </Button>
           <Button onClick={toggleDeleteSecretModal} variant="inverse-alert">

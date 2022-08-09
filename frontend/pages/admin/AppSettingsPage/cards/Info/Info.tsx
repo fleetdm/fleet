@@ -18,6 +18,7 @@ const baseClass = "app-config-form";
 const Info = ({
   appConfig,
   handleSubmit,
+  isUpdatingSettings,
 }: IAppConfigFormProps): JSX.Element => {
   const [formData, setFormData] = useState<any>({
     orgName: appConfig.org_info.org_name || "",
@@ -92,6 +93,8 @@ const Info = ({
         type="submit"
         variant="brand"
         disabled={Object.keys(formErrors).length > 0}
+        className="save-loading"
+        spinner={isUpdatingSettings}
       >
         Save
       </Button>

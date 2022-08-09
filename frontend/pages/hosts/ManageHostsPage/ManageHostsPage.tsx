@@ -262,7 +262,8 @@ const ManageHostsPage = ({
     [key: string]: string;
   }>(DEFAULT_CREATE_LABEL_ERRORS);
   const [resetPageIndex, setResetPageIndex] = useState<boolean>(false);
-  const [isLabelUpdating, setIsLabelUpdating] = useState<boolean>(false);
+  const [isUpdatingLabel, setIsUpdatingLabel] = useState<boolean>(false);
+  const [isUpdatingSecret, setIsUpdatingSecret] = useState<boolean>(false);
 
   // ======== end states
 
@@ -295,13 +296,18 @@ const ManageHostsPage = ({
   const canEnrollGlobalHosts = isGlobalAdmin || isGlobalMaintainer;
   const canAddNewLabels = (isGlobalAdmin || isGlobalMaintainer) ?? false;
 
-  const { data: labels, error: labelsError, refetch: refetchLabels } = useQuery<
-    ILabelsResponse,
-    Error,
-    ILabel[]
-  >(["labels"], () => labelsAPI.loadAll(), {
-    select: (data: ILabelsResponse) => data.labels,
-  });
+  const {
+    isLoading: isLoadingLabels,
+    data: labels,
+    error: labelsError,
+    refetch: refetchLabels,
+  } = useQuery<ILabelsResponse, Error, ILabel[]>(
+    ["labels"],
+    () => labelsAPI.loadAll(),
+    {
+      select: (data: ILabelsResponse) => data.labels,
+    }
+  );
 
   const {
     isLoading: isGlobalSecretsLoading,
@@ -885,6 +891,8 @@ const ManageHostsPage = ({
       newSecrets.push({ secret: enrollSecretString });
     }
 
+    setIsUpdatingSecret(true);
+
     try {
       if (currentTeam?.id) {
         await enrollSecretsAPI.modifyTeamEnrollSecrets(
@@ -919,6 +927,8 @@ const ManageHostsPage = ({
           selectedSecret ? "edit" : "add"
         } enroll secret. Please try again.`
       );
+    } finally {
+      setIsUpdatingSecret(false);
     }
   };
 
@@ -933,6 +943,8 @@ const ManageHostsPage = ({
     const newSecrets = currentSecrets.filter(
       (s) => s.secret !== selectedSecret?.secret
     );
+
+    setIsUpdatingSecret(true);
 
     try {
       if (currentTeam?.id) {
@@ -959,6 +971,8 @@ const ManageHostsPage = ({
     } catch (error) {
       console.error(error);
       renderFlash("error", "Could not delete enroll secret. Please try again.");
+    } finally {
+      setIsUpdatingSecret(false);
     }
   };
 
@@ -969,7 +983,7 @@ const ManageHostsPage = ({
     }
 
     const updateAttrs = deepDifference(formData, selectedLabel);
-    setIsLabelUpdating(true);
+    setIsUpdatingLabel(true);
 
     labelsAPI
       .update(selectedLabel, updateAttrs)
@@ -1007,7 +1021,7 @@ const ManageHostsPage = ({
         }
       })
       .finally(() => {
-        setIsLabelUpdating(false);
+        setIsUpdatingLabel(false);
       });
   };
 
@@ -1016,7 +1030,7 @@ const ManageHostsPage = ({
   };
 
   const onSaveAddLabel = (formData: ILabelFormData) => {
-    setIsLabelUpdating(true);
+    setIsUpdatingLabel(true);
     labelsAPI
       .create(formData)
       .then(() => {
@@ -1054,7 +1068,7 @@ const ManageHostsPage = ({
         }
       })
       .finally(() => {
-        setIsLabelUpdating(false);
+        setIsUpdatingLabel(false);
       });
   };
 
@@ -1070,6 +1084,7 @@ const ManageHostsPage = ({
       console.error("Label isn't available. This should not happen.");
       return false;
     }
+    setIsUpdatingLabel(true);
 
     const { MANAGE_HOSTS } = PATHS;
     try {
@@ -1085,9 +1100,12 @@ const ManageHostsPage = ({
           queryParams,
         })
       );
+      renderFlash("success", "Successfully deleted label.");
     } catch (error) {
       console.error(error);
       renderFlash("error", "Could not delete label. Please try again.");
+    } finally {
+      setIsUpdatingLabel(false);
     }
   };
 
@@ -1436,6 +1454,7 @@ const ManageHostsPage = ({
       onSaveSecret={onSaveSecret}
       toggleSecretEditorModal={toggleSecretEditorModal}
       selectedSecret={selectedSecret}
+      isUpdatingSecret={isUpdatingSecret}
     />
   );
 
@@ -1445,6 +1464,7 @@ const ManageHostsPage = ({
       selectedTeam={currentTeam?.id || 0}
       teams={teams || []}
       toggleDeleteSecretModal={toggleDeleteSecretModal}
+      isUpdatingSecret={isUpdatingSecret}
     />
   );
 
@@ -1464,6 +1484,7 @@ const ManageHostsPage = ({
     <DeleteLabelModal
       onSubmit={onDeleteLabel}
       onCancel={toggleDeleteLabelModal}
+      isUpdatingLabel={isUpdatingLabel}
     />
   );
 
@@ -1693,7 +1714,7 @@ const ManageHostsPage = ({
           handleSubmit={onSaveAddLabel}
           baseError={labelsError?.message || ""}
           backendValidators={labelValidator}
-          isLabelUpdating={isLabelUpdating}
+          isUpdatingLabel={isUpdatingLabel}
         />
       );
     }
@@ -1707,7 +1728,7 @@ const ManageHostsPage = ({
           handleSubmit={onEditLabel}
           baseError={labelsError?.message || ""}
           backendValidators={labelValidator}
-          isLabelUpdating={isLabelUpdating}
+          isUpdatingLabel={isUpdatingLabel}
           isEdit
         />
       );

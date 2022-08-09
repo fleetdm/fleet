@@ -10,6 +10,7 @@ interface IDeleteIntegrationModalProps {
   projectKey: string;
   onSubmit: () => void;
   onCancel: () => void;
+  isUpdatingIntegration: boolean;
 }
 
 const DeleteIntegrationModal = ({
@@ -17,6 +18,7 @@ const DeleteIntegrationModal = ({
   projectKey,
   onSubmit,
   onCancel,
+  isUpdatingIntegration,
 }: IDeleteIntegrationModalProps): JSX.Element => {
   return (
     <Modal
@@ -35,7 +37,13 @@ const DeleteIntegrationModal = ({
         </p>
         <p>The automations that use this integration will be turned off.</p>
         <div className="modal-cta-wrap">
-          <Button type="button" onClick={onSubmit} variant="alert">
+          <Button
+            type="button"
+            onClick={onSubmit}
+            variant="alert"
+            className="delete-loading"
+            spinner={isUpdatingIntegration}
+          >
             Delete
           </Button>
           <Button onClick={onCancel} variant="inverse-alert">

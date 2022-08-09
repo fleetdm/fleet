@@ -20,6 +20,7 @@ const Sso = ({
   appConfig,
   handleSubmit,
   isPremiumTier,
+  isUpdatingSettings,
 }: IAppConfigFormProps): JSX.Element => {
   const [formData, setFormData] = useState<any>({
     enableSSO: appConfig.sso_settings.enable_sso || false,
@@ -242,6 +243,8 @@ const Sso = ({
         type="submit"
         variant="brand"
         disabled={Object.keys(formErrors).length > 0}
+        className="save-loading"
+        spinner={isUpdatingSettings}
       >
         Save
       </Button>

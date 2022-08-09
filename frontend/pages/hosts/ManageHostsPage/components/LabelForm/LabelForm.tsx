@@ -21,7 +21,7 @@ interface ILabelFormProps {
   handleSubmit: (formData: ILabelFormData) => void;
   onOsqueryTableSelect?: (tableName: string) => void;
   backendValidators: { [key: string]: string };
-  isLabelUpdating?: boolean;
+  isUpdatingLabel?: boolean;
 }
 
 const baseClass = "label-form";
@@ -61,7 +61,7 @@ const LabelForm = ({
   handleSubmit,
   onOsqueryTableSelect,
   backendValidators,
-  isLabelUpdating,
+  isUpdatingLabel,
 }: ILabelFormProps): JSX.Element => {
   const [name, setName] = useState<string>(selectedLabel?.name || "");
   const [nameError, setNameError] = useState<string>("");
@@ -251,7 +251,7 @@ const LabelForm = ({
           type="submit"
           variant="brand"
           className={saveBtnClass}
-          spinner={isLabelUpdating}
+          spinner={isUpdatingLabel}
         >
           {saveBtnText}
         </Button>

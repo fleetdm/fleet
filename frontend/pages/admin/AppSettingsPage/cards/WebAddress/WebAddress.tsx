@@ -14,6 +14,7 @@ const baseClass = "app-config-form";
 const WebAddress = ({
   appConfig,
   handleSubmit,
+  isUpdatingSettings,
 }: IAppConfigFormProps): JSX.Element => {
   const [formData, setFormData] = useState<any>({
     serverURL: appConfig.server_settings.server_url || "",
@@ -78,6 +79,8 @@ const WebAddress = ({
         type="submit"
         variant="brand"
         disabled={Object.keys(formErrors).length > 0}
+        className="save-loading"
+        spinner={isUpdatingSettings}
       >
         Save
       </Button>
