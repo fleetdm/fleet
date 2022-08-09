@@ -20,6 +20,6 @@
     path: /var/lib/docker/volumes/
     src: /dev/sdb1
     fstype: ext4
-    state: present
+    state: mounted
 - package: name=docker
 - systemd: name=docker.service enabled=true state=started
