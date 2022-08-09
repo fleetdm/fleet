@@ -58,6 +58,10 @@ $base-class: "button";
       $core-vibrant-blue-down
     );
   }
+  &--brand.save-loading {
+    display: flex;
+    width: 64px;
+  }
 
   &--success {
     @include button-variant($ui-success);
@@ -69,6 +73,17 @@ $base-class: "button";
       $core-vibrant-red-over,
       $core-vibrant-red-down
     );
+
+    .loading-spinner {
+      &__ring {
+        div {
+          border-color: $ui-error transparent transparent transparent;
+        }
+      }
+    }
+  }
+  &--alert.delete-loading {
+    width: 74px;
   }
 
   &--blue-green {

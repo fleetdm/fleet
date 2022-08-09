@@ -165,41 +165,17 @@
   &__button-wrap {
     margin: 0;
     margin-top: $pad-large;
+    display: flex;
+    gap: $pad-medium;
 
     &--new-query {
       display: flex;
       align-items: center;
     }
-    &--modal {
-      display: flex;
-      justify-content: flex-end;
-      align-items: center;
-    }
-    button:not(:first-of-type) {
-      margin-left: $pad-medium;
-    }
   }
 
   &__text-editor-wrapper {
     padding-top: $pad-small;
-  }
-
-  &__button-wrap--save-query-button:first-child {
-    margin-right: $pad-medium;
-  }
-
-  &__button-wrap--save-query-button:not(:first-child) {
-    margin-left: $pad-medium;
-  }
-
-  &__save-query-btn,
-  &__cancel-btn {
-    margin-right: $pad-xsmall;
-  }
-
-  &__save {
-    display: flex;
-    width: 64px;
   }
 
   &__save-as-new {

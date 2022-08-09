@@ -1,6 +1,5 @@
-.remove-member-modal {
-  &__name,
-  &__team-name {
+.delete-user-modal {
+  &__name {
     font-weight: $bold;
   }
 

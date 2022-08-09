@@ -35,11 +35,11 @@ const DeleteIntegrationModal = ({
         </p>
         <p>The automations that use this integration will be turned off.</p>
         <div className="modal-cta-wrap">
-          <Button onClick={onCancel} variant="inverse-alert">
-            Cancel
-          </Button>
           <Button type="button" onClick={onSubmit} variant="alert">
             Delete
+          </Button>
+          <Button onClick={onCancel} variant="inverse-alert">
+            Cancel
           </Button>
         </div>
       </form>

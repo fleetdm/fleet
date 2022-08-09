@@ -1,5 +1,6 @@
 import React from "react";
 import classnames from "classnames";
+import Spinner from "components/Spinner";
 
 const baseClass = "button";
 
@@ -35,6 +36,7 @@ export interface IButtonProps {
   onClick?:
     | ((value?: any) => void)
     | ((evt: React.MouseEvent<HTMLButtonElement>) => void);
+  spinner?: boolean;
 }
 
 // eslint-disable-next-line @typescript-eslint/no-empty-interface
@@ -95,6 +97,7 @@ class Button extends React.Component<IButtonProps, IButtonState> {
       type,
       title,
       variant,
+      spinner,
     } = this.props;
     const fullClassName = classnames(
       baseClass,
@@ -116,7 +119,7 @@ class Button extends React.Component<IButtonProps, IButtonState> {
         title={title}
         ref={setRef}
       >
-        {children}
+        {spinner ? <Spinner /> : children}
       </button>
     );
   }

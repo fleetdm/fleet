@@ -28,15 +28,11 @@ class ChangeEmailForm extends Component {
           label="Password"
           type="password"
         />
-        <div className={`${baseClass}__btn-wrap`}>
-          <Button className={`${baseClass}__btn`} type="submit" variant="brand">
+        <div className="modal-btn-wrap">
+          <Button type="submit" variant="brand">
             Submit
           </Button>
-          <Button
-            onClick={onCancel}
-            variant="inverse"
-            className={`${baseClass}__btn`}
-          >
+          <Button onClick={onCancel} variant="inverse">
             Cancel
           </Button>
         </div>

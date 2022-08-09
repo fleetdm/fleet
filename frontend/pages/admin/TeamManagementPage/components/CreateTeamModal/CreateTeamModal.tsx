@@ -81,11 +81,11 @@ const CreateTeamModal = ({
             </p>
           </InfoBanner>
           <div className="modal-cta-wrap">
-            <Button onClick={onCancel} variant="inverse">
-              Cancel
-            </Button>
             <Button type="submit" variant="brand" disabled={name === ""}>
               Create
+            </Button>
+            <Button onClick={onCancel} variant="inverse">
+              Cancel
             </Button>
           </div>
         </form>

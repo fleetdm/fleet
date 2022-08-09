@@ -173,40 +173,21 @@
   }
 
   &__button-wrap {
-    display: flex;
-    align-items: center;
     margin: 0;
-
-    &--modal {
-      display: flex;
-      justify-content: flex-end;
-      align-items: center;
-    }
+    margin-top: $pad-large;
+    display: flex;
+    gap: $pad-medium;
 
     &--tooltip {
       display: flex;
     }
 
-    &--modal-save {
-      margin-left: $pad-medium;
-    }
-
-    .policy-form__save {
-      margin-right: $pad-small;
-    }
     .policy-form__run {
       min-width: 64px;
-      margin: 0;
     }
     .__react_component_tooltip {
       text-align: center;
     }
-  }
-
-  &__button-wrap--modal {
-    padding-top: 30px;
-    border-top: 1px solid $ui-fleet-blue-15;
-    margin-top: 6px;
   }
 
   &__title {
@@ -228,17 +209,8 @@
     }
   }
 
-  &__button-wrap--modal-save {
-    display: flex;
-  }
-
   &__button--modal-save {
     width: 106px;
-  }
-
-  &__save {
-    display: flex;
-    width: 64px;
   }
 
   &__platform-error {

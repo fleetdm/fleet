@@ -156,8 +156,9 @@ const NewPolicyModal = ({
                 variant="brand"
                 onClick={handleSavePolicy}
                 disabled={disableSave}
+                spinner={policyIsLoading}
               >
-                {policyIsLoading ? <Spinner /> : "Save policy"}
+                Save policy
               </Button>
               <ReactTooltip
                 className={`${baseClass}__button--modal-save-tooltip`}

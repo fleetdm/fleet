@@ -66,20 +66,11 @@ const EditTeamModal = ({
             value={name}
             error={errors.name}
           />
-          <div className={`${baseClass}__btn-wrap`}>
-            <Button
-              className={`${baseClass}__btn`}
-              type="submit"
-              variant="brand"
-              disabled={name === ""}
-            >
+          <div className="modal-cta-wrap">
+            <Button type="submit" variant="brand" disabled={name === ""}>
               Save
             </Button>
-            <Button
-              className={`${baseClass}__btn`}
-              onClick={onCancel}
-              variant="inverse"
-            >
+            <Button onClick={onCancel} variant="inverse">
               Cancel
             </Button>
           </div>

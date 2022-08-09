@@ -222,11 +222,8 @@ const UserSettingsPage = ({
               src={ExternalURLIcon}
             />
           </p>
-          <div className={`${baseClass}__button-wrap`}>
-            <Button
-              onClick={onToggleApiTokenModal}
-              className="button button--brand"
-            >
+          <div className="modal-cta-wrap">
+            <Button onClick={onToggleApiTokenModal} type="button">
               Done
             </Button>
           </div>

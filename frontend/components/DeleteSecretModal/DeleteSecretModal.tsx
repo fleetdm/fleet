@@ -49,20 +49,11 @@ const DeleteSecretModal = ({
           <p>You cannot undo this action.</p>
         </div>
         <div className="modal-cta-wrap">
-          <Button
-            className={`${baseClass}__btn`}
-            onClick={toggleDeleteSecretModal}
-            variant="inverse-alert"
-          >
-            Cancel
-          </Button>
-          <Button
-            className={`${baseClass}__btn`}
-            type="button"
-            variant="alert"
-            onClick={onDeleteSecret}
-          >
+          <Button type="button" variant="alert" onClick={onDeleteSecret}>
             Delete
+          </Button>
+          <Button onClick={toggleDeleteSecretModal} variant="inverse-alert">
+            Cancel
           </Button>
         </div>
       </div>

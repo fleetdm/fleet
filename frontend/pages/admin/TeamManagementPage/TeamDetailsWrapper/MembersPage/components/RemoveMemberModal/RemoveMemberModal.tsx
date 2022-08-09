@@ -9,7 +9,7 @@ const baseClass = "remove-member-modal";
 interface IDeleteTeamModalProps {
   memberName: string;
   teamName: string;
-  isLoading: boolean;
+  isUpdatingMembers: boolean;
   onSubmit: () => void;
   onCancel: () => void;
 }
@@ -17,7 +17,7 @@ interface IDeleteTeamModalProps {
 const RemoveMemberModal = ({
   memberName,
   teamName,
-  isLoading,
+  isUpdatingMembers,
   onSubmit,
   onCancel,
 }: IDeleteTeamModalProps): JSX.Element => {
@@ -28,7 +28,7 @@ const RemoveMemberModal = ({
       onEnter={onSubmit}
       className={baseClass}
     >
-      {isLoading ? (
+      {isUpdatingMembers ? (
         <Spinner />
       ) : (
         <form className={`${baseClass}__form`}>
@@ -41,20 +41,17 @@ const RemoveMemberModal = ({
             If {memberName} is not a member of any other team, they will lose
             access to Fleet.
           </p>
-          <div className={`${baseClass}__btn-wrap`}>
+          <div className="modal-cta-wrap">
             <Button
-              className={`${baseClass}__btn`}
+              className="modal-remove"
               type="button"
               variant="alert"
               onClick={onSubmit}
+              spinner={isUpdatingMembers}
             >
               Remove
             </Button>
-            <Button
-              className={`${baseClass}__btn`}
-              onClick={onCancel}
-              variant="inverse-alert"
-            >
+            <Button onClick={onCancel} variant="inverse-alert">
               Cancel
             </Button>
           </div>

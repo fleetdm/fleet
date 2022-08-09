@@ -7,13 +7,13 @@ import Spinner from "components/Spinner";
 const baseClass = "delete-query-modal";
 
 interface IDeleteQueryModalProps {
-  isLoading: boolean;
+  isUpdatingQueries: boolean;
   onCancel: () => void;
   onSubmit: () => void;
 }
 
 const DeleteQueryModal = ({
-  isLoading,
+  isUpdatingQueries,
   onCancel,
   onSubmit,
 }: IDeleteQueryModalProps): JSX.Element => {
@@ -24,23 +24,23 @@ const DeleteQueryModal = ({
       onEnter={onSubmit}
       className={baseClass}
     >
-      <>
-        {isLoading ? (
-          <Spinner />
-        ) : (
-          <div className={baseClass}>
-            Are you sure you want to delete the selected queries?
-            <div className="modal-cta-wrap">
-              <Button onClick={onCancel} variant="inverse-alert">
-                Cancel
-              </Button>
-              <Button type="button" variant="alert" onClick={onSubmit}>
-                Delete
-              </Button>
-            </div>
-          </div>
-        )}
-      </>
+      <div className={baseClass}>
+        Are you sure you want to delete the selected queries?
+        <div className="modal-cta-wrap">
+          <Button
+            type="button"
+            variant="alert"
+            onClick={onSubmit}
+            className="delete-loading"
+            spinner={isUpdatingQueries}
+          >
+            Delete
+          </Button>
+          <Button onClick={onCancel} variant="inverse-alert">
+            Cancel
+          </Button>
+        </div>
+      </div>
     </Modal>
   );
 };

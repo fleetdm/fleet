@@ -72,16 +72,6 @@
     margin-right: $pad-medium;
   }
 
-  &__modal-buttons {
-    width: 100%;
-    display: flex;
-    justify-content: flex-end;
-
-    .button:first-child {
-      margin-right: $pad-medium;
-    }
-  }
-
   .Select.is-open {
     .Select-value-label {
       color: $core-vibrant-blue !important;

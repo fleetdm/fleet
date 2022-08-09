@@ -114,22 +114,17 @@ const NewQueryModal = ({
             where they have access.
           </p>
           <hr />
-          <div
-            className={`${baseClass}__button-wrap ${baseClass}__button-wrap--modal`}
-          >
+          <div className="modal-cta-wrap">
             <Button
-              className={`${baseClass}__btn`}
-              onClick={() => setIsSaveModalOpen(false)}
-              variant="inverse"
-            >
-              Cancel
-            </Button>
-            <Button
-              className={`${baseClass}__btn ${baseClass}__save-modal__btn`}
+              className={`${baseClass}__save-modal__btn`}
               type="submit"
               variant="brand"
+              spinner={isLoading}
             >
-              {isLoading ? <Spinner /> : "Save query"}
+              Save query
+            </Button>
+            <Button onClick={() => setIsSaveModalOpen(false)} variant="inverse">
+              Cancel
             </Button>
           </div>
         </form>

@@ -30,20 +30,11 @@ const DeletePoliciesModal = ({
         ) : (
           <div className={baseClass}>
             Are you sure you want to delete the selected policies?
-            <div className={`${baseClass}__btn-wrap`}>
-              <Button
-                className={`${baseClass}__btn`}
-                type="button"
-                variant="alert"
-                onClick={onSubmit}
-              >
+            <div className="modal-cta-wrap">
+              <Button type="button" variant="alert" onClick={onSubmit}>
                 Delete
               </Button>
-              <Button
-                className={`${baseClass}__btn`}
-                onClick={onCancel}
-                variant="inverse-alert"
-              >
+              <Button onClick={onCancel} variant="inverse-alert">
                 Cancel
               </Button>
             </div>

@@ -22,7 +22,7 @@ import Modal from "components/Modal";
 import { DEFAULT_CREATE_USER_ERRORS } from "utilities/constants";
 import EmptyUsers from "../EmptyUsers";
 import { generateTableHeaders, combineDataSets } from "./UsersTableConfig";
-import DeleteUserForm from "../DeleteUserForm";
+import DeleteUserModal from "../DeleteUserModal";
 import ResetPasswordModal from "../ResetPasswordModal";
 import ResetSessionsModal from "../ResetSessionsModal";
 import { NewUserType } from "../UserForm/UserForm";
@@ -51,8 +51,7 @@ const UsersTable = ({ router }: IUsersTableProps): JSX.Element => {
   const [showResetSessionsModal, setShowResetSessionsModal] = useState<boolean>(
     false
   );
-  const [isLoading, setIsLoading] = useState<boolean>(false);
-  const [isEditingUser, setIsEditingUser] = useState<boolean>(false);
+  const [isUpdatingUsers, setIsUpdatingUsers] = useState<boolean>(false);
   const [userEditing, setUserEditing] = useState<any>(null);
   const [createUserErrors, setCreateUserErrors] = useState<IUserFormErrors>(
     DEFAULT_CREATE_USER_ERRORS
@@ -210,7 +209,7 @@ const UsersTable = ({ router }: IUsersTableProps): JSX.Element => {
   };
 
   const onCreateUserSubmit = (formData: any) => {
-    setIsLoading(true);
+    setIsUpdatingUsers(true);
 
     if (formData.newUserType === NewUserType.AdminInvited) {
       // Do some data formatting adding `invited_by` for the request to be correct and deleteing uncessary fields
@@ -247,7 +246,7 @@ const UsersTable = ({ router }: IUsersTableProps): JSX.Element => {
           }
         })
         .finally(() => {
-          setIsLoading(false);
+          setIsUpdatingUsers(false);
         });
     } else {
       // Do some data formatting deleting unnecessary fields
@@ -279,7 +278,7 @@ const UsersTable = ({ router }: IUsersTableProps): JSX.Element => {
           }
         })
         .finally(() => {
-          setIsLoading(false);
+          setIsUpdatingUsers(false);
         });
     }
   };
@@ -296,7 +295,7 @@ const UsersTable = ({ router }: IUsersTableProps): JSX.Element => {
     const userUpdatedPasswordError = "Password must meet the criteria below";
     const userUpdatedError = `Could not edit ${userEditing?.name}. Please try again.`;
 
-    setIsEditingUser(true);
+    setIsUpdatingUsers(true);
     if (userEditing.type === "invite") {
       return (
         userData &&
@@ -323,7 +322,7 @@ const UsersTable = ({ router }: IUsersTableProps): JSX.Element => {
             }
           })
           .finally(() => {
-            setIsEditingUser(false);
+            setIsUpdatingUsers(false);
           })
       );
     }
@@ -353,12 +352,13 @@ const UsersTable = ({ router }: IUsersTableProps): JSX.Element => {
           }
         })
         .finally(() => {
-          setIsEditingUser(false);
+          setIsUpdatingUsers(false);
         })
     );
   };
 
   const onDeleteUser = () => {
+    setIsUpdatingUsers(true);
     if (userEditing.type === "invite") {
       invitesAPI
         .destroy(userEditing.id)
@@ -374,6 +374,7 @@ const UsersTable = ({ router }: IUsersTableProps): JSX.Element => {
         .finally(() => {
           toggleDeleteUserModal();
           refetchInvites();
+          setIsUpdatingUsers(false);
         });
     } else {
       usersAPI
@@ -390,6 +391,7 @@ const UsersTable = ({ router }: IUsersTableProps): JSX.Element => {
         .finally(() => {
           toggleDeleteUserModal();
           refetchUsers();
+          setIsUpdatingUsers(false);
         });
     }
   };
@@ -455,7 +457,7 @@ const UsersTable = ({ router }: IUsersTableProps): JSX.Element => {
             isModifiedByGlobalAdmin
             isInvitePending={userEditing.type === "invite"}
             editUserErrors={editUserErrors}
-            isLoading={isEditingUser}
+            isUpdatingUsers={isUpdatingUsers}
           />
         </>
       </Modal>
@@ -474,7 +476,7 @@ const UsersTable = ({ router }: IUsersTableProps): JSX.Element => {
         isPremiumTier={isPremiumTier || false}
         smtpConfigured={config?.smtp_settings.configured || false}
         canUseSso={config?.sso_settings.enable_sso || false}
-        isLoading={isLoading}
+        isUpdatingUsers={isUpdatingUsers}
         isModifiedByGlobalAdmin
       />
     );
@@ -482,13 +484,12 @@ const UsersTable = ({ router }: IUsersTableProps): JSX.Element => {
 
   const renderDeleteUserModal = () => {
     return (
-      <Modal title={"Delete user"} onExit={toggleDeleteUserModal}>
-        <DeleteUserForm
-          name={userEditing.name}
-          onDelete={onDeleteUser}
-          onCancel={toggleDeleteUserModal}
-        />
-      </Modal>
+      <DeleteUserModal
+        name={userEditing.name}
+        onDelete={onDeleteUser}
+        onCancel={toggleDeleteUserModal}
+        isUpdatingUsers={isUpdatingUsers}
+      />
     );
   };
 

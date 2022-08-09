@@ -337,9 +337,6 @@ const ScheduleEditorModal = ({
               </Button>
             </div>
             <div className="modal-cta-wrap">
-              <Button onClick={onClose} variant="inverse">
-                Cancel
-              </Button>
               <Button
                 type="button"
                 variant="brand"
@@ -347,6 +344,9 @@ const ScheduleEditorModal = ({
                 disabled={!selectedQuery && !editQuery}
               >
                 Schedule
+              </Button>
+              <Button onClick={onClose} variant="inverse">
+                Cancel
               </Button>
             </div>
           </div>
