@@ -7,11 +7,11 @@ interface IAuthGlobalAdminMaintainerRoutesProps {
 }
 
 /**
- * Checks if a user is any maintainer or any admin when routing
+ * Checks if a user is any global maintainer or global admin when routing
  */
 const AuthGlobalAdminMaintainerRoutes = ({
   children,
-}: IAuthGlobalAdminMaintainerRoutesProps): JSX.Element | null => {
+}: IAuthGlobalAdminMaintainerRoutesProps) => {
   const handlePageError = useErrorHandler();
   const { currentUser, isGlobalAdmin, isGlobalMaintainer } = useContext(
     AppContext

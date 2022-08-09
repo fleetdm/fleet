@@ -1,4 +1,4 @@
-# Server Installation
+# Server installation
 
 - [Fleet on CentOS](#fleet-on-centos)
   - [Setting up a host](#setting-up-a-host)

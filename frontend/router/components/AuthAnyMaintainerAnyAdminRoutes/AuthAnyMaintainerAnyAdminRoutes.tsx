@@ -11,7 +11,7 @@ interface IAuthAnyMaintainerAnyAdminRoutesProps {
  */
 const AuthAnyMaintainerAnyAdminRoutes = ({
   children,
-}: IAuthAnyMaintainerAnyAdminRoutesProps): JSX.Element | null => {
+}: IAuthAnyMaintainerAnyAdminRoutesProps) => {
   const handlePageError = useErrorHandler();
   const {
     currentUser,

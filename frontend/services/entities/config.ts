@@ -48,7 +48,6 @@ export default {
   loadSandboxExpiry: async () => {
     const instanceId = window.location.host.split(".")[0];
     const url = "https://sandbox.fleetdm.com/expires";
-    const token = local.getItem("auth_token");
 
     try {
       const { data } = await axios.get<{ timestamp: string }>(url, {
