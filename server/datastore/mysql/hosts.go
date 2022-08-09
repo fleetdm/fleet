@@ -495,19 +495,26 @@ func (ds *Datastore) applyHostFilters(opt fleet.HostListOptions, sql string, fil
 		failingPoliciesJoin = ""
 	}
 
+	mdmJoin := ` JOIN host_mdm hmdm ON h.id = hmdm.host_id `
+	if opt.MDMIDFilter == nil && opt.MDMEnrollmentStatusFilter == "" {
+		mdmJoin = ""
+	}
+
 	sql += fmt.Sprintf(`FROM hosts h
 		LEFT JOIN host_seen_times hst ON (h.id = hst.host_id)
 		LEFT JOIN teams t ON (h.team_id = t.id)
 		%s
 		%s
 		%s
+		%s
 		WHERE TRUE AND %s AND %s
-    `, deviceMappingJoin, policyMembershipJoin, failingPoliciesJoin, ds.whereFilterHostsByTeams(filter, "h"), softwareFilter,
+    `, deviceMappingJoin, policyMembershipJoin, failingPoliciesJoin, mdmJoin, ds.whereFilterHostsByTeams(filter, "h"), softwareFilter,
 	)
 
 	sql, params = filterHostsByStatus(sql, opt, params)
 	sql, params = filterHostsByTeam(sql, opt, params)
 	sql, params = filterHostsByPolicy(sql, opt, params)
+	sql, params = filterHostsByMDM(sql, opt, params)
 	sql, params = hostSearchLike(sql, params, opt.MatchQuery, hostSearchColumns...)
 	sql, params = appendListOptionsWithCursorToSQL(sql, params, opt.ListOptions)
 
@@ -518,6 +525,24 @@ func filterHostsByTeam(sql string, opt fleet.HostListOptions, params []interface
 	if opt.TeamFilter != nil {
 		sql += ` AND h.team_id = ?`
 		params = append(params, *opt.TeamFilter)
+	}
+	return sql, params
+}
+
+func filterHostsByMDM(sql string, opt fleet.HostListOptions, params []interface{}) (string, []interface{}) {
+	if opt.MDMIDFilter != nil {
+		sql += ` AND hmdm.mdm_id = ?`
+		params = append(params, *opt.MDMIDFilter)
+	}
+	if opt.MDMEnrollmentStatusFilter != "" {
+		switch opt.MDMEnrollmentStatusFilter {
+		case fleet.MDMEnrollStatusAutomatic:
+			sql += ` AND hmdm.enrolled IS TRUE AND hmdm.installed_from_dep IS TRUE`
+		case fleet.MDMEnrollStatusManual:
+			sql += ` AND hmdm.enrolled IS TRUE AND hmdm.installed_from_dep IS FALSE`
+		case fleet.MDMEnrollStatusUnenrolled:
+			sql += ` AND hmdm.enrolled IS FALSE`
+		}
 	}
 	return sql, params
 }

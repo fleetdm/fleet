@@ -35,6 +35,15 @@ const (
 	OnlineIntervalBuffer = 60
 )
 
+// MDMEnrollStatus defines the possible MDM enrollment statuses.
+type MDMEnrollStatus string
+
+const (
+	MDMEnrollStatusManual     = MDMEnrollStatus("manual")
+	MDMEnrollStatusAutomatic  = MDMEnrollStatus("automatic")
+	MDMEnrollStatusUnenrolled = MDMEnrollStatus("unenrolled")
+)
+
 type HostListOptions struct {
 	ListOptions
 
@@ -55,6 +64,11 @@ type HostListOptions struct {
 	SoftwareIDFilter *uint
 
 	DisableFailingPolicies bool
+
+	// MDMIDFilter filters the hosts by MDM ID.
+	MDMIDFilter *uint
+	// MDMEnrollmentStatusFilter filters the host by their MDM enrollment status.
+	MDMEnrollmentStatusFilter MDMEnrollStatus
 }
 
 func (h HostListOptions) Empty() bool {
