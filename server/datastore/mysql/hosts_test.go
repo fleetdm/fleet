@@ -3717,6 +3717,8 @@ func testAggregatedHostMDMAndMunki(t *testing.T, ds *Datastore) {
 	assert.Equal(t, 0, status.UnenrolledHostsCount)
 	assert.Equal(t, 1, status.EnrolledManualHostsCount)
 	assert.Equal(t, 0, status.EnrolledAutomatedHostsCount)
+
+	// TODO(mna): add assertions for MDM solutions stats
 }
 
 func testHostsLite(t *testing.T, ds *Datastore) {

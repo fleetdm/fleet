@@ -391,7 +391,7 @@ type AggregatedMDMStatus struct {
 }
 
 type AggregatedMDMSolutions struct {
-	MDMID      *uint  `json:"id,omitempty" db:"mdm_id"`
+	ID         uint   `json:"id,omitempty" db:"id"`
 	Name       string `json:"name" db:"name"`
 	HostsCount int    `json:"hosts_count" db:"hosts_count"`
 	ServerURL  string `json:"server_url" db:"server_url"`

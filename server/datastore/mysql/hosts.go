@@ -1607,15 +1607,15 @@ func (ds *Datastore) generateAggregatedMDMSolutions(ctx context.Context, teamID 
 
 	var results []fleet.AggregatedMDMSolutions
 	query := `SELECT
-				hm.mdm_id,
-				hm.server_url,
-				COALESCE(mdms.name, ?) as name,
+				mdms.id,
+				mdms.server_url,
+				mdms.name,
 				COUNT(DISTINCT hm.host_id) as hosts_count
-			 FROM host_mdm hm
-			 LEFT OUTER JOIN mobile_device_management_solutions mdms
+			 FROM mobile_device_management_solutions mdms
+			 INNER JOIN host_mdm hm
 			 ON hm.mdm_id = mdms.id
 `
-	args := []interface{}{fleet.UnknownMDMName}
+	args := []interface{}{}
 	if teamID != nil {
 		args = append(args, *teamID)
 		query += ` JOIN hosts h ON (h.id = hm.host_id) WHERE h.team_id = ?`
