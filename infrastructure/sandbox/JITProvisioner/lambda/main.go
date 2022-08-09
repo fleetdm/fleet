@@ -54,14 +54,14 @@ func applyConfig(c* gin.Context, url, token string) (err error) {
     }
 	specs, err := spec.GroupFromBytes(buf)
 	if err != nil {
-		return err
+		return
 	}
 	logf := func(format string, a ...interface{}) {
 		log.Printf(format, a...)
 	}
 	err = client.ApplyGroup(c, specs, logf)
 	if err != nil {
-		return err
+		return
 	}
 	return
 }
