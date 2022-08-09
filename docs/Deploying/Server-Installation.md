@@ -58,6 +58,8 @@ For example, after downloading:
 unzip fleet.zip 'linux/*' -d fleet
 sudo cp fleet/linux/fleet* /usr/bin/
 ```
+> There are several downloads available in the releases page, including the `fleetctl` CLI. Make sure you grab the one that starts with `fleet_` when setting up your Fleet server. 
+
 
 ### Installing and configuring dependencies
 
@@ -271,6 +273,8 @@ For example, after downloading:
 unzip fleet.zip 'linux/*' -d fleet
 sudo cp fleet/linux/fleet* /usr/bin/
 ```
+
+> There are several downloads available in the releases page, including the `fleetctl` CLI. Make sure you grab the one that starts with `fleet_` when setting up your Fleet server. 
 
 ### Installing and configuring dependencies
 
