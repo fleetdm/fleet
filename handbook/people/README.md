@@ -83,6 +83,12 @@ When attending a conference for Fleet, please make a post in [g-digital-experien
 The monthly limit on your Brex card will be increased temporarily as necessary to accommodate the increased spending associated with the conference.
 We highly recommend you order a physical Brex card if you do not have one before attending the conference.
 
+### Coworking
+
+Fleet will reimburse team members for coworking up to $100 USD per month. Please get prior approval from your manager, and then this reimbursement can be used for drop-in coworking or go towards a coworking membership.
+
+Coworking expenses must be [reimbursed](#reimbursements). Brex cards should not be used for coworking due to possible legal complexities.
+
 ## Paid time off
 
 What matters most is your results, which are driven by your focus, your availability to collaborate, and the time and consideration you put into your work.
