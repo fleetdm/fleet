@@ -2117,6 +2117,20 @@ Maximum age of a vulnerability (a CVE) to be considered "recent". The age is cal
        recent_vulnerability_max_age: 48h
   ```
 
+### disable_win_os_vulnerabilities 
+
+Fleet by default will fetch and store all applied Windows updates and use that for detecting Windows
+vulnerabilities.
+
+- Default value: false
+- Environment variable: `FLEET_VULNERABILITIES_DISABLE_WIN_OS_VULNERABILITIES`
+- Config file format:
+  ```
+  vulnerabilities:
+  	disable_win_os_vulnerabilities: true
+  ```
+
+
 ##### Example YAML
 
 ```yaml

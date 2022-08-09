@@ -373,14 +373,6 @@ var extraDetailQueries = map[string]DetailQuery{
 		Platforms:        append(fleet.HostLinuxOSs, "darwin"),
 		DirectIngestFunc: directIngestOSUnixLike,
 	},
-
-	"windows_update_history": {
-		Query:            `SELECT date, title FROM windows_update_history WHERE result_code = 'Succeeded'`,
-		Platforms:        []string{"windows"},
-		Discovery:        discoveryTable("windows_update_history"),
-		DirectIngestFunc: directIngestWindowsUpdateHistory,
-	},
-
 	OrbitInfoQueryName: OrbitInfoDetailQuery,
 }
 
@@ -406,6 +398,13 @@ const usersQueryStr = `WITH cached_groups AS (select * from groups)
 
 func withCachedUsers(query string) string {
 	return fmt.Sprintf(query, usersQueryStr)
+}
+
+var windowsUpdateHistory = DetailQuery{
+	Query:            `SELECT date, title FROM windows_update_history WHERE result_code = 'Succeeded'`,
+	Platforms:        []string{"windows"},
+	Discovery:        discoveryTable("windows_update_history"),
+	DirectIngestFunc: directIngestWindowsUpdateHistory,
 }
 
 var softwareMacOS = DetailQuery{
@@ -1063,6 +1062,10 @@ func GetDetailQueries(ac *fleet.AppConfig, fleetConfig config.FleetConfig) map[s
 
 	if ac != nil && ac.HostSettings.EnableHostUsers {
 		generatedMap["users"] = usersQuery
+	}
+
+	if !fleetConfig.Vulnerabilities.DisableWinOSVulnerabilities {
+		generatedMap["windows_update_history"] = windowsUpdateHistory
 	}
 
 	if fleetConfig.App.EnableScheduledQueryStats {
