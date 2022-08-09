@@ -317,7 +317,7 @@ type HostMDM struct {
 // List of well-known MDM solution names. Those correspond to names stored in
 // the mobile_device_management_solutions table, created via (data) migrations.
 const (
-	UnknownMDMName        = "---"
+	UnknownMDMName        = ""
 	WellKnownMDMKandji    = "Kandji"
 	WellKnownMDMJamf      = "Jamf"
 	WellKnownMDMVMWare    = "VMware Workspace ONE"
@@ -360,7 +360,7 @@ func (h *HostMDM) MarshalJSON() ([]byte, error) {
 	var jsonMDM struct {
 		EnrollmentStatus string `json:"enrollment_status"`
 		ServerURL        string `json:"server_url"`
-		Name             string `json:"name"`
+		Name             string `json:"name,omitempty"`
 		ID               *uint  `json:"id,omitempty"`
 	}
 
@@ -406,7 +406,7 @@ type AggregatedMDMStatus struct {
 
 type AggregatedMDMSolutions struct {
 	ID         uint   `json:"id,omitempty" db:"id"`
-	Name       string `json:"name" db:"name"`
+	Name       string `json:"name,omitempty" db:"name"`
 	HostsCount int    `json:"hosts_count" db:"hosts_count"`
 	ServerURL  string `json:"server_url" db:"server_url"`
 }
