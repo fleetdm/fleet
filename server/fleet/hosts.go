@@ -52,6 +52,8 @@ type HostListOptions struct {
 
 	SoftwareIDFilter *uint
 
+	OperatingSystemIDFilter *uint
+
 	DisableFailingPolicies bool
 }
 
@@ -335,9 +337,20 @@ type OSVersions struct {
 }
 
 type OSVersion struct {
-	HostsCount int    `json:"hosts_count"`
-	Name       string `json:"name"`
-	Platform   string `json:"platform"`
+	// HostsCount is the number of hosts that have reported the operating system.
+	HostsCount int `json:"hosts_count"`
+	// Name is the name and alphanumeric version of the operating system. e.g., "Microsoft Windows 11 Enterprise",
+	// "Ubuntu", or "macOS". NOTE: In Fleet 5.0, this field will no longer include the alphanumeric version.
+	Name string `json:"name"`
+	// NameOnly is the name of the operating system, e.g., "Microsoft Windows 11 Enterprise",
+	// "Ubuntu", or "macOS". NOTE: In Fleet 5.0, this field be removed.
+	NameOnly string `json:"name_only"`
+	// Version is the alphanumeric version of the operating system, e.g., "21H2", "20.4.0", or "12.5".
+	Version string `json:"version"`
+	// Platform is the platform of the operating system, e.g., "windows", "ubuntu", or "darwin".
+	Platform string `json:"platform"`
+	// ID is the unique id of the operating system.
+	ID uint `json:"os_id"`
 }
 
 type HostDetailOptions struct {

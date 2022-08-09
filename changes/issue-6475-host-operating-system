@@ -1,2 +1,4 @@
 - Added new host detail queries to ingest operating system name, version, architecture, and
-  kernel version
+  kernel version.
+- Updated `GET /os_versions` endpoint to include new request and response fields.
+- Updated `GET /hosts` endpoint to add `operating_system_id` query parameter.

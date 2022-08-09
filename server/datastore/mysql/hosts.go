@@ -487,6 +487,12 @@ func (ds *Datastore) applyHostFilters(opt fleet.HostListOptions, sql string, fil
 		params = append(params, opt.SoftwareIDFilter)
 	}
 
+	operatingSystemFilter := "TRUE"
+	if opt.OperatingSystemIDFilter != nil {
+		operatingSystemFilter = "EXISTS (SELECT 1 FROM host_operating_system hos WHERE hos.host_id = h.id AND hos.os_id = ?)"
+		params = append(params, opt.OperatingSystemIDFilter)
+	}
+
 	failingPoliciesJoin := `LEFT JOIN (
 		    SELECT host_id, count(*) as count FROM policy_membership WHERE passes = 0
 		    GROUP BY host_id
@@ -501,8 +507,8 @@ func (ds *Datastore) applyHostFilters(opt fleet.HostListOptions, sql string, fil
 		%s
 		%s
 		%s
-		WHERE TRUE AND %s AND %s
-    `, deviceMappingJoin, policyMembershipJoin, failingPoliciesJoin, ds.whereFilterHostsByTeams(filter, "h"), softwareFilter,
+		WHERE TRUE AND %s AND %s AND %s
+    `, deviceMappingJoin, policyMembershipJoin, failingPoliciesJoin, ds.whereFilterHostsByTeams(filter, "h"), softwareFilter, operatingSystemFilter,
 	)
 
 	sql, params = filterHostsByStatus(sql, opt, params)
@@ -1707,7 +1713,7 @@ func (ds *Datastore) UpdateHost(ctx context.Context, host *fleet.Host) error {
 }
 
 // OSVersions gets the aggregated os version host counts. If a non-nil teamID is passed, it will filter hosts by team.
-func (ds *Datastore) OSVersions(ctx context.Context, teamID *uint, platform *string) (*fleet.OSVersions, error) {
+func (ds *Datastore) OSVersions(ctx context.Context, teamID *uint, platform *string, osID *uint) (*fleet.OSVersions, error) {
 	query := `
 SELECT
     json_value,
@@ -1760,6 +1766,17 @@ WHERE
 		osVersions.OSVersions = filtered
 	}
 
+	// filter by os versions by os id
+	if osID != nil {
+		var filtered []fleet.OSVersion
+		for _, osVersion := range osVersions.OSVersions {
+			if *osID == osVersion.ID {
+				filtered = append(filtered, osVersion)
+			}
+		}
+		osVersions.OSVersions = filtered
+	}
+
 	// Sort by os versions. We can't control the order when using json_arrayagg
 	// See https://dev.mysql.com/doc/refman/5.7/en/aggregate-functions.html#function_json-arrayagg.
 	sort.Slice(osVersions.OSVersions, func(i, j int) bool { return osVersions.OSVersions[i].Name < osVersions.OSVersions[j].Name })
@@ -1770,68 +1787,83 @@ WHERE
 // Aggregated stats for os versions are stored by team id with 0 representing the global case
 // If existing team has no hosts, we explicity set the json value as an empty array
 func (ds *Datastore) UpdateOSVersions(ctx context.Context) error {
+	// TODO: counts will be lagging until offline hosts report back with detail query
+
 	sql := `
 INSERT INTO aggregated_stats (id, type, json_value)
 SELECT
-  team_id id,
-  'os_versions' type,
-  COALESCE(
-    CONCAT('[', GROUP_CONCAT(
-      JSON_OBJECT(
-        'hosts_count', hosts_count,
-        'name', name,
-        'platform', platform
-      )
-    ), ']'),
-    JSON_ARRAY()
-  ) json_value
-FROM
-  (
-    SELECT
-      COUNT(*) hosts_count,
-      h.os_version name,
-      h.platform,
-      0 team_id
-    FROM
-      hosts h
-    GROUP BY
-      h.os_version,
-      h.platform
-    UNION
-    SELECT
-      COUNT(*) hosts_count,
-      h.os_version name,
-      h.platform,
-      h.team_id
-    FROM
-      hosts h
-      JOIN teams t ON t.id = h.team_id
-    GROUP BY
-      h.os_version,
-      h.platform,
-      h.team_id
-  ) as team_os_versions
+	team_id id,
+	'os_versions' type,
+	COALESCE(
+		CONCAT('[', GROUP_CONCAT(
+			JSON_OBJECT(
+				'hosts_count', hosts_count, 
+				'name', name, 
+				'name_only', name_only, 
+				'version', version, 
+				'os_id', os_id, 
+				'platform', platform
+			)
+		), ']'), 
+		JSON_ARRAY()
+	) json_value
+FROM (
+	SELECT
+		team_id,
+		os_id,
+		hosts_count,
+		CONCAT(name, ' ', version)
+		name,
+		name name_only,
+		version,
+		platform
+	FROM (
+		SELECT
+			0 team_id,
+			COUNT(*) hosts_count,
+			os_id
+		FROM
+			hosts
+		LEFT JOIN host_operating_system ON host_id = id
+	GROUP BY
+		os_id
+	UNION
+	SELECT
+		h.team_id,
+		COUNT(*) hosts_count,
+		h.os_id
+	FROM (
+		SELECT
+			id,
+			team_id,
+			os_id
+		FROM
+			hosts
+		LEFT JOIN host_operating_system ON host_id = id) h
+	JOIN teams ON teams.id = h.team_id
 GROUP BY
-  team_id
+	h.os_id,
+	h.team_id) team_counts
+	LEFT JOIN operating_systems os ON os.id = os_id) t
+GROUP BY
+	team_id
 UNION
 SELECT
-  t.id,
-  'os_versions' type,
-  JSON_ARRAY() json_value
+	t.id,
+	'os_versions' TYPE,
+	JSON_ARRAY() json_value
 FROM
-  teams t
+	teams t
 WHERE NOT EXISTS (
-  SELECT
-    id
-  FROM
-    hosts h
-  WHERE
-    t.id = h.team_id
-)
-ON DUPLICATE KEY UPDATE
-  json_value = VALUES(json_value),
-  updated_at = CURRENT_TIMESTAMP
-`
+	SELECT
+		id
+	FROM
+		hosts h
+	WHERE
+		t.id = h.team_id) 
+ON DUPLICATE KEY UPDATE 
+	json_value = VALUES(json_value), 
+	updated_at = CURRENT_TIMESTAMP`
 
 	_, err := ds.writer.ExecContext(ctx, sql)
 	if err != nil {
