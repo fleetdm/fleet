@@ -374,6 +374,13 @@ var extraDetailQueries = map[string]DetailQuery{
 		DirectIngestFunc: directIngestOSUnixLike,
 	},
 
+	"windows_update_history": {
+		Query:            `SELECT title FROM windows_update_history WHERE result_code = 'Succeeded'`,
+		Platforms:        []string{"windows"},
+		Discovery:        discoveryTable("windows_update_history"),
+		DirectIngestFunc: directIngestWindowsUpdateHistory,
+	},
+
 	OrbitInfoQueryName: OrbitInfoDetailQuery,
 }
 
@@ -754,6 +761,40 @@ func directIngestBattery(ctx context.Context, logger log.Logger, host *fleet.Hos
 	return ds.ReplaceHostBatteries(ctx, host.ID, mapping)
 }
 
+func directIngestWindowsUpdateHistory(
+	ctx context.Context,
+	logger log.Logger,
+	host *fleet.Host,
+	ds fleet.Datastore,
+	rows []map[string]string,
+	failed bool,
+) error {
+	if failed {
+		level.Error(logger).Log("op", "directIngestWindowsUpdateHistory", "err", "failed")
+		return nil
+	}
+
+	// The windows update history will most likely contain duplicates, for example, everytime the
+	// defender antivirus gets updated a new entry is inserted.
+	uniq := make(map[uint]bool)
+	var KBIDs []uint
+
+	for _, row := range rows {
+		id, err := parseKBID(row["title"])
+		if err != nil {
+			level.Warn(logger).Log("op", "directIngestWindowsUpdateHistory", "skipped", err)
+			continue
+		}
+
+		if _, ok := uniq[id]; !ok {
+			uniq[id] = true
+			KBIDs = append(KBIDs, id)
+		}
+	}
+
+	return ds.InsertWindowsUpdates(ctx, host.ID, KBIDs)
+}
+
 func directIngestOrbitInfo(ctx context.Context, logger log.Logger, host *fleet.Host, ds fleet.Datastore, rows []map[string]string, failed bool) error {
 	if len(rows) != 1 {
 		return ctxerr.Errorf(ctx, "invalid number of orbit_info rows: %d", len(rows))
@@ -1037,4 +1078,31 @@ func GetDetailQueries(ac *fleet.AppConfig, fleetConfig config.FleetConfig) map[s
 	}
 
 	return generatedMap
+}
+
+// parseKBID extracts the KB (Knowledge Base) id contained inside a string. KB ids are found based on
+// the pattern 'KB\d+'. In case of multiple matches, the id
+// will be based on the last match. Will return an error if:
+// - No matches are found
+// - The matched KB contains an 'invalid' id (< 0)
+func parseKBID(str string) (uint, error) {
+	r := regexp.MustCompile(`\s?\(?KB(?P<Id>\d+)\s?\)?`)
+	m := r.FindAllStringSubmatch(str, -1)
+	idx := r.SubexpIndex("Id")
+
+	if len(m) == 0 || idx <= 0 {
+		return 0, fmt.Errorf("KB id not found in %s", str)
+	}
+
+	last := m[len(m)-1]
+	id, err := strconv.Atoi(last[idx])
+	if err != nil {
+		return 0, err
+	}
+
+	if id <= 0 {
+		return 0, fmt.Errorf("Invalid KB id value found in %s", str)
+	}
+
+	return uint(id), nil
 }
