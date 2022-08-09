@@ -971,6 +971,33 @@ func (s *integrationTestSuite) TestListHosts() {
 	require.Len(t, resp.Hosts, 1)
 	assert.Equal(t, 0, resp.Hosts[0].HostIssues.FailingPoliciesCount)
 	assert.Equal(t, 0, resp.Hosts[0].HostIssues.TotalIssuesCount)
+
+	// filter by MDM criteria without any host having such information
+	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &resp, "mdm_id", fmt.Sprint(999))
+	require.Len(t, resp.Hosts, 0)
+	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &resp, "mdm_enrollment_status", "manual")
+	require.Len(t, resp.Hosts, 0)
+
+	// set MDM information on a host
+	require.NoError(t, s.ds.SetOrUpdateMDMData(context.Background(), host.ID, true, "https://simplemdm.com", false))
+	var mdmID uint
+	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(context.Background(), q, &mdmID,
+			`SELECT id FROM mobile_device_management_solutions WHERE name = ? AND server_url = ?`, fleet.WellKnownMDMSimpleMDM, "https://simplemdm.com")
+	})
+
+	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &resp, "mdm_enrollment_status", "manual")
+	require.Len(t, resp.Hosts, 1)
+	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &resp, "mdm_enrollment_status", "automatic")
+	require.Len(t, resp.Hosts, 0)
+	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &resp, "mdm_enrollment_status", "unenrolled")
+	require.Len(t, resp.Hosts, 0)
+	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &resp, "mdm_id", fmt.Sprint(mdmID))
+	require.Len(t, resp.Hosts, 1)
+	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &resp, "mdm_id", fmt.Sprint(mdmID), "mdm_enrollment_status", "manual")
+	require.Len(t, resp.Hosts, 1)
+
+	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusInternalServerError, &resp, "mdm_enrollment_status", "invalid-status") // TODO: to be addressed by #4406
 }
 
 func (s *integrationTestSuite) TestInvites() {
