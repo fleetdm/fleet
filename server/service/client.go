@@ -11,6 +11,7 @@ import (
 	"os"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/pkg/spec"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 )
@@ -214,4 +215,70 @@ func (c *Client) authenticatedRequestWithQuery(params interface{}, verb string, 
 
 func (c *Client) authenticatedRequest(params interface{}, verb string, path string, responseDest interface{}) error {
 	return c.authenticatedRequestWithQuery(params, verb, path, responseDest, "")
+}
+
+// ApplyGroup applies the given spec group to Fleet.
+func (c *Client) ApplyGroup(ctx context.Context, specs *spec.Group, logf func(format string, args ...interface{})) error {
+	logfn := func(format string, args ...interface{}) {
+		if logf != nil {
+			logf(format, args...)
+		}
+	}
+	if len(specs.Queries) > 0 {
+		if err := c.ApplyQueries(specs.Queries); err != nil {
+			return fmt.Errorf("applying queries: %w", err)
+		}
+		logfn("[+] applied %d queries\n", len(specs.Queries))
+	}
+
+	if len(specs.Labels) > 0 {
+		if err := c.ApplyLabels(specs.Labels); err != nil {
+			return fmt.Errorf("applying labels: %w", err)
+		}
+		logfn("[+] applied %d labels\n", len(specs.Labels))
+	}
+
+	if len(specs.Policies) > 0 {
+		if err := c.ApplyPolicies(specs.Policies); err != nil {
+			return fmt.Errorf("applying policies: %w", err)
+		}
+		logfn("[+] applied %d policies\n", len(specs.Policies))
+	}
+
+	if len(specs.Packs) > 0 {
+		if err := c.ApplyPacks(specs.Packs); err != nil {
+			return fmt.Errorf("applying packs: %w", err)
+		}
+		logfn("[+] applied %d packs\n", len(specs.Packs))
+	}
+
+	if specs.AppConfig != nil {
+		if err := c.ApplyAppConfig(specs.AppConfig); err != nil {
+			return fmt.Errorf("applying fleet config: %w", err)
+		}
+		logfn("[+] applied fleet config\n")
+
+	}
+
+	if specs.EnrollSecret != nil {
+		if err := c.ApplyEnrollSecretSpec(specs.EnrollSecret); err != nil {
+			return fmt.Errorf("applying enroll secrets: %w", err)
+		}
+		logfn("[+] applied enroll secrets\n")
+	}
+
+	if len(specs.Teams) > 0 {
+		if err := c.ApplyTeams(specs.Teams); err != nil {
+			return fmt.Errorf("applying teams: %w", err)
+		}
+		logfn("[+] applied %d teams\n", len(specs.Teams))
+	}
+
+	if specs.UsersRoles != nil {
+		if err := c.ApplyUsersRoleSecretSpec(specs.UsersRoles); err != nil {
+			return fmt.Errorf("applying user roles: %w", err)
+		}
+		logfn("[+] applied user roles\n")
+	}
+	return nil
 }

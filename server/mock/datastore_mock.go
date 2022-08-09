@@ -291,7 +291,7 @@ type ListSoftwareVulnerabilitiesFunc func(ctx context.Context, hostIDs []uint) (
 
 type LoadHostSoftwareFunc func(ctx context.Context, host *fleet.Host, includeCVEScores bool) error
 
-type AllSoftwareWithoutCPEIteratorFunc func(ctx context.Context) (fleet.SoftwareIterator, error)
+type AllSoftwareWithoutCPEIteratorFunc func(ctx context.Context, excludedPlatforms []string) (fleet.SoftwareIterator, error)
 
 type AddCPEForSoftwareFunc func(ctx context.Context, software fleet.Software, cpe string) error
 
@@ -312,6 +312,10 @@ type HostsByCVEFunc func(ctx context.Context, cve string) ([]*fleet.HostShort, e
 type InsertCVEMetaFunc func(ctx context.Context, cveMeta []fleet.CVEMeta) error
 
 type ListCVEsFunc func(ctx context.Context, maxAge time.Duration) ([]fleet.CVEMeta, error)
+
+type ListOperatingSystemsFunc func(ctx context.Context) ([]fleet.OperatingSystem, error)
+
+type UpdateHostOperatingSystemFunc func(ctx context.Context, hostID uint, hostOS fleet.OperatingSystem) error
 
 type NewActivityFunc func(ctx context.Context, user *fleet.User, activityType string, details *map[string]interface{}) error
 
@@ -875,6 +879,12 @@ type DataStore struct {
 
 	ListCVEsFunc        ListCVEsFunc
 	ListCVEsFuncInvoked bool
+
+	ListOperatingSystemsFunc        ListOperatingSystemsFunc
+	ListOperatingSystemsFuncInvoked bool
+
+	UpdateHostOperatingSystemFunc        UpdateHostOperatingSystemFunc
+	UpdateHostOperatingSystemFuncInvoked bool
 
 	NewActivityFunc        NewActivityFunc
 	NewActivityFuncInvoked bool
@@ -1740,9 +1750,9 @@ func (s *DataStore) LoadHostSoftware(ctx context.Context, host *fleet.Host, incl
 	return s.LoadHostSoftwareFunc(ctx, host, includeCVEScores)
 }
 
-func (s *DataStore) AllSoftwareWithoutCPEIterator(ctx context.Context) (fleet.SoftwareIterator, error) {
+func (s *DataStore) AllSoftwareWithoutCPEIterator(ctx context.Context, excludedPlatforms []string) (fleet.SoftwareIterator, error) {
 	s.AllSoftwareWithoutCPEIteratorFuncInvoked = true
-	return s.AllSoftwareWithoutCPEIteratorFunc(ctx)
+	return s.AllSoftwareWithoutCPEIteratorFunc(ctx, excludedPlatforms)
 }
 
 func (s *DataStore) AddCPEForSoftware(ctx context.Context, software fleet.Software, cpe string) error {
@@ -1793,6 +1803,16 @@ func (s *DataStore) InsertCVEMeta(ctx context.Context, cveMeta []fleet.CVEMeta) 
 func (s *DataStore) ListCVEs(ctx context.Context, maxAge time.Duration) ([]fleet.CVEMeta, error) {
 	s.ListCVEsFuncInvoked = true
 	return s.ListCVEsFunc(ctx, maxAge)
+}
+
+func (s *DataStore) ListOperatingSystems(ctx context.Context) ([]fleet.OperatingSystem, error) {
+	s.ListOperatingSystemsFuncInvoked = true
+	return s.ListOperatingSystemsFunc(ctx)
+}
+
+func (s *DataStore) UpdateHostOperatingSystem(ctx context.Context, hostID uint, hostOS fleet.OperatingSystem) error {
+	s.UpdateHostOperatingSystemFuncInvoked = true
+	return s.UpdateHostOperatingSystemFunc(ctx, hostID, hostOS)
 }
 
 func (s *DataStore) NewActivity(ctx context.Context, user *fleet.User, activityType string, details *map[string]interface{}) error {

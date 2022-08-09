@@ -2511,7 +2511,7 @@ Retrieves aggregated host's MDM enrollment status and Munki versions.
     ],
     "mobile_device_management_enrollment_status": {
       "enrolled_manual_hosts_count": 124,
-      "enrolled_automatic_hosts_count": 124,
+      "enrolled_automated_hosts_count": 124,
       "unenrolled_hosts_count": 112
     },
     "mobile_device_management_solution": [

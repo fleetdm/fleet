@@ -682,6 +682,22 @@ func (a *agent) batteries() []map[string]string {
 	return result
 }
 
+func (a *agent) osUnixLike() []map[string]string {
+	return []map[string]string{
+		{
+			"build":          "18G3020",
+			"major":          "10",
+			"minor":          "14",
+			"name":           "Mac OS X",
+			"patch":          "6",
+			"platform":       "darwin",
+			"arch":           "x86_64",
+			"version":        "10.14.6",
+			"kernel_version": "21.4.0",
+		},
+	}
+}
+
 func (a *agent) processQuery(name, query string) (handled bool, results []map[string]string, status *fleet.OsqueryStatus) {
 	const (
 		hostPolicyQueryPrefix = "fleet_policy_query_"
@@ -723,6 +739,13 @@ func (a *agent) processQuery(name, query string) (handled bool, results []map[st
 			results = a.batteries()
 		}
 		return true, results, &ss
+	case name == hostDetailQueryPrefix+"os_unix_like":
+		ss := fleet.OsqueryStatus(rand.Intn(2))
+		if ss == fleet.StatusOK {
+			results = a.osUnixLike()
+		}
+		return true, results, &ss
+
 	default:
 		// Look for results in the template file.
 		if t := a.templates.Lookup(name); t == nil {

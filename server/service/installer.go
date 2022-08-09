@@ -13,8 +13,8 @@ import (
 )
 
 type installerRequest struct {
-	EnrollSecret string `url:"enroll_secret"`
 	Kind         string `url:"kind"`
+	EnrollSecret string `query:"enroll_secret"`
 	Desktop      bool   `query:"desktop,optional"`
 }
 

@@ -183,21 +183,30 @@
               </li>
             </ul>
           </div>
-          <div class="d-none d-lg-block" purpose="swag-cta" v-if="showSwagForm">
-            <a class="d-flex flex-column align-items-center justify-content-center" href="https://kqphpqst851.typeform.com/to/ZfA3sOu0" target="_blank">
-              <img style="height: auto; width: 54px; margin-right: 5px;" alt="A very nice Fleet branded shirt" src="/images/fleet-shirt-60x55@2x.png">
-              <p class="mb-0"><strong>Request Fleet swag</strong></p>
-              <span>
-                It's free <img purpose="right-arrow" class="d-inline" style="height: 16px; width: auto; margin-bottom: 2px;" alt="right arrow" src="/images/arrow-right-red-16x16@2x.png" />
-              </span>
-            </a>
+          <div purpose="right-sidebar-buttons">
+            <div class="d-none d-lg-block" purpose="swag-cta" v-if="showSwagForm">
+              <a class="d-flex align-items-center justify-content-center" href="https://kqphpqst851.typeform.com/to/ZfA3sOu0" target="_blank">
+                <img style="height: auto; width: 47px; margin-right: 4px;" alt="A very nice Fleet branded shirt" src="/images/fleet-shirt-60x55@2x.png">
+                <div class="d-flex flex-column align-items-center">
+                  <p class="mb-0">Request Fleet swag</p>
+                  <span>
+                    It's free <img purpose="right-arrow" class="d-inline" style="height: 16px; width: auto; margin-bottom: 2px;" alt="right arrow" src="/images/arrow-right-red-16x16@2x.png" />
+                  </span>
+                </div>
+              </a>
+            </div>
+            <div class="d-none d-lg-block" purpose="demo-cta">
+              <a class="d-flex align-items-center justify-content-center" href="https://calendly.com/fleetdm/demo?utm_source=docs+demo" target="_blank">
+                <img style="height: auto; width: 27px; margin-right: 12px;" alt="The Fleet logo" src="/images/logo-fleet-brandmark-28x28@2x.png">
+                <div>
+                  <p class="mb-0">Get even more control</p>
+                  <span>
+                    Find out how <img purpose="right-arrow" class="d-inline" style="height: 16px; width: auto; margin-bottom: 2px;" alt="right arrow" src="/images/arrow-right-red-16x16@2x.png" />
+                  </span>
+                </div>
+              </a>
+            </div>
           </div>
-          <!-- <div v-if="!_.isEmpty(relatedTopics)">
-            <h6 class="d-none d-lg-block font-weight-bold py-2">Related topics</h6>
-            <ul class="d-none d-lg-block p-0">
-              <li v-for="(relatedTopic, index) in relatedTopics" :key="index">{{relatedTopic}}</li>
-            </ul>
-          </div> -->
 
         </div>
 
