@@ -294,10 +294,9 @@ func TruncateTables(t testing.TB, ds *Datastore, tables ...string) {
 	// be truncated - a more precise approach must be used for those, e.g.
 	// delete where id > max before test, or something like that.
 	nonEmptyTables := map[string]bool{
-		"app_config_json":                    true,
-		"migration_status_tables":            true,
-		"osquery_options":                    true,
-		"mobile_device_management_solutions": true,
+		"app_config_json":         true,
+		"migration_status_tables": true,
+		"osquery_options":         true,
 	}
 	ctx := context.Background()
 

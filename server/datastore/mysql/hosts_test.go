@@ -3563,6 +3563,7 @@ func testHostMDMAndMunki(t *testing.T, ds *Datastore) {
 	assert.True(t, hmdm.InstalledFromDep)
 	require.NotNil(t, hmdm.MDMID)
 	assert.NotZero(t, *hmdm.MDMID)
+	kandjiID1 := *hmdm.MDMID
 	assert.Equal(t, fleet.WellKnownMDMKandji, hmdm.Name)
 
 	// switch to simplemdm in an update
@@ -3588,6 +3589,20 @@ func testHostMDMAndMunki(t *testing.T, ds *Datastore) {
 	require.NotNil(t, hmdm.MDMID)
 	assert.Equal(t, urlMDMID, *hmdm.MDMID) // id is the same as created previously for that url
 	assert.Equal(t, fleet.UnknownMDMName, hmdm.Name)
+
+	// switch to a different Kandji server URL, will have a different MDM ID as
+	// even though this is another Kandji, the URL is different.
+	require.NoError(t, ds.SetOrUpdateMDMData(context.Background(), 455, true, "https://kandji.io/2", false))
+
+	hmdm, err = ds.GetMDM(context.Background(), 455)
+	require.NoError(t, err)
+	assert.True(t, hmdm.Enrolled)
+	assert.Equal(t, "https://kandji.io/2", hmdm.ServerURL)
+	assert.False(t, hmdm.InstalledFromDep)
+	require.NotNil(t, hmdm.MDMID)
+	assert.NotZero(t, *hmdm.MDMID)
+	assert.NotEqual(t, kandjiID1, *hmdm.MDMID)
+	assert.Equal(t, fleet.WellKnownMDMKandji, hmdm.Name)
 }
 
 func testAggregatedHostMDMAndMunki(t *testing.T, ds *Datastore) {

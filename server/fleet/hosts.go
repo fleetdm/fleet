@@ -311,19 +311,19 @@ const (
 	WellKnownMDMSimpleMDM = "SimpleMDM"
 )
 
+var mdmNameFromServerURLChecks = map[string]string{
+	"kandji":    WellKnownMDMKandji,
+	"jamf":      WellKnownMDMJamf,
+	"airwatch":  WellKnownMDMVMWare,
+	"microsoft": WellKnownMDMIntune,
+	"simplemdm": WellKnownMDMSimpleMDM,
+}
+
 // MDMNameFromServerURL returns the MDM solution name corresponding to the
 // given server URL. If no match is found, it returns the unknown MDM name.
 func MDMNameFromServerURL(serverURL string) string {
-	checks := map[string]string{
-		"kandji":    WellKnownMDMKandji,
-		"jamf":      WellKnownMDMJamf,
-		"airwatch":  WellKnownMDMVMWare,
-		"microsoft": WellKnownMDMIntune,
-		"simplemdm": WellKnownMDMSimpleMDM,
-	}
-
 	serverURL = strings.ToLower(serverURL)
-	for check, name := range checks {
+	for check, name := range mdmNameFromServerURLChecks {
 		if strings.Contains(serverURL, check) {
 			return name
 		}
