@@ -79,7 +79,7 @@ func TestDownloadCPETranslations(t *testing.T) {
 
 	tempDir := t.TempDir()
 
-	err := DownloadCPETranslations(tempDir, client)
+	err := DownloadCPETranslations(tempDir, client, "")
 	require.NoError(t, err)
 
 	assert.FileExists(t, filepath.Join(tempDir, cpeTranslationsFilename))
