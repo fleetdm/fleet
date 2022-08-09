@@ -850,6 +850,31 @@ func (s *integrationTestSuite) TestCountSoftware() {
 		"label_id", fmt.Sprint(label.ID),
 	)
 	assert.Equal(t, 1, resp.Count)
+
+	// filter by MDM criteria without any host having such information
+	s.DoJSON("GET", "/api/latest/fleet/hosts/count", nil, http.StatusOK, &resp, "mdm_id", fmt.Sprint(999))
+	require.Equal(t, 0, resp.Count)
+	s.DoJSON("GET", "/api/latest/fleet/hosts/count", nil, http.StatusOK, &resp, "mdm_enrollment_status", "manual")
+	require.Equal(t, 0, resp.Count)
+
+	// set MDM information on a host
+	require.NoError(t, s.ds.SetOrUpdateMDMData(context.Background(), hosts[1].ID, true, "https://simplemdm.com", false))
+	var mdmID uint
+	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(context.Background(), q, &mdmID,
+			`SELECT id FROM mobile_device_management_solutions WHERE name = ? AND server_url = ?`, fleet.WellKnownMDMSimpleMDM, "https://simplemdm.com")
+	})
+
+	s.DoJSON("GET", "/api/latest/fleet/hosts/count", nil, http.StatusOK, &resp, "mdm_id", fmt.Sprint(mdmID))
+	require.Equal(t, 1, resp.Count)
+	s.DoJSON("GET", "/api/latest/fleet/hosts/count", nil, http.StatusOK, &resp, "mdm_enrollment_status", "manual")
+	require.Equal(t, 1, resp.Count)
+	s.DoJSON("GET", "/api/latest/fleet/hosts/count", nil, http.StatusOK, &resp, "mdm_enrollment_status", "automatic")
+	require.Equal(t, 0, resp.Count)
+	s.DoJSON("GET", "/api/latest/fleet/hosts/count", nil, http.StatusOK, &resp, "mdm_enrollment_status", "unenrolled")
+	require.Equal(t, 0, resp.Count)
+	s.DoJSON("GET", "/api/latest/fleet/hosts/count", nil, http.StatusOK, &resp, "mdm_enrollment_status", "manual", "mdm_id", fmt.Sprint(mdmID))
+	require.Equal(t, 1, resp.Count)
 }
 
 func (s *integrationTestSuite) TestPacks() {
