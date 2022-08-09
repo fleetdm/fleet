@@ -21,6 +21,7 @@ interface ILabelFormProps {
   handleSubmit: (formData: ILabelFormData) => void;
   onOsqueryTableSelect?: (tableName: string) => void;
   backendValidators: { [key: string]: string };
+  isLabelUpdating?: boolean;
 }
 
 const baseClass = "label-form";
@@ -60,6 +61,7 @@ const LabelForm = ({
   handleSubmit,
   onOsqueryTableSelect,
   backendValidators,
+  isLabelUpdating,
 }: ILabelFormProps): JSX.Element => {
   const [name, setName] = useState<string>(selectedLabel?.name || "");
   const [nameError, setNameError] = useState<string>("");
@@ -163,6 +165,7 @@ const LabelForm = ({
     selectedLabel && selectedLabel.label_membership_type === "manual";
   const headerText = isEdit ? "Edit label" : "New label";
   const saveBtnText = isEdit ? "Update label" : "Save label";
+  const saveBtnClass = isEdit ? "update-label-loading" : "save-label-loading";
   const aceHintText = isEdit
     ? "Label queries are immutable. To change the query, delete this label and create a new one."
     : "";
@@ -240,7 +243,7 @@ const LabelForm = ({
           </p>
         </div>
       )}
-      <div className="modal-cta-wrap">
+      <div className={`${baseClass}__button-wrap`}>
         <Button
           className={`${baseClass}__cancel-btn`}
           onClick={onCancel}
@@ -249,9 +252,10 @@ const LabelForm = ({
           Cancel
         </Button>
         <Button
-          className={`${baseClass}__save-btn`}
+          className={saveBtnClass}
           type="submit"
           variant="brand"
+          spinner={isLabelUpdating}
         >
           {saveBtnText}
         </Button>

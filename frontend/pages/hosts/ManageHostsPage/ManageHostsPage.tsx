@@ -262,6 +262,7 @@ const ManageHostsPage = ({
     [key: string]: string;
   }>(DEFAULT_CREATE_LABEL_ERRORS);
   const [resetPageIndex, setResetPageIndex] = useState<boolean>(false);
+  const [isLabelUpdating, setIsLabelUpdating] = useState<boolean>(false);
 
   // ======== end states
 
@@ -968,6 +969,7 @@ const ManageHostsPage = ({
     }
 
     const updateAttrs = deepDifference(formData, selectedLabel);
+    setIsLabelUpdating(true);
 
     labelsAPI
       .update(selectedLabel, updateAttrs)
@@ -1003,6 +1005,9 @@ const ManageHostsPage = ({
         } else {
           renderFlash("error", "Could not create label. Please try again.");
         }
+      })
+      .finally(() => {
+        setIsLabelUpdating(false);
       });
   };
 
@@ -1011,6 +1016,7 @@ const ManageHostsPage = ({
   };
 
   const onSaveAddLabel = (formData: ILabelFormData) => {
+    setIsLabelUpdating(true);
     labelsAPI
       .create(formData)
       .then(() => {
@@ -1046,6 +1052,9 @@ const ManageHostsPage = ({
         } else {
           renderFlash("error", "Could not create label. Please try again.");
         }
+      })
+      .finally(() => {
+        setIsLabelUpdating(false);
       });
   };
 
@@ -1684,6 +1693,7 @@ const ManageHostsPage = ({
           handleSubmit={onSaveAddLabel}
           baseError={labelsError?.message || ""}
           backendValidators={labelValidator}
+          isLabelUpdating={isLabelUpdating}
         />
       );
     }
@@ -1697,6 +1707,7 @@ const ManageHostsPage = ({
           handleSubmit={onEditLabel}
           baseError={labelsError?.message || ""}
           backendValidators={labelValidator}
+          isLabelUpdating={isLabelUpdating}
           isEdit
         />
       );
@@ -1860,14 +1871,14 @@ const ManageHostsPage = ({
             </span>
           </div>
           <div className={`dismiss-banner-button`}>
-            <button
-              className="button button--unstyled"
+            <Button
+              variant="unstyled"
               onClick={() =>
                 setShowNoEnrollSecretBanner(!showNoEnrollSecretBanner)
               }
             >
               <img alt="Dismiss no enroll secret banner" src={CloseIconBlack} />
-            </button>
+            </Button>
           </div>
         </div>
       )
@@ -1912,8 +1923,9 @@ const ManageHostsPage = ({
                       filteredHostCount === 0
                     ) && (
                       <Button
+                        variant="brand"
                         onClick={toggleAddHostsModal}
-                        className={`${baseClass}__add-hosts button button--brand`}
+                        className={`${baseClass}__add-hosts`}
                       >
                         <span>Add hosts</span>
                       </Button>

@@ -433,20 +433,11 @@ const ManageAutomationsModal = ({
               )}
             </div>
             <div className="modal-cta-wrap">
-              <Button
-                className={`${baseClass}__btn`}
-                onClick={onExit}
-                variant="inverse"
-              >
-                Cancel
-              </Button>
-              <Button
-                className={`${baseClass}__btn`}
-                type="submit"
-                variant="brand"
-                onClick={onSubmit}
-              >
+              <Button type="submit" variant="brand" onClick={onSubmit}>
                 Save
+              </Button>
+              <Button onClick={onExit} variant="inverse">
+                Cancel
               </Button>
             </div>
           </div>

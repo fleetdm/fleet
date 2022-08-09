@@ -62,6 +62,14 @@ $base-class: "button";
     display: flex;
     width: 64px;
   }
+  &--brand.update-label-loading {
+    display: flex;
+    width: 114px;
+  }
+  &--brand.save-label-loading {
+    display: flex;
+    width: 98px;
+  }
 
   &--success {
     @include button-variant($ui-success);

@@ -487,32 +487,32 @@ const PolicyForm = ({
                 variant="brand"
                 onClick={promptSavePolicy()}
                 disabled={isEditMode && !isAnyPlatformSelected}
-                className="save-loading"
+                className="save-policy-loading"
                 spinner={isUpdatingPolicy}
               >
                 Save
               </Button>
             )}
           </span>
+          <ReactTooltip
+            className={`${baseClass}__button-wrap--tooltip`}
+            place="bottom"
+            effect="solid"
+            id={`${baseClass}__button-wrap--tooltip`}
+            backgroundColor="#3e4771"
+          >
+            Select the platform(s) this
+            <br />
+            policy will be checked on
+            <br />
+            to save or run the policy.
+          </ReactTooltip>
           <span
             className={`${baseClass}__button-wrap--tooltip`}
             data-tip
             data-for={`${baseClass}__button-wrap--tooltip`}
             data-tip-disable={!isEditMode || isAnyPlatformSelected}
           >
-            <ReactTooltip
-              className={`${baseClass}__button-wrap--tooltip`}
-              place="bottom"
-              effect="solid"
-              id={`${baseClass}__button-wrap--tooltip`}
-              backgroundColor="#3e4771"
-            >
-              Select the platform(s) this
-              <br />
-              policy will be checked on
-              <br />
-              to save or run the policy.
-            </ReactTooltip>
             <Button
               className={`${baseClass}__run`}
               variant="blue-green"

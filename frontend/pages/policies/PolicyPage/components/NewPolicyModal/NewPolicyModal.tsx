@@ -134,16 +134,7 @@ const NewPolicyModal = ({
             placeholder="What steps should a device owner take to resolve a host that fails this policy? (optional)"
           />
           {platformSelector.render()}
-          <div
-            className={`${baseClass}__button-wrap ${baseClass}__button-wrap--modal`}
-          >
-            <Button
-              className={`${baseClass}__button--modal-cancel`}
-              onClick={() => setIsNewPolicyModalOpen(false)}
-              variant="inverse"
-            >
-              Cancel
-            </Button>
+          <div className="modal-cta-wrap">
             <span
               className={`${baseClass}__button-wrap--modal-save`}
               data-tip
@@ -151,7 +142,7 @@ const NewPolicyModal = ({
               data-tip-disable={!disableSave}
             >
               <Button
-                className={`${baseClass}__button--modal-save`}
+                className="save-policy-loading"
                 type="submit"
                 variant="brand"
                 onClick={handleSavePolicy}
@@ -174,6 +165,13 @@ const NewPolicyModal = ({
                 to save the policy.
               </ReactTooltip>
             </span>
+            <Button
+              className={`${baseClass}__button--modal-cancel`}
+              onClick={() => setIsNewPolicyModalOpen(false)}
+              variant="inverse"
+            >
+              Cancel
+            </Button>
           </div>
         </form>
       </>

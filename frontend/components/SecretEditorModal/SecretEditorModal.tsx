@@ -99,7 +99,7 @@ const SecretEditorModal = ({
           />
         </div>
         <div className="modal-cta-wrap">
-          <Button onClick={onSaveSecretClick} className="button button--brand">
+          <Button onClick={onSaveSecretClick} variant="brand">
             Save
           </Button>
         </div>
