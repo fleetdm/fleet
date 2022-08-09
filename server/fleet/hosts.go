@@ -347,13 +347,13 @@ func (h *HostMDM) MarshalJSON() ([]byte, error) {
 		EnrollmentStatus string `json:"enrollment_status"`
 		ServerURL        string `json:"server_url"`
 		Name             string `json:"name"`
-		MDMID            *uint  `json:"mdm_id,omitempty"`
+		ID               *uint  `json:"id,omitempty"`
 	}
 
 	jsonMDM.ServerURL = h.ServerURL
 	jsonMDM.EnrollmentStatus = h.EnrollmentStatus()
 	jsonMDM.Name = h.Name
-	jsonMDM.MDMID = h.MDMID
+	jsonMDM.ID = h.MDMID
 	return json.Marshal(jsonMDM)
 }
 

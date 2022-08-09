@@ -2443,7 +2443,7 @@ Retrieves a host's MDM enrollment status, MDM server URL, and Munki version.
       "enrollment_status": "Enrolled (automated)",
       "server_url": "http://some.url/mdm",
       "name": "MDM Vendor Name",
-      "mdm_id": 999
+      "id": 999
     }
   }
 }
@@ -2508,7 +2508,21 @@ Retrieves aggregated host's MDM enrollment status and Munki versions.
       "enrolled_manual_hosts_count": 124,
       "enrolled_automatic_hosts_count": 124,
       "unenrolled_hosts_count": 112
-    }
+    },
+    "mobile_device_management_solution": [
+      {
+        "id": 1,
+        "name": "SimpleMDM",
+        "hosts_count": 8360,
+        "server_url": "https://a.simplemdm.com/mdm"
+      },
+      {
+        "id": 2,
+        "name": "Intune",
+        "hosts_count": 1700,
+        "server_url": "https://enrollment.manage.microsoft.com"
+      }
+    ]
   }
 }
 ```
