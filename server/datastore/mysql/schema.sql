@@ -701,3 +701,15 @@ CREATE TABLE `users` (
   UNIQUE KEY `idx_user_unique_email` (`email`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 /*!40101 SET character_set_client = @saved_cs_client */;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!40101 SET character_set_client = utf8 */;
+CREATE TABLE `windows_updates` (
+  `id` int(10) unsigned NOT NULL AUTO_INCREMENT,
+  `host_id` int(10) unsigned NOT NULL,
+  `date_epoch` int(10) unsigned NOT NULL,
+  `kb_id` int(10) unsigned NOT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `idx_unique_windows_updates` (`host_id`,`kb_id`),
+  KEY `idx_update_date` (`host_id`,`date_epoch`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+/*!40101 SET character_set_client = @saved_cs_client */;

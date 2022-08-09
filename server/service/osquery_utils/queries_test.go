@@ -657,15 +657,15 @@ func TestDangerousReplaceQuery(t *testing.T) {
 
 func TestDirectIngestWindowsUpdateHistory(t *testing.T) {
 	ds := new(mock.Store)
-	ds.InsertWindowsUpdatesFunc = func(ctx context.Context, hostID uint, KBIds []uint) error {
-		require.Equal(t, []uint{
-			2267602,
-			890830,
-			5013887,
-			5005463,
-			5010472,
-			4052623,
-		}, KBIds)
+	ds.InsertWindowsUpdatesFunc = func(ctx context.Context, hostID uint, updates map[uint]fleet.WindowsUpdate) error {
+		require.Equal(t, map[uint]fleet.WindowsUpdate{
+			2267602: {KBID: 2267602, DateEpoch: 1657929207},
+			890830:  {KBID: 890830, DateEpoch: 1658226954},
+			5013887: {KBID: 5013887, DateEpoch: 1658225364},
+			5005463: {KBID: 5005463, DateEpoch: 1658225225},
+			5010472: {KBID: 5010472, DateEpoch: 1658224963},
+			4052623: {KBID: 4052623, DateEpoch: 1657929544},
+		}, updates)
 		return nil
 	}
 
@@ -674,71 +674,21 @@ func TestDirectIngestWindowsUpdateHistory(t *testing.T) {
 	}
 
 	payload := []map[string]string{
-		{"title": "Security Intelligence Update for Microsoft Defender Antivirus - KB2267602 (Version 1.371.1239.0)"},
-		{"title": "Security Intelligence Update for Microsoft Defender Antivirus - KB2267602 (Version 1.371.442.0)"},
-		{"title": "Security Intelligence Update for Microsoft Defender Antivirus - KB2267602 (Version 1.371.415.0)"},
-		{"title": "Windows Malicious Software Removal Tool x64 - v5.103 (KB890830)"},
-		{"title": "2022-06 Cumulative Update for .NET Framework 3.5 and 4.8 for Windows 10 Version 21H2 for x64 (KB5013887)"},
-		{"title": "2022-04 Update for Windows 10 Version 21H2 for x64-based Systems (KB5005463)"},
-		{"title": "2022-02 Cumulative Update Preview for .NET Framework 3.5 and 4.8 for Windows 10 Version 21H2 for x64 (KB5010472)"},
-		{"title": "Security Intelligence Update for Microsoft Defender Antivirus - KB2267602 (Version 1.371.400.0)"},
-		{"title": "Security Intelligence Update for Microsoft Defender Antivirus - KB2267602 (Version 1.371.376.0)"},
-		{"title": "Security Intelligence Update for Microsoft Defender Antivirus - KB2267602 (Version 1.371.386.0)"},
-		{"title": "Update for Microsoft Defender Antivirus antimalware platform - KB4052623 (Version 4.18.2205.7)"},
-		{"title": "Security Intelligence Update for Microsoft Defender Antivirus - KB2267602 (Version 1.371.203.0)"},
+		{"date": "1659392951", "title": "Security Intelligence Update for Microsoft Defender Antivirus - KB2267602 (Version 1.371.1239.0)"},
+		{"date": "1658271402", "title": "Security Intelligence Update for Microsoft Defender Antivirus - KB2267602 (Version 1.371.442.0)"},
+		{"date": "1658228495", "title": "Security Intelligence Update for Microsoft Defender Antivirus - KB2267602 (Version 1.371.415.0)"},
+		{"date": "1658226954", "title": "Windows Malicious Software Removal Tool x64 - v5.103 (KB890830)"},
+		{"date": "1658225364", "title": "2022-06 Cumulative Update for .NET Framework 3.5 and 4.8 for Windows 10 Version 21H2 for x64 (KB5013887)"},
+		{"date": "1658225225", "title": "2022-04 Update for Windows 10 Version 21H2 for x64-based Systems (KB5005463)"},
+		{"date": "1658224963", "title": "2022-02 Cumulative Update Preview for .NET Framework 3.5 and 4.8 for Windows 10 Version 21H2 for x64 (KB5010472)"},
+		{"date": "1658222131", "title": "Security Intelligence Update for Microsoft Defender Antivirus - KB2267602 (Version 1.371.400.0)"},
+		{"date": "1658189063", "title": "Security Intelligence Update for Microsoft Defender Antivirus - KB2267602 (Version 1.371.376.0)"},
+		{"date": "1658185542", "title": "Security Intelligence Update for Microsoft Defender Antivirus - KB2267602 (Version 1.371.386.0)"},
+		{"date": "1657929544", "title": "Update for Microsoft Defender Antivirus antimalware platform - KB4052623 (Version 4.18.2205.7)"},
+		{"date": "1657929207", "title": "Security Intelligence Update for Microsoft Defender Antivirus - KB2267602 (Version 1.371.203.0)"},
 	}
 
 	err := directIngestWindowsUpdateHistory(context.Background(), log.NewNopLogger(), &host, ds, payload, false)
 	require.NoError(t, err)
 	require.True(t, ds.InsertWindowsUpdatesFuncInvoked)
-}
-
-func TestParseKBId(t *testing.T) {
-	testCases := []struct {
-		input    string
-		expected uint
-		errors   bool
-	}{
-		{
-			input:    "2022-04 Update for Windows 10 Version 21H2 for x64-based Systems based on (KB2267602) based on KB2267601 (KB5005463)",
-			expected: 5005463,
-			errors:   false,
-		},
-		{
-			input:    "Security Intelligence Update for Microsoft Defender Antivirus - KB2267602 (Version 1.371.1239.0)",
-			expected: 2267602,
-			errors:   false,
-		},
-		{
-			input:    "2022-04 Update for Windows 10 Version 21H2 for x64-based Systems (KB5005463)",
-			expected: 5005463,
-			errors:   false,
-		},
-		{
-			input:    "2022-04 Update for Windows 10 Version 21H2 for x64-based Systems (KB-5005463)",
-			expected: 0,
-			errors:   true,
-		},
-		{
-			input:    "2022-04 Update for Windows 10 Version 21H2 for x64-based Systems (KB0)",
-			expected: 0,
-			errors:   true,
-		},
-		{
-			input:    "Some random string",
-			expected: 0,
-			errors:   true,
-		},
-	}
-
-	for _, tCase := range testCases {
-		actual, err := parseKBID(tCase.input)
-		require.Equal(t, tCase.expected, actual)
-
-		if !tCase.errors {
-			require.NoError(t, err)
-		} else {
-			require.Error(t, err)
-		}
-	}
 }

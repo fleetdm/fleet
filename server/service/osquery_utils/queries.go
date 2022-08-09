@@ -375,7 +375,7 @@ var extraDetailQueries = map[string]DetailQuery{
 	},
 
 	"windows_update_history": {
-		Query:            `SELECT title FROM windows_update_history WHERE result_code = 'Succeeded'`,
+		Query:            `SELECT date, title FROM windows_update_history WHERE result_code = 'Succeeded'`,
 		Platforms:        []string{"windows"},
 		Discovery:        discoveryTable("windows_update_history"),
 		DirectIngestFunc: directIngestWindowsUpdateHistory,
@@ -774,25 +774,26 @@ func directIngestWindowsUpdateHistory(
 		return nil
 	}
 
-	// The windows update history will most likely contain duplicates, for example, everytime the
-	// defender antivirus gets updated a new entry is inserted.
-	uniq := make(map[uint]bool)
-	var KBIDs []uint
+	// The windows update history table will also contain entries for the Defender Antivirus. Unfortunately
+	// there's no reliable way to differentiate between those entries and Cumulative OS updates.
+	// Since each antivirus update will have the same KB ID, but different 'dates', to
+	// avoid trying to insert duplicated data, we group by KB ID and then take the most 'out of
+	// date' update in each group.
 
+	updates := make(map[uint]fleet.WindowsUpdate)
 	for _, row := range rows {
-		id, err := parseKBID(row["title"])
+		u, err := fleet.NewWindowsUpdate(row["title"], row["date"])
 		if err != nil {
 			level.Warn(logger).Log("op", "directIngestWindowsUpdateHistory", "skipped", err)
 			continue
 		}
 
-		if _, ok := uniq[id]; !ok {
-			uniq[id] = true
-			KBIDs = append(KBIDs, id)
+		if v, ok := updates[u.KBID]; !ok || v.MoreRecent(u) {
+			updates[u.KBID] = u
 		}
 	}
 
-	return ds.InsertWindowsUpdates(ctx, host.ID, KBIDs)
+	return ds.InsertWindowsUpdates(ctx, host.ID, updates)
 }
 
 func directIngestOrbitInfo(ctx context.Context, logger log.Logger, host *fleet.Host, ds fleet.Datastore, rows []map[string]string, failed bool) error {
@@ -1078,31 +1079,4 @@ func GetDetailQueries(ac *fleet.AppConfig, fleetConfig config.FleetConfig) map[s
 	}
 
 	return generatedMap
-}
-
-// parseKBID extracts the KB (Knowledge Base) id contained inside a string. KB ids are found based on
-// the pattern 'KB\d+'. In case of multiple matches, the id
-// will be based on the last match. Will return an error if:
-// - No matches are found
-// - The matched KB contains an 'invalid' id (< 0)
-func parseKBID(str string) (uint, error) {
-	r := regexp.MustCompile(`\s?\(?KB(?P<Id>\d+)\s?\)?`)
-	m := r.FindAllStringSubmatch(str, -1)
-	idx := r.SubexpIndex("Id")
-
-	if len(m) == 0 || idx <= 0 {
-		return 0, fmt.Errorf("KB id not found in %s", str)
-	}
-
-	last := m[len(m)-1]
-	id, err := strconv.Atoi(last[idx])
-	if err != nil {
-		return 0, err
-	}
-
-	if id <= 0 {
-		return 0, fmt.Errorf("Invalid KB id value found in %s", str)
-	}
-
-	return uint(id), nil
 }
