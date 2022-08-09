@@ -392,6 +392,21 @@ type Datastore interface {
 	ListCVEs(ctx context.Context, maxAge time.Duration) ([]CVEMeta, error)
 
 	///////////////////////////////////////////////////////////////////////////////
+	// OperatingSystemsStore
+
+	// ListOperationsSystems returns all operating systems (id, name, version)
+	ListOperatingSystems(ctx context.Context) ([]OperatingSystem, error)
+	// UpdateHostOperatingSystem updates the `host_operating_system` table
+	// for the given host ID with the ID of the operating system associated
+	// with the given name, version, arch, and kernel version in the
+	// `operating_systems` table.
+	//
+	// If the `operating_systems` table does not already include a record
+	// associated with the given name, version, arch, and kernel version,
+	// a new record is also created.
+	UpdateHostOperatingSystem(ctx context.Context, hostID uint, hostOS OperatingSystem) error
+
+	///////////////////////////////////////////////////////////////////////////////
 	// ActivitiesStore
 
 	NewActivity(ctx context.Context, user *User, activityType string, details *map[string]interface{}) error
