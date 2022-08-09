@@ -314,6 +314,11 @@ func (ds *Datastore) DeleteHost(ctx context.Context, hid uint) error {
 			return ctxerr.Wrapf(ctx, err, "deleting pack_targets for host %d", hid)
 		}
 
+		_, err = tx.ExecContext(ctx, `DELETE FROM windows_updates WHERE host_id = ?`, hid)
+		if err != nil {
+			return ctxerr.Wrapf(ctx, err, "deleting windows_updates for host %d", hid)
+		}
+
 		return nil
 	})
 }
