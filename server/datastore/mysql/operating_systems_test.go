@@ -44,6 +44,7 @@ func TestUpdateHostOperatingSystem(t *testing.T) {
 		Version:       "16.04.7 LTS",
 		Arch:          "x86_64",
 		KernelVersion: "5.10.76-linuxkit",
+		Platform:      "ubuntu",
 	}
 
 	// no records
@@ -115,6 +116,7 @@ func TestMaybeNewOperatingSystem(t *testing.T) {
 		Version:       "16.04.7 LTS",
 		Arch:          "x86_64",
 		KernelVersion: "5.10.76-linuxkit",
+		Platform:      "ubuntu",
 	}
 
 	// new os, returns a newly inserted record
@@ -250,30 +252,35 @@ func seedOperatingSystems(t *testing.T, ds *Datastore) map[uint]fleet.OperatingS
 			Version:       "21H2",
 			Arch:          "64-bit",
 			KernelVersion: "10.0.22000.795",
+			Platform:      "windows",
 		},
 		{
 			Name:          "macOS",
 			Version:       "12.3.1",
 			Arch:          "x86_64",
 			KernelVersion: "21.4.0",
+			Platform:      "darwin",
 		},
 		{
 			Name:          "Ubuntu",
 			Version:       "20.04.2 LTS",
 			Arch:          "x86_64",
 			KernelVersion: "5.10.76-linuxkit",
+			Platform:      "ubuntu",
 		},
 		{
 			Name:          "Debian GNU/Linux",
 			Version:       "10.0.0",
 			Arch:          "x86_64",
 			KernelVersion: "5.10.76-linuxkit",
+			Platform:      "debian",
 		},
 		{
 			Name:          "CentOS Linux",
 			Version:       "8.3.2011",
 			Arch:          "x86_64",
 			KernelVersion: "5.10.76-linuxkit",
+			Platform:      "rhel",
 		},
 	}
 	storedById := make(map[uint]fleet.OperatingSystem)

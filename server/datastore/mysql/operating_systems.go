@@ -51,8 +51,8 @@ func getOrGenerateOperatingSystemDB(ctx context.Context, tx sqlx.ExtContext, hos
 // `newOperatingSystemDB` inserts a record for the given operating system and
 // returns the record including the newly associated ID.
 func newOperatingSystemDB(ctx context.Context, tx sqlx.ExtContext, hostOS fleet.OperatingSystem) (*fleet.OperatingSystem, error) {
-	stmt := "INSERT IGNORE INTO operating_systems (name, version, arch, kernel_version) VALUES (?, ?, ?, ?)"
-	if _, err := tx.ExecContext(ctx, stmt, hostOS.Name, hostOS.Version, hostOS.Arch, hostOS.KernelVersion); err != nil {
+	stmt := "INSERT IGNORE INTO operating_systems (name, version, arch, kernel_version, platform) VALUES (?, ?, ?, ?, ?)"
+	if _, err := tx.ExecContext(ctx, stmt, hostOS.Name, hostOS.Version, hostOS.Arch, hostOS.KernelVersion, hostOS.Platform); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "insert new operating system")
 	}
 
@@ -82,11 +82,30 @@ func getOperatingSystemDB(ctx context.Context, tx sqlx.ExtContext, hostOS fleet.
 
 // upsertHostOperatingSystemDB upserts the host operating system table
 // with the operating system id for the given host ID
+// func upsertHostOperatingSystemDB(ctx context.Context, tx sqlx.ExtContext, hostID uint, osID uint) error {
+// 	stmt := "INSERT INTO host_operating_system (host_id, os_id) VALUES (?, ?) ON DUPLICATE KEY UPDATE os_id = VALUES(os_id)"
+// 	if _, err := tx.ExecContext(ctx, stmt, hostID, osID); err != nil {
+// 		return err
+// 	}
+// 	return nil
+// }
 func upsertHostOperatingSystemDB(ctx context.Context, tx sqlx.ExtContext, hostID uint, osID uint) error {
-	stmt := "INSERT INTO host_operating_system (host_id, os_id) VALUES (?, ?) ON DUPLICATE KEY UPDATE os_id = VALUES(os_id)"
-	if _, err := tx.ExecContext(ctx, stmt, hostID, osID); err != nil {
+	res, err := tx.ExecContext(ctx, "UPDATE host_operating_system SET os_id = ? WHERE host_id = ?", osID, hostID)
+	if err != nil {
 		return err
 	}
+
+	if n, _ := res.RowsAffected(); n > 0 {
+		// update success
+		return nil
+	}
+
+	// no row to update so insert new row
+	_, err = tx.ExecContext(ctx, "INSERT INTO host_operating_system (host_id, os_id) VALUES (?, ?)", hostID, osID)
+	if err != nil {
+		return err
+	}
+
 	return nil
 }
 

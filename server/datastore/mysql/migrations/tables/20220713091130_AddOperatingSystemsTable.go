@@ -11,15 +11,16 @@ func init() {
 }
 
 func Up_20220713091130(tx *sql.Tx) error {
-	// VARCHAR(191) is used to conform with max key length limitations for the unique constraint
+	// Length of VARCHAR set to conform with max key length limitations for the unique constraint
 	_, err := tx.Exec(`
 CREATE TABLE operating_systems (
     id INT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
-    name VARCHAR(191) NOT NULL,
-	version VARCHAR(191) NOT NULL,
-	arch VARCHAR(191) NOT NULL,
-	kernel_version VARCHAR(191) NOT NULL,
-    UNIQUE KEY idx_unique_os (name, version, arch, kernel_version)
+    name VARCHAR(255) NOT NULL,
+	version VARCHAR(150) NOT NULL,
+	arch VARCHAR(150) NOT NULL,
+	kernel_version VARCHAR(150) NOT NULL,
+	platform VARCHAR(50) NOT NULL,
+    UNIQUE KEY idx_unique_os (name, version, arch, kernel_version, platform)
 )
 	`)
 	if err != nil {

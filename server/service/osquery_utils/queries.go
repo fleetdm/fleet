@@ -339,6 +339,7 @@ var extraDetailQueries = map[string]DetailQuery{
 	SELECT
 		os.name,
 		os.arch,
+		os.platform,
 		r.version AS version,
 		k.version AS kernel_version
 	FROM
@@ -363,6 +364,7 @@ var extraDetailQueries = map[string]DetailQuery{
 		os.patch,
 		os.build,
 		os.arch,
+		os.platform,
 		os.version AS version,
 		k.version AS kernel_version
 	FROM
@@ -653,6 +655,7 @@ func directIngestOSWindows(ctx context.Context, logger log.Logger, host *fleet.H
 		Version:       rows[0]["version"],
 		Arch:          rows[0]["arch"],
 		KernelVersion: rows[0]["kernel_version"],
+		Platform:      rows[0]["platform"],
 	}
 
 	if err := ds.UpdateHostOperatingSystem(ctx, host.ID, hostOS); err != nil {
@@ -679,8 +682,9 @@ func directIngestOSUnixLike(ctx context.Context, logger log.Logger, host *fleet.
 	build := rows[0]["build"]
 	arch := rows[0]["arch"]
 	kernelVersion := rows[0]["kernel_version"]
+	platform := rows[0]["platform"]
 
-	hostOS := fleet.OperatingSystem{Name: name, Arch: arch, KernelVersion: kernelVersion}
+	hostOS := fleet.OperatingSystem{Name: name, Arch: arch, KernelVersion: kernelVersion, Platform: platform}
 	hostOS.Version = parseOSVersion(name, version, major, minor, patch, build)
 
 	if err := ds.UpdateHostOperatingSystem(ctx, host.ID, hostOS); err != nil {

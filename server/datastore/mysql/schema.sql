@@ -416,12 +416,13 @@ CREATE TABLE `network_interfaces` (
 /*!40101 SET character_set_client = utf8 */;
 CREATE TABLE `operating_systems` (
   `id` int(10) unsigned NOT NULL AUTO_INCREMENT,
-  `name` varchar(191) NOT NULL,
-  `version` varchar(191) NOT NULL,
-  `arch` varchar(191) NOT NULL,
-  `kernel_version` varchar(191) NOT NULL,
+  `name` varchar(255) NOT NULL,
+  `version` varchar(150) NOT NULL,
+  `arch` varchar(150) NOT NULL,
+  `kernel_version` varchar(150) NOT NULL,
+  `platform` varchar(50) NOT NULL,
   PRIMARY KEY (`id`),
-  UNIQUE KEY `idx_unique_os` (`name`,`version`,`arch`,`kernel_version`)
+  UNIQUE KEY `idx_unique_os` (`name`,`version`,`arch`,`kernel_version`,`platform`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 /*!40101 SET character_set_client = @saved_cs_client */;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;

@@ -11,4 +11,6 @@ type OperatingSystem struct {
 	Arch string `json:"arch,omitempty" db:"arch"`
 	// KernelVersion is the kernel version of the operating system, e.g., "5.10.76-linuxkit" or "10.0.22000.795"
 	KernelVersion string `json:"kernel_version,omitempty" db:"kernel_version"`
+	// Platform is the platform of the operating system, e.g., "darwin" or "rhel"
+	Platform string `json:"platform" db:"platform"`
 }
