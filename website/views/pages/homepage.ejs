@@ -249,6 +249,23 @@
           </a>
         </div>
       </div>
+      <div purpose="newsletter-banner">
+        <div class="d-flex flex-row justify-content-around">
+          <div purpose="newletter-form-text">
+            <h3>Stay up-to-date with the latest release</h3>
+            <p>Subscribe to the Fleet newlsetter for the latest release information. We release every three-weeks.</p>
+          </div>
+          <div purpose="newsletter-form" class="d-flex flex-row">
+            <ajax-form action="subscribeToNewsletter" :form-errors.sync="formErrors" :form-data="formData" :form-rules="formRules" :syncing.sync="syncing" :cloud-error.sync="cloudError" @submitted="submittedSignUpForm()">
+              <div class="form-group">
+                <input class="form-control" :class="[formErrors.emailAddress ? 'is-invalid' : '']" v-model.trim="formData.emailAddress" placeholder="Enter your email">
+                <div class="invalid-feedback" v-if="formErrors.emailAddress" focus-first>This doesn’t appear to be a valid email address</div>
+              </div>
+              <ajax-button style="height: 40px;" purpose="submit-button" type="button" :syncing="syncing" class="btn btn-block btn-lg btn-info mt-4" v-if="cloudError" @click="clickClearFormFields()">Subscribe</ajax-button>
+            </ajax-form>
+          </div>
+        </div>
+      </div>
     </div>
   </div>
 </div>
