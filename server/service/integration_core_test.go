@@ -2433,6 +2433,19 @@ func (s *integrationTestSuite) TestGetMacadminsData() {
 	assert.Equal(t, agg.Macadmins.MDMStatus.EnrolledAutomatedHostsCount, 2)
 	assert.Equal(t, agg.Macadmins.MDMStatus.UnenrolledHostsCount, 1)
 	assert.Equal(t, agg.Macadmins.MDMStatus.HostsCount, 3)
+	require.Len(t, agg.Macadmins.MDMSolutions, 2)
+	for _, sol := range agg.Macadmins.MDMSolutions {
+		switch sol.ServerURL {
+		case "url2":
+			assert.Equal(t, fleet.UnknownMDMName, sol.Name)
+			assert.Equal(t, 1, sol.HostsCount)
+		case "https://kandji.io":
+			assert.Equal(t, fleet.WellKnownMDMKandji, sol.Name)
+			assert.Equal(t, 1, sol.HostsCount)
+		default:
+			require.Fail(t, "unknown MDM server URL: %s", sol.ServerURL)
+		}
+	}
 
 	team, err := s.ds.NewTeam(context.Background(), &fleet.Team{
 		Name:        "team1" + t.Name(),
@@ -2445,11 +2458,10 @@ func (s *integrationTestSuite) TestGetMacadminsData() {
 	require.NotNil(t, agg.Macadmins)
 	require.Empty(t, agg.Macadmins.MunkiVersions)
 	require.Empty(t, agg.Macadmins.MDMStatus)
+	require.Empty(t, agg.Macadmins.MDMSolutions)
 
 	agg = getAggregatedMacadminsDataResponse{}
 	s.DoJSON("GET", "/api/latest/fleet/macadmins", nil, http.StatusNotFound, &agg, "team_id", "9999999")
-
-	// TODO(mna): add tests for mdm solutions aggregated stats
 }
 
 func (s *integrationTestSuite) TestLabels() {
