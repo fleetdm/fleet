@@ -3615,6 +3615,10 @@ func testAggregatedHostMDMAndMunki(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.Empty(t, status)
 	require.Zero(t, updatedAt)
+	solutions, updatedAt, err := ds.AggregatedMDMSolutions(context.Background(), nil)
+	require.NoError(t, err)
+	require.Len(t, solutions, 0)
+	require.Zero(t, updatedAt)
 
 	// Make sure generation works when there's no mdm or munki data
 	require.NoError(t, ds.GenerateAggregatedMunkiAndMDM(context.Background()))
@@ -3629,6 +3633,10 @@ func testAggregatedHostMDMAndMunki(t *testing.T, ds *Datastore) {
 	status, updatedAt, err = ds.AggregatedMDMStatus(context.Background(), nil)
 	require.NoError(t, err)
 	require.Empty(t, status)
+	require.NotZero(t, updatedAt)
+	solutions, updatedAt, err = ds.AggregatedMDMSolutions(context.Background(), nil)
+	require.NoError(t, err)
+	require.Len(t, solutions, 0)
 	require.NotZero(t, updatedAt)
 
 	// So now we try with data
@@ -3655,9 +3663,9 @@ func testAggregatedHostMDMAndMunki(t *testing.T, ds *Datastore) {
 	require.NoError(t, ds.SetOrUpdateMDMData(context.Background(), 432, true, "url", false))
 	require.NoError(t, ds.SetOrUpdateMDMData(context.Background(), 123, true, "url", false))
 	require.NoError(t, ds.SetOrUpdateMDMData(context.Background(), 124, true, "url", false))
-	require.NoError(t, ds.SetOrUpdateMDMData(context.Background(), 455, true, "url2", true))
-	require.NoError(t, ds.SetOrUpdateMDMData(context.Background(), 999, false, "url3", true))
-	require.NoError(t, ds.SetOrUpdateMDMData(context.Background(), 875, false, "url3", true))
+	require.NoError(t, ds.SetOrUpdateMDMData(context.Background(), 455, true, "https://simplemdm.com", true))
+	require.NoError(t, ds.SetOrUpdateMDMData(context.Background(), 999, false, "https://kandji.io", true))
+	require.NoError(t, ds.SetOrUpdateMDMData(context.Background(), 875, false, "https://kandji.io", true))
 
 	require.NoError(t, ds.GenerateAggregatedMunkiAndMDM(context.Background()))
 
@@ -3667,6 +3675,25 @@ func testAggregatedHostMDMAndMunki(t *testing.T, ds *Datastore) {
 	assert.Equal(t, 2, status.UnenrolledHostsCount)
 	assert.Equal(t, 3, status.EnrolledManualHostsCount)
 	assert.Equal(t, 1, status.EnrolledAutomatedHostsCount)
+
+	solutions, _, err = ds.AggregatedMDMSolutions(context.Background(), nil)
+	require.NoError(t, err)
+	require.Len(t, solutions, 3) // 3 different urls
+	for _, sol := range solutions {
+		switch sol.ServerURL {
+		case "url":
+			assert.Equal(t, 3, sol.HostsCount)
+			assert.Equal(t, fleet.UnknownMDMName, sol.Name)
+		case "https://simplemdm.com":
+			assert.Equal(t, 1, sol.HostsCount)
+			assert.Equal(t, fleet.WellKnownMDMSimpleMDM, sol.Name)
+		case "https://kandji.io":
+			assert.Equal(t, 2, sol.HostsCount)
+			assert.Equal(t, fleet.WellKnownMDMKandji, sol.Name)
+		default:
+			require.Fail(t, "unknown MDM solutions URL: %s", sol.ServerURL)
+		}
+	}
 
 	// Team filters
 	team1, err := ds.NewTeam(context.Background(), &fleet.Team{
@@ -3688,7 +3715,7 @@ func testAggregatedHostMDMAndMunki(t *testing.T, ds *Datastore) {
 	require.NoError(t, ds.AddHostsToTeam(context.Background(), &team2.ID, []uint{h2.ID}))
 	require.NoError(t, ds.AddHostsToTeam(context.Background(), &team1.ID, []uint{h3.ID}))
 
-	require.NoError(t, ds.SetOrUpdateMDMData(context.Background(), h1.ID, true, "url", false))
+	require.NoError(t, ds.SetOrUpdateMDMData(context.Background(), h1.ID, true, "https://simplemdm.com", false))
 	require.NoError(t, ds.SetOrUpdateMDMData(context.Background(), h2.ID, true, "url", false))
 	require.NoError(t, ds.SetOrUpdateMunkiVersion(context.Background(), h1.ID, "1.2.3"))
 	require.NoError(t, ds.SetOrUpdateMunkiVersion(context.Background(), h2.ID, "1.2.3"))
@@ -3718,7 +3745,13 @@ func testAggregatedHostMDMAndMunki(t *testing.T, ds *Datastore) {
 	assert.Equal(t, 1, status.EnrolledManualHostsCount)
 	assert.Equal(t, 0, status.EnrolledAutomatedHostsCount)
 
-	// TODO(mna): add assertions for MDM solutions stats
+	solutions, updatedAt, err = ds.AggregatedMDMSolutions(context.Background(), &team1.ID)
+	require.True(t, updatedAt.After(firstUpdatedAt))
+	require.NoError(t, err)
+	require.Len(t, solutions, 1)
+	assert.Equal(t, "https://simplemdm.com", solutions[0].ServerURL)
+	assert.Equal(t, fleet.WellKnownMDMSimpleMDM, solutions[0].Name)
+	assert.Equal(t, 1, solutions[0].HostsCount)
 }
 
 func testHostsLite(t *testing.T, ds *Datastore) {
