@@ -11,13 +11,13 @@ func TestUp_20220809091020(t *testing.T) {
 
 	applyNext(t, db)
 
-	stmt := `INSERT INTO windows_updates (host_id, kb_id) VALUES (?, ?)`
+	stmt := `INSERT INTO windows_updates (host_id, date_epoch, kb_id) VALUES (?, ?, ?)`
 
-	_, err := db.Exec(stmt, 1, 123)
+	_, err := db.Exec(stmt, 1, 1, 123)
 	require.NoError(t, err)
 
 	// This should raise an error
-	_, err = db.Exec(stmt, 1, 123)
+	_, err = db.Exec(stmt, 1, 1, 123)
 	require.Error(t, err)
 
 	// Test windows_updates has no duplicates

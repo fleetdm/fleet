@@ -7,8 +7,8 @@ import (
 )
 
 type WindowsUpdate struct {
-	KBID      uint
-	DateEpoch uint
+	KBID      uint `db:"kb_id"`
+	DateEpoch uint `db:"date_epoch"`
 }
 
 // NewWindowsUpdate returns a new WindowsUpdate from the provided props:

@@ -657,14 +657,15 @@ func TestDangerousReplaceQuery(t *testing.T) {
 
 func TestDirectIngestWindowsUpdateHistory(t *testing.T) {
 	ds := new(mock.Store)
-	ds.InsertWindowsUpdatesFunc = func(ctx context.Context, hostID uint, updates map[uint]fleet.WindowsUpdate) error {
-		require.Equal(t, map[uint]fleet.WindowsUpdate{
-			2267602: {KBID: 2267602, DateEpoch: 1657929207},
-			890830:  {KBID: 890830, DateEpoch: 1658226954},
-			5013887: {KBID: 5013887, DateEpoch: 1658225364},
-			5005463: {KBID: 5005463, DateEpoch: 1658225225},
-			5010472: {KBID: 5010472, DateEpoch: 1658224963},
-			4052623: {KBID: 4052623, DateEpoch: 1657929544},
+	ds.InsertWindowsUpdatesFunc = func(ctx context.Context, hostID uint, updates []fleet.WindowsUpdate) error {
+		require.Len(t, updates, 6)
+		require.ElementsMatch(t, []fleet.WindowsUpdate{
+			{KBID: 2267602, DateEpoch: 1657929207},
+			{KBID: 890830, DateEpoch: 1658226954},
+			{KBID: 5013887, DateEpoch: 1658225364},
+			{KBID: 5005463, DateEpoch: 1658225225},
+			{KBID: 5010472, DateEpoch: 1658224963},
+			{KBID: 4052623, DateEpoch: 1657929544},
 		}, updates)
 		return nil
 	}

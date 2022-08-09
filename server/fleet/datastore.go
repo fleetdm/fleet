@@ -593,7 +593,7 @@ type Datastore interface {
 
 	///////////////////////////////////////////////////////////////////////////////
 	// Windows Update History
-	InsertWindowsUpdates(ctx context.Context, hostID uint, KBIDs map[uint]WindowsUpdate) error
+	InsertWindowsUpdates(ctx context.Context, hostID uint, updates []WindowsUpdate) error
 }
 
 type MySQLProcess struct {

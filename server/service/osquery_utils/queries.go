@@ -780,7 +780,7 @@ func directIngestWindowsUpdateHistory(
 	// avoid trying to insert duplicated data, we group by KB ID and then take the most 'out of
 	// date' update in each group.
 
-	updates := make(map[uint]fleet.WindowsUpdate)
+	uniq := make(map[uint]fleet.WindowsUpdate)
 	for _, row := range rows {
 		u, err := fleet.NewWindowsUpdate(row["title"], row["date"])
 		if err != nil {
@@ -788,9 +788,14 @@ func directIngestWindowsUpdateHistory(
 			continue
 		}
 
-		if v, ok := updates[u.KBID]; !ok || v.MoreRecent(u) {
-			updates[u.KBID] = u
+		if v, ok := uniq[u.KBID]; !ok || v.MoreRecent(u) {
+			uniq[u.KBID] = u
 		}
+	}
+
+	var updates []fleet.WindowsUpdate
+	for _, v := range uniq {
+		updates = append(updates, v)
 	}
 
 	return ds.InsertWindowsUpdates(ctx, host.ID, updates)

@@ -427,7 +427,7 @@ type InnoDBStatusFunc func(ctx context.Context) (string, error)
 
 type ProcessListFunc func(ctx context.Context) ([]fleet.MySQLProcess, error)
 
-type InsertWindowsUpdatesFunc func(ctx context.Context, hostID uint, KBIDs map[uint]fleet.WindowsUpdate) error
+type InsertWindowsUpdatesFunc func(ctx context.Context, hostID uint, updates []fleet.WindowsUpdate) error
 
 type DataStore struct {
 	HealthCheckFunc        HealthCheckFunc
@@ -2090,7 +2090,7 @@ func (s *DataStore) ProcessList(ctx context.Context) ([]fleet.MySQLProcess, erro
 	return s.ProcessListFunc(ctx)
 }
 
-func (s *DataStore) InsertWindowsUpdates(ctx context.Context, hostID uint, KBIDs map[uint]fleet.WindowsUpdate) error {
+func (s *DataStore) InsertWindowsUpdates(ctx context.Context, hostID uint, updates []fleet.WindowsUpdate) error {
 	s.InsertWindowsUpdatesFuncInvoked = true
-	return s.InsertWindowsUpdatesFunc(ctx, hostID, KBIDs)
+	return s.InsertWindowsUpdatesFunc(ctx, hostID, updates)
 }
