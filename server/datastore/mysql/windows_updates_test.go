@@ -62,6 +62,7 @@ func testInsertWindowsUpdates(t *testing.T, ds *Datastore) {
 
 		updates = append(updates, fleet.WindowsUpdate{KBID: 3, DateEpoch: now + 2})
 		err = ds.InsertWindowsUpdates(ctx, 1, updates)
+		require.NoError(t, err)
 
 		var actual []fleet.WindowsUpdate
 		err = sqlx.SelectContext(ctx, ds.reader, &actual, smt, hostID)
