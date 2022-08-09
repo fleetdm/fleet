@@ -1,0 +1,66 @@
+<div id="email-template-preview" v-cloak>
+  <masthead :logged-in-user="me" :logged-in-masquerader="masquerader"></masthead>
+  <div class="container mt-5 mb-5">
+    <h1>Previewing <code>{{template}}</code></h1>
+
+  <!--   <div>
+      <h2>Fake data in use:</h2>
+      <code><pre>{{fakeData}}</pre></code>
+    </div>
+ -->
+<!--     <div>
+      <blockquote>Note: if someone has a few mins some time, maybe implement a more realistic-looking wrapper in CSS for this previewer (e.g. like what one might see in one's gmail or outlook inbox) <em>(see email-template-preview.ejs)</em></blockquote>
+    </div>
+ -->
+
+    <hr/>
+    <h2>Specific form factors:</h2>
+
+    <div class="simulate-320px-width pretend-inbox-wrapper-for-sample-email">
+      <h3>Handset (portrait)</h3>
+      <iframe class="preview-iframe" frameborder="0" border="0" cellspacing="0" :src="'/admin/emails/'+template+'?raw=true'">
+        <%- sampleHtml %>
+      </iframe>
+    </div>
+
+    <div class="simulate-480px-width pretend-inbox-wrapper-for-sample-email">
+      <h3>Handset (landscape)</h3>
+      <iframe class="preview-iframe" frameborder="0" border="0" cellspacing="0" :src="'/admin/emails/'+template+'?raw=true'">
+        <%- sampleHtml %>
+      </iframe>
+    </div>
+
+    <div class="simulate-768px-width pretend-inbox-wrapper-for-sample-email">
+      <h3>Tablet (portrait)</h3>
+      <iframe class="preview-iframe" frameborder="0" border="0" cellspacing="0" :src="'/admin/emails/'+template+'?raw=true'">
+        <%- sampleHtml %>
+      </iframe>
+    </div>
+
+    <div class="simulate-1024px-width pretend-inbox-wrapper-for-sample-email">
+      <h3>Tablet (landscape)</h3>
+      <iframe class="preview-iframe" frameborder="0" border="0" cellspacing="0" :src="'/admin/emails/'+template+'?raw=true'">
+        <%- sampleHtml %>
+      </iframe>
+    </div>
+
+    <div class="simulate-1920px-width pretend-inbox-wrapper-for-sample-email">
+      <h3>Ultra-widescreen</h3>
+      <iframe class="preview-iframe" frameborder="0" border="0" cellspacing="0" :src="'/admin/emails/'+template+'?raw=true'">
+        <%- sampleHtml %>
+      </iframe>
+    </div>
+
+    <hr/>
+    <h2>Responsive:</h2>
+
+    <div class="pretend-inbox-wrapper-for-sample-email">
+      <h3>Resize the browser to check out all the widths in between</h3>
+      <iframe class="preview-iframe" frameborder="0" border="0" cellspacing="0" :src="'/admin/emails/'+template+'?raw=true'">
+        <%- sampleHtml %>
+      </iframe>
+    </div>
+  </div>
+</div>
+<%- /* Expose server-rendered data as window.SAILS_LOCALS :: */ exposeLocalsToBrowser() %>
+
