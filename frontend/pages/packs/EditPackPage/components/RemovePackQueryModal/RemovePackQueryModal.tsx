@@ -11,6 +11,7 @@ interface IRemovePackQueryModalProps {
   onSubmit: () => void;
   selectedQuery?: IScheduledQuery;
   selectedQueryIds: number[];
+  isUpdatingPack: boolean;
 }
 
 const RemovePackQueryModal = ({
@@ -18,6 +19,7 @@ const RemovePackQueryModal = ({
   onSubmit,
   selectedQuery,
   selectedQueryIds,
+  isUpdatingPack,
 }: IRemovePackQueryModalProps): JSX.Element => {
   const queryOrQueries =
     selectedQuery || selectedQueryIds?.length === 1 ? "query" : "queries";
@@ -32,7 +34,13 @@ const RemovePackQueryModal = ({
         Are you sure you want to remove the selected {queryOrQueries} from your
         pack?
         <div className="modal-cta-wrap">
-          <Button type="button" variant="alert" onClick={onSubmit}>
+          <Button
+            type="button"
+            variant="alert"
+            onClick={onSubmit}
+            className="remove-loading"
+            spinner={isUpdatingPack}
+          >
             Remove
           </Button>
           <Button onClick={onCancel} variant="inverse-alert">

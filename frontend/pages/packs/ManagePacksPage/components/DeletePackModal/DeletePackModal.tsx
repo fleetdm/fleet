@@ -8,11 +8,13 @@ const baseClass = "remove-pack-modal";
 interface IDeletePackModalProps {
   onCancel: () => void;
   onSubmit: () => void;
+  isUpdatingPack: boolean;
 }
 
 const DeletePackModal = ({
   onCancel,
   onSubmit,
+  isUpdatingPack,
 }: IDeletePackModalProps): JSX.Element => {
   return (
     <Modal
@@ -24,7 +26,13 @@ const DeletePackModal = ({
       <div className={baseClass}>
         Are you sure you want to delete the selected packs?
         <div className="modal-cta-wrap">
-          <Button type="button" variant="alert" onClick={onSubmit}>
+          <Button
+            type="button"
+            variant="alert"
+            onClick={onSubmit}
+            className="delete-loading"
+            spinner={isUpdatingPack}
+          >
             Delete
           </Button>
           <Button onClick={onCancel} variant="inverse-alert">

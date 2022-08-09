@@ -30,6 +30,7 @@ interface IEditPackForm {
   formData: IEditPackFormData;
   scheduledQueries: IScheduledQuery[];
   isLoadingPackQueries: boolean;
+  isUpdatingPack: boolean;
 }
 
 interface IEditPackFormData {
@@ -51,6 +52,7 @@ const EditPackForm = ({
   targetsCount,
   isPremiumTier,
   formData,
+  isUpdatingPack,
 }: IEditPackForm): JSX.Element => {
   const [errors, setErrors] = useState<{ [key: string]: string }>({});
   const [packName, setPackName] = useState<string>(formData.name);
@@ -139,7 +141,12 @@ const EditPackForm = ({
         <Button onClick={onCancelEditPack} type="button" variant="inverse">
           Cancel
         </Button>
-        <Button onClick={onFormSubmit} variant="brand">
+        <Button
+          onClick={onFormSubmit}
+          variant="brand"
+          className="save-loading"
+          spinner={isUpdatingPack}
+        >
           Save
         </Button>
       </div>

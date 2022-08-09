@@ -41,6 +41,7 @@ interface IPackQueryEditorModalProps {
   ) => void;
   editQuery?: IScheduledQuery;
   packId: number;
+  isUpdatingPack: boolean;
 }
 interface INoQueryOption {
   id: number;
@@ -63,6 +64,7 @@ const PackQueryEditorModal = ({
   allQueries,
   editQuery,
   packId,
+  isUpdatingPack,
 }: IPackQueryEditorModalProps): JSX.Element => {
   const [selectedQuery, setSelectedQuery] = useState<
     IScheduledQuery | INoQueryOption
@@ -242,16 +244,18 @@ const PackQueryEditorModal = ({
         />
 
         <div className="modal-cta-wrap">
-          <Button onClick={onCancel} variant="inverse">
-            Cancel
-          </Button>
           <Button
             type="button"
             variant="brand"
             onClick={onFormSubmit}
             disabled={!selectedQuery && !editQuery}
+            className={`${editQuery?.name ? "save" : "add-query"}-loading`}
+            spinner={isUpdatingPack}
           >
             {editQuery?.name ? "Save" : "Add query"}
+          </Button>
+          <Button onClick={onCancel} variant="inverse">
+            Cancel
           </Button>
         </div>
       </form>
