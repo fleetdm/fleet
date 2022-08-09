@@ -963,9 +963,18 @@ func (svc *Service) AggregatedMacadminsData(ctx context.Context, teamID *uint) (
 	}
 	agg.MDMStatus = status
 
+	solutions, mdmSolutionsUpdatedAt, err := svc.ds.AggregatedMDMSolutions(ctx, teamID)
+	if err != nil {
+		return nil, err
+	}
+	agg.MDMSolutions = solutions
+
 	agg.CountsUpdatedAt = munkiUpdatedAt
-	if mdmUpdatedAt.After(munkiUpdatedAt) {
+	if mdmUpdatedAt.After(agg.CountsUpdatedAt) {
 		agg.CountsUpdatedAt = mdmUpdatedAt
+	}
+	if mdmSolutionsUpdatedAt.After(agg.CountsUpdatedAt) {
+		agg.CountsUpdatedAt = mdmSolutionsUpdatedAt
 	}
 
 	return agg, nil

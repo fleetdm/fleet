@@ -197,6 +197,8 @@ type AggregatedMunkiVersionFunc func(ctx context.Context, teamID *uint) ([]fleet
 
 type AggregatedMDMStatusFunc func(ctx context.Context, teamID *uint) (fleet.AggregatedMDMStatus, time.Time, error)
 
+type AggregatedMDMSolutionsFunc func(ctx context.Context, teamID *uint) ([]fleet.AggregatedMDMSolutions, time.Time, error)
+
 type GenerateAggregatedMunkiAndMDMFunc func(ctx context.Context) error
 
 type OSVersionsFunc func(ctx context.Context, teamID *uint, platform *string) (*fleet.OSVersions, error)
@@ -699,6 +701,9 @@ type DataStore struct {
 
 	AggregatedMDMStatusFunc        AggregatedMDMStatusFunc
 	AggregatedMDMStatusFuncInvoked bool
+
+	AggregatedMDMSolutionsFunc        AggregatedMDMSolutionsFunc
+	AggregatedMDMSolutionsFuncInvoked bool
 
 	GenerateAggregatedMunkiAndMDMFunc        GenerateAggregatedMunkiAndMDMFunc
 	GenerateAggregatedMunkiAndMDMFuncInvoked bool
@@ -1498,6 +1503,11 @@ func (s *DataStore) AggregatedMunkiVersion(ctx context.Context, teamID *uint) ([
 func (s *DataStore) AggregatedMDMStatus(ctx context.Context, teamID *uint) (fleet.AggregatedMDMStatus, time.Time, error) {
 	s.AggregatedMDMStatusFuncInvoked = true
 	return s.AggregatedMDMStatusFunc(ctx, teamID)
+}
+
+func (s *DataStore) AggregatedMDMSolutions(ctx context.Context, teamID *uint) ([]fleet.AggregatedMDMSolutions, time.Time, error) {
+	s.AggregatedMDMSolutionsFuncInvoked = true
+	return s.AggregatedMDMSolutionsFunc(ctx, teamID)
 }
 
 func (s *DataStore) GenerateAggregatedMunkiAndMDM(ctx context.Context) error {

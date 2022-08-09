@@ -2448,6 +2448,8 @@ func (s *integrationTestSuite) TestGetMacadminsData() {
 
 	agg = getAggregatedMacadminsDataResponse{}
 	s.DoJSON("GET", "/api/latest/fleet/macadmins", nil, http.StatusNotFound, &agg, "team_id", "9999999")
+
+	// TODO(mna): add tests for mdm solutions aggregated stats
 }
 
 func (s *integrationTestSuite) TestLabels() {

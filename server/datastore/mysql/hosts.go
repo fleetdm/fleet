@@ -1490,6 +1490,36 @@ func (ds *Datastore) AggregatedMDMStatus(ctx context.Context, teamID *uint) (fle
 	return status, statusJson.UpdatedAt, nil
 }
 
+func (ds *Datastore) AggregatedMDMSolutions(ctx context.Context, teamID *uint) ([]fleet.AggregatedMDMSolutions, time.Time, error) {
+	id := uint(0)
+
+	if teamID != nil {
+		id = *teamID
+	}
+
+	var result []fleet.AggregatedMDMSolutions
+	var resultJSON struct {
+		JsonValue []byte    `db:"json_value"`
+		UpdatedAt time.Time `db:"updated_at"`
+	}
+	err := sqlx.GetContext(
+		ctx, ds.reader, &resultJSON,
+		`SELECT json_value, updated_at FROM aggregated_stats WHERE id = ? AND type = 'mdm_solutions'`,
+		id,
+	)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			// not having stats is not an error
+			return nil, time.Time{}, nil
+		}
+		return nil, time.Time{}, ctxerr.Wrap(ctx, err, "selecting mdm solutions")
+	}
+	if err := json.Unmarshal(resultJSON.JsonValue, &result); err != nil {
+		return nil, time.Time{}, ctxerr.Wrap(ctx, err, "unmarshaling mdm solutions")
+	}
+	return result, resultJSON.UpdatedAt, nil
+}
+
 func (ds *Datastore) GenerateAggregatedMunkiAndMDM(ctx context.Context) error {
 	var ids []uint
 	if err := sqlx.SelectContext(ctx, ds.reader, &ids, `SELECT id FROM teams`); err != nil {
