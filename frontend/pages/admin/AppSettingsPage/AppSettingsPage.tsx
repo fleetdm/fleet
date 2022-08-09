@@ -24,6 +24,7 @@ const AppSettingsPage = ({ params }: IAppSettingsPageProps): JSX.Element => {
           <SandboxDemoMessage
             message="Organization settings are only available in self-managed Fleet"
             utmSource="fleet-ui-organization-settings-page"
+            className={`${baseClass}__sandbox-demo-message`}
           />
         )}
       >
