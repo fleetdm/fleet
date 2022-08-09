@@ -574,6 +574,8 @@ const UserForm = ({
           type="submit"
           variant="brand"
           onClick={onFormSubmit}
+          className={`${submitText === "Create" ? "create" : "save"}-loading
+          `}
           spinner={isUpdatingUsers}
         >
           {submitText}

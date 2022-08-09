@@ -27,7 +27,7 @@ interface IManageAutomationsModalProps {
   automationsConfig: IAutomationsConfig | ITeamAutomationsConfig;
   availableIntegrations: IIntegrations;
   availablePolicies: IPolicy[];
-  isAutomationsLoading: boolean;
+  isUpdatingAutomations: boolean;
   showPreviewPayloadModal: boolean;
   onExit: () => void;
   handleSubmit: (formData: IAutomationsConfig | ITeamAutomationsConfig) => void;
@@ -86,8 +86,8 @@ const ManageAutomationsModal = ({
   automationsConfig,
   availableIntegrations,
   availablePolicies,
-  isAutomationsLoading,
-  showPreviewPayloadModal: showPreviewModal,
+  isUpdatingAutomations,
+  showPreviewPayloadModal,
   onExit,
   handleSubmit,
   togglePreviewPayloadModal: togglePreviewModal,
@@ -337,33 +337,29 @@ const ManageAutomationsModal = ({
       <PreviewPayloadModal onCancel={togglePreviewModal} />
     );
 
-  return showPreviewModal ? (
+  return showPreviewPayloadModal ? (
     renderPreview()
   ) : (
     <Modal onExit={onExit} title={"Manage automations"} className={baseClass}>
-      <>
-        {isAutomationsLoading ? (
-          <Spinner />
-        ) : (
-          <div className={baseClass}>
-            <div className={`${baseClass}__software-select-items`}>
-              <Slider
-                value={isPolicyAutomationsEnabled}
-                onChange={() => {
-                  setIsPolicyAutomationsEnabled(!isPolicyAutomationsEnabled);
-                  setErrors({});
-                }}
-                inactiveText={"Policy automations disabled"}
-                activeText={"Policy automations enabled"}
-              />
-            </div>
-            <div className={`${baseClass}__overlay-container`}>
-              <div className={`${baseClass}__policy-automation-enabled`}>
-                <div className={`${baseClass}__select`}>
-                  {availablePolicies?.length ? (
-                    <div className={`${baseClass}__policy-select-items`}>
-                      <p>
-                        {/* {errors.policyItems ? (
+      <div className={baseClass}>
+        <div className={`${baseClass}__software-select-items`}>
+          <Slider
+            value={isPolicyAutomationsEnabled}
+            onChange={() => {
+              setIsPolicyAutomationsEnabled(!isPolicyAutomationsEnabled);
+              setErrors({});
+            }}
+            inactiveText={"Policy automations disabled"}
+            activeText={"Policy automations enabled"}
+          />
+        </div>
+        <div className={`${baseClass}__overlay-container`}>
+          <div className={`${baseClass}__policy-automation-enabled`}>
+            <div className={`${baseClass}__select`}>
+              {availablePolicies?.length ? (
+                <div className={`${baseClass}__policy-select-items`}>
+                  <p>
+                    {/* {errors.policyItems ? (
                           <span className="form-field__label--error">
                             {errors.policyItems}
                           </span>
@@ -372,77 +368,79 @@ const ManageAutomationsModal = ({
                             Choose which policies you would like to listen to:
                           </strong>
                         )} */}
-                        <strong>
-                          Choose which policies you would like to listen to:
-                        </strong>
-                      </p>
-                      {policyItems &&
-                        policyItems.map((policyItem) => {
-                          const { isChecked, name, id } = policyItem;
-                          return (
-                            <div key={id} className={`${baseClass}__team-item`}>
-                              <Checkbox
-                                value={isChecked}
-                                name={name}
-                                onChange={() => {
-                                  updatePolicyItems(policyItem.id);
-                                  !isChecked &&
-                                    setErrors((errs) =>
-                                      omit(errs, "policyItems")
-                                    );
-                                }}
-                              >
-                                {name}
-                              </Checkbox>
-                            </div>
-                          );
-                        })}
-                    </div>
-                  ) : (
-                    <div className={`${baseClass}__no-policies`}>
-                      <b>You have no policies.</b>
-                      <p>Add a policy to turn on automations.</p>
-                    </div>
-                  )}
+                    <strong>
+                      Choose which policies you would like to listen to:
+                    </strong>
+                  </p>
+                  {policyItems &&
+                    policyItems.map((policyItem) => {
+                      const { isChecked, name, id } = policyItem;
+                      return (
+                        <div key={id} className={`${baseClass}__team-item`}>
+                          <Checkbox
+                            value={isChecked}
+                            name={name}
+                            onChange={() => {
+                              updatePolicyItems(policyItem.id);
+                              !isChecked &&
+                                setErrors((errs) => omit(errs, "policyItems"));
+                            }}
+                          >
+                            {name}
+                          </Checkbox>
+                        </div>
+                      );
+                    })}
                 </div>
-                <div className={`${baseClass}__workflow`}>
-                  Workflow
-                  <Radio
-                    className={`${baseClass}__radio-input`}
-                    label={"Ticket"}
-                    id={"ticket-radio-btn"}
-                    checked={!isWebhookEnabled}
-                    value={"ticket"}
-                    name={"ticket"}
-                    onChange={onChangeRadio}
-                  />
-                  <Radio
-                    className={`${baseClass}__radio-input`}
-                    label={"Webhook"}
-                    id={"webhook-radio-btn"}
-                    checked={isWebhookEnabled}
-                    value={"webhook"}
-                    name={"webhook"}
-                    onChange={onChangeRadio}
-                  />
+              ) : (
+                <div className={`${baseClass}__no-policies`}>
+                  <b>You have no policies.</b>
+                  <p>Add a policy to turn on automations.</p>
                 </div>
-                {isWebhookEnabled ? renderWebhook() : renderIntegrations()}
-              </div>
-              {!isPolicyAutomationsEnabled && (
-                <div className={`${baseClass}__overlay`} />
               )}
             </div>
-            <div className="modal-cta-wrap">
-              <Button type="submit" variant="brand" onClick={onSubmit}>
-                Save
-              </Button>
-              <Button onClick={onExit} variant="inverse">
-                Cancel
-              </Button>
+            <div className={`${baseClass}__workflow`}>
+              Workflow
+              <Radio
+                className={`${baseClass}__radio-input`}
+                label={"Ticket"}
+                id={"ticket-radio-btn"}
+                checked={!isWebhookEnabled}
+                value={"ticket"}
+                name={"ticket"}
+                onChange={onChangeRadio}
+              />
+              <Radio
+                className={`${baseClass}__radio-input`}
+                label={"Webhook"}
+                id={"webhook-radio-btn"}
+                checked={isWebhookEnabled}
+                value={"webhook"}
+                name={"webhook"}
+                onChange={onChangeRadio}
+              />
             </div>
+            {isWebhookEnabled ? renderWebhook() : renderIntegrations()}
           </div>
-        )}
-      </>
+          {!isPolicyAutomationsEnabled && (
+            <div className={`${baseClass}__overlay`} />
+          )}
+        </div>
+        <div className="modal-cta-wrap">
+          <Button
+            type="submit"
+            variant="brand"
+            onClick={onSubmit}
+            className="save-loading"
+            spinner={isUpdatingAutomations}
+          >
+            Save
+          </Button>
+          <Button onClick={onExit} variant="inverse">
+            Cancel
+          </Button>
+        </div>
+      </div>
     </Modal>
   );
 };

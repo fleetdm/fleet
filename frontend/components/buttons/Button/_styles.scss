@@ -57,18 +57,28 @@ $base-class: "button";
       $core-vibrant-blue-over,
       $core-vibrant-blue-down
     );
+    display: flex;
   }
   &--brand.save-loading {
-    display: flex;
     width: 64px;
   }
   &--brand.update-label-loading {
-    display: flex;
     width: 114px;
   }
   &--brand.save-label-loading {
-    display: flex;
     width: 98px;
+  }
+  &--brand.save-policy-loading {
+    width: 106px;
+  }
+  &--brand.create-loading {
+    width: 74px;
+  }
+  &--brand.schedule-loading {
+    width: 91px;
+  }
+  &--brand.download-installer-loading {
+    width: 154px;
   }
 
   &--success {
@@ -81,6 +91,7 @@ $base-class: "button";
       $core-vibrant-red-over,
       $core-vibrant-red-down
     );
+    display: flex;
 
     .loading-spinner {
       &__ring {
@@ -92,6 +103,9 @@ $base-class: "button";
   }
   &--alert.delete-loading {
     width: 74px;
+  }
+  &--alert.remove-loading {
+    width: 84px;
   }
 
   &--blue-green {

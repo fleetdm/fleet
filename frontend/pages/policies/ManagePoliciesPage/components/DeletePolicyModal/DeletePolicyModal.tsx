@@ -1,40 +1,40 @@
-import React, { useEffect } from "react";
+import React from "react";
 
 import Modal from "components/Modal";
 import Button from "components/buttons/Button";
 import Spinner from "components/Spinner";
 
-const baseClass = "remove-scheduled-query-modal";
+const baseClass = "delete-policy-modal";
 
-interface IRemoveScheduledQueryModalProps {
-  isUpdatingScheduledQuery: boolean;
+interface IDeletePolicyModalProps {
+  isUpdatingPolicies: boolean;
   onCancel: () => void;
   onSubmit: () => void;
 }
 
-const RemoveScheduledQueryModal = ({
-  isUpdatingScheduledQuery,
+const DeletePolicyModal = ({
+  isUpdatingPolicies,
   onCancel,
   onSubmit,
-}: IRemoveScheduledQueryModalProps): JSX.Element => {
+}: IDeletePolicyModalProps): JSX.Element => {
   return (
     <Modal
-      title={"Remove scheduled query"}
+      title={"Delete policies"}
       onExit={onCancel}
       onEnter={onSubmit}
       className={baseClass}
     >
       <div className={baseClass}>
-        Are you sure you want to remove the selected queries from the schedule?
+        Are you sure you want to delete the selected policies?
         <div className="modal-cta-wrap">
           <Button
             type="button"
             variant="alert"
             onClick={onSubmit}
-            className="remove-loading"
-            spinner={isUpdatingScheduledQuery}
+            className="delete-loading"
+            spinner={isUpdatingPolicies}
           >
-            Remove
+            Delete
           </Button>
           <Button onClick={onCancel} variant="inverse-alert">
             Cancel
@@ -45,4 +45,4 @@ const RemoveScheduledQueryModal = ({
   );
 };
 
-export default RemoveScheduledQueryModal;
+export default DeletePolicyModal;

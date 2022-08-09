@@ -36,7 +36,6 @@ interface IPolicyFormProps {
   showOpenSchemaActionText: boolean;
   storedPolicy: IPolicy | undefined;
   isStoredPolicyLoading: boolean;
-  isCreatingNewPolicy: boolean;
   isUpdatingPolicy: boolean;
   onCreatePolicy: (formData: IPolicyFormData) => void;
   onOsqueryTableSelect: (tableName: string) => void;
@@ -64,7 +63,6 @@ const PolicyForm = ({
   showOpenSchemaActionText,
   storedPolicy,
   isStoredPolicyLoading,
-  isCreatingNewPolicy,
   isUpdatingPolicy,
   onCreatePolicy,
   onOsqueryTableSelect,
@@ -487,7 +485,7 @@ const PolicyForm = ({
                 variant="brand"
                 onClick={promptSavePolicy()}
                 disabled={isEditMode && !isAnyPlatformSelected}
-                className="save-policy-loading"
+                className="save-loading"
                 spinner={isUpdatingPolicy}
               >
                 Save
@@ -545,7 +543,7 @@ const PolicyForm = ({
           setIsNewPolicyModalOpen={setIsNewPolicyModalOpen}
           backendValidators={backendValidators}
           platformSelector={platformSelector}
-          policyIsLoading={isCreatingNewPolicy}
+          isUpdatingPolicy={isUpdatingPolicy}
         />
       )}
     </>

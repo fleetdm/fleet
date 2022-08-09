@@ -244,17 +244,13 @@ const LabelForm = ({
         </div>
       )}
       <div className={`${baseClass}__button-wrap`}>
-        <Button
-          className={`${baseClass}__cancel-btn`}
-          onClick={onCancel}
-          variant="inverse"
-        >
+        <Button onClick={onCancel} variant="inverse">
           Cancel
         </Button>
         <Button
-          className={saveBtnClass}
           type="submit"
           variant="brand"
+          className={saveBtnClass}
           spinner={isLabelUpdating}
         >
           {saveBtnText}

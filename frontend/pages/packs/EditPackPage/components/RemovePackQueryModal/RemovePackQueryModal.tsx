@@ -32,11 +32,11 @@ const RemovePackQueryModal = ({
         Are you sure you want to remove the selected {queryOrQueries} from your
         pack?
         <div className="modal-cta-wrap">
-          <Button onClick={onCancel} variant="inverse-alert">
-            Cancel
-          </Button>
           <Button type="button" variant="alert" onClick={onSubmit}>
             Remove
+          </Button>
+          <Button onClick={onCancel} variant="inverse-alert">
+            Cancel
           </Button>
         </div>
       </div>

@@ -24,20 +24,11 @@ const DeletePackModal = ({
       <div className={baseClass}>
         Are you sure you want to delete the selected packs?
         <div className="modal-cta-wrap">
-          <Button
-            className={`${baseClass}__btn`}
-            onClick={onCancel}
-            variant="inverse-alert"
-          >
-            Cancel
-          </Button>
-          <Button
-            className={`${baseClass}__btn`}
-            type="button"
-            variant="alert"
-            onClick={onSubmit}
-          >
+          <Button type="button" variant="alert" onClick={onSubmit}>
             Delete
+          </Button>
+          <Button onClick={onCancel} variant="inverse-alert">
+            Cancel
           </Button>
         </div>
       </div>

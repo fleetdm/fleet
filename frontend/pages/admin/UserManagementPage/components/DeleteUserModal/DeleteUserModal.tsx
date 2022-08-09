@@ -30,6 +30,7 @@ const DeleteUserModal = ({
             type="button"
             variant="alert"
             onClick={onDelete}
+            className="delete-loading"
             spinner={isUpdatingUsers}
           >
             Delete

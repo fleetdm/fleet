@@ -21,7 +21,7 @@ export interface INewPolicyModalProps {
   setIsNewPolicyModalOpen: (isOpen: boolean) => void;
   backendValidators: { [key: string]: string };
   platformSelector: IPlatformSelector;
-  policyIsLoading: boolean;
+  isUpdatingPolicy: boolean;
 }
 
 const validatePolicyName = (name: string) => {
@@ -42,7 +42,7 @@ const NewPolicyModal = ({
   setIsNewPolicyModalOpen,
   backendValidators,
   platformSelector,
-  policyIsLoading,
+  isUpdatingPolicy,
 }: INewPolicyModalProps): JSX.Element => {
   const {
     lastEditedQueryName,
@@ -142,12 +142,12 @@ const NewPolicyModal = ({
               data-tip-disable={!disableSave}
             >
               <Button
-                className="save-policy-loading"
                 type="submit"
                 variant="brand"
                 onClick={handleSavePolicy}
                 disabled={disableSave}
-                spinner={policyIsLoading}
+                className="save-policy-loading"
+                spinner={isUpdatingPolicy}
               >
                 Save policy
               </Button>
