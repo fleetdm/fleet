@@ -103,6 +103,10 @@ func (ds *Datastore) SaveHostPackStats(ctx context.Context, hostID uint, stats [
 }
 
 func saveHostPackStatsDB(ctx context.Context, db sqlx.ExecerContext, hostID uint, stats []fleet.PackStats) error {
+	// NOTE: this implementation must be kept in sync with the async/batch version
+	// in AsyncBatchSaveHostsScheduledQueryStats (in scheduled_queries.go) - that is,
+	// the behaviour per host must be the same.
+
 	var args []interface{}
 	queryCount := 0
 	for _, pack := range stats {
@@ -501,19 +505,26 @@ func (ds *Datastore) applyHostFilters(opt fleet.HostListOptions, sql string, fil
 		failingPoliciesJoin = ""
 	}
 
+	mdmJoin := ` JOIN host_mdm hmdm ON h.id = hmdm.host_id `
+	if opt.MDMIDFilter == nil && opt.MDMEnrollmentStatusFilter == "" {
+		mdmJoin = ""
+	}
+
 	sql += fmt.Sprintf(`FROM hosts h
 		LEFT JOIN host_seen_times hst ON (h.id = hst.host_id)
 		LEFT JOIN teams t ON (h.team_id = t.id)
 		%s
 		%s
 		%s
+		%s
 		WHERE TRUE AND %s AND %s AND %s
-    `, deviceMappingJoin, policyMembershipJoin, failingPoliciesJoin, ds.whereFilterHostsByTeams(filter, "h"), softwareFilter, operatingSystemFilter,
+    `, deviceMappingJoin, policyMembershipJoin, failingPoliciesJoin, mdmJoin, ds.whereFilterHostsByTeams(filter, "h"), softwareFilter, operatingSystemFilter,
 	)
 
 	sql, params = filterHostsByStatus(sql, opt, params)
 	sql, params = filterHostsByTeam(sql, opt, params)
 	sql, params = filterHostsByPolicy(sql, opt, params)
+	sql, params = filterHostsByMDM(sql, opt, params)
 	sql, params = hostSearchLike(sql, params, opt.MatchQuery, hostSearchColumns...)
 	sql, params = appendListOptionsWithCursorToSQL(sql, params, opt.ListOptions)
 
@@ -524,6 +535,24 @@ func filterHostsByTeam(sql string, opt fleet.HostListOptions, params []interface
 	if opt.TeamFilter != nil {
 		sql += ` AND h.team_id = ?`
 		params = append(params, *opt.TeamFilter)
+	}
+	return sql, params
+}
+
+func filterHostsByMDM(sql string, opt fleet.HostListOptions, params []interface{}) (string, []interface{}) {
+	if opt.MDMIDFilter != nil {
+		sql += ` AND hmdm.mdm_id = ?`
+		params = append(params, *opt.MDMIDFilter)
+	}
+	if opt.MDMEnrollmentStatusFilter != "" {
+		switch opt.MDMEnrollmentStatusFilter {
+		case fleet.MDMEnrollStatusAutomatic:
+			sql += ` AND hmdm.enrolled = 1 AND hmdm.installed_from_dep = 1`
+		case fleet.MDMEnrollStatusManual:
+			sql += ` AND hmdm.enrolled = 1 AND hmdm.installed_from_dep = 0`
+		case fleet.MDMEnrollStatusUnenrolled:
+			sql += ` AND hmdm.enrolled = 0`
+		}
 	}
 	return sql, params
 }
@@ -1324,16 +1353,16 @@ func (ds *Datastore) ReplaceHostBatteries(ctx context.Context, hid uint, mapping
 func (ds *Datastore) updateOrInsert(ctx context.Context, updateQuery string, insertQuery string, args ...interface{}) error {
 	res, err := ds.writer.ExecContext(ctx, updateQuery, args...)
 	if err != nil {
-		return ctxerr.Wrap(ctx, err)
+		return ctxerr.Wrap(ctx, err, "update")
 	}
 	affected, err := res.RowsAffected()
 	if err != nil {
-		return ctxerr.Wrap(ctx, err)
+		return ctxerr.Wrap(ctx, err, "rows affected by update")
 	}
 	if affected == 0 {
 		_, err = ds.writer.ExecContext(ctx, insertQuery, args...)
 	}
-	return ctxerr.Wrap(ctx, err)
+	return ctxerr.Wrap(ctx, err, "insert")
 }
 
 func (ds *Datastore) SetOrUpdateMunkiVersion(ctx context.Context, hostID uint, version string) error {
@@ -1355,12 +1384,53 @@ func (ds *Datastore) SetOrUpdateMunkiVersion(ctx context.Context, hostID uint, v
 }
 
 func (ds *Datastore) SetOrUpdateMDMData(ctx context.Context, hostID uint, enrolled bool, serverURL string, installedFromDep bool) error {
+	mdmID, err := ds.getOrInsertMDMSolution(ctx, serverURL)
+	if err != nil {
+		return err
+	}
+
 	return ds.updateOrInsert(
 		ctx,
-		`UPDATE host_mdm SET enrolled = ?, server_url = ?, installed_from_dep = ? WHERE host_id = ?`,
-		`INSERT INTO host_mdm (enrolled, server_url, installed_from_dep, host_id) VALUES (?, ?, ?, ?)`,
-		enrolled, serverURL, installedFromDep, hostID,
+		`UPDATE host_mdm SET enrolled = ?, server_url = ?, installed_from_dep = ?, mdm_id = ? WHERE host_id = ?`,
+		`INSERT INTO host_mdm (enrolled, server_url, installed_from_dep, mdm_id, host_id) VALUES (?, ?, ?, ?, ?)`,
+		enrolled, serverURL, installedFromDep, mdmID, hostID,
 	)
+}
+
+func (ds *Datastore) getOrInsertMDMSolution(ctx context.Context, serverURL string) (mdmID uint, err error) {
+	mdmName := fleet.MDMNameFromServerURL(serverURL)
+
+	readID := func(q sqlx.QueryerContext) (uint, error) {
+		var id uint
+		err := sqlx.GetContext(ctx, q, &id,
+			`SELECT id FROM mobile_device_management_solutions WHERE name = ? AND server_url = ?`, mdmName, serverURL)
+		return id, err
+	}
+
+	// optimistic approach, as mdm solutions will already exist the vast majority of the time
+	id, err := readID(ds.reader)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			// this mdm solution does not exist yet, try to insert it
+			res, err := ds.writer.ExecContext(ctx, `INSERT INTO mobile_device_management_solutions (name, server_url) VALUES (?, ?)`, mdmName, serverURL)
+			if err != nil {
+				if isDuplicate(err) {
+					// it might've been created between the select and the insert, read
+					// again this time from the writer database connection.
+					id, err := readID(ds.writer)
+					if err != nil {
+						return 0, ctxerr.Wrap(ctx, err, "get mdm id from writer")
+					}
+					return id, nil
+				}
+				return 0, ctxerr.Wrap(ctx, err, "insert mdm solution")
+			}
+			id, _ := res.LastInsertId()
+			return uint(id), nil
+		}
+		return 0, ctxerr.Wrap(ctx, err, "get mdm id from reader")
+	}
+	return id, nil
 }
 
 func (ds *Datastore) GetMunkiVersion(ctx context.Context, hostID uint) (string, error) {
@@ -1376,20 +1446,24 @@ func (ds *Datastore) GetMunkiVersion(ctx context.Context, hostID uint) (string, 
 	return version, nil
 }
 
-func (ds *Datastore) GetMDM(ctx context.Context, hostID uint) (bool, string, bool, error) {
-	dest := struct {
-		Enrolled         bool   `db:"enrolled"`
-		ServerURL        string `db:"server_url"`
-		InstalledFromDep bool   `db:"installed_from_dep"`
-	}{}
-	err := sqlx.GetContext(ctx, ds.reader, &dest, `SELECT enrolled, server_url, installed_from_dep FROM host_mdm WHERE host_id = ?`, hostID)
+func (ds *Datastore) GetMDM(ctx context.Context, hostID uint) (*fleet.HostMDM, error) {
+	var hmdm fleet.HostMDM
+	err := sqlx.GetContext(ctx, ds.reader, &hmdm, `
+		SELECT
+			hm.host_id, hm.enrolled, hm.server_url, hm.installed_from_dep, hm.mdm_id, COALESCE(mdms.name, ?) AS name
+		FROM
+			host_mdm hm
+		LEFT OUTER JOIN
+			mobile_device_management_solutions mdms
+		ON hm.mdm_id = mdms.id
+		WHERE hm.host_id = ?`, fleet.UnknownMDMName, hostID)
 	if err != nil {
 		if err == sql.ErrNoRows {
-			return false, "", false, ctxerr.Wrap(ctx, notFound("MDM").WithID(hostID))
+			return nil, ctxerr.Wrap(ctx, notFound("MDM").WithID(hostID))
 		}
-		return false, "", false, ctxerr.Wrapf(ctx, err, "getting data from host_mdm for host_id %d", hostID)
+		return nil, ctxerr.Wrapf(ctx, err, "getting data from host_mdm for host_id %d", hostID)
 	}
-	return dest.Enrolled, dest.ServerURL, dest.InstalledFromDep, nil
+	return &hmdm, nil
 }
 
 func (ds *Datastore) AggregatedMunkiVersion(ctx context.Context, teamID *uint) ([]fleet.AggregatedMunkiVersion, time.Time, error) {
@@ -1451,6 +1525,36 @@ func (ds *Datastore) AggregatedMDMStatus(ctx context.Context, teamID *uint) (fle
 	return status, statusJson.UpdatedAt, nil
 }
 
+func (ds *Datastore) AggregatedMDMSolutions(ctx context.Context, teamID *uint) ([]fleet.AggregatedMDMSolutions, time.Time, error) {
+	id := uint(0)
+
+	if teamID != nil {
+		id = *teamID
+	}
+
+	var result []fleet.AggregatedMDMSolutions
+	var resultJSON struct {
+		JsonValue []byte    `db:"json_value"`
+		UpdatedAt time.Time `db:"updated_at"`
+	}
+	err := sqlx.GetContext(
+		ctx, ds.reader, &resultJSON,
+		`SELECT json_value, updated_at FROM aggregated_stats WHERE id = ? AND type = 'mdm_solutions'`,
+		id,
+	)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			// not having stats is not an error
+			return nil, time.Time{}, nil
+		}
+		return nil, time.Time{}, ctxerr.Wrap(ctx, err, "selecting mdm solutions")
+	}
+	if err := json.Unmarshal(resultJSON.JsonValue, &result); err != nil {
+		return nil, time.Time{}, ctxerr.Wrap(ctx, err, "unmarshaling mdm solutions")
+	}
+	return result, resultJSON.UpdatedAt, nil
+}
+
 func (ds *Datastore) GenerateAggregatedMunkiAndMDM(ctx context.Context) error {
 	var ids []uint
 	if err := sqlx.SelectContext(ctx, ds.reader, &ids, `SELECT id FROM teams`); err != nil {
@@ -1464,6 +1568,9 @@ func (ds *Datastore) GenerateAggregatedMunkiAndMDM(ctx context.Context) error {
 		if err := ds.generateAggregatedMDMStatus(ctx, &id); err != nil {
 			return ctxerr.Wrap(ctx, err, "generating aggregated mdm status")
 		}
+		if err := ds.generateAggregatedMDMSolutions(ctx, &id); err != nil {
+			return ctxerr.Wrap(ctx, err, "generating aggregated mdm solutions")
+		}
 	}
 
 	if err := ds.generateAggregatedMunkiVersion(ctx, nil); err != nil {
@@ -1471,6 +1578,9 @@ func (ds *Datastore) GenerateAggregatedMunkiAndMDM(ctx context.Context) error {
 	}
 	if err := ds.generateAggregatedMDMStatus(ctx, nil); err != nil {
 		return ctxerr.Wrap(ctx, err, "generating aggregated mdm status")
+	}
+	if err := ds.generateAggregatedMDMSolutions(ctx, nil); err != nil {
+		return ctxerr.Wrap(ctx, err, "generating aggregated mdm solutions")
 	}
 	return nil
 }
@@ -1553,6 +1663,52 @@ ON DUPLICATE KEY UPDATE
 	)
 	if err != nil {
 		return ctxerr.Wrapf(ctx, err, "inserting stats for mdm_status id %d", id)
+	}
+	return nil
+}
+
+func (ds *Datastore) generateAggregatedMDMSolutions(ctx context.Context, teamID *uint) error {
+	id := uint(0)
+
+	var results []fleet.AggregatedMDMSolutions
+	query := `SELECT
+				mdms.id,
+				mdms.server_url,
+				mdms.name,
+				COUNT(DISTINCT hm.host_id) as hosts_count
+			 FROM mobile_device_management_solutions mdms
+			 INNER JOIN host_mdm hm
+			 ON hm.mdm_id = mdms.id
+`
+	args := []interface{}{}
+	if teamID != nil {
+		args = append(args, *teamID)
+		query += ` JOIN hosts h ON (h.id = hm.host_id) WHERE h.team_id = ?`
+		id = *teamID
+	}
+	query += ` GROUP BY id, server_url, name`
+	err := sqlx.SelectContext(ctx, ds.reader, &results, query, args...)
+	if err != nil {
+		return ctxerr.Wrapf(ctx, err, "getting aggregated data from host_mdm")
+	}
+
+	resultsJSON, err := json.Marshal(results)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "marshaling stats")
+	}
+
+	_, err = ds.writer.ExecContext(ctx,
+		`
+INSERT INTO aggregated_stats (id, type, json_value)
+VALUES (?, ?, ?)
+ON DUPLICATE KEY UPDATE
+    json_value = VALUES(json_value),
+    updated_at = CURRENT_TIMESTAMP
+`,
+		id, "mdm_solutions", resultsJSON,
+	)
+	if err != nil {
+		return ctxerr.Wrapf(ctx, err, "inserting stats for mdm_solutions id %d", id)
 	}
 	return nil
 }
