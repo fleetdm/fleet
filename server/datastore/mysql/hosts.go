@@ -537,11 +537,11 @@ func filterHostsByMDM(sql string, opt fleet.HostListOptions, params []interface{
 	if opt.MDMEnrollmentStatusFilter != "" {
 		switch opt.MDMEnrollmentStatusFilter {
 		case fleet.MDMEnrollStatusAutomatic:
-			sql += ` AND hmdm.enrolled IS TRUE AND hmdm.installed_from_dep IS TRUE`
+			sql += ` AND hmdm.enrolled = 1 AND hmdm.installed_from_dep = 1`
 		case fleet.MDMEnrollStatusManual:
-			sql += ` AND hmdm.enrolled IS TRUE AND hmdm.installed_from_dep IS FALSE`
+			sql += ` AND hmdm.enrolled = 1 AND hmdm.installed_from_dep = 0`
 		case fleet.MDMEnrollStatusUnenrolled:
-			sql += ` AND hmdm.enrolled IS FALSE`
+			sql += ` AND hmdm.enrolled = 0`
 		}
 	}
 	return sql, params
