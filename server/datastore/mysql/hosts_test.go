@@ -2018,7 +2018,6 @@ func testHostsListByOperatingSystemID(t *testing.T, ds *Datastore) {
 		require.NoError(t, err)
 		hostsByID[h.ID] = *h
 	}
-	hosts := listHostsCheckCount(t, ds, fleet.TeamFilter{User: test.UserAdmin}, fleet.HostListOptions{}, 9)
 
 	// seed operating systems
 	seeds := []fleet.OperatingSystem{
@@ -2052,7 +2051,7 @@ func testHostsListByOperatingSystemID(t *testing.T, ds *Datastore) {
 	}
 
 	// filter by id of Ubuntu 20.4.0
-	hosts = listHostsCheckCount(t, ds, fleet.TeamFilter{User: test.UserAdmin}, fleet.HostListOptions{OperatingSystemIDFilter: ptr.Uint(storedOSByNameVers["Ubuntu 20.4.0 LTS"].ID)}, 3)
+	hosts := listHostsCheckCount(t, ds, fleet.TeamFilter{User: test.UserAdmin}, fleet.HostListOptions{OperatingSystemIDFilter: ptr.Uint(storedOSByNameVers["Ubuntu 20.4.0 LTS"].ID)}, 3)
 	for _, h := range hosts {
 		require.Contains(t, hostsIDsUbuntu20_4, h.ID)
 	}
