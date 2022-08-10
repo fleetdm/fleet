@@ -77,6 +77,9 @@ $base-class: "button";
   &--brand.add-query-loading {
     width: 101px;
   }
+  &--brand.save-query-loading {
+    width: 105px;
+  }
   &--brand.create-loading {
     width: 74px;
   }
@@ -195,6 +198,10 @@ $base-class: "button";
     &.light-text {
       font-weight: $regular;
     }
+  }
+
+  &--text-link.save-as-new-loading {
+    width: 82px;
   }
 
   &--text-icon {

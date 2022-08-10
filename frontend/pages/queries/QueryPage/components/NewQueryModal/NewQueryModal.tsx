@@ -116,9 +116,9 @@ const NewQueryModal = ({
           <hr />
           <div className="modal-cta-wrap">
             <Button
-              className={`${baseClass}__save-modal__btn`}
               type="submit"
               variant="brand"
+              className="save-query-loading"
               isLoading={isLoading}
             >
               Save query

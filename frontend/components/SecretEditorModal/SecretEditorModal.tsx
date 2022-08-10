@@ -8,7 +8,7 @@ import Button from "components/buttons/Button";
 // @ts-ignore
 import InputField from "components/forms/fields/InputField";
 
-interface ISecretEditorModal {
+interface ISecretEditorModalProps {
   selectedTeam: number;
   onSaveSecret: (newEnrollSecret: string) => void;
   teams: ITeam[];
@@ -37,7 +37,7 @@ const SecretEditorModal = ({
   toggleSecretEditorModal,
   selectedSecret,
   isUpdatingSecret,
-}: ISecretEditorModal): JSX.Element => {
+}: ISecretEditorModalProps): JSX.Element => {
   const [enrollSecretString, setEnrollSecretString] = useState<string>(
     selectedSecret ? selectedSecret.secret : randomSecretGenerator()
   );
