@@ -639,9 +639,9 @@ func (man Manager) addConfigs() {
 	man.addConfigDuration("vulnerabilities.periodicity", 1*time.Hour,
 		"How much time to wait between processing software for vulnerabilities.")
 	man.addConfigString("vulnerabilities.cpe_database_url", "",
-		"URL from which to get the latest CPE database. If empty, defaults to the official Github link.")
+		"URL from which to get the latest CPE database. If empty, it will be downloaded from the latest release available at https://github.com/fleetdm/nvd/releases.")
 	man.addConfigString("vulnerabilities.cpe_translations_url", "",
-		"URL from which to get the latest CPE translations. If empty, defaults to the official Github link.")
+		"URL from which to get the latest CPE translations. If empty, it will be downloaded from the latest release available at https://github.com/fleetdm/nvd/releases.")
 	man.addConfigString("vulnerabilities.cve_feed_prefix_url", "",
 		"Prefix URL for the CVE data feed. If empty, default to https://nvd.nist.gov/")
 	man.addConfigString("vulnerabilities.current_instance_checks", "auto",

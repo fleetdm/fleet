@@ -114,11 +114,11 @@ func cleanAppName(appName string) string {
 	return strings.TrimSuffix(appName, ".app")
 }
 
-var onlyAlphaNumeric = regexp.MustCompile(`[^a-zA-Z0-9]+`)
+var nonAlphaNumeric = regexp.MustCompile(`[^a-zA-Z0-9]+`)
 
-// sanitizeMatch sanitizes the search string for sqlite fts queries. Replaces all special characters with spaces.
+// sanitizeMatch sanitizes the search string for sqlite fts queries. Replaces all non alpha numeric characters with spaces.
 func sanitizeMatch(s string) string {
-	return onlyAlphaNumeric.ReplaceAllString(s, " ")
+	return nonAlphaNumeric.ReplaceAllString(s, " ")
 }
 
 var sanitizeVersionRe = regexp.MustCompile(`[^a-zA-Z0-9_-]+`)
@@ -279,6 +279,9 @@ type CPETranslation struct {
 	TargetSW []string `json:"target_sw"`
 }
 
+// CPEFromSoftware attempts to find a matching cpe entry for the given software in the NVD CPE dictionary. `db` contains data from the NVD CPE dictionary
+// and is optimized for lookups, see `GenerateCPEDB`. `translations` are used to aid in cpe matching. When searching for cpes, we first check if it matches
+// any translations, and then lookup in the cpe database based on the title, product, vendor, target_sw, and version.
 func CPEFromSoftware(db *sqlx.DB, software *fleet.Software, translations CPETranslations) (string, error) {
 	version := sanitizeVersion(software.Version)
 
@@ -404,14 +407,14 @@ func CPEFromSoftware(db *sqlx.DB, software *fleet.Software, translations CPETran
 		return "", fmt.Errorf("getting cpes for: %s: %w", software.Name, err)
 	}
 
-	// if there are any non-depecrated cpes, return the first one
+	// if there are any non-deprecated cpes, return the first one
 	for _, item := range indexedCPEs {
 		if !item.Deprecated {
 			return item.CPE23, nil
 		}
 	}
 
-	// try to find a non-depcrecated cpe by looking up deprecated_by
+	// try to find a non-deprecated cpe by looking up deprecated_by
 	for _, item := range indexedCPEs {
 		deprecatedItem := item
 		for {
@@ -476,7 +479,7 @@ func TranslateSoftwareToCPE(
 	cpeTranslationsPath := filepath.Join(vulnPath, cpeTranslationsFilename)
 	cpeTranslations, err := loadCPETranslations(cpeTranslationsPath)
 	if err != nil {
-		level.Warn(logger).Log("msg", "failed to load cpe translations", "err", err)
+		level.Error(logger).Log("msg", "failed to load cpe translations", "err", err)
 	}
 
 	for iterator.Next() {
