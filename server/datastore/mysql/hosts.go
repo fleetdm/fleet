@@ -103,6 +103,10 @@ func (ds *Datastore) SaveHostPackStats(ctx context.Context, hostID uint, stats [
 }
 
 func saveHostPackStatsDB(ctx context.Context, db sqlx.ExecerContext, hostID uint, stats []fleet.PackStats) error {
+	// NOTE: this implementation must be kept in sync with the async/batch version
+	// in AsyncBatchSaveHostsScheduledQueryStats (in scheduled_queries.go) - that is,
+	// the behaviour per host must be the same.
+
 	var args []interface{}
 	queryCount := 0
 	for _, pack := range stats {
