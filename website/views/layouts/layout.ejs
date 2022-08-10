@@ -367,7 +367,8 @@
           var scrollTop = window.pageYOffset || document.documentElement.scrollTop
           var fleetLogo = header.querySelector('img')
           var hamburgerMenuIcon = header.querySelector('.btn.btn-link > img')
-          if(scrollTop == 0 && header.classList.contains('homepage-header')) {
+          let ctaBannerHeightOrTopOfPage = ctaBanner ? ctaBanner.clientHeight : 0;
+          if(scrollTop < ctaBannerHeightOrTopOfPage && header.classList.contains('homepage-header')) {
               if (ctaBanner) {
                 header.classList.add('homepage-header-top')
               }

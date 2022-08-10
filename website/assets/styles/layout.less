@@ -27,16 +27,6 @@ html, body {
 .homepage-cta-banner + .homepage-header-top {
   top: 52px;
 }
-@media (max-width: 767px) {
-  .homepage-cta-banner + .homepage-header-top {
-    top: 108px;
-  }
-}
-@media (width: 834px) {
-  .homepage-cta-banner+.homepage-header-top {
-    top: 62px;
-  }
-}
 .non-homepage-cta-banner {
   background-color: @core-fleet-black;
   color: #FFF;
@@ -59,7 +49,7 @@ html, body {
 
 [purpose='page-header'] {
     // rules for sticky nav transitions
-    transition-property: display, transform, top;
+    transition-property: background-color, transform, bottom;
     transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
     transition-duration: 500ms;
 
@@ -270,6 +260,11 @@ body.detected-mobile {
   // devices (like the iPad) as well as handset devices (like the iPhone).
   // …
 }
+@media (max-width: 992px) {
+  .homepage-cta-banner+.homepage-header-top {
+    top: 72px;
+  }
+}
 
 @media (max-width: 767px) {
   [purpose='page-wrap'] {
@@ -280,7 +275,11 @@ body.detected-mobile {
     }
   }
 }
-
+@media (max-width: 605px) {
+  .homepage-cta-banner + .homepage-header-top {
+    top: 92px;
+  }
+}
 @media (max-width: 575px) {
   [purpose='page-wrap'] {
     padding-bottom: 371px;
@@ -310,6 +309,16 @@ body.detected-mobile {
       height: 80px;
 
     }
+  }
+}
+@media (max-width: 393px) {
+  .homepage-cta-banner + .homepage-header-top {
+    top: 112px;
+  }
+}
+@media (max-width: 330px) {
+  .homepage-cta-banner + .homepage-header-top {
+    top: 132px;
   }
 }
 
