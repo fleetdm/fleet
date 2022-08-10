@@ -8,25 +8,24 @@ interface ISandboxExpiryMessageProps {
   expiry: string;
 }
 
-const SandboxExpiryMessage = ({
-  expiry,
-}: ISandboxExpiryMessageProps): JSX.Element => {
+const SandboxExpiryMessage = ({ expiry }: ISandboxExpiryMessageProps) => {
   return (
-    <div className={baseClass}>
+    <a
+      href="https://fleetdm.com/docs/deploying"
+      target="_blank"
+      rel="noreferrer"
+      className={baseClass}
+    >
       <p>Your Fleet Sandbox expires in {expiry}.</p>
-      <a
-        href="https://fleetdm.com/docs/deploying"
-        target="_blank"
-        rel="noreferrer"
-      >
-        Learn how to renew or downgrade
+      <span>
+        Learn how to deploy Fleet
         <img
           alt="Open external link"
           className="icon-external"
           src={ExternalURLIcon}
         />
-      </a>
-    </div>
+      </span>
+    </a>
   );
 };
 

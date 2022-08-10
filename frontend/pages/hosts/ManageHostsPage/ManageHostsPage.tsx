@@ -258,7 +258,10 @@ const ManageHostsPage = ({
   const routeTemplate = route && route.path ? route.path : "";
   const policyId = queryParams?.policy_id;
   const policyResponse: PolicyResponse = queryParams?.policy_response;
-  const softwareId = parseInt(queryParams?.software_id, 10);
+  const softwareId =
+    queryParams?.software_id !== undefined
+      ? parseInt(queryParams?.software_id, 10)
+      : undefined;
   const { active_label: activeLabel, label_id: labelID } = routeParams;
 
   // ===== filter matching

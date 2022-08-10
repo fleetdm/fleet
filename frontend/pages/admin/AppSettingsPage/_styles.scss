@@ -6,4 +6,8 @@
     color: $core-fleet-black;
     @include sticky-settings-description;
   }
+
+    &__sandbox-demo-message {
+      margin-top: 3.5rem;
+    }
 }
