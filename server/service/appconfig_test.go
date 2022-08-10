@@ -323,7 +323,7 @@ func TestJITProvisioning(t *testing.T) {
 
 	t.Run("allows JIT provisioning to be enabled with a premium license", func(t *testing.T) {
 		invalid := &fleet.InvalidArgumentError{}
-		validateSSOSettings(config, &fleet.AppConfig{}, invalid, &fleet.LicenseInfo{Tier: "premium"})
+		validateSSOSettings(config, &fleet.AppConfig{}, invalid, &fleet.LicenseInfo{Tier: fleet.TierPremium})
 		require.False(t, invalid.HasErrors())
 	})
 
@@ -490,7 +490,7 @@ func TestTransparencyURL(t *testing.T) {
 		},
 		{
 			name:             "customURL",
-			licenseTier:      "premium",
+			licenseTier:      fleet.TierPremium,
 			initialURL:       "",
 			newURL:           "customURL",
 			expectedURL:      "customURL",
@@ -506,7 +506,7 @@ func TestTransparencyURL(t *testing.T) {
 		},
 		{
 			name:             "emptyURL",
-			licenseTier:      "premium",
+			licenseTier:      fleet.TierPremium,
 			initialURL:       "customURL",
 			newURL:           "",
 			expectedURL:      "",
