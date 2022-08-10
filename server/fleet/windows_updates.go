@@ -42,6 +42,11 @@ func parseDateEpoch(val string) (uint, error) {
 	if err != nil {
 		return 0, err
 	}
+
+	if dEpoch < 0 {
+		return 0, fmt.Errorf("invalid epoch value %d", dEpoch)
+	}
+
 	return uint(dEpoch), nil
 }
 

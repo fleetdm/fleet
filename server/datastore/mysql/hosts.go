@@ -285,6 +285,7 @@ var hostRefs = []string{
 	"host_munki_info",
 	"host_device_auth",
 	"host_batteries",
+	"windows_updates",
 }
 
 func (ds *Datastore) DeleteHost(ctx context.Context, hid uint) error {
@@ -312,11 +313,6 @@ func (ds *Datastore) DeleteHost(ctx context.Context, hid uint) error {
 		_, err = tx.ExecContext(ctx, `DELETE FROM pack_targets WHERE type = ? AND target_id = ?`, fleet.TargetHost, hid)
 		if err != nil {
 			return ctxerr.Wrapf(ctx, err, "deleting pack_targets for host %d", hid)
-		}
-
-		_, err = tx.ExecContext(ctx, `DELETE FROM windows_updates WHERE host_id = ?`, hid)
-		if err != nil {
-			return ctxerr.Wrapf(ctx, err, "deleting windows_updates for host %d", hid)
 		}
 
 		return nil
