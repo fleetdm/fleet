@@ -356,7 +356,7 @@ describe("Policies flow (empty)", () => {
           testCompatibility(el, i, [true, false, false]);
         });
       });
-      cy.findByRole("button", { name: /save policy/i }).click();
+      cy.findByRole("button", { name: /save/i }).click();
 
       cy.getAttached(".platform-selector").within(() => {
         cy.getAttached(".fleet-checkbox__input").each((el, i) => {
@@ -485,7 +485,7 @@ describe("Policies flow (seeded)", () => {
           "{selectall}SELECT 1 FROM gatekeeper WHERE assessments_enabled = 1;"
         );
       cy.getAttached(".fleet-checkbox__label").first().click();
-      cy.findByRole("button", { name: /save policy/i }).click();
+      cy.findByRole("button", { name: /save/i }).click();
       cy.findByText(/policy updated/i).should("exist");
       cy.visit("policies/1");
       cy.getAttached(".fleet-checkbox__input").first().should("not.be.checked");
