@@ -966,6 +966,14 @@ func (svc *Service) directIngestDetailQuery(ctx context.Context, host *fleet.Hos
 			}
 		}
 		return true, nil
+	} else if query.DirectTaskIngestFunc != nil {
+		err = query.DirectTaskIngestFunc(ctx, svc.logger, host, svc.task, rows, failed)
+		if err != nil {
+			return false, osqueryError{
+				message: fmt.Sprintf("ingesting query %s: %s", name, err.Error()),
+			}
+		}
+		return true, nil
 	}
 	return false, nil
 }

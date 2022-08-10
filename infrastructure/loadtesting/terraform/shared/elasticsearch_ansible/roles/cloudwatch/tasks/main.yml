@@ -1,0 +1,12 @@
+---
+- package: name=amazon-cloudwatch-agent
+- template:
+    src: amazon-cloudwatch-agent.json
+    dest: /opt/aws/amazon-cloudwatch-agent/etc/amazon-cloudwatch-agent.json
+    mode: 0644
+    owner: root
+    group: root
+- systemd:
+    name: amazon-cloudwatch-agent.service
+    enabled: true
+    state: started
