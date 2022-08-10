@@ -506,7 +506,7 @@ spec:
       enable_vulnerabilities_webhook: false
       host_batch_size: 0
 `
-		expectedJSON := `
+		expectedJson := `
 {
   "kind": "config",
   "apiVersion": "v1",
@@ -581,7 +581,7 @@ spec:
 
 		assert.YAMLEq(t, expectedYaml, runAppForTest(t, []string{"get", "config"}))
 		assert.YAMLEq(t, expectedYaml, runAppForTest(t, []string{"get", "config", "--yaml"}))
-		assert.JSONEq(t, expectedJSON, runAppForTest(t, []string{"get", "config", "--json"}))
+		assert.JSONEq(t, expectedJson, runAppForTest(t, []string{"get", "config", "--json"}))
 	})
 
 	t.Run("IncludeServerConfig", func(t *testing.T) {
@@ -683,7 +683,7 @@ spec:
       enable_vulnerabilities_webhook: false
       host_batch_size: 0
 `
-		expectedJson := `
+		expectedJSON := `
 {
   "kind": "config",
   "apiVersion": "v1",
