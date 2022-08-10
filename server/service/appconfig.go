@@ -81,7 +81,7 @@ func getAppConfigEndpoint(ctx context.Context, request interface{}, svc fleet.Se
 
 	transparencyURL := fleet.DefaultTransparencyURL
 	// Fleet Premium license is required for custom transparency url
-	if license.Tier == "premium" && config.FleetDesktop.TransparencyURL != "" {
+	if license.IsPremium() && config.FleetDesktop.TransparencyURL != "" {
 		transparencyURL = config.FleetDesktop.TransparencyURL
 	}
 	fleetDesktop := fleet.FleetDesktopSettings{TransparencyURL: transparencyURL}
@@ -333,7 +333,7 @@ func validateSSOSettings(p fleet.AppConfig, existing *fleet.AppConfig, invalid *
 				invalid.Append("idp_name", "required")
 			}
 		}
-		if license.Tier != "premium" && p.SSOSettings.EnableJITProvisioning {
+		if license.IsPremium() && p.SSOSettings.EnableJITProvisioning {
 			invalid.Append("enable_jit_provisioning", ErrMissingLicense.Error())
 		}
 	}
