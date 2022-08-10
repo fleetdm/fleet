@@ -481,7 +481,7 @@ spec:
   description: Returns the operating system name and version on the device.
   query: SELECT name, version FROM os_version;
   purpose: Informational
-  tags: inventory
+  tags: inventory, built-in
   contributors: noahtalerman
 ---
 apiVersion: v1
