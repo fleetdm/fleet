@@ -240,10 +240,11 @@ type Datastore interface {
 	ListPoliciesForHost(ctx context.Context, host *Host) ([]*HostPolicy, error)
 
 	GetMunkiVersion(ctx context.Context, hostID uint) (string, error)
-	GetMDM(ctx context.Context, hostID uint) (enrolled bool, serverURL string, installedFromDep bool, err error)
+	GetMDM(ctx context.Context, hostID uint) (*HostMDM, error)
 
 	AggregatedMunkiVersion(ctx context.Context, teamID *uint) ([]AggregatedMunkiVersion, time.Time, error)
 	AggregatedMDMStatus(ctx context.Context, teamID *uint) (AggregatedMDMStatus, time.Time, error)
+	AggregatedMDMSolutions(ctx context.Context, teamID *uint) ([]AggregatedMDMSolutions, time.Time, error)
 	GenerateAggregatedMunkiAndMDM(ctx context.Context) error
 
 	OSVersions(ctx context.Context, teamID *uint, platform *string) (*OSVersions, error)

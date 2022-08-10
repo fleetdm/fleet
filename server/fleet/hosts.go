@@ -3,6 +3,8 @@ package fleet
 import (
 	"context"
 	"encoding/json"
+	"errors"
+	"strings"
 	"time"
 )
 
@@ -33,6 +35,15 @@ const (
 	OnlineIntervalBuffer = 60
 )
 
+// MDMEnrollStatus defines the possible MDM enrollment statuses.
+type MDMEnrollStatus string
+
+const (
+	MDMEnrollStatusManual     = MDMEnrollStatus("manual")
+	MDMEnrollStatusAutomatic  = MDMEnrollStatus("automatic")
+	MDMEnrollStatusUnenrolled = MDMEnrollStatus("unenrolled")
+)
+
 type HostListOptions struct {
 	ListOptions
 
@@ -53,6 +64,11 @@ type HostListOptions struct {
 	SoftwareIDFilter *uint
 
 	DisableFailingPolicies bool
+
+	// MDMIDFilter filters the hosts by MDM ID.
+	MDMIDFilter *uint
+	// MDMEnrollmentStatusFilter filters the host by their MDM enrollment status.
+	MDMEnrollmentStatusFilter MDMEnrollStatus
 }
 
 func (h HostListOptions) Empty() bool {
@@ -286,9 +302,80 @@ type HostMunkiInfo struct {
 	Version string `json:"version"`
 }
 
+// HostMDM represents a host_mdm row, with information about the MDM solution
+// used by a host. Note that it uses a different JSON representation than its
+// struct - it implements a custom JSON marshaler.
 type HostMDM struct {
-	EnrollmentStatus string `json:"enrollment_status"`
-	ServerURL        string `json:"server_url"`
+	HostID           uint   `db:"host_id" json:"-"`
+	Enrolled         bool   `db:"enrolled" json:"-"`
+	ServerURL        string `db:"server_url" json:"-"`
+	InstalledFromDep bool   `db:"installed_from_dep" json:"-"`
+	MDMID            *uint  `db:"mdm_id" json:"-"`
+	Name             string `db:"name" json:"-"`
+}
+
+// List of well-known MDM solution names. Those correspond to names stored in
+// the mobile_device_management_solutions table, created via (data) migrations.
+const (
+	UnknownMDMName        = ""
+	WellKnownMDMKandji    = "Kandji"
+	WellKnownMDMJamf      = "Jamf"
+	WellKnownMDMVMWare    = "VMware Workspace ONE"
+	WellKnownMDMIntune    = "Intune"
+	WellKnownMDMSimpleMDM = "SimpleMDM"
+)
+
+var mdmNameFromServerURLChecks = map[string]string{
+	"kandji":    WellKnownMDMKandji,
+	"jamf":      WellKnownMDMJamf,
+	"airwatch":  WellKnownMDMVMWare,
+	"microsoft": WellKnownMDMIntune,
+	"simplemdm": WellKnownMDMSimpleMDM,
+}
+
+// MDMNameFromServerURL returns the MDM solution name corresponding to the
+// given server URL. If no match is found, it returns the unknown MDM name.
+func MDMNameFromServerURL(serverURL string) string {
+	serverURL = strings.ToLower(serverURL)
+	for check, name := range mdmNameFromServerURLChecks {
+		if strings.Contains(serverURL, check) {
+			return name
+		}
+	}
+	return UnknownMDMName
+}
+
+func (h *HostMDM) EnrollmentStatus() string {
+	switch {
+	case h.Enrolled && !h.InstalledFromDep:
+		return "Enrolled (manual)"
+	case h.Enrolled && h.InstalledFromDep:
+		return "Enrolled (automated)"
+	default:
+		return "Unenrolled"
+	}
+}
+
+func (h *HostMDM) MarshalJSON() ([]byte, error) {
+	var jsonMDM struct {
+		EnrollmentStatus string `json:"enrollment_status"`
+		ServerURL        string `json:"server_url"`
+		Name             string `json:"name,omitempty"`
+		ID               *uint  `json:"id,omitempty"`
+	}
+
+	jsonMDM.ServerURL = h.ServerURL
+	jsonMDM.EnrollmentStatus = h.EnrollmentStatus()
+	jsonMDM.Name = h.Name
+	jsonMDM.ID = h.MDMID
+	return json.Marshal(jsonMDM)
+}
+
+func (h *HostMDM) UnmarshalJSON(b []byte) error {
+	// fail attempts to unmarshal in this struct, to prevent using e.g.
+	// getMacadminsDataResponse in tests, as it can't unmarshal in a meaningful
+	// way.
+	return errors.New("JSON unmarshaling is not supported for HostMDM")
 }
 
 // HostBattery represents a host's battery, as reported by the osquery battery
@@ -317,10 +404,18 @@ type AggregatedMDMStatus struct {
 	HostsCount                  int `json:"hosts_count" db:"hosts_count"`
 }
 
+type AggregatedMDMSolutions struct {
+	ID         uint   `json:"id,omitempty" db:"id"`
+	Name       string `json:"name,omitempty" db:"name"`
+	HostsCount int    `json:"hosts_count" db:"hosts_count"`
+	ServerURL  string `json:"server_url" db:"server_url"`
+}
+
 type AggregatedMacadminsData struct {
 	CountsUpdatedAt time.Time                `json:"counts_updated_at"`
 	MunkiVersions   []AggregatedMunkiVersion `json:"munki_versions"`
 	MDMStatus       AggregatedMDMStatus      `json:"mobile_device_management_enrollment_status"`
+	MDMSolutions    []AggregatedMDMSolutions `json:"mobile_device_management_solution"`
 }
 
 // HostShort is a minimal host representation returned when querying hosts.
