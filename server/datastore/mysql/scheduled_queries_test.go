@@ -432,37 +432,35 @@ func testScheduledQueriesIDsByName(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.Len(t, sqsQux, 2)
 
-	oldBatchSize := scheduledQueryIDsByNameBatchSize
-	scheduledQueryIDsByNameBatchSize = 2
-	defer func() { scheduledQueryIDsByNameBatchSize = oldBatchSize }()
+	const scheduledQueryIDsByNameBatchSize = 2
 
 	// without any name
-	ids, err := ds.ScheduledQueryIDsByName(ctx)
+	ids, err := ds.ScheduledQueryIDsByName(ctx, scheduledQueryIDsByNameBatchSize)
 	require.NoError(t, err)
 	require.Len(t, ids, 0)
 
 	// single query name
-	ids, err = ds.ScheduledQueryIDsByName(ctx, [2]string{"baz", "foo"})
+	ids, err = ds.ScheduledQueryIDsByName(ctx, scheduledQueryIDsByNameBatchSize, [2]string{"baz", "foo"})
 	require.NoError(t, err)
 	require.Equal(t, []uint{sqsBaz[0].ID}, ids)
 
 	// invalid query name (mismatch pack with query)
-	ids, err = ds.ScheduledQueryIDsByName(ctx, [2]string{"qux", "foo"})
+	ids, err = ds.ScheduledQueryIDsByName(ctx, scheduledQueryIDsByNameBatchSize, [2]string{"qux", "foo"})
 	require.NoError(t, err)
 	require.Equal(t, []uint{0}, ids)
 
 	// invalid query name (unknown pack)
-	ids, err = ds.ScheduledQueryIDsByName(ctx, [2]string{"nope", "foo"})
+	ids, err = ds.ScheduledQueryIDsByName(ctx, scheduledQueryIDsByNameBatchSize, [2]string{"nope", "foo"})
 	require.NoError(t, err)
 	require.Equal(t, []uint{0}, ids)
 
 	// invalid query name (unknown query)
-	ids, err = ds.ScheduledQueryIDsByName(ctx, [2]string{"qux", "nope"})
+	ids, err = ds.ScheduledQueryIDsByName(ctx, scheduledQueryIDsByNameBatchSize, [2]string{"qux", "nope"})
 	require.NoError(t, err)
 	require.Equal(t, []uint{0}, ids)
 
 	// multiple query names > batch size
-	ids, err = ds.ScheduledQueryIDsByName(ctx,
+	ids, err = ds.ScheduledQueryIDsByName(ctx, scheduledQueryIDsByNameBatchSize,
 		[2]string{"qux", "nope"}, [2]string{"baz", "foo"},
 		[2]string{"qux", "bar"}, [2]string{"nope", "nope"},
 	)
@@ -470,7 +468,7 @@ func testScheduledQueriesIDsByName(t *testing.T, ds *Datastore) {
 	require.Equal(t, []uint{0, sqsBaz[0].ID, sqsQux[0].ID, 0}, ids)
 
 	// multiple query names (many times batch size)
-	ids, err = ds.ScheduledQueryIDsByName(ctx,
+	ids, err = ds.ScheduledQueryIDsByName(ctx, scheduledQueryIDsByNameBatchSize,
 		[2]string{"qux", "nope"}, [2]string{"baz", "foo"},
 		[2]string{"qux", "bar"}, [2]string{"nope", "nope"},
 		[2]string{"qux", "bar2"}, [2]string{"nope", "foo2"},

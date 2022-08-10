@@ -340,7 +340,7 @@ type Datastore interface {
 	// query names. It returns a slice of IDs in the same order as
 	// packAndSchedQueryNames, with the ID set to 0 if the corresponding
 	// scheduled query did not exist.
-	ScheduledQueryIDsByName(ctx context.Context, packAndSchedQueryNames ...[2]string) ([]uint, error)
+	ScheduledQueryIDsByName(ctx context.Context, batchSize int, packAndSchedQueryNames ...[2]string) ([]uint, error)
 
 	///////////////////////////////////////////////////////////////////////////////
 	// TeamStore
@@ -586,6 +586,11 @@ type Datastore interface {
 	InnoDBStatus(ctx context.Context) (string, error)
 	ProcessList(ctx context.Context) ([]MySQLProcess, error)
 }
+
+const (
+	// Default batch size to use for ScheduledQueryIDsByName.
+	DefaultScheduledQueryIDsByNameBatchSize = 1000
+)
 
 type MySQLProcess struct {
 	Id      int     `json:"id" db:"Id"`

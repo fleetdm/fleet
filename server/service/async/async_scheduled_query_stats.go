@@ -174,7 +174,7 @@ func (t *Task) collectScheduledQueryStats(ctx context.Context, ds fleet.Datastor
 	for k := range uniqueSchedQueries {
 		schedNames = append(schedNames, k)
 	}
-	schedIDs, err := ds.ScheduledQueryIDsByName(ctx, schedNames...)
+	schedIDs, err := ds.ScheduledQueryIDsByName(ctx, fleet.DefaultScheduledQueryIDsByNameBatchSize, schedNames...)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "batch-load scheduled query ids from names")
 	}

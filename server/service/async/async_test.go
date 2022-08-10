@@ -102,7 +102,7 @@ func TestRecord(t *testing.T) {
 	ds.AsyncBatchSaveHostsScheduledQueryStatsFunc = func(ctx context.Context, batch map[uint][]fleet.ScheduledQueryStats, batchSize int) (int, error) {
 		return 1, nil
 	}
-	ds.ScheduledQueryIDsByNameFunc = func(ctx context.Context, names ...[2]string) ([]uint, error) {
+	ds.ScheduledQueryIDsByNameFunc = func(ctx context.Context, batchSize int, names ...[2]string) ([]uint, error) {
 		return make([]uint, len(names)), nil
 	}
 

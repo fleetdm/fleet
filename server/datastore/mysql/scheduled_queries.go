@@ -217,9 +217,7 @@ func (ds *Datastore) ScheduledQuery(ctx context.Context, id uint) (*fleet.Schedu
 	return sq, nil
 }
 
-var scheduledQueryIDsByNameBatchSize = 1000 // var so it can be changed for tests
-
-func (ds *Datastore) ScheduledQueryIDsByName(ctx context.Context, packAndSchedQueryNames ...[2]string) ([]uint, error) {
+func (ds *Datastore) ScheduledQueryIDsByName(ctx context.Context, batchSize int, packAndSchedQueryNames ...[2]string) ([]uint, error) {
 	const (
 		stmt = `
     SELECT sqn.idx, sq.id
@@ -238,6 +236,10 @@ func (ds *Datastore) ScheduledQueryIDsByName(ctx context.Context, packAndSchedQu
 		ID  uint `db:"id"`
 	}
 
+	if batchSize <= 0 {
+		batchSize = fleet.DefaultScheduledQueryIDsByNameBatchSize
+	}
+
 	// all provided names have a corresponding scheduled query ID in the result,
 	// even if it doesn't exist for some reason (in which case it will be 0).
 	result := make([]uint, len(packAndSchedQueryNames))
@@ -245,8 +247,8 @@ func (ds *Datastore) ScheduledQueryIDsByName(ctx context.Context, packAndSchedQu
 	var indexOffset int
 	for len(packAndSchedQueryNames) > 0 {
 		max := len(packAndSchedQueryNames)
-		if max > scheduledQueryIDsByNameBatchSize {
-			max = scheduledQueryIDsByNameBatchSize
+		if max > batchSize {
+			max = batchSize
 		}
 
 		args := make([]interface{}, 0, max*3)
