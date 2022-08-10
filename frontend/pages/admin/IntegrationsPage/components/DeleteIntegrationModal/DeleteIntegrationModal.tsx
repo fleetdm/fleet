@@ -42,7 +42,7 @@ const DeleteIntegrationModal = ({
             onClick={onSubmit}
             variant="alert"
             className="delete-loading"
-            loading={isUpdatingIntegration}
+            isLoading={isUpdatingIntegration}
           >
             Delete
           </Button>

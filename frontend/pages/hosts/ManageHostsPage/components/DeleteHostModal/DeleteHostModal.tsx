@@ -48,7 +48,7 @@ const DeleteHostModal = ({
             onClick={onSubmit}
             variant="alert"
             className="delete-loading"
-            loading={isUpdatingHosts}
+            isLoading={isUpdatingHosts}
           >
             Delete
           </Button>

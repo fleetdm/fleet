@@ -91,7 +91,7 @@ const TransferHostModal = ({
             variant="brand"
             onClick={onSubmitTransferHost}
             className="transfer-loading"
-            loading={isUpdatingHosts}
+            isLoading={isUpdatingHosts}
           >
             Transfer
           </Button>

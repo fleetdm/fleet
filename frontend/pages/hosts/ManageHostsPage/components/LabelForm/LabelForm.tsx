@@ -251,7 +251,7 @@ const LabelForm = ({
           type="submit"
           variant="brand"
           className={saveBtnClass}
-          loading={isUpdatingLabel}
+          isLoading={isUpdatingLabel}
         >
           {saveBtnText}
         </Button>

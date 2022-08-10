@@ -31,7 +31,7 @@ const DeleteUserModal = ({
             variant="alert"
             onClick={onDelete}
             className="delete-loading"
-            loading={isUpdatingUsers}
+            isLoading={isUpdatingUsers}
           >
             Delete
           </Button>

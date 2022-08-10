@@ -13,6 +13,7 @@ interface ITransferHostModal {
   teams: ITeam[];
   onSubmit: (team: ITeam) => void;
   onCancel: () => void;
+  isUpdatingHost: boolean;
 }
 
 interface INoTeamOption {
@@ -31,6 +32,7 @@ const TransferHostModal = ({
   onSubmit,
   teams,
   isGlobalAdmin,
+  isUpdatingHost,
 }: ITransferHostModal): JSX.Element => {
   const [selectedTeam, setSelectedTeam] = useState<ITeam | INoTeamOption>();
 
@@ -86,6 +88,8 @@ const TransferHostModal = ({
             type="button"
             variant="brand"
             onClick={onSubmitTransferHost}
+            className="transfer-loading"
+            isLoading={isUpdatingHost}
           >
             Transfer
           </Button>

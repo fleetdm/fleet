@@ -492,7 +492,7 @@ const QueryForm = ({
                   variant="text-link"
                   onClick={promptSaveAsNewQuery()}
                   disabled={false}
-                  loading={isSaveAsNewLoading}
+                  isLoading={isSaveAsNewLoading}
                 >
                   Save as new
                 </Button>
@@ -516,7 +516,7 @@ const QueryForm = ({
                       isAnyTeamMaintainerOrTeamAdmin &&
                       !hasTeamMaintainerPermissions
                     }
-                    loading={isQueryUpdating}
+                    isLoading={isQueryUpdating}
                   >
                     Save
                   </Button>

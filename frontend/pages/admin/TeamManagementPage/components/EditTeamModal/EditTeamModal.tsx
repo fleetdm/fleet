@@ -69,7 +69,7 @@ const EditTeamModal = ({
             variant="brand"
             disabled={name === ""}
             className="save-loading"
-            loading={isUpdatingTeams}
+            isLoading={isUpdatingTeams}
           >
             Save
           </Button>

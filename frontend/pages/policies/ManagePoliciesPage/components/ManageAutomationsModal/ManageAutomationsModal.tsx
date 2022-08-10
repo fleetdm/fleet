@@ -432,7 +432,7 @@ const ManageAutomationsModal = ({
             variant="brand"
             onClick={onSubmit}
             className="save-loading"
-            loading={isUpdatingAutomations}
+            isLoading={isUpdatingAutomations}
           >
             Save
           </Button>

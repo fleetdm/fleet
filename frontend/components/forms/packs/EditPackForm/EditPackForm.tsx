@@ -145,7 +145,7 @@ const EditPackForm = ({
           onClick={onFormSubmit}
           variant="brand"
           className="save-loading"
-          loading={isUpdatingPack}
+          isLoading={isUpdatingPack}
         >
           Save
         </Button>

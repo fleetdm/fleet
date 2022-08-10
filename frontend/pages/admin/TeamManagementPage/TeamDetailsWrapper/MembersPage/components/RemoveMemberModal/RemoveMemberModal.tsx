@@ -44,7 +44,7 @@ const RemoveMemberModal = ({
             variant="alert"
             onClick={onSubmit}
             className="remove-loading"
-            loading={isUpdatingMembers}
+            isLoading={isUpdatingMembers}
           >
             Remove
           </Button>

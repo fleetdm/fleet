@@ -83,7 +83,7 @@ const CreateTeamModal = ({
             variant="brand"
             disabled={name === ""}
             className="create-loading"
-            loading={isUpdatingTeams}
+            isLoading={isUpdatingTeams}
           >
             Create
           </Button>

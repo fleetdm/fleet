@@ -39,7 +39,7 @@ const RemovePackQueryModal = ({
             variant="alert"
             onClick={onSubmit}
             className="remove-loading"
-            loading={isUpdatingPack}
+            isLoading={isUpdatingPack}
           >
             Remove
           </Button>

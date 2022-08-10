@@ -119,7 +119,7 @@ const NewQueryModal = ({
               className={`${baseClass}__save-modal__btn`}
               type="submit"
               variant="brand"
-              loading={isLoading}
+              isLoading={isLoading}
             >
               Save query
             </Button>

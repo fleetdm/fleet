@@ -130,7 +130,7 @@ const Statistics = ({
           type="submit"
           variant="brand"
           className="save-loading"
-          loading={isUpdatingSettings}
+          isLoading={isUpdatingSettings}
         >
           Save
         </Button>

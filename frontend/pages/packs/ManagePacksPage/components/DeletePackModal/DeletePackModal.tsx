@@ -31,7 +31,7 @@ const DeletePackModal = ({
             variant="alert"
             onClick={onSubmit}
             className="delete-loading"
-            loading={isUpdatingPack}
+            isLoading={isUpdatingPack}
           >
             Delete
           </Button>

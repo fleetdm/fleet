@@ -105,7 +105,7 @@ const SecretEditorModal = ({
             onClick={onSaveSecretClick}
             variant="brand"
             className="save-loading"
-            loading={isUpdatingSecret}
+            isLoading={isUpdatingSecret}
           >
             Save
           </Button>

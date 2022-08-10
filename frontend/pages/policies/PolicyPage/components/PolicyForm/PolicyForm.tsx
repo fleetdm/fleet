@@ -486,7 +486,7 @@ const PolicyForm = ({
                 onClick={promptSavePolicy()}
                 disabled={isEditMode && !isAnyPlatformSelected}
                 className="save-loading"
-                loading={isUpdatingPolicy}
+                isLoading={isUpdatingPolicy}
               >
                 Save
               </Button>

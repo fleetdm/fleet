@@ -56,7 +56,7 @@ const DeleteSecretModal = ({
             variant="alert"
             onClick={onDeleteSecret}
             className="delete-loading"
-            loading={isUpdatingSecret}
+            isLoading={isUpdatingSecret}
           >
             Delete
           </Button>

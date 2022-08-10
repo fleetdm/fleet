@@ -147,7 +147,7 @@ const NewPolicyModal = ({
                 onClick={handleSavePolicy}
                 disabled={disableSave}
                 className="save-policy-loading"
-                loading={isUpdatingPolicy}
+                isLoading={isUpdatingPolicy}
               >
                 Save policy
               </Button>

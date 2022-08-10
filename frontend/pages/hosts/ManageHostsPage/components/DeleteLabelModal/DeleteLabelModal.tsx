@@ -30,7 +30,7 @@ const DeleteLabelModal = ({
             onClick={onSubmit}
             variant="alert"
             className="delete-loading"
-            loading={isUpdatingLabel}
+            isLoading={isUpdatingLabel}
           >
             Delete
           </Button>

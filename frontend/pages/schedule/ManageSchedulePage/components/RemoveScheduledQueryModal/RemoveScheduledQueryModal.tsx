@@ -32,7 +32,7 @@ const RemoveScheduledQueryModal = ({
             variant="alert"
             onClick={onSubmit}
             className="remove-loading"
-            loading={isUpdatingScheduledQuery}
+            isLoading={isUpdatingScheduledQuery}
           >
             Remove
           </Button>
