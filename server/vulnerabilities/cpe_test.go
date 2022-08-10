@@ -121,7 +121,7 @@ func TestSyncCPEDatabase(t *testing.T) {
 	tempDir := t.TempDir()
 
 	// first time, db doesn't exist, so it downloads
-	err := DownloadCPEDatabase(tempDir, client)
+	err := DownloadCPEDB(tempDir, client, "")
 	require.NoError(t, err)
 
 	dbPath := filepath.Join(tempDir, "cpe.sqlite")
@@ -154,7 +154,7 @@ func TestSyncCPEDatabase(t *testing.T) {
 	require.NoError(t, err)
 
 	// then it will download
-	err = DownloadCPEDatabase(tempDir, client)
+	err = DownloadCPEDB(tempDir, client, "")
 	require.NoError(t, err)
 
 	// let's register the mtime for the db
@@ -175,7 +175,7 @@ func TestSyncCPEDatabase(t *testing.T) {
 	time.Sleep(2 * time.Second)
 
 	// let's check it doesn't download because it's new enough
-	err = DownloadCPEDatabase(tempDir, client)
+	err = DownloadCPEDB(tempDir, client, "")
 	require.NoError(t, err)
 	stat, err = os.Stat(dbPath)
 	require.NoError(t, err)
@@ -267,7 +267,7 @@ func TestSyncsCPEFromURL(t *testing.T) {
 
 	client := fleethttp.NewClient()
 	tempDir := t.TempDir()
-	err := DownloadCPEDatabase(tempDir, client, WithCPEURL(ts.URL+"/hello-world.gz"))
+	err := DownloadCPEDB(tempDir, client, ts.URL+"/hello-world.gz")
 	require.NoError(t, err)
 
 	dbPath := filepath.Join(tempDir, "cpe.sqlite")
