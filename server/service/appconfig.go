@@ -333,7 +333,7 @@ func validateSSOSettings(p fleet.AppConfig, existing *fleet.AppConfig, invalid *
 				invalid.Append("idp_name", "required")
 			}
 		}
-		if license.IsPremium() && p.SSOSettings.EnableJITProvisioning {
+		if !license.IsPremium() && p.SSOSettings.EnableJITProvisioning {
 			invalid.Append("enable_jit_provisioning", ErrMissingLicense.Error())
 		}
 	}
