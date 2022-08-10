@@ -1,0 +1,13 @@
+[
+  {
+    "match": {
+      "bundle_identifier": ["us.zoom.xos"],
+      "source": ["apps"]
+    },
+    "translation": {
+      "product": ["zoom", "meetings"],
+      "vendor": ["zoom"],
+      "target_sw": ["macos", "mac_os"]
+    }
+  }
+]
