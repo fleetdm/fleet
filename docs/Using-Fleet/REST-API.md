@@ -853,6 +853,7 @@ None.
     "idp_name": "",
     "enable_sso": false,
     "enable_sso_idp_login": false
+    "enable_jit_provisioning": false
   },
   "host_expiry_settings": {
     "host_expiry_enabled": false,
