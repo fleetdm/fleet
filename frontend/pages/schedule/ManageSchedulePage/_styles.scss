@@ -221,6 +221,11 @@
         margin: 0;
       }
     }
+
+    &__cta-buttons {
+      display: flex;
+      justify-content: center;
+    }
   }
 
   .no-team-schedule {
