@@ -666,6 +666,12 @@ func startCleanupsAndAggregationSchedule(
 				return enrollHostLimiter.SyncEnrolledHostIDs(ctx)
 			},
 		),
+		schedule.WithJob(
+			"cleanup_host_operating_systems",
+			func(ctx context.Context) error {
+				return ds.CleanupHostOperatingSystems(ctx)
+			},
+		),
 		// Run aggregation jobs after cleanups.
 		schedule.WithJob(
 			"query_aggregated_stats",

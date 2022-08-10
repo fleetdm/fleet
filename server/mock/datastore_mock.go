@@ -319,6 +319,8 @@ type ListOperatingSystemsFunc func(ctx context.Context) ([]fleet.OperatingSystem
 
 type UpdateHostOperatingSystemFunc func(ctx context.Context, hostID uint, hostOS fleet.OperatingSystem) error
 
+type CleanupHostOperatingSystemsFunc func(ctx context.Context) error
+
 type NewActivityFunc func(ctx context.Context, user *fleet.User, activityType string, details *map[string]interface{}) error
 
 type ListActivitiesFunc func(ctx context.Context, opt fleet.ListOptions) ([]*fleet.Activity, error)
@@ -892,6 +894,9 @@ type DataStore struct {
 
 	UpdateHostOperatingSystemFunc        UpdateHostOperatingSystemFunc
 	UpdateHostOperatingSystemFuncInvoked bool
+
+	CleanupHostOperatingSystemsFunc        CleanupHostOperatingSystemsFunc
+	CleanupHostOperatingSystemsFuncInvoked bool
 
 	NewActivityFunc        NewActivityFunc
 	NewActivityFuncInvoked bool
@@ -1828,6 +1833,11 @@ func (s *DataStore) ListOperatingSystems(ctx context.Context) ([]fleet.Operating
 func (s *DataStore) UpdateHostOperatingSystem(ctx context.Context, hostID uint, hostOS fleet.OperatingSystem) error {
 	s.UpdateHostOperatingSystemFuncInvoked = true
 	return s.UpdateHostOperatingSystemFunc(ctx, hostID, hostOS)
+}
+
+func (s *DataStore) CleanupHostOperatingSystems(ctx context.Context) error {
+	s.CleanupHostOperatingSystemsFuncInvoked = true
+	return s.CleanupHostOperatingSystemsFunc(ctx)
 }
 
 func (s *DataStore) NewActivity(ctx context.Context, user *fleet.User, activityType string, details *map[string]interface{}) error {
