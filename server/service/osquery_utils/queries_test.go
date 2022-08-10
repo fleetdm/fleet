@@ -312,6 +312,7 @@ func TestGetDetailQueries(t *testing.T) {
 		"battery",
 		"os_windows",
 		"os_unix_like",
+		"windows_update_history",
 	}
 	sortedKeysCompare(t, queriesNoConfig, baseQueries)
 
