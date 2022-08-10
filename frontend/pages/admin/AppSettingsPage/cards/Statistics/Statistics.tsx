@@ -130,7 +130,7 @@ const Statistics = ({
           type="submit"
           variant="brand"
           className="save-loading"
-          spinner={isUpdatingSettings}
+          loading={isUpdatingSettings}
         >
           Save
         </Button>

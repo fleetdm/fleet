@@ -42,7 +42,7 @@ const DeleteTeamModal = ({
             onClick={onSubmit}
             variant="alert"
             className="delete-loading"
-            spinner={isUpdatingTeams}
+            loading={isUpdatingTeams}
           >
             Delete
           </Button>

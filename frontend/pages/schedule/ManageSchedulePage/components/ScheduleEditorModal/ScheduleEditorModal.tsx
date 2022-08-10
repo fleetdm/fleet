@@ -340,7 +340,7 @@ const ScheduleEditorModal = ({
               onClick={onFormSubmit}
               disabled={!selectedQuery && !editQuery}
               className="schedule-loading"
-              spinner={isUpdatingScheduledQuery}
+              loading={isUpdatingScheduledQuery}
             >
               Schedule
             </Button>

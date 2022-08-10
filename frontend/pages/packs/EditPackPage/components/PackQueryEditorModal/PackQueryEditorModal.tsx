@@ -250,7 +250,7 @@ const PackQueryEditorModal = ({
             onClick={onFormSubmit}
             disabled={!selectedQuery && !editQuery}
             className={`${editQuery?.name ? "save" : "add-query"}-loading`}
-            spinner={isUpdatingPack}
+            loading={isUpdatingPack}
           >
             {editQuery?.name ? "Save" : "Add query"}
           </Button>

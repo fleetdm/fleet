@@ -32,7 +32,7 @@ const DeletePolicyModal = ({
             variant="alert"
             onClick={onSubmit}
             className="delete-loading"
-            spinner={isUpdatingPolicies}
+            loading={isUpdatingPolicies}
           >
             Delete
           </Button>

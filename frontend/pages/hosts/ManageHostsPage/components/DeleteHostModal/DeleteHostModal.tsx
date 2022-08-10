@@ -10,6 +10,7 @@ interface IDeleteHostModalProps {
   onSubmit: () => void;
   onCancel: () => void;
   isAllMatchingHostsSelected: boolean;
+  isUpdatingHosts: boolean;
 }
 
 const DeleteHostModal = ({
@@ -17,6 +18,7 @@ const DeleteHostModal = ({
   onSubmit,
   onCancel,
   isAllMatchingHostsSelected,
+  isUpdatingHosts,
 }: IDeleteHostModalProps): JSX.Element => {
   return (
     <Modal
@@ -41,7 +43,13 @@ const DeleteHostModal = ({
           these hosts.
         </p>
         <div className="modal-cta-wrap">
-          <Button type="button" onClick={onSubmit} variant="alert">
+          <Button
+            type="button"
+            onClick={onSubmit}
+            variant="alert"
+            className="delete-loading"
+            loading={isUpdatingHosts}
+          >
             Delete
           </Button>
           <Button onClick={onCancel} variant="inverse-alert">

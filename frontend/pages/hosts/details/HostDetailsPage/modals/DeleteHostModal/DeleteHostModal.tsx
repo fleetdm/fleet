@@ -42,7 +42,7 @@ const DeleteHostModal = ({
             onClick={onSubmit}
             variant="alert"
             className="delete-loading"
-            spinner={isDeletingHost}
+            loading={isDeletingHost}
           >
             Delete
           </Button>

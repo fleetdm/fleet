@@ -31,7 +31,7 @@ const DeletePackModal = ({
             variant="alert"
             onClick={onSubmit}
             className="delete-loading"
-            spinner={isUpdatingPack}
+            loading={isUpdatingPack}
           >
             Delete
           </Button>

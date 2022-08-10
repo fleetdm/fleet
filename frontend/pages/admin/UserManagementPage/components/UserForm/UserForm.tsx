@@ -576,7 +576,7 @@ const UserForm = ({
           onClick={onFormSubmit}
           className={`${submitText === "Create" ? "create" : "save"}-loading
           `}
-          spinner={isUpdatingUsers}
+          loading={isUpdatingUsers}
         >
           {submitText}
         </Button>

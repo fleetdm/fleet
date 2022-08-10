@@ -80,7 +80,7 @@ const WebAddress = ({
         variant="brand"
         disabled={Object.keys(formErrors).length > 0}
         className="save-loading"
-        spinner={isUpdatingSettings}
+        loading={isUpdatingSettings}
       >
         Save
       </Button>

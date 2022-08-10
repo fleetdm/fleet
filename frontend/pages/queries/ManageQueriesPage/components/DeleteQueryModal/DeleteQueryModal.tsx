@@ -32,7 +32,7 @@ const DeleteQueryModal = ({
             variant="alert"
             onClick={onSubmit}
             className="delete-loading"
-            spinner={isUpdatingQueries}
+            loading={isUpdatingQueries}
           >
             Delete
           </Button>

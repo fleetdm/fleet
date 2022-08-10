@@ -36,7 +36,7 @@ export interface IButtonProps {
   onClick?:
     | ((value?: any) => void)
     | ((evt: React.MouseEvent<HTMLButtonElement>) => void);
-  spinner?: boolean;
+  loading?: boolean;
 }
 
 // eslint-disable-next-line @typescript-eslint/no-empty-interface
@@ -97,7 +97,7 @@ class Button extends React.Component<IButtonProps, IButtonState> {
       type,
       title,
       variant,
-      spinner,
+      loading,
     } = this.props;
     const fullClassName = classnames(
       baseClass,
@@ -119,7 +119,7 @@ class Button extends React.Component<IButtonProps, IButtonState> {
         title={title}
         ref={setRef}
       >
-        {spinner ? <Spinner /> : children}
+        {loading ? <Spinner /> : children}
       </button>
     );
   }

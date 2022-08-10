@@ -105,7 +105,7 @@ const SecretEditorModal = ({
             onClick={onSaveSecretClick}
             variant="brand"
             className="save-loading"
-            spinner={isUpdatingSecret}
+            loading={isUpdatingSecret}
           >
             Save
           </Button>

@@ -264,6 +264,7 @@ const ManageHostsPage = ({
   const [resetPageIndex, setResetPageIndex] = useState<boolean>(false);
   const [isUpdatingLabel, setIsUpdatingLabel] = useState<boolean>(false);
   const [isUpdatingSecret, setIsUpdatingSecret] = useState<boolean>(false);
+  const [isUpdatingHosts, setIsUpdatingHosts] = useState<boolean>(false);
 
   // ======== end states
 
@@ -1120,6 +1121,8 @@ const ManageHostsPage = ({
   };
 
   const onTransferHostSubmit = async (team: ITeam) => {
+    setIsUpdatingHosts(true);
+
     const teamId = typeof team.id === "number" ? team.id : null;
     let action = hostsAPI.transferToTeam(teamId, selectedHostIds);
 
@@ -1172,10 +1175,14 @@ const ManageHostsPage = ({
       setIsAllMatchingHostsSelected(false);
     } catch (error) {
       renderFlash("error", "Could not transfer hosts. Please try again.");
+    } finally {
+      setIsUpdatingHosts(false);
     }
   };
 
   const onDeleteHostSubmit = async () => {
+    setIsUpdatingHosts(true);
+
     let action = hostsAPI.destroyBulk(selectedHostIds);
 
     if (isAllMatchingHostsSelected) {
@@ -1228,6 +1235,8 @@ const ManageHostsPage = ({
           selectedHostIds.length === 1 ? "host" : "hosts"
         }. Please try again.`
       );
+    } finally {
+      setIsUpdatingHosts(false);
     }
   };
 
@@ -1519,6 +1528,7 @@ const ManageHostsPage = ({
         teams={teams}
         onSubmit={onTransferHostSubmit}
         onCancel={toggleTransferHostModal}
+        isUpdatingHosts={isUpdatingHosts}
       />
     );
   };
@@ -1529,6 +1539,7 @@ const ManageHostsPage = ({
       onSubmit={onDeleteHostSubmit}
       onCancel={toggleDeleteHostModal}
       isAllMatchingHostsSelected={isAllMatchingHostsSelected}
+      isUpdatingHosts={isUpdatingHosts}
     />
   );
 
