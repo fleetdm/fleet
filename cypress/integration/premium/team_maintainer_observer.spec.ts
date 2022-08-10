@@ -263,7 +263,7 @@ describe("Premium tier - Team observer/maintainer user", () => {
           cy.findByText(/detect presence/i).click();
           cy.findByText(/every day/i).click();
           cy.findByText(/every 6 hours/i).click();
-          cy.getAttached(".schedule-editor-modal__btn-wrap").within(() => {
+          cy.getAttached(".modal-cta-wrap").within(() => {
             cy.findByRole("button", { name: /schedule/i }).click();
           });
         });
