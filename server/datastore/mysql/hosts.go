@@ -1676,7 +1676,7 @@ func (ds *Datastore) generateAggregatedMDMSolutions(ctx context.Context, teamID 
 		query += ` JOIN hosts h ON (h.id = hm.host_id) WHERE h.team_id = ?`
 		id = *teamID
 	}
-	query += ` GROUP BY 1, 2, 3`
+	query += ` GROUP BY id, server_url, name`
 	err := sqlx.SelectContext(ctx, ds.reader, &results, query, args...)
 	if err != nil {
 		return ctxerr.Wrapf(ctx, err, "getting aggregated data from host_mdm")
