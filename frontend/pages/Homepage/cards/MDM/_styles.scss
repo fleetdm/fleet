@@ -6,7 +6,8 @@
     display: none;
   }
   &__empty-mdm {
-    margin: $pad-medium auto 0;
+    width: 364px;
+    margin: $pad-large auto 0;
 
     h1 {
       font-size: $small;

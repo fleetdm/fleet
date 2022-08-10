@@ -26,6 +26,6 @@ export interface IMacadminAggregate {
     counts_updated_at: string;
     munki_versions: IMunkiAggregate[];
     mobile_device_management_enrollment_status: IMDMAggregateStatus;
-    mobile_device_management_solution: IMDMSolution[];
+    mobile_device_management_solution: IMDMSolution[] | null;
   };
 }

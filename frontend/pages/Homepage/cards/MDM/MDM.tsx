@@ -70,7 +70,7 @@ const MDM = ({
   const [formattedMDMData, setFormattedMDMData] = useState<
     IDataTableMDMFormat[]
   >([]);
-  const [solutions, setSolutions] = useState<IMDMSolution[]>([]);
+  const [solutions, setSolutions] = useState<IMDMSolution[] | null>([]);
 
   const { isFetching: isMDMFetching, error: errorMDM } = useQuery<
     IMacadminAggregate,
@@ -121,6 +121,7 @@ const MDM = ({
 
   const solutionsTableHeaders = generateSolutionsTableHeaders();
   const enrollmentTableHeaders = generateEnrollmentTableHeaders();
+  const solutionsDataSet = generateSolutionsDataSet(solutions);
 
   // Renders opaque information as host information is loading
   const opacity = showMDMUI ? { opacity: 1 } : { opacity: 0 };
@@ -145,7 +146,7 @@ const MDM = ({
               ) : (
                 <TableContainer
                   columns={solutionsTableHeaders}
-                  data={generateSolutionsDataSet(solutions)}
+                  data={solutionsDataSet}
                   isLoading={isMDMFetching}
                   defaultSortHeader={SOLUTIONS_DEFAULT_SORT_HEADER}
                   defaultSortDirection={DEFAULT_SORT_DIRECTION}

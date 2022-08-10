@@ -110,8 +110,11 @@ const enhanceSolutionsData = (solutions: IMDMSolution[]): IMDMSolution[] => {
 };
 
 export const generateSolutionsDataSet = (
-  solutions: IMDMSolution[]
+  solutions: IMDMSolution[] | null
 ): IMDMSolution[] => {
+  if (!solutions) {
+    return [];
+  }
   return [...enhanceSolutionsData(solutions)];
 };
 
