@@ -82,7 +82,7 @@ import {
 } from "./constants";
 import { isAcceptableStatus, getNextLocationPath } from "./helpers";
 
-import LabelForm from "../components/LabelForm";
+import LabelForm from "./components/LabelForm";
 import DeleteSecretModal from "../../../components/DeleteSecretModal";
 import SecretEditorModal from "../../../components/SecretEditorModal";
 import AddHostsModal from "../../../components/AddHostsModal";
