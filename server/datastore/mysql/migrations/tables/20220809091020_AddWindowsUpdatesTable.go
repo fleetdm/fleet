@@ -13,11 +13,11 @@ func init() {
 func Up_20220809091020(tx *sql.Tx) error {
 	_, err := tx.Exec(`
 CREATE TABLE windows_updates (
-    id INT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
-    host_id INT UNSIGNED NOT NULL,
+	id INT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+	host_id INT UNSIGNED NOT NULL,
 	date_epoch INT UNSIGNED NOT NULL,
 	kb_id INT UNSIGNED NOT NULL,
-    UNIQUE KEY idx_unique_windows_updates (host_id, kb_id),
+	UNIQUE KEY idx_unique_windows_updates (host_id, kb_id),
 	KEY idx_update_date (host_id, date_epoch)
 )`)
 	if err != nil {
