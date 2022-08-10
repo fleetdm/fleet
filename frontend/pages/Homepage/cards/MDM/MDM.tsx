@@ -14,7 +14,10 @@ import TableContainer from "components/TableContainer";
 import Spinner from "components/Spinner";
 import TableDataError from "components/DataError";
 import LastUpdatedText from "components/LastUpdatedText";
-import generateSolutionsTableHeaders from "./MDMSolutionsTableConfig";
+import {
+  generateSolutionsTableHeaders,
+  generateSolutionsDataSet,
+} from "./MDMSolutionsTableConfig";
 import generateEnrollmentTableHeaders from "./MDMEnrollmentTableConfig";
 
 interface IMDMCardProps {
@@ -142,7 +145,7 @@ const MDM = ({
               ) : (
                 <TableContainer
                   columns={solutionsTableHeaders}
-                  data={solutions}
+                  data={generateSolutionsDataSet(solutions)}
                   isLoading={isMDMFetching}
                   defaultSortHeader={SOLUTIONS_DEFAULT_SORT_HEADER}
                   defaultSortDirection={DEFAULT_SORT_DIRECTION}

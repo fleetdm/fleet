@@ -94,8 +94,25 @@ const solutionsTableHeaders = [
   },
 ];
 
-const generateSolutionsTableHeaders = (): IDataColumn[] => {
+export const generateSolutionsTableHeaders = (): IDataColumn[] => {
   return solutionsTableHeaders;
 };
 
-export default generateSolutionsTableHeaders;
+const enhanceSolutionsData = (solutions: IMDMSolution[]): IMDMSolution[] => {
+  return Object.values(solutions).map((solution) => {
+    return {
+      id: solution.id,
+      name: solution.name || "Unknown",
+      server_url: solution.server_url,
+      hosts_count: solution.hosts_count,
+    };
+  });
+};
+
+export const generateSolutionsDataSet = (
+  solutions: IMDMSolution[]
+): IMDMSolution[] => {
+  return [...enhanceSolutionsData(solutions)];
+};
+
+export default { generateSolutionsTableHeaders, generateSolutionsDataSet };
