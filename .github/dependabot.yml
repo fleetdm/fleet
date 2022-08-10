@@ -8,6 +8,10 @@ updates:
     directory: "/"
     schedule:
       interval: "daily"
+    pull-request-branch-name:
+      # Default is "/" which makes "docker tag" fail with
+      # "not a valid repository/tag: invalid reference format".
+      separator: "-"
 # Maintain dependencies for Dockerfiles
   - package-ecosystem: "docker"
     directory: "/"
@@ -16,3 +20,7 @@ updates:
     reviewers:
       - "@fleetdm/go"
       - "@fleetdm/infra"
+    pull-request-branch-name:
+      # Default is "/" which makes "docker tag" fail with
+      # "not a valid repository/tag: invalid reference format".
+      separator: "-"
