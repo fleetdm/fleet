@@ -29,23 +29,10 @@ const DeleteSecretModal = ({
     return teams.find((team) => team.id === selectedTeam);
   };
 
-  useEffect(() => {
-    const listener = (event: KeyboardEvent) => {
-      if (event.code === "Enter" || event.code === "NumpadEnter") {
-        event.preventDefault();
-        onDeleteSecret();
-      }
-    };
-
-    document.addEventListener("keydown", listener);
-    return () => {
-      document.removeEventListener("keydown", listener);
-    };
-  }, []);
-
   return (
     <Modal
       onExit={toggleDeleteSecretModal}
+      onEnter={onDeleteSecret}
       title={"Delete secret"}
       className={baseClass}
     >

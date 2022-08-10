@@ -9,10 +9,11 @@ module.exports = {
 
   inputs: {
     dry: { type: 'boolean', description: 'Whether to make this a dry run.  (.sailsrc file will not be overwritten.  HTML files will not be generated.)' },
+    skipGithubRequests: { type: 'boolean', description: 'Whether to minimize requests to the GitHub API which usually can be skipped during local development, such as requests used for fetching GitHub avatar URLs'},
   },
 
 
-  fn: async function ({ dry }) {
+  fn: async function ({ dry, skipGithubRequests }) {
 
     let path = require('path');
     let YAML = require('yaml');
@@ -93,28 +94,51 @@ module.exports = {
           return list;
         }, []);
 
-        // Talk to GitHub and get additional information about each contributor.
         let githubDataByUsername = {};
-        await sails.helpers.flow.simultaneouslyForEach(githubUsernames, async(username)=>{
-          githubDataByUsername[username] = await sails.helpers.http.get.with({
-            url: 'https://api.github.com/users/' + encodeURIComponent(username),
-            headers: { 'User-Agent': 'Fleet-Standard-Query-Library', Accept: 'application/vnd.github.v3+json' }
-          });
-        });//∞
 
-        // Now expand queries with relevant profile data for the contributors.
-        for (let query of queries) {
-          let usernames = query.contributors.split(',');
-          let contributorProfiles = [];
-          for (let username of usernames) {
-            contributorProfiles.push({
-              name: githubDataByUsername[username].name,
-              handle: githubDataByUsername[username].login,
-              avatarUrl: githubDataByUsername[username].avatar_url,
-              htmlUrl: githubDataByUsername[username].html_url,
-            });
+        if(skipGithubRequests) {// If the --skipGithubRequests flag was provided, we'll skip querying GitHubs API
+          sails.log('Skipping GitHub API requests for contributer profiles.\nNOTE: The contributors in the standard query library will be populated with fake data. To see how the standard query library will look on fleetdm.com, run this script without the `--skipGithubRequests` flag.');
+          // Because we're not querying GitHub to get the real names for contributer profiles, we'll use their GitHub username as their name and their handle
+          for (let query of queries) {
+            let usernames = query.contributors.split(',');
+            let contributorProfiles = [];
+            for (let username of usernames) {
+              contributorProfiles.push({
+                name: username,
+                handle: username,
+                avatarUrl: 'https://placekitten.com/200/200',
+                htmlUrl: 'https://github.com/'+encodeURIComponent(username),
+              });
+            }
+            query.contributors = contributorProfiles;
           }
-          query.contributors = contributorProfiles;
+        } else {// If the --skipGithubRequests flag was not provided, we'll query GitHub's API to get additional information about each contributor.
+          await sails.helpers.flow.simultaneouslyForEach(githubUsernames, async(username)=>{
+            githubDataByUsername[username] = await sails.helpers.http.get.with({
+              url: 'https://api.github.com/users/' + encodeURIComponent(username),
+              headers: { 'User-Agent': 'Fleet-Standard-Query-Library', Accept: 'application/vnd.github.v3+json' }
+            }).catch((err)=>{// If the above GET requests return a non 200 response we'll look for signs that the user has hit their GitHub API rate limit.
+              if (err.raw.statusCode === 403 && err.raw.headers['x-ratelimit-remaining'] === '0') {// If the user has reached their GitHub API rate limit, we'll throw an error that suggest they run this script with the `--skipGithubRequests` flag.
+                throw new Error('GitHub API rate limit exceeded. If you\'re running this script in a development environment, use the `--skipGithubRequests` flag to skip querying the GitHub API. See full error for more details:\n'+err);
+              } else {// If the error was not because of the user's API rate limit, we'll display the full error
+                throw err;
+              }
+            });
+          });//∞
+          // Now expand queries with relevant profile data for the contributors.
+          for (let query of queries) {
+            let usernames = query.contributors.split(',');
+            let contributorProfiles = [];
+            for (let username of usernames) {
+              contributorProfiles.push({
+                name: githubDataByUsername[username].name,
+                handle: githubDataByUsername[username].login,
+                avatarUrl: githubDataByUsername[username].avatar_url,
+                htmlUrl: githubDataByUsername[username].html_url,
+              });
+            }
+            query.contributors = contributorProfiles;
+          }
         }
 
         // Attach to what will become configuration for the Sails app.
@@ -350,7 +374,7 @@ module.exports = {
               let pageTitle;
               if (embeddedMetadata.title) {// Attempt to use custom title, if one was provided.
                 if (embeddedMetadata.title.length > 40) {
-                  throw new Error(`Failed compiling markdown content: Invalid custom title (<meta name="title" value="${embeddedMetadata.title}">) embedded in "${path.join(topLvlRepoPath, sectionRepoPath)}".  To resolve, try changing the title to a different, valid value, then rebuild.`);
+                  throw new Error(`Failed compiling markdown content: Invalid custom title (<meta name="title" value="${embeddedMetadata.title}">) embedded in "${path.join(topLvlRepoPath, sectionRepoPath)}".  To resolve, try changing the title to a shorter (less than 40 characters), valid value, then rebuild.`);
                 }//•
                 pageTitle = embeddedMetadata.title;
               } else {// Otherwise use the automatically-determined fallback title.

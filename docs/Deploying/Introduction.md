@@ -1,12 +1,5 @@
 # Introduction
 
-- [Overview](#overview)
-- [Fleet vs Fleet Preview](#Fleet-vs-Fleet-Preview)
-- [Infrastructure dependencies](#infrastructure-dependencies)
-  - [MySQL](#mysql)
-  - [Redis](#redis)
-  - [TLS certificate](#tls-certificate)
-
 <!-- TODO: video -->
 
 Fleet is the most widely used open source osquery manager in the world. Fleet enables programmable live queries, streaming logs, and realtime visibility of 100,000+ servers, containers, and laptops. It's especially useful for IT, security, and compliance use cases.

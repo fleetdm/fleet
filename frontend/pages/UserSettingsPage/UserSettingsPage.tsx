@@ -1,6 +1,5 @@
-import React, { useState, useContext } from "react";
+import React, { useState, useContext, useEffect } from "react";
 import { InjectedRouter } from "react-router";
-import classnames from "classnames";
 
 import { AppContext } from "context/app";
 import { NotificationContext } from "context/notification";
@@ -179,7 +178,11 @@ const UserSettingsPage = ({
     }
 
     return (
-      <Modal title="Get API token" onExit={onToggleApiTokenModal}>
+      <Modal
+        title="Get API token"
+        onExit={onToggleApiTokenModal}
+        onEnter={onToggleApiTokenModal}
+      >
         <>
           <InfoBanner>
             <p>

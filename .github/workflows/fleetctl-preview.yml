@@ -24,7 +24,8 @@ jobs:
       if: contains(matrix.os, 'macos')
       # From https://github.com/docker/for-mac/issues/2359#issuecomment-943131345
       run: |
-        brew install --cask docker
+        # fixme: lock Docker version to 4.10.0 as newer versions fail to initialize
+        curl -L https://raw.githubusercontent.com/Homebrew/homebrew-cask/c65030146a5cf2070c2499b6c68e2c3495c99731/Casks/docker.rb > docker.rb && brew install docker.rb
         sudo /Applications/Docker.app/Contents/MacOS/Docker --unattended --install-privileged-components
         open -a /Applications/Docker.app --args --unattended --accept-license
         echo "Waiting for Docker to start up..."

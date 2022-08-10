@@ -360,7 +360,7 @@ func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetC
 
 	ue.GET("/api/_version_/fleet/activities", listActivitiesEndpoint, listActivitiesRequest{})
 
-	ue.GET("/api/_version_/fleet/download_installer/{enroll_secret}/{kind}", getInstallerEndpoint, installerRequest{})
+	ue.GET("/api/_version_/fleet/download_installer/{kind}", getInstallerEndpoint, installerRequest{})
 
 	ue.GET("/api/_version_/fleet/packs/{id:[0-9]+}/scheduled", getScheduledQueriesInPackEndpoint, getScheduledQueriesInPackRequest{})
 	ue.EndingAtVersion("v1").POST("/api/_version_/fleet/schedule", scheduleQueryEndpoint, scheduleQueryRequest{})

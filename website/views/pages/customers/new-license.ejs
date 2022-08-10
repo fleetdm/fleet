@@ -18,7 +18,7 @@
 
               <div style="color: #515774;" class="order-last text-left text-sm-right col-12 col-sm-6 pr-0 pl-sm-4 pl-0 pt-sm-4">
                 <p class="small">
-                  <strong class="pr-1" style="font-size: 18px; color: #192147">$1.00</strong>/month/device<br>(Billed annually at $12/device)
+                  <strong class="pr-1" style="font-size: 18px; color: #192147">$2.00</strong>/month/device<br>(Billed annually at $24/device)
                 </p>
               </div>
 
@@ -29,7 +29,7 @@
                 <strong>Order total</strong>
               </div>
               <div class="ml-auto">
-                <strong>${{(!showQuotedPrice || _.isNaN(formData.numberOfHosts * 12)) ? quotedPrice : formData.numberOfHosts * 12}}.00 /year</strong>
+                <strong>${{(!showQuotedPrice || _.isNaN(formData.numberOfHosts * 24)) ? quotedPrice : formData.numberOfHosts * 24}}.00 /year</strong>
               </div>
             </div>
             <div  :class="[showBillingForm ? 'pt-2' : '' ]" v-if="!showBillingForm">
