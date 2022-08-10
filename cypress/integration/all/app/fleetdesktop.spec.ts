@@ -35,7 +35,7 @@ describe("Fleet Desktop", () => {
         cy.getAttached('img[alt="Host info icon"]').click();
       });
       cy.getAttached(".device-user-info__modal").within(() => {
-        cy.getAttached("button").click();
+        cy.findByRole("button", { name: /ok/i }).click();
       });
     });
     it("renders and searches the host's software", () => {

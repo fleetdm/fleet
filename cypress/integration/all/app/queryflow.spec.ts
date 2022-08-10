@@ -84,7 +84,7 @@ describe("Query flow (seeded)", () => {
       cy.getAttached(".ace_scroller")
         .click()
         .type("{selectall}SELECT datetime, username FROM windows_crashes;");
-      cy.getAttached(".query-form__save").click();
+      cy.findByRole("button", { name: "Save" }).click();
       cy.findByText(/query updated/i).should("be.visible");
     });
     it("saves an existing query as new query", () => {
@@ -97,7 +97,7 @@ describe("Query flow (seeded)", () => {
       cy.getAttached(".ace_scroller")
         .click()
         .type("{selectall}SELECT datetime, username FROM windows_crashes;");
-      cy.getAttached(".query-form__save-as-new").click();
+      cy.findByRole("button", { name: /save as new/i }).click();
       cy.findByText(/copy of/i).should("be.visible");
     });
     it("deletes an existing query", () => {
