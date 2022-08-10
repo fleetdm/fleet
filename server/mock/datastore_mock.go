@@ -263,6 +263,8 @@ type ScheduledQueryFunc func(ctx context.Context, id uint) (*fleet.ScheduledQuer
 
 type CleanupExpiredHostsFunc func(ctx context.Context) ([]uint, error)
 
+type ScheduledQueryIDsByNameFunc func(ctx context.Context, batchSize int, packAndSchedQueryNames ...[2]string) ([]uint, error)
+
 type NewTeamFunc func(ctx context.Context, team *fleet.Team) (*fleet.Team, error)
 
 type SaveTeamFunc func(ctx context.Context, team *fleet.Team) (*fleet.Team, error)
@@ -384,6 +386,8 @@ type UpdateHostOsqueryIntervalsFunc func(ctx context.Context, hostID uint, inter
 type TeamAgentOptionsFunc func(ctx context.Context, teamID uint) (*json.RawMessage, error)
 
 type SaveHostPackStatsFunc func(ctx context.Context, hostID uint, stats []fleet.PackStats) error
+
+type AsyncBatchSaveHostsScheduledQueryStatsFunc func(ctx context.Context, stats map[uint][]fleet.ScheduledQueryStats, batchSize int) (int, error)
 
 type UpdateHostSoftwareFunc func(ctx context.Context, hostID uint, software []fleet.Software) error
 
@@ -803,6 +807,9 @@ type DataStore struct {
 	CleanupExpiredHostsFunc        CleanupExpiredHostsFunc
 	CleanupExpiredHostsFuncInvoked bool
 
+	ScheduledQueryIDsByNameFunc        ScheduledQueryIDsByNameFunc
+	ScheduledQueryIDsByNameFuncInvoked bool
+
 	NewTeamFunc        NewTeamFunc
 	NewTeamFuncInvoked bool
 
@@ -985,6 +992,9 @@ type DataStore struct {
 
 	SaveHostPackStatsFunc        SaveHostPackStatsFunc
 	SaveHostPackStatsFuncInvoked bool
+
+	AsyncBatchSaveHostsScheduledQueryStatsFunc        AsyncBatchSaveHostsScheduledQueryStatsFunc
+	AsyncBatchSaveHostsScheduledQueryStatsFuncInvoked bool
 
 	UpdateHostSoftwareFunc        UpdateHostSoftwareFunc
 	UpdateHostSoftwareFuncInvoked bool
@@ -1675,6 +1685,11 @@ func (s *DataStore) CleanupExpiredHosts(ctx context.Context) ([]uint, error) {
 	return s.CleanupExpiredHostsFunc(ctx)
 }
 
+func (s *DataStore) ScheduledQueryIDsByName(ctx context.Context, batchSize int, packAndSchedQueryNames ...[2]string) ([]uint, error) {
+	s.ScheduledQueryIDsByNameFuncInvoked = true
+	return s.ScheduledQueryIDsByNameFunc(ctx, batchSize, packAndSchedQueryNames...)
+}
+
 func (s *DataStore) NewTeam(ctx context.Context, team *fleet.Team) (*fleet.Team, error) {
 	s.NewTeamFuncInvoked = true
 	return s.NewTeamFunc(ctx, team)
@@ -1978,6 +1993,11 @@ func (s *DataStore) TeamAgentOptions(ctx context.Context, teamID uint) (*json.Ra
 func (s *DataStore) SaveHostPackStats(ctx context.Context, hostID uint, stats []fleet.PackStats) error {
 	s.SaveHostPackStatsFuncInvoked = true
 	return s.SaveHostPackStatsFunc(ctx, hostID, stats)
+}
+
+func (s *DataStore) AsyncBatchSaveHostsScheduledQueryStats(ctx context.Context, stats map[uint][]fleet.ScheduledQueryStats, batchSize int) (int, error) {
+	s.AsyncBatchSaveHostsScheduledQueryStatsFuncInvoked = true
+	return s.AsyncBatchSaveHostsScheduledQueryStatsFunc(ctx, stats, batchSize)
 }
 
 func (s *DataStore) UpdateHostSoftware(ctx context.Context, hostID uint, software []fleet.Software) error {
