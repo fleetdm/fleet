@@ -43,7 +43,7 @@ func GetLatestNVDRelease(client *http.Client) (*github.RepositoryRelease, error)
 		}
 	}
 
-	return nil, fmt.Errorf("no nvd release found")
+	return nil, errors.New("no nvd release found")
 }
 
 const cpeDBFilename = "cpe.sqlite"
@@ -84,7 +84,7 @@ func DownloadCPEDB(
 			}
 		}
 		if cpeDBURL == "" {
-			return fmt.Errorf("failed to find cpe database in nvd release")
+			return errors.New("failed to find cpe database in nvd release")
 
 		}
 	}
@@ -178,7 +178,7 @@ func DownloadCPETranslations(vulnPath string, client *http.Client, cpeTranslatio
 			}
 		}
 		if cpeTranslationsURL == "" {
-			return fmt.Errorf("failed to find cpe translations in nvd release")
+			return errors.New("failed to find cpe translations in nvd release")
 
 		}
 	}
