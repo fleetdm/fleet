@@ -4330,6 +4330,10 @@ func testHostsDeleteHosts(t *testing.T, ds *Datastore) {
 	// Update host_batteries
 	err = ds.ReplaceHostBatteries(context.Background(), host.ID, []*fleet.HostBattery{{HostID: host.ID, SerialNumber: "a"}})
 	require.NoError(t, err)
+	// Insert a windows update for the host
+	stmt := `INSERT INTO windows_updates (host_id, date_epoch, kb_id) VALUES (?, ?, ?)`
+	_, err = ds.writer.Exec(stmt, host.ID, 1, 123)
+	require.NoError(t, err)
 
 	// Check there's an entry for the host in all the associated tables.
 	for _, hostRef := range hostRefs {
