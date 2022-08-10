@@ -26,11 +26,9 @@
 - [Can I hide known vulnerabilities that I feel are insignificant?](#can-i-hide-known-vulnerabilities-that-i-feel-are-insignificant)
 - [Can I create reports based on historical data in Fleet?](#can-i-create-reports-based-on-historical-data-in-fleet)
 - [Why can't I run queries with `fleetctl` using a new API-only user?](#why-cant-i-run-queries-with-fleetctl-using-a-new-api-only-user)
-- [Why am I getting an error about self-signed certificates when running `fleetctl preview`?](#why-am-i-getting-an-error-about-self-signed-certificates-when-running-fleetctl-preview)
 - [Can I audit actions taken in Fleet?](#can-i-audit-actions-taken-in-fleet)
 - [How often is the software inventory updated?](#how-often-is-the-software-inventory-updated)
 - [Can I group results from multiple hosts?](#can-i-group-results-from-multiple-hosts)
-- [Will updating fleetctl lead to loss of data in fleetctl preview?](will-updating-fleetctl-lead-to-loss-of-data-in-fleetctl-preview?)
 - [How do I downgrade from Fleet Premium to Fleet Free?](how-do-i-downgrade-from-fleet-premium-to-fleet-free)
 
 ## How can I switch to Fleet from Kolide Fleet?
@@ -170,23 +168,6 @@ The following are reasons why a host may not be updating a policy's response:
 If your device is showing up as an offline host in the Fleet instance, and you're sure that the computer has osquery running, we recommend trying the following:
 
 * Try un-enrolling and re-enrolling the host. You can do this by uninstalling osquery on the host and then enrolling your device again using one of the [recommended methods](./Adding-hosts.md).
-* Restart the `fleetctl preview` docker containers.
-* Uninstall and reinstall Docker.
-
-## Fleet preview fails with Invalid interpolation. What should I do?
-
-If you tried running `fleetctl preview` and you get the following error:
-
-```
-fleetctl preview
-Downloading dependencies into /root/.fleet/preview...
-Pulling Docker dependencies...
-Invalid interpolation format for "fleet01" option in service "services": "fleetdm/fleet:${FLEET_VERSION:-latest}"
-
-Failed to run docker-compose
-```
-
-You are probably running an old version of Docker. You should download the installer for your platform from https://docs.docker.com/compose/install/
 
 ## How does Fleet deal with IP duplication?
 
@@ -243,10 +224,6 @@ The [Fleet UI](https://fleetdm.com/docs/using-fleet/fleet-ui) is built for human
 
 In versions prior to Fleet 4.13, a password reset is needed before a new API-only user can perform queries. You can find detailed instructions for setting that up [here](https://github.com/fleetdm/fleet/blob/a1eba3d5b945cb3339004dd1181526c137dc901c/docs/Using-Fleet/fleetctl-CLI.md#reset-the-password).
 
-## Why am I getting an error about self-signed certificates when running `fleetctl preview`?
-
-If you are trying to run `fleetctl preview` and seeing errors about self-signed certificates, the most likely culprit is that you're behind a corporate proxy server and need to [add the proxy settings to Docker](https://docs.docker.com/network/proxy/) so that the container created by `fleetctl preview` is able to connect properly. 
-
 ## Can I audit actions taken in Fleet?
 
 The [REST API `activities` endpoint](./REST-API.md#activities) provides a full breakdown of actions taken on packs, queries, policies, and teams (Available in Fleet Premium) through the UI, the REST API, or `fleetctl`.  
@@ -271,13 +248,6 @@ $ fleetctl get hosts --json | jq '.spec .os_version' | sort | uniq -c
    3 "macOS 12.3.0"
    6 "macOS 12.3.1"
 ```
-
-## Will updating fleetctl lead to loss of data in fleetctl preview?
-
-No, you won't experience data loss when you update fleetctl. Note that you can run `fleetctl preview --tag v#.#.#` if you want to run Preview on a previous version. Just replace # with the version numbers of interest.
-
-## Can I disable usage statistics via the config file or a CLI flag?
-Apart from an admin [disabling usage](https://fleetdm.com/docs/using-fleet/usage-statistics#disable-usage-statistics) statistics on the Fleet UI, you can edit your `fleet.yml` config file to disable usage statistics. Look for the `server_settings` in your `fleet.yml` and set `enable_analytics: false`. Do note there is no CLI flag option to disable usage statistics at this time.
 
 ## How do I downgrade from Fleet Premium to Fleet Free?
 
