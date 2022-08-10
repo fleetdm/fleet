@@ -57,6 +57,9 @@ type SSOSettings struct {
 	// EnableSSOIdPLogin flag to determine whether or not to allow IdP-initiated
 	// login.
 	EnableSSOIdPLogin bool `json:"enable_sso_idp_login"`
+	// EnableJITProvisioning allows user accounts to be created the first time
+	// users try to log in
+	EnableJITProvisioning bool `json:"enable_jit_provisioning"`
 }
 
 // SMTPSettings is part of the AppConfig which defines the wire representation

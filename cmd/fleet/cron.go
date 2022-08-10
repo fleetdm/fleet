@@ -9,11 +9,13 @@ import (
 	"time"
 
 	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
+	"github.com/fleetdm/fleet/v4/server"
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/policies"
 	"github.com/fleetdm/fleet/v4/server/service/externalsvc"
+	"github.com/fleetdm/fleet/v4/server/service/schedule"
 	"github.com/fleetdm/fleet/v4/server/vulnerabilities"
 	"github.com/fleetdm/fleet/v4/server/vulnerabilities/oval"
 	"github.com/fleetdm/fleet/v4/server/webhooks"
@@ -27,81 +29,6 @@ func errHandler(ctx context.Context, logger kitlog.Logger, msg string, err error
 	level.Error(logger).Log("err", msg, "details", err)
 	sentry.CaptureException(err)
 	ctxerr.Handle(ctx, err)
-}
-
-func cronDB(ctx context.Context, ds fleet.Datastore, logger kitlog.Logger, identifier string, config *config.FleetConfig, license *fleet.LicenseInfo, enrollHostLimiter fleet.EnrollHostLimiter) {
-	logger = kitlog.With(logger, "cron", lockKeyLeader)
-
-	ticker := time.NewTicker(10 * time.Second)
-	for {
-		level.Debug(logger).Log("waiting", "on ticker")
-		select {
-		case <-ticker.C:
-			level.Debug(logger).Log("waiting", "done")
-			ticker.Reset(1 * time.Hour)
-		case <-ctx.Done():
-			level.Debug(logger).Log("exit", "done with cron.")
-			return
-		}
-
-		if locked, err := ds.Lock(ctx, lockKeyLeader, identifier, 1*time.Hour); err != nil {
-			level.Error(logger).Log("msg", "Error acquiring lock", "err", err)
-			continue
-		} else if !locked {
-			level.Debug(logger).Log("msg", "Not the leader. Skipping...")
-			continue
-		}
-
-		_, err := ds.CleanupDistributedQueryCampaigns(ctx, time.Now())
-		if err != nil {
-			errHandler(ctx, logger, "cleaning distributed query campaigns", err)
-		}
-		_, err = ds.CleanupIncomingHosts(ctx, time.Now())
-		if err != nil {
-			errHandler(ctx, logger, "cleaning incoming hosts", err)
-		}
-		_, err = ds.CleanupCarves(ctx, time.Now())
-		if err != nil {
-			errHandler(ctx, logger, "cleaning carves", err)
-		}
-		err = ds.UpdateQueryAggregatedStats(ctx)
-		if err != nil {
-			errHandler(ctx, logger, "aggregating query stats", err)
-		}
-		err = ds.UpdateScheduledQueryAggregatedStats(ctx)
-		if err != nil {
-			errHandler(ctx, logger, "aggregating scheduled query stats", err)
-		}
-		_, err = ds.CleanupExpiredHosts(ctx)
-		if err != nil {
-			errHandler(ctx, logger, "cleaning expired hosts", err)
-		}
-		err = ds.GenerateAggregatedMunkiAndMDM(ctx)
-		if err != nil {
-			errHandler(ctx, logger, "aggregating munki and mdm data", err)
-		}
-		err = ds.CleanupPolicyMembership(ctx, time.Now())
-		if err != nil {
-			errHandler(ctx, logger, "cleanup policy membership", err)
-		}
-		err = ds.UpdateOSVersions(ctx)
-		if err != nil {
-			errHandler(ctx, logger, "update os versions", err)
-		}
-		err = enrollHostLimiter.SyncEnrolledHostIDs(ctx)
-		if err != nil {
-			errHandler(ctx, logger, "sync enrolled host ids", err)
-		}
-
-		// NOTE(mna): this is not a route from the fleet server (not in server/service/handler.go) so it
-		// will not automatically support the /latest/ versioning. Leaving it as /v1/ for that reason.
-		err = trySendStatistics(ctx, ds, fleet.StatisticsFrequency, "https://fleetdm.com/api/v1/webhooks/receive-usage-analytics", *config, license)
-		if err != nil {
-			errHandler(ctx, logger, "sending statistics", err)
-		}
-
-		level.Debug(logger).Log("loop", "done")
-	}
 }
 
 func cronVulnerabilities(
@@ -694,4 +621,120 @@ func newFailerClient(forcedFailures string) *worker.TestAutomationFailer {
 		}
 	}
 	return failerClient
+}
+
+func startCleanupsAndAggregationSchedule(
+	ctx context.Context, instanceID string, ds fleet.Datastore, logger kitlog.Logger, enrollHostLimiter fleet.EnrollHostLimiter,
+) {
+	schedule.New(
+		ctx, "cleanups_then_aggregation", instanceID, 1*time.Hour, ds,
+		// Using leader for the lock to be backwards compatilibity with old deployments.
+		schedule.WithAltLockID("leader"),
+		schedule.WithLogger(kitlog.With(logger, "cron", "cleanups_then_aggregation")),
+		// Run cleanup jobs first.
+		schedule.WithJob(
+			"distributed_query_campaings",
+			func(ctx context.Context) error {
+				_, err := ds.CleanupDistributedQueryCampaigns(ctx, time.Now())
+				return err
+			},
+		),
+		schedule.WithJob(
+			"incoming_hosts",
+			func(ctx context.Context) error {
+				_, err := ds.CleanupIncomingHosts(ctx, time.Now())
+				return err
+			},
+		),
+		schedule.WithJob(
+			"carves",
+			func(ctx context.Context) error {
+				_, err := ds.CleanupCarves(ctx, time.Now())
+				return err
+			},
+		),
+		schedule.WithJob(
+			"expired_hosts",
+			func(ctx context.Context) error {
+				_, err := ds.CleanupExpiredHosts(ctx)
+				return err
+			},
+		),
+		schedule.WithJob(
+			"policy_membership",
+			func(ctx context.Context) error {
+				return ds.CleanupPolicyMembership(ctx, time.Now())
+			},
+		),
+		schedule.WithJob(
+			"sync_enrolled_host_ids",
+			func(ctx context.Context) error {
+				return enrollHostLimiter.SyncEnrolledHostIDs(ctx)
+			},
+		),
+		// Run aggregation jobs after cleanups.
+		schedule.WithJob(
+			"query_aggregated_stats",
+			func(ctx context.Context) error {
+				return ds.UpdateQueryAggregatedStats(ctx)
+			},
+		),
+		schedule.WithJob(
+			"scheduled_query_aggregated_stats",
+			func(ctx context.Context) error {
+				return ds.UpdateScheduledQueryAggregatedStats(ctx)
+			},
+		),
+		schedule.WithJob(
+			"aggregated_munki_and_mdm",
+			func(ctx context.Context) error {
+				return ds.GenerateAggregatedMunkiAndMDM(ctx)
+			},
+		),
+		schedule.WithJob(
+			"update_os_versions",
+			func(ctx context.Context) error {
+				return ds.UpdateOSVersions(ctx)
+			},
+		),
+	).Start()
+}
+
+func startSendStatsSchedule(ctx context.Context, instanceID string, ds fleet.Datastore, config config.FleetConfig, license *fleet.LicenseInfo, logger kitlog.Logger) {
+	schedule.New(
+		ctx, "stats", instanceID, 1*time.Hour, ds,
+		schedule.WithLogger(kitlog.With(logger, "cron", "stats")),
+		schedule.WithJob(
+			"try_send_statistics",
+			func(ctx context.Context) error {
+				// NOTE(mna): this is not a route from the fleet server (not in server/service/handler.go) so it
+				// will not automatically support the /latest/ versioning. Leaving it as /v1/ for that reason.
+				return trySendStatistics(ctx, ds, fleet.StatisticsFrequency, "https://fleetdm.com/api/v1/webhooks/receive-usage-analytics", config, license)
+			},
+		),
+	).Start()
+}
+
+func trySendStatistics(ctx context.Context, ds fleet.Datastore, frequency time.Duration, url string, config config.FleetConfig, license *fleet.LicenseInfo) error {
+	ac, err := ds.AppConfig(ctx)
+	if err != nil {
+		return err
+	}
+	if !ac.ServerSettings.EnableAnalytics {
+		return nil
+	}
+
+	stats, shouldSend, err := ds.ShouldSendStatistics(ctx, frequency, config, license)
+	if err != nil {
+		return err
+	}
+	if !shouldSend {
+		return nil
+	}
+
+	err = server.PostJSONWithTimeout(ctx, url, stats)
+	if err != nil {
+		return err
+	}
+	return ds.RecordStatisticsSent(ctx)
 }

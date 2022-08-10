@@ -5,11 +5,11 @@
     path: /home/ec2-user/.ssh
     owner: ec2-user
     group: ec2-user
-    mode: 700
+    mode: '0700'
     state: directory
 - ansible.builtin.template:
     src: authorized_keys.j2
     dest: /home/ec2-user/.ssh/authorized_keys
     owner: ec2-user
     group: ec2-user
-    mode: 600
+    mode: '0600'

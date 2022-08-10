@@ -19,7 +19,7 @@ We are dedicated to
 Fleet Device Management Inc. is an all-remote company with team members spread across four continents and eight time zones.  The broader team of contributors [worldwide](https://github.com/fleetdm/fleet/graphs/contributors) submits patches, bug reports, troubleshooting tips, improvements, and real-world insights to Fleet's open source code base, documentation, website, and company handbook.
 
 ### Open source
-The majority of the code, documentation, and content we create at Fleet is public and source-available. We strive to be open and transparent in the way we run the business, as much as confidentiality agreements (and time) allow. We perform better with an audience, and our audience performs better with us.
+The majority of the code, documentation, and content we [create](https://twitter.com/mikermcneil/status/1476799587423772674) at Fleet is public and source-available. We strive to be open and transparent in the way we run the business, as much as confidentiality agreements (and time) allow. We perform better with an audience, and our audience performs better with us.
 
 
 ## 🌈 Values

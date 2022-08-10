@@ -1,4 +1,4 @@
-# Server Installation
+# Server installation
 
 - [Fleet on CentOS](#fleet-on-centos)
   - [Setting up a host](#setting-up-a-host)
@@ -445,7 +445,7 @@ spec:
     spec:
       containers:
       - name: fleet
-        image: fleetdm/fleet:4.17.0
+        image: fleetdm/fleet:4.18.0
         env:
           - name: FLEET_MYSQL_ADDRESS
             valueFrom:

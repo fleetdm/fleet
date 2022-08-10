@@ -32,6 +32,7 @@ func NewTask(ds fleet.Datastore, pool fleet.RedisPool, clck clock.Clock, conf co
 	taskCfgs[config.AsyncTaskLabelMembership] = conf.AsyncConfigForTask(config.AsyncTaskLabelMembership)
 	taskCfgs[config.AsyncTaskPolicyMembership] = conf.AsyncConfigForTask(config.AsyncTaskPolicyMembership)
 	taskCfgs[config.AsyncTaskHostLastSeen] = conf.AsyncConfigForTask(config.AsyncTaskHostLastSeen)
+	taskCfgs[config.AsyncTaskScheduledQueryStats] = conf.AsyncConfigForTask(config.AsyncTaskScheduledQueryStats)
 	return &Task{
 		datastore:   ds,
 		pool:        pool,
@@ -51,9 +52,10 @@ func (t *Task) StartCollectors(ctx context.Context, logger kitlog.Logger) {
 	}
 
 	handlers := map[config.AsyncTaskName]collectorHandlerFunc{
-		config.AsyncTaskLabelMembership:  t.collectLabelQueryExecutions,
-		config.AsyncTaskPolicyMembership: t.collectPolicyQueryExecutions,
-		config.AsyncTaskHostLastSeen:     t.collectHostsLastSeen,
+		config.AsyncTaskLabelMembership:     t.collectLabelQueryExecutions,
+		config.AsyncTaskPolicyMembership:    t.collectPolicyQueryExecutions,
+		config.AsyncTaskHostLastSeen:        t.collectHostsLastSeen,
+		config.AsyncTaskScheduledQueryStats: t.collectScheduledQueryStats,
 	}
 	for task, cfg := range t.taskConfigs {
 		if !cfg.Enabled {

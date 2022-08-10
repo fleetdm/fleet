@@ -112,7 +112,11 @@ func TranslateCPEToCVE(
 		return nil, nil
 	}
 
-	// Skip entries from platforms supported by OVAL
+	// TODO: Update this when working on https://github.com/fleetdm/fleet/issues/6538
+	// After we have established that there are no new CPE entries for OVAL platforms, then we don't
+	// need to filter out CPE entries from OVAL platforms any more.
+	//
+	// Skip software from platforms supported by OVAL
 	CPEs, err := ds.ListSoftwareCPEs(ctx, oval.SupportedHostPlatforms)
 	if err != nil {
 		return nil, err
@@ -120,6 +124,9 @@ func TranslateCPEToCVE(
 
 	var parsed []softwareCPEWithNVDMeta
 	for _, CPE := range CPEs {
+		// TODO: Update this when working on https://github.com/fleetdm/fleet/issues/6538
+		// We will be removing any dummies CPEs so this check will not be needed any more.
+		//
 		// Skip dummy CPEs
 		if strings.HasPrefix(CPE.CPE, "none") {
 			continue
@@ -206,7 +213,6 @@ func checkCVEs(
 							}
 							matchingVulns = append(matchingVulns, fleet.SoftwareVulnerability{
 								SoftwareID: softwareCPE.SoftwareID,
-								CPEID:      softwareCPE.ID,
 								CVE:        cveID,
 							})
 						}

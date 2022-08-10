@@ -894,20 +894,11 @@ func (svc *Service) MacadminsData(ctx context.Context, id uint) (*fleet.Macadmin
 	}
 
 	var mdm *fleet.HostMDM
-	switch enrolled, serverURL, installedFromDep, err := svc.ds.GetMDM(ctx, id); {
+	switch hmdm, err := svc.ds.GetMDM(ctx, id); {
 	case err != nil && !fleet.IsNotFound(err):
 		return nil, err
 	case err == nil:
-		enrollmentStatus := "Unenrolled"
-		if enrolled && !installedFromDep {
-			enrollmentStatus = "Enrolled (manual)"
-		} else if enrolled && installedFromDep {
-			enrollmentStatus = "Enrolled (automated)"
-		}
-		mdm = &fleet.HostMDM{
-			EnrollmentStatus: enrollmentStatus,
-			ServerURL:        serverURL,
-		}
+		mdm = hmdm
 	}
 
 	if munkiInfo == nil && mdm == nil {
@@ -972,9 +963,18 @@ func (svc *Service) AggregatedMacadminsData(ctx context.Context, teamID *uint) (
 	}
 	agg.MDMStatus = status
 
+	solutions, mdmSolutionsUpdatedAt, err := svc.ds.AggregatedMDMSolutions(ctx, teamID)
+	if err != nil {
+		return nil, err
+	}
+	agg.MDMSolutions = solutions
+
 	agg.CountsUpdatedAt = munkiUpdatedAt
-	if mdmUpdatedAt.After(munkiUpdatedAt) {
+	if mdmUpdatedAt.After(agg.CountsUpdatedAt) {
 		agg.CountsUpdatedAt = mdmUpdatedAt
+	}
+	if mdmSolutionsUpdatedAt.After(agg.CountsUpdatedAt) {
+		agg.CountsUpdatedAt = mdmSolutionsUpdatedAt
 	}
 
 	return agg, nil
