@@ -21,7 +21,7 @@ DRIs help us collaborate efficiently by knowing exactly who is responsible and c
 | dogfood.fleetdm.com | Ben Edwards |
 | Quality of core product UI | Luke Heath |
 | Ticket movement from product to engineering | Luke Heath |
-| Lead engineering standup and sprint planning | Zach Wasserman* |
+| Lead engineering together and release retrospective | Zach Wasserman* |
 | Customer Slack channels | Tony Gauda |
 | Customer renewals | Tony Gauda |
 | Quality of core product backend | Tomás Touceda |
