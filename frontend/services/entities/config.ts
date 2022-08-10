@@ -54,11 +54,6 @@ export default {
         url,
         params: { id: instanceId },
         responseType: "json",
-        headers: {
-          "Access-Control-Request-Method": "GET",
-          "Access-Control-Request-Headers": "content-type",
-          Origin: `https://${instanceId}.sandbox.fleetdm.com`,
-        },
       });
       return data.timestamp;
     } catch (error) {
