@@ -11,6 +11,7 @@ func init() {
 }
 
 func Up_20220810161445(tx *sql.Tx) error {
+	logger.Info.Println("Creating table munki_issues...")
 	// name is actually the error/warning message - 255 ought to be enough, based
 	// on the example error messages the longest is only ~80. If we need a larger
 	// column, we can always add a column for the hash of the name and set the
@@ -32,6 +33,8 @@ func Up_20220810161445(tx *sql.Tx) error {
 	if err != nil {
 		return errors.Wrapf(err, "create munki_issues table")
 	}
+	logger.Info.Println("Done creating table munki_issues...")
+
 	return nil
 }
 
