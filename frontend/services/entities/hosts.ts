@@ -19,6 +19,7 @@ export interface ILoadHostsOptions {
   policyId?: number;
   policyResponse?: string;
   softwareId?: number;
+  mdmSolutionId?: number;
   device_mapping?: boolean;
   columns?: string;
   visibleColumns?: string;
@@ -34,6 +35,7 @@ export interface IExportHostsOptions {
   policyId?: number;
   policyResponse?: string;
   softwareId?: number;
+  mdmSolutionId?: number;
   device_mapping?: boolean;
   columns?: string;
   visibleColumns?: string;
@@ -104,6 +106,16 @@ const getSoftwareParam = (
   return label === undefined && policyId === undefined ? softwareId : undefined;
 };
 
+const getMDMSolutionParam = (
+  label?: string,
+  policyId?: number,
+  mdmSolutionId?: number
+) => {
+  return label === undefined && policyId === undefined
+    ? mdmSolutionId
+    : undefined;
+};
+
 export default {
   destroy: (host: IHost) => {
     const { HOSTS } = endpoints;
@@ -141,6 +153,7 @@ export default {
     const policyId = options?.policyId || null;
     const policyResponse = options?.policyResponse || "passing";
     const softwareId = options?.softwareId || null;
+    const mdmSolutionId = options?.mdmSolutionId || null;
     const visibleColumns = options?.visibleColumns || null;
 
     if (!sortBy.length) {
@@ -186,6 +199,10 @@ export default {
       path += `&software_id=${softwareId}`;
     }
 
+    if (!label && !policyId && mdmSolutionId) {
+      path += `&mdm_solution_id=${mdmSolutionId}`;
+    }
+
     if (visibleColumns) {
       path += `&columns=${visibleColumns}`;
     }
@@ -202,6 +219,7 @@ export default {
     policyId,
     policyResponse = "passing",
     softwareId,
+    mdmSolutionId,
     device_mapping,
     selectedLabels,
     sortBy,
@@ -221,6 +239,7 @@ export default {
       policy_id: policyParams.policy_id,
       policy_response: policyParams.policy_response,
       software_id: getSoftwareParam(label, policyId, softwareId),
+      mdm_solution_id: getMDMSolutionParam(label, policyId, mdmSolutionId),
       status: getStatusParam(selectedLabels),
     };
 

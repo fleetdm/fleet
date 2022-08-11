@@ -271,7 +271,7 @@ const ManageHostsPage = ({
     queryParams?.software_id !== undefined
       ? parseInt(queryParams?.software_id, 10)
       : undefined;
-  const mdmSolutionId = parseInt(queryParams?.mdm_solution, 10);
+  const mdmSolutionId = parseInt(queryParams?.mdm_solution_id, 10);
   const mdmEnrollmentStatus = queryParams?.mdm_enrollment_status;
   const { active_label: activeLabel, label_id: labelID } = routeParams;
 
@@ -525,6 +525,7 @@ const ManageHostsPage = ({
       policyId,
       policyResponse,
       softwareId,
+      mdmSolutionId,
       page: tableQueryData ? tableQueryData.pageIndex : 0,
       perPage: tableQueryData ? tableQueryData.pageSize : 100,
       device_mapping: true,
