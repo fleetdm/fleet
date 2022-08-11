@@ -17,7 +17,7 @@ go.mod @fleetdm/go
 /CODEOWNERS @zwass @mikermcneil
 
 # Changelog
-CHANGELOG.md @noahtalerman
+/CHANGELOG.md @noahtalerman
 
 # Fleet documentation
 /docs/ @Desmi-Dizney @chris-mcgillicuddy
@@ -28,6 +28,9 @@ CHANGELOG.md @noahtalerman
 
 # Standard query library YAML
 /docs/01-Using-Fleet/standard-query-library/standard-query-library.yml @guillaumeross
+
+# Articles
+/articles @chris-mcgillicuddy
 
 # Website
 /website/ @eashaw
