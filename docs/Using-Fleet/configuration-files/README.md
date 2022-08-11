@@ -113,14 +113,6 @@ spec:
 
 The `targets` field allows you to specify the `labels` field. With the `labels` field, the hosts that become members of the specified labels, upon enrolling to Fleet, will automatically become targets of the given pack.
 
-#### Moving queries and packs from one Fleet environment to another
-
-When managing multiple Fleet environments, you may want to move queries and/or packs from one "exporter" environment to a another "importer" environment.
-
-1. Navigate to `~/.fleet/config` to find the context names for your "exporter" and "importer" environment. For the purpose of these instructions we will use the context names `exporter` and `importer` respectively.
-2. Run the command `fleetctl get queries --yaml --context exporter > queries.yaml && fleetctl apply -f queries.yml --context importer`. This will import all the queries from your exporter Fleet instance into your importer Fleet instance. _Note, this will also write a list of all queries in yaml syntax to a file names `queries.yml`._
-3. Run the command `fleetctl get packs --yaml --context exporter > packs.yaml && fleetctl apply -f packs.yml --context importer`. This will import all the packs from your exporter Fleet instance into your importer Fleet instance. _Note, this will also write a list of all packs in yaml syntax to a file names `packs.yml`._
-
 ### Labels
 
 The following file describes the labels which hosts should be automatically grouped into. The label resource should include the actual SQL query so that the label is self-contained:
