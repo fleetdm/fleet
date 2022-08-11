@@ -415,12 +415,6 @@ func selectSoftwareSQL(opts fleet.SoftwareListOptions) (string, []interface{}, e
 			"s.arch",
 			goqu.I("scp.cpe").As("generated_cpe"),
 		).
-		Join( // filter software that is not associated with any hosts
-			goqu.I("host_software").As("hs"),
-			goqu.On(
-				goqu.I("hs.software_id").Eq(goqu.I("s.id")),
-			),
-		).
 		// Include this in the sub-query in case we want to sort by 'generated_cpe'
 		LeftJoin(
 			goqu.I("software_cpe").As("scp"),
@@ -431,19 +425,46 @@ func selectSoftwareSQL(opts fleet.SoftwareListOptions) (string, []interface{}, e
 
 	if opts.HostID != nil {
 		ds = ds.
-			SelectAppend("hs.last_opened_at").
-			Where(goqu.I("hs.host_id").Eq(opts.HostID))
-	}
-
-	if opts.TeamID != nil {
-		ds = ds.
 			Join(
-				goqu.I("hosts").As("h"),
+				goqu.I("host_software").As("hs"),
 				goqu.On(
-					goqu.I("hs.host_id").Eq(goqu.I("h.id")),
+					goqu.I("hs.software_id").Eq(goqu.I("s.id")),
+					goqu.I("hs.host_id").Eq(opts.HostID),
 				),
 			).
-			Where(goqu.I("h.team_id").Eq(opts.TeamID))
+			SelectAppend("hs.last_opened_at")
+		if opts.TeamID != nil {
+			ds = ds.
+				Join(
+					goqu.I("hosts").As("h"),
+					goqu.On(
+						goqu.I("hs.host_id").Eq(goqu.I("h.id")),
+						goqu.I("h.team_id").Eq(opts.TeamID),
+					),
+				)
+		}
+
+	} else {
+		// When loading software from all hosts, filter out software that is not associated with any
+		// hosts.
+		ds = ds.
+			Join(
+				goqu.I("software_host_counts").As("shc"),
+				goqu.On(
+					goqu.I("s.id").Eq(goqu.I("shc.software_id")),
+					goqu.I("shc.hosts_count").Gt(0),
+				),
+			).
+			GroupByAppend(
+				"shc.hosts_count",
+				"shc.updated_at",
+			)
+
+		if opts.TeamID != nil {
+			ds = ds.Where(goqu.I("shc.team_id").Eq(opts.TeamID))
+		} else {
+			ds = ds.Where(goqu.I("shc.team_id").Eq(0))
+		}
 	}
 
 	if opts.VulnerableOnly {
@@ -486,21 +507,10 @@ func selectSoftwareSQL(opts fleet.SoftwareListOptions) (string, []interface{}, e
 
 	if opts.WithHostCounts {
 		ds = ds.
-			Join(
-				goqu.I("software_host_counts").As("shc"),
-				goqu.On(goqu.I("s.id").Eq(goqu.I("shc.software_id"))),
-			).
-			Where(goqu.I("shc.hosts_count").Gt(0)).
 			SelectAppend(
 				goqu.I("shc.hosts_count"),
 				goqu.I("shc.updated_at").As("counts_updated_at"),
 			)
-
-		if opts.TeamID != nil {
-			ds = ds.Where(goqu.I("shc.team_id").Eq(opts.TeamID))
-		} else {
-			ds = ds.Where(goqu.I("shc.team_id").Eq(0))
-		}
 	}
 
 	ds = ds.GroupBy(
