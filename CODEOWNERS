@@ -17,7 +17,7 @@ go.mod @fleetdm/go
 CHANGELOG.md @noahtalerman
 
 # Fleet documentation
-/docs/ @Desmi-Dizney
+/docs/ @Desmi-Dizney @chris-mcgillicuddy
 
 # REST API reference documentation
 /docs/Using-Fleet/REST-API.md @ksatter
@@ -44,11 +44,11 @@ CHANGELOG.md @noahtalerman
 /README.md @chris-mcgillicuddy
 
 # NPM brandfront (npmjs.com/package/fleetctl)
-/tools/fleetctl-npm/README.md @mike-j-thomas
+/tools/fleetctl-npm/README.md @chris-mcgillicuddy
 
 # Handbook
-/handbook/README.md @mikermcneil
 /handbook/company @mikermcneil
+/handbook/people @charlottechance @hollidayn
 /handbook/security @guillaumeross
 /handbook/engineering @zwass
 /handbook/product @noahtalerman
@@ -56,10 +56,9 @@ CHANGELOG.md @noahtalerman
 /handbook/customers @tgauda
 /handbook/growth @timmy-k
 /handbook/community @timmy-k
-/handbook/digital-experience @mike-j-thomas
-/handbook/handbook @mike-j-thomas
-/handbook/people @charlottechance
-
+/handbook/digital-experience @mike-j-thomas @chris-mcgillicuddy
+/handbook/README.md @chris-mcgillicuddy
+/handbook/handbook @chris-mcgillicuddy
 
 #
 # For configuration that determines auto-approval + auto-unfreezing, so that contributors
