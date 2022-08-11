@@ -311,6 +311,7 @@
     }
 
     [purpose='left-sidebar'] {
+      scrollbar-width: none;
       font-size: 14px;
       border-right: 1px solid @core-fleet-black-25;
 
@@ -353,9 +354,12 @@
       }
 
     }
+    [purpose='left-sidebar']::-webkit-scrollbar,[purpose='right-sidebar']::-webkit-scrollbar,[purpose='subtopics']::-webkit-scrollbar {
+      display: none;
+    }
 
     [purpose='right-sidebar'] {
-
+      scrollbar-width: none;
       p, a {
         font-size: 14px;
       }
@@ -688,6 +692,7 @@
         transition-duration: 500ms;
 
         [purpose='subtopics'] {
+          scrollbar-width: none;
           max-height: 100vh;
           overflow-y: auto;
           color: @core-fleet-black;
