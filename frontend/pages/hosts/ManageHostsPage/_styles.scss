@@ -199,6 +199,7 @@
   &__policies-filter-block {
     display: flex;
     align-items: center;
+    gap: $pad-medium;
 
     p {
       font-size: $xx-small;
@@ -208,14 +209,15 @@
   }
 
   &__policies-filter-name-card,
-  &__software-filter-name-card {
+  &__software-filter-name-card,
+  &__mdm-solution-name-card,
+  &__mdm-enrollment-status-name-card {
     display: inline-flex;
     align-items: center;
     padding: 6px 12px;
     border: 1px solid $ui-fleet-black-25;
     border-radius: 4px;
     box-shadow: none;
-    margin-left: $pad-medium;
     color: $core-fleet-black;
     font-size: $xx-small;
     font-weight: $bold;
@@ -238,10 +240,6 @@
         margin: 0px;
       }
     }
-  }
-
-  &__software-filter-name-card {
-    margin-left: 0px;
   }
 
   &__enroll-hosts {
