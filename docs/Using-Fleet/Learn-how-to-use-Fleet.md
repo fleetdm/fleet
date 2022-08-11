@@ -7,6 +7,12 @@ In this guide, we'll cover the following concepts:
 - [Where to see your device in Fleet](#where-to-see-your-device-in-fleet)
 - [How to ask questions about your device](#how-to-ask-questions-about-your-devices)
 
+You can also follow along with our video guide on previewing Fleet and osquery locally:
+
+<div purpose="embedded-content">
+   <iframe src="https://www.youtube.com/embed/rVxSgvKjrWo" allowfullscreen></iframe>
+</div>
+
 ### Where to see your devices in Fleet
 
 Once you log into Fleet, you are presented with the **Home** page.
