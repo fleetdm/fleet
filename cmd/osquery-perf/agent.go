@@ -631,6 +631,21 @@ func (a *agent) orbitInfo() (bool, []map[string]string) {
 }
 
 func (a *agent) mdm() []map[string]string {
+	possibleURLs := []string{
+		"https://kandji.com/1",
+		"https://jamf.com/1",
+		"https://airwatch.com/1",
+		"https://microsoft.com/1",
+		"https://simplemdm.com/1",
+		"https://example.com/1",
+		"https://kandji.com/2",
+		"https://jamf.com/2",
+		"https://airwatch.com/2",
+		"https://microsoft.com/2",
+		"https://simplemdm.com/2",
+		"https://example.com/2",
+	}
+
 	enrolled := "true"
 	if rand.Intn(2) == 1 {
 		enrolled = "false"
@@ -639,8 +654,9 @@ func (a *agent) mdm() []map[string]string {
 	if rand.Intn(2) == 1 {
 		installedFromDep = "false"
 	}
+	ix := rand.Intn(len(possibleURLs))
 	return []map[string]string{
-		{"enrolled": enrolled, "server_url": "http://some.url/mdm", "installed_from_dep": installedFromDep},
+		{"enrolled": enrolled, "server_url": possibleURLs[ix], "installed_from_dep": installedFromDep},
 	}
 }
 

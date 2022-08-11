@@ -478,6 +478,7 @@ spec:
     user_name: ""
     verify_ssl_certs: false
   sso_settings:
+    enable_jit_provisioning: false
     enable_sso: false
     enable_sso_idp_login: false
     entity_id: ""
@@ -505,12 +506,82 @@ spec:
       enable_vulnerabilities_webhook: false
       host_batch_size: 0
 `
-		expectedJson := `{"kind":"config","apiVersion":"v1","spec":{"org_info":{"org_name":"","org_logo_url":""},"server_settings":{"server_url":"","live_query_disabled":false,"enable_analytics":false,"deferred_save_host":false},"smtp_settings":{"enable_smtp":false,"configured":false,"sender_address":"","server":"","port":0,"authentication_type":"","user_name":"","password":"","enable_ssl_tls":false,"authentication_method":"","domain":"","verify_ssl_certs":false,"enable_start_tls":false},"host_expiry_settings":{"host_expiry_enabled":false,"host_expiry_window":0},"host_settings":{"enable_host_users":true,"enable_software_inventory":false},"sso_settings":{"entity_id":"","issuer_uri":"","idp_image_url":"","metadata":"","metadata_url":"","idp_name":"","enable_sso":false,"enable_sso_idp_login":false},"fleet_desktop":{"transparency_url":"https://fleetdm.com/transparency"},"vulnerability_settings":{"databases_path":"/some/path"},"webhook_settings":{"host_status_webhook":{"enable_host_status_webhook":false,"destination_url":"","host_percentage":0,"days_count":0},"failing_policies_webhook":{"enable_failing_policies_webhook":false,"destination_url":"","policy_ids":null,"host_batch_size":0},"vulnerabilities_webhook":{"enable_vulnerabilities_webhook":false,"destination_url":"","host_batch_size":0},"interval":"0s"},"integrations":{"jira":null,"zendesk":null}}}
+		expectedJson := `
+{
+  "kind": "config",
+  "apiVersion": "v1",
+  "spec": {
+    "org_info": { "org_name": "", "org_logo_url": "" },
+    "server_settings": {
+      "server_url": "",
+      "live_query_disabled": false,
+      "enable_analytics": false,
+      "deferred_save_host": false
+    },
+    "smtp_settings": {
+      "enable_smtp": false,
+      "configured": false,
+      "sender_address": "",
+      "server": "",
+      "port": 0,
+      "authentication_type": "",
+      "user_name": "",
+      "password": "",
+      "enable_ssl_tls": false,
+      "authentication_method": "",
+      "domain": "",
+      "verify_ssl_certs": false,
+      "enable_start_tls": false
+    },
+    "host_expiry_settings": {
+      "host_expiry_enabled": false,
+      "host_expiry_window": 0
+    },
+    "host_settings": {
+      "enable_host_users": true,
+      "enable_software_inventory": false
+    },
+    "sso_settings": {
+      "entity_id": "",
+      "issuer_uri": "",
+      "idp_image_url": "",
+      "metadata": "",
+      "metadata_url": "",
+      "idp_name": "",
+      "enable_jit_provisioning": false,
+      "enable_sso": false,
+      "enable_sso_idp_login": false
+    },
+    "fleet_desktop": { "transparency_url": "https://fleetdm.com/transparency" },
+    "vulnerability_settings": { "databases_path": "/some/path" },
+    "webhook_settings": {
+      "host_status_webhook": {
+        "enable_host_status_webhook": false,
+        "destination_url": "",
+        "host_percentage": 0,
+        "days_count": 0
+      },
+      "failing_policies_webhook": {
+        "enable_failing_policies_webhook": false,
+        "destination_url": "",
+        "policy_ids": null,
+        "host_batch_size": 0
+      },
+      "vulnerabilities_webhook": {
+        "enable_vulnerabilities_webhook": false,
+        "destination_url": "",
+        "host_batch_size": 0
+      },
+      "interval": "0s"
+    },
+    "integrations": { "jira": null, "zendesk": null }
+  }
+}
 `
 
-		assert.Equal(t, expectedYaml, runAppForTest(t, []string{"get", "config"}))
-		assert.Equal(t, expectedYaml, runAppForTest(t, []string{"get", "config", "--yaml"}))
-		assert.Equal(t, expectedJson, runAppForTest(t, []string{"get", "config", "--json"}))
+		assert.YAMLEq(t, expectedYaml, runAppForTest(t, []string{"get", "config"}))
+		assert.YAMLEq(t, expectedYaml, runAppForTest(t, []string{"get", "config", "--yaml"}))
+		assert.JSONEq(t, expectedJson, runAppForTest(t, []string{"get", "config", "--json"}))
 	})
 
 	t.Run("IncludeServerConfig", func(t *testing.T) {
@@ -572,6 +643,7 @@ spec:
     user_name: ""
     verify_ssl_certs: false
   sso_settings:
+    enable_jit_provisioning: false
     enable_sso: false
     enable_sso_idp_login: false
     entity_id: ""
@@ -611,7 +683,7 @@ spec:
       enable_vulnerabilities_webhook: false
       host_batch_size: 0
 `
-		expectedJson := `
+		expectedJSON := `
 {
   "kind": "config",
   "apiVersion": "v1",
@@ -650,6 +722,7 @@ spec:
       "enable_software_inventory": false
     },
     "sso_settings": {
+      "enable_jit_provisioning": false,
       "entity_id": "",
       "issuer_uri": "",
       "idp_image_url": "",
@@ -733,9 +806,9 @@ spec:
 }
 `
 
-		assert.Equal(t, expectedYaml, runAppForTest(t, []string{"get", "config", "--include-server-config"}))
-		assert.Equal(t, expectedYaml, runAppForTest(t, []string{"get", "config", "--include-server-config", "--yaml"}))
-		require.JSONEq(t, expectedJson, runAppForTest(t, []string{"get", "config", "--include-server-config", "--json"}))
+		assert.YAMLEq(t, expectedYaml, runAppForTest(t, []string{"get", "config", "--include-server-config"}))
+		assert.YAMLEq(t, expectedYaml, runAppForTest(t, []string{"get", "config", "--include-server-config", "--yaml"}))
+		require.JSONEq(t, expectedJSON, runAppForTest(t, []string{"get", "config", "--include-server-config", "--json"}))
 	})
 }
 
