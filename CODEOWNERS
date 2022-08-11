@@ -17,7 +17,52 @@ go.mod @fleetdm/go
 CHANGELOG.md @noahtalerman
 
 # Fleet documentation
-/docs/**/* @Desmi-Dizney
+/docs/ @Desmi-Dizney
 
 # REST API reference documentation
 /docs/Using-Fleet/REST-API.md @ksatter
+/docs/Contributing/API-for-contributors.md @ksatter
+
+# Standard query library YAML
+/docs/01-Using-Fleet/standard-query-library/standard-query-library.yml @guillaumeross
+
+# Website
+/website/ @eashaw
+/website/views/ @eashaw
+/website/assets/ @eashaw
+
+# Website redirects and URLs
+/website/config/routes.js @eashaw @mike-j-thomas
+
+# Website backend, scripts, deps
+/website/api/ @mikermcneil
+/website/config/ @mikermcneil
+/website/scripts/ @mikermcneil
+/website/package.json @mikermcneil
+
+# GitHub brandfront
+/README.md @chris-mcgillicuddy
+
+# NPM brandfront (npmjs.com/package/fleetctl)
+/tools/fleetctl-npm/README.md @mike-j-thomas
+
+# Handbook
+/handbook/README.md @mikermcneil
+/handbook/company @mikermcneil
+/handbook/security @guillaumeross
+/handbook/engineering @zwass
+/handbook/product @noahtalerman
+/handbook/sales @alexmitchelliii
+/handbook/customers @tgauda
+/handbook/growth @timmy-k
+/handbook/community @timmy-k
+/handbook/digital-experience @mike-j-thomas
+/handbook/handbook @mike-j-thomas
+/handbook/people @charlottechance
+
+
+#
+# For configuration that determines auto-approval + auto-unfreezing, so that contributors
+# can merge their own PRs without additional approval, please see the latest version of:
+# https://github.com/fleetdm/fleet/blob/74f65447b718663bd04df31ea1da28915d98792c/website/config/custom.js#L88-L128
+#
