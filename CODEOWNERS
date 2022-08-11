@@ -16,8 +16,8 @@ go.mod @fleetdm/go
 # Changelog
 CHANGELOG.md @noahtalerman
 
-# Markdown docs
-/docs/*.md @Desmi-Dizney  # todo: we might need to do double stars here for it to work
+# Fleet documentation
+/docs/**/* @Desmi-Dizney
 
-# API documentation
+# REST API reference documentation
 /docs/Using-Fleet/REST-API.md @ksatter
