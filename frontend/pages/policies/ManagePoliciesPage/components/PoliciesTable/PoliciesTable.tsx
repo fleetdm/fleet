@@ -131,7 +131,6 @@ const PoliciesTable = ({
           manualSortBy
           showMarkAllPages={false}
           isAllPagesSelected={false}
-          disablePagination
           onPrimarySelectActionClick={onDeletePoliciesClick}
           primarySelectActionButtonVariant="text-icon"
           primarySelectActionButtonIcon="delete"
@@ -139,6 +138,7 @@ const PoliciesTable = ({
           emptyComponent={NoPolicies}
           onQueryChange={noop}
           disableCount={tableType === "inheritedPolicies"}
+          isClientSidePagination
         />
       )}
     </div>

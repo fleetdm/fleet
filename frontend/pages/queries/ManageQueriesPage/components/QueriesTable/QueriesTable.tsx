@@ -121,7 +121,6 @@ const QueriesTable = ({
         onQueryChange={handleSearchChange}
         inputPlaceHolder="Search by name"
         searchable={!!queriesList}
-        disablePagination
         onPrimarySelectActionClick={onDeleteQueryClick}
         primarySelectActionButtonVariant="text-icon"
         primarySelectActionButtonIcon="delete"
