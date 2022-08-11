@@ -80,7 +80,8 @@ module "aws-eks-accelerator-for-terraform" {
 
   fargate_profiles = {
     default = {
-      fargate_profile_name = "default"
+      additional_iam_policies = [aws_iam_policy.ecr.arn]
+      fargate_profile_name    = "default"
       fargate_profile_namespaces = [
         {
           namespace = "default"
@@ -330,4 +331,54 @@ resource "kubernetes_config_map" "redirect" {
     }
     EOT
   }
+}
+
+resource "aws_iam_policy" "ecr" {
+  name   = "${var.prefix}-ecr"
+  policy = data.aws_iam_policy_document.ecr.json
+}
+
+data "aws_iam_policy_document" "ecr" {
+  statement {
+    actions = [
+      "ecr:BatchCheckLayerAvailability",
+      "ecr:BatchGetImage",
+      "ecr:GetDownloadUrlForLayer",
+      "ecr:GetAuthorizationToken"
+    ]
+    resources = ["*"]
+  }
+  statement {
+    actions = [ #tfsec:ignore:aws-iam-no-policy-wildcards
+      "kms:Encrypt*",
+      "kms:Decrypt*",
+      "kms:ReEncrypt*",
+      "kms:GenerateDataKey*",
+      "kms:Describe*"
+    ]
+    resources = [aws_kms_key.ecr.arn]
+  }
+}
+
+resource "aws_ecr_repository" "main" {
+  name                 = "${var.prefix}-eks"
+  image_tag_mutability = "MUTABLE"
+
+  image_scanning_configuration {
+    scan_on_push = true
+  }
+
+  encryption_configuration {
+    encryption_type = "KMS"
+    kms_key         = aws_kms_key.ecr.arn
+  }
+}
+
+output "ecr" {
+  value = aws_ecr_repository.main
+}
+
+resource "aws_kms_key" "ecr" {
+  deletion_window_in_days = 10
+  enable_key_rotation     = true
 }

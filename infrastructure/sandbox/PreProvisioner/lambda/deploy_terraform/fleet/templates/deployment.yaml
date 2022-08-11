@@ -37,7 +37,7 @@ spec:
         imagePullPolicy: Always
         command: [/usr/bin/fleet]
         args: ["serve"]
-        image: fleetdm/fleet:{{ .Values.imageTag }}
+        image: {{ .Values.imageRepo }}:{{ .Values.imageTag }}
         ports:
         - name: {{ .Values.fleetName }}
           containerPort: {{ .Values.fleet.listenPort }}
