@@ -126,34 +126,13 @@ func getHostOperatingSystemDB(ctx context.Context, tx sqlx.ExtContext, hostID ui
 }
 
 func (ds *Datastore) CleanupHostOperatingSystems(ctx context.Context) error {
-	// delete host_operating_system records associated with any non-existent hosts (e.g., expired hosts)
-	stmt := `
-	DELETE FROM host_operating_system
-	WHERE host_id IN (
-		SELECT
-			host_id FROM (
-				SELECT
-					id, host_id FROM host_operating_system
-				LEFT JOIN hosts ON id = host_id) hos
-		WHERE
-			id IS NULL)
-	`
-	if _, err := ds.writer.ExecContext(ctx, stmt); err != nil {
-		return ctxerr.Wrap(ctx, err, "clean up host operating systems")
-	}
-
 	// delete operating_systems records that are not associated with any host (e.g., all hosts have
 	// upgraded from a prior version)
-	stmt = `
-	DELETE FROM operating_systems
-	WHERE id IN (
-		SELECT
-			id FROM (
-				SELECT
-					id, os_id FROM operating_systems
-				LEFT JOIN host_operating_system ON id = os_id) hos
-		WHERE
-			os_id IS NULL)
+	stmt := `
+	DELETE op
+	FROM operating_systems op
+	LEFT JOIN host_operating_system hop ON op.id = hop.os_id
+	WHERE hop.os_id IS NULL
 	`
 	if _, err := ds.writer.ExecContext(ctx, stmt); err != nil {
 		return ctxerr.Wrap(ctx, err, "clean up host operating systems")

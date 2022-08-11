@@ -4426,6 +4426,8 @@ func testHostsDeleteHosts(t *testing.T, ds *Datastore) {
 	// Update host_batteries
 	err = ds.ReplaceHostBatteries(context.Background(), host.ID, []*fleet.HostBattery{{HostID: host.ID, SerialNumber: "a"}})
 	require.NoError(t, err)
+	// Update host_operating_system
+	err = ds.UpdateHostOperatingSystem(context.Background(), host.ID, fleet.OperatingSystem{Name: "foo", Version: "bar"})
 
 	// Check there's an entry for the host in all the associated tables.
 	for _, hostRef := range hostRefs {

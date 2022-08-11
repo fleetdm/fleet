@@ -289,6 +289,7 @@ var hostRefs = []string{
 	"host_munki_info",
 	"host_device_auth",
 	"host_batteries",
+	"host_operating_system",
 }
 
 func (ds *Datastore) DeleteHost(ctx context.Context, hid uint) error {
@@ -491,12 +492,6 @@ func (ds *Datastore) applyHostFilters(opt fleet.HostListOptions, sql string, fil
 		params = append(params, opt.SoftwareIDFilter)
 	}
 
-	operatingSystemFilter := "TRUE"
-	if opt.OperatingSystemIDFilter != nil {
-		operatingSystemFilter = "EXISTS (SELECT 1 FROM host_operating_system hos WHERE hos.host_id = h.id AND hos.os_id = ?)"
-		params = append(params, opt.OperatingSystemIDFilter)
-	}
-
 	failingPoliciesJoin := `LEFT JOIN (
 		    SELECT host_id, count(*) as count FROM policy_membership WHERE passes = 0
 		    GROUP BY host_id
@@ -510,6 +505,11 @@ func (ds *Datastore) applyHostFilters(opt fleet.HostListOptions, sql string, fil
 		mdmJoin = ""
 	}
 
+	operatingSystemJoin := `JOIN host_operating_system hos ON h.id = hos.host_id`
+	if opt.OperatingSystemIDFilter == nil {
+		operatingSystemJoin = ""
+	}
+
 	sql += fmt.Sprintf(`FROM hosts h
 		LEFT JOIN host_seen_times hst ON (h.id = hst.host_id)
 		LEFT JOIN teams t ON (h.team_id = t.id)
@@ -517,14 +517,16 @@ func (ds *Datastore) applyHostFilters(opt fleet.HostListOptions, sql string, fil
 		%s
 		%s
 		%s
-		WHERE TRUE AND %s AND %s AND %s
-    `, deviceMappingJoin, policyMembershipJoin, failingPoliciesJoin, mdmJoin, ds.whereFilterHostsByTeams(filter, "h"), softwareFilter, operatingSystemFilter,
+		%s
+		WHERE TRUE AND %s AND %s
+    `, deviceMappingJoin, policyMembershipJoin, failingPoliciesJoin, mdmJoin, operatingSystemJoin, ds.whereFilterHostsByTeams(filter, "h"), softwareFilter,
 	)
 
 	sql, params = filterHostsByStatus(sql, opt, params)
 	sql, params = filterHostsByTeam(sql, opt, params)
 	sql, params = filterHostsByPolicy(sql, opt, params)
 	sql, params = filterHostsByMDM(sql, opt, params)
+	sql, params = filterHostsByOsID(sql, opt, params)
 	sql, params = hostSearchLike(sql, params, opt.MatchQuery, hostSearchColumns...)
 	sql, params = appendListOptionsWithCursorToSQL(sql, params, opt.ListOptions)
 
@@ -553,6 +555,14 @@ func filterHostsByMDM(sql string, opt fleet.HostListOptions, params []interface{
 		case fleet.MDMEnrollStatusUnenrolled:
 			sql += ` AND hmdm.enrolled = 0`
 		}
+	}
+	return sql, params
+}
+
+func filterHostsByOsID(sql string, opt fleet.HostListOptions, params []interface{}) (string, []interface{}) {
+	if opt.OperatingSystemIDFilter != nil {
+		sql += ` AND hos.os_id = ?`
+		params = append(params, *opt.OperatingSystemIDFilter)
 	}
 	return sql, params
 }
@@ -1968,11 +1978,10 @@ FROM (
 		team_id,
 		os_id,
 		hosts_count,
-		CONCAT(name, ' ', version)
-		name,
-		name name_only,
-		version,
-		platform
+		CONCAT(os.name, ' ', os.version) name,
+		os.name name_only,
+		os.version,
+		os.platform
 	FROM (
 		SELECT
 			0 team_id,
