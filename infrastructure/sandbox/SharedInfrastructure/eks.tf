@@ -173,7 +173,7 @@ resource "aws_lb_target_group" "eks" {
   protocol = "HTTP"
   vpc_id   = var.vpc.vpc_id
   health_check {
-    matcher = "404"
+    matcher = "302"
   }
 }
 
