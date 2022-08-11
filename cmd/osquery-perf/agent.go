@@ -856,10 +856,10 @@ func main() {
 	rand.Seed(*randSeed)
 
 	templateNames := []string{
-		// "mac10.14.6.tmpl",
+		"mac10.14.6.tmpl",
 
 		// Uncomment this to add windows hosts
-		"windows_11.tmpl",
+		// "windows_11.tmpl",
 
 		// Uncomment this to add ubuntu hosts with vulnerable software
 		// "partial_ubuntu.tmpl",
