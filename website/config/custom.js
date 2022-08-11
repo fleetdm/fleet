@@ -99,7 +99,7 @@ module.exports.custom = {
     'tools/fleetctl-npm/README.md': ['chris-mcgillicuddy', 'mike-j-thomas'],//« brandfront for fleetctl package on npm
 
     'articles': ['chris-mcgillicuddy', 'mike-j-thomas', 'eashaw'],
-    
+
     'handbook': ['chris-mcgillicuddy', 'mike-j-thomas', 'eashaw', 'mikermcneil'],// (default for handbook)
     'handbook/company': 'mikermcneil',
     'handbook/people': 'charlottechance',
