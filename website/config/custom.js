@@ -95,12 +95,12 @@ module.exports.custom = {
   *                                                                          *
   ***************************************************************************/
   githubRepoDRIByPath: {
-    'README.md': 'chris-mcgillicuddy',// (github brandfront)
+    'README.md': ['chris-mcgillicuddy'],// (github brandfront)
     'tools/fleetctl-npm/README.md': ['chris-mcgillicuddy', 'mike-j-thomas'],//« brandfront for fleetctl package on npm
 
-    'articles': ['chris-mcgillicuddy', 'mike-j-thomas', 'eashaw'],
+    'articles': ['chris-mcgillicuddy', 'mike-j-thomas', 'eashaw', 'zwass', 'mikermcneil'],
 
-    'handbook': ['chris-mcgillicuddy', 'mike-j-thomas', 'eashaw', 'mikermcneil'],// (default for handbook)
+    'handbook': ['chris-mcgillicuddy', 'mike-j-thomas', 'eashaw', 'mikermcneil', 'zwass'],// (default for handbook)
     'handbook/company': 'mikermcneil',
     'handbook/people': 'charlottechance',
     'handbook/engineering': 'zwass',
@@ -117,7 +117,7 @@ module.exports.custom = {
     'website/assets': 'eashaw',
     'website/config/routes.js': ['eashaw', 'mike-j-thomas'],// (for managing website URLs)
 
-    'docs': ['desmi-dizney', 'chris-mcgillicuddy'],// (default for docs)
+    'docs': ['desmi-dizney', 'chris-mcgillicuddy', 'zwass', 'mikermcneil'],// (default for docs)
     'docs/images': ['chris-mcgillicuddy', 'noahtalerman', 'eashaw', 'mike-j-thomas'],
     'docs/Using-Fleet/REST-API.md': 'ksatter',
     'docs/Contributing/API-for-contributors.md': 'ksatter',
@@ -125,7 +125,7 @@ module.exports.custom = {
     'docs/Contributing/FAQ.md': ['ksatter', 'tgauda'],
     'docs/Using-Fleet/FAQ.md': ['ksatter', 'tgauda'],
 
-    'docs/01-Using-Fleet/standard-query-library/standard-query-library.yml': 'guillaumeross',// (standard query library)
+    'docs/01-Using-Fleet/standard-query-library/standard-query-library.yml': ['guillaumeross','zwass'],// (standard query library)
   },
 
 
