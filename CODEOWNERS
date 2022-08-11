@@ -13,6 +13,9 @@ go.mod @fleetdm/go
 # GitHub settings + actions
 /.github/ @fleetdm/g-platform
 
+# Codeowners file
+/CODEOWNERS @zwass @mikermcneil
+
 # Changelog
 CHANGELOG.md @noahtalerman
 
