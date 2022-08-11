@@ -1953,8 +1953,6 @@ WHERE
 // Aggregated stats for os versions are stored by team id with 0 representing the global case
 // If existing team has no hosts, we explicity set the json value as an empty array
 func (ds *Datastore) UpdateOSVersions(ctx context.Context) error {
-	// TODO: counts will be lagging until offline hosts report back with detail query
-
 	sql := `
 INSERT INTO aggregated_stats (id, type, json_value)
 SELECT
