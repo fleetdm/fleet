@@ -15,10 +15,41 @@ html, body {
   position: relative;
   padding-bottom: @footer-height;
 }
+.homepage-cta-banner {
+  background-color: #FFF;
+  color: #000;
+
+  a {
+    color: #000;
+  }
+}
+// Apply this margin when there is a CTA banner on the homepage
+.homepage-cta-banner + .homepage-header-top {
+  top: 52px;
+}
+.non-homepage-cta-banner {
+  background-color: @core-fleet-black;
+  color: #FFF;
+  a {
+    color: #FFF;
+  }
+}
+[purpose='header-report-cta'] {
+  p {
+    font-size: 14px;
+    line-height: 20px;
+  }
+  a {
+    font-size: 14px;
+    line-height: 20px;
+    font-weight: 700;
+    text-decoration: underline;
+  }
+}
 
 [purpose='page-header'] {
     // rules for sticky nav transitions
-    transition-property: all;
+    transition-property: background-color, transform, bottom;
     transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
     transition-duration: 500ms;
 
@@ -106,28 +137,18 @@ html, body {
       }
     }
   }
-  [purpose='header-report-cta'] {
-    p {
-      font-size: 14px;
-      line-height: 20px;
-    }
-    a {
-      font-size: 14px;
-      line-height: 20px;
-      font-weight: 700;
-      text-decoration: underline;
-    }
-  }
 } // Homepage header styles
 &.homepage-header {
   z-index: 9999;
-  position: fixed;
-  color: #ffffff;
+  position: absolute;
+  color: #fff;
   top: 0;
   left: 0;
   right: 0;
   &.sticky {
+    position: fixed;
     background-color: #fff;
+    border-color: transparent;
     color: #192147;
 
     .btn.btn-link {
@@ -152,14 +173,6 @@ html, body {
       color: #ffffff;
       font-weight: @bold;
       cursor: pointer;
-    }
-  }
-  [purpose='header-report-cta'] {
-    background-color: #FFF;
-    color: #000;
-
-    a {
-      color: #000;
     }
   }
 } // Non-homepage header styles
@@ -191,13 +204,6 @@ html, body {
       color: #192147;
       font-weight: @bold;
       cursor: pointer;
-    }
-  }
-  [purpose='header-report-cta'] {
-    background-color: @core-fleet-black;
-    color: #FFF;
-    a {
-      color: #FFF;
     }
   }
 }
@@ -254,6 +260,11 @@ body.detected-mobile {
   // devices (like the iPad) as well as handset devices (like the iPhone).
   // …
 }
+@media (max-width: 992px) {
+  .homepage-cta-banner+.homepage-header-top {
+    top: 72px;
+  }
+}
 
 @media (max-width: 767px) {
   [purpose='page-wrap'] {
@@ -264,7 +275,11 @@ body.detected-mobile {
     }
   }
 }
-
+@media (max-width: 605px) {
+  .homepage-cta-banner + .homepage-header-top {
+    top: 92px;
+  }
+}
 @media (max-width: 575px) {
   [purpose='page-wrap'] {
     padding-bottom: 371px;
@@ -294,6 +309,16 @@ body.detected-mobile {
       height: 80px;
 
     }
+  }
+}
+@media (max-width: 393px) {
+  .homepage-cta-banner + .homepage-header-top {
+    top: 112px;
+  }
+}
+@media (max-width: 330px) {
+  .homepage-cta-banner + .homepage-header-top {
+    top: 132px;
   }
 }
 

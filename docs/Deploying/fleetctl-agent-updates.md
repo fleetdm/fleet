@@ -1,8 +1,10 @@
 # Self-managed agent updates 
 
-Fleet's [Orbit osquery updater](https://github.com/fleetdm/fleet/tree/main/orbit) by default utilizes the public Fleet update repository.
+[Orbit](https://github.com/fleetdm/fleet/tree/main/orbit) will periodically check the public Fleet update repository and update itself, Fleet Desktop, and/or osquery 
+if it detects a later version.
 
-For users who would like to self-manage an update server, this capability is available with a Fleet Premium subscription.
+To override this behavior, users can set a channel for each component or disable updates altogether. Visit [Adding Hosts](https://fleetdm.com/docs/using-fleet/adding-hosts#fleet-desktop) to learn more.
+Alternatively, users with a Fleet Premium subscription can self-manage an update server.
 
 ## Securing updates
 

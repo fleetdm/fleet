@@ -5,15 +5,14 @@ import (
 	"fmt"
 	"io/ioutil"
 
+	"github.com/fleetdm/fleet/v4/pkg/spec"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/service"
 	"github.com/urfave/cli/v2"
 )
 
 func deleteCommand() *cli.Command {
-	var (
-		flFilename string
-	)
+	var flFilename string
 	return &cli.Command{
 		Name:      "delete",
 		Usage:     "Specify files to declaratively batch delete osquery configurations",
@@ -45,7 +44,7 @@ func deleteCommand() *cli.Command {
 				return err
 			}
 
-			specs, err := specGroupFromBytes(b)
+			specs, err := spec.GroupFromBytes(b)
 			if err != nil {
 				return err
 			}

@@ -96,6 +96,30 @@
     li::marker {
       color: @core-vibrant-blue;
     }
+    [purpose='checklist-item'] {
+      display: flex;
+      input[type='checkbox'] {
+        margin-left: -18px;
+        min-width: 16px;
+        min-height: 16px;
+        align-self: center;
+      }
+      input:checked, input:active {
+        accent-color: @core-vibrant-blue;
+      }
+      [purpose='task'] {
+        margin-left: 16px;
+        input {
+          display: none;
+        }
+        p {
+          margin-bottom: 0px;
+        }
+      }
+    }
+    [purpose='checklist-item']::marker {
+      display: none;
+    }
     code:not(.nohighlight):not(.mermaid) {
       background: #F1F0FF;
       padding: 4px 8px;
@@ -105,7 +129,7 @@
       color: @core-fleet-black;
     }
     pre {
-      code:not(.nohighlight) {
+      code {
         background: none;
         padding: 0px;
         font-family: @code-font;
@@ -134,6 +158,31 @@
       background: #fff;
     }
     blockquote {
+      margin: 24px 0 32px 32px;
+      display: block;
+      position: relative;
+    }
+    [purpose='quote'] {
+      font-style: italic;
+      line-height: 36px;
+      font-size: 24px;
+    }
+    [purpose='large-quote'] {
+      font-style: italic;
+      line-height: 24px;
+      font-size: 16px;
+    }
+    [purpose='large-quote']::before, [purpose='quote']::before {
+      display: inline;
+      position: absolute;
+      content: '“';
+      top: 16px;
+      left: -34px;
+      font-size: 64px;
+      padding-right: 8px;
+      color: @core-vibrant-blue;
+    }
+    [purpose='tip'] {
       margin: 16px 0 32px;
       background: #F7F7FC;
       border: 1px solid @core-vibrant-blue-50;
@@ -154,6 +203,19 @@
         font-size: 16px;
       }
     }
+    [purpose='embedded-content'] {
+      position: relative;
+      margin-bottom: 40px;
+      width: 100%;
+      padding-bottom: 57%;
+      iframe {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+      }
+    }
     table {
       table-layout: auto;
       border: 1px solid @border-lt-gray;
@@ -171,9 +233,6 @@
         border: 1px solid @border-lt-gray;
         padding: 8px 7px 7px 8px;
       }
-    }
-    iframe {
-      align-self: center;
     }
   }
   [purpose='bottom-cta'] {

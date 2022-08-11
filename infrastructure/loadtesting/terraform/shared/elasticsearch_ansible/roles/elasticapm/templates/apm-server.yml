@@ -465,7 +465,7 @@ apm-server:
                 actions:
                   rollover:
                     max_age: 99999d
-                    max_primary_shard_size: 2gb
+                    max_primary_shard_size: 20gb
                   set_priority:
                     priority: 100
                 min_age: 0ms
@@ -570,7 +570,7 @@ setup.template.settings:
   # of the Elasticsearch template. For more details, please check
   # https://www.elastic.co/guide/en/elasticsearch/reference/current/mapping.html
   index:
-    #number_of_shards: 1
+    number_of_shards: 2
     number_of_replicas: 0
     #codec: best_compression
     #number_of_routing_shards: 30
