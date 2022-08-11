@@ -22,7 +22,6 @@ interface IQueriesTableProps {
   isLoading: boolean;
   onDeleteQueryClick: (selectedTableQueryIds: number[]) => void;
   onCreateQueryClick: () => void;
-  searchable: boolean;
   customControl?: () => JSX.Element;
   selectedDropdownFilter: string;
   isOnlyObserver?: boolean;
@@ -33,7 +32,6 @@ const QueriesTable = ({
   isLoading,
   onDeleteQueryClick,
   onCreateQueryClick,
-  searchable,
   customControl,
   selectedDropdownFilter,
   isOnlyObserver,
@@ -122,7 +120,7 @@ const QueriesTable = ({
         isAllPagesSelected={false}
         onQueryChange={handleSearchChange}
         inputPlaceHolder="Search by name"
-        searchable={searchable}
+        searchable={!!queriesList}
         disablePagination
         onPrimarySelectActionClick={onDeleteQueryClick}
         primarySelectActionButtonVariant="text-icon"
