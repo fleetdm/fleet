@@ -45,6 +45,10 @@ func main() {
 	deviceToken := path.Base(deviceURL.Path)
 	transparencyURL := basePath + "/api/latest/fleet/device/" + deviceToken + "/transparency"
 
+	go func() {
+		watchSystemTheme()
+	}()
+
 	onReady := func() {
 		log.Info().Msg("ready")
 
