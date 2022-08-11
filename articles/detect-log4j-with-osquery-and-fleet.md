@@ -8,8 +8,8 @@ In response, the ASF has released a patch and recommends an immediate upgrade to
 
 Since Log4j is an embedded library used by many applications in your server and endpoint environments: how do you know your exposure? Here we describe a query you can run using Fleet to get granular and real-time visibility into Log4j installs across your infrastructure.
 
-<div purpose="embedded-content">
-  <iframe src="https://www.loom.com/embed/8db7b8a3ec314b42a0a3e36d56c847c8" frameborder="0" webkitallowfullscreen mozallowfullscreen allowfullscreen style="position: absolute; top: 0; left: 0; width: 100%; height: 100%;"></iframe>
+<div class="video-container" style="position: relative; width: 100%; padding-bottom: 56.25%; margin-top: 24px; margin-bottom: 40px;">
+	<iframe class="video" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; border: 0;" src="https://www.youtube.com/embed/pRE_QT5zr5s" allowfullscreen></iframe>
 </div>
 
 ## The Query (tl;dr)
