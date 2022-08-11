@@ -160,6 +160,11 @@ resource "helm_release" "haproxy_ingress" {
     name  = "controller.service.type"
     value = "NodePort"
   }
+
+  set {
+    name  = "controller.defaultBackendService"
+    value = "kube-system/default-redirect"
+  }
 }
 
 resource "aws_lb_target_group" "eks" {
@@ -200,5 +205,129 @@ resource "kubernetes_manifest" "targetgroupbinding" {
         }]
       }
     }
+  }
+}
+
+resource "kubernetes_service" "redirect" {
+  metadata {
+    name      = "default-redirect"
+    namespace = "kube-system"
+  }
+
+  spec {
+    selector = {
+      app = kubernetes_deployment.redirect.metadata.0.labels.app
+    }
+    port {
+      port = 80
+      name = "http"
+    }
+  }
+}
+
+resource "kubernetes_deployment" "redirect" {
+  metadata {
+    name      = "default-redirect"
+    namespace = "kube-system"
+    labels = {
+      app = "default-redirect"
+    }
+  }
+
+  spec {
+    replicas = 1
+
+    selector {
+      match_labels = {
+        app = "default-redirect"
+      }
+    }
+
+    template {
+      metadata {
+        labels = {
+          app = "default-redirect"
+        }
+      }
+
+      spec {
+        container {
+          image = "nginx:1.23.1"
+          name  = "nginx"
+
+          port {
+            name           = "http"
+            container_port = 80
+          }
+
+          resources {
+            limits = {
+              cpu    = "0.5"
+              memory = "512Mi"
+            }
+            requests = {
+              cpu    = "250m"
+              memory = "50Mi"
+            }
+          }
+
+          volume_mount {
+            mount_path = "/etc/nginx"
+            read_only  = true
+            name       = "nginx-conf"
+          }
+        }
+        volume {
+          name = "nginx-conf"
+          config_map {
+            name = "default-redirect-config"
+            items {
+              key  = "nginx.conf"
+              path = "nginx.conf"
+            }
+          }
+        }
+      }
+    }
+  }
+}
+
+resource "kubernetes_config_map" "redirect" {
+  metadata {
+    name      = "default-redirect-config"
+    namespace = "kube-system"
+  }
+
+  data = {
+    "nginx.conf" = <<-EOT
+    user nginx;
+    worker_processes 1;
+    error_log  /dev/stderr;
+    events {
+      worker_connections  10240;
+    }
+    http {
+      log_format  main
+              'remote_addr:$remote_addr\t'
+              'time_local:$time_local\t'
+              'method:$request_method\t'
+              'uri:$request_uri\t'
+              'host:$host\t'
+              'status:$status\t'
+              'bytes_sent:$body_bytes_sent\t'
+              'referer:$http_referer\t'
+              'useragent:$http_user_agent\t'
+              'forwardedfor:$http_x_forwarded_for\t'
+              'request_time:$request_time';
+      access_log	/dev/stderr main;
+      server {
+          listen       80;
+          server_name  _;
+          location / {
+            return 302 https://fleetdm.com/try-fleet/sandbox-expired;
+          }
+      }
+    }
+    EOT
   }
 }
