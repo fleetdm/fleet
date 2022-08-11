@@ -319,6 +319,11 @@ FROM logical_drives WHERE file_system = 'NTFS' LIMIT 1;`,
 		Platforms:  []string{"windows"},
 		IngestFunc: ingestDiskSpace,
 	},
+	"kubequery_info": {
+		Query:      `SELECT * from kubernetes_info`,
+		IngestFunc: ingestKubequeryInfo,
+		Discovery:  discoveryTable("kubernetes_info"),
+	},
 }
 
 // extraDetailQueries defines extra detail queries that should be run on the host, as
@@ -353,11 +358,6 @@ var extraDetailQueries = map[string]DetailQuery{
 		// always present.
 	},
 	OrbitInfoQueryName: OrbitInfoDetailQuery,
-	"kubequery_info": {
-		Query:      `SELECT * from kubernetes_info`,
-		IngestFunc: ingestKubequeryInfo,
-		Discovery:  discoveryTable("kubernetes_info"),
-	},
 }
 
 // OrbitInfoQueryName is the name of the query to ingest orbit_info table extension data.
@@ -921,7 +921,7 @@ func ingestKubequeryInfo(ctx context.Context, logger log.Logger, host *fleet.Hos
 
 	host.Hostname = fmt.Sprintf("kubequery %s", rows[0]["cluster_name"])
 
-	// These values are not provided by kubequery
+	// These values are not phorovided by kubequery
 	host.OsqueryVersion = "kubequery"
 	host.Platform = "kubequery"
 	return nil

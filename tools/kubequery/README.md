@@ -9,3 +9,5 @@ Once the configuration is modified as appropriate, apply with `kubectl`:
 ```sh
 kubectl apply -f kubequery-fleet.yml
 ```
+
+Kubernetes clusters will show up in Fleet with hostnames like `kubequery <CLUSTER_NAME>`.
