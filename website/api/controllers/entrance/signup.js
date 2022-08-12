@@ -55,6 +55,12 @@ the account verification message.)`,
       type: 'string',
       example: 'Rivera',
       description: 'The user\'s last name.',
+    },
+
+    signupReason: {
+      type: 'string',
+      isIn: ['Buy a license', 'Try Fleet Sandbox'],
+      defaultsTo: 'Buy a license',
     }
 
   },
@@ -81,7 +87,7 @@ the account verification message.)`,
   },
 
 
-  fn: async function ({emailAddress, password, firstName, lastName, organization}) {
+  fn: async function ({emailAddress, password, firstName, lastName, organization, signupReason}) {
 
     var newEmailAddress = emailAddress.toLowerCase();
 
@@ -114,7 +120,24 @@ the account verification message.)`,
         stripeCustomerId
       });
     }
-
+    // Send a POST request to Zapier
+    await sails.helpers.http.post(
+      'https://hooks.zapier.com/hooks/catch/3627242/bqsf4rj/',
+      {
+        'emailAddress': newEmailAddress,
+        'organization': signupReason === 'Buy a license' ? organization : '?',
+        'firstName': signupReason === 'Buy a license' ? firstName : '?',
+        'lastName': signupReason === 'Buy a license' ? lastName : '?',
+        'signupReason': signupReason,
+        'webhookSecret': sails.config.custom.zapierSandboxWebhookSecret
+      }
+    )
+    .timeout(5000)
+    .tolerate(['non200Response', 'requestFailed'], (err)=>{
+      // Note that Zapier responds with a 2xx status code even if something goes wrong, so just because this message is not logged doesn't mean everything is hunky dory.  More info: https://github.com/fleetdm/fleet/pull/6380#issuecomment-1204395762
+      sails.log.warn(`When a new user signed up, a lead/contact could not be verified in the CRM for this email address: ${newEmailAddress}. Raw error: ${err}`);
+      return;
+    });
     // Store the user's new id in their session.
     this.req.session.userId = newUserRecord.id;
 
