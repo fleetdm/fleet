@@ -50,7 +50,20 @@ module.exports = {
       '/platform',
       '/pricing',
       '/transparency',
-      '/docs'
+      '/docs',
+      '/logos',
+      '/platform',
+      '/reports/state-of-device-management',
+      '/overview',
+      '/releases',
+      '/device-management',
+      '/securing',
+      '/engineering',
+      '/guides',
+      '/announcements',
+      '/report',
+      '/deploy',
+      '/podcasts',
       // FUTURE: Do something smarter to get hand-coded HTML pages from routes.js, like how rebuild-cloud-sdk works, to avoid this manual duplication.
       // See also https://github.com/sailshq/sailsjs.com/blob/b53c6e6a90c9afdf89e5cae00b9c9dd3f391b0e7/api/helpers/get-pages-for-sitemap.js#L27
     ];
