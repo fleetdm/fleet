@@ -1801,11 +1801,21 @@ If `additional_info_filters` is not specified, no `additional` information will 
       "issues": {
         "failing_policies_count": 2,
         "total_issues_count": 2
+      },
+      "geolocation": {
+        "country_iso": "US",
+        "city_name": "New York",
+        "geometry": {
+          "type": "point",
+          "coordinates": [40.6799, -74.0028]
+        }
       }
     }
   ]
 }
 ```
+
+> Note: the response above assumes a [GeoIP database is configured](https://fleetdm.com/docs/deploying/configuration#geo-ip), otherwise the `geolocation` object won't be included.
 
 ### Count hosts
 
@@ -2136,10 +2146,20 @@ If the scheduled queries haven't run on the host yet, the stats have zero values
         "cycle_count": 999,
         "health": "Normal"
       }
-    ]
+    ],
+    "geolocation": {
+      "country_iso": "US",
+      "city_name": "New York",
+      "geometry": {
+        "type": "point",
+        "coordinates": [40.6799, -74.0028]
+      }
+    }
   }
 }
 ```
+
+> Note: the response above assumes a [GeoIP database is configured](https://fleetdm.com/docs/deploying/configuration#geo-ip), otherwise the `geolocation` object won't be included.
 
 ### Get host by identifier
 
@@ -2209,10 +2229,20 @@ Returns the information of the host specified using the `uuid`, `osquery_host_id
         "cycle_count": 999,
         "health": "Normal"
       }
-    ]
+    ],
+    "geolocation": {
+      "country_iso": "US",
+      "city_name": "New York",
+      "geometry": {
+        "type": "point",
+        "coordinates": [40.6799, -74.0028]
+      }
+    }
   }
 }
 ```
+
+> Note: the response above assumes a [GeoIP database is configured](https://fleetdm.com/docs/deploying/configuration#geo-ip), otherwise the `geolocation` object won't be included.
 
 ### Delete host
 
