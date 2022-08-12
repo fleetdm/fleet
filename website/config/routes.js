@@ -26,12 +26,12 @@ module.exports.routes = {
     }
   },
 
-  'GET /get-started': {
-    action: 'view-get-started' ,
+  'GET /fleetctl-preview': {
+    action: 'view-get-started',
     locals: {
       currentPage: 'get started',
-      pageTitleForMeta: 'Get started | Fleet for osquery',
-      pageDescriptionForMeta: 'Learn about getting started with Fleet.'
+      pageTitleForMeta: 'fleetctl preview | Fleet for osquery',
+      pageDescriptionForMeta: 'Learn about getting started with Fleet using fleetctl.'
     }
   },
 
@@ -180,6 +180,33 @@ module.exports.routes = {
     },
   },
 
+  'GET /try-fleet/register': {
+    action: 'try-fleet/view-register',
+    locals: {
+      layout: 'layouts/layout-sandbox',
+    }
+  },
+
+  'GET /try-fleet/login': {
+    action: 'try-fleet/view-sandbox-login',
+    locals: {
+      layout: 'layouts/layout-sandbox',
+    }
+  },
+
+  'GET /try-fleet/sandbox': {
+    action: 'try-fleet/view-sandbox-teleporter-or-redirect-because-expired',
+    locals: {
+      layout: 'layouts/layout-sandbox',
+    },
+  },
+
+  'GET /try-fleet/sandbox-expired': {
+    action: 'try-fleet/view-sandbox-expired',
+    locals: {
+      layout: 'layouts/layout-sandbox',
+    },
+  },
 
 
   //  ╦  ╔═╗╔═╗╔═╗╔═╗╦ ╦  ╦═╗╔═╗╔╦╗╦╦═╗╔═╗╔═╗╔╦╗╔═╗
@@ -250,7 +277,9 @@ module.exports.routes = {
   'GET /docs/using-fleet/updating-fleet': '/docs/deploying/upgrading-fleet',
   'GET /blog':                   '/articles',
   'GET /brand':                  '/logos',
+  'GET /get-started':            '/fleetctl-preview',
   'GET /g':                       (req,res)=> { let originalQueryStringWithAmp = req.url.match(/\?(.+)$/) ? '&'+req.url.match(/\?(.+)$/)[1] : ''; return res.redirect(301, sails.config.custom.baseUrl+'/?meet-fleet'+originalQueryStringWithAmp); },
+  'GET /test-fleet-sandbox':     '/try-fleet/register',
 
   // Sitemap
   // =============================================================================================================
@@ -299,5 +328,4 @@ module.exports.routes = {
   'POST /api/v1/customers/save-billing-info-and-subscribe': { action: 'customers/save-billing-info-and-subscribe' },
   'POST /api/v1/entrance/update-password-and-login':    { action: 'entrance/update-password-and-login' },
   'POST /api/v1/deliver-demo-signup':                   { action: 'deliver-demo-signup' },
-
 };

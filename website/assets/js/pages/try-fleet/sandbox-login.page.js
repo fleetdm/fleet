@@ -1,21 +1,34 @@
-parasails.registerPage('get-started', {
+parasails.registerPage('sandbox-login', {
   //  ╦╔╗╔╦╔╦╗╦╔═╗╦    ╔═╗╔╦╗╔═╗╔╦╗╔═╗
   //  ║║║║║ ║ ║╠═╣║    ╚═╗ ║ ╠═╣ ║ ║╣
   //  ╩╝╚╝╩ ╩ ╩╩ ╩╩═╝  ╚═╝ ╩ ╩ ╩ ╩ ╚═╝
   data: {
-    //…
+    // Main syncing/loading state for this page.
+    syncing: false,
+
+    // Form data
+    formData: { },
+
+    // For tracking client-side validation errors in our form.
+    // > Has property set to `true` for each invalid property in `formData`.
+    formErrors: { /* … */ },
+
+    // A set of validation rules for our form.
+    // > The form will not be submitted if these are invalid.
+    formRules: {
+      emailAddress: { required: true, isEmail: true },
+      password: { required: true },
+    },
+
+    // Server error state for the form
+    cloudError: '',
   },
 
   //  ╦  ╦╔═╗╔═╗╔═╗╦ ╦╔═╗╦  ╔═╗
   //  ║  ║╠╣ ║╣ ║  ╚╦╝║  ║  ║╣
   //  ╩═╝╩╚  ╚═╝╚═╝ ╩ ╚═╝╩═╝╚═╝
   beforeMount: function() {
-
-    // If the user navigated to this page from the 'try it now' button, we'll strip the '?tryitnow' from the url.
-    if(window.location.search){
-      // https://caniuse.com/mdn-api_history_replacestate
-      window.history.replaceState({}, document.title, '/fleetctl-preview' );
-    }
+    //…
   },
   mounted: async function() {
     //…
@@ -25,6 +38,10 @@ parasails.registerPage('get-started', {
   //  ║║║║ ║ ║╣ ╠╦╝╠═╣║   ║ ║║ ║║║║╚═╗
   //  ╩╝╚╝ ╩ ╚═╝╩╚═╩ ╩╚═╝ ╩ ╩╚═╝╝╚╝╚═╝
   methods: {
-    //…
+
+    submittedLoginForm: async function() {
+      this.syncing = true;
+      window.location = '/try-fleet/sandbox';
+    }
   }
 });
