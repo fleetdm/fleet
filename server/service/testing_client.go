@@ -212,7 +212,9 @@ func (ts *withServer) LoginSSOUser(username, password string) (fleet.Auth, strin
 	body, err := io.ReadAll(resp.Body)
 	require.NoError(t, err)
 	re := regexp.MustCompile(`value="(.*)"`)
-	rawSSOResp := string(re.FindSubmatch(body)[1])
+	matches := re.FindSubmatch(body)
+	require.NotEmptyf(t, matches, "callback HTML doesn't contain a SAMLResponse value, got body: %s", body)
+	rawSSOResp := string(matches[1])
 
 	auth, err := sso.DecodeAuthResponse(rawSSOResp)
 	require.NoError(t, err)
