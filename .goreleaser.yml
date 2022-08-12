@@ -102,6 +102,8 @@ dockers:
     ids:
       - fleetctl
     dockerfile: tools/fleetctl-docker/Dockerfile
+    build_flag_templates:
+      - "--build-arg=binpath=fleetctl"
     image_templates:
       - 'fleetdm/fleetctl:latest'
       - 'fleetdm/fleetctl:{{ .Tag }}'
