@@ -823,10 +823,6 @@ func log(c *cli.Context, msg ...interface{}) {
 	fmt.Fprint(c.App.Writer, msg...)
 }
 
-func logf(c *cli.Context, format string, a ...interface{}) {
-	fmt.Fprintf(c.App.Writer, format, a...)
-}
-
 func getUserRolesCommand() *cli.Command {
 	return &cli.Command{
 		Name:    "user_roles",

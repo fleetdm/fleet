@@ -17,7 +17,11 @@ const ResetPasswordModal = ({
   onResetCancel,
 }: IResetPasswordModal): JSX.Element => {
   return (
-    <Modal title="Require password reset" onExit={onResetCancel}>
+    <Modal
+      title="Require password reset"
+      onExit={onResetCancel}
+      onEnter={() => onResetConfirm(user)}
+    >
       <div className={baseClass}>
         <p>
           This user will be asked to reset their password after their next

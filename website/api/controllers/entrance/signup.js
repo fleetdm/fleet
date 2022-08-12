@@ -138,18 +138,6 @@ the account verification message.)`,
 
     // If "Try Fleet Sandbox" was provided as the signupReason, we'll send a request to Zapier to add this user to our CRM and make sure their Sandbox instance is live before we continue.
     if(signupReason === 'Try Fleet Sandbox') {
-      // Send a POST request to Zapier
-      await sails.helpers.http.post(
-        'https://hooks.zapier.com/hooks/catch/3627242/bqsf4rj/',
-        { 'emailAddress': newEmailAddress},
-        {'x-webhook-secret': sails.config.custom.zapierSandboxWebhookSecret}
-      )
-      .timeout(5000)
-      .tolerate(['non200Response', 'requestFailed'], (err)=>{
-        // Note that Zapier responds with a 2xx status code even if something goes wrong, so just because this message is not logged doesn't mean everything is hunky dory.  More info: https://github.com/fleetdm/fleet/pull/6380#issuecomment-1204395762
-        sails.log.warn(`When a new user signed up for Fleet Sandbox, a lead/contact could not be verified in the CRM for this email address: ${newEmailAddress}. Raw error: ${err}`);
-        return;
-      });
       // Start polling the /healthz endpoint of the created Fleet Sandbox instance, once it returns a 200 response, we'll continue.
       await sails.helpers.flow.until( async()=>{
         let healthCheckResponse = await sails.helpers.http.sendHttpRequest('GET', cloudProvisionerResponseData.URL+'/healthz')
@@ -185,6 +173,24 @@ the account verification message.)`,
     .intercept({name: 'UsageError'}, 'invalid')
     .fetch();
 
+    // Send a POST request to Zapier
+    await sails.helpers.http.post(
+      'https://hooks.zapier.com/hooks/catch/3627242/bqsf4rj/',
+      {
+        'emailAddress': newEmailAddress,
+        'organization': signupReason === 'Buy a license' ? organization : '?',
+        'firstName': signupReason === 'Buy a license' ? firstName : '?',
+        'lastName': signupReason === 'Buy a license' ? lastName : '?',
+        'signupReason': signupReason,
+        'webhookSecret': sails.config.custom.zapierSandboxWebhookSecret
+      }
+    )
+    .timeout(5000)
+    .tolerate(['non200Response', 'requestFailed'], (err)=>{
+      // Note that Zapier responds with a 2xx status code even if something goes wrong, so just because this message is not logged doesn't mean everything is hunky dory.  More info: https://github.com/fleetdm/fleet/pull/6380#issuecomment-1204395762
+      sails.log.warn(`When a new user signed up, a lead/contact could not be verified in the CRM for this email address: ${newEmailAddress}. Raw error: ${err}`);
+      return;
+    });
     // If billing feaures are enabled, save a new customer entry in the Stripe API.
     // Then persist the Stripe customer id in the database.
     if (sails.config.custom.enableBillingFeatures) {
@@ -196,7 +202,6 @@ the account verification message.)`,
         stripeCustomerId
       });
     }
-
     // Store the user's new id in their session.
     this.req.session.userId = newUserRecord.id;
 

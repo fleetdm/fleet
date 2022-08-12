@@ -223,19 +223,6 @@ const ScheduleEditorModal = ({
     );
   };
 
-  useEffect(() => {
-    const listener = (event: KeyboardEvent) => {
-      if (event.code === "Enter" || event.code === "NumpadEnter") {
-        event.preventDefault();
-        onFormSubmit();
-      }
-    };
-    document.addEventListener("keydown", listener);
-    return () => {
-      document.removeEventListener("keydown", listener);
-    };
-  }, [onFormSubmit]);
-
   if (showPreviewDataModal) {
     return <PreviewDataModal onCancel={togglePreviewDataModal} />;
   }
@@ -244,6 +231,7 @@ const ScheduleEditorModal = ({
     <Modal
       title={editQuery?.query_name || "Schedule editor"}
       onExit={onClose}
+      onEnter={onFormSubmit}
       className={baseClass}
     >
       {isLoading ? (

@@ -7,7 +7,7 @@
       cluster.name: docker-cluster
       cluster.routing.allocation.disk.threshold_enabled: "false"
       discovery.type: single-node
-      ES_JAVA_OPTS: -XX:UseAVX=2 -Xms1g -Xmx1g
+      ES_JAVA_OPTS: -XX:UseAVX=2 -Xms2g -Xmx4g
     ulimits:
       - "memlock:-1:-1"
     volumes:

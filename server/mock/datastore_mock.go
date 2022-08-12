@@ -191,11 +191,13 @@ type ListPoliciesForHostFunc func(ctx context.Context, host *fleet.Host) ([]*fle
 
 type GetMunkiVersionFunc func(ctx context.Context, hostID uint) (string, error)
 
-type GetMDMFunc func(ctx context.Context, hostID uint) (enrolled bool, serverURL string, installedFromDep bool, err error)
+type GetMDMFunc func(ctx context.Context, hostID uint) (*fleet.HostMDM, error)
 
 type AggregatedMunkiVersionFunc func(ctx context.Context, teamID *uint) ([]fleet.AggregatedMunkiVersion, time.Time, error)
 
 type AggregatedMDMStatusFunc func(ctx context.Context, teamID *uint) (fleet.AggregatedMDMStatus, time.Time, error)
+
+type AggregatedMDMSolutionsFunc func(ctx context.Context, teamID *uint) ([]fleet.AggregatedMDMSolutions, time.Time, error)
 
 type GenerateAggregatedMunkiAndMDMFunc func(ctx context.Context) error
 
@@ -263,6 +265,8 @@ type ScheduledQueryFunc func(ctx context.Context, id uint) (*fleet.ScheduledQuer
 
 type CleanupExpiredHostsFunc func(ctx context.Context) ([]uint, error)
 
+type ScheduledQueryIDsByNameFunc func(ctx context.Context, batchSize int, packAndSchedQueryNames ...[2]string) ([]uint, error)
+
 type NewTeamFunc func(ctx context.Context, team *fleet.Team) (*fleet.Team, error)
 
 type SaveTeamFunc func(ctx context.Context, team *fleet.Team) (*fleet.Team, error)
@@ -289,7 +293,7 @@ type ListSoftwareVulnerabilitiesFunc func(ctx context.Context, hostIDs []uint) (
 
 type LoadHostSoftwareFunc func(ctx context.Context, host *fleet.Host, includeCVEScores bool) error
 
-type AllSoftwareWithoutCPEIteratorFunc func(ctx context.Context) (fleet.SoftwareIterator, error)
+type AllSoftwareWithoutCPEIteratorFunc func(ctx context.Context, excludedPlatforms []string) (fleet.SoftwareIterator, error)
 
 type AddCPEForSoftwareFunc func(ctx context.Context, software fleet.Software, cpe string) error
 
@@ -310,6 +314,10 @@ type HostsByCVEFunc func(ctx context.Context, cve string) ([]*fleet.HostShort, e
 type InsertCVEMetaFunc func(ctx context.Context, cveMeta []fleet.CVEMeta) error
 
 type ListCVEsFunc func(ctx context.Context, maxAge time.Duration) ([]fleet.CVEMeta, error)
+
+type ListOperatingSystemsFunc func(ctx context.Context) ([]fleet.OperatingSystem, error)
+
+type UpdateHostOperatingSystemFunc func(ctx context.Context, hostID uint, hostOS fleet.OperatingSystem) error
 
 type NewActivityFunc func(ctx context.Context, user *fleet.User, activityType string, details *map[string]interface{}) error
 
@@ -380,6 +388,8 @@ type UpdateHostOsqueryIntervalsFunc func(ctx context.Context, hostID uint, inter
 type TeamAgentOptionsFunc func(ctx context.Context, teamID uint) (*json.RawMessage, error)
 
 type SaveHostPackStatsFunc func(ctx context.Context, hostID uint, stats []fleet.PackStats) error
+
+type AsyncBatchSaveHostsScheduledQueryStatsFunc func(ctx context.Context, stats map[uint][]fleet.ScheduledQueryStats, batchSize int) (int, error)
 
 type UpdateHostSoftwareFunc func(ctx context.Context, hostID uint, software []fleet.Software) error
 
@@ -700,6 +710,9 @@ type DataStore struct {
 	AggregatedMDMStatusFunc        AggregatedMDMStatusFunc
 	AggregatedMDMStatusFuncInvoked bool
 
+	AggregatedMDMSolutionsFunc        AggregatedMDMSolutionsFunc
+	AggregatedMDMSolutionsFuncInvoked bool
+
 	GenerateAggregatedMunkiAndMDMFunc        GenerateAggregatedMunkiAndMDMFunc
 	GenerateAggregatedMunkiAndMDMFuncInvoked bool
 
@@ -799,6 +812,9 @@ type DataStore struct {
 	CleanupExpiredHostsFunc        CleanupExpiredHostsFunc
 	CleanupExpiredHostsFuncInvoked bool
 
+	ScheduledQueryIDsByNameFunc        ScheduledQueryIDsByNameFunc
+	ScheduledQueryIDsByNameFuncInvoked bool
+
 	NewTeamFunc        NewTeamFunc
 	NewTeamFuncInvoked bool
 
@@ -870,6 +886,12 @@ type DataStore struct {
 
 	ListCVEsFunc        ListCVEsFunc
 	ListCVEsFuncInvoked bool
+
+	ListOperatingSystemsFunc        ListOperatingSystemsFunc
+	ListOperatingSystemsFuncInvoked bool
+
+	UpdateHostOperatingSystemFunc        UpdateHostOperatingSystemFunc
+	UpdateHostOperatingSystemFuncInvoked bool
 
 	NewActivityFunc        NewActivityFunc
 	NewActivityFuncInvoked bool
@@ -975,6 +997,9 @@ type DataStore struct {
 
 	SaveHostPackStatsFunc        SaveHostPackStatsFunc
 	SaveHostPackStatsFuncInvoked bool
+
+	AsyncBatchSaveHostsScheduledQueryStatsFunc        AsyncBatchSaveHostsScheduledQueryStatsFunc
+	AsyncBatchSaveHostsScheduledQueryStatsFuncInvoked bool
 
 	UpdateHostSoftwareFunc        UpdateHostSoftwareFunc
 	UpdateHostSoftwareFuncInvoked bool
@@ -1485,7 +1510,7 @@ func (s *DataStore) GetMunkiVersion(ctx context.Context, hostID uint) (string, e
 	return s.GetMunkiVersionFunc(ctx, hostID)
 }
 
-func (s *DataStore) GetMDM(ctx context.Context, hostID uint) (enrolled bool, serverURL string, installedFromDep bool, err error) {
+func (s *DataStore) GetMDM(ctx context.Context, hostID uint) (*fleet.HostMDM, error) {
 	s.GetMDMFuncInvoked = true
 	return s.GetMDMFunc(ctx, hostID)
 }
@@ -1498,6 +1523,11 @@ func (s *DataStore) AggregatedMunkiVersion(ctx context.Context, teamID *uint) ([
 func (s *DataStore) AggregatedMDMStatus(ctx context.Context, teamID *uint) (fleet.AggregatedMDMStatus, time.Time, error) {
 	s.AggregatedMDMStatusFuncInvoked = true
 	return s.AggregatedMDMStatusFunc(ctx, teamID)
+}
+
+func (s *DataStore) AggregatedMDMSolutions(ctx context.Context, teamID *uint) ([]fleet.AggregatedMDMSolutions, time.Time, error) {
+	s.AggregatedMDMSolutionsFuncInvoked = true
+	return s.AggregatedMDMSolutionsFunc(ctx, teamID)
 }
 
 func (s *DataStore) GenerateAggregatedMunkiAndMDM(ctx context.Context) error {
@@ -1665,6 +1695,11 @@ func (s *DataStore) CleanupExpiredHosts(ctx context.Context) ([]uint, error) {
 	return s.CleanupExpiredHostsFunc(ctx)
 }
 
+func (s *DataStore) ScheduledQueryIDsByName(ctx context.Context, batchSize int, packAndSchedQueryNames ...[2]string) ([]uint, error) {
+	s.ScheduledQueryIDsByNameFuncInvoked = true
+	return s.ScheduledQueryIDsByNameFunc(ctx, batchSize, packAndSchedQueryNames...)
+}
+
 func (s *DataStore) NewTeam(ctx context.Context, team *fleet.Team) (*fleet.Team, error) {
 	s.NewTeamFuncInvoked = true
 	return s.NewTeamFunc(ctx, team)
@@ -1730,9 +1765,9 @@ func (s *DataStore) LoadHostSoftware(ctx context.Context, host *fleet.Host, incl
 	return s.LoadHostSoftwareFunc(ctx, host, includeCVEScores)
 }
 
-func (s *DataStore) AllSoftwareWithoutCPEIterator(ctx context.Context) (fleet.SoftwareIterator, error) {
+func (s *DataStore) AllSoftwareWithoutCPEIterator(ctx context.Context, excludedPlatforms []string) (fleet.SoftwareIterator, error) {
 	s.AllSoftwareWithoutCPEIteratorFuncInvoked = true
-	return s.AllSoftwareWithoutCPEIteratorFunc(ctx)
+	return s.AllSoftwareWithoutCPEIteratorFunc(ctx, excludedPlatforms)
 }
 
 func (s *DataStore) AddCPEForSoftware(ctx context.Context, software fleet.Software, cpe string) error {
@@ -1783,6 +1818,16 @@ func (s *DataStore) InsertCVEMeta(ctx context.Context, cveMeta []fleet.CVEMeta) 
 func (s *DataStore) ListCVEs(ctx context.Context, maxAge time.Duration) ([]fleet.CVEMeta, error) {
 	s.ListCVEsFuncInvoked = true
 	return s.ListCVEsFunc(ctx, maxAge)
+}
+
+func (s *DataStore) ListOperatingSystems(ctx context.Context) ([]fleet.OperatingSystem, error) {
+	s.ListOperatingSystemsFuncInvoked = true
+	return s.ListOperatingSystemsFunc(ctx)
+}
+
+func (s *DataStore) UpdateHostOperatingSystem(ctx context.Context, hostID uint, hostOS fleet.OperatingSystem) error {
+	s.UpdateHostOperatingSystemFuncInvoked = true
+	return s.UpdateHostOperatingSystemFunc(ctx, hostID, hostOS)
 }
 
 func (s *DataStore) NewActivity(ctx context.Context, user *fleet.User, activityType string, details *map[string]interface{}) error {
@@ -1958,6 +2003,11 @@ func (s *DataStore) TeamAgentOptions(ctx context.Context, teamID uint) (*json.Ra
 func (s *DataStore) SaveHostPackStats(ctx context.Context, hostID uint, stats []fleet.PackStats) error {
 	s.SaveHostPackStatsFuncInvoked = true
 	return s.SaveHostPackStatsFunc(ctx, hostID, stats)
+}
+
+func (s *DataStore) AsyncBatchSaveHostsScheduledQueryStats(ctx context.Context, stats map[uint][]fleet.ScheduledQueryStats, batchSize int) (int, error) {
+	s.AsyncBatchSaveHostsScheduledQueryStatsFuncInvoked = true
+	return s.AsyncBatchSaveHostsScheduledQueryStatsFunc(ctx, stats, batchSize)
 }
 
 func (s *DataStore) UpdateHostSoftware(ctx context.Context, hostID uint, software []fleet.Software) error {

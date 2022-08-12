@@ -111,14 +111,14 @@
     <!--STYLES END-->
   </head>
   <body>
-    <div purpose="page-wrap">
-      <div class="<%= isHomepage ? 'homepage-header' : 'header' %>" purpose="page-header">
-        <div purpose="header-report-cta" class="<%= headerCTAHidden  ?  'd-none' : 'd-flex' %> flex-row justify-content-center align-items-md-center">
+    <div purpose="page-wrap" dat>
+      <div purpose="header-report-cta" class="<%= isHomepage ? 'homepage-cta-banner' : 'non-homepage-cta-banner' %> <%= headerCTAHidden  ?  'd-none' : 'd-flex' %> flex-row justify-content-center align-items-md-center">
           <div class="mb-0 d-flex flex-lg-row flex-column justify-content-center py-3 px-2">
             <p class="text-center pr-1 mb-0">We surveyed 200+ security practitioners to discover the state of device management in 2022. </p>
             <a class="mb-0 d-block text-center d-lg-inline text-lg-left" href="/reports/state-of-device-management">Click here to learn about their struggles and best practices.</a>
           </div>
-        </div>
+      </div>
+      <div class="<%= isHomepage ? 'homepage-header' : 'header' %> <%= !headerCTAHidden ? 'homepage-header-top' : null %>" purpose="page-header">
         <div style="max-width: 1248px; height: 94px;" class="container-fluid d-flex justify-content-between align-items-center pt-3 pb-3 px-3 px-md-4">
           <a href="/" style="max-width: 118px;">
             <% /* The homepage-header on the homepage has a white fleet logo */ %>
@@ -367,13 +367,18 @@
     <script>
         var lastScrollTop = 0;
         var header = document.querySelector('.header') || document.querySelector('.homepage-header')
+        var ctaBanner = document.querySelector('[purpose="header-report-cta"]')
         window.addEventListener('scroll', windowScrolled)
 
         function windowScrolled() {
           var scrollTop = window.pageYOffset || document.documentElement.scrollTop
           var fleetLogo = header.querySelector('img')
           var hamburgerMenuIcon = header.querySelector('.btn.btn-link > img')
-          if(scrollTop == 0 && header.classList.contains('homepage-header')) {
+          let ctaBannerHeightOrTopOfPage = ctaBanner ? ctaBanner.clientHeight : 0;
+          if(scrollTop < ctaBannerHeightOrTopOfPage && header.classList.contains('homepage-header')) {
+              if (ctaBanner) {
+                header.classList.add('homepage-header-top')
+              }
               header.classList.remove('sticky')
               fleetLogo.src = '/images/logo-white-162x92@2x.png'
               hamburgerMenuIcon.src = '/images/icon-hamburger-16x14@2x.png'
@@ -382,12 +387,15 @@
           if(scrollTop > lastScrollTop && scrollTop > window.innerHeight * 1.5) {
             header.classList.add('translate-y-0');
           } else {
-            if(header.classList.contains('homepage-header') && scrollTop > 16) {
+            // If the header is touching the top of the viewport
+            if(header.getBoundingClientRect().y <= 0) {
+              header.classList.remove('homepage-header-top')
               header.classList.add('sticky')
+
               fleetLogo.src = '/images/logo-blue-162x92@2x.png'
               hamburgerMenuIcon.src="/images/icon-hamburger-blue-16x14@2x.png"
             }
-              header.classList.remove('translate-y-0');
+            header.classList.remove('translate-y-0');
           }
           lastScrollTop = scrollTop;
         }
