@@ -247,7 +247,7 @@ type Datastore interface {
 	AggregatedMDMSolutions(ctx context.Context, teamID *uint) ([]AggregatedMDMSolutions, time.Time, error)
 	GenerateAggregatedMunkiAndMDM(ctx context.Context) error
 
-	OSVersions(ctx context.Context, teamID *uint, platform *string) (*OSVersions, error)
+	OSVersions(ctx context.Context, teamID *uint, platform *string, osID *uint) (*OSVersions, error)
 	UpdateOSVersions(ctx context.Context) error
 
 	///////////////////////////////////////////////////////////////////////////////
@@ -411,6 +411,11 @@ type Datastore interface {
 	// associated with the given name, version, arch, and kernel version,
 	// a new record is also created.
 	UpdateHostOperatingSystem(ctx context.Context, hostID uint, hostOS OperatingSystem) error
+	// CleanupHostOperatingSystems removes records from the host_operating_system table that are
+	// associated with any non-existent host (e.g., expired hosts) and removes records from the
+	// operating_systems table that no longer associated with any host (e.g., all hosts have
+	// upgraded from a prior version).
+	CleanupHostOperatingSystems(ctx context.Context) error
 
 	///////////////////////////////////////////////////////////////////////////////
 	// ActivitiesStore
