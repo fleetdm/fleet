@@ -659,15 +659,15 @@
       }
 
       .header-hidden { // For scrolling the sidebars with the sticky header
-        transform: translateY(-60px);
-        max-height: calc(~'100vh - 80px');
+        transform: translateY(-80px);
+        max-height: calc(~'100vh - 60px');
       }
       .scrolled:not(.header-hidden) { // For when the page has been scrolled and the header is visible
-        max-height: calc(~'100vh - 170px');
+        max-height: calc(~'100vh - 140px');
       }
       [purpose='left-sidebar'] {
         position: sticky;
-        top: 146px;
+        top: 118px;
         height: fit-content;
         overflow-y: auto;
         transition-property: all;
@@ -684,7 +684,7 @@
         }
         min-width: 216px;
         position: sticky;
-        top: 146px;
+        top: 118px;
         height: fit-content;
         overflow-y: auto;
         transition-property: all;
@@ -693,7 +693,6 @@
 
         [purpose='subtopics'] {
           scrollbar-width: none;
-          max-height: 100vh;
           overflow-y: auto;
           color: @core-fleet-black;
           padding-top: 4px;
