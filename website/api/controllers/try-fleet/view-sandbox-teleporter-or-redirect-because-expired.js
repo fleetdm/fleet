@@ -20,7 +20,7 @@ module.exports = {
     },
 
     redirect: {
-      description: 'This user\'s Fleet Sandbox instance is expired.',
+      description: 'This user does not have a valid Fleet Sandbox instance and is being redirected.',
       responseType: 'redirect'
     },
 
@@ -28,6 +28,10 @@ module.exports = {
 
 
   fn: async function () {
+
+    if(!this.req.me) {
+      throw {redirect: '/try-fleet/login' };
+    }
 
     if(!this.req.me.fleetSandboxURL) {
       throw new Error(`Consistency violation: The logged-in user's (${this.req.me.emailAddress}) fleetSandboxURL has somehow gone missing!`);
