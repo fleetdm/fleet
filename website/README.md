@@ -3,10 +3,10 @@
 This is where the code for the public https://fleetdm.com website lives.
 
 
-<!-- a [Sails v1](https://sailsjs.com) application -->
+## Bugs
+To report a bug or make a suggestion for the website, [click here](https://github.com/fleetdm/fleet/issues).
 
-
-## Test locally
+## Testing locally
 Run the following commands to test the site locally:
 
 ```sh
@@ -20,17 +20,27 @@ sails lift
 Your local copy of the website is now running at [http://localhost:2024](http://localhost:2024)!
 
 
-## Wipe the production database
-I hope you know what you're doing.  The easiest kind of database schema migration:
+## Deploying the website
+To deploy changes to the website to production, merge changes to the `main` branch.  If the changes affect the website's code, or touch any files that the website relies on to build content, such as the query library, osquery schema, docs, handbook, articles, etc., then the website will be redeployed.
+
+> Wondering how this works?  This is implemented in a GitHub action in this repo.  Check out the code there to see how it works!  For help understanding what `sails run` and `npm run` commands in there do, check the scripts in `website/package.json` and in `website/scripts/`.
+
+
+### Changing the database schema
+To deploy new code to production that relies on changes to the database schema or other external systems (e.g. Stripe), first put the website in "maintenance mode" in Heroku.  Then, make your changes in the database schema.   Next, if you have a script to fix/migrate existing data, go ahead and run it now.  (e.g. `sails run fix-or-migrate-existing-data`).  Then, merge your changes and wait for the deploy to finish.  Finally, switch off "maintenance mode" in Heroku.
+
+Note that entering maintenance mode prevents visitors from using the website, so it should be used sparingly, and ideally at low-traffic times of day.
+
+> Warning: Doing an especially sensitive schema migration?  There is a potential timing issue to consider, thanks to an infrastructure change that eliminated downtime during deploys by using Heroku's built-in support for hot-swapping.  Read more in https://github.com/fleetdm/fleet/issues/6568#issuecomment-1211503881
+
+### Wiping the production database
+I hope you know what you're doing.  The "easiest" kind of database schema migration:
 ```sh
 sails_datastores__default__url='REAL_DB_URI_HERE' sails run wipe
 ```
 
 Then when you see the sailboat, hit `CTRL+C` to exit.  All done!
 
-
-## Bugs
-To report a bug or make a suggestion for the website, [click here](https://github.com/fleetdm/fleet/issues).
 
 
 <!--

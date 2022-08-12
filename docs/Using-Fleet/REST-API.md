@@ -1731,6 +1731,7 @@ None.
 | policy_id               | integer | query | The ID of the policy to filter hosts by. `policy_response` must also be specified with `policy_id`.                                                                                                                                                                                                                                         |
 | policy_response         | string  | query | Valid options are `passing` or `failing`.  `policy_id` must also be specified with `policy_response`.                                                                                                                                                                                                                                       |
 | software_id             | integer | query | The ID of the software to filter hosts by.                                                                                                                                                                                                                                                                                                  |
+| operating_system_id     | integer | query | The ID of the operating system to filter hosts by.                                                 |
 | device_mapping          | boolean | query | Indicates whether `device_mapping` should be included for each host. See ["Get host's Google Chrome profiles](#get-host's-google-chrome-profiles) for more information about this feature.                                                                                                                                                  |
 | mdm_id                  | integer | query | The ID of the _mobile device management_ (MDM) solution to filter hosts by (that is, filter hosts that use a specific MDM provider and URL).                                                                                                                                                                                                |
 | mdm_enrollment_status   | string  | query | The _mobile device management_ (MDM) enrollment status to filter hosts by. Can be one of 'manual', 'automatic' or 'unenrolled'.                                                                                                                                                                                                             |
@@ -1825,6 +1826,7 @@ If `additional_info_filters` is not specified, no `additional` information will 
 | team_id                 | integer | query | _Available in Fleet Premium_ Filters the hosts to only include hosts in the specified team.                                                                                                                                                                                                                                                 |
 | policy_id               | integer | query | The ID of the policy to filter hosts by. `policy_response` must also be specified with `policy_id`.                                                                                                                                                                                                                                         |
 | policy_response         | string  | query | Valid options are `passing` or `failing`.  `policy_id` must also be specified with `policy_response`.                                                                                                                                                                                                                                       |
+| operating_system_id     | integer | query | The ID of the operating system to filter hosts by.                                                                                                                                                                                                                                                                                         |
 | label_id                | integer | query | A valid label ID. It cannot be used alongside policy or mdm filters.                                                                                                                                                                                                                                                                        |
 | disable_failing_policies| string  | query | If "true", hosts will return failing policies as 0 regardless of whether there are any that failed for the host. This is meant to be used when increased performance is needed in exchange for the extra information.                                                                                                                       |
 | mdm_id                  | integer | query | The ID of the _mobile device management_ (MDM) solution to filter hosts by (that is, filter hosts that use a specific MDM provider and URL).                                                                                                                                                                                                |
@@ -2541,11 +2543,11 @@ Retrieves the aggregated host OS versions information.
 
 #### Parameters
 
-| Name     | Type     | In    | Description                                                                                                                          |
+| Name                | Type     | In    | Description                                                                                                                          |
 | ---      | ---      | ---   | ---                                                                                                                                  |
-| team_id  | integery | query | _Available in Fleet Premium_ Filters the hosts to only include hosts in the specified team. If not provided, all hosts are included. |
-| platform | string   | query | Filters the hosts to the specified platform                                                                                          |
-
+| team_id             | integer | query | _Available in Fleet Premium_ Filters the hosts to only include hosts in the specified team. If not provided, all hosts are included. |
+| platform            | string   | query | Filters the hosts to the specified platform |                                                                                          
+| operating_system_id | integer   | query | Filters the hosts to the specified operating system id |
 ##### Default response
 
 `Status: 200`
@@ -2557,43 +2559,51 @@ Retrieves the aggregated host OS versions information.
     {
       "hosts_count": 1,
       "name": "CentOS 6.10.0",
-      "platform": "rhel"
+      "name_only": "CentOS",
+      "version": "6.10.0",
+      "platform": "rhel",
+      "os_id": 1
     },
     {
       "hosts_count": 1,
       "name": "CentOS Linux 7.9.2009",
-      "platform": "rhel"
+      "name_only": "CentOS",
+      "version": "7.9.2009",
+      "platform": "rhel",
+      "os_id": 2
     },
     {
       "hosts_count": 1,
       "name": "CentOS Linux 8.3.2011",
-      "platform": "rhel"
+      "name_only": "CentOS",
+      "version": "8.2.2011",
+      "platform": "rhel",
+      "os_id": 3
     },
     {
       "hosts_count": 1,
       "name": "Debian GNU/Linux 10.0.0",
-      "platform": "debian"
+      "name_only": "Debian GNU/Linux",
+      "version": "10.0.0",
+      "platform": "debian",
+      "os_id": 4
     },
     {
       "hosts_count": 1,
       "name": "Debian GNU/Linux 9.0.0",
-      "platform": "debian"
+      "name_only": "Debian GNU/Linux",
+      "version": "9.0.0",
+      "platform": "debian",
+      "os_id": 5
     },
     {
       "hosts_count": 1,
-      "name": "Ubuntu 16.4.0",
-      "platform": "ubuntu"
+      "name": "Ubuntu 16.4.0 LTS",
+      "name_only": "Ubuntu",
+      "version": "16.4.0 LTS",
+      "platform": "ubuntu",
+      "os_id": 6
     },
-    {
-      "hosts_count": 1,
-      "name": "Ubuntu 18.4.0",
-      "platform": "ubuntu"
-    },
-    {
-      "hosts_count": 1,
-      "name": "Ubuntu 20.4.0",
-      "platform": "ubuntu"
-    }
   ]
 }
 ```
@@ -2850,9 +2860,9 @@ Returns a list of all the labels in Fleet.
 
 #### Parameters
 
-| Name            | Type    | In    | Description                                                                                                                   |
-| --------------- | ------- | ----- | ----------------------------------------------------------------------------------------------------------------------------- |                                                                                               |
-| order_key       | string  | query | What to order results by. Can be any column in the labels table.                                                              |
+| Name            | Type    | In    | Description   |
+| --------------- | ------- | ----- |------------------------------------- |
+| order_key       | string  | query | What to order results by. Can be any column in the labels table.                                                  |
 | order_direction | string  | query | **Requires `order_key`**. The direction of the order given the order key. Options include `asc` and `desc`. Default is `asc`. |
 
 #### Example

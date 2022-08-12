@@ -1146,8 +1146,9 @@ func hostsReportEndpoint(ctx context.Context, request interface{}, svc fleet.Ser
 }
 
 type osVersionsRequest struct {
-	TeamID   *uint   `query:"team_id,optional"`
-	Platform *string `query:"platform,optional"`
+	TeamID            *uint   `query:"team_id,optional"`
+	Platform          *string `query:"platform,optional"`
+	OperatingSystemID *uint   `query:"operating_system_id,optional"`
 }
 
 type osVersionsResponse struct {
@@ -1161,7 +1162,7 @@ func (r osVersionsResponse) error() error { return r.Err }
 func osVersionsEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
 	req := request.(*osVersionsRequest)
 
-	osVersions, err := svc.OSVersions(ctx, req.TeamID, req.Platform)
+	osVersions, err := svc.OSVersions(ctx, req.TeamID, req.Platform, req.OperatingSystemID)
 	if err != nil {
 		return &osVersionsResponse{Err: err}, nil
 	}
@@ -1172,12 +1173,12 @@ func osVersionsEndpoint(ctx context.Context, request interface{}, svc fleet.Serv
 	}, nil
 }
 
-func (svc *Service) OSVersions(ctx context.Context, teamID *uint, platform *string) (*fleet.OSVersions, error) {
+func (svc *Service) OSVersions(ctx context.Context, teamID *uint, platform *string, osID *uint) (*fleet.OSVersions, error) {
 	if err := svc.authz.Authorize(ctx, &fleet.Host{TeamID: teamID}, fleet.ActionList); err != nil {
 		return nil, err
 	}
 
-	osVersions, err := svc.ds.OSVersions(ctx, teamID, platform)
+	osVersions, err := svc.ds.OSVersions(ctx, teamID, platform, osID)
 	if err != nil && fleet.IsNotFound(err) {
 		// differentiate case where team was added after UpdateOSVersions last ran
 		if teamID != nil {
