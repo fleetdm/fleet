@@ -86,7 +86,7 @@ Use the following code snippet to include an inline CTA (call to action) in your
   title=”All the data you need, without the performance hit.”
   text=”Fleet is the lightweight telemetry platform for servers and workstations.”
   primary-button-text=”Try Fleet Free” 
-  primary-button-href=”/try-fleet/register?try-it-now” 
+  primary-button-href=”/get-started?try-it-now” 
   secondary-button-text=”Schedule a demo”
   secondary-button-href=”calendly.com/fleetdm/demo”>
 </call-to-action>
