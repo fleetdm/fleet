@@ -4,9 +4,20 @@ import (
 	"time"
 )
 
+// Auth contains methods to fetch information from a valid SSO auth response
 type Auth interface {
+	// UserID returns the Subject Name Identifier associated with the request,
+	// this can be an email address, an entity identifier, or any other valid
+	// Name Identifier as described in the spec:
+	// http://docs.oasis-open.org/security/saml/v2.0/saml-core-2.0-os.pdf
+	//
+	// Fleet requires users to configure this value to be the email of the Subject
 	UserID() string
+	// UserDisplayName finds a display name in the SSO response Attributes, there
+	// isn't a defined spec for this, so the return value is in a best-effort
+	// basis
 	UserDisplayName() string
+	// RequestID returns the request id associated with this SSO session
 	RequestID() string
 }
 
