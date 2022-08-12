@@ -2023,6 +2023,13 @@ func (ds *Datastore) UpdateOSVersions(ctx context.Context) error {
 		statsByTeamID[0] = append(statsByTeamID[0], os)
 	}
 
+	// nothing to do so return early
+	if len(statsByTeamID) < 1 {
+		// log to help troubleshooting in case this happens
+		level.Info(ds.logger).Log("err", fmt.Sprintf("Cannot update aggregated stats for os versions: Check for records in operating_systems and host_perating_systems."))
+		return nil
+	}
+
 	// assemble values as arguments for insert statement
 	args := make([]interface{}, 0, len(statsByTeamID)*3)
 	for id, stats := range statsByTeamID {

@@ -4140,6 +4140,10 @@ func testHostsSetOrUpdateDeviceAuthToken(t *testing.T, ds *Datastore) {
 }
 
 func testOSVersions(t *testing.T, ds *Datastore) {
+	// empty tables
+	err := ds.UpdateOSVersions(context.Background())
+	require.NoError(t, err)
+
 	team1, err := ds.NewTeam(context.Background(), &fleet.Team{
 		Name: "team1",
 	})
