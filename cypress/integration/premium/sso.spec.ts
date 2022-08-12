@@ -35,6 +35,7 @@ describe("SSO Sessions", () => {
       cy.contains("button", "Sign on with SimpleSAML");
       cy.loginSSO({ username: "sso_user2" });
       cy.contains("Hosts");
+      cy.contains("was added to Fleet by SSO");
     });
   });
 });
