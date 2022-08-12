@@ -37,5 +37,19 @@ describe("SSO Sessions", () => {
       cy.contains("Hosts");
       cy.contains("was added to Fleet by SSO");
     });
+
+    it("existing users can log-in normally with JIT enabled", () => {
+      cy.login();
+      cy.setupSSO({
+        enable_sso_idp_login: true,
+        enable_jit_provisioning: true,
+      });
+      cy.logout();
+      cy.visit("/");
+      // Log in
+      cy.contains("button", "Sign on with SimpleSAML");
+      cy.loginSSO({ username: "sso_user" });
+      cy.contains("Hosts");
+    });
   });
 });

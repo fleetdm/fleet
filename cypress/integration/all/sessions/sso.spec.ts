@@ -37,6 +37,16 @@ describe("SSO Sessions", () => {
     cy.loginSSO();
     cy.contains("Hosts");
   });
+  it("can't login if doesn't have an account", () => {
+    cy.login();
+    cy.setupSSO({ enable_sso_idp_login });
+    cy.logout();
+    cy.visit("/");
+    // Log in
+    cy.contains("button", "Sign on with SimpleSAML");
+    cy.loginSSO({ username: "sso_user2" });
+    cy.visit("/login?status=account_invalid");
+  });
   it("fails when IdP login disabled", () => {
     cy.login();
     cy.setupSSO();
@@ -50,18 +60,5 @@ describe("SSO Sessions", () => {
   it("displays an error message when status is set", () => {
     cy.visit("/login?status=account_disabled");
     cy.getAttached(".flash-message");
-  });
-  it("existing users can log-in normally with JIT enabled", () => {
-    cy.login();
-    cy.setupSSO({
-      enable_sso_idp_login: true,
-      enable_jit_provisioning: true,
-    });
-    cy.logout();
-    cy.visit("/");
-    // Log in
-    cy.contains("button", "Sign on with SimpleSAML");
-    cy.loginSSO();
-    cy.contains("Hosts");
   });
 });
