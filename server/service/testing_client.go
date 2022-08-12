@@ -185,13 +185,11 @@ func (ts *withServer) LoginSSOUser(username, password string) (fleet.Auth, strin
 
 	jar, err := cookiejar.New(nil)
 	require.NoError(t, err)
-	client := &http.Client{
-		Jar: jar,
-		// Don't follow redirects, this allows us to control the SSO process
-		CheckRedirect: func(req *http.Request, via []*http.Request) error {
-			return http.ErrUseLastResponse
-		},
-	}
+
+	client := fleethttp.NewClient(
+		fleethttp.WithFollowRedir(false),
+		fleethttp.WithCookieJar(jar),
+	)
 
 	resp, err := client.Get(resIni.URL)
 	require.NoError(t, err)
