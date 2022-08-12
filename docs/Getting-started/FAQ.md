@@ -40,6 +40,8 @@
 - [Can I group results from multiple hosts?](#can-i-group-results-from-multiple-hosts)
 - [Will updating fleetctl lead to loss of data in fleetctl preview?](will-updating-fleetctl-lead-to-loss-of-data-in-fleetctl-preview?)
 - [How do I downgrade from Fleet Premium to Fleet Free?](how-do-i-downgrade-from-fleet-premium-to-fleet-free)
+- [If I use a software orchestration tool (Ansible, Chef, Puppet, etc.) to manage agent options, do I have to apply the same options in the Fleet UI?](#if-i-use-a-software-orchestration-tool-ansible-chef-puppet-etc-to-manage-agent-options-do-i-have-to-apply-the-same-options-in-the-fleet-ui)
+- [How can I uninstall Orbit/Fleet Desktop?](#how-can-i-uninstall-orbit-fleet-desktop)
 
 ### How can I switch to Fleet from Kolide Fleet?
 
