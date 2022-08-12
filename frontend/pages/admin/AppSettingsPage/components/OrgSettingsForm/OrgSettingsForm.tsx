@@ -109,7 +109,11 @@ const OrgSettingsForm = ({
             <WebAddress appConfig={appConfig} handleSubmit={onFormSubmit} />
           )}
           {activeSection === "sso" && (
-            <Sso appConfig={appConfig} handleSubmit={onFormSubmit} />
+            <Sso
+              appConfig={appConfig}
+              handleSubmit={onFormSubmit}
+              isPremiumTier={isPremiumTier}
+            />
           )}
           {activeSection === "smtp" && (
             <Smtp appConfig={appConfig} handleSubmit={onFormSubmit} />

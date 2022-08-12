@@ -66,6 +66,7 @@ const CONFIG_INTEGRATIONS_AUTOMATIONS = {
     idp_name: "",
     enable_sso: false,
     enable_sso_idp_login: false,
+    enable_jit_provisioning: false,
   },
   vulnerability_settings: {
     databases_path: "",
