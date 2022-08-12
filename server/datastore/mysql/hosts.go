@@ -1953,84 +1953,92 @@ WHERE
 // Aggregated stats for os versions are stored by team id with 0 representing the global case
 // If existing team has no hosts, we explicity set the json value as an empty array
 func (ds *Datastore) UpdateOSVersions(ctx context.Context) error {
-	sql := `
-INSERT INTO aggregated_stats (id, type, json_value)
-SELECT
-	team_id id,
-	'os_versions' type,
-	COALESCE(
-		CONCAT('[', GROUP_CONCAT(
-			JSON_OBJECT(
-				'hosts_count', hosts_count, 
-				'name', name, 
-				'name_only', name_only, 
-				'version', version, 
-				'os_id', os_id, 
-				'platform', platform
-			)
-		), ']'), 
-		JSON_ARRAY()
-	) json_value
-FROM (
-	SELECT
-		team_id,
-		os_id,
-		hosts_count,
-		CONCAT(os.name, ' ', os.version) name,
-		os.name name_only,
-		os.version,
+	selectStmt := `
+	SELECT 
+		COUNT(*) hosts_count,  
+		h.team_id, 
+		os.id,
+		os.name, 
+		os.version, 
 		os.platform
-	FROM (
-		SELECT
-			0 team_id,
-			COUNT(*) hosts_count,
-			os_id
-		FROM
-			hosts
-		LEFT JOIN host_operating_system ON host_id = id
-	GROUP BY
-		os_id
-	UNION
-	SELECT
-		h.team_id,
-		COUNT(*) hosts_count,
-		h.os_id
-	FROM (
-		SELECT
-			id,
-			team_id,
-			os_id
-		FROM
-			hosts
-		LEFT JOIN host_operating_system ON host_id = id) h
-	JOIN teams ON teams.id = h.team_id
-GROUP BY
-	h.os_id,
-	h.team_id) team_counts
-	LEFT JOIN operating_systems os ON os.id = os_id) t
-GROUP BY
-	team_id
-UNION
-SELECT
-	t.id,
-	'os_versions' TYPE,
-	JSON_ARRAY() json_value
-FROM
-	teams t
-WHERE NOT EXISTS (
-	SELECT
-		id
-	FROM
-		hosts h
-	WHERE
-		t.id = h.team_id) 
-ON DUPLICATE KEY UPDATE 
-	json_value = VALUES(json_value), 
-	updated_at = CURRENT_TIMESTAMP`
+	FROM hosts h
+	JOIN host_operating_system hos ON h.id = hos.host_id 
+	JOIN operating_systems os ON hos.os_id = os.id 
+	GROUP BY team_id, os_id
+	`
 
-	_, err := ds.writer.ExecContext(ctx, sql)
-	if err != nil {
-		return ctxerr.Wrapf(ctx, err, "update aggregated stats for os versions")
+	var rows []struct {
+		HostsCount int    `db:"hosts_count"`
+		Name       string `db:"name"`
+		Version    string `db:"version"`
+		Platform   string `db:"platform"`
+		ID         uint   `db:"id"`
+		TeamID     *uint  `db:"team_id"`
+	}
+	if err := sqlx.SelectContext(ctx, ds.reader, &rows, selectStmt); err != nil {
+		return ctxerr.Wrap(ctx, err, "update os versions")
+	}
+
+	// each team has a slice of stats with team host counts per os version
+	statsByTeamID := make(map[uint][]fleet.OSVersion)
+	// stats are also aggregated globally per os version
+	globalStats := make(map[uint]fleet.OSVersion)
+
+	for _, r := range rows {
+		os := fleet.OSVersion{
+			HostsCount: r.HostsCount,
+			Name:       fmt.Sprintf("%s %s", r.Name, r.Version),
+			NameOnly:   r.Name,
+			Version:    r.Version,
+			Platform:   r.Platform,
+			ID:         r.ID,
+		}
+		// increment global stats
+		if _, ok := globalStats[os.ID]; !ok {
+			globalStats[os.ID] = os
+		} else {
+			newStats := globalStats[os.ID]
+			newStats.HostsCount += r.HostsCount
+			globalStats[os.ID] = newStats
+		}
+		// push to team stats if applicable
+		if r.TeamID != nil {
+			statsByTeamID[*r.TeamID] = append(statsByTeamID[*r.TeamID], os)
+		}
+	}
+
+	// if an existing team has no hosts assigned, we still want to store empty stats
+	var teamIDs []uint
+	if err := sqlx.SelectContext(ctx, ds.reader, &teamIDs, "SELECT id FROM teams"); err != nil {
+		return ctxerr.Wrap(ctx, err, "update os versions")
+	}
+	for _, id := range teamIDs {
+		if _, ok := statsByTeamID[id]; !ok {
+			statsByTeamID[id] = []fleet.OSVersion{}
+		}
+	}
+
+	// global stats are stored under id 0
+	for _, os := range globalStats {
+		statsByTeamID[0] = append(statsByTeamID[0], os)
+	}
+
+	// assemble values as arguments for insert statement
+	args := make([]interface{}, 0, len(statsByTeamID)*3)
+	for id, stats := range statsByTeamID {
+		jsonValue, err := json.Marshal(stats)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "marshal os version stats")
+		}
+		args = append(args, id, "os_versions", jsonValue)
+	}
+
+	insertStmt := "INSERT INTO aggregated_stats (id, type, json_value) VALUES "
+	insertStmt += strings.TrimSuffix(strings.Repeat("(?,?,?),", len(statsByTeamID)), ",")
+	insertStmt += " ON DUPLICATE KEY UPDATE json_value = VALUES(json_value), updated_at = CURRENT_TIMESTAMP"
+
+	if _, err := ds.writer.ExecContext(ctx, insertStmt, args...); err != nil {
+		return ctxerr.Wrapf(ctx, err, "insert os versions into aggregated stats")
 	}
 
 	return nil
