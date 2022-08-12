@@ -1,6 +1,6 @@
 import React from "react";
 import classnames from "classnames";
-import Spinner from "components/Spinner";
+import ButtonSpinner from "components/ButtonSpinner";
 
 const baseClass = "button";
 
@@ -119,7 +119,8 @@ class Button extends React.Component<IButtonProps, IButtonState> {
         title={title}
         ref={setRef}
       >
-        {isLoading ? <Spinner /> : children}
+        <div className={!isLoading ? "transparent-text" : ""}>{children}</div>
+        {!isLoading && <ButtonSpinner />}
       </button>
     );
   }
