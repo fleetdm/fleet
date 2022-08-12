@@ -211,33 +211,33 @@ const Sso = ({
             Allow SSO login initiated by identity provider
           </Checkbox>
         </div>
+        {isPremiumTier && (
+          <div className={`${baseClass}__inputs`}>
+            <Checkbox
+              onChange={handleInputChange}
+              name="enableJITProvisioning"
+              value={enableJITProvisioning}
+              parseTarget
+            >
+              <>
+                Automatically create Observer user on Login{" "}
+                <a
+                  href="https://fleetdm.com/docs/deploying/configuration#enabling-jit-user-provisioning?utm_medium=fleetui&utm_source=sso-settings"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  Learn more
+                  <img
+                    src={OpenNewTabIcon}
+                    alt="open new tab"
+                    className="learn-more-icon"
+                  />
+                </a>
+              </>
+            </Checkbox>
+          </div>
+        )}
       </div>
-      {isPremiumTier && (
-        <div className={`${baseClass}__inputs`}>
-          <Checkbox
-            onChange={handleInputChange}
-            name="enableJITProvisioning"
-            value={enableJITProvisioning}
-            parseTarget
-          >
-            <>
-              Automatically create Observer user on Login{" "}
-              <a
-                href="https://fleetdm.com/docs/deploying/configuration#enabling-jit-user-provisioning?utm_medium=fleetui&utm_source=sso-settings"
-                target="_blank"
-                rel="noopener noreferrer"
-              >
-                Learn more
-                <img
-                  src={OpenNewTabIcon}
-                  alt="open new tab"
-                  className="learn-more-icon"
-                />
-              </a>
-            </>
-          </Checkbox>
-        </div>
-      )}
       <Button
         type="submit"
         variant="brand"
