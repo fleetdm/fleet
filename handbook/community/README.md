@@ -267,6 +267,7 @@ You’ll know you have the right URL if you see “embed” after the domain.
 
 Paste the YouTube embed URL in the code we provided.
 
+![How to find YouTube video embed URL](../website/assets/images/handbook-video-embed-guide-1280x720.gif)
 ### Adding a mermaid diagram to the Fleet Docs
 
 The Fleet Docs support diagrams that are written in mermaid.js syntax. Take a look at the [Mermaid docs](https://mermaid-js.github.io/mermaid/#/README) to learn about the syntax language and what types of diagrams you can display.
