@@ -35,8 +35,13 @@ func (svc *Service) GetSSOUser(ctx context.Context, auth fleet.Auth) (*fleet.Use
 		return nil, err
 	}
 
+	displayName := auth.UserDisplayName()
+	if displayName == "" {
+		displayName = auth.UserID()
+	}
+
 	user, err = svc.Service.NewUser(ctx, fleet.UserPayload{
-		Name:       ptr.String(auth.UserDisplayName()),
+		Name:       &displayName,
 		Email:      ptr.String(auth.UserID()),
 		SSOEnabled: ptr.Bool(true),
 		GlobalRole: ptr.String(fleet.RoleObserver),
