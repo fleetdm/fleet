@@ -629,6 +629,14 @@ Many of these processes are automated, but it's vital to check Gusto and Pilot m
  - Salary employees are automated in Gusto and Pilot
  - Contractors are a manual process in Gusto and Pilot
 
+### Calendar audit
+
+As Fleet grows, time management for the CEO is more essential. Charlie will audit the CEOs calendar and set meeting notes for calls with external attendees. In the notes document include:
+- LinkedIn profile link of all outside participants
+- Company profile link 
+- Context that helps the CEO to understand purpose of meeting at a glance
+- Share document with meeting participants
+
 ## BizOps
 
 ### Monthly accounting
@@ -664,6 +672,7 @@ The following table lists the People group's rituals, frequency, and Directly Re
 | CEO inbox sweep | Daily unless OOO | Charlie does a morning sweep of the CEO's inbox to remove spam and grab action items | Charlie Chance |
 | Recruiting progress checkup | Weekly | Charlie looks in the [Fleeties spreadsheet](https://docs.google.com/spreadsheets/d/1OSLn-ZCbGSjPusHPiR5dwQhheH1K8-xqyZdsOe9y7qc/edit#gid=0) and reports on each open position | Charlie Chance |
 | Payroll | Monthly before payroll runs | Every month, Charlie audits the payroll platforms for accuracy | Charlie |
+| Calendar audit | audit of CEO's calendar | Daily Charlie audits CEOs calendar and set notes for meetings | Charlie |
 
 
 ## Slack channels
