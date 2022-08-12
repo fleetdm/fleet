@@ -1226,4 +1226,18 @@ func (s *integrationEnterpriseTestSuite) TestSSOJITProvisioning() {
 	user, err := s.ds.UserByEmail(context.Background(), auth.UserID())
 	require.NoError(t, err)
 	require.Equal(t, auth.UserID(), user.Email)
+
+	// a new activity item is created
+	activitiesResp := listActivitiesResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/activities", nil, http.StatusOK, &activitiesResp)
+	require.NoError(t, activitiesResp.Err)
+	require.NotEmpty(t, activitiesResp.Activities)
+	require.Condition(t, func() bool {
+		for _, a := range activitiesResp.Activities {
+			if *a.ActorEmail == auth.UserID() && a.Type == fleet.ActivityTypeUserAddedBySSO {
+				return true
+			}
+		}
+		return false
+	})
 }
