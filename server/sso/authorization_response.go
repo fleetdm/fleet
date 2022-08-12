@@ -63,7 +63,7 @@ var statusMap = map[string]int{
 	"urn:oasis:names:tc:SAML:2.0:status:UnsupportedBinding":       UnsupportedBinding,
 }
 
-// Since theresn't a standard for display names, I have collected the most
+// Since there's not a standard for display names, I have collected the most
 // commonly used attribute names for it.
 //
 // Most of the items here come from:
