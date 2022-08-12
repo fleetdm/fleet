@@ -126,7 +126,7 @@ const DownloadInstallers = ({
       <div className={`${baseClass}__success`}>
         <img src={SuccessIcon} alt="download successful" />
         <h2>You&rsquo;re almost there</h2>
-        <p>{`Run the installer on a ${installerPlatform}laptop, workstation, or sever to add it to Fleet.`}</p>
+        <p>{`Run the installer on a ${installerPlatform}laptop, workstation, or server to add it to Fleet.`}</p>
         <Button onClick={onCancel}>Got it</Button>
       </div>
     );
