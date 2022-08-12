@@ -43,6 +43,10 @@ Being explicit helps people to understand what they are reading and how to use t
 
 Fleet's intro deck adds additional detail to our pitch. Find it in [Google Slides](https://docs.google.com/presentation/d/1GzSjUZj1RrRBpa_yHJjOrvOTsldQQKfq927vpKP1lpU/edit?usp=sharing).
 
+## Intro video
+
+Fleet's intro video shows how to get started with Fleet as an admin. Find it on [YouTube](https://www.youtube.com/watch?v=rVxSgvKjrWo).
+
 ## Salesforce contributor experience checkups
 
 In order to maintain a consistent contributor experience in Salesforce, we log in to make sure the structure of Salesforce data continues to look correct based on processes started elsewhere. Then we can look and see that the goals we want to achieve as a business are in line with our view inside Salesforce by conducting the following checkup. Any discrepancies between how information is presented in Salesforce and what should be in there per this ritual should be flagged so that they can be fixed or discussed.
@@ -88,7 +92,7 @@ Directly Responsible Individuals (DRI) engage in the ritual(s) below at the freq
 |:-----------------------------|:-----------------------------|:----------------------------------------------------|-------------------|
 | Sales huddle | Weekly | Agenda: Go through every [open opportunity](https://fleetdm.lightning.force.com/lightning/o/Opportunity/list?filterName=00B4x00000CTHZIEA5) and update the next steps. | Alex Mitchell
 [Salesforce contributor experience checkup](#salesforce-contributor-experience-checkups)| Monthly | Make sure all users see a detailed view of contacts, opportunities, accounts, and leads. | Nathan Holliday |
-| TODO  | TODO | TODO | TODO 
+| Lead pipeline review  | Weekly | Agenda: Review leads by status/stage; make sure SLAs are met | Alex Mitchell 
 | TODO  | TODO | TODO | TODO 
 
 ## Slack channels
