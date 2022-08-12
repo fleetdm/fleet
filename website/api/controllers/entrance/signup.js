@@ -129,7 +129,7 @@ the account verification message.)`,
         'firstName': signupReason === 'Buy a license' ? firstName : '?',
         'lastName': signupReason === 'Buy a license' ? lastName : '?',
         'signupReason': signupReason,
-        'webhook-secret': sails.config.custom.zapierSandboxWebhookSecret
+        'webhookSecret': sails.config.custom.zapierSandboxWebhookSecret
       }
     )
     .timeout(5000)
