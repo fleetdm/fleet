@@ -92,7 +92,7 @@ Directly Responsible Individuals (DRI) engage in the ritual(s) below at the freq
 |:-----------------------------|:-----------------------------|:----------------------------------------------------|-------------------|
 | Sales huddle | Weekly | Agenda: Go through every [open opportunity](https://fleetdm.lightning.force.com/lightning/o/Opportunity/list?filterName=00B4x00000CTHZIEA5) and update the next steps. | Alex Mitchell
 [Salesforce contributor experience checkup](#salesforce-contributor-experience-checkups)| Monthly | Make sure all users see a detailed view of contacts, opportunities, accounts, and leads. | Nathan Holliday |
-| Lead pipeline review  | Weekly | Agenda: Review leads by status/stage; make sure SLAs are met | Alex Mitchell 
+| Lead pipeline review  | Weekly | Agenda: Review leads by status/stage; make sure SLAs are met. | Alex Mitchell 
 | TODO  | TODO | TODO | TODO 
 
 ## Slack channels
