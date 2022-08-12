@@ -67,6 +67,9 @@ func NewClient(opts ...ClientOpt) *http.Client {
 	if co.tlsConf != nil {
 		cli.Transport = NewTransport(WithTLSConfig(co.tlsConf))
 	}
+	if co.cookieJar != nil {
+		cli.Jar = co.cookieJar
+	}
 	return cli
 }
 
