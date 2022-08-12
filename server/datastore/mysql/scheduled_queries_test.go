@@ -4,10 +4,12 @@ import (
 	"context"
 	"sort"
 	"testing"
+	"time"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/test"
+	"github.com/jmoiron/sqlx"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -25,6 +27,8 @@ func TestScheduledQueries(t *testing.T) {
 		{"Get", testScheduledQueriesGet},
 		{"Delete", testScheduledQueriesDelete},
 		{"CascadingDelete", testScheduledQueriesCascadingDelete},
+		{"ScheduledQueryIDsByName", testScheduledQueriesIDsByName},
+		{"AsyncBatchSaveHostsScheduledQueryStats", testScheduledQueriesAsyncBatchSaveStats},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -364,4 +368,247 @@ func testScheduledQueriesCascadingDelete(t *testing.T, ds *Datastore) {
 	gotQueries, err = ds.ListScheduledQueriesInPackWithStats(context.Background(), 1, fleet.ListOptions{})
 	require.Nil(t, err)
 	require.Len(t, gotQueries, 1)
+}
+
+func testScheduledQueriesIDsByName(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+	user := test.NewUser(t, ds, "User", "user@example.com", true)
+	queries := []*fleet.Query{
+		{Name: "foo", Description: "get the foos", Query: "select * from foo"},
+		{Name: "bar", Description: "do some bars", Query: "select * from bar"},
+		{Name: "foo2", Description: "get the foos", Query: "select * from foo2"},
+		{Name: "bar2", Description: "do some bars", Query: "select * from bar2"},
+	}
+	err := ds.ApplyQueries(ctx, user.ID, queries)
+	require.NoError(t, err)
+
+	specs := []*fleet.PackSpec{
+		{
+			Name:    "baz",
+			Targets: fleet.PackSpecTargets{Labels: []string{}},
+			Queries: []fleet.PackSpecQuery{
+				{
+					QueryName:   queries[0].Name,
+					Description: "test_foo",
+					Interval:    60,
+				},
+				{
+					QueryName:   queries[2].Name,
+					Description: "test_foo2",
+					Interval:    60,
+				},
+			},
+		},
+		{
+			Name:    "qux",
+			Targets: fleet.PackSpecTargets{Labels: []string{}},
+			Queries: []fleet.PackSpecQuery{
+				{
+					QueryName:   queries[1].Name,
+					Description: "test_bar",
+					Interval:    60,
+				},
+				{
+					QueryName:   queries[3].Name,
+					Description: "test_bar2",
+					Interval:    60,
+				},
+			},
+		},
+	}
+	err = ds.ApplyPackSpecs(ctx, specs)
+	require.NoError(t, err)
+
+	// load the scheduled query IDs as that is what we want to test
+	bazPack, _, err := ds.PackByName(ctx, "baz")
+	require.NoError(t, err)
+	quxPack, _, err := ds.PackByName(ctx, "qux")
+	require.NoError(t, err)
+
+	sqsBaz, err := ds.ListScheduledQueriesInPack(ctx, bazPack.ID)
+	require.NoError(t, err)
+	require.Len(t, sqsBaz, 2)
+	sqsQux, err := ds.ListScheduledQueriesInPack(ctx, quxPack.ID)
+	require.NoError(t, err)
+	require.Len(t, sqsQux, 2)
+
+	const scheduledQueryIDsByNameBatchSize = 2
+
+	// without any name
+	ids, err := ds.ScheduledQueryIDsByName(ctx, scheduledQueryIDsByNameBatchSize)
+	require.NoError(t, err)
+	require.Len(t, ids, 0)
+
+	// single query name
+	ids, err = ds.ScheduledQueryIDsByName(ctx, scheduledQueryIDsByNameBatchSize, [2]string{"baz", "foo"})
+	require.NoError(t, err)
+	require.Equal(t, []uint{sqsBaz[0].ID}, ids)
+
+	// invalid query name (mismatch pack with query)
+	ids, err = ds.ScheduledQueryIDsByName(ctx, scheduledQueryIDsByNameBatchSize, [2]string{"qux", "foo"})
+	require.NoError(t, err)
+	require.Equal(t, []uint{0}, ids)
+
+	// invalid query name (unknown pack)
+	ids, err = ds.ScheduledQueryIDsByName(ctx, scheduledQueryIDsByNameBatchSize, [2]string{"nope", "foo"})
+	require.NoError(t, err)
+	require.Equal(t, []uint{0}, ids)
+
+	// invalid query name (unknown query)
+	ids, err = ds.ScheduledQueryIDsByName(ctx, scheduledQueryIDsByNameBatchSize, [2]string{"qux", "nope"})
+	require.NoError(t, err)
+	require.Equal(t, []uint{0}, ids)
+
+	// multiple query names > batch size
+	ids, err = ds.ScheduledQueryIDsByName(ctx, scheduledQueryIDsByNameBatchSize,
+		[2]string{"qux", "nope"}, [2]string{"baz", "foo"},
+		[2]string{"qux", "bar"}, [2]string{"nope", "nope"},
+	)
+	require.NoError(t, err)
+	require.Equal(t, []uint{0, sqsBaz[0].ID, sqsQux[0].ID, 0}, ids)
+
+	// multiple query names (many times batch size)
+	ids, err = ds.ScheduledQueryIDsByName(ctx, scheduledQueryIDsByNameBatchSize,
+		[2]string{"qux", "nope"}, [2]string{"baz", "foo"},
+		[2]string{"qux", "bar"}, [2]string{"nope", "nope"},
+		[2]string{"qux", "bar2"}, [2]string{"nope", "foo2"},
+		[2]string{"qux", "foo2"}, [2]string{"baz", "foo2"},
+	)
+	require.NoError(t, err)
+	require.Equal(t, []uint{0, sqsBaz[0].ID, sqsQux[0].ID, 0, sqsQux[1].ID, 0, 0, sqsBaz[1].ID}, ids)
+}
+
+func testScheduledQueriesAsyncBatchSaveStats(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+	lastExec := time.Now() // don't care about that value in the test, it just needs to be set
+
+	user := test.NewUser(t, ds, "user", "user@example.com", true)
+
+	h1 := test.NewHost(t, ds, "foo1.local", "192.168.1.1", "1", "1", time.Now())
+	h2 := test.NewHost(t, ds, "foo2.local", "192.168.1.2", "2", "2", time.Now())
+	h3 := test.NewHost(t, ds, "foo3.local", "192.168.1.3", "3", "3", time.Now())
+
+	p1 := test.NewPack(t, ds, "p1")
+	p2 := test.NewPack(t, ds, "p2")
+	p3 := test.NewPack(t, ds, "p3")
+
+	q1 := test.NewQuery(t, ds, "q1", "select 1", user.ID, true)
+	q2 := test.NewQuery(t, ds, "q2", "select 2", user.ID, true)
+	q3 := test.NewQuery(t, ds, "q3", "select 3", user.ID, true)
+	q4 := test.NewQuery(t, ds, "q4", "select 4", user.ID, true)
+
+	sq1 := test.NewScheduledQuery(t, ds, p1.ID, q1.ID, 60, false, false, "sq1")
+	sq2 := test.NewScheduledQuery(t, ds, p2.ID, q2.ID, 60, false, false, "sq2")
+	sq3 := test.NewScheduledQuery(t, ds, p3.ID, q3.ID, 60, false, false, "sq3")
+	sq4 := test.NewScheduledQuery(t, ds, p3.ID, q4.ID, 60, false, false, "sq4") // pack 3 has two scheduled queries
+
+	assertStats := func(m map[uint][]fleet.ScheduledQueryStats) {
+		// checks that the stats are as expected (only the Executions field is
+		// checked for the provided host ID/scheduled query ID).
+		for hid, stats := range m {
+			for _, st := range stats {
+				ExecAdhocSQL(t, ds, func(tx sqlx.ExtContext) error {
+					var got int
+					err := sqlx.GetContext(ctx, tx, &got, `SELECT executions FROM scheduled_query_stats WHERE host_id = ? AND scheduled_query_id = ?`, hid, st.ScheduledQueryID)
+					if err != nil {
+						return err
+					}
+					require.Equal(t, st.Executions, got)
+					return nil
+				})
+			}
+		}
+	}
+
+	const batchSize = 2
+	// save without any stats
+	execs, err := ds.AsyncBatchSaveHostsScheduledQueryStats(ctx, nil, batchSize)
+	require.NoError(t, err)
+	require.Equal(t, 0, execs)
+
+	// single host, single stat
+	m := map[uint][]fleet.ScheduledQueryStats{
+		h1.ID: {
+			{ScheduledQueryID: sq1.ID, Executions: 1, LastExecuted: lastExec},
+		},
+	}
+	execs, err = ds.AsyncBatchSaveHostsScheduledQueryStats(ctx, m, batchSize)
+	require.NoError(t, err)
+	require.Equal(t, 1, execs)
+	assertStats(m)
+
+	// single host, stats == batch size
+	m = map[uint][]fleet.ScheduledQueryStats{
+		h1.ID: {
+			{ScheduledQueryID: sq1.ID, Executions: 2, LastExecuted: lastExec},
+			{ScheduledQueryID: sq2.ID, Executions: 3, LastExecuted: lastExec},
+		},
+	}
+	execs, err = ds.AsyncBatchSaveHostsScheduledQueryStats(ctx, m, batchSize)
+	require.NoError(t, err)
+	require.Equal(t, 1, execs)
+	assertStats(m)
+
+	// single host, stats > batch size
+	m = map[uint][]fleet.ScheduledQueryStats{
+		h1.ID: {
+			{ScheduledQueryID: sq1.ID, Executions: 4, LastExecuted: lastExec},
+			{ScheduledQueryID: sq2.ID, Executions: 5, LastExecuted: lastExec},
+			{ScheduledQueryID: sq3.ID, Executions: 6, LastExecuted: lastExec},
+		},
+	}
+	execs, err = ds.AsyncBatchSaveHostsScheduledQueryStats(ctx, m, batchSize)
+	require.NoError(t, err)
+	require.Equal(t, 2, execs)
+	assertStats(m)
+
+	// multi host, stats == batch size
+	m = map[uint][]fleet.ScheduledQueryStats{
+		h1.ID: {
+			{ScheduledQueryID: sq1.ID, Executions: 7, LastExecuted: lastExec},
+		},
+		h2.ID: {
+			{ScheduledQueryID: sq2.ID, Executions: 8, LastExecuted: lastExec},
+		},
+	}
+	execs, err = ds.AsyncBatchSaveHostsScheduledQueryStats(ctx, m, batchSize)
+	require.NoError(t, err)
+	require.Equal(t, 1, execs)
+	assertStats(m)
+
+	// multi host, stats > batch size
+	m = map[uint][]fleet.ScheduledQueryStats{
+		h1.ID: {
+			{ScheduledQueryID: sq1.ID, Executions: 9, LastExecuted: lastExec},
+		},
+		h2.ID: {
+			{ScheduledQueryID: sq2.ID, Executions: 10, LastExecuted: lastExec},
+			{ScheduledQueryID: sq3.ID, Executions: 11, LastExecuted: lastExec},
+		},
+	}
+	execs, err = ds.AsyncBatchSaveHostsScheduledQueryStats(ctx, m, batchSize)
+	require.NoError(t, err)
+	require.Equal(t, 2, execs)
+	assertStats(m)
+
+	// multi host, stats > (N * batch size)
+	m = map[uint][]fleet.ScheduledQueryStats{
+		h1.ID: {
+			{ScheduledQueryID: sq1.ID, Executions: 12, LastExecuted: lastExec},
+			{ScheduledQueryID: sq2.ID, Executions: 13, LastExecuted: lastExec},
+		},
+		h2.ID: {
+			{ScheduledQueryID: sq2.ID, Executions: 14, LastExecuted: lastExec},
+			{ScheduledQueryID: sq4.ID, Executions: 15, LastExecuted: lastExec},
+		},
+		h3.ID: {
+			{ScheduledQueryID: sq1.ID, Executions: 16, LastExecuted: lastExec},
+			{ScheduledQueryID: sq2.ID, Executions: 17, LastExecuted: lastExec},
+			{ScheduledQueryID: sq3.ID, Executions: 18, LastExecuted: lastExec},
+		},
+	}
+	execs, err = ds.AsyncBatchSaveHostsScheduledQueryStats(ctx, m, batchSize)
+	require.NoError(t, err)
+	require.Equal(t, 4, execs)
+	assertStats(m)
 }

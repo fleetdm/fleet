@@ -240,10 +240,11 @@ type Datastore interface {
 	ListPoliciesForHost(ctx context.Context, host *Host) ([]*HostPolicy, error)
 
 	GetMunkiVersion(ctx context.Context, hostID uint) (string, error)
-	GetMDM(ctx context.Context, hostID uint) (enrolled bool, serverURL string, installedFromDep bool, err error)
+	GetMDM(ctx context.Context, hostID uint) (*HostMDM, error)
 
 	AggregatedMunkiVersion(ctx context.Context, teamID *uint) ([]AggregatedMunkiVersion, time.Time, error)
 	AggregatedMDMStatus(ctx context.Context, teamID *uint) (AggregatedMDMStatus, time.Time, error)
+	AggregatedMDMSolutions(ctx context.Context, teamID *uint) ([]AggregatedMDMSolutions, time.Time, error)
 	GenerateAggregatedMunkiAndMDM(ctx context.Context) error
 
 	OSVersions(ctx context.Context, teamID *uint, platform *string) (*OSVersions, error)
@@ -336,6 +337,11 @@ type Datastore interface {
 	DeleteScheduledQuery(ctx context.Context, id uint) error
 	ScheduledQuery(ctx context.Context, id uint) (*ScheduledQuery, error)
 	CleanupExpiredHosts(ctx context.Context) ([]uint, error)
+	// ScheduledQueryIDsByName loads the IDs associated with the given pack and
+	// query names. It returns a slice of IDs in the same order as
+	// packAndSchedQueryNames, with the ID set to 0 if the corresponding
+	// scheduled query did not exist.
+	ScheduledQueryIDsByName(ctx context.Context, batchSize int, packAndSchedQueryNames ...[2]string) ([]uint, error)
 
 	///////////////////////////////////////////////////////////////////////////////
 	// TeamStore
@@ -514,6 +520,11 @@ type Datastore interface {
 
 	// SaveHostPackStats stores (and updates) the pack's scheduled queries stats of a host.
 	SaveHostPackStats(ctx context.Context, hostID uint, stats []PackStats) error
+	// AsyncBatchSaveHostsScheduledQueryStats efficiently saves a batch of hosts'
+	// pack stats of scheduled queries. It is the async and batch version of
+	// SaveHostPackStats. It returns the number of INSERT-ON DUPLICATE UPDATE
+	// statements that were executed (for reporting purpose) or an error.
+	AsyncBatchSaveHostsScheduledQueryStats(ctx context.Context, stats map[uint][]ScheduledQueryStats, batchSize int) (int, error)
 
 	// UpdateHostSoftware updates the software list of a host.
 	// The update consists of deleting existing entries that are not in the given `software`
@@ -591,6 +602,11 @@ type Datastore interface {
 	InnoDBStatus(ctx context.Context) (string, error)
 	ProcessList(ctx context.Context) ([]MySQLProcess, error)
 }
+
+const (
+	// Default batch size to use for ScheduledQueryIDsByName.
+	DefaultScheduledQueryIDsByNameBatchSize = 1000
+)
 
 type MySQLProcess struct {
 	Id      int     `json:"id" db:"Id"`
