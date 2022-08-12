@@ -20,8 +20,15 @@ func (svc *Service) GetSSOUser(ctx context.Context, auth fleet.Auth) (*fleet.Use
 
 	user, err := svc.Service.GetSSOUser(ctx, auth)
 	var nfe fleet.NotFoundError
-	if !errors.As(err, &nfe) || !config.SSOSettings.EnableJITProvisioning {
-		return user, err
+	switch {
+	case err == nil:
+		return user, nil
+	case errors.As(err, &nfe):
+		if !config.SSOSettings.EnableJITProvisioning {
+			return nil, err
+		}
+	default:
+		return nil, err
 	}
 
 	user, err = svc.Service.NewUser(ctx, fleet.UserPayload{
