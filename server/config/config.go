@@ -139,15 +139,17 @@ type AsyncTaskName string
 
 // List of names for supported async tasks.
 const (
-	AsyncTaskLabelMembership  AsyncTaskName = "label_membership"
-	AsyncTaskPolicyMembership AsyncTaskName = "policy_membership"
-	AsyncTaskHostLastSeen     AsyncTaskName = "host_last_seen"
+	AsyncTaskLabelMembership     AsyncTaskName = "label_membership"
+	AsyncTaskPolicyMembership    AsyncTaskName = "policy_membership"
+	AsyncTaskHostLastSeen        AsyncTaskName = "host_last_seen"
+	AsyncTaskScheduledQueryStats AsyncTaskName = "scheduled_query_stats"
 )
 
 var knownAsyncTasks = map[AsyncTaskName]struct{}{
-	AsyncTaskLabelMembership:  {},
-	AsyncTaskPolicyMembership: {},
-	AsyncTaskHostLastSeen:     {},
+	AsyncTaskLabelMembership:     {},
+	AsyncTaskPolicyMembership:    {},
+	AsyncTaskHostLastSeen:        {},
+	AsyncTaskScheduledQueryStats: {},
 }
 
 // AsyncConfigForTask returns the applicable configuration for the specified
@@ -639,11 +641,9 @@ func (man Manager) addConfigs() {
 	man.addConfigDuration("vulnerabilities.periodicity", 1*time.Hour,
 		"How much time to wait between processing software for vulnerabilities.")
 	man.addConfigString("vulnerabilities.cpe_database_url", "",
-		"URL from which to get the latest CPE database. If empty, it will be downloaded from the latest release available at https://github.com/fleetdm/nvd/releases.")
-	man.addConfigString("vulnerabilities.cpe_translations_url", "",
-		"URL from which to get the latest CPE translations. If empty, it will be downloaded from the latest release available at https://github.com/fleetdm/nvd/releases.")
+		"URL from which to get the latest CPE database. If empty, defaults to the official Github link.")
 	man.addConfigString("vulnerabilities.cve_feed_prefix_url", "",
-		"Prefix URL for the CVE data feed. If empty, defaults to https://nvd.nist.gov/")
+		"Prefix URL for the CVE data feed. If empty, default to https://nvd.nist.gov/")
 	man.addConfigString("vulnerabilities.current_instance_checks", "auto",
 		"Allows to manually select an instance to do the vulnerability processing.")
 	man.addConfigBool("vulnerabilities.disable_data_sync", false,
