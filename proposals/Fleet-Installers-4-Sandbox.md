@@ -1,11 +1,11 @@
-# Fleet Sandbox & Pre-Packaged Fleet-osquery Installers
+# Fleet sandbox & Pre-Packaged Fleet-osquery Installers
 
 ## Goals
 
-1. Improve UX on Fleet Sandbox by offering pre-packaged Fleet-osquery installers.
-2. Add the "Pre-Packaged installers" feature to "Fleet Sandbox" as soon as possible (i.e. not block on having a fully functional "Fleet Packager" service).
+1. Improve UX on Fleet sandbox by offering pre-packaged Fleet-osquery installers.
+2. Add the "Pre-Packaged installers" feature to "Fleet sandbox" as soon as possible (i.e. not block on having a fully functional "Fleet Packager" service).
 
-## Fleet Sandbox Assumptions
+## Fleet sandbox Assumptions
 
 - We will limit number of teams to T.
 - Sandbox has good root CA trusted certificates

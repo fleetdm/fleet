@@ -8,7 +8,7 @@ Fleet is the lightweight, open source telemetry platform for servers and worksta
 
 ## Try Fleet
 
-Head to [fleetdm.com/get-started](https://fleetdm.com/get-started) to play in Fleet Sandbox.
+Head to [fleetdm.com/try-fleet](https://fleetdm.com/get-started) to fire up a one-off cloud instance for quickly trying out Fleet.
 
 #### Now what?
 

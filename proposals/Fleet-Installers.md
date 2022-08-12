@@ -462,7 +462,7 @@ The design supports the following deployments:
 - Fleet On-Prem running with FleetDM's Packager and TUF.
 - Fleet On-Prem running with On-Prem Packager with FleetDM's TUF server.
 - Fleet On-Prem running with On-Prem Packager with On-Prem TUF server.
-- Fleet Sandbox/Demo & Cloud (basically all hosted by FleetDM).
+- Fleet sandbox/Demo & Cloud (basically all hosted by FleetDM).
 
 ## New Fleetctl Command
 
