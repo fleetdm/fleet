@@ -10,7 +10,7 @@ In this guide, we'll cover the following concepts:
 You can also follow along with our video guide on previewing Fleet and osquery locally:
 
 <div purpose="embedded-content">
-   <iframe src="https://www.youtube.com/embed/rVxSgvKjrWo" allowfullscreen></iframe>
+   <iframe src="https://www.youtube.com/embed/nE3npSKP0Ek" allowfullscreen></iframe>
 </div>
 
 ### Where to see your devices in Fleet
