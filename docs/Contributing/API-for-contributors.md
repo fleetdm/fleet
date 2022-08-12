@@ -1717,14 +1717,14 @@ Redirects to the transparency URL.
 
 Downloads a pre-built fleet-osquery installer with the given parameters.
 
-`GET /api/_version_/fleet/download_installer/{enroll_secret}/{kind}`
+`GET /api/_version_/fleet/download_installer/{kind}`
 
 #### Parameters
 
 | Name          | Type    | In    | Description                                                        |
 | ------------- | ------- | ----- | ------------------------------------------------------------------ |
-| enroll_secret | string  | path  | The global enroll secret.                                          |
 | kind          | string  | path  | The installer kind: pkg, msi, deb or rpm.                          |
+| enroll_secret | string  | query | The global enroll secret.                                          |
 | desktop       | boolean | query | Set to `true` to ask for an installer that includes Fleet Desktop. |
 
 ##### Default response

@@ -63,6 +63,20 @@ func TestCollect(t *testing.T) {
 			testCollectHostsLastSeen(t, ds, pool)
 		})
 	})
+
+	t.Run("Scheduled Query Stats", func(t *testing.T) {
+		t.Run("standalone", func(t *testing.T) {
+			defer mysql.TruncateTables(t, ds)
+			pool := redistest.SetupRedis(t, "scheduled_query_stats", false, false, false)
+			testCollectScheduledQueryStats(t, ds, pool)
+		})
+
+		t.Run("cluster", func(t *testing.T) {
+			defer mysql.TruncateTables(t, ds)
+			pool := redistest.SetupRedis(t, "scheduled_query_stats", true, true, false)
+			testCollectScheduledQueryStats(t, ds, pool)
+		})
+	})
 }
 
 func TestRecord(t *testing.T) {
@@ -81,6 +95,15 @@ func TestRecord(t *testing.T) {
 	}
 	ds.AsyncBatchUpdatePolicyTimestampFunc = func(ctx context.Context, ids []uint, ts time.Time) error {
 		return nil
+	}
+	ds.SaveHostPackStatsFunc = func(ctx context.Context, hid uint, stats []fleet.PackStats) error {
+		return nil
+	}
+	ds.AsyncBatchSaveHostsScheduledQueryStatsFunc = func(ctx context.Context, batch map[uint][]fleet.ScheduledQueryStats, batchSize int) (int, error) {
+		return 1, nil
+	}
+	ds.ScheduledQueryIDsByNameFunc = func(ctx context.Context, batchSize int, names ...[2]string) ([]uint, error) {
+		return make([]uint, len(names)), nil
 	}
 
 	t.Run("Label", func(t *testing.T) {
@@ -122,6 +145,20 @@ func TestRecord(t *testing.T) {
 			pool := redistest.SetupRedis(t, "host_last_seen", true, true, false)
 			t.Run("sync", func(t *testing.T) { testRecordHostLastSeenSync(t, ds, pool) })
 			t.Run("async", func(t *testing.T) { testRecordHostLastSeenAsync(t, ds, pool) })
+		})
+	})
+
+	t.Run("Scheduled Query Stats", func(t *testing.T) {
+		t.Run("standalone", func(t *testing.T) {
+			pool := redistest.SetupRedis(t, "scheduled_query_stats", false, false, false)
+			t.Run("sync", func(t *testing.T) { testRecordScheduledQueryStatsSync(t, ds, pool) })
+			t.Run("async", func(t *testing.T) { testRecordScheduledQueryStatsAsync(t, ds, pool) })
+		})
+
+		t.Run("cluster", func(t *testing.T) {
+			pool := redistest.SetupRedis(t, "scheduled_query_stats", true, true, false)
+			t.Run("sync", func(t *testing.T) { testRecordScheduledQueryStatsSync(t, ds, pool) })
+			t.Run("async", func(t *testing.T) { testRecordScheduledQueryStatsAsync(t, ds, pool) })
 		})
 	})
 }

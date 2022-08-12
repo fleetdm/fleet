@@ -25,7 +25,6 @@ module.exports = {
 
   fn: async function ({botSignature, action, sender, repository, changes, issue, comment, pull_request: pr, label}) {
 
-    let GitHub = require('machinepack-github');
 
     // Since we're only using a single instance, and because the worst case scenario is that we refreeze some
     // all-markdown PRs that had already been frozen, instead of using the database, we'll just use a little
@@ -81,6 +80,7 @@ module.exports = {
       'ghernandez345',
       'chris-mcgillicuddy',
       'rfairburn',
+      'artemist-work',
     ];
 
     let GREEN_LABEL_COLOR = 'C2E0C6';// « Used in multiple places below.  (FUTURE: Use the "+" prefix for this instead of color.  2022-05-05)
@@ -105,7 +105,6 @@ module.exports = {
     if (!sails.config.custom.githubAccessToken) {
       throw new Error('No GitHub access token configured!  (Please set `sails.config.custom.githubAccessToken`.)');
     }//•
-    let credentials = { accessToken: sails.config.custom.githubAccessToken };
 
     let issueOrPr = (pr || issue || undefined);
 
@@ -161,7 +160,13 @@ module.exports = {
       //   } else {
       //     let greenLabels = _.filter(issueOrPr.labels, ({color}) => color === GREEN_LABEL_COLOR);
       //     await sails.helpers.flow.simultaneouslyForEach(greenLabels, async(greenLabel)=>{
-      //       await GitHub.removeLabelFromIssue.with({ label: greenLabel.name, issueNumber, owner, repo, credentials });
+      //       await sails.helpers.http.delete('https://api.github.com/repos/'+encodeURIComponent(owner)+'/'+encodeURIComponent(repo)+'/issues/'+encodeURIComponent(issueNumber)+'/labels/'+encodeURIComponent(greenLabel.name),
+      //         {},
+      //         {
+      //           'User-Agent': 'Fleetie pie',
+      //           'Authorization': 'token '+sails.config.custom.githubAccessToken
+      //         }
+      //       );
       //     });//∞ß
       //     newBotComment =
       //     `Oh hey again, @${issueOrPr.user.login}.  Now that this issue is reopened, we'll take a fresh look as soon as we can!\n`+
@@ -172,10 +177,12 @@ module.exports = {
       //     `For help with questions about Sails, [click here](http://sailsjs.com/support).\n`;
       //   }
       // }
-
       // // Now that we know what to say, add our comment.
       // if (newBotComment) {
-      //   await GitHub.commentOnIssue.with({ comment: newBotComment, issueNumber, owner, repo, credentials });
+      //   await sails.helpers.http.post('https://api.github.com/repos/'+encodeURIComponent(owner)'/'+encodeURIComponent(repo)+'/issues/'+encodeURIComponent(issueNumber)+'/comments',
+      //     {'body': newBotComment},
+      //     {'Authorization': 'token '+sails.config.custom.githubAccessToken}
+      //   );
       // }//ﬁ
 
     } else if (
@@ -344,7 +351,13 @@ module.exports = {
       if (!wasPostedByBot) {
         let greenLabels = _.filter(issueOrPr.labels, ({color}) => color === GREEN_LABEL_COLOR);
         await sails.helpers.flow.simultaneouslyForEach(greenLabels, async(greenLabel)=>{
-          await GitHub.removeLabelFromIssue.with({ label: greenLabel.name, issueNumber, owner, repo, credentials });
+          await sails.helpers.http.delete('https://api.github.com/repos/'+encodeURIComponent(owner)+'/'+encodeURIComponent(repo)+'/issues/'+encodeURIComponent(issueNumber)+'/labels/'+encodeURIComponent(greenLabel.name),
+            {},
+            {
+              'User-Agent': 'Fleetie Pie',
+              'Authorization': 'token '+sails.config.custom.githubAccessToken
+            }
+          );
         });//∞ß
       }//ﬁ
     } else if (

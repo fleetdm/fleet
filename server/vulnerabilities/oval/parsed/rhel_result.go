@@ -50,7 +50,6 @@ func (r RhelResult) Eval(ver fleet.OSVersion, software []fleet.Software) ([]flee
 				for _, v := range d.CveVulnerabilities() {
 					vuln = append(vuln, fleet.SoftwareVulnerability{
 						SoftwareID: software.ID,
-						CPEID:      software.GeneratedCPEID,
 						CVE:        v,
 					})
 				}

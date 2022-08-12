@@ -1,5 +1,4 @@
 .manage-queries-page {
-
   &__header-wrap {
     height: 38px;
     display: flex;
@@ -112,7 +111,7 @@
     }
   }
 
-  .queries-list-wrapper {
+  .queries-table {
     .data-table-block {
       .data-table__table {
         thead {
@@ -251,11 +250,11 @@
           margin-bottom: $pad-large;
 
           a {
-              font-size: $x-small;
-              color: $core-vibrant-blue;
-              font-weight: $bold;
-              text-decoration: none;
-            }
+            font-size: $x-small;
+            color: $core-vibrant-blue;
+            font-weight: $bold;
+            text-decoration: none;
+          }
         }
 
         .no-filter-results {
@@ -264,8 +263,6 @@
           width: 350px;
         }
       }
-
-
 
       &__inner-text {
         width: 485px;

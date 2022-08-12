@@ -109,7 +109,7 @@ parasails.registerPage('basic-documentation', {
     // console.log(subtopics);
 
     this.subtopics = (() => {
-      let subtopics = $('#body-content').find('h2').map((_, el) => el.innerText);
+      let subtopics = $('#body-content').find('h2.markdown-heading').map((_, el) => el.innerText);
       subtopics = $.makeArray(subtopics).map((title) => {
         // Removing all apostrophes from the title to keep  _.kebabCase() from turning words like 'user’s' into 'user-s'
         let kebabCaseFriendlyTitle = title.replace(/[\’]/g, '');

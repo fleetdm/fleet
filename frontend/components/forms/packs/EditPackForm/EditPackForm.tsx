@@ -10,7 +10,7 @@ import { ITarget, ITargetsAPIResponse } from "interfaces/target";
 import InputField from "components/forms/fields/InputField";
 // @ts-ignore
 import SelectTargetsDropdown from "components/forms/fields/SelectTargetsDropdown";
-import PackQueriesListWrapper from "components/queries/PackQueriesListWrapper";
+import PackQueriesTable from "components/queries/PackQueriesTable";
 
 const baseClass = "edit-pack-form";
 
@@ -128,7 +128,7 @@ const EditPackForm = ({
         targetsCount={targetsCount}
         isPremiumTier={isPremiumTier}
       />
-      <PackQueriesListWrapper
+      <PackQueriesTable
         onAddPackQuery={onAddPackQuery}
         onEditPackQuery={onEditPackQuery}
         onRemovePackQueries={onRemovePackQueries}

@@ -91,6 +91,14 @@ module "aws-eks-accelerator-for-terraform" {
   }
 }
 
+output "oidc_provider_arn" {
+  value = module.aws-eks-accelerator-for-terraform.eks_oidc_provider_arn
+}
+
+output "oidc_provider" {
+  value = module.aws-eks-accelerator-for-terraform.oidc_provider
+}
+
 data "aws_eks_cluster" "cluster" {
   name = module.aws-eks-accelerator-for-terraform.eks_cluster_id
 }

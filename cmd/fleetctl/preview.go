@@ -21,6 +21,7 @@ import (
 	"github.com/fleetdm/fleet/v4/orbit/pkg/update"
 	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
 	"github.com/fleetdm/fleet/v4/pkg/open"
+	"github.com/fleetdm/fleet/v4/pkg/spec"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/service"
 	"github.com/mitchellh/go-ps"
@@ -297,12 +298,19 @@ Use the stop and reset subcommands to manage the server and dependencies once st
 				}
 			}
 
-			err = applyYamlBytes(c, buf, client)
+			specs, err := spec.GroupFromBytes(buf)
+			if err != nil {
+				return err
+			}
+			logf := func(format string, a ...interface{}) {
+				fmt.Fprintf(c.App.Writer, format, a...)
+			}
+			err = client.ApplyGroup(c.Context, specs, logf)
 			if err != nil {
 				return err
 			}
 
-			// disable anonymous analytics collection and enable software inventory for preview
+			// disable analytics collection and enable software inventory for preview
 			if err := client.ApplyAppConfig(map[string]map[string]bool{
 				"host_settings":   {"enable_software_inventory": true},
 				"server_settings": {"enable_analytics": false},
@@ -319,12 +327,12 @@ Use the stop and reset subcommands to manage the server and dependencies once st
 				return errors.New("Expected 1 active enroll secret")
 			}
 
-			// disable anonymous analytics collection for preview
+			// disable analytics collection for preview
 			if err := client.ApplyAppConfig(map[string]map[string]bool{
 				"server_settings": {"enable_analytics": false},
 			},
 			); err != nil {
-				return fmt.Errorf("Error disabling anonymous analytics collection in app config: %w", err)
+				return fmt.Errorf("Error disabling analytics collection in app config: %w", err)
 			}
 
 			fmt.Println("Fleet will now log you into the UI automatically.")
