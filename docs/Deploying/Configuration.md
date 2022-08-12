@@ -2232,7 +2232,7 @@ Fleet supports both SP-initiated SAML login and IDP-initiated login however, IDP
 
 Fleet supports the SAML Web Browser SSO Profile using the HTTP Redirect Binding.
 
-_**Note: The email used in the SAML Assertion must match a user that already exists in Fleet.**_
+_**Note: The email used in the SAML Assertion must match a user that already exists in Fleet unless you enable JIT provisioning.**_
 
 ### Identity provider (IDP) configuration
 
@@ -2287,8 +2287,24 @@ It is strongly recommended that at least one admin user is set up to use the tra
 configuration problems.
 
 > Individual users must also be set up on the IDP before signing in to Fleet.
+
 ### Enabling SSO for existing users in Fleet
 As an admin, you can enable SSO for existing users in Fleet. To do this, go to the Settings page, then click on the Users tab. Locate the user you want to enable SSO for and on the Actions dropdown menu for that user, click on "Enable single sign-on."
+
+### Enabling JIT user provisioning
+
+Admins can enable JIT provisioning to automatically create an account the first time a user logs in with SSO. To do this, go to **Settings > Organization settings > SAML single sign-on options** and check "_Automatically create Observer user on Login_".
+
+Users created via JIT provisioning are assigned the Observer role, and their email and full name are extracted from the SSO response. For this to work correctly make sure that:
+
+- Your IDP is configured to send the user email as the Name ID (instructions for configuring different providers are detailed below)
+- Your IDP sends the full name of the user as an attribute with any of the following names (if this value is not provided Fleet will fallback to the user email)
+  - `name`
+  - `displayname`
+  - `cn`
+  - `urn:oid:2.5.4.3`
+  - `http://schemas.xmlsoap.org/ws/2005/05/identity/claims/name`
+
 
 #### Okta IDP configuration
 
