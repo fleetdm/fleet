@@ -9,6 +9,7 @@ import (
 	"net/http/cookiejar"
 	"net/http/httptest"
 	"net/url"
+	"os"
 	"regexp"
 
 	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
@@ -179,6 +180,10 @@ func (ts *withServer) getConfig() *appConfigResponse {
 
 func (ts *withServer) LoginSSOUser(username, password string) (fleet.Auth, string) {
 	t := ts.s.T()
+
+	if _, ok := os.LookupEnv("SAML_IDP_TEST"); !ok {
+		t.Skip("SSO tests are disabled")
+	}
 
 	var resIni initiateSSOResponse
 	ts.DoJSON("POST", "/api/v1/fleet/sso", map[string]string{}, http.StatusOK, &resIni)
