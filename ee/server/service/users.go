@@ -18,6 +18,10 @@ func (svc *Service) GetSSOUser(ctx context.Context, auth fleet.Auth) (*fleet.Use
 		return nil, ctxerr.Wrap(ctx, err, "getting app config")
 	}
 
+	if auth.UserID() == "" {
+		return nil, ctxerr.New(ctx, "missing user identifier in SSO response")
+	}
+
 	user, err := svc.Service.GetSSOUser(ctx, auth)
 	var nfe fleet.NotFoundError
 	switch {
