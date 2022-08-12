@@ -244,10 +244,6 @@ const ManageHostsPage = ({
     null
   );
   const [
-    mdmEnrollmentDetails,
-    setMDMEnrollmentDetails,
-  ] = useState<IMDMAggregateStatus | null>(null);
-  const [
     mdmSolutionDetails,
     setMDMSolutionDetails,
   ] = useState<IMDMSolution | null>(null);
@@ -271,7 +267,10 @@ const ManageHostsPage = ({
     queryParams?.software_id !== undefined
       ? parseInt(queryParams?.software_id, 10)
       : undefined;
-  const mdmSolutionId = parseInt(queryParams?.mdm_solution_id, 10);
+  const mdmId =
+    queryParams?.mdm_id !== undefined
+      ? parseInt(queryParams?.mdm_id, 10)
+      : undefined;
   const mdmEnrollmentStatus = queryParams?.mdm_enrollment_status;
   const { active_label: activeLabel, label_id: labelID } = routeParams;
 
@@ -435,16 +434,18 @@ const ManageHostsPage = ({
     }
 
     try {
+      // To see if full object is returned
+      // const returnObject = await hostsAPI.loadHosts(options);
+      // console.log("returnObject", returnObject);
       const {
         hosts: returnedHosts,
         software,
-        mdmEnrollment,
-        mdmSolution,
+        mdm_solution,
       } = await hostsAPI.loadHosts(options);
       setHosts(returnedHosts);
       software && setSoftwareDetails(software);
-      mdmEnrollment && setMDMEnrollmentDetails(mdmEnrollment);
-      mdmSolution && setMDMSolutionDetails(mdmSolution);
+      //TODO: need MDM solution details to populate filter name card
+      mdm_solution && setMDMSolutionDetails(mdm_solution);
     } catch (error) {
       console.error(error);
       setHasHostErrors(true);
@@ -525,7 +526,7 @@ const ManageHostsPage = ({
       policyId,
       policyResponse,
       softwareId,
-      mdmSolutionId,
+      mdmId,
       mdmEnrollmentStatus,
       page: tableQueryData ? tableQueryData.pageIndex : 0,
       perPage: tableQueryData ? tableQueryData.pageSize : 100,
@@ -629,9 +630,9 @@ const ManageHostsPage = ({
     router.replace(PATHS.MANAGE_HOSTS);
     setMDMSolutionDetails(null);
   };
+
   const handleClearMDMEnrollmentFilter = () => {
     router.replace(PATHS.MANAGE_HOSTS);
-    setMDMEnrollmentDetails(null);
   };
 
   const handleTeamSelect = (teamId: number) => {
@@ -758,15 +759,15 @@ const ManageHostsPage = ({
         newQueryParams.policy_response = policyResponse;
       }
 
-      if (softwareId && !policyId && !mdmSolutionId && !mdmEnrollmentStatus) {
+      if (softwareId && !policyId && !mdmId && !mdmEnrollmentStatus) {
         newQueryParams.software_id = softwareId;
       }
 
-      if (mdmSolutionId && !policyId && !softwareId && !mdmEnrollmentStatus) {
-        newQueryParams.mdm_solution_id = mdmSolutionId;
+      if (mdmId && !policyId && !softwareId && !mdmEnrollmentStatus) {
+        newQueryParams.mdm_id = mdmId;
       }
 
-      if (mdmEnrollmentStatus && !policyId && !softwareId && !mdmSolutionId) {
+      if (mdmEnrollmentStatus && !policyId && !softwareId && !mdmId) {
         newQueryParams.mdm_enrollment_status = mdmEnrollmentStatus;
       }
 
@@ -786,7 +787,7 @@ const ManageHostsPage = ({
       policyId,
       queryParams,
       softwareId,
-      mdmSolutionId,
+      mdmId,
       mdmEnrollmentStatus,
       sortBy,
     ]
@@ -1025,7 +1026,7 @@ const ManageHostsPage = ({
         policyId,
         policyResponse,
         softwareId,
-        mdmSolutionId,
+        mdmId,
         mdmEnrollmentStatus,
       });
 
@@ -1072,7 +1073,7 @@ const ManageHostsPage = ({
         policyId,
         policyResponse,
         softwareId,
-        mdmSolutionId,
+        mdmId,
         mdmEnrollmentStatus,
       });
 
@@ -1215,8 +1216,6 @@ const ManageHostsPage = ({
   };
 
   const renderMDMEnrollmentFilterBlock = () => {
-    console.log("mdmEnrollmentStatus", mdmEnrollmentStatus);
-
     if (mdmEnrollmentStatus) {
       const buttonText = () => {
         switch (mdmEnrollmentStatus) {
@@ -1460,7 +1459,7 @@ const ManageHostsPage = ({
       policyId,
       policyResponse,
       softwareId,
-      mdmSolutionId,
+      mdmId,
       mdmEnrollmentStatus,
       visibleColumns,
     };
@@ -1533,7 +1532,7 @@ const ManageHostsPage = ({
       policyId ||
       softwareId ||
       showSelectedLabel ||
-      mdmSolutionId ||
+      mdmId ||
       mdmEnrollmentStatus
     ) {
       return (
@@ -1541,17 +1540,17 @@ const ManageHostsPage = ({
           {showSelectedLabel && renderHeaderLabelBlock()}
           {!!policyId &&
             !softwareId &&
-            !mdmSolutionId &&
+            !mdmId &&
             !mdmEnrollmentStatus &&
             !showSelectedLabel &&
             renderPoliciesFilterBlock()}
           {!!softwareId &&
             !policyId &&
-            !mdmSolutionId &&
+            !mdmId &&
             !mdmEnrollmentStatus &&
             !showSelectedLabel &&
             renderSoftwareFilterBlock()}
-          {!!mdmSolutionId &&
+          {!!mdmId &&
             !policyId &&
             !softwareId &&
             !mdmEnrollmentStatus &&
@@ -1560,7 +1559,7 @@ const ManageHostsPage = ({
           {!!mdmEnrollmentStatus &&
             !policyId &&
             !softwareId &&
-            !mdmSolutionId &&
+            !mdmId &&
             !showSelectedLabel &&
             renderMDMEnrollmentFilterBlock()}
         </div>
@@ -1662,12 +1661,12 @@ const ManageHostsPage = ({
       !isHostsLoading &&
       teamSync
     ) {
-      const { software_id, policy_id, mdm_solution_id, mdm_enrollment_status } =
+      const { software_id, policy_id, mdm_id, mdm_enrollment_status } =
         queryParams || {};
       const includesNameCardFilter = !!(
         software_id ||
         policy_id ||
-        mdm_solution_id ||
+        mdm_id ||
         mdm_enrollment_status
       );
 

@@ -17,7 +17,7 @@ export interface IHostCountLoadOptions {
   policyId?: number;
   policyResponse?: string;
   softwareId?: number;
-  mdmSolutionId?: number;
+  mdmId?: number;
   mdmEnrollmentStatus?: string;
 }
 
@@ -31,7 +31,7 @@ export default {
     const policyResponse = options?.policyResponse || null;
     const selectedLabels = options?.selectedLabels || [];
     const softwareId = options?.softwareId || null;
-    const mdmSolutionId = options?.mdmSolutionId || null;
+    const mdmId = options?.mdmId || null;
     const mdmEnrollmentStatus = options?.mdmEnrollmentStatus || null;
 
     const labelPrefix = "labels/";
@@ -72,8 +72,8 @@ export default {
       queryString += `&software_id=${softwareId}`;
     }
 
-    if (!label && !policyId && mdmSolutionId) {
-      queryString += `&mdm_solution_id=${mdmSolutionId}`;
+    if (!label && !policyId && mdmId) {
+      queryString += `&mdm_id=${mdmId}`;
     }
 
     if (!label && !policyId && mdmEnrollmentStatus) {

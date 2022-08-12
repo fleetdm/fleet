@@ -82,7 +82,7 @@ const solutionsTableHeaders = [
     Cell: (cellProps: IStringCellProps) => {
       return (
         <Link
-          to={`${PATHS.MANAGE_HOSTS}?mdm_solution_id=${cellProps.row.original.id}`}
+          to={`${PATHS.MANAGE_HOSTS}?mdm_id=${cellProps.row.original.id}`}
           className={`mdm-solution-link`}
         >
           View all hosts{" "}

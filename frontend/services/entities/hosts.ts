@@ -19,7 +19,7 @@ export interface ILoadHostsOptions {
   policyId?: number;
   policyResponse?: string;
   softwareId?: number;
-  mdmSolutionId?: number;
+  mdmId?: number;
   mdmEnrollmentStatus?: string;
   device_mapping?: boolean;
   columns?: string;
@@ -36,8 +36,8 @@ export interface IExportHostsOptions {
   policyId?: number;
   policyResponse?: string;
   softwareId?: number;
-  mdmSolutionId?: number;
-  mdmEnrollmentStatus?: number;
+  mdmId?: number;
+  mdmEnrollmentStatus?: string;
   device_mapping?: boolean;
   columns?: string;
   visibleColumns?: string;
@@ -104,13 +104,10 @@ const getSoftwareParam = (
   label?: string,
   policyId?: number,
   softwareId?: number,
-  mdmSolutionId?: number,
+  mdmId?: number,
   mdmEnrollmentStatus?: string
 ) => {
-  return label === undefined &&
-    policyId === undefined &&
-    mdmSolutionId === undefined &&
-    mdmEnrollmentStatus === undefined
+  return !label && !policyId && !mdmId && !mdmEnrollmentStatus
     ? softwareId
     : undefined;
 };
@@ -119,15 +116,11 @@ const getMDMSolutionParam = (
   label?: string,
   policyId?: number,
   softwareId?: number,
-  mdmSolutionId?: number,
+  mdmId?: number,
   mdmEnrollmentStatus?: string
 ) => {
-  console.log("mdmSolutionId in getMDMSolutionParam", mdmSolutionId);
-  return label === undefined &&
-    policyId === undefined &&
-    softwareId === undefined &&
-    mdmEnrollmentStatus === undefined
-    ? mdmSolutionId
+  return !label && !policyId && !softwareId && !mdmEnrollmentStatus
+    ? mdmId
     : undefined;
 };
 
@@ -135,13 +128,10 @@ const getMDMEnrollmentStatusParam = (
   label?: string,
   policyId?: number,
   softwareId?: number,
-  mdmSolutionId?: number,
+  mdmId?: number,
   mdmEnrollmentStatus?: string
 ) => {
-  return label === undefined &&
-    policyId === undefined &&
-    softwareId === undefined &&
-    mdmSolutionId === undefined
+  return !label && !policyId && !softwareId && !mdmId
     ? mdmEnrollmentStatus
     : undefined;
 };
@@ -183,7 +173,7 @@ export default {
     const policyId = options?.policyId || null;
     const policyResponse = options?.policyResponse || "passing";
     const softwareId = options?.softwareId || null;
-    const mdmSolutionId = options?.mdmSolutionId || null;
+    const mdmId = options?.mdmId || null;
     const mdmEnrollmentStatus = options?.mdmEnrollmentStatus || null;
     const visibleColumns = options?.visibleColumns || null;
 
@@ -215,7 +205,7 @@ export default {
       path += `&team_id=${teamId}`;
     }
 
-    // Label OR policy_id OR software_id are valid filters.
+    // label OR policy_id OR software_id OR mdm_id OR mdm_enrollment_status are valid filters.
     if (label) {
       const lid = label.substr(labelPrefix.length);
       path += `&label_id=${parseInt(lid, 10)}`;
@@ -226,41 +216,31 @@ export default {
       path += `&policy_response=${policyResponse}`;
     }
 
-    if (
-      !label &&
-      !policyId &&
-      !mdmSolutionId &&
-      !mdmEnrollmentStatus &&
-      softwareId
-    ) {
+    if (!label && !policyId && !mdmId && !mdmEnrollmentStatus && softwareId) {
       path += `&software_id=${softwareId}`;
     }
 
-    if (
-      !label &&
-      !policyId &&
-      !softwareId &&
-      !mdmEnrollmentStatus &&
-      mdmSolutionId
-    ) {
-      path += `&mdm_solution_id=${mdmSolutionId}`;
+    if (!label && !policyId && !softwareId && !mdmEnrollmentStatus && mdmId) {
+      path += `&mdm_id=${mdmId}`;
     }
 
-    console.log("label", label);
-    console.log("policyId", policyId);
-    console.log("softwareId", softwareId);
-    console.log("mdmSolutionId", mdmSolutionId);
-    console.log("mdmEnrollmentStatus", mdmEnrollmentStatus);
-
-    if (
-      !label &&
-      !policyId &&
-      !softwareId &&
-      !mdmSolutionId &&
-      mdmEnrollmentStatus
-    ) {
+    if (!label && !policyId && !softwareId && !mdmId && mdmEnrollmentStatus) {
       path += `&mdm_enrollment_status=${mdmEnrollmentStatus}`;
     }
+
+    console.log(
+      "export hosts",
+      "\nlabel",
+      label,
+      "\n policyId",
+      policyId,
+      "\n softwareId",
+      softwareId,
+      "\n mdmId",
+      mdmId,
+      "\n mdmEnrollmentStatus",
+      mdmEnrollmentStatus
+    );
 
     if (visibleColumns) {
       path += `&columns=${visibleColumns}`;
@@ -278,7 +258,7 @@ export default {
     policyId,
     policyResponse = "passing",
     softwareId,
-    mdmSolutionId,
+    mdmId,
     mdmEnrollmentStatus,
     device_mapping,
     selectedLabels,
@@ -288,7 +268,6 @@ export default {
     const sortParams = getSortParams(sortBy);
     const policyParams = getPolicyParams(label, policyId, policyResponse);
 
-    console.log("softwareId", softwareId);
     const queryParams = {
       page,
       per_page: perPage,
@@ -300,27 +279,50 @@ export default {
       policy_id: policyParams.policy_id,
       policy_response: policyParams.policy_response,
       software_id: getSoftwareParam(label, policyId, softwareId),
-      mdm_solution_id: getMDMSolutionParam(label, policyId, mdmSolutionId),
+      mdm_id: getMDMSolutionParam(
+        label,
+        policyId,
+        softwareId,
+        mdmId,
+        mdmEnrollmentStatus
+      ),
       mdm_enrollment_status: getMDMEnrollmentStatusParam(
         label,
         policyId,
         softwareId,
-        mdmSolutionId,
+        mdmId,
         mdmEnrollmentStatus
       ),
       status: getStatusParam(selectedLabels),
     };
 
-    console.log("label", label);
-    console.log("policyId", policyId);
-    console.log("softwareId", softwareId);
-    console.log("mdmSolutionId", mdmSolutionId);
-    console.log("mdmEnrollmentStatus", mdmEnrollmentStatus);
-
     const queryString = buildQueryStringFromParams(queryParams);
 
-    console.log("queryParams", queryParams);
-    console.log("queryString", queryString);
+    console.log(
+      "load hosts",
+      "\nlabel",
+      label,
+      "\n policyId",
+      policyId,
+      "\n softwareId",
+      softwareId,
+      "\n mdmId",
+      mdmId,
+      "\n mdmEnrollmentStatus",
+      mdmEnrollmentStatus,
+      "\n getMDMEnrollmentStatusParam()",
+      getMDMEnrollmentStatusParam(
+        label,
+        policyId,
+        softwareId,
+        mdmId,
+        mdmEnrollmentStatus
+      ),
+      "\n queryParams",
+      queryParams,
+      "\n queryString",
+      queryString
+    );
 
     const endpoint = getHostEndpoint(selectedLabels);
     const path = `${endpoint}?${queryString}`;
