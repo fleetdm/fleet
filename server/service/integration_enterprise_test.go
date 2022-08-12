@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
+	"github.com/fleetdm/fleet/v4/server/datastore/redis/redistest"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/test"
@@ -30,13 +31,20 @@ func TestIntegrationsEnterprise(t *testing.T) {
 type integrationEnterpriseTestSuite struct {
 	withServer
 	suite.Suite
+	redisPool fleet.RedisPool
 }
 
 func (s *integrationEnterpriseTestSuite) SetupSuite() {
 	s.withDS.SetupSuite("integrationEnterpriseTestSuite")
 
-	users, server := RunServerForTestsWithDS(
-		s.T(), s.ds, &TestServerOpts{License: &fleet.LicenseInfo{Tier: fleet.TierPremium}})
+	s.redisPool = redistest.SetupRedis(s.T(), "integration_enterprise", false, false, false)
+	config := TestServerOpts{
+		License: &fleet.LicenseInfo{
+			Tier: fleet.TierPremium,
+		},
+		Pool: s.redisPool,
+	}
+	users, server := RunServerForTestsWithDS(s.T(), s.ds, &config)
 	s.server = server
 	s.users = users
 	s.token = s.getTestAdminToken()
@@ -1170,4 +1178,52 @@ func (s *integrationEnterpriseTestSuite) TestCustomTransparencyURL() {
 	rawResp.Body.Close()
 	require.NoError(t, deviceResp.Err)
 	require.Equal(t, fleet.DefaultTransparencyURL, rawResp.Header.Get("Location"))
+}
+
+func (s *integrationEnterpriseTestSuite) TestSSOJITProvisioning() {
+	t := s.T()
+
+	acResp := appConfigResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/config", nil, http.StatusOK, &acResp)
+	require.NotNil(t, acResp)
+	require.False(t, acResp.SSOSettings.EnableJITProvisioning)
+
+	config := fleet.AppConfig{
+		SSOSettings: fleet.SSOSettings{
+			EnableSSO:             true,
+			EntityID:              "https://localhost:8080",
+			IssuerURI:             "http://localhost:8080/simplesaml/saml2/idp/SSOService.php",
+			IDPName:               "SimpleSAML",
+			MetadataURL:           "http://localhost:9080/simplesaml/saml2/idp/metadata.php",
+			EnableJITProvisioning: false,
+		},
+	}
+
+	acResp = appConfigResponse{}
+	s.DoJSON("PATCH", "/api/latest/fleet/config", config, http.StatusOK, &acResp)
+	require.NotNil(t, acResp)
+	require.False(t, acResp.SSOSettings.EnableJITProvisioning)
+
+	// users can't be created if SSO is disabled
+	auth, body := s.LoginSSOUser("sso_user", "user123#")
+	require.Contains(t, body, "/login?status=account_invalid")
+	// ensure theresn't a user in the DB
+	_, err := s.ds.UserByEmail(context.Background(), auth.UserID())
+	var nfe fleet.NotFoundError
+	require.ErrorAs(t, err, &nfe)
+
+	// enable JIT provisioning
+	config.SSOSettings.EnableJITProvisioning = true
+	acResp = appConfigResponse{}
+	s.DoJSON("PATCH", "/api/latest/fleet/config", config, http.StatusOK, &acResp)
+	require.NotNil(t, acResp)
+	require.True(t, acResp.SSOSettings.EnableJITProvisioning)
+
+	// a new user is created and redirected accordingly
+	auth, body = s.LoginSSOUser("sso_user", "user123#")
+	// a successful redirect has this content
+	require.Contains(t, body, "Redirecting to Fleet at  ...")
+	user, err := s.ds.UserByEmail(context.Background(), auth.UserID())
+	require.NoError(t, err)
+	require.Equal(t, auth.UserID(), user.Email)
 }

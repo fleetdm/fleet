@@ -63,6 +63,21 @@ var statusMap = map[string]int{
 	"urn:oasis:names:tc:SAML:2.0:status:UnsupportedBinding":       UnsupportedBinding,
 }
 
+// Since theresn't a standard for display names, I have collected the most
+// commonly used attribute names for it.
+//
+// Most of the items here come from:
+//
+//  - https://docs.ldap.com/specs/rfc2798.txt
+//  - https://docs.microsoft.com/en-us/windows-server/identity/ad-fs/technical-reference/the-role-of-claims
+var validDisplayNameAttrs = map[string]struct{}{
+	"name":            {},
+	"displayname":     {},
+	"cn":              {},
+	"urn:oid:2.5.4.3": {},
+	"http://schemas.xmlsoap.org/ws/2005/05/identity/claims/name": {},
+}
+
 type resp struct {
 	response *Response
 	rawResp  string
@@ -83,6 +98,22 @@ func (r resp) UserID() string {
 	if r.response != nil {
 		return r.response.Assertion.Subject.NameID.Value
 	}
+	return ""
+}
+
+func (r resp) UserDisplayName() string {
+	if r.response != nil {
+		for _, attr := range r.response.Assertion.AttributeStatement.Attributes {
+			if _, ok := validDisplayNameAttrs[attr.Name]; ok {
+				for _, v := range attr.AttributeValues {
+					if v.Value != "" {
+						return v.Value
+					}
+				}
+			}
+		}
+	}
+
 	return ""
 }
 

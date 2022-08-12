@@ -65,7 +65,7 @@ func (svc *Service) CreateUser(ctx context.Context, p fleet.UserPayload) (*fleet
 		p.AdminForcedPasswordReset = ptr.Bool(true)
 	}
 
-	return svc.newUser(ctx, p)
+	return svc.NewUser(ctx, p)
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -99,7 +99,7 @@ func (svc *Service) CreateUserFromInvite(ctx context.Context, p fleet.UserPayloa
 	p.GlobalRole = invite.GlobalRole.Ptr()
 	p.Teams = &invite.Teams
 
-	user, err := svc.newUser(ctx, p)
+	user, err := svc.NewUser(ctx, p)
 	if err != nil {
 		return nil, err
 	}
