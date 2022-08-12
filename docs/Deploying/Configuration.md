@@ -2232,7 +2232,7 @@ Fleet supports both SP-initiated SAML login and IDP-initiated login however, IDP
 
 Fleet supports the SAML Web Browser SSO Profile using the HTTP Redirect Binding.
 
-_**Note: The email used in the SAML Assertion must match a user that already exists in Fleet unless you enable JIT provisioning.**_
+_**Note: The email used in the SAML Assertion must match a user that already exists in Fleet unless you enable [JIT provisioning](#just-in-time-jit-user-provisioning).**_
 
 ### Identity provider (IDP) configuration
 
@@ -2291,11 +2291,13 @@ configuration problems.
 ### Enabling SSO for existing users in Fleet
 As an admin, you can enable SSO for existing users in Fleet. To do this, go to the Settings page, then click on the Users tab. Locate the user you want to enable SSO for and on the Actions dropdown menu for that user, click on "Enable single sign-on."
 
-### Enabling JIT user provisioning
+### Just-in-time (JIT) user provisioning
 
-Admins can enable JIT provisioning to automatically create an account the first time a user logs in with SSO. To do this, go to **Settings > Organization settings > SAML single sign-on options** and check "_Automatically create Observer user on Login_".
+When JIT user provisioning is turned on, Fleet will automatically create an account when a user logs in for the first time with the configured SSO. This removes the need to create individual user accounts for a large organization.
 
-Users created via JIT provisioning are assigned the Observer role, and their email and full name are extracted from the SSO response. For this to work correctly make sure that:
+Accounts created via JIT provisioning are assigned the (Observer role)[https://fleetdm.com/docs/using-fleet/permissions]. The new account's email and full name are copied from the user data in the SSO response. 
+
+To enable this option, go to **Settings > Organization settings > SAML single sign-on options** and check "_Automatically create Observer user on Login_". For this to work correctly make sure that:
 
 - Your IDP is configured to send the user email as the Name ID (instructions for configuring different providers are detailed below)
 - Your IDP sends the full name of the user as an attribute with any of the following names (if this value is not provided Fleet will fallback to the user email)
