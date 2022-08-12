@@ -34,7 +34,7 @@ them into your Fleet instance.
 
 How to import queries:
 
-1. Create a new file, `palantir-queries.yml` and paste in the desired queries in the [correct Fleet configuration format](https://fleetdm.com/docs/using-fleet/configuration-files#using-yaml-files-in-fleet).
+1. Create a new file, `palantir-queries.yml`, and paste in the desired queries in the [correct Fleet configuration format](https://fleetdm.com/docs/using-fleet/configuration-files#using-yaml-files-in-fleet).
 2. Run the command `fleetctl apply -f awesome-queries.yml`.
 
 ### Could this post be more helpful?
