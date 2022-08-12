@@ -506,7 +506,7 @@ spec:
     debug_host_ids: []
 ```
 
-WARNING: this will log potentially a lot of data. Some of that data might be private, please verify it before posting it
+> **Warning:** this will potentially log a lot of data. Some of that data might be private, please verify it before posting it
 in a public channel or a GitHub issue.
 
 ## Host settings
