@@ -54,6 +54,22 @@ You can find a copy of Fleet's SOC 2 report in [Google Drive](https://drive.goog
 
 You can learn more about how Fleet approaches security in the [security handbook](https://fleetdm.com/handbook/security) or in [Fleet's trust report](https://fleetdm.com/trust).
 
+## Salesforce lead status flow
+
+To track the stage of the sales cycle that a lead is at, we use the following standardized lead statuses to indicate which stage of the sales process a lead is at.
+|Lead status                 | Description                                         |
+|:-----------------------------|:----------------------------------------------------|
+| 00 New | Default status for all new leads when initially entered into Salesforce. We have an email or LinkedIn profile URL for the lead, but no established intent. The lead is just a relevant person to reach out to.|
+| 01 New - enriched | The lead has been verified as enriched, but we still have not established intent.|
+| 02 - New - MQL | Lead has been established as a marketing qualified lead.|
+| 03 Working to engage | Sales development representative (SDR) is working to engage the lead. |
+| 04 Engaged | SDR has successfully made contact with the lead |
+| 05 Meeting scheduled | The has scheduled a meeting with the lead. |
+| 06 Working to convert | The SDR is working to convert the lead into an opportunity. |
+| 07 Closed - nurture | Lead is not ready for conversion to an opportunity, but we should maintain contact with the lead as it may be fruitful in the future. |
+| 08 Closed - do not contact | Lead is not ready for conversion and we should not reach out to them again. |
+| 09 SAO - Converted | Lead has been successfully converted to an opportunity. |
+
 ## Salesforce contributor experience checkups
 
 In order to maintain a consistent contributor experience in Salesforce, we log in to make sure the structure of Salesforce data continues to look correct based on processes started elsewhere. Then we can look and see that the goals we want to achieve as a business are in line with our view inside Salesforce by conducting the following checkup. Any discrepancies between how information is presented in Salesforce and what should be in there per this ritual should be flagged so that they can be fixed or discussed.
