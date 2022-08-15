@@ -104,6 +104,7 @@ describe("Query flow (seeded)", () => {
       cy.findByText(/detect presence of authorized ssh keys/i)
         .parent()
         .parent()
+        .parent()
         .within(() => {
           cy.getAttached(".fleet-checkbox__input").check({
             force: true,
