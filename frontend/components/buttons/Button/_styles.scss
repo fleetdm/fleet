@@ -334,4 +334,10 @@ $base-class: "button";
   .transparent-text {
     opacity: 0;
   }
+
+  .children-wrapper {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+  }
 }

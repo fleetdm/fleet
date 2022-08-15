@@ -124,7 +124,9 @@ class Button extends React.Component<IButtonProps, IButtonState> {
         title={title}
         ref={setRef}
       >
-        <div className={isLoading ? "transparent-text" : ""}>{children}</div>
+        <div className={isLoading ? "transparent-text" : "children-wrapper"}>
+          {children}
+        </div>
         {isLoading && <ButtonSpinner whiteButton={whiteButton} />}
       </button>
     );
