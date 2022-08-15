@@ -1416,37 +1416,15 @@ func (ds *Datastore) SetOrUpdateMDMData(ctx context.Context, hostID uint, enroll
 func (ds *Datastore) getOrInsertMDMSolution(ctx context.Context, serverURL string) (mdmID uint, err error) {
 	mdmName := fleet.MDMNameFromServerURL(serverURL)
 
-	readID := func(q sqlx.QueryerContext) (uint, error) {
-		var id uint
-		err := sqlx.GetContext(ctx, q, &id,
-			`SELECT id FROM mobile_device_management_solutions WHERE name = ? AND server_url = ?`, mdmName, serverURL)
-		return id, err
+	readStmt := &parameterizedStmt{
+		Statement: `SELECT id FROM mobile_device_management_solutions WHERE name = ? AND server_url = ?`,
+		Args:      []interface{}{mdmName, serverURL},
 	}
-
-	// optimistic approach, as mdm solutions will already exist the vast majority of the time
-	id, err := readID(ds.reader)
-	if err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
-			// this mdm solution does not exist yet, try to insert it
-			res, err := ds.writer.ExecContext(ctx, `INSERT INTO mobile_device_management_solutions (name, server_url) VALUES (?, ?)`, mdmName, serverURL)
-			if err != nil {
-				if isDuplicate(err) {
-					// it might've been created between the select and the insert, read
-					// again this time from the writer database connection.
-					id, err := readID(ds.writer)
-					if err != nil {
-						return 0, ctxerr.Wrap(ctx, err, "get mdm id from writer")
-					}
-					return id, nil
-				}
-				return 0, ctxerr.Wrap(ctx, err, "insert mdm solution")
-			}
-			id, _ := res.LastInsertId()
-			return uint(id), nil
-		}
-		return 0, ctxerr.Wrap(ctx, err, "get mdm id from reader")
+	insStmt := &parameterizedStmt{
+		Statement: `INSERT INTO mobile_device_management_solutions (name, server_url) VALUES (?, ?)`,
+		Args:      []interface{}{mdmName, serverURL},
 	}
-	return id, nil
+	return ds.optimisticGetOrInsert(ctx, readStmt, insStmt)
 }
 
 func (ds *Datastore) GetMunkiVersion(ctx context.Context, hostID uint) (string, error) {
