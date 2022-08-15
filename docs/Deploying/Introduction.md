@@ -20,7 +20,7 @@ Both binaries are available for download from our [repo](https://github.com/flee
 
 If you'd like to try Fleet on your laptop, we recommend [Fleet Sandbox](https://fleetdm.com/try-fleet/register).
 
-If you want to enroll real hosts or deploy to a more scalable environment we recommend [deploying Fleet to a server](./Server-Installation.md).
+If you want to enroll real hosts or deploy to a more scalable environment, we recommend [deploying Fleet to a server](./Server-Installation.md).
 
 ## Infrastructure dependencies
 
