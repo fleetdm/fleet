@@ -75,9 +75,9 @@ func (s *integrationSandboxTestSuite) TestDemoLogin() {
 func (s *integrationSandboxTestSuite) TestInstallerGet() {
 	t := s.T()
 
-	validURL := installerURL(enrollSecret, "pkg", false)
+	validURL, formBody := installerReq(enrollSecret, "pkg", s.token, "false")
 
-	r := s.Do("GET", validURL, nil, http.StatusOK)
+	r := s.DoRaw("POST", validURL, formBody, http.StatusOK)
 	body, err := io.ReadAll(r.Body)
 	require.NoError(t, err)
 	require.Equal(t, "mock", string(body))
@@ -92,16 +92,20 @@ func (s *integrationSandboxTestSuite) TestInstallerGet() {
 	s.token = s.cachedAdminToken
 
 	// wrong enroll secret
-	s.Do("GET", installerURL("wrong-enroll", "pkg", false), nil, http.StatusInternalServerError)
+	wrongURL, wrongFormBody := installerReq("wrong-enroll", "pkg", s.token, "false")
+	s.Do("GET", wrongURL, wrongFormBody, http.StatusInternalServerError)
 
 	// non-existent package
-	s.Do("GET", installerURL(enrollSecret, "exe", false), nil, http.StatusNotFound)
+	wrongURL, wrongFormBody = installerReq("wrong-enroll", "exe", s.token, "false")
+	s.Do("GET", wrongURL, wrongFormBody, http.StatusInternalServerError)
+	s.Do("GET", wrongURL, wrongFormBody, http.StatusNotFound)
 }
 
-func installerURL(secret, kind string, desktop bool) string {
-	url := fmt.Sprintf("/api/latest/fleet/download_installer/%s?enroll_secret=%s", kind, secret)
-	if desktop {
-		url = url + "&desktop=1"
-	}
-	return url
+func installerReq(secret, kind, token, desktop string) (string, []byte) {
+	path := fmt.Sprintf("/api/latest/fleet/download_installer/%s?enroll_secret=%s", kind, secret)
+	formBody := make(url.Values)
+	formBody.Set("token", token)
+	formBody.Set("enroll_secret", secret)
+	formBody.Set("desktop", string(desktop))
+	return path, []byte(formBody.Encode())
 }

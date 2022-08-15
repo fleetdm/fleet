@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"errors"
+	"fmt"
 	"io"
 	"net/http"
 	"strconv"
@@ -10,17 +11,31 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/contexts/logging"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/gorilla/mux"
 )
-
-type installerRequest struct {
-	Kind         string `url:"kind"`
-	EnrollSecret string `query:"enroll_secret"`
-	Desktop      bool   `query:"desktop,optional"`
-}
 
 ////////////////////////////////////////////////////////////////////////////////
 // Retrieve an Orbit installer from storage
 ////////////////////////////////////////////////////////////////////////////////
+
+type getInstallerRequest struct {
+	Kind         string
+	EnrollSecret string
+	Desktop      bool
+}
+
+func (getInstallerRequest) DecodeRequest(ctx context.Context, r *http.Request) (interface{}, error) {
+	k, ok := mux.Vars(r)["kind"]
+	if !ok {
+		return "", errBadRoute
+	}
+
+	return getInstallerRequest{
+		Kind:         k,
+		EnrollSecret: r.FormValue("enroll_secret"),
+		Desktop:      r.FormValue("desktop") == "true",
+	}, nil
+}
 
 type getInstallerResponse struct {
 	Err error `json:"error,omitempty"`
@@ -28,6 +43,7 @@ type getInstallerResponse struct {
 	// file fields below are used in hijackRender for the response
 	fileReader io.ReadCloser
 	fileLength int64
+	fileExt    string
 }
 
 func (r getInstallerResponse) error() error { return r.Err }
@@ -35,7 +51,7 @@ func (r getInstallerResponse) error() error { return r.Err }
 func (r getInstallerResponse) hijackRender(ctx context.Context, w http.ResponseWriter) {
 	w.Header().Set("Content-Length", strconv.FormatInt(r.fileLength, 10))
 	w.Header().Set("Content-Type", "application/octet-stream")
-	w.Header().Set("Content-Disposition", "attachment")
+	w.Header().Set("Content-Disposition", fmt.Sprintf(`attachment;filename="fleet-osquery.%s"`, r.fileExt))
 
 	// OK to just log the error here as writing anything on
 	// `http.ResponseWriter` sets the status code to 200 (and it can't be
@@ -49,7 +65,7 @@ func (r getInstallerResponse) hijackRender(ctx context.Context, w http.ResponseW
 }
 
 func getInstallerEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
-	req := request.(*installerRequest)
+	req := request.(getInstallerRequest)
 
 	fileReader, fileLength, err := svc.GetInstaller(ctx, fleet.Installer{
 		EnrollSecret: req.EnrollSecret,
@@ -61,7 +77,7 @@ func getInstallerEndpoint(ctx context.Context, request interface{}, svc fleet.Se
 		return getInstallerResponse{Err: err}, nil
 	}
 
-	return getInstallerResponse{fileReader: fileReader, fileLength: fileLength}, nil
+	return getInstallerResponse{fileReader: fileReader, fileLength: fileLength, fileExt: req.Kind}, nil
 }
 
 // GetInstaller retrieves a blob containing the installer binary

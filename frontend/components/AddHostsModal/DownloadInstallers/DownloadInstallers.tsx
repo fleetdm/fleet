@@ -1,5 +1,4 @@
-import React, { useState } from "react";
-import FileSaver from "file-saver";
+import React, { FormEvent, useRef, useState } from "react";
 
 import {
   IInstallerPlatform,
@@ -7,7 +6,9 @@ import {
   INSTALLER_PLATFORM_BY_TYPE,
   INSTALLER_TYPE_BY_PLATFORM,
 } from "interfaces/installer";
-import installerAPI from "services/entities/installers";
+import ENDPOINTS from "utilities/endpoints";
+import local from "utilities/local";
+import URL_PREFIX from "router/url_prefix";
 
 import Button from "components/buttons/Button";
 import Checkbox from "components/forms/fields/Checkbox";
@@ -65,36 +66,22 @@ const DownloadInstallers = ({
   onCancel,
 }: IDownloadInstallersProps): JSX.Element => {
   const [includeDesktop, setIncludeDesktop] = useState(true);
-  const [isDownloadError, setIsDownloadError] = useState(false);
   const [isDownloading, setIsDownloading] = useState(false);
   const [isDownloadSuccess, setIsDownloadSuccess] = useState(false);
   const [selectedInstaller, setSelectedInstaller] = useState<
     IInstallerType | undefined
   >();
+  const formEl = useRef<HTMLFormElement>(null);
+  const path = `${ENDPOINTS.DOWNLOAD_INSTALLER}/${selectedInstaller}`;
+  const { origin } = global.window.location;
+  const url = `${origin}${URL_PREFIX}/api${path}`;
+  const token = local.getItem("auth_token");
 
-  const downloadInstaller = async (installerType?: IInstallerType) => {
-    if (!installerType) {
-      // do nothing
-      return;
-    }
+  const downloadInstaller = () => {
     setIsDownloading(true);
-    try {
-      const blob: BlobPart = await installerAPI.downloadInstaller({
-        enrollSecret,
-        installerType,
-        includeDesktop,
-      });
-      const filename = `fleet-osquery.${installerType}`;
-      const file = new global.window.File([blob], filename, {
-        type: "application/octet-stream",
-      });
-      FileSaver.saveAs(file);
-      setIsDownloadSuccess(true);
-    } catch {
-      setIsDownloadError(true);
-    } finally {
-      setIsDownloading(false);
-    }
+    formEl.current?.submit();
+    setIsDownloadSuccess(true);
+    setIsDownloading(false);
   };
 
   const onClickSelector = (type: IInstallerType) => {
@@ -108,14 +95,6 @@ const DownloadInstallers = ({
     }
     setSelectedInstaller(type);
   };
-
-  if (isDownloadError) {
-    return (
-      <div className={`${baseClass}__error`}>
-        <DataError />
-      </div>
-    );
-  }
 
   if (isDownloadSuccess) {
     const installerPlatform =
@@ -171,13 +150,18 @@ const DownloadInstallers = ({
           </TooltipWrapper>
         </>
       </Checkbox>
-      <Button
-        className={`${baseClass}__button--download`}
-        disabled={!selectedInstaller}
-        onClick={() => downloadInstaller(selectedInstaller)}
-      >
-        {isDownloading ? <Spinner /> : "Download installer"}
-      </Button>
+      <form method="POST" action={url} target="_blank" ref={formEl}>
+        <input type="hidden" name="token" value={token || ""} />
+        <input type="hidden" name="enroll_secret" value={enrollSecret} />
+        <input type="hidden" name="desktop" value={String(includeDesktop)} />
+        <Button
+          className={`${baseClass}__button--download`}
+          disabled={!selectedInstaller}
+          onClick={downloadInstaller}
+        >
+          {isDownloading ? <Spinner /> : "Download installer"}
+        </Button>
+      </form>
     </div>
   );
 };
