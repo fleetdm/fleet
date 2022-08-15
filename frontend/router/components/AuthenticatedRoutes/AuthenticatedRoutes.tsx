@@ -28,6 +28,10 @@ export const AuthenticatedRoutes = ({
     return router.push(LOGIN);
   };
 
+  const redirectToSandboxLogin = () => {
+    return router.push("https://www.fleetdm.com/try-fleet/login");
+  };
+
   const redirectToPasswordReset = () => {
     const { RESET_PASSWORD } = paths;
 
@@ -43,7 +47,12 @@ export const AuthenticatedRoutes = ({
   useDeepEffect(() => {
     // this works with App.tsx. if authToken does
     // exist, user state is checked and fetched if null
+
     if (!authToken()) {
+      if (window.location.pathname.includes("sandbox")) {
+        return redirectToSandboxLogin();
+      }
+
       return redirectToLogin();
     }
 
