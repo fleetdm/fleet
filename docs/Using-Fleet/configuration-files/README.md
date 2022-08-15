@@ -257,7 +257,7 @@ spec:
       days_count: 7
     failing_policies_webhook:
       enable_failing_policies_webhook: true
-      destination_url": https://server.com
+      destination_url: https://server.com
       policy_ids:
         - 1
         - 2
