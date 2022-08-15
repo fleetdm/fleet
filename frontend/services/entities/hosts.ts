@@ -228,20 +228,6 @@ export default {
       path += `&mdm_enrollment_status=${mdmEnrollmentStatus}`;
     }
 
-    console.log(
-      "export hosts",
-      "\nlabel",
-      label,
-      "\n policyId",
-      policyId,
-      "\n softwareId",
-      softwareId,
-      "\n mdmId",
-      mdmId,
-      "\n mdmEnrollmentStatus",
-      mdmEnrollmentStatus
-    );
-
     if (visibleColumns) {
       path += `&columns=${visibleColumns}`;
     }
@@ -297,32 +283,6 @@ export default {
     };
 
     const queryString = buildQueryStringFromParams(queryParams);
-
-    console.log(
-      "load hosts",
-      "\nlabel",
-      label,
-      "\n policyId",
-      policyId,
-      "\n softwareId",
-      softwareId,
-      "\n mdmId",
-      mdmId,
-      "\n mdmEnrollmentStatus",
-      mdmEnrollmentStatus,
-      "\n getMDMEnrollmentStatusParam()",
-      getMDMEnrollmentStatusParam(
-        label,
-        policyId,
-        softwareId,
-        mdmId,
-        mdmEnrollmentStatus
-      ),
-      "\n queryParams",
-      queryParams,
-      "\n queryString",
-      queryString
-    );
 
     const endpoint = getHostEndpoint(selectedLabels);
     const path = `${endpoint}?${queryString}`;

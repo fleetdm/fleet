@@ -32,7 +32,7 @@ import {
 import { IApiError } from "interfaces/errors";
 import { IHost } from "interfaces/host";
 import { ILabel, ILabelFormData } from "interfaces/label";
-import { IMDMSolution, IMDMAggregateStatus } from "interfaces/macadmins";
+import { IMDMSolution } from "interfaces/macadmins";
 import { IPolicy } from "interfaces/policy";
 import { ISoftware } from "interfaces/software";
 import { ITeam } from "interfaces/team";
@@ -434,18 +434,15 @@ const ManageHostsPage = ({
     }
 
     try {
-      // To see if full object is returned
-      // const returnObject = await hostsAPI.loadHosts(options);
-      // console.log("returnObject", returnObject);
       const {
         hosts: returnedHosts,
         software,
-        mdm_solution,
+        mobile_device_management_solution,
       } = await hostsAPI.loadHosts(options);
       setHosts(returnedHosts);
       software && setSoftwareDetails(software);
-      //TODO: need MDM solution details to populate filter name card
-      mdm_solution && setMDMSolutionDetails(mdm_solution);
+      mobile_device_management_solution &&
+        setMDMSolutionDetails(mobile_device_management_solution);
     } catch (error) {
       console.error(error);
       setHasHostErrors(true);
@@ -1205,7 +1202,8 @@ const ManageHostsPage = ({
             >
               <span className={`tooltip__tooltip-text`}>
                 Host enrolled
-                {name !== "Unknown" && ` to ${name}`} at {server_url}
+                {name !== "Unknown" && ` to ${name}`}
+                <br /> at {server_url}
               </span>
             </ReactTooltip>
           </div>
@@ -1230,11 +1228,29 @@ const ManageHostsPage = ({
       const tooltipText = () => {
         switch (mdmEnrollmentStatus) {
           case "automatic":
-            return "Hosts automatically enrolled to an MDM solution the first time the host is used. Administrators might have a higher level of control over these hosts.";
+            return (
+              <span className={`tooltip__tooltip-text`}>
+                Hosts automatically enrolled <br />
+                to an MDM solution the first time <br />
+                the host is used. Administrators <br />
+                might have a higher level of control <br />
+                over these hosts.
+              </span>
+            );
           case "manual":
-            return "Hosts manually enrolled to an MDM solution by a user or administrator.";
+            return (
+              <span className={`tooltip__tooltip-text`}>
+                Hosts manually enrolled to an <br />
+                MDM solution by a user or <br />
+                administrator.
+              </span>
+            );
           default:
-            return "Hosts not enrolled to an MDM solution.";
+            return (
+              <span className={`tooltip__tooltip-text`}>
+                Hosts not enrolled to <br /> an MDM solution.
+              </span>
+            );
         }
       };
       return (
@@ -1242,7 +1258,7 @@ const ManageHostsPage = ({
           <div>
             <span data-tip data-for="mdm-enrollment-status-filter-tooltip">
               <div
-                className={`${baseClass}__mdm-enrollment-status-name-card tooltip`}
+                className={`${baseClass}__mdm-enrollment-status-filter-name-card tooltip`}
               >
                 {buttonText()}
                 <Button
@@ -1262,7 +1278,7 @@ const ManageHostsPage = ({
               id="mdm-enrollment-status-filter-tooltip"
               data-html
             >
-              <span className={`tooltip__tooltip-text`}>{tooltipText()}</span>
+              {tooltipText()}
             </ReactTooltip>
           </div>
         </div>
