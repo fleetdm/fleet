@@ -805,7 +805,13 @@ const ManageHostsPage = ({
         newQueryParams.mdm_enrollment_status = mdmEnrollmentStatus;
       }
 
-      if (operatingSystemId && !softwareId && !policyId && !mdmEnrollmentStatus && !mdmId) {
+      if (
+        operatingSystemId &&
+        !softwareId &&
+        !policyId &&
+        !mdmEnrollmentStatus &&
+        !mdmId
+      ) {
         newQueryParams.operating_system_id = operatingSystemId;
       }
       router.replace(
@@ -1773,12 +1779,12 @@ const ManageHostsPage = ({
       !isHostsLoading &&
       teamSync
     ) {
-      const { 
-        software_id, 
-        policy_id, 
-        mdm_id, 
-        mdm_enrollment_status, 
-        operating_system_id 
+      const {
+        software_id,
+        policy_id,
+        mdm_id,
+        mdm_enrollment_status,
+        operating_system_id,
       } = queryParams || {};
       const includesNameCardFilter = !!(
         software_id ||
