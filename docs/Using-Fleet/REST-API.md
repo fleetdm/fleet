@@ -1736,8 +1736,11 @@ None.
 | mdm_id                  | integer | query | The ID of the _mobile device management_ (MDM) solution to filter hosts by (that is, filter hosts that use a specific MDM provider and URL).                                                                                                                                                                                                |
 | mdm_enrollment_status   | string  | query | The _mobile device management_ (MDM) enrollment status to filter hosts by. Can be one of 'manual', 'automatic' or 'unenrolled'.                                                                                                                                                                                                             |
 
-### Get host's Google Chrome profiles
 If `additional_info_filters` is not specified, no `additional` information will be returned.
+
+If `software_id` is specified, an additional top-level key `"software"` is returned with the software object corresponding to the `software_id`. See [List all software](#list-all-software) response payload for details about this object.
+
+If `mdm_id` is specified, an additional top-level key `"mobile_device_management_solution"` is returned with the aggregated statistics corresponding to the `mdm_id`. See [Get aggregated host's mobile device management (MDM) and Munki information](#get-aggregated-hosts-mobile-device-management-mdm-and-munki-information) response payload for details about this object.
 
 #### Example
 
@@ -2546,7 +2549,7 @@ Retrieves the aggregated host OS versions information.
 | Name                | Type     | In    | Description                                                                                                                          |
 | ---      | ---      | ---   | ---                                                                                                                                  |
 | team_id             | integer | query | _Available in Fleet Premium_ Filters the hosts to only include hosts in the specified team. If not provided, all hosts are included. |
-| platform            | string   | query | Filters the hosts to the specified platform |                                                                                          
+| platform            | string   | query | Filters the hosts to the specified platform |
 | operating_system_id | integer   | query | Filters the hosts to the specified operating system id |
 ##### Default response
 

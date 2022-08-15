@@ -69,7 +69,11 @@ type listHostsRequest struct {
 type listHostsResponse struct {
 	Hosts    []HostResponse  `json:"hosts"`
 	Software *fleet.Software `json:"software,omitempty"`
-	Err      error           `json:"error,omitempty"`
+	// MDMSolution is populated with the MDM solution corresponding to the mdm_id
+	// filter if one is provided with the request. It is nil otherwise and absent
+	// of the JSON response payload.
+	MDMSolution *fleet.AggregatedMDMSolutions `json:"mobile_device_management_solution,omitempty"`
+	Err         error                         `json:"error,omitempty"`
 }
 
 func (r listHostsResponse) error() error { return r.Err }
@@ -81,6 +85,15 @@ func listHostsEndpoint(ctx context.Context, request interface{}, svc fleet.Servi
 	if req.Opts.SoftwareIDFilter != nil {
 		var err error
 		software, err = svc.SoftwareByID(ctx, *req.Opts.SoftwareIDFilter, false)
+		if err != nil {
+			return listHostsResponse{Err: err}, nil
+		}
+	}
+
+	var mdmSolution *fleet.AggregatedMDMSolutions
+	if req.Opts.MDMIDFilter != nil {
+		var err error
+		mdmSolution, err = svc.AggregatedMDMSolutions(ctx, req.Opts.TeamFilter, *req.Opts.MDMIDFilter)
 		if err != nil {
 			return listHostsResponse{Err: err}, nil
 		}
@@ -100,7 +113,38 @@ func listHostsEndpoint(ctx context.Context, request interface{}, svc fleet.Servi
 
 		hostResponses[i] = *h
 	}
-	return listHostsResponse{Hosts: hostResponses, Software: software}, nil
+	return listHostsResponse{Hosts: hostResponses, Software: software, MDMSolution: mdmSolution}, nil
+}
+
+func (svc *Service) AggregatedMDMSolutions(ctx context.Context, teamID *uint, mdmID uint) (*fleet.AggregatedMDMSolutions, error) {
+	if err := svc.authz.Authorize(ctx, &fleet.Host{TeamID: teamID}, fleet.ActionList); err != nil {
+		return nil, err
+	}
+
+	if teamID != nil {
+		_, err := svc.ds.Team(ctx, *teamID)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	// it is expected that there will be relatively few MDM solutions. This
+	// returns the slice of all aggregated stats (one entry per mdm_id), and we
+	// then iterate to return only the one that was requested.
+	sols, _, err := svc.ds.AggregatedMDMSolutions(ctx, teamID)
+	if err != nil {
+		return nil, err
+	}
+
+	for _, sol := range sols {
+		// don't take the address of the loop variable (although it could be ok
+		// here, but just bad practice)
+		sol := sol
+		if sol.ID == mdmID {
+			return &sol, nil
+		}
+	}
+	return nil, nil
 }
 
 func (svc *Service) ListHosts(ctx context.Context, opt fleet.HostListOptions) ([]*fleet.Host, error) {
