@@ -34,7 +34,7 @@ So, let's start by asking the following question about your device:
 
 * What operating system is installed on my device and what is its version?
 
-This question can easily be answered, by running this simple query: "Get operating system information." 
+This question can easily be answered by running this simple query: "Get operating system information." 
 
 To run this query on your device:
 
