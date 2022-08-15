@@ -2,6 +2,7 @@
   kernel version.
 - Updated `GET /os_versions` endpoint to include new request and response fields.
 - Updated `GET /hosts` endpoint to add `operating_system_id` query parameter.
+- Enhanced UI for host operating systems to include additional information for Windows and macOS.
 
 Note that the operating systems data and the aggregated stats are updated lazily to prevent a long
 database migration when upgrading to this Fleet version - the data will be updated as hosts send

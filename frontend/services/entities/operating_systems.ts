@@ -5,30 +5,39 @@ import { IOperatingSystemVersion } from "interfaces/operating_system";
 import { IOsqueryPlatform } from "interfaces/platform";
 import { buildQueryStringFromParams } from "utilities/url";
 
-export interface IOperatingSystemsResponse {
+// TODO: add platforms to this constant as new ones are supported
+export const OS_VERSIONS_API_SUPPORTED_PLATFORMS: IOsqueryPlatform[] = [
+  "darwin",
+  "windows",
+];
+
+export interface IGetOSVersionsRequest {
+  id?: number;
+  platform?: IOsqueryPlatform;
+  teamId?: number;
+}
+
+export interface IGetOSVersionsQueryKey extends IGetOSVersionsRequest {
+  scope: string;
+}
+export interface IOSVersionsResponse {
   counts_updated_at: string;
   os_versions: IOperatingSystemVersion[];
 }
 
-interface IGetVersionParams {
-  platform: IOsqueryPlatform;
-  teamId?: number;
-}
+export const getOSVersions = async ({
+  id,
+  platform,
+  teamId,
+}: IGetOSVersionsRequest = {}): Promise<IOSVersionsResponse> => {
+  const { OS_VERSIONS } = endpoints;
+  const queryParams = { id, platform, team_id: teamId };
+  const queryString = buildQueryStringFromParams(queryParams);
+  const path = `${OS_VERSIONS}?${queryString}`;
+
+  return sendRequest("GET", path);
+};
 
 export default {
-  getVersions: async ({
-    platform,
-    teamId,
-  }: IGetVersionParams): Promise<IOperatingSystemsResponse> => {
-    const { OS_VERSIONS } = endpoints;
-    const queryParams = { platform, team_id: teamId };
-    const queryString = buildQueryStringFromParams(queryParams);
-    const path = `${OS_VERSIONS}?${queryString}`;
-
-    try {
-      return sendRequest("GET", path);
-    } catch (error) {
-      return Promise.reject(error);
-    }
-  },
+  getOSVersions,
 };

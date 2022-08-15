@@ -17,6 +17,7 @@ export interface IHostCountLoadOptions {
   policyId?: number;
   policyResponse?: string;
   softwareId?: number;
+  operatingSystemId?: number;
 }
 
 export default {
@@ -29,6 +30,7 @@ export default {
     const policyResponse = options?.policyResponse || null;
     const selectedLabels = options?.selectedLabels || [];
     const softwareId = options?.softwareId || null;
+    const operatingSystemId = options?.operatingSystemId || null;
 
     const labelPrefix = "labels/";
 
@@ -66,6 +68,10 @@ export default {
     // TODO: consider how to check for mutually exclusive scenarios with label, policy and software
     if (!label && !policyId && softwareId) {
       queryString += `&software_id=${softwareId}`;
+    }
+
+    if (!label && !policyId && !softwareId && operatingSystemId) {
+      queryString += `&operating_system_id=${operatingSystemId}`;
     }
 
     // Append query string to endpoint route after slicing off the leading ampersand
