@@ -22,9 +22,6 @@ const REQUEST_RESPONSE_MAPPINGS: IResponses = {
     // request query string is hostname, uuid, or mac address; response is host detail excluding any
     // expensive data operations
     "targets?query={*}": RESPONSES.hosts,
-    macadmins: RESPONSES.macAdmins,
-    "macadmins?team_id=3": RESPONSES.macAdminsApples,
-    "macadmins?team_id=2": RESPONSES.macAdminsOranges,
   },
   POST: {
     // request body is ISelectedTargets
