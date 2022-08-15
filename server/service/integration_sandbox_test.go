@@ -106,6 +106,6 @@ func installerReq(secret, kind, token, desktop string) (string, []byte) {
 	formBody := make(url.Values)
 	formBody.Set("token", token)
 	formBody.Set("enroll_secret", secret)
-	formBody.Set("desktop", string(desktop))
+	formBody.Set("desktop", desktop)
 	return path, []byte(formBody.Encode())
 }
