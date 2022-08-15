@@ -19,6 +19,7 @@ export interface ILoadHostsOptions {
   policyId?: number;
   policyResponse?: string;
   softwareId?: number;
+  operatingSystemId?: number;
   device_mapping?: boolean;
   columns?: string;
   visibleColumns?: string;
@@ -34,6 +35,7 @@ export interface IExportHostsOptions {
   policyId?: number;
   policyResponse?: string;
   softwareId?: number;
+  operatingSystemId?: number;
   device_mapping?: boolean;
   columns?: string;
   visibleColumns?: string;
@@ -102,6 +104,19 @@ const getSoftwareParam = (
   softwareId?: number
 ) => {
   return label === undefined && policyId === undefined ? softwareId : undefined;
+};
+
+const getOperatingSystemParam = (
+  label?: string,
+  policyId?: number,
+  softwareId?: number,
+  operatingSystemId?: number
+) => {
+  return label === undefined &&
+    policyId === undefined &&
+    softwareId === undefined
+    ? operatingSystemId
+    : undefined;
 };
 
 export default {
@@ -202,6 +217,7 @@ export default {
     policyId,
     policyResponse = "passing",
     softwareId,
+    operatingSystemId,
     device_mapping,
     selectedLabels,
     sortBy,
@@ -221,6 +237,13 @@ export default {
       policy_id: policyParams.policy_id,
       policy_response: policyParams.policy_response,
       software_id: getSoftwareParam(label, policyId, softwareId),
+      operating_system_id: getOperatingSystemParam(
+        label,
+        policyId,
+        softwareId,
+        operatingSystemId
+      ),
+
       status: getStatusParam(selectedLabels),
     };
 
