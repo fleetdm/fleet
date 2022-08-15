@@ -12,7 +12,7 @@ Head to [fleetdm.com/try-fleet](https://fleetdm.com/try-fleet/register) to fire 
 
 #### Now what?
 
-Check out the [Learn how to use Fleet](https://fleetdm.com/docs/using-fleet/learn-how-to-use-fleet)
+Check out the [Learn how to use Fleet doc](https://fleetdm.com/docs/using-fleet/learn-how-to-use-fleet)
 to learn how to add your device to Fleet and how to ask questions about your devices by running queries.
 
 ## Team
