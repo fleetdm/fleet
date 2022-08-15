@@ -84,7 +84,7 @@ func (s *integrationSandboxTestSuite) TestInstallerGet() {
 	require.Equal(t, "mock", string(body))
 	require.Equal(t, "application/octet-stream", r.Header.Get("Content-Type"))
 	require.Equal(t, "4", r.Header.Get("Content-Length"))
-	require.Equal(t, "attachment", r.Header.Get("Content-Disposition"))
+	require.Equal(t, `attachment;filename="fleet-osquery.pkg"`, r.Header.Get("Content-Disposition"))
 
 	// unauthorized requests
 	s.DoRawNoAuth("GET", validURL, nil, http.StatusUnauthorized)
@@ -105,7 +105,7 @@ func (s *integrationSandboxTestSuite) TestInstallerGet() {
 func (s *integrationSandboxTestSuite) TestInstallerHeadCheck() {
 	// make sure FLEET_DEMO is not set
 	os.Unsetenv("FLEET_DEMO")
-	validURL := fmt.Sprintf("/api/latest/fleet/download_installer/%s/%s", enrollSecret, "pkg")
+	validURL := fmt.Sprintf("/api/latest/fleet/download_installer/%s?enroll_secret=%s", enrollSecret, "pkg")
 	s.Do("HEAD", validURL, nil, http.StatusInternalServerError)
 
 	os.Setenv("FLEET_DEMO", "1")
@@ -121,11 +121,11 @@ func (s *integrationSandboxTestSuite) TestInstallerHeadCheck() {
 	s.token = s.cachedAdminToken
 
 	// wrong enroll secret
-	invalidURL := fmt.Sprintf("/api/latest/fleet/download_installer/%s/%s", "wrong-enroll", "pkg")
+	invalidURL := fmt.Sprintf("/api/latest/fleet/download_installer/%s?enroll_secret=%s", "wrong-enroll", "pkg")
 	s.Do("HEAD", invalidURL, nil, http.StatusInternalServerError)
 
 	// non-existent package
-	invalidURL = fmt.Sprintf("/api/latest/fleet/download_installer/%s/%s", enrollSecret, "exe")
+	invalidURL = fmt.Sprintf("/api/latest/fleet/download_installer/%s?enroll_secret=%s", enrollSecret, "exe")
 	s.Do("HEAD", invalidURL, nil, http.StatusNotFound)
 }
 
