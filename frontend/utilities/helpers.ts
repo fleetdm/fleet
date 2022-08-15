@@ -586,27 +586,47 @@ export const humanHostLastRestart = (
   detailUpdatedAt: string,
   uptime: number
 ): string => {
-  const currentDate = new Date();
-  const updatedDate = new Date(detailUpdatedAt);
-  const millisecondsLastUpdated = currentDate.getTime() - updatedDate.getTime();
+  if (
+    !detailUpdatedAt ||
+    !uptime ||
+    detailUpdatedAt === "---" ||
+    detailUpdatedAt < "2016-07-28T00:00:00Z" ||
+    typeof uptime !== "number"
+  ) {
+    return "Unavailable";
+  }
+  try {
+    const currentDate = new Date();
+    const updatedDate = new Date(detailUpdatedAt);
+    const millisecondsLastUpdated =
+      currentDate.getTime() - updatedDate.getTime();
 
-  // Sum of calculated milliseconds since last updated with uptime
-  const millisecondsLastRestart =
-    millisecondsLastUpdated + uptime / NANOSECONDS_PER_MILLISECOND;
+    // Sum of calculated milliseconds since last updated with uptime
+    const millisecondsLastRestart =
+      millisecondsLastUpdated + uptime / NANOSECONDS_PER_MILLISECOND;
 
-  const restartDate = new Date();
-  restartDate.setMilliseconds(
-    restartDate.getMilliseconds() - millisecondsLastRestart
-  );
+    const restartDate = new Date();
+    restartDate.setMilliseconds(
+      restartDate.getMilliseconds() - millisecondsLastRestart
+    );
 
-  return formatDistanceToNow(new Date(restartDate), { addSuffix: true });
+    return formatDistanceToNow(new Date(restartDate), { addSuffix: true });
+  } catch {
+    return "Unavailable";
+  }
 };
 
 export const humanHostLastSeen = (lastSeen: string): string => {
+  if (!lastSeen || lastSeen < "2016-07-28T00:00:00Z") {
+    return "Never";
+  }
   return format(new Date(lastSeen), "MMM d yyyy, HH:mm:ss");
 };
 
 export const humanHostEnrolled = (enrolled: string): string => {
+  if (!enrolled || enrolled < "2016-07-28T00:00:00Z") {
+    return "Never";
+  }
   return formatDistanceToNow(new Date(enrolled), { addSuffix: true });
 };
 
@@ -614,15 +634,18 @@ export const humanHostMemory = (bytes: number): string => {
   return `${inGigaBytes(bytes)} GB`;
 };
 
-export const humanHostDetailUpdated = (detailUpdated: string): string => {
+export const humanHostDetailUpdated = (detailUpdated?: string): string => {
   // Handles the case when a host has checked in to Fleet but
   // its details haven't been updated.
   // July 28, 2016 is the date of the initial commit to fleet/fleet.
-  if (detailUpdated < "2016-07-28T00:00:00Z") {
-    return "Never";
+  if (!detailUpdated || detailUpdated < "2016-07-28T00:00:00Z") {
+    return "unavailable";
   }
-
-  return formatDistanceToNow(new Date(detailUpdated), { addSuffix: true });
+  try {
+    return formatDistanceToNow(new Date(detailUpdated), { addSuffix: true });
+  } catch {
+    return "unavailable";
+  }
 };
 
 export const hostTeamName = (teamName: string | null): string => {
@@ -636,11 +659,15 @@ export const hostTeamName = (teamName: string | null): string => {
 export const humanQueryLastRun = (lastRun: string): string => {
   // Handles the case when a query has never been ran.
   // July 28, 2016 is the date of the initial commit to fleet/fleet.
-  if (lastRun < "2016-07-28T00:00:00Z") {
+  if (!lastRun || lastRun < "2016-07-28T00:00:00Z") {
     return "Has not run";
   }
 
-  return formatDistanceToNow(new Date(lastRun), { addSuffix: true });
+  try {
+    return formatDistanceToNow(new Date(lastRun), { addSuffix: true });
+  } catch {
+    return "Unavailable";
+  }
 };
 
 export const licenseExpirationWarning = (expiration: string): boolean => {
@@ -764,7 +791,10 @@ export const getValidatedTeamId = (
 // returns a mixture of props from host
 export const normalizeEmptyValues = (
   hostData: Partial<IHost>
-): { [key: string]: any } => {
+): Record<
+  string,
+  number | string | boolean | Record<string, number | string | boolean>
+> => {
   return reduce(
     hostData,
     (result, value, key) => {
@@ -780,7 +810,7 @@ export const normalizeEmptyValues = (
 };
 
 export const wrapFleetHelper = (
-  helperFn: (value: any) => string, // number or string or never
+  helperFn: (value: any) => string, // TODO: replace any with unknown and improve type narrowing by callers
   value: string
 ): string => {
   return value === "---" ? value : helperFn(value);

@@ -19,6 +19,11 @@ import hostsAPI, {
 import hostCountAPI, {
   IHostCountLoadOptions,
 } from "services/entities/host_count";
+import {
+  getOSVersions,
+  IGetOSVersionsQueryKey,
+  IOSVersionsResponse,
+} from "services/entities/operating_systems";
 
 import PATHS from "router/paths";
 import { AppContext } from "context/app";
@@ -33,6 +38,7 @@ import { IApiError } from "interfaces/errors";
 import { IHost } from "interfaces/host";
 import { ILabel, ILabelFormData } from "interfaces/label";
 import { IMDMSolution } from "interfaces/macadmins";
+import { IOperatingSystemVersion } from "interfaces/operating_system";
 import { IPolicy } from "interfaces/policy";
 import { ISoftware } from "interfaces/software";
 import { ITeam } from "interfaces/team";
@@ -272,6 +278,10 @@ const ManageHostsPage = ({
       ? parseInt(queryParams?.mdm_id, 10)
       : undefined;
   const mdmEnrollmentStatus = queryParams?.mdm_enrollment_status;
+  const operatingSystemId =
+    queryParams?.operating_system_id !== undefined
+      ? parseInt(queryParams?.operating_system_id, 10)
+      : undefined;
   const { active_label: activeLabel, label_id: labelID } = routeParams;
 
   // ===== filter matching
@@ -365,6 +375,17 @@ const ManageHostsPage = ({
       },
     }
   );
+
+  const { data: osVersions } = useQuery<
+    IOSVersionsResponse,
+    Error,
+    IOperatingSystemVersion[],
+    IGetOSVersionsQueryKey[]
+  >([{ scope: "os_versions" }], () => getOSVersions(), {
+    enabled: !!queryParams?.operating_system_id,
+    keepPreviousData: true,
+    select: (data) => data.os_versions,
+  });
 
   const toggleDeleteSecretModal = () => {
     // open and closes delete modal
@@ -468,6 +489,10 @@ const ManageHostsPage = ({
       options.teamId = queryParams.team_id;
     }
 
+    if (queryParams.operating_system_id) {
+      options.operatingSystemId = queryParams.operating_system_id;
+    }
+
     try {
       const { count: returnedHostCount } = await hostCountAPI.load(options);
       setFilteredHostCount(returnedHostCount);
@@ -525,6 +550,7 @@ const ManageHostsPage = ({
       softwareId,
       mdmId,
       mdmEnrollmentStatus,
+      operatingSystemId,
       page: tableQueryData ? tableQueryData.pageIndex : 0,
       perPage: tableQueryData ? tableQueryData.pageSize : 100,
       device_mapping: true,
@@ -614,6 +640,17 @@ const ManageHostsPage = ({
         routeTemplate,
         routeParams,
         queryParams: omit(queryParams, ["policy_id", "policy_response"]),
+      })
+    );
+  };
+
+  const handleClearOSFilter = () => {
+    router.replace(
+      getNextLocationPath({
+        pathPrefix: PATHS.MANAGE_HOSTS,
+        routeTemplate,
+        routeParams,
+        queryParams: omit(queryParams, ["operating_system_id"]),
       })
     );
   };
@@ -768,6 +805,9 @@ const ManageHostsPage = ({
         newQueryParams.mdm_enrollment_status = mdmEnrollmentStatus;
       }
 
+      if (operatingSystemId && !softwareId && !policyId && !mdmEnrollmentStatus && !mdmId) {
+        newQueryParams.operating_system_id = operatingSystemId;
+      }
       router.replace(
         getNextLocationPath({
           pathPrefix: PATHS.MANAGE_HOSTS,
@@ -786,6 +826,7 @@ const ManageHostsPage = ({
       softwareId,
       mdmId,
       mdmEnrollmentStatus,
+      operatingSystemId,
       sortBy,
     ]
   );
@@ -1100,6 +1141,53 @@ const ManageHostsPage = ({
       }
     />
   );
+
+  const renderOSFilterBlock = () => {
+    const os = osVersions?.find((v) => v.os_id === operatingSystemId);
+    if (!os) {
+      return <></>;
+    }
+    const { name, name_only, version } = os;
+    const buttonText =
+      name_only || version
+        ? `${name_only || ""} ${version || ""}`
+        : `${name || ""}`;
+    return (
+      <div className={`${baseClass}__software-filter-block`}>
+        <div>
+          <span
+            data-tip
+            data-for="software-filter-tooltip"
+            data-tip-disable={!name_only || !version || !name}
+          >
+            <div className={`${baseClass}__software-filter-name-card tooltip`}>
+              {buttonText}
+              <Button
+                className={`${baseClass}__clear-policies-filter`}
+                onClick={handleClearOSFilter}
+                variant={"small-text-icon"}
+                title={buttonText}
+              >
+                <img src={CloseIcon} alt="Remove os filter" />
+              </Button>
+            </div>
+          </span>
+          <ReactTooltip
+            place="bottom"
+            effect="solid"
+            backgroundColor="#3e4771"
+            id="software-filter-tooltip"
+            data-html
+          >
+            <span className={`tooltip__tooltip-text`}>
+              {`Hosts with ${name_only || name}`},<br />
+              {version && `${version} installed`}
+            </span>
+          </ReactTooltip>
+        </div>
+      </div>
+    );
+  };
 
   const renderPoliciesFilterBlock = () => (
     <div className={`${baseClass}__policies-filter-block`}>
@@ -1549,7 +1637,8 @@ const ManageHostsPage = ({
       softwareId ||
       showSelectedLabel ||
       mdmId ||
-      mdmEnrollmentStatus
+      mdmEnrollmentStatus ||
+      operatingSystemId
     ) {
       return (
         <div className={`${baseClass}__labels-active-filter-wrap`}>
@@ -1578,6 +1667,13 @@ const ManageHostsPage = ({
             !mdmId &&
             !showSelectedLabel &&
             renderMDMEnrollmentFilterBlock()}
+          {!!operatingSystemId &&
+            !policyId &&
+            !softwareId &&
+            !showSelectedLabel &&
+            !mdmId &&
+            !mdmEnrollmentStatus &&
+            renderOSFilterBlock()}
         </div>
       );
     }
@@ -1677,13 +1773,19 @@ const ManageHostsPage = ({
       !isHostsLoading &&
       teamSync
     ) {
-      const { software_id, policy_id, mdm_id, mdm_enrollment_status } =
-        queryParams || {};
+      const { 
+        software_id, 
+        policy_id, 
+        mdm_id, 
+        mdm_enrollment_status, 
+        operating_system_id 
+      } = queryParams || {};
       const includesNameCardFilter = !!(
         software_id ||
         policy_id ||
         mdm_id ||
-        mdm_enrollment_status
+        mdm_enrollment_status ||
+        operating_system_id
       );
 
       return (

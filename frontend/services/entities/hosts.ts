@@ -21,6 +21,7 @@ export interface ILoadHostsOptions {
   softwareId?: number;
   mdmId?: number;
   mdmEnrollmentStatus?: string;
+  operatingSystemId?: number;
   device_mapping?: boolean;
   columns?: string;
   visibleColumns?: string;
@@ -38,6 +39,7 @@ export interface IExportHostsOptions {
   softwareId?: number;
   mdmId?: number;
   mdmEnrollmentStatus?: string;
+  operatingSystemId?: number;
   device_mapping?: boolean;
   columns?: string;
   visibleColumns?: string;
@@ -133,6 +135,19 @@ const getMDMEnrollmentStatusParam = (
 ) => {
   return !label && !policyId && !softwareId && !mdmId
     ? mdmEnrollmentStatus
+    : undefined;
+};
+
+const getOperatingSystemParam = (
+  label?: string,
+  policyId?: number,
+  softwareId?: number,
+  operatingSystemId?: number
+) => {
+  return label === undefined &&
+    policyId === undefined &&
+    softwareId === undefined
+    ? operatingSystemId
     : undefined;
 };
 
@@ -246,6 +261,7 @@ export default {
     softwareId,
     mdmId,
     mdmEnrollmentStatus,
+    operatingSystemId,
     device_mapping,
     selectedLabels,
     sortBy,
@@ -279,6 +295,13 @@ export default {
         mdmId,
         mdmEnrollmentStatus
       ),
+      operating_system_id: getOperatingSystemParam(
+        label,
+        policyId,
+        softwareId,
+        operatingSystemId
+      ),
+
       status: getStatusParam(selectedLabels),
     };
 
