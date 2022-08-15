@@ -1725,7 +1725,7 @@ Downloads a pre-built fleet-osquery installer with the given parameters.
 | ------------- | ------- | ---------------------- | ------------------------------------------------------------------ |
 | kind          | string  | path                   | The installer kind: pkg, msi, deb or rpm.                          |
 | enroll_secret | string  | x-www-form-urlencoded  | The global enroll secret.                                          |
-| token         | string  | x-www-form-urlencoded  | The Authentication token.                                          |
+| token         | string  | x-www-form-urlencoded  | The authentication token.                                          |
 | desktop       | boolean | x-www-form-urlencoded  | Set to `true` to ask for an installer that includes Fleet Desktop. |
 
 ##### Default response
