@@ -638,7 +638,7 @@ export const humanHostMemory = (bytes: number): string => {
   return `${inGigaBytes(bytes)} GB`;
 };
 
-export const humanHostDetailUpdated = (detailUpdated: string): string => {
+export const humanHostDetailUpdated = (detailUpdated?: string): string => {
   // Handles the case when a host has checked in to Fleet but
   // its details haven't been updated.
   // July 28, 2016 is the date of the initial commit to fleet/fleet.
@@ -795,13 +795,10 @@ export const getValidatedTeamId = (
 // returns a mixture of props from host
 export const normalizeEmptyValues = (
   hostData: Partial<IHost>
-): {
-  [key: string]:
-    | number
-    | string
-    | boolean
-    | Record<string, number | string | boolean>;
-} => {
+): Record<
+  string,
+  number | string | boolean | Record<string, number | string | boolean>
+> => {
   return reduce(
     hostData,
     (result, value, key) => {
@@ -817,7 +814,7 @@ export const normalizeEmptyValues = (
 };
 
 export const wrapFleetHelper = (
-  helperFn: (value: any) => string, // number or string or never
+  helperFn: (value: any) => string, // TODO: replace any with unknown and improve type narrowing by callers
   value: string
 ): string => {
   return value === "---" ? value : helperFn(value);
