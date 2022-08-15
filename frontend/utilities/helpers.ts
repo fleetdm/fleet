@@ -670,7 +670,7 @@ export const humanQueryLastRun = (lastRun: string): string => {
   try {
     return formatDistanceToNow(new Date(lastRun), { addSuffix: true });
   } catch {
-    return "unavailable";
+    return "Unavailable";
   }
 };
 
