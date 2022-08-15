@@ -187,7 +187,7 @@ func DownloadCPETranslations(vulnPath string, client *http.Client, cpeTranslatio
 	if err != nil {
 		return err
 	}
-	if err := download.DownloadAndExtract(client, u, path); err != nil {
+	if err := download.Download(client, u, path); err != nil {
 		return err
 	}
 
