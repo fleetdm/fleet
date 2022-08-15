@@ -108,6 +108,11 @@ class Button extends React.Component<IButtonProps, IButtonState> {
         [`${baseClass}--${size}`]: size !== undefined,
       }
     );
+    const whiteButton =
+      variant === "text-link" ||
+      variant === "inverse" ||
+      variant === "text-icon" ||
+      variant === "label";
 
     return (
       <button
@@ -119,8 +124,8 @@ class Button extends React.Component<IButtonProps, IButtonState> {
         title={title}
         ref={setRef}
       >
-        <div className={!isLoading ? "transparent-text" : ""}>{children}</div>
-        {!isLoading && <ButtonSpinner />}
+        <div className={isLoading ? "transparent-text" : ""}>{children}</div>
+        {isLoading && <ButtonSpinner whiteButton={whiteButton} />}
       </button>
     );
   }

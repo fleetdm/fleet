@@ -1,8 +1,16 @@
 import React from "react";
+import Spinner from "components/Spinner";
 
 const baseClass = "button-loading-spinner";
 
-const ButtonSpinner = (): JSX.Element => {
+interface IButtonSpinnerProps {
+  whiteButton?: boolean;
+}
+const ButtonSpinner = ({ whiteButton }: IButtonSpinnerProps): JSX.Element => {
+  if (whiteButton) {
+    return <Spinner />;
+  }
+
   return (
     <div className={baseClass}>
       <div className="loader">

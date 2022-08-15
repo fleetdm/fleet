@@ -1,6 +1,3 @@
-// scaling... any units
-$width: 23px;
-
 .button-loading-spinner {
   position: absolute;
   z-index: 9;
@@ -11,7 +8,7 @@ $width: 23px;
   .loader {
     position: relative;
     margin: 0 auto;
-    width: $width;
+    width: 23px;
     &:before {
       content: "";
       display: block;
@@ -64,17 +61,6 @@ $width: 23px;
     100%,
     0% {
       stroke: $ui-off-white;
-    }
-  }
-}
-
-.save-as-new-loading {
-  .button-loading-spinner {
-    @keyframes color {
-      100%,
-      0% {
-        stroke: $core-vibrant-blue;
-      }
     }
   }
 }
