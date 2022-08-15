@@ -16,7 +16,7 @@ The `fleetctl` binary is the CLI interface which allows management of your deplo
 
 Both binaries are available for download from our [repo](https://github.com/fleetdm/fleet/releases).
 
-## Fleet vs Fleet sandbox
+## Fleet vs Fleet Sandbox
 
 If you'd like to try Fleet on your laptop we recommend [Fleet sandbox](https://fleetdm.com/try-fleet/register).
 
