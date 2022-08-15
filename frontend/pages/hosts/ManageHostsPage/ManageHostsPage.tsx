@@ -1587,14 +1587,18 @@ const ManageHostsPage = ({
       !isHostsLoading &&
       teamSync
     ) {
-      const { software_id, policy_id } = queryParams || {};
-      const includesSoftwareOrPolicyFilter = !!(software_id || policy_id);
+      const { software_id, policy_id, operating_system_id } = queryParams || {};
+      const includesSoftwareOrPolicyOrOSFilter = !!(
+        software_id ||
+        policy_id ||
+        operating_system_id
+      );
 
       return (
         <NoHosts
           toggleAddHostsModal={toggleAddHostsModal}
           canEnrollHosts={canEnrollHosts}
-          includesSoftwareOrPolicyFilter={includesSoftwareOrPolicyFilter}
+          includesSoftwareOrPolicyFilter={includesSoftwareOrPolicyOrOSFilter}
         />
       );
     }
