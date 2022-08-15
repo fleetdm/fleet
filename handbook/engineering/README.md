@@ -131,7 +131,7 @@ Documentation on completing the release process can be found
 
 During their on-call shift, engineers temporarily take on a different set of priorities and responsibilities.
 
-#### Responding quickly and hunting down answers
+#### Responding quickly and finding answers
 
 The on-call engineer is a second-line responder to questions raised by customers and community members.  We respond within 1-hour (during business hours) for interactions and ask the on-call engineer to address any questions sent their way promptly.
 
