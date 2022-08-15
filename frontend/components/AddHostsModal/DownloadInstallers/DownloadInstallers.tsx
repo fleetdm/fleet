@@ -9,6 +9,7 @@ import {
 import ENDPOINTS from "utilities/endpoints";
 import local from "utilities/local";
 import URL_PREFIX from "router/url_prefix";
+import installerAPI from "services/entities/installers";
 
 import Button from "components/buttons/Button";
 import Checkbox from "components/forms/fields/Checkbox";
@@ -67,21 +68,45 @@ const DownloadInstallers = ({
 }: IDownloadInstallersProps): JSX.Element => {
   const [includeDesktop, setIncludeDesktop] = useState(true);
   const [isDownloading, setIsDownloading] = useState(false);
+  const [isDownloadError, setIsDownloadError] = useState(false);
   const [isDownloadSuccess, setIsDownloadSuccess] = useState(false);
   const [selectedInstaller, setSelectedInstaller] = useState<
     IInstallerType | undefined
   >();
-  const formEl = useRef<HTMLFormElement>(null);
   const path = `${ENDPOINTS.DOWNLOAD_INSTALLER}/${selectedInstaller}`;
   const { origin } = global.window.location;
   const url = `${origin}${URL_PREFIX}/api${path}`;
   const token = local.getItem("auth_token");
 
-  const downloadInstaller = () => {
+  const downloadInstaller = async (event: React.FormEvent<HTMLFormElement>) => {
+    if (!selectedInstaller) {
+      // do nothing
+      return;
+    }
+    console.log(event);
+    event.preventDefault();
+    event.persist();
+
     setIsDownloading(true);
-    formEl.current?.submit();
-    setIsDownloadSuccess(true);
-    setIsDownloading(false);
+    try {
+      await installerAPI.checkInstallerExistence({
+        enrollSecret,
+        includeDesktop,
+        installerType: selectedInstaller,
+      });
+
+      // For some reason only Firefox fails with NS_ERROR_FAILURE unless we
+      // push back this operation to the bottom of the event queue
+      setTimeout(() => {
+        (event.target as HTMLFormElement).submit();
+        setIsDownloadSuccess(true);
+      });
+    } catch (error) {
+      console.log(error);
+      setIsDownloadError(true);
+    } finally {
+      setIsDownloading(false);
+    }
   };
 
   const onClickSelector = (type: IInstallerType) => {
@@ -95,6 +120,14 @@ const DownloadInstallers = ({
     }
     setSelectedInstaller(type);
   };
+
+  if (isDownloadError) {
+    return (
+      <div className={`${baseClass}__error`}>
+        <DataError />
+      </div>
+    );
+  }
 
   if (isDownloadSuccess) {
     const installerPlatform =
@@ -150,14 +183,19 @@ const DownloadInstallers = ({
           </TooltipWrapper>
         </>
       </Checkbox>
-      <form method="POST" action={url} target="_blank" ref={formEl}>
+      <form
+        method="POST"
+        action={url}
+        target="_blank"
+        onSubmit={downloadInstaller}
+      >
         <input type="hidden" name="token" value={token || ""} />
         <input type="hidden" name="enroll_secret" value={enrollSecret} />
         <input type="hidden" name="desktop" value={String(includeDesktop)} />
         <Button
           className={`${baseClass}__button--download`}
           disabled={!selectedInstaller}
-          onClick={downloadInstaller}
+          type="submit"
         >
           {isDownloading ? <Spinner /> : "Download installer"}
         </Button>

@@ -106,3 +106,66 @@ func (svc *Service) GetInstaller(ctx context.Context, installer fleet.Installer)
 
 	return reader, length, nil
 }
+
+////////////////////////////////////////////////////////////////////////////////
+// Check if a prebuilt Orbit installer is available
+////////////////////////////////////////////////////////////////////////////////
+
+type checkInstallerRequest struct {
+	Kind         string `url:"kind"`
+	Desktop      bool   `query:"desktop,optional"`
+	EnrollSecret string `query:"enroll_secret"`
+}
+
+type checkInstallerResponse struct {
+	Err error `json:"error,omitempty"`
+}
+
+func (r checkInstallerResponse) error() error { return r.Err }
+
+func checkInstallerEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
+	req := request.(*checkInstallerRequest)
+
+	err := svc.CheckInstallerExistence(ctx, fleet.Installer{
+		EnrollSecret: req.EnrollSecret,
+		Kind:         req.Kind,
+		Desktop:      req.Desktop,
+	})
+
+	if err != nil {
+		return checkInstallerResponse{Err: err}, nil
+	}
+
+	return checkInstallerResponse{}, nil
+}
+
+// CheckInstallerExistence checks if an installer exists in the configured storage
+func (svc *Service) CheckInstallerExistence(ctx context.Context, installer fleet.Installer) error {
+	if err := svc.authz.Authorize(ctx, &fleet.EnrollSecret{}, fleet.ActionRead); err != nil {
+		return err
+	}
+
+	if !svc.SandboxEnabled() {
+		return errors.New("this endpoint only enabled in demo mode")
+	}
+
+	if svc.installerStore == nil {
+		return ctxerr.New(ctx, "installer storage has not been configured")
+	}
+
+	_, err := svc.ds.VerifyEnrollSecret(ctx, installer.EnrollSecret)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "cannot find a matching enroll secret")
+	}
+
+	exists, err := svc.installerStore.Exists(ctx, installer)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "checking installer existence")
+	}
+
+	if !exists {
+		return notFoundError{}
+	}
+
+	return nil
+}

@@ -6,6 +6,7 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"os"
 	"testing"
 
 	"github.com/fleetdm/fleet/v4/server/config"
@@ -99,6 +100,33 @@ func (s *integrationSandboxTestSuite) TestInstallerGet() {
 	wrongURL, wrongFormBody = installerReq("wrong-enroll", "exe", s.token, "false")
 	s.Do("GET", wrongURL, wrongFormBody, http.StatusInternalServerError)
 	s.Do("GET", wrongURL, wrongFormBody, http.StatusNotFound)
+}
+
+func (s *integrationSandboxTestSuite) TestInstallerHeadCheck() {
+	// make sure FLEET_DEMO is not set
+	os.Unsetenv("FLEET_DEMO")
+	validURL := fmt.Sprintf("/api/latest/fleet/download_installer/%s/%s", enrollSecret, "pkg")
+	s.Do("HEAD", validURL, nil, http.StatusInternalServerError)
+
+	os.Setenv("FLEET_DEMO", "1")
+	defer os.Unsetenv("FLEET_DEMO")
+
+	// works when FLEET_DEMO is set
+	s.Do("HEAD", validURL, nil, http.StatusOK)
+
+	// unauthorized requests
+	s.DoRawNoAuth("GET", validURL, nil, http.StatusUnauthorized)
+	s.token = "invalid"
+	s.Do("GET", validURL, nil, http.StatusUnauthorized)
+	s.token = s.cachedAdminToken
+
+	// wrong enroll secret
+	invalidURL := fmt.Sprintf("/api/latest/fleet/download_installer/%s/%s", "wrong-enroll", "pkg")
+	s.Do("HEAD", invalidURL, nil, http.StatusInternalServerError)
+
+	// non-existent package
+	invalidURL = fmt.Sprintf("/api/latest/fleet/download_installer/%s/%s", enrollSecret, "exe")
+	s.Do("HEAD", invalidURL, nil, http.StatusNotFound)
 }
 
 func installerReq(secret, kind, token, desktop string) (string, []byte) {
