@@ -47,9 +47,8 @@ export const AuthenticatedRoutes = ({
   useDeepEffect(() => {
     // this works with App.tsx. if authToken does
     // exist, user state is checked and fetched if null
-
     if (!authToken()) {
-      if (window.location.pathname.includes("sandbox")) {
+      if (window.location.hostname.includes("sandbox")) {
         return redirectToSandboxLogin();
       }
 
