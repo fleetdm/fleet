@@ -477,7 +477,7 @@ const ManagePolicyPage = ({
                 <PoliciesTable
                   isLoading={isFetchingGlobalPolicies}
                   policiesList={globalPolicies || []}
-                  onDeletePoliciesClick={noop}
+                  onDeletePolicyClick={noop}
                   canAddOrDeletePolicy={canAddOrDeletePolicy}
                   tableType="inheritedPolicies"
                   currentTeam={currentTeam}
