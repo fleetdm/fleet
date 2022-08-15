@@ -1399,6 +1399,56 @@ func (ds *Datastore) SetOrUpdateMunkiInfo(ctx context.Context, hostID uint, vers
 	)
 }
 
+func (ds *Datastore) getOrInsertMunkiIssues(ctx context.Context, errors, warnings []string, batchSize int) (ids []uint, err error) {
+	strToID := make(map[string]uint, len(errors)+len(warnings))
+	for _, e := range errors {
+		strToID[e] = 0
+	}
+	for _, w := range warnings {
+		strToID[w] = 0
+	}
+	uniqueStrs := make([]string, 0, len(strToID))
+	for k := range strToID {
+		uniqueStrs = append(uniqueStrs, k)
+	}
+
+	type munkiIssue struct {
+		ID   uint   `db:"id"`
+		Name string `db:"name"`
+	}
+
+	// get the IDs from existing munki issues (from the read replica)
+	const readStmt = `SELECT id, name FROM munki_issues WHERE name IN (?)`
+	for len(uniqueStrs) > 0 {
+		batch := uniqueStrs
+		if len(batch) > batchSize {
+			batch = uniqueStrs[:batchSize]
+			uniqueStrs = uniqueStrs[batchSize:]
+		}
+
+		var issues []*munkiIssue
+		stmt, args, err := sqlx.In(readStmt, batch)
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "generate munki issues read batch statement")
+		}
+		if err := sqlx.SelectContext(ctx, ds.reader, &issues, stmt, args...); err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "read munki issues batch")
+		}
+
+		for _, issue := range issues {
+			strToID[issue.Name] = issue.ID
+		}
+	}
+
+	// create any missing munki issues (using the primary)
+	var missing []string
+	for str, id := range strToID {
+		if id == 0 {
+			missing = append(missing, str)
+		}
+	}
+}
+
 func (ds *Datastore) SetOrUpdateMDMData(ctx context.Context, hostID uint, enrolled bool, serverURL string, installedFromDep bool) error {
 	mdmID, err := ds.getOrInsertMDMSolution(ctx, serverURL)
 	if err != nil {
