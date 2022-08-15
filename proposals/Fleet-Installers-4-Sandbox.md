@@ -5,7 +5,7 @@
 1. Improve UX on Fleet Sandbox by offering pre-packaged Fleet-osquery installers.
 2. Add the "Pre-Packaged installers" feature to "Fleet Sandbox" as soon as possible (i.e. not block on having a fully functional "Fleet Packager" service).
 
-## Fleet sandbox Assumptions
+## Fleet Sandbox Assumptions
 
 - We will limit number of teams to T.
 - Sandbox has good root CA trusted certificates
