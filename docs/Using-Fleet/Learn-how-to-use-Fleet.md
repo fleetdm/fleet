@@ -51,6 +51,6 @@ When the query has finished, you should see several columns in the "Results" tab
 
 - The "name" column answers: "What operating system is installed on my device?" 
 
-- The "version" column answers: what version of the installed operating system is on my device?"
+- The "version" column answers: "What version of the installed operating system is on my device?"
 
 <meta name="pageOrderInSection" value="100">
