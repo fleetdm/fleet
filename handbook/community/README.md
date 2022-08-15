@@ -414,13 +414,19 @@ We want to recognize and congratulate community members for their contributions 
 
 ### How to order swag
 
-1. Reach out to the contributor to thank them for their contribution and ask if they would like any swag.
+We currently deliver Fleet swag and osquery stickers for those that request it through community contributions, [Fleet documentation](https://fleetdm.com/docs), and social media posts.
 
-2. Fill out our [swag request sheet](https://docs.google.com/spreadsheets/d/1bySsYVYHY8EjxWhhAKMLVAPLNjg3IYVNpyg50clfB6I/edit?usp=sharing).
+Our Typeform integrations automatically populate information within the #help-swag Slack channel for osquery sticker and shirt requests through TypeForm.
 
-3. Once approved, place the order through our Printful account (credentials in 1Password).
+For community contributions, reach out to the contributor to thank them for their contribution, ask if they would like any swag, and fill out their information in the [Fleet swag request sheet](https://docs.google.com/spreadsheets/d/1bySsYVYHY8EjxWhhAKMLVAPLNjg3IYVNpyg50clfB6I/edit#gid=2028707729).
 
-4. If available through the ordering process, add a thank you note for their contribution and "Feel free to tag us on Twitter."
+Once approved in the sheet, or submitted through [Typeform](https://admin.typeform.com/form/ZfA3sOu0/results#responses), place the order through our Printful account (credentials in 1Password) within 48 hours of submission. If available through the ordering process, add a thank you note for their contribution or request. 
+
+When an estimated shipping date is available, notify the requestor by email with an update on shipping, thank them for being a part of the community, and provide the tracking number once shipped. 
+
+Printful order information can be found on [Printful](https://www.printful.com/dashboard/default/orders) or billing@fleetdm.com.
+
+At this time, double-check that information within Salesforce and Typeform is accurate according to the [enrichment process.](https://docs.google.com/document/d/1zOv39O989bPRNTIcLNNE4ESUI5Ry2XII3XuRpJqNN7g/edit?usp=sharing)
 
 ## Rituals
 
