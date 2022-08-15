@@ -83,7 +83,6 @@ const DownloadInstallers = ({
       // do nothing
       return;
     }
-    console.log(event);
     event.preventDefault();
     event.persist();
 
@@ -102,7 +101,6 @@ const DownloadInstallers = ({
         setIsDownloadSuccess(true);
       });
     } catch (error) {
-      console.log(error);
       setIsDownloadError(true);
     } finally {
       setIsDownloading(false);
