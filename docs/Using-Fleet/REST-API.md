@@ -1740,7 +1740,7 @@ If `additional_info_filters` is not specified, no `additional` information will 
 
 If `software_id` is specified, an additional top-level key `"software"` is returned with the software object corresponding to the `software_id`. See [List all software](#list-all-software) response payload for details about this object.
 
-If `mdm_id` is specified, an additional top-level key `"mobile_device_management_solution"` is returned with the aggregated statistics corresponding to the `mdm_id`. See [Get aggregated host's mobile device management (MDM) and Munki information](#get-aggregated-hosts-mobile-device-management-mdm-and-munki-information) response payload for details about this object.
+If `mdm_id` is specified, an additional top-level key `"mobile_device_management_solution"` is returned with the aggregated statistics corresponding to the `mdm_id` (and, if provided, `team_id`). See [Get aggregated host's mobile device management (MDM) and Munki information](#get-aggregated-hosts-mobile-device-management-mdm-and-munki-information) response payload for details about this object. Note that the statistics are for the corresponding `mdm_id` (and `team_id` if provided) only, and do not take into account other potential filters such as `mdm_enrollment_status`.
 
 #### Example
 
