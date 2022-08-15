@@ -35,6 +35,20 @@ func Up_20220810161445(tx *sql.Tx) error {
 	}
 	logger.Info.Println("Done creating table munki_issues...")
 
+	logger.Info.Println("Creating table host_munki_issues...")
+	_, err = tx.Exec(`
+		CREATE TABLE IF NOT EXISTS host_munki_issues (
+			host_id        INT(10) UNSIGNED NOT NULL,
+			munki_issue_id INT(10) UNSIGNED NOT NULL,
+		  created_at     TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+			PRIMARY KEY (host_id, munki_issue_id)
+		)`)
+	if err != nil {
+		return errors.Wrap(err, "create host_munki_issues table")
+	}
+	logger.Info.Println("Done creating table host_munki_issues...")
+
 	return nil
 }
 

@@ -195,6 +195,15 @@ CREATE TABLE `host_munki_info` (
 /*!40101 SET character_set_client = @saved_cs_client */;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!40101 SET character_set_client = utf8 */;
+CREATE TABLE `host_munki_issues` (
+  `host_id` int(10) unsigned NOT NULL,
+  `munki_issue_id` int(10) unsigned NOT NULL,
+  `created_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`host_id`,`munki_issue_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!40101 SET character_set_client = utf8 */;
 CREATE TABLE `host_operating_system` (
   `host_id` int(10) unsigned NOT NULL,
   `os_id` int(10) unsigned NOT NULL,

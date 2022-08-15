@@ -4434,6 +4434,12 @@ func testHostsDeleteHosts(t *testing.T, ds *Datastore) {
 	err = ds.UpdateHostOperatingSystem(context.Background(), host.ID, fleet.OperatingSystem{Name: "foo", Version: "bar"})
 	require.NoError(t, err)
 
+	// TODO(mna): replace this with a call to set or update munki issues once implemented.
+	ExecAdhocSQL(t, ds, func(tx sqlx.ExtContext) error {
+		_, err := tx.ExecContext(context.Background(), `INSERT INTO host_munki_issues (host_id, munki_issue_id) VALUES (?, 1)`, host.ID)
+		return err
+	})
+
 	// Check there's an entry for the host in all the associated tables.
 	for _, hostRef := range hostRefs {
 		var ok bool
