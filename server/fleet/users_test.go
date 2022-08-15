@@ -200,6 +200,31 @@ func TestInviteCreateValidate(t *testing.T) {
 	}
 }
 
+func TestValidateEmailError(t *testing.T) {
+	errCases := []string{
+		"invalid",
+		"Name Surname <test@example.com>",
+		"test.com",
+		"",
+	}
+
+	for _, c := range errCases {
+		require.Error(t, ValidateEmail(c))
+	}
+}
+
+func TestValidateEmail(t *testing.T) {
+	cases := []string{
+		"user@example.com",
+		"user@example.localhost",
+		"user+1@example.com",
+	}
+
+	for _, c := range cases {
+		require.NoError(t, ValidateEmail(c))
+	}
+}
+
 func assertContainsErrorName(t *testing.T, invalid InvalidArgumentError, name string) {
 	for _, argErr := range invalid {
 		if argErr.name == name {
