@@ -272,14 +272,6 @@ spec:
         - 3
       host_batch_size: 0
     interval: 1m0s
-  sso_settings:
-    enable_sso: false
-    entity_id: 1234567890
-    idp_image_url: https://idp.example.org/logo.png
-    idp_name: IDP Vendor 1
-    issuer_uri: https://idp.example.org/SAML2/SSO/POST
-    metadata: "<md:EntityDescriptor entityID="https://idp.example.org/SAML2"> ... /md:EntityDescriptor>"
-    metadata_url: https://idp.example.org/idp-meta.xml
 ```
 
 #### Agent options
