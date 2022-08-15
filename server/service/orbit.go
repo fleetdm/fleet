@@ -3,7 +3,9 @@ package service
 import (
 	"context"
 	"github.com/fleetdm/fleet/v4/server"
+	"github.com/fleetdm/fleet/v4/server/contexts/logging"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/go-kit/kit/log/level"
 )
 
 type orbitError struct {
@@ -13,6 +15,10 @@ type orbitError struct {
 
 func (e orbitError) Error() string {
 	return e.message
+}
+
+func (e orbitError) NodeInvalid() bool {
+	return e.nodeInvalid
 }
 
 type enrollOrbitRequest struct {
@@ -26,6 +32,8 @@ type enrollOrbitResponse struct {
 	Err          error  `json:"error,omitempty"`
 }
 
+func (r enrollOrbitResponse) error() error { return r.Err }
+
 func enrollOrbitEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
 	req := request.(*enrollOrbitRequest)
 	nodeKey, err := svc.EnrollOrbit(ctx, req.HardwareUUID, req.EnrollSecret)
@@ -35,20 +43,23 @@ func enrollOrbitEndpoint(ctx context.Context, request interface{}, svc fleet.Ser
 	return enrollOrbitResponse{OrbitNodeKey: nodeKey}, nil
 }
 
-// return a nodeKey, error on successful enroll
+// return a nodeKey on successful enroll
 func (svc *Service) EnrollOrbit(ctx context.Context, hardwareUUID string, enrollSecret string) (string, error) {
 	// this is not a user-authenticated endpoint
 	svc.authz.SkipAuthorization(ctx)
+	logging.WithExtras(ctx, "hardware_uuid", hardwareUUID)
+	level.Debug(svc.logger).Log("background", "before verify secret")
 
 	secret, err := svc.ds.VerifyEnrollSecret(ctx, enrollSecret)
-	_ = secret
 	if err != nil {
 		return "", orbitError{
 			message:     "orbit enroll failed: " + err.Error(),
 			nodeInvalid: true,
 		}
 	}
+	_ = secret
 
+	level.Debug(svc.logger).Log("background", "after verify secret")
 	orbitNodeKey, err := server.GenerateRandomText(svc.config.Osquery.NodeKeySize)
 	if err != nil {
 		return "", orbitError{
@@ -56,11 +67,6 @@ func (svc *Service) EnrollOrbit(ctx context.Context, hardwareUUID string, enroll
 			nodeInvalid: true,
 		}
 	}
-
-	// now we have the orbitNodeKey
-	// check if hardwareUUID exists in `hosts` table
-	// select uuid from hosts
-	// if uuid == hardwareUUID
 
 	host, err := svc.ds.EnrollOrbit(ctx, hardwareUUID, orbitNodeKey)
 	if err != nil {
@@ -71,18 +77,7 @@ func (svc *Service) EnrollOrbit(ctx context.Context, hardwareUUID string, enroll
 	}
 	_ = host
 
-	//host, err := svc.ds.HostByIdentifier(ctx, hardwareUUID)
-	//if err != nil {
-	//	return "", orbitError{
-	//		message:     "failed to generate orbit node key: " + err.Error(),
-	//		nodeInvalid: true,
-	//	}
-	//}
-	//
-	//// extra sure that it's the same one
-	//if host.UUID != hardwareUUID {
-	//	return "", nil
-	//}
+	level.Debug(svc.logger).Log("background", "after enroll")
 
 	return orbitNodeKey, nil
 }

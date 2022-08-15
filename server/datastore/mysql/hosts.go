@@ -745,12 +745,13 @@ func (ds *Datastore) EnrollOrbit(ctx context.Context, hardwareUUID string, orbit
 	var host fleet.Host
 	err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
 		var hostID int64
+		
 		err := sqlx.GetContext(ctx, tx, &host, `SELECT id FROM hosts WHERE uuid = ?`, hardwareUUID)
 		switch {
 		case err != nil && !errors.Is(err, sql.ErrNoRows):
 			return ctxerr.Wrap(ctx, err, "some error")
 		case errors.Is(err, sql.ErrNoRows):
-			sqlInsert := `INSERT INTO hosts (uuid, orbit_node_key) VALUES (?)`
+			sqlInsert := `INSERT INTO hosts (uuid, orbit_node_key) VALUES (?, ?)`
 			result, err := tx.ExecContext(ctx, sqlInsert, hardwareUUID, orbitNodeKey)
 			if err != nil {
 				return ctxerr.Wrap(ctx, err, "orbit enroll insert host")
