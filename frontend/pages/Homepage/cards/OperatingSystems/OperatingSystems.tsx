@@ -80,8 +80,6 @@ const OperatingSystems = ({
       enabled: OS_VERSIONS_API_SUPPORTED_PLATFORMS.includes(selectedPlatform),
       staleTime: 10000,
       keepPreviousData: true,
-      refetchOnReconnect: false,
-      refetchOnWindowFocus: false,
     }
   );
 
