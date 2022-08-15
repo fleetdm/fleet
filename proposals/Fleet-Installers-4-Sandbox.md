@@ -1,4 +1,4 @@
-# Fleet sandbox & Pre-Packaged Fleet-osquery Installers
+# Fleet Sandbox & Pre-Packaged Fleet-osquery Installers
 
 ## Goals
 
