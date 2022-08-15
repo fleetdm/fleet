@@ -54,6 +54,7 @@ variable "installer_bucket_arn" {}
 variable "oidc_provider_arn" {}
 variable "oidc_provider" {}
 variable "kms_key_arn" {}
+variable "ecr_url" {}
 
 resource "mysql_user" "main" {
   user               = terraform.workspace
@@ -157,6 +158,11 @@ resource "helm_release" "main" {
   set {
     name  = "imageTag"
     value = "main"
+  }
+
+  set {
+    name  = "imageRepo"
+    value = var.ecr_url
   }
 
   set {

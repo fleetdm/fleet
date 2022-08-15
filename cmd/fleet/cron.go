@@ -264,7 +264,7 @@ func checkOvalVulnerabilities(
 	var results []fleet.SoftwareVulnerability
 
 	// Get Platforms
-	versions, err := ds.OSVersions(ctx, nil, nil)
+	versions, err := ds.OSVersions(ctx, nil, nil, nil)
 	if err != nil {
 		errHandler(ctx, logger, "updating oval definitions", err)
 		return nil
@@ -664,6 +664,12 @@ func startCleanupsAndAggregationSchedule(
 			"sync_enrolled_host_ids",
 			func(ctx context.Context) error {
 				return enrollHostLimiter.SyncEnrolledHostIDs(ctx)
+			},
+		),
+		schedule.WithJob(
+			"cleanup_host_operating_systems",
+			func(ctx context.Context) error {
+				return ds.CleanupHostOperatingSystems(ctx)
 			},
 		),
 		// Run aggregation jobs after cleanups.

@@ -87,7 +87,8 @@ module "aws-eks-accelerator-for-terraform" {
 
   fargate_profiles = {
     default = {
-      fargate_profile_name = "default"
+      additional_iam_policies = [aws_iam_policy.ecr.arn]
+      fargate_profile_name    = "default"
       fargate_profile_namespaces = [
         {
           namespace = "default"
@@ -167,6 +168,11 @@ resource "helm_release" "haproxy_ingress" {
     name  = "controller.service.type"
     value = "NodePort"
   }
+
+  set {
+    name  = "controller.defaultBackendService"
+    value = "kube-system/default-redirect"
+  }
 }
 
 resource "aws_lb_target_group" "eks" {
@@ -175,7 +181,7 @@ resource "aws_lb_target_group" "eks" {
   protocol = "HTTP"
   vpc_id   = var.vpc.vpc_id
   health_check {
-    matcher = "404"
+    matcher = "302"
   }
 }
 
@@ -208,4 +214,178 @@ resource "kubernetes_manifest" "targetgroupbinding" {
       }
     }
   }
+}
+
+resource "kubernetes_service" "redirect" {
+  metadata {
+    name      = "default-redirect"
+    namespace = "kube-system"
+  }
+
+  spec {
+    selector = {
+      app = kubernetes_deployment.redirect.metadata.0.labels.app
+    }
+    port {
+      port = 80
+      name = "http"
+    }
+  }
+}
+
+resource "kubernetes_deployment" "redirect" {
+  metadata {
+    name      = "default-redirect"
+    namespace = "kube-system"
+    labels = {
+      app = "default-redirect"
+    }
+  }
+
+  spec {
+    replicas = 1
+
+    selector {
+      match_labels = {
+        app = "default-redirect"
+      }
+    }
+
+    template {
+      metadata {
+        labels = {
+          app = "default-redirect"
+        }
+      }
+
+      spec {
+        container {
+          image = "nginx:1.23.1"
+          name  = "nginx"
+
+          port {
+            name           = "http"
+            container_port = 80
+          }
+
+          resources {
+            limits = {
+              cpu    = "0.5"
+              memory = "512Mi"
+            }
+            requests = {
+              cpu    = "250m"
+              memory = "50Mi"
+            }
+          }
+
+          volume_mount {
+            mount_path = "/etc/nginx"
+            read_only  = true
+            name       = "nginx-conf"
+          }
+        }
+        volume {
+          name = "nginx-conf"
+          config_map {
+            name = "default-redirect-config"
+            items {
+              key  = "nginx.conf"
+              path = "nginx.conf"
+            }
+          }
+        }
+      }
+    }
+  }
+}
+
+resource "kubernetes_config_map" "redirect" {
+  metadata {
+    name      = "default-redirect-config"
+    namespace = "kube-system"
+  }
+
+  data = {
+    "nginx.conf" = <<-EOT
+    user nginx;
+    worker_processes 1;
+    error_log  /dev/stderr;
+    events {
+      worker_connections  10240;
+    }
+    http {
+      log_format  main
+              'remote_addr:$remote_addr\t'
+              'time_local:$time_local\t'
+              'method:$request_method\t'
+              'uri:$request_uri\t'
+              'host:$host\t'
+              'status:$status\t'
+              'bytes_sent:$body_bytes_sent\t'
+              'referer:$http_referer\t'
+              'useragent:$http_user_agent\t'
+              'forwardedfor:$http_x_forwarded_for\t'
+              'request_time:$request_time';
+      access_log	/dev/stderr main;
+      server {
+          listen       80;
+          server_name  _;
+          location / {
+            return 302 https://fleetdm.com/try-fleet/sandbox-expired;
+          }
+      }
+    }
+    EOT
+  }
+}
+
+resource "aws_iam_policy" "ecr" {
+  name   = "${var.prefix}-ecr"
+  policy = data.aws_iam_policy_document.ecr.json
+}
+
+data "aws_iam_policy_document" "ecr" {
+  statement {
+    actions = [
+      "ecr:BatchCheckLayerAvailability",
+      "ecr:BatchGetImage",
+      "ecr:GetDownloadUrlForLayer",
+      "ecr:GetAuthorizationToken"
+    ]
+    resources = ["*"]
+  }
+  statement {
+    actions = [ #tfsec:ignore:aws-iam-no-policy-wildcards
+      "kms:Encrypt*",
+      "kms:Decrypt*",
+      "kms:ReEncrypt*",
+      "kms:GenerateDataKey*",
+      "kms:Describe*"
+    ]
+    resources = [aws_kms_key.ecr.arn]
+  }
+}
+
+resource "aws_ecr_repository" "main" {
+  name                 = "${var.prefix}-eks"
+  image_tag_mutability = "MUTABLE"
+
+  image_scanning_configuration {
+    scan_on_push = true
+  }
+
+  encryption_configuration {
+    encryption_type = "KMS"
+    kms_key         = aws_kms_key.ecr.arn
+  }
+}
+
+output "ecr" {
+  value = aws_ecr_repository.main
+}
+
+resource "aws_kms_key" "ecr" {
+  deletion_window_in_days = 10
+  enable_key_rotation     = true
 }

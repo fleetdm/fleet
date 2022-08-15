@@ -58,6 +58,9 @@ type Service interface {
 	// User returns a valid User given a User ID.
 	User(ctx context.Context, id uint) (user *User, err error)
 
+	// NewUser creates a new user with the given payload
+	NewUser(ctx context.Context, p UserPayload) (*User, error)
+
 	// UserUnauthorized returns a valid User given a User ID, *skipping authorization checks*
 	// This method should only be used in middleware where there is not yet a viewer context and we need to load up a
 	// user to create that context.
@@ -107,10 +110,14 @@ type Service interface {
 	// prompted to log in.
 	InitiateSSO(ctx context.Context, redirectURL string) (string, error)
 
-	// CallbackSSO handles the IDP response. The original URL the viewer attempted to access is returned from this
-	// function, so we can redirect back to the front end and load the page the viewer originally attempted to access
-	// when prompted for login.
-	CallbackSSO(ctx context.Context, auth Auth) (*SSOSession, error)
+	// InitSSOCallback handles the IDP response and ensures the credentials
+	// are valid
+	InitSSOCallback(ctx context.Context, auth Auth) (string, error)
+	// GetSSOUser handles retrieval of an user that is trying to authenticate
+	// via SSO
+	GetSSOUser(ctx context.Context, auth Auth) (*User, error)
+	// LoginSSOUser logs-in the given SSO user
+	LoginSSOUser(ctx context.Context, user *User, redirectURL string) (*SSOSession, error)
 
 	// SSOSettings returns non-sensitive single sign on information used before authentication
 	SSOSettings(ctx context.Context) (*SessionSSOSettings, error)
@@ -277,8 +284,11 @@ type Service interface {
 
 	MacadminsData(ctx context.Context, id uint) (*MacadminsData, error)
 	AggregatedMacadminsData(ctx context.Context, teamID *uint) (*AggregatedMacadminsData, error)
+	AggregatedMDMSolutions(ctx context.Context, teamID *uint, mdmID uint) (*AggregatedMDMSolutions, error)
 
-	OSVersions(ctx context.Context, teamID *uint, platform *string) (*OSVersions, error)
+	// OSVersions returns a list of operating systems and associated host counts, which may be
+	// filtered using the following optional criteria: team id, platform, or operating system id
+	OSVersions(ctx context.Context, teamID *uint, platform *string, osID *uint) (*OSVersions, error)
 
 	///////////////////////////////////////////////////////////////////////////////
 	// AppConfigService provides methods for configuring  the Fleet application
