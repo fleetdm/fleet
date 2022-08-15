@@ -41,7 +41,7 @@ To run this query on your device:
 1. Select **Queries** in the top navigation.
 2. Enter "Get operating system information" in the search bar.
 3. Select **Get operating system information** to enter the **query console**.
-4. Select **Run query**, and then select **All hosts** (your device may be the only host added to Fleet), and finally select **Run** to execute the query.
+4. Select **Run query**, then select **All hosts** (your device may be the only host added to Fleet), and finally select **Run** to execute the query.
 
 The query may take several seconds to complete, because Fleet has to wait for the osquery agents to respond with results.
 
