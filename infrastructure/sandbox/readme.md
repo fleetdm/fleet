@@ -31,11 +31,3 @@ for i in $((aws dynamodb scan --table-name sandbox-prod-lifecycle | jq -r '.Item
 ```bash
 for i in $(aws dynamodb scan --table-name sandbox-prod-lifecycle | jq -r '.Items[] | select(.State.S == "provisioned") | .ID.S'); do helm uninstall $i; aws dynamodb delete-item --table-name sandbox-prod-lifecycle --key "{\"ID\": {\"S\": \"${i}\"}}"; done
 ```
-
-### TODOs
-1. JITProvisioner needs to return proper errors
-1. Create and use a different kms key for installers
-1. Sane scale levels for prod
-1. Allow for parallel spinup of sandbox instances (preprovisioner)
-1. https://redis.io/commands/flushdb/ during the teardown process
-1. name state machines something random and track the new name in dynamodb

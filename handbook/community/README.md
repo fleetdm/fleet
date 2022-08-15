@@ -244,6 +244,31 @@ The images used in the docs live in `docs/images/`. Note that you must provide t
 
 > Note that the instructions above also apply to adding images in the Fleet handbook.
 
+### Adding a video to the Fleet docs
+
+You can embed a video at the top of a doc page. The video must be uploaded to YouTube first. Using the standard YouTube embed code causes issues on mobile. So, we wrote our own code to make sure the video fits every screen size.
+
+Copy and paste this code where you want to embed the video in the doc.
+
+```
+<div purpose=”embedded-content”>
+	<iframe class="video" src="YOUTUBE EMBED URL GOES HERE" allowfullscreen></iframe>
+</div>
+```
+
+You’ll notice a section to enter the YouTube embed URL. Here’s how to find it:
+
+1. Open the YouTube video in your browser.
+2. Click **Share** (located below the title).
+3. Select the **Embed** option.
+4. Copy the URL from the embed code.
+
+You’ll know you have the right URL if you see “embed” after the domain.
+
+Paste the YouTube embed URL in the code we provided.
+
+![How to find YouTube video embed URL](https://raw.githubusercontent.com/fleetdm/fleet/1fec06c689c45e65cbb4d71db946690bbdc78cbb/website/assets/images/handbook-video-embed-guide-1280x720.gif)
+
 ### Adding a mermaid diagram to the Fleet Docs
 
 The Fleet Docs support diagrams that are written in mermaid.js syntax. Take a look at the [Mermaid docs](https://mermaid-js.github.io/mermaid/#/README) to learn about the syntax language and what types of diagrams you can display.
@@ -389,13 +414,19 @@ We want to recognize and congratulate community members for their contributions 
 
 ### How to order swag
 
-1. Reach out to the contributor to thank them for their contribution and ask if they would like any swag.
+We currently deliver Fleet swag and osquery stickers for those that request it through community contributions, [Fleet documentation](https://fleetdm.com/docs), and social media posts.
 
-2. Fill out our [swag request sheet](https://docs.google.com/spreadsheets/d/1bySsYVYHY8EjxWhhAKMLVAPLNjg3IYVNpyg50clfB6I/edit?usp=sharing).
+Our Typeform integrations automatically populate information within the #help-swag Slack channel for osquery sticker and shirt requests through TypeForm.
 
-3. Once approved, place the order through our Printful account (credentials in 1Password).
+For community contributions, reach out to the contributor to thank them for their contribution, ask if they would like any swag, and fill out their information in the [Fleet swag request sheet](https://docs.google.com/spreadsheets/d/1bySsYVYHY8EjxWhhAKMLVAPLNjg3IYVNpyg50clfB6I/edit#gid=2028707729).
 
-4. If available through the ordering process, add a thank you note for their contribution and "Feel free to tag us on Twitter."
+Once approved in the sheet, or submitted through [Typeform](https://admin.typeform.com/form/ZfA3sOu0/results#responses), place the order through our Printful account (credentials in 1Password) within 48 hours of submission. If available through the ordering process, add a thank you note for their contribution or request. 
+
+When an estimated shipping date is available, notify the requestor by email with an update on shipping, thank them for being a part of the community, and provide the tracking number once shipped. 
+
+Printful order information can be found on [Printful](https://www.printful.com/dashboard/default/orders) or billing@fleetdm.com.
+
+At this time, double-check that information within Salesforce and Typeform is accurate according to the [enrichment process.](https://docs.google.com/document/d/1zOv39O989bPRNTIcLNNE4ESUI5Ry2XII3XuRpJqNN7g/edit?usp=sharing)
 
 ## Rituals
 

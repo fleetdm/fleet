@@ -69,7 +69,11 @@ type listHostsRequest struct {
 type listHostsResponse struct {
 	Hosts    []HostResponse  `json:"hosts"`
 	Software *fleet.Software `json:"software,omitempty"`
-	Err      error           `json:"error,omitempty"`
+	// MDMSolution is populated with the MDM solution corresponding to the mdm_id
+	// filter if one is provided with the request (and it exists in the
+	// database). It is nil otherwise and absent of the JSON response payload.
+	MDMSolution *fleet.AggregatedMDMSolutions `json:"mobile_device_management_solution,omitempty"`
+	Err         error                         `json:"error,omitempty"`
 }
 
 func (r listHostsResponse) error() error { return r.Err }
@@ -81,6 +85,15 @@ func listHostsEndpoint(ctx context.Context, request interface{}, svc fleet.Servi
 	if req.Opts.SoftwareIDFilter != nil {
 		var err error
 		software, err = svc.SoftwareByID(ctx, *req.Opts.SoftwareIDFilter, false)
+		if err != nil {
+			return listHostsResponse{Err: err}, nil
+		}
+	}
+
+	var mdmSolution *fleet.AggregatedMDMSolutions
+	if req.Opts.MDMIDFilter != nil {
+		var err error
+		mdmSolution, err = svc.AggregatedMDMSolutions(ctx, req.Opts.TeamFilter, *req.Opts.MDMIDFilter)
 		if err != nil {
 			return listHostsResponse{Err: err}, nil
 		}
@@ -100,7 +113,39 @@ func listHostsEndpoint(ctx context.Context, request interface{}, svc fleet.Servi
 
 		hostResponses[i] = *h
 	}
-	return listHostsResponse{Hosts: hostResponses, Software: software}, nil
+	return listHostsResponse{Hosts: hostResponses, Software: software, MDMSolution: mdmSolution}, nil
+}
+
+func (svc *Service) AggregatedMDMSolutions(ctx context.Context, teamID *uint, mdmID uint) (*fleet.AggregatedMDMSolutions, error) {
+	if err := svc.authz.Authorize(ctx, &fleet.Host{TeamID: teamID}, fleet.ActionList); err != nil {
+		return nil, err
+	}
+
+	if teamID != nil {
+		_, err := svc.ds.Team(ctx, *teamID)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	// it is expected that there will be relatively few MDM solutions. This
+	// returns the slice of all aggregated stats (one entry per mdm_id), and we
+	// then iterate to return only the one that was requested (the slice is
+	// stored as-is in a JSON field in the database).
+	sols, _, err := svc.ds.AggregatedMDMSolutions(ctx, teamID)
+	if err != nil {
+		return nil, err
+	}
+
+	for _, sol := range sols {
+		// don't take the address of the loop variable (although it could be ok
+		// here, but just bad practice)
+		sol := sol
+		if sol.ID == mdmID {
+			return &sol, nil
+		}
+	}
+	return nil, nil
 }
 
 func (svc *Service) ListHosts(ctx context.Context, opt fleet.HostListOptions) ([]*fleet.Host, error) {
@@ -1146,8 +1191,9 @@ func hostsReportEndpoint(ctx context.Context, request interface{}, svc fleet.Ser
 }
 
 type osVersionsRequest struct {
-	TeamID   *uint   `query:"team_id,optional"`
-	Platform *string `query:"platform,optional"`
+	TeamID            *uint   `query:"team_id,optional"`
+	Platform          *string `query:"platform,optional"`
+	OperatingSystemID *uint   `query:"operating_system_id,optional"`
 }
 
 type osVersionsResponse struct {
@@ -1161,7 +1207,7 @@ func (r osVersionsResponse) error() error { return r.Err }
 func osVersionsEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
 	req := request.(*osVersionsRequest)
 
-	osVersions, err := svc.OSVersions(ctx, req.TeamID, req.Platform)
+	osVersions, err := svc.OSVersions(ctx, req.TeamID, req.Platform, req.OperatingSystemID)
 	if err != nil {
 		return &osVersionsResponse{Err: err}, nil
 	}
@@ -1172,12 +1218,12 @@ func osVersionsEndpoint(ctx context.Context, request interface{}, svc fleet.Serv
 	}, nil
 }
 
-func (svc *Service) OSVersions(ctx context.Context, teamID *uint, platform *string) (*fleet.OSVersions, error) {
+func (svc *Service) OSVersions(ctx context.Context, teamID *uint, platform *string, osID *uint) (*fleet.OSVersions, error) {
 	if err := svc.authz.Authorize(ctx, &fleet.Host{TeamID: teamID}, fleet.ActionList); err != nil {
 		return nil, err
 	}
 
-	osVersions, err := svc.ds.OSVersions(ctx, teamID, platform)
+	osVersions, err := svc.ds.OSVersions(ctx, teamID, platform, osID)
 	if err != nil && fleet.IsNotFound(err) {
 		// differentiate case where team was added after UpdateOSVersions last ran
 		if teamID != nil {

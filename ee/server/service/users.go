@@ -18,8 +18,8 @@ func (svc *Service) GetSSOUser(ctx context.Context, auth fleet.Auth) (*fleet.Use
 		return nil, ctxerr.Wrap(ctx, err, "getting app config")
 	}
 
-	if auth.UserID() == "" {
-		return nil, ctxerr.New(ctx, "missing user identifier in SSO response")
+	if err := fleet.ValidateEmail(auth.UserID()); err != nil {
+		return nil, ctxerr.New(ctx, "validating SSO response")
 	}
 
 	user, err := svc.Service.GetSSOUser(ctx, auth)
@@ -35,8 +35,13 @@ func (svc *Service) GetSSOUser(ctx context.Context, auth fleet.Auth) (*fleet.Use
 		return nil, err
 	}
 
+	displayName := auth.UserDisplayName()
+	if displayName == "" {
+		displayName = auth.UserID()
+	}
+
 	user, err = svc.Service.NewUser(ctx, fleet.UserPayload{
-		Name:       ptr.String(auth.UserDisplayName()),
+		Name:       &displayName,
 		Email:      ptr.String(auth.UserID()),
 		SSOEnabled: ptr.Bool(true),
 		GlobalRole: ptr.String(fleet.RoleObserver),

@@ -284,8 +284,11 @@ type Service interface {
 
 	MacadminsData(ctx context.Context, id uint) (*MacadminsData, error)
 	AggregatedMacadminsData(ctx context.Context, teamID *uint) (*AggregatedMacadminsData, error)
+	AggregatedMDMSolutions(ctx context.Context, teamID *uint, mdmID uint) (*AggregatedMDMSolutions, error)
 
-	OSVersions(ctx context.Context, teamID *uint, platform *string) (*OSVersions, error)
+	// OSVersions returns a list of operating systems and associated host counts, which may be
+	// filtered using the following optional criteria: team id, platform, or operating system id
+	OSVersions(ctx context.Context, teamID *uint, platform *string, osID *uint) (*OSVersions, error)
 
 	///////////////////////////////////////////////////////////////////////////////
 	// AppConfigService provides methods for configuring  the Fleet application
