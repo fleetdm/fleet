@@ -60,7 +60,6 @@ const defaultTableHeaders = [
     disableSortBy: false,
     accessor: "hosts_count",
     Cell: (cellProps: ICellProps): JSX.Element => {
-      console.log(cellProps);
       return (
         <span className="hosts-cell__wrapper">
           <span className="hosts-cell__count">
