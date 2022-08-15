@@ -80,8 +80,16 @@ export default {
 
     if (!label && !policyId && mdmEnrollmentStatus) {
       queryString += `&mdm_enrollment_status=${mdmEnrollmentStatus}`;
+    }
 
-    if (!label && !policyId && !softwareId && !mdmId && !mdmEnrollmentStatus && operatingSystemId) {
+    if (
+      !label &&
+      !policyId &&
+      !softwareId &&
+      !mdmId &&
+      !mdmEnrollmentStatus &&
+      operatingSystemId
+    ) {
       queryString += `&operating_system_id=${operatingSystemId}`;
     }
 
