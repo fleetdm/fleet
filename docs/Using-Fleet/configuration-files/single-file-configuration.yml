@@ -44,6 +44,16 @@ spec:
     server: ""
     user_name: ""
     verify_ssl_certs: true
+  sso_settings:
+    enable_sso: false
+    enable_sso_idp_login: false
+    enable_jit_provisioning: false
+    entity_id: ""
+    idp_image_url: ""
+    idp_name: ""
+    issuer_uri: ""
+    metadata: ""
+    metadata_url: ""
 ---
 apiVersion: v1
 kind: enroll_secret
