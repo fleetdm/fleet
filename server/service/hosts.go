@@ -70,8 +70,8 @@ type listHostsResponse struct {
 	Hosts    []HostResponse  `json:"hosts"`
 	Software *fleet.Software `json:"software,omitempty"`
 	// MDMSolution is populated with the MDM solution corresponding to the mdm_id
-	// filter if one is provided with the request. It is nil otherwise and absent
-	// of the JSON response payload.
+	// filter if one is provided with the request (and it exists in the
+	// database). It is nil otherwise and absent of the JSON response payload.
 	MDMSolution *fleet.AggregatedMDMSolutions `json:"mobile_device_management_solution,omitempty"`
 	Err         error                         `json:"error,omitempty"`
 }
@@ -130,7 +130,8 @@ func (svc *Service) AggregatedMDMSolutions(ctx context.Context, teamID *uint, md
 
 	// it is expected that there will be relatively few MDM solutions. This
 	// returns the slice of all aggregated stats (one entry per mdm_id), and we
-	// then iterate to return only the one that was requested.
+	// then iterate to return only the one that was requested (the slice is
+	// stored as-is in a JSON field in the database).
 	sols, _, err := svc.ds.AggregatedMDMSolutions(ctx, teamID)
 	if err != nil {
 		return nil, err
