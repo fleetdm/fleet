@@ -599,6 +599,8 @@ type Datastore interface {
 	// within the cooldown period.
 	EnrollHost(ctx context.Context, osqueryHostId, nodeKey string, teamID *uint, cooldown time.Duration) (*Host, error)
 
+	EnrollOrbit(ctx context.Context, hardwareUUID string, orbitNodeKey string) (*Host, error)
+
 	SerialUpdateHost(ctx context.Context, host *Host) error
 
 	///////////////////////////////////////////////////////////////////////////////

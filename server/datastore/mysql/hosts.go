@@ -733,6 +733,46 @@ func shouldCleanTeamPolicies(currentTeamID, newTeamID *uint) bool {
 	return *currentTeamID != *newTeamID
 }
 
+func (ds *Datastore) EnrollOrbit(ctx context.Context, hardwareUUID string, orbitNodeKey string) (*fleet.Host, error) {
+	if orbitNodeKey == "" {
+		return nil, ctxerr.New(ctx, "orbit node key is empty")
+	}
+
+	if hardwareUUID == "" {
+		return nil, ctxerr.New(ctx, "harware uuid is empty")
+	}
+
+	var host fleet.Host
+	err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		var hostID int64
+		err := sqlx.GetContext(ctx, tx, &host, `SELECT id FROM hosts WHERE uuid = ?`, hardwareUUID)
+		switch {
+		case err != nil && !errors.Is(err, sql.ErrNoRows):
+			return ctxerr.Wrap(ctx, err, "some error")
+		case errors.Is(err, sql.ErrNoRows):
+			sqlInsert := `INSERT INTO hosts (uuid, orbit_node_key) VALUES (?)`
+			result, err := tx.ExecContext(ctx, sqlInsert, hardwareUUID, orbitNodeKey)
+			if err != nil {
+				return ctxerr.Wrap(ctx, err, "orbit enroll insert host")
+			}
+			hostID, _ = result.LastInsertId()
+		default:
+			sqlUpdate := `UPDATE hosts SET orbit_node_key = ? WHERE uuid = ? `
+			_, err := tx.ExecContext(ctx, sqlUpdate, orbitNodeKey, hardwareUUID)
+			if err != nil {
+				return ctxerr.Wrap(ctx, err, "orbit enroll host")
+			}
+
+		}
+		_ = hostID
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+	return &host, nil
+}
+
 // EnrollHost enrolls a host
 func (ds *Datastore) EnrollHost(ctx context.Context, osqueryHostID, nodeKey string, teamID *uint, cooldown time.Duration) (*fleet.Host, error) {
 	if osqueryHostID == "" {

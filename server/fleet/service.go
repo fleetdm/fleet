@@ -49,6 +49,7 @@ type OsqueryService interface {
 
 type Service interface {
 	OsqueryService
+	EnrollOrbit(ctx context.Context, hardwareUUID string, enrollSecret string) (orbitNodeKey string, err error)
 
 	// SetEnterpriseOverrides allows the enterprise service to override specific methods
 	// that can't be easily overridden via embedding.

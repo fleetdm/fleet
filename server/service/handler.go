@@ -462,6 +462,8 @@ func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetC
 	ne.WithAltPaths("/api/v1/osquery/enroll").
 		POST("/api/osquery/enroll", enrollAgentEndpoint, enrollAgentRequest{})
 
+	ne.POST("/api/_version_/fleet/orbit/enroll", enrollOrbitEndpoint, enrollOrbitRequest{})
+
 	// For some reason osquery does not provide a node key with the block data.
 	// Instead the carve session ID should be verified in the service method.
 	ne.WithAltPaths("/api/v1/osquery/carve/block").
