@@ -359,7 +359,7 @@ func CPEFromSoftware(db *sqlx.DB, software *fleet.Software, translations CPETran
 		case "safari_extensions":
 			targetSW = "safari"
 		case "npm_packages":
-			targetSW = `"node.js"`
+			targetSW = `node.js`
 		case "programs":
 
 			// match the following target_sw
@@ -386,7 +386,7 @@ func CPEFromSoftware(db *sqlx.DB, software *fleet.Software, translations CPETran
 		}
 		if targetSW != "" {
 			ds = ds.Where(
-				goqu.I("c.target_sw").Eq(targetSW),
+				goqu.L("c.target_sw").Eq(targetSW),
 			)
 		}
 

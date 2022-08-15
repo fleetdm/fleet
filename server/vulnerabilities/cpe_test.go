@@ -129,7 +129,11 @@ func TestSyncCPEDatabase(t *testing.T) {
 	require.NoError(t, err)
 
 	// and this works afterwards
-	software := &fleet.Software{Name: "1Password.app", Version: "7.2.3", Source: "apps"}
+	software := &fleet.Software{Name: "1Password.app",
+		Version:          "7.2.3",
+		BundleIdentifier: "com.1password.1password",
+		Source:           "apps",
+	}
 	cpe, err := CPEFromSoftware(db, software, nil)
 	require.NoError(t, err)
 	require.Equal(t, "cpe:2.3:a:1password:1password:7.2.3:beta0:*:*:*:macos:*:*", cpe)
