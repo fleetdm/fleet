@@ -129,20 +129,27 @@ Documentation on completing the release process can be found
 
 ### Responsibilities
 
-#### Responding quickly and hunting down answers
-The on-call engineer is a second-line responder to questions raised by customers and community members. 
+During their on-call shift, engineers temporarily take on a different set of priorities and responsibilities.
 
-The community contact (Kathy) is responsible for the first response to GitHub issues, pull requests, and Slack messages in the osquery and other public Slacks. Kathy is also responsible for the first response to messages in private customer Slack channels. We respond within 1-hour (during business hours) for interactions and ask the on-call engineer to address any questions sent their way promptly. When Kathy is unavailable, the on-call engineer may sometimes be asked to take over the first response duties.
+#### Responding quickly and hunting down answers
+
+The on-call engineer is a second-line responder to questions raised by customers and community members.  We respond within 1-hour (during business hours) for interactions and ask the on-call engineer to address any questions sent their way promptly.
+
+Normally, the community contact (Kathy) is responsible for the first response to GitHub issues, pull requests, and Slack messages in the osquery and other public Slacks. Kathy is also responsible for the first response to messages in private customer Slack channels.  When Kathy is unavailable, the on-call engineer may sometimes be asked to take over the first response duties.
 
 #### Reviewing pull requests
-Pull requests may be routed through the on-call engineer for review.
+
+Some pull requests are routed through the on-call engineer for review.  It is the on-call engineer's responsibility to confirm that these PRs move forward quickly (either by review with feedback or merge).
 
 For PRs from the community, the community contact ([Kathy](https://github.com/ksatter)) will request review from the on-call.  For all PRs to the Fleet documentation, the content editor ([Chris McGillicuddy](https://github.com/chris-mcgillicuddy)) will either merge (for typo fixes, when only documentation files are changed) or request a review from the current on-call (for changes to code samples, or to the meaning of the text).
 
-In either case, if the on-call has the knowledge and confidence to review, they should go ahead and do so. Otherwise, they should request a review from an engineer with the appropriate domain knowledge. It is the on-call engineer's responsibility to confirm that these PRs move forward quickly (either by review with feedback or merge).
+In either case, if the on-call has the knowledge and confidence to review, they should go ahead and do so. Otherwise, they should request a review from an engineer with the appropriate domain knowledge. 
 
 #### Attending meetings
-Additionally, the on-call engineer is asked to attend all the customer success meetings during the week. The engineer will receive calendar invitations from Tony for the appropriate meetings. This has a dual purpose of providing more context for how our customers use Fleet. Also, the engineer should actively participate and provide input where appropriate (if not sure, please ask your manager or Tony).
+
+The on-call engineer is asked to attend all the customer success meetings during the week.
+
+The engineer will receive calendar invitations from Tony for the appropriate meetings. Besides giving Fleet's customers access to the expertise of the people who know the Fleet product best, this has a dual purpose of providing more context for how our customers use Fleet.  Also, the engineer should actively participate and provide input where appropriate (if not sure, please ask your manager or Tony).
 
 ### Clearing the plate
 
