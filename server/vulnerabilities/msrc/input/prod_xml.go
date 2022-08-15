@@ -1,24 +1,43 @@
 package msrc_input
 
+import "strings"
+
 // XML elements related to the 'prod' namespace used to describe Microsoft products
 
 type ProductBranchXML struct {
-	Type     string       `xml:"Type,attr"`
-	Name     string       `xml:"Name,attr"`
-	Products []ProductXML `xml:"FullProductName"`
+	Type     string             `xml:"Type,attr"`
+	Name     string             `xml:"Name,attr"`
+	Branches []ProductBranchXML `xml:"Branch"`
+	Products []ProductXML       `xml:"FullProductName"`
 }
 
 type ProductXML struct {
-	ProductID uint   `xml:"ProductID,attr"`
+	ProductID string `xml:"ProductID,attr"`
 	Name      string `xml:",chardata"`
 }
 
-// ContainsWinProducts returns true if the ProductBranchXML is for Windows products
-func (b *ProductBranchXML) ContainsWinProducts() bool {
-	return b.Name == "Windows" && b.Type == "Product Family"
-}
+// WindowsProducts traverses the ProductBranchXML tree returning
+func (b *ProductBranchXML) WindowsProducts() []ProductXML {
+	var r []ProductXML
+	queue := []ProductBranchXML{*b}
 
-// IsWindows checks whether the FullProductNameXML targets a Windows product
-func (pn *ProductXML) IsWindows() bool {
-	panic("not implemented")
+	for len(queue) > 0 {
+		next := queue[0]
+
+		// We want only products from the 'Windows' and the 'Extended Security Update (ESU)" branches
+		if next.Type == "Product Family" && (next.Name == "Windows" || next.Name == "ESU") {
+			for _, p := range next.Products {
+				// Even if the product branch is for 'Windows/ESU', there could be a non-OS
+				// product like 'Remote Desktop client for Windows Desktop' inside the branch.
+				if strings.HasPrefix(p.Name, "Windows") {
+					r = append(r, p)
+				}
+			}
+		}
+
+		queue = queue[1:]
+		queue = append(queue, next.Branches...)
+	}
+
+	return r
 }
