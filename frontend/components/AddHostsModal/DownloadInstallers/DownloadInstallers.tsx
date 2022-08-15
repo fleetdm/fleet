@@ -65,7 +65,6 @@ const DownloadInstallers = ({
   onCancel,
 }: IDownloadInstallersProps): JSX.Element => {
   const [includeDesktop, setIncludeDesktop] = useState(true);
-  const [isDownloadError, setIsDownloadError] = useState(false);
   const [isDownloading, setIsDownloading] = useState(false);
   const [isDownloadSuccess, setIsDownloadSuccess] = useState(false);
   const [selectedInstaller, setSelectedInstaller] = useState<
@@ -78,23 +77,13 @@ const DownloadInstallers = ({
       return;
     }
     setIsDownloading(true);
-    try {
-      const blob: BlobPart = await installerAPI.downloadInstaller({
-        enrollSecret,
-        installerType,
-        includeDesktop,
-      });
-      const filename = `fleet-osquery.${installerType}`;
-      const file = new global.window.File([blob], filename, {
-        type: "application/octet-stream",
-      });
-      FileSaver.saveAs(file);
-      setIsDownloadSuccess(true);
-    } catch {
-      setIsDownloadError(true);
-    } finally {
-      setIsDownloading(false);
-    }
+    installerAPI.downloadInstaller({
+      enrollSecret,
+      installerType,
+      includeDesktop,
+    });
+    setIsDownloading(false);
+    setIsDownloadSuccess(true);
   };
 
   const onClickSelector = (type: IInstallerType) => {
@@ -108,14 +97,6 @@ const DownloadInstallers = ({
     }
     setSelectedInstaller(type);
   };
-
-  if (isDownloadError) {
-    return (
-      <div className={`${baseClass}__error`}>
-        <DataError />
-      </div>
-    );
-  }
 
   if (isDownloadSuccess) {
     const installerPlatform =

@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"errors"
+	"fmt"
 	"io"
 	"net/http"
 	"strconv"
@@ -28,6 +29,7 @@ type getInstallerResponse struct {
 	// file fields below are used in hijackRender for the response
 	fileReader io.ReadCloser
 	fileLength int64
+	fileExt    string
 }
 
 func (r getInstallerResponse) error() error { return r.Err }
@@ -35,7 +37,7 @@ func (r getInstallerResponse) error() error { return r.Err }
 func (r getInstallerResponse) hijackRender(ctx context.Context, w http.ResponseWriter) {
 	w.Header().Set("Content-Length", strconv.FormatInt(r.fileLength, 10))
 	w.Header().Set("Content-Type", "application/octet-stream")
-	w.Header().Set("Content-Disposition", "attachment")
+	w.Header().Set("Content-Disposition", fmt.Sprintf(`attachment;filename="fleet-osquery.%s"`, r.fileExt))
 
 	// OK to just log the error here as writing anything on
 	// `http.ResponseWriter` sets the status code to 200 (and it can't be
@@ -61,14 +63,16 @@ func getInstallerEndpoint(ctx context.Context, request interface{}, svc fleet.Se
 		return getInstallerResponse{Err: err}, nil
 	}
 
-	return getInstallerResponse{fileReader: fileReader, fileLength: fileLength}, nil
+	return getInstallerResponse{fileReader: fileReader, fileLength: fileLength, fileExt: req.Kind}, nil
 }
 
 // GetInstaller retrieves a blob containing the installer binary
 func (svc *Service) GetInstaller(ctx context.Context, installer fleet.Installer) (io.ReadCloser, int64, error) {
-	if err := svc.authz.Authorize(ctx, &fleet.EnrollSecret{}, fleet.ActionRead); err != nil {
-		return nil, int64(0), err
-	}
+	// skipauth: installers can be donwloaded with anyone with a valid link.
+	// Links must contain a valid enroll secret so they are not really open to
+	// the public, but authorization is not enforced to allow browsers to handle
+	// the download request.
+	svc.authz.SkipAuthorization(ctx)
 
 	if !svc.SandboxEnabled() {
 		return nil, int64(0), errors.New("this endpoint only enabled in demo mode")

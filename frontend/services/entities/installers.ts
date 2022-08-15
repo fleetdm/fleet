@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/explicit-module-boundary-types */
 import { IInstallerType } from "interfaces/installer";
-import sendRequest from "services";
 import ENDPOINTS from "utilities/endpoints";
+import URL_PREFIX from "router/url_prefix";
 
 export interface IDownloadInstallerRequestParams {
   enrollSecret: string;
@@ -14,14 +14,14 @@ export default {
     enrollSecret,
     includeDesktop,
     installerType,
-  }: IDownloadInstallerRequestParams): Promise<BlobPart> => {
-    const path = `${
+  }: IDownloadInstallerRequestParams) => {
+    const { origin } = global.window.location;
+    const url = `${origin}${URL_PREFIX}/api/${
       ENDPOINTS.DOWNLOAD_INSTALLER
     }/${installerType}?desktop=${includeDesktop}&enroll_secret=${encodeURIComponent(
       enrollSecret
     )}`;
-    console.log("path: ", path);
 
-    return sendRequest("GET", path, undefined, "blob");
+    window.open(url);
   },
 };

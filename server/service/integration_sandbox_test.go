@@ -86,10 +86,13 @@ func (s *integrationSandboxTestSuite) TestInstallerGet() {
 	require.Equal(t, "attachment", r.Header.Get("Content-Disposition"))
 
 	// unauthorized requests
-	s.DoRawNoAuth("GET", validURL, nil, http.StatusUnauthorized)
-	s.token = "invalid"
-	s.Do("GET", validURL, nil, http.StatusUnauthorized)
-	s.token = s.cachedAdminToken
+	r = s.DoRawNoAuth("GET", validURL, nil, http.StatusOK)
+	body, err = io.ReadAll(r.Body)
+	require.NoError(t, err)
+	require.Equal(t, "mock", string(body))
+	require.Equal(t, "application/octet-stream", r.Header.Get("Content-Type"))
+	require.Equal(t, "4", r.Header.Get("Content-Length"))
+	require.Equal(t, "attachment", r.Header.Get("Content-Disposition"))
 
 	// wrong enroll secret
 	s.Do("GET", installerURL("wrong-enroll", "pkg", false), nil, http.StatusInternalServerError)
