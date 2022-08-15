@@ -323,7 +323,7 @@ var extraDetailQueries = map[string]DetailQuery{
 		Discovery:        discoveryTable("mdm"),
 	},
 	"munki_info": {
-		Query:            `select version from munki_info;`,
+		Query:            `select version, errors, warnings from munki_info;`,
 		DirectIngestFunc: directIngestMunkiInfo,
 		Platforms:        []string{"darwin"},
 		Discovery:        discoveryTable("munki_info"),
@@ -1010,7 +1010,9 @@ func directIngestMunkiInfo(ctx context.Context, logger log.Logger, host *fleet.H
 			fmt.Sprintf("munki_info expected single result got %d", len(rows)))
 	}
 
-	return ds.SetOrUpdateMunkiVersion(ctx, host.ID, rows[0]["version"])
+	errors, warnings := rows[0]["errors"], rows[0]["warnings"]
+	errList, warnList := splitCleanSemicolonSeparated(errors), splitCleanSemicolonSeparated(warnings)
+	return ds.SetOrUpdateMunkiInfo(ctx, host.ID, rows[0]["version"], errList, warnList)
 }
 
 func GetDetailQueries(ac *fleet.AppConfig, fleetConfig config.FleetConfig) map[string]DetailQuery {
@@ -1051,4 +1053,16 @@ func GetDetailQueries(ac *fleet.AppConfig, fleetConfig config.FleetConfig) map[s
 	}
 
 	return generatedMap
+}
+
+func splitCleanSemicolonSeparated(s string) []string {
+	parts := strings.Split(s, ";")
+	cleaned := make([]string, 0, len(parts))
+	for _, part := range parts {
+		part = strings.TrimSpace(part)
+		if part != "" {
+			cleaned = append(cleaned, part)
+		}
+	}
+	return cleaned
 }

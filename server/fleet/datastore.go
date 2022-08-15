@@ -571,7 +571,7 @@ type Datastore interface {
 	// SaveHostAdditional updates the additional queries results of a host.
 	SaveHostAdditional(ctx context.Context, hostID uint, additional *json.RawMessage) error
 
-	SetOrUpdateMunkiVersion(ctx context.Context, hostID uint, version string) error
+	SetOrUpdateMunkiInfo(ctx context.Context, hostID uint, version string, errors, warnings []string) error
 	SetOrUpdateMDMData(ctx context.Context, hostID uint, enrolled bool, serverURL string, installedFromDep bool) error
 
 	ReplaceHostDeviceMapping(ctx context.Context, id uint, mappings []*HostDeviceMapping) error

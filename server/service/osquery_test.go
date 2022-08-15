@@ -972,7 +972,7 @@ func TestDetailQueries(t *testing.T) {
 		require.Equal(t, "hi.com", serverURL)
 		return nil
 	}
-	ds.SetOrUpdateMunkiVersionFunc = func(ctx context.Context, hostID uint, version string) error {
+	ds.SetOrUpdateMunkiInfoFunc = func(ctx context.Context, hostID uint, version string, errs, warns []string) error {
 		require.Equal(t, "3.4.5", version)
 		return nil
 	}
@@ -1178,7 +1178,7 @@ func TestDetailQueries(t *testing.T) {
 	require.NotNil(t, gotHost)
 
 	require.True(t, ds.SetOrUpdateMDMDataFuncInvoked)
-	require.True(t, ds.SetOrUpdateMunkiVersionFuncInvoked)
+	require.True(t, ds.SetOrUpdateMunkiInfoFuncInvoked)
 	require.True(t, ds.SetOrUpdateDeviceAuthTokenFuncInvoked)
 
 	// osquery_info

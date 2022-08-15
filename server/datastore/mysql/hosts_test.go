@@ -3640,9 +3640,9 @@ func testHostMDMAndMunki(t *testing.T, ds *Datastore) {
 	_, err := ds.GetMunkiVersion(context.Background(), 123)
 	require.True(t, fleet.IsNotFound(err))
 
-	require.NoError(t, ds.SetOrUpdateMunkiVersion(context.Background(), 123, "1.2.3"))
-	require.NoError(t, ds.SetOrUpdateMunkiVersion(context.Background(), 999, "9.0"))
-	require.NoError(t, ds.SetOrUpdateMunkiVersion(context.Background(), 123, "1.3.0"))
+	require.NoError(t, ds.SetOrUpdateMunkiInfo(context.Background(), 123, "1.2.3", nil, nil))
+	require.NoError(t, ds.SetOrUpdateMunkiInfo(context.Background(), 999, "9.0", nil, nil))
+	require.NoError(t, ds.SetOrUpdateMunkiInfo(context.Background(), 123, "1.3.0", nil, nil))
 
 	version, err := ds.GetMunkiVersion(context.Background(), 123)
 	require.NoError(t, err)
@@ -3653,7 +3653,7 @@ func testHostMDMAndMunki(t *testing.T, ds *Datastore) {
 	require.Equal(t, "9.0", version)
 
 	// simulate uninstall
-	require.NoError(t, ds.SetOrUpdateMunkiVersion(context.Background(), 123, ""))
+	require.NoError(t, ds.SetOrUpdateMunkiInfo(context.Background(), 123, "", nil, nil))
 
 	_, err = ds.GetMunkiVersion(context.Background(), 123)
 	require.True(t, fleet.IsNotFound(err))
@@ -3770,9 +3770,9 @@ func testAggregatedHostMDMAndMunki(t *testing.T, ds *Datastore) {
 	require.NotZero(t, updatedAt)
 
 	// So now we try with data
-	require.NoError(t, ds.SetOrUpdateMunkiVersion(context.Background(), 123, "1.2.3"))
-	require.NoError(t, ds.SetOrUpdateMunkiVersion(context.Background(), 999, "9.0"))
-	require.NoError(t, ds.SetOrUpdateMunkiVersion(context.Background(), 342, "1.2.3"))
+	require.NoError(t, ds.SetOrUpdateMunkiInfo(context.Background(), 123, "1.2.3", nil, nil))
+	require.NoError(t, ds.SetOrUpdateMunkiInfo(context.Background(), 999, "9.0", nil, nil))
+	require.NoError(t, ds.SetOrUpdateMunkiInfo(context.Background(), 342, "1.2.3", nil, nil))
 
 	require.NoError(t, ds.GenerateAggregatedMunkiAndMDM(context.Background()))
 
@@ -3847,12 +3847,12 @@ func testAggregatedHostMDMAndMunki(t *testing.T, ds *Datastore) {
 
 	require.NoError(t, ds.SetOrUpdateMDMData(context.Background(), h1.ID, true, "https://simplemdm.com", false))
 	require.NoError(t, ds.SetOrUpdateMDMData(context.Background(), h2.ID, true, "url", false))
-	require.NoError(t, ds.SetOrUpdateMunkiVersion(context.Background(), h1.ID, "1.2.3"))
-	require.NoError(t, ds.SetOrUpdateMunkiVersion(context.Background(), h2.ID, "1.2.3"))
+	require.NoError(t, ds.SetOrUpdateMunkiInfo(context.Background(), h1.ID, "1.2.3", nil, nil))
+	require.NoError(t, ds.SetOrUpdateMunkiInfo(context.Background(), h2.ID, "1.2.3", nil, nil))
 
 	// h3 adds it but then removes it
-	require.NoError(t, ds.SetOrUpdateMunkiVersion(context.Background(), h3.ID, "1.2.3"))
-	require.NoError(t, ds.SetOrUpdateMunkiVersion(context.Background(), h3.ID, ""))
+	require.NoError(t, ds.SetOrUpdateMunkiInfo(context.Background(), h3.ID, "1.2.3", nil, nil))
+	require.NoError(t, ds.SetOrUpdateMunkiInfo(context.Background(), h3.ID, "", nil, nil))
 
 	// Make the updated_at different enough
 	time.Sleep(1 * time.Second)
@@ -4422,7 +4422,7 @@ func testHostsDeleteHosts(t *testing.T, ds *Datastore) {
 	err = ds.SetOrUpdateMDMData(context.Background(), host.ID, false, "", false)
 	require.NoError(t, err)
 	// Update host_munki_info.
-	err = ds.SetOrUpdateMunkiVersion(context.Background(), host.ID, "42")
+	err = ds.SetOrUpdateMunkiInfo(context.Background(), host.ID, "42", nil, nil)
 	require.NoError(t, err)
 	// Update device_auth_token.
 	err = ds.SetOrUpdateDeviceAuthToken(context.Background(), host.ID, "foo")

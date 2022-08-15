@@ -411,7 +411,7 @@ type SaveHostUsersFunc func(ctx context.Context, hostID uint, users []fleet.Host
 
 type SaveHostAdditionalFunc func(ctx context.Context, hostID uint, additional *json.RawMessage) error
 
-type SetOrUpdateMunkiVersionFunc func(ctx context.Context, hostID uint, version string) error
+type SetOrUpdateMunkiInfoFunc func(ctx context.Context, hostID uint, version string, errors []string, warnings []string) error
 
 type SetOrUpdateMDMDataFunc func(ctx context.Context, hostID uint, enrolled bool, serverURL string, installedFromDep bool) error
 
@@ -1033,8 +1033,8 @@ type DataStore struct {
 	SaveHostAdditionalFunc        SaveHostAdditionalFunc
 	SaveHostAdditionalFuncInvoked bool
 
-	SetOrUpdateMunkiVersionFunc        SetOrUpdateMunkiVersionFunc
-	SetOrUpdateMunkiVersionFuncInvoked bool
+	SetOrUpdateMunkiInfoFunc        SetOrUpdateMunkiInfoFunc
+	SetOrUpdateMunkiInfoFuncInvoked bool
 
 	SetOrUpdateMDMDataFunc        SetOrUpdateMDMDataFunc
 	SetOrUpdateMDMDataFuncInvoked bool
@@ -2065,9 +2065,9 @@ func (s *DataStore) SaveHostAdditional(ctx context.Context, hostID uint, additio
 	return s.SaveHostAdditionalFunc(ctx, hostID, additional)
 }
 
-func (s *DataStore) SetOrUpdateMunkiVersion(ctx context.Context, hostID uint, version string) error {
-	s.SetOrUpdateMunkiVersionFuncInvoked = true
-	return s.SetOrUpdateMunkiVersionFunc(ctx, hostID, version)
+func (s *DataStore) SetOrUpdateMunkiInfo(ctx context.Context, hostID uint, version string, errors []string, warnings []string) error {
+	s.SetOrUpdateMunkiInfoFuncInvoked = true
+	return s.SetOrUpdateMunkiInfoFunc(ctx, hostID, version, errors, warnings)
 }
 
 func (s *DataStore) SetOrUpdateMDMData(ctx context.Context, hostID uint, enrolled bool, serverURL string, installedFromDep bool) error {
