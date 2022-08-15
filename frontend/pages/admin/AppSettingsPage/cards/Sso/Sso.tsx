@@ -12,9 +12,15 @@ import {
   IAppConfigFormErrors,
 } from "../constants";
 
+import OpenNewTabIcon from "../../../../../../assets/images/open-new-tab-12x12@2x.png";
+
 const baseClass = "app-config-form";
 
-const Sso = ({ appConfig, handleSubmit }: IAppConfigFormProps): JSX.Element => {
+const Sso = ({
+  appConfig,
+  handleSubmit,
+  isPremiumTier,
+}: IAppConfigFormProps): JSX.Element => {
   const [formData, setFormData] = useState<any>({
     enableSSO: appConfig.sso_settings.enable_sso || false,
     idpName: appConfig.sso_settings.idp_name || "",
@@ -24,6 +30,8 @@ const Sso = ({ appConfig, handleSubmit }: IAppConfigFormProps): JSX.Element => {
     metadata: appConfig.sso_settings.metadata || "",
     metadataURL: appConfig.sso_settings.metadata_url || "",
     enableSSOIDPLogin: appConfig.sso_settings.enable_sso_idp_login || false,
+    enableJITProvisioning:
+      appConfig.sso_settings.enable_jit_provisioning || false,
   });
 
   const {
@@ -35,6 +43,7 @@ const Sso = ({ appConfig, handleSubmit }: IAppConfigFormProps): JSX.Element => {
     metadata,
     metadataURL,
     enableSSOIDPLogin,
+    enableJITProvisioning,
   } = formData;
 
   const [formErrors, setFormErrors] = useState<IAppConfigFormErrors>({});
@@ -89,6 +98,7 @@ const Sso = ({ appConfig, handleSubmit }: IAppConfigFormProps): JSX.Element => {
         idp_name: idpName,
         enable_sso: enableSSO,
         enable_sso_idp_login: enableSSOIDPLogin,
+        enable_jit_provisioning: enableJITProvisioning,
       },
     };
 
@@ -201,6 +211,32 @@ const Sso = ({ appConfig, handleSubmit }: IAppConfigFormProps): JSX.Element => {
             Allow SSO login initiated by identity provider
           </Checkbox>
         </div>
+        {isPremiumTier && (
+          <div className={`${baseClass}__inputs`}>
+            <Checkbox
+              onChange={handleInputChange}
+              name="enableJITProvisioning"
+              value={enableJITProvisioning}
+              parseTarget
+            >
+              <>
+                Automatically create Observer user on Login{" "}
+                <a
+                  href="https://fleetdm.com/docs/deploying/configuration#just-in-time-jit-user-provisioning?utm_medium=fleetui&utm_source=sso-settings"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  Learn more
+                  <img
+                    src={OpenNewTabIcon}
+                    alt="open new tab"
+                    className="learn-more-icon"
+                  />
+                </a>
+              </>
+            </Checkbox>
+          </div>
+        )}
       </div>
       <Button
         type="submit"

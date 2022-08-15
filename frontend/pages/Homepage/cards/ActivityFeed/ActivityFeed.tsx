@@ -51,6 +51,9 @@ const TAGGED_TEMPLATES = {
       ? "edited a query using fleetctl"
       : `edited ${count === 1 ? "a query" : "queries"} using fleetctl`;
   },
+  userAddedBySSOTempalte: () => {
+    return `was added to Fleet by SSO`;
+  },
   defaultActivityTemplate: (activity: IActivity) => {
     const entityName = find(activity.details, (_, key) =>
       key.includes("_name")
@@ -130,6 +133,9 @@ const ActivityFeed = ({
       }
       case ActivityType.AppliedSpecSavedQuery: {
         return TAGGED_TEMPLATES.editQueryCtlActivityTemplate(activity);
+      }
+      case ActivityType.UserAddedBySSO: {
+        return TAGGED_TEMPLATES.userAddedBySSOTempalte();
       }
       default: {
         return TAGGED_TEMPLATES.defaultActivityTemplate(activity);
