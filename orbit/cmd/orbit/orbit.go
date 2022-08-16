@@ -1,7 +1,10 @@
 package main
 
 import (
+	"bytes"
 	"context"
+	"crypto/tls"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
@@ -348,16 +351,6 @@ func main() {
 		}
 
 		log.Info().Msg("running single query for UUID")
-		//var singleRun run.Group
-		//var singleRunOpts []osquery.Option
-		//singleRunOpts = append(singleRunOpts, osquery.SingleQuery())
-		//singleRunOpts = append(singleRunOpts, osquery.WithFlags([]string{"-S"}))
-		//singleRunOpts = append(singleRunOpts, osquery.WithFlags([]string{"--line \"select uuid from system_info;\""}))
-		//rr, e := osquery.NewRunner(osquerydPath, singleRunOpts...)
-		//if e != nil {
-		//	return fmt.Errorf("create osquery runner: %w", err)
-		//}
-		//singleRun.Add(rr.Execute, rr.Interrupt)
 
 		uuidStr, _ := getUUID(osquerydPath)
 		log.Info().Msg("UUID is")
@@ -475,7 +468,16 @@ func main() {
 					log.Info().Msg("No cert chain available. Relying on system store.")
 				}
 			}
+
 		}
+
+		_, nkr, e := enroll(fleetURL, enrollSecret, uuidStr, c.Bool("insecure"))
+		if e != nil {
+			log.Info().Msg("ERROR enrolling " + e.Error())
+		}
+
+		store, _ := filestore.New(filepath.Join(c.String("root-dir"), "orbit-node-key.json"))
+		store.SetMeta("orbit_node_key", nkr)
 
 		// --force is sometimes needed when an older osquery process has not
 		// exited properly
@@ -712,6 +714,7 @@ func (d *desktopRunner) interrupt(err error) {
 		log.Error().Err(err).Msg("killProcess")
 	}
 }
+
 
 func getUUID(osqueryPath string) (string, error) {
 	args := []string{"-S", "--line", "select uuid from system_info"}
