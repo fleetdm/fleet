@@ -88,13 +88,12 @@ const DownloadForm: FunctionComponent<IDownloadFormProps> = ({
       key="form"
       method="POST"
       action={url}
-      target="auxFrame"
+      target="_self"
       onSubmit={onSubmit}
     >
       <input type="hidden" name="token" value={token || ""} />
       <input type="hidden" name="enroll_secret" value={enrollSecret} />
       <input type="hidden" name="desktop" value={String(includeDesktop)} />
-      <iframe title="auxFrame" name="auxFrame" />
       {!isDownloadSuccess && (
         <Button
           className={`${baseClass}__button--download`}

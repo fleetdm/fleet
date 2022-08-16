@@ -4,10 +4,6 @@
   padding: 0;
   padding-bottom: 20px;
 
-  iframe {
-    display: none;
-  }
-
   p {
     padding-top: $pad-small;
     padding-bottom: $pad-medium;
@@ -100,10 +96,6 @@
     p {
       margin: 0;
       padding-bottom: 24px;
-    }
-
-    iframe {
-      display: none;
     }
   }
 
