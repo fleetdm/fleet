@@ -118,28 +118,17 @@ const getSoftwareParam = (
     : undefined;
 };
 
-const getMDMSolutionParam = (
+const getMDMParams = (
   label?: string,
   policyId?: number,
   softwareId?: number,
   mdmId?: number,
   mdmEnrollmentStatus?: string
 ) => {
-  return !label && !policyId && !softwareId && !mdmEnrollmentStatus
-    ? mdmId
-    : undefined;
-};
+  if (!label && !policyId && !softwareId && !mdmEnrollmentStatus && !mdmId)
+    return undefined;
 
-const getMDMEnrollmentStatusParam = (
-  label?: string,
-  policyId?: number,
-  softwareId?: number,
-  mdmId?: number,
-  mdmEnrollmentStatus?: string
-) => {
-  return !label && !policyId && !softwareId && !mdmId
-    ? mdmEnrollmentStatus
-    : undefined;
+  return { mdmId: mdmId, mdmEnrollmentStatus: mdmEnrollmentStatus };
 };
 
 const getOperatingSystemParams = (
@@ -292,6 +281,13 @@ export default {
     const label = getLabel(selectedLabels);
     const sortParams = getSortParams(sortBy);
     const policyParams = getPolicyParams(label, policyId, policyResponse);
+    const mdmParams = getMDMParams(
+      label,
+      policyId,
+      softwareId,
+      mdmId,
+      mdmEnrollmentStatus
+    );
 
     const queryParams = {
       page,
@@ -304,21 +300,9 @@ export default {
       policy_id: policyParams.policy_id,
       policy_response: policyParams.policy_response,
       software_id: getSoftwareParam(label, policyId, softwareId),
-      mdm_id: getMDMSolutionParam(
-        label,
-        policyId,
-        softwareId,
-        mdmId,
-        mdmEnrollmentStatus
-      ),
-      mdm_enrollment_status: getMDMEnrollmentStatusParam(
-        label,
-        policyId,
-        softwareId,
-        mdmId,
-        mdmEnrollmentStatus
-      ),
-      ...getOperatingSystemParams(
+      mdm_id: mdmParams?.mdmId,
+      mdm_enrollment_status: mdmParams?.mdmEnrollmentStatus,
+      operating_system_id: getOperatingSystemParam(
         label,
         policyId,
         softwareId,
