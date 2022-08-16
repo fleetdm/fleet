@@ -83,11 +83,16 @@ const DownloadInstallers = ({
       // do nothing
       return;
     }
+
+    // Prevent the submit behavior, as we want to control when the POST is
+    // actually performed.
     event.preventDefault();
     event.persist();
 
     setIsDownloading(true);
     try {
+      // First check if the installer exists, no need to save the result of
+      // this operation as any status other than 200 will throw an error
       await installerAPI.checkInstallerExistence({
         enrollSecret,
         includeDesktop,
@@ -97,6 +102,7 @@ const DownloadInstallers = ({
       // For some reason only Firefox fails with NS_ERROR_FAILURE unless we
       // push back this operation to the bottom of the event queue
       setTimeout(() => {
+        // Submit the form now that we know that is safe to do so.
         (event.target as HTMLFormElement).submit();
         setIsDownloadSuccess(true);
       });

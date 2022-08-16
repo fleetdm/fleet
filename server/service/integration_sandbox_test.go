@@ -87,19 +87,18 @@ func (s *integrationSandboxTestSuite) TestInstallerGet() {
 	require.Equal(t, `attachment;filename="fleet-osquery.pkg"`, r.Header.Get("Content-Disposition"))
 
 	// unauthorized requests
-	s.DoRawNoAuth("GET", validURL, nil, http.StatusUnauthorized)
+	s.DoRawNoAuth("POST", validURL, nil, http.StatusUnauthorized)
 	s.token = "invalid"
-	s.Do("GET", validURL, nil, http.StatusUnauthorized)
+	s.Do("POST", validURL, nil, http.StatusUnauthorized)
 	s.token = s.cachedAdminToken
 
 	// wrong enroll secret
 	wrongURL, wrongFormBody := installerReq("wrong-enroll", "pkg", s.token, "false")
-	s.Do("GET", wrongURL, wrongFormBody, http.StatusInternalServerError)
+	s.Do("POST", wrongURL, wrongFormBody, http.StatusInternalServerError)
 
 	// non-existent package
 	wrongURL, wrongFormBody = installerReq("wrong-enroll", "exe", s.token, "false")
-	s.Do("GET", wrongURL, wrongFormBody, http.StatusInternalServerError)
-	s.Do("GET", wrongURL, wrongFormBody, http.StatusNotFound)
+	s.Do("POST", wrongURL, wrongFormBody, http.StatusNotFound)
 }
 
 func (s *integrationSandboxTestSuite) TestInstallerHeadCheck() {
@@ -115,9 +114,9 @@ func (s *integrationSandboxTestSuite) TestInstallerHeadCheck() {
 	s.Do("HEAD", validURL, nil, http.StatusOK)
 
 	// unauthorized requests
-	s.DoRawNoAuth("GET", validURL, nil, http.StatusUnauthorized)
+	s.DoRawNoAuth("HEAD", validURL, nil, http.StatusUnauthorized)
 	s.token = "invalid"
-	s.Do("GET", validURL, nil, http.StatusUnauthorized)
+	s.Do("HEAD", validURL, nil, http.StatusUnauthorized)
 	s.token = s.cachedAdminToken
 
 	// wrong enroll secret
