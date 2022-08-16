@@ -35,6 +35,7 @@ for i in $(aws dynamodb scan --table-name sandbox-prod-lifecycle | jq -r '.Items
 ### Runbooks
 #### 5xx errors
 If you are seeing 5xx errors, find out what instance its from via the saved query here: https://us-east-2.console.aws.amazon.com/athena/home?region=us-east-2#/query-editor
+Make sure you set the workgroup to sandbox-prod-logs otherwise you won't be able to see the saved query.
 
 You can also see errors via the target groups here: https://us-east-2.console.aws.amazon.com/ec2/v2/home?region=us-east-2#TargetGroups:
 
