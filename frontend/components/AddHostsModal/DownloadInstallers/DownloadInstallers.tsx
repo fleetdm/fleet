@@ -37,7 +37,7 @@ interface IDownloadFormProps {
   enrollSecret: string;
   includeDesktop: boolean;
   selectedInstaller: string | undefined;
-  isDownloading: boolean;
+  isCheckingForInstaller: boolean;
   isDownloadSuccess: boolean;
 }
 
@@ -80,7 +80,7 @@ const DownloadForm: FunctionComponent<IDownloadFormProps> = ({
   enrollSecret,
   includeDesktop,
   selectedInstaller,
-  isDownloading,
+  isCheckingForInstaller,
   isDownloadSuccess,
 }) => {
   return (
@@ -88,20 +88,19 @@ const DownloadForm: FunctionComponent<IDownloadFormProps> = ({
       key="form"
       method="POST"
       action={url}
-      target="auxFrame"
+      target="_self"
       onSubmit={onSubmit}
     >
       <input type="hidden" name="token" value={token || ""} />
       <input type="hidden" name="enroll_secret" value={enrollSecret} />
       <input type="hidden" name="desktop" value={String(includeDesktop)} />
-      <iframe title="auxFrame" name="auxFrame" />
       {!isDownloadSuccess && (
         <Button
           className={`${baseClass}__button--download`}
           disabled={!selectedInstaller}
           type="submit"
         >
-          {isDownloading ? <Spinner /> : "Download installer"}
+          {isCheckingForInstaller ? <Spinner /> : "Download installer"}
         </Button>
       )}
     </form>
@@ -175,7 +174,7 @@ const DownloadInstallers = ({
       enrollSecret={enrollSecret}
       includeDesktop={includeDesktop}
       selectedInstaller={selectedInstaller}
-      isDownloading={isDownloading}
+      isCheckingForInstaller={isDownloading}
       isDownloadSuccess={isDownloadSuccess}
     />
   );
