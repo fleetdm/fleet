@@ -6,7 +6,6 @@ import (
 	"io"
 	"net/http"
 	"net/url"
-	"os"
 	"testing"
 
 	"github.com/fleetdm/fleet/v4/server/config"
@@ -76,7 +75,7 @@ func (s *integrationSandboxTestSuite) TestDemoLogin() {
 func (s *integrationSandboxTestSuite) TestInstallerGet() {
 	t := s.T()
 
-	validURL, formBody := installerReq(enrollSecret, "pkg", s.token, "false")
+	validURL, formBody := installerGETReq(enrollSecret, "pkg", s.token, false)
 
 	r := s.DoRaw("POST", validURL, formBody, http.StatusOK)
 	body, err := io.ReadAll(r.Body)
@@ -93,24 +92,16 @@ func (s *integrationSandboxTestSuite) TestInstallerGet() {
 	s.token = s.cachedAdminToken
 
 	// wrong enroll secret
-	wrongURL, wrongFormBody := installerReq("wrong-enroll", "pkg", s.token, "false")
+	wrongURL, wrongFormBody := installerGETReq("wrong-enroll", "pkg", s.token, false)
 	s.Do("POST", wrongURL, wrongFormBody, http.StatusInternalServerError)
 
 	// non-existent package
-	wrongURL, wrongFormBody = installerReq("wrong-enroll", "exe", s.token, "false")
+	wrongURL, wrongFormBody = installerGETReq(enrollSecret, "exe", s.token, false)
 	s.Do("POST", wrongURL, wrongFormBody, http.StatusNotFound)
 }
 
 func (s *integrationSandboxTestSuite) TestInstallerHeadCheck() {
-	// make sure FLEET_DEMO is not set
-	os.Unsetenv("FLEET_DEMO")
-	validURL := fmt.Sprintf("/api/latest/fleet/download_installer/%s?enroll_secret=%s", enrollSecret, "pkg")
-	s.Do("HEAD", validURL, nil, http.StatusInternalServerError)
-
-	os.Setenv("FLEET_DEMO", "1")
-	defer os.Unsetenv("FLEET_DEMO")
-
-	// works when FLEET_DEMO is set
+	validURL := installerURL(enrollSecret, "pkg", false)
 	s.Do("HEAD", validURL, nil, http.StatusOK)
 
 	// unauthorized requests
@@ -120,19 +111,31 @@ func (s *integrationSandboxTestSuite) TestInstallerHeadCheck() {
 	s.token = s.cachedAdminToken
 
 	// wrong enroll secret
-	invalidURL := fmt.Sprintf("/api/latest/fleet/download_installer/%s?enroll_secret=%s", "wrong-enroll", "pkg")
+	invalidURL := installerURL("wrong-enroll", "pkg", false)
 	s.Do("HEAD", invalidURL, nil, http.StatusInternalServerError)
 
 	// non-existent package
-	invalidURL = fmt.Sprintf("/api/latest/fleet/download_installer/%s?enroll_secret=%s", enrollSecret, "exe")
+	invalidURL = installerURL(enrollSecret, "exe", false)
 	s.Do("HEAD", invalidURL, nil, http.StatusNotFound)
 }
 
-func installerReq(secret, kind, token, desktop string) (string, []byte) {
+func installerURL(secret, kind string, desktop bool) string {
 	path := fmt.Sprintf("/api/latest/fleet/download_installer/%s?enroll_secret=%s", kind, secret)
+	if desktop {
+		path += "&desktop=1"
+	}
+	return path
+}
+
+func installerGETReq(secret, kind, token string, desktop bool) (string, []byte) {
+	path := installerURL(secret, kind, desktop)
+	d := "0"
+	if desktop {
+		d = "1"
+	}
 	formBody := make(url.Values)
 	formBody.Set("token", token)
 	formBody.Set("enroll_secret", secret)
-	formBody.Set("desktop", desktop)
+	formBody.Set("desktop", d)
 	return path, []byte(formBody.Encode())
 }

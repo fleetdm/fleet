@@ -109,7 +109,9 @@ func TestCheckInstallerExistence(t *testing.T) {
 
 	t.Run("errors if store is not configured", func(t *testing.T) {
 		ctx, ds, _, _ := setup(t)
-		svc := newTestService(t, ds, nil, nil, &TestServerOpts{Is: nil})
+		cfg := config.TestConfig()
+		cfg.Server.SandboxEnabled = true
+		svc := newTestServiceWithConfig(t, ds, cfg, nil, nil, &TestServerOpts{Is: nil, FleetConfig: &cfg})
 		err := svc.CheckInstallerExistence(ctx, fleet.Installer{})
 		require.Error(t, err)
 		require.ErrorContains(t, err, "installer storage has not been configured")
