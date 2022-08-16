@@ -1758,8 +1758,8 @@ Checks if a pre-built fleet-osquery installer with the given parameters exists.
 
 | Name          | Type    | In    | Description                                                        |
 | ------------- | ------- | ----- | ------------------------------------------------------------------ |
-| enroll_secret | string  | path  | The global enroll secret.                                          |
 | kind          | string  | path  | The installer kind: pkg, msi, deb or rpm.                          |
+| enroll_secret | string  | query | The global enroll secret.                                          |
 | desktop       | boolean | query | Set to `true` to ask for an installer that includes Fleet Desktop. |
 
 ##### Default response

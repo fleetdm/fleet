@@ -75,7 +75,7 @@ func (s *integrationSandboxTestSuite) TestDemoLogin() {
 func (s *integrationSandboxTestSuite) TestInstallerGet() {
 	t := s.T()
 
-	validURL, formBody := installerGETReq(enrollSecret, "pkg", s.token, false)
+	validURL, formBody := installerPOSTReq(enrollSecret, "pkg", s.token, false)
 
 	r := s.DoRaw("POST", validURL, formBody, http.StatusOK)
 	body, err := io.ReadAll(r.Body)
@@ -92,11 +92,11 @@ func (s *integrationSandboxTestSuite) TestInstallerGet() {
 	s.token = s.cachedAdminToken
 
 	// wrong enroll secret
-	wrongURL, wrongFormBody := installerGETReq("wrong-enroll", "pkg", s.token, false)
+	wrongURL, wrongFormBody := installerPOSTReq("wrong-enroll", "pkg", s.token, false)
 	s.Do("POST", wrongURL, wrongFormBody, http.StatusInternalServerError)
 
 	// non-existent package
-	wrongURL, wrongFormBody = installerGETReq(enrollSecret, "exe", s.token, false)
+	wrongURL, wrongFormBody = installerPOSTReq(enrollSecret, "exe", s.token, false)
 	s.Do("POST", wrongURL, wrongFormBody, http.StatusNotFound)
 }
 
@@ -127,7 +127,7 @@ func installerURL(secret, kind string, desktop bool) string {
 	return path
 }
 
-func installerGETReq(secret, kind, token string, desktop bool) (string, []byte) {
+func installerPOSTReq(secret, kind, token string, desktop bool) (string, []byte) {
 	path := installerURL(secret, kind, desktop)
 	d := "0"
 	if desktop {
