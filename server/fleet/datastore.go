@@ -30,6 +30,7 @@ type CarveStore interface {
 type InstallerStore interface {
 	Get(ctx context.Context, installer Installer) (io.ReadCloser, int64, error)
 	Put(ctx context.Context, installer Installer) (string, error)
+	Exists(ctx context.Context, installer Installer) (bool, error)
 }
 
 // Datastore combines all the interfaces in the Fleet DAL

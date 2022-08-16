@@ -99,3 +99,78 @@ func TestGetInstaller(t *testing.T) {
 		require.True(t, is.GetFuncInvoked)
 	})
 }
+func TestCheckInstallerExistence(t *testing.T) {
+	t.Run("unauthorized access is not allowed", func(t *testing.T) {
+		_, _, _, svc := setup(t)
+		err := svc.CheckInstallerExistence(context.Background(), fleet.Installer{})
+		require.Error(t, err)
+		require.Contains(t, err.Error(), authz.ForbiddenErrorMessage)
+	})
+
+	t.Run("errors if store is not configured", func(t *testing.T) {
+		ctx, ds, _, _ := setup(t)
+		cfg := config.TestConfig()
+		cfg.Server.SandboxEnabled = true
+		svc := newTestServiceWithConfig(t, ds, cfg, nil, nil, &TestServerOpts{Is: nil, FleetConfig: &cfg})
+		err := svc.CheckInstallerExistence(ctx, fleet.Installer{})
+		require.Error(t, err)
+		require.ErrorContains(t, err, "installer storage has not been configured")
+	})
+
+	t.Run("errors if the provided enroll secret cannot be found", func(t *testing.T) {
+		ctx, ds, _, svc := setup(t)
+		ds.VerifyEnrollSecretFunc = func(ctx context.Context, enrollSecret string) (*fleet.EnrollSecret, error) {
+			return nil, notFoundError{}
+		}
+		err := svc.CheckInstallerExistence(ctx, fleet.Installer{})
+		require.Error(t, err)
+		require.ErrorAs(t, err, &notFoundError{})
+		require.True(t, ds.VerifyEnrollSecretFuncInvoked)
+	})
+
+	t.Run("errors if there's a problem verifying the enroll secret", func(t *testing.T) {
+		ctx, ds, _, svc := setup(t)
+		ds.VerifyEnrollSecretFunc = func(ctx context.Context, enrollSecret string) (*fleet.EnrollSecret, error) {
+			return nil, ctxerr.New(ctx, "test error")
+		}
+		err := svc.CheckInstallerExistence(ctx, fleet.Installer{})
+		require.Error(t, err)
+		require.ErrorContains(t, err, "test error")
+		require.True(t, ds.VerifyEnrollSecretFuncInvoked)
+	})
+
+	t.Run("errors if there's a problem checking the blob storage", func(t *testing.T) {
+		ctx, ds, is, svc := setup(t)
+		is.ExistsFunc = func(ctx context.Context, installer fleet.Installer) (bool, error) {
+			return false, ctxerr.New(ctx, "test error")
+		}
+		err := svc.CheckInstallerExistence(ctx, fleet.Installer{})
+		require.Error(t, err)
+		require.ErrorContains(t, err, "test error")
+		require.True(t, ds.VerifyEnrollSecretFuncInvoked)
+		require.True(t, is.ExistsFuncInvoked)
+	})
+
+	t.Run("errors with not found if the installer is not in the storage", func(t *testing.T) {
+		ctx, ds, is, svc := setup(t)
+		is.ExistsFunc = func(ctx context.Context, installer fleet.Installer) (bool, error) {
+			return false, nil
+		}
+		err := svc.CheckInstallerExistence(ctx, fleet.Installer{})
+		require.Error(t, err)
+		require.ErrorAs(t, err, &notFoundError{})
+		require.True(t, ds.VerifyEnrollSecretFuncInvoked)
+		require.True(t, is.ExistsFuncInvoked)
+	})
+
+	t.Run("returns no errors if the installer exists", func(t *testing.T) {
+		ctx, ds, is, svc := setup(t)
+		is.ExistsFunc = func(ctx context.Context, installer fleet.Installer) (bool, error) {
+			return true, nil
+		}
+		err := svc.CheckInstallerExistence(ctx, fleet.Installer{})
+		require.NoError(t, err)
+		require.True(t, ds.VerifyEnrollSecretFuncInvoked)
+		require.True(t, is.ExistsFuncInvoked)
+	})
+}

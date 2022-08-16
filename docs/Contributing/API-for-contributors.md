@@ -32,6 +32,7 @@ Unlike the [Fleet REST API documentation](../Using-Fleet/REST-API.md), only the 
     - [Get device's policies](#get-devices-policies)
     - [Get device's API features](#get-devices-api-features)
     - [Get device's transparency URL](#get-devices-transparency-url)
+- [Check if an installer exists](#check-if-an-installer-exists)
 - [Download an installer](#download-an-installer)
 
 ### Get queries spec
@@ -1717,15 +1718,16 @@ Redirects to the transparency URL.
 
 Downloads a pre-built fleet-osquery installer with the given parameters.
 
-`GET /api/_version_/fleet/download_installer/{kind}`
+`POST /api/_version_/fleet/download_installer/{kind}`
 
 #### Parameters
 
-| Name          | Type    | In    | Description                                                        |
-| ------------- | ------- | ----- | ------------------------------------------------------------------ |
-| kind          | string  | path  | The installer kind: pkg, msi, deb or rpm.                          |
-| enroll_secret | string  | query | The global enroll secret.                                          |
-| desktop       | boolean | query | Set to `true` to ask for an installer that includes Fleet Desktop. |
+| Name          | Type    | In                     | Description                                                        |
+| ------------- | ------- | ---------------------- | ------------------------------------------------------------------ |
+| kind          | string  | path                   | The installer kind: pkg, msi, deb or rpm.                          |
+| enroll_secret | string  | x-www-form-urlencoded  | The global enroll secret.                                          |
+| token         | string  | x-www-form-urlencoded  | The authentication token.                                          |
+| desktop       | boolean | x-www-form-urlencoded  | Set to `true` to ask for an installer that includes Fleet Desktop. |
 
 ##### Default response
 
@@ -1744,6 +1746,33 @@ If an installer with the provided parameters is found, the installer is returned
 `Status: 400`
 
 This error occurs if an installer with the provided parameters doesn't exist.
+
+
+### Check if an installer exists 
+
+Checks if a pre-built fleet-osquery installer with the given parameters exists.
+
+`HEAD /api/_version_/fleet/download_installer/{kind}`
+
+#### Parameters
+
+| Name          | Type    | In    | Description                                                        |
+| ------------- | ------- | ----- | ------------------------------------------------------------------ |
+| kind          | string  | path  | The installer kind: pkg, msi, deb or rpm.                          |
+| enroll_secret | string  | query | The global enroll secret.                                          |
+| desktop       | boolean | query | Set to `true` to ask for an installer that includes Fleet Desktop. |
+
+##### Default response
+
+`Status: 200`
+
+If an installer with the provided parameters is found.
+
+##### Installer doesn't exist
+
+`Status: 400`
+
+If an installer with the provided parameters doesn't exist.
 
 
 <meta name="pageOrderInSection" value="800">
