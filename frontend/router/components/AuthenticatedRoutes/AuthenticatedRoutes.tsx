@@ -28,10 +28,6 @@ export const AuthenticatedRoutes = ({
     return router.push(LOGIN);
   };
 
-  const redirectToSandboxLogin = () => {
-    return router.push("https://www.fleetdm.com/try-fleet/login");
-  };
-
   const redirectToPasswordReset = () => {
     const { RESET_PASSWORD } = paths;
 
@@ -49,7 +45,7 @@ export const AuthenticatedRoutes = ({
     // exist, user state is checked and fetched if null
     if (!authToken()) {
       if (window.location.hostname.includes("sandbox")) {
-        return redirectToSandboxLogin();
+        window.location.href = "https://www.fleetdm.com/try-fleet/login";
       }
 
       return redirectToLogin();
