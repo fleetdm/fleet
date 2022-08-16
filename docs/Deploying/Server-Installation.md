@@ -454,21 +454,21 @@ Terraform reference architecture can be found [here](https://github.com/fleetdm/
 
 #### MySQL
 
-In AWS we recommend running Aurora with MySQL Engine, see [here for terraform details](https://github.com/fleetdm/fleet/blob/589e11ebca40949fb568b2b68928450eecb718bf/tools/terraform/rds.tf#L62).
+In AWS, we recommend running Aurora with MySQL Engine. See [here for terraform details](https://github.com/fleetdm/fleet/blob/589e11ebca40949fb568b2b68928450eecb718bf/tools/terraform/rds.tf#L62).
 
 #### Redis
 
-In AWS we recommend running ElastiCache (Redis Engine) see [here for terraform details](https://github.com/fleetdm/fleet/blob/589e11ebca40949fb568b2b68928450eecb718bf/tools/terraform/redis.tf#L13)
+In AWS, we recommend running ElastiCache (Redis Engine). See [here for terraform details](https://github.com/fleetdm/fleet/blob/589e11ebca40949fb568b2b68928450eecb718bf/tools/terraform/redis.tf#L13).
 
 #### Fleet server
 
-Running Fleet in ECS consists of two main components the [ECS Service](https://github.com/fleetdm/fleet/blob/589e11ebca40949fb568b2b68928450eecb718bf/tools/terraform/ecs.tf#L79) & [Load Balancer](https://github.com/fleetdm/fleet/blob/589e11ebca40949fb568b2b68928450eecb718bf/tools/terraform/ecs.tf#L41). In our example the ALB is [handling TLS termination](https://github.com/fleetdm/fleet/blob/589e11ebca40949fb568b2b68928450eecb718bf/tools/terraform/ecs.tf#L46)
+Running Fleet in ECS consists of two main components: the [ECS Service](https://github.com/fleetdm/fleet/blob/589e11ebca40949fb568b2b68928450eecb718bf/tools/terraform/ecs.tf#L79) and [Load Balancer](https://github.com/fleetdm/fleet/blob/589e11ebca40949fb568b2b68928450eecb718bf/tools/terraform/ecs.tf#L41). In our example, the ALB is [handling TLS termination](https://github.com/fleetdm/fleet/blob/589e11ebca40949fb568b2b68928450eecb718bf/tools/terraform/ecs.tf#L46).
 
 #### Fleet migrations
 
-Migrations in ECS can be achieved (and is recommended) by running [dedicated ECS tasks](https://github.com/fleetdm/fleet/tree/main/infrastructure/dogfood/terraform/aws#migrating-the-db) that run the `fleet prepare --no-prompt=true db` command. See [terraform for more details](https://github.com/fleetdm/fleet/blob/589e11ebca40949fb568b2b68928450eecb718bf/tools/terraform/ecs.tf#L229)
+Migrations in ECS can be achieved (and is recommended) by running [dedicated ECS tasks](https://github.com/fleetdm/fleet/tree/main/infrastructure/dogfood/terraform/aws#migrating-the-db) that run the `fleet prepare --no-prompt=true db` command. See [terraform for more details](https://github.com/fleetdm/fleet/blob/589e11ebca40949fb568b2b68928450eecb718bf/tools/terraform/ecs.tf#L229).
 
-Alternatively you can bake the prepare command into the same task definition see [here for a discussion](https://github.com/fleetdm/fleet/pull/1761#discussion_r697599457), but this not recommended for production environments.
+Or you can bake the prepare command into the same task definition (see [here for a discussion](https://github.com/fleetdm/fleet/pull/1761#discussion_r697599457)), but this is not recommended for production environments.
 
 ---
 
