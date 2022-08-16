@@ -1,6 +1,6 @@
 package msrc_input
 
-// XML elements related to the 'vuln' namespace used to describe vulnerabilities, their scores and remediations.
+// XML elements related to the 'vuln' namespace used to describe vulnerabilities and their remediations.
 
 type VulnerabilityXML struct {
 	CVE          string                        `xml:"CVE"`
@@ -23,12 +23,18 @@ type VulnerabilityRemediationXML struct {
 	Supercedence    string   `xml:"Supercedence"`
 }
 
-func (v *VulnerabilityXML) VendorFixes() []VulnerabilityRemediationXML {
-	var r []VulnerabilityRemediationXML
-	for _, re := range v.Remediations {
+// IncludesVendorFix returns true if the vulnerability has a vendor fix targeting the product
+// identified by pID.
+func (r *VulnerabilityXML) IncludesVendorFix(pID string) bool {
+	for _, re := range r.Remediations {
 		if re.Type == "Vendor Fix" {
-			r = append(r, re)
+			for _, vfPID := range re.ProductIDs {
+				if vfPID == pID {
+					return true
+				}
+			}
 		}
 	}
-	return r
+
+	return false
 }

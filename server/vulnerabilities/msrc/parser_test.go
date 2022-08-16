@@ -83,7 +83,7 @@ func TestParser(t *testing.T) {
 			{ProductID: "10049", Name: "Windows Server 2008 R2 for x64-based Systems Service Pack 1 (Server Core installation)"},
 		}
 		var actualProducts []msrc_input.ProductXML
-		for _, v := range result.Products {
+		for _, v := range result.WinProducts {
 			actualProducts = append(actualProducts, v)
 		}
 		require.ElementsMatch(t, actualProducts, expectedProducts)
@@ -157,14 +157,14 @@ func TestParser(t *testing.T) {
 			"CVE-2022-29123",
 		}
 		var actualCVEs []string
-		for _, r := range result.Vulnerabities {
+		for _, r := range result.WinVulnerabities {
 			actualCVEs = append(actualCVEs, r.CVE)
 		}
 		require.ElementsMatch(t, expectedCVEs, actualCVEs)
 
 		//--------------------------------------------------
 		// Check the score of a random CVE (CVE-2022-24466)
-		for _, v := range result.Vulnerabities {
+		for _, v := range result.WinVulnerabities {
 			if v.CVE == "CVE-2022-24466" {
 				require.Equal(t, 4.1, v.Score)
 			}
@@ -172,7 +172,7 @@ func TestParser(t *testing.T) {
 
 		//------------------------------------------------------------
 		// Check the revision history of a random CVE (CVE-2022-29114)
-		for _, v := range result.Vulnerabities {
+		for _, v := range result.WinVulnerabities {
 			if v.CVE == "CVE-2022-29114" {
 				require.Len(t, v.Revisions, 1)
 				require.Equal(t, "2022-05-10T08:00:00", v.Revisions[0].Date)
@@ -209,8 +209,7 @@ func TestParser(t *testing.T) {
 			{Type: "Vendor Fix", FixedBuild: "6.2.9200.23714", ProductIDs: []string{"10378", "10379"}, Description: "5014018", RestartRequired: "Yes"},
 			{Type: "Known Issue", ProductIDs: []string{"10378", "10379"}, Description: "5014018"},
 		}
-
-		for _, v := range result.Vulnerabities {
+		for _, v := range result.WinVulnerabities {
 			if v.CVE == "CVE-2022-29126" {
 				require.Len(t, v.Remediations, len(expectedRemediations))
 				require.ElementsMatch(t, v.Remediations, expectedRemediations)

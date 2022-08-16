@@ -32,7 +32,7 @@ func parseMSRC(inputFile string, outputFile string) error {
 
 func parseMSRCXML(reader io.Reader) (*msrc_input.ResultXML, error) {
 	r := &msrc_input.ResultXML{
-		Products: map[string]msrc_input.ProductXML{},
+		WinProducts: map[string]msrc_input.ProductXML{},
 	}
 	d := xml.NewDecoder(reader)
 
@@ -54,33 +54,24 @@ func parseMSRCXML(reader io.Reader) (*msrc_input.ResultXML, error) {
 				}
 
 				for _, p := range branch.WindowsProducts() {
-					r.Products[p.ProductID] = p
+					r.WinProducts[p.ProductID] = p
 				}
 			}
 
 			if t.Name.Local == "Vulnerability" {
 				vuln := msrc_input.VulnerabilityXML{}
 				if err = d.DecodeElement(&vuln, &t); err != nil {
-					fmt.Println(t)
 					return nil, err
 				}
 
-				isForWin := false
-				for _, fix := range vuln.VendorFixes() {
-					for _, pID := range fix.ProductIDs {
-						if _, ok := r.Products[pID]; ok {
-							isForWin = true
-							break
-						}
+				for pID := range r.WinProducts {
+					// We only care about vulnerabilities that have a vendor fix targeting a Windows
+					// product.
+					if vuln.IncludesVendorFix(pID) {
+						r.WinVulnerabities = append(r.WinVulnerabities, vuln)
+						break
 					}
 				}
-
-				// We only care about vulnerabilities that have a vendor fix targeting a Windows
-				// product
-				if isForWin {
-					r.Vulnerabities = append(r.Vulnerabities, vuln)
-				}
-
 			}
 		}
 	}
