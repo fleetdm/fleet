@@ -86,7 +86,6 @@ const getMaxProbability = (vulns: IVulnerability[]) =>
 
 const generateEPSSColumnHeader = () => {
   return {
-    title: "Probability of exploit",
     Header: (headerProps: IHeaderProps): JSX.Element => {
       const titleWithToolTip = (
         <TooltipWrapper
