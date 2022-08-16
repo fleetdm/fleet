@@ -1752,7 +1752,7 @@ This error occurs if an installer with the provided parameters doesn't exist.
 
 Checks if a pre-built fleet-osquery installer with the given parameters exists.
 
-`HEAD /api/_version_/fleet/download_installer/{enroll_secret}/{kind}`
+`HEAD /api/_version_/fleet/download_installer/{kind}`
 
 #### Parameters
 
