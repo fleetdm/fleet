@@ -414,7 +414,7 @@ CREATE TABLE `munki_issues` (
   `issue_type` varchar(10) NOT NULL,
   `created_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`),
-  UNIQUE KEY `idx_munki_issues_name` (`name`)
+  UNIQUE KEY `idx_munki_issues_name` (`name`,`issue_type`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 /*!40101 SET character_set_client = @saved_cs_client */;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;

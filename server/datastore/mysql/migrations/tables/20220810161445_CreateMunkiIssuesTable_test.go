@@ -22,7 +22,7 @@ func TestUp_20220810161445(t *testing.T) {
 		require.Equal(t, mysqlerr.ER_DUP_ENTRY, int(driverErr.Number))
 	}
 
-	// insert same name again, fails with duplicate error
+	// insert same name + issue type again, fails with duplicate error
 	_, err = db.Exec(`INSERT INTO munki_issues (name, issue_type) VALUES ('a', 'error')`)
 	require.Error(t, err)
 	assertDuplicate(err)

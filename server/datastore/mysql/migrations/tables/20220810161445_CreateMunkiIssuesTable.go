@@ -28,7 +28,7 @@ func Up_20220810161445(tx *sql.Tx) error {
 		issue_type VARCHAR(10) NOT NULL,
 		created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
-		UNIQUE KEY idx_munki_issues_name (name)
+		UNIQUE KEY idx_munki_issues_name (name, issue_type)
 	)`)
 	if err != nil {
 		return errors.Wrapf(err, "create munki_issues table")

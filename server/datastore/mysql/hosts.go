@@ -1400,12 +1400,18 @@ func (ds *Datastore) SetOrUpdateMunkiInfo(ctx context.Context, hostID uint, vers
 }
 
 func (ds *Datastore) getOrInsertMunkiIssues(ctx context.Context, errors, warnings []string, batchSize int) (ids []uint, err error) {
+	// get list of unique messages to load ids and create if necessary
 	strToID := make(map[string]uint, len(errors)+len(warnings))
+	strToType := make(map[string]string, len(errors)+len(warnings))
 	for _, e := range errors {
 		strToID[e] = 0
+		strToType[e] = "error"
 	}
 	for _, w := range warnings {
 		strToID[w] = 0
+		if _, ok := strToType[w]; !ok {
+			strToType[w] = "warning"
+		}
 	}
 	uniqueStrs := make([]string, 0, len(strToID))
 	for k := range strToID {
@@ -1447,6 +1453,33 @@ func (ds *Datastore) getOrInsertMunkiIssues(ctx context.Context, errors, warning
 			missing = append(missing, str)
 		}
 	}
+
+	const (
+		// UPDATE id = id results in a no-op in mysql (https://stackoverflow.com/a/4596409/1094941)
+		insStmt   = `INSERT INTO munki_issues (name, issue_type) VALUES %s ON DUPLICATE KEY UPDATE id = id`
+		stmtParts = `(?, ?),`
+	)
+	args := make([]interface{}, 0, batchSize*2)
+	for len(missing) > 0 {
+		batch := missing
+		if len(batch) > batchSize {
+			batch = missing[:batchSize]
+			missing = missing[batchSize:]
+		}
+
+		args = args[:0]
+		for _, s := range batch {
+			args = append(args, s, strToType[s])
+		}
+		stmt := fmt.Sprintf(insStmt, strings.TrimSuffix(strings.Repeat(stmtParts, len(batch)), ","))
+		if _, err := ds.writer.ExecContext(ctx, stmt, args...); err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "batch-insert munki issues")
+		}
+	}
+
+	// load the IDs for the missing munki issues, from the primary as we just
+	// inserted them
+	panic("unimplemented")
 }
 
 func (ds *Datastore) SetOrUpdateMDMData(ctx context.Context, hostID uint, enrolled bool, serverURL string, installedFromDep bool) error {
