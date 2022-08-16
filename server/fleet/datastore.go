@@ -612,6 +612,8 @@ type Datastore interface {
 const (
 	// Default batch size to use for ScheduledQueryIDsByName.
 	DefaultScheduledQueryIDsByNameBatchSize = 1000
+	// Default batch size for loading IDs of or inserting new munki issues.
+	DefaultMunkiIssuesBatchSize = 100
 )
 
 type MySQLProcess struct {

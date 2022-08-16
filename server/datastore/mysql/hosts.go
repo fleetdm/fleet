@@ -1380,7 +1380,20 @@ func (ds *Datastore) updateOrInsert(ctx context.Context, updateQuery string, ins
 }
 
 func (ds *Datastore) SetOrUpdateMunkiInfo(ctx context.Context, hostID uint, version string, errors, warnings []string) error {
-	// TODO(mna): handle errors and warnings (munki_issues)
+	// NOTE(mna): if we lose too many saves due to some errors, we could continue
+	// processing even when part of the ingestion fails (e.g. process version if
+	// issues fail or vice-versa, ignore issues that failed to be created, etc.).
+	// Currently, taking a strict approach as a point that was mentioned in the
+	// ticket was to care about data accuracy, so instead of allowing to save
+	// only a subset of issues, we fail if we can't save the complete set.
+	msgToID, err := ds.getOrInsertMunkiIssues(ctx, errors, warnings, fleet.DefaultMunkiIssuesBatchSize)
+	if err != nil {
+		return err
+	}
+
+	if err := ds.replaceHostMunkiIssues(ctx, hostID, msgToID, fleet.DefaultMunkiIssuesBatchSize); err != nil {
+		return err
+	}
 
 	if version == "" {
 		// Only update deleted_at if there wasn't any deleted at for this host
@@ -1399,23 +1412,21 @@ func (ds *Datastore) SetOrUpdateMunkiInfo(ctx context.Context, hostID uint, vers
 	)
 }
 
-func (ds *Datastore) getOrInsertMunkiIssues(ctx context.Context, errors, warnings []string, batchSize int) (ids []uint, err error) {
-	// get list of unique messages to load ids and create if necessary
-	strToID := make(map[string]uint, len(errors)+len(warnings))
-	strToType := make(map[string]string, len(errors)+len(warnings))
+func (ds *Datastore) replaceHostMunkiIssues(ctx context.Context, hostID uint, msgToID map[[2]string]uint, batchSize int) error {
+	// first, we need an efficient way to check if the batch of messages are the
+	// same as existing ones - this is a likely case (i.e. Munki does not run
+	// *that* often, so it is likely that the host reports the same messages, or
+	// none at all).
+}
+
+func (ds *Datastore) getOrInsertMunkiIssues(ctx context.Context, errors, warnings []string, batchSize int) (msgToID map[[2]string]uint, err error) {
+	// get list of unique messages+type to load ids and create if necessary
+	msgToID = make(map[[2]string]uint, len(errors)+len(warnings))
 	for _, e := range errors {
-		strToID[e] = 0
-		strToType[e] = "error"
+		msgToID[[2]string{e, "error"}] = 0
 	}
 	for _, w := range warnings {
-		strToID[w] = 0
-		if _, ok := strToType[w]; !ok {
-			strToType[w] = "warning"
-		}
-	}
-	uniqueStrs := make([]string, 0, len(strToID))
-	for k := range strToID {
-		uniqueStrs = append(uniqueStrs, k)
+		msgToID[[2]string{w, "warning"}] = 0
 	}
 
 	type munkiIssue struct {
@@ -1423,63 +1434,96 @@ func (ds *Datastore) getOrInsertMunkiIssues(ctx context.Context, errors, warning
 		Name string `db:"name"`
 	}
 
-	// get the IDs from existing munki issues (from the read replica)
-	const readStmt = `SELECT id, name FROM munki_issues WHERE name IN (?)`
-	for len(uniqueStrs) > 0 {
-		batch := uniqueStrs
-		if len(batch) > batchSize {
-			batch = uniqueStrs[:batchSize]
-			uniqueStrs = uniqueStrs[batchSize:]
+	readIDs := func(q sqlx.QueryerContext, msgs [][2]string, typ string) error {
+		const readStmt = `SELECT id, name FROM munki_issues WHERE issue_type = ? AND name IN (?)`
+
+		names := make([]string, 0, len(msgs))
+		for _, msg := range msgs {
+			if msg[1] == typ {
+				names = append(names, msg[0])
+			}
 		}
 
-		var issues []*munkiIssue
-		stmt, args, err := sqlx.In(readStmt, batch)
-		if err != nil {
-			return nil, ctxerr.Wrap(ctx, err, "generate munki issues read batch statement")
-		}
-		if err := sqlx.SelectContext(ctx, ds.reader, &issues, stmt, args...); err != nil {
-			return nil, ctxerr.Wrap(ctx, err, "read munki issues batch")
-		}
+		for len(names) > 0 {
+			batch := names
+			if len(batch) > batchSize {
+				batch = names[:batchSize]
+				names = names[batchSize:]
+			}
 
-		for _, issue := range issues {
-			strToID[issue.Name] = issue.ID
+			var issues []*munkiIssue
+			stmt, args, err := sqlx.In(readStmt, typ, batch)
+			if err != nil {
+				return ctxerr.Wrap(ctx, err, "generate munki issues read batch statement")
+			}
+			if err := sqlx.SelectContext(ctx, q, &issues, stmt, args...); err != nil {
+				return ctxerr.Wrap(ctx, err, "read munki issues batch")
+			}
+
+			for _, issue := range issues {
+				msgToID[[2]string{issue.Name, typ}] = issue.ID
+			}
 		}
+		return nil
+	}
+
+	missingIDs := func() [][2]string {
+		var missing [][2]string
+		for msg, id := range msgToID {
+			if id == 0 {
+				missing = append(missing, msg)
+			}
+		}
+		return missing
+	}
+
+	allMsgs := make([][2]string, 0, len(msgToID))
+	for k := range msgToID {
+		allMsgs = append(allMsgs, k)
+	}
+
+	// get the IDs for existing munki issues (from the read replica)
+	if err := readIDs(ds.reader, allMsgs, "error"); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "load error message IDs from reader")
+	}
+	if err := readIDs(ds.reader, allMsgs, "warning"); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "load warning message IDs from reader")
 	}
 
 	// create any missing munki issues (using the primary)
-	var missing []string
-	for str, id := range strToID {
-		if id == 0 {
-			missing = append(missing, str)
+	if missing := missingIDs(); len(missing) > 0 {
+		const (
+			// UPDATE id = id results in a no-op in mysql (https://stackoverflow.com/a/4596409/1094941)
+			insStmt   = `INSERT INTO munki_issues (name, issue_type) VALUES %s ON DUPLICATE KEY UPDATE id = id`
+			stmtParts = `(?, ?),`
+		)
+		args := make([]interface{}, 0, batchSize*2)
+		for len(missing) > 0 {
+			batch := missing
+			if len(batch) > batchSize {
+				batch = missing[:batchSize]
+				missing = missing[batchSize:]
+			}
+
+			args = args[:0]
+			for _, msg := range batch {
+				args = append(args, msg[0], msg[1])
+			}
+			stmt := fmt.Sprintf(insStmt, strings.TrimSuffix(strings.Repeat(stmtParts, len(batch)), ","))
+			if _, err := ds.writer.ExecContext(ctx, stmt, args...); err != nil {
+				return nil, ctxerr.Wrap(ctx, err, "batch-insert munki issues")
+			}
+		}
+
+		// load the IDs for the missing munki issues, from the primary as we just
+		// inserted them
+		if missing := missingIDs(); len(missing) > 0 {
+			// some messages still have no IDs
+			return nil, ctxerr.Wrap(ctx, err, "found munki issues without id after batch-insert")
 		}
 	}
 
-	const (
-		// UPDATE id = id results in a no-op in mysql (https://stackoverflow.com/a/4596409/1094941)
-		insStmt   = `INSERT INTO munki_issues (name, issue_type) VALUES %s ON DUPLICATE KEY UPDATE id = id`
-		stmtParts = `(?, ?),`
-	)
-	args := make([]interface{}, 0, batchSize*2)
-	for len(missing) > 0 {
-		batch := missing
-		if len(batch) > batchSize {
-			batch = missing[:batchSize]
-			missing = missing[batchSize:]
-		}
-
-		args = args[:0]
-		for _, s := range batch {
-			args = append(args, s, strToType[s])
-		}
-		stmt := fmt.Sprintf(insStmt, strings.TrimSuffix(strings.Repeat(stmtParts, len(batch)), ","))
-		if _, err := ds.writer.ExecContext(ctx, stmt, args...); err != nil {
-			return nil, ctxerr.Wrap(ctx, err, "batch-insert munki issues")
-		}
-	}
-
-	// load the IDs for the missing munki issues, from the primary as we just
-	// inserted them
-	panic("unimplemented")
+	return msgToID, nil
 }
 
 func (ds *Datastore) SetOrUpdateMDMData(ctx context.Context, hostID uint, enrolled bool, serverURL string, installedFromDep bool) error {
