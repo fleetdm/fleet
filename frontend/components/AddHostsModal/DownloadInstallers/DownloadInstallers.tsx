@@ -1,4 +1,4 @@
-import React, { FormEvent, useRef, useState } from "react";
+import React, { FunctionComponent, useState } from "react";
 
 import {
   IInstallerPlatform,
@@ -28,6 +28,17 @@ import SuccessIcon from "./../../../../assets/images/icon-circle-check-blue-48x4
 interface IDownloadInstallersProps {
   enrollSecret: string;
   onCancel: () => void;
+}
+
+interface IDownloadFormProps {
+  url: string;
+  onSubmit: (event: React.FormEvent<HTMLFormElement>) => void;
+  token: string | null;
+  enrollSecret: string;
+  includeDesktop: boolean;
+  selectedInstaller: string | undefined;
+  isDownloading: boolean;
+  isDownloadSuccess: boolean;
 }
 
 const baseClass = "download-installers";
@@ -60,6 +71,41 @@ const displayIcon = (platform: IInstallerPlatform, isSelected: boolean) => {
     default:
       return null;
   }
+};
+
+const DownloadForm: FunctionComponent<IDownloadFormProps> = ({
+  url,
+  onSubmit,
+  token,
+  enrollSecret,
+  includeDesktop,
+  selectedInstaller,
+  isDownloading,
+  isDownloadSuccess,
+}) => {
+  return (
+    <form
+      key="form"
+      method="POST"
+      action={url}
+      target="auxFrame"
+      onSubmit={onSubmit}
+    >
+      <input type="hidden" name="token" value={token || ""} />
+      <input type="hidden" name="enroll_secret" value={enrollSecret} />
+      <input type="hidden" name="desktop" value={String(includeDesktop)} />
+      <iframe title="auxFrame" name="auxFrame" />
+      {!isDownloadSuccess && (
+        <Button
+          className={`${baseClass}__button--download`}
+          disabled={!selectedInstaller}
+          type="submit"
+        >
+          {isDownloading ? <Spinner /> : "Download installer"}
+        </Button>
+      )}
+    </form>
+  );
 };
 
 const DownloadInstallers = ({
@@ -99,13 +145,8 @@ const DownloadInstallers = ({
         installerType: selectedInstaller,
       });
 
-      // For some reason only Firefox fails with NS_ERROR_FAILURE unless we
-      // push back this operation to the bottom of the event queue
-      setTimeout(() => {
-        // Submit the form now that we know that is safe to do so.
-        (event.target as HTMLFormElement).submit();
-        setIsDownloadSuccess(true);
-      });
+      (event.target as HTMLFormElement).submit();
+      setIsDownloadSuccess(true);
     } catch (error) {
       setIsDownloadError(true);
     } finally {
@@ -124,6 +165,20 @@ const DownloadInstallers = ({
     }
     setSelectedInstaller(type);
   };
+
+  const form = (
+    <DownloadForm
+      key="downloadForm"
+      url={url}
+      onSubmit={downloadInstaller}
+      token={token}
+      enrollSecret={enrollSecret}
+      includeDesktop={includeDesktop}
+      selectedInstaller={selectedInstaller}
+      isDownloading={isDownloading}
+      isDownloadSuccess={isDownloadSuccess}
+    />
+  );
 
   if (isDownloadError) {
     return (
@@ -144,6 +199,7 @@ const DownloadInstallers = ({
         <h2>You&rsquo;re almost there</h2>
         <p>{`Run the installer on a ${installerPlatform}laptop, workstation, or sever to add it to Fleet.`}</p>
         <Button onClick={onCancel}>Got it</Button>
+        {form}
       </div>
     );
   }
@@ -187,23 +243,7 @@ const DownloadInstallers = ({
           </TooltipWrapper>
         </>
       </Checkbox>
-      <form
-        method="POST"
-        action={url}
-        target="_blank"
-        onSubmit={downloadInstaller}
-      >
-        <input type="hidden" name="token" value={token || ""} />
-        <input type="hidden" name="enroll_secret" value={enrollSecret} />
-        <input type="hidden" name="desktop" value={String(includeDesktop)} />
-        <Button
-          className={`${baseClass}__button--download`}
-          disabled={!selectedInstaller}
-          type="submit"
-        >
-          {isDownloading ? <Spinner /> : "Download installer"}
-        </Button>
-      </form>
+      {form}
     </div>
   );
 };
