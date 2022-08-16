@@ -37,7 +37,7 @@ interface IDownloadFormProps {
   enrollSecret: string;
   includeDesktop: boolean;
   selectedInstaller: string | undefined;
-  isDownloading: boolean;
+  isCheckingForInstaller: boolean;
   isDownloadSuccess: boolean;
 }
 
@@ -80,7 +80,7 @@ const DownloadForm: FunctionComponent<IDownloadFormProps> = ({
   enrollSecret,
   includeDesktop,
   selectedInstaller,
-  isDownloading,
+  isCheckingForInstaller,
   isDownloadSuccess,
 }) => {
   return (
@@ -100,7 +100,7 @@ const DownloadForm: FunctionComponent<IDownloadFormProps> = ({
           disabled={!selectedInstaller}
           type="submit"
         >
-          {isDownloading ? <Spinner /> : "Download installer"}
+          {isCheckingForInstaller ? <Spinner /> : "Download insssstaller"}
         </Button>
       )}
     </form>
@@ -174,7 +174,7 @@ const DownloadInstallers = ({
       enrollSecret={enrollSecret}
       includeDesktop={includeDesktop}
       selectedInstaller={selectedInstaller}
-      isDownloading={isDownloading}
+      isCheckingForInstaller={isDownloading}
       isDownloadSuccess={isDownloadSuccess}
     />
   );
