@@ -96,7 +96,7 @@ const Agents = ({
               Want some hosts to have different options?&nbsp;
               <a
                 href="https://fleetdm.com/docs/using-fleet/teams"
-                className={`${baseClass}__learn-more--inline`}
+                className={`${baseClass}__learn-more ${baseClass}__learn-more--inline`}
                 target="_blank"
                 rel="noopener noreferrer"
               >
