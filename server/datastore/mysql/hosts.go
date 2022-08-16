@@ -1391,7 +1391,7 @@ func (ds *Datastore) SetOrUpdateMunkiInfo(ctx context.Context, hostID uint, vers
 		return err
 	}
 
-	if err := ds.replaceHostMunkiIssues(ctx, hostID, msgToID, fleet.DefaultMunkiIssuesBatchSize); err != nil {
+	if err := ds.replaceHostMunkiIssues(ctx, hostID, msgToID); err != nil {
 		return err
 	}
 
@@ -1412,11 +1412,87 @@ func (ds *Datastore) SetOrUpdateMunkiInfo(ctx context.Context, hostID uint, vers
 	)
 }
 
-func (ds *Datastore) replaceHostMunkiIssues(ctx context.Context, hostID uint, msgToID map[[2]string]uint, batchSize int) error {
-	// first, we need an efficient way to check if the batch of messages are the
-	// same as existing ones - this is a likely case (i.e. Munki does not run
-	// *that* often, so it is likely that the host reports the same messages, or
-	// none at all).
+func (ds *Datastore) replaceHostMunkiIssues(ctx context.Context, hostID uint, msgToID map[[2]string]uint) error {
+	// This needs an efficient way to check if the batch of messages are the same
+	// as existing ones, as this should be a common case (i.e. Munki does not run
+	// *that* often, so it is likely that the host reports the same messages for
+	// some time, or none at all). The approach is as follows:
+	//
+	// * Read a COUNT of new IDs (those to be saved) and a COUNT of old IDs
+	//   (those to be removed) from the read replica.
+	// * If COUNT(new) == len(newIDs) and COUNT(old) == 0, no write is required.
+	// * If COUNT(old) > 0, delete those obsolete ids.
+	// * If COUNT(new) < len(newIDs), insert those missing ids.
+	//
+	// In the best scenario, a single statement is executed on the read replica,
+	// and in the worst case, 3 statements are executed, 2 on the primary.
+	//
+	// Of course this is racy, as the check is done in the replica and the write
+	// is not transactional, but this is not an issue here as host-reported data
+	// is eventually consistent in nature and that data is reported at regular
+	// intervals.
+
+	newIDs := make([]uint, 0, len(msgToID))
+	for _, id := range msgToID {
+		newIDs = append(newIDs, id)
+	}
+
+	const countStmt = `SELECT
+    (SELECT COUNT(*) FROM host_munki_issues WHERE host_id = ? AND munki_issue_id IN (?)) as count_new,
+    (SELECT COUNT(*) FROM host_munki_issues WHERE host_id = ? AND munki_issue_id NOT IN (?)) as count_old`
+
+	var counts struct {
+		CountNew int `db:"count_new"`
+		CountOld int `db:"count_old"`
+	}
+
+	// required to get the old count if the new is empty
+	idsForIN := newIDs
+	if len(idsForIN) == 0 {
+		// must have at least one for the IN/NOT IN to work, add an impossible one
+		idsForIN = []uint{0}
+	}
+	stmt, args, err := sqlx.In(countStmt, hostID, idsForIN, hostID, idsForIN)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "prepare read host_munki_issues counts arguments")
+	}
+	if err := sqlx.GetContext(ctx, ds.reader, &counts, stmt, args...); err != nil {
+		return ctxerr.Wrap(ctx, err, "read host_munki_issues counts")
+	}
+	if counts.CountNew == len(newIDs) && counts.CountOld == 0 {
+		return nil
+	}
+
+	if counts.CountOld > 0 {
+		// must delete those IDs
+		const delStmt = `DELETE FROM host_munki_issues WHERE host_id = ? AND munki_issue_id NOT IN (?)`
+		stmt, args, err := sqlx.In(delStmt, hostID, idsForIN)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "prepare delete host_munki_issues arguments")
+		}
+		if _, err := ds.writer.ExecContext(ctx, stmt, args...); err != nil {
+			return ctxerr.Wrap(ctx, err, "delete host_munki_issues")
+		}
+	}
+
+	if counts.CountNew < len(newIDs) {
+		// must insert missing IDs
+		const (
+			insStmt  = `INSERT INTO host_munki_issues (host_id, munki_issue_id) VALUES %s ON DUPLICATE KEY UPDATE id = id`
+			stmtPart = `(?, ?),`
+		)
+
+		stmt := fmt.Sprintf(insStmt, strings.TrimSuffix(strings.Repeat(stmtPart, len(newIDs)), ","))
+		args := make([]interface{}, 0, 2*len(newIDs))
+		for _, id := range newIDs {
+			args = append(args, hostID, id)
+		}
+		if _, err := ds.writer.ExecContext(ctx, stmt, args...); err != nil {
+			return ctxerr.Wrap(ctx, err, "insert host_munki_issues")
+		}
+	}
+
+	return nil
 }
 
 func (ds *Datastore) getOrInsertMunkiIssues(ctx context.Context, errors, warnings []string, batchSize int) (msgToID map[[2]string]uint, err error) {
