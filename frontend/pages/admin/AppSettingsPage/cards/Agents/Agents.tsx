@@ -3,6 +3,7 @@ import React, { useState, useEffect } from "react";
 // @ts-ignore
 import constructErrorString from "utilities/yaml";
 import yaml from "js-yaml";
+import paths from "router/paths";
 
 import Button from "components/buttons/Button";
 // @ts-ignore
@@ -19,7 +20,10 @@ const baseClass = "app-config-form";
 const Agents = ({
   appConfig,
   handleSubmit,
+  isPremiumTier,
 }: IAppConfigFormProps): JSX.Element => {
+  const { ADMIN_TEAMS } = paths;
+
   const [formData, setFormData] = useState<any>({
     agentOptions: yaml.dump(appConfig.agent_options) || {},
   });
@@ -65,29 +69,42 @@ const Agents = ({
     <form className={baseClass} onSubmit={onFormSubmit} autoComplete="off">
       <div className={`${baseClass}__section`}>
         <div className={`${baseClass}__yaml`}>
-          <h2>Global agent options</h2>
+          <h2>Agent options</h2>
           <p className={`${baseClass}__section-description`}>
-            This code will be used by osquery when it checks for configuration
-            options.
+            Agent options configure the osquery agent. When you update agent
+            options, they will be applied the next time a host checks in to
+            Fleet.
             <br />
-            <b>
-              Changes to these configuration options will be applied to all
-              hosts in your organization that do not belong to any team.
-            </b>
-          </p>
-          <InfoBanner className={`${baseClass}__config-docs`}>
-            How do global agent options interact with team-level agent
-            options?&nbsp;
             <a
               href="https://fleetdm.com/docs/using-fleet/fleet-ui#configuring-agent-options"
-              className={`${baseClass}__learn-more ${baseClass}__learn-more--inline`}
+              className={`${baseClass}__learn-more`}
               target="_blank"
               rel="noopener noreferrer"
             >
               Learn more about agent options&nbsp;
               <img className="icon" src={OpenNewTabIcon} alt="open new tab" />
             </a>
-          </InfoBanner>
+          </p>
+          {isPremiumTier ? (
+            <InfoBanner>
+              These options are not applied to hosts on a team. To update agent
+              options for hosts on a team, head to the&nbsp;
+              <a href={ADMIN_TEAMS}>Teams page</a>&nbsp;and select a team.
+            </InfoBanner>
+          ) : (
+            <InfoBanner>
+              Want some hosts to have different options?&nbsp;
+              <a
+                href="https://fleetdm.com/docs/using-fleet/teams"
+                className={`${baseClass}__learn-more--inline`}
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                Learn more about teams&nbsp;
+                <img className="icon" src={OpenNewTabIcon} alt="open new tab" />
+              </a>
+            </InfoBanner>
+          )}
           <p className={`${baseClass}__component-label`}>
             <b>YAML</b>
           </p>
