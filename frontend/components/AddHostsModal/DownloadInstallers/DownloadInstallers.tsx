@@ -100,7 +100,7 @@ const DownloadForm: FunctionComponent<IDownloadFormProps> = ({
           disabled={!selectedInstaller}
           type="submit"
         >
-          {isCheckingForInstaller ? <Spinner /> : "Download insssstaller"}
+          {isCheckingForInstaller ? <Spinner /> : "Download installer"}
         </Button>
       )}
     </form>
