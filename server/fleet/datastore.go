@@ -241,6 +241,7 @@ type Datastore interface {
 	ListPoliciesForHost(ctx context.Context, host *Host) ([]*HostPolicy, error)
 
 	GetMunkiVersion(ctx context.Context, hostID uint) (string, error)
+	GetMunkiIssues(ctx context.Context, hostID uint) ([]*HostMunkiIssue, error)
 	GetMDM(ctx context.Context, hostID uint) (*HostMDM, error)
 
 	AggregatedMunkiVersion(ctx context.Context, teamID *uint) ([]AggregatedMunkiVersion, time.Time, error)

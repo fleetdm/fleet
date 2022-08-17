@@ -191,6 +191,8 @@ type ListPoliciesForHostFunc func(ctx context.Context, host *fleet.Host) ([]*fle
 
 type GetMunkiVersionFunc func(ctx context.Context, hostID uint) (string, error)
 
+type GetMunkiIssuesFunc func(ctx context.Context, hostID uint) ([]*fleet.HostMunkiIssue, error)
+
 type GetMDMFunc func(ctx context.Context, hostID uint) (*fleet.HostMDM, error)
 
 type AggregatedMunkiVersionFunc func(ctx context.Context, teamID *uint) ([]fleet.AggregatedMunkiVersion, time.Time, error)
@@ -704,6 +706,9 @@ type DataStore struct {
 
 	GetMunkiVersionFunc        GetMunkiVersionFunc
 	GetMunkiVersionFuncInvoked bool
+
+	GetMunkiIssuesFunc        GetMunkiIssuesFunc
+	GetMunkiIssuesFuncInvoked bool
 
 	GetMDMFunc        GetMDMFunc
 	GetMDMFuncInvoked bool
@@ -1518,6 +1523,11 @@ func (s *DataStore) ListPoliciesForHost(ctx context.Context, host *fleet.Host) (
 func (s *DataStore) GetMunkiVersion(ctx context.Context, hostID uint) (string, error) {
 	s.GetMunkiVersionFuncInvoked = true
 	return s.GetMunkiVersionFunc(ctx, hostID)
+}
+
+func (s *DataStore) GetMunkiIssues(ctx context.Context, hostID uint) ([]*fleet.HostMunkiIssue, error) {
+	s.GetMunkiIssuesFuncInvoked = true
+	return s.GetMunkiIssuesFunc(ctx, hostID)
 }
 
 func (s *DataStore) GetMDM(ctx context.Context, hostID uint) (*fleet.HostMDM, error) {

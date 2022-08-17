@@ -946,13 +946,22 @@ func (svc *Service) MacadminsData(ctx context.Context, id uint) (*fleet.Macadmin
 		mdm = hmdm
 	}
 
-	if munkiInfo == nil && mdm == nil {
+	var munkiIssues []*fleet.HostMunkiIssue
+	switch issues, err := svc.ds.GetMunkiIssues(ctx, id); {
+	case err != nil:
+		return nil, err
+	case err == nil:
+		munkiIssues = issues
+	}
+
+	if munkiInfo == nil && mdm == nil && len(munkiIssues) == 0 {
 		return nil, nil
 	}
 
 	data := &fleet.MacadminsData{
-		Munki: munkiInfo,
-		MDM:   mdm,
+		Munki:       munkiInfo,
+		MDM:         mdm,
+		MunkiIssues: munkiIssues,
 	}
 
 	return data, nil

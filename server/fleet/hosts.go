@@ -316,6 +316,14 @@ type HostMDM struct {
 	Name             string `db:"name" json:"-"`
 }
 
+// HostMunkiIssue represents a single munki issue for a host.
+type HostMunkiIssue struct {
+	MunkiIssueID       uint      `db:"munki_issue_id" json:"id"`
+	Name               string    `db:"name" json:"name"`
+	IssueType          string    `db:"issue_type" json:"type"`
+	HostIssueCreatedAt time.Time `db:"created_at" json:"created_at"`
+}
+
 // List of well-known MDM solution names. Those correspond to names stored in
 // the mobile_device_management_solutions table, created via (data) migrations.
 const (
@@ -390,8 +398,9 @@ type HostBattery struct {
 }
 
 type MacadminsData struct {
-	Munki *HostMunkiInfo `json:"munki"`
-	MDM   *HostMDM       `json:"mobile_device_management"`
+	Munki       *HostMunkiInfo    `json:"munki"`
+	MDM         *HostMDM          `json:"mobile_device_management"`
+	MunkiIssues []*HostMunkiIssue `json:"munki_issues"`
 }
 
 type AggregatedMunkiVersion struct {

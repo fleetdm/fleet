@@ -1674,6 +1674,28 @@ func (ds *Datastore) GetMDM(ctx context.Context, hostID uint) (*fleet.HostMDM, e
 	return &hmdm, nil
 }
 
+func (ds *Datastore) GetMunkiIssues(ctx context.Context, hostID uint) ([]*fleet.HostMunkiIssue, error) {
+	var issues []*fleet.HostMunkiIssue
+	err := sqlx.SelectContext(ctx, ds.reader, &issues, `
+    SELECT
+      hmi.munki_issue_id,
+      mi.name,
+      mi.issue_type,
+      hmi.created_at
+	  FROM
+      host_munki_issues hmi
+    INNER JOIN
+      munki_issues mi
+    ON
+      hmi.munki_issue_id = mi.id
+    WHERE host_id = ?
+`, hostID)
+	if err != nil {
+		return nil, ctxerr.Wrapf(ctx, err, "select host_munki_issues for host_id %d", hostID)
+	}
+	return issues, nil
+}
+
 func (ds *Datastore) AggregatedMunkiVersion(ctx context.Context, teamID *uint) ([]fleet.AggregatedMunkiVersion, time.Time, error) {
 	id := uint(0)
 
