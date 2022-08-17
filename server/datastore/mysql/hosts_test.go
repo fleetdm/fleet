@@ -78,6 +78,7 @@ func TestHosts(t *testing.T) {
 		{"ListStatus", testHostsListStatus},
 		{"ListQuery", testHostsListQuery},
 		{"ListMDM", testHostsListMDM},
+		{"ListMunkiIssueID", testHostsListMunkiIssueID},
 		{"Enroll", testHostsEnroll},
 		{"LoadHostByNodeKey", testHostsLoadHostByNodeKey},
 		{"LoadHostByNodeKeyCaseSensitive", testHostsLoadHostByNodeKeyCaseSensitive},
@@ -891,6 +892,53 @@ func testHostsListMDM(t *testing.T, ds *Datastore) {
 
 	hosts = listHostsCheckCount(t, ds, filter, fleet.HostListOptions{MDMEnrollmentStatusFilter: fleet.MDMEnrollStatusAutomatic, MDMIDFilter: &kandjiID}, 1)
 	assert.Equal(t, 1, len(hosts))
+}
+
+func testHostsListMunkiIssueID(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+
+	var hostIDs []uint
+	for i := 0; i < 3; i++ {
+		h, err := ds.NewHost(ctx, &fleet.Host{
+			DetailUpdatedAt: time.Now(),
+			LabelUpdatedAt:  time.Now(),
+			PolicyUpdatedAt: time.Now(),
+			SeenTime:        time.Now().Add(-time.Duration(i) * time.Minute * 2),
+			OsqueryHostID:   strconv.Itoa(i),
+			NodeKey:         fmt.Sprintf("%d", i),
+			UUID:            fmt.Sprintf("%d", i),
+			Hostname:        fmt.Sprintf("foo.local%d", i),
+		})
+		require.NoError(t, err)
+		hostIDs = append(hostIDs, h.ID)
+	}
+
+	err := ds.SetOrUpdateMunkiInfo(ctx, hostIDs[0], "1.0.0", []string{"a", "b"}, []string{"c"})
+	require.NoError(t, err)
+	err = ds.SetOrUpdateMunkiInfo(ctx, hostIDs[1], "1.0.0", []string{"a"}, []string{"c"})
+	require.NoError(t, err)
+	err = ds.SetOrUpdateMunkiInfo(ctx, hostIDs[2], "1.0.0", []string{"a", "b"}, nil)
+	require.NoError(t, err)
+
+	var munkiIDs []uint
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.SelectContext(ctx, q, &munkiIDs, `SELECT id FROM munki_issues WHERE name IN ('a', 'b', 'c') ORDER BY name`)
+	})
+
+	filter := fleet.TeamFilter{User: test.UserAdmin}
+
+	hosts := listHostsCheckCount(t, ds, filter, fleet.HostListOptions{MunkiIssueIDFilter: &munkiIDs[0]}, 3) // "a" error, all 3 hosts
+	assert.Len(t, hosts, 3)
+
+	hosts = listHostsCheckCount(t, ds, filter, fleet.HostListOptions{MunkiIssueIDFilter: &munkiIDs[1]}, 2) // "b" error, 2 hosts
+	assert.Len(t, hosts, 2)
+
+	hosts = listHostsCheckCount(t, ds, filter, fleet.HostListOptions{MunkiIssueIDFilter: &munkiIDs[2]}, 2) // "c" warning, 2 hosts
+	assert.Len(t, hosts, 2)
+
+	nonExisting := uint(123)
+	hosts = listHostsCheckCount(t, ds, filter, fleet.HostListOptions{MunkiIssueIDFilter: &nonExisting}, 0)
+	assert.Len(t, hosts, 0)
 }
 
 func testHostsEnroll(t *testing.T, ds *Datastore) {
