@@ -1002,6 +1002,12 @@ func (svc *Service) AggregatedMacadminsData(ctx context.Context, teamID *uint) (
 	}
 	agg.MunkiVersions = versions
 
+	issues, munkiIssUpdatedAt, err := svc.ds.AggregatedMunkiIssues(ctx, teamID)
+	if err != nil {
+		return nil, err
+	}
+	agg.MunkiIssues = issues
+
 	status, mdmUpdatedAt, err := svc.ds.AggregatedMDMStatus(ctx, teamID)
 	if err != nil {
 		return nil, err
@@ -1015,6 +1021,9 @@ func (svc *Service) AggregatedMacadminsData(ctx context.Context, teamID *uint) (
 	agg.MDMSolutions = solutions
 
 	agg.CountsUpdatedAt = munkiUpdatedAt
+	if munkiIssUpdatedAt.After(agg.CountsUpdatedAt) {
+		agg.CountsUpdatedAt = munkiIssUpdatedAt
+	}
 	if mdmUpdatedAt.After(agg.CountsUpdatedAt) {
 		agg.CountsUpdatedAt = mdmUpdatedAt
 	}

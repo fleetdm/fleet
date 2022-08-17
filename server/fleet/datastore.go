@@ -244,6 +244,7 @@ type Datastore interface {
 	GetMDM(ctx context.Context, hostID uint) (*HostMDM, error)
 
 	AggregatedMunkiVersion(ctx context.Context, teamID *uint) ([]AggregatedMunkiVersion, time.Time, error)
+	AggregatedMunkiIssues(ctx context.Context, teamID *uint) ([]AggregatedMunkiIssue, time.Time, error)
 	AggregatedMDMStatus(ctx context.Context, teamID *uint) (AggregatedMDMStatus, time.Time, error)
 	AggregatedMDMSolutions(ctx context.Context, teamID *uint) ([]AggregatedMDMSolutions, time.Time, error)
 	GenerateAggregatedMunkiAndMDM(ctx context.Context) error

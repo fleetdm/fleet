@@ -423,6 +423,7 @@ type AggregatedMDMSolutions struct {
 type AggregatedMacadminsData struct {
 	CountsUpdatedAt time.Time                `json:"counts_updated_at"`
 	MunkiVersions   []AggregatedMunkiVersion `json:"munki_versions"`
+	MunkiIssues     []AggregatedMunkiIssue   `json:"munki_issues"`
 	MDMStatus       AggregatedMDMStatus      `json:"mobile_device_management_enrollment_status"`
 	MDMSolutions    []AggregatedMDMSolutions `json:"mobile_device_management_solution"`
 }

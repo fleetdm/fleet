@@ -195,6 +195,8 @@ type GetMDMFunc func(ctx context.Context, hostID uint) (*fleet.HostMDM, error)
 
 type AggregatedMunkiVersionFunc func(ctx context.Context, teamID *uint) ([]fleet.AggregatedMunkiVersion, time.Time, error)
 
+type AggregatedMunkiIssuesFunc func(ctx context.Context, teamID *uint) ([]fleet.AggregatedMunkiIssue, time.Time, error)
+
 type AggregatedMDMStatusFunc func(ctx context.Context, teamID *uint) (fleet.AggregatedMDMStatus, time.Time, error)
 
 type AggregatedMDMSolutionsFunc func(ctx context.Context, teamID *uint) ([]fleet.AggregatedMDMSolutions, time.Time, error)
@@ -708,6 +710,9 @@ type DataStore struct {
 
 	AggregatedMunkiVersionFunc        AggregatedMunkiVersionFunc
 	AggregatedMunkiVersionFuncInvoked bool
+
+	AggregatedMunkiIssuesFunc        AggregatedMunkiIssuesFunc
+	AggregatedMunkiIssuesFuncInvoked bool
 
 	AggregatedMDMStatusFunc        AggregatedMDMStatusFunc
 	AggregatedMDMStatusFuncInvoked bool
@@ -1523,6 +1528,11 @@ func (s *DataStore) GetMDM(ctx context.Context, hostID uint) (*fleet.HostMDM, er
 func (s *DataStore) AggregatedMunkiVersion(ctx context.Context, teamID *uint) ([]fleet.AggregatedMunkiVersion, time.Time, error) {
 	s.AggregatedMunkiVersionFuncInvoked = true
 	return s.AggregatedMunkiVersionFunc(ctx, teamID)
+}
+
+func (s *DataStore) AggregatedMunkiIssues(ctx context.Context, teamID *uint) ([]fleet.AggregatedMunkiIssue, time.Time, error) {
+	s.AggregatedMunkiIssuesFuncInvoked = true
+	return s.AggregatedMunkiIssuesFunc(ctx, teamID)
 }
 
 func (s *DataStore) AggregatedMDMStatus(ctx context.Context, teamID *uint) (fleet.AggregatedMDMStatus, time.Time, error) {

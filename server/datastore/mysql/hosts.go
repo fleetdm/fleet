@@ -1692,6 +1692,36 @@ func (ds *Datastore) AggregatedMunkiVersion(ctx context.Context, teamID *uint) (
 	return versions, versionsJson.UpdatedAt, nil
 }
 
+func (ds *Datastore) AggregatedMunkiIssues(ctx context.Context, teamID *uint) ([]fleet.AggregatedMunkiIssue, time.Time, error) {
+	id := uint(0)
+
+	if teamID != nil {
+		id = *teamID
+	}
+
+	var result []fleet.AggregatedMunkiIssue
+	var resultJSON struct {
+		JsonValue []byte    `db:"json_value"`
+		UpdatedAt time.Time `db:"updated_at"`
+	}
+	err := sqlx.GetContext(
+		ctx, ds.reader, &resultJSON,
+		`SELECT json_value, updated_at FROM aggregated_stats WHERE id = ? AND type = 'munki_issues'`,
+		id,
+	)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			// not having stats is not an error
+			return nil, time.Time{}, nil
+		}
+		return nil, time.Time{}, ctxerr.Wrap(ctx, err, "selecting munki issues")
+	}
+	if err := json.Unmarshal(resultJSON.JsonValue, &result); err != nil {
+		return nil, time.Time{}, ctxerr.Wrap(ctx, err, "unmarshaling munki issues")
+	}
+	return result, resultJSON.UpdatedAt, nil
+}
+
 func (ds *Datastore) AggregatedMDMStatus(ctx context.Context, teamID *uint) (fleet.AggregatedMDMStatus, time.Time, error) {
 	id := uint(0)
 

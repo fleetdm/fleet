@@ -3741,6 +3741,10 @@ func testAggregatedHostMDMAndMunki(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.Len(t, versions, 0)
 	require.Zero(t, updatedAt)
+	issues, updatedAt, err := ds.AggregatedMunkiIssues(context.Background(), nil)
+	require.NoError(t, err)
+	require.Len(t, issues, 0)
+	require.Zero(t, updatedAt)
 	status, updatedAt, err := ds.AggregatedMDMStatus(context.Background(), nil)
 	require.NoError(t, err)
 	require.Empty(t, status)
@@ -3760,6 +3764,10 @@ func testAggregatedHostMDMAndMunki(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.Len(t, versions, 0)
 	require.NotZero(t, updatedAt)
+	issues, updatedAt, err = ds.AggregatedMunkiIssues(context.Background(), nil)
+	require.NoError(t, err)
+	require.Empty(t, issues)
+	require.NotZero(t, updatedAt)
 	status, updatedAt, err = ds.AggregatedMDMStatus(context.Background(), nil)
 	require.NoError(t, err)
 	require.Empty(t, status)
@@ -3770,9 +3778,9 @@ func testAggregatedHostMDMAndMunki(t *testing.T, ds *Datastore) {
 	require.NotZero(t, updatedAt)
 
 	// So now we try with data
-	require.NoError(t, ds.SetOrUpdateMunkiInfo(context.Background(), 123, "1.2.3", nil, nil))
-	require.NoError(t, ds.SetOrUpdateMunkiInfo(context.Background(), 999, "9.0", nil, nil))
-	require.NoError(t, ds.SetOrUpdateMunkiInfo(context.Background(), 342, "1.2.3", nil, nil))
+	require.NoError(t, ds.SetOrUpdateMunkiInfo(context.Background(), 123, "1.2.3", []string{"a", "b"}, []string{"c"}))
+	require.NoError(t, ds.SetOrUpdateMunkiInfo(context.Background(), 999, "9.0", []string{"a"}, nil))
+	require.NoError(t, ds.SetOrUpdateMunkiInfo(context.Background(), 342, "1.2.3", nil, []string{"c"}))
 
 	require.NoError(t, ds.GenerateAggregatedMunkiAndMDM(context.Background()))
 
@@ -3787,6 +3795,31 @@ func testAggregatedHostMDMAndMunki(t *testing.T, ds *Datastore) {
 		{
 			HostMunkiInfo: fleet.HostMunkiInfo{Version: "9.0"},
 			HostsCount:    1,
+		},
+	})
+
+	issues, _, err = ds.AggregatedMunkiIssues(context.Background(), nil)
+	require.NoError(t, err)
+	require.Len(t, issues, 3)
+	// ignore the ids
+	issues[0].ID = 0
+	issues[1].ID = 0
+	issues[2].ID = 0
+	assert.ElementsMatch(t, issues, []fleet.AggregatedMunkiIssue{
+		{
+			Name:       "a",
+			IssueType:  "error",
+			HostsCount: 2,
+		},
+		{
+			Name:       "b",
+			IssueType:  "error",
+			HostsCount: 1,
+		},
+		{
+			Name:       "c",
+			IssueType:  "warning",
+			HostsCount: 2,
 		},
 	})
 
@@ -3847,11 +3880,11 @@ func testAggregatedHostMDMAndMunki(t *testing.T, ds *Datastore) {
 
 	require.NoError(t, ds.SetOrUpdateMDMData(context.Background(), h1.ID, true, "https://simplemdm.com", false))
 	require.NoError(t, ds.SetOrUpdateMDMData(context.Background(), h2.ID, true, "url", false))
-	require.NoError(t, ds.SetOrUpdateMunkiInfo(context.Background(), h1.ID, "1.2.3", nil, nil))
-	require.NoError(t, ds.SetOrUpdateMunkiInfo(context.Background(), h2.ID, "1.2.3", nil, nil))
+	require.NoError(t, ds.SetOrUpdateMunkiInfo(context.Background(), h1.ID, "1.2.3", []string{"d"}, nil))
+	require.NoError(t, ds.SetOrUpdateMunkiInfo(context.Background(), h2.ID, "1.2.3", []string{"d"}, []string{"e"}))
 
 	// h3 adds it but then removes it
-	require.NoError(t, ds.SetOrUpdateMunkiInfo(context.Background(), h3.ID, "1.2.3", nil, nil))
+	require.NoError(t, ds.SetOrUpdateMunkiInfo(context.Background(), h3.ID, "1.2.3", []string{"f"}, nil))
 	require.NoError(t, ds.SetOrUpdateMunkiInfo(context.Background(), h3.ID, "", nil, nil))
 
 	// Make the updated_at different enough
@@ -3868,6 +3901,27 @@ func testAggregatedHostMDMAndMunki(t *testing.T, ds *Datastore) {
 		},
 	})
 	require.True(t, updatedAt.After(firstUpdatedAt))
+
+	issues, updatedAt, err = ds.AggregatedMunkiIssues(context.Background(), &team1.ID)
+	require.NoError(t, err)
+	require.Len(t, issues, 2)
+	// ignore IDs
+	issues[0].ID = 0
+	issues[1].ID = 0
+	assert.ElementsMatch(t, issues, []fleet.AggregatedMunkiIssue{
+		{
+			Name:       "d",
+			IssueType:  "error",
+			HostsCount: 2,
+		},
+		{
+			Name:       "e",
+			IssueType:  "warning",
+			HostsCount: 1,
+		},
+	})
+	require.True(t, updatedAt.After(firstUpdatedAt))
+
 	status, _, err = ds.AggregatedMDMStatus(context.Background(), &team1.ID)
 	require.NoError(t, err)
 	assert.Equal(t, 1, status.HostsCount)
