@@ -71,6 +71,8 @@ type HostListOptions struct {
 	MDMIDFilter *uint
 	// MDMEnrollmentStatusFilter filters the host by their MDM enrollment status.
 	MDMEnrollmentStatusFilter MDMEnrollStatus
+	// MunkiIssueIDFilter filters the hosts by munki issue ID.
+	MunkiIssueIDFilter *uint
 }
 
 func (h HostListOptions) Empty() bool {

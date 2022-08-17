@@ -298,7 +298,16 @@ func hostListOptionsFromRequest(r *http.Request) (fleet.HostListOptions, error) 
 		// No error when unset
 	default:
 		return hopt, ctxerr.Errorf(r.Context(), "invalid mdm enrollment status %s", enrollmentStatus)
+	}
 
+	munkiIssueID := r.URL.Query().Get("munki_issue_id")
+	if munkiIssueID != "" {
+		id, err := strconv.Atoi(munkiIssueID)
+		if err != nil {
+			return hopt, err
+		}
+		mid := uint(id)
+		hopt.MunkiIssueIDFilter = &mid
 	}
 
 	return hopt, nil

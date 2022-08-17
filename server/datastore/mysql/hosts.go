@@ -506,6 +506,12 @@ func (ds *Datastore) applyHostFilters(opt fleet.HostListOptions, sql string, fil
 		mdmJoin = ""
 	}
 
+	munkiFilter := "TRUE"
+	if opt.MunkiIssueIDFilter != nil {
+		munkiFilter = "EXISTS (SELECT 1 FROM host_munki_issues hmi WHERE hmi.host_id = h.id AND hmi.munki_issue_id = ?)"
+		params = append(params, opt.MunkiIssueIDFilter)
+	}
+
 	operatingSystemJoin := `JOIN host_operating_system hos ON h.id = hos.host_id`
 	if opt.OperatingSystemIDFilter == nil {
 		operatingSystemJoin = ""
@@ -519,8 +525,9 @@ func (ds *Datastore) applyHostFilters(opt fleet.HostListOptions, sql string, fil
 		%s
 		%s
 		%s
-		WHERE TRUE AND %s AND %s
-    `, deviceMappingJoin, policyMembershipJoin, failingPoliciesJoin, mdmJoin, operatingSystemJoin, ds.whereFilterHostsByTeams(filter, "h"), softwareFilter,
+		WHERE TRUE AND %s AND %s AND %s
+    `, deviceMappingJoin, policyMembershipJoin, failingPoliciesJoin, mdmJoin, operatingSystemJoin, ds.whereFilterHostsByTeams(filter, "h"),
+		softwareFilter, munkiFilter,
 	)
 
 	sql, params = filterHostsByStatus(sql, opt, params)
