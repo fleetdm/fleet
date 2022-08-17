@@ -189,6 +189,8 @@ describe("Software", () => {
   before(() => {
     Cypress.session.clearAllSavedSessions();
     cy.setupWithSoftware();
+    // eslint-disable-next-line cypress/no-unnecessary-waiting
+    cy.wait(10000);
     cy.loginWithCySession();
     cy.viewport(1600, 900);
   });
@@ -204,9 +206,9 @@ describe("Software", () => {
       cy.visit("/software/manage");
     });
     it("renders and searches the host's software,  links to filter hosts by software", () => {
-      // cy.getAttached(".manage-software-page__count").within(() => {
-      //   cy.findByText(/902 software items/i).should("exist");
-      // });
+      cy.getAttached(".manage-software-page__count").within(() => {
+        cy.findByText(/902 software items/i).should("exist");
+      });
       cy.findByPlaceholderText(/search software/i).type("lib");
       // Ensures search completes
       cy.wait(3000); // eslint-disable-line cypress/no-unnecessary-waiting
