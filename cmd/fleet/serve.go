@@ -2,8 +2,6 @@ package main
 
 import (
 	"context"
-	"crypto/sha256"
-	"crypto/subtle"
 	"crypto/tls"
 	"database/sql/driver"
 	"errors"
@@ -24,6 +22,7 @@ import (
 	"github.com/e-dard/netbug"
 	"github.com/fleetdm/fleet/v4/ee/server/licensing"
 	eeservice "github.com/fleetdm/fleet/v4/ee/server/service"
+	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
 	"github.com/fleetdm/fleet/v4/server"
 	"github.com/fleetdm/fleet/v4/server/config"
 	configpkg "github.com/fleetdm/fleet/v4/server/config"
@@ -488,7 +487,11 @@ the way that the Fleet server works.
 			}
 
 			if config.Prometheus.BasicAuth.Username != "" && config.Prometheus.BasicAuth.Password != "" {
-				metricsHandler := basicAuthHandler(config.Prometheus.BasicAuth.Username, config.Prometheus.BasicAuth.Password, service.PrometheusMetricsHandler("metrics", promhttp.Handler()))
+				metricsHandler := fleethttp.BasicAuthHandler(
+					config.Prometheus.BasicAuth.Username,
+					config.Prometheus.BasicAuth.Password,
+					service.PrometheusMetricsHandler("metrics", promhttp.Handler()),
+				)
 				rootMux.Handle("/metrics", metricsHandler)
 			} else {
 				level.Info(logger).Log("msg", "metrics endpoint disabled (http basic auth credentials not set)")
@@ -617,32 +620,6 @@ the way that the Fleet server works.
 	serveCmd.PersistentFlags().BoolVar(&devExpiredLicense, "dev_expired_license", false, "Enable expired development license")
 
 	return serveCmd
-}
-
-// basicAuthHandler wraps the given handler behind HTTP Basic Auth.
-func basicAuthHandler(username, password string, next http.Handler) http.HandlerFunc {
-	hashFn := func(s string) []byte {
-		h := sha256.Sum256([]byte(s))
-		return h[:]
-	}
-	expectedUsernameHash := hashFn(username)
-	expectedPasswordHash := hashFn(password)
-
-	return func(w http.ResponseWriter, r *http.Request) {
-		recvUsername, recvPassword, ok := r.BasicAuth()
-		if ok {
-			usernameMatch := subtle.ConstantTimeCompare(hashFn(recvUsername), expectedUsernameHash) == 1
-			passwordMatch := subtle.ConstantTimeCompare(hashFn(recvPassword), expectedPasswordHash) == 1
-
-			if usernameMatch && passwordMatch {
-				next.ServeHTTP(w, r)
-				return
-			}
-		}
-
-		w.Header().Set("WWW-Authenticate", `Basic realm="restricted", charset="UTF-8"`)
-		http.Error(w, "Unauthorized", http.StatusUnauthorized)
-	}
 }
 
 // migrationStatusCheck checks the status of the db migrations, prints warnings to stdout and

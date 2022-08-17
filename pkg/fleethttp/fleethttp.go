@@ -1,8 +1,10 @@
 // Package fleethttp provides uniform creation and configuration of HTTP
-// related types.
+// related types used throughout Fleet.
 package fleethttp
 
 import (
+	"crypto/sha256"
+	"crypto/subtle"
 	"crypto/tls"
 	"net/http"
 	"time"
@@ -95,4 +97,30 @@ func NewTransport(opts ...TransportOpt) *http.Transport {
 
 func noFollowRedirect(*http.Request, []*http.Request) error {
 	return http.ErrUseLastResponse
+}
+
+// BasicAuthHandler wraps the given handler behind HTTP Basic Auth.
+func BasicAuthHandler(username, password string, next http.Handler) http.HandlerFunc {
+	hashFn := func(s string) []byte {
+		h := sha256.Sum256([]byte(s))
+		return h[:]
+	}
+	expectedUsernameHash := hashFn(username)
+	expectedPasswordHash := hashFn(password)
+
+	return func(w http.ResponseWriter, r *http.Request) {
+		recvUsername, recvPassword, ok := r.BasicAuth()
+		if ok {
+			usernameMatch := subtle.ConstantTimeCompare(hashFn(recvUsername), expectedUsernameHash) == 1
+			passwordMatch := subtle.ConstantTimeCompare(hashFn(recvPassword), expectedPasswordHash) == 1
+
+			if usernameMatch && passwordMatch {
+				next.ServeHTTP(w, r)
+				return
+			}
+		}
+
+		w.Header().Set("WWW-Authenticate", `Basic realm="restricted", charset="UTF-8"`)
+		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+	}
 }

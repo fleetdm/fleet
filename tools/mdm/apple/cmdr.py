@@ -57,6 +57,15 @@ def account_config(args):
     return c
 
 
+def install_application(args):
+    c = {
+        "RequestType": "InstallApplication",
+    }
+    if hasattr(args, "manifest_url") and args.manifest_url:
+        c["ManifestURL"] = args.manifest_url
+    return c
+
+
 def sched_update(args):
     c = {
         "RequestType": "ScheduleOSUpdate",
@@ -147,7 +156,7 @@ def inst_prof_subparser(parser):
         "InstallProfile", help="InstallProfile MDM command"
     )
     inst_prof_parser.add_argument(
-        "mobileconfig",
+        "--mobileconfig",
         type=argparse.FileType("rb"),
         help="Path to mobileconfig file (profile) to install",
     )
@@ -191,6 +200,20 @@ def account_config_subparser(parser):
         help="LockPrimaryAccountInfo",
     )
     p.set_defaults(func=account_config)
+    return p
+
+
+def install_application_subparser(parser):
+    p = parser.add_parser(
+        "InstallApplication", help="InstallApplication MDM command"
+    )
+    p.add_argument(
+        "-m",
+        "--manifest_url",
+        type=str,
+        help="ManifestURL field",
+    )
+    p.set_defaults(func=install_application)
     return p
 
 
@@ -300,6 +323,7 @@ def main():
     rem_prof_subparser(subparsers)
     sched_update_subparser(subparsers)
     account_config_subparser(subparsers)
+    install_application_subparser(subparsers)
     settings_subparser(subparsers)
     make_erase_device_subparser(subparsers)
     make_device_lock_subparser(subparsers)

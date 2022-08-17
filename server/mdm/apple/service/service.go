@@ -4,11 +4,18 @@ import (
 	"bytes"
 	"context"
 	"crypto/x509"
+	"encoding/base64"
 	"encoding/pem"
 	"errors"
 	"fmt"
+	"io"
+	"log"
 	stdlog "log"
 	"net/http"
+	"net/url"
+	"os"
+	"path/filepath"
+	"strings"
 	"text/template"
 
 	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
@@ -17,6 +24,9 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mdm/apple"
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/scep/scep_mysql"
 	kitlog "github.com/go-kit/kit/log"
+	"github.com/go-kit/kit/log/level"
+	"github.com/google/uuid"
+	"github.com/micromdm/micromdm/mdm/appmanifest"
 	"github.com/micromdm/nanodep/client"
 	"github.com/micromdm/nanodep/godep"
 	nanodep_stdlogfmt "github.com/micromdm/nanodep/log/stdlogfmt"
@@ -27,6 +37,7 @@ import (
 	nanomdm_httpapi "github.com/micromdm/nanomdm/http/api"
 	httpmdm "github.com/micromdm/nanomdm/http/mdm"
 	nanomdm_stdlogfmt "github.com/micromdm/nanomdm/log/stdlogfmt"
+	"github.com/micromdm/nanomdm/mdm"
 	"github.com/micromdm/nanomdm/push/buford"
 	nanomdm_pushsvc "github.com/micromdm/nanomdm/push/service"
 	nanomdm_service "github.com/micromdm/nanomdm/service"
@@ -36,6 +47,7 @@ import (
 	scepserver "github.com/micromdm/scep/v2/server"
 	_ "go.elastic.co/apm/module/apmsql"
 	_ "go.elastic.co/apm/module/apmsql/mysql"
+	"howett.net/plist"
 )
 
 type SetupConfig struct {
@@ -55,6 +67,12 @@ func Setup(ctx context.Context, mux *http.ServeMux, config SetupConfig) error {
 	}
 	if err := startDEPRoutine(ctx, config); err != nil {
 		return fmt.Errorf("start DEP routine: %w", err)
+	}
+	if err := startMunkiServer(ctx, mux, config.MDMConfig.Munki); err != nil {
+		return fmt.Errorf("start munki server: %w", err)
+	}
+	if err := startMunkiPkgServer(ctx, mux, config.MDMConfig.Munki.MunkiPkg, config.Logger); err != nil {
+		return fmt.Errorf("start munki pkg server: %w", err)
 	}
 	return nil
 }
@@ -112,6 +130,11 @@ func registerSCEP(mux *http.ServeMux, config SetupConfig) (*x509.Certificate, er
 }
 
 func registerMDM(mux *http.ServeMux, config SetupConfig, scepCACrt *x509.Certificate) error {
+	const (
+		endpointAPIPushCert = "/mdm/apple/mdm/api/v1/pushcert"
+		endpointAPIPush     = "/mdm/apple/mdm/api/v1/push/"
+		endpointAPIEnqueue  = "/mdm/apple/mdm/api/v1/enqueue/"
+	)
 	// TODO(lucas): Using bare minimum to run MDM in Fleet. Revisit
 	// https://github.com/micromdm/nanomdm/blob/92c977e42859ba56e73d1fc2377732a9ab6e5e01/cmd/nanomdm/main.go
 	// to allow for more configuration/options.
@@ -134,20 +157,7 @@ func registerMDM(mux *http.ServeMux, config SetupConfig, scepCACrt *x509.Certifi
 		),
 		nanomdm_stdlogfmt.WithDebugFlag(config.LoggingDebug),
 	)
-	nanomdmService := nanomdm.New(config.MDMStorage, nanomdm.WithLogger(mdmLogger))
-	var mdmService nanomdm_service.CheckinAndCommandService = nanomdmService
-	mdmService = certauth.New(mdmService, config.MDMStorage)
-	var mdmHandler http.Handler
-	mdmHandler = httpmdm.CheckinAndCommandHandler(mdmService, mdmLogger.With("handler", "checkin-command"))
-	mdmHandler = httpmdm.CertVerifyMiddleware(mdmHandler, certVerifier, mdmLogger.With("handler", "cert-verify"))
-	mdmHandler = httpmdm.CertExtractMdmSignatureMiddleware(mdmHandler, mdmLogger.With("handler", "cert-extract"))
-	mux.Handle("/mdm/apple/mdm", mdmHandler)
 
-	const (
-		endpointAPIPushCert = "/mdm/apple/mdm/api/v1/pushcert"
-		endpointAPIPush     = "/mdm/apple/mdm/api/v1/push/"
-		endpointAPIEnqueue  = "/mdm/apple/mdm/api/v1/enqueue/"
-	)
 	pushProviderFactory := buford.NewPushProviderFactory()
 	pushService := nanomdm_pushsvc.New(config.MDMStorage, config.MDMStorage, pushProviderFactory, mdmLogger.With("service", "push"))
 	pushCertHandler := nanomdm_httpapi.StorePushCertHandler(config.MDMStorage, mdmLogger.With("handler", "store-cert"))
@@ -156,10 +166,228 @@ func registerMDM(mux *http.ServeMux, config SetupConfig, scepCACrt *x509.Certifi
 	pushHandler = nanomdm_httpapi.PushHandler(pushService, mdmLogger.With("handler", "push"))
 	pushHandler = http.StripPrefix(endpointAPIPush, pushHandler)
 	mux.Handle(endpointAPIPush, pushHandler)
+
+	nanomdmService := nanomdm.New(config.MDMStorage, nanomdm.WithLogger(mdmLogger))
+	var mdmService nanomdm_service.CheckinAndCommandService = nanomdmService
+	mdmService = wrappedNanoMDMService{
+		CheckinAndCommandService: mdmService,
+		logger:                   kitlog.With(config.Logger, "component", "wrapped-nanomdm-service"),
+		cmdPusher: bootstrapCommandPusher{
+			mdmStorage:         config.MDMStorage,
+			serverURL:          config.MDMConfig.Munki.MunkiPkg.ServerURL,
+			munkiRepoBasicAuth: config.MDMConfig.Munki.HTTPBasicAuth,
+			pushSvc:            pushService,
+		},
+	}
+	mdmService = certauth.New(mdmService, config.MDMStorage)
+	var mdmHandler http.Handler
+	mdmHandler = httpmdm.CheckinAndCommandHandler(mdmService, mdmLogger.With("handler", "checkin-command"))
+	mdmHandler = httpmdm.CertVerifyMiddleware(mdmHandler, certVerifier, mdmLogger.With("handler", "cert-verify"))
+	mdmHandler = httpmdm.CertExtractMdmSignatureMiddleware(mdmHandler, mdmLogger.With("handler", "cert-extract"))
+	mux.Handle("/mdm/apple/mdm", mdmHandler)
+
 	var enqueueHandler http.Handler
 	enqueueHandler = nanomdm_httpapi.RawCommandEnqueueHandler(config.MDMStorage, pushService, mdmLogger.With("handler", "enqueue"))
 	enqueueHandler = http.StripPrefix(endpointAPIEnqueue, enqueueHandler)
 	mux.Handle(endpointAPIEnqueue, enqueueHandler)
+	return nil
+}
+
+type wrappedNanoMDMService struct {
+	nanomdm_service.CheckinAndCommandService
+	cmdPusher bootstrapCommandPusher
+	logger    kitlog.Logger
+}
+
+type bootstrapCommandPusher struct {
+	mdmStorage         *mysql.NanoMDMStorage
+	serverURL          string
+	munkiRepoBasicAuth configpkg.HTTPBasicAuthConfig
+	pushSvc            *nanomdm_pushsvc.PushService
+}
+
+// TokenUpdate partially implements nanomdm_service.CheckinAndCommandService.
+//
+// TODO(lucas): Am using TokenUpdate as the indicator that the enrollment for a device is complete.
+// Check if there's a better way to determine when a device fully enrolled.
+//
+// Once enrolled, we send two "bootstrap" commands to setup Munki on the device.
+func (w wrappedNanoMDMService) TokenUpdate(r *mdm.Request, t *mdm.TokenUpdate) error {
+	err := w.CheckinAndCommandService.TokenUpdate(r, t)
+	if err != nil {
+		return err
+	}
+
+	if err := w.cmdPusher.enqueueBootstrapCommands(r.Context, r.ID); err != nil {
+		w.logger.Log("msg", "failed to enqueue bootstrap commands", "err", err)
+	}
+	return nil
+}
+
+func (c bootstrapCommandPusher) enqueueBootstrapCommands(ctx context.Context, deviceID string) error {
+	// TODO(lucas): Does the Munki PKG server need to be instantiated sooner?
+	munkiManifestURL, err := url.Parse(c.serverURL)
+	if err != nil {
+		return fmt.Errorf("parse server url: %w", err)
+	}
+	munkiManifestURL.Path += munkiManifestPath
+	munkiManifestURL.Scheme = "https"
+
+	installAppCommandUUID, err := uuid.NewRandom()
+	if err != nil {
+		return fmt.Errorf("failed to generate install app command uuid: %w", err)
+	}
+
+	installAppCmdPlist := fmt.Sprintf(`<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+        <key>Command</key>
+        <dict>
+                <key>ManifestURL</key>
+                <string>%s</string>
+                <key>RequestType</key>
+                <string>InstallApplication</string>
+        </dict>
+        <key>CommandUUID</key>
+        <string>%s</string>
+</dict>
+</plist>`, munkiManifestURL, installAppCommandUUID)
+	installAppCmd, err := mdm.DecodeCommand([]byte(installAppCmdPlist))
+	if err != nil {
+		return fmt.Errorf("failed to decode install app command: %w", err)
+	}
+	softwareRepoURL, err := url.Parse(c.serverURL)
+	if err != nil {
+		return fmt.Errorf("parse server url: %w", err)
+	}
+	softwareRepoURL.Path += munkiRepoPath
+	softwareRepoURL.Scheme = "https"
+
+	// TODO(lucas): Currently HTTP basic auth is stored in `/Library/Preferences/ManagedInstalls`
+	// which is world-readable. We should store under root preferences, see:
+	// https://github.com/munki/munki/wiki/Using-Basic-Authentication#protecting-the-password-from-local-users
+	munkiPreferencesMobileConfig := fmt.Sprintf(`<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>PayloadContent</key>
+	<array>
+		<dict>
+			<key>PayloadContent</key>
+			<dict>
+				<key>ManagedInstalls</key>
+				<dict>
+					<key>Forced</key>
+					<array>
+						<dict>
+							<key>mcx_preference_settings</key>
+							<dict>
+								<key>AdditionalHttpHeaders</key>
+								<array>
+									<string>Authorization: Basic %s</string>
+								</array>
+								<key>AppleSoftwareUpdatesOnly</key>
+								<false/>
+								<key>ClientIdentifier</key>
+								<string></string>
+								<key>FollowHTTPRedirects</key>
+								<string>none</string>
+								<key>IgnoreSystemProxies</key>
+								<false/>
+								<key>InstallAppleSoftwareUpdates</key>
+								<false/>
+								<key>LogFile</key>
+								<string>/Library/Managed Installs/Logs/ManagedSoftwareUpdate.log</string>
+								<key>LogToSyslog</key>
+								<false/>
+								<key>LoggingLevel</key>
+								<integer>1</integer>
+								<key>ManagedInstallDir</key>
+								<string>/Library/Managed Installs</string>
+								<key>OldestUpdateDays</key>
+								<real>0.0</real>
+								<key>PackageVerificationMode</key>
+								<string>hash</string>
+								<key>SoftwareRepoURL</key>
+								<string>%s</string>
+								<key>SuppressStopButtonOnInstall</key>
+								<false/>
+							</dict>
+						</dict>
+					</array>
+				</dict>
+			</dict>
+			<key>PayloadEnabled</key>
+			<true/>
+			<key>PayloadIdentifier</key>
+			<string>MCXToProfile.67fdc08f-0f1b-4fdb-b203-4948b0b8574c.alacarte.customsettings.c21ebab8-b2be-459c-b6c8-c7908d88e2e7</string>
+			<key>PayloadType</key>
+			<string>com.apple.ManagedClient.preferences</string>
+			<key>PayloadUUID</key>
+			<string>c21ebab8-b2be-459c-b6c8-c7908d88e2e7</string>
+			<key>PayloadVersion</key>
+			<integer>1</integer>
+		</dict>
+	</array>
+	<key>PayloadDescription</key>
+	<string>Included custom settings:
+ManagedInstalls
+</string>
+	<key>PayloadDisplayName</key>
+	<string>MCXToProfile: ManagedInstalls</string>
+	<key>PayloadIdentifier</key>
+	<string>MunkiPreferences</string>
+	<key>PayloadOrganization</key>
+	<string></string>
+	<key>PayloadRemovalDisallowed</key>
+	<true/>
+	<key>PayloadScope</key>
+	<string>System</string>
+	<key>PayloadType</key>
+	<string>Configuration</string>
+	<key>PayloadUUID</key>
+	<string>67fdc08f-0f1b-4fdb-b203-4948b0b8574c</string>
+	<key>PayloadVersion</key>
+	<integer>1</integer>
+</dict>
+</plist>`, c.munkiRepoBasicAuth.Encoded(), softwareRepoURL.String())
+	installProfileCommandUUID, err := uuid.NewRandom()
+	if err != nil {
+		return fmt.Errorf("failed to generate install profile command uuid: %w", err)
+	}
+	installProfileCmdPlist := fmt.Sprintf(`<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+        <key>Command</key>
+        <dict>
+                <key>Payload</key>
+                <data>
+				%s
+				</data>
+                <key>RequestType</key>
+                <string>InstallProfile</string>
+        </dict>
+        <key>CommandUUID</key>
+        <string>%s</string>
+</dict>
+</plist>`, base64.StdEncoding.EncodeToString([]byte(munkiPreferencesMobileConfig)), installProfileCommandUUID)
+	installProfileCmd, err := mdm.DecodeCommand([]byte(installProfileCmdPlist))
+	if err != nil {
+		return fmt.Errorf("failed to decode install profile command: %w", err)
+	}
+
+	if _, err := c.mdmStorage.EnqueueCommand(ctx, []string{deviceID}, installAppCmd); err != nil {
+		return fmt.Errorf("failed to enqueue install app command: %w", err)
+	}
+	if _, err := c.mdmStorage.EnqueueCommand(ctx, []string{deviceID}, installProfileCmd); err != nil {
+		return fmt.Errorf("failed to enqueue install profile command: %w", err)
+	}
+
+	if _, err := c.pushSvc.Push(ctx, []string{deviceID}); err != nil {
+		return fmt.Errorf("failed to push device: %w", err)
+	}
 	return nil
 }
 
@@ -365,4 +593,112 @@ func generateMobileConfig(scepServerURL, mdmServerURL, scepChallenge, topic stri
 		return nil, fmt.Errorf("execute template: %w", err)
 	}
 	return contents.Bytes(), nil
+}
+
+const (
+	munkiRepoPath     = "/mdm/apple/munki/repo/"
+	munkiManifestPath = "/mdm/apple/munki/manifest"
+)
+
+func startMunkiServer(ctx context.Context, mux *http.ServeMux, config configpkg.MDMMunkiConfig) error {
+	if config.HTTPBasicAuth.Username == "" {
+		return errors.New("basic auth username empty")
+	}
+	if config.HTTPBasicAuth.Password == "" {
+		return errors.New("basic auth password empty")
+	}
+	if config.RepoPath == "" {
+		return errors.New("repo path empty")
+	}
+	if _, err := os.Stat(config.RepoPath); err != nil {
+		return fmt.Errorf("stat repo path: %w", err)
+	}
+	munkiFileServer := fleethttp.BasicAuthHandler(
+		config.HTTPBasicAuth.Username,
+		config.HTTPBasicAuth.Password,
+		http.FileServer(
+			http.Dir(config.RepoPath),
+		),
+	)
+	mux.Handle(munkiRepoPath, http.StripPrefix(munkiRepoPath, munkiFileServer))
+	return nil
+}
+
+func startMunkiPkgServer(ctx context.Context, mux *http.ServeMux, config configpkg.MunkiPkgConfig, logger kitlog.Logger) error {
+	if config.FilePath == "" {
+		return errors.New("pkg file path empty")
+	}
+	if _, err := os.Stat(config.FilePath); err != nil {
+		return fmt.Errorf("stat pkg file path: %w", err)
+	}
+	pkgURL, err := url.Parse(config.ServerURL)
+	if err != nil {
+		return fmt.Errorf("parse manifest url: %w", err)
+	}
+	const munkiPkgPath = "/mdm/apple/munki/pkg"
+	pkgURL.Path += munkiPkgPath
+	pkgURL.Scheme = "https"
+	manifest, err := createManifest(config.FilePath, pkgURL.String())
+	if err != nil {
+		return fmt.Errorf("create manifest: %w", err)
+	}
+	mux.HandleFunc(munkiPkgPath, func(w http.ResponseWriter, r *http.Request) {
+		pkgFile, err := os.Open(config.FilePath)
+		if err != nil {
+			level.Error(logger).Log("msg", "munki package open", "err", err)
+			w.WriteHeader(http.StatusInternalServerError)
+			return
+		}
+		defer pkgFile.Close()
+
+		w.Header().Set(
+			"Content-Disposition",
+			"attachment; filename="+filepath.Base(config.FilePath),
+		)
+		if _, err := io.Copy(w, pkgFile); err != nil {
+			level.Error(logger).Log("msg", "munki package write response", "err", err)
+		}
+	})
+	mux.HandleFunc(munkiManifestPath, func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set(
+			"Content-Disposition",
+			"attachment; filename="+strings.TrimSuffix(filepath.Base(config.FilePath), ".pkg")+".plist",
+		)
+
+		if _, err := w.Write(manifest); err != nil {
+			level.Error(logger).Log("msg", "munki manifest write response", "err", err)
+		}
+	})
+	return nil
+}
+
+func createManifest(pkgFilePath string, pkgURL string) ([]byte, error) {
+	pkgFile, err := os.Open(pkgFilePath)
+	if err != nil {
+		return nil, fmt.Errorf("open pkg file: %w", err)
+	}
+	defer pkgFile.Close()
+	manifest, err := appmanifest.Create(&fileWithSize{pkgFile}, pkgURL)
+	if err != nil {
+		return nil, fmt.Errorf("create manifest file: %w", err)
+	}
+	var buf bytes.Buffer
+	enc := plist.NewEncoder(&buf)
+	enc.Indent("  ")
+	if err := enc.Encode(manifest); err != nil {
+		return nil, fmt.Errorf("encode manifest: %w", err)
+	}
+	return buf.Bytes(), nil
+}
+
+type fileWithSize struct {
+	*os.File
+}
+
+func (f *fileWithSize) Size() int64 {
+	info, err := f.Stat()
+	if err != nil {
+		log.Fatal(err)
+	}
+	return info.Size()
 }
