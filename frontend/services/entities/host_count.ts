@@ -34,7 +34,6 @@ export interface IHostCountLoadOptions {
 }
 
 export default {
-  // hostCount.load share similar variables and parameters with hosts.loadAll
   load: (options: IHostCountLoadOptions | undefined) => {
     const selectedLabels = options?.selectedLabels || [];
     const policyId = options?.policyId;
