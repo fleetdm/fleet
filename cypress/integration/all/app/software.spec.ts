@@ -197,45 +197,45 @@ describe("Software", () => {
   });
 
   // TODO: Software list and details test coverage (Issue #3954)
-  // describe("Manage software page", () => {
-  //   beforeEach(() => {
-  //     cy.loginWithCySession();
-  //     cy.viewport(1600, 900);
-  //     cy.visit("/software/manage");
-  //   });
-  //   it("renders and searches the host's software,  links to filter hosts by software", () => {
-  //     // cy.getAttached(".manage-software-page__count").within(() => {
-  //     //   cy.findByText(/902 software items/i).should("exist");
-  //     // });
-  //     cy.findByPlaceholderText(/search software/i).type("lib");
-  //     // Ensures search completes
-  //     cy.wait(3000); // eslint-disable-line cypress/no-unnecessary-waiting
-  //     cy.getAttached(".table-container__results-count")
-  //       .invoke("text")
-  //       .then((text) => {
-  //         const fullText = text;
-  //         const pattern = /[0-9]+/g;
-  //         const newCount = fullText.match(pattern);
-  //         const searchCount = parseInt(newCount[0], 10);
-  //         expect(searchCount).to.be.equal(444);
-  //       });
-  //     cy.getAttached(".software-link").first().click({ force: true });
-  //     cy.getAttached(".manage-hosts__software-filter-block").within(() => {
-  //       cy.getAttached(".manage-hosts__software-filter-name-card").should(
-  //         "exist"
-  //       );
-  //     });
-  //     cy.getAttached(".table-container__results-count")
-  //       .invoke("text")
-  //       .then((text) => {
-  //         const fullText = text;
-  //         const pattern = /[0-9]+/g;
-  //         const newCount = fullText.match(pattern);
-  //         const searchCount = parseInt(newCount[0], 10);
-  //         expect(searchCount).to.be.equal(2);
-  //       });
-  //   });
-  // });
+  describe("Manage software page", () => {
+    beforeEach(() => {
+      cy.loginWithCySession();
+      cy.viewport(1600, 900);
+      cy.visit("/software/manage");
+    });
+    it("renders and searches the host's software,  links to filter hosts by software", () => {
+      // cy.getAttached(".manage-software-page__count").within(() => {
+      //   cy.findByText(/902 software items/i).should("exist");
+      // });
+      cy.findByPlaceholderText(/search software/i).type("lib");
+      // Ensures search completes
+      cy.wait(3000); // eslint-disable-line cypress/no-unnecessary-waiting
+      cy.getAttached(".table-container__results-count")
+        .invoke("text")
+        .then((text) => {
+          const fullText = text;
+          const pattern = /[0-9]+/g;
+          const newCount = fullText.match(pattern);
+          const searchCount = parseInt(newCount[0], 10);
+          expect(searchCount).to.be.equal(444);
+        });
+      cy.getAttached(".software-link").first().click({ force: true });
+      cy.getAttached(".manage-hosts__software-filter-block").within(() => {
+        cy.getAttached(".manage-hosts__software-filter-name-card").should(
+          "exist"
+        );
+      });
+      cy.getAttached(".table-container__results-count")
+        .invoke("text")
+        .then((text) => {
+          const fullText = text;
+          const pattern = /[0-9]+/g;
+          const newCount = fullText.match(pattern);
+          const searchCount = parseInt(newCount[0], 10);
+          expect(searchCount).to.be.equal(1);
+        });
+    });
+  });
   describe("Manage software page (mock integrations)", () => {
     beforeEach(() => {
       cy.loginWithCySession();

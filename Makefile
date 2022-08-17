@@ -267,11 +267,9 @@ e2e-setup:
 #
 # Use in lieu of `e2e-setup` for tests that depend on these fixtures
 e2e-setup-with-software:
-	curl 'https://localhost:8642/api/v1/setup' \
-		--data-raw '{"server_url":"https://localhost:8642","org_info":{"org_name":"Fleet Test"},"admin":{"admin":true,"email":"admin@example.com","name":"Admin","password":"password123#","password_confirmation":"password123#"}}' \
-		--compressed \
-		--insecure
+	docker-compose exec -T mysql_test bash -c 'echo "drop database if exists e2e; create database e2e;" | MYSQL_PWD=toor mysql -uroot'
 	./tools/backup_db/restore_e2e_software_test.sh
+	echo -ne '\n' | ./build/fleet prepare db --mysql_address=localhost:3307  --mysql_username=root --mysql_password=toor --mysql_database=e2e
 
 e2e-serve-free: e2e-reset-db
 	./build/fleet serve --mysql_address=localhost:3307 --mysql_username=root --mysql_password=toor --mysql_database=e2e --server_address=0.0.0.0:8642
