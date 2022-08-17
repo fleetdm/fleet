@@ -1,5 +1,41 @@
 # Apple MDM Fleet Demo
 
+## 0. Architecture
+
+```mermaid
+flowchart LR
+
+subgraph Fleet [Fleet Server]
+
+    direction TB;
+
+    subgraph nanoMDMModules ["nanoMDM modules"]
+        direction TB;
+        nanoSCEP[nanoSCEP];
+        nanoMDM[nanoMDM];
+        nanoDEP[nanoDEP];
+    end
+    MunkiRepo[Munki<br>Repository];
+    subgraph MunkiPkg [Munki Package Server];
+        manifest
+        munkitools["munkitools-*.pkg<br>(signed)"]
+    end
+    subgraph MySQL
+        direction LR;
+        mdmAppleDB[(nanoMDM<br>Schemas)];
+        fleetDB[(fleet)];
+    end
+end
+
+ApplePush[https://api.push.apple.com];
+AppleDEP[https://mdmenrollment.apple.com];
+nanoDEP -- Apple MDM DEP API ----> AppleDEP;
+nanoMDM --> ApplePush;
+
+nanoDEP --> mdmAppleDB;
+nanoMDM --> mdmAppleDB;
+```
+
 ## 1. Setup deployment from scratch
 
 ```sh
