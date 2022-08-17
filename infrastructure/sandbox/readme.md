@@ -16,6 +16,30 @@ unclaimed means its ready for a customer. claimed means its already in use by a 
 1. If errors happen, see if applying again will fix it
 1. There is a secret for apple signing whos values are not provided by this code. If you destroy/apply this secret, then it will have to be filled in manually.
 
+### Environment Access
+#### AWS SSO Console
+1. You will need to be in the group "AWS Sandbox Prod Admins" in the Fleet Google Workspace
+1. From Google Apps, select "AWS SSO"
+1. Under "AWS Account" select "Fleet Cloud Sandbox Prod"
+1. Choose "Management console" under "SandboxProdAdmins"
+
+#### AWS CLI Access
+1. Add the following to your `~/.aws/config`:
+```
+[profile sandbox_prod]
+region = us-east-2
+sso_start_url = https://d-9a671703a6.awsapps.com/start
+sso_region = us-east-2
+sso_account_id = 411315989055
+sso_role_name = SandboxProdAdmins
+```
+1. Login to sso on the cli via `aws sso login --profile=sandbox_prod`
+1. To automatically use this profile, `export AWS_PROFILE=sandbox_prod`
+1. For more help with AWS SSO Configuration see https://docs.aws.amazon.com/cli/latest/userguide/cli-configure-sso.html 
+
+#### VPN Access
+You will need to be in the proper group in the Fleet Google Workspace to access this environment.  Access to this environment will "just work" once added.
+
 ### Maintenance commands
 #### Referesh fleet instances
 ```bash
