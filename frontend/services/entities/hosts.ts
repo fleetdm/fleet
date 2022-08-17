@@ -150,6 +150,15 @@ const getOperatingSystemParams = (
   return os_name && os_version ? { os_name, os_version } : {};
 };
 
+const getLabelParam = (selectedLabels?: string[]) => {
+  if (selectedLabels === undefined) return undefined;
+
+  const label = selectedLabels.find((f) => f.includes(LABEL_PREFIX));
+  if (label === undefined) return undefined;
+
+  return label.slice(7);
+};
+
 export default {
   destroy: (host: IHost) => {
     const { HOSTS } = endpoints;
@@ -179,23 +188,39 @@ export default {
     });
   },
   exportHosts: (options: IExportHostsOptions) => {
-    const { HOSTS_REPORT } = endpoints;
     const sortBy = options.sortBy;
     const selectedLabels = options?.selectedLabels || [];
     const globalFilter = options?.globalFilter || "";
-    const teamId = options?.teamId || null;
-    const policyId = options?.policyId || null;
+    const teamId = options?.teamId;
+    const policyId = options?.policyId;
     const policyResponse = options?.policyResponse || "passing";
+<<<<<<< HEAD
     const softwareId = options?.softwareId || null;
     const mdmId = options?.mdmId || null;
     const mdmEnrollmentStatus = options?.mdmEnrollmentStatus || null;
     const visibleColumns = options?.visibleColumns || null;
     const { os_id, os_name, os_version } = options;
+=======
+    const softwareId = options?.softwareId;
+    const mdmId = options?.mdmId;
+    const mdmEnrollmentStatus = options?.mdmEnrollmentStatus;
+    const visibleColumns = options?.visibleColumns;
+    const label = getLabelParam(selectedLabels);
+    const policyParams = getPolicyParams(label, policyId, policyResponse);
+    const mdmParams = getMDMParams(
+      label,
+      policyId,
+      softwareId,
+      mdmId,
+      mdmEnrollmentStatus
+    );
+>>>>>>> 49ab3c190 (Refactor export host api call)
 
     if (!sortBy.length) {
       throw Error("sortBy is a required field.");
     }
 
+<<<<<<< HEAD
     const orderKeyParam = `?order_key=${sortBy[0].key}`;
     const orderDirection = `&order_direction=${sortBy[0].direction}`;
 
@@ -256,8 +281,27 @@ export default {
     if (visibleColumns) {
       path += `&columns=${visibleColumns}`;
     }
+=======
+    const queryParams = {
+      order_key: sortBy[0].key,
+      order_direction: sortBy[0].direction,
+      query: globalFilter,
+      team_id: teamId,
+      policy_id: policyParams.policy_id,
+      policy_response: policyParams.policy_response,
+      software_id: getSoftwareParam(label, policyId, softwareId),
+      mdm_id: mdmParams?.mdmId,
+      mdm_enrollment_status: mdmParams?.mdmEnrollmentStatus,
+      status: getStatusParam(selectedLabels),
+      label_id: label,
+      columns: visibleColumns,
+      format: "csv",
+    };
+>>>>>>> 49ab3c190 (Refactor export host api call)
 
-    path += "&format=csv";
+    const queryString = buildQueryStringFromParams(queryParams);
+    const endpoint = endpoints.HOSTS_REPORT;
+    const path = `${endpoint}?${queryString}`;
 
     return sendRequest("GET", path);
   },
