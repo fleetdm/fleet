@@ -190,7 +190,7 @@ describe("Software", () => {
     Cypress.session.clearAllSavedSessions();
     cy.setupWithSoftware();
     // eslint-disable-next-line cypress/no-unnecessary-waiting
-    cy.wait(10000);
+    cy.wait(30000);
     cy.loginWithCySession();
     cy.viewport(1600, 900);
   });
@@ -205,7 +205,7 @@ describe("Software", () => {
       cy.viewport(1600, 900);
       cy.visit("/software/manage");
     });
-    it("renders and searches the host's software,  links to filter hosts by software", () => {
+    it("renders and searches the host's software, links to filter hosts by software", () => {
       cy.getAttached(".manage-software-page__count").within(() => {
         cy.findByText(/902 software items/i).should("exist");
       });
