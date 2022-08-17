@@ -2480,6 +2480,20 @@ Retrieves a host's MDM enrollment status, MDM server URL, and Munki version.
     "munki": {
       "version": "1.2.3"
     },
+    "munki_issues": [
+      {
+        "id": 1,
+        "name": "Could not retrieve managed install primary manifest",
+        "type": "error",
+        "created_at": "2022-08-01T05:09:44Z"
+      },
+      {
+        "id": 2,
+        "name": "Could not process item Figma for optional install. No pkginfo found in catalogs: release",
+        "type": "warning",
+        "created_at": "2022-08-01T05:09:44Z"
+      }
+    ],
     "mobile_device_management": {
       "enrollment_status": "Enrolled (automated)",
       "server_url": "http://some.url/mdm",
