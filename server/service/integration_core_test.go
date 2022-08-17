@@ -2429,7 +2429,7 @@ func (s *integrationTestSuite) TestGetMacadminsData() {
 	})
 
 	require.NoError(t, s.ds.SetOrUpdateMDMData(ctx, hostAll.ID, true, "url", false))
-	require.NoError(t, s.ds.SetOrUpdateMunkiInfo(ctx, hostAll.ID, "1.3.0", nil, nil))
+	require.NoError(t, s.ds.SetOrUpdateMunkiInfo(ctx, hostAll.ID, "1.3.0", []string{"error1"}, []string{"warning1"}))
 
 	macadminsData := macadminsDataResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/macadmins", hostAll.ID), nil, http.StatusOK, &macadminsData)
@@ -2442,7 +2442,7 @@ func (s *integrationTestSuite) TestGetMacadminsData() {
 	assert.Equal(t, "1.3.0", macadminsData.Macadmins.Munki.Version)
 
 	require.NoError(t, s.ds.SetOrUpdateMDMData(ctx, hostAll.ID, true, "https://simplemdm.com", true))
-	require.NoError(t, s.ds.SetOrUpdateMunkiInfo(ctx, hostAll.ID, "1.5.0", nil, nil))
+	require.NoError(t, s.ds.SetOrUpdateMunkiInfo(ctx, hostAll.ID, "1.5.0", []string{"error1"}, []string{"warning1"}))
 
 	macadminsData = macadminsDataResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/macadmins", hostAll.ID), nil, http.StatusOK, &macadminsData)
@@ -2471,7 +2471,7 @@ func (s *integrationTestSuite) TestGetMacadminsData() {
 	require.Nil(t, macadminsData.Macadmins)
 
 	// only munki info returns null on mdm
-	require.NoError(t, s.ds.SetOrUpdateMunkiInfo(ctx, hostOnlyMunki.ID, "3.2.0", nil, nil))
+	require.NoError(t, s.ds.SetOrUpdateMunkiInfo(ctx, hostOnlyMunki.ID, "3.2.0", []string{"error2"}, []string{"warning1"}))
 	macadminsData = macadminsDataResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/macadmins", hostOnlyMunki.ID), nil, http.StatusOK, &macadminsData)
 	require.NotNil(t, macadminsData.Macadmins)
@@ -2521,6 +2521,28 @@ func (s *integrationTestSuite) TestGetMacadminsData() {
 			HostsCount:    1,
 		},
 	})
+	require.Len(t, agg.Macadmins.MunkiIssues, 3)
+	// ignore ids
+	agg.Macadmins.MunkiIssues[0].ID = 0
+	agg.Macadmins.MunkiIssues[1].ID = 0
+	agg.Macadmins.MunkiIssues[2].ID = 0
+	assert.ElementsMatch(t, agg.Macadmins.MunkiIssues, []fleet.AggregatedMunkiIssue{
+		{
+			Name:       "error1",
+			IssueType:  "error",
+			HostsCount: 1,
+		},
+		{
+			Name:       "error2",
+			IssueType:  "error",
+			HostsCount: 1,
+		},
+		{
+			Name:       "warning1",
+			IssueType:  "warning",
+			HostsCount: 2,
+		},
+	})
 	assert.Equal(t, agg.Macadmins.MDMStatus.EnrolledManualHostsCount, 0)
 	assert.Equal(t, agg.Macadmins.MDMStatus.EnrolledAutomatedHostsCount, 2)
 	assert.Equal(t, agg.Macadmins.MDMStatus.UnenrolledHostsCount, 1)
@@ -2549,6 +2571,7 @@ func (s *integrationTestSuite) TestGetMacadminsData() {
 	s.DoJSON("GET", "/api/latest/fleet/macadmins", nil, http.StatusOK, &agg, "team_id", fmt.Sprint(team.ID))
 	require.NotNil(t, agg.Macadmins)
 	require.Empty(t, agg.Macadmins.MunkiVersions)
+	require.Empty(t, agg.Macadmins.MunkiIssues)
 	require.Empty(t, agg.Macadmins.MDMStatus)
 	require.Empty(t, agg.Macadmins.MDMSolutions)
 
