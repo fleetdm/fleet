@@ -2545,6 +2545,20 @@ Retrieves aggregated host's MDM enrollment status and Munki versions.
         "hosts_count": 50
       }
     ],
+    "munki_issues": [
+      {
+        "id": 1,
+        "name": "Could not retrieve managed install primary manifest",
+        "type": "error",
+        "hosts_count": 2851
+      },
+      {
+        "id": 2,
+        "name": "Could not process item Figma for optional install. No pkginfo found in catalogs: release",
+        "type": "warning",
+        "hosts_count": 1983
+      }
+    ],
     "mobile_device_management_enrollment_status": {
       "enrolled_manual_hosts_count": 124,
       "enrolled_automated_hosts_count": 124,
