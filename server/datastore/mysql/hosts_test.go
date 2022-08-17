@@ -3642,21 +3642,47 @@ func testHostMDMAndMunki(t *testing.T, ds *Datastore) {
 
 	require.NoError(t, ds.SetOrUpdateMunkiInfo(context.Background(), 123, "1.2.3", nil, nil))
 	require.NoError(t, ds.SetOrUpdateMunkiInfo(context.Background(), 999, "9.0", nil, nil))
-	require.NoError(t, ds.SetOrUpdateMunkiInfo(context.Background(), 123, "1.3.0", nil, nil))
+	require.NoError(t, ds.SetOrUpdateMunkiInfo(context.Background(), 123, "1.3.0", []string{"a", "b"}, []string{"c"}))
 
 	version, err := ds.GetMunkiVersion(context.Background(), 123)
 	require.NoError(t, err)
 	require.Equal(t, "1.3.0", version)
 
+	issues, err := ds.GetMunkiIssues(context.Background(), 123)
+	require.NoError(t, err)
+	require.Len(t, issues, 3)
+
+	for _, iss := range issues {
+		assert.NotZero(t, iss.MunkiIssueID)
+		assert.False(t, iss.HostIssueCreatedAt.IsZero())
+	}
+
+	// ignore IDs and timestamps in slice comparison
+	issues[0].MunkiIssueID, issues[0].HostIssueCreatedAt = 0, time.Time{}
+	issues[1].MunkiIssueID, issues[1].HostIssueCreatedAt = 0, time.Time{}
+	issues[2].MunkiIssueID, issues[2].HostIssueCreatedAt = 0, time.Time{}
+	assert.ElementsMatch(t, []*fleet.HostMunkiIssue{
+		{Name: "a", IssueType: "error"},
+		{Name: "b", IssueType: "error"},
+		{Name: "c", IssueType: "warning"},
+	}, issues)
+
 	version, err = ds.GetMunkiVersion(context.Background(), 999)
 	require.NoError(t, err)
 	require.Equal(t, "9.0", version)
+
+	issues, err = ds.GetMunkiIssues(context.Background(), 999)
+	require.NoError(t, err)
+	require.Len(t, issues, 0)
 
 	// simulate uninstall
 	require.NoError(t, ds.SetOrUpdateMunkiInfo(context.Background(), 123, "", nil, nil))
 
 	_, err = ds.GetMunkiVersion(context.Background(), 123)
 	require.True(t, fleet.IsNotFound(err))
+	issues, err = ds.GetMunkiIssues(context.Background(), 123)
+	require.NoError(t, err)
+	require.Len(t, issues, 0)
 
 	_, err = ds.GetMDM(context.Background(), 432)
 	require.True(t, fleet.IsNotFound(err), err)
