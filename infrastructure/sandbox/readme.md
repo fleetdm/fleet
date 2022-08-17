@@ -40,6 +40,32 @@ unclaimed means its ready for a customer. claimed means its already in use by a 
 #### VPN Access
 You will need to be in the proper group in the Fleet Google Workspace to access this environment.  Access to this environment will "just work" once added.
 
+#### Database Access
+If you need to access the MySQL database backing Fleet Cloud Sandbox, do the following:
+
+1. Obtain database hostname
+    ```bash
+    aws rds describe-db-clusters --filter Name=db-cluster-id,Values=sandbox-prod --query "DBClusters[0].Endpoint" --output=text
+    ```
+1. Obtain database master username
+    ```bash
+    aws rds describe-db-clusters --filter Name=db-cluster-id,Values=sandbox-prod --query "DBClusters[0].MasterUsername" --output=text
+    ```
+1. Obtain database master password secret name (terraform adds a secret pet name, so we can obtain it from state data)
+    ```bash
+    terraform show -json | jq -r '.values.root_module.child_modules[].resources | flatten | .[] | select(.address == "module.shared-infrastructure.aws_secretsmanager_secret.database_password_secret").values.name'
+    ```
+1. Obtain database master password
+    ```bash
+    aws secretsmanager get-secret-value --secret-id "$(terraform show -json | jq -r '.values.root_module.child_modules[].resources | flatten | .[] | select(.address == "module.shared-infrastructure.aws_secretsmanager_secret.database_password_secret").values.name')" --query "SecretString" --output text
+    ```
+1. TL;DR -- Put it all together to get into MySQL.  Just copy-paste the part below if you just want the credentials without understanding where they come from.
+    ```bash
+    DBPASSWORD="$(aws secretsmanager get-secret-value --secret-id "$(terraform show -json | jq -r '.values.root_module.child_modules[].resources | flatten | .[] | select(.address == "module.shared-infrastructure.aws_secretsmanager_secret.database_password_secret").values.name')" --query "SecretString" --output text)"
+    aws rds describe-db-clusters --filter Name=db-cluster-id,Values=sandbox-prod --query "DBClusters[0].[Endpoint,MasterUsername]" --output=text | read DBHOST DBUSER
+    mysql -h"${DBHOST}" -u"${DBUSER}" -p"${DBPASSWORD}"
+    ```
+
 ### Maintenance commands
 #### Referesh fleet instances
 ```bash
@@ -64,7 +90,16 @@ Make sure you set the workgroup to sandbox-prod-logs otherwise you won't be able
 You can also see errors via the target groups here: https://us-east-2.console.aws.amazon.com/ec2/v2/home?region=us-east-2#TargetGroups:
 
 #### Fleet Logs
-Fleet logs can be accessed via kubectl. Setup kubectl by following thexe instructions: https://docs.aws.amazon.com/eks/latest/userguide/create-kubeconfig.html#create-kubeconfig-automatically
+Fleet logs can be accessed via kubectl. Setup kubectl by following these instructions: https://docs.aws.amazon.com/eks/latest/userguide/create-kubeconfig.html#create-kubeconfig-automatically
+Examples:
+```bash
+# Obtain kubeconfig
+aws eks update-kubeconfig --region us-east-2 --name sandbox-prod
+# List pods (We currently use the default namespace)
+kubectl get pods # Search in there which one it is. There will be 2 instances + a migrations one
+# Obtain Logs. You can also use `--previous` to obtain logs from a previous pod crash if desired.
+kubectl logs <id for the pod here>
+```
 We do not use eksctl since we use terraform managed resources.
 
 #### Database debugging
