@@ -111,7 +111,7 @@ func cronVulnerabilities(
 		if vulnPath != "" {
 			level.Info(logger).Log("msg", "scanning vulnerabilities")
 			if err := scanVulnerabilities(ctx, ds, logger, config, appConfig, vulnPath); err != nil {
-				errHandler(ctx, logger, "calculating hosts count per software", err)
+				errHandler(ctx, logger, "scanning vulnerabilities", err)
 			}
 		}
 
