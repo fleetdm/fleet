@@ -1785,9 +1785,9 @@ Setups up a new Fleet instance with the given parameters.
 
 | Name          | Type    | In                     | Description                                                        |
 | ------------- | ------- | ---------------------- | ------------------------------------------------------------------ |
-| admin         | object  | body                   | a JSON object containing admin user details                        |
-| org_info      | object  | body                   | A JSON object containing organization name                         |
-| server_url    | string  | body                   | The URL of the Fleet instance                                      |
+| admin         | object  | body                   | **Required.** Contains the following admin user details: `admin`, `email`, `name`, `password`, and `password_confirmation`.                        |
+| org_info      | object  | body                   | **Required.** Contains the following organizational details: `org_name`.                         |
+| server_url    | string  | body                   | **Required.** The URL of the Fleet instance.                                      |
 
 
 ##### Request body
