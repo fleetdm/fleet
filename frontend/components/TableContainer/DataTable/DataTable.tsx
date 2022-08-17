@@ -499,11 +499,7 @@ const DataTable = ({
             {headerGroups.map((headerGroup) => (
               <tr {...headerGroup.getHeaderGroupProps()}>
                 {headerGroup.headers.map((column) => {
-                  // column.title exists but is rendering a typescript error that it doesn't
-                  console.log("column", column);
-
                   let thProps = column.getSortByToggleProps({
-                    // title: column.title,
                     title: undefined,
                   });
                   if (column.Filter) {
