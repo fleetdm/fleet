@@ -1777,7 +1777,7 @@ If an installer with the provided parameters doesn't exist.
 
 ### Setup Fleet instance
 
-Setups up a new Fleet instance with the given parameters.
+Sets up a new Fleet instance with the given parameters.
 
 `POST /api/_version_/setup`
 
