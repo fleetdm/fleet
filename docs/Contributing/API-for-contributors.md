@@ -1796,8 +1796,8 @@ Sets up a new Fleet instance with the given parameters.
 {
 	"admin": {
 		"admin": true,
-		"email": "luke@fleetdm.com",
-		"name": "Luke Heath",
+		"email": "janedoe@example.com",
+		"name": "Jane Doe",
 		"password": "password!234",
 		"password_confirmation": "password!234"
 	},
