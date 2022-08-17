@@ -12,7 +12,6 @@ import { ITeam } from "interfaces/team";
 import { IQuery } from "interfaces/query";
 import {
   IScheduledQuery,
-  IScheduleFormData,
   IEditScheduledQuery,
   ILoadAllGlobalScheduledQueriesResponse,
   ILoadAllTeamScheduledQueriesResponse,
@@ -98,6 +97,18 @@ const renderAllTeamsTable = (
     </div>
   );
 };
+
+interface IFormData {
+  interval: number;
+  name?: string;
+  shard: number;
+  query?: string;
+  query_id?: number;
+  logging_type: string;
+  platform: string;
+  version: string;
+  team_id?: number;
+}
 
 interface ITeamSchedulesPageProps {
   params: {
@@ -383,10 +394,7 @@ const ManageSchedulePage = ({
   ]);
 
   const onAddScheduledQuerySubmit = useCallback(
-    (
-      formData: IScheduleFormData,
-      editQuery: IEditScheduledQuery | undefined
-    ) => {
+    (formData: IFormData, editQuery: IEditScheduledQuery | undefined) => {
       setIsUpdatingScheduledQuery(true);
       if (editQuery) {
         const updatedAttributes = deepDifference(formData, editQuery);
