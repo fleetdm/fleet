@@ -75,7 +75,7 @@ export const getMDMParams = (
   if (!label && !policyId && !softwareId && !mdmEnrollmentStatus && !mdmId)
     return undefined;
 
-  return { mdmId: mdmId, mdmEnrollmentStatus: mdmEnrollmentStatus };
+  return { mdmId, mdmEnrollmentStatus };
 };
 
 export const getOperatingSystemParam = (
