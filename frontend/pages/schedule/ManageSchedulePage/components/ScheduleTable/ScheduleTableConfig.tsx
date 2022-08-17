@@ -116,8 +116,8 @@ const generateTableHeaders = (
       disableHidden: true,
     },
     {
-      title: "Query",
-      Header: "Query",
+      title: "Name",
+      Header: "Name",
       disableSortBy: true,
       accessor: "query_name",
       Cell: (cellProps: ICellProps): JSX.Element => (
@@ -211,6 +211,11 @@ const generateActionDropdownOptions = (): IDropdownOption[] => {
       label: "Edit",
       disabled: false,
       value: "edit",
+    },
+    {
+      label: "Show query",
+      disabled: false,
+      value: "showQuery",
     },
     {
       label: "Remove",

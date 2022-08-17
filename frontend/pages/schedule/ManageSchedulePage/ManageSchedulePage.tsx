@@ -12,6 +12,7 @@ import { ITeam } from "interfaces/team";
 import { IQuery } from "interfaces/query";
 import {
   IScheduledQuery,
+  IScheduleFormData,
   IEditScheduledQuery,
   ILoadAllGlobalScheduledQueriesResponse,
   ILoadAllTeamScheduledQueriesResponse,
@@ -32,6 +33,7 @@ import MainContent from "components/MainContent";
 import ScheduleTable from "./components/ScheduleTable";
 import ScheduleEditorModal from "./components/ScheduleEditorModal";
 import RemoveScheduledQueryModal from "./components/RemoveScheduledQueryModal";
+import ShowQueryModal from "./components/ShowQueryModal";
 
 const baseClass = "manage-schedule-page";
 
@@ -43,6 +45,7 @@ const renderTable = (
   router: InjectedRouter,
   onRemoveScheduledQueryClick: (selectIds: number[]) => void,
   onEditScheduledQueryClick: (selectedQuery: IEditScheduledQuery) => void,
+  onShowQueryClick: (selectedQuery: IEditScheduledQuery) => void,
   allScheduledQueriesList: IScheduledQuery[],
   allScheduledQueriesError: Error | null,
   toggleScheduleEditorModal: () => void,
@@ -59,6 +62,7 @@ const renderTable = (
       router={router}
       onRemoveScheduledQueryClick={onRemoveScheduledQueryClick}
       onEditScheduledQueryClick={onEditScheduledQueryClick}
+      onShowQueryClick={onShowQueryClick}
       allScheduledQueriesList={allScheduledQueriesList}
       toggleScheduleEditorModal={toggleScheduleEditorModal}
       isOnGlobalTeam={isOnGlobalTeam}
@@ -100,17 +104,6 @@ interface ITeamSchedulesPageProps {
     team_id: string;
   };
   router: InjectedRouter; // v3
-}
-interface IFormData {
-  interval: number;
-  name?: string;
-  shard: number;
-  query?: string;
-  query_id?: number;
-  logging_type: string;
-  platform: string;
-  version: string;
-  team_id?: number;
 }
 
 const ManageSchedulePage = ({
@@ -299,6 +292,7 @@ const ManageSchedulePage = ({
     false
   );
   const [showScheduleEditorModal, setShowScheduleEditorModal] = useState(false);
+  const [showShowQueryModal, setShowShowQueryModal] = useState(false);
   const [showPreviewDataModal, setShowPreviewDataModal] = useState(false);
   const [
     showRemoveScheduledQueryModal,
@@ -325,6 +319,11 @@ const ManageSchedulePage = ({
     setShowScheduleEditorModal(!showScheduleEditorModal);
   }, [showScheduleEditorModal, setShowScheduleEditorModal]);
 
+  const toggleShowQueryModal = useCallback(() => {
+    setSelectedScheduledQuery(undefined);
+    setShowShowQueryModal(!showShowQueryModal);
+  }, [showShowQueryModal, setShowShowQueryModal]);
+
   const toggleRemoveScheduledQueryModal = useCallback(() => {
     setShowRemoveScheduledQueryModal(!showRemoveScheduledQueryModal);
   }, [showRemoveScheduledQueryModal, setShowRemoveScheduledQueryModal]);
@@ -334,6 +333,11 @@ const ManageSchedulePage = ({
   ): void => {
     toggleRemoveScheduledQueryModal();
     setSelectedQueryIds(selectedTableQueryIds);
+  };
+
+  const onShowQueryClick = (selectedQuery: IEditScheduledQuery): void => {
+    toggleShowQueryModal();
+    setSelectedScheduledQuery(selectedQuery);
   };
 
   const onEditScheduledQueryClick = (
@@ -379,7 +383,10 @@ const ManageSchedulePage = ({
   ]);
 
   const onAddScheduledQuerySubmit = useCallback(
-    (formData: IFormData, editQuery: IEditScheduledQuery | undefined) => {
+    (
+      formData: IScheduleFormData,
+      editQuery: IEditScheduledQuery | undefined
+    ) => {
       setIsUpdatingScheduledQuery(true);
       if (editQuery) {
         const updatedAttributes = deepDifference(formData, editQuery);
@@ -509,6 +516,7 @@ const ManageSchedulePage = ({
               router,
               onRemoveScheduledQueryClick,
               onEditScheduledQueryClick,
+              onShowQueryClick,
               allScheduledQueriesList,
               allScheduledQueriesError,
               toggleScheduleEditorModal,
@@ -565,6 +573,9 @@ const ManageSchedulePage = ({
             onSubmit={onRemoveScheduledQuerySubmit}
             isUpdatingScheduledQuery={isUpdatingScheduledQuery}
           />
+        )}
+        {showShowQueryModal && (
+          <ShowQueryModal onCancel={toggleRemoveScheduledQueryModal} />
         )}
       </div>
     </MainContent>

@@ -33,6 +33,7 @@ interface IScheduleTableProps {
   router: InjectedRouter; // v3
   onRemoveScheduledQueryClick?: (selectIds: number[]) => void;
   onEditScheduledQueryClick?: (selectedQuery: IEditScheduledQuery) => void;
+  onShowQueryClick?: (selectedQuery: IEditScheduledQuery) => void;
   allScheduledQueriesList: IScheduledQuery[];
   toggleScheduleEditorModal?: () => void;
   inheritedQueries?: boolean;
@@ -45,9 +46,10 @@ interface IScheduleTableProps {
 const ScheduleTable = ({
   router,
   onRemoveScheduledQueryClick,
+  onEditScheduledQueryClick,
+  onShowQueryClick,
   allScheduledQueriesList,
   toggleScheduleEditorModal,
-  onEditScheduledQueryClick,
   inheritedQueries,
   isOnGlobalTeam,
   selectedTeamData,
@@ -134,6 +136,10 @@ const ScheduleTable = ({
           onEditScheduledQueryClick(scheduledQuery);
         }
         break;
+      case "showQuery":
+        if (onShowQueryClick) {
+          onShowQueryClick(scheduledQuery);
+        }
       default:
         if (onRemoveScheduledQueryClick) {
           onRemoveScheduledQueryClick([scheduledQuery.id]);
