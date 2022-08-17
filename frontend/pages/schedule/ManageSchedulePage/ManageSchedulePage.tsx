@@ -336,6 +336,7 @@ const ManageSchedulePage = ({
   }, [showShowQueryModal, setShowShowQueryModal]);
 
   const toggleRemoveScheduledQueryModal = useCallback(() => {
+    console.log("toggleRemoveScheduledQueryModal");
     setShowRemoveScheduledQueryModal(!showRemoveScheduledQueryModal);
   }, [showRemoveScheduledQueryModal, setShowRemoveScheduledQueryModal]);
 
@@ -583,7 +584,10 @@ const ManageSchedulePage = ({
           />
         )}
         {showShowQueryModal && (
-          <ShowQueryModal onCancel={toggleRemoveScheduledQueryModal} />
+          <ShowQueryModal
+            query={selectedScheduledQuery?.query}
+            onCancel={toggleShowQueryModal}
+          />
         )}
       </div>
     </MainContent>

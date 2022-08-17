@@ -242,6 +242,7 @@ const enhanceAllScheduledQueryData = (
       interval: scheduledQuery.interval,
       actions: generateActionDropdownOptions(),
       id: scheduledQuery.id,
+      query: scheduledQuery.query,
       query_id: scheduledQuery.query_id,
       snapshot: scheduledQuery.snapshot,
       removed: scheduledQuery.removed,
