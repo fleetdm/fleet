@@ -25,14 +25,14 @@ unclaimed means its ready for a customer. claimed means its already in use by a 
 
 #### AWS CLI Access
 1. Add the following to your `~/.aws/config`:
-```
-[profile sandbox_prod]
-region = us-east-2
-sso_start_url = https://d-9a671703a6.awsapps.com/start
-sso_region = us-east-2
-sso_account_id = 411315989055
-sso_role_name = SandboxProdAdmins
-```
+    ```
+    [profile sandbox_prod]
+    region = us-east-2
+    sso_start_url = https://d-9a671703a6.awsapps.com/start
+    sso_region = us-east-2
+    sso_account_id = 411315989055
+    sso_role_name = SandboxProdAdmins
+    ```
 1. Login to sso on the cli via `aws sso login --profile=sandbox_prod`
 1. To automatically use this profile, `export AWS_PROFILE=sandbox_prod`
 1. For more help with AWS SSO Configuration see https://docs.aws.amazon.com/cli/latest/userguide/cli-configure-sso.html 
