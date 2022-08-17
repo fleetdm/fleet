@@ -1775,7 +1775,7 @@ If an installer with the provided parameters is found.
 
 If an installer with the provided parameters doesn't exist.
 
-### Setup a new Fleet instance
+### Setup Fleet instance
 
 Setups up a new Fleet instance with the given parameters.
 
