@@ -1,5 +1,10 @@
 package msrc_input
 
+import (
+	"strings"
+	"time"
+)
+
 // XML elements related to the 'vuln' namespace used to describe vulnerabilities and their remediations.
 
 type VulnerabilityXML struct {
@@ -26,9 +31,9 @@ type VulnerabilityRemediationXML struct {
 // IncludesVendorFix returns true if the vulnerability has a vendor fix targeting the product
 // identified by pID.
 func (r *VulnerabilityXML) IncludesVendorFix(pID string) bool {
-	for _, re := range r.Remediations {
-		if re.Type == "Vendor Fix" {
-			for _, vfPID := range re.ProductIDs {
+	for _, rem := range r.Remediations {
+		if rem.IsVendorFix() {
+			for _, vfPID := range rem.ProductIDs {
 				if vfPID == pID {
 					return true
 				}
@@ -37,4 +42,24 @@ func (r *VulnerabilityXML) IncludesVendorFix(pID string) bool {
 	}
 
 	return false
+}
+
+// PublishedDate returns the date the vuln was published (if any)
+func (v *VulnerabilityXML) PublishedDate() *time.Time {
+	var dPublished *time.Time
+
+	for _, rev := range v.Revisions {
+		if strings.Index(rev.Description, "Information published") != -1 {
+			dPublished, err := time.Parse("2006-01-02T15:04:05", rev.Date)
+			if err != nil {
+				return nil
+			}
+			return &dPublished
+		}
+	}
+	return dPublished
+}
+
+func (rem *VulnerabilityRemediationXML) IsVendorFix() bool {
+	return rem.Type == "Vendor Fix"
 }

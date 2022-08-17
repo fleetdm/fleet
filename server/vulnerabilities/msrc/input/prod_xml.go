@@ -13,11 +13,11 @@ type ProductBranchXML struct {
 
 type ProductXML struct {
 	ProductID string `xml:"ProductID,attr"`
-	Name      string `xml:",chardata"`
+	FullName  string `xml:",chardata"`
 }
 
-// WindowsProducts traverses the ProductBranchXML tree returning only 'Windows' products.
-func (b *ProductBranchXML) WindowsProducts() []ProductXML {
+// WinProducts traverses the ProductBranchXML tree returning only 'Windows' products.
+func (b *ProductBranchXML) WinProducts() []ProductXML {
 	var r []ProductXML
 	queue := []ProductBranchXML{*b}
 
@@ -29,7 +29,7 @@ func (b *ProductBranchXML) WindowsProducts() []ProductXML {
 			for _, p := range next.Products {
 				// Even if the product branch is for 'Windows/ESU', there could be a non-OS
 				// product like 'Remote Desktop client for Windows Desktop' inside the branch.
-				if strings.HasPrefix(p.Name, "Windows") {
+				if strings.HasPrefix(p.FullName, "Windows") {
 					r = append(r, p)
 				}
 			}

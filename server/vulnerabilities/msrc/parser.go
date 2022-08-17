@@ -7,6 +7,7 @@ import (
 	"os"
 
 	msrc_input "github.com/fleetdm/fleet/v4/server/vulnerabilities/msrc/input"
+	msrc_parsed "github.com/fleetdm/fleet/v4/server/vulnerabilities/msrc/parsed"
 )
 
 func parseMSRC(inputFile string, outputFile string) error {
@@ -28,6 +29,65 @@ func parseMSRC(inputFile string, outputFile string) error {
 	// }
 
 	return nil
+}
+
+func mapToVulnGraphs(rXML *msrc_input.ResultXML) (map[string]*msrc_parsed.VulnGraph, error) {
+	// We will have one graph for each product name.
+	rGraphs := make(map[string]*msrc_parsed.VulnGraph)
+
+	for pID, p := range rXML.WinProducts {
+		name := NameFromFullProdName(p.FullName)
+		if _, ok := rGraphs[name]; !ok {
+			rGraphs[name] = msrc_parsed.NewVulnGraph(name)
+		}
+		rGraphs[name].Products[pID] = p.FullName
+	}
+
+	for _, v := range rXML.WinVulnerabities {
+		for _, r := range v.Remediations {
+			// We will only be able to detect vulns for which they are vendor fixes.
+			if !r.IsVendorFix() {
+				continue
+			}
+
+			for _, rPID := range r.ProductIDs {
+				p := rXML.WinProducts[rPID]
+
+				name := NameFromFullProdName(p.FullName)
+				g, ok := rGraphs[name]
+				if !ok {
+					return nil, fmt.Errorf("windows product not found in graph %s", name)
+				}
+
+				// Create/update the vNode node for this vendor fix
+				var vNode msrc_parsed.VulnNode
+				if vNode, ok = g.Vulnerabities[v.CVE]; !ok {
+					vNode = msrc_parsed.VulnNode{
+						Published: v.PublishedDate(),
+					}
+				}
+				vNode.ProductsIDs = append(vNode.ProductsIDs, rPID)
+				vNode.RemediatedBy = append(
+					vNode.RemediatedBy,
+					msrc_parsed.NewVendorFixNodeRef(r.Description),
+				)
+				g.Vulnerabities[v.CVE] = vNode
+
+				// Create/update the vendor fix node
+				var vfNode msrc_parsed.VendorFixNode
+				if vfNode, ok = g.VendorFixes[r.Description]; !ok {
+					vfNode = msrc_parsed.VendorFixNode{
+						FixedBuild: r.FixedBuild,
+						Supersedes: msrc_parsed.NewVendorFixNodeRef(r.Supercedence),
+					}
+				}
+				vfNode.TargetProductsIDs = append(vfNode.TargetProductsIDs, rPID)
+				g.VendorFixes[r.Description] = vfNode
+			}
+		}
+	}
+
+	return rGraphs, nil
 }
 
 func parseMSRCXML(reader io.Reader) (*msrc_input.ResultXML, error) {
@@ -53,7 +113,7 @@ func parseMSRCXML(reader io.Reader) (*msrc_input.ResultXML, error) {
 					return nil, err
 				}
 
-				for _, p := range branch.WindowsProducts() {
+				for _, p := range branch.WinProducts() {
 					r.WinProducts[p.ProductID] = p
 				}
 			}

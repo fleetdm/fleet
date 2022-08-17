@@ -20,22 +20,37 @@ type VulnGraph struct {
 	VendorFixes map[string]VendorFixNode
 }
 
+func NewVulnGraph(pName string) *VulnGraph {
+	return &VulnGraph{
+		ProductName:   pName,
+		LastUpdated:   time.Now().UTC(),
+		Products:      make(map[string]string),
+		Vulnerabities: make(map[string]VulnNode),
+		VendorFixes:   make(map[string]VendorFixNode),
+	}
+}
+
 type NodeRef struct {
 	RefName  string
 	RefValue string
 }
 
 type VulnNode struct {
-	Score     float64
 	Published *time.Time
 	// What products are susceptible to this vuln.
-	AffectedProductsIDs []string
+	ProductsIDs []string
 	// References to what Vendor fixes remediate this vuln.
 	RemediatedBy []NodeRef
 }
 
+func NewVendorFixNodeRef(val string) NodeRef {
+	return NodeRef{
+		RefName:  "vendor_fixes",
+		RefValue: val,
+	}
+}
+
 type VendorFixNode struct {
-	RestartRequired   bool
 	FixedBuild        string
 	TargetProductsIDs []string
 	// Reference to what vendor fix this particular vendor fix 'replaces'.

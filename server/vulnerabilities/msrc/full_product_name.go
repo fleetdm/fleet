@@ -1,12 +1,18 @@
-package msrc_parsed
+package msrc
 
 import "strings"
 
-// ArchFromMsFullProdName returns the archicture from a Microsoft full product name string, if none can
+// ------------------------------------------------------------------
+// Utility functions for extracting info from MS full product names.
+// A full product name includes the name of the product plus its arch
+// (if any) and its version (if any).
+// ------------------------------------------------------------------
+
+// ArchFromFullProdName returns the archicture from a Microsoft full product name string, if none can
 // be found then "all" is returned.
 // eg:
 // "Windows 10 Version 1803 for 32-bit Systems" => "32"
-func ArchFromMsFullProdName(fullName string) string {
+func ArchFromFullProdName(fullName string) string {
 	switch {
 	case strings.Index(fullName, "32-bit") != -1:
 		return "32-bit"
@@ -21,12 +27,12 @@ func ArchFromMsFullProdName(fullName string) string {
 	}
 }
 
-// NameFromMsFullProdName returns the prod name from a Microsoft full product name string, if none can
+// NameFromFullProdName returns the prod name from a Microsoft full product name string, if none can
 // be found then "" is returned.
 // eg:
 // "Windows 10 Version 1803 for 32-bit Systems" => "Windows 10"
 // "Windows Server 2008 R2 for Itanium-Based Systems Service Pack 1" => "Windows Server 2008 R2"
-func NameFromMsFullProdName(fullName string) string {
+func NameFromFullProdName(fullName string) string {
 	switch {
 	// Desktop versions
 	case strings.HasPrefix(fullName, "Windows 7"):

@@ -1,4 +1,4 @@
-package msrc_parsed
+package msrc
 
 import (
 	"testing"
@@ -83,15 +83,15 @@ func TestMicrosoftProduct(t *testing.T) {
 		{fullName: "Windows Server 2008 R2 for Itanium-Based Systems Service Pack 1", arch: "itanium", prodName: "Windows Server 2008 R2"},
 	}
 
-	t.Run("#ArchFromMsProdName", func(t *testing.T) {
+	t.Run("#ArchFromProdName", func(t *testing.T) {
 		for _, tCase := range testCases {
-			require.Equal(t, tCase.arch, ArchFromMsFullProdName(tCase.fullName), tCase)
+			require.Equal(t, tCase.arch, ArchFromFullProdName(tCase.fullName), tCase)
 		}
 	})
 
-	t.Run("#NameFromMsFullProdName", func(t *testing.T) {
+	t.Run("#NameFromFullProdName", func(t *testing.T) {
 		for _, tCase := range testCases {
-			require.Equal(t, tCase.prodName, NameFromMsFullProdName(tCase.fullName), tCase)
+			require.Equal(t, tCase.prodName, NameFromFullProdName(tCase.fullName), tCase)
 		}
 	})
 }

@@ -2,12 +2,30 @@ package msrc_input
 
 import (
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/require"
 )
 
 func TestVulnXML(t *testing.T) {
 	t.Run("VulnerabilityXML", func(t *testing.T) {
+		t.Run("#PublishedDate", func(t *testing.T) {
+			sut := VulnerabilityXML{
+				Revisions: []RevisionHistoryXML{
+					{
+						Description: "<p>Information published.</p> ",
+						Date:        "2022-05-10T07:00:00",
+					},
+				},
+			}
+
+			result := sut.PublishedDate()
+			require.NotNil(t, result)
+			require.Equal(t, 2022, result.Year())
+			require.Equal(t, time.May, result.Month())
+			require.Equal(t, 10, result.Day())
+		})
+
 		t.Run("#IncludesVendorFix", func(t *testing.T) {
 			t.Run("no remediations", func(t *testing.T) {
 				sut := VulnerabilityXML{}
