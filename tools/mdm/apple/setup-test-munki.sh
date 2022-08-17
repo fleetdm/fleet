@@ -44,6 +44,7 @@ curl -L "https://download.mozilla.org/?product=firefox-latest-ssl&os=osx&lang=en
 
 # No other (non-interactive) way to set the repo url for manifestutil.
 defaults write ~/Library/Preferences/com.googlecode.munki.munkiimport.plist "repo_url" "file://$REPO_DIR"
+defaults write ~/Library/Preferences/com.googlecode.munki.munkiimport.plist "default_catalog" "testing"
 
 /usr/local/munki/manifestutil new-manifest site_default
 /usr/local/munki/manifestutil add-catalog testing --manifest site_default

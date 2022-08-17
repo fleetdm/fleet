@@ -93,7 +93,7 @@ FLEET_MDM_APPLE_DEP_SERVER_URL=ae8a-181-228-157-44.ngrok.io \
 ## 5. Setup Munki repository
 
 ```sh
-REPO_DIR=~/munki_repo ./tools/mdm/apple/setup-munki.sh
+REPO_DIR=~/munki_repo ./tools/mdm/apple/setup-test-munki.sh
 ```
 
 ## 6. Download and Sign Vanilla Munki Pkg

@@ -315,7 +315,7 @@ type HTTPBasicAuthConfig struct {
 
 // Encoded returns the base64 representation of the HTTP basic auth.
 func (h HTTPBasicAuthConfig) Encoded() string {
-	return base64.RawStdEncoding.EncodeToString([]byte(h.Username + ":" + h.Password))
+	return base64.StdEncoding.EncodeToString([]byte(h.Username + ":" + h.Password))
 }
 
 // PackagingConfig holds configuration to build and retrieve Fleet packages

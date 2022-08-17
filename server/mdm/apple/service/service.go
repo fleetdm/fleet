@@ -68,7 +68,7 @@ func Setup(ctx context.Context, mux *http.ServeMux, config SetupConfig) error {
 	if err := startDEPRoutine(ctx, config); err != nil {
 		return fmt.Errorf("start DEP routine: %w", err)
 	}
-	if err := startMunkiServer(ctx, mux, config.MDMConfig.Munki); err != nil {
+	if err := startMunkiRepoServer(ctx, mux, config.MDMConfig.Munki); err != nil {
 		return fmt.Errorf("start munki server: %w", err)
 	}
 	if err := startMunkiPkgServer(ctx, mux, config.MDMConfig.Munki.MunkiPkg, config.Logger); err != nil {
@@ -261,7 +261,7 @@ func (c bootstrapCommandPusher) enqueueBootstrapCommands(ctx context.Context, de
 	if err != nil {
 		return fmt.Errorf("parse server url: %w", err)
 	}
-	softwareRepoURL.Path += munkiRepoPath
+	softwareRepoURL.Path += strings.TrimSuffix(munkiRepoPath, "/")
 	softwareRepoURL.Scheme = "https"
 
 	// TODO(lucas): Currently HTTP basic auth is stored in `/Library/Preferences/ManagedInstalls`
@@ -291,8 +291,6 @@ func (c bootstrapCommandPusher) enqueueBootstrapCommands(ctx context.Context, de
 								<false/>
 								<key>ClientIdentifier</key>
 								<string></string>
-								<key>FollowHTTPRedirects</key>
-								<string>none</string>
 								<key>IgnoreSystemProxies</key>
 								<false/>
 								<key>InstallAppleSoftwareUpdates</key>
@@ -305,8 +303,6 @@ func (c bootstrapCommandPusher) enqueueBootstrapCommands(ctx context.Context, de
 								<integer>1</integer>
 								<key>ManagedInstallDir</key>
 								<string>/Library/Managed Installs</string>
-								<key>OldestUpdateDays</key>
-								<real>0.0</real>
 								<key>PackageVerificationMode</key>
 								<string>hash</string>
 								<key>SoftwareRepoURL</key>
@@ -600,7 +596,7 @@ const (
 	munkiManifestPath = "/mdm/apple/munki/manifest"
 )
 
-func startMunkiServer(ctx context.Context, mux *http.ServeMux, config configpkg.MDMMunkiConfig) error {
+func startMunkiRepoServer(ctx context.Context, mux *http.ServeMux, config configpkg.MDMMunkiConfig) error {
 	if config.HTTPBasicAuth.Username == "" {
 		return errors.New("basic auth username empty")
 	}
