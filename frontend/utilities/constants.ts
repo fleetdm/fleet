@@ -322,7 +322,6 @@ export const DEFAULT_CAMPAIGN_STATE = {
 
 export const PLATFORM_DISPLAY_NAMES: Record<string, IOsqueryPlatform> = {
   darwin: "macOS",
-  freebsd: "FreeBSD",
   linux: "Linux",
   windows: "Windows",
 };
