@@ -39,3 +39,75 @@ export const buildQueryStringFromParams = (queryParams: QueryParams) => {
   }
   return queryString;
 };
+
+export const getPolicyParams = (
+  label?: string,
+  policyId?: number,
+  policyResponse?: string
+) => {
+  if (label !== undefined || policyId === undefined) return {};
+
+  return {
+    policy_id: policyId,
+    policy_response: policyResponse,
+  };
+};
+
+export const getSoftwareParam = (
+  label?: string,
+  policyId?: number,
+  softwareId?: number,
+  mdmId?: number,
+  mdmEnrollmentStatus?: string
+) => {
+  return !label && !policyId && !mdmId && !mdmEnrollmentStatus
+    ? softwareId
+    : undefined;
+};
+
+export const getMDMParams = (
+  label?: string,
+  policyId?: number,
+  softwareId?: number,
+  mdmId?: number,
+  mdmEnrollmentStatus?: string
+) => {
+  if (!label && !policyId && !softwareId && !mdmEnrollmentStatus && !mdmId)
+    return undefined;
+
+  return { mdmId: mdmId, mdmEnrollmentStatus: mdmEnrollmentStatus };
+};
+
+export const getOperatingSystemParam = (
+  label?: string,
+  policyId?: number,
+  softwareId?: number,
+  operatingSystemId?: number
+) => {
+  return label === undefined &&
+    policyId === undefined &&
+    softwareId === undefined
+    ? operatingSystemId
+    : undefined;
+};
+
+const LABEL_PREFIX = "labels/";
+
+export const getStatusParam = (selectedLabels?: string[]) => {
+  if (selectedLabels === undefined) return undefined;
+
+  const status = selectedLabels.find((f) => !f.includes(LABEL_PREFIX));
+  if (status === undefined) return undefined;
+
+  const statusFilterList = ["new", "online", "offline"];
+  return statusFilterList.includes(status) ? status : undefined;
+};
+
+export const getLabelParam = (selectedLabels?: string[]) => {
+  if (selectedLabels === undefined) return undefined;
+
+  const label = selectedLabels.find((f) => f.includes(LABEL_PREFIX));
+  if (label === undefined) return undefined;
+
+  return label.slice(7);
+};
