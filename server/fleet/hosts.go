@@ -399,6 +399,13 @@ type AggregatedMunkiVersion struct {
 	HostsCount int `json:"hosts_count" db:"hosts_count"`
 }
 
+type AggregatedMunkiIssue struct {
+	ID         uint   `json:"id" db:"id"`
+	Name       string `json:"name" db:"name"`
+	IssueType  string `json:"type" db:"issue_type"`
+	HostsCount int    `json:"hosts_count" db:"hosts_count"`
+}
+
 type AggregatedMDMStatus struct {
 	EnrolledManualHostsCount    int `json:"enrolled_manual_hosts_count" db:"enrolled_manual_hosts_count"`
 	EnrolledAutomatedHostsCount int `json:"enrolled_automated_hosts_count" db:"enrolled_automated_hosts_count"`

@@ -1762,6 +1762,9 @@ func (ds *Datastore) GenerateAggregatedMunkiAndMDM(ctx context.Context) error {
 		if err := ds.generateAggregatedMunkiVersion(ctx, &id); err != nil {
 			return ctxerr.Wrap(ctx, err, "generating aggregated munki version")
 		}
+		if err := ds.generateAggregatedMunkiIssues(ctx, &id); err != nil {
+			return ctxerr.Wrap(ctx, err, "generating aggregated munki issues")
+		}
 		if err := ds.generateAggregatedMDMStatus(ctx, &id); err != nil {
 			return ctxerr.Wrap(ctx, err, "generating aggregated mdm status")
 		}
@@ -1772,6 +1775,9 @@ func (ds *Datastore) GenerateAggregatedMunkiAndMDM(ctx context.Context) error {
 
 	if err := ds.generateAggregatedMunkiVersion(ctx, nil); err != nil {
 		return ctxerr.Wrap(ctx, err, "generating aggregated munki version")
+	}
+	if err := ds.generateAggregatedMunkiIssues(ctx, nil); err != nil {
+		return ctxerr.Wrap(ctx, err, "generating aggregated munki issues")
 	}
 	if err := ds.generateAggregatedMDMStatus(ctx, nil); err != nil {
 		return ctxerr.Wrap(ctx, err, "generating aggregated mdm status")
@@ -1817,6 +1823,54 @@ ON DUPLICATE KEY UPDATE
 	)
 	if err != nil {
 		return ctxerr.Wrapf(ctx, err, "inserting stats for munki_versions id %d", id)
+	}
+	return nil
+}
+
+func (ds *Datastore) generateAggregatedMunkiIssues(ctx context.Context, teamID *uint) error {
+	id := uint(0)
+
+	var issues []fleet.AggregatedMunkiIssue
+	query := `
+  SELECT
+    COUNT(*) as hosts_count,
+    hmi.munki_issue_id as id,
+		mi.name,
+		mi.issue_type
+  FROM
+    host_munki_issues hmi
+  INNER JOIN
+    munki_issues mi
+  ON
+    hmi.munki_issue_id = mi.id
+`
+	args := []interface{}{}
+	if teamID != nil {
+		args = append(args, *teamID)
+		query += ` JOIN hosts h ON (h.id = hmi.host_id) WHERE h.team_id = ? `
+		id = *teamID
+	}
+	query += `GROUP BY hmi.munki_issue_id, mi.name, mi.issue_type`
+
+	err := sqlx.SelectContext(ctx, ds.reader, &issues, query, args...)
+	if err != nil {
+		return ctxerr.Wrapf(ctx, err, "getting aggregated data from host_munki_issues")
+	}
+
+	issuesJSON, err := json.Marshal(issues)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "marshaling stats")
+	}
+
+	_, err = ds.writer.ExecContext(ctx, `
+INSERT INTO aggregated_stats (id, type, json_value)
+VALUES (?, ?, ?)
+ON DUPLICATE KEY UPDATE
+    json_value = VALUES(json_value),
+    updated_at = CURRENT_TIMESTAMP
+`, id, "munki_issues", issuesJSON)
+	if err != nil {
+		return ctxerr.Wrapf(ctx, err, "inserting stats for munki_issues id %d", id)
 	}
 	return nil
 }
