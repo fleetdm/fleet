@@ -1478,7 +1478,7 @@ func (ds *Datastore) replaceHostMunkiIssues(ctx context.Context, hostID uint, ms
 	if counts.CountNew < len(newIDs) {
 		// must insert missing IDs
 		const (
-			insStmt  = `INSERT INTO host_munki_issues (host_id, munki_issue_id) VALUES %s ON DUPLICATE KEY UPDATE id = id`
+			insStmt  = `INSERT INTO host_munki_issues (host_id, munki_issue_id) VALUES %s ON DUPLICATE KEY UPDATE host_id = host_id`
 			stmtPart = `(?, ?),`
 		)
 
@@ -1524,8 +1524,8 @@ func (ds *Datastore) getOrInsertMunkiIssues(ctx context.Context, errors, warning
 			batch := names
 			if len(batch) > batchSize {
 				batch = names[:batchSize]
-				names = names[batchSize:]
 			}
+			names = names[len(batch):]
 
 			var issues []*munkiIssue
 			stmt, args, err := sqlx.In(readStmt, typ, batch)
@@ -1569,17 +1569,20 @@ func (ds *Datastore) getOrInsertMunkiIssues(ctx context.Context, errors, warning
 	// create any missing munki issues (using the primary)
 	if missing := missingIDs(); len(missing) > 0 {
 		const (
-			// UPDATE id = id results in a no-op in mysql (https://stackoverflow.com/a/4596409/1094941)
-			insStmt   = `INSERT INTO munki_issues (name, issue_type) VALUES %s ON DUPLICATE KEY UPDATE id = id`
+			// UPDATE issue_type = issue_type results in a no-op in mysql (https://stackoverflow.com/a/4596409/1094941)
+			insStmt   = `INSERT INTO munki_issues (name, issue_type) VALUES %s ON DUPLICATE KEY UPDATE issue_type = issue_type`
 			stmtParts = `(?, ?),`
 		)
+
+		msgsToReload := missing
+
 		args := make([]interface{}, 0, batchSize*2)
 		for len(missing) > 0 {
 			batch := missing
 			if len(batch) > batchSize {
 				batch = missing[:batchSize]
-				missing = missing[batchSize:]
 			}
+			missing = missing[len(batch):]
 
 			args = args[:0]
 			for _, msg := range batch {
@@ -1593,6 +1596,12 @@ func (ds *Datastore) getOrInsertMunkiIssues(ctx context.Context, errors, warning
 
 		// load the IDs for the missing munki issues, from the primary as we just
 		// inserted them
+		if err := readIDs(ds.writer, msgsToReload, "error"); err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "load error message IDs from writer")
+		}
+		if err := readIDs(ds.writer, msgsToReload, "warning"); err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "load warning message IDs from writer")
+		}
 		if missing := missingIDs(); len(missing) > 0 {
 			// some messages still have no IDs
 			return nil, ctxerr.Wrap(ctx, err, "found munki issues without id after batch-insert")

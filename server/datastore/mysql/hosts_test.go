@@ -3736,6 +3736,8 @@ func testHostMDMAndMunki(t *testing.T, ds *Datastore) {
 }
 
 func testAggregatedHostMDMAndMunki(t *testing.T, ds *Datastore) {
+	// TODO(mna): test batch size limit for munki issues
+
 	// Make sure things work before data is generated
 	versions, updatedAt, err := ds.AggregatedMunkiVersion(context.Background(), nil)
 	require.NoError(t, err)
@@ -3883,9 +3885,9 @@ func testAggregatedHostMDMAndMunki(t *testing.T, ds *Datastore) {
 	require.NoError(t, ds.SetOrUpdateMunkiInfo(context.Background(), h1.ID, "1.2.3", []string{"d"}, nil))
 	require.NoError(t, ds.SetOrUpdateMunkiInfo(context.Background(), h2.ID, "1.2.3", []string{"d"}, []string{"e"}))
 
-	// h3 adds it but then removes it
+	// h3 adds the version but then removes it
 	require.NoError(t, ds.SetOrUpdateMunkiInfo(context.Background(), h3.ID, "1.2.3", []string{"f"}, nil))
-	require.NoError(t, ds.SetOrUpdateMunkiInfo(context.Background(), h3.ID, "", nil, nil))
+	require.NoError(t, ds.SetOrUpdateMunkiInfo(context.Background(), h3.ID, "", []string{"d"}, []string{"f"}))
 
 	// Make the updated_at different enough
 	time.Sleep(1 * time.Second)
@@ -3915,7 +3917,7 @@ func testAggregatedHostMDMAndMunki(t *testing.T, ds *Datastore) {
 			HostsCount: 2,
 		},
 		{
-			Name:       "e",
+			Name:       "f",
 			IssueType:  "warning",
 			HostsCount: 1,
 		},
