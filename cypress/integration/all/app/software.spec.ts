@@ -191,7 +191,6 @@ describe("Software", () => {
     cy.setupWithSoftware();
     // eslint-disable-next-line cypress/no-unnecessary-waiting
     cy.wait(30000);
-    cy.loginWithCySession();
     cy.viewport(1600, 900);
   });
   after(() => {
@@ -201,7 +200,8 @@ describe("Software", () => {
   // TODO: Software list and details test coverage (Issue #3954)
   describe("Manage software page", () => {
     beforeEach(() => {
-      cy.loginWithCySession();
+      Cypress.session.clearAllSavedSessions();
+      cy.login("admin@example.com", "password123#");
       cy.viewport(1600, 900);
       cy.visit("/software/manage");
     });
