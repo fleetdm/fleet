@@ -81,7 +81,8 @@ export const DEFAULT_POLICIES = [
   },
   {
     key: 7,
-    query: "SELECT 1 FROM bitlocker_info WHERE drive_letter='C:' AND protection_status=1;",
+    query:
+      "SELECT 1 FROM bitlocker_info WHERE drive_letter='C:' AND protection_status=1;",
     name: "Full disk encryption enabled (Windows)",
     description:
       "Checks to make sure that full disk encryption is enabled on Windows devices.",
