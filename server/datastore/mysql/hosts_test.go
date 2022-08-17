@@ -4478,7 +4478,7 @@ func testHostsDeleteHosts(t *testing.T, ds *Datastore) {
 	err = ds.SetOrUpdateMDMData(context.Background(), host.ID, false, "", false)
 	require.NoError(t, err)
 	// Update host_munki_info.
-	err = ds.SetOrUpdateMunkiInfo(context.Background(), host.ID, "42", nil, nil)
+	err = ds.SetOrUpdateMunkiInfo(context.Background(), host.ID, "42", []string{"a"}, []string{"b"})
 	require.NoError(t, err)
 	// Update device_auth_token.
 	err = ds.SetOrUpdateDeviceAuthToken(context.Background(), host.ID, "foo")
@@ -4489,12 +4489,6 @@ func testHostsDeleteHosts(t *testing.T, ds *Datastore) {
 	// Update host_operating_system
 	err = ds.UpdateHostOperatingSystem(context.Background(), host.ID, fleet.OperatingSystem{Name: "foo", Version: "bar"})
 	require.NoError(t, err)
-
-	// TODO(mna): replace this with a call to set or update munki issues once implemented.
-	ExecAdhocSQL(t, ds, func(tx sqlx.ExtContext) error {
-		_, err := tx.ExecContext(context.Background(), `INSERT INTO host_munki_issues (host_id, munki_issue_id) VALUES (?, 1)`, host.ID)
-		return err
-	})
 
 	// Check there's an entry for the host in all the associated tables.
 	for _, hostRef := range hostRefs {

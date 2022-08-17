@@ -1386,6 +1386,8 @@ func (ds *Datastore) SetOrUpdateMunkiInfo(ctx context.Context, hostID uint, vers
 	// Currently, taking a strict approach as a point that was mentioned in the
 	// ticket was to care about data accuracy, so instead of allowing to save
 	// only a subset of issues, we fail if we can't save the complete set.
+
+	// TODO(mna): figure out what we want to do regarding message length (truncate, accept longer, etc.)
 	msgToID, err := ds.getOrInsertMunkiIssues(ctx, errors, warnings, fleet.DefaultMunkiIssuesBatchSize)
 	if err != nil {
 		return err
