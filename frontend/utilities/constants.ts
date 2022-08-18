@@ -211,7 +211,18 @@ export const DEFAULT_POLICIES = [
     resolution:
       "Contact your IT administrator to ensure your Mac is receiving a profile that enables automatic update downloads.",
     platform: "darwin",
-  },  
+  },
+  {
+    key: 21,
+    query:
+      "SELECT 1 FROM managed_policies WHERE domain='com.apple.SoftwareUpdate' AND name='AutomaticallyInstallAppUpdates' AND value=1 LIMIT 1;",
+    name: "Installation of application updates is enabled (macOS) (CIS 1.4)",
+    description:
+      "Checks that the operating system is configured to automatically download updates to Apple applications.",
+    resolution:
+      "Contact your IT administrator to ensure your Mac is receiving a profile that enables automatic application update downloads.",
+    platform: "darwin",
+  },
 ] as IPolicyNew[];
 
 export const FREQUENCY_DROPDOWN_OPTIONS = [
