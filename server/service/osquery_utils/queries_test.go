@@ -657,3 +657,58 @@ func TestDangerousReplaceQuery(t *testing.T) {
 	queries = GetDetailQueries(&fleet.AppConfig{HostSettings: fleet.HostSettings{EnableHostUsers: true}}, config.FleetConfig{})
 	assert.Equal(t, originalQuery, queries["users"].Query)
 }
+
+func TestDirectIngestSoftware(t *testing.T) {
+	ds := new(mock.Store)
+
+	t.Run("vendor gets truncated", func(t *testing.T) {
+		for i, tc := range []struct {
+			data     []map[string]string
+			expected string
+		}{
+			{
+				data: []map[string]string{
+					{
+						"name":              "Software 1",
+						"version":           "12.5",
+						"source":            "My backyard",
+						"bundle_identifier": "",
+						"vendor":            "Fleet",
+					},
+				},
+				expected: "Fleet",
+			},
+			{
+				data: []map[string]string{
+					{
+						"name":              "Software 1",
+						"version":           "12.5",
+						"source":            "My backyard",
+						"bundle_identifier": "",
+						"vendor":            `oFZTwTV5WxJt02EVHEBcnhLzuJ8wnxKwfbabPWy7yTSiQbabEcAGDVmoXKZEZJLWObGD0cVfYptInHYgKjtDeDsBh2a8669EnyAqyBECXbFjSh`,
+					},
+				},
+				expected: `oFZTwTV5WxJt02EVHEBcnhLzuJ8wnxKwfbabPWy7yTSiQbabEcAGDVmoXKZEZJLWObGD0cVfYptInHYgKjtDeDsBh2a8669EnyAqyBECXbF...`,
+			},
+		} {
+			ds.UpdateHostSoftwareFunc = func(ctx context.Context, hostID uint, software []fleet.Software) error {
+				require.Len(t, software, 1)
+				require.Equal(t, tc.expected, software[0].Vendor)
+				return nil
+			}
+
+			err := directIngestSoftware(
+				context.Background(),
+				log.NewNopLogger(),
+				&fleet.Host{ID: uint(i)},
+				ds,
+				tc.data,
+				false,
+			)
+
+			require.NoError(t, err)
+			require.True(t, ds.UpdateHostSoftwareFuncInvoked)
+			ds.UpdateHostSoftwareFuncInvoked = false
+		}
+	})
+}

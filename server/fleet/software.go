@@ -34,6 +34,9 @@ type CVEMeta struct {
 	Published *time.Time `db:"published"`
 }
 
+// Must be kept in synch with the vendor column definition.
+const SoftwareVendorMaxLength = 114
+
 // Software is a named and versioned piece of software installed on a device.
 type Software struct {
 	ID uint `json:"id" db:"id"`

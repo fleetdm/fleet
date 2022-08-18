@@ -9,6 +9,7 @@ import (
 	"strconv"
 	"strings"
 	"time"
+	"unicode/utf8"
 
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
@@ -582,6 +583,7 @@ SELECT
   version AS version,
   'Program (Windows)' AS type,
   'programs' AS source
+  publisher AS vendor
 FROM programs
 UNION
 SELECT
@@ -861,6 +863,8 @@ func directIngestSoftware(ctx context.Context, logger log.Logger, host *fleet.Ho
 		version := row["version"]
 		source := row["source"]
 		bundleIdentifier := row["bundle_identifier"]
+		vendor := row["vendor"]
+
 		if name == "" {
 			level.Debug(logger).Log(
 				"msg", "host reported software with empty name",
@@ -895,6 +899,21 @@ func directIngestSoftware(ctx context.Context, logger log.Logger, host *fleet.Ho
 			}
 		}
 
+		// Check whether the vendor is longer than the max allowed width and if
+		// so, truncante it.
+		if utf8.RuneCountInString(vendor) >= fleet.SoftwareVendorMaxLength {
+			offset := 0
+			j := 0
+			for i := range vendor {
+				j++
+				if j >= fleet.SoftwareVendorMaxLength-3 {
+					offset = i
+					break
+				}
+			}
+			vendor = vendor[:offset] + "..."
+		}
+
 		s := fleet.Software{
 			Name:             name,
 			Version:          version,
@@ -902,7 +921,7 @@ func directIngestSoftware(ctx context.Context, logger log.Logger, host *fleet.Ho
 			BundleIdentifier: bundleIdentifier,
 
 			Release: row["release"],
-			Vendor:  row["vendor"],
+			Vendor:  vendor,
 			Arch:    row["arch"],
 		}
 		if !lastOpenedAt.IsZero() {
