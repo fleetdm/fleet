@@ -898,19 +898,9 @@ func directIngestSoftware(ctx context.Context, logger log.Logger, host *fleet.Ho
 			}
 		}
 
-		// Check whether the vendor is longer than the max allowed width and if
-		// so, truncante it.
+		// Check whether the vendor is longer than the max allowed width and if so, truncate it.
 		if utf8.RuneCountInString(vendor) >= fleet.SoftwareVendorMaxLength {
-			offset := 0
-			j := 0
-			for i := range vendor {
-				j++
-				if j >= fleet.SoftwareVendorMaxLength-3 {
-					offset = i
-					break
-				}
-			}
-			vendor = vendor[:offset] + "..."
+			vendor = fmt.Sprintf(fleet.SoftwareVendorMaxLengthFmt, vendor)
 		}
 
 		s := fleet.Software{
