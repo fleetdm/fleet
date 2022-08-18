@@ -156,7 +156,7 @@ def inst_prof_subparser(parser):
         "InstallProfile", help="InstallProfile MDM command"
     )
     inst_prof_parser.add_argument(
-        "--mobileconfig",
+        "mobileconfig",
         type=argparse.FileType("rb"),
         help="Path to mobileconfig file (profile) to install",
     )
@@ -209,7 +209,7 @@ def install_application_subparser(parser):
     )
     p.add_argument(
         "-m",
-        "--manifest_url",
+        "manifest_url",
         type=str,
         help="ManifestURL field",
     )

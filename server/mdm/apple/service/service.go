@@ -209,7 +209,8 @@ type bootstrapCommandPusher struct {
 // TokenUpdate partially implements nanomdm_service.CheckinAndCommandService.
 //
 // TODO(lucas): Am using TokenUpdate as the indicator that the enrollment for a device is complete.
-// Check if there's a better way to determine when a device fully enrolled.
+// Check if there's a better way to determine when a device fully enrolled. (There's probably a query
+// that Fleet could run to check for this :).
 //
 // Once enrolled, we send two "bootstrap" commands to setup Munki on the device.
 func (w wrappedNanoMDMService) TokenUpdate(r *mdm.Request, t *mdm.TokenUpdate) error {
@@ -263,6 +264,10 @@ func (c bootstrapCommandPusher) enqueueBootstrapCommands(ctx context.Context, de
 	}
 	softwareRepoURL.Path += strings.TrimSuffix(munkiRepoPath, "/")
 	softwareRepoURL.Scheme = "https"
+
+	// TODO(lucas): Is this the best way to send the Munki config?
+	// There's https://developer.apple.com/documentation/devicemanagement/installapplicationcommand/command/configuration
+	// but I haven't tried it yet.
 
 	// TODO(lucas): Currently HTTP basic auth is stored in `/Library/Preferences/ManagedInstalls`
 	// which is world-readable. We should store under root preferences, see:
