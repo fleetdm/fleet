@@ -632,15 +632,7 @@ SELECT
   'Package (Atom)' AS type,
   'atom_packages' AS source,
   '' AS vendor
-FROM cached_users CROSS JOIN atom_packages USING (uid)
-UNION
-SELECT
-  name AS name,
-  version AS version,
-  'Package (Python)' AS type,
-  'python_packages' AS source,
-  '' AS vendor
-FROM python_packages;
+FROM cached_users CROSS JOIN atom_packages USING (uid);
 `),
 	Platforms:        []string{"windows"},
 	DirectIngestFunc: directIngestSoftware,
