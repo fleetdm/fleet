@@ -582,7 +582,7 @@ SELECT
   name AS name,
   version AS version,
   'Program (Windows)' AS type,
-  'programs' AS source
+  'programs' AS source,
   publisher AS vendor
 FROM programs
 UNION
@@ -590,49 +590,56 @@ SELECT
   name AS name,
   version AS version,
   'Package (Python)' AS type,
-  'python_packages' AS source
+  'python_packages' AS source,
+  '' AS vendor
 FROM python_packages
 UNION
 SELECT
   name AS name,
   version AS version,
   'Browser plugin (IE)' AS type,
-  'ie_extensions' AS source
+  'ie_extensions' AS source,
+  '' AS vendor
 FROM ie_extensions
 UNION
 SELECT
   name AS name,
   version AS version,
   'Browser plugin (Chrome)' AS type,
-  'chrome_extensions' AS source
+  'chrome_extensions' AS source,
+  '' AS vendor
 FROM cached_users CROSS JOIN chrome_extensions USING (uid)
 UNION
 SELECT
   name AS name,
   version AS version,
   'Browser plugin (Firefox)' AS type,
-  'firefox_addons' AS source
+  'firefox_addons' AS source,
+  '' AS vendor
 FROM cached_users CROSS JOIN firefox_addons USING (uid)
 UNION
 SELECT
   name AS name,
   version AS version,
   'Package (Chocolatey)' AS type,
-  'chocolatey_packages' AS source
+  'chocolatey_packages' AS source,
+  '' AS vendor
 FROM chocolatey_packages
 UNION
 SELECT
   name AS name,
   version AS version,
   'Package (Atom)' AS type,
-  'atom_packages' AS source
+  'atom_packages' AS source,
+  '' AS vendor
 FROM cached_users CROSS JOIN atom_packages USING (uid)
 UNION
 SELECT
   name AS name,
   version AS version,
   'Package (Python)' AS type,
-  'python_packages' AS source
+  'python_packages' AS source,
+  '' AS vendor
 FROM python_packages;
 `),
 	Platforms:        []string{"windows"},
