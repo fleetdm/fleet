@@ -215,7 +215,7 @@ func TestCronVulnerabilitiesCreatesDatabasesPath(t *testing.T) {
 		// we should not get this far before we see the directory being created
 		return nil, errors.New("shouldn't happen")
 	}
-	ds.OSVersionsFunc = func(ctx context.Context, teamID *uint, platform *string, osID *uint) (*fleet.OSVersions, error) {
+	ds.OSVersionsFunc = func(ctx context.Context, teamID *uint, platform *string) (*fleet.OSVersions, error) {
 		return &fleet.OSVersions{}, nil
 	}
 	ds.SyncHostsSoftwareFunc = func(ctx context.Context, updatedAt time.Time) error {
