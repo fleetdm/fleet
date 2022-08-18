@@ -1,0 +1,96 @@
+.label-filter-select {
+  width: 160px;
+
+  .label-filter-select__control {
+    border: 1px solid $ui-fleet-blue-15;
+    background-color: $ui-light-grey;
+    border-radius: $border-radius;
+    height: 40px;
+
+    &--is-focused,
+    &--menu-is-open,
+    &:hover {
+      box-shadow: none;
+      border: 1px solid $core-vibrant-blue;
+    }
+  }
+
+
+  .label-filter-select__single-value,
+  .label-filter-select__placeholder {
+    color: $core-fleet-black;
+    font-size: $small;
+  }
+
+  .label-filter-select__placeholder {
+    width: 70px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+
+    @media (max-width: $break-990) {
+      width: auto;
+    }
+  }
+
+  .label-filter-select__indicator-separator {
+    display: none;
+  }
+
+  .label-filter-select__indicator {
+    color: $core-fleet-black;
+  }
+
+  .label-filter-select__menu {
+    width: 300px;
+    margin-top: 0;
+  }
+
+  .label-filter-select__menu-list {
+    max-height: 574px;
+    padding: $pad-small $pad-medium;
+  }
+
+  .label-filter-select__option {
+    padding: 10px 1rem;
+
+    &--is-selected,
+    &:active {
+      background-color: $ui-vibrant-blue-25;
+    }
+
+    &--is-focused {
+      background-color: $ui-vibrant-blue-10;
+    }
+
+    &--is-disabled {
+      &:active {
+        background-color: transparent;
+      }
+    }
+  }
+
+  .label-filter-select__group-heading {
+    padding: 0;
+  }
+
+  .option-label {
+    display: flex;
+    align-items: center;
+
+    span {
+      font-size: $x-small;
+      font-weight: $regular;
+      color: $core-fleet-black;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    img {
+      width: 16px;
+      height: 16px;
+      margin-right: $pad-small;
+    }
+  }
+}

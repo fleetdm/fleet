@@ -63,7 +63,6 @@ import { IActionButtonProps } from "components/TableContainer/DataTable/ActionBu
 import TeamsDropdown from "components/TeamsDropdown";
 import Spinner from "components/Spinner";
 import MainContent from "components/MainContent";
-import SidePanelContent from "components/SidePanelContent";
 
 import { getValidatedTeamId } from "utilities/helpers";
 import {
@@ -102,6 +101,8 @@ import CloseIcon from "../../../../assets/images/icon-close-vibrant-blue-16x16@2
 import CloseIconBlack from "../../../../assets/images/icon-close-fleet-black-16x16@2x.png";
 import PolicyIcon from "../../../../assets/images/icon-policy-fleet-black-12x12@2x.png";
 import DownloadIcon from "../../../../assets/images/icon-download-12x12@2x.png";
+import LabelFilterDropdown from "./components/LabelFilterSelect/LabelFilterSelect";
+import FilterPill from "./components/FilterPill";
 
 interface IManageHostsProps {
   route: RouteProps;
@@ -266,7 +267,7 @@ const ManageHostsPage = ({
 
   const isAddLabel = location.hash === NEW_LABEL_HASH;
   const isEditLabel = location.hash === EDIT_LABEL_HASH;
-  const routeTemplate = route && route.path ? route.path : "";
+  const routeTemplate = route?.path ?? "";
   const policyId = queryParams?.policy_id;
   const policyResponse: PolicyResponse = queryParams?.policy_response;
   const softwareId =
@@ -294,7 +295,7 @@ const ManageHostsPage = ({
   const canEnrollHosts =
     isGlobalAdmin || isGlobalMaintainer || isTeamAdmin || isTeamMaintainer;
   const canEnrollGlobalHosts = isGlobalAdmin || isGlobalMaintainer;
-  const canAddNewLabels = isGlobalAdmin || isGlobalMaintainer;
+  const canAddNewLabels = (isGlobalAdmin || isGlobalMaintainer) ?? false;
 
   const {
     isLoading: isLabelsLoading,
@@ -708,9 +709,7 @@ const ManageHostsPage = ({
     handleLabelChange(selected as ILabel);
   };
 
-  const onAddLabelClick = (evt: React.MouseEvent<HTMLButtonElement>) => {
-    evt.preventDefault();
-
+  const onAddLabelClick = () => {
     setLabelValidator(DEFAULT_CREATE_LABEL_ERRORS);
     router.push(`${PATHS.MANAGE_HOSTS}${NEW_LABEL_HASH}`);
   };
@@ -959,13 +958,6 @@ const ManageHostsPage = ({
       });
   };
 
-  const onLabelClick = (label: ILabel) => {
-    return (evt: React.MouseEvent<HTMLButtonElement>) => {
-      evt.preventDefault();
-      handleLabelChange(label);
-    };
-  };
-
   const onOsqueryTableSelect = (tableName: string) => {
     setSelectedOsqueryTable(tableName);
   };
@@ -991,6 +983,13 @@ const ManageHostsPage = ({
           renderFlash("error", "Could not create label. Please try again.");
         }
       });
+  };
+
+  const onClearLabelFilter = () => {
+    const allHostsLabel = labels?.find((label) => label.name === "All Hosts");
+    if (allHostsLabel !== undefined) {
+      handleLabelChange(allHostsLabel);
+    }
   };
 
   const onDeleteLabel = async () => {
@@ -1148,6 +1147,36 @@ const ManageHostsPage = ({
     />
   );
 
+  const renderLabelFilterPill = () => {
+    if (selectedLabel) {
+      const { description, display_text, label_type } = selectedLabel;
+      const pillLabel =
+        PLATFORM_LABEL_DISPLAY_NAMES[display_text] ?? display_text;
+
+      return (
+        <>
+          <FilterPill
+            label={pillLabel}
+            tooltipDescription={description}
+            onClear={onClearLabelFilter}
+          />
+          {label_type !== "builtin" && !isOnlyObserver && (
+            <>
+              <Button onClick={onEditLabelClick} variant={"text-icon"}>
+                <img src={PencilIcon} alt="Edit label" />
+              </Button>
+              <Button onClick={toggleDeleteLabelModal} variant={"text-icon"}>
+                <img src={TrashIcon} alt="Delete label" />
+              </Button>
+            </>
+          )}
+        </>
+      );
+    }
+
+    return null;
+  };
+
   const renderOSFilterBlock = () => {
     const os = osVersions?.find((v) => v.os_id === operatingSystemId);
     if (!os) {
@@ -1196,66 +1225,38 @@ const ManageHostsPage = ({
   };
 
   const renderPoliciesFilterBlock = () => (
-    <div className={`${baseClass}__policies-filter-block`}>
+    <>
       <PoliciesFilter
         policyResponse={policyResponse}
         onChange={handleChangePoliciesFilter}
       />
-      <div className={`${baseClass}__policies-filter-name-card`}>
-        <img src={PolicyIcon} alt="Policy" />
-        {policy?.name}
-        <Button
-          className={`${baseClass}__clear-policies-filter`}
-          onClick={handleClearPoliciesFilter}
-          variant={"small-text-icon"}
-          title={policy?.name}
-        >
-          <img src={CloseIcon} alt="Remove policy filter" />
-        </Button>
-      </div>
-    </div>
+      <FilterPill
+        icon={PolicyIcon}
+        label={policy?.name ?? ""}
+        onClear={handleClearPoliciesFilter}
+        className={`${baseClass}__policies-filter-pill`}
+      />
+    </>
   );
 
   const renderSoftwareFilterBlock = () => {
     if (softwareDetails) {
       const { name, version } = softwareDetails;
-      const buttonText = name && version ? `${name} ${version}` : "";
+      const label = name && version ? `${name} ${version}` : "";
+      const TooltipDescription =
+        name && version ? (
+          <span className={`tooltip__tooltip-text`}>
+            {`Hosts with ${name}`},<br />
+            {`${version} installed`}
+          </span>
+        ) : undefined;
+
       return (
-        <div className={`${baseClass}__software-filter-block`}>
-          <div>
-            <span
-              data-tip
-              data-for="software-filter-tooltip"
-              data-tip-disable={!name || !version}
-            >
-              <div
-                className={`${baseClass}__software-filter-name-card tooltip`}
-              >
-                {buttonText}
-                <Button
-                  className={`${baseClass}__clear-software-filter`}
-                  onClick={handleClearSoftwareFilter}
-                  variant={"small-text-icon"}
-                  title={buttonText}
-                >
-                  <img src={CloseIcon} alt="Remove software filter" />
-                </Button>
-              </div>
-            </span>
-            <ReactTooltip
-              place="bottom"
-              effect="solid"
-              backgroundColor="#3e4771"
-              id="software-filter-tooltip"
-              data-html
-            >
-              <span className={`tooltip__tooltip-text`}>
-                {`Hosts with ${name}`},<br />
-                {`${version} installed`}
-              </span>
-            </ReactTooltip>
-          </div>
-        </div>
+        <FilterPill
+          label={label}
+          onClear={handleClearSoftwareFilter}
+          tooltipDescription={TooltipDescription}
+        />
       );
     }
     return null;
@@ -1482,41 +1483,6 @@ const ManageHostsPage = ({
     />
   );
 
-  const renderHeaderLabelBlock = () => {
-    if (selectedLabel) {
-      const {
-        description,
-        display_text: displayText,
-        label_type: labelType,
-      } = selectedLabel;
-
-      return (
-        <div className={`${baseClass}__label-block`}>
-          <div className="title">
-            <span>
-              {PLATFORM_LABEL_DISPLAY_NAMES[displayText] || displayText}
-            </span>
-            {labelType !== "builtin" && !isOnlyObserver && (
-              <>
-                <Button onClick={onEditLabelClick} variant={"text-icon"}>
-                  <img src={PencilIcon} alt="Edit label" />
-                </Button>
-                <Button onClick={toggleDeleteLabelModal} variant={"text-icon"}>
-                  <img src={TrashIcon} alt="Delete label" />
-                </Button>
-              </>
-            )}
-          </div>
-          <div className="description">
-            <span>{description}</span>
-          </div>
-        </div>
-      );
-    }
-
-    return null;
-  };
-
   const renderHeader = () => (
     <div className={`${baseClass}__header`}>
       <div className={`${baseClass}__text`}>
@@ -1648,7 +1614,7 @@ const ManageHostsPage = ({
     ) {
       return (
         <div className={`${baseClass}__labels-active-filter-wrap`}>
-          {showSelectedLabel && renderHeaderLabelBlock()}
+          {showSelectedLabel && renderLabelFilterPill()}
           {!!policyId &&
             !softwareId &&
             !mdmId &&
@@ -1716,43 +1682,32 @@ const ManageHostsPage = ({
     return false;
   };
 
-  const renderSidePanel = () => {
-    let SidePanel;
+  const renderCustomControls = () => {
+    // we filter out the all hosts label as we dont want to display it as a
+    // the selected label in the label filter
+    const selectedDropdownLabel =
+      selectedLabel?.name !== "All Hosts" ? selectedLabel : undefined;
 
-    if (isAddLabel) {
-      SidePanel = (
-        <QuerySidePanel
-          key="query-side-panel"
-          onOsqueryTableSelect={onOsqueryTableSelect}
-          selectedOsqueryTable={selectedOsqueryTable}
+    return (
+      <div className={`${baseClass}__filter-dropdowns`}>
+        <Dropdown
+          value={getStatusSelected() || ALL_HOSTS_LABEL}
+          className={`${baseClass}__status_dropdown`}
+          options={HOST_SELECT_STATUSES}
+          searchable={false}
+          onChange={handleStatusDropdownChange}
         />
-      );
-    } else {
-      SidePanel = (
-        <HostSidePanel
-          key="hosts-side-panel"
-          labels={labels}
-          onAddLabelClick={onAddLabelClick}
-          onLabelClick={onLabelClick}
-          selectedFilter={getLabelSelected() || getStatusSelected()}
-          canAddNewLabel={canAddNewLabels as boolean}
-          isLabelsLoading={isLabelsLoading}
+        <LabelFilterDropdown
+          className={`${baseClass}__label-filter-dropdown`}
+          labels={labels ?? []}
+          canAddNewLabels={canAddNewLabels}
+          selectedLabel={selectedDropdownLabel ?? null}
+          onChange={handleLabelChange}
+          onAddLabel={onAddLabelClick}
         />
-      );
-    }
-
-    return SidePanel;
+      </div>
+    );
   };
-
-  const renderStatusDropdown = () => (
-    <Dropdown
-      value={getStatusSelected() || ALL_HOSTS_LABEL}
-      className={`${baseClass}__status_dropdown`}
-      options={HOST_SELECT_STATUSES}
-      searchable={false}
-      onChange={handleStatusDropdownChange}
-    />
-  );
 
   const renderTable = () => {
     if (
@@ -1847,7 +1802,7 @@ const ManageHostsPage = ({
         renderCount={renderHostCount}
         searchToolTipText={HOSTS_SEARCH_BOX_TOOLTIP}
         emptyComponent={EmptyHosts}
-        customControl={renderStatusDropdown}
+        customControl={renderCustomControls}
         onActionButtonClick={toggleEditColumnsModal}
         onPrimarySelectActionClick={onDeleteHostsClick}
         onQueryChange={onTableQueryChange}
@@ -1947,7 +1902,6 @@ const ManageHostsPage = ({
           )}
         </>
       </MainContent>
-      <SidePanelContent>{renderSidePanel()}</SidePanelContent>
 
       {canEnrollHosts && showDeleteSecretModal && renderDeleteSecretModal()}
       {canEnrollHosts && showSecretEditorModal && renderSecretEditorModal()}
