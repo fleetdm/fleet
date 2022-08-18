@@ -185,13 +185,24 @@ export const DEFAULT_POLICIES = [
     key: 17,
     query:
       "SELECT 1 FROM os_version WHERE version >= '12.5.1';",
-    name: "Operating system up to date (macOS)",
+    name: "Operating system up to date (macOS) (CIS 1.1)",
     description:
       "Checks that the operating system is up to date.",
     resolution:
       "Go to the Software Update section of System Preferences and install the latest updates.",
     platform: "darwin",
   },
+  {
+    key: 19,
+    query:
+      "SELECT 1 FROM managed_policies WHERE domain='com.apple.SoftwareUpdate' AND name='AutomaticCheckEnabled' AND value=1 LIMIT 1;",
+    name: "Automatic updates enabled (macOS) (CIS 1.2)",
+    description:
+      "Checks that the operating system is configured to automatically checks for updates.",
+    resolution:
+      "Contact your IT administrator to ensure your Mac is receiving a profile that enables automatic updates.",
+    platform: "darwin",
+  },  
 ] as IPolicyNew[];
 
 export const FREQUENCY_DROPDOWN_OPTIONS = [
