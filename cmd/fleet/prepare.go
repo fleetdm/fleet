@@ -69,6 +69,8 @@ To setup Fleet infrastructure, use one of the available commands.
 				initFatal(err, "migrating builtin data")
 			}
 
+			// TODO(lucas): Due to table name collisions, the Apple MDM tables are created
+			// on a separate database. Revisit.
 			if config.MDMApple.Enable {
 				status, err := ds.MigrationMDMAppleStatus(cmd.Context())
 				if err != nil {

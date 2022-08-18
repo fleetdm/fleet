@@ -27,6 +27,12 @@ func Up_20220725165245(tx *sql.Tx) error {
 	}
 
 	// (3) Apply MDM Core extra tables.
+	// mdm_apple_current_push_topic is used to set the current push topic.
+	// TODO(lucas): I originally added this because nanomdm schema allows for multiple
+	// keypairs being stored in `push_certs`. But this may not be needed because
+	// of the stale_token column.
+	// Also, the topic can be obtained from the Push PEM cert using cryptoutil.TopicFromPEMCert
+	// and is stored in the `push_certs` table.
 	_, err = tx.Exec(`CREATE TABLE IF NOT EXISTS mdm_apple_current_push_topic(
 		topic VARCHAR(255) NOT NULL,
 

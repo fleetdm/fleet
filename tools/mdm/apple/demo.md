@@ -59,11 +59,17 @@ What we did for this test is:
 - Zach uploads the decrypted CSR to identity.apple.com and downloads the final certificate.
 - Place certificate in `~/mdm-apple-test/mdmcert.download.push.pem`
 
-## 2. Fleet prepare commands
+## 3. Fleet prepare db
 
+Initial prepare db populates the MySQL database with the MDM tables:
 ```sh
 FLEET_MDM_APPLE_ENABLE=1 ./build/fleet prepare db --dev --logging_debug
-[...]
+```
+
+## 4. Fleet prepare mdm-apple setup
+
+The `prepare mdm-apple setup` runs initial setup of MDM. Returns a public key to be uploaded to Apple (for DEP):
+```sh
 FLEET_MDM_APPLE_ENABLE=1 \
 FLEET_MDM_APPLE_SCEP_CA_PASSPHRASE=sceppassphrase \
 FLEET_MDM_APPLE_MDM_PUSH_CERT_PEM=$(cat ~/mdm-apple-test/mdmcert.download.push.pem) \
@@ -74,15 +80,16 @@ FLEET_MDM_APPLE_MDM_PUSH_KEY_PEM=$(cat ~/mdm-apple-test/mdmcert.download.push.ke
 In https://business.apple.com, upload generated `dep_public_key.pem`.
 Then Download DEP token to `~/mdm-apple-test/dep_encrypted_token.p7m`.
 
-## 3. Run Fleet behind ngrok
+## 5. Run Fleet behind ngrok
 
 Fleet needs to run behind TLS with valid certificates (otherwise Apple devices won't trust it).
 ```
 ngrok http https://localhost:8080
 ```
 
-## 4. More Fleet prepare
+## 6. Fleet prepare mdm-apple dep-auth-token
 
+Final `prepare mdm-apple` command `dep-auth-token`:
 ```sh
 FLEET_MDM_APPLE_ENABLE=1 \
 FLEET_MDM_APPLE_DEP_ENCRYPTED_AUTH_TOKEN=$(cat ~/mdm-apple-test/dep_encrypted_token.p7m) \
@@ -90,13 +97,13 @@ FLEET_MDM_APPLE_DEP_SERVER_URL=ae8a-181-228-157-44.ngrok.io \
 ./build/fleet prepare mdm-apple dep-auth-token --dev --logging_debug
 ```
 
-## 5. Setup Munki repository
+## 7. Setup Munki repository
 
 ```sh
 REPO_DIR=~/munki_repo ./tools/mdm/apple/setup-test-munki.sh
 ```
 
-## 6. Download and Sign Vanilla Munki Pkg
+## 8. Download and Sign Vanilla Munki Pkg
 
 ```sh
 curl -O -L https://github.com/munki/munki/releases/download/v5.7.3/munkitools-5.7.3.4444.pkg
@@ -108,7 +115,7 @@ productsign \
     munkitools-5.7.3.4444.pkg ~/munki_pkg/munkitools-5.7.3.4444-signed.pkg
 ```
 
-## 7. Run Fleet
+## 9. Run Fleet
 
 ```sh
 FLEET_MDM_APPLE_ENABLE=1 \
@@ -128,29 +135,29 @@ FLEET_MDM_APPLE_MUNKI_PKG_SERVER_URL=ae8a-181-228-157-44.ngrok.io \
 fleetctl setup --email foo@example.com --name Gandalf --password p4ssw0rd.123 --org-name "Fleet Device Management Inc."
 ```
 
-## 8. Download MDM enroll profile
+## 10. Non-DEM Manual enroll
 
+Download profile from `/mdm/apple/api/enroll` and install on macOS.
 ```sh
-curl -k https://localhost:8080/mdm/apple/api/enroll --output ~/shared-macos/enroll.mobileconfig
+https://ae8a-181-228-157-44.ngrok.io/mdm/apple/api/enroll
 ```
+(This will be protected by SSO.)
 
-Enroll an already setup macOS VM.
-
-## 9. Inspect MDM tables
+## 11. Inspect MDM tables
 
 ```sh
 mysql --host=127.0.0.1 --port=3306 --user=fleet --password
 select id from devices;
 ```
 
-## 10. Trigger a device restart
+## 12. Trigger a device restart
 
 ```sh
 ./tools/mdm/apple/cmdr.py RestartDevice | curl -k -T - 'https://127.0.0.1:8080/mdm/apple/mdm/api/v1/enqueue/<ID_FROM_PREVIOUS_STEP>'
 ```
 
-## 11. DEP test
+## 13. DEP test
 
 1. Assign the device to our MDM server in https://business.apple.com
-2. Fleet should pick it up and assign an DEP enroll profile that points to itself.
+2. Fleet should pick it up and assign an DEP enroll profile that points to itself (must either trigger a sync or wait for ~1h).
 3. Start the VM and enroll.

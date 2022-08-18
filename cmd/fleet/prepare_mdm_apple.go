@@ -77,7 +77,13 @@ func createMDMAppleSetupCmd(configManager config.Manager, dev *bool) *cobra.Comm
 			if err != nil {
 				initFatal(err, "initializing mdm apple MySQL storage")
 			}
-			err = mdmStorage.StorePushCert(cmd.Context(), config.MDMApple.MDM.PushCert.PEMCert, config.MDMApple.MDM.PushCert.PEMKey)
+			// TODO(lucas): APNS push key is stored unencrypted. Revisit.
+			// See https://github.com/micromdm/nanomdm/discussions/18.
+			err = mdmStorage.StorePushCert(
+				cmd.Context(),
+				config.MDMApple.MDM.PushCert.PEMCert,
+				config.MDMApple.MDM.PushCert.PEMKey,
+			)
 			if err != nil {
 				initFatal(err, "storing APNS push certificate")
 			}
@@ -109,6 +115,7 @@ func createMDMAppleSetupCmd(configManager config.Manager, dev *bool) *cobra.Comm
 			pemCert := tokenpki.PEMCertificate(cert.Raw)
 			pemKey := tokenpki.PEMRSAPrivateKey(key)
 
+			// TODO(lucas): The DEP private key is stored unencrypted. Revisit.
 			err = mdmAppleDEPStorage.StoreTokenPKI(cmd.Context(), apple.DEPName, pemCert, pemKey)
 			if err != nil {
 				initFatal(err, "storing DEP keypair")
@@ -181,6 +188,7 @@ func createMDMAppleDEPPushTokenCmd(configManager config.Manager, dev *bool) *cob
 			if !tokens.Valid() {
 				initFatal(err, "invalid Apple MDM DEP auth token")
 			}
+			// TODO(lucas): Apple OAuth tokens are stored unencrypted. Revisit.
 			if err := depStorage.StoreAuthTokens(cmd.Context(), apple.DEPName, tokens); err != nil {
 				initFatal(err, "storing Apple MDM DEP auth token")
 			}

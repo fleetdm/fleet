@@ -128,9 +128,17 @@ WHERE
 	return crt, key, nil
 }
 
-// CreateCA creates a self-signed CA certificate and returns the certificate and its private key.
-// It sets the created certificate and private key into the MySQLDepot.
-func (d *MySQLDepot) CreateCA(pass []byte, years int, cn, org, orgUnit, country string) (*x509.Certificate, *rsa.PrivateKey, error) {
+// CreateCA creates a self-signed CA certificate and returns the
+// certificate and its private key.
+// It stores the created certificate and private key into the MySQLDepot.
+//
+// TODO(lucas): SCEP CA private key is stored encrypted with a passphrase
+// (x509.EncryptPEMBlock) on MySQL. Revisit threat model.
+func (d *MySQLDepot) CreateCA(
+	pass []byte,
+	years int,
+	cn, org, orgUnit, country string,
+) (*x509.Certificate, *rsa.PrivateKey, error) {
 	_, err := d.db.Exec(`INSERT IGNORE INTO scep_serials (serial) VALUES (1)`)
 	if err != nil {
 		return nil, nil, err
