@@ -84,7 +84,7 @@ func cronVulnerabilities(
 
 		appConfig, err := ds.AppConfig(ctx)
 		if err != nil {
-			level.Error(logger).Log("msg", "couldn't read app config", "err", err)
+			errHandler(ctx, logger, "couldn't read app config", err)
 			continue
 		}
 
