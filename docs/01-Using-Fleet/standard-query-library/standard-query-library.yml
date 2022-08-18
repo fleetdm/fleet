@@ -751,3 +751,15 @@ spec:
   tags: compliance, hardening, built-in
   platform: darwin
   contributors: GuillaumeRoss
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: Operating system up to date (macOS)
+  query: SELECT 1 FROM os_version WHERE version >= '12.5.1';
+  description: "Checks that the operating system is up to date."
+  resolution: "Go to the Software Update section of System Preferences and install the latest updates."
+  platforms: macOS
+  tags: compliance, CIS, template, CIS1.1
+  platform: darwin
+  contributors: GuillaumeRoss

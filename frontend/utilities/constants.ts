@@ -181,6 +181,17 @@ export const DEFAULT_POLICIES = [
       "Contact your IT administrator to confirm that your Mac is receiving configuration profiles for password length.",
     platform: "darwin",
   },
+  {
+    key: 17,
+    query:
+      "SELECT 1 FROM os_version WHERE version >= '12.5.1';",
+    name: "Operating system up to date (macOS)",
+    description:
+      "Checks that the operating system is up to date.",
+    resolution:
+      "Go to the Software Update section of System Preferences and install the latest updates.",
+    platform: "darwin",
+  },
 ] as IPolicyNew[];
 
 export const FREQUENCY_DROPDOWN_OPTIONS = [
