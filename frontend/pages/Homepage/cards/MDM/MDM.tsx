@@ -29,7 +29,7 @@ interface IMDMCardProps {
 
 const DEFAULT_SORT_DIRECTION = "desc";
 const SOLUTIONS_DEFAULT_SORT_HEADER = "hosts_count";
-const ENROLLMENT_DEFAULT_SORT_HEADER = "hosts";
+const ENROLLMENT_DEFAULT_SORT_HEADER = "status";
 const PAGE_SIZE = 8;
 const baseClass = "home-mdm";
 
