@@ -55,6 +55,12 @@ type Software struct {
 	Release string `json:"release,omitempty" db:"release"`
 	// Vendor is the supplier of the software (e.g. "CentOS").
 	Vendor string `json:"vendor,omitempty" db:"vendor"`
+
+	// TODO: Remove this as part of the clean up of https://github.com/fleetdm/fleet/pull/7297
+	// DO NOT USE THIS, use 'Vendor' instead. We had to 'recreate' the vendor column because we
+	// needed to make it wider - the old column was left and renamed to 'vendor_old'
+	VendorOld string `json:"-" db:"vendor_old"`
+
 	// Arch is the architecture of the software (e.g. "x86_64").
 	Arch string `json:"arch,omitempty" db:"arch"`
 
