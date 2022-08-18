@@ -15,12 +15,17 @@ type GetFunc func(ctx context.Context, installer fleet.Installer) (io.ReadCloser
 
 type PutFunc func(ctx context.Context, installer fleet.Installer) (string, error)
 
+type ExistsFunc func(ctx context.Context, installer fleet.Installer) (bool, error)
+
 type InstallerStore struct {
 	GetFunc        GetFunc
 	GetFuncInvoked bool
 
 	PutFunc        PutFunc
 	PutFuncInvoked bool
+
+	ExistsFunc        ExistsFunc
+	ExistsFuncInvoked bool
 }
 
 func (s *InstallerStore) Get(ctx context.Context, installer fleet.Installer) (io.ReadCloser, int64, error) {
@@ -31,4 +36,9 @@ func (s *InstallerStore) Get(ctx context.Context, installer fleet.Installer) (io
 func (s *InstallerStore) Put(ctx context.Context, installer fleet.Installer) (string, error) {
 	s.PutFuncInvoked = true
 	return s.PutFunc(ctx, installer)
+}
+
+func (s *InstallerStore) Exists(ctx context.Context, installer fleet.Installer) (bool, error) {
+	s.ExistsFuncInvoked = true
+	return s.ExistsFunc(ctx, installer)
 }

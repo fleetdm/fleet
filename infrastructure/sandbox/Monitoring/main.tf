@@ -146,6 +146,7 @@ resource "docker_registry_image" "lifecycle-lambda" {
   build {
     context     = "${path.module}/lambda/"
     pull_parent = true
+    platform    = "linux/amd64"
   }
 }
 

@@ -116,10 +116,10 @@
       .data-table__table {
         thead {
           .name__header {
-            width: $col-lg;
+            width: auto;
           }
           .platforms__header {
-            width: auto;
+            width: $col-sm;
           }
           .author_name__header {
             display: none;
@@ -130,9 +130,6 @@
             width: 0;
           }
           @media (min-width: $break-990) {
-            .platforms__header {
-              width: $col-md;
-            }
             .author_name__header {
               display: table-cell;
               width: auto;

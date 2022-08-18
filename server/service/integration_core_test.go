@@ -5112,8 +5112,8 @@ func (s *integrationTestSuite) TestSandboxEndpoints() {
 	require.NotEqual(t, http.StatusOK, res.StatusCode)
 
 	// installers endpoint is not enabled
-	validURL := installerURL(enrollSecret, "pkg", false)
-	s.Do("GET", validURL, nil, http.StatusInternalServerError)
+	url, installersBody := installerPOSTReq(enrollSecret, "pkg", s.token, false)
+	s.DoRaw("POST", url, installersBody, http.StatusInternalServerError)
 }
 
 func (s *integrationTestSuite) TestGetHostBatteries() {
