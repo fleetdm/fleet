@@ -1,3 +1,59 @@
+## Fleet 4.19.0 (Aug 22, 2022)
+
+* Fleet Premium: De-anonymize usage statistics by adding an `organization` property to the usage statistics payload. For Fleet Free instances, organization is reported as "unknown". To turn off usage statistics in the Fleet UI, head to **Settings > Organization settings > Usage statistics**, de-select the **Enable usage statistics** checkbox, and select **Save**.
+
+* Fleet Premium: Added support for Just-in-time (JIT) user provisioning via SSO. This adds the ability to
+automatically create Fleet user accounts when a new users attempts to log in to Fleet via SSO. New
+Fleet accounts are given the [Observer role](https://fleetdm.com/docs/using-fleet/permissions#user-permissions).
+
+* Improved performance for gathering aggregate software that is displayed on the **Software page** in the Fleet UI.
+
+* MacOS dashboard view includes MDM solutions table and filters for hosts by MDM
+
+* Added a message in `fleetctl` to that notifies users to run `fleet prepare` instead of `fleetctl prepare` when running database migrations for Fleet.
+
+- Added new host detail queries to ingest operating system name, version, architecture, and
+  kernel version.
+- Updated `GET /os_versions` endpoint to include new request and response fields.
+- Updated `GET /hosts` endpoint to add `operating_system_id` query parameter.
+- Enhanced UI for host operating systems to include additional information for Windows and macOS.
+Note that the operating systems data and the aggregated stats are updated lazily to prevent a long
+database migration when upgrading to this Fleet version - the data will be updated as hosts send
+fresh osquery results to the Fleet instance. For online hosts this typically occurs within an hour
+or so after upgrading, when using default configuration values. Operating system data for offline
+hosts will not be available until the host comes back online. Aggregated stats will not include
+a host until that host has reported back at least once following the upgrade.
+
+* Improved the Fleet UI by maintaining applied, host filters when a user navigates back to the Hosts page from an
+individual host's **Host details** page.
+
+* Improved the Fleet UI by adding consistent styling for **Cancel** buttons.
+
+* Improved the **Queries**, **Schedule**, and **Policies** pages in the Fleet UI by page size to 20
+  items. 
+
+* Improve the Fleet UI by informing the user that Fleet only supports screen widths above 768px.
+
+* Added support for asynchronous saving of the hosts' scheduled query statistics. This is an
+experimental feature and should only be used if you're seeing performance issues. Documentation
+for this feature can be found [here on fleetdm.com](https://fleetdm.com/docs/deploying/configuration#osquery-enable-async-host-processing).
+
+
+* Fixed a bug in which the **Operating system** and **Munki versions** cards on the **Home > macOS**
+page would not stack vertically at smaller screen widths.
+
+* Fixed a bug in which multiple Fleet Desktop icons would appear on macOS computers.
+
+* Fixed a bug that prevented Windows (`.msi`) installers from being generated on Windows machines.
+
+* Added the _mobile device management_ (MDM) solution name and ID to the `GET /api/v1/fleet/hosts/{id}/macadmins` endpoint, and compute aggregated stats by MDM solution, now returned as part of the `GET /api/v1/fleet/macadmins` endpoint. Note that the MDM solution name and the aggregated stats are updated lazily to prevent a long database migration when upgrading to this Fleet version - the data will be updated as hosts send fresh MDM osquery results to the Fleet instance (typically within an hour or so after upgrading, when using default configuration values).
+
+* Less dead space on queries table
+
+- Adds premier tier check before routing to team settings page
+
+* Removes retries for API request for host on Welcome to Fleet card
+
 ## Fleet 4.18.0 (Aug 1, 2022)
 
 * Added a Call to Action to the failing policy banner in Fleet Desktop. This empowers end-users to manage their device's compliance. 
