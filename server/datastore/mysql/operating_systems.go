@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"strings"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -51,8 +52,11 @@ func getOrGenerateOperatingSystemDB(ctx context.Context, tx sqlx.ExtContext, hos
 // `newOperatingSystemDB` inserts a record for the given operating system and
 // returns the record including the newly associated ID.
 func newOperatingSystemDB(ctx context.Context, tx sqlx.ExtContext, hostOS fleet.OperatingSystem) (*fleet.OperatingSystem, error) {
-	stmt := "INSERT IGNORE INTO operating_systems (name, version, arch, kernel_version, platform) VALUES (?, ?, ?, ?, ?)"
+	stmt := "INSERT INTO operating_systems (name, version, arch, kernel_version, platform) VALUES (?, ?, ?, ?, ?)"
 	if _, err := tx.ExecContext(ctx, stmt, hostOS.Name, hostOS.Version, hostOS.Arch, hostOS.KernelVersion, hostOS.Platform); err != nil {
+		if strings.Contains(err.Error(), "Error 1062") {
+			return nil, doRetryErr
+		}
 		return nil, ctxerr.Wrap(ctx, err, "insert new operating system")
 	}
 
