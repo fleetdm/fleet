@@ -1,0 +1,1 @@
+* Rename `unified_log` table to `macadmins_unified_log` to avoid collision with core
