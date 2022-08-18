@@ -56,10 +56,10 @@ func mapToVulnGraphs(rXML *msrc_input.ResultXML) (map[string]*msrc_parsed.VulnGr
 				name := NameFromFullProdName(p.FullName)
 				g, ok := rGraphs[name]
 				if !ok {
-					return nil, fmt.Errorf("windows product not found in graph %s", name)
+					continue
 				}
 
-				// Create/update the vNode node for this vendor fix
+				// Create/update the vulnerability node related to this vendor fix
 				var vNode msrc_parsed.VulnNode
 				if vNode, ok = g.Vulnerabities[v.CVE]; !ok {
 					vNode = msrc_parsed.VulnNode{
