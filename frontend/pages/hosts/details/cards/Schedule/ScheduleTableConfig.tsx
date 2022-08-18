@@ -34,7 +34,7 @@ interface IPillCellProps extends IRowProps {
 }
 
 interface IDataColumn {
-  title: string;
+  title?: string;
   Header: ((props: IHeaderProps) => JSX.Element) | string;
   accessor: string;
   Cell:
@@ -72,7 +72,6 @@ const generateTableHeaders = (): IDataColumn[] => {
       ),
     },
     {
-      title: "Performance impact",
       Header: () => {
         return (
           <TooltipWrapper tipContent="This is the performance <br />impact on this host.">
