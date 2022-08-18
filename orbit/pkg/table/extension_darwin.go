@@ -20,6 +20,6 @@ func platformTables() []osquery.OsqueryPlugin {
 		table.NewPlugin("mdm", mdm.MDMInfoColumns(), mdm.MDMInfoGenerate),
 		table.NewPlugin("munki_info", munki.MunkiInfoColumns(), munki.MunkiInfoGenerate),
 		table.NewPlugin("munki_installs", munki.MunkiInstallsColumns(), munki.MunkiInstallsGenerate),
-		table.NewPlugin("unified_log", unifiedlog.UnifiedLogColumns(), unifiedlog.UnifiedLogGenerate),
+		table.NewPlugin("macadmins_unified_log", unifiedlog.UnifiedLogColumns(), unifiedlog.UnifiedLogGenerate),
 	}
 }
