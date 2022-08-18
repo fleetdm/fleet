@@ -16,12 +16,16 @@ const tokenKey key = 0
 type Token string
 
 // FromHTTPRequest extracts an Authorization
-// from an HTTP header if present.
+// from an HTTP request if present.
 func FromHTTPRequest(r *http.Request) Token {
 	headers := r.Header.Get("Authorization")
 	headerParts := strings.Split(headers, " ")
 	if len(headerParts) != 2 || strings.ToUpper(headerParts[0]) != "BEARER" {
-		return ""
+		if err := r.ParseForm(); err != nil {
+			return ""
+		}
+
+		return Token(r.FormValue("token"))
 	}
 	return Token(headerParts[1])
 }
