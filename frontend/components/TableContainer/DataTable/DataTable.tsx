@@ -112,6 +112,8 @@ const DataTable = ({
     return tableData;
   }, [tableData]);
 
+  console.log("sortHeader: ", sortHeader);
+
   const {
     headerGroups,
     rows,
@@ -212,6 +214,8 @@ const DataTable = ({
   );
 
   const { sortBy, selectedRowIds } = tableState;
+
+  console.log("sortBy: ", sortBy);
 
   useEffect(() => {
     if (tableFilters) {

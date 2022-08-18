@@ -45,7 +45,7 @@ const enrollmentTableHeaders = [
   {
     title: "Status",
     Header: "Status",
-    disableSortBy: false,
+    disableSortBy: true,
     accessor: "status",
     Cell: (cellProps: IStringCellProps) => {
       const tooltipText = (status: string): string => {
