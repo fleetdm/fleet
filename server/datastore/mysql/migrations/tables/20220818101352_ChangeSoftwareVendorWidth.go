@@ -54,10 +54,10 @@ func Up_20220818101352(tx *sql.Tx) error {
 		return errors.Wrapf(err, "dropping old index")
 	}
 
-	//----------------
-	// Drop old column
-	//----------------
-	if _, err := tx.Exec(`ALTER TABLE software DROP COLUMN vendor, ALGORITHM=INPLACE, LOCK=NONE`); err != nil {
+	//------------------
+	// Rename old column
+	//------------------
+	if _, err := tx.Exec(`ALTER TABLE software CHANGE vendor vendor_old varchar(32) DEFAULT '' NOT NULL, ALGORITHM=INPLACE, LOCK=NONE`); err != nil {
 		return errors.Wrapf(err, "dropping old column")
 	}
 
