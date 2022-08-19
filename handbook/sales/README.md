@@ -2,6 +2,7 @@
 
 The Fleet sales team embodies [our values](https://fleetdm.com/handbook/company#values) in every aspect of our work. Specifically, we continuously work to overperform and achieve strong results. We prioritize efficiency in our processes and operations. We succeed because of transparent, cross-functional collaboration. We are committed to hiring for and celebrating diversity, and we strive to create an environment of inclusiveness and belonging for all. We embrace a spirit of iteration, understanding that we can always improve.
 
+
 ## Outreach one-pager
 
 Our one-pager offers a summary of what Fleet does. It can help stakeholders become familiar with the company and product while also being a useful tool the Growth team uses for sales outreach. Find Fleet's outreach one-pager in this [Google Doc](https://docs.google.com/presentation/d/1GzSjUZj1RrRBpa_yHJjOrvOTsldQQKfq927vpKP1lpU/edit?usp=sharing).
@@ -46,6 +47,28 @@ Fleet's intro deck adds additional detail to our pitch. Find it in [Google Slide
 ## Intro video
 
 Fleet's intro video shows how to get started with Fleet as an admin. Find it on [YouTube](https://www.youtube.com/watch?v=rVxSgvKjrWo).
+
+## SOC 2
+
+You can find a copy of Fleet's SOC 2 report in [Google Drive](https://drive.google.com/file/d/1B-Xb4ZVmZk7Fk0IA1eCr8tCVJ-cfipid/view?usp=drivesdk).  In its current form, this SOC 2 report is intended to be shared only with parties who have signed a non-disclosure agreement with Fleet.
+
+You can learn more about how Fleet approaches security in the [security handbook](https://fleetdm.com/handbook/security) or in [Fleet's trust report](https://fleetdm.com/trust).
+
+## Salesforce lead status flow
+
+To track the stage of the sales cycle that a lead is at, we use the following standardized lead statuses to indicate which stage of the sales process a lead is at.
+|Lead status                 | Description                                         |
+|:-----------------------------|:----------------------------------------------------|
+| 00 New | Default status for all new leads when initially entered into Salesforce. We have an email or LinkedIn profile URL for the lead, but no established intent. The lead is just a relevant person to reach out to.|
+| 01 New - enriched | Fleet enriched the lead with additional contact info.|
+| 02 - New - MQL | Lead has been established as a marketing qualified lead, meeting company size criteria.|
+| 03 Working to engage | Fleet (often Sales development representative-SDR) is working to engage the lead. |
+| 04 Engaged | Fleet has successfully made contact with the lead |
+| 05 Meeting scheduled | Fleet has scheduled a meeting with the lead. |
+| 06 Working to convert | Not enough info on Lead's Budget, Authority, Need and Timing (BANT) to be converted into an opportunity. |
+| 07 Closed - nurture | Lead does not meet BANT criteria to be converted to an opportunity, but we should maintain contact with the lead as it may be fruitful in the future. |
+| 08 Closed - do not contact | Lead does not meet BANT criteria for conversion, and we should not reach out to them again. |
+| 09 SAO - Converted | Lead has met BANT criteria and successfully converted to an opportunity. |
 
 ## Salesforce contributor experience checkups
 

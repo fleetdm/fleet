@@ -120,7 +120,7 @@ const NewQueryModal = ({
             <Button
               className={`${baseClass}__btn`}
               onClick={() => setIsSaveModalOpen(false)}
-              variant="text-link"
+              variant="inverse"
             >
               Cancel
             </Button>

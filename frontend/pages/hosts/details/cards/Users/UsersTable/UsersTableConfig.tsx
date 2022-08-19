@@ -20,7 +20,7 @@ interface ICellProps {
 }
 
 interface IDataColumn {
-  title: string;
+  title?: string;
   Header: ((props: IHeaderProps) => JSX.Element) | string;
   accessor: string;
   Cell: (props: ICellProps) => JSX.Element;
@@ -47,7 +47,6 @@ const generateUsersTableHeaders = (): IDataColumn[] => {
       Cell: (cellProps) => <TextCell value={cellProps.cell.value} />,
     },
     {
-      title: "Shell",
       Header: () => {
         return (
           <TooltipWrapper tipContent="The command line shell, such as bash,<br />that this user is equipped with by<br />default when they log in to the system.">

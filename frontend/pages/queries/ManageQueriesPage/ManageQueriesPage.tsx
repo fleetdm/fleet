@@ -219,7 +219,6 @@ const ManageQueriesPage = ({
               isLoading={isTableDataLoading}
               onCreateQueryClick={onCreateQueryClick}
               onDeleteQueryClick={onDeleteQueryClick}
-              searchable={!!queriesList}
               customControl={renderPlatformDropdown}
               selectedDropdownFilter={selectedDropdownFilter}
               isOnlyObserver={isOnlyObserver}

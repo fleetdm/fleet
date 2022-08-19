@@ -33,5 +33,5 @@ export const MACADMINS_EXTENSION_TABLES: Record<string, IOsqueryPlatform[]> = {
   puppet_info: ["darwin", "linux", "windows"],
   puppet_logs: ["darwin", "linux", "windows"],
   puppet_state: ["darwin", "linux", "windows"],
-  unified_log: ["darwin"],
+  macadmins_unified_log: ["darwin"],
 };

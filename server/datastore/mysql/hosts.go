@@ -733,7 +733,9 @@ func (ds *Datastore) EnrollHost(ctx context.Context, osqueryHostID, nodeKey stri
 		case err != nil && !errors.Is(err, sql.ErrNoRows):
 			return ctxerr.Wrap(ctx, err, "check existing")
 		case errors.Is(err, sql.ErrNoRows):
-			// Create new host record
+			// Create new host record. We always create newly enrolled hosts with refetch_requested = true
+			// so that the frontend automatically starts background checks to update the page whenever
+			// the refetch is completed.
 			sqlInsert := `
 				INSERT INTO hosts (
 					detail_updated_at,
@@ -741,8 +743,9 @@ func (ds *Datastore) EnrollHost(ctx context.Context, osqueryHostID, nodeKey stri
 					policy_updated_at,
 					osquery_host_id,
 					node_key,
-					team_id
-				) VALUES (?, ?, ?, ?, ?, ?)
+					team_id,
+					refetch_requested
+				) VALUES (?, ?, ?, ?, ?, ?, 1)
 			`
 			result, err := tx.ExecContext(ctx, sqlInsert, zeroTime, zeroTime, zeroTime, osqueryHostID, nodeKey, teamID)
 			if err != nil {
@@ -1954,16 +1957,16 @@ WHERE
 // If existing team has no hosts, we explicity set the json value as an empty array
 func (ds *Datastore) UpdateOSVersions(ctx context.Context) error {
 	selectStmt := `
-	SELECT 
-		COUNT(*) hosts_count,  
-		h.team_id, 
+	SELECT
+		COUNT(*) hosts_count,
+		h.team_id,
 		os.id,
-		os.name, 
-		os.version, 
+		os.name,
+		os.version,
 		os.platform
 	FROM hosts h
-	JOIN host_operating_system hos ON h.id = hos.host_id 
-	JOIN operating_systems os ON hos.os_id = os.id 
+	JOIN host_operating_system hos ON h.id = hos.host_id
+	JOIN operating_systems os ON hos.os_id = os.id
 	GROUP BY team_id, os_id
 	`
 

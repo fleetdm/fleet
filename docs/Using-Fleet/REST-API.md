@@ -1736,8 +1736,11 @@ None.
 | mdm_id                  | integer | query | The ID of the _mobile device management_ (MDM) solution to filter hosts by (that is, filter hosts that use a specific MDM provider and URL).                                                                                                                                                                                                |
 | mdm_enrollment_status   | string  | query | The _mobile device management_ (MDM) enrollment status to filter hosts by. Can be one of 'manual', 'automatic' or 'unenrolled'.                                                                                                                                                                                                             |
 
-### Get host's Google Chrome profiles
 If `additional_info_filters` is not specified, no `additional` information will be returned.
+
+If `software_id` is specified, an additional top-level key `"software"` is returned with the software object corresponding to the `software_id`. See [List all software](#list-all-software) response payload for details about this object.
+
+If `mdm_id` is specified, an additional top-level key `"mobile_device_management_solution"` is returned with the aggregated statistics corresponding to the `mdm_id` (and, if provided, `team_id`). See [Get aggregated host's mobile device management (MDM) and Munki information](#get-aggregated-hosts-mobile-device-management-mdm-and-munki-information) response payload for details about this object. Note that the statistics are for the corresponding `mdm_id` (and `team_id` if provided) only, and do not take into account other potential filters such as `mdm_enrollment_status`.
 
 #### Example
 
@@ -1802,11 +1805,21 @@ If `additional_info_filters` is not specified, no `additional` information will 
       "issues": {
         "failing_policies_count": 2,
         "total_issues_count": 2
+      },
+      "geolocation": {
+        "country_iso": "US",
+        "city_name": "New York",
+        "geometry": {
+          "type": "point",
+          "coordinates": [40.6799, -74.0028]
+        }
       }
     }
   ]
 }
 ```
+
+> Note: the response above assumes a [GeoIP database is configured](https://fleetdm.com/docs/deploying/configuration#geo-ip), otherwise the `geolocation` object won't be included.
 
 ### Count hosts
 
@@ -2138,10 +2151,20 @@ If the scheduled queries haven't run on the host yet, the stats have zero values
         "cycle_count": 999,
         "health": "Normal"
       }
-    ]
+    ],
+    "geolocation": {
+      "country_iso": "US",
+      "city_name": "New York",
+      "geometry": {
+        "type": "point",
+        "coordinates": [40.6799, -74.0028]
+      }
+    }
   }
 }
 ```
+
+> Note: the response above assumes a [GeoIP database is configured](https://fleetdm.com/docs/deploying/configuration#geo-ip), otherwise the `geolocation` object won't be included.
 
 ### Get host by identifier
 
@@ -2211,10 +2234,20 @@ Returns the information of the host specified using the `uuid`, `osquery_host_id
         "cycle_count": 999,
         "health": "Normal"
       }
-    ]
+    ],
+    "geolocation": {
+      "country_iso": "US",
+      "city_name": "New York",
+      "geometry": {
+        "type": "point",
+        "coordinates": [40.6799, -74.0028]
+      }
+    }
   }
 }
 ```
+
+> Note: the response above assumes a [GeoIP database is configured](https://fleetdm.com/docs/deploying/configuration#geo-ip), otherwise the `geolocation` object won't be included.
 
 ### Delete host
 
@@ -2546,7 +2579,7 @@ Retrieves the aggregated host OS versions information.
 | Name                | Type     | In    | Description                                                                                                                          |
 | ---      | ---      | ---   | ---                                                                                                                                  |
 | team_id             | integer | query | _Available in Fleet Premium_ Filters the hosts to only include hosts in the specified team. If not provided, all hosts are included. |
-| platform            | string   | query | Filters the hosts to the specified platform |                                                                                          
+| platform            | string   | query | Filters the hosts to the specified platform |
 | operating_system_id | integer   | query | Filters the hosts to the specified operating system id |
 ##### Default response
 
