@@ -82,6 +82,12 @@ for i in $((aws dynamodb scan --table-name sandbox-prod-lifecycle | jq -r '.Item
 for i in $(aws dynamodb scan --table-name sandbox-prod-lifecycle | jq -r '.Items[] | select(.State.S == "provisioned") | .ID.S'); do helm uninstall $i; aws dynamodb delete-item --table-name sandbox-prod-lifecycle --key "{\"ID\": {\"S\": \"${i}\"}}"; done
 ```
 
+#### Cleanup untracked instances fully
+This needs to be run in the deprovisioner terraform directory!
+```bash
+for i in $((aws dynamodb scan --table-name sandbox-prod-lifecycle | jq -r '.Items[] | .ID.S'; aws dynamodb scan --table-name sandbox-prod-lifecycle | jq -r '.Items[] | .ID.S'; terraform workspace list | sed 's/ //g' | grep -v '.*default' | sed '/^$/d') | sort | uniq -u); do (terraform workspace select $i && terraform apply -destroy -auto-approve && terraform workspace select default && terraform workspace delete $i); [ $? = 0 ] || break; done
+```
+
 ### Runbooks
 #### 5xx errors
 If you are seeing 5xx errors, find out what instance its from via the saved query here: https://us-east-2.console.aws.amazon.com/athena/home?region=us-east-2#/query-editor
