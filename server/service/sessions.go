@@ -348,7 +348,7 @@ func (r callbackSSOResponse) html() string { return r.content }
 func makeCallbackSSOEndpoint(urlPrefix string) handlerFunc {
 	return func(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
 		authResponse := request.(fleet.Auth)
-		session, err := svc.CallbackSSO(ctx, authResponse)
+		session, err := getSSOSession(ctx, svc, authResponse)
 		var resp callbackSSOResponse
 		if err != nil {
 			var ssoErr ssoError
@@ -390,7 +390,21 @@ func makeCallbackSSOEndpoint(urlPrefix string) handlerFunc {
 	}
 }
 
-func (svc *Service) CallbackSSO(ctx context.Context, auth fleet.Auth) (*fleet.SSOSession, error) {
+func getSSOSession(ctx context.Context, svc fleet.Service, auth fleet.Auth) (*fleet.SSOSession, error) {
+	redirectURL, err := svc.InitSSOCallback(ctx, auth)
+	if err != nil {
+		return nil, err
+	}
+
+	user, err := svc.GetSSOUser(ctx, auth)
+	if err != nil {
+		return nil, err
+	}
+
+	return svc.LoginSSOUser(ctx, user, redirectURL)
+}
+
+func (svc *Service) InitSSOCallback(ctx context.Context, auth fleet.Auth) (string, error) {
 	// skipauth: User context does not yet exist. Unauthenticated users may
 	// hit the SSO callback.
 	svc.authz.SkipAuthorization(ctx)
@@ -399,12 +413,12 @@ func (svc *Service) CallbackSSO(ctx context.Context, auth fleet.Auth) (*fleet.SS
 
 	appConfig, err := svc.ds.AppConfig(ctx)
 	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "get config for sso")
+		return "", ctxerr.Wrap(ctx, err, "get config for sso")
 	}
 
 	if !appConfig.SSOSettings.EnableSSO {
 		err := ctxerr.New(ctx, "organization not configured to use sso")
-		return nil, ctxerr.Wrap(ctx, ssoError{err: err, code: ssoOrgDisabled}, "callback sso")
+		return "", ctxerr.Wrap(ctx, ssoError{err: err, code: ssoOrgDisabled}, "callback sso")
 	}
 
 	// Load the request metadata if available
@@ -418,21 +432,21 @@ func (svc *Service) CallbackSSO(ctx context.Context, auth fleet.Auth) (*fleet.SS
 		// configured to do so.
 		metadata, err = svc.getMetadata(appConfig)
 		if err != nil {
-			return nil, ctxerr.Wrap(ctx, err, "get sso metadata")
+			return "", ctxerr.Wrap(ctx, err, "get sso metadata")
 		}
 		redirectURL = "/"
 	} else {
 		session, err := svc.ssoSessionStore.Get(auth.RequestID())
 		if err != nil {
-			return nil, ctxerr.Wrap(ctx, err, "sso request invalid")
+			return "", ctxerr.Wrap(ctx, err, "sso request invalid")
 		}
 		// Remove session to so that is can't be reused before it expires.
 		err = svc.ssoSessionStore.Expire(auth.RequestID())
 		if err != nil {
-			return nil, ctxerr.Wrap(ctx, err, "remove sso request")
+			return "", ctxerr.Wrap(ctx, err, "remove sso request")
 		}
 		if err := xml.Unmarshal([]byte(session.Metadata), &metadata); err != nil {
-			return nil, ctxerr.Wrap(ctx, err, "unmarshal metadata")
+			return "", ctxerr.Wrap(ctx, err, "unmarshal metadata")
 		}
 		redirectURL = session.OriginalURL
 	}
@@ -444,20 +458,23 @@ func (svc *Service) CallbackSSO(ctx context.Context, auth fleet.Auth) (*fleet.SS
 		appConfig.ServerSettings.ServerURL+svc.config.Server.URLPrefix+"/api/v1/fleet/sso/callback", // ACS
 	))
 	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "create validator from metadata")
+		return "", ctxerr.Wrap(ctx, err, "create validator from metadata")
 	}
 	// make sure the response hasn't been tampered with
 	auth, err = validator.ValidateSignature(auth)
 	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "signature validation failed")
+		return "", ctxerr.Wrap(ctx, err, "signature validation failed")
 	}
 	// make sure the response isn't stale
 	err = validator.ValidateResponse(auth)
 	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "response validation failed")
+		return "", ctxerr.Wrap(ctx, err, "response validation failed")
 	}
 
-	// Get and log in user
+	return redirectURL, nil
+}
+
+func (svc *Service) GetSSOUser(ctx context.Context, auth fleet.Auth) (*fleet.User, error) {
 	user, err := svc.ds.UserByEmail(ctx, auth.UserID())
 	if err != nil {
 		var nfe notFoundErrorInterface
@@ -466,6 +483,10 @@ func (svc *Service) CallbackSSO(ctx context.Context, auth fleet.Auth) (*fleet.SS
 		}
 		return nil, ctxerr.Wrap(ctx, err, "find user in sso callback")
 	}
+	return user, nil
+}
+
+func (svc *Service) LoginSSOUser(ctx context.Context, user *fleet.User, redirectURL string) (*fleet.SSOSession, error) {
 	// if the user is not sso enabled they are not authorized
 	if !user.SSOEnabled {
 		err := ctxerr.New(ctx, "user not configured to use sso")

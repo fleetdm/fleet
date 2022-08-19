@@ -2232,7 +2232,101 @@ Fleet supports both SP-initiated SAML login and IDP-initiated login however, IDP
 
 Fleet supports the SAML Web Browser SSO Profile using the HTTP Redirect Binding.
 
-_**Note: The email used in the SAML Assertion must match a user that already exists in Fleet.**_
+_**Note: The email used in the SAML Assertion must match a user that already exists in Fleet unless you enable [JIT provisioning](#just-in-time-jit-user-provisioning).**_
+
+##### sso_settings.enable_sso
+
+Configures if single sign-on is enabled.
+
+- default value: false
+- config file format:
+  ```
+  sso_settings:
+    enable_sso: true
+  ```
+
+##### sso_settings.enable_sso_idp_login
+
+Allow single sign-on login initiated by identity provider.
+
+- default value: false
+- config file format:
+  ```
+  sso_settings:
+    enable_sso_idp_login: true
+  ```
+
+##### sso_settings.enable_jit_provisioning
+
+Enables [just-in-time user provisioning](#just-in-time-jit-user-provisioning)
+
+- default value: false
+- config file format:
+  ```
+  sso_settings:
+    enable_jit_provisioning: true
+  ```
+
+##### sso_settings.entity_id
+
+The required entity ID is a URI that you use to identify Fleet when configuring the identity provider.
+
+- default value: ""
+- config file format:
+  ```
+  sso_settings:
+    entity_id: "https://example.com"
+
+##### sso_settings.idp_image_url
+
+An optional link to an image such as a logo for the identity provider.
+
+- default value: ""
+- config file format:
+  ```
+  sso_settings:
+    idp_image_url: "https://example.com/logo"
+
+##### sso_settings.idp_name
+
+A required human friendly name for the identity provider that will provide single sign-on authentication.
+
+- default value: ""
+- config file format:
+  ```
+  sso_settings:
+    idp_name: "SimpleSAML"
+
+##### sso_settings.issuer_uri
+
+The issuer URI supplied by the identity provider.
+
+- default value: ""
+- config file format:
+  ```
+  sso_settings:
+    issuer_uri: "https://example.com/saml2/sso-service"
+
+##### sso_settings.metadata
+
+Metadata provided by the identity provider. Either metadata or a metadata url must be provided.
+
+- default value: ""
+- config file format:
+  ```
+  sso_settings:
+    metadata: ""
+
+##### sso_settings.metadata_url
+
+A URL that references the identity provider metadata.
+
+- default value: ""
+- config file format:
+  ```
+  sso_settings:
+    metadata: "https://example.com/saml2/metadata"
+
 
 ### Identity provider (IDP) configuration
 
@@ -2287,8 +2381,28 @@ It is strongly recommended that at least one admin user is set up to use the tra
 configuration problems.
 
 > Individual users must also be set up on the IDP before signing in to Fleet.
+
 ### Enabling SSO for existing users in Fleet
 As an admin, you can enable SSO for existing users in Fleet. To do this, go to the Settings page, then click on the Users tab. Locate the user you want to enable SSO for and on the Actions dropdown menu for that user, click on "Enable single sign-on."
+
+### Just-in-time (JIT) user provisioning
+
+When JIT user provisioning is turned on, Fleet will automatically create an account when a user logs in for the first time with the configured SSO. This removes the need to create individual user accounts for a large organization.
+
+Accounts created via JIT provisioning are assigned the (Observer role)[https://fleetdm.com/docs/using-fleet/permissions]. The new account's email and full name are copied from the user data in the SSO response.
+
+To enable this option, go to **Settings > Organization settings > SAML single sign-on options** and check "_Automatically create Observer user on Login_" or [adjust your config](#sso-settings-enable-jit-provisioning).
+
+For this to work correctly make sure that:
+
+- Your IDP is configured to send the user email as the Name ID (instructions for configuring different providers are detailed below)
+- Your IDP sends the full name of the user as an attribute with any of the following names (if this value is not provided Fleet will fallback to the user email)
+  - `name`
+  - `displayname`
+  - `cn`
+  - `urn:oid:2.5.4.3`
+  - `http://schemas.xmlsoap.org/ws/2005/05/identity/claims/name`
+
 
 #### Okta IDP configuration
 

@@ -358,4 +358,8 @@ const labels = {
   ],
 };
 
-export default { count, hosts, labels };
+export default {
+  count,
+  hosts,
+  labels,
+};

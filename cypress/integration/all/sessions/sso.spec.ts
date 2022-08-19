@@ -2,7 +2,7 @@ import CONSTANTS from "../../../support/constants";
 
 const { GOOD_PASSWORD } = CONSTANTS;
 
-const enable_idp_login = true;
+const enable_sso_idp_login = true;
 
 describe("SSO Sessions", () => {
   beforeEach(() => {
@@ -11,7 +11,7 @@ describe("SSO Sessions", () => {
   });
   it("non-SSO user can login with username/password", () => {
     cy.login();
-    cy.setupSSO(enable_idp_login);
+    cy.setupSSO({ enable_sso_idp_login });
     cy.logout();
     cy.visit("/");
     cy.getAttached(".login-form__forgot-link").should("exist");
@@ -29,13 +29,23 @@ describe("SSO Sessions", () => {
   });
   it("can login via SSO", () => {
     cy.login();
-    cy.setupSSO(enable_idp_login);
+    cy.setupSSO({ enable_sso_idp_login });
     cy.logout();
     cy.visit("/");
     // Log in
     cy.contains("button", "Sign on with SimpleSAML");
     cy.loginSSO();
     cy.contains("Hosts");
+  });
+  it("can't login if doesn't have an account", () => {
+    cy.login();
+    cy.setupSSO({ enable_sso_idp_login });
+    cy.logout();
+    cy.visit("/");
+    // Log in
+    cy.contains("button", "Sign on with SimpleSAML");
+    cy.loginSSO({ username: "sso_user2" });
+    cy.visit("/login?status=account_invalid");
   });
   it("fails when IdP login disabled", () => {
     cy.login();

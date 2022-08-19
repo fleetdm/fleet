@@ -38,7 +38,6 @@ module.exports = {
     },
 
     message: {
-      required: false,
       type: 'string',
       description: 'The custom message, in plain text.'
     }

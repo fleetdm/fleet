@@ -25,10 +25,10 @@ func (svc *Service) CreateInitialUser(ctx context.Context, p fleet.UserPayload) 
 	p.GlobalRole = ptr.String(fleet.RoleAdmin)
 	p.Teams = nil
 
-	return svc.newUser(ctx, p)
+	return svc.NewUser(ctx, p)
 }
 
-func (svc *Service) newUser(ctx context.Context, p fleet.UserPayload) (*fleet.User, error) {
+func (svc *Service) NewUser(ctx context.Context, p fleet.UserPayload) (*fleet.User, error) {
 	user, err := p.User(svc.config.Auth.SaltKeySize, svc.config.Auth.BcryptCost)
 	if err != nil {
 		return nil, err

@@ -19,7 +19,7 @@
 - [What should I do if my computer is showing up as an offline host?](#what-should-i-do-if-my-computer-is-showing-up-as-an-offline-host)
 - [How does Fleet deal with IP duplication?](#how-does-fleet-deal-with-ip-duplication)
 - [Can Orbit run alongside osquery?](#can-orbit-run-alongside-osquery)
-- [Can I disable auto updates for Orbit?](#can-i-disable-auto-updates-for-orbit)
+- [Can I control how Orbit handles updates?](#can-i-control-how-orbit-handles-updates)
 - [Can I bundle osquery extensions into Orbit?](#can-i-bundle-osquery-extensions-into-orbit)
 - [How does Fleet work with osquery extensions?](#how-does-fleet-work-with-osquery-extensions)
 - [Why am I seeing "unknown certificate error" when adding hosts to my dev server?](#why-am-i-seeing-"unknown-certificate-error"-when-adding-hosts-to-my-dev-server)
@@ -177,13 +177,22 @@ Fleet relies on UUIDs so any overlap with host IP addresses should not cause a p
 
 Yes, Orbit can be run alongside osquery. The osquery instance that Orbit runs uses its own database directory that is stored within the Orbit directory.
 
-## Can I disable auto-updates for Orbit?
+## Can I control how Orbit handles updates?
 
-Yes, auto-updates can be disabled by passing `--disable-updates` as a flag when running `fleetctl package` to generate your installer (easy) or by deploying a modified systemd file to your hosts (more complicated). We'd recommend the flag:
+Yes, auto-updates can be disabled entirely by passing `--disable-updates` as a flag when running `fleetctl package` to generate your installer (easy) or by deploying a modified systemd file to your hosts (more complicated). We'd recommend the flag:
 
 ```
 fleetctl package --fleetctl package --type=deb --fleet-url=https://localhost:8080 --enroll-secret=superRandomSecret --disable-updates
 ```
+
+You can also indicate the [channels you would like Orbit to watch for updates](https://github.com/fleetdm/fleet/tree/main/orbit#update-channels) using the `--orbit-channel`, `--desktop-channel` , and `--osqueryd-channel` flags:
+
+```
+fleetctl package --fleetctl package --type=deb --fleet-url=https://localhost:8080 --enroll-secret=superRandomSecret --orbit-channel=edge --desktop-channel=stable --osquery-channel=4
+```
+
+You can specify a major (4), minor (4.0) or patch (4.6.0) version as well as the `stable`  or `edge` channels.
+
 ## Can I bundle osquery extensions into Orbit?
 
 This isn't supported yet, but we're working on it! 
