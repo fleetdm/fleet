@@ -15,6 +15,14 @@ We are dedicated to
 
 ## Culture
 
+### Scheduling with CEO
+As Fleet grows, so does the needs on teh CEO's calendar. The availibility on the CEO's calendar will be coordinated between the CEO and his EA Charlie. To schedule, mention @Charlie Chance in the #meetings channel.
+
+There are a few scheduling items to consider while creating events on the CEO's calendar: 
+- Additional product design review sessions are welcomed and a top priority for the CEO to get on the calendar quickly.  
+- Other internal meetings and blocked time can always be moved to make room.  
+- External meetings, travel, and personal commitments cannot be moved.  
+
 ### All remote
 Fleet Device Management Inc. is an all-remote company with team members spread across four continents and eight time zones.  The broader team of contributors [worldwide](https://github.com/fleetdm/fleet/graphs/contributors) submits patches, bug reports, troubleshooting tips, improvements, and real-world insights to Fleet's open source code base, documentation, website, and company handbook.
 
@@ -290,8 +298,6 @@ Each group's PM works closely with engineers within their group:
 - The PM **prioritizes** work and defines **what** to iteratively build and release next within their group's domain to best serve the group's goals and the company's goals as a whole. The PM communicates **why** this work is prioritized and works with engineering to come up with the best possible **how**.
 - The PM is responsible for epics. Sometimes initiatives require multiple issues that may, or may not, include multiple development groups. These initiatives are tracked as GitHub issues with the "epic" label. One PM is assigned to the epic to make sure that all issues associated with the epic (child issues) make it into a release. It's the PM's responsibility to track progress and close the epic when the initiative is complete.
 - The EM (along with engineers) defines **how** to implement that definition within the surface area of code, processes, and rituals owned by their group while serving their group’s goals and the company's goals as a whole.
-
-**Additional product design review sessions are welcomed and a top priority for the CEO to get on the calendar quickly.  Other internal meetings and blocked time can always be moved to make room.  External meetings, travel, and personal commitments cannot be moved.  To schedule, mention @Charlie Chance in the #meetings channel.**
 
 ### Interface group
 #### Responsibilities
