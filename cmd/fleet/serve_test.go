@@ -244,32 +244,30 @@ func TestCronVulnerabilitiesCreatesDatabasesPath(t *testing.T) {
 }
 
 func TestScanVulnerabilitiesMkdirFailsIfVulnPathIsFile(t *testing.T) {
-	t.Run("mkdir fails if VulnPath is file", func(t *testing.T) {
-		logger := kitlog.NewNopLogger()
-		logger = level.NewFilter(logger, level.AllowDebug())
+	logger := kitlog.NewNopLogger()
+	logger = level.NewFilter(logger, level.AllowDebug())
 
-		ctx, cancelFunc := context.WithCancel(context.Background())
-		defer cancelFunc()
+	ctx, cancelFunc := context.WithCancel(context.Background())
+	defer cancelFunc()
 
-		appConfig := &fleet.AppConfig{
-			HostSettings: fleet.HostSettings{EnableSoftwareInventory: true},
-		}
-		ds := new(mock.Store)
+	appConfig := &fleet.AppConfig{
+		HostSettings: fleet.HostSettings{EnableSoftwareInventory: true},
+	}
+	ds := new(mock.Store)
 
-		// creating a file with the same path should result in an error when creating the directory
-		fileVulnPath := filepath.Join(t.TempDir(), "somefile")
-		_, err := os.Create(fileVulnPath)
-		require.NoError(t, err)
+	// creating a file with the same path should result in an error when creating the directory
+	fileVulnPath := filepath.Join(t.TempDir(), "somefile")
+	_, err := os.Create(fileVulnPath)
+	require.NoError(t, err)
 
-		config := config.VulnerabilitiesConfig{
-			DatabasesPath:         fileVulnPath,
-			Periodicity:           10 * time.Second,
-			CurrentInstanceChecks: "auto",
-		}
+	config := config.VulnerabilitiesConfig{
+		DatabasesPath:         fileVulnPath,
+		Periodicity:           10 * time.Second,
+		CurrentInstanceChecks: "auto",
+	}
 
-		err = scanVulnerabilities(ctx, ds, logger, &config, appConfig, fileVulnPath)
-		require.ErrorContains(t, err, "create vulnerabilities databases directory: mkdir")
-	})
+	err = scanVulnerabilities(ctx, ds, logger, &config, appConfig, fileVulnPath)
+	require.ErrorContains(t, err, "create vulnerabilities databases directory: mkdir")
 }
 
 func TestCronVulnerabilitiesSkipMkdirIfDisabled(t *testing.T) {
