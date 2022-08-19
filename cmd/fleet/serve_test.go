@@ -305,8 +305,8 @@ func TestCronVulnerabilitiesSkipMkdirIfDisabled(t *testing.T) {
 
 	go cronVulnerabilities(ctx, ds, logger, "AAA", &config)
 
-	// Every cron tick is 10 seconds ... here we just wait for a loop interation and assert is vuln
-	// dir was not created.
+	// Every cron tick is 10 seconds ... here we just wait for a loop interation and assert the vuln
+	// dir. was not created.
 	require.Eventually(t, func() bool {
 		_, err := os.Stat(vulnPath)
 		return os.IsNotExist(err)
