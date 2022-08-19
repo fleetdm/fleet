@@ -9,16 +9,17 @@ subgraph Fleet [Fleet Server]
 
     direction TB;
 
+    enroll[".mobileconfig<br>/mdm/apple/api/enroll"];
     subgraph nanoMDMModules ["nanoMDM modules"]
         direction TB;
-        nanoSCEP[nanoSCEP];
-        nanoMDM[nanoMDM];
-        nanoDEP[nanoDEP];
+        nanoSCEP["nanoSCEP<br>/mdm/apple/scep"];
+        nanoMDM["nanoMDM<br>/mdm/apple/mdm"];
+        nanoDEP["nanoDEP<br>/mdm/apple/dep/proxy"];
     end
-    MunkiRepo[Munki<br>Repository];
+    MunkiRepo["Munki Repository<br>/mdm/apple/munki/repo"];
     subgraph MunkiPkg [Munki Package Server];
-        manifest
-        munkitools["munkitools-*.pkg<br>(signed)"]
+        manifest["manifest<br>/mdm/apple/munki/manifest"]
+        munkitools["munkitools-*.pkg<br>(signed)<br>/mdm/apple/munki/pkg"]
     end
     subgraph MySQL
         direction LR;

@@ -61,7 +61,7 @@ curl -L "https://github.com/macadmins/nudge/releases/download/v1.1.8.81422/Nudge
 /usr/local/munki/munkiimport \
     --nointeractive \
     --repo_url=file://$REPO_DIR \
-    --subdirectory=apps/agilebits \
+    --subdirectory=apps/macadmins \
     --displayname="Nudge" \
     --description="Annoying but effective" \
     --category=Internet \
