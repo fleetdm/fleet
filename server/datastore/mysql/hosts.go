@@ -1971,10 +1971,6 @@ WHERE
 		res.OSVersions = []fleet.OSVersion{os}
 	}
 
-	// if len(res.OSVersions) < 1 {
-	// 	return nil, ctxerr.Wrap(ctx, notFound("OSVersions"))
-	// }
-
 	// Sort by os versions. We can't control the order when using json_arrayagg
 	// See https://dev.mysql.com/doc/refman/5.7/en/aggregate-functions.html#function_json-arrayagg.
 	sort.Slice(res.OSVersions, func(i, j int) bool { return res.OSVersions[i].Name < res.OSVersions[j].Name })
