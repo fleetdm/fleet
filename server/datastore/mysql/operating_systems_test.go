@@ -106,7 +106,7 @@ func TestUniqueOS(t *testing.T) {
 	ctx := context.Background()
 	ds := CreateMySQLDS(t)
 
-	testHostIDs := make([]uint, 20)
+	testHostIDs := make([]uint, 50)
 	testOS := fleet.OperatingSystem{
 		Name:          "Ubuntu",
 		Version:       "16.04.7 LTS",

@@ -264,7 +264,7 @@ func checkOvalVulnerabilities(
 	var results []fleet.SoftwareVulnerability
 
 	// Get Platforms
-	versions, err := ds.OSVersions(ctx, nil, nil, nil)
+	versions, err := ds.OSVersions(ctx, nil, nil, nil, nil)
 	if err != nil {
 		errHandler(ctx, logger, "updating oval definitions", err)
 		return nil

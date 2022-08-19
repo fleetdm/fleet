@@ -445,7 +445,7 @@ type OSVersion struct {
 	// Platform is the platform of the operating system, e.g., "windows", "ubuntu", or "darwin".
 	Platform string `json:"platform"`
 	// ID is the unique id of the operating system.
-	ID uint `json:"os_id"`
+	ID uint `json:"os_id,omitempty"`
 }
 
 type HostDetailOptions struct {
