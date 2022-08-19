@@ -253,7 +253,6 @@ The Fleet handbook provides team members with up-to-date information about how t
 This strategy was inspired by GitLab, which uses it with great effect. Check out this [short three-minute video](https://www.youtube.com/watch?v=aZrK8AQM8Ro) about their take on the handbook-first approach.
 
 
-
 ### Why direct responsibility?
 We use the concept of [directly responsible individuals](https://fleetdm.com/handbook/people#directly-responsible-individuals) (DRIs) to know who is responsible for what. Every group maintains its own dedicated [handbook page](https://fleetdm.com/handbook), which is kept up to date with accurate, current information, including the group's [kanban board](https://github.com/orgs/fleetdm/projects?type=beta), Slack channels, and recurring tasks ("rituals").
 
@@ -291,6 +290,8 @@ Each group's PM works closely with engineers within their group:
 - The PM **prioritizes** work and defines **what** to iteratively build and release next within their group's domain to best serve the group's goals and the company's goals as a whole. The PM communicates **why** this work is prioritized and works with engineering to come up with the best possible **how**.
 - The PM is responsible for epics. Sometimes initiatives require multiple issues that may, or may not, include multiple development groups. These initiatives are tracked as GitHub issues with the "epic" label. One PM is assigned to the epic to make sure that all issues associated with the epic (child issues) make it into a release. It's the PM's responsibility to track progress and close the epic when the initiative is complete.
 - The EM (along with engineers) defines **how** to implement that definition within the surface area of code, processes, and rituals owned by their group while serving their group’s goals and the company's goals as a whole.
+
+**Additional product design review sessions are welcomed and a top priority for the CEO to get on the calendar quickly.  Other internal meetings and blocked time can always be moved to make room.  External meetings, travel, and personal commitments cannot be moved.  To schedule, mention @Charlie Chance in the #meetings channel.**
 
 ### Interface group
 #### Responsibilities
@@ -439,6 +440,7 @@ maintaining an expressive labeling system. For example, instead of a label calle
 | Weekly update reminder | Weekly | On Thursday, Charlie starts a thread in the `#help-manage` channel and asks managers to reply to the thread with a summary of what their team did in the past week. | Charlie Chance |
 | Weekly update | Weekly | On Friday, Charlie updates the KPIs in the ["🌈 Weekly updates" spreadsheet](https://docs.google.com/spreadsheets/d/1Hso0LxqwrRVINCyW_n436bNHmoqhoLhC8bcbvLPOs9A/edit#gid=0), combines the updates from managers into a single message and adds any hiring announcements. Charlie posts the company update in the `#general` channel. | Charlie Chance |
 
+
 ## Slack channels
 
 The following Slack channels are maintained by Fleet's founders and executive collaborators:
@@ -451,7 +453,7 @@ The following Slack channels are maintained by Fleet's founders and executive co
 | `#help-manage`              | Mike McNeil
 | `#news-fundraising`         | Mike McNeil
 | `#help-open-core-ventures`  | Mike McNeil
-| `#general`                  | N/A _(announce something company-wide)_
+| `#general`                  | N/A _(announce something company-wide, ask Charlie for assistance)_
 | `#thanks`                   | N/A _(say thank you)_
 | `#random`                   | N/A _(be random)_
 
