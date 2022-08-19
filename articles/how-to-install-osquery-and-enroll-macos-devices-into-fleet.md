@@ -1,14 +1,16 @@
 # How to install osquery and enroll macOS devices into Fleet
 
-The easiest way to install osquery and enroll macOS devices into your Fleet instance is to use the Fleet osquery installer.
-
-Alternatively, you can run a preview environment of Fleet locally (which automatically adds your device to the locally running Fleet server). Check out the [Getting Started](https://fleetdm.com/get-started) guide for instructions on setting that up.
+Here, we will cover enrolling macOS devices to an existing Fleet server. If you don’t have a Fleet
+server configured already, check out [Deploying Fleet on Render](https://fleetdm.com/deploy/deploying-fleet-on-render). If you’re still getting to know
+Fleet
+and would like to skip the server setup process and try Fleet, you can [try Fleet in a temporary cloud instance](https://fleetdm.com/try-fleet/register).
 
 ## Prerequisites
 
-Before installing osquery on macOS and enrolling that macOS device, you will need to have access to a Fleet server (see [Deploying Fleet on Render](https://fleetdm.com/deploy/deploying-fleet-on-render) for an example.)
+1. Access to an existing Fleet server
+2. The `fleetctl` command line tool
 
-You will also need to install the `fleetctl` CLI tool if you don’t have it already. `fleetctl` can be installed via `npm` by running the command below:
+If you don’t already have it, `fleetctl` can be installed via npm by running the following command:
 
 ```
 npm i -g fleetctl
