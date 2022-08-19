@@ -1955,9 +1955,9 @@ WHERE
 			// omit os id
 			byNameVers[key] = fleet.OSVersion{Name: os.Name, NameOnly: os.NameOnly, Version: os.Version, Platform: os.Platform, HostsCount: os.HostsCount}
 		} else {
-			new := val
-			new.HostsCount += os.HostsCount
-			byNameVers[key] = new
+			newVal := val
+			newVal.HostsCount += os.HostsCount
+			byNameVers[key] = newVal
 		}
 	}
 
