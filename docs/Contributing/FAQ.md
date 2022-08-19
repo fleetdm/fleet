@@ -5,6 +5,8 @@
   - [`undefined: Asset`](#undefined-asset)
 - [How do I connect to the MailHog simulated mail server?](#how-do-i-connect-to-the-mailhog-simulated-mail-server)
 - [Adding hosts for testing](#adding-hosts-for-testing)
+- [Why am I getting an error about self-signed certificates when running `fleetctl preview`?](#why-am-i-getting-an-error-about-self-signed-certificates-when-running-fleetctl-preview)
+- [Will updating fleetctl lead to loss of data in fleetctl preview?](will-updating-fleetctl-lead-to-loss-of-data-in-fleetctl-preview?)
 
 
 ## Enrolling in multiple Fleet servers
@@ -41,3 +43,32 @@ To start osquery, first retrieve the "Enroll secret" from Fleet (by clicking the
 cd tools/osquery
 ENROLL_SECRET=<copy from fleet> docker-compose up
 ```
+
+## Why am I getting an error about self-signed certificates when running `fleetctl preview`?
+
+If you are trying to run `fleetctl preview` and seeing errors about self-signed certificates, the
+most likely culprit is that you're behind a corporate proxy server and need to [add the proxy
+settings to Docker](https://docs.docker.com/network/proxy/) so that the container created by
+`fleetctl preview` is able to connect properly. 
+
+## Will updating fleetctl lead to loss of data in fleetctl preview?
+
+No, you won't experience data loss when you update fleetctl. Note that you can run `fleetctl preview --tag v#.#.#` if you want to run Preview on a previous version. Just replace # with the version numbers of interest.
+
+## Can I disable usage statistics via the config file or a CLI flag?
+Apart from an admin [disabling usage](https://fleetdm.com/docs/using-fleet/usage-statistics#disable-usage-statistics) statistics on the Fleet UI, you can edit your `fleet.yml` config file to disable usage statistics. Look for the `server_settings` in your `fleet.yml` and set `enable_analytics: false`. Do note there is no CLI flag option to disable usage statistics at this time.
+
+## Fleet preview fails with Invalid interpolation. What should I do?
+
+If you tried running `fleetctl preview` and you get the following error:
+
+```
+fleetctl preview
+Downloading dependencies into /root/.fleet/preview...
+Pulling Docker dependencies...
+Invalid interpolation format for "fleet01" option in service "services": "fleetdm/fleet:${FLEET_VERSION:-latest}"
+
+Failed to run docker-compose
+```
+
+You are probably running an old version of Docker. You should download the installer for your platform from https://docs.docker.com/compose/install/
