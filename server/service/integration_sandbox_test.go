@@ -101,6 +101,7 @@ func (s *integrationSandboxTestSuite) TestInstallerGet() {
 }
 
 func (s *integrationSandboxTestSuite) TestInstallerHeadCheck() {
+	t := s.T()
 	validURL := installerURL(enrollSecret, "pkg", false)
 	s.Do("HEAD", validURL, nil, http.StatusOK)
 
@@ -112,11 +113,17 @@ func (s *integrationSandboxTestSuite) TestInstallerHeadCheck() {
 
 	// wrong enroll secret
 	invalidURL := installerURL("wrong-enroll", "pkg", false)
-	s.Do("HEAD", invalidURL, nil, http.StatusInternalServerError)
+	resp := s.Do("HEAD", invalidURL, nil, http.StatusInternalServerError)
+	bodyContent, err := io.ReadAll(resp.Body)
+	require.NoError(t, err)
+	require.Empty(t, bodyContent)
 
 	// non-existent package
 	invalidURL = installerURL(enrollSecret, "exe", false)
-	s.Do("HEAD", invalidURL, nil, http.StatusNotFound)
+	resp = s.Do("HEAD", invalidURL, nil, http.StatusNotFound)
+	bodyContent, err = io.ReadAll(resp.Body)
+	require.NoError(t, err)
+	require.Empty(t, bodyContent)
 }
 
 func installerURL(secret, kind string, desktop bool) string {

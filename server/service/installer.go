@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/http/httptest"
 	"strconv"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
@@ -118,10 +119,21 @@ type checkInstallerRequest struct {
 }
 
 type checkInstallerResponse struct {
-	Err error `json:"error,omitempty"`
+	Err error
 }
 
-func (r checkInstallerResponse) error() error { return r.Err }
+// hijackRender ensures the HEAD response contains an empty body, as our `encodeResponse`
+// function automatically sets an error body for errors
+func (r checkInstallerResponse) hijackRender(ctx context.Context, w http.ResponseWriter) {
+	if r.Err == nil {
+		w.WriteHeader(http.StatusOK)
+		return
+	}
+
+	var aux httptest.ResponseRecorder
+	encodeError(ctx, r.Err, &aux)
+	w.WriteHeader(aux.Code)
+}
 
 func checkInstallerEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
 	req := request.(*checkInstallerRequest)
