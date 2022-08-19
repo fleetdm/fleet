@@ -5,7 +5,7 @@
 
 The recommended way to add your host to Fleet is with an osquery installer. Fleet provides the tools to generate an osquery installer with the `fleetctl package` command.
 
-To use the `fleetctl package` command, you must first install the `fleetctl` command-line tool. Instructions for installing `fleetctl` can be found on [here](https://fleetdm.com/get-started)
+To use the `fleetctl package` command, you must first install the `fleetctl` command-line tool. Instructions for installing `fleetctl` can be found [here](https://fleetdm.com/fleetctl-preview)
 
 ## Osquery installer
 

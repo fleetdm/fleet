@@ -107,9 +107,9 @@ module.exports = {
       }
     };
 
-    // Creating a custom blockquote renderer function to add info icons to each blockquote
-    customRenderer.blockquote = function(quote) {
-      return `<blockquote><img src="/images/icon-info-16x16@2x.png" alt="An icon indicating that this section has important information"><div class="d-block">`+quote+`</div></blockquote>\n`;
+    // Creating a custom blockquote renderer function to render blockquotes as tip blockquotes.
+    customRenderer.blockquote = function(blockquoteHtml) {
+      return `<blockquote purpose="tip"><img src="/images/icon-info-16x16@2x.png" alt="An icon indicating that this section has important information"><div class="d-block">\n${blockquoteHtml}\n</div></blockquote>`;
     };
 
     // Custom renderer function to enable checkboxes in Markdown lists.

@@ -7,7 +7,7 @@ import local from "utilities/local";
 import URL_PREFIX from "router/url_prefix";
 
 const sendRequest = async (
-  method: "GET" | "POST" | "PATCH" | "DELETE",
+  method: "GET" | "POST" | "PATCH" | "DELETE" | "HEAD",
   path: string,
   data?: unknown,
   responseType: AxiosResponseType = "json"

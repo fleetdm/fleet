@@ -474,6 +474,17 @@ spec:
   contributors: DominusKelvin
 ---
 apiVersion: v1
+kind: query
+spec:
+  name: Get operating system information
+  platforms: macOS, Windows, Linux
+  description: Returns the operating system name and version on the device.
+  query: SELECT name, version FROM os_version;
+  purpose: Informational
+  tags: inventory, built-in
+  contributors: noahtalerman
+---
+apiVersion: v1
 kind: policy
 spec:
   name: Gatekeeper enabled (macOS)
@@ -489,7 +500,7 @@ apiVersion: v1
 kind: policy
 spec:
   name: Full disk encryption enabled (Windows)
-  query: SELECT 1 FROM bitlocker_info where protection_status = 1;
+  query: SELECT 1 FROM bitlocker_info WHERE drive_letter='C:' AND protection_status=1;
   description: Checks to make sure that full disk encryption is enabled on Windows devices.
   resolution:
     "To get additional information, run the following osquery query on the failing device: SELECT * FROM bitlocker_info. In the

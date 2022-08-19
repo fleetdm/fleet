@@ -1,5 +1,5 @@
 import React, { useContext, useState, useCallback, useEffect } from "react";
-import { Link } from "react-router";
+import { browserHistory } from "react-router";
 import { Params, InjectedRouter } from "react-router/lib/Router";
 import { useQuery } from "react-query";
 import { useErrorHandler } from "react-error-boundary";
@@ -536,15 +536,24 @@ const HostDetailsPage = ({
   }
 
   const statusClassName = classnames("status", `status--${host?.status}`);
+  const failingPoliciesCount = titleData?.issues;
 
   return (
     <MainContent className={baseClass}>
       <div className={`${baseClass}__wrapper`}>
         <div>
-          <Link to={PATHS.MANAGE_HOSTS} className={`${baseClass}__back-link`}>
-            <img src={BackChevron} alt="back chevron" id="back-chevron" />
-            <span>Back to all hosts</span>
-          </Link>
+          <Button
+            variant={"text-icon"}
+            onClick={() => {
+              browserHistory.goBack();
+            }}
+            className={`${baseClass}__back-link`}
+          >
+            <>
+              <img src={BackChevron} alt="back chevron" id="back-chevron" />
+              <span>Back to all hosts</span>
+            </>
+          </Button>
         </div>
         <HostSummaryCard
           statusClassName={statusClassName}
@@ -563,10 +572,8 @@ const HostDetailsPage = ({
               <Tab>Software</Tab>
               <Tab>Schedule</Tab>
               <Tab>
-                {titleData.issues.failing_policies_count > 0 && (
-                  <span className="count">
-                    {titleData.issues.failing_policies_count}
-                  </span>
+                {failingPoliciesCount > 0 && (
+                  <span className="count">{failingPoliciesCount}</span>
                 )}
                 Policies
               </Tab>

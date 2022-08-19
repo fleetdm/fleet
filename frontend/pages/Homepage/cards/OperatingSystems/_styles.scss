@@ -2,17 +2,8 @@
   margin-top: $pad-large;
   position: relative;
 
-  .table-container {
-    min-height: 435px;
-  }
-  .data-table__wrapper {
-    overflow-x: auto;
-  }
-  .component__tabs-wrapper .table-container__header {
-    display: none;
-  }
   &__empty-os {
-    margin: $pad-medium auto 0;
+    margin: 0 auto;
 
     h1 {
       font-size: $small;
@@ -27,40 +18,58 @@
       margin: 0;
     }
   }
-  .data-table-container {
-    .data-table__table {
-      table-layout: fixed;
 
-      thead {
-        .hosts_count__header {
-          border-right: 0;
-          padding-right: 0;
-          width: 84px;
-        }
-      }
+  .data-table__wrapper {
+    overflow-x: auto;
+  }
 
-      tbody {
-        .name__cell,
-        .version__cell {
-          overflow: hidden;
-          white-space: nowrap;
-          text-overflow: ellipsis;
-        }
-        .id__cell {
-          padding: 0;
-          width: 40px;
-        }
-        .vulnerabilities__cell {
-          img {
-            transform: scale(0.5);
-          }
-        }
-      }
+  .hosts-cell__wrapper {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+
+    a {
+      display: flex;
+      align-items: center;
+    }
+
+    img {
+      height: 16px;
     }
   }
+
+  .hosts-link {
+    color: $core-vibrant-blue;
+    visibility: hidden;
+    font-weight: bold;
+    text-decoration: none;
+    vertical-align: middle;
+
+    a {
+      text-decoration: none;
+    }
+
+    img {
+      height: 16px;
+      width: 16px;
+      vertical-align: middle;
+    }
+
+    .link-text {
+      padding-right: $pad-xxsmall;
+    }
+  }
+
+  tr:hover {
+    .hosts-link {
+      visibility: visible;
+    }
+  }
+
   .count-loading {
     color: $ui-fleet-black-50;
   }
+
   .count-error {
     color: $ui-error;
   }

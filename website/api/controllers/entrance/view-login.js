@@ -24,7 +24,11 @@ module.exports = {
   fn: async function () {
 
     if (this.req.me) {
-      throw {redirect: '/customers/new-license'};
+      if(this.req.me.hasBillingCard){
+        throw {redirect: '/customers/new-license'};
+      } else {
+        throw {redirect: '/try-fleet/sandbox'};
+      }
     }
 
     return {};

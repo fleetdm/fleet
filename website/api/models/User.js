@@ -66,7 +66,6 @@ module.exports = {
 
     organization: {
       type: 'string',
-      required: true,
       description: 'The organization the user works for.',
       maxLength: 120,
       example: 'The Sails Company',
@@ -170,6 +169,23 @@ without necessarily having a billing card.`
       description: 'A JS timestamp (epoch ms) representing the moment at which this user most recently interacted with the backend while logged in (or 0 if they have not interacted with the backend at all yet).',
       example: 1502844074211
     },
+
+    fleetSandboxURL: {
+      type: 'string',
+      description: 'The URL of the Fleet sandbox instance that was provisioned for this user',
+      example: 'https://billybobcat.sandbox.fleetdm.com',
+    },
+
+    fleetSandboxExpiresAt: {
+      type: 'number',
+      description: 'An JS timestamp (epoch ms) representing when this user\'s fleet sandbox instance will expire',
+      example: '1502844074211',
+    },
+
+    fleetSandboxDemoKey: {
+      type: 'string',
+      description: 'The UUID that is used as the password of this user\'s Fleet Sandbox instance that is generated when the user signs up. Only used to log the user into their Fleet Sandbox instance while it is still live.',
+    }
 
     //  ╔═╗╔╦╗╔╗ ╔═╗╔╦╗╔═╗
     //  ║╣ ║║║╠╩╗║╣  ║║╚═╗

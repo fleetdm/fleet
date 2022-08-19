@@ -69,6 +69,6 @@ Visit our [Update guide](https://fleetdm.com/docs/deploying/upgrading-fleet) in 
 <meta name="category" value="releases">
 <meta name="authorFullName" value="Kathy Satterlee">
 <meta name="authorGitHubUsername" value="ksatter">
-<meta name="publishedOn" value="2022-08-02">
+<meta name="publishedOn" value="2022-08-03">
 <meta name="articleTitle" value="Fleet 4.18.0 | Test Fleet upgrades before installing, better security and user messaging in Fleet Desktop">
 <meta name="articleImageUrl" value="../website/assets/images/articles/fleet-4.18.0-cover-1600x900@2x.jpg">

@@ -74,6 +74,25 @@ func (i *InstallerStore) Put(ctx context.Context, installer fleet.Installer) (st
 	return key, err
 }
 
+// Exists checks if an installer exists in the S3 bucket
+func (i *InstallerStore) Exists(ctx context.Context, installer fleet.Installer) (bool, error) {
+	key := i.keyForInstaller(installer)
+	_, err := i.s3client.HeadObject(&s3.HeadObjectInput{Bucket: &i.bucket, Key: &key})
+
+	if err != nil {
+		if aerr, ok := err.(awserr.Error); ok {
+			switch aerr.Code() {
+			case s3.ErrCodeNoSuchKey, s3.ErrCodeNoSuchBucket, "NotFound":
+				return false, nil
+			}
+		}
+
+		return false, ctxerr.Wrap(ctx, err, "checking existence on file store")
+	}
+
+	return true, nil
+}
+
 // keyForInstaller builds an S3 key to search for the installer
 func (i *InstallerStore) keyForInstaller(installer fleet.Installer) string {
 	file := fmt.Sprintf("%s.%s", executable, installer.Kind)

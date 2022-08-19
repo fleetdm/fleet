@@ -625,6 +625,21 @@ func (a *agent) orbitInfo() (bool, []map[string]string) {
 }
 
 func (a *agent) mdm() []map[string]string {
+	possibleURLs := []string{
+		"https://kandji.com/1",
+		"https://jamf.com/1",
+		"https://airwatch.com/1",
+		"https://microsoft.com/1",
+		"https://simplemdm.com/1",
+		"https://example.com/1",
+		"https://kandji.com/2",
+		"https://jamf.com/2",
+		"https://airwatch.com/2",
+		"https://microsoft.com/2",
+		"https://simplemdm.com/2",
+		"https://example.com/2",
+	}
+
 	enrolled := "true"
 	if rand.Intn(2) == 1 {
 		enrolled = "false"
@@ -633,8 +648,9 @@ func (a *agent) mdm() []map[string]string {
 	if rand.Intn(2) == 1 {
 		installedFromDep = "false"
 	}
+	ix := rand.Intn(len(possibleURLs))
 	return []map[string]string{
-		{"enrolled": enrolled, "server_url": "http://some.url/mdm", "installed_from_dep": installedFromDep},
+		{"enrolled": enrolled, "server_url": possibleURLs[ix], "installed_from_dep": installedFromDep},
 	}
 }
 
@@ -682,6 +698,22 @@ func (a *agent) batteries() []map[string]string {
 	return result
 }
 
+func (a *agent) osUnixLike() []map[string]string {
+	return []map[string]string{
+		{
+			"build":          "18G3020",
+			"major":          "10",
+			"minor":          "14",
+			"name":           "Mac OS X",
+			"patch":          "6",
+			"platform":       "darwin",
+			"arch":           "x86_64",
+			"version":        "10.14.6",
+			"kernel_version": "21.4.0",
+		},
+	}
+}
+
 func (a *agent) processQuery(name, query string) (handled bool, results []map[string]string, status *fleet.OsqueryStatus) {
 	const (
 		hostPolicyQueryPrefix = "fleet_policy_query_"
@@ -723,6 +755,13 @@ func (a *agent) processQuery(name, query string) (handled bool, results []map[st
 			results = a.batteries()
 		}
 		return true, results, &ss
+	case name == hostDetailQueryPrefix+"os_unix_like":
+		ss := fleet.OsqueryStatus(rand.Intn(2))
+		if ss == fleet.StatusOK {
+			results = a.osUnixLike()
+		}
+		return true, results, &ss
+
 	default:
 		// Look for results in the template file.
 		if t := a.templates.Lookup(name); t == nil {

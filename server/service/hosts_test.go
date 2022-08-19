@@ -476,7 +476,7 @@ func TestEmptyTeamOSVersions(t *testing.T) {
 		return nil, notFoundError{}
 	}
 
-	ds.OSVersionsFunc = func(ctx context.Context, teamID *uint, platform *string) (*fleet.OSVersions, error) {
+	ds.OSVersionsFunc = func(ctx context.Context, teamID *uint, platform *string, osID *uint) (*fleet.OSVersions, error) {
 		if *teamID == 1 {
 			return &fleet.OSVersions{CountsUpdatedAt: time.Now(), OSVersions: testVersions}, nil
 		}
@@ -488,22 +488,22 @@ func TestEmptyTeamOSVersions(t *testing.T) {
 	}
 
 	// team exists with stats
-	vers, err := svc.OSVersions(test.UserContext(test.UserAdmin), ptr.Uint(1), ptr.String("darwin"))
+	vers, err := svc.OSVersions(test.UserContext(test.UserAdmin), ptr.Uint(1), ptr.String("darwin"), nil)
 	require.NoError(t, err)
 	assert.Len(t, vers.OSVersions, 1)
 
 	// team exists but no stats
-	vers, err = svc.OSVersions(test.UserContext(test.UserAdmin), ptr.Uint(2), ptr.String("darwin"))
+	vers, err = svc.OSVersions(test.UserContext(test.UserAdmin), ptr.Uint(2), ptr.String("darwin"), nil)
 	require.NoError(t, err)
 	assert.Empty(t, vers.OSVersions)
 
 	// team does not exist
-	_, err = svc.OSVersions(test.UserContext(test.UserAdmin), ptr.Uint(3), ptr.String("darwin"))
+	_, err = svc.OSVersions(test.UserContext(test.UserAdmin), ptr.Uint(3), ptr.String("darwin"), nil)
 	require.Error(t, err)
 	require.Equal(t, "not found", fmt.Sprint(err))
 
 	// some unknown error
-	_, err = svc.OSVersions(test.UserContext(test.UserAdmin), ptr.Uint(4), ptr.String("darwin"))
+	_, err = svc.OSVersions(test.UserContext(test.UserAdmin), ptr.Uint(4), ptr.String("darwin"), nil)
 	require.Error(t, err)
 	require.Equal(t, "some unknown error", fmt.Sprint(err))
 }

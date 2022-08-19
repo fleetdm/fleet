@@ -5,7 +5,7 @@ contributors.
 
 ## Communities
 
-Fleet's users and broader audience are spread across many online platforms.  Here are the most active communities where Fleet's developer relations and social media team members participate at least once every weekday:
+Fleet's users and broader audience are spread across many online platforms. Here are the most active communities where Fleet's developer relations and social media team members participate at least once every weekday:
 
 - [Osquery Slack](https://join.slack.com/t/osquery/shared_invite/zt-h29zm0gk-s2DBtGUTW4CFel0f0IjTEw) (`#fleet` channel)
 - [MacAdmins Slack](https://www.macadmins.org/) (`#fleet` channel)
@@ -16,7 +16,8 @@ Fleet's users and broader audience are spread across many online platforms.  Her
 - [r/sysadmin Discord](https://discord.gg/sysadmin)
 
 ### Goals
-Our primary quality objectives are *customer service* and *defect reduction*. We try to optimize the following:
+
+Our primary quality objectives are _customer service_ and _defect reduction_. We try to optimize the following:
 
 - Customer response time
 - The number of bugs resolved per release cycle
@@ -34,7 +35,7 @@ Our primary quality objectives are *customer service* and *defect reduction*. We
 
 ### Requesting more details
 
-Typically, the *questions*, *bug reports*, and *feature requests* raised by community members will be missing helpful context, recreation steps, or motivations.
+Typically, the _questions_, _bug reports_, and _feature requests_ raised by community members will be missing helpful context, recreation steps, or motivations.
 
 ❓ For questions that you don't immediately know the answer to, it's helpful to ask follow-up questions to receive additional context.
 
@@ -96,13 +97,13 @@ The most important thing when community members contribute to Fleet is to show t
 
 ### Process for managing community contributions
 
-The Community Engagement DRI is responsible for keeping an eye out for new community contributions, getting them merged if possible, and getting the right eyes on them if they require a review. 
+The Community Engagement DRI is responsible for keeping an eye out for new community contributions, getting them merged if possible, and getting the right eyes on them if they require a review.
 
 Each business day, the Community Engagement DRI will check open pull requests to
 
-1. check for new pull requests (PRs) from the Fleet community. 
+1. check for new pull requests (PRs) from the Fleet community.
 2. approve and merge any community PRs that are ready to go.
-3. make sure there aren't any existing community PRs waiting for a follow-up from Fleet. 
+3. make sure there aren't any existing community PRs waiting for a follow-up from Fleet.
 
 #### Identify community contributions
 
@@ -111,23 +112,26 @@ When a new pull request is submitted by a community contributor (someone not a m
 - Add the `:community` label.
 - Self-assign for review.
 - Check whether the PR can be merged or needs to be reviewed by the Product team.
-    - Things that generally don't need additional review:
-        - Minor changes to the docs.
-        - Small bug fixes.
 
-        - Additions or fixes to the Standard Query Library (as long as the SQL works properly and is attributed correctly).
-    - If a review is needed:
-        - Request a review from the [Product DRI](../people/README.md#directly-responsible-individuals). They should approve extensive changes and new features. Ask in the #g-product channel in Fleet's Slack for more information.
-        - Tag the DRI and the contributor in a comment on the PR, letting everyone know why an additional review is needed. Make sure to say thanks!
-        - Find any related open issues and make a note in the comments.
+  - Things that generally don't need additional review:
 
-> Please refer to our [PRs from the community](https://docs.google.com/document/d/13r0vEhs9LOBdxWQWdZ8n5Ff9cyB3hQkTjI5OhcrHjVo/edit?usp=sharing) guide and use your best judgment. 
+    - Minor changes to the docs.
+    - Small bug fixes.
+
+    - Additions or fixes to the Standard Query Library (as long as the SQL works properly and is attributed correctly).
+
+  - If a review is needed:
+    - Request a review from the [Product DRI](../people/README.md#directly-responsible-individuals). They should approve extensive changes and new features. Ask in the #g-product channel in Fleet's Slack for more information.
+    - Tag the DRI and the contributor in a comment on the PR, letting everyone know why an additional review is needed. Make sure to say thanks!
+    - Find any related open issues and make a note in the comments.
+
+> Please refer to our [PRs from the community](https://docs.google.com/document/d/13r0vEhs9LOBdxWQWdZ8n5Ff9cyB3hQkTjI5OhcrHjVo/edit?usp=sharing) guide and use your best judgment.
 
 #### Communicate with contributors
 
 Community contributions are fantastic, and it's important that the contributor knows how much they are appreciated. The best way to do that is to keep in touch while we're working on getting their PR approved.
 
-While each team member is responsible for monitoring their active issues and pull requests, the Community Engagement DRI will check in on pull requests with the `:community ` label daily to make sure everything is moving along. If there's a comment or question from the contributor that hasn't been addressed, reach out on Slack to get more information and update the contributor. 
+While each team member is responsible for monitoring their active issues and pull requests, the Community Engagement DRI will check in on pull requests with the `:community ` label daily to make sure everything is moving along. If there's a comment or question from the contributor that hasn't been addressed, reach out on Slack to get more information and update the contributor.
 
 #### Merge Community PRs
 
@@ -145,7 +149,7 @@ If you're assigned a community pull request for review, it is important to keep 
 
 A PR should be merged if:
 
-- It's a change that is needed and useful. 
+- It's a change that is needed and useful.
 - The CI is passing.
 - Tests are in place.
 - Documentation is updated.
@@ -158,7 +162,7 @@ For PRs that aren't ready to merge:
 - Offer code review and coaching to help get the PR ready to go (see note below).
 - Keep an eye out for any updates or responses.
 
-> Sometimes (typically for Fleet customers), a Fleet team member may add tests and make any necessary changes to merge the PR. 
+> Sometimes (typically for Fleet customers), a Fleet team member may add tests and make any necessary changes to merge the PR.
 
 If everything is good to go, approve the review.
 
@@ -169,7 +173,7 @@ For PRs that will not be merged:
 
 ## Updating Docs and FAQ
 
-When someone asks a question in a public channel, it's pretty safe to assume that they aren't the only person looking for an answer to the same question. To make our docs as helpful as possible, the Community team gathers these questions and uses them to make a weekly documentation update. 
+When someone asks a question in a public channel, it's pretty safe to assume that they aren't the only person looking for an answer to the same question. To make our docs as helpful as possible, the Community team gathers these questions and uses them to make a weekly documentation update.
 
 Our goal is to answer every question with a link to the docs and/or result in a documentation update.
 
@@ -188,13 +192,13 @@ When responding to a question or issue in the [#fleet](https://osquery.slack.com
 Every week, the Community Engagement DRI will:
 
 - Create a new `Weekly Doc Update` issue on Monday and add it to the [Community board](https://github.com/orgs/fleetdm/projects/36).
-- Review the Slack Questions Spreadsheet and make sure that any necessary updates to the documentation are made. 
-    - Update the spreadsheet to indicate what action was taken (Doc change, FAQ added, or None) and add notes if need be. 
-- Set up a single PR to update the Docs. 
-    - In the notes, include a list of changes made as well as a link to the related thread. 
+- Review the Slack Questions Spreadsheet and make sure that any necessary updates to the documentation are made.
+  - Update the spreadsheet to indicate what action was taken (Doc change, FAQ added, or None) and add notes if need be.
+- Set up a single PR to update the Docs.
+  - In the notes, include a list of changes made as well as a link to the related thread.
 - Bring any questions to DevRel Office Hours (time TBD).
-- Submit the PR by the end of the day on Thursday. 
-- Once the PR is approved, share in the [#fleet channel](https://osquery.slack.com/archives/C01DXJL16D8) of Osquery Slack Workspace and thank the community for being involved and asking questions. 
+- Submit the PR by the end of the day on Thursday.
+- Once the PR is approved, share in the [#fleet channel](https://osquery.slack.com/archives/C01DXJL16D8) of Osquery Slack Workspace and thank the community for being involved and asking questions.
 
 ## Fleet swag
 
@@ -202,34 +206,40 @@ We want to recognize and congratulate community members for their contributions 
 
 ### How to order swag
 
-1. Reach out to the contributor to thank them for their contribution and ask if they would like any swag.
+We currently deliver Fleet swag and osquery stickers for those that request it through community contributions, [Fleet documentation](https://fleetdm.com/docs), and social media posts.
 
-2. Fill out our [swag request sheet](https://docs.google.com/spreadsheets/d/1bySsYVYHY8EjxWhhAKMLVAPLNjg3IYVNpyg50clfB6I/edit?usp=sharing).
+Our Typeform integrations automatically populate information within the #help-swag Slack channel for osquery sticker and shirt requests through TypeForm.
 
-3. Once approved, place the order through our Printful account (credentials in 1Password).
+For community contributions, reach out to the contributor to thank them for their contribution, ask if they would like any swag, and fill out their information in the [Fleet swag request sheet](https://docs.google.com/spreadsheets/d/1bySsYVYHY8EjxWhhAKMLVAPLNjg3IYVNpyg50clfB6I/edit#gid=2028707729).
 
-4. If available through the ordering process, add a thank you note for their contribution and "Feel free to tag us on Twitter."
+Once approved in the sheet, or submitted through [Typeform](https://admin.typeform.com/form/ZfA3sOu0/results#responses), place the order through our Printful account (credentials in 1Password) within 48 hours of submission. If available through the ordering process, add a thank you note for their contribution or request.
+
+When an estimated shipping date is available, notify the requestor by email with an update on shipping, thank them for being a part of the community, and provide the tracking number once shipped.
+
+Printful order information can be found on [Printful](https://www.printful.com/dashboard/default/orders) or billing@fleetdm.com.
+
+At this time, double-check that information within Salesforce and Typeform is accurate according to the [enrichment process.](https://docs.google.com/document/d/1zOv39O989bPRNTIcLNNE4ESUI5Ry2XII3XuRpJqNN7g/edit?usp=sharing)
 
 ## Rituals
 
 The following table lists the Community group's rituals, frequency, and Directly Responsible Individual (DRI).
 
-| Ritual                       | Frequency                | Description                                         | DRI               |
-|:-----------------------------|:-----------------------------|:----------------------------------------------------|-------------------|
-| Community Slack  | Daily   | Check Fleet and osquery Slack channels for community questions, make sure questions are responded to and logged. | Kathy Satterlee |
-| Social media check-in |  Daily | Check social media for community questions and make sure to respond to them. Generate dev advocacy-related content. | Kelvin Omereshone   |
-| Issue check-in | Daily | Check GitHub for new issues submitted by the community, check the status of existing requests, and follow up when needed. | Kathy Satterlee |
-| Outside contributor follow-up | Weekly | Bring pull requests from outside contributors to engineering and make sure they are merged promptly and promoted. | Kathy Satterlee |
-| Documentation update | Weekly | Turn questions answered from Fleet and osquery Slack into FAQs in Fleet’s docs. | Kathy Satterlee |
-| StackOverflow  | Weekly | Search StackOverflow for “osquery,” answer questions with Grammarly, and find a way to feature Fleet in your StackOverflow profile prominently. | Rotation: Community team |
+| Ritual                        | Frequency | Description                                                                                                                                     | DRI                      |
+| :---------------------------- | :-------- | :---------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------ |
+| Community Slack               | Daily     | Check Fleet and osquery Slack channels for community questions, make sure questions are responded to and logged.                                | Kathy Satterlee          |
+| Social media check-in         | Daily     | Check social media for community questions and make sure to respond to them. Generate dev advocacy-related content.                             | Kelvin Omereshone        |
+| Issue check-in                | Daily     | Check GitHub for new issues submitted by the community, check the status of existing requests, and follow up when needed.                       | Kathy Satterlee          |
+| Outside contributor follow-up | Weekly    | Bring pull requests from outside contributors to engineering and make sure they are merged promptly and promoted.                               | Kathy Satterlee          |
+| Documentation update          | Weekly    | Turn questions answered from Fleet and osquery Slack into FAQs in Fleet’s docs.                                                                 | Kathy Satterlee          |
+| StackOverflow                 | Weekly    | Search StackOverflow for “osquery,” answer questions with Grammarly, and find a way to feature Fleet in your StackOverflow profile prominently. | Rotation: Community team |
 
 ## Slack channels
 
 This group maintains the following [Slack channels](https://fleetdm.com/handbook/company#group-slack-channels):
 
-| Slack channel               | [DRI](https://fleetdm.com/handbook/company#group-slack-channels)    |
-|:----------------------------|:--------------------------------------------------------------------|
-| `#g-community`              | Kathy Satterlee
+| Slack channel  | [DRI](https://fleetdm.com/handbook/company#group-slack-channels) |
+| :------------- | :--------------------------------------------------------------- |
+| `#g-community` | Kathy Satterlee                                                  |
 
 <meta name="maintainedBy" value="ksatter">
 <meta name="title" value="🪂 Community">
