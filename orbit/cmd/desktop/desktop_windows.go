@@ -7,7 +7,9 @@ import (
 	_ "embed"
 	"fmt"
 	"syscall"
+	"time"
 
+	"github.com/rs/zerolog/log"
 	"golang.org/x/sys/windows"
 	"golang.org/x/sys/windows/registry"
 )
@@ -15,8 +17,11 @@ import (
 // For Windows we must use ico format for the icon,
 // see https://github.com/getlantern/systray/blob/6065fda28be8c8d91aeb5e20de25e1600b8664a3/systray_windows.go#L850-L856.
 
-//go:embed icon_white.ico
-var icoBytes []byte
+//go:embed icon_light.ico
+var iconLight []byte
+
+//go:embed icon_dark.ico
+var iconDark []byte
 
 // Adapted from MIT licensed code in
 // https://github.com/WireGuard/wireguard-go/commit/7e962a9932667f4a161b20aba5ff1c75ab8e578a
@@ -26,68 +31,71 @@ var icoBytes []byte
 //go:generate go run golang.org/x/sys/windows/mkwinsyscall -output generated_syscall_windows.go desktop_windows.go
 //sys regNotifyChangeKeyValue(key windows.Handle, watchSubtree bool, notifyFilter uint32, event windows.Handle, asynchronous bool) (regerrno error) = advapi32.RegNotifyChangeKeyValue
 
-const regPath = `Software\Microsoft\Windows\CurrentVersion\Themes\Personalize`
+const (
+	// Registry path where theme value is stored.
+	registryPath = `Software\Microsoft\Windows\CurrentVersion\Themes\Personalize`
+	registryKey  = "AppsUseLightTheme"
+	// REG_NOTIFY_CHANGE_LAST_SET notifies the caller of changes to a value of the key. This can include adding or deleting a value, or changing an existing value.
+	REG_NOTIFY_CHANGE_LAST_SET uint32 = 0x00000004
+)
 
-func getSystemTheme() string {
-	// From https://stackoverflow.com/a/58494769/491710
-
-	k, err := registry.OpenKey(registry.CURRENT_USER, regPath, registry.QUERY_VALUE)
+func getSystemTheme() (theme, error) {
+	// Adapted from https://stackoverflow.com/a/58494769/491710
+	key, err := registry.OpenKey(registry.CURRENT_USER, registryPath, registry.QUERY_VALUE)
 	if err != nil {
-		return "open key: " + err.Error()
+		return themeDark, err
 	}
-	defer k.Close()
+	defer key.Close()
 
-	val, _, err := k.GetIntegerValue("AppsUseLightTheme")
+	val, _, err := key.GetIntegerValue(registryKey)
 	if err != nil {
-		return "getStringValue: " + err.Error()
+		return themeDark, err
 	}
 
 	switch val {
 	case 0:
-		return "dark"
+		return themeDark, nil
 	case 1:
-		return "light"
+		return themeLight, nil
 	default:
-		return "unknown"
+		return themeUnknown, fmt.Errorf("unknown theme value %d", val)
 	}
 }
 
-const (
-	KEY_NOTIFY uint32 = 0x0010 // should be defined upstream as registry.KEY_NOTIFY
-)
-
-const (
-	// REG_NOTIFY_CHANGE_NAME notifies the caller if a subkey is added or deleted.
-	REG_NOTIFY_CHANGE_NAME uint32 = 0x00000001
-
-	// REG_NOTIFY_CHANGE_ATTRIBUTES notifies the caller of changes to the attributes of the key, such as the security descriptor information.
-	REG_NOTIFY_CHANGE_ATTRIBUTES uint32 = 0x00000002
-
-	// REG_NOTIFY_CHANGE_LAST_SET notifies the caller of changes to a value of the key. This can include adding or deleting a value, or changing an existing value.
-	REG_NOTIFY_CHANGE_LAST_SET uint32 = 0x00000004
-
-	// REG_NOTIFY_CHANGE_SECURITY notifies the caller of changes to the security descriptor of the key.
-	REG_NOTIFY_CHANGE_SECURITY uint32 = 0x00000008
-
-	// REG_NOTIFY_THREAD_AGNOSTIC indicates that the lifetime of the registration must not be tied to the lifetime of the thread issuing the RegNotifyChangeKeyValue call. Note: This flag value is only supported in Windows 8 and later.
-	REG_NOTIFY_THREAD_AGNOSTIC uint32 = 0x10000000
-)
-
-func watchSystemTheme() {
-	// theme := getSystemTheme()
-
-	key, err := registry.OpenKey(registry.CURRENT_USER, regPath, syscall.KEY_NOTIFY|registry.QUERY_VALUE)
-	if err != nil {
-		fmt.Println("open key: " + err.Error())
-	}
-	defer key.Close()
-
+func watchSystemTheme(iconManager *iconManager) {
 	for {
-		err := regNotifyChangeKeyValue(windows.Handle(key), false, REG_NOTIFY_CHANGE_LAST_SET, windows.Handle(0), false)
-		if err != nil {
-			fmt.Println("Setting up change notification on registry value failed: %v", err)
-		}
+		// Function call for proper defer semantics.
+		func() {
+			// Open the key within the loop, because "If the specified key is closed, the event is
+			// signaled. This means that an application should not depend on the key being open after
+			// returning from a wait operation on the event." -
+			// https://docs.microsoft.com/en-us/windows/win32/api/winreg/nf-winreg-regnotifychangekeyvalue
+			key, err := registry.OpenKey(registry.CURRENT_USER, registryPath, syscall.KEY_NOTIFY)
+			if err != nil {
+				fmt.Println("open key: " + err.Error())
+				return
+			}
+			defer key.Close()
 
-		fmt.Println(getSystemTheme())
+			err = regNotifyChangeKeyValue(windows.Handle(key), false, REG_NOTIFY_CHANGE_LAST_SET, windows.Handle(0), false)
+			if err != nil {
+				fmt.Println("Setting up change notification on registry value failed: %v", err)
+			}
+
+			theme, err := getSystemTheme()
+			if err != nil {
+				log.Error().Err(err).Msg("get system theme")
+				return
+			}
+			log.Debug().Str("theme", string(theme)).Msg("got theme update")
+
+			// The systray library has a timeout issue trying to change the icon sometimes. As a
+			// cheap workaround, do this update a handful of times hoping one will work. Sadly the
+			// API doesn't return an error in these cases.
+			for i := 0; i < 10; i++ {
+				iconManager.UpdateTheme(theme)
+				time.Sleep(1 * time.Second)
+			}
+		}()
 	}
 }
