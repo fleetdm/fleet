@@ -921,7 +921,7 @@ func ingestKubequeryInfo(ctx context.Context, logger log.Logger, host *fleet.Hos
 
 	host.Hostname = fmt.Sprintf("kubequery %s", rows[0]["cluster_name"])
 
-	// These values are not phorovided by kubequery
+	// These values are not provided by kubequery
 	host.OsqueryVersion = "kubequery"
 	host.Platform = "kubequery"
 	return nil
