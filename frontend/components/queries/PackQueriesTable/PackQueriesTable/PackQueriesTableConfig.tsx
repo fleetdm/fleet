@@ -149,7 +149,6 @@ const generateTableHeaders = (
       ),
     },
     {
-      title: "Performance impact",
       Header: () => {
         return (
           <div>

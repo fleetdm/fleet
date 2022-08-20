@@ -1264,7 +1264,7 @@ const ManageHostsPage = ({
   const renderMDMSolutionFilterBlock = () => {
     if (mdmSolutionDetails) {
       const { name, server_url } = mdmSolutionDetails;
-      const buttonText = `${name !== "Unknown" && name} ${server_url}`;
+      const buttonText = name ? `${name} ${server_url}` : `${server_url}`;
       return (
         <div className={`${baseClass}__mdm-solution-filter-block`}>
           <div>
