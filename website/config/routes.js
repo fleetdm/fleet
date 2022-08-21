@@ -303,6 +303,7 @@ module.exports.routes = {
   'GET /defcon':                 'https://kqphpqst851.typeform.com/to/Y6NYxM5A',
   'GET /osquery-stickers':       'https://kqphpqst851.typeform.com/to/JxJ8YnxG',
   'GET /swag':                   'https://kqphpqst851.typeform.com/to/Y6NYxM5A',
+  'GET /community':              'https://osquery.slack.com/join/shared_invite/zt-h29zm0gk-s2DBtGUTW4CFel0f0IjTEw#/',
 
   //  ╦ ╦╔═╗╔╗ ╦ ╦╔═╗╔═╗╦╔═╔═╗
   //  ║║║║╣ ╠╩╗╠═╣║ ║║ ║╠╩╗╚═╗
