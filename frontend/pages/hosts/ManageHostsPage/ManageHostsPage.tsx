@@ -54,7 +54,6 @@ import {
 import Button from "components/buttons/Button";
 // @ts-ignore
 import Dropdown from "components/forms/fields/Dropdown";
-import HostSidePanel from "components/side_panels/HostSidePanel";
 import QuerySidePanel from "components/side_panels/QuerySidePanel";
 import TableContainer from "components/TableContainer";
 import TableDataError from "components/DataError";
@@ -62,6 +61,7 @@ import { IActionButtonProps } from "components/TableContainer/DataTable/ActionBu
 import TeamsDropdown from "components/TeamsDropdown";
 import Spinner from "components/Spinner";
 import MainContent from "components/MainContent";
+import SidePanelContent from "components/SidePanelContent";
 
 import { getValidatedTeamId } from "utilities/helpers";
 import {
@@ -1830,6 +1830,15 @@ const ManageHostsPage = ({
           )}
         </>
       </MainContent>
+      {isAddLabel && (
+        <SidePanelContent>
+          <QuerySidePanel
+            key="query-side-panel"
+            onOsqueryTableSelect={onOsqueryTableSelect}
+            selectedOsqueryTable={selectedOsqueryTable}
+          />
+        </SidePanelContent>
+      )}
 
       {canEnrollHosts && showDeleteSecretModal && renderDeleteSecretModal()}
       {canEnrollHosts && showSecretEditorModal && renderSecretEditorModal()}
