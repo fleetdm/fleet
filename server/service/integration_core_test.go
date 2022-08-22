@@ -962,6 +962,7 @@ func (s *integrationTestSuite) TestListHosts() {
 	require.Len(t, resp.Hosts, 1)
 	assert.Nil(t, resp.Software)
 	assert.Nil(t, resp.MDMSolution)
+	assert.Nil(t, resp.MunkiIssue)
 
 	resp = listHostsResponse{}
 	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &resp, "order_key", "h.id", "after", fmt.Sprint(hosts[1].ID))
@@ -1008,11 +1009,20 @@ func (s *integrationTestSuite) TestListHosts() {
 	require.Len(t, resp.Hosts, 0)
 	assert.Nil(t, resp.Software)
 	assert.Nil(t, resp.MDMSolution)
+	assert.Nil(t, resp.MunkiIssue)
 	resp = listHostsResponse{}
 	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &resp, "mdm_enrollment_status", "manual")
 	require.Len(t, resp.Hosts, 0)
 	assert.Nil(t, resp.Software)
 	assert.Nil(t, resp.MDMSolution)
+	assert.Nil(t, resp.MunkiIssue)
+	// and same by munki issue id
+	resp = listHostsResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &resp, "munki_issue_id", fmt.Sprint(999))
+	require.Len(t, resp.Hosts, 0)
+	assert.Nil(t, resp.Software)
+	assert.Nil(t, resp.MDMSolution)
+	assert.Nil(t, resp.MunkiIssue)
 
 	// set MDM information on a host
 	require.NoError(t, s.ds.SetOrUpdateMDMData(context.Background(), host.ID, true, "https://simplemdm.com", false))
@@ -1029,23 +1039,27 @@ func (s *integrationTestSuite) TestListHosts() {
 	require.Len(t, resp.Hosts, 1)
 	assert.Nil(t, resp.Software)
 	assert.Nil(t, resp.MDMSolution)
+	assert.Nil(t, resp.MunkiIssue)
 
 	resp = listHostsResponse{}
 	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &resp, "mdm_enrollment_status", "automatic")
 	require.Len(t, resp.Hosts, 0)
 	assert.Nil(t, resp.Software)
 	assert.Nil(t, resp.MDMSolution)
+	assert.Nil(t, resp.MunkiIssue)
 
 	resp = listHostsResponse{}
 	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &resp, "mdm_enrollment_status", "unenrolled")
 	require.Len(t, resp.Hosts, 0)
 	assert.Nil(t, resp.Software)
 	assert.Nil(t, resp.MDMSolution)
+	assert.Nil(t, resp.MunkiIssue)
 
 	resp = listHostsResponse{}
 	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &resp, "mdm_id", fmt.Sprint(mdmID))
 	require.Len(t, resp.Hosts, 1)
 	assert.Nil(t, resp.Software)
+	assert.Nil(t, resp.MunkiIssue)
 	require.NotNil(t, resp.MDMSolution)
 	assert.Equal(t, mdmID, resp.MDMSolution.ID)
 	assert.Equal(t, 1, resp.MDMSolution.HostsCount)
@@ -1056,11 +1070,43 @@ func (s *integrationTestSuite) TestListHosts() {
 	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &resp, "mdm_id", fmt.Sprint(mdmID), "mdm_enrollment_status", "manual")
 	require.Len(t, resp.Hosts, 1)
 	assert.Nil(t, resp.Software)
+	assert.Nil(t, resp.MunkiIssue)
 	assert.NotNil(t, resp.MDMSolution)
 	assert.Equal(t, mdmID, resp.MDMSolution.ID)
 
 	resp = listHostsResponse{}
 	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusInternalServerError, &resp, "mdm_enrollment_status", "invalid-status") // TODO: to be addressed by #4406
+
+	// set munki information on a host
+	require.NoError(t, s.ds.SetOrUpdateMunkiInfo(context.Background(), host.ID, "1.2.3", []string{"err"}, []string{"warn"}))
+	var errMunkiID uint
+	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(context.Background(), q, &errMunkiID,
+			`SELECT id FROM munki_issues WHERE name = 'err' AND issue_type = 'error'`)
+	})
+	// generate aggregated stats
+	require.NoError(t, s.ds.GenerateAggregatedMunkiAndMDM(context.Background()))
+
+	resp = listHostsResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &resp, "munki_issue_id", fmt.Sprint(errMunkiID))
+	require.Len(t, resp.Hosts, 1)
+	assert.Nil(t, resp.Software)
+	assert.Nil(t, resp.MDMSolution)
+	require.NotNil(t, resp.MunkiIssue)
+	assert.Equal(t, fleet.AggregatedMunkiIssue{
+		ID:         errMunkiID,
+		Name:       "err",
+		IssueType:  "error",
+		HostsCount: 1,
+	}, *resp.MunkiIssue)
+
+	// filters can be combined, no problem
+	resp = listHostsResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &resp, "munki_issue_id", fmt.Sprint(errMunkiID), "mdm_id", fmt.Sprint(mdmID))
+	require.Len(t, resp.Hosts, 1)
+	assert.Nil(t, resp.Software)
+	assert.NotNil(t, resp.MDMSolution)
+	assert.NotNil(t, resp.MunkiIssue)
 }
 
 func (s *integrationTestSuite) TestInvites() {

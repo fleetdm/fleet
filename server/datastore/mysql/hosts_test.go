@@ -3811,7 +3811,6 @@ func testHostMDMAndMunki(t *testing.T, ds *Datastore) {
 }
 
 func testMunkiIssuesBatchSize(t *testing.T, ds *Datastore) {
-	// TODO(mna): test batch size limit for munki issues
 	ctx := context.Background()
 
 	allIDs := make(map[string]uint)
