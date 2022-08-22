@@ -244,7 +244,7 @@ For all following flows, please refer to the [permissions documentation](https:/
 
 #### Set up flow
 
-Successfully set up `fleetctl preview` using the preview steps outlined [here](https://fleetdm.com/get-started)
+Successfully set up `fleetctl preview` using the preview steps outlined [here](https://fleetdm.com/fleetctl-preview)
 
 #### Log in and log out flow
 
