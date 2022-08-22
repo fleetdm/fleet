@@ -52,7 +52,7 @@ export default {
   },
   loadAll: ({
     page = 0,
-    perPage = 100,
+    perPage = 20,
     globalFilter = "",
   }: ILoadTeamsParams = {}): Promise<ILoadTeamsResponse> => {
     const { TEAMS } = endpoints;
