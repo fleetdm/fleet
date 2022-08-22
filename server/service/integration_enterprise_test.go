@@ -448,6 +448,14 @@ func (s *integrationEnterpriseTestSuite) TestTeamEndpoints() {
 	require.NoError(t, json.Unmarshal(*tmResp.Team.Config.AgentOptions, &m))
 	assert.Equal(t, opts, m)
 
+	// list activities, it should have created one for edited_agent_options
+	var listActivities listActivitiesResponse
+	s.DoJSON("GET", "/api/latest/fleet/activities", nil, http.StatusOK, &listActivities, "order_key", "id", "order_direction", "desc")
+	require.True(t, len(listActivities.Activities) > 0)
+	assert.Equal(t, fleet.ActivityTypeEditedAgentOptions, listActivities.Activities[0].Type)
+	require.NotNil(t, listActivities.Activities[0].Details)
+	assert.JSONEq(t, fmt.Sprintf(`{"global": false, "team_id": %d, "team_name": %q}`, tm1ID, team.Name), string(*listActivities.Activities[0].Details))
+
 	// modify team agent options - unknown team
 	tmResp.Team = nil
 	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/teams/%d/agent_options", tm1ID+1), opts, http.StatusNotFound, &tmResp)
