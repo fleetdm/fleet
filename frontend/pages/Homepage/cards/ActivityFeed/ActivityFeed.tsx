@@ -30,7 +30,7 @@ interface IActivityDisplay extends IActivity {
 const DEFAULT_GRAVATAR_URL =
   "https://www.gravatar.com/avatar/00000000000000000000000000000000?d=blank&size=200";
 
-const DEFAULT_PER_PAGE = 8;
+const DEFAULT_PAGE_SIZE = 8;
 
 const TAGGED_TEMPLATES = {
   liveQueryActivityTemplate: (activity: IActivity) => {
@@ -91,7 +91,7 @@ const ActivityFeed = ({
       perPage: number;
     }>
   >(
-    [{ scope: "activities", pageIndex, perPage: DEFAULT_PER_PAGE }],
+    [{ scope: "activities", pageIndex, perPage: DEFAULT_PAGE_SIZE }],
     ({ queryKey: [{ pageIndex: page, perPage }] }) => {
       return activitiesAPI.loadNext(page, perPage);
     },
@@ -101,7 +101,7 @@ const ActivityFeed = ({
       select: (data) => data.activities,
       onSuccess: (results) => {
         setShowActivityFeedTitle(true);
-        if (results.length < DEFAULT_PER_PAGE) {
+        if (results.length < DEFAULT_PAGE_SIZE) {
           setShowMore(false);
         }
       },
