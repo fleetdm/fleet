@@ -171,6 +171,7 @@ resource "docker_registry_image" "jitprovisioner" {
   build {
     context     = "${path.module}/lambda/"
     pull_parent = true
+    platform    = "linux/amd64"
   }
   depends_on = [
     local_file.standard-query-library

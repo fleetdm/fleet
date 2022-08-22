@@ -9,7 +9,7 @@ import RoboDogImage from "../../../../../../assets/images/robo-dog-176x144@2x.pn
 interface INoHostsProps {
   toggleAddHostsModal: () => void;
   canEnrollHosts?: boolean;
-  includesSoftwareOrPolicyFilter?: boolean;
+  includesNameCardFilter?: boolean;
 }
 
 const baseClass = "no-hosts";
@@ -17,10 +17,10 @@ const baseClass = "no-hosts";
 const NoHosts = ({
   toggleAddHostsModal,
   canEnrollHosts,
-  includesSoftwareOrPolicyFilter,
+  includesNameCardFilter,
 }: INoHostsProps): JSX.Element => {
   const renderContent = () => {
-    if (includesSoftwareOrPolicyFilter) {
+    if (includesNameCardFilter) {
       return (
         <div>
           <h1>No hosts match the current criteria</h1>
@@ -64,9 +64,7 @@ const NoHosts = ({
   return (
     <div className={`${baseClass}`}>
       <div className={`${baseClass}__inner`}>
-        {!includesSoftwareOrPolicyFilter && (
-          <img src={RoboDogImage} alt="No Hosts" />
-        )}
+        {!includesNameCardFilter && <img src={RoboDogImage} alt="No Hosts" />}
         {renderContent()}
       </div>
     </div>

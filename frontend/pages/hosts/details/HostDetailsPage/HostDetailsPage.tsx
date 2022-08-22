@@ -536,6 +536,7 @@ const HostDetailsPage = ({
   }
 
   const statusClassName = classnames("status", `status--${host?.status}`);
+  const failingPoliciesCount = titleData?.issues;
 
   return (
     <MainContent className={baseClass}>
@@ -571,10 +572,8 @@ const HostDetailsPage = ({
               <Tab>Software</Tab>
               <Tab>Schedule</Tab>
               <Tab>
-                {titleData.issues.failing_policies_count > 0 && (
-                  <span className="count">
-                    {titleData.issues.failing_policies_count}
-                  </span>
+                {failingPoliciesCount > 0 && (
+                  <span className="count">{failingPoliciesCount}</span>
                 )}
                 Policies
               </Tab>

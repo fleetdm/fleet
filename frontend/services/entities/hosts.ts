@@ -19,6 +19,9 @@ export interface ILoadHostsOptions {
   policyId?: number;
   policyResponse?: string;
   softwareId?: number;
+  mdmId?: number;
+  mdmEnrollmentStatus?: string;
+  operatingSystemId?: number;
   device_mapping?: boolean;
   columns?: string;
   visibleColumns?: string;
@@ -34,6 +37,9 @@ export interface IExportHostsOptions {
   policyId?: number;
   policyResponse?: string;
   softwareId?: number;
+  mdmId?: number;
+  mdmEnrollmentStatus?: string;
+  operatingSystemId?: number;
   device_mapping?: boolean;
   columns?: string;
   visibleColumns?: string;
@@ -99,9 +105,50 @@ const getPolicyParams = (
 const getSoftwareParam = (
   label?: string,
   policyId?: number,
-  softwareId?: number
+  softwareId?: number,
+  mdmId?: number,
+  mdmEnrollmentStatus?: string
 ) => {
-  return label === undefined && policyId === undefined ? softwareId : undefined;
+  return !label && !policyId && !mdmId && !mdmEnrollmentStatus
+    ? softwareId
+    : undefined;
+};
+
+const getMDMSolutionParam = (
+  label?: string,
+  policyId?: number,
+  softwareId?: number,
+  mdmId?: number,
+  mdmEnrollmentStatus?: string
+) => {
+  return !label && !policyId && !softwareId && !mdmEnrollmentStatus
+    ? mdmId
+    : undefined;
+};
+
+const getMDMEnrollmentStatusParam = (
+  label?: string,
+  policyId?: number,
+  softwareId?: number,
+  mdmId?: number,
+  mdmEnrollmentStatus?: string
+) => {
+  return !label && !policyId && !softwareId && !mdmId
+    ? mdmEnrollmentStatus
+    : undefined;
+};
+
+const getOperatingSystemParam = (
+  label?: string,
+  policyId?: number,
+  softwareId?: number,
+  operatingSystemId?: number
+) => {
+  return label === undefined &&
+    policyId === undefined &&
+    softwareId === undefined
+    ? operatingSystemId
+    : undefined;
 };
 
 export default {
@@ -141,6 +188,8 @@ export default {
     const policyId = options?.policyId || null;
     const policyResponse = options?.policyResponse || "passing";
     const softwareId = options?.softwareId || null;
+    const mdmId = options?.mdmId || null;
+    const mdmEnrollmentStatus = options?.mdmEnrollmentStatus || null;
     const visibleColumns = options?.visibleColumns || null;
 
     if (!sortBy.length) {
@@ -171,7 +220,7 @@ export default {
       path += `&team_id=${teamId}`;
     }
 
-    // Label OR policy_id OR software_id are valid filters.
+    // label OR policy_id OR software_id OR mdm_id OR mdm_enrollment_status are valid filters.
     if (label) {
       const lid = label.substr(labelPrefix.length);
       path += `&label_id=${parseInt(lid, 10)}`;
@@ -182,8 +231,16 @@ export default {
       path += `&policy_response=${policyResponse}`;
     }
 
-    if (!label && !policyId && softwareId) {
+    if (!label && !policyId && !mdmId && !mdmEnrollmentStatus && softwareId) {
       path += `&software_id=${softwareId}`;
+    }
+
+    if (!label && !policyId && !softwareId && !mdmEnrollmentStatus && mdmId) {
+      path += `&mdm_id=${mdmId}`;
+    }
+
+    if (!label && !policyId && !softwareId && !mdmId && mdmEnrollmentStatus) {
+      path += `&mdm_enrollment_status=${mdmEnrollmentStatus}`;
     }
 
     if (visibleColumns) {
@@ -196,12 +253,15 @@ export default {
   },
   loadHosts: ({
     page = 0,
-    perPage = 100,
+    perPage = 20,
     globalFilter,
     teamId,
     policyId,
     policyResponse = "passing",
     softwareId,
+    mdmId,
+    mdmEnrollmentStatus,
+    operatingSystemId,
     device_mapping,
     selectedLabels,
     sortBy,
@@ -221,10 +281,32 @@ export default {
       policy_id: policyParams.policy_id,
       policy_response: policyParams.policy_response,
       software_id: getSoftwareParam(label, policyId, softwareId),
+      mdm_id: getMDMSolutionParam(
+        label,
+        policyId,
+        softwareId,
+        mdmId,
+        mdmEnrollmentStatus
+      ),
+      mdm_enrollment_status: getMDMEnrollmentStatusParam(
+        label,
+        policyId,
+        softwareId,
+        mdmId,
+        mdmEnrollmentStatus
+      ),
+      operating_system_id: getOperatingSystemParam(
+        label,
+        policyId,
+        softwareId,
+        operatingSystemId
+      ),
+
       status: getStatusParam(selectedLabels),
     };
 
     const queryString = buildQueryStringFromParams(queryParams);
+
     const endpoint = getHostEndpoint(selectedLabels);
     const path = `${endpoint}?${queryString}`;
     return sendRequest("GET", path);

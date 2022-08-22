@@ -474,6 +474,17 @@ spec:
   contributors: DominusKelvin
 ---
 apiVersion: v1
+kind: query
+spec:
+  name: Get operating system information
+  platforms: macOS, Windows, Linux
+  description: Returns the operating system name and version on the device.
+  query: SELECT name, version FROM os_version;
+  purpose: Informational
+  tags: inventory, built-in
+  contributors: noahtalerman
+---
+apiVersion: v1
 kind: policy
 spec:
   name: Gatekeeper enabled (macOS)
@@ -489,7 +500,7 @@ apiVersion: v1
 kind: policy
 spec:
   name: Full disk encryption enabled (Windows)
-  query: SELECT 1 FROM bitlocker_info where protection_status = 1;
+  query: SELECT 1 FROM bitlocker_info WHERE drive_letter='C:' AND protection_status=1;
   description: Checks to make sure that full disk encryption is enabled on Windows devices.
   resolution:
     "To get additional information, run the following osquery query on the failing device: SELECT * FROM bitlocker_info. In the
@@ -727,18 +738,6 @@ spec:
   tags: compliance, hardening, built-in
   platform: windows
   contributors: GuillaumeRoss
----
-apiVersion: v1
-kind: policy
-spec:
-  name: Capable of running macOS Ventura, version 13 (macOS)
-  query: SELECT 1 FROM (SELECT value from kolide_ioreg where c = 'IOPlatformExpertDevice' and d = 1 and r=1 and key = 'model' UNION SELECT value from kolide_ioreg where c = 'IOPlatformExpertDevice' and d = 1 and r=1 and key = 'board-id' UNION SELECT value from kolide_ioreg where c = 'IOPlatformExpertDevice' and d = 1 and r=1 and key = 'bridge-model') WHERE (value like 'iMac18,1' or value like 'iMac18,3' or value like 'iMac19,1' or value like 'iMac18,2' or value like 'iMac19,2' or value like 'iMac20,1' or value like 'iMac20,2' or value like 'iMac21,1' or value like 'iMac21,2' or value like 'iMacPro1,1' or value like 'Mac13,1' or value like 'Mac13,2' or value like 'Mac14,2' or value like 'Mac14,7' or value like 'MacBook10,1' or value like 'MacBookAir8,2' or value like 'MacBookAir8,1' or value like 'MacBookAir9,1' or value like 'MacBookAir10,1' or value like 'MacBookPro14,1' or value like 'MacBookPro14,2' or value like 'MacBookPro14,3' or value like 'MacBookPro15,1' or value like 'MacBookPro15,2' or value like 'MacBookPro15,3' or value like 'MacBookPro15,4' or value like 'MacBookPro16,1' or value like 'MacBookPro16,2' or value like 'MacBookPro16,3' or value like 'MacBookPro16,4' or value like 'MacBookPro17,1' or value like 'MacBookPro18,1' or value like 'MacBookPro18,2' or value like 'MacBookPro18,3' or value like 'MacBookPro18,4' or value like 'Macmini8,1' or value like 'Macmini9,1' or value like 'MacPro7,1' or value like 'VirtualMac2,1' or value like 'Mac-0CFF9C7C2B63DF8D' or value like 'MacBookAir8,1' or value like 'MacBookAir9,1' or value like 'MacBookAir10,1' or value like 'MacBookPro14,1' or value like 'MacBookPro14,2' or value like 'MacBookPro14,3' or value like 'MacBookPro15,1' or value like 'MacBookPro15,2' or value like 'MacBookPro15,3' or value like 'MacBookPro15,4' or value like 'MacBookPro16,1' or value like 'MacBookPro16,2' or value like 'MacBookPro16,3' or value like 'MacBookPro16,4' or value like 'MacBookPro17,1' or value like 'MacBookPro18,1' or value like 'MacBookPro18,2' or value like 'MacBookPro18,3' or value like 'MacBookPro18,4' or value like 'Macmini8,1' or value like 'Macmini9,1' or value like 'MacPro7,1' or value like 'VirtualMac2,1' or value like 'Mac-0CFF9C7C2B63DF8D' or value like 'Mac-112818653D3AABFC' or value like 'Mac-1E7E29AD0135F9BC' or value like 'Mac-226CB3C6A851A671' or value like 'Mac-27AD2F918AE68F61' or value like 'Mac-4B682C642B45593E' or value like 'Mac-53FDB3D8DB8CA971' or value like 'Mac-551B86E5744E2388' or value like 'Mac-5F9802EFE386AA28' or value like 'Mac-63001698E7A34814' or value like 'Mac-77F17D7DA9285301' or value like 'Mac-7BA5B2D9E42DDD94' or value like 'Mac-77F17D7DA9285or value like 'Mac-77F17D7DA9285301' or value like 'Mac-7BA5B2DFE22DDD8C' or value like 'Mac-827FAC58A8FDFA22' or value like 'Mac-827FB448E656EC26' or value like 'Mac-937A206F2EE63C01' or value like 'Mac-A61BADE1FDAD7B05' or value like 'Mac-AA95B1DDAB278B95' or value like 'Mac-AF89B6D9451A490B' or value like 'Mac-B4831CEBD52A0C4C' or value like 'Mac-BE088AF8C5EB4FA2' or value like 'Mac-CAD6701F7CEA0921' or value like 'Mac-CFF7D910A743CAAF' or value like 'Mac-E1008331FDC96864' or value like 'Mac-E7203C0F68AA0004' or value like 'Mac-EE2EBD4B90B839A8' or value like 'J132AP' or value like 'J137AP' or value like 'J140AAP' or value like 'J140KAP' or value like 'J152FAP' or value like 'J160AP' or value like 'J174AP' or value like 'J185AP' or value like 'J185FAP' or value like 'J213AP' or value like 'J214AP' or value like 'J214KAP' or value like 'J215AP' or value like 'J223AP' or value like 'J230AP' or value like 'J230KAP' or value like 'J274AP' or value like 'J293AP' or value like 'J313AP' or value like 'J314cAP' or value like 'J314sAP' or value like 'J316cAP' or value like 'J316sAP' or value like 'J375cAP' or value like 'J375dAP' or value like 'J413AP' or value like 'J456AP' or value like 'J457AP' or value like 'J493AP' or value like 'J680AP' or value like 'J780AP' or value like 'VMA2MACOSAP' or value like 'VMM-x86_64' or value like 'X589AMLUAP' or value like 'X86LEGACYAP') limit 1;
-  description: "Checks that the hardware is capable of running macOS Ventura. This requires Kolide's osquery extension that does not come with Fleet. You will need to build and deploy the extension before using this policy."
-  resolution: "Contact your IT administrator to help you procure a new macOS device capable of running macOS Ventura."
-  platforms: macOS
-  tags: compliance, inventory, hardware
-  platform: darwin
-  contributors: erikng
 ---
 apiVersion: v1
 kind: policy

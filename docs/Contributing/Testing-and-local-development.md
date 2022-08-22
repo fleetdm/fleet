@@ -51,7 +51,7 @@ REDIS_TEST=1 MYSQL_TEST=1 make test
 To run all Go unit tests, run the following:
 
 ```
-REDIS_TEST=1 MYSQL_TEST=1 MINIO_STORAGE_TEST=1 make test-go
+REDIS_TEST=1 MYSQL_TEST=1 MINIO_STORAGE_TEST=1 SAML_IDP_TEST=1 make test-go
 ```
 
 ### Go linters

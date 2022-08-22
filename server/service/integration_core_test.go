@@ -520,11 +520,6 @@ func (s *integrationTestSuite) TestVulnerableSoftware() {
 	assert.Contains(t, string(bodyBytes), expectedJSONSoft2)
 	assert.Contains(t, string(bodyBytes), expectedJSONSoft1)
 
-	countReq := countSoftwareRequest{}
-	countResp := countSoftwareResponse{}
-	s.DoJSON("GET", "/api/latest/fleet/software/count", countReq, http.StatusOK, &countResp)
-	assert.Equal(t, 3, countResp.Count)
-
 	// no software host counts have been calculated yet, so this returns nothing
 	var lsResp listSoftwareResponse
 	resp = s.Do("GET", "/api/latest/fleet/software", nil, http.StatusOK, "vulnerable", "true", "order_key", "generated_cpe", "order_direction", "desc")
@@ -536,14 +531,19 @@ func (s *integrationTestSuite) TestVulnerableSoftware() {
 	require.Len(t, lsResp.Software, 0)
 	assert.Nil(t, lsResp.CountsUpdatedAt)
 
+	// calculate hosts counts
+	hostsCountTs := time.Now().UTC()
+	require.NoError(t, s.ds.SyncHostsSoftware(context.Background(), hostsCountTs))
+
+	countReq := countSoftwareRequest{}
+	countResp := countSoftwareResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/software/count", countReq, http.StatusOK, &countResp)
+	assert.Equal(t, 3, countResp.Count)
+
 	// the software/count endpoint is different, it doesn't care about hosts counts
 	countResp = countSoftwareResponse{}
 	s.DoJSON("GET", "/api/latest/fleet/software/count", countReq, http.StatusOK, &countResp, "vulnerable", "true", "order_key", "generated_cpe", "order_direction", "desc")
 	assert.Equal(t, 1, countResp.Count)
-
-	// calculate hosts counts
-	hostsCountTs := time.Now().UTC()
-	require.NoError(t, s.ds.SyncHostsSoftware(context.Background(), hostsCountTs))
 
 	// now the list software endpoint returns the software
 	lsResp = listSoftwareResponse{}
@@ -957,10 +957,13 @@ func (s *integrationTestSuite) TestListHosts() {
 	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &resp)
 	require.Len(t, resp.Hosts, len(hosts))
 
+	resp = listHostsResponse{}
 	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &resp, "per_page", "1")
 	require.Len(t, resp.Hosts, 1)
 	assert.Nil(t, resp.Software)
+	assert.Nil(t, resp.MDMSolution)
 
+	resp = listHostsResponse{}
 	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &resp, "order_key", "h.id", "after", fmt.Sprint(hosts[1].ID))
 	require.Len(t, resp.Hosts, len(hosts)-2)
 
@@ -971,6 +974,7 @@ func (s *integrationTestSuite) TestListHosts() {
 	require.NoError(t, s.ds.UpdateHostSoftware(context.Background(), host.ID, software))
 	require.NoError(t, s.ds.LoadHostSoftware(context.Background(), host, false))
 
+	resp = listHostsResponse{}
 	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &resp, "software_id", fmt.Sprint(host.Software[0].ID))
 	require.Len(t, resp.Hosts, 1)
 	assert.Equal(t, host.ID, resp.Hosts[0].ID)
@@ -986,21 +990,29 @@ func (s *integrationTestSuite) TestListHosts() {
 
 	require.NoError(t, s.ds.RecordPolicyQueryExecutions(context.Background(), host, map[uint]*bool{p.ID: ptr.Bool(false)}, time.Now(), false))
 
+	resp = listHostsResponse{}
 	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &resp, "software_id", fmt.Sprint(host.Software[0].ID))
 	require.Len(t, resp.Hosts, 1)
 	assert.Equal(t, 1, resp.Hosts[0].HostIssues.FailingPoliciesCount)
 	assert.Equal(t, 1, resp.Hosts[0].HostIssues.TotalIssuesCount)
 
+	resp = listHostsResponse{}
 	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &resp, "software_id", fmt.Sprint(host.Software[0].ID), "disable_failing_policies", "true")
 	require.Len(t, resp.Hosts, 1)
 	assert.Equal(t, 0, resp.Hosts[0].HostIssues.FailingPoliciesCount)
 	assert.Equal(t, 0, resp.Hosts[0].HostIssues.TotalIssuesCount)
 
 	// filter by MDM criteria without any host having such information
+	resp = listHostsResponse{}
 	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &resp, "mdm_id", fmt.Sprint(999))
 	require.Len(t, resp.Hosts, 0)
+	assert.Nil(t, resp.Software)
+	assert.Nil(t, resp.MDMSolution)
+	resp = listHostsResponse{}
 	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &resp, "mdm_enrollment_status", "manual")
 	require.Len(t, resp.Hosts, 0)
+	assert.Nil(t, resp.Software)
+	assert.Nil(t, resp.MDMSolution)
 
 	// set MDM information on a host
 	require.NoError(t, s.ds.SetOrUpdateMDMData(context.Background(), host.ID, true, "https://simplemdm.com", false))
@@ -1009,18 +1021,45 @@ func (s *integrationTestSuite) TestListHosts() {
 		return sqlx.GetContext(context.Background(), q, &mdmID,
 			`SELECT id FROM mobile_device_management_solutions WHERE name = ? AND server_url = ?`, fleet.WellKnownMDMSimpleMDM, "https://simplemdm.com")
 	})
+	// generate aggregated stats
+	require.NoError(t, s.ds.GenerateAggregatedMunkiAndMDM(context.Background()))
 
+	resp = listHostsResponse{}
 	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &resp, "mdm_enrollment_status", "manual")
 	require.Len(t, resp.Hosts, 1)
+	assert.Nil(t, resp.Software)
+	assert.Nil(t, resp.MDMSolution)
+
+	resp = listHostsResponse{}
 	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &resp, "mdm_enrollment_status", "automatic")
 	require.Len(t, resp.Hosts, 0)
+	assert.Nil(t, resp.Software)
+	assert.Nil(t, resp.MDMSolution)
+
+	resp = listHostsResponse{}
 	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &resp, "mdm_enrollment_status", "unenrolled")
 	require.Len(t, resp.Hosts, 0)
+	assert.Nil(t, resp.Software)
+	assert.Nil(t, resp.MDMSolution)
+
+	resp = listHostsResponse{}
 	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &resp, "mdm_id", fmt.Sprint(mdmID))
 	require.Len(t, resp.Hosts, 1)
+	assert.Nil(t, resp.Software)
+	require.NotNil(t, resp.MDMSolution)
+	assert.Equal(t, mdmID, resp.MDMSolution.ID)
+	assert.Equal(t, 1, resp.MDMSolution.HostsCount)
+	assert.Equal(t, fleet.WellKnownMDMSimpleMDM, resp.MDMSolution.Name)
+	assert.Equal(t, "https://simplemdm.com", resp.MDMSolution.ServerURL)
+
+	resp = listHostsResponse{}
 	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &resp, "mdm_id", fmt.Sprint(mdmID), "mdm_enrollment_status", "manual")
 	require.Len(t, resp.Hosts, 1)
+	assert.Nil(t, resp.Software)
+	assert.NotNil(t, resp.MDMSolution)
+	assert.Equal(t, mdmID, resp.MDMSolution.ID)
 
+	resp = listHostsResponse{}
 	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusInternalServerError, &resp, "mdm_enrollment_status", "invalid-status") // TODO: to be addressed by #4406
 }
 
@@ -5073,8 +5112,8 @@ func (s *integrationTestSuite) TestSandboxEndpoints() {
 	require.NotEqual(t, http.StatusOK, res.StatusCode)
 
 	// installers endpoint is not enabled
-	validURL := installerURL(enrollSecret, "pkg", false)
-	s.Do("GET", validURL, nil, http.StatusInternalServerError)
+	url, installersBody := installerPOSTReq(enrollSecret, "pkg", s.token, false)
+	s.DoRaw("POST", url, installersBody, http.StatusInternalServerError)
 }
 
 func (s *integrationTestSuite) TestGetHostBatteries() {
