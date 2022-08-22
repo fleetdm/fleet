@@ -17,7 +17,7 @@ func Up_20220818101352(tx *sql.Tx) error {
 	// Add temp column.
 	//-----------------
 	if _, err := tx.Exec(
-		`ALTER TABLE software ADD COLUMN vendor_wide varchar(114) NULL, ALGORITHM=INPLACE, LOCK=NONE`); err != nil {
+		`ALTER TABLE software ADD COLUMN vendor_wide varchar(114) DEFAULT '' NOT NULL, ALGORITHM=INPLACE, LOCK=NONE`); err != nil {
 		return errors.Wrapf(err, "creating temp column for vendor")
 	}
 
@@ -30,21 +30,12 @@ func Up_20220818101352(tx *sql.Tx) error {
 	}
 
 	//------------------
-	// Update in batches
+	// Perform update
 	//------------------
-	const updateStmt = `UPDATE software SET vendor_wide = vendor WHERE vendor_wide IS NULL LIMIT 500`
-	for {
-		res, err := tx.Exec(updateStmt)
-		if err != nil {
-			return errors.Wrapf(err, "updating temp vendor column")
-		}
-		affected, err := res.RowsAffected()
-		if err != nil {
-			return errors.Wrapf(err, "updating temp vendor column")
-		}
-		if affected == 0 {
-			break
-		}
+	const updateStmt = `UPDATE software SET vendor_wide = vendor WHERE vendor <> ''`
+	_, err := tx.Exec(updateStmt)
+	if err != nil {
+		return errors.Wrapf(err, "updating temp vendor column")
 	}
 
 	//----------------
@@ -58,15 +49,15 @@ func Up_20220818101352(tx *sql.Tx) error {
 	// Rename old column
 	//------------------
 	if _, err := tx.Exec(`ALTER TABLE software CHANGE vendor vendor_old varchar(32) DEFAULT '' NOT NULL, ALGORITHM=INPLACE, LOCK=NONE`); err != nil {
-		return errors.Wrapf(err, "dropping old column")
+		return errors.Wrapf(err, "renaming old column")
 	}
 
 	// ---------------
-	// Rename column
+	// Rename new column
 	// ---------------
 	if _, err := tx.Exec(
 		`ALTER TABLE software CHANGE vendor_wide vendor varchar(114) DEFAULT '' NOT NULL, ALGORITHM=INPLACE, LOCK=NONE`); err != nil {
-		return errors.Wrapf(err, "dropping old column")
+		return errors.Wrapf(err, "renaming new column")
 	}
 
 	logger.Info.Println("Done increasing width of software.vendor...")
