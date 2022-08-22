@@ -151,17 +151,19 @@ func (n *nodeKeyManager) Add(nodekey string) {
 }
 
 type agent struct {
-	agentIndex     int
-	softwareCount  softwareEntityCount
-	userCount      entityCount
-	policyPassProb float64
-	strings        map[string]string
-	serverAddress  string
-	fastClient     fasthttp.Client
-	stats          *Stats
-	nodeKeyManager *nodeKeyManager
-	nodeKey        string
-	templates      *template.Template
+	agentIndex      int
+	softwareCount   softwareEntityCount
+	userCount       entityCount
+	policyPassProb  float64
+	munkiIssueProb  float64
+	munkiIssueCount int
+	strings         map[string]string
+	serverAddress   string
+	fastClient      fasthttp.Client
+	stats           *Stats
+	nodeKeyManager  *nodeKeyManager
+	nodeKey         string
+	templates       *template.Template
 	// deviceAuthToken holds Fleet Desktop device authentication token.
 	//
 	// Non-nil means the agent is identified as orbit osquery,
@@ -196,6 +198,7 @@ func newAgent(
 	configInterval, queryInterval time.Duration, softwareCount softwareEntityCount, userCount entityCount,
 	policyPassProb float64,
 	orbitProb float64,
+	munkiIssueProb float64, munkiIssueCount int,
 ) *agent {
 	var deviceAuthToken *string
 	if rand.Float64() <= orbitProb {
@@ -206,12 +209,14 @@ func newAgent(
 		InsecureSkipVerify: true,
 	}
 	return &agent{
-		agentIndex:     agentIndex,
-		serverAddress:  serverAddress,
-		softwareCount:  softwareCount,
-		userCount:      userCount,
-		strings:        make(map[string]string),
-		policyPassProb: policyPassProb,
+		agentIndex:      agentIndex,
+		serverAddress:   serverAddress,
+		softwareCount:   softwareCount,
+		userCount:       userCount,
+		strings:         make(map[string]string),
+		policyPassProb:  policyPassProb,
+		munkiIssueProb:  munkiIssueProb,
+		munkiIssueCount: munkiIssueCount,
 		fastClient: fasthttp.Client{
 			TLSConfig: tlsConfig,
 		},
@@ -368,7 +373,7 @@ func (a *agent) config() {
 
 const stringVals = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-_."
 
-func (a *agent) randomString(n int) string {
+func randomString(n int) string {
 	sb := strings.Builder{}
 	sb.Grow(n)
 	for i := 0; i < n; i++ {
@@ -381,7 +386,7 @@ func (a *agent) CachedString(key string) string {
 	if val, ok := a.strings[key]; ok {
 		return val
 	}
-	val := a.randomString(12)
+	val := randomString(12)
 	a.strings[key] = val
 	return val
 }
@@ -654,9 +659,42 @@ func (a *agent) mdm() []map[string]string {
 	}
 }
 
+var munkiIssues = func() []string {
+	// generate a list of 100 random munki issues (messages)
+	issues := make([]string, 100)
+	for i := range issues {
+		// message size: between 60 and 200, with spaces between each 10-char word so
+		// that it can still make a bit of sense for UI tests.
+		numParts := rand.Intn(15) + 6 // number between 0-14, add 6 to get between 6-20
+		var sb strings.Builder
+		for j := 0; j < numParts; j++ {
+			if j > 0 {
+				sb.WriteString(" ")
+			}
+			sb.WriteString(randomString(10))
+		}
+		issues[i] = sb.String()
+	}
+	return issues
+}()
+
 func (a *agent) munkiInfo() []map[string]string {
+	var errors, warnings []string
+
+	if rand.Float64() <= a.munkiIssueProb {
+		for i := 0; i < a.munkiIssueCount; i++ {
+			if rand.Intn(2) == 1 {
+				errors = append(errors, munkiIssues[rand.Intn(len(munkiIssues))])
+			} else {
+				warnings = append(warnings, munkiIssues[rand.Intn(len(munkiIssues))])
+			}
+		}
+	}
+
+	errList := strings.Join(errors, ";")
+	warnList := strings.Join(warnings, ";")
 	return []map[string]string{
-		{"version": "1.2.3"},
+		{"version": "1.2.3", "errors": errList, "warnings": warnList},
 	}
 }
 
@@ -843,6 +881,8 @@ func main() {
 	uniqueUserCount := flag.Int("unique_user_count", 10, "Number of unique host users reported to fleet")
 	policyPassProb := flag.Float64("policy_pass_prob", 1.0, "Probability of policies to pass [0, 1]")
 	orbitProb := flag.Float64("orbit_prob", 0.5, "Probability of a host being identified as orbit install [0, 1]")
+	munkiIssueProb := flag.Float64("munki_issue_prob", 0.5, "Probability of a host having munki issues (note that ~50% of hosts have munki installed) [0, 1]")
+	munkiIssueCount := flag.Int("munki_issue_count", 10, "Number of munki issues reported by hosts identified to have munki issues")
 
 	flag.Parse()
 
@@ -902,6 +942,8 @@ func main() {
 			},
 			*policyPassProb,
 			*orbitProb,
+			*munkiIssueProb,
+			*munkiIssueCount,
 		)
 		a.stats = stats
 		a.nodeKeyManager = nodeKeyManager
