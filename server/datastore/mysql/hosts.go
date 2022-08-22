@@ -458,9 +458,6 @@ func (ds *Datastore) ListHosts(ctx context.Context, filter fleet.TeamFilter, opt
 
 	sql, params = ds.applyHostFilters(opt, sql, filter, params)
 
-	level.Info(ds.logger).Log("msg", sql)
-	level.Info(ds.logger).Log("msg", fmt.Sprintf("%v", params))
-
 	hosts := []*fleet.Host{}
 	if err := sqlx.SelectContext(ctx, ds.reader, &hosts, sql, params...); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "list hosts")
@@ -533,8 +530,6 @@ func (ds *Datastore) applyHostFilters(opt fleet.HostListOptions, sql string, fil
 	sql, params = filterHostsByTeam(sql, opt, params)
 	sql, params = filterHostsByPolicy(sql, opt, params)
 	sql, params = filterHostsByMDM(sql, opt, params)
-	level.Info(ds.logger).Log("msg", fmt.Sprintf("%+v", opt))
-
 	sql, params = filterHostsByOS(sql, opt, params)
 	sql, params = hostSearchLike(sql, params, opt.MatchQuery, hostSearchColumns...)
 	sql, params = appendListOptionsWithCursorToSQL(sql, params, opt.ListOptions)
@@ -1961,6 +1956,12 @@ WHERE
 	// aggregate counts by name and version
 	byNameVers := make(map[string]fleet.OSVersion)
 	for _, os := range counts {
+		if name != nil &&
+			version != nil &&
+			*name != os.NameOnly &&
+			*version != os.Version {
+			continue
+		}
 		key := fmt.Sprintf("%s %s", os.NameOnly, os.Version)
 		val, ok := byNameVers[key]
 		if !ok {
@@ -1973,14 +1974,8 @@ WHERE
 		}
 	}
 
-	if name == nil && version == nil {
-		// all counts
-		for _, os := range byNameVers {
-			res.OSVersions = append(res.OSVersions, os)
-		}
-	} else if os, ok := byNameVers[fmt.Sprintf("%s %s", *name, *version)]; ok {
-		// only count for specified name and version
-		res.OSVersions = []fleet.OSVersion{os}
+	for _, os := range byNameVers {
+		res.OSVersions = append(res.OSVersions, os)
 	}
 
 	// Sort by os versions. We can't control the order when using json_arrayagg
