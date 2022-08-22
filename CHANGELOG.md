@@ -96,6 +96,9 @@ page would not stack vertically at smaller screen widths.
 
 ## Fleet 4.17.0 (Jul 8, 2022)
 
+* Added the number of hosts enrolled by operating system (OS) and its version to usage statistics. Also added the weekly active users count to usage statistics.
+Documentation on how to disable usage statistics, can be found here on [fleetdm.com](https://fleetdm.com/docs/using-fleet/usage-statistics#disable-usage-statistics).
+
 * Fleet Premium and Fleet Free: Fleet desktop is officially out of beta. This application shows users exactly what's going on with their device and gives them the tools they need to make sure it is secure and aligned with policies. They just need to click an icon in their menu bar. 
 
 * Fleet Premium and Fleet Free: Fleet's osquery installer is officially out of beta. Orbit is a lightweight wrapper for osquery that allows you to easily deploy, configure and keep osquery up-to-date across your organization. 
@@ -124,11 +127,7 @@ page would not stack vertically at smaller screen widths.
 
 * Added support for scanning RHEL-based and Fedora hosts for vulnerable software using OVAL definitions.
 
-* Fixed SQL generated for operating system version policies to reduce false negatives
-
-* Added the number of hosts enrolled by Operating System (OS) and its version to anonymous usage statistics.
-
-* Added the weekly active users count to anonymous usage statistics.
+* Fixed SQL generated for operating system version policies to reduce false negatives.
 
 ## Fleet 4.16.0 (Jun 20, 2022)
 
