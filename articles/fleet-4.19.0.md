@@ -58,7 +58,7 @@ individual host's **Host details** page.
 * Improved the **Queries**, **Schedule**, and **Policies** pages in the Fleet UI by page size to 20
   items. 
 
-* Improve the Fleet UI by informing the user that Fleet only supports screen widths above 768px.
+* Improved the Fleet UI by informing the user that Fleet only supports screen widths above 768px.
 
 * Added support for asynchronous saving of the hosts' scheduled query statistics. This is an
 experimental feature and should only be used if you're seeing performance issues. Documentation
