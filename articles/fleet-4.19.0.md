@@ -50,7 +50,7 @@ In 4.19.0, we also:
 
 * Added a message in `fleetctl` that notifies users to run `fleet prepare` instead of `fleetctl prepare` when running database migrations for Fleet.
 
-* Improved the Fleet UI by maintaining applied, host filters when a user navigates back to the Hosts page from an
+* Improved the Fleet UI by maintaining applied host filters when a user navigates back to the Hosts page from an
 individual host's **Host details** page.
 
 * Improved the Fleet UI by adding consistent styling for **Cancel** buttons.
