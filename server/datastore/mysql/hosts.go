@@ -467,10 +467,6 @@ func (ds *Datastore) ListHosts(ctx context.Context, filter fleet.TeamFilter, opt
 }
 
 func (ds *Datastore) applyHostFilters(opt fleet.HostListOptions, sql string, filter fleet.TeamFilter, params []interface{}) (string, []interface{}) {
-	if opt.OSNameFilter != nil && opt.OSVersionFilter != nil {
-		level.Error(ds.logger).Log("err", fmt.Sprintf("name %s version %s", *opt.OSNameFilter, *opt.OSVersionFilter))
-	}
-
 	deviceMappingJoin := `LEFT JOIN (
 		SELECT
 			host_id,
