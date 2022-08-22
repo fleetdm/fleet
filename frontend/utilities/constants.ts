@@ -185,7 +185,7 @@ export const DEFAULT_POLICIES = [
   {
     key: 17,
     query: "SELECT 1 FROM os_version WHERE version >= '12.5.1';",
-    name: "Operating system up to date (macOS) (CIS 1.1)",
+    name: "Operating system up to date (macOS) [CIS 1.1]",
     description: "Checks that the operating system is up to date.",
     resolution:
       "Go to the Software Update section of System Preferences and install the latest updates.",
@@ -195,7 +195,7 @@ export const DEFAULT_POLICIES = [
     key: 19,
     query:
       "SELECT 1 FROM managed_policies WHERE domain='com.apple.SoftwareUpdate' AND name='AutomaticCheckEnabled' AND value=1 LIMIT 1;",
-    name: "Automatic updates enabled (macOS) (CIS 1.2)",
+    name: "Automatic updates enabled (macOS) [CIS 1.2]",
     description:
       "Checks that the operating system is configured to automatically checks for updates.",
     resolution:
@@ -206,7 +206,7 @@ export const DEFAULT_POLICIES = [
     key: 20,
     query:
       "SELECT 1 FROM managed_policies WHERE domain='com.apple.SoftwareUpdate' AND name='AutomaticDownload' AND value=1 LIMIT 1;",
-    name: "Automatic update downloads enabled (macOS) (CIS 1.3)",
+    name: "Automatic update downloads enabled (macOS) [CIS 1.3]",
     description:
       "Checks that the operating system is configured to automatically download updates.",
     resolution:
@@ -217,7 +217,7 @@ export const DEFAULT_POLICIES = [
     key: 21,
     query:
       "SELECT 1 FROM managed_policies WHERE domain='com.apple.SoftwareUpdate' AND name='AutomaticallyInstallAppUpdates' AND value=1 LIMIT 1;",
-    name: "Installation of application updates is enabled (macOS) (CIS 1.4)",
+    name: "Installation of application updates is enabled (macOS) [CIS 1.4]",
     description:
       "Checks that the operating system is configured to automatically download updates to Apple applications.",
     resolution:

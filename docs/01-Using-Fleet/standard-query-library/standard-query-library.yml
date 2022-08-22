@@ -779,8 +779,8 @@ spec:
 apiVersion: v1
 kind: policy
 spec:
-  name: Automatic updates enabled (macOS)
-  query: SELECT 1 FROM managed_policies WHERE domain='com.apple.SoftwareUpdate' AND name='AutomaticCheckEnabled' AND value=1 LIMIT 1;
+  name: Automatic update downloads enabled (macOS)
+  query: SELECT 1 FROM managed_policies WHERE domain='com.apple.SoftwareUpdate' AND name='AutomaticDownload' AND value=1 LIMIT 1;
   description: "Checks that the operating system is configured to automatically download updates."
   resolution: "Contact your IT administrator to ensure your Mac is receiving a profile that enables automatic update downloads."
   platforms: macOS
@@ -792,7 +792,7 @@ apiVersion: v1
 kind: policy
 spec:
   name: Installation of application updates is enabled (macOS)
-  query: SELECT 1 FROM managed_policies WHERE domain='com.apple.SoftwareUpdate' AND name='AutomaticCheckEnabled' AND value=1 LIMIT 1;
+  query: SELECT 1 FROM managed_policies WHERE domain='com.apple.SoftwareUpdate' AND name='AutomaticallyInstallAppUpdates' AND value=1 LIMIT 1;
   description: "Checks that the operating system is configured to automatically download updates to Apple applications."
   resolution: "Contact your IT administrator to ensure your Mac is receiving a profile that enables automatic application update downloads."
   platforms: macOS
