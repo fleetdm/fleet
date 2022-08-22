@@ -114,6 +114,7 @@ func TestHosts(t *testing.T) {
 		{"ReplaceHostDeviceMapping", testHostsReplaceHostDeviceMapping},
 		{"HostMDMAndMunki", testHostMDMAndMunki},
 		{"AggregatedHostMDMAndMunki", testAggregatedHostMDMAndMunki},
+		{"MunkiIssuesBatchSize", testMunkiIssuesBatchSize},
 		{"HostLite", testHostsLite},
 		{"UpdateOsqueryIntervals", testUpdateOsqueryIntervals},
 		{"UpdateRefetchRequested", testUpdateRefetchRequested},
@@ -3809,9 +3810,71 @@ func testHostMDMAndMunki(t *testing.T, ds *Datastore) {
 	assert.Equal(t, fleet.WellKnownMDMKandji, hmdm.Name)
 }
 
-func testAggregatedHostMDMAndMunki(t *testing.T, ds *Datastore) {
+func testMunkiIssuesBatchSize(t *testing.T, ds *Datastore) {
 	// TODO(mna): test batch size limit for munki issues
+	ctx := context.Background()
 
+	allIDs := make(map[string]uint)
+	storeIDs := func(msgToID map[[2]string]uint) {
+		for k, v := range msgToID {
+			assert.NotZero(t, v)
+			allIDs[k[0]] = v
+		}
+	}
+
+	cases := []struct {
+		errors   []string
+		warnings []string
+	}{
+		{nil, nil},
+
+		{[]string{"a"}, nil},
+		{[]string{"b", "c"}, nil},
+		{[]string{"d", "e", "f"}, nil},
+		{[]string{"g", "h", "i", "j"}, nil},
+		{[]string{"k", "l", "m", "n", "o"}, nil},
+
+		{nil, []string{"A"}},
+		{nil, []string{"B", "C"}},
+		{nil, []string{"D", "E", "F"}},
+		{nil, []string{"G", "H", "I", "J"}},
+		{nil, []string{"K", "L", "M", "N", "O"}},
+
+		{[]string{"a", "p", "q"}, []string{"A", "B", "P"}},
+	}
+	for _, c := range cases {
+		t.Run(strings.Join(c.errors, ",")+","+strings.Join(c.warnings, ","), func(t *testing.T) {
+			msgToID, err := ds.getOrInsertMunkiIssues(ctx, c.errors, c.warnings, 2)
+			require.NoError(t, err)
+			require.Len(t, msgToID, len(c.errors)+len(c.warnings))
+			storeIDs(msgToID)
+		})
+	}
+
+	// try those errors/warning with some hosts
+	require.NoError(t, ds.SetOrUpdateMunkiInfo(context.Background(), 123, "1.2.3", []string{"a", "b"}, []string{"C"}))
+	issues, err := ds.GetMunkiIssues(ctx, 123)
+	require.NoError(t, err)
+	require.Len(t, issues, 3)
+	for _, iss := range issues {
+		assert.Equal(t, allIDs[iss.Name], iss.MunkiIssueID)
+	}
+
+	require.NoError(t, ds.SetOrUpdateMunkiInfo(context.Background(), 123, "1.2.3", []string{"c", "z"}, []string{"D", "E", "Z"}))
+	issues, err = ds.GetMunkiIssues(ctx, 123)
+	require.NoError(t, err)
+	require.Len(t, issues, 5)
+	for _, iss := range issues {
+		if iss.Name == "z" || iss.Name == "Z" {
+			// z/Z do not exist in allIDs, by checking not equal it ensures it is not 0
+			assert.NotEqual(t, allIDs[iss.Name], iss.MunkiIssueID)
+		} else {
+			assert.Equal(t, allIDs[iss.Name], iss.MunkiIssueID)
+		}
+	}
+}
+
+func testAggregatedHostMDMAndMunki(t *testing.T, ds *Datastore) {
 	// Make sure things work before data is generated
 	versions, updatedAt, err := ds.AggregatedMunkiVersion(context.Background(), nil)
 	require.NoError(t, err)
