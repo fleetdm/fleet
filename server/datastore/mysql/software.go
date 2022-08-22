@@ -804,6 +804,7 @@ func (ds *Datastore) SoftwareByID(ctx context.Context, id uint, includeCVEScores
 	}
 
 	var software fleet.Software
+	CVESeen := make(map[string]bool)
 	for i, result := range results {
 		result := result // create a copy because we need to take the address to fields below
 
@@ -812,6 +813,12 @@ func (ds *Datastore) SoftwareByID(ctx context.Context, id uint, includeCVEScores
 		}
 
 		if result.CVE != nil {
+			// Make sure software.Vulnerabilities does not include duplicates
+			if CVESeen[*result.CVE] {
+				continue
+			}
+			CVESeen[*result.CVE] = true
+
 			cveID := *result.CVE
 			cve := fleet.CVE{
 				CVE:         cveID,
