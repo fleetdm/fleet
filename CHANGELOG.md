@@ -1,6 +1,6 @@
 ## Fleet 4.19.0 (Aug 22, 2022)
 
-* Fleet Premium: De-anonymize usage statistics by adding an `organization` property to the usage statistics payload. For Fleet Free instances, organization is reported as "unknown". To turn off usage statistics in the Fleet UI, head to **Settings > Organization settings > Usage statistics**, de-select the **Enable usage statistics** checkbox, and select **Save**.
+* Fleet Premium: De-anonymize usage statistics by adding an `organization` property to the usage statistics payload. For Fleet Free instances, organization is reported as "unknown". Documentation on how to disable usage statistics, can be found here on [fleetdm.com](https://fleetdm.com/docs/using-fleet/usage-statistics#disable-usage-statistics).
 
 * Fleet Premium: Added support for Just-in-time (JIT) user provisioning via SSO. This adds the ability to
 automatically create Fleet user accounts when a new users attempts to log in to Fleet via SSO. New
