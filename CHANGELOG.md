@@ -1,6 +1,6 @@
 ## Fleet 4.19.0 (Aug 22, 2022)
 
-* Fleet Premium: De-anonymize usage statistics by adding an `organization` property to the usage statistics payload. For Fleet Free instances, organization is reported as "unknown". Documentation on how to disable usage statistics, can be found here on [fleetdm.com](https://fleetdm.com/docs/using-fleet/usage-statistics#disable-usage-statistics).
+* Fleet Premium: De-anonymize usage statistics by adding an `organization` property to the usage statistics payload. For Fleet Free instances, organization is reported as "unknown". Documentation on how to disable usage statistics, can be found [here on fleetdm.com](https://fleetdm.com/docs/using-fleet/usage-statistics#disable-usage-statistics).
 
 * Fleet Premium: Added support for Just-in-time (JIT) user provisioning via SSO. This adds the ability to
 automatically create Fleet user accounts when a new users attempts to log in to Fleet via SSO. New
@@ -97,7 +97,7 @@ page would not stack vertically at smaller screen widths.
 ## Fleet 4.17.0 (Jul 8, 2022)
 
 * Added the number of hosts enrolled by operating system (OS) and its version to usage statistics. Also added the weekly active users count to usage statistics.
-Documentation on how to disable usage statistics, can be found here on [fleetdm.com](https://fleetdm.com/docs/using-fleet/usage-statistics#disable-usage-statistics).
+Documentation on how to disable usage statistics, can be found [here on fleetdm.com](https://fleetdm.com/docs/using-fleet/usage-statistics#disable-usage-statistics).
 
 * Fleet Premium and Fleet Free: Fleet desktop is officially out of beta. This application shows users exactly what's going on with their device and gives them the tools they need to make sure it is secure and aligned with policies. They just need to click an icon in their menu bar. 
 
