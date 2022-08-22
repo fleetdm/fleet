@@ -17,7 +17,7 @@ Just-in-time user provisioning makes it easier to spread the power of Fleet and 
 Fleet will now automatically create a user account when a new user attempts to log in to Fleet via single sign-on (SSO). New user accounts are given the Observer role. For more information on roles and their permissions in Fleet, [check out the documentation on fleetdm.com/docs](https://fleetdm.com/docs/using-fleet/permissions).
 
 ## See remaining disk space for all hosts
-**Available in Fleet Free & Fleet Premium**
+**Available in Fleet Free and Fleet Premium**
 
 ![See remaining disk space for all hosts](../website/assets/images/articles/fleet-4.19.0-1.gif)
 
