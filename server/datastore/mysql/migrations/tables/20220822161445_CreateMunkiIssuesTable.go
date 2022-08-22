@@ -7,10 +7,10 @@ import (
 )
 
 func init() {
-	MigrationClient.AddMigration(Up_20220810161445, Down_20220810161445)
+	MigrationClient.AddMigration(Up_20220822161445, Down_20220822161445)
 }
 
-func Up_20220810161445(tx *sql.Tx) error {
+func Up_20220822161445(tx *sql.Tx) error {
 	logger.Info.Println("Creating table munki_issues...")
 	// name is actually the error/warning message - 255 ought to be enough, based
 	// on the example error messages the longest is only ~80. If we need a larger
@@ -52,6 +52,6 @@ func Up_20220810161445(tx *sql.Tx) error {
 	return nil
 }
 
-func Down_20220810161445(tx *sql.Tx) error {
+func Down_20220822161445(tx *sql.Tx) error {
 	return nil
 }
