@@ -14,7 +14,7 @@ For update instructions, see our [upgrade guide](https://fleetdm.com/docs/deploy
 Automated testing allows you to quickly and easily make sure that you can upgrade without unforseen consequences. Run the test with `FLEET_VERSION_A=v4.16.0 FLEET_VERSION_B=v4.17.0 go test ./test/upgrade` and see what happens when a Fleet server with version `A` is upgraded to version `B`! For more details, check out the [ticket](https://github.com/fleetdm/fleet/pull/6376). 
 
 ## Improved security for Fleet Desktop
-**Available in Fleet Free & Fleet Premium**
+**Available in Fleet Free and Fleet Premium**
 
 Fleet Desktop uses a random UUID to authenticate to the Fleet server. While it's extremely unlikely to fall victim to a brute-force attack, it's always better to be safe than sorry. In order to combat that possibility, we've added rate limiting for all device authorized endpoints. 
 
