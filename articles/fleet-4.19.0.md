@@ -19,6 +19,8 @@ Fleet will now automatically create a user account when a new user attempts to l
 ## See remaining disk space for all hosts
 **Available in Fleet Free & Fleet Premium**
 
+![See remaining disk space for all hosts](../website/assets/images/articles/fleet-4.19.0-1.gif)
+
 Fleet 4.19.0 adds the ability to quickly see which hosts may not have enough remaining disk space to install operating system updates.
 
 To see this in action in Fleet, head to the **Home > macOS** page and hover over a row in the **Operating systems** table. Select **View all hosts** to navigate to a list of hosts a specific operating system version installed. Finally, select the **Disk space available** column to sort hosts by least remaining disk space to most.
@@ -26,9 +28,13 @@ To see this in action in Fleet, head to the **Home > macOS** page and hover over
 ## Aggregate Windows and mobile device management (MDM) data
 **Available in Fleet Free & Fleet Premium**
 
+![Aggregate Windows data](../website/assets/images/articles/fleet-4.19.0-3-1200x675@2x.jpg)
+
 Fleet 4.19.0 adds the ability to see a list of all Windows operating system (OS) versions installed across all your hosts. 
 
 Also, Windows operating system versions are improved by including the display version like "21H" or "21H2." This allows you to quickly reference [endoflife.date/windows](https://endoflife.date/windows) to see which OS's Microsoft no longer supports. 
+
+![Aggregate mobile device management (MDM) data](../website/assets/images/articles/fleet-4.19.0-2.gif) 
 
 Fleet 4.19.0 also adds the improved Windows operating system versions on the **Hosts** page and **Host details** page in the Fleet UI as well as the `GET /hosts` and `GET /hosts/{id}` API routes.
 
@@ -70,8 +76,8 @@ page would not stack vertically at smaller screen widths.
 Visit our [Update guide](https://fleetdm.com/docs/deploying/upgrading-fleet) in the Fleet docs for instructions on updating to Fleet 4.18.0.
 
 <meta name="category" value="releases">
-<meta name="authorFullName" value="Kathy Satterlee">
-<meta name="authorGitHubUsername" value="ksatter">
-<meta name="publishedOn" value="2022-08-03">
-<meta name="articleTitle" value="Fleet 4.18.0 | Test Fleet upgrades before installing, better security and user messaging in Fleet Desktop">
-<meta name="articleImageUrl" value="../website/assets/images/articles/fleet-4.18.0-cover-1600x900@2x.jpg">
+<meta name="authorFullName" value="Noah Talerman">
+<meta name="authorGitHubUsername" value="noahtalerman">
+<meta name="publishedOn" value="2022-08-22">
+<meta name="articleTitle" value="Fleet 4.19.0 | Just-in-time (JIT) user provisioning, remaining disk space, aggregate Windows and mobile device management (MDM) data">
+<meta name="articleImageUrl" value="../website/assets/images/articles/fleet-4.19.0-cover-1600x900@2x.jpg">
