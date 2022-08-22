@@ -6,23 +6,15 @@
 automatically create Fleet user accounts when a new users attempts to log in to Fleet via SSO. New
 Fleet accounts are given the [Observer role](https://fleetdm.com/docs/using-fleet/permissions#user-permissions).
 
-* Improved performance for gathering aggregate software that is displayed on the **Software page** in the Fleet UI.
+* Improved performance for aggregating software inventory. Aggregate software inventory is displayed on the **Software page** in the Fleet UI.
 
-* MacOS dashboard view includes MDM solutions table and filters for hosts by MDM
+* Added the ability to see the vendor for Windows programs in software inventory. Vendor data is available in the [`GET /software` API route](https://fleetdm.com/docs/using-fleet/rest-api#software).
+
+* Added a **Mobile device management (MDM) solutions** table to the **Home > macOS** page. This table allows users to see a list of all MDM solutions their hosts are enrolled to and drill down to see which hosts are enrolled to each solution. Note that MDM solutions data is updated as hosts send fresh osquery results to Fleet. This typically occurs in an hour or so of upgrading.
+
+* Added a **Operating systems** table to the **Home > Windows** page. This table allows users to see a list of all Windows operating systems (ex. Windows 10 Pro 21H2) their hosts are running and drill down to see which hosts are running which version. Note that Windows operating system data is updated as hosts send fresh osquery results to Fleet. This typically occurs in an hour or so of upgrading.
 
 * Added a message in `fleetctl` to that notifies users to run `fleet prepare` instead of `fleetctl prepare` when running database migrations for Fleet.
-
-- Added new host detail queries to ingest operating system name, version, architecture, and
-  kernel version.
-- Updated `GET /os_versions` endpoint to include new request and response fields.
-- Updated `GET /hosts` endpoint to add `operating_system_id` query parameter.
-- Enhanced UI for host operating systems to include additional information for Windows and macOS.
-Note that the operating systems data and the aggregated stats are updated lazily to prevent a long
-database migration when upgrading to this Fleet version - the data will be updated as hosts send
-fresh osquery results to the Fleet instance. For online hosts this typically occurs within an hour
-or so after upgrading, when using default configuration values. Operating system data for offline
-hosts will not be available until the host comes back online. Aggregated stats will not include
-a host until that host has reported back at least once following the upgrade.
 
 * Improved the Fleet UI by maintaining applied, host filters when a user navigates back to the Hosts page from an
 individual host's **Host details** page.
