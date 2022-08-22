@@ -23,7 +23,7 @@ Fleet will now automatically create a user account when a new user attempts to l
 
 Fleet 4.19.0 adds the ability to quickly see which hosts may not have enough remaining disk space to install operating system updates.
 
-To see this in action in Fleet, head to the **Home > macOS** page and hover over a row in the **Operating systems** table. Select **View all hosts** to navigate to a list of hosts a specific operating system version installed. Finally, select the **Disk space available** column to sort hosts by least remaining disk space to most.
+To see this in action, head to the **Home > macOS** page and hover over a row in the **Operating systems** table. Select **View all hosts** to navigate to a list of hosts with a specific operating system version installed. Finally, select the **Disk space available** column to sort hosts by least remaining disk space to most.
 
 ## Aggregate Windows and mobile device management (MDM) data
 **Available in Fleet Free & Fleet Premium**
