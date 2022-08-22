@@ -30,7 +30,11 @@ const FilterPill = ({
   });
 
   return (
-    <div className={baseClasses}>
+    <div
+      className={baseClasses}
+      role="status"
+      aria-label={`hosts filtered by ${label}`}
+    >
       <>
         <span data-tip={tooltipDescription} data-for="filter-pill-tooltip">
           <div className={labelClasses}>
@@ -48,6 +52,7 @@ const FilterPill = ({
         </span>
         {tooltipDescription && (
           <ReactTooltip
+            role="tooltip"
             place="bottom"
             effect="solid"
             backgroundColor="#3e4771"
