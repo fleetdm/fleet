@@ -26,7 +26,7 @@ Fleet 4.19.0 adds the ability to quickly see which hosts may not have enough rem
 To see this in action, head to the **Home > macOS** page and hover over a row in the **Operating systems** table. Select **View all hosts** to navigate to a list of hosts with a specific operating system version installed. Finally, select the **Disk space available** column to sort hosts by least remaining disk space to most.
 
 ## Aggregate Windows and mobile device management (MDM) data
-**Available in Fleet Free & Fleet Premium**
+**Available in Fleet Free and Fleet Premium**
 
 ![Aggregate Windows data](../website/assets/images/articles/fleet-4.19.0-3-1200x675@2x.jpg)
 
