@@ -152,13 +152,6 @@ const TableContainer = ({
 
   const EmptyComponent = emptyComponent;
 
-  // NOTE: used to reset page number to 0 when modifying filters
-  useEffect(() => {
-    if (pageIndex !== 0 && resetPageIndex) {
-      onPaginationChange(0);
-    }
-  }, [resetPageIndex, pageIndex]);
-
   const onSortChange = useCallback(
     (id?: string, isDesc?: boolean) => {
       if (id === undefined) {
@@ -185,6 +178,13 @@ const TableContainer = ({
     },
     [hasPageIndexChangedRef]
   );
+
+  // NOTE: used to reset page number to 0 when modifying filters
+  useEffect(() => {
+    if (pageIndex !== 0 && resetPageIndex) {
+      onPaginationChange(0);
+    }
+  }, [resetPageIndex, pageIndex]);
 
   const onResultsCountChange = (resultsCount: number) => {
     setClientFilterCount(resultsCount);
