@@ -1,4 +1,5 @@
 import React, { useState, useCallback, useContext } from "react";
+import { Link } from "react-router";
 import { useQuery } from "react-query";
 import { InjectedRouter, Params } from "react-router/lib/Router";
 
@@ -24,6 +25,7 @@ import EditPackForm from "components/forms/packs/EditPackForm";
 import MainContent from "components/MainContent";
 import PackQueryEditorModal from "./components/PackQueryEditorModal";
 import RemovePackQueryModal from "./components/RemovePackQueryModal";
+import BackChevron from "../../../../assets/images/icon-chevron-down-9x6@2x.png";
 
 interface IEditPacksPageProps {
   router: InjectedRouter; // v3
@@ -225,6 +227,10 @@ const EditPacksPage = ({
   return (
     <MainContent className={baseClass}>
       <div className={`${baseClass}__wrapper`}>
+        <Link to={PATHS.MANAGE_PACKS} className={`${baseClass}__back-link`}>
+          <img src={BackChevron} alt="back chevron" id="back-chevron" />
+          <span>Back to packs</span>
+        </Link>
         {storedPack && storedPackQueries && (
           <EditPackForm
             className={`${baseClass}__pack-form`}
