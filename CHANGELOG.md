@@ -30,7 +30,6 @@ individual host's **Host details** page.
 experimental feature and should only be used if you're seeing performance issues. Documentation
 for this feature can be found [here on fleetdm.com](https://fleetdm.com/docs/deploying/configuration#osquery-enable-async-host-processing).
 
-
 * Fixed a bug in which the **Operating system** and **Munki versions** cards on the **Home > macOS**
 page would not stack vertically at smaller screen widths.
 
