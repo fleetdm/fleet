@@ -147,7 +147,21 @@ func (svc *Service) ModifyTeamAgentOptions(ctx context.Context, teamID uint, opt
 		team.Config.AgentOptions = nil
 	}
 
-	return svc.ds.SaveTeam(ctx, team)
+	tm, err := svc.ds.SaveTeam(ctx, team)
+	if err != nil {
+		return nil, err
+	}
+
+	if err := svc.ds.NewActivity(
+		ctx,
+		authz.UserFromContext(ctx),
+		fleet.ActivityTypeEditedAgentOptions,
+		&map[string]interface{}{"global": false, "team_id": team.ID, "team_name": team.Name},
+	); err != nil {
+		return nil, err
+	}
+
+	return tm, nil
 }
 
 func (svc *Service) AddTeamUsers(ctx context.Context, teamID uint, users []fleet.TeamUser) (*fleet.Team, error) {

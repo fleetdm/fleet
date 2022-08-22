@@ -40,6 +40,9 @@ const (
 	// ActivityTypeUserAddedBySSO is the activity type for new users added
 	// via SSO JIT provisioning
 	ActivityTypeUserAddedBySSO = "user_added_by_sso"
+	// ActivityTypeEditedAgentOptions is the activity type for when the agent
+	// options are edited (either globally or for a team).
+	ActivityTypeEditedAgentOptions = "edited_agent_options"
 )
 
 type Activity struct {
