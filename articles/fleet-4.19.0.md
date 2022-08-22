@@ -38,7 +38,7 @@ Also, Windows operating system versions now include the display version like "21
 
 Fleet 4.19.0 also adds the improved Windows operating system versions on the **Hosts** page and **Host details** page in the Fleet UI, as well as the `GET /hosts` and `GET /hosts/{id}` API routes.
 
-This release also adds the ability to see a list of all MDM solutions your hosts are enrolled to. Head to the **Home > macOS** page in Fleet to check out how your migration from one MDM solution to another is going.
+This release also lets you view a list of all MDM solutions to which your hosts are enrolled. Head to the **Home > macOS** page in Fleet to see how your migration from one MDM solution to another is going.
 
 ## More new features, improvements, and bug fixes
 
