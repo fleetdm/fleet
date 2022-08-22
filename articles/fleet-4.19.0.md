@@ -5,7 +5,7 @@ Fleet 4.19.0 is up and running. Check out the full [changelog](https://github.co
 For update instructions, see our [upgrade guide](https://fleetdm.com/docs/deploying/upgrading-fleet) in the Fleet docs.
 
 ## Highlights
-- Just-in-time (JIT) user provisioning
+- Access just-in-time (JIT) user provisioning.
 - See remaining disk space for all hosts
 - Aggregate Windows and mobile device management (MDM) data
 
