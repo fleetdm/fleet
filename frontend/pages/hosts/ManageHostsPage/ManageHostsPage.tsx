@@ -261,6 +261,7 @@ const ManageHostsPage = ({
   const [labelValidator, setLabelValidator] = useState<{
     [key: string]: string;
   }>(DEFAULT_CREATE_LABEL_ERRORS);
+  const [resetPageIndex, setResetPageIndex] = useState<boolean>(false);
 
   // ======== end states
 
@@ -619,7 +620,19 @@ const ManageHostsPage = ({
     return true;
   };
 
+  // NOTE: used to reset page number to 0 when modifying filters
+  const handleResetPageIndex = () => {
+    setTableQueryData({
+      ...tableQueryData,
+      pageIndex: 0,
+    } as ITableQueryProps);
+
+    setResetPageIndex(true);
+  };
+
   const handleChangePoliciesFilter = (response: PolicyResponse) => {
+    handleResetPageIndex();
+
     router.replace(
       getNextLocationPath({
         pathPrefix: PATHS.MANAGE_HOSTS,
@@ -634,6 +647,8 @@ const ManageHostsPage = ({
   };
 
   const handleClearPoliciesFilter = () => {
+    handleResetPageIndex();
+
     router.replace(
       getNextLocationPath({
         pathPrefix: PATHS.MANAGE_HOSTS,
@@ -645,6 +660,8 @@ const ManageHostsPage = ({
   };
 
   const handleClearOSFilter = () => {
+    handleResetPageIndex();
+
     router.replace(
       getNextLocationPath({
         pathPrefix: PATHS.MANAGE_HOSTS,
@@ -656,11 +673,14 @@ const ManageHostsPage = ({
   };
 
   const handleClearSoftwareFilter = () => {
+    handleResetPageIndex();
+
     router.replace(PATHS.MANAGE_HOSTS);
     setSoftwareDetails(null);
   };
 
   const handleClearMDMSolutionFilter = () => {
+    handleResetPageIndex();
     router.replace(PATHS.MANAGE_HOSTS);
     setMDMSolutionDetails(null);
   };
@@ -694,6 +714,8 @@ const ManageHostsPage = ({
       routeParams,
       queryParams: newQueryParams,
     });
+
+    handleResetPageIndex();
     router.replace(nextLocation);
     const selectedTeam = find(availableTeams, ["id", teamId]);
     setCurrentTeam(selectedTeam);
@@ -705,6 +727,8 @@ const ManageHostsPage = ({
     const selected = isAll
       ? find(labels, { type: "all" })
       : find(labels, { id: statusName });
+    handleResetPageIndex();
+
     handleLabelChange(selected as ILabel);
   };
 
@@ -733,6 +757,11 @@ const ManageHostsPage = ({
   const onCancelLabel = () => {
     router.goBack();
   };
+
+  // NOTE: used to reset page number to 0 when modifying filters
+  useEffect(() => {
+    setResetPageIndex(false);
+  }, [queryParams]);
 
   // NOTE: this is called once on initial render and every time the query changes
   const onTableQueryChange = useCallback(
@@ -822,6 +851,8 @@ const ManageHostsPage = ({
           queryParams: newQueryParams,
         })
       );
+
+      return 0;
     },
     [
       availableTeams,
@@ -1852,6 +1883,7 @@ const ManageHostsPage = ({
         onPrimarySelectActionClick={onDeleteHostsClick}
         onQueryChange={onTableQueryChange}
         toggleAllPagesSelected={toggleAllMatchingHosts}
+        resetPageIndex={resetPageIndex}
       />
     );
   };

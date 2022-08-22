@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useRef } from "react";
+import React, { useState, useCallback, useRef, useEffect } from "react";
 import classnames from "classnames";
 import { Row } from "react-table";
 import ReactTooltip from "react-tooltip";
@@ -67,7 +67,9 @@ interface ITableContainerProps {
   highlightOnHover?: boolean;
   pageSize?: number;
   onActionButtonClick?: () => void;
-  onQueryChange?: (queryData: ITableQueryData) => void;
+  onQueryChange?:
+    | ((queryData: ITableQueryData) => void)
+    | ((queryData: ITableQueryData) => number);
   onPrimarySelectActionClick?: (selectedItemIds: number[]) => void;
   customControl?: () => JSX.Element;
   stackControls?: boolean;
@@ -76,6 +78,7 @@ interface ITableContainerProps {
   renderCount?: () => JSX.Element | null;
   renderFooter?: () => JSX.Element | null;
   setExportRows?: (rows: Row[]) => void;
+  resetPageIndex?: boolean;
 }
 
 const baseClass = "table-container";
@@ -133,6 +136,7 @@ const TableContainer = ({
   renderCount,
   renderFooter,
   setExportRows,
+  resetPageIndex,
 }: ITableContainerProps): JSX.Element => {
   const [searchQuery, setSearchQuery] = useState("");
   const [sortHeader, setSortHeader] = useState(defaultSortHeader || "");
@@ -147,6 +151,13 @@ const TableContainer = ({
   const wrapperClasses = classnames(baseClass, className);
 
   const EmptyComponent = emptyComponent;
+
+  // NOTE: used to reset page number to 0 when modifying filters
+  useEffect(() => {
+    if (pageIndex !== 0 && resetPageIndex) {
+      onPaginationChange(0);
+    }
+  }, [resetPageIndex, pageIndex]);
 
   const onSortChange = useCallback(
     (id?: string, isDesc?: boolean) => {
@@ -195,8 +206,11 @@ const TableContainer = ({
     if (prevPageIndex.current === pageIndex) {
       setPageIndex(0);
     }
-
-    onQueryChange(queryData);
+    const newPageIndex = onQueryChange(queryData);
+    if (newPageIndex === 0) {
+      setPageIndex(0);
+    }
+    // onQueryChange(queryData);
 
     prevPageIndex.current = pageIndex;
   }, [
