@@ -458,6 +458,9 @@ func (ds *Datastore) ListHosts(ctx context.Context, filter fleet.TeamFilter, opt
 
 	sql, params = ds.applyHostFilters(opt, sql, filter, params)
 
+	level.Info(ds.logger).Log("msg", sql)
+	level.Info(ds.logger).Log("msg", fmt.Sprintf("%v", params))
+
 	hosts := []*fleet.Host{}
 	if err := sqlx.SelectContext(ctx, ds.reader, &hosts, sql, params...); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "list hosts")
@@ -467,6 +470,10 @@ func (ds *Datastore) ListHosts(ctx context.Context, filter fleet.TeamFilter, opt
 }
 
 func (ds *Datastore) applyHostFilters(opt fleet.HostListOptions, sql string, filter fleet.TeamFilter, params []interface{}) (string, []interface{}) {
+	if opt.OSNameFilter != nil && opt.OSVersionFilter != nil {
+		level.Error(ds.logger).Log("err", fmt.Sprintf("name %s version %s", *opt.OSNameFilter, *opt.OSVersionFilter))
+	}
+
 	deviceMappingJoin := `LEFT JOIN (
 		SELECT
 			host_id,
@@ -505,9 +512,9 @@ func (ds *Datastore) applyHostFilters(opt fleet.HostListOptions, sql string, fil
 		mdmJoin = ""
 	}
 
-	operatingSystemJoin := `JOIN host_operating_system hos ON h.id = hos.host_id`
-	if opt.OperatingSystemIDFilter == nil {
-		operatingSystemJoin = ""
+	operatingSystemJoin := ""
+	if opt.OSIDFilter != nil || (opt.OSNameFilter != nil && opt.OSVersionFilter != nil) {
+		operatingSystemJoin = `JOIN host_operating_system hos ON h.id = hos.host_id`
 	}
 
 	sql += fmt.Sprintf(`FROM hosts h
@@ -526,7 +533,9 @@ func (ds *Datastore) applyHostFilters(opt fleet.HostListOptions, sql string, fil
 	sql, params = filterHostsByTeam(sql, opt, params)
 	sql, params = filterHostsByPolicy(sql, opt, params)
 	sql, params = filterHostsByMDM(sql, opt, params)
-	sql, params = filterHostsByOsID(sql, opt, params)
+	level.Info(ds.logger).Log("msg", fmt.Sprintf("%+v", opt))
+
+	sql, params = filterHostsByOS(sql, opt, params)
 	sql, params = hostSearchLike(sql, params, opt.MatchQuery, hostSearchColumns...)
 	sql, params = appendListOptionsWithCursorToSQL(sql, params, opt.ListOptions)
 
@@ -559,10 +568,13 @@ func filterHostsByMDM(sql string, opt fleet.HostListOptions, params []interface{
 	return sql, params
 }
 
-func filterHostsByOsID(sql string, opt fleet.HostListOptions, params []interface{}) (string, []interface{}) {
-	if opt.OperatingSystemIDFilter != nil {
+func filterHostsByOS(sql string, opt fleet.HostListOptions, params []interface{}) (string, []interface{}) {
+	if opt.OSIDFilter != nil {
 		sql += ` AND hos.os_id = ?`
-		params = append(params, *opt.OperatingSystemIDFilter)
+		params = append(params, *opt.OSIDFilter)
+	} else if opt.OSNameFilter != nil && opt.OSVersionFilter != nil {
+		sql += ` AND hos.os_id IN (SELECT id FROM operating_systems WHERE name = ? AND version = ?)`
+		params = append(params, *opt.OSNameFilter, *opt.OSVersionFilter)
 	}
 	return sql, params
 }
@@ -1992,7 +2004,7 @@ func (ds *Datastore) UpdateOSVersions(ctx context.Context) error {
 	FROM hosts h
 	JOIN host_operating_system hos ON h.id = hos.host_id
 	JOIN operating_systems os ON hos.os_id = os.id
-	GROUP BY team_id, os.name, os.version
+	GROUP BY team_id, os.id
 	`
 
 	var rows []struct {

@@ -63,7 +63,9 @@ type HostListOptions struct {
 
 	SoftwareIDFilter *uint
 
-	OperatingSystemIDFilter *uint
+	OSIDFilter      *uint
+	OSNameFilter    *string
+	OSVersionFilter *string
 
 	DisableFailingPolicies bool
 
