@@ -1,6 +1,6 @@
 
 
-# Introducing Sandbox: the fastest way to play with Fleet
+# Introducing Sandbox, the fastest way to play with Fleet
 
 ![Fleet sandbox](../website/assets/images/articles/state-of-device-management-report-1600x900@2x.png)
 
