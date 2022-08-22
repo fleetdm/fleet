@@ -65,12 +65,8 @@ func (ts *withServer) TearDownSuite() {
 func (ts *withServer) Do(verb, path string, params interface{}, expectedStatusCode int, queryParams ...string) *http.Response {
 	t := ts.s.T()
 
-	var j []byte
-	var err error
-	if params != nil {
-		j, err = json.Marshal(params)
-		require.NoError(t, err)
-	}
+	j, err := json.Marshal(params)
+	require.NoError(t, err)
 
 	resp := ts.DoRaw(verb, path, j, expectedStatusCode, queryParams...)
 
