@@ -61,7 +61,7 @@ individual host's **Host details** page.
 * Improved the Fleet UI by informing the user that Fleet only supports screen widths above 768px.
 
 * Added support for asynchronous saving of the hosts' scheduled query statistics. This is an
-experimental feature and should only be used if you're seeing performance issues. Documentation
+experimental feature that should only be used if you're seeing performance issues. Documentation
 for this feature can be found [here on fleetdm.com](https://fleetdm.com/docs/deploying/configuration#osquery-enable-async-host-processing).
 
 * Fixed a bug in which the **Operating system** and **Munki versions** cards on the **Home > macOS**
