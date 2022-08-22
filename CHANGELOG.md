@@ -38,14 +38,6 @@ page would not stack vertically at smaller screen widths.
 
 * Fixed a bug that prevented Windows (`.msi`) installers from being generated on Windows machines.
 
-* Added the _mobile device management_ (MDM) solution name and ID to the `GET /api/v1/fleet/hosts/{id}/macadmins` endpoint, and compute aggregated stats by MDM solution, now returned as part of the `GET /api/v1/fleet/macadmins` endpoint. Note that the MDM solution name and the aggregated stats are updated lazily to prevent a long database migration when upgrading to this Fleet version - the data will be updated as hosts send fresh MDM osquery results to the Fleet instance (typically within an hour or so after upgrading, when using default configuration values).
-
-* Less dead space on queries table
-
-- Adds premier tier check before routing to team settings page
-
-* Removes retries for API request for host on Welcome to Fleet card
-
 ## Fleet 4.18.0 (Aug 1, 2022)
 
 * Added a Call to Action to the failing policy banner in Fleet Desktop. This empowers end-users to manage their device's compliance. 
