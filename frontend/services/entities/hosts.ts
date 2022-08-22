@@ -274,7 +274,7 @@ export default {
   },
   loadHosts: ({
     page = 0,
-    perPage = 100,
+    perPage = 20,
     globalFilter,
     teamId,
     policyId,
