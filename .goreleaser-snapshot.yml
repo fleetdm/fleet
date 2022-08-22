@@ -60,7 +60,7 @@ dockers:
     ids:
       - fleet
       - fleetctl
-    dockerfile: tools/docker/fleet.Dockerfile
+    dockerfile: tools/fleet-docker/Dockerfile
     image_templates:
       - 'fleetdm/fleet:{{ .ShortCommit }}'
 
