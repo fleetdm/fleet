@@ -32,7 +32,7 @@ To see this in action, head to the **Home > macOS** page and hover over a row in
 
 Fleet 4.19.0 adds the ability to see a list of all Windows operating system (OS) versions installed across all your hosts. 
 
-Also, Windows operating system versions are improved by including the display version like "21H" or "21H2." This allows you to quickly reference [endoflife.date/windows](https://endoflife.date/windows) to see which OS's Microsoft no longer supports. 
+Also, Windows operating system versions now include the display version like "21H" or "21H2." This allows you to quickly reference [endoflife.date/windows](https://endoflife.date/windows), so you can see which operating systems Microsoft no longer supports. 
 
 ![Aggregate mobile device management (MDM) data](../website/assets/images/articles/fleet-4.19.0-2.gif) 
 
