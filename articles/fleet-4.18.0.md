@@ -5,7 +5,7 @@ Fleet 4.18.0 is up and running. Check out the full [changelog](https://github.co
 For update instructions, see our [upgrade guide](https://fleetdm.com/docs/deploying/upgrading-fleet) in the Fleet docs.
 
 ## Highlights
-- Improved security for Fleet Desktop.
+- Enjoy improved security for Fleet Desktop.
 - Show your end users a call to action in Fleet desktop for failing policies.
 
 ## Automated testing for upgrading to a new version of Fleet
