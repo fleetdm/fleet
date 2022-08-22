@@ -48,7 +48,7 @@ In 4.19.0, we also:
 
 * Added the ability to see the vendor for Windows programs in software inventory. Vendor data is available in the [`GET /software` API route](https://fleetdm.com/docs/using-fleet/rest-api#software).
 
-* Added a message in `fleetctl` to that notifies users to run `fleet prepare` instead of `fleetctl prepare` when running database migrations for Fleet.
+* Added a message in `fleetctl` that notifies users to run `fleet prepare` instead of `fleetctl prepare` when running database migrations for Fleet.
 
 * Improved the Fleet UI by maintaining applied, host filters when a user navigates back to the Hosts page from an
 individual host's **Host details** page.
