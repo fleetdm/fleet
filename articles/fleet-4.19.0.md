@@ -6,7 +6,7 @@ For update instructions, see our [upgrade guide](https://fleetdm.com/docs/deploy
 
 ## Highlights
 - Access just-in-time (JIT) user provisioning.
-- See remaining disk space for all hosts
+- See remaining disk space for all hosts.
 - Aggregate Windows and mobile device management (MDM) data
 
 ## Just-in-time (JIT) user creation
