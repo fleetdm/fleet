@@ -33,12 +33,12 @@
 
 
   <%// Homepage content %>
-  <div purpose="homepage-section" style="background: #F4F6FA;" class="container-fluid justify-content center px-xl-4">
+  <div purpose="homepage-section" style="background: #F4F6FA;" class="container-fluid justify-content center px-4 px-sm-5">
     <div class="text-left mx-auto">
-      <div style="max-width: 1200px;" class="d-flex flex-xl-row flex-column align-items-center justify-content-between mx-auto">
+      <div style="max-width: 1200px;" class="d-flex flex-lg-row flex-column align-items-center justify-content-between mx-auto">
         <div style="max-width: 520px;" purpose="homepage-text-block">
           <h2 class="text-left pb-3">Fleet for osquery makes it easy to investigate all your servers and workstations</h2>
-          <p class="pb-3 pb-lg-4">Ask any question about any endpoint anywhere. Fleet is compatible with every MDM and EDR platform on the market. Our open-source agent protects privacy and performance. That’s data collection done right.</p>
+          <p class="pb-3 pb-lg-4">Ask any question about any endpoint anywhere. Fleet is compatible with every MDM and EDR platform on the market. Our open-source agent protects privacy and performance.</p>
           <a purpose="round-button" class="d-flex align-items-center justify-content-center mx-auto mx-sm-0 text-nowrap mt-3" @click="clickOpenVideoModal()">
             <img style="height: 24px; margin-right: 12px;" src="/images/icon-play-20x24@2x.png" alt="a small red play button"> See Fleet in action
           </a>
@@ -48,16 +48,16 @@
     </div>
   </div>
   <%// Product images and checklists %>
-  <div purpose="homepage-section" class="container-fluid justify-content center px-xl-0">
-    <div style="max-width: 1200px;" class="container-fluid px-0 px-xl-3 justify-content-center">
+  <div purpose="homepage-section" class="container-fluid justify-content center px-4 px-sm-5">
+    <div style="max-width: 1200px;" class="container-fluid px-0 justify-content-center">
 
       <%// First image and feature checklist %>
       <div purpose="features" class="container-lg d-flex flex-wrap flex-lg-nowrap justify-content-center justify-content-lg-between align-items-center mt-0">
-        <div purpose="feature-image" style="max-width: 500px;" class="d-flex flex-shrink-1">
+        <div purpose="feature-image" class="d-flex flex-shrink-1">
           <img alt="Fleet UI" style="max-width: 100%" src="images/feature-realtime-500x315@2x.png" class="m-lg-0"/>
         </div>
-        <div purpose="features-text" class="text-left pl-lg-4 pl-0 m-0">
-          <div style="max-width: 550px" class="mx-auto mx-lg-0">
+        <div purpose="features-text" class="text-left pl-0 m-0">
+          <div class="mx-auto mx-lg-0">
             <h2 class="mb-4">Accurate, comprehensive, up-to-date data</h2>
             <p>Get real-time results from all your endpoints — all in one place. Fleet fits into any security and compliance ecosystem. Our transparent approach makes adoption easier. So, you can find clues faster.</p>
             <div purpose="features-check-list" class="pt-4 mx-auto text-left">
@@ -76,8 +76,8 @@
 
       <%// Second image and feature checklist %>
       <div purpose="features" class="d-flex flex-wrap flex-lg-nowrap justify-content-lg-between justify-content-center align-items-center">
-        <div purpose="features-text" class="text-left m-0 pr-lg-4 pr-0">
-          <div style="max-width: 550px">
+        <div purpose="features-text" class="text-left m-0 pr-0">
+          <div>
           <h2 class="mb-4">No downtime risks or performance hits</h2>
           <p>Some security agents strain your systems. Fortunately, Fleet uses osquery. This open-source solution was built to be deployed across hundreds of thousands of devices. Because your tools shouldn’t slow you down.</p>
           <div purpose="features-check-list" class="pt-4 mx-auto text-left">
@@ -92,15 +92,15 @@
           </div>
           </div>
         </div>
-        <div purpose="feature-image" style="max-width: 500px;" class="order-first order-lg-last d-flex flex-shrink-1 m-0">
+        <div purpose="feature-image" class="order-first order-lg-last d-flex flex-shrink-1 m-0">
           <img alt="Fleet UI" src="images/feature-file-integrity-monitoring-500x296@2x.png" class="w-100 h-100 m-lg-0"/>
         </div>
       </div>
 
       <%// Third image and feature checklist %>
       <div purpose="features" class="d-flex flex-wrap flex-lg-nowrap justify-content-center justify-content-lg-between align-items-center">
-        <div purpose="features-text" class="text-left m-0 order-1 pl-lg-4 pl-0">
-          <div style="max-width: 550px">
+        <div purpose="features-text" class="text-left m-0 order-1 pl-0">
+          <div>
             <h2 class="mb-4">Complete control over the queries you run</h2>
             <p>Create complex, custom queries just for your organization. Or copy and paste queries that have been vetted by the Fleet community. Either way, webhooks will help you automate IT admin and security compliance.</p>
             <div purpose="features-check-list" class="pt-4 mx-auto text-left">
@@ -115,7 +115,7 @@
             </div>
           </div>
         </div>
-        <div purpose="feature-image" style="max-width: 500px;" class="order-first d-flex flex-shrink-1 m-0">
+        <div purpose="feature-image" class="order-first d-flex flex-shrink-1 m-0">
           <img alt="Fleet UI" src="images/feature-threat-detection-500x328@2x.png" class="w-100 h-100 m-lg-0"/>
         </div>
       </div>
@@ -172,7 +172,7 @@
   </div>
   <%// Background change to light gray%>
   <div purpose="homepage-section" style="background: #F4F6FA; position: relative">
-    <div class="container-lg text-center justify-content-center mx-auto">
+    <div style="max-width: 1200px;" class="container-lg text-center justify-content-center px-4 px-sm-5 mx-auto">
       <div purpose="homepage-text-block" class="d-flex flex-column align-items-center text-left text-sm-center mx-auto">
         <%// Slack call to action%>
         <h3 style="font-size: 24px; line-height: 40px;" class="text-left text-sm-center">Join the open-source community</h3>
@@ -274,12 +274,14 @@
 
   <%// Fleet Sandbox call to action %>
   <div purpose="homepage-section" style="background: #F4F6FA;" class="d-flex flex-column mx-auto align-items-center justify-content-center pt-0">
-    <img class="d-flex" style="max-width: 300px" src="/images/fleet-sandbox-300x244@2x.png" alt="Fleet Sandbox">
-    <h4 class="pt-4">Start your free trial</h4>
-    <p>Play around with Fleet on your device.</p>
-    <a purpose="round-button" style="padding: 16px 33px;" class="btn btn-block d-flex flex-row justify-content-center" href="/try-fleet/register?tryitnow">
-      Try it out
-    </a>
+    <div style="max-width: 1200px;" class="container-lg text-center justify-content-center px-4 px-sm-5">
+      <img class="d-flex" style="max-width: 300px" src="/images/fleet-sandbox-300x244@2x.png" alt="Fleet Sandbox">
+      <h4 class="pt-4">Start your free trial</h4>
+      <p>Play around with Fleet on your device.</p>
+      <a purpose="round-button" style="padding: 16px 33px;" class="btn btn-block d-flex flex-row justify-content-center align-items-center" href="/try-fleet/register?tryitnow">
+       Try it out
+      </a>
+    </div>
   </div>
 
   <modal v-if="modal === 'video'" @close="closeModal()" v-cloak>

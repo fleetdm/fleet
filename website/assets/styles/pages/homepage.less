@@ -68,6 +68,7 @@
   [purpose='hero-logos'] {
     background-color: #192147;
     height: 80px;
+    gap: 40px;
     [purpose='snowflake-logo'] {
       height: 30px;
     }
@@ -82,10 +83,7 @@
     }
   }
   [purpose='logo-column'] {
-    img {
-      margin-right: 35px;
-      margin-left: 35px;
-    }
+      gap: 40px;
   }
   [purpose='slack-button'] {
     background: #FFFFFF;
@@ -111,6 +109,9 @@
   [purpose='homepage-section'] {
     padding-top: 120px;
     padding-bottom: 120px;
+    .flex-lg-row {
+        gap: 60px;
+      }
   }
 
 
@@ -118,17 +119,20 @@
     padding-top: 44px;
   }
   [purpose='top-image'] {
-    max-width: 600px;
+    max-width: 540px;
     width: 100%;
   }
 
   [purpose='features-text'] {
-    max-width: 600px;
+    div {
+      max-width: 550px;
+    }  
   }
 
   [purpose='features'] {
     margin-top: 120px;
     margin-bottom: 120px;
+    gap: 60px;
     p {
       margin-bottom: 0px;
     }
@@ -137,6 +141,9 @@
         content: url('/images/icon-checkmark-6x6@2x.png');
         margin-right: 12px;
       }
+    }
+    [purpose='feature-image'] {
+      max-width: 500px;
     }
   }
 
@@ -185,22 +192,25 @@
     position: relative;
     max-width: 1200px;
     padding-top: 80px;
+    gap: 16px;
     [purpose='tweet-card'] {
       text-align: left;
       background: #FFFFFF;
       padding: 40px;
-      margin-bottom: 30px;
+      margin: 0;
       border: 1px solid #E2E4EA;
-      box-sizing: border-box;
+      box-sizing: unset;
       box-shadow: 0px 7px 3px 0px rgba(25, 33, 71, 0.1);
       border-radius: 16px;
+      flex: 1 1;
+      flex-basis: (33.33% - 16px);
     }
   }
   [purpose='tweets'].truncated {
-    max-height: 530px;
+    max-height: 580px;
     overflow: hidden;
     top: 0px;
-
+    gap: 16px;
   }
   [purpose='tweets'].truncated::before {
     content: '';
@@ -246,36 +256,9 @@
     }
   }
 
-  @media (min-width: 1200px) {
-    [purpose='tweets'] {
-      padding-left: 0px;
-      padding-right: 0px;
-      [purpose='tweet-card'] {
-        flex: 0 1 326px;
-      }
-    }
-  }
-
   @media (max-width: 1200px) {
-    [purpose='tweets'] {
-      padding-left: 72px;
-      padding-right: 72px;
-      [purpose='tweet-card'] {
-        flex: 1 1 330px;
-        margin-bottom: 15px;
-        margin-left: 8px;
-        margin-right: 8px;
-      }
-    }
     [purpose='feature-image'] {
-      width: 450px;
-    }
-    [purpose='features'] {
-      padding-left: 24px;
-      padding-right: 24px;
-    }
-    [purpose='top-image'] {
-      margin-top: 80px;
+      width: 600px;
     }
   }
 
@@ -299,26 +282,23 @@
       }
     }
     [purpose='homepage-section'] {
-      padding-left: 120px;
-      padding-right: 120px;
       padding-top: 80px;
       padding-bottom: 80px;
     }
     [purpose='features'] {
       margin-top: 80px;
       margin-bottom: 80px;
-      padding-left: 0;
-      padding-right: 0;
       [purpose='features-text'] {
         padding-top: 80px;
-        max-width: 640px;
+        max-width: 600px;
       }
     }
-    [purpose='tweet-card'] {
-      flex: 1 1 295px;
+    [purpose='tweets'] {
+      [purpose='tweet-card'] {
+        flex-basis: 25%;
+      }
     }
   }
-
 
   @media (min-width: 767px) {
     [purpose='log-destination-grid'] {
@@ -332,17 +312,11 @@
 
   @media (max-width: 767px) {
 
-    [purpose='tweet-card'] {
-      flex: 1 1 316px;
-    }
-
     [purpose='hero-logos'] {
       height: 140px;
     }
 
     [purpose='homepage-section'] {
-      padding-left: 40px;
-      padding-right: 40px;
       padding-top: 60px;
       padding-bottom: 60px;
     }
@@ -449,17 +423,12 @@
         text-indent: -24px;
       }
     }
-    [purpose='tweets'] {
-      padding-left: 0;
-      padding-right: 0;
-      [purpose='tweet-card'] {
-        margin-bottom: 30px;
-      }
-    }
     [purpose='slack-button'] {
       width: 100%;
     }
-
+    [purpose='tweets'].truncated {
+      max-height: 760px;
+    }
   }
 
   @media (max-width: 395px) {
