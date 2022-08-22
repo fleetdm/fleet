@@ -5,10 +5,7 @@ import { IHost } from "interfaces/host";
 import {
   buildQueryStringFromParams,
   getLabelParam,
-  getMDMParams,
-  getOperatingSystemParam,
-  getPolicyParams,
-  getSoftwareParam,
+  reconcileMutuallyExclusiveHostParams,
   getStatusParam,
 } from "utilities/url";
 
@@ -131,14 +128,6 @@ export default {
     const mdmEnrollmentStatus = options?.mdmEnrollmentStatus;
     const visibleColumns = options?.visibleColumns;
     const label = getLabelParam(selectedLabels);
-    const policyParams = getPolicyParams(label, policyId, policyResponse);
-    const mdmParams = getMDMParams(
-      label,
-      policyId,
-      softwareId,
-      mdmId,
-      mdmEnrollmentStatus
-    );
 
     if (!sortBy.length) {
       throw Error("sortBy is a required field.");
@@ -149,11 +138,14 @@ export default {
       order_direction: sortBy[0].direction,
       query: globalFilter,
       team_id: teamId,
-      policy_id: policyParams.policy_id,
-      policy_response: policyParams.policy_response,
-      software_id: getSoftwareParam(label, policyId, softwareId),
-      mdm_id: mdmParams?.mdmId,
-      mdm_enrollment_status: mdmParams?.mdmEnrollmentStatus,
+      ...reconcileMutuallyExclusiveHostParams(
+        label,
+        policyId,
+        policyResponse,
+        mdmId,
+        mdmEnrollmentStatus,
+        softwareId
+      ),
       status: getStatusParam(selectedLabels),
       label_id: label,
       columns: visibleColumns,
@@ -185,14 +177,6 @@ export default {
   }: ILoadHostsOptions) => {
     const label = getLabel(selectedLabels);
     const sortParams = getSortParams(sortBy);
-    const policyParams = getPolicyParams(label, policyId, policyResponse);
-    const mdmParams = getMDMParams(
-      label,
-      policyId,
-      softwareId,
-      mdmId,
-      mdmEnrollmentStatus
-    );
 
     const queryParams = {
       page,
@@ -202,14 +186,12 @@ export default {
       device_mapping,
       order_key: sortParams.order_key,
       order_direction: sortParams.order_direction,
-      policy_id: policyParams.policy_id,
-      policy_response: policyParams.policy_response,
-      software_id: getSoftwareParam(label, policyId, softwareId),
-      mdm_id: mdmParams?.mdmId,
-      mdm_enrollment_status: mdmParams?.mdmEnrollmentStatus,
-      operating_system_id: getOperatingSystemParam(
+      ...reconcileMutuallyExclusiveHostParams(
         label,
         policyId,
+        policyResponse,
+        mdmId,
+        mdmEnrollmentStatus,
         softwareId,
         mdmId,
         mdmEnrollmentStatus,
@@ -217,7 +199,6 @@ export default {
         os_name,
         os_version
       ),
-
       status: getStatusParam(selectedLabels),
     };
 

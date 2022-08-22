@@ -40,55 +40,30 @@ export const buildQueryStringFromParams = (queryParams: QueryParams) => {
   return queryString;
 };
 
-export const getPolicyParams = (
+export const reconcileMutuallyExclusiveHostParams = (
   label?: string,
   policyId?: number,
-  policyResponse?: string
-) => {
-  if (label !== undefined || policyId === undefined) return {};
-
-  return {
-    policy_id: policyId,
-    policy_response: policyResponse,
-  };
-};
-
-export const getSoftwareParam = (
-  label?: string,
-  policyId?: number,
-  softwareId?: number,
+  policyResponse?: string,
   mdmId?: number,
-  mdmEnrollmentStatus?: string
-) => {
-  return !label && !policyId && !mdmId && !mdmEnrollmentStatus
-    ? softwareId
-    : undefined;
-};
-
-export const getMDMParams = (
-  label?: string,
-  policyId?: number,
-  softwareId?: number,
-  mdmId?: number,
-  mdmEnrollmentStatus?: string
-) => {
-  if (!label && !policyId && !softwareId && !mdmEnrollmentStatus && !mdmId)
-    return undefined;
-
-  return { mdmId, mdmEnrollmentStatus };
-};
-
-export const getOperatingSystemParam = (
-  label?: string,
-  policyId?: number,
+  mdmEnrollmentStatus?: string,
   softwareId?: number,
   operatingSystemId?: number
-) => {
-  return label === undefined &&
-    policyId === undefined &&
-    softwareId === undefined
-    ? operatingSystemId
-    : undefined;
+): Record<string, unknown> => {
+  if (label) {
+    return {};
+  }
+  switch (true) {
+    case !!policyId:
+      return { policy_id: policyId, policy_response: policyResponse };
+    case !!mdmId:
+      return { mdm_id: mdmId, mdm_status: mdmEnrollmentStatus };
+    case !!softwareId:
+      return { software_id: softwareId };
+    case !!operatingSystemId:
+      return { operating_system_id: operatingSystemId };
+    default:
+      return {};
+  }
 };
 
 const LABEL_PREFIX = "labels/";

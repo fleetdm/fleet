@@ -4,10 +4,7 @@ import endpoints from "utilities/endpoints";
 import {
   buildQueryStringFromParams,
   getLabelParam,
-  getMDMParams,
-  getOperatingSystemParam,
-  getPolicyParams,
-  getSoftwareParam,
+  reconcileMutuallyExclusiveHostParams,
   getStatusParam,
 } from "utilities/url";
 
@@ -45,26 +42,16 @@ export default {
     const mdmEnrollmentStatus = options?.mdmEnrollmentStatus;
     const operatingSystemId = options?.operatingSystemId;
     const label = getLabelParam(selectedLabels);
-    const policyParams = getPolicyParams(label, policyId, policyResponse);
-    const mdmParams = getMDMParams(
-      label,
-      policyId,
-      softwareId,
-      mdmId,
-      mdmEnrollmentStatus
-    );
 
     const queryParams = {
       query: globalFilter,
       team_id: teamId,
-      policy_id: policyParams.policy_id,
-      policy_response: policyParams.policy_response,
-      software_id: getSoftwareParam(label, policyId, softwareId),
-      mdm_id: mdmParams?.mdmId,
-      mdm_enrollment_status: mdmParams?.mdmEnrollmentStatus,
-      operating_system_id: getOperatingSystemParam(
+      ...reconcileMutuallyExclusiveHostParams(
         label,
         policyId,
+        policyResponse,
+        mdmId,
+        mdmEnrollmentStatus,
         softwareId,
         operatingSystemId
       ),
