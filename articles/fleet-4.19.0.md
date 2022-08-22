@@ -73,7 +73,7 @@ page would not stack vertically at smaller screen widths.
 
 ### Ready to update?
 
-Visit our [Update guide](https://fleetdm.com/docs/deploying/upgrading-fleet) in the Fleet docs for instructions on updating to Fleet 4.18.0.
+Visit our [Update guide](https://fleetdm.com/docs/deploying/upgrading-fleet) in the Fleet docs for instructions on updating to Fleet 4.19.0.
 
 <meta name="category" value="releases">
 <meta name="authorFullName" value="Noah Talerman">
