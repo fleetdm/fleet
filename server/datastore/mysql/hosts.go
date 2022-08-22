@@ -1890,10 +1890,10 @@ func (ds *Datastore) UpdateHost(ctx context.Context, host *fleet.Host) error {
 // version. Name cannot be used without version, and conversely, version cannot be used without name.
 func (ds *Datastore) OSVersions(ctx context.Context, teamID *uint, platform *string, name *string, version *string) (*fleet.OSVersions, error) {
 	if name != nil && version == nil {
-		return nil, errors.New("invalid useage: cannot filter by name without version")
+		return nil, errors.New("invalid usage: cannot filter by name without version")
 	}
 	if name == nil && version != nil {
-		return nil, errors.New("invalid useage: cannot filter by version without name")
+		return nil, errors.New("invalid usage: cannot filter by version without name")
 	}
 
 	query := `
