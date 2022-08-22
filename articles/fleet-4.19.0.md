@@ -14,7 +14,7 @@ For update instructions, see our [upgrade guide](https://fleetdm.com/docs/deploy
 
 Just-in-time user provisioning makes it easier to spread the power of Fleet and osquery throughout your organization. 
 
-Fleet will now automatically create a user account when a new user attempts to log in to Fleet via single sign-on (SSO). New user accounts are given the Observer role. For more information on roles and their permissions in Fleet, check out the documentation [here on fleetdm.com/docs](https://fleetdm.com/docs/using-fleet/permissions).
+Fleet will now automatically create a user account when a new user attempts to log in to Fleet via single sign-on (SSO). New user accounts are given the Observer role. For more information on roles and their permissions in Fleet, [check out the documentation on fleetdm.com/docs](https://fleetdm.com/docs/using-fleet/permissions).
 
 ## See remaining disk space for all hosts
 **Available in Fleet Free & Fleet Premium**
