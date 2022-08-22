@@ -1819,19 +1819,16 @@ const ManageHostsPage = ({
       !isHostsLoading &&
       teamSync
     ) {
-      const {
-        software_id,
-        policy_id,
-        mdm_id,
-        mdm_enrollment_status,
-        operating_system_id,
-      } = queryParams || {};
+      const { software_id, policy_id, mdm_id, mdm_enrollment_status } =
+        queryParams || {};
       const includesNameCardFilter = !!(
         software_id ||
         policy_id ||
         mdm_id ||
         mdm_enrollment_status ||
-        operating_system_id
+        os_id ||
+        os_name ||
+        os_version
       );
 
       return (
