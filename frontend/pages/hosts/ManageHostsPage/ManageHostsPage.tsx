@@ -3,7 +3,6 @@ import { useQuery } from "react-query";
 import { InjectedRouter, Params } from "react-router/lib/Router";
 import { RouteProps } from "react-router/lib/Route";
 import { find, isEmpty, isEqual, omit } from "lodash";
-import ReactTooltip from "react-tooltip";
 import { format } from "date-fns";
 import FileSaver from "file-saver";
 
@@ -97,11 +96,10 @@ import DeleteLabelModal from "./components/DeleteLabelModal";
 import EditColumnsIcon from "../../../../assets/images/icon-edit-columns-16x16@2x.png";
 import PencilIcon from "../../../../assets/images/icon-pencil-14x14@2x.png";
 import TrashIcon from "../../../../assets/images/icon-trash-14x14@2x.png";
-import CloseIcon from "../../../../assets/images/icon-close-vibrant-blue-16x16@2x.png";
 import CloseIconBlack from "../../../../assets/images/icon-close-fleet-black-16x16@2x.png";
 import PolicyIcon from "../../../../assets/images/icon-policy-fleet-black-12x12@2x.png";
 import DownloadIcon from "../../../../assets/images/icon-download-12x12@2x.png";
-import LabelFilterDropdown from "./components/LabelFilterSelect/LabelFilterSelect";
+import LabelFilterSelect from "./components/LabelFilterSelect";
 import FilterPill from "./components/FilterPill";
 
 interface IManageHostsProps {
@@ -297,18 +295,13 @@ const ManageHostsPage = ({
   const canEnrollGlobalHosts = isGlobalAdmin || isGlobalMaintainer;
   const canAddNewLabels = (isGlobalAdmin || isGlobalMaintainer) ?? false;
 
-  const {
-    isLoading: isLabelsLoading,
-    data: labels,
-    error: labelsError,
-    refetch: refetchLabels,
-  } = useQuery<ILabelsResponse, Error, ILabel[]>(
-    ["labels"],
-    () => labelsAPI.loadAll(),
-    {
-      select: (data: ILabelsResponse) => data.labels,
-    }
-  );
+  const { data: labels, error: labelsError, refetch: refetchLabels } = useQuery<
+    ILabelsResponse,
+    Error,
+    ILabel[]
+  >(["labels"], () => labelsAPI.loadAll(), {
+    select: (data: ILabelsResponse) => data.labels,
+  });
 
   const {
     isLoading: isGlobalSecretsLoading,
@@ -1179,48 +1172,27 @@ const ManageHostsPage = ({
 
   const renderOSFilterBlock = () => {
     const os = osVersions?.find((v) => v.os_id === operatingSystemId);
-    if (!os) {
-      return <></>;
-    }
+    if (!os) return null;
+
     const { name, name_only, version } = os;
-    const buttonText =
+    const label =
       name_only || version
         ? `${name_only || ""} ${version || ""}`
         : `${name || ""}`;
+
+    const TooltipDescription = (
+      <span className={`tooltip__tooltip-text`}>
+        {`Hosts with ${name_only || name}`},<br />
+        {version && `${version} installed`}
+      </span>
+    );
+
     return (
-      <div className={`${baseClass}__software-filter-block`}>
-        <div>
-          <span
-            data-tip
-            data-for="software-filter-tooltip"
-            data-tip-disable={!name_only || !version || !name}
-          >
-            <div className={`${baseClass}__software-filter-name-card tooltip`}>
-              {buttonText}
-              <Button
-                className={`${baseClass}__clear-policies-filter`}
-                onClick={handleClearOSFilter}
-                variant={"small-text-icon"}
-                title={buttonText}
-              >
-                <img src={CloseIcon} alt="Remove os filter" />
-              </Button>
-            </div>
-          </span>
-          <ReactTooltip
-            place="bottom"
-            effect="solid"
-            backgroundColor="#3e4771"
-            id="software-filter-tooltip"
-            data-html
-          >
-            <span className={`tooltip__tooltip-text`}>
-              {`Hosts with ${name_only || name}`},<br />
-              {version && `${version} installed`}
-            </span>
-          </ReactTooltip>
-        </div>
-      </div>
+      <FilterPill
+        label={label}
+        tooltipDescription={TooltipDescription}
+        onClear={handleClearOSFilter}
+      />
     );
   };
 
@@ -1240,146 +1212,102 @@ const ManageHostsPage = ({
   );
 
   const renderSoftwareFilterBlock = () => {
-    if (softwareDetails) {
-      const { name, version } = softwareDetails;
-      const label = name && version ? `${name} ${version}` : "";
-      const TooltipDescription =
-        name && version ? (
-          <span className={`tooltip__tooltip-text`}>
-            {`Hosts with ${name}`},<br />
-            {`${version} installed`}
-          </span>
-        ) : undefined;
+    if (!softwareDetails) return null;
 
-      return (
-        <FilterPill
-          label={label}
-          onClear={handleClearSoftwareFilter}
-          tooltipDescription={TooltipDescription}
-        />
-      );
-    }
-    return null;
+    const { name, version } = softwareDetails;
+    const label = name && version ? `${name} ${version}` : "";
+    const TooltipDescription =
+      name && version ? (
+        <span className={`tooltip__tooltip-text`}>
+          {`Hosts with ${name}`},<br />
+          {`${version} installed`}
+        </span>
+      ) : undefined;
+
+    return (
+      <FilterPill
+        label={label}
+        onClear={handleClearSoftwareFilter}
+        tooltipDescription={TooltipDescription}
+      />
+    );
   };
 
   const renderMDMSolutionFilterBlock = () => {
-    if (mdmSolutionDetails) {
-      const { name, server_url } = mdmSolutionDetails;
-      const buttonText = name ? `${name} ${server_url}` : `${server_url}`;
-      return (
-        <div className={`${baseClass}__mdm-solution-filter-block`}>
-          <div>
-            <span
-              data-tip
-              data-for="mdm-solution-filter-tooltip"
-              data-tip-disable={!name || !server_url}
-            >
-              <div
-                className={`${baseClass}__mdm-solution-filter-name-card tooltip`}
-              >
-                {buttonText}
-                <Button
-                  className={`${baseClass}__clear-mdm-solution-filter`}
-                  onClick={handleClearMDMSolutionFilter}
-                  variant={"small-text-icon"}
-                  title={buttonText}
-                >
-                  <img src={CloseIcon} alt="Remove MDM solution filter" />
-                </Button>
-              </div>
-            </span>
-            <ReactTooltip
-              place="bottom"
-              effect="solid"
-              backgroundColor="#3e4771"
-              id="mdm-solution-filter-tooltip"
-              data-html
-            >
-              <span className={`tooltip__tooltip-text`}>
-                Host enrolled
-                {name !== "Unknown" && ` to ${name}`}
-                <br /> at {server_url}
-              </span>
-            </ReactTooltip>
-          </div>
-        </div>
-      );
-    }
-    return null;
+    if (!mdmSolutionDetails) return null;
+
+    const { name, server_url } = mdmSolutionDetails;
+    const label = name ? `${name} ${server_url}` : `${server_url}`;
+
+    const TooltipDescription = (
+      <span className={`tooltip__tooltip-text`}>
+        Host enrolled
+        {name !== "Unknown" && ` to ${name}`}
+        <br /> at {server_url}
+      </span>
+    );
+
+    return (
+      <FilterPill
+        label={label}
+        tooltipDescription={TooltipDescription}
+        onClear={handleClearMDMSolutionFilter}
+      />
+    );
   };
 
   const renderMDMEnrollmentFilterBlock = () => {
-    if (mdmEnrollmentStatus) {
-      const buttonText = () => {
-        switch (mdmEnrollmentStatus) {
-          case "automatic":
-            return "MDM enrolled (automatic)";
-          case "manual":
-            return "MDM enrolled (manual)";
-          default:
-            return "Unenrolled";
-        }
-      };
-      const tooltipText = () => {
-        switch (mdmEnrollmentStatus) {
-          case "automatic":
-            return (
-              <span className={`tooltip__tooltip-text`}>
-                Hosts automatically enrolled <br />
-                to an MDM solution the first time <br />
-                the host is used. Administrators <br />
-                might have a higher level of control <br />
-                over these hosts.
-              </span>
-            );
-          case "manual":
-            return (
-              <span className={`tooltip__tooltip-text`}>
-                Hosts manually enrolled to an <br />
-                MDM solution by a user or <br />
-                administrator.
-              </span>
-            );
-          default:
-            return (
-              <span className={`tooltip__tooltip-text`}>
-                Hosts not enrolled to <br /> an MDM solution.
-              </span>
-            );
-        }
-      };
-      return (
-        <div className={`${baseClass}__mdm-enrollment-status-filter-block`}>
-          <div>
-            <span data-tip data-for="mdm-enrollment-status-filter-tooltip">
-              <div
-                className={`${baseClass}__mdm-enrollment-status-filter-name-card tooltip`}
-              >
-                {buttonText()}
-                <Button
-                  className={`${baseClass}__clear-mdm-enrollment-status-filter`}
-                  onClick={handleClearMDMEnrollmentFilter}
-                  variant={"small-text-icon"}
-                  title={buttonText()}
-                >
-                  <img src={CloseIcon} alt="Remove MDM enrollment filter" />
-                </Button>
-              </div>
-            </span>
-            <ReactTooltip
-              place="bottom"
-              effect="solid"
-              backgroundColor="#3e4771"
-              id="mdm-enrollment-status-filter-tooltip"
-              data-html
-            >
-              {tooltipText()}
-            </ReactTooltip>
-          </div>
-        </div>
-      );
+    if (!mdmEnrollmentStatus) return null;
+
+    let label: string;
+    switch (mdmEnrollmentStatus) {
+      case "automatic":
+        label = "MDM enrolled (automatic)";
+        break;
+      case "manual":
+        label = "MDM enrolled (manual)";
+        break;
+      default:
+        label = "Unenrolled";
     }
-    return null;
+
+    let TooltipDescription: JSX.Element;
+    switch (mdmEnrollmentStatus) {
+      case "automatic":
+        TooltipDescription = (
+          <span className={`tooltip__tooltip-text`}>
+            Hosts automatically enrolled <br />
+            to an MDM solution the first time <br />
+            the host is used. Administrators <br />
+            might have a higher level of control <br />
+            over these hosts.
+          </span>
+        );
+        break;
+      case "manual":
+        TooltipDescription = (
+          <span className={`tooltip__tooltip-text`}>
+            Hosts manually enrolled to an <br />
+            MDM solution by a user or <br />
+            administrator.
+          </span>
+        );
+        break;
+      default:
+        TooltipDescription = (
+          <span className={`tooltip__tooltip-text`}>
+            Hosts not enrolled to <br /> an MDM solution.
+          </span>
+        );
+    }
+
+    return (
+      <FilterPill
+        label={label}
+        tooltipDescription={TooltipDescription}
+        onClear={handleClearMDMEnrollmentFilter}
+      />
+    );
   };
 
   const renderEditColumnsModal = () => {
@@ -1697,7 +1625,7 @@ const ManageHostsPage = ({
           searchable={false}
           onChange={handleStatusDropdownChange}
         />
-        <LabelFilterDropdown
+        <LabelFilterSelect
           className={`${baseClass}__label-filter-dropdown`}
           labels={labels ?? []}
           canAddNewLabels={canAddNewLabels}
