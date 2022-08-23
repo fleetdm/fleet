@@ -78,6 +78,7 @@ import {
   LABEL_SLUG_PREFIX,
   DEFAULT_SORT_HEADER,
   DEFAULT_SORT_DIRECTION,
+  DEFAULT_PAGE_SIZE,
   HOST_SELECT_STATUSES,
 } from "./constants";
 import { isAcceptableStatus, getNextLocationPath } from "./helpers";
@@ -562,6 +563,12 @@ const ManageHostsPage = ({
       setCurrentQueryOptions(options);
     }
   }, [availableTeams, currentTeam, location, labels]);
+
+  const isLastPage =
+    tableQueryData &&
+    !!filteredHostCount &&
+    DEFAULT_PAGE_SIZE * tableQueryData.pageIndex + (hosts?.length || 0) >=
+      filteredHostCount;
 
   const handleLabelChange = ({ slug }: ILabel): boolean => {
     if (!slug) {
@@ -1889,6 +1896,7 @@ const ManageHostsPage = ({
         onPrimarySelectActionClick={onDeleteHostsClick}
         onQueryChange={onTableQueryChange}
         toggleAllPagesSelected={toggleAllMatchingHosts}
+        disableNextPage={isLastPage}
       />
     );
   };
