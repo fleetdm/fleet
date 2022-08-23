@@ -417,6 +417,7 @@ const QueryForm = ({
           name="query editor"
           wrapperClassName={`${baseClass}__text-editor-wrapper`}
           readOnly
+          wrapEnabled
         />
       )}
       <span className={`${baseClass}__platform-compatibility`}>
@@ -459,6 +460,7 @@ const QueryForm = ({
           wrapperClassName={`${baseClass}__text-editor-wrapper`}
           onChange={onChangeQuery}
           handleSubmit={promptSaveQuery}
+          wrapEnabled
         />
         <span className={`${baseClass}__platform-compatibility`}>
           {renderPlatformCompatibility()}

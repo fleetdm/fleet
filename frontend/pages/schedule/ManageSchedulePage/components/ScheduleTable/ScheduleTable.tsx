@@ -140,6 +140,7 @@ const ScheduleTable = ({
         if (onShowQueryClick) {
           onShowQueryClick(scheduledQuery);
         }
+        break;
       default:
         if (onRemoveScheduledQueryClick) {
           onRemoveScheduledQueryClick([scheduledQuery.id]);

@@ -15,6 +15,11 @@ const ShowQueryModal = ({
   query,
   onCancel,
 }: IShowQueryModalProps): JSX.Element => {
+  console.log("query", query);
+
+  const splitQuery = query && query.replace("FROM", "\nFROM");
+  console.log("splitQuery", splitQuery);
+
   return (
     <Modal
       title={"Query"}
@@ -27,6 +32,7 @@ const ShowQueryModal = ({
           value={query}
           name="Scheduled query"
           wrapperClassName={`${baseClass}__text-editor-wrapper`}
+          wrapEnabled
           readOnly
         />
         <div className="modal-cta-wrap">
