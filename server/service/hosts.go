@@ -1260,9 +1260,10 @@ func hostsReportEndpoint(ctx context.Context, request interface{}, svc fleet.Ser
 }
 
 type osVersionsRequest struct {
-	TeamID            *uint   `query:"team_id,optional"`
-	Platform          *string `query:"platform,optional"`
-	OperatingSystemID *uint   `query:"operating_system_id,optional"`
+	TeamID   *uint   `query:"team_id,optional"`
+	Platform *string `query:"platform,optional"`
+	Name     *string `query:"os_name,optional"`
+	Version  *string `query:"os_name,optional"`
 }
 
 type osVersionsResponse struct {
@@ -1276,7 +1277,7 @@ func (r osVersionsResponse) error() error { return r.Err }
 func osVersionsEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
 	req := request.(*osVersionsRequest)
 
-	osVersions, err := svc.OSVersions(ctx, req.TeamID, req.Platform, req.OperatingSystemID)
+	osVersions, err := svc.OSVersions(ctx, req.TeamID, req.Platform, req.Name, req.Version)
 	if err != nil {
 		return &osVersionsResponse{Err: err}, nil
 	}
@@ -1287,12 +1288,20 @@ func osVersionsEndpoint(ctx context.Context, request interface{}, svc fleet.Serv
 	}, nil
 }
 
-func (svc *Service) OSVersions(ctx context.Context, teamID *uint, platform *string, osID *uint) (*fleet.OSVersions, error) {
+func (svc *Service) OSVersions(ctx context.Context, teamID *uint, platform *string, name *string, version *string) (*fleet.OSVersions, error) {
 	if err := svc.authz.Authorize(ctx, &fleet.Host{TeamID: teamID}, fleet.ActionList); err != nil {
 		return nil, err
 	}
 
-	osVersions, err := svc.ds.OSVersions(ctx, teamID, platform, osID)
+	if name != nil && version == nil {
+		return nil, &badRequestError{"Cannot specify os_name without os_version"}
+	}
+
+	if name == nil && version != nil {
+		return nil, &badRequestError{"Cannot specify os_version without os_name"}
+	}
+
+	osVersions, err := svc.ds.OSVersions(ctx, teamID, platform, name, version)
 	if err != nil && fleet.IsNotFound(err) {
 		// differentiate case where team was added after UpdateOSVersions last ran
 		if teamID != nil {

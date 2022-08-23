@@ -288,8 +288,9 @@ type Service interface {
 	AggregatedMunkiIssue(ctx context.Context, teamID *uint, munkiIssueID uint) (*AggregatedMunkiIssue, error)
 
 	// OSVersions returns a list of operating systems and associated host counts, which may be
-	// filtered using the following optional criteria: team id, platform, or operating system id
-	OSVersions(ctx context.Context, teamID *uint, platform *string, osID *uint) (*OSVersions, error)
+	// filtered using the following optional criteria: team id, platform, or name and version.
+	// Name cannot be used without version, and conversely, version cannot be used without name.
+	OSVersions(ctx context.Context, teamID *uint, platform *string, name *string, version *string) (*OSVersions, error)
 
 	///////////////////////////////////////////////////////////////////////////////
 	// AppConfigService provides methods for configuring  the Fleet application

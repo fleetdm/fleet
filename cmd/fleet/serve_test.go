@@ -1,15 +1,13 @@
 package main
 
 import (
-	"bytes"
 	"context"
 	"errors"
 	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
 	"os"
-	"path"
-	"strings"
+	"path/filepath"
 	"sync"
 	"sync/atomic"
 	"testing"
@@ -215,14 +213,14 @@ func TestCronVulnerabilitiesCreatesDatabasesPath(t *testing.T) {
 		// we should not get this far before we see the directory being created
 		return nil, errors.New("shouldn't happen")
 	}
-	ds.OSVersionsFunc = func(ctx context.Context, teamID *uint, platform *string, osID *uint) (*fleet.OSVersions, error) {
+	ds.OSVersionsFunc = func(ctx context.Context, teamID *uint, platform *string, name *string, version *string) (*fleet.OSVersions, error) {
 		return &fleet.OSVersions{}, nil
 	}
 	ds.SyncHostsSoftwareFunc = func(ctx context.Context, updatedAt time.Time) error {
 		return nil
 	}
 
-	vulnPath := path.Join(t.TempDir(), "something")
+	vulnPath := filepath.Join(t.TempDir(), "something")
 	require.NoDirExists(t, vulnPath)
 
 	config := config.VulnerabilitiesConfig{
@@ -245,31 +243,20 @@ func TestCronVulnerabilitiesCreatesDatabasesPath(t *testing.T) {
 	}, 5*time.Minute, 30*time.Second)
 }
 
-func TestCronVulnerabilitiesMkdirFailsIfVulnPathIsFile(t *testing.T) {
-	buf := new(bytes.Buffer)
-	logger := kitlog.NewJSONLogger(buf)
+func TestScanVulnerabilitiesMkdirFailsIfVulnPathIsFile(t *testing.T) {
+	logger := kitlog.NewNopLogger()
 	logger = level.NewFilter(logger, level.AllowDebug())
 
 	ctx, cancelFunc := context.WithCancel(context.Background())
 	defer cancelFunc()
+
+	appConfig := &fleet.AppConfig{
+		HostSettings: fleet.HostSettings{EnableSoftwareInventory: true},
+	}
 	ds := new(mock.Store)
-	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
-		return &fleet.AppConfig{
-			HostSettings: fleet.HostSettings{EnableSoftwareInventory: true},
-		}, nil
-	}
-	ds.LockFunc = func(ctx context.Context, name string, owner string, expiration time.Duration) (bool, error) {
-		return true, nil
-	}
-	ds.UnlockFunc = func(ctx context.Context, name string, owner string) error {
-		return nil
-	}
-	ds.SyncHostsSoftwareFunc = func(ctx context.Context, updatedAt time.Time) error {
-		return nil
-	}
 
 	// creating a file with the same path should result in an error when creating the directory
-	fileVulnPath := path.Join(t.TempDir(), "somefile")
+	fileVulnPath := filepath.Join(t.TempDir(), "somefile")
 	_, err := os.Create(fileVulnPath)
 	require.NoError(t, err)
 
@@ -279,21 +266,17 @@ func TestCronVulnerabilitiesMkdirFailsIfVulnPathIsFile(t *testing.T) {
 		CurrentInstanceChecks: "auto",
 	}
 
-	// We cancel right away so cronsVulnerailities finishes. The logic we are testing happens before the loop starts
-	go cronVulnerabilities(ctx, ds, logger, "AAA", &config)
-
-	require.Eventually(t, func() bool {
-		return strings.Contains(buf.String(), "create vulnerabilities databases directory: mkdir")
-	}, 1*time.Minute, 5*time.Second)
+	err = scanVulnerabilities(ctx, ds, logger, &config, appConfig, fileVulnPath)
+	require.ErrorContains(t, err, "create vulnerabilities databases directory: mkdir")
 }
 
 func TestCronVulnerabilitiesSkipMkdirIfDisabled(t *testing.T) {
-	buf := new(bytes.Buffer)
-	logger := kitlog.NewJSONLogger(buf)
+	logger := kitlog.NewNopLogger()
 	logger = level.NewFilter(logger, level.AllowDebug())
 
 	ctx, cancelFunc := context.WithCancel(context.Background())
 	defer cancelFunc()
+
 	ds := new(mock.Store)
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 		// host_settings.enable_software_inventory is false
@@ -309,7 +292,7 @@ func TestCronVulnerabilitiesSkipMkdirIfDisabled(t *testing.T) {
 		return nil
 	}
 
-	vulnPath := path.Join(t.TempDir(), "something")
+	vulnPath := filepath.Join(t.TempDir(), "something")
 	require.NoDirExists(t, vulnPath)
 
 	config := config.VulnerabilitiesConfig{
@@ -320,11 +303,12 @@ func TestCronVulnerabilitiesSkipMkdirIfDisabled(t *testing.T) {
 
 	go cronVulnerabilities(ctx, ds, logger, "AAA", &config)
 
+	// Every cron tick is 10 seconds ... here we just wait for a loop interation and assert the vuln
+	// dir. was not created.
 	require.Eventually(t, func() bool {
-		return strings.Contains(buf.String(), "done")
-	}, 1*time.Minute, 5*time.Second)
-
-	require.NoDirExists(t, vulnPath)
+		_, err := os.Stat(vulnPath)
+		return os.IsNotExist(err)
+	}, 24*time.Second, 12*time.Second)
 }
 
 // TestCronWebhooksLockDuration tests that the Lock method is being called

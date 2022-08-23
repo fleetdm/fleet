@@ -160,7 +160,7 @@ module.exports = {
       //   } else {
       //     let greenLabels = _.filter(issueOrPr.labels, ({color}) => color === GREEN_LABEL_COLOR);
       //     await sails.helpers.flow.simultaneouslyForEach(greenLabels, async(greenLabel)=>{
-      //       await sails.helpers.http.delete('https://api.github.com/repos/'+encodeURIComponent(owner)+'/'+encodeURIComponent(repo)+'/issues/'+encodeURIComponent(issueNumber)+'/labels/'+encodeURIComponent(greenLabel.name),
+      //       await sails.helpers.http.del('https://api.github.com/repos/'+encodeURIComponent(owner)+'/'+encodeURIComponent(repo)+'/issues/'+encodeURIComponent(issueNumber)+'/labels/'+encodeURIComponent(greenLabel.name),
       //         {},
       //         {
       //           'User-Agent': 'Fleetie pie',
@@ -351,7 +351,7 @@ module.exports = {
       if (!wasPostedByBot) {
         let greenLabels = _.filter(issueOrPr.labels, ({color}) => color === GREEN_LABEL_COLOR);
         await sails.helpers.flow.simultaneouslyForEach(greenLabels, async(greenLabel)=>{
-          await sails.helpers.http.delete('https://api.github.com/repos/'+encodeURIComponent(owner)+'/'+encodeURIComponent(repo)+'/issues/'+encodeURIComponent(issueNumber)+'/labels/'+encodeURIComponent(greenLabel.name),
+          await sails.helpers.http.del('https://api.github.com/repos/'+encodeURIComponent(owner)+'/'+encodeURIComponent(repo)+'/issues/'+encodeURIComponent(issueNumber)+'/labels/'+encodeURIComponent(greenLabel.name),
             {},
             {
               'User-Agent': 'Fleetie Pie',
