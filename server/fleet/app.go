@@ -117,8 +117,9 @@ type AppConfig struct {
 	ServerSettings     ServerSettings     `json:"server_settings"`
 	SMTPSettings       SMTPSettings       `json:"smtp_settings"`
 	HostExpirySettings HostExpirySettings `json:"host_expiry_settings"`
-	HostSettings       HostSettings       `json:"host_settings"`
-	AgentOptions       *json.RawMessage   `json:"agent_options,omitempty"`
+	// Features allows to globally enable or disable features
+	Features     Features         `json:"features"`
+	AgentOptions *json.RawMessage `json:"agent_options,omitempty"`
 	// SMTPTest is a flag that if set will cause the server to test email configuration
 	SMTPTest bool `json:"smtp_test,omitempty"`
 	// SSOSettings is single sign on settings
@@ -138,6 +139,7 @@ type AppConfig struct {
 // legacyConfig holds settings that have been replaced, superceded or
 // deprecated by other AppConfig settings.
 type legacyConfig struct {
+	HostSettings *Features `json:"host_settings"`
 }
 
 // EnrichedAppConfig contains the AppConfig along with additional fleet
@@ -263,13 +265,13 @@ func (c *AppConfig) ApplyDefaultsForNewInstalls() {
 	agentOptions := json.RawMessage(`{"config": {"options": {"logger_plugin": "tls", "pack_delimiter": "/", "logger_tls_period": 10, "distributed_plugin": "tls", "disable_distributed": false, "logger_tls_endpoint": "/api/osquery/log", "distributed_interval": 10, "distributed_tls_max_attempts": 3}, "decorators": {"load": ["SELECT uuid AS host_uuid FROM system_info;", "SELECT hostname AS hostname FROM system_info;"]}}, "overrides": {}}`)
 	c.AgentOptions = &agentOptions
 
-	c.HostSettings.EnableSoftwareInventory = true
+	c.Features.EnableSoftwareInventory = true
 
 	c.ApplyDefaults()
 }
 
 func (c *AppConfig) ApplyDefaults() {
-	c.HostSettings.EnableHostUsers = true
+	c.Features.EnableHostUsers = true
 	c.WebhookSettings.Interval.Duration = 24 * time.Hour
 }
 
@@ -300,13 +302,12 @@ func (c *AppConfig) UnmarshalJSON(b []byte) error {
 		return errors.New("unexpected extra tokens found in config")
 	}
 
-	// TODO(roperzh): define and assign legacy settings to new fields. This has
-	// the drawback of legacy fields taking precedence over new fields if both
-	// are defined. Eg:
-	//
-	//	if compatConfig.legacyConfig.HostSettings != nil {
-	//		c.Features = *compatConfig.legacyConfig.HostSettings
-	//	}
+	// Define and assign legacy settings to new fields.
+	// This has the drawback of legacy fields taking precedence over new fields
+	// if both are defined.
+	if compatConfig.legacyConfig.HostSettings != nil {
+		c.Features = *compatConfig.legacyConfig.HostSettings
+	}
 
 	return nil
 }
@@ -332,7 +333,7 @@ type HostExpirySettings struct {
 	HostExpiryWindow  int  `json:"host_expiry_window"`
 }
 
-type HostSettings struct {
+type Features struct {
 	EnableHostUsers         bool             `json:"enable_host_users"`
 	EnableSoftwareInventory bool             `json:"enable_software_inventory"`
 	AdditionalQueries       *json.RawMessage `json:"additional_queries,omitempty"`

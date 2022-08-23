@@ -199,7 +199,7 @@ func TestCronVulnerabilitiesCreatesDatabasesPath(t *testing.T) {
 	ds := new(mock.Store)
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 		return &fleet.AppConfig{
-			HostSettings: fleet.HostSettings{EnableSoftwareInventory: true},
+			Features: fleet.Features{EnableSoftwareInventory: true},
 		}, nil
 	}
 	ds.LockFunc = func(ctx context.Context, name string, owner string, expiration time.Duration) (bool, error) {
@@ -255,7 +255,7 @@ func TestCronVulnerabilitiesMkdirFailsIfVulnPathIsFile(t *testing.T) {
 	ds := new(mock.Store)
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 		return &fleet.AppConfig{
-			HostSettings: fleet.HostSettings{EnableSoftwareInventory: true},
+			Features: fleet.Features{EnableSoftwareInventory: true},
 		}, nil
 	}
 	ds.LockFunc = func(ctx context.Context, name string, owner string, expiration time.Duration) (bool, error) {
@@ -296,7 +296,7 @@ func TestCronVulnerabilitiesSkipMkdirIfDisabled(t *testing.T) {
 	defer cancelFunc()
 	ds := new(mock.Store)
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
-		// host_settings.enable_software_inventory is false
+		// features.enable_software_inventory is false
 		return &fleet.AppConfig{}, nil
 	}
 	ds.LockFunc = func(ctx context.Context, name string, owner string, expiration time.Duration) (bool, error) {

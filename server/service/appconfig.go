@@ -107,12 +107,12 @@ func getAppConfigEndpoint(ctx context.Context, request interface{}, svc fleet.Se
 	}
 	fleetDesktop := fleet.FleetDesktopSettings{TransparencyURL: transparencyURL}
 
-	hostSettings := config.HostSettings
+	features := config.Features
 	response := appConfigResponse{
 		AppConfig: fleet.AppConfig{
 			OrgInfo:               config.OrgInfo,
 			ServerSettings:        config.ServerSettings,
-			HostSettings:          hostSettings,
+			Features:              features,
 			VulnerabilitySettings: config.VulnerabilitySettings,
 
 			SMTPSettings:       smtpSettings,

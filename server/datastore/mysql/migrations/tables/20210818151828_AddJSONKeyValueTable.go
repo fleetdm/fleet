@@ -90,13 +90,13 @@ func Up_20210818151828(tx *sql.Tx) error {
 		&config.HostExpirySettings.HostExpiryEnabled,
 		&config.HostExpirySettings.HostExpiryWindow,
 		&config.ServerSettings.LiveQueryDisabled,
-		&config.HostSettings.AdditionalQueries,
+		&config.Features.AdditionalQueries,
 		&config.SSOSettings.EnableSSOIdPLogin,
 		&config.AgentOptions,
 		&config.ServerSettings.EnableAnalytics,
 		&vulnPath,
-		&config.HostSettings.EnableHostUsers,
-		&config.HostSettings.EnableSoftwareInventory,
+		&config.Features.EnableHostUsers,
+		&config.Features.EnableSoftwareInventory,
 	)
 	if err != nil {
 		return errors.Wrap(err, "scanning config row")

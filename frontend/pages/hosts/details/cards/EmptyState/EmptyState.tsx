@@ -42,7 +42,7 @@ const EmptyState = ({ title, reason }: IEmptyStateProps): JSX.Element => {
               <p>
                 Check out the Fleet documentation for{" "}
                 <a
-                  href="https://fleetdm.com/docs/using-fleet/configuration-files#host-settings"
+                  href="https://fleetdm.com/docs/using-fleet/configuration-files#features"
                   target="_blank"
                   rel="noopener noreferrer"
                 >

@@ -220,7 +220,7 @@ spec:
   host_expiry_settings:
     host_expiry_enabled: true
     host_expiry_window: 10
-  host_settings:
+  features:
     # "additional" information to collect from hosts along with the host
     # details. This information will be updated at the same time as other host
     # details and is returned by the API when host objects are returned. Users
@@ -501,10 +501,16 @@ spec:
 > **Warning:** this will potentially log a lot of data. Some of that data might be private, please verify it before posting it
 in a public channel or a GitHub issue.
 
-## Host settings
+## Features 
 
-The `host_settings` section of the configuration YAML allows to define what predefined queries are sent to the hosts and
+<!-- This section used to be named Host Settings, this ensures links with the #host-settings hash still work -->
+<span id="host-settings" name="host-settings"></span>
+
+The `features` section of the configuration YAML allows to define what predefined queries are sent to the hosts and
 later on processed by Fleet for different functionalities.
 
-- `host_settings.enable_host_users`: boolean value that when enabled Fleet will send the query needed to gather user data
-- `host_settings.enable_software_inventory`: boolean value that when enabled Fleet will send the query needed to gather the list of software installed along with other metadata
+- `features.enable_host_users`: boolean value that when enabled Fleet will send the query needed to gather user data
+- `features.enable_software_inventory`: boolean value that when enabled Fleet will send the query needed to gather the list of software installed along with other metadata
+
+> Note: this section used to be named `host_settings`, but was renamed in Fleet v4.20.0,
+> `host_settings` is still supported for backwards compatibility.

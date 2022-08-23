@@ -240,29 +240,29 @@ func TestApplyAppConfig(t *testing.T) {
 apiVersion: v1
 kind: config
 spec:
-  host_settings:
+  features:
     enable_host_users: false
     enable_software_inventory: false
 `)
 
 	assert.Equal(t, "[+] applied fleet config\n", runAppForTest(t, []string{"apply", "-f", name}))
 	require.NotNil(t, savedAppConfig)
-	assert.False(t, savedAppConfig.HostSettings.EnableHostUsers)
-	assert.False(t, savedAppConfig.HostSettings.EnableSoftwareInventory)
+	assert.False(t, savedAppConfig.Features.EnableHostUsers)
+	assert.False(t, savedAppConfig.Features.EnableSoftwareInventory)
 
 	name = writeTmpYml(t, `---
 apiVersion: v1
 kind: config
 spec:
-  host_settings:
+  features:
     enable_host_users: true
     enable_software_inventory: true
 `)
 
 	assert.Equal(t, "[+] applied fleet config\n", runAppForTest(t, []string{"apply", "-f", name}))
 	require.NotNil(t, savedAppConfig)
-	assert.True(t, savedAppConfig.HostSettings.EnableHostUsers)
-	assert.True(t, savedAppConfig.HostSettings.EnableSoftwareInventory)
+	assert.True(t, savedAppConfig.Features.EnableHostUsers)
+	assert.True(t, savedAppConfig.Features.EnableSoftwareInventory)
 }
 
 func TestApplyAppConfigUnknownFields(t *testing.T) {
@@ -293,7 +293,7 @@ func TestApplyAppConfigUnknownFields(t *testing.T) {
 apiVersion: v1
 kind: config
 spec:
-  host_settings:
+  features:
     enabled_software_inventory: false # typo, correct config is enable_software_inventory
 `)
 
@@ -301,6 +301,59 @@ spec:
 		"applying fleet config: PATCH /api/latest/fleet/config received status 400 Bad request: json: unknown field \"enabled_software_inventory\"",
 	)
 	require.Nil(t, savedAppConfig)
+}
+
+func TestApplyAppConfigDeprecatedFields(t *testing.T) {
+	_, ds := runServerWithMockedDS(t)
+
+	ds.ListUsersFunc = func(ctx context.Context, opt fleet.UserListOptions) ([]*fleet.User, error) {
+		return userRoleSpecList, nil
+	}
+
+	ds.UserByEmailFunc = func(ctx context.Context, email string) (*fleet.User, error) {
+		if email == "admin1@example.com" {
+			return userRoleSpecList[0], nil
+		}
+		return userRoleSpecList[1], nil
+	}
+
+	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+		return &fleet.AppConfig{}, nil
+	}
+
+	var savedAppConfig *fleet.AppConfig
+	ds.SaveAppConfigFunc = func(ctx context.Context, config *fleet.AppConfig) error {
+		savedAppConfig = config
+		return nil
+	}
+
+	name := writeTmpYml(t, `---
+apiVersion: v1
+kind: config
+spec:
+  host_settings:
+    enable_host_users: false
+    enable_software_inventory: false
+`)
+
+	assert.Equal(t, "[+] applied fleet config\n", runAppForTest(t, []string{"apply", "-f", name}))
+	require.NotNil(t, savedAppConfig)
+	assert.False(t, savedAppConfig.Features.EnableHostUsers)
+	assert.False(t, savedAppConfig.Features.EnableSoftwareInventory)
+
+	name = writeTmpYml(t, `---
+apiVersion: v1
+kind: config
+spec:
+  host_settings:
+    enable_host_users: true
+    enable_software_inventory: true
+`)
+
+	assert.Equal(t, "[+] applied fleet config\n", runAppForTest(t, []string{"apply", "-f", name}))
+	require.NotNil(t, savedAppConfig)
+	assert.True(t, savedAppConfig.Features.EnableHostUsers)
+	assert.True(t, savedAppConfig.Features.EnableSoftwareInventory)
 }
 
 func TestApplyPolicies(t *testing.T) {
