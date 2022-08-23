@@ -206,11 +206,12 @@ const TableContainer = ({
     if (prevPageIndex.current === pageIndex) {
       setPageIndex(0);
     }
+
+    // NOTE: used to reset page number to 0 when modifying filters
     const newPageIndex = onQueryChange(queryData);
     if (newPageIndex === 0) {
       setPageIndex(0);
     }
-    // onQueryChange(queryData);
 
     prevPageIndex.current = pageIndex;
   }, [
