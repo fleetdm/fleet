@@ -37,5 +37,7 @@ module.exports.policies = {
   'articles/*': true,
   'reports/*': true,
   'view-sales-one-pager': true,
+  'create-or-update-one-newsletter-subscription': true,
+  'unsubscribe-from-newsletter': true,
 
 };

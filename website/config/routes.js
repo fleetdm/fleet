@@ -251,6 +251,7 @@ module.exports.routes = {
   'GET /blog':                   '/articles',
   'GET /brand':                  '/logos',
   'GET /g':                       (req,res)=> { let originalQueryStringWithAmp = req.url.match(/\?(.+)$/) ? '&'+req.url.match(/\?(.+)$/)[1] : ''; return res.redirect(301, sails.config.custom.baseUrl+'/?meet-fleet'+originalQueryStringWithAmp); },
+  'GET /unsubscribe':            {action: 'unsubscribe-from-newsletter'},
 
   // Sitemap
   // =============================================================================================================
@@ -299,5 +300,6 @@ module.exports.routes = {
   'POST /api/v1/customers/save-billing-info-and-subscribe': { action: 'customers/save-billing-info-and-subscribe' },
   'POST /api/v1/entrance/update-password-and-login':    { action: 'entrance/update-password-and-login' },
   'POST /api/v1/deliver-demo-signup':                   { action: 'deliver-demo-signup' },
-
+  'POST /api/v1/create-or-update-one-newsletter-subscription': { action: 'create-or-update-one-newsletter-subscription' },
+  'POST /api/v1/unsubscribe-from-newsletter': { action: 'unsubscribe-from-newsletter' }
 };
