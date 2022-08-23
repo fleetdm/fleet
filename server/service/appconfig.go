@@ -26,6 +26,15 @@ import (
 type appConfigResponse struct {
 	fleet.AppConfig
 
+	// NoopUnmarshaler is used to disallow AppConfig.UnmarshalJSON from being
+	// promoted to the top level, hijacking the JSON unmarshalling process.
+	//
+	// As a side effect of this, AppConfig.UnmarshalJSON will not be called even
+	// to serialize AppConfig itself, everything will be serialized according to
+	// default struct rules, which is fine since we only need backwards
+	// compatibility when reading AppConfig to perform changes.
+	fleet.NoopUnmarshaler
+
 	UpdateInterval  *fleet.UpdateIntervalConfig  `json:"update_interval"`
 	Vulnerabilities *fleet.VulnerabilitiesConfig `json:"vulnerabilities"`
 
@@ -37,14 +46,6 @@ type appConfigResponse struct {
 	SandboxEnabled bool `json:"sandbox_enabled,omitempty"`
 
 	Err error `json:"error,omitempty"`
-}
-
-// UnmarshalJSON implements the json.Unmarshaler interface.
-// It is explicitly defined to prevent AppConfig.UnmarshalJSON from being
-// promoted (and called) when this struct is unmarshalled.
-func (r *appConfigResponse) UnmarshalJSON(b []byte) error {
-	type responseNoLoop *appConfigResponse
-	return json.Unmarshal(b, responseNoLoop(r))
 }
 
 func (r appConfigResponse) error() error { return r.Err }

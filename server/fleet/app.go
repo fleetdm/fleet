@@ -146,18 +146,19 @@ type legacyConfig struct {
 type EnrichedAppConfig struct {
 	AppConfig
 
+	// NoopUnmarshaler is used to disallow AppConfig.UnmarshalJSON from being
+	// promoted to the top level, hijacking the JSON unmarshalling process.
+	//
+	// As a side effect of this, AppConfig.UnmarshalJSON will not be called even
+	// to serialize AppConfig itself, everything will be serialized according to
+	// default struct rules, which is fine since we only need backwards
+	// compatibility when reading AppConfig to perform changes.
+	NoopUnmarshaler
+
 	UpdateInterval  *UpdateIntervalConfig  `json:"update_interval,omitempty"`
 	Vulnerabilities *VulnerabilitiesConfig `json:"vulnerabilities,omitempty"`
 	License         *LicenseInfo           `json:"license,omitempty"`
 	Logging         *Logging               `json:"logging,omitempty"`
-}
-
-// UnmarshalJSON implements the json.Unmarshaler interface.
-// It is explicitly defined to prevent AppConfig.UnmarshalJSON from being
-// promoted (and called) when this struct is unmarshalled.
-func (e *EnrichedAppConfig) UnmarshalJSON(b []byte) error {
-	type enrichedNoLoop *EnrichedAppConfig
-	return json.Unmarshal(b, enrichedNoLoop(e))
 }
 
 type Duration struct {
@@ -265,27 +266,39 @@ func (c *AppConfig) EnableStrictDecoding() { c.strictDecoding = true }
 
 // UnmarshalJSON implements the json.Unmarshaler interface.
 func (c *AppConfig) UnmarshalJSON(b []byte) error {
-	// Decode any legacy settings that might be present.
-	var legacy legacyConfig
-	if err := json.Unmarshal(b, &legacy); err != nil {
-		return err
+	// Define a new type, this is to prevent infinite recursion when
+	// unmarshalling the AppConfig struct.
+	type cfgStructUnmarshal AppConfig
+	compatConfig := struct {
+		*legacyConfig
+		*cfgStructUnmarshal
+	}{
+		&legacyConfig{},
+		(*cfgStructUnmarshal)(c),
 	}
 
-	// TODO(roperzh): define and assign legacy settings to new fields. E.g:
-	// c.Features = legacy.HostSettings
-
-	// Decode the config, overriding any legacy settings.
-	type appCfgNoCustomUnmarshal *AppConfig
 	decoder := json.NewDecoder(bytes.NewReader(b))
 	if c.strictDecoding {
 		decoder.DisallowUnknownFields()
 	}
-	if err := decoder.Decode(appCfgNoCustomUnmarshal(c)); err != nil {
+	if err := decoder.Decode(&compatConfig); err != nil {
 		return err
 	}
 	if _, err := decoder.Token(); err != io.EOF {
 		return errors.New("unexpected extra tokens found in config")
 	}
+
+	// Assign values to the AppConfig struct.
+	*c = AppConfig(compatConfig.appCfgNoCustomUnmarshal)
+
+	// TODO(roperzh): define and assign legacy settings to new fields. This has
+	// the drawback of legacy fields taking precedence over new fields if both
+	// are defined. Eg:
+	//
+	//	if compatConfig.legacyConfig.HostSettings != nil {
+	//		c.Features = *compatConfig.legacyConfig.HostSettings
+	//	}
+
 	return nil
 }
 
