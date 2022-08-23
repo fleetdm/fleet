@@ -158,7 +158,7 @@ func (svc *Service) ModifyTeamAgentOptions(ctx context.Context, teamID uint, opt
 		fleet.ActivityTypeEditedAgentOptions,
 		&map[string]interface{}{"global": false, "team_id": team.ID, "team_name": team.Name},
 	); err != nil {
-		return nil, err
+		return nil, ctxerr.Wrap(ctx, err, "create edited agent options activity")
 	}
 
 	return tm, nil
@@ -449,10 +449,13 @@ func (svc Service) ApplyTeamSpecs(ctx context.Context, specs []*fleet.TeamSpec) 
 		})
 	}
 
-	return svc.ds.NewActivity(
+	if err := svc.ds.NewActivity(
 		ctx,
 		authz.UserFromContext(ctx),
 		fleet.ActivityTypeAppliedSpecTeam,
 		&map[string]interface{}{"teams": details},
-	)
+	); err != nil {
+		return ctxerr.Wrap(ctx, err, "create applied team spec activity")
+	}
+	return nil
 }
