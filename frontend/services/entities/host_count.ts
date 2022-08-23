@@ -19,7 +19,9 @@ export interface IHostCountLoadOptions {
   softwareId?: number;
   mdmId?: number;
   mdmEnrollmentStatus?: string;
-  operatingSystemId?: number;
+  os_id?: number;
+  os_name?: string;
+  os_version?: string;
 }
 
 export default {
@@ -34,7 +36,7 @@ export default {
     const softwareId = options?.softwareId || null;
     const mdmId = options?.mdmId || null;
     const mdmEnrollmentStatus = options?.mdmEnrollmentStatus || null;
-    const operatingSystemId = options?.operatingSystemId || null;
+    const { os_id, os_name, os_version } = options || {};
 
     const labelPrefix = "labels/";
 
@@ -82,15 +84,14 @@ export default {
       queryString += `&mdm_enrollment_status=${mdmEnrollmentStatus}`;
     }
 
-    if (
-      !label &&
-      !policyId &&
-      !softwareId &&
-      !mdmId &&
-      !mdmEnrollmentStatus &&
-      operatingSystemId
-    ) {
-      queryString += `&operating_system_id=${operatingSystemId}`;
+    if (!label && !policyId && !softwareId && !mdmId && !mdmEnrollmentStatus) {
+      if (os_id) {
+        queryString += `&os_id=${os_id}`;
+      } else if (os_name && os_version) {
+        queryString += `&os_name=${encodeURIComponent(
+          os_name
+        )}&os_version=${encodeURIComponent(os_version)}`;
+      }
     }
 
     // Append query string to endpoint route after slicing off the leading ampersand

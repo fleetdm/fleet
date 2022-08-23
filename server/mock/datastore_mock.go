@@ -201,7 +201,7 @@ type AggregatedMDMSolutionsFunc func(ctx context.Context, teamID *uint) ([]fleet
 
 type GenerateAggregatedMunkiAndMDMFunc func(ctx context.Context) error
 
-type OSVersionsFunc func(ctx context.Context, teamID *uint, platform *string, osID *uint) (*fleet.OSVersions, error)
+type OSVersionsFunc func(ctx context.Context, teamID *uint, platform *string, name *string, version *string) (*fleet.OSVersions, error)
 
 type UpdateOSVersionsFunc func(ctx context.Context) error
 
@@ -1540,9 +1540,9 @@ func (s *DataStore) GenerateAggregatedMunkiAndMDM(ctx context.Context) error {
 	return s.GenerateAggregatedMunkiAndMDMFunc(ctx)
 }
 
-func (s *DataStore) OSVersions(ctx context.Context, teamID *uint, platform *string, osID *uint) (*fleet.OSVersions, error) {
+func (s *DataStore) OSVersions(ctx context.Context, teamID *uint, platform *string, name *string, version *string) (*fleet.OSVersions, error) {
 	s.OSVersionsFuncInvoked = true
-	return s.OSVersionsFunc(ctx, teamID, platform, osID)
+	return s.OSVersionsFunc(ctx, teamID, platform, name, version)
 }
 
 func (s *DataStore) UpdateOSVersions(ctx context.Context) error {
