@@ -44,6 +44,7 @@
   [purpose='hero-text'] {
     max-width: 780px;
     span {
+      display: block;
       font-size: 16px;
       line-height: 24px;
     }
@@ -68,7 +69,6 @@
   [purpose='hero-logos'] {
     background-color: #192147;
     height: 80px;
-    gap: 40px;
     [purpose='snowflake-logo'] {
       height: 30px;
     }
@@ -83,7 +83,10 @@
     }
   }
   [purpose='logo-column'] {
-      gap: 40px;
+    img {
+      margin-right: 35px;
+      margin-left: 35px;
+    }
   }
   [purpose='slack-button'] {
     background: #FFFFFF;
@@ -109,30 +112,35 @@
   [purpose='homepage-section'] {
     padding-top: 120px;
     padding-bottom: 120px;
-    .flex-lg-row {
-        gap: 60px;
-      }
+    padding-right: 24px;
+    padding-left: 24px;
   }
 
 
   [purpose='homepage-content'] {
     padding-top: 44px;
   }
+  [purpose='homepage-top-text-block'] {
+    max-width: 550px;
+  }
   [purpose='top-image'] {
-    max-width: 540px;
+    max-width: 600px;
     width: 100%;
   }
 
+  [purpose='homepage-text-block'] {
+    max-width: 700px;
+  }
   [purpose='features-text'] {
-    div {
-      max-width: 550px;
-    }  
+    max-width: 550px;
+  }
+  [purpose='feature-image'] {
+    max-width: 500px;
   }
 
   [purpose='features'] {
     margin-top: 120px;
     margin-bottom: 120px;
-    gap: 60px;
     p {
       margin-bottom: 0px;
     }
@@ -142,9 +150,6 @@
         margin-right: 12px;
       }
     }
-    [purpose='feature-image'] {
-      max-width: 500px;
-    }
   }
 
   [purpose='animated-arrow-button-red'] {
@@ -153,11 +158,12 @@
   }
 
   [purpose='log-destination-grid'] {
-    max-width: 736px;
-    columns: 3;
+    max-width: 1200px;
+    columns: 4;
   }
 
   [purpose='log-destination'] {
+    flex: 1 0 225px;
     height: 80px;
     column-span: 1;
     justify-content: center;
@@ -192,25 +198,24 @@
     position: relative;
     max-width: 1200px;
     padding-top: 80px;
-    gap: 16px;
     [purpose='tweet-card'] {
+      margin-left: 8px;
+      margin-right: 8px;
+      margin-bottom: 16px;
       text-align: left;
       background: #FFFFFF;
       padding: 40px;
-      margin: 0;
       border: 1px solid #E2E4EA;
-      box-sizing: unset;
+      box-sizing: border-box;
       box-shadow: 0px 7px 3px 0px rgba(25, 33, 71, 0.1);
       border-radius: 16px;
-      flex: 1 1;
-      flex-basis: (33.33% - 16px);
     }
   }
   [purpose='tweets'].truncated {
-    max-height: 580px;
+    max-height: 530px;
     overflow: hidden;
     top: 0px;
-    gap: 16px;
+
   }
   [purpose='tweets'].truncated::before {
     content: '';
@@ -226,6 +231,7 @@
     [purpose='modal-content'] {
       margin-top: 0px;
       max-width: 100vw;
+      height: 100vh;
       width: 100vw;
       background-color: #192147;
       border: 0;
@@ -256,21 +262,58 @@
     }
   }
 
+  @media (min-width: 1200px) {
+    [purpose='tweets'] {
+      padding-left: 0px;
+      padding-right: 0px;
+      [purpose='tweet-card'] {
+        flex: 1 1 326px;
+      }
+    }
+  }
+
   @media (max-width: 1200px) {
+    [purpose='tweets'] {
+      [purpose='tweet-card'] {
+        flex: 1 1 330px;
+      }
+    }
     [purpose='feature-image'] {
-      width: 600px;
+      width: 450px;
+    }
+    [purpose='features-text'] {
+      max-width: 500px;
+    }
+    [purpose='top-image'] {
+      max-width: 500px;
+      width: 100%;
+      margin-left: 48px;
+    }
+    [purpose='log-destination'] {
+      flex: 1 0 216px;
     }
   }
 
   @media (max-width: 991px) {
     [purpose='tweets'] {
       padding-top: 40px;
-      padding-left: 0px;
-      padding-right: 0px;
+    }
+    [purpose='homepage-top-text-block'] {
+      max-width: 600px;
+    }
+    [purpose='homepage-text-block'] {
+      max-width: 600px;
+    }
+    [purpose='top-image'] {
+      max-width: 600px;
+      margin-left: 0px;
+      margin-top: 80px;
     }
     [purpose='hero-banner'] {
       padding-top: 80px;
       padding-bottom: 80px;
+      padding-left: 120px;
+      padding-right: 120px;
     }
     [purpose='hero-text'] {
       max-width: 600px;
@@ -282,43 +325,58 @@
       }
     }
     [purpose='homepage-section'] {
+      padding-left: 120px;
+      padding-right: 120px;
       padding-top: 80px;
       padding-bottom: 80px;
     }
     [purpose='features'] {
       margin-top: 80px;
       margin-bottom: 80px;
+      padding-left: 0;
+      padding-right: 0;
       [purpose='features-text'] {
         padding-top: 80px;
         max-width: 600px;
       }
     }
-    [purpose='tweets'] {
-      [purpose='tweet-card'] {
-        flex-basis: 25%;
-      }
+    [purpose='tweet-card'] {
+      flex: 1 1 295px;
     }
-  }
-
-  @media (min-width: 767px) {
     [purpose='log-destination-grid'] {
       columns: 2;
-      max-width: 976px;
+      max-width: 600px;
     }
     [purpose='log-destination'] {
-      flex: 0 0 228px;
+      flex: 1 0 200px;
     }
   }
 
   @media (max-width: 767px) {
+
+    [purpose='tweets'].truncated {
+      max-height: 630px;
+    }
+
+    [purpose='tweet-card'] {
+      flex: 1 1 316px;
+    }
 
     [purpose='hero-logos'] {
       height: 140px;
     }
 
     [purpose='homepage-section'] {
+      padding-left: 40px;
+      padding-right: 40px;
       padding-top: 60px;
       padding-bottom: 60px;
+    }
+    [purpose='hero-banner'] {
+      padding-top: 60px;
+      padding-bottom: 60px;
+      padding-left: 40px;
+      padding-right: 40px;
     }
 
     [purpose='features'] {
@@ -364,7 +422,7 @@
 
   @media (max-width: 600px) {
     [purpose='log-destination'] {
-      flex-basis: 150px;
+      flex-basis: 159px;
       p {
         display: none;
       }
@@ -395,7 +453,7 @@
       padding-left: 40px;
       padding-right: 40px;
       max-width: 100%;
-      span {
+      p {
         font-size: 12px;
       }
       h1 {
@@ -423,17 +481,28 @@
         text-indent: -24px;
       }
     }
+    [purpose='tweets'] {
+      padding-left: 0;
+      padding-right: 0;
+      [purpose='tweet-card'] {
+        margin-bottom: 30px;
+      }
+    }
     [purpose='slack-button'] {
       width: 100%;
     }
-    [purpose='tweets'].truncated {
-      max-height: 760px;
+
+  }
+
+  @media (max-width: 436px) {
+    [purpose='log-destination'] {
+      flex-basis: 140px;
     }
   }
 
   @media (max-width: 395px) {
     [purpose='log-destination'] {
-      flex-basis: 112px;
+      flex-basis: 100px;
     }
     [purpose='hero-logos'] {
       img {

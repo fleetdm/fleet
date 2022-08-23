@@ -4,10 +4,10 @@
   <div purpose="hero-background">
     <div purpose="hero-banner">
         <div class="container-lg">
-          <div purpose="hero-text" class="container-fluid px-lg-0 text-center">
-            <span class="text-left text-sm-center text-nowrap" style="text-transform: uppercase;">Lightweight, programmable telemetry</span>
-            <h1 style="max-width: 780px;" class="mx-auto text-left text-sm-center">Solve endpoint mysteries</h1>
-            <h6 style="max-width: 780px;" class="mx-auto mb-0 text-left text-sm-center">Fleet gives visibility to over 1.65 million devices powering Fortune 1,000 companies. See how easy it can be to get all the answers you need.</h6>
+          <div purpose="hero-text" class="container-fluid px-0 text-center">
+            <span class="text-left text-md-center align-self-start text-nowrap mb-0" style="text-transform: uppercase;">Lightweight, programmable telemetry</span>
+            <h1 style="max-width: 780px;" class="mx-auto text-left text-md-center">Solve endpoint mysteries</h1>
+            <h6 style="max-width: 780px;" class="mx-auto mb-0 text-left text-md-center">Fleet gives visibility to over 1.65 million devices powering Fortune 1,000 companies. See how easy it can be to get all the answers you need.</h6>
             <div style="max-width: 500px;" class="mt-5 mx-auto mb-0 d-flex flex-column align-items-center justify-content-center">
               <a purpose="round-button" class="d-sm-flex align-items-center justify-content-center mx-auto mx-sm-0" href="/try-fleet/register?tryitnow">
                 Try it out
@@ -33,10 +33,10 @@
 
 
   <%// Homepage content %>
-  <div purpose="homepage-section" style="background: #F4F6FA;" class="container-fluid justify-content center px-4 px-sm-5">
+  <div purpose="homepage-section" style="background: #F4F6FA;" class="container-fluid justify-content center">
     <div class="text-left mx-auto">
       <div style="max-width: 1200px;" class="d-flex flex-lg-row flex-column align-items-center justify-content-between mx-auto">
-        <div style="max-width: 520px;" purpose="homepage-text-block">
+        <div purpose="homepage-top-text-block">
           <h2 class="text-left pb-3">Fleet for osquery makes it easy to investigate all your servers and workstations</h2>
           <p class="pb-3 pb-lg-4">Ask any question about any endpoint anywhere. Fleet is compatible with every MDM and EDR platform on the market. Our open-source agent protects privacy and performance.</p>
           <a purpose="round-button" class="d-flex align-items-center justify-content-center mx-auto mx-sm-0 text-nowrap mt-3" @click="clickOpenVideoModal()">
@@ -48,7 +48,7 @@
     </div>
   </div>
   <%// Product images and checklists %>
-  <div purpose="homepage-section" class="container-fluid justify-content center px-4 px-sm-5">
+  <div purpose="homepage-section" class="container-fluid justify-content center">
     <div style="max-width: 1200px;" class="container-fluid px-0 justify-content-center">
 
       <%// First image and feature checklist %>
@@ -56,7 +56,7 @@
         <div purpose="feature-image" class="d-flex flex-shrink-1">
           <img alt="Fleet UI" style="max-width: 100%" src="images/feature-realtime-500x315@2x.png" class="m-lg-0"/>
         </div>
-        <div purpose="features-text" class="text-left pl-0 m-0">
+        <div purpose="features-text" class="text-left pl-lg-4 pl-0 m-0">
           <div class="mx-auto mx-lg-0">
             <h2 class="mb-4">Accurate, comprehensive, up-to-date data</h2>
             <p>Get real-time results from all your endpoints — all in one place. Fleet fits into any security and compliance ecosystem. Our transparent approach makes adoption easier. So, you can find clues faster.</p>
@@ -76,7 +76,7 @@
 
       <%// Second image and feature checklist %>
       <div purpose="features" class="d-flex flex-wrap flex-lg-nowrap justify-content-lg-between justify-content-center align-items-center">
-        <div purpose="features-text" class="text-left m-0 pr-0">
+        <div purpose="features-text" class="text-left m-0 pr-0 pr-lg-4">
           <div>
           <h2 class="mb-4">No downtime risks or performance hits</h2>
           <p>Some security agents strain your systems. Fortunately, Fleet uses osquery. This open-source solution was built to be deployed across hundreds of thousands of devices. Because your tools shouldn’t slow you down.</p>
@@ -99,7 +99,7 @@
 
       <%// Third image and feature checklist %>
       <div purpose="features" class="d-flex flex-wrap flex-lg-nowrap justify-content-center justify-content-lg-between align-items-center">
-        <div purpose="features-text" class="text-left m-0 order-1 pl-0">
+        <div purpose="features-text" class="text-left m-0 order-1 pl-0 pl-lg-4">
           <div>
             <h2 class="mb-4">Complete control over the queries you run</h2>
             <p>Create complex, custom queries just for your organization. Or copy and paste queries that have been vetted by the Fleet community. Either way, webhooks will help you automate IT admin and security compliance.</p>
@@ -123,42 +123,42 @@
 
     <%// Log destinations %>
     <div class="container-sm justify-content-center m-0">
-      <div purpose="homepage-text-block" style="max-width: 750px;" class="text-left text-sm-center mx-sm-auto">
+      <div purpose="homepage-text-block" class="text-left text-lg-center mx-sm-auto">
         <h2 class="mb-3">Collect and push predictable data</h2>
         <p>
           Automate scheduled queries to collect logs from all your endpoints. Focus on any log destination or easily build your own.
         </p>
       </div>
       <div purpose="log-destination-grid" class="container d-flex flex-wrap justify-content-center p-0 pt-4 mx-auto">
-        <div purpose="log-destination" class="d-flex mx-1 mx-sm-2 mb-4">
+        <div purpose="log-destination" class="d-flex mx-2 mx-sm-2 mb-3">
           <img alt="filesystem icon" src="/images/icon-log-destination-filesystem-48x48@2x.png"/>
           <p class="font-weight-bold m-0 ml-3">Filesystem</p>
         </div>
-        <div purpose="log-destination" class="d-flex mx-1 mx-sm-2 mb-4">
+        <div purpose="log-destination" class="d-flex mx-2 mx-sm-2 mb-3">
           <img alt="Splunk logo" src="/images/icon-log-destination-splunk-48x48@2x.png"/>
           <p class="font-weight-bold m-0 ml-3">Splunk</p>
         </div>
-        <div purpose="log-destination" class="d-flex mx-1 mx-sm-2 mb-4">
+        <div purpose="log-destination" class="d-flex mx-2 mx-sm-2 mb-3">
           <img alt="AWS Kinesis logo" src="/images/icon-log-destination-firehose-40x48@2x.png"/>
           <p class="font-weight-bold m-0 ml-3">AWS Kinesis</p>
         </div>
-        <div purpose="log-destination" class="d-flex mx-1 mx-sm-2 mb-4">
+        <div purpose="log-destination" class="d-flex mx-2 mx-sm-2 mb-3">
           <img alt="Google Cloud Platform PubSub logo" src="/images/icon-log-destination-pubsub-53x48@2x.png"/>
           <p class="font-weight-bold m-0 ml-3">GCP PubSub</p>
         </div>
-        <div purpose="log-destination" class="d-flex mx-1 mx-sm-2 mb-4">
+        <div purpose="log-destination" class="d-flex mx-2 mx-sm-2 mb-3 mb-lg-0">
           <img alt="AWS Lambda logo" src="/images/icon-log-destination-lambda-48x48@2x.png"/>
           <p class="font-weight-bold m-0 ml-3">AWS Lambda</p>
         </div>
-        <div purpose="log-destination" class="d-flex mx-1 mx-sm-2 mb-4">
+        <div purpose="log-destination" class="d-flex mx-2 mx-sm-2 mb-3 mb-lg-0">
           <img alt="Elastic logo" src="/images/icon-log-destination-elastic-48x48@2x.png"/>
           <p class="font-weight-bold m-0 ml-3">Elastic</p>
         </div>
-        <div purpose="log-destination" class="d-flex mx-1 mx-sm-2 mb-4">
+        <div purpose="log-destination" class="d-flex mx-2 mx-sm-2">
           <img alt="Sumo Logic logo" src="/images/icon-log-destination-sumo-48x48@2x.png"/>
           <p class="font-weight-bold m-0 ml-3">Sumo Logic</p>
         </div>
-        <div purpose="log-destination" class="d-flex mx-1 mx-sm-2 mb-4">
+        <div purpose="log-destination" class="d-flex mx-2 mx-sm-2">
           <img alt="Graylog logo" src="/images/icon-log-destination-graylog-48x48@2x.png"/>
           <p class="font-weight-bold m-0 ml-3">Graylog</p>
         </div>
@@ -172,11 +172,11 @@
   </div>
   <%// Background change to light gray%>
   <div purpose="homepage-section" style="background: #F4F6FA; position: relative">
-    <div style="max-width: 1200px;" class="container-lg text-center justify-content-center px-4 px-sm-5 mx-auto">
+    <div class="container-lg text-center justify-content-center mx-auto">
       <div purpose="homepage-text-block" class="d-flex flex-column align-items-center text-left text-sm-center mx-auto">
         <%// Slack call to action%>
         <h3 style="font-size: 24px; line-height: 40px;" class="text-left text-sm-center">Join the open-source community</h3>
-        <p style="max-width: 700px" class="mb-4">
+        <p class="mb-4">
           Security and IT engineers are working together to make Fleet even better. From contributing patches to dreaming up features.
         </p>
         <a class="d-flex flex-row mx-auto text-nowrap justify-content-center" purpose="slack-button" href="/slack"><img style="height: 24px;" class="pr-3" alt="Slack logo" src="/images/logo-slack-24x24@2x.png"/>Join Fleet on Slack</a>
@@ -274,21 +274,21 @@
 
   <%// Fleet Sandbox call to action %>
   <div purpose="homepage-section" style="background: #F4F6FA;" class="d-flex flex-column mx-auto align-items-center justify-content-center pt-0">
-    <div style="max-width: 1200px;" class="container-lg text-center justify-content-center px-4 px-sm-5">
       <img class="d-flex" style="max-width: 300px" src="/images/fleet-sandbox-300x244@2x.png" alt="Fleet Sandbox">
       <h4 class="pt-4">Start your free trial</h4>
       <p>Play around with Fleet on your device.</p>
       <a purpose="round-button" style="padding: 16px 33px;" class="btn btn-block d-flex flex-row justify-content-center align-items-center" href="/try-fleet/register?tryitnow">
        Try it out
       </a>
-    </div>
   </div>
 
   <modal v-if="modal === 'video'" @close="closeModal()" v-cloak>
-    <div purpose="embedded-content" class="container-lg">
-      <iframe id="ytplayer" type="text/html" width="1280" height="720"
-      src="https://www.youtube.com/embed/1VNvg3_drow?autoplay=1&controls=0&modestbranding=1&playsinline=1&color=white"
-      frameborder="0" allowfullscreen></iframe>
+    <div style="height: 100%;" class="d-flex flex-column align-items-center justify-content-center">
+      <div purpose="embedded-content" class="container-lg">
+        <iframe id="ytplayer" type="text/html"
+        src="https://www.youtube.com/embed/1VNvg3_drow?autoplay=1&controls=1&modestbranding=1&playsinline=1&color=white"
+        frameborder="0" allowfullscreen autoplay></iframe>
+      </div>
     </div>
   </modal>
 
