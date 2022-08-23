@@ -109,7 +109,7 @@ type VulnerabilitySettings struct {
 // AppConfig holds server configuration that can be changed via the API.
 //
 // Note: management of deprecated fields is done on JSON-marshalling and uses
-// the legacyFields struct to list them.
+// the legacyConfig struct to list them.
 type AppConfig struct {
 	OrgInfo            OrgInfo            `json:"org_info"`
 	ServerSettings     ServerSettings     `json:"server_settings"`
