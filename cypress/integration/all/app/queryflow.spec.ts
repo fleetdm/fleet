@@ -167,7 +167,10 @@ describe("Query flow (seeded)", () => {
           cy.findByText(/show query/i).click();
         });
       cy.getAttached(".show-query-modal").within(() => {
-        cy.findByText(/''/i).should("exist"); // TODO: query string heres
+        cy.getAttached(".ace_content").within(() => {
+          cy.findByText(/select/i).should("exist");
+          cy.findByText(/datetime/i).should("exist");
+        });
       });
     });
 
