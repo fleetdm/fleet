@@ -83,20 +83,17 @@ func mapToSecurityBulletins(rXML *msrc_input.ResultXML) (map[string]*msrc_parsed
 				if vuln, ok = b.Vulnerabities[v.CVE]; !ok {
 					vuln = msrc_parsed.NewVulnerability(v.PublishedDateEpoch())
 				}
-				vuln.ProductIDsSet[pID] = true
-				vuln.RemediatedBySet[remediatedKBID] = true
+				vuln.ProductIDs[pID] = true
+				vuln.RemediatedBy[remediatedKBID] = true
 
 				// Check if the vendor fix referenced by this remediation exists, if not
 				// initialize it.
 				var vFix msrc_parsed.VendorFix
 				if vFix, ok = b.VendorFixes[remediatedKBID]; !ok {
-					vFix = msrc_parsed.VendorFix{
-						FixedBuild:        rem.FixedBuild,
-						TargetProductsIDs: make(map[string]bool),
-					}
+					vFix = msrc_parsed.NewVendorFix(rem.FixedBuild)
 				}
 				vFix.Supersedes = supersedes
-				vFix.TargetProductsIDs[pID] = true
+				vFix.ProductIDs[pID] = true
 
 				// Update the bulletin
 				b.Vulnerabities[v.CVE] = vuln

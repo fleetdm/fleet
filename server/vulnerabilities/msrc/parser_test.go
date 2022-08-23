@@ -715,7 +715,7 @@ func TestParser(t *testing.T) {
 		"Windows 10": {
 			"CVE-2022-29137": {
 				PublishedEpoch: ptr.Int64(1652169600),
-				ProductIDsSet: map[string]bool{
+				ProductIDs: map[string]bool{
 					"11568": true,
 					"11569": true,
 					"11570": true,
@@ -736,7 +736,7 @@ func TestParser(t *testing.T) {
 					"10852": true,
 					"10853": true,
 				},
-				RemediatedBySet: map[int]bool{
+				RemediatedBy: map[int]bool{
 					5013941: true,
 					5013952: true,
 					5013942: true,
@@ -748,11 +748,11 @@ func TestParser(t *testing.T) {
 		"Windows Server 2019": {
 			"CVE-2022-29137": {
 				PublishedEpoch: ptr.Int64(1652169600),
-				ProductIDsSet: map[string]bool{
+				ProductIDs: map[string]bool{
 					"11571": true,
 					"11572": true,
 				},
-				RemediatedBySet: map[int]bool{
+				RemediatedBy: map[int]bool{
 					5013941: true,
 				},
 			},
@@ -761,11 +761,11 @@ func TestParser(t *testing.T) {
 		"Windows Server 2022": {
 			"CVE-2022-29137": {
 				PublishedEpoch: ptr.Int64(1652169600),
-				ProductIDsSet: map[string]bool{
+				ProductIDs: map[string]bool{
 					"11923": true,
 					"11924": true,
 				},
-				RemediatedBySet: map[int]bool{
+				RemediatedBy: map[int]bool{
 					5013944: true,
 				},
 			},
@@ -774,10 +774,10 @@ func TestParser(t *testing.T) {
 		"Windows Server": {
 			"CVE-2022-29137": {
 				PublishedEpoch: ptr.Int64(1652169600),
-				ProductIDsSet: map[string]bool{
+				ProductIDs: map[string]bool{
 					"11803": true,
 				},
-				RemediatedBySet: map[int]bool{
+				RemediatedBy: map[int]bool{
 					5013942: true,
 				},
 			},
@@ -786,13 +786,13 @@ func TestParser(t *testing.T) {
 		"Windows Server 2008": {
 			"CVE-2022-29137": {
 				PublishedEpoch: ptr.Int64(1652169600),
-				ProductIDsSet: map[string]bool{
+				ProductIDs: map[string]bool{
 					"9312":  true,
 					"10287": true,
 					"9318":  true,
 					"9344":  true,
 				},
-				RemediatedBySet: map[int]bool{
+				RemediatedBy: map[int]bool{
 					5014010: true,
 					5014006: true,
 				},
@@ -802,11 +802,11 @@ func TestParser(t *testing.T) {
 		"Windows Server 2008 R2": {
 			"CVE-2022-29137": {
 				PublishedEpoch: ptr.Int64(1652169600),
-				ProductIDsSet: map[string]bool{
+				ProductIDs: map[string]bool{
 					"10051": true,
 					"10049": true,
 				},
-				RemediatedBySet: map[int]bool{
+				RemediatedBy: map[int]bool{
 					5014012: true,
 					5013999: true,
 				},
@@ -816,11 +816,11 @@ func TestParser(t *testing.T) {
 		"Windows Server 2012": {
 			"CVE-2022-29137": {
 				PublishedEpoch: ptr.Int64(1652169600),
-				ProductIDsSet: map[string]bool{
+				ProductIDs: map[string]bool{
 					"10378": true,
 					"10379": true,
 				},
-				RemediatedBySet: map[int]bool{
+				RemediatedBy: map[int]bool{
 					5014017: true,
 					5014018: true,
 				},
@@ -830,11 +830,11 @@ func TestParser(t *testing.T) {
 		"Windows Server 2012 R2": {
 			"CVE-2022-29137": {
 				PublishedEpoch: ptr.Int64(1652169600),
-				ProductIDsSet: map[string]bool{
+				ProductIDs: map[string]bool{
 					"10483": true,
 					"10543": true,
 				},
-				RemediatedBySet: map[int]bool{
+				RemediatedBy: map[int]bool{
 					5014011: true,
 					5014001: true,
 				},
@@ -844,11 +844,11 @@ func TestParser(t *testing.T) {
 		"Windows 7": {
 			"CVE-2022-29137": {
 				PublishedEpoch: ptr.Int64(1652169600),
-				ProductIDsSet: map[string]bool{
+				ProductIDs: map[string]bool{
 					"10047": true,
 					"10048": true,
 				},
-				RemediatedBySet: map[int]bool{
+				RemediatedBy: map[int]bool{
 					5014012: true,
 					5013999: true,
 				},
@@ -858,11 +858,11 @@ func TestParser(t *testing.T) {
 		"Windows Server 2016": {
 			"CVE-2022-29137": {
 				PublishedEpoch: ptr.Int64(1652169600),
-				ProductIDsSet: map[string]bool{
+				ProductIDs: map[string]bool{
 					"10816": true,
 					"10855": true,
 				},
-				RemediatedBySet: map[int]bool{
+				RemediatedBy: map[int]bool{
 					5013952: true,
 				},
 			},
@@ -871,11 +871,11 @@ func TestParser(t *testing.T) {
 		"Windows 11": {
 			"CVE-2022-29137": {
 				PublishedEpoch: ptr.Int64(1652169600),
-				ProductIDsSet: map[string]bool{
+				ProductIDs: map[string]bool{
 					"11926": true,
 					"11927": true,
 				},
-				RemediatedBySet: map[int]bool{
+				RemediatedBy: map[int]bool{
 					5013943: true,
 				},
 			},
@@ -884,10 +884,10 @@ func TestParser(t *testing.T) {
 		"Windows RT 8.1": {
 			"CVE-2022-29137": {
 				PublishedEpoch: ptr.Int64(1652169600),
-				ProductIDsSet: map[string]bool{
+				ProductIDs: map[string]bool{
 					"10484": true,
 				},
-				RemediatedBySet: map[int]bool{
+				RemediatedBy: map[int]bool{
 					5014025: true,
 				},
 			},
@@ -896,14 +896,243 @@ func TestParser(t *testing.T) {
 		"Windows 8.1": {
 			"CVE-2022-29137": {
 				PublishedEpoch: ptr.Int64(1652169600),
-				ProductIDsSet: map[string]bool{
+				ProductIDs: map[string]bool{
 					"10481": true,
 					"10482": true,
 				},
-				RemediatedBySet: map[int]bool{
+				RemediatedBy: map[int]bool{
 					5014011: true,
 					5014001: true,
 				},
+			},
+		},
+	}
+
+	// A random vulnerability ("CVE-2022-29137")
+	expectedVendorFixes := map[string]map[int]msrc_parsed.VendorFix{
+		"Windows 10": {
+			5013941: {
+				FixedBuild: "10.0.17763.2928",
+				ProductIDs: map[string]bool{
+					"11568": true,
+					"11569": true,
+					"11570": true,
+				},
+				Supersedes: ptr.Int(5012647),
+			},
+			5013952: {
+				FixedBuild: "10.0.14393.5125",
+				ProductIDs: map[string]bool{
+					"10852": true,
+					"10853": true,
+				},
+				Supersedes: ptr.Int(5012596),
+			},
+			5013942: {
+				FixedBuild: "10.0.19043.1706",
+				ProductIDs: map[string]bool{
+					"11896": true,
+					"11897": true,
+					"11898": true,
+					"11929": true,
+					"11800": true,
+					"11801": true,
+					"11802": true,
+					"11930": true,
+					"11931": true,
+				},
+				Supersedes: ptr.Int(5012599),
+			},
+			5013963: {
+				FixedBuild: "10.0.10240.19297",
+				ProductIDs: map[string]bool{
+					"10729": true,
+					"10735": true,
+				},
+				Supersedes: ptr.Int(5012653),
+			},
+
+			5013945: {
+				FixedBuild: "10.0.18363.2274",
+				ProductIDs: map[string]bool{
+					"11712": true,
+					"11713": true,
+					"11714": true,
+				},
+				Supersedes: ptr.Int(5012591),
+			},
+		},
+		"Windows Server 2019": {
+			5013941: {
+				FixedBuild: "10.0.17763.2928",
+				ProductIDs: map[string]bool{
+					"11571": true,
+					"11572": true,
+				},
+				Supersedes: ptr.Int(5012647),
+			},
+		},
+
+		"Windows Server 2022": {
+			5013944: {
+				FixedBuild: "10.0.20348.707",
+				ProductIDs: map[string]bool{
+					"11923": true,
+					"11924": true,
+				},
+				Supersedes: ptr.Int(5012604),
+			},
+		},
+
+		"Windows Server": {
+			5013942: {
+				FixedBuild: "10.0.19042.1706",
+				ProductIDs: map[string]bool{
+					"11803": true,
+				},
+				Supersedes: ptr.Int(5012599),
+			},
+		},
+
+		"Windows Server 2008": {
+			5014010: {
+				ProductIDs: map[string]bool{
+					"9312":  true,
+					"10287": true,
+					"9318":  true,
+					"9344":  true,
+				},
+				FixedBuild: "6.0.6003.21481",
+				Supersedes: ptr.Int(5012658),
+			},
+			5014006: {
+				ProductIDs: map[string]bool{
+					"9312":  true,
+					"10287": true,
+					"9318":  true,
+					"9344":  true,
+				},
+				FixedBuild: "6.0.6003.21481",
+			},
+		},
+
+		"Windows Server 2008 R2": {
+			5014012: {
+				ProductIDs: map[string]bool{
+					"10051": true,
+					"10049": true,
+				},
+				Supersedes: ptr.Int(5012626),
+				FixedBuild: "6.1.7601.25954",
+			},
+			5013999: {
+				ProductIDs: map[string]bool{
+					"10051": true,
+					"10049": true,
+				},
+				FixedBuild: "6.1.7601.25954",
+			},
+		},
+
+		"Windows Server 2012": {
+			5014017: {
+				ProductIDs: map[string]bool{
+					"10378": true,
+					"10379": true,
+				},
+				Supersedes: ptr.Int(5012650),
+				FixedBuild: "6.2.9200.23714",
+			},
+			5014018: {
+				ProductIDs: map[string]bool{
+					"10378": true,
+					"10379": true,
+				},
+				FixedBuild: "6.2.9200.23714",
+			},
+		},
+
+		"Windows Server 2012 R2": {
+			5014011: {
+				ProductIDs: map[string]bool{
+					"10483": true,
+					"10543": true,
+				},
+				FixedBuild: "6.3.9600.20371",
+				Supersedes: ptr.Int(5012670),
+			},
+			5014001: {
+				ProductIDs: map[string]bool{
+					"10483": true,
+					"10543": true,
+				},
+				FixedBuild: "6.3.9600.20365",
+			},
+		},
+
+		"Windows 7": {
+			5014012: {
+				ProductIDs: map[string]bool{
+					"10047": true,
+					"10048": true,
+				},
+				Supersedes: ptr.Int(5012626),
+				FixedBuild: "6.1.7601.25954",
+			},
+			5013999: {
+				ProductIDs: map[string]bool{
+					"10047": true,
+					"10048": true,
+				},
+				FixedBuild: "6.1.7601.25954",
+			},
+		},
+
+		"Windows Server 2016": {
+			5013952: {
+				ProductIDs: map[string]bool{
+					"10816": true,
+					"10855": true,
+				},
+				FixedBuild: "10.0.14393.5125",
+			},
+		},
+
+		"Windows 11": {
+			5013943: {
+				ProductIDs: map[string]bool{
+					"11926": true,
+					"11927": true,
+				},
+				FixedBuild: "10.0.22000.675",
+				Supersedes: ptr.Int(5012592),
+			},
+		},
+
+		"Windows RT 8.1": {
+			5014025: {
+				ProductIDs: map[string]bool{
+					"10484": true,
+				},
+				FixedBuild: "6.3.9600.20367",
+			},
+		},
+
+		"Windows 8.1": {
+			5014011: {
+				ProductIDs: map[string]bool{
+					"10481": true,
+					"10482": true,
+				},
+				FixedBuild: "6.3.9600.20371",
+				Supersedes: ptr.Int(5012670),
+			},
+			5014001: {
+				ProductIDs: map[string]bool{
+					"10481": true,
+					"10482": true,
+				},
+				FixedBuild: "6.3.9600.20365",
 			},
 		},
 	}
@@ -912,6 +1141,23 @@ func TestParser(t *testing.T) {
 		bulletins, err := mapToSecurityBulletins(xmlResult)
 		require.NoError(t, err)
 
+		t.Run("should map the vendor fixes entries correctly", func(t *testing.T) {
+			for pName, vF := range expectedVendorFixes {
+				bulletin := bulletins[pName]
+
+				for KBID, fix := range vF {
+					sut := bulletin.VendorFixes[KBID]
+					require.Equal(t, fix.FixedBuild, sut.FixedBuild, pName, KBID)
+					require.Equal(t, fix.ProductIDs, sut.ProductIDs, pName, KBID)
+					// We want to check that either both are nil or that both are not nil
+					require.False(t, (fix.Supersedes == nil || sut.Supersedes == nil) && !(fix.Supersedes == nil || sut.Supersedes == nil), pName, KBID)
+					if fix.Supersedes != nil {
+						require.Equal(t, *fix.Supersedes, *sut.Supersedes, pName, KBID)
+					}
+				}
+			}
+		})
+
 		t.Run("should map the vulnerability entries correctly", func(t *testing.T) {
 			for pName, v := range expectedVulns {
 				bulletin := bulletins[pName]
@@ -919,8 +1165,8 @@ func TestParser(t *testing.T) {
 				for cve, vuln := range v {
 					sut := bulletin.Vulnerabities[cve]
 					require.Equal(t, *vuln.PublishedEpoch, *sut.PublishedEpoch, pName)
-					require.Equal(t, vuln.RemediatedBySet, sut.RemediatedBySet, pName)
-					require.Equal(t, vuln.ProductIDsSet, sut.ProductIDsSet, pName)
+					require.Equal(t, vuln.RemediatedBy, sut.RemediatedBy, pName)
+					require.Equal(t, vuln.ProductIDs, sut.ProductIDs, pName)
 				}
 			}
 		})

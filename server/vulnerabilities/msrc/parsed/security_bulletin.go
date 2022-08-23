@@ -33,22 +33,29 @@ func NewSecurityBulletin(pName string) *SecurityBulletin {
 type Vulnerability struct {
 	PublishedEpoch *int64
 	// Set of products that are susceptible to this vuln.
-	ProductIDsSet map[string]bool
+	ProductIDs map[string]bool
 	// Set of Vendor fixes that remediate this vuln.
-	RemediatedBySet map[int]bool
+	RemediatedBy map[int]bool
 }
 
 func NewVulnerability(publishedDateEpoch *int64) Vulnerability {
 	return Vulnerability{
-		PublishedEpoch:  publishedDateEpoch,
-		ProductIDsSet:   make(map[string]bool),
-		RemediatedBySet: make(map[int]bool),
+		PublishedEpoch: publishedDateEpoch,
+		ProductIDs:     make(map[string]bool),
+		RemediatedBy:   make(map[int]bool),
 	}
 }
 
 type VendorFix struct {
-	FixedBuild        string
-	TargetProductsIDs map[string]bool
+	FixedBuild string
+	ProductIDs map[string]bool
 	// Reference to what vendor fix this particular vendor fix 'replaces'.
 	Supersedes *int
+}
+
+func NewVendorFix(fixedBuild string) VendorFix {
+	return VendorFix{
+		FixedBuild: fixedBuild,
+		ProductIDs: make(map[string]bool),
+	}
 }
