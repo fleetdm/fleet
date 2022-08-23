@@ -7,7 +7,9 @@ parasails.registerPage('homepage', {
     syncing: false,
 
     // Form data
-    formData: { /* … */ },
+    formData: {
+      subscribeTo: 'releases'
+    },
 
     // For tracking client-side validation errors in our form.
     // > Has property set to `true` for each invalid property in `formData`.
@@ -51,8 +53,9 @@ parasails.registerPage('homepage', {
       window.dispatchEvent(new Event('papercups:open'));
     },
 
-    submittedForm: async function() {
+    submittedNewsletterForm: async function() {
       // Show the success message.
+      console.log('aaaaa');
       this.cloudSuccess = true;
     },
   }

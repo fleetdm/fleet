@@ -36,6 +36,41 @@
     }
   }
 
+  [purpose='newsletter-banner'] {
+    background-color: #FFF;
+    padding: 80px;
+    [purpose='newletter-form-text'] {
+      max-width: 470px;
+      h3 {
+        margin-bottom: 8px;
+      }
+      p {
+        line-height: 24px;
+        margin-bottom: 0px;
+      }
+    }
+    [purpose='newsletter-form'] {
+      flex: 0 1 470px;
+      [purpose="newsletter-form-input"] {
+        border-radius: 6px;
+        height: 48px;
+        font-size: 16px;
+      }
+      [purpose="newsletter-form-input"]::placeholder {
+        font-size: 16px;
+      }
+      [purpose='subscribe-button'] {
+        border-radius: 6px;
+        height: 48px;
+        span {
+          font-weight: 400;
+          font-size: 16px;
+          line-height: 24px;
+        }
+      }
+    }
+  }
+
   [purpose='hero-clouds'] {
     background-image: url('/images/clouds-1600x320@2x.png');
     background-position: bottom 150px center;
@@ -197,6 +232,15 @@
       padding-right: 20px;
       padding-left: 20px;
     }
+    [purpose='newsletter-banner'] {
+      padding: 80px 120px;
+      [purpose='newletter-form-text'] {
+        max-width: 100%;
+      }
+      [purpose='newsletter-form'] {
+        flex: auto;
+      }
+    }
   }
 
 
@@ -228,6 +272,9 @@
     [purpose='report-banner-container'] {
       padding-right: 15px;
       padding-left: 15px;
+    }
+    [purpose='newsletter-banner'] {
+      padding: 60px 40px;
     }
   }
 
