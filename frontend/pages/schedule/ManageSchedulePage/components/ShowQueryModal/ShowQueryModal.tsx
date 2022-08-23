@@ -15,11 +15,6 @@ const ShowQueryModal = ({
   query,
   onCancel,
 }: IShowQueryModalProps): JSX.Element => {
-  console.log("query", query);
-
-  const splitQuery = query && query.replace("FROM", "\nFROM");
-  console.log("splitQuery", splitQuery);
-
   return (
     <Modal
       title={"Query"}
