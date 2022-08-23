@@ -921,6 +921,8 @@ func testHostsListMunkiIssueID(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	err = ds.SetOrUpdateMunkiInfo(ctx, hostIDs[2], "1.0.0", []string{"a", "b"}, nil)
 	require.NoError(t, err)
+	err = ds.SetOrUpdateMunkiInfo(ctx, hostIDs[2], "1.0.0", []string{"a", "b"}, nil)
+	require.NoError(t, err)
 
 	var munkiIDs []uint
 	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
@@ -941,6 +943,29 @@ func testHostsListMunkiIssueID(t *testing.T, ds *Datastore) {
 	nonExisting := uint(123)
 	hosts = listHostsCheckCount(t, ds, filter, fleet.HostListOptions{MunkiIssueIDFilter: &nonExisting}, 0)
 	assert.Len(t, hosts, 0)
+
+	// insert issue names at the limit of what is allowed
+	err = ds.SetOrUpdateMunkiInfo(ctx, hostIDs[0], "1.0.0", []string{strings.Repeat("Z", maxMunkiIssueNameLen)}, []string{strings.Repeat("💞", maxMunkiIssueNameLen)})
+	require.NoError(t, err)
+
+	issues, err := ds.GetMunkiIssues(ctx, hostIDs[0])
+	require.NoError(t, err)
+	require.Len(t, issues, 2)
+	names := []string{issues[0].Name, issues[1].Name}
+	require.ElementsMatch(t, []string{strings.Repeat("Z", maxMunkiIssueNameLen), strings.Repeat("💞", maxMunkiIssueNameLen)}, names)
+
+	// test the truncation of overly long issue names, ascii and multi-byte utf8
+	// Note that some unicode characters may not be supported properly by mysql
+	// (e.g. 🐈 did fail even with truncation), but there's not much we can do
+	// about it.
+	err = ds.SetOrUpdateMunkiInfo(ctx, hostIDs[0], "1.0.0", []string{strings.Repeat("A", maxMunkiIssueNameLen+1)}, []string{strings.Repeat("☺", maxMunkiIssueNameLen+1)})
+	require.NoError(t, err)
+
+	issues, err = ds.GetMunkiIssues(ctx, hostIDs[0])
+	require.NoError(t, err)
+	require.Len(t, issues, 2)
+	names = []string{issues[0].Name, issues[1].Name}
+	require.ElementsMatch(t, []string{strings.Repeat("A", maxMunkiIssueNameLen), strings.Repeat("☺", maxMunkiIssueNameLen)}, names)
 }
 
 func testHostsEnroll(t *testing.T, ds *Datastore) {

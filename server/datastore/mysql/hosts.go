@@ -9,6 +9,7 @@ import (
 	"sort"
 	"strings"
 	"time"
+	"unicode/utf8"
 
 	"github.com/cenkalti/backoff/v4"
 	"github.com/doug-martin/goqu/v9"
@@ -1397,7 +1398,6 @@ func (ds *Datastore) SetOrUpdateMunkiInfo(ctx context.Context, hostID uint, vers
 	// ticket was to care about data accuracy, so instead of allowing to save
 	// only a subset of issues, we fail if we can't save the complete set.
 
-	// TODO(mna): figure out what we want to do regarding message length (truncate, accept longer, etc.)
 	msgToID, err := ds.getOrInsertMunkiIssues(ctx, errors, warnings, fleet.DefaultMunkiIssuesBatchSize)
 	if err != nil {
 		return err
@@ -1507,7 +1507,22 @@ func (ds *Datastore) replaceHostMunkiIssues(ctx context.Context, hostID uint, ms
 	return nil
 }
 
+const maxMunkiIssueNameLen = 255
+
 func (ds *Datastore) getOrInsertMunkiIssues(ctx context.Context, errors, warnings []string, batchSize int) (msgToID map[[2]string]uint, err error) {
+	for i, e := range errors {
+		if n := utf8.RuneCountInString(e); n > maxMunkiIssueNameLen {
+			runes := []rune(e)
+			errors[i] = string(runes[:maxMunkiIssueNameLen])
+		}
+	}
+	for i, w := range warnings {
+		if n := utf8.RuneCountInString(w); n > maxMunkiIssueNameLen {
+			runes := []rune(w)
+			warnings[i] = string(runes[:maxMunkiIssueNameLen])
+		}
+	}
+
 	// get list of unique messages+type to load ids and create if necessary
 	msgToID = make(map[[2]string]uint, len(errors)+len(warnings))
 	for _, e := range errors {
@@ -1616,7 +1631,7 @@ func (ds *Datastore) getOrInsertMunkiIssues(ctx context.Context, errors, warning
 		}
 		if missing := missingIDs(); len(missing) > 0 {
 			// some messages still have no IDs
-			return nil, ctxerr.Wrap(ctx, err, "found munki issues without id after batch-insert")
+			return nil, ctxerr.New(ctx, "found munki issues without id after batch-insert")
 		}
 	}
 
