@@ -43,6 +43,8 @@ const (
 	// ActivityTypeEditedAgentOptions is the activity type for when the agent
 	// options are edited (either globally or for a team).
 	ActivityTypeEditedAgentOptions = "edited_agent_options"
+	// ActivityTypeAppliedSpecTeam is the activity type for a team spec applied
+	ActivityTypeAppliedSpecTeam = "applied_spec_team"
 )
 
 type Activity struct {

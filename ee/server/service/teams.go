@@ -383,6 +383,12 @@ func (svc Service) ApplyTeamSpecs(ctx context.Context, specs []*fleet.TeamSpec) 
 		return err
 	}
 
+	type activityDetail struct {
+		ID   uint   `json:"id"`
+		Name string `json:"name"`
+	}
+	var details []activityDetail
+
 	for _, spec := range specs {
 		var secrets []*fleet.EnrollSecret
 		for _, secret := range spec.Secrets {
@@ -398,7 +404,7 @@ func (svc Service) ApplyTeamSpecs(ctx context.Context, specs []*fleet.TeamSpec) 
 				if agentOptions == nil {
 					agentOptions = config.AgentOptions
 				}
-				_, err = svc.ds.NewTeam(ctx, &fleet.Team{
+				tm, err := svc.ds.NewTeam(ctx, &fleet.Team{
 					Name: spec.Name,
 					Config: fleet.TeamConfig{
 						AgentOptions: agentOptions,
@@ -408,6 +414,10 @@ func (svc Service) ApplyTeamSpecs(ctx context.Context, specs []*fleet.TeamSpec) 
 				if err != nil {
 					return err
 				}
+				details = append(details, activityDetail{
+					ID:   tm.ID,
+					Name: tm.Name,
+				})
 				continue
 			}
 
@@ -432,7 +442,17 @@ func (svc Service) ApplyTeamSpecs(ctx context.Context, specs []*fleet.TeamSpec) 
 				return err
 			}
 		}
+
+		details = append(details, activityDetail{
+			ID:   team.ID,
+			Name: team.Name,
+		})
 	}
 
-	return nil
+	return svc.ds.NewActivity(
+		ctx,
+		authz.UserFromContext(ctx),
+		fleet.ActivityTypeAppliedSpecTeam,
+		&map[string]interface{}{"teams": details},
+	)
 }
