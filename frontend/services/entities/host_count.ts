@@ -40,7 +40,6 @@ export default {
     const softwareId = options?.softwareId;
     const mdmId = options?.mdmId;
     const mdmEnrollmentStatus = options?.mdmEnrollmentStatus;
-    const operatingSystemId = options?.operatingSystemId;
     const label = getLabelParam(selectedLabels);
 
     const queryParams = {
@@ -52,8 +51,7 @@ export default {
         policyResponse,
         mdmId,
         mdmEnrollmentStatus,
-        softwareId,
-        operatingSystemId
+        softwareId
       ),
       status: getStatusParam(selectedLabels),
       label_id: label,
