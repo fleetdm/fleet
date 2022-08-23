@@ -186,6 +186,10 @@
           min-width: 100%;
           text-align: left;
         }
+        .grey-cell {
+          color: $ui-fleet-black-50;
+          font-style: italic;
+        }
       }
       .highlight-on-hover:hover {
         background-color: $ui-off-white;

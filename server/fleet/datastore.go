@@ -30,6 +30,7 @@ type CarveStore interface {
 type InstallerStore interface {
 	Get(ctx context.Context, installer Installer) (io.ReadCloser, int64, error)
 	Put(ctx context.Context, installer Installer) (string, error)
+	Exists(ctx context.Context, installer Installer) (bool, error)
 }
 
 // Datastore combines all the interfaces in the Fleet DAL
@@ -247,7 +248,7 @@ type Datastore interface {
 	AggregatedMDMSolutions(ctx context.Context, teamID *uint) ([]AggregatedMDMSolutions, time.Time, error)
 	GenerateAggregatedMunkiAndMDM(ctx context.Context) error
 
-	OSVersions(ctx context.Context, teamID *uint, platform *string, osID *uint) (*OSVersions, error)
+	OSVersions(ctx context.Context, teamID *uint, platform *string, name *string, version *string) (*OSVersions, error)
 	UpdateOSVersions(ctx context.Context) error
 
 	///////////////////////////////////////////////////////////////////////////////

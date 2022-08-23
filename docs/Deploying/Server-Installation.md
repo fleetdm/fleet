@@ -9,12 +9,6 @@
   - [Running the Fleet server](#running-the-fleet-server)
   - [Running Fleet with systemd](#running-fleet-with-systemd)
   - [Installing and running osquery](#installing-and-running-osquery)
-- [Fleet on Ubuntu](#fleet-on-ubuntu)
-  - [Setting up a host](#setting-up-a-host-1)
-  - [Installing Fleet](#installing-fleet-1)
-  - [Installing and configuring dependencies](#installing-and-configuring-dependencies-1)
-    - [MySQL](#mysql-1)
-    - [Redis](#redis-1)
   - [Running the Fleet server](#running-the-fleet-server-1)
   - [Running Fleet with systemd](#running-fleet-with-systemd-1)
   - [Installing and running osquery](#installing-and-running-osquery-1)
@@ -28,7 +22,6 @@
     - [Deploying the load balancer](#deploying-the-load-balancer)
     - [Configure DNS](#configure-dns)
 - [Fleet on AWS ECS](#deploying-fleet-on-aws-ecs)
-- [Fleet using Docker](#fleet-on-docker)
 - [Building Fleet from Source](../Contributing/Building-Fleet.md)
 - [Community projects](#community-projects)
 
@@ -243,180 +236,6 @@ sudo /usr/bin/osqueryd \
 If you go back to [https://localhost:8080/hosts/manage](https://localhost:8080/hosts/manage), you should have a host successfully enrolled in Fleet!
 
 ---
-
-
-## Fleet on Ubuntu
-
-In this guide, we're going to install Fleet and all of its application dependencies on an Ubuntu 16.04 LTS server. Once we have Fleet up and running, we're going to install osquery on that same Ubuntu 16.04 host and enroll it in Fleet. This should give you a good understanding of both how to install Fleet as well as how to install and configure osquery such that it can communicate with Fleet.
-
-### Setting up a host
-
-Acquiring an Ubuntu host to use for this guide is largely an exercise for the reader. If you don't have an Ubuntu host readily available, feel free to use [Vagrant](https://www.vagrantup.com/). In a clean, temporary directory, you can run the following to create a vagrant box, start it, and log into it:
-
-```
-echo 'Vagrant.configure("2") do |config|
-  config.vm.box = "bento/ubuntu-16.04"
-  config.vm.network "forwarded_port", guest: 8080, host: 8080
-end' > Vagrantfile
-vagrant up
-vagrant ssh
-```
-
-### Installing Fleet
-
-To install Fleet, [download the latest release for your platform](https://github.com/fleetdm/fleet/releases) , unzip, and move the latest Fleet binary to your desired install location.
-
-For example, after downloading:
-```sh
-unzip fleet.zip 'linux/*' -d fleet
-sudo cp fleet/linux/fleet* /usr/bin/
-```
-
-### Installing and configuring dependencies
-
-#### MySQL
-
-To install the MySQL server files, run the following:
-
-```
-sudo apt-get install mysql-server -y
-```
-
-When asked for MySQL's root password, enter `toor` for the sake of this tutorial if you are having trouble thinking of a better password for the MySQL root user. If you decide to set your own password, be mindful that you will need to substitute it every time `toor` is used in this document.
-
-After installing `mysql-server`, the `mysqld` server should be running. You can verify this by running the following:
-
-```
-ps aux | grep mysqld
-mysql    13158  3.1 14.4 1105320 146408 ?      Ssl  21:36   0:00 /usr/sbin/mysqld
-```
-
-It's also worth creating a MySQL database for us to use at this point. Run the following to create the `fleet` database in MySQL. Note that you will be prompted for the password you created above.
-
-```
-echo 'CREATE DATABASE fleet;' | mysql -u root -p
-```
-
-#### Redis
-
-To install the Redis server files, run the following:
-
-```
-sudo apt-get install redis-server -y
-```
-
-To start the Redis server in the background, you can run the following:
-
-```
-sudo redis-server &
-```
-
-Note that this isn't a very robust way to run a Redis server. Digital Ocean has written a very nice [community tutorial](https://www.digitalocean.com/community/tutorials/how-to-install-and-configure-redis-on-ubuntu-16-04) on installing and running Redis in production.
-
-### Running the Fleet server
-
-Now that we have installed Fleet, MySQL, and Redis, we are ready to launch Fleet! First, we must "prepare" the database. We do this via `fleet prepare db`:
-
-```
-/usr/bin/fleet prepare db \
-  --mysql_address=127.0.0.1:3306 \
-  --mysql_database=fleet \
-  --mysql_username=root \
-  --mysql_password=toor
-```
-
-The output should look like:
-
-`Migrations completed`
-
-Before we can run the server, we need to generate some TLS keying material. If you already have tooling for generating valid TLS certificates, then you are encouraged to use that instead. You will need a TLS certificate and key for running the Fleet server. If you'd like to generate self-signed certificates, you can do this via (replace SERVER_NAME with your server FQDN):
-
-```
-openssl req -x509 -newkey rsa:4096 -sha256 -days 3650 -nodes \
-  -keyout /tmp/server.key -out /tmp/server.cert -subj "/CN=SERVER_NAME” \
-  -addext "subjectAltName=DNS:SERVER_NAME”
-```
-
-You should now have two new files in `/tmp`:
-
-- `/tmp/server.cert`
-- `/tmp/server.key`
-
-Now we are ready to run the server! We do this via `fleet serve`:
-
-```
-/usr/bin/fleet serve \
-  --mysql_address=127.0.0.1:3306 \
-  --mysql_database=fleet \
-  --mysql_username=root \
-  --mysql_password=toor \
-  --redis_address=127.0.0.1:6379 \
-  --server_cert=/tmp/server.cert \
-  --server_key=/tmp/server.key \
-  --logging_json
-```
-
-Now, if you go to [https://localhost:8080](https://localhost:8080) in your local browser, you should be redirected to [https://localhost:8080/setup](https://localhost:8080/setup) where you can create your first Fleet user account.
-
-### Running Fleet with systemd
-
-See [Running with systemd](./Configuration.md#running-with-systemd) for documentation on running fleet as a background process and managing the fleet server logs.
-
-### Installing and running osquery
-
-> Note that this whole process is outlined in more detail in the [Adding Hosts To Fleet](../Using-Fleet/Adding-hosts.md) document. The steps are repeated here for the sake of a continuous tutorial.
-
-To install osquery on Ubuntu, you can run the following:
-
-```
-export OSQUERY_KEY=1484120AC4E9F8A1A577AEEE97A80C63C9D8B80B
-sudo apt-key adv --keyserver keyserver.ubuntu.com --recv-keys $OSQUERY_KEY
-sudo add-apt-repository 'deb [arch=amd64] https://pkg.osquery.io/deb deb main'
-sudo apt-get update
-sudo apt-get install osquery
-```
-
-If you're having trouble with the above steps, check the official [downloads](https://osquery.io/downloads) link for a direct download of the .deb.
-
-You will need to set the osquery enroll secret and osquery server certificate. If you head over to the manage hosts page on your Fleet instance (which should be [https://localhost:8080/hosts/manage](https://localhost:8080/hosts/manage)), you should be able to click "Add New Hosts" and see a modal like the following:
-
-![Add New Host](https://raw.githubusercontent.com/fleetdm/fleet/main/docs/images/add-new-host-modal.png)
-
-If you select "Fetch Fleet Certificate", your browser will download the appropriate file to your downloads directory (to a file probably called `localhost-8080.pem`). Copy this file to your Ubuntu host at `/var/osquery/server.pem`.
-
-You can also select "Reveal Secret" on that modal and the enrollment secret for your Fleet instance will be revealed. Copy that text and create a file with its contents:
-
-```
-echo 'LQWzGg9+/yaxxcBUMY7VruDGsJRYULw8' | sudo tee /var/osquery/enroll_secret
-```
-
-Now you're ready to run the `osqueryd` binary:
-
-```
-sudo /usr/bin/osqueryd \
-  --enroll_secret_path=/var/osquery/enroll_secret \
-  --tls_server_certs=/var/osquery/server.pem \
-  --tls_hostname=localhost:8080 \
-  --host_identifier=instance \
-  --enroll_tls_endpoint=/api/osquery/enroll \
-  --config_plugin=tls \
-  --config_tls_endpoint=/api/osquery/config \
-  --config_refresh=10 \
-  --disable_distributed=false \
-  --distributed_plugin=tls \
-  --distributed_interval=3 \
-  --distributed_tls_max_attempts=3 \
-  --distributed_tls_read_endpoint=/api/osquery/distributed/read \
-  --distributed_tls_write_endpoint=/api/osquery/distributed/write \
-  --logger_plugin=tls \
-  --logger_tls_endpoint=/api/osquery/log \
-  --logger_tls_period=10
-```
-
-If you go back to [https://localhost:8080/hosts/manage](https://localhost:8080/hosts/manage), you should have a host successfully enrolled in Fleet!
-
----
-
 
 ## Deploying Fleet on Kubernetes
 
@@ -635,31 +454,21 @@ Terraform reference architecture can be found [here](https://github.com/fleetdm/
 
 #### MySQL
 
-In AWS we recommend running Aurora with MySQL Engine, see [here for terraform details](https://github.com/fleetdm/fleet/blob/589e11ebca40949fb568b2b68928450eecb718bf/infrastructure/dogfood/terraform/aws/rds.tf#L62).
+In AWS we recommend running Aurora with MySQL Engine, see [here for terraform details](https://github.com/fleetdm/fleet/blob/main/infrastructure/dogfood/terraform/aws/rds.tf#L64).
 
 #### Redis
 
-In AWS we recommend running ElastiCache (Redis Engine) see [here for terraform details](https://github.com/fleetdm/fleet/blob/589e11ebca40949fb568b2b68928450eecb718bf/infrastructure/dogfood/terraform/aws/redis.tf#L13)
+In AWS we recommend running ElastiCache (Redis Engine) see [here for terraform details](https://github.com/fleetdm/fleet/blob/main/infrastructure/dogfood/terraform/aws/redis.tf#L13)
 
 #### Fleet server
 
-Running Fleet in ECS consists of two main components the [ECS Service](https://github.com/fleetdm/fleet/blob/589e11ebca40949fb568b2b68928450eecb718bf/infrastructure/dogfood/terraform/aws/ecs.tf#L79) & [Load Balancer](https://github.com/fleetdm/fleet/blob/589e11ebca40949fb568b2b68928450eecb718bf/infrastructure/dogfood/terraform/aws/ecs.tf#L41). In our example the ALB is [handling TLS termination](https://github.com/fleetdm/fleet/blob/589e11ebca40949fb568b2b68928450eecb718bf/infrastructure/dogfood/terraform/aws/ecs.tf#L46)
+Running Fleet in ECS consists of two main components the [ECS Service](https://github.com/fleetdm/fleet/blob/main/infrastructure/dogfood/terraform/aws/ecs.tf#L84) & [Load Balancer](https://github.com/fleetdm/fleet/blob/main/infrastructure/dogfood/terraform/aws/ecs.tf#L59). In our example the ALB is [handling TLS termination](https://github.com/fleetdm/fleet/blob/main/infrastructure/dogfood/terraform/aws/ecs.tf#L46)
 
 #### Fleet migrations
 
-Migrations in ECS can be achieved (and is recommended) by running [dedicated ECS tasks](https://github.com/fleetdm/fleet/tree/main/infrastructure/dogfood/terraform/aws#migrating-the-db) that run the `fleet prepare --no-prompt=true db` command. See [terraform for more details](https://github.com/fleetdm/fleet/blob/589e11ebca40949fb568b2b68928450eecb718bf/infrastructure/dogfood/terraform/aws/ecs.tf#L229)
+Migrations in ECS can be achieved (and is recommended) by running [dedicated ECS tasks](https://github.com/fleetdm/fleet/tree/main/infrastructure/dogfood/terraform/aws#migrating-the-db) that run the `fleet prepare --no-prompt=true db` command. See [terraform for more details](https://github.com/fleetdm/fleet/blob/main/infrastructure/dogfood/terraform/aws/ecs.tf#L261)
 
 Alternatively you can bake the prepare command into the same task definition see [here for a discussion](https://github.com/fleetdm/fleet/pull/1761#discussion_r697599457), but this not recommended for production environments.
-
----
-
-## Fleet using Docker
-Pull the latest Fleet docker image:
-
-```
-docker pull fleetdm/fleet
-```
-
 
 ---
 

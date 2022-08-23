@@ -21,7 +21,7 @@ const LogoutPage = ({ router }: ILogoutPageProps) => {
         clearToken();
         setTimeout(() => {
           window.location.href = isSandboxMode
-            ? "https://www.fleetdm.com"
+            ? "https://www.fleetdm.com/logout"
             : "/";
         }, 500);
       } catch (response) {

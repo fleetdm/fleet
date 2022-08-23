@@ -51,6 +51,10 @@
   &__section-description {
     font-size: $x-small;
 
+    p {
+      margin: 8px 0 0 0;
+    }
+
     a {
       font-size: $x-small;
       color: $core-vibrant-blue;

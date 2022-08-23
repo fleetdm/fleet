@@ -37,6 +37,9 @@ const (
 	ActivityTypeDeletedTeam = "deleted_team"
 	// ActivityTypeLiveQuery is the activity type for live queries
 	ActivityTypeLiveQuery = "live_query"
+	// ActivityTypeUserAddedBySSO is the activity type for new users added
+	// via SSO JIT provisioning
+	ActivityTypeUserAddedBySSO = "user_added_by_sso"
 )
 
 type Activity struct {

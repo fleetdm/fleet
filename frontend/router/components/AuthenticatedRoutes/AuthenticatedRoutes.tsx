@@ -44,6 +44,10 @@ export const AuthenticatedRoutes = ({
     // this works with App.tsx. if authToken does
     // exist, user state is checked and fetched if null
     if (!authToken()) {
+      if (window.location.hostname.includes("sandbox")) {
+        window.location.href = "https://www.fleetdm.com/try-fleet/login";
+      }
+
       return redirectToLogin();
     }
 

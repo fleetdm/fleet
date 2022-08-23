@@ -138,7 +138,6 @@ const generateTableHeaders = (currentUser: IUser): IDataColumn[] => {
       sortType: "caseInsensitive",
     },
     {
-      title: "Performance impact",
       Header: () => {
         return (
           <div>

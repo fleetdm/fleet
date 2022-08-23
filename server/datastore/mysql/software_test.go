@@ -40,6 +40,7 @@ func TestSoftware(t *testing.T) {
 		{"ListSoftwareVulnerabilities", testListSoftwareVulnerabilities},
 		{"InsertVulnerabilities", testInsertVulnerabilities},
 		{"ListCVEs", testListCVEs},
+		{"ListSoftwareForVulnDetection", testListSoftwareForVulnDetection},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -1568,4 +1569,43 @@ func testListCVEs(t *testing.T, ds *Datastore) {
 	}
 
 	require.ElementsMatch(t, expected, actual)
+}
+
+func testListSoftwareForVulnDetection(t *testing.T, ds *Datastore) {
+	t.Run("returns software without CPE entries", func(t *testing.T) {
+		ctx := context.Background()
+
+		host := test.NewHost(t, ds, "host3", "", "host3key", "host3uuid", time.Now())
+		host.Platform = "debian"
+		ds.UpdateHost(ctx, host)
+
+		software := []fleet.Software{
+			{Name: "foo", Version: "0.0.1", Source: "chrome_extensions"},
+			{Name: "bar", Version: "0.0.3", Source: "apps"},
+			{Name: "biz", Version: "0.0.1", Source: "deb_packages"},
+			{Name: "baz", Version: "0.0.3", Source: "deb_packages"},
+		}
+		require.NoError(t, ds.UpdateHostSoftware(ctx, host.ID, software))
+		require.NoError(t, ds.LoadHostSoftware(ctx, host, false))
+		require.NoError(t, ds.AddCPEForSoftware(ctx, host.Software[0], "cpe1"))
+		// Load software again so that CPE data is included.
+		require.NoError(t, ds.LoadHostSoftware(ctx, host, false))
+
+		result, err := ds.ListSoftwareForVulnDetection(ctx, host.ID)
+		require.NoError(t, err)
+
+		sort.Slice(host.Software, func(i, j int) bool { return host.Software[i].ID < host.Software[j].ID })
+		sort.Slice(result, func(i, j int) bool { return result[i].ID < result[j].ID })
+
+		require.Equal(t, len(host.Software), len(result))
+
+		for i := range host.Software {
+			require.Equal(t, host.Software[i].ID, result[i].ID)
+			require.Equal(t, host.Software[i].Name, result[i].Name)
+			require.Equal(t, host.Software[i].Version, result[i].Version)
+			require.Equal(t, host.Software[i].Release, result[i].Release)
+			require.Equal(t, host.Software[i].Arch, result[i].Arch)
+			require.Equal(t, host.Software[i].GenerateCPE, result[i].GenerateCPE)
+		}
+	})
 }
