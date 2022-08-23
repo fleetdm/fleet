@@ -1134,7 +1134,7 @@ func (ds *Datastore) ListSoftwareForVulnDetection(
 
 	stmt := dialect.
 		From(goqu.T("software").As("s")).
-		Join(
+		LeftJoin(
 			goqu.T("software_cpe").As("cpe"),
 			goqu.On(goqu.Ex{
 				"s.id": goqu.I("cpe.software_id"),
@@ -1152,7 +1152,7 @@ func (ds *Datastore) ListSoftwareForVulnDetection(
 			goqu.I("s.version"),
 			goqu.I("s.release"),
 			goqu.I("s.arch"),
-			goqu.I("cpe.cpe").As("generated_cpe"),
+			goqu.COALESCE(goqu.I("cpe.cpe"), "").As("generated_cpe"),
 		).
 		Where(goqu.C("host_id").Eq(hostID))
 

@@ -102,21 +102,21 @@ func (s *integrationSandboxTestSuite) TestInstallerGet() {
 
 func (s *integrationSandboxTestSuite) TestInstallerHeadCheck() {
 	validURL := installerURL(enrollSecret, "pkg", false)
-	s.Do("HEAD", validURL, nil, http.StatusOK)
+	s.DoRaw("HEAD", validURL, nil, http.StatusOK)
 
 	// unauthorized requests
 	s.DoRawNoAuth("HEAD", validURL, nil, http.StatusUnauthorized)
 	s.token = "invalid"
-	s.Do("HEAD", validURL, nil, http.StatusUnauthorized)
+	s.DoRaw("HEAD", validURL, nil, http.StatusUnauthorized)
 	s.token = s.cachedAdminToken
 
 	// wrong enroll secret
 	invalidURL := installerURL("wrong-enroll", "pkg", false)
-	s.Do("HEAD", invalidURL, nil, http.StatusInternalServerError)
+	s.DoRaw("HEAD", invalidURL, nil, http.StatusInternalServerError)
 
 	// non-existent package
 	invalidURL = installerURL(enrollSecret, "exe", false)
-	s.Do("HEAD", invalidURL, nil, http.StatusNotFound)
+	s.DoRaw("HEAD", invalidURL, nil, http.StatusNotFound)
 }
 
 func installerURL(secret, kind string, desktop bool) string {
