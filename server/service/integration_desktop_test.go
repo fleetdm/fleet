@@ -105,7 +105,7 @@ func (s *integrationTestSuite) TestDeviceAuthenticatedEndpoints() {
 	res.Body.Close()
 
 	// get macadmins for valid token
-	var getMacadm getMacadminsDataResponse
+	var getMacadm macadminsDataResponse
 	res = s.DoRawNoAuth("GET", "/api/latest/fleet/device/"+token+"/macadmins", nil, http.StatusOK)
 	json.NewDecoder(res.Body).Decode(&getMacadm)
 	res.Body.Close()
@@ -113,7 +113,7 @@ func (s *integrationTestSuite) TestDeviceAuthenticatedEndpoints() {
 	devMacadm := getMacadm.Macadmins
 
 	// compare response with standard macadmins API for that same host
-	getMacadm = getMacadminsDataResponse{}
+	getMacadm = macadminsDataResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/macadmins", hosts[0].ID), nil, http.StatusOK, &getMacadm)
 	require.Equal(t, devMacadm, getMacadm.Macadmins)
 

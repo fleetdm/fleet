@@ -10,9 +10,11 @@ import (
 	"testing"
 	"time"
 
+	"github.com/WatchBeam/clock"
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mock"
+	"github.com/fleetdm/fleet/v4/server/service/async"
 	"github.com/go-kit/kit/log"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -105,6 +107,7 @@ func TestDetailQueryNetworkInterfaces(t *testing.T) {
 func TestDetailQueryScheduledQueryStats(t *testing.T) {
 	host := fleet.Host{ID: 1}
 	ds := new(mock.Store)
+	task := async.NewTask(ds, nil, clock.C, config.OsqueryConfig{EnableAsyncHostProcessing: "false"})
 
 	var gotPackStats []fleet.PackStats
 	ds.SaveHostPackStatsFunc = func(ctx context.Context, hostID uint, stats []fleet.PackStats) error {
@@ -115,10 +118,10 @@ func TestDetailQueryScheduledQueryStats(t *testing.T) {
 		return nil
 	}
 
-	ingest := GetDetailQueries(nil, config.FleetConfig{App: config.AppConfig{EnableScheduledQueryStats: true}})["scheduled_query_stats"].DirectIngestFunc
+	ingest := GetDetailQueries(nil, config.FleetConfig{App: config.AppConfig{EnableScheduledQueryStats: true}})["scheduled_query_stats"].DirectTaskIngestFunc
 
 	ctx := context.Background()
-	assert.NoError(t, ingest(ctx, log.NewNopLogger(), &host, ds, nil, false))
+	assert.NoError(t, ingest(ctx, log.NewNopLogger(), &host, task, nil, false))
 	assert.Len(t, host.PackStats, 0)
 
 	resJSON := `
@@ -199,7 +202,7 @@ func TestDetailQueryScheduledQueryStats(t *testing.T) {
 	var rows []map[string]string
 	require.NoError(t, json.Unmarshal([]byte(resJSON), &rows))
 
-	assert.NoError(t, ingest(ctx, log.NewNopLogger(), &host, ds, rows, false))
+	assert.NoError(t, ingest(ctx, log.NewNopLogger(), &host, task, rows, false))
 	assert.Len(t, gotPackStats, 2)
 	sort.Slice(gotPackStats, func(i, j int) bool {
 		return gotPackStats[i].PackName < gotPackStats[j].PackName
@@ -280,7 +283,7 @@ func TestDetailQueryScheduledQueryStats(t *testing.T) {
 		},
 	)
 
-	assert.NoError(t, ingest(ctx, log.NewNopLogger(), &host, ds, nil, false))
+	assert.NoError(t, ingest(ctx, log.NewNopLogger(), &host, task, nil, false))
 	assert.Len(t, gotPackStats, 0)
 }
 
@@ -294,7 +297,7 @@ func sortedKeysCompare(t *testing.T, m map[string]DetailQuery, expectedKeys []st
 
 func TestGetDetailQueries(t *testing.T) {
 	queriesNoConfig := GetDetailQueries(nil, config.FleetConfig{})
-	require.Len(t, queriesNoConfig, 13)
+	require.Len(t, queriesNoConfig, 15)
 	baseQueries := []string{
 		"network_interface",
 		"os_version",
@@ -309,15 +312,17 @@ func TestGetDetailQueries(t *testing.T) {
 		"google_chrome_profiles",
 		"orbit_info",
 		"battery",
+		"os_windows",
+		"os_unix_like",
 	}
 	sortedKeysCompare(t, queriesNoConfig, baseQueries)
 
 	queriesWithUsers := GetDetailQueries(&fleet.AppConfig{HostSettings: fleet.HostSettings{EnableHostUsers: true}}, config.FleetConfig{App: config.AppConfig{EnableScheduledQueryStats: true}})
-	require.Len(t, queriesWithUsers, 15)
+	require.Len(t, queriesWithUsers, 17)
 	sortedKeysCompare(t, queriesWithUsers, append(baseQueries, "users", "scheduled_query_stats"))
 
 	queriesWithUsersAndSoftware := GetDetailQueries(&fleet.AppConfig{HostSettings: fleet.HostSettings{EnableHostUsers: true, EnableSoftwareInventory: true}}, config.FleetConfig{App: config.AppConfig{EnableScheduledQueryStats: true}})
-	require.Len(t, queriesWithUsersAndSoftware, 18)
+	require.Len(t, queriesWithUsersAndSoftware, 20)
 	sortedKeysCompare(t, queriesWithUsersAndSoftware,
 		append(baseQueries, "users", "software_macos", "software_linux", "software_windows", "scheduled_query_stats"))
 }
@@ -489,6 +494,157 @@ func TestDirectIngestBattery(t *testing.T) {
 	require.True(t, ds.ReplaceHostBatteriesFuncInvoked)
 }
 
+func TestDirectIngestOSWindows(t *testing.T) {
+	ds := new(mock.Store)
+
+	testHost := fleet.Host{
+		ID: 1,
+	}
+	testOS := fleet.OperatingSystem{
+		Name:          "Microsoft Windows 11 Enterprise",
+		Version:       "21H2",
+		Arch:          "64-bit",
+		KernelVersion: "10.0.22000.795",
+	}
+
+	ds.UpdateHostOperatingSystemFunc = func(ctx context.Context, hostID uint, hostOS fleet.OperatingSystem) error {
+		require.Equal(t, testHost.ID, hostID)
+		require.Equal(t, testOS, hostOS)
+		return nil
+	}
+
+	err := directIngestOSWindows(context.Background(), log.NewNopLogger(), &testHost, ds, []map[string]string{
+		{"name": "Microsoft Windows 11 Enterprise", "version": "21H2", "arch": "64-bit", "kernel_version": "10.0.22000.795"},
+	}, false)
+
+	require.NoError(t, err)
+	require.True(t, ds.UpdateHostOperatingSystemFuncInvoked)
+}
+
+func TestDirectIngestOSUnixLike(t *testing.T) {
+	ds := new(mock.Store)
+
+	for i, tc := range []struct {
+		data     []map[string]string
+		expected fleet.OperatingSystem
+	}{
+		{
+			data: []map[string]string{
+				{
+					"name":           "macOS",
+					"version":        "12.5",
+					"major":          "12",
+					"minor":          "5",
+					"patch":          "0",
+					"build":          "21G72",
+					"arch":           "x86_64",
+					"kernel_version": "21.6.0",
+				},
+			},
+			expected: fleet.OperatingSystem{
+				Name:          "macOS",
+				Version:       "12.5.0",
+				Arch:          "x86_64",
+				KernelVersion: "21.6.0",
+			},
+		},
+		{
+			data: []map[string]string{
+				{
+					"name":           "Ubuntu",
+					"version":        "20.04.2 LTS (Focal Fossa)",
+					"major":          "20",
+					"minor":          "4",
+					"patch":          "0",
+					"build":          "",
+					"arch":           "x86_64",
+					"kernel_version": "5.10.76-linuxkit",
+				},
+			},
+			expected: fleet.OperatingSystem{
+				Name:          "Ubuntu",
+				Version:       "20.04.2 LTS",
+				Arch:          "x86_64",
+				KernelVersion: "5.10.76-linuxkit",
+			},
+		},
+		{
+			data: []map[string]string{
+				{
+					"name":           "CentOS Linux",
+					"version":        "CentOS Linux release 7.9.2009 (Core)",
+					"major":          "7",
+					"minor":          "9",
+					"patch":          "2009",
+					"build":          "",
+					"arch":           "x86_64",
+					"kernel_version": "5.10.76-linuxkit",
+				},
+			},
+			expected: fleet.OperatingSystem{
+				Name:          "CentOS Linux",
+				Version:       "7.9.2009",
+				Arch:          "x86_64",
+				KernelVersion: "5.10.76-linuxkit",
+			},
+		},
+		{
+			data: []map[string]string{
+				{
+					"name":           "Debian GNU/Linux",
+					"version":        "10 (buster)",
+					"major":          "10",
+					"minor":          "0",
+					"patch":          "0",
+					"build":          "",
+					"arch":           "x86_64",
+					"kernel_version": "5.10.76-linuxkit",
+				},
+			},
+			expected: fleet.OperatingSystem{
+				Name:          "Debian GNU/Linux",
+				Version:       "10.0.0",
+				Arch:          "x86_64",
+				KernelVersion: "5.10.76-linuxkit",
+			},
+		},
+		{
+			data: []map[string]string{
+				{
+					"name":           "CentOS Linux",
+					"version":        "CentOS Linux release 7.9.2009 (Core)",
+					"major":          "7",
+					"minor":          "9",
+					"patch":          "2009",
+					"build":          "",
+					"arch":           "x86_64",
+					"kernel_version": "5.10.76-linuxkit",
+				},
+			},
+			expected: fleet.OperatingSystem{
+				Name:          "CentOS Linux",
+				Version:       "7.9.2009",
+				Arch:          "x86_64",
+				KernelVersion: "5.10.76-linuxkit",
+			},
+		},
+	} {
+		t.Run(tc.expected.Name, func(t *testing.T) {
+			ds.UpdateHostOperatingSystemFunc = func(ctx context.Context, hostID uint, hostOS fleet.OperatingSystem) error {
+				require.Equal(t, uint(i), hostID)
+				require.Equal(t, tc.expected, hostOS)
+				return nil
+			}
+
+			err := directIngestOSUnixLike(context.Background(), log.NewNopLogger(), &fleet.Host{ID: uint(i)}, ds, tc.data, false)
+
+			require.NoError(t, err)
+			require.True(t, ds.UpdateHostOperatingSystemFuncInvoked)
+			ds.UpdateHostOperatingSystemFuncInvoked = false
+		})
+	}
+}
+
 func TestDangerousReplaceQuery(t *testing.T) {
 	queries := GetDetailQueries(&fleet.AppConfig{HostSettings: fleet.HostSettings{EnableHostUsers: true}}, config.FleetConfig{})
 	originalQuery := queries["users"].Query
@@ -500,4 +656,59 @@ func TestDangerousReplaceQuery(t *testing.T) {
 	require.NoError(t, os.Unsetenv("FLEET_DANGEROUS_REPLACE_USERS"))
 	queries = GetDetailQueries(&fleet.AppConfig{HostSettings: fleet.HostSettings{EnableHostUsers: true}}, config.FleetConfig{})
 	assert.Equal(t, originalQuery, queries["users"].Query)
+}
+
+func TestDirectIngestSoftware(t *testing.T) {
+	ds := new(mock.Store)
+
+	t.Run("vendor gets truncated", func(t *testing.T) {
+		for i, tc := range []struct {
+			data     []map[string]string
+			expected string
+		}{
+			{
+				data: []map[string]string{
+					{
+						"name":              "Software 1",
+						"version":           "12.5",
+						"source":            "My backyard",
+						"bundle_identifier": "",
+						"vendor":            "Fleet",
+					},
+				},
+				expected: "Fleet",
+			},
+			{
+				data: []map[string]string{
+					{
+						"name":              "Software 1",
+						"version":           "12.5",
+						"source":            "My backyard",
+						"bundle_identifier": "",
+						"vendor":            `oFZTwTV5WxJt02EVHEBcnhLzuJ8wnxKwfbabPWy7yTSiQbabEcAGDVmoXKZEZJLWObGD0cVfYptInHYgKjtDeDsBh2a8669EnyAqyBECXbFjSh1111`,
+					},
+				},
+				expected: `oFZTwTV5WxJt02EVHEBcnhLzuJ8wnxKwfbabPWy7yTSiQbabEcAGDVmoXKZEZJLWObGD0cVfYptInHYgKjtDeDsBh2a8669EnyAqyBECXbFjSh1...`,
+			},
+		} {
+			ds.UpdateHostSoftwareFunc = func(ctx context.Context, hostID uint, software []fleet.Software) error {
+				require.Len(t, software, 1)
+				require.Equal(t, tc.expected, software[0].Vendor)
+				return nil
+			}
+
+			err := directIngestSoftware(
+				context.Background(),
+				log.NewNopLogger(),
+				&fleet.Host{ID: uint(i)},
+				ds,
+				tc.data,
+				false,
+			)
+
+			require.NoError(t, err)
+			require.True(t, ds.UpdateHostSoftwareFuncInvoked)
+			ds.UpdateHostSoftwareFuncInvoked = false
+		}
+	})
 }

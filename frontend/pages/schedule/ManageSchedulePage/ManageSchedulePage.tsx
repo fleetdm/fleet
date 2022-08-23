@@ -48,7 +48,7 @@ const renderTable = (
   toggleScheduleEditorModal: () => void,
   isOnGlobalTeam: boolean,
   selectedTeamData: ITeam | undefined,
-  isFetchingGlobalScheduledQueries: boolean,
+  isLoadingGlobalScheduledQueries: boolean,
   isLoadingTeamScheduledQueries: boolean,
   errorQueries: Error | null
 ): JSX.Element => {
@@ -63,7 +63,7 @@ const renderTable = (
       toggleScheduleEditorModal={toggleScheduleEditorModal}
       isOnGlobalTeam={isOnGlobalTeam}
       selectedTeamData={selectedTeamData}
-      loadingInheritedQueriesTableData={isFetchingGlobalScheduledQueries}
+      loadingInheritedQueriesTableData={isLoadingGlobalScheduledQueries}
       loadingTeamQueriesTableData={isLoadingTeamScheduledQueries}
     />
   );
@@ -75,7 +75,7 @@ const renderAllTeamsTable = (
   allTeamsScheduledQueriesError: Error | null,
   isOnGlobalTeam: boolean,
   selectedTeamData: ITeam | undefined,
-  isFetchingGlobalScheduledQueries: boolean,
+  isLoadingGlobalScheduledQueries: boolean,
   isLoadingTeamScheduledQueries: boolean
 ): JSX.Element => {
   return allTeamsScheduledQueriesError ? (
@@ -88,7 +88,7 @@ const renderAllTeamsTable = (
         allScheduledQueriesList={allTeamsScheduledQueriesList}
         isOnGlobalTeam={isOnGlobalTeam}
         selectedTeamData={selectedTeamData}
-        loadingInheritedQueriesTableData={isFetchingGlobalScheduledQueries}
+        loadingInheritedQueriesTableData={isLoadingGlobalScheduledQueries}
         loadingTeamQueriesTableData={isLoadingTeamScheduledQueries}
       />
     </div>
@@ -180,7 +180,7 @@ const ManageSchedulePage = ({
   const {
     data: globalScheduledQueries,
     error: globalScheduledQueriesError,
-    isFetching: isFetchingGlobalScheduledQueries,
+    isLoading: isLoadingGlobalScheduledQueries,
     refetch: refetchGlobalScheduledQueries,
   } = useQuery<
     ILoadAllGlobalScheduledQueriesResponse,
@@ -499,7 +499,7 @@ const ManageSchedulePage = ({
         <div>
           {isLoadingTeams ||
           isLoadingFleetQueries ||
-          isFetchingGlobalScheduledQueries ||
+          isLoadingGlobalScheduledQueries ||
           isLoadingTeamScheduledQueries ? (
             <Spinner />
           ) : (
@@ -512,7 +512,7 @@ const ManageSchedulePage = ({
               toggleScheduleEditorModal,
               isOnGlobalTeam || false,
               selectedTeamData,
-              isFetchingGlobalScheduledQueries,
+              isLoadingGlobalScheduledQueries,
               isLoadingTeamScheduledQueries,
               errorQueries
             )
@@ -542,7 +542,7 @@ const ManageSchedulePage = ({
             inheritedScheduledQueriesError,
             isOnGlobalTeam || false,
             selectedTeamData,
-            isFetchingGlobalScheduledQueries,
+            isLoadingGlobalScheduledQueries,
             isLoadingTeamScheduledQueries
           )}
         {showScheduleEditorModal && fleetQueries && (

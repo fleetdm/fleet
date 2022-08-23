@@ -8,6 +8,7 @@ export default {
     const { MACADMINS } = endpoints;
     const queryString = buildQueryStringFromParams({ team_id: teamId });
     const path = `${MACADMINS}?${queryString}`;
+
     return sendRequest("GET", path);
   },
 };

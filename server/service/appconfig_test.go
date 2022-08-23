@@ -250,7 +250,7 @@ func setupCertificateChain(t *testing.T) (server *httptest.Server, teardown func
 func TestSSONotPresent(t *testing.T) {
 	invalid := &fleet.InvalidArgumentError{}
 	var p fleet.AppConfig
-	validateSSOSettings(p, &fleet.AppConfig{}, invalid)
+	validateSSOSettings(p, &fleet.AppConfig{}, invalid, &fleet.LicenseInfo{})
 	assert.False(t, invalid.HasErrors())
 }
 
@@ -265,7 +265,7 @@ func TestNeedFieldsPresent(t *testing.T) {
 			IDPName:     "onelogin",
 		},
 	}
-	validateSSOSettings(config, &fleet.AppConfig{}, invalid)
+	validateSSOSettings(config, &fleet.AppConfig{}, invalid, &fleet.LicenseInfo{})
 	assert.False(t, invalid.HasErrors())
 }
 
@@ -281,7 +281,7 @@ func TestShortIDPName(t *testing.T) {
 			IDPName: "SSO",
 		},
 	}
-	validateSSOSettings(config, &fleet.AppConfig{}, invalid)
+	validateSSOSettings(config, &fleet.AppConfig{}, invalid, &fleet.LicenseInfo{})
 	assert.False(t, invalid.HasErrors())
 }
 
@@ -295,10 +295,52 @@ func TestMissingMetadata(t *testing.T) {
 			IDPName:   "onelogin",
 		},
 	}
-	validateSSOSettings(config, &fleet.AppConfig{}, invalid)
+	validateSSOSettings(config, &fleet.AppConfig{}, invalid, &fleet.LicenseInfo{})
 	require.True(t, invalid.HasErrors())
 	assert.Contains(t, invalid.Error(), "metadata")
 	assert.Contains(t, invalid.Error(), "either metadata or metadata_url must be defined")
+}
+
+func TestJITProvisioning(t *testing.T) {
+	config := fleet.AppConfig{
+		SSOSettings: fleet.SSOSettings{
+			EnableSSO:             true,
+			EntityID:              "fleet",
+			IssuerURI:             "http://issuer.idp.com",
+			IDPName:               "onelogin",
+			MetadataURL:           "http://isser.metadata.com",
+			EnableJITProvisioning: true,
+		},
+	}
+
+	t.Run("doesn't allow to enable JIT provisioning without a premium license", func(t *testing.T) {
+		invalid := &fleet.InvalidArgumentError{}
+		validateSSOSettings(config, &fleet.AppConfig{}, invalid, &fleet.LicenseInfo{})
+		require.True(t, invalid.HasErrors())
+		assert.Contains(t, invalid.Error(), "enable_jit_provisioning")
+		assert.Contains(t, invalid.Error(), "missing or invalid license")
+	})
+
+	t.Run("allows JIT provisioning to be enabled with a premium license", func(t *testing.T) {
+		invalid := &fleet.InvalidArgumentError{}
+		validateSSOSettings(config, &fleet.AppConfig{}, invalid, &fleet.LicenseInfo{Tier: fleet.TierPremium})
+		require.False(t, invalid.HasErrors())
+	})
+
+	t.Run("doesn't care if JIT provisioning is set to false on free licenses", func(t *testing.T) {
+		invalid := &fleet.InvalidArgumentError{}
+		oldConfig := &fleet.AppConfig{}
+
+		oldConfig.SSOSettings.EnableJITProvisioning = true
+		config.SSOSettings.EnableJITProvisioning = false
+		validateSSOSettings(config, oldConfig, invalid, &fleet.LicenseInfo{})
+		require.False(t, invalid.HasErrors())
+
+		oldConfig.SSOSettings.EnableJITProvisioning = false
+		config.SSOSettings.EnableJITProvisioning = false
+		validateSSOSettings(config, oldConfig, invalid, &fleet.LicenseInfo{})
+		require.False(t, invalid.HasErrors())
+	})
 }
 
 func TestAppConfigSecretsObfuscated(t *testing.T) {
@@ -448,7 +490,7 @@ func TestTransparencyURL(t *testing.T) {
 		},
 		{
 			name:             "customURL",
-			licenseTier:      "premium",
+			licenseTier:      fleet.TierPremium,
 			initialURL:       "",
 			newURL:           "customURL",
 			expectedURL:      "customURL",
@@ -464,7 +506,7 @@ func TestTransparencyURL(t *testing.T) {
 		},
 		{
 			name:             "emptyURL",
-			licenseTier:      "premium",
+			licenseTier:      fleet.TierPremium,
 			initialURL:       "customURL",
 			newURL:           "",
 			expectedURL:      "",

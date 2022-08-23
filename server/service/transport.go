@@ -204,9 +204,6 @@ func hostListOptionsFromRequest(r *http.Request) (fleet.HostListOptions, error) 
 		return hopt, ctxerr.Errorf(r.Context(), "invalid status %s", status)
 
 	}
-	if err != nil {
-		return hopt, err
-	}
 
 	additionalInfoFiltersString := r.URL.Query().Get("additional_info_filters")
 	if additionalInfoFiltersString != "" {
@@ -255,6 +252,26 @@ func hostListOptionsFromRequest(r *http.Request) (fleet.HostListOptions, error) 
 		hopt.SoftwareIDFilter = &sid
 	}
 
+	osID := r.URL.Query().Get("os_id")
+	if osID != "" {
+		id, err := strconv.Atoi(osID)
+		if err != nil {
+			return hopt, err
+		}
+		sid := uint(id)
+		hopt.OSIDFilter = &sid
+	}
+
+	osName := r.URL.Query().Get("os_name")
+	if osName != "" {
+		hopt.OSNameFilter = &osName
+	}
+
+	osVersion := r.URL.Query().Get("os_version")
+	if osVersion != "" {
+		hopt.OSVersionFilter = &osVersion
+	}
+
 	disableFailingPolicies := r.URL.Query().Get("disable_failing_policies")
 	if disableFailingPolicies != "" {
 		boolVal, err := strconv.ParseBool(disableFailingPolicies)
@@ -271,6 +288,27 @@ func hostListOptionsFromRequest(r *http.Request) (fleet.HostListOptions, error) 
 			return hopt, err
 		}
 		hopt.DeviceMapping = boolVal
+	}
+
+	mdmID := r.URL.Query().Get("mdm_id")
+	if mdmID != "" {
+		id, err := strconv.Atoi(mdmID)
+		if err != nil {
+			return hopt, err
+		}
+		mid := uint(id)
+		hopt.MDMIDFilter = &mid
+	}
+
+	enrollmentStatus := r.URL.Query().Get("mdm_enrollment_status")
+	switch fleet.MDMEnrollStatus(enrollmentStatus) {
+	case fleet.MDMEnrollStatusManual, fleet.MDMEnrollStatusAutomatic, fleet.MDMEnrollStatusUnenrolled:
+		hopt.MDMEnrollmentStatusFilter = fleet.MDMEnrollStatus(enrollmentStatus)
+	case "":
+		// No error when unset
+	default:
+		return hopt, ctxerr.Errorf(r.Context(), "invalid mdm enrollment status %s", enrollmentStatus)
+
 	}
 
 	return hopt, nil

@@ -20,6 +20,10 @@
     img {
       transform: scale(0.5);
     }
+
+    &:focus {
+      outline: none;
+    }
   }
 
   &__header {

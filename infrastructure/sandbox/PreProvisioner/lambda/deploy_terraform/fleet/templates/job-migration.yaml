@@ -27,7 +27,7 @@ spec:
       - name: {{ .Values.fleetName }}-migration
         command: [/usr/bin/fleet]
         args: ["prepare","db","--no-prompt"]
-        image: fleetdm/fleet:{{ .Values.imageTag }}
+        image: {{ .Values.imageRepo }}:{{ .Values.imageTag }}
         imagePullPolicy: Always
         resources:
           limits:
