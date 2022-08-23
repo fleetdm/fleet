@@ -9,79 +9,76 @@
   box-shadow: 0px 4px 16px rgba(0, 0, 0, 0.1);
   border-radius: 8px;
 
-  &__ring {
-    box-sizing: border-box;
-    display: inline-block;
-    position: relative;
-    width: 32px;
-    height: 32px;
-    border-radius: 100%;
-    border: 4px solid $core-vibrant-blue;
-    
-    div {
-      box-sizing: border-box;
-      display: block;
-      position: absolute;
-      width: 32px;
-      height: 32px;
-      margin: -4px;
-      border: 4px solid;
-      border-radius: 50%;
-      animation: ring 1.2s cubic-bezier(0.5, 0, 0.5, 1) infinite;
-      border-color: $ui-vibrant-blue-25 transparent transparent transparent;
-    }
-  }
-  
-  div:nth-child(1) {
-    animation-delay: -0.45s;
-  }
-
-  div:nth-child(2) {
-    animation-delay: -0.3s;
-  }
-  
-  div:nth-child(3) {
-    animation-delay: -0.15s;
-  }
-}
-
-.loading-spinner.small {
-  background: none;
-  box-shadow: none;
-  height: auto;
-  margin: 0;
-  transform: scale(0.7);
-}
-
-button {
-  position: relative;
-  .loading-spinner {
+  &.button {
     background: none;
-    box-shadow: none;
-    margin: 0;
-    transform: scale(0.7);
     position: absolute;
-    &__ring {
-      border-color: $core-white;
-
-      div {
-        border-color: $core-vibrant-blue transparent transparent transparent;
-        width: 32px;
-        height: 32px;
+    width: auto;
+    height: auto;
+    top: auto;
+    box-shadow: none;
+    z-index: 9;
+    margin: 0;
+    padding: 0;
+    &.white {
+      .path {
+        stroke: $core-white;
       }
     }
   }
-}
+  
+    .loader {
+      position: relative;
+      margin: 0 auto;
+      width: 23px;
 
-.spinner-wrap {
-  display: flex;
-}
+      &:before {
+        content: "";
+        display: block;
+        padding-top: 100%;
+      }
+    }
 
-@keyframes ring {
-  0% {
-    transform: rotate(0deg);
+    .circular {
+      animation: rotate 2s linear infinite;
+      height: 100%;
+      transform-origin: center center;
+      width: 100%;
+      position: absolute;
+      top: 0;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      margin: auto;
+    }
+
+    .path {
+      stroke-dasharray: 1, 200;
+      stroke-dashoffset: 0;
+      stroke: $core-vibrant-blue;
+      animation: dash 1.5s ease-in-out infinite;
+      stroke-linecap: round;
+    }
+
+    @keyframes rotate {
+      100% {
+        transform: rotate(360deg);
+      }
+    }
+
+    @keyframes dash {
+      0% {
+        stroke-dasharray: 1, 200;
+        stroke-dashoffset: 0;
+      }
+
+      50% {
+        stroke-dasharray: 89, 200;
+        stroke-dashoffset: -35px;
+      }
+
+      100% {
+        stroke-dasharray: 89, 200;
+        stroke-dashoffset: -124px;
+      }
+    }
   }
-  100% {
-    transform: rotate(360deg);
-  }
-}

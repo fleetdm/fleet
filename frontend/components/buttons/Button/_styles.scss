@@ -45,6 +45,7 @@ $base-class: "button";
   height: 38px;
   top: 0;
   border: 0;
+  position: relative;
   cursor: pointer;
 
   &:focus {

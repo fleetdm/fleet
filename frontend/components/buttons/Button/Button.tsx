@@ -1,6 +1,6 @@
 import React from "react";
 import classnames from "classnames";
-import ButtonSpinner from "components/ButtonSpinner";
+import Spinner from "components/Spinner";
 
 const baseClass = "button";
 
@@ -108,7 +108,7 @@ class Button extends React.Component<IButtonProps, IButtonState> {
         [`${baseClass}--${size}`]: size !== undefined,
       }
     );
-    const whiteButton =
+    const onWhite =
       variant === "text-link" ||
       variant === "inverse" ||
       variant === "text-icon" ||
@@ -127,7 +127,7 @@ class Button extends React.Component<IButtonProps, IButtonState> {
         <div className={isLoading ? "transparent-text" : "children-wrapper"}>
           {children}
         </div>
-        {isLoading && <ButtonSpinner whiteButton={whiteButton} />}
+        {isLoading && <Spinner small button white={!onWhite} />}
       </button>
     );
   }
