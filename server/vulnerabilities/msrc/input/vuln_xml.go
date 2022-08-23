@@ -1,6 +1,7 @@
 package msrc_input
 
 import (
+	"fmt"
 	"strings"
 	"time"
 )
@@ -25,6 +26,7 @@ type VulnerabilityRemediationXML struct {
 	RestartRequired string   `xml:"RestartRequired"`
 	ProductIDs      []string `xml:"ProductID"`
 	Description     string   `xml:"Description"`
+	URL             string   `xml:"URL"`
 	Supercedence    string   `xml:"Supercedence"`
 }
 
@@ -60,5 +62,7 @@ func (v *VulnerabilityXML) PublishedDateEpoch() *int64 {
 }
 
 func (rem *VulnerabilityRemediationXML) IsVendorFix() bool {
-	return rem.Type == "Vendor Fix"
+	return rem.Type == "Vendor Fix" &&
+		strings.HasPrefix(rem.URL, "https://catalog.update") &&
+		strings.HasSuffix(rem.URL, fmt.Sprintf("q=KB%s", rem.Description))
 }

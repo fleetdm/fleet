@@ -41,6 +41,7 @@ func TestVulnXML(t *testing.T) {
 							Type:        "Known Issue",
 							ProductIDs:  []string{"11896", "11897"},
 							Description: "5013942",
+							URL:         "https://support.microsoft.com/help/5013942",
 						},
 					},
 				}
@@ -58,6 +59,7 @@ func TestVulnXML(t *testing.T) {
 							Description:     "5013941",
 							Supercedence:    "5012647",
 							RestartRequired: "Yes",
+							URL:             "https://catalog.update.microsoft.com/v7/site/Search.aspx?q=KB5013941",
 						},
 					},
 				}
@@ -75,6 +77,7 @@ func TestVulnXML(t *testing.T) {
 							Description:     "5013941",
 							Supercedence:    "5012647",
 							RestartRequired: "Yes",
+							URL:             "https://catalog.update.microsoft.com/v7/site/Search.aspx?q=KB5013941",
 						},
 					},
 				}

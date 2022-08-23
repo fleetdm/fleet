@@ -17,7 +17,7 @@ type SecurityBulletin struct {
 	// All vulnerabilities contained in this bulletin, by CVE
 	Vulnerabities map[string]Vulnerability
 	// All vendor fixes for remediating the vulnerabilities contained in this bulletin, by KBID
-	VendorFixes map[string]VendorFix
+	VendorFixes map[int]VendorFix
 }
 
 func NewSecurityBulletin(pName string) *SecurityBulletin {
@@ -26,13 +26,8 @@ func NewSecurityBulletin(pName string) *SecurityBulletin {
 		LastUpdated:   time.Now().UTC(),
 		Products:      make(map[string]string),
 		Vulnerabities: make(map[string]Vulnerability),
-		VendorFixes:   make(map[string]VendorFix),
+		VendorFixes:   make(map[int]VendorFix),
 	}
-}
-
-type VendorFixNodeRef struct {
-	RefName  string
-	RefValue int
 }
 
 type Vulnerability struct {
@@ -43,16 +38,17 @@ type Vulnerability struct {
 	RemediatedBySet map[int]bool
 }
 
-func NewVendorFixNodeRef(val int) VendorFixNodeRef {
-	return VendorFixNodeRef{
-		RefName:  "vendor_fixes",
-		RefValue: val,
+func NewVulnerability(publishedDateEpoch *int64) Vulnerability {
+	return Vulnerability{
+		PublishedEpoch:  publishedDateEpoch,
+		ProductIDsSet:   make(map[string]bool),
+		RemediatedBySet: make(map[int]bool),
 	}
 }
 
 type VendorFix struct {
 	FixedBuild        string
-	TargetProductsIDs []string
+	TargetProductsIDs map[string]bool
 	// Reference to what vendor fix this particular vendor fix 'replaces'.
-	Supersedes VendorFixNodeRef
+	Supersedes *int
 }

@@ -33,10 +33,9 @@ func parseMSRC(inputFile string, outputFile string) error {
 }
 
 func mapToSecurityBulletins(rXML *msrc_input.ResultXML) (map[string]*msrc_parsed.SecurityBulletin, error) {
-	// We will have one bulletin for each product name.
+	// We will have one bulletin for each product.
 	bulletins := make(map[string]*msrc_parsed.SecurityBulletin)
 
-	// Create each bulletin and populate its Products
 	for pID, p := range rXML.WinProducts {
 		name := NameFromFullProdName(p.FullName)
 		if bulletins[name] == nil {
@@ -52,53 +51,56 @@ func mapToSecurityBulletins(rXML *msrc_input.ResultXML) (map[string]*msrc_parsed
 				continue
 			}
 
-			for _, remPID := range rem.ProductIDs {
-				p := rXML.WinProducts[remPID]
+			// We assume that rem.Description will contain the ID portion of a KBID, which should
+			// be always a numeric value.
+			remediatedKBID, err := strconv.Atoi(rem.Description)
+			if err != nil {
+				return nil, fmt.Errorf("invalid remediation KBID %q for %s", rem.Description, v.CVE)
+			}
 
-				name := NameFromFullProdName(p.FullName)
-				g, ok := bulletins[name]
+			// rem.Supercedence should have the ID portion of a KBID which the current vendor fix replaces.
+			var supersedes *int
+			if rem.Supercedence != "" {
+				r, err := strconv.Atoi(rem.Supercedence)
+				if err != nil {
+					return nil, fmt.Errorf("invalid supercedence KBID %q for %s", rem.Supercedence, v.CVE)
+				}
+				supersedes = &r
+			}
 
-				// Skip any non-windows products
+			for _, pID := range rem.ProductIDs {
+				// Get the bulletin for the current product ID, skip further processing if is a
+				// non-windows product.
+				name := NameFromFullProdName(rXML.WinProducts[pID].FullName)
+				b, ok := bulletins[name]
 				if !ok {
 					continue
 				}
 
-				//------------
-				// Create/update the vulnerability related to this vendor fix
-				// for the current product bulletin
+				// Check if the vulnerability referenced by this remediation exists, if not
+				// initialize it.
 				var vuln msrc_parsed.Vulnerability
-				if vuln, ok = g.Vulnerabities[v.CVE]; !ok {
-					vuln = msrc_parsed.Vulnerability{
-						PublishedEpoch:  v.PublishedDateEpoch(),
-						ProductIDsSet:   make(map[string]bool),
-						RemediatedBySet: make(map[int]bool),
-					}
+				if vuln, ok = b.Vulnerabities[v.CVE]; !ok {
+					vuln = msrc_parsed.NewVulnerability(v.PublishedDateEpoch())
 				}
-				vuln.ProductIDsSet[remPID] = true
-				remediatedKBID, err := strconv.Atoi(rem.Description)
-				if err != nil {
-					return nil, fmt.Errorf("invalid remediation KBID %s for %s in %s", rem.Description, name, v.CVE)
-				}
+				vuln.ProductIDsSet[pID] = true
 				vuln.RemediatedBySet[remediatedKBID] = true
-				g.Vulnerabities[v.CVE] = vuln
 
-				//---------
-				// Create/update the vendor fix
+				// Check if the vendor fix referenced by this remediation exists, if not
+				// initialize it.
 				var vFix msrc_parsed.VendorFix
-				if vFix, ok = g.VendorFixes[rem.Description]; !ok {
-					vFix = msrc_parsed.VendorFix{FixedBuild: rem.FixedBuild}
-				}
-
-				if rem.Supercedence != "" {
-					supercedenceKBID, err := strconv.Atoi(rem.Supercedence)
-					if err != nil {
-						return nil, fmt.Errorf("invalid supercedence KBID %s for %s in %s", rem.Supercedence, name, v.CVE)
+				if vFix, ok = b.VendorFixes[remediatedKBID]; !ok {
+					vFix = msrc_parsed.VendorFix{
+						FixedBuild:        rem.FixedBuild,
+						TargetProductsIDs: make(map[string]bool),
 					}
-					vFix.Supersedes = msrc_parsed.NewVendorFixNodeRef(supercedenceKBID)
 				}
+				vFix.Supersedes = supersedes
+				vFix.TargetProductsIDs[pID] = true
 
-				vFix.TargetProductsIDs = append(vFix.TargetProductsIDs, remPID)
-				g.VendorFixes[rem.Description] = vFix
+				// Update the bulletin
+				b.Vulnerabities[v.CVE] = vuln
+				b.VendorFixes[remediatedKBID] = vFix
 			}
 		}
 	}
