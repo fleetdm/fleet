@@ -107,6 +107,7 @@ func (ds *Datastore) DestroyAllSessionsForUser(ctx context.Context, id uint) err
 }
 
 func (ds *Datastore) MarkSessionAccessed(ctx context.Context, session *fleet.Session) error {
+	return nil
 	sqlStatement := `
 		UPDATE sessions SET
 		accessed_at = ?
