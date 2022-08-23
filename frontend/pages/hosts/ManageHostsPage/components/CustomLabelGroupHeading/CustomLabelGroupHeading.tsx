@@ -62,7 +62,7 @@ const CustomLabelGroupHeading = (
           value={labelQuery}
           placeholder="Filter labels by name..."
           onKeyDown={(event) => {
-            // Tops the parent dropdown from picking up on input keypresses
+            // Stops the parent dropdown from picking up on input keypresses
             event.stopPropagation();
           }}
           onChange={onChangeLabelQuery}

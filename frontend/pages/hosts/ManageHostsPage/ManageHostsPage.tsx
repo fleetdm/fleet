@@ -1611,10 +1611,13 @@ const ManageHostsPage = ({
   };
 
   const renderCustomControls = () => {
-    // we filter out the all hosts label as we dont want to display it as a
-    // the selected label in the label filter
+    // we filter out the status labels as we dont want to display them in the label
+    // filter select dropdown.
+    // TODO: seperate labels and status into different data sets.
     const selectedDropdownLabel =
-      selectedLabel?.name !== "All Hosts" ? selectedLabel : undefined;
+      selectedLabel?.type !== "all" && selectedLabel?.type !== "status"
+        ? selectedLabel
+        : undefined;
 
     return (
       <div className={`${baseClass}__filter-dropdowns`}>

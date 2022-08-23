@@ -9,7 +9,8 @@ import CustomLabelGroupHeading from "../CustomLabelGroupHeading";
 import { PLATFORM_TYPE_ICONS } from "./constants";
 import { createDropdownOptions, IEmptyOption, IGroupOption } from "./helpers";
 
-// Extending the react-select to add custom props we need for our custom group heading
+// Extending the react-select module to add custom props we need for our custom
+// group heading. More info here:
 // https://react-select.com/typescript#custom-select-props
 declare module "react-select-5/dist/declarations/src/Select" {
   export interface Props<
@@ -27,7 +28,9 @@ declare module "react-select-5/dist/declarations/src/Select" {
 }
 
 /** A custom option label to show in the dropdown. Only used in this dropdown
- * component */
+ * component. You will find focus and blur handlers in this component to help
+ * solve the problem of changing focus between the select dropdown and the
+ * label search input. */
 const OptionLabel = (data: ILabel | IEmptyOption) => {
   const isLabel = "display_text" in data;
   const isPlatform = isLabel && data.type === "platform";
@@ -70,6 +73,10 @@ const LabelFilterSelect = ({
   onAddLabel,
 }: ILabelFilterSelectProps) => {
   const [labelQuery, setLabelQuery] = useState("");
+
+  // we need the Select to be a controlled component to enable our label input
+  // to work correctly. shouldOpenMenu now becomes our single source of truth if
+  // we want the menu to render open or closed.
   const [shouldOpenMenu, setShouldOpenMenu] = useState(false);
   const isLabelSearchInputFocusedRef = useRef(false);
   const selectRef = useRef<
@@ -94,6 +101,8 @@ const LabelFilterSelect = ({
   const handleLabelQueryChange = (
     event: React.ChangeEvent<HTMLInputElement>
   ) => {
+    // We need to stop the key presses propagation to prevent the dropdown from
+    // picking up keypresses.
     event.stopPropagation();
     setLabelQuery(event.target.value);
   };
@@ -141,7 +150,7 @@ const LabelFilterSelect = ({
       className={classes}
       classNamePrefix={baseClass}
       defaultMenuIsOpen={false}
-      placeholder={"Filter by operating System or Label..."}
+      placeholder={"Filter by operating system or label"}
       formatOptionLabel={OptionLabel}
       menuIsOpen={shouldOpenMenu}
       value={selectedLabel}

@@ -15,6 +15,18 @@
     }
   }
 
+  .label-filter-select__value-container {
+    margin-left: 10px;
+    padding-left: 27px;
+
+    &::before {
+      display: inline-block;
+      position: absolute;
+      content: url(../assets/images/icon-filter.png);
+      top: 4px;
+    }
+  }
+
 
   .label-filter-select__single-value,
   .label-filter-select__placeholder {

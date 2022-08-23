@@ -16,7 +16,6 @@ interface IFilterPillProps {
 
 const baseClass = "filter-pill";
 
-// TODO: add html tooltip
 const FilterPill = ({
   label,
   icon,
