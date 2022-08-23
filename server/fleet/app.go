@@ -1,6 +1,7 @@
 package fleet
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"time"
@@ -106,6 +107,9 @@ type VulnerabilitySettings struct {
 }
 
 // AppConfig holds server configuration that can be changed via the API.
+//
+// Note: management of deprecated fields is done on JSON-marshalling and uses
+// the legacyFields struct to list them.
 type AppConfig struct {
 	OrgInfo            OrgInfo            `json:"org_info"`
 	ServerSettings     ServerSettings     `json:"server_settings"`
@@ -125,6 +129,13 @@ type AppConfig struct {
 
 	WebhookSettings WebhookSettings `json:"webhook_settings"`
 	Integrations    Integrations    `json:"integrations"`
+
+	strictDecoding bool `json:"-"`
+}
+
+// legacyConfig holds settings that have been replaced, superceded or
+// deprecated by other AppConfig settings.
+type legacyConfig struct {
 }
 
 // EnrichedAppConfig contains the AppConfig along with additional fleet
@@ -137,6 +148,14 @@ type EnrichedAppConfig struct {
 	Vulnerabilities *VulnerabilitiesConfig `json:"vulnerabilities,omitempty"`
 	License         *LicenseInfo           `json:"license,omitempty"`
 	Logging         *Logging               `json:"logging,omitempty"`
+}
+
+// UnmarshalJSON implements the json.Unmarshaler interface.
+// It is explicitly defined to prevent promoted methods from embedded structs
+// from taking over JSON-serialization.
+func (e *EnrichedAppConfig) UnmarshalJSON(b []byte) error {
+	type alias *EnrichedAppConfig
+	return json.Unmarshal(b, alias(e))
 }
 
 type Duration struct {
@@ -237,6 +256,29 @@ func (c *AppConfig) ApplyDefaultsForNewInstalls() {
 func (c *AppConfig) ApplyDefaults() {
 	c.HostSettings.EnableHostUsers = true
 	c.WebhookSettings.Interval.Duration = 24 * time.Hour
+}
+
+// EnableStrictDecoding enables strict decoding of the AppConfig struct.
+func (c *AppConfig) EnableStrictDecoding() { c.strictDecoding = true }
+
+// UnmarshalJSON implements the json.Unmarshaler interface.
+func (c *AppConfig) UnmarshalJSON(b []byte) error {
+	// Decode any legacy settings that might be present.
+	var legacy legacyConfig
+	if err := json.Unmarshal(b, &legacy); err != nil {
+		return err
+	}
+
+	// TODO(roperzh): define and assign legacy settings to new fields. E.g:
+	// c.Features = legacy.HostSettings
+
+	// Decode the config, overriding any legacy settings.
+	type alias *AppConfig
+	decoder := json.NewDecoder(bytes.NewReader(b))
+	if c.strictDecoding {
+		decoder.DisallowUnknownFields()
+	}
+	return decoder.Decode(alias(c))
 }
 
 // OrgInfo contains general info about the organization using Fleet.

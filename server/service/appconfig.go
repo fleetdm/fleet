@@ -39,6 +39,14 @@ type appConfigResponse struct {
 	Err error `json:"error,omitempty"`
 }
 
+// UnmarshalJSON implements the json.Unmarshaler interface.
+// It is explicitly defined to prevent promoted methods from embedded structs
+// from taking over JSON-serialization.
+func (r *appConfigResponse) UnmarshalJSON(b []byte) error {
+	type Alias *appConfigResponse
+	return json.Unmarshal(b, Alias(r))
+}
+
 func (r appConfigResponse) error() error { return r.Err }
 
 func getAppConfigEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (interface{}, error) {
@@ -218,7 +226,7 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte) (*fleet.AppCo
 	invalid := &fleet.InvalidArgumentError{}
 	var newAppConfig fleet.AppConfig
 	if err := json.Unmarshal(p, &newAppConfig); err != nil {
-		return nil, ctxerr.Wrap(ctx, err)
+		return nil, ctxerr.Wrap(ctx, &badRequestError{message: err.Error()})
 	}
 
 	if newAppConfig.FleetDesktop.TransparencyURL != "" {
@@ -238,9 +246,8 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte) (*fleet.AppCo
 	}
 
 	// We apply the config that is incoming to the old one
-	decoder := json.NewDecoder(bytes.NewReader(p))
-	decoder.DisallowUnknownFields()
-	if err := decoder.Decode(&appConfig); err != nil {
+	appConfig.EnableStrictDecoding()
+	if err := json.Unmarshal(p, &appConfig); err != nil {
 		return nil, ctxerr.Wrap(ctx, &badRequestError{message: err.Error()})
 	}
 
