@@ -1,0 +1,188 @@
+# TUF Update Guide
+
+This document is a walkthrough guide for how a Fleet member can become a publisher of updates for [Fleet's TUF service](tuf.fleetctl.com).
+The roles needed to push new updates are `targets`, `snapshot` and `timestamp`.
+
+## Security
+
+- TUF keys for `targets`, `snapshot` and `timestamp` should be stored on a USB stick.
+- The keys are stored encrypted with a passphrase stored in 1Password.
+
+## Sync Fleet's TUF repository
+
+For simplicity we sync the repository to the USB stick.
+```sh
+cd /Volumes/FLEET-TUF/repository
+
+cd /Volumes/FLEET-TUF
+mkdir -p repository
+mkdir -p keys
+mkdir -p staged
+
+aws s3 sync s3://fleet-tuf-repo ./repository
+```
+
+## Generate targets+snapshot+timestamp keys
+
+```sh
+tuf gen-key targets
+Enter targets keys passphrase:
+Repeat targets keys passphrase:
+Generated targets key with ID ae943cb8be8a849b37c66ed46bdd7e905ba3118c0c051a6ee3cd30625855a076
+```
+```sh
+tuf gen-key snapshot
+Enter snapshot keys passphrase:
+Repeat snapshot keys passphrase:
+Generated snapshot key with ID 1a4d9beb826d1ff4e036d757cfcd6e36d0f041e58d25f99ef3a20ae3f8dd71e3
+```
+```sh
+tuf gen-key timestamp
+Enter timestamp keys passphrase:
+Repeat timestamp keys passphrase:
+Generated timestamp key with ID d940df08b59b12c30f95622a05cc40164b78a11dd7d408395ee4f79773331b30
+```
+
+Share `staged/root.json` with Fleet member with the `root` role, who will sign with its root key and push to the repository.
+
+## Root role signs the `staged/root.json`
+
+Essentially the following commands are executed to sign the new keys:
+- `tuf sign`
+- `tuf snapshot`
+- `tuf timestamp`
+- `tuf commit`
+
+## Pushing new updates
+
+Following are tested steps to push new targets.
+
+### 1. Backup current TUF repository
+
+Just in case we break the remote TUF directory, let's do a local backup:
+```sh
+mkdir ~/tuf.fleetctl.com/backup
+aws s3 sync s3://fleet-tuf-repo ~/tuf.fleetctl.com/backup
+```
+
+### 2. Make sure the local repository is up-to-date
+
+```sh
+aws s3 sync s3://fleet-tuf-repo ./repository
+```
+
+### 3. Setup Orbit in Linux, Windows, macOS
+
+Install Orbit with the (to be updated) channels in the three supported OSs.
+
+### 4. Setup Orbit in one host that points to our repository
+
+This allows us to verify that already running clients will upgrade successfully.
+
+Serve current unmodified repository:
+```sh
+cd repository && python3 -m http.server
+```
+
+Generate packages using the local TUF server (in my case on a macOS host):
+```sh
+fleetctl package --type=pkg --update-url=http://localhost:8000 ...
+[...]
+```
+
+Install generated `fleet-osquery.pkg`.
+
+### 5. Actually pushing new updates
+
+In this example we are promoting orbit from `edge` to `stable`:
+```sh
+./fleetctl-macos updates add --target ./repository/targets/orbit/linux/edge/orbit --platform linux --name orbit --version 1.1.0 -t 1.1 -t 1 -t stable
+[...]
+./fleetctl-macos updates add --target ./repository/targets/orbit/windows/edge/orbit.exe --platform windows --name orbit --version 1.1.0 -t 1.1 -t 1 -t stable
+[...]
+./fleetctl-macos updates add --target ./repository/targets/orbit/macos/edge/orbit --platform macos --name orbit --version 1.1.0 -t 1.1 -t 1 -t stable
+[...]
+```
+
+`--dryrun` allows us to verify the upgrade before pushing:
+```sh
+AWS_PROFILE=tuf aws s3 sync ./repository s3://fleet-tuf-repo --dryrun
+(dryrun) upload: repository/snapshot.json to s3://fleet-tuf-repo/snapshot.json
+(dryrun) upload: repository/targets.json to s3://fleet-tuf-repo/targets.json
+(dryrun) upload: repository/targets/orbit/linux/1.1.0/orbit to s3://fleet-tuf-repo/targets/orbit/linux/1.1.0/orbit
+(dryrun) upload: repository/targets/orbit/linux/1.1/orbit to s3://fleet-tuf-repo/targets/orbit/linux/1.1/orbit
+(dryrun) upload: repository/targets/orbit/linux/1/orbit to s3://fleet-tuf-repo/targets/orbit/linux/1/orbit
+(dryrun) upload: repository/targets/orbit/linux/stable/orbit to s3://fleet-tuf-repo/targets/orbit/linux/stable/orbit
+(dryrun) upload: repository/targets/orbit/macos/1.1.0/orbit to s3://fleet-tuf-repo/targets/orbit/macos/1.1.0/orbit
+(dryrun) upload: repository/targets/orbit/macos/1.1/orbit to s3://fleet-tuf-repo/targets/orbit/macos/1.1/orbit
+(dryrun) upload: repository/targets/orbit/macos/1/orbit to s3://fleet-tuf-repo/targets/orbit/macos/1/orbit
+(dryrun) upload: repository/targets/orbit/macos/stable/orbit to s3://fleet-tuf-repo/targets/orbit/macos/stable/orbit
+(dryrun) upload: repository/targets/orbit/windows/1.1.0/orbit.exe to s3://fleet-tuf-repo/targets/orbit/windows/1.1.0/orbit.exe
+(dryrun) upload: repository/targets/orbit/windows/1.1/orbit.exe to s3://fleet-tuf-repo/targets/orbit/windows/1.1/orbit.exe
+(dryrun) upload: repository/targets/orbit/windows/1/orbit.exe to s3://fleet-tuf-repo/targets/orbit/windows/1/orbit.exe
+(dryrun) upload: repository/targets/orbit/windows/stable/orbit.exe to s3://fleet-tuf-repo/targets/orbit/windows/stable/orbit.exe
+(dryrun) upload: repository/timestamp.json to s3://fleet-tuf-repo/timestamp.json
+```
+
+In this other example we are updating osquery's `edge` channel:
+
+```sh
+./fleetctl-macos updates add --target /Users/luk/Downloads/tuf-osqueryd/osqueryd.exe --platform windows --name osqueryd --version 5.5.1 -t edge
+[...]
+./fleetctl-macos updates add --target /Users/luk/Downloads/tuf-osqueryd/osqueryd.app.tar.gz --platform macos-app --name osqueryd --version 5.5.1 -t edge
+[...]
+./fleetctl-macos updates add --target /Users/luk/Downloads/tuf-osqueryd/osqueryd --platform linux --name osqueryd --version 5.5.1 -t edge
+[...]
+```
+
+`--dryrun` allows us to verify the upgrade before pushing:
+```sh
+aws s3 sync ./repository s3://fleet-tuf-repo --profile tuf --dryrun
+(dryrun) upload: repository/snapshot.json to s3://fleet-tuf-repo/snapshot.json
+(dryrun) upload: repository/targets.json to s3://fleet-tuf-repo/targets.json
+(dryrun) upload: repository/targets/osqueryd/linux/5.5.1/osqueryd to s3://fleet-tuf-repo/targets/osqueryd/linux/5.5.1/osqueryd
+(dryrun) upload: repository/targets/osqueryd/linux/edge/osqueryd to s3://fleet-tuf-repo/targets/osqueryd/linux/edge/osqueryd
+(dryrun) upload: repository/targets/osqueryd/macos-app/5.5.1/osqueryd.app.tar.gz to s3://fleet-tuf-repo/targets/osqueryd/macos-app/5.5.1/osqueryd.app.tar.gz
+(dryrun) upload: repository/targets/osqueryd/macos-app/edge/osqueryd.app.tar.gz to s3://fleet-tuf-repo/targets/osqueryd/macos-app/edge/osqueryd.app.tar.gz
+(dryrun) upload: repository/targets/osqueryd/windows/5.5.1/osqueryd.exe to s3://fleet-tuf-repo/targets/osqueryd/windows/5.5.1/osqueryd.exe
+(dryrun) upload: repository/targets/osqueryd/windows/edge/osqueryd.exe to s3://fleet-tuf-repo/targets/osqueryd/windows/edge/osqueryd.exe
+(dryrun) upload: repository/timestamp.json to s3://fleet-tuf-repo/timestamp.json
+```
+
+### 6. Verify the already running test host
+
+Verify host enrolled in step (4) upgraded to the new versions successfully.
+
+### 7. Verify generation of new packages
+
+```sh
+fleetctl package --type=pkg --update-url=http://localhost:8000 ...
+fleetctl package --type=msi --update-url=http://localhost:8000 ...
+fleetctl package --type=deb --update-url=http://localhost:8000 ...
+```
+
+### 8. Push!
+
+Run the same command shown above, but without `--dryrun`
+```sh
+aws s3 sync ./repository s3://fleet-tuf-repo --profile tuf
+```
+
+### 9. Final Verification
+
+Now that the repository is pushed, verify that the hosts enrolled in step (3) update as expected. 
+
+### Issues found
+
+#### Invalid timestamp.json version
+
+The following issue was solved by resigning the timestamp metadata `fleetctl updates timestamp` (executed three times to increase the version to 4175)
+```sh
+2022-08-23T13:44:48-03:00 INF update failed error="update metadata: update metadata: tuf: failed to decode timestamp.json: version 4172 is lower than current version 4174"
+2022-08-23T13:59:48-03:00 INF update failed error="update metadata: update metadata: tuf: failed to decode timestamp.json: version 4172 is lower than current version 4174"
+```
+
+### Notes
+
+- "Measure thrice cut once": Steps 3, 4, 5 and 6 allows us to verify the repository is in good shape before pushing to https://tuf.fleetctl.com.
+- Steps may look different if the upgrade is performed on a Linux or Windows host.
