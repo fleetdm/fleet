@@ -162,10 +162,6 @@ describe(
         cy.contains("button", /save/i).click();
         cy.contains("button", /done/i).click();
       });
-      it("allows admin to open the 'Add label' form", () => {
-        cy.findByRole("button", { name: /add label/i }).click();
-        cy.findByRole("button", { name: /cancel/i }).click();
-      });
     });
     describe("Host details tests", () => {
       beforeEach(() => {

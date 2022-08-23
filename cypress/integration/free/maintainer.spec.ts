@@ -158,8 +158,9 @@ describe(
         cy.contains("button", /done/i).click();
       });
       it("allows maintainer to open the 'Add label' form", () => {
+        cy.getAttached(".label-filter-select__control").click();
         cy.findByRole("button", { name: /add label/i }).click();
-        cy.findByRole("button", { name: /cancel/i }).click();
+        cy.findByText(/New Label/i).should("exist");
       });
     });
     describe("Host details tests", () => {
