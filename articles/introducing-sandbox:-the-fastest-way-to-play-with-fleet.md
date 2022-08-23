@@ -1,8 +1,6 @@
-
-
 # Introducing Sandbox, the fastest way to play with Fleet
 
-![Fleet sandbox](../website/assets/images/articles/state-of-device-management-report-1600x900@2x.png)
+![Fleet sandbox](../website/assets/images/articles/introducing-fleet-sandbox-1600x900@2x.jpg)
 
 Have you ever been excited about a shiny, new toy, only to find out it wasn’t as cool as the commercial made it seem?
 
@@ -11,6 +9,10 @@ That’s no fun. At Fleet, our open-source philosophy means [we believe in trans
 Introducing Sandbox: The fastest way to start playing with Fleet on your device. It’s simple to set up, easy to use, and totally free.
 
 ## Get started in minutes
+
+<div purpose=”embedded-content”>
+	<iframe class="video" src="https://www.youtube.com/embed/1xubJYEi9v4" allowfullscreen></iframe>
+</div>
 
 Instead of asking you to go through extra steps, we set up your Fleet instance on one of our servers. Then it’s as easy as 1-2-3.
 
@@ -46,9 +48,9 @@ You can keep learning about Fleet after your Sandbox session expires. [Join the 
 
 Are you ready to get your hands dirty? [Try Fleet Sandbox on your device today](https://fleetdm.com/get-started).
 
-<meta name="category" value="releases">
-<meta name="authorFullName" value="Mo Zhu">
-<meta name="authorGitHubUsername" value="zhumo">
-<meta name="publishedOn" value="2022-08-18">
-<meta name="articleTitle" value="Introducing Sandbox: the fastest way to play with Fleet">
-<meta name="articleImageUrl" value="../website/assets/images/articles/state-of-device-management-report-1600x900@2x.png">
+<meta name="category" value="announcements">
+<meta name="authorFullName" value="Chris McGillicuddy">
+<meta name="authorGitHubUsername" value="chris-mcgillicuddy">
+<meta name="publishedOn" value="2022-08-24">
+<meta name="articleTitle" value="Introducing Sandbox, the fastest way to play with Fleet">
+<meta name="articleImageUrl" value="../website/assets/images/articles/introducing-fleet-sandbox-1600x900@2x.jpg">
