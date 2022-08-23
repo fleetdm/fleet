@@ -40,11 +40,11 @@ type appConfigResponse struct {
 }
 
 // UnmarshalJSON implements the json.Unmarshaler interface.
-// It is explicitly defined to prevent promoted methods from embedded structs
-// from taking over JSON-serialization.
+// It is explicitly defined to prevent AppConfig.UnmarshalJSON from being
+// promoted (and called) when this struct is unmarshalled.
 func (r *appConfigResponse) UnmarshalJSON(b []byte) error {
-	type Alias *appConfigResponse
-	return json.Unmarshal(b, Alias(r))
+	type responseNoLoop *appConfigResponse
+	return json.Unmarshal(b, responseNoLoop(r))
 }
 
 func (r appConfigResponse) error() error { return r.Err }

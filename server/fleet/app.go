@@ -3,7 +3,9 @@ package fleet
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
+	"io"
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server/config"
@@ -151,11 +153,11 @@ type EnrichedAppConfig struct {
 }
 
 // UnmarshalJSON implements the json.Unmarshaler interface.
-// It is explicitly defined to prevent promoted methods from embedded structs
-// from taking over JSON-serialization.
+// It is explicitly defined to prevent AppConfig.UnmarshalJSON from being
+// promoted (and called) when this struct is unmarshalled.
 func (e *EnrichedAppConfig) UnmarshalJSON(b []byte) error {
-	type alias *EnrichedAppConfig
-	return json.Unmarshal(b, alias(e))
+	type enrichedNoLoop *EnrichedAppConfig
+	return json.Unmarshal(b, enrichedNoLoop(e))
 }
 
 type Duration struct {
@@ -273,12 +275,18 @@ func (c *AppConfig) UnmarshalJSON(b []byte) error {
 	// c.Features = legacy.HostSettings
 
 	// Decode the config, overriding any legacy settings.
-	type alias *AppConfig
+	type appCfgNoCustomUnmarshal *AppConfig
 	decoder := json.NewDecoder(bytes.NewReader(b))
 	if c.strictDecoding {
 		decoder.DisallowUnknownFields()
 	}
-	return decoder.Decode(alias(c))
+	if err := decoder.Decode(appCfgNoCustomUnmarshal(c)); err != nil {
+		return err
+	}
+	if _, err := decoder.Token(); err != io.EOF {
+		return errors.New("unexpected extra tokens found in config")
+	}
+	return nil
 }
 
 // OrgInfo contains general info about the organization using Fleet.
