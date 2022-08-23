@@ -78,6 +78,7 @@ import {
   LABEL_SLUG_PREFIX,
   DEFAULT_SORT_HEADER,
   DEFAULT_SORT_DIRECTION,
+  DEFAULT_PAGE_SIZE,
   HOST_SELECT_STATUSES,
 } from "./constants";
 import { isAcceptableStatus, getNextLocationPath } from "./helpers";
@@ -278,10 +279,7 @@ const ManageHostsPage = ({
       ? parseInt(queryParams?.mdm_id, 10)
       : undefined;
   const mdmEnrollmentStatus = queryParams?.mdm_enrollment_status;
-  const operatingSystemId =
-    queryParams?.operating_system_id !== undefined
-      ? parseInt(queryParams?.operating_system_id, 10)
-      : undefined;
+  const { os_id, os_name, os_version } = queryParams;
   const { active_label: activeLabel, label_id: labelID } = routeParams;
 
   // ===== filter matching
@@ -382,7 +380,9 @@ const ManageHostsPage = ({
     IOperatingSystemVersion[],
     IGetOSVersionsQueryKey[]
   >([{ scope: "os_versions" }], () => getOSVersions(), {
-    enabled: !!queryParams?.operating_system_id,
+    enabled:
+      !!queryParams?.os_id ||
+      (!!queryParams?.os_name && !!queryParams?.os_version),
     keepPreviousData: true,
     select: (data) => data.os_versions,
   });
@@ -489,10 +489,6 @@ const ManageHostsPage = ({
       options.teamId = queryParams.team_id;
     }
 
-    if (queryParams.operating_system_id) {
-      options.operatingSystemId = queryParams.operating_system_id;
-    }
-
     try {
       const { count: returnedHostCount } = await hostCountAPI.load(options);
       setFilteredHostCount(returnedHostCount);
@@ -550,7 +546,9 @@ const ManageHostsPage = ({
       softwareId,
       mdmId,
       mdmEnrollmentStatus,
-      operatingSystemId,
+      os_id,
+      os_name,
+      os_version,
       page: tableQueryData ? tableQueryData.pageIndex : 0,
       perPage: tableQueryData ? tableQueryData.pageSize : 100,
       device_mapping: true,
@@ -565,6 +563,12 @@ const ManageHostsPage = ({
       setCurrentQueryOptions(options);
     }
   }, [availableTeams, currentTeam, location, labels]);
+
+  const isLastPage =
+    tableQueryData &&
+    !!filteredHostCount &&
+    DEFAULT_PAGE_SIZE * tableQueryData.pageIndex + (hosts?.length || 0) >=
+      filteredHostCount;
 
   const handleLabelChange = ({ slug }: ILabel): boolean => {
     if (!slug) {
@@ -650,7 +654,7 @@ const ManageHostsPage = ({
         pathPrefix: PATHS.MANAGE_HOSTS,
         routeTemplate,
         routeParams,
-        queryParams: omit(queryParams, ["operating_system_id"]),
+        queryParams: omit(queryParams, ["os_id", "os_name", "os_version"]),
       })
     );
   };
@@ -806,13 +810,15 @@ const ManageHostsPage = ({
       }
 
       if (
-        operatingSystemId &&
+        (os_id || (os_name && os_version)) &&
         !softwareId &&
         !policyId &&
         !mdmEnrollmentStatus &&
         !mdmId
       ) {
-        newQueryParams.operating_system_id = operatingSystemId;
+        newQueryParams.os_id = os_id;
+        newQueryParams.os_name = os_name;
+        newQueryParams.os_version = os_version;
       }
       router.replace(
         getNextLocationPath({
@@ -832,7 +838,9 @@ const ManageHostsPage = ({
       softwareId,
       mdmId,
       mdmEnrollmentStatus,
-      operatingSystemId,
+      os_id,
+      os_name,
+      os_version,
       sortBy,
     ]
   );
@@ -1072,6 +1080,9 @@ const ManageHostsPage = ({
         softwareId,
         mdmId,
         mdmEnrollmentStatus,
+        os_id,
+        os_name,
+        os_version,
       });
 
       toggleTransferHostModal();
@@ -1119,6 +1130,9 @@ const ManageHostsPage = ({
         softwareId,
         mdmId,
         mdmEnrollmentStatus,
+        os_id,
+        os_name,
+        os_version,
       });
 
       refetchLabels();
@@ -1149,7 +1163,23 @@ const ManageHostsPage = ({
   );
 
   const renderOSFilterBlock = () => {
-    const os = osVersions?.find((v) => v.os_id === operatingSystemId);
+    if (!os_id && !(os_name && os_version)) {
+      return <></>;
+    }
+    let os: IOperatingSystemVersion | undefined;
+    if (os_id) {
+      os = osVersions?.find((v) => v.os_id === os_id);
+    } else if (os_name && os_version) {
+      const name: string = os_name;
+      const vers: string = os_version;
+
+      os = osVersions?.find(
+        ({ name_only, version }) =>
+          name_only.toLowerCase() === name.toLowerCase() &&
+          version.toLowerCase() === vers.toLowerCase()
+      );
+    }
+
     if (!os) {
       return <></>;
     }
@@ -1264,7 +1294,7 @@ const ManageHostsPage = ({
   const renderMDMSolutionFilterBlock = () => {
     if (mdmSolutionDetails) {
       const { name, server_url } = mdmSolutionDetails;
-      const buttonText = `${name !== "Unknown" && name} ${server_url}`;
+      const buttonText = name ? `${name} ${server_url}` : `${server_url}`;
       return (
         <div className={`${baseClass}__mdm-solution-filter-block`}>
           <div>
@@ -1571,6 +1601,9 @@ const ManageHostsPage = ({
       softwareId,
       mdmId,
       mdmEnrollmentStatus,
+      os_id,
+      os_name,
+      os_version,
       visibleColumns,
     };
 
@@ -1633,6 +1666,19 @@ const ManageHostsPage = ({
     );
   }, [isHostCountLoading, filteredHostCount]);
 
+  console.log(
+    "is active filter: ",
+    (!!os_id || (!!os_name && !!os_version)) &&
+      !policyId &&
+      !softwareId &&
+      !(
+        selectedLabel &&
+        selectedLabel.type !== "all" &&
+        selectedLabel.type !== "status"
+      ) &&
+      !mdmId &&
+      !mdmEnrollmentStatus
+  );
   const renderActiveFilterBlock = () => {
     const showSelectedLabel =
       selectedLabel &&
@@ -1644,7 +1690,8 @@ const ManageHostsPage = ({
       showSelectedLabel ||
       mdmId ||
       mdmEnrollmentStatus ||
-      operatingSystemId
+      os_id ||
+      (os_name && os_version)
     ) {
       return (
         <div className={`${baseClass}__labels-active-filter-wrap`}>
@@ -1673,7 +1720,7 @@ const ManageHostsPage = ({
             !mdmId &&
             !showSelectedLabel &&
             renderMDMEnrollmentFilterBlock()}
-          {!!operatingSystemId &&
+          {(!!os_id || (!!os_name && !!os_version)) &&
             !policyId &&
             !softwareId &&
             !showSelectedLabel &&
@@ -1779,19 +1826,16 @@ const ManageHostsPage = ({
       !isHostsLoading &&
       teamSync
     ) {
-      const {
-        software_id,
-        policy_id,
-        mdm_id,
-        mdm_enrollment_status,
-        operating_system_id,
-      } = queryParams || {};
+      const { software_id, policy_id, mdm_id, mdm_enrollment_status } =
+        queryParams || {};
       const includesNameCardFilter = !!(
         software_id ||
         policy_id ||
         mdm_id ||
         mdm_enrollment_status ||
-        operating_system_id
+        os_id ||
+        os_name ||
+        os_version
       );
 
       return (
@@ -1852,6 +1896,7 @@ const ManageHostsPage = ({
         onPrimarySelectActionClick={onDeleteHostsClick}
         onQueryChange={onTableQueryChange}
         toggleAllPagesSelected={toggleAllMatchingHosts}
+        disableNextPage={isLastPage}
       />
     );
   };

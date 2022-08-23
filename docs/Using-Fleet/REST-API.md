@@ -1731,7 +1731,9 @@ None.
 | policy_id               | integer | query | The ID of the policy to filter hosts by. `policy_response` must also be specified with `policy_id`.                                                                                                                                                                                                                                         |
 | policy_response         | string  | query | Valid options are `passing` or `failing`.  `policy_id` must also be specified with `policy_response`.                                                                                                                                                                                                                                       |
 | software_id             | integer | query | The ID of the software to filter hosts by.                                                                                                                                                                                                                                                                                                  |
-| operating_system_id     | integer | query | The ID of the operating system to filter hosts by.                                                 |
+| os_id     | integer | query | The ID of the operating system to filter hosts by.                                                 |
+| os_name     | string | query | The name of the operating system to filter hosts by. `os_version` must also be specified with `os_name`                                                 |
+| os_version    | string | query | The version of the operating system to filter hosts by. `os_name` must also be specified with `os_version`                                                 |
 | device_mapping          | boolean | query | Indicates whether `device_mapping` should be included for each host. See ["Get host's Google Chrome profiles](#get-host's-google-chrome-profiles) for more information about this feature.                                                                                                                                                  |
 | mdm_id                  | integer | query | The ID of the _mobile device management_ (MDM) solution to filter hosts by (that is, filter hosts that use a specific MDM provider and URL).                                                                                                                                                                                                |
 | mdm_enrollment_status   | string  | query | The _mobile device management_ (MDM) enrollment status to filter hosts by. Can be one of 'manual', 'automatic' or 'unenrolled'.                                                                                                                                                                                                             |
@@ -1805,11 +1807,21 @@ If `mdm_id` is specified, an additional top-level key `"mobile_device_management
       "issues": {
         "failing_policies_count": 2,
         "total_issues_count": 2
+      },
+      "geolocation": {
+        "country_iso": "US",
+        "city_name": "New York",
+        "geometry": {
+          "type": "point",
+          "coordinates": [40.6799, -74.0028]
+        }
       }
     }
   ]
 }
 ```
+
+> Note: the response above assumes a [GeoIP database is configured](https://fleetdm.com/docs/deploying/configuration#geo-ip), otherwise the `geolocation` object won't be included.
 
 ### Count hosts
 
@@ -1829,7 +1841,9 @@ If `mdm_id` is specified, an additional top-level key `"mobile_device_management
 | team_id                 | integer | query | _Available in Fleet Premium_ Filters the hosts to only include hosts in the specified team.                                                                                                                                                                                                                                                 |
 | policy_id               | integer | query | The ID of the policy to filter hosts by. `policy_response` must also be specified with `policy_id`.                                                                                                                                                                                                                                         |
 | policy_response         | string  | query | Valid options are `passing` or `failing`.  `policy_id` must also be specified with `policy_response`.                                                                                                                                                                                                                                       |
-| operating_system_id     | integer | query | The ID of the operating system to filter hosts by.                                                                                                                                                                                                                                                                                         |
+| os_id     | integer | query | The ID of the operating system to filter hosts by.                                                 |
+| os_name     | string | query | The name of the operating system to filter hosts by. `os_version` must also be specified with `os_name`                                                 |
+| os_version    | string | query | The version of the operating system to filter hosts by. `os_name` must also be specified with `os_version`                                                 |
 | label_id                | integer | query | A valid label ID. It cannot be used alongside policy or mdm filters.                                                                                                                                                                                                                                                                        |
 | disable_failing_policies| string  | query | If "true", hosts will return failing policies as 0 regardless of whether there are any that failed for the host. This is meant to be used when increased performance is needed in exchange for the extra information.                                                                                                                       |
 | mdm_id                  | integer | query | The ID of the _mobile device management_ (MDM) solution to filter hosts by (that is, filter hosts that use a specific MDM provider and URL).                                                                                                                                                                                                |
@@ -2141,10 +2155,20 @@ If the scheduled queries haven't run on the host yet, the stats have zero values
         "cycle_count": 999,
         "health": "Normal"
       }
-    ]
+    ],
+    "geolocation": {
+      "country_iso": "US",
+      "city_name": "New York",
+      "geometry": {
+        "type": "point",
+        "coordinates": [40.6799, -74.0028]
+      }
+    }
   }
 }
 ```
+
+> Note: the response above assumes a [GeoIP database is configured](https://fleetdm.com/docs/deploying/configuration#geo-ip), otherwise the `geolocation` object won't be included.
 
 ### Get host by identifier
 
@@ -2214,10 +2238,20 @@ Returns the information of the host specified using the `uuid`, `osquery_host_id
         "cycle_count": 999,
         "health": "Normal"
       }
-    ]
+    ],
+    "geolocation": {
+      "country_iso": "US",
+      "city_name": "New York",
+      "geometry": {
+        "type": "point",
+        "coordinates": [40.6799, -74.0028]
+      }
+    }
   }
 }
 ```
+
+> Note: the response above assumes a [GeoIP database is configured](https://fleetdm.com/docs/deploying/configuration#geo-ip), otherwise the `geolocation` object won't be included.
 
 ### Delete host
 
@@ -2550,7 +2584,9 @@ Retrieves the aggregated host OS versions information.
 | ---      | ---      | ---   | ---                                                                                                                                  |
 | team_id             | integer | query | _Available in Fleet Premium_ Filters the hosts to only include hosts in the specified team. If not provided, all hosts are included. |
 | platform            | string   | query | Filters the hosts to the specified platform |
-| operating_system_id | integer   | query | Filters the hosts to the specified operating system id |
+| os_name     | string | query | The name of the operating system to filter hosts by. `os_version` must also be specified with `os_name`                                                 |
+| os_version    | string | query | The version of the operating system to filter hosts by. `os_name` must also be specified with `os_version`                                                 |
+
 ##### Default response
 
 `Status: 200`

@@ -1,1 +1,0 @@
-* Add a message in `fleetctl` notifying that it's the wrong binary for `prepare` subcommands.

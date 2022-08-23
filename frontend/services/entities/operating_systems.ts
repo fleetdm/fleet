@@ -31,9 +31,12 @@ export const getOSVersions = async ({
   teamId,
 }: IGetOSVersionsRequest = {}): Promise<IOSVersionsResponse> => {
   const { OS_VERSIONS } = endpoints;
+  let path = OS_VERSIONS;
+
   const queryParams = { id, platform, team_id: teamId };
   const queryString = buildQueryStringFromParams(queryParams);
-  const path = `${OS_VERSIONS}?${queryString}`;
+
+  if (queryString) path += `?${queryString}`;
 
   return sendRequest("GET", path);
 };

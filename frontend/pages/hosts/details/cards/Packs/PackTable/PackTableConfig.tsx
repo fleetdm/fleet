@@ -38,7 +38,7 @@ interface IPillCellProps extends IRowProps {
 }
 
 interface IDataColumn {
-  title: string;
+  title?: string;
   Header: ((props: IHeaderProps) => JSX.Element) | string;
   accessor: string;
   Cell:
@@ -77,7 +77,6 @@ const generatePackTableHeaders = (): IDataColumn[] => {
       ),
     },
     {
-      title: "Last run",
       Header: () => {
         return (
           <TooltipWrapper tipContent="The last time the query ran<br/>since the last time osquery <br/>started on this host.">
@@ -92,7 +91,6 @@ const generatePackTableHeaders = (): IDataColumn[] => {
       ),
     },
     {
-      title: "Performance impact",
       Header: () => {
         return (
           <TooltipWrapper tipContent="This is the performance <br />impact on this host.">

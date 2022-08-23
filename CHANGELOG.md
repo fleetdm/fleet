@@ -1,3 +1,42 @@
+## Fleet 4.19.0 (Aug 22, 2022)
+
+* Fleet Premium: De-anonymize usage statistics by adding an `organization` property to the usage statistics payload. For Fleet Free instances, organization is reported as "unknown". Documentation on how to disable usage statistics, can be found [here on fleetdm.com](https://fleetdm.com/docs/using-fleet/usage-statistics#disable-usage-statistics).
+
+* Fleet Premium: Added support for Just-in-time (JIT) user provisioning via SSO. This adds the ability to
+automatically create Fleet user accounts when a new users attempts to log in to Fleet via SSO. New
+Fleet accounts are given the [Observer role](https://fleetdm.com/docs/using-fleet/permissions#user-permissions).
+
+* Improved performance for aggregating software inventory. Aggregate software inventory is displayed on the **Software page** in the Fleet UI.
+
+* Added the ability to see the vendor for Windows programs in software inventory. Vendor data is available in the [`GET /software` API route](https://fleetdm.com/docs/using-fleet/rest-api#software).
+
+* Added a **Mobile device management (MDM) solutions** table to the **Home > macOS** page. This table allows users to see a list of all MDM solutions their hosts are enrolled to and drill down to see which hosts are enrolled to each solution. Note that MDM solutions data is updated as hosts send fresh osquery results to Fleet. This typically occurs in an hour or so of upgrading.
+
+* Added a **Operating systems** table to the **Home > Windows** page. This table allows users to see a list of all Windows operating systems (ex. Windows 10 Pro 21H2) their hosts are running and drill down to see which hosts are running which version. Note that Windows operating system data is updated as hosts send fresh osquery results to Fleet. This typically occurs in an hour or so of upgrading.
+
+* Added a message in `fleetctl` to that notifies users to run `fleet prepare` instead of `fleetctl prepare` when running database migrations for Fleet.
+
+* Improved the Fleet UI by maintaining applied, host filters when a user navigates back to the Hosts page from an
+individual host's **Host details** page.
+
+* Improved the Fleet UI by adding consistent styling for **Cancel** buttons.
+
+* Improved the **Queries**, **Schedule**, and **Policies** pages in the Fleet UI by page size to 20
+  items. 
+
+* Improve the Fleet UI by informing the user that Fleet only supports screen widths above 768px.
+
+* Added support for asynchronous saving of the hosts' scheduled query statistics. This is an
+experimental feature and should only be used if you're seeing performance issues. Documentation
+for this feature can be found [here on fleetdm.com](https://fleetdm.com/docs/deploying/configuration#osquery-enable-async-host-processing).
+
+* Fixed a bug in which the **Operating system** and **Munki versions** cards on the **Home > macOS**
+page would not stack vertically at smaller screen widths.
+
+* Fixed a bug in which multiple Fleet Desktop icons would appear on macOS computers.
+
+* Fixed a bug that prevented Windows (`.msi`) installers from being generated on Windows machines.
+
 ## Fleet 4.18.0 (Aug 1, 2022)
 
 * Added a Call to Action to the failing policy banner in Fleet Desktop. This empowers end-users to manage their device's compliance. 
@@ -48,6 +87,9 @@
 
 ## Fleet 4.17.0 (Jul 8, 2022)
 
+* Added the number of hosts enrolled by operating system (OS) and its version to usage statistics. Also added the weekly active users count to usage statistics.
+Documentation on how to disable usage statistics, can be found [here on fleetdm.com](https://fleetdm.com/docs/using-fleet/usage-statistics#disable-usage-statistics).
+
 * Fleet Premium and Fleet Free: Fleet desktop is officially out of beta. This application shows users exactly what's going on with their device and gives them the tools they need to make sure it is secure and aligned with policies. They just need to click an icon in their menu bar. 
 
 * Fleet Premium and Fleet Free: Fleet's osquery installer is officially out of beta. Orbit is a lightweight wrapper for osquery that allows you to easily deploy, configure and keep osquery up-to-date across your organization. 
@@ -76,11 +118,7 @@
 
 * Added support for scanning RHEL-based and Fedora hosts for vulnerable software using OVAL definitions.
 
-* Fixed SQL generated for operating system version policies to reduce false negatives
-
-* Added the number of hosts enrolled by Operating System (OS) and its version to anonymous usage statistics.
-
-* Added the weekly active users count to anonymous usage statistics.
+* Fixed SQL generated for operating system version policies to reduce false negatives.
 
 ## Fleet 4.16.0 (Jun 20, 2022)
 
