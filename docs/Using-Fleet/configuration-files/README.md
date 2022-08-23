@@ -40,7 +40,7 @@ When you reason about how to manage these config files, consider following the [
 - Configuration files should be stored in version control before being pushed to the cluster. This allows quick roll-back of a configuration if needed. It also aids with cluster re-creation and restoration if necessary.
 - Don’t specify default values unnecessarily – simple and minimal configs will reduce errors.
 
-### Queries
+## Queries
 
 For especially long or complex queries, you may want to define one query in one file. Continued edits and applications to this file will update the query as long as the `metadata.name` does not change. If you want to change the name of a query, you must first create a new query with the new name and then delete the query with the old name. Make sure the old query name is not defined in any packs before deleting it or an error will occur.
 
@@ -79,7 +79,7 @@ spec:
   query: select name, publisher, type, subscriptions, events, active from osquery_events;
 ```
 
-### Packs
+## Packs
 
 To define query packs (packs), reference queries defined elsewhere by name. This is why the "name" of a query is so important. You can define many of these packs in many files.
 
@@ -112,14 +112,6 @@ spec:
 ```
 
 The `targets` field allows you to specify the `labels` field. With the `labels` field, the hosts that become members of the specified labels, upon enrolling to Fleet, will automatically become targets of the given pack.
-
-#### Moving queries and packs from one Fleet environment to another
-
-When managing multiple Fleet environments, you may want to move queries and/or packs from one "exporter" environment to a another "importer" environment.
-
-1. Navigate to `~/.fleet/config` to find the context names for your "exporter" and "importer" environment. For the purpose of these instructions we will use the context names `exporter` and `importer` respectively.
-2. Run the command `fleetctl get queries --yaml --context exporter > queries.yaml && fleetctl apply -f queries.yml --context importer`. This will import all the queries from your exporter Fleet instance into your importer Fleet instance. _Note, this will also write a list of all queries in yaml syntax to a file names `queries.yml`._
-3. Run the command `fleetctl get packs --yaml --context exporter > packs.yaml && fleetctl apply -f packs.yml --context importer`. This will import all the packs from your exporter Fleet instance into your importer Fleet instance. _Note, this will also write a list of all packs in yaml syntax to a file names `packs.yml`._
 
 ### Labels
 
@@ -154,7 +146,7 @@ spec:
     - hostname3
 ```
 
-### Enroll secrets
+## Enroll secrets
 
 The following file shows how to configure enroll secrets.
 
@@ -167,7 +159,7 @@ spec:
     - secret: YBh0n4pvRplKyWiowv9bf3zp6BBOJ13O
 ```
 
-### Teams
+## Teams
 
 `Applies only to Fleet Premium`
 
@@ -199,7 +191,7 @@ spec:
       - secret: RzTlxPvugG4o4O5IKS/HqEDJUmI1hwBoffff
       - secret: JZ/C/Z7ucq22dt/zjx2kEuDBN0iLjqfz
 ```
-### Organization settings
+## Organization settings
 
 The following file describes organization settings applied to the Fleet server.
 
@@ -265,7 +257,7 @@ spec:
       days_count: 7
     failing_policies_webhook:
       enable_failing_policies_webhook: true
-      destination_url": https://server.com
+      destination_url: https://server.com
       policy_ids:
         - 1
         - 2
@@ -282,13 +274,13 @@ spec:
     metadata_url: https://idp.example.org/idp-meta.xml
 ```
 
-#### Agent options
+### Agent options
 
 The `agent_options` key describes options returned to osqueryd when it checks for configuration. See the [osquery documentation](https://osquery.readthedocs.io/en/stable/deployment/configuration/#options) for the available options. Existing options will be over-written by the application of this file.
 
 > In Fleet v4.0.0, "osquery options" are renamed to "agent options" and are now configured using the organization settings (config) configuration file. [Check out out the Fleet v3 documentation](https://github.com/fleetdm/fleet/blob/3.13.0/docs/1-Using-Fleet/2-fleetctl-CLI.md#update-osquery-options) if you're using an older version of Fleet.
 
-##### Overrides option
+#### Overrides option
 
 The `overrides` key allows you to segment hosts, by their platform, and supply these groups with unique osquery configuration options. When you choose to use the overrides option for a specific platform, all options specified in the default configuration will be ignored for that platform.
 
@@ -370,7 +362,7 @@ spec:
     # ...
 ```
 
-#### Auto table construction
+### Auto table construction
 
 You can use Fleet to query local SQLite databases as tables. For more information on creating ATC configuration from a SQLite database, check out the [Automatic Table Construction section](https://osquery.readthedocs.io/en/stable/deployment/configuration/#automatic-table-construction) of the osquery documentation.
 
@@ -399,7 +391,7 @@ spec:
                 - "last_modified"
 ```
 
-#### YARA configuration
+### YARA configuration
 
 You can use Fleet to configure the `yara` and `yara_events` osquery tables. Fore more information on YARA configuration and continuous monitoring using the `yara_events` table, check out the [YARA-based scanning with osquery section](https://osquery.readthedocs.io/en/stable/deployment/yara/) of the osquery documentation.
 
@@ -429,9 +421,9 @@ spec:
     overrides: {}
 ```
 
-#### SMTP authentication
+### SMTP authentication
 
-**Warning:** Be careful not to store your SMTP credentials in source control. It is recommended to set the password through the web UI or `fleetctl` and then remove the line from the checked in version. Fleet will leave the password as-is if the field is missing from the applied configuration.
+> **Warning:** Be careful not to store your SMTP credentials in source control. It is recommended to set the password through the web UI or `fleetctl` and then remove the line from the checked in version. Fleet will leave the password as-is if the field is missing from the applied configuration.
 
 The following options are available when configuring SMTP authentication:
 
@@ -443,11 +435,11 @@ The following options are available when configuring SMTP authentication:
   - `authmethod_login`
   - `authmethod_plain`
 
-#### Webhooks
+### Webhooks
 
 - `webhook_settings.interval`: the interval at which to check for webhook conditions. Default: 24h.
 
-##### Host status
+#### Host status
 
 The following options allow the configuration of a webhook that will be triggered if the specified percentage of hosts
 are offline for the specified amount of time.
@@ -457,7 +449,7 @@ are offline for the specified amount of time.
 - `webhook_settings.host_status_webhook.host_percentage`: the percentage of hosts that need to be offline
 - `webhook_settings.host_status_webhook.days_count`: amount of days that hosts need to be offline for to count as part of the percentage.
 
-##### Failing policies
+#### Failing policies
 
 The following options allow the configuration of a webhook that will be triggered if selected policies are not passing for some hosts.
 
@@ -466,7 +458,7 @@ The following options allow the configuration of a webhook that will be triggere
 - `webhook_settings.failing_policies_webhook.policy_ids`: the IDs of the policies for which the webhook will be enabled.
 - `webhook_settings.failing_policies_webhook.host_batch_size`: Maximum number of hosts to batch on POST requests. A value of `0`, the default, means no batching, all hosts failing a policy will be sent on one POST request.
 
-##### Recent vulnerabilities
+#### Recent vulnerabilities
 
 The following options allow the configuration of a webhook that will be triggered if recently published vulnerabilities are detected and there are affected hosts. A vulnerability is considered recent if it has been published in the last 2 days (based on the National Vulnerability Database, NVD).
 
@@ -476,7 +468,7 @@ The following options allow the configuration of a webhook that will be triggere
 
 Note that the recent vulnerabilities webhook is not checked at `webhook_settings.interval` like other webhooks - it is checked as part of the vulnerability processing and runs at the `vulnerabilities.periodicity` interval specified in the fleet configuration.
 
-#### Debug host
+### Debug host
 
 There's a lot of information coming from hosts, but it's sometimes useful to see exactly what a host is returning in order
 to debug different scenarios.
@@ -506,10 +498,10 @@ spec:
     debug_host_ids: []
 ```
 
-WARNING: this will log potentially a lot of data. Some of that data might be private, please verify it before posting it
+> **Warning:** this will potentially log a lot of data. Some of that data might be private, please verify it before posting it
 in a public channel or a GitHub issue.
 
-### Host settings
+## Host settings
 
 The `host_settings` section of the configuration YAML allows to define what predefined queries are sent to the hosts and
 later on processed by Fleet for different functionalities.

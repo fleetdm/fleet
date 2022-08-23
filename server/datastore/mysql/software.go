@@ -413,59 +413,71 @@ func selectSoftwareSQL(opts fleet.SoftwareListOptions) (string, []interface{}, e
 			"s.release",
 			"s.vendor",
 			"s.arch",
-			"scv.cpe_id", // for join on sub query
-			goqu.COALESCE(goqu.I("scp.cpe"), "").As("generated_cpe"),
-			goqu.COALESCE(goqu.I("scp.id"), 0).As("generated_cpe_id"),
+			goqu.I("scp.cpe").As("generated_cpe"),
 		).
-		Join( // filter software that is not associated with any hosts
-			goqu.I("host_software").As("hs"),
+		// Include this in the sub-query in case we want to sort by 'generated_cpe'
+		LeftJoin(
+			goqu.I("software_cpe").As("scp"),
 			goqu.On(
-				goqu.I("hs.software_id").Eq(goqu.I("s.id")),
+				goqu.I("s.id").Eq(goqu.I("scp.software_id")),
 			),
 		)
 
 	if opts.HostID != nil {
 		ds = ds.
-			SelectAppend("hs.last_opened_at").
-			Where(goqu.I("hs.host_id").Eq(opts.HostID))
-	}
-
-	if opts.TeamID != nil {
-		ds = ds.
 			Join(
-				goqu.I("hosts").As("h"),
+				goqu.I("host_software").As("hs"),
 				goqu.On(
-					goqu.I("hs.host_id").Eq(goqu.I("h.id")),
+					goqu.I("hs.software_id").Eq(goqu.I("s.id")),
+					goqu.I("hs.host_id").Eq(opts.HostID),
 				),
 			).
-			Where(goqu.I("h.team_id").Eq(opts.TeamID))
+			SelectAppend("hs.last_opened_at")
+		if opts.TeamID != nil {
+			ds = ds.
+				Join(
+					goqu.I("hosts").As("h"),
+					goqu.On(
+						goqu.I("hs.host_id").Eq(goqu.I("h.id")),
+						goqu.I("h.team_id").Eq(opts.TeamID),
+					),
+				)
+		}
+
+	} else {
+		// When loading software from all hosts, filter out software that is not associated with any
+		// hosts.
+		ds = ds.
+			Join(
+				goqu.I("software_host_counts").As("shc"),
+				goqu.On(
+					goqu.I("s.id").Eq(goqu.I("shc.software_id")),
+					goqu.I("shc.hosts_count").Gt(0),
+				),
+			).
+			GroupByAppend(
+				"shc.hosts_count",
+				"shc.updated_at",
+			)
+
+		if opts.TeamID != nil {
+			ds = ds.Where(goqu.I("shc.team_id").Eq(opts.TeamID))
+		} else {
+			ds = ds.Where(goqu.I("shc.team_id").Eq(0))
+		}
 	}
 
 	if opts.VulnerableOnly {
 		ds = ds.
 			Join(
-				goqu.I("software_cpe").As("scp"),
-				goqu.On(
-					goqu.I("s.id").Eq(goqu.I("scp.software_id")),
-				),
-			).
-			Join(
 				goqu.I("software_cve").As("scv"),
-				goqu.On(
-					goqu.I("scp.id").Eq(goqu.I("scv.cpe_id")),
-				),
+				goqu.On(goqu.I("s.id").Eq(goqu.I("scv.software_id"))),
 			)
 	} else {
 		ds = ds.
 			LeftJoin(
-				goqu.I("software_cpe").As("scp"),
-				goqu.On(
-					goqu.I("s.id").Eq(goqu.I("scp.software_id")),
-				),
-			).
-			LeftJoin(
 				goqu.I("software_cve").As("scv"),
-				goqu.On(goqu.I("scp.id").Eq(goqu.I("scv.cpe_id"))),
+				goqu.On(goqu.I("s.id").Eq(goqu.I("scv.software_id"))),
 			)
 	}
 
@@ -495,31 +507,25 @@ func selectSoftwareSQL(opts fleet.SoftwareListOptions) (string, []interface{}, e
 
 	if opts.WithHostCounts {
 		ds = ds.
-			Join(
-				goqu.I("software_host_counts").As("shc"),
-				goqu.On(goqu.I("s.id").Eq(goqu.I("shc.software_id"))),
-			).
-			Where(goqu.I("shc.hosts_count").Gt(0)).
 			SelectAppend(
 				goqu.I("shc.hosts_count"),
 				goqu.I("shc.updated_at").As("counts_updated_at"),
 			)
-
-		if opts.TeamID != nil {
-			ds = ds.Where(goqu.I("shc.team_id").Eq(opts.TeamID))
-		} else {
-			ds = ds.Where(goqu.I("shc.team_id").Eq(0))
-		}
 	}
 
 	ds = ds.GroupBy(
 		"s.id",
-		"scv.cpe_id",
+		"s.name",
+		"s.version",
+		"s.source",
+		"s.bundle_identifier",
+		"s.release",
+		"s.vendor",
+		"s.arch",
 		"generated_cpe",
-		"generated_cpe_id",
 	)
 
-	// Pagination is a bit more complex here due to left join with software_cve table and aggregated columns from cve_meta table.
+	// Pagination is a bit more complex here due to the join with software_cve table and aggregated columns from cve_meta table.
 	// Apply order by again after joining on sub query
 	ds = appendListOptionsToSelect(ds, opts.ListOptions)
 
@@ -534,13 +540,12 @@ func selectSoftwareSQL(opts fleet.SoftwareListOptions) (string, []interface{}, e
 			"s.release",
 			"s.vendor",
 			"s.arch",
-			"s.generated_cpe",
-			"s.generated_cpe_id",
+			goqu.COALESCE(goqu.I("s.generated_cpe"), "").As("generated_cpe"),
 			"scv.cve",
 		).
 		LeftJoin(
 			goqu.I("software_cve").As("scv"),
-			goqu.On(goqu.I("scv.cpe_id").Eq(goqu.I("s.cpe_id"))),
+			goqu.On(goqu.I("scv.software_id").Eq(goqu.I("s.id"))),
 		).
 		LeftJoin(
 			goqu.I("cve_meta").As("c"),
@@ -636,11 +641,30 @@ func (si *softwareIterator) Next() bool {
 	return si.rows.Next()
 }
 
-func (ds *Datastore) AllSoftwareWithoutCPEIterator(ctx context.Context) (fleet.SoftwareIterator, error) {
-	sql := `SELECT s.* FROM software s LEFT JOIN software_cpe sc on (s.id=sc.software_id) WHERE sc.id is null`
+// AllSoftwareWithoutCPEIterator Returns an iterator for the 'software' table, filtering out
+// software entries with CPEs and from the platforms included in the 'excludedPlatforms' param.
+func (ds *Datastore) AllSoftwareWithoutCPEIterator(ctx context.Context, excludedPlatforms []string) (fleet.SoftwareIterator, error) {
+	var err error
+	var args []interface{}
+
+	stmt := `SELECT s.* FROM software s LEFT JOIN software_cpe sc ON (s.id=sc.software_id) WHERE sc.id IS NULL`
 	// The rows.Close call is done by the caller once iteration using the
 	// returned fleet.SoftwareIterator is done.
-	rows, err := ds.reader.QueryxContext(ctx, sql) //nolint:sqlclosecheck
+	if excludedPlatforms != nil {
+		stmt += ` AND s.id NOT IN (
+			SELECT software_id
+			FROM host_software hs
+			INNER JOIN hosts h on hs.host_id = h.id
+			WHERE h.platform IN (?)
+		)`
+
+		stmt, args, err = sqlx.In(stmt, excludedPlatforms)
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "loads cpes")
+		}
+	}
+
+	rows, err := ds.reader.QueryxContext(ctx, stmt, args...) //nolint:sqlclosecheck
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "load host software")
 	}
@@ -706,12 +730,12 @@ func (ds *Datastore) DeleteSoftwareVulnerabilities(ctx context.Context, vulnerab
 	}
 
 	sql := fmt.Sprintf(
-		`DELETE FROM software_cve WHERE (cpe_id, cve) IN (%s)`,
+		`DELETE FROM software_cve WHERE (software_id, cve) IN (%s)`,
 		strings.TrimSuffix(strings.Repeat("(?,?),", len(vulnerabilities)), ","),
 	)
 	var args []interface{}
 	for _, vulnerability := range vulnerabilities {
-		args = append(args, vulnerability.CPEID, vulnerability.CVE)
+		args = append(args, vulnerability.SoftwareID, vulnerability.CVE)
 	}
 	if _, err := ds.writer.ExecContext(ctx, sql, args...); err != nil {
 		return ctxerr.Wrapf(ctx, err, "deleting vulnerable software")
@@ -746,7 +770,7 @@ func (ds *Datastore) SoftwareByID(ctx context.Context, id uint, includeCVEScores
 		).
 		LeftJoin(
 			goqu.I("software_cve").As("scv"),
-			goqu.On(goqu.I("scp.id").Eq(goqu.I("scv.cpe_id"))),
+			goqu.On(goqu.I("s.id").Eq(goqu.I("scv.software_id"))),
 		)
 
 	if includeCVEScores {
@@ -981,9 +1005,8 @@ SELECT
     DISTINCT(h.id), h.hostname
 FROM
     hosts h
-    JOIN host_software hs ON h.id = hs.host_id
-    JOIN software_cpe scp ON scp.software_id = hs.software_id
-    JOIN software_cve scv ON scv.cpe_id = scp.id
+    INNER JOIN host_software hs ON h.id = hs.host_id
+    INNER JOIN software_cve scv ON scv.software_id = hs.software_id
 WHERE
     scv.cve = ?
 ORDER BY
@@ -1045,11 +1068,11 @@ func (ds *Datastore) InsertVulnerabilities(
 		return 0, nil
 	}
 
-	values := strings.TrimSuffix(strings.Repeat("(?,?,?,?),", len(vulns)), ",")
-	sql := fmt.Sprintf(`INSERT IGNORE INTO software_cve (cpe_id, cve, source, software_id) VALUES %s`, values)
+	values := strings.TrimSuffix(strings.Repeat("(?,?,?),", len(vulns)), ",")
+	sql := fmt.Sprintf(`INSERT IGNORE INTO software_cve (cve, source, software_id) VALUES %s`, values)
 
 	for _, v := range vulns {
-		args = append(args, v.CPEID, v.CVE, source, v.SoftwareID)
+		args = append(args, v.CVE, source, v.SoftwareID)
 	}
 	res, err := ds.writer.ExecContext(ctx, sql, args...)
 	if err != nil {
@@ -1075,22 +1098,15 @@ func (ds *Datastore) ListSoftwareVulnerabilities(
 	stmt := dialect.
 		From(goqu.T("software_cve").As("cve")).
 		Join(
-			goqu.T("software_cpe").As("cpe"),
-			goqu.On(goqu.Ex{
-				"cve.cpe_id": goqu.I("cpe.id"),
-			}),
-		).
-		Join(
 			goqu.T("host_software").As("hs"),
 			goqu.On(goqu.Ex{
-				"cpe.software_id": goqu.I("hs.software_id"),
+				"cve.software_id": goqu.I("hs.software_id"),
 			}),
 		).
 		Select(
 			goqu.I("hs.host_id").As("host_id"),
-			goqu.I("cpe.software_id"),
-			goqu.C("cpe_id"),
-			goqu.C("cve"),
+			goqu.I("cve.software_id"),
+			goqu.I("cve"),
 		).
 		Where(goqu.C("host_id").In(hostIDs))
 
@@ -1118,7 +1134,7 @@ func (ds *Datastore) ListSoftwareForVulnDetection(
 
 	stmt := dialect.
 		From(goqu.T("software").As("s")).
-		Join(
+		LeftJoin(
 			goqu.T("software_cpe").As("cpe"),
 			goqu.On(goqu.Ex{
 				"s.id": goqu.I("cpe.software_id"),
@@ -1136,8 +1152,7 @@ func (ds *Datastore) ListSoftwareForVulnDetection(
 			goqu.I("s.version"),
 			goqu.I("s.release"),
 			goqu.I("s.arch"),
-			goqu.I("cpe.cpe").As("generated_cpe"),
-			goqu.I("cpe.id").As("generated_cpe_id"),
+			goqu.COALESCE(goqu.I("cpe.cpe"), "").As("generated_cpe"),
 		).
 		Where(goqu.C("host_id").Eq(hostID))
 

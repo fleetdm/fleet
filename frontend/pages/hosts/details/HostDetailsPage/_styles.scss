@@ -6,13 +6,6 @@
     gap: 1rem;
   }
 
-  a {
-    font-size: $x-small;
-    color: $core-vibrant-blue;
-    font-weight: $bold;
-    text-decoration: none;
-  }
-
   .header {
     flex: 100%;
     display: flex;
@@ -367,11 +360,6 @@
     color: $core-vibrant-blue;
     font-weight: $bold;
     text-decoration: none;
-  }
-
-  #back-chevron {
-    width: 16px;
-    margin-right: $pad-small;
   }
 
   &__device_mapping {

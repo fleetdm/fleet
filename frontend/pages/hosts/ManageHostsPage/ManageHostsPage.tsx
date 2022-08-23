@@ -19,6 +19,11 @@ import hostsAPI, {
 import hostCountAPI, {
   IHostCountLoadOptions,
 } from "services/entities/host_count";
+import {
+  getOSVersions,
+  IGetOSVersionsQueryKey,
+  IOSVersionsResponse,
+} from "services/entities/operating_systems";
 
 import PATHS from "router/paths";
 import { AppContext } from "context/app";
@@ -32,6 +37,8 @@ import {
 import { IApiError } from "interfaces/errors";
 import { IHost } from "interfaces/host";
 import { ILabel, ILabelFormData } from "interfaces/label";
+import { IMDMSolution } from "interfaces/macadmins";
+import { IOperatingSystemVersion } from "interfaces/operating_system";
 import { IPolicy } from "interfaces/policy";
 import { ISoftware } from "interfaces/software";
 import { ITeam } from "interfaces/team";
@@ -49,7 +56,6 @@ import Button from "components/buttons/Button";
 // @ts-ignore
 import Dropdown from "components/forms/fields/Dropdown";
 import HostSidePanel from "components/side_panels/HostSidePanel";
-import LabelForm from "components/forms/LabelForm";
 import QuerySidePanel from "components/side_panels/QuerySidePanel";
 import TableContainer from "components/TableContainer";
 import TableDataError from "components/DataError";
@@ -72,11 +78,12 @@ import {
   LABEL_SLUG_PREFIX,
   DEFAULT_SORT_HEADER,
   DEFAULT_SORT_DIRECTION,
+  DEFAULT_PAGE_SIZE,
   HOST_SELECT_STATUSES,
-  isAcceptableStatus,
-  getNextLocationPath,
-} from "./helpers";
+} from "./constants";
+import { isAcceptableStatus, getNextLocationPath } from "./helpers";
 
+import LabelForm from "../components/LabelForm";
 import DeleteSecretModal from "../../../components/DeleteSecretModal";
 import SecretEditorModal from "../../../components/SecretEditorModal";
 import AddHostsModal from "../../../components/AddHostsModal";
@@ -243,6 +250,10 @@ const ManageHostsPage = ({
   const [softwareDetails, setSoftwareDetails] = useState<ISoftware | null>(
     null
   );
+  const [
+    mdmSolutionDetails,
+    setMDMSolutionDetails,
+  ] = useState<IMDMSolution | null>(null);
   const [tableQueryData, setTableQueryData] = useState<ITableQueryProps>();
   const [
     currentQueryOptions,
@@ -259,7 +270,16 @@ const ManageHostsPage = ({
   const routeTemplate = route && route.path ? route.path : "";
   const policyId = queryParams?.policy_id;
   const policyResponse: PolicyResponse = queryParams?.policy_response;
-  const softwareId = parseInt(queryParams?.software_id, 10);
+  const softwareId =
+    queryParams?.software_id !== undefined
+      ? parseInt(queryParams?.software_id, 10)
+      : undefined;
+  const mdmId =
+    queryParams?.mdm_id !== undefined
+      ? parseInt(queryParams?.mdm_id, 10)
+      : undefined;
+  const mdmEnrollmentStatus = queryParams?.mdm_enrollment_status;
+  const { os_id, os_name, os_version } = queryParams;
   const { active_label: activeLabel, label_id: labelID } = routeParams;
 
   // ===== filter matching
@@ -354,6 +374,19 @@ const ManageHostsPage = ({
     }
   );
 
+  const { data: osVersions } = useQuery<
+    IOSVersionsResponse,
+    Error,
+    IOperatingSystemVersion[],
+    IGetOSVersionsQueryKey[]
+  >([{ scope: "os_versions" }], () => getOSVersions(), {
+    enabled:
+      !!queryParams?.os_id ||
+      (!!queryParams?.os_name && !!queryParams?.os_version),
+    keepPreviousData: true,
+    select: (data) => data.os_versions,
+  });
+
   const toggleDeleteSecretModal = () => {
     // open and closes delete modal
     setShowDeleteSecretModal(!showDeleteSecretModal);
@@ -422,11 +455,15 @@ const ManageHostsPage = ({
     }
 
     try {
-      const { hosts: returnedHosts, software } = await hostsAPI.loadHosts(
-        options
-      );
+      const {
+        hosts: returnedHosts,
+        software,
+        mobile_device_management_solution,
+      } = await hostsAPI.loadHosts(options);
       setHosts(returnedHosts);
       software && setSoftwareDetails(software);
+      mobile_device_management_solution &&
+        setMDMSolutionDetails(mobile_device_management_solution);
     } catch (error) {
       console.error(error);
       setHasHostErrors(true);
@@ -507,6 +544,11 @@ const ManageHostsPage = ({
       policyId,
       policyResponse,
       softwareId,
+      mdmId,
+      mdmEnrollmentStatus,
+      os_id,
+      os_name,
+      os_version,
       page: tableQueryData ? tableQueryData.pageIndex : 0,
       perPage: tableQueryData ? tableQueryData.pageSize : 100,
       device_mapping: true,
@@ -521,6 +563,12 @@ const ManageHostsPage = ({
       setCurrentQueryOptions(options);
     }
   }, [availableTeams, currentTeam, location, labels]);
+
+  const isLastPage =
+    tableQueryData &&
+    !!filteredHostCount &&
+    DEFAULT_PAGE_SIZE * tableQueryData.pageIndex + (hosts?.length || 0) >=
+      filteredHostCount;
 
   const handleLabelChange = ({ slug }: ILabel): boolean => {
     if (!slug) {
@@ -600,10 +648,29 @@ const ManageHostsPage = ({
     );
   };
 
+  const handleClearOSFilter = () => {
+    router.replace(
+      getNextLocationPath({
+        pathPrefix: PATHS.MANAGE_HOSTS,
+        routeTemplate,
+        routeParams,
+        queryParams: omit(queryParams, ["os_id", "os_name", "os_version"]),
+      })
+    );
+  };
+
   const handleClearSoftwareFilter = () => {
     router.replace(PATHS.MANAGE_HOSTS);
-    setCurrentTeam(undefined);
     setSoftwareDetails(null);
+  };
+
+  const handleClearMDMSolutionFilter = () => {
+    router.replace(PATHS.MANAGE_HOSTS);
+    setMDMSolutionDetails(null);
+  };
+
+  const handleClearMDMEnrollmentFilter = () => {
+    router.replace(PATHS.MANAGE_HOSTS);
   };
 
   const handleTeamSelect = (teamId: number) => {
@@ -730,10 +797,29 @@ const ManageHostsPage = ({
         newQueryParams.policy_response = policyResponse;
       }
 
-      if (softwareId && !policyId) {
+      if (softwareId && !policyId && !mdmId && !mdmEnrollmentStatus) {
         newQueryParams.software_id = softwareId;
       }
 
+      if (mdmId && !policyId && !softwareId && !mdmEnrollmentStatus) {
+        newQueryParams.mdm_id = mdmId;
+      }
+
+      if (mdmEnrollmentStatus && !policyId && !softwareId && !mdmId) {
+        newQueryParams.mdm_enrollment_status = mdmEnrollmentStatus;
+      }
+
+      if (
+        (os_id || (os_name && os_version)) &&
+        !softwareId &&
+        !policyId &&
+        !mdmEnrollmentStatus &&
+        !mdmId
+      ) {
+        newQueryParams.os_id = os_id;
+        newQueryParams.os_name = os_name;
+        newQueryParams.os_version = os_version;
+      }
       router.replace(
         getNextLocationPath({
           pathPrefix: PATHS.MANAGE_HOSTS,
@@ -750,6 +836,11 @@ const ManageHostsPage = ({
       policyId,
       queryParams,
       softwareId,
+      mdmId,
+      mdmEnrollmentStatus,
+      os_id,
+      os_name,
+      os_version,
       sortBy,
     ]
   );
@@ -987,6 +1078,11 @@ const ManageHostsPage = ({
         policyId,
         policyResponse,
         softwareId,
+        mdmId,
+        mdmEnrollmentStatus,
+        os_id,
+        os_name,
+        os_version,
       });
 
       toggleTransferHostModal();
@@ -1032,6 +1128,11 @@ const ManageHostsPage = ({
         policyId,
         policyResponse,
         softwareId,
+        mdmId,
+        mdmEnrollmentStatus,
+        os_id,
+        os_name,
+        os_version,
       });
 
       refetchLabels();
@@ -1060,6 +1161,69 @@ const ManageHostsPage = ({
       }
     />
   );
+
+  const renderOSFilterBlock = () => {
+    if (!os_id && !(os_name && os_version)) {
+      return <></>;
+    }
+    let os: IOperatingSystemVersion | undefined;
+    if (os_id) {
+      os = osVersions?.find((v) => v.os_id === os_id);
+    } else if (os_name && os_version) {
+      const name: string = os_name;
+      const vers: string = os_version;
+
+      os = osVersions?.find(
+        ({ name_only, version }) =>
+          name_only.toLowerCase() === name.toLowerCase() &&
+          version.toLowerCase() === vers.toLowerCase()
+      );
+    }
+
+    if (!os) {
+      return <></>;
+    }
+    const { name, name_only, version } = os;
+    const buttonText =
+      name_only || version
+        ? `${name_only || ""} ${version || ""}`
+        : `${name || ""}`;
+    return (
+      <div className={`${baseClass}__software-filter-block`}>
+        <div>
+          <span
+            data-tip
+            data-for="software-filter-tooltip"
+            data-tip-disable={!name_only || !version || !name}
+          >
+            <div className={`${baseClass}__software-filter-name-card tooltip`}>
+              {buttonText}
+              <Button
+                className={`${baseClass}__clear-policies-filter`}
+                onClick={handleClearOSFilter}
+                variant={"small-text-icon"}
+                title={buttonText}
+              >
+                <img src={CloseIcon} alt="Remove os filter" />
+              </Button>
+            </div>
+          </span>
+          <ReactTooltip
+            place="bottom"
+            effect="solid"
+            backgroundColor="#3e4771"
+            id="software-filter-tooltip"
+            data-html
+          >
+            <span className={`tooltip__tooltip-text`}>
+              {`Hosts with ${name_only || name}`},<br />
+              {version && `${version} installed`}
+            </span>
+          </ReactTooltip>
+        </div>
+      </div>
+    );
+  };
 
   const renderPoliciesFilterBlock = () => (
     <div className={`${baseClass}__policies-filter-block`}>
@@ -1099,12 +1263,12 @@ const ManageHostsPage = ({
               >
                 {buttonText}
                 <Button
-                  className={`${baseClass}__clear-policies-filter`}
+                  className={`${baseClass}__clear-software-filter`}
                   onClick={handleClearSoftwareFilter}
                   variant={"small-text-icon"}
                   title={buttonText}
                 >
-                  <img src={CloseIcon} alt="Remove policy filter" />
+                  <img src={CloseIcon} alt="Remove software filter" />
                 </Button>
               </div>
             </span>
@@ -1119,6 +1283,126 @@ const ManageHostsPage = ({
                 {`Hosts with ${name}`},<br />
                 {`${version} installed`}
               </span>
+            </ReactTooltip>
+          </div>
+        </div>
+      );
+    }
+    return null;
+  };
+
+  const renderMDMSolutionFilterBlock = () => {
+    if (mdmSolutionDetails) {
+      const { name, server_url } = mdmSolutionDetails;
+      const buttonText = name ? `${name} ${server_url}` : `${server_url}`;
+      return (
+        <div className={`${baseClass}__mdm-solution-filter-block`}>
+          <div>
+            <span
+              data-tip
+              data-for="mdm-solution-filter-tooltip"
+              data-tip-disable={!name || !server_url}
+            >
+              <div
+                className={`${baseClass}__mdm-solution-filter-name-card tooltip`}
+              >
+                {buttonText}
+                <Button
+                  className={`${baseClass}__clear-mdm-solution-filter`}
+                  onClick={handleClearMDMSolutionFilter}
+                  variant={"small-text-icon"}
+                  title={buttonText}
+                >
+                  <img src={CloseIcon} alt="Remove MDM solution filter" />
+                </Button>
+              </div>
+            </span>
+            <ReactTooltip
+              place="bottom"
+              effect="solid"
+              backgroundColor="#3e4771"
+              id="mdm-solution-filter-tooltip"
+              data-html
+            >
+              <span className={`tooltip__tooltip-text`}>
+                Host enrolled
+                {name !== "Unknown" && ` to ${name}`}
+                <br /> at {server_url}
+              </span>
+            </ReactTooltip>
+          </div>
+        </div>
+      );
+    }
+    return null;
+  };
+
+  const renderMDMEnrollmentFilterBlock = () => {
+    if (mdmEnrollmentStatus) {
+      const buttonText = () => {
+        switch (mdmEnrollmentStatus) {
+          case "automatic":
+            return "MDM enrolled (automatic)";
+          case "manual":
+            return "MDM enrolled (manual)";
+          default:
+            return "Unenrolled";
+        }
+      };
+      const tooltipText = () => {
+        switch (mdmEnrollmentStatus) {
+          case "automatic":
+            return (
+              <span className={`tooltip__tooltip-text`}>
+                Hosts automatically enrolled <br />
+                to an MDM solution the first time <br />
+                the host is used. Administrators <br />
+                might have a higher level of control <br />
+                over these hosts.
+              </span>
+            );
+          case "manual":
+            return (
+              <span className={`tooltip__tooltip-text`}>
+                Hosts manually enrolled to an <br />
+                MDM solution by a user or <br />
+                administrator.
+              </span>
+            );
+          default:
+            return (
+              <span className={`tooltip__tooltip-text`}>
+                Hosts not enrolled to <br /> an MDM solution.
+              </span>
+            );
+        }
+      };
+      return (
+        <div className={`${baseClass}__mdm-enrollment-status-filter-block`}>
+          <div>
+            <span data-tip data-for="mdm-enrollment-status-filter-tooltip">
+              <div
+                className={`${baseClass}__mdm-enrollment-status-filter-name-card tooltip`}
+              >
+                {buttonText()}
+                <Button
+                  className={`${baseClass}__clear-mdm-enrollment-status-filter`}
+                  onClick={handleClearMDMEnrollmentFilter}
+                  variant={"small-text-icon"}
+                  title={buttonText()}
+                >
+                  <img src={CloseIcon} alt="Remove MDM enrollment filter" />
+                </Button>
+              </div>
+            </span>
+            <ReactTooltip
+              place="bottom"
+              effect="solid"
+              backgroundColor="#3e4771"
+              id="mdm-enrollment-status-filter-tooltip"
+              data-html
+            >
+              {tooltipText()}
             </ReactTooltip>
           </div>
         </div>
@@ -1315,6 +1599,11 @@ const ManageHostsPage = ({
       policyId,
       policyResponse,
       softwareId,
+      mdmId,
+      mdmEnrollmentStatus,
+      os_id,
+      os_name,
+      os_version,
       visibleColumns,
     };
 
@@ -1377,23 +1666,67 @@ const ManageHostsPage = ({
     );
   }, [isHostCountLoading, filteredHostCount]);
 
+  console.log(
+    "is active filter: ",
+    (!!os_id || (!!os_name && !!os_version)) &&
+      !policyId &&
+      !softwareId &&
+      !(
+        selectedLabel &&
+        selectedLabel.type !== "all" &&
+        selectedLabel.type !== "status"
+      ) &&
+      !mdmId &&
+      !mdmEnrollmentStatus
+  );
   const renderActiveFilterBlock = () => {
     const showSelectedLabel =
       selectedLabel &&
       selectedLabel.type !== "all" &&
       selectedLabel.type !== "status";
-    if (policyId || softwareId || showSelectedLabel) {
+    if (
+      policyId ||
+      softwareId ||
+      showSelectedLabel ||
+      mdmId ||
+      mdmEnrollmentStatus ||
+      os_id ||
+      (os_name && os_version)
+    ) {
       return (
         <div className={`${baseClass}__labels-active-filter-wrap`}>
           {showSelectedLabel && renderHeaderLabelBlock()}
           {!!policyId &&
             !softwareId &&
+            !mdmId &&
+            !mdmEnrollmentStatus &&
             !showSelectedLabel &&
             renderPoliciesFilterBlock()}
           {!!softwareId &&
             !policyId &&
+            !mdmId &&
+            !mdmEnrollmentStatus &&
             !showSelectedLabel &&
             renderSoftwareFilterBlock()}
+          {!!mdmId &&
+            !policyId &&
+            !softwareId &&
+            !mdmEnrollmentStatus &&
+            !showSelectedLabel &&
+            renderMDMSolutionFilterBlock()}
+          {!!mdmEnrollmentStatus &&
+            !policyId &&
+            !softwareId &&
+            !mdmId &&
+            !showSelectedLabel &&
+            renderMDMEnrollmentFilterBlock()}
+          {(!!os_id || (!!os_name && !!os_version)) &&
+            !policyId &&
+            !softwareId &&
+            !showSelectedLabel &&
+            !mdmId &&
+            !mdmEnrollmentStatus &&
+            renderOSFilterBlock()}
         </div>
       );
     }
@@ -1493,14 +1826,23 @@ const ManageHostsPage = ({
       !isHostsLoading &&
       teamSync
     ) {
-      const { software_id, policy_id } = queryParams || {};
-      const includesSoftwareOrPolicyFilter = !!(software_id || policy_id);
+      const { software_id, policy_id, mdm_id, mdm_enrollment_status } =
+        queryParams || {};
+      const includesNameCardFilter = !!(
+        software_id ||
+        policy_id ||
+        mdm_id ||
+        mdm_enrollment_status ||
+        os_id ||
+        os_name ||
+        os_version
+      );
 
       return (
         <NoHosts
           toggleAddHostsModal={toggleAddHostsModal}
           canEnrollHosts={canEnrollHosts}
-          includesSoftwareOrPolicyFilter={includesSoftwareOrPolicyFilter}
+          includesNameCardFilter={includesNameCardFilter}
         />
       );
     }
@@ -1554,6 +1896,7 @@ const ManageHostsPage = ({
         onPrimarySelectActionClick={onDeleteHostsClick}
         onQueryChange={onTableQueryChange}
         toggleAllPagesSelected={toggleAllMatchingHosts}
+        disableNextPage={isLastPage}
       />
     );
   };

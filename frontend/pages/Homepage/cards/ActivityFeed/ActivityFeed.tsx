@@ -30,7 +30,7 @@ interface IActivityDisplay extends IActivity {
 const DEFAULT_GRAVATAR_URL =
   "https://www.gravatar.com/avatar/00000000000000000000000000000000?d=blank&size=200";
 
-const DEFAULT_PER_PAGE = 8;
+const DEFAULT_PAGE_SIZE = 8;
 
 const TAGGED_TEMPLATES = {
   liveQueryActivityTemplate: (activity: IActivity) => {
@@ -50,6 +50,9 @@ const TAGGED_TEMPLATES = {
     return typeof count === "undefined" || typeof count !== "number"
       ? "edited a query using fleetctl"
       : `edited ${count === 1 ? "a query" : "queries"} using fleetctl`;
+  },
+  userAddedBySSOTempalte: () => {
+    return `was added to Fleet by SSO`;
   },
   defaultActivityTemplate: (activity: IActivity) => {
     const entityName = find(activity.details, (_, key) =>
@@ -88,7 +91,7 @@ const ActivityFeed = ({
       perPage: number;
     }>
   >(
-    [{ scope: "activities", pageIndex, perPage: DEFAULT_PER_PAGE }],
+    [{ scope: "activities", pageIndex, perPage: DEFAULT_PAGE_SIZE }],
     ({ queryKey: [{ pageIndex: page, perPage }] }) => {
       return activitiesAPI.loadNext(page, perPage);
     },
@@ -98,7 +101,7 @@ const ActivityFeed = ({
       select: (data) => data.activities,
       onSuccess: (results) => {
         setShowActivityFeedTitle(true);
-        if (results.length < DEFAULT_PER_PAGE) {
+        if (results.length < DEFAULT_PAGE_SIZE) {
           setShowMore(false);
         }
       },
@@ -130,6 +133,9 @@ const ActivityFeed = ({
       }
       case ActivityType.AppliedSpecSavedQuery: {
         return TAGGED_TEMPLATES.editQueryCtlActivityTemplate(activity);
+      }
+      case ActivityType.UserAddedBySSO: {
+        return TAGGED_TEMPLATES.userAddedBySSOTempalte();
       }
       default: {
         return TAGGED_TEMPLATES.defaultActivityTemplate(activity);

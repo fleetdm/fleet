@@ -29,7 +29,7 @@ make fleet
 
 ## Populating the database with default data
 
-Note: This pattern will soon be changing. Please check with @zwass if you think you need to write a data migration.
+Note: This pattern is now deprecated, new data changes are done using the same migrations process as for tables. Since there are a few data migrations using this obsolete pattern, we keep its documentation here:
 
 Populating built-in data is also performed through migrations. All table migrations are performed before any data migrations.
 

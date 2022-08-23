@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
+	"github.com/fleetdm/fleet/v4/server/datastore/redis/redistest"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/test"
@@ -30,13 +31,20 @@ func TestIntegrationsEnterprise(t *testing.T) {
 type integrationEnterpriseTestSuite struct {
 	withServer
 	suite.Suite
+	redisPool fleet.RedisPool
 }
 
 func (s *integrationEnterpriseTestSuite) SetupSuite() {
 	s.withDS.SetupSuite("integrationEnterpriseTestSuite")
 
-	users, server := RunServerForTestsWithDS(
-		s.T(), s.ds, &TestServerOpts{License: &fleet.LicenseInfo{Tier: fleet.TierPremium}})
+	s.redisPool = redistest.SetupRedis(s.T(), "integration_enterprise", false, false, false)
+	config := TestServerOpts{
+		License: &fleet.LicenseInfo{
+			Tier: fleet.TierPremium,
+		},
+		Pool: s.redisPool,
+	}
+	users, server := RunServerForTestsWithDS(s.T(), s.ds, &config)
 	s.server = server
 	s.users = users
 	s.token = s.getTestAdminToken()
@@ -54,7 +62,8 @@ func (s *integrationEnterpriseTestSuite) TestTeamSpecs() {
 
 	s.Do("POST", "/api/latest/fleet/teams", team, http.StatusOK)
 
-	// updates a team
+	// updates a team, no secret is provided so it will keep the one generated
+	// automatically when the team was created.
 	agentOpts := json.RawMessage(`{"config": {"foo": "bar"}, "overrides": {"platforms": {"darwin": {"foo": "override"}}}}`)
 	teamSpecs := applyTeamSpecsRequest{Specs: []*fleet.TeamSpec{{Name: teamName, AgentOptions: &agentOpts}}}
 	s.Do("POST", "/api/latest/fleet/spec/teams", teamSpecs, http.StatusOK)
@@ -62,7 +71,7 @@ func (s *integrationEnterpriseTestSuite) TestTeamSpecs() {
 	team, err := s.ds.TeamByName(context.Background(), teamName)
 	require.NoError(t, err)
 
-	assert.Len(t, team.Secrets, 0)
+	assert.Len(t, team.Secrets, 1)
 	require.JSONEq(t, string(agentOpts), string(*team.Config.AgentOptions))
 
 	// creates a team with default agent options
@@ -84,7 +93,7 @@ func (s *integrationEnterpriseTestSuite) TestTeamSpecs() {
 	require.NoError(t, err)
 
 	defaultOpts := `{"config": {"options": {"logger_plugin": "tls", "pack_delimiter": "/", "logger_tls_period": 10, "distributed_plugin": "tls", "disable_distributed": false, "logger_tls_endpoint": "/api/osquery/log", "distributed_interval": 10, "distributed_tls_max_attempts": 3}, "decorators": {"load": ["SELECT uuid AS host_uuid FROM system_info;", "SELECT hostname AS hostname FROM system_info;"]}}, "overrides": {}}`
-	assert.Len(t, team.Secrets, 0)
+	assert.Len(t, team.Secrets, 0) // no secret gets created automatically when creating a team via apply spec
 	require.NotNil(t, team.Config.AgentOptions)
 	require.JSONEq(t, defaultOpts, string(*team.Config.AgentOptions))
 
@@ -1169,4 +1178,66 @@ func (s *integrationEnterpriseTestSuite) TestCustomTransparencyURL() {
 	rawResp.Body.Close()
 	require.NoError(t, deviceResp.Err)
 	require.Equal(t, fleet.DefaultTransparencyURL, rawResp.Header.Get("Location"))
+}
+
+func (s *integrationEnterpriseTestSuite) TestSSOJITProvisioning() {
+	t := s.T()
+
+	acResp := appConfigResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/config", nil, http.StatusOK, &acResp)
+	require.NotNil(t, acResp)
+	require.False(t, acResp.SSOSettings.EnableJITProvisioning)
+
+	config := fleet.AppConfig{
+		SSOSettings: fleet.SSOSettings{
+			EnableSSO:             true,
+			EntityID:              "https://localhost:8080",
+			IssuerURI:             "http://localhost:8080/simplesaml/saml2/idp/SSOService.php",
+			IDPName:               "SimpleSAML",
+			MetadataURL:           "http://localhost:9080/simplesaml/saml2/idp/metadata.php",
+			EnableJITProvisioning: false,
+		},
+	}
+
+	acResp = appConfigResponse{}
+	s.DoJSON("PATCH", "/api/latest/fleet/config", config, http.StatusOK, &acResp)
+	require.NotNil(t, acResp)
+	require.False(t, acResp.SSOSettings.EnableJITProvisioning)
+
+	// users can't be created if SSO is disabled
+	auth, body := s.LoginSSOUser("sso_user", "user123#")
+	require.Contains(t, body, "/login?status=account_invalid")
+	// ensure theresn't a user in the DB
+	_, err := s.ds.UserByEmail(context.Background(), auth.UserID())
+	var nfe fleet.NotFoundError
+	require.ErrorAs(t, err, &nfe)
+
+	// enable JIT provisioning
+	config.SSOSettings.EnableJITProvisioning = true
+	acResp = appConfigResponse{}
+	s.DoJSON("PATCH", "/api/latest/fleet/config", config, http.StatusOK, &acResp)
+	require.NotNil(t, acResp)
+	require.True(t, acResp.SSOSettings.EnableJITProvisioning)
+
+	// a new user is created and redirected accordingly
+	auth, body = s.LoginSSOUser("sso_user", "user123#")
+	// a successful redirect has this content
+	require.Contains(t, body, "Redirecting to Fleet at  ...")
+	user, err := s.ds.UserByEmail(context.Background(), auth.UserID())
+	require.NoError(t, err)
+	require.Equal(t, auth.UserID(), user.Email)
+
+	// a new activity item is created
+	activitiesResp := listActivitiesResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/activities", nil, http.StatusOK, &activitiesResp)
+	require.NoError(t, activitiesResp.Err)
+	require.NotEmpty(t, activitiesResp.Activities)
+	require.Condition(t, func() bool {
+		for _, a := range activitiesResp.Activities {
+			if *a.ActorEmail == auth.UserID() && a.Type == fleet.ActivityTypeUserAddedBySSO {
+				return true
+			}
+		}
+		return false
+	})
 }

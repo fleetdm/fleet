@@ -70,6 +70,10 @@ func (ds *Datastore) ShouldSendStatistics(ctx context.Context, frequency time.Du
 		stats.HostsEnrolledByOperatingSystem = enrolledHostsByOS
 		stats.StoredErrors = storedErrs
 		stats.NumHostsNotResponding = amountHostsNotResponding
+		stats.Organization = "unknown"
+		if license.IsPremium() {
+			stats.Organization = license.Organization
+		}
 		return nil
 	}
 

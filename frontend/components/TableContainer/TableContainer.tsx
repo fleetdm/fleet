@@ -80,7 +80,7 @@ interface ITableContainerProps {
 
 const baseClass = "table-container";
 
-const DEFAULT_PAGE_SIZE = 100;
+const DEFAULT_PAGE_SIZE = 20;
 const DEFAULT_PAGE_INDEX = 0;
 
 const TableContainer = ({

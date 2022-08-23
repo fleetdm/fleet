@@ -125,7 +125,11 @@ Any issue that meets the patch release criteria is sent to the [DRI for release 
    git cherry-pick d34db33f
    ```
 
+<<<<<<< HEAD
 3. The DRI for creating the patch release branch cherry pushes the branch to github.com/fleetdm/fleet:
+=======
+3. The DRI for creating the patch release branch pushes the branch to github.com/fleetdm/fleet:
+>>>>>>> 752445a15e47b7a3b65679829839ca3933ecdd01
 
    ```
    git push origin patch-fleet-v4.3.1
@@ -135,7 +139,11 @@ Any issue that meets the patch release criteria is sent to the [DRI for release 
    Action](https://github.com/fleetdm/fleet/actions/workflows/goreleaser-snapshot-fleet.yaml) will
    be invoked to push a container image for QA with `fleetctl preview` (eg. `fleetctl preview --tag patch-fleet-v4.3.1`).
 
+<<<<<<< HEAD
 4. The DRI for creating the patch release branch cherry checks in the GitHub UI that Actions ran successfully for this branch.
+=======
+4. The DRI for creating the patch release branch checks in the GitHub UI that Actions ran successfully for this branch.
+>>>>>>> 752445a15e47b7a3b65679829839ca3933ecdd01
 
 5. The DRI for creating the patch release branch notifies the [DRI for release testing/QA](https://fleetdm.com/handbook/product#rituals) that the branch is available for completing [smoke tests](https://github.com/fleetdm/fleet/blob/main/.github/ISSUE_TEMPLATE/smoke-tests.md).
 
@@ -143,9 +151,15 @@ Any issue that meets the patch release criteria is sent to the [DRI for release 
 
 7. The DRI for release testing/QA notifies the [DRI for the release ritual](https://fleetdm.com/handbook/engineering#rituals) that the patch release is ready. The DRI for the release ritual releases the patch.
 
+<<<<<<< HEAD
 8. The DRI for creating patch the release branch cherry-picks the commit containing the changelog updates into a new branch, and merge that commit into `main` through a Pull Request.
 
 9. **Important!** The DRI for creating patch the release branch manually checks the database migrations. Any migrations that are not cherry-picked in a patch must have a _higher_ timestamp than migrations that were cherry-picked. If there are new migrations that were not cherry-picked, verify that those migrations have higher timestamps. If they do not, submit a new Pull Request to increase the timestamps and ensure that migrations are run in the appropriate order.
+=======
+8. The DRI for creating the patch release branch cherry-picks the commit containing the changelog updates into a new branch, and merges that commit into `main` through a Pull Request.
+
+9. **Important!** The DRI for creating the patch release branch manually checks the database migrations. Any migrations that are not cherry-picked in a patch must have a _later_ timestamp than migrations that were cherry-picked. If there are new migrations that were not cherry-picked, verify that those migrations have later timestamps. If they do not, submit a new Pull Request to increase the timestamps and ensure that migrations are run in the appropriate order.
+>>>>>>> 752445a15e47b7a3b65679829839ca3933ecdd01
 
    TODO [#2850](https://github.com/fleetdm/fleet/issues/2850): Improve docs/tooling for this.
 

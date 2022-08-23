@@ -9,11 +9,10 @@ type JobState string
 
 // The possible states for a job
 //
-//  Queued───►Success
-//    │
-//    │
-//    └──────►Failure
-//
+//	Queued ───► Success
+//	  │
+//	  │
+//	  └──────►Failure
 const (
 	JobStateQueued  JobState = "queued"
 	JobStateSuccess JobState = "success"

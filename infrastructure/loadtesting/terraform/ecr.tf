@@ -44,6 +44,7 @@ resource "docker_registry_image" "loadtest" {
   build {
     context    = "${path.cwd}/docker/"
     dockerfile = "loadtest.Dockerfile"
+    platform   = "linux/amd64"
     build_args = {
       TAG = var.tag
     }

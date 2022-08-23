@@ -364,7 +364,7 @@ const IntegrationsPage = (): JSX.Element => {
       <div className={`${noIntegrationsClass}`}>
         <div className={`${noIntegrationsClass}__inner`}>
           <div className={`${noIntegrationsClass}__inner-text`}>
-            <h1>Set up integrations</h1>
+            <h2>Set up integrations</h2>
             <p>
               Create tickets automatically when Fleet detects new
               vulnerabilities.

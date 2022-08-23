@@ -2,6 +2,7 @@
 import sendRequest from "services";
 import endpoints from "utilities/endpoints";
 import { IHost } from "interfaces/host";
+import { buildQueryStringFromParams } from "utilities/url";
 
 export interface ISortOption {
   key: string;
@@ -18,6 +19,11 @@ export interface ILoadHostsOptions {
   policyId?: number;
   policyResponse?: string;
   softwareId?: number;
+  mdmId?: number;
+  mdmEnrollmentStatus?: string;
+  os_id?: number;
+  os_name?: string;
+  os_version?: string;
   device_mapping?: boolean;
   columns?: string;
   visibleColumns?: string;
@@ -33,12 +39,127 @@ export interface IExportHostsOptions {
   policyId?: number;
   policyResponse?: string;
   softwareId?: number;
+  mdmId?: number;
+  mdmEnrollmentStatus?: string;
+  os_id?: number;
+  os_name?: string;
+  os_version?: string;
   device_mapping?: boolean;
   columns?: string;
   visibleColumns?: string;
 }
 
 export type ILoadHostDetailsExtension = "device_mapping" | "macadmins";
+
+const LABEL_PREFIX = "labels/";
+
+const getLabel = (selectedLabels?: string[]) => {
+  if (selectedLabels === undefined) return undefined;
+  return selectedLabels.find((filter) => filter.includes(LABEL_PREFIX));
+};
+
+const getHostEndpoint = (selectedLabels?: string[]) => {
+  const { HOSTS, LABEL_HOSTS } = endpoints;
+  if (selectedLabels === undefined) return endpoints.HOSTS;
+
+  const label = getLabel(selectedLabels);
+  if (label) {
+    const labelId = label.substr(LABEL_PREFIX.length);
+    return LABEL_HOSTS(parseInt(labelId, 10));
+  }
+
+  return HOSTS;
+};
+
+const getSortParams = (sortOptions?: ISortOption[]) => {
+  if (sortOptions === undefined || sortOptions.length === 0) {
+    return {};
+  }
+
+  const sortItem = sortOptions[0];
+  return {
+    order_key: sortItem.key,
+    order_direction: sortItem.direction,
+  };
+};
+
+const getStatusParam = (selectedLabels?: string[]) => {
+  if (selectedLabels === undefined) return undefined;
+
+  const status = selectedLabels.find((f) => !f.includes(LABEL_PREFIX));
+  if (status === undefined) return undefined;
+
+  const statusFilterList = ["new", "online", "offline"];
+  return statusFilterList.includes(status) ? status : undefined;
+};
+
+const getPolicyParams = (
+  label?: string,
+  policyId?: number,
+  policyResponse?: string
+) => {
+  if (label !== undefined || policyId === undefined) return {};
+
+  return {
+    policy_id: policyId,
+    policy_response: policyResponse,
+  };
+};
+
+const getSoftwareParam = (
+  label?: string,
+  policyId?: number,
+  softwareId?: number,
+  mdmId?: number,
+  mdmEnrollmentStatus?: string
+) => {
+  return !label && !policyId && !mdmId && !mdmEnrollmentStatus
+    ? softwareId
+    : undefined;
+};
+
+const getMDMSolutionParam = (
+  label?: string,
+  policyId?: number,
+  softwareId?: number,
+  mdmId?: number,
+  mdmEnrollmentStatus?: string
+) => {
+  return !label && !policyId && !softwareId && !mdmEnrollmentStatus
+    ? mdmId
+    : undefined;
+};
+
+const getMDMEnrollmentStatusParam = (
+  label?: string,
+  policyId?: number,
+  softwareId?: number,
+  mdmId?: number,
+  mdmEnrollmentStatus?: string
+) => {
+  return !label && !policyId && !softwareId && !mdmId
+    ? mdmEnrollmentStatus
+    : undefined;
+};
+
+const getOperatingSystemParams = (
+  label?: string,
+  policyId?: number,
+  softwareId?: number,
+  mdmId?: number,
+  mdmEnrollmentStatus?: string,
+  os_id?: number,
+  os_name?: string,
+  os_version?: string
+) => {
+  if (label || policyId || softwareId || mdmId || mdmEnrollmentStatus) {
+    return {};
+  }
+  if (os_id) {
+    return { os_id };
+  }
+  return os_name && os_version ? { os_name, os_version } : {};
+};
 
 export default {
   destroy: (host: IHost) => {
@@ -77,7 +198,10 @@ export default {
     const policyId = options?.policyId || null;
     const policyResponse = options?.policyResponse || "passing";
     const softwareId = options?.softwareId || null;
+    const mdmId = options?.mdmId || null;
+    const mdmEnrollmentStatus = options?.mdmEnrollmentStatus || null;
     const visibleColumns = options?.visibleColumns || null;
+    const { os_id, os_name, os_version } = options;
 
     if (!sortBy.length) {
       throw Error("sortBy is a required field.");
@@ -107,7 +231,7 @@ export default {
       path += `&team_id=${teamId}`;
     }
 
-    // Label OR policy_id OR software_id are valid filters.
+    // label OR policy_id OR software_id OR mdm_id OR mdm_enrollment_status are valid filters.
     if (label) {
       const lid = label.substr(labelPrefix.length);
       path += `&label_id=${parseInt(lid, 10)}`;
@@ -118,8 +242,26 @@ export default {
       path += `&policy_response=${policyResponse}`;
     }
 
-    if (!label && !policyId && softwareId) {
+    if (!label && !policyId && !mdmId && !mdmEnrollmentStatus && softwareId) {
       path += `&software_id=${softwareId}`;
+    }
+
+    if (!label && !policyId && !softwareId && !mdmEnrollmentStatus && mdmId) {
+      path += `&mdm_id=${mdmId}`;
+    }
+
+    if (!label && !policyId && !softwareId && !mdmId && mdmEnrollmentStatus) {
+      path += `&mdm_enrollment_status=${mdmEnrollmentStatus}`;
+    }
+
+    if (!label && !policyId && !softwareId && !mdmId && !mdmEnrollmentStatus) {
+      if (os_id) {
+        path += `&os_id=${os_id}`;
+      } else if (os_name && os_version) {
+        path += `&os_name=${encodeURIComponent(
+          os_name
+        )}&os_version=${encodeURIComponent(os_version)}`;
+      }
     }
 
     if (visibleColumns) {
@@ -130,82 +272,70 @@ export default {
 
     return sendRequest("GET", path);
   },
-  loadHosts: (options: ILoadHostsOptions | undefined) => {
-    const { HOSTS, LABEL_HOSTS } = endpoints;
-    const page = options?.page || 0;
-    const perPage = options?.perPage || 100;
-    const selectedLabels = options?.selectedLabels || [];
-    const globalFilter = options?.globalFilter || "";
-    const sortBy = options?.sortBy || [];
-    const teamId = options?.teamId || null;
-    const policyId = options?.policyId || null;
-    const policyResponse = options?.policyResponse || null;
-    const softwareId = options?.softwareId || null;
-    const device_mapping = options?.device_mapping || null;
-    const columns = options?.columns || null;
+  loadHosts: ({
+    page = 0,
+    perPage = 20,
+    globalFilter,
+    teamId,
+    policyId,
+    policyResponse = "passing",
+    softwareId,
+    mdmId,
+    mdmEnrollmentStatus,
+    os_id,
+    os_name,
+    os_version,
+    device_mapping,
+    selectedLabels,
+    sortBy,
+  }: ILoadHostsOptions) => {
+    const label = getLabel(selectedLabels);
+    const sortParams = getSortParams(sortBy);
+    const policyParams = getPolicyParams(label, policyId, policyResponse);
 
-    // TODO: add this query param logic to client class
-    const pagination = `page=${page}&per_page=${perPage}`;
+    const queryParams = {
+      page,
+      per_page: perPage,
+      query: globalFilter,
+      team_id: teamId,
+      device_mapping,
+      order_key: sortParams.order_key,
+      order_direction: sortParams.order_direction,
+      policy_id: policyParams.policy_id,
+      policy_response: policyParams.policy_response,
+      software_id: getSoftwareParam(label, policyId, softwareId),
+      mdm_id: getMDMSolutionParam(
+        label,
+        policyId,
+        softwareId,
+        mdmId,
+        mdmEnrollmentStatus
+      ),
+      mdm_enrollment_status: getMDMEnrollmentStatusParam(
+        label,
+        policyId,
+        softwareId,
+        mdmId,
+        mdmEnrollmentStatus
+      ),
+      ...getOperatingSystemParams(
+        label,
+        policyId,
+        softwareId,
+        mdmId,
+        mdmEnrollmentStatus,
+        os_id,
+        os_name,
+        os_version
+      ),
 
-    let orderKeyParam = "";
-    let orderDirection = "";
-    if (sortBy.length !== 0) {
-      const sortItem = sortBy[0];
-      orderKeyParam += `&order_key=${sortItem.key}`;
-      orderDirection = `&order_direction=${sortItem.direction}`;
-    }
+      status: getStatusParam(selectedLabels),
+    };
 
-    let searchQuery = "";
-    if (globalFilter !== "") {
-      searchQuery = `&query=${globalFilter}`;
-    }
+    const queryString = buildQueryStringFromParams(queryParams);
 
-    let path = "";
-    const labelPrefix = "labels/";
-
-    // Handle multiple filters
-    const label = selectedLabels.find((f) => f.includes(labelPrefix));
-    const status = selectedLabels.find((f) => !f.includes(labelPrefix));
-    const isValidStatus =
-      status === "new" || status === "online" || status === "offline";
-
-    if (label) {
-      const lid = label.substr(labelPrefix.length);
-      path = `${LABEL_HOSTS(
-        parseInt(lid, 10)
-      )}?${pagination}${searchQuery}${orderKeyParam}${orderDirection}`;
-
-      // connect status if applicable
-      if (status && isValidStatus) {
-        path += `&status=${status}`;
-      }
-    } else if (status && isValidStatus) {
-      path = `${HOSTS}?${pagination}&status=${status}${searchQuery}${orderKeyParam}${orderDirection}`;
-    } else {
-      path = `${HOSTS}?${pagination}${searchQuery}${orderKeyParam}${orderDirection}`;
-    }
-
-    if (teamId) {
-      path += `&team_id=${teamId}`;
-    }
-
-    if (!label && policyId) {
-      path += `&policy_id=${policyId}`;
-      path += `&policy_response=${policyResponse || "passing"}`; // TODO: confirm whether there should be a default if there is an id but no response sepcified
-    }
-    // TODO: consider how to check for mutually exclusive scenarios with label, policy and software
-    if (!label && !policyId && softwareId) {
-      path += `&software_id=${softwareId}`;
-    }
-
-    if (device_mapping) {
-      path += "&device_mapping=true";
-    }
-
-    if (columns) {
-      path += `&columns=${columns}`;
-    }
-
+    const endpoint = getHostEndpoint(selectedLabels);
+    const path = `${endpoint}?${queryString}`;
     return sendRequest("GET", path);
   },
   loadHostDetails: (hostID: number) => {

@@ -19,18 +19,16 @@
 - [What should I do if my computer is showing up as an offline host?](#what-should-i-do-if-my-computer-is-showing-up-as-an-offline-host)
 - [How does Fleet deal with IP duplication?](#how-does-fleet-deal-with-ip-duplication)
 - [Can Orbit run alongside osquery?](#can-orbit-run-alongside-osquery)
-- [Can I disable auto updates for Orbit?](#can-i-disable-auto-updates-for-orbit)
+- [Can I control how Orbit handles updates?](#can-i-control-how-orbit-handles-updates)
 - [Can I bundle osquery extensions into Orbit?](#can-i-bundle-osquery-extensions-into-orbit)
 - [How does Fleet work with osquery extensions?](#how-does-fleet-work-with-osquery-extensions)
 - [Why am I seeing "unknown certificate error" when adding hosts to my dev server?](#why-am-i-seeing-"unknown-certificate-error"-when-adding-hosts-to-my-dev-server)
 - [Can I hide known vulnerabilities that I feel are insignificant?](#can-i-hide-known-vulnerabilities-that-i-feel-are-insignificant)
 - [Can I create reports based on historical data in Fleet?](#can-i-create-reports-based-on-historical-data-in-fleet)
 - [Why can't I run queries with `fleetctl` using a new API-only user?](#why-cant-i-run-queries-with-fleetctl-using-a-new-api-only-user)
-- [Why am I getting an error about self-signed certificates when running `fleetctl preview`?](#why-am-i-getting-an-error-about-self-signed-certificates-when-running-fleetctl-preview)
 - [Can I audit actions taken in Fleet?](#can-i-audit-actions-taken-in-fleet)
 - [How often is the software inventory updated?](#how-often-is-the-software-inventory-updated)
 - [Can I group results from multiple hosts?](#can-i-group-results-from-multiple-hosts)
-- [Will updating fleetctl lead to loss of data in fleetctl preview?](will-updating-fleetctl-lead-to-loss-of-data-in-fleetctl-preview?)
 - [How do I downgrade from Fleet Premium to Fleet Free?](how-do-i-downgrade-from-fleet-premium-to-fleet-free)
 
 ## How can I switch to Fleet from Kolide Fleet?
@@ -170,23 +168,6 @@ The following are reasons why a host may not be updating a policy's response:
 If your device is showing up as an offline host in the Fleet instance, and you're sure that the computer has osquery running, we recommend trying the following:
 
 * Try un-enrolling and re-enrolling the host. You can do this by uninstalling osquery on the host and then enrolling your device again using one of the [recommended methods](./Adding-hosts.md).
-* Restart the `fleetctl preview` docker containers.
-* Uninstall and reinstall Docker.
-
-## Fleet preview fails with Invalid interpolation. What should I do?
-
-If you tried running `fleetctl preview` and you get the following error:
-
-```
-fleetctl preview
-Downloading dependencies into /root/.fleet/preview...
-Pulling Docker dependencies...
-Invalid interpolation format for "fleet01" option in service "services": "fleetdm/fleet:${FLEET_VERSION:-latest}"
-
-Failed to run docker-compose
-```
-
-You are probably running an old version of Docker. You should download the installer for your platform from https://docs.docker.com/compose/install/
 
 ## How does Fleet deal with IP duplication?
 
@@ -196,13 +177,22 @@ Fleet relies on UUIDs so any overlap with host IP addresses should not cause a p
 
 Yes, Orbit can be run alongside osquery. The osquery instance that Orbit runs uses its own database directory that is stored within the Orbit directory.
 
-## Can I disable auto-updates for Orbit?
+## Can I control how Orbit handles updates?
 
-Yes, auto-updates can be disabled by passing `--disable-updates` as a flag when running `fleetctl package` to generate your installer (easy) or by deploying a modified systemd file to your hosts (more complicated). We'd recommend the flag:
+Yes, auto-updates can be disabled entirely by passing `--disable-updates` as a flag when running `fleetctl package` to generate your installer (easy) or by deploying a modified systemd file to your hosts (more complicated). We'd recommend the flag:
 
 ```
 fleetctl package --fleetctl package --type=deb --fleet-url=https://localhost:8080 --enroll-secret=superRandomSecret --disable-updates
 ```
+
+You can also indicate the [channels you would like Orbit to watch for updates](https://github.com/fleetdm/fleet/tree/main/orbit#update-channels) using the `--orbit-channel`, `--desktop-channel` , and `--osqueryd-channel` flags:
+
+```
+fleetctl package --fleetctl package --type=deb --fleet-url=https://localhost:8080 --enroll-secret=superRandomSecret --orbit-channel=edge --desktop-channel=stable --osquery-channel=4
+```
+
+You can specify a major (4), minor (4.0) or patch (4.6.0) version as well as the `stable`  or `edge` channels.
+
 ## Can I bundle osquery extensions into Orbit?
 
 This isn't supported yet, but we're working on it! 
@@ -243,10 +233,6 @@ The [Fleet UI](https://fleetdm.com/docs/using-fleet/fleet-ui) is built for human
 
 In versions prior to Fleet 4.13, a password reset is needed before a new API-only user can perform queries. You can find detailed instructions for setting that up [here](https://github.com/fleetdm/fleet/blob/a1eba3d5b945cb3339004dd1181526c137dc901c/docs/Using-Fleet/fleetctl-CLI.md#reset-the-password).
 
-## Why am I getting an error about self-signed certificates when running `fleetctl preview`?
-
-If you are trying to run `fleetctl preview` and seeing errors about self-signed certificates, the most likely culprit is that you're behind a corporate proxy server and need to [add the proxy settings to Docker](https://docs.docker.com/network/proxy/) so that the container created by `fleetctl preview` is able to connect properly. 
-
 ## Can I audit actions taken in Fleet?
 
 The [REST API `activities` endpoint](./REST-API.md#activities) provides a full breakdown of actions taken on packs, queries, policies, and teams (Available in Fleet Premium) through the UI, the REST API, or `fleetctl`.  
@@ -271,13 +257,6 @@ $ fleetctl get hosts --json | jq '.spec .os_version' | sort | uniq -c
    3 "macOS 12.3.0"
    6 "macOS 12.3.1"
 ```
-
-## Will updating fleetctl lead to loss of data in fleetctl preview?
-
-No, you won't experience data loss when you update fleetctl. Note that you can run `fleetctl preview --tag v#.#.#` if you want to run Preview on a previous version. Just replace # with the version numbers of interest.
-
-## Can I disable usage statistics via the config file or a CLI flag?
-Apart from an admin [disabling usage](https://fleetdm.com/docs/using-fleet/usage-statistics#disable-usage-statistics) statistics on the Fleet UI, you can edit your `fleet.yml` config file to disable usage statistics. Look for the `server_settings` in your `fleet.yml` and set `enable_analytics: false`. Do note there is no CLI flag option to disable usage statistics at this time.
 
 ## How do I downgrade from Fleet Premium to Fleet Free?
 
@@ -324,3 +303,18 @@ Lastly, remove your Fleet Premium license key:
 ## If I use a software orchestration tool (Ansible, Chef, Puppet, etc.) to manage agent options, do I have to apply the same options in the Fleet UI?
 
 No. The agent options set using your software orchestration tool will override the default agent options that appear in the **Settings > Organization settings > Global agent options** page. On this page, if you hit the **Save** button, the options that appear in the Fleet UI will override the agent options set using your software orchestration.
+
+## How can I uninstall Orbit/Fleet Desktop?
+To uninstall Orbit/Fleet Desktop, follow the below instructions for your Operating System.
+
+### MacOS
+Run the Orbit [cleanup script](https://github.com/fleetdm/fleet/blob/main/orbit/tools/cleanup/cleanup_macos.sh)
+
+### Windows
+Use the "Add or remove programs" dialog to remove Orbit.
+
+### Ubuntu
+Run `sudo apt remove fleet-osquery -y`
+
+### CentOS
+Run `sudo rpm -e fleet-osquery-X.Y.Z.x86_64`

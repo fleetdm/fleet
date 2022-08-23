@@ -87,7 +87,7 @@ const Statistics = ({
         <div className={`${baseClass}__section`}>
           <h2>Usage statistics</h2>
           <p className={`${baseClass}__section-description`}>
-            Help improve Fleet by sending anonymous usage statistics.
+            Help improve Fleet by sending usage statistics.
             <br />
             <br />
             This information helps our team better understand feature adoption
