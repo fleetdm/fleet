@@ -9,7 +9,7 @@ import (
 
 func TestVulnXML(t *testing.T) {
 	t.Run("VulnerabilityXML", func(t *testing.T) {
-		t.Run("#PublishedDate", func(t *testing.T) {
+		t.Run("#PublishedDateEpoch", func(t *testing.T) {
 			sut := VulnerabilityXML{
 				Revisions: []RevisionHistoryXML{
 					{
@@ -19,11 +19,13 @@ func TestVulnXML(t *testing.T) {
 				},
 			}
 
-			result := sut.PublishedDate()
-			require.NotNil(t, result)
-			require.Equal(t, 2022, result.Year())
-			require.Equal(t, time.May, result.Month())
-			require.Equal(t, 10, result.Day())
+			resultEpoch := sut.PublishedDateEpoch()
+			require.NotNil(t, resultEpoch)
+
+			resultDate := time.Unix(*resultEpoch, 0)
+			require.Equal(t, 2022, resultDate.Year())
+			require.Equal(t, time.May, resultDate.Month())
+			require.Equal(t, 10, resultDate.Day())
 		})
 
 		t.Run("#IncludesVendorFix", func(t *testing.T) {

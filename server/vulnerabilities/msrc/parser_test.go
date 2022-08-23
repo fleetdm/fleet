@@ -7,7 +7,9 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/fleetdm/fleet/v4/server/ptr"
 	msrc_input "github.com/fleetdm/fleet/v4/server/vulnerabilities/msrc/input"
+	msrc_parsed "github.com/fleetdm/fleet/v4/server/vulnerabilities/msrc/parsed"
 	"github.com/stretchr/testify/require"
 )
 
@@ -33,7 +35,7 @@ func TestParser(t *testing.T) {
 	require.NoError(t, err)
 
 	// Parse XML
-	xmlResult, err := parseMSRCXML(f)
+	xmlResult, err := parseMSRCXMLFeed(f)
 	f.Close()
 	require.NoError(t, err)
 
@@ -708,33 +710,244 @@ func TestParser(t *testing.T) {
 		},
 	}
 
-	t.Run("mapToVulnGraphs", func(t *testing.T) {
-		graphs, err := mapToVulnGraphs(xmlResult)
+	// A random vulnerability ("CVE-2022-29137")
+	expectedVulns := map[string]map[string]msrc_parsed.Vulnerability{
+		"Windows 10": {
+			"CVE-2022-29137": {
+				PublishedEpoch: ptr.Int64(1652169600),
+				ProductIDsSet: map[string]bool{
+					"11568": true,
+					"11569": true,
+					"11570": true,
+					"11712": true,
+					"11713": true,
+					"11714": true,
+					"11896": true,
+					"11897": true,
+					"11898": true,
+					"11800": true,
+					"11801": true,
+					"11802": true,
+					"11929": true,
+					"11930": true,
+					"11931": true,
+					"10729": true,
+					"10735": true,
+					"10852": true,
+					"10853": true,
+				},
+				RemediatedBySet: map[int]bool{
+					5013941: true,
+					5013952: true,
+					5013942: true,
+					5013963: true,
+					5013945: true,
+				},
+			},
+		},
+		"Windows Server 2019": {
+			"CVE-2022-29137": {
+				PublishedEpoch: ptr.Int64(1652169600),
+				ProductIDsSet: map[string]bool{
+					"11571": true,
+					"11572": true,
+				},
+				RemediatedBySet: map[int]bool{
+					5013941: true,
+				},
+			},
+		},
+
+		"Windows Server 2022": {
+			"CVE-2022-29137": {
+				PublishedEpoch: ptr.Int64(1652169600),
+				ProductIDsSet: map[string]bool{
+					"11923": true,
+					"11924": true,
+				},
+				RemediatedBySet: map[int]bool{
+					5013944: true,
+				},
+			},
+		},
+
+		"Windows Server": {
+			"CVE-2022-29137": {
+				PublishedEpoch: ptr.Int64(1652169600),
+				ProductIDsSet: map[string]bool{
+					"11803": true,
+				},
+				RemediatedBySet: map[int]bool{
+					5013942: true,
+				},
+			},
+		},
+
+		"Windows Server 2008": {
+			"CVE-2022-29137": {
+				PublishedEpoch: ptr.Int64(1652169600),
+				ProductIDsSet: map[string]bool{
+					"9312":  true,
+					"10287": true,
+					"9318":  true,
+					"9344":  true,
+				},
+				RemediatedBySet: map[int]bool{
+					5014010: true,
+					5014006: true,
+				},
+			},
+		},
+
+		"Windows Server 2008 R2": {
+			"CVE-2022-29137": {
+				PublishedEpoch: ptr.Int64(1652169600),
+				ProductIDsSet: map[string]bool{
+					"10051": true,
+					"10049": true,
+				},
+				RemediatedBySet: map[int]bool{
+					5014012: true,
+					5013999: true,
+				},
+			},
+		},
+
+		"Windows Server 2012": {
+			"CVE-2022-29137": {
+				PublishedEpoch: ptr.Int64(1652169600),
+				ProductIDsSet: map[string]bool{
+					"10378": true,
+					"10379": true,
+				},
+				RemediatedBySet: map[int]bool{
+					5014017: true,
+					5014018: true,
+				},
+			},
+		},
+
+		"Windows Server 2012 R2": {
+			"CVE-2022-29137": {
+				PublishedEpoch: ptr.Int64(1652169600),
+				ProductIDsSet: map[string]bool{
+					"10483": true,
+					"10543": true,
+				},
+				RemediatedBySet: map[int]bool{
+					5014011: true,
+					5014001: true,
+				},
+			},
+		},
+
+		"Windows 7": {
+			"CVE-2022-29137": {
+				PublishedEpoch: ptr.Int64(1652169600),
+				ProductIDsSet: map[string]bool{
+					"10047": true,
+					"10048": true,
+				},
+				RemediatedBySet: map[int]bool{
+					5014012: true,
+					5013999: true,
+				},
+			},
+		},
+
+		"Windows Server 2016": {
+			"CVE-2022-29137": {
+				PublishedEpoch: ptr.Int64(1652169600),
+				ProductIDsSet: map[string]bool{
+					"10816": true,
+					"10855": true,
+				},
+				RemediatedBySet: map[int]bool{
+					5013952: true,
+				},
+			},
+		},
+
+		"Windows 11": {
+			"CVE-2022-29137": {
+				PublishedEpoch: ptr.Int64(1652169600),
+				ProductIDsSet: map[string]bool{
+					"11926": true,
+					"11927": true,
+				},
+				RemediatedBySet: map[int]bool{
+					5013943: true,
+				},
+			},
+		},
+
+		"Windows RT 8.1": {
+			"CVE-2022-29137": {
+				PublishedEpoch: ptr.Int64(1652169600),
+				ProductIDsSet: map[string]bool{
+					"10484": true,
+				},
+				RemediatedBySet: map[int]bool{
+					5014025: true,
+				},
+			},
+		},
+
+		"Windows 8.1": {
+			"CVE-2022-29137": {
+				PublishedEpoch: ptr.Int64(1652169600),
+				ProductIDsSet: map[string]bool{
+					"10481": true,
+					"10482": true,
+				},
+				RemediatedBySet: map[int]bool{
+					5014011: true,
+					5014001: true,
+				},
+			},
+		},
+	}
+
+	t.Run("mapToSecurityBulletins", func(t *testing.T) {
+		bulletins, err := mapToSecurityBulletins(xmlResult)
 		require.NoError(t, err)
 
-		t.Run("should have one graph per product", func(t *testing.T) {
+		t.Run("should map the vulnerability entries correctly", func(t *testing.T) {
+			for pName, v := range expectedVulns {
+				bulletin := bulletins[pName]
+
+				for cve, vuln := range v {
+					sut := bulletin.Vulnerabities[cve]
+					require.Equal(t, *vuln.PublishedEpoch, *sut.PublishedEpoch, pName)
+					require.Equal(t, vuln.RemediatedBySet, sut.RemediatedBySet, pName)
+					require.Equal(t, vuln.ProductIDsSet, sut.ProductIDsSet, pName)
+				}
+			}
+		})
+
+		t.Run("should have one bulletin per product", func(t *testing.T) {
 			var expected []string
 			for p := range expectedProducts {
 				expected = append(expected, p)
 			}
 
 			var actual []string
-			for _, g := range graphs {
+			for _, g := range bulletins {
 				actual = append(actual, g.ProductName)
 			}
 
-			require.Len(t, graphs, len(expected))
+			require.Len(t, bulletins, len(expected))
 			require.ElementsMatch(t, expected, actual)
 		})
 
-		t.Run("each graph should have the right products", func(t *testing.T) {
-			for _, g := range graphs {
+		t.Run("each bulletin should have the right products", func(t *testing.T) {
+			for _, g := range bulletins {
 				require.Equal(t, g.Products, expectedProducts[g.ProductName], g.ProductName)
 			}
 		})
 
-		t.Run("each graph should have the right vulnerabilities", func(t *testing.T) {
-			for _, g := range graphs {
+		t.Run("each bulletin should have the right vulnerabilities", func(t *testing.T) {
+			for _, g := range bulletins {
 				var actual []string
 				for v := range g.Vulnerabities {
 					actual = append(actual, v)
@@ -744,7 +957,7 @@ func TestParser(t *testing.T) {
 		})
 	})
 
-	t.Run("parseMSRCXML", func(t *testing.T) {
+	t.Run("parseMSRCXMLFeed", func(t *testing.T) {
 		t.Run("only windows products are included", func(t *testing.T) {
 			var expected []msrc_input.ProductXML
 			for _, grp := range expectedProducts {

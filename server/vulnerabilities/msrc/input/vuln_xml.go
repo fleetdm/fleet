@@ -44,20 +44,19 @@ func (r *VulnerabilityXML) IncludesVendorFix(pID string) bool {
 	return false
 }
 
-// PublishedDate returns the date the vuln was published (if any)
-func (v *VulnerabilityXML) PublishedDate() *time.Time {
-	var dPublished *time.Time
-
+// PublishedDateEpoch returns the date the vuln was published (if any) as an epoch
+func (v *VulnerabilityXML) PublishedDateEpoch() *int64 {
 	for _, rev := range v.Revisions {
 		if strings.Index(rev.Description, "Information published") != -1 {
 			dPublished, err := time.Parse("2006-01-02T15:04:05", rev.Date)
 			if err != nil {
 				return nil
 			}
-			return &dPublished
+			epoch := dPublished.Unix()
+			return &epoch
 		}
 	}
-	return dPublished
+	return nil
 }
 
 func (rem *VulnerabilityRemediationXML) IsVendorFix() bool {

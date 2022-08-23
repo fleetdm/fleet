@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"strconv"
 
 	msrc_input "github.com/fleetdm/fleet/v4/server/vulnerabilities/msrc/input"
 	msrc_parsed "github.com/fleetdm/fleet/v4/server/vulnerabilities/msrc/parsed"
@@ -17,7 +18,7 @@ func parseMSRC(inputFile string, outputFile string) error {
 	}
 	defer r.Close()
 
-	parseMSRCXML(r)
+	parseMSRCXMLFeed(r)
 
 	// if err != nil {
 	// 	return fmt.Errorf("msrc parser: %w", err)
@@ -31,66 +32,81 @@ func parseMSRC(inputFile string, outputFile string) error {
 	return nil
 }
 
-func mapToVulnGraphs(rXML *msrc_input.ResultXML) (map[string]*msrc_parsed.VulnGraph, error) {
-	// We will have one graph for each product name.
-	rGraphs := make(map[string]*msrc_parsed.VulnGraph)
+func mapToSecurityBulletins(rXML *msrc_input.ResultXML) (map[string]*msrc_parsed.SecurityBulletin, error) {
+	// We will have one bulletin for each product name.
+	bulletins := make(map[string]*msrc_parsed.SecurityBulletin)
 
+	// Create each bulletin and populate its Products
 	for pID, p := range rXML.WinProducts {
 		name := NameFromFullProdName(p.FullName)
-		if _, ok := rGraphs[name]; !ok {
-			rGraphs[name] = msrc_parsed.NewVulnGraph(name)
+		if bulletins[name] == nil {
+			bulletins[name] = msrc_parsed.NewSecurityBulletin(name)
 		}
-		rGraphs[name].Products[pID] = p.FullName
+		bulletins[name].Products[pID] = p.FullName
 	}
 
 	for _, v := range rXML.WinVulnerabities {
-		for _, r := range v.Remediations {
+		for _, rem := range v.Remediations {
 			// We will only be able to detect vulns for which they are vendor fixes.
-			if !r.IsVendorFix() {
+			if !rem.IsVendorFix() {
 				continue
 			}
 
-			for _, rPID := range r.ProductIDs {
-				p := rXML.WinProducts[rPID]
+			for _, remPID := range rem.ProductIDs {
+				p := rXML.WinProducts[remPID]
 
 				name := NameFromFullProdName(p.FullName)
-				g, ok := rGraphs[name]
+				g, ok := bulletins[name]
+
+				// Skip any non-windows products
 				if !ok {
 					continue
 				}
 
-				// Create/update the vulnerability node related to this vendor fix
-				var vNode msrc_parsed.VulnNode
-				if vNode, ok = g.Vulnerabities[v.CVE]; !ok {
-					vNode = msrc_parsed.VulnNode{
-						Published: v.PublishedDate(),
+				//------------
+				// Create/update the vulnerability related to this vendor fix
+				// for the current product bulletin
+				var vuln msrc_parsed.Vulnerability
+				if vuln, ok = g.Vulnerabities[v.CVE]; !ok {
+					vuln = msrc_parsed.Vulnerability{
+						PublishedEpoch:  v.PublishedDateEpoch(),
+						ProductIDsSet:   make(map[string]bool),
+						RemediatedBySet: make(map[int]bool),
 					}
 				}
-				vNode.ProductsIDs = append(vNode.ProductsIDs, rPID)
-				vNode.RemediatedBy = append(
-					vNode.RemediatedBy,
-					msrc_parsed.NewVendorFixNodeRef(r.Description),
-				)
-				g.Vulnerabities[v.CVE] = vNode
+				vuln.ProductIDsSet[remPID] = true
+				remediatedKBID, err := strconv.Atoi(rem.Description)
+				if err != nil {
+					return nil, fmt.Errorf("invalid remediation KBID %s for %s in %s", rem.Description, name, v.CVE)
+				}
+				vuln.RemediatedBySet[remediatedKBID] = true
+				g.Vulnerabities[v.CVE] = vuln
 
-				// Create/update the vendor fix node
-				var vfNode msrc_parsed.VendorFixNode
-				if vfNode, ok = g.VendorFixes[r.Description]; !ok {
-					vfNode = msrc_parsed.VendorFixNode{
-						FixedBuild: r.FixedBuild,
-						Supersedes: msrc_parsed.NewVendorFixNodeRef(r.Supercedence),
-					}
+				//---------
+				// Create/update the vendor fix
+				var vFix msrc_parsed.VendorFix
+				if vFix, ok = g.VendorFixes[rem.Description]; !ok {
+					vFix = msrc_parsed.VendorFix{FixedBuild: rem.FixedBuild}
 				}
-				vfNode.TargetProductsIDs = append(vfNode.TargetProductsIDs, rPID)
-				g.VendorFixes[r.Description] = vfNode
+
+				if rem.Supercedence != "" {
+					supercedenceKBID, err := strconv.Atoi(rem.Supercedence)
+					if err != nil {
+						return nil, fmt.Errorf("invalid supercedence KBID %s for %s in %s", rem.Supercedence, name, v.CVE)
+					}
+					vFix.Supersedes = msrc_parsed.NewVendorFixNodeRef(supercedenceKBID)
+				}
+
+				vFix.TargetProductsIDs = append(vFix.TargetProductsIDs, remPID)
+				g.VendorFixes[rem.Description] = vFix
 			}
 		}
 	}
 
-	return rGraphs, nil
+	return bulletins, nil
 }
 
-func parseMSRCXML(reader io.Reader) (*msrc_input.ResultXML, error) {
+func parseMSRCXMLFeed(reader io.Reader) (*msrc_input.ResultXML, error) {
 	r := &msrc_input.ResultXML{
 		WinProducts: map[string]msrc_input.ProductXML{},
 	}
