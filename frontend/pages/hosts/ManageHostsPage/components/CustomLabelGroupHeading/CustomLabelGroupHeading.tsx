@@ -60,6 +60,8 @@ const CustomLabelGroupHeading = (
           className={`${baseClass}__input`}
           ref={inputRef}
           value={labelQuery}
+          name="label-search-input"
+          type="text"
           placeholder="Filter labels by name..."
           onKeyDown={(event) => {
             // Stops the parent dropdown from picking up on input keypresses

@@ -146,6 +146,7 @@ const LabelFilterSelect = ({
   return (
     <Select<ILabel | IEmptyOption, false, IGroupOption>
       ref={selectRef}
+      name="input-filter-select"
       options={options}
       className={classes}
       classNamePrefix={baseClass}
