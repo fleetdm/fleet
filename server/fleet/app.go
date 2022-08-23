@@ -288,9 +288,6 @@ func (c *AppConfig) UnmarshalJSON(b []byte) error {
 		return errors.New("unexpected extra tokens found in config")
 	}
 
-	// Assign values to the AppConfig struct.
-	*c = AppConfig(compatConfig.appCfgNoCustomUnmarshal)
-
 	// TODO(roperzh): define and assign legacy settings to new fields. This has
 	// the drawback of legacy fields taking precedence over new fields if both
 	// are defined. Eg:
