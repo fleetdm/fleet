@@ -183,12 +183,12 @@ const ScheduleTable = ({
         isAllPagesSelected={false}
         inputPlaceHolder="Search"
         searchable={false}
-        disablePagination
         onPrimarySelectActionClick={onRemoveScheduledQueryClick}
         primarySelectActionButtonVariant="text-icon"
         primarySelectActionButtonIcon="remove"
         primarySelectActionButtonText={"Remove"}
         emptyComponent={NoScheduledQueries}
+        isClientSidePagination
       />
     </div>
   );

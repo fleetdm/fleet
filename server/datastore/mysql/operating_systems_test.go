@@ -3,7 +3,10 @@ package mysql
 import (
 	"context"
 	"database/sql"
+	"fmt"
+	"sync"
 	"testing"
+	"time"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/stretchr/testify/assert"
@@ -97,6 +100,35 @@ func TestUpdateHostOperatingSystem(t *testing.T) {
 	storedOS, err = getHostOperatingSystemDB(ctx, ds.writer, testNewHostID)
 	require.NoError(t, err)
 	require.Equal(t, true, isSameOS(t, testOS, *storedOS))
+}
+
+func TestUniqueOS(t *testing.T) {
+	ctx := context.Background()
+	ds := CreateMySQLDS(t)
+
+	testHostIDs := make([]uint, 50)
+	testOS := fleet.OperatingSystem{
+		Name:          "Ubuntu",
+		Version:       "16.04.7 LTS",
+		Arch:          "x86_64",
+		KernelVersion: "5.10.76-linuxkit",
+		Platform:      "ubuntu",
+	}
+
+	var wg sync.WaitGroup
+	for i := range testHostIDs {
+		wg.Add(1)
+		go func(id int) {
+			err := ds.UpdateHostOperatingSystem(ctx, uint(id), testOS)
+			assert.NoError(t, err)
+			wg.Done()
+		}(i)
+
+	}
+	wg.Wait()
+	list, err := ds.ListOperatingSystems(ctx)
+	require.NoError(t, err)
+	require.Len(t, list, 1)
 }
 
 func TestMaybeNewOperatingSystem(t *testing.T) {
@@ -243,6 +275,105 @@ func TestGetHostOperatingSystem(t *testing.T) {
 	os, err = getHostOperatingSystemDB(ctx, ds.writer, testHostID)
 	require.NoError(t, err)
 	require.Equal(t, osList[1], *os)
+}
+
+func TestCleanupHostOperatingSystems(t *testing.T) {
+	ctx := context.Background()
+	ds := CreateMySQLDS(t)
+
+	seedOperatingSystems(t, ds)
+	testOSs, err := ds.ListOperatingSystems(ctx)
+	require.NoError(t, err)
+
+	testHosts := make([]*fleet.Host, 10)
+	osByHostID := make(map[uint]fleet.OperatingSystem)
+
+	for i := range testHosts {
+		h, err := ds.NewHost(context.Background(), &fleet.Host{
+			DetailUpdatedAt: time.Now(),
+			LabelUpdatedAt:  time.Now(),
+			PolicyUpdatedAt: time.Now(),
+			SeenTime:        time.Now(),
+			OsqueryHostID:   fmt.Sprintf("host%d", i),
+			NodeKey:         fmt.Sprintf("%d", i),
+			UUID:            fmt.Sprintf("%d", i),
+			Hostname:        fmt.Sprintf("foo.%d.local", i),
+		})
+		require.NoError(t, err)
+		testHosts[i] = h
+
+		// insert host operating system record so initially each os is seeded with two hosts
+		hostOS := testOSs[i%len(testOSs)]
+		err = upsertHostOperatingSystemDB(ctx, ds.writer, h.ID, hostOS.ID)
+		require.NoError(t, err)
+		osByHostID[h.ID] = hostOS
+	}
+
+	assertDeletedHostOS := func(expectDeletedIDs []uint) {
+		for _, h := range testHosts {
+			os, err := getHostOperatingSystemDB(ctx, ds.writer, h.ID)
+			if err == sql.ErrNoRows {
+				require.Contains(t, expectDeletedIDs, h.ID)
+				return
+			}
+			require.NoError(t, err)
+			require.NotNil(t, os)
+			require.Equal(t, osByHostID[h.ID], *os)
+		}
+	}
+	assertDeletedOS := func(expectDeletedIDs []uint) {
+		list, err := ds.ListOperatingSystems(ctx)
+		require.NoError(t, err)
+
+		byID := make(map[uint]fleet.OperatingSystem)
+		for _, os := range list {
+			byID[os.ID] = os
+		}
+
+		for _, testOS := range testOSs {
+			os, ok := byID[testOS.ID]
+			if !ok {
+				require.Contains(t, expectDeletedIDs, testOS.ID)
+				return
+			}
+			require.Equal(t, testOS, os)
+		}
+	}
+
+	// initial state
+	assertDeletedHostOS([]uint{})
+	assertDeletedOS([]uint{})
+
+	// nothing to clean up
+	ds.CleanupHostOperatingSystems(ctx)
+	assertDeletedHostOS([]uint{})
+	assertDeletedOS([]uint{})
+
+	// delete some hosts
+	var deletedHostIDs []uint
+	ds.DeleteHost(ctx, testHosts[0].ID)
+	ds.DeleteHost(ctx, testHosts[1].ID)
+	deletedHostIDs = append(deletedHostIDs, testHosts[0].ID, testHosts[1].ID)
+
+	ds.CleanupHostOperatingSystems(ctx)
+
+	// clean up removes host_operating_system record for deleted hosts
+	assertDeletedHostOS(deletedHostIDs)
+	// no deleted operating_system records because at least one host
+	// with each operating system still exists
+	assertDeletedOS([]uint{})
+
+	// delete remaining host for seedOSList[0]
+	ds.DeleteHost(ctx, testHosts[5].ID)
+	deletedHostIDs = append(deletedHostIDs, testHosts[5].ID)
+
+	ds.CleanupHostOperatingSystems(ctx)
+
+	// clean up removes host_operating_system record for deleted hosts
+	assertDeletedHostOS(deletedHostIDs)
+	// operating_system record for seedOSList[0] is deleted because
+	// no remaining hosts have that operating system
+	assertDeletedOS([]uint{testOSs[0].ID})
 }
 
 func seedOperatingSystems(t *testing.T, ds *Datastore) map[uint]fleet.OperatingSystem {

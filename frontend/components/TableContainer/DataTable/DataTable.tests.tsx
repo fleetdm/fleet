@@ -3,7 +3,7 @@ import { render, screen } from "@testing-library/react";
 import { noop } from "lodash";
 import DataTable from "./DataTable";
 
-const DEFAULT_PAGE_SIZE = 100;
+const DEFAULT_PAGE_SIZE = 20;
 
 describe("DataTable - component", () => {
   it("renders a data table based on the columns and data passed in", () => {

@@ -25,7 +25,7 @@ interface ISoftwareCardProps {
 
 const DEFAULT_SORT_DIRECTION = "desc";
 const DEFAULT_SORT_HEADER = "hosts_count";
-const PAGE_SIZE = 8;
+const DEFAULT_PAGE_SIZE = 8;
 const baseClass = "home-software";
 
 const Software = ({
@@ -58,7 +58,7 @@ const Software = ({
       "software",
       {
         pageIndex,
-        pageSize: PAGE_SIZE,
+        pageSize: DEFAULT_PAGE_SIZE,
         sortDirection: DEFAULT_SORT_DIRECTION,
         sortHeader: DEFAULT_SORT_HEADER,
         teamId: currentTeamId,
@@ -68,7 +68,7 @@ const Software = ({
     () =>
       softwareAPI.load({
         page: pageIndex,
-        perPage: PAGE_SIZE,
+        perPage: DEFAULT_PAGE_SIZE,
         orderKey: DEFAULT_SORT_HEADER,
         orderDir: DEFAULT_SORT_DIRECTION,
         vulnerable: !!navTabIndex, // we can take the tab index as a boolean to represent the vulnerable flag :)
@@ -171,7 +171,7 @@ const Software = ({
                   isAllPagesSelected={false}
                   disableCount
                   disableActionButton
-                  pageSize={PAGE_SIZE}
+                  pageSize={DEFAULT_PAGE_SIZE}
                   onQueryChange={onQueryChange}
                 />
               )}
@@ -199,7 +199,7 @@ const Software = ({
                   isAllPagesSelected={false}
                   disableCount
                   disableActionButton
-                  pageSize={PAGE_SIZE}
+                  pageSize={DEFAULT_PAGE_SIZE}
                   onQueryChange={onQueryChange}
                 />
               )}
