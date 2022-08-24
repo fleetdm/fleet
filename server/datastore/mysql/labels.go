@@ -460,16 +460,33 @@ func (ds *Datastore) ListLabelsForHost(ctx context.Context, hid uint) ([]*fleet.
 // ListHostsInLabel returns a list of fleet.Host that are associated
 // with fleet.Label referened by Label ID
 func (ds *Datastore) ListHostsInLabel(ctx context.Context, filter fleet.TeamFilter, lid uint, opt fleet.HostListOptions) ([]*fleet.Host, error) {
-	query := `
-			SELECT
-				h.*,
-				COALESCE(hst.seen_time, h.created_at) as seen_time,
-				(SELECT name FROM teams t WHERE t.id = h.team_id) AS team_name
-			FROM label_membership lm
-			JOIN hosts h ON (lm.host_id = h.id)
-			LEFT JOIN host_seen_times hst ON (h.id=hst.host_id)
-			WHERE lm.label_id = ?
+	query := `SELECT
+		h.*,
+		COALESCE(hst.seen_time, h.created_at) as seen_time,
+		(SELECT name FROM teams t WHERE t.id = h.team_id) AS team_name
 	`
+
+	failingPoliciesSelect := `,
+		coalesce(failing_policies.count, 0) as failing_policies_count,
+		coalesce(failing_policies.count, 0) as total_issues_count
+	`
+	if opt.DisableFailingPolicies {
+		failingPoliciesSelect = ""
+	}
+	query += failingPoliciesSelect
+
+	query += `FROM label_membership lm
+		JOIN hosts h ON (lm.host_id = h.id)
+		LEFT JOIN host_seen_times hst ON (h.id=hst.host_id)`
+
+	failingPoliciesJoin := `LEFT JOIN (
+		SELECT host_id, count(*) as count FROM policy_membership WHERE passes = 0
+		GROUP BY host_id
+	) as failing_policies ON (h.id=failing_policies.host_id)`
+	if opt.DisableFailingPolicies {
+		failingPoliciesJoin = ""
+	}
+	query += failingPoliciesJoin
 
 	query, params := ds.applyHostLabelFilters(filter, lid, query, opt)
 
@@ -485,7 +502,7 @@ func (ds *Datastore) ListHostsInLabel(ctx context.Context, filter fleet.TeamFilt
 func (ds *Datastore) applyHostLabelFilters(filter fleet.TeamFilter, lid uint, query string, opt fleet.HostListOptions) (string, []interface{}) {
 	params := []interface{}{lid}
 
-	query = fmt.Sprintf(`%s AND %s `, query, ds.whereFilterHostsByTeams(filter, "h"))
+	query += fmt.Sprintf(` WHERE lm.label_id = ? AND %s `, ds.whereFilterHostsByTeams(filter, "h"))
 	query, params = filterHostsByStatus(query, opt, params)
 	query, params = filterHostsByTeam(query, opt, params)
 	query, params = searchLike(query, params, opt.MatchQuery, hostSearchColumns...)
@@ -497,8 +514,7 @@ func (ds *Datastore) applyHostLabelFilters(filter fleet.TeamFilter, lid uint, qu
 func (ds *Datastore) CountHostsInLabel(ctx context.Context, filter fleet.TeamFilter, lid uint, opt fleet.HostListOptions) (int, error) {
 	query := `SELECT count(*) FROM label_membership lm
     JOIN hosts h ON (lm.host_id = h.id)
-	LEFT JOIN host_seen_times hst ON (h.id=hst.host_id)
-	WHERE lm.label_id = ?`
+	LEFT JOIN host_seen_times hst ON (h.id=hst.host_id)`
 
 	query, params := ds.applyHostLabelFilters(filter, lid, query, opt)
 
