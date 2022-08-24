@@ -45,7 +45,7 @@ module.exports = {
       await NewsletterSubscription.create({emailAddress: emailAddress});
     }
 
-    let argins = {}
+    let argins = {};
     // Once we've found or created a NewsletterSubscription, we'll set the `isSubscribedTo____` boolean attributes based on the subscribeTo input
     if(subscribeTo === 'releases') {
       argins.isSubscribedToReleases = true;
