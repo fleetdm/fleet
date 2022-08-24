@@ -5,8 +5,8 @@ The roles needed to push new updates are `targets`, `snapshot` and `timestamp`.
 
 ## Security
 
-- TUF keys for `targets`, `snapshot` and `timestamp` should be stored on a USB stick.
-- The keys are stored encrypted with a passphrase stored in 1Password.
+- TUF keys for `targets`, `snapshot` and `timestamp` should be stored on a USB stick (used solely for this purpose).
+- The keys are stored encrypted with a passphrase stored in 1Password (on a private vault).
 
 ## Sync Fleet's TUF repository
 
@@ -23,6 +23,11 @@ aws s3 sync s3://fleet-tuf-repo ./repository
 ```
 
 ## Generate targets+snapshot+timestamp keys
+
+All commands shown in this guide are executed from `/Volumes/FLEET-TUF`:
+```sh
+cd /Volumes/FLEET-TUF
+```
 
 ```sh
 tuf gen-key targets
@@ -74,6 +79,11 @@ aws s3 sync s3://fleet-tuf-repo ./repository
 ### 3. Setup Orbit in Linux, Windows, macOS
 
 Install Orbit with the (to be updated) channels in the three supported OSs.
+
+E.g. if we need to push a new version of `osqueryd` to `edge`, then generate and install a package with:
+```sh
+fleetctl package ... --osqueryd-channel=edge ...
+```
 
 ### 4. Setup Orbit in one host that points to our repository
 
