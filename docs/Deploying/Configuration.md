@@ -2058,7 +2058,7 @@ How often vulnerabilities are checked. This is also the interval at which the co
 
 You can fetch the CPE dictionary database from this URL. Some users want to control where Fleet gets its database.
 When Fleet sees this value defined, it downloads the file directly.
-It expects a file in the same format as can be found in https://github.com/fleetdm/nvd/releases.
+It expects a file in the same format that can be found in https://github.com/fleetdm/nvd/releases.
 If this value is not defined, Fleet checks for the latest release in Github and only downloads it if needed.
 
 - Default value: `""`
