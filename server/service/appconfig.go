@@ -28,7 +28,7 @@ type appConfigResponse struct {
 	appConfigResponseFields
 }
 
-// appConfigResponseFields are gruped separately to aid with JSON unmarshaling
+// appConfigResponseFields are grouped separately to aid with JSON unmarshaling
 type appConfigResponseFields struct {
 	UpdateInterval  *fleet.UpdateIntervalConfig  `json:"update_interval"`
 	Vulnerabilities *fleet.VulnerabilitiesConfig `json:"vulnerabilities"`
