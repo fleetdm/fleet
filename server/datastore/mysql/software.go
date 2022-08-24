@@ -756,12 +756,6 @@ func (ds *Datastore) SoftwareByID(ctx context.Context, id uint, includeCVEScores
 			"s.arch",
 			"scv.cve",
 		).
-		Join( // filter software that is not associated with any hosts
-			goqu.I("host_software").As("hs"),
-			goqu.On(
-				goqu.I("hs.software_id").Eq(goqu.I("s.id")),
-			),
-		).
 		LeftJoin(
 			goqu.I("software_cpe").As("scp"),
 			goqu.On(
@@ -787,6 +781,8 @@ func (ds *Datastore) SoftwareByID(ctx context.Context, id uint, includeCVEScores
 	}
 
 	q = q.Where(goqu.I("s.id").Eq(id))
+	// filter software that is not associated with any hosts
+	q = q.Where(goqu.L("EXISTS (SELECT 1 FROM host_software WHERE software_id = ? LIMIT 1)", id))
 
 	sql, args, err := q.ToSQL()
 	if err != nil {
