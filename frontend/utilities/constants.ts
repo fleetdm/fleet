@@ -224,6 +224,42 @@ export const DEFAULT_POLICIES = [
       "Contact your IT administrator to ensure your Mac is receiving a profile that enables installation of application updates.",
     platform: "darwin",
   },
+  {
+    key: 22,
+    query:
+      "SELECT 1 FROM managed_policies WHERE domain='com.apple.SoftwareUpdate' AND name='CriticalUpdateInstall' AND value=1 LIMIT 1;",
+    name:
+      "Automatic security and data file updates is enabled (macOS) [CIS 1.5]",
+    description:
+      "Checks that a mobile device management (MDM) solution configures the operating system to automatically download updates to built-in macOS security tools such as malware removal tools.",
+    resolution:
+      "Contact your IT administrator to ensure your Mac is receiving a profile that enables automatic security and data update installation.",
+    platform: "darwin",
+  },
+  {
+    key: 23,
+    query:
+      "SELECT 1 FROM managed_policies WHERE domain='com.apple.SoftwareUpdate' AND name='AutomaticallyInstallMacOSUpdates' AND value=1 LIMIT 1;",
+    name:
+      "Automatic installation of operating system updates is enabled (macOS) [CIS 1.6]",
+    description:
+      "Checks that a mobile device management (MDM) solution configures the operating system to automatically install operating system updates.",
+    resolution:
+      "Contact your IT administrator to ensure your Mac is receiving a profile that enables automatic installation of operating system updates.",
+    platform: "darwin",
+  },
+  {
+    key: 24,
+    query:
+      "SELECT 1 FROM managed_policies WHERE domain='com.apple.applicationaccess' AND name='forceAutomaticDateAndTime' AND value=1 LIMIT 1;",
+    name:
+      "Time and date are configured to be updated automatically (macOS) [CIS 2.2.1]",
+    description:
+      "Checks that a mobile device management (MDM) solution configures the operating system to automatically update the time and date.",
+    resolution:
+      "Contact your IT administrator to ensure your Mac is receiving a profile that enables automatic time and date configuration.",
+    platform: "darwin",
+  },
 ] as IPolicyNew[];
 
 export const FREQUENCY_DROPDOWN_OPTIONS = [
