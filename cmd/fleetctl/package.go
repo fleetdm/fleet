@@ -231,7 +231,7 @@ func packageCommand() *cli.Command {
 				attempts++
 
 				if attempts > 1 {
-					fmt.Printf("Generating your osquery installer [attempt %d/%d]...\n", attempts, maxAttempts)
+					fmt.Printf("Generating your osquery installer [attempt %d/%d]...\n\n", attempts, maxAttempts)
 				} else {
 					fmt.Println("Generating your osquery installer...")
 				}
