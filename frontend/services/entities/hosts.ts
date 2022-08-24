@@ -21,7 +21,9 @@ export interface ILoadHostsOptions {
   softwareId?: number;
   mdmId?: number;
   mdmEnrollmentStatus?: string;
-  operatingSystemId?: number;
+  os_id?: number;
+  os_name?: string;
+  os_version?: string;
   device_mapping?: boolean;
   columns?: string;
   visibleColumns?: string;
@@ -39,7 +41,9 @@ export interface IExportHostsOptions {
   softwareId?: number;
   mdmId?: number;
   mdmEnrollmentStatus?: string;
-  operatingSystemId?: number;
+  os_id?: number;
+  os_name?: string;
+  os_version?: string;
   device_mapping?: boolean;
   columns?: string;
   visibleColumns?: string;
@@ -138,17 +142,23 @@ const getMDMEnrollmentStatusParam = (
     : undefined;
 };
 
-const getOperatingSystemParam = (
+const getOperatingSystemParams = (
   label?: string,
   policyId?: number,
   softwareId?: number,
-  operatingSystemId?: number
+  mdmId?: number,
+  mdmEnrollmentStatus?: string,
+  os_id?: number,
+  os_name?: string,
+  os_version?: string
 ) => {
-  return label === undefined &&
-    policyId === undefined &&
-    softwareId === undefined
-    ? operatingSystemId
-    : undefined;
+  if (label || policyId || softwareId || mdmId || mdmEnrollmentStatus) {
+    return {};
+  }
+  if (os_id) {
+    return { os_id };
+  }
+  return os_name && os_version ? { os_name, os_version } : {};
 };
 
 export default {
@@ -191,6 +201,7 @@ export default {
     const mdmId = options?.mdmId || null;
     const mdmEnrollmentStatus = options?.mdmEnrollmentStatus || null;
     const visibleColumns = options?.visibleColumns || null;
+    const { os_id, os_name, os_version } = options;
 
     if (!sortBy.length) {
       throw Error("sortBy is a required field.");
@@ -243,6 +254,16 @@ export default {
       path += `&mdm_enrollment_status=${mdmEnrollmentStatus}`;
     }
 
+    if (!label && !policyId && !softwareId && !mdmId && !mdmEnrollmentStatus) {
+      if (os_id) {
+        path += `&os_id=${os_id}`;
+      } else if (os_name && os_version) {
+        path += `&os_name=${encodeURIComponent(
+          os_name
+        )}&os_version=${encodeURIComponent(os_version)}`;
+      }
+    }
+
     if (visibleColumns) {
       path += `&columns=${visibleColumns}`;
     }
@@ -253,7 +274,7 @@ export default {
   },
   loadHosts: ({
     page = 0,
-    perPage = 100,
+    perPage = 20,
     globalFilter,
     teamId,
     policyId,
@@ -261,7 +282,9 @@ export default {
     softwareId,
     mdmId,
     mdmEnrollmentStatus,
-    operatingSystemId,
+    os_id,
+    os_name,
+    os_version,
     device_mapping,
     selectedLabels,
     sortBy,
@@ -295,11 +318,15 @@ export default {
         mdmId,
         mdmEnrollmentStatus
       ),
-      operating_system_id: getOperatingSystemParam(
+      ...getOperatingSystemParams(
         label,
         policyId,
         softwareId,
-        operatingSystemId
+        mdmId,
+        mdmEnrollmentStatus,
+        os_id,
+        os_name,
+        os_version
       ),
 
       status: getStatusParam(selectedLabels),

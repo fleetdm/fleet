@@ -222,7 +222,7 @@ const Sso = ({
               <>
                 Automatically create Observer user on Login{" "}
                 <a
-                  href="https://fleetdm.com/docs/deploying/configuration#just-in-time-jit-user-provisioning?utm_medium=fleetui&utm_source=sso-settings"
+                  href="https://fleetdm.com/docs/deploying/configuration?utm_medium=fleetui&utm_source=sso-settings#just-in-time-jit-user-provisioning"
                   target="_blank"
                   rel="noopener noreferrer"
                 >
