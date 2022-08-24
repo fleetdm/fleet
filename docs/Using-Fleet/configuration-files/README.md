@@ -498,7 +498,7 @@ spec:
     debug_host_ids: []
 ```
 
-> **Warning:** this will potentially log a lot of data. Some of that data might be private, please verify it before posting it
+> **Warning:** This will potentially log a lot of data. Some of that data might be private. Please verify it before posting it.
 in a public channel or a GitHub issue.
 
 ## Host Expiry Settings
