@@ -4,12 +4,62 @@ import (
 	"database/sql"
 	"encoding/json"
 
-	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/pkg/errors"
 )
 
 func init() {
 	MigrationClient.AddMigration(Up_20210818151828, Down_20210818151828)
+}
+
+type testAppConfig struct {
+	OrgInfo struct {
+		OrgName    string
+		OrgLogoURL string
+	}
+	SMTPSettings struct {
+		SMTPEnabled              bool
+		SMTPConfigured           bool
+		SMTPSenderAddress        string
+		SMTPServer               string
+		SMTPPort                 uint
+		SMTPAuthenticationType   string
+		SMTPUserName             string
+		SMTPPassword             string
+		SMTPEnableTLS            bool
+		SMTPAuthenticationMethod string
+		SMTPDomain               string
+		SMTPVerifySSLCerts       bool
+		SMTPEnableStartTLS       bool
+	}
+	SSOSettings struct {
+		EntityID              string
+		IssuerURI             string
+		IDPImageURL           string
+		Metadata              string
+		MetadataURL           string
+		IDPName               string
+		EnableSSO             bool
+		EnableSSOIdPLogin     bool
+		EnableJITProvisioning bool
+	}
+	HostExpirySettings struct {
+		HostExpiryEnabled bool
+		HostExpiryWindow  int
+	}
+	ServerSettings struct {
+		LiveQueryDisabled bool
+		EnableAnalytics   bool
+		ServerURL         string
+	}
+	HostSettings struct {
+		EnableHostUsers         bool
+		EnableSoftwareInventory bool
+		AdditionalQueries       *json.RawMessage
+	}
+	VulnerabilitySettings struct {
+		DatabasesPath string
+	}
+	AgentOptions *json.RawMessage
 }
 
 func Up_20210818151828(tx *sql.Tx) error {
@@ -61,8 +111,9 @@ func Up_20210818151828(tx *sql.Tx) error {
 				enable_software_inventory
 				FROM app_configs LIMIT 1`,
 	)
-	config := &fleet.AppConfig{}
-	config.ApplyDefaults()
+	config := &testAppConfig{}
+	// Apply default settings
+	config.HostSettings.EnableHostUsers = true
 	var vulnPath *string
 	err := row.Scan(
 		&config.OrgInfo.OrgName,
@@ -90,13 +141,13 @@ func Up_20210818151828(tx *sql.Tx) error {
 		&config.HostExpirySettings.HostExpiryEnabled,
 		&config.HostExpirySettings.HostExpiryWindow,
 		&config.ServerSettings.LiveQueryDisabled,
-		&config.Features.AdditionalQueries,
+		&config.HostSettings.AdditionalQueries,
 		&config.SSOSettings.EnableSSOIdPLogin,
 		&config.AgentOptions,
 		&config.ServerSettings.EnableAnalytics,
 		&vulnPath,
-		&config.Features.EnableHostUsers,
-		&config.Features.EnableSoftwareInventory,
+		&config.HostSettings.EnableHostUsers,
+		&config.HostSettings.EnableSoftwareInventory,
 	)
 	if err != nil {
 		return errors.Wrap(err, "scanning config row")
