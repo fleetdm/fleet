@@ -148,7 +148,7 @@ type EnrichedAppConfig struct {
 	enrichedAppConfigFields
 }
 
-// enrichedAppConfigFields are gruped separately to aid with JSON unmarshaling
+// enrichedAppConfigFields are grouped separately to aid with JSON unmarshaling
 type enrichedAppConfigFields struct {
 	UpdateInterval  *UpdateIntervalConfig  `json:"update_interval,omitempty"`
 	Vulnerabilities *VulnerabilitiesConfig `json:"vulnerabilities,omitempty"`
