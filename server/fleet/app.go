@@ -148,6 +148,7 @@ type EnrichedAppConfig struct {
 	enrichedAppConfigFields
 }
 
+// enrichedAppConfigFields are gruped separately to aid with JSON unmarshaling
 type enrichedAppConfigFields struct {
 	UpdateInterval  *UpdateIntervalConfig  `json:"update_interval,omitempty"`
 	Vulnerabilities *VulnerabilitiesConfig `json:"vulnerabilities,omitempty"`
@@ -155,6 +156,13 @@ type enrichedAppConfigFields struct {
 	Logging         *Logging               `json:"logging,omitempty"`
 }
 
+// UnmarshalJSON implements the json.Unmarshaler interface to make sure we serialize
+// both AppConfig and appConfigResponseFields properly:
+//
+// - If this function is not defined, AppConfig.UnmarshalJSON gets promoted and
+// will be called instead.
+// - If we try to unmarshal everyting in one go, AppConfig.UnmarshalJSON doesn't get
+// called.
 func (e *EnrichedAppConfig) UnmarshalJSON(data []byte) error {
 	if err := json.Unmarshal(data, &e.AppConfig); err != nil {
 		return err

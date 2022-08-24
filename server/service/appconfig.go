@@ -28,6 +28,7 @@ type appConfigResponse struct {
 	appConfigResponseFields
 }
 
+// appConfigResponseFields are gruped separately to aid with JSON unmarshaling
 type appConfigResponseFields struct {
 	UpdateInterval  *fleet.UpdateIntervalConfig  `json:"update_interval"`
 	Vulnerabilities *fleet.VulnerabilitiesConfig `json:"vulnerabilities"`
@@ -42,6 +43,13 @@ type appConfigResponseFields struct {
 	Err error `json:"error,omitempty"`
 }
 
+// UnmarshalJSON implements the json.Unmarshaler interface to make sure we serialize
+// both AppConfig and appConfigResponseFields properly:
+//
+// - If this function is not defined, AppConfig.UnmarshalJSON gets promoted and
+// will be called instead.
+// - If we try to unmarshal everyting in one go, AppConfig.UnmarshalJSON doesn't get
+// called.
 func (r *appConfigResponse) UnmarshalJSON(data []byte) error {
 	if err := json.Unmarshal(data, &r.AppConfig); err != nil {
 		return err
