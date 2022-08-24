@@ -10,8 +10,8 @@ import (
 	"github.com/google/go-github/v37/github"
 )
 
-// downloadBulletinList returns a map of 'name' => 'download URL' of the parsed security bulletins stored as assets on Github.
-func downloadBulletinList(client *http.Client) (map[SecurityBulletinName]string, error) {
+// remoteBulletins returns a map of 'name' => 'download URL' of the parsed security bulletins stored as assets on Github.
+func remoteBulletins(client *http.Client) (map[SecurityBulletinName]string, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
@@ -31,7 +31,8 @@ func downloadBulletinList(client *http.Client) (map[SecurityBulletinName]string,
 
 	results := make(map[SecurityBulletinName]string)
 
-	// TODO (juan): Since the nvd repo includes both NVD and MSRC assets, we will need to filter this.
+	// TODO (juan): Since the nvd repo includes both NVD and MSRC assets, we will need to do some
+	// filtering logic here.
 	for _, e := range releases[0].Assets {
 		name := e.GetName()
 		if strings.HasPrefix(name, MSRCFilePrefix) {
