@@ -834,3 +834,27 @@ spec:
   tags: compliance, CIS, CIS2.2.1
   platform: darwin
   contributors: GuillaumeRoss
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: Inactivity limit of 20 minutes or less (macOS)
+  query: SELECT 1 WHERE EXISTS (SELECT CAST(value as integer(4)) valueint from managed_policies WHERE domain = 'com.apple.screensaver' AND name = 'askForPasswordDelay' AND valueint <= 60 LIMIT 1) AND EXISTS (SELECT CAST(value as integer(4)) valueint from managed_policies WHERE domain = 'com.apple.screensaver' AND name = 'idleTime' AND valueint <= 1140 LIMIT 1) AND EXISTS (SELECT 1 from managed_policies WHERE domain='com.apple.screensaver' AND name='askForPassword' AND value=1 LIMIT 1);
+  description: "Checks that a mobile device management (MDM) solution configures the operating system lock the screen in 20 minutes or less."
+  resolution: "Contact your IT administrator to ensure your Mac is receiving a profile that enables the screen saver and lock within an inactivity delay of 20 minutes or less."
+  platforms: macOS
+  tags: compliance, CIS, CIS2.3.1
+  platform: darwin
+  contributors: GuillaumeRoss
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: Internet sharing is blocked (macOS)
+  query: SELECT 1 FROM managed_policies WHERE domain='com.apple.MCX' AND name='forceInternetSharingOff' AND value='1' LIMIT 1;
+  description: "Checks that a mobile device management (MDM) solution configures the operating system to prevent Internet sharing."
+  resolution: "Contact your IT administrator to ensure your Mac is receiving a profile that prevents Internet sharing."
+  platforms: macOS
+  tags: compliance, CIS, CIS2.4.2
+  platform: darwin
+  contributors: GuillaumeRoss

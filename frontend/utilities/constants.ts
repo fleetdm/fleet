@@ -271,6 +271,17 @@ export const DEFAULT_POLICIES = [
       "Contact your IT administrator to ensure your Mac is receiving a profile that enables the screen saver and lock within an inactivity delay of 20 minutes or less.",
     platform: "darwin",
   },
+  {
+    key: 26,
+    query:
+      "SELECT 1 FROM managed_policies WHERE domain='com.apple.MCX' AND name='forceInternetSharingOff' AND value='1' LIMIT 1;",
+    name: "Internet sharing is blocked (macOS) [CIS 2.4.2]",
+    description:
+      "Checks that a mobile device management (MDM) solution configures the operating system to prevent Internet sharing.",
+    resolution:
+      "Contact your IT administrator to ensure your Mac is receiving a profile that prevents Internet sharing.",
+    platform: "darwin",
+  },
 ] as IPolicyNew[];
 
 export const FREQUENCY_DROPDOWN_OPTIONS = [
