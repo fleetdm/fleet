@@ -798,3 +798,39 @@ spec:
   tags: compliance, CIS, CIS1.4
   platform: darwin
   contributors: GuillaumeRoss
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: Automatic security and data file updates is enabled (macOS)
+  query: SELECT 1 FROM managed_policies WHERE domain='com.apple.SoftwareUpdate' AND name='CriticalUpdateInstall' AND value=1 LIMIT 1;
+  description: "Checks that the operating system is configured to automatically download updates to built-in macOS security tools such as malware removal tools."
+  resolution: "Contact your IT administrator to ensure your Mac is receiving a profile that enables automatic security and data update installation."
+  platforms: macOS
+  tags: compliance, CIS, CIS1.5
+  platform: darwin
+  contributors: GuillaumeRoss
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: Automatic installation of operating system updates is enabled (macOS)
+  query: SELECT 1 FROM managed_policies WHERE domain='com.apple.SoftwareUpdate' AND name='AutomaticallyInstallMacOSUpdates' AND value=1 LIMIT 1;
+  description: "Checks that a mobile device management (MDM) solution configures the operating system to automatically install operating system updates."
+  resolution: "Contact your IT administrator to ensure your Mac is receiving a profile that enables automatic installation of operating system updates."
+  platforms: macOS
+  tags: compliance, CIS, CIS1.6
+  platform: darwin
+  contributors: GuillaumeRoss
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: Time and date are configured to be updated automatically (macOS)
+  query: SELECT 1 FROM managed_policies WHERE domain='com.apple.applicationaccess' AND name='forceAutomaticDateAndTime' AND value=1 LIMIT 1;
+  description: "Checks that a mobile device management (MDM) solution configures the operating system to automatically update the time and date."
+  resolution: "Contact your IT administrator to ensure your Mac is receiving a profile that enables automatic time and date configuration."
+  platforms: macOS
+  tags: compliance, CIS, CIS2.2.1
+  platform: darwin
+  contributors: GuillaumeRoss
