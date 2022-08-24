@@ -1,14 +1,19 @@
 # TUF Update Guide
 
-This document is a walkthrough guide for how a Fleet member can become a publisher of updates for [Fleet's TUF service](tuf.fleetctl.com).
-The roles needed to push new updates are `targets`, `snapshot` and `timestamp`.
+This document is a walkthrough guide for:
+- A Fleet member to become a publisher of updates for [Fleet's TUF service](tuf.fleetctl.com).
+- A Fleet member to publish new updates to [Fleet's TUF service](tuf.fleetctl.com). 
 
-## Security
+> The roles needed to push new updates are `targets`, `snapshot` and `timestamp`. See [Roles and Metadata](https://theupdateframework.io/metadata/).
+
+## Become a New Fleet Publisher
+
+### Security
 
 - TUF keys for `targets`, `snapshot` and `timestamp` should be stored on a USB stick (used solely for this purpose).
 - The keys are stored encrypted with a passphrase stored in 1Password (on a private vault).
 
-## Sync Fleet's TUF repository
+### Sync Fleet's TUF repository
 
 For simplicity we sync the repository to the USB stick.
 ```sh
@@ -22,7 +27,7 @@ mkdir -p staged
 aws s3 sync s3://fleet-tuf-repo ./repository
 ```
 
-## Generate targets+snapshot+timestamp keys
+### Generate targets+snapshot+timestamp keys
 
 All commands shown in this guide are executed from `/Volumes/FLEET-TUF`:
 ```sh
@@ -50,7 +55,7 @@ Generated timestamp key with ID d940df08b59b12c30f95622a05cc40164b78a11dd7d40839
 
 Share `staged/root.json` with Fleet member with the `root` role, who will sign with its root key and push to the repository.
 
-## Root role signs the `staged/root.json`
+### Root role signs the `staged/root.json`
 
 Essentially the following commands are executed to sign the new keys:
 - `tuf sign`
@@ -192,7 +197,7 @@ The following issue was solved by resigning the timestamp metadata `fleetctl upd
 2022-08-23T13:59:48-03:00 INF update failed error="update metadata: update metadata: tuf: failed to decode timestamp.json: version 4172 is lower than current version 4174"
 ```
 
-### Notes
+## Notes
 
-- "Measure thrice cut once": Steps 3, 4, 5 and 6 allows us to verify the repository is in good shape before pushing to https://tuf.fleetctl.com.
+- "Measure thrice cut once": Steps 3, 4, 5 and 6 allows us to verify the repository is in good shape before pushing to [Fleet's TUF service](tuf.fleetctl.com).
 - Steps may look different if the upgrade is performed on a Linux or Windows host.
