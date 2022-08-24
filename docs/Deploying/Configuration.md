@@ -2071,7 +2071,7 @@ If this value is not defined, Fleet checks for the latest release in Github and 
 
 ##### cpe_translations_url
 
-URL to fetch the CPE translations from.
+You can fetch the CPE translations from this URL.
 Translations are used when matching software to CPE entries in the CPE database that would otherwise be missed for various reasons.
 When Fleet sees this value defined, it downloads the file directly.
 It expects a file in the same format that can be found in https://github.com/fleetdm/nvd/releases.
