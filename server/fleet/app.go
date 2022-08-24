@@ -132,7 +132,7 @@ type AppConfig struct {
 	WebhookSettings WebhookSettings `json:"webhook_settings"`
 	Integrations    Integrations    `json:"integrations"`
 
-	strictDecoding bool `json:"-"`
+	strictDecoding bool
 }
 
 // legacyConfig holds settings that have been replaced, superceded or
