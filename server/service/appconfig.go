@@ -12,6 +12,7 @@ import (
 	"net"
 	"net/url"
 
+	"github.com/fleetdm/fleet/v4/server/authz"
 	authz_ctx "github.com/fleetdm/fleet/v4/server/contexts/authz"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
@@ -226,6 +227,10 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte) (*fleet.AppCo
 	}
 
 	oldSmtpSettings := appConfig.SMTPSettings
+	oldAgentOptions := ""
+	if appConfig.AgentOptions != nil {
+		oldAgentOptions = string(*appConfig.AgentOptions)
+	}
 
 	storedJiraByProjectKey, err := fleet.IndexJiraIntegrations(appConfig.Integrations.Jira)
 	if err != nil {
@@ -328,6 +333,22 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte) (*fleet.AppCo
 	obfuscatedConfig, err := svc.AppConfig(ctx)
 	if err != nil {
 		return nil, err
+	}
+
+	// if the agent options changed, create the corresponding activity
+	newAgentOptions := ""
+	if obfuscatedConfig.AgentOptions != nil {
+		newAgentOptions = string(*obfuscatedConfig.AgentOptions)
+	}
+	if oldAgentOptions != newAgentOptions {
+		if err := svc.ds.NewActivity(
+			ctx,
+			authz.UserFromContext(ctx),
+			fleet.ActivityTypeEditedAgentOptions,
+			&map[string]interface{}{"global": true, "team_id": nil, "team_name": nil},
+		); err != nil {
+			return nil, err
+		}
 	}
 
 	return obfuscatedConfig, nil

@@ -144,6 +144,10 @@ func TestApplyTeamSpecs(t *testing.T) {
 		return nil
 	}
 
+	ds.NewActivityFunc = func(ctx context.Context, user *fleet.User, activityType string, details *map[string]interface{}) error {
+		return nil
+	}
+
 	filename := writeTmpYml(t, `
 ---
 apiVersion: v1

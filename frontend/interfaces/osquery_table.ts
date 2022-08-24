@@ -38,7 +38,7 @@ export const DEFAULT_OSQUERY_TABLE: IOsqueryTable = {
   description:
     "Local user accounts (including domain accounts that have logged on locally (Windows)).",
   url: "https://github.com/osquery/osquery/blob/master/specs/users.table",
-  platforms: ["darwin", "linux", "windows", "freebsd"],
+  platforms: ["darwin", "linux", "windows"],
   evented: false,
   cacheable: false,
   columns: [
