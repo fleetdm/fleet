@@ -272,6 +272,8 @@ func shouldRetry(pkgType string, opt packaging.Options, err error) bool {
 		return true
 	case strings.Contains(errStr, "build package: candle failed"):
 		return true
+	case strings.Contains(errStr, "build package: light failed"):
+		return true
 	default:
 		return false
 	}
