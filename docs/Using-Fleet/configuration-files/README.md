@@ -501,9 +501,21 @@ spec:
 > **Warning:** this will potentially log a lot of data. Some of that data might be private, please verify it before posting it
 in a public channel or a GitHub issue.
 
+## Host Expiry Settings
+
+The `host_expiry` section allows you to define if and when hosts should be removed from Fleet if they have not checked in. Once a host has been removed from Fleet, it will need to re-enroll with a valid `enroll_secret` to connect to your Fleet instance. 
+
+### Host Expiry Enabled
+
+If `host_expiry_enabled` is set to `true`, allows automatic cleanup of hosts that have not communicated with Fleet in some number of days.
+
+### Host Expiry Window
+
+If a host has not communicated with Fleet in the specified number of days and, it will be removed.
+
 ## Host settings
 
-The `host_settings` section of the configuration YAML allows to define what predefined queries are sent to the hosts and
+The `host_settings` section of the configuration YAML allows you to define what predefined queries are sent to the hosts and
 later on processed by Fleet for different functionalities.
 
 - `host_settings.enable_host_users`: boolean value that when enabled Fleet will send the query needed to gather user data
