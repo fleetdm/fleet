@@ -515,7 +515,7 @@ If a host has not communicated with Fleet in the specified number of days and, i
 
 ## Host settings
 
-The `host_settings` section of the configuration YAML allows you to define what predefined queries are sent to the hosts and
+The `host_settings` section of the configuration YAML lets you define what predefined queries are sent to the hosts and
 later on processed by Fleet for different functionalities.
 
 - `host_settings.enable_host_users`: boolean value that when enabled Fleet will send the query needed to gather user data
