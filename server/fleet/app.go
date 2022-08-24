@@ -157,7 +157,7 @@ type enrichedAppConfigFields struct {
 }
 
 // UnmarshalJSON implements the json.Unmarshaler interface to make sure we serialize
-// both AppConfig and appConfigResponseFields properly:
+// both AppConfig and enrichedAppConfigFields properly:
 //
 // - If this function is not defined, AppConfig.UnmarshalJSON gets promoted and
 // will be called instead.
