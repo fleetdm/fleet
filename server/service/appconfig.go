@@ -48,7 +48,7 @@ type appConfigResponseFields struct {
 //
 // - If this function is not defined, AppConfig.UnmarshalJSON gets promoted and
 // will be called instead.
-// - If we try to unmarshal everyting in one go, AppConfig.UnmarshalJSON doesn't get
+// - If we try to unmarshal everything in one go, AppConfig.UnmarshalJSON doesn't get
 // called.
 func (r *appConfigResponse) UnmarshalJSON(data []byte) error {
 	if err := json.Unmarshal(data, &r.AppConfig); err != nil {
