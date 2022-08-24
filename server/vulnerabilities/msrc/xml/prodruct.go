@@ -1,25 +1,25 @@
-package msrc_input
+package msrc_xml
 
 import "strings"
 
 // XML elements related to the 'prod' namespace used to describe Microsoft products
 
-type ProductBranchXML struct {
-	Type     string             `xml:"Type,attr"`
-	Name     string             `xml:"Name,attr"`
-	Branches []ProductBranchXML `xml:"Branch"`
-	Products []ProductXML       `xml:"FullProductName"`
+type ProductBranch struct {
+	Type     string          `xml:"Type,attr"`
+	Name     string          `xml:"Name,attr"`
+	Branches []ProductBranch `xml:"Branch"`
+	Products []Product       `xml:"FullProductName"`
 }
 
-type ProductXML struct {
+type Product struct {
 	ProductID string `xml:"ProductID,attr"`
 	FullName  string `xml:",chardata"`
 }
 
 // WinProducts traverses the ProductBranchXML tree returning only 'Windows' products.
-func (b *ProductBranchXML) WinProducts() []ProductXML {
-	var r []ProductXML
-	queue := []ProductBranchXML{*b}
+func (b *ProductBranch) WinProducts() []Product {
+	var r []Product
+	queue := []ProductBranch{*b}
 
 	for len(queue) > 0 {
 		next := queue[0]

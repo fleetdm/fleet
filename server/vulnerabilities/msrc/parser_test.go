@@ -8,8 +8,8 @@ import (
 	"testing"
 
 	"github.com/fleetdm/fleet/v4/server/ptr"
-	msrc_input "github.com/fleetdm/fleet/v4/server/vulnerabilities/msrc/input"
 	msrc_parsed "github.com/fleetdm/fleet/v4/server/vulnerabilities/msrc/parsed"
+	msrc_xml "github.com/fleetdm/fleet/v4/server/vulnerabilities/msrc/xml"
 	"github.com/stretchr/testify/require"
 )
 
@@ -35,7 +35,7 @@ func TestParser(t *testing.T) {
 	require.NoError(t, err)
 
 	// Parse XML
-	xmlResult, err := parseMSRCXMLFeed(f)
+	xmlResult, err := parseXML(f)
 	f.Close()
 	require.NoError(t, err)
 
@@ -1137,6 +1137,13 @@ func TestParser(t *testing.T) {
 		},
 	}
 
+	t.Run("parseFeed", func(t *testing.T) {
+		t.Run("errors out if file does not exists", func(t *testing.T) {
+			_, err := parseFeed("asdcv")
+			require.Error(t, err)
+		})
+	})
+
 	t.Run("mapToSecurityBulletins", func(t *testing.T) {
 		bulletins, err := mapToSecurityBulletins(xmlResult)
 		require.NoError(t, err)
@@ -1203,19 +1210,19 @@ func TestParser(t *testing.T) {
 		})
 	})
 
-	t.Run("parseMSRCXMLFeed", func(t *testing.T) {
+	t.Run("parseXML", func(t *testing.T) {
 		t.Run("only windows products are included", func(t *testing.T) {
-			var expected []msrc_input.ProductXML
+			var expected []msrc_xml.Product
 			for _, grp := range expectedProducts {
 				for pID, pFn := range grp {
 					expected = append(
 						expected,
-						msrc_input.ProductXML{ProductID: pID, FullName: pFn},
+						msrc_xml.Product{ProductID: pID, FullName: pFn},
 					)
 				}
 			}
 
-			var actual []msrc_input.ProductXML
+			var actual []msrc_xml.Product
 			for _, v := range xmlResult.WinProducts {
 				actual = append(actual, v)
 			}
@@ -1258,7 +1265,7 @@ func TestParser(t *testing.T) {
 
 		t.Run("the remediations are parsed correctly", func(t *testing.T) {
 			// Check the remediations of a random CVE (CVE-2022-29126)
-			expectedRemediations := []msrc_input.VulnerabilityRemediationXML{
+			expectedRemediations := []msrc_xml.VulnerabilityRemediation{
 				{
 					Type:            "Vendor Fix",
 					FixedBuild:      "10.0.17763.2928",

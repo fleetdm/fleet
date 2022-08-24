@@ -1,14 +1,8 @@
 package msrc_parsed
 
-import (
-	"time"
-)
-
 type SecurityBulletin struct {
-	// The name portion of the full product name. We will have one bulletin per 'product' name (e.g. Windows 10)
+	// The 'product' name this bulletin targets (e.g. Windows 10)
 	ProductName string
-	// When was the bulletin last updated.
-	LastUpdated time.Time
 	// All products contained in this bulletin (Product ID => Product full name).
 	// We can have many different 'products' under a single name, for example, for 'Windows 10':
 	// - Windows 10 Version 1809 for 32-bit Systems
@@ -23,7 +17,6 @@ type SecurityBulletin struct {
 func NewSecurityBulletin(pName string) *SecurityBulletin {
 	return &SecurityBulletin{
 		ProductName:   pName,
-		LastUpdated:   time.Now().UTC(),
 		Products:      make(map[string]string),
 		Vulnerabities: make(map[string]Vulnerability),
 		VendorFixes:   make(map[int]VendorFix),
@@ -47,10 +40,11 @@ func NewVulnerability(publishedDateEpoch *int64) Vulnerability {
 }
 
 type VendorFix struct {
+	// TODO (juan): Do we need this?
 	FixedBuild string
 	ProductIDs map[string]bool
-	// Reference to what vendor fix this particular vendor fix 'replaces'.
-	Supersedes *int
+	// A Reference to what vendor fix this particular vendor fix 'replaces'.
+	Supersedes *int `json:",omitempty"`
 }
 
 func NewVendorFix(fixedBuild string) VendorFix {

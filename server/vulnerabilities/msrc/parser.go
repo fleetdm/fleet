@@ -7,41 +7,42 @@ import (
 	"os"
 	"strconv"
 
-	msrc_input "github.com/fleetdm/fleet/v4/server/vulnerabilities/msrc/input"
 	msrc_parsed "github.com/fleetdm/fleet/v4/server/vulnerabilities/msrc/parsed"
+	msrc_xml "github.com/fleetdm/fleet/v4/server/vulnerabilities/msrc/xml"
 )
 
-func parseMSRC(inputFile string, outputFile string) error {
-	r, err := os.Open(inputFile)
+func parseFeed(feedFilePath string) (map[string]*msrc_parsed.SecurityBulletin, error) {
+	r, err := os.Open(feedFilePath)
 	if err != nil {
-		return fmt.Errorf("oval parser: %w", err)
+		return nil, fmt.Errorf("msrc parser: %w", err)
 	}
 	defer r.Close()
 
-	parseMSRCXMLFeed(r)
+	feedResultXML, err := parseXML(r)
+	if err != nil {
+		return nil, fmt.Errorf("msrc parser: %w", err)
+	}
 
-	// if err != nil {
-	// 	return fmt.Errorf("msrc parser: %w", err)
-	// }
+	bulletins, err := mapToSecurityBulletins(feedResultXML)
+	if err != nil {
+		return nil, fmt.Errorf("msrc parser: %w", err)
+	}
 
-	// err = ioutil.WriteFile(outputFile, payload, 0o644)
-	// if err != nil {
-	// 	return fmt.Errorf("msrc parser: %w", err)
-	// }
-
-	return nil
+	return bulletins, nil
 }
 
-func mapToSecurityBulletins(rXML *msrc_input.ResultXML) (map[string]*msrc_parsed.SecurityBulletin, error) {
+func mapToSecurityBulletins(rXML *msrc_xml.FeedResult) (map[string]*msrc_parsed.SecurityBulletin, error) {
 	// We will have one bulletin for each product.
 	bulletins := make(map[string]*msrc_parsed.SecurityBulletin)
+	pIDToPName := make(map[string]string)
 
 	for pID, p := range rXML.WinProducts {
-		name := NameFromFullProdName(p.FullName)
+		name := msrc_parsed.NewFullProductName(p.FullName).Name()
 		if bulletins[name] == nil {
 			bulletins[name] = msrc_parsed.NewSecurityBulletin(name)
 		}
 		bulletins[name].Products[pID] = p.FullName
+		pIDToPName[pID] = name
 	}
 
 	for _, v := range rXML.WinVulnerabities {
@@ -71,8 +72,7 @@ func mapToSecurityBulletins(rXML *msrc_input.ResultXML) (map[string]*msrc_parsed
 			for _, pID := range rem.ProductIDs {
 				// Get the bulletin for the current product ID, skip further processing if is a
 				// non-windows product.
-				name := NameFromFullProdName(rXML.WinProducts[pID].FullName)
-				b, ok := bulletins[name]
+				b, ok := bulletins[pIDToPName[pID]]
 				if !ok {
 					continue
 				}
@@ -105,9 +105,9 @@ func mapToSecurityBulletins(rXML *msrc_input.ResultXML) (map[string]*msrc_parsed
 	return bulletins, nil
 }
 
-func parseMSRCXMLFeed(reader io.Reader) (*msrc_input.ResultXML, error) {
-	r := &msrc_input.ResultXML{
-		WinProducts: map[string]msrc_input.ProductXML{},
+func parseXML(reader io.Reader) (*msrc_xml.FeedResult, error) {
+	r := &msrc_xml.FeedResult{
+		WinProducts: map[string]msrc_xml.Product{},
 	}
 	d := xml.NewDecoder(reader)
 
@@ -123,7 +123,7 @@ func parseMSRCXMLFeed(reader io.Reader) (*msrc_input.ResultXML, error) {
 		switch t := t.(type) {
 		case xml.StartElement:
 			if t.Name.Local == "Branch" {
-				branch := msrc_input.ProductBranchXML{}
+				branch := msrc_xml.ProductBranch{}
 				if err = d.DecodeElement(&branch, &t); err != nil {
 					return nil, err
 				}
@@ -134,7 +134,7 @@ func parseMSRCXMLFeed(reader io.Reader) (*msrc_input.ResultXML, error) {
 			}
 
 			if t.Name.Local == "Vulnerability" {
-				vuln := msrc_input.VulnerabilityXML{}
+				vuln := msrc_xml.Vulnerability{}
 				if err = d.DecodeElement(&vuln, &t); err != nil {
 					return nil, err
 				}

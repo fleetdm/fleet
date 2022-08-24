@@ -1,4 +1,4 @@
-package msrc
+package msrc_parsed
 
 import (
 	"testing"
@@ -6,28 +6,86 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestMicrosoftProduct(t *testing.T) {
+func TestFullProductName(t *testing.T) {
 	testCases := []struct {
 		fullName string
 		arch     string
 		prodName string
 	}{
-		{fullName: "Windows 10 Version 1809 for 32-bit Systems", arch: "32-bit", prodName: "Windows 10"},
-		{fullName: "Windows 10 Version 1809 for x64-based Systems", arch: "64-bit", prodName: "Windows 10"},
-		{fullName: "Windows 10 Version 1809 for ARM64-based Systems", arch: "arm64", prodName: "Windows 10"},
-		{fullName: "Windows Server 2019", arch: "all", prodName: "Windows Server 2019"},
-		{fullName: "Windows Server 2019  (Server Core installation)", arch: "all", prodName: "Windows Server 2019"},
-		{fullName: "Windows 10 Version 1909 for 32-bit Systems", arch: "32-bit", prodName: "Windows 10"},
-		{fullName: "Windows 10 Version 1909 for x64-based Systems", arch: "64-bit", prodName: "Windows 10"},
-		{fullName: "Windows 10 Version 1909 for ARM64-based Systems", arch: "arm64", prodName: "Windows 10"},
-		{fullName: "Windows 10 Version 21H1 for x64-based Systems", arch: "64-bit", prodName: "Windows 10"},
-		{fullName: "Windows 10 Version 21H1 for ARM64-based Systems", arch: "arm64", prodName: "Windows 10"},
-		{fullName: "Windows 10 Version 21H1 for 32-bit Systems", arch: "32-bit", prodName: "Windows 10"},
-		{fullName: "Windows Server 2022", arch: "all", prodName: "Windows Server 2022"},
-		{fullName: "Windows Server 2022 (Server Core installation)", arch: "all", prodName: "Windows Server 2022"},
-		{fullName: "Windows 10 Version 20H2 for x64-based Systems", arch: "64-bit", prodName: "Windows 10"},
-		{fullName: "Windows 10 Version 20H2 for 32-bit Systems", arch: "32-bit", prodName: "Windows 10"},
-		{fullName: "Windows 10 Version 20H2 for ARM64-based Systems", arch: "arm64", prodName: "Windows 10"},
+		{
+			fullName: "Windows 10 Version 1809 for 32-bit Systems",
+			arch:     "32-bit",
+			prodName: "Windows 10",
+		},
+		{
+			fullName: "Windows 10 Version 1809 for x64-based Systems",
+			arch:     "64-bit",
+			prodName: "Windows 10",
+		},
+		{
+			fullName: "Windows 10 Version 1809 for ARM64-based Systems",
+			arch:     "arm64",
+			prodName: "Windows 10",
+		},
+		{
+			fullName: "Windows Server 2019",
+			arch:     "all",
+			prodName: "Windows Server 2019",
+		},
+		{
+			fullName: "Windows Server 2019  (Server Core installation)",
+			arch:     "all",
+			prodName: "Windows Server 2019",
+		},
+		{
+			fullName: "Windows 10 Version 1909 for 32-bit Systems",
+			arch:     "32-bit",
+			prodName: "Windows 10",
+		},
+		{
+			fullName: "Windows 10 Version 1909 for x64-based Systems",
+			arch:     "64-bit",
+			prodName: "Windows 10",
+		},
+		{
+			fullName: "Windows 10 Version 1909 for ARM64-based Systems",
+			arch:     "arm64",
+			prodName: "Windows 10",
+		},
+		{
+			fullName: "Windows 10 Version 21H1 for x64-based Systems",
+			arch:     "64-bit",
+			prodName: "Windows 10",
+		},
+		{
+			fullName: "Windows 10 Version 21H1 for ARM64-based Systems",
+			arch:     "arm64",
+			prodName: "Windows 10",
+		},
+		{
+			fullName: "Windows 10 Version 21H1 for 32-bit Systems",
+			arch:     "32-bit",
+			prodName: "Windows 10",
+		},
+		{
+			fullName: "Windows Server 2022",
+			arch:     "all",
+			prodName: "Windows Server 2022",
+		},
+		{
+			fullName: "Windows Server 2022 (Server Core installation)",
+			arch:     "all",
+			prodName: "Windows Server 2022",
+		},
+		{
+			fullName: "Windows 10 Version 20H2 for x64-based Systems", arch: "64-bit", prodName: "Windows 10",
+		},
+		{
+			fullName: "Windows 10 Version 20H2 for 32-bit Systems", arch: "32-bit", prodName: "Windows 10",
+		},
+		{
+			fullName: "Windows 10 Version 20H2 for ARM64-based Systems", arch: "arm64", prodName: "Windows 10",
+		},
 		{fullName: "Windows Server, version 20H2 (Server Core Installation)", arch: "all", prodName: "Windows Server"},
 		{fullName: "Windows 11 for x64-based Systems", arch: "64-bit", prodName: "Windows 11"},
 		{fullName: "Windows 11 for ARM64-based Systems", arch: "arm64", prodName: "Windows 11"},
@@ -85,13 +143,15 @@ func TestMicrosoftProduct(t *testing.T) {
 
 	t.Run("#ArchFromProdName", func(t *testing.T) {
 		for _, tCase := range testCases {
-			require.Equal(t, tCase.arch, ArchFromFullProdName(tCase.fullName), tCase)
+			sut := NewFullProductName(tCase.fullName)
+			require.Equal(t, tCase.arch, sut.Arch(), tCase)
 		}
 	})
 
 	t.Run("#NameFromFullProdName", func(t *testing.T) {
 		for _, tCase := range testCases {
-			require.Equal(t, tCase.prodName, NameFromFullProdName(tCase.fullName), tCase)
+			sut := NewFullProductName(tCase.fullName)
+			require.Equal(t, tCase.prodName, sut.Name(), tCase)
 		}
 	})
 }
