@@ -30,6 +30,7 @@ type CarveStore interface {
 type InstallerStore interface {
 	Get(ctx context.Context, installer Installer) (io.ReadCloser, int64, error)
 	Put(ctx context.Context, installer Installer) (string, error)
+	Exists(ctx context.Context, installer Installer) (bool, error)
 }
 
 // Datastore combines all the interfaces in the Fleet DAL
@@ -247,7 +248,7 @@ type Datastore interface {
 	AggregatedMDMSolutions(ctx context.Context, teamID *uint) ([]AggregatedMDMSolutions, time.Time, error)
 	GenerateAggregatedMunkiAndMDM(ctx context.Context) error
 
-	OSVersions(ctx context.Context, teamID *uint, platform *string) (*OSVersions, error)
+	OSVersions(ctx context.Context, teamID *uint, platform *string, name *string, version *string) (*OSVersions, error)
 	UpdateOSVersions(ctx context.Context) error
 
 	///////////////////////////////////////////////////////////////////////////////
@@ -377,7 +378,7 @@ type Datastore interface {
 	LoadHostSoftware(ctx context.Context, host *Host, includeCVEScores bool) error
 	AllSoftwareWithoutCPEIterator(ctx context.Context, excludedPlatforms []string) (SoftwareIterator, error)
 	AddCPEForSoftware(ctx context.Context, software Software, cpe string) error
-	ListSoftwareCPEs(ctx context.Context, excludedPlatforms []string) ([]SoftwareCPE, error)
+	ListSoftwareCPEs(ctx context.Context) ([]SoftwareCPE, error)
 	// InsertVulnerabilities inserts the given vulnerabilities in the datastore, returns the number
 	// of rows inserted. If a vulnerability already exists in the datastore, then it will be ignored.
 	InsertVulnerabilities(ctx context.Context, vulns []SoftwareVulnerability, source VulnerabilitySource) (int64, error)
@@ -411,6 +412,11 @@ type Datastore interface {
 	// associated with the given name, version, arch, and kernel version,
 	// a new record is also created.
 	UpdateHostOperatingSystem(ctx context.Context, hostID uint, hostOS OperatingSystem) error
+	// CleanupHostOperatingSystems removes records from the host_operating_system table that are
+	// associated with any non-existent host (e.g., expired hosts) and removes records from the
+	// operating_systems table that no longer associated with any host (e.g., all hosts have
+	// upgraded from a prior version).
+	CleanupHostOperatingSystems(ctx context.Context) error
 
 	///////////////////////////////////////////////////////////////////////////////
 	// ActivitiesStore

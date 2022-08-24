@@ -5,7 +5,7 @@ contributors. The purpose of the growth team is to own and improve the growth fu
 
 ## Positioning
 
-Effective market positioning is crucial to the growth of any software product. Fleet needs to maintain a unique, valuable position in the minds of our users. We keep assertions on our positioning in this [Google Doc](https://docs.google.com/document/d/1sttTxm6B-acvZuQuGt7kkKn-_IVXM0sLwStnjnpIU9Y/edit?usp=sharing) (private). We will update it quarterly based on the feedback of users, customers, team members, and other stakeholders. Feedback can be provided as a comment in the document or by posting in the `#g-growth` Slack channel. 
+Effective market positioning is crucial to the growth of any software product. Fleet needs to maintain a unique, valuable position in the minds of our users. We keep assertions on our positioning in this [Google Doc](https://docs.google.com/document/d/177Q4_2FY5Vm7Nd3ne32vOKTQqYfDG0p_ouklvl3PnWc/edit) (private). We will update it quarterly based on the feedback of users, customers, team members, and other stakeholders. Feedback can be provided as a comment in the document or by posting in the `#g-growth` Slack channel. 
 
 ## Marketing Qualified Opportunities (MQOs)
 

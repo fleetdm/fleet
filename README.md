@@ -8,22 +8,12 @@ Fleet is the lightweight, open source telemetry platform for servers and worksta
 
 ## Try Fleet
 
-#### With [Node.js](https://nodejs.org/en/download/) and [Docker](https://docs.docker.com/get-docker/) installed:
-
-```bash
-# Install the Fleet command-line tool
-sudo npm install -g fleetctl
-# Run a local demo of the Fleet server
-sudo fleetctl preview
-```
-
-> Windows users can omit `sudo`, and should run the command in `Cmd`/`PowerShell` as administrators.
-
-The Fleet UI is now available at http://localhost:1337.
+Head to [fleetdm.com/try-fleet](https://fleetdm.com/try-fleet/register) to fire up a one-off cloud instance for quickly trying out Fleet.
 
 #### Now what?
 
-Check out the [Ask questions about your devices tutorial](./docs/Using-Fleet/Learn-how-to-use-Fleet.md#how-to-ask-questions-about-your-devices) to learn where to see your devices in Fleet, how to add Fleet's standard query library, and how to ask questions about your devices by running queries.
+Check out the [Learn how to use Fleet doc](https://fleetdm.com/docs/using-fleet/learn-how-to-use-fleet)
+to learn how to add your device to Fleet and how to ask questions about your devices by running queries.
 
 ## Team
 Fleet is [independently backed](https://linkedin.com/company/fleetdm) and actively maintained with the help of many amazing [contributors](https://github.com/fleetdm/fleet/graphs/contributors).

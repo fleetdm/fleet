@@ -17,6 +17,11 @@ export interface IHostCountLoadOptions {
   policyId?: number;
   policyResponse?: string;
   softwareId?: number;
+  mdmId?: number;
+  mdmEnrollmentStatus?: string;
+  os_id?: number;
+  os_name?: string;
+  os_version?: string;
 }
 
 export default {
@@ -29,6 +34,9 @@ export default {
     const policyResponse = options?.policyResponse || null;
     const selectedLabels = options?.selectedLabels || [];
     const softwareId = options?.softwareId || null;
+    const mdmId = options?.mdmId || null;
+    const mdmEnrollmentStatus = options?.mdmEnrollmentStatus || null;
+    const { os_id, os_name, os_version } = options || {};
 
     const labelPrefix = "labels/";
 
@@ -66,6 +74,24 @@ export default {
     // TODO: consider how to check for mutually exclusive scenarios with label, policy and software
     if (!label && !policyId && softwareId) {
       queryString += `&software_id=${softwareId}`;
+    }
+
+    if (!label && !policyId && mdmId) {
+      queryString += `&mdm_id=${mdmId}`;
+    }
+
+    if (!label && !policyId && mdmEnrollmentStatus) {
+      queryString += `&mdm_enrollment_status=${mdmEnrollmentStatus}`;
+    }
+
+    if (!label && !policyId && !softwareId && !mdmId && !mdmEnrollmentStatus) {
+      if (os_id) {
+        queryString += `&os_id=${os_id}`;
+      } else if (os_name && os_version) {
+        queryString += `&os_name=${encodeURIComponent(
+          os_name
+        )}&os_version=${encodeURIComponent(os_version)}`;
+      }
     }
 
     // Append query string to endpoint route after slicing off the leading ampersand

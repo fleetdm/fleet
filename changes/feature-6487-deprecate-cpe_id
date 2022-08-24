@@ -1,2 +1,0 @@
-- Deprecates the 'cpe_id' column on the 'software_cve' column in favor of the newly added
-'software_id' column.

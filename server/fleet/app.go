@@ -1,8 +1,11 @@
 package fleet
 
 import (
+	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
+	"io"
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server/config"
@@ -106,6 +109,9 @@ type VulnerabilitySettings struct {
 }
 
 // AppConfig holds server configuration that can be changed via the API.
+//
+// Note: management of deprecated fields is done on JSON-marshalling and uses
+// the legacyConfig struct to list them.
 type AppConfig struct {
 	OrgInfo            OrgInfo            `json:"org_info"`
 	ServerSettings     ServerSettings     `json:"server_settings"`
@@ -125,6 +131,13 @@ type AppConfig struct {
 
 	WebhookSettings WebhookSettings `json:"webhook_settings"`
 	Integrations    Integrations    `json:"integrations"`
+
+	strictDecoding bool
+}
+
+// legacyConfig holds settings that have been replaced, superceded or
+// deprecated by other AppConfig settings.
+type legacyConfig struct {
 }
 
 // EnrichedAppConfig contains the AppConfig along with additional fleet
@@ -132,11 +145,32 @@ type AppConfig struct {
 // "GET /api/latest/fleet/config" API endpoint (and fleetctl get config).
 type EnrichedAppConfig struct {
 	AppConfig
+	enrichedAppConfigFields
+}
 
+// enrichedAppConfigFields are grouped separately to aid with JSON unmarshaling
+type enrichedAppConfigFields struct {
 	UpdateInterval  *UpdateIntervalConfig  `json:"update_interval,omitempty"`
 	Vulnerabilities *VulnerabilitiesConfig `json:"vulnerabilities,omitempty"`
 	License         *LicenseInfo           `json:"license,omitempty"`
 	Logging         *Logging               `json:"logging,omitempty"`
+}
+
+// UnmarshalJSON implements the json.Unmarshaler interface to make sure we serialize
+// both AppConfig and enrichedAppConfigFields properly:
+//
+// - If this function is not defined, AppConfig.UnmarshalJSON gets promoted and
+// will be called instead.
+// - If we try to unmarshal everything in one go, AppConfig.UnmarshalJSON doesn't get
+// called.
+func (e *EnrichedAppConfig) UnmarshalJSON(data []byte) error {
+	if err := json.Unmarshal(data, &e.AppConfig); err != nil {
+		return err
+	}
+	if err := json.Unmarshal(data, &e.enrichedAppConfigFields); err != nil {
+		return err
+	}
+	return nil
 }
 
 type Duration struct {
@@ -237,6 +271,44 @@ func (c *AppConfig) ApplyDefaultsForNewInstalls() {
 func (c *AppConfig) ApplyDefaults() {
 	c.HostSettings.EnableHostUsers = true
 	c.WebhookSettings.Interval.Duration = 24 * time.Hour
+}
+
+// EnableStrictDecoding enables strict decoding of the AppConfig struct.
+func (c *AppConfig) EnableStrictDecoding() { c.strictDecoding = true }
+
+// UnmarshalJSON implements the json.Unmarshaler interface.
+func (c *AppConfig) UnmarshalJSON(b []byte) error {
+	// Define a new type, this is to prevent infinite recursion when
+	// unmarshalling the AppConfig struct.
+	type cfgStructUnmarshal AppConfig
+	compatConfig := struct {
+		*legacyConfig
+		*cfgStructUnmarshal
+	}{
+		&legacyConfig{},
+		(*cfgStructUnmarshal)(c),
+	}
+
+	decoder := json.NewDecoder(bytes.NewReader(b))
+	if c.strictDecoding {
+		decoder.DisallowUnknownFields()
+	}
+	if err := decoder.Decode(&compatConfig); err != nil {
+		return err
+	}
+	if _, err := decoder.Token(); err != io.EOF {
+		return errors.New("unexpected extra tokens found in config")
+	}
+
+	// TODO(roperzh): define and assign legacy settings to new fields. This has
+	// the drawback of legacy fields taking precedence over new fields if both
+	// are defined. Eg:
+	//
+	//	if compatConfig.legacyConfig.HostSettings != nil {
+	//		c.Features = *compatConfig.legacyConfig.HostSettings
+	//	}
+
+	return nil
 }
 
 // OrgInfo contains general info about the organization using Fleet.

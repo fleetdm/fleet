@@ -26,7 +26,6 @@ interface IPoliciesTableProps {
   isLoading: boolean;
   onAddPolicyClick?: () => void;
   onDeletePoliciesClick: (selectedTableIds: number[]) => void;
-  resultsTitle?: string;
   canAddOrDeletePolicy?: boolean;
   tableType?: string;
   currentTeam: ITeamSummary | undefined;
@@ -38,7 +37,6 @@ const PoliciesTable = ({
   isLoading,
   onAddPolicyClick,
   onDeletePoliciesClick,
-  resultsTitle,
   canAddOrDeletePolicy,
   tableType,
   currentTeam,
@@ -116,7 +114,7 @@ const PoliciesTable = ({
         <Spinner />
       ) : (
         <TableContainer
-          resultsTitle={resultsTitle || "policies"}
+          resultsTitle={"policies"}
           columns={generateTableHeaders({
             selectedTeamId: currentTeam?.id,
             canAddOrDeletePolicy,
@@ -133,7 +131,6 @@ const PoliciesTable = ({
           manualSortBy
           showMarkAllPages={false}
           isAllPagesSelected={false}
-          disablePagination
           onPrimarySelectActionClick={onDeletePoliciesClick}
           primarySelectActionButtonVariant="text-icon"
           primarySelectActionButtonIcon="delete"
@@ -141,6 +138,7 @@ const PoliciesTable = ({
           emptyComponent={NoPolicies}
           onQueryChange={noop}
           disableCount={tableType === "inheritedPolicies"}
+          isClientSidePagination
         />
       )}
     </div>

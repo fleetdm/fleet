@@ -289,6 +289,7 @@ var hostRefs = []string{
 	"host_munki_info",
 	"host_device_auth",
 	"host_batteries",
+	"host_operating_system",
 }
 
 func (ds *Datastore) DeleteHost(ctx context.Context, hid uint) error {
@@ -504,6 +505,11 @@ func (ds *Datastore) applyHostFilters(opt fleet.HostListOptions, sql string, fil
 		mdmJoin = ""
 	}
 
+	operatingSystemJoin := ""
+	if opt.OSIDFilter != nil || (opt.OSNameFilter != nil && opt.OSVersionFilter != nil) {
+		operatingSystemJoin = `JOIN host_operating_system hos ON h.id = hos.host_id`
+	}
+
 	sql += fmt.Sprintf(`FROM hosts h
 		LEFT JOIN host_seen_times hst ON (h.id = hst.host_id)
 		LEFT JOIN teams t ON (h.team_id = t.id)
@@ -511,14 +517,16 @@ func (ds *Datastore) applyHostFilters(opt fleet.HostListOptions, sql string, fil
 		%s
 		%s
 		%s
+		%s
 		WHERE TRUE AND %s AND %s
-    `, deviceMappingJoin, policyMembershipJoin, failingPoliciesJoin, mdmJoin, ds.whereFilterHostsByTeams(filter, "h"), softwareFilter,
+    `, deviceMappingJoin, policyMembershipJoin, failingPoliciesJoin, mdmJoin, operatingSystemJoin, ds.whereFilterHostsByTeams(filter, "h"), softwareFilter,
 	)
 
 	sql, params = filterHostsByStatus(sql, opt, params)
 	sql, params = filterHostsByTeam(sql, opt, params)
 	sql, params = filterHostsByPolicy(sql, opt, params)
 	sql, params = filterHostsByMDM(sql, opt, params)
+	sql, params = filterHostsByOS(sql, opt, params)
 	sql, params = hostSearchLike(sql, params, opt.MatchQuery, hostSearchColumns...)
 	sql, params = appendListOptionsWithCursorToSQL(sql, params, opt.ListOptions)
 
@@ -547,6 +555,17 @@ func filterHostsByMDM(sql string, opt fleet.HostListOptions, params []interface{
 		case fleet.MDMEnrollStatusUnenrolled:
 			sql += ` AND hmdm.enrolled = 0`
 		}
+	}
+	return sql, params
+}
+
+func filterHostsByOS(sql string, opt fleet.HostListOptions, params []interface{}) (string, []interface{}) {
+	if opt.OSIDFilter != nil {
+		sql += ` AND hos.os_id = ?`
+		params = append(params, *opt.OSIDFilter)
+	} else if opt.OSNameFilter != nil && opt.OSVersionFilter != nil {
+		sql += ` AND hos.os_id IN (SELECT id FROM operating_systems WHERE name = ? AND version = ?)`
+		params = append(params, *opt.OSNameFilter, *opt.OSVersionFilter)
 	}
 	return sql, params
 }
@@ -717,7 +736,9 @@ func (ds *Datastore) EnrollHost(ctx context.Context, osqueryHostID, nodeKey stri
 		case err != nil && !errors.Is(err, sql.ErrNoRows):
 			return ctxerr.Wrap(ctx, err, "check existing")
 		case errors.Is(err, sql.ErrNoRows):
-			// Create new host record
+			// Create new host record. We always create newly enrolled hosts with refetch_requested = true
+			// so that the frontend automatically starts background checks to update the page whenever
+			// the refetch is completed.
 			sqlInsert := `
 				INSERT INTO hosts (
 					detail_updated_at,
@@ -725,8 +746,9 @@ func (ds *Datastore) EnrollHost(ctx context.Context, osqueryHostID, nodeKey stri
 					policy_updated_at,
 					osquery_host_id,
 					node_key,
-					team_id
-				) VALUES (?, ?, ?, ?, ?, ?)
+					team_id,
+					refetch_requested
+				) VALUES (?, ?, ?, ?, ?, ?, 1)
 			`
 			result, err := tx.ExecContext(ctx, sqlInsert, zeroTime, zeroTime, zeroTime, osqueryHostID, nodeKey, teamID)
 			if err != nil {
@@ -1862,8 +1884,18 @@ func (ds *Datastore) UpdateHost(ctx context.Context, host *fleet.Host) error {
 	return nil
 }
 
-// OSVersions gets the aggregated os version host counts. If a non-nil teamID is passed, it will filter hosts by team.
-func (ds *Datastore) OSVersions(ctx context.Context, teamID *uint, platform *string) (*fleet.OSVersions, error) {
+// OSVersions gets the aggregated os version host counts. Records with the same name and version are combined into one count (e.g.,
+// counts for the same macOS version on x86_64 and arm64 architectures are counted together.
+// Results can be filtered using the following optional criteria: team id, platform, or name and
+// version. Name cannot be used without version, and conversely, version cannot be used without name.
+func (ds *Datastore) OSVersions(ctx context.Context, teamID *uint, platform *string, name *string, version *string) (*fleet.OSVersions, error) {
+	if name != nil && version == nil {
+		return nil, errors.New("invalid usage: cannot filter by name without version")
+	}
+	if name == nil && version != nil {
+		return nil, errors.New("invalid usage: cannot filter by version without name")
+	}
+
 	query := `
 SELECT
     json_value,
@@ -1894,104 +1926,157 @@ WHERE
 		return nil, err
 	}
 
-	osVersions := &fleet.OSVersions{
+	res := &fleet.OSVersions{
 		CountsUpdatedAt: row.UpdatedAt,
+		OSVersions:      []fleet.OSVersion{},
 	}
 
+	var counts []fleet.OSVersion
 	if row.JSONValue != nil {
-		err := json.Unmarshal(*row.JSONValue, &osVersions.OSVersions)
-		if err != nil {
-			return nil, err
+		if err := json.Unmarshal(*row.JSONValue, &counts); err != nil {
+			return nil, ctxerr.Wrap(ctx, err)
 		}
 	}
 
-	// filter by os versions by platform
+	// filter counts by platform
 	if platform != nil {
 		var filtered []fleet.OSVersion
-		for _, osVersion := range osVersions.OSVersions {
-			if *platform == osVersion.Platform {
-				filtered = append(filtered, osVersion)
+		for _, os := range counts {
+			if *platform == os.Platform {
+				filtered = append(filtered, os)
 			}
 		}
-		osVersions.OSVersions = filtered
+		counts = filtered
+	}
+
+	// aggregate counts by name and version
+	byNameVers := make(map[string]fleet.OSVersion)
+	for _, os := range counts {
+		if name != nil &&
+			version != nil &&
+			*name != os.NameOnly &&
+			*version != os.Version {
+			continue
+		}
+		key := fmt.Sprintf("%s %s", os.NameOnly, os.Version)
+		val, ok := byNameVers[key]
+		if !ok {
+			// omit os id
+			byNameVers[key] = fleet.OSVersion{Name: os.Name, NameOnly: os.NameOnly, Version: os.Version, Platform: os.Platform, HostsCount: os.HostsCount}
+		} else {
+			newVal := val
+			newVal.HostsCount += os.HostsCount
+			byNameVers[key] = newVal
+		}
+	}
+
+	for _, os := range byNameVers {
+		res.OSVersions = append(res.OSVersions, os)
 	}
 
 	// Sort by os versions. We can't control the order when using json_arrayagg
 	// See https://dev.mysql.com/doc/refman/5.7/en/aggregate-functions.html#function_json-arrayagg.
-	sort.Slice(osVersions.OSVersions, func(i, j int) bool { return osVersions.OSVersions[i].Name < osVersions.OSVersions[j].Name })
+	sort.Slice(res.OSVersions, func(i, j int) bool { return res.OSVersions[i].Name < res.OSVersions[j].Name })
 
-	return osVersions, nil
+	return res, nil
 }
 
 // Aggregated stats for os versions are stored by team id with 0 representing the global case
 // If existing team has no hosts, we explicity set the json value as an empty array
 func (ds *Datastore) UpdateOSVersions(ctx context.Context) error {
-	sql := `
-INSERT INTO aggregated_stats (id, type, json_value)
-SELECT
-  team_id id,
-  'os_versions' type,
-  COALESCE(
-    CONCAT('[', GROUP_CONCAT(
-      JSON_OBJECT(
-        'hosts_count', hosts_count,
-        'name', name,
-        'platform', platform
-      )
-    ), ']'),
-    JSON_ARRAY()
-  ) json_value
-FROM
-  (
-    SELECT
-      COUNT(*) hosts_count,
-      h.os_version name,
-      h.platform,
-      0 team_id
-    FROM
-      hosts h
-    GROUP BY
-      h.os_version,
-      h.platform
-    UNION
-    SELECT
-      COUNT(*) hosts_count,
-      h.os_version name,
-      h.platform,
-      h.team_id
-    FROM
-      hosts h
-      JOIN teams t ON t.id = h.team_id
-    GROUP BY
-      h.os_version,
-      h.platform,
-      h.team_id
-  ) as team_os_versions
-GROUP BY
-  team_id
-UNION
-SELECT
-  t.id,
-  'os_versions' type,
-  JSON_ARRAY() json_value
-FROM
-  teams t
-WHERE NOT EXISTS (
-  SELECT
-    id
-  FROM
-    hosts h
-  WHERE
-    t.id = h.team_id
-)
-ON DUPLICATE KEY UPDATE
-  json_value = VALUES(json_value),
-  updated_at = CURRENT_TIMESTAMP
-`
+	selectStmt := `
+	SELECT
+		COUNT(*) hosts_count,
+		h.team_id,
+		os.id,
+		os.name,
+		os.version,
+		os.platform
+	FROM hosts h
+	JOIN host_operating_system hos ON h.id = hos.host_id
+	JOIN operating_systems os ON hos.os_id = os.id
+	GROUP BY team_id, os.id
+	`
 
-	_, err := ds.writer.ExecContext(ctx, sql)
-	if err != nil {
-		return ctxerr.Wrapf(ctx, err, "update aggregated stats for os versions")
+	var rows []struct {
+		HostsCount int    `db:"hosts_count"`
+		Name       string `db:"name"`
+		Version    string `db:"version"`
+		Platform   string `db:"platform"`
+		ID         uint   `db:"id"`
+		TeamID     *uint  `db:"team_id"`
+	}
+	if err := sqlx.SelectContext(ctx, ds.reader, &rows, selectStmt); err != nil {
+		return ctxerr.Wrap(ctx, err, "update os versions")
+	}
+
+	// each team has a slice of stats with team host counts per os version
+	statsByTeamID := make(map[uint][]fleet.OSVersion)
+	// stats are also aggregated globally per os version
+	globalStats := make(map[uint]fleet.OSVersion)
+
+	for _, r := range rows {
+		os := fleet.OSVersion{
+			HostsCount: r.HostsCount,
+			Name:       fmt.Sprintf("%s %s", r.Name, r.Version),
+			NameOnly:   r.Name,
+			Version:    r.Version,
+			Platform:   r.Platform,
+			ID:         r.ID,
+		}
+		// increment global stats
+		if _, ok := globalStats[os.ID]; !ok {
+			globalStats[os.ID] = os
+		} else {
+			newStats := globalStats[os.ID]
+			newStats.HostsCount += r.HostsCount
+			globalStats[os.ID] = newStats
+		}
+		// push to team stats if applicable
+		if r.TeamID != nil {
+			statsByTeamID[*r.TeamID] = append(statsByTeamID[*r.TeamID], os)
+		}
+	}
+
+	// if an existing team has no hosts assigned, we still want to store empty stats
+	var teamIDs []uint
+	if err := sqlx.SelectContext(ctx, ds.reader, &teamIDs, "SELECT id FROM teams"); err != nil {
+		return ctxerr.Wrap(ctx, err, "update os versions")
+	}
+	for _, id := range teamIDs {
+		if _, ok := statsByTeamID[id]; !ok {
+			statsByTeamID[id] = []fleet.OSVersion{}
+		}
+	}
+
+	// global stats are stored under id 0
+	for _, os := range globalStats {
+		statsByTeamID[0] = append(statsByTeamID[0], os)
+	}
+
+	// nothing to do so return early
+	if len(statsByTeamID) < 1 {
+		// log to help troubleshooting in case this happens
+		level.Info(ds.logger).Log("msg", "Cannot update aggregated stats for os versions: Check for records in operating_systems and host_perating_systems.")
+		return nil
+	}
+
+	// assemble values as arguments for insert statement
+	args := make([]interface{}, 0, len(statsByTeamID)*3)
+	for id, stats := range statsByTeamID {
+		jsonValue, err := json.Marshal(stats)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "marshal os version stats")
+		}
+		args = append(args, id, "os_versions", jsonValue)
+	}
+
+	insertStmt := "INSERT INTO aggregated_stats (id, type, json_value) VALUES "
+	insertStmt += strings.TrimSuffix(strings.Repeat("(?,?,?),", len(statsByTeamID)), ",")
+	insertStmt += " ON DUPLICATE KEY UPDATE json_value = VALUES(json_value), updated_at = CURRENT_TIMESTAMP"
+
+	if _, err := ds.writer.ExecContext(ctx, insertStmt, args...); err != nil {
+		return ctxerr.Wrapf(ctx, err, "insert os versions into aggregated stats")
 	}
 
 	return nil
