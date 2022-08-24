@@ -325,6 +325,8 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte) (*fleet.AppCo
 		appConfig.FleetDesktop.TransparencyURL = ""
 	}
 
+	// TODO(mna): validate app config / agent options before saving
+
 	if err := svc.ds.SaveAppConfig(ctx, appConfig); err != nil {
 		return nil, err
 	}
