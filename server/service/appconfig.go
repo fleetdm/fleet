@@ -12,6 +12,7 @@ import (
 	"net"
 	"net/url"
 
+	"github.com/fleetdm/fleet/v4/server/authz"
 	authz_ctx "github.com/fleetdm/fleet/v4/server/contexts/authz"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
@@ -81,7 +82,7 @@ func getAppConfigEndpoint(ctx context.Context, request interface{}, svc fleet.Se
 
 	transparencyURL := fleet.DefaultTransparencyURL
 	// Fleet Premium license is required for custom transparency url
-	if license.Tier == "premium" && config.FleetDesktop.TransparencyURL != "" {
+	if license.IsPremium() && config.FleetDesktop.TransparencyURL != "" {
 		transparencyURL = config.FleetDesktop.TransparencyURL
 	}
 	fleetDesktop := fleet.FleetDesktopSettings{TransparencyURL: transparencyURL}
@@ -201,6 +202,10 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte) (*fleet.AppCo
 	}
 
 	oldSmtpSettings := appConfig.SMTPSettings
+	oldAgentOptions := ""
+	if appConfig.AgentOptions != nil {
+		oldAgentOptions = string(*appConfig.AgentOptions)
+	}
 
 	storedJiraByProjectKey, err := fleet.IndexJiraIntegrations(appConfig.Integrations.Jira)
 	if err != nil {
@@ -232,7 +237,7 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte) (*fleet.AppCo
 		}
 	}
 
-	validateSSOSettings(newAppConfig, appConfig, invalid)
+	validateSSOSettings(newAppConfig, appConfig, invalid, license)
 	if invalid.HasErrors() {
 		return nil, ctxerr.Wrap(ctx, invalid)
 	}
@@ -306,10 +311,26 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte) (*fleet.AppCo
 		return nil, err
 	}
 
+	// if the agent options changed, create the corresponding activity
+	newAgentOptions := ""
+	if obfuscatedConfig.AgentOptions != nil {
+		newAgentOptions = string(*obfuscatedConfig.AgentOptions)
+	}
+	if oldAgentOptions != newAgentOptions {
+		if err := svc.ds.NewActivity(
+			ctx,
+			authz.UserFromContext(ctx),
+			fleet.ActivityTypeEditedAgentOptions,
+			&map[string]interface{}{"global": true, "team_id": nil, "team_name": nil},
+		); err != nil {
+			return nil, err
+		}
+	}
+
 	return obfuscatedConfig, nil
 }
 
-func validateSSOSettings(p fleet.AppConfig, existing *fleet.AppConfig, invalid *fleet.InvalidArgumentError) {
+func validateSSOSettings(p fleet.AppConfig, existing *fleet.AppConfig, invalid *fleet.InvalidArgumentError, license *fleet.LicenseInfo) {
 	if p.SSOSettings.EnableSSO {
 		if p.SSOSettings.Metadata == "" && p.SSOSettings.MetadataURL == "" {
 			if existing.SSOSettings.Metadata == "" && existing.SSOSettings.MetadataURL == "" {
@@ -332,6 +353,9 @@ func validateSSOSettings(p fleet.AppConfig, existing *fleet.AppConfig, invalid *
 			if existing.SSOSettings.IDPName == "" {
 				invalid.Append("idp_name", "required")
 			}
+		}
+		if !license.IsPremium() && p.SSOSettings.EnableJITProvisioning {
+			invalid.Append("enable_jit_provisioning", ErrMissingLicense.Error())
 		}
 	}
 }

@@ -258,6 +258,7 @@ resource "docker_registry_image" "deprovisioner" {
   build {
     context     = "${path.module}/deprovisioner/"
     pull_parent = true
+    platform    = "linux/amd64"
   }
 
   depends_on = [

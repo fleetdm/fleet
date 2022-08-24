@@ -274,7 +274,7 @@ const Homepage = (): JSX.Element => {
   });
 
   const MDMCard = useInfoCard({
-    title: "Mobile device management (MDM) enrollment",
+    title: "Mobile device management (MDM)",
     showTitle: showMDMUI,
     description: (
       <p>
@@ -304,8 +304,8 @@ const Homepage = (): JSX.Element => {
       <OperatingSystems
         currentTeamId={currentTeam?.id}
         selectedPlatform={selectedPlatform as IOsqueryPlatform}
-        setShowOperatingSystemsUI={setShowOperatingSystemsUI}
-        showOperatingSystemsUI={showOperatingSystemsUI}
+        showTitle={showOperatingSystemsUI}
+        setShowTitle={setShowOperatingSystemsUI}
       />
     ),
   });
@@ -336,7 +336,9 @@ const Homepage = (): JSX.Element => {
     </div>
   );
 
-  const windowsLayout = () => null;
+  const windowsLayout = () => (
+    <div className={`${baseClass}__section`}>{OperatingSystemsCard}</div>
+  );
   const linuxLayout = () => null;
 
   const renderCards = () => {

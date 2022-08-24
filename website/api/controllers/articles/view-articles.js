@@ -6,11 +6,11 @@ module.exports = {
 
   description: 'Display "Articles" page.',
 
+
   inputs: {
     category: {
       type: 'string',
-      required: false,
-      description: 'The category of article to display',
+      description: 'The category of article to display.',
       defaultsTo: '',
     }
   },

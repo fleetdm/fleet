@@ -156,6 +156,7 @@ module "pre-provisioner" {
   installer_bucket  = module.shared-infrastructure.installer_bucket
   oidc_provider_arn = module.shared-infrastructure.oidc_provider_arn
   oidc_provider     = module.shared-infrastructure.oidc_provider
+  ecr               = module.shared-infrastructure.ecr
 }
 
 module "jit-provisioner" {

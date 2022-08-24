@@ -1,3 +1,4 @@
+import { ILabel } from "interfaces/label";
 import { isEmpty, reduce, trim, union } from "lodash";
 import { buildQueryStringFromParams } from "utilities/url";
 
@@ -59,5 +60,3 @@ export const getNextLocationPath = ({
 
   return queryString ? `/${nextLocation}?${queryString}` : `/${nextLocation}`;
 };
-
-export default { getNextLocationPath };

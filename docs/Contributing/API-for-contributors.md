@@ -32,7 +32,9 @@ Unlike the [Fleet REST API documentation](../Using-Fleet/REST-API.md), only the 
     - [Get device's policies](#get-devices-policies)
     - [Get device's API features](#get-devices-api-features)
     - [Get device's transparency URL](#get-devices-transparency-url)
+- [Check if an installer exists](#check-if-an-installer-exists)
 - [Download an installer](#download-an-installer)
+- [Setup Fleet instance](#setup-fleet-instance)
 
 ### Get queries spec
 
@@ -1717,15 +1719,16 @@ Redirects to the transparency URL.
 
 Downloads a pre-built fleet-osquery installer with the given parameters.
 
-`GET /api/_version_/fleet/download_installer/{kind}`
+`POST /api/_version_/fleet/download_installer/{kind}`
 
 #### Parameters
 
-| Name          | Type    | In    | Description                                                        |
-| ------------- | ------- | ----- | ------------------------------------------------------------------ |
-| kind          | string  | path  | The installer kind: pkg, msi, deb or rpm.                          |
-| enroll_secret | string  | query | The global enroll secret.                                          |
-| desktop       | boolean | query | Set to `true` to ask for an installer that includes Fleet Desktop. |
+| Name          | Type    | In                     | Description                                                        |
+| ------------- | ------- | ---------------------- | ------------------------------------------------------------------ |
+| kind          | string  | path                   | The installer kind: pkg, msi, deb or rpm.                          |
+| enroll_secret | string  | x-www-form-urlencoded  | The global enroll secret.                                          |
+| token         | string  | x-www-form-urlencoded  | The authentication token.                                          |
+| desktop       | boolean | x-www-form-urlencoded  | Set to `true` to ask for an installer that includes Fleet Desktop. |
 
 ##### Default response
 
@@ -1745,5 +1748,96 @@ If an installer with the provided parameters is found, the installer is returned
 
 This error occurs if an installer with the provided parameters doesn't exist.
 
+
+### Check if an installer exists 
+
+Checks if a pre-built fleet-osquery installer with the given parameters exists.
+
+`HEAD /api/_version_/fleet/download_installer/{kind}`
+
+#### Parameters
+
+| Name          | Type    | In    | Description                                                        |
+| ------------- | ------- | ----- | ------------------------------------------------------------------ |
+| kind          | string  | path  | The installer kind: pkg, msi, deb or rpm.                          |
+| enroll_secret | string  | query | The global enroll secret.                                          |
+| desktop       | boolean | query | Set to `true` to ask for an installer that includes Fleet Desktop. |
+
+##### Default response
+
+`Status: 200`
+
+If an installer with the provided parameters is found.
+
+##### Installer doesn't exist
+
+`Status: 400`
+
+If an installer with the provided parameters doesn't exist.
+
+### Setup Fleet instance
+
+Sets up a new Fleet instance with the given parameters.
+
+`POST /api/_version_/setup`
+
+#### Parameters
+
+| Name          | Type    | In                     | Description                                                        |
+| ------------- | ------- | ---------------------- | ------------------------------------------------------------------ |
+| admin         | object  | body                   | **Required.** Contains the following admin user details: `admin`, `email`, `name`, `password`, and `password_confirmation`.                        |
+| org_info      | object  | body                   | **Required.** Contains the following organizational details: `org_name`.                         |
+| server_url    | string  | body                   | **Required.** The URL of the Fleet instance.                                      |
+
+
+##### Request body
+
+```json
+{
+	"admin": {
+		"admin": true,
+		"email": "janedoe@example.com",
+		"name": "Jane Doe",
+		"password": "password!234",
+		"password_confirmation": "password!234"
+	},
+	"org_info": {
+		"org_name": "Fleet Device Management"
+	},
+	"server_url": "https://localhost:8080"
+}
+```
+
+##### Default response
+
+`Status: 200`
+
+If the Fleet instance is provided required parameters to complete setup.
+
+```json
+{
+  "admin": {
+    "created_at": "2021-01-07T19:40:04Z",
+    "updated_at": "2021-01-07T19:40:04Z",
+    "id": 1,
+    "name": "Jane Doe",
+    "email": "janedoe@example.com",
+    "force_password_reset": false,
+    "gravatar_url": "",
+    "sso_enabled": false,
+    "global_role": "admin",
+    "api_only": false,
+    "teams": []
+  },
+  "org_info": {
+    "org_name": "Fleet Device Management",
+    "org_logo_url": "https://fleetdm.com/logo.png"
+  },
+  "server_url": "https://localhost:8080",
+  "osquery_enroll_secret": null,
+  "token": "ur4RWGBeiNmNzer/dnGzgUQ+jxrJe19xuHg/LhLkbhuZMQu35scyBHUHs68+RJxZynxQnuTz4WTHXayAJJaGgg=="
+}
+
+```
 
 <meta name="pageOrderInSection" value="800">

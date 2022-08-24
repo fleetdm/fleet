@@ -15,7 +15,7 @@ module.exports.bootstrap = async function() {
   var path = require('path');
 
   // This bootstrap version indicates what version of fake data we're dealing with here.
-  var HARD_CODED_DATA_VERSION = 0;
+  var HARD_CODED_DATA_VERSION = 1;
 
   // This path indicates where to store/look for the JSON file that tracks the "last run bootstrap info"
   // locally on this development computer (if we happen to be on a development computer).
@@ -65,6 +65,9 @@ module.exports.bootstrap = async function() {
     lastName: 'Dahl',
     organization: 'Golaith Industries',
     isSuperAdmin: true,
+    fleetSandboxURL: 'http://example.com',
+    fleetSandboxExpiresAt: 1,
+    fleetSandboxDemoKey: await sails.helpers.strings.uuid(),
     password: await sails.helpers.passwords.hashPassword('abc123')
   }).fetch();
 

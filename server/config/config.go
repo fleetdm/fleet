@@ -139,15 +139,17 @@ type AsyncTaskName string
 
 // List of names for supported async tasks.
 const (
-	AsyncTaskLabelMembership  AsyncTaskName = "label_membership"
-	AsyncTaskPolicyMembership AsyncTaskName = "policy_membership"
-	AsyncTaskHostLastSeen     AsyncTaskName = "host_last_seen"
+	AsyncTaskLabelMembership     AsyncTaskName = "label_membership"
+	AsyncTaskPolicyMembership    AsyncTaskName = "policy_membership"
+	AsyncTaskHostLastSeen        AsyncTaskName = "host_last_seen"
+	AsyncTaskScheduledQueryStats AsyncTaskName = "scheduled_query_stats"
 )
 
 var knownAsyncTasks = map[AsyncTaskName]struct{}{
-	AsyncTaskLabelMembership:  {},
-	AsyncTaskPolicyMembership: {},
-	AsyncTaskHostLastSeen:     {},
+	AsyncTaskLabelMembership:     {},
+	AsyncTaskPolicyMembership:    {},
+	AsyncTaskHostLastSeen:        {},
+	AsyncTaskScheduledQueryStats: {},
 }
 
 // AsyncConfigForTask returns the applicable configuration for the specified

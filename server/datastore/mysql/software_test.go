@@ -40,6 +40,8 @@ func TestSoftware(t *testing.T) {
 		{"ListSoftwareVulnerabilities", testListSoftwareVulnerabilities},
 		{"InsertVulnerabilities", testInsertVulnerabilities},
 		{"ListCVEs", testListCVEs},
+		{"ListSoftwareForVulnDetection", testListSoftwareForVulnDetection},
+		{"SoftwareByID", testSoftwareByID},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -567,6 +569,8 @@ func testSoftwareList(t *testing.T, ds *Datastore) {
 		},
 	}
 
+	require.NoError(t, ds.SyncHostsSoftware(context.Background(), time.Now()))
+
 	t.Run("lists everything", func(t *testing.T) {
 		opts := fleet.SoftwareListOptions{
 			ListOptions: fleet.ListOptions{
@@ -606,6 +610,8 @@ func testSoftwareList(t *testing.T, ds *Datastore) {
 		require.NoError(t, err)
 		require.NoError(t, ds.AddHostsToTeam(context.Background(), &team1.ID, []uint{host1.ID}))
 
+		require.NoError(t, ds.SyncHostsSoftware(context.Background(), time.Now()))
+
 		opts := fleet.SoftwareListOptions{
 			ListOptions: fleet.ListOptions{
 				OrderKey: "version",
@@ -622,6 +628,8 @@ func testSoftwareList(t *testing.T, ds *Datastore) {
 		team1, err := ds.NewTeam(context.Background(), &fleet.Team{Name: "team1-" + t.Name()})
 		require.NoError(t, err)
 		require.NoError(t, ds.AddHostsToTeam(context.Background(), &team1.ID, []uint{host1.ID}))
+
+		require.NoError(t, ds.SyncHostsSoftware(context.Background(), time.Now()))
 
 		opts := fleet.SoftwareListOptions{
 			ListOptions: fleet.ListOptions{
@@ -720,11 +728,6 @@ func testSoftwareList(t *testing.T, ds *Datastore) {
 	})
 
 	t.Run("order by hosts_count", func(t *testing.T) {
-		defer TruncateTables(t, ds, "software_host_counts")
-		listSoftwareCheckCount(t, ds, 0, 0, fleet.SoftwareListOptions{WithHostCounts: true}, false)
-
-		// create the counts for those software and re-run
-		require.NoError(t, ds.SyncHostsSoftware(context.Background(), time.Now()))
 		software := listSoftwareCheckCount(t, ds, 5, 5, fleet.SoftwareListOptions{ListOptions: fleet.ListOptions{OrderKey: "hosts_count", OrderDirection: fleet.OrderDescending}, WithHostCounts: true}, false)
 		// ordered by counts descending, so foo003 is first
 		assert.Equal(t, foo003.Name, software[0].Name)
@@ -851,8 +854,7 @@ func testSoftwareSyncHostsSoftware(t *testing.T, ds *Datastore) {
 	require.NoError(t, ds.UpdateHostSoftware(ctx, host1.ID, software1))
 	require.NoError(t, ds.UpdateHostSoftware(ctx, host2.ID, software2))
 
-	err := ds.SyncHostsSoftware(ctx, time.Now())
-	require.NoError(t, err)
+	require.NoError(t, ds.SyncHostsSoftware(ctx, time.Now()))
 
 	globalOpts := fleet.SoftwareListOptions{WithHostCounts: true, ListOptions: fleet.ListOptions{OrderKey: "hosts_count", OrderDirection: fleet.OrderDescending}}
 	globalCounts := listSoftwareCheckCount(t, ds, 4, 4, globalOpts, false)
@@ -872,9 +874,7 @@ func testSoftwareSyncHostsSoftware(t *testing.T, ds *Datastore) {
 		{Name: "foo", Version: "0.0.3", Source: "chrome_extensions"},
 	}
 	require.NoError(t, ds.UpdateHostSoftware(ctx, host2.ID, software2))
-
-	err = ds.SyncHostsSoftware(ctx, time.Now())
-	require.NoError(t, err)
+	require.NoError(t, ds.SyncHostsSoftware(ctx, time.Now()))
 
 	globalCounts = listSoftwareCheckCount(t, ds, 3, 3, globalOpts, false)
 	want = []fleet.Software{
@@ -886,7 +886,7 @@ func testSoftwareSyncHostsSoftware(t *testing.T, ds *Datastore) {
 	checkTableTotalCount(3)
 
 	// create a software entry without any host and any counts
-	_, err = ds.writer.ExecContext(ctx, `INSERT INTO software (name, version, source) VALUES ('baz', '0.0.1', 'testing')`)
+	_, err := ds.writer.ExecContext(ctx, `INSERT INTO software (name, version, source) VALUES ('baz', '0.0.1', 'testing')`)
 	require.NoError(t, err)
 
 	// listing does not return the new software entry
@@ -938,8 +938,7 @@ func testSoftwareSyncHostsSoftware(t *testing.T, ds *Datastore) {
 	checkTableTotalCount(3)
 
 	// after a call to Calculate, the global counts are updated and the team counts appear
-	err = ds.SyncHostsSoftware(ctx, time.Now())
-	require.NoError(t, err)
+	require.NoError(t, ds.SyncHostsSoftware(ctx, time.Now()))
 
 	globalCounts = listSoftwareCheckCount(t, ds, 4, 4, globalOpts, false)
 	want = []fleet.Software{
@@ -973,9 +972,7 @@ func testSoftwareSyncHostsSoftware(t *testing.T, ds *Datastore) {
 		{Name: "foo", Version: "0.0.3", Source: "chrome_extensions"},
 	}
 	require.NoError(t, ds.UpdateHostSoftware(ctx, host4.ID, software4))
-
-	err = ds.SyncHostsSoftware(ctx, time.Now())
-	require.NoError(t, err)
+	require.NoError(t, ds.SyncHostsSoftware(ctx, time.Now()))
 
 	globalCounts = listSoftwareCheckCount(t, ds, 3, 3, globalOpts, false)
 	want = []fleet.Software{
@@ -1006,8 +1003,7 @@ func testSoftwareSyncHostsSoftware(t *testing.T, ds *Datastore) {
 	require.NoError(t, ds.DeleteTeam(ctx, team2.ID))
 
 	// this call will remove team2 from the software host counts table
-	err = ds.SyncHostsSoftware(ctx, time.Now())
-	require.NoError(t, err)
+	require.NoError(t, ds.SyncHostsSoftware(ctx, time.Now()))
 
 	globalCounts = listSoftwareCheckCount(t, ds, 3, 3, globalOpts, false)
 	want = []fleet.Software{
@@ -1137,6 +1133,8 @@ func insertVulnSoftwareForTest(t *testing.T, ds *Datastore) {
 
 	require.NoError(t, err)
 	require.Equal(t, 2, int(n))
+
+	require.NoError(t, ds.SyncHostsSoftware(context.Background(), time.Now()))
 }
 
 func testDeleteSoftwareVulnerabilities(t *testing.T, ds *Datastore) {
@@ -1557,4 +1555,88 @@ func testListCVEs(t *testing.T, ds *Datastore) {
 	}
 
 	require.ElementsMatch(t, expected, actual)
+}
+
+func testListSoftwareForVulnDetection(t *testing.T, ds *Datastore) {
+	t.Run("returns software without CPE entries", func(t *testing.T) {
+		ctx := context.Background()
+
+		host := test.NewHost(t, ds, "host3", "", "host3key", "host3uuid", time.Now())
+		host.Platform = "debian"
+		ds.UpdateHost(ctx, host)
+
+		software := []fleet.Software{
+			{Name: "foo", Version: "0.0.1", Source: "chrome_extensions"},
+			{Name: "bar", Version: "0.0.3", Source: "apps"},
+			{Name: "biz", Version: "0.0.1", Source: "deb_packages"},
+			{Name: "baz", Version: "0.0.3", Source: "deb_packages"},
+		}
+		require.NoError(t, ds.UpdateHostSoftware(ctx, host.ID, software))
+		require.NoError(t, ds.LoadHostSoftware(ctx, host, false))
+		require.NoError(t, ds.AddCPEForSoftware(ctx, host.Software[0], "cpe1"))
+		// Load software again so that CPE data is included.
+		require.NoError(t, ds.LoadHostSoftware(ctx, host, false))
+
+		result, err := ds.ListSoftwareForVulnDetection(ctx, host.ID)
+		require.NoError(t, err)
+
+		sort.Slice(host.Software, func(i, j int) bool { return host.Software[i].ID < host.Software[j].ID })
+		sort.Slice(result, func(i, j int) bool { return result[i].ID < result[j].ID })
+
+		require.Equal(t, len(host.Software), len(result))
+
+		for i := range host.Software {
+			require.Equal(t, host.Software[i].ID, result[i].ID)
+			require.Equal(t, host.Software[i].Name, result[i].Name)
+			require.Equal(t, host.Software[i].Version, result[i].Version)
+			require.Equal(t, host.Software[i].Release, result[i].Release)
+			require.Equal(t, host.Software[i].Arch, result[i].Arch)
+			require.Equal(t, host.Software[i].GenerateCPE, result[i].GenerateCPE)
+		}
+	})
+}
+
+func testSoftwareByID(t *testing.T, ds *Datastore) {
+	t.Run("software installed in multiple hosts does not have duplicated vulnerabilities", func(t *testing.T) {
+		ctx := context.Background()
+
+		hostA := test.NewHost(t, ds, "hostA", "", "hostAkey", "hostAuuid", time.Now())
+		hostA.Platform = "ubuntu"
+		ds.UpdateHost(ctx, hostA)
+
+		hostB := test.NewHost(t, ds, "hostB", "", "hostBkey", "hostBuuid", time.Now())
+		hostB.Platform = "ubuntu"
+		ds.UpdateHost(ctx, hostB)
+
+		software := []fleet.Software{
+			{Name: "foo_123", Version: "0.0.1", Source: "chrome_extensions"},
+			{Name: "bar_123", Version: "0.0.3", Source: "apps"},
+			{Name: "biz_123", Version: "0.0.1", Source: "deb_packages"},
+			{Name: "baz_123", Version: "0.0.3", Source: "deb_packages"},
+		}
+
+		require.NoError(t, ds.UpdateHostSoftware(ctx, hostA.ID, software))
+		require.NoError(t, ds.UpdateHostSoftware(ctx, hostB.ID, software))
+
+		require.NoError(t, ds.LoadHostSoftware(ctx, hostA, false))
+		require.NoError(t, ds.LoadHostSoftware(ctx, hostB, false))
+
+		// Add one vulnerability to each software
+		var vulns []fleet.SoftwareVulnerability
+		for i, s := range hostA.Software {
+			vulns = append(vulns, fleet.SoftwareVulnerability{
+				SoftwareID: s.ID,
+				CVE:        fmt.Sprintf("cve-%d", i),
+			})
+		}
+		n, err := ds.InsertVulnerabilities(ctx, vulns, fleet.UbuntuOVALSource)
+		require.NoError(t, err)
+		require.Equal(t, 4, int(n))
+
+		for _, s := range hostA.Software {
+			result, err := ds.SoftwareByID(ctx, s.ID, true)
+			require.NoError(t, err)
+			require.Len(t, result.Vulnerabilities, 1)
+		}
+	})
 }

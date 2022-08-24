@@ -37,7 +37,7 @@ spec:
         imagePullPolicy: Always
         command: [/usr/bin/fleet]
         args: ["serve"]
-        image: fleetdm/fleet:{{ .Values.imageTag }}
+        image: {{ .Values.imageRepo }}:{{ .Values.imageTag }}
         ports:
         - name: {{ .Values.fleetName }}
           containerPort: {{ .Values.fleet.listenPort }}
@@ -54,6 +54,8 @@ spec:
             value: "1"
           - name: FLEET_LICENSE_ENFORCE_HOST_LIMIT
             value: "true"
+          - name: FLEET_VULNERABILITIES_DATABASES_PATH
+            value: /tmp/vuln
           {{- if ne .Values.packaging.enrollSecret "" }}
           - name: FLEET_PACKAGING_GLOBAL_ENROLL_SECRET
             value: "{{ .Values.packaging.enrollSecret }}"
@@ -303,6 +305,8 @@ spec:
           - name: osquery-logs
             mountPath: /logs
           {{- end }}
+          - name: tmp
+            mountPath: /tmp
         {{- end }}
       {{- if .Values.gke.cloudSQL.enableProxy }}
       - name: cloudsql-proxy
@@ -349,6 +353,8 @@ spec:
           emptyDir:
             sizeLimit: "{{ .Values.osquery.logging.filesystem.volumeSize }}"
         {{- end }}
+        - name: tmp
+          emptyDir:
       {{- end }}
       {{- with .Values.nodeSelector }}
       nodeSelector:
