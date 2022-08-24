@@ -503,7 +503,7 @@ in a public channel or a GitHub issue.
 
 ## Host Expiry Settings
 
-The `host_expiry` section allows you to define if and when hosts should be removed from Fleet if they have not checked in. Once a host has been removed from Fleet, it will need to re-enroll with a valid `enroll_secret` to connect to your Fleet instance. 
+The `host_expiry` section lets you define if and when hosts should be removed from Fleet if they have not checked in. Once a host has been removed from Fleet, it will need to re-enroll with a valid `enroll_secret` to connect to your Fleet instance. 
 
 ### Host Expiry Enabled
 
