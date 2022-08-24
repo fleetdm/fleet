@@ -415,6 +415,7 @@ These groups maintain the following [Slack channels](https://fleetdm.com/handboo
 | `#help-brex-memos`          | Nathan Holliday
 | `#help-p1`		      | Mike McNeil
 | `#help-operations-and-contract-reviews`          | Nathan Holliday
+| `#help-travel`              | Nathan Holliday
 
 
 <meta name="maintainedBy" value="mike-j-thomas">

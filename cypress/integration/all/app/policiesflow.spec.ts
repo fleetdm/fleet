@@ -467,11 +467,11 @@ describe("Policies flow (seeded)", () => {
           cy.getAttached(".button--text-link").click();
         });
       // confirm policy functionality on manage host page
-      cy.getAttached(".manage-hosts__policies-filter-block").within(() => {
+      cy.getAttached(".manage-hosts__labels-active-filter-wrap").within(() => {
         cy.findByText(/filevault enabled/i).should("exist");
         cy.findByText(/no/i).should("exist").click();
         cy.findByText(/yes/i).should("exist");
-        cy.get('img[alt="Remove policy filter"]').click();
+        cy.get('img[alt="Remove filter"]').click();
         cy.findByText(/filevault enabled'/i).should("not.exist");
       });
     });
