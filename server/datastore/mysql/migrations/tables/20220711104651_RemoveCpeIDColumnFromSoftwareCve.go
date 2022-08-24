@@ -13,7 +13,7 @@ func init() {
 func Up_20220711104651(tx *sql.Tx) error {
 	logger.Info.Println("Deleting dummy software_cpe entries...")
 	// Remove in batches
-	const deleteStmt = `DELETE FROM software_cpe WHERE cpe LIKE 'none:%' LIMIT 500`
+	const deleteStmt = `DELETE FROM software_cpe WHERE cpe LIKE 'none:%' LIMIT 10000`
 
 	for {
 
