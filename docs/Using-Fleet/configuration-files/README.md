@@ -511,7 +511,7 @@ If `host_expiry_enabled` is set to `true`, allows automatic cleanup of hosts tha
 
 ### Host Expiry Window
 
-If a host has not communicated with Fleet in the specified number of days and, it will be removed.
+If a host has not communicated with Fleet in the specified number of days, it will be removed.
 
 ## Host settings
 
