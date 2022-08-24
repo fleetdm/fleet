@@ -25,16 +25,10 @@ import (
 
 type appConfigResponse struct {
 	fleet.AppConfig
+	appConfigResponseFields
+}
 
-	// NoopUnmarshaler is used to disallow AppConfig.UnmarshalJSON from being
-	// promoted to the top level, hijacking the JSON unmarshalling process.
-	//
-	// As a side effect of this, AppConfig.UnmarshalJSON will not be called even
-	// to serialize AppConfig itself, everything will be serialized according to
-	// default struct rules, which is fine since we only need backwards
-	// compatibility when reading AppConfig to perform changes.
-	fleet.NoopUnmarshaler
-
+type appConfigResponseFields struct {
 	UpdateInterval  *fleet.UpdateIntervalConfig  `json:"update_interval"`
 	Vulnerabilities *fleet.VulnerabilitiesConfig `json:"vulnerabilities"`
 
@@ -46,6 +40,16 @@ type appConfigResponse struct {
 	SandboxEnabled bool `json:"sandbox_enabled,omitempty"`
 
 	Err error `json:"error,omitempty"`
+}
+
+func (r *appConfigResponse) UnmarshalJSON(data []byte) error {
+	if err := json.Unmarshal(data, &r.AppConfig); err != nil {
+		return err
+	}
+	if err := json.Unmarshal(data, &r.appConfigResponseFields); err != nil {
+		return err
+	}
+	return nil
 }
 
 func (r appConfigResponse) error() error { return r.Err }
@@ -113,11 +117,13 @@ func getAppConfigEndpoint(ctx context.Context, request interface{}, svc fleet.Se
 			WebhookSettings: config.WebhookSettings,
 			Integrations:    config.Integrations,
 		},
-		UpdateInterval:  updateIntervalConfig,
-		Vulnerabilities: vulnConfig,
-		License:         license,
-		Logging:         loggingConfig,
-		SandboxEnabled:  svc.SandboxEnabled(),
+		appConfigResponseFields: appConfigResponseFields{
+			UpdateInterval:  updateIntervalConfig,
+			Vulnerabilities: vulnConfig,
+			License:         license,
+			Logging:         loggingConfig,
+			SandboxEnabled:  svc.SandboxEnabled(),
+		},
 	}
 	return response, nil
 }
@@ -165,7 +171,7 @@ func modifyAppConfigEndpoint(ctx context.Context, request interface{}, svc fleet
 	req := request.(*modifyAppConfigRequest)
 	config, err := svc.ModifyAppConfig(ctx, req.RawMessage)
 	if err != nil {
-		return appConfigResponse{Err: err}, nil
+		return appConfigResponse{appConfigResponseFields: appConfigResponseFields{Err: err}}, nil
 	}
 	license, err := svc.License(ctx)
 	if err != nil {
@@ -177,8 +183,10 @@ func modifyAppConfigEndpoint(ctx context.Context, request interface{}, svc fleet
 	}
 	response := appConfigResponse{
 		AppConfig: *config,
-		License:   license,
-		Logging:   loggingConfig,
+		appConfigResponseFields: appConfigResponseFields{
+			License: license,
+			Logging: loggingConfig,
+		},
 	}
 
 	if response.SMTPSettings.SMTPPassword != "" {

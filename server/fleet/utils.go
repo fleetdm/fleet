@@ -20,14 +20,3 @@ func WriteExpiredLicenseBanner(w io.Writer) {
 	warningColor.DisableColor()
 	warningColor.Fprintln(w)
 }
-
-// NoopUnmarshaler is a type that implements the `json.Unmarshaler` interface but does
-// nothing.
-//
-// This is useful when you have an embeded field that implements
-// `json.Unmarshaler` but want to prevent the method from being promoted to the
-// top-level struct.
-type NoopUnmarshaler struct{}
-
-// UnmarshalJSON implments the `json.Unmarshaler` interface.
-func (*NoopUnmarshaler) UnmarshalJSON([]byte) error { return nil }

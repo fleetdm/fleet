@@ -145,20 +145,24 @@ type legacyConfig struct {
 // "GET /api/latest/fleet/config" API endpoint (and fleetctl get config).
 type EnrichedAppConfig struct {
 	AppConfig
+	enrichedAppConfigFields
+}
 
-	// NoopUnmarshaler is used to disallow AppConfig.UnmarshalJSON from being
-	// promoted to the top level, hijacking the JSON unmarshalling process.
-	//
-	// As a side effect of this, AppConfig.UnmarshalJSON will not be called even
-	// to serialize AppConfig itself, everything will be serialized according to
-	// default struct rules, which is fine since we only need backwards
-	// compatibility when reading AppConfig to perform changes.
-	NoopUnmarshaler
-
+type enrichedAppConfigFields struct {
 	UpdateInterval  *UpdateIntervalConfig  `json:"update_interval,omitempty"`
 	Vulnerabilities *VulnerabilitiesConfig `json:"vulnerabilities,omitempty"`
 	License         *LicenseInfo           `json:"license,omitempty"`
 	Logging         *Logging               `json:"logging,omitempty"`
+}
+
+func (e *EnrichedAppConfig) UnmarshalJSON(data []byte) error {
+	if err := json.Unmarshal(data, &e.AppConfig); err != nil {
+		return err
+	}
+	if err := json.Unmarshal(data, &e.enrichedAppConfigFields); err != nil {
+		return err
+	}
+	return nil
 }
 
 type Duration struct {
