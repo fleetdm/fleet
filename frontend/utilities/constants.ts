@@ -304,6 +304,17 @@ export const DEFAULT_POLICIES = [
       "Contact your IT administrator to ensure your Mac is receiving a profile that disables advertisement tracking.",
     platform: "darwin",
   },
+  {
+    key: 29,
+    query:
+      "SELECT 1 FROM managed_policies WHERE domain='com.apple.icloud.managed' AND name='DisableCloudSync' AND value='1' LIMIT 1;",
+    name: "iCloud Desktop and Document sync is disabled (macOS) [CIS 2.6.1.4]",
+    description:
+      "Checks that a mobile device management (MDM) solution configures the operating system to prevent iCloud Desktop and Documents sync.",
+    resolution:
+      "Contact your IT administrator to ensure your Mac is receiving a profile to prevent iCloud Desktop and Documents sync.",
+    platform: "darwin",
+  },
 ] as IPolicyNew[];
 
 export const FREQUENCY_DROPDOWN_OPTIONS = [
