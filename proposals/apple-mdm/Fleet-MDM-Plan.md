@@ -1,8 +1,8 @@
-# Fleet MDM Plan
+# Fleet MDM plan
 
 This proposal aims to document the plan to make Fleet an MDM server for Apple devices (see [MDM Protocol Reference](https://developer.apple.com/business/documentation/MDM-Protocol-Reference.pdf)).
 
-## MVP Requirements
+## MVP requirements
 
 - **On-premise**, meaning customers can run Fleet with MDM functionality on their infrastructure.
 - Solution must be **100% open source**.
