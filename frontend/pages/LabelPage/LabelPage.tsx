@@ -61,7 +61,7 @@ const LabelPage = ({
     onSuccess: (responseLabels: ILabel[]) => {
       if (params.label_id) {
         const selectLabel = responseLabels.find(
-          (label) => label.id == params.label_id
+          (label) => label.id === parseInt(params.label_id, 10)
         );
         setSelectedLabel(selectLabel);
       }

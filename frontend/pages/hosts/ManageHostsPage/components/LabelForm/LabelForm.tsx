@@ -13,6 +13,7 @@ import FleetAce from "components/FleetAce";
 // @ts-ignore
 import validateQuery from "components/forms/validators/validate_query";
 import InfoIcon from "../../../../../../assets/images/icon-info-purple-14x14@2x.png";
+
 interface ILabelFormProps {
   baseError: string;
   selectedLabel?: ILabel;
