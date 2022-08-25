@@ -264,7 +264,8 @@ export const DEFAULT_POLICIES = [
     key: 25,
     query:
       "SELECT 1 WHERE EXISTS (SELECT CAST(value as integer(4)) valueint from managed_policies WHERE domain = 'com.apple.screensaver' AND name = 'askForPasswordDelay' AND valueint <= 60 LIMIT 1) AND EXISTS (SELECT CAST(value as integer(4)) valueint from managed_policies WHERE domain = 'com.apple.screensaver' AND name = 'idleTime' AND valueint <= 1140 LIMIT 1) AND EXISTS (SELECT 1 from managed_policies WHERE domain='com.apple.screensaver' AND name='askForPassword' AND value=1 LIMIT 1);",
-    name: "Inactivity limit of 20 minutes or less (macOS) [CIS 2.3.1] [CIS 5.8]",
+    name:
+      "Inactivity limit of 20 minutes or less (macOS) [CIS 2.3.1] [CIS 5.8]",
     description:
       "Checks that a mobile device management (MDM) solution configures the operating system lock the screen in 20 minutes or less.",
     resolution:
@@ -324,6 +325,28 @@ export const DEFAULT_POLICIES = [
       "Checks that a mobile device management (MDM) solution configures the operating system log firewall activity.",
     resolution:
       "Contact your IT administrator to ensure your Mac is receiving a profile that enables firewall logging.",
+    platform: "darwin",
+  },
+  {
+    key: 31,
+    query:
+      "SELECT 1 FROM managed_policies WHERE domain='com.apple.loginwindow' AND name='DisableGuestAccount' AND value='1' LIMIT 1;",
+    name: "Guest account is disabled (macOS) [CIS 6.1.3]",
+    description:
+      "Checks that a mobile device management (MDM) solution configures the operating system to prevent the use of a guest account.",
+    resolution:
+      "Contact your IT administrator to ensure your Mac is receiving a profile that disables the guest account.",
+    platform: "darwin",
+  },
+  {
+    key: 32,
+    query:
+      "SELECT 1 FROM managed_policies WHERE domain='com.apple.AppleFileServer' AND name='guestAccess' AND value='0' LIMIT 1;",
+    name: "Guest access to shared folders is disabled (macOS) [CIS 6.1.4]",
+    description:
+      "Checks that a mobile device management (MDM) solution configures the operating system to prevent guest access to shared folders.",
+    resolution:
+      "Contact your IT administrator to ensure your Mac is receiving a profile that prevents guest access to shared folders.",
     platform: "darwin",
   },
 ] as IPolicyNew[];
