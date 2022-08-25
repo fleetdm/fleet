@@ -129,7 +129,7 @@ const ManageSoftwarePage = ({
 
   const { data: config } = useQuery(["config"], configAPI.loadAll, {
     onSuccess: (data) => {
-      setIsSoftwareEnabled(data?.host_settings?.enable_software_inventory);
+      setIsSoftwareEnabled(data?.features?.enable_software_inventory);
       let jiraIntegrationEnabled = false;
       if (data.integrations.jira) {
         jiraIntegrationEnabled = data?.integrations.jira.some(

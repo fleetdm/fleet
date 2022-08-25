@@ -4,12 +4,62 @@ import (
 	"database/sql"
 	"encoding/json"
 
-	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/pkg/errors"
 )
 
 func init() {
 	MigrationClient.AddMigration(Up_20210818151828, Down_20210818151828)
+}
+
+type testAppConfig struct {
+	OrgInfo struct {
+		OrgName    string `json:"org_name"`
+		OrgLogoURL string `json:"org_logo_url"`
+	} `json:"org_info"`
+	SMTPSettings struct {
+		SMTPEnabled              bool   `json:"enable_smtp"`
+		SMTPConfigured           bool   `json:"configured"`
+		SMTPSenderAddress        string `json:"sender_address"`
+		SMTPServer               string `json:"server"`
+		SMTPPort                 uint   `json:"port"`
+		SMTPAuthenticationType   string `json:"authentication_type"`
+		SMTPUserName             string `json:"user_name"`
+		SMTPPassword             string `json:"password"`
+		SMTPEnableTLS            bool   `json:"enable_ssl_tls"`
+		SMTPAuthenticationMethod string `json:"authentication_method"`
+		SMTPDomain               string `json:"domain"`
+		SMTPVerifySSLCerts       bool   `json:"verify_ssl_certs"`
+		SMTPEnableStartTLS       bool   `json:"enable_start_tls"`
+	} `json:"smtp_settings"`
+	SSOSettings struct {
+		EntityID              string `json:"entity_id"`
+		IssuerURI             string `json:"issuer_uri"`
+		IDPImageURL           string `json:"idp_image_url"`
+		Metadata              string `json:"metadata"`
+		MetadataURL           string `json:"metadata_url"`
+		IDPName               string `json:"idp_name"`
+		EnableSSO             bool   `json:"enable_sso"`
+		EnableSSOIdPLogin     bool   `json:"enable_sso_idp_login"`
+		EnableJITProvisioning bool   `json:"enable_jit_provisioning"`
+	} `json:"sso_settings"`
+	HostExpirySettings struct {
+		HostExpiryEnabled bool `json:"host_expiry_enabled"`
+		HostExpiryWindow  int  `json:"host_expiry_window"`
+	} `json:"host_expiry_settings"`
+	ServerSettings struct {
+		ServerURL         string `json:"server_url"`
+		LiveQueryDisabled bool   `json:"live_query_disabled"`
+		EnableAnalytics   bool   `json:"enable_analytics"`
+	} `json:"server_settings"`
+	HostSettings struct {
+		EnableHostUsers         bool             `json:"enable_host_users"`
+		EnableSoftwareInventory bool             `json:"enable_software_inventory"`
+		AdditionalQueries       *json.RawMessage `json:"additional_queries,omitempty"`
+	} `json:"host_settings"`
+	VulnerabilitySettings struct {
+		DatabasesPath string `json:"databases_path"`
+	} `json:"vulnerability_settings"`
+	AgentOptions *json.RawMessage `json:"agent_options"`
 }
 
 func Up_20210818151828(tx *sql.Tx) error {
@@ -61,8 +111,9 @@ func Up_20210818151828(tx *sql.Tx) error {
 				enable_software_inventory
 				FROM app_configs LIMIT 1`,
 	)
-	config := &fleet.AppConfig{}
-	config.ApplyDefaults()
+	config := &testAppConfig{}
+	// Apply default settings
+	config.HostSettings.EnableHostUsers = true
 	var vulnPath *string
 	err := row.Scan(
 		&config.OrgInfo.OrgName,

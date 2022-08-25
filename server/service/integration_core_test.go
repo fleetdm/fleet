@@ -293,7 +293,7 @@ func (s *integrationTestSuite) TestAppConfigAdditionalQueriesCanBeRemoved() {
   host_expiry_settings:
     host_expiry_enabled: true
     host_expiry_window: 0
-  host_settings:
+  features:
     additional_queries:
       time: SELECT * FROM time
     enable_host_users: true
@@ -301,14 +301,14 @@ func (s *integrationTestSuite) TestAppConfigAdditionalQueriesCanBeRemoved() {
 	s.applyConfig(spec)
 
 	spec = []byte(`
-  host_settings:
+  features:
     enable_host_users: true
     additional_queries: null
 `)
 	s.applyConfig(spec)
 
 	config := s.getConfig()
-	assert.Nil(t, config.HostSettings.AdditionalQueries)
+	assert.Nil(t, config.Features.AdditionalQueries)
 	assert.True(t, config.HostExpirySettings.HostExpiryEnabled)
 }
 
@@ -321,6 +321,64 @@ func (s *integrationTestSuite) TestAppConfigDefaultValues() {
 	s.Run("has logging", func() {
 		require.NotNil(s.T(), config.Logging)
 	})
+}
+
+func (s *integrationTestSuite) TestAppConfigDeprecatedFields() {
+	t := s.T()
+
+	spec := []byte(`
+  host_settings:
+    additional_queries:
+      time: SELECT * FROM time
+    enable_host_users: true
+    enable_software_inventory: true
+`)
+	s.applyConfig(spec)
+	config := s.getConfig()
+	require.NotNil(t, config.Features.AdditionalQueries)
+	require.True(t, config.Features.EnableHostUsers)
+	require.True(t, config.Features.EnableSoftwareInventory)
+
+	spec = []byte(`
+  host_settings:
+    additional_queries: null
+    enable_host_users: false
+    enable_software_inventory: false
+`)
+	s.applyConfig(spec)
+	config = s.getConfig()
+	require.Nil(t, config.Features.AdditionalQueries)
+	require.False(t, config.Features.EnableHostUsers)
+	require.False(t, config.Features.EnableSoftwareInventory)
+
+	// Test raw API interactions
+	appConfigSpec := map[string]map[string]bool{
+		"host_settings":   {"enable_software_inventory": true},
+		"server_settings": {"enable_analytics": false},
+	}
+	s.Do("PATCH", "/api/latest/fleet/config", appConfigSpec, http.StatusOK)
+	config = s.getConfig()
+	require.True(t, config.Features.EnableSoftwareInventory)
+
+	// Skip our serialization mechanism, to make sure an old config stored in the DB is still valid
+	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		insertAppConfigQuery := `INSERT INTO app_config_json(json_value) VALUES(?) ON DUPLICATE KEY UPDATE json_value = VALUES(json_value)`
+		_, err := q.ExecContext(context.Background(), insertAppConfigQuery, `
+    {
+      "host_settings": {
+        "enable_host_users": false,
+        "enable_software_inventory": true,
+        "additional_queries": { "foo": "bar" }
+      }
+    }`)
+		return err
+	})
+
+	var resp appConfigResponse
+	s.DoJSON("GET", "/api/latest/fleet/config", nil, http.StatusOK, &resp)
+	require.False(t, resp.Features.EnableHostUsers)
+	require.True(t, resp.Features.EnableSoftwareInventory)
+	require.NotNil(t, resp.Features.AdditionalQueries)
 }
 
 func (s *integrationTestSuite) TestUserRolesSpec() {
@@ -1061,6 +1119,37 @@ func (s *integrationTestSuite) TestListHosts() {
 
 	resp = listHostsResponse{}
 	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusInternalServerError, &resp, "mdm_enrollment_status", "invalid-status") // TODO: to be addressed by #4406
+
+	// set operating system information on a host
+	testOS := fleet.OperatingSystem{Name: "fooOS", Version: "4.2", Arch: "64bit", KernelVersion: "13.37", Platform: "bar"}
+	require.NoError(t, s.ds.UpdateHostOperatingSystem(context.Background(), host.ID, testOS))
+	var osID uint
+	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(context.Background(), q, &osID,
+			`SELECT id FROM operating_systems WHERE name = ? AND version = ?`, "fooOS", "4.2")
+	})
+	require.Greater(t, osID, uint(0))
+
+	// generate aggregated stats
+	require.NoError(t, s.ds.UpdateOSVersions(context.Background()))
+
+	resp = listHostsResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &resp, "os_name", testOS.Name, "os_version", testOS.Version)
+	require.Len(t, resp.Hosts, 1)
+
+	expected := resp.Hosts[0]
+	resp = listHostsResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &resp, "os_id", fmt.Sprintf("%d", osID))
+	require.Len(t, resp.Hosts, 1)
+	require.Equal(t, expected, resp.Hosts[0])
+
+	resp = listHostsResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &resp, "os_name", "unknownOS", "os_version", "4.2")
+	require.Len(t, resp.Hosts, 0)
+
+	resp = listHostsResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &resp, "os_id", fmt.Sprintf("%d", osID+1337))
+	require.Len(t, resp.Hosts, 0)
 }
 
 func (s *integrationTestSuite) TestInvites() {
@@ -4088,6 +4177,25 @@ func (s *integrationTestSuite) TestAppConfig() {
   }`), http.StatusOK, &acResp)
 	assert.Equal(t, "test", acResp.OrgInfo.OrgName)
 
+	// the global agent options were not modified by the last call, so the
+	// corresponding activity should not have been created.
+	var listActivities listActivitiesResponse
+	s.DoJSON("GET", "/api/latest/fleet/activities", nil, http.StatusOK, &listActivities, "order_key", "id", "order_direction", "desc")
+	if !assert.Len(t, listActivities.Activities, 0) {
+		// if there is an activity, make sure it is not edited_agent_options
+		require.NotEqual(t, fleet.ActivityTypeEditedAgentOptions, listActivities.Activities[0].Type)
+	}
+
+	// test a change that does modify the agent options.
+	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
+    "agent_options": { "foo": 1 }
+  }`), http.StatusOK, &acResp)
+	s.DoJSON("GET", "/api/latest/fleet/activities", nil, http.StatusOK, &listActivities, "order_key", "id", "order_direction", "desc")
+	require.True(t, len(listActivities.Activities) > 0)
+	require.Equal(t, fleet.ActivityTypeEditedAgentOptions, listActivities.Activities[0].Type)
+	require.NotNil(t, listActivities.Activities[0].Details)
+	assert.JSONEq(t, `{"global": true, "team_id": null, "team_name": null}`, string(*listActivities.Activities[0].Details))
+
 	var verResp versionResponse
 	s.DoJSON("GET", "/api/latest/fleet/version", nil, http.StatusOK, &verResp)
 	assert.NotEmpty(t, verResp.Branch)
@@ -5155,6 +5263,46 @@ func (s *integrationTestSuite) TestGetHostBatteries() {
 		{CycleCount: 1, Health: "Normal"},
 		{CycleCount: 1002, Health: "Replacement recommended"},
 	}, *getHostResp.Host.Batteries)
+}
+
+func (s *integrationTestSuite) TestOSVersions() {
+	t := s.T()
+
+	testOS := fleet.OperatingSystem{Name: "barOS", Version: "4.2", Arch: "64bit", KernelVersion: "13.37", Platform: "foo"}
+
+	hosts := s.createHosts(t)
+
+	var resp listHostsResponse
+	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &resp)
+	require.Len(t, resp.Hosts, len(hosts))
+
+	// set operating system information on a host
+	require.NoError(t, s.ds.UpdateHostOperatingSystem(context.Background(), hosts[0].ID, testOS))
+	var osID uint
+	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(context.Background(), q, &osID,
+			`SELECT id FROM operating_systems WHERE name = ? AND version = ? AND arch = ? AND kernel_version = ? AND platform = ?`,
+			testOS.Name, testOS.Version, testOS.Arch, testOS.KernelVersion, testOS.Platform)
+	})
+	require.Greater(t, osID, uint(0))
+
+	resp = listHostsResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &resp, "os_name", testOS.Name, "os_version", testOS.Version)
+	require.Len(t, resp.Hosts, 1)
+
+	expected := resp.Hosts[0]
+	resp = listHostsResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &resp, "os_id", fmt.Sprintf("%d", osID))
+	require.Len(t, resp.Hosts, 1)
+	require.Equal(t, expected, resp.Hosts[0])
+
+	// generate aggregated stats
+	require.NoError(t, s.ds.UpdateOSVersions(context.Background()))
+
+	var osVersionsResp osVersionsResponse
+	s.DoJSON("GET", "/api/latest/fleet/os_versions", nil, http.StatusOK, &osVersionsResp)
+	require.Len(t, osVersionsResp.OSVersions, 1)
+	require.Equal(t, fleet.OSVersion{HostsCount: 1, Name: fmt.Sprintf("%s %s", testOS.Name, testOS.Version), NameOnly: testOS.Name, Version: testOS.Version, Platform: testOS.Platform}, osVersionsResp.OSVersions[0])
 }
 
 // this test can be deleted once the "v1" version is removed.

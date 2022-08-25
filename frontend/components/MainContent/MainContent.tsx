@@ -5,7 +5,6 @@ import { formatDistanceToNow } from "date-fns";
 import SandboxExpiryMessage from "components/Sandbox/SandboxExpiryMessage";
 import SandboxGate from "components/Sandbox/SandboxGate";
 import { AppContext } from "context/app";
-import exp from "constants";
 
 interface IMainContentProps {
   children: ReactChild;

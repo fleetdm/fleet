@@ -21,7 +21,7 @@ module.exports.routes = {
   'GET /company/contact': {
     action: 'view-contact',
     locals: {
-      pageTitleForMeta: 'Contact us | Fleet for osquery',
+      pageTitleForMeta: 'Contact us | Fleet Device Management',
       pageDescriptionForMeta: 'Get in touch with our team.'
     }
   },
@@ -30,7 +30,7 @@ module.exports.routes = {
     action: 'view-get-started',
     locals: {
       currentPage: 'get started',
-      pageTitleForMeta: 'fleetctl preview | Fleet for osquery',
+      pageTitleForMeta: 'fleetctl preview | Fleet Device Management',
       pageDescriptionForMeta: 'Learn about getting started with Fleet using fleetctl.'
     }
   },
@@ -39,7 +39,7 @@ module.exports.routes = {
     action: 'view-pricing',
     locals: {
       currentPage: 'pricing',
-      pageTitleForMeta: 'Pricing | Fleet for osquery',
+      pageTitleForMeta: 'Pricing | Fleet Device Management',
       pageDescriptionForMeta: 'View Fleet plans and pricing details.'
     }
   },
@@ -47,7 +47,7 @@ module.exports.routes = {
   'GET /logos': {
     action: 'view-press-kit',
     locals: {
-      pageTitleForMeta: 'Logos | Fleet for osquery',
+      pageTitleForMeta: 'Logos | Fleet Device Management',
       pageDescriptionForMeta: 'Download Fleet logos, wallpapers, and screenshots.'
     }
   },
@@ -56,7 +56,7 @@ module.exports.routes = {
     action: 'view-query-library',
     locals: {
       currentPage: 'queries',
-      pageTitleForMeta: 'Queries | Fleet for osquery',
+      pageTitleForMeta: 'Queries | Fleet Device Management',
       pageDescriptionForMeta: 'A growing collection of useful queries for organizations deploying Fleet and osquery.'
     }
   },
@@ -100,7 +100,7 @@ module.exports.routes = {
   'GET /transparency': {
     action: 'view-transparency',
     locals: {
-      pageTitleForMeta: 'Transparency | Fleet for osquery',
+      pageTitleForMeta: 'Transparency | Fleet Device Management',
       pageDescriptionForMeta: 'Learn what data osquery can see.',
     }
   },
@@ -108,7 +108,7 @@ module.exports.routes = {
     action: 'customers/view-new-license',
     locals: {
       layout: 'layouts/layout-customer',
-      pageTitleForMeta: 'Get Fleet Premium | Fleet for osquery',
+      pageTitleForMeta: 'Get Fleet Premium | Fleet Device Management',
       pageDescriptionForMeta: 'Generate your quote and start using Fleet Premium today.',
     }
   },
@@ -116,7 +116,7 @@ module.exports.routes = {
     action: 'entrance/view-signup',
     locals: {
       layout: 'layouts/layout-customer',
-      pageTitleForMeta: 'Sign up | Fleet for osquery',
+      pageTitleForMeta: 'Sign up | Fleet Device Management',
       pageDescriptionForMeta: 'Sign up for a Fleet Premium license.',
     }
   },
@@ -124,7 +124,7 @@ module.exports.routes = {
     action: 'entrance/view-login',
     locals: {
       layout: 'layouts/layout-customer',
-      pageTitleForMeta: 'Log in | Fleet for osquery',
+      pageTitleForMeta: 'Log in | Fleet Device Management',
       pageDescriptionForMeta: 'Log in to the Fleet customer portal.',
     }
   },
@@ -132,7 +132,7 @@ module.exports.routes = {
     action: 'customers/view-dashboard',
     locals: {
       layout: 'layouts/layout-customer',
-      pageTitleForMeta: 'Customer dashboard | Fleet for osquery',
+      pageTitleForMeta: 'Customer dashboard | Fleet Device Management',
       pageDescriptionForMeta: 'View and edit information about your Fleet Premium license.',
     }
   },
@@ -140,7 +140,7 @@ module.exports.routes = {
     action: 'entrance/view-forgot-password',
     locals: {
       layout: 'layouts/layout-customer',
-      pageTitleForMeta: 'Forgot password | Fleet for osquery',
+      pageTitleForMeta: 'Forgot password | Fleet Device Management',
       pageDescriptionForMeta: 'Recover the password for your Fleet customer account.',
     }
   },
@@ -148,7 +148,7 @@ module.exports.routes = {
     action: 'entrance/view-new-password',
     locals: {
       layout: 'layouts/layout-customer',
-      pageTitleForMeta: 'New password | Fleet for osquery',
+      pageTitleForMeta: 'New password | Fleet Device Management',
       pageDescriptionForMeta: 'Change the password for your Fleet customer account.',
     }
   },
@@ -157,7 +157,7 @@ module.exports.routes = {
     action: 'view-platform',
     locals: {
       currentPage: 'platform',
-      pageTitleForMeta: 'Platform | Fleet for osquery',
+      pageTitleForMeta: 'Platform | Fleet Device Management',
       pageDescriptionForMeta: 'Learn about the Fleet\'s features.',
     }
   },
@@ -165,7 +165,7 @@ module.exports.routes = {
   'GET /reports/state-of-device-management': {
     action: 'reports/view-state-of-device-management',
     locals: {
-      pageTitleForMeta: 'State of device management | Fleet for osquery',
+      pageTitleForMeta: 'State of device management | Fleet Device Management',
       pageDescriptionForMeta: 'We surveyed 200+ security practitioners to discover the state of device management in 2022. Click here to learn about their struggles and best practices.',
       headerCTAHidden: true,
     }
@@ -174,7 +174,7 @@ module.exports.routes = {
   'GET /overview': {
     action: 'view-sales-one-pager',
     locals: {
-      pageTitleForMeta: 'Overview | Fleet for osquery',
+      pageTitleForMeta: 'Overview | Fleet Device Management',
       pageDescriptionForMeta: 'Fleet helps security and IT teams protect their devices. We\'re the single source of truth for workstation and server telemetry. Click to learn more!',
       layout: 'layouts/layout-landing'
     },
