@@ -1,6 +1,6 @@
 # Fleet MDM plan
 
-This proposal aims to document the plan to make Fleet an MDM server for Apple devices (see the [MDM protocol reference](https://developer.apple.com/business/documentation/MDM-Protocol-Reference.pdf)).
+This proposal aims to document the plan to make Fleet an MDM server for Apple devices (see [*MDM Protocol Reference*](https://developer.apple.com/business/documentation/MDM-Protocol-Reference.pdf)).
 
 ## MVP requirements
 
