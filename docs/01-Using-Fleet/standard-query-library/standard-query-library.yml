@@ -711,7 +711,7 @@ spec:
   description: "Checks if the firewall is enabled."
   resolution: "In System Preferences, open Security & Privacy, navigate to the Firewall tab and click Turn On Firewall."
   platforms: macOS
-  tags: hardening, compliance, built-in
+  tags: hardening, compliance, built-in, CIS2.5.2.2
   platform: darwin
   contributors: GuillaumeRoss
 ---

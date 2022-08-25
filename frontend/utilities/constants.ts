@@ -144,7 +144,7 @@ export const DEFAULT_POLICIES = [
   {
     key: 13,
     query: "SELECT 1 FROM alf WHERE global_state >= 1;",
-    name: "Firewall enabled (macOS)",
+    name: "Firewall enabled (macOS) [CIS 2.5.2.2]",
     description: "Checks if the firewall is enabled.",
     resolution:
       "In System Preferences, open Security & Privacy, navigate to the Firewall tab and click Turn On Firewall.",
