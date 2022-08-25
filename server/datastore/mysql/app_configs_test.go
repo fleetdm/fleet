@@ -28,6 +28,7 @@ func TestAppConfig(t *testing.T) {
 		{"EnrollSecretRoundtrip", testAppConfigEnrollSecretRoundtrip},
 		{"EnrollSecretUniqueness", testAppConfigEnrollSecretUniqueness},
 		{"Defaults", testAppConfigDefaults},
+		{"Backwards Compatibility", testAppConfigBackwardsCompatibility},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -77,7 +78,7 @@ func testAppConfigOrgInfo(t *testing.T, ds *Datastore) {
 	info2.SSOSettings.MetadataURL = "https://idp.com/metadata.xml"
 	info2.SSOSettings.IssuerURI = "https://idp.issuer.com"
 	info2.SSOSettings.IDPName = "My IDP"
-	info2.HostSettings.EnableSoftwareInventory = true
+	info2.Features.EnableSoftwareInventory = true
 
 	err = ds.SaveAppConfig(context.Background(), info2)
 	require.Nil(t, err)
@@ -120,7 +121,7 @@ func testAppConfigAdditionalQueries(t *testing.T, ds *Datastore) {
 			OrgName:    "Test",
 			OrgLogoURL: "localhost:8080/logo.png",
 		},
-		HostSettings: fleet.HostSettings{
+		Features: fleet.Features{
 			AdditionalQueries: additional,
 		},
 	}
@@ -128,14 +129,14 @@ func testAppConfigAdditionalQueries(t *testing.T, ds *Datastore) {
 	_, err := ds.NewAppConfig(context.Background(), info)
 	require.Error(t, err)
 
-	info.HostSettings.AdditionalQueries = ptr.RawMessage(json.RawMessage(`{}`))
+	info.Features.AdditionalQueries = ptr.RawMessage(json.RawMessage(`{}`))
 	info, err = ds.NewAppConfig(context.Background(), info)
 	require.NoError(t, err)
 
-	info.HostSettings.AdditionalQueries = ptr.RawMessage(json.RawMessage(`{"foo": "bar"}`))
+	info.Features.AdditionalQueries = ptr.RawMessage(json.RawMessage(`{"foo": "bar"}`))
 	info, err = ds.NewAppConfig(context.Background(), info)
 	require.NoError(t, err)
-	rawJson := *info.HostSettings.AdditionalQueries
+	rawJson := *info.Features.AdditionalQueries
 	assert.JSONEq(t, `{"foo":"bar"}`, string(rawJson))
 }
 
@@ -279,12 +280,12 @@ func testAppConfigDefaults(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.Equal(t, 24*time.Hour, ac.WebhookSettings.Interval.Duration)
 	require.False(t, ac.WebhookSettings.HostStatusWebhook.Enable)
-	require.True(t, ac.HostSettings.EnableHostUsers)
-	require.False(t, ac.HostSettings.EnableSoftwareInventory)
+	require.True(t, ac.Features.EnableHostUsers)
+	require.False(t, ac.Features.EnableSoftwareInventory)
 
 	_, err = ds.writer.Exec(
 		insertAppConfigQuery,
-		`{"webhook_settings": {"interval": "12h"}, "host_settings": {"enable_host_users": false}}`,
+		`{"webhook_settings": {"interval": "12h"}, "features": {"enable_host_users": false}}`,
 	)
 	require.NoError(t, err)
 
@@ -292,6 +293,27 @@ func testAppConfigDefaults(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 
 	require.Equal(t, 12*time.Hour, ac.WebhookSettings.Interval.Duration)
-	require.False(t, ac.HostSettings.EnableHostUsers)
-	require.False(t, ac.HostSettings.EnableSoftwareInventory)
+	require.False(t, ac.Features.EnableHostUsers)
+	require.False(t, ac.Features.EnableSoftwareInventory)
+}
+
+func testAppConfigBackwardsCompatibility(t *testing.T, ds *Datastore) {
+	insertAppConfigQuery := `INSERT INTO app_config_json(json_value) VALUES(?) ON DUPLICATE KEY UPDATE json_value = VALUES(json_value)`
+	_, err := ds.writer.Exec(insertAppConfigQuery, `
+{
+  "host_settings": {
+    "enable_host_users": false,
+    "enable_software_inventory": true,
+    "additional_queries": { "foo": "bar" }
+  }
+}`)
+
+	require.NoError(t, err)
+
+	ac, err := ds.AppConfig(context.Background())
+	require.NoError(t, err)
+
+	require.False(t, ac.Features.EnableHostUsers)
+	require.True(t, ac.Features.EnableSoftwareInventory)
+	require.NotNil(t, ac.Features.AdditionalQueries)
 }
