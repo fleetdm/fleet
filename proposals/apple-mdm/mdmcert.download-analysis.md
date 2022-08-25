@@ -1,8 +1,8 @@
 # MDMCert.Download Analysis
 
-Analysis of the APNS certificate generation steps using https://mdmcert.download.
+Here's how to generate an analysis of the APNS certificate using https://mdmcert.download.
 
-1. `mdmctl mdmcert.download -new` command
+## 1. `mdmctl mdmcert.download -new` command
 
 Reference: https://github.com/micromdm/micromdm/blob/main/cmd/mdmctl/mdmcert.download.go
 
@@ -12,7 +12,7 @@ Request successfully sent to mdmcert.download. Your CSR should now
 be signed. Check your email for next steps. Then use the -decrypt option
 to extract the CSR request which will then be uploaded to Apple.
 ```
-First, such command generates the following two files:
+First, this command generates the following two files:
 ```sh
 mdmcert.download.pki.key:  PEM RSA private key
 mdmcert.download.pki.crt:  self-signed PEM certificate // "key usage": for encryption and signing
@@ -22,7 +22,7 @@ Second, it then generates two more files, a push private key and a push CSR:
 mdmcert.download.push.key: PEM RSA private key
 mdmcert.download.push.csr: PEM certificate request
 ```
-Lastly it sends the CSR to https://mdmcert.download
+Lastly, it sends the CSR to https://mdmcert.download:
 ```
 return &signRequest{
 	CSR:     encodedCSR, // <<<< mdmcert.download.push.csr
@@ -31,10 +31,10 @@ return &signRequest{
 	Encrypt: encodedServerCert, // <<<< mdmcert.download.pki.crt
 }
 ```
-The https://mdmcert.download service signs the provided `mdmcert.download.push.csr`, encrypts the CSR with public key in `mdmcert.download.pki.crt` and
+The https://mdmcert.download service signs the provided `mdmcert.download.push.csr`, encrypts the CSR with public key in `mdmcert.download.pki.crt`, and
 sends it via e-mail as `mdm_signed_request.20220812_125806_1308.plist.b64.p7` to `alice@example.com`.
 
-2. `mdmctl mdmcert.download -decrypt` command
+## 2. `mdmctl mdmcert.download -decrypt` command
 
 ```sh
 $ mdmctl mdmcert.download -decrypt=./mdm_signed_request.20220812_125806_1308.plist.b64.p7
@@ -44,7 +44,7 @@ Once your Push Certificate is signed by Apple you can download it
 and import it into MicroMDM using the `mdmctl mdmcert upload` command
 ```
 
-Such command generates an "MDM Push Certificate request" to be uploaded to Apple:
+This command generates an "MDM Push Certificate request" to be uploaded to Apple:
 ```
 mdmcert.download.push.req: ASCII text, with CRLF line terminators
 ```
@@ -79,7 +79,7 @@ Here are the contents of such file (after base64 decoding):
 </plist>
 ```
 
-First certificate is of the form:
+The first certificate is of the form:
 ```
 Certificate:
 [...]
@@ -87,7 +87,7 @@ Certificate:
 [...]
 	Subject: UID=..., CN=MDM Vendor: McMurtrie Consulting LLC, OU=..., O=McMurtrie Consulting LLC, C=US
 ```
-Second certificate is of the form:
+The second certificate is of the form:
 ```
 Certificate:
 [...]
@@ -95,7 +95,7 @@ Certificate:
 [...]
 	Subject: CN=Apple Worldwide Developer Relations Certification Authority, OU=G3, O=Apple Inc., C=US
 ```
-Third certificate is of the form:
+The third certificate is of the form:
 ```
 Certificate:
 [...]
@@ -112,8 +112,6 @@ $ openssl dgst -sha256 -verify ./first.pubkey.pem -signature ./push_cert_signatu
 Verified OK
 ```
 
-Last step is:
-1. Upload the `mdmcert.download.push.req` XML plist file to https://identity.apple.com, which allows you to download the final `mdmcert.download.push.pem`.
+The last step is to upload the `mdmcert.download.push.req` XML plist file to https://identity.apple.com, which lets you download the final `mdmcert.download.push.pem`.
 
-Configure your MDM server to use `mdmcert.download.push.pem` and `mdmcert.download.push.key`.
-PS: The remaining files `mdmcert.download.pki.key`, `mdmcert.download.pki.crt`, `mdmcert.download.push.csr`, `mdmcert.download.push.req` are not necessary anymore.
+Configure your MDM server to use `mdmcert.download.push.pem` and `mdmcert.download.push.key`. The remaining files `mdmcert.download.pki.key`, `mdmcert.download.pki.crt`, `mdmcert.download.push.csr`, and `mdmcert.download.push.req` are not necessary anymore.
