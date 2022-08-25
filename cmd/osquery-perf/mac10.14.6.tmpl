@@ -217,6 +217,21 @@
   }
 ]
 {{- end }}
+{{ define "fleet_detail_query_os_version_unix_like" -}}
+[
+  {
+    "name":"Mac OS X",
+    "version":"10.14.6",
+    "major":"10",
+    "minor":"14",
+    "patch":"6",
+    "build":"18G3020",
+    "platform":"darwin",
+    "platform_like":"darwin",
+    "codename":""
+  }
+]
+{{- end }}
 {{ define "fleet_detail_query_osquery_flags" -}}
 [
   {

@@ -129,22 +129,16 @@ var hostDetailQueries = map[string]DetailQuery{
 		},
 	},
 	"os_version": {
-		Query: "select * from os_version limit 1",
+		// This query is required to collect basic platform information to enroll new hosts.
+		// Once we know the platform, we will we can make platform-specific queries to populate
+		// `host.OSVersion` via `os_version_windows` and `os_version_unix_like` below
+		Query: "SELECT * FROM os_version LIMIT 1",
 		IngestFunc: func(ctx context.Context, logger log.Logger, host *fleet.Host, rows []map[string]string) error {
 			if len(rows) != 1 {
 				logger.Log("component", "service", "method", "IngestFunc", "err",
 					fmt.Sprintf("detail_query_os_version expected single result got %d", len(rows)))
 				return nil
 			}
-
-			host.OSVersion = fmt.Sprintf("%v %v", rows[0]["name"], parseOSVersion(
-				rows[0]["name"],
-				rows[0]["version"],
-				rows[0]["major"],
-				rows[0]["minor"],
-				rows[0]["patch"],
-				rows[0]["build"],
-			))
 
 			if build, ok := rows[0]["build"]; ok {
 				host.Build = build
@@ -160,6 +154,64 @@ var hostDetailQueries = map[string]DetailQuery{
 				strings.Contains(strings.ToLower(rows[0]["name"]), "centos") {
 				host.Platform = "centos"
 			}
+
+			return nil
+		},
+	},
+	"os_version_unix_like": {
+		// Collect platform-specific information to populate `host.OSVersion` for Darwin and Linux.
+		// Note that data for `operating_system` and `host_operating_system` tables are ingested via
+		// the `os_unix_like` extra detail query below.
+		Query:     `SELECT * FROM os_version LIMIT 1`,
+		Platforms: append(fleet.HostLinuxOSs, "darwin"),
+		IngestFunc: func(ctx context.Context, logger log.Logger, host *fleet.Host, rows []map[string]string) error {
+			if len(rows) != 1 {
+				logger.Log("component", "service", "method", "IngestFunc", "err",
+					fmt.Sprintf("detail_query_os_version_unix_like expected single result got %d", len(rows)))
+				return nil
+			}
+
+			host.OSVersion = fmt.Sprintf("%v %v", rows[0]["name"], parseOSVersion(
+				rows[0]["name"],
+				rows[0]["version"],
+				rows[0]["major"],
+				rows[0]["minor"],
+				rows[0]["patch"],
+				rows[0]["build"],
+			))
+
+			return nil
+		},
+	},
+	"os_version_windows": {
+		// Collect platform-specific information to populate `host.OSVersion` for Windows.
+		// Note that data for `operating_system` and `host_operating_system` tables are ingested via
+		// the `os_windows` extra detail query below.
+		Query: `SELECT
+			os.name,
+			r.data
+		FROM
+			os_version os,
+			(
+				SELECT
+					data
+				FROM
+					registry
+				WHERE
+					path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\DisplayVersion') r
+		LIMIT 1`,
+		Platforms: []string{"windows"},
+		IngestFunc: func(ctx context.Context, logger log.Logger, host *fleet.Host, rows []map[string]string) error {
+			if len(rows) != 1 {
+				logger.Log("component", "service", "method", "IngestFunc", "err",
+					fmt.Sprintf("detail_query_os_version_windows expected single result got %d", len(rows)))
+				return nil
+			}
+
+			s := fmt.Sprintf("%v %v", rows[0]["name"], rows[0]["data"])
+			// Shorten "Microsoft Windows" to "Windows" to facilitate display and sorting in UI
+			s = strings.Replace(s, "Microsoft Windows", "Windows", 1)
+			host.OSVersion = s
 
 			return nil
 		},
@@ -342,6 +394,9 @@ var extraDetailQueries = map[string]DetailQuery{
 		// always present.
 	},
 	"os_windows": {
+		// This query is used to populate the `operating_systems` and `host_operating_system`
+		// tables. Separately, `hosts.OSVersion` is populated via the `os_version_windows` detail
+		// query above.
 		Query: `
 	SELECT
 		os.name,
@@ -363,6 +418,9 @@ var extraDetailQueries = map[string]DetailQuery{
 		DirectIngestFunc: directIngestOSWindows,
 	},
 	"os_unix_like": {
+		// This query is used to populate the `operating_systems` and `host_operating_system`
+		// tables. Separately, `hosts.OSVersion` is populated via the `os_version_unix_like` detail
+		// query above.
 		Query: `
 	SELECT
 		os.name,

@@ -61,8 +61,24 @@
 {{ define "fleet_detail_query_os_version" -}}
 [
   {
-    "name":"Ubuntu 18.4.0",
-    "version":"Ubuntu 18.4.0",
+    "name":"Ubuntu",
+    "version":"18.4.0",
+    "major":"",
+    "minor":"",
+    "patch":"",
+    "build":"",
+    "platform":"ubuntu",
+    "platform_like":"ubuntu",
+    "codename":""
+  }
+]
+{{- end }}
+
+{{ define "fleet_detail_query_os_version_unix_like" -}}
+[
+  {
+    "name":"Ubuntu",
+    "version":"18.4.0",
     "major":"",
     "minor":"",
     "patch":"",
