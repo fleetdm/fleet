@@ -280,7 +280,7 @@ module.exports.routes = {
   'GET /get-started':            '/fleetctl-preview',
   'GET /g':                       (req,res)=> { let originalQueryStringWithAmp = req.url.match(/\?(.+)$/) ? '&'+req.url.match(/\?(.+)$/)[1] : ''; return res.redirect(301, sails.config.custom.baseUrl+'/?meet-fleet'+originalQueryStringWithAmp); },
   'GET /test-fleet-sandbox':     '/try-fleet/register',
-  'GET /unsubscribe':            {action: 'unsubscribe-from-newsletter'},
+  'GET /unsubscribe':            { action: 'unsubscribe-from-all-newsletters' },
 
   // Sitemap
   // =============================================================================================================
@@ -331,5 +331,5 @@ module.exports.routes = {
   'POST /api/v1/entrance/update-password-and-login':    { action: 'entrance/update-password-and-login' },
   'POST /api/v1/deliver-demo-signup':                   { action: 'deliver-demo-signup' },
   'POST /api/v1/create-or-update-one-newsletter-subscription': { action: 'create-or-update-one-newsletter-subscription' },
-  'POST /api/v1/unsubscribe-from-newsletter': { action: 'unsubscribe-from-newsletter' }
+  'POST /api/v1/unsubscribe-from-all-newsletters': { action: 'unsubscribe-from-all-newsletters' }
 };

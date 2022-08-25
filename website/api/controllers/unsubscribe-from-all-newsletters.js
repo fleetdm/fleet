@@ -1,7 +1,7 @@
 module.exports = {
 
 
-  friendlyName: 'Unsubscribe from newsletter',
+  friendlyName: 'Unsubscribe from all newsletters',
 
 
   description: 'Sets the NewsletterSubscription record associated with the provided email address to be inactive',
@@ -21,7 +21,7 @@ module.exports = {
   exits: {
 
     success: {
-      description: 'This user has successfully unsubscribed from the newsletter.'
+      description: 'A user has successfully unsubscribed from all newsletter emails.'
     }
 
   },
@@ -35,7 +35,7 @@ module.exports = {
     if(!subscription) {
       throw new Error('Consistency violation: Somehow, the NewsletterSubscription record for ' + emailAddress + 'has gone missing');
     } else {
-      NewsletterSubscription.updateOne({emailAddress: emailAddress}).set({isActive: false});
+      NewsletterSubscription.updateOne({emailAddress: emailAddress}).set({isUnsubscribedFromAll: true});
     }
 
     // All done.
