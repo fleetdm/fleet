@@ -4,9 +4,7 @@ export type IOsqueryPlatform =
   | "windows"
   | "Windows"
   | "linux"
-  | "Linux"
-  | "freebsd"
-  | "FreeBSD";
+  | "Linux";
 
 export type IPlatformString =
   | ""

@@ -114,13 +114,6 @@ const QuerySidePanel = ({
                   {PLATFORM_DISPLAY_NAMES[platform] || platform}
                 </li>
               );
-            } else if (platform === "freebsd") {
-              return (
-                <li key={platform}>
-                  <FleetIcon name="single-host" />{" "}
-                  {PLATFORM_DISPLAY_NAMES[platform]}
-                </li>
-              );
             }
             platform = platform.toLowerCase();
             let icon = (

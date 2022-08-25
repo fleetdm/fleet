@@ -1,2 +1,0 @@
-- Added new `scheduler` package and refactored `cronDB` (which included cron operations for
-  cleanups, aggregations, and usage statistics) to use the new package.
