@@ -13,11 +13,13 @@ import (
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
 	"github.com/fleetdm/fleet/v4/server/datastore/redis/redistest"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/live_query/live_query_mock"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/test"
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 )
@@ -32,22 +34,31 @@ type integrationEnterpriseTestSuite struct {
 	withServer
 	suite.Suite
 	redisPool fleet.RedisPool
+
+	lq *live_query_mock.MockLiveQuery
 }
 
 func (s *integrationEnterpriseTestSuite) SetupSuite() {
 	s.withDS.SetupSuite("integrationEnterpriseTestSuite")
 
 	s.redisPool = redistest.SetupRedis(s.T(), "integration_enterprise", false, false, false)
+	s.lq = live_query_mock.New(s.T())
 	config := TestServerOpts{
 		License: &fleet.LicenseInfo{
 			Tier: fleet.TierPremium,
 		},
 		Pool: s.redisPool,
+		Lq:   s.lq,
 	}
 	users, server := RunServerForTestsWithDS(s.T(), s.ds, &config)
 	s.server = server
 	s.users = users
 	s.token = s.getTestAdminToken()
+}
+
+func (s *integrationEnterpriseTestSuite) TearDownTest() {
+	// reset the mock
+	s.lq.Mock = mock.Mock{}
 }
 
 func (s *integrationEnterpriseTestSuite) TestTeamSpecs() {
@@ -1263,4 +1274,78 @@ func (s *integrationEnterpriseTestSuite) TestSSOJITProvisioning() {
 		}
 		return false
 	})
+}
+
+func (s *integrationEnterpriseTestSuite) TestDistributedReadWithFeatures() {
+	t := s.T()
+
+	// Global config has both features enabled
+	spec := []byte(`
+  features:
+    additional_queries: null
+    enable_host_users: true
+    enable_software_inventory: true
+`)
+	s.applyConfig(spec)
+
+	// Team config has only additional queries enabled
+	a := json.RawMessage(`{"time": "SELECT * FROM time"}`)
+	team, err := s.ds.NewTeam(context.Background(), &fleet.Team{
+		ID:          42,
+		Name:        "team1",
+		Description: "desc team1",
+		Config: fleet.TeamConfig{
+			Features: fleet.Features{
+				EnableHostUsers:         false,
+				EnableSoftwareInventory: false,
+				AdditionalQueries:       &a,
+			},
+		},
+	})
+	require.NoError(t, err)
+
+	// Create a host without a team
+	host, err := s.ds.NewHost(context.Background(), &fleet.Host{
+		DetailUpdatedAt: time.Now(),
+		LabelUpdatedAt:  time.Now(),
+		PolicyUpdatedAt: time.Now(),
+		SeenTime:        time.Now().Add(-1 * time.Minute),
+		OsqueryHostID:   t.Name(),
+		NodeKey:         t.Name(),
+		UUID:            uuid.New().String(),
+		Hostname:        fmt.Sprintf("%sfoo.local", t.Name()),
+		Platform:        "darwin",
+	})
+	require.NoError(t, err)
+
+	s.lq.On("QueriesForHost", host.ID).Return(map[string]string{fmt.Sprintf("%d", host.ID): "select 1 from osquery;"}, nil)
+
+	// ensure we can read distributed queries for the host
+	err = s.ds.UpdateHostRefetchRequested(context.Background(), host.ID, true)
+	require.NoError(t, err)
+
+	// get distributed queries for the host
+	req := getDistributedQueriesRequest{NodeKey: host.NodeKey}
+	var dqResp getDistributedQueriesResponse
+	s.DoJSON("POST", "/api/osquery/distributed/read", req, http.StatusOK, &dqResp)
+	require.Contains(t, dqResp.Queries, "fleet_detail_query_users")
+	require.Contains(t, dqResp.Queries, "fleet_detail_query_software_macos")
+	require.NotContains(t, dqResp.Queries, "fleet_additional_query_time")
+
+	// add the host to team1
+	err = s.ds.AddHostsToTeam(context.Background(), &team.ID, []uint{host.ID})
+	require.NoError(t, err)
+
+	err = s.ds.UpdateHostRefetchRequested(context.Background(), host.ID, true)
+	require.NoError(t, err)
+	req = getDistributedQueriesRequest{NodeKey: host.NodeKey}
+	dqResp = getDistributedQueriesResponse{}
+	s.DoJSON("POST", "/api/osquery/distributed/read", req, http.StatusOK, &dqResp)
+	require.NotContains(t, dqResp.Queries, "fleet_detail_query_users")
+	require.NotContains(t, dqResp.Queries, "fleet_detail_query_software_macos")
+	require.Contains(t, dqResp.Queries, "fleet_additional_query_time")
+
+	for k := range dqResp.Queries {
+		fmt.Println(k)
+	}
 }

@@ -28,6 +28,7 @@ func (svc *Service) NewTeam(ctx context.Context, p fleet.TeamPayload) (*fleet.Te
 	team := &fleet.Team{
 		Config: fleet.TeamConfig{
 			AgentOptions: globalConfig.AgentOptions,
+			Features:     globalConfig.Features,
 		},
 	}
 
@@ -404,10 +405,16 @@ func (svc Service) ApplyTeamSpecs(ctx context.Context, specs []*fleet.TeamSpec) 
 				if agentOptions == nil {
 					agentOptions = config.AgentOptions
 				}
+				features := spec.Features
+				if features == nil {
+					features = &config.Features
+				}
+
 				tm, err := svc.ds.NewTeam(ctx, &fleet.Team{
 					Name: spec.Name,
 					Config: fleet.TeamConfig{
 						AgentOptions: agentOptions,
+						Features:     *features,
 					},
 					Secrets: secrets,
 				})
@@ -426,6 +433,9 @@ func (svc Service) ApplyTeamSpecs(ctx context.Context, specs []*fleet.TeamSpec) 
 
 		team.Name = spec.Name
 		team.Config.AgentOptions = spec.AgentOptions
+		if spec.Features != nil {
+			team.Config.Features = *spec.Features
+		}
 		if len(secrets) > 0 {
 			team.Secrets = secrets
 		}

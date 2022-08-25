@@ -389,6 +389,8 @@ type UpdateHostOsqueryIntervalsFunc func(ctx context.Context, hostID uint, inter
 
 type TeamAgentOptionsFunc func(ctx context.Context, teamID uint) (*json.RawMessage, error)
 
+type TeamFeaturesFunc func(ctx context.Context, teamID uint) (*fleet.Features, error)
+
 type SaveHostPackStatsFunc func(ctx context.Context, hostID uint, stats []fleet.PackStats) error
 
 type AsyncBatchSaveHostsScheduledQueryStatsFunc func(ctx context.Context, stats map[uint][]fleet.ScheduledQueryStats, batchSize int) (int, error)
@@ -999,6 +1001,9 @@ type DataStore struct {
 
 	TeamAgentOptionsFunc        TeamAgentOptionsFunc
 	TeamAgentOptionsFuncInvoked bool
+
+	TeamFeaturesFunc        TeamFeaturesFunc
+	TeamFeaturesFuncInvoked bool
 
 	SaveHostPackStatsFunc        SaveHostPackStatsFunc
 	SaveHostPackStatsFuncInvoked bool
@@ -2008,6 +2013,11 @@ func (s *DataStore) UpdateHostOsqueryIntervals(ctx context.Context, hostID uint,
 func (s *DataStore) TeamAgentOptions(ctx context.Context, teamID uint) (*json.RawMessage, error) {
 	s.TeamAgentOptionsFuncInvoked = true
 	return s.TeamAgentOptionsFunc(ctx, teamID)
+}
+
+func (s *DataStore) TeamFeatures(ctx context.Context, teamID uint) (*fleet.Features, error) {
+	s.TeamFeaturesFuncInvoked = true
+	return s.TeamFeaturesFunc(ctx, teamID)
 }
 
 func (s *DataStore) SaveHostPackStats(ctx context.Context, hostID uint, stats []fleet.PackStats) error {

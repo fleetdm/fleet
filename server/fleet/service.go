@@ -10,6 +10,14 @@ import (
 	"github.com/kolide/kit/version"
 )
 
+// EnterpriseOverrides contains the methods that can be overriden by the
+// enterprise service
+//
+// TODO: find if there's a better way to accomplish this and standardize.
+type EnterpriseOverrides struct {
+	HostFeatures func(context context.Context, host *Host) (*Features, error)
+}
+
 type OsqueryService interface {
 	EnrollAgent(
 		ctx context.Context, enrollSecret, hostIdentifier string, hostDetails map[string](map[string]string),
@@ -41,6 +49,12 @@ type OsqueryService interface {
 
 type Service interface {
 	OsqueryService
+
+	// SetEnterpriseOverrides allows the enterprise service to override specific methods
+	// that can't be easily overridden via embedding.
+	//
+	// TODO: find if there's a better way to accomplish this and standardize.
+	SetEnterpriseOverrides(overrides EnterpriseOverrides)
 
 	///////////////////////////////////////////////////////////////////////////////
 	// UserService contains methods for managing a Fleet User.
