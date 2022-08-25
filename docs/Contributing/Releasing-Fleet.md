@@ -50,7 +50,7 @@ Note: Please prefix versions with `fleet-v` (e.g., `fleet-v4.0.0`) in git tags, 
    Note that `origin` may be `upstream` depending on your `git remote` configuration. The intent here
    is to push the new tag to the `github.com/fleetdm/fleet` repository.
 
-   Afte the tag is pushed, GitHub Actions will automatically begin building the new release.
+   After the tag is pushed, GitHub Actions will automatically begin building the new release.
 
    ***
 

@@ -117,20 +117,6 @@ This would include the CTO + Engineering managers.
 - Engineering process discussion
 - Review Q2 OKRs
 
-### Product and Eng Weekly
-
-Engineering and Product sync on priorities for the upcoming release, surface and address any inter-group dependencies. Held weekly for 30 minutes.
-
-#### Participants
-
-This would include the CTO + Engineering managers + PMs.
-
-#### Sample agenda
-
-- Plan for what's going into the next release
-- Identify inter-group dependencies
-- Ensure items are moving through architect/estimation
-
 ## Release process
 
 This section outlines the release process at Fleet.
@@ -153,6 +139,19 @@ Non-release blocking bugs may include known issues that were not targeted for th
 
 Documentation on completing the release process can be found
 [here](../docs/Contributing/Releasing-Fleet.md).
+
+## Deploying to dogfood
+
+After each Fleet release, the new release is deployed to Fleet's dogfood (internal) instance.
+
+How to deploy a new release to dogfood:
+
+1. Head to the **Tags** page on the fleetdm/fleet Docker Hub: https://hub.docker.com/r/fleetdm/fleet/tags
+2. In the **Filter tags** search bar, type in the latest release (ex. v4.19.0).
+3. Locate the tag for the new release and copy the image name. An example image name is "fleetdm/fleet:v4.19.0."
+4. Head to the "Deploy Dogfood Environment" action on GitHub: https://github.com/fleetdm/fleet/actions/workflows/dogfood-deploy.yml
+5. Select **Run workflow** and paste the image name in the **The image tag wished to be deployed.** field.
+6. Select **Run workflow**. **main** should be selected under the **Use workflow from** field.
 
 ## On-call rotation
 
