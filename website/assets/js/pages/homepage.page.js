@@ -25,6 +25,8 @@ parasails.registerPage('homepage', {
 
     // Success state when form has been submitted
     cloudSuccess: false,
+    showAllTweets: false,
+    modal: undefined,
   },
 
   //  ╦  ╦╔═╗╔═╗╔═╗╦ ╦╔═╗╦  ╔═╗
@@ -51,6 +53,15 @@ parasails.registerPage('homepage', {
       // > https://github.com/papercups-io/chat-widget/blob/master/src/index.tsx#L4-L6
       // > ~Dec 31, 2020
       window.dispatchEvent(new Event('papercups:open'));
+    },
+    clickToggleTruncateTweets: function() {
+      this.showAllTweets = !this.showAllTweets;
+    },
+    clickOpenVideoModal: function() {
+      this.modal = 'video';
+    },
+    closeModal: function() {
+      this.modal = '';
     },
 
     submittedNewsletterForm: async function() {

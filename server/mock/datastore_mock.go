@@ -297,7 +297,7 @@ type AllSoftwareWithoutCPEIteratorFunc func(ctx context.Context, excludedPlatfor
 
 type AddCPEForSoftwareFunc func(ctx context.Context, software fleet.Software, cpe string) error
 
-type ListSoftwareCPEsFunc func(ctx context.Context, excludedPlatforms []string) ([]fleet.SoftwareCPE, error)
+type ListSoftwareCPEsFunc func(ctx context.Context) ([]fleet.SoftwareCPE, error)
 
 type InsertVulnerabilitiesFunc func(ctx context.Context, vulns []fleet.SoftwareVulnerability, source fleet.VulnerabilitySource) (int64, error)
 
@@ -1780,9 +1780,9 @@ func (s *DataStore) AddCPEForSoftware(ctx context.Context, software fleet.Softwa
 	return s.AddCPEForSoftwareFunc(ctx, software, cpe)
 }
 
-func (s *DataStore) ListSoftwareCPEs(ctx context.Context, excludedPlatforms []string) ([]fleet.SoftwareCPE, error) {
+func (s *DataStore) ListSoftwareCPEs(ctx context.Context) ([]fleet.SoftwareCPE, error) {
 	s.ListSoftwareCPEsFuncInvoked = true
-	return s.ListSoftwareCPEsFunc(ctx, excludedPlatforms)
+	return s.ListSoftwareCPEsFunc(ctx)
 }
 
 func (s *DataStore) InsertVulnerabilities(ctx context.Context, vulns []fleet.SoftwareVulnerability, source fleet.VulnerabilitySource) (int64, error) {

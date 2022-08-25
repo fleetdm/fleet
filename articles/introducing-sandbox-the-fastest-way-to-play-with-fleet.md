@@ -11,7 +11,7 @@ Introducing Sandbox: The fastest way to start playing with Fleet on your device.
 ## Get started in minutes
 
 <div purpose="embedded-content">
-	<iframe src="https://www.youtube.com/embed/1xubJYEi9v4" allowfullscreen></iframe>
+	<iframe src="https://www.youtube.com/embed/iQtdpZYxiqI" allowfullscreen></iframe>
 </div>
 
 Instead of asking you to go through extra steps, we set up your Fleet instance on one of our servers. Then it’s as easy as 1-2-3.

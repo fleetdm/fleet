@@ -84,7 +84,7 @@ module "aws-eks-accelerator-for-terraform" {
     rolearn  = i.arn
     username = i.id
     groups   = ["system:masters"]
-    }]
+  }]
 
   fargate_profiles = {
     default = {
@@ -370,7 +370,7 @@ data "aws_iam_policy_document" "ecr" {
 
 resource "aws_ecr_repository" "main" {
   name                 = "${var.prefix}-eks"
-  image_tag_mutability = "MUTABLE"
+  image_tag_mutability = "IMMUTABLE"
 
   image_scanning_configuration {
     scan_on_push = true

@@ -285,10 +285,12 @@ spec:
           httpGet:
             path: /healthz
             port: {{ .Values.fleet.listenPort }}
+          timeoutSeconds: 10
         readinessProbe:
           httpGet:
             path: /healthz
             port: {{ .Values.fleet.listenPort }}
+          timeoutSeconds: 10
         {{- if or (.Values.fleet.tls.enabled) (.Values.mysql.tls.enabled) (eq .Values.osquery.logging.statusPlugin "filesystem") (eq .Values.osquery.logging.resultPlugin "filesystem") }}
         volumeMounts:
           {{- if .Values.fleet.tls.enabled }}

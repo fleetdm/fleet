@@ -147,7 +147,21 @@ func (svc *Service) ModifyTeamAgentOptions(ctx context.Context, teamID uint, opt
 		team.Config.AgentOptions = nil
 	}
 
-	return svc.ds.SaveTeam(ctx, team)
+	tm, err := svc.ds.SaveTeam(ctx, team)
+	if err != nil {
+		return nil, err
+	}
+
+	if err := svc.ds.NewActivity(
+		ctx,
+		authz.UserFromContext(ctx),
+		fleet.ActivityTypeEditedAgentOptions,
+		&map[string]interface{}{"global": false, "team_id": team.ID, "team_name": team.Name},
+	); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "create edited agent options activity")
+	}
+
+	return tm, nil
 }
 
 func (svc *Service) AddTeamUsers(ctx context.Context, teamID uint, users []fleet.TeamUser) (*fleet.Team, error) {
@@ -369,6 +383,12 @@ func (svc Service) ApplyTeamSpecs(ctx context.Context, specs []*fleet.TeamSpec) 
 		return err
 	}
 
+	type activityDetail struct {
+		ID   uint   `json:"id"`
+		Name string `json:"name"`
+	}
+	var details []activityDetail
+
 	for _, spec := range specs {
 		var secrets []*fleet.EnrollSecret
 		for _, secret := range spec.Secrets {
@@ -384,7 +404,7 @@ func (svc Service) ApplyTeamSpecs(ctx context.Context, specs []*fleet.TeamSpec) 
 				if agentOptions == nil {
 					agentOptions = config.AgentOptions
 				}
-				_, err = svc.ds.NewTeam(ctx, &fleet.Team{
+				tm, err := svc.ds.NewTeam(ctx, &fleet.Team{
 					Name: spec.Name,
 					Config: fleet.TeamConfig{
 						AgentOptions: agentOptions,
@@ -394,6 +414,10 @@ func (svc Service) ApplyTeamSpecs(ctx context.Context, specs []*fleet.TeamSpec) 
 				if err != nil {
 					return err
 				}
+				details = append(details, activityDetail{
+					ID:   tm.ID,
+					Name: tm.Name,
+				})
 				continue
 			}
 
@@ -418,7 +442,20 @@ func (svc Service) ApplyTeamSpecs(ctx context.Context, specs []*fleet.TeamSpec) 
 				return err
 			}
 		}
+
+		details = append(details, activityDetail{
+			ID:   team.ID,
+			Name: team.Name,
+		})
 	}
 
+	if err := svc.ds.NewActivity(
+		ctx,
+		authz.UserFromContext(ctx),
+		fleet.ActivityTypeAppliedSpecTeam,
+		&map[string]interface{}{"teams": details},
+	); err != nil {
+		return ctxerr.Wrap(ctx, err, "create applied team spec activity")
+	}
 	return nil
 }
