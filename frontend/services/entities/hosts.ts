@@ -26,9 +26,9 @@ export interface ILoadHostsOptions {
   softwareId?: number;
   mdmId?: number;
   mdmEnrollmentStatus?: string;
-  os_id?: number;
-  os_name?: string;
-  os_version?: string;
+  osId?: number;
+  osName?: string;
+  osVersion?: string;
   device_mapping?: boolean;
   columns?: string;
   visibleColumns?: string;
@@ -46,9 +46,9 @@ export interface IExportHostsOptions {
   softwareId?: number;
   mdmId?: number;
   mdmEnrollmentStatus?: string;
-  os_id?: number;
-  os_name?: string;
-  os_version?: string;
+  osId?: number;
+  osName?: string;
+  osVersion?: string;
   device_mapping?: boolean;
   columns?: string;
   visibleColumns?: string;
@@ -168,9 +168,9 @@ export default {
     softwareId,
     mdmId,
     mdmEnrollmentStatus,
-    os_id,
-    os_name,
-    os_version,
+    osId,
+    osName,
+    osVersion,
     device_mapping,
     selectedLabels,
     sortBy,
@@ -193,11 +193,9 @@ export default {
         mdmId,
         mdmEnrollmentStatus,
         softwareId,
-        mdmId,
-        mdmEnrollmentStatus,
-        os_id,
-        os_name,
-        os_version
+        osId,
+        osName,
+        osVersion
       ),
       status: getStatusParam(selectedLabels),
     };

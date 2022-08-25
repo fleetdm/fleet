@@ -278,7 +278,7 @@ const ManageHostsPage = ({
       ? parseInt(queryParams?.mdm_id, 10)
       : undefined;
   const mdmEnrollmentStatus = queryParams?.mdm_enrollment_status;
-  const { os_id, os_name, os_version } = queryParams;
+  const { os_id: osId, os_name: osName, os_version: osVersion } = queryParams;
   const { active_label: activeLabel, label_id: labelID } = routeParams;
 
   // ===== filter matching
@@ -540,9 +540,9 @@ const ManageHostsPage = ({
       softwareId,
       mdmId,
       mdmEnrollmentStatus,
-      os_id,
-      os_name,
-      os_version,
+      osId,
+      osName,
+      osVersion,
       page: tableQueryData ? tableQueryData.pageIndex : 0,
       perPage: tableQueryData ? tableQueryData.pageSize : 100,
       device_mapping: true,
@@ -802,15 +802,15 @@ const ManageHostsPage = ({
       }
 
       if (
-        (os_id || (os_name && os_version)) &&
+        (osId || (osName && osVersion)) &&
         !softwareId &&
         !policyId &&
         !mdmEnrollmentStatus &&
         !mdmId
       ) {
-        newQueryParams.os_id = os_id;
-        newQueryParams.os_name = os_name;
-        newQueryParams.os_version = os_version;
+        newQueryParams.os_id = osId;
+        newQueryParams.os_name = osName;
+        newQueryParams.os_version = osVersion;
       }
       router.replace(
         getNextLocationPath({
@@ -830,9 +830,9 @@ const ManageHostsPage = ({
       softwareId,
       mdmId,
       mdmEnrollmentStatus,
-      os_id,
-      os_name,
-      os_version,
+      osId,
+      osName,
+      osVersion,
       sortBy,
     ]
   );
@@ -1072,9 +1072,9 @@ const ManageHostsPage = ({
         softwareId,
         mdmId,
         mdmEnrollmentStatus,
-        os_id,
-        os_name,
-        os_version,
+        osId,
+        osName,
+        osVersion,
       });
 
       toggleTransferHostModal();
@@ -1122,9 +1122,9 @@ const ManageHostsPage = ({
         softwareId,
         mdmId,
         mdmEnrollmentStatus,
-        os_id,
-        os_name,
-        os_version,
+        osId,
+        osName,
+        osVersion,
       });
 
       refetchLabels();
@@ -1188,11 +1188,11 @@ const ManageHostsPage = ({
     if (!os_id && !(os_name && os_version)) return null;
 
     let os: IOperatingSystemVersion | undefined;
-    if (os_id) {
-      os = osVersions?.find((v) => v.os_id === os_id);
-    } else if (os_name && os_version) {
-      const name: string = os_name;
-      const vers: string = os_version;
+    if (osId) {
+      os = osVersions?.find((v) => v.os_id === osId);
+    } else if (osName && osVersion) {
+      const name: string = osName;
+      const vers: string = osVersion;
 
       os = osVersions?.find(
         ({ name_only, version }) =>
@@ -1493,9 +1493,9 @@ const ManageHostsPage = ({
       softwareId,
       mdmId,
       mdmEnrollmentStatus,
-      os_id,
-      os_name,
-      os_version,
+      os_id: osId,
+      os_name: osName,
+      os_version: osVersion,
       visibleColumns,
     };
 
@@ -1569,8 +1569,8 @@ const ManageHostsPage = ({
       showSelectedLabel ||
       mdmId ||
       mdmEnrollmentStatus ||
-      os_id ||
-      (os_name && os_version)
+      osId ||
+      (osName && osVersion)
     ) {
       return (
         <div className={`${baseClass}__labels-active-filter-wrap`}>
@@ -1599,7 +1599,7 @@ const ManageHostsPage = ({
             !mdmId &&
             !showSelectedLabel &&
             renderMDMEnrollmentFilterBlock()}
-          {(!!os_id || (!!os_name && !!os_version)) &&
+          {(!!osId || (!!osName && !!osVersion)) &&
             !policyId &&
             !softwareId &&
             !showSelectedLabel &&
@@ -1704,9 +1704,9 @@ const ManageHostsPage = ({
         policy_id ||
         mdm_id ||
         mdm_enrollment_status ||
-        os_id ||
-        os_name ||
-        os_version
+        osId ||
+        osName ||
+        osVersion
       );
 
       return (

@@ -47,7 +47,9 @@ export const reconcileMutuallyExclusiveHostParams = (
   mdmId?: number,
   mdmEnrollmentStatus?: string,
   softwareId?: number,
-  operatingSystemId?: number
+  osId?: number,
+  osName?: string,
+  osVersion?: string
 ): Record<string, unknown> => {
   if (label) {
     return {};
@@ -59,8 +61,10 @@ export const reconcileMutuallyExclusiveHostParams = (
       return { mdm_id: mdmId, mdm_status: mdmEnrollmentStatus };
     case !!softwareId:
       return { software_id: softwareId };
-    case !!operatingSystemId:
-      return { operating_system_id: operatingSystemId };
+    case !!osId:
+      return { os_id: osId };
+    case !!osName && !!osVersion:
+      return { os_name: osName, os_version: osVersion };
     default:
       return {};
   }
