@@ -29,12 +29,14 @@ jobs:
     runs-on: ${{ matrix.os }}
 
     steps:
+
+    # Docker needs to be installed manually on macOS.
+    # From https://github.com/docker/for-mac/issues/2359#issuecomment-943131345
+    # FIXME: lock Docker version to 4.10.0 as newer versions fail to initialize
     - name: Install Docker
-      timeout-minutes: 60
+      timeout-minutes: 10
       if: matrix.os == 'macos-latest'
-      # From https://github.com/docker/for-mac/issues/2359#issuecomment-943131345
       run: |
-        # fixme: lock Docker version to 4.10.0 as newer versions fail to initialize
         curl -L https://raw.githubusercontent.com/Homebrew/homebrew-cask/c65030146a5cf2070c2499b6c68e2c3495c99731/Casks/docker.rb > docker.rb
         brew install --cask docker.rb
         sudo /Applications/Docker.app/Contents/MacOS/Docker --unattended --install-privileged-components
