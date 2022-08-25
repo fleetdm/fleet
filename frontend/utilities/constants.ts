@@ -175,7 +175,7 @@ export const DEFAULT_POLICIES = [
     key: 16,
     query:
       "SELECT 1 FROM (SELECT cast(lengthtxt as integer(2)) minlength FROM (SELECT SUBSTRING(length, 1, 2) AS lengthtxt FROM (SELECT policy_description, policy_identifier, split(policy_content, '{', 1) AS length FROM password_policy WHERE policy_identifier LIKE '%minLength')) WHERE minlength >= 10);",
-    name: "Password requires 10 or more characters (macOS)",
+    name: "Password requires 10 or more characters (macOS) [CIS 5.2.2]",
     description:
       "Checks that the password policy requires at least 10 characters. Requires osquery 5.4.0 or newer.",
     resolution:
