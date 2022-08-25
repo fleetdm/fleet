@@ -23,10 +23,9 @@ module.exports = {
       example: 'mary.sue@example.com'
     },
 
-    isActive: {
+    isUnsubscribedFromAll: {
       type: 'boolean',
-      description: 'Whether this newsletter subscription is active or not.',
-      defaultsTo: true,
+      description: 'Whether this newsletter subscription has been updated to indicate a preference for unsubscribing from all current and future newsletters.',
     },
 
     isSubscribedToReleases: {
@@ -34,40 +33,40 @@ module.exports = {
       description: 'Whether the email address associated with this newsletter subscription will be sent release posts and security update emails'
     },
 
-    isSubscribedToProductArticles: {
-      type: 'boolean',
-      description: 'Whether the email address associated with this newsletter subscription will be sent articles in the product category'
-    },
+    // isSubscribedToProductArticles: {
+    //   type: 'boolean',
+    //   description: 'Whether the email address associated with this newsletter subscription will be sent articles in the product category'
+    // },
 
-    isSubscribedToEngineeringArticles: {
-      type: 'boolean',
-      description: 'Whether the email address associated with this newsletter subscription will be sent articles in the engineering category'
-    },
+    // isSubscribedToEngineeringArticles: {
+    //   type: 'boolean',
+    //   description: 'Whether the email address associated with this newsletter subscription will be sent articles in the engineering category'
+    // },
 
-    isSubscribedToSecurityArticles: {
-      type: 'boolean',
-      description: 'Whether the email address associated with this newsletter subscription will be sent articles in the security category'
-    },
+    // isSubscribedToSecurityArticles: {
+    //   type: 'boolean',
+    //   description: 'Whether the email address associated with this newsletter subscription will be sent articles in the security category'
+    // },
 
-    isSubscribedToGuideArticles: {
-      type: 'boolean',
-      description: 'Whether the email address associated with this newsletter subscription will be sent articles in the guides category'
-    },
+    // isSubscribedToGuideArticles: {
+    //   type: 'boolean',
+    //   description: 'Whether the email address associated with this newsletter subscription will be sent articles in the guides category'
+    // },
 
-    isSubscribedToAnnouncementArticles: {
-      type: 'boolean',
-      description: 'Whether the email address associated with this newsletter subscription will be sent articles in the announcement category'
-    },
+    // isSubscribedToAnnouncementArticles: {
+    //   type: 'boolean',
+    //   description: 'Whether the email address associated with this newsletter subscription will be sent articles in the announcement category'
+    // },
 
-    isSubscribedToDeployArticles: {
-      type: 'boolean',
-      description: 'Whether the email address associated with this newsletter subscription will be sent articles in the deployment guides category'
-    },
+    // isSubscribedToDeployArticles: {
+    //   type: 'boolean',
+    //   description: 'Whether the email address associated with this newsletter subscription will be sent articles in the deployment guides category'
+    // },
 
-    isSubscribedToPodcastArticles: {
-      type: 'boolean',
-      description: 'Whether the email address associated with this newsletter subscription will be sent articles in the podcast category'
-    },
+    // isSubscribedToPodcastArticles: {
+    //   type: 'boolean',
+    //   description: 'Whether the email address associated with this newsletter subscription will be sent articles in the podcast category'
+    // },
 
     //  ╔═╗╔╦╗╔╗ ╔═╗╔╦╗╔═╗
     //  ║╣ ║║║╠╩╗║╣  ║║╚═╗
