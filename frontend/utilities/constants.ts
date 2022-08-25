@@ -315,6 +315,17 @@ export const DEFAULT_POLICIES = [
       "Contact your IT administrator to ensure your Mac is receiving a profile to prevent iCloud Desktop and Documents sync.",
     platform: "darwin",
   },
+  {
+    key: 30,
+    query:
+      "SELECT 1 FROM managed_policies WHERE domain='com.apple.security.firewall' AND name='EnableLogging' AND value='1' LIMIT 1;",
+    name: "Firewall logging is enabled (macOS) [CIS 3.6]",
+    description:
+      "Checks that a mobile device management (MDM) solution configures the operating system log firewall activity.",
+    resolution:
+      "Contact your IT administrator to ensure your Mac is receiving a profile that enables firewall logging.",
+    platform: "darwin",
+  },
 ] as IPolicyNew[];
 
 export const FREQUENCY_DROPDOWN_OPTIONS = [
