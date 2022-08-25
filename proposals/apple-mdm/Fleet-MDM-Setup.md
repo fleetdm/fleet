@@ -50,7 +50,7 @@ The "MDM Vendor Setup" flow (1) is executed once by the "MDM vendor."
 
 The "Customer Setup" flow (2) is executed by customers when they are setting up their MDM server.
 
-The goal is for the "Fleet DM" organization to become an "MDM vendor" that issues CSRs to customers, which allows them to generate "APNS certificates" for their MDM deployments.
+The goal is for the Fleet organization to become an "MDM vendor" that issues CSRs to customers, which allows them to generate "APNS certificates" for their MDM deployments.
 
 For the purposes of designing a PoC, we used the https://mdmcert.download/ service as an "MDM vendor."
 See [MDMCert.Download Analysis](./mdmcert.download-analysis.md) for more details on the process.
@@ -59,7 +59,7 @@ See [MDMCert.Download Analysis](./mdmcert.download-analysis.md) for more details
 
 The MDM APNS certificate provisioning will be manual on MVP:
 - Customers will use `fleetctl` commands that will mimick `mdmctl mdmcert.download` commands (see [MDMCert.Download Analysis](mdmcert.download-analysis.md)).
-- Fleet DM operators will perform the steps shown in the diagram above manually by running a new command line tool (under `tools/mdm-apple/mdm-apple-customer-setup`).
+- Fleet operators will perform the steps shown in the diagram above manually by running a new command line tool (under `tools/mdm-apple/mdm-apple-customer-setup`).
 
 #### 1. Init APNS (customer)
 
@@ -77,9 +77,9 @@ TODO(Lucas): Store private key encrypted with passphrase?
 	- fleet-mdm-apple-apns-push.csr
 	- fleet-mdm-apple-apns-pki.crt
 - Text to stdout that explains next step, something like:
-	"Send zip to Fleet DM via preferred medium (e-mail, Slack)."
+	"Send zip to Fleet via preferred medium (e-mail, Slack)."
 
-#### 2. New tool `tools/mdm-apple/mdm-apple-customer-setup` (Fleet DM representative)
+#### 2. New tool `tools/mdm-apple/mdm-apple-customer-setup` (Fleet representative)
 
 Usage: 
 ```
