@@ -293,6 +293,17 @@ export const DEFAULT_POLICIES = [
       "Contact your IT administrator to ensure your Mac is receiving a profile that disables content caching.",
     platform: "darwin",
   },
+  {
+    key: 28,
+    query:
+      "SELECT 1 FROM managed_policies WHERE domain='com.apple.AdLib' AND name='forceLimitAdTracking' AND value='1' LIMIT 1;",
+    name: "Ad tracking is limited (macOS) [CIS 2.5.6]",
+    description:
+      "Checks that a mobile device management (MDM) solution configures the operating system to limit advertisement tracking.",
+    resolution:
+      "Contact your IT administrator to ensure your Mac is receiving a profile that disables advertisement tracking.",
+    platform: "darwin",
+  },
 ] as IPolicyNew[];
 
 export const FREQUENCY_DROPDOWN_OPTIONS = [

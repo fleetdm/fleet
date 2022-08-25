@@ -870,3 +870,15 @@ spec:
   tags: compliance, CIS, CIS2.4.10
   platform: darwin
   contributors: GuillaumeRoss
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: Ad tracking is limited (macOS)
+  query: SELECT 1 FROM managed_policies WHERE domain='com.apple.AdLib' AND name='forceLimitAdTracking' AND value='1' LIMIT 1;
+  description: "Checks that a mobile device management (MDM) solution configures the operating system to limit advertisement tracking."
+  resolution: "Contact your IT administrator to ensure your Mac is receiving a profile that disables advertisement tracking."
+  platforms: macOS
+  tags: compliance, CIS, CIS2.5.6
+  platform: darwin
+  contributors: GuillaumeRoss
