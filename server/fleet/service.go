@@ -10,6 +10,14 @@ import (
 	"github.com/kolide/kit/version"
 )
 
+type Hijacker interface {
+	// HijackWith lets the caller implement custom behavior for the
+	// set of methods in this interface.
+	HijackWith(Hijacker)
+
+	ExampleMethod(ctx context.Context) error
+}
+
 type OsqueryService interface {
 	EnrollAgent(
 		ctx context.Context, enrollSecret, hostIdentifier string, hostDetails map[string](map[string]string),
@@ -41,6 +49,7 @@ type OsqueryService interface {
 
 type Service interface {
 	OsqueryService
+	Hijacker
 
 	///////////////////////////////////////////////////////////////////////////////
 	// UserService contains methods for managing a Fleet User.

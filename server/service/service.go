@@ -47,11 +47,25 @@ type Service struct {
 	jitterMu *sync.Mutex
 	jitterH  map[time.Duration]*jitterHashTable
 
-	geoIP fleet.GeoIP
+	geoIP  fleet.GeoIP
+	hijack fleet.Hijacker
 }
 
 func (s *Service) LookupGeoIP(ctx context.Context, ip string) *fleet.GeoLocation {
 	return s.geoIP.Lookup(ctx, ip)
+}
+
+func (s *Service) HijackWith(h fleet.Hijacker) { s.hijack = h }
+
+func (s *Service) ExampleMethod(ctx context.Context) error {
+	if s.hijack != nil {
+		return s.hijack.ExampleMethod(ctx)
+	}
+
+	fmt.Println("free example method!")
+
+	// free implementation...
+	return nil
 }
 
 // NewService creates a new service from the config struct

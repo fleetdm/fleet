@@ -1,6 +1,7 @@
 package service
 
 import (
+	"context"
 	"fmt"
 
 	"github.com/WatchBeam/clock"
@@ -21,6 +22,11 @@ type Service struct {
 	license *fleet.LicenseInfo
 }
 
+func (s *Service) ExampleMethod(ctx context.Context) error {
+	fmt.Println("premium example method!")
+	return nil
+}
+
 func NewService(
 	svc fleet.Service,
 	ds fleet.Datastore,
@@ -36,7 +42,7 @@ func NewService(
 		return nil, fmt.Errorf("new authorizer: %w", err)
 	}
 
-	return &Service{
+	eesvc := &Service{
 		Service: svc,
 		ds:      ds,
 		logger:  logger,
@@ -44,5 +50,7 @@ func NewService(
 		clock:   c,
 		authz:   authorizer,
 		license: license,
-	}, nil
+	}
+	svc.HijackWith(eesvc)
+	return eesvc, nil
 }
