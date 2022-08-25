@@ -686,27 +686,13 @@ func addCPEForSoftwareDB(ctx context.Context, exec sqlx.ExecerContext, software 
 	return uint(id), nil
 }
 
-func (ds *Datastore) ListSoftwareCPEs(ctx context.Context, excludedPlatforms []string) ([]fleet.SoftwareCPE, error) {
+func (ds *Datastore) ListSoftwareCPEs(ctx context.Context) ([]fleet.SoftwareCPE, error) {
 	var result []fleet.SoftwareCPE
 
 	var err error
 	var args []interface{}
 
 	stmt := `SELECT id, software_id, cpe FROM software_cpe`
-
-	if excludedPlatforms != nil {
-		stmt += ` WHERE software_id NOT IN (
-			SELECT software_id
-			FROM host_software hs
-			INNER JOIN hosts h on hs.host_id = h.id
-			WHERE h.platform IN (?)
-		)`
-
-		stmt, args, err = sqlx.In(stmt, excludedPlatforms)
-		if err != nil {
-			return nil, ctxerr.Wrap(ctx, err, "loads cpes")
-		}
-	}
 	err = sqlx.SelectContext(ctx, ds.reader, &result, stmt, args...)
 
 	if err != nil {
@@ -756,12 +742,6 @@ func (ds *Datastore) SoftwareByID(ctx context.Context, id uint, includeCVEScores
 			"s.arch",
 			"scv.cve",
 		).
-		Join( // filter software that is not associated with any hosts
-			goqu.I("host_software").As("hs"),
-			goqu.On(
-				goqu.I("hs.software_id").Eq(goqu.I("s.id")),
-			),
-		).
 		LeftJoin(
 			goqu.I("software_cpe").As("scp"),
 			goqu.On(
@@ -787,6 +767,8 @@ func (ds *Datastore) SoftwareByID(ctx context.Context, id uint, includeCVEScores
 	}
 
 	q = q.Where(goqu.I("s.id").Eq(id))
+	// filter software that is not associated with any hosts
+	q = q.Where(goqu.L("EXISTS (SELECT 1 FROM host_software WHERE software_id = ? LIMIT 1)", id))
 
 	sql, args, err := q.ToSQL()
 	if err != nil {
@@ -1134,7 +1116,7 @@ func (ds *Datastore) ListSoftwareForVulnDetection(
 
 	stmt := dialect.
 		From(goqu.T("software").As("s")).
-		Join(
+		LeftJoin(
 			goqu.T("software_cpe").As("cpe"),
 			goqu.On(goqu.Ex{
 				"s.id": goqu.I("cpe.software_id"),
@@ -1152,7 +1134,7 @@ func (ds *Datastore) ListSoftwareForVulnDetection(
 			goqu.I("s.version"),
 			goqu.I("s.release"),
 			goqu.I("s.arch"),
-			goqu.I("cpe.cpe").As("generated_cpe"),
+			goqu.COALESCE(goqu.I("cpe.cpe"), "").As("generated_cpe"),
 		).
 		Where(goqu.C("host_id").Eq(hostID))
 

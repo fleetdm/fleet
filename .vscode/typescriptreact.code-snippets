@@ -1,0 +1,19 @@
+{
+	"Fleet - React stateless component with TS": {
+		"scope": "typescriptreact",
+		"prefix": "rtsc",
+		"body": [
+			"import React from \"react\";",
+			"",
+			"interface I${TM_FILENAME_BASE}Props {}",
+			"",
+			"const $TM_FILENAME_BASE = ({}: I${TM_FILENAME_BASE}Props) => {",
+			"	return <></>;",
+			"};",
+			"",
+			"export default $TM_FILENAME_BASE;",
+			"",
+		],
+		"description": "Creates a React stateless component with the typescrip interface setup"
+	}
+}

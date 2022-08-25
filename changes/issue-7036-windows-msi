@@ -1,1 +1,0 @@
-* Fixed a bug preventing `.msi` installers to be generated on Windows machines.

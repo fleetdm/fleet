@@ -81,7 +81,8 @@ export const DEFAULT_POLICIES = [
   },
   {
     key: 7,
-    query: "SELECT 1 FROM bitlocker_info WHERE protection_status = 1;",
+    query:
+      "SELECT 1 FROM bitlocker_info WHERE drive_letter='C:' AND protection_status=1;",
     name: "Full disk encryption enabled (Windows)",
     description:
       "Checks to make sure that full disk encryption is enabled on Windows devices.",
@@ -179,6 +180,48 @@ export const DEFAULT_POLICIES = [
       "Checks that the password policy requires at least 10 characters. Requires osquery 5.4.0 or newer.",
     resolution:
       "Contact your IT administrator to confirm that your Mac is receiving configuration profiles for password length.",
+    platform: "darwin",
+  },
+  {
+    key: 17,
+    query: "SELECT 1 FROM os_version WHERE version >= '12.5.1';",
+    name: "Operating system up to date (macOS) [CIS 1.1]",
+    description: "Checks that the operating system is up to date.",
+    resolution:
+      "From the Apple menu () in the corner of your screen choose System Preferences. Then select Software Update and select Upgrade Now. You might be asked to restart or enter your password.",
+    platform: "darwin",
+  },
+  {
+    key: 19,
+    query:
+      "SELECT 1 FROM managed_policies WHERE domain='com.apple.SoftwareUpdate' AND name='AutomaticCheckEnabled' AND value=1 LIMIT 1;",
+    name: "Automatic updates enabled (macOS) [CIS 1.2]",
+    description:
+      "Checks that a mobile device management (MDM) solution configures the operating system to automatically check for updates.",
+    resolution:
+      "Contact your IT administrator to ensure your Mac is receiving a profile that enables automatic updates.",
+    platform: "darwin",
+  },
+  {
+    key: 20,
+    query:
+      "SELECT 1 FROM managed_policies WHERE domain='com.apple.SoftwareUpdate' AND name='AutomaticDownload' AND value=1 LIMIT 1;",
+    name: "Automatic update downloads enabled (macOS) [CIS 1.3]",
+    description:
+      "Checks that a mobile device management (MDM) solution configures the operating system to automatically download updates.",
+    resolution:
+      "Contact your IT administrator to ensure your Mac is receiving a profile that enables automatic update downloads.",
+    platform: "darwin",
+  },
+  {
+    key: 21,
+    query:
+      "SELECT 1 FROM managed_policies WHERE domain='com.apple.SoftwareUpdate' AND name='AutomaticallyInstallAppUpdates' AND value=1 LIMIT 1;",
+    name: "Installation of application updates is enabled (macOS) [CIS 1.4]",
+    description:
+      "Checks that a mobile device management (MDM) solution configures the operating system to automatically install updates to Apple applications.",
+    resolution:
+      "Contact your IT administrator to ensure your Mac is receiving a profile that enables installation of application updates.",
     platform: "darwin",
   },
 ] as IPolicyNew[];
@@ -322,7 +365,6 @@ export const DEFAULT_CAMPAIGN_STATE = {
 
 export const PLATFORM_DISPLAY_NAMES: Record<string, IOsqueryPlatform> = {
   darwin: "macOS",
-  freebsd: "FreeBSD",
   linux: "Linux",
   windows: "Windows",
 };

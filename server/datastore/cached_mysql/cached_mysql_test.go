@@ -91,7 +91,7 @@ func TestCachedAppConfig(t *testing.T) {
 		return nil
 	}
 	_, err := ds.NewAppConfig(context.Background(), &fleet.AppConfig{
-		HostSettings: fleet.HostSettings{
+		Features: fleet.Features{
 			AdditionalQueries: ptr.RawMessage(json.RawMessage(`"TestCachedAppConfig"`)),
 		},
 	})
@@ -102,7 +102,7 @@ func TestCachedAppConfig(t *testing.T) {
 		require.NoError(t, err)
 
 		require.NotEmpty(t, data)
-		assert.Equal(t, json.RawMessage(`"TestCachedAppConfig"`), *data.HostSettings.AdditionalQueries)
+		assert.Equal(t, json.RawMessage(`"TestCachedAppConfig"`), *data.Features.AdditionalQueries)
 	})
 
 	t.Run("AppConfig", func(t *testing.T) {
@@ -111,12 +111,12 @@ func TestCachedAppConfig(t *testing.T) {
 		require.NoError(t, err)
 		require.False(t, mockedDS.AppConfigFuncInvoked)
 
-		require.Equal(t, ptr.RawMessage(json.RawMessage(`"TestCachedAppConfig"`)), ac.HostSettings.AdditionalQueries)
+		require.Equal(t, ptr.RawMessage(json.RawMessage(`"TestCachedAppConfig"`)), ac.Features.AdditionalQueries)
 	})
 
 	t.Run("SaveAppConfig", func(t *testing.T) {
 		require.NoError(t, ds.SaveAppConfig(context.Background(), &fleet.AppConfig{
-			HostSettings: fleet.HostSettings{
+			Features: fleet.Features{
 				AdditionalQueries: ptr.RawMessage(json.RawMessage(`"NewSAVED"`)),
 			},
 		}))
@@ -125,14 +125,14 @@ func TestCachedAppConfig(t *testing.T) {
 
 		ac, err := ds.AppConfig(context.Background())
 		require.NoError(t, err)
-		require.NotNil(t, ac.HostSettings.AdditionalQueries)
-		assert.Equal(t, json.RawMessage(`"NewSAVED"`), *ac.HostSettings.AdditionalQueries)
+		require.NotNil(t, ac.Features.AdditionalQueries)
+		assert.Equal(t, json.RawMessage(`"NewSAVED"`), *ac.Features.AdditionalQueries)
 	})
 
 	t.Run("External SaveAppConfig gets caught", func(t *testing.T) {
 		mockedDS.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 			return &fleet.AppConfig{
-				HostSettings: fleet.HostSettings{
+				Features: fleet.Features{
 					AdditionalQueries: ptr.RawMessage(json.RawMessage(`"SavedSomewhereElse"`)),
 				},
 			}, nil
@@ -142,8 +142,8 @@ func TestCachedAppConfig(t *testing.T) {
 
 		ac, err := ds.AppConfig(context.Background())
 		require.NoError(t, err)
-		require.NotNil(t, ac.HostSettings.AdditionalQueries)
-		assert.Equal(t, json.RawMessage(`"SavedSomewhereElse"`), *ac.HostSettings.AdditionalQueries)
+		require.NotNil(t, ac.Features.AdditionalQueries)
+		assert.Equal(t, json.RawMessage(`"SavedSomewhereElse"`), *ac.Features.AdditionalQueries)
 	})
 }
 

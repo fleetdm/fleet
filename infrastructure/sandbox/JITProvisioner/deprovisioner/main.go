@@ -55,6 +55,22 @@ func runTerraform(workspace string) error {
 		"-auto-approve",
 		"-no-color",
 	})
+	if err != nil {
+	    return err
+    }
+	err = runCmd([]string{
+		"workspace",
+		"select",
+		"default",
+	})
+	if err != nil {
+	    return err
+    }
+	err = runCmd([]string{
+		"workspace",
+		"delete",
+		workspace,
+	})
 	return err
 }
 

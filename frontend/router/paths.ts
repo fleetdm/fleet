@@ -19,7 +19,6 @@ export default {
   ADMIN_SETTINGS_STATISTICS: `${URL_PREFIX}/settings/organization/statistics`,
   ADMIN_SETTINGS_ADVANCED: `${URL_PREFIX}/settings/organization/advanced`,
   ADMIN_SETTINGS_FLEET_DESKTOP: `${URL_PREFIX}/settings/organization/fleet-desktop`,
-  ALL_PACKS: `${URL_PREFIX}/packs/all`,
   EDIT_PACK: (packId: number): string => {
     return `${URL_PREFIX}/packs/${packId}/edit`;
   },
