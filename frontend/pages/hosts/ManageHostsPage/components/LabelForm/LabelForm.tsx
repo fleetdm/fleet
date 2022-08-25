@@ -208,7 +208,7 @@ const LabelForm = ({
         placeholder="Label name"
       />
       <InputField
-        error={description}
+        error={descriptionError}
         name="description"
         onChange={onDescriptionChange}
         value={description}
