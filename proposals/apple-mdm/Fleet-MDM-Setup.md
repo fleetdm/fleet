@@ -1,17 +1,17 @@
 # Setup
 
 The setup consists of configuring:
-- The APNS certificate used by the MDM protocol
+- The APNs certificate used by the MDM protocol
 - The SCEP certificate for enrollment
 
 We will define `fleetctl apple-mdm setup ...` commands to create/define all Apple/MDM credentials that are fed to the Fleet server.
 
-## APNS
+## APNs
 
-### Apple MDM APNS setup
+### Apple MDM APNs setup
 
-Apple's MDM protocol uses the Apple Push Notification Service (APNS) to deliver "wake up" messages to managed devices.
-An "MDM server" needs access to an APNS certificate specifically issued for MDM management; such APNS certificate must be issued by an "MDM vendor."
+Apple's MDM protocol uses the Apple Push Notification service (APNs) to deliver "wake up" messages to managed devices.
+An "MDM server" needs access to an APNS certificate specifically issued for MDM management; such APNs certificate must be issued by an "MDM vendor."
 
 Here's a sequence diagram with the three actors: Apple Inc., an MDM vendor, and a customer (MDM server).
 
@@ -46,31 +46,31 @@ sequenceDiagram
     note over server: APNS keypair<br>ready to use
 ```
 
-The "MDM Vendor Setup" flow (1) is executed once by the "MDM vendor."
+The "MDM vendor setup" flow (1) is executed once by the "MDM vendor."
 
-The "Customer Setup" flow (2) is executed by customers when they are setting up their MDM server.
+The "customer setup" flow (2) is executed by customers when they are setting up their MDM server.
 
-The goal is for the Fleet organization to become an "MDM vendor" that issues CSRs to customers, which allows them to generate "APNS certificates" for their MDM deployments.
+The goal is for the Fleet organization to become an "MDM vendor" that issues CSRs to customers, which allows them to generate "APNs certificates" for their MDM deployments.
 
 For the purposes of designing a PoC, we used the https://mdmcert.download/ service as an "MDM vendor."
 See [MDMCert.Download Analysis](./mdmcert.download-analysis.md) for more details on the process.
 
-### APNS setup with Fleet
+### APNs setup with Fleet
 
-The MDM APNS certificate provisioning will be manual on MVP:
+The MDM APNs certificate provisioning will be manual on MVP:
 - Customers will use `fleetctl` commands that will mimick `mdmctl mdmcert.download` commands (see [MDMCert.Download Analysis](mdmcert.download-analysis.md)).
 - Fleet operators will perform the steps shown in the diagram above manually by running a new command line tool (under `tools/mdm-apple/mdm-apple-customer-setup`).
 
-#### 1. Init APNS (customer)
+#### 1. Init APNs (customer)
 
 `fleetctl apple-mdm setup apns init` 
 
 The command will basically mimick [mdmctl mdmcert.download -new](https://github.com/micromdm/micromdm/blob/main/cmd/mdmctl/mdmcert.download.go).
 Steps:
-1. Generate an RSA Private key and certificate for signing and encryption. 
+1. Generate an RSA private key and certificate for signing and encryption. 
 (Store them in `~/.fleet/config`, as there's no need to store these as files.) 
 Let's call these "PKI" key and cert.
-2. Generate RSA Push Private key and CSR. Store private key as a file: `fleet-mdm-apple-apns-push.key`. 
+2. Generate an RSA push private key and CSR. Store the private key as a file: `fleet-mdm-apple-apns-push.key`. 
 TODO(Lucas): Store private key encrypted with passphrase?
 3. Also output:
 - File fleet-mdm-apple-apns-setup.zip with:
@@ -91,7 +91,7 @@ Output:
 - Text to stdout that explains next step, something like:
 	"Send generated file 'fleet-mdm-apple-apns-push-req-encrypted.p7' back to customer via preferred medium (email, Slack)."
 
-#### 3. Finalize APNS (customer)
+#### 3. Finalize APNs (customer)
 
 `fleetctl apple-mdm setup apns finalize --encrypted-req=fleet-mdm-apple-apns-push-req-encrypted.p7`
 
@@ -106,13 +106,13 @@ Customer uploads `fleet-mdm-apple-apns-push.req` to https://identity.apple.com.
 
 #### 5. Download .pem from Apple (customer)
 
-Downloads the final APNS certificate, a `*.pem` file. Let's call it `fleet-mdm-apple-apns-push.pem`.
+Downloads the final APNs certificate, a `*.pem` file. Let's call it `fleet-mdm-apple-apns-push.pem`.
 
 The contents of `fleet-mdm-apple-apns-push.pem` and `fleet-mdm-apple-apns-push.key` are passed to Fleet as environment variables.
 
 ## SCEP
 
-Apple's MDM protocol uses Client Certificates for client authentication. To generate Client Certificates, Apple's MDM protocol uses the [SCEP](https://en.wikipedia.org/wiki/Simple_Certificate_Enrollment_Protocol) protocol.
+Apple's MDM protocol uses client certificates for client authentication. To generate client certificates, Apple's MDM protocol uses the [SCEP](https://en.wikipedia.org/wiki/Simple_Certificate_Enrollment_Protocol) protocol.
 
 The setup for SCEP consists of generating the "SCEP CA" for Fleet.
 
