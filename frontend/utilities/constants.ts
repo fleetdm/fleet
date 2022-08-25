@@ -72,7 +72,7 @@ export const DEFAULT_POLICIES = [
     key: 6,
     query:
       "SELECT 1 FROM disk_encryption WHERE user_uuid IS NOT '' AND filevault_status = 'on' LIMIT 1;",
-    name: "Full disk encryption enabled (macOS)",
+    name: "Full disk encryption enabled (macOS) [CIS 2.5.1.1]",
     description:
       "Checks to make sure that full disk encryption (FileVault) is enabled on macOS devices.",
     resolution:
