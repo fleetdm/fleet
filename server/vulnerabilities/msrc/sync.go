@@ -1,6 +1,7 @@
 package msrc
 
 import (
+	"fmt"
 	"net/http"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -8,7 +9,7 @@ import (
 	msrc_parsed "github.com/fleetdm/fleet/v4/server/vulnerabilities/msrc/parsed"
 )
 
-// bulletinsDelta returns what bulletins should be download and what bulletins should be removed
+// bulletinsDelta returns what bulletins should be download from GH and what bulletins should be removed
 // from the local file system based what OS are installed, what local bulletins we have and what
 // remote bulletins exist.
 func bulletinsDelta(
@@ -59,25 +60,47 @@ func bulletinsDelta(
 // bulletin published in Github.
 // If 'os' is nil, then all security bulletins will be synched.
 func Sync(client *http.Client, dstDir string, os []fleet.OperatingSystem) error {
-	// remoteBulletins, err := downloadBulletinList()
-	// if err != nil {
-	// 	return err
-	// }
+	gh := msrc_io.NewMSRCGithubClient(client, dstDir)
+	fs := msrc_io.NewMSRCFSClient(dstDir)
 
-	// localBulletins, err := getLocalBulletinList(dstDir)
-	// if err != nil {
-	// 	return err
-	// }
+	if err := sync(os, fs, gh); err != nil {
+		return fmt.Errorf("msrc sync: %w", err)
+	}
 
-	// Compare remoteBulletins and localBulletins
-	// and figure out what to download and what to remove.
-	panic("not implemented")
+	return nil
 }
 
 func sync(
-	remoteBulletinListGetter func() ([]string, error),
-	localBulletinListGetter func() ([]string, error),
-	remoteBulletinGetter func(file string) (*msrc_parsed.SecurityBulletin, error),
+	os []fleet.OperatingSystem,
+	fsClient msrc_io.MSRCFSAPI,
+	ghClient msrc_io.MSRCGithubAPI,
 ) error {
-	panic("not implemented")
+	remoteURLs, err := ghClient.Bulletins()
+	if err != nil {
+		return err
+	}
+
+	var remote []msrc_io.SecurityBulletinName
+	for r := range remoteURLs {
+		remote = append(remote, r)
+	}
+
+	local, err := fsClient.Bulletins()
+	if err != nil {
+		return err
+	}
+
+	toDownload, toDelete := bulletinsDelta(os, local, remote)
+	for _, b := range toDownload {
+		if err := ghClient.Download(b, remoteURLs[b]); err != nil {
+			return err
+		}
+	}
+	for _, d := range toDelete {
+		if err := fsClient.Delete(d); err != nil {
+			return err
+		}
+	}
+
+	return nil
 }

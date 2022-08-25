@@ -9,15 +9,17 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestFs(t *testing.T) {
-	t.Run("#localBulletins", func(t *testing.T) {
+func TestMSRCFSClient(t *testing.T) {
+	t.Run("#Bulletins", func(t *testing.T) {
 		t.Run("directory does not exists", func(t *testing.T) {
-			_, err := localBulletins("asdf")()
+			sut := NewMSRCFSClient("asdf")
+			_, err := sut.Bulletins()
 			require.Error(t, err)
 		})
 
 		t.Run("returns a list of file matching the MSRC file prefix", func(t *testing.T) {
 			path := t.TempDir()
+			sut := NewMSRCFSClient(path)
 
 			file1 := filepath.Join(path, "my_lyrics.json")
 			bulletin1 := filepath.Join(path, fmt.Sprintf("%sWindows_10-2022_10_10.json", MSRCFilePrefix))
@@ -35,7 +37,7 @@ func TestFs(t *testing.T) {
 			require.NoError(t, err)
 			f3.Close()
 
-			r, err := localBulletins(path)()
+			r, err := sut.Bulletins()
 			require.NoError(t, err)
 			require.NotContains(t, r, NewSecurityBulletinName(filepath.Base(file1)))
 			require.Contains(t, r, NewSecurityBulletinName(filepath.Base(bulletin1)))
