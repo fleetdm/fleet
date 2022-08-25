@@ -28,10 +28,6 @@ module.exports = {
       description: 'A user has successfully changed their subscription to the Fleet newsletter'
     },
 
-    emailAlreadyInUse: {
-      description: 'A user who is already subscribed to the newsletter'
-    },
-
   },
 
 
