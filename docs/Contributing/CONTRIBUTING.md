@@ -13,11 +13,11 @@ Fleet currently uses [fleetdm.com/docs](https://fleetdm.com/docs) as the central
 
 ### Markdown links
 
-Due to the structure of the Fleet documentation and GitHub's unique markdown files, there are several practices we'd like to call out if you're documentation changes include links to other locations within the Fleet docs. 
+Due to the structure of the Fleet documentation and GitHub's unique markdown files, there are several practices we'd like to call out if your documentation changes include links to other locations within the Fleet docs. 
 
 #### Relative links
 
-When including a link to a different file in the Fleet documentation please use relative links when possible. 
+When including a link to a different file in the Fleet documentation, please use relative links when possible. 
 
 For example, let's say you're working on changes in the Contribution docs and you'd like to add a link to the REST API docs. The relative link would look something like `../Using-Fleet/REST-API.md`.
 
