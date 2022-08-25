@@ -66,6 +66,7 @@ const LabelForm = ({
   const [description, setDescription] = useState<string>(
     selectedLabel?.description || ""
   );
+  const [descriptionError, setDescriptionError] = useState<string>("");
   const [query, setQuery] = useState<string>(selectedLabel?.query || "");
   const [queryError, setQueryError] = useState<string>("");
   const [platform, setPlatform] = useState<string>(
@@ -88,6 +89,7 @@ const LabelForm = ({
 
   useEffect(() => {
     setNameError(backendValidators.name);
+    setDescriptionError(backendValidators.description);
   }, [backendValidators]);
 
   useEffect(() => {
@@ -206,6 +208,7 @@ const LabelForm = ({
         placeholder="Label name"
       />
       <InputField
+        error={description}
         name="description"
         onChange={onDescriptionChange}
         value={description}
