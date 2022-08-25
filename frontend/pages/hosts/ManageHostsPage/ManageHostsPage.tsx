@@ -1185,7 +1185,7 @@ const ManageHostsPage = ({
   };
 
   const renderOSFilterBlock = () => {
-    if (!os_id && !(os_name && os_version)) return null;
+    if (!osId && !(osName && osVersion)) return null;
 
     let os: IOperatingSystemVersion | undefined;
     if (osId) {
