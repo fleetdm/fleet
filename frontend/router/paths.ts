@@ -1,4 +1,5 @@
 import { IHost } from "../interfaces/host";
+import { ILabel } from "../interfaces/label";
 import { IQuery } from "../interfaces/query";
 import { IPolicy } from "../interfaces/policy";
 import URL_PREFIX from "./url_prefix";
@@ -24,6 +25,9 @@ export default {
   },
   PACK: (packId: number): string => {
     return `${URL_PREFIX}/packs/${packId}`;
+  },
+  EDIT_LABEL: (labelId: number): string => {
+    return `${URL_PREFIX}/labels/${labelId}`;
   },
   EDIT_QUERY: (query: IQuery): string => {
     return `${URL_PREFIX}/queries/${query.id}`;
@@ -63,6 +67,7 @@ export default {
     return `${URL_PREFIX}/schedule/manage/teams/${teamId}`;
   },
   MANAGE_POLICIES: `${URL_PREFIX}/policies/manage`,
+  NEW_LABEL: `${URL_PREFIX}/labels/new`,
   NEW_POLICY: `${URL_PREFIX}/policies/new`,
   NEW_QUERY: `${URL_PREFIX}/queries/new`,
   RESET_PASSWORD: `${URL_PREFIX}/login/reset`,

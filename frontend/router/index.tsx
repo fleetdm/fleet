@@ -24,6 +24,7 @@ import EmailTokenRedirect from "components/EmailTokenRedirect";
 import ForgotPasswordPage from "pages/ForgotPasswordPage";
 import HostDetailsPage from "pages/hosts/details/HostDetailsPage";
 import Homepage from "pages/Homepage";
+import LabelPage from "pages/LabelPage";
 import LoginPage, { LoginPreviewPage } from "pages/LoginPage";
 import LogoutPage from "pages/LogoutPage";
 import ManageHostsPage from "pages/hosts/ManageHostsPage";
@@ -119,6 +120,11 @@ const routes = (
               <Route path="members" component={MembersPage} />
               <Route path="options" component={AgentOptionsPage} />
             </Route>
+          </Route>
+          <Route path="labels">
+            <IndexRedirect to={"manage"} />
+            <Route path=":label_id" component={LabelPage} />
+            <Route path="new" component={LabelPage} />
           </Route>
           <Route path="hosts">
             <IndexRedirect to={"manage"} />
