@@ -20,7 +20,7 @@ const ERROR_NOTIFICATION: INotification = {
   alertType: "error",
   isVisible: true,
   message:
-    "We were unable to configure your Fleet instance. Please notify your system administrator.",
+    "We were unable to configure your Fleet instance. Please ensure the Fleet server can be reached.",
 };
 
 interface IRegistrationPageProps {
