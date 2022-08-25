@@ -544,7 +544,7 @@ spec:
   description: Checks to make sure that the System Integrity Protection feature is enabled.
   resolution: "To enable System Integrity Protection, on the failing device, run the following command in the Terminal app: /usr/sbin/spctl --master-enable."
   platforms: macOS
-  tags: compliance, malware, hardening, built-in
+  tags: compliance, malware, hardening, built-in, CIS5.1.2
   platform: darwin
   contributors: groob
 ---

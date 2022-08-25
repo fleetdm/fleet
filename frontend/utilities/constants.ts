@@ -134,7 +134,7 @@ export const DEFAULT_POLICIES = [
     key: 12,
     query:
       "SELECT 1 FROM sip_config WHERE config_flag = 'sip' AND enabled = 1;",
-    name: "System Integrity Protection enabled (macOS)",
+    name: "System Integrity Protection enabled (macOS) [CIS 5.1.2]", 
     description:
       "Checks to make sure that the System Integrity Protection feature is enabled.",
     resolution:
