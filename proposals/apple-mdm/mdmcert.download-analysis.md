@@ -1,4 +1,4 @@
-# MDMCert.Download Analysis
+# MDMcert.download analysis
 
 Here's how to generate an analysis of the APNS certificate using https://mdmcert.download.
 
