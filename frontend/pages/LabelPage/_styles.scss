@@ -1,4 +1,4 @@
-.user-settings {
+.label-page {
   &__sandboxMode {
     margin-top: 70px;
   }
@@ -10,46 +10,5 @@
   h2 {
     font-size: $x-small;
     font-weight: $bold;
-  }
-
-  &__manage {
-    flex-grow: 1;
-    min-width: 542px;
-  }
-
-  .modal__modal_container {
-    width: 400px;
-    a {
-      font-size: $x-small;
-      color: $core-vibrant-blue;
-      font-weight: $bold;
-      text-decoration: none;
-    }
-    img.icon-external {
-      width: 12px;
-      padding-left: 2px;
-      position: relative;
-      top: 1px;
-    }
-  }
-
-  .secret-field__secret-input {
-    margin-bottom: 8px;
-  }
-
-  .info-banner {
-    margin-bottom: 24px;
-    p {
-      margin: 0;
-    }
-  }
-
-  .token-message {
-    margin-bottom: 2rem;
-  }
-
-  &__button-wrap {
-    display: flex;
-    justify-content: flex-end;
   }
 }

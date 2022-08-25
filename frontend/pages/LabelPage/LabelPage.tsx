@@ -14,7 +14,7 @@ import labelsAPI, { ILabelsResponse } from "services/entities/labels";
 import deepDifference from "utilities/deep_difference";
 import LabelForm from "pages/hosts/ManageHostsPage/components/LabelForm";
 
-const baseClass = "labels";
+const baseClass = "label-page";
 
 interface ILabelPageProps {
   router: InjectedRouter;
