@@ -282,6 +282,17 @@ export const DEFAULT_POLICIES = [
       "Contact your IT administrator to ensure your Mac is receiving a profile that prevents Internet sharing.",
     platform: "darwin",
   },
+  {
+    key: 27,
+    query:
+      "SELECT 1 FROM managed_policies WHERE domain='com.apple.applicationaccess' AND name='allowContentCaching' AND value='0' LIMIT 1;",
+    name: "Content caching is disabled (macOS) [CIS 2.4.10]",
+    description:
+      "Checks that a mobile device management (MDM) solution configures the operating system to disable content caching.",
+    resolution:
+      "Contact your IT administrator to ensure your Mac is receiving a profile that disables content caching.",
+    platform: "darwin",
+  },
 ] as IPolicyNew[];
 
 export const FREQUENCY_DROPDOWN_OPTIONS = [
