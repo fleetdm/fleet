@@ -1,6 +1,6 @@
 # MDMcert.download analysis
 
-Here's how to generate an analysis of the APNS certificate using https://mdmcert.download.
+Here's how to generate an analysis of the APNs certificate using https://mdmcert.download.
 
 ## 1. `mdmctl mdmcert.download -new` command
 
@@ -38,13 +38,13 @@ sends it via e-mail as `mdm_signed_request.20220812_125806_1308.plist.b64.p7` to
 
 ```sh
 $ mdmctl mdmcert.download -decrypt=./mdm_signed_request.20220812_125806_1308.plist.b64.p7
-Successfully able to decrypt the MDM Push Certificate request! Please upload
+Successfully able to decrypt the MDM push certificate request! Please upload
 the file 'mdmcert.download.push.req' to Apple by visiting https://identity.apple.com
-Once your Push Certificate is signed by Apple you can download it
+Once your push certificate is signed by Apple you can download it
 and import it into MicroMDM using the `mdmctl mdmcert upload` command
 ```
 
-This command generates an "MDM Push Certificate request" to be uploaded to Apple:
+This command generates an "MDM push certificate request" to be uploaded to Apple:
 ```
 mdmcert.download.push.req: ASCII text, with CRLF line terminators
 ```
