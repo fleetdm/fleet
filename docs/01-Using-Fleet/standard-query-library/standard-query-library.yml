@@ -492,7 +492,7 @@ spec:
   description: Checks to make sure that the Gatekeeper feature is enabled on macOS devices. Gatekeeper tries to ensure only trusted software is run on a mac machine.
   resolution: "To enable Gatekeeper, on the failing device, run the following command in the Terminal app: /usr/sbin/spctl --master-enable."
   platforms: macOS
-  tags: compliance, hardening, built-in
+  tags: compliance, hardening, built-in, CIS2.5.2.1
   platform: darwin
   contributors: groob
 ---
