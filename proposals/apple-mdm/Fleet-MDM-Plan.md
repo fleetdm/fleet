@@ -1,6 +1,6 @@
 # Fleet MDM plan
 
-This proposal aims to document the plan to make Fleet an MDM server for Apple devices (see [MDM Protocol Reference](https://developer.apple.com/business/documentation/MDM-Protocol-Reference.pdf)).
+This proposal aims to document the plan to make Fleet an MDM server for Apple devices (see the [MDM protocol reference](https://developer.apple.com/business/documentation/MDM-Protocol-Reference.pdf)).
 
 ## MVP requirements
 
@@ -18,7 +18,7 @@ This proposal aims to document the plan to make Fleet an MDM server for Apple de
 
 🐶 Dogfood-MVP: Fleet with MDM functionality to be used by Fleet's dogfood instance.
 Agreed upon simplifications:
-- We will not make use of the "Teams" feature for MDM. In other words, all MDM settings and entities will be applied globally.
+- We will not make use of the "teams" feature for MDM. In other words, all MDM settings and entities will be applied globally.
 - All MDM interface will be through `fleetctl` commands: `fleetctl apple-mdm <commands>`.
 
 This document describes the plan for the "Dogfood-MVP" deliverable. 
@@ -38,7 +38,7 @@ To implement an MDM server, we will embed the following three "nanoMDM" modules 
 
 Such modules contain all the functionality and APIs/endpoints needed to implement an MDM server.
 
-For more information around "micro" vs "nano" MDM, see [Introducting NanoMDM](https://micromdm.io/blog/introducing-nanomdm/).
+For more information around "micro" vs "nano" MDM, see [*Introducting NanoMDM*](https://micromdm.io/blog/introducing-nanomdm/).
 
 Architecture of the current PoC:
 ```mermaid
@@ -80,7 +80,7 @@ nanoMDM --> mdmAppleDB;
 
 ### Setup
 
-See [Fleet MDM Setup](./Fleet-MDM-Setup.md).
+See [Fleet MDM setup](./Fleet-MDM-Setup.md).
 
 ### Authority
 
@@ -123,7 +123,7 @@ Fleetctl commands (and APIs):
 ##### DEP enrollment setup
 
 These commands use the <ENROLLMENT_ID>, which is the `enrollments.ID` (obtained via `fleetctl apple-mdm enrollments list`).
-The token downloaded from https://business.apple.com basically links a "DEP enrollment" in Fleet (entry in `apple_dep_enrollments`) to what Apple calls an "MDM Server" in https://business.apple.com.
+The token downloaded from https://business.apple.com basically links a "DEP enrollment" in Fleet (entry in `apple_dep_enrollments`) to what Apple calls an "MDM server" in https://business.apple.com.
 
 ###### 1. `fleetctl apple-mdm enrollments dep set-token setup --enrollment=<ENROLLMENT_ID>`
 
@@ -140,7 +140,7 @@ User uploads `fleet-mdm-apple-dep.pem` to https://business.apple.com, and downlo
 
 `fleetctl apple-mdm enrollments dep set-token finalize --enrollment=<ENROLLMENT_ID> --encrypted-auth-token=fleet-mdm-apple-dep-auth-token-encrypted.p7m`
 	
-- Checks the `ENROLLMENT_ID` is a DEP enrollment.
+- Checks that the `ENROLLMENT_ID` is a DEP enrollment.
 - Decrypts the provided `fleet-mdm-apple-dep-auth-token-encrypted.p7m` with the `fleet-mdm-apple-dep.key` that corresponds to `<ENROLLMENT_ID>` from `~/.fleet/config`.
 - Calls new Fleet API that:
 	- Apply DEP configuration using token (loaded from apple_dep_enrollmentsID==<ENROLLMENT_ID>) and get a "depProfileUUID".
