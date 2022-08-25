@@ -140,7 +140,7 @@ const NewPolicyModal = ({
             <Button
               className={`${baseClass}__button--modal-cancel`}
               onClick={() => setIsNewPolicyModalOpen(false)}
-              variant="text-link"
+              variant="inverse"
             >
               Cancel
             </Button>

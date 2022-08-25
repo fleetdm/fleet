@@ -32,11 +32,10 @@ the account verification message.)`,
       type: 'string',
       maxLength: 200,
       example: 'passwordlol',
-      description: 'The unencrypted password to use for the new account.'
+      description: 'The unhashed (plain text) password to use for the new account.'
     },
 
     organization: {
-      required: true,
       type: 'string',
       maxLength: 120,
       example: 'The Sails company',
@@ -55,6 +54,12 @@ the account verification message.)`,
       type: 'string',
       example: 'Rivera',
       description: 'The user\'s last name.',
+    },
+
+    signupReason: {
+      type: 'string',
+      isIn: ['Buy a license', 'Try Fleet Sandbox'],
+      defaultsTo: 'Buy a license',
     }
 
   },
@@ -78,12 +83,74 @@ the account verification message.)`,
       description: 'The provided email address is already in use.',
     },
 
+
   },
 
+  fn: async function ({emailAddress, password, firstName, lastName, organization, signupReason}) {
 
-  fn: async function ({emailAddress, password, firstName, lastName, organization}) {
+    if(!sails.config.custom.cloudProvisionerSecret){
+      throw new Error('The authorization token for the cloud provisioner API (sails.config.custom.cloudProvisionerSecret) is missing! If you just want to test aspects of fleetdm.com locally, and are OK with the cloud provisioner failing if you try to use it, you can set a fake secret when starting a local server by lifting the server with "sails_custom__cloudProvisionerSecret=test sails lift"');
+    }
 
     var newEmailAddress = emailAddress.toLowerCase();
+
+    // Checking if a user with this email address exists in our database before we send a request to the cloud provisioner.
+    if(await User.findOne({emailAddress: newEmailAddress})) {
+      throw 'emailAlreadyInUse';
+    }
+
+    // Provisioning a Fleet sandbox instance for the new user. Note: Because this is the only place where we provision Sandbox instances, We'll provision a Sandbox instance BEFORE
+    // creating the new User record. This way, if this fails, we won't save the new record to the database, and the user will see an error on the signup form asking them to try again.
+
+    // Creating an expiration JS timestamp for the Fleet sandbox instance. NOTE: We send this value to the cloud provisioner API as an ISO 8601 string.
+    let fleetSandboxExpiresAt = Date.now() + (24*60*60*1000);
+
+    // Creating a fleetSandboxDemoKey, this will be used for the user's password when we log them into their Sandbox instance.
+    let fleetSandboxDemoKey = await sails.helpers.strings.uuid();
+
+    // Send a POST request to the cloud provisioner API
+    let cloudProvisionerResponseData = await sails.helpers.http.post(
+      'https://sandbox.fleetdm.com/new',
+      { // Request body
+        'name': firstName + ' ' + lastName,
+        'email': newEmailAddress,
+        'password': fleetSandboxDemoKey, //« this provisioner API was originally designed to accept passwords, but rather than specifying the real plaintext password, since users always access Fleet Sandbox from their fleetdm.com account anyway, this generated demo key is used instead to avoid any confusion
+        'sandbox_expiration': new Date(fleetSandboxExpiresAt).toISOString(), // sending expiration_timestamp as an ISO string.
+      },
+      { // Request headers
+        'Authorization':sails.config.custom.cloudProvisionerSecret
+      }
+    )
+    .timeout(5000)
+    .intercept(['requestFailed', 'non200Response'], (err)=>{
+      // If we recieved a non-200 response from the cloud provisioner API, we'll throw a 500 error.
+      return new Error('When attempting to provision a new user who just signed up ('+emailAddress+'), the cloud provisioner gave a non 200 response. The incomplete user record has not been saved in the database, and the user will be asked to try signing up again. Raw response received from provisioner: '+err.stack);
+    });
+
+    if(!cloudProvisionerResponseData.URL) {
+      // If we didn't receive a URL in the response from the cloud provisioner API, we'll throwing an error before we save the new user record and the user will need to try to sign up again.
+      throw new Error(
+        `When provisioning a Fleet Sandbox instance for a new user who just signed up (${emailAddress}), the response data from the cloud provisioner API was malformed. It did not contain a valid Fleet Sandbox instance URL in its expected "URL" property.
+        The incomplete user record has not been saved in the database, and the user will be asked to try signing up again.
+        Here is the malformed response data (parsed response body) from the cloud provisioner API: ${cloudProvisionerResponseData}`
+      );
+    }
+
+    // If "Try Fleet Sandbox" was provided as the signupReason, we'll send a request to Zapier to add this user to our CRM and make sure their Sandbox instance is live before we continue.
+    if(signupReason === 'Try Fleet Sandbox') {
+      // Start polling the /healthz endpoint of the created Fleet Sandbox instance, once it returns a 200 response, we'll continue.
+      await sails.helpers.flow.until( async()=>{
+        let healthCheckResponse = await sails.helpers.http.sendHttpRequest('GET', cloudProvisionerResponseData.URL+'/healthz')
+        .timeout(5000)
+        .tolerate('non200Response')
+        .tolerate('requestFailed');
+        if(healthCheckResponse) {
+          return true;
+        }
+      }, 10000).intercept('tookTooLong', ()=>{
+        return new Error('This newly provisioned Fleet Sandbox instance (for '+emailAddress+') is taking too long to respond with a 2xx status code, even after repeatedly polling the health check endpoint.  Note that failed requests and non-2xx responses from the health check endpoint were ignored during polling.  Search for a bit of non-dynamic text from this error message in the fleetdm.com source code for more info on exactly how this polling works.');
+      });
+    }
 
     // Build up data for the new user record and save it to the database.
     // (Also use `fetch` to retrieve the new ID so that we can use it below.)
@@ -93,6 +160,9 @@ the account verification message.)`,
       organization,
       emailAddress: newEmailAddress,
       password: await sails.helpers.passwords.hashPassword(password),
+      fleetSandboxURL: cloudProvisionerResponseData.URL,
+      fleetSandboxExpiresAt,
+      fleetSandboxDemoKey,
       tosAcceptedByIp: this.req.ip
     }, sails.config.custom.verifyEmailAddresses? {
       emailProofToken: await sails.helpers.strings.random('url-friendly'),
@@ -103,6 +173,24 @@ the account verification message.)`,
     .intercept({name: 'UsageError'}, 'invalid')
     .fetch();
 
+    // Send a POST request to Zapier
+    await sails.helpers.http.post(
+      'https://hooks.zapier.com/hooks/catch/3627242/bqsf4rj/',
+      {
+        'emailAddress': newEmailAddress,
+        'organization': signupReason === 'Buy a license' ? organization : '?',
+        'firstName': signupReason === 'Buy a license' ? firstName : '?',
+        'lastName': signupReason === 'Buy a license' ? lastName : '?',
+        'signupReason': signupReason,
+        'webhookSecret': sails.config.custom.zapierSandboxWebhookSecret
+      }
+    )
+    .timeout(5000)
+    .tolerate(['non200Response', 'requestFailed'], (err)=>{
+      // Note that Zapier responds with a 2xx status code even if something goes wrong, so just because this message is not logged doesn't mean everything is hunky dory.  More info: https://github.com/fleetdm/fleet/pull/6380#issuecomment-1204395762
+      sails.log.warn(`When a new user signed up, a lead/contact could not be verified in the CRM for this email address: ${newEmailAddress}. Raw error: ${err}`);
+      return;
+    });
     // If billing feaures are enabled, save a new customer entry in the Stripe API.
     // Then persist the Stripe customer id in the database.
     if (sails.config.custom.enableBillingFeatures) {
@@ -114,7 +202,6 @@ the account verification message.)`,
         stripeCustomerId
       });
     }
-
     // Store the user's new id in their session.
     this.req.session.userId = newUserRecord.id;
 

@@ -434,7 +434,7 @@ func TestGetConfig(t *testing.T) {
 
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 		return &fleet.AppConfig{
-			HostSettings:          fleet.HostSettings{EnableHostUsers: true},
+			Features:              fleet.Features{EnableHostUsers: true},
 			VulnerabilitySettings: fleet.VulnerabilitySettings{DatabasesPath: "/some/path"},
 		}, nil
 	}
@@ -449,7 +449,7 @@ spec:
   host_expiry_settings:
     host_expiry_enabled: false
     host_expiry_window: 0
-  host_settings:
+  features:
     enable_host_users: true
     enable_software_inventory: false
   integrations:
@@ -537,7 +537,7 @@ spec:
       "host_expiry_enabled": false,
       "host_expiry_window": 0
     },
-    "host_settings": {
+    "features": {
       "enable_host_users": true,
       "enable_software_inventory": false
     },
@@ -594,7 +594,7 @@ spec:
   host_expiry_settings:
     host_expiry_enabled: false
     host_expiry_window: 0
-  host_settings:
+  features:
     enable_host_users: true
     enable_software_inventory: false
   integrations:
@@ -717,7 +717,7 @@ spec:
       "host_expiry_enabled": false,
       "host_expiry_window": 0
     },
-    "host_settings": {
+    "features": {
       "enable_host_users": true,
       "enable_software_inventory": false
     },
@@ -1278,4 +1278,156 @@ spec:
 	assert.Equal(t, expectedYaml, runAppForTest(t, []string{"get", "query", "query1"}))
 	assert.Equal(t, expectedYaml, runAppForTest(t, []string{"get", "query", "--yaml", "query1"}))
 	assert.Equal(t, expectedJson, runAppForTest(t, []string{"get", "query", "--json", "query1"}))
+}
+
+func TestEnrichedAppConfig(t *testing.T) {
+	t.Run("deprecated fields", func(t *testing.T) {
+		resp := []byte(`
+      {
+        "org_info": {
+          "org_name": "Fleet for osquery",
+          "org_logo_url": ""
+        },
+        "server_settings": {
+          "server_url": "https://localhost:8412",
+          "live_query_disabled": false,
+          "enable_analytics": false,
+          "deferred_save_host": false
+        },
+        "smtp_settings": {
+          "enable_smtp": false,
+          "configured": false,
+          "sender_address": "",
+          "server": "",
+          "port": 587,
+          "authentication_type": "authtype_username_password",
+          "user_name": "",
+          "password": "",
+          "enable_ssl_tls": true,
+          "authentication_method": "authmethod_plain",
+          "domain": "",
+          "verify_ssl_certs": true,
+          "enable_start_tls": true
+        },
+        "host_expiry_settings": {
+          "host_expiry_enabled": false,
+          "host_expiry_window": 0
+        },
+        "host_settings": {
+          "enable_host_users": true,
+          "enable_software_inventory": true
+        },
+        "agent_options": {
+          "config": {
+            "options": {
+              "logger_plugin": "tls",
+              "pack_delimiter": "/",
+              "logger_tls_period": 10,
+              "distributed_plugin": "tls",
+              "disable_distributed": false,
+              "logger_tls_endpoint": "/api/osquery/log",
+              "distributed_interval": 10,
+              "distributed_tls_max_attempts": 3
+            },
+            "decorators": {
+              "load": [
+                "SELECT uuid AS host_uuid FROM system_info;",
+                "SELECT hostname AS hostname FROM system_info;"
+              ]
+            }
+          },
+          "overrides": {}
+        },
+        "sso_settings": {
+          "entity_id": "",
+          "issuer_uri": "",
+          "idp_image_url": "",
+          "metadata": "",
+          "metadata_url": "",
+          "idp_name": "",
+          "enable_sso": false,
+          "enable_sso_idp_login": false,
+          "enable_jit_provisioning": false
+        },
+        "fleet_desktop": {
+          "transparency_url": "https://fleetdm.com/transparency"
+        },
+        "vulnerability_settings": {
+          "databases_path": ""
+        },
+        "webhook_settings": {
+          "host_status_webhook": {
+            "enable_host_status_webhook": false,
+            "destination_url": "",
+            "host_percentage": 0,
+            "days_count": 0
+          },
+          "failing_policies_webhook": {
+            "enable_failing_policies_webhook": false,
+            "destination_url": "",
+            "policy_ids": null,
+            "host_batch_size": 0
+          },
+          "vulnerabilities_webhook": {
+            "enable_vulnerabilities_webhook": false,
+            "destination_url": "",
+            "host_batch_size": 0
+          },
+          "interval": "24h0m0s"
+        },
+        "integrations": {
+          "jira": null,
+          "zendesk": null
+        },
+        "update_interval": {
+          "osquery_detail": 3600000000000,
+          "osquery_policy": 3600000000000
+        },
+        "vulnerabilities": {
+          "databases_path": "/vulndb",
+          "periodicity": 300000000000,
+          "cpe_database_url": "",
+          "cve_feed_prefix_url": "",
+          "current_instance_checks": "yes",
+          "disable_data_sync": false,
+          "recent_vulnerability_max_age": 2592000000000000
+        },
+        "license": {
+          "tier": "free",
+          "expiration": "0001-01-01T00:00:00Z"
+        },
+        "logging": {
+          "debug": true,
+          "json": true,
+          "result": {
+            "plugin": "filesystem",
+            "config": {
+              "status_log_file": "/logs/osqueryd.status.log",
+              "result_log_file": "/logs/osqueryd.results.log",
+              "enable_log_rotation": false,
+              "enable_log_compression": false
+            }
+          },
+          "status": {
+            "plugin": "filesystem",
+            "config": {
+              "status_log_file": "/logs/osqueryd.status.log",
+              "result_log_file": "/logs/osqueryd.results.log",
+              "enable_log_rotation": false,
+              "enable_log_compression": false
+            }
+          }
+        }
+      }
+    `)
+
+		var enriched fleet.EnrichedAppConfig
+		err := json.Unmarshal(resp, &enriched)
+		require.NoError(t, err)
+		require.NotNil(t, enriched.Vulnerabilities)
+		require.Equal(t, "yes", enriched.Vulnerabilities.CurrentInstanceChecks)
+		require.True(t, enriched.Features.EnableSoftwareInventory)
+		require.Equal(t, "free", enriched.License.Tier)
+		require.Equal(t, "filesystem", enriched.Logging.Status.Plugin)
+	})
 }

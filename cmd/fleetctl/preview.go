@@ -311,6 +311,8 @@ Use the stop and reset subcommands to manage the server and dependencies once st
 			}
 
 			// disable analytics collection and enable software inventory for preview
+			// TODO(roperzh): replace `host_settings` with `features` once the
+			// Docker image used for preview (fleetdm/fleetctl:latest) is released
 			if err := client.ApplyAppConfig(map[string]map[string]bool{
 				"host_settings":   {"enable_software_inventory": true},
 				"server_settings": {"enable_analytics": false},

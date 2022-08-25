@@ -9,6 +9,7 @@ import (
 	"strconv"
 	"strings"
 	"time"
+	"unicode/utf8"
 
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
@@ -587,57 +588,57 @@ SELECT
   name AS name,
   version AS version,
   'Program (Windows)' AS type,
-  'programs' AS source
+  'programs' AS source,
+  publisher AS vendor
 FROM programs
 UNION
 SELECT
   name AS name,
   version AS version,
   'Package (Python)' AS type,
-  'python_packages' AS source
+  'python_packages' AS source,
+  '' AS vendor
 FROM python_packages
 UNION
 SELECT
   name AS name,
   version AS version,
   'Browser plugin (IE)' AS type,
-  'ie_extensions' AS source
+  'ie_extensions' AS source,
+  '' AS vendor
 FROM ie_extensions
 UNION
 SELECT
   name AS name,
   version AS version,
   'Browser plugin (Chrome)' AS type,
-  'chrome_extensions' AS source
+  'chrome_extensions' AS source,
+  '' AS vendor
 FROM cached_users CROSS JOIN chrome_extensions USING (uid)
 UNION
 SELECT
   name AS name,
   version AS version,
   'Browser plugin (Firefox)' AS type,
-  'firefox_addons' AS source
+  'firefox_addons' AS source,
+  '' AS vendor
 FROM cached_users CROSS JOIN firefox_addons USING (uid)
 UNION
 SELECT
   name AS name,
   version AS version,
   'Package (Chocolatey)' AS type,
-  'chocolatey_packages' AS source
+  'chocolatey_packages' AS source,
+  '' AS vendor
 FROM chocolatey_packages
 UNION
 SELECT
   name AS name,
   version AS version,
   'Package (Atom)' AS type,
-  'atom_packages' AS source
-FROM cached_users CROSS JOIN atom_packages USING (uid)
-UNION
-SELECT
-  name AS name,
-  version AS version,
-  'Package (Python)' AS type,
-  'python_packages' AS source
-FROM python_packages;
+  'atom_packages' AS source,
+  '' AS vendor
+FROM cached_users CROSS JOIN atom_packages USING (uid);
 `),
 	Platforms:        []string{"windows"},
 	DirectIngestFunc: directIngestSoftware,
@@ -907,6 +908,8 @@ func directIngestSoftware(ctx context.Context, logger log.Logger, host *fleet.Ho
 		version := row["version"]
 		source := row["source"]
 		bundleIdentifier := row["bundle_identifier"]
+		vendor := row["vendor"]
+
 		if name == "" {
 			level.Debug(logger).Log(
 				"msg", "host reported software with empty name",
@@ -941,6 +944,11 @@ func directIngestSoftware(ctx context.Context, logger log.Logger, host *fleet.Ho
 			}
 		}
 
+		// Check whether the vendor is longer than the max allowed width and if so, truncate it.
+		if utf8.RuneCountInString(vendor) >= fleet.SoftwareVendorMaxLength {
+			vendor = fmt.Sprintf(fleet.SoftwareVendorMaxLengthFmt, vendor)
+		}
+
 		s := fleet.Software{
 			Name:             name,
 			Version:          version,
@@ -948,7 +956,7 @@ func directIngestSoftware(ctx context.Context, logger log.Logger, host *fleet.Ho
 			BundleIdentifier: bundleIdentifier,
 
 			Release: row["release"],
-			Vendor:  row["vendor"],
+			Vendor:  vendor,
 			Arch:    row["arch"],
 		}
 		if !lastOpenedAt.IsZero() {
@@ -1060,13 +1068,13 @@ func GetDetailQueries(ac *fleet.AppConfig, fleetConfig config.FleetConfig) map[s
 		generatedMap[key] = query
 	}
 
-	if ac != nil && ac.HostSettings.EnableSoftwareInventory {
+	if ac != nil && ac.Features.EnableSoftwareInventory {
 		generatedMap["software_macos"] = softwareMacOS
 		generatedMap["software_linux"] = softwareLinux
 		generatedMap["software_windows"] = softwareWindows
 	}
 
-	if ac != nil && ac.HostSettings.EnableHostUsers {
+	if ac != nil && ac.Features.EnableHostUsers {
 		generatedMap["users"] = usersQuery
 	}
 

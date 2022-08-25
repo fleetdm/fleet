@@ -252,6 +252,26 @@ func hostListOptionsFromRequest(r *http.Request) (fleet.HostListOptions, error) 
 		hopt.SoftwareIDFilter = &sid
 	}
 
+	osID := r.URL.Query().Get("os_id")
+	if osID != "" {
+		id, err := strconv.Atoi(osID)
+		if err != nil {
+			return hopt, err
+		}
+		sid := uint(id)
+		hopt.OSIDFilter = &sid
+	}
+
+	osName := r.URL.Query().Get("os_name")
+	if osName != "" {
+		hopt.OSNameFilter = &osName
+	}
+
+	osVersion := r.URL.Query().Get("os_version")
+	if osVersion != "" {
+		hopt.OSVersionFilter = &osVersion
+	}
+
 	disableFailingPolicies := r.URL.Query().Get("disable_failing_policies")
 	if disableFailingPolicies != "" {
 		boolVal, err := strconv.ParseBool(disableFailingPolicies)

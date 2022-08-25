@@ -322,11 +322,11 @@ func TestGetDetailQueries(t *testing.T) {
 	queriesWithoutWinOSVuln := GetDetailQueries(nil, config.FleetConfig{Vulnerabilities: config.VulnerabilitiesConfig{DisableWinOSVulnerabilities: true}})
 	require.Len(t, queriesWithoutWinOSVuln, 15)
 
-	queriesWithUsers := GetDetailQueries(&fleet.AppConfig{HostSettings: fleet.HostSettings{EnableHostUsers: true}}, config.FleetConfig{App: config.AppConfig{EnableScheduledQueryStats: true}})
+	queriesWithUsers := GetDetailQueries(&fleet.AppConfig{Features: fleet.Features{EnableHostUsers: true}}, config.FleetConfig{App: config.AppConfig{EnableScheduledQueryStats: true}})
 	require.Len(t, queriesWithUsers, 18)
 	sortedKeysCompare(t, queriesWithUsers, append(baseQueries, "users", "scheduled_query_stats"))
 
-	queriesWithUsersAndSoftware := GetDetailQueries(&fleet.AppConfig{HostSettings: fleet.HostSettings{EnableHostUsers: true, EnableSoftwareInventory: true}}, config.FleetConfig{App: config.AppConfig{EnableScheduledQueryStats: true}})
+	queriesWithUsersAndSoftware := GetDetailQueries(&fleet.AppConfig{Features: fleet.Features{EnableHostUsers: true, EnableSoftwareInventory: true}}, config.FleetConfig{App: config.AppConfig{EnableScheduledQueryStats: true}})
 	require.Len(t, queriesWithUsersAndSoftware, 21)
 	sortedKeysCompare(t, queriesWithUsersAndSoftware,
 		append(baseQueries, "users", "software_macos", "software_linux", "software_windows", "scheduled_query_stats"))
@@ -651,16 +651,71 @@ func TestDirectIngestOSUnixLike(t *testing.T) {
 }
 
 func TestDangerousReplaceQuery(t *testing.T) {
-	queries := GetDetailQueries(&fleet.AppConfig{HostSettings: fleet.HostSettings{EnableHostUsers: true}}, config.FleetConfig{})
+	queries := GetDetailQueries(&fleet.AppConfig{Features: fleet.Features{EnableHostUsers: true}}, config.FleetConfig{})
 	originalQuery := queries["users"].Query
 
 	t.Setenv("FLEET_DANGEROUS_REPLACE_USERS", "select * from blah")
-	queries = GetDetailQueries(&fleet.AppConfig{HostSettings: fleet.HostSettings{EnableHostUsers: true}}, config.FleetConfig{})
+	queries = GetDetailQueries(&fleet.AppConfig{Features: fleet.Features{EnableHostUsers: true}}, config.FleetConfig{})
 	assert.NotEqual(t, originalQuery, queries["users"].Query)
 
 	require.NoError(t, os.Unsetenv("FLEET_DANGEROUS_REPLACE_USERS"))
-	queries = GetDetailQueries(&fleet.AppConfig{HostSettings: fleet.HostSettings{EnableHostUsers: true}}, config.FleetConfig{})
+	queries = GetDetailQueries(&fleet.AppConfig{Features: fleet.Features{EnableHostUsers: true}}, config.FleetConfig{})
 	assert.Equal(t, originalQuery, queries["users"].Query)
+}
+
+func TestDirectIngestSoftware(t *testing.T) {
+	ds := new(mock.Store)
+
+	t.Run("vendor gets truncated", func(t *testing.T) {
+		for i, tc := range []struct {
+			data     []map[string]string
+			expected string
+		}{
+			{
+				data: []map[string]string{
+					{
+						"name":              "Software 1",
+						"version":           "12.5",
+						"source":            "My backyard",
+						"bundle_identifier": "",
+						"vendor":            "Fleet",
+					},
+				},
+				expected: "Fleet",
+			},
+			{
+				data: []map[string]string{
+					{
+						"name":              "Software 1",
+						"version":           "12.5",
+						"source":            "My backyard",
+						"bundle_identifier": "",
+						"vendor":            `oFZTwTV5WxJt02EVHEBcnhLzuJ8wnxKwfbabPWy7yTSiQbabEcAGDVmoXKZEZJLWObGD0cVfYptInHYgKjtDeDsBh2a8669EnyAqyBECXbFjSh1111`,
+					},
+				},
+				expected: `oFZTwTV5WxJt02EVHEBcnhLzuJ8wnxKwfbabPWy7yTSiQbabEcAGDVmoXKZEZJLWObGD0cVfYptInHYgKjtDeDsBh2a8669EnyAqyBECXbFjSh1...`,
+			},
+		} {
+			ds.UpdateHostSoftwareFunc = func(ctx context.Context, hostID uint, software []fleet.Software) error {
+				require.Len(t, software, 1)
+				require.Equal(t, tc.expected, software[0].Vendor)
+				return nil
+			}
+
+			err := directIngestSoftware(
+				context.Background(),
+				log.NewNopLogger(),
+				&fleet.Host{ID: uint(i)},
+				ds,
+				tc.data,
+				false,
+			)
+
+			require.NoError(t, err)
+			require.True(t, ds.UpdateHostSoftwareFuncInvoked)
+			ds.UpdateHostSoftwareFuncInvoked = false
+		}
+	})
 }
 
 func TestDirectIngestWindowsUpdateHistory(t *testing.T) {

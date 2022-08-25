@@ -32,7 +32,7 @@ const CONFIG_INTEGRATIONS_AUTOMATIONS = {
     host_expiry_enabled: true,
     host_expiry_window: 9,
   },
-  host_settings: {
+  features: {
     enable_host_users: true,
     enable_software_inventory: true,
   },
@@ -66,6 +66,7 @@ const CONFIG_INTEGRATIONS_AUTOMATIONS = {
     idp_name: "",
     enable_sso: false,
     enable_sso_idp_login: false,
+    enable_jit_provisioning: false,
   },
   vulnerability_settings: {
     databases_path: "",

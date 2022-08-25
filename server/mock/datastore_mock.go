@@ -201,7 +201,7 @@ type AggregatedMDMSolutionsFunc func(ctx context.Context, teamID *uint) ([]fleet
 
 type GenerateAggregatedMunkiAndMDMFunc func(ctx context.Context) error
 
-type OSVersionsFunc func(ctx context.Context, teamID *uint, platform *string) (*fleet.OSVersions, error)
+type OSVersionsFunc func(ctx context.Context, teamID *uint, platform *string, name *string, version *string) (*fleet.OSVersions, error)
 
 type UpdateOSVersionsFunc func(ctx context.Context) error
 
@@ -297,7 +297,7 @@ type AllSoftwareWithoutCPEIteratorFunc func(ctx context.Context, excludedPlatfor
 
 type AddCPEForSoftwareFunc func(ctx context.Context, software fleet.Software, cpe string) error
 
-type ListSoftwareCPEsFunc func(ctx context.Context, excludedPlatforms []string) ([]fleet.SoftwareCPE, error)
+type ListSoftwareCPEsFunc func(ctx context.Context) ([]fleet.SoftwareCPE, error)
 
 type InsertVulnerabilitiesFunc func(ctx context.Context, vulns []fleet.SoftwareVulnerability, source fleet.VulnerabilitySource) (int64, error)
 
@@ -318,6 +318,8 @@ type ListCVEsFunc func(ctx context.Context, maxAge time.Duration) ([]fleet.CVEMe
 type ListOperatingSystemsFunc func(ctx context.Context) ([]fleet.OperatingSystem, error)
 
 type UpdateHostOperatingSystemFunc func(ctx context.Context, hostID uint, hostOS fleet.OperatingSystem) error
+
+type CleanupHostOperatingSystemsFunc func(ctx context.Context) error
 
 type NewActivityFunc func(ctx context.Context, user *fleet.User, activityType string, details *map[string]interface{}) error
 
@@ -894,6 +896,9 @@ type DataStore struct {
 
 	UpdateHostOperatingSystemFunc        UpdateHostOperatingSystemFunc
 	UpdateHostOperatingSystemFuncInvoked bool
+
+	CleanupHostOperatingSystemsFunc        CleanupHostOperatingSystemsFunc
+	CleanupHostOperatingSystemsFuncInvoked bool
 
 	NewActivityFunc        NewActivityFunc
 	NewActivityFuncInvoked bool
@@ -1540,9 +1545,9 @@ func (s *DataStore) GenerateAggregatedMunkiAndMDM(ctx context.Context) error {
 	return s.GenerateAggregatedMunkiAndMDMFunc(ctx)
 }
 
-func (s *DataStore) OSVersions(ctx context.Context, teamID *uint, platform *string) (*fleet.OSVersions, error) {
+func (s *DataStore) OSVersions(ctx context.Context, teamID *uint, platform *string, name *string, version *string) (*fleet.OSVersions, error) {
 	s.OSVersionsFuncInvoked = true
-	return s.OSVersionsFunc(ctx, teamID, platform)
+	return s.OSVersionsFunc(ctx, teamID, platform, name, version)
 }
 
 func (s *DataStore) UpdateOSVersions(ctx context.Context) error {
@@ -1780,9 +1785,9 @@ func (s *DataStore) AddCPEForSoftware(ctx context.Context, software fleet.Softwa
 	return s.AddCPEForSoftwareFunc(ctx, software, cpe)
 }
 
-func (s *DataStore) ListSoftwareCPEs(ctx context.Context, excludedPlatforms []string) ([]fleet.SoftwareCPE, error) {
+func (s *DataStore) ListSoftwareCPEs(ctx context.Context) ([]fleet.SoftwareCPE, error) {
 	s.ListSoftwareCPEsFuncInvoked = true
-	return s.ListSoftwareCPEsFunc(ctx, excludedPlatforms)
+	return s.ListSoftwareCPEsFunc(ctx)
 }
 
 func (s *DataStore) InsertVulnerabilities(ctx context.Context, vulns []fleet.SoftwareVulnerability, source fleet.VulnerabilitySource) (int64, error) {
@@ -1833,6 +1838,11 @@ func (s *DataStore) ListOperatingSystems(ctx context.Context) ([]fleet.Operating
 func (s *DataStore) UpdateHostOperatingSystem(ctx context.Context, hostID uint, hostOS fleet.OperatingSystem) error {
 	s.UpdateHostOperatingSystemFuncInvoked = true
 	return s.UpdateHostOperatingSystemFunc(ctx, hostID, hostOS)
+}
+
+func (s *DataStore) CleanupHostOperatingSystems(ctx context.Context) error {
+	s.CleanupHostOperatingSystemsFuncInvoked = true
+	return s.CleanupHostOperatingSystemsFunc(ctx)
 }
 
 func (s *DataStore) NewActivity(ctx context.Context, user *fleet.User, activityType string, details *map[string]interface{}) error {

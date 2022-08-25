@@ -201,12 +201,12 @@ const HostDetailsPage = ({
     }
   );
 
-  const { data: hostSettings } = useQuery<
+  const { data: features } = useQuery<
     IConfig,
     Error,
     { enable_host_users: boolean; enable_software_inventory: boolean }
   >(["config"], () => configAPI.loadAll(), {
-    select: (data: IConfig) => data.host_settings,
+    select: (data: IConfig) => data.features,
   });
 
   const refetchExtensions = () => {
@@ -536,6 +536,7 @@ const HostDetailsPage = ({
   }
 
   const statusClassName = classnames("status", `status--${host?.status}`);
+  const failingPoliciesCount = titleData?.issues;
 
   return (
     <MainContent className={baseClass}>
@@ -571,10 +572,8 @@ const HostDetailsPage = ({
               <Tab>Software</Tab>
               <Tab>Schedule</Tab>
               <Tab>
-                {titleData.issues.failing_policies_count > 0 && (
-                  <span className="count">
-                    {titleData.issues.failing_policies_count}
-                  </span>
+                {failingPoliciesCount > 0 && (
+                  <span className="count">{failingPoliciesCount}</span>
                 )}
                 Policies
               </Tab>
@@ -601,16 +600,14 @@ const HostDetailsPage = ({
                 usersState={usersState}
                 isLoading={isLoadingHost}
                 onUsersTableSearchChange={onUsersTableSearchChange}
-                hostUsersEnabled={hostSettings?.enable_host_users}
+                hostUsersEnabled={features?.enable_host_users}
               />
             </TabPanel>
             <TabPanel>
               <SoftwareCard
                 isLoading={isLoadingHost}
                 software={hostSoftware}
-                softwareInventoryEnabled={
-                  hostSettings?.enable_software_inventory
-                }
+                softwareInventoryEnabled={features?.enable_software_inventory}
                 deviceType={host?.platform === "darwin" ? "macos" : ""}
               />
             </TabPanel>

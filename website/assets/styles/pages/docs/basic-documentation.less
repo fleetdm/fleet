@@ -311,6 +311,7 @@
     }
 
     [purpose='left-sidebar'] {
+      scrollbar-width: none;
       font-size: 14px;
       border-right: 1px solid @core-fleet-black-25;
 
@@ -353,9 +354,12 @@
       }
 
     }
+    [purpose='left-sidebar']::-webkit-scrollbar, [purpose='right-sidebar']::-webkit-scrollbar, [purpose='subtopics']::-webkit-scrollbar {
+      display: none;
+    }
 
     [purpose='right-sidebar'] {
-
+      scrollbar-width: none;
       p, a {
         font-size: 14px;
       }
@@ -626,6 +630,19 @@
       [purpose='checklist-item']::marker {
         display: none;
       }
+      [purpose='embedded-content'] {
+        position: relative;
+        margin-bottom: 40px;
+        width: 100%;
+        padding-bottom: 57%;
+        iframe {
+          position: absolute;
+          top: 0;
+          left: 0;
+          width: 100%;
+          height: 100%;
+        }
+      }
 
     }
 
@@ -655,15 +672,15 @@
       }
 
       .header-hidden { // For scrolling the sidebars with the sticky header
-        transform: translateY(-60px);
-        max-height: calc(~'100vh - 80px');
+        transform: translateY(-80px);
+        max-height: calc(~'100vh - 60px');
       }
       .scrolled:not(.header-hidden) { // For when the page has been scrolled and the header is visible
-        max-height: calc(~'100vh - 170px');
+        max-height: calc(~'100vh - 140px');
       }
       [purpose='left-sidebar'] {
         position: sticky;
-        top: 146px;
+        top: 118px;
         height: fit-content;
         overflow-y: auto;
         transition-property: all;
@@ -680,7 +697,7 @@
         }
         min-width: 216px;
         position: sticky;
-        top: 146px;
+        top: 118px;
         height: fit-content;
         overflow-y: auto;
         transition-property: all;
@@ -688,7 +705,7 @@
         transition-duration: 500ms;
 
         [purpose='subtopics'] {
-          max-height: 100vh;
+          scrollbar-width: none;
           overflow-y: auto;
           color: @core-fleet-black;
           padding-top: 4px;

@@ -21,7 +21,7 @@ DRIs help us collaborate efficiently by knowing exactly who is responsible and c
 | dogfood.fleetdm.com | Ben Edwards |
 | Quality of core product UI | Luke Heath |
 | Ticket movement from product to engineering | Luke Heath |
-| Lead engineering standup and sprint planning | Zach Wasserman* |
+| Lead engineering together and release retrospective | Zach Wasserman* |
 | Customer Slack channels | Tony Gauda |
 | Customer renewals | Tony Gauda |
 | Quality of core product backend | Tomás Touceda |
@@ -72,16 +72,22 @@ When selecting your new laptop, we ask that you optimize your configuration to h
 
 When a device has been purchased, it's added to the [spreadsheet of company equipment](https://docs.google.com/spreadsheets/d/1hFlymLlRWIaWeVh14IRz03yE-ytBLfUaqVz0VVmmoGI/edit#gid=0) where we keep track of devices and equipment, purchased by Fleet. When the team member receives their computer, they will complete the entry by adding a description, model, and serial number to the spreadsheet.
 
-### Attending conferences
+### Attending conferences or company travel
 
-When attending a conference for Fleet, please make a post in [g-digital-experience](https://github.com/fleetdm/fleet/pull/6288) on Slack with the following information:
+When attending a conference or traveling for Fleet, please make a post in [#help-travel](https://fleetdm.slack.com/archives/C03V38WQFLG) on Slack with the following information:
 - The start and end dates for your trip.
 - The price of your flight (feel free to optimize a direct flight if there is one that is less than double the price of the cheapest non-direct flight).
 - The price of your hotel per night.
-- The price of the admission fees for the conference.
+- The price of the admission fees if attending a conference.
 
 The monthly limit on your Brex card will be increased temporarily as necessary to accommodate the increased spending associated with the conference.
 We highly recommend you order a physical Brex card if you do not have one before attending the conference.
+
+### Coworking
+
+Fleet will reimburse team members for coworking up to $100 USD per month. Please get prior approval from your manager, and then this reimbursement can be used for drop-in coworking or go towards a coworking membership.  Once approved, get started by reaching out to the CEO via direct message in Slack.
+
+Coworking expenses must be [reimbursed](#reimbursements). Brex cards should not be used for coworking due to possible legal complexities.
 
 ## Paid time off
 
@@ -623,6 +629,14 @@ Many of these processes are automated, but it's vital to check Gusto and Pilot m
  - Salary employees are automated in Gusto and Pilot
  - Contractors are a manual process in Gusto and Pilot
 
+### Calendar audit
+
+As Fleet grows, time management for the CEO is more essential. Charlie will audit the CEOs calendar and set meeting notes for calls with external attendees. In the notes document include:
+- LinkedIn profile link of all outside participants
+- Company profile link 
+- Context that helps the CEO to understand purpose of meeting at a glance
+- Share document with meeting participants
+
 ## BizOps
 
 ### Monthly accounting
@@ -658,6 +672,7 @@ The following table lists the People group's rituals, frequency, and Directly Re
 | CEO inbox sweep | Daily unless OOO | Charlie does a morning sweep of the CEO's inbox to remove spam and grab action items | Charlie Chance |
 | Recruiting progress checkup | Weekly | Charlie looks in the [Fleeties spreadsheet](https://docs.google.com/spreadsheets/d/1OSLn-ZCbGSjPusHPiR5dwQhheH1K8-xqyZdsOe9y7qc/edit#gid=0) and reports on each open position | Charlie Chance |
 | Payroll | Monthly before payroll runs | Every month, Charlie audits the payroll platforms for accuracy | Charlie |
+| Calendar audit | audit of CEO's calendar | Daily Charlie audits CEOs calendar and set notes for meetings | Charlie |
 
 
 ## Slack channels

@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
+	"github.com/fleetdm/fleet/v4/server/datastore/redis/redistest"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/test"
@@ -30,13 +31,20 @@ func TestIntegrationsEnterprise(t *testing.T) {
 type integrationEnterpriseTestSuite struct {
 	withServer
 	suite.Suite
+	redisPool fleet.RedisPool
 }
 
 func (s *integrationEnterpriseTestSuite) SetupSuite() {
 	s.withDS.SetupSuite("integrationEnterpriseTestSuite")
 
-	users, server := RunServerForTestsWithDS(
-		s.T(), s.ds, &TestServerOpts{License: &fleet.LicenseInfo{Tier: fleet.TierPremium}})
+	s.redisPool = redistest.SetupRedis(s.T(), "integration_enterprise", false, false, false)
+	config := TestServerOpts{
+		License: &fleet.LicenseInfo{
+			Tier: fleet.TierPremium,
+		},
+		Pool: s.redisPool,
+	}
+	users, server := RunServerForTestsWithDS(s.T(), s.ds, &config)
 	s.server = server
 	s.users = users
 	s.token = s.getTestAdminToken()
@@ -66,6 +74,14 @@ func (s *integrationEnterpriseTestSuite) TestTeamSpecs() {
 	assert.Len(t, team.Secrets, 1)
 	require.JSONEq(t, string(agentOpts), string(*team.Config.AgentOptions))
 
+	// an activity was created for team spec applied
+	var listActivities listActivitiesResponse
+	s.DoJSON("GET", "/api/latest/fleet/activities", nil, http.StatusOK, &listActivities, "order_key", "id", "order_direction", "desc")
+	require.True(t, len(listActivities.Activities) > 0)
+	assert.Equal(t, fleet.ActivityTypeAppliedSpecTeam, listActivities.Activities[0].Type)
+	require.NotNil(t, listActivities.Activities[0].Details)
+	assert.JSONEq(t, fmt.Sprintf(`{"teams": [{"id": %d, "name": %q}]}`, team.ID, team.Name), string(*listActivities.Activities[0].Details))
+
 	// creates a team with default agent options
 	user, err := s.ds.UserByEmail(context.Background(), "admin1@example.com")
 	require.NoError(t, err)
@@ -88,6 +104,13 @@ func (s *integrationEnterpriseTestSuite) TestTeamSpecs() {
 	assert.Len(t, team.Secrets, 0) // no secret gets created automatically when creating a team via apply spec
 	require.NotNil(t, team.Config.AgentOptions)
 	require.JSONEq(t, defaultOpts, string(*team.Config.AgentOptions))
+
+	// an activity was created for the newly created team via the applied spec
+	s.DoJSON("GET", "/api/latest/fleet/activities", nil, http.StatusOK, &listActivities, "order_key", "id", "order_direction", "desc")
+	require.True(t, len(listActivities.Activities) > 0)
+	assert.Equal(t, fleet.ActivityTypeAppliedSpecTeam, listActivities.Activities[0].Type)
+	require.NotNil(t, listActivities.Activities[0].Details)
+	assert.JSONEq(t, fmt.Sprintf(`{"teams": [{"id": %d, "name": %q}]}`, team.ID, team.Name), string(*listActivities.Activities[0].Details))
 
 	// updates secrets
 	teamSpecs = applyTeamSpecsRequest{Specs: []*fleet.TeamSpec{{Name: "team2", Secrets: []fleet.EnrollSecret{{Secret: "ABC"}}}}}
@@ -439,6 +462,14 @@ func (s *integrationEnterpriseTestSuite) TestTeamEndpoints() {
 	var m map[string]string
 	require.NoError(t, json.Unmarshal(*tmResp.Team.Config.AgentOptions, &m))
 	assert.Equal(t, opts, m)
+
+	// list activities, it should have created one for edited_agent_options
+	var listActivities listActivitiesResponse
+	s.DoJSON("GET", "/api/latest/fleet/activities", nil, http.StatusOK, &listActivities, "order_key", "id", "order_direction", "desc")
+	require.True(t, len(listActivities.Activities) > 0)
+	assert.Equal(t, fleet.ActivityTypeEditedAgentOptions, listActivities.Activities[0].Type)
+	require.NotNil(t, listActivities.Activities[0].Details)
+	assert.JSONEq(t, fmt.Sprintf(`{"global": false, "team_id": %d, "team_name": %q}`, tm1ID, team.Name), string(*listActivities.Activities[0].Details))
 
 	// modify team agent options - unknown team
 	tmResp.Team = nil
@@ -1170,4 +1201,66 @@ func (s *integrationEnterpriseTestSuite) TestCustomTransparencyURL() {
 	rawResp.Body.Close()
 	require.NoError(t, deviceResp.Err)
 	require.Equal(t, fleet.DefaultTransparencyURL, rawResp.Header.Get("Location"))
+}
+
+func (s *integrationEnterpriseTestSuite) TestSSOJITProvisioning() {
+	t := s.T()
+
+	acResp := appConfigResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/config", nil, http.StatusOK, &acResp)
+	require.NotNil(t, acResp)
+	require.False(t, acResp.SSOSettings.EnableJITProvisioning)
+
+	config := fleet.AppConfig{
+		SSOSettings: fleet.SSOSettings{
+			EnableSSO:             true,
+			EntityID:              "https://localhost:8080",
+			IssuerURI:             "http://localhost:8080/simplesaml/saml2/idp/SSOService.php",
+			IDPName:               "SimpleSAML",
+			MetadataURL:           "http://localhost:9080/simplesaml/saml2/idp/metadata.php",
+			EnableJITProvisioning: false,
+		},
+	}
+
+	acResp = appConfigResponse{}
+	s.DoJSON("PATCH", "/api/latest/fleet/config", config, http.StatusOK, &acResp)
+	require.NotNil(t, acResp)
+	require.False(t, acResp.SSOSettings.EnableJITProvisioning)
+
+	// users can't be created if SSO is disabled
+	auth, body := s.LoginSSOUser("sso_user", "user123#")
+	require.Contains(t, body, "/login?status=account_invalid")
+	// ensure theresn't a user in the DB
+	_, err := s.ds.UserByEmail(context.Background(), auth.UserID())
+	var nfe fleet.NotFoundError
+	require.ErrorAs(t, err, &nfe)
+
+	// enable JIT provisioning
+	config.SSOSettings.EnableJITProvisioning = true
+	acResp = appConfigResponse{}
+	s.DoJSON("PATCH", "/api/latest/fleet/config", config, http.StatusOK, &acResp)
+	require.NotNil(t, acResp)
+	require.True(t, acResp.SSOSettings.EnableJITProvisioning)
+
+	// a new user is created and redirected accordingly
+	auth, body = s.LoginSSOUser("sso_user", "user123#")
+	// a successful redirect has this content
+	require.Contains(t, body, "Redirecting to Fleet at  ...")
+	user, err := s.ds.UserByEmail(context.Background(), auth.UserID())
+	require.NoError(t, err)
+	require.Equal(t, auth.UserID(), user.Email)
+
+	// a new activity item is created
+	activitiesResp := listActivitiesResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/activities", nil, http.StatusOK, &activitiesResp)
+	require.NoError(t, activitiesResp.Err)
+	require.NotEmpty(t, activitiesResp.Activities)
+	require.Condition(t, func() bool {
+		for _, a := range activitiesResp.Activities {
+			if *a.ActorEmail == auth.UserID() && a.Type == fleet.ActivityTypeUserAddedBySSO {
+				return true
+			}
+		}
+		return false
+	})
 }

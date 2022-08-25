@@ -8,6 +8,8 @@ RUN cargo install --version 0.16.0 apple-codesign \
 
 FROM debian:stable-slim
 
+ARG binpath=build/binary-bundle/linux/fleetctl
+
 RUN apt-get update \
   && dpkg --add-architecture i386 \
   && apt update \
@@ -24,7 +26,7 @@ COPY --from=builder /usr/local/cargo/bin/rcodesign /usr/local/bin
 COPY --from=fleetdm/wix:latest /home/wine /home/wine
 
 # copy fleetctl
-COPY build/binary-bundle/linux/fleetctl /usr/bin/fleetctl
+COPY ${binpath} /usr/bin/fleetctl
 
 ENV FLEETCTL_NATIVE_TOOLING=1 WINEPREFIX=/home/wine/.wine WINEARCH=win32 PATH="/home/wine/bin:$PATH" WINEDEBUG=-all
 

@@ -79,7 +79,7 @@ interface IHeaderButtonsState extends ITeamsDropdownState {
   isLoading: boolean;
 }
 const DEFAULT_SORT_DIRECTION = "desc";
-const PAGE_SIZE = 20;
+const DEFAULT_PAGE_SIZE = 20;
 
 const baseClass = "manage-software-page";
 
@@ -129,7 +129,7 @@ const ManageSoftwarePage = ({
 
   const { data: config } = useQuery(["config"], configAPI.loadAll, {
     onSuccess: (data) => {
-      setIsSoftwareEnabled(data?.host_settings?.enable_software_inventory);
+      setIsSoftwareEnabled(data?.features?.enable_software_inventory);
       let jiraIntegrationEnabled = false;
       if (data.integrations.jira) {
         jiraIntegrationEnabled = data?.integrations.jira.some(
@@ -175,7 +175,7 @@ const ManageSoftwarePage = ({
       {
         scope: "software",
         page: pageIndex,
-        perPage: PAGE_SIZE,
+        perPage: DEFAULT_PAGE_SIZE,
         query: searchQuery,
         orderDir: sortDirection || DEFAULT_SORT_DIRECTION,
         // API expects "epss_probability" rather than "vulnerabilities"
@@ -480,7 +480,8 @@ const ManageSoftwarePage = ({
 
   const isLastPage =
     !!softwareCount &&
-    PAGE_SIZE * pageIndex + (software?.software?.length || 0) >= softwareCount;
+    DEFAULT_PAGE_SIZE * pageIndex + (software?.software?.length || 0) >=
+      softwareCount;
 
   const softwareTableHeaders = useMemo(
     () => generateSoftwareTableHeaders(isPremiumTier),
@@ -512,7 +513,7 @@ const ManageSoftwarePage = ({
               defaultSortHeader={DEFAULT_SORT_HEADER}
               defaultSortDirection={DEFAULT_SORT_DIRECTION}
               manualSortBy
-              pageSize={PAGE_SIZE}
+              pageSize={DEFAULT_PAGE_SIZE}
               showMarkAllPages={false}
               isAllPagesSelected={false}
               disableNextPage={isLastPage}

@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"net/url"
 	"os"
 	"strconv"
@@ -26,7 +27,7 @@ import (
 )
 
 func errHandler(ctx context.Context, logger kitlog.Logger, msg string, err error) {
-	level.Error(logger).Log("err", msg, "details", err)
+	level.Error(logger).Log("msg", msg, "err", err)
 	sentry.CaptureException(err)
 	ctxerr.Handle(ctx, err)
 }
@@ -41,53 +42,23 @@ func cronVulnerabilities(
 	logger = kitlog.With(logger, "cron", lockKeyVulnerabilities)
 
 	if config.CurrentInstanceChecks == "no" || config.CurrentInstanceChecks == "0" {
-		level.Info(logger).Log("vulnerability scanning", "host not configured to check for vulnerabilities")
+		level.Info(logger).Log("msg", "host not configured to check for vulnerabilities")
 		return
 	}
 
-	appConfig, err := ds.AppConfig(ctx)
-	if err != nil {
-		level.Error(logger).Log("config", "couldn't read app config", "err", err)
-		return
-	}
+	// release the lock when this function exits
+	defer func() {
+		// use a different context that won't be cancelled when shutting down
+		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancel()
 
-	vulnDisabled := false
-	if appConfig.VulnerabilitySettings.DatabasesPath == "" &&
-		config.DatabasesPath == "" {
-		level.Info(logger).Log("vulnerability scanning", "not configured")
-		vulnDisabled = true
-	}
-	if !appConfig.HostSettings.EnableSoftwareInventory {
-		level.Info(logger).Log("software inventory", "not configured")
-		return
-	}
-
-	vulnPath := appConfig.VulnerabilitySettings.DatabasesPath
-	if vulnPath == "" {
-		vulnPath = config.DatabasesPath
-	}
-	if config.DatabasesPath != "" && config.DatabasesPath != vulnPath {
-		vulnPath = config.DatabasesPath
-		level.Info(logger).Log(
-			"databases_path", "fleet config takes precedence over app config when both are configured",
-			"result", vulnPath)
-	}
-
-	if !vulnDisabled {
-		level.Info(logger).Log("databases-path", vulnPath)
-	}
-	level.Info(logger).Log("periodicity", config.Periodicity)
-
-	if !vulnDisabled {
-		if config.CurrentInstanceChecks == "auto" {
-			level.Debug(logger).Log("current instance checks", "auto", "trying to create databases-path", vulnPath)
-			err := os.MkdirAll(vulnPath, 0o755)
-			if err != nil {
-				level.Error(logger).Log("databases-path", "creation failed, returning", "err", err)
-				return
-			}
+		err := ds.Unlock(ctx, lockKeyVulnerabilities, identifier)
+		if err != nil {
+			errHandler(ctx, logger, "error releasing lock", err)
 		}
-	}
+	}()
+
+	level.Info(logger).Log("periodicity", config.Periodicity)
 
 	ticker := time.NewTicker(10 * time.Second)
 	for {
@@ -100,6 +71,7 @@ func cronVulnerabilities(
 			level.Debug(logger).Log("exit", "done with cron.")
 			return
 		}
+
 		if config.CurrentInstanceChecks == "auto" {
 			if locked, err := ds.Lock(ctx, lockKeyVulnerabilities, identifier, 1*time.Hour); err != nil {
 				errHandler(ctx, logger, "error acquiring lock", err)
@@ -110,100 +82,143 @@ func cronVulnerabilities(
 			}
 		}
 
-		if !vulnDisabled {
-			// refresh app config to check if webhook or any jira integration is
-			// enabled, as this can be changed dynamically.
-			if freshAppConfig, err := ds.AppConfig(ctx); err != nil {
-				errHandler(ctx, logger, "couldn't refresh app config", err)
-				// continue with stale app config
-			} else {
-				appConfig = freshAppConfig
-			}
+		appConfig, err := ds.AppConfig(ctx)
+		if err != nil {
+			errHandler(ctx, logger, "couldn't read app config", err)
+			continue
+		}
 
-			var vulnAutomationEnabled string
+		if !appConfig.Features.EnableSoftwareInventory {
+			level.Info(logger).Log("msg", "software inventory not configured")
+			continue
+		}
 
-			// only one vuln automation (i.e. webhook or integration) can be enabled at a
-			// time, enforced when updating the appconfig.
-			if appConfig.WebhookSettings.VulnerabilitiesWebhook.Enable {
-				vulnAutomationEnabled = "webhook"
-			}
-			// check for jira integrations
-			for _, j := range appConfig.Integrations.Jira {
-				if j.EnableSoftwareVulnerabilities {
-					if vulnAutomationEnabled != "" {
-						err := ctxerr.New(ctx, "jira check")
-						errHandler(ctx, logger, "more than one automation enabled", err)
-					}
-					vulnAutomationEnabled = "jira"
-					break
-				}
-			}
-			// check for Zendesk integrations
-			for _, z := range appConfig.Integrations.Zendesk {
-				if z.EnableSoftwareVulnerabilities {
-					if vulnAutomationEnabled != "" {
-						err := ctxerr.New(ctx, "zendesk check")
-						errHandler(ctx, logger, "more than one automation enabled", err)
-					}
-					vulnAutomationEnabled = "zendesk"
-					break
-				}
-			}
-			level.Debug(logger).Log("vulnAutomationEnabled", vulnAutomationEnabled)
-
-			collectVulns := vulnAutomationEnabled != ""
-			nvdVulns := checkNVDVulnerabilities(ctx, ds, logger, vulnPath, config, collectVulns)
-			ovalVulns := checkOvalVulnerabilities(ctx, ds, logger, vulnPath, config, collectVulns)
-			recentVulns := filterRecentVulns(ctx, ds, logger, nvdVulns, ovalVulns, config.RecentVulnerabilityMaxAge)
-
-			if len(recentVulns) > 0 {
-				switch vulnAutomationEnabled {
-				case "webhook":
-					// send recent vulnerabilities via webhook
-					if err := webhooks.TriggerVulnerabilitiesWebhook(
-						ctx,
-						ds,
-						kitlog.With(logger, "webhook", "vulnerabilities"),
-						recentVulns,
-						appConfig,
-						time.Now()); err != nil {
-						errHandler(ctx, logger, "triggering vulnerabilities webhook", err)
-					}
-
-				case "jira":
-					// queue job to create jira issues
-					if err := worker.QueueJiraVulnJobs(
-						ctx,
-						ds,
-						kitlog.With(logger, "jira", "vulnerabilities"),
-						recentVulns,
-					); err != nil {
-						errHandler(ctx, logger, "queueing vulnerabilities to jira", err)
-					}
-
-				case "zendesk":
-					// queue job to create zendesk ticket
-					if err := worker.QueueZendeskVulnJobs(
-						ctx,
-						ds,
-						kitlog.With(logger, "zendesk", "vulnerabilities"),
-						recentVulns,
-					); err != nil {
-						errHandler(ctx, logger, "queueing vulnerabilities to Zendesk", err)
-					}
-
-				default:
-					err = ctxerr.New(ctx, "no vuln automations enabled")
-					errHandler(ctx, logger, "attempting to process vuln automations", err)
-				}
+		var vulnPath string
+		switch {
+		case config.DatabasesPath != "" && appConfig.VulnerabilitySettings.DatabasesPath != "":
+			vulnPath = config.DatabasesPath
+			level.Info(logger).Log(
+				"msg", "fleet config takes precedence over app config when both are configured",
+				"databases_path", vulnPath,
+			)
+		case config.DatabasesPath != "":
+			vulnPath = config.DatabasesPath
+		case appConfig.VulnerabilitySettings.DatabasesPath != "":
+			vulnPath = appConfig.VulnerabilitySettings.DatabasesPath
+		default:
+			level.Info(logger).Log("msg", "vulnerability scanning not configured, vulnerabilities databases path is empty")
+		}
+		if vulnPath != "" {
+			level.Info(logger).Log("msg", "scanning vulnerabilities")
+			if err := scanVulnerabilities(ctx, ds, logger, config, appConfig, vulnPath); err != nil {
+				errHandler(ctx, logger, "scanning vulnerabilities", err)
 			}
 		}
 
 		if err := ds.SyncHostsSoftware(ctx, time.Now()); err != nil {
 			errHandler(ctx, logger, "calculating hosts count per software", err)
 		}
+
 		level.Debug(logger).Log("loop", "done")
 	}
+}
+
+func scanVulnerabilities(
+	ctx context.Context,
+	ds fleet.Datastore,
+	logger kitlog.Logger,
+	config *config.VulnerabilitiesConfig,
+	appConfig *fleet.AppConfig,
+	vulnPath string,
+) error {
+	level.Debug(logger).Log("msg", "creating vulnerabilities databases path", "databases_path", vulnPath)
+	err := os.MkdirAll(vulnPath, 0o755)
+	if err != nil {
+		return fmt.Errorf("create vulnerabilities databases directory: %w", err)
+	}
+
+	var vulnAutomationEnabled string
+
+	// only one vuln automation (i.e. webhook or integration) can be enabled at a
+	// time, enforced when updating the appconfig.
+	if appConfig.WebhookSettings.VulnerabilitiesWebhook.Enable {
+		vulnAutomationEnabled = "webhook"
+	}
+
+	// check for jira integrations
+	for _, j := range appConfig.Integrations.Jira {
+		if j.EnableSoftwareVulnerabilities {
+			if vulnAutomationEnabled != "" {
+				err := ctxerr.New(ctx, "jira check")
+				errHandler(ctx, logger, "more than one automation enabled", err)
+			}
+			vulnAutomationEnabled = "jira"
+			break
+		}
+	}
+
+	// check for Zendesk integrations
+	for _, z := range appConfig.Integrations.Zendesk {
+		if z.EnableSoftwareVulnerabilities {
+			if vulnAutomationEnabled != "" {
+				err := ctxerr.New(ctx, "zendesk check")
+				errHandler(ctx, logger, "more than one automation enabled", err)
+			}
+			vulnAutomationEnabled = "zendesk"
+			break
+		}
+	}
+
+	level.Debug(logger).Log("vulnAutomationEnabled", vulnAutomationEnabled)
+
+	collectVulns := vulnAutomationEnabled != ""
+	nvdVulns := checkNVDVulnerabilities(ctx, ds, logger, vulnPath, config, collectVulns)
+	ovalVulns := checkOvalVulnerabilities(ctx, ds, logger, vulnPath, config, collectVulns)
+	recentVulns := filterRecentVulns(ctx, ds, logger, nvdVulns, ovalVulns, config.RecentVulnerabilityMaxAge)
+
+	if len(recentVulns) > 0 {
+		switch vulnAutomationEnabled {
+		case "webhook":
+			// send recent vulnerabilities via webhook
+			if err := webhooks.TriggerVulnerabilitiesWebhook(
+				ctx,
+				ds,
+				kitlog.With(logger, "webhook", "vulnerabilities"),
+				recentVulns,
+				appConfig,
+				time.Now()); err != nil {
+				errHandler(ctx, logger, "triggering vulnerabilities webhook", err)
+			}
+
+		case "jira":
+			// queue job to create jira issues
+			if err := worker.QueueJiraVulnJobs(
+				ctx,
+				ds,
+				kitlog.With(logger, "jira", "vulnerabilities"),
+				recentVulns,
+			); err != nil {
+				errHandler(ctx, logger, "queueing vulnerabilities to jira", err)
+			}
+
+		case "zendesk":
+			// queue job to create zendesk ticket
+			if err := worker.QueueZendeskVulnJobs(
+				ctx,
+				ds,
+				kitlog.With(logger, "zendesk", "vulnerabilities"),
+				recentVulns,
+			); err != nil {
+				errHandler(ctx, logger, "queueing vulnerabilities to Zendesk", err)
+			}
+
+		default:
+			err = ctxerr.New(ctx, "no vuln automations enabled")
+			errHandler(ctx, logger, "attempting to process vuln automations", err)
+		}
+	}
+
+	return nil
 }
 
 func filterRecentVulns(
@@ -264,7 +279,7 @@ func checkOvalVulnerabilities(
 	var results []fleet.SoftwareVulnerability
 
 	// Get Platforms
-	versions, err := ds.OSVersions(ctx, nil, nil)
+	versions, err := ds.OSVersions(ctx, nil, nil, nil, nil)
 	if err != nil {
 		errHandler(ctx, logger, "updating oval definitions", err)
 		return nil
@@ -664,6 +679,12 @@ func startCleanupsAndAggregationSchedule(
 			"sync_enrolled_host_ids",
 			func(ctx context.Context) error {
 				return enrollHostLimiter.SyncEnrolledHostIDs(ctx)
+			},
+		),
+		schedule.WithJob(
+			"cleanup_host_operating_systems",
+			func(ctx context.Context) error {
+				return ds.CleanupHostOperatingSystems(ctx)
 			},
 		),
 		// Run aggregation jobs after cleanups.
