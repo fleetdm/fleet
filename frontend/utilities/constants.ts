@@ -134,7 +134,7 @@ export const DEFAULT_POLICIES = [
     key: 12,
     query:
       "SELECT 1 FROM sip_config WHERE config_flag = 'sip' AND enabled = 1;",
-    name: "System Integrity Protection enabled (macOS) [CIS 5.1.2]", 
+    name: "System Integrity Protection enabled (macOS) [CIS 5.1.2]",
     description:
       "Checks to make sure that the System Integrity Protection feature is enabled.",
     resolution:
@@ -264,7 +264,7 @@ export const DEFAULT_POLICIES = [
     key: 25,
     query:
       "SELECT 1 WHERE EXISTS (SELECT CAST(value as integer(4)) valueint from managed_policies WHERE domain = 'com.apple.screensaver' AND name = 'askForPasswordDelay' AND valueint <= 60 LIMIT 1) AND EXISTS (SELECT CAST(value as integer(4)) valueint from managed_policies WHERE domain = 'com.apple.screensaver' AND name = 'idleTime' AND valueint <= 1140 LIMIT 1) AND EXISTS (SELECT 1 from managed_policies WHERE domain='com.apple.screensaver' AND name='askForPassword' AND value=1 LIMIT 1);",
-    name: "Inactivity limit of 20 minutes or less (macOS) [CIS 2.3.1]",
+    name: "Inactivity limit of 20 minutes or less (macOS) [CIS 2.3.1] [CIS 5.8]",
     description:
       "Checks that a mobile device management (MDM) solution configures the operating system lock the screen in 20 minutes or less.",
     resolution:

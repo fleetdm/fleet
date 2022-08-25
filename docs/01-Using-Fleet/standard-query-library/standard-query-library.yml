@@ -843,7 +843,7 @@ spec:
   description: "Checks that a mobile device management (MDM) solution configures the operating system lock the screen in 20 minutes or less."
   resolution: "Contact your IT administrator to ensure your Mac is receiving a profile that enables the screen saver and lock within an inactivity delay of 20 minutes or less."
   platforms: macOS
-  tags: compliance, CIS, CIS2.3.1
+  tags: compliance, CIS, CIS2.3.1, CIS5.8
   platform: darwin
   contributors: GuillaumeRoss
 ---
