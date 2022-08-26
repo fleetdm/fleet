@@ -166,6 +166,8 @@ As Fleet grows, time management for the CEO is more essential. Charlie will audi
 - Context that helps the CEO to understand purpose of meeting at a glance
 - Share document with meeting participants
 
+**Additional product design review sessions are welcomed and a top priority for the CEO to get on the calendar quickly.  Other internal meetings and blocked time can always be moved to make room.  External meetings, travel, and personal commitments cannot be moved.  To schedule, mention @Charlie Chance in the #meetings channel.**
+
 ## Gong
 TODO: Gong process
 

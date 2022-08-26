@@ -290,6 +290,7 @@ var hostRefs = []string{
 	"host_device_auth",
 	"host_batteries",
 	"host_operating_system",
+	"windows_updates",
 }
 
 func (ds *Datastore) DeleteHost(ctx context.Context, hid uint) error {
