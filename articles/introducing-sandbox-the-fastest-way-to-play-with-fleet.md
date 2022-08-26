@@ -52,5 +52,5 @@ Are you ready to get your hands dirty? [Try Fleet Sandbox on your device today](
 <meta name="authorFullName" value="Chris McGillicuddy">
 <meta name="authorGitHubUsername" value="chris-mcgillicuddy">
 <meta name="publishedOn" value="2022-08-24">
-<meta name="articleTitle" value="Introducing Sandbox the fastest way to play with Fleet">
+<meta name="articleTitle" value="Introducing Sandbox, the fastest way to play with Fleet">
 <meta name="articleImageUrl" value="../website/assets/images/articles/introducing-fleet-sandbox-1600x900@2x.jpg">
