@@ -19,7 +19,10 @@
 
     <Property Id="REINSTALLMODE" Value="amus" />
 
-    <!-- Cleanup any existing local database (to support downgrades and also to start fresh). -->
+    <!-- 
+      Cleanup any existing local database (to support downgrades and also to start fresh). 
+      See https://www.hass.de/content/wix-how-use-removefolderex-your-xml-scripts.
+    -->
     <!--
       RemoveFolderEx requires that we "remember" the path for uninstall.
       Read the path value and set the OSQUERYDBFOLDER property with the value.
