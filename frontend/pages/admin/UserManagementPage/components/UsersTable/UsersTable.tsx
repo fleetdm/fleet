@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useContext, useEffect } from "react";
+import React, { useState, useCallback, useContext } from "react";
 import { InjectedRouter } from "react-router";
 import { useQuery } from "react-query";
 import memoize from "memoize-one";

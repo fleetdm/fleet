@@ -6,7 +6,6 @@ import Modal from "components/Modal";
 // @ts-ignore
 import InputField from "components/forms/fields/InputField";
 import Button from "components/buttons/Button";
-import Spinner from "components/Spinner";
 
 const baseClass = "edit-team-modal";
 

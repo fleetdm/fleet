@@ -1,8 +1,7 @@
-import React, { useEffect } from "react";
+import React from "react";
 
 import Modal from "components/Modal";
 import Button from "components/buttons/Button";
-import Spinner from "components/Spinner";
 
 const baseClass = "delete-team-modal";
 

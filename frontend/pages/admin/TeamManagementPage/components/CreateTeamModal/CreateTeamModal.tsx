@@ -7,7 +7,6 @@ import Button from "components/buttons/Button";
 import InfoBanner from "components/InfoBanner/InfoBanner";
 // @ts-ignore
 import InputField from "components/forms/fields/InputField";
-import Spinner from "components/Spinner";
 
 const baseClass = "create-team-modal";
 
