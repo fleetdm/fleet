@@ -15,7 +15,9 @@ import (
 	"math/rand"
 	"net/http"
 	"os"
+	"path"
 	"path/filepath"
+	"runtime"
 	"strconv"
 	"strings"
 	"sync"
@@ -438,13 +440,14 @@ func extract(src, dst string) {
 }
 
 func loadUbuntuSoftware(ver string) []fleet.Software {
-	ex, err := os.Executable()
-	if err != nil {
-		panic(err)
+	_, exFilename, _, ok := runtime.Caller(0)
+	if !ok {
+		panic("No caller information")
 	}
+	exDir := path.Dir(exFilename)
 
 	srcPath := filepath.Join(
-		filepath.Dir(ex),
+		exDir,
 		"..",
 		"..",
 		"server",
