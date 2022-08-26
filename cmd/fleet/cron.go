@@ -88,7 +88,7 @@ func cronVulnerabilities(
 			continue
 		}
 
-		if !appConfig.HostSettings.EnableSoftwareInventory {
+		if !appConfig.Features.EnableSoftwareInventory {
 			level.Info(logger).Log("msg", "software inventory not configured")
 			continue
 		}

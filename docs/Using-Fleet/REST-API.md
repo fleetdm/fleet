@@ -859,7 +859,7 @@ None.
     "host_expiry_enabled": false,
     "host_expiry_window": 0
   },
-  "host_settings": {
+  "features": {
     "additional_queries": null
   },
   "agent_options": {
@@ -1096,7 +1096,7 @@ Modifies the Fleet's configuration with the supplied information.
     "host_expiry_enabled": false,
     "host_expiry_window": 0
   },
-  "host_settings": {
+  "features": {
     "additional_queries": null
   },
   "license": {
@@ -2668,7 +2668,9 @@ requested by a web browser.
 | policy_id               | integer | query | The ID of the policy to filter hosts by. `policy_response` must also be specified with `policy_id`.                                                                                                                                                                                                                                         |
 | policy_response         | string  | query | Valid options are `passing` or `failing`.  `policy_id` must also be specified with `policy_response`.                                                                                                                                                                                                                                       |
 | software_id             | integer | query | The ID of the software to filter hosts by.                                                                                                                                                                                                                                                                                                  |
-| label_id                | integer | query | A valid label ID. It cannot be used alongside policy filters.                                                                                                                                                                                                                                                                               |
+| label_id                | integer | query | A valid label ID. It cannot be used alongside policy or mdm filters.                                                                                                                                                                                                                                                                 |
+| mdm_id                  | integer | query | The ID of the _mobile device management_ (MDM) solution to filter hosts by (that is, filter hosts that use a specific MDM provider and URL).                                                                                                                                                                                                |
+| mdm_enrollment_status   | string  | query | The _mobile device management_ (MDM) enrollment status to filter hosts by. Can be one of 'manual', 'automatic' or 'unenrolled'.                                                                                                                                                                                                             |
 
 #### Example
 
