@@ -106,7 +106,11 @@ const Agents = ({
                 rel="noopener noreferrer"
               >
                 Learn more about teams&nbsp;
-                <img className="icon" src={OpenNewTabIcon} alt="open new tab" />
+                <img
+                  alt="Open external link"
+                  className="icon-external"
+                  src={ExternalLinkIcon}
+                />
               </a>
             </InfoBanner>
           )}

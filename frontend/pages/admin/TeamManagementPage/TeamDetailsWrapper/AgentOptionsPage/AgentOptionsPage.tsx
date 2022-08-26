@@ -87,7 +87,11 @@ const AgentOptionsPage = ({
           rel="noopener noreferrer"
         >
           Learn more about agent options&nbsp;
-          <img className="icon" src={OpenNewTabIcon} alt="open new tab" />
+          <img
+            alt="Open external link"
+            className="icon-external"
+            src={ExternalLinkIcon}
+          />
         </a>
       </p>
       <InfoBanner className={`${baseClass}__config-docs`}>
@@ -99,7 +103,11 @@ const AgentOptionsPage = ({
           rel="noopener noreferrer"
         >
           Go to Fleet docs&nbsp;
-          <img src={ExternalLinkIcon} alt="Open external link" />
+          <img
+            alt="Open external link"
+            className="icon-external"
+            src={ExternalLinkIcon}
+          />
         </a>
       </InfoBanner>
       <div className={`${baseClass}__form-wrapper`}>
