@@ -1,4 +1,4 @@
-# CEO hanbook
+# CEO handbook
 
 This page details processes specific to Mike McNeil, CEO of Fleet. 
 
