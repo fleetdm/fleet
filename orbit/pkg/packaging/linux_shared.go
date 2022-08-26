@@ -283,6 +283,9 @@ var postInstallTemplate = template.Must(template.New("postinstall").Parse(`#!/bi
 # Exit on error
 set -e
 
+# Remove any existing local database (to support downgrades and also to start fresh).
+rm -rf /opt/orbit/osquery.db /opt/orbit/osquery.db
+
 # If we have a systemd, daemon-reload away now
 if command -v systemctl >/dev/null 2>&1; then
   systemctl daemon-reload >/dev/null 2>&1
