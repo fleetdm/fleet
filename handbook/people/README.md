@@ -468,7 +468,7 @@ We consider Salesforce to be our Rolodex for customer information. During the on
 
 ## PeopleOps
 
-## CEO hanbook
+### CEO handbook
 
 [The CEO handbook](./ceo-handbook.md) details processes specific to Mike McNeil, CEO of Fleet. 
 
