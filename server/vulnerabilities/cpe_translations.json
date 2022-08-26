@@ -9,5 +9,25 @@
       "vendor": ["zoom"],
       "target_sw": ["macos", "mac_os"]
     }
+  },
+  {
+    "match": {
+      "name": ["/^ruby(@.*)?$/"],
+      "source": ["homebrew_packages"]
+    },
+    "translation": {
+      "product": ["ruby"],
+      "vendor": ["ruby-lang"]
+    }
+  },
+  {
+    "match": {
+      "name": ["/^node(@.*)?$/"],
+      "source": ["homebrew_packages"]
+    },
+    "translation": {
+      "product": ["node.js"],
+      "vendor": ["nodejs"]
+    }
   }
 ]

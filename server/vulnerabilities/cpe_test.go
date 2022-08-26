@@ -36,18 +36,20 @@ func TestCPEFromSoftware(t *testing.T) {
 	db, err := sqliteDB(dbPath)
 	require.NoError(t, err)
 
+	reCache := NewRegexpCache()
+
 	// checking an non existent version returns empty
-	cpe, err := CPEFromSoftware(db, &fleet.Software{Name: "Vendor Product-1.app", Version: "2.3.4", BundleIdentifier: "vendor", Source: "apps"}, nil)
+	cpe, err := CPEFromSoftware(db, &fleet.Software{Name: "Vendor Product-1.app", Version: "2.3.4", BundleIdentifier: "vendor", Source: "apps"}, nil, reCache)
 	require.NoError(t, err)
 	require.Equal(t, "", cpe)
 
 	// checking a version that exists works
-	cpe, err = CPEFromSoftware(db, &fleet.Software{Name: "Vendor Product-1.app", Version: "1.2.3", BundleIdentifier: "vendor", Source: "apps"}, nil)
+	cpe, err = CPEFromSoftware(db, &fleet.Software{Name: "Vendor Product-1.app", Version: "1.2.3", BundleIdentifier: "vendor", Source: "apps"}, nil, reCache)
 	require.NoError(t, err)
 	require.Equal(t, "cpe:2.3:a:vendor:product-1:1.2.3:*:*:*:*:macos:*:*", cpe)
 
 	// follows many deprecations
-	cpe, err = CPEFromSoftware(db, &fleet.Software{Name: "Vendor2 Product2.app", Version: "0.3", BundleIdentifier: "vendor2", Source: "apps"}, nil)
+	cpe, err = CPEFromSoftware(db, &fleet.Software{Name: "Vendor2 Product2.app", Version: "0.3", BundleIdentifier: "vendor2", Source: "apps"}, nil, reCache)
 	require.NoError(t, err)
 	require.Equal(t, "cpe:2.3:a:vendor2:product4:999:*:*:*:*:macos:*:*", cpe)
 }
@@ -80,12 +82,25 @@ func TestCPETranslations(t *testing.T) {
 	}
 
 	tt := []struct {
-		Name     string
-		Software *fleet.Software
-		Expected string
+		Name         string
+		Translations CPETranslations
+		Software     *fleet.Software
+		Expected     string
 	}{
 		{
 			Name: "simple match",
+			Translations: CPETranslations{
+				{
+					Match: CPETranslationMatch{
+						Name:   []string{"X"},
+						Source: []string{"apps"},
+					},
+					Translation: CPETranslation{
+						Product: []string{"product-1"},
+						Vendor:  []string{"vendor"},
+					},
+				},
+			},
 			Software: &fleet.Software{
 				Name:    "X",
 				Version: "1.2.3",
@@ -95,6 +110,18 @@ func TestCPETranslations(t *testing.T) {
 		},
 		{
 			Name: "match name or",
+			Translations: CPETranslations{
+				{
+					Match: CPETranslationMatch{
+						Name:   []string{"X", "Y"},
+						Source: []string{"apps"},
+					},
+					Translation: CPETranslation{
+						Product: []string{"product-1"},
+						Vendor:  []string{"vendor"},
+					},
+				},
+			},
 			Software: &fleet.Software{
 				Name:    "Y",
 				Version: "1.2.3",
@@ -102,11 +129,34 @@ func TestCPETranslations(t *testing.T) {
 			},
 			Expected: "cpe:2.3:a:vendor:product-1:1.2.3:*:*:*:*:macos:*:*",
 		},
+		{
+			Name: "match name regexp",
+			Translations: CPETranslations{
+				{
+					Match: CPETranslationMatch{
+						Name:   []string{"/^[A-Z]$/"},
+						Source: []string{"apps"},
+					},
+					Translation: CPETranslation{
+						Product: []string{"product-1"},
+						Vendor:  []string{"vendor"},
+					},
+				},
+			},
+			Software: &fleet.Software{
+				Name:    "Z",
+				Version: "1.2.3",
+				Source:  "apps",
+			},
+			Expected: "cpe:2.3:a:vendor:product-1:1.2.3:*:*:*:*:macos:*:*",
+		},
 	}
+
+	reCache := NewRegexpCache()
 
 	for _, tc := range tt {
 		t.Run(tc.Name, func(t *testing.T) {
-			cpe, err := CPEFromSoftware(db, tc.Software, translations)
+			cpe, err := CPEFromSoftware(db, tc.Software, translations, reCache)
 			require.NoError(t, err)
 			require.Equal(t, tc.Expected, cpe)
 		})
