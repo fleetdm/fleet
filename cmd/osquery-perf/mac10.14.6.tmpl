@@ -213,7 +213,8 @@
     "build":"18G3020",
     "platform":"darwin",
     "platform_like":"darwin",
-    "codename":""
+    "codename":"",
+    "arch":"x86_64"
   }
 ]
 {{- end }}
@@ -228,7 +229,25 @@
     "build":"18G3020",
     "platform":"darwin",
     "platform_like":"darwin",
-    "codename":""
+    "codename":"",
+    "arch":"x86_64"
+  }
+]
+{{- end }}
+{{ define "fleet_detail_query_os_unix_like" -}}
+[
+  {
+    "name":"Mac OS X",
+    "version":"10.14.6",
+    "major":"10",
+    "minor":"14",
+    "patch":"6",
+    "build":"18G3020",
+    "platform":"darwin",
+    "platform_like":"darwin",
+    "codename":"",
+    "arch":"x86_64",
+    "kernel_version":"18.7.0"
   }
 ]
 {{- end }}

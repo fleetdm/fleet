@@ -62,14 +62,15 @@
 [
   {
     "name":"Ubuntu",
-    "version":"18.4.0",
-    "major":"",
-    "minor":"",
-    "patch":"",
+    "version":"18.04.5 LTS (Bionic Beaver)",
+    "major":"18",
+    "minor":"4",
+    "patch":"0",
     "build":"",
     "platform":"ubuntu",
-    "platform_like":"ubuntu",
-    "codename":""
+    "platform_like":"debian",
+    "codename":"bionic",
+    "arch":"x86_64"
   }
 ]
 {{- end }}
@@ -78,14 +79,34 @@
 [
   {
     "name":"Ubuntu",
-    "version":"18.4.0",
-    "major":"",
-    "minor":"",
-    "patch":"",
+    "version":"18.04.5 LTS (Bionic Beaver)",
+    "major":"18",
+    "minor":"4",
+    "patch":"0",
     "build":"",
     "platform":"ubuntu",
-    "platform_like":"ubuntu",
-    "codename":""
+    "platform_like":"debian",
+    "codename":"bionic",
+    "arch":"x86_64"
+  }
+]
+{{- end }}
+
+{{ define "fleet_detail_query_os_unix_like" -}}
+[
+  {
+    "name":"Ubuntu",
+    "version":"18.04.5 LTS (Bionic Beaver)",
+    "major":"18",
+    "minor":"4",
+    "patch":"0",
+    "build":"",
+    "platform":"ubuntu",
+    "platform_like":"debian",
+    "codename":"bionic",
+    "arch":"x86_64",
+    "kernel_version":"5.10.76-linuxkit"
+
   }
 ]
 {{- end }}

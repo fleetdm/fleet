@@ -63,14 +63,15 @@
 [
   {
     "name":"Ubuntu",
-    "version":"16.4.0",
+    "version":"16.04.7 LTS (Xenial Xerus)",
     "major":"16",
     "minor":"4",
     "patch":"0",
     "build":"18G3020",
     "platform":"ubuntu",
-    "platform_like":"ubuntu",
-    "codename":""
+    "platform_like":"debian",
+    "codename":"xenial",
+    "arch":"x86_64"
   }
 ]
 {{- end }}
@@ -79,14 +80,33 @@
 [
   {
     "name":"Ubuntu",
-    "version":"16.4.0",
+    "version":"16.04.7 LTS (Xenial Xerus)",
     "major":"16",
     "minor":"4",
     "patch":"0",
     "build":"18G3020",
     "platform":"ubuntu",
-    "platform_like":"ubuntu",
-    "codename":""
+    "platform_like":"debian",
+    "codename":"xenial",
+    "arch":"x86_64"
+  }
+]
+{{- end }}
+
+{{ define "fleet_detail_query_os_unix_like" -}}
+[
+  {
+    "name":"Ubuntu",
+    "version":"16.04.7 LTS (Xenial Xerus)",
+    "major":"16",
+    "minor":"4",
+    "patch":"0",
+    "build":"18G3020",
+    "platform":"ubuntu",
+    "platform_like":"debian",
+    "codename":"xenial",
+    "arch":"x86_64",
+    "kernel_version":"5.10.76-linuxkit"
   }
 ]
 {{- end }}

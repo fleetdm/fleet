@@ -146,7 +146,7 @@ var hostDetailQueries = map[string]DetailQuery{
 
 			host.Platform = rows[0]["platform"]
 			host.PlatformLike = rows[0]["platform_like"]
-			host.CodeName = rows[0]["code_name"]
+			host.CodeName = rows[0]["codename"]
 
 			// On centos6 there is an osquery bug that leaves
 			// platform empty. Here we workaround.
