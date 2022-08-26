@@ -1,7 +1,6 @@
 import React, { useState, useContext, useEffect } from "react";
 import { useQuery } from "react-query";
 import { InjectedRouter, Params } from "react-router/lib/Router";
-import { RouteProps } from "react-router/lib/Route";
 
 import PATHS from "router/paths";
 import MainContent from "components/MainContent";
@@ -18,7 +17,6 @@ import LabelForm from "pages/hosts/ManageHostsPage/components/LabelForm";
 const baseClass = "labels";
 
 interface ILabelPageProps {
-  route: RouteProps;
   router: InjectedRouter;
   params: Params;
   location: {
@@ -31,7 +29,6 @@ const DEFAULT_CREATE_LABEL_ERRORS = {
 };
 
 const LabelPage = ({
-  route,
   router,
   params,
   location,
@@ -61,6 +58,14 @@ const LabelPage = ({
     ILabel[]
   >(["labels"], () => labelsAPI.loadAll(), {
     select: (data: ILabelsResponse) => data.labels,
+    onSuccess: (responseLabels: ILabel[]) => {
+      if (params.label_id) {
+        const selectLabel = responseLabels.find(
+          (label) => label.id == params.label_id
+        );
+        setSelectedLabel(selectLabel);
+      }
+    },
   });
 
   useEffect(() => {
@@ -90,7 +95,7 @@ const LabelPage = ({
     labelsAPI
       .update(selectedLabel, updateAttrs)
       .then(() => {
-        router.push(PATHS.MANAGE_HOSTS);
+        router.push(PATHS.MANAGE_HOSTS_LABEL(selectedLabel.id));
         renderFlash(
           "success",
           "Label updated. Try refreshing this page in just a moment to see the updated host count for your label."
@@ -101,6 +106,22 @@ const LabelPage = ({
         if (updateError.data.errors[0].reason.includes("Duplicate")) {
           setLabelValidator({
             name: "A label with this name already exists",
+          });
+        } else if (
+          updateError.data.errors[0].reason.includes(
+            "Data too long for column 'name'"
+          )
+        ) {
+          setLabelValidator({
+            name: "Label name is too long",
+          });
+        } else if (
+          updateError.data.errors[0].reason.includes(
+            "Data too long for column 'description'"
+          )
+        ) {
+          setLabelValidator({
+            description: "Label description is too long",
           });
         } else {
           renderFlash("error", "Could not create label. Please try again.");
@@ -123,6 +144,22 @@ const LabelPage = ({
         if (updateError.data.errors[0].reason.includes("Duplicate")) {
           setLabelValidator({
             name: "A label with this name already exists",
+          });
+        } else if (
+          updateError.data.errors[0].reason.includes(
+            "Data too long for column 'name'"
+          )
+        ) {
+          setLabelValidator({
+            name: "Label name is too long",
+          });
+        } else if (
+          updateError.data.errors[0].reason.includes(
+            "Data too long for column 'description'"
+          )
+        ) {
+          setLabelValidator({
+            description: "Label description is too long",
           });
         } else {
           renderFlash("error", "Could not create label. Please try again.");

@@ -77,6 +77,13 @@ const LabelForm = ({
   const [queryError, setQueryError] = useState("");
   const [platform, setPlatform] = useState(selectedLabel?.platform || "");
 
+  useEffect(() => {
+    setName(selectedLabel?.name || "");
+    setDescription(selectedLabel?.description || "");
+    setQuery(selectedLabel?.query || "");
+    setPlatform(selectedLabel?.platform || "");
+  }, [selectedLabel]);
+
   const debounceSQL = useDebouncedCallback((queryString: string) => {
     let valid = true;
     const { valid: isValidated, errors: newErrors } = validateQuerySQL(

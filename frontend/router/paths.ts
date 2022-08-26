@@ -1,5 +1,4 @@
 import { IHost } from "../interfaces/host";
-import { ILabel } from "../interfaces/label";
 import { IQuery } from "../interfaces/query";
 import { IPolicy } from "../interfaces/policy";
 import URL_PREFIX from "./url_prefix";
@@ -43,6 +42,9 @@ export default {
   LOGIN: `${URL_PREFIX}/login`,
   LOGOUT: `${URL_PREFIX}/logout`,
   MANAGE_HOSTS: `${URL_PREFIX}/hosts/manage`,
+  MANAGE_HOSTS_LABEL: (labelId: number | string): string => {
+    return `${URL_PREFIX}/hosts/manage/labels/${labelId}`;
+  },
   HOST_DETAILS: (host: IHost): string => {
     return `${URL_PREFIX}/hosts/${host.id}`;
   },
