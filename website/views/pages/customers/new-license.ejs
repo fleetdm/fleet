@@ -34,7 +34,7 @@
             </div>
             <div  :class="[showBillingForm ? 'pt-2' : '' ]" v-if="!showBillingForm">
               <ajax-button style="height: 40px;" purpose="submit-button" spinner="true" type="submit" :syncing="syncing" class="btn btn-block btn-lg btn-info" v-if="!numberOfHostsQuoted">Continue</ajax-button>
-              <ajax-button style="height: 40px;" spinner="true" purpose="submit-button" :syncing="syncing" class="btn btn-block btn-lg btn-info" @click="clickScheduleDemo" v-if=" showQuotedPrice && numberOfHostsQuoted > 100">Schedule a demo</ajax-button>
+              <ajax-button style="height: 40px;" spinner="true" purpose="submit-button" :syncing="syncing" class="btn btn-block btn-lg btn-info" @click="clickScheduleDemo" v-if=" showQuotedPrice && numberOfHostsQuoted > 100">Talk to an expert</ajax-button>
               <ajax-button style="height: 40px;" spinner="true" purpose="submit-button" :syncing="syncing" class="btn btn-block btn-lg btn-info" v-if="showQuotedPrice && numberOfHostsQuoted <= 100">Continue</ajax-button>
             </div>
           </ajax-form>

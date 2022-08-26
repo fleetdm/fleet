@@ -77,8 +77,18 @@ const AgentOptionsPage = ({
   return (
     <div className={`${baseClass}`}>
       <p className={`${baseClass}__page-description`}>
-        This file describes options returned to osquery when it checks for
-        configuration.
+        Agent options configure the osquery agent. When you update agent
+        options, they will be applied the next time a host checks in to Fleet.
+        <br />
+        <a
+          href="https://fleetdm.com/docs/using-fleet/fleet-ui#configuring-agent-options"
+          className={`${baseClass}__learn-more`}
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          Learn more about agent options&nbsp;
+          <img className="icon" src={OpenNewTabIcon} alt="open new tab" />
+        </a>
       </p>
       <InfoBanner className={`${baseClass}__config-docs`}>
         See Fleet documentation for an example file that includes the overrides

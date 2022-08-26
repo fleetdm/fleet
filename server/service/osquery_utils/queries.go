@@ -1068,13 +1068,13 @@ func GetDetailQueries(ac *fleet.AppConfig, fleetConfig config.FleetConfig) map[s
 		generatedMap[key] = query
 	}
 
-	if ac != nil && ac.HostSettings.EnableSoftwareInventory {
+	if ac != nil && ac.Features.EnableSoftwareInventory {
 		generatedMap["software_macos"] = softwareMacOS
 		generatedMap["software_linux"] = softwareLinux
 		generatedMap["software_windows"] = softwareWindows
 	}
 
-	if ac != nil && ac.HostSettings.EnableHostUsers {
+	if ac != nil && ac.Features.EnableHostUsers {
 		generatedMap["users"] = usersQuery
 	}
 

@@ -58,7 +58,7 @@ func runTerraform(workspace string) error {
 	if err != nil {
 	    return err
     }
-	err := runCmd([]string{
+	err = runCmd([]string{
 		"workspace",
 		"select",
 		"default",
@@ -66,7 +66,7 @@ func runTerraform(workspace string) error {
 	if err != nil {
 	    return err
     }
-	err := runCmd([]string{
+	err = runCmd([]string{
 		"workspace",
 		"delete",
 		workspace,

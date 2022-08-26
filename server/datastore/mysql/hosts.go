@@ -291,6 +291,7 @@ var hostRefs = []string{
 	"host_batteries",
 	"windows_updates",
 	"host_operating_system",
+	"windows_updates",
 }
 
 func (ds *Datastore) DeleteHost(ctx context.Context, hid uint) error {
@@ -506,9 +507,9 @@ func (ds *Datastore) applyHostFilters(opt fleet.HostListOptions, sql string, fil
 		mdmJoin = ""
 	}
 
-	operatingSystemJoin := `JOIN host_operating_system hos ON h.id = hos.host_id`
-	if opt.OperatingSystemIDFilter == nil {
-		operatingSystemJoin = ""
+	operatingSystemJoin := ""
+	if opt.OSIDFilter != nil || (opt.OSNameFilter != nil && opt.OSVersionFilter != nil) {
+		operatingSystemJoin = `JOIN host_operating_system hos ON h.id = hos.host_id`
 	}
 
 	sql += fmt.Sprintf(`FROM hosts h
@@ -527,7 +528,7 @@ func (ds *Datastore) applyHostFilters(opt fleet.HostListOptions, sql string, fil
 	sql, params = filterHostsByTeam(sql, opt, params)
 	sql, params = filterHostsByPolicy(sql, opt, params)
 	sql, params = filterHostsByMDM(sql, opt, params)
-	sql, params = filterHostsByOsID(sql, opt, params)
+	sql, params = filterHostsByOS(sql, opt, params)
 	sql, params = hostSearchLike(sql, params, opt.MatchQuery, hostSearchColumns...)
 	sql, params = appendListOptionsWithCursorToSQL(sql, params, opt.ListOptions)
 
@@ -560,10 +561,13 @@ func filterHostsByMDM(sql string, opt fleet.HostListOptions, params []interface{
 	return sql, params
 }
 
-func filterHostsByOsID(sql string, opt fleet.HostListOptions, params []interface{}) (string, []interface{}) {
-	if opt.OperatingSystemIDFilter != nil {
+func filterHostsByOS(sql string, opt fleet.HostListOptions, params []interface{}) (string, []interface{}) {
+	if opt.OSIDFilter != nil {
 		sql += ` AND hos.os_id = ?`
-		params = append(params, *opt.OperatingSystemIDFilter)
+		params = append(params, *opt.OSIDFilter)
+	} else if opt.OSNameFilter != nil && opt.OSVersionFilter != nil {
+		sql += ` AND hos.os_id IN (SELECT id FROM operating_systems WHERE name = ? AND version = ?)`
+		params = append(params, *opt.OSNameFilter, *opt.OSVersionFilter)
 	}
 	return sql, params
 }
@@ -1882,8 +1886,18 @@ func (ds *Datastore) UpdateHost(ctx context.Context, host *fleet.Host) error {
 	return nil
 }
 
-// OSVersions gets the aggregated os version host counts. If a non-nil teamID is passed, it will filter hosts by team.
-func (ds *Datastore) OSVersions(ctx context.Context, teamID *uint, platform *string, osID *uint) (*fleet.OSVersions, error) {
+// OSVersions gets the aggregated os version host counts. Records with the same name and version are combined into one count (e.g.,
+// counts for the same macOS version on x86_64 and arm64 architectures are counted together.
+// Results can be filtered using the following optional criteria: team id, platform, or name and
+// version. Name cannot be used without version, and conversely, version cannot be used without name.
+func (ds *Datastore) OSVersions(ctx context.Context, teamID *uint, platform *string, name *string, version *string) (*fleet.OSVersions, error) {
+	if name != nil && version == nil {
+		return nil, errors.New("invalid usage: cannot filter by name without version")
+	}
+	if name == nil && version != nil {
+		return nil, errors.New("invalid usage: cannot filter by version without name")
+	}
+
 	query := `
 SELECT
     json_value,
@@ -1914,44 +1928,59 @@ WHERE
 		return nil, err
 	}
 
-	osVersions := &fleet.OSVersions{
+	res := &fleet.OSVersions{
 		CountsUpdatedAt: row.UpdatedAt,
+		OSVersions:      []fleet.OSVersion{},
 	}
 
+	var counts []fleet.OSVersion
 	if row.JSONValue != nil {
-		err := json.Unmarshal(*row.JSONValue, &osVersions.OSVersions)
-		if err != nil {
-			return nil, err
+		if err := json.Unmarshal(*row.JSONValue, &counts); err != nil {
+			return nil, ctxerr.Wrap(ctx, err)
 		}
 	}
 
-	// filter by os versions by platform
+	// filter counts by platform
 	if platform != nil {
 		var filtered []fleet.OSVersion
-		for _, osVersion := range osVersions.OSVersions {
-			if *platform == osVersion.Platform {
-				filtered = append(filtered, osVersion)
+		for _, os := range counts {
+			if *platform == os.Platform {
+				filtered = append(filtered, os)
 			}
 		}
-		osVersions.OSVersions = filtered
+		counts = filtered
 	}
 
-	// filter by os versions by os id
-	if osID != nil {
-		var filtered []fleet.OSVersion
-		for _, osVersion := range osVersions.OSVersions {
-			if *osID == osVersion.ID {
-				filtered = append(filtered, osVersion)
-			}
+	// aggregate counts by name and version
+	byNameVers := make(map[string]fleet.OSVersion)
+	for _, os := range counts {
+		if name != nil &&
+			version != nil &&
+			*name != os.NameOnly &&
+			*version != os.Version {
+			continue
 		}
-		osVersions.OSVersions = filtered
+		key := fmt.Sprintf("%s %s", os.NameOnly, os.Version)
+		val, ok := byNameVers[key]
+		if !ok {
+			// omit os id
+			byNameVers[key] = fleet.OSVersion{Name: os.Name, NameOnly: os.NameOnly, Version: os.Version, Platform: os.Platform, HostsCount: os.HostsCount}
+		} else {
+			newVal := val
+			newVal.HostsCount += os.HostsCount
+			byNameVers[key] = newVal
+		}
+	}
+
+	for _, os := range byNameVers {
+		res.OSVersions = append(res.OSVersions, os)
 	}
 
 	// Sort by os versions. We can't control the order when using json_arrayagg
 	// See https://dev.mysql.com/doc/refman/5.7/en/aggregate-functions.html#function_json-arrayagg.
-	sort.Slice(osVersions.OSVersions, func(i, j int) bool { return osVersions.OSVersions[i].Name < osVersions.OSVersions[j].Name })
+	sort.Slice(res.OSVersions, func(i, j int) bool { return res.OSVersions[i].Name < res.OSVersions[j].Name })
 
-	return osVersions, nil
+	return res, nil
 }
 
 // Aggregated stats for os versions are stored by team id with 0 representing the global case
@@ -1968,7 +1997,7 @@ func (ds *Datastore) UpdateOSVersions(ctx context.Context) error {
 	FROM hosts h
 	JOIN host_operating_system hos ON h.id = hos.host_id
 	JOIN operating_systems os ON hos.os_id = os.id
-	GROUP BY team_id, os_id
+	GROUP BY team_id, os.id
 	`
 
 	var rows []struct {

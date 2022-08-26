@@ -8,9 +8,9 @@ This person is accountable for accomplishing goals and making decisions about a 
 
 DRIs help us collaborate efficiently by knowing exactly who is responsible and can make decisions about the work they're doing.
 
-|    Aspect              										| DRI     		|
+|    Aspect                                 | DRI         |
 | ----------------------------------------------------| ------------ |
-| Wireframes (Figma)| Noah Talerman	|
+| Wireframes (Figma)| Noah Talerman |
 | How the product works | Noah Talerman |
 | fleetctl CLI interface (and other tools) | Tomás Touceda |
 | REST API interface design | Luke Heath |
@@ -72,13 +72,13 @@ When selecting your new laptop, we ask that you optimize your configuration to h
 
 When a device has been purchased, it's added to the [spreadsheet of company equipment](https://docs.google.com/spreadsheets/d/1hFlymLlRWIaWeVh14IRz03yE-ytBLfUaqVz0VVmmoGI/edit#gid=0) where we keep track of devices and equipment, purchased by Fleet. When the team member receives their computer, they will complete the entry by adding a description, model, and serial number to the spreadsheet.
 
-### Attending conferences
+### Attending conferences or company travel
 
-When attending a conference for Fleet, please make a post in [g-digital-experience](https://github.com/fleetdm/fleet/pull/6288) on Slack with the following information:
+When attending a conference or traveling for Fleet, please make a post in [#help-travel](https://fleetdm.slack.com/archives/C03V38WQFLG) on Slack with the following information:
 - The start and end dates for your trip.
 - The price of your flight (feel free to optimize a direct flight if there is one that is less than double the price of the cheapest non-direct flight).
 - The price of your hotel per night.
-- The price of the admission fees for the conference.
+- The price of the admission fees if attending a conference.
 
 The monthly limit on your Brex card will be increased temporarily as necessary to accommodate the increased spending associated with the conference.
 We highly recommend you order a physical Brex card if you do not have one before attending the conference.
@@ -466,132 +466,11 @@ We consider Salesforce to be our Rolodex for customer information. During the on
 4. Sign DocuSign sent to the email.
 5. The order will be processed in ~30m.
 
-## Participating in the CEO shadow program
-
-### Eligibility
-TODO: document eligibility qualifications
-
-### How to apply
- 1. TODO: Create a pull request to add yourself to the [rotation schedule](insert link here)TODO: create template for pull request
- 2. Assign your manager and ask them to approve (but not merge) the pull request.
- 3. TODO: Once your manager approves the pull request, assign the pull request to Charlie, link to the pull request in the #ceo-shadow channel, and @mention Charlie in the message.
-
-### Parental participation 
- TODO: (parent-friendly scheduling options)
-
-### Rotation rhythm
- 1. See one, you are trained by the outgoing person.
- 2. Teach one, you train the incoming person.
- The shadow should be available for the full two weeks.
-
-### Rotation schedule 
- TODO: (This is a chart: start date, end date, see one, teach one.)
-
-### Preparing for the program
-
-### Important things to note
- 1. This is not a performance evaluation.
- 2. Plan to observe and ask questions.
- 3. Don't plan to do any of your usual work.
- 4. Be ready to add a number of [handbook](https://fleetdm.com/handbook) updates during your shadow period.
- 5. Participating in the shadow program is a privilege that will expose you to confidential information.
- 6. Give feedback to and receive feedback from the CEO.
-
-### What to wear
- Casual
-
-### Pre-program tasks
- 1. Create an onboarding issue 
- TODO:(onboarding and offboarding issues are created for the two-week program)
- 2. Consider creating goals
- For inspiration, here is [an example](https://gitlab.com/nmccorrison/ceo-shadow/-/issues/1#my-goals) of a CEO Shadow who added goals to their onboarding issue.
- 3. Practice your introduction
- See [CEO Shadow Introductions](https://about.gitlab.com/handbook/ceo/shadow/#ceo-shadow-introductions) for specifics.
- 4. Coffee chat with co-shadow
-  Try to schedule coffee chats with your co-shadow before you start the program.
- 5. Coffee Chat with CEO shadow alumni
- Feel free to schedule a coffee chat with any of the CEO Shadow Alumni. There's a link to the alumni chart dropped here too. 
- 6. Explore the CEO shadow project
- TODO: private board
- 7. Review the CEO's calendar
- Anticipate your week. Look ahead in the schedule and plan accordingly. 
- 8. Review the CEO handbook (TODO: insert link here)
- TODO: How to communicate and interact with the CEO.
- 9. Review acronyms 
- TODO: add resource link (KPIs, OKRs, xMAU, SpU, ARR, keep a financial dictionary handy)
-
-### What to expect during the program 
- TODO: Broken down by tasks like handbooking and "for meetings."
-
-### Tasks
- 1. Collecting and managing tasks 
- TODO: (There is a project board that is privately linked here.)
-
-### Tweetstorm
-A tweetstorm is a series of Twitter posts usually made as replies in a single thread on a topic. CEO shadows may be asked to draft the tweets related to a public live-streamed video recording or other media content.
-
-### Meetings & events
-
-### CEO's calendar
- 1. Review the CEO's calendar.
- 2. How to update your zoom name to show "CEO shadow."
- 3. How to add CEO calendar to google calendar (we already do this in onboarding).
- 4. Details about invites to events marked private (like interviews).
- 5. Meetings with those outside of GitLab may not be on Zoom. Prior to the call, check the CEO's calendar and load any other conferencing programs that may be needed. It may be necessary to dial in via phone for audio conferences.
-
-### Types of meetings
- 1. Fleet Meetings
-  - 1:1s with reports.
-  - Interviews with candidates.
-  - Conversations with board members.
- 2. Social calls
- 3. Media Briefings
- 4. Candidate Interviews
- 5. Personal Meetings
-
-### Removing yourself from personal CEO documents
-TODO
-
-### Responsibilities
- TODO: this is a chart outlining responsibilities based on meeting types.
-
-### Email best practices
-TODO: In order to keep continuity across CEO shadow participants. Always, cc (TODO: email group) on emails as part of the program. This makes sure that even after you've left the program, the response and follow-up can be tracked.
-
-### Considerations for other companies starting CEO shadow programs
-GitLab co-founder and CEO Sid Sijbrandij [answered questions in a YouTube livestream](https://youtu.be/ExG8_bnIAMI) from Sam Altman, as the two discussed considerations for implementing a CEO Shadow program in other organizations. Key takeaways are documented below.
-
- 1. CEOs should not optimize meetings for Shadows. They  learn by being in the room, either in-person or virtual, and it's OK if the Shadow doesn't fully understand everything.
- 2. A well-designed CEO Shadow program shouldn't burden a CEO; in fact, Shadows should actively make a CEO's day easier by assisting with notes and changing relevant portions of the company handbook upon request.
- 3. Non-obvious benefits for a CEO (and their organization) include CEO empathy and humanizing a CEO, such that team members are more comfortable contributing input to an executive. Shadow alumni can translate real-world examples of [assuming positive intent](https://about.gitlab.com/handbook/values/#assume-positive-intent) from their time in the program to their direct reports, further fortifying company culture.
- 4. Make certain that CEO Shadows do not plan to do any of their usual work. Shadows should prepare their team as if they were on vacation. Attempting to shadow the CEO while also maintaining a full workload creates undue stress for the CEO Shadow.
-
-### Alumni 
-TODO: (This is a chart with info on CEO alumni) (Create a slack channel for CEO-shadow-alumni)
-
 ## PeopleOps
 
-### OKR planning
+### CEO handbook
 
-OKRs help to inform what to prioritize and communicate company goals while encouraging cross-team collaboration.
-
-At the end of the quarter and key points throughout the quarter (every three weeks), we review the status of each OKR (depending on the KR, either 100% or ≥70% completion is considered "success")
-
-- Review topdown and departmental OKRs as they are turned in.
-- OKRs are finalized one week from when topdown OKRs were initially reviewed.
-- Finalized OKRs are shared company-wide and at the "All hands" meeting and, at least to some degree, become public.
-- Throughout the quarter, Mike and Zach have OKR preplanning meetings (every three weeks) to prepare OKRs for the upcoming quarter. 
-
-### 1:1 Mike:Sid document preparation
-
-Every two weeks, our CEO Mike has a 1:1 meeting with our Investor Sid. The Digital Experience Team completes four parts while constructing the associated document. 
-
- - After the 1:1 meeting has happened, Charlie makes a copy of the original document, labels it "yyyy-mm-dd Backup copy of Mike from Fleet & Sid," and moves it to a private folder. 
- - Charlie will change the permissions on the new copy to share it with Mike and Zach and set Mike to be the file's owner. If there are any agenda items labeled "TODO," Charlie will comment in the backup copy to assign them to Mike.
- - Charlie prepares the original document by deleting the agenda items in the "Hallway" and "Feedback" sections, leaving only the "Vision" section.
- - Charlie will update the monthly "All Hands" link and grant Sid viewing access. 
- - Charlie will send Mike links to the new document and the backup copy in a direct message in Slack. 
- - The day before the meeting, Charlie will prepare the "Vision" section of the original document. Charlie will collect and update information related to annual recurring revenue, new members in the `#fleet` channel in the osquery Slack, the number of new customers and opportunities from Salesforce, the total number of devices using Fleet, the company's current headcount, and banking information.
+[The CEO handbook](./ceo-handbook.md) details processes specific to Mike McNeil, CEO of Fleet. 
 
 ### Workiversaries
 
@@ -608,12 +487,7 @@ We like to celebrate our achievements weekly in `#general`.
 Weekly update principles
    - Each department's update is 20-40 words or less.
    - Erring on the side of referring to items that are completely done and/or mentioning news that is potentially very exciting to folks throughout the company.
-
-### Investor and advisor updates
-
-We like to regularly share updates about how Fleet is growing with our investors and advisors. 
-  - Charlie tracks the most recent updates with investors and advisors and coordinates emails, zoom calls, or the investor or advisor's preferred method of communication with @mikermcneil and preps materials as needed. 
-
+ 
 ### Recruiting progress checkup
 
 Weekly, Charlie looks in the [Fleeties spreadsheet](https://docs.google.com/spreadsheets/d/1OSLn-ZCbGSjPusHPiR5dwQhheH1K8-xqyZdsOe9y7qc/edit#gid=0) and reports on each open position:
@@ -628,14 +502,6 @@ Weekly, Charlie looks in the [Fleeties spreadsheet](https://docs.google.com/spre
 Many of these processes are automated, but it's vital to check Gusto and Pilot manually for accuracy.
  - Salary employees are automated in Gusto and Pilot
  - Contractors are a manual process in Gusto and Pilot
-
-### Calendar audit
-
-As Fleet grows, time management for the CEO is more essential. Charlie will audit the CEOs calendar and set meeting notes for calls with external attendees. In the notes document include:
-- LinkedIn profile link of all outside participants
-- Company profile link 
-- Context that helps the CEO to understand purpose of meeting at a glance
-- Share document with meeting participants
 
 ## BizOps
 

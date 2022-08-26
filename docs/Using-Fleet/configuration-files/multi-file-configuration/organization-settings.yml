@@ -21,7 +21,7 @@ spec:
   host_expiry_settings:
     host_expiry_enabled: false
     host_expiry_window: 0
-  host_settings:
+  features:
     additional_queries: null
     enable_host_users: true
     enable_software_inventory: true

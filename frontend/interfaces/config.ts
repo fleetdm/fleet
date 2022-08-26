@@ -154,7 +154,7 @@ export interface IConfig {
     host_expiry_enabled: boolean;
     host_expiry_window: number;
   };
-  host_settings: {
+  features: {
     enable_host_users: boolean;
     enable_software_inventory: boolean;
   };

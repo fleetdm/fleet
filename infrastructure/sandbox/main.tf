@@ -29,8 +29,8 @@ provider "aws" {
   default_tags {
     tags = {
       environment = "fleet-demo-${terraform.workspace}"
-      terraform   = "https://github.com/fleetdm/fleet/tree/main/infrastructure/demo"
-      state       = "s3://fleet-loadtesting-tfstate/demo-environment"
+      terraform   = "https://github.com/fleetdm/fleet/tree/main/infrastructure/sandbox"
+      state       = "s3://fleet-terraform-state20220408141538466600000002/fleet-cloud-sandbox-prod/sandbox/terraform.tfstate"
     }
   }
 }
@@ -40,8 +40,8 @@ provider "aws" {
   default_tags {
     tags = {
       environment = "fleet-demo-${terraform.workspace}"
-      terraform   = "https://github.com/fleetdm/fleet/tree/main/infrastructure/demo"
-      state       = "s3://fleet-loadtesting-tfstate/demo-environment"
+      terraform   = "https://github.com/fleetdm/fleet/tree/main/infrastructure/sandbox"
+      state       = "s3://fleet-terraform-state20220408141538466600000002/fleet-cloud-sandbox-prod/sandbox/terraform.tfstate"
     }
   }
 }

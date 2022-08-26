@@ -30,7 +30,7 @@ Orbit will be the one-stop shop for all your agent needs in Fleet. Stay tuned as
 If you have suggestions for Orbit, please share them with us in the osquery Slack [#fleet channel](https://osquery.slack.com/join/shared_invite/zt-h29zm0gk-s2DBtGUTW4CFel0f0IjTEw#/) or open an issue in Github.
 
 
-<meta name="category" value="releases">
+<meta name="category" value="announcements">
 <meta name="authorFullName" value="Mo Zhu">
 <meta name="authorGitHubUsername" value="zhumo">
 <meta name="publishedOn" value="2022-08-18">
