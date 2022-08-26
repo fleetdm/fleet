@@ -394,7 +394,7 @@ func (a *agent) hostUsersMacOS() []map[string]string {
 	commonUsers := make([]map[string]string, a.userCount.common)
 	for i := 0; i < len(commonUsers); i++ {
 		commonUsers[i] = map[string]string{
-			"uid":       string(i),
+			"uid":       fmt.Sprint(i),
 			"username":  fmt.Sprintf("Common_%d", i),
 			"type":      "", // Empty for macOS.
 			"groupname": groupNames[i%len(groupNames)],
@@ -404,7 +404,7 @@ func (a *agent) hostUsersMacOS() []map[string]string {
 	uniqueUsers := make([]map[string]string, a.userCount.unique)
 	for i := 0; i < len(uniqueUsers); i++ {
 		uniqueUsers[i] = map[string]string{
-			"uid":       string(i),
+			"uid":       fmt.Sprint(i),
 			"username":  fmt.Sprintf("Unique_%d_%d", a.agentIndex, i),
 			"type":      "", // Empty for macOS.
 			"groupname": groupNames[i%len(groupNames)],
