@@ -12,7 +12,7 @@ import { IApiError } from "interfaces/errors";
 import { ILabel, ILabelFormData } from "interfaces/label";
 import labelsAPI, { ILabelsResponse } from "services/entities/labels";
 import deepDifference from "utilities/deep_difference";
-import LabelForm from "pages/hosts/ManageHostsPage/components/LabelForm";
+import LabelForm from "./LabelForm";
 
 const baseClass = "label-page";
 
