@@ -174,3 +174,6 @@ TODO: Create process
 
 ## New IT conversations
 TODO: Create process
+
+<meta name="maintainedBy" value="charlottechance">
+<meta name="title" value="CEO handbook">
