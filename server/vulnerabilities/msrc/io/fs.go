@@ -21,13 +21,13 @@ func NewMSRCFSClient(dir string) MSRCFSClient {
 	}
 }
 
-// Delete the provided security bulletin from the dir specified at instantiation time.
+// Delete deletes the provided security bulletin name from 'dir'.
 func (fs MSRCFSClient) Delete(b SecurityBulletinName) error {
 	path := filepath.Join(fs.dir, string(b))
 	return os.Remove(path)
 }
 
-// Bulletins walks 'dstDir' returning all security bulletin names.
+// Bulletins walks 'dir' returning all security bulletin names.
 func (fs MSRCFSClient) Bulletins() ([]SecurityBulletinName, error) {
 	var result []SecurityBulletinName
 

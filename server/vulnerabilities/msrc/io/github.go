@@ -27,7 +27,7 @@ func NewMSRCGithubClient(client *http.Client, dir string) MSRCGithubClient {
 	return MSRCGithubClient{client: client, dstDir: dir}
 }
 
-// Downloads the security bulletin to the destination folder specified at instantiation time.
+// Downloads the security bulletin to 'dir'.
 func (gh MSRCGithubClient) Download(b SecurityBulletinName, urlStr string) error {
 	u, err := url.Parse(urlStr)
 	if err != nil {
