@@ -438,7 +438,13 @@ func extract(src, dst string) {
 }
 
 func loadUbuntuSoftware(ver string) []fleet.Software {
+	ex, err := os.Executable()
+	if err != nil {
+		panic(err)
+	}
+
 	srcPath := filepath.Join(
+		filepath.Dir(ex),
 		"..",
 		"..",
 		"server",
