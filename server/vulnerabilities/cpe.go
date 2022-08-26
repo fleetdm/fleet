@@ -194,16 +194,16 @@ func DownloadCPETranslations(vulnPath string, client *http.Client, cpeTranslatio
 	return nil
 }
 
-// RegexpCache caches compiled regular expressions. Not safe for concurrent use.
-type RegexpCache struct {
+// regexpCache caches compiled regular expressions. Not safe for concurrent use.
+type regexpCache struct {
 	re map[string]*regexp.Regexp
 }
 
-func NewRegexpCache() *RegexpCache {
-	return &RegexpCache{re: make(map[string]*regexp.Regexp)}
+func newRegexpCache() *regexpCache {
+	return &regexpCache{re: make(map[string]*regexp.Regexp)}
 }
 
-func (r *RegexpCache) Get(pattern string) (*regexp.Regexp, error) {
+func (r *regexpCache) Get(pattern string) (*regexp.Regexp, error) {
 	if re, ok := r.re[pattern]; ok {
 		return re, nil
 	}
@@ -234,7 +234,7 @@ func (r *RegexpCache) Get(pattern string) (*regexp.Regexp, error) {
 //     ]
 type CPETranslations []CPETranslationEntry
 
-func (c CPETranslations) Translate(reCache *RegexpCache, s *fleet.Software) (CPETranslation, bool, error) {
+func (c CPETranslations) Translate(reCache *regexpCache, s *fleet.Software) (CPETranslation, bool, error) {
 	for _, entry := range c {
 		match, err := entry.Match.Matches(reCache, s)
 		if err != nil {
@@ -261,7 +261,7 @@ type CPETranslationMatch struct {
 }
 
 // Matches returns true if the software satifies all the match criteria.
-func (c CPETranslationMatch) Matches(reCache *RegexpCache, s *fleet.Software) (bool, error) {
+func (c CPETranslationMatch) Matches(reCache *regexpCache, s *fleet.Software) (bool, error) {
 	match := func(a, b string) (bool, error) {
 		// check if its a regular expression enclosed in '/'
 		if len(a) > 2 && a[0] == '/' && a[len(a)-1] == '/' {
@@ -339,7 +339,7 @@ type CPETranslation struct {
 // CPEFromSoftware attempts to find a matching cpe entry for the given software in the NVD CPE dictionary. `db` contains data from the NVD CPE dictionary
 // and is optimized for lookups, see `GenerateCPEDB`. `translations` are used to aid in cpe matching. When searching for cpes, we first check if it matches
 // any translations, and then lookup in the cpe database based on the title, product, vendor, target_sw, and version.
-func CPEFromSoftware(db *sqlx.DB, software *fleet.Software, translations CPETranslations, reCache *RegexpCache) (string, error) {
+func CPEFromSoftware(db *sqlx.DB, software *fleet.Software, translations CPETranslations, reCache *regexpCache) (string, error) {
 	version := sanitizeVersion(software.Version)
 
 	ds := goqu.Dialect("sqlite").From(goqu.I("cpe_2").As("c")).
@@ -544,7 +544,7 @@ func TranslateSoftwareToCPE(
 		level.Error(logger).Log("msg", "failed to load cpe translations", "err", err)
 	}
 
-	reCache := NewRegexpCache()
+	reCache := newRegexpCache()
 
 	for iterator.Next() {
 		software, err := iterator.Value()
