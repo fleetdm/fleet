@@ -1,7 +1,7 @@
 package msrc_io
 
 import (
-	"fmt"
+	"errors"
 	"strings"
 	"time"
 )
@@ -25,7 +25,7 @@ func (sbn SecurityBulletinName) date() (time.Time, error) {
 	parts := strings.Split(string(sbn), "-")
 
 	if len(parts) != 2 {
-		return time.Now(), fmt.Errorf("invalid security bulletin name")
+		return time.Now(), errors.New("invalid security bulletin name")
 	}
 	timeRaw := strings.Replace(parts[1], "."+fileExt, "", 1)
 	return time.Parse(dateLayout, timeRaw)

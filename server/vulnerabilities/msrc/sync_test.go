@@ -22,7 +22,7 @@ type testData struct {
 type ghMock struct{ testData *testData }
 
 func (gh ghMock) Bulletins() (map[msrc_io.SecurityBulletinName]string, error) {
-	return gh.testData.remoteList, gh.testData.remoteDownloadError
+	return gh.testData.remoteList, gh.testData.remoteListError
 }
 
 func (gh ghMock) Download(b msrc_io.SecurityBulletinName, url string) error {
