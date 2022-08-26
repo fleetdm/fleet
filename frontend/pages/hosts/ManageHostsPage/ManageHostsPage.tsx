@@ -984,6 +984,22 @@ const ManageHostsPage = ({
           setLabelValidator({
             name: "A label with this name already exists",
           });
+        } else if (
+          updateError.data.errors[0].reason.includes(
+            "Data too long for column 'name'"
+          )
+        ) {
+          setLabelValidator({
+            name: "Label name is too long",
+          });
+        } else if (
+          updateError.data.errors[0].reason.includes(
+            "Data too long for column 'description'"
+          )
+        ) {
+          setLabelValidator({
+            description: "Label description is too long",
+          });
         } else {
           renderFlash("error", "Could not create label. Please try again.");
         }
@@ -1010,6 +1026,22 @@ const ManageHostsPage = ({
         if (updateError.data.errors[0].reason.includes("Duplicate")) {
           setLabelValidator({
             name: "A label with this name already exists",
+          });
+        } else if (
+          updateError.data.errors[0].reason.includes(
+            "Data too long for column 'name'"
+          )
+        ) {
+          setLabelValidator({
+            name: "Label name is too long",
+          });
+        } else if (
+          updateError.data.errors[0].reason.includes(
+            "Data too long for column 'description'"
+          )
+        ) {
+          setLabelValidator({
+            description: "Label description is too long",
           });
         } else {
           renderFlash("error", "Could not create label. Please try again.");
