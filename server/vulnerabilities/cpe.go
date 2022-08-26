@@ -286,10 +286,6 @@ func (c CPETranslationMatch) Matches(reCache *regexpCache, s *fleet.Software) (b
 				found = true
 				break
 			}
-			if name == s.Name {
-				found = true
-				break
-			}
 		}
 		if !found {
 			return false, nil
