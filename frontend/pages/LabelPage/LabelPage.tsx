@@ -132,8 +132,8 @@ const LabelPage = ({
   const onAddLabel = (formData: ILabelFormData) => {
     labelsAPI
       .create(formData)
-      .then(() => {
-        router.push(PATHS.MANAGE_HOSTS);
+      .then((label: ILabel) => {
+        router.push(PATHS.MANAGE_HOSTS_LABEL(label.id));
         renderFlash(
           "success",
           "Label created. Try refreshing this page in just a moment to see the updated host count for your label."
