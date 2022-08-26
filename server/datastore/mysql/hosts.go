@@ -289,7 +289,6 @@ var hostRefs = []string{
 	"host_munki_info",
 	"host_device_auth",
 	"host_batteries",
-	"windows_updates",
 	"host_operating_system",
 	"windows_updates",
 }
