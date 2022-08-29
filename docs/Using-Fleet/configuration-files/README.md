@@ -193,7 +193,7 @@ spec:
 ```
 ## Organization settings
 
-The following file describes organization settings applied to the Fleet server.
+The following file describes organization settings applied to the Fleet server. A detailed explanation of each field is given next.
 
 ```yaml
 apiVersion: v1
@@ -273,6 +273,185 @@ spec:
     metadata: "<md:EntityDescriptor entityID="https://idp.example.org/SAML2"> ... /md:EntityDescriptor>"
     metadata_url: https://idp.example.org/idp-meta.xml
 ```
+
+### Organization Information
+
+#### org_info.org_name
+
+The name of the organization.
+
+- Required setting.
+- Default value: none (provided during Fleet setup).
+- Config file format:
+  ```
+  org_info:
+  	org_name: Fleet
+  ```
+
+#### org_info.org_logo_url
+
+The URL of the logo of the organization.
+
+- Optional setting.
+- Default value: none (uses Fleet's logo).
+- Config file format:
+  ```
+  org_info:
+  	org_logo_url: https://example.com/logo.png
+  ```
+
+### Server Settings
+
+#### server_settings.server_url
+
+The base URL of the fleet server, including the scheme (e.g. "https://").
+
+- Required setting.
+- Default value: none (provided during Fleet setup).
+- Config file format:
+  ```
+  server_settings:
+    server_url: https://fleet.example.org:8080
+  ```
+
+#### server_settings.live_query_disabled
+
+If the live query feature is disabled or not.
+
+- Optional setting.
+- Default value: `false`.
+- Config file format:
+  ```
+  server_settings:
+    live_query_disabled: true
+  ```
+
+#### server_settings.enable_analytics
+
+If sending usage analytics is enabled or not.
+
+- Optional setting.
+- Default value: `true`.
+- Config file format:
+  ```
+  server_settings:
+    enable_analytics: false
+  ```
+
+#### server_settings.debug_host_ids
+
+<!-- This section used to be named Debug host, this ensures links with the #debug-host hash still work -->
+<span id="debug-host" name="debug-host"></span>
+
+There's a lot of information coming from hosts, but it's sometimes useful to see exactly what a host is returning in order
+to debug different scenarios.
+
+So for example, let's say the hosts with ids 342 and 98 are not behaving as you expect in Fleet, you can enable verbose
+logging with the following configuration:
+
+```yaml
+---
+apiVersion: v1
+kind: config
+spec:
+  server_settings:
+    debug_host_ids:
+      - 342
+      - 98
+```
+
+Once you have collected the logs, you can easily disable the debug logging by applying the following configuration:
+
+```yaml
+---
+apiVersion: v1
+kind: config
+spec:
+  server_settings:
+    debug_host_ids: []
+```
+
+> **Warning:** This will potentially log a lot of data. Some of that data might be private. Please verify it before posting it.
+in a public channel or a GitHub issue.
+
+- Optional setting.
+- Default value: empty.
+- Config file format:
+  ```
+  server_settings:
+    debug_host_ids:
+      - 342
+      - 98
+  ```
+
+#### server_settings.deferred_save_host
+
+Whether saving host-related information is done synchronously in the HTTP handler of the host's request, or asynchronously. This can provide better performance in deployments with many hosts. Note that this is an **experimental feature** (TODO(mna): is it?).
+
+- Optional setting.
+- Default value: `false`.
+- Config file format:
+  ```
+  server_settings:
+    deferred_save_host: true
+  ```
+
+### SMTP Settings
+
+#### smtp_settings.authentication_method
+
+The authentication method to use when the authentication type is `authtype_username_password`.
+
+- Optional setting.
+- Default value: `authmethod_plain`.
+- Possible values:
+  - `authmethod_cram_md5`
+  - `authmethod_login`
+  - `authmethod_plain`
+- Config file format:
+  ```
+  smtp_settings:
+    authentication_method: authmethod_cram_md5
+  ```
+
+#### smtp_settings.authentication_type
+
+The type of authentication for the configured SMTP server.
+
+- Optional setting.
+- Default value: `authtype_username_password`.
+- Possible values:
+  - `authtype_none` - use this if your SMTP server is open
+  - `authtype_username_password` - use this if your SMTP server requires authentication with a username and password
+- Config file format:
+  ```
+  smtp_settings:
+    authentication_type: authtype_none
+  ```
+
+#### smtp_settings.domain
+
+The domain for SMTP. (TODO(mna): what is this? not the host, apparently, as there's also smtp server?)
+
+- Optional setting.
+- Default value: none.
+- Config file format:
+  ```
+  smtp_settings:
+    domain: example.org
+  ```
+
+#### smtp_settings.enable_smtp
+
+Whether SMTP support is enabled or not to send emails from Fleet.
+
+- Optional setting.
+- Default value: `false`.
+- Config file format:
+  ```
+  smtp_settings:
+    enable_smtp: true
+  ```
 
 ### Agent options
 
@@ -425,16 +604,6 @@ spec:
 
 > **Warning:** Be careful not to store your SMTP credentials in source control. It is recommended to set the password through the web UI or `fleetctl` and then remove the line from the checked in version. Fleet will leave the password as-is if the field is missing from the applied configuration.
 
-The following options are available when configuring SMTP authentication:
-
-- `smtp_settings.authentication_type`
-  - `authtype_none` - use this if your SMTP server is open
-  - `authtype_username_password` - use this if your SMTP server requires authentication with a username and password
-- `smtp_settings.authentication_method` - required with authentication type `authtype_username_password`
-  - `authmethod_cram_md5`
-  - `authmethod_login`
-  - `authmethod_plain`
-
 ### Webhooks
 
 - `webhook_settings.interval`: the interval at which to check for webhook conditions. Default: 24h.
@@ -468,42 +637,9 @@ The following options allow the configuration of a webhook that will be triggere
 
 Note that the recent vulnerabilities webhook is not checked at `webhook_settings.interval` like other webhooks - it is checked as part of the vulnerability processing and runs at the `vulnerabilities.periodicity` interval specified in the fleet configuration.
 
-### Debug host
-
-There's a lot of information coming from hosts, but it's sometimes useful to see exactly what a host is returning in order
-to debug different scenarios.
-
-So for example, let's say the hosts with ids 342 and 98 are not behaving as you expect in Fleet, you can enable verbose
-logging with the following configuration:
-
-```yaml
----
-apiVersion: v1
-kind: config
-spec:
-  server_settings:
-    debug_host_ids:
-      - 342
-      - 98
-```
-
-Once you have collected the logs, you can easily disable the debug logging by applying the following configuration:
-
-```yaml
----
-apiVersion: v1
-kind: config
-spec:
-  server_settings:
-    debug_host_ids: []
-```
-
-> **Warning:** This will potentially log a lot of data. Some of that data might be private. Please verify it before posting it.
-in a public channel or a GitHub issue.
-
 ## Host Expiry Settings
 
-The `host_expiry` section lets you define if and when hosts should be removed from Fleet if they have not checked in. Once a host has been removed from Fleet, it will need to re-enroll with a valid `enroll_secret` to connect to your Fleet instance. 
+The `host_expiry` section lets you define if and when hosts should be removed from Fleet if they have not checked in. Once a host has been removed from Fleet, it will need to re-enroll with a valid `enroll_secret` to connect to your Fleet instance.
 
 ### Host Expiry Enabled
 
@@ -513,7 +649,7 @@ If `host_expiry_enabled` is set to `true`, Fleet allows automatic cleanup of hos
 
 If a host has not communicated with Fleet in the specified number of days, it will be removed.
 
-## Features 
+## Features
 
 <!-- This section used to be named Host Settings, this ensures links with the #host-settings hash still work -->
 <span id="host-settings" name="host-settings"></span>
