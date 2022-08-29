@@ -1137,9 +1137,9 @@ func TestParser(t *testing.T) {
 		},
 	}
 
-	t.Run("parseFeed", func(t *testing.T) {
+	t.Run("ParseFeed", func(t *testing.T) {
 		t.Run("errors out if file does not exists", func(t *testing.T) {
-			_, err := parseFeed("asdcv")
+			_, err := ParseFeed("asdcv")
 			require.Error(t, err)
 		})
 	})

@@ -2,6 +2,7 @@ package msrc_io
 
 import (
 	"fmt"
+	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -11,10 +12,9 @@ import (
 )
 
 func TestMSRCClient(t *testing.T) {
-	t.Run("#urlSuffix", func(t *testing.T) {
+	t.Run("#feedName", func(t *testing.T) {
 		date := time.Date(2010, 10, 10, 0, 0, 0, 0, time.UTC)
-		actual := urlSuffix(date)
-		require.Equal(t, "2010-Oct", actual)
+		require.Equal(t, "2010-Oct", feedName(date))
 	})
 
 	t.Run("#GetFeed", func(t *testing.T) {
@@ -54,7 +54,10 @@ func TestMSRCClient(t *testing.T) {
 			sut := NewMSRCClient(server.Client(), dir, &server.URL)
 			result, err := sut.GetFeed(date.Month(), date.Year())
 			require.NoError(t, err)
-			require.FileExists(t, result)
+
+			contents, err := ioutil.ReadFile(result)
+			require.NoError(t, err)
+			require.Equal(t, []byte("some payload"), contents)
 		})
 	})
 }

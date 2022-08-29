@@ -15,7 +15,6 @@ import (
 const (
 	minFeedYear = 2020
 	MSRCBaseURL = `https://api.msrc.microsoft.com`
-	dateFormat  = "2006-Jan"
 )
 
 type MSRCAPI interface {
@@ -29,7 +28,7 @@ type MSRCClient struct {
 }
 
 // NewMSRCClient returns a new MSRCClient that will store all downloaded files in 'workDir' and will
-// use 'baseURL' for doing http requests. If no 'baseURL' is provided then 'MSRCBAseURL' is used.
+// use 'baseURL' for doing http requests. If no 'baseURL' is provided then 'MSRCBaseURL' will be used.
 func NewMSRCClient(
 	client *http.Client,
 	workDir string,
@@ -42,15 +41,15 @@ func NewMSRCClient(
 	return c
 }
 
-func urlSuffix(date time.Time) string {
-	return date.Format(dateFormat)
+func feedName(date time.Time) string {
+	return date.Format("2006-Jan")
 }
 
 func (msrc MSRCClient) getURL(date time.Time) (*url.URL, error) {
 	if msrc.baseURL == nil {
 		return nil, errors.New("invalid base URL")
 	}
-	return url.Parse(*msrc.baseURL + "/cvrf/v2.0/document/" + urlSuffix(date))
+	return url.Parse(*msrc.baseURL + "/cvrf/v2.0/document/" + feedName(date))
 }
 
 // GetFeed downloads the MSRC security feed for 'month' and 'year' into 'workDir', returning the
@@ -67,7 +66,7 @@ func (msrc MSRCClient) GetFeed(month time.Month, year int) (string, error) {
 		return "", errors.New("date can't be in the future")
 	}
 
-	dst := filepath.Join(msrc.workDir, fmt.Sprintf("%s.xml", urlSuffix(d)))
+	dst := filepath.Join(msrc.workDir, fmt.Sprintf("%s.xml", feedName(d)))
 	u, err := msrc.getURL(d)
 	if err != nil {
 		return "", err

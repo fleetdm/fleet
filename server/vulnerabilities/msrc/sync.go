@@ -7,6 +7,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/vulnerabilities/msrc/io"
 	"github.com/fleetdm/fleet/v4/server/vulnerabilities/msrc/parsed"
+	"github.com/google/go-github/v37/github"
 )
 
 // bulletinsDelta returns what bulletins should be download from GH and what bulletins should be removed
@@ -60,7 +61,8 @@ func bulletinsDelta(
 // bulletin published in Github.
 // If 'os' is nil, then all security bulletins will be synched.
 func Sync(client *http.Client, dstDir string, os []fleet.OperatingSystem) error {
-	gh := io.NewGithubClient(client, dstDir)
+	rel := github.NewClient(client).Repositories
+	gh := io.NewGithubClient(client, rel, dstDir)
 	fs := io.NewFSClient(dstDir)
 
 	if err := sync(os, fs, gh); err != nil {

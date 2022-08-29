@@ -13,28 +13,42 @@ import (
 	"github.com/google/go-github/v37/github"
 )
 
+type ReleaseLister interface {
+	ListReleases(
+		ctx context.Context,
+		owner string,
+		repo string,
+		opts *github.ListOptions,
+	) ([]*github.RepositoryRelease, *github.Response, error)
+}
+
 type GithubAPI interface {
 	Download(SecurityBulletinName, string) error
 	Bulletins() (map[SecurityBulletinName]string, error)
 }
 
 type GithubClient struct {
-	client  *http.Client
-	workDir string
+	httpClient *http.Client
+	releases   ReleaseLister
+	workDir    string
 }
 
-func NewGithubClient(client *http.Client, dir string) GithubClient {
-	return GithubClient{client: client, workDir: dir}
+func NewGithubClient(client *http.Client, releases ReleaseLister, dir string) GithubClient {
+	return GithubClient{
+		httpClient: client,
+		releases:   releases,
+		workDir:    dir,
+	}
 }
 
 // Downloads the security bulletin to 'dir'.
-func (gh GithubClient) Download(b SecurityBulletinName, urlStr string) error {
-	u, err := url.Parse(urlStr)
+func (gh GithubClient) Download(b SecurityBulletinName, URL string) error {
+	u, err := url.Parse(URL)
 	if err != nil {
 		return err
 	}
 	path := filepath.Join(gh.workDir, string(b))
-	return download.DownloadAndExtract(gh.client, u, path)
+	return download.DownloadAndExtract(gh.httpClient, u, path)
 }
 
 // Bulletins returns a map of 'name' => 'download URL' of the parsed security bulletins stored as assets on Github.
@@ -42,7 +56,7 @@ func (gh GithubClient) Bulletins() (map[SecurityBulletinName]string, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
-	releases, r, err := github.NewClient(gh.client).Repositories.ListReleases(
+	releases, r, err := gh.releases.ListReleases(
 		ctx,
 		"fleetdm",
 		"nvd",
@@ -58,8 +72,6 @@ func (gh GithubClient) Bulletins() (map[SecurityBulletinName]string, error) {
 
 	results := make(map[SecurityBulletinName]string)
 
-	// TODO (juan): Since the nvd repo includes both NVD and MSRC assets, we will need to do some
-	// filtering logic here. To be done in https://github.com/fleetdm/fleet/issues/7394.
 	for _, e := range releases[0].Assets {
 		name := e.GetName()
 		if strings.HasPrefix(name, MSRCFilePrefix) {
