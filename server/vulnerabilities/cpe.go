@@ -265,7 +265,7 @@ func (c CPETranslationMatch) Matches(reCache *regexpCache, s *fleet.Software) (b
 	match := func(a, b string) (bool, error) {
 		// check if its a regular expression enclosed in '/'
 		if len(a) > 2 && a[0] == '/' && a[len(a)-1] == '/' {
-			pattern := a[1 : len(a)-2]
+			pattern := a[1 : len(a)-1]
 			re, err := reCache.Get(pattern)
 			if err != nil {
 				return false, err

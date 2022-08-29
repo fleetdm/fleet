@@ -36,7 +36,7 @@ func TestCPEFromSoftware(t *testing.T) {
 	db, err := sqliteDB(dbPath)
 	require.NoError(t, err)
 
-	reCache := NewRegexpCache()
+	reCache := newRegexpCache()
 
 	// checking an non existent version returns empty
 	cpe, err := CPEFromSoftware(db, &fleet.Software{Name: "Vendor Product-1.app", Version: "2.3.4", BundleIdentifier: "vendor", Source: "apps"}, nil, reCache)
@@ -152,7 +152,7 @@ func TestCPETranslations(t *testing.T) {
 		},
 	}
 
-	reCache := NewRegexpCache()
+	reCache := newRegexpCache()
 
 	for _, tc := range tt {
 		t.Run(tc.Name, func(t *testing.T) {
@@ -179,7 +179,7 @@ func TestSyncCPEDatabase(t *testing.T) {
 	require.NoError(t, err)
 
 	// and this works afterwards
-	reCache := NewRegexpCache()
+	reCache := newRegexpCache()
 
 	software := &fleet.Software{Name: "1Password.app",
 		Version:          "7.2.3",
