@@ -44,10 +44,11 @@ const LabelPage = ({
   const [labelValidator, setLabelValidator] = useState<{
     [key: string]: string;
   }>(DEFAULT_CREATE_LABEL_ERRORS);
+  const [isUpdatingLabel, setIsUpdatingLabel] = useState<boolean>(false);
+
   const { selectedOsqueryTable, setSelectedOsqueryTable } = useContext(
     QueryContext
   );
-
   const { renderFlash } = useContext(NotificationContext);
 
   const showSidebar = isSidebarOpen;
@@ -90,6 +91,7 @@ const LabelPage = ({
       return;
     }
 
+    setIsUpdatingLabel(true);
     const updateAttrs = deepDifference(formData, selectedLabel);
 
     labelsAPI
@@ -126,10 +128,15 @@ const LabelPage = ({
         } else {
           renderFlash("error", "Could not create label. Please try again.");
         }
+      })
+      .finally(() => {
+        setIsUpdatingLabel(false);
       });
   };
 
   const onAddLabel = (formData: ILabelFormData) => {
+    setIsUpdatingLabel(true);
+
     labelsAPI
       .create(formData)
       .then((label: ILabel) => {
@@ -164,6 +171,9 @@ const LabelPage = ({
         } else {
           renderFlash("error", "Could not create label. Please try again.");
         }
+      })
+      .finally(() => {
+        setIsUpdatingLabel(false);
       });
   };
 
@@ -179,6 +189,7 @@ const LabelPage = ({
             selectedLabel={selectedLabel}
             onCancel={onCancelLabel}
             isEdit={isEditLabel}
+            isUpdatingLabel={isUpdatingLabel}
             handleSubmit={isEditLabel ? onEditLabel : onAddLabel}
             onOpenSchemaSidebar={onOpenSchemaSidebar}
             onOsqueryTableSelect={onOsqueryTableSelect}

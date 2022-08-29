@@ -18,13 +18,13 @@ interface ILabelFormProps {
   baseError: string;
   selectedLabel?: ILabel;
   isEdit?: boolean;
+  isUpdatingLabel?: boolean;
   onCancel: () => void;
   handleSubmit: (formData: ILabelFormData) => void;
   onOpenSchemaSidebar: () => void;
   onOsqueryTableSelect: (tableName: string) => void;
   showOpenSchemaActionText: boolean;
   backendValidators: { [key: string]: string };
-  isUpdatingLabel?: boolean;
 }
 
 const baseClass = "label-form";
@@ -60,13 +60,13 @@ const LabelForm = ({
   baseError,
   selectedLabel,
   isEdit,
+  isUpdatingLabel,
   onCancel,
   handleSubmit,
   onOpenSchemaSidebar,
   onOsqueryTableSelect,
   showOpenSchemaActionText,
   backendValidators,
-  isUpdatingLabel,
 }: ILabelFormProps): JSX.Element => {
 <<<<<<< HEAD
   const [name, setName] = useState(selectedLabel?.name || "");
