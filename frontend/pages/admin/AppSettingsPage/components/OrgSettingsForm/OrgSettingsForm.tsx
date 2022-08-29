@@ -119,7 +119,11 @@ const OrgSettingsForm = ({
             <Smtp appConfig={appConfig} handleSubmit={onFormSubmit} />
           )}
           {activeSection === "agents" && (
-            <AgentOptions appConfig={appConfig} handleSubmit={onFormSubmit} />
+            <AgentOptions
+              appConfig={appConfig}
+              handleSubmit={onFormSubmit}
+              isPremiumTier={isPremiumTier}
+            />
           )}
           {activeSection === "host-status-webhook" && (
             <HostStatusWebhook
@@ -199,7 +203,7 @@ const OrgSettingsForm = ({
                   )}`}
                   to={PATHS.ADMIN_SETTINGS_AGENTS}
                 >
-                  Global agent options
+                  Agent options
                 </Link>
               </li>
               <li>

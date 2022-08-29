@@ -15,7 +15,9 @@ import (
 	"math/rand"
 	"net/http"
 	"os"
+	"path"
 	"path/filepath"
+	"runtime"
 	"strconv"
 	"strings"
 	"sync"
@@ -442,16 +444,23 @@ func extract(src, dst string) {
 	}
 }
 
-func loadUbuntuSoftware(ver string) []fleet.Software {
+func loadSoftware(platform string, ver string) []fleet.Software {
+	_, exFilename, _, ok := runtime.Caller(0)
+	if !ok {
+		panic("No caller information")
+	}
+	exDir := path.Dir(exFilename)
+
 	srcPath := filepath.Join(
+		exDir,
 		"..",
 		"..",
 		"server",
 		"vulnerabilities",
 		"testdata",
-		"ubuntu",
+		platform,
 		"software",
-		fmt.Sprintf("ubuntu_%s-software.json.bz2", ver),
+		fmt.Sprintf("%s_%s-software.json.bz2", platform, ver),
 	)
 
 	tmpDir, err := ioutil.TempDir("", "osquery-perf")
@@ -466,18 +475,20 @@ func loadUbuntuSoftware(ver string) []fleet.Software {
 	type softwareJSON struct {
 		Name    string `json:"name"`
 		Version string `json:"version"`
+		Release string `json:"release,omitempty"`
+		Arch    string `json:"arch,omitempty"`
 	}
 
 	var software []softwareJSON
 	contents, err := ioutil.ReadFile(dstPath)
 	if err != nil {
-		log.Printf("reading vuln software for ubuntu %s: %s\n", ver, err)
+		log.Printf("reading vuln software for %s %s: %s\n", platform, ver, err)
 		return nil
 	}
 
 	err = json.Unmarshal(contents, &software)
 	if err != nil {
-		log.Printf("unmarshalling vuln software for ubuntu %s:%s", ver, err)
+		log.Printf("unmarshalling vuln software for %s %s:%s", platform, ver, err)
 		return nil
 	}
 
@@ -492,28 +503,32 @@ func loadUbuntuSoftware(ver string) []fleet.Software {
 	return r
 }
 
+func (a *agent) SoftwareWindows11() []fleet.Software {
+	return loadSoftware("windows", "11")
+}
+
 func (a *agent) SoftwareUbuntu1604() []fleet.Software {
-	return loadUbuntuSoftware("1604")
+	return loadSoftware("ubuntu", "1604")
 }
 
 func (a *agent) SoftwareUbuntu1804() []fleet.Software {
-	return loadUbuntuSoftware("1804")
+	return loadSoftware("ubuntu", "1804")
 }
 
 func (a *agent) SoftwareUbuntu2004() []fleet.Software {
-	return loadUbuntuSoftware("2004")
+	return loadSoftware("ubuntu", "2004")
 }
 
 func (a *agent) SoftwareUbuntu2104() []fleet.Software {
-	return loadUbuntuSoftware("2104")
+	return loadSoftware("ubuntu", "2104")
 }
 
 func (a *agent) SoftwareUbuntu2110() []fleet.Software {
-	return loadUbuntuSoftware("2110")
+	return loadSoftware("ubuntu", "2110")
 }
 
 func (a *agent) SoftwareUbuntu2204() []fleet.Software {
-	return loadUbuntuSoftware("2204")
+	return loadSoftware("ubuntu", "2204")
 }
 
 func (a *agent) SoftwareMacOS() []fleet.Software {
@@ -814,6 +829,7 @@ func (a *agent) processQuery(name, query string) (handled bool, results []map[st
 		if err != nil {
 			panic(err)
 		}
+
 		return true, results, &statusOK
 	}
 }
@@ -890,6 +906,9 @@ func main() {
 
 	templateNames := []string{
 		"mac10.14.6.tmpl",
+
+		// Uncomment this to add windows hosts
+		// "windows_11.tmpl",
 
 		// Uncomment this to add ubuntu hosts with vulnerable software
 		// "partial_ubuntu.tmpl",

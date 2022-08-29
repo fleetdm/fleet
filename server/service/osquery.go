@@ -619,13 +619,13 @@ func (svc *Service) detailQueriesForHost(ctx context.Context, host *fleet.Host) 
 		}
 	}
 
-	if config.HostSettings.AdditionalQueries == nil {
+	if config.Features.AdditionalQueries == nil {
 		// No additional queries set
 		return queries, discovery, nil
 	}
 
 	var additionalQueries map[string]string
-	if err := json.Unmarshal(*config.HostSettings.AdditionalQueries, &additionalQueries); err != nil {
+	if err := json.Unmarshal(*config.Features.AdditionalQueries, &additionalQueries); err != nil {
 		return nil, nil, ctxerr.Wrap(ctx, err, "unmarshal additional queries")
 	}
 

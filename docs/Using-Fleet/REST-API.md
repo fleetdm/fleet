@@ -859,7 +859,7 @@ None.
     "host_expiry_enabled": false,
     "host_expiry_window": 0
   },
-  "host_settings": {
+  "features": {
     "additional_queries": null
   },
   "agent_options": {
@@ -1096,7 +1096,7 @@ Modifies the Fleet's configuration with the supplied information.
     "host_expiry_enabled": false,
     "host_expiry_window": 0
   },
-  "host_settings": {
+  "features": {
     "additional_queries": null
   },
   "license": {

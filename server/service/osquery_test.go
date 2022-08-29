@@ -189,7 +189,7 @@ func TestAgentOptionsForHost(t *testing.T) {
 
 // One of these queries is the disk space, only one of the two works in a platform. Similarly, one
 // is for operating system.
-var expectedDetailQueries = osquery_utils.GetDetailQueries(&fleet.AppConfig{HostSettings: fleet.HostSettings{EnableHostUsers: true}}, config.FleetConfig{})
+var expectedDetailQueries = osquery_utils.GetDetailQueries(&fleet.AppConfig{Features: fleet.Features{EnableHostUsers: true}}, config.FleetConfig{Vulnerabilities: config.VulnerabilitiesConfig{DisableWinOSVulnerabilities: true}})
 
 func TestEnrollAgent(t *testing.T) {
 	ds := new(mock.Store)
@@ -494,6 +494,7 @@ func verifyDiscovery(t *testing.T, queries, discovery map[string]string) {
 		hostDetailQueryPrefix + "orbit_info":             {},
 		hostDetailQueryPrefix + "mdm":                    {},
 		hostDetailQueryPrefix + "munki_info":             {},
+		hostDetailQueryPrefix + "windows_update_history": {},
 	}
 	for name := range queries {
 		require.NotEmpty(t, discovery[name])
@@ -509,7 +510,7 @@ func TestHostDetailQueries(t *testing.T) {
 	ds := new(mock.Store)
 	additional := json.RawMessage(`{"foobar": "select foo", "bim": "bam"}`)
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
-		return &fleet.AppConfig{HostSettings: fleet.HostSettings{AdditionalQueries: &additional, EnableHostUsers: true}}, nil
+		return &fleet.AppConfig{Features: fleet.Features{AdditionalQueries: &additional, EnableHostUsers: true}}, nil
 	}
 
 	mockClock := clock.NewMockClock()
@@ -600,7 +601,7 @@ func TestLabelQueries(t *testing.T) {
 		return nil
 	}
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
-		return &fleet.AppConfig{HostSettings: fleet.HostSettings{EnableHostUsers: true}}, nil
+		return &fleet.AppConfig{Features: fleet.Features{EnableHostUsers: true}}, nil
 	}
 	ds.PolicyQueriesForHostFunc = func(ctx context.Context, host *fleet.Host) (map[string]string, error) {
 		return map[string]string{}, nil
@@ -755,7 +756,7 @@ func TestDetailQueriesWithEmptyStrings(t *testing.T) {
 	ctx := hostctx.NewContext(context.Background(), host)
 
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
-		return &fleet.AppConfig{HostSettings: fleet.HostSettings{EnableHostUsers: true}}, nil
+		return &fleet.AppConfig{Features: fleet.Features{EnableHostUsers: true}}, nil
 	}
 	ds.LabelQueriesForHostFunc = func(context.Context, *fleet.Host) (map[string]string, error) {
 		return map[string]string{}, nil
@@ -778,7 +779,8 @@ func TestDetailQueriesWithEmptyStrings(t *testing.T) {
 	require.NoError(t, err)
 	// -5 due to windows not having battery, mdm, munki_info and removed disk space query and
 	// operating system query (only 1 of 2 active for a given platform)
-	if !assert.Equal(t, len(expectedDetailQueries)-5, len(queries)) {
+	// -1 due to 'windows_update_history'
+	if !assert.Equal(t, len(expectedDetailQueries)-5, len(queries)-1) {
 		// this is just to print the diff between the expected and actual query
 		// keys when the count assertion fails, to help debugging - they are not
 		// expected to match.
@@ -958,7 +960,7 @@ func TestDetailQueries(t *testing.T) {
 	lq.On("QueriesForHost", host.ID).Return(map[string]string{}, nil)
 
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
-		return &fleet.AppConfig{HostSettings: fleet.HostSettings{EnableHostUsers: true, EnableSoftwareInventory: true}}, nil
+		return &fleet.AppConfig{Features: fleet.Features{EnableHostUsers: true, EnableSoftwareInventory: true}}, nil
 	}
 	ds.LabelQueriesForHostFunc = func(context.Context, *fleet.Host) (map[string]string, error) {
 		return map[string]string{}, nil
@@ -1366,7 +1368,7 @@ func TestDistributedQueryResults(t *testing.T) {
 		return nil
 	}
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
-		return &fleet.AppConfig{HostSettings: fleet.HostSettings{EnableHostUsers: true}}, nil
+		return &fleet.AppConfig{Features: fleet.Features{EnableHostUsers: true}}, nil
 	}
 
 	hostCtx := hostctx.NewContext(context.Background(), host)
@@ -1382,8 +1384,8 @@ func TestDistributedQueryResults(t *testing.T) {
 	// Now we should get the active distributed query
 	queries, discovery, acc, err := svc.GetDistributedQueries(hostCtx)
 	require.NoError(t, err)
-	// -5 for the non-windows queries, +1 for the distributed query for campaign ID 42
-	if !assert.Equal(t, len(expectedDetailQueries)-4, len(queries)) {
+	// -3 for the non-windows queries, +1 for the distributed query for campaign ID 42
+	if !assert.Equal(t, len(expectedDetailQueries)-3, len(queries)) {
 		// this is just to print the diff between the expected and actual query
 		// keys when the count assertion fails, to help debugging - they are not
 		// expected to match.
@@ -2200,7 +2202,7 @@ func TestPolicyQueries(t *testing.T) {
 		return nil
 	}
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
-		return &fleet.AppConfig{HostSettings: fleet.HostSettings{EnableHostUsers: true}}, nil
+		return &fleet.AppConfig{Features: fleet.Features{EnableHostUsers: true}}, nil
 	}
 
 	lq.On("QueriesForHost", uint(0)).Return(map[string]string{}, nil)
@@ -2399,7 +2401,7 @@ func TestPolicyWebhooks(t *testing.T) {
 	}
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 		return &fleet.AppConfig{
-			HostSettings: fleet.HostSettings{
+			Features: fleet.Features{
 				EnableHostUsers: true,
 			},
 			WebhookSettings: fleet.WebhookSettings{
@@ -2666,7 +2668,7 @@ func TestLiveQueriesFailing(t *testing.T) {
 		return host, nil
 	}
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
-		return &fleet.AppConfig{HostSettings: fleet.HostSettings{EnableHostUsers: true}}, nil
+		return &fleet.AppConfig{Features: fleet.Features{EnableHostUsers: true}}, nil
 	}
 	ds.PolicyQueriesForHostFunc = func(ctx context.Context, host *fleet.Host) (map[string]string, error) {
 		return map[string]string{}, nil

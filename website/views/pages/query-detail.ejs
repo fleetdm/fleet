@@ -8,19 +8,19 @@
       </a>
       <div purpose="title-mobile" class="d-flex d-md-none flex-column pb-4 mb-3">
         <h2 class="pt-4 pb-3 m-0">{{query.name}}</h2>
-        <h6 class="pb-3 m-0">{{query.description ? query.description : '--'}}</h6>  
+        <h6 class="pb-3 m-0">{{query.description ? query.description : '--'}}</h6>
       </div>
     </div>
     <div class="d-flex flex-column flex-md-row justify-content-md-between">
       <div class="container-fluid col-md-8 d-flex flex-column p-0 pr-md-3">
         <div purpose="title-widescreen" class="d-none d-md-flex flex-column">
           <h2 class="pt-4 pb-3 m-0">{{query.name}}</h2>
-          <h6 class="pb-3 m-0">{{query.description ? query.description : '--'}}</h6>  
-        </div>  
+          <h6 class="pb-3 m-0">{{query.description ? query.description : '--'}}</h6>
+        </div>
         <div purpose="body" class="pt-4 pt-md-3 mt-3 mt-md-0">
           <div purpose="query">
             <h3 class="pb-4 mb-3 m-0">Query</h3>
-            <code class="pb-3">{{query.query ? query.query : '--'}}</code>  
+            <code class="pb-3">{{query.query ? query.query : '--'}}</code>
           </div>
           <div purpose="resolution" v-if="query.kind === 'policy' && query.resolution">
             <h3 class="pt-5 pb-3">Resolve</h3>
@@ -37,7 +37,6 @@
               <img class="d-inline-flex ml-3 ml-md-0 mr-md-3" src="/images/os-macos-black-24x24@2x.png" alt="macOS" v-if="query.platforms.includes('macOS')"/>
               <img class="d-inline-flex ml-3 ml-md-0 mr-md-3" src="/images/os-windows-black-24x24@2x.png" alt="Windows" v-if="query.platforms.includes('Windows')"/>
               <img class="d-inline-flex ml-3 ml-md-0 mr-md-3" src="/images/os-linux-black-24x24@2x.png" alt="Linux" v-if="query.platforms.includes('Linux')"/>
-              <img class="d-inline-flex ml-3 ml-md-0 mr-md-3" src="/images/os-freebsd-black-24x24@2x.png" alt="FreeBSD" v-if="query.platforms.includes('FreeBSD')"/>
             </div>
           </div>
         </div>

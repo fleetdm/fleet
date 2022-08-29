@@ -4775,7 +4775,10 @@ func testHostsDeleteHosts(t *testing.T, ds *Datastore) {
 	// Update host_operating_system
 	err = ds.UpdateHostOperatingSystem(context.Background(), host.ID, fleet.OperatingSystem{Name: "foo", Version: "bar"})
 	require.NoError(t, err)
-
+	// Insert a windows update for the host
+	stmt := `INSERT INTO windows_updates (host_id, date_epoch, kb_id) VALUES (?, ?, ?)`
+	_, err = ds.writer.Exec(stmt, host.ID, 1, 123)
+	require.NoError(t, err)
 	// Check there's an entry for the host in all the associated tables.
 	for _, hostRef := range hostRefs {
 		var ok bool

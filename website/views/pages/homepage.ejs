@@ -1,203 +1,190 @@
 <div id="homepage" v-cloak>
 
-  <div style="max-height: 1240px;">
+  <%//Hero banner%>
+  <div purpose="hero-background">
     <div purpose="hero-banner">
-      <div purpose="hero-clouds">
         <div class="container-lg">
-          <div class="container-fluid text-center">
-            <h1 style="max-width: 680px;" class="mx-auto pt-lg-4">
-              Lightweight, programmable server and workstation telemetry.
-            </h1>
-            <h6 style="max-width: 650px;" class="mx-auto mt-3 mb-0">
-              The most accurate, actionable data from your servers and workstations, without the performance hit.
-            </h6>
-            <div style="max-width: 500px;" class="mt-5 mx-auto mb-0 d-sm-flex justify-content-center">
-              <a purpose="top-try-it-out-btn" class="d-sm-flex align-items-center justify-content-center btn btn-block btn-primary mx-auto mx-sm-0" href="/try-fleet/register?tryitnow">Try it out</a>
-              <a style="max-width: 220px;" class="btn btn-lg btn-white pl-4 mx-auto mx-sm-0" purpose="animated-arrow-button-white" target="_blank" href="https://calendly.com/fleetdm/demo?utm_source=homepage+demo+top">Schedule a demo
+          <div purpose="hero-text" class="container-fluid px-0 text-center">
+            <span class="text-left text-md-center align-self-start text-nowrap mb-0" style="text-transform: uppercase;">Lightweight, programmable telemetry</span>
+            <h1 style="max-width: 780px;" class="mx-auto text-left text-md-center">Solve endpoint mysteries</h1>
+            <h6 style="max-width: 780px;" class="mx-auto mb-0 text-left text-md-center">Fleet gives visibility to over 1.65 million devices powering Fortune 1000 companies. See how easy it can be to get all the answers you need.</h6>
+            <div style="max-width: 500px;" class="mt-5 mx-auto mb-0 d-flex flex-column align-items-center justify-content-center">
+              <a purpose="round-button" class="d-sm-flex align-items-center justify-content-center mx-auto mx-sm-0" href="/try-fleet/register?tryitnow">
+                Try it out
               </a>
             </div>
-            <img alt="Fleet ctl terminal and Fleet UI" src="/images/fleetctl-687x506@2x.png" style="max-width: 810px; height: auto;" class="w-100 py-3 py-sm-5 mx-auto"/>
+            <p class="mb-0">For Mac, Windows, and Linux.</p>
           </div>
         </div>
-      </div>
+    </div>
+    <div class="px-2" style="background-color: #192147;">
+        <div purpose="hero-logos" style="max-width: 780px;" class="mx-auto d-flex flex-row align-items-center justify-content-center">
+          <div purpose="logo-column" class="flex-md-row flex-column d-flex justify-content-between align-items-center">
+            <a href="/guides/delivering-data-to-snowflake-from-fleet-and-osquery"><img purpose="snowflake-logo" class="ml-md-auto mb-4 mb-md-0" alt="snowflake logo" src="/images/logo-snowflake-white-151x30@2x.png"></a>
+            <a href="#community"><img purpose="wayfair-logo" alt="wayfair logo" src="/images/logo-wayfair-150x33@2x.png"></a>
+          </div>
+          <div purpose="logo-column" class="d-flex flex-md-row flex-column justify-content-between align-items-start align-items-md-center">
+            <a href="#community"><img purpose="uber-logo" alt="Uber logo" class="mb-4 mb-md-0" src="/images/logo-uber-84x29@2x.png"></a>
+            <a href="#community"><img purpose="atlassian-logo" alt="Atlassian logo" class="mr-md-auto" src="/images/logo-atlassian-white-172x22@2x.png"></a>
+          </div>
+        </div>
     </div>
   </div>
 
-  <div class="container-fluid justify-content center px-0 py-0">
-    <div style="max-width: 630px;" class="container text-center mx-auto pb-5">
-      <h3 class="text-center pt-3 pb-4">
-        Get real-time answers about all your servers and workstations in a single pane of glass.
-      </h3>
-      <div class="row pb-2 justify-content-around">
-        <div class="col-12 col-sm-6 justify-content-sm-end justify-content-center pb-4 d-flex pr-sm-0">
-          <img alt="macOS logo" src="/images/os-macos-black-31x35@2x.png" style="width: auto; height: 34px;" class="mx-3" />
-          <img alt="Windows logo" src="/images/os-windows-black-38x36@2x.png" style="width: auto; height: 34px;" class="mx-3" />
-          <img alt="Linux logo" src="/images/os-linux-black-32x36@2x.png" style="width: auto; height: 34px;" class="mx-3" />
+
+  <%// Homepage content %>
+  <div purpose="homepage-section" style="background: #F4F6FA;" class="container-fluid justify-content center">
+    <div class="text-left mx-auto">
+      <div style="max-width: 1200px;" class="d-flex flex-lg-row flex-column align-items-center justify-content-between mx-auto">
+        <div purpose="homepage-top-text-block">
+          <h2 class="text-left pb-3">Fleet for osquery makes it easy to investigate all your servers and workstations</h2>
+          <p class="pb-3 pb-lg-4">Ask any question about any endpoint anywhere. Fleet is compatible with every MDM and EDR platform on the market. Our open-source agent protects privacy and performance.</p>
+          <a purpose="round-button" class="d-flex align-items-center justify-content-center mx-auto mx-sm-0 text-nowrap mt-3" @click="clickOpenVideoModal()">
+            <img style="height: 24px; margin-right: 12px;" src="/images/icon-play-20x24@2x.png" alt="a small red play button"> See Fleet in action
+          </a>
         </div>
-        <div class="col-12 col-sm-6 justify-content-sm-start justify-content-center d-flex pl-sm-0">
-          <img alt="kubernetes logo" src="/images/icon-kubernetes-37x36@2x.png" style="width: auto; height: 34px;" class="mx-3" />
-          <img alt="aws logo" src="/images/icon-aws-60x36@2x.png" style="width: auto; height: 34px;" class="mx-3" />
-          <img alt="google cloud" src="/images/icon-google-cloud-46x36@2x.png" style="width: auto; height: 34px;" class="mx-3" />
+        <img purpose="top-image" src="/images/feature-fleet-ui-600x394@2x.png" alt="Fleet for osquery">
+    </div>
+    </div>
+  </div>
+  <%// Product images and checklists %>
+  <div purpose="homepage-section" class="container-fluid justify-content center">
+    <div style="max-width: 1200px;" class="container-fluid px-0 justify-content-center">
+
+      <%// First image and feature checklist %>
+      <div purpose="features" class="container-lg d-flex flex-wrap flex-lg-nowrap justify-content-center justify-content-lg-between align-items-center mt-0">
+        <div purpose="feature-image" class="d-flex flex-shrink-1">
+          <img alt="Fleet UI" style="max-width: 100%" src="images/feature-realtime-600x382@2x.png" class="m-lg-0 w-100 h-100"/>
+        </div>
+        <div purpose="features-text" class="text-left pl-lg-4 pl-0 m-0">
+          <div class="mx-auto mx-lg-0">
+            <h2 class="mb-4">Accurate, comprehensive, up-to-date data</h2>
+            <p>Get real-time results from all your endpoints — all in one place. Fleet fits into any security and compliance ecosystem. Our transparent approach makes adoption easier. So, you can find clues faster.</p>
+            <div purpose="features-check-list" class="pt-4 mx-auto text-left">
+              <div class="row">
+                <div class="col-sm-6 col-12"><p>Single source of truth</p></div>
+                <div class="col-sm-6 col-12 pt-3 pt-sm-0"><p>Real-time insights</p></div>
+              </div>
+              <div class="row pt-3">
+                <div class="col-sm-6 col-12"><p>Increased transparency</p></div>
+                <div class="col-sm-6 col-12 pt-3 pt-sm-0"><p>Seamless integration</p></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <%// Second image and feature checklist %>
+      <div purpose="features" class="d-flex flex-wrap flex-lg-nowrap justify-content-lg-between justify-content-center align-items-center">
+        <div purpose="features-text" class="text-left m-0 pr-0 pr-lg-4">
+          <div>
+          <h2 class="mb-4">No downtime risks or performance hits</h2>
+          <p>Some security agents strain your systems. Fortunately, Fleet uses osquery. This open-source solution was built to be deployed across hundreds of thousands of devices. Because your tools shouldn’t slow you down.</p>
+          <div purpose="features-check-list" class="pt-4 mx-auto text-left">
+            <div class="row">
+              <div class="col-sm-6 col-7"><p>Lightweight security agent</p></div>
+              <div class="col-sm-6 col-7 pt-3 pt-sm-0"><p>Read-only data collection</p></div>
+            </div>
+            <div class="row pt-3">
+              <div class="col-sm-6 col-12"><p>GitOps workflows</p></div>
+              <div class="col-sm-6 col-12 pt-3 pt-sm-0"><p>Performance guardrails</p></div>
+            </div>
+          </div>
+          </div>
+        </div>
+        <div purpose="feature-image" class="order-first order-lg-last d-flex flex-shrink-1 m-0">
+          <img alt="Fleet UI" src="images/feature-file-integrity-monitoring-600x357@2x.png" class="w-100 h-100 m-lg-0"/>
+        </div>
+      </div>
+
+      <%// Third image and feature checklist %>
+      <div purpose="features" class="d-flex flex-wrap flex-lg-nowrap justify-content-center justify-content-lg-between align-items-center">
+        <div purpose="features-text" class="text-left m-0 order-1 pl-0 pl-lg-4">
+          <div>
+            <h2 class="mb-4">Complete control over the queries you run</h2>
+            <p>Create complex, custom queries just for your organization. Or copy and paste queries that have been vetted by the Fleet community. Either way, webhooks will help you automate IT admin and security compliance.</p>
+            <div purpose="features-check-list" class="pt-4 mx-auto text-left">
+              <div class="row">
+                <div class="col-sm-6 col-12"><p>Developer-friendly</p></div>
+                <div class="col-sm-6 col-12 pt-3 pt-sm-0"><p>Query and policy library</p></div>
+              </div>
+              <div class="row pt-3">
+                <div class="col-sm-6 col-12"><p>100% open source</p></div>
+                <div class="col-sm-6 col-12 pt-3 pt-sm-0"><p>CI/CD compatibility</p></div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div purpose="feature-image" class="order-first d-flex flex-shrink-1 m-0">
+          <img alt="Fleet UI" src="images/feature-threat-detection-600x400@2x.png" class="w-100 h-100 m-lg-0"/>
         </div>
       </div>
     </div>
-    <div style="max-width: 1040px;" class="container-fluid justify-content-center">
-      <div purpose="features" class="container d-flex flex-wrap flex-lg-nowrap justify-content-center justify-content-lg-center align-items-center px-0 pt-3">
-        <div purpose="features-text-left" class="container text-center text-lg-left pl-0 m-0">
-          <h3>
-            Accurate, comprehensive, up&#8209to&#8209date data.
-          </h3>
-          <p>
-            Make better data-driven decisions with a single source of truth for all operating systems.
-          </p>
-        </div>
-        <div style="max-width: 500px;" class="container d-flex px-2 px-sm-0 m-0">
-          <img alt="Fleet UI" src="images/feature-realtime-500x315@2x.png" class="w-100 h-100 m-lg-0"/>
-        </div>
-      </div>
-      <div purpose="features" class="container d-flex flex-wrap flex-lg-nowrap justify-content-center justify-content-lg-center align-items-center px-0 pt-3">
-        <div purpose="features-text-right" class="container text-center text-lg-left pr-0 m-0">
-          <h3>
-            No downtime risks or performance hits.
-          </h3>
-          <p>
-            Fleet's agent is lightweight, inspectable, and manageable through the CI/CD pipeline.
-          </p>
-        </div>
-        <div style="max-width: 500px;" class="container d-flex order-lg-first px-2 px-sm-0 m-0">
-          <img alt="Fleet UI" src="images/feature-file-integrity-monitoring-500x296@2x.png" class="w-100 h-100 m-lg-0"/>
-        </div>
-      </div>
-      <div purpose="features" class="container d-flex flex-wrap flex-lg-nowrap justify-content-center justify-content-lg-center align-items-center px-0 pt-3">
-        <div purpose="features-text-left" class="container text-center text-lg-left pl-0 m-0">
-          <h3>Complete control over the queries you run.</h3>
-          <p>
-            Create complex, custom queries for your organization. Or copy and paste tested queries from our growing library.
-          </p>
-        </div>
-        <div style="max-width: 500px;" class="container d-flex px-2 px-sm-0 m-0">
-          <img alt="Fleet UI" src="images/feature-threat-detection-500x328@2x.png" class="w-100 h-100 m-lg-0"/>
-        </div>
-      </div>
-      <div purpose="features" class="container d-flex flex-wrap flex-lg-nowrap justify-content-center justify-content-lg-center align-items-center px-0 pt-3">
-        <div purpose="features-text-right" class="container text-center text-lg-left pr-0 m-0">
-          <h3>
-            Increase your install rates.
-          </h3>
-          <p>
-            Fleet's open-source agent protects device performance and provides transparency about the data it collects.
-          </p>
-        </div>
-        <div style="max-width: 500px;" class="container d-flex order-lg-first px-2 px-sm-0 m-0">
-          <img alt="Fleet UI" src="images/feature-increase-install-rates-500x322@2x.png" class="w-100 h-100 m-lg-0"/>
-        </div>
-      </div>
-    </div>
-    <div class="container-sm justify-content-center m-0 mb-5">
-      <div style="max-width: 566px;" class="text-center px-2 px-sm-0 mx-auto">
-        <h3 class="mb-3">Collect and push predictable data</h3>
+
+    <%// Log destinations %>
+    <div class="container-sm justify-content-center m-0 pt-sm-5 pt-lg-0">
+      <div purpose="homepage-text-block" class="text-left text-lg-center mx-sm-auto">
+        <h2 class="mb-3">Collect and push predictable data</h2>
         <p>
-          Automate scheduled queries to integrate alerts and dashboards across your enterprise.
+          Automate scheduled queries to collect logs from all your endpoints. Focus on any log destination or easily build your own.
         </p>
       </div>
       <div purpose="log-destination-grid" class="container d-flex flex-wrap justify-content-center p-0 pt-4 mx-auto">
-        <div purpose="log-destination" class="d-flex mx-1 mx-sm-2 mb-4">
+        <div purpose="log-destination" class="d-flex mx-2 mx-sm-2 mb-3">
           <img alt="filesystem icon" src="/images/icon-log-destination-filesystem-48x48@2x.png"/>
           <p class="font-weight-bold m-0 ml-3">Filesystem</p>
         </div>
-        <div purpose="log-destination" class="d-flex mx-1 mx-sm-2 mb-4">
+        <div purpose="log-destination" class="d-flex mx-2 mx-sm-2 mb-3">
           <img alt="Splunk logo" src="/images/icon-log-destination-splunk-48x48@2x.png"/>
           <p class="font-weight-bold m-0 ml-3">Splunk</p>
         </div>
-        <div purpose="log-destination" class="d-flex mx-1 mx-sm-2 mb-4">
+        <div purpose="log-destination" class="d-flex mx-2 mx-sm-2 mb-3">
           <img alt="AWS Kinesis logo" src="/images/icon-log-destination-firehose-40x48@2x.png"/>
           <p class="font-weight-bold m-0 ml-3">AWS Kinesis</p>
         </div>
-        <div purpose="log-destination" class="d-flex mx-1 mx-sm-2 mb-4">
+        <div purpose="log-destination" class="d-flex mx-2 mx-sm-2 mb-3">
           <img alt="Google Cloud Platform PubSub logo" src="/images/icon-log-destination-pubsub-53x48@2x.png"/>
           <p class="font-weight-bold m-0 ml-3">GCP PubSub</p>
         </div>
-        <div purpose="log-destination" class="d-flex mx-1 mx-sm-2 mb-4">
+        <div purpose="log-destination" class="d-flex mx-2 mx-sm-2 mb-3 mb-lg-0">
           <img alt="AWS Lambda logo" src="/images/icon-log-destination-lambda-48x48@2x.png"/>
           <p class="font-weight-bold m-0 ml-3">AWS Lambda</p>
         </div>
-        <div purpose="log-destination" class="d-flex mx-1 mx-sm-2 mb-4">
+        <div purpose="log-destination" class="d-flex mx-2 mx-sm-2 mb-3 mb-lg-0">
           <img alt="Elastic logo" src="/images/icon-log-destination-elastic-48x48@2x.png"/>
           <p class="font-weight-bold m-0 ml-3">Elastic</p>
         </div>
-        <div purpose="log-destination" class="d-flex mx-1 mx-sm-2 mb-4">
+        <div purpose="log-destination" class="d-flex mx-2 mx-sm-2">
           <img alt="Sumo Logic logo" src="/images/icon-log-destination-sumo-48x48@2x.png"/>
           <p class="font-weight-bold m-0 ml-3">Sumo Logic</p>
         </div>
-        <div purpose="log-destination" class="d-flex mx-1 mx-sm-2 mb-4">
+        <div purpose="log-destination" class="d-flex mx-2 mx-sm-2">
           <img alt="Graylog logo" src="/images/icon-log-destination-graylog-48x48@2x.png"/>
           <p class="font-weight-bold m-0 ml-3">Graylog</p>
         </div>
       </div>
-      <div class="btn-toolbar justify-content-center px-5 px-sm-0 pt-3 pb-5">
-        <a style="max-width: 220px" class="btn btn-block btn-md btn-primary mx-4" href="/try-fleet/register?tryitnow">
-          Try it out
-        </a>
-        <a style="max-width: 220px" class="btn btn-block btn-lg btn-white pl-0 m-0" purpose="animated-arrow-button-red" target="_blank" href="https://calendly.com/fleetdm/demo?utm_source=homepage+demo+mid">
-          Schedule a demo
-        </a>
-      </div>
+    </div>
+    <%// Try Fleet and Talk to an expert calls to action%>
+    <div style="padding-top: 40px;" class="flex-sm-row d-flex flex-column justify-content-center align-items-center mx-auto">
+      <a purpose="round-button" href="/try-fleet/register?tryitnow" class="btn d-flex flex-row justify-content-center">Try Fleet</a>
+      <a purpose="animated-arrow-button-red" style="color: #192147;" href="https://calendly.com/fleetdm/demo?utm_source=homepage-demo-mid" target="_blank" class="btn">Talk to an expert</a>
     </div>
   </div>
-  <div purpose="report-banner-container">
-    <div purpose="report-banner-cta" class="d-flex flex-column flex-lg-row justify-content-center align-items-center container">
-      <img class="mb-3 mb-lg-0" alt="State of device management" src="/images/state-of-device-management-hero-394x177@2x.png">
-      <div class="d-flex flex-column">
-        <h4 class="text-center text-lg-left">State of device management report</h4>
-        <p class="mb-0">We surveyed 200+ security practitioners in charge of device management.<br class="d-none d-sm-block"> Here’s what we learned about their struggles, frustrations, and desires.</p>
-        <a purpose="animated-arrow-button-red" class="btn pl-0 mx-auto ml-lg-0 pb-0" href="/reports/state-of-device-management">Read the report</a>
+  <%// Background change to light gray%>
+  <div id="community" purpose="homepage-section" style="background: #F4F6FA; position: relative">
+    <div class="container-lg text-center justify-content-center mx-auto">
+      <div purpose="homepage-text-block" class="d-flex flex-column align-items-center text-left text-sm-center mx-auto">
+        <%// Slack call to action%>
+        <h3 style="font-size: 24px; line-height: 40px;" class="text-left text-sm-center">Join the open-source community</h3>
+        <p class="mb-4">
+          Security and IT engineers are working together to make Fleet even better. From contributing patches to dreaming up features.
+        </p>
+        <a class="d-flex flex-row mx-auto text-nowrap justify-content-center" purpose="slack-button" href="/slack"><img style="height: 24px;" class="pr-3" alt="Slack logo" src="/images/logo-slack-24x24@2x.png"/>Join Fleet on Slack</a>
       </div>
-    </div>
-  </div>
-  <div id="testimonials" style="background: #F4F6FA; position: relative">
-    <div class="container-lg text-center justify-content-center py-5 mx-auto">
-      <h3 class="px-4 mt-5 mb-3">Fleet is open source and community supported.</h3>
-      <p style="max-width: 860px" class="px-3 px-xs-5 px-md-4 mx-auto">
-        Software engineers. Security specialists. IT administrators. Lots of professionals are working together to make Fleet even better. From contributing patches to dreaming up features.
-      </p>
-      <div purpose="tweets" class="d-flex card-deck justify-content-center pt-5 mx-auto">
-        <div purpose="tweet-card" class="card">
-          <div class="mb-4">
-            <a href="https://twitter.com/osquery"><img width="140" height="36" alt="osquery logo" src="/images/social-proof-logo-osquery-140x36@2x.png"/></a>
-          </div>
-          <p class="pb-2 mb-1">It’s great to see the new release of Fleet containing some really cool new features that make <a href="https://twitter.com/osquery">@osquery</a> much more usable in practical environments. I’m really impressed with the work that <a href="https://twitter.com/thezachw">@thezachw</a> and crew are doing at <a href="https://twitter.com/fleetctl">@fleetctl</a>.</p>
-          <div class="row px-3 pt-2">
-            <div>
-              <p class="font-weight-bold m-0">Mike Arpaia</p>
-              <p class="m-0">Creator of <a href="https://twitter.com/osquery">@osquery</a></p>
-            </div>
-          </div>
-        </div>
-        <div purpose="tweet-card" class="card">
-          <div class="mb-4">
-            <a href="https://twitter.com/Wayfair"><img width="136" height="32" alt="Wayfair logo" src="/images/social-proof-logo-wayfair-136x32@2x.png"/></a>
-          </div>
-          <p class="pb-2 mb-1"><a href="https://twitter.com/hashtag/osquery">#osquery</a> is one of the best tools out there and <a href="https://twitter.com/hashtag/fleetdm">#fleetdm</a> makes it even better. Highly recommend it if you want to monitor, detect and investigate threats on a scale and also for infra/sys admin.</p>
-          <p>I have used it on 15k servers and it’s really scalable.</p>
-          <div class="row px-3 pt-2">
-            <div>
-              <p class="font-weight-bold m-0">Ahmed Elshaer</p>
-              <p class="m-0">DFIR, Blue Teaming, SecOps <a href="https://twitter.com/Wayfair">@wayfair</a></p>
-              </div>
-          </div>
-        </div>
-        <div purpose="tweet-card" class="card">
-          <div class="mb-4">
-            <a href="https://twitter.com/comcast"><img width="107" height="38" alt="Comcast logo" src="/images/social-proof-logo-comcast-107x38.png"/></a>
-          </div>
-          <p class="pb-2 mb-1">With the power of osquery, you need a scalable & resilient platform to manage your workloads. Fleet is the "just right" open-source, enterprise grade solution.</p>
-          <div class="row px-3 pt-2">
-            <div>
-              <p class="font-weight-bold m-0">Abubakar Yousafzai</p>
-              <p class="m-0">Security Software Development & Engineering <a href="https://twitter.com/comcast">@Comcast</a></p>
-            </div>
-          </div>
-        </div>
+      <%// Tweet cards - Note: Only the top tweets will be visible until the "view more" button is clicked%>
+      <div purpose="tweets" class="d-flex card-deck justify-content-sm-center mx-auto" :class="[showAllTweets ? 'all-visible' : 'truncated']">
+
+        <%// Uber tweet%>
         <div purpose="tweet-card" class="card">
           <div class="mb-4">
             <a href="https://twitter.com/Uber"><img width="87" height="38" alt="Uber logo" src="/images/social-proof-logo-uber-87x38@2x.png"/></a>
@@ -210,6 +197,7 @@
             </div>
           </div>
         </div>
+        <%// Square tweet%>
         <div purpose="tweet-card" class="card">
           <div class="mb-4">
             <a href="https://twitter.com/Square"><img width="131" height="38" alt="Square logo" src="/images/social-proof-logo-square-131x38@2x.png"/></a>
@@ -222,6 +210,7 @@
             </div>
           </div>
         </div>
+        <%// Atlassian tweet%>
         <div purpose="tweet-card" class="card">
           <div class="mb-4">
             <a href="https://twitter.com/atlassian"><img width="162" height="20" alt="Atlassian logo" src="/images/social-proof-logo-atlassian-162x20@2x.png"/></a>
@@ -234,23 +223,75 @@
             </div>
           </div>
         </div>
-      </div>
-      <div>
-        <h3 class="px-4 mb-3">From small businesses to large enterprises.</h3>
-        <p class="px-4">
-          Teams use osquery with Fleet every day to stay secure and compliant.
-        </p>
-        <div class="btn-toolbar justify-content-center px-5 px-sm-0 pt-3 pb-5 mb-md-5">
-          <a style="max-width: 220px" class="btn btn-block btn-md btn-primary mx-4" href="/try-fleet/register?tryitnow">
-            Try it out
-          </a>
-          <a style="max-width: 220px" class="btn btn-block btn-lg btn-white pl-0 m-0" purpose="animated-arrow-button-red" target="_blank" href="https://calendly.com/fleetdm/demo?utm_source=homepage+demo+bottom">
-            Schedule a demo
-          </a>
+        <%// Osquery tweet%>
+        <div purpose="tweet-card" class="card">
+          <div class="mb-4">
+            <a href="https://twitter.com/osquery"><img width="140" height="36" alt="osquery logo" src="/images/social-proof-logo-osquery-140x36@2x.png"/></a>
+          </div>
+          <p class="pb-2 mb-1">It’s great to see the new release of Fleet containing some really cool new features that make <a href="https://twitter.com/osquery">@osquery</a> much more usable in practical environments. I’m really impressed with the work that <a href="https://twitter.com/thezachw">@thezachw</a> and crew are doing at <a href="https://twitter.com/fleetctl">@fleetctl</a>.</p>
+          <div class="row px-3 pt-2">
+            <div>
+              <p class="font-weight-bold m-0">Mike Arpaia</p>
+              <p class="m-0">Creator of <a href="https://twitter.com/osquery">@osquery</a></p>
+            </div>
+          </div>
         </div>
+        <%// Wayfair tweet%>
+        <div purpose="tweet-card" class="card">
+          <div class="mb-4">
+            <a href="https://twitter.com/Wayfair"><img width="136" height="32" alt="Wayfair logo" src="/images/social-proof-logo-wayfair-136x32@2x.png"/></a>
+          </div>
+          <p class="pb-2 mb-1"><a href="https://twitter.com/hashtag/osquery">#osquery</a> is one of the best tools out there and <a href="https://twitter.com/hashtag/fleetdm">#fleetdm</a> makes it even better. Highly recommend it if you want to monitor, detect and investigate threats on a scale and also for infra/sys admin.</p>
+          <p>I have used it on 15k servers and it’s really scalable.</p>
+          <div class="row px-3 pt-2">
+            <div>
+              <p class="font-weight-bold m-0">Ahmed Elshaer</p>
+              <p class="m-0">DFIR, Blue Teaming, SecOps <a href="https://twitter.com/Wayfair">@wayfair</a></p>
+            </div>
+          </div>
+        </div>
+        <%// Comcast tweet%>
+        <div purpose="tweet-card" class="card">
+          <div class="mb-4">
+            <a href="https://twitter.com/comcast"><img width="107" height="38" alt="Comcast logo" src="/images/social-proof-logo-comcast-107x38.png"/></a>
+          </div>
+          <p class="pb-2 mb-1">With the power of osquery, you need a scalable & resilient platform to manage your workloads. Fleet is the "just right" open-source, enterprise grade solution.</p>
+          <div class="row px-3 pt-2">
+            <div>
+              <p class="font-weight-bold m-0">Abubakar Yousafzai</p>
+              <p class="m-0">Security Software Development & Engineering <a href="https://twitter.com/comcast">@Comcast</a></p>
+            </div>
+          </div>
+        </div>
+      </div>
+      <%// View all tweets button%>
+      <div class="d-flex flex-row justify-content-center">
+        <div purpose="show-all-tweets-btn" @click="clickToggleTruncateTweets()" v-if="!showAllTweets">View more</div>
+        <div purpose="show-all-tweets-btn" @click="clickToggleTruncateTweets()" v-if="showAllTweets">View less</div>
       </div>
     </div>
   </div>
+
+  <%// Fleet Sandbox call to action %>
+  <div purpose="homepage-section" style="background: #F4F6FA;" class="d-flex flex-column mx-auto align-items-center justify-content-center pt-0">
+      <img class="d-flex" style="max-width: 300px" src="/images/fleet-sandbox-300x200@2x.png" alt="Fleet Sandbox">
+      <h4 class="pt-4">Start your free trial</h4>
+      <p>Play around with Fleet on your device.</p>
+      <a purpose="round-button" style="padding: 16px 33px;" class="btn btn-block d-flex flex-row justify-content-center align-items-center" href="/try-fleet/register?tryitnow">
+       Try it out
+      </a>
+  </div>
+
+  <modal v-if="modal === 'video'" @close="closeModal()" v-cloak>
+    <div style="height: 100%;" class="d-flex flex-column align-items-center justify-content-center">
+      <div purpose="embedded-content" class="container-lg">
+        <iframe id="ytplayer" type="text/html"
+        src="https://www.youtube.com/embed/1VNvg3_drow?autoplay=1&controls=1&modestbranding=1&playsinline=1&color=white"
+        frameborder="0" allowfullscreen autoplay></iframe>
+      </div>
+    </div>
+  </modal>
+
 </div>
 
 
