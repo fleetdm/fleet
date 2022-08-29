@@ -58,18 +58,13 @@ const MembersPage = ({
   const smtpConfigured = config?.smtp_settings.configured || false;
   const canUseSso = config?.sso_settings.enable_sso || false;
 
-  const [showAddMemberModal, setShowAddMemberModal] = useState<boolean>(false);
-  const [showRemoveMemberModal, setShowRemoveMemberModal] = useState<boolean>(
-    false
-  );
-  const [showEditUserModal, setShowEditUserModal] = useState<boolean>(false);
-  const [showCreateUserModal, setShowCreateUserModal] = useState<boolean>(
-    false
-  );
-  const [isLoading, setIsLoading] = useState<boolean>(false);
-  const [isUpdatingMembers, setIsUpdatingMembers] = useState<boolean>(false);
+  const [showAddMemberModal, setShowAddMemberModal] = useState(false);
+  const [showRemoveMemberModal, setShowRemoveMemberModal] = useState(false);
+  const [showEditUserModal, setShowEditUserModal] = useState(false);
+  const [showCreateUserModal, setShowCreateUserModal] = useState(false);
+  const [isUpdatingMembers, setIsUpdatingMembers] = useState(false);
   const [userEditing, setUserEditing] = useState<IUser>();
-  const [searchString, setSearchString] = useState<string>("");
+  const [searchString, setSearchString] = useState("");
   const [createUserErrors, setCreateUserErrors] = useState<IUserFormErrors>(
     DEFAULT_CREATE_USER_ERRORS
   );

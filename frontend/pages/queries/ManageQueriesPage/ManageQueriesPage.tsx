@@ -93,14 +93,10 @@ const ManageQueriesPage = ({
   const [queriesList, setQueriesList] = useState<IQueryTableData[] | null>(
     null
   );
-  const [selectedDropdownFilter, setSelectedDropdownFilter] = useState<string>(
-    "all"
-  );
+  const [selectedDropdownFilter, setSelectedDropdownFilter] = useState("all");
   const [selectedQueryIds, setSelectedQueryIds] = useState<number[]>([]);
-  const [showDeleteQueryModal, setShowDeleteQueryModal] = useState<boolean>(
-    false
-  );
-  const [isUpdatingQueries, setIsUpdatingQueries] = useState<boolean>(false);
+  const [showDeleteQueryModal, setShowDeleteQueryModal] = useState(false);
+  const [isUpdatingQueries, setIsUpdatingQueries] = useState(false);
 
   const {
     data: fleetQueries,

@@ -127,8 +127,8 @@ const TeamDetailsWrapper = ({
   const [backendValidators, setBackendValidators] = useState<{
     [key: string]: string;
   }>({});
-  const [isUpdatingTeams, setIsUpdatingTeams] = useState<boolean>(false);
-  const [isUpdatingSecret, setIsUpdatingSecret] = useState<boolean>(false);
+  const [isUpdatingTeams, setIsUpdatingTeams] = useState(false);
+  const [isUpdatingSecret, setIsUpdatingSecret] = useState(false);
   const { refetch: refetchMe } = useQuery(["me"], () => usersAPI.me(), {
     enabled: false,
     onSuccess: ({ user, available_teams }: IGetMeResponse) => {

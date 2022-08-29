@@ -41,11 +41,11 @@ const UserSettingsPage = ({
   const { config, currentUser, isSandboxMode } = useContext(AppContext);
   const { renderFlash } = useContext(NotificationContext);
 
-  const [pendingEmail, setPendingEmail] = useState<string>("");
-  const [showEmailModal, setShowEmailModal] = useState<boolean>(false);
-  const [showPasswordModal, setShowPasswordModal] = useState<boolean>(false);
+  const [pendingEmail, setPendingEmail] = useState("");
+  const [showEmailModal, setShowEmailModal] = useState(false);
+  const [showPasswordModal, setShowPasswordModal] = useState(false);
   const [updatedUser, setUpdatedUser] = useState<Partial<IUser>>({});
-  const [showApiTokenModal, setShowApiTokenModal] = useState<boolean>(false);
+  const [showApiTokenModal, setShowApiTokenModal] = useState(false);
   const [errors, setErrors] = useState<{ [key: string]: string }>({});
   const [userErrors, setUserErrors] = useState<{ [key: string]: string }>({});
 

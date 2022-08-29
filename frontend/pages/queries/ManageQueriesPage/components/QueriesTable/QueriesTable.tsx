@@ -37,7 +37,7 @@ const QueriesTable = ({
   isOnlyObserver,
 }: IQueriesTableProps): JSX.Element | null => {
   const { currentUser } = useContext(AppContext);
-  const [searchString, setSearchString] = useState<string>("");
+  const [searchString, setSearchString] = useState("");
 
   const handleSearchChange = ({ searchQuery }: ITableQueryData) => {
     setSearchString(searchQuery);

@@ -126,29 +126,23 @@ const HostDetailsPage = ({
     return false;
   };
 
-  const [showDeleteHostModal, setShowDeleteHostModal] = useState<boolean>(
-    false
-  );
-  const [showTransferHostModal, setShowTransferHostModal] = useState<boolean>(
-    false
-  );
-  const [showQueryHostModal, setShowQueryHostModal] = useState<boolean>(false);
-  const [showPolicyDetailsModal, setPolicyDetailsModal] = useState<boolean>(
-    false
-  );
-  const [showOSPolicyModal, setShowOSPolicyModal] = useState<boolean>(false);
+  const [showDeleteHostModal, setShowDeleteHostModal] = useState(false);
+  const [showTransferHostModal, setShowTransferHostModal] = useState(false);
+  const [showQueryHostModal, setShowQueryHostModal] = useState(false);
+  const [showPolicyDetailsModal, setPolicyDetailsModal] = useState(false);
+  const [showOSPolicyModal, setShowOSPolicyModal] = useState(false);
   const [selectedPolicy, setSelectedPolicy] = useState<IHostPolicy | null>(
     null
   );
-  const [isUpdatingHost, setIsUpdatingHost] = useState<boolean>(false);
+  const [isUpdatingHost, setIsUpdatingHost] = useState(false);
 
   const [refetchStartTime, setRefetchStartTime] = useState<number | null>(null);
-  const [showRefetchSpinner, setShowRefetchSpinner] = useState<boolean>(false);
+  const [showRefetchSpinner, setShowRefetchSpinner] = useState(false);
   const [packsState, setPacksState] = useState<IPackStats[]>();
   const [scheduleState, setScheduleState] = useState<IQueryStats[]>();
   const [hostSoftware, setHostSoftware] = useState<ISoftware[]>([]);
   const [usersState, setUsersState] = useState<{ username: string }[]>([]);
-  const [usersSearchString, setUsersSearchString] = useState<string>("");
+  const [usersSearchString, setUsersSearchString] = useState("");
 
   const { data: fleetQueries, error: fleetQueriesError } = useQuery<
     IFleetQueriesResponse,

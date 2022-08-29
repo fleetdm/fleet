@@ -35,9 +35,9 @@ const Software = ({
   setActionURL,
   setTitleDetail,
 }: ISoftwareCardProps): JSX.Element => {
-  const [navTabIndex, setNavTabIndex] = useState<number>(0);
-  const [pageIndex, setPageIndex] = useState<number>(0);
-  const [isSoftwareEnabled, setIsSoftwareEnabled] = useState<boolean>();
+  const [navTabIndex, setNavTabIndex] = useState(0);
+  const [pageIndex, setPageIndex] = useState(0);
+  const [isSoftwareEnabled, setIsSoftwareEnabled] = useState();
 
   const { availableTeams, currentTeam, isOnGlobalTeam } = useContext(
     AppContext
