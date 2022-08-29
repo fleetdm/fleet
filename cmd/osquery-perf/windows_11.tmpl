@@ -1,0 +1,1038 @@
+{{ define "enroll" -}}
+{
+    "enroll_secret": "{{ .EnrollSecret  }}",
+    "host_details": {
+        "os_version": {
+          "build":"22000",
+          "major":"10",
+          "minor":"0",
+          "name":"Microsoft Windows 11 Pro",
+          "patch":"",
+          "platform":"windows",
+          "platform_like":"windows",
+          "version":"10.0.22000"
+        },
+        "osquery_info": {
+          "build_distro": "10",
+          "build_platform": "windows",
+          "config_hash": "09d7386d20179cb1b725ed88f38c98e3b2e72c90",
+          "config_valid": "1",
+          "extensions": "inactive",
+          "instance_id": "caa2dc5b-f33f-4c57-a138-e4b96e8787cc",
+          "pid": "9072",
+          "platform_mask": "2",
+          "start_time": "1660223255",
+          "uuid": "AF028C41-1AAD-4025-7391-A93C26B9A17A",
+          "version": "5.4.0",
+          "watcher": "-1"
+        },
+        "platform_info": {
+          "address": "",
+          "date": "1601-01-01",
+          "extra": "",
+          "revision": "255.255",
+          "size": "",
+          "vendor": "Microsoft Corporation",
+          "version": "139.3982.768",
+          "volume_size": ""
+        },
+        "system_info": {
+          "computer_name": "{{ .CachedString "hostname" }}",
+          "cpu_brand": "Intel(R) Core(TM) i7-8650U CPU @ 1.90GHz",
+          "cpu_logical_cores": "8",
+          "cpu_physical_cores": "4",
+          "cpu_subtype": "-1",
+          "cpu_type": "x86_64",
+          "hardware_model": "Surface Laptop 2",
+          "hardware_serial": "024175290357",
+          "hardware_vendor": "Microsoft Corporation",
+          "hardware_version": "-1",
+          "hostname": "{{ .CachedString "hostname" }}",
+          "local_hostname": "{{ .CachedString "hostname" }}",
+          "physical_memory": "17179869184",
+          "uuid": "{{ .UUID }}"
+        }
+    },
+    "host_identifier": "{{ .CachedString "hostname" }}",
+    "platform_type": "2"
+}
+{{- end }}
+
+{{ define "fleet_detail_query_network_interface" -}}
+[
+  {
+    "point_to_point":"",
+    "address":"fe80::8cb:112d:ff51:1e5d%en0",
+    "mask":"ffff:ffff:ffff:ffff::",
+    "broadcast":"",
+    "interface":"en0",
+    "mac":"f8:2d:88:93:56:5c",
+    "type":"6",
+    "mtu":"1500",
+    "metric":"0",
+    "ipackets":"278493",
+    "opackets":"206238",
+    "ibytes":"275799040",
+    "obytes":"37720064",
+    "ierrors":"0",
+    "oerrors":"0",
+    "idrops":"0",
+    "odrops":"0",
+    "last_change":"1582848084"
+  },
+  {
+    "point_to_point":"",
+    "address":"192.168.1.3",
+    "mask":"255.255.255.0",
+    "broadcast":"192.168.1.255",
+    "interface":"en0",
+    "mac":"f5:5a:80:92:52:5b",
+    "type":"6",
+    "mtu":"1500",
+    "metric":"0",
+    "ipackets":"278493",
+    "opackets":"206238",
+    "ibytes":"275799040",
+    "obytes":"37720064",
+    "ierrors":"0",
+    "oerrors":"0",
+    "idrops":"0",
+    "odrops":"0",
+    "last_change":"1582848084"
+  },
+  {
+    "point_to_point":"127.0.0.1",
+    "address":"127.0.0.1",
+    "mask":"255.0.0.0",
+    "broadcast":"",
+    "interface":"lo0",
+    "mac":"00:00:00:00:00:00",
+    "type":"24",
+    "mtu":"16384",
+    "metric":"0",
+    "ipackets":"132952",
+    "opackets":"132952",
+    "ibytes":"67053568",
+    "obytes":"67053568",
+    "ierrors":"0",
+    "oerrors":"0",
+    "idrops":"0",
+    "odrops":"0",
+    "last_change":"1582840871"
+  },
+  {
+    "point_to_point":"::1",
+    "address":"::1",
+    "mask":"ffff:ffff:ffff:ffff:ffff:ffff:ffff:ffff",
+    "broadcast":"",
+    "interface":"lo0",
+    "mac":"00:00:00:00:00:00",
+    "type":"24",
+    "mtu":"16384",
+    "metric":"0",
+    "ipackets":"132952",
+    "opackets":"132952",
+    "ibytes":"67053568",
+    "obytes":"67053568",
+    "ierrors":"0",
+    "oerrors":"0",
+    "idrops":"0",
+    "odrops":"0",
+    "last_change":"1582840871"
+  },
+  {
+    "point_to_point":"",
+    "address":"fe80::1%lo0",
+    "mask":"ffff:ffff:ffff:ffff::",
+    "broadcast":"",
+    "interface":"lo0",
+    "mac":"00:00:00:00:00:00",
+    "type":"24",
+    "mtu":"16384",
+    "metric":"0",
+    "ipackets":"132952",
+    "opackets":"132952",
+    "ibytes":"67053568",
+    "obytes":"67053568",
+    "ierrors":"0",
+    "oerrors":"0",
+    "idrops":"0",
+    "odrops":"0",
+    "last_change":"1582840871"
+  },
+  {
+    "point_to_point":"",
+    "address":"fe80::3a:84ff:fe6b:bf75%awdl0",
+    "mask":"ffff:ffff:ffff:ffff::",
+    "broadcast":"",
+    "interface":"awdl0",
+    "mac":"03:3b:94:5b:be:75",
+    "type":"6",
+    "mtu":"1484",
+    "metric":"0",
+    "ipackets":"0",
+    "opackets":"16",
+    "ibytes":"0",
+    "obytes":"3072",
+    "ierrors":"0",
+    "oerrors":"0",
+    "idrops":"0",
+    "odrops":"0",
+    "last_change":"1582842892"
+  },
+  {
+    "point_to_point":"",
+    "address":"fe80::6eaf:9721:3476:b691%utun0",
+    "mask":"ffff:ffff:ffff:ffff::",
+    "broadcast":"",
+    "interface":"utun0",
+    "mac":"00:00:00:00:00:00",
+    "type":"1",
+    "mtu":"2000",
+    "metric":"0",
+    "ipackets":"0",
+    "opackets":"2",
+    "ibytes":"0",
+    "obytes":"0",
+    "ierrors":"0",
+    "oerrors":"0",
+    "idrops":"0",
+    "odrops":"0",
+    "last_change":"1582840897"
+  }
+]
+{{- end }}
+{{ define "fleet_detail_query_os_version" -}}
+[
+  {
+    "name":"Microsoft Windows 11 Pro",
+    "version":"10.0.22000",
+    "build":"22000",
+    "major":"10",
+    "minor":"0",
+    "patch":"",
+    "platform":"windows",
+    "platform_like":"windows",
+    "codename":""
+  }
+]
+{{- end }}
+{{ define "fleet_detail_query_osquery_flags" -}}
+[
+  {
+    "name":"config_refresh",
+    "value":"{{ printf "%.0f" .ConfigInterval.Seconds }}"
+  },
+  {
+    "name":"distributed_interval",
+    "value":"{{ printf "%.0f" .QueryInterval.Seconds }}"
+  },
+  {
+    "name":"logger_tls_period",
+    "value":"99999"
+  }
+]
+{{- end }}
+{{ define "fleet_detail_query_osquery_info" -}}
+[
+  {
+
+    "build_distro": "10",
+    "build_platform": "windows",
+    "config_hash": "09d7386d20179cb1b725ed88f38c98e3b2e72c90",
+    "config_valid": "1",
+    "extensions": "inactive",
+    "instance_id": "caa2dc5b-f33f-4c57-a138-e4b96e8787cc",
+    "pid": "9072",
+    "platform_mask": "2",
+    "start_time": "1660223255",
+    "uuid": "AF028C41-1AAD-4025-7391-A93C26B9A17A",
+    "version": "5.4.0",
+    "watcher": "-1",
+    "uuid":"{{ .UUID }}",
+    "instance_id":"{{ .UUID }}"
+  }
+]
+{{- end }}
+{{ define "fleet_detail_query_system_info" -}}
+[
+  {
+    "hostname":"{{ .CachedString "hostname" }}",
+    "computer_name": "{{ .CachedString "hostname" }}",
+    "cpu_brand": "Intel(R) Core(TM) i7-8650U CPU @ 1.90GHz",
+    "cpu_logical_cores": "8",
+    "cpu_physical_cores": "4",
+    "cpu_subtype": "-1",
+    "cpu_type": "x86_64",
+    "hardware_model": "Surface Laptop 2",
+    "hardware_serial": "024175290368",
+    "hardware_vendor": "Microsoft Corporation",
+    "hardware_version": "-1",
+    "local_hostname": "{{ .CachedString "hostname" }}",
+    "physical_memory": "17179869184",
+    "uuid":"4740D59F-699E-5B29-960B-979AAF9BBEEC"
+  }
+]
+{{- end }}
+{{ define "fleet_detail_query_uptime" -}}
+[
+  {
+    "days":"0",
+    "hours":"4",
+    "minutes":"38",
+    "seconds":"11",
+    "total_seconds":"16691"
+  }
+]
+{{- end }}
+
+{{ define "fleet_detail_query_users" -}}
+[
+  {{ range $index, $item := .HostUsersMacOS }}
+  {{if $index}},{{end}}
+  {
+    "uid": "{{ .Uid }}",
+    "username": "{{ .Username }}",
+    "type": "{{ .Type }}",
+    "groupname": "{{ .GroupName }}",
+    "shell": "{{ .Shell }}"
+  }
+  {{- end }}
+]
+{{- end }}
+
+{{/* all hosts */}}
+{{ define "fleet_label_query_6" -}}
+[
+  {
+    "1": "1"
+  }
+]
+{{- end }}
+
+{{/* All macOS hosts */}}
+{{ define "fleet_label_query_7" -}}
+[
+
+]
+{{- end }}
+
+{{/* All Ubuntu hosts */}}
+{{ define "fleet_label_query_8" -}}
+[]
+{{- end }}
+
+{{/* All CentOS hosts */}}
+{{ define "fleet_label_query_9" -}}
+[]
+{{- end }}
+
+{{/* All Windows hosts */}}
+{{ define "fleet_label_query_10" -}}
+[
+  {
+    "1": "1"
+  }
+]
+{{- end }}
+
+{{/* All Red Hat hosts */}}
+{{ define "fleet_label_query_11" -}}
+[]
+{{- end }}
+
+{{/* All Linux distributions */}}
+{{ define "fleet_label_query_12" -}}
+[]
+{{- end }}
+
+{{ define "fleet_detail_query_windows_update_history" -}}
+[
+  {
+    "client_app_id": "MoUpdateOrchestrator",
+    "date": "1660227583",
+    "description": "Install this update to revise the files that are used to detect viruses, spyware, and other potentially unwanted software. Once you have installed this item, it cannot be removed.",
+    "hresult": "0",
+    "operation": "Installation",
+    "result_code": "Succeeded",
+    "server_selection": "WindowsUpdate",
+    "service_id": "",
+    "support_url": "https://go.microsoft.com/fwlink/?LinkId=52661",
+    "title": "Security Intelligence Update for Microsoft Defender Antivirus - KB2267602 (Version 1.373.144.0)",
+    "update_id": "5473a0ab-87a6-4fa3-8ede-c7e28521f06d",
+    "update_revision": "200"
+  },
+  {
+    "client_app_id": "MoUpdateOrchestrator",
+    "date": "1660227566",
+    "description": "After the download, this tool runs one time to check your computer for infection by specific, prevalent malicious software (including Blaster, Sasser, and Mydoom) and helps remove any infection that is found. If an infection is found, the tool will display a status report the next time that you start your computer. A new version of the tool will be offered every month. If you want to manually run the tool on your computer, you can download a copy from the Microsoft Download Center, or you can run an online version from microsoft.com. This tool is not a replacement for an antivirus product. To help protect your computer, you should use an antivirus product.",
+    "hresult": "0",
+    "operation": "Installation",
+    "result_code": "Succeeded",
+    "server_selection": "WindowsUpdate",
+    "service_id": "",
+    "support_url": "http://support.microsoft.com",
+    "title": "Windows Malicious Software Removal Tool x64 - v5.104 (KB890830)",
+    "update_id": "b5292e9e-d174-4ae1-be7f-10092f940b10",
+    "update_revision": "200"
+  },
+  {
+    "client_app_id": "MoUpdateOrchestrator",
+    "date": "1660173924",
+    "description": "Install this update to resolve issues in Windows. For a complete listing of the issues that are included in this update, see the associated Microsoft Knowledge Base article for more information. After you install this item, you may have to restart your computer.",
+    "hresult": "0",
+    "operation": "Installation",
+    "result_code": "Succeeded",
+    "server_selection": "Others",
+    "service_id": "8b24b027-1dee-babb-9a95-3517dfb9c552",
+    "support_url": "https://support.microsoft.com/help/5016629",
+    "title": "2022-08 Cumulative Update for Windows 11 for x64-based Systems (KB5016629)",
+    "update_id": "8da25b5f-b5e1-455e-9ae9-7697212593d7",
+    "update_revision": "1"
+  },
+  {
+    "client_app_id": "MoUpdateOrchestrator",
+    "date": "1660169290",
+    "description": "A security issue has been identified in a Microsoft software product that could affect your system. You can help protect your system by installing this update from Microsoft. For a complete listing of the issues that are included in this update, see the associated Microsoft Knowledge Base article. After you install this update, you may have to restart your system.",
+    "hresult": "0",
+    "operation": "Installation",
+    "result_code": "Succeeded",
+    "server_selection": "WindowsUpdate",
+    "service_id": "",
+    "support_url": "https://support.microsoft.com/help/5012170",
+    "title": "2022-08 Security Update for Windows 11 for x64-based Systems (KB5012170)",
+    "update_id": "36cf5ff2-8923-4fd5-b0c7-1a8360c859c8",
+    "update_revision": "200"
+  },
+  {
+    "client_app_id": "MoUpdateOrchestrator",
+    "date": "1660147454",
+    "description": "Install this update to revise the files that are used to detect viruses, spyware, and other potentially unwanted software. Once you have installed this item, it cannot be removed.",
+    "hresult": "0",
+    "operation": "Installation",
+    "result_code": "Succeeded",
+    "server_selection": "WindowsUpdate",
+    "service_id": "",
+    "support_url": "https://go.microsoft.com/fwlink/?LinkId=52661",
+    "title": "Security Intelligence Update for Microsoft Defender Antivirus - KB2267602 (Version 1.373.94.0)",
+    "update_id": "d8742524-cb74-4a9e-810d-d07722f41a06",
+    "update_revision": "200"
+  },
+  {
+    "client_app_id": "MoUpdateOrchestrator",
+    "date": "1660102200",
+    "description": "Install this update to revise the files that are used to detect viruses, spyware, and other potentially unwanted software. Once you have installed this item, it cannot be removed.",
+    "hresult": "0",
+    "operation": "Installation",
+    "result_code": "Succeeded",
+    "server_selection": "WindowsUpdate",
+    "service_id": "",
+    "support_url": "https://go.microsoft.com/fwlink/?LinkId=52661",
+    "title": "Security Intelligence Update for Microsoft Defender Antivirus - KB2267602 (Version 1.373.70.0)",
+    "update_id": "e00d65af-cc92-4279-bdb1-8bbe0bfe1b90",
+    "update_revision": "200"
+  },
+  {
+    "client_app_id": "Windows Defender",
+    "date": "1660016612",
+    "description": "Install this update to revise the files that are used to detect viruses, spyware, and other potentially unwanted software. Once you have installed this item, it cannot be removed.",
+    "hresult": "0",
+    "operation": "Installation",
+    "result_code": "Succeeded",
+    "server_selection": "WindowsUpdate",
+    "service_id": "",
+    "support_url": "https://go.microsoft.com/fwlink/?LinkId=52661",
+    "title": "Security Intelligence Update for Microsoft Defender Antivirus - KB2267602 (Version 1.371.1673.0)",
+    "update_id": "bacaeb44-353d-46cb-8d72-9d36fa0333d2",
+    "update_revision": "200"
+  },
+  {
+    "client_app_id": "MoUpdateOrchestrator",
+    "date": "1660016594",
+    "description": "Install this update to revise the files that are used to detect viruses, spyware, and other potentially unwanted software. Once you have installed this item, it cannot be removed.",
+    "hresult": "-2145124300",
+    "operation": "Installation",
+    "result_code": "Failed",
+    "server_selection": "WindowsUpdate",
+    "service_id": "",
+    "support_url": "https://go.microsoft.com/fwlink/?LinkId=52661",
+    "title": "Security Intelligence Update for Microsoft Defender Antivirus - KB2267602 (Version 1.371.1607.0)",
+    "update_id": "d97f517e-945b-4ad5-9e75-c2da93b5af38",
+    "update_revision": "200"
+  },
+  {
+    "client_app_id": "MoUpdateOrchestrator",
+    "date": "1659811407",
+    "description": "Install this update to revise the files that are used to detect viruses, spyware, and other potentially unwanted software. Once you have installed this item, it cannot be removed.",
+    "hresult": "0",
+    "operation": "Installation",
+    "result_code": "Succeeded",
+    "server_selection": "WindowsUpdate",
+    "service_id": "",
+    "support_url": "https://go.microsoft.com/fwlink/?LinkId=52661",
+    "title": "Security Intelligence Update for Microsoft Defender Antivirus - KB2267602 (Version 1.371.1544.0)",
+    "update_id": "85aa60dd-e4bb-4b20-9ad1-08f7f029a45e",
+    "update_revision": "200"
+  },
+  {
+    "client_app_id": "MoUpdateOrchestrator",
+    "date": "1659713853",
+    "description": "Install this update to revise the files that are used to detect viruses, spyware, and other potentially unwanted software. Once you have installed this item, it cannot be removed.",
+    "hresult": "0",
+    "operation": "Installation",
+    "result_code": "Succeeded",
+    "server_selection": "WindowsUpdate",
+    "service_id": "",
+    "support_url": "https://go.microsoft.com/fwlink/?LinkId=52661",
+    "title": "Security Intelligence Update for Microsoft Defender Antivirus - KB2267602 (Version 1.371.1482.0)",
+    "update_id": "ea830905-b3e6-46b1-b90d-6b126a3f6d1b",
+    "update_revision": "200"
+  },
+  {
+    "client_app_id": "Windows Defender",
+    "date": "1659672608",
+    "description": "Install this update to revise the files that are used to detect viruses, spyware, and other potentially unwanted software. Once you have installed this item, it cannot be removed.",
+    "hresult": "0",
+    "operation": "Installation",
+    "result_code": "Succeeded",
+    "server_selection": "WindowsUpdate",
+    "service_id": "",
+    "support_url": "https://go.microsoft.com/fwlink/?LinkId=52661",
+    "title": "Security Intelligence Update for Microsoft Defender Antivirus - KB2267602 (Version 1.371.1459.0)",
+    "update_id": "9b723c83-8ba3-4a28-a7b6-f4ed9b9a5e95",
+    "update_revision": "200"
+  },
+  {
+    "client_app_id": "MoUpdateOrchestrator",
+    "date": "1659643463",
+    "description": "Install this update to revise the files that are used to detect viruses, spyware, and other potentially unwanted software. Once you have installed this item, it cannot be removed.",
+    "hresult": "0",
+    "operation": "Installation",
+    "result_code": "Succeeded",
+    "server_selection": "WindowsUpdate",
+    "service_id": "",
+    "support_url": "https://go.microsoft.com/fwlink/?LinkId=52661",
+    "title": "Security Intelligence Update for Microsoft Defender Antivirus - KB2267602 (Version 1.371.1429.0)",
+    "update_id": "cacd2916-1bdc-4272-85ff-34f18719fcf3",
+    "update_revision": "200"
+  },
+  {
+    "client_app_id": "MoUpdateOrchestrator",
+    "date": "1659545734",
+    "description": "Install this update to revise the files that are used to detect viruses, spyware, and other potentially unwanted software. Once you have installed this item, it cannot be removed.",
+    "hresult": "0",
+    "operation": "Installation",
+    "result_code": "Succeeded",
+    "server_selection": "WindowsUpdate",
+    "service_id": "",
+    "support_url": "https://go.microsoft.com/fwlink/?LinkId=52661",
+    "title": "Security Intelligence Update for Microsoft Defender Antivirus - KB2267602 (Version 1.371.1359.0)",
+    "update_id": "d099df3c-873e-4af5-97a8-43414a96cb99",
+    "update_revision": "200"
+  },
+  {
+    "client_app_id": "MoUpdateOrchestrator",
+    "date": "1659498651",
+    "description": "Install this update to revise the files that are used to detect viruses, spyware, and other potentially unwanted software. Once you have installed this item, it cannot be removed.",
+    "hresult": "0",
+    "operation": "Installation",
+    "result_code": "Succeeded",
+    "server_selection": "WindowsUpdate",
+    "service_id": "",
+    "support_url": "https://go.microsoft.com/fwlink/?LinkId=52661",
+    "title": "Security Intelligence Update for Microsoft Defender Antivirus - KB2267602 (Version 1.371.1323.0)",
+    "update_id": "d06da942-e5d0-4117-a20f-43da745ffd9c",
+    "update_revision": "200"
+  },
+  {
+    "client_app_id": "MoUpdateOrchestrator",
+    "date": "1659409977",
+    "description": "Install this update to revise the files that are used to detect viruses, spyware, and other potentially unwanted software. Once you have installed this item, it cannot be removed.",
+    "hresult": "0",
+    "operation": "Installation",
+    "result_code": "Succeeded",
+    "server_selection": "WindowsUpdate",
+    "service_id": "",
+    "support_url": "https://go.microsoft.com/fwlink/?LinkId=52661",
+    "title": "Security Intelligence Update for Microsoft Defender Antivirus - KB2267602 (Version 1.371.1261.0)",
+    "update_id": "a2682975-9c13-4d8d-b8f4-62f81fa4347b",
+    "update_revision": "200"
+  },
+  {
+    "client_app_id": "MoUpdateOrchestrator",
+    "date": "1659409929",
+    "description": "Install this update to revise the files that are used to detect viruses, spyware, and other potentially unwanted software. Once you have installed this item, it cannot be removed.",
+    "hresult": "0",
+    "operation": "Installation",
+    "result_code": "Succeeded",
+    "server_selection": "WindowsUpdate",
+    "service_id": "",
+    "support_url": "https://go.microsoft.com/fwlink/?LinkId=52661",
+    "title": "Security Intelligence Update for Microsoft Defender Antivirus - KB2267602 (Version 1.371.1186.0)",
+    "update_id": "09313b74-907a-4cf6-8060-1f59d6a10731",
+    "update_revision": "200"
+  },
+  {
+    "client_app_id": "Windows Defender",
+    "date": "1659330382",
+    "description": "Install this update to revise the files that are used to detect viruses, spyware, and other potentially unwanted software. Once you have installed this item, it cannot be removed.",
+    "hresult": "0",
+    "operation": "Installation",
+    "result_code": "Succeeded",
+    "server_selection": "WindowsUpdate",
+    "service_id": "",
+    "support_url": "https://go.microsoft.com/fwlink/?LinkId=52661",
+    "title": "Security Intelligence Update for Microsoft Defender Antivirus - KB2267602 (Version 1.371.1186.0)",
+    "update_id": "09313b74-907a-4cf6-8060-1f59d6a10731",
+    "update_revision": "200"
+  },
+  {
+    "client_app_id": "MoUpdateOrchestrator",
+    "date": "1659330368",
+    "description": "Install this update to revise the files that are used to detect viruses, spyware, and other potentially unwanted software. Once you have installed this item, it cannot be removed.",
+    "hresult": "-2145124330",
+    "operation": "Installation",
+    "result_code": "Failed",
+    "server_selection": "WindowsUpdate",
+    "service_id": "",
+    "support_url": "https://go.microsoft.com/fwlink/?LinkId=52661",
+    "title": "Security Intelligence Update for Microsoft Defender Antivirus - KB2267602 (Version 1.371.1186.0)",
+    "update_id": "09313b74-907a-4cf6-8060-1f59d6a10731",
+    "update_revision": "200"
+  },
+  {
+    "client_app_id": "MoUpdateOrchestrator",
+    "date": "1659329478",
+    "description": "Install this update to revise the files that are used to detect viruses, spyware, and other potentially unwanted software. Once you have installed this item, it cannot be removed.",
+    "hresult": "0",
+    "operation": "Installation",
+    "result_code": "Succeeded",
+    "server_selection": "WindowsUpdate",
+    "service_id": "",
+    "support_url": "https://go.microsoft.com/fwlink/?LinkId=52661",
+    "title": "Security Intelligence Update for Microsoft Defender Antivirus - KB2267602 (Version 1.371.1089.0)",
+    "update_id": "599a2ff1-b6df-4444-b26c-446d9af6e26b",
+    "update_revision": "200"
+  },
+  {
+    "client_app_id": "Windows Defender",
+    "date": "1659207465",
+    "description": "Install this update to revise the files that are used to detect viruses, spyware, and other potentially unwanted software. Once you have installed this item, it cannot be removed.",
+    "hresult": "0",
+    "operation": "Installation",
+    "result_code": "Succeeded",
+    "server_selection": "WindowsUpdate",
+    "service_id": "",
+    "support_url": "https://go.microsoft.com/fwlink/?LinkId=52661",
+    "title": "Security Intelligence Update for Microsoft Defender Antivirus - KB2267602 (Version 1.371.1089.0)",
+    "update_id": "599a2ff1-b6df-4444-b26c-446d9af6e26b",
+    "update_revision": "200"
+  },
+  {
+    "client_app_id": "MoUpdateOrchestrator",
+    "date": "1659207451",
+    "description": "Install this update to revise the files that are used to detect viruses, spyware, and other potentially unwanted software. Once you have installed this item, it cannot be removed.",
+    "hresult": "-2145124330",
+    "operation": "Installation",
+    "result_code": "Failed",
+    "server_selection": "WindowsUpdate",
+    "service_id": "",
+    "support_url": "https://go.microsoft.com/fwlink/?LinkId=52661",
+    "title": "Security Intelligence Update for Microsoft Defender Antivirus - KB2267602 (Version 1.371.1089.0)",
+    "update_id": "599a2ff1-b6df-4444-b26c-446d9af6e26b",
+    "update_revision": "200"
+  },
+  {
+    "client_app_id": "MoUpdateOrchestrator",
+    "date": "1659121021",
+    "description": "Install this update to revise the files that are used to detect viruses, spyware, and other potentially unwanted software. Once you have installed this item, it cannot be removed.",
+    "hresult": "0",
+    "operation": "Installation",
+    "result_code": "Succeeded",
+    "server_selection": "WindowsUpdate",
+    "service_id": "",
+    "support_url": "https://go.microsoft.com/fwlink/?LinkId=52661",
+    "title": "Security Intelligence Update for Microsoft Defender Antivirus - KB2267602 (Version 1.371.1046.0)",
+    "update_id": "3bc56d18-761c-42d3-a7ff-a3e12ed035aa",
+    "update_revision": "200"
+  },
+  {
+    "client_app_id": "MoUpdateOrchestrator",
+    "date": "1659057815",
+    "description": "Install this update to revise the files that are used to detect viruses, spyware, and other potentially unwanted software. Once you have installed this item, it cannot be removed.",
+    "hresult": "0",
+    "operation": "Installation",
+    "result_code": "Succeeded",
+    "server_selection": "WindowsUpdate",
+    "service_id": "",
+    "support_url": "https://go.microsoft.com/fwlink/?LinkId=52661",
+    "title": "Security Intelligence Update for Microsoft Defender Antivirus - KB2267602 (Version 1.371.986.0)",
+    "update_id": "b97712ac-53f0-4708-8239-99473c598dbc",
+    "update_revision": "200"
+  },
+  {
+    "client_app_id": "MoUpdateOrchestrator",
+    "date": "1658879639",
+    "description": "Install this update to revise the files that are used to detect viruses, spyware, and other potentially unwanted software. Once you have installed this item, it cannot be removed.",
+    "hresult": "0",
+    "operation": "Installation",
+    "result_code": "Succeeded",
+    "server_selection": "WindowsUpdate",
+    "service_id": "",
+    "support_url": "https://go.microsoft.com/fwlink/?LinkId=52661",
+    "title": "Security Intelligence Update for Microsoft Defender Antivirus - KB2267602 (Version 1.371.884.0)",
+    "update_id": "d231a8d0-d509-48b6-baed-0341ff62e1a8",
+    "update_revision": "200"
+  },
+  {
+    "client_app_id": "MoUpdateOrchestrator",
+    "date": "1658685407",
+    "description": "Install this update to revise the files that are used to detect viruses, spyware, and other potentially unwanted software. Once you have installed this item, it cannot be removed.",
+    "hresult": "0",
+    "operation": "Installation",
+    "result_code": "Succeeded",
+    "server_selection": "WindowsUpdate",
+    "service_id": "",
+    "support_url": "https://go.microsoft.com/fwlink/?LinkId=52661",
+    "title": "Security Intelligence Update for Microsoft Defender Antivirus - KB2267602 (Version 1.371.745.0)",
+    "update_id": "b6cc166b-4515-4fa0-971c-e650d0adfbd7",
+    "update_revision": "200"
+  },
+  {
+    "client_app_id": "MoUpdateOrchestrator",
+    "date": "1658602293",
+    "description": "Install this update to revise the files that are used to detect viruses, spyware, and other potentially unwanted software. Once you have installed this item, it cannot be removed.",
+    "hresult": "0",
+    "operation": "Installation",
+    "result_code": "Succeeded",
+    "server_selection": "WindowsUpdate",
+    "service_id": "",
+    "support_url": "https://go.microsoft.com/fwlink/?LinkId=52661",
+    "title": "Security Intelligence Update for Microsoft Defender Antivirus - KB2267602 (Version 1.371.677.0)",
+    "update_id": "381fad12-3731-45c2-9a25-998185837690",
+    "update_revision": "200"
+  },
+  {
+    "client_app_id": "MoUpdateOrchestrator",
+    "date": "1658557946",
+    "description": "Install this update to revise the files that are used to detect viruses, spyware, and other potentially unwanted software. Once you have installed this item, it cannot be removed.",
+    "hresult": "0",
+    "operation": "Installation",
+    "result_code": "Succeeded",
+    "server_selection": "WindowsUpdate",
+    "service_id": "",
+    "support_url": "https://go.microsoft.com/fwlink/?LinkId=52661",
+    "title": "Security Intelligence Update for Microsoft Defender Antivirus - KB2267602 (Version 1.371.656.0)",
+    "update_id": "7f151bd7-590a-4534-b22c-bbf22dab77e5",
+    "update_revision": "200"
+  },
+  {
+    "client_app_id": "MoUpdateOrchestrator",
+    "date": "1658507073",
+    "description": "Install this update to revise the files that are used to detect viruses, spyware, and other potentially unwanted software. Once you have installed this item, it cannot be removed.",
+    "hresult": "0",
+    "operation": "Installation",
+    "result_code": "Succeeded",
+    "server_selection": "WindowsUpdate",
+    "service_id": "",
+    "support_url": "https://go.microsoft.com/fwlink/?LinkId=52661",
+    "title": "Security Intelligence Update for Microsoft Defender Antivirus - KB2267602 (Version 1.371.607.0)",
+    "update_id": "31944978-5a79-4806-8098-c99869a633d8",
+    "update_revision": "200"
+  },
+  {
+    "client_app_id": "MoUpdateOrchestrator",
+    "date": "1658420173",
+    "description": "Install this update to revise the files that are used to detect viruses, spyware, and other potentially unwanted software. Once you have installed this item, it cannot be removed.",
+    "hresult": "0",
+    "operation": "Installation",
+    "result_code": "Succeeded",
+    "server_selection": "WindowsUpdate",
+    "service_id": "",
+    "support_url": "https://go.microsoft.com/fwlink/?LinkId=52661",
+    "title": "Security Intelligence Update for Microsoft Defender Antivirus - KB2267602 (Version 1.371.550.0)",
+    "update_id": "e7671a87-c1fc-4333-9b5a-0b2bcf9efb0b",
+    "update_revision": "200"
+  },
+  {
+    "client_app_id": "MoUpdateOrchestrator",
+    "date": "1658286565",
+    "description": "Install this update to revise the files that are used to detect viruses, spyware, and other potentially unwanted software. Once you have installed this item, it cannot be removed.",
+    "hresult": "0",
+    "operation": "Installation",
+    "result_code": "Succeeded",
+    "server_selection": "WindowsUpdate",
+    "service_id": "",
+    "support_url": "https://go.microsoft.com/fwlink/?LinkId=52661",
+    "title": "Security Intelligence Update for Microsoft Defender Antivirus - KB2267602 (Version 1.371.455.0)",
+    "update_id": "c353c17b-30ae-4bf8-9aae-9371750fefeb",
+    "update_revision": "200"
+  },
+  {
+    "client_app_id": "MoUpdateOrchestrator",
+    "date": "1658197038",
+    "description": "Install this update to revise the files that are used to detect viruses, spyware, and other potentially unwanted software. Once you have installed this item, it cannot be removed.",
+    "hresult": "0",
+    "operation": "Installation",
+    "result_code": "Succeeded",
+    "server_selection": "WindowsUpdate",
+    "service_id": "",
+    "support_url": "https://go.microsoft.com/fwlink/?LinkId=52661",
+    "title": "Security Intelligence Update for Microsoft Defender Antivirus - KB2267602 (Version 1.371.400.0)",
+    "update_id": "e73cc969-7675-4d5f-a635-0dd5511a266b",
+    "update_revision": "200"
+  },
+  {
+    "client_app_id": "Windows Defender",
+    "date": "1658090554",
+    "description": "Install this update to revise the files that are used to detect viruses, spyware, and other potentially unwanted software. Once you have installed this item, it cannot be removed.",
+    "hresult": "0",
+    "operation": "Installation",
+    "result_code": "Succeeded",
+    "server_selection": "WindowsUpdate",
+    "service_id": "",
+    "support_url": "https://go.microsoft.com/fwlink/?LinkId=52661",
+    "title": "Security Intelligence Update for Microsoft Defender Antivirus - KB2267602 (Version 1.371.323.0)",
+    "update_id": "01dd2e51-379b-46d0-98a1-a960d72269f0",
+    "update_revision": "200"
+  },
+  {
+    "client_app_id": "MoUpdateOrchestrator",
+    "date": "1658089986",
+    "description": "Install this update to revise the files that are used to detect viruses, spyware, and other potentially unwanted software. Once you have installed this item, it cannot be removed.",
+    "hresult": "0",
+    "operation": "Installation",
+    "result_code": "Succeeded",
+    "server_selection": "WindowsUpdate",
+    "service_id": "",
+    "support_url": "https://go.microsoft.com/fwlink/?LinkId=52661",
+    "title": "Security Intelligence Update for Microsoft Defender Antivirus - KB2267602 (Version 1.371.312.0)",
+    "update_id": "53593c2d-14f4-43c5-85b7-1634cac1ede3",
+    "update_revision": "200"
+  },
+  {
+    "client_app_id": "MoUpdateOrchestrator",
+    "date": "1658037571",
+    "description": "Install this update to revise the files that are used to detect viruses, spyware, and other potentially unwanted software. Once you have installed this item, it cannot be removed.",
+    "hresult": "0",
+    "operation": "Installation",
+    "result_code": "Succeeded",
+    "server_selection": "WindowsUpdate",
+    "service_id": "",
+    "support_url": "https://go.microsoft.com/fwlink/?LinkId=52661",
+    "title": "Security Intelligence Update for Microsoft Defender Antivirus - KB2267602 (Version 1.371.279.0)",
+    "update_id": "881d85b0-bd1f-4c5b-8a0f-9c5167d35b4a",
+    "update_revision": "200"
+  },
+  {
+    "client_app_id": "Windows Defender",
+    "date": "1658030188",
+    "description": "Install this update to revise the files that are used to detect viruses, spyware, and other potentially unwanted software. Once you have installed this item, it cannot be removed.",
+    "hresult": "0",
+    "operation": "Installation",
+    "result_code": "Succeeded",
+    "server_selection": "WindowsUpdate",
+    "service_id": "",
+    "support_url": "https://go.microsoft.com/fwlink/?LinkId=52661",
+    "title": "Security Intelligence Update for Microsoft Defender Antivirus - KB2267602 (Version 1.371.279.0)",
+    "update_id": "881d85b0-bd1f-4c5b-8a0f-9c5167d35b4a",
+    "update_revision": "200"
+  },
+  {
+    "client_app_id": "MoUpdateOrchestrator",
+    "date": "1658030178",
+    "description": "Install this update to revise the files that are used to detect viruses, spyware, and other potentially unwanted software. Once you have installed this item, it cannot be removed.",
+    "hresult": "-2145124330",
+    "operation": "Installation",
+    "result_code": "Failed",
+    "server_selection": "WindowsUpdate",
+    "service_id": "",
+    "support_url": "https://go.microsoft.com/fwlink/?LinkId=52661",
+    "title": "Security Intelligence Update for Microsoft Defender Antivirus - KB2267602 (Version 1.371.279.0)",
+    "update_id": "881d85b0-bd1f-4c5b-8a0f-9c5167d35b4a",
+    "update_revision": "200"
+  },
+  {
+    "client_app_id": "MoUpdateOrchestrator",
+    "date": "1657935991",
+    "description": "Install this update to resolve issues in Windows. For a complete listing of the issues that are included in this update, see the associated Microsoft Knowledge Base article for more information. After you install this item, you may have to restart your computer.",
+    "hresult": "0",
+    "operation": "Installation",
+    "result_code": "Succeeded",
+    "server_selection": "Others",
+    "service_id": "8b24b027-1dee-babb-9a95-3517dfb9c552",
+    "support_url": "https://support.microsoft.com/help/5015814",
+    "title": "2022-07 Cumulative Update for Windows 11 for x64-based Systems (KB5015814)",
+    "update_id": "8f459841-60e3-44fc-8e8c-498c4e847ea7",
+    "update_revision": "1"
+  },
+  {
+    "client_app_id": "MoUpdateOrchestrator",
+    "date": "1657935299",
+    "description": "Install this update to revise the files that are used to detect viruses, spyware, and other potentially unwanted software. Once you have installed this item, it cannot be removed.",
+    "hresult": "0",
+    "operation": "Installation",
+    "result_code": "Succeeded",
+    "server_selection": "WindowsUpdate",
+    "service_id": "",
+    "support_url": "https://go.microsoft.com/fwlink/?LinkId=52661",
+    "title": "Security Intelligence Update for Microsoft Defender Antivirus - KB2267602 (Version 1.371.203.0)",
+    "update_id": "8325b53b-d4a4-4459-849f-5892c92404ae",
+    "update_revision": "200"
+  },
+  {
+    "client_app_id": "MoUpdateOrchestrator",
+    "date": "1657935289",
+    "description": "After the download, this tool runs one time to check your computer for infection by specific, prevalent malicious software (including Blaster, Sasser, and Mydoom) and helps remove any infection that is found. If an infection is found, the tool will display a status report the next time that you start your computer. A new version of the tool will be offered every month. If you want to manually run the tool on your computer, you can download a copy from the Microsoft Download Center, or you can run an online version from microsoft.com. This tool is not a replacement for an antivirus product. To help protect your computer, you should use an antivirus product.",
+    "hresult": "0",
+    "operation": "Installation",
+    "result_code": "Succeeded",
+    "server_selection": "WindowsUpdate",
+    "service_id": "",
+    "support_url": "http://support.microsoft.com",
+    "title": "Windows Malicious Software Removal Tool x64 - v5.103 (KB890830)",
+    "update_id": "675d532b-cdd5-4f87-a918-72af430c86a9",
+    "update_revision": "200"
+  },
+  {
+    "client_app_id": "MoUpdateOrchestrator",
+    "date": "1657757470",
+    "description": "Install this update to revise the files that are used to detect viruses, spyware, and other potentially unwanted software. Once you have installed this item, it cannot be removed.",
+    "hresult": "0",
+    "operation": "Installation",
+    "result_code": "Succeeded",
+    "server_selection": "WindowsUpdate",
+    "service_id": "",
+    "support_url": "https://go.microsoft.com/fwlink/?LinkId=52661",
+    "title": "Security Intelligence Update for Microsoft Defender Antivirus - KB2267602 (Version 1.371.115.0)",
+    "update_id": "304fbbdc-9e70-40da-8da4-9014aa74594e",
+    "update_revision": "200"
+  },
+  {
+    "client_app_id": "MoUpdateOrchestrator",
+    "date": "1657650109",
+    "description": "Install this update to revise the files that are used to detect viruses, spyware, and other potentially unwanted software. Once you have installed this item, it cannot be removed.",
+    "hresult": "0",
+    "operation": "Installation",
+    "result_code": "Succeeded",
+    "server_selection": "WindowsUpdate",
+    "service_id": "",
+    "support_url": "https://go.microsoft.com/fwlink/?LinkId=52661",
+    "title": "Security Intelligence Update for Microsoft Defender Antivirus - KB2267602 (Version 1.371.44.0)",
+    "update_id": "880c557a-10e6-4e2d-9530-5ad4822ac6fd",
+    "update_revision": "200"
+  },
+  {
+    "client_app_id": "MoUpdateOrchestrator",
+    "date": "1657641156",
+    "description": "Install this update to revise the files that are used to detect viruses, spyware, and other potentially unwanted software. Once you have installed this item, it cannot be removed.",
+    "hresult": "0",
+    "operation": "Installation",
+    "result_code": "Succeeded",
+    "server_selection": "WindowsUpdate",
+    "service_id": "",
+    "support_url": "https://go.microsoft.com/fwlink/?LinkId=52661",
+    "title": "Security Intelligence Update for Microsoft Defender Antivirus - KB2267602 (Version 1.371.16.0)",
+    "update_id": "919cbf28-db5b-4870-a6de-7c8eb25518fe",
+    "update_revision": "200"
+  },
+  {
+    "client_app_id": "Update;ScanForUpdates",
+    "date": "1657641137",
+    "description": "9NCBCSZSJRSB-1152921505695029292",
+    "hresult": "-2145124300",
+    "operation": "Installation",
+    "result_code": "Failed",
+    "server_selection": "Others",
+    "service_id": "855e8a7c-ecb4-4ca3-b045-1dfa50104289",
+    "support_url": "",
+    "title": "9NCBCSZSJRSB-SpotifyAB.SpotifyMusic",
+    "update_id": "9d3bd172-9645-4e35-bf20-6f1fad7ba3d3",
+    "update_revision": "1"
+  },
+  {
+    "client_app_id": "MoUpdateOrchestrator",
+    "date": "1657557959",
+    "description": "Install this update to revise the files that are used to detect viruses, spyware, and other potentially unwanted software. Once you have installed this item, it cannot be removed.",
+    "hresult": "0",
+    "operation": "Installation",
+    "result_code": "Succeeded",
+    "server_selection": "WindowsUpdate",
+    "service_id": "",
+    "support_url": "https://go.microsoft.com/fwlink/?LinkId=52661",
+    "title": "Security Intelligence Update for Microsoft Defender Antivirus - KB2267602 (Version 1.369.1148.0)",
+    "update_id": "70253a97-4c9b-4812-975b-85562f5f36b8",
+    "update_revision": "200"
+  },
+  {
+    "client_app_id": "MoUpdateOrchestrator",
+    "date": "1657500736",
+    "description": "Install this update to revise the files that are used to detect viruses, spyware, and other potentially unwanted software. Once you have installed this item, it cannot be removed.",
+    "hresult": "0",
+    "operation": "Installation",
+    "result_code": "Succeeded",
+    "server_selection": "WindowsUpdate",
+    "service_id": "",
+    "support_url": "https://go.microsoft.com/fwlink/?LinkId=52661",
+    "title": "Security Intelligence Update for Microsoft Defender Antivirus - KB2267602 (Version 1.369.1114.0)",
+    "update_id": "99b17c58-2c6f-41d8-bb9c-7bbc99770b29",
+    "update_revision": "200"
+  },
+  {
+    "client_app_id": "MoUpdateOrchestrator",
+    "date": "1657393149",
+    "description": "Install this update to revise the files that are used to detect viruses, spyware, and other potentially unwanted software. Once you have installed this item, it cannot be removed.",
+    "hresult": "0",
+    "operation": "Installation",
+    "result_code": "Succeeded",
+    "server_selection": "WindowsUpdate",
+    "service_id": "",
+    "support_url": "https://go.microsoft.com/fwlink/?LinkId=52661",
+    "title": "Security Intelligence Update for Microsoft Defender Antivirus - KB2267602 (Version 1.369.1040.0)",
+    "update_id": "27f8bb97-ea08-4d37-b2ba-0ca21ed41840",
+    "update_revision": "200"
+  },
+  {
+    "client_app_id": "MoUpdateOrchestrator",
+    "date": "1657249086",
+    "description": "Install this update to revise the files that are used to detect viruses, spyware, and other potentially unwanted software. Once you have installed this item, it cannot be removed.",
+    "hresult": "0",
+    "operation": "Installation",
+    "result_code": "Succeeded",
+    "server_selection": "WindowsUpdate",
+    "service_id": "",
+    "support_url": "https://go.microsoft.com/fwlink/?LinkId=52661",
+    "title": "Security Intelligence Update for Microsoft Defender Antivirus - KB2267602 (Version 1.369.928.0)",
+    "update_id": "888c571d-cc0e-447d-91c7-83728a991c3a",
+    "update_revision": "200"
+  },
+  {
+    "client_app_id": "MoUpdateOrchestrator",
+    "date": "1657077995",
+    "description": "Install this update to revise the files that are used to detect viruses, spyware, and other potentially unwanted software. Once you have installed this item, it cannot be removed.",
+    "hresult": "0",
+    "operation": "Installation",
+    "result_code": "Succeeded",
+    "server_selection": "WindowsUpdate",
+    "service_id": "",
+    "support_url": "https://go.microsoft.com/fwlink/?LinkId=52661",
+    "title": "Security Intelligence Update for Microsoft Defender Antivirus - KB2267602 (Version 1.369.852.0)",
+    "update_id": "3ebc9114-06d2-4e0f-9ae3-7beba95ebf31",
+    "update_revision": "200"
+  },
+  {
+    "client_app_id": "MoUpdateOrchestrator",
+    "date": "1656996720",
+    "description": "Install this update to revise the files that are used to detect viruses, spyware, and other potentially unwanted software. Once you have installed this item, it cannot be removed.",
+    "hresult": "0",
+    "operation": "Installation",
+    "result_code": "Succeeded",
+    "server_selection": "WindowsUpdate",
+    "service_id": "",
+    "support_url": "https://go.microsoft.com/fwlink/?LinkId=52661",
+    "title": "Security Intelligence Update for Microsoft Defender Antivirus - KB2267602 (Version 1.369.788.0)",
+    "update_id": "32e8bd2a-c399-45f1-93fa-b86f62e4c1bb",
+    "update_revision": "200"
+  }
+]
+{{- end }}
