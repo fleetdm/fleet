@@ -190,7 +190,13 @@ Between overthinking and rushing, there is a [golden mean](https://en.wikipedia.
 ## Why this way?
 
 ### Why do we use a wireframe-first approach?
+
 Wireframing (or "drafting," as we often refer to it at Fleet) provides a clear overview of page layout, information architecture, user flow, and functionality. The wireframe-first approach extends beyond what users see on their screens. Wireframe-first is also excellent for drafting APIs, config settings, CLI options, and even business processes. 
+
+We obsess over details in the interaction design. Because an undefined “what” leaves you with edge cases that expose your results to the chaos of unplanned extra work and context shifting teammates who:
+ - are not aware of the latest reactions from users
+ - are missing the motivations and discussions from the previous 3 rounds of wireframe revisions that were thrown away
+ - are missing how the UI has evolved to better serve the people using and building it
 
 Here's why we use a wireframe-first approach at Fleet.
 
