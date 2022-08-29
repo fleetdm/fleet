@@ -11,10 +11,11 @@ func NewProduct(fullName string) Product {
 	return Product(fullName)
 }
 
-// Arch returns the archicture from a Microsoft full product name, if none can
-// be found then "all" is returned.
+// Arch returns the archicture for the current Microsoft product, if none can
+// be found then "all" is returned. Returned values are meant to match the values returned from
+// `SELECT arch FROM os_version` in OSQuery.
 // eg:
-// "Windows 10 Version 1803 for 32-bit Systems" => "32"
+// "Windows 10 Version 1803 for 32-bit Systems" => "32-bit"
 func (p Product) Arch() string {
 	val := string(p)
 	switch {
@@ -31,7 +32,7 @@ func (p Product) Arch() string {
 	}
 }
 
-// Name returns the prod name from a Microsoft full product name string, if none can
+// Name returns the name for the current Microsoft product, if none can
 // be found then "" is returned.
 // eg:
 // "Windows 10 Version 1803 for 32-bit Systems" => "Windows 10"
