@@ -285,6 +285,7 @@ type Service interface {
 	MacadminsData(ctx context.Context, id uint) (*MacadminsData, error)
 	AggregatedMacadminsData(ctx context.Context, teamID *uint) (*AggregatedMacadminsData, error)
 	AggregatedMDMSolutions(ctx context.Context, teamID *uint, mdmID uint) (*AggregatedMDMSolutions, error)
+	AggregatedMunkiIssue(ctx context.Context, teamID *uint, munkiIssueID uint) (*AggregatedMunkiIssue, error)
 
 	// OSVersions returns a list of operating systems and associated host counts, which may be
 	// filtered using the following optional criteria: team id, platform, or name and version.

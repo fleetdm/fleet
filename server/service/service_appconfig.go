@@ -118,6 +118,7 @@ func (svc *Service) UpdateIntervalConfig(ctx context.Context) (*fleet.UpdateInte
 
 func (svc *Service) VulnerabilitiesConfig(ctx context.Context) (*fleet.VulnerabilitiesConfig, error) {
 	return &fleet.VulnerabilitiesConfig{
+<<<<<<< HEAD
 		DatabasesPath:             svc.config.Vulnerabilities.DatabasesPath,
 		Periodicity:               svc.config.Vulnerabilities.Periodicity,
 		CPEDatabaseURL:            svc.config.Vulnerabilities.CPEDatabaseURL,
@@ -126,6 +127,16 @@ func (svc *Service) VulnerabilitiesConfig(ctx context.Context) (*fleet.Vulnerabi
 		CurrentInstanceChecks:     svc.config.Vulnerabilities.CurrentInstanceChecks,
 		DisableDataSync:           svc.config.Vulnerabilities.DisableDataSync,
 		RecentVulnerabilityMaxAge: svc.config.Vulnerabilities.RecentVulnerabilityMaxAge,
+=======
+		DatabasesPath:               svc.config.Vulnerabilities.DatabasesPath,
+		Periodicity:                 svc.config.Vulnerabilities.Periodicity,
+		CPEDatabaseURL:              svc.config.Vulnerabilities.CPEDatabaseURL,
+		CVEFeedPrefixURL:            svc.config.Vulnerabilities.CVEFeedPrefixURL,
+		CurrentInstanceChecks:       svc.config.Vulnerabilities.CurrentInstanceChecks,
+		DisableDataSync:             svc.config.Vulnerabilities.DisableDataSync,
+		RecentVulnerabilityMaxAge:   svc.config.Vulnerabilities.RecentVulnerabilityMaxAge,
+		DisableWinOSVulnerabilities: svc.config.Vulnerabilities.DisableWinOSVulnerabilities,
+>>>>>>> main
 	}, nil
 }
 

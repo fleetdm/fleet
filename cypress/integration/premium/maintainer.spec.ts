@@ -237,9 +237,11 @@ describe("Premium tier - Maintainer user", () => {
         cy.findByText(/gatekeeper enabled/i).click();
         cy.getAttached(".policy-form__button-wrap").within(() => {
           cy.findByRole("button", { name: /run/i }).should("exist");
-          cy.getAttached(".policy-form__save").click();
+          cy.findByRole("button", { name: /save/i }).click();
         });
-        cy.getAttached(".policy-form__button--modal-save").click();
+        cy.getAttached(".modal-cta-wrap").within(() => {
+          cy.findByRole("button", { name: /save policy/i }).click();
+        });
         cy.findByText(/policy created/i).should("exist");
       });
       it("allows global maintainer to delete a team policy", () => {
@@ -260,7 +262,7 @@ describe("Premium tier - Maintainer user", () => {
             });
         });
         cy.findByRole("button", { name: /delete/i }).click();
-        cy.getAttached(".delete-policies-modal").within(() => {
+        cy.getAttached(".delete-policy-modal").within(() => {
           cy.findByRole("button", { name: /delete/i }).should("exist");
           cy.findByRole("button", { name: /cancel/i }).click();
         });

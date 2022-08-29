@@ -155,7 +155,8 @@ const WelcomeHost = ({
           </p>
           <Button
             onClick={toggleAddHostsModal}
-            className={`${baseClass}__add-host button button--brand`}
+            className={`${baseClass}__add-host`}
+            variant="brand"
           >
             <span>Add hosts</span>
           </Button>

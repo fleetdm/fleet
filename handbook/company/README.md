@@ -190,6 +190,7 @@ Between overthinking and rushing, there is a [golden mean](https://en.wikipedia.
 ## Why this way?
 
 ### Why do we use a wireframe-first approach?
+
 Wireframing (or "drafting," as we often refer to it at Fleet) provides a clear overview of page layout, information architecture, user flow, and functionality. The wireframe-first approach extends beyond what users see on their screens. Wireframe-first is also excellent for drafting APIs, config settings, CLI options, and even business processes. 
 
 Here's why we use a wireframe-first approach at Fleet.
@@ -198,6 +199,10 @@ Here's why we use a wireframe-first approach at Fleet.
 - We can think through the functionality and user experience more deeply by wireframing before committing any code. As a result, our coding decisions are clearer, and our code is cleaner and easier to maintain.
 - Content hierarchy, messaging, error states, interactions, URLs, API parameters, and API response data are all considered during the wireframing process (often with several rounds of review). This initial quality assurance means engineers can focus on their code and confidently catch any potential edge-cases or issues along the way.
 - Wireframing is accessible to people who understand our users but are not necessarily code-literate. So anyone can contribute a suggestion (at any level of fidelity). At the very least, you'll need a napkin and a pen, although we prefer to use Figma.
+- Designing from the "outside, in" gives us the opportunity to obsess over details in the interaction design.  An undefined "what" exposes the results to the chaos of unplanned extra work and context shifting for engineers.  This way, every engineer doesn't have to personally spend the time to get and stay up to speed with: 
+  - the latest reactions from users
+  - all of the motivations and discussions from the previous rounds of wireframe revisions that were thrown away
+  - how the UI has evolved in previous releases to better serve the people using and building it
 - With Figma, thanks to its powerful component and auto-layout features, we can create high-fidelity wireframes - fast. We can iterate quickly without costing more work and less [sunk-cost fallacy](https://dictionary.cambridge.org/dictionary/english/sunk-cost-fallacy).
 
 ### Why do we use one repo?

@@ -32,6 +32,7 @@ import MainContent from "components/MainContent";
 import ScheduleTable from "./components/ScheduleTable";
 import ScheduleEditorModal from "./components/ScheduleEditorModal";
 import RemoveScheduledQueryModal from "./components/RemoveScheduledQueryModal";
+import ShowQueryModal from "./components/ShowQueryModal";
 
 const baseClass = "manage-schedule-page";
 
@@ -43,6 +44,7 @@ const renderTable = (
   router: InjectedRouter,
   onRemoveScheduledQueryClick: (selectIds: number[]) => void,
   onEditScheduledQueryClick: (selectedQuery: IEditScheduledQuery) => void,
+  onShowQueryClick: (selectedQuery: IEditScheduledQuery) => void,
   allScheduledQueriesList: IScheduledQuery[],
   allScheduledQueriesError: Error | null,
   toggleScheduleEditorModal: () => void,
@@ -59,6 +61,7 @@ const renderTable = (
       router={router}
       onRemoveScheduledQueryClick={onRemoveScheduledQueryClick}
       onEditScheduledQueryClick={onEditScheduledQueryClick}
+      onShowQueryClick={onShowQueryClick}
       allScheduledQueriesList={allScheduledQueriesList}
       toggleScheduleEditorModal={toggleScheduleEditorModal}
       isOnGlobalTeam={isOnGlobalTeam}
@@ -95,12 +98,6 @@ const renderAllTeamsTable = (
   );
 };
 
-interface ITeamSchedulesPageProps {
-  params: {
-    team_id: string;
-  };
-  router: InjectedRouter; // v3
-}
 interface IFormData {
   interval: number;
   name?: string;
@@ -111,6 +108,13 @@ interface IFormData {
   platform: string;
   version: string;
   team_id?: number;
+}
+
+interface ITeamSchedulesPageProps {
+  params: {
+    team_id: string;
+  };
+  router: InjectedRouter; // v3
 }
 
 const ManageSchedulePage = ({
@@ -291,12 +295,15 @@ const ManageSchedulePage = ({
   const selectedTeamData =
     teams?.find((team: ITeam) => selectedTeam === team.id) || undefined;
 
-  const [scheduleIsLoading, setScheduleIsLoading] = useState<boolean>(false);
-  const [scheduleIsRemoving, setScheduleIsRemoving] = useState<boolean>(false);
+  const [
+    isUpdatingScheduledQuery,
+    setIsUpdatingScheduledQuery,
+  ] = useState<boolean>(false);
   const [showInheritedQueries, setShowInheritedQueries] = useState<boolean>(
     false
   );
   const [showScheduleEditorModal, setShowScheduleEditorModal] = useState(false);
+  const [showShowQueryModal, setShowShowQueryModal] = useState(false);
   const [showPreviewDataModal, setShowPreviewDataModal] = useState(false);
   const [
     showRemoveScheduledQueryModal,
@@ -323,7 +330,13 @@ const ManageSchedulePage = ({
     setShowScheduleEditorModal(!showScheduleEditorModal);
   }, [showScheduleEditorModal, setShowScheduleEditorModal]);
 
+  const toggleShowQueryModal = useCallback(() => {
+    setSelectedScheduledQuery(undefined);
+    setShowShowQueryModal(!showShowQueryModal);
+  }, [showShowQueryModal, setShowShowQueryModal]);
+
   const toggleRemoveScheduledQueryModal = useCallback(() => {
+    console.log("toggleRemoveScheduledqueryModal");
     setShowRemoveScheduledQueryModal(!showRemoveScheduledQueryModal);
   }, [showRemoveScheduledQueryModal, setShowRemoveScheduledQueryModal]);
 
@@ -334,6 +347,11 @@ const ManageSchedulePage = ({
     setSelectedQueryIds(selectedTableQueryIds);
   };
 
+  const onShowQueryClick = (selectedQuery: IEditScheduledQuery): void => {
+    toggleShowQueryModal();
+    setSelectedScheduledQuery(selectedQuery);
+  };
+
   const onEditScheduledQueryClick = (
     selectedQuery: IEditScheduledQuery
   ): void => {
@@ -342,7 +360,7 @@ const ManageSchedulePage = ({
   };
 
   const onRemoveScheduledQuerySubmit = useCallback(() => {
-    setScheduleIsRemoving(true);
+    setIsUpdatingScheduledQuery(true);
     const promises = selectedQueryIds.map((id: number) => {
       return selectedTeamId
         ? teamScheduledQueriesAPI.destroy(selectedTeamId, id)
@@ -367,7 +385,7 @@ const ManageSchedulePage = ({
       })
       .finally(() => {
         refetchGlobalScheduledQueries();
-        setScheduleIsRemoving(false);
+        setIsUpdatingScheduledQuery(false);
       });
   }, [
     selectedTeamId,
@@ -378,7 +396,7 @@ const ManageSchedulePage = ({
 
   const onAddScheduledQuerySubmit = useCallback(
     (formData: IFormData, editQuery: IEditScheduledQuery | undefined) => {
-      setScheduleIsLoading(true);
+      setIsUpdatingScheduledQuery(true);
       if (editQuery) {
         const updatedAttributes = deepDifference(formData, editQuery);
 
@@ -403,7 +421,7 @@ const ManageSchedulePage = ({
             );
           })
           .finally(() => {
-            setScheduleIsLoading(false);
+            setIsUpdatingScheduledQuery(false);
             refetchGlobalScheduledQueries();
           });
       } else {
@@ -424,7 +442,7 @@ const ManageSchedulePage = ({
             renderFlash("error", "Could not schedule query. Please try again.");
           })
           .finally(() => {
-            setScheduleIsLoading(false);
+            setIsUpdatingScheduledQuery(false);
             refetchGlobalScheduledQueries();
           });
       }
@@ -507,6 +525,7 @@ const ManageSchedulePage = ({
               router,
               onRemoveScheduledQueryClick,
               onEditScheduledQueryClick,
+              onShowQueryClick,
               allScheduledQueriesList,
               allScheduledQueriesError,
               toggleScheduleEditorModal,
@@ -554,14 +573,20 @@ const ManageSchedulePage = ({
             teamId={selectedTeamId}
             togglePreviewDataModal={togglePreviewDataModal}
             showPreviewDataModal={showPreviewDataModal}
-            isLoading={scheduleIsLoading}
+            isUpdatingScheduledQuery={isUpdatingScheduledQuery}
           />
         )}
         {showRemoveScheduledQueryModal && (
           <RemoveScheduledQueryModal
             onCancel={toggleRemoveScheduledQueryModal}
             onSubmit={onRemoveScheduledQuerySubmit}
-            isLoading={scheduleIsRemoving}
+            isUpdatingScheduledQuery={isUpdatingScheduledQuery}
+          />
+        )}
+        {showShowQueryModal && (
+          <ShowQueryModal
+            query={selectedScheduledQuery?.query}
+            onCancel={toggleShowQueryModal}
           />
         )}
       </div>

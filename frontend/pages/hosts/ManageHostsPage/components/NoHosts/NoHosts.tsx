@@ -38,11 +38,7 @@ const NoHosts = ({
           <h2>Add your devices to Fleet</h2>
           <p>Generate an installer to add your own devices.</p>
           <div className={`${baseClass}__no-hosts-button`}>
-            <Button
-              onClick={toggleAddHostsModal}
-              type="button"
-              className="button button--brand"
-            >
+            <Button variant="brand" onClick={toggleAddHostsModal} type="button">
               Add hosts
             </Button>
           </div>

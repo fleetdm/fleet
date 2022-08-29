@@ -456,7 +456,7 @@ const PlatformWrapper = ({
         </Tabs>
       </TabsWrapper>
       <div className="modal-cta-wrap">
-        <Button onClick={onCancel} className="button button--brand">
+        <Button onClick={onCancel} variant="brand">
           Done
         </Button>
       </div>

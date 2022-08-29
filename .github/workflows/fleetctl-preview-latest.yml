@@ -9,13 +9,21 @@ on:
       - main
       - patch-*
     paths:
-      # TODO: Reduce to cmd/fleetctl/**.go and packages used by it.
-      - '**.go'
+      - 'cmd/fleetctl/**.go'
+      - 'pkg/**.go'
+      - 'server/service/**.go'
+      - 'server/context/**.go'
+      - 'orbit/**.go'
+      - 'ee/fleetctl/**.go'
       - 'docs/01-Using-Fleet/standard-query-library/standard-query-library.yml'
   pull_request:
     paths:
-      # TODO: Reduce to cmd/fleetctl/**.go and packages used by it.
-      - '**.go'
+      - 'cmd/fleetctl/**.go'
+      - 'pkg/**.go'
+      - 'server/service/**.go'
+      - 'server/context/**.go'
+      - 'orbit/**.go'
+      - 'ee/fleetctl/**.go'
       - 'docs/01-Using-Fleet/standard-query-library/standard-query-library.yml'
   workflow_dispatch: # Manual
 
@@ -37,7 +45,7 @@ jobs:
     # From https://github.com/docker/for-mac/issues/2359#issuecomment-943131345
     # FIXME: lock Docker version to 4.10.0 as newer versions fail to initialize
     - name: Install Docker
-      timeout-minutes: 10
+      timeout-minutes: 20
       if: matrix.os == 'macos-latest'
       run: |
         curl -L https://raw.githubusercontent.com/Homebrew/homebrew-cask/c65030146a5cf2070c2499b6c68e2c3495c99731/Casks/docker.rb > docker.rb

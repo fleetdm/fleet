@@ -2140,6 +2140,21 @@ Maximum age of a vulnerability (a CVE) to be considered "recent". The age is cal
        recent_vulnerability_max_age: 48h
   ```
 
+### disable_win_os_vulnerabilities 
+
+If using osquery 5.4 or later, Fleet by default will fetch and store all applied Windows updates and use that for detecting Windows
+vulnerabilities — which might be a writing-intensive process (depending on the number of Windows hosts
+in your Fleet). Setting this to true will cause Fleet to skip both processes.
+
+- Default value: false
+- Environment variable: `FLEET_VULNERABILITIES_DISABLE_WIN_OS_VULNERABILITIES`
+- Config file format:
+  ```
+  vulnerabilities:
+  	disable_win_os_vulnerabilities: true
+  ```
+
+
 ##### Example YAML
 
 ```yaml

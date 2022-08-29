@@ -506,7 +506,7 @@ spec:
       enable_vulnerabilities_webhook: false
       host_batch_size: 0
 `
-		expectedJSON := `
+		expectedJson := `
 {
   "kind": "config",
   "apiVersion": "v1",
@@ -581,7 +581,7 @@ spec:
 
 		assert.YAMLEq(t, expectedYaml, runAppForTest(t, []string{"get", "config"}))
 		assert.YAMLEq(t, expectedYaml, runAppForTest(t, []string{"get", "config", "--yaml"}))
-		assert.JSONEq(t, expectedJSON, runAppForTest(t, []string{"get", "config", "--json"}))
+		assert.JSONEq(t, expectedJson, runAppForTest(t, []string{"get", "config", "--json"}))
 	})
 
 	t.Run("IncludeServerConfig", func(t *testing.T) {
@@ -662,6 +662,7 @@ spec:
     cve_feed_prefix_url: ""
     databases_path: ""
     disable_data_sync: false
+    disable_win_os_vulnerabilities: false
     periodicity: 0s
     recent_vulnerability_max_age: 0s
   vulnerability_settings:
@@ -774,7 +775,8 @@ spec:
       "cve_feed_prefix_url": "",
       "current_instance_checks": "",
       "disable_data_sync": false,
-      "recent_vulnerability_max_age": "0s"
+      "recent_vulnerability_max_age": "0s",
+      "disable_win_os_vulnerabilities": false
     },
     "license": {
       "tier": "free",
