@@ -349,9 +349,7 @@ func TestEnrollAgentDetails(t *testing.T) {
 	require.NoError(t, err)
 	assert.NotEmpty(t, nodeKey)
 
-	// os_version cannot be parsed until we know the platform (because windows version information
-	// must be pulled with a windows-specific query) so os_version will be populated at the next detail query interval
-	assert.Equal(t, "", gotHost.OSVersion)
+	assert.Equal(t, "Mac OS X 10.14.5", gotHost.OSVersion)
 	assert.Equal(t, "darwin", gotHost.Platform)
 	assert.Equal(t, "2.12.0", gotHost.OsqueryVersion)
 	assert.Equal(t, "zwass.local", gotHost.Hostname)
@@ -911,9 +909,8 @@ func TestDetailQueriesWithEmptyStrings(t *testing.T) {
 	assert.Equal(t, "computer.local", gotHost.Hostname)
 	assert.Equal(t, "uuid", gotHost.UUID)
 
-	// os_version cannot be parsed until we know the platform (because windows version information
-	// must be pulled with a windows-specific query) so os_version will be populated at the next detail query interval
-	assert.Equal(t, "", gotHost.OSVersion)
+	// os_version
+	assert.Equal(t, "Mac OS X 10.10.6", gotHost.OSVersion)
 
 	// uptime
 	assert.Equal(t, 1730893*time.Second, gotHost.Uptime)
@@ -1195,9 +1192,8 @@ func TestDetailQueries(t *testing.T) {
 	assert.Equal(t, "computer.local", gotHost.Hostname)
 	assert.Equal(t, "uuid", gotHost.UUID)
 
-	// os_version cannot be parsed until we know the platform (because windows version information
-	// must be pulled with a windows-specific query) so os_version will be populated at the next detail query interval
-	assert.Equal(t, "", gotHost.OSVersion)
+	// os_version
+	assert.Equal(t, "Mac OS X 10.10.6", gotHost.OSVersion)
 
 	// uptime
 	assert.Equal(t, 1730893*time.Second, gotHost.Uptime)

@@ -129,9 +129,9 @@ var hostDetailQueries = map[string]DetailQuery{
 		},
 	},
 	"os_version": {
-		// This query is required to collect basic platform information to enroll new hosts.
-		// Once we know the platform, we will we can make platform-specific queries to populate
-		// `host.OSVersion` via `os_version_windows` and `os_version_unix_like` below
+		// Collect operating system information for the `hosts` table.
+		// Note that data for `operating_system` and `host_operating_system` tables are ingested via
+		// the `os_unix_like` extra detail query below.
 		Query: "SELECT * FROM os_version LIMIT 1",
 		IngestFunc: func(ctx context.Context, logger log.Logger, host *fleet.Host, rows []map[string]string) error {
 			if len(rows) != 1 {
@@ -155,38 +155,25 @@ var hostDetailQueries = map[string]DetailQuery{
 				host.Platform = "centos"
 			}
 
-			return nil
-		},
-	},
-	"os_version_unix_like": {
-		// Collect platform-specific information to populate `host.OSVersion` for Darwin and Linux.
-		// Note that data for `operating_system` and `host_operating_system` tables are ingested via
-		// the `os_unix_like` extra detail query below.
-		Query:     `SELECT * FROM os_version LIMIT 1`,
-		Platforms: append(fleet.HostLinuxOSs, "darwin"),
-		IngestFunc: func(ctx context.Context, logger log.Logger, host *fleet.Host, rows []map[string]string) error {
-			if len(rows) != 1 {
-				logger.Log("component", "service", "method", "IngestFunc", "err",
-					fmt.Sprintf("detail_query_os_version_unix_like expected single result got %d", len(rows)))
-				return nil
+			if host.Platform != "windows" {
+				// Populate `host.OSVersion` for non-Windows hosts.
+				// Note Windows-specific registry query is required to populate `host.OSVersion` for
+				// Windows that is handled in `os_version_windows` detail query below.
+				host.OSVersion = fmt.Sprintf("%v %v", rows[0]["name"], parseOSVersion(
+					rows[0]["name"],
+					rows[0]["version"],
+					rows[0]["major"],
+					rows[0]["minor"],
+					rows[0]["patch"],
+					rows[0]["build"],
+				))
 			}
-
-			host.OSVersion = fmt.Sprintf("%v %v", rows[0]["name"], parseOSVersion(
-				rows[0]["name"],
-				rows[0]["version"],
-				rows[0]["major"],
-				rows[0]["minor"],
-				rows[0]["patch"],
-				rows[0]["build"],
-			))
 
 			return nil
 		},
 	},
 	"os_version_windows": {
-		// Collect platform-specific information to populate `host.OSVersion` for Windows.
-		// Note that data for `operating_system` and `host_operating_system` tables are ingested via
-		// the `os_windows` extra detail query below.
+		// Windows-specific registry query is required to populate `host.OSVersion` for Windows.
 		Query: `SELECT
 			os.name,
 			r.data
@@ -395,8 +382,8 @@ var extraDetailQueries = map[string]DetailQuery{
 	},
 	"os_windows": {
 		// This query is used to populate the `operating_systems` and `host_operating_system`
-		// tables. Separately, `hosts.OSVersion` is populated via the `os_version_windows` detail
-		// query above.
+		// tables. Separately, the `hosts` table is populated via the `os_version` and
+		// `os_version_windows` detail queries above.
 		Query: `
 	SELECT
 		os.name,
@@ -419,7 +406,7 @@ var extraDetailQueries = map[string]DetailQuery{
 	},
 	"os_unix_like": {
 		// This query is used to populate the `operating_systems` and `host_operating_system`
-		// tables. Separately, `hosts.OSVersion` is populated via the `os_version_unix_like` detail
+		// tables. Separately, the `hosts` table is populated via the `os_version` detail
 		// query above.
 		Query: `
 	SELECT

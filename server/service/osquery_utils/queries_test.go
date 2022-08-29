@@ -297,12 +297,11 @@ func sortedKeysCompare(t *testing.T, m map[string]DetailQuery, expectedKeys []st
 
 func TestGetDetailQueries(t *testing.T) {
 	queriesNoConfig := GetDetailQueries(nil, config.FleetConfig{})
-	require.Len(t, queriesNoConfig, 16)
+	require.Len(t, queriesNoConfig, 17)
 
 	baseQueries := []string{
 		"network_interface",
 		"os_version",
-		"os_version_unix_like",
 		"os_version_windows",
 		"osquery_flags",
 		"osquery_info",
@@ -322,14 +321,14 @@ func TestGetDetailQueries(t *testing.T) {
 	sortedKeysCompare(t, queriesNoConfig, baseQueries)
 
 	queriesWithoutWinOSVuln := GetDetailQueries(nil, config.FleetConfig{Vulnerabilities: config.VulnerabilitiesConfig{DisableWinOSVulnerabilities: true}})
-	require.Len(t, queriesWithoutWinOSVuln, 15)
+	require.Len(t, queriesWithoutWinOSVuln, 16)
 
 	queriesWithUsers := GetDetailQueries(&fleet.AppConfig{Features: fleet.Features{EnableHostUsers: true}}, config.FleetConfig{App: config.AppConfig{EnableScheduledQueryStats: true}})
-	require.Len(t, queriesWithUsers, 18)
+	require.Len(t, queriesWithUsers, 19)
 	sortedKeysCompare(t, queriesWithUsers, append(baseQueries, "users", "scheduled_query_stats"))
 
 	queriesWithUsersAndSoftware := GetDetailQueries(&fleet.AppConfig{Features: fleet.Features{EnableHostUsers: true, EnableSoftwareInventory: true}}, config.FleetConfig{App: config.AppConfig{EnableScheduledQueryStats: true}})
-	require.Len(t, queriesWithUsersAndSoftware, 21)
+	require.Len(t, queriesWithUsersAndSoftware, 22)
 	sortedKeysCompare(t, queriesWithUsersAndSoftware,
 		append(baseQueries, "users", "software_macos", "software_linux", "software_windows", "scheduled_query_stats"))
 }
@@ -338,7 +337,7 @@ func TestDetailQueriesOSVersionUnixLike(t *testing.T) {
 	var initialHost fleet.Host
 	host := initialHost
 
-	ingest := GetDetailQueries(nil, config.FleetConfig{})["os_version_unix_like"].IngestFunc
+	ingest := GetDetailQueries(nil, config.FleetConfig{})["os_version"].IngestFunc
 
 	assert.NoError(t, ingest(context.Background(), log.NewNopLogger(), &host, nil))
 	assert.Equal(t, initialHost, host)
