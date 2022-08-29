@@ -506,7 +506,7 @@ spec:
       enable_vulnerabilities_webhook: false
       host_batch_size: 0
 `
-		expectedJSON := `
+		expectedJson := `
 {
   "kind": "config",
   "apiVersion": "v1",
@@ -581,7 +581,7 @@ spec:
 
 		assert.YAMLEq(t, expectedYaml, runAppForTest(t, []string{"get", "config"}))
 		assert.YAMLEq(t, expectedYaml, runAppForTest(t, []string{"get", "config", "--yaml"}))
-		assert.JSONEq(t, expectedJSON, runAppForTest(t, []string{"get", "config", "--json"}))
+		assert.JSONEq(t, expectedJson, runAppForTest(t, []string{"get", "config", "--json"}))
 	})
 
 	t.Run("IncludeServerConfig", func(t *testing.T) {
@@ -661,6 +661,7 @@ spec:
     cve_feed_prefix_url: ""
     databases_path: ""
     disable_data_sync: false
+    disable_win_os_vulnerabilities: false
     periodicity: 0s
     recent_vulnerability_max_age: 0s
   vulnerability_settings:
@@ -687,7 +688,10 @@ spec:
   "kind": "config",
   "apiVersion": "v1",
   "spec": {
-    "org_info": { "org_name": "", "org_logo_url": "" },
+    "org_info": {
+      "org_name": "",
+      "org_logo_url": ""
+    },
     "server_settings": {
       "server_url": "",
       "live_query_disabled": false,
@@ -728,8 +732,12 @@ spec:
       "enable_sso": false,
       "enable_sso_idp_login": false
     },
-    "fleet_desktop": { "transparency_url": "https://fleetdm.com/transparency" },
-    "vulnerability_settings": { "databases_path": "/some/path" },
+    "fleet_desktop": {
+      "transparency_url": "https://fleetdm.com/transparency"
+    },
+    "vulnerability_settings": {
+      "databases_path": "/some/path"
+    },
     "webhook_settings": {
       "host_status_webhook": {
         "enable_host_status_webhook": false,
@@ -750,7 +758,10 @@ spec:
       },
       "interval": "0s"
     },
-    "integrations": { "jira": null, "zendesk": null },
+    "integrations": {
+      "jira": null,
+      "zendesk": null
+    },
     "update_interval": {
       "osquery_detail": "1h0m0s",
       "osquery_policy": "1h0m0s"
@@ -762,9 +773,13 @@ spec:
       "cve_feed_prefix_url": "",
       "current_instance_checks": "",
       "disable_data_sync": false,
-      "recent_vulnerability_max_age": "0s"
+      "recent_vulnerability_max_age": "0s",
+      "disable_win_os_vulnerabilities": false
     },
-    "license": { "tier": "free", "expiration": "0001-01-01T00:00:00Z" },
+    "license": {
+      "tier": "free",
+      "expiration": "0001-01-01T00:00:00Z"
+    },
     "logging": {
       "debug": true,
       "json": false,

@@ -473,13 +473,14 @@ type UpdateIntervalConfig struct {
 // config file), not to be confused with VulnerabilitySettings which is the
 // configuration in AppConfig.
 type VulnerabilitiesConfig struct {
-	DatabasesPath             string        `json:"databases_path"`
-	Periodicity               time.Duration `json:"periodicity"`
-	CPEDatabaseURL            string        `json:"cpe_database_url"`
-	CVEFeedPrefixURL          string        `json:"cve_feed_prefix_url"`
-	CurrentInstanceChecks     string        `json:"current_instance_checks"`
-	DisableDataSync           bool          `json:"disable_data_sync"`
-	RecentVulnerabilityMaxAge time.Duration `json:"recent_vulnerability_max_age"`
+	DatabasesPath               string        `json:"databases_path"`
+	Periodicity                 time.Duration `json:"periodicity"`
+	CPEDatabaseURL              string        `json:"cpe_database_url"`
+	CVEFeedPrefixURL            string        `json:"cve_feed_prefix_url"`
+	CurrentInstanceChecks       string        `json:"current_instance_checks"`
+	DisableDataSync             bool          `json:"disable_data_sync"`
+	RecentVulnerabilityMaxAge   time.Duration `json:"recent_vulnerability_max_age"`
+	DisableWinOSVulnerabilities bool          `json:"disable_win_os_vulnerabilities"`
 }
 
 type LoggingPlugin struct {
