@@ -379,7 +379,7 @@ func (svc Service) ApplyTeamSpecs(ctx context.Context, specs []*fleet.TeamSpec) 
 		}
 	}
 
-	config, err := svc.AppConfig(ctx)
+	appConfig, err := svc.AppConfig(ctx)
 	if err != nil {
 		return err
 	}
@@ -401,29 +401,13 @@ func (svc Service) ApplyTeamSpecs(ctx context.Context, specs []*fleet.TeamSpec) 
 		team, err := svc.ds.TeamByName(ctx, spec.Name)
 		if err != nil {
 			if err := ctxerr.Cause(err); err == sql.ErrNoRows {
-				agentOptions := spec.AgentOptions
-				if agentOptions == nil {
-					agentOptions = config.AgentOptions
-				}
-				features := spec.Features
-				if features == nil {
-					features = &config.Features
-				}
-
-				tm, err := svc.ds.NewTeam(ctx, &fleet.Team{
-					Name: spec.Name,
-					Config: fleet.TeamConfig{
-						AgentOptions: agentOptions,
-						Features:     *features,
-					},
-					Secrets: secrets,
-				})
+				team, err := svc.createTeamFromSpec(ctx, spec, appConfig, secrets)
 				if err != nil {
-					return err
+					return ctxerr.Wrap(ctx, err, "creating team from spec")
 				}
 				details = append(details, activityDetail{
-					ID:   tm.ID,
-					Name: tm.Name,
+					ID:   team.ID,
+					Name: team.Name,
 				})
 				continue
 			}
@@ -431,26 +415,8 @@ func (svc Service) ApplyTeamSpecs(ctx context.Context, specs []*fleet.TeamSpec) 
 			return err
 		}
 
-		team.Name = spec.Name
-		team.Config.AgentOptions = spec.AgentOptions
-		if spec.Features != nil {
-			team.Config.Features = *spec.Features
-		}
-		if len(secrets) > 0 {
-			team.Secrets = secrets
-		}
-
-		_, err = svc.ds.SaveTeam(ctx, team)
-		if err != nil {
-			return err
-		}
-
-		// only replace enroll secrets if at least one is provided (#6774)
-		if len(secrets) > 0 {
-			err = svc.ds.ApplyEnrollSecrets(ctx, ptr.Uint(team.ID), secrets)
-			if err != nil {
-				return err
-			}
+		if err := svc.editTeamFromSpec(ctx, team, spec, secrets); err != nil {
+			return ctxerr.Wrap(ctx, err, "editing team from spec")
 		}
 
 		details = append(details, activityDetail{
@@ -466,6 +432,49 @@ func (svc Service) ApplyTeamSpecs(ctx context.Context, specs []*fleet.TeamSpec) 
 		&map[string]interface{}{"teams": details},
 	); err != nil {
 		return ctxerr.Wrap(ctx, err, "create applied team spec activity")
+	}
+	return nil
+}
+
+func (svc Service) createTeamFromSpec(ctx context.Context, spec *fleet.TeamSpec, defaults *fleet.AppConfig, secrets []*fleet.EnrollSecret) (*fleet.Team, error) {
+	agentOptions := spec.AgentOptions
+	if agentOptions == nil {
+		agentOptions = defaults.AgentOptions
+	}
+	features := spec.Features
+	if features == nil {
+		features = &defaults.Features
+	}
+
+	return svc.ds.NewTeam(ctx, &fleet.Team{
+		Name: spec.Name,
+		Config: fleet.TeamConfig{
+			AgentOptions: agentOptions,
+			Features:     *features,
+		},
+		Secrets: secrets,
+	})
+}
+
+func (svc Service) editTeamFromSpec(ctx context.Context, team *fleet.Team, spec *fleet.TeamSpec, secrets []*fleet.EnrollSecret) error {
+	team.Name = spec.Name
+	team.Config.AgentOptions = spec.AgentOptions
+	if spec.Features != nil {
+		team.Config.Features = *spec.Features
+	}
+	if len(secrets) > 0 {
+		team.Secrets = secrets
+	}
+
+	if _, err := svc.ds.SaveTeam(ctx, team); err != nil {
+		return err
+	}
+
+	// only replace enroll secrets if at least one is provided (#6774)
+	if len(secrets) > 0 {
+		if err := svc.ds.ApplyEnrollSecrets(ctx, ptr.Uint(team.ID), secrets); err != nil {
+			return err
+		}
 	}
 	return nil
 }
