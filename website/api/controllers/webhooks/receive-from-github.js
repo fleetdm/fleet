@@ -64,7 +64,6 @@ module.exports = {
       'tgauda',
       'ksatter',
       'guillaumeross',
-      'dominuskelvin',
       'sharvilshah',
       'michalnicp',
       'charlottechance',
