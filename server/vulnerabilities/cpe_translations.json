@@ -1,6 +1,6 @@
 [
   {
-    "match": {
+    "software": {
       "bundle_identifier": ["us.zoom.xos"],
       "source": ["apps"]
     },
@@ -11,7 +11,7 @@
     }
   },
   {
-    "match": {
+    "software": {
       "name": ["/^ruby(@.*)?$/"],
       "source": ["homebrew_packages"]
     },
@@ -21,7 +21,7 @@
     }
   },
   {
-    "match": {
+    "software": {
       "name": ["/^node(@.*)?$/"],
       "source": ["homebrew_packages"]
     },

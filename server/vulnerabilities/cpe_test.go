@@ -70,11 +70,11 @@ func TestCPETranslations(t *testing.T) {
 
 	translations := CPETranslations{
 		{
-			Match: CPETranslationMatch{ // (name = X OR Y) AND (source = apps)
+			Software: CPETranslationSoftware{ // (name = X OR Y) AND (source = apps)
 				Name:   []string{"X", "Y"},
 				Source: []string{"apps"},
 			},
-			Filter: CPETranslationFilter{
+			Filter: CPETranslation{
 				Product: []string{"product-1"},
 				Vendor:  []string{"vendor"},
 			},
@@ -91,11 +91,11 @@ func TestCPETranslations(t *testing.T) {
 			Name: "simple match",
 			Translations: CPETranslations{
 				{
-					Match: CPETranslationMatch{
+					Software: CPETranslationSoftware{
 						Name:   []string{"X"},
 						Source: []string{"apps"},
 					},
-					Filter: CPETranslationFilter{
+					Filter: CPETranslation{
 						Product: []string{"product-1"},
 						Vendor:  []string{"vendor"},
 					},
@@ -112,11 +112,11 @@ func TestCPETranslations(t *testing.T) {
 			Name: "match name or",
 			Translations: CPETranslations{
 				{
-					Match: CPETranslationMatch{
+					Software: CPETranslationSoftware{
 						Name:   []string{"X", "Y"},
 						Source: []string{"apps"},
 					},
-					Filter: CPETranslationFilter{
+					Filter: CPETranslation{
 						Product: []string{"product-1"},
 						Vendor:  []string{"vendor"},
 					},
@@ -133,11 +133,11 @@ func TestCPETranslations(t *testing.T) {
 			Name: "match name regexp",
 			Translations: CPETranslations{
 				{
-					Match: CPETranslationMatch{
+					Software: CPETranslationSoftware{
 						Name:   []string{"/^[A-Z]$/"},
 						Source: []string{"apps"},
 					},
-					Filter: CPETranslationFilter{
+					Filter: CPETranslation{
 						Product: []string{"product-1"},
 						Vendor:  []string{"vendor"},
 					},

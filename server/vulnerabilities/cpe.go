@@ -232,37 +232,37 @@ func (r *regexpCache) Get(pattern string) (*regexp.Regexp, error) {
 //         }
 //       }
 //     ]
-type CPETranslations []CPETranslation
+type CPETranslations []CPETranslationItem
 
-func (c CPETranslations) Translate(reCache *regexpCache, s *fleet.Software) (CPETranslationFilter, bool, error) {
+func (c CPETranslations) Translate(reCache *regexpCache, s *fleet.Software) (CPETranslation, bool, error) {
 	for _, entry := range c {
-		match, err := entry.Match.Matches(reCache, s)
+		match, err := entry.Software.Matches(reCache, s)
 		if err != nil {
-			return CPETranslationFilter{}, false, err
+			return CPETranslation{}, false, err
 		}
 		if match {
 			return entry.Filter, true, nil
 		}
 	}
 
-	return CPETranslationFilter{}, false, nil
+	return CPETranslation{}, false, nil
 }
 
-type CPETranslation struct {
-	Match  CPETranslationMatch  `json:"match"`
-	Filter CPETranslationFilter `json:"filter"`
+type CPETranslationItem struct {
+	Software CPETranslationSoftware `json:"match"`
+	Filter   CPETranslation         `json:"filter"`
 }
 
-// CPETranslationMatch represents match criteria for cpe translations.
-type CPETranslationMatch struct {
+// CPETranslationSoftware represents software match criteria for cpe translations.
+type CPETranslationSoftware struct {
 	Name             []string `json:"name"`
 	BundleIdentifier []string `json:"bundle_identifier"`
 	Source           []string `json:"source"`
 }
 
 // Matches returns true if the software satifies all the match criteria.
-func (c CPETranslationMatch) Matches(reCache *regexpCache, s *fleet.Software) (bool, error) {
-	match := func(a, b string) (bool, error) {
+func (c CPETranslationSoftware) Matches(reCache *regexpCache, s *fleet.Software) (bool, error) {
+	matches := func(a, b string) (bool, error) {
 		// check if its a regular expression enclosed in '/'
 		if len(a) > 2 && a[0] == '/' && a[len(a)-1] == '/' {
 			pattern := a[1 : len(a)-1]
@@ -278,11 +278,11 @@ func (c CPETranslationMatch) Matches(reCache *regexpCache, s *fleet.Software) (b
 	if len(c.Name) > 0 {
 		found := false
 		for _, name := range c.Name {
-			matches, err := match(name, s.Name)
+			match, err := matches(name, s.Name)
 			if err != nil {
 				return false, err
 			}
-			if matches {
+			if match {
 				found = true
 				break
 			}
@@ -294,11 +294,11 @@ func (c CPETranslationMatch) Matches(reCache *regexpCache, s *fleet.Software) (b
 	if len(c.BundleIdentifier) > 0 {
 		found := false
 		for _, bundleID := range c.BundleIdentifier {
-			matches, err := match(bundleID, s.BundleIdentifier)
+			match, err := matches(bundleID, s.BundleIdentifier)
 			if err != nil {
 				return false, err
 			}
-			if matches {
+			if match {
 				found = true
 				break
 			}
@@ -310,11 +310,11 @@ func (c CPETranslationMatch) Matches(reCache *regexpCache, s *fleet.Software) (b
 	if len(c.Source) > 0 {
 		found := false
 		for _, source := range c.Source {
-			matches, err := match(source, s.Source)
+			match, err := matches(source, s.Source)
 			if err != nil {
 				return false, err
 			}
-			if matches {
+			if match {
 				found = true
 				break
 			}
@@ -326,7 +326,7 @@ func (c CPETranslationMatch) Matches(reCache *regexpCache, s *fleet.Software) (b
 	return true, nil
 }
 
-type CPETranslationFilter struct {
+type CPETranslation struct {
 	Product  []string `json:"product"`
 	Vendor   []string `json:"vendor"`
 	TargetSW []string `json:"target_sw"`
