@@ -189,7 +189,7 @@ func TestAgentOptionsForHost(t *testing.T) {
 
 // One of these queries is the disk space, only one of the two works in a platform. Similarly, one
 // is for operating system.
-var expectedDetailQueries = osquery_utils.GetDetailQueries(&fleet.AppConfig{Features: fleet.Features{EnableHostUsers: true}}, config.FleetConfig{})
+var expectedDetailQueries = osquery_utils.GetDetailQueries(&fleet.AppConfig{Features: fleet.Features{EnableHostUsers: true}}, config.FleetConfig{Vulnerabilities: config.VulnerabilitiesConfig{DisableWinOSVulnerabilities: true}})
 
 func TestEnrollAgent(t *testing.T) {
 	ds := new(mock.Store)
@@ -496,6 +496,7 @@ func verifyDiscovery(t *testing.T, queries, discovery map[string]string) {
 		hostDetailQueryPrefix + "orbit_info":             {},
 		hostDetailQueryPrefix + "mdm":                    {},
 		hostDetailQueryPrefix + "munki_info":             {},
+		hostDetailQueryPrefix + "windows_update_history": {},
 	}
 	for name := range queries {
 		require.NotEmpty(t, discovery[name])
@@ -778,9 +779,10 @@ func TestDetailQueriesWithEmptyStrings(t *testing.T) {
 	// queries)
 	queries, discovery, acc, err := svc.GetDistributedQueries(ctx)
 	require.NoError(t, err)
-	// -6 due to windows not having battery, mdm, munki_info and removed disk space query
-	// (only 1 of 2 active for a given platform) and removed two non-windows operating system queries
-	if !assert.Equal(t, len(expectedDetailQueries)-6, len(queries)) {
+	// -5 due to windows not having battery, mdm, munki_info and removed disk space query and
+	// operating system query (only 1 of 2 active for a given platform)
+	// -1 due to 'windows_update_history'
+	if !assert.Equal(t, len(expectedDetailQueries)-5, len(queries)-1) {
 		// this is just to print the diff between the expected and actual query
 		// keys when the count assertion fails, to help debugging - they are not
 		// expected to match.
@@ -1386,8 +1388,8 @@ func TestDistributedQueryResults(t *testing.T) {
 	// Now we should get the active distributed query
 	queries, discovery, acc, err := svc.GetDistributedQueries(hostCtx)
 	require.NoError(t, err)
-	// -6 for the non-windows queries, +1 for the distributed query for campaign ID 42
-	if !assert.Equal(t, len(expectedDetailQueries)-5, len(queries)) {
+	// -3 for the non-windows queries, +1 for the distributed query for campaign ID 42
+	if !assert.Equal(t, len(expectedDetailQueries)-3, len(queries)) {
 		// this is just to print the diff between the expected and actual query
 		// keys when the count assertion fails, to help debugging - they are not
 		// expected to match.

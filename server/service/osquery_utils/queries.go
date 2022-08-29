@@ -438,7 +438,6 @@ var extraDetailQueries = map[string]DetailQuery{
 		Platforms:        append(fleet.HostLinuxOSs, "darwin"),
 		DirectIngestFunc: directIngestOSUnixLike,
 	},
-
 	OrbitInfoQueryName: OrbitInfoDetailQuery,
 }
 
@@ -464,6 +463,13 @@ const usersQueryStr = `WITH cached_groups AS (select * from groups)
 
 func withCachedUsers(query string) string {
 	return fmt.Sprintf(query, usersQueryStr)
+}
+
+var windowsUpdateHistory = DetailQuery{
+	Query:            `SELECT date, title FROM windows_update_history WHERE result_code = 'Succeeded'`,
+	Platforms:        []string{"windows"},
+	Discovery:        discoveryTable("windows_update_history"),
+	DirectIngestFunc: directIngestWindowsUpdateHistory,
 }
 
 var softwareMacOS = DetailQuery{
@@ -819,6 +825,46 @@ func directIngestBattery(ctx context.Context, logger log.Logger, host *fleet.Hos
 	return ds.ReplaceHostBatteries(ctx, host.ID, mapping)
 }
 
+func directIngestWindowsUpdateHistory(
+	ctx context.Context,
+	logger log.Logger,
+	host *fleet.Host,
+	ds fleet.Datastore,
+	rows []map[string]string,
+	failed bool,
+) error {
+	if failed {
+		level.Error(logger).Log("op", "directIngestWindowsUpdateHistory", "err", "failed")
+		return nil
+	}
+
+	// The windows update history table will also contain entries for the Defender Antivirus. Unfortunately
+	// there's no reliable way to differentiate between those entries and Cumulative OS updates.
+	// Since each antivirus update will have the same KB ID, but different 'dates', to
+	// avoid trying to insert duplicated data, we group by KB ID and then take the most 'out of
+	// date' update in each group.
+
+	uniq := make(map[uint]fleet.WindowsUpdate)
+	for _, row := range rows {
+		u, err := fleet.NewWindowsUpdate(row["title"], row["date"])
+		if err != nil {
+			level.Warn(logger).Log("op", "directIngestWindowsUpdateHistory", "skipped", err)
+			continue
+		}
+
+		if v, ok := uniq[u.KBID]; !ok || v.MoreRecent(u) {
+			uniq[u.KBID] = u
+		}
+	}
+
+	var updates []fleet.WindowsUpdate
+	for _, v := range uniq {
+		updates = append(updates, v)
+	}
+
+	return ds.InsertWindowsUpdates(ctx, host.ID, updates)
+}
+
 func directIngestOrbitInfo(ctx context.Context, logger log.Logger, host *fleet.Host, ds fleet.Datastore, rows []map[string]string, failed bool) error {
 	if len(rows) != 1 {
 		return ctxerr.Errorf(ctx, "invalid number of orbit_info rows: %d", len(rows))
@@ -1088,6 +1134,10 @@ func GetDetailQueries(ac *fleet.AppConfig, fleetConfig config.FleetConfig) map[s
 
 	if ac != nil && ac.Features.EnableHostUsers {
 		generatedMap["users"] = usersQuery
+	}
+
+	if !fleetConfig.Vulnerabilities.DisableWinOSVulnerabilities {
+		generatedMap["windows_update_history"] = windowsUpdateHistory
 	}
 
 	if fleetConfig.App.EnableScheduledQueryStats {
