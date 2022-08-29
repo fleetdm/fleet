@@ -398,6 +398,9 @@ Whether saving host-related information is done synchronously in the HTTP handle
 
 ### SMTP Settings
 
+<!-- This section replaced a section named SMTP authentication, this ensures links with the #smtp-authentication hash still work -->
+<span id="smtp-authentication" name="smtp-authentication"></span>
+
 #### smtp_settings.authentication_method
 
 The authentication method to use when the authentication type is `authtype_username_password`.
@@ -431,7 +434,7 @@ The type of authentication for the configured SMTP server.
 
 #### smtp_settings.domain
 
-The domain for SMTP. (TODO(mna): what is this? not the host, apparently, as there's also smtp server?)
+The domain for SMTP. (TODO(mna): what is this? not the host, apparently, as there's also smtp server? Doesn't appear to be used?)
 
 - Optional setting.
 - Default value: none.
@@ -451,6 +454,107 @@ Whether SMTP support is enabled or not to send emails from Fleet.
   ```
   smtp_settings:
     enable_smtp: true
+  ```
+
+#### smtp_settings.enable_ssl_tls
+
+TODO(mna): doesn't seem to be used?
+Whether to enable SSL/TLS for the SMTP connection.
+
+- Optional setting.
+- Default value: `true`.
+- Config file format:
+  ```
+  smtp_settings:
+    enable_ssl_tls: false
+  ```
+
+#### smtp_settings.enable_start_tls
+
+Whether to detect if TLS is used by the SMTP server and start using it if so.
+
+- Optional setting.
+- Default value: `true`.
+- Config file format:
+  ```
+  smtp_settings:
+    enable_start_tls: false
+  ```
+
+#### smtp_settings.password
+
+> **Warning:** Be careful not to store your SMTP credentials in source control. It is recommended to set the password through the web UI or `fleetctl` and then remove the line from the checked in version. Fleet will leave the password as-is if the field is missing from the applied configuration.
+
+The password to use for the SMTP authentication, when `authentication_type` is set to `authtype_username_password`.
+
+- Optional setting.
+- Default value: none.
+- Config file format:
+  ```
+  smtp_settings:
+    password: supersekretsmtppass
+  ```
+
+#### smtp_settings.port
+
+The port to use to connect to the SMTP server.
+
+- Optional setting.
+- Default value: `587` (the standard SMTP port).
+- Config file format:
+  ```
+  smtp_settings:
+    port: 5870
+  ```
+
+#### smtp_settings.sender_address
+
+The email address to use as sender for emails sent by Fleet.
+
+- Optional setting.
+- Default value: none.
+- Config file format:
+  ```
+  smtp_settings:
+    sender_address: fleet@example.org
+  ```
+
+#### smtp_settings.server
+
+The server hostname for SMTP.
+
+- Optional setting, required to properly configue SMTP.
+- Default value: none.
+- Config file format:
+  ```
+  smtp_settings:
+    server: mail.example.org
+  ```
+
+#### smtp_settings.user_name
+
+> **Warning:** Be careful not to store your SMTP credentials in source control. It is recommended to set the password through the web UI or `fleetctl` and then remove the line from the checked in version. Fleet will leave the password as-is if the field is missing from the applied configuration.
+
+The username to use for the SMTP authentication, when `authentication_type` is set to `authtype_username_password`.
+
+- Optional setting.
+- Default value: none.
+- Config file format:
+  ```
+  smtp_settings:
+    user_name: test_user
+  ```
+
+#### smtp_settings.verify_ssl_certs
+
+Whether the SMTP server's SSL certificates should be verified. Can be turned off if self-signed certificates are used by the SMTP server.
+
+- Optional setting.
+- Default value: `true`.
+- Config file format:
+  ```
+  smtp_settings:
+    verify_ssl_certs: false
   ```
 
 ### Agent options
@@ -599,10 +703,6 @@ spec:
           - /Users/wxs/sigs/baz.sig
     overrides: {}
 ```
-
-### SMTP authentication
-
-> **Warning:** Be careful not to store your SMTP credentials in source control. It is recommended to set the password through the web UI or `fleetctl` and then remove the line from the checked in version. Fleet will leave the password as-is if the field is missing from the applied configuration.
 
 ### Webhooks
 
