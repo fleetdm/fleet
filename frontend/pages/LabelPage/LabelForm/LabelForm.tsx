@@ -68,7 +68,6 @@ const LabelForm = ({
   showOpenSchemaActionText,
   backendValidators,
 }: ILabelFormProps): JSX.Element => {
-<<<<<<< HEAD
   const [name, setName] = useState(selectedLabel?.name || "");
   const [nameError, setNameError] = useState("");
   const [description, setDescription] = useState(
@@ -78,24 +77,6 @@ const LabelForm = ({
   const [query, setQuery] = useState(selectedLabel?.query || "");
   const [queryError, setQueryError] = useState("");
   const [platform, setPlatform] = useState(selectedLabel?.platform || "");
-=======
-  const [name, setName] = useState<string>("");
-  const [nameError, setNameError] = useState<string>("");
-  const [description, setDescription] = useState<string>("");
-  const [descriptionError, setDescriptionError] = useState<string>("");
-  const [query, setQuery] = useState<string>("");
-  const [queryError, setQueryError] = useState<string>("");
-  const [platform, setPlatform] = useState<string>(
-    selectedLabel?.platform || ""
-  );
->>>>>>> 2a0af0374 (Remove unused code)
-
-  useEffect(() => {
-    setName(selectedLabel?.name || "");
-    setDescription(selectedLabel?.description || "");
-    setQuery(selectedLabel?.query || "");
-    setPlatform(selectedLabel?.platform || "");
-  }, [selectedLabel]);
 
   const debounceSQL = useDebouncedCallback((queryString: string) => {
     let valid = true;
