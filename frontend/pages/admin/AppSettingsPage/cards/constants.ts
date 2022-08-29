@@ -5,6 +5,7 @@ export const DEFAULT_TRANSPARENCY_URL = "https://fleetdm.com/transparency";
 export interface IAppConfigFormProps {
   appConfig: IConfig;
   isPremiumTier?: boolean;
+  isUpdatingSettings?: boolean;
   handleSubmit: any;
 }
 

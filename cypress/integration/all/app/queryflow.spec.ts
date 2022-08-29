@@ -84,7 +84,7 @@ describe("Query flow (seeded)", () => {
       cy.getAttached(".ace_scroller")
         .click()
         .type("{selectall}SELECT datetime, username FROM windows_crashes;");
-      cy.getAttached(".query-form__save").click();
+      cy.findByRole("button", { name: "Save" }).click();
       cy.findByText(/query updated/i).should("be.visible");
     });
     it("saves an existing query as new query", () => {
@@ -97,11 +97,12 @@ describe("Query flow (seeded)", () => {
       cy.getAttached(".ace_scroller")
         .click()
         .type("{selectall}SELECT datetime, username FROM windows_crashes;");
-      cy.getAttached(".query-form__save-as-new").click();
+      cy.findByRole("button", { name: /save as new/i }).click();
       cy.findByText(/copy of/i).should("be.visible");
     });
     it("deletes an existing query", () => {
       cy.findByText(/detect presence of authorized ssh keys/i)
+        .parent()
         .parent()
         .parent()
         .within(() => {
@@ -151,9 +152,7 @@ describe("Query flow (seeded)", () => {
             cy.getAttached(".input-field").click().type("50");
           }
         );
-        cy.getAttached(
-          ".schedule-editor-modal__btn-wrap .modal-cta-wrap"
-        ).within(() => {
+        cy.getAttached(".modal-cta-wrap").within(() => {
           cy.findByRole("button", { name: /schedule/i }).click();
         });
       });
@@ -171,7 +170,7 @@ describe("Query flow (seeded)", () => {
         cy.findByText(/every 6 hours/i).click();
         cy.findByText(/every day/i).click();
 
-        cy.getAttached(".schedule-editor-modal__btn-wrap").within(() => {
+        cy.getAttached(".modal-cta-wrap").within(() => {
           cy.findByRole("button", { name: /schedule/i }).click();
         });
       });

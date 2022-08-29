@@ -23,12 +23,9 @@
 
     .modal-cta-wrap {
       display: flex;
-      justify-content: flex-end;
+      flex-direction: row-reverse;
       margin-top: $pad-large;
-
-      :nth-child(2) {
-        margin-left: $pad-medium;
-      }
+      gap: $pad-medium;
     }
   }
 
