@@ -239,7 +239,7 @@ const IntegrationForm = ({
           }
         />
       )}
-      <div className={`${baseClass}__btn-wrap`}>
+      <div className="modal-cta-wrap">
         <div
           data-tip
           data-for="create-integration-button"
@@ -259,7 +259,6 @@ const IntegrationForm = ({
           className={"tooltip"}
         >
           <Button
-            className={`${baseClass}__btn`}
             type="submit"
             variant="brand"
             disabled={
@@ -278,7 +277,7 @@ const IntegrationForm = ({
           >
             Save
           </Button>
-        </div>{" "}
+        </div>
         <ReactTooltip
           className={`create-integration-tooltip`}
           place="bottom"
@@ -291,11 +290,7 @@ const IntegrationForm = ({
             Complete all fields to save <br /> the integration.
           </>
         </ReactTooltip>
-        <Button
-          className={`${baseClass}__btn`}
-          onClick={onCancel}
-          variant="inverse"
-        >
+        <Button onClick={onCancel} variant="inverse">
           Cancel
         </Button>
       </div>

@@ -31,6 +31,11 @@
     font-size: $x-small;
     color: $core-fleet-black;
   }
+
+  &__action-button-container {
+    display: flex;
+    justify-content: center;
+  }
 }
 
 .has-not-run {

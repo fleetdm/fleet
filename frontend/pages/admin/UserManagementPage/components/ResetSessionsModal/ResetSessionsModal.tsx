@@ -28,20 +28,15 @@ const ResetSessionsModal = ({
           <br />
           This will revoke all active Fleet API tokens for this user.
         </p>
-        <div className={`${baseClass}__btn-wrap`}>
+        <div className="modal-cta-wrap">
           <Button
-            className={`${baseClass}__btn`}
             type="button"
             variant="brand"
             onClick={() => onResetConfirm(user)}
           >
             Confirm
           </Button>
-          <Button
-            className={`${baseClass}__btn`}
-            onClick={onResetCancel}
-            variant="inverse"
-          >
+          <Button onClick={onResetCancel} variant="inverse">
             Cancel
           </Button>
         </div>

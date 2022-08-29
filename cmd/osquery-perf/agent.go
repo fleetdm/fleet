@@ -164,6 +164,7 @@ type agent struct {
 	nodeKeyManager *nodeKeyManager
 	nodeKey        string
 	templates      *template.Template
+	os             string
 	// deviceAuthToken holds Fleet Desktop device authentication token.
 	//
 	// Non-nil means the agent is identified as orbit osquery,
@@ -219,6 +220,7 @@ func newAgent(
 		},
 		templates:       templates,
 		deviceAuthToken: deviceAuthToken,
+		os:              strings.TrimRight(templates.Name(), ".tmpl"),
 
 		EnrollSecret:   enrollSecret,
 		ConfigInterval: configInterval,
@@ -388,27 +390,27 @@ func (a *agent) CachedString(key string) string {
 	return val
 }
 
-func (a *agent) HostUsersMacOS() []fleet.HostUser {
+func (a *agent) hostUsersMacOS() []map[string]string {
 	groupNames := []string{"staff", "nobody", "wheel", "tty", "daemon"}
 	shells := []string{"/bin/zsh", "/bin/sh", "/usr/bin/false", "/bin/bash"}
-	commonUsers := make([]fleet.HostUser, a.userCount.common)
+	commonUsers := make([]map[string]string, a.userCount.common)
 	for i := 0; i < len(commonUsers); i++ {
-		commonUsers[i] = fleet.HostUser{
-			Uid:       uint(i),
-			Username:  fmt.Sprintf("Common_%d", i),
-			Type:      "", // Empty for macOS.
-			GroupName: groupNames[i%len(groupNames)],
-			Shell:     shells[i%len(shells)],
+		commonUsers[i] = map[string]string{
+			"uid":       fmt.Sprint(i),
+			"username":  fmt.Sprintf("Common_%d", i),
+			"type":      "", // Empty for macOS.
+			"groupname": groupNames[i%len(groupNames)],
+			"shell":     shells[i%len(shells)],
 		}
 	}
-	uniqueUsers := make([]fleet.HostUser, a.userCount.unique)
+	uniqueUsers := make([]map[string]string, a.userCount.unique)
 	for i := 0; i < len(uniqueUsers); i++ {
-		uniqueUsers[i] = fleet.HostUser{
-			Uid:       uint(i),
-			Username:  fmt.Sprintf("Unique_%d_%d", a.agentIndex, i),
-			Type:      "", // Empty for macOS.
-			GroupName: groupNames[i%len(groupNames)],
-			Shell:     shells[i%len(shells)],
+		uniqueUsers[i] = map[string]string{
+			"uid":       fmt.Sprint(i),
+			"username":  fmt.Sprintf("Unique_%d_%d", a.agentIndex, i),
+			"type":      "", // Empty for macOS.
+			"groupname": groupNames[i%len(groupNames)],
+			"shell":     shells[i%len(shells)],
 		}
 	}
 	users := append(commonUsers, uniqueUsers...)
@@ -439,7 +441,7 @@ func extract(src, dst string) {
 	}
 }
 
-func loadSoftware(platform string, ver string) []fleet.Software {
+func loadSoftware(platform string, ver string) []map[string]string {
 	_, exFilename, _, ok := runtime.Caller(0)
 	if !ok {
 		panic("No caller information")
@@ -487,72 +489,89 @@ func loadSoftware(platform string, ver string) []fleet.Software {
 		return nil
 	}
 
-	var r []fleet.Software
+	var r []map[string]string
 	for _, fi := range software {
-		r = append(r, fleet.Software{
-			Name:    fi.Name,
-			Version: fi.Version,
-			Source:  "osquery-perf",
+		r = append(r, map[string]string{
+			"name":    fi.Name,
+			"version": fi.Version,
+			"source":  "osquery-perf",
 		})
 	}
 	return r
 }
 
-func (a *agent) SoftwareWindows11() []fleet.Software {
+func (a *agent) softwareWindows11() []map[string]string {
 	return loadSoftware("windows", "11")
 }
 
-func (a *agent) SoftwareUbuntu1604() []fleet.Software {
+func (a *agent) softwareUbuntu1604() []map[string]string {
 	return loadSoftware("ubuntu", "1604")
 }
 
-func (a *agent) SoftwareUbuntu1804() []fleet.Software {
+func (a *agent) softwareUbuntu1804() []map[string]string {
 	return loadSoftware("ubuntu", "1804")
 }
 
-func (a *agent) SoftwareUbuntu2004() []fleet.Software {
+func (a *agent) softwareUbuntu2004() []map[string]string {
 	return loadSoftware("ubuntu", "2004")
 }
 
-func (a *agent) SoftwareUbuntu2104() []fleet.Software {
+func (a *agent) softwareUbuntu2104() []map[string]string {
 	return loadSoftware("ubuntu", "2104")
 }
 
-func (a *agent) SoftwareUbuntu2110() []fleet.Software {
+func (a *agent) softwareUbuntu2110() []map[string]string {
 	return loadSoftware("ubuntu", "2110")
 }
 
-func (a *agent) SoftwareUbuntu2204() []fleet.Software {
+func (a *agent) softwareUbuntu2204() []map[string]string {
 	return loadSoftware("ubuntu", "2204")
 }
 
-func (a *agent) SoftwareMacOS() []fleet.Software {
+func (a *agent) softwareMacOS() []map[string]string {
 	var lastOpenedCount int
-	commonSoftware := make([]fleet.Software, a.softwareCount.common)
+	commonSoftware := make([]map[string]string, a.softwareCount.common)
 	for i := 0; i < len(commonSoftware); i++ {
-		commonSoftware[i] = fleet.Software{
-			Name:             fmt.Sprintf("Common_%d", i),
-			Version:          "0.0.1",
-			BundleIdentifier: "com.fleetdm.osquery-perf",
-			Source:           "osquery-perf",
-			LastOpenedAt:     a.genLastOpenedAt(&lastOpenedCount),
+		var lastOpenedAt string
+		if l := a.genLastOpenedAt(&lastOpenedCount); l != nil {
+			lastOpenedAt = l.Format(time.UnixDate)
+		}
+		commonSoftware[i] = map[string]string{
+			"name":              fmt.Sprintf("Common_%d", i),
+			"version":           "0.0.1",
+			"bundle_identifier": "com.fleetdm.osquery-perf",
+			"source":            "osquery-perf",
+			"last_opened_at":    lastOpenedAt,
 		}
 	}
-	uniqueSoftware := make([]fleet.Software, a.softwareCount.unique)
+	uniqueSoftware := make([]map[string]string, a.softwareCount.unique)
 	for i := 0; i < len(uniqueSoftware); i++ {
-		uniqueSoftware[i] = fleet.Software{
-			Name:             fmt.Sprintf("Unique_%s_%d", a.CachedString("hostname"), i),
-			Version:          "1.1.1",
-			BundleIdentifier: "com.fleetdm.osquery-perf",
-			Source:           "osquery-perf",
-			LastOpenedAt:     a.genLastOpenedAt(&lastOpenedCount),
+		var lastOpenedAt string
+		if l := a.genLastOpenedAt(&lastOpenedCount); l != nil {
+			lastOpenedAt = l.Format(time.UnixDate)
+		}
+		uniqueSoftware[i] = map[string]string{
+			"name":              fmt.Sprintf("Unique_%s_%d", a.CachedString("hostname"), i),
+			"version":           "1.1.1",
+			"bundle_identifier": "com.fleetdm.osquery-perf",
+			"source":            "osquery-perf",
+			"last_opened_at":    lastOpenedAt,
 		}
 	}
-	randomVulnerableSoftware := make([]fleet.Software, a.softwareCount.vulnerable)
+	randomVulnerableSoftware := make([]map[string]string, a.softwareCount.vulnerable)
 	for i := 0; i < len(randomVulnerableSoftware); i++ {
 		sw := vulnerableSoftware[rand.Intn(len(vulnerableSoftware))]
-		sw.LastOpenedAt = a.genLastOpenedAt(&lastOpenedCount)
-		randomVulnerableSoftware[i] = sw
+		var lastOpenedAt string
+		if l := a.genLastOpenedAt(&lastOpenedCount); l != nil {
+			lastOpenedAt = l.Format(time.UnixDate)
+		}
+		randomVulnerableSoftware[i] = map[string]string{
+			"name":              sw.Name,
+			"version":           sw.Version,
+			"bundle_identifier": sw.BundleIdentifier,
+			"source":            sw.Source,
+			"last_opened_at":    lastOpenedAt,
+		}
 	}
 	software := append(commonSoftware, uniqueSoftware...)
 	software = append(software, randomVulnerableSoftware...)
@@ -754,7 +773,49 @@ func (a *agent) processQuery(name, query string) (handled bool, results []map[st
 			results = a.batteries()
 		}
 		return true, results, &ss
-
+	case name == hostDetailQueryPrefix+"os_unix_like":
+		ss := fleet.OsqueryStatus(rand.Intn(2))
+		if ss == fleet.StatusOK {
+			results = a.osUnixLike()
+		}
+		return true, results, &ss
+	case name == hostDetailQueryPrefix+"users":
+		ss := fleet.OsqueryStatus(rand.Intn(2))
+		if ss == fleet.StatusOK {
+			results = a.hostUsersMacOS()
+		}
+		return true, results, &ss
+	case name == hostDetailQueryPrefix+"software_macos":
+		ss := fleet.OsqueryStatus(rand.Intn(2))
+		if ss == fleet.StatusOK {
+			results = a.softwareMacOS()
+		}
+		return true, results, &ss
+	case name == hostDetailQueryPrefix+"software_windows":
+		ss := fleet.OsqueryStatus(rand.Intn(2))
+		if ss == fleet.StatusOK {
+			results = a.softwareWindows11()
+		}
+		return true, results, &ss
+	case name == hostDetailQueryPrefix+"software_linux":
+		ss := fleet.OsqueryStatus(rand.Intn(2))
+		if ss == fleet.StatusOK {
+			switch a.os {
+			case "ubuntu_16.04":
+				results = a.softwareUbuntu1604()
+			case "ubuntu_18.04":
+				results = a.softwareUbuntu1804()
+			case "ubuntu_20.04":
+				results = a.softwareUbuntu2004()
+			case "ubuntu_21.04":
+				results = a.softwareUbuntu2104()
+			case "ubuntu_21.10":
+				results = a.softwareUbuntu2110()
+			case "ubuntu_22.04":
+				results = a.softwareUbuntu2204()
+			}
+		}
+		return true, results, &ss
 	default:
 		// Look for results in the template file.
 		if t := a.templates.Lookup(name); t == nil {

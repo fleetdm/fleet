@@ -1,5 +1,6 @@
 import React from "react";
 import classnames from "classnames";
+import Spinner from "components/Spinner";
 
 const baseClass = "button";
 
@@ -35,6 +36,7 @@ export interface IButtonProps {
   onClick?:
     | ((value?: any) => void)
     | ((evt: React.MouseEvent<HTMLButtonElement>) => void);
+  isLoading?: boolean;
 }
 
 // eslint-disable-next-line @typescript-eslint/no-empty-interface
@@ -95,6 +97,7 @@ class Button extends React.Component<IButtonProps, IButtonState> {
       type,
       title,
       variant,
+      isLoading,
     } = this.props;
     const fullClassName = classnames(
       baseClass,
@@ -105,6 +108,11 @@ class Button extends React.Component<IButtonProps, IButtonState> {
         [`${baseClass}--${size}`]: size !== undefined,
       }
     );
+    const onWhite =
+      variant === "text-link" ||
+      variant === "inverse" ||
+      variant === "text-icon" ||
+      variant === "label";
 
     return (
       <button
@@ -116,7 +124,10 @@ class Button extends React.Component<IButtonProps, IButtonState> {
         title={title}
         ref={setRef}
       >
-        {children}
+        <div className={isLoading ? "transparent-text" : "children-wrapper"}>
+          {children}
+        </div>
+        {isLoading && <Spinner small button white={!onWhite} />}
       </button>
     );
   }
