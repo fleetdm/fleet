@@ -8,8 +8,8 @@ import (
 	"testing"
 
 	"github.com/fleetdm/fleet/v4/server/ptr"
-	msrc_parsed "github.com/fleetdm/fleet/v4/server/vulnerabilities/msrc/parsed"
-	msrc_xml "github.com/fleetdm/fleet/v4/server/vulnerabilities/msrc/xml"
+	"github.com/fleetdm/fleet/v4/server/vulnerabilities/msrc/parsed"
+	msrcxml "github.com/fleetdm/fleet/v4/server/vulnerabilities/msrc/xml"
 	"github.com/stretchr/testify/require"
 )
 
@@ -711,7 +711,7 @@ func TestParser(t *testing.T) {
 	}
 
 	// A random vulnerability ("CVE-2022-29137")
-	expectedVulns := map[string]map[string]msrc_parsed.Vulnerability{
+	expectedVulns := map[string]map[string]parsed.Vulnerability{
 		"Windows 10": {
 			"CVE-2022-29137": {
 				PublishedEpoch: ptr.Int64(1652169600),
@@ -909,7 +909,7 @@ func TestParser(t *testing.T) {
 	}
 
 	// A random vulnerability ("CVE-2022-29137")
-	expectedVendorFixes := map[string]map[int]msrc_parsed.VendorFix{
+	expectedVendorFixes := map[string]map[int]parsed.VendorFix{
 		"Windows 10": {
 			5013941: {
 				FixedBuild: "10.0.17763.2928",
@@ -1212,17 +1212,17 @@ func TestParser(t *testing.T) {
 
 	t.Run("parseXML", func(t *testing.T) {
 		t.Run("only windows products are included", func(t *testing.T) {
-			var expected []msrc_xml.Product
+			var expected []msrcxml.Product
 			for _, grp := range expectedProducts {
 				for pID, pFn := range grp {
 					expected = append(
 						expected,
-						msrc_xml.Product{ProductID: pID, FullName: pFn},
+						msrcxml.Product{ProductID: pID, FullName: pFn},
 					)
 				}
 			}
 
-			var actual []msrc_xml.Product
+			var actual []msrcxml.Product
 			for _, v := range xmlResult.WinProducts {
 				actual = append(actual, v)
 			}
@@ -1265,7 +1265,7 @@ func TestParser(t *testing.T) {
 
 		t.Run("the remediations are parsed correctly", func(t *testing.T) {
 			// Check the remediations of a random CVE (CVE-2022-29126)
-			expectedRemediations := []msrc_xml.VulnerabilityRemediation{
+			expectedRemediations := []msrcxml.VulnerabilityRemediation{
 				{
 					Type:            "Vendor Fix",
 					FixedBuild:      "10.0.17763.2928",

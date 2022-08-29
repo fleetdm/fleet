@@ -11,7 +11,7 @@ import (
 	msrcxml "github.com/fleetdm/fleet/v4/server/vulnerabilities/msrc/xml"
 )
 
-func parseFeed(feedFilePath string) (map[string]*parsed.SecurityBulletin, error) {
+func ParseFeed(feedFilePath string) (map[string]*parsed.SecurityBulletin, error) {
 	r, err := os.Open(feedFilePath)
 	if err != nil {
 		return nil, fmt.Errorf("msrc parser: %w", err)

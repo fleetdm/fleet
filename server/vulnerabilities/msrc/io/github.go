@@ -15,10 +15,10 @@ import (
 
 type ReleaseLister interface {
 	ListReleases(
-		ctx context.Context,
-		owner string,
-		repo string,
-		opts *github.ListOptions,
+		context.Context,
+		string,
+		string,
+		*github.ListOptions,
 	) ([]*github.RepositoryRelease, *github.Response, error)
 }
 
@@ -55,6 +55,8 @@ func (gh GithubClient) Download(b SecurityBulletinName, URL string) error {
 func (gh GithubClient) Bulletins() (map[SecurityBulletinName]string, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
+
+	fmt.Println(gh.releases)
 
 	releases, r, err := gh.releases.ListReleases(
 		ctx,
