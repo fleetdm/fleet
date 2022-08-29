@@ -264,7 +264,7 @@ module.exports.routes = {
   // puts this kind of thing under /docs, NOT /documentation.  These "convenience" redirects are to help them out.
   'GET /documentation':              '/docs',
   'GET /contribute':                 '/docs/contributing',
-  'GET /install':                    '/get-started',
+  'GET /install':                    '/fleetctl-preview',
   'GET /company':                    '/company/about',
   'GET /company/about':              '/handbook', // FUTURE: brief "about" page explaining the origins of the company
   'GET /support':                    '/company/contact',
@@ -277,7 +277,7 @@ module.exports.routes = {
   'GET /docs/using-fleet/updating-fleet': '/docs/deploying/upgrading-fleet',
   'GET /blog':                   '/articles',
   'GET /brand':                  '/logos',
-  'GET /get-started':            '/fleetctl-preview',
+  'GET /get-started':            '/try-fleet/register',
   'GET /g':                       (req,res)=> { let originalQueryStringWithAmp = req.url.match(/\?(.+)$/) ? '&'+req.url.match(/\?(.+)$/)[1] : ''; return res.redirect(301, sails.config.custom.baseUrl+'/?meet-fleet'+originalQueryStringWithAmp); },
   'GET /test-fleet-sandbox':     '/try-fleet/register',
 
