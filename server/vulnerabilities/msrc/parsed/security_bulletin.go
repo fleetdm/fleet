@@ -23,6 +23,10 @@ func NewSecurityBulletin(pName string) *SecurityBulletin {
 	}
 }
 
+func (b *SecurityBulletin) Merge(other *SecurityBulletin) *SecurityBulletin {
+	panic("not implemented")
+}
+
 type Vulnerability struct {
 	PublishedEpoch *int64
 	// Set of products that are susceptible to this vuln.

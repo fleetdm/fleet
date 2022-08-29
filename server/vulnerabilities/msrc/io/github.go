@@ -2,7 +2,9 @@ package io
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
+	"io/ioutil"
 	"net/http"
 	"net/url"
 	"path/filepath"
@@ -10,6 +12,7 @@ import (
 	"time"
 
 	"github.com/fleetdm/fleet/v4/pkg/download"
+	"github.com/fleetdm/fleet/v4/server/vulnerabilities/msrc/parsed"
 	"github.com/google/go-github/v37/github"
 )
 
@@ -23,7 +26,7 @@ type ReleaseLister interface {
 }
 
 type GithubAPI interface {
-	Download(SecurityBulletinName, string) error
+	Get(SecurityBulletinName, string) error
 	Bulletins() (map[SecurityBulletinName]string, error)
 }
 
@@ -41,14 +44,30 @@ func NewGithubClient(client *http.Client, releases ReleaseLister, dir string) Gi
 	}
 }
 
-// Downloads the security bulletin to 'dir'.
-func (gh GithubClient) Download(b SecurityBulletinName, URL string) error {
+// Get and returns the security bulletin referenced by 'b'
+func (gh GithubClient) Get(b SecurityBulletinName, URL string) (*parsed.SecurityBulletin, error) {
 	u, err := url.Parse(URL)
 	if err != nil {
-		return err
+		return nil, err
 	}
+
 	path := filepath.Join(gh.workDir, string(b))
-	return download.DownloadAndExtract(gh.httpClient, u, path)
+	if err := download.DownloadAndExtract(gh.httpClient, u, path); err != nil {
+		return nil, err
+	}
+
+	payload, err := ioutil.ReadFile(path)
+	if err != nil {
+		return nil, err
+	}
+
+	bulletin := parsed.SecurityBulletin{}
+	err = json.Unmarshal(payload, &bulletin)
+	if err != nil {
+		return nil, err
+	}
+
+	return &bulletin, nil
 }
 
 // Bulletins returns a map of 'name' => 'download URL' of the parsed security bulletins stored as assets on Github.
