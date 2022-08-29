@@ -335,7 +335,7 @@ func TestCachedTeamFeatures(t *testing.T) {
 	t.Parallel()
 
 	mockedDS := new(mock.Store)
-	ds := New(mockedDS, WithTeamAgentOptionsExpiration(100*time.Millisecond))
+	ds := New(mockedDS, WithTeamFeaturesExpiration(100*time.Millisecond))
 	ao := json.RawMessage(`{}`)
 
 	aq := json.RawMessage(`{"foo": "bar"}`)

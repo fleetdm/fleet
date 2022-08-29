@@ -121,6 +121,12 @@ func WithTeamAgentOptionsExpiration(d time.Duration) Option {
 	}
 }
 
+func WithTeamFeaturesExpiration(d time.Duration) Option {
+	return func(o *cachedMysql) {
+		o.teamFeaturesExp = d
+	}
+}
+
 func New(ds fleet.Datastore, opts ...Option) fleet.Datastore {
 	c := &cachedMysql{
 		Datastore:           ds,
