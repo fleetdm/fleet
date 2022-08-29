@@ -4,7 +4,7 @@
       "bundle_identifier": ["us.zoom.xos"],
       "source": ["apps"]
     },
-    "translation": {
+    "filter": {
       "product": ["zoom", "meetings"],
       "vendor": ["zoom"],
       "target_sw": ["macos", "mac_os"]
@@ -15,7 +15,7 @@
       "name": ["/^ruby(@.*)?$/"],
       "source": ["homebrew_packages"]
     },
-    "translation": {
+    "filter": {
       "product": ["ruby"],
       "vendor": ["ruby-lang"]
     }
@@ -25,7 +25,7 @@
       "name": ["/^node(@.*)?$/"],
       "source": ["homebrew_packages"]
     },
-    "translation": {
+    "filter": {
       "product": ["node.js"],
       "vendor": ["nodejs"]
     }

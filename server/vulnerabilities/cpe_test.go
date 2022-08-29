@@ -74,7 +74,7 @@ func TestCPETranslations(t *testing.T) {
 				Name:   []string{"X", "Y"},
 				Source: []string{"apps"},
 			},
-			Translation: CPETranslation{
+			Filter: CPETranslationFilter{
 				Product: []string{"product-1"},
 				Vendor:  []string{"vendor"},
 			},
@@ -95,7 +95,7 @@ func TestCPETranslations(t *testing.T) {
 						Name:   []string{"X"},
 						Source: []string{"apps"},
 					},
-					Translation: CPETranslation{
+					Filter: CPETranslationFilter{
 						Product: []string{"product-1"},
 						Vendor:  []string{"vendor"},
 					},
@@ -116,7 +116,7 @@ func TestCPETranslations(t *testing.T) {
 						Name:   []string{"X", "Y"},
 						Source: []string{"apps"},
 					},
-					Translation: CPETranslation{
+					Filter: CPETranslationFilter{
 						Product: []string{"product-1"},
 						Vendor:  []string{"vendor"},
 					},
@@ -137,7 +137,7 @@ func TestCPETranslations(t *testing.T) {
 						Name:   []string{"/^[A-Z]$/"},
 						Source: []string{"apps"},
 					},
-					Translation: CPETranslation{
+					Filter: CPETranslationFilter{
 						Product: []string{"product-1"},
 						Vendor:  []string{"vendor"},
 					},

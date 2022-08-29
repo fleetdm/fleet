@@ -232,25 +232,25 @@ func (r *regexpCache) Get(pattern string) (*regexp.Regexp, error) {
 //         }
 //       }
 //     ]
-type CPETranslations []CPETranslationEntry
+type CPETranslations []CPETranslation
 
-func (c CPETranslations) Translate(reCache *regexpCache, s *fleet.Software) (CPETranslation, bool, error) {
+func (c CPETranslations) Translate(reCache *regexpCache, s *fleet.Software) (CPETranslationFilter, bool, error) {
 	for _, entry := range c {
 		match, err := entry.Match.Matches(reCache, s)
 		if err != nil {
-			return CPETranslation{}, false, err
+			return CPETranslationFilter{}, false, err
 		}
 		if match {
-			return entry.Translation, true, nil
+			return entry.Filter, true, nil
 		}
 	}
 
-	return CPETranslation{}, false, nil
+	return CPETranslationFilter{}, false, nil
 }
 
-type CPETranslationEntry struct {
-	Match       CPETranslationMatch `json:"match"`
-	Translation CPETranslation      `json:"translation"`
+type CPETranslation struct {
+	Match  CPETranslationMatch  `json:"match"`
+	Filter CPETranslationFilter `json:"filter"`
 }
 
 // CPETranslationMatch represents match criteria for cpe translations.
@@ -326,7 +326,7 @@ func (c CPETranslationMatch) Matches(reCache *regexpCache, s *fleet.Software) (b
 	return true, nil
 }
 
-type CPETranslation struct {
+type CPETranslationFilter struct {
 	Product  []string `json:"product"`
 	Vendor   []string `json:"vendor"`
 	TargetSW []string `json:"target_sw"`
