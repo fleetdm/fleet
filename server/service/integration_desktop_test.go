@@ -30,7 +30,7 @@ func (s *integrationTestSuite) TestDeviceAuthenticatedEndpoints() {
 		{HostID: hosts[0].ID, Email: "b@b.c", Source: "google_chrome_profiles"},
 	})
 	require.NoError(t, s.ds.SetOrUpdateMDMData(context.Background(), hosts[0].ID, true, "url", false))
-	require.NoError(t, s.ds.SetOrUpdateMunkiVersion(context.Background(), hosts[0].ID, "1.3.0"))
+	require.NoError(t, s.ds.SetOrUpdateMunkiInfo(context.Background(), hosts[0].ID, "1.3.0", nil, nil))
 	// create a battery for hosts[0]
 	require.NoError(t, s.ds.ReplaceHostBatteries(context.Background(), hosts[0].ID, []*fleet.HostBattery{
 		{HostID: hosts[0].ID, SerialNumber: "a", CycleCount: 1, Health: "Good"},

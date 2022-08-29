@@ -344,11 +344,7 @@
   &__action-button-container {
     display: flex;
     align-items: center;
-  }
-
-  &__query-button,
-  &__transfer-button {
-    margin-right: $pad-large;
+    gap: $pad-large;
   }
 
   &__back-link {

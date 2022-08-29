@@ -262,6 +262,9 @@ const ManageHostsPage = ({
     [key: string]: string;
   }>(DEFAULT_CREATE_LABEL_ERRORS);
   const [resetPageIndex, setResetPageIndex] = useState<boolean>(false);
+  const [isUpdatingLabel, setIsUpdatingLabel] = useState<boolean>(false);
+  const [isUpdatingSecret, setIsUpdatingSecret] = useState<boolean>(false);
+  const [isUpdatingHosts, setIsUpdatingHosts] = useState<boolean>(false);
 
   // ======== end states
 
@@ -294,13 +297,18 @@ const ManageHostsPage = ({
   const canEnrollGlobalHosts = isGlobalAdmin || isGlobalMaintainer;
   const canAddNewLabels = (isGlobalAdmin || isGlobalMaintainer) ?? false;
 
-  const { data: labels, error: labelsError, refetch: refetchLabels } = useQuery<
-    ILabelsResponse,
-    Error,
-    ILabel[]
-  >(["labels"], () => labelsAPI.loadAll(), {
-    select: (data: ILabelsResponse) => data.labels,
-  });
+  const {
+    isLoading: isLoadingLabels,
+    data: labels,
+    error: labelsError,
+    refetch: refetchLabels,
+  } = useQuery<ILabelsResponse, Error, ILabel[]>(
+    ["labels"],
+    () => labelsAPI.loadAll(),
+    {
+      select: (data: ILabelsResponse) => data.labels,
+    }
+  );
 
   const {
     isLoading: isGlobalSecretsLoading,
@@ -884,6 +892,8 @@ const ManageHostsPage = ({
       newSecrets.push({ secret: enrollSecretString });
     }
 
+    setIsUpdatingSecret(true);
+
     try {
       if (currentTeam?.id) {
         await enrollSecretsAPI.modifyTeamEnrollSecrets(
@@ -918,6 +928,8 @@ const ManageHostsPage = ({
           selectedSecret ? "edit" : "add"
         } enroll secret. Please try again.`
       );
+    } finally {
+      setIsUpdatingSecret(false);
     }
   };
 
@@ -932,6 +944,8 @@ const ManageHostsPage = ({
     const newSecrets = currentSecrets.filter(
       (s) => s.secret !== selectedSecret?.secret
     );
+
+    setIsUpdatingSecret(true);
 
     try {
       if (currentTeam?.id) {
@@ -958,6 +972,8 @@ const ManageHostsPage = ({
     } catch (error) {
       console.error(error);
       renderFlash("error", "Could not delete enroll secret. Please try again.");
+    } finally {
+      setIsUpdatingSecret(false);
     }
   };
 
@@ -968,6 +984,7 @@ const ManageHostsPage = ({
     }
 
     const updateAttrs = deepDifference(formData, selectedLabel);
+    setIsUpdatingLabel(true);
 
     labelsAPI
       .update(selectedLabel, updateAttrs)
@@ -1003,6 +1020,9 @@ const ManageHostsPage = ({
         } else {
           renderFlash("error", "Could not create label. Please try again.");
         }
+      })
+      .finally(() => {
+        setIsUpdatingLabel(false);
       });
   };
 
@@ -1011,6 +1031,7 @@ const ManageHostsPage = ({
   };
 
   const onSaveAddLabel = (formData: ILabelFormData) => {
+    setIsUpdatingLabel(true);
     labelsAPI
       .create(formData)
       .then(() => {
@@ -1046,6 +1067,9 @@ const ManageHostsPage = ({
         } else {
           renderFlash("error", "Could not create label. Please try again.");
         }
+      })
+      .finally(() => {
+        setIsUpdatingLabel(false);
       });
   };
 
@@ -1061,6 +1085,7 @@ const ManageHostsPage = ({
       console.error("Label isn't available. This should not happen.");
       return false;
     }
+    setIsUpdatingLabel(true);
 
     const { MANAGE_HOSTS } = PATHS;
     try {
@@ -1076,9 +1101,12 @@ const ManageHostsPage = ({
           queryParams,
         })
       );
+      renderFlash("success", "Successfully deleted label.");
     } catch (error) {
       console.error(error);
       renderFlash("error", "Could not delete label. Please try again.");
+    } finally {
+      setIsUpdatingLabel(false);
     }
   };
 
@@ -1093,6 +1121,8 @@ const ManageHostsPage = ({
   };
 
   const onTransferHostSubmit = async (team: ITeam) => {
+    setIsUpdatingHosts(true);
+
     const teamId = typeof team.id === "number" ? team.id : null;
     let action = hostsAPI.transferToTeam(teamId, selectedHostIds);
 
@@ -1145,10 +1175,14 @@ const ManageHostsPage = ({
       setIsAllMatchingHostsSelected(false);
     } catch (error) {
       renderFlash("error", "Could not transfer hosts. Please try again.");
+    } finally {
+      setIsUpdatingHosts(false);
     }
   };
 
   const onDeleteHostSubmit = async () => {
+    setIsUpdatingHosts(true);
+
     let action = hostsAPI.destroyBulk(selectedHostIds);
 
     if (isAllMatchingHostsSelected) {
@@ -1201,6 +1235,8 @@ const ManageHostsPage = ({
           selectedHostIds.length === 1 ? "host" : "hosts"
         }. Please try again.`
       );
+    } finally {
+      setIsUpdatingHosts(false);
     }
   };
 
@@ -1427,6 +1463,7 @@ const ManageHostsPage = ({
       onSaveSecret={onSaveSecret}
       toggleSecretEditorModal={toggleSecretEditorModal}
       selectedSecret={selectedSecret}
+      isUpdatingSecret={isUpdatingSecret}
     />
   );
 
@@ -1436,6 +1473,7 @@ const ManageHostsPage = ({
       selectedTeam={currentTeam?.id || 0}
       teams={teams || []}
       toggleDeleteSecretModal={toggleDeleteSecretModal}
+      isUpdatingSecret={isUpdatingSecret}
     />
   );
 
@@ -1455,6 +1493,7 @@ const ManageHostsPage = ({
     <DeleteLabelModal
       onSubmit={onDeleteLabel}
       onCancel={toggleDeleteLabelModal}
+      isUpdatingLabel={isUpdatingLabel}
     />
   );
 
@@ -1489,6 +1528,7 @@ const ManageHostsPage = ({
         teams={teams}
         onSubmit={onTransferHostSubmit}
         onCancel={toggleTransferHostModal}
+        isUpdatingHosts={isUpdatingHosts}
       />
     );
   };
@@ -1499,6 +1539,7 @@ const ManageHostsPage = ({
       onSubmit={onDeleteHostSubmit}
       onCancel={toggleDeleteHostModal}
       isAllMatchingHostsSelected={isAllMatchingHostsSelected}
+      isUpdatingHosts={isUpdatingHosts}
     />
   );
 
@@ -1684,6 +1725,7 @@ const ManageHostsPage = ({
           handleSubmit={onSaveAddLabel}
           baseError={labelsError?.message || ""}
           backendValidators={labelValidator}
+          isUpdatingLabel={isUpdatingLabel}
         />
       );
     }
@@ -1697,6 +1739,7 @@ const ManageHostsPage = ({
           handleSubmit={onEditLabel}
           baseError={labelsError?.message || ""}
           backendValidators={labelValidator}
+          isUpdatingLabel={isUpdatingLabel}
           isEdit
         />
       );
@@ -1860,14 +1903,14 @@ const ManageHostsPage = ({
             </span>
           </div>
           <div className={`dismiss-banner-button`}>
-            <button
-              className="button button--unstyled"
+            <Button
+              variant="unstyled"
               onClick={() =>
                 setShowNoEnrollSecretBanner(!showNoEnrollSecretBanner)
               }
             >
               <img alt="Dismiss no enroll secret banner" src={CloseIconBlack} />
-            </button>
+            </Button>
           </div>
         </div>
       )
@@ -1912,8 +1955,9 @@ const ManageHostsPage = ({
                       filteredHostCount === 0
                     ) && (
                       <Button
+                        variant="brand"
                         onClick={toggleAddHostsModal}
-                        className={`${baseClass}__add-hosts button button--brand`}
+                        className={`${baseClass}__add-hosts`}
                       >
                         <span>Add hosts</span>
                       </Button>

@@ -191,9 +191,13 @@ type ListPoliciesForHostFunc func(ctx context.Context, host *fleet.Host) ([]*fle
 
 type GetMunkiVersionFunc func(ctx context.Context, hostID uint) (string, error)
 
+type GetMunkiIssuesFunc func(ctx context.Context, hostID uint) ([]*fleet.HostMunkiIssue, error)
+
 type GetMDMFunc func(ctx context.Context, hostID uint) (*fleet.HostMDM, error)
 
 type AggregatedMunkiVersionFunc func(ctx context.Context, teamID *uint) ([]fleet.AggregatedMunkiVersion, time.Time, error)
+
+type AggregatedMunkiIssuesFunc func(ctx context.Context, teamID *uint) ([]fleet.AggregatedMunkiIssue, time.Time, error)
 
 type AggregatedMDMStatusFunc func(ctx context.Context, teamID *uint) (fleet.AggregatedMDMStatus, time.Time, error)
 
@@ -411,7 +415,7 @@ type SaveHostUsersFunc func(ctx context.Context, hostID uint, users []fleet.Host
 
 type SaveHostAdditionalFunc func(ctx context.Context, hostID uint, additional *json.RawMessage) error
 
-type SetOrUpdateMunkiVersionFunc func(ctx context.Context, hostID uint, version string) error
+type SetOrUpdateMunkiInfoFunc func(ctx context.Context, hostID uint, version string, errors []string, warnings []string) error
 
 type SetOrUpdateMDMDataFunc func(ctx context.Context, hostID uint, enrolled bool, serverURL string, installedFromDep bool) error
 
@@ -705,11 +709,17 @@ type DataStore struct {
 	GetMunkiVersionFunc        GetMunkiVersionFunc
 	GetMunkiVersionFuncInvoked bool
 
+	GetMunkiIssuesFunc        GetMunkiIssuesFunc
+	GetMunkiIssuesFuncInvoked bool
+
 	GetMDMFunc        GetMDMFunc
 	GetMDMFuncInvoked bool
 
 	AggregatedMunkiVersionFunc        AggregatedMunkiVersionFunc
 	AggregatedMunkiVersionFuncInvoked bool
+
+	AggregatedMunkiIssuesFunc        AggregatedMunkiIssuesFunc
+	AggregatedMunkiIssuesFuncInvoked bool
 
 	AggregatedMDMStatusFunc        AggregatedMDMStatusFunc
 	AggregatedMDMStatusFuncInvoked bool
@@ -1035,8 +1045,8 @@ type DataStore struct {
 	SaveHostAdditionalFunc        SaveHostAdditionalFunc
 	SaveHostAdditionalFuncInvoked bool
 
-	SetOrUpdateMunkiVersionFunc        SetOrUpdateMunkiVersionFunc
-	SetOrUpdateMunkiVersionFuncInvoked bool
+	SetOrUpdateMunkiInfoFunc        SetOrUpdateMunkiInfoFunc
+	SetOrUpdateMunkiInfoFuncInvoked bool
 
 	SetOrUpdateMDMDataFunc        SetOrUpdateMDMDataFunc
 	SetOrUpdateMDMDataFuncInvoked bool
@@ -1520,6 +1530,11 @@ func (s *DataStore) GetMunkiVersion(ctx context.Context, hostID uint) (string, e
 	return s.GetMunkiVersionFunc(ctx, hostID)
 }
 
+func (s *DataStore) GetMunkiIssues(ctx context.Context, hostID uint) ([]*fleet.HostMunkiIssue, error) {
+	s.GetMunkiIssuesFuncInvoked = true
+	return s.GetMunkiIssuesFunc(ctx, hostID)
+}
+
 func (s *DataStore) GetMDM(ctx context.Context, hostID uint) (*fleet.HostMDM, error) {
 	s.GetMDMFuncInvoked = true
 	return s.GetMDMFunc(ctx, hostID)
@@ -1528,6 +1543,11 @@ func (s *DataStore) GetMDM(ctx context.Context, hostID uint) (*fleet.HostMDM, er
 func (s *DataStore) AggregatedMunkiVersion(ctx context.Context, teamID *uint) ([]fleet.AggregatedMunkiVersion, time.Time, error) {
 	s.AggregatedMunkiVersionFuncInvoked = true
 	return s.AggregatedMunkiVersionFunc(ctx, teamID)
+}
+
+func (s *DataStore) AggregatedMunkiIssues(ctx context.Context, teamID *uint) ([]fleet.AggregatedMunkiIssue, time.Time, error) {
+	s.AggregatedMunkiIssuesFuncInvoked = true
+	return s.AggregatedMunkiIssuesFunc(ctx, teamID)
 }
 
 func (s *DataStore) AggregatedMDMStatus(ctx context.Context, teamID *uint) (fleet.AggregatedMDMStatus, time.Time, error) {
@@ -2070,9 +2090,9 @@ func (s *DataStore) SaveHostAdditional(ctx context.Context, hostID uint, additio
 	return s.SaveHostAdditionalFunc(ctx, hostID, additional)
 }
 
-func (s *DataStore) SetOrUpdateMunkiVersion(ctx context.Context, hostID uint, version string) error {
-	s.SetOrUpdateMunkiVersionFuncInvoked = true
-	return s.SetOrUpdateMunkiVersionFunc(ctx, hostID, version)
+func (s *DataStore) SetOrUpdateMunkiInfo(ctx context.Context, hostID uint, version string, errors []string, warnings []string) error {
+	s.SetOrUpdateMunkiInfoFuncInvoked = true
+	return s.SetOrUpdateMunkiInfoFunc(ctx, hostID, version, errors, warnings)
 }
 
 func (s *DataStore) SetOrUpdateMDMData(ctx context.Context, hostID uint, enrolled bool, serverURL string, installedFromDep bool) error {

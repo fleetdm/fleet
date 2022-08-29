@@ -36,7 +36,6 @@ interface IPolicyFormProps {
   showOpenSchemaActionText: boolean;
   storedPolicy: IPolicy | undefined;
   isStoredPolicyLoading: boolean;
-  isCreatingNewPolicy: boolean;
   isUpdatingPolicy: boolean;
   onCreatePolicy: (formData: IPolicyFormData) => void;
   onOsqueryTableSelect: (tableName: string) => void;
@@ -64,7 +63,6 @@ const PolicyForm = ({
   showOpenSchemaActionText,
   storedPolicy,
   isStoredPolicyLoading,
-  isCreatingNewPolicy,
   isUpdatingPolicy,
   onCreatePolicy,
   onOsqueryTableSelect,
@@ -484,14 +482,35 @@ const PolicyForm = ({
           >
             {hasSavePermissions && (
               <Button
-                className={`${baseClass}__save`}
                 variant="brand"
                 onClick={promptSavePolicy()}
                 disabled={isEditMode && !isAnyPlatformSelected}
+                className="save-loading"
+                isLoading={isUpdatingPolicy}
               >
-                <>{isUpdatingPolicy ? <Spinner /> : "Save"}</>
+                Save
               </Button>
             )}
+          </span>
+          <ReactTooltip
+            className={`${baseClass}__button-wrap--tooltip`}
+            place="bottom"
+            effect="solid"
+            id={`${baseClass}__button-wrap--tooltip`}
+            backgroundColor="#3e4771"
+          >
+            Select the platform(s) this
+            <br />
+            policy will be checked on
+            <br />
+            to save or run the policy.
+          </ReactTooltip>
+          <span
+            className={`${baseClass}__button-wrap--tooltip`}
+            data-tip
+            data-for={`${baseClass}__button-wrap--tooltip`}
+            data-tip-disable={!isEditMode || isAnyPlatformSelected}
+          >
             <Button
               className={`${baseClass}__run`}
               variant="blue-green"
@@ -524,7 +543,7 @@ const PolicyForm = ({
           setIsNewPolicyModalOpen={setIsNewPolicyModalOpen}
           backendValidators={backendValidators}
           platformSelector={platformSelector}
-          policyIsLoading={isCreatingNewPolicy}
+          isUpdatingPolicy={isUpdatingPolicy}
         />
       )}
     </>

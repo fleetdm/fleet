@@ -346,26 +346,6 @@
 []
 {{- end }}
 
-{{ define "fleet_detail_query_software_macos" -}}
-[
-  {{ range $index, $item := .SoftwareWindows11 }}
-  {{if $index}},{{end}}
-  {
-    "name": "{{ .Name }}",
-    "version": "{{ .Version }}",
-    "type": "Program (Windows)",
-    "source": "programs",
-    {{/* Note that in Go < 1.18, `{{ or (and .LastOpendedAt .LastOpenedAt.Unix) "" }}` won't work as expected because "and" and "or" don't short circuit. This was changed in Go 1.18 */}}
-    {{if .LastOpenedAt}}
-    "last_opened_at": "{{ .LastOpenedAt.Unix }}"
-    {{else}}
-    "last_opened_at": "-1"
-    {{end}}
-  }
-  {{- end }}
-]
-{{- end }}
-
 {{ define "fleet_detail_query_windows_update_history" -}}
 [
   {

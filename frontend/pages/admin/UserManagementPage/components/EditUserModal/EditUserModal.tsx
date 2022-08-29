@@ -24,7 +24,7 @@ interface IEditUserModalProps {
   editUserErrors?: IUserFormErrors;
   isModifiedByGlobalAdmin?: boolean | false;
   isInvitePending?: boolean;
-  isLoading: boolean;
+  isUpdatingUsers: boolean;
 }
 
 const baseClass = "edit-user-modal";
@@ -46,7 +46,7 @@ const EditUserModal = ({
   editUserErrors,
   isModifiedByGlobalAdmin,
   isInvitePending,
-  isLoading,
+  isUpdatingUsers,
 }: IEditUserModalProps): JSX.Element => {
   return (
     <Modal
@@ -54,29 +54,26 @@ const EditUserModal = ({
       onExit={onCancel}
       className={`${baseClass}__edit-user-modal`}
     >
-      {isLoading ? (
-        <Spinner />
-      ) : (
-        <UserForm
-          createOrEditUserErrors={editUserErrors}
-          defaultName={defaultName}
-          defaultEmail={defaultEmail}
-          defaultGlobalRole={defaultGlobalRole}
-          defaultTeamRole={defaultTeamRole}
-          defaultTeams={defaultTeams}
-          onCancel={onCancel}
-          onSubmit={onSubmit}
-          availableTeams={availableTeams}
-          submitText={"Save"}
-          isPremiumTier={isPremiumTier}
-          smtpConfigured={smtpConfigured}
-          canUseSso={canUseSso}
-          isSsoEnabled={isSsoEnabled}
-          isModifiedByGlobalAdmin={isModifiedByGlobalAdmin}
-          isInvitePending={isInvitePending}
-          currentTeam={currentTeam}
-        />
-      )}
+      <UserForm
+        createOrEditUserErrors={editUserErrors}
+        defaultName={defaultName}
+        defaultEmail={defaultEmail}
+        defaultGlobalRole={defaultGlobalRole}
+        defaultTeamRole={defaultTeamRole}
+        defaultTeams={defaultTeams}
+        onCancel={onCancel}
+        onSubmit={onSubmit}
+        availableTeams={availableTeams}
+        submitText={"Save"}
+        isPremiumTier={isPremiumTier}
+        smtpConfigured={smtpConfigured}
+        canUseSso={canUseSso}
+        isSsoEnabled={isSsoEnabled}
+        isModifiedByGlobalAdmin={isModifiedByGlobalAdmin}
+        isInvitePending={isInvitePending}
+        currentTeam={currentTeam}
+        isUpdatingUsers={isUpdatingUsers}
+      />
     </Modal>
   );
 };

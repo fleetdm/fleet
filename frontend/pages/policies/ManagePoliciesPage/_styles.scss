@@ -107,16 +107,6 @@
     }
   }
 
-  &__modal-buttons {
-    width: 100%;
-    display: flex;
-    justify-content: flex-end;
-
-    .button:first-child {
-      margin-right: $pad-medium;
-    }
-  }
-
   &__add-policy-link {
     transition: color 150ms ease-in-out, background 150ms ease-in-out,
       top 50ms ease-in-out, box-shadow 50ms ease-in-out, border 50ms ease-in-out;

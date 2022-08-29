@@ -42,8 +42,9 @@ class ResetPasswordForm extends Component {
         />
         <div className={`${baseClass}__button-wrap`}>
           <Button
+            variant="brand"
             onClick={handleSubmit}
-            className={`${baseClass}__btn button button--brand`}
+            className={`${baseClass}__btn`}
             type="submit"
           >
             Reset password

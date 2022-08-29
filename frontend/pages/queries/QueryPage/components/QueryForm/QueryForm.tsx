@@ -488,12 +488,13 @@ const QueryForm = ({
             <>
               {isEditMode && (
                 <Button
-                  className={`${baseClass}__save-as-new`}
                   variant="text-link"
                   onClick={promptSaveAsNewQuery()}
                   disabled={false}
+                  className="save-as-new-loading"
+                  isLoading={isSaveAsNewLoading}
                 >
-                  {isSaveAsNewLoading ? <Spinner /> : "Save as new"}
+                  Save as new
                 </Button>
               )}
               <div className="query-form__button-wrap--save-query-button">
@@ -508,15 +509,16 @@ const QueryForm = ({
                   }
                 >
                   <Button
-                    className={`${baseClass}__save`}
+                    className="save-loading"
                     variant="brand"
                     onClick={promptSaveQuery()}
                     disabled={
                       isAnyTeamMaintainerOrTeamAdmin &&
                       !hasTeamMaintainerPermissions
                     }
+                    isLoading={isQueryUpdating}
                   >
-                    {isQueryUpdating ? <Spinner /> : "Save"}
+                    Save
                   </Button>
                 </div>{" "}
                 <ReactTooltip

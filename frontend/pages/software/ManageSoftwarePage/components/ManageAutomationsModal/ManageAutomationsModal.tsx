@@ -441,13 +441,6 @@ const ManageAutomationsModal = ({
           )}
         </div>
         <div className="modal-cta-wrap">
-          <Button
-            className={`${baseClass}__btn`}
-            onClick={onReturnToApp}
-            variant="inverse"
-          >
-            Cancel
-          </Button>
           <div
             data-tip
             data-for="save-automation-button"
@@ -463,7 +456,6 @@ const ManageAutomationsModal = ({
             }
           >
             <Button
-              className={`${baseClass}__btn`}
               type="submit"
               variant="brand"
               onClick={handleSaveAutomation}
@@ -492,6 +484,9 @@ const ManageAutomationsModal = ({
               <br /> tickets for vulnerability automations.
             </>
           </ReactTooltip>
+          <Button onClick={onReturnToApp} variant="inverse">
+            Cancel
+          </Button>
         </div>
       </div>
     </Modal>

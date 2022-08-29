@@ -153,17 +153,20 @@ func (n *nodeKeyManager) Add(nodekey string) {
 }
 
 type agent struct {
-	agentIndex     int
-	softwareCount  softwareEntityCount
-	userCount      entityCount
-	policyPassProb float64
-	strings        map[string]string
-	serverAddress  string
-	fastClient     fasthttp.Client
-	stats          *Stats
-	nodeKeyManager *nodeKeyManager
-	nodeKey        string
-	templates      *template.Template
+	agentIndex      int
+	softwareCount   softwareEntityCount
+	userCount       entityCount
+	policyPassProb  float64
+	munkiIssueProb  float64
+	munkiIssueCount int
+	strings         map[string]string
+	serverAddress   string
+	fastClient      fasthttp.Client
+	stats           *Stats
+	nodeKeyManager  *nodeKeyManager
+	nodeKey         string
+	templates       *template.Template
+	os              string
 	// deviceAuthToken holds Fleet Desktop device authentication token.
 	//
 	// Non-nil means the agent is identified as orbit osquery,
@@ -198,6 +201,7 @@ func newAgent(
 	configInterval, queryInterval time.Duration, softwareCount softwareEntityCount, userCount entityCount,
 	policyPassProb float64,
 	orbitProb float64,
+	munkiIssueProb float64, munkiIssueCount int,
 ) *agent {
 	var deviceAuthToken *string
 	if rand.Float64() <= orbitProb {
@@ -208,17 +212,20 @@ func newAgent(
 		InsecureSkipVerify: true,
 	}
 	return &agent{
-		agentIndex:     agentIndex,
-		serverAddress:  serverAddress,
-		softwareCount:  softwareCount,
-		userCount:      userCount,
-		strings:        make(map[string]string),
-		policyPassProb: policyPassProb,
+		agentIndex:      agentIndex,
+		serverAddress:   serverAddress,
+		softwareCount:   softwareCount,
+		userCount:       userCount,
+		strings:         make(map[string]string),
+		policyPassProb:  policyPassProb,
+		munkiIssueProb:  munkiIssueProb,
+		munkiIssueCount: munkiIssueCount,
 		fastClient: fasthttp.Client{
 			TLSConfig: tlsConfig,
 		},
 		templates:       templates,
 		deviceAuthToken: deviceAuthToken,
+		os:              strings.TrimRight(templates.Name(), ".tmpl"),
 
 		EnrollSecret:   enrollSecret,
 		ConfigInterval: configInterval,
@@ -370,7 +377,7 @@ func (a *agent) config() {
 
 const stringVals = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-_."
 
-func (a *agent) randomString(n int) string {
+func randomString(n int) string {
 	sb := strings.Builder{}
 	sb.Grow(n)
 	for i := 0; i < n; i++ {
@@ -383,32 +390,32 @@ func (a *agent) CachedString(key string) string {
 	if val, ok := a.strings[key]; ok {
 		return val
 	}
-	val := a.randomString(12)
+	val := randomString(12)
 	a.strings[key] = val
 	return val
 }
 
-func (a *agent) HostUsersMacOS() []fleet.HostUser {
+func (a *agent) hostUsersMacOS() []map[string]string {
 	groupNames := []string{"staff", "nobody", "wheel", "tty", "daemon"}
 	shells := []string{"/bin/zsh", "/bin/sh", "/usr/bin/false", "/bin/bash"}
-	commonUsers := make([]fleet.HostUser, a.userCount.common)
+	commonUsers := make([]map[string]string, a.userCount.common)
 	for i := 0; i < len(commonUsers); i++ {
-		commonUsers[i] = fleet.HostUser{
-			Uid:       uint(i),
-			Username:  fmt.Sprintf("Common_%d", i),
-			Type:      "", // Empty for macOS.
-			GroupName: groupNames[i%len(groupNames)],
-			Shell:     shells[i%len(shells)],
+		commonUsers[i] = map[string]string{
+			"uid":       fmt.Sprint(i),
+			"username":  fmt.Sprintf("Common_%d", i),
+			"type":      "", // Empty for macOS.
+			"groupname": groupNames[i%len(groupNames)],
+			"shell":     shells[i%len(shells)],
 		}
 	}
-	uniqueUsers := make([]fleet.HostUser, a.userCount.unique)
+	uniqueUsers := make([]map[string]string, a.userCount.unique)
 	for i := 0; i < len(uniqueUsers); i++ {
-		uniqueUsers[i] = fleet.HostUser{
-			Uid:       uint(i),
-			Username:  fmt.Sprintf("Unique_%d_%d", a.agentIndex, i),
-			Type:      "", // Empty for macOS.
-			GroupName: groupNames[i%len(groupNames)],
-			Shell:     shells[i%len(shells)],
+		uniqueUsers[i] = map[string]string{
+			"uid":       fmt.Sprint(i),
+			"username":  fmt.Sprintf("Unique_%d_%d", a.agentIndex, i),
+			"type":      "", // Empty for macOS.
+			"groupname": groupNames[i%len(groupNames)],
+			"shell":     shells[i%len(shells)],
 		}
 	}
 	users := append(commonUsers, uniqueUsers...)
@@ -439,7 +446,7 @@ func extract(src, dst string) {
 	}
 }
 
-func loadSoftware(platform string, ver string) []fleet.Software {
+func loadSoftware(platform string, ver string) []map[string]string {
 	_, exFilename, _, ok := runtime.Caller(0)
 	if !ok {
 		panic("No caller information")
@@ -487,72 +494,89 @@ func loadSoftware(platform string, ver string) []fleet.Software {
 		return nil
 	}
 
-	var r []fleet.Software
+	var r []map[string]string
 	for _, fi := range software {
-		r = append(r, fleet.Software{
-			Name:    fi.Name,
-			Version: fi.Version,
-			Source:  "osquery-perf",
+		r = append(r, map[string]string{
+			"name":    fi.Name,
+			"version": fi.Version,
+			"source":  "osquery-perf",
 		})
 	}
 	return r
 }
 
-func (a *agent) SoftwareWindows11() []fleet.Software {
+func (a *agent) softwareWindows11() []map[string]string {
 	return loadSoftware("windows", "11")
 }
 
-func (a *agent) SoftwareUbuntu1604() []fleet.Software {
+func (a *agent) softwareUbuntu1604() []map[string]string {
 	return loadSoftware("ubuntu", "1604")
 }
 
-func (a *agent) SoftwareUbuntu1804() []fleet.Software {
+func (a *agent) softwareUbuntu1804() []map[string]string {
 	return loadSoftware("ubuntu", "1804")
 }
 
-func (a *agent) SoftwareUbuntu2004() []fleet.Software {
+func (a *agent) softwareUbuntu2004() []map[string]string {
 	return loadSoftware("ubuntu", "2004")
 }
 
-func (a *agent) SoftwareUbuntu2104() []fleet.Software {
+func (a *agent) softwareUbuntu2104() []map[string]string {
 	return loadSoftware("ubuntu", "2104")
 }
 
-func (a *agent) SoftwareUbuntu2110() []fleet.Software {
+func (a *agent) softwareUbuntu2110() []map[string]string {
 	return loadSoftware("ubuntu", "2110")
 }
 
-func (a *agent) SoftwareUbuntu2204() []fleet.Software {
+func (a *agent) softwareUbuntu2204() []map[string]string {
 	return loadSoftware("ubuntu", "2204")
 }
 
-func (a *agent) SoftwareMacOS() []fleet.Software {
+func (a *agent) softwareMacOS() []map[string]string {
 	var lastOpenedCount int
-	commonSoftware := make([]fleet.Software, a.softwareCount.common)
+	commonSoftware := make([]map[string]string, a.softwareCount.common)
 	for i := 0; i < len(commonSoftware); i++ {
-		commonSoftware[i] = fleet.Software{
-			Name:             fmt.Sprintf("Common_%d", i),
-			Version:          "0.0.1",
-			BundleIdentifier: "com.fleetdm.osquery-perf",
-			Source:           "osquery-perf",
-			LastOpenedAt:     a.genLastOpenedAt(&lastOpenedCount),
+		var lastOpenedAt string
+		if l := a.genLastOpenedAt(&lastOpenedCount); l != nil {
+			lastOpenedAt = l.Format(time.UnixDate)
+		}
+		commonSoftware[i] = map[string]string{
+			"name":              fmt.Sprintf("Common_%d", i),
+			"version":           "0.0.1",
+			"bundle_identifier": "com.fleetdm.osquery-perf",
+			"source":            "osquery-perf",
+			"last_opened_at":    lastOpenedAt,
 		}
 	}
-	uniqueSoftware := make([]fleet.Software, a.softwareCount.unique)
+	uniqueSoftware := make([]map[string]string, a.softwareCount.unique)
 	for i := 0; i < len(uniqueSoftware); i++ {
-		uniqueSoftware[i] = fleet.Software{
-			Name:             fmt.Sprintf("Unique_%s_%d", a.CachedString("hostname"), i),
-			Version:          "1.1.1",
-			BundleIdentifier: "com.fleetdm.osquery-perf",
-			Source:           "osquery-perf",
-			LastOpenedAt:     a.genLastOpenedAt(&lastOpenedCount),
+		var lastOpenedAt string
+		if l := a.genLastOpenedAt(&lastOpenedCount); l != nil {
+			lastOpenedAt = l.Format(time.UnixDate)
+		}
+		uniqueSoftware[i] = map[string]string{
+			"name":              fmt.Sprintf("Unique_%s_%d", a.CachedString("hostname"), i),
+			"version":           "1.1.1",
+			"bundle_identifier": "com.fleetdm.osquery-perf",
+			"source":            "osquery-perf",
+			"last_opened_at":    lastOpenedAt,
 		}
 	}
-	randomVulnerableSoftware := make([]fleet.Software, a.softwareCount.vulnerable)
+	randomVulnerableSoftware := make([]map[string]string, a.softwareCount.vulnerable)
 	for i := 0; i < len(randomVulnerableSoftware); i++ {
 		sw := vulnerableSoftware[rand.Intn(len(vulnerableSoftware))]
-		sw.LastOpenedAt = a.genLastOpenedAt(&lastOpenedCount)
-		randomVulnerableSoftware[i] = sw
+		var lastOpenedAt string
+		if l := a.genLastOpenedAt(&lastOpenedCount); l != nil {
+			lastOpenedAt = l.Format(time.UnixDate)
+		}
+		randomVulnerableSoftware[i] = map[string]string{
+			"name":              sw.Name,
+			"version":           sw.Version,
+			"bundle_identifier": sw.BundleIdentifier,
+			"source":            sw.Source,
+			"last_opened_at":    lastOpenedAt,
+		}
 	}
 	software := append(commonSoftware, uniqueSoftware...)
 	software = append(software, randomVulnerableSoftware...)
@@ -669,9 +693,42 @@ func (a *agent) mdm() []map[string]string {
 	}
 }
 
+var munkiIssues = func() []string {
+	// generate a list of random munki issues (messages)
+	issues := make([]string, 1000)
+	for i := range issues {
+		// message size: between 60 and 200, with spaces between each 10-char word so
+		// that it can still make a bit of sense for UI tests.
+		numParts := rand.Intn(15) + 6 // number between 0-14, add 6 to get between 6-20
+		var sb strings.Builder
+		for j := 0; j < numParts; j++ {
+			if j > 0 {
+				sb.WriteString(" ")
+			}
+			sb.WriteString(randomString(10))
+		}
+		issues[i] = sb.String()
+	}
+	return issues
+}()
+
 func (a *agent) munkiInfo() []map[string]string {
+	var errors, warnings []string
+
+	if rand.Float64() <= a.munkiIssueProb {
+		for i := 0; i < a.munkiIssueCount; i++ {
+			if rand.Intn(2) == 1 {
+				errors = append(errors, munkiIssues[rand.Intn(len(munkiIssues))])
+			} else {
+				warnings = append(warnings, munkiIssues[rand.Intn(len(munkiIssues))])
+			}
+		}
+	}
+
+	errList := strings.Join(errors, ";")
+	warnList := strings.Join(warnings, ";")
 	return []map[string]string{
-		{"version": "1.2.3"},
+		{"version": "1.2.3", "errors": errList, "warnings": warnList},
 	}
 }
 
@@ -776,6 +833,43 @@ func (a *agent) processQuery(name, query string) (handled bool, results []map[st
 			results = a.osUnixLike()
 		}
 		return true, results, &ss
+	case name == hostDetailQueryPrefix+"users":
+		ss := fleet.OsqueryStatus(rand.Intn(2))
+		if ss == fleet.StatusOK {
+			results = a.hostUsersMacOS()
+		}
+		return true, results, &ss
+	case name == hostDetailQueryPrefix+"software_macos":
+		ss := fleet.OsqueryStatus(rand.Intn(2))
+		if ss == fleet.StatusOK {
+			results = a.softwareMacOS()
+		}
+		return true, results, &ss
+	case name == hostDetailQueryPrefix+"software_windows":
+		ss := fleet.OsqueryStatus(rand.Intn(2))
+		if ss == fleet.StatusOK {
+			results = a.softwareWindows11()
+		}
+		return true, results, &ss
+	case name == hostDetailQueryPrefix+"software_linux":
+		ss := fleet.OsqueryStatus(rand.Intn(2))
+		if ss == fleet.StatusOK {
+			switch a.os {
+			case "ubuntu_16.04":
+				results = a.softwareUbuntu1604()
+			case "ubuntu_18.04":
+				results = a.softwareUbuntu1804()
+			case "ubuntu_20.04":
+				results = a.softwareUbuntu2004()
+			case "ubuntu_21.04":
+				results = a.softwareUbuntu2104()
+			case "ubuntu_21.10":
+				results = a.softwareUbuntu2110()
+			case "ubuntu_22.04":
+				results = a.softwareUbuntu2204()
+			}
+		}
+		return true, results, &ss
 
 	default:
 		// Look for results in the template file.
@@ -859,6 +953,8 @@ func main() {
 	uniqueUserCount := flag.Int("unique_user_count", 10, "Number of unique host users reported to fleet")
 	policyPassProb := flag.Float64("policy_pass_prob", 1.0, "Probability of policies to pass [0, 1]")
 	orbitProb := flag.Float64("orbit_prob", 0.5, "Probability of a host being identified as orbit install [0, 1]")
+	munkiIssueProb := flag.Float64("munki_issue_prob", 0.5, "Probability of a host having munki issues (note that ~50% of hosts have munki installed) [0, 1]")
+	munkiIssueCount := flag.Int("munki_issue_count", 10, "Number of munki issues reported by hosts identified to have munki issues")
 
 	flag.Parse()
 
@@ -921,6 +1017,8 @@ func main() {
 			},
 			*policyPassProb,
 			*orbitProb,
+			*munkiIssueProb,
+			*munkiIssueCount,
 		)
 		a.stats = stats
 		a.nodeKeyManager = nodeKeyManager
