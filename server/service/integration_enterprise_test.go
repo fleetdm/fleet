@@ -76,7 +76,12 @@ func (s *integrationEnterpriseTestSuite) TestTeamSpecs() {
 	// updates a team, no secret is provided so it will keep the one generated
 	// automatically when the team was created.
 	agentOpts := json.RawMessage(`{"config": {"foo": "bar"}, "overrides": {"platforms": {"darwin": {"foo": "override"}}}}`)
-	teamSpecs := applyTeamSpecsRequest{Specs: []*fleet.TeamSpec{{Name: teamName, AgentOptions: &agentOpts}}}
+	features := fleet.Features{
+		EnableHostUsers:         false,
+		EnableSoftwareInventory: false,
+		AdditionalQueries:       ptr.RawMessage(json.RawMessage(`{"foo": "bar"}`)),
+	}
+	teamSpecs := applyTeamSpecsRequest{Specs: []*fleet.TeamSpec{{Name: teamName, AgentOptions: &agentOpts, Features: &features}}}
 	s.Do("POST", "/api/latest/fleet/spec/teams", teamSpecs, http.StatusOK)
 
 	team, err := s.ds.TeamByName(context.Background(), teamName)
@@ -84,6 +89,7 @@ func (s *integrationEnterpriseTestSuite) TestTeamSpecs() {
 
 	assert.Len(t, team.Secrets, 1)
 	require.JSONEq(t, string(agentOpts), string(*team.Config.AgentOptions))
+	require.Equal(t, features, team.Config.Features)
 
 	// an activity was created for team spec applied
 	var listActivities listActivitiesResponse
@@ -111,10 +117,12 @@ func (s *integrationEnterpriseTestSuite) TestTeamSpecs() {
 	team, err = s.ds.TeamByName(context.Background(), "team2")
 	require.NoError(t, err)
 
+	appConfig, err := s.ds.AppConfig(context.Background())
 	defaultOpts := `{"config": {"options": {"logger_plugin": "tls", "pack_delimiter": "/", "logger_tls_period": 10, "distributed_plugin": "tls", "disable_distributed": false, "logger_tls_endpoint": "/api/osquery/log", "distributed_interval": 10, "distributed_tls_max_attempts": 3}, "decorators": {"load": ["SELECT uuid AS host_uuid FROM system_info;", "SELECT hostname AS hostname FROM system_info;"]}}, "overrides": {}}`
 	assert.Len(t, team.Secrets, 0) // no secret gets created automatically when creating a team via apply spec
 	require.NotNil(t, team.Config.AgentOptions)
 	require.JSONEq(t, defaultOpts, string(*team.Config.AgentOptions))
+	require.Equal(t, appConfig.Features, team.Config.Features)
 
 	// an activity was created for the newly created team via the applied spec
 	s.DoJSON("GET", "/api/latest/fleet/activities", nil, http.StatusOK, &listActivities, "order_key", "id", "order_direction", "desc")
