@@ -982,3 +982,51 @@ func insertOnDuplicateDidUpdate(res sql.Result) bool {
 	aff, _ := res.RowsAffected()
 	return lastID == 0 || aff != 1
 }
+
+type parameterizedStmt struct {
+	Statement string
+	Args      []interface{}
+}
+
+// optimisticGetOrInsert encodes an efficient pattern of looking up a row's ID
+// for a unique key that is more likely to already exist (i.e. the insert
+// should be infrequent, the read should succeed most of the time).
+// It proceeds as follows:
+//     1. Try to read the ID from the read replica.
+//     2. If it does not exist, try to insert the row in the primary.
+//     3. If it fails due to a duplicate key, try to read the ID again, this
+//     time from the primary.
+//
+// The read statement must only SELECT the id column.
+func (ds *Datastore) optimisticGetOrInsert(ctx context.Context, readStmt, insertStmt *parameterizedStmt) (id uint, err error) {
+	readID := func(q sqlx.QueryerContext) (uint, error) {
+		var id uint
+		err := sqlx.GetContext(ctx, q, &id, readStmt.Statement, readStmt.Args...)
+		return id, err
+	}
+
+	// 1. read from the read replica, as it is likely to already exist
+	id, err = readID(ds.reader)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			// this does not exist yet, try to insert it
+			res, err := ds.writer.ExecContext(ctx, insertStmt.Statement, insertStmt.Args...)
+			if err != nil {
+				if isDuplicate(err) {
+					// it might've been created between the select and the insert, read
+					// again this time from the primary database connection.
+					id, err := readID(ds.writer)
+					if err != nil {
+						return 0, ctxerr.Wrap(ctx, err, "get id from writer")
+					}
+					return id, nil
+				}
+				return 0, ctxerr.Wrap(ctx, err, "insert")
+			}
+			id, _ := res.LastInsertId()
+			return uint(id), nil
+		}
+		return 0, ctxerr.Wrap(ctx, err, "get id from reader")
+	}
+	return id, nil
+}
