@@ -12,6 +12,8 @@ import { IApiError } from "interfaces/errors";
 import { ILabel, ILabelFormData } from "interfaces/label";
 import labelsAPI, { ILabelsResponse } from "services/entities/labels";
 import deepDifference from "utilities/deep_difference";
+import useToggleSidePanel from "hooks/useToggleSidePanel";
+
 import LabelForm from "./LabelForm";
 
 const baseClass = "label-page";
@@ -36,7 +38,7 @@ const LabelPage = ({
   const isEditLabel = !location.pathname.includes("new");
 
   const [selectedLabel, setSelectedLabel] = useState<ILabel>();
-  const [isSidebarOpen, setIsSidebarOpen] = useState<boolean>(true);
+  const { isSidePanelOpen, setSidePanelOpen } = useToggleSidePanel(true);
   const [
     showOpenSchemaActionText,
     setShowOpenSchemaActionText,
@@ -50,8 +52,6 @@ const LabelPage = ({
     QueryContext
   );
   const { renderFlash } = useContext(NotificationContext);
-
-  const showSidebar = isSidebarOpen;
 
   const { data: labels, error: labelsError } = useQuery<
     ILabelsResponse,
@@ -69,16 +69,14 @@ const LabelPage = ({
     },
   });
 
-  useEffect(() => {
-    setShowOpenSchemaActionText(!isSidebarOpen);
-  }, [isSidebarOpen]);
-
   const onCloseSchemaSidebar = () => {
-    setIsSidebarOpen(false);
+    setSidePanelOpen(false);
+    setShowOpenSchemaActionText(true);
   };
 
   const onOpenSchemaSidebar = () => {
-    setIsSidebarOpen(true);
+    setSidePanelOpen(true);
+    setShowOpenSchemaActionText(false);
   };
 
   const onOsqueryTableSelect = (tableName: string) => {
@@ -199,7 +197,7 @@ const LabelPage = ({
           />
         </div>
       </MainContent>
-      {showSidebar && !isEditLabel && (
+      {isSidePanelOpen && !isEditLabel && (
         <SidePanelContent>
           <QuerySidePanel
             key="query-side-panel"
