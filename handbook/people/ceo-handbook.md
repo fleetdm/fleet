@@ -181,7 +181,13 @@ How to file videos from Gong recordings (**marking as "private" in gong is not a
     - Include in the doc "link to transcript:"
 
 ## Private whiteboard
-TODO: Create process
+
+From time to time the CEO will ask Charlie to unroll a Slack thread into a well-named whiteboard google doc for safekeeping and future searching. 
+  1. Start with a new doc
+  2. Name the file with "yyyy-mm-dd - topic" (something empathetic and easy to find)
+  3. Use CMD+SHFT+V to paste the Slack convo into the doc
+  4. Reapply formatting manually (be mindful of quotes, links, and images)
+      - To copy images right-click+copy and then paste in the doc (some resizing may be necessary to fit the page)
 
 ## New IT conversations
 TODO: Create process
