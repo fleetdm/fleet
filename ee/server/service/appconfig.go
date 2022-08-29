@@ -6,7 +6,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 )
 
-// HostFeatures retrieves the feautures enabled for a given host.
+// HostFeatures retrieves the features enabled for a given host.
 //
 // - If the host belongs to a team, it will use the team's features. When a team
 // is created the features are mixed with the global config features, but from
