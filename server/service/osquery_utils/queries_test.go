@@ -297,7 +297,8 @@ func sortedKeysCompare(t *testing.T, m map[string]DetailQuery, expectedKeys []st
 
 func TestGetDetailQueries(t *testing.T) {
 	queriesNoConfig := GetDetailQueries(config.FleetConfig{}, nil)
-	require.Len(t, queriesNoConfig, 15)
+	require.Len(t, queriesNoConfig, 16)
+
 	baseQueries := []string{
 		"network_interface",
 		"os_version",
@@ -314,15 +315,19 @@ func TestGetDetailQueries(t *testing.T) {
 		"battery",
 		"os_windows",
 		"os_unix_like",
+		"windows_update_history",
 	}
 	sortedKeysCompare(t, queriesNoConfig, baseQueries)
 
+	queriesWithoutWinOSVuln := GetDetailQueries(config.FleetConfig{Vulnerabilities: config.VulnerabilitiesConfig{DisableWinOSVulnerabilities: true}}, nil)
+	require.Len(t, queriesWithoutWinOSVuln, 15)
+
 	queriesWithUsers := GetDetailQueries(config.FleetConfig{App: config.AppConfig{EnableScheduledQueryStats: true}}, &fleet.Features{EnableHostUsers: true})
-	require.Len(t, queriesWithUsers, 17)
+	require.Len(t, queriesWithUsers, 18)
 	sortedKeysCompare(t, queriesWithUsers, append(baseQueries, "users", "scheduled_query_stats"))
 
 	queriesWithUsersAndSoftware := GetDetailQueries(config.FleetConfig{App: config.AppConfig{EnableScheduledQueryStats: true}}, &fleet.Features{EnableHostUsers: true, EnableSoftwareInventory: true})
-	require.Len(t, queriesWithUsersAndSoftware, 20)
+	require.Len(t, queriesWithUsersAndSoftware, 21)
 	sortedKeysCompare(t, queriesWithUsersAndSoftware,
 		append(baseQueries, "users", "software_macos", "software_linux", "software_windows", "scheduled_query_stats"))
 }
@@ -711,4 +716,43 @@ func TestDirectIngestSoftware(t *testing.T) {
 			ds.UpdateHostSoftwareFuncInvoked = false
 		}
 	})
+}
+
+func TestDirectIngestWindowsUpdateHistory(t *testing.T) {
+	ds := new(mock.Store)
+	ds.InsertWindowsUpdatesFunc = func(ctx context.Context, hostID uint, updates []fleet.WindowsUpdate) error {
+		require.Len(t, updates, 6)
+		require.ElementsMatch(t, []fleet.WindowsUpdate{
+			{KBID: 2267602, DateEpoch: 1657929207},
+			{KBID: 890830, DateEpoch: 1658226954},
+			{KBID: 5013887, DateEpoch: 1658225364},
+			{KBID: 5005463, DateEpoch: 1658225225},
+			{KBID: 5010472, DateEpoch: 1658224963},
+			{KBID: 4052623, DateEpoch: 1657929544},
+		}, updates)
+		return nil
+	}
+
+	host := fleet.Host{
+		ID: 1,
+	}
+
+	payload := []map[string]string{
+		{"date": "1659392951", "title": "Security Intelligence Update for Microsoft Defender Antivirus - KB2267602 (Version 1.371.1239.0)"},
+		{"date": "1658271402", "title": "Security Intelligence Update for Microsoft Defender Antivirus - KB2267602 (Version 1.371.442.0)"},
+		{"date": "1658228495", "title": "Security Intelligence Update for Microsoft Defender Antivirus - KB2267602 (Version 1.371.415.0)"},
+		{"date": "1658226954", "title": "Windows Malicious Software Removal Tool x64 - v5.103 (KB890830)"},
+		{"date": "1658225364", "title": "2022-06 Cumulative Update for .NET Framework 3.5 and 4.8 for Windows 10 Version 21H2 for x64 (KB5013887)"},
+		{"date": "1658225225", "title": "2022-04 Update for Windows 10 Version 21H2 for x64-based Systems (KB5005463)"},
+		{"date": "1658224963", "title": "2022-02 Cumulative Update Preview for .NET Framework 3.5 and 4.8 for Windows 10 Version 21H2 for x64 (KB5010472)"},
+		{"date": "1658222131", "title": "Security Intelligence Update for Microsoft Defender Antivirus - KB2267602 (Version 1.371.400.0)"},
+		{"date": "1658189063", "title": "Security Intelligence Update for Microsoft Defender Antivirus - KB2267602 (Version 1.371.376.0)"},
+		{"date": "1658185542", "title": "Security Intelligence Update for Microsoft Defender Antivirus - KB2267602 (Version 1.371.386.0)"},
+		{"date": "1657929544", "title": "Update for Microsoft Defender Antivirus antimalware platform - KB4052623 (Version 4.18.2205.7)"},
+		{"date": "1657929207", "title": "Security Intelligence Update for Microsoft Defender Antivirus - KB2267602 (Version 1.371.203.0)"},
+	}
+
+	err := directIngestWindowsUpdateHistory(context.Background(), log.NewNopLogger(), &host, ds, payload, false)
+	require.NoError(t, err)
+	require.True(t, ds.InsertWindowsUpdatesFuncInvoked)
 }

@@ -610,6 +610,10 @@ type Datastore interface {
 
 	InnoDBStatus(ctx context.Context) (string, error)
 	ProcessList(ctx context.Context) ([]MySQLProcess, error)
+
+	///////////////////////////////////////////////////////////////////////////////
+	// Windows Update History
+	InsertWindowsUpdates(ctx context.Context, hostID uint, updates []WindowsUpdate) error
 }
 
 const (
