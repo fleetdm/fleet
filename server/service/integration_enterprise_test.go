@@ -1291,9 +1291,9 @@ func (s *integrationEnterpriseTestSuite) TestDistributedReadWithFeatures() {
 	// Team config has only additional queries enabled
 	a := json.RawMessage(`{"time": "SELECT * FROM time"}`)
 	team, err := s.ds.NewTeam(context.Background(), &fleet.Team{
-		ID:          42,
-		Name:        "team1",
-		Description: "desc team1",
+		ID:          8324,
+		Name:        "team1_" + t.Name(),
+		Description: "desc team1_" + t.Name(),
 		Config: fleet.TeamConfig{
 			Features: fleet.Features{
 				EnableHostUsers:         false,
