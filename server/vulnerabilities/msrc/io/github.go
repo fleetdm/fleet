@@ -13,32 +13,32 @@ import (
 	"github.com/google/go-github/v37/github"
 )
 
-type MSRCGithubAPI interface {
+type GithubAPI interface {
 	Download(SecurityBulletinName, string) error
 	Bulletins() (map[SecurityBulletinName]string, error)
 }
 
-type MSRCGithubClient struct {
-	client *http.Client
-	dstDir string
+type GithubClient struct {
+	client  *http.Client
+	workDir string
 }
 
-func NewMSRCGithubClient(client *http.Client, dir string) MSRCGithubClient {
-	return MSRCGithubClient{client: client, dstDir: dir}
+func NewGithubClient(client *http.Client, dir string) GithubClient {
+	return GithubClient{client: client, workDir: dir}
 }
 
 // Downloads the security bulletin to 'dir'.
-func (gh MSRCGithubClient) Download(b SecurityBulletinName, urlStr string) error {
+func (gh GithubClient) Download(b SecurityBulletinName, urlStr string) error {
 	u, err := url.Parse(urlStr)
 	if err != nil {
 		return err
 	}
-	path := filepath.Join(gh.dstDir, string(b))
+	path := filepath.Join(gh.workDir, string(b))
 	return download.DownloadAndExtract(gh.client, u, path)
 }
 
 // Bulletins returns a map of 'name' => 'download URL' of the parsed security bulletins stored as assets on Github.
-func (gh MSRCGithubClient) Bulletins() (map[SecurityBulletinName]string, error) {
+func (gh GithubClient) Bulletins() (map[SecurityBulletinName]string, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
