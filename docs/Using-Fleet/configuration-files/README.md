@@ -221,11 +221,6 @@ spec:
     host_expiry_enabled: true
     host_expiry_window: 10
   features:
-    # "additional" information to collect from hosts along with the host
-    # details. This information will be updated at the same time as other host
-    # details and is returned by the API when host objects are returned. Users
-    # must take care to keep the data returned by these queries small in
-    # order to mitigate potential performance impacts on the Fleet server.
     additional_queries:
       time: SELECT * FROM time
       macs: SELECT mac FROM interface_details
@@ -300,7 +295,53 @@ Number of days after which an offline host is considered expired and will be rem
   	host_expiry_window: 10
   ```
 
-### Features Settings
+### Features
+
+<!-- This section used to be named Host Settings, this ensures links with the #host-settings hash still work -->
+<span id="host-settings" name="host-settings"></span>
+
+The `features` section of the configuration YAML lets you define what predefined queries are sent to the hosts and later on processed by Fleet for different functionalities.
+
+> Note: this section used to be named `host_settings`, but was renamed in Fleet v4.20.0,
+> `host_settings` is still supported for backwards compatibility.
+
+#### features.additional_queries
+
+Additional information to collect from hosts along with the host details. This information will be updated at the same time as other host details and is returned by the API when host objects are returned. Users must take care to keep the data returned by these queries small in order to mitigate potential performance impacts on the Fleet server.
+
+- Optional setting (dictionary of key-value strings).
+- Default value: none (empty).
+- Config file format:
+  ```
+  features:
+  	additional_queries:
+      time: SELECT * FROM time
+      macs: SELECT mac FROM interface_details
+  ```
+
+#### features.enable_host_users
+
+Whether or not Fleet sends the query needed to gather user-related data from hosts.
+
+- Optional setting (boolean).
+- Default value: `true`.
+- Config file format:
+  ```
+  features:
+  	enable_host_users: false
+  ```
+
+#### features.enable_software_inventory
+
+Whether or not Fleet sends the query needed to gather the list of software installed on hosts, along with other metadata.
+
+- Optional setting (boolean).
+- Default value: `true`.
+- Config file format:
+  ```
+  features:
+  	enable_software_inventory: false
+  ```
 
 ### Organization Information
 
@@ -585,6 +626,106 @@ Whether the SMTP server's SSL certificates should be verified. Can be turned off
     verify_ssl_certs: false
   ```
 
+### SSO Settings
+
+#### sso_settings.enable_sso
+
+Whether or not to enable Single Sign-On (SSO).
+
+- Optional setting (boolean).
+- Default value: `false`.
+- Config file format:
+  ```
+  sso_settings:
+    enable_sso: true
+  ```
+
+#### sso_settings.entity_id
+
+A Uniform Resource Identifier (URI) that identifies the SSO provider. It must exactly match the Entity ID field used in identity provider configuration.
+
+- Required setting if SSO is enabled, must have at least 5 characters (string).
+- Default value: none.
+- Config file format:
+  ```
+  sso_settings:
+    entity_id: abc123
+  ```
+
+#### sso_settings.idp_image_url
+
+The URL of the image to use to represent the identity provider (e.g. a logo).
+
+- Optional setting (string).
+- Default value: none.
+- Config file format:
+  ```
+  sso_settings:
+    idp_image_url: https://example.org/logo.png
+  ```
+
+#### sso_settings.idp_name
+
+The name of the identity provider.
+
+- Required setting if SSO is enabled (string).
+- Default value: none.
+- Config file format:
+  ```
+  sso_settings:
+    idp_name: Provider Name
+  ```
+
+#### sso_settings.issuer_uri
+
+The URI of the issuer (the identity provider). TODO(mna): is this used? The field does not appear used anywhere. We do request it on the frontend.
+
+- Optional setting (string).
+- Default value: none.
+- Config file format:
+  ```
+  sso_settings:
+    issuer_uri: abc123
+  ```
+
+#### sso_settings.metadata
+
+The metadata in XML format provided by the identity provider.
+
+- Optional setting, either `metadata` or `metadata_url` must be set if SSO is enabled, but not both (string).
+- Default value: none.
+- Config file format:
+  ```
+  sso_settings:
+    metadata: "<md:EntityDescriptor entityID="https://idp.example.org/SAML2"> ... /md:EntityDescriptor>"
+  ```
+
+#### sso_settings.metadata_url
+
+The URL of the metadata document in XML format provided by the identity provider.
+
+- Optional setting, either `metadata` or `metadata_url` must be set if SSO is enabled, but not both (string).
+- Default value: none.
+- Config file format:
+  ```
+  sso_settings:
+    metadata_url: https://idp.example.org/idp-meta.xml
+  ```
+
+### Vulnerability Settings
+
+#### vulnerability_settings.databases_path
+
+Path to a directory on the local filesystem (accessible to the Fleet server) where the various vulnerability databases will be stored.
+
+- Optional setting, must be set to enable vulnerability detection (string).
+- Default value: none.
+- Config file format:
+  ```
+  vulnerability_settings:
+    databases_path: "/path/to/dir"
+  ```
+
 ### Agent options
 
 The `agent_options` key describes options returned to osqueryd when it checks for configuration. See the [osquery documentation](https://osquery.readthedocs.io/en/stable/deployment/configuration/#options) for the available options. Existing options will be over-written by the application of this file.
@@ -776,17 +917,3 @@ If `host_expiry_enabled` is set to `true`, Fleet allows automatic cleanup of hos
 ### Host Expiry Window
 
 If a host has not communicated with Fleet in the specified number of days, it will be removed.
-
-## Features
-
-<!-- This section used to be named Host Settings, this ensures links with the #host-settings hash still work -->
-<span id="host-settings" name="host-settings"></span>
-
-The `features` section of the configuration YAML lets you define what predefined queries are sent to the hosts and
-later on processed by Fleet for different functionalities.
-
-- `features.enable_host_users`: boolean value that, when enabled, Fleet will send the query needed to gather user data
-- `features.enable_software_inventory`: boolean value that when enabled Fleet will send the query needed to gather the list of software installed along with other metadata
-
-> Note: this section used to be named `host_settings`, but was renamed in Fleet v4.20.0,
-> `host_settings` is still supported for backwards compatibility.
