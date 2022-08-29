@@ -263,7 +263,7 @@ describe("Premium tier - Team observer/maintainer user", () => {
           cy.findByText(/detect presence/i).click();
           cy.findByText(/every day/i).click();
           cy.findByText(/every 6 hours/i).click();
-          cy.getAttached(".schedule-editor-modal__btn-wrap").within(() => {
+          cy.getAttached(".modal-cta-wrap").within(() => {
             cy.findByRole("button", { name: /schedule/i }).click();
           });
         });
@@ -285,8 +285,10 @@ describe("Premium tier - Team observer/maintainer user", () => {
 
         // Add a default policy
         cy.findByText(/gatekeeper enabled/i).click();
-        cy.getAttached(".policy-form__save").click();
-        cy.getAttached(".policy-form__button--modal-save").click();
+        cy.findByRole("button", { name: /save/i }).click();
+        cy.getAttached(".modal-cta-wrap").within(() => {
+          cy.findByRole("button", { name: /save policy/i }).click();
+        });
         cy.findByText(/policy created/i).should("exist");
 
         // On maintaining team, should see "save" and "run" for a new policy

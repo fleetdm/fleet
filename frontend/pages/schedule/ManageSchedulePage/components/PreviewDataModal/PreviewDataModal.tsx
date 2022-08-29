@@ -48,12 +48,8 @@ const PreviewDataModal = ({
         <div className={`${baseClass}__host-status-webhook-preview`}>
           <pre dangerouslySetInnerHTML={{ __html: syntaxHighlight(json) }} />
         </div>
-        <div className={`${baseClass}__btn-wrap`}>
-          <Button
-            className={`${baseClass}__btn`}
-            onClick={onCancel}
-            variant="brand"
-          >
+        <div className="modal-cta-wrap">
+          <Button onClick={onCancel} variant="brand">
             Done
           </Button>
         </div>
