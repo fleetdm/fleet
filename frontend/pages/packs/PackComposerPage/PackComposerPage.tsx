@@ -29,6 +29,7 @@ const PackComposerPage = ({ router }: IPackComposerPageProps): JSX.Element => {
   const { renderFlash } = useContext(NotificationContext);
 
   const [selectedTargetsCount, setSelectedTargetsCount] = useState<number>(0);
+  const [isUpdatingPack, setIsUpdatingPack] = useState<boolean>(false);
 
   const onFetchTargets = (
     query: IQuery,
@@ -41,6 +42,8 @@ const PackComposerPage = ({ router }: IPackComposerPageProps): JSX.Element => {
 
   const handleSubmit = async (formData: IEditPackFormData) => {
     const { create } = packsAPI;
+
+    setIsUpdatingPack(true);
 
     try {
       const {
@@ -62,6 +65,8 @@ const PackComposerPage = ({ router }: IPackComposerPageProps): JSX.Element => {
       } else {
         renderFlash("error", "Unable to create pack.");
       }
+    } finally {
+      setIsUpdatingPack(false);
     }
   };
 
@@ -74,6 +79,7 @@ const PackComposerPage = ({ router }: IPackComposerPageProps): JSX.Element => {
           onFetchTargets={onFetchTargets}
           selectedTargetsCount={selectedTargetsCount}
           isPremiumTier={isPremiumTier}
+          isUpdatingPack={isUpdatingPack}
         />
       </MainContent>
       <SidePanelContent>

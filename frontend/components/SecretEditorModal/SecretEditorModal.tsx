@@ -8,12 +8,13 @@ import Button from "components/buttons/Button";
 // @ts-ignore
 import InputField from "components/forms/fields/InputField";
 
-interface IAddSecretModal {
+interface ISecretEditorModalProps {
   selectedTeam: number;
   onSaveSecret: (newEnrollSecret: string) => void;
   teams: ITeam[];
   toggleSecretEditorModal: () => void;
   selectedSecret: IEnrollSecret | undefined;
+  isUpdatingSecret: boolean;
 }
 
 const baseClass = "secret-editor-modal";
@@ -35,7 +36,8 @@ const SecretEditorModal = ({
   teams,
   toggleSecretEditorModal,
   selectedSecret,
-}: IAddSecretModal): JSX.Element => {
+  isUpdatingSecret,
+}: ISecretEditorModalProps): JSX.Element => {
   const [enrollSecretString, setEnrollSecretString] = useState<string>(
     selectedSecret ? selectedSecret.secret : randomSecretGenerator()
   );
@@ -99,7 +101,12 @@ const SecretEditorModal = ({
           />
         </div>
         <div className="modal-cta-wrap">
-          <Button onClick={onSaveSecretClick} className="button button--brand">
+          <Button
+            onClick={onSaveSecretClick}
+            variant="brand"
+            className="save-loading"
+            isLoading={isUpdatingSecret}
+          >
             Save
           </Button>
         </div>

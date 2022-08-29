@@ -45,6 +45,7 @@ $base-class: "button";
   height: 38px;
   top: 0;
   border: 0;
+  position: relative;
   cursor: pointer;
 
   &:focus {
@@ -57,6 +58,7 @@ $base-class: "button";
       $core-vibrant-blue-over,
       $core-vibrant-blue-down
     );
+    display: flex;
   }
 
   &--success {
@@ -69,6 +71,15 @@ $base-class: "button";
       $core-vibrant-red-over,
       $core-vibrant-red-down
     );
+    display: flex;
+
+    .loading-spinner {
+      &__ring {
+        div {
+          border-color: $ui-error transparent transparent transparent;
+        }
+      }
+    }
   }
 
   &--blue-green {
@@ -319,5 +330,15 @@ $base-class: "button";
     @include button-variant(transparent, $ui-vibrant-blue-10);
     display: flex;
     justify-content: space-between;
+  }
+
+  .transparent-text {
+    opacity: 0;
+  }
+
+  .children-wrapper {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
   }
 }

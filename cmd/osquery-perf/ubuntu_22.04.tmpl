@@ -94,38 +94,3 @@
 ]
 {{- end }}
 
-{{ define "fleet_detail_query_users" -}}
-[
-  {{ range $index, $item := .HostUsersMacOS }}
-  {{if $index}},{{end}}
-  {
-    "uid": "{{ .Uid }}",
-    "username": "{{ .Username }}",
-    "type": "{{ .Type }}",
-    "groupname": "{{ .GroupName }}",
-    "shell": "{{ .Shell }}"
-  }
-  {{- end }}
-]
-{{- end }}
-
-{{ define "fleet_detail_query_software_linux" -}}
-[
-  {{ range $index, $item := .SoftwareUbuntu2204 }}
-  {{if $index}},{{end}}
-  {
-    "name": "{{ .Name }}",
-    "version": "{{ .Version }}",
-    "type": "Application (macOS)",
-    "bundle_identifier": "{{ .BundleIdentifier }}",
-    "source": "apps",
-    {{/* Note that in Go < 1.18, `{{ or (and .LastOpendedAt .LastOpenedAt.Unix) "" }}` won't work as expected because "and" and "or" don't short circuit. This was changed in Go 1.18 */}}
-    {{if .LastOpenedAt}}
-    "last_opened_at": "{{ .LastOpenedAt.Unix }}"
-    {{else}}
-    "last_opened_at": "-1"
-    {{end}}
-  }
-  {{- end }}
-]
-{{- end }}

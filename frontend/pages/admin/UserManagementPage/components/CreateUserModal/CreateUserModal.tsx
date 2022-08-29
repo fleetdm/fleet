@@ -19,7 +19,7 @@ interface ICreateUserModalProps {
   currentTeam?: ITeam;
   canUseSso: boolean; // corresponds to whether SSO is enabled for the organization
   isModifiedByGlobalAdmin?: boolean | false;
-  isLoading?: boolean | false;
+  isUpdatingUsers?: boolean | false;
   serverErrors?: { base: string; email: string };
   createUserErrors?: IUserFormErrors;
 }
@@ -38,36 +38,30 @@ const CreateUserModal = ({
   smtpConfigured,
   canUseSso,
   isModifiedByGlobalAdmin,
-  isLoading,
+  isUpdatingUsers,
   serverErrors,
   createUserErrors,
 }: ICreateUserModalProps): JSX.Element => {
   return (
     <Modal title="Create user" onExit={onCancel} className={baseClass}>
-      <>
-        {isLoading && (
-          <div className="loading-spinner">
-            <Spinner />
-          </div>
-        )}
-        <UserForm
-          serverErrors={serverErrors}
-          createOrEditUserErrors={createUserErrors}
-          defaultGlobalRole={defaultGlobalRole}
-          defaultTeamRole={defaultTeamRole}
-          defaultTeams={defaultTeams}
-          onCancel={onCancel}
-          onSubmit={onSubmit}
-          availableTeams={availableTeams || []}
-          submitText={"Create"}
-          isPremiumTier={isPremiumTier}
-          smtpConfigured={smtpConfigured}
-          canUseSso={canUseSso}
-          isModifiedByGlobalAdmin={isModifiedByGlobalAdmin}
-          currentTeam={currentTeam}
-          isNewUser
-        />
-      </>
+      <UserForm
+        serverErrors={serverErrors}
+        createOrEditUserErrors={createUserErrors}
+        defaultGlobalRole={defaultGlobalRole}
+        defaultTeamRole={defaultTeamRole}
+        defaultTeams={defaultTeams}
+        onCancel={onCancel}
+        onSubmit={onSubmit}
+        availableTeams={availableTeams || []}
+        submitText={"Create"}
+        isPremiumTier={isPremiumTier}
+        smtpConfigured={smtpConfigured}
+        canUseSso={canUseSso}
+        isModifiedByGlobalAdmin={isModifiedByGlobalAdmin}
+        currentTeam={currentTeam}
+        isNewUser
+        isUpdatingUsers={isUpdatingUsers}
+      />
     </Modal>
   );
 };

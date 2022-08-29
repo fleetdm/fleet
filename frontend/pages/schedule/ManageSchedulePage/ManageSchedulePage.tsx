@@ -291,8 +291,10 @@ const ManageSchedulePage = ({
   const selectedTeamData =
     teams?.find((team: ITeam) => selectedTeam === team.id) || undefined;
 
-  const [scheduleIsLoading, setScheduleIsLoading] = useState<boolean>(false);
-  const [scheduleIsRemoving, setScheduleIsRemoving] = useState<boolean>(false);
+  const [
+    isUpdatingScheduledQuery,
+    setIsUpdatingScheduledQuery,
+  ] = useState<boolean>(false);
   const [showInheritedQueries, setShowInheritedQueries] = useState<boolean>(
     false
   );
@@ -342,7 +344,7 @@ const ManageSchedulePage = ({
   };
 
   const onRemoveScheduledQuerySubmit = useCallback(() => {
-    setScheduleIsRemoving(true);
+    setIsUpdatingScheduledQuery(true);
     const promises = selectedQueryIds.map((id: number) => {
       return selectedTeamId
         ? teamScheduledQueriesAPI.destroy(selectedTeamId, id)
@@ -367,7 +369,7 @@ const ManageSchedulePage = ({
       })
       .finally(() => {
         refetchGlobalScheduledQueries();
-        setScheduleIsRemoving(false);
+        setIsUpdatingScheduledQuery(false);
       });
   }, [
     selectedTeamId,
@@ -378,7 +380,7 @@ const ManageSchedulePage = ({
 
   const onAddScheduledQuerySubmit = useCallback(
     (formData: IFormData, editQuery: IEditScheduledQuery | undefined) => {
-      setScheduleIsLoading(true);
+      setIsUpdatingScheduledQuery(true);
       if (editQuery) {
         const updatedAttributes = deepDifference(formData, editQuery);
 
@@ -403,7 +405,7 @@ const ManageSchedulePage = ({
             );
           })
           .finally(() => {
-            setScheduleIsLoading(false);
+            setIsUpdatingScheduledQuery(false);
             refetchGlobalScheduledQueries();
           });
       } else {
@@ -424,7 +426,7 @@ const ManageSchedulePage = ({
             renderFlash("error", "Could not schedule query. Please try again.");
           })
           .finally(() => {
-            setScheduleIsLoading(false);
+            setIsUpdatingScheduledQuery(false);
             refetchGlobalScheduledQueries();
           });
       }
@@ -554,14 +556,14 @@ const ManageSchedulePage = ({
             teamId={selectedTeamId}
             togglePreviewDataModal={togglePreviewDataModal}
             showPreviewDataModal={showPreviewDataModal}
-            isLoading={scheduleIsLoading}
+            isUpdatingScheduledQuery={isUpdatingScheduledQuery}
           />
         )}
         {showRemoveScheduledQueryModal && (
           <RemoveScheduledQueryModal
             onCancel={toggleRemoveScheduledQueryModal}
             onSubmit={onRemoveScheduledQuerySubmit}
-            isLoading={scheduleIsRemoving}
+            isUpdatingScheduledQuery={isUpdatingScheduledQuery}
           />
         )}
       </div>
