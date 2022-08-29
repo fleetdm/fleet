@@ -169,7 +169,16 @@ As Fleet grows, time management for the CEO is more essential. Charlie will audi
 **Additional product design review sessions are welcomed and a top priority for the CEO to get on the calendar quickly.  Other internal meetings and blocked time can always be moved to make room.  External meetings, travel, and personal commitments cannot be moved.  To schedule, mention @Charlie Chance in the #meetings channel.**
 
 ## Gong
-TODO: Gong process
+
+How to file videos from Gong recordings (**marking as "private" in gong is not appropriate. Never use it- instead, use this process**):
+  1. Move to ¶¶ recording in google drive.
+  2. Download video from Gong, then delete it from Gong (promptly) and instead upload mp4 to appropriate ¶¶ folder in google drive.
+  3. Move generated transcript doc in google drive (promptly) instead into appropriate ¶¶ folder in google drive.
+  4. **For both video and transcript**: Double-checked permissions to make sure they are only ¶¶ viewers.
+  5. Include the links to ¶¶ video and transcript here in this doc:
+    - If appropriate, make this doc "¶¶," plus fleeties who were on the call.
+    - Include in the doc "link to video:"
+    - Include in the doc "link to transcript:"
 
 ## Private whiteboard
 TODO: Create process
