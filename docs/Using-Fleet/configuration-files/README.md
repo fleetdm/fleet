@@ -193,7 +193,7 @@ spec:
 ```
 ## Organization settings
 
-The following file describes organization settings applied to the Fleet server. A detailed explanation of each field is given next.
+The following file describes organization settings applied to the Fleet server. A detailed explanation of each field is given after the example YAML file.
 
 ```yaml
 apiVersion: v1
@@ -274,13 +274,41 @@ spec:
     metadata_url: https://idp.example.org/idp-meta.xml
 ```
 
+### Host Expiry Settings
+
+#### host_expiry_settings.host_expiry_enabled
+
+Whether offline hosts' expiration is enabled.
+
+- Optional setting (boolean).
+- Default value: `false`.
+- Config file format:
+  ```
+  host_expiry_settings:
+  	host_expiry_enabled: true
+  ```
+
+#### host_expiry_settings.host_expiry_window
+
+Number of days after which an offline host is considered expired and will be removed from Fleet.
+
+- Optional setting (integer).
+- Default value: `0` (must be > 0 when enabling host expiry).
+- Config file format:
+  ```
+  host_expiry_settings:
+  	host_expiry_window: 10
+  ```
+
+### Features Settings
+
 ### Organization Information
 
 #### org_info.org_name
 
 The name of the organization.
 
-- Required setting.
+- Required setting (string).
 - Default value: none (provided during Fleet setup).
 - Config file format:
   ```
@@ -292,7 +320,7 @@ The name of the organization.
 
 The URL of the logo of the organization.
 
-- Optional setting.
+- Optional setting (string).
 - Default value: none (uses Fleet's logo).
 - Config file format:
   ```
@@ -306,7 +334,7 @@ The URL of the logo of the organization.
 
 The base URL of the fleet server, including the scheme (e.g. "https://").
 
-- Required setting.
+- Required setting (string).
 - Default value: none (provided during Fleet setup).
 - Config file format:
   ```
@@ -318,7 +346,7 @@ The base URL of the fleet server, including the scheme (e.g. "https://").
 
 If the live query feature is disabled or not.
 
-- Optional setting.
+- Optional setting (boolean).
 - Default value: `false`.
 - Config file format:
   ```
@@ -330,7 +358,7 @@ If the live query feature is disabled or not.
 
 If sending usage analytics is enabled or not.
 
-- Optional setting.
+- Optional setting (boolean).
 - Default value: `true`.
 - Config file format:
   ```
@@ -374,7 +402,7 @@ spec:
 > **Warning:** This will potentially log a lot of data. Some of that data might be private. Please verify it before posting it.
 in a public channel or a GitHub issue.
 
-- Optional setting.
+- Optional setting (array of integers).
 - Default value: empty.
 - Config file format:
   ```
@@ -388,7 +416,7 @@ in a public channel or a GitHub issue.
 
 Whether saving host-related information is done synchronously in the HTTP handler of the host's request, or asynchronously. This can provide better performance in deployments with many hosts. Note that this is an **experimental feature** (TODO(mna): is it?).
 
-- Optional setting.
+- Optional setting (boolean).
 - Default value: `false`.
 - Config file format:
   ```
@@ -405,7 +433,7 @@ Whether saving host-related information is done synchronously in the HTTP handle
 
 The authentication method to use when the authentication type is `authtype_username_password`.
 
-- Optional setting.
+- Optional setting (string).
 - Default value: `authmethod_plain`.
 - Possible values:
   - `authmethod_cram_md5`
@@ -421,7 +449,7 @@ The authentication method to use when the authentication type is `authtype_usern
 
 The type of authentication for the configured SMTP server.
 
-- Optional setting.
+- Optional setting (string).
 - Default value: `authtype_username_password`.
 - Possible values:
   - `authtype_none` - use this if your SMTP server is open
@@ -436,7 +464,7 @@ The type of authentication for the configured SMTP server.
 
 The domain for SMTP. (TODO(mna): what is this? not the host, apparently, as there's also smtp server? Doesn't appear to be used?)
 
-- Optional setting.
+- Optional setting (string).
 - Default value: none.
 - Config file format:
   ```
@@ -448,7 +476,7 @@ The domain for SMTP. (TODO(mna): what is this? not the host, apparently, as ther
 
 Whether SMTP support is enabled or not to send emails from Fleet.
 
-- Optional setting.
+- Optional setting (boolean).
 - Default value: `false`.
 - Config file format:
   ```
@@ -461,7 +489,7 @@ Whether SMTP support is enabled or not to send emails from Fleet.
 TODO(mna): doesn't seem to be used?
 Whether to enable SSL/TLS for the SMTP connection.
 
-- Optional setting.
+- Optional setting (boolean).
 - Default value: `true`.
 - Config file format:
   ```
@@ -473,7 +501,7 @@ Whether to enable SSL/TLS for the SMTP connection.
 
 Whether to detect if TLS is used by the SMTP server and start using it if so.
 
-- Optional setting.
+- Optional setting (boolean).
 - Default value: `true`.
 - Config file format:
   ```
@@ -487,7 +515,7 @@ Whether to detect if TLS is used by the SMTP server and start using it if so.
 
 The password to use for the SMTP authentication, when `authentication_type` is set to `authtype_username_password`.
 
-- Optional setting.
+- Optional setting (string).
 - Default value: none.
 - Config file format:
   ```
@@ -499,7 +527,7 @@ The password to use for the SMTP authentication, when `authentication_type` is s
 
 The port to use to connect to the SMTP server.
 
-- Optional setting.
+- Optional setting (integer).
 - Default value: `587` (the standard SMTP port).
 - Config file format:
   ```
@@ -511,7 +539,7 @@ The port to use to connect to the SMTP server.
 
 The email address to use as sender for emails sent by Fleet.
 
-- Optional setting.
+- Optional setting (string).
 - Default value: none.
 - Config file format:
   ```
@@ -523,7 +551,7 @@ The email address to use as sender for emails sent by Fleet.
 
 The server hostname for SMTP.
 
-- Optional setting, required to properly configue SMTP.
+- Optional setting, required to properly configue SMTP (string).
 - Default value: none.
 - Config file format:
   ```
@@ -537,7 +565,7 @@ The server hostname for SMTP.
 
 The username to use for the SMTP authentication, when `authentication_type` is set to `authtype_username_password`.
 
-- Optional setting.
+- Optional setting (string).
 - Default value: none.
 - Config file format:
   ```
@@ -549,7 +577,7 @@ The username to use for the SMTP authentication, when `authentication_type` is s
 
 Whether the SMTP server's SSL certificates should be verified. Can be turned off if self-signed certificates are used by the SMTP server.
 
-- Optional setting.
+- Optional setting (boolean).
 - Default value: `true`.
 - Config file format:
   ```
