@@ -1,28 +1,34 @@
-import React, { useContext } from "react";
-import { QueryContext } from "context/query";
+import React from "react";
 
+import FleetAce from "components/FleetAce";
 import Modal from "components/Modal";
 import Button from "components/buttons/Button";
-import FleetAce from "components/FleetAce";
 
 const baseClass = "show-query-modal";
 
 interface IShowQueryModalProps {
   onCancel: () => void;
+  query?: string;
 }
 
-const ShowQueryModal = ({ onCancel }: IShowQueryModalProps): JSX.Element => {
-  const { lastEditedQueryBody } = useContext(QueryContext);
-
+const ShowQueryModal = ({
+  query,
+  onCancel,
+}: IShowQueryModalProps): JSX.Element => {
   return (
-    <Modal title={"Query"} onExit={onCancel} className={baseClass}>
-      <div className={`${baseClass}__show-query-modal`}>
+    <Modal
+      title={"Query"}
+      onExit={onCancel}
+      onEnter={onCancel}
+      className={baseClass}
+    >
+      <div className={baseClass}>
         <FleetAce
-          value={lastEditedQueryBody}
-          name="query editor"
+          value={query}
+          name="Scheduled query"
           wrapperClassName={`${baseClass}__text-editor-wrapper`}
-          readOnly
           wrapEnabled
+          readOnly
         />
         <div className="modal-cta-wrap">
           <Button onClick={onCancel} variant="brand">

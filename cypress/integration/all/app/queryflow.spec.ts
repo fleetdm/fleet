@@ -159,6 +159,21 @@ describe("Query flow (seeded)", () => {
       cy.findByText(/successfully added/i).should("be.visible");
     });
 
+    it("shows sql of a scheduled query successfully", () => {
+      cy.getAttached("tbody>tr")
+        .should("have.length", 1)
+        .within(() => {
+          cy.findByText(/action/i).click();
+          cy.findByText(/show query/i).click();
+        });
+      cy.getAttached(".show-query-modal").within(() => {
+        cy.getAttached(".ace_content").within(() => {
+          cy.findByText(/select/i).should("exist");
+          cy.findByText(/datetime/i).should("exist");
+        });
+      });
+    });
+
     it("edit a scheduled query successfully", () => {
       cy.getAttached("tbody>tr")
         .should("have.length", 1)
