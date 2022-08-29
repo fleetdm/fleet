@@ -120,24 +120,20 @@ const Homepage = (): JSX.Element => {
     }
   );
 
-  const {
-    isLoading: isGlobalSecretsLoading,
-    data: globalSecrets,
-    refetch: refetchGlobalSecrets,
-  } = useQuery<IEnrollSecretsResponse, Error, IEnrollSecret[]>(
-    ["global secrets"],
-    () => enrollSecretsAPI.getGlobalEnrollSecrets(),
-    {
-      enabled: !!canEnrollGlobalHosts,
-      select: (data: IEnrollSecretsResponse) => data.secrets,
-    }
-  );
+  const { isLoading: isGlobalSecretsLoading, data: globalSecrets } = useQuery<
+    IEnrollSecretsResponse,
+    Error,
+    IEnrollSecret[]
+  >(["global secrets"], () => enrollSecretsAPI.getGlobalEnrollSecrets(), {
+    enabled: !!canEnrollGlobalHosts,
+    select: (data: IEnrollSecretsResponse) => data.secrets,
+  });
 
-  const {
-    isLoading: isTeamSecretsLoading,
-    data: teamSecrets,
-    refetch: refetchTeamSecrets,
-  } = useQuery<IEnrollSecretsResponse, Error, IEnrollSecret[]>(
+  const { data: teamSecrets } = useQuery<
+    IEnrollSecretsResponse,
+    Error,
+    IEnrollSecret[]
+  >(
     ["team secrets", currentTeam],
     () => {
       if (currentTeam) {

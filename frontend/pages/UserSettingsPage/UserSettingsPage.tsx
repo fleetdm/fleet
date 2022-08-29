@@ -38,7 +38,7 @@ interface IUserSettingsPageProps {
 const UserSettingsPage = ({
   router,
 }: IUserSettingsPageProps): JSX.Element | null => {
-  const { config, currentUser, isSandboxMode } = useContext(AppContext);
+  const { config, currentUser } = useContext(AppContext);
   const { renderFlash } = useContext(NotificationContext);
 
   const [pendingEmail, setPendingEmail] = useState("");
