@@ -197,6 +197,7 @@ const LabelForm = ({
           wrapperClassName={`${baseClass}__text-editor-wrapper`}
           hint={aceHintText}
           handleSubmit={noop}
+          wrapEnabled
         />
       )}
 

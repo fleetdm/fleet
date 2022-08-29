@@ -439,6 +439,7 @@ const PolicyForm = ({
           value={lastEditedQueryBody}
           name="query editor"
           wrapperClassName={`${baseClass}__text-editor-wrapper`}
+          wrapEnabled
           readOnly
         />
       )}
@@ -467,6 +468,7 @@ const PolicyForm = ({
           wrapperClassName={`${baseClass}__text-editor-wrapper`}
           onChange={onChangePolicy}
           handleSubmit={promptSavePolicy}
+          wrapEnabled
         />
         <span className={`${baseClass}__platform-compatibility`}>
           {renderPlatformCompatibility()}
