@@ -73,6 +73,8 @@ type HostListOptions struct {
 	MDMIDFilter *uint
 	// MDMEnrollmentStatusFilter filters the host by their MDM enrollment status.
 	MDMEnrollmentStatusFilter MDMEnrollStatus
+	// MunkiIssueIDFilter filters the hosts by munki issue ID.
+	MunkiIssueIDFilter *uint
 }
 
 func (h HostListOptions) Empty() bool {
@@ -328,6 +330,14 @@ type HostMDM struct {
 	Name             string `db:"name" json:"-"`
 }
 
+// HostMunkiIssue represents a single munki issue for a host.
+type HostMunkiIssue struct {
+	MunkiIssueID       uint      `db:"munki_issue_id" json:"id"`
+	Name               string    `db:"name" json:"name"`
+	IssueType          string    `db:"issue_type" json:"type"`
+	HostIssueCreatedAt time.Time `db:"created_at" json:"created_at"`
+}
+
 // List of well-known MDM solution names. Those correspond to names stored in
 // the mobile_device_management_solutions table, created via (data) migrations.
 const (
@@ -402,13 +412,21 @@ type HostBattery struct {
 }
 
 type MacadminsData struct {
-	Munki *HostMunkiInfo `json:"munki"`
-	MDM   *HostMDM       `json:"mobile_device_management"`
+	Munki       *HostMunkiInfo    `json:"munki"`
+	MDM         *HostMDM          `json:"mobile_device_management"`
+	MunkiIssues []*HostMunkiIssue `json:"munki_issues"`
 }
 
 type AggregatedMunkiVersion struct {
 	HostMunkiInfo
 	HostsCount int `json:"hosts_count" db:"hosts_count"`
+}
+
+type AggregatedMunkiIssue struct {
+	ID         uint   `json:"id" db:"id"`
+	Name       string `json:"name" db:"name"`
+	IssueType  string `json:"type" db:"issue_type"`
+	HostsCount int    `json:"hosts_count" db:"hosts_count"`
 }
 
 type AggregatedMDMStatus struct {
@@ -428,6 +446,7 @@ type AggregatedMDMSolutions struct {
 type AggregatedMacadminsData struct {
 	CountsUpdatedAt time.Time                `json:"counts_updated_at"`
 	MunkiVersions   []AggregatedMunkiVersion `json:"munki_versions"`
+	MunkiIssues     []AggregatedMunkiIssue   `json:"munki_issues"`
 	MDMStatus       AggregatedMDMStatus      `json:"mobile_device_management_enrollment_status"`
 	MDMSolutions    []AggregatedMDMSolutions `json:"mobile_device_management_solution"`
 }

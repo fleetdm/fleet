@@ -9,13 +9,21 @@ on:
       - main
       - patch-*
     paths:
-      # TODO: Reduce to cmd/fleetctl/**.go and packages used by it.
-      - '**.go'
+      - 'cmd/fleetctl/**.go'
+      - 'pkg/**.go'
+      - 'server/service/**.go'
+      - 'server/context/**.go'
+      - 'orbit/**.go'
+      - 'ee/fleetctl/**.go'
       - 'docs/01-Using-Fleet/standard-query-library/standard-query-library.yml'
   pull_request:
     paths:
-      # TODO: Reduce to cmd/fleetctl/**.go and packages used by it.
-      - '**.go'
+      - 'cmd/fleetctl/**.go'
+      - 'pkg/**.go'
+      - 'server/service/**.go'
+      - 'server/context/**.go'
+      - 'orbit/**.go'
+      - 'ee/fleetctl/**.go'
       - 'docs/01-Using-Fleet/standard-query-library/standard-query-library.yml'
   workflow_dispatch: # Manual
 

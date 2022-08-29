@@ -12,7 +12,15 @@ on:
       - patch-*
   pull_request:
     paths:
-      - '**.go'
+      - 'cmd/fleetctl/**.go'
+      - 'pkg/**.go'
+      - 'server/service/**.go'
+      - 'server/context/**.go'
+      - 'orbit/**.go'
+      - 'ee/fleetctl/**.go'
+      - 'tools/fleetctl-docker/**'
+      - 'tools/wix-docker/**'
+      - 'tools/bomutils-docker/**'
       - '.github/workflows/test-packaging.yml'
   workflow_dispatch: # Manual
 
