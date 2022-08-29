@@ -542,7 +542,6 @@ func (s *liveQueriesTestSuite) TestOsqueryDistributedReadWithFeatures() {
 		Platform:        "darwin",
 	})
 	require.NoError(t, err)
-	fmt.Println(host.ID, host.TeamID)
 
 	s.lq.On("QueriesForHost", host.ID).Return(map[string]string{fmt.Sprintf("%d", host.ID): "select 1 from osquery;"}, nil)
 
@@ -551,7 +550,6 @@ func (s *liveQueriesTestSuite) TestOsqueryDistributedReadWithFeatures() {
 	req := getDistributedQueriesRequest{NodeKey: host.NodeKey}
 	var dqResp getDistributedQueriesResponse
 	s.DoJSON("POST", "/api/osquery/distributed/read", req, http.StatusOK, &dqResp)
-	//require.Contains(t, dqResp.Queries, hostDistributedQueryPrefix+fmt.Sprintf("%d", hostID))
 	require.Contains(t, dqResp.Queries, "fleet_detail_query_users")
 	require.Contains(t, dqResp.Queries, "fleet_detail_query_software_macos")
 
