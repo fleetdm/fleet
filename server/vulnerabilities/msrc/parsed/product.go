@@ -1,22 +1,22 @@
-package msrc_parsed
+package parsed
 
 import "strings"
 
-// FullProdName abstracts a MS full product name.
+// Product abstracts a MS full product name.
 // A full product name includes the name of the product plus its arch
 // (if any) and its version (if any).
-type FullProdName string
+type Product string
 
-func NewFullProductName(fullName string) FullProdName {
-	return FullProdName(fullName)
+func NewProduct(fullName string) Product {
+	return Product(fullName)
 }
 
 // Arch returns the archicture from a Microsoft full product name, if none can
 // be found then "all" is returned.
 // eg:
 // "Windows 10 Version 1803 for 32-bit Systems" => "32"
-func (pn FullProdName) Arch() string {
-	val := string(pn)
+func (p Product) Arch() string {
+	val := string(p)
 	switch {
 	case strings.Index(val, "32-bit") != -1:
 		return "32-bit"
@@ -36,8 +36,8 @@ func (pn FullProdName) Arch() string {
 // eg:
 // "Windows 10 Version 1803 for 32-bit Systems" => "Windows 10"
 // "Windows Server 2008 R2 for Itanium-Based Systems Service Pack 1" => "Windows Server 2008 R2"
-func (pn FullProdName) Name() string {
-	val := string(pn)
+func (p Product) Name() string {
+	val := string(p)
 	switch {
 	// Desktop versions
 	case strings.Index(val, "Windows 7") != -1:

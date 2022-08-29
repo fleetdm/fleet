@@ -7,11 +7,11 @@ import (
 	"os"
 	"strconv"
 
-	msrc_parsed "github.com/fleetdm/fleet/v4/server/vulnerabilities/msrc/parsed"
-	msrc_xml "github.com/fleetdm/fleet/v4/server/vulnerabilities/msrc/xml"
+	"github.com/fleetdm/fleet/v4/server/vulnerabilities/msrc/parsed"
+	msrcxml "github.com/fleetdm/fleet/v4/server/vulnerabilities/msrc/xml"
 )
 
-func parseFeed(feedFilePath string) (map[string]*msrc_parsed.SecurityBulletin, error) {
+func parseFeed(feedFilePath string) (map[string]*parsed.SecurityBulletin, error) {
 	r, err := os.Open(feedFilePath)
 	if err != nil {
 		return nil, fmt.Errorf("msrc parser: %w", err)
@@ -31,15 +31,15 @@ func parseFeed(feedFilePath string) (map[string]*msrc_parsed.SecurityBulletin, e
 	return bulletins, nil
 }
 
-func mapToSecurityBulletins(rXML *msrc_xml.FeedResult) (map[string]*msrc_parsed.SecurityBulletin, error) {
+func mapToSecurityBulletins(rXML *msrcxml.FeedResult) (map[string]*parsed.SecurityBulletin, error) {
 	// We will have one bulletin for each product.
-	bulletins := make(map[string]*msrc_parsed.SecurityBulletin)
+	bulletins := make(map[string]*parsed.SecurityBulletin)
 	pIDToPName := make(map[string]string)
 
 	for pID, p := range rXML.WinProducts {
-		name := msrc_parsed.NewFullProductName(p.FullName).Name()
+		name := parsed.NewProduct(p.FullName).Name()
 		if bulletins[name] == nil {
-			bulletins[name] = msrc_parsed.NewSecurityBulletin(name)
+			bulletins[name] = parsed.NewSecurityBulletin(name)
 		}
 		bulletins[name].Products[pID] = p.FullName
 		pIDToPName[pID] = name
@@ -79,18 +79,18 @@ func mapToSecurityBulletins(rXML *msrc_xml.FeedResult) (map[string]*msrc_parsed.
 
 				// Check if the vulnerability referenced by this remediation exists, if not
 				// initialize it.
-				var vuln msrc_parsed.Vulnerability
+				var vuln parsed.Vulnerability
 				if vuln, ok = b.Vulnerabities[v.CVE]; !ok {
-					vuln = msrc_parsed.NewVulnerability(v.PublishedDateEpoch())
+					vuln = parsed.NewVulnerability(v.PublishedDateEpoch())
 				}
 				vuln.ProductIDs[pID] = true
 				vuln.RemediatedBy[remediatedKBID] = true
 
 				// Check if the vendor fix referenced by this remediation exists, if not
 				// initialize it.
-				var vFix msrc_parsed.VendorFix
+				var vFix parsed.VendorFix
 				if vFix, ok = b.VendorFixes[remediatedKBID]; !ok {
-					vFix = msrc_parsed.NewVendorFix(rem.FixedBuild)
+					vFix = parsed.NewVendorFix(rem.FixedBuild)
 				}
 				vFix.Supersedes = supersedes
 				vFix.ProductIDs[pID] = true
@@ -105,9 +105,9 @@ func mapToSecurityBulletins(rXML *msrc_xml.FeedResult) (map[string]*msrc_parsed.
 	return bulletins, nil
 }
 
-func parseXML(reader io.Reader) (*msrc_xml.FeedResult, error) {
-	r := &msrc_xml.FeedResult{
-		WinProducts: map[string]msrc_xml.Product{},
+func parseXML(reader io.Reader) (*msrcxml.FeedResult, error) {
+	r := &msrcxml.FeedResult{
+		WinProducts: map[string]msrcxml.Product{},
 	}
 	d := xml.NewDecoder(reader)
 
@@ -123,7 +123,7 @@ func parseXML(reader io.Reader) (*msrc_xml.FeedResult, error) {
 		switch t := t.(type) {
 		case xml.StartElement:
 			if t.Name.Local == "Branch" {
-				branch := msrc_xml.ProductBranch{}
+				branch := msrcxml.ProductBranch{}
 				if err = d.DecodeElement(&branch, &t); err != nil {
 					return nil, err
 				}
@@ -134,7 +134,7 @@ func parseXML(reader io.Reader) (*msrc_xml.FeedResult, error) {
 			}
 
 			if t.Name.Local == "Vulnerability" {
-				vuln := msrc_xml.Vulnerability{}
+				vuln := msrcxml.Vulnerability{}
 				if err = d.DecodeElement(&vuln, &t); err != nil {
 					return nil, err
 				}

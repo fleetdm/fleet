@@ -1,4 +1,4 @@
-package msrc_parsed
+package parsed
 
 type SecurityBulletin struct {
 	// The 'product' name this bulletin targets (e.g. Windows 10)

@@ -1,4 +1,4 @@
-package msrc_io
+package io
 
 import (
 	"errors"
@@ -27,7 +27,7 @@ func (sbn SecurityBulletinName) date() (time.Time, error) {
 	if len(parts) != 2 {
 		return time.Now(), errors.New("invalid security bulletin name")
 	}
-	timeRaw := strings.Replace(parts[1], "."+fileExt, "", 1)
+	timeRaw := strings.TrimSuffix(parts[1], "."+fileExt)
 	return time.Parse(dateLayout, timeRaw)
 }
 

@@ -1,4 +1,4 @@
-package msrc_parsed
+package parsed
 
 import (
 	"testing"
@@ -361,14 +361,14 @@ func TestFullProductName(t *testing.T) {
 
 	t.Run("#ArchFromProdName", func(t *testing.T) {
 		for _, tCase := range testCases {
-			sut := NewFullProductName(tCase.fullName)
+			sut := NewProduct(tCase.fullName)
 			require.Equal(t, tCase.arch, sut.Arch(), tCase)
 		}
 	})
 
 	t.Run("#NameFromFullProdName", func(t *testing.T) {
 		for _, tCase := range testCases {
-			sut := NewFullProductName(tCase.fullName)
+			sut := NewProduct(tCase.fullName)
 			require.Equal(t, tCase.prodName, sut.Name(), tCase)
 		}
 	})

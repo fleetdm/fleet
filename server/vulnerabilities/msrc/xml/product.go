@@ -1,4 +1,4 @@
-package msrc_xml
+package xml
 
 import "strings"
 

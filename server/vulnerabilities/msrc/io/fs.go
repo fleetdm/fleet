@@ -1,4 +1,4 @@
-package msrc_io
+package io
 
 import (
 	"os"

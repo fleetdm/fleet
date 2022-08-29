@@ -1,4 +1,4 @@
-package msrc_xml
+package xml
 
 // FeedResult groups together products and their vulnerabilities.
 type FeedResult struct {

@@ -5,8 +5,8 @@ import (
 	"net/http"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
-	msrc_io "github.com/fleetdm/fleet/v4/server/vulnerabilities/msrc/io"
-	msrc_parsed "github.com/fleetdm/fleet/v4/server/vulnerabilities/msrc/parsed"
+	"github.com/fleetdm/fleet/v4/server/vulnerabilities/msrc/io"
+	"github.com/fleetdm/fleet/v4/server/vulnerabilities/msrc/parsed"
 )
 
 // bulletinsDelta returns what bulletins should be download from GH and what bulletins should be removed
@@ -14,28 +14,28 @@ import (
 // remote bulletins exist.
 func bulletinsDelta(
 	os []fleet.OperatingSystem,
-	local []msrc_io.SecurityBulletinName,
-	remote []msrc_io.SecurityBulletinName,
+	local []io.SecurityBulletinName,
+	remote []io.SecurityBulletinName,
 ) (
-	[]msrc_io.SecurityBulletinName,
-	[]msrc_io.SecurityBulletinName,
+	[]io.SecurityBulletinName,
+	[]io.SecurityBulletinName,
 ) {
 	if len(os) == 0 {
 		return remote, nil
 	}
 
-	var matching []msrc_io.SecurityBulletinName
+	var matching []io.SecurityBulletinName
 	for _, r := range remote {
 		for _, o := range os {
-			product := msrc_parsed.NewFullProductName(o.Name)
+			product := parsed.NewProduct(o.Name)
 			if r.ProductName() == product.Name() {
 				matching = append(matching, r)
 			}
 		}
 	}
 
-	var toDownload []msrc_io.SecurityBulletinName
-	var toDelete []msrc_io.SecurityBulletinName
+	var toDownload []io.SecurityBulletinName
+	var toDelete []io.SecurityBulletinName
 	for _, m := range matching {
 		var found bool
 		for _, l := range local {
@@ -60,8 +60,8 @@ func bulletinsDelta(
 // bulletin published in Github.
 // If 'os' is nil, then all security bulletins will be synched.
 func Sync(client *http.Client, dstDir string, os []fleet.OperatingSystem) error {
-	gh := msrc_io.NewMSRCGithubClient(client, dstDir)
-	fs := msrc_io.NewMSRCFSClient(dstDir)
+	gh := io.NewMSRCGithubClient(client, dstDir)
+	fs := io.NewMSRCFSClient(dstDir)
 
 	if err := sync(os, fs, gh); err != nil {
 		return fmt.Errorf("msrc sync: %w", err)
@@ -72,15 +72,15 @@ func Sync(client *http.Client, dstDir string, os []fleet.OperatingSystem) error 
 
 func sync(
 	os []fleet.OperatingSystem,
-	fsClient msrc_io.MSRCFSAPI,
-	ghClient msrc_io.MSRCGithubAPI,
+	fsClient io.MSRCFSAPI,
+	ghClient io.MSRCGithubAPI,
 ) error {
 	remoteURLs, err := ghClient.Bulletins()
 	if err != nil {
 		return err
 	}
 
-	var remote []msrc_io.SecurityBulletinName
+	var remote []io.SecurityBulletinName
 	for r := range remoteURLs {
 		remote = append(remote, r)
 	}
