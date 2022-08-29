@@ -604,7 +604,6 @@ func TestQueriesAndHostFeatures(t *testing.T) {
 	}
 
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
-		fmt.Println("ds.AppConfigFunc")
 		return &fleet.AppConfig{
 			Features: fleet.Features{
 				EnableHostUsers:         false,
@@ -614,16 +613,12 @@ func TestQueriesAndHostFeatures(t *testing.T) {
 	}
 
 	ds.TeamFeaturesFunc = func(ctx context.Context, id uint) (*fleet.Features, error) {
-		fmt.Println("ds.TeamFeaturesFunc")
 		switch id {
 		case uint(1):
-			fmt.Println("1")
 			return &team1.Config.Features, nil
 		case uint(2):
-			fmt.Println("2")
 			return &team2.Config.Features, nil
 		default:
-			fmt.Println("default")
 			return nil, errors.New("team not found")
 		}
 	}

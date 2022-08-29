@@ -1353,8 +1353,4 @@ func (s *integrationEnterpriseTestSuite) TestDistributedReadWithFeatures() {
 	require.NotContains(t, dqResp.Queries, "fleet_detail_query_users")
 	require.NotContains(t, dqResp.Queries, "fleet_detail_query_software_macos")
 	require.Contains(t, dqResp.Queries, "fleet_additional_query_time")
-
-	for k := range dqResp.Queries {
-		fmt.Println(k)
-	}
 }
