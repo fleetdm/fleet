@@ -39,14 +39,13 @@ const LabelPage = ({
 
   const [selectedLabel, setSelectedLabel] = useState<ILabel>();
   const { isSidePanelOpen, setSidePanelOpen } = useToggleSidePanel(true);
-  const [
-    showOpenSchemaActionText,
-    setShowOpenSchemaActionText,
-  ] = useState<boolean>(false);
+  const [showOpenSchemaActionText, setShowOpenSchemaActionText] = useState(
+    false
+  );
   const [labelValidator, setLabelValidator] = useState<{
     [key: string]: string;
   }>(DEFAULT_CREATE_LABEL_ERRORS);
-  const [isUpdatingLabel, setIsUpdatingLabel] = useState<boolean>(false);
+  const [isUpdatingLabel, setIsUpdatingLabel] = useState(false);
 
   const { selectedOsqueryTable, setSelectedOsqueryTable } = useContext(
     QueryContext

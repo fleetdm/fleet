@@ -122,7 +122,7 @@ const routes = (
             </Route>
           </Route>
           <Route path="labels">
-            <IndexRedirect to={"manage"} />
+            <IndexRedirect to={"new"} />
             <Route path=":label_id" component={LabelPage} />
             <Route path="new" component={LabelPage} />
           </Route>
