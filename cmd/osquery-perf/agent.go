@@ -811,12 +811,6 @@ func (a *agent) processQuery(name, query string) (handled bool, results []map[st
 			results = a.batteries()
 		}
 		return true, results, &ss
-	case name == hostDetailQueryPrefix+"os_unix_like":
-		ss := fleet.OsqueryStatus(rand.Intn(2))
-		if ss == fleet.StatusOK {
-			results = a.osUnixLike()
-		}
-		return true, results, &ss
 	case name == hostDetailQueryPrefix+"users":
 		ss := fleet.OsqueryStatus(rand.Intn(2))
 		if ss == fleet.StatusOK {
