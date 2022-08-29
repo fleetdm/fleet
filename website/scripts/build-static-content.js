@@ -147,9 +147,10 @@ module.exports = {
       },
       async()=>{// Parse markdown pages, compile & generate HTML files, and prepare to bake directory trees into the Sails app's configuration.
         let APP_PATH_TO_COMPILED_PAGE_PARTIALS = 'views/partials/built-from-markdown';
-
+        let APP_PATH_TO_COMPILED_EMAIL_PARTIALS = 'views/emails/built-from-markdown';
         // Delete existing HTML output from previous runs, if any.
         await sails.helpers.fs.rmrf(path.resolve(sails.config.appPath, APP_PATH_TO_COMPILED_PAGE_PARTIALS));
+        await sails.helpers.fs.rmrf(path.resolve(sails.config.appPath, APP_PATH_TO_COMPILED_EMAIL_PARTIALS));
 
         builtStaticContent.markdownPages = [];// « dir tree representation that will be injected into Sails app's configuration
 
@@ -228,6 +229,7 @@ module.exports = {
               mdString = mdString.replace(/(```)([a-zA-Z0-9\-]*)(\s*\n)/g, '$1\n' + '<!-- __LANG=%' + '$2' + '%__ -->' + '$3'); // « Based on the github-flavored markdown's language annotation, (e.g. ```js```) add a temporary marker to code blocks that can be parsed post-md-compilation when this is HTML.  Note: This is an HTML comment because it is easy to over-match and "accidentally" add it underneath each code block as well (being an HTML comment ensures it doesn't show up or break anything).  For more information, see https://github.com/uncletammy/doc-templater/blob/2969726b598b39aa78648c5379e4d9503b65685e/lib/compile-markdown-tree-from-remote-git-repo.js#L198-L202
               mdString = mdString.replace(/(<call-to-action[\s\S]+[^>\n+])\n+(>)/g, '$1$2'); // « Removes any newlines that might exist before the closing `>` when the <call-to-action> compontent is added to markdown files.
               let htmlString = await sails.helpers.strings.toHtml(mdString);
+              let htmlEmailString = await sails.helpers.strings.toHtmlEmail(mdString);
               htmlString = (// « Add the appropriate class to the `<code>` based on the temporary "LANG" markers that were just added above
                 htmlString
                 .replace(// Interpret `js` as `javascript`
@@ -492,7 +494,10 @@ module.exports = {
               } else {
                 await sails.helpers.fs.write(htmlOutputPath, htmlString);
               }
-
+              if(sectionRepoPath === 'articles/'){
+                let htmlEmailOutputPath = path.resolve(sails.config.appPath, path.join(APP_PATH_TO_COMPILED_EMAIL_PARTIALS, htmlId+'.ejs'));
+                await sails.helpers.fs.write(htmlEmailOutputPath, htmlEmailString);
+              }
               // Determine the path of the file in the fleet repo so we can link to
               // the file on github from fleetdm.com (e.g. Using-Fleet/fleetctl-CLI.md)
               let sectionRelativeRepoPath = path.relative(path.join(topLvlRepoPath, sectionRepoPath), path.resolve(pageSourcePath));
