@@ -6,7 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"reflect"
 	"sort"
 	"strconv"
@@ -189,7 +189,7 @@ func TestAgentOptionsForHost(t *testing.T) {
 
 // One of these queries is the disk space, only one of the two works in a platform. Similarly, one
 // is for operating system.
-var expectedDetailQueries = osquery_utils.GetDetailQueries(&fleet.AppConfig{Features: fleet.Features{EnableHostUsers: true}}, config.FleetConfig{Vulnerabilities: config.VulnerabilitiesConfig{DisableWinOSVulnerabilities: true}})
+var expectedDetailQueries = osquery_utils.GetDetailQueries(config.FleetConfig{Vulnerabilities: config.VulnerabilitiesConfig{DisableWinOSVulnerabilities: true}}, &fleet.Features{EnableHostUsers: true})
 
 func TestEnrollAgent(t *testing.T) {
 	ds := new(mock.Store)
@@ -570,6 +570,132 @@ func TestHostDetailQueries(t *testing.T) {
 	}
 	assert.Equal(t, "bam", queries[hostAdditionalQueryPrefix+"bim"])
 	assert.Equal(t, "select foo", queries[hostAdditionalQueryPrefix+"foobar"])
+}
+
+func TestQueriesAndHostFeatures(t *testing.T) {
+	ds := new(mock.Store)
+	team1 := fleet.Team{
+		ID: 1,
+		Config: fleet.TeamConfig{
+			Features: fleet.Features{
+				EnableHostUsers:         true,
+				EnableSoftwareInventory: false,
+			},
+		},
+	}
+
+	team2 := fleet.Team{
+		ID: 2,
+		Config: fleet.TeamConfig{
+			Features: fleet.Features{
+				EnableHostUsers:         false,
+				EnableSoftwareInventory: true,
+			},
+		},
+	}
+
+	host := fleet.Host{
+		ID:       1,
+		Platform: "darwin",
+		NodeKey:  "test_key",
+		Hostname: "test_hostname",
+		UUID:     "test_uuid",
+		TeamID:   nil,
+	}
+
+	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+		return &fleet.AppConfig{
+			Features: fleet.Features{
+				EnableHostUsers:         false,
+				EnableSoftwareInventory: false,
+			},
+		}, nil
+	}
+
+	ds.TeamFeaturesFunc = func(ctx context.Context, id uint) (*fleet.Features, error) {
+		switch id {
+		case uint(1):
+			return &team1.Config.Features, nil
+		case uint(2):
+			return &team2.Config.Features, nil
+		default:
+			return nil, errors.New("team not found")
+		}
+	}
+
+	ds.LabelQueriesForHostFunc = func(ctx context.Context, host *fleet.Host) (map[string]string, error) {
+		return map[string]string{}, nil
+	}
+
+	ds.PolicyQueriesForHostFunc = func(ctx context.Context, host *fleet.Host) (map[string]string, error) {
+		return map[string]string{}, nil
+	}
+
+	lq := live_query_mock.New(t)
+	lq.On("QueriesForHost", uint(1)).Return(map[string]string{}, nil)
+	lq.On("QueriesForHost", uint(2)).Return(map[string]string{}, nil)
+	lq.On("QueriesForHost", nil).Return(map[string]string{}, nil)
+
+	t.Run("free license", func(t *testing.T) {
+		license := &fleet.LicenseInfo{Tier: fleet.TierFree}
+		svc := newTestService(t, ds, nil, lq, &TestServerOpts{License: license})
+
+		ctx := hostctx.NewContext(context.Background(), &host)
+		queries, _, _, err := svc.GetDistributedQueries(ctx)
+		require.NoError(t, err)
+		require.NotContains(t, queries, "fleet_detail_query_users")
+		require.NotContains(t, queries, "fleet_detail_query_software_macos")
+		require.NotContains(t, queries, "fleet_detail_query_software_linux")
+		require.NotContains(t, queries, "fleet_detail_query_software_windows")
+
+		// assign team 1 to host
+		host.TeamID = &team1.ID
+		queries, _, _, err = svc.GetDistributedQueries(ctx)
+		require.NoError(t, err)
+		require.NotContains(t, queries, "fleet_detail_query_users")
+		require.NotContains(t, queries, "fleet_detail_query_software_macos")
+		require.NotContains(t, queries, "fleet_detail_query_software_linux")
+		require.NotContains(t, queries, "fleet_detail_query_software_windows")
+
+		// assign team 2 to host
+		host.TeamID = &team2.ID
+		queries, _, _, err = svc.GetDistributedQueries(ctx)
+		require.NoError(t, err)
+		require.NotContains(t, queries, "fleet_detail_query_users")
+		require.NotContains(t, queries, "fleet_detail_query_software_macos")
+		require.NotContains(t, queries, "fleet_detail_query_software_linux")
+		require.NotContains(t, queries, "fleet_detail_query_software_windows")
+	})
+
+	t.Run("premium license", func(t *testing.T) {
+		license := &fleet.LicenseInfo{Tier: fleet.TierPremium}
+		svc := newTestService(t, ds, nil, lq, &TestServerOpts{License: license})
+
+		host.TeamID = nil
+		ctx := hostctx.NewContext(context.Background(), &host)
+		queries, _, _, err := svc.GetDistributedQueries(ctx)
+		require.NoError(t, err)
+		require.NotContains(t, queries, "fleet_detail_query_users")
+		require.NotContains(t, queries, "fleet_detail_query_software_macos")
+		require.NotContains(t, queries, "fleet_detail_query_software_linux")
+		require.NotContains(t, queries, "fleet_detail_query_software_windows")
+
+		// assign team 1 to host
+		host.TeamID = &team1.ID
+		queries, _, _, err = svc.GetDistributedQueries(ctx)
+		require.NoError(t, err)
+		require.Contains(t, queries, "fleet_detail_query_users")
+		require.NotContains(t, queries, "fleet_detail_query_software_macos")
+		require.NotContains(t, queries, "fleet_detail_query_software_linux")
+		require.NotContains(t, queries, "fleet_detail_query_software_windows")
+
+		// assign team 2 to host
+		host.TeamID = &team2.ID
+		queries, _, _, err = svc.GetDistributedQueries(ctx)
+		require.NoError(t, err)
+		require.NotContains(t, queries, "fleet_detail_query_users")
+		require.Contains(t, queries, "fleet_detail_query_software_macos")
+	})
 }
 
 func TestGetDistributedQueriesMissingHost(t *testing.T) {
@@ -2682,7 +2808,7 @@ func TestLiveQueriesFailing(t *testing.T) {
 	require.Equal(t, len(expectedDetailQueries)-3, len(queries), distQueriesMapKeys(queries))
 	verifyDiscovery(t, queries, discovery)
 
-	logs, err := ioutil.ReadAll(buf)
+	logs, err := io.ReadAll(buf)
 	require.NoError(t, err)
 	require.Contains(t, string(logs), "level=error")
 	require.Contains(t, string(logs), "failed to get queries for host")

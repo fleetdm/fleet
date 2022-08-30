@@ -330,3 +330,78 @@ func TestCachedTeamAgentOptions(t *testing.T) {
 	_, err = ds.TeamAgentOptions(context.Background(), testTeam.ID)
 	require.Error(t, err)
 }
+
+func TestCachedTeamFeatures(t *testing.T) {
+	t.Parallel()
+
+	mockedDS := new(mock.Store)
+	ds := New(mockedDS, WithTeamFeaturesExpiration(100*time.Millisecond))
+	ao := json.RawMessage(`{}`)
+
+	aq := json.RawMessage(`{"foo": "bar"}`)
+	testFeatures := fleet.Features{
+		EnableHostUsers:         false,
+		EnableSoftwareInventory: true,
+		AdditionalQueries:       &aq,
+	}
+
+	testTeam := fleet.Team{
+		ID:        1,
+		CreatedAt: time.Now(),
+		Name:      "test",
+		Config: fleet.TeamConfig{
+			Features:     testFeatures,
+			AgentOptions: &ao,
+		},
+	}
+
+	deleted := false
+	mockedDS.TeamFeaturesFunc = func(ctx context.Context, teamID uint) (*fleet.Features, error) {
+		if deleted {
+			return nil, errors.New("not found")
+		}
+		return &testFeatures, nil
+	}
+	mockedDS.SaveTeamFunc = func(ctx context.Context, team *fleet.Team) (*fleet.Team, error) {
+		return team, nil
+	}
+	mockedDS.DeleteTeamFunc = func(ctx context.Context, teamID uint) error {
+		deleted = true
+		return nil
+	}
+
+	features, err := ds.TeamFeatures(context.Background(), 1)
+	require.NoError(t, err)
+	require.Equal(t, testFeatures, *features)
+
+	// saving a team updates features in cache
+	aq = json.RawMessage(`{"bar": "baz"}`)
+	updateFeatures := fleet.Features{
+		EnableHostUsers:         true,
+		EnableSoftwareInventory: false,
+		AdditionalQueries:       &aq,
+	}
+	updateTeam := &fleet.Team{
+		ID:        testTeam.ID,
+		CreatedAt: testTeam.CreatedAt,
+		Name:      testTeam.Name,
+		Config: fleet.TeamConfig{
+			Features:     updateFeatures,
+			AgentOptions: &ao,
+		},
+	}
+
+	_, err = ds.SaveTeam(context.Background(), updateTeam)
+	require.NoError(t, err)
+
+	features, err = ds.TeamFeatures(context.Background(), testTeam.ID)
+	require.NoError(t, err)
+	require.Equal(t, updateFeatures, *features)
+
+	// deleting a team removes the features from the cache
+	err = ds.DeleteTeam(context.Background(), testTeam.ID)
+	require.NoError(t, err)
+
+	_, err = ds.TeamFeatures(context.Background(), testTeam.ID)
+	require.Error(t, err)
+}

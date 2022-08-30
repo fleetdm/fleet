@@ -160,11 +160,13 @@ We like to regularly share updates about how Fleet is growing with our investors
 
 ## Calendar audit
 
-As Fleet grows, time management for the CEO is more essential. Charlie will audit the CEOs calendar and set meeting notes for calls with external attendees. In the notes document include:
-- LinkedIn profile link of all outside participants
-- Company profile link 
-- Context that helps the CEO to understand purpose of meeting at a glance
-- Share document with meeting participants
+As Fleet grows, time management for the CEO is more essential. Charlie will audit the CEOs calendar and set meeting notes for calls with external attendees. 
+
+In the notes document include:
+  1. LinkedIn profile link of all outside participants
+  2. Company profile link 
+  3. Context that helps the CEO to understand purpose of meeting at a glance
+  4. Share document with meeting participants
 
 **Additional product design review sessions are welcomed and a top priority for the CEO to get on the calendar quickly.  Other internal meetings and blocked time can always be moved to make room.  External meetings, travel, and personal commitments cannot be moved.  To schedule, mention @Charlie Chance in the #meetings channel.**
 
@@ -181,10 +183,23 @@ How to file videos from Gong recordings (**marking as "private" in gong is not a
     - Include in the doc "link to transcript:"
 
 ## Private whiteboard
-TODO: Create process
+
+From time to time the CEO will ask Charlie to unroll a Slack thread into a well-named whiteboard google doc for safekeeping and future searching. 
+  1. Start with a new doc.
+  2. Name the file with "yyyy-mm-dd - topic" (something empathetic and easy to find).
+  3. Use CMD+SHFT+V to paste the Slack convo into the doc.
+  4. Reapply formatting manually (be mindful of quotes, links, and images).
+      - To copy images right-click+copy and then paste in the doc (some resizing may be necessary to fit the page).
 
 ## New IT conversations
-TODO: Create process
+
+From time to time the CEO will ask Charlie to complete some data entry for him. 
+  1. Collect the CEO's tag info (usually a LinkedIn link).
+  2. CMD+F the spreadsheet for prior entries.
+  3. Paste info into [📒 IT leader & practitioner conversations](https://docs.google.com/spreadsheets/d/1zrQVeeu3rc4LVkp2CboDGMSfXzG8pBPz6gEfQPNSRRk/edit?usp=sharing) (private doc).
+  4. Fill in their name.
+  5. Fill in the last touch column with the date (this is either the date Mike shares the info, or the date that a call is taking place - Last touch point should be updated to the call date).
+  6. Fill in the point of contact if known (usually CEO, unless specified).
 
 <meta name="maintainedBy" value="charlottechance">
 <meta name="title" value="CEO handbook">
