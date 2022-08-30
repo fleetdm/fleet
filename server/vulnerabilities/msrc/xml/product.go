@@ -4,6 +4,9 @@ import "strings"
 
 // XML elements related to the 'prod' namespace used to describe Microsoft products
 
+// Describes a product three see
+// http://docs.oasis-open.org/csaf/csaf-cvrf/v1.2/cs01/csaf-cvrf-v1.2-cs01.html#_Toc493508797
+// for more details
 type ProductBranch struct {
 	Type     string          `xml:"Type,attr"`
 	Name     string          `xml:"Name,attr"`
@@ -11,6 +14,8 @@ type ProductBranch struct {
 	Products []Product       `xml:"FullProductName"`
 }
 
+// Describes a full product name
+// http://docs.oasis-open.org/csaf/csaf-cvrf/v1.2/cs01/csaf-cvrf-v1.2-cs01.html#_Toc493508797
 type Product struct {
 	ProductID string `xml:"ProductID,attr"`
 	FullName  string `xml:",chardata"`

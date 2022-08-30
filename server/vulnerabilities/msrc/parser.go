@@ -34,7 +34,7 @@ func parseFeed(feedFilePath string) (map[string]*parsed.SecurityBulletin, error)
 func mapToSecurityBulletins(rXML *msrcxml.FeedResult) (map[string]*parsed.SecurityBulletin, error) {
 	// We will have one bulletin for each product.
 	bulletins := make(map[string]*parsed.SecurityBulletin)
-	pIDToPName := make(map[string]string)
+	pIDToPName := make(map[string]string, len(rXML.WinProducts))
 
 	for pID, p := range rXML.WinProducts {
 		name := parsed.NewProduct(p.FullName).Name()
