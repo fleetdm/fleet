@@ -25,6 +25,7 @@ interface IPackForm {
   ) => boolean;
   selectedTargetsCount?: number;
   isPremiumTier?: boolean;
+  isUpdatingPack: boolean;
 }
 
 const EditPackForm = ({
@@ -33,6 +34,7 @@ const EditPackForm = ({
   onFetchTargets,
   selectedTargetsCount,
   isPremiumTier,
+  isUpdatingPack,
 }: IPackForm): JSX.Element => {
   const [errors, setErrors] = useState<{ [key: string]: string }>({});
   const [packName, setPackName] = useState<string>("");
@@ -111,7 +113,11 @@ const EditPackForm = ({
           />
         </div>
         <div className={`${baseClass}__pack-buttons`}>
-          <Button onClick={onFormSubmit} variant="brand">
+          <Button
+            onClick={onFormSubmit}
+            variant="brand"
+            isLoading={isUpdatingPack}
+          >
             Save query pack
           </Button>
         </div>

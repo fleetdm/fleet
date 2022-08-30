@@ -18,13 +18,4 @@
     font-size: $x-small;
     text-decoration: none;
   }
-
-  &__btn-wrap {
-    display: flex;
-    flex-direction: row-reverse;
-  }
-
-  &__btn {
-    margin-left: 12px;
-  }
 }

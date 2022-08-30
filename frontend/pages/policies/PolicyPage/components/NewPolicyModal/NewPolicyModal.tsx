@@ -21,7 +21,7 @@ export interface INewPolicyModalProps {
   setIsNewPolicyModalOpen: (isOpen: boolean) => void;
   backendValidators: { [key: string]: string };
   platformSelector: IPlatformSelector;
-  policyIsLoading: boolean;
+  isUpdatingPolicy: boolean;
 }
 
 const validatePolicyName = (name: string) => {
@@ -42,7 +42,7 @@ const NewPolicyModal = ({
   setIsNewPolicyModalOpen,
   backendValidators,
   platformSelector,
-  policyIsLoading,
+  isUpdatingPolicy,
 }: INewPolicyModalProps): JSX.Element => {
   const {
     lastEditedQueryName,
@@ -134,16 +134,7 @@ const NewPolicyModal = ({
             placeholder="What steps should a device owner take to resolve a host that fails this policy? (optional)"
           />
           {platformSelector.render()}
-          <div
-            className={`${baseClass}__button-wrap ${baseClass}__button-wrap--modal`}
-          >
-            <Button
-              className={`${baseClass}__button--modal-cancel`}
-              onClick={() => setIsNewPolicyModalOpen(false)}
-              variant="inverse"
-            >
-              Cancel
-            </Button>
+          <div className="modal-cta-wrap">
             <span
               className={`${baseClass}__button-wrap--modal-save`}
               data-tip
@@ -151,13 +142,14 @@ const NewPolicyModal = ({
               data-tip-disable={!disableSave}
             >
               <Button
-                className={`${baseClass}__button--modal-save`}
                 type="submit"
                 variant="brand"
                 onClick={handleSavePolicy}
                 disabled={disableSave}
+                className="save-policy-loading"
+                isLoading={isUpdatingPolicy}
               >
-                {policyIsLoading ? <Spinner /> : "Save policy"}
+                Save policy
               </Button>
               <ReactTooltip
                 className={`${baseClass}__button--modal-save-tooltip`}
@@ -173,6 +165,13 @@ const NewPolicyModal = ({
                 to save the policy.
               </ReactTooltip>
             </span>
+            <Button
+              className={`${baseClass}__button--modal-cancel`}
+              onClick={() => setIsNewPolicyModalOpen(false)}
+              variant="inverse"
+            >
+              Cancel
+            </Button>
           </div>
         </form>
       </>

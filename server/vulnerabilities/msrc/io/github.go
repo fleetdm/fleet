@@ -93,6 +93,8 @@ func (gh GithubClient) Bulletins() (map[SecurityBulletinName]string, error) {
 
 	results := make(map[SecurityBulletinName]string)
 
+	// TODO (juan): Since the nvd repo includes both NVD and MSRC assets, we will need to do some
+	// filtering logic here. To be done in https://github.com/fleetdm/fleet/issues/7394.
 	for _, e := range releases[0].Assets {
 		name := e.GetName()
 		if strings.HasPrefix(name, MSRCFilePrefix) {

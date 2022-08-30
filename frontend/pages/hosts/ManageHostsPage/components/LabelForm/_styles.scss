@@ -26,13 +26,11 @@
     }
   }
 
-  .query-form__run-query-btn,
-  .query-form__stop-query-btn {
-    margin-left: $pad-xsmall;
-  }
-
-  &__cancel-btn {
-    margin-right: $pad-medium;
+  &__button-wrap {
+    margin: 0;
+    margin-top: $pad-large;
+    display: flex;
+    gap: $pad-medium;
   }
 
   &__text-editor-wrapper {

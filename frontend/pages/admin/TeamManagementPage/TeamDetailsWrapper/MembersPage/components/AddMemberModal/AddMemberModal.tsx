@@ -65,21 +65,16 @@ const AddMemberModal = ({
             </>
           </Button>
         </p>
-        <div className={`${baseClass}__btn-wrap`}>
+        <div className="modal-cta-wrap">
           <Button
             disabled={selectedMembers.length === 0}
-            className={`${baseClass}__btn`}
             type="button"
             variant="brand"
             onClick={onFormSubmit}
           >
             Add member
           </Button>
-          <Button
-            className={`${baseClass}__btn`}
-            onClick={onCancel}
-            variant="inverse"
-          >
+          <Button onClick={onCancel} variant="inverse">
             Cancel
           </Button>
         </div>

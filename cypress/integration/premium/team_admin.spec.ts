@@ -223,7 +223,7 @@ describe("Premium tier - Team Admin user", () => {
           });
         cy.findAllByText(/detect presence/i).click();
       });
-      cy.getAttached(".query-form__save").should("be.disabled");
+      cy.findByRole("button", { name: "Save" }).should("be.disabled");
     });
   });
   describe("Manage schedules page", () => {
@@ -242,7 +242,7 @@ describe("Premium tier - Team Admin user", () => {
       cy.getAttached(".schedule-editor-modal__form").within(() => {
         cy.findByText(/select query/i).click();
         cy.findByText(/detect presence/i).click();
-        cy.getAttached(".schedule-editor-modal__btn-wrap").within(() => {
+        cy.getAttached(".modal-cta-wrap").within(() => {
           cy.findByRole("button", { name: /schedule/i }).click();
         });
       });
@@ -260,7 +260,7 @@ describe("Premium tier - Team Admin user", () => {
         cy.findByText(/every day/i).click();
         cy.findByText(/every 6 hours/i).click();
 
-        cy.getAttached(".schedule-editor-modal__btn-wrap").within(() => {
+        cy.getAttached(".modal-cta-wrap").within(() => {
           cy.findByRole("button", { name: /schedule/i }).click();
         });
       });
@@ -297,9 +297,11 @@ describe("Premium tier - Team Admin user", () => {
       cy.findByText(/gatekeeper enabled/i).click();
       cy.getAttached(".policy-form__button-wrap").within(() => {
         cy.findByRole("button", { name: /run/i }).should("exist");
-        cy.getAttached(".policy-form__save").click();
+        cy.findByRole("button", { name: /save/i }).click();
       });
-      cy.getAttached(".policy-form__button--modal-save").click();
+      cy.getAttached(".modal-cta-wrap").within(() => {
+        cy.findByRole("button", { name: /save policy/i }).click();
+      });
       cy.findByText(/policy created/i).should("exist");
     });
     it("allows team admin to edit a team policy", () => {
@@ -345,7 +347,7 @@ describe("Premium tier - Team Admin user", () => {
           });
       });
       cy.findByRole("button", { name: /delete/i }).click();
-      cy.getAttached(".delete-policies-modal").within(() => {
+      cy.getAttached(".delete-policy-modal").within(() => {
         cy.findByRole("button", { name: /delete/i }).should("exist");
         cy.findByRole("button", { name: /cancel/i }).click();
       });

@@ -19,15 +19,23 @@ export const parseOsVersion = (os_version = ""): string[] => {
     version = os_version.slice(os_version.lastIndexOf(" ") + 1);
   }
 
+  const policyLabel = `Is ${name}, version ${version} or later, installed?`;
+  let policyQuery = "";
+
+  if (name.includes("Windows")) {
+    // Windows query is different from Darwin and Linux
+    policyQuery = `SELECT 1 from os_version WHERE instr(lower(name), '${name.toLowerCase()}') AND (SELECT data FROM registry WHERE path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\DisplayVersion' LIMIT 1) >= '${version}'`;
+
+    return [policyLabel, policyQuery];
+  }
+
   // Each component of the point release must be compared as a number because simple string comparisons
   // yield unexpected results (e.g., the string "10.0.0" is considered less than "9.0.0")
   const [major, minor, patch] = version
     .split(".")
-    .map((str) => parseInt(str, 10) || str || 0); // parseInt if possible, else use the string value, or use zero if empty or undefined
+    .map((str) => parseInt(str, 10) || 0);
 
-  const policyLabel = `Is ${name}, version ${version} or later, installed?`;
-
-  const policyQuery = `SELECT 1 from os_version WHERE instr(lower(name), '${name.toLowerCase()}') AND (major > ${major} OR (major = ${major} AND (minor > ${minor} OR (minor = ${minor} AND ${
+  policyQuery = `SELECT 1 from os_version WHERE instr(lower(name), '${name.toLowerCase()}') AND (major > ${major} OR (major = ${major} AND (minor > ${minor} OR (minor = ${minor} AND ${
     // For Ubuntu, the osquery `patch` field is not updated so we need to parse the `version` string
     // using more complicated SQLite dialect
     name !== "Ubuntu"

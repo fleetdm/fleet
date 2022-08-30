@@ -100,7 +100,7 @@ const ManageQueriesPage = ({
   const [showDeleteQueryModal, setShowDeleteQueryModal] = useState<boolean>(
     false
   );
-  const [queryIsDeleting, setQueryIsDeleting] = useState<boolean>(false);
+  const [isUpdatingQueries, setIsUpdatingQueries] = useState<boolean>(false);
 
   const {
     data: fleetQueries,
@@ -145,7 +145,7 @@ const ManageQueriesPage = ({
   const onDeleteQuerySubmit = useCallback(async () => {
     const queryOrQueries = selectedQueryIds.length === 1 ? "query" : "queries";
 
-    setQueryIsDeleting(true);
+    setIsUpdatingQueries(true);
 
     const deleteQueries = selectedQueryIds.map((id) =>
       fleetQueriesAPI.destroy(id)
@@ -165,7 +165,7 @@ const ManageQueriesPage = ({
       );
     } finally {
       toggleDeleteQueryModal();
-      setQueryIsDeleting(false);
+      setIsUpdatingQueries(false);
     }
   }, [refetchFleetQueries, selectedQueryIds, toggleDeleteQueryModal]);
 
@@ -227,7 +227,7 @@ const ManageQueriesPage = ({
         </div>
         {showDeleteQueryModal && (
           <DeleteQueryModal
-            isLoading={queryIsDeleting}
+            isUpdatingQueries={isUpdatingQueries}
             onCancel={toggleDeleteQueryModal}
             onSubmit={onDeleteQuerySubmit}
           />

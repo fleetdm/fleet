@@ -36,6 +36,7 @@ const OrgSettingsForm = ({
   const handlePageError = useErrorHandler();
 
   const [activeSection, setActiveSection] = useState<string>("info");
+  const [isUpdatingSettings, setIsUpdatingSettings] = useState<boolean>(false);
 
   const { data: appConfig, isLoading, refetch: refetchConfig } = useQuery<
     IConfig,
@@ -57,6 +58,8 @@ const OrgSettingsForm = ({
       if (!appConfig) {
         return false;
       }
+
+      setIsUpdatingSettings(true);
 
       const diff = deepDifference(formData, appConfig);
       // send all formData.agent_options because diff overrides all agent options
@@ -84,6 +87,7 @@ const OrgSettingsForm = ({
         })
         .finally(() => {
           refetchConfig();
+          setIsUpdatingSettings(false);
         });
     },
     [appConfig]
@@ -103,36 +107,55 @@ const OrgSettingsForm = ({
       return (
         <>
           {activeSection === "info" && (
-            <Info appConfig={appConfig} handleSubmit={onFormSubmit} />
+            <Info
+              appConfig={appConfig}
+              handleSubmit={onFormSubmit}
+              isUpdatingSettings={isUpdatingSettings}
+            />
           )}
           {activeSection === "webaddress" && (
-            <WebAddress appConfig={appConfig} handleSubmit={onFormSubmit} />
+            <WebAddress
+              appConfig={appConfig}
+              handleSubmit={onFormSubmit}
+              isUpdatingSettings={isUpdatingSettings}
+            />
           )}
           {activeSection === "sso" && (
             <Sso
               appConfig={appConfig}
               handleSubmit={onFormSubmit}
               isPremiumTier={isPremiumTier}
+              isUpdatingSettings={isUpdatingSettings}
             />
           )}
           {activeSection === "smtp" && (
-            <Smtp appConfig={appConfig} handleSubmit={onFormSubmit} />
+            <Smtp
+              appConfig={appConfig}
+              handleSubmit={onFormSubmit}
+              isUpdatingSettings={isUpdatingSettings}
+            />
           )}
           {activeSection === "agents" && (
             <AgentOptions
               appConfig={appConfig}
               handleSubmit={onFormSubmit}
               isPremiumTier={isPremiumTier}
+              isUpdatingSettings={isUpdatingSettings}
             />
           )}
           {activeSection === "host-status-webhook" && (
             <HostStatusWebhook
               appConfig={appConfig}
               handleSubmit={onFormSubmit}
+              isUpdatingSettings={isUpdatingSettings}
             />
           )}
           {activeSection === "statistics" && (
-            <Statistics appConfig={appConfig} handleSubmit={onFormSubmit} />
+            <Statistics
+              appConfig={appConfig}
+              handleSubmit={onFormSubmit}
+              isUpdatingSettings={isUpdatingSettings}
+            />
           )}
           {activeSection === "advanced" && (
             <Advanced appConfig={appConfig} handleSubmit={onFormSubmit} />
@@ -142,6 +165,7 @@ const OrgSettingsForm = ({
               appConfig={appConfig}
               isPremiumTier={isPremiumTier}
               handleSubmit={onFormSubmit}
+              isUpdatingSettings={isUpdatingSettings}
             />
           )}
         </>
