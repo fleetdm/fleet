@@ -644,18 +644,18 @@ func TestQueriesAndHostFeatures(t *testing.T) {
 		queries, _, _, err := svc.GetDistributedQueries(ctx)
 		require.NoError(t, err)
 		require.NotContains(t, queries, "fleet_detail_query_users")
-		require.NotContains(t, queries, "software_macos")
-		require.NotContains(t, queries, "software_linux")
-		require.NotContains(t, queries, "software_windows")
+		require.NotContains(t, queries, "fleet_detail_query_software_macos")
+		require.NotContains(t, queries, "fleet_detail_query_software_linux")
+		require.NotContains(t, queries, "fleet_detail_query_software_windows")
 
 		// assign team 1 to host
 		host.TeamID = &team1.ID
 		queries, _, _, err = svc.GetDistributedQueries(ctx)
 		require.NoError(t, err)
 		require.NotContains(t, queries, "fleet_detail_query_users")
-		require.NotContains(t, queries, "software_macos")
-		require.NotContains(t, queries, "software_linux")
-		require.NotContains(t, queries, "software_windows")
+		require.NotContains(t, queries, "fleet_detail_query_software_macos")
+		require.NotContains(t, queries, "fleet_detail_query_software_linux")
+		require.NotContains(t, queries, "fleet_detail_query_software_windows")
 
 		// assign team 2 to host
 		host.TeamID = &team2.ID
