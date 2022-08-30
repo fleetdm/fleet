@@ -1,8 +1,9 @@
 import React from "react";
-import { fireEvent, render, screen } from "@testing-library/react";
+import { render, screen } from "@testing-library/react";
+
+import { renderWithSetup } from "test/testingUtils";
 
 import ConfirmInviteForm from "components/forms/ConfirmInviteForm";
-import userEvent from "@testing-library/user-event";
 
 describe("ConfirmInviteForm - component", () => {
   const handleSubmitSpy = jest.fn();
@@ -33,19 +34,19 @@ describe("ConfirmInviteForm - component", () => {
     expect(screen.getByText(baseError)).toBeInTheDocument();
   });
 
-  it("calls the handleSubmit prop with the invite_token when valid", () => {
-    render(
+  it("calls the handleSubmit prop with the invite_token when valid", async () => {
+    const { user } = renderWithSetup(
       <ConfirmInviteForm formData={formData} handleSubmit={handleSubmitSpy} />
     );
-    // when
-    userEvent.type(
+
+    await user.type(
       screen.getByRole("textbox", { name: "Full name" }),
       "Gnar Dog"
     );
-    userEvent.type(screen.getByLabelText("Password"), "p@ssw0rd");
-    userEvent.type(screen.getByLabelText("Confirm password"), "p@ssw0rd");
-    fireEvent.click(screen.getByRole("button", { name: "Submit" }));
-    // then
+    await user.type(screen.getByLabelText("Password"), "p@ssw0rd");
+    await user.type(screen.getByLabelText("Confirm password"), "p@ssw0rd");
+    await user.click(screen.getByRole("button", { name: "Submit" }));
+
     expect(handleSubmitSpy).toHaveBeenCalledWith({
       ...formData,
       name: "Gnar Dog",
@@ -56,13 +57,12 @@ describe("ConfirmInviteForm - component", () => {
 
   describe("name input", () => {
     it("validates the field must be present", async () => {
-      render(
+      const { user } = renderWithSetup(
         <ConfirmInviteForm formData={formData} handleSubmit={handleSubmitSpy} />
       );
-      // when
-      userEvent.type(screen.getByRole("textbox", { name: "Full name" }), "");
-      fireEvent.click(screen.getByRole("button", { name: "Submit" }));
-      // then
+
+      await user.click(screen.getByRole("button", { name: "Submit" }));
+
       expect(
         await screen.findByText("Full name must be present")
       ).toBeInTheDocument();
@@ -71,13 +71,12 @@ describe("ConfirmInviteForm - component", () => {
 
   describe("password input", () => {
     it("validates the field must be present", async () => {
-      render(
+      const { user } = renderWithSetup(
         <ConfirmInviteForm formData={formData} handleSubmit={handleSubmitSpy} />
       );
-      // when
-      userEvent.type(screen.getByLabelText("Password"), "");
-      fireEvent.click(screen.getByRole("button", { name: "Submit" }));
-      // then
+
+      await user.click(screen.getByRole("button", { name: "Submit" }));
+
       expect(
         await screen.findByText("Password must be present")
       ).toBeInTheDocument();
@@ -86,34 +85,35 @@ describe("ConfirmInviteForm - component", () => {
 
   describe("password_confirmation input", () => {
     it("validates the password_confirmation matches the password", async () => {
-      render(
+      const { user } = renderWithSetup(
         <ConfirmInviteForm formData={formData} handleSubmit={handleSubmitSpy} />
       );
 
-      // when
-      userEvent.type(screen.getByLabelText("Password"), "p@ssw0rd");
-      userEvent.type(
+      await user.type(screen.getByLabelText("Password"), "p@ssw0rd");
+      await user.type(
         screen.getByLabelText("Confirm password"),
         "another password"
       );
-      fireEvent.click(screen.getByRole("button", { name: "Submit" }));
-      // then
-      expect(
-        await screen.findByText("Password confirmation does not match password")
-      ).toBeInTheDocument();
+      await user.click(screen.getByRole("button", { name: "Submit" }));
+
+      const passwordError = screen.getByText(
+        "Password confirmation does not match password"
+      );
+      expect(passwordError).toBeInTheDocument();
     });
 
     it("validates the field must be present", async () => {
-      render(
+      const { user } = renderWithSetup(
         <ConfirmInviteForm formData={formData} handleSubmit={handleSubmitSpy} />
       );
-      // when
-      userEvent.type(screen.getByLabelText("Confirm password"), "");
-      fireEvent.click(screen.getByRole("button", { name: "Submit" }));
-      // then
-      expect(
-        await screen.findByText("Password confirmation must be present")
-      ).toBeInTheDocument();
+
+      await user.click(screen.getByRole("button", { name: "Submit" }));
+
+      const passwordError = screen.getByText(
+        "Password confirmation must be present"
+      );
+
+      expect(passwordError).toBeInTheDocument();
     });
   });
 });
