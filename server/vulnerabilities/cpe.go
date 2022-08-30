@@ -249,7 +249,7 @@ func (c CPETranslations) Translate(reCache *regexpCache, s *fleet.Software) (CPE
 }
 
 type CPETranslationItem struct {
-	Software CPETranslationSoftware `json:"match"`
+	Software CPETranslationSoftware `json:"software"`
 	Filter   CPETranslation         `json:"filter"`
 }
 
