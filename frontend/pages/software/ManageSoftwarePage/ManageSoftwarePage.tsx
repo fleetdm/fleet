@@ -99,11 +99,11 @@ const ManageSoftwarePage = ({
 
   const DEFAULT_SORT_HEADER = isPremiumTier ? "vulnerabilities" : "hosts_count";
 
-  const [isSoftwareEnabled, setIsSoftwareEnabled] = useState();
+  const [isSoftwareEnabled, setIsSoftwareEnabled] = useState(false);
   const [
     isVulnerabilityAutomationsEnabled,
     setIsVulnerabilityAutomationsEnabled,
-  ] = useState();
+  ] = useState(false);
   const [
     recentVulnerabilityMaxAge,
     setRecentVulnerabilityMaxAge,
