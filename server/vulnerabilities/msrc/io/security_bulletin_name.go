@@ -46,7 +46,7 @@ func (sbn SecurityBulletinName) Before(other SecurityBulletinName) bool {
 }
 
 func (sbn SecurityBulletinName) ProductName() string {
-	pName := strings.Replace(string(sbn), MSRCFilePrefix, "", 1)
+	pName := strings.TrimPrefix(string(sbn), MSRCFilePrefix)
 	parts := strings.Split(pName, "-")
 
 	if len(parts) != 2 {
