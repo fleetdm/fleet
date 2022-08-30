@@ -301,6 +301,20 @@ func (ds *Datastore) TeamAgentOptions(ctx context.Context, tid uint) (*json.RawM
 	return agentOptions, nil
 }
 
+// TeamFeatures loads the features enabled for a team.
+func (ds *Datastore) TeamFeatures(ctx context.Context, tid uint) (*fleet.Features, error) {
+	sql := `SELECT config->'$.features' as features FROM teams WHERE id = ?`
+	var raw *json.RawMessage
+	if err := sqlx.GetContext(ctx, ds.reader, &raw, sql, tid); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "get team config features")
+	}
+	var features fleet.Features
+	if err := json.Unmarshal(*raw, &features); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "unmarshal team config features")
+	}
+	return &features, nil
+}
+
 // DeleteIntegrationsFromTeams removes the deleted integrations from any team
 // that uses it.
 func (ds *Datastore) DeleteIntegrationsFromTeams(ctx context.Context, deletedIntgs fleet.Integrations) error {
