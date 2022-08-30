@@ -1,21 +1,22 @@
 package main
 
 import (
-	"bytes"
 	"context"
-	"crypto/tls"
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
+	"github.com/fleetdm/fleet/v4/server/service"
 	"io"
 	"io/fs"
+	"io/ioutil"
 	"net/url"
 	"os"
 	"os/exec"
 	"path"
 	"path/filepath"
+	"reflect"
 	"runtime"
+	"strconv"
 	"strings"
 	"time"
 
@@ -31,7 +32,6 @@ import (
 	"github.com/fleetdm/fleet/v4/pkg/certificate"
 	"github.com/fleetdm/fleet/v4/pkg/file"
 	"github.com/fleetdm/fleet/v4/pkg/secure"
-	"github.com/fleetdm/fleet/v4/server/service"
 	"github.com/oklog/run"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
@@ -352,9 +352,12 @@ func main() {
 
 		log.Info().Msg("running single query for UUID")
 
-		uuidStr, _ := getUUID(osquerydPath)
-		log.Info().Msg("UUID is")
-		log.Info().Msg(uuidStr)
+		uuidStr, err := getUUID(osquerydPath)
+		if err != nil {
+			log.Error().Msg("Erro getting uuid " + err.Error())
+		}
+
+		log.Info().Msg("UUID is " + uuidStr)
 
 		var options []osquery.Option
 		options = append(options, osquery.WithDataPath(c.String("root-dir")))
@@ -379,7 +382,9 @@ func main() {
 			)
 		}
 
+		var certPath string
 		if fleetURL != "https://" && c.Bool("insecure") {
+			log.Info().Msg("~~~ HERE ~~~")
 			proxy, err := insecure.NewTLSProxy(fleetURL)
 			if err != nil {
 				return fmt.Errorf("create TLS proxy: %w", err)
@@ -401,10 +406,10 @@ func main() {
 				},
 			)
 
-			certPath := filepath.Join(os.TempDir(), "fleet.crt")
+			certPath = filepath.Join(os.TempDir(), "fleet.crt")
 
 			// Write cert that proxy uses
-			err = os.WriteFile(certPath, []byte(insecure.ServerCert), os.ModePerm)
+			err = ioutil.WriteFile(certPath, []byte(insecure.ServerCert), os.ModePerm)
 			if err != nil {
 				return fmt.Errorf("write server cert: %w", err)
 			}
@@ -415,6 +420,7 @@ func main() {
 				Scheme: "https",
 				Host:   fmt.Sprintf("localhost:%d", proxy.Port),
 			}
+			_ = parsedURL
 
 			// Check and log if there are any errors with TLS connection.
 			pool, err := certificate.LoadPEM(certPath)
@@ -443,7 +449,7 @@ func main() {
 				osquery.WithFlags(osquery.FleetFlags(parsedURL)),
 			)
 
-			if certPath := c.String("fleet-certificate"); certPath != "" {
+			if certPath = c.String("fleet-certificate"); certPath != "" {
 				// Check and log if there are any errors with TLS connection.
 				pool, err := certificate.LoadPEM(certPath)
 				if err != nil {
@@ -457,7 +463,7 @@ func main() {
 					osquery.WithFlags([]string{"--tls_server_certs", certPath}),
 				)
 			} else {
-				certPath := filepath.Join(c.String("root-dir"), "certs.pem")
+				certPath = filepath.Join(c.String("root-dir"), "certs.pem")
 				if exists, err := file.Exists(certPath); err == nil && exists {
 					_, err = certificate.LoadPEM(certPath)
 					if err != nil {
@@ -471,13 +477,19 @@ func main() {
 
 		}
 
-		_, nkr, e := enroll(fleetURL, enrollSecret, uuidStr, c.Bool("insecure"))
-		if e != nil {
-			log.Info().Msg("ERROR enrolling " + e.Error())
-		}
+		log.Info().Msg("Cert Path is : " + certPath)
 
-		store, _ := filestore.New(filepath.Join(c.String("root-dir"), "orbit-node-key.json"))
-		store.SetMeta("orbit_node_key", nkr)
+		orbitClient, err := service.NewOrbitClient(fleetURL, c.String("fleet-certificate"), c.Bool("insecure"))
+		//orbitClient, err := service.NewOrbitClient(pUrl.String(), certPath, c.Bool("insecure"))
+		if err != nil {
+			log.Error().Msg("**** Error Creating Client " + err.Error())
+			// panic here
+		}
+		orbitNodeKey, err := getOrbitNodeKeyOrEnroll(orbitClient, c.String("root-dir"), enrollSecret, uuidStr)
+		if err != nil {
+			log.Error().Msg(err.Error())
+			// panic here
+		}
 
 		// --force is sometimes needed when an older osquery process has not
 		// exited properly
@@ -488,6 +500,8 @@ func main() {
 				osquery.WithFlags([]string{"--verbose", "--tls_dump"}),
 			)
 		}
+
+		doFlagsUpdateAndRestart(orbitClient, c.String("root-dir"), orbitNodeKey)
 
 		// Provide the flagfile to osquery if it exists. This comes after the other flags set by
 		// Orbit so that users can override those flags. Note this means users may unintentionally
@@ -508,6 +522,33 @@ func main() {
 			return fmt.Errorf("create osquery runner: %w", err)
 		}
 		g.Add(r.Execute, r.Interrupt)
+
+		updatedChan := make(chan struct{})
+		var shouldRestart = false
+		go retry(30*time.Second, true, updatedChan, func() bool {
+			shouldRestart = doFlagsUpdateAndRestart(orbitClient, c.String("root-dir"), orbitNodeKey)
+			log.Info().Msg("Flags updated : " + strconv.FormatBool(shouldRestart))
+			if shouldRestart {
+				log.Info().Msg("+++ Restarting +++")
+				err := killProcessByName("osqueryd")
+				if err != nil {
+					log.Info().Msg("Error Killing osqueryd " + err.Error())
+					return false
+				}
+				r, err = osquery.NewRunner(osquerydPath, options...)
+				g.Add(r.Execute, r.Interrupt)
+				log.Info().Msg("+++ Still Restarting +++")
+				ctx, cancel := context.WithCancel(context.Background())
+				defer cancel()
+				g.Add(run.SignalHandler(ctx, os.Interrupt, os.Kill))
+				err = g.Run()
+				if err != nil {
+					log.Info().Msg("Error running  osqueryd " + err.Error())
+					return false
+				}
+			}
+			return true
+		})
 
 		client, err := service.NewDeviceClient(fleetURL, c.Bool("insecure"), c.String("fleet-certificate"))
 		if err != nil {
@@ -715,18 +756,161 @@ func (d *desktopRunner) interrupt(err error) {
 	}
 }
 
-
+// shell out to osquery, and get the system uuid
 func getUUID(osqueryPath string) (string, error) {
-	args := []string{"-S", "--line", "select uuid from system_info"}
+	type UuidOutput struct {
+		UuidString string `json:"uuid"`
+	}
+
+	args := []string{"-S", "--json", "select uuid from system_info"}
 	out, err := exec.Command(osqueryPath, args...).Output()
 	if err != nil {
 		return "", err
 	}
-	temp := strings.Split(string(out), "=")
-	if len(temp) != 2 {
-		return "", errors.New("error getting uuid")
+	var uuids []UuidOutput
+	err = json.Unmarshal(out, &uuids)
+	if err != nil {
+		return "", err
 	}
-	return strings.TrimSpace(temp[len(temp)-1]), nil
+
+	return uuids[0].UuidString, nil
+}
+
+func getOrbitNodeKeyOrEnroll(orbitClient *service.Client, rootDir string, enrollSecret string, uuidStr string) (string, error) {
+	nodeKeyFilePath := filepath.Join(rootDir, "secret-node-key.txt")
+	orbitNodeKey, err := readOrbitNodeKey(nodeKeyFilePath)
+	if err == nil {
+		return orbitNodeKey, nil
+	}
+
+	// unsuccessful reading from file, make an enroll request to fleet server
+	orbitNodeKey, err = orbitClient.DoEnroll(enrollSecret, uuidStr)
+	if err != nil {
+		log.Error().Msg("error doing enroll " + err.Error())
+		return "", err
+	}
+
+	err = ioutil.WriteFile(nodeKeyFilePath, []byte(orbitNodeKey), constant.DefaultFileMode)
+	if err != nil {
+		log.Error().Msg("error writing node key " + err.Error())
+		return "", err
+	}
+	log.Info().Msg("Node Key is : " + orbitNodeKey)
+	return orbitNodeKey, nil
+}
+
+func readOrbitNodeKey(orbitNodeKeyPath string) (string, error) {
+	orbitNodeKey, err := ioutil.ReadFile(orbitNodeKeyPath)
+	if err != nil {
+		return "", err
+	}
+	return string(orbitNodeKey), nil
+}
+
+// getFlagsFromJSON converts the json of the type below
+// {
+//	"number": 5,
+//	"string": "str",
+//	"boolean": true
+//	}
+// to a map[string]string
+// this map will get compared and written to the filesystem and passed to osquery
+func getFlagsFromJSON(flags json.RawMessage) (map[string]string, error) {
+	result := make(map[string]string)
+
+	var data map[string]interface{}
+	err := json.Unmarshal([]byte(flags), &data)
+	if err != nil {
+		log.Info().Msg(err.Error())
+		return nil, err
+	}
+
+	for k, v := range data {
+		switch t := v.(type) {
+		case string:
+			result["--"+k] = t
+		case bool:
+			result["--"+k] = strconv.FormatBool(t)
+		case float64:
+			result["--"+k] = fmt.Sprint(t)
+		}
+	}
+	return result, nil
+}
+
+func readFlagFile(rootDir string) (map[string]string, error) {
+	flagfile := filepath.Join(rootDir, "osquery.flags")
+	bytes, err := ioutil.ReadFile(flagfile)
+	if err != nil {
+		return nil, err
+	}
+	result := make(map[string]string)
+	lines := strings.Split(strings.TrimSpace(string(bytes)), "\n")
+	for _, line := range lines {
+		// skip line starting with "#" indicating that it's a comment
+		if !strings.HasPrefix(line, "#") {
+			// split each line by "="
+			str := strings.Split(strings.TrimSpace(line), "=")
+			if len(str) == 2 {
+				result[str[0]] = str[1]
+			}
+			if len(str) == 1 {
+				result[str[0]] = ""
+			}
+		}
+	}
+	return result, nil
+}
+
+func writeFlagFile(rootDir string, data map[string]string) error {
+	flagfile := filepath.Join(rootDir, "osquery.flags")
+	var sb strings.Builder
+	for k, v := range data {
+		if k != "" && v != "" {
+			sb.WriteString(k + "=" + v + "\n")
+		} else if v == "" {
+			sb.WriteString(k + "\n")
+		}
+	}
+	if err := os.WriteFile(flagfile, []byte(sb.String()), constant.DefaultFileMode); err != nil {
+		fmt.Errorf("writing flagfile %s failed: %w", flagfile, err)
+		return err
+	}
+	return nil
+}
+
+func doFlagsUpdateAndRestart(orbitClient *service.Client, rootDir string, orbitNodeKey string) bool {
+	flagFileExists := true
+
+	// first off try and read osquery.flags from disk
+	osqueryFlagMapFromFile, err := readFlagFile(rootDir)
+	if err != nil && errors.Is(err, os.ErrNotExist) {
+		// flag file may not exist on disk on first "boot"
+		flagFileExists = false
+	}
+
+	// next GetFlags from Fleet API
+	flagsJSON, err := orbitClient.GetFlags(orbitNodeKey)
+	if err != nil {
+		log.Error().Msg("Error Getting Flags " + err.Error())
+	}
+	osqueryFlagMapFromFleet, err := getFlagsFromJSON(flagsJSON)
+	if err != nil {
+		log.Error().Msg("Error Parsing Flags " + err.Error())
+	}
+
+	// compare both flags, if they are equal, nothing to do
+	if flagFileExists && reflect.DeepEqual(osqueryFlagMapFromFile, osqueryFlagMapFromFleet) {
+		return false
+	}
+
+	// flags are not equal, write the fleet flags to disk
+	err = writeFlagFile(rootDir, osqueryFlagMapFromFleet)
+	if err != nil {
+		log.Error().Msg("Error writing flags to disk " + err.Error())
+		return false
+	}
+	return true
 }
 
 func killProcessByName(name string) error {

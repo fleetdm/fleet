@@ -393,6 +393,8 @@ type UpdateQueryAggregatedStatsFunc func(ctx context.Context) error
 
 type LoadHostByNodeKeyFunc func(ctx context.Context, nodeKey string) (*fleet.Host, error)
 
+type LoadHostByOrbitNodeKeyFunc func(ctx context.Context, nodeKey string) (*fleet.Host, error)
+
 type HostLiteFunc func(ctx context.Context, hostID uint) (*fleet.Host, error)
 
 type UpdateHostOsqueryIntervalsFunc func(ctx context.Context, hostID uint, intervals fleet.HostOsqueryIntervals) error
@@ -1021,6 +1023,9 @@ type DataStore struct {
 
 	LoadHostByNodeKeyFunc        LoadHostByNodeKeyFunc
 	LoadHostByNodeKeyFuncInvoked bool
+
+	LoadHostByOrbitNodeKeyFunc        LoadHostByOrbitNodeKeyFunc
+	LoadHostByOrbitNodeKeyFuncInvoked bool
 
 	HostLiteFunc        HostLiteFunc
 	HostLiteFuncInvoked bool
@@ -2058,6 +2063,11 @@ func (s *DataStore) UpdateQueryAggregatedStats(ctx context.Context) error {
 func (s *DataStore) LoadHostByNodeKey(ctx context.Context, nodeKey string) (*fleet.Host, error) {
 	s.LoadHostByNodeKeyFuncInvoked = true
 	return s.LoadHostByNodeKeyFunc(ctx, nodeKey)
+}
+
+func (s *DataStore) LoadHostByOrbitNodeKey(ctx context.Context, nodeKey string) (*fleet.Host, error) {
+	s.LoadHostByOrbitNodeKeyFuncInvoked = true
+	return s.LoadHostByOrbitNodeKeyFunc(ctx, nodeKey)
 }
 
 func (s *DataStore) HostLite(ctx context.Context, hostID uint) (*fleet.Host, error) {

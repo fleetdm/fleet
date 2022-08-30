@@ -8,7 +8,8 @@ type AgentOptions struct {
 	// Config is the base config options.
 	Config json.RawMessage `json:"config"`
 	// Overrides includes any platform-based overrides.
-	Overrides AgentOptionsOverrides `json:"overrides,omitempty"`
+	Overrides               AgentOptionsOverrides `json:"overrides,omitempty"`
+	CommandLineStartUpFlags json.RawMessage       `json:"command_line_flags"`
 }
 
 type AgentOptionsOverrides struct {

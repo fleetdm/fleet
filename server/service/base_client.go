@@ -6,9 +6,11 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/rs/zerolog/log"
 	"io/ioutil"
 	"net/http"
 	"net/url"
+	"strconv"
 	"strings"
 
 	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
@@ -114,6 +116,11 @@ func newBaseClient(addr string, insecureSkipVerify bool, rootCA, urlPrefix strin
 		insecureSkipVerify: insecureSkipVerify,
 		urlPrefix:          urlPrefix,
 	}
+
+	log.Info().Msg("root CA " + rootCA)
+	log.Info().Msg("insecure " + strconv.FormatBool(insecureSkipVerify))
+	log.Info().Msg("url " + addr)
+	//log.Info().Msg("root CA " + tlsConfig.RootCAs)
 
 	return client, nil
 }

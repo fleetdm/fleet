@@ -891,6 +891,22 @@ func (ds *Datastore) LoadHostByNodeKey(ctx context.Context, nodeKey string) (*fl
 	}
 }
 
+// LoadHostByOrbitNodeKey loads the whole host identified by the node key.
+// If the node key is invalid it returns a NotFoundError.
+func (ds *Datastore) LoadHostByOrbitNodeKey(ctx context.Context, nodeKey string) (*fleet.Host, error) {
+	query := `SELECT * FROM hosts WHERE orbit_node_key = ?`
+
+	var host fleet.Host
+	switch err := ds.getContextTryStmt(ctx, &host, query, nodeKey); {
+	case err == nil:
+		return &host, nil
+	case errors.Is(err, sql.ErrNoRows):
+		return nil, ctxerr.Wrap(ctx, notFound("Host"))
+	default:
+		return nil, ctxerr.Wrap(ctx, err, "find host")
+	}
+}
+
 // LoadHostByDeviceAuthToken loads the whole host identified by the device auth token.
 // If the token is invalid it returns a NotFoundError.
 func (ds *Datastore) LoadHostByDeviceAuthToken(ctx context.Context, authToken string) (*fleet.Host, error) {

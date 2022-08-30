@@ -196,6 +196,10 @@ func (r *Runner) ExtensionSocketPath() string {
 	return filepath.Join(r.dataPath, extensionSocketName)
 }
 
+func (r *Runner) GetProcess() *process.Process {
+	return r.proc
+}
+
 func (r *Runner) setCancel(c func()) {
 	r.cancelMu.Lock()
 	defer r.cancelMu.Unlock()
