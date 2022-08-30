@@ -1,5 +1,7 @@
 package constant
 
+import "time"
+
 const (
 	// DefaultDirMode is the default file mode to apply to created directories.
 	DefaultDirMode = 0o755
@@ -13,5 +15,5 @@ const (
 	// running processes/tasks.
 	DesktopAppExecName = "fleet-desktop"
 	// Interval for flags call in seconds
-	OrbitFlagsInterval = 30
+	OrbitFlagsInterval = 30 * time.Second
 )

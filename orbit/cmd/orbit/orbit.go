@@ -518,8 +518,12 @@ func main() {
 		g.Add(r.Execute, r.Interrupt)
 
 		updatedChan := make(chan struct{})
-		go retry(constant.OrbitFlagsInterval*time.Second, true, updatedChan, func() bool {
-			shouldRestart := doFlagsUpdate(orbitClient, c.String("root-dir"), orbitNodeKey)
+		var shouldRestart = false
+		go retry(constant.OrbitFlagsInterval, true, updatedChan, func() bool {
+			shouldRestart, err = doFlagsUpdate(orbitClient, c.String("root-dir"), orbitNodeKey)
+			if err != nil {
+				log.Info().Msg("error updating flags " + err.Error())
+			}
 			log.Info().Msg("Flags updated : " + strconv.FormatBool(shouldRestart))
 			if shouldRestart {
 				log.Info().Msg("+++ Restarting because of flags update +++")
@@ -762,35 +766,27 @@ func getUUID(osqueryPath string) (string, error) {
 // getOrbitNodeKeyOrEnroll attempts to read the orbit node key if the file exists on disk
 // otherwise it enrolls the host with Fleet and saves the node key to disk
 func getOrbitNodeKeyOrEnroll(orbitClient *service.Client, rootDir string, enrollSecret string, uuidStr string) (string, error) {
-	nodeKeyFilePath := filepath.Join(rootDir, "secret-node-key.txt")
-	orbitNodeKey, err := readOrbitNodeKey(nodeKeyFilePath)
-	if err == nil {
+	nodeKeyFilePath := filepath.Join(rootDir, "secret-orbit-node-key.txt")
+	orbitNodeKeyBytes, err := ioutil.ReadFile(nodeKeyFilePath)
+	var orbitNodeKey string
+	switch {
+	case err == nil:
+		return string(orbitNodeKeyBytes), nil
+	case errors.Is(err, fs.ErrNotExist):
+		// OK
+		// unsuccessful reading from file, make an enroll request to fleet server
+		orbitNodeKey, err = orbitClient.DoEnroll(enrollSecret, uuidStr)
+		if err != nil {
+			return "", err
+		}
+		err = ioutil.WriteFile(nodeKeyFilePath, []byte(orbitNodeKey), constant.DefaultFileMode)
+		if err != nil {
+			return "", err
+		}
 		return orbitNodeKey, nil
+	default:
+		return "", fmt.Errorf("read orbit node key: %w", err)
 	}
-
-	// unsuccessful reading from file, make an enroll request to fleet server
-	orbitNodeKey, err = orbitClient.DoEnroll(enrollSecret, uuidStr)
-	if err != nil {
-		log.Error().Msg("error doing enroll " + err.Error())
-		return "", err
-	}
-
-	err = ioutil.WriteFile(nodeKeyFilePath, []byte(orbitNodeKey), constant.DefaultFileMode)
-	if err != nil {
-		log.Error().Msg("error writing node key " + err.Error())
-		return "", err
-	}
-	log.Info().Msg("Node Key is : " + orbitNodeKey)
-	return orbitNodeKey, nil
-}
-
-// readOrbitNodeKey reads the orbit node key from file on disk
-func readOrbitNodeKey(orbitNodeKeyPath string) (string, error) {
-	orbitNodeKey, err := ioutil.ReadFile(orbitNodeKeyPath)
-	if err != nil {
-		return "", err
-	}
-	return string(orbitNodeKey), nil
 }
 
 // getFlagsFromJSON converts the json of the type below
@@ -875,12 +871,15 @@ func writeFlagFile(rootDir string, data map[string]string) error {
 
 // doFlagsUpdate, reads the flagfile on disk if it exists, and also gets flags from fleet
 // it then compare both of these flags, and returns bool indicating if the flags have been updated
-func doFlagsUpdate(orbitClient *service.Client, rootDir string, orbitNodeKey string) bool {
+func doFlagsUpdate(orbitClient *service.Client, rootDir string, orbitNodeKey string) (bool, error) {
 	flagFileExists := true
 
 	// first off try and read osquery.flags from disk
 	osqueryFlagMapFromFile, err := readFlagFile(rootDir)
-	if err != nil && errors.Is(err, os.ErrNotExist) {
+	if err != nil {
+		if !errors.Is(err, os.ErrNotExist) {
+			return false, err
+		}
 		// flag file may not exist on disk on first "boot"
 		flagFileExists = false
 	}
@@ -888,27 +887,25 @@ func doFlagsUpdate(orbitClient *service.Client, rootDir string, orbitNodeKey str
 	// next GetFlags from Fleet API
 	flagsJSON, err := orbitClient.GetFlags(orbitNodeKey)
 	if err != nil {
-		log.Error().Msg("Error Getting Flags " + err.Error())
-		return false
+		return false, fmt.Errorf("error getting flags from fleet %w", err)
 	}
 	osqueryFlagMapFromFleet, err := getFlagsFromJSON(flagsJSON)
 	if err != nil {
-		log.Error().Msg("Error Parsing Flags " + err.Error())
-		return false
+		return false, fmt.Errorf("error parsing flags %w", err)
 	}
 
 	// compare both flags, if they are equal, nothing to do
 	if flagFileExists && reflect.DeepEqual(osqueryFlagMapFromFile, osqueryFlagMapFromFleet) {
-		return false
+		return false, nil
 	}
 
 	// flags are not equal, write the fleet flags to disk
 	err = writeFlagFile(rootDir, osqueryFlagMapFromFleet)
 	if err != nil {
 		log.Error().Msg("Error writing flags to disk " + err.Error())
-		return false
+		return false, fmt.Errorf("error writing flags to disk %w", err)
 	}
-	return true
+	return true, nil
 }
 
 func killProcessByName(name string) error {
