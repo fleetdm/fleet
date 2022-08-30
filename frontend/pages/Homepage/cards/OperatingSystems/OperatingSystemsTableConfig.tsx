@@ -2,7 +2,10 @@ import React from "react";
 import { Link } from "react-router";
 import PATHS from "router/paths";
 
-import { IOperatingSystemVersion } from "interfaces/operating_system";
+import {
+  formatOperatingSystemDisplayName,
+  IOperatingSystemVersion,
+} from "interfaces/operating_system";
 
 import TextCell from "components/TableContainer/DataTable/TextCell";
 import HeaderCell from "components/TableContainer/DataTable/HeaderCell";
@@ -40,7 +43,12 @@ const defaultTableHeaders = [
     Header: "Name",
     disableSortBy: true,
     accessor: "name_only",
-    Cell: (cellProps: ICellProps) => <TextCell value={cellProps.cell.value} />,
+    Cell: ({ cell: { value } }: ICellProps) => (
+      <TextCell
+        value={value}
+        formatter={(name) => formatOperatingSystemDisplayName(name)}
+      />
+    ),
   },
   {
     title: "Version",

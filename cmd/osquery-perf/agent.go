@@ -698,22 +698,6 @@ func (a *agent) batteries() []map[string]string {
 	return result
 }
 
-func (a *agent) osUnixLike() []map[string]string {
-	return []map[string]string{
-		{
-			"build":          "18G3020",
-			"major":          "10",
-			"minor":          "14",
-			"name":           "Mac OS X",
-			"patch":          "6",
-			"platform":       "darwin",
-			"arch":           "x86_64",
-			"version":        "10.14.6",
-			"kernel_version": "21.4.0",
-		},
-	}
-}
-
 func (a *agent) processQuery(name, query string) (handled bool, results []map[string]string, status *fleet.OsqueryStatus) {
 	const (
 		hostPolicyQueryPrefix = "fleet_policy_query_"

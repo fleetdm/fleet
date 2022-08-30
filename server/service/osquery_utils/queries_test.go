@@ -301,6 +301,7 @@ func TestGetDetailQueries(t *testing.T) {
 	baseQueries := []string{
 		"network_interface",
 		"os_version",
+		"os_version_windows",
 		"osquery_flags",
 		"osquery_info",
 		"system_info",
@@ -327,7 +328,7 @@ func TestGetDetailQueries(t *testing.T) {
 		append(baseQueries, "users", "software_macos", "software_linux", "software_windows", "scheduled_query_stats"))
 }
 
-func TestDetailQueriesOSVersion(t *testing.T) {
+func TestDetailQueriesOSVersionUnixLike(t *testing.T) {
 	var initialHost fleet.Host
 	host := initialHost
 
@@ -379,7 +380,7 @@ func TestDetailQueriesOSVersion(t *testing.T) {
 	assert.NoError(t, ingest(context.Background(), log.NewNopLogger(), &host, rows))
 	assert.Equal(t, "Arch Linux 1.2.3", host.OSVersion)
 
-	// Simulate Ubuntu host with incorrect `patch`` number
+	// Simulate Ubuntu host with incorrect `patch` number
 	require.NoError(t, json.Unmarshal([]byte(`
 [{
     "hostname": "kube2",
@@ -399,6 +400,38 @@ func TestDetailQueriesOSVersion(t *testing.T) {
 
 	assert.NoError(t, ingest(context.Background(), log.NewNopLogger(), &host, rows))
 	assert.Equal(t, "Ubuntu 18.04.5 LTS", host.OSVersion)
+}
+
+func TestDetailQueriesOSVersionWindows(t *testing.T) {
+	var initialHost fleet.Host
+	host := initialHost
+
+	ingest := GetDetailQueries(config.FleetConfig{}, nil)["os_version_windows"].IngestFunc
+
+	assert.NoError(t, ingest(context.Background(), log.NewNopLogger(), &host, nil))
+	assert.Equal(t, initialHost, host)
+
+	var rows []map[string]string
+	require.NoError(t, json.Unmarshal([]byte(`
+[{
+    "hostname": "WinBox",
+    "arch": "64-bit",
+    "build": "22000",
+    "codename": "Microsoft Windows 11 Enterprise",
+    "major": "10",
+    "minor": "0",
+    "name": "Microsoft Windows 11 Enterprise",
+    "patch": "",
+    "platform": "windows",
+    "platform_like": "windows",
+    "version": "10.0.22000",
+	"data": "21H2"
+}]`),
+		&rows,
+	))
+
+	assert.NoError(t, ingest(context.Background(), log.NewNopLogger(), &host, rows))
+	assert.Equal(t, "Windows 11 Enterprise 21H2", host.OSVersion)
 }
 
 func TestDirectIngestMDM(t *testing.T) {

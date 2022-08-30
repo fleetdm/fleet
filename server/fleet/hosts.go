@@ -260,6 +260,16 @@ func IsLinux(hostPlatform string) bool {
 	return false
 }
 
+func IsUnixLike(hostPlatform string) bool {
+	unixLikeOSs := append(HostLinuxOSs, "darwin")
+	for _, p := range unixLikeOSs {
+		if p == hostPlatform {
+			return true
+		}
+	}
+	return false
+}
+
 // PlatformFromHost converts the given host platform into
 // the generic platforms known by osquery
 // https://osquery.readthedocs.io/en/stable/deployment/configuration/
