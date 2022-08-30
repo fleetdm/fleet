@@ -345,7 +345,7 @@ Whether or not Fleet sends the query needed to gather the list of software insta
 
 ### Fleet Desktop Settings
 
-For more information about Fleet Desktop, see [Fleet Desktop's documentation](../Using-Fleet/Fleet-desktop.md).
+For more information about Fleet Desktop, see [Fleet Desktop's documentation](../../Using-Fleet/Fleet-desktop.md).
 
 #### fleet_desktop.transparency_url
 
@@ -644,7 +644,7 @@ Whether the SMTP server's SSL certificates should be verified. Can be turned off
 
 ### SSO Settings
 
-For additional information on SSO configuration, including just-in-time (JIT) user provisioning, creating SSO users in Fleet and identity providers configuration, see [Configuring single sign-on (SSO)](../Deploying/Configuration.md#configuring-single-sign-on-sso).
+For additional information on SSO configuration, including just-in-time (JIT) user provisioning, creating SSO users in Fleet and identity providers configuration, see [Configuring single sign-on (SSO)](../../Deploying/Configuration.md#configuring-single-sign-on-sso).
 
 #### sso_settings.enable_sso
 
@@ -672,7 +672,7 @@ Allow single sign-on login initiated by identity provider.
 
 #### sso_settings.enable_jit_provisioning
 
-_Available in Fleet Premium_. Enables [just-in-time user provisioning](../Deploying/Configuration.md#just-in-time-jit-user-provisioning).
+_Available in Fleet Premium_. Enables [just-in-time user provisioning](../../Deploying/Configuration.md#just-in-time-jit-user-provisioning).
 
 - Optional setting (boolean).
 - Default value: `false`

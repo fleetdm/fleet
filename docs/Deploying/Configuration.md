@@ -2325,7 +2325,7 @@ When JIT user provisioning is turned on, Fleet will automatically create an acco
 
 Accounts created via JIT provisioning are assigned the [Observer role](https://fleetdm.com/docs/using-fleet/permissions). The new account's email and full name are copied from the user data in the SSO response.
 
-To enable this option, go to **Settings > Organization settings > SAML single sign-on options** and check "_Automatically create Observer user on Login_" or [adjust your config](#sso-settings-enable-jit-provisioning).
+To enable this option, go to **Settings > Organization settings > SAML single sign-on options** and check "_Automatically create Observer user on Login_" or [adjust your config](#configuring-single-sign-on-sso).
 
 For this to work correctly make sure that:
 
