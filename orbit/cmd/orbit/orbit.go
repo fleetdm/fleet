@@ -355,7 +355,7 @@ func main() {
 		log.Info().Msg("running single query (SELECT uuid FROM system_info)")
 		uuidStr, err := getUUID(osquerydPath)
 		if err != nil {
-			log.Error().Msg("Error getting uuid " + err.Error())
+			return fmt.Errorf("get UUID: %w", err)
 		}
 		log.Info().Msg("UUID is " + uuidStr)
 
@@ -477,11 +477,11 @@ func main() {
 
 		orbitClient, err := service.NewOrbitClient(fleetURL, c.String("fleet-certificate"), c.Bool("insecure"))
 		if err != nil {
-			log.Error().Msg("Error Creating Orbit Client " + err.Error())
+			return fmt.Errorf("error new orbit client: %w", err)
 		}
 		orbitNodeKey, err := getOrbitNodeKeyOrEnroll(orbitClient, c.String("root-dir"), enrollSecret, uuidStr)
 		if err != nil {
-			log.Error().Msg("Error enrolling: " + err.Error())
+			return fmt.Errorf("error enroll: %w", err)
 		}
 
 		// --force is sometimes needed when an older osquery process has not
