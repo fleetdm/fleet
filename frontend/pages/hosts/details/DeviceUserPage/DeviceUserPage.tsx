@@ -151,7 +151,7 @@ const DeviceUserPage = ({
     }
   );
 
-  const titleData = normalizeEmptyValues(
+  const titleData: Partial<IHost> = normalizeEmptyValues(
     pick(host, [
       "status",
       "issues",
@@ -166,7 +166,7 @@ const DeviceUserPage = ({
     ])
   );
 
-  const aboutData = normalizeEmptyValues(
+  const aboutData: Partial<IHost> = normalizeEmptyValues(
     pick(host, [
       "seen_time",
       "uptime",
@@ -229,7 +229,7 @@ const DeviceUserPage = ({
   const statusClassName = classnames("status", `status--${host?.status}`);
 
   const renderDeviceUserPage = () => {
-    const failingPoliciesCount = host?.issues?.failing_policies_count || 0;
+    const failingPoliciesCount = titleData?.issues?.failing_policies_count || 0;
     return (
       <div className="fleet-desktop-wrapper">
         {isLoadingHost ? (

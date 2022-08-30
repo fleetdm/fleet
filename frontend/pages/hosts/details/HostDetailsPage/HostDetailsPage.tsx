@@ -315,7 +315,7 @@ const HostDetailsPage = ({
     });
   }, [usersSearchString]);
 
-  const titleData = normalizeEmptyValues(
+  const titleData: Partial<IHost> = normalizeEmptyValues(
     pick(host, [
       "status",
       "issues",
@@ -334,7 +334,7 @@ const HostDetailsPage = ({
 
   const [osPolicyLabel, osPolicyQuery] = parseOsVersion(host?.os_version);
 
-  const aboutData = normalizeEmptyValues(
+  const aboutData: Partial<IHost> = normalizeEmptyValues(
     pick(host, [
       "seen_time",
       "uptime",
@@ -349,7 +349,7 @@ const HostDetailsPage = ({
     ])
   );
 
-  const osqueryData = normalizeEmptyValues(
+  const osqueryData: Partial<IHost> = normalizeEmptyValues(
     pick(host, [
       "config_tls_refresh",
       "logger_tls_period",
@@ -543,7 +543,7 @@ const HostDetailsPage = ({
   }
 
   const statusClassName = classnames("status", `status--${host?.status}`);
-  const failingPoliciesCount = host?.issues?.failing_policies_count || 0;
+  const failingPoliciesCount = titleData?.issues?.failing_policies_count || 0;
 
   return (
     <MainContent className={baseClass}>
