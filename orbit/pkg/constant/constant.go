@@ -12,6 +12,6 @@ const (
 	// We use fleet-desktop as name to properly identify the process when listing
 	// running processes/tasks.
 	DesktopAppExecName = "fleet-desktop"
-	// Interval for flags call
-	OrbitFlagsInterval = 5
+	// Interval for flags call in seconds
+	OrbitFlagsInterval = 30
 )

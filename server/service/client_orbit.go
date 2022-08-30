@@ -3,7 +3,6 @@ package service
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/rs/zerolog/log"
 	"io/ioutil"
 	"net/http"
 )
@@ -59,7 +58,6 @@ func (c *Client) DoEnroll(enrollSecret string, hardwareUUID string) (string, err
 }
 
 func (c *Client) GetFlags(orbitNodeKey string) (json.RawMessage, error) {
-	log.Info().Msg("DOING POST ~~~")
 	verb, path := "POST", "/api/latest/fleet/orbit/flags"
 	params := orbitRequest{OrbitNodeKey: orbitNodeKey}
 	response, err := c.Do(verb, path, "", params)

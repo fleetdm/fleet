@@ -16,7 +16,6 @@ type Store struct {
 }
 
 func (m *Store) EnrollOrbit(ctx context.Context, hardwareUUID string, orbitNodeKey string) (*fleet.Host, error) {
-	//TODO implement me
 	return nil, nil
 }
 
