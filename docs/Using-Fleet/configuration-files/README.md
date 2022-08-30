@@ -343,6 +343,22 @@ Whether or not Fleet sends the query needed to gather the list of software insta
   	enable_software_inventory: false
   ```
 
+### Fleet Desktop Settings
+
+For more information about Fleet Desktop, see [Fleet Desktop's documentation](../Using-Fleet/Fleet-desktop.md).
+
+#### fleet_desktop.transparency_url
+
+_Available in Fleet Premium_. Sets a custom transparency URL page to take users of Fleet Desktop to.
+
+- Optional setting (string).
+- Default value: Fleet's default transparency URL.
+- Config file format:
+  ```
+  fleet_desktop:
+    transparency_url: "https://example.org/transparency"
+  ```
+
 ### Organization Information
 
 #### org_info.org_name
@@ -656,7 +672,7 @@ Allow single sign-on login initiated by identity provider.
 
 #### sso_settings.enable_jit_provisioning
 
-Enables [just-in-time user provisioning](../Deploying/Configuration.md#just-in-time-jit-user-provisioning).
+_Available in Fleet Premium_. Enables [just-in-time user provisioning](../Deploying/Configuration.md#just-in-time-jit-user-provisioning).
 
 - Optional setting (boolean).
 - Default value: `false`
