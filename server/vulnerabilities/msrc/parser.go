@@ -1,9 +1,11 @@
 package msrc
 
 import (
+	"encoding/json"
 	"encoding/xml"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"os"
 	"strconv"
 
@@ -11,8 +13,22 @@ import (
 	msrcxml "github.com/fleetdm/fleet/v4/server/vulnerabilities/msrc/xml"
 )
 
-func ParseFeed(feedFilePath string) (map[string]*parsed.SecurityBulletin, error) {
-	r, err := os.Open(feedFilePath)
+func UnmarshalBulletin(fPath string) (*parsed.SecurityBulletin, error) {
+	payload, err := ioutil.ReadFile(fPath)
+	if err != nil {
+		return nil, err
+	}
+
+	bulletin := parsed.SecurityBulletin{}
+	err = json.Unmarshal(payload, &bulletin)
+	if err != nil {
+		return nil, err
+	}
+	return &bulletin, nil
+}
+
+func ParseFeed(fPath string) (map[string]*parsed.SecurityBulletin, error) {
+	r, err := os.Open(fPath)
 	if err != nil {
 		return nil, fmt.Errorf("msrc parser: %w", err)
 	}

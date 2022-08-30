@@ -36,19 +36,23 @@ func main() {
 	nBulletins, err := msrc.ParseFeed(f)
 	panicif(err)
 
-	fmt.Println("Downloading existin bulletins...")
+	fmt.Println("Downloading existing bulletins...")
 	eBulletins, err := ghAPI.Bulletins()
 	panicif(err)
 
 	fmt.Println("Mergin bulletins...")
 	var bulletins []*parsed.SecurityBulletin
-	for b, url := range eBulletins {
-		bulletin, err := ghAPI.Get(b, url)
+	for _, url := range eBulletins {
+		fPath, err := ghAPI.Download(url)
+		panicif(err)
+
+		bulletin, err := msrc.UnmarshalBulletin(fPath)
 		panicif(err)
 
 		nB, ok := nBulletins[bulletin.ProductName]
 		if ok {
-			bulletin = nB.Merge(bulletin)
+			err = nB.Merge(bulletin)
+			panicif(err)
 		}
 
 		bulletins = append(bulletins, bulletin)

@@ -2,17 +2,15 @@ package io
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
-	"io/ioutil"
 	"net/http"
 	"net/url"
+	"path"
 	"path/filepath"
 	"strings"
 	"time"
 
 	"github.com/fleetdm/fleet/v4/pkg/download"
-	"github.com/fleetdm/fleet/v4/server/vulnerabilities/msrc/parsed"
 	"github.com/google/go-github/v37/github"
 )
 
@@ -26,7 +24,7 @@ type ReleaseLister interface {
 }
 
 type GithubAPI interface {
-	Get(SecurityBulletinName, string) error
+	Download(string) (string, error)
 	Bulletins() (map[SecurityBulletinName]string, error)
 }
 
@@ -44,38 +42,26 @@ func NewGithubClient(client *http.Client, releases ReleaseLister, dir string) Gi
 	}
 }
 
-// Get and returns the security bulletin referenced by 'b'
-func (gh GithubClient) Get(b SecurityBulletinName, URL string) (*parsed.SecurityBulletin, error) {
+// Download downloads the security bulletin located at 'URL' in 'workDir', returns the path of
+// the downloaded bulletin.
+func (gh GithubClient) Download(URL string) (string, error) {
 	u, err := url.Parse(URL)
 	if err != nil {
-		return nil, err
+		return "", err
 	}
 
-	path := filepath.Join(gh.workDir, string(b))
-	if err := download.DownloadAndExtract(gh.httpClient, u, path); err != nil {
-		return nil, err
+	fPath := filepath.Join(gh.workDir, path.Base(u.Path))
+	if err := download.DownloadAndExtract(gh.httpClient, u, fPath); err != nil {
+		return "", err
 	}
 
-	payload, err := ioutil.ReadFile(path)
-	if err != nil {
-		return nil, err
-	}
-
-	bulletin := parsed.SecurityBulletin{}
-	err = json.Unmarshal(payload, &bulletin)
-	if err != nil {
-		return nil, err
-	}
-
-	return &bulletin, nil
+	return fPath, nil
 }
 
-// Bulletins returns a map of 'name' => 'download URL' of the parsed security bulletins stored as assets on Github.
+// Bulletins returns a map of 'bulletin name' => 'download URL' of the bulletins stored as assets on Github.
 func (gh GithubClient) Bulletins() (map[SecurityBulletinName]string, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
-
-	fmt.Println(gh.releases)
 
 	releases, r, err := gh.releases.ListReleases(
 		ctx,
@@ -93,8 +79,6 @@ func (gh GithubClient) Bulletins() (map[SecurityBulletinName]string, error) {
 
 	results := make(map[SecurityBulletinName]string)
 
-	// TODO (juan): Since the nvd repo includes both NVD and MSRC assets, we will need to do some
-	// filtering logic here. To be done in https://github.com/fleetdm/fleet/issues/7394.
 	for _, e := range releases[0].Assets {
 		name := e.GetName()
 		if strings.HasPrefix(name, MSRCFilePrefix) {
