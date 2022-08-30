@@ -1361,34 +1361,13 @@ const ManageHostsPage = ({
   const renderMunkiIssueFilterBlock = () => {
     if (munkiIssueDetails) {
       return (
-        <div className={`${baseClass}__munki-issue-filter-block`}>
-          <div>
-            <span data-tip data-for="munki-issue-filter-tooltip">
-              <div className={`${baseClass}__munki-issue-name-card tooltip`}>
-                <Button
-                  className={`${baseClass}__clear-munki-issue-filter`}
-                  onClick={handleClearMunkiIssueFilter}
-                  variant={"small-text-icon"}
-                  title={munkiIssueDetails.name}
-                >
-                  <img src={CloseIcon} alt="Remove Munki issue filter" />
-                </Button>
-              </div>
-            </span>
-            <ReactTooltip
-              place="bottom"
-              effect="solid"
-              backgroundColor="#3e4771"
-              id="munki-issue-filter-tooltip"
-              data-html
-            >
-              <span className={`tooltip__tooltip-text`}>
-                Hosts that reported this Munki issue the last time Munki ran on
-                each host.
-              </span>
-            </ReactTooltip>
-          </div>
-        </div>
+        <FilterPill
+          label={munkiIssueDetails.name}
+          tooltipDescription={
+            "Hosts that reported this Munki issue the last time Munki ran on each host."
+          }
+          onClear={handleClearMunkiIssueFilter}
+        />
       );
     }
     return null;
