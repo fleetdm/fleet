@@ -297,7 +297,7 @@ func sortedKeysCompare(t *testing.T, m map[string]DetailQuery, expectedKeys []st
 
 func TestGetDetailQueries(t *testing.T) {
 	queriesNoConfig := GetDetailQueries(nil, config.FleetConfig{})
-	require.Len(t, queriesNoConfig, 15)
+	require.Len(t, queriesNoConfig, 16)
 	baseQueries := []string{
 		"network_interface",
 		"os_version",
@@ -319,11 +319,11 @@ func TestGetDetailQueries(t *testing.T) {
 	sortedKeysCompare(t, queriesNoConfig, baseQueries)
 
 	queriesWithUsers := GetDetailQueries(&fleet.AppConfig{HostSettings: fleet.HostSettings{EnableHostUsers: true}}, config.FleetConfig{App: config.AppConfig{EnableScheduledQueryStats: true}})
-	require.Len(t, queriesWithUsers, 17)
+	require.Len(t, queriesWithUsers, 18)
 	sortedKeysCompare(t, queriesWithUsers, append(baseQueries, "users", "scheduled_query_stats"))
 
 	queriesWithUsersAndSoftware := GetDetailQueries(&fleet.AppConfig{HostSettings: fleet.HostSettings{EnableHostUsers: true, EnableSoftwareInventory: true}}, config.FleetConfig{App: config.AppConfig{EnableScheduledQueryStats: true}})
-	require.Len(t, queriesWithUsersAndSoftware, 20)
+	require.Len(t, queriesWithUsersAndSoftware, 21)
 	sortedKeysCompare(t, queriesWithUsersAndSoftware,
 		append(baseQueries, "users", "software_macos", "software_linux", "software_windows", "scheduled_query_stats"))
 }
@@ -406,7 +406,7 @@ func TestDetailQueriesOSVersionWindows(t *testing.T) {
 	var initialHost fleet.Host
 	host := initialHost
 
-	ingest := GetDetailQueries(config.FleetConfig{}, nil)["os_version_windows"].IngestFunc
+	ingest := GetDetailQueries(nil, config.FleetConfig{})["os_version_windows"].IngestFunc
 
 	assert.NoError(t, ingest(context.Background(), log.NewNopLogger(), &host, nil))
 	assert.Equal(t, initialHost, host)

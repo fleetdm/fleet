@@ -1666,19 +1666,6 @@ const ManageHostsPage = ({
     );
   }, [isHostCountLoading, filteredHostCount]);
 
-  console.log(
-    "is active filter: ",
-    (!!os_id || (!!os_name && !!os_version)) &&
-      !policyId &&
-      !softwareId &&
-      !(
-        selectedLabel &&
-        selectedLabel.type !== "all" &&
-        selectedLabel.type !== "status"
-      ) &&
-      !mdmId &&
-      !mdmEnrollmentStatus
-  );
   const renderActiveFilterBlock = () => {
     const showSelectedLabel =
       selectedLabel &&
