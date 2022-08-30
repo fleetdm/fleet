@@ -192,6 +192,8 @@ spec:
       - secret: JZ/C/Z7ucq22dt/zjx2kEuDBN0iLjqfz
 ```
 
+TODO(mna): document the team-specific configuration options (webhooks and integrations can probably link to the same configs in the organization settings, same for agent options with a mention that those apply only for this team, and then there's just enroll secrets).
+
 ## Organization settings
 
 The following file describes organization settings applied to the Fleet server. A detailed explanation of all supported fields is given after the example YAML file, which does not show all possible options.
