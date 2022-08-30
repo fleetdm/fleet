@@ -191,9 +191,10 @@ spec:
       - secret: RzTlxPvugG4o4O5IKS/HqEDJUmI1hwBoffff
       - secret: JZ/C/Z7ucq22dt/zjx2kEuDBN0iLjqfz
 ```
+
 ## Organization settings
 
-The following file describes organization settings applied to the Fleet server. A detailed explanation of each field is given after the example YAML file.
+The following file describes organization settings applied to the Fleet server. A detailed explanation of all supported fields is given after the example YAML file, which does not show all possible options.
 
 ```yaml
 apiVersion: v1
@@ -271,9 +272,14 @@ spec:
 
 ### Host Expiry Settings
 
+The `host_expiry` section lets you define if and when hosts should be removed from Fleet if they have not checked in. Once a host has been removed from Fleet, it will need to re-enroll with a valid `enroll_secret` to connect to your Fleet instance.
+
 #### host_expiry_settings.host_expiry_enabled
 
-Whether offline hosts' expiration is enabled.
+<!-- This section used to be named Host Expiry Enabled, this ensures links with the #host-expiry-enabled hash still work -->
+<span id="host-expiry-enabled" name="host-expiry-enabled"></span>
+
+Whether offline hosts' expiration is enabled. If `host_expiry_enabled` is set to `true`, Fleet allows automatic cleanup of hosts that have not communicated with Fleet in some number of days.
 
 - Optional setting (boolean).
 - Default value: `false`.
@@ -285,7 +291,10 @@ Whether offline hosts' expiration is enabled.
 
 #### host_expiry_settings.host_expiry_window
 
-Number of days after which an offline host is considered expired and will be removed from Fleet.
+<!-- This section used to be named Host Expiry Window, this ensures links with the #host-expiry-window hash still work -->
+<span id="host-expiry-window" name="host-expiry-window"></span>
+
+If a host has not communicated with Fleet in the specified number of days, it will be removed.
 
 - Optional setting (integer).
 - Default value: `0` (must be > 0 when enabling host expiry).
@@ -318,6 +327,13 @@ Additional information to collect from hosts along with the host details. This i
       time: SELECT * FROM time
       macs: SELECT mac FROM interface_details
   ```
+- Deprecated config file format:
+  ```
+  host_settings:
+  	additional_queries:
+      time: SELECT * FROM time
+      macs: SELECT mac FROM interface_details
+  ```
 
 #### features.enable_host_users
 
@@ -330,6 +346,11 @@ Whether or not Fleet sends the query needed to gather user-related data from hos
   features:
   	enable_host_users: false
   ```
+- Deprecated config file format:
+  ```
+  host_settings:
+  	enable_host_users: false
+  ```
 
 #### features.enable_software_inventory
 
@@ -340,6 +361,11 @@ Whether or not Fleet sends the query needed to gather the list of software insta
 - Config file format:
   ```
   features:
+  	enable_software_inventory: false
+  ```
+- Deprecated config file format:
+  ```
+  host_settings:
   	enable_software_inventory: false
   ```
 
@@ -357,6 +383,224 @@ _Available in Fleet Premium_. Sets a custom transparency URL page to take users 
   ```
   fleet_desktop:
     transparency_url: "https://example.org/transparency"
+  ```
+
+### Integrations
+
+For more information about integrations and Fleet automations in general, see the [Automations documentation](../../Using-Fleet/Automations.md). Only one automation can be enabled for a given automation type (e.g. for Failing Policies, only one of the webhook, the Jira integration or the Zendesk automation can be enabled).
+
+It is recommended to use the Fleet UI to configure integrations, as secret credentials (in the form of an API token) must be provided. See the [Automations documentation](../../Using-Fleet/Automations.md) for the UI configuration steps.
+
+#### Jira
+
+Jira integrations are configured under the `integrations.jira` field, which is an array of dictionaries.
+
+##### integrations.jira[].url
+
+The URL of the Jira server to use, including the scheme (e.g. "https://").
+
+- Required setting (string).
+- Default value: none.
+- Config file format:
+  ```
+  integrations:
+    jira:
+      - url: "https://example.atlassian.net"
+        username: "user1"
+        api_token: "secret"
+        project_key: "PJ1"
+  ```
+
+##### integrations.jira[].username
+
+> **Warning:** Be careful not to store your Jira credentials in source control. It is recommended to configure integrations [via the Fleet UI](../../Using-Fleet/Automations.md).
+
+The username to use to authenticate with the Jira server for API requests.
+
+- Required setting (string).
+- Default value: none.
+- Config file format:
+  ```
+  integrations:
+    jira:
+      - url: "https://example.atlassian.net"
+        username: "user1"
+        api_token: "secret"
+        project_key: "PJ1"
+  ```
+
+##### integrations.jira[].api_token
+
+> **Warning:** Be careful not to store your Jira credentials in source control. It is recommended to configure integrations [via the Fleet UI](../../Using-Fleet/Automations.md).
+
+The API token to use to authenticate with the Jira server for API requests.
+
+- Required setting (string).
+- Default value: none.
+- Config file format:
+  ```
+  integrations:
+    jira:
+      - url: "https://example.atlassian.net"
+        username: "user1"
+        api_token: "secret"
+        project_key: "PJ1"
+  ```
+
+##### integrations.jira[].project_key
+
+The Jira project key to use to create tickets.
+
+- Required setting (string).
+- Default value: none.
+- Config file format:
+  ```
+  integrations:
+    jira:
+      - url: "https://example.atlassian.net"
+        username: "user1"
+        api_token: "secret"
+        project_key: "PJ1"
+  ```
+
+##### integrations.jira[].enable_failing_policies
+
+Whether the integration is configured to create Jira tickets for failing policies.
+
+- Optional setting (boolean).
+- Default value: `false`.
+- Config file format:
+  ```
+  integrations:
+    jira:
+      - url: "https://example.atlassian.net"
+        username: "user1"
+        api_token: "secret"
+        project_key: "PJ1"
+        enable_failing_policies: true
+  ```
+
+##### integrations.jira[].enable_software_vulnerabilities
+
+Whether the integration is configured to create Jira tickets for recent software vulnerabilities.
+
+- Optional setting (boolean).
+- Default value: `false`.
+- Config file format:
+  ```
+  integrations:
+    jira:
+      - url: "https://example.atlassian.net"
+        username: "user1"
+        api_token: "secret"
+        project_key: "PJ1"
+        enable_software_vulnerabilities: true
+  ```
+
+#### Zendesk
+
+Zendesk integrations are configured under the `integrations.zendesk` field, which is an array of dictionaries.
+
+##### integrations.zendesk[].url
+
+The URL of the Zendesk server to use, including the scheme (e.g. "https://").
+
+- Required setting (string).
+- Default value: none.
+- Config file format:
+  ```
+  integrations:
+    zendesk:
+      - url: "https://example.zendesk.com"
+        email: "user1@example.com"
+        api_token: "secret"
+        group_id: 1234
+  ```
+
+##### integrations.zendesk[].email
+
+> **Warning:** Be careful not to store your Zendesk credentials in source control. It is recommended to configure integrations [via the Fleet UI](../../Using-Fleet/Automations.md).
+
+The email address to use to authenticate with the Zendesk server for API requests.
+
+- Required setting (string).
+- Default value: none.
+- Config file format:
+  ```
+  integrations:
+    zendesk:
+      - url: "https://example.zendesk.com"
+        email: "user1@example.com"
+        api_token: "secret"
+        group_id: 1234
+  ```
+
+##### integrations.zendesk[].api_token
+
+> **Warning:** Be careful not to store your Zendesk credentials in source control. It is recommended to configure integrations [via the Fleet UI](../../Using-Fleet/Automations.md).
+
+The API token to use to authenticate with the Zendesk server for API requests.
+
+- Required setting (string).
+- Default value: none.
+- Config file format:
+  ```
+  integrations:
+    zendesk:
+      - url: "https://example.zendesk.com"
+        email: "user1@example.com"
+        api_token: "secret"
+        group_id: 1234
+  ```
+
+##### integrations.zendesk[].group_id
+
+The group ID to use to create tickets.
+
+- Required setting (integer).
+- Default value: none.
+- Config file format:
+  ```
+  integrations:
+    zendesk:
+      - url: "https://example.zendesk.com"
+        email: "user1@example.com"
+        api_token: "secret"
+        group_id: 1234
+  ```
+
+##### integrations.zendesk[].enable_failing_policies
+
+Whether the integration is configured to create Zendesk tickets for failing policies.
+
+- Optional setting (boolean).
+- Default value: `false`.
+- Config file format:
+  ```
+  integrations:
+    zendesk:
+      - url: "https://example.zendesk.com"
+        email: "user1@example.com"
+        api_token: "secret"
+        group_id: 1234
+        enable_failing_policies: true
+  ```
+
+##### integrations.zendesk[].enable_software_vulnerabilities
+
+Whether the integration is configured to create Zendesk tickets for recent software vulnerabilities.
+
+- Optional setting (boolean).
+- Default value: `false`.
+- Config file format:
+  ```
+  integrations:
+    zendesk:
+      - url: "https://example.zendesk.com"
+        email: "user1@example.com"
+        api_token: "secret"
+        group_id: 1234
+        enable_software_vulnerabilities: true
   ```
 
 ### Organization Information
@@ -768,6 +1012,185 @@ Path to a directory on the local filesystem (accessible to the Fleet server) whe
     databases_path: "/path/to/dir"
   ```
 
+### Webhook Settings
+
+<!-- This section used to be named Webhooks, this ensures links with the #webhooks hash still work -->
+<span id="webhooks" name="webhooks"></span>
+
+For more information about webhooks and Fleet automations in general, see the [Automations documentation](../../Using-Fleet/Automations.md).
+
+#### webhook_settings.interval
+
+The interval at which to check for webhook conditions. This value currently configures both the host status and failing policies webhooks (not the recent vulnerabilities webhook, see the [Recent vulnerabilities section](#recent-vulnerabilities) for details).
+
+- Optional setting (time duration as a string).
+- Default value: `24h`.
+- Config file format:
+  ```
+  webhook_settings:
+    interval: "12h"
+  ```
+
+#### Host Status
+
+The following options allow the configuration of a webhook that will be triggered if the specified percentage of hosts are offline for the specified amount of time.
+
+##### webhook_settings.host_status_webhook.enable_host_status_webhook
+
+Defines whether the webhook check for host status will run or not.
+
+- Optional setting (boolean).
+- Default value: `false`.
+- Config file format:
+  ```
+  webhook_settings:
+    host_status_webhook:
+      enable_host_status_webhook: true
+  ```
+
+##### webhook_settings.host_status_webhook.destination_url
+
+The URL to `POST` to when the condition for the webhook triggers.
+
+- Optional setting, required if webhook is enabled (string).
+- Default value: none.
+- Config file format:
+  ```
+  webhook_settings:
+    host_status_webhook:
+      destination_url: "https://example.org/webhook_handler"
+  ```
+
+##### webhook_settings.host_status_webhook.host_percentage
+
+The percentage of hosts that need to be offline to trigger the webhook.
+
+- Optional setting, required if webhook is enabled (float).
+- Default value: `0`.
+- Config file format:
+  ```
+  webhook_settings:
+    host_status_webhook:
+      host_percentage: 10
+  ```
+
+##### webhook_settings.host_status_webhook.days_count
+
+Number of days that hosts need to be offline for to count as part of the percentage.
+
+- Optional setting, required if webhook is enabled (integer).
+- Default value: `0`.
+- Config file format:
+  ```
+  webhook_settings:
+    host_status_webhook:
+      days_count: 5
+  ```
+
+#### Failing Policies
+
+The following options allow the configuration of a webhook that will be triggered if selected policies are not passing for some hosts.
+
+##### webhook_settings.failing_policies_webhook.enable_failing_policies_webhook
+
+Defines whether to enable the failing policies webhook. Note that currently, if the failing policies webhook *and* the `osquery.enable_async_host_processing` options are set, some failing policies webhooks could be missing (some transitions from succeeding to failing or vice-versa could happen without triggering a webhook request).
+
+- Optional setting (boolean).
+- Default value: `false`.
+- Config file format:
+  ```
+  webhook_settings:
+    failing_policies_webhook:
+      enable_failing_policies_webhook: true
+  ```
+
+##### webhook_settings.failing_policies_webhook.destination_url
+
+The URL to `POST` to when the condition for the webhook triggers.
+
+- Optional setting, required if webhook is enabled (string).
+- Default value: none.
+- Config file format:
+  ```
+  webhook_settings:
+    failing_policies_webhook:
+      destination_url: "https://example.org/webhook_handler"
+  ```
+
+##### webhook_settings.failing_policies_webhook.policy_ids
+
+The IDs of the policies for which the webhook will be enabled.
+
+- Optional setting (array of integers).
+- Default value: empty.
+- Config file format:
+  ```
+  webhook_settings:
+    failing_policies_webhook:
+      policy_ids:
+        - 1
+        - 2
+        - 3
+  ```
+
+##### webhook_settings.failing_policies_webhook.host_batch_size
+
+Maximum number of hosts to batch on `POST` requests. A value of `0`, the default, means no batching, all hosts failing a policy will be sent on one `POST` request.
+
+- Optional setting (integer).
+- Default value: `0`.
+- Config file format:
+  ```
+  webhook_settings:
+    failing_policies_webhook:
+      host_batch_size: 100
+  ```
+
+#### Recent vulnerabilities
+
+The following options allow the configuration of a webhook that will be triggered if recently published vulnerabilities are detected and there are affected hosts. A vulnerability is considered recent if it has been published in the last 2 days (based on the National Vulnerability Database, NVD).
+
+Note that the recent vulnerabilities webhook is not checked at `webhook_settings.interval` like other webhooks - it is checked as part of the vulnerability processing and runs at the `vulnerabilities.periodicity` interval specified in the [fleet configuration](../../Deploying/Configuration.md#periodicity).
+
+##### webhook_settings.vulnerabilities_webhook.enable_vulnerabilities_webhook
+
+Defines whether to enable the vulnerabilities webhook.
+
+- Optional setting (boolean).
+- Default value: `false`.
+- Config file format:
+  ```
+  webhook_settings:
+    vulnerabilities_webhook:
+      enable_vulnerabilities_webhook: true
+  ```
+
+##### webhook_settings.vulnerabilities_webhook.destination_url
+
+The URL to `POST` to when the condition for the webhook triggers.
+
+- Optional setting, required if webhook is enabled (string).
+- Default value: none.
+- Config file format:
+  ```
+  webhook_settings:
+    vulnerabilities_webhook:
+      destination_url: "https://example.org/webhook_handler"
+  ```
+
+##### webhook_settings.vulnerabilities_webhook.host_batch_size
+
+Maximum number of hosts to batch on `POST` requests. A value of `0`, the default, means no batching, all hosts affected will be sent on one `POST` request.
+
+- Optional setting (integer).
+- Default value: `0`.
+- Config file format:
+  ```
+  webhook_settings:
+    vulnerabilities_webhook:
+      host_batch_size: 100
+  ```
+
 ### Agent options
 
 The `agent_options` key describes options returned to osqueryd when it checks for configuration. See the [osquery documentation](https://osquery.readthedocs.io/en/stable/deployment/configuration/#options) for the available options. Existing options will be over-written by the application of this file.
@@ -914,48 +1337,3 @@ spec:
           - /Users/wxs/sigs/baz.sig
     overrides: {}
 ```
-
-### Webhooks
-
-- `webhook_settings.interval`: the interval at which to check for webhook conditions. Default: 24h.
-
-#### Host status
-
-The following options allow the configuration of a webhook that will be triggered if the specified percentage of hosts
-are offline for the specified amount of time.
-
-- `webhook_settings.host_status_webhook.enable_host_status_webhook`: true or false. Defines whether the check for host status will run or not.
-- `webhook_settings.host_status_webhook.destination_url`: the URL to POST to when the condition for the webhook triggers.
-- `webhook_settings.host_status_webhook.host_percentage`: the percentage of hosts that need to be offline
-- `webhook_settings.host_status_webhook.days_count`: amount of days that hosts need to be offline for to count as part of the percentage.
-
-#### Failing policies
-
-The following options allow the configuration of a webhook that will be triggered if selected policies are not passing for some hosts.
-
-- `webhook_settings.failing_policies_webhook.enable_failing_policies_webhook`: true or false. Defines whether to enable the failing policies webhook. Note that currently, if the failing policies webhook *and* the `osquery.enable_async_host_processing` options are set, some failing policies webhooks could be missing (some transitions from succeeding to failing or vice-versa could happen without triggering a webhook request).
-- `webhook_settings.failing_policies_webhook.destination_url`: the URL to POST to when the condition for the webhook triggers.
-- `webhook_settings.failing_policies_webhook.policy_ids`: the IDs of the policies for which the webhook will be enabled.
-- `webhook_settings.failing_policies_webhook.host_batch_size`: Maximum number of hosts to batch on POST requests. A value of `0`, the default, means no batching, all hosts failing a policy will be sent on one POST request.
-
-#### Recent vulnerabilities
-
-The following options allow the configuration of a webhook that will be triggered if recently published vulnerabilities are detected and there are affected hosts. A vulnerability is considered recent if it has been published in the last 2 days (based on the National Vulnerability Database, NVD).
-
-- `webhook_settings.vulnerabilities_webhook.enable_vulnerabilities_webhook`: true or false. Defines whether to enable the vulnerabilities webhook.
-- `webhook_settings.vulnerabilities_webhook.destination_url`: the URL to POST to when the condition for the webhook triggers.
-- `webhook_settings.vulnerabilities_webhook.host_batch_size`: Maximum number of hosts to batch on POST requests. A value of `0`, the default, means no batching, all hosts affected will be sent on one POST request.
-
-Note that the recent vulnerabilities webhook is not checked at `webhook_settings.interval` like other webhooks - it is checked as part of the vulnerability processing and runs at the `vulnerabilities.periodicity` interval specified in the fleet configuration.
-
-## Host Expiry Settings
-
-The `host_expiry` section lets you define if and when hosts should be removed from Fleet if they have not checked in. Once a host has been removed from Fleet, it will need to re-enroll with a valid `enroll_secret` to connect to your Fleet instance.
-
-### Host Expiry Enabled
-
-If `host_expiry_enabled` is set to `true`, Fleet allows automatic cleanup of hosts that have not communicated with Fleet in some number of days.
-
-### Host Expiry Window
-
-If a host has not communicated with Fleet in the specified number of days, it will be removed.
