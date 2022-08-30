@@ -58,7 +58,7 @@ describe("Setup", () => {
     fillOutForm();
 
     cy.findByText(
-      "We were unable to configure your Fleet instance. Please notify your system administrator."
+      "We were unable to configure Fleet. If your Fleet server is behind a proxy, please ensure the server can be reached."
     ).should("exist");
   });
 });
