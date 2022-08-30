@@ -17,7 +17,7 @@ CREATE TABLE `activities` (
 CREATE TABLE `aggregated_stats` (
   `id` bigint(20) unsigned NOT NULL,
   `type` varchar(255) NOT NULL,
-  `json_value` json NULL,
+  `json_value` json NOT NULL,
   `created_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
   `updated_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`,`type`),
