@@ -2241,8 +2241,6 @@ After modifying the configuration you will need to reload and restart the Fleet 
 
 ## Configuring single sign-on (SSO)
 
-TODO(mna): unify this with the config settings in appconfig documentation (configuration-files/readme.md)
-
 Fleet supports SAML single sign-on capability.
 
 Fleet supports both SP-initiated SAML login and IDP-initiated login however, IDP-initiated login must be enabled in the web interface's SAML single sign-on options.
@@ -2251,99 +2249,18 @@ Fleet supports the SAML Web Browser SSO Profile using the HTTP Redirect Binding.
 
 _**Note: The email used in the SAML Assertion must match a user that already exists in Fleet unless you enable [JIT provisioning](#just-in-time-jit-user-provisioning).**_
 
-##### sso_settings.enable_sso
+<!-- Some subsections were renamed, but heading are kept so that link fragments still work -->
+<span id="sso-settings-enable-sso" name="sso-settings-enable-sso"></span>
+<span id="sso-settings-enable-sso-idp-login" name="sso-settings-enable-sso-idp-login"></span>
+<span id="sso-settings-enable-jit-provisioning" name="sso-settings-enable-jit-provisioning"></span>
+<span id="sso-settings-entity-id" name="sso-settings-entity-id"></span>
+<span id="sso-settings-idp-image-url" name="sso-settings-idp-image-url"></span>
+<span id="sso-settings-idp-name" name="sso-settings-idp-name"></span>
+<span id="sso-settings-issuer-uri" name="sso-settings-issuer-uri"></span>
+<span id="sso-settings-metadata" name="sso-settings-metadata"></span>
+<span id="sso-settings-metadata-url" name="sso-settings-metadata-url"></span>
 
-Configures if single sign-on is enabled.
-
-- default value: false
-- config file format:
-  ```
-  sso_settings:
-    enable_sso: true
-  ```
-
-##### sso_settings.enable_sso_idp_login
-
-Allow single sign-on login initiated by identity provider.
-
-- default value: false
-- config file format:
-  ```
-  sso_settings:
-    enable_sso_idp_login: true
-  ```
-
-##### sso_settings.enable_jit_provisioning
-
-Enables [just-in-time user provisioning](#just-in-time-jit-user-provisioning)
-
-- default value: false
-- config file format:
-  ```
-  sso_settings:
-    enable_jit_provisioning: true
-  ```
-
-##### sso_settings.entity_id
-
-The required entity ID is a URI that you use to identify Fleet when configuring the identity provider.
-
-- default value: ""
-- config file format:
-  ```
-  sso_settings:
-    entity_id: "https://example.com"
-
-##### sso_settings.idp_image_url
-
-An optional link to an image such as a logo for the identity provider.
-
-- default value: ""
-- config file format:
-  ```
-  sso_settings:
-    idp_image_url: "https://example.com/logo"
-
-##### sso_settings.idp_name
-
-A required human friendly name for the identity provider that will provide single sign-on authentication.
-
-- default value: ""
-- config file format:
-  ```
-  sso_settings:
-    idp_name: "SimpleSAML"
-
-##### sso_settings.issuer_uri
-
-The issuer URI supplied by the identity provider.
-
-- default value: ""
-- config file format:
-  ```
-  sso_settings:
-    issuer_uri: "https://example.com/saml2/sso-service"
-
-##### sso_settings.metadata
-
-Metadata provided by the identity provider. Either metadata or a metadata url must be provided.
-
-- default value: ""
-- config file format:
-  ```
-  sso_settings:
-    metadata: ""
-
-##### sso_settings.metadata_url
-
-A URL that references the identity provider metadata.
-
-- default value: ""
-- config file format:
-  ```
-  sso_settings:
-    metadata: "https://example.com/saml2/metadata"
-
+For details on the SSO settings that can be set via a YAML file, see the [SSO Settings](../Using-Fleet/configuration-files/README.md#sso-settings) section of the Configuration files page.
 
 ### Identity provider (IDP) configuration
 

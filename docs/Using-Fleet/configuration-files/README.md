@@ -242,6 +242,14 @@ spec:
     server: mail.example.org
     user_name: test_user
     verify_ssl_certs: true
+  sso_settings:
+    enable_sso: false
+    entity_id: 1234567890
+    idp_image_url: https://idp.example.org/logo.png
+    idp_name: IDP Vendor 1
+    issuer_uri: https://idp.example.org/SAML2/SSO/POST
+    metadata: "<md:EntityDescriptor entityID="https://idp.example.org/SAML2"> ... /md:EntityDescriptor>"
+    metadata_url: https://idp.example.org/idp-meta.xml
   vulnerability_settings:
     databases_path: ""
   webhook_settings:
@@ -259,14 +267,6 @@ spec:
         - 3
       host_batch_size: 0
     interval: 1m0s
-  sso_settings:
-    enable_sso: false
-    entity_id: 1234567890
-    idp_image_url: https://idp.example.org/logo.png
-    idp_name: IDP Vendor 1
-    issuer_uri: https://idp.example.org/SAML2/SSO/POST
-    metadata: "<md:EntityDescriptor entityID="https://idp.example.org/SAML2"> ... /md:EntityDescriptor>"
-    metadata_url: https://idp.example.org/idp-meta.xml
 ```
 
 ### Host Expiry Settings
@@ -628,9 +628,11 @@ Whether the SMTP server's SSL certificates should be verified. Can be turned off
 
 ### SSO Settings
 
+For additional information on SSO configuration, including just-in-time (JIT) user provisioning, creating SSO users in Fleet and identity providers configuration, see [Configuring single sign-on (SSO)](../Deploying/Configuration.md#configuring-single-sign-on-sso).
+
 #### sso_settings.enable_sso
 
-Whether or not to enable Single Sign-On (SSO).
+Configures if single sign-on is enabled.
 
 - Optional setting (boolean).
 - Default value: `false`.
@@ -640,57 +642,81 @@ Whether or not to enable Single Sign-On (SSO).
     enable_sso: true
   ```
 
+#### sso_settings.enable_sso_idp_login
+
+Allow single sign-on login initiated by identity provider.
+
+- Optional setting (boolean).
+- Default value: `false`.
+- Config file format:
+  ```
+  sso_settings:
+    enable_sso_idp_login: true
+  ```
+
+#### sso_settings.enable_jit_provisioning
+
+Enables [just-in-time user provisioning](../Deploying/Configuration.md#just-in-time-jit-user-provisioning).
+
+- Optional setting (boolean).
+- Default value: `false`
+- Config file format:
+  ```
+  sso_settings:
+    enable_jit_provisioning: true
+  ```
+
 #### sso_settings.entity_id
 
-A Uniform Resource Identifier (URI) that identifies the SSO provider. It must exactly match the Entity ID field used in identity provider configuration.
+The required entity ID is a Uniform Resource Identifier (URI) that you use to identify Fleet when configuring the identity provider. It must exactly match the Entity ID field used in identity provider configuration.
 
 - Required setting if SSO is enabled, must have at least 5 characters (string).
 - Default value: none.
 - Config file format:
   ```
   sso_settings:
-    entity_id: abc123
+    entity_id: "https://example.com"
   ```
 
 #### sso_settings.idp_image_url
 
-The URL of the image to use to represent the identity provider (e.g. a logo).
+An optional link to an image such as a logo for the identity provider.
 
 - Optional setting (string).
 - Default value: none.
 - Config file format:
   ```
   sso_settings:
-    idp_image_url: https://example.org/logo.png
+    idp_image_url: "https://example.com/logo"
   ```
 
 #### sso_settings.idp_name
 
-The name of the identity provider.
+A required human-friendly name for the identity provider that will provide single sign-on authentication.
 
 - Required setting if SSO is enabled (string).
 - Default value: none.
 - Config file format:
   ```
   sso_settings:
-    idp_name: Provider Name
+    idp_name: "SimpleSAML"
   ```
 
 #### sso_settings.issuer_uri
 
-The URI of the issuer (the identity provider). TODO(mna): is this used? The field does not appear used anywhere. We do request it on the frontend.
+The issuer URI supplied by the identity provider. TODO(mna): is this used? The field does not appear used anywhere. We do request it on the frontend.
 
 - Optional setting (string).
 - Default value: none.
 - Config file format:
   ```
   sso_settings:
-    issuer_uri: abc123
+    issuer_uri: "https://example.com/saml2/sso-service"
   ```
 
 #### sso_settings.metadata
 
-The metadata in XML format provided by the identity provider.
+Metadata (in XML format) provided by the identity provider.
 
 - Optional setting, either `metadata` or `metadata_url` must be set if SSO is enabled, but not both (string).
 - Default value: none.
@@ -702,7 +728,7 @@ The metadata in XML format provided by the identity provider.
 
 #### sso_settings.metadata_url
 
-The URL of the metadata document in XML format provided by the identity provider.
+A URL that references the identity provider metadata.
 
 - Optional setting, either `metadata` or `metadata_url` must be set if SSO is enabled, but not both (string).
 - Default value: none.
