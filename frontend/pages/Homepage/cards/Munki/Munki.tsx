@@ -138,6 +138,7 @@ const Munki = ({
                   emptyComponent={EmptyMunkiIssues}
                   showMarkAllPages={false}
                   isAllPagesSelected={false}
+                  isClientSidePagination
                   disableCount
                   disableActionButton
                   disablePagination
@@ -160,6 +161,7 @@ const Munki = ({
                   emptyComponent={EmptyMunkiVersions}
                   showMarkAllPages={false}
                   isAllPagesSelected={false}
+                  isClientSidePagination
                   disableCount
                   disableActionButton
                   disablePagination

@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/explicit-module-boundary-types */
-import { sendRequest } from "services/mock_service/service/service";
-// import sendRequest from "services";
+// import { sendRequest } from "services/mock_service/service/service";
+import sendRequest from "services";
 import endpoints from "utilities/endpoints";
 import { buildQueryStringFromParams } from "utilities/url";
 
