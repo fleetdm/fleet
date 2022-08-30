@@ -719,7 +719,7 @@ const ManageHostsPage = ({
         pathPrefix: PATHS.MANAGE_HOSTS,
         routeTemplate,
         routeParams,
-        queryParams: omit(queryParams, ["munki_issue"]),
+        queryParams: omit(queryParams, ["munki_issue_id"]),
       })
     );
     setMunkiIssueDetails(null);
