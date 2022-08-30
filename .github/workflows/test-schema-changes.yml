@@ -31,7 +31,7 @@ jobs:
 
     - name: Verify changes
       run: |
-        if [[ $(git diff .github/workflows/test-schema-changes.yml) ]]; then
+        if [[ $(git diff server/datastore/mysql/schema.sql) ]]; then
           echo "❌ fail: uncommited changes in schema.sql"
           echo "please run make dump-test-schema and commit the changes"
           exit 1
