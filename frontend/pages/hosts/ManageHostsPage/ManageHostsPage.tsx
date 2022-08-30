@@ -34,9 +34,8 @@ import {
 } from "interfaces/enroll_secret";
 import { IHost } from "interfaces/host";
 import { ILabel } from "interfaces/label";
-import { IMDMSolution } from "interfaces/macadmins";
+import { IMDMSolution, IMunkiIssuesAggregate } from "interfaces/macadmins";
 import { IOperatingSystemVersion } from "interfaces/operating_system";
-import { IMunkiIssuesAggregate } from "interfaces/macadmins";
 import { IPolicy } from "interfaces/policy";
 import { ISoftware } from "interfaces/software";
 import { ITeam } from "interfaces/team";
@@ -1371,7 +1370,10 @@ const ManageHostsPage = ({
         <FilterPill
           label={munkiIssueDetails.name}
           tooltipDescription={
-            "Hosts that reported this Munki issue the last time Munki ran on each host."
+            <span className={`tooltip__tooltip-text`}>
+              Hosts that reported this Munki issue <br />
+              the last time Munki ran on each host.
+            </span>
           }
           onClear={handleClearMunkiIssueFilter}
         />

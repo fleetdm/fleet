@@ -11,7 +11,7 @@ export interface IMunkiVersionsAggregate {
 export interface IMunkiIssuesAggregate {
   id: number;
   name: string;
-  type: string;
+  type: "error" | "warning";
   hosts_count: number;
 }
 export interface IMDMAggregateStatus {

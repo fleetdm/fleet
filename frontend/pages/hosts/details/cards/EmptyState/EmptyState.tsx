@@ -5,8 +5,8 @@ import ExternalLinkIcon from "../../../../../../assets/images/icon-external-link
 const baseClass = "empty-state";
 
 interface IEmptyStateProps {
-  title: "software" | "users";
-  reason?: "empty-search" | "disabled";
+  title: "software" | "users" | "munki-issues";
+  reason?: "empty-search" | "disabled" | "none-detected";
 }
 
 const EmptyState = ({ title, reason }: IEmptyStateProps): JSX.Element => {
@@ -16,6 +16,8 @@ const EmptyState = ({ title, reason }: IEmptyStateProps): JSX.Element => {
         return "Software inventory";
       case "users":
         return "User collection";
+      case "munki-issues":
+        return "Munki issues";
       default:
         return "Data collection";
     }
@@ -49,6 +51,20 @@ const EmptyState = ({ title, reason }: IEmptyStateProps): JSX.Element => {
                   steps to enable this feature
                   <img src={ExternalLinkIcon} alt="Open external link" />
                 </a>
+              </p>
+            </div>
+          </div>
+        </div>
+      );
+    case "none-detected":
+      return (
+        <div className={`${baseClass} empty-${title}`}>
+          <div className={`${baseClass}__inner`}>
+            <div className={`${baseClass}__disabled`}>
+              <h1>No {formalTitle()} detected.</h1>
+              <p>
+                {title === "munki-issues" &&
+                  "The last time Munki ran on this host, no issues were reported."}
               </p>
             </div>
           </div>
