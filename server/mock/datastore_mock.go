@@ -189,11 +189,11 @@ type SetOrUpdateDeviceAuthTokenFunc func(ctx context.Context, hostID uint, authT
 
 type ListPoliciesForHostFunc func(ctx context.Context, host *fleet.Host) ([]*fleet.HostPolicy, error)
 
-type GetMunkiVersionFunc func(ctx context.Context, hostID uint) (string, error)
+type GetHostMunkiVersionFunc func(ctx context.Context, hostID uint) (string, error)
 
-type GetMunkiIssuesFunc func(ctx context.Context, hostID uint) ([]*fleet.HostMunkiIssue, error)
+type GetHostMunkiIssuesFunc func(ctx context.Context, hostID uint) ([]*fleet.HostMunkiIssue, error)
 
-type GetMDMFunc func(ctx context.Context, hostID uint) (*fleet.HostMDM, error)
+type GetHostMDMFunc func(ctx context.Context, hostID uint) (*fleet.HostMDM, error)
 
 type AggregatedMunkiVersionFunc func(ctx context.Context, teamID *uint) ([]fleet.AggregatedMunkiVersion, time.Time, error)
 
@@ -708,14 +708,14 @@ type DataStore struct {
 	ListPoliciesForHostFunc        ListPoliciesForHostFunc
 	ListPoliciesForHostFuncInvoked bool
 
-	GetMunkiVersionFunc        GetMunkiVersionFunc
-	GetMunkiVersionFuncInvoked bool
+	GetHostMunkiVersionFunc        GetHostMunkiVersionFunc
+	GetHostMunkiVersionFuncInvoked bool
 
-	GetMunkiIssuesFunc        GetMunkiIssuesFunc
-	GetMunkiIssuesFuncInvoked bool
+	GetHostMunkiIssuesFunc        GetHostMunkiIssuesFunc
+	GetHostMunkiIssuesFuncInvoked bool
 
-	GetMDMFunc        GetMDMFunc
-	GetMDMFuncInvoked bool
+	GetHostMDMFunc        GetHostMDMFunc
+	GetHostMDMFuncInvoked bool
 
 	AggregatedMunkiVersionFunc        AggregatedMunkiVersionFunc
 	AggregatedMunkiVersionFuncInvoked bool
@@ -1530,19 +1530,19 @@ func (s *DataStore) ListPoliciesForHost(ctx context.Context, host *fleet.Host) (
 	return s.ListPoliciesForHostFunc(ctx, host)
 }
 
-func (s *DataStore) GetMunkiVersion(ctx context.Context, hostID uint) (string, error) {
-	s.GetMunkiVersionFuncInvoked = true
-	return s.GetMunkiVersionFunc(ctx, hostID)
+func (s *DataStore) GetHostMunkiVersion(ctx context.Context, hostID uint) (string, error) {
+	s.GetHostMunkiVersionFuncInvoked = true
+	return s.GetHostMunkiVersionFunc(ctx, hostID)
 }
 
-func (s *DataStore) GetMunkiIssues(ctx context.Context, hostID uint) ([]*fleet.HostMunkiIssue, error) {
-	s.GetMunkiIssuesFuncInvoked = true
-	return s.GetMunkiIssuesFunc(ctx, hostID)
+func (s *DataStore) GetHostMunkiIssues(ctx context.Context, hostID uint) ([]*fleet.HostMunkiIssue, error) {
+	s.GetHostMunkiIssuesFuncInvoked = true
+	return s.GetHostMunkiIssuesFunc(ctx, hostID)
 }
 
-func (s *DataStore) GetMDM(ctx context.Context, hostID uint) (*fleet.HostMDM, error) {
-	s.GetMDMFuncInvoked = true
-	return s.GetMDMFunc(ctx, hostID)
+func (s *DataStore) GetHostMDM(ctx context.Context, hostID uint) (*fleet.HostMDM, error) {
+	s.GetHostMDMFuncInvoked = true
+	return s.GetHostMDMFunc(ctx, hostID)
 }
 
 func (s *DataStore) AggregatedMunkiVersion(ctx context.Context, teamID *uint) ([]fleet.AggregatedMunkiVersion, time.Time, error) {
