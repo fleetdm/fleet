@@ -3,12 +3,15 @@ import { uniqueId } from "lodash";
 
 import ReactTooltip from "react-tooltip";
 
-interface ITextCellProps {
+interface ITruncatedTextCellProps {
   value: string | number | boolean;
   classes?: string;
 }
 
-const TextCell = ({ value, classes = "w250" }: ITextCellProps): JSX.Element => {
+const TruncatedTextCell = ({
+  value,
+  classes = "w250",
+}: ITruncatedTextCellProps): JSX.Element => {
   const ref = useRef<HTMLInputElement>(null);
 
   const [offsetWidth, setOffsetWidth] = useState(0);
@@ -53,4 +56,4 @@ const TextCell = ({ value, classes = "w250" }: ITextCellProps): JSX.Element => {
   );
 };
 
-export default TextCell;
+export default TruncatedTextCell;
