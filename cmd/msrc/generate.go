@@ -51,7 +51,6 @@ func main() {
 		panicif(err)
 	}
 
-	// TODO: Generate checksums
 	fmt.Println("Done.")
 }
 
@@ -62,8 +61,6 @@ func update(
 	msrcClient io.MSRCAPI,
 	ghClient io.GithubAPI,
 ) ([]*parsed.SecurityBulletin, error) {
-	var bulletins []*parsed.SecurityBulletin
-
 	fmt.Println("Downloading current feed...")
 	f, err := msrcClient.GetFeed(m, y)
 	if err != nil {
@@ -76,25 +73,26 @@ func update(
 		return nil, err
 	}
 
+	var bulletins []*parsed.SecurityBulletin
 	for _, url := range eBulletins {
 		fPath, err := ghClient.Download(url)
 		if err != nil {
 			return nil, err
 		}
 
-		bulletin, err := parsed.UnmarshalBulletin(fPath)
+		eB, err := parsed.UnmarshalBulletin(fPath)
 		if err != nil {
 			return nil, err
 		}
 
-		nB, ok := nBulletins[bulletin.ProductName]
+		nB, ok := nBulletins[eB.ProductName]
 		if ok {
-			if err = nB.Merge(bulletin); err != nil {
+			if err = eB.Merge(nB); err != nil {
 				return nil, err
 			}
 		}
 
-		bulletins = append(bulletins, bulletin)
+		bulletins = append(bulletins, eB)
 	}
 
 	return bulletins, nil
