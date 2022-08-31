@@ -50,7 +50,7 @@ jobs:
 
     # Download fleet and fleetctl binaries from last successful build on main
     - name: Download binaries
-      uses: dawidd6/action-download-artifact@ea71f332a90fd52416b1629b933dcf7e0ccd421d #v2.16.0
+      uses: dawidd6/action-download-artifact@7847792dd435a50521b8e3bd3576dae7459d1fa8 #v2.16.0
       with:
         workflow: build-binaries.yaml
         branch: main
@@ -82,7 +82,7 @@ jobs:
 
     - name: Slack Notification
       if: failure()
-      uses: slackapi/slack-github-action@16b6c78ee73689a627b65332b34e5d409c7299da # v1.18.0
+      uses: slackapi/slack-github-action@936158bbe252e9a6062e793ea4609642c966e302 # v1.18.0
       with:
         payload: |
           {
@@ -113,7 +113,7 @@ jobs:
    steps:
     # Download fleet and fleetctl binaries from last successful build on main
     - name: Download binaries
-      uses: dawidd6/action-download-artifact@ea71f332a90fd52416b1629b933dcf7e0ccd421d #v2.16.0
+      uses: dawidd6/action-download-artifact@7847792dd435a50521b8e3bd3576dae7459d1fa8 #v2.16.0
       with:
         workflow: build-binaries.yaml
         branch: main
