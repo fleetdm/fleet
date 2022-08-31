@@ -59,7 +59,7 @@ require (
 	github.com/nukosuke/go-zendesk v0.12.0
 	github.com/oklog/run v1.1.0
 	github.com/olekukonko/tablewriter v0.0.5
-	github.com/open-policy-agent/opa v0.42.0
+	github.com/open-policy-agent/opa v0.43.0
 	github.com/oschwald/geoip2-golang v1.6.1
 	github.com/osquery/osquery-go v0.0.0-20220317165851-954ac78f381f
 	github.com/patrickmn/go-cache v2.1.0+incompatible
@@ -90,8 +90,8 @@ require (
 	go.opentelemetry.io/otel/sdk v1.7.0
 	golang.org/x/crypto v0.0.0-20220525230936-793ad666bf5e
 	golang.org/x/sync v0.0.0-20220601150217-0de741cfad7f
-	golang.org/x/sys v0.0.0-20220412211240-33da011f77ad
-	google.golang.org/grpc v1.47.0
+	golang.org/x/sys v0.0.0-20220715151400-c0bba94af5f8
+	google.golang.org/grpc v1.48.0
 	gopkg.in/guregu/null.v3 v3.4.0
 	gopkg.in/natefinch/lumberjack.v2 v2.0.0
 	gopkg.in/yaml.v2 v2.4.0
@@ -254,7 +254,7 @@ require (
 	github.com/santhosh-tekuri/jsonschema v1.2.4 // indirect
 	github.com/secure-systems-lab/go-securesystemslib v0.3.1 // indirect
 	github.com/sergi/go-diff v1.2.0 // indirect
-	github.com/sirupsen/logrus v1.8.1 // indirect
+	github.com/sirupsen/logrus v1.9.0 // indirect
 	github.com/slack-go/slack v0.9.4 // indirect
 	github.com/spf13/afero v1.6.0 // indirect
 	github.com/spf13/jwalterweatherman v1.1.0 // indirect
@@ -267,7 +267,7 @@ require (
 	github.com/trivago/tgo v1.0.7 // indirect
 	github.com/valyala/bytebufferpool v1.0.0 // indirect
 	github.com/vartanbeno/go-reddit/v2 v2.0.0 // indirect
-	github.com/vektah/gqlparser/v2 v2.4.5 // indirect
+	github.com/vektah/gqlparser/v2 v2.4.6 // indirect
 	github.com/xanzy/go-gitlab v0.50.3 // indirect
 	github.com/xanzy/ssh-agent v0.3.1 // indirect
 	github.com/xeipuuv/gojsonpointer v0.0.0-20190905194746-02993c407bfb // indirect
