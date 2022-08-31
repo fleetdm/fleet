@@ -53,8 +53,8 @@ export default {
         policyResponse,
         mdmId,
         mdmEnrollmentStatus,
-        softwareId,
-        munkiIssueId
+        munkiIssueId,
+        softwareId
       ),
       status: getStatusParam(selectedLabels),
       label_id: label,
