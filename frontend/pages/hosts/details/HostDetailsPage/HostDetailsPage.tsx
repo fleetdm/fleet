@@ -612,11 +612,13 @@ const HostDetailsPage = ({
                 softwareInventoryEnabled={features?.enable_software_inventory}
                 deviceType={host?.platform === "darwin" ? "macos" : ""}
               />
-              <MunkiIssuesCard
-                isLoading={isLoadingHost}
-                munkiIssues={macadmins?.munki_issues}
-                deviceType={host?.platform === "darwin" ? "macos" : ""}
-              />
+              {macadmins && (
+                <MunkiIssuesCard
+                  isLoading={isLoadingHost}
+                  munkiIssues={macadmins.munki_issues}
+                  deviceType={host?.platform === "darwin" ? "macos" : ""}
+                />
+              )}
             </TabPanel>
             <TabPanel>
               <ScheduleCard
