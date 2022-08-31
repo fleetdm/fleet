@@ -37,7 +37,7 @@ func (fs FSClient) Bulletins() ([]SecurityBulletinName, error) {
 		}
 
 		filePath := filepath.Base(path)
-		if strings.HasPrefix(filePath, MSRCFilePrefix) {
+		if strings.HasPrefix(filePath, mSRCFilePrefix) {
 			result = append(result, NewSecurityBulletinName(filePath))
 		}
 

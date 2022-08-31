@@ -22,8 +22,8 @@ func TestFSClient(t *testing.T) {
 			sut := NewFSClient(path)
 
 			file1 := filepath.Join(path, "my_lyrics.json")
-			bulletin1 := filepath.Join(path, fmt.Sprintf("%sWindows_10-2022_10_10.json", MSRCFilePrefix))
-			bulletin2 := filepath.Join(path, fmt.Sprintf("%sWindows_11-2022_10_10.json", MSRCFilePrefix))
+			bulletin1 := filepath.Join(path, fmt.Sprintf("%sWindows_10-2022_10_10.json", mSRCFilePrefix))
+			bulletin2 := filepath.Join(path, fmt.Sprintf("%sWindows_11-2022_10_10.json", mSRCFilePrefix))
 
 			f1, err := os.Create(bulletin1)
 			require.NoError(t, err)

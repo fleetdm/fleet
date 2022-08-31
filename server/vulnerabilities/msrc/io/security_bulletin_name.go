@@ -8,7 +8,7 @@ import (
 )
 
 const (
-	MSRCFilePrefix = "fleet_msrc_"
+	mSRCFilePrefix = "fleet_msrc_"
 	fileExt        = "json"
 	dateLayout     = "2006_01_02"
 )
@@ -34,7 +34,7 @@ func (sbn SecurityBulletinName) date() (time.Time, error) {
 
 func FileName(productName string, date time.Time, ext string) string {
 	pName := strings.Replace(productName, " ", "_", -1)
-	return fmt.Sprintf("%s%s-%d_%02d_%02d.%s", MSRCFilePrefix, pName, date.Year(), date.Month(), date.Day(), ext)
+	return fmt.Sprintf("%s%s-%d_%02d_%02d.%s", mSRCFilePrefix, pName, date.Year(), date.Month(), date.Day(), ext)
 }
 
 func (sbn SecurityBulletinName) Before(other SecurityBulletinName) bool {
@@ -52,7 +52,7 @@ func (sbn SecurityBulletinName) Before(other SecurityBulletinName) bool {
 }
 
 func (sbn SecurityBulletinName) ProductName() string {
-	pName := strings.TrimPrefix(string(sbn), MSRCFilePrefix)
+	pName := strings.TrimPrefix(string(sbn), mSRCFilePrefix)
 	parts := strings.Split(pName, "-")
 
 	if len(parts) != 2 {

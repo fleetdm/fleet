@@ -85,7 +85,7 @@ func (gh GithubClient) Bulletins() (map[SecurityBulletinName]string, error) {
 
 	for _, e := range releases[0].Assets {
 		name := e.GetName()
-		if strings.HasPrefix(name, MSRCFilePrefix) {
+		if strings.HasPrefix(name, mSRCFilePrefix) {
 			results[NewSecurityBulletinName(name)] = e.GetBrowserDownloadURL()
 		}
 	}

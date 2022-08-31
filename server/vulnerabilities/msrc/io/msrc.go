@@ -14,7 +14,7 @@ import (
 
 const (
 	MSRCMinYear = 2020
-	MSRCBaseURL = `https://api.msrc.microsoft.com`
+	mSRCBaseURL = `https://api.msrc.microsoft.com`
 )
 
 // MSRCAPI allows users to interact with MSRC resources
@@ -37,7 +37,7 @@ func NewMSRCClient(
 ) MSRCClient {
 	c := MSRCClient{client: client, workDir: workDir, baseURL: baseURL}
 	if c.baseURL == nil {
-		c.baseURL = ptr.String(MSRCBaseURL)
+		c.baseURL = ptr.String(mSRCBaseURL)
 	}
 	return c
 }
