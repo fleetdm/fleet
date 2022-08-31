@@ -6,7 +6,7 @@
     <div style="max-width: 400px;" class="flex-column d-flex">
       <h2>Play in Fleet Sandbox</h2>
       <p>
-        Sandbox lets you test Fleet’s features on your device. Watch our <a href="https://www.youtube.com/watch?v=iQtdpZYxiqI">Sandbox setup video</a> for instructions. Create your account to get started.
+        Sandbox lets you test Fleet’s features on your device. Watch our <a @click="clickOpenVideoModal()">Sandbox setup video</a> for instructions. Create your account to get started.
       </p>
       <div class="pt-4">
         <ajax-form :handle-submitting="handleSubmittingRegisterForm" :syncing.sync="syncing" :cloud-error.sync="cloudError" :form-errors.sync="formErrors" :form-data="formData" :form-rules="formRules" @submitted="submittedRegisterForm()">
@@ -36,5 +36,14 @@
       </div>
     </div>
   </div>
+  <modal v-if="modal === 'video'" @close="closeModal()" v-cloak>
+    <div style="height: 100%;" class="d-flex flex-column align-items-center justify-content-center">
+      <div purpose="embedded-content" class="container-lg">
+        <iframe id="ytplayer" type="text/html"
+        src="https://www.youtube.com/embed/iQtdpZYxiqI?autoplay=1&controls=1&modestbranding=1&playsinline=1&color=white"
+        frameborder="0" allowfullscreen autoplay></iframe>
+      </div>
+    </div>
+  </modal>
 </div>
 <%- /* Expose server-rendered data as window.SAILS_LOCALS :: */ exposeLocalsToBrowser() %>
