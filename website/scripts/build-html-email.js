@@ -22,25 +22,24 @@ module.exports = {
 
     let APP_PATH_TO_COMPILED_EMAIL_PARTIALS = 'views/emails/newsletter-partials';
 
+    let extensionedArticleFileName = articleFileName;
     // Delete existing HTML output from previous runs, if any.
     if(!_.endsWith(articleFileName, '.md')) {
       // If the file was specified without a file extension, we'll add `.md` to the provided filename.
-      articleFileName = articleFileName + '.md';
+      extensionedArticleFileName = extensionedArticleFileName + '.md';
+      sails.log.warn('The filename provided is missing the .md file extension, appending `.md` to the provided articleFileName: '+extensionedArticleFileName)
     }
-
+    let unextensionedArticleFileName = _.trimRight(extensionedArticleFileName, '.md');
     // Find the Markdown file in the articles folder
-    let markdownFileToConvert = path.resolve(path.join(topLvlRepoPath, '/articles/'+ articleFileName));
+    let markdownFileToConvert = path.resolve(path.join(topLvlRepoPath, '/articles/'+extensionedArticleFileName));
 
     if(!markdownFileToConvert) { // If we couldn't find the file specified, throw an error
       throw new Error('Error: No article found with the filename: '+articleFileName);
     }
 
     if (path.extname(markdownFileToConvert) !== '.md') {// If this file doesn't end in `.md`: skip it (we won't create a page for it)
-      throw new Error('Error: The specified file ('+articleFileName+') is not a valid Markdown file.');
+      throw new Error('Error: The specified file ('+articleFileName+') is not a valid Markdown file.'+markdownFileToConvert);
     }
-
-    // Remove previous versions of this html partial if they exist.
-    await sails.helpers.fs.rmrf(path.resolve(sails.config.appPath, APP_PATH_TO_COMPILED_EMAIL_PARTIALS +'/'+articleFileName+'.ejs'));
 
     // Get the raw Markdown from the file.
     let mdStringForEmails = await sails.helpers.fs.read(markdownFileToConvert);
@@ -61,6 +60,8 @@ module.exports = {
       throw new Error('Error: the Markdown article is missing a articleTitle meta tag. To resolve: add an articleTitle meta tag to the Markdown file');
     }
 
+    let extensionedFileNameForEmailPartial = embeddedMetadata.category+'-'+unextensionedArticleFileName.replace(/\./g, '-')+'.ejs';
+
     // Remove the meta tags from the final Markdown file before we convert it.
     mdStringForEmails = mdStringForEmails.replace(/<meta[^>]*>/igm, '');
 
@@ -75,7 +76,7 @@ module.exports = {
       .split(/\//).map((fileOrFolderName) => fileOrFolderName.toLowerCase()).join('/')
     );
 
-    let htmlEmailOutputPath = path.resolve(sails.config.appPath, path.join(APP_PATH_TO_COMPILED_EMAIL_PARTIALS, embeddedMetadata.category+'--'+_.kebabCase(embeddedMetadata.articleTitle)+'.ejs'));
+    let htmlEmailOutputPath = path.resolve(sails.config.appPath, path.join(APP_PATH_TO_COMPILED_EMAIL_PARTIALS, extensionedFileNameForEmailPartial));
 
     // If an HTML partial exists for this article, we'll delete the old version and continue.
     if(path.resolve(htmlEmailOutputPath)) {

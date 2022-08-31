@@ -139,7 +139,7 @@ module.exports = {
     customRenderer.heading = function(textHTML, level) {
       let inlineStyles;
       if(level === 1) {
-        inlineStyles = 'font-weight: 800; font-size: 28px; line-height: 38px; margin-bottom: 16px;';
+        inlineStyles = 'font-weight: 800; font-size: 24px; line-height: 32px; margin-bottom: 16px;';
       } else if (level === 2) {
         inlineStyles = 'font-weight: 700; font-size: 20px; line-height: 28px; margin-bottom: 16px; margin-top: 32px;';
       } else if (level === 3) {
@@ -175,14 +175,14 @@ module.exports = {
       return `<span style="display: inline; font-style: italic; font-size:16px;>${textHTML}</span>`
     }
     customRenderer.codespan = function(codeHTML) {
-      return `<code style="display: inline; background: #F1F0FF; color: #000; padding: 4px 8px; font-size: 13px; line-height: 16px; font-family: Source Code Pro;">${_.escape(codeHTML)}</code>`
+      return `<code style="display: inline; background: #F1F0FF; color: #192147; padding: 4px 8px; font-size: 13px; line-height: 16px; font-family: Source Code Pro;">${_.escape(codeHTML)}</code>`
     }
     customRenderer.link = function(href, title, textHTML) {
       return `<a style="display: inline; color: #6A67FE; font-size: 16px; text-decoration: none;" href="${href}">${textHTML}</a>`
     }
     customRenderer.image = function(href, title, textHTML) {
       let cannonicalLinkToImage = href.replace(/^(\.\.\/website\/assets)/gi, 'https://fleetdm.com')
-      return `<img style="max-width: 100%; margin-top: 16px; margin-bottom: 16px;" src="${cannonicalLinkToImage}" alt="\n${title}\n">`
+      return `<img style="max-width: 100%; margin-top: 40px; margin-bottom: 40px;" src="${cannonicalLinkToImage}" alt="\n${title}\n">`
     }
     customRenderer.text = function(textHTML) {
       if(textHTML) {
