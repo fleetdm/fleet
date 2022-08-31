@@ -340,10 +340,9 @@ type Features struct {
 }
 
 func (f *Features) ApplyDefaultsForNewInstalls() {
-	// Software inventory is enabled only for new inst
+	// Software inventory is enabled only for new installs as
 	// we didn't want to enable software inventory from one version to the
-	// next in already running fleets, but we enable it by default for
-	// new installs.
+	// next in already running fleets
 	f.EnableSoftwareInventory = true
 	f.ApplyDefaults()
 }
