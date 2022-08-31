@@ -23,11 +23,11 @@ module.exports = {
     let APP_PATH_TO_COMPILED_EMAIL_PARTIALS = 'views/emails/newsletter-partials';
 
     let extensionedArticleFileName = articleFileName;
-    // Delete existing HTML output from previous runs, if any.
+
     if(!_.endsWith(articleFileName, '.md')) {
       // If the file was specified without a file extension, we'll add `.md` to the provided filename.
       extensionedArticleFileName = extensionedArticleFileName + '.md';
-      sails.log.warn('The filename provided is missing the .md file extension, appending `.md` to the provided articleFileName: '+extensionedArticleFileName)
+      sails.log.warn('The filename provided is missing the .md file extension, appending `.md` to the provided articleFileName: '+articleFileName)
     }
     let unextensionedArticleFileName = _.trimRight(extensionedArticleFileName, '.md');
     // Find the Markdown file in the articles folder
@@ -56,10 +56,6 @@ module.exports = {
       throw new Error('Error: the Markdown article is missing a category meta tag. To resolve: add a category meta tag to the Markdown file');
     }
 
-    if(!embeddedMetadata.articleTitle) {
-      throw new Error('Error: the Markdown article is missing a articleTitle meta tag. To resolve: add an articleTitle meta tag to the Markdown file');
-    }
-
     let extensionedFileNameForEmailPartial = embeddedMetadata.category+'-'+unextensionedArticleFileName.replace(/\./g, '-')+'.ejs';
 
     // Remove the meta tags from the final Markdown file before we convert it.
@@ -78,11 +74,9 @@ module.exports = {
 
     let htmlEmailOutputPath = path.resolve(sails.config.appPath, path.join(APP_PATH_TO_COMPILED_EMAIL_PARTIALS, extensionedFileNameForEmailPartial));
 
-    // If an HTML partial exists for this article, we'll delete the old version and continue.
-    if(path.resolve(htmlEmailOutputPath)) {
-      sails.log.warn('Warning: An HTML partial for the Markdown article specified already exists. The old file will be replaced with the HTML partial generated.')
-      await sails.helpers.fs.rmrf(htmlEmailOutputPath);
-    }
+    // Delete existing HTML output from previous runs, if any.
+    await sails.helpers.fs.rmrf(htmlEmailOutputPath);
+
     sails.log('Generated HTML partial for the Fleet Newsletter at: '+htmlEmailOutputPath);
     await sails.helpers.fs.write(htmlEmailOutputPath, htmlEmailString);
 
