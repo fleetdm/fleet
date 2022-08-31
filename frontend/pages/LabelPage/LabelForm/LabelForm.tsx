@@ -68,9 +68,16 @@ const LabelForm = ({
   showOpenSchemaActionText,
   backendValidators,
 }: ILabelFormProps): JSX.Element => {
+<<<<<<< HEAD
   const [name, setName] = useState(selectedLabel?.name || "");
   const [nameError, setNameError] = useState("");
   const [description, setDescription] = useState(
+=======
+  console.log("selectedLabel", selectedLabel);
+  const [name, setName] = useState<string>(selectedLabel?.name || "");
+  const [nameError, setNameError] = useState<string>("");
+  const [description, setDescription] = useState<string>(
+>>>>>>> 1a4caf599 (Add page spinner for loading state)
     selectedLabel?.description || ""
   );
   const [descriptionError, setDescriptionError] = useState("");

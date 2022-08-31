@@ -6,6 +6,7 @@ import PATHS from "router/paths";
 import MainContent from "components/MainContent";
 import SidePanelContent from "components/SidePanelContent";
 import QuerySidePanel from "components/side_panels/QuerySidePanel";
+import Spinner from "components/Spinner";
 import { QueryContext } from "context/query";
 import { NotificationContext } from "context/notification";
 import { IApiError } from "interfaces/errors";
@@ -46,6 +47,7 @@ const LabelPage = ({
     [key: string]: string;
   }>(DEFAULT_CREATE_LABEL_ERRORS);
   const [isUpdatingLabel, setIsUpdatingLabel] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
 
   const { selectedOsqueryTable, setSelectedOsqueryTable } = useContext(
     QueryContext
@@ -64,6 +66,7 @@ const LabelPage = ({
           (label) => label.id === parseInt(params.label_id, 10)
         );
         setSelectedLabel(selectLabel);
+        setIsLoading(false);
       }
     },
   });
@@ -180,18 +183,22 @@ const LabelPage = ({
     <>
       <MainContent className={baseClass}>
         <div className={`${baseClass}__wrapper`}>
-          <LabelForm
-            selectedLabel={selectedLabel}
-            onCancel={onCancelLabel}
-            isEdit={isEditLabel}
-            isUpdatingLabel={isUpdatingLabel}
-            handleSubmit={isEditLabel ? onEditLabel : onAddLabel}
-            onOpenSchemaSidebar={onOpenSchemaSidebar}
-            onOsqueryTableSelect={onOsqueryTableSelect}
-            baseError={labelsError?.message || ""}
-            backendValidators={labelValidator}
-            showOpenSchemaActionText={showOpenSchemaActionText}
-          />
+          {isLoading ? (
+            <Spinner />
+          ) : (
+            <LabelForm
+              selectedLabel={selectedLabel}
+              onCancel={onCancelLabel}
+              isEdit={isEditLabel}
+              isUpdatingLabel={isUpdatingLabel}
+              handleSubmit={isEditLabel ? onEditLabel : onAddLabel}
+              onOpenSchemaSidebar={onOpenSchemaSidebar}
+              onOsqueryTableSelect={onOsqueryTableSelect}
+              baseError={labelsError?.message || ""}
+              backendValidators={labelValidator}
+              showOpenSchemaActionText={showOpenSchemaActionText}
+            />
+          )}
         </div>
       </MainContent>
       {isSidePanelOpen && !isEditLabel && (
