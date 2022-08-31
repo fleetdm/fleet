@@ -19,7 +19,7 @@
   "devDependencies": {
     "eslint": "5.16.0",
     "grunt": "1.0.4",
-    "htmlhint": "0.11.0",
+    "htmlhint": "1.1.4",
     "lesshint": "6.3.6",
     "marked": "4.0.10",
     "sails-hook-grunt": "^4.0.0",
