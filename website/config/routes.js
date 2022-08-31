@@ -208,6 +208,14 @@ module.exports.routes = {
     },
   },
 
+  'GET /admin/email-preview': {
+    action: 'admin/view-email-templates'
+  },
+
+  'r|/admin/email-preview/((.+))$|': {
+    action: 'admin/view-email-preview',
+    skipAssets: true
+  },
 
   //  ╦  ╔═╗╔═╗╔═╗╔═╗╦ ╦  ╦═╗╔═╗╔╦╗╦╦═╗╔═╗╔═╗╔╦╗╔═╗
   //  ║  ║╣ ║ ╦╠═╣║  ╚╦╝  ╠╦╝║╣  ║║║╠╦╝║╣ ║   ║ ╚═╗

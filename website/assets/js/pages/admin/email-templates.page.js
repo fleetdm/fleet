@@ -1,4 +1,4 @@
-parasails.registerPage('email-preview', {
+parasails.registerPage('email-templates', {
   //  ╦╔╗╔╦╔╦╗╦╔═╗╦    ╔═╗╔╦╗╔═╗╔╦╗╔═╗
   //  ║║║║║ ║ ║╠═╣║    ╚═╗ ║ ╠═╣ ║ ║╣
   //  ╩╝╚╝╩ ╩ ╩╩ ╩╩═╝  ╚═╝ ╩ ╩ ╩ ╩ ╚═╝
@@ -11,7 +11,6 @@ parasails.registerPage('email-preview', {
   //  ╩═╝╩╚  ╚═╝╚═╝ ╩ ╚═╝╩═╝╚═╝
   beforeMount: function() {
     //…
-    _.extend(this, SAILS_LOCALS);
   },
   mounted: async function() {
     //…

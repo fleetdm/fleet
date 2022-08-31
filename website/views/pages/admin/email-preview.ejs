@@ -1,0 +1,64 @@
+<div id="email-preview" v-cloak>
+  <div class="container-lg mt-5 mb-5 flex-column d-flex align-items-center">
+    <h1>Previewing <code>{{template}}</code></h1>
+    <a class="btn btn-small btn-info py-2" href="/admin/email-preview">View all templates</a>
+    <hr/>
+    <h2>Preview specific form factors:</h2>
+    <div class="d-flex flex-row flex-wrap">
+      <a class="btn btn-small btn-primary text-white mx-2 my-2" @click="preview = 'responsive'">Responsive</a>
+      <a class="btn btn-small btn-primary text-white mx-2 my-2" @click="preview = 'mobile-portrait'">Mobile (portrait)</a>
+      <a class="btn btn-small btn-primary text-white mx-2 my-2" @click="preview = 'mobile-landscape'">Mobile (landscape)</a>
+      <a class="btn btn-small btn-primary text-white mx-2 my-2" @click="preview = 'tablet-portrait'">Tablet (portrait)</a>
+      <a class="btn btn-small btn-primary text-white mx-2 my-2" @click="preview = 'tablet-landscape'">Tablet (landscape)</a>
+      <a class="btn btn-small btn-primary text-white mx-2 my-2" @click="preview = 'desktop-ultra-widescreen'">Desktop (ultra-widescreen)</a>
+    </div>
+    <hr/>
+
+    <div class="simulate-320px-width pretend-inbox-wrapper-for-sample-email" v-if="preview === 'mobile-portrait'">
+      <h3>Mobile (320px width)</h3>
+      <iframe class="preview-iframe" frameborder="0" border="0" cellspacing="0" :src="'/admin/email-preview/'+template+'?raw=true'">
+        <%- sampleHtml %>
+      </iframe>
+    </div>
+
+    <div class="simulate-480px-width pretend-inbox-wrapper-for-sample-email" v-if="preview === 'mobile-landscape'">
+      <h3>Mobile (480px width)</h3>
+      <iframe class="preview-iframe" frameborder="0" border="0" cellspacing="0" :src="'/admin/email-preview/'+template+'?raw=true'">
+        <%- sampleHtml %>
+      </iframe>
+    </div>
+
+    <div class="simulate-768px-width pretend-inbox-wrapper-for-sample-email" v-if="preview === 'tablet-portrait'">
+      <h3>Tablet (768px width)</h3>
+      <iframe class="preview-iframe" frameborder="0" border="0" cellspacing="0" :src="'/admin/email-preview/'+template+'?raw=true'">
+        <%- sampleHtml %>
+      </iframe>
+    </div>
+
+    <div class="simulate-1024px-width pretend-inbox-wrapper-for-sample-email" v-if="preview === 'tablet-landscape'">
+      <h3>Tablet (1024px width)</h3>
+      <iframe class="preview-iframe" frameborder="0" border="0" cellspacing="0" :src="'/admin/email-preview/'+template+'?raw=true'">
+        <%- sampleHtml %>
+      </iframe>
+    </div>
+
+    <div class="simulate-1920px-width pretend-inbox-wrapper-for-sample-email" v-if="preview === 'desktop-ultra-widescreen'">
+      <h3>Desktop ultra-widescreen (1920px width)</h3>
+      <iframe class="preview-iframe" frameborder="0" border="0" cellspacing="0" :src="'/admin/email-preview/'+template+'?raw=true'">
+        <%- sampleHtml %>
+      </iframe>
+    </div>
+
+    <div class="w-100 px-5" v-if="preview === 'responsive'">
+      <h2>Responsive:</h2>
+      <div class="pretend-inbox-wrapper-for-sample-email w-100">
+        <h3>Resize the browser to check out all the widths in between</h3>
+        <iframe class="preview-iframe" frameborder="0" border="0" cellspacing="0" :src="'/admin/email-preview/'+template+'?raw=true'">
+          <%- sampleHtml %>
+        </iframe>
+      </div>
+    </div>
+  </div>
+</div>
+<%- /* Expose server-rendered data as window.SAILS_LOCALS :: */ exposeLocalsToBrowser() %>
+

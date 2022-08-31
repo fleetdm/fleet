@@ -6,6 +6,8 @@ module.exports = {
 
   description: 'Display "Email preview" page.',
 
+  urlWildcardSuffix: 'template',
+
   inputs: {
 
     template: {
@@ -26,7 +28,7 @@ module.exports = {
   exits: {
 
     success: {
-      viewTemplatePath: 'pages/test/email-preview'
+      viewTemplatePath: 'pages/admin/email-preview'
     },
 
     sendRawHtmlInstead: {
@@ -43,80 +45,48 @@ module.exports = {
     var path = require('path');
     var url = require('url');
     var util = require('util');
-    var moment = require('moment-timezone');
-
     // Determine appropriate email layout and fake data to use.
-    let layout = 'layout-email';
+    let layout;
     let fakeData;
     switch (template) {
       case 'internal/email-contact-form':
         layout = false;
         fakeData = {
-          contactFirstName: 'Sage',
-          contactLastName: 'Scorpion',
+          contactName: 'Sage',
           contactEmail: 'sage@example.com',
           topic: 'Pricing question',
-          message: 'What is the difference between the "Individual" plan and the "Professional" plan?',
+          message: 'What is the difference between the "Free" plan and the "Premium" plan?',
         };
         break;
       case 'email-reset-password':
+        layout = 'layout-email';
         fakeData = {
-          firstName: 'Sage',
           token: '4-32fad81jdaf$329',
         };
         break;
       case 'email-verify-account':
+        layout = 'layout-email';
         fakeData = {
-          firstName: 'Sage',
+          firstName: 'Fleet user',
           token: '4-32fad81jdaf$329',
         };
         break;
       case 'email-verify-new-email':
+        layout = 'layout-email';
         fakeData = {
-          firstName: 'Sage',
+          fullName: 'Fleet pal',
           token: '4-32fad81jdaf$329',
         };
         break;
-      case 'email-receipt':
+      case 'email-order-confirmation':
+        layout = 'layout-email';
         fakeData = {
-          billingCardBrand: 'MasterCard',
-          billingCardLast4: '1234',
-          actuallyChargedAt: 1590614058742,
-          tz: 'America/New_York',
-          lineItems: [
-            {
-              summary:'Yoga for beginners: healthy alignment',
-              amount: 12
-            },
-            {
-              summary:'Yoga for gurus: healthy levitation',
-              amount: 14
-            }
-          ],
-        };
-        break;
-      case 'email-reminder-upcoming-appointment':
-        fakeData = {
-          firstName: 'Sage', //patron attending the class
-          titleAtBooking: 'Yoga for beginners: healthy alignment',
-          startsAt: 1590622153990,
-          tz: 'America/Chicago',
-          token: 'faketoken123',
-          host: {
-            firstName: 'Jane',
-            lastName: 'Williamson',
-          },
-        };
-        break;
-      case 'email-share-offering':
-        fakeData = {
-          formattedDateOfUpcomingEvent: 'Tuesday, March 15th,', //sender's first name
-          formattedTimeOfUpcomingEvent: '12:30 PM PT / 3:30 PM EDT', //sender's last name
-          linkToEventSignup: 'example.com',
+          firstName: 'Fleet premium',
+          lastName: 'enjoyer',
         };
         break;
       default:
-        throw new Error(`Unrecognized email template: ${template}`);
+        layout = 'layout-newsletter-email';
     }
 
     // Compile HTML template using the appropriate layout.
@@ -132,7 +102,7 @@ module.exports = {
 
     let sampleHtml = await sails.renderView(
       emailTemplatePath,
-      Object.assign({layout, url, util, moment, _ }, fakeData)
+      Object.assign({layout, url, util, _ }, fakeData)
     )
     .intercept((err)=>{
       err.message = 'Whoops, that email template failed to render.  Could there be some fake data missing for this particular template in the `switch` statement api/controllers/admin/view-email-template-preview.js?  Any chance you need to re-lift the app after making backend changes?\nMore details: '+err.message;
