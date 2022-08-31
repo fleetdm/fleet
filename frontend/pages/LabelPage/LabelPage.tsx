@@ -99,7 +99,6 @@ const LabelPage = ({
           "success",
           "Label updated. Try refreshing this page in just a moment to see the updated host count for your label."
         );
-        setLabelValidator({});
       })
       .catch((updateError: { data: IApiError }) => {
         if (updateError.data.errors[0].reason.includes("Duplicate")) {
@@ -142,7 +141,6 @@ const LabelPage = ({
           "success",
           "Label created. Try refreshing this page in just a moment to see the updated host count for your label."
         );
-        setLabelValidator({});
       })
       .catch((updateError: any) => {
         if (updateError.data.errors[0].reason.includes("Duplicate")) {
