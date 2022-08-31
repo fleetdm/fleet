@@ -13,8 +13,8 @@ import (
 )
 
 const (
-	// Pre-2020 there are some weirdness around the way the superceeds field is defined for vulnerabilities, sometimes
-	// it does not actually references a KBID.
+	// Pre 2020 there are some weirdness around the way the 'Supersedes' field is defined for Vulnerabilities, sometimes
+	// it does not reference a KBID.
 	MSRCMinYear = 2020
 	mSRCBaseURL = `https://api.msrc.microsoft.com`
 )
