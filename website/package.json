@@ -23,7 +23,7 @@
     "lesshint": "6.3.6",
     "marked": "4.0.10",
     "sails-hook-grunt": "^4.0.0",
-    "yaml": "1.10.2"
+    "yaml": "2.1.1"
   },
   "scripts": {
     "custom-tests": "echo \"(No other custom tests yet.)\" && echo",
