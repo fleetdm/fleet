@@ -253,5 +253,5 @@ type TeamSpec struct {
 	Name         string           `json:"name"`
 	AgentOptions *json.RawMessage `json:"agent_options"`
 	Secrets      []EnrollSecret   `json:"secrets"`
-	Features     *Features        `json:"features"`
+	Features     *json.RawMessage `json:"features"`
 }

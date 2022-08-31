@@ -76,11 +76,11 @@ func (s *integrationEnterpriseTestSuite) TestTeamSpecs() {
 	// updates a team, no secret is provided so it will keep the one generated
 	// automatically when the team was created.
 	agentOpts := json.RawMessage(`{"config": {"foo": "bar"}, "overrides": {"platforms": {"darwin": {"foo": "override"}}}}`)
-	features := fleet.Features{
-		EnableHostUsers:         false,
-		EnableSoftwareInventory: false,
-		AdditionalQueries:       ptr.RawMessage(json.RawMessage(`{"foo": "bar"}`)),
-	}
+	features := json.RawMessage(`{
+    "enable_host_users": false,
+    "enable_software_inventory": false,
+    "additional_queries": {"foo": "bar"}
+  }`)
 	teamSpecs := applyTeamSpecsRequest{Specs: []*fleet.TeamSpec{{Name: teamName, AgentOptions: &agentOpts, Features: &features}}}
 	s.Do("POST", "/api/latest/fleet/spec/teams", teamSpecs, http.StatusOK)
 
@@ -89,7 +89,11 @@ func (s *integrationEnterpriseTestSuite) TestTeamSpecs() {
 
 	assert.Len(t, team.Secrets, 1)
 	require.JSONEq(t, string(agentOpts), string(*team.Config.AgentOptions))
-	require.Equal(t, features, team.Config.Features)
+	require.Equal(t, fleet.Features{
+		EnableHostUsers:         false,
+		EnableSoftwareInventory: false,
+		AdditionalQueries:       ptr.RawMessage(json.RawMessage(`{"foo": "bar"}`)),
+	}, team.Config.Features)
 
 	// an activity was created for team spec applied
 	var listActivities listActivitiesResponse
@@ -132,8 +136,12 @@ func (s *integrationEnterpriseTestSuite) TestTeamSpecs() {
 	require.NotNil(t, listActivities.Activities[0].Details)
 	assert.JSONEq(t, fmt.Sprintf(`{"teams": [{"id": %d, "name": %q}]}`, team.ID, team.Name), string(*listActivities.Activities[0].Details))
 
-	// updates secrets
-	teamSpecs = applyTeamSpecsRequest{Specs: []*fleet.TeamSpec{{Name: "team2", Secrets: []fleet.EnrollSecret{{Secret: "ABC"}}}}}
+	// updates
+	teamSpecs = applyTeamSpecsRequest{Specs: []*fleet.TeamSpec{{
+		Name:     "team2",
+		Secrets:  []fleet.EnrollSecret{{Secret: "ABC"}},
+		Features: nil,
+	}}}
 	s.Do("POST", "/api/latest/fleet/spec/teams", teamSpecs, http.StatusOK)
 
 	team, err = s.ds.TeamByName(context.Background(), "team2")
