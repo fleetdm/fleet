@@ -48,6 +48,18 @@ func NewDeviceClient(addr, token string, insecureSkipVerify bool, rootCA string)
 	}, nil
 }
 
+func (dc *DeviceClient) SetToken(token string) {
+	dc.token = token
+}
+
+func (dc *DeviceClient) DeviceURL() string {
+	return dc.baseClient.url("/device/"+dc.token, "").String()
+}
+
+func (dc *DeviceClient) TransparencyURL() string {
+	return dc.baseClient.url("/api/latest/fleet/device/"+dc.token+"/transparency", "").String()
+}
+
 // ListDevicePolicies fetches all policies for the device with the provided token
 func (dc *DeviceClient) ListDevicePolicies() ([]*fleet.HostPolicy, error) {
 	verb, path := "GET", "/api/latest/fleet/device/"+dc.token+"/policies"

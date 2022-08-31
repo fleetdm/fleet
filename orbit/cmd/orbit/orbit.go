@@ -6,10 +6,8 @@ import (
 	"fmt"
 	"io"
 	"io/fs"
-	"io/ioutil"
 	"net/url"
 	"os"
-	"path"
 	"path/filepath"
 	"runtime"
 	"strings"
@@ -18,6 +16,7 @@ import (
 	"github.com/fleetdm/fleet/v4/orbit/pkg/build"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/constant"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/execuser"
+	"github.com/fleetdm/fleet/v4/orbit/pkg/fstoken"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/insecure"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/osquery"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table"
@@ -26,7 +25,6 @@ import (
 	"github.com/fleetdm/fleet/v4/pkg/certificate"
 	"github.com/fleetdm/fleet/v4/pkg/file"
 	"github.com/fleetdm/fleet/v4/pkg/secure"
-	"github.com/google/uuid"
 	"github.com/oklog/run"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
@@ -199,7 +197,7 @@ func main() {
 				return errors.New("enroll-secret and enroll-secret-path may not be specified together")
 			}
 
-			b, err := ioutil.ReadFile(c.String("enroll-secret-path"))
+			b, err := os.ReadFile(c.String("enroll-secret-path"))
 			if err != nil {
 				return fmt.Errorf("read enroll secret file: %w", err)
 			}
@@ -213,7 +211,8 @@ func main() {
 			return fmt.Errorf("initialize root dir: %w", err)
 		}
 
-		deviceAuthToken, err := loadOrGenerateToken(c.String("root-dir"))
+		fileToken := fstoken.New(c.String("root-dir"))
+		deviceAuthToken, err := fileToken.Generate()
 		if err != nil {
 			return fmt.Errorf("load identifier file: %w", err)
 		}
@@ -398,7 +397,7 @@ func main() {
 			certPath := filepath.Join(os.TempDir(), "fleet.crt")
 
 			// Write cert that proxy uses
-			err = ioutil.WriteFile(certPath, []byte(insecure.ServerCert), os.ModePerm)
+			err = os.WriteFile(certPath, []byte(insecure.ServerCert), os.ModePerm)
 			if err != nil {
 				return fmt.Errorf("write server cert: %w", err)
 			}
@@ -497,7 +496,7 @@ func main() {
 		registerExtensionRunner(&g, r.ExtensionSocketPath(), deviceAuthToken)
 
 		if c.Bool("fleet-desktop") {
-			desktopRunner := newDesktopRunner(desktopPath, fleetURL, deviceAuthToken, c.String("fleet-certificate"), c.Bool("insecure"))
+			desktopRunner := newDesktopRunner(desktopPath, fleetURL, fileToken, c.String("fleet-certificate"), c.Bool("insecure"))
 			g.Add(desktopRunner.actor())
 		}
 
@@ -526,24 +525,24 @@ func registerExtensionRunner(g *run.Group, extSockPath, deviceAuthToken string) 
 }
 
 type desktopRunner struct {
-	desktopPath     string
-	fleetURL        string
-	deviceAuthToken string
-	fleetRootCA     string
-	insecure        bool
-	interruptCh     chan struct{} // closed when interrupt is triggered
-	executeDoneCh   chan struct{} // closed when execute returns
+	desktopPath   string
+	fleetURL      string
+	fileToken     *fstoken.Token
+	fleetRootCA   string
+	insecure      bool
+	interruptCh   chan struct{} // closed when interrupt is triggered
+	executeDoneCh chan struct{} // closed when execute returns
 }
 
-func newDesktopRunner(desktopPath, fleetURL, deviceAuthToken, fleetRootCA string, insecure bool) *desktopRunner {
+func newDesktopRunner(desktopPath, fleetURL string, fileToken *fstoken.Token, fleetRootCA string, insecure bool) *desktopRunner {
 	return &desktopRunner{
-		desktopPath:     desktopPath,
-		fleetURL:        fleetURL,
-		deviceAuthToken: deviceAuthToken,
-		fleetRootCA:     fleetRootCA,
-		insecure:        insecure,
-		interruptCh:     make(chan struct{}),
-		executeDoneCh:   make(chan struct{}),
+		desktopPath:   desktopPath,
+		fleetURL:      fleetURL,
+		fileToken:     fileToken,
+		fleetRootCA:   fleetRootCA,
+		insecure:      insecure,
+		interruptCh:   make(chan struct{}),
+		executeDoneCh: make(chan struct{}),
 	}
 }
 
@@ -568,9 +567,9 @@ func (d *desktopRunner) execute() error {
 	if err != nil {
 		return fmt.Errorf("invalid fleet-url: %w", err)
 	}
-	url.Path = path.Join(url.Path, "device", d.deviceAuthToken)
 	opts := []execuser.Option{
-		execuser.WithEnv("FLEET_DESKTOP_DEVICE_URL", url.String()),
+		execuser.WithEnv("FLEET_DESKTOP_FLEET_URL", url.String()),
+		execuser.WithEnv("FLEET_DESKTOP_DEVICE_IDENTIFIER_PATH", d.fileToken.Path),
 	}
 	if d.fleetRootCA != "" {
 		opts = append(opts, execuser.WithEnv("FLEET_DESKTOP_FLEET_ROOT_CA", d.fleetRootCA))
@@ -642,26 +641,6 @@ func (d *desktopRunner) interrupt(err error) {
 
 	if err := killProcessByName(constant.DesktopAppExecName); err != nil {
 		log.Error().Err(err).Msg("killProcess")
-	}
-}
-
-func loadOrGenerateToken(rootDir string) (string, error) {
-	filePath := filepath.Join(rootDir, "identifier")
-	id, err := ioutil.ReadFile(filePath)
-	switch {
-	case err == nil:
-		return string(id), nil
-	case errors.Is(err, os.ErrNotExist):
-		id, err := uuid.NewRandom()
-		if err != nil {
-			return "", fmt.Errorf("generate identifier: %w", err)
-		}
-		if err := ioutil.WriteFile(filePath, []byte(id.String()), constant.DefaultFileMode); err != nil {
-			return "", fmt.Errorf("write identifier file %q: %w", filePath, err)
-		}
-		return id.String(), nil
-	default:
-		return "", fmt.Errorf("load identifier file %q: %w", filePath, err)
 	}
 }
 

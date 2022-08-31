@@ -4,13 +4,12 @@ import (
 	_ "embed"
 	"errors"
 	"fmt"
-	"net/url"
 	"os"
-	"path"
 	"path/filepath"
 	"runtime"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/orbit/pkg/fstoken"
 	"github.com/fleetdm/fleet/v4/pkg/open"
 	"github.com/fleetdm/fleet/v4/server/service"
 	"github.com/getlantern/systray"
@@ -32,18 +31,39 @@ func main() {
 	}
 	log.Info().Msgf("fleet-desktop version=%s", version)
 
-	devURL := os.Getenv("FLEET_DESKTOP_DEVICE_URL")
-	if devURL == "" {
-		log.Fatal().Msg("missing URL environment FLEET_DESKTOP_DEVICE_URL")
+	identifierPath := os.Getenv("FLEET_DESKTOP_DEVICE_IDENTIFIER_PATH")
+	if identifierPath == "" {
+		log.Fatal().Msg("missing URL environment FLEET_DESKTOP_DEVICE_IDENTIFIER_PATH")
 	}
-	deviceURL, err := url.Parse(devURL)
+
+	fleetURL := os.Getenv("FLEET_DESKTOP_FLEET_URL")
+	if fleetURL == "" {
+		log.Fatal().Msg("missing URL environment FLEET_DESKTOP_FLEET_URL")
+	}
+
+	fileToken := fstoken.New(identifierPath)
+	deviceToken, err := fileToken.Get()
 	if err != nil {
 		log.Fatal().Err(err).Msg("invalid URL argument")
 	}
 
-	basePath := deviceURL.Scheme + "://" + deviceURL.Host
-	deviceToken := path.Base(deviceURL.Path)
-	transparencyURL := basePath + "/api/latest/fleet/device/" + deviceToken + "/transparency"
+	insecureSkipVerify := false
+	if os.Getenv("FLEET_DESKTOP_INSECURE") != "" {
+		insecureSkipVerify = true
+	}
+	rootCA := os.Getenv("FLEET_DESKTOP_FLEET_ROOT_CA")
+
+	client, err := service.NewDeviceClient(fleetURL, deviceToken, insecureSkipVerify, rootCA)
+	if err != nil {
+		log.Fatal().Err(err).Msg("unable to initialize request client")
+	}
+
+	refetchToken := func() {
+		if deviceToken, err = fileToken.Get(); err != nil {
+			log.Error().Err(err).Msg("refetch token")
+		}
+		client.SetToken(deviceToken)
+	}
 
 	onReady := func() {
 		log.Info().Msg("ready")
@@ -56,21 +76,10 @@ func main() {
 		versionItem.Disable()
 		systray.AddSeparator()
 
-		myDeviceItem := systray.AddMenuItem("Initializing...", "")
+		myDeviceItem := systray.AddMenuItem("Connecting...", "")
 		myDeviceItem.Disable()
 		transparencyItem := systray.AddMenuItem("Transparency", "")
 		transparencyItem.Disable()
-
-		var insecureSkipVerify bool
-		if os.Getenv("FLEET_DESKTOP_INSECURE") != "" {
-			insecureSkipVerify = true
-		}
-		rootCA := os.Getenv("FLEET_DESKTOP_FLEET_ROOT_CA")
-
-		client, err := service.NewDeviceClient(basePath, deviceToken, insecureSkipVerify, rootCA)
-		if err != nil {
-			log.Fatal().Err(err).Msg("unable to initialize request client")
-		}
 
 		// Perform API test call to enable the "My device" item as soon
 		// as the device auth token is registered by Fleet.
@@ -96,6 +105,7 @@ func main() {
 					// To ease troubleshooting we set the tooltip as the error.
 					myDeviceItem.SetTooltip(err.Error())
 					log.Error().Err(err).Msg("get device URL")
+					refetchToken()
 
 					<-ticker.C
 				}
@@ -118,6 +128,9 @@ func main() {
 					// OK
 				case errors.Is(err, service.ErrMissingLicense):
 					myDeviceItem.SetTitle("My device")
+					continue
+				case errors.Is(err, service.ErrUnauthenticated):
+					refetchToken()
 					continue
 				default:
 					// To ease troubleshooting we set the tooltip as the error.
@@ -146,11 +159,11 @@ func main() {
 			for {
 				select {
 				case <-myDeviceItem.ClickedCh:
-					if err := open.Browser(deviceURL.String()); err != nil {
+					if err := open.Browser(client.DeviceURL()); err != nil {
 						log.Error().Err(err).Msg("open browser my device")
 					}
 				case <-transparencyItem.ClickedCh:
-					if err := open.Browser(transparencyURL); err != nil {
+					if err := open.Browser(client.TransparencyURL()); err != nil {
 						log.Error().Err(err).Msg("open browser transparency")
 					}
 				}
