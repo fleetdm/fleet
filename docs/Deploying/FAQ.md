@@ -8,6 +8,7 @@
 - [When do I need to deploy a new enroll secret to my hosts?](#when-do-i-need-to-deploy-a-new-enroll-secret-to-my-hosts)
 - [How do I migrate hosts from one Fleet server to another (eg. testing to production)?](#how-do-i-migrate-hosts-from-one-fleet-server-to-another-eg-testing-to-production)
 - [What do I do about "too many open files" errors?](#what-do-i-do-about-too-many-open-files-errors)
+- [Can I skip versions when updating Fleet to the latest version?](#can-i-skip-versions-when-updating-to-the-latest-version)
 - [I upgraded my database, but Fleet is still running slowly. What could be going on?](#i-upgraded-my-database-but-fleet-is-still-running-slowly-what-could-be-going-on)
 - [Why am I receiving a database connection error when attempting to "prepare" the database?](#why-am-i-receiving-a-database-connection-error-when-attempting-to-prepare-the-database)
 - [Is Fleet available as a SaaS product?](#is-fleet-available-as-a-saas-product)
@@ -105,6 +106,26 @@ This error usually indicates that the Fleet server has run out of file descripto
 Some deployments may benefit by setting the [`--server_keepalive`](./Configuration.md#server-keepalive) flag to false.
 
 This was also seen as a symptom of a different issue: if you're deploying on AWS on T type instances, there are different scenarios where the activity can increase and the instances will burst. If they run out of credits, then they'll stop processing leaving the file descriptors open.
+
+## Can I skip versions when updating Fleet to the latest version?
+
+Absolutely! If you're updating from the current major release of Fleet (v4), you can install the [latest version](https://github.com/fleetdm/fleet/releases/latest) without upgrading to each minor version along the way. Just make sure to back up your database in case anything odd does pop up!
+
+If you're updating from an older version (we'll use Fleet v3 as an example), it's best to take some stops along the way:
+
+1. Back up your database. 
+2. Upgrade to the last release of of v3 - [3.13.0](https://github.com/fleetdm/fleet/releases/tag/3.13.0).
+3. Migrate the database.
+4. Test
+5. Check the release post for [v4.0.0 ](https://github.com/fleetdm/fleet/releases/tag/v4.0.0) to see the breaking changes and get Fleet ready for v4.
+6. Upgrade to v4.0.0.
+7. Migrate the database.
+8. Test
+9. Upgrade to the [current release](https://github.com/fleetdm/fleet/releases/latest).
+10. One last migration.
+11. Test again for good measure. 
+
+Taking it a bit slower on major releases gives you an opportunity to better track down where any issues may have been introduced. 
 
 ## I upgraded my database, but Fleet is still running slowly. What could be going on?
 
