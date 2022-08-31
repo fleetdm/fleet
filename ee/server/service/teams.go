@@ -399,19 +399,20 @@ func (svc Service) ApplyTeamSpecs(ctx context.Context, specs []*fleet.TeamSpec) 
 		}
 
 		team, err := svc.ds.TeamByName(ctx, spec.Name)
-		if err != nil {
-			if err := ctxerr.Cause(err); err == sql.ErrNoRows {
-				team, err := svc.createTeamFromSpec(ctx, spec, appConfig, secrets)
-				if err != nil {
-					return ctxerr.Wrap(ctx, err, "creating team from spec")
-				}
-				details = append(details, activityDetail{
-					ID:   team.ID,
-					Name: team.Name,
-				})
-				continue
+		switch {
+		case err == nil:
+			// OK
+		case ctxerr.Cause(err) == sql.ErrNoRows:
+			team, err := svc.createTeamFromSpec(ctx, spec, appConfig, secrets)
+			if err != nil {
+				return ctxerr.Wrap(ctx, err, "creating team from spec")
 			}
-
+			details = append(details, activityDetail{
+				ID:   team.ID,
+				Name: team.Name,
+			})
+			continue
+		default:
 			return err
 		}
 
@@ -441,16 +442,23 @@ func (svc Service) createTeamFromSpec(ctx context.Context, spec *fleet.TeamSpec,
 	if agentOptions == nil {
 		agentOptions = defaults.AgentOptions
 	}
-	features := spec.Features
-	if features == nil {
-		features = &defaults.Features
+
+	// if a team spec is not provided, use the global features, otherwise
+	// build a new config from the spec with default values applied.
+	var err error
+	features := defaults.Features
+	if spec.Features != nil {
+		features, err = unmarshalWithGlobalDefaults(spec.Features)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	return svc.ds.NewTeam(ctx, &fleet.Team{
 		Name: spec.Name,
 		Config: fleet.TeamConfig{
 			AgentOptions: agentOptions,
-			Features:     *features,
+			Features:     features,
 		},
 		Secrets: secrets,
 	})
@@ -459,9 +467,15 @@ func (svc Service) createTeamFromSpec(ctx context.Context, spec *fleet.TeamSpec,
 func (svc Service) editTeamFromSpec(ctx context.Context, team *fleet.Team, spec *fleet.TeamSpec, secrets []*fleet.EnrollSecret) error {
 	team.Name = spec.Name
 	team.Config.AgentOptions = spec.AgentOptions
-	if spec.Features != nil {
-		team.Config.Features = *spec.Features
+
+	// replace (don't merge) the features with the new ones, using a config
+	// that has the global defaults applied.
+	features, err := unmarshalWithGlobalDefaults(spec.Features)
+	if err != nil {
+		return err
 	}
+	team.Config.Features = features
+
 	if len(secrets) > 0 {
 		team.Secrets = secrets
 	}
@@ -477,4 +491,21 @@ func (svc Service) editTeamFromSpec(ctx context.Context, team *fleet.Team, spec 
 		}
 	}
 	return nil
+}
+
+// unmarshalWithGlobalDefaults unmarshals features from a team spec, and
+// assigns default values based on the global defaults for missing fields
+func unmarshalWithGlobalDefaults(b *json.RawMessage) (fleet.Features, error) {
+	// build a default config with default values applied
+	defaults := &fleet.Features{}
+	defaults.ApplyDefaultsForNewInstalls()
+
+	// unmarshal the features from the spec into the defaults
+	if b != nil {
+		if err := json.Unmarshal(*b, defaults); err != nil {
+			return fleet.Features{}, err
+		}
+	}
+
+	return *defaults, nil
 }
