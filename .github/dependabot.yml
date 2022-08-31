@@ -22,16 +22,16 @@ updates:
     schedule:
       interval: "daily"
     reviewers:
-      - "@fleetdm/go"
-      - "@fleetdm/infra"
+      - "fleetdm/go"
+      - "fleetdm/infra"
     pull-request-branch-name:
       # Default is "/" which makes "docker tag" fail with
       # "not a valid repository/tag: invalid reference format".
       separator: "-"
     # Add assignees
     assignees:
-      - "@fleetdm/go"
-      - "@fleetdm/infra"
+      - "fleetdm/go"
+      - "fleetdm/infra"
 
 # Maintain dependencies for website NPM
   - package-ecosystem: "npm"
@@ -41,11 +41,13 @@ updates:
     schedule:
       interval: "daily"
     reviewers:
-      - "@eashaw"
+      - "eashaw"
     pull-request-branch-name:
       # Default is "/" which makes "docker tag" fail with
       # "not a valid repository/tag: invalid reference format".
       separator: "-"
+    assignees:
+      - "eashaw"
 
 # Maintain dependencies for Go
   - package-ecosystem: "gomod"
