@@ -85,6 +85,52 @@ Once a relevant sponsorship opportunity and its prospectus are reviewed:
  
 7. Once you complete the above steps, use the [Speaking events issue template](https://github.com/fleetdm/confidential/issues/new?assignees=mike-j-thomas&labels=&template=6-speaking-event.md&title=Speaking+event) to prepare speakers and participants for the event.
 
+## Newsletter emails
+
+The content for our newsletter emails comes from our articles. Because our HTML emails require that the styles are added inline, we generate HTML emails by using a script and manually QA them before sending them out to subscribers.
+
+### Generating emails for the Fleet newsletter
+
+To convert a Markdown article into an email for the newsletter, you'll need the following:
+
+- A local copy of the [Fleet repo](https://github.com/fleetdm/fleet).
+- [Node.js](https://nodejs.org/en/download/)
+- (Optional) [Sails.js](https://sailsjs.com) installed globally on your machine (`npm install sails -g`)
+
+Once you have the above follow these steps:
+
+1. Open your terminal program, and navigate to the `website/` folder of the [Fleet repo](https://github.com/fleetdm/fleet).
+
+>Note: If this is your first time running this script, you will need to run `npm install` inside of the `website/` folder to install the website's dependencies.
+
+2. Run the `build-html-email` script and pass in the filename of the Markdown article you would like to convert with the `--articleFilename` flag.
+	
+	- **With Node**, you will need to use `node ./node_modules/sails/bin/sails run build-html-email` to execute the script. e.g., `node ./node_modules/sails/bin/sails run build-html-email --articleFilename="fleet-4.19.0.md"`
+	- **With Sails.js installed globally** you can use `sails run build-html-email` to execute the script. e.g., `sails run build-html-email --articleFilename="fleet-4.19.0.md"`
+
+> Note: Only Markdown (`.md`) files are supported by the build-html-email script. The file extension is optional when providing the articleFilename.
+
+4. Once the script is complete, a new email partial will be added to the `website/views/emails/newsletter-partials/` folder.
+
+> Note: If an email partial has already been created from the specified Markdown article, the old version will be overwritten by the new file.
+
+5. Start the website server locally to preview the generated email. To test the changes locally, open a terminal window in the `website/` folder of the Fleet repo and run the following command:
+	
+	- **With Node.js:** start the server by running `node ./node_modules/sails/bin/sails lift`.
+	- **With Sails.js installed globally:** start the server by running `sails lift`.
+
+6. With the server lifted, navigate to http://localhost:2024/admin/email-preview and login with the test admin user credentials (email:`admin@example.com` pw: `abc123`). 
+
+	Click on the generated email in the list of emails generated from Markdown content and navigate to the preview page. On this page, you can view the see how the email will look on a variety of screen sizes.
+
+	When you've made sure the content of the email looks good at all screen sizes, commit the new email partial to a new branch and open a pull request to add the file. You can request a review from a member of the digital experience team.
+
+**Things to keep in mind when generating newsletter emails:**
+
+- The emails will be generated using the Markdown file locally, any changes present to the local Markdown file will be reflected in the generated email.
+- HTML elements in the Markdown file can cause rendering issues when previewing the generated email. If you see a "Script error" overlay while trying to preview an email, reach out to the [Digital Experience] team for help.
+- The filename of the generated email will have the article category added and any periods will be changed to dashes. e.g., The generated email partial for `fleet-4.19.0.md` would be `releases--fleet-4-19-0.ejs`
+
 ## Rituals
 
 The following table lists the Growth group's rituals, frequency, and Directly Responsible Individual (DRI).
