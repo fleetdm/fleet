@@ -10,7 +10,7 @@ import {
   generateMunkiIssuesTableData,
 } from "./MunkiIssuesTableConfig";
 
-const baseClass = "host-details";
+const baseClass = "munki-issues";
 
 interface IMunkiIssuesTableProps {
   isLoading: boolean;
@@ -31,7 +31,7 @@ const MunkiIssuesTable = ({
 
   const EmptyMunkiIssues = () => {
     return (
-      <div className="section section--munki-issues">
+      <div className={`section section--${baseClass}`}>
         <p className="section__header">Munki issues</p>
         <EmptyState title="munki-issues" reason="none-detected" />
       </div>
@@ -39,7 +39,7 @@ const MunkiIssuesTable = ({
   };
 
   return (
-    <div className="section section--munki-issues">
+    <div className={`section section--${baseClass}`}>
       <p className="section__header">Munki issues</p>
 
       {munkiIssues?.length ? (
