@@ -72,15 +72,14 @@ metadata:
     app.kubernetes.io/part-of: kubequery
     app.kubernetes.io/version: latest
 data:
-  enroll.secret: Y3nHXcZUBcFJc/7e6V6k1z7RG22rrAnQ
+  enroll.secret: TODO
   kubequery.flags: |
     # Server
     --tls_hostname=host.docker.internal:8080
-    --tls_server_certs=/opt/uptycs/config/fleet.pem
+    --tls_server_certs=/opt/uptycs/etc/fleet.pem
     # Enrollment
-    --host_identifier=instance
-    --enroll_secret_path=/opt/uptycs/config/enroll.secret
-    --enroll_tls_endpoint=/api/osquery/enroll
+    --enroll_secret_path=/opt/uptycs/etc/enroll.secret
+    --enroll_tls_endpoint=/api/v1/osquery/enroll
     # Configuration
     --config_plugin=tls
     --config_tls_endpoint=/api/v1/osquery/config
@@ -102,7 +101,6 @@ data:
     --carver_continue_endpoint=/api/v1/osquery/carve/block
     --carver_block_size=2000000
   kubequery.conf: |
-    {}
   fleet.pem: |
     -----BEGIN CERTIFICATE-----
     MIIE5jCCAs6gAwIBAgIJAKq0+FAVArUhMA0GCSqGSIb3DQEBCwUAMBUxEzARBgNV
@@ -133,7 +131,6 @@ data:
     xXzAlCq8dHdP2Y9uvfFxVFyE+uSfkcPxX+DG/ZnpgCS27oKA/qLCybJamlqtveNs
     RSjNe5qwGi0ifA==
     -----END CERTIFICATE-----
-
 
 ---
 apiVersion: apps/v1
