@@ -1,7 +1,8 @@
 import React from "react";
 import ReactTooltip from "react-tooltip";
 
-import { formatDistanceToNow } from "date-fns";
+import formatDistanceToNowStrict from "date-fns/formatDistanceToNowStrict";
+import { abbreviateTimeUnits } from "utilities/helpers";
 
 import PATHS from "router/paths";
 import HeaderCell from "components/TableContainer/DataTable/HeaderCell/HeaderCell";
@@ -73,15 +74,19 @@ export const generateMunkiIssuesTableHeaders = (
   const tableHeaders: IDataColumn[] = [
     {
       title: "Issue",
-      Header: (cellProps) => (
-        <HeaderCell
-          value={cellProps.column.title}
-          isSortedDesc={cellProps.column.isSortedDesc}
-        />
-      ),
+      Header: (): JSX.Element => {
+        const titleWithToolTip = (
+          <TooltipWrapper
+            tipContent={`
+            Issues reported the last time Munki ran on each host.
+          `}
+          >
+            Issue
+          </TooltipWrapper>
+        );
+        return <HeaderCell value={titleWithToolTip} />;
+      },
       accessor: "name",
-      disableSortBy: false,
-      disableGlobalFilter: false,
       Cell: (cellProps: IStringCellProps) => {
         return <TextCell value={cellProps.cell.value} />;
       },
@@ -89,37 +94,44 @@ export const generateMunkiIssuesTableHeaders = (
     },
     {
       title: "Type",
-      Header: (cellProps) => (
-        <HeaderCell
-          value={cellProps.column.title}
-          isSortedDesc={cellProps.column.isSortedDesc}
-        />
-      ),
+      Header: "Type",
       disableSortBy: true,
-      disableGlobalFilter: true,
       accessor: "type",
       Cell: (cellProps: IStringCellProps) => (
-        <TextCell value={cellProps.cell.value} />
+        <TextCell
+          value={
+            cellProps.cell.value.charAt(0).toUpperCase() +
+            cellProps.cell.value.slice(1)
+          }
+        />
       ),
     },
     {
       title: "Time",
-      Header: "Time",
+      Header: (headerProps: IHeaderProps): JSX.Element => {
+        const titleWithToolTip = (
+          <TooltipWrapper
+            tipContent={`
+            The first time Munki reported this issue.
+          `}
+          >
+            Time
+          </TooltipWrapper>
+        );
+        return <HeaderCell value={titleWithToolTip} />;
+      },
       accessor: "time",
-      disableSortBy: false,
-      disableGlobalFilter: false,
-      Filter: () => null, // input for this column filter outside of column header
-      filter: "hasLength", // filters out rows where vulnerabilities has no length if filter value is `true`
       Cell: (cellProps: IStringCellProps) => {
-        return <TextCell value={cellProps.cell.value} />;
+        const time = abbreviateTimeUnits(
+          formatDistanceToNowStrict(new Date(cellProps.cell.value), {
+            addSuffix: true,
+          })
+        );
+
+        return <TextCell value={time} />;
       },
     },
   ];
-
-  // Device user cannot view all hosts software
-  if (deviceUser) {
-    tableHeaders.pop();
-  }
 
   return tableHeaders;
 };

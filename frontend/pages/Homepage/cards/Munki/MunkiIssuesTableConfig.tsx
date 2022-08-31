@@ -46,7 +46,7 @@ interface IDataColumn {
 const munkiIssuesTableHeaders = [
   {
     title: "Issue",
-    Header: (headerProps: IHeaderProps): JSX.Element => {
+    Header: (): JSX.Element => {
       const titleWithToolTip = (
         <TooltipWrapper
           tipContent={`

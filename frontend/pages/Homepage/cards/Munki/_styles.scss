@@ -29,11 +29,8 @@
       table-layout: fixed;
 
       thead {
-        .name__header {
-          width: 40%;
-        }
         .type__header {
-          width: 9%;
+          width: $col-sm;
         }
         .version__header {
           width: 30%;
