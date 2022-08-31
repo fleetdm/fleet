@@ -13,13 +13,13 @@ import (
 )
 
 const (
-	minFeedYear = 2020
+	MSRCMinYear = 2020
 	MSRCBaseURL = `https://api.msrc.microsoft.com`
 )
 
 // MSRCAPI allows users to interact with MSRC resources
 type MSRCAPI interface {
-	GetFeed(time.Month, uint) (string, error)
+	GetFeed(time.Month, int) (string, error)
 }
 
 type MSRCClient struct {
@@ -57,7 +57,7 @@ func (msrc MSRCClient) getURL(date time.Time) (*url.URL, error) {
 // path of the downloaded file.
 func (msrc MSRCClient) GetFeed(month time.Month, year int) (string, error) {
 	d := time.Date(year, month, 1, 0, 0, 0, 0, time.UTC)
-	minD := time.Date(minFeedYear, time.January, 1, 0, 0, 0, 0, time.UTC)
+	minD := time.Date(MSRCMinYear, time.January, 1, 0, 0, 0, 0, time.UTC)
 
 	if d.Before(minD) {
 		return "", fmt.Errorf("min allowed date is %s", minD)

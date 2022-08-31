@@ -1,7 +1,9 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
+	"io/ioutil"
 	"net/http"
 	"os"
 	"time"
@@ -28,34 +30,19 @@ func main() {
 	ghAPI := io.NewGithubClient(httpC, github.NewClient(httpC).Repositories, wd)
 	msrcAPI := io.NewMSRCClient(httpC, wd, nil)
 
-	fmt.Println("Downloading current feed...")
-	f, err := msrcAPI.GetFeed(now.Month(), now.Year())
-	panicif(err)
-
-	fmt.Println("Parsing current feed...")
-	nBulletins, err := msrc.ParseFeed(f)
-	panicif(err)
-
 	fmt.Println("Downloading existing bulletins...")
 	eBulletins, err := ghAPI.Bulletins()
 	panicif(err)
 
-	fmt.Println("Mergin bulletins...")
 	var bulletins []*parsed.SecurityBulletin
-	for _, url := range eBulletins {
-		fPath, err := ghAPI.Download(url)
+	if len(eBulletins) == 0 {
+		fmt.Println("None found, backfilling...")
+		bulletins, err = backfill(now.Month(), now.Year(), msrcAPI)
 		panicif(err)
-
-		bulletin, err := parsed.UnmarshalBulletin(fPath)
+	} else {
+		fmt.Println("Updating existing bulletins")
+		bulletins, err = update(now.Month(), now.Year(), eBulletins, msrcAPI, ghAPI)
 		panicif(err)
-
-		nB, ok := nBulletins[bulletin.ProductName]
-		if ok {
-			err = nB.Merge(bulletin)
-			panicif(err)
-		}
-
-		bulletins = append(bulletins, bulletin)
 	}
 
 	fmt.Println("Saving bulletins...")
@@ -65,11 +52,97 @@ func main() {
 	}
 
 	// TODO: Generate checksums
-
-	fmt.Println("Parsed .")
 	fmt.Println("Done.")
 }
 
-func serialize(b *parsed.SecurityBulletin, date time.Time, wd string) error {
-	panic("not implemented")
+func update(
+	m time.Month,
+	y int,
+	eBulletins map[io.SecurityBulletinName]string,
+	msrcClient io.MSRCAPI,
+	ghClient io.GithubAPI,
+) ([]*parsed.SecurityBulletin, error) {
+	var bulletins []*parsed.SecurityBulletin
+
+	fmt.Println("Downloading current feed...")
+	f, err := msrcClient.GetFeed(m, y)
+	if err != nil {
+		return nil, err
+	}
+
+	fmt.Println("Parsing current feed...")
+	nBulletins, err := msrc.ParseFeed(f)
+	if err != nil {
+		return nil, err
+	}
+
+	for _, url := range eBulletins {
+		fPath, err := ghClient.Download(url)
+		if err != nil {
+			return nil, err
+		}
+
+		bulletin, err := parsed.UnmarshalBulletin(fPath)
+		if err != nil {
+			return nil, err
+		}
+
+		nB, ok := nBulletins[bulletin.ProductName]
+		if ok {
+			if err = nB.Merge(bulletin); err != nil {
+				return nil, err
+			}
+		}
+
+		bulletins = append(bulletins, bulletin)
+	}
+
+	return bulletins, nil
+}
+
+func backfill(upToM time.Month, upToY int, client io.MSRCAPI) ([]*parsed.SecurityBulletin, error) {
+	from := time.Date(io.MSRCMinYear, 1, 1, 0, 0, 0, 0, time.UTC)
+	upTo := time.Date(upToY, upToM+1, 1, 0, 0, 0, 0, time.UTC)
+
+	bulletins := make(map[string]*parsed.SecurityBulletin)
+	for d := from; d.Before(upTo); d = d.AddDate(0, 1, 0) {
+
+		fmt.Printf("Downloading feed for %d-%d...\n", d.Year(), d.Month())
+		f, err := client.GetFeed(d.Month(), d.Year())
+		if err != nil {
+			return nil, err
+		}
+
+		fmt.Printf("Parsing feed for %d-%d...\n", d.Year(), d.Month())
+		r, err := msrc.ParseFeed(f)
+		if err != nil {
+			return nil, err
+		}
+
+		for name, nB := range r {
+			if eB, ok := bulletins[name]; !ok {
+				bulletins[name] = nB
+			} else {
+				if err = eB.Merge(nB); err != nil {
+					return nil, err
+				}
+			}
+		}
+	}
+
+	var r []*parsed.SecurityBulletin
+	for _, b := range bulletins {
+		r = append(r, b)
+	}
+
+	return r, nil
+}
+
+func serialize(b *parsed.SecurityBulletin, d time.Time, wd string) error {
+	payload, err := json.Marshal(b)
+	if err != nil {
+		return err
+	}
+	filePath := io.FileName(b.ProductName, d, "json")
+	return ioutil.WriteFile(filePath, payload, 0o644)
 }

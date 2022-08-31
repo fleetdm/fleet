@@ -2,6 +2,7 @@ package io
 
 import (
 	"errors"
+	"fmt"
 	"strings"
 	"time"
 )
@@ -29,6 +30,11 @@ func (sbn SecurityBulletinName) date() (time.Time, error) {
 	}
 	timeRaw := strings.TrimSuffix(parts[1], "."+fileExt)
 	return time.Parse(dateLayout, timeRaw)
+}
+
+func FileName(productName string, date time.Time, ext string) string {
+	pName := strings.Replace(productName, " ", "_", -1)
+	return fmt.Sprintf("%s%s-%d_%02d_%02d.%s", MSRCFilePrefix, pName, date.Year(), date.Month(), date.Day(), ext)
 }
 
 func (sbn SecurityBulletinName) Before(other SecurityBulletinName) bool {

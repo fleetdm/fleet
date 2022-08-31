@@ -22,7 +22,7 @@ func TestMSRCClient(t *testing.T) {
 			now := time.Now()
 
 			t.Run("year is below min allowed", func(t *testing.T) {
-				_, err := sut.GetFeed(time.January, minFeedYear-1)
+				_, err := sut.GetFeed(time.January, MSRCMinYear-1)
 				require.Error(t, err)
 			})
 
