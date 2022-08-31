@@ -431,10 +431,8 @@ type MunkiIssue struct {
 }
 
 type AggregatedMunkiIssue struct {
-	ID         uint   `json:"id" db:"id"`
-	Name       string `json:"name" db:"name"`
-	IssueType  string `json:"type" db:"issue_type"`
-	HostsCount int    `json:"hosts_count" db:"hosts_count"`
+	MunkiIssue
+	HostsCount int `json:"hosts_count" db:"hosts_count"`
 }
 
 type AggregatedMDMStatus struct {
@@ -453,10 +451,8 @@ type MDMSolution struct {
 }
 
 type AggregatedMDMSolutions struct {
-	ID         uint   `json:"id,omitempty" db:"id"`
-	Name       string `json:"name,omitempty" db:"name"`
-	HostsCount int    `json:"hosts_count" db:"hosts_count"`
-	ServerURL  string `json:"server_url" db:"server_url"`
+	MDMSolution
+	HostsCount int `json:"hosts_count" db:"hosts_count"`
 }
 
 type AggregatedMacadminsData struct {

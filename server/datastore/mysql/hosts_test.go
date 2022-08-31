@@ -4079,18 +4079,24 @@ func testAggregatedHostMDMAndMunki(t *testing.T, ds *Datastore) {
 	issues[2].ID = 0
 	assert.ElementsMatch(t, issues, []fleet.AggregatedMunkiIssue{
 		{
-			Name:       "a",
-			IssueType:  "error",
+			MunkiIssue: fleet.MunkiIssue{
+				Name:      "a",
+				IssueType: "error",
+			},
 			HostsCount: 2,
 		},
 		{
-			Name:       "b",
-			IssueType:  "error",
+			MunkiIssue: fleet.MunkiIssue{
+				Name:      "b",
+				IssueType: "error",
+			},
 			HostsCount: 1,
 		},
 		{
-			Name:       "c",
-			IssueType:  "warning",
+			MunkiIssue: fleet.MunkiIssue{
+				Name:      "c",
+				IssueType: "warning",
+			},
 			HostsCount: 2,
 		},
 	})
@@ -4182,13 +4188,17 @@ func testAggregatedHostMDMAndMunki(t *testing.T, ds *Datastore) {
 	issues[1].ID = 0
 	assert.ElementsMatch(t, issues, []fleet.AggregatedMunkiIssue{
 		{
-			Name:       "d",
-			IssueType:  "error",
+			MunkiIssue: fleet.MunkiIssue{
+				Name:      "d",
+				IssueType: "error",
+			},
 			HostsCount: 2,
 		},
 		{
-			Name:       "f",
-			IssueType:  "warning",
+			MunkiIssue: fleet.MunkiIssue{
+				Name:      "f",
+				IssueType: "warning",
+			},
 			HostsCount: 1,
 		},
 	})

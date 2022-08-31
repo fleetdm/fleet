@@ -137,11 +137,31 @@ func listHostsEndpoint(ctx context.Context, request interface{}, svc fleet.Servi
 }
 
 func (svc *Service) GetMDMSolution(ctx context.Context, mdmID uint) (*fleet.MDMSolution, error) {
-	panic("unimplemented")
+	// require list hosts permission to view this information
+	if err := svc.authz.Authorize(ctx, &fleet.Host{}, fleet.ActionList); err != nil {
+		return nil, err
+	}
+	sol, err := svc.ds.GetMDMSolution(ctx, mdmID)
+	if err != nil && fleet.IsNotFound(err) {
+		// ignore not found, just return nil (we don't want the caller - e.g. List
+		// Hosts - to return 404 because of that)
+		return nil, nil
+	}
+	return sol, err
 }
 
 func (svc *Service) GetMunkiIssue(ctx context.Context, munkiIssueID uint) (*fleet.MunkiIssue, error) {
-	panic("unimplemented")
+	// require list hosts permission to view this information
+	if err := svc.authz.Authorize(ctx, &fleet.Host{}, fleet.ActionList); err != nil {
+		return nil, err
+	}
+	iss, err := svc.ds.GetMunkiIssue(ctx, munkiIssueID)
+	if err != nil && fleet.IsNotFound(err) {
+		// ignore not found, just return nil (we don't want the caller - e.g. List
+		// Hosts - to return 404 because of that)
+		return nil, nil
+	}
+	return iss, err
 }
 
 func (svc *Service) ListHosts(ctx context.Context, opt fleet.HostListOptions) ([]*fleet.Host, error) {
