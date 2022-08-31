@@ -7,6 +7,7 @@ import { abbreviateTimeUnits } from "utilities/helpers";
 import PATHS from "router/paths";
 import HeaderCell from "components/TableContainer/DataTable/HeaderCell/HeaderCell";
 import TextCell from "components/TableContainer/DataTable/TextCell";
+import TruncatedTextCell from "components/TableContainer/DataTable/TruncatedTextCell";
 import TooltipWrapper from "components/TooltipWrapper";
 import { IMunkiIssue } from "interfaces/host";
 
@@ -72,7 +73,7 @@ export const generateMunkiIssuesTableHeaders = (): IDataColumn[] => {
   const tableHeaders: IDataColumn[] = [
     {
       title: "Issue",
-      Header: (): JSX.Element => {
+      Header: (headerProps: IHeaderProps): JSX.Element => {
         const titleWithToolTip = (
           <TooltipWrapper
             tipContent={`
@@ -82,12 +83,18 @@ export const generateMunkiIssuesTableHeaders = (): IDataColumn[] => {
             Issue
           </TooltipWrapper>
         );
-        return <HeaderCell value={titleWithToolTip} />;
+        return (
+          <HeaderCell
+            value={titleWithToolTip}
+            isSortedDesc={headerProps.column.isSortedDesc}
+          />
+        );
       },
+      disableSortBy: false,
       accessor: "name",
-      Cell: (cellProps: IStringCellProps) => {
-        return <TextCell value={cellProps.cell.value} />;
-      },
+      Cell: (cellProps: IStringCellProps) => (
+        <TruncatedTextCell value={cellProps.cell.value} />
+      ),
       sortType: "caseInsensitive",
     },
     {
@@ -116,8 +123,14 @@ export const generateMunkiIssuesTableHeaders = (): IDataColumn[] => {
             Time
           </TooltipWrapper>
         );
-        return <HeaderCell value={titleWithToolTip} />;
+        return (
+          <HeaderCell
+            value={titleWithToolTip}
+            isSortedDesc={headerProps.column.isSortedDesc}
+          />
+        );
       },
+      disableSortBy: false,
       accessor: "time",
       Cell: (cellProps: IStringCellProps) => {
         const time = abbreviateTimeUnits(
