@@ -97,8 +97,8 @@ Examples:
 aws eks update-kubeconfig --region us-east-2 --name sandbox-prod
 # List pods (We currently use the default namespace)
 kubectl get pods # Search in there which one it is. There will be 2 instances + a migrations one
-# Obtain Logs. You can also use `--previous` to obtain logs from a previous pod crash if desired.
-kubectl logs <id for the pod here>
+# Obtain Logs from all pods for the release. You can also use `--previous` to obtain logs from a previous pod crash if desired.
+kubectl logs -l release=<instance id>
 ```
 We do not use eksctl since we use terraform managed resources.
 
