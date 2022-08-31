@@ -15,24 +15,19 @@ const baseClass = "host-details";
 interface IMunkiIssuesTableProps {
   isLoading: boolean;
   munkiIssues?: IMunkiIssue[];
-  deviceUser?: boolean;
   deviceType?: string;
 }
 
 const MunkiIssuesTable = ({
   isLoading,
   munkiIssues,
-  deviceUser,
   deviceType,
 }: IMunkiIssuesTableProps): JSX.Element => {
   const tableMunkiIssues = useMemo(
     () => generateMunkiIssuesTableData(munkiIssues),
     [munkiIssues]
   );
-  const tableHeaders = useMemo(
-    () => generateMunkiIssuesTableHeaders(deviceUser),
-    [deviceUser]
-  );
+  const tableHeaders = generateMunkiIssuesTableHeaders();
 
   const EmptyMunkiIssues = () => {
     return (

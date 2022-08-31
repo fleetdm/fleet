@@ -68,9 +68,7 @@ export const generateMunkiIssuesTableData = (
 
 // NOTE: cellProps come from react-table
 // more info here https://react-table.tanstack.com/docs/api/useTable#cell-properties
-export const generateMunkiIssuesTableHeaders = (
-  deviceUser = false
-): IDataColumn[] => {
+export const generateMunkiIssuesTableHeaders = (): IDataColumn[] => {
   const tableHeaders: IDataColumn[] = [
     {
       title: "Issue",

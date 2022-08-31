@@ -61,7 +61,7 @@ const EmptyState = ({ title, reason }: IEmptyStateProps): JSX.Element => {
         <div className={`${baseClass} empty-${title}`}>
           <div className={`${baseClass}__inner`}>
             <div className={`${baseClass}__disabled`}>
-              <h1>No {formalTitle()} detected.</h1>
+              <h1>No {formalTitle()} detected</h1>
               <p>
                 {title === "munki-issues" &&
                   "The last time Munki ran on this host, no issues were reported."}
