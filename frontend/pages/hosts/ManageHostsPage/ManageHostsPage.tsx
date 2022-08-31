@@ -38,7 +38,10 @@ import { IApiError } from "interfaces/errors";
 import { IHost } from "interfaces/host";
 import { ILabel, ILabelFormData } from "interfaces/label";
 import { IMDMSolution } from "interfaces/macadmins";
-import { IOperatingSystemVersion } from "interfaces/operating_system";
+import {
+  formatOperatingSystemDisplayName,
+  IOperatingSystemVersion,
+} from "interfaces/operating_system";
 import { IPolicy } from "interfaces/policy";
 import { ISoftware } from "interfaces/software";
 import { ITeam } from "interfaces/team";
@@ -1197,12 +1200,12 @@ const ManageHostsPage = ({
             data-tip-disable={!name_only || !version || !name}
           >
             <div className={`${baseClass}__software-filter-name-card tooltip`}>
-              {buttonText}
+              {formatOperatingSystemDisplayName(buttonText)}
               <Button
                 className={`${baseClass}__clear-policies-filter`}
                 onClick={handleClearOSFilter}
                 variant={"small-text-icon"}
-                title={buttonText}
+                title={formatOperatingSystemDisplayName(buttonText)}
               >
                 <img src={CloseIcon} alt="Remove os filter" />
               </Button>
@@ -1216,7 +1219,10 @@ const ManageHostsPage = ({
             data-html
           >
             <span className={`tooltip__tooltip-text`}>
-              {`Hosts with ${name_only || name}`},<br />
+              {`Hosts with ${formatOperatingSystemDisplayName(
+                name_only || name
+              )}`}
+              ,<br />
               {version && `${version} installed`}
             </span>
           </ReactTooltip>
