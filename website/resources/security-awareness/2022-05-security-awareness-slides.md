@@ -29,7 +29,7 @@ paginate: true
 * This is done upon hire and annually. 
 * It focuses on the tools we use.
 * It also applies to securing your personal devices and accounts.
-* This takes less than 15 minutes.
+* This takes about 15 minutes.
 
 More info is available in our [handbook](https://fleetdm.com/handbook/security#security-awareness-training).
 
@@ -51,6 +51,16 @@ More info is available in our [handbook](https://fleetdm.com/handbook/security#s
 
 [Enrollment
 instructions](https://docs.google.com/document/d/1vRrI9x5ch_Yuw2ihq3JDkNcxP32KhDt5RXasQ9A5Bmk/edit) (Private)
+
+## Strong unique passwords and 2FA
+
+Why?
+
+* Sites leak your passwords (HaveIbeenPwned.com)
+* Attackers find value in many things
+* Phishing will always work
+
+![bg contain right:33%](assets/instagram_hack.png)
 
 ## Authentication and passwords
 
@@ -76,19 +86,19 @@ From best to worst:
 
 ## 2FA
 
-1. Enable it on your Google and GitHub accounts.
-2. Make sure Yubikeys are on thei way.
+1. Enable it on your Google, Slack and GitHub accounts.
+2. Make sure your Yubikeys are on their way.
 3. When you receive them, add them to your accounts and let *#g-security* know.
 
 ## Password manager
 
-* Install the password manager from the "Managed Software Center." 
+* Install 1Password from the "Managed Software Center." 
 * Generate random passwords for everything that does not support SSO.
 * Avoid sharing passwords when it can be avoided. If it can't, share with the password manager.
 
 ## Phishing
 
-Phishing can look real. 
+Good phishing looks real. 
 
 * Take this quiz: https://phishingquiz.withgoogle.com/.
 * Use Gmail directly (mobile app or web).
@@ -97,6 +107,14 @@ Phishing can look real.
 Ask around!
 
 ![bg contain right:33%](assets/gmail_warnings.png)
+
+## Alternate phishing methods
+
+* Calendar 
+* Documents 
+* LinkedIn 
+
+![bg left 100%](assets/phishing_docs.png)
 
 ## Report phishing
 
@@ -133,7 +151,7 @@ Install apps from the following sources:
 
 Apps are only automatically allowed if they do not access confidential data.
 
-If you need an app hooked up, let's discuss it in *#g-security*!
+If you need an app hooked up, ask in *#g-security*!
 
 ## Browser extensions
 
@@ -182,4 +200,7 @@ We can't all know everything going on individually, so leverage the power of the
 
 #g-security
 
-## Certificate of completion
+## 
+
+![bg contain](assets/completion.png)
+
