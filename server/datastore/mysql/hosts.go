@@ -1710,10 +1710,9 @@ func (ds *Datastore) GetMDMSolution(ctx context.Context, mdmID uint) (*fleet.MDM
       id,
       name,
       server_url
-	  FROM
+    FROM
       mobile_device_management_solutions
-    WHERE id = ?
-`, mdmID)
+    WHERE id = ?`, mdmID)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return nil, ctxerr.Wrap(ctx, notFound("MDMSolution").WithID(mdmID))
@@ -1752,10 +1751,9 @@ func (ds *Datastore) GetMunkiIssue(ctx context.Context, munkiIssueID uint) (*fle
       id,
       name,
       issue_type
-	  FROM
+    FROM
       munki_issues
-    WHERE id = ?
-`, munkiIssueID)
+    WHERE id = ?`, munkiIssueID)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return nil, ctxerr.Wrap(ctx, notFound("MunkiIssue").WithID(munkiIssueID))
