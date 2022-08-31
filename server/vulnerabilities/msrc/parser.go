@@ -1,31 +1,15 @@
 package msrc
 
 import (
-	"encoding/json"
 	"encoding/xml"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"os"
 	"strconv"
 
 	"github.com/fleetdm/fleet/v4/server/vulnerabilities/msrc/parsed"
 	msrcxml "github.com/fleetdm/fleet/v4/server/vulnerabilities/msrc/xml"
 )
-
-func UnmarshalBulletin(fPath string) (*parsed.SecurityBulletin, error) {
-	payload, err := ioutil.ReadFile(fPath)
-	if err != nil {
-		return nil, err
-	}
-
-	bulletin := parsed.SecurityBulletin{}
-	err = json.Unmarshal(payload, &bulletin)
-	if err != nil {
-		return nil, err
-	}
-	return &bulletin, nil
-}
 
 func ParseFeed(fPath string) (map[string]*parsed.SecurityBulletin, error) {
 	r, err := os.Open(fPath)

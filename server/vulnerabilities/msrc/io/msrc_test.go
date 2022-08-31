@@ -1,7 +1,6 @@
 package io
 
 import (
-	"fmt"
 	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
@@ -43,7 +42,6 @@ func TestMSRCClient(t *testing.T) {
 			dir := t.TempDir()
 
 			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-				fmt.Println(r.URL.Path)
 				if r.URL.Path == "/cvrf/v2.0/document/2021-Oct" {
 					w.WriteHeader(http.StatusOK)
 					w.Write([]byte("some payload"))

@@ -46,7 +46,7 @@ func main() {
 		fPath, err := ghAPI.Download(url)
 		panicif(err)
 
-		bulletin, err := msrc.UnmarshalBulletin(fPath)
+		bulletin, err := parsed.UnmarshalBulletin(fPath)
 		panicif(err)
 
 		nB, ok := nBulletins[bulletin.ProductName]
@@ -62,19 +62,14 @@ func main() {
 	for _, b := range bulletins {
 		err := serialize(b, now, wd)
 		panicif(err)
-
-		err = compress(b)
-		panicif(err)
 	}
+
+	// TODO: Generate checksums
 
 	fmt.Println("Parsed .")
 	fmt.Println("Done.")
 }
 
 func serialize(b *parsed.SecurityBulletin, date time.Time, wd string) error {
-	panic("not implemented")
-}
-
-func compress(b *parsed.SecurityBulletin) error {
 	panic("not implemented")
 }

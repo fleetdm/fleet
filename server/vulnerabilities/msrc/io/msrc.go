@@ -17,6 +17,7 @@ const (
 	MSRCBaseURL = `https://api.msrc.microsoft.com`
 )
 
+// MSRCAPI allows users to interact with MSRC resources
 type MSRCAPI interface {
 	GetFeed(time.Month, uint) (string, error)
 }
@@ -62,7 +63,7 @@ func (msrc MSRCClient) GetFeed(month time.Month, year int) (string, error) {
 		return "", fmt.Errorf("min allowed date is %s", minD)
 	}
 
-	if d.After(time.Now()) {
+	if d.After(time.Now().UTC()) {
 		return "", errors.New("date can't be in the future")
 	}
 

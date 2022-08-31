@@ -1,7 +1,9 @@
 package parsed
 
 import (
+	"encoding/json"
 	"errors"
+	"io/ioutil"
 
 	"github.com/fleetdm/fleet/v4/server/ptr"
 )
@@ -27,6 +29,20 @@ func NewSecurityBulletin(pName string) *SecurityBulletin {
 		Vulnerabities: make(map[string]Vulnerability),
 		VendorFixes:   make(map[int]VendorFix),
 	}
+}
+
+func UnmarshalBulletin(fPath string) (*SecurityBulletin, error) {
+	payload, err := ioutil.ReadFile(fPath)
+	if err != nil {
+		return nil, err
+	}
+
+	bulletin := SecurityBulletin{}
+	err = json.Unmarshal(payload, &bulletin)
+	if err != nil {
+		return nil, err
+	}
+	return &bulletin, nil
 }
 
 // Merge merges in-place the contents of 'other' into the current bulletin.

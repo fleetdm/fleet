@@ -14,6 +14,7 @@ import (
 	"github.com/google/go-github/v37/github"
 )
 
+// ReleaseLister interface around github.NewClient(...).Repositories.
 type ReleaseLister interface {
 	ListReleases(
 		context.Context,
@@ -23,6 +24,7 @@ type ReleaseLister interface {
 	) ([]*github.RepositoryRelease, *github.Response, error)
 }
 
+// GithubAPI allows users to interact with the MSRC artifacts published on Github.
 type GithubAPI interface {
 	Download(string) (string, error)
 	Bulletins() (map[SecurityBulletinName]string, error)
@@ -34,11 +36,13 @@ type GithubClient struct {
 	workDir    string
 }
 
-func NewGithubClient(client *http.Client, releases ReleaseLister, dir string) GithubClient {
+// NewGithubClient returns a new GithubClient, 'workDir' will be used as the destination directory for
+// downloading artifacts.
+func NewGithubClient(client *http.Client, releases ReleaseLister, workDir string) GithubClient {
 	return GithubClient{
 		httpClient: client,
 		releases:   releases,
-		workDir:    dir,
+		workDir:    workDir,
 	}
 }
 
@@ -51,7 +55,7 @@ func (gh GithubClient) Download(URL string) (string, error) {
 	}
 
 	fPath := filepath.Join(gh.workDir, path.Base(u.Path))
-	if err := download.DownloadAndExtract(gh.httpClient, u, fPath); err != nil {
+	if err := download.Download(gh.httpClient, u, fPath); err != nil {
 		return "", err
 	}
 
