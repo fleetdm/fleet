@@ -131,7 +131,6 @@ export default {
     const visibleColumns = options?.visibleColumns;
     const label = getLabelParam(selectedLabels);
     const munkiIssueId = options?.munkiIssueId;
-    const { osId, osName, osVersion } = options;
 
     if (!sortBy.length) {
       throw Error("sortBy is a required field.");
