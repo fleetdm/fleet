@@ -235,13 +235,13 @@ func (r *regexpCache) Get(pattern string) (*regexp.Regexp, error) {
 type CPETranslations []CPETranslationItem
 
 func (c CPETranslations) Translate(reCache *regexpCache, s *fleet.Software) (CPETranslation, bool, error) {
-	for _, entry := range c {
-		match, err := entry.Software.Matches(reCache, s)
+	for _, item := range c {
+		match, err := item.Software.Matches(reCache, s)
 		if err != nil {
 			return CPETranslation{}, false, err
 		}
 		if match {
-			return entry.Filter, true, nil
+			return item.Filter, true, nil
 		}
 	}
 

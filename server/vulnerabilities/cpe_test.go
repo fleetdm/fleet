@@ -68,19 +68,6 @@ func TestCPETranslations(t *testing.T) {
 	db, err := sqliteDB(dbPath)
 	require.NoError(t, err)
 
-	translations := CPETranslations{
-		{
-			Software: CPETranslationSoftware{ // (name = X OR Y) AND (source = apps)
-				Name:   []string{"X", "Y"},
-				Source: []string{"apps"},
-			},
-			Filter: CPETranslation{
-				Product: []string{"product-1"},
-				Vendor:  []string{"vendor"},
-			},
-		},
-	}
-
 	tt := []struct {
 		Name         string
 		Translations CPETranslations
@@ -156,7 +143,7 @@ func TestCPETranslations(t *testing.T) {
 
 	for _, tc := range tt {
 		t.Run(tc.Name, func(t *testing.T) {
-			cpe, err := CPEFromSoftware(db, tc.Software, translations, reCache)
+			cpe, err := CPEFromSoftware(db, tc.Software, tc.Translations, reCache)
 			require.NoError(t, err)
 			require.Equal(t, tc.Expected, cpe)
 		})
